@@ -69,3 +69,15 @@ This repo uses **[release-it](https://github.com/release-it/release-it)** so you
 Configuration is in [`.release-it.json`](../.release-it.json): **npm publish** and **GitHub release from release-it** are both **off** so the tag push only triggers CI to attach binaries. To also publish to npm, set `"npm": { "publish": true }` (and configure auth) in `.release-it.json`.
 
 `src/cli.ts` still hardcodes `program.version('0.1.0')`; bump that when you care about `toby --version` matching the package, or add a release-it plugin such as `@release-it/bumper` later.
+
+### One-liner install (end users)
+
+From the repo root, [`install-toby.sh`](../install-toby.sh) downloads the **latest matching release asset** (`toby-darwin-*` / `toby-linux-*`) into **`~/.local/bin/toby`** (override with `TOBY_INSTALL_DIR`). It does not use `sudo`. If that directory is not on `PATH`, the script prints how to add it for zsh, bash, or fish.
+
+Example after the script is published on your default branch:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kshehadeh/toby/main/install-toby.sh | bash
+```
+
+Forks or mirrors can set `TOBY_REPO=owner/repo` or run the script from a git clone so `origin` is detected.
