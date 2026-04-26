@@ -3,17 +3,23 @@ import type { Command } from "commander";
 import type { CredentialsFile } from "../../config/index";
 import { readConfig, writeConfig } from "../../config/index";
 import type {
+	ChatRunOptions,
 	CredentialFieldDescriptor,
 	IntegrationModule,
 	IntegrationToolHealth,
 	SummarizeRunOptions,
 	SummarizeRunResult,
 } from "../types";
+import { runTodoistChatTurn } from "./chat-turn";
 import {
 	fetchCompletedTasks,
 	fetchOpenTasks,
 	testTodoistConnection,
 } from "./client";
+import {
+	buildTodoistChatSystemMessage,
+	buildTodoistChatUserMessage,
+} from "./prompts/chat";
 import {
 	buildTodoistSummarySystemMessage,
 	buildTodoistSummaryUserMessage,
@@ -142,14 +148,80 @@ async function summarize(
 	return { status: "ok", messages };
 }
 
+async function chat(options: ChatRunOptions): Promise<void> {
+	const persona = options.personaForModel;
+	const dryRun = options.dryRun;
+
+	console.log(chalk.cyan(`Todoist chat (persona "${persona.name}")...`));
+	console.log(chalk.dim(`  AI: ${persona.ai.provider}/${persona.ai.model}`));
+	if (persona.instructions) {
+		console.log(chalk.dim(`  Instructions: ${persona.instructions}`));
+	}
+	if (dryRun) {
+		console.log(chalk.yellow("  (dry run - changes will not be applied)"));
+	}
+	console.log(chalk.dim(`  Goal: ${options.prompt}`));
+	console.log();
+
+	const openTasks = await fetchOpenTasks(options.maxResults);
+	const completedTasks = await fetchCompletedTasks(options.maxResults);
+
+	if (openTasks.length === 0 && completedTasks.length === 0) {
+		console.log(chalk.green("No Todoist tasks found."));
+		return;
+	}
+
+	console.log(
+		chalk.dim(
+			`Loaded ${openTasks.length} open task(s), ${completedTasks.length} completed in the last 30 days.\n`,
+		),
+	);
+
+	const messages = [
+		buildTodoistChatSystemMessage(persona, options.prompt),
+		buildTodoistChatUserMessage(openTasks, completedTasks),
+	];
+
+	const result = await runTodoistChatTurn({
+		messages,
+		persona,
+		dryRun,
+		maxResults: options.maxResults,
+	});
+
+	for (const line of result.appliedActions) {
+		console.log(chalk.green(`+ ${line}`));
+	}
+
+	for (const tc of result.toolCalls) {
+		console.log(
+			chalk.blue(
+				`-> ${tc.name}(${Object.entries(tc.args)
+					.map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+					.join(", ")})`,
+			),
+		);
+	}
+
+	if (result.text?.trim()) {
+		console.log();
+		console.log(chalk.bold("Result"));
+		console.log(result.text.trim());
+	}
+
+	console.log();
+	console.log(chalk.green("Done."));
+}
+
 export const todoistIntegrationModule: IntegrationModule = {
 	...todoistLifecycle,
-	capabilities: ["summarize"],
+	capabilities: ["summarize", "chat"],
 	resources: ["tasks", "projects"],
 	getCredentialDescriptors,
 	seedCredentialValues,
 	mergeCredentialsPatch,
 	summarize,
+	chat,
 	registerCommands(_program: Command) {
 		// Todoist-specific CLI subcommands can be registered here later.
 	},
@@ -199,9 +271,16 @@ async function validateTodoistTools(): Promise<IntegrationToolHealth[]> {
 			: "Tool is not available in the Todoist toolset.",
 	});
 	checks.push({
-		tool: "updateTaskData",
-		ok: availableTools.has("updateTaskData"),
-		details: availableTools.has("updateTaskData")
+		tool: "updateTask",
+		ok: availableTools.has("updateTask"),
+		details: availableTools.has("updateTask")
+			? "Write endpoint assumed available with the same API key (not executed)."
+			: "Tool is not available in the Todoist toolset.",
+	});
+	checks.push({
+		tool: "createTask",
+		ok: availableTools.has("createTask"),
+		details: availableTools.has("createTask")
 			? "Write endpoint assumed available with the same API key (not executed)."
 			: "Tool is not available in the Todoist toolset.",
 	});

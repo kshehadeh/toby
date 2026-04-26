@@ -6,6 +6,7 @@ import {
 	writeConfig,
 } from "../../config/index";
 import type {
+	ChatRunOptions,
 	CredentialFieldDescriptor,
 	IntegrationModule,
 	IntegrationToolHealth,
@@ -13,11 +14,17 @@ import type {
 	SummarizeRunResult,
 } from "../types";
 import { runOAuthFlow } from "./auth";
+import { runGmailChatTurn } from "./chat-turn";
 import {
 	fetchUnreadInbox,
 	getGmailGrantedScopes,
+	listInboxUnreadPage,
 	testGmailConnection,
 } from "./client";
+import {
+	buildGmailChatSystemMessage,
+	buildGmailChatUserMessage,
+} from "./prompts/chat";
 import {
 	buildGmailSummarySystemMessage,
 	buildGmailSummaryUserMessage,
@@ -129,6 +136,16 @@ function mergeCredentialsPatch(
 	};
 }
 
+const CHAT_MUTATING_GMAIL_TOOLS = new Set([
+	"createAndApplyLabel",
+	"applyMultipleLabels",
+	"markAsRead",
+	"archiveEmail",
+	"archiveEmailById",
+	"markAsReadById",
+	"applyMultipleLabelsByMessageId",
+]);
+
 async function summarize(
 	options: SummarizeRunOptions,
 ): Promise<SummarizeRunResult> {
@@ -143,14 +160,99 @@ async function summarize(
 	return { status: "ok", messages };
 }
 
+async function chat(options: ChatRunOptions): Promise<void> {
+	const maxResults = options.maxResults;
+	const dryRun = options.dryRun;
+	const persona = options.personaForModel;
+
+	console.log(chalk.cyan(`Gmail chat (persona "${persona.name}")...`));
+	console.log(chalk.dim(`  AI: ${persona.ai.provider}/${persona.ai.model}`));
+	if (persona.instructions) {
+		console.log(chalk.dim(`  Instructions: ${persona.instructions}`));
+	}
+	if (dryRun) {
+		console.log(chalk.yellow("  (dry run - changes will not be applied)"));
+	}
+	console.log(chalk.dim(`  Goal: ${options.prompt}`));
+	console.log(
+		chalk.dim(
+			maxResults === undefined
+				? "  Inbox overview tools: up to 500 ids per Gmail page (use nextPageToken for more)."
+				: `  List sample cap (for overview tools): up to ${Math.min(maxResults, 500)} ids per list page`,
+		),
+	);
+	console.log();
+
+	const peek = await listInboxUnreadPage(1);
+	if (peek.pageSize === 0) {
+		console.log(chalk.dim("Inbox has no unread messages (quick check)."));
+		console.log(
+			chalk.dim(
+				"The assistant can still run if your question is about labels or other topics.\n",
+			),
+		);
+	}
+
+	const messages = [
+		buildGmailChatSystemMessage(persona, options.prompt),
+		buildGmailChatUserMessage(options.prompt),
+	];
+
+	console.log(chalk.cyan("Running assistant…\n"));
+
+	const result = await runGmailChatTurn({
+		messages,
+		persona,
+		dryRun,
+		maxResults,
+	});
+
+	for (const action of result.appliedActions) {
+		console.log(chalk.green(`+ ${action}`));
+	}
+
+	const mutatingToolCalls = result.toolCalls.filter((tc) =>
+		CHAT_MUTATING_GMAIL_TOOLS.has(tc.name),
+	);
+	const confirmedMutation = result.appliedActions.length > 0;
+
+	if (!confirmedMutation && mutatingToolCalls.length > 0) {
+		console.log(
+			chalk.yellow(
+				"! Mutating tools were invoked but no successful modification was recorded (check errors above).",
+			),
+		);
+	}
+
+	for (const tc of result.toolCalls) {
+		console.log(chalk.blue(`-> ${tc.name}(${formatChatArgs(tc.args)})`));
+	}
+
+	if (result.text?.trim()) {
+		console.log();
+		console.log(chalk.bold("Assistant"));
+		console.log(result.text.trim());
+	}
+
+	console.log();
+	console.log(chalk.green("Done."));
+}
+
+function formatChatArgs(args: Record<string, unknown>): string {
+	return Object.entries(args)
+		.map(([key, value]) => `${key}=${JSON.stringify(value)}`)
+		.join(", ");
+}
+
 export const gmailIntegrationModule: IntegrationModule = {
 	...gmailLifecycle,
-	capabilities: ["summarize", "organize"],
+	capabilities: ["summarize", "organize", "chat"],
 	resources: ["inbox", "labels", "messages"],
 	getCredentialDescriptors,
 	seedCredentialValues,
 	mergeCredentialsPatch,
 	summarize,
+	chat,
 };
 
 async function validateGmailTools(): Promise<IntegrationToolHealth[]> {
@@ -166,6 +268,21 @@ async function validateGmailTools(): Promise<IntegrationToolHealth[]> {
 	} catch (error) {
 		checks.push({
 			tool: "getRecentEmails",
+			ok: false,
+			details: toErrorMessage(error),
+		});
+	}
+
+	try {
+		await listInboxUnreadPage(1);
+		checks.push({
+			tool: "getInboxUnreadOverview",
+			ok: true,
+			details: "Listed inbox unread page successfully.",
+		});
+	} catch (error) {
+		checks.push({
+			tool: "getInboxUnreadOverview",
 			ok: false,
 			details: toErrorMessage(error),
 		});

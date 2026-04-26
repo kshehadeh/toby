@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import type { Command } from "commander";
+import { withAskUserTool } from "../ai/ask-user-tool";
 import type { CoreMessage } from "../ai/chat";
 import { chatWithTools, createModelForPersona } from "../ai/chat";
 import type { Persona } from "../config/index";
@@ -39,6 +40,9 @@ const MUTATING_GMAIL_TOOLS = new Set([
 	"applyMultipleLabels",
 	"markAsRead",
 	"archiveEmail",
+	"archiveEmailById",
+	"markAsReadById",
+	"applyMultipleLabelsByMessageId",
 ]);
 
 export function registerOrganizeCommand(program: Command): void {
@@ -140,7 +144,7 @@ async function organizeGmail(
 		dryRun,
 		appliedActions: [],
 	};
-	const tools = createGmailTools(ctx);
+	const tools = withAskUserTool(createGmailTools(ctx));
 
 	for (let i = 0; i < messages.length; i++) {
 		const email = messages[i];

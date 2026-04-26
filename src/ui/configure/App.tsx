@@ -1,5 +1,6 @@
 import { Box, Text, render, useApp, useInput } from "ink";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, type ReactNode } from "react";
+import { ACCENT, CHAT_TITLE_ASCII, INPUT_BORDER } from "../chat/constants";
 import type { SettingsItem } from "./items";
 
 interface NavigatorProps {
@@ -11,6 +12,43 @@ interface NavigatorProps {
 	onBack: () => void;
 	onSelectItem: (item: SettingsItem) => void;
 	onQuit: () => void;
+}
+
+function ConfigureFrame({
+	title,
+	children,
+	footer,
+}: {
+	readonly title: string;
+	readonly children: ReactNode;
+	readonly footer?: ReactNode;
+}) {
+	return (
+		<Box flexDirection="column" padding={1}>
+			<Box flexDirection="column" marginBottom={1}>
+				{CHAT_TITLE_ASCII.map((line) => (
+					<Text key={line} color={ACCENT} bold wrap="truncate-end">
+						{line}
+					</Text>
+				))}
+				<Text color={ACCENT} bold>
+					{title}
+				</Text>
+			</Box>
+			<Box
+				borderStyle="single"
+				borderColor={INPUT_BORDER}
+				flexDirection="column"
+			>
+				{children}
+			</Box>
+			{footer ? (
+				<Box marginTop={1} paddingX={1}>
+					{footer}
+				</Box>
+			) : null}
+		</Box>
+	);
 }
 
 function Navigator({
@@ -47,10 +85,16 @@ function Navigator({
 	});
 
 	return (
-		<Box flexDirection="column" padding={1}>
-			<Box marginBottom={1}>
-				<Text bold color="cyan">
-					{"  "}
+		<ConfigureFrame
+			title="Configuration"
+			footer={
+				<Text dimColor>
+					↑↓ navigate · Enter select · b back · q save and close
+				</Text>
+			}
+		>
+			<Box marginBottom={1} paddingX={1}>
+				<Text bold color={ACCENT}>
 					{breadcrumb.join(" > ")}
 				</Text>
 			</Box>
@@ -61,7 +105,7 @@ function Navigator({
 				else if (item.kind === "action") icon = "+";
 				else if (item.kind === "delete") icon = "✕";
 				return (
-					<Box key={item.key} marginLeft={2}>
+					<Box key={item.key} paddingX={1}>
 						<Text
 							backgroundColor={selected ? "gray" : undefined}
 							color={
@@ -75,7 +119,6 @@ function Navigator({
 							}
 							bold={selected}
 						>
-							{" "}
 							{icon} {item.label}{" "}
 						</Text>
 						{item.kind === "value" && item.currentValue !== undefined ? (
@@ -93,14 +136,10 @@ function Navigator({
 					</Box>
 				);
 			})}
-			<Box marginTop={1} marginLeft={2} flexDirection="column">
-				{statusMessage ? <Text color="yellow"> {statusMessage}</Text> : null}
-				<Text dimColor>
-					{" "}
-					↑↓ navigate {"  "} ↵ select {"  "} b back {"  "} q quit
-				</Text>
+			<Box marginTop={1} paddingX={1} flexDirection="column">
+				{statusMessage ? <Text color="yellow">{statusMessage}</Text> : null}
 			</Box>
-		</Box>
+		</ConfigureFrame>
 	);
 }
 
@@ -132,16 +171,17 @@ function Editor({ item, onSubmit, onCancel }: EditorProps) {
 	});
 
 	return (
-		<Box flexDirection="column" padding={1}>
-			<Box marginBottom={1}>
-				<Text bold color="cyan">
-					{"  "}
+		<ConfigureFrame
+			title="Configuration"
+			footer={<Text dimColor>Type value · Enter save · Esc cancel</Text>}
+		>
+			<Box marginBottom={1} paddingX={1}>
+				<Text bold color={ACCENT}>
 					Edit: {item.label}
 				</Text>
 			</Box>
-			<Box marginLeft={2}>
+			<Box paddingX={1}>
 				<Text>
-					{" "}
 					{item.label}:{" "}
 					<Text color="yellow">
 						{item.masked ? "•".repeat(value.length) : value}
@@ -149,13 +189,7 @@ function Editor({ item, onSubmit, onCancel }: EditorProps) {
 					<Text dimColor>_</Text>
 				</Text>
 			</Box>
-			<Box marginTop={1} marginLeft={2}>
-				<Text dimColor>
-					{" "}
-					type value {"  "} ↵ save {"  "} esc cancel
-				</Text>
-			</Box>
-		</Box>
+		</ConfigureFrame>
 	);
 }
 
@@ -232,14 +266,20 @@ function MultilineEditor({ item, onSubmit, onCancel }: MultilineEditorProps) {
 	});
 
 	return (
-		<Box flexDirection="column" padding={1}>
-			<Box marginBottom={1}>
-				<Text bold color="cyan">
-					{"  "}
+		<ConfigureFrame
+			title="Configuration"
+			footer={
+				<Text dimColor>
+					Enter new line · ↑↓ navigate lines · Ctrl+S save · Esc cancel
+				</Text>
+			}
+		>
+			<Box marginBottom={1} paddingX={1}>
+				<Text bold color={ACCENT}>
 					Edit: {item.label}
 				</Text>
 			</Box>
-			<Box marginLeft={2} flexDirection="column">
+			<Box paddingX={1} flexDirection="column">
 				{visibleLines.map((line, i) => {
 					const actualLineIndex = cursorLine - visibleLines.length + i + 1;
 					const isCurrentLine = actualLineIndex === cursorLine;
@@ -254,14 +294,7 @@ function MultilineEditor({ item, onSubmit, onCancel }: MultilineEditorProps) {
 					);
 				})}
 			</Box>
-			<Box marginTop={1} marginLeft={2}>
-				<Text dimColor>
-					{" "}
-					enter new line {"  "} ↑↓ navigate lines {"  "} ctrl+s save {"  "} esc
-					cancel
-				</Text>
-			</Box>
-		</Box>
+		</ConfigureFrame>
 	);
 }
 
@@ -298,15 +331,17 @@ function Selector({ item, onSubmit, onCancel }: SelectorProps) {
 	});
 
 	return (
-		<Box flexDirection="column" padding={1}>
-			<Box marginBottom={1}>
-				<Text bold color="cyan">
-					{"  "}
+		<ConfigureFrame
+			title="Configuration"
+			footer={<Text dimColor>↑↓ choose · Enter select · Esc cancel</Text>}
+		>
+			<Box marginBottom={1} paddingX={1}>
+				<Text bold color={ACCENT}>
 					Select: {item.label}
 				</Text>
 			</Box>
 			{options.map((opt, i) => (
-				<Box key={opt} marginLeft={2}>
+				<Box key={opt} paddingX={1}>
 					<Text
 						backgroundColor={i === sel ? "gray" : undefined}
 						color={i === sel ? "white" : "green"}
@@ -317,13 +352,7 @@ function Selector({ item, onSubmit, onCancel }: SelectorProps) {
 					</Text>
 				</Box>
 			))}
-			<Box marginTop={1} marginLeft={2}>
-				<Text dimColor>
-					{" "}
-					↑↓ choose {"  "} ↵ select {"  "} esc cancel
-				</Text>
-			</Box>
-		</Box>
+		</ConfigureFrame>
 	);
 }
 
@@ -345,17 +374,16 @@ function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
 	});
 
 	return (
-		<Box flexDirection="column" padding={1}>
-			<Box marginBottom={1}>
+		<ConfigureFrame
+			title="Configuration"
+			footer={<Text dimColor>y/Enter confirm · n/Esc cancel</Text>}
+		>
+			<Box marginBottom={1} paddingX={1}>
 				<Text bold color="yellow">
-					{"  "}
 					{message}
 				</Text>
 			</Box>
-			<Box marginLeft={2}>
-				<Text dimColor> y confirm {"  "} n/esc cancel </Text>
-			</Box>
-		</Box>
+		</ConfigureFrame>
 	);
 }
 
@@ -372,6 +400,7 @@ interface AppProps {
 	onSave: (values: Record<string, string>) => void;
 	refreshTree: (values: Record<string, string>) => SettingsItem;
 	callbacks: AppCallbacks;
+	onQuitRequested?: (values: Record<string, string>) => void;
 }
 
 function resolvePath(
@@ -396,12 +425,13 @@ function resolvePath(
 	return { node, resolvedPath };
 }
 
-function App({
+export function ConfigureApp({
 	root,
 	credentialValues,
 	onSave,
 	refreshTree,
 	callbacks,
+	onQuitRequested,
 }: AppProps) {
 	const { exit } = useApp();
 	const [tree, setTree] = useState(root);
@@ -444,9 +474,13 @@ function App({
 	);
 
 	const handleQuit = useCallback(() => {
+		if (onQuitRequested) {
+			onQuitRequested(values);
+			return;
+		}
 		onSave(values);
 		exit();
-	}, [values, onSave, exit]);
+	}, [values, onSave, exit, onQuitRequested]);
 
 	const handleBack = useCallback(() => {
 		if (path.length > 1) {
@@ -668,7 +702,7 @@ export function runConfigureUI(
 	},
 ): void {
 	render(
-		<App
+		<ConfigureApp
 			root={root}
 			credentialValues={credentialValues}
 			onSave={onSave}

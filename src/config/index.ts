@@ -2,16 +2,34 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const TOBY_DIR = path.join(os.homedir(), ".toby");
-const CONFIG_PATH = path.join(TOBY_DIR, "config.json");
-const CREDENTIALS_PATH = path.join(TOBY_DIR, "credentials.json");
+function resolveTobyDir(): string {
+	const override = process.env.TOBY_DIR?.trim();
+	if (override) {
+		return override;
+	}
+	return path.join(os.homedir(), ".toby");
+}
+
+export function ensureTobyDir(): void {
+	const dir = resolveTobyDir();
+	if (!fs.existsSync(dir)) {
+		fs.mkdirSync(dir, { recursive: true });
+	}
+}
+
+export function getChatDbPath(): string {
+	return path.join(resolveTobyDir(), "chat.sqlite");
+}
+
+const CONFIG_PATH = path.join(resolveTobyDir(), "config.json");
+const CREDENTIALS_PATH = path.join(resolveTobyDir(), "credentials.json");
 
 interface AIProvider {
 	provider: string;
 	model: string;
 }
 
-export type PersonaPromptMode = "add" | "replace";
+type PersonaPromptMode = "add" | "replace";
 
 export interface Persona {
 	name: string;
@@ -44,14 +62,8 @@ export interface CredentialsFile {
 	ai?: AICredentials;
 }
 
-function ensureDir(): void {
-	if (!fs.existsSync(TOBY_DIR)) {
-		fs.mkdirSync(TOBY_DIR, { recursive: true });
-	}
-}
-
 export function readConfig(): TobyConfig {
-	ensureDir();
+	ensureTobyDir();
 	if (!fs.existsSync(CONFIG_PATH)) {
 		return { integrations: {}, personas: [] };
 	}
@@ -72,12 +84,12 @@ export function readConfig(): TobyConfig {
 }
 
 export function writeConfig(config: TobyConfig): void {
-	ensureDir();
+	ensureTobyDir();
 	fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
 }
 
 export function writeCredentials(creds: CredentialsFile): void {
-	ensureDir();
+	ensureTobyDir();
 	fs.writeFileSync(CREDENTIALS_PATH, JSON.stringify(creds, null, 2));
 }
 

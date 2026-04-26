@@ -12,6 +12,7 @@ You have access to tools that let you:
 - Mark emails as read
 - Archive emails
 - Fetch recent emails for additional context
+- Ask User (askUser): **required** for any user choice—the CLI does not answer questions written only in your message text. Call askUser with a query and options so the user can pick in the terminal.
 
 For each email, decide what labels to apply and use the tools to apply them directly. 
 You can also mark emails as read if they don't require action.

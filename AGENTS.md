@@ -18,7 +18,7 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 
 - Prefer **integration-local** code under `src/integrations/<name>/` (client, prompts, tools, CLI) over new cross-cutting branches in `src/commands/` when the behavior belongs to one integration.
 - **Register** new integrations in [`src/integrations/index.ts`](src/integrations/index.ts) (`MODULES` array).
-- **Shared** commands (`connect`, `disconnect`, `status`, `summarize`, `configure`) live in [`src/commands/`](src/commands/) and should stay generic; they resolve behavior through the registry and module hooks.
+- **Shared** commands (`connect`, `disconnect`, `status`, `summarize`, `organize`, `chat`, `configure`) live in [`src/commands/`](src/commands/) and should stay generic; they resolve behavior through the registry and module hooks.
 - After substantive changes, run `npm run lint`, `npx tsc --noEmit`, and `npm test`.
 
 ## Quick paths

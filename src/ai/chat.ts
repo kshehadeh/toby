@@ -1,9 +1,25 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { type ModelMessage, type Tool, generateText, stepCountIs } from "ai";
+import {
+	type ModelMessage,
+	type Tool,
+	generateText,
+	stepCountIs,
+	streamText,
+} from "ai";
 import { readCredentials } from "../config/index";
 import type { Persona } from "../config/index";
 
 export type CoreMessage = ModelMessage;
+
+export type ChatWithToolsOptions = {
+	/** Invoked before each tool `execute` runs (AI SDK `experimental_onToolCallStart`). */
+	readonly onToolCallStart?: (toolName: string) => void;
+	/**
+	 * When set, uses `streamText` and invokes this for each text delta (e.g. Ink TUI).
+	 * Non-streaming callers (e.g. organize) omit this and use `generateText`.
+	 */
+	readonly onAssistantTextDelta?: (delta: string) => void;
+};
 
 export function createModelForPersona(persona: Persona) {
 	if (persona.ai.provider !== "openai") {
@@ -28,16 +44,71 @@ export async function chatWithTools(
 	model: ReturnType<typeof createModelForPersona>,
 	messages: CoreMessage[],
 	tools: Record<string, Tool>,
+	options?: ChatWithToolsOptions,
 ): Promise<{
 	text: string;
 	toolResults: unknown[];
 	toolCalls: { name: string; args: Record<string, unknown> }[];
+	/** Assistant + tool messages from this call — append to history for the next turn. */
+	responseMessages: CoreMessage[];
 }> {
+	const onToolCallStart = options?.onToolCallStart;
+	const onAssistantTextDelta = options?.onAssistantTextDelta;
+
+	const toolStartHandler = onToolCallStart
+		? (event: { toolCall: { toolName: string } }) => {
+				onToolCallStart(event.toolCall.toolName);
+			}
+		: undefined;
+
+	if (onAssistantTextDelta) {
+		const result = streamText({
+			model,
+			messages,
+			tools,
+			stopWhen: stepCountIs(12),
+			...(toolStartHandler
+				? { experimental_onToolCallStart: toolStartHandler }
+				: {}),
+		});
+
+		for await (const delta of result.textStream) {
+			onAssistantTextDelta(delta);
+		}
+
+		const [response, text, steps, toolResults] = await Promise.all([
+			result.response,
+			result.text,
+			result.steps,
+			result.toolResults,
+		]);
+
+		const toolCalls = steps.flatMap((step) =>
+			step.toolCalls.map((tc) => ({
+				name: tc.toolName,
+				args:
+					tc.input && typeof tc.input === "object" && !Array.isArray(tc.input)
+						? (tc.input as Record<string, unknown>)
+						: {},
+			})),
+		);
+
+		return {
+			text,
+			toolResults,
+			toolCalls,
+			responseMessages: response.messages as CoreMessage[],
+		};
+	}
+
 	const result = await generateText({
 		model,
 		messages,
 		tools,
-		stopWhen: stepCountIs(5),
+		stopWhen: stepCountIs(12),
+		...(toolStartHandler
+			? { experimental_onToolCallStart: toolStartHandler }
+			: {}),
 	});
 
 	return {
@@ -50,5 +121,6 @@ export async function chatWithTools(
 					? (tc.input as Record<string, unknown>)
 					: {},
 		})),
+		responseMessages: result.response.messages as CoreMessage[],
 	};
 }

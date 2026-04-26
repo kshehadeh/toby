@@ -1,0 +1,44 @@
+import type { AskUserHandler } from "../../ai/ask-user-tool";
+import { withAskUserTool } from "../../ai/ask-user-tool";
+import type { ChatWithToolsOptions, CoreMessage } from "../../ai/chat";
+import { chatWithTools, createModelForPersona } from "../../ai/chat";
+import type { Persona } from "../../config/index";
+import { type EmailContext, createGmailTools } from "./tools";
+
+export async function runGmailChatTurn(params: {
+	readonly messages: CoreMessage[];
+	readonly persona: Persona;
+	readonly dryRun: boolean;
+	readonly maxResults?: number;
+	readonly askUser?: AskUserHandler;
+	readonly chatWithToolsOptions?: ChatWithToolsOptions;
+}): Promise<{
+	readonly text: string;
+	readonly toolCalls: { name: string; args: Record<string, unknown> }[];
+	readonly appliedActions: string[];
+	readonly responseMessages: CoreMessage[];
+}> {
+	const ctx: EmailContext = {
+		currentEmail: null,
+		dryRun: params.dryRun,
+		appliedActions: [],
+		listSampleMax:
+			params.maxResults === undefined
+				? undefined
+				: Math.min(Math.max(1, params.maxResults), 500),
+	};
+	const tools = withAskUserTool(createGmailTools(ctx), params.askUser);
+	const model = createModelForPersona(params.persona);
+	const result = await chatWithTools(
+		model,
+		params.messages,
+		tools,
+		params.chatWithToolsOptions,
+	);
+	return {
+		text: result.text,
+		toolCalls: result.toolCalls,
+		appliedActions: [...ctx.appliedActions],
+		responseMessages: result.responseMessages,
+	};
+}

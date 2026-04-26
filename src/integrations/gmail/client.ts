@@ -83,48 +83,131 @@ export interface GmailMessage {
 	snippet: string;
 }
 
-export async function fetchUnreadInbox(
-	maxResults = 20,
-): Promise<GmailMessage[]> {
+/** One page of message ids from Gmail list (no per-message fetches). */
+interface InboxListPage {
+	readonly messageSummaries: ReadonlyArray<{
+		readonly id: string;
+		readonly threadId: string;
+	}>;
+	readonly nextPageToken?: string;
+	readonly resultSizeEstimate?: number;
+	readonly pageSize: number;
+}
+
+async function fetchOneMessageMetadata(
+	gmail: ReturnType<typeof google.gmail>,
+	messageId: string,
+): Promise<GmailMessage | null> {
+	const full = await gmail.users.messages.get({
+		userId: "me",
+		id: messageId,
+		format: "metadata",
+		metadataHeaders: ["From", "Subject", "Date"],
+	});
+
+	const headers = full.data.payload?.headers ?? [];
+	const getHeader = (name: string) =>
+		headers.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value ??
+		"";
+
+	return {
+		id: messageId,
+		threadId: full.data.threadId ?? "",
+		from: getHeader("From"),
+		subject: getHeader("Subject"),
+		date: getHeader("Date"),
+		snippet: full.data.snippet ?? "",
+	};
+}
+
+/**
+ * List unread messages in the inbox (ids + thread ids only). Uses a single
+ * messages.list call — use for counts / pagination without loading bodies.
+ */
+export async function listInboxUnreadPage(
+	maxResults = 50,
+	pageToken?: string,
+): Promise<InboxListPage> {
+	return listInboxPage(maxResults, pageToken, {
+		labelIds: ["INBOX", "UNREAD"],
+	});
+}
+
+/**
+ * List messages (ids + thread ids only) using a single messages.list call.
+ * By default callers should include INBOX in labelIds when they mean "inbox".
+ */
+export async function listInboxPage(
+	maxResults = 50,
+	pageToken?: string,
+	options?: {
+		readonly labelIds?: readonly string[];
+		readonly query?: string;
+	},
+): Promise<InboxListPage> {
 	const auth = getAuthenticatedGmailClient();
 	const gmail = google.gmail({ version: "v1", auth });
+	const capped = Math.min(Math.max(1, maxResults), 500);
 
 	const listRes = await gmail.users.messages.list({
 		userId: "me",
-		labelIds: ["INBOX", "UNREAD"],
-		maxResults,
+		labelIds: options?.labelIds as string[] | undefined,
+		q: options?.query?.trim() || undefined,
+		maxResults: capped,
+		pageToken,
 	});
 
 	const messages = listRes.data.messages ?? [];
-	if (messages.length === 0) return [];
+	const messageSummaries = messages
+		.filter(
+			(m): m is { id: string; threadId?: string } => typeof m.id === "string",
+		)
+		.map((m) => ({
+			id: m.id,
+			threadId: m.threadId ?? "",
+		}));
+
+	return {
+		messageSummaries,
+		nextPageToken: listRes.data.nextPageToken ?? undefined,
+		resultSizeEstimate: listRes.data.resultSizeEstimate ?? undefined,
+		pageSize: messageSummaries.length,
+	};
+}
+
+/** Metadata headers + snippet for specific message ids (bounded batch). */
+export async function fetchUnreadMetadataByMessageIds(
+	ids: readonly string[],
+	maxParallel = 25,
+): Promise<GmailMessage[]> {
+	const unique = [...new Set(ids)].filter(Boolean).slice(0, maxParallel);
+	if (unique.length === 0) {
+		return [];
+	}
+
+	const auth = getAuthenticatedGmailClient();
+	const gmail = google.gmail({ version: "v1", auth });
 
 	const results = await Promise.all(
-		messages.map(async (msg) => {
-			if (!msg.id) {
-				return null;
-			}
+		unique.map((id) => fetchOneMessageMetadata(gmail, id)),
+	);
 
-			const full = await gmail.users.messages.get({
-				userId: "me",
-				id: msg.id,
-				format: "metadata",
-				metadataHeaders: ["From", "Subject", "Date"],
-			});
+	return results.filter((message): message is GmailMessage => message !== null);
+}
 
-			const headers = full.data.payload?.headers ?? [];
-			const getHeader = (name: string) =>
-				headers.find((h) => h.name?.toLowerCase() === name.toLowerCase())
-					?.value ?? "";
+export async function fetchUnreadInbox(
+	maxResults = 20,
+): Promise<GmailMessage[]> {
+	const page = await listInboxUnreadPage(maxResults);
+	if (page.messageSummaries.length === 0) {
+		return [];
+	}
 
-			return {
-				id: msg.id,
-				threadId: msg.threadId ?? "",
-				from: getHeader("From"),
-				subject: getHeader("Subject"),
-				date: getHeader("Date"),
-				snippet: full.data.snippet ?? "",
-			};
-		}),
+	const auth = getAuthenticatedGmailClient();
+	const gmail = google.gmail({ version: "v1", auth });
+
+	const results = await Promise.all(
+		page.messageSummaries.map((m) => fetchOneMessageMetadata(gmail, m.id)),
 	);
 
 	return results.filter((message): message is GmailMessage => message !== null);

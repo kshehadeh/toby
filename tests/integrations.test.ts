@@ -57,6 +57,13 @@ describe("integration registry", () => {
 		expect(names).toEqual(["gmail"]);
 	});
 
+	it("getModulesWithCapability(chat) includes gmail and todoist", () => {
+		const names = getModulesWithCapability("chat")
+			.map((m) => m.name)
+			.sort();
+		expect(names).toEqual(["gmail", "todoist"]);
+	});
+
 	it("modules expose credential descriptors", () => {
 		for (const mod of getIntegrationModules()) {
 			const descriptors = mod.getCredentialDescriptors();
@@ -70,6 +77,12 @@ describe("integration registry", () => {
 	it("summarize-capable modules define summarize()", () => {
 		for (const mod of getModulesWithCapability("summarize")) {
 			expect(typeof mod.summarize).toBe("function");
+		}
+	});
+
+	it("chat-capable modules define chat()", () => {
+		for (const mod of getModulesWithCapability("chat")) {
+			expect(typeof mod.chat).toBe("function");
 		}
 	});
 });

@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { registerChatCommand } from "./commands/chat";
 import { registerConfigureCommand } from "./commands/configure";
 import { registerConnectCommand } from "./commands/connect";
 import { registerDisconnectCommand } from "./commands/disconnect";
@@ -25,5 +26,6 @@ registerConfigureCommand(program);
 registerStatusCommand(program);
 registerSummarizeCommand(program);
 registerOrganizeCommand(program);
+registerChatCommand(program);
 
 program.parse();
