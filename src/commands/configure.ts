@@ -29,6 +29,7 @@ export function registerConfigureCommand(program: Command): void {
 			for (const p of config.personas) {
 				credentialValues[`personas.${p.name}.name`] = p.name;
 				credentialValues[`personas.${p.name}.instructions`] = p.instructions;
+				credentialValues[`personas.${p.name}.promptMode`] = p.promptMode;
 				credentialValues[`personas.${p.name}.ai.provider`] = p.ai.provider;
 				credentialValues[`personas.${p.name}.ai.model`] = p.ai.model;
 			}
@@ -39,19 +40,22 @@ export function registerConfigureCommand(program: Command): void {
 				return buildSettingsTree(personasFromVals, AI_PROVIDERS);
 			};
 
-			const onCreatePersona = () => {
+			const onCreatePersona = (): string => {
 				const cfg = readConfig();
 				const name = `Persona ${cfg.personas.length + 1}`;
 				cfg.personas.push({
 					name,
 					instructions: "",
-					ai: { provider: "openai", model: "gpt-4o-mini" },
+					promptMode: "add",
+					ai: { provider: "openai", model: "gpt-5-mini" },
 				});
 				writeConfig(cfg);
 				credentialValues[`personas.${name}.name`] = name;
 				credentialValues[`personas.${name}.instructions`] = "";
+				credentialValues[`personas.${name}.promptMode`] = "add";
 				credentialValues[`personas.${name}.ai.provider`] = "openai";
-				credentialValues[`personas.${name}.ai.model`] = "gpt-4o-mini";
+				credentialValues[`personas.${name}.ai.model`] = "gpt-5-mini";
+				return name;
 			};
 
 			const onDeletePersona = (personaName: string) => {
@@ -136,6 +140,12 @@ function rebuildPersonas(
 				values[`personas.${name}.instructions`] ??
 				existingPersona?.instructions ??
 				"",
+			promptMode:
+				values[`personas.${name}.promptMode`] === "replace"
+					? "replace"
+					: existingPersona?.promptMode === "replace"
+						? "replace"
+						: "add",
 			ai: {
 				provider:
 					values[`personas.${name}.ai.provider`] ??
@@ -144,7 +154,7 @@ function rebuildPersonas(
 				model:
 					values[`personas.${name}.ai.model`] ??
 					existingPersona?.ai.model ??
-					"gpt-4o-mini",
+					"gpt-5-mini",
 			},
 		};
 	});

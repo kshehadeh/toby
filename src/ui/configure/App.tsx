@@ -6,6 +6,7 @@ interface NavigatorProps {
 	items: SettingsItem[];
 	breadcrumb: string[];
 	selectedIndex: number;
+	statusMessage?: string;
 	onSelect: (index: number) => void;
 	onBack: () => void;
 	onSelectItem: (item: SettingsItem) => void;
@@ -16,6 +17,7 @@ function Navigator({
 	items,
 	breadcrumb,
 	selectedIndex,
+	statusMessage,
 	onSelect,
 	onBack,
 	onSelectItem,
@@ -92,6 +94,7 @@ function Navigator({
 				);
 			})}
 			<Box marginTop={1} marginLeft={2} flexDirection="column">
+				{statusMessage ? <Text color="yellow"> {statusMessage}</Text> : null}
 				<Text dimColor>
 					{" "}
 					↑↓ navigate {"  "} ↵ select {"  "} b back {"  "} q quit
@@ -359,7 +362,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
 type Screen = "nav" | "edit" | "select" | "confirm";
 
 interface AppCallbacks {
-	onCreatePersona: () => void;
+	onCreatePersona: () => string;
 	onDeletePersona: (name: string) => void;
 }
 
@@ -369,6 +372,28 @@ interface AppProps {
 	onSave: (values: Record<string, string>) => void;
 	refreshTree: (values: Record<string, string>) => SettingsItem;
 	callbacks: AppCallbacks;
+}
+
+function resolvePath(
+	root: SettingsItem,
+	keys: string[],
+): {
+	node: SettingsItem;
+	resolvedPath: string[];
+} {
+	let node = root;
+	const resolvedPath = [root.key];
+
+	for (let i = 1; i < keys.length; i++) {
+		const child = node.children?.find((c) => c.key === keys[i]);
+		if (!child) {
+			break;
+		}
+		node = child;
+		resolvedPath.push(keys[i]);
+	}
+
+	return { node, resolvedPath };
 }
 
 function App({
@@ -388,21 +413,11 @@ function App({
 		useState<Record<string, string>>(credentialValues);
 	const [confirmMsg, setConfirmMsg] = useState("");
 	const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
-
-	const getNode = useCallback(
-		(keys: string[]): SettingsItem => {
-			let node = tree;
-			for (let i = 1; i < keys.length; i++) {
-				const child = node.children?.find((c) => c.key === keys[i]);
-				if (!child) break;
-				node = child;
-			}
-			return node;
-		},
-		[tree],
+	const [statusMessage, setStatusMessage] = useState<string | undefined>(
+		undefined,
 	);
 
-	const currentNode = getNode(path);
+	const { node: currentNode, resolvedPath } = resolvePath(tree, path);
 	const items = (currentNode.children ?? []).map((item) => ({
 		...item,
 		currentValue:
@@ -411,9 +426,9 @@ function App({
 				: undefined,
 	}));
 
-	const breadcrumb = path
-		.map((key) => {
-			const node = getNode(path.slice(0, path.indexOf(key) + 1));
+	const breadcrumb = resolvedPath
+		.map((_, index) => {
+			const node = resolvePath(tree, resolvedPath.slice(0, index + 1)).node;
 			return node.label;
 		})
 		.filter(Boolean);
@@ -422,6 +437,8 @@ function App({
 		(newValues: Record<string, string>) => {
 			const newTree = refreshTree(newValues);
 			setTree(newTree);
+			setPath((prevPath) => resolvePath(newTree, prevPath).resolvedPath);
+			setSelectedIndex(0);
 		},
 		[refreshTree],
 	);
@@ -436,13 +453,22 @@ function App({
 			setPath((p) => p.slice(0, -1));
 			setSelectedIndex(0);
 		}
+		setStatusMessage(undefined);
 	}, [path]);
 
 	const handleSelectItem = useCallback(
 		(item: SettingsItem) => {
+			setStatusMessage(undefined);
 			if (item.kind === "section") {
-				setPath((p) => [...p, item.key]);
-				setSelectedIndex(0);
+				setPath((p) => {
+					const nextPath = [...p, item.key];
+					const resolvedNextPath = resolvePath(tree, nextPath).resolvedPath;
+					if (resolvedNextPath.length !== nextPath.length) {
+						return p;
+					}
+					setSelectedIndex(0);
+					return nextPath;
+				});
 			} else if (item.kind === "value") {
 				setEditItem(item);
 				setScreen("edit");
@@ -451,8 +477,17 @@ function App({
 				setScreen("select");
 			} else if (item.kind === "action") {
 				if (item.key === "personas._new") {
-					callbacks.onCreatePersona();
-					doRefresh(values);
+					const personaName = callbacks.onCreatePersona();
+					const newValues = {
+						...values,
+						[`personas.${personaName}.name`]: personaName,
+						[`personas.${personaName}.instructions`]: "",
+						[`personas.${personaName}.promptMode`]: "add",
+						[`personas.${personaName}.ai.provider`]: "openai",
+						[`personas.${personaName}.ai.model`]: "gpt-5-mini",
+					};
+					setValues(newValues);
+					doRefresh(newValues);
 				}
 			} else if (item.kind === "delete") {
 				const personaName = item.key
@@ -461,7 +496,15 @@ function App({
 				setConfirmMsg(`Delete persona "${personaName}"?`);
 				setConfirmAction(() => () => {
 					callbacks.onDeletePersona(personaName);
-					doRefresh(values);
+					const cleanedValues: Record<string, string> = {};
+					const deletedPrefix = `personas.${personaName}.`;
+					for (const [key, value] of Object.entries(values)) {
+						if (!key.startsWith(deletedPrefix)) {
+							cleanedValues[key] = value;
+						}
+					}
+					setValues(cleanedValues);
+					doRefresh(cleanedValues);
 					setPath((p) => p.slice(0, -1));
 					setSelectedIndex(0);
 					setScreen("nav");
@@ -469,16 +512,60 @@ function App({
 				setScreen("confirm");
 			}
 		},
-		[values, doRefresh, callbacks],
+		[values, doRefresh, callbacks, tree],
 	);
 
 	const handleEditorSubmit = useCallback(
 		(newValue: string) => {
 			if (editItem) {
-				const newValues = { ...values, [editItem.key]: newValue };
+				let newValues = { ...values, [editItem.key]: newValue };
+				const personaNameKeyMatch = /^personas\.(.+)\.name$/.exec(editItem.key);
+
+				if (personaNameKeyMatch) {
+					const oldName = personaNameKeyMatch[1];
+					const newName = newValue;
+					if (newName && newName !== oldName) {
+						const existingNames = new Set(
+							Object.keys(values)
+								.filter(
+									(key) => key.startsWith("personas.") && key.endsWith(".name"),
+								)
+								.map((key) => values[key]),
+						);
+						existingNames.delete(oldName);
+
+						if (existingNames.has(newName)) {
+							setStatusMessage(
+								`Persona "${newName}" already exists. Choose a different name.`,
+							);
+							setScreen("nav");
+							setEditItem(null);
+							return;
+						}
+
+						const oldPrefix = `personas.${oldName}.`;
+						const migratedValues: Record<string, string> = {
+							...newValues,
+						};
+
+						for (const [key, value] of Object.entries(newValues)) {
+							if (!key.startsWith(oldPrefix)) {
+								continue;
+							}
+							const suffix = key.slice(oldPrefix.length);
+							delete migratedValues[key];
+							migratedValues[`personas.${newName}.${suffix}`] = value;
+						}
+
+						migratedValues[`personas.${newName}.name`] = newName;
+						newValues = migratedValues;
+					}
+				}
+
 				setValues(newValues);
 				doRefresh(newValues);
 			}
+			setStatusMessage(undefined);
 			setScreen("nav");
 			setEditItem(null);
 		},
@@ -561,6 +648,7 @@ function App({
 			items={items}
 			breadcrumb={breadcrumb}
 			selectedIndex={selectedIndex}
+			statusMessage={statusMessage}
 			onSelect={setSelectedIndex}
 			onBack={handleBack}
 			onSelectItem={handleSelectItem}
@@ -575,7 +663,7 @@ export function runConfigureUI(
 	onSave: (values: Record<string, string>) => void,
 	refreshTree: (values: Record<string, string>) => SettingsItem,
 	callbacks: {
-		onCreatePersona: () => void;
+		onCreatePersona: () => string;
 		onDeletePersona: (name: string) => void;
 	},
 ): void {

@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { registerConfigureCommand } from "./commands/configure";
 import { registerConnectCommand } from "./commands/connect";
 import { registerDisconnectCommand } from "./commands/disconnect";
+import { registerOrganizeCommand } from "./commands/organize";
 import { registerStatusCommand } from "./commands/status";
 import { registerSummarizeCommand } from "./commands/summarize";
 import { getIntegrationModules } from "./integrations/index";
@@ -23,5 +24,6 @@ for (const mod of getIntegrationModules()) {
 registerConfigureCommand(program);
 registerStatusCommand(program);
 registerSummarizeCommand(program);
+registerOrganizeCommand(program);
 
 program.parse();

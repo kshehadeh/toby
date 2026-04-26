@@ -1,5 +1,6 @@
 import type { CoreMessage } from "../../../ai/chat";
 import type { Persona } from "../../../config/index";
+import { composeSystemPromptWithPersona } from "../../../personas/prompt";
 import type { TodoistCompletedTask, TodoistTask } from "../client";
 
 const BASE_TODOIST_SUMMARY_SYSTEM_PROMPT = `You are a task management summarization assistant.
@@ -22,13 +23,12 @@ Preferred format:
 export function buildTodoistSummarySystemMessage(
 	persona?: Persona,
 ): CoreMessage {
-	const personaInstructions = persona?.instructions
-		? `\n\nAdditional instructions from your persona "${persona.name}":\n${persona.instructions}`
-		: "";
-
 	return {
 		role: "system",
-		content: BASE_TODOIST_SUMMARY_SYSTEM_PROMPT + personaInstructions,
+		content: composeSystemPromptWithPersona(
+			BASE_TODOIST_SUMMARY_SYSTEM_PROMPT,
+			persona,
+		),
 	};
 }
 

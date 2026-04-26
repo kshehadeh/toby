@@ -18,6 +18,7 @@ export function buildSettingsTree(
 		name: string;
 		ai: { provider: string; model: string };
 		instructions: string;
+		promptMode: "add" | "replace";
 	}[],
 	availableProviders: { id: string; displayName: string; models: string[] }[],
 ): SettingsItem {
@@ -53,6 +54,13 @@ export function buildSettingsTree(
 				key: `personas.${p.name}.instructions`,
 				currentValue: p.instructions,
 				multiline: true,
+			},
+			{
+				label: "Prompt Mode",
+				kind: "select" as const,
+				key: `personas.${p.name}.promptMode`,
+				options: ["add", "replace"],
+				currentValue: p.promptMode,
 			},
 			{
 				label: "AI Provider",
@@ -115,7 +123,7 @@ export function buildSettingsTree(
 				key: "personas",
 				children: [
 					{
-						label: "+ New Persona",
+						label: "New Persona",
 						kind: "action",
 						key: "personas._new",
 					},

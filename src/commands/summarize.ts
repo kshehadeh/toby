@@ -17,15 +17,17 @@ interface SummarizeOptions {
 const DEFAULT_SUMMARY_PERSONA: Persona = {
 	name: "default-summary",
 	instructions: "",
+	promptMode: "add",
 	ai: {
 		provider: "openai",
-		model: "gpt-4o-mini",
+		model: "gpt-5-mini",
 	},
 };
 
 export function registerSummarizeCommand(program: Command): void {
 	program
 		.command("summarize <integration>")
+		.alias("summary")
 		.description("Summarize an integration's relevant data")
 		.option("-p, --persona <name>", "Optional persona to shape summarization")
 		.option(

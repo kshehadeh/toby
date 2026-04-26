@@ -1,5 +1,6 @@
 import type { CoreMessage } from "../../../ai/chat";
 import type { Persona } from "../../../config/index";
+import { composeSystemPromptWithPersona } from "../../../personas/prompt";
 import type { GmailMessage } from "../client";
 
 const BASE_GMAIL_SUMMARY_SYSTEM_PROMPT = `You are an email summarization assistant.
@@ -20,13 +21,12 @@ Preferred format:
 3) One short sentence grouping lower-priority items`;
 
 export function buildGmailSummarySystemMessage(persona?: Persona): CoreMessage {
-	const personaInstructions = persona?.instructions
-		? `\n\nAdditional instructions from your persona "${persona.name}":\n${persona.instructions}`
-		: "";
-
 	return {
 		role: "system",
-		content: BASE_GMAIL_SUMMARY_SYSTEM_PROMPT + personaInstructions,
+		content: composeSystemPromptWithPersona(
+			BASE_GMAIL_SUMMARY_SYSTEM_PROMPT,
+			persona,
+		),
 	};
 }
 

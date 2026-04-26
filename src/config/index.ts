@@ -11,9 +11,12 @@ interface AIProvider {
 	model: string;
 }
 
+export type PersonaPromptMode = "add" | "replace";
+
 export interface Persona {
 	name: string;
 	instructions: string;
+	promptMode: PersonaPromptMode;
 	ai: AIProvider;
 }
 
@@ -54,9 +57,17 @@ export function readConfig(): TobyConfig {
 	}
 	const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
 	const parsed = JSON.parse(raw) as Partial<TobyConfig>;
+	const personas: Persona[] = (parsed.personas ?? []).map((persona) => {
+		const promptMode: PersonaPromptMode =
+			persona.promptMode === "replace" ? "replace" : "add";
+		return {
+			...persona,
+			promptMode,
+		};
+	});
 	return {
 		integrations: parsed.integrations ?? {},
-		personas: parsed.personas ?? [],
+		personas,
 	};
 }
 

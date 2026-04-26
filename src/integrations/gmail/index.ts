@@ -1,5 +1,4 @@
 import chalk from "chalk";
-import type { Command } from "commander";
 import type { CredentialsFile } from "../../config/index";
 import {
 	getGmailCredentials,
@@ -14,7 +13,6 @@ import type {
 	SummarizeRunResult,
 } from "../types";
 import { runOAuthFlow } from "./auth";
-import { registerGmailCommands } from "./cli";
 import {
 	fetchUnreadInbox,
 	getGmailGrantedScopes,
@@ -153,9 +151,6 @@ export const gmailIntegrationModule: IntegrationModule = {
 	seedCredentialValues,
 	mergeCredentialsPatch,
 	summarize,
-	registerCommands(program: Command) {
-		registerGmailCommands(program);
-	},
 };
 
 async function validateGmailTools(): Promise<IntegrationToolHealth[]> {
