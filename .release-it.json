@@ -1,0 +1,15 @@
+{
+	"$schema": "https://unpkg.com/release-it@20/schema/release-it.json",
+	"npm": {
+		"publish": false
+	},
+	"github": false,
+	"git": {
+		"commitMessage": "chore(release): v${version}",
+		"tagName": "v${version}",
+		"tagAnnotation": "Release v${version}"
+	},
+	"hooks": {
+		"after:bump": "bun install && git add bun.lock package-lock.json"
+	}
+}

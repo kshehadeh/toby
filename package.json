@@ -1,0 +1,45 @@
+{
+	"name": "toby",
+	"version": "0.1.0",
+	"description": "CLI-based tool for managing your life — email, calendar, todos, and more",
+	"type": "module",
+	"bin": {
+		"toby": "./dist/cli.js"
+	},
+	"scripts": {
+		"postinstall": "patch-package",
+		"build": "tsup",
+		"build:executable": "bun build ./src/cli.ts --compile --outfile ./dist/toby",
+		"dev": "tsx src/cli.ts",
+		"lint": "biome check .",
+		"lint:fix": "biome check . --write",
+		"format": "biome format . --write",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"release": "release-it",
+		"release:dry": "release-it --dry-run",
+		"release:ci": "release-it --ci"
+	},
+	"dependencies": {
+		"@ai-sdk/openai": "^3.0.53",
+		"ai": "^6.0.168",
+		"chalk": "^5.3.0",
+		"commander": "^12.1.0",
+		"googleapis": "^140.0.0",
+		"ink": "4",
+		"open": "^10.1.0",
+		"react": "18",
+		"zod": "3"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.0",
+		"@types/node": "^25.6.0",
+		"@types/react": "18",
+		"patch-package": "^8.0.1",
+		"release-it": "^20.0.1",
+		"tsup": "^8.3.0",
+		"tsx": "^4.19.0",
+		"typescript": "^5.6.0",
+		"vitest": "^2.1.0"
+	}
+}

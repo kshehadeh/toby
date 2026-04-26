@@ -1,0 +1,72 @@
+diff --git a/node_modules/ink/build/dom.js b/node_modules/ink/build/dom.js
+index c64a031..07435ee 100644
+--- a/node_modules/ink/build/dom.js
++++ b/node_modules/ink/build/dom.js
+@@ -1,5 +1,5 @@
+ // eslint-disable-next-line n/file-extension-in-import
+-import Yoga from 'yoga-wasm-web/auto';
++import Yoga from '../../yoga-wasm-web/dist/ink-default.js';
+ import measureText from './measure-text.js';
+ import wrapText from './wrap-text.js';
+ import squashTextNodes from './squash-text-nodes.js';
+diff --git a/node_modules/ink/build/get-max-width.js b/node_modules/ink/build/get-max-width.js
+index dc6a504..6a0fd6a 100644
+--- a/node_modules/ink/build/get-max-width.js
++++ b/node_modules/ink/build/get-max-width.js
+@@ -1,5 +1,5 @@
+ // eslint-disable-next-line n/file-extension-in-import
+-import Yoga from 'yoga-wasm-web/auto';
++import Yoga from '../../yoga-wasm-web/dist/ink-default.js';
+ const getMaxWidth = (yogaNode) => {
+     return (yogaNode.getComputedWidth() -
+         yogaNode.getComputedPadding(Yoga.EDGE_LEFT) -
+diff --git a/node_modules/ink/build/ink.js b/node_modules/ink/build/ink.js
+index ec11d33..93048cf 100644
+--- a/node_modules/ink/build/ink.js
++++ b/node_modules/ink/build/ink.js
+@@ -7,7 +7,7 @@ import autoBind from 'auto-bind';
+ import signalExit from 'signal-exit';
+ import patchConsole from 'patch-console';
+ // eslint-disable-next-line n/file-extension-in-import
+-import Yoga from 'yoga-wasm-web/auto';
++import Yoga from '../../yoga-wasm-web/dist/ink-default.js';
+ import reconciler from './reconciler.js';
+ import render from './renderer.js';
+ import * as dom from './dom.js';
+diff --git a/node_modules/ink/build/reconciler.js b/node_modules/ink/build/reconciler.js
+index a43c21d..661cfbf 100644
+--- a/node_modules/ink/build/reconciler.js
++++ b/node_modules/ink/build/reconciler.js
+@@ -2,7 +2,7 @@ import process from 'node:process';
+ import createReconciler from 'react-reconciler';
+ import { DefaultEventPriority } from 'react-reconciler/constants.js';
+ // eslint-disable-next-line n/file-extension-in-import
+-import Yoga from 'yoga-wasm-web/auto';
++import Yoga from '../../yoga-wasm-web/dist/ink-default.js';
+ import { createTextNode, appendChildNode, insertBeforeNode, removeChildNode, setStyle, setTextNodeValue, createNode, setAttribute } from './dom.js';
+ import applyStyles from './styles.js';
+ // We need to conditionally perform devtools connection to avoid
+diff --git a/node_modules/ink/build/render-node-to-output.js b/node_modules/ink/build/render-node-to-output.js
+index 5c0fcf6..44963d6 100644
+--- a/node_modules/ink/build/render-node-to-output.js
++++ b/node_modules/ink/build/render-node-to-output.js
+@@ -1,7 +1,7 @@
+ import widestLine from 'widest-line';
+ import indentString from 'indent-string';
+ // eslint-disable-next-line n/file-extension-in-import
+-import Yoga from 'yoga-wasm-web/auto';
++import Yoga from '../../yoga-wasm-web/dist/ink-default.js';
+ import wrapText from './wrap-text.js';
+ import getMaxWidth from './get-max-width.js';
+ import squashTextNodes from './squash-text-nodes.js';
+diff --git a/node_modules/ink/build/styles.js b/node_modules/ink/build/styles.js
+index 186db31..2621030 100644
+--- a/node_modules/ink/build/styles.js
++++ b/node_modules/ink/build/styles.js
+@@ -1,5 +1,5 @@
+ // eslint-disable-next-line n/file-extension-in-import
+-import Yoga from 'yoga-wasm-web/auto';
++import Yoga from '../../yoga-wasm-web/dist/ink-default.js';
+ const applyPositionStyles = (node, style) => {
+     if ('position' in style) {
+         node.setPositionType(style.position === 'absolute'
