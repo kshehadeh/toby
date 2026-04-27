@@ -1,8 +1,6 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import process from "node:process";
-import { fileURLToPath } from "node:url";
 import { Command } from "commander";
+import packageJson from "../package.json";
 import { registerChatCommand } from "./commands/chat";
 import { registerConfigureCommand } from "./commands/configure";
 import { registerConnectCommand } from "./commands/connect";
@@ -40,24 +38,17 @@ registerChatCommand(program);
 program.parse();
 
 function resolveCliVersion(): string {
-	const envVersion = process.env.npm_package_version?.trim();
+	const envVersion = process.env.TOBY_VERSION?.trim();
 	if (envVersion) {
 		return envVersion;
 	}
 
-	const cliDir = path.dirname(fileURLToPath(import.meta.url));
-	const packageJsonPath = path.resolve(cliDir, "../package.json");
-	try {
-		const raw = readFileSync(packageJsonPath, "utf8");
-		const parsed = JSON.parse(raw) as { version?: unknown };
-		if (
-			typeof parsed.version === "string" &&
-			parsed.version.trim().length > 0
-		) {
-			return parsed.version.trim();
-		}
-	} catch {
-		// Fall through to default when package metadata is unavailable.
+	const packageVersion =
+		typeof packageJson.version === "string"
+			? packageJson.version.trim()
+			: "";
+	if (packageVersion) {
+		return packageVersion;
 	}
 
 	return "0.1.0";

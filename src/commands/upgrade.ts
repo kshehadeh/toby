@@ -67,12 +67,30 @@ async function runUpgrade(options: UpgradeCommandOptions): Promise<void> {
 	await rename(tempDestination, destination);
 
 	const installedVersion = readInstalledVersion(destination);
+	const expectedVersion = normalizeReleaseVersion(tag);
 	console.log(chalk.green(`Installed: ${destination}`));
 	if (installedVersion) {
 		console.log(chalk.green(`Verified: ${installedVersion}`));
+		if (installedVersion !== expectedVersion) {
+			throw new Error(
+				[
+					`Installed binary reports ${installedVersion}, but release ${tag} should be ${expectedVersion}.`,
+					"This usually means the release asset was built with stale version metadata.",
+					"Please rebuild and re-upload the release binary for this tag.",
+				].join(" "),
+			);
+		}
+	} else {
+		throw new Error(
+			`Installed binary at ${destination} did not return a version for --version.`,
+		);
 	}
 
 	printPathGuidance(installDir);
+}
+
+function normalizeReleaseVersion(tag: string): string {
+	return tag.startsWith("v") ? tag.slice(1) : tag;
 }
 
 function resolveRepo(optionRepo?: string): string {
@@ -185,7 +203,12 @@ async function chmodExecutable(filePath: string): Promise<void> {
 }
 
 function readInstalledVersion(binaryPath: string): string | null {
-	const result = spawnSync(binaryPath, ["--version"], { encoding: "utf8" });
+	const env = { ...process.env };
+	delete env.npm_package_version;
+	const result = spawnSync(binaryPath, ["--version"], {
+		encoding: "utf8",
+		env,
+	});
 	if (result.status !== 0) {
 		return null;
 	}

@@ -68,7 +68,7 @@ This repo uses **[release-it](https://github.com/release-it/release-it)** so you
 
 Configuration is in [`.release-it.json`](../.release-it.json): **npm publish** and **GitHub release from release-it** are both **off** so the tag push only triggers CI to attach binaries. To also publish to npm, set `"npm": { "publish": true }` (and configure auth) in `.release-it.json`.
 
-`src/cli.ts` still hardcodes `program.version('0.1.0')`; bump that when you care about `toby --version` matching the package, or add a release-it plugin such as `@release-it/bumper` later.
+`src/cli.ts` resolves version from `package.json` by default (with optional `TOBY_VERSION` override), so `toby --version` stays in sync with releases.
 
 ### One-liner install (end users)
 
