@@ -15,15 +15,23 @@ export function buildTranscriptNodes(
 	const boxWidth = Math.max(12, termCols - ASSISTANT_BOX_MARGIN_LEFT);
 	while (i < rows.length) {
 		const r = rows[i];
-		if (r.kind === "assistant_line") {
+		if (r.kind === "assistant_line" || r.kind === "assistant_list_item") {
 			const bk = r.blockKey;
-			const lines: string[] = [];
+			const lines: Array<{ text: string; marker: string | null }> = [];
 			while (i < rows.length) {
 				const cur = rows[i];
-				if (cur.kind !== "assistant_line" || cur.blockKey !== bk) {
+				if (
+					(cur.kind !== "assistant_line" &&
+						cur.kind !== "assistant_list_item") ||
+					cur.blockKey !== bk
+				) {
 					break;
 				}
-				lines.push(cur.text);
+				if (cur.kind === "assistant_list_item") {
+					lines.push({ text: cur.text, marker: cur.marker });
+				} else {
+					lines.push({ text: cur.text, marker: null });
+				}
 				i++;
 			}
 			nodes.push(
@@ -37,8 +45,11 @@ export function buildTranscriptNodes(
 					paddingX={1}
 				>
 					{lines.map((ln, j) => (
-						<Text key={`${bk}-${j}-${ln.slice(0, 12)}`} wrap="truncate-end">
-							{ln || " "}
+						<Text
+							key={`${bk}-${j}-${ln.text.slice(0, 12)}`}
+							wrap="truncate-end"
+						>
+							{ln.marker ? `${ln.marker}${ln.text || " "}` : (ln.text ?? " ")}
 						</Text>
 					))}
 				</Box>,

@@ -48,6 +48,68 @@ function assistantInnerTextWidth(termCols: number): number {
 	return Math.max(8, termCols - ASSISTANT_BOX_MARGIN_LEFT - 4);
 }
 
+type AssistantSegment =
+	| { kind: "text"; text: string }
+	| { kind: "list_item"; text: string; marker: string };
+
+function parseAssistantSegments(text: string): AssistantSegment[] {
+	const segments: AssistantSegment[] = [];
+	const lines = text.split(/\r?\n/);
+	let orderedIndex = 0;
+
+	const flushTextLine = (line: string) => {
+		orderedIndex = 0;
+		segments.push({ kind: "text", text: line });
+	};
+
+	for (const line of lines) {
+		const checkboxMatch = line.match(/^\s*[-*]\s+\[(?: |x|X)\]\s+(.*)$/);
+		const unorderedMatch = line.match(/^\s*[-*•]\s+(.*)$/);
+		const orderedMatch = line.match(/^\s*(\d+)[.)]\s+(.*)$/);
+
+		if (checkboxMatch?.[1]) {
+			orderedIndex = 0;
+			segments.push({
+				kind: "list_item",
+				text: checkboxMatch[1].trim(),
+				marker: "•",
+			});
+			continue;
+		}
+
+		if (unorderedMatch?.[1]) {
+			orderedIndex = 0;
+			segments.push({
+				kind: "list_item",
+				text: unorderedMatch[1].trim(),
+				marker: "•",
+			});
+			continue;
+		}
+
+		if (orderedMatch?.[2]) {
+			const parsed = Number.parseInt(orderedMatch[1] ?? "", 10);
+			const itemNumber = Number.isNaN(parsed) ? orderedIndex + 1 : parsed;
+			orderedIndex = itemNumber;
+			segments.push({
+				kind: "list_item",
+				text: orderedMatch[2].trim(),
+				marker: `${itemNumber}.`,
+			});
+			continue;
+		}
+
+		if (line.trim() === "") {
+			flushTextLine("");
+			continue;
+		}
+
+		flushTextLine(line);
+	}
+
+	return segments;
+}
+
 export function flattenTranscript(
 	entries: readonly TranscriptEntry[],
 	streamingText: string,
@@ -73,12 +135,41 @@ export function flattenTranscript(
 		} else if (e.kind === "assistant") {
 			assistantBlockSeq += 1;
 			const blockKey = `asst-${assistantBlockSeq}`;
-			const lines = wrapAssistantBlock(e.text, assistantW);
-			if (lines.length === 0) {
-				rows.push({ kind: "assistant_line", text: "", blockKey });
-			} else {
-				for (const line of lines) {
-					rows.push({ kind: "assistant_line", text: line, blockKey });
+			const segments = parseAssistantSegments(e.text);
+			for (const segment of segments) {
+				if (segment.kind === "text") {
+					const lines = wrapAssistantBlock(segment.text, assistantW);
+					if (lines.length === 0) {
+						rows.push({ kind: "assistant_line", text: "", blockKey });
+					} else {
+						for (const line of lines) {
+							rows.push({ kind: "assistant_line", text: line, blockKey });
+						}
+					}
+					continue;
+				}
+
+				const markerPad = `${segment.marker} `;
+				const wrapped = hardWrap(
+					segment.text,
+					Math.max(6, assistantW - markerPad.length),
+				);
+				if (wrapped.length === 0) {
+					rows.push({
+						kind: "assistant_list_item",
+						text: "",
+						marker: markerPad,
+						blockKey,
+					});
+					continue;
+				}
+				for (let idx = 0; idx < wrapped.length; idx++) {
+					rows.push({
+						kind: "assistant_list_item",
+						text: wrapped[idx] ?? "",
+						marker: idx === 0 ? markerPad : " ".repeat(markerPad.length),
+						blockKey,
+					});
 				}
 			}
 			if (next !== undefined) {
@@ -98,12 +189,45 @@ export function flattenTranscript(
 			rows.push({ kind: "spacer", rowKey: `gap-${gapKey}` });
 		}
 		const streamKey = "asst-stream";
-		const streamLines = wrapAssistantBlock(streamingText, assistantW);
-		if (streamLines.length === 0) {
-			rows.push({ kind: "assistant_line", text: "", blockKey: streamKey });
-		} else {
-			for (const line of streamLines) {
-				rows.push({ kind: "assistant_line", text: line, blockKey: streamKey });
+		const streamSegments = parseAssistantSegments(streamingText);
+		for (const segment of streamSegments) {
+			if (segment.kind === "text") {
+				const streamLines = wrapAssistantBlock(segment.text, assistantW);
+				if (streamLines.length === 0) {
+					rows.push({ kind: "assistant_line", text: "", blockKey: streamKey });
+				} else {
+					for (const line of streamLines) {
+						rows.push({
+							kind: "assistant_line",
+							text: line,
+							blockKey: streamKey,
+						});
+					}
+				}
+				continue;
+			}
+
+			const markerPad = `${segment.marker} `;
+			const wrapped = hardWrap(
+				segment.text,
+				Math.max(6, assistantW - markerPad.length),
+			);
+			if (wrapped.length === 0) {
+				rows.push({
+					kind: "assistant_list_item",
+					text: "",
+					marker: markerPad,
+					blockKey: streamKey,
+				});
+				continue;
+			}
+			for (let idx = 0; idx < wrapped.length; idx++) {
+				rows.push({
+					kind: "assistant_list_item",
+					text: wrapped[idx] ?? "",
+					marker: idx === 0 ? markerPad : " ".repeat(markerPad.length),
+					blockKey: streamKey,
+				});
 			}
 		}
 	}

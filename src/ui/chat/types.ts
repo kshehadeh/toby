@@ -14,6 +14,12 @@ export type DisplayRow =
 			readonly text: string;
 			readonly blockKey: string;
 	  }
+	| {
+			readonly kind: "assistant_list_item";
+			readonly text: string;
+			readonly marker: string;
+			readonly blockKey: string;
+	  }
 	| { readonly kind: "meta"; readonly text: string }
 	| { readonly kind: "error"; readonly text: string };
 

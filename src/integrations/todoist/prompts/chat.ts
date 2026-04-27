@@ -18,6 +18,7 @@ Rules:
 - If the instruction cannot be applied safely, explain why; if you need a decision, use askUser with concrete options.
 - Prefer askUser when multiple tasks could match and disambiguation is needed.
 - If the request is fully answered, stop without dangling "Would you like…?" questions in prose unless you call askUser for those options.
+- When listing tasks or choices, format them as markdown list items (\`- item\`) with one item per line.
 `;
 }
 

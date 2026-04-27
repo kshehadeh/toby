@@ -41,6 +41,7 @@ Use only the tools that belong to the integrations above. Pick the right integra
 Shared rules:
 - Use **askUser** whenever you need a multiple-choice decision from the user. The terminal does not respond to questions written only in plain assistant text.
 - If the request is fully answered, stop without dangling "Would you like…?" in prose unless you call **askUser** with concrete options.
+- When listing emails, tasks, or options in assistant text, prefer markdown list items (\`- item\`) with one item per line.
 
 ${gmailBlock}
 ${todoistBlock}

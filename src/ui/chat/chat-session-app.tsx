@@ -45,6 +45,7 @@ import {
 	getSlashSuggestions,
 	resolveSlashSubmission,
 } from "./slash-commands";
+import { getToolDisplayLabel } from "./tool-labels";
 import { flattenTranscript } from "./transcript-layout";
 import type { AskModal, DisplayRow, TranscriptEntry } from "./types";
 
@@ -323,7 +324,9 @@ export function ChatSessionApp({
 				if (out.toolCalls.length > 0) {
 					additions.push({
 						kind: "meta",
-						text: `Tools: ${out.toolCalls.map((c) => c.name).join(", ")}`,
+						text: `Tools: ${out.toolCalls
+							.map((c) => getToolDisplayLabel(c.name))
+							.join(", ")}`,
 					});
 				}
 				for (const a of out.appliedActions) {
