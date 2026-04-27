@@ -44,9 +44,7 @@ function resolveCliVersion(): string {
 	}
 
 	const packageVersion =
-		typeof packageJson.version === "string"
-			? packageJson.version.trim()
-			: "";
+		typeof packageJson.version === "string" ? packageJson.version.trim() : "";
 	if (packageVersion) {
 		return packageVersion;
 	}

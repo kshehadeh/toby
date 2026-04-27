@@ -204,7 +204,7 @@ async function chmodExecutable(filePath: string): Promise<void> {
 
 function readInstalledVersion(binaryPath: string): string | null {
 	const env = { ...process.env };
-	delete env.npm_package_version;
+	env.npm_package_version = undefined;
 	const result = spawnSync(binaryPath, ["--version"], {
 		encoding: "utf8",
 		env,
