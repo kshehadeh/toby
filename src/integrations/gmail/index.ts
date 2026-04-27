@@ -194,7 +194,7 @@ async function chat(options: ChatRunOptions): Promise<void> {
 	}
 
 	const messages = [
-		buildGmailChatSystemMessage(persona, options.prompt),
+		buildGmailChatSystemMessage(persona),
 		buildGmailChatUserMessage(options.prompt),
 	];
 

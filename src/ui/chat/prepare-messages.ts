@@ -17,7 +17,6 @@ import { composeSystemPromptWithPersona } from "../../personas/prompt";
 
 function buildCombinedChatBasePrompt(
 	modules: readonly IntegrationModule[],
-	userInstruction: string,
 ): string {
 	const labels = modules.map((m) => m.displayName).join(", ");
 	const gmail = modules.some((m) => m.name === "gmail");
@@ -45,8 +44,6 @@ Shared rules:
 
 ${gmailBlock}
 ${todoistBlock}
-User instruction:
-${userInstruction}
 `;
 }
 
@@ -66,7 +63,7 @@ export async function prepareChatSessionMessages(
 		}
 		if (module.name === "gmail") {
 			return [
-				buildGmailChatSystemMessage(persona, userPrompt),
+				buildGmailChatSystemMessage(persona),
 				buildGmailChatUserMessage(userPrompt),
 			];
 		}
@@ -75,8 +72,13 @@ export async function prepareChatSessionMessages(
 			const openTasks = await fetchOpenTasks();
 			const completedTasks = await fetchCompletedTasks();
 			return [
-				buildTodoistChatSystemMessage(persona, userPrompt),
+				buildTodoistChatSystemMessage(persona),
 				buildTodoistChatUserMessage(openTasks, completedTasks),
+				...(userPrompt.trim()
+					? ([
+							{ role: "user", content: `User request:\n${userPrompt}` },
+						] as const)
+					: []),
 			];
 		}
 
@@ -115,7 +117,7 @@ ${todoistContent}`);
 	}
 
 	const systemContent = composeSystemPromptWithPersona(
-		buildCombinedChatBasePrompt(modules, userPrompt),
+		buildCombinedChatBasePrompt(modules),
 		persona,
 	);
 

@@ -1,6 +1,8 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import {
+	type LanguageModelUsage,
 	type ModelMessage,
+	type ProviderMetadata,
 	type Tool,
 	generateText,
 	stepCountIs,
@@ -19,6 +21,8 @@ export type ChatWithToolsOptions = {
 	 * Non-streaming callers (e.g. organize) omit this and use `generateText`.
 	 */
 	readonly onAssistantTextDelta?: (delta: string) => void;
+	/** Provider-specific options passed through to the model call. */
+	readonly providerOptions?: unknown;
 };
 
 export function createModelForPersona(persona: Persona) {
@@ -51,9 +55,12 @@ export async function chatWithTools(
 	toolCalls: { name: string; args: Record<string, unknown> }[];
 	/** Assistant + tool messages from this call — append to history for the next turn. */
 	responseMessages: CoreMessage[];
+	usage?: LanguageModelUsage;
+	providerMetadata?: ProviderMetadata;
 }> {
 	const onToolCallStart = options?.onToolCallStart;
 	const onAssistantTextDelta = options?.onAssistantTextDelta;
+	const providerOptions = options?.providerOptions as unknown;
 
 	const toolStartHandler = onToolCallStart
 		? (event: { toolCall: { toolName: string } }) => {
@@ -67,6 +74,7 @@ export async function chatWithTools(
 			messages,
 			tools,
 			stopWhen: stepCountIs(12),
+			providerOptions: providerOptions as never,
 			...(toolStartHandler
 				? { experimental_onToolCallStart: toolStartHandler }
 				: {}),
@@ -76,12 +84,15 @@ export async function chatWithTools(
 			onAssistantTextDelta(delta);
 		}
 
-		const [response, text, steps, toolResults] = await Promise.all([
-			result.response,
-			result.text,
-			result.steps,
-			result.toolResults,
-		]);
+		const [response, text, steps, toolResults, usage, providerMetadata] =
+			await Promise.all([
+				result.response,
+				result.text,
+				result.steps,
+				result.toolResults,
+				result.usage,
+				result.providerMetadata,
+			]);
 
 		const toolCalls = steps.flatMap((step) =>
 			step.toolCalls.map((tc) => ({
@@ -98,6 +109,8 @@ export async function chatWithTools(
 			toolResults,
 			toolCalls,
 			responseMessages: response.messages as CoreMessage[],
+			usage,
+			providerMetadata,
 		};
 	}
 
@@ -106,6 +119,7 @@ export async function chatWithTools(
 		messages,
 		tools,
 		stopWhen: stepCountIs(12),
+		providerOptions: providerOptions as never,
 		...(toolStartHandler
 			? { experimental_onToolCallStart: toolStartHandler }
 			: {}),
@@ -122,5 +136,7 @@ export async function chatWithTools(
 					: {},
 		})),
 		responseMessages: result.response.messages as CoreMessage[],
+		usage: result.usage,
+		providerMetadata: result.providerMetadata,
 	};
 }

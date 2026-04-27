@@ -1,6 +1,8 @@
 import type { Tool } from "ai";
+import type { LanguageModelUsage, ProviderMetadata } from "ai";
 import type { AskUserHandler } from "../../ai/ask-user-tool";
 import { withAskUserTool } from "../../ai/ask-user-tool";
+import { applyChatPromptCaching } from "../../ai/cache-hints";
 import type { ChatWithToolsOptions, CoreMessage } from "../../ai/chat";
 import { chatWithTools, createModelForPersona } from "../../ai/chat";
 import type { Persona } from "../../config/index";
@@ -26,6 +28,8 @@ export async function runIntegrationChatTurn(
 	readonly toolCalls: { name: string; args: Record<string, unknown> }[];
 	readonly appliedActions: string[];
 	readonly responseMessages: CoreMessage[];
+	readonly usage?: LanguageModelUsage;
+	readonly providerMetadata?: ProviderMetadata;
 }> {
 	const unique = [...new Set(moduleNames)];
 	if (unique.length === 0) {
@@ -42,7 +46,13 @@ export async function runIntegrationChatTurn(
 			dryRun: options.dryRun,
 			maxResults: options.maxResults,
 			askUser: options.askUser,
-			chatWithToolsOptions: options.chatWithToolsOptions,
+			chatWithToolsOptions: applyChatPromptCaching(
+				options.chatWithToolsOptions,
+				{
+					persona: options.persona,
+					moduleNames: unique,
+				},
+			),
 		};
 
 		if (moduleName === "gmail") {
@@ -75,6 +85,8 @@ async function runCombinedIntegrationChatTurn(
 	readonly toolCalls: { name: string; args: Record<string, unknown> }[];
 	readonly appliedActions: string[];
 	readonly responseMessages: CoreMessage[];
+	readonly usage?: LanguageModelUsage;
+	readonly providerMetadata?: ProviderMetadata;
 }> {
 	const gmailCtx: EmailContext = {
 		currentEmail: null,
@@ -106,7 +118,10 @@ async function runCombinedIntegrationChatTurn(
 		model,
 		messages,
 		tools,
-		options.chatWithToolsOptions,
+		applyChatPromptCaching(options.chatWithToolsOptions, {
+			persona: options.persona,
+			moduleNames,
+		}),
 	);
 
 	return {
@@ -114,5 +129,7 @@ async function runCombinedIntegrationChatTurn(
 		toolCalls: result.toolCalls,
 		appliedActions: [...gmailCtx.appliedActions, ...todoistCtx.appliedActions],
 		responseMessages: result.responseMessages,
+		usage: result.usage,
+		providerMetadata: result.providerMetadata,
 	};
 }

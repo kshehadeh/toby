@@ -178,7 +178,7 @@ async function chat(options: ChatRunOptions): Promise<void> {
 	);
 
 	const messages = [
-		buildTodoistChatSystemMessage(persona, options.prompt),
+		buildTodoistChatSystemMessage(persona),
 		buildTodoistChatUserMessage(openTasks, completedTasks),
 	];
 

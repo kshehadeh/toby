@@ -2,8 +2,8 @@ import type { CoreMessage } from "../../../ai/chat";
 import type { Persona } from "../../../config/index";
 import { composeSystemPromptWithPersona } from "../../../personas/prompt";
 
-function buildChatSystemPrompt(userInstruction: string): string {
-	return `You are a Gmail assistant. The user gave one instruction about their inbox or messages.
+function buildChatSystemPrompt(): string {
+	return `You are a Gmail assistant.
 
 Work **holistically**: use tools to inspect the mailbox (counts, pages of ids, optional metadata batches) instead of assuming you must process emails one-by-one in the conversation.
 
@@ -19,22 +19,13 @@ Critical rules:
 - Never claim you archived, labeled, or marked read unless the corresponding tool succeeded.
 - Prefer **askUser** before large destructive batches if the instruction is ambiguous.
 - If the user's request is fully satisfied with data from tools (e.g. "are there unread emails?"), answer clearly and **stop**. Do not end with "Would you like…?" or similar in plain text unless you **first** call **askUser** with concrete options (e.g. "List subject lines" / "No further action").
-
-User instruction:
-${userInstruction}
 `;
 }
 
-export function buildGmailChatSystemMessage(
-	persona: Persona,
-	userInstruction: string,
-): CoreMessage {
+export function buildGmailChatSystemMessage(persona: Persona): CoreMessage {
 	return {
 		role: "system",
-		content: composeSystemPromptWithPersona(
-			buildChatSystemPrompt(userInstruction),
-			persona,
-		),
+		content: composeSystemPromptWithPersona(buildChatSystemPrompt(), persona),
 	};
 }
 

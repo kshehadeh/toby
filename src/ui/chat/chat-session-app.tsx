@@ -1,4 +1,5 @@
-import { Box, Text, useApp, useInput, useStdout } from "ink";
+import type { LanguageModelUsage } from "ai";
+import { Box, Text, useApp, useInput, useWindowSize } from "ink";
 import React, {
 	useCallback,
 	useEffect,
@@ -114,8 +115,8 @@ export function ChatSessionApp({
 	initialUserPrompt,
 }: ChatSessionAppProps) {
 	const { exit } = useApp();
-	const { stdout } = useStdout();
-	const termCols = Math.max(24, stdout.columns - 2);
+	const { columns } = useWindowSize();
+	const termCols = Math.max(24, columns - 2);
 	const [sessionId, setSessionId] = useState<string | null>(null);
 	const [sessionName, setSessionName] = useState<string>("New chat");
 	const [sessionBootMode, setSessionBootMode] = useState<"new" | "loaded">(
@@ -127,6 +128,7 @@ export function ChatSessionApp({
 	const [loading, setLoading] = useState(false);
 	const [activityLine, setActivityLine] = useState("Thinking…");
 	const [streamingAssistant, setStreamingAssistant] = useState("");
+	const [lastUsage, setLastUsage] = useState<LanguageModelUsage | null>(null);
 	const [bootError, setBootError] = useState<string | null>(null);
 	const [askModal, setAskModal] = useState<AskModal | null>(null);
 	const [askSelected, setAskSelected] = useState(0);
@@ -152,6 +154,7 @@ export function ChatSessionApp({
 	const didNameSessionRef = useRef(false);
 	const lastSavedMessageCountRef = useRef(0);
 	const lastSavedTranscriptCountRef = useRef(0);
+	const sessionIdRef = useRef<string | null>(null);
 	const snapRef = useRef({
 		askModal: null as AskModal | null,
 		messages: null as CoreMessage[] | null,
@@ -162,11 +165,11 @@ export function ChatSessionApp({
 	});
 
 	const allDisplayRows = useMemo((): DisplayRow[] => {
-		if (messages === null || sessionId === null) {
+		if (messages === null) {
 			return [{ kind: "meta", text: "Loading session…" }];
 		}
 		return flattenTranscript(transcript, streamingAssistant, loading, termCols);
-	}, [messages, sessionId, transcript, streamingAssistant, loading, termCols]);
+	}, [messages, transcript, streamingAssistant, loading, termCols]);
 
 	const chatIntegrations = useMemo(
 		() => getModulesWithCapability("chat").filter((m) => m.chat),
@@ -209,6 +212,10 @@ export function ChatSessionApp({
 	}, [selectedModules]);
 
 	useLayoutEffect(() => {
+		sessionIdRef.current = sessionId;
+	}, [sessionId]);
+
+	useLayoutEffect(() => {
 		askSelectedRef.current = askSelected;
 		snapRef.current = {
 			askModal,
@@ -230,9 +237,8 @@ export function ChatSessionApp({
 
 	const startFreshSession = useCallback(
 		(params?: { readonly prompt?: string; readonly note?: string }) => {
-			const created = createChatSession({ name: "New chat" });
-			setSessionId(created.id);
-			setSessionName(created.name);
+			setSessionId(null);
+			setSessionName("New chat");
 			setSessionBootMode("new");
 			didNameSessionRef.current = false;
 			lastSavedMessageCountRef.current = 0;
@@ -246,17 +252,6 @@ export function ChatSessionApp({
 		[],
 	);
 
-	// Create a new session when chat starts.
-	useEffect(() => {
-		if (sessionId !== null) {
-			return;
-		}
-		const created = createChatSession({ name: "New chat" });
-		setSessionId(created.id);
-		setSessionName(created.name);
-		setSessionBootMode("new");
-	}, [sessionId]);
-
 	const askUserHandler = useCallback<AskUserHandler>(
 		async ({ query, options }) =>
 			new Promise<AskUserToolResult>((resolve) => {
@@ -267,8 +262,8 @@ export function ChatSessionApp({
 	);
 
 	const runModelTurn = useCallback(
-		async (msgs: CoreMessage[]) => {
-			const sid = sessionId;
+		async (msgs: CoreMessage[], overrideSessionId?: string) => {
+			const sid = overrideSessionId ?? sessionIdRef.current;
 			if (!sid) {
 				throw new Error("Internal error: missing session id");
 			}
@@ -293,6 +288,7 @@ export function ChatSessionApp({
 				});
 				const next = [...msgs, ...out.responseMessages];
 				setMessages(next);
+				setLastUsage(out.usage ?? null);
 
 				const reply =
 					streamedAssistantRef.current.trim() ||
@@ -303,6 +299,27 @@ export function ChatSessionApp({
 				const additions: TranscriptEntry[] = [
 					{ kind: "assistant", text: reply },
 				];
+				if (
+					process.env.TOBY_DEBUG_CACHE === "1" &&
+					out.usage?.inputTokenDetails
+				) {
+					const d = out.usage.inputTokenDetails;
+					const pieces = [
+						d.cacheReadTokens !== undefined
+							? `cacheRead=${d.cacheReadTokens}`
+							: null,
+						d.cacheWriteTokens !== undefined
+							? `cacheWrite=${d.cacheWriteTokens}`
+							: null,
+						d.noCacheTokens !== undefined ? `noCache=${d.noCacheTokens}` : null,
+					].filter(Boolean);
+					if (pieces.length > 0) {
+						additions.push({
+							kind: "meta",
+							text: `Usage: ${pieces.join(" · ")}`,
+						});
+					}
+				}
 				if (out.toolCalls.length > 0) {
 					additions.push({
 						kind: "meta",
@@ -322,7 +339,7 @@ export function ChatSessionApp({
 				setLoading(false);
 			}
 		},
-		[moduleNames, askUserHandler, dryRun, persona, sessionId],
+		[moduleNames, askUserHandler, dryRun, persona],
 	);
 
 	useEffect(() => {
@@ -330,7 +347,7 @@ export function ChatSessionApp({
 		void (async () => {
 			try {
 				const sid = sessionId;
-				if (!sid) {
+				if (messages !== null) {
 					return;
 				}
 				// If we loaded an existing session, don't overwrite its transcript/messages
@@ -358,12 +375,14 @@ export function ChatSessionApp({
 				const nextTranscript = [...userEntries, ...metaEntries];
 				setTranscript(nextTranscript);
 
-				// Persist boot state.
-				appendMessageBatch(sid, 0, initial);
-				lastSavedMessageCountRef.current = initial.length;
-				if (nextTranscript.length > 0) {
-					appendTranscriptBatch(sid, 0, nextTranscript);
-					lastSavedTranscriptCountRef.current = nextTranscript.length;
+				// Persist boot state only after a session is materialized.
+				if (sid) {
+					appendMessageBatch(sid, 0, initial);
+					lastSavedMessageCountRef.current = initial.length;
+					if (nextTranscript.length > 0) {
+						appendTranscriptBatch(sid, 0, nextTranscript);
+						lastSavedTranscriptCountRef.current = nextTranscript.length;
+					}
 				}
 			} catch (e) {
 				if (!cancelled) {
@@ -374,7 +393,14 @@ export function ChatSessionApp({
 		return () => {
 			cancelled = true;
 		};
-	}, [selectedModules, persona, sessionPrompt, sessionId, sessionBootMode]);
+	}, [
+		selectedModules,
+		persona,
+		sessionPrompt,
+		sessionId,
+		sessionBootMode,
+		messages,
+	]);
 
 	// Incrementally persist new messages and transcript entries.
 	useEffect(() => {
@@ -560,11 +586,20 @@ export function ChatSessionApp({
 			if (!msgs) {
 				return;
 			}
+			let sid = sessionIdRef.current;
+			if (!sid) {
+				const created = createChatSession({ name: "New chat" });
+				sid = created.id;
+				setSessionId(created.id);
+				setSessionName(created.name);
+				lastSavedMessageCountRef.current = 0;
+				lastSavedTranscriptCountRef.current = 0;
+			}
 			const userMsg: CoreMessage = { role: "user", content: line };
 			const next = [...msgs, userMsg];
 			setMessages(next);
 			setTranscript((t) => [...t, { kind: "user", text: line }]);
-			void runModelTurnRef.current(next);
+			void runModelTurnRef.current(next, sid);
 		},
 		[
 			chatIntegrations.length,
@@ -841,7 +876,6 @@ export function ChatSessionApp({
 		);
 	}
 
-	const bootLoading = messages === null;
 	const displayRows = allDisplayRows;
 
 	const inputDisabled =
@@ -849,17 +883,20 @@ export function ChatSessionApp({
 		Boolean(multiPicker) ||
 		Boolean(sessionPicker) ||
 		loading ||
-		bootLoading ||
 		showConfig;
 	const modelLabel = `${persona.ai.provider}/${persona.ai.model}`;
+	const suggestedPlaceholder =
+		sessionBootMode === "new" ? '> Try "What needs my attention today?"' : null;
 
 	return (
 		<Box flexDirection="column" width="100%" padding={1}>
 			<Box flexShrink={0} width={termCols} flexDirection="column">
 				{CHAT_TITLE_ASCII.map((line) => (
-					<Text key={line} color={ACCENT} bold wrap="truncate-end">
-						{line}
-					</Text>
+					<Box key={line} width={termCols} justifyContent="center">
+						<Text color={ACCENT} bold wrap="truncate-end">
+							{line}
+						</Text>
+					</Box>
 				))}
 			</Box>
 			<Box flexDirection="column" marginTop={1} flexShrink={0}>
@@ -928,6 +965,8 @@ export function ChatSessionApp({
 				modelLabel={modelLabel}
 				scopeLabel={formatScopeLabel(selectedModules)}
 				dryRun={dryRun}
+				lastUsage={lastUsage}
+				placeholder={suggestedPlaceholder}
 				slashSuggestions={slashSuggestions}
 				selectedSlashCommand={selectedSlashCommand}
 			/>

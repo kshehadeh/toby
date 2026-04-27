@@ -187,6 +187,21 @@ export function loadChatSession(sessionId: string): LoadedChatSession | null {
 	return { id: sess.id, name: sess.name, messages, transcript };
 }
 
+export function clearChatSessions(): number {
+	const db = getDb();
+	const row = db.query("SELECT COUNT(*) as count FROM chat_sessions").get() as
+		| { count: number }
+		| undefined;
+	const deleted = Number(row?.count ?? 0);
+	const tx = db.transaction(() => {
+		db.query("DELETE FROM chat_session_messages").run();
+		db.query("DELETE FROM chat_session_transcript").run();
+		db.query("DELETE FROM chat_sessions").run();
+	});
+	tx();
+	return deleted;
+}
+
 export function appendMessageBatch(
 	sessionId: string,
 	startIdx: number,
