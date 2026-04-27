@@ -33,7 +33,7 @@ src/
 2. **Connect / disconnect / status** use [`getIntegration`](../src/integrations/index.ts) or [`getIntegrations`](../src/integrations/index.ts) to invoke lifecycle and health checks on the right module.
 3. **`summarize`** resolves a module by name, checks the `summarize` capability, calls `module.summarize(...)`, then runs the AI SDK with returned messages.
 4. **`chat`** (`src/commands/chat.ts`) resolves one or more connected integrations (positional / `--integration` / default all), then runs an Ink multi-turn session or `--no-tui` console flow; multi-integration turns merge tool maps in [`src/ui/chat/run-turn.ts`](../src/ui/chat/run-turn.ts) (see [`src/ai/chat.ts`](../src/ai/chat.ts) and [`src/ai/ask-user-tool.ts`](../src/ai/ask-user-tool.ts)).
-5. **`configure`** reads flat credential/persona values, builds the settings tree (integration sections come from each module’s credential descriptors), and writes merged credentials back through each module’s `mergeCredentialsPatch`.
+5. **`config`** is the primary settings command. `toby config` launches the configure UI, while `toby config backup` and `toby config restore` manage encrypted config backups. `toby configure` remains as a compatibility alias.
 
 ## Local data
 
@@ -44,6 +44,8 @@ src/
 | `~/.toby/chat.sqlite` | Chat session storage (sessions, messages, transcript) |
 
 Access is centralized in [`src/config/index.ts`](../src/config/index.ts). Integration modules should not hardcode paths; use the config helpers.
+
+Backup and restore behavior is documented in [`commands.md`](commands.md).
 
 ## UI stack
 

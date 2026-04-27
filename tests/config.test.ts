@@ -2,7 +2,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { readConfig, readCredentials, writeConfig } from "../src/config/index";
+import {
+	getConfigPath,
+	getCredentialsPath,
+	readConfig,
+	readCredentials,
+	writeConfig,
+} from "../src/config/index";
 
 const TOBY_DIR = path.join(os.homedir(), ".toby");
 const CONFIG_PATH = path.join(TOBY_DIR, "config.json");
@@ -77,5 +83,23 @@ describe("readCredentials", () => {
 		fs.writeFileSync(CREDENTIALS_PATH, JSON.stringify(data));
 		const creds = readCredentials();
 		expect(creds.gmail?.clientId).toBe("abc");
+	});
+});
+
+describe("config paths", () => {
+	it("resolves config and credentials paths from TOBY_DIR override", () => {
+		const previousTobyDir = process.env.TOBY_DIR;
+		process.env.TOBY_DIR = "/tmp/toby-test-dir";
+
+		try {
+			expect(getConfigPath()).toBe("/tmp/toby-test-dir/config.json");
+			expect(getCredentialsPath()).toBe("/tmp/toby-test-dir/credentials.json");
+		} finally {
+			if (previousTobyDir === undefined) {
+				process.env.TOBY_DIR = undefined;
+			} else {
+				process.env.TOBY_DIR = previousTobyDir;
+			}
+		}
 	});
 });

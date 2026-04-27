@@ -2,7 +2,7 @@ import process from "node:process";
 import { Command } from "commander";
 import packageJson from "../package.json";
 import { registerChatCommand } from "./commands/chat";
-import { registerConfigureCommand } from "./commands/configure";
+import { registerConfigCommand } from "./commands/configure";
 import { registerConnectCommand } from "./commands/connect";
 import { registerDisconnectCommand } from "./commands/disconnect";
 import { registerOrganizeCommand } from "./commands/organize";
@@ -27,7 +27,7 @@ registerDisconnectCommand(program);
 for (const mod of getIntegrationModules()) {
 	mod.registerCommands?.(program);
 }
-registerConfigureCommand(program);
+registerConfigCommand(program);
 registerSessionsCommand(program);
 registerStatusCommand(program);
 registerSummarizeCommand(program);

@@ -10,6 +10,14 @@ function resolveTobyDir(): string {
 	return path.join(os.homedir(), ".toby");
 }
 
+export function getConfigPath(): string {
+	return path.join(resolveTobyDir(), "config.json");
+}
+
+export function getCredentialsPath(): string {
+	return path.join(resolveTobyDir(), "credentials.json");
+}
+
 export function ensureTobyDir(): void {
 	const dir = resolveTobyDir();
 	if (!fs.existsSync(dir)) {
@@ -20,9 +28,6 @@ export function ensureTobyDir(): void {
 export function getChatDbPath(): string {
 	return path.join(resolveTobyDir(), "chat.sqlite");
 }
-
-const CONFIG_PATH = path.join(resolveTobyDir(), "config.json");
-const CREDENTIALS_PATH = path.join(resolveTobyDir(), "credentials.json");
 
 interface AIProvider {
 	provider: string;
@@ -70,11 +75,12 @@ export interface CredentialsFile {
 }
 
 export function readConfig(): TobyConfig {
+	const configPath = getConfigPath();
 	ensureTobyDir();
-	if (!fs.existsSync(CONFIG_PATH)) {
+	if (!fs.existsSync(configPath)) {
 		return { integrations: {}, personas: [] };
 	}
-	const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
+	const raw = fs.readFileSync(configPath, "utf-8");
 	const parsed = JSON.parse(raw) as Partial<TobyConfig>;
 	const personas: Persona[] = (parsed.personas ?? []).map((persona) => {
 		const promptMode: PersonaPromptMode =
@@ -91,20 +97,23 @@ export function readConfig(): TobyConfig {
 }
 
 export function writeConfig(config: TobyConfig): void {
+	const configPath = getConfigPath();
 	ensureTobyDir();
-	fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+	fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 }
 
 export function writeCredentials(creds: CredentialsFile): void {
+	const credentialsPath = getCredentialsPath();
 	ensureTobyDir();
-	fs.writeFileSync(CREDENTIALS_PATH, JSON.stringify(creds, null, 2));
+	fs.writeFileSync(credentialsPath, JSON.stringify(creds, null, 2));
 }
 
 export function readCredentials(): CredentialsFile {
-	if (!fs.existsSync(CREDENTIALS_PATH)) {
+	const credentialsPath = getCredentialsPath();
+	if (!fs.existsSync(credentialsPath)) {
 		return {};
 	}
-	const raw = fs.readFileSync(CREDENTIALS_PATH, "utf-8");
+	const raw = fs.readFileSync(credentialsPath, "utf-8");
 	return JSON.parse(raw) as CredentialsFile;
 }
 
