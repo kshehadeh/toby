@@ -20,6 +20,14 @@ export async function isIntegrationUsableInChat(
 		const creds = readCredentials();
 		return Boolean(creds.todoist?.apiKey?.trim());
 	}
+	if (module.name === "azuread") {
+		const creds = readCredentials();
+		return Boolean(
+			creds.azuread?.tenantId?.trim() &&
+				creds.azuread?.clientId?.trim() &&
+				creds.azuread?.clientSecret?.trim(),
+		);
+	}
 	return false;
 }
 
@@ -118,10 +126,14 @@ export async function resolveChatIntegrationModules(
 			};
 		}
 		if (!(await isIntegrationUsableInChat(mod))) {
-			const hint =
-				mod.name === "todoist"
-					? "Add a Todoist API key in `toby configure` or run `toby connect todoist`."
-					: `Run \`toby connect ${mod.name}\` first.`;
+			let hint = `Run \`toby connect ${mod.name}\` first.`;
+			if (mod.name === "todoist") {
+				hint =
+					"Add a Todoist API key in `toby configure` or run `toby connect todoist`.";
+			} else if (mod.name === "azuread") {
+				hint =
+					"Add Azure AD tenantId/clientId/clientSecret in `toby configure` (or run `toby connect azuread` after configuring).";
+			}
 			return {
 				ok: false,
 				message: `"${mod.name}" is not ready for chat. ${hint}`,

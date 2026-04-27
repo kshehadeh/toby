@@ -42,7 +42,7 @@ describe("integration registry", () => {
 		const names = getIntegrationModules()
 			.map((m) => m.name)
 			.sort();
-		expect(names).toEqual(["gmail", "todoist"]);
+		expect(names).toEqual(["azuread", "gmail", "todoist"]);
 	});
 
 	it("getModulesWithCapability(summarize) includes gmail and todoist", () => {
@@ -61,7 +61,7 @@ describe("integration registry", () => {
 		const names = getModulesWithCapability("chat")
 			.map((m) => m.name)
 			.sort();
-		expect(names).toEqual(["gmail", "todoist"]);
+		expect(names).toEqual(["azuread", "gmail", "todoist"]);
 	});
 
 	it("modules expose credential descriptors", () => {

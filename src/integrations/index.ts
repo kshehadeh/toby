@@ -1,3 +1,4 @@
+import { azureAdIntegrationModule } from "./azuread/index";
 import { gmailIntegrationModule } from "./gmail/index";
 import { todoistIntegrationModule } from "./todoist/index";
 import type {
@@ -9,6 +10,7 @@ import type {
 const MODULES: IntegrationModule[] = [
 	gmailIntegrationModule,
 	todoistIntegrationModule,
+	azureAdIntegrationModule,
 ];
 
 export function getIntegrationModules(): IntegrationModule[] {

@@ -16,6 +16,11 @@ const TOOL_LABEL_OVERRIDES: Record<string, string> = {
 	completeTask: "Complete Todoist task",
 	createTask: "Create Todoist task",
 	updateTask: "Update Todoist task",
+	listUsers: "List Azure AD users",
+	searchUsers: "Search Azure AD users",
+	getUser: "Get Azure AD user",
+	getUserManager: "Get user manager",
+	getUserDirectReports: "Get direct reports",
 };
 
 function humanizeToolName(toolName: string): string {

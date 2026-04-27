@@ -1,6 +1,10 @@
 import type { CoreMessage } from "../../ai/chat";
 import type { Persona } from "../../config/index";
 import {
+	buildAzureAdChatSystemMessage,
+	buildAzureAdChatUserMessage,
+} from "../../integrations/azuread/prompts/chat";
+import {
 	buildGmailChatSystemMessage,
 	buildGmailChatUserMessage,
 } from "../../integrations/gmail/prompts/chat";
@@ -21,6 +25,7 @@ function buildCombinedChatBasePrompt(
 	const labels = modules.map((m) => m.displayName).join(", ");
 	const gmail = modules.some((m) => m.name === "gmail");
 	const todoist = modules.some((m) => m.name === "todoist");
+	const azuread = modules.some((m) => m.name === "azuread");
 
 	const gmailBlock = gmail
 		? `### Gmail
@@ -31,6 +36,12 @@ You are assisting with Gmail. Use Gmail tools to inspect or change the mailbox. 
 	const todoistBlock = todoist
 		? `### Todoist
 You are assisting with Todoist. Use Todoist tools to create, read, or update tasks. Open/completed task snapshots may appear in the user message below. Never claim a task changed unless the corresponding Todoist tool succeeded.
+`
+		: "";
+
+	const azureadBlock = azuread
+		? `### Azure AD
+You are assisting with Azure AD (Microsoft Entra ID) via Microsoft Graph. Use tools to look up users and Teams metadata. Never claim a user/team exists unless confirmed by tool results.
 `
 		: "";
 
@@ -45,6 +56,7 @@ Shared rules:
 
 ${gmailBlock}
 ${todoistBlock}
+${azureadBlock}
 `;
 }
 
@@ -83,6 +95,13 @@ export async function prepareChatSessionMessages(
 			];
 		}
 
+		if (module.name === "azuread") {
+			return [
+				buildAzureAdChatSystemMessage(persona),
+				buildAzureAdChatUserMessage(userPrompt),
+			];
+		}
+
 		throw new Error(
 			`prepareChatSessionMessages: no chat session builder for "${module.name}"`,
 		);
@@ -90,6 +109,7 @@ export async function prepareChatSessionMessages(
 
 	const hasGmail = modules.some((m) => m.name === "gmail");
 	const hasTodoist = modules.some((m) => m.name === "todoist");
+	const hasAzureAd = modules.some((m) => m.name === "azuread");
 
 	const parts: string[] = [];
 
@@ -115,6 +135,14 @@ ${userPrompt || "(no additional text — follow the system instruction.)"}`);
 Apply the system instruction using Todoist tools when tasks are involved.
 
 ${todoistContent}`);
+	}
+
+	if (hasAzureAd) {
+		parts.push(`## Azure AD
+Use Microsoft Graph tools to resolve users/teams mentioned by the user request.
+
+User request (may also mention other integrations):
+${userPrompt || "(no additional text — follow the system instruction.)"}`);
 	}
 
 	const systemContent = composeSystemPromptWithPersona(

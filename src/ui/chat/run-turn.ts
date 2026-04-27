@@ -6,6 +6,8 @@ import { applyChatPromptCaching } from "../../ai/cache-hints";
 import type { ChatWithToolsOptions, CoreMessage } from "../../ai/chat";
 import { chatWithTools, createModelForPersona } from "../../ai/chat";
 import type { Persona } from "../../config/index";
+import { runAzureAdChatTurn } from "../../integrations/azuread/chat-turn";
+import { createAzureAdTools } from "../../integrations/azuread/tools";
 import { runGmailChatTurn } from "../../integrations/gmail/chat-turn";
 import type { EmailContext } from "../../integrations/gmail/tools";
 import { createGmailTools } from "../../integrations/gmail/tools";
@@ -61,6 +63,9 @@ export async function runIntegrationChatTurn(
 		if (moduleName === "todoist") {
 			return runTodoistChatTurn(base);
 		}
+		if (moduleName === "azuread") {
+			return runAzureAdChatTurn(base);
+		}
 
 		throw new Error(
 			`runIntegrationChatTurn: unsupported integration "${moduleName}"`,
@@ -98,6 +103,7 @@ async function runCombinedIntegrationChatTurn(
 				: Math.min(Math.max(1, options.maxResults), 500),
 	};
 	const todoistCtx = { dryRun: options.dryRun, appliedActions: [] as string[] };
+	const azureadCtx = { dryRun: options.dryRun, appliedActions: [] as string[] };
 
 	const mergedTools: Record<string, Tool> = {};
 	for (const name of moduleNames) {
@@ -105,6 +111,8 @@ async function runCombinedIntegrationChatTurn(
 			Object.assign(mergedTools, createGmailTools(gmailCtx));
 		} else if (name === "todoist") {
 			Object.assign(mergedTools, createTodoistTools(todoistCtx));
+		} else if (name === "azuread") {
+			Object.assign(mergedTools, createAzureAdTools(azureadCtx));
 		} else {
 			throw new Error(
 				`runCombinedIntegrationChatTurn: unsupported integration "${name}"`,
@@ -127,7 +135,11 @@ async function runCombinedIntegrationChatTurn(
 	return {
 		text: result.text,
 		toolCalls: result.toolCalls,
-		appliedActions: [...gmailCtx.appliedActions, ...todoistCtx.appliedActions],
+		appliedActions: [
+			...gmailCtx.appliedActions,
+			...todoistCtx.appliedActions,
+			...azureadCtx.appliedActions,
+		],
 		responseMessages: result.responseMessages,
 		usage: result.usage,
 		providerMetadata: result.providerMetadata,

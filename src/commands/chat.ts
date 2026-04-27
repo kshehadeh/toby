@@ -41,7 +41,7 @@ export function registerChatCommand(program: Command): void {
 		)
 		.argument(
 			"[words...]",
-			"Optional: first word may be an integration name (gmail, todoist); remaining words are the prompt. If the first word is not an integration, the full text is the prompt and all connected chat integrations are used.",
+			"Optional: first word may be an integration name (gmail, todoist, azuread); remaining words are the prompt. If the first word is not an integration, the full text is the prompt and all connected chat integrations are used.",
 		)
 		.option("-p, --persona <name>", "Optional persona to shape behavior")
 		.option(

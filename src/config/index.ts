@@ -52,6 +52,12 @@ interface TodoistCredentials {
 	apiKey: string;
 }
 
+interface AzureAdCredentials {
+	tenantId: string;
+	clientId: string;
+	clientSecret: string;
+}
+
 interface AICredentials {
 	openai?: { token: string };
 }
@@ -59,6 +65,7 @@ interface AICredentials {
 export interface CredentialsFile {
 	gmail?: GmailCredentials;
 	todoist?: TodoistCredentials;
+	azuread?: AzureAdCredentials;
 	ai?: AICredentials;
 }
 
@@ -124,4 +131,20 @@ export function getTodoistCredentials(): TodoistCredentials {
 		);
 	}
 	return creds.todoist;
+}
+
+export function getAzureAdCredentials(): AzureAdCredentials {
+	const creds = readCredentials();
+	const azuread = creds.azuread;
+	if (!azuread) {
+		throw new Error(
+			"Azure AD credentials not found. Add them to ~/.toby/credentials.json or run `toby configure`.",
+		);
+	}
+	if (!azuread.tenantId || !azuread.clientId || !azuread.clientSecret) {
+		throw new Error(
+			"Azure AD credentials are incomplete. Ensure tenantId, clientId, and clientSecret are set in ~/.toby/credentials.json or via `toby configure`.",
+		);
+	}
+	return azuread;
 }

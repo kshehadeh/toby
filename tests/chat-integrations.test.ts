@@ -30,6 +30,13 @@ describe("parseChatCliInput", () => {
 		});
 	});
 
+	it("peels azuread as integration", () => {
+		expect(parseChatCliInput(["azuread", "find", "alice"], [])).toEqual({
+			explicitNames: ["azuread"],
+			prompt: "find alice",
+		});
+	});
+
 	it("treats all positional as prompt when flags set", () => {
 		expect(parseChatCliInput(["gmail", "hello"], ["todoist", "gmail"])).toEqual(
 			{

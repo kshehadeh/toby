@@ -104,6 +104,11 @@ function buildCredentialsFromValues(
 	const todoist = {
 		apiKey: creds.todoist?.apiKey ?? "",
 	};
+	const azuread = {
+		tenantId: creds.azuread?.tenantId ?? "",
+		clientId: creds.azuread?.clientId ?? "",
+		clientSecret: creds.azuread?.clientSecret ?? "",
+	};
 
 	for (const mod of getIntegrationModules()) {
 		const patch = mod.mergeCredentialsPatch(values, creds);
@@ -113,11 +118,15 @@ function buildCredentialsFromValues(
 		if (patch.todoist) {
 			Object.assign(todoist, patch.todoist);
 		}
+		if (patch.azuread) {
+			Object.assign(azuread, patch.azuread);
+		}
 	}
 
 	return {
 		gmail,
 		todoist,
+		azuread,
 		ai: {
 			openai: {
 				token: values["ai.openai.token"] ?? creds.ai?.openai?.token ?? "",
