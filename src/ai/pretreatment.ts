@@ -27,7 +27,7 @@ const userIntentSpecSchema = z.object({
 
 export type UserIntentSpec = z.infer<typeof userIntentSpecSchema>;
 
-const PREP_SYSTEM = `You extract a compact intent specification from a user message for a CLI assistant (Toby) that may use Gmail, Todoist, and/or Azure AD tools.
+const PREP_SYSTEM = `You extract a compact intent specification from a user message for a CLI assistant (Toby) that may use multiple integration tools.
 Return only structured fields that match the schema. Be conservative: if unsure, put detail in openQuestions rather than assumptions.
 Do not invent email addresses, task IDs, or dates that are not in the user message.`;
 

@@ -13,22 +13,11 @@ import type { IntegrationModule } from "../integrations/types";
 export async function isIntegrationUsableInChat(
 	module: IntegrationModule,
 ): Promise<boolean> {
-	if (await module.isConnected()) {
-		return true;
-	}
-	if (module.name === "todoist") {
-		const creds = readCredentials();
-		return Boolean(creds.todoist?.apiKey?.trim());
-	}
-	if (module.name === "azuread") {
-		const creds = readCredentials();
-		return Boolean(
-			creds.azuread?.tenantId?.trim() &&
-				creds.azuread?.clientId?.trim() &&
-				creds.azuread?.clientSecret?.trim(),
-		);
-	}
-	return false;
+	if (await module.isConnected()) return true;
+	const readiness = module.chatReadiness;
+	if (!readiness) return false;
+	const creds = readCredentials();
+	return (await readiness(creds)).ok;
 }
 
 function dedupeNames(names: readonly string[]): string[] {
@@ -104,9 +93,22 @@ export async function resolveChatIntegrationModules(
 		}
 		if (usable.length === 0) {
 			const names = chatMods.map((m) => m.name).join(", ") || "(none)";
+			const creds = readCredentials();
+			const hints = (
+				await Promise.all(
+					chatMods.map(async (m) => {
+						const r = m.chatReadiness ? await m.chatReadiness(creds) : null;
+						return r?.hint?.trim()
+							? `${m.displayName}: ${r.hint.trim()}`
+							: null;
+					}),
+				)
+			).filter((x): x is string => Boolean(x));
 			return {
 				ok: false,
-				message: `No usable chat integrations. For Gmail run \`toby connect gmail\`; for Todoist add an API key in \`toby configure\` or run \`toby connect todoist\`. Chat-capable modules: ${names}.`,
+				message: `No usable chat integrations. Chat-capable modules: ${names}.${
+					hints.length > 0 ? `\n\nMake one ready:\n- ${hints.join("\n- ")}` : ""
+				}`,
 			};
 		}
 		return { ok: true, modules: usable };
@@ -126,14 +128,10 @@ export async function resolveChatIntegrationModules(
 			};
 		}
 		if (!(await isIntegrationUsableInChat(mod))) {
-			let hint = `Run \`toby connect ${mod.name}\` first.`;
-			if (mod.name === "todoist") {
-				hint =
-					"Add a Todoist API key in `toby configure` or run `toby connect todoist`.";
-			} else if (mod.name === "azuread") {
-				hint =
-					"Add Azure AD tenantId/clientId/clientSecret in `toby configure` (or run `toby connect azuread` after configuring).";
-			}
+			const creds = readCredentials();
+			const hint =
+				(mod.chatReadiness ? (await mod.chatReadiness(creds)).hint : null) ||
+				`Run \`toby connect ${mod.name}\` first.`;
 			return {
 				ok: false,
 				message: `"${mod.name}" is not ready for chat. ${hint}`,

@@ -1,18 +1,11 @@
-import type { Tool } from "ai";
-import type { LanguageModelUsage, ProviderMetadata } from "ai";
+import type { LanguageModelUsage, ProviderMetadata, Tool } from "ai";
 import type { AskUserHandler } from "../../ai/ask-user-tool";
 import { withAskUserTool } from "../../ai/ask-user-tool";
 import { applyChatPromptCaching } from "../../ai/cache-hints";
 import type { ChatWithToolsOptions, CoreMessage } from "../../ai/chat";
 import { chatWithTools, createModelForPersona } from "../../ai/chat";
 import type { Persona } from "../../config/index";
-import { runAzureAdChatTurn } from "../../integrations/azuread/chat-turn";
-import { createAzureAdTools } from "../../integrations/azuread/tools";
-import { runGmailChatTurn } from "../../integrations/gmail/chat-turn";
-import type { EmailContext } from "../../integrations/gmail/tools";
-import { createGmailTools } from "../../integrations/gmail/tools";
-import { runTodoistChatTurn } from "../../integrations/todoist/chat-turn";
-import { createTodoistTools } from "../../integrations/todoist/tools";
+import { getIntegrationModule } from "../../integrations/index";
 import type { IntegrationModule } from "../../integrations/types";
 
 export async function runIntegrationChatTurn(
@@ -42,6 +35,12 @@ export async function runIntegrationChatTurn(
 		if (!moduleName) {
 			throw new Error("runIntegrationChatTurn: missing integration name");
 		}
+		const module = getIntegrationModule(moduleName);
+		if (!module) {
+			throw new Error(
+				`runIntegrationChatTurn: unknown integration "${moduleName}"`,
+			);
+		}
 		const base = {
 			messages,
 			persona: options.persona,
@@ -56,27 +55,26 @@ export async function runIntegrationChatTurn(
 				},
 			),
 		};
-
-		if (moduleName === "gmail") {
-			return runGmailChatTurn(base);
+		if (module.runChatTurn) {
+			return await module.runChatTurn(base);
 		}
-		if (moduleName === "todoist") {
-			return runTodoistChatTurn(base);
-		}
-		if (moduleName === "azuread") {
-			return runAzureAdChatTurn(base);
-		}
-
-		throw new Error(
-			`runIntegrationChatTurn: unsupported integration "${moduleName}"`,
-		);
+		return await runSharedChatTurn([module], messages, options);
 	}
 
-	return runCombinedIntegrationChatTurn(unique, messages, options);
+	const modules = unique
+		.map((n) => {
+			const mod = getIntegrationModule(n);
+			if (!mod) {
+				throw new Error(`runIntegrationChatTurn: unknown integration "${n}"`);
+			}
+			return mod;
+		})
+		.sort((a, b) => a.name.localeCompare(b.name));
+	return await runSharedChatTurn(modules, messages, options);
 }
 
-async function runCombinedIntegrationChatTurn(
-	moduleNames: readonly IntegrationModule["name"][],
+async function runSharedChatTurn(
+	modules: readonly IntegrationModule[],
 	messages: CoreMessage[],
 	options: {
 		readonly persona: Persona;
@@ -93,32 +91,26 @@ async function runCombinedIntegrationChatTurn(
 	readonly usage?: LanguageModelUsage;
 	readonly providerMetadata?: ProviderMetadata;
 }> {
-	const gmailCtx: EmailContext = {
-		currentEmail: null,
-		dryRun: options.dryRun,
-		appliedActions: [],
-		listSampleMax:
-			options.maxResults === undefined
-				? undefined
-				: Math.min(Math.max(1, options.maxResults), 500),
-	};
-	const todoistCtx = { dryRun: options.dryRun, appliedActions: [] as string[] };
-	const azureadCtx = { dryRun: options.dryRun, appliedActions: [] as string[] };
-
+	const toolBundles = await Promise.all(
+		modules.map(async (m) => {
+			if (!m.createChatTools) {
+				throw new Error(
+					`runIntegrationChatTurn: integration "${m.name}" does not export createChatTools`,
+				);
+			}
+			return await m.createChatTools({
+				dryRun: options.dryRun,
+				maxResults: options.maxResults,
+			});
+		}),
+	);
 	const mergedTools: Record<string, Tool> = {};
-	for (const name of moduleNames) {
-		if (name === "gmail") {
-			Object.assign(mergedTools, createGmailTools(gmailCtx));
-		} else if (name === "todoist") {
-			Object.assign(mergedTools, createTodoistTools(todoistCtx));
-		} else if (name === "azuread") {
-			Object.assign(mergedTools, createAzureAdTools(azureadCtx));
-		} else {
-			throw new Error(
-				`runCombinedIntegrationChatTurn: unsupported integration "${name}"`,
-			);
-		}
+	for (const b of toolBundles) {
+		Object.assign(mergedTools, b.tools);
 	}
+	const appliedActionsArrays = toolBundles.map((b) => b.appliedActions);
+	const appliedActions = appliedActionsArrays.flatMap((a) => [...a]);
+	const moduleNames = modules.map((m) => m.name);
 
 	const tools = withAskUserTool(mergedTools, options.askUser);
 	const model = createModelForPersona(options.persona);
@@ -135,11 +127,7 @@ async function runCombinedIntegrationChatTurn(
 	return {
 		text: result.text,
 		toolCalls: result.toolCalls,
-		appliedActions: [
-			...gmailCtx.appliedActions,
-			...todoistCtx.appliedActions,
-			...azureadCtx.appliedActions,
-		],
+		appliedActions,
 		responseMessages: result.responseMessages,
 		usage: result.usage,
 		providerMetadata: result.providerMetadata,
