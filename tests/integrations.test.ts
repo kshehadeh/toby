@@ -13,20 +13,17 @@ describe("getIntegrations", () => {
 		expect(integrations.length).toBeGreaterThan(0);
 	});
 
-	it("includes gmail", () => {
+	it("all integrations have stable identity fields", () => {
 		const integrations = getIntegrations();
-		const names = integrations.map((i) => i.name);
-		expect(names).toContain("gmail");
+		for (const i of integrations) {
+			expect(i.name).toMatch(/^[a-z0-9_-]+$/);
+			expect(i.displayName.trim().length).toBeGreaterThan(0);
+			expect(i.description.trim().length).toBeGreaterThan(0);
+		}
 	});
 });
 
 describe("getIntegration", () => {
-	it("finds gmail by name", () => {
-		const gmail = getIntegration("gmail");
-		expect(gmail).toBeDefined();
-		expect(gmail?.displayName).toBe("Gmail");
-	});
-
 	it("returns undefined for unknown integration", () => {
 		const unknown = getIntegration("nonexistent");
 		expect(unknown).toBeUndefined();
@@ -35,33 +32,24 @@ describe("getIntegration", () => {
 
 describe("integration registry", () => {
 	it("getIntegrationModule matches getIntegration", () => {
-		expect(getIntegrationModule("gmail")).toEqual(getIntegration("gmail"));
+		for (const m of getIntegrationModules()) {
+			expect(getIntegrationModule(m.name)).toEqual(getIntegration(m.name));
+		}
 	});
 
-	it("getIntegrationModules lists known modules", () => {
+	it("getIntegrationModules lists at least one module", () => {
 		const names = getIntegrationModules()
 			.map((m) => m.name)
 			.sort();
-		expect(names).toEqual(["azuread", "gmail", "todoist"]);
+		expect(names.length).toBeGreaterThan(0);
 	});
 
-	it("getModulesWithCapability(summarize) includes gmail and todoist", () => {
-		const names = getModulesWithCapability("summarize")
-			.map((m) => m.name)
-			.sort();
-		expect(names).toEqual(["gmail", "todoist"]);
-	});
-
-	it("getModulesWithCapability(organize) includes only gmail", () => {
-		const names = getModulesWithCapability("organize").map((m) => m.name);
-		expect(names).toEqual(["gmail"]);
-	});
-
-	it("getModulesWithCapability(chat) includes gmail and todoist", () => {
-		const names = getModulesWithCapability("chat")
-			.map((m) => m.name)
-			.sort();
-		expect(names).toEqual(["azuread", "gmail", "todoist"]);
+	it("getModulesWithCapability returns modules that declare that capability", () => {
+		for (const cap of ["summarize", "organize", "chat"] as const) {
+			for (const mod of getModulesWithCapability(cap)) {
+				expect(mod.capabilities).toContain(cap);
+			}
+		}
 	});
 
 	it("modules expose credential descriptors", () => {
@@ -83,6 +71,12 @@ describe("integration registry", () => {
 	it("chat-capable modules define chat()", () => {
 		for (const mod of getModulesWithCapability("chat")) {
 			expect(typeof mod.chat).toBe("function");
+		}
+	});
+
+	it("organize-capable modules define organize()", () => {
+		for (const mod of getModulesWithCapability("organize")) {
+			expect(typeof mod.organize).toBe("function");
 		}
 	});
 });

@@ -88,11 +88,11 @@ describe.skipIf(!isBun)("chat session store", () => {
 			mustNotDo: [],
 			assumptions: [],
 			openQuestions: [],
-			relevantIntegrations: ["gmail"],
+			relevantIntegrations: ["example"],
 		});
 		const loaded = getPretreatmentCache(key);
 		expect(loaded).not.toBeNull();
 		expect(loaded?.goal).toBe("Test goal");
-		expect(loaded?.relevantIntegrations).toEqual(["gmail"]);
+		expect(loaded?.relevantIntegrations).toEqual(["example"]);
 	});
 });
