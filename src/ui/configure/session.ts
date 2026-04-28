@@ -97,42 +97,38 @@ function buildCredentialsFromValues(
 	values: Record<string, string>,
 	creds: CredentialsFile,
 ): CredentialsFile {
-	const gmail = {
-		clientId: creds.gmail?.clientId ?? "",
-		clientSecret: creds.gmail?.clientSecret ?? "",
-	};
-	const todoist = {
-		apiKey: creds.todoist?.apiKey ?? "",
-	};
-	const azuread = {
-		tenantId: creds.azuread?.tenantId ?? "",
-		clientId: creds.azuread?.clientId ?? "",
-		clientSecret: creds.azuread?.clientSecret ?? "",
-	};
-
+	let next: CredentialsFile = { ...creds };
 	for (const mod of getIntegrationModules()) {
 		const patch = mod.mergeCredentialsPatch(values, creds);
-		if (patch.gmail) {
-			Object.assign(gmail, patch.gmail);
-		}
-		if (patch.todoist) {
-			Object.assign(todoist, patch.todoist);
-		}
-		if (patch.azuread) {
-			Object.assign(azuread, patch.azuread);
-		}
+		next = mergeCredentials(next, patch);
 	}
 
-	return {
-		gmail,
-		todoist,
-		azuread,
-		ai: {
-			openai: {
-				token: values["ai.openai.token"] ?? creds.ai?.openai?.token ?? "",
-			},
-		},
-	};
+	const token = values["ai.openai.token"] ?? creds.ai?.openai?.token ?? "";
+	next = mergeCredentials(next, { ai: { openai: { token } } });
+	return next;
+}
+
+function mergeCredentials<T>(base: T, patch: Partial<T>): T {
+	const out: Record<string, unknown> = { ...(base as unknown as object) };
+	for (const [key, value] of Object.entries(patch as Record<string, unknown>)) {
+		if (value === undefined) continue;
+		const existing = out[key];
+		if (isPlainObject(existing) && isPlainObject(value)) {
+			out[key] = mergeCredentials(
+				existing as Record<string, unknown>,
+				value as Record<string, unknown>,
+			);
+		} else {
+			out[key] = value;
+		}
+	}
+	return out as T;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+	if (typeof value !== "object" || value === null) return false;
+	const proto = Object.getPrototypeOf(value);
+	return proto === Object.prototype || proto === null;
 }
 
 function rebuildPersonas(
