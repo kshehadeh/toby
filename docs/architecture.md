@@ -1,6 +1,6 @@
 # Architecture
 
-Toby is a **Commander.js** CLI packaged as an npm binary (`toby`). The codebase favors a **plugin-first integration model**: each integration is a self-contained module under `src/integrations/<name>/`, registered in a central list and discovered by capability.
+Toby is a **Commander.js** CLI distributed as the `toby` package binary. The codebase favors a **plugin-first integration model**: each integration is a self-contained module under `src/integrations/<name>/`, registered in a central list and discovered by capability.
 
 ## High-level layout
 
@@ -24,7 +24,7 @@ src/
 
 **Build**
 
-- **`npm run build`** — `tsup` emits `dist/cli.js` (the `package.json` `"bin"` target for Node).
+- **`bun run build`** — `tsup` emits `dist/cli.js` (the `package.json` `"bin"` entry).
 - **`bun run build:executable`** — optional single-file native binary via `bun build --compile` (see [build-executable.md](build-executable.md)).
 
 ## Runtime flow

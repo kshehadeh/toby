@@ -1,6 +1,6 @@
 # Agent and contributor guide
 
-This repository is **Toby**, a Node.js CLI for personal productivity (integrations such as Gmail and Todoist, AI-assisted flows, and an Ink-based configure UI).
+This repository is **Toby**, a CLI for personal productivity (integrations such as Gmail and Todoist, AI-assisted flows, and an Ink-based configure UI). Use **Bun** for installs and scripts (`bun install`, `bun run …`).
 
 Use this file as the **entry point** for orientation. Detailed design lives under [`docs/`](docs/).
 
@@ -19,7 +19,7 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 - Prefer **integration-local** code under `src/integrations/<name>/` (client, prompts, tools, CLI) over new cross-cutting branches in `src/commands/` when the behavior belongs to one integration.
 - **Register** new integrations in [`src/integrations/index.ts`](src/integrations/index.ts) (`MODULES` array).
 - **Shared** commands (`connect`, `disconnect`, `status`, `summarize`, `organize`, `chat`, `configure`) live in [`src/commands/`](src/commands/) and should stay generic; they resolve behavior through the registry and module hooks.
-- After substantive changes, run `npm run lint`, `npx tsc --noEmit`, and `npm test`.
+- After substantive changes, run `bun run lint`, `bun run typecheck`, and `bun run test`.
 
 ## Quick paths
 

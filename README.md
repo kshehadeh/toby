@@ -64,8 +64,8 @@ Run these before opening a PR:
 ```bash
 bun run build
 bun run lint
-bunx tsc --noEmit
-bun test
+bun run typecheck
+bun run test
 ```
 
 ### Contributing notes

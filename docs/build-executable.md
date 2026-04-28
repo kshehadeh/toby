@@ -30,8 +30,8 @@ Importing **`yoga-wasm-web/asm` directly in Ink is not enough**: that subpath’
 
 ### Upgrading dependencies
 
-- **`ink`**: If a new version still imports `yoga-wasm-web/auto`, re-apply the import swap to `../../yoga-wasm-web/dist/ink-default.js` (from each `build/*.js` file), then `npx patch-package ink`.
-- **`yoga-wasm-web`**: If the asm entry or package exports change, refresh **`patches/yoga-wasm-web+0.3.3.patch`** (re-add `dist/ink-default.js` and the `./ink-default` export if needed), then `npx patch-package yoga-wasm-web`.
+- **`ink`**: If a new version still imports `yoga-wasm-web/auto`, re-apply the import swap to `../../yoga-wasm-web/dist/ink-default.js` (from each `build/*.js` file), then `bunx patch-package ink`.
+- **`yoga-wasm-web`**: If the asm entry or package exports change, refresh **`patches/yoga-wasm-web+0.3.3.patch`** (re-add `dist/ink-default.js` and the `./ink-default` export if needed), then `bunx patch-package yoga-wasm-web`.
 
 ## Cross-compilation
 
@@ -43,9 +43,9 @@ bun build ./src/cli.ts --compile --target=bun-linux-x64 --outfile ./dist/toby-li
 
 See [Bun’s executable docs](https://bun.sh/docs/bundler/executables) for `--target` values (`bun-darwin-arm64`, `bun-windows-x64`, etc.).
 
-## npm / `tsup` workflow unchanged
+## `tsup` library build
 
-`npm run build` still produces **`dist/cli.js`** via **tsup** for `npm link`, `npx`, or publishing the package. The Bun binary is an **optional** distribution path.
+`bun run build` produces **`dist/cli.js`** via **tsup** (for linking, `bun link`, or publishing). The standalone Bun binary is an **optional** distribution path.
 
 ## GitHub Releases (CI)
 
@@ -62,11 +62,11 @@ This repo uses **[release-it](https://github.com/release-it/release-it)** so you
 
 | Script | Purpose |
 | ------ | ------- |
-| `npm run release` / `bun run release` | Interactive: choose **patch** / **minor** / **major**, bump `package.json`, refresh lockfiles, commit, tag `v${version}`, push (triggers the workflow above). |
-| `npm run release:dry` | Prints what would happen; does not write or push. |
-| `npm run release:ci` | Non-interactive; pass an increment after `--`, e.g. `npm run release:ci -- minor` (requires a clean git working tree unless you add flags yourself). |
+| `bun run release` | Interactive: choose **patch** / **minor** / **major**, bump `package.json`, refresh lockfiles, commit, tag `v${version}`, push (triggers the workflow above). |
+| `bun run release:dry` | Prints what would happen; does not write or push. |
+| `bun run release:ci` | Non-interactive; pass an increment after `--`, e.g. `bun run release:ci -- minor` (requires a clean git working tree unless you add flags yourself). |
 
-Configuration is in [`.release-it.json`](../.release-it.json): **npm publish** and **GitHub release from release-it** are both **off** so the tag push only triggers CI to attach binaries. To also publish to npm, set `"npm": { "publish": true }` (and configure auth) in `.release-it.json`.
+Configuration is in [`.release-it.json`](../.release-it.json): publishing to the **npm registry** and **GitHub release from release-it** are both **off** so the tag push only triggers CI to attach binaries. To also publish the package to the registry, set `"npm": { "publish": true }` (and configure auth) in `.release-it.json`.
 
 `src/cli.ts` resolves version from `package.json` by default (with optional `TOBY_VERSION` override), so `toby --version` stays in sync with releases.
 

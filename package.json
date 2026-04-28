@@ -10,7 +10,8 @@
 		"postinstall": "bunx patch-package && bun ./scripts/install-git-hooks.mjs",
 		"build": "tsup",
 		"build:executable": "bun build ./src/cli.ts --compile --outfile ./dist/toby",
-		"dev": "tsx src/cli.ts",
+		"dev": "bun src/cli.ts",
+		"typecheck": "tsc --noEmit",
 		"lint": "bunx biome check .",
 		"lint:fix": "bunx biome check . --write",
 		"format": "bunx biome format . --write",
@@ -41,16 +42,11 @@
 		"patch-package": "^8.0.1",
 		"release-it": "^20.0.1",
 		"tsup": "^8.3.0",
-		"tsx": "^4.19.0",
 		"typescript": "^5.6.0",
 		"vitest": "^2.1.0"
 	},
 	"lint-staged": {
-		"*.{js,jsx,ts,tsx,json,jsonc,md,yml,yaml}": [
-			"bunx biome check --write"
-		],
-		"*.{js,jsx,ts,tsx}": [
-			"bunx biome check --write"
-		]
+		"*.{js,jsx,ts,tsx,json,jsonc,md,yml,yaml}": ["bunx biome check --write"],
+		"*.{js,jsx,ts,tsx}": ["bunx biome check --write"]
 	}
 }

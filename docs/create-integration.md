@@ -55,7 +55,7 @@ Extend [`tests/integrations.test.ts`](../tests/integrations.test.ts) (or add a f
 Run:
 
 ```bash
-npm run lint && npx tsc --noEmit && npm test
+bun run lint && bun run typecheck && bun run test
 ```
 
 ## 6. Documentation

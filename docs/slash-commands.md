@@ -37,9 +37,9 @@ src/ui/chat/slash-commands/
 3. Register it in `src/ui/chat/slash-commands/index.ts` by adding it to `SLASH_COMMANDS`.
 4. Use only runtime callbacks/context passed into `run(...)` instead of reaching into chat component state directly.
 5. Run checks:
-   - `npm run lint`
-   - `npx tsc --noEmit`
-   - `npm test`
+   - `bun run lint`
+   - `bun run typecheck`
+   - `bun run test`
 
 ## Notes
 
