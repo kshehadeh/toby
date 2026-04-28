@@ -6,7 +6,8 @@ This document describes how `toby chat` prepares messages, runs a model turn, an
 
 ```mermaid
 flowchart LR
-prepare[prepareChatSessionMessages] --> messages[ModelMessages_history]
+pretreat[pretreatment_optional] --> prepare[prepareChatSessionMessages]
+prepare --> messages[ModelMessages_history]
 messages --> runTurn[runIntegrationChatTurn]
 runTurn --> chatWithTools[chatWithTools]
 chatWithTools --> modelCall[streamText_or_generateText]
@@ -16,6 +17,7 @@ responseMsgs --> store[append_to_session_history]
 
 Key files:
 - `src/ui/chat/chat-session-app.tsx`: Ink TUI, transcript, message history, turn loop.
+- `src/ai/pretreatment.ts`: optional fast pretreatment (`generateText` + structured output) before the main turn; see **Pretreatment** below.
 - `src/ui/chat/prepare-messages.ts`: initial message construction for a session.
 - `src/ui/chat/run-turn.ts`: integration selection and model execution.
 - `src/ai/chat.ts`: shared wrapper around AI SDK `streamText` / `generateText`.
@@ -34,16 +36,26 @@ Where this is implemented:
 - Multi-integration system prompt is assembled in `src/ui/chat/prepare-messages.ts` and does **not** embed the user request.
 - The actual user request (and dynamic context like task snapshots) is always provided via `role: "user"` messages.
 
+## Pretreatment (optional)
+
+Before the main model turn, `ChatSessionApp` may run a **small, fast** OpenAI call that extracts a structured intent spec (goal, must/must-not, assumptions, open questions, likely integrations) and **prepends** it to the `role: "user"` content sent to the main model. The Ink transcript still shows the **verbatim** user line.
+
+- **When**: first user prompt in a session always; later prompts only when [`shouldPretreat`](../src/ai/pretreatment.ts) flags the text as ambiguous (short follow-ups, pronouns without a recent assistant reply, multi-clause requests, etc.).
+- **Model**: defaults to **`gpt-4.1-mini`**. Override with `TOBY_PRETREAT_MODEL`. Disable entirely with `TOBY_DISABLE_PRETREATMENT=1`.
+- **Debug**: `TOBY_DEBUG_PREP=1` appends a short `meta` transcript line when a spec was attached.
+- **Caching**: pretreatment uses its own short system prompt and is **not** included in the main `promptCacheKey` merge. The wrapped user text remains dynamic user-role content, so the stable-prefix caching strategy for the main turn is unchanged.
+
 ## Turn execution (tools + streaming)
 
 For each user submission:
-1. `ChatSessionApp` appends a `role: "user"` message to the in-memory history.
+1. `ChatSessionApp` may run pretreatment, then appends a `role: "user"` message (verbatim + optional spec block) to the in-memory history.
 2. It calls `runIntegrationChatTurn(...)` with the full `messages` array.
 3. `runIntegrationChatTurn` selects integration(s) and tools, then calls `chatWithTools(...)`.
 4. `chatWithTools` uses:
    - `streamText(...)` when the Ink UI wants incremental tokens, or
    - `generateText(...)` in non-streaming contexts.
-5. The SDK returns `response.messages` (assistant + tool result messages), which are appended to history for the next turn.
+5. Tool lifecycle hooks (`onToolCallStart` / `onToolCallComplete`) are implemented by wrapping each tool’s `execute` in [`src/ai/chat.ts`](../src/ai/chat.ts), so the Ink UI can append structured transcript rows without relying on SDK-only streaming events.
+6. The SDK returns `response.messages` (assistant + tool result messages), which are appended to history for the next turn.
 
 ## OpenAI prompt caching configuration (current)
 
