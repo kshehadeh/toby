@@ -7,15 +7,15 @@
 		"toby": "./dist/cli.js"
 	},
 	"scripts": {
-		"postinstall": "patch-package",
+		"postinstall": "bunx patch-package && bun ./scripts/install-git-hooks.mjs",
 		"build": "tsup",
 		"build:executable": "bun build ./src/cli.ts --compile --outfile ./dist/toby",
 		"dev": "tsx src/cli.ts",
-		"lint": "biome check .",
-		"lint:fix": "biome check . --write",
-		"format": "biome format . --write",
-		"test": "vitest run",
-		"test:watch": "vitest",
+		"lint": "bunx biome check .",
+		"lint:fix": "bunx biome check . --write",
+		"format": "bunx biome format . --write",
+		"test": "bunx vitest run",
+		"test:watch": "bunx vitest",
 		"release": "release-it",
 		"release:dry": "release-it --dry-run",
 		"release:ci": "release-it --ci"
@@ -37,11 +37,16 @@
 		"@biomejs/biome": "^1.9.0",
 		"@types/node": "^25.6.0",
 		"@types/react": "^19.2.2",
+		"lint-staged": "^16.4.0",
 		"patch-package": "^8.0.1",
 		"release-it": "^20.0.1",
 		"tsup": "^8.3.0",
 		"tsx": "^4.19.0",
 		"typescript": "^5.6.0",
 		"vitest": "^2.1.0"
+	},
+	"lint-staged": {
+		"*.{js,jsx,ts,tsx,json,jsonc,md,yml,yaml}": ["bunx biome check --write"],
+		"*.{js,jsx,ts,tsx}": ["bunx biome check --write"]
 	}
 }
