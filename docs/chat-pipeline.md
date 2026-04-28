@@ -43,7 +43,13 @@ Before the main model turn, `ChatSessionApp` may run a **small, fast** OpenAI ca
 - **When**: first user prompt in a session always; later prompts only when [`shouldPretreat`](../src/ai/pretreatment.ts) flags the text as ambiguous (short follow-ups, pronouns without a recent assistant reply, multi-clause requests, etc.).
 - **Model**: defaults to **`gpt-4.1-mini`**. Override with `TOBY_PRETREAT_MODEL`. Disable entirely with `TOBY_DISABLE_PRETREATMENT=1`.
 - **Debug**: `TOBY_DEBUG_PREP=1` appends a short `meta` transcript line when a spec was attached.
-- **Caching**: pretreatment uses its own short system prompt and is **not** included in the main `promptCacheKey` merge. The wrapped user text remains dynamic user-role content, so the stable-prefix caching strategy for the main turn is unchanged.
+- **Caching**:
+  - Pretreatment uses its own short system prompt and is **not** included in the main `promptCacheKey` merge. The wrapped user text remains dynamic user-role content, so the stable-prefix caching strategy for the main turn is unchanged.
+  - Toby also keeps a small **local SQLite cache** of successful pretreatment results (global across sessions) so repeated prompts can **skip the pretreatment model call** entirely.
+    - **Keying**: derived from normalized user text + normalized integration labels + pretreat model id + a pretreat cache schema version.
+    - **Storage**: stored in `chat.sqlite` (see `src/ui/chat/session-store.ts`).
+    - **Invalidation**: bumping the pretreat cache schema version (or changing model id / prompt construction inputs) naturally produces new keys.
+    - **Policy**: success-only (failed/timeout pretreatments are not cached).
 
 ## Turn execution (tools + streaming)
 

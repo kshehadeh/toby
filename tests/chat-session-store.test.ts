@@ -9,9 +9,11 @@ import {
 	appendTranscriptBatch,
 	closeChatDbForTests,
 	createChatSession,
+	getPretreatmentCache,
 	listChatSessions,
 	loadChatSession,
 	renameChatSession,
+	setPretreatmentCache,
 } from "../src/ui/chat/session-store";
 
 const isBun =
@@ -75,5 +77,22 @@ describe.skipIf(!isBun)("chat session store", () => {
 		renameChatSession(s.id, "New name");
 		const loaded = loadChatSession(s.id);
 		expect(loaded?.name).toBe("New name");
+	});
+
+	it("stores and loads pretreatment cache entries", () => {
+		process.env.TOBY_DIR = makeTempDir();
+		const key = "toby-pretreat-v1-testkey";
+		setPretreatmentCache(key, {
+			goal: "Test goal",
+			mustDo: ["a"],
+			mustNotDo: [],
+			assumptions: [],
+			openQuestions: [],
+			relevantIntegrations: ["gmail"],
+		});
+		const loaded = getPretreatmentCache(key);
+		expect(loaded).not.toBeNull();
+		expect(loaded?.goal).toBe("Test goal");
+		expect(loaded?.relevantIntegrations).toEqual(["gmail"]);
 	});
 });

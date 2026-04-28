@@ -1,10 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { CoreMessage } from "../src/ai/chat";
 import {
 	isPretreatmentDisabled,
 	shouldPretreat,
 	wrapUserPromptWithPretreatment,
 } from "../src/ai/pretreatment";
+
+const mockedStore = vi.hoisted(() => ({
+	getPretreatmentCache: vi.fn<(promptKey: string) => unknown | null>(),
+	setPretreatmentCache: vi.fn<(promptKey: string, spec: unknown) => void>(),
+}));
+
+vi.mock("../src/ui/chat/session-store", () => mockedStore);
 
 describe("shouldPretreat", () => {
 	it("returns true on first turn when not disabled", () => {
@@ -84,6 +91,43 @@ describe("wrapUserPromptWithPretreatment", () => {
 				process.env.TOBY_DISABLE_PRETREATMENT = undefined;
 			} else {
 				process.env.TOBY_DISABLE_PRETREATMENT = prev;
+			}
+		}
+	});
+
+	it("uses cached pretreatment when available (no OpenAI token needed)", async () => {
+		const g = globalThis as unknown as { Bun?: unknown };
+		const prevBun = g.Bun;
+		g.Bun = {}; // enable cache path
+
+		try {
+			mockedStore.getPretreatmentCache.mockReturnValue({
+				goal: "Do a thing",
+				mustDo: [],
+				mustNotDo: [],
+				assumptions: [],
+				openQuestions: [],
+				relevantIntegrations: [],
+			});
+
+			const r = await wrapUserPromptWithPretreatment({
+				priorMessages: [],
+				rawUserText: "Hello",
+				integrationLabels: "",
+				isFirstTurn: true,
+			});
+
+			expect(mockedStore.getPretreatmentCache).toHaveBeenCalledTimes(1);
+			expect(mockedStore.setPretreatmentCache).not.toHaveBeenCalled();
+			expect(r.content).toContain("User request (verbatim):");
+			expect(r.content).toContain(JSON.stringify("Hello"));
+		} finally {
+			mockedStore.getPretreatmentCache.mockReset();
+			mockedStore.setPretreatmentCache.mockReset();
+			if (prevBun === undefined) {
+				(g as { Bun?: unknown }).Bun = undefined;
+			} else {
+				g.Bun = prevBun;
 			}
 		}
 	});

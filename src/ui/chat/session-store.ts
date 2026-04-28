@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { CoreMessage } from "../../ai/chat";
+import type { UserIntentSpec } from "../../ai/pretreatment";
 import { ensureTobyDir, getChatDbPath } from "../../config/index";
 import {
 	deserializeTranscriptRow,
@@ -83,8 +84,18 @@ CREATE TABLE IF NOT EXISTS chat_session_transcript (
   FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS chat_pretreatment_cache (
+  prompt_key TEXT PRIMARY KEY,
+  spec_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  last_hit_at TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_chat_sessions_updated_at
   ON chat_sessions(updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_chat_pretreatment_cache_last_hit_at
+  ON chat_pretreatment_cache(last_hit_at DESC);
 `);
 }
 
@@ -258,4 +269,47 @@ export function appendTranscriptBatch(
 		touchChatSession(sessionId);
 	});
 	tx();
+}
+
+export function getPretreatmentCache(promptKey: string): UserIntentSpec | null {
+	const key = promptKey.trim();
+	if (!key) return null;
+	const db = getDb();
+	const row = db
+		.query(
+			`SELECT spec_json as specJson
+       FROM chat_pretreatment_cache
+       WHERE prompt_key = $k`,
+		)
+		.get({ $k: key }) as { specJson: string } | undefined;
+	if (!row?.specJson) return null;
+
+	try {
+		const spec = JSON.parse(row.specJson) as UserIntentSpec;
+		// Best-effort observability; ignore failures.
+		db.query(
+			"UPDATE chat_pretreatment_cache SET last_hit_at = $t WHERE prompt_key = $k",
+		).run({ $k: key, $t: nowIso() });
+		return spec;
+	} catch {
+		return null;
+	}
+}
+
+export function setPretreatmentCache(
+	promptKey: string,
+	spec: UserIntentSpec,
+): void {
+	const key = promptKey.trim();
+	if (!key) return;
+	const db = getDb();
+	db.query(
+		`INSERT OR REPLACE INTO chat_pretreatment_cache (prompt_key, spec_json, created_at, last_hit_at)
+     VALUES ($k, $s, $c, $h)`,
+	).run({
+		$k: key,
+		$s: JSON.stringify(spec),
+		$c: nowIso(),
+		$h: null,
+	});
 }

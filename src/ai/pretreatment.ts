@@ -1,10 +1,16 @@
+import crypto from "node:crypto";
 import { createOpenAI } from "@ai-sdk/openai";
 import { Output, generateText, zodSchema } from "ai";
 import { z } from "zod";
 import { readCredentials } from "../config/index";
+import {
+	getPretreatmentCache,
+	setPretreatmentCache,
+} from "../ui/chat/session-store";
 import type { CoreMessage } from "./chat";
 
 export const PRETREATMENT_DEFAULT_MODEL = "gpt-4.1-mini";
+const PRETREATMENT_CACHE_SCHEMA_VERSION = "1";
 
 const userIntentSpecSchema = z.object({
 	goal: z.string().describe("One sentence: what the user wants to achieve"),
@@ -24,6 +30,45 @@ export type UserIntentSpec = z.infer<typeof userIntentSpecSchema>;
 const PREP_SYSTEM = `You extract a compact intent specification from a user message for a CLI assistant (Toby) that may use Gmail, Todoist, and/or Azure AD tools.
 Return only structured fields that match the schema. Be conservative: if unsure, put detail in openQuestions rather than assumptions.
 Do not invent email addresses, task IDs, or dates that are not in the user message.`;
+
+function sha256Base64Url(input: string): string {
+	return crypto
+		.createHash("sha256")
+		.update(input)
+		.digest("base64")
+		.replaceAll("+", "-")
+		.replaceAll("/", "_")
+		.replaceAll("=", "");
+}
+
+function normalizePretreatmentCacheText(input: string): string {
+	return input.trim().replaceAll(/\s+/g, " ");
+}
+
+function normalizeIntegrationLabels(input: string): string {
+	return normalizePretreatmentCacheText(input).toLowerCase();
+}
+
+function canUsePretreatmentCache(): boolean {
+	return (
+		typeof (globalThis as unknown as { Bun?: unknown }).Bun !== "undefined"
+	);
+}
+
+function buildPretreatmentCacheKey(params: {
+	readonly userText: string;
+	readonly integrationLabels: string;
+	readonly modelId: string;
+}): string {
+	const signature = JSON.stringify({
+		schema: PRETREATMENT_CACHE_SCHEMA_VERSION,
+		modelId: params.modelId,
+		integrationLabels: normalizeIntegrationLabels(params.integrationLabels),
+		userText: normalizePretreatmentCacheText(params.userText),
+	});
+	const digest = sha256Base64Url(signature).slice(0, 40);
+	return `toby-pretreat-v${PRETREATMENT_CACHE_SCHEMA_VERSION}-${digest}`;
+}
 
 function getPretreatmentModelId(): string {
 	const fromEnv = process.env.TOBY_PRETREAT_MODEL?.trim();
@@ -205,11 +250,31 @@ export async function wrapUserPromptWithPretreatment(
 	if (!shouldPretreat(params.priorMessages, raw, params.isFirstTurn)) {
 		return { content: raw, spec: null };
 	}
+
+	const modelId = getPretreatmentModelId();
+	const promptKey = buildPretreatmentCacheKey({
+		userText: raw,
+		integrationLabels: params.integrationLabels,
+		modelId,
+	});
+	if (canUsePretreatmentCache()) {
+		const cached = getPretreatmentCache(promptKey);
+		if (cached) {
+			return {
+				content: formatUserMessageWithPretreatment(raw, cached),
+				spec: cached,
+			};
+		}
+	}
+
 	const spec = await pretreatUserPrompt({
 		userText: raw,
 		integrationLabels: params.integrationLabels,
 		abortSignal: params.abortSignal,
 	});
+	if (spec && canUsePretreatmentCache()) {
+		setPretreatmentCache(promptKey, spec);
+	}
 	return {
 		content: formatUserMessageWithPretreatment(raw, spec),
 		spec,
