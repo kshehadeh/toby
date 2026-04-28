@@ -18,6 +18,18 @@ import {
 	buildAzureAdChatSystemMessage,
 	buildAzureAdChatUserMessage,
 } from "./prompts/chat";
+import { createAzureAdTools } from "./tools";
+
+function hasAzureAdCredentials(creds: CredentialsFile): boolean {
+	return Boolean(
+		(creds.integrations?.azuread?.tenantId?.trim() ||
+			creds.azuread?.tenantId?.trim()) &&
+			(creds.integrations?.azuread?.clientId?.trim() ||
+				creds.azuread?.clientId?.trim()) &&
+			(creds.integrations?.azuread?.clientSecret?.trim() ||
+				creds.azuread?.clientSecret?.trim()),
+	);
+}
 
 const azureAdLifecycle = {
 	name: "azuread" as const,
@@ -104,10 +116,18 @@ function getCredentialDescriptors(): CredentialFieldDescriptor[] {
 
 function seedCredentialValues(creds: CredentialsFile): Record<string, string> {
 	const out: Record<string, string> = {};
-	if (creds.azuread?.tenantId) out["azuread.tenantId"] = creds.azuread.tenantId;
-	if (creds.azuread?.clientId) out["azuread.clientId"] = creds.azuread.clientId;
-	if (creds.azuread?.clientSecret)
-		out["azuread.clientSecret"] = creds.azuread.clientSecret;
+	const tenantId =
+		creds.integrations?.azuread?.tenantId?.trim() ||
+		creds.azuread?.tenantId?.trim();
+	const clientId =
+		creds.integrations?.azuread?.clientId?.trim() ||
+		creds.azuread?.clientId?.trim();
+	const clientSecret =
+		creds.integrations?.azuread?.clientSecret?.trim() ||
+		creds.azuread?.clientSecret?.trim();
+	if (tenantId) out["azuread.tenantId"] = tenantId;
+	if (clientId) out["azuread.clientId"] = clientId;
+	if (clientSecret) out["azuread.clientSecret"] = clientSecret;
 	return out;
 }
 
@@ -115,12 +135,35 @@ function mergeCredentialsPatch(
 	values: Record<string, string>,
 	previous: CredentialsFile,
 ): Partial<CredentialsFile> {
+	const tenantId =
+		values["azuread.tenantId"] ??
+		previous.integrations?.azuread?.tenantId ??
+		previous.azuread?.tenantId ??
+		"";
+	const clientId =
+		values["azuread.clientId"] ??
+		previous.integrations?.azuread?.clientId ??
+		previous.azuread?.clientId ??
+		"";
+	const clientSecret =
+		values["azuread.clientSecret"] ??
+		previous.integrations?.azuread?.clientSecret ??
+		previous.azuread?.clientSecret ??
+		"";
 	return {
+		integrations: {
+			...(previous.integrations ?? {}),
+			azuread: {
+				...(previous.integrations?.azuread ?? {}),
+				tenantId,
+				clientId,
+				clientSecret,
+			},
+		},
 		azuread: {
-			tenantId: values["azuread.tenantId"] ?? previous.azuread?.tenantId ?? "",
-			clientId: values["azuread.clientId"] ?? previous.azuread?.clientId ?? "",
-			clientSecret:
-				values["azuread.clientSecret"] ?? previous.azuread?.clientSecret ?? "",
+			tenantId,
+			clientId,
+			clientSecret,
 		},
 	};
 }
@@ -177,6 +220,27 @@ export const azureAdIntegrationModule: IntegrationModule = {
 	...azureAdLifecycle,
 	capabilities: ["chat"],
 	resources: ["users"],
+	chatReadiness: async (creds) => {
+		if (await azureAdLifecycle.isConnected()) return { ok: true };
+		// Azure AD can be configured via `toby configure` and then connected (stores connectedAt).
+		return hasAzureAdCredentials(creds)
+			? {
+					ok: false,
+					hint: "Run `toby connect azuread` after configuring Azure AD credentials.",
+				}
+			: {
+					ok: false,
+					hint: "Add Azure AD tenantId/clientId/clientSecret in `toby configure`, then run `toby connect azuread`.",
+				};
+	},
+	createChatTools: ({ dryRun }) => {
+		const ctx = { dryRun, appliedActions: [] as string[] };
+		return {
+			tools: createAzureAdTools(ctx),
+			appliedActions: ctx.appliedActions,
+		};
+	},
+	runChatTurn: runAzureAdChatTurn,
 	chatModelPrep: {
 		systemPromptSection: `### Azure AD
 You are assisting with Azure AD (Microsoft Entra ID) via Microsoft Graph. Use tools to look up users and Teams metadata. Never claim a user/team exists unless confirmed by tool results.`,

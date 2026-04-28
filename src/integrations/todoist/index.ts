@@ -26,6 +26,13 @@ import {
 } from "./prompts/summarize";
 import { createTodoistTools } from "./tools";
 
+function hasTodoistApiKey(creds: CredentialsFile): boolean {
+	return Boolean(
+		creds.integrations?.todoist?.apiKey?.trim() ||
+			creds.todoist?.apiKey?.trim(),
+	);
+}
+
 const todoistLifecycle = {
 	name: "todoist" as const,
 	displayName: "Todoist",
@@ -111,7 +118,10 @@ function getCredentialDescriptors(): CredentialFieldDescriptor[] {
 
 function seedCredentialValues(creds: CredentialsFile): Record<string, string> {
 	const out: Record<string, string> = {};
-	if (creds.todoist?.apiKey) out["todoist.apiKey"] = creds.todoist.apiKey;
+	const apiKey =
+		creds.integrations?.todoist?.apiKey?.trim() ||
+		creds.todoist?.apiKey?.trim();
+	if (apiKey) out["todoist.apiKey"] = apiKey;
 	return out;
 }
 
@@ -119,9 +129,21 @@ function mergeCredentialsPatch(
 	values: Record<string, string>,
 	previous: CredentialsFile,
 ): Partial<CredentialsFile> {
+	const apiKey =
+		values["todoist.apiKey"] ??
+		previous.integrations?.todoist?.apiKey ??
+		previous.todoist?.apiKey ??
+		"";
 	return {
+		integrations: {
+			...(previous.integrations ?? {}),
+			todoist: {
+				...(previous.integrations?.todoist ?? {}),
+				apiKey,
+			},
+		},
 		todoist: {
-			apiKey: values["todoist.apiKey"] ?? previous.todoist?.apiKey ?? "",
+			apiKey,
 		},
 	};
 }
@@ -217,6 +239,24 @@ export const todoistIntegrationModule: IntegrationModule = {
 	...todoistLifecycle,
 	capabilities: ["summarize", "chat"],
 	resources: ["tasks", "projects"],
+	chatReadiness: async (creds) => {
+		if (await todoistLifecycle.isConnected()) return { ok: true };
+		// Configure-only setup is allowed (API key in creds without `toby connect todoist`).
+		return hasTodoistApiKey(creds)
+			? { ok: true }
+			: {
+					ok: false,
+					hint: "Add a Todoist API key in `toby configure` or run `toby connect todoist`.",
+				};
+	},
+	createChatTools: ({ dryRun }) => {
+		const ctx = { dryRun, appliedActions: [] as string[] };
+		return {
+			tools: createTodoistTools(ctx),
+			appliedActions: ctx.appliedActions,
+		};
+	},
+	runChatTurn: runTodoistChatTurn,
 	chatModelPrep: {
 		systemPromptSection: `### Todoist
 You are assisting with Todoist. Use Todoist tools to create, read, or update tasks. Open/completed task snapshots may appear in the user message below. Never claim a task changed unless the corresponding Todoist tool succeeded.`,

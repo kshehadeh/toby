@@ -1,5 +1,9 @@
+import type { Tool } from "ai";
+import type { LanguageModelUsage, ProviderMetadata } from "ai";
 import type { Command } from "commander";
+import type { AskUserHandler } from "../ai/ask-user-tool";
 import type { CoreMessage } from "../ai/chat";
+import type { ChatWithToolsOptions } from "../ai/chat";
 import type { CredentialsFile, Persona } from "../config/index";
 
 export interface IntegrationToolHealth {
@@ -56,6 +60,38 @@ export interface ChatModelPrep {
 	buildMultiUserContent(userPrompt: string): Promise<string>;
 }
 
+export interface ChatIntegrationReadiness {
+	/** True when the integration can participate in chat selection/routing. */
+	readonly ok: boolean;
+	/** Optional user-facing guidance to make it ready (configure/connect steps). */
+	readonly hint?: string;
+}
+
+export interface IntegrationChatTools {
+	/** Tool definitions for this integration (without `askUser`; shared runner will wrap it). */
+	readonly tools: Record<string, Tool>;
+	/** Accumulates side-effect summaries (push strings into this array). */
+	readonly appliedActions: string[];
+}
+
+export interface IntegrationChatTurnParams {
+	readonly messages: CoreMessage[];
+	readonly persona: Persona;
+	readonly dryRun: boolean;
+	readonly maxResults?: number;
+	readonly askUser?: AskUserHandler;
+	readonly chatWithToolsOptions?: ChatWithToolsOptions;
+}
+
+export interface IntegrationChatTurnResult {
+	readonly text: string;
+	readonly toolCalls: { name: string; args: Record<string, unknown> }[];
+	readonly appliedActions: string[];
+	readonly responseMessages: CoreMessage[];
+	readonly usage?: LanguageModelUsage;
+	readonly providerMetadata?: ProviderMetadata;
+}
+
 /** Lifecycle + plugin hooks for a first-party integration module. */
 export interface Integration {
 	readonly name: string;
@@ -73,6 +109,35 @@ export interface IntegrationModule extends Integration {
 	readonly resources?: ReadonlyArray<string>;
 	/** Model-prep for the Ink TUI chat flow (replaces hardcoded integration checks). */
 	readonly chatModelPrep?: ChatModelPrep;
+	/**
+	 * Whether this integration is usable in chat selection (picker + defaults).
+	 * Default behavior should typically be "connected implies usable", but some integrations
+	 * may be configure-only (no `connect` step) and can override this.
+	 */
+	readonly chatReadiness?: (
+		creds: CredentialsFile,
+	) => Promise<ChatIntegrationReadiness>;
+	/**
+	 * Provide tools + action accumulator for shared chat turn runners (combined chat flow).
+	 * This replaces hardcoded imports/branches for tool wiring.
+	 */
+	readonly createChatTools?: (params: {
+		readonly dryRun: boolean;
+		readonly maxResults?: number;
+	}) => Promise<IntegrationChatTools> | IntegrationChatTools;
+	/**
+	 * Run a tool-calling model turn for this integration using shared runner infrastructure.
+	 * If omitted, shared routing can fall back to `createChatTools` + `chatWithTools`.
+	 */
+	readonly runChatTurn?: (
+		params: IntegrationChatTurnParams,
+	) => Promise<IntegrationChatTurnResult>;
+	/** Optional organize runner (capability-gated by `capabilities`). */
+	readonly organize?: (params: {
+		readonly maxResults: number;
+		readonly dryRun: boolean;
+		readonly personaForModel: Persona;
+	}) => Promise<void>;
 	getCredentialDescriptors(): CredentialFieldDescriptor[];
 	seedCredentialValues(creds: CredentialsFile): Record<string, string>;
 	mergeCredentialsPatch(

@@ -21,6 +21,7 @@ import {
 	listInboxUnreadPage,
 	testGmailConnection,
 } from "./client";
+import { organizeGmailInbox } from "./organize";
 import {
 	buildGmailChatSystemMessage,
 	buildGmailChatUserMessage,
@@ -29,6 +30,7 @@ import {
 	buildGmailSummarySystemMessage,
 	buildGmailSummaryUserMessage,
 } from "./prompts/summarize";
+import { type EmailContext, createGmailTools } from "./tools";
 
 const gmailLifecycle = {
 	name: "gmail" as const,
@@ -117,9 +119,14 @@ function getCredentialDescriptors(): CredentialFieldDescriptor[] {
 
 function seedCredentialValues(creds: CredentialsFile): Record<string, string> {
 	const out: Record<string, string> = {};
-	if (creds.gmail?.clientId) out["gmail.clientId"] = creds.gmail.clientId;
-	if (creds.gmail?.clientSecret)
-		out["gmail.clientSecret"] = creds.gmail.clientSecret;
+	const clientId =
+		creds.integrations?.gmail?.clientId?.trim() ||
+		creds.gmail?.clientId?.trim();
+	const clientSecret =
+		creds.integrations?.gmail?.clientSecret?.trim() ||
+		creds.gmail?.clientSecret?.trim();
+	if (clientId) out["gmail.clientId"] = clientId;
+	if (clientSecret) out["gmail.clientSecret"] = clientSecret;
 	return out;
 }
 
@@ -127,11 +134,28 @@ function mergeCredentialsPatch(
 	values: Record<string, string>,
 	previous: CredentialsFile,
 ): Partial<CredentialsFile> {
+	const clientId =
+		values["gmail.clientId"] ??
+		previous.integrations?.gmail?.clientId ??
+		previous.gmail?.clientId ??
+		"";
+	const clientSecret =
+		values["gmail.clientSecret"] ??
+		previous.integrations?.gmail?.clientSecret ??
+		previous.gmail?.clientSecret ??
+		"";
 	return {
+		integrations: {
+			...(previous.integrations ?? {}),
+			gmail: {
+				...(previous.integrations?.gmail ?? {}),
+				clientId,
+				clientSecret,
+			},
+		},
 		gmail: {
-			clientId: values["gmail.clientId"] ?? previous.gmail?.clientId ?? "",
-			clientSecret:
-				values["gmail.clientSecret"] ?? previous.gmail?.clientSecret ?? "",
+			clientId,
+			clientSecret,
 		},
 	};
 }
@@ -248,6 +272,35 @@ export const gmailIntegrationModule: IntegrationModule = {
 	...gmailLifecycle,
 	capabilities: ["summarize", "organize", "chat"],
 	resources: ["inbox", "labels", "messages"],
+	chatReadiness: async (creds) => {
+		const connected = await gmailLifecycle.isConnected();
+		if (connected) return { ok: true };
+		const hasClientCreds = Boolean(
+			creds.gmail?.clientId && creds.gmail?.clientSecret,
+		);
+		return {
+			ok: false,
+			hint: hasClientCreds
+				? "Run `toby connect gmail` to authenticate."
+				: "Add Gmail clientId/clientSecret in `toby configure`, then run `toby connect gmail`.",
+		};
+	},
+	organize: async ({ maxResults, dryRun, personaForModel }) => {
+		await organizeGmailInbox({ maxResults, dryRun, personaForModel });
+	},
+	createChatTools: ({ dryRun, maxResults }) => {
+		const ctx: EmailContext = {
+			currentEmail: null,
+			dryRun,
+			appliedActions: [],
+			listSampleMax:
+				maxResults === undefined
+					? undefined
+					: Math.min(Math.max(1, maxResults), 500),
+		};
+		return { tools: createGmailTools(ctx), appliedActions: ctx.appliedActions };
+	},
+	runChatTurn: runGmailChatTurn,
 	chatModelPrep: {
 		systemPromptSection: `### Gmail
 You are assisting with Gmail. Use Gmail tools to inspect or change the mailbox. Prefer holistic inbox overview before loading many messages. Never claim a mutation succeeded unless the corresponding Gmail tool succeeded.`,

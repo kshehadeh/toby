@@ -68,10 +68,24 @@ interface AICredentials {
 }
 
 export interface CredentialsFile {
+	/**
+	 * Module-extensible credentials bag. Integrations should prefer storing under
+	 * `integrations[<moduleName>]` to avoid hardcoding top-level keys.
+	 */
+	integrations?: Record<string, Record<string, string>>;
 	gmail?: GmailCredentials;
 	todoist?: TodoistCredentials;
 	azuread?: AzureAdCredentials;
 	ai?: AICredentials;
+}
+
+function getIntegrationCredential(
+	creds: CredentialsFile,
+	moduleName: string,
+	field: string,
+): string | undefined {
+	const v = creds.integrations?.[moduleName]?.[field];
+	return typeof v === "string" && v.trim() ? v : undefined;
 }
 
 export function readConfig(): TobyConfig {
@@ -119,41 +133,48 @@ export function readCredentials(): CredentialsFile {
 
 export function getGmailCredentials(): GmailCredentials {
 	const creds = readCredentials();
-	if (!creds.gmail) {
+	const clientId =
+		getIntegrationCredential(creds, "gmail", "clientId") ??
+		creds.gmail?.clientId;
+	const clientSecret =
+		getIntegrationCredential(creds, "gmail", "clientSecret") ??
+		creds.gmail?.clientSecret;
+	if (!clientId || !clientSecret) {
 		throw new Error(
 			"Gmail credentials not found. Add them to ~/.toby/credentials.json",
 		);
 	}
-	if (!creds.gmail.clientId || !creds.gmail.clientSecret) {
-		throw new Error(
-			"Gmail credentials are incomplete. Ensure clientId and clientSecret are set in ~/.toby/credentials.json",
-		);
-	}
-	return creds.gmail;
+	return { clientId, clientSecret };
 }
 
 export function getTodoistCredentials(): TodoistCredentials {
 	const creds = readCredentials();
-	if (!creds.todoist?.apiKey) {
+	const apiKey =
+		getIntegrationCredential(creds, "todoist", "apiKey") ??
+		creds.todoist?.apiKey;
+	if (!apiKey) {
 		throw new Error(
 			"Todoist API key not found. Add it to ~/.toby/credentials.json or run `toby configure`.",
 		);
 	}
-	return creds.todoist;
+	return { apiKey };
 }
 
 export function getAzureAdCredentials(): AzureAdCredentials {
 	const creds = readCredentials();
-	const azuread = creds.azuread;
-	if (!azuread) {
-		throw new Error(
-			"Azure AD credentials not found. Add them to ~/.toby/credentials.json or run `toby configure`.",
-		);
-	}
-	if (!azuread.tenantId || !azuread.clientId || !azuread.clientSecret) {
+	const tenantId =
+		getIntegrationCredential(creds, "azuread", "tenantId") ??
+		creds.azuread?.tenantId;
+	const clientId =
+		getIntegrationCredential(creds, "azuread", "clientId") ??
+		creds.azuread?.clientId;
+	const clientSecret =
+		getIntegrationCredential(creds, "azuread", "clientSecret") ??
+		creds.azuread?.clientSecret;
+	if (!tenantId || !clientId || !clientSecret) {
 		throw new Error(
 			"Azure AD credentials are incomplete. Ensure tenantId, clientId, and clientSecret are set in ~/.toby/credentials.json or via `toby configure`.",
 		);
 	}
-	return azuread;
+	return { tenantId, clientId, clientSecret };
 }
