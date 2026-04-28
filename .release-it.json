@@ -10,6 +10,6 @@
 		"tagAnnotation": "Release v${version}"
 	},
 	"hooks": {
-		"after:bump": "bun install && git add bun.lock package-lock.json"
+		"after:bump": "bun install && git add bun.lock"
 	}
 }
