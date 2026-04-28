@@ -44,6 +44,18 @@ export interface ChatRunOptions {
 	readonly personaForModel: Persona;
 }
 
+export interface ChatModelPrep {
+	/** A short, integration-specific block to append to the combined system prompt. */
+	readonly systemPromptSection: string;
+	/** Single-integration boot messages for TUI chat sessions. */
+	buildSingleSessionMessages(
+		persona: Persona,
+		userPrompt: string,
+	): Promise<CoreMessage[]>;
+	/** Multi-integration: a user-content section providing context/instructions for this integration. */
+	buildMultiUserContent(userPrompt: string): Promise<string>;
+}
+
 /** Lifecycle + plugin hooks for a first-party integration module. */
 export interface Integration {
 	readonly name: string;
@@ -59,6 +71,8 @@ export interface IntegrationModule extends Integration {
 	readonly capabilities: ReadonlyArray<IntegrationCapability>;
 	/** Optional high-level resources this integration surfaces (for discovery UI). */
 	readonly resources?: ReadonlyArray<string>;
+	/** Model-prep for the Ink TUI chat flow (replaces hardcoded integration checks). */
+	readonly chatModelPrep?: ChatModelPrep;
 	getCredentialDescriptors(): CredentialFieldDescriptor[];
 	seedCredentialValues(creds: CredentialsFile): Record<string, string>;
 	mergeCredentialsPatch(

@@ -177,6 +177,23 @@ export const azureAdIntegrationModule: IntegrationModule = {
 	...azureAdLifecycle,
 	capabilities: ["chat"],
 	resources: ["users"],
+	chatModelPrep: {
+		systemPromptSection: `### Azure AD
+You are assisting with Azure AD (Microsoft Entra ID) via Microsoft Graph. Use tools to look up users and Teams metadata. Never claim a user/team exists unless confirmed by tool results.`,
+		async buildSingleSessionMessages(persona, userPrompt) {
+			return [
+				buildAzureAdChatSystemMessage(persona),
+				buildAzureAdChatUserMessage(userPrompt),
+			];
+		},
+		async buildMultiUserContent(userPrompt) {
+			return `## Azure AD
+Use Microsoft Graph tools to resolve users/teams mentioned by the user request.
+
+User request (may also mention other integrations):
+${userPrompt || "(no additional text — follow the system instruction.)"}`;
+		},
+	},
 	getCredentialDescriptors,
 	seedCredentialValues,
 	mergeCredentialsPatch,

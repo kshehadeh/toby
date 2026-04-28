@@ -217,6 +217,39 @@ export const todoistIntegrationModule: IntegrationModule = {
 	...todoistLifecycle,
 	capabilities: ["summarize", "chat"],
 	resources: ["tasks", "projects"],
+	chatModelPrep: {
+		systemPromptSection: `### Todoist
+You are assisting with Todoist. Use Todoist tools to create, read, or update tasks. Open/completed task snapshots may appear in the user message below. Never claim a task changed unless the corresponding Todoist tool succeeded.`,
+		async buildSingleSessionMessages(persona, userPrompt) {
+			const openTasks = await fetchOpenTasks();
+			const completedTasks = await fetchCompletedTasks();
+			return [
+				buildTodoistChatSystemMessage(persona),
+				buildTodoistChatUserMessage(openTasks, completedTasks),
+				...(userPrompt.trim()
+					? ([
+							{ role: "user", content: `User request:\n${userPrompt}` },
+						] as const)
+					: []),
+			];
+		},
+		async buildMultiUserContent(_userPrompt) {
+			const openTasks = await fetchOpenTasks();
+			const completedTasks = await fetchCompletedTasks();
+			const todoistUser = buildTodoistChatUserMessage(
+				openTasks,
+				completedTasks,
+			);
+			const todoistContent =
+				typeof todoistUser.content === "string"
+					? todoistUser.content
+					: JSON.stringify(todoistUser.content);
+			return `## Todoist context and instructions
+Apply the system instruction using Todoist tools when tasks are involved.
+
+${todoistContent}`;
+		},
+	},
 	getCredentialDescriptors,
 	seedCredentialValues,
 	mergeCredentialsPatch,

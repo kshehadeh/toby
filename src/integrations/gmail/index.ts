@@ -248,6 +248,25 @@ export const gmailIntegrationModule: IntegrationModule = {
 	...gmailLifecycle,
 	capabilities: ["summarize", "organize", "chat"],
 	resources: ["inbox", "labels", "messages"],
+	chatModelPrep: {
+		systemPromptSection: `### Gmail
+You are assisting with Gmail. Use Gmail tools to inspect or change the mailbox. Prefer holistic inbox overview before loading many messages. Never claim a mutation succeeded unless the corresponding Gmail tool succeeded.`,
+		async buildSingleSessionMessages(persona, userPrompt) {
+			return [
+				buildGmailChatSystemMessage(persona),
+				buildGmailChatUserMessage(userPrompt),
+			];
+		},
+		async buildMultiUserContent(userPrompt) {
+			return `## Gmail
+Carry out the Gmail parts of the request using Gmail tools as needed. Prefer inbox overview before loading many full messages.
+
+If you need a decision from the user, call **askUser** with options.
+
+User request (may also mention other integrations):
+${userPrompt || "(no additional text — follow the system instruction.)"}`;
+		},
+	},
 	getCredentialDescriptors,
 	seedCredentialValues,
 	mergeCredentialsPatch,

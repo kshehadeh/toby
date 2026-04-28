@@ -1,21 +1,9 @@
 import type { CoreMessage } from "../../ai/chat";
+import {
+	type UserIntentSpec,
+	formatUserMessageWithPretreatment,
+} from "../../ai/pretreatment";
 import type { Persona } from "../../config/index";
-import {
-	buildAzureAdChatSystemMessage,
-	buildAzureAdChatUserMessage,
-} from "../../integrations/azuread/prompts/chat";
-import {
-	buildGmailChatSystemMessage,
-	buildGmailChatUserMessage,
-} from "../../integrations/gmail/prompts/chat";
-import {
-	fetchCompletedTasks,
-	fetchOpenTasks,
-} from "../../integrations/todoist/client";
-import {
-	buildTodoistChatSystemMessage,
-	buildTodoistChatUserMessage,
-} from "../../integrations/todoist/prompts/chat";
 import type { IntegrationModule } from "../../integrations/types";
 import { composeSystemPromptWithPersona } from "../../personas/prompt";
 
@@ -23,27 +11,10 @@ function buildCombinedChatBasePrompt(
 	modules: readonly IntegrationModule[],
 ): string {
 	const labels = modules.map((m) => m.displayName).join(", ");
-	const gmail = modules.some((m) => m.name === "gmail");
-	const todoist = modules.some((m) => m.name === "todoist");
-	const azuread = modules.some((m) => m.name === "azuread");
-
-	const gmailBlock = gmail
-		? `### Gmail
-You are assisting with Gmail. Use Gmail tools to inspect or change the mailbox. Prefer holistic inbox overview before loading many messages. Never claim a mutation succeeded unless the corresponding Gmail tool succeeded.
-`
-		: "";
-
-	const todoistBlock = todoist
-		? `### Todoist
-You are assisting with Todoist. Use Todoist tools to create, read, or update tasks. Open/completed task snapshots may appear in the user message below. Never claim a task changed unless the corresponding Todoist tool succeeded.
-`
-		: "";
-
-	const azureadBlock = azuread
-		? `### Azure AD
-You are assisting with Azure AD (Microsoft Entra ID) via Microsoft Graph. Use tools to look up users and Teams metadata. Never claim a user/team exists unless confirmed by tool results.
-`
-		: "";
+	const integrationBlocks = modules
+		.map((m) => m.chatModelPrep?.systemPromptSection?.trim())
+		.filter((b): b is string => Boolean(b && b.length > 0))
+		.join("\n\n");
 
 	return `You are Toby, a personal assistant with access to: **${labels}**.
 
@@ -54,9 +25,7 @@ Shared rules:
 - If the request is fully answered, stop without dangling "Would you like…?" in prose unless you call **askUser** with concrete options.
 - When listing emails, tasks, or options in assistant text, prefer markdown list items (\`- item\`) with one item per line.
 
-${gmailBlock}
-${todoistBlock}
-${azureadBlock}
+${integrationBlocks}
 `;
 }
 
@@ -74,76 +43,26 @@ export async function prepareChatSessionMessages(
 		if (!module) {
 			throw new Error("prepareChatSessionMessages: missing module");
 		}
-		if (module.name === "gmail") {
-			return [
-				buildGmailChatSystemMessage(persona),
-				buildGmailChatUserMessage(userPrompt),
-			];
+		if (!module.chatModelPrep) {
+			throw new Error(
+				`prepareChatSessionMessages: integration "${module.name}" does not export chatModelPrep`,
+			);
 		}
-
-		if (module.name === "todoist") {
-			const openTasks = await fetchOpenTasks();
-			const completedTasks = await fetchCompletedTasks();
-			return [
-				buildTodoistChatSystemMessage(persona),
-				buildTodoistChatUserMessage(openTasks, completedTasks),
-				...(userPrompt.trim()
-					? ([
-							{ role: "user", content: `User request:\n${userPrompt}` },
-						] as const)
-					: []),
-			];
-		}
-
-		if (module.name === "azuread") {
-			return [
-				buildAzureAdChatSystemMessage(persona),
-				buildAzureAdChatUserMessage(userPrompt),
-			];
-		}
-
-		throw new Error(
-			`prepareChatSessionMessages: no chat session builder for "${module.name}"`,
+		return await module.chatModelPrep.buildSingleSessionMessages(
+			persona,
+			userPrompt,
 		);
 	}
-
-	const hasGmail = modules.some((m) => m.name === "gmail");
-	const hasTodoist = modules.some((m) => m.name === "todoist");
-	const hasAzureAd = modules.some((m) => m.name === "azuread");
-
-	const parts: string[] = [];
-
-	if (hasGmail) {
-		parts.push(`## Gmail
-Carry out the Gmail parts of the request using Gmail tools as needed. Prefer inbox overview before loading many full messages.
-
-If you need a decision from the user, call **askUser** with options.
-
-User request (may also mention other integrations):
-${userPrompt || "(no additional text — follow the system instruction.)"}`);
-	}
-
-	if (hasTodoist) {
-		const openTasks = await fetchOpenTasks();
-		const completedTasks = await fetchCompletedTasks();
-		const todoistUser = buildTodoistChatUserMessage(openTasks, completedTasks);
-		const todoistContent =
-			typeof todoistUser.content === "string"
-				? todoistUser.content
-				: JSON.stringify(todoistUser.content);
-		parts.push(`## Todoist context and instructions
-Apply the system instruction using Todoist tools when tasks are involved.
-
-${todoistContent}`);
-	}
-
-	if (hasAzureAd) {
-		parts.push(`## Azure AD
-Use Microsoft Graph tools to resolve users/teams mentioned by the user request.
-
-User request (may also mention other integrations):
-${userPrompt || "(no additional text — follow the system instruction.)"}`);
-	}
+	const parts = await Promise.all(
+		modules.map(async (m) => {
+			if (!m.chatModelPrep) {
+				throw new Error(
+					`prepareChatSessionMessages: integration "${m.name}" does not export chatModelPrep`,
+				);
+			}
+			return await m.chatModelPrep.buildMultiUserContent(userPrompt);
+		}),
+	);
 
 	const systemContent = composeSystemPromptWithPersona(
 		buildCombinedChatBasePrompt(modules),
@@ -154,7 +73,18 @@ ${userPrompt || "(no additional text — follow the system instruction.)"}`);
 		{ role: "system", content: systemContent },
 		{
 			role: "user",
-			content: parts.join("\n\n---\n\n"),
+			content: parts.filter(Boolean).join("\n\n---\n\n"),
 		},
 	];
+}
+
+/**
+ * Merge a verbatim user prompt with an optional pretreatment spec for `prepareChatSessionMessages`.
+ * Integration builders stay unaware of pretreatment; they only receive the final string.
+ */
+export function mergeUserPromptWithPretreatmentSpec(
+	verbatim: string,
+	spec: UserIntentSpec | null,
+): string {
+	return formatUserMessageWithPretreatment(verbatim, spec);
 }
