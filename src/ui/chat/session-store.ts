@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { CoreMessage } from "../../ai/chat";
 import { ensureTobyDir, getChatDbPath } from "../../config/index";
+import {
+	deserializeTranscriptRow,
+	serializeTranscriptEntry,
+} from "./transcript-persist";
 import type { TranscriptEntry } from "./types";
 
 type ChatSessionSummary = {
@@ -179,10 +183,9 @@ export function loadChatSession(sessionId: string): LoadedChatSession | null {
 		const content = JSON.parse(r.contentJson) as unknown;
 		return { role: r.role as never, content } as unknown as CoreMessage;
 	});
-	const transcript: TranscriptEntry[] = transcriptRows.map((r) => ({
-		kind: r.kind,
-		text: r.text,
-	}));
+	const transcript: TranscriptEntry[] = transcriptRows.map((r) =>
+		deserializeTranscriptRow({ kind: r.kind as string, text: r.text }),
+	);
 
 	return { id: sess.id, name: sess.name, messages, transcript };
 }
@@ -244,11 +247,12 @@ export function appendTranscriptBatch(
 		for (let i = 0; i < entries.length; i++) {
 			const e = entries[i];
 			if (!e) continue;
+			const row = serializeTranscriptEntry(e);
 			stmt.run({
 				$session_id: sessionId,
 				$idx: startIdx + i,
-				$kind: e.kind,
-				$text: e.text,
+				$kind: row.kind,
+				$text: row.text,
 			});
 		}
 		touchChatSession(sessionId);

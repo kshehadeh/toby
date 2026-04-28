@@ -44,7 +44,7 @@ function mergeProviderOptions(
 	existing: Record<string, unknown> | undefined,
 	next: Record<string, unknown>,
 ): Record<string, unknown> {
-	return { ...(existing ?? {}), ...next };
+	return { ...existing, ...next };
 }
 
 export function applyChatPromptCaching(

@@ -14,9 +14,8 @@ export function UserPromptRow({
 	return (
 		<Box flexDirection="row" width={width}>
 			<Text color={ACCENT}>█</Text>
-			<Text backgroundColor="gray" color="white" wrap="truncate-end">
-				{padded}
-			</Text>
+			<Text> </Text>
+			<Text wrap="truncate-end">{padded}</Text>
 		</Box>
 	);
 }

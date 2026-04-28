@@ -1,7 +1,11 @@
 import { Box, Text } from "ink";
 import type { ReactNode } from "react";
 import React from "react";
-import { ASSISTANT_BOX_MARGIN_LEFT } from "../constants";
+import {
+	ACCENT,
+	ASSISTANT_BOX_MARGIN_LEFT,
+	TOOL_FEEDBACK_DETAIL_INDENT,
+} from "../constants";
 import type { DisplayRow } from "../types";
 import { UserPromptRow } from "./user-prompt-row";
 
@@ -84,6 +88,96 @@ export function buildTranscriptNodes(
 				<Box key={`e-${outIdx}-${r.text.slice(0, 80)}`} width={termCols}>
 					<Text color="red" wrap="truncate-end">
 						{r.text}
+					</Text>
+				</Box>,
+			);
+			i++;
+			outIdx++;
+			continue;
+		}
+		if (r.kind === "ask_user_qa") {
+			const ask = r;
+			const err = ask.error;
+			nodes.push(
+				<Box
+					key={`ask-${ask.blockKey}-${outIdx}`}
+					marginLeft={2}
+					width={Math.max(12, termCols - 2)}
+					flexDirection="column"
+					paddingX={1}
+					backgroundColor="black"
+					marginBottom={1}
+					borderStyle="round"
+					borderColor="gray"
+				>
+					<Text wrap="wrap">
+						<Text color="blue">[Q] </Text>
+						<Text bold color="white">
+							{ask.query}
+						</Text>
+					</Text>
+					{err !== undefined && err.length > 0 ? (
+						<Text color="red" wrap="wrap">
+							{err}
+						</Text>
+					) : (
+						<Text color="white" wrap="wrap">
+							{ask.answer}
+						</Text>
+					)}
+				</Box>,
+			);
+			i++;
+			outIdx++;
+			continue;
+		}
+		if (r.kind === "tool_feedback_call") {
+			const bk = r.blockKey;
+			const title = r.title;
+			const detailLines: string[] = [];
+			i++;
+			while (i < rows.length) {
+				const cur = rows[i];
+				if (cur.kind === "tool_feedback_output" && cur.blockKey === bk) {
+					detailLines.push(cur.detail);
+					i++;
+				} else {
+					break;
+				}
+			}
+			const detailMargin = 2 + TOOL_FEEDBACK_DETAIL_INDENT;
+			nodes.push(
+				<Box
+					key={`tf-${bk}-${outIdx}`}
+					flexDirection="column"
+					width={termCols}
+					marginBottom={0}
+				>
+					<Box marginLeft={2} width={termCols}>
+						<Text color={ACCENT} bold wrap="truncate-end">{`> ${title}`}</Text>
+					</Box>
+					{detailLines.length > 0 ? (
+						<Box marginLeft={detailMargin} width={termCols}>
+							<Text dimColor wrap="truncate-end">
+								{detailLines.join("\n")}
+							</Text>
+						</Box>
+					) : null}
+				</Box>,
+			);
+			outIdx++;
+			continue;
+		}
+		if (r.kind === "tool_feedback_output") {
+			const orphan = r;
+			nodes.push(
+				<Box
+					key={`tf-orphan-${outIdx}-${orphan.blockKey}`}
+					marginLeft={2 + TOOL_FEEDBACK_DETAIL_INDENT}
+					width={termCols}
+				>
+					<Text dimColor wrap="truncate-end">
+						{orphan.detail}
 					</Text>
 				</Box>,
 			);

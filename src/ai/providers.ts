@@ -22,11 +22,3 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
 		],
 	},
 ];
-
-function getProvider(id: string): AIProviderInfo | undefined {
-	return AI_PROVIDERS.find((p) => p.id === id);
-}
-
-function getProviderModels(providerId: string): string[] {
-	return getProvider(providerId)?.models ?? [];
-}

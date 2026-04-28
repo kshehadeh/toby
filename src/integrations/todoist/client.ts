@@ -299,7 +299,7 @@ async function todoistRequest(
 		headers: {
 			Authorization: `Bearer ${credentials.apiKey}`,
 			"Content-Type": "application/json",
-			...(options.headers ?? {}),
+			...options.headers,
 		},
 	});
 

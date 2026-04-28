@@ -106,20 +106,24 @@ function Navigator({
 				else if (item.kind === "delete") icon = "✕";
 				return (
 					<Box key={item.key} paddingX={1}>
-						<Text
-							backgroundColor={selected ? "gray" : undefined}
-							color={
-								selected
-									? "white"
-									: item.kind === "action"
-										? "yellow"
-										: item.kind === "delete"
-											? "red"
-											: "green"
-							}
-							bold={selected}
-						>
-							{icon} {item.label}{" "}
+						<Text wrap="truncate-end">
+							<Text color={selected ? ACCENT : "gray"} bold>
+								{selected ? "› " : "  "}
+							</Text>
+							<Text
+								color={
+									selected
+										? "white"
+										: item.kind === "action"
+											? "yellow"
+											: item.kind === "delete"
+												? "red"
+												: "green"
+								}
+								bold={selected}
+							>
+								{icon} {item.label}{" "}
+							</Text>
 						</Text>
 						{item.kind === "value" && item.currentValue !== undefined ? (
 							<Text dimColor>
@@ -342,13 +346,13 @@ function Selector({ item, onSubmit, onCancel }: SelectorProps) {
 			</Box>
 			{options.map((opt, i) => (
 				<Box key={opt} paddingX={1}>
-					<Text
-						backgroundColor={i === sel ? "gray" : undefined}
-						color={i === sel ? "white" : "green"}
-						bold={i === sel}
-					>
-						{" "}
-						{i === sel ? "▸" : " "} {opt}{" "}
+					<Text wrap="truncate-end">
+						<Text color={i === sel ? ACCENT : "gray"} bold>
+							{i === sel ? "› " : "  "}
+						</Text>
+						<Text color={i === sel ? "white" : "green"} bold={i === sel}>
+							{i === sel ? "▸" : " "} {opt}{" "}
+						</Text>
 					</Text>
 				</Box>
 			))}

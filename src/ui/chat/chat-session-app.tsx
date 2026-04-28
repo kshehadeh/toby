@@ -11,6 +11,10 @@ import React, {
 import type { AskUserHandler, AskUserToolResult } from "../../ai/ask-user-tool";
 import type { CoreMessage } from "../../ai/chat";
 import {
+	shouldPretreat,
+	wrapUserPromptWithPretreatment,
+} from "../../ai/pretreatment";
+import {
 	isIntegrationUsableInChat,
 	modulesEqual,
 	sortModulesByName,
@@ -45,6 +49,7 @@ import {
 	getSlashSuggestions,
 	resolveSlashSubmission,
 } from "./slash-commands";
+import { formatToolFeedbackOutput } from "./tool-feedback-registry";
 import { getToolDisplayLabel } from "./tool-labels";
 import { flattenTranscript } from "./transcript-layout";
 import type { AskModal, DisplayRow, TranscriptEntry } from "./types";
@@ -141,6 +146,9 @@ export function ChatSessionApp({
 	const [selectedModules, setSelectedModules] = useState<IntegrationModule[]>(
 		() => sortModulesByName(initialModules),
 	);
+	const [connectedByIntegration, setConnectedByIntegration] = useState<
+		Record<string, boolean | null>
+	>(() => ({}));
 	const [slashCursorIndex, setSlashCursorIndex] = useState(0);
 	const [sessionPrompt, setSessionPrompt] = useState(initialUserPrompt);
 	const [multiPicker, setMultiPicker] = useState<MultiPickerState | null>(null);
@@ -156,6 +164,8 @@ export function ChatSessionApp({
 	const lastSavedMessageCountRef = useRef(0);
 	const lastSavedTranscriptCountRef = useRef(0);
 	const sessionIdRef = useRef<string | null>(null);
+	const transcriptRef = useRef(transcript);
+	const ongoingPretreatAbortRef = useRef<AbortController | null>(null);
 	const snapRef = useRef({
 		askModal: null as AskModal | null,
 		messages: null as CoreMessage[] | null,
@@ -167,7 +177,7 @@ export function ChatSessionApp({
 
 	const allDisplayRows = useMemo((): DisplayRow[] => {
 		if (messages === null) {
-			return [{ kind: "meta", text: "Loading session…" }];
+			return [];
 		}
 		return flattenTranscript(transcript, streamingAssistant, loading, termCols);
 	}, [messages, transcript, streamingAssistant, loading, termCols]);
@@ -181,6 +191,41 @@ export function ChatSessionApp({
 		() => selectedModules.map((m) => m.name),
 		[selectedModules],
 	);
+
+	useEffect(() => {
+		let cancelled = false;
+		const names = selectedModules.map((m) => m.name);
+		// Mark as unknown while we refresh.
+		setConnectedByIntegration((prev) => {
+			const next: Record<string, boolean | null> = { ...prev };
+			for (const n of names) {
+				next[n] = null;
+			}
+			return next;
+		});
+		void (async () => {
+			const pairs = await Promise.all(
+				selectedModules.map(async (m) => {
+					try {
+						return [m.name, await m.isConnected()] as const;
+					} catch {
+						return [m.name, false] as const;
+					}
+				}),
+			);
+			if (cancelled) return;
+			setConnectedByIntegration((prev) => {
+				const next: Record<string, boolean | null> = { ...prev };
+				for (const [name, ok] of pairs) {
+					next[name] = ok;
+				}
+				return next;
+			});
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [selectedModules]);
 
 	const pickerRows = useMemo(
 		() => (multiPicker ? buildIntegrationPickerRows(multiPicker.modules) : []),
@@ -215,6 +260,16 @@ export function ChatSessionApp({
 	useLayoutEffect(() => {
 		sessionIdRef.current = sessionId;
 	}, [sessionId]);
+
+	useLayoutEffect(() => {
+		transcriptRef.current = transcript;
+	}, [transcript]);
+
+	useEffect(() => {
+		return () => {
+			ongoingPretreatAbortRef.current?.abort();
+		};
+	}, []);
 
 	useLayoutEffect(() => {
 		askSelectedRef.current = askSelected;
@@ -278,8 +333,87 @@ export function ChatSessionApp({
 					dryRun,
 					askUser: askUserHandler,
 					chatWithToolsOptions: {
-						onToolCallStart: (toolName) => {
+						onToolCallStart: ({ toolName, blockKey }) => {
 							setActivityLine(formatToolStatusLine(toolName));
+							if (toolName === "askUser") {
+								return;
+							}
+							setTranscript((t) => [
+								...t,
+								{
+									kind: "tool_call",
+									blockKey,
+									title: getToolDisplayLabel(toolName),
+								},
+							]);
+						},
+						onToolCallComplete: ({
+							toolName,
+							blockKey,
+							args,
+							result,
+							error: handlerError,
+						}) => {
+							if (toolName === "askUser") {
+								// Dismiss "Waiting for your choice…" as soon as the modal returns.
+								setActivityLine("Thinking…");
+								const query =
+									typeof (args as { query?: unknown }).query === "string"
+										? (args as { query: string }).query
+										: "";
+								if (handlerError !== undefined) {
+									const msg =
+										handlerError instanceof Error
+											? handlerError.message
+											: String(handlerError);
+									setTranscript((t) => [
+										...t,
+										{
+											kind: "ask_user_qa",
+											blockKey,
+											query,
+											answer: "",
+											error: msg,
+										},
+									]);
+									return;
+								}
+								const r = result as Partial<AskUserToolResult> | null;
+								if (r?.error) {
+									setTranscript((t) => [
+										...t,
+										{
+											kind: "ask_user_qa",
+											blockKey,
+											query,
+											answer: "",
+											error: r.error,
+										},
+									]);
+									return;
+								}
+								const label = (r?.selectedLabel ?? "").trim();
+								setTranscript((t) => [
+									...t,
+									{
+										kind: "ask_user_qa",
+										blockKey,
+										query,
+										answer: label,
+									},
+								]);
+								return;
+							}
+							const detail = formatToolFeedbackOutput({
+								toolName,
+								args,
+								result,
+								error: handlerError,
+							});
+							setTranscript((t) => [
+								...t,
+								{ kind: "tool_output", blockKey, detail },
+							]);
 						},
 						onAssistantTextDelta: (delta) => {
 							streamedAssistantRef.current += delta;
@@ -292,14 +426,13 @@ export function ChatSessionApp({
 				setLastUsage(out.usage ?? null);
 
 				const reply =
-					streamedAssistantRef.current.trim() ||
-					out.text?.trim() ||
-					"(no text)";
+					streamedAssistantRef.current.trim() || out.text?.trim() || "";
 				streamedAssistantRef.current = "";
 
-				const additions: TranscriptEntry[] = [
-					{ kind: "assistant", text: reply },
-				];
+				const additions: TranscriptEntry[] = [];
+				if (reply.length > 0) {
+					additions.push({ kind: "assistant", text: reply });
+				}
 				if (
 					process.env.TOBY_DEBUG_CACHE === "1" &&
 					out.usage?.inputTokenDetails
@@ -321,16 +454,12 @@ export function ChatSessionApp({
 						});
 					}
 				}
-				if (out.toolCalls.length > 0) {
-					additions.push({
-						kind: "meta",
-						text: `Tools: ${out.toolCalls
-							.map((c) => getToolDisplayLabel(c.name))
-							.join(", ")}`,
-					});
-				}
-				for (const a of out.appliedActions) {
-					additions.push({ kind: "meta", text: `+ ${a}` });
+				// Avoid duplicating what the assistant already summarized.
+				// If the model produced no text (tool-only turn), we still show actions.
+				if (reply.length === 0) {
+					for (const a of out.appliedActions) {
+						additions.push({ kind: "meta", text: `+ ${a}` });
+					}
 				}
 				setStreamingAssistant("");
 				setTranscript((t) => [...t, ...additions]);
@@ -347,6 +476,8 @@ export function ChatSessionApp({
 
 	useEffect(() => {
 		let cancelled = false;
+		const ac = new AbortController();
+		ongoingPretreatAbortRef.current = ac;
 		void (async () => {
 			try {
 				const sid = sessionId;
@@ -358,10 +489,26 @@ export function ChatSessionApp({
 				if (sessionBootMode === "loaded") {
 					return;
 				}
+				let effectivePrompt = sessionPrompt;
+				if (sessionPrompt.trim()) {
+					const { content } = await wrapUserPromptWithPretreatment({
+						priorMessages: [],
+						rawUserText: sessionPrompt,
+						integrationLabels: formatScopeLabel(selectedModules),
+						isFirstTurn: true,
+						abortSignal: ac.signal,
+					});
+					if (!cancelled) {
+						effectivePrompt = content;
+					}
+				}
+				if (cancelled) {
+					return;
+				}
 				const initial = await prepareChatSessionMessages(
 					selectedModules,
 					persona,
-					sessionPrompt,
+					effectivePrompt,
 				);
 				if (cancelled) {
 					return;
@@ -372,10 +519,21 @@ export function ChatSessionApp({
 					: [];
 				const note = pendingScopeChangeNoteRef.current;
 				pendingScopeChangeNoteRef.current = null;
+				const debugPrep =
+					process.env.TOBY_DEBUG_PREP === "1" &&
+					sessionPrompt.trim() &&
+					effectivePrompt.trim() !== sessionPrompt.trim()
+						? ([
+								{
+									kind: "meta" as const,
+									text: "Pretreatment: intent spec attached to model message.",
+								},
+							] as const)
+						: [];
 				const metaEntries: TranscriptEntry[] = note
 					? [{ kind: "meta", text: note }]
 					: [];
-				const nextTranscript = [...userEntries, ...metaEntries];
+				const nextTranscript = [...userEntries, ...debugPrep, ...metaEntries];
 				setTranscript(nextTranscript);
 
 				// Persist boot state only after a session is materialized.
@@ -395,6 +553,7 @@ export function ChatSessionApp({
 		})();
 		return () => {
 			cancelled = true;
+			ac.abort();
 		};
 	}, [
 		selectedModules,
@@ -598,11 +757,52 @@ export function ChatSessionApp({
 				lastSavedMessageCountRef.current = 0;
 				lastSavedTranscriptCountRef.current = 0;
 			}
-			const userMsg: CoreMessage = { role: "user", content: line };
-			const next = [...msgs, userMsg];
-			setMessages(next);
-			setTranscript((t) => [...t, { kind: "user", text: line }]);
-			void runModelTurnRef.current(next, sid);
+			const sidFinal = sid;
+			void (async () => {
+				const ac = new AbortController();
+				ongoingPretreatAbortRef.current = ac;
+				const msgsBefore = snapRef.current.messages;
+				if (!msgsBefore) {
+					return;
+				}
+				const isFirstTurn = !transcriptRef.current.some(
+					(e) => e.kind === "user",
+				);
+				const willPretreat = shouldPretreat(msgsBefore, line, isFirstTurn);
+				setLoading(true);
+				setActivityLine(willPretreat ? "Preparing request…" : "Thinking…");
+				const { content, spec } = await wrapUserPromptWithPretreatment({
+					priorMessages: msgsBefore,
+					rawUserText: line,
+					integrationLabels: formatScopeLabel(selectedModulesRef.current),
+					isFirstTurn,
+					abortSignal: ac.signal,
+				});
+				const msgsAfter = snapRef.current.messages;
+				if (!msgsAfter) {
+					setLoading(false);
+					return;
+				}
+				const userMsg: CoreMessage = { role: "user", content };
+				const next = [...msgsAfter, userMsg];
+				setMessages(next);
+				const transcriptAdditions: TranscriptEntry[] = [
+					{ kind: "user", text: line },
+				];
+				if (
+					process.env.TOBY_DEBUG_PREP === "1" &&
+					spec &&
+					content.trim() !== line.trim()
+				) {
+					transcriptAdditions.push({
+						kind: "meta",
+						text: "Pretreatment: intent spec attached to model message.",
+					});
+				}
+				setTranscript((t) => [...t, ...transcriptAdditions]);
+				setActivityLine("Thinking…");
+				await runModelTurnRef.current(next, sidFinal);
+			})();
 		},
 		[
 			chatIntegrations.length,
@@ -644,6 +844,7 @@ export function ChatSessionApp({
 				if (key.return) {
 					const idx = askSelectedRef.current;
 					const label = modal.options[idx] ?? "";
+					setActivityLine("Thinking…");
 					modal.resolve({
 						selectedIndex: idx,
 						selectedLabel: label,
@@ -653,6 +854,7 @@ export function ChatSessionApp({
 					return;
 				}
 				if (key.escape) {
+					setActivityLine("Thinking…");
 					modal.resolve({
 						selectedIndex: -1,
 						selectedLabel: "",
@@ -889,7 +1091,7 @@ export function ChatSessionApp({
 		showConfig;
 	const modelLabel = `${persona.ai.provider}/${persona.ai.model}`;
 	const suggestedPlaceholder =
-		sessionBootMode === "new" ? '> Try "What needs my attention today?"' : null;
+		sessionBootMode === "new" ? 'Try "What needs my attention today?"' : null;
 
 	return (
 		<Box flexDirection="column" width="100%" padding={1}>
@@ -902,16 +1104,55 @@ export function ChatSessionApp({
 					</Box>
 				))}
 			</Box>
-			<Box flexDirection="column" marginTop={1} flexShrink={0}>
+			<Box
+				marginTop={0}
+				flexShrink={0}
+				width={termCols}
+				justifyContent="center"
+			>
+				{selectedModules.length === 0 ? (
+					<Text dimColor wrap="truncate-end">
+						No integrations enabled.
+						{dryRun ? "  ·  dry-run" : ""}
+					</Text>
+				) : (
+					<Box flexDirection="row" flexWrap="wrap" justifyContent="center">
+						{selectedModules.map((m, idx) => {
+							const ok = connectedByIntegration[m.name];
+							return (
+								<Text key={m.name} dimColor wrap="truncate-end">
+									{idx === 0 ? "" : "  "}
+									{ok === true ? (
+										<Text color="green">✓</Text>
+									) : ok === false ? (
+										<Text color="red">✗</Text>
+									) : (
+										<Text dimColor>…</Text>
+									)}{" "}
+									{m.displayName}
+								</Text>
+							);
+						})}
+						{dryRun ? (
+							<Text dimColor wrap="truncate-end">
+								{"  ·  "}dry-run
+							</Text>
+						) : null}
+					</Box>
+				)}
+			</Box>
+			<Box flexDirection="column" marginTop={0} flexShrink={0}>
 				{buildTranscriptNodes(displayRows, termCols)}
 			</Box>
-			{loading ? (
-				<Box marginTop={1} width={termCols} flexShrink={0}>
-					<Text dimColor wrap="truncate-end">
-						{activityLine}
-					</Text>
-				</Box>
-			) : null}
+			<Box marginTop={0} width={termCols} flexShrink={0}>
+				<Text dimColor wrap="truncate-end">
+					{messages === null
+						? "Loading session…"
+						: loading
+							? activityLine
+							: " "}
+				</Text>
+			</Box>
 			{askModal ? (
 				<AskUserModal
 					modal={askModal}
@@ -966,7 +1207,6 @@ export function ChatSessionApp({
 				inputDisabled={inputDisabled}
 				persona={persona}
 				modelLabel={modelLabel}
-				scopeLabel={formatScopeLabel(selectedModules)}
 				dryRun={dryRun}
 				lastUsage={lastUsage}
 				placeholder={suggestedPlaceholder}

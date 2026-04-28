@@ -12,6 +12,30 @@ import {
 	markEmailAsRead,
 } from "./client";
 
+const SUBJECT_PREVIEW_MAX = 80;
+
+function truncateForLine(s: string, max: number): string {
+	const t = s.replace(/\r?\n/g, " ").trim();
+	if (t.length <= max) {
+		return t;
+	}
+	return `${t.slice(0, max - 1)}…`;
+}
+
+/** After an action on a message id, best-effort subject for tool feedback / appliedActions. */
+async function oneLineForMessageId(
+	messageId: string,
+	withSubject: (subject: string) => string,
+	withoutSubject: string,
+): Promise<string> {
+	const [m] = await fetchUnreadMetadataByMessageIds([messageId], 1);
+	const subj = m?.subject?.trim();
+	if (subj) {
+		return withSubject(truncateForLine(subj, SUBJECT_PREVIEW_MAX));
+	}
+	return withoutSubject;
+}
+
 export interface EmailContext {
 	currentEmail: GmailMessage | null;
 	dryRun: boolean;
@@ -137,9 +161,13 @@ export function createGmailTools(ctx: EmailContext) {
 				}
 
 				await archiveEmail(messageId);
-				const msg = `Archived message "${messageId}"`;
-				ctx.appliedActions.push(msg);
-				return { success: true, messageId };
+				const message = await oneLineForMessageId(
+					messageId,
+					(subj) => `Archived "${subj}".`,
+					`Archived message ${messageId.length > 18 ? `${messageId.slice(0, 12)}…` : messageId}.`,
+				);
+				ctx.appliedActions.push(message);
+				return { success: true, messageId, message };
 			},
 		}),
 
@@ -157,9 +185,13 @@ export function createGmailTools(ctx: EmailContext) {
 				}
 
 				await markEmailAsRead(messageId);
-				const msg = `Marked message "${messageId}" as read`;
-				ctx.appliedActions.push(msg);
-				return { success: true, messageId };
+				const message = await oneLineForMessageId(
+					messageId,
+					(subj) => `Marked as read: "${subj}".`,
+					`Marked as read: ${messageId.length > 18 ? `${messageId.slice(0, 12)}…` : messageId}.`,
+				);
+				ctx.appliedActions.push(message);
+				return { success: true, messageId, message };
 			},
 		}),
 
@@ -187,13 +219,19 @@ export function createGmailTools(ctx: EmailContext) {
 				}
 
 				await applyLabels(messageId, labelIds);
-				const msg = `Applied labels [${labelNames.join(", ")}] to message "${messageId}"`;
-				ctx.appliedActions.push(msg);
+				const labelPart = labelNames.join(", ");
+				const message = await oneLineForMessageId(
+					messageId,
+					(subj) => `Applied [${labelPart}] to "${subj}".`,
+					`Applied [${labelPart}] to message ${messageId.length > 18 ? `${messageId.slice(0, 12)}…` : messageId}.`,
+				);
+				ctx.appliedActions.push(message);
 				return {
 					success: true,
 					messageId,
 					labelNames,
 					labelIds,
+					message,
 				};
 			},
 		}),

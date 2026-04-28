@@ -4,7 +4,12 @@ import type { Key } from "ink";
 import { ControlledMultilineInput } from "ink-multiline-input";
 import React, { useEffect, useRef, useState } from "react";
 import type { Persona } from "../../../config/index";
-import { INPUT_BORDER } from "../constants";
+import {
+	ACCENT,
+	ACCENT_MODEL,
+	ACCENT_PROVIDER,
+	INPUT_BORDER,
+} from "../constants";
 import type { SlashCommand } from "../slash-commands";
 
 function formatUsage(usage: LanguageModelUsage | null): string | null {
@@ -34,7 +39,6 @@ type ChatInputDockProps = {
 	readonly inputDisabled: boolean;
 	readonly persona: Persona;
 	readonly modelLabel: string;
-	readonly scopeLabel: string;
 	readonly dryRun: boolean;
 	readonly lastUsage: LanguageModelUsage | null;
 	readonly placeholder?: string | null;
@@ -51,7 +55,6 @@ export function ChatInputDock(props: ChatInputDockProps) {
 		inputDisabled,
 		persona,
 		modelLabel,
-		scopeLabel,
 		dryRun,
 		lastUsage,
 		placeholder,
@@ -250,29 +253,31 @@ export function ChatInputDock(props: ChatInputDockProps) {
 	);
 
 	return (
-		<Box marginTop={1} flexShrink={0} flexDirection="column" width={termCols}>
+		<Box marginTop={0} flexShrink={0} flexDirection="column" width={termCols}>
 			<Box
 				flexDirection="column"
 				borderStyle="single"
 				borderColor={INPUT_BORDER}
 				width={termCols}
 			>
-				<Box
-					paddingX={1}
-					paddingY={0}
-					width={termCols - 2}
-					flexDirection="column"
-				>
-					<ControlledMultilineInput
-						value={input}
-						cursorIndex={cursorIndex}
-						rows={1}
-						maxRows={8}
-						focus={!inputDisabled}
-						placeholder={
-							placeholder ?? '> Try "What needs my attention today?"'
-						}
-					/>
+				<Box paddingX={1} paddingY={0} width={termCols - 2} flexDirection="row">
+					<Box flexShrink={0}>
+						<Text color={ACCENT} bold>
+							{"> "}
+						</Text>
+					</Box>
+					<Box flexGrow={1} flexDirection="column">
+						<ControlledMultilineInput
+							value={input}
+							cursorIndex={cursorIndex}
+							rows={1}
+							maxRows={8}
+							focus={!inputDisabled}
+							placeholder={
+								placeholder ?? 'Try "What needs my attention today?"'
+							}
+						/>
+					</Box>
 				</Box>
 			</Box>
 			{slashSuggestions.length > 0 ? (
@@ -305,10 +310,37 @@ export function ChatInputDock(props: ChatInputDockProps) {
 				justifyContent="space-between"
 			>
 				<Box flexGrow={1} marginRight={1}>
-					<Text dimColor wrap="truncate-end">
-						{persona.name} · {modelLabel} · {scopeLabel}
-						{dryRun ? " · dry-run" : ""}
-					</Text>
+					<Box flexDirection="row" flexWrap="wrap">
+						<Text bold wrap="truncate-end">
+							{persona.name}
+						</Text>
+						<Text dimColor wrap="truncate-end">
+							{" · "}
+						</Text>
+						{(() => {
+							const [provider, model] = modelLabel.split("/", 2);
+							return (
+								<>
+									<Text color={ACCENT_PROVIDER} wrap="truncate-end">
+										{provider ?? modelLabel}
+									</Text>
+									<Text dimColor wrap="truncate-end">
+										{model ? "/" : ""}
+									</Text>
+									{model ? (
+										<Text color={ACCENT_MODEL} wrap="truncate-end">
+											{model}
+										</Text>
+									) : null}
+								</>
+							);
+						})()}
+						{dryRun ? (
+							<Text dimColor wrap="truncate-end">
+								{" · "}dry-run
+							</Text>
+						) : null}
+					</Box>
 				</Box>
 				<Box flexShrink={0}>
 					<Text dimColor wrap="truncate-start">

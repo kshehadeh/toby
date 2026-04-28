@@ -1,4 +1,7 @@
-import { ASSISTANT_BOX_MARGIN_LEFT } from "./constants";
+import {
+	ASSISTANT_BOX_MARGIN_LEFT,
+	TOOL_FEEDBACK_DETAIL_INDENT,
+} from "./constants";
 import type { DisplayRow, TranscriptEntry } from "./types";
 
 /** Break a string into lines of at most `max` columns (prefer spaces). */
@@ -172,6 +175,43 @@ export function flattenTranscript(
 					});
 				}
 			}
+			if (next !== undefined) {
+				gapKey += 1;
+				rows.push({ kind: "spacer", rowKey: `gap-${gapKey}` });
+			}
+		} else if (e.kind === "tool_call") {
+			rows.push({
+				kind: "tool_feedback_call",
+				blockKey: e.blockKey,
+				title: e.title,
+			});
+			const skipGapBeforePairedOutput =
+				next?.kind === "tool_output" && next.blockKey === e.blockKey;
+			if (next !== undefined && !skipGapBeforePairedOutput) {
+				gapKey += 1;
+				rows.push({ kind: "spacer", rowKey: `gap-${gapKey}` });
+			}
+		} else if (e.kind === "tool_output") {
+			const outWidth = Math.max(8, termCols - TOOL_FEEDBACK_DETAIL_INDENT);
+			for (const line of hardWrap(e.detail, outWidth)) {
+				rows.push({
+					kind: "tool_feedback_output",
+					blockKey: e.blockKey,
+					detail: line,
+				});
+			}
+			if (next !== undefined) {
+				gapKey += 1;
+				rows.push({ kind: "spacer", rowKey: `gap-${gapKey}` });
+			}
+		} else if (e.kind === "ask_user_qa") {
+			rows.push({
+				kind: "ask_user_qa",
+				blockKey: e.blockKey,
+				query: e.query,
+				answer: e.answer,
+				...(e.error !== undefined ? { error: e.error } : {}),
+			});
 			if (next !== undefined) {
 				gapKey += 1;
 				rows.push({ kind: "spacer", rowKey: `gap-${gapKey}` });
