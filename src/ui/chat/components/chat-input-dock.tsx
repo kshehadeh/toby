@@ -107,8 +107,18 @@ export function ChatInputDock(props: ChatInputDockProps) {
 			}
 
 			const processInput = (typedInput: string, key: Key) => {
-				const shouldSubmit = key.return && !key.shift && !key.meta && !key.ctrl;
-				const shouldNewline = key.return && (key.shift || key.meta || key.ctrl);
+				// Some terminals emit Shift+Enter as a literal newline character without
+				// setting key.shift. Treat that as "insert newline" rather than submit.
+				const isLiteralNewline = typedInput === "\n" || typedInput === "\r";
+				const shouldSubmit =
+					key.return &&
+					!isLiteralNewline &&
+					!key.shift &&
+					!key.meta &&
+					!key.ctrl;
+				const shouldNewline =
+					(key.return && (key.shift || key.meta || key.ctrl)) ||
+					isLiteralNewline;
 
 				if (shouldSubmit) {
 					onInputSubmit(input);
