@@ -18,7 +18,7 @@
 		"test:watch": "bunx vitest",
 		"release": "release-it",
 		"release:dry": "release-it --dry-run",
-		"release:ci": "release-it --ci"
+		"release:ci": "bun ./scripts/release-ci.mjs"
 	},
 	"dependencies": {
 		"@ai-sdk/openai": "^3.0.53",
