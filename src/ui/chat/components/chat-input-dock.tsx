@@ -107,18 +107,12 @@ export function ChatInputDock(props: ChatInputDockProps) {
 			}
 
 			const processInput = (typedInput: string, key: Key) => {
-				// Some terminals emit Shift+Enter as a literal newline character without
-				// setting key.shift. Treat that as "insert newline" rather than submit.
-				const isLiteralNewline = typedInput === "\n" || typedInput === "\r";
-				const shouldSubmit =
-					key.return &&
-					!isLiteralNewline &&
-					!key.shift &&
-					!key.meta &&
-					!key.ctrl;
-				const shouldNewline =
-					(key.return && (key.shift || key.meta || key.ctrl)) ||
-					isLiteralNewline;
+				// Ink maps CR (`\r`) to `key.return` but LF (`\n`) is parsed as `enter`, so
+				// `key.return` stays false — plain Enter then falls through and inserts `\n`.
+				const isEnter =
+					key.return || typedInput === "\n" || typedInput === "\r";
+				const shouldSubmit = isEnter && !key.shift && !key.meta && !key.ctrl;
+				const shouldNewline = isEnter && (key.shift || key.meta || key.ctrl);
 
 				if (shouldSubmit) {
 					onInputSubmit(input);
@@ -127,6 +121,11 @@ export function ChatInputDock(props: ChatInputDockProps) {
 
 				if (shouldNewline) {
 					insertAtCursor("\n");
+					return;
+				}
+
+				// Ignore stray newline chars from Enter-like sequences not handled above.
+				if (typedInput === "\r" || typedInput === "\n") {
 					return;
 				}
 
@@ -308,8 +307,8 @@ export function ChatInputDock(props: ChatInputDockProps) {
 			) : null}
 			<Box marginTop={0} paddingX={1}>
 				<Text dimColor wrap="truncate-end">
-					Type / to see commands · Shift/Alt+Enter newline · Enter to run ·
-					Ctrl+C to quit
+					Type / to see commands · Shift+Enter newline · Enter to run · Ctrl+C
+					to quit
 				</Text>
 			</Box>
 			<Box
