@@ -31,6 +31,41 @@ function formatUsage(usage: LanguageModelUsage | null): string | null {
 	return pieces.length > 0 ? pieces.join(" ") : null;
 }
 
+function getModelContextWindow(model: string): number | null {
+	const m = model.toLowerCase().trim();
+	if (
+		m.startsWith("gpt-4.1") ||
+		m.startsWith("gpt-5") ||
+		m.startsWith("o3") ||
+		m.startsWith("o4")
+	) {
+		// Current OpenAI long-context families used in Toby are ~1M context.
+		return 1_000_000;
+	}
+	if (m.startsWith("gpt-4o") || m.startsWith("gpt-4-turbo")) {
+		return 128_000;
+	}
+	return null;
+}
+
+function formatContextFill(
+	modelLabel: string,
+	usage: LanguageModelUsage | null,
+): string | null {
+	const input = usage?.inputTokens;
+	if (typeof input !== "number" || input <= 0) {
+		return null;
+	}
+	const [, modelPart] = modelLabel.split("/", 2);
+	const model = modelPart ?? modelLabel;
+	const windowSize = getModelContextWindow(model);
+	if (!windowSize) {
+		return null;
+	}
+	const pct = Math.max(0, Math.min(100, Math.round((input / windowSize) * 100)));
+	return `ctx ${pct}%`;
+}
+
 type ChatInputDockProps = {
 	readonly termCols: number;
 	readonly input: string;
@@ -105,6 +140,7 @@ export function ChatInputDock(props: ChatInputDockProps) {
 	const placeholderText = placeholder ?? 'Try "What needs my attention today?"';
 	const showStaticPlaceholder =
 		(showPlaceholderWhenEmpty ?? false) && input.length === 0;
+	const contextFill = formatContextFill(modelLabel, lastUsage);
 	useInput(
 		(rawInput, rawKey) => {
 			if (!isActive) {
@@ -349,6 +385,16 @@ export function ChatInputDock(props: ChatInputDockProps) {
 										<Text color={ACCENT_MODEL} wrap="truncate-end">
 											{model}
 										</Text>
+									) : null}
+									{contextFill ? (
+										<>
+											<Text dimColor wrap="truncate-end">
+												{" · "}
+											</Text>
+											<Text dimColor wrap="truncate-end">
+												{contextFill}
+											</Text>
+										</>
 									) : null}
 								</>
 							);
