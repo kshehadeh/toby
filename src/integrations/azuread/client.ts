@@ -1,4 +1,8 @@
-import { getAzureAdCredentials } from "../../config/index";
+import {
+	getAzureAdCredentials,
+	readCredentials,
+	writeCredentials,
+} from "../../config/index";
 
 const GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0";
 
@@ -54,13 +58,28 @@ export async function getGraphAccessToken(): Promise<{
 	}
 
 	const creds = getAzureAdCredentials();
+	if (creds.authMethod === "oauth_pkce") {
+		const token = await getOAuthGraphAccessToken(creds);
+		cachedToken = token;
+		return {
+			...token,
+			claims: parseJwtClaims(token.accessToken),
+		};
+	}
+
 	const tokenUrl = `https://login.microsoftonline.com/${encodeURIComponent(
 		creds.tenantId,
 	)}/oauth2/v2.0/token`;
+	const clientSecret = creds.clientSecret;
+	if (!clientSecret) {
+		throw new Error(
+			"Azure AD client-credentials auth requires clientSecret. Run `toby configure`.",
+		);
+	}
 
 	const body = new URLSearchParams({
 		client_id: creds.clientId,
-		client_secret: creds.clientSecret,
+		client_secret: clientSecret,
 		grant_type: "client_credentials",
 		scope: "https://graph.microsoft.com/.default",
 	});
@@ -99,6 +118,121 @@ export async function getGraphAccessToken(): Promise<{
 		...token,
 		claims: parseJwtClaims(token.accessToken),
 	};
+}
+
+async function getOAuthGraphAccessToken(creds: {
+	readonly tenantId: string;
+	readonly clientId: string;
+	readonly oauthAccessToken?: string;
+	readonly oauthRefreshToken?: string;
+	readonly oauthExpiresAt?: string;
+}): Promise<CachedToken> {
+	const expiresAtMs = parseOAuthExpiry(creds.oauthExpiresAt);
+	if (
+		creds.oauthAccessToken &&
+		typeof expiresAtMs === "number" &&
+		expiresAtMs - Date.now() > 60_000
+	) {
+		return { accessToken: creds.oauthAccessToken, expiresAtMs };
+	}
+
+	if (!creds.oauthRefreshToken) {
+		throw new Error(
+			"Azure AD OAuth token is missing a refresh token. Run `toby connect azuread` again.",
+		);
+	}
+
+	const tokenUrl = `https://login.microsoftonline.com/${encodeURIComponent(
+		creds.tenantId,
+	)}/oauth2/v2.0/token`;
+	const body = new URLSearchParams({
+		client_id: creds.clientId,
+		grant_type: "refresh_token",
+		refresh_token: creds.oauthRefreshToken,
+		scope:
+			"offline_access openid profile User.Read.All User.ReadBasic.All https://graph.microsoft.com/.default",
+	});
+
+	const res = await fetch(tokenUrl, {
+		method: "POST",
+		headers: { "Content-Type": "application/x-www-form-urlencoded" },
+		body,
+	});
+	if (!res.ok) {
+		const text = await res.text().catch(() => "");
+		throw new Error(
+			`Azure AD OAuth refresh failed (${res.status}): ${text || res.statusText}`,
+		);
+	}
+	const json = (await res.json()) as {
+		access_token?: unknown;
+		refresh_token?: unknown;
+		expires_in?: unknown;
+	};
+	if (typeof json.access_token !== "string") {
+		throw new Error("Azure AD OAuth refresh response missing access_token");
+	}
+
+	const nextRefreshToken =
+		typeof json.refresh_token === "string"
+			? json.refresh_token
+			: creds.oauthRefreshToken;
+	const nextExpiresAtMs =
+		Date.now() +
+		Math.max(60, normalizeExpiresInSeconds(json.expires_in)) * 1000;
+	persistAzureAdOAuthTokens({
+		accessToken: json.access_token,
+		refreshToken: nextRefreshToken,
+		expiresAtMs: nextExpiresAtMs,
+	});
+
+	return { accessToken: json.access_token, expiresAtMs: nextExpiresAtMs };
+}
+
+function persistAzureAdOAuthTokens(params: {
+	readonly accessToken: string;
+	readonly refreshToken: string;
+	readonly expiresAtMs: number;
+}): void {
+	const creds = readCredentials();
+	const previous = creds.integrations?.azuread ?? {};
+	const tenantId = previous.tenantId ?? creds.azuread?.tenantId ?? "";
+	const clientId = previous.clientId ?? creds.azuread?.clientId ?? "";
+	const clientSecret = previous.clientSecret ?? creds.azuread?.clientSecret;
+	const oauthExpiresAt = new Date(params.expiresAtMs).toISOString();
+	writeCredentials({
+		...creds,
+		integrations: {
+			...(creds.integrations ?? {}),
+			azuread: {
+				...previous,
+				authMethod: "oauth_pkce",
+				oauthAccessToken: params.accessToken,
+				oauthRefreshToken: params.refreshToken,
+				oauthExpiresAt,
+			},
+		},
+		azuread: {
+			...(creds.azuread ?? {}),
+			authMethod: "oauth_pkce",
+			tenantId,
+			clientId,
+			clientSecret,
+			oauthAccessToken: params.accessToken,
+			oauthRefreshToken: params.refreshToken,
+			oauthExpiresAt,
+		},
+	});
+}
+
+function normalizeExpiresInSeconds(expiresIn: unknown): number {
+	return typeof expiresIn === "number" ? expiresIn : 3600;
+}
+
+function parseOAuthExpiry(value: string | undefined): number | undefined {
+	if (!value) return undefined;
+	const parsed = Date.parse(value);
+	return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 async function graphFetch<T>(

@@ -1,12 +1,19 @@
 import chalk from "chalk";
 import type { CredentialsFile } from "../../config/index";
-import { readConfig, writeConfig } from "../../config/index";
+import {
+	getAzureAdAuthMethod,
+	readConfig,
+	readCredentials,
+	writeConfig,
+	writeCredentials,
+} from "../../config/index";
 import type {
 	ChatRunOptions,
 	CredentialFieldDescriptor,
 	IntegrationModule,
 	IntegrationToolHealth,
 } from "../types";
+import { runAzureAdOAuthPkceFlow } from "./auth";
 import { runAzureAdChatTurn } from "./chat-turn";
 import {
 	getGraphAccessToken,
@@ -21,13 +28,18 @@ import {
 import { createAzureAdTools } from "./tools";
 
 function hasAzureAdCredentials(creds: CredentialsFile): boolean {
-	return Boolean(
+	const authMethod = getAzureAdAuthMethod(creds);
+	const hasTenantAndClient = Boolean(
 		(creds.integrations?.azuread?.tenantId?.trim() ||
 			creds.azuread?.tenantId?.trim()) &&
 			(creds.integrations?.azuread?.clientId?.trim() ||
-				creds.azuread?.clientId?.trim()) &&
-			(creds.integrations?.azuread?.clientSecret?.trim() ||
-				creds.azuread?.clientSecret?.trim()),
+				creds.azuread?.clientId?.trim()),
+	);
+	if (!hasTenantAndClient) return false;
+	if (authMethod === "oauth_pkce") return true;
+	return Boolean(
+		creds.integrations?.azuread?.clientSecret?.trim() ||
+			creds.azuread?.clientSecret?.trim(),
 	);
 }
 
@@ -50,6 +62,59 @@ const azureAdLifecycle = {
 
 		console.log(chalk.cyan("Connecting Azure AD (Microsoft Graph)..."));
 		console.log(chalk.dim("Ensure credentials are set via `toby configure`."));
+		const credentials = readCredentials();
+		const authMethod = getAzureAdAuthMethod(credentials);
+		if (authMethod === "oauth_pkce") {
+			const tenantId =
+				credentials.integrations?.azuread?.tenantId ??
+				credentials.azuread?.tenantId ??
+				"";
+			const clientId =
+				credentials.integrations?.azuread?.clientId ??
+				credentials.azuread?.clientId ??
+				"";
+			const redirectUri =
+				credentials.integrations?.azuread?.redirectUri ??
+				credentials.azuread?.redirectUri;
+			if (!tenantId.trim() || !clientId.trim()) {
+				throw new Error(
+					"Azure AD OAuth requires tenantId and clientId. Set them in `toby configure`.",
+				);
+			}
+
+			const tokens = await runAzureAdOAuthPkceFlow({
+				tenantId,
+				clientId,
+				redirectUri,
+			});
+			writeCredentials({
+				...credentials,
+				integrations: {
+					...(credentials.integrations ?? {}),
+					azuread: {
+						...(credentials.integrations?.azuread ?? {}),
+						authMethod: "oauth_pkce",
+						redirectUri: redirectUri ?? "",
+						oauthAccessToken: tokens.accessToken,
+						oauthRefreshToken: tokens.refreshToken,
+						oauthExpiresAt: new Date(tokens.expiresAtMs).toISOString(),
+					},
+				},
+				azuread: {
+					...(credentials.azuread ?? {}),
+					authMethod: "oauth_pkce",
+					tenantId,
+					clientId,
+					clientSecret:
+						credentials.integrations?.azuread?.clientSecret ??
+						credentials.azuread?.clientSecret,
+					redirectUri: redirectUri ?? "",
+					oauthAccessToken: tokens.accessToken,
+					oauthRefreshToken: tokens.refreshToken,
+					oauthExpiresAt: new Date(tokens.expiresAtMs).toISOString(),
+				},
+			});
+		}
 
 		await validateAzureAdConnectivity();
 
@@ -100,6 +165,27 @@ const azureAdLifecycle = {
 			console.log(chalk.yellow("Azure AD is not connected."));
 			return;
 		}
+		const creds = readCredentials();
+		if (creds.integrations?.azuread || creds.azuread) {
+			writeCredentials({
+				...creds,
+				integrations: {
+					...(creds.integrations ?? {}),
+					azuread: {
+						...(creds.integrations?.azuread ?? {}),
+						oauthAccessToken: "",
+						oauthRefreshToken: "",
+						oauthExpiresAt: "",
+					},
+				},
+				azuread: {
+					...(creds.azuread ?? {}),
+					oauthAccessToken: "",
+					oauthRefreshToken: "",
+					oauthExpiresAt: "",
+				},
+			});
+		}
 		Reflect.deleteProperty(config.integrations, "azuread");
 		writeConfig(config);
 		console.log(chalk.green("Azure AD disconnected."));
@@ -110,7 +196,18 @@ function getCredentialDescriptors(): CredentialFieldDescriptor[] {
 	return [
 		{ key: "azuread.tenantId", label: "Tenant ID", masked: false },
 		{ key: "azuread.clientId", label: "Client ID", masked: false },
-		{ key: "azuread.clientSecret", label: "Client Secret", masked: true },
+		{
+			key: "azuread.redirectUri",
+			label: "OAuth Redirect URI (optional)",
+			masked: false,
+			showForAuthMethods: ["oauth_pkce"],
+		},
+		{
+			key: "azuread.clientSecret",
+			label: "Client Secret",
+			masked: true,
+			showForAuthMethods: ["client_credentials"],
+		},
 	];
 }
 
@@ -125,9 +222,15 @@ function seedCredentialValues(creds: CredentialsFile): Record<string, string> {
 	const clientSecret =
 		creds.integrations?.azuread?.clientSecret?.trim() ||
 		creds.azuread?.clientSecret?.trim();
+	const redirectUri =
+		creds.integrations?.azuread?.redirectUri?.trim() ||
+		creds.azuread?.redirectUri?.trim();
+	const authMethod = getAzureAdAuthMethod(creds);
+	out["azuread.authMethod"] = authMethod;
 	if (tenantId) out["azuread.tenantId"] = tenantId;
 	if (clientId) out["azuread.clientId"] = clientId;
 	if (clientSecret) out["azuread.clientSecret"] = clientSecret;
+	if (redirectUri) out["azuread.redirectUri"] = redirectUri;
 	return out;
 }
 
@@ -150,20 +253,34 @@ function mergeCredentialsPatch(
 		previous.integrations?.azuread?.clientSecret ??
 		previous.azuread?.clientSecret ??
 		"";
+	const redirectUri =
+		values["azuread.redirectUri"] ??
+		previous.integrations?.azuread?.redirectUri ??
+		previous.azuread?.redirectUri ??
+		"";
+	const authMethod = getAzureAdAuthMethod(
+		previous,
+		values["azuread.authMethod"],
+		clientSecret,
+	);
 	return {
 		integrations: {
 			...(previous.integrations ?? {}),
 			azuread: {
 				...(previous.integrations?.azuread ?? {}),
+				authMethod,
 				tenantId,
 				clientId,
 				clientSecret,
+				redirectUri,
 			},
 		},
 		azuread: {
+			authMethod,
 			tenantId,
 			clientId,
 			clientSecret,
+			redirectUri,
 		},
 	};
 }
@@ -219,6 +336,10 @@ async function chat(options: ChatRunOptions): Promise<void> {
 export const azureAdIntegrationModule: IntegrationModule = {
 	...azureAdLifecycle,
 	capabilities: ["chat"],
+	authMethods: [
+		{ id: "oauth_pkce", label: "OAuth (PKCE)", isDefault: true },
+		{ id: "client_credentials", label: "Client Credentials" },
+	],
 	resources: ["users"],
 	chatReadiness: async (creds) => {
 		if (await azureAdLifecycle.isConnected()) return { ok: true };
@@ -230,7 +351,7 @@ export const azureAdIntegrationModule: IntegrationModule = {
 				}
 			: {
 					ok: false,
-					hint: "Add Azure AD tenantId/clientId/clientSecret in `toby configure`, then run `toby connect azuread`.",
+					hint: "Add Azure AD tenantId/clientId (OAuth) or tenantId/clientId/clientSecret (client credentials) in `toby configure`, then run `toby connect azuread`.",
 				};
 	},
 	createChatTools: ({ dryRun }) => {
@@ -271,10 +392,14 @@ async function validateAzureAdConnectivity(): Promise<void> {
 	}
 	const diag = getTokenPermissionDiagnostics(claims);
 	if (diag.missing.length > 0) {
+		const modeHelp =
+			diag.mode === "delegated"
+				? "Ensure delegated Microsoft Graph permissions are granted and consented."
+				: "Ensure your app has admin-consented Microsoft Graph application permissions.";
 		throw new Error(
 			`Token missing permissions: ${diag.missing.join(
 				", ",
-			)}. Ensure your app has admin-consented Microsoft Graph application permissions: ${getRequiredAzureAdGraphPermissions().join(
+			)}. ${modeHelp} Required: ${getRequiredAzureAdGraphPermissions().join(
 				", ",
 			)}.`,
 		);
