@@ -301,7 +301,9 @@ export function ChatSessionApp({
 			return;
 		}
 		const timer = setInterval(() => {
-			setActivityGlyphFrame((prev) => (prev + 1) % ACTIVITY_GLYPH_FRAMES.length);
+			setActivityGlyphFrame(
+				(prev) => (prev + 1) % ACTIVITY_GLYPH_FRAMES.length,
+			);
 		}, 120);
 		return () => clearInterval(timer);
 	}, [messages, loading]);
@@ -365,6 +367,7 @@ export function ChatSessionApp({
 			setStreamingAssistantHeader("Toby");
 			assistantStreamBufRef.current = "";
 			assistantSegmentCommittedRef.current = false;
+			let activeToolCalls = 0;
 			const nextLocalSeq = () => {
 				transcriptLocalSeqRef.current += 1;
 				return transcriptLocalSeqRef.current;
@@ -411,10 +414,12 @@ export function ChatSessionApp({
 					chatWithToolsOptions: {
 						onChatEvent: emitChatEvent,
 						onToolCallStart: ({ toolName }) => {
+							activeToolCalls += 1;
 							setActivityLine(formatToolStatusLine(toolName));
 						},
-						onToolCallComplete: ({ toolName }) => {
-							if (toolName === "askUser") {
+						onToolCallComplete: () => {
+							activeToolCalls = Math.max(0, activeToolCalls - 1);
+							if (activeToolCalls === 0) {
 								setActivityLine("Thinking…");
 							}
 						},
