@@ -26,6 +26,7 @@ In `index.ts`:
 2. Set **`name`** (CLI identifier), **`displayName`**, **`description`**.
 3. Set **`capabilities`** to the subset you support. If you add a **new** capability string, extend `IntegrationCapability` in [`src/integrations/types.ts`](../src/integrations/types.ts) and teach any core command that should use it (or add a new generic dispatcher there).
 4. Implement **`getCredentialDescriptors`**, **`seedCredentialValues`**, and **`mergeCredentialsPatch`** so `configure` can show and persist secrets. Map into `CredentialsFile` in [`src/config/index.ts`](../src/config/index.ts) — you may need to extend `CredentialsFile` with a new optional block for your service.
+   - If your integration supports multiple auth paths, set `authMethods` on the module and use `showForAuthMethods` on descriptors so the configure UI shows only fields relevant to the selected method.
 5. If the integration supports inbox-style summaries, implement **`summarize`** returning `{ status: "ok", messages }` or `{ status: "empty", message }` per [`SummarizeRunResult`](../src/integrations/types.ts).
 6. Optionally implement **`registerCommands(program)`** for integration-specific commands (see [`src/integrations/gmail/cli.ts`](../src/integrations/gmail/cli.ts)).
 
@@ -43,7 +44,7 @@ No other registry file exists; this array is the source of truth.
 If `CredentialsFile` gains new fields:
 
 - Update [`src/config/index.ts`](../src/config/index.ts) types and any helpers.
-- Extend **`buildCredentialsFromValues`** in [`src/commands/configure.ts`](../src/commands/configure.ts): it currently initializes and merges **`gmail`** and **`todoist`** from each module’s `mergeCredentialsPatch`. For a third integration, add a matching block (initialize from `creds`, apply `patch.<yourKey>`) and include that key on the object passed to `writeCredentials`.
+- Update credential merge behavior in [`src/ui/configure/session.ts`](../src/ui/configure/session.ts) only if your shape needs custom handling beyond module `mergeCredentialsPatch`; most integrations should rely on the generic module patch merge.
 
 ## 5. Tests
 

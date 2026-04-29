@@ -20,8 +20,9 @@ Extends `Integration` with optional **capabilities** and **hooks**:
 | Field / method | Purpose |
 | ---------------- | ------- |
 | `capabilities` | Subset of `IntegrationCapability`: `"summarize"` \| `"organize"` \| `"chat"`. |
+| `authMethods?` | Optional supported auth options for configure UI (e.g. OAuth vs client credentials) with a default method. |
 | `resources?` | Optional strings describing entities (e.g. inbox, tasks) for discovery or docs. |
-| `getCredentialDescriptors()` | Fields shown under Integrations in configure UI (`CredentialFieldDescriptor`: flat `key`, `label`, `masked`, …). |
+| `getCredentialDescriptors()` | Fields shown under Integrations in configure UI (`CredentialFieldDescriptor`: flat `key`, `label`, `masked`, plus optional auth-method gating via `showForAuthMethods`). |
 | `seedCredentialValues(creds)` | Populate the flat value map when opening configure. |
 | `mergeCredentialsPatch(values, previous)` | Return a `Partial<CredentialsFile>` fragment when saving; configure merges patches from all modules. |
 | `summarize?(options)` | Build `CoreMessage[]` (or return `empty`) for the shared `summarize` command. |
@@ -62,5 +63,6 @@ Each integration typically owns:
 - **`chat [words...]`** — Optional first word may be a chat integration name (`gmail`, `todoist`, `azuread`); remaining words are the prompt. If the first word is not an integration, the whole line is treated as the prompt and **all connected** chat integrations are used together (merged tools + combined system prompt). Repeat **`--integration <name>`** to choose an explicit set; when that flag is used, positional words are **only** the prompt. By default an **Ink** session keeps the full `CoreMessage[]` history; `askUser` is routed through the TUI. If there is no initial prompt, type the first message in the TUI. Pass **`--no-tui`** for a single console turn (one integration still uses `module.chat`; multiple integrations use one combined tool-calling turn, readline `askUser` only). In the TUI, **`/integration`** opens a multi-select picker (Space toggles, Enter applies).
 - **Chat tool feedback (Ink TUI)** — After each tool runs, a compact result line is shown in the transcript. Per-tool copy is customizable via `registerToolFeedbackFormatter` in [`src/ui/chat/tool-feedback-registry.ts`](../src/ui/chat/tool-feedback-registry.ts) (call from a side-effect import or bootstrap code; avoid import cycles with `tools.ts`).
 - **`configure`** — builds credential UI from `getCredentialDescriptors` across `getIntegrationModules()`, saves via each `mergeCredentialsPatch`.
+  - When `authMethods` are provided, configure shows an auth-method selector and only method-relevant credential fields.
 
 Keeping this wiring generic avoids adding new `if (name === "…")` branches in core commands when a new integration is added.
