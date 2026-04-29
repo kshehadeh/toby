@@ -10,6 +10,11 @@ import {
 	streamText,
 } from "ai";
 import type { ChatEventSink } from "../chat-pipeline/chat-events";
+import {
+	getCachedToolResult,
+	isReadOnlyChatTool,
+	setCachedToolResult,
+} from "../chat-pipeline/tool-result-cache";
 import { readCredentials } from "../config/index";
 import type { Persona } from "../config/index";
 
@@ -27,6 +32,7 @@ export type ToolCallLifecycleComplete = {
 	readonly args: Record<string, unknown>;
 	readonly result: unknown;
 	readonly error?: unknown;
+	readonly cacheHit?: boolean;
 };
 
 export type ChatWithToolsOptions = {
@@ -79,6 +85,7 @@ function injectToolLifecycleHooks(
 					input && typeof input === "object" && !Array.isArray(input)
 						? (input as Record<string, unknown>)
 						: {};
+				const allowCache = isReadOnlyChatTool(name);
 				streamCtx?.endAssistantSegment();
 				streamCtx?.emit?.({
 					type: "tool_call_start",
@@ -88,8 +95,33 @@ function injectToolLifecycleHooks(
 					args,
 				});
 				onToolCallStart?.({ toolName: name, blockKey, args });
+				if (allowCache) {
+					const cached = getCachedToolResult(name, args);
+					if (cached.hit) {
+						streamCtx?.emit?.({
+							type: "tool_call_complete",
+							blockKey,
+							seq: streamCtx.nextSeq(),
+							toolName: name,
+							args,
+							result: cached.value,
+							cacheHit: true,
+						});
+						onToolCallComplete?.({
+							toolName: name,
+							blockKey,
+							args,
+							result: cached.value,
+							cacheHit: true,
+						});
+						return cached.value;
+					}
+				}
 				try {
 					const result = await execute(input as never, toolOptions as never);
+					if (allowCache) {
+						setCachedToolResult(name, args, result);
+					}
 					streamCtx?.emit?.({
 						type: "tool_call_complete",
 						blockKey,
@@ -97,12 +129,14 @@ function injectToolLifecycleHooks(
 						toolName: name,
 						args,
 						result,
+						cacheHit: false,
 					});
 					onToolCallComplete?.({
 						toolName: name,
 						blockKey,
 						args,
 						result,
+						cacheHit: false,
 					});
 					return result;
 				} catch (error) {

@@ -41,6 +41,9 @@ export function buildTranscriptNodes(
 							<Text bold color={ACCENT}>
 								{bb.header}
 							</Text>
+							{bb.variant === "tool" && bb.cacheHit ? (
+								<Text dimColor> [cache]</Text>
+							) : null}
 						</Text>
 						<Box
 							marginLeft={BOXED_STEP_BODY_MARGIN_LEFT}

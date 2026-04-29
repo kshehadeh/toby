@@ -60,6 +60,7 @@ describe("applyChatEvent", () => {
 			toolName: "listLabels",
 			args: {},
 			result: { labels: [{ name: "x", id: "1" }] },
+			cacheHit: true,
 		} satisfies ChatEvent);
 		t = applyChatEvent(t, {
 			type: "tool_call_complete",
@@ -74,6 +75,7 @@ describe("applyChatEvent", () => {
 		const b = t.find((e) => e.kind === "boxed_step" && e.id === "b");
 		expect(a?.kind === "boxed_step" && a.body).toContain("task");
 		expect(b?.kind === "boxed_step" && b.body).toContain("label");
+		expect(b?.kind === "boxed_step" && b.cacheHit).toBe(true);
 	});
 });
 
@@ -113,6 +115,7 @@ describe("boxed_step persistence", () => {
 			body: "Found 1 label(s).",
 			toolBlockKey: "bk",
 			toolName: "listLabels",
+			cacheHit: true,
 		};
 		const row = serializeTranscriptEntry(e);
 		expect(deserializeTranscriptRow(row)).toEqual(e);
@@ -131,6 +134,7 @@ describe("flattenTranscript boxed_step", () => {
 				body: "Found 1 label(s).",
 				toolBlockKey: "t1",
 				toolName: "listLabels",
+				cacheHit: true,
 			},
 		];
 		const rows = flattenTranscript(entries, "", false, 80);
@@ -138,6 +142,7 @@ describe("flattenTranscript boxed_step", () => {
 		const bb = rows.find((r) => r.kind === "boxed_block");
 		expect(bb && bb.kind === "boxed_block" && bb.header).toBe("List labels");
 		expect(bb && bb.kind === "boxed_block" && bb.leadingGlyph).toBe("↳");
+		expect(bb && bb.kind === "boxed_block" && bb.cacheHit).toBe(true);
 	});
 
 	it("hides prep boxed_step from display rows", () => {

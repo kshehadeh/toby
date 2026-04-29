@@ -15,6 +15,7 @@ export type TranscriptEntry =
 			readonly toolBlockKey?: string;
 			/** Set when `variant` is `"tool"` — used for transcript icon only. */
 			readonly toolName?: string;
+			readonly cacheHit?: boolean;
 	  }
 	| {
 			readonly kind: "tool_call";
@@ -45,6 +46,7 @@ export type DisplayRow =
 			readonly header: string;
 			readonly bodyLines: readonly string[];
 			readonly leadingGlyph: string;
+			readonly cacheHit?: boolean;
 	  }
 	| {
 			readonly kind: "assistant_line";

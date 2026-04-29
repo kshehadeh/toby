@@ -67,8 +67,27 @@ For each user submission:
 4. `chatWithTools` uses:
   - `streamText(...)` when the Ink UI wants incremental tokens, or
   - `generateText(...)` in non-streaming contexts.
-5. Tool lifecycle hooks (`onToolCallStart` / `onToolCallComplete`) are implemented by wrapping each tool’s `execute` in [`src/ai/chat.ts`](../src/ai/chat.ts). Optional **`onChatEvent`** emits UI-agnostic [`ChatEvent`](../src/chat-pipeline/chat-events.ts) values (assistant segments at tool boundaries, tool start/complete, etc.). The Ink session maps those events to transcript rows via [`src/ui/chat/chat-event-reducer.ts`](../src/ui/chat/chat-event-reducer.ts).
+5. Tool lifecycle hooks (`onToolCallStart` / `onToolCallComplete`) are implemented by wrapping each tool’s `execute` in `[src/ai/chat.ts](../src/ai/chat.ts)`. Optional `**onChatEvent`** emits UI-agnostic `[ChatEvent](../src/chat-pipeline/chat-events.ts)` values (assistant segments at tool boundaries, tool start/complete, etc.). The Ink session maps those events to transcript rows via `[src/ui/chat/chat-event-reducer.ts](../src/ui/chat/chat-event-reducer.ts)`.
 6. The SDK returns `response.messages` (assistant + tool result messages), which are appended to history for the next turn.
+
+### Tool result cache (read-only tools)
+
+`toby chat` also has a short-lived in-memory cache for select read-only chat tools:
+
+- **TTL**: 5 minutes
+- **Key**: `toolName + stable serialized args`
+- **Scope**: SQLite-backed (`chat.sqlite`) so cache survives process restarts until TTL expiry
+- **Eligibility**: read-only tool allowlist only (mutating tools and `askUser` are excluded)
+
+Implementation paths:
+
+- Cache implementation: `src/chat-pipeline/tool-result-cache.ts`
+- Cache lookup/store hook: `src/ai/chat.ts` (inside `injectToolLifecycleHooks`)
+- UI marker: tool transcript rows append `[cache]` when a cached result is used
+
+To clear cached tool results in chat, run:
+
+- `/clear-tool-cache`
 
 ## OpenAI prompt caching configuration (current)
 

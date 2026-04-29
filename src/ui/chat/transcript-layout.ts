@@ -177,6 +177,7 @@ export function flattenTranscript(
 				header: e.header,
 				bodyLines: flattenBoxedBodyLines(e.body, termCols),
 				leadingGlyph,
+				...(e.cacheHit !== undefined ? { cacheHit: e.cacheHit } : {}),
 			});
 			if (next !== undefined) {
 				gapKey += 1;

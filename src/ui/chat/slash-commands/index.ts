@@ -1,3 +1,4 @@
+import { clearToolCacheSlashCommand } from "./clear-tool-cache";
 import { configSlashCommand } from "./config";
 import { exitSlashCommand } from "./exit";
 import { helpSlashCommand } from "./help";
@@ -13,6 +14,7 @@ interface SlashCommandResolution {
 }
 
 export const SLASH_COMMANDS: readonly SlashCommand[] = [
+	clearToolCacheSlashCommand,
 	configSlashCommand,
 	helpSlashCommand,
 	integrationSlashCommand,

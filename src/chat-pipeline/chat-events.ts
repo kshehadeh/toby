@@ -48,6 +48,7 @@ export type ChatEvent =
 			readonly args: Record<string, unknown>;
 			readonly result: unknown;
 			readonly error?: unknown;
+			readonly cacheHit?: boolean;
 	  };
 
 export type ChatEventSink = (event: ChatEvent) => void;

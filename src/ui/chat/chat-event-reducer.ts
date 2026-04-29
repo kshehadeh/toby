@@ -210,6 +210,7 @@ export function applyChatEvent(
 					body: detail,
 					toolBlockKey: event.blockKey,
 					toolName: event.toolName,
+					...(event.cacheHit !== undefined ? { cacheHit: event.cacheHit } : {}),
 				},
 			];
 		}
@@ -222,6 +223,7 @@ export function applyChatEvent(
 			body: detail,
 			seq: event.seq,
 			toolName: event.toolName,
+			...(event.cacheHit !== undefined ? { cacheHit: event.cacheHit } : {}),
 		});
 	}
 	return [...entries];

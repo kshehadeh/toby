@@ -17,6 +17,7 @@ type BoxedStepPayload = {
 	readonly body: string;
 	readonly toolBlockKey?: string;
 	readonly toolName?: string;
+	readonly cacheHit?: boolean;
 };
 
 /** Serialize a transcript entry for SQLite (`kind` + `text` columns). */
@@ -33,6 +34,7 @@ export function serializeTranscriptEntry(e: TranscriptEntry): {
 			body: e.body,
 			...(e.toolBlockKey !== undefined ? { toolBlockKey: e.toolBlockKey } : {}),
 			...(e.toolName !== undefined ? { toolName: e.toolName } : {}),
+			...(e.cacheHit !== undefined ? { cacheHit: e.cacheHit } : {}),
 		};
 		return { kind: "boxed_step", text: JSON.stringify(payload) };
 	}
@@ -91,6 +93,7 @@ export function deserializeTranscriptRow(row: {
 						? { toolBlockKey: p.toolBlockKey }
 						: {}),
 					...(typeof p.toolName === "string" ? { toolName: p.toolName } : {}),
+					...(typeof p.cacheHit === "boolean" ? { cacheHit: p.cacheHit } : {}),
 				};
 			}
 		} catch {
