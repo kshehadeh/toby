@@ -6,6 +6,17 @@ export type TranscriptEntry =
 	| { readonly kind: "meta"; readonly text: string }
 	| { readonly kind: "error"; readonly text: string }
 	| {
+			readonly kind: "boxed_step";
+			readonly id: string;
+			readonly seq: number;
+			readonly variant: "prep" | "assistant" | "tool";
+			readonly header: string;
+			readonly body: string;
+			readonly toolBlockKey?: string;
+			/** Set when `variant` is `"tool"` — used for transcript icon only. */
+			readonly toolName?: string;
+	  }
+	| {
 			readonly kind: "tool_call";
 			readonly blockKey: string;
 			readonly title: string;
@@ -27,6 +38,14 @@ export type TranscriptEntry =
 export type DisplayRow =
 	| { readonly kind: "user"; readonly text: string }
 	| { readonly kind: "spacer"; readonly rowKey: string }
+	| {
+			readonly kind: "boxed_block";
+			readonly id: string;
+			readonly variant: "prep" | "assistant" | "tool";
+			readonly header: string;
+			readonly bodyLines: readonly string[];
+			readonly leadingGlyph: string;
+	  }
 	| {
 			readonly kind: "assistant_line";
 			readonly text: string;

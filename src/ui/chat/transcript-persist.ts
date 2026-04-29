@@ -9,11 +9,33 @@ type AskUserQaPayload = {
 	readonly error?: string;
 };
 
+type BoxedStepPayload = {
+	readonly id: string;
+	readonly seq: number;
+	readonly variant: "prep" | "assistant" | "tool";
+	readonly header: string;
+	readonly body: string;
+	readonly toolBlockKey?: string;
+	readonly toolName?: string;
+};
+
 /** Serialize a transcript entry for SQLite (`kind` + `text` columns). */
 export function serializeTranscriptEntry(e: TranscriptEntry): {
 	kind: string;
 	text: string;
 } {
+	if (e.kind === "boxed_step") {
+		const payload: BoxedStepPayload = {
+			id: e.id,
+			seq: e.seq,
+			variant: e.variant,
+			header: e.header,
+			body: e.body,
+			...(e.toolBlockKey !== undefined ? { toolBlockKey: e.toolBlockKey } : {}),
+			...(e.toolName !== undefined ? { toolName: e.toolName } : {}),
+		};
+		return { kind: "boxed_step", text: JSON.stringify(payload) };
+	}
 	if (e.kind === "tool_call") {
 		const payload: ToolCallPayload = {
 			blockKey: e.blockKey,
@@ -45,6 +67,37 @@ export function deserializeTranscriptRow(row: {
 	kind: string;
 	text: string;
 }): TranscriptEntry {
+	if (row.kind === "boxed_step") {
+		try {
+			const p = JSON.parse(row.text) as Partial<BoxedStepPayload>;
+			if (
+				typeof p.id === "string" &&
+				p.id.length > 0 &&
+				typeof p.seq === "number" &&
+				(p.variant === "prep" ||
+					p.variant === "assistant" ||
+					p.variant === "tool") &&
+				typeof p.header === "string" &&
+				typeof p.body === "string"
+			) {
+				return {
+					kind: "boxed_step",
+					id: p.id,
+					seq: p.seq,
+					variant: p.variant,
+					header: p.header,
+					body: p.body,
+					...(typeof p.toolBlockKey === "string"
+						? { toolBlockKey: p.toolBlockKey }
+						: {}),
+					...(typeof p.toolName === "string" ? { toolName: p.toolName } : {}),
+				};
+			}
+		} catch {
+			// fall through
+		}
+		return { kind: "meta", text: row.text };
+	}
 	if (row.kind === "tool_call") {
 		try {
 			const p = JSON.parse(row.text) as Partial<ToolCallPayload>;

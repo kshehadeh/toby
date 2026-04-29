@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { LanguageModelUsage } from "ai";
 import { Box, Text, useApp, useInput, useWindowSize } from "ink";
 import React, {
@@ -11,9 +12,11 @@ import React, {
 import type { AskUserHandler, AskUserToolResult } from "../../ai/ask-user-tool";
 import type { CoreMessage } from "../../ai/chat";
 import {
+	type UserIntentSpec,
 	shouldPretreat,
 	wrapUserPromptWithPretreatment,
 } from "../../ai/pretreatment";
+import type { ChatEvent } from "../../chat-pipeline/chat-events";
 import {
 	isIntegrationUsableInChat,
 	modulesEqual,
@@ -24,6 +27,7 @@ import { getModulesWithCapability } from "../../integrations/index";
 import type { IntegrationModule } from "../../integrations/types";
 import { ConfigureApp } from "../configure/App";
 import { createConfigureSession } from "../configure/session";
+import { applyChatEvent } from "./chat-event-reducer";
 import { AskUserModal } from "./components/ask-user-modal";
 import { ChatHelpScreen } from "./components/chat-help-screen";
 import { ChatInputDock } from "./components/chat-input-dock";
@@ -49,8 +53,6 @@ import {
 	getSlashSuggestions,
 	resolveSlashSubmission,
 } from "./slash-commands";
-import { formatToolFeedbackOutput } from "./tool-feedback-registry";
-import { getToolDisplayLabel } from "./tool-labels";
 import { flattenTranscript } from "./transcript-layout";
 import type { AskModal, DisplayRow, TranscriptEntry } from "./types";
 
@@ -71,6 +73,8 @@ interface SessionPickerState {
 	readonly sessions: readonly { id: string; name: string }[];
 	readonly cursorIndex: number;
 }
+
+const ACTIVITY_GLYPH_FRAMES = ["·", "•", "●", "•"] as const;
 
 function formatScopeLabel(modules: readonly IntegrationModule[]): string {
 	if (modules.length === 0) {
@@ -134,6 +138,8 @@ export function ChatSessionApp({
 	const [loading, setLoading] = useState(false);
 	const [activityLine, setActivityLine] = useState("Thinking…");
 	const [streamingAssistant, setStreamingAssistant] = useState("");
+	const [streamingAssistantHeader, setStreamingAssistantHeader] =
+		useState("Toby");
 	const [lastUsage, setLastUsage] = useState<LanguageModelUsage | null>(null);
 	const [bootError, setBootError] = useState<string | null>(null);
 	const [askModal, setAskModal] = useState<AskModal | null>(null);
@@ -155,8 +161,12 @@ export function ChatSessionApp({
 	const [sessionPicker, setSessionPicker] = useState<SessionPickerState | null>(
 		null,
 	);
+	const [activityGlyphFrame, setActivityGlyphFrame] = useState(0);
 	const didAutoRunFirstTurnRef = useRef(false);
-	const streamedAssistantRef = useRef("");
+	const assistantStreamBufRef = useRef("");
+	const assistantSegmentHeaderRef = useRef("Toby");
+	const transcriptLocalSeqRef = useRef(0);
+	const assistantSegmentCommittedRef = useRef(false);
 	const askSelectedRef = useRef(0);
 	const selectedModulesRef = useRef(selectedModules);
 	const pendingScopeChangeNoteRef = useRef<string | null>(null);
@@ -179,8 +189,21 @@ export function ChatSessionApp({
 		if (messages === null) {
 			return [];
 		}
-		return flattenTranscript(transcript, streamingAssistant, loading, termCols);
-	}, [messages, transcript, streamingAssistant, loading, termCols]);
+		return flattenTranscript(
+			transcript,
+			streamingAssistant,
+			loading,
+			termCols,
+			streamingAssistantHeader,
+		);
+	}, [
+		messages,
+		transcript,
+		streamingAssistant,
+		streamingAssistantHeader,
+		loading,
+		termCols,
+	]);
 
 	const chatIntegrations = useMemo(
 		() => getModulesWithCapability("chat").filter((m) => m.chat),
@@ -271,6 +294,18 @@ export function ChatSessionApp({
 		};
 	}, []);
 
+	useEffect(() => {
+		const shouldAnimate = messages === null || loading;
+		if (!shouldAnimate) {
+			setActivityGlyphFrame(0);
+			return;
+		}
+		const timer = setInterval(() => {
+			setActivityGlyphFrame((prev) => (prev + 1) % ACTIVITY_GLYPH_FRAMES.length);
+		}, 120);
+		return () => clearInterval(timer);
+	}, [messages, loading]);
+
 	useLayoutEffect(() => {
 		askSelectedRef.current = askSelected;
 		snapRef.current = {
@@ -299,6 +334,7 @@ export function ChatSessionApp({
 			didNameSessionRef.current = false;
 			lastSavedMessageCountRef.current = 0;
 			lastSavedTranscriptCountRef.current = 0;
+			transcriptLocalSeqRef.current = 0;
 			setBootError(null);
 			setSessionPrompt(params?.prompt ?? "");
 			didAutoRunFirstTurnRef.current = false;
@@ -326,98 +362,61 @@ export function ChatSessionApp({
 			setLoading(true);
 			setActivityLine("Thinking…");
 			setStreamingAssistant("");
-			streamedAssistantRef.current = "";
+			setStreamingAssistantHeader("Toby");
+			assistantStreamBufRef.current = "";
+			assistantSegmentCommittedRef.current = false;
+			const nextLocalSeq = () => {
+				transcriptLocalSeqRef.current += 1;
+				return transcriptLocalSeqRef.current;
+			};
+			const emitChatEvent = (ev: ChatEvent) => {
+				if (ev.type === "assistant_segment_start") {
+					assistantSegmentHeaderRef.current = ev.header;
+					assistantStreamBufRef.current = "";
+					return;
+				}
+				if (ev.type === "assistant_text_delta") {
+					assistantStreamBufRef.current += ev.delta;
+					setStreamingAssistant(assistantStreamBufRef.current);
+					setStreamingAssistantHeader(assistantSegmentHeaderRef.current);
+					return;
+				}
+				if (ev.type === "assistant_segment_end") {
+					const body = assistantStreamBufRef.current.trim();
+					assistantStreamBufRef.current = "";
+					setStreamingAssistant("");
+					if (body.length > 0) {
+						assistantSegmentCommittedRef.current = true;
+						setTranscript((t) => [
+							...t,
+							{
+								kind: "boxed_step",
+								id: ev.id,
+								seq: nextLocalSeq(),
+								variant: "assistant",
+								header: assistantSegmentHeaderRef.current,
+								body,
+							},
+						]);
+					}
+					return;
+				}
+				setTranscript((t) => applyChatEvent(t, ev));
+			};
 			try {
 				const out = await runIntegrationChatTurn(moduleNames, msgs, {
 					persona,
 					dryRun,
 					askUser: askUserHandler,
 					chatWithToolsOptions: {
-						onToolCallStart: ({ toolName, blockKey }) => {
+						onChatEvent: emitChatEvent,
+						onToolCallStart: ({ toolName }) => {
 							setActivityLine(formatToolStatusLine(toolName));
-							if (toolName === "askUser") {
-								return;
-							}
-							setTranscript((t) => [
-								...t,
-								{
-									kind: "tool_call",
-									blockKey,
-									title: getToolDisplayLabel(toolName),
-								},
-							]);
 						},
-						onToolCallComplete: ({
-							toolName,
-							blockKey,
-							args,
-							result,
-							error: handlerError,
-						}) => {
+						onToolCallComplete: ({ toolName }) => {
 							if (toolName === "askUser") {
-								// Dismiss "Waiting for your choice…" as soon as the modal returns.
 								setActivityLine("Thinking…");
-								const query =
-									typeof (args as { query?: unknown }).query === "string"
-										? (args as { query: string }).query
-										: "";
-								if (handlerError !== undefined) {
-									const msg =
-										handlerError instanceof Error
-											? handlerError.message
-											: String(handlerError);
-									setTranscript((t) => [
-										...t,
-										{
-											kind: "ask_user_qa",
-											blockKey,
-											query,
-											answer: "",
-											error: msg,
-										},
-									]);
-									return;
-								}
-								const r = result as Partial<AskUserToolResult> | null;
-								if (r?.error) {
-									setTranscript((t) => [
-										...t,
-										{
-											kind: "ask_user_qa",
-											blockKey,
-											query,
-											answer: "",
-											error: r.error,
-										},
-									]);
-									return;
-								}
-								const label = (r?.selectedLabel ?? "").trim();
-								setTranscript((t) => [
-									...t,
-									{
-										kind: "ask_user_qa",
-										blockKey,
-										query,
-										answer: label,
-									},
-								]);
-								return;
 							}
-							const detail = formatToolFeedbackOutput({
-								toolName,
-								args,
-								result,
-								error: handlerError,
-							});
-							setTranscript((t) => [
-								...t,
-								{ kind: "tool_output", blockKey, detail },
-							]);
-						},
-						onAssistantTextDelta: (delta) => {
-							streamedAssistantRef.current += delta;
-							setStreamingAssistant((prev) => prev + delta);
 						},
 					},
 				});
@@ -425,13 +424,18 @@ export function ChatSessionApp({
 				setMessages(next);
 				setLastUsage(out.usage ?? null);
 
-				const reply =
-					streamedAssistantRef.current.trim() || out.text?.trim() || "";
-				streamedAssistantRef.current = "";
+				const reply = out.text?.trim() || "";
 
 				const additions: TranscriptEntry[] = [];
-				if (reply.length > 0) {
-					additions.push({ kind: "assistant", text: reply });
+				if (reply.length > 0 && !assistantSegmentCommittedRef.current) {
+					additions.push({
+						kind: "boxed_step",
+						id: randomUUID(),
+						seq: nextLocalSeq(),
+						variant: "assistant",
+						header: "Toby",
+						body: reply,
+					});
 				}
 				if (
 					process.env.TOBY_DEBUG_CACHE === "1" &&
@@ -464,7 +468,23 @@ export function ChatSessionApp({
 				setStreamingAssistant("");
 				setTranscript((t) => [...t, ...additions]);
 			} catch (e) {
+				const partial = assistantStreamBufRef.current.trim();
+				assistantStreamBufRef.current = "";
 				setStreamingAssistant("");
+				if (partial.length > 0) {
+					transcriptLocalSeqRef.current += 1;
+					setTranscript((t) => [
+						...t,
+						{
+							kind: "boxed_step",
+							id: randomUUID(),
+							seq: transcriptLocalSeqRef.current,
+							variant: "assistant",
+							header: assistantSegmentHeaderRef.current,
+							body: partial,
+						},
+					]);
+				}
 				const msg = e instanceof Error ? e.message : String(e);
 				setTranscript((t) => [...t, { kind: "error", text: msg }]);
 			} finally {
@@ -489,9 +509,27 @@ export function ChatSessionApp({
 				if (sessionBootMode === "loaded") {
 					return;
 				}
+				const bootSeq = () => {
+					transcriptLocalSeqRef.current += 1;
+					return transcriptLocalSeqRef.current;
+				};
 				let effectivePrompt = sessionPrompt;
+				let prepId: string | null = null;
+				if (sessionPrompt.trim() && shouldPretreat([], sessionPrompt, true)) {
+					prepId = randomUUID();
+				}
+				let prepSpec: UserIntentSpec | null = null;
+				let bootTranscript: TranscriptEntry[] = [];
 				if (sessionPrompt.trim()) {
-					const { content } = await wrapUserPromptWithPretreatment({
+					if (prepId) {
+						bootTranscript = applyChatEvent(bootTranscript, {
+							type: "prep_start",
+							id: prepId,
+							seq: bootSeq(),
+							header: "Prompt preparation",
+						});
+					}
+					const wrapResult = await wrapUserPromptWithPretreatment({
 						priorMessages: [],
 						rawUserText: sessionPrompt,
 						integrationLabels: formatScopeLabel(selectedModules),
@@ -499,7 +537,24 @@ export function ChatSessionApp({
 						abortSignal: ac.signal,
 					});
 					if (!cancelled) {
-						effectivePrompt = content;
+						effectivePrompt = wrapResult.content;
+						prepSpec = wrapResult.spec;
+					}
+					if (prepId && !cancelled) {
+						const detail =
+							process.env.TOBY_DEBUG_PREP === "1" &&
+							prepSpec &&
+							effectivePrompt.trim() !== sessionPrompt.trim()
+								? "Intent specification attached to the model message (debug)."
+								: effectivePrompt.trim() !== sessionPrompt.trim()
+									? "Intent specification attached to the model message."
+									: "Request prepared.";
+						bootTranscript = applyChatEvent(bootTranscript, {
+							type: "prep_end",
+							id: prepId,
+							seq: bootSeq(),
+							detail,
+						});
 					}
 				}
 				if (cancelled) {
@@ -519,21 +574,14 @@ export function ChatSessionApp({
 					: [];
 				const note = pendingScopeChangeNoteRef.current;
 				pendingScopeChangeNoteRef.current = null;
-				const debugPrep =
-					process.env.TOBY_DEBUG_PREP === "1" &&
-					sessionPrompt.trim() &&
-					effectivePrompt.trim() !== sessionPrompt.trim()
-						? ([
-								{
-									kind: "meta" as const,
-									text: "Pretreatment: intent spec attached to model message.",
-								},
-							] as const)
-						: [];
 				const metaEntries: TranscriptEntry[] = note
 					? [{ kind: "meta", text: note }]
 					: [];
-				const nextTranscript = [...userEntries, ...debugPrep, ...metaEntries];
+				const nextTranscript = [
+					...bootTranscript,
+					...userEntries,
+					...metaEntries,
+				];
 				setTranscript(nextTranscript);
 
 				// Persist boot state only after a session is materialized.
@@ -594,7 +642,11 @@ export function ChatSessionApp({
 		const sid = sessionId;
 		if (!sid) return;
 		if (didNameSessionRef.current) return;
-		const hasAssistant = transcript.some((e) => e.kind === "assistant");
+		const hasAssistant = transcript.some(
+			(e) =>
+				e.kind === "assistant" ||
+				(e.kind === "boxed_step" && e.variant === "assistant"),
+		);
 		const suggested = suggestSessionNameFromTranscript(transcript);
 		if (!hasAssistant || !suggested) return;
 		renameChatSession(sid, suggested);
@@ -692,6 +744,13 @@ export function ChatSessionApp({
 		setSessionPrompt("");
 		setMessages(loaded.messages);
 		setTranscript([...loaded.transcript, resumeLine, ...tail]);
+		let maxSeq = 0;
+		for (const e of loaded.transcript) {
+			if (e.kind === "boxed_step" && e.seq > maxSeq) {
+				maxSeq = e.seq;
+			}
+		}
+		transcriptLocalSeqRef.current = maxSeq;
 	}, []);
 
 	const handlePromptSubmit = useCallback(
@@ -771,6 +830,21 @@ export function ChatSessionApp({
 				const willPretreat = shouldPretreat(msgsBefore, line, isFirstTurn);
 				setLoading(true);
 				setActivityLine(willPretreat ? "Preparing request…" : "Thinking…");
+				const submitSeq = () => {
+					transcriptLocalSeqRef.current += 1;
+					return transcriptLocalSeqRef.current;
+				};
+				const prepId = willPretreat ? randomUUID() : null;
+				if (willPretreat && prepId) {
+					setTranscript((t) =>
+						applyChatEvent(t, {
+							type: "prep_start",
+							id: prepId,
+							seq: submitSeq(),
+							header: "Prompt preparation",
+						}),
+					);
+				}
 				const { content, spec } = await wrapUserPromptWithPretreatment({
 					priorMessages: msgsBefore,
 					rawUserText: line,
@@ -786,20 +860,25 @@ export function ChatSessionApp({
 				const userMsg: CoreMessage = { role: "user", content };
 				const next = [...msgsAfter, userMsg];
 				setMessages(next);
-				const transcriptAdditions: TranscriptEntry[] = [
-					{ kind: "user", text: line },
-				];
-				if (
-					process.env.TOBY_DEBUG_PREP === "1" &&
-					spec &&
-					content.trim() !== line.trim()
-				) {
-					transcriptAdditions.push({
-						kind: "meta",
-						text: "Pretreatment: intent spec attached to model message.",
-					});
+				if (willPretreat && prepId) {
+					const detail =
+						process.env.TOBY_DEBUG_PREP === "1" &&
+						spec &&
+						content.trim() !== line.trim()
+							? "Intent specification attached to the model message (debug)."
+							: content.trim() !== line.trim()
+								? "Intent specification attached to the model message."
+								: "Request prepared.";
+					setTranscript((t) =>
+						applyChatEvent(t, {
+							type: "prep_end",
+							id: prepId,
+							seq: submitSeq(),
+							detail,
+						}),
+					);
 				}
-				setTranscript((t) => [...t, ...transcriptAdditions]);
+				setTranscript((t) => [...t, { kind: "user", text: line }]);
 				setActivityLine("Thinking…");
 				await runModelTurnRef.current(next, sidFinal);
 			})();
@@ -1090,8 +1169,17 @@ export function ChatSessionApp({
 		loading ||
 		showConfig;
 	const modelLabel = `${persona.ai.provider}/${persona.ai.model}`;
+	const activityText =
+		messages === null ? "Loading session…" : loading ? activityLine : "";
+	const activityDisplay =
+		activityText.length > 0
+			? `${ACTIVITY_GLYPH_FRAMES[activityGlyphFrame] ?? "·"} ${activityText}`
+			: " ";
+	const hasUserPromptInSession = transcript.some((e) => e.kind === "user");
 	const suggestedPlaceholder =
-		sessionBootMode === "new" ? 'Try "What needs my attention today?"' : null;
+		sessionBootMode === "new" && !hasUserPromptInSession
+			? 'Try "What needs my attention today?"'
+			: null;
 
 	return (
 		<Box flexDirection="column" width="100%" padding={1}>
@@ -1146,11 +1234,7 @@ export function ChatSessionApp({
 			</Box>
 			<Box marginTop={0} width={termCols} flexShrink={0}>
 				<Text dimColor wrap="truncate-end">
-					{messages === null
-						? "Loading session…"
-						: loading
-							? activityLine
-							: " "}
+					{activityDisplay}
 				</Text>
 			</Box>
 			{askModal ? (
@@ -1210,6 +1294,7 @@ export function ChatSessionApp({
 				dryRun={dryRun}
 				lastUsage={lastUsage}
 				placeholder={suggestedPlaceholder}
+				showPlaceholderWhenEmpty={!hasUserPromptInSession}
 				slashSuggestions={slashSuggestions}
 				selectedSlashCommand={selectedSlashCommand}
 			/>

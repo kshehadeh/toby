@@ -1,7 +1,12 @@
 import {
 	ASSISTANT_BOX_MARGIN_LEFT,
+	BOXED_STEP_BODY_MARGIN_LEFT,
 	TOOL_FEEDBACK_DETAIL_INDENT,
 } from "./constants";
+import {
+	ASSISTANT_TRANSCRIPT_GLYPH,
+	getToolTranscriptGlyph,
+} from "./tool-transcript-icons";
 import type { DisplayRow, TranscriptEntry } from "./types";
 
 /** Break a string into lines of at most `max` columns (prefer spaces). */
@@ -49,6 +54,23 @@ function wrapAssistantBlock(text: string, innerWidth: number): string[] {
 /** Text columns available inside the bordered assistant box (margin + border + padding). */
 function assistantInnerTextWidth(termCols: number): number {
 	return Math.max(8, termCols - ASSISTANT_BOX_MARGIN_LEFT - 4);
+}
+
+function boxedStepBodyWrapWidth(termCols: number): number {
+	return Math.max(8, termCols - 2 - BOXED_STEP_BODY_MARGIN_LEFT - 4 - 2);
+}
+
+function flattenBoxedBodyLines(text: string, termCols: number): string[] {
+	const w = boxedStepBodyWrapWidth(termCols);
+	const lines: string[] = [];
+	for (const segment of text.split(/\r?\n/)) {
+		if (segment.length === 0) {
+			lines.push("");
+			continue;
+		}
+		lines.push(...hardWrap(segment, w));
+	}
+	return lines;
 }
 
 type AssistantSegment =
@@ -118,6 +140,7 @@ export function flattenTranscript(
 	streamingText: string,
 	loading: boolean,
 	termCols: number,
+	streamingHeader = "Toby",
 ): DisplayRow[] {
 	const userContentWidth = Math.max(8, termCols - 1);
 	const assistantW = assistantInnerTextWidth(termCols);
@@ -131,7 +154,31 @@ export function flattenTranscript(
 			for (const line of hardWrap(e.text, userContentWidth)) {
 				rows.push({ kind: "user", text: line });
 			}
-			if (next?.kind === "assistant") {
+			const gapBeforeReply =
+				next?.kind === "assistant" ||
+				(next?.kind === "boxed_step" && next.variant !== "prep") ||
+				next?.kind === "tool_call";
+			if (gapBeforeReply) {
+				gapKey += 1;
+				rows.push({ kind: "spacer", rowKey: `gap-${gapKey}` });
+			}
+		} else if (e.kind === "boxed_step") {
+			if (e.variant === "prep") {
+				continue;
+			}
+			const leadingGlyph =
+				e.variant === "tool"
+					? getToolTranscriptGlyph(e.toolName ?? "")
+					: ASSISTANT_TRANSCRIPT_GLYPH;
+			rows.push({
+				kind: "boxed_block",
+				id: e.id,
+				variant: e.variant,
+				header: e.header,
+				bodyLines: flattenBoxedBodyLines(e.body, termCols),
+				leadingGlyph,
+			});
+			if (next !== undefined) {
 				gapKey += 1;
 				rows.push({ kind: "spacer", rowKey: `gap-${gapKey}` });
 			}
@@ -228,48 +275,36 @@ export function flattenTranscript(
 			gapKey += 1;
 			rows.push({ kind: "spacer", rowKey: `gap-${gapKey}` });
 		}
-		const streamKey = "asst-stream";
+		const streamLines: string[] = [];
 		const streamSegments = parseAssistantSegments(streamingText);
 		for (const segment of streamSegments) {
 			if (segment.kind === "text") {
-				const streamLines = wrapAssistantBlock(segment.text, assistantW);
-				if (streamLines.length === 0) {
-					rows.push({ kind: "assistant_line", text: "", blockKey: streamKey });
-				} else {
-					for (const line of streamLines) {
-						rows.push({
-							kind: "assistant_line",
-							text: line,
-							blockKey: streamKey,
-						});
-					}
-				}
+				streamLines.push(...wrapAssistantBlock(segment.text, assistantW));
 				continue;
 			}
-
 			const markerPad = `${segment.marker} `;
 			const wrapped = hardWrap(
 				segment.text,
 				Math.max(6, assistantW - markerPad.length),
 			);
 			if (wrapped.length === 0) {
-				rows.push({
-					kind: "assistant_list_item",
-					text: "",
-					marker: markerPad,
-					blockKey: streamKey,
-				});
-				continue;
-			}
-			for (let idx = 0; idx < wrapped.length; idx++) {
-				rows.push({
-					kind: "assistant_list_item",
-					text: wrapped[idx] ?? "",
-					marker: idx === 0 ? markerPad : " ".repeat(markerPad.length),
-					blockKey: streamKey,
-				});
+				streamLines.push(`${markerPad}`);
+			} else {
+				for (let idx = 0; idx < wrapped.length; idx++) {
+					streamLines.push(
+						`${idx === 0 ? markerPad : " ".repeat(markerPad.length)}${wrapped[idx] ?? ""}`,
+					);
+				}
 			}
 		}
+		rows.push({
+			kind: "boxed_block",
+			id: "asst-stream",
+			variant: "assistant",
+			header: streamingHeader,
+			bodyLines: streamLines.length > 0 ? streamLines : [""],
+			leadingGlyph: ASSISTANT_TRANSCRIPT_GLYPH,
+		});
 	}
 	return rows;
 }

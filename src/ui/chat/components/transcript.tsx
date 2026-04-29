@@ -4,6 +4,7 @@ import React from "react";
 import {
 	ACCENT,
 	ASSISTANT_BOX_MARGIN_LEFT,
+	BOXED_STEP_BODY_MARGIN_LEFT,
 	TOOL_FEEDBACK_DETAIL_INDENT,
 } from "../constants";
 import type { DisplayRow } from "../types";
@@ -19,6 +20,50 @@ export function buildTranscriptNodes(
 	const boxWidth = Math.max(12, termCols - ASSISTANT_BOX_MARGIN_LEFT);
 	while (i < rows.length) {
 		const r = rows[i];
+		if (r.kind === "boxed_block") {
+			const bb = r;
+			const bodyDim = bb.variant !== "assistant";
+			nodes.push(
+				<Box
+					key={`bb-${bb.id}-${outIdx}`}
+					flexDirection="column"
+					width={termCols}
+					marginBottom={0}
+				>
+					<Box
+						marginLeft={2}
+						width={Math.max(12, termCols - 2)}
+						flexDirection="column"
+					>
+						<Text wrap="truncate-end">
+							<Text color={ACCENT}>{bb.leadingGlyph}</Text>
+							<Text> </Text>
+							<Text bold color={ACCENT}>
+								{bb.header}
+							</Text>
+						</Text>
+						<Box
+							marginLeft={BOXED_STEP_BODY_MARGIN_LEFT}
+							marginTop={0}
+							flexDirection="column"
+						>
+							{bb.bodyLines.map((line, j) => (
+								<Text
+									key={`${bb.id}-ln-${j}`}
+									dimColor={bodyDim}
+									wrap="truncate-end"
+								>
+									{line.length > 0 ? line : " "}
+								</Text>
+							))}
+						</Box>
+					</Box>
+				</Box>,
+			);
+			i++;
+			outIdx++;
+			continue;
+		}
 		if (r.kind === "assistant_line" || r.kind === "assistant_list_item") {
 			const bk = r.blockKey;
 			const lines: Array<{ text: string; marker: string | null }> = [];

@@ -9,6 +9,7 @@ import {
 	stepCountIs,
 	streamText,
 } from "ai";
+import type { ChatEventSink } from "../chat-pipeline/chat-events";
 import { readCredentials } from "../config/index";
 import type { Persona } from "../config/index";
 
@@ -17,6 +18,7 @@ export type CoreMessage = ModelMessage;
 export type ToolCallLifecycleStart = {
 	readonly toolName: string;
 	readonly blockKey: string;
+	readonly args: Record<string, unknown>;
 };
 
 export type ToolCallLifecycleComplete = {
@@ -37,17 +39,29 @@ export type ChatWithToolsOptions = {
 	 * Non-streaming callers (e.g. organize) omit this and use `generateText`.
 	 */
 	readonly onAssistantTextDelta?: (delta: string) => void;
+	/**
+	 * Optional UI-agnostic pipeline events (prep is emitted by the session layer).
+	 * When streaming, assistant segments break at tool boundaries.
+	 */
+	readonly onChatEvent?: ChatEventSink;
 	/** Provider-specific options passed through to the model call. */
 	readonly providerOptions?: unknown;
+};
+
+type StreamToolContext = {
+	readonly endAssistantSegment: () => void;
+	readonly emit: ChatEventSink | undefined;
+	readonly nextSeq: () => number;
 };
 
 function injectToolLifecycleHooks(
 	tools: Record<string, Tool>,
 	options: ChatWithToolsOptions | undefined,
+	streamCtx?: StreamToolContext,
 ): Record<string, Tool> {
 	const onToolCallStart = options?.onToolCallStart;
 	const onToolCallComplete = options?.onToolCallComplete;
-	if (!onToolCallStart && !onToolCallComplete) {
+	if (!onToolCallStart && !onToolCallComplete && !streamCtx?.emit) {
 		return tools;
 	}
 	const wrapped: Record<string, Tool> = {};
@@ -61,13 +75,29 @@ function injectToolLifecycleHooks(
 			...tool,
 			execute: async (input, toolOptions) => {
 				const blockKey = randomUUID();
-				onToolCallStart?.({ toolName: name, blockKey });
 				const args =
 					input && typeof input === "object" && !Array.isArray(input)
 						? (input as Record<string, unknown>)
 						: {};
+				streamCtx?.endAssistantSegment();
+				streamCtx?.emit?.({
+					type: "tool_call_start",
+					blockKey,
+					seq: streamCtx.nextSeq(),
+					toolName: name,
+					args,
+				});
+				onToolCallStart?.({ toolName: name, blockKey, args });
 				try {
 					const result = await execute(input as never, toolOptions as never);
+					streamCtx?.emit?.({
+						type: "tool_call_complete",
+						blockKey,
+						seq: streamCtx.nextSeq(),
+						toolName: name,
+						args,
+						result,
+					});
 					onToolCallComplete?.({
 						toolName: name,
 						blockKey,
@@ -76,6 +106,15 @@ function injectToolLifecycleHooks(
 					});
 					return result;
 				} catch (error) {
+					streamCtx?.emit?.({
+						type: "tool_call_complete",
+						blockKey,
+						seq: streamCtx.nextSeq(),
+						toolName: name,
+						args,
+						result: undefined,
+						error,
+					});
 					onToolCallComplete?.({
 						toolName: name,
 						blockKey,
@@ -125,10 +164,36 @@ export async function chatWithTools(
 	providerMetadata?: ProviderMetadata;
 }> {
 	const onAssistantTextDelta = options?.onAssistantTextDelta;
+	const onChatEvent = options?.onChatEvent;
 	const providerOptions = options?.providerOptions as unknown;
-	const toolsForModel = injectToolLifecycleHooks(tools, options);
 
-	if (onAssistantTextDelta) {
+	let seq = 0;
+	const nextSeq = () => {
+		seq += 1;
+		return seq;
+	};
+
+	let assistantSegmentId: string | null = null;
+	const endAssistantSegment = () => {
+		if (assistantSegmentId !== null && onChatEvent) {
+			onChatEvent({
+				type: "assistant_segment_end",
+				id: assistantSegmentId,
+				seq: nextSeq(),
+			});
+			assistantSegmentId = null;
+		}
+	};
+
+	const streamCtx: StreamToolContext | undefined =
+		onChatEvent !== undefined
+			? { endAssistantSegment, emit: onChatEvent, nextSeq }
+			: undefined;
+
+	const toolsForModel = injectToolLifecycleHooks(tools, options, streamCtx);
+
+	/** Need streamText when either the legacy delta callback or chat pipeline events are used. */
+	if (onAssistantTextDelta || onChatEvent) {
 		const result = streamText({
 			model,
 			messages,
@@ -138,8 +203,27 @@ export async function chatWithTools(
 		});
 
 		for await (const delta of result.textStream) {
-			onAssistantTextDelta(delta);
+			if (onChatEvent) {
+				if (assistantSegmentId === null) {
+					assistantSegmentId = randomUUID();
+					onChatEvent({
+						type: "assistant_segment_start",
+						id: assistantSegmentId,
+						seq: nextSeq(),
+						header: "Toby",
+					});
+				}
+				onChatEvent({
+					type: "assistant_text_delta",
+					segmentId: assistantSegmentId,
+					seq: nextSeq(),
+					delta,
+				});
+			}
+			onAssistantTextDelta?.(delta);
 		}
+
+		endAssistantSegment();
 
 		const [response, text, steps, toolResults, usage, providerMetadata] =
 			await Promise.all([

@@ -42,6 +42,7 @@ type ChatInputDockProps = {
 	readonly dryRun: boolean;
 	readonly lastUsage: LanguageModelUsage | null;
 	readonly placeholder?: string | null;
+	readonly showPlaceholderWhenEmpty?: boolean;
 	readonly slashSuggestions: readonly SlashCommand[];
 	readonly selectedSlashCommand: SlashCommand | null;
 };
@@ -58,6 +59,7 @@ export function ChatInputDock(props: ChatInputDockProps) {
 		dryRun,
 		lastUsage,
 		placeholder,
+		showPlaceholderWhenEmpty,
 		slashSuggestions,
 		selectedSlashCommand,
 	} = props;
@@ -100,6 +102,9 @@ export function ChatInputDock(props: ChatInputDockProps) {
 	};
 
 	const isActive = !inputDisabled;
+	const placeholderText = placeholder ?? 'Try "What needs my attention today?"';
+	const showStaticPlaceholder =
+		(showPlaceholderWhenEmpty ?? false) && input.length === 0;
 	useInput(
 		(rawInput, rawKey) => {
 			if (!isActive) {
@@ -276,16 +281,20 @@ export function ChatInputDock(props: ChatInputDockProps) {
 						</Text>
 					</Box>
 					<Box flexGrow={1} flexDirection="column">
-						<ControlledMultilineInput
-							value={input}
-							cursorIndex={cursorIndex}
-							rows={1}
-							maxRows={8}
-							focus={!inputDisabled}
-							placeholder={
-								placeholder ?? 'Try "What needs my attention today?"'
-							}
-						/>
+						{showStaticPlaceholder ? (
+							<Text dimColor wrap="truncate-end">
+								{placeholderText}
+							</Text>
+						) : (
+							<ControlledMultilineInput
+								value={input}
+								cursorIndex={cursorIndex}
+								rows={1}
+								maxRows={8}
+								focus={!inputDisabled}
+								placeholder={placeholderText}
+							/>
+						)}
 					</Box>
 				</Box>
 			</Box>

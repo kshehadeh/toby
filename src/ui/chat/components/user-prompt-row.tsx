@@ -6,7 +6,8 @@ export function UserPromptRow({
 	text,
 	width,
 }: { readonly text: string; readonly width: number }) {
-	const inner = Math.max(1, width - 1);
+	// Reserve two columns for the visual prefix: "█ ".
+	const inner = Math.max(1, width - 2);
 	const padded = `${text}${" ".repeat(Math.max(0, inner - text.length))}`.slice(
 		0,
 		inner,
