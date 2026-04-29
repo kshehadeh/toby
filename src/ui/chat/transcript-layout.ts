@@ -73,6 +73,31 @@ function flattenBoxedBodyLines(text: string, termCols: number): string[] {
 	return lines;
 }
 
+function flattenGroupedToolRunLines(
+	runs: readonly { header: string; body: string; cacheHit?: boolean }[],
+	termCols: number,
+): string[] {
+	const lines: string[] = [];
+	for (let idx = 0; idx < runs.length; idx++) {
+		const run = runs[idx];
+		if (run === undefined) {
+			continue;
+		}
+		const title = `${idx + 1}. ${run.header}${run.cacheHit ? " [cache]" : ""}`;
+		lines.push(...flattenBoxedBodyLines(title, termCols));
+		const detail = run.body.trim();
+		if (detail.length > 0) {
+			for (const line of flattenBoxedBodyLines(detail, termCols)) {
+				lines.push(`   ${line}`);
+			}
+		}
+		if (idx < runs.length - 1) {
+			lines.push("");
+		}
+	}
+	return lines.length > 0 ? lines : [""];
+}
+
 type AssistantSegment =
 	| { kind: "text"; text: string }
 	| { kind: "list_item"; text: string; marker: string };
@@ -175,7 +200,12 @@ export function flattenTranscript(
 				id: e.id,
 				variant: e.variant,
 				header: e.header,
-				bodyLines: flattenBoxedBodyLines(e.body, termCols),
+				bodyLines:
+					e.variant === "tool" &&
+					e.toolRuns !== undefined &&
+					e.toolRuns.length > 1
+						? flattenGroupedToolRunLines(e.toolRuns, termCols)
+						: flattenBoxedBodyLines(e.body, termCols),
 				leadingGlyph,
 				...(e.cacheHit !== undefined ? { cacheHit: e.cacheHit } : {}),
 			});

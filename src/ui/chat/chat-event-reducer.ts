@@ -2,7 +2,7 @@ import type { AskUserToolResult } from "../../ai/ask-user-tool";
 import type { ChatEvent } from "../../chat-pipeline/chat-events";
 import { formatToolFeedbackOutput } from "./tool-feedback-registry";
 import { getToolDisplayLabel } from "./tool-labels";
-import type { TranscriptEntry } from "./types";
+import type { ToolRunEntry, TranscriptEntry } from "./types";
 
 function summarizeArgsForHeader(
 	toolName: string,
@@ -74,12 +74,32 @@ function findLastBoxedToolIndex(
 		if (
 			e.kind === "boxed_step" &&
 			e.variant === "tool" &&
-			e.toolBlockKey === blockKey
+			(e.toolBlockKey === blockKey ||
+				e.toolRuns?.some((run) => run.blockKey === blockKey) === true)
 		) {
 			return i;
 		}
 	}
 	return -1;
+}
+
+function toToolRuns(
+	entry: Extract<TranscriptEntry, { kind: "boxed_step" }>,
+): ToolRunEntry[] {
+	if (entry.variant !== "tool") {
+		return [];
+	}
+	if (entry.toolRuns !== undefined && entry.toolRuns.length > 0) {
+		return [...entry.toolRuns];
+	}
+	return [
+		{
+			blockKey: entry.toolBlockKey ?? entry.id,
+			header: entry.header,
+			body: entry.body,
+			...(entry.cacheHit !== undefined ? { cacheHit: entry.cacheHit } : {}),
+		},
+	];
 }
 
 /**
@@ -131,6 +151,32 @@ export function applyChatEvent(
 	if (event.type === "tool_call_start") {
 		if (event.toolName === "askUser") {
 			return [...entries];
+		}
+		const previous = entries[entries.length - 1];
+		if (
+			previous?.kind === "boxed_step" &&
+			previous.variant === "tool" &&
+			previous.toolName === event.toolName
+		) {
+			const prevRuns = toToolRuns(previous);
+			const nextRuns: ToolRunEntry[] = [
+				...prevRuns,
+				{
+					blockKey: event.blockKey,
+					header: formatToolCallHeader(event.toolName, event.args),
+					body: "",
+				},
+			];
+			const nextHeader = `${getToolDisplayLabel(event.toolName)} (x${nextRuns.length})`;
+			return replaceEntry(entries, entries.length - 1, {
+				...previous,
+				seq: event.seq,
+				header: nextHeader,
+				body: "",
+				toolRuns: nextRuns,
+				toolName: event.toolName,
+				cacheHit: undefined,
+			});
 		}
 		return [
 			...entries,
@@ -217,6 +263,35 @@ export function applyChatEvent(
 		const cur = entries[idx];
 		if (cur.kind !== "boxed_step") {
 			return [...entries];
+		}
+		const toolRuns = toToolRuns(cur);
+		const runIndex = toolRuns.findIndex(
+			(run) => run.blockKey === event.blockKey,
+		);
+		if (runIndex >= 0) {
+			const nextRuns = [...toolRuns];
+			nextRuns[runIndex] = {
+				...nextRuns[runIndex],
+				body: detail,
+				...(event.cacheHit !== undefined ? { cacheHit: event.cacheHit } : {}),
+			};
+			return replaceEntry(entries, idx, {
+				...cur,
+				seq: event.seq,
+				toolName: event.toolName,
+				toolRuns: nextRuns,
+				...(nextRuns.length > 1
+					? {
+							header: `${getToolDisplayLabel(event.toolName)} (x${nextRuns.length})`,
+							body: "",
+							cacheHit: undefined,
+						}
+					: {
+							header: nextRuns[0]?.header ?? cur.header,
+							body: nextRuns[0]?.body ?? detail,
+							cacheHit: nextRuns[0]?.cacheHit,
+						}),
+			});
 		}
 		return replaceEntry(entries, idx, {
 			...cur,

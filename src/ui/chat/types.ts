@@ -1,5 +1,12 @@
 import type { AskUserToolResult } from "../../ai/ask-user-tool";
 
+export type ToolRunEntry = {
+	readonly blockKey: string;
+	readonly header: string;
+	readonly body: string;
+	readonly cacheHit?: boolean;
+};
+
 export type TranscriptEntry =
 	| { readonly kind: "user"; readonly text: string }
 	| { readonly kind: "assistant"; readonly text: string }
@@ -16,6 +23,8 @@ export type TranscriptEntry =
 			/** Set when `variant` is `"tool"` — used for transcript icon only. */
 			readonly toolName?: string;
 			readonly cacheHit?: boolean;
+			/** Optional grouped runs for consecutive calls to the same tool. */
+			readonly toolRuns?: readonly ToolRunEntry[];
 	  }
 	| {
 			readonly kind: "tool_call";

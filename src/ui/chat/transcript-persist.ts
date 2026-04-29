@@ -18,6 +18,12 @@ type BoxedStepPayload = {
 	readonly toolBlockKey?: string;
 	readonly toolName?: string;
 	readonly cacheHit?: boolean;
+	readonly toolRuns?: readonly {
+		readonly blockKey: string;
+		readonly header: string;
+		readonly body: string;
+		readonly cacheHit?: boolean;
+	}[];
 };
 
 /** Serialize a transcript entry for SQLite (`kind` + `text` columns). */
@@ -35,6 +41,7 @@ export function serializeTranscriptEntry(e: TranscriptEntry): {
 			...(e.toolBlockKey !== undefined ? { toolBlockKey: e.toolBlockKey } : {}),
 			...(e.toolName !== undefined ? { toolName: e.toolName } : {}),
 			...(e.cacheHit !== undefined ? { cacheHit: e.cacheHit } : {}),
+			...(e.toolRuns !== undefined ? { toolRuns: e.toolRuns } : {}),
 		};
 		return { kind: "boxed_step", text: JSON.stringify(payload) };
 	}
@@ -94,6 +101,35 @@ export function deserializeTranscriptRow(row: {
 						: {}),
 					...(typeof p.toolName === "string" ? { toolName: p.toolName } : {}),
 					...(typeof p.cacheHit === "boolean" ? { cacheHit: p.cacheHit } : {}),
+					...(Array.isArray(p.toolRuns)
+						? {
+								toolRuns: p.toolRuns
+									.filter(
+										(
+											run,
+										): run is {
+											blockKey: string;
+											header: string;
+											body: string;
+											cacheHit?: boolean;
+										} =>
+											typeof run?.blockKey === "string" &&
+											run.blockKey.length > 0 &&
+											typeof run.header === "string" &&
+											typeof run.body === "string" &&
+											(run.cacheHit === undefined ||
+												typeof run.cacheHit === "boolean"),
+									)
+									.map((run) => ({
+										blockKey: run.blockKey,
+										header: run.header,
+										body: run.body,
+										...(typeof run.cacheHit === "boolean"
+											? { cacheHit: run.cacheHit }
+											: {}),
+									})),
+							}
+						: {}),
 				};
 			}
 		} catch {
