@@ -30,6 +30,7 @@
 		"ink": "^7.0.1",
 		"ink-multiline-input": "^0.1.0",
 		"open": "^10.1.0",
+		"parse-duration": "^2.1.6",
 		"react": "^19.2.0",
 		"react-devtools-core": "^7.0.1",
 		"zod": "3"
@@ -46,11 +47,7 @@
 		"vitest": "^2.1.0"
 	},
 	"lint-staged": {
-		"*.{js,jsx,ts,tsx,json,jsonc,md,yml,yaml}": [
-			"bunx biome check --write"
-		],
-		"*.{js,jsx,ts,tsx}": [
-			"bunx biome check --write"
-		]
+		"*.{js,jsx,ts,tsx,json,jsonc,md,yml,yaml}": ["bunx biome check --write"],
+		"*.{js,jsx,ts,tsx}": ["bunx biome check --write"]
 	}
 }

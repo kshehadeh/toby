@@ -6,11 +6,13 @@ import {
 	getModulesWithCapability,
 } from "../integrations/index";
 import { listPersonas, resolvePersona } from "../personas/index";
+import { parseWatchInterval, runWithWatch } from "./watch";
 
 interface OrganizeOptions {
 	persona?: string;
 	maxResults: string;
 	dryRun?: boolean;
+	watch?: string;
 }
 
 const DEFAULT_ORGANIZE_PERSONA: Persona = {
@@ -28,6 +30,10 @@ export function registerOrganizeCommand(program: Command): void {
 		.command("organize <integration>")
 		.description("Organize an integration's relevant data")
 		.option("-p, --persona <name>", "Optional persona to shape organization")
+		.option(
+			"-w, --watch <interval>",
+			'Repeat organize on a schedule (e.g. "every hour", "30m")',
+		)
 		.option(
 			"-n, --max-results <number>",
 			"Maximum number of items to include for organization",
@@ -77,10 +83,32 @@ export function registerOrganizeCommand(program: Command): void {
 				}
 
 				const maxResults = Number.parseInt(options.maxResults, 10);
-				await organizer({
-					maxResults,
-					dryRun: Boolean(options.dryRun),
-					personaForModel: persona,
+				const runOnce = async () => {
+					await organizer({
+						maxResults,
+						dryRun: Boolean(options.dryRun),
+						personaForModel: persona,
+					});
+				};
+
+				if (!options.watch) {
+					await runOnce();
+					return;
+				}
+
+				const intervalMs = parseWatchInterval(options.watch);
+				console.log(
+					chalk.cyan(
+						`Watching ${module.displayName} organize every ${intervalMs}ms...`,
+					),
+				);
+				console.log(chalk.dim("  Press Ctrl+C to stop."));
+				console.log();
+
+				await runWithWatch({
+					label: `${module.name}:organize`,
+					intervalMs,
+					runOnce,
 				});
 				return;
 			} catch (error) {
