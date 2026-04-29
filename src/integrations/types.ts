@@ -25,8 +25,18 @@ export type IntegrationCapability = "summarize" | "organize" | "chat";
 export interface CredentialFieldDescriptor {
 	readonly key: string;
 	readonly label: string;
+	readonly kind?: "value" | "select";
+	readonly options?: ReadonlyArray<string>;
+	/** Optional auth-method gating for configure UI. */
+	readonly showForAuthMethods?: ReadonlyArray<string>;
 	readonly masked?: boolean;
 	readonly multiline?: boolean;
+}
+
+export interface IntegrationAuthMethodDescriptor {
+	readonly id: string;
+	readonly label: string;
+	readonly isDefault?: boolean;
 }
 
 export interface SummarizeRunOptions {
@@ -105,6 +115,8 @@ export interface Integration {
 
 export interface IntegrationModule extends Integration {
 	readonly capabilities: ReadonlyArray<IntegrationCapability>;
+	/** Optional auth methods supported by this integration. */
+	readonly authMethods?: ReadonlyArray<IntegrationAuthMethodDescriptor>;
 	/** Optional high-level resources this integration surfaces (for discovery UI). */
 	readonly resources?: ReadonlyArray<string>;
 	/** Model-prep for the Ink TUI chat flow (replaces hardcoded integration checks). */

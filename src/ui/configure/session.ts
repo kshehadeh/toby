@@ -44,7 +44,7 @@ export function createConfigureSession(): ConfigureSession {
 	const refreshTree = (vals: Record<string, string>) => {
 		const freshConfig = readConfig();
 		const personasFromVals = rebuildPersonas(vals, freshConfig.personas);
-		return buildSettingsTree(personasFromVals, AI_PROVIDERS);
+		return buildSettingsTree(personasFromVals, AI_PROVIDERS, vals);
 	};
 
 	const callbacks = {

@@ -21,20 +21,55 @@ export function buildSettingsTree(
 		promptMode: "add" | "replace";
 	}[],
 	availableProviders: { id: string; displayName: string; models: string[] }[],
+	values: Record<string, string> = {},
 ): SettingsItem {
 	const integrationSections: SettingsItem[] = getIntegrationModules().map(
-		(mod) => ({
-			label: mod.displayName,
-			kind: "section" as const,
-			key: mod.name,
-			children: mod.getCredentialDescriptors().map((d) => ({
-				label: d.label,
-				kind: "value" as const,
-				key: d.key,
-				masked: d.masked,
-				multiline: d.multiline,
-			})),
-		}),
+		(mod) => {
+			const authMethods = mod.authMethods ?? [];
+			const authMethodKey = `${mod.name}.authMethod`;
+			const defaultAuthMethod =
+				authMethods.find((method) => method.isDefault)?.id ??
+				authMethods[0]?.id;
+			const selectedAuthMethod = values[authMethodKey] ?? defaultAuthMethod;
+
+			const authSelect: SettingsItem[] =
+				authMethods.length > 0
+					? [
+							{
+								label: "Auth Method",
+								kind: "select" as const,
+								key: authMethodKey,
+								options: authMethods.map((method) => method.id),
+								currentValue: selectedAuthMethod,
+							},
+						]
+					: [];
+
+			const credentialItems = mod
+				.getCredentialDescriptors()
+				.filter((d) => {
+					if (!d.showForAuthMethods || d.showForAuthMethods.length === 0) {
+						return true;
+					}
+					if (!selectedAuthMethod) return false;
+					return d.showForAuthMethods.includes(selectedAuthMethod);
+				})
+				.map((d) => ({
+					label: d.label,
+					kind: d.kind ?? "value",
+					key: d.key,
+					options: d.options ? [...d.options] : undefined,
+					masked: d.masked,
+					multiline: d.multiline,
+				}));
+
+			return {
+				label: mod.displayName,
+				kind: "section" as const,
+				key: mod.name,
+				children: [...authSelect, ...credentialItems],
+			};
+		},
 	);
 
 	const personaItems: SettingsItem[] = personas.map((p) => ({
