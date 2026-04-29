@@ -11,6 +11,9 @@ export function AskUserModal({
 	readonly selectedIndex: number;
 	readonly termCols: number;
 }) {
+	// Account for border + horizontal padding so wrapped lines stay inside.
+	const contentWidth = Math.max(12, termCols - 4);
+
 	return (
 		<Box
 			marginTop={1}
@@ -20,24 +23,26 @@ export function AskUserModal({
 			borderColor="cyan"
 			paddingX={1}
 		>
-			<Box width={termCols}>
-				<Text bold wrap="truncate-end">
+			<Box width={contentWidth}>
+				<Text bold wrap="wrap">
 					{modal.query}
 				</Text>
 			</Box>
 			{modal.options.map((opt, i) => (
-				<Box key={opt} width={termCols}>
+				<Box key={opt} width={contentWidth}>
 					<Text
 						color={i === selectedIndex ? "cyan" : undefined}
-						wrap="truncate-end"
+						wrap="wrap"
 					>
 						{i === selectedIndex ? "› " : "  "}
 						{i + 1}. {opt}
 					</Text>
 				</Box>
 			))}
-			<Box marginTop={1}>
-				<Text dimColor>↑↓ Enter to choose · Esc to cancel</Text>
+			<Box marginTop={1} width={contentWidth}>
+				<Text dimColor wrap="truncate-end">
+					↑↓ Enter to choose · Esc to cancel
+				</Text>
 			</Box>
 		</Box>
 	);
