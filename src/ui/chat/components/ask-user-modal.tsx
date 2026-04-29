@@ -30,10 +30,7 @@ export function AskUserModal({
 			</Box>
 			{modal.options.map((opt, i) => (
 				<Box key={opt} width={contentWidth}>
-					<Text
-						color={i === selectedIndex ? "cyan" : undefined}
-						wrap="wrap"
-					>
+					<Text color={i === selectedIndex ? "cyan" : undefined} wrap="wrap">
 						{i === selectedIndex ? "› " : "  "}
 						{i + 1}. {opt}
 					</Text>

@@ -62,7 +62,10 @@ function formatContextFill(
 	if (!windowSize) {
 		return null;
 	}
-	const pct = Math.max(0, Math.min(100, Math.round((input / windowSize) * 100)));
+	const pct = Math.max(
+		0,
+		Math.min(100, Math.round((input / windowSize) * 100)),
+	);
 	return `ctx ${pct}%`;
 }
 
