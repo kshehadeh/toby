@@ -30,6 +30,11 @@ In `index.ts`:
 5. If the integration supports inbox-style summaries, implement **`summarize`** returning `{ status: "ok", messages }` or `{ status: "empty", message }` per [`SummarizeRunResult`](../src/integrations/types.ts).
 6. Optionally implement **`registerCommands(program)`** for integration-specific commands (see [`src/integrations/gmail/cli.ts`](../src/integrations/gmail/cli.ts)).
 
+### Note on watch / scheduling
+
+Integrations should implement **one-shot** runners (e.g. `module.organize(...)`) that complete a single pass of work.
+Recurring execution (like `toby organize --watch "every hour"`) is orchestrated by the **core command layer**, not by integration modules.
+
 ## 3. Register the module
 
 In [`src/integrations/index.ts`](../src/integrations/index.ts):
