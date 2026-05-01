@@ -1,5 +1,11 @@
 import { Box, Text, render, useApp, useInput } from "ink";
-import React, { useState, useCallback, type ReactNode } from "react";
+import React, {
+	useState,
+	useCallback,
+	useLayoutEffect,
+	useRef,
+	type ReactNode,
+} from "react";
 import { ACCENT, CHAT_TITLE_ASCII, INPUT_BORDER } from "../chat/constants";
 import type { SettingsItem } from "./items";
 
@@ -405,6 +411,11 @@ interface AppProps {
 	refreshTree: (values: Record<string, string>) => SettingsItem;
 	callbacks: AppCallbacks;
 	onQuitRequested?: (values: Record<string, string>) => void;
+	/** When set (e.g. from chat `/persona`), open navigation at this key path under root. */
+	initialPath?: readonly string[];
+	initialSelectedIndex?: number;
+	/** When set, open the value/select editor for this item key under the current section (after `initialPath` resolves). */
+	initialEditorItemKey?: string;
 }
 
 function resolvePath(
@@ -436,6 +447,9 @@ export function ConfigureApp({
 	refreshTree,
 	callbacks,
 	onQuitRequested,
+	initialPath,
+	initialSelectedIndex = 0,
+	initialEditorItemKey,
 }: AppProps) {
 	const { exit } = useApp();
 	const [tree, setTree] = useState(root);
@@ -450,6 +464,42 @@ export function ConfigureApp({
 	const [statusMessage, setStatusMessage] = useState<string | undefined>(
 		undefined,
 	);
+
+	const initialNavigateRef = useRef({
+		path: initialPath,
+		index: initialSelectedIndex,
+	});
+	useLayoutEffect(() => {
+		const spec = initialNavigateRef.current;
+		if (!spec.path?.length) {
+			return;
+		}
+		const { resolvedPath } = resolvePath(tree, [...spec.path]);
+		setPath(resolvedPath);
+		setSelectedIndex(spec.index);
+		initialNavigateRef.current = { path: undefined, index: 0 };
+	}, [tree]);
+
+	const initialEditorKeyRef = useRef(initialEditorItemKey);
+	useLayoutEffect(() => {
+		const key = initialEditorKeyRef.current;
+		if (!key) {
+			return;
+		}
+		const { node } = resolvePath(tree, path);
+		const child = node.children?.find((c) => c.key === key);
+		if (!child) {
+			return;
+		}
+		initialEditorKeyRef.current = undefined;
+		if (child.kind === "value") {
+			setEditItem(child);
+			setScreen("edit");
+		} else if (child.kind === "select") {
+			setEditItem(child);
+			setScreen("select");
+		}
+	}, [path, tree]);
 
 	const { node: currentNode, resolvedPath } = resolvePath(tree, path);
 	const items = (currentNode.children ?? []).map((item) => ({

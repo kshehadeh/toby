@@ -22,11 +22,15 @@ import {
 	modulesEqual,
 	sortModulesByName,
 } from "../../commands/chat-integrations";
-import type { Persona } from "../../config/index";
+import { type Persona, readConfig } from "../../config/index";
 import { getModulesWithCapability } from "../../integrations/index";
 import type { IntegrationModule } from "../../integrations/types";
+import { listPersonas, resolvePersona } from "../../personas/index";
 import { ConfigureApp } from "../configure/App";
-import { createConfigureSession } from "../configure/session";
+import {
+	createConfigureSession,
+	refreshConfigureSessionTree,
+} from "../configure/session";
 import { applyChatEvent } from "./chat-event-reducer";
 import { AskUserModal } from "./components/ask-user-modal";
 import { ChatHelpScreen } from "./components/chat-help-screen";
@@ -38,7 +42,10 @@ import {
 import { buildTranscriptNodes } from "./components/transcript";
 import { ACCENT, CHAT_TITLE_ASCII } from "./constants";
 import { formatToolStatusLine } from "./format-tool-status";
-import { prepareChatSessionMessages } from "./prepare-messages";
+import {
+	prepareChatSessionMessages,
+	replaceSessionSystemMessageForPersona,
+} from "./prepare-messages";
 import { runIntegrationChatTurn } from "./run-turn";
 import {
 	appendMessageBatch,
@@ -71,6 +78,15 @@ interface MultiPickerState {
 
 interface SessionPickerState {
 	readonly sessions: readonly { id: string; name: string }[];
+	readonly cursorIndex: number;
+}
+
+type PersonaPickerRow =
+	| { readonly kind: "add" }
+	| { readonly kind: "persona"; readonly persona: Persona };
+
+interface PersonaPickerState {
+	readonly rows: readonly PersonaPickerRow[];
 	readonly cursorIndex: number;
 }
 
@@ -161,6 +177,18 @@ export function ChatSessionApp({
 	const [sessionPicker, setSessionPicker] = useState<SessionPickerState | null>(
 		null,
 	);
+	const [personaPicker, setPersonaPicker] = useState<PersonaPickerState | null>(
+		null,
+	);
+	const [activePersona, setActivePersona] = useState(() => persona);
+	const activePersonaRef = useRef(activePersona);
+	const [configureInitialPath, setConfigureInitialPath] = useState<
+		readonly string[] | undefined
+	>(undefined);
+	const [configureEditorItemKey, setConfigureEditorItemKey] = useState<
+		string | undefined
+	>(undefined);
+	const [configureMountKey, setConfigureMountKey] = useState(0);
 	const [activityGlyphFrame, setActivityGlyphFrame] = useState(0);
 	const didAutoRunFirstTurnRef = useRef(false);
 	const assistantStreamBufRef = useRef("");
@@ -183,6 +211,7 @@ export function ChatSessionApp({
 		showHelp: false,
 		multiPicker: null as MultiPickerState | null,
 		sessionPicker: null as SessionPickerState | null,
+		personaPicker: null as PersonaPickerState | null,
 	});
 
 	const allDisplayRows = useMemo((): DisplayRow[] => {
@@ -309,6 +338,10 @@ export function ChatSessionApp({
 	}, [messages, loading]);
 
 	useLayoutEffect(() => {
+		activePersonaRef.current = activePersona;
+	}, [activePersona]);
+
+	useLayoutEffect(() => {
 		askSelectedRef.current = askSelected;
 		snapRef.current = {
 			askModal,
@@ -317,6 +350,7 @@ export function ChatSessionApp({
 			showHelp,
 			multiPicker,
 			sessionPicker,
+			personaPicker,
 		};
 	}, [
 		askModal,
@@ -326,6 +360,7 @@ export function ChatSessionApp({
 		showHelp,
 		multiPicker,
 		sessionPicker,
+		personaPicker,
 	]);
 
 	const startFreshSession = useCallback(
@@ -408,7 +443,7 @@ export function ChatSessionApp({
 			};
 			try {
 				const out = await runIntegrationChatTurn(moduleNames, msgs, {
-					persona,
+					persona: activePersona,
 					dryRun,
 					askUser: askUserHandler,
 					chatWithToolsOptions: {
@@ -496,7 +531,7 @@ export function ChatSessionApp({
 				setLoading(false);
 			}
 		},
-		[moduleNames, askUserHandler, dryRun, persona],
+		[moduleNames, askUserHandler, dryRun, activePersona],
 	);
 
 	useEffect(() => {
@@ -567,7 +602,7 @@ export function ChatSessionApp({
 				}
 				const initial = await prepareChatSessionMessages(
 					selectedModules,
-					persona,
+					activePersona,
 					effectivePrompt,
 				);
 				if (cancelled) {
@@ -610,7 +645,7 @@ export function ChatSessionApp({
 		};
 	}, [
 		selectedModules,
-		persona,
+		activePersona,
 		sessionPrompt,
 		sessionId,
 		sessionBootMode,
@@ -718,6 +753,61 @@ export function ChatSessionApp({
 		setSessionPicker({ sessions, cursorIndex: 0 });
 	}, []);
 
+	const openPersonaPickerModal = useCallback(() => {
+		const people = listPersonas();
+		const rows: PersonaPickerRow[] = [
+			{ kind: "add" },
+			...people.map((p) => ({ kind: "persona" as const, persona: p })),
+		];
+		setPersonaPicker({ rows, cursorIndex: 0 });
+	}, []);
+
+	const openPersonaEditorAtPath = useCallback((pathKeys: readonly string[]) => {
+		setPersonaPicker(null);
+		setConfigureSession(createConfigureSession());
+		setConfigureInitialPath(pathKeys);
+		setConfigureEditorItemKey(undefined);
+		setConfigureMountKey((k) => k + 1);
+		setShowConfig(true);
+	}, []);
+
+	const applyPersonaFromPicker = useCallback(async (p: Persona) => {
+		const resolved = resolvePersona(p.name) ?? p;
+		setActivePersona(resolved);
+		setPersonaPicker(null);
+		const sid = sessionIdRef.current;
+		const mods = selectedModulesRef.current;
+		const msgs = snapRef.current.messages;
+		if (msgs && msgs.length > 0) {
+			try {
+				const next = await replaceSessionSystemMessageForPersona(
+					mods,
+					msgs,
+					resolved,
+				);
+				setMessages(next);
+				if (sid && next[0]) {
+					appendMessageBatch(sid, 0, [next[0]]);
+				}
+			} catch (e) {
+				setTranscript((t) => [
+					...t,
+					{
+						kind: "error",
+						text:
+							e instanceof Error
+								? e.message
+								: "Failed to apply persona to session.",
+					},
+				]);
+			}
+		}
+		setTranscript((t) => [
+			...t,
+			{ kind: "meta", text: `Switched persona to "${resolved.name}".` },
+		]);
+	}, []);
+
 	const loadSessionIntoMemory = useCallback((id: string) => {
 		const loaded = loadChatSession(id);
 		if (!loaded) {
@@ -774,7 +864,16 @@ export function ChatSessionApp({
 					openHelp: () => setShowHelp(true),
 					openConfig: () => {
 						setConfigureSession(createConfigureSession());
+						setConfigureInitialPath(undefined);
+						setConfigureEditorItemKey(undefined);
+						setConfigureMountKey((k) => k + 1);
 						setShowConfig(true);
+					},
+					openPersonaPicker: () => {
+						openPersonaPickerModal();
+					},
+					openPersonaConfigure: (pathKeys) => {
+						openPersonaEditorAtPath(pathKeys);
 					},
 					openIntegrationPicker: () => {
 						void openIntegrationPicker();
@@ -892,6 +991,8 @@ export function ChatSessionApp({
 			chatIntegrations.length,
 			exit,
 			openIntegrationPicker,
+			openPersonaEditorAtPath,
+			openPersonaPickerModal,
 			openSessionsPicker,
 			selectedSlashCommand,
 			startFreshSession,
@@ -1096,6 +1197,73 @@ export function ChatSessionApp({
 				return;
 			}
 
+			const persPicker = snapRef.current.personaPicker;
+			if (persPicker) {
+				const len = persPicker.rows.length;
+				const cursor = persPicker.cursorIndex;
+				if (key.upArrow) {
+					setPersonaPicker((p) =>
+						p
+							? {
+									...p,
+									cursorIndex: cursor <= 0 ? len - 1 : cursor - 1,
+								}
+							: p,
+					);
+					return;
+				}
+				if (key.downArrow) {
+					setPersonaPicker((p) =>
+						p
+							? {
+									...p,
+									cursorIndex: cursor >= len - 1 ? 0 : cursor + 1,
+								}
+							: p,
+					);
+					return;
+				}
+				if (key.return) {
+					const row = persPicker.rows[persPicker.cursorIndex];
+					if (!row) {
+						return;
+					}
+					if (row.kind === "add") {
+						const sess = createConfigureSession();
+						const newName = sess.callbacks.onCreatePersona();
+						setConfigureSession(refreshConfigureSessionTree(sess));
+						setPersonaPicker(null);
+						setConfigureInitialPath([
+							"root",
+							"personas",
+							`personas.${newName}`,
+						]);
+						setConfigureEditorItemKey(`personas.${newName}.name`);
+						setConfigureMountKey((k) => k + 1);
+						setShowConfig(true);
+						return;
+					}
+					void applyPersonaFromPicker(row.persona);
+					return;
+				}
+				if (ch === "e" && !key.ctrl && !key.meta) {
+					const row = persPicker.rows[persPicker.cursorIndex];
+					if (row?.kind === "persona") {
+						openPersonaEditorAtPath([
+							"root",
+							"personas",
+							`personas.${row.persona.name}`,
+						]);
+					}
+					return;
+				}
+				if (key.escape) {
+					setPersonaPicker(null);
+					return;
+				}
+				return;
+			}
+
 			if (key.ctrl && ch === "c") {
 				exit();
 				return;
@@ -1127,7 +1295,14 @@ export function ChatSessionApp({
 				return;
 			}
 		},
-		[exit, loadSessionIntoMemory, showConfig, slashSuggestions],
+		[
+			applyPersonaFromPicker,
+			exit,
+			loadSessionIntoMemory,
+			openPersonaEditorAtPath,
+			showConfig,
+			slashSuggestions,
+		],
 	);
 
 	useInput(handleGlobalInput);
@@ -1148,18 +1323,72 @@ export function ChatSessionApp({
 	if (showConfig) {
 		return (
 			<ConfigureApp
+				key={configureMountKey}
 				root={configureSession.initialTree}
 				credentialValues={configureSession.initialValues}
 				onSave={configureSession.onSave}
 				refreshTree={configureSession.refreshTree}
 				callbacks={configureSession.callbacks}
+				initialPath={configureInitialPath}
+				initialEditorItemKey={configureEditorItemKey}
 				onQuitRequested={(values) => {
 					configureSession.onSave(values);
 					setShowConfig(false);
+					setConfigureInitialPath(undefined);
+					setConfigureEditorItemKey(undefined);
 					setTranscript((t) => [
 						...t,
 						{ kind: "meta", text: "Configuration updated." },
 					]);
+					void (async () => {
+						const cfg = readConfig();
+						const prev = activePersonaRef.current;
+						let nextP = resolvePersona(prev.name);
+						if (!nextP && cfg.personas.length > 0) {
+							const fallback = cfg.personas[0];
+							if (fallback) {
+								nextP = fallback;
+								setTranscript((t) => [
+									...t,
+									{
+										kind: "meta",
+										text: `Active persona "${prev.name}" is gone; using "${fallback.name}".`,
+									},
+								]);
+							}
+						}
+						if (!nextP) {
+							return;
+						}
+						setActivePersona(nextP);
+						const msgs = snapRef.current.messages;
+						const mods = selectedModulesRef.current;
+						if (msgs?.length) {
+							try {
+								const replaced = await replaceSessionSystemMessageForPersona(
+									mods,
+									msgs,
+									nextP,
+								);
+								setMessages(replaced);
+								const sid = sessionIdRef.current;
+								if (sid && replaced[0]) {
+									appendMessageBatch(sid, 0, [replaced[0]]);
+								}
+							} catch (e) {
+								setTranscript((t) => [
+									...t,
+									{
+										kind: "error",
+										text:
+											e instanceof Error
+												? e.message
+												: "Could not refresh system prompt after config.",
+									},
+								]);
+							}
+						}
+					})();
 				}}
 			/>
 		);
@@ -1171,9 +1400,10 @@ export function ChatSessionApp({
 		Boolean(askModal) ||
 		Boolean(multiPicker) ||
 		Boolean(sessionPicker) ||
+		Boolean(personaPicker) ||
 		loading ||
 		showConfig;
-	const modelLabel = `${persona.ai.provider}/${persona.ai.model}`;
+	const modelLabel = `${activePersona.ai.provider}/${activePersona.ai.model}`;
 	const activityText =
 		messages === null ? "Loading session…" : loading ? activityLine : "";
 	const activityDisplay =
@@ -1287,6 +1517,43 @@ export function ChatSessionApp({
 						</Text>
 					</Box>
 				</Box>
+			) : personaPicker ? (
+				<Box
+					marginTop={1}
+					flexShrink={0}
+					flexDirection="column"
+					borderStyle="round"
+					borderColor={ACCENT}
+					paddingX={1}
+				>
+					<Box width={termCols}>
+						<Text bold wrap="truncate-end">
+							Personas (Enter select · e edit · Esc cancel)
+						</Text>
+					</Box>
+					{personaPicker.rows.map((row, i) => {
+						const active = i === personaPicker.cursorIndex;
+						const prefix = active ? "› " : "  ";
+						const label =
+							row.kind === "add" ? "New persona…" : row.persona.name;
+						return (
+							<Box
+								key={row.kind === "add" ? "add" : row.persona.name}
+								width={termCols}
+							>
+								<Text color={active ? ACCENT : undefined} wrap="truncate-end">
+									{prefix}
+									{label}
+								</Text>
+							</Box>
+						);
+					})}
+					<Box marginTop={1}>
+						<Text dimColor wrap="truncate-end">
+							Active: {activePersona.name}
+						</Text>
+					</Box>
+				</Box>
 			) : null}
 			<ChatInputDock
 				termCols={termCols}
@@ -1294,7 +1561,7 @@ export function ChatSessionApp({
 				onInputChange={setInput}
 				onInputSubmit={handlePromptSubmit}
 				inputDisabled={inputDisabled}
-				persona={persona}
+				persona={activePersona}
 				modelLabel={modelLabel}
 				dryRun={dryRun}
 				lastUsage={lastUsage}

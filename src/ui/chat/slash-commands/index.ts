@@ -4,6 +4,7 @@ import { exitSlashCommand } from "./exit";
 import { helpSlashCommand } from "./help";
 import { integrationSlashCommand } from "./integration";
 import { newSlashCommand } from "./new";
+import { personaSlashCommand } from "./persona";
 import { sessionsSlashCommand } from "./sessions";
 import type { SlashCommand } from "./types";
 
@@ -18,6 +19,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
 	configSlashCommand,
 	helpSlashCommand,
 	integrationSlashCommand,
+	personaSlashCommand,
 	newSlashCommand,
 	sessionsSlashCommand,
 	exitSlashCommand,

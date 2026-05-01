@@ -1,8 +1,10 @@
-interface SlashCommandRuntime {
+export interface SlashCommandRuntime {
 	readonly exit: () => void;
 	readonly openHelp: () => void;
 	readonly openIntegrationPicker: () => void;
 	readonly openConfig: () => void;
+	readonly openPersonaPicker: () => void;
+	readonly openPersonaConfigure: (pathKeys: readonly string[]) => void;
 	readonly startNewSession: () => void;
 	readonly openSessionsPicker: () => void;
 	readonly chatIntegrationsCount: number;

@@ -78,6 +78,77 @@ export async function prepareChatSessionMessages(
 	];
 }
 
+function coreMessageUserText(message: CoreMessage | undefined): string {
+	if (!message || message.role !== "user") {
+		return "";
+	}
+	const { content } = message;
+	if (typeof content === "string") {
+		return content;
+	}
+	if (Array.isArray(content)) {
+		return content
+			.map((part) => {
+				if (typeof part === "string") {
+					return part;
+				}
+				if (part && typeof part === "object" && "text" in part) {
+					return String((part as { text: string }).text);
+				}
+				return "";
+			})
+			.join("");
+	}
+	return "";
+}
+
+/**
+ * Replace only the first system message so a new persona applies to the rest of the session.
+ */
+export async function replaceSessionSystemMessageForPersona(
+	modules: readonly IntegrationModule[],
+	messages: readonly CoreMessage[],
+	persona: Persona,
+): Promise<CoreMessage[]> {
+	if (messages.length === 0) {
+		throw new Error("replaceSessionSystemMessageForPersona: empty messages");
+	}
+	if (modules.length === 0) {
+		throw new Error("replaceSessionSystemMessageForPersona: no modules");
+	}
+
+	if (modules.length === 1) {
+		const module = modules[0];
+		if (!module) {
+			throw new Error("replaceSessionSystemMessageForPersona: missing module");
+		}
+		if (!module.chatModelPrep) {
+			throw new Error(
+				`replaceSessionSystemMessageForPersona: integration "${module.name}" has no chatModelPrep`,
+			);
+		}
+		const userPrompt = coreMessageUserText(messages[1]);
+		const rebuilt = await module.chatModelPrep.buildSingleSessionMessages(
+			persona,
+			userPrompt,
+		);
+		const newSystem = rebuilt[0];
+		if (!newSystem || newSystem.role !== "system") {
+			throw new Error(
+				"replaceSessionSystemMessageForPersona: expected system message at index 0",
+			);
+		}
+		return [newSystem, ...messages.slice(1)];
+	}
+
+	const systemContent = composeSystemPromptWithPersona(
+		buildCombinedChatBasePrompt(modules),
+		persona,
+	);
+
+	return [{ role: "system", content: systemContent }, ...messages.slice(1)];
+}
+
 /**
  * Merge a verbatim user prompt with an optional pretreatment spec for `prepareChatSessionMessages`.
  * Integration builders stay unaware of pretreatment; they only receive the final string.

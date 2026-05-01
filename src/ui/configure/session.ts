@@ -22,6 +22,19 @@ interface ConfigureSession {
 	};
 }
 
+/**
+ * After callbacks mutate `initialValues` (e.g. `onCreatePersona`), rebuild `initialTree`
+ * so ConfigureApp receives a tree that includes new persona sections.
+ */
+export function refreshConfigureSessionTree(
+	session: ConfigureSession,
+): ConfigureSession {
+	return {
+		...session,
+		initialTree: session.refreshTree(session.initialValues),
+	};
+}
+
 export function createConfigureSession(): ConfigureSession {
 	const creds = readCredentials();
 	const config = readConfig();
