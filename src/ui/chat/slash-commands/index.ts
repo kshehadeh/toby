@@ -36,6 +36,29 @@ export function getSlashSuggestions(input: string): SlashCommand[] {
 	return SLASH_COMMANDS.filter((item) => item.command.startsWith(normalized));
 }
 
+export function getNearestSlashCommand(input: string): SlashCommand | null {
+	const normalized = input.trim().toLowerCase();
+	const suggestions = getSlashSuggestions(input);
+	if (suggestions.length === 0) {
+		return null;
+	}
+	const exact = suggestions.find((item) => item.command === normalized);
+	if (exact) {
+		return exact;
+	}
+	return suggestions.reduce((best, item) => {
+		const bestDistance = best.command.length - normalized.length;
+		const itemDistance = item.command.length - normalized.length;
+		if (itemDistance < bestDistance) {
+			return item;
+		}
+		if (itemDistance === bestDistance && item.command < best.command) {
+			return item;
+		}
+		return best;
+	});
+}
+
 export function resolveSlashSubmission(
 	line: string,
 	selectedSuggestion: SlashCommand | null,

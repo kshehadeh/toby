@@ -74,6 +74,7 @@ type ChatInputDockProps = {
 	readonly input: string;
 	readonly onInputChange: (value: string) => void;
 	readonly onInputSubmit: (value: string) => void;
+	readonly cursorResetToken?: number;
 	readonly inputDisabled: boolean;
 	readonly persona: Persona;
 	readonly modelLabel: string;
@@ -91,6 +92,7 @@ export function ChatInputDock(props: ChatInputDockProps) {
 		input,
 		onInputChange,
 		onInputSubmit,
+		cursorResetToken = 0,
 		inputDisabled,
 		persona,
 		modelLabel,
@@ -108,6 +110,10 @@ export function ChatInputDock(props: ChatInputDockProps) {
 	useEffect(() => {
 		setCursorIndex((prev) => Math.min(prev, input.length));
 	}, [input.length]);
+
+	useEffect(() => {
+		setCursorIndex(input.length);
+	}, [cursorResetToken, input.length]);
 
 	const deleteWordBackward = () => {
 		if (cursorIndex <= 0) {

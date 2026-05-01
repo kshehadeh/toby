@@ -57,6 +57,7 @@ import {
 } from "./session-store";
 import {
 	SLASH_COMMANDS,
+	getNearestSlashCommand,
 	getSlashSuggestions,
 	resolveSlashSubmission,
 } from "./slash-commands";
@@ -151,6 +152,7 @@ export function ChatSessionApp({
 	const [messages, setMessages] = useState<CoreMessage[] | null>(null);
 	const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
 	const [input, setInput] = useState("");
+	const [inputCursorResetToken, setInputCursorResetToken] = useState(0);
 	const [loading, setLoading] = useState(false);
 	const [activityLine, setActivityLine] = useState("Thinking…");
 	const [streamingAssistant, setStreamingAssistant] = useState("");
@@ -1283,25 +1285,26 @@ export function ChatSessionApp({
 				return;
 			}
 
-			if (slashSuggestions.length > 0 && key.tab) {
-				const direction = key.shift ? -1 : 1;
-				setSlashCursorIndex((index) => {
-					const len = slashSuggestions.length;
-					if (len === 0) {
-						return 0;
-					}
-					return (index + direction + len) % len;
-				});
+			if (key.tab) {
+				const completion = getNearestSlashCommand(input);
+				if (!completion) {
+					return;
+				}
+				const normalizedInput = input.trim().toLowerCase();
+				if (normalizedInput !== completion.command) {
+					setInput(`${completion.command} `);
+					setInputCursorResetToken((token) => token + 1);
+				}
 				return;
 			}
 		},
 		[
 			applyPersonaFromPicker,
 			exit,
+			input,
 			loadSessionIntoMemory,
 			openPersonaEditorAtPath,
 			showConfig,
-			slashSuggestions,
 		],
 	);
 
@@ -1560,6 +1563,7 @@ export function ChatSessionApp({
 				input={input}
 				onInputChange={setInput}
 				onInputSubmit={handlePromptSubmit}
+				cursorResetToken={inputCursorResetToken}
 				inputDisabled={inputDisabled}
 				persona={activePersona}
 				modelLabel={modelLabel}

@@ -4,6 +4,7 @@ import {
 	setCachedToolResult,
 } from "../src/chat-pipeline/tool-result-cache";
 import {
+	getNearestSlashCommand,
 	SLASH_COMMANDS,
 	resolveSlashSubmission,
 } from "../src/ui/chat/slash-commands";
@@ -60,5 +61,15 @@ describe("slash commands", () => {
 			addMetaLine: vi.fn(),
 		});
 		expect(openPersonaPicker).toHaveBeenCalledTimes(1);
+	});
+
+	it("finds the nearest slash command for partial input", () => {
+		const match = getNearestSlashCommand("/per");
+		expect(match?.command).toBe("/persona");
+	});
+
+	it("returns null when there is no slash command match", () => {
+		const match = getNearestSlashCommand("/not-a-real-command");
+		expect(match).toBeNull();
 	});
 });
