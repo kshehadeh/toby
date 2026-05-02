@@ -4,6 +4,7 @@ import type { Key } from "ink";
 import { ControlledMultilineInput } from "ink-multiline-input";
 import React, { useEffect, useRef, useState } from "react";
 import type { Persona } from "../../../config/index";
+import { resolveDeleteShortcutAction } from "../input-keymap";
 import { reconcileCursorIndex } from "../input-cursor";
 import {
 	ACCENT,
@@ -137,15 +138,6 @@ export function ChatInputDock(props: ChatInputDockProps) {
 		setCursorIndex(start);
 	};
 
-	const deleteToLineStart = () => {
-		if (cursorIndex <= 0) {
-			return;
-		}
-		const lineStart = input.lastIndexOf("\n", cursorIndex - 1) + 1;
-		onInputChange(input.slice(0, lineStart) + input.slice(cursorIndex));
-		setCursorIndex(lineStart);
-	};
-
 	const insertAtCursor = (text: string) => {
 		const next = input.slice(0, cursorIndex) + text + input.slice(cursorIndex);
 		onInputChange(next);
@@ -268,22 +260,12 @@ export function ChatInputDock(props: ChatInputDockProps) {
 					return;
 				}
 
-				// Some mac terminal mappings emit Cmd+Backspace as Ctrl+U.
-				if (key.ctrl && typedInput === "u") {
-					deleteToLineStart();
+				const deleteAction = resolveDeleteShortcutAction(typedInput, key);
+				if (deleteAction === "delete-word-backward") {
+					deleteWordBackward();
 					return;
 				}
-
-				// macOS typical editor behavior: Cmd+Delete clears to line start.
-				if (
-					(key.meta && key.backspace) ||
-					(key.meta && key.delete && !key.backspace)
-				) {
-					deleteToLineStart();
-					return;
-				}
-
-				if (key.backspace || key.delete) {
+				if (deleteAction === "delete-char") {
 					if (cursorIndex > 0) {
 						onInputChange(
 							input.slice(0, cursorIndex - 1) + input.slice(cursorIndex),
