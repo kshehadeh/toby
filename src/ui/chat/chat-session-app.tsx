@@ -26,12 +26,14 @@ import { type Persona, readConfig } from "../../config/index";
 import { getModulesWithCapability } from "../../integrations/index";
 import type { IntegrationModule } from "../../integrations/types";
 import { listPersonas, resolvePersona } from "../../personas/index";
+import { loadLocalSkills } from "../../skills/index";
 import { ConfigureApp } from "../configure/App";
 import {
 	createConfigureSession,
 	refreshConfigureSessionTree,
 } from "../configure/session";
 import { applyChatEvent } from "./chat-event-reducer";
+import { AppHeader } from "./components/app-header";
 import { AskUserModal } from "./components/ask-user-modal";
 import { ChatHelpScreen } from "./components/chat-help-screen";
 import { ChatInputDock } from "./components/chat-input-dock";
@@ -40,9 +42,10 @@ import {
 	buildIntegrationPickerRows,
 } from "./components/integration-multi-picker-modal";
 import { buildTranscriptNodes } from "./components/transcript";
-import { ACCENT, CHAT_TITLE_ASCII } from "./constants";
+import { ACCENT } from "./constants";
 import { formatToolStatusLine } from "./format-tool-status";
 import {
+	injectSkillBodiesIntoFirstSystemMessage,
 	prepareChatSessionMessages,
 	replaceSessionSystemMessageForPersona,
 } from "./prepare-messages";
@@ -55,6 +58,7 @@ import {
 	loadChatSession,
 	renameChatSession,
 } from "./session-store";
+import { buildSkillDebugTranscriptEntries } from "./skill-debug";
 import {
 	SLASH_COMMANDS,
 	getNearestSlashCommand,
@@ -68,6 +72,7 @@ interface ChatSessionAppProps {
 	readonly initialModules: readonly IntegrationModule[];
 	readonly persona: Persona;
 	readonly dryRun: boolean;
+	readonly debug: boolean;
 	readonly initialUserPrompt: string;
 }
 
@@ -135,10 +140,18 @@ function suggestSessionNameFromTranscript(
 	return clipped;
 }
 
+function transcriptMetaForAttachedSkills(
+	names: readonly string[],
+): TranscriptEntry[] {
+	const unique = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
+	return unique.map((name) => ({ kind: "meta", text: `Skill: ${name}` }));
+}
+
 export function ChatSessionApp({
 	initialModules,
 	persona,
 	dryRun,
+	debug,
 	initialUserPrompt,
 }: ChatSessionAppProps) {
 	const { exit } = useApp();
@@ -555,6 +568,7 @@ export function ChatSessionApp({
 					transcriptLocalSeqRef.current += 1;
 					return transcriptLocalSeqRef.current;
 				};
+				const localSkills = loadLocalSkills();
 				let effectivePrompt = sessionPrompt;
 				let prepId: string | null = null;
 				if (sessionPrompt.trim() && shouldPretreat([], sessionPrompt, true)) {
@@ -576,6 +590,7 @@ export function ChatSessionApp({
 						rawUserText: sessionPrompt,
 						integrationLabels: formatScopeLabel(selectedModules),
 						isFirstTurn: true,
+						skillsCatalog: localSkills,
 						abortSignal: ac.signal,
 					});
 					if (!cancelled) {
@@ -602,10 +617,15 @@ export function ChatSessionApp({
 				if (cancelled) {
 					return;
 				}
-				const initial = await prepareChatSessionMessages(
+				let initial = await prepareChatSessionMessages(
 					selectedModules,
 					activePersona,
 					effectivePrompt,
+				);
+				initial = injectSkillBodiesIntoFirstSystemMessage(
+					initial,
+					prepSpec?.relevantSkills ?? [],
+					localSkills,
 				);
 				if (cancelled) {
 					return;
@@ -619,8 +639,21 @@ export function ChatSessionApp({
 				const metaEntries: TranscriptEntry[] = note
 					? [{ kind: "meta", text: note }]
 					: [];
+				const skillMeta = transcriptMetaForAttachedSkills(
+					prepSpec?.relevantSkills ?? [],
+				);
+				const skillDebugMeta = buildSkillDebugTranscriptEntries({
+					debug,
+					available: localSkills,
+					priorMessages: [],
+					rawUserText: sessionPrompt,
+					isFirstTurn: true,
+					spec: prepSpec,
+				});
 				const nextTranscript = [
 					...bootTranscript,
+					...skillDebugMeta,
+					...skillMeta,
 					...userEntries,
 					...metaEntries,
 				];
@@ -652,6 +685,7 @@ export function ChatSessionApp({
 		sessionId,
 		sessionBootMode,
 		messages,
+		debug,
 	]);
 
 	// Incrementally persist new messages and transcript entries.
@@ -951,11 +985,13 @@ export function ChatSessionApp({
 						}),
 					);
 				}
+				const localSkills = loadLocalSkills();
 				const { content, spec } = await wrapUserPromptWithPretreatment({
 					priorMessages: msgsBefore,
 					rawUserText: line,
 					integrationLabels: formatScopeLabel(selectedModulesRef.current),
 					isFirstTurn,
+					skillsCatalog: localSkills,
 					abortSignal: ac.signal,
 				});
 				const msgsAfter = snapRef.current.messages;
@@ -964,8 +1000,21 @@ export function ChatSessionApp({
 					return;
 				}
 				const userMsg: CoreMessage = { role: "user", content };
-				const next = [...msgsAfter, userMsg];
+				let next = [...msgsAfter, userMsg];
+				next = injectSkillBodiesIntoFirstSystemMessage(
+					next,
+					spec?.relevantSkills ?? [],
+					localSkills,
+				);
 				setMessages(next);
+				const skillDebugMeta = buildSkillDebugTranscriptEntries({
+					debug,
+					available: localSkills,
+					priorMessages: msgsBefore,
+					rawUserText: line,
+					isFirstTurn,
+					spec,
+				});
 				if (willPretreat && prepId) {
 					const detail =
 						process.env.TOBY_DEBUG_PREP === "1" &&
@@ -975,14 +1024,21 @@ export function ChatSessionApp({
 							: content.trim() !== line.trim()
 								? "Intent specification attached to the model message."
 								: "Request prepared.";
-					setTranscript((t) =>
-						applyChatEvent(t, {
+					const skillMeta = transcriptMetaForAttachedSkills(
+						spec?.relevantSkills ?? [],
+					);
+					setTranscript((t) => [
+						...applyChatEvent(t, {
 							type: "prep_end",
 							id: prepId,
 							seq: submitSeq(),
 							detail,
 						}),
-					);
+						...skillDebugMeta,
+						...skillMeta,
+					]);
+				} else if (skillDebugMeta.length > 0) {
+					setTranscript((t) => [...t, ...skillDebugMeta]);
 				}
 				setTranscript((t) => [...t, { kind: "user", text: line }]);
 				setActivityLine("Thinking…");
@@ -991,6 +1047,7 @@ export function ChatSessionApp({
 		},
 		[
 			chatIntegrations.length,
+			debug,
 			exit,
 			openIntegrationPicker,
 			openPersonaEditorAtPath,
@@ -1421,52 +1478,41 @@ export function ChatSessionApp({
 
 	return (
 		<Box flexDirection="column" width="100%" padding={1}>
-			<Box flexShrink={0} width={termCols} flexDirection="column">
-				{CHAT_TITLE_ASCII.map((line) => (
-					<Box key={line} width={termCols} justifyContent="center">
-						<Text color={ACCENT} bold wrap="truncate-end">
-							{line}
+			<AppHeader
+				termCols={termCols}
+				subheader={
+					selectedModules.length === 0 ? (
+						<Text dimColor wrap="truncate-end">
+							No integrations enabled.
+							{dryRun ? "  ·  dry-run" : ""}
 						</Text>
-					</Box>
-				))}
-			</Box>
-			<Box
-				marginTop={0}
-				flexShrink={0}
-				width={termCols}
-				justifyContent="center"
-			>
-				{selectedModules.length === 0 ? (
-					<Text dimColor wrap="truncate-end">
-						No integrations enabled.
-						{dryRun ? "  ·  dry-run" : ""}
-					</Text>
-				) : (
-					<Box flexDirection="row" flexWrap="wrap" justifyContent="center">
-						{selectedModules.map((m, idx) => {
-							const ok = connectedByIntegration[m.name];
-							return (
-								<Text key={m.name} dimColor wrap="truncate-end">
-									{idx === 0 ? "" : "  "}
-									{ok === true ? (
-										<Text color="green">✓</Text>
-									) : ok === false ? (
-										<Text color="red">✗</Text>
-									) : (
-										<Text dimColor>…</Text>
-									)}{" "}
-									{m.displayName}
+					) : (
+						<Box flexDirection="row" flexWrap="wrap" justifyContent="center">
+							{selectedModules.map((m, idx) => {
+								const ok = connectedByIntegration[m.name];
+								return (
+									<Text key={m.name} dimColor wrap="truncate-end">
+										{idx === 0 ? "" : "  "}
+										{ok === true ? (
+											<Text color="green">✓</Text>
+										) : ok === false ? (
+											<Text color="red">✗</Text>
+										) : (
+											<Text dimColor>…</Text>
+										)}{" "}
+										{m.displayName}
+									</Text>
+								);
+							})}
+							{dryRun ? (
+								<Text dimColor wrap="truncate-end">
+									{"  ·  "}dry-run
 								</Text>
-							);
-						})}
-						{dryRun ? (
-							<Text dimColor wrap="truncate-end">
-								{"  ·  "}dry-run
-							</Text>
-						) : null}
-					</Box>
-				)}
-			</Box>
+							) : null}
+						</Box>
+					)
+				}
+			/>
 			<Box flexDirection="column" marginTop={0} flexShrink={0}>
 				{buildTranscriptNodes(displayRows, termCols)}
 			</Box>

@@ -5,13 +5,7 @@ import {
 	shouldPretreat,
 	wrapUserPromptWithPretreatment,
 } from "../src/ai/pretreatment";
-
-const mockedStore = vi.hoisted(() => ({
-	getPretreatmentCache: vi.fn<(promptKey: string) => unknown | null>(),
-	setPretreatmentCache: vi.fn<(promptKey: string, spec: unknown) => void>(),
-}));
-
-vi.mock("../src/ui/chat/session-store", () => mockedStore);
+import * as sessionStore from "../src/ui/chat/session-store";
 
 describe("shouldPretreat", () => {
 	it("returns true on first turn when not disabled", () => {
@@ -96,20 +90,25 @@ describe("wrapUserPromptWithPretreatment", () => {
 	});
 
 	it("uses cached pretreatment when available (no OpenAI token needed)", async () => {
-		const g = globalThis as unknown as { Bun?: unknown };
+		// Pretreatment cache is only read when `globalThis.Bun` exists (see canUsePretreatmentCache).
+		const g = globalThis as { Bun?: unknown };
 		const prevBun = g.Bun;
-		g.Bun = {}; // enable cache path
+		g.Bun = prevBun ?? {};
 
-		try {
-			mockedStore.getPretreatmentCache.mockReturnValue({
+		const getSpy = vi
+			.spyOn(sessionStore, "getPretreatmentCache")
+			.mockReturnValueOnce({
 				goal: "Do a thing",
 				mustDo: [],
 				mustNotDo: [],
 				assumptions: [],
 				openQuestions: [],
 				relevantIntegrations: [],
+				relevantSkills: [],
 			});
+		const setSpy = vi.spyOn(sessionStore, "setPretreatmentCache");
 
+		try {
 			const r = await wrapUserPromptWithPretreatment({
 				priorMessages: [],
 				rawUserText: "Hello",
@@ -117,15 +116,65 @@ describe("wrapUserPromptWithPretreatment", () => {
 				isFirstTurn: true,
 			});
 
-			expect(mockedStore.getPretreatmentCache).toHaveBeenCalledTimes(1);
-			expect(mockedStore.setPretreatmentCache).not.toHaveBeenCalled();
+			expect(getSpy).toHaveBeenCalledTimes(1);
+			expect(setSpy).not.toHaveBeenCalled();
 			expect(r.content).toContain("User request (verbatim):");
 			expect(r.content).toContain(JSON.stringify("Hello"));
 		} finally {
-			mockedStore.getPretreatmentCache.mockReset();
-			mockedStore.setPretreatmentCache.mockReset();
+			getSpy.mockRestore();
+			setSpy.mockRestore();
 			if (prevBun === undefined) {
-				(g as { Bun?: unknown }).Bun = undefined;
+				g.Bun = undefined;
+			} else {
+				g.Bun = prevBun;
+			}
+		}
+	});
+
+	it("merges skill heuristic on cache hit when cached spec has empty relevantSkills", async () => {
+		const g = globalThis as { Bun?: unknown };
+		const prevBun = g.Bun;
+		g.Bun = prevBun ?? {};
+
+		const getSpy = vi
+			.spyOn(sessionStore, "getPretreatmentCache")
+			.mockReturnValueOnce({
+				goal: "Summarize mail",
+				mustDo: [],
+				mustNotDo: [],
+				assumptions: [],
+				openQuestions: [],
+				relevantIntegrations: [],
+				relevantSkills: [],
+			});
+		const setSpy = vi.spyOn(sessionStore, "setPretreatmentCache");
+
+		try {
+			const r = await wrapUserPromptWithPretreatment({
+				priorMessages: [],
+				rawUserText: "Can you summarize my unread emails?",
+				integrationLabels: "gmail",
+				isFirstTurn: true,
+				skillsCatalog: [
+					{
+						dirName: "check-unread-emails-summarize",
+						name: "check-unread-emails-summarize",
+						description:
+							"Fetch unread messages from the user's Gmail and return a compact summary.",
+						bodyMarkdown: "",
+					},
+				],
+			});
+
+			expect(setSpy).not.toHaveBeenCalled();
+			expect(r.spec?.relevantSkills).toEqual(["check-unread-emails-summarize"]);
+			expect(r.content).toContain("check-unread-emails-summarize");
+			expect(r.content).toContain("Selected skills");
+		} finally {
+			getSpy.mockRestore();
+			setSpy.mockRestore();
+			if (prevBun === undefined) {
+				g.Bun = undefined;
 			} else {
 				g.Bun = prevBun;
 			}

@@ -4,8 +4,8 @@ import {
 	setCachedToolResult,
 } from "../src/chat-pipeline/tool-result-cache";
 import {
-	getNearestSlashCommand,
 	SLASH_COMMANDS,
+	getNearestSlashCommand,
 	resolveSlashSubmission,
 } from "../src/ui/chat/slash-commands";
 

@@ -55,6 +55,8 @@ Each integration typically owns:
 
 **Gmail** and **Todoist** under [`src/integrations/gmail/`](../src/integrations/gmail/) and [`src/integrations/todoist/`](../src/integrations/todoist/) are the reference implementations.
 
+**Apple Mail** ([`src/integrations/applemail/`](../src/integrations/applemail/)) is **macOS-only**: it controls the local Mail.app via AppleScript for chat tools (`searchEmails`, `createDraft`, `updateDraft`). See [`apple-mail.md`](apple-mail.md) for setup, permissions, and limitations.
+
 ## How core commands use modules
 
 - **`connect` / `disconnect`** — `getIntegration(name)` then lifecycle methods.

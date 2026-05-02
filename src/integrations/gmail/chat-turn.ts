@@ -3,6 +3,7 @@ import type { AskUserHandler } from "../../ai/ask-user-tool";
 import { withAskUserTool } from "../../ai/ask-user-tool";
 import type { ChatWithToolsOptions, CoreMessage } from "../../ai/chat";
 import { chatWithTools, createModelForPersona } from "../../ai/chat";
+import { createGlobalChatTools } from "../../ai/global-chat-tools";
 import type { Persona } from "../../config/index";
 import { type EmailContext, createGmailTools } from "./tools";
 
@@ -30,7 +31,18 @@ export async function runGmailChatTurn(params: {
 				? undefined
 				: Math.min(Math.max(1, params.maxResults), 500),
 	};
-	const tools = withAskUserTool(createGmailTools(ctx), params.askUser);
+	const globalAppliedSink: string[] = [];
+	const tools = withAskUserTool(
+		{
+			...createGmailTools(ctx),
+			...createGlobalChatTools({
+				dryRun: params.dryRun,
+				persona: params.persona,
+				appliedActions: globalAppliedSink,
+			}),
+		},
+		params.askUser,
+	);
 	const model = createModelForPersona(params.persona);
 	const result = await chatWithTools(
 		model,
@@ -41,7 +53,7 @@ export async function runGmailChatTurn(params: {
 	return {
 		text: result.text,
 		toolCalls: result.toolCalls,
-		appliedActions: [...ctx.appliedActions],
+		appliedActions: [...ctx.appliedActions, ...globalAppliedSink],
 		responseMessages: result.responseMessages,
 		usage: result.usage,
 		providerMetadata: result.providerMetadata,

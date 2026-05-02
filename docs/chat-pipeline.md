@@ -22,6 +22,7 @@ Key files:
 - `src/ui/chat/chat-session-app.tsx`: Ink TUI, transcript, message history, turn loop.
 - `src/chat-pipeline/chat-events.ts`: shared UI-agnostic chat pipeline event types.
 - `src/ai/pretreatment.ts`: optional fast pretreatment (`generateText` + structured output) before the main turn; see **Pretreatment** below.
+- `src/skills/index.ts`: loads optional local skills from `~/.toby/skills/<name>/SKILL.md` (frontmatter `name` + `description`) for pretreatment selection and injection; see **Local skills** below.
 - `src/ui/chat/prepare-messages.ts`: initial message construction for a session.
 - `src/ui/chat/run-turn.ts`: integration selection and model execution.
 - `src/ai/chat.ts`: shared wrapper around AI SDK `streamText` / `generateText`.
@@ -44,7 +45,7 @@ Where this is implemented:
 
 ## Pretreatment (optional)
 
-Before the main model turn, `ChatSessionApp` may run a **small, fast** OpenAI call that extracts a structured intent spec (goal, must/must-not, assumptions, open questions, likely integrations) and **prepends** it to the `role: "user"` content sent to the main model. The Ink transcript still shows the **verbatim** user line.
+Before the main model turn, `ChatSessionApp` may run a **small, fast** OpenAI call that extracts a structured intent spec (goal, must/must-not, assumptions, open questions, likely integrations, **relevant local skills**) and **prepends** it to the `role: "user"` content sent to the main model. The Ink transcript still shows the **verbatim** user line.
 
 - **When**: first user prompt in a session always; later prompts only when `[shouldPretreat](../src/ai/pretreatment.ts)` flags the text as ambiguous (short follow-ups, pronouns without a recent assistant reply, multi-clause requests, etc.).
 - **Model**: defaults to `**gpt-4.1-mini`**. Override with `TOBY_PRETREAT_MODEL`. Disable entirely with `TOBY_DISABLE_PRETREATMENT=1`.
@@ -52,10 +53,21 @@ Before the main model turn, `ChatSessionApp` may run a **small, fast** OpenAI ca
 - **Caching**:
   - Pretreatment uses its own short system prompt and is **not** included in the main `promptCacheKey` merge. The wrapped user text remains dynamic user-role content, so the stable-prefix caching strategy for the main turn is unchanged.
   - Toby also keeps a small **local SQLite cache** of successful pretreatment results (global across sessions) so repeated prompts can **skip the pretreatment model call** entirely.
-    - **Keying**: derived from normalized user text + normalized integration labels + pretreat model id + a pretreat cache schema version.
+    - **Keying**: derived from normalized user text + normalized integration labels + pretreat model id + a digest of the available skill catalog + a pretreat cache schema version.
     - **Storage**: stored in `chat.sqlite` (see `src/ui/chat/session-store.ts`).
-    - **Invalidation**: bumping the pretreat cache schema version (or changing model id / prompt construction inputs) naturally produces new keys.
-    - **Policy**: success-only (failed/timeout pretreatments are not cached).
+    - **Invalidation**: bumping the pretreat cache schema version (or changing model id / prompt construction inputs / local skill catalog) naturally produces new keys.
+  - **Policy**: success-only (failed/timeout pretreatments are not cached).
+
+## Local skills (optional)
+
+Markdown skills in `~/.toby/skills/<skill-folder>/SKILL.md` use YAML frontmatter with at least `name` and `description`. When pretreatment runs, the small model may set `relevantSkills` to exact names from that catalog. For each turn:
+
+- The **user** message includes a short “Selected skills” summary (names + descriptions).
+- The **system** message gains an appendix with the full markdown body of each selected skill (replacing any prior appendix from an earlier turn).
+
+If pretreatment is skipped (`shouldPretreat` false) or disabled (`TOBY_DISABLE_PRETREATMENT=1`), no skills are selected automatically.
+
+To author a new skill from chat, the global tool **`createLocalSkill`** (see [`src/ai/global-chat-tools.ts`](../src/ai/global-chat-tools.ts)) drafts a full `SKILL.md` with the persona model and saves it under `~/.toby/skills/`.
 
 ## Turn execution (tools + streaming)
 

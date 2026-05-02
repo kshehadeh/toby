@@ -6,7 +6,8 @@ import React, {
 	useRef,
 	type ReactNode,
 } from "react";
-import { ACCENT, CHAT_TITLE_ASCII, INPUT_BORDER } from "../chat/constants";
+import { AppHeader } from "../chat/components/app-header";
+import { ACCENT, INPUT_BORDER } from "../chat/constants";
 import type { SettingsItem } from "./items";
 
 interface NavigatorProps {
@@ -31,17 +32,15 @@ function ConfigureFrame({
 }) {
 	return (
 		<Box flexDirection="column" padding={1}>
-			<Box flexDirection="column" marginBottom={1}>
-				{CHAT_TITLE_ASCII.map((line) => (
-					<Text key={line} color={ACCENT} bold wrap="truncate-end">
-						{line}
+			<AppHeader
+				subheader={
+					<Text color={ACCENT} bold wrap="truncate-end">
+						{title}
 					</Text>
-				))}
-				<Text color={ACCENT} bold>
-					{title}
-				</Text>
-			</Box>
+				}
+			/>
 			<Box
+				marginTop={1}
 				borderStyle="single"
 				borderColor={INPUT_BORDER}
 				flexDirection="column"

@@ -12,6 +12,7 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | [`docs/integrations.md`](docs/integrations.md) | Plugin-style integrations: `IntegrationModule`, registry, capabilities, credentials, and CLI contributions. |
 | [`docs/create-integration.md`](docs/create-integration.md) | Checklist for adding a new first-party integration module. |
 | [`docs/chat-pipeline.md`](docs/chat-pipeline.md) | `toby chat` message flow, prompt caching strategy, and tool-result caching behavior. |
+| [`docs/apple-mail.md`](docs/apple-mail.md) | Apple Mail (macOS): local Mail.app integration and automation permissions. |
 | [`docs/build-executable.md`](docs/build-executable.md) | Optional **Bun** single-file `dist/toby` binary (`bun run build:executable`). |
 | [`docs/README.md`](docs/README.md) | Short index of everything in `docs/`. |
 
@@ -27,4 +28,4 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 - CLI entry: [`src/cli.ts`](src/cli.ts)
 - Integration types: [`src/integrations/types.ts`](src/integrations/types.ts)
 - Integration registry: [`src/integrations/index.ts`](src/integrations/index.ts)
-- User config and credentials: [`src/config/index.ts`](src/config/index.ts) (paths under `~/.toby/`)
+- User config and credentials: [`src/config/index.ts`](src/config/index.ts) (paths under `~/.toby/`, including optional `~/.toby/skills/` for `SKILL.md` skills)

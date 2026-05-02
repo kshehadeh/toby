@@ -9,13 +9,24 @@
                     |___/ 
 ```
 
-Toby is a CLI assistant for personal productivity that helps you manage email, tasks, and AI-assisted workflows from one place.
+Toby is an assistant that experiments with the application of personas on top of the standard skill-based architecture.
 
-It combines:
+Personas can mutate skills and bare prompts in interesting ways.  A concrete example would be a persona of a technologist
+who is defined as a person who is most interested in the technical aspects of the subject matter which is being discussed
+and probed with the AI.  A skill which describes how to organize emails would pair with the technologist in that the 
+technologist would prioritize emails related to technical subject matter before other subjects.
+
+This is in contrast to a persona of a project manager who is more focused on the organization of schedules and the 
+communications between disparate teams.  Those same emails would be prioritized differently for the project manager
+persona.
+
+Toby combines:
 
 - Integration-aware commands (for services like Gmail and Todoist)
 - Interactive terminal experiences (`config` and `chat`)
 - AI-powered flows for organizing and summarizing work
+- Personas for filtering responses through the lens of a particular interest
+- Skills for describing how to perform certain tasks or to interpret certain subjects.
 
 ## Quick start
 

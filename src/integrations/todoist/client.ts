@@ -24,7 +24,7 @@ export interface TodoistCompletedTask {
 	projectId: string | null;
 }
 
-interface TodoistProject {
+export interface TodoistProject {
 	id: string;
 	name: string;
 	isInboxProject: boolean;

@@ -31,8 +31,8 @@ export function ChatHelpScreen({
 					scrollback to see earlier lines.
 				</Text>
 				<Text dimColor>
-					Type `/` in the prompt to open command autocomplete; press Tab
-					to complete the closest match.
+					Type `/` in the prompt to open command autocomplete; press Tab to
+					complete the closest match.
 				</Text>
 				<Text dimColor>Esc or Enter to return</Text>
 			</Box>

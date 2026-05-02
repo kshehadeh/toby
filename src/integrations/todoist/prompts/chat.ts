@@ -1,4 +1,5 @@
 import type { CoreMessage } from "../../../ai/chat";
+import { globalChatToolsPromptSection } from "../../../ai/global-chat-tools";
 import type { Persona } from "../../../config/index";
 import { composeSystemPromptWithPersona } from "../../../personas/prompt";
 import type { TodoistCompletedTask, TodoistTask } from "../client";
@@ -21,6 +22,7 @@ Rules:
 - Prefer askUser when multiple tasks could match and disambiguation is needed.
 - If the request is fully answered, stop without dangling "Would you like…?" questions in prose unless you call askUser for those options.
 - When listing tasks or choices, format them as markdown list items (\`- item\`) with one item per line.
+${globalChatToolsPromptSection()}
 `;
 }
 

@@ -23,6 +23,15 @@ const TOOL_LABEL_OVERRIDES: Record<string, string> = {
 	getUser: "Get Azure AD user",
 	getUserManager: "Get user manager",
 	getUserDirectReports: "Get direct reports",
+	createLocalSkill: "Create local Toby skill",
+	listMailAccounts: "List Mail accounts",
+	searchEmails: "Search Apple Mail",
+	createDraft: "Create Mail draft",
+	updateDraft: "Update Mail draft",
+	listMailboxes: "List Mail mailboxes",
+	archiveMailMessage: "Archive Mail message",
+	flagMailMessage: "Flag Mail message",
+	moveMailMessage: "Move Mail message",
 };
 
 function humanizeToolName(toolName: string): string {

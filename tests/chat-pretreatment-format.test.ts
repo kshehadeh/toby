@@ -13,6 +13,7 @@ function minimalSpec(over: Partial<UserIntentSpec> = {}): UserIntentSpec {
 		assumptions: [],
 		openQuestions: [],
 		relevantIntegrations: ["todoist"],
+		relevantSkills: [],
 		...over,
 	};
 }
@@ -53,10 +54,28 @@ describe("formatUserMessageWithPretreatment", () => {
 			assumptions: [],
 			openQuestions: [],
 			relevantIntegrations: [],
+			relevantSkills: [],
 		});
 		const out = formatUserMessageWithPretreatment("x", spec);
 		expect(out).toContain("- Must: (none)");
 		expect(out).toContain("- Must not: (none)");
+		expect(out).toContain("- Selected skills: (none)");
+	});
+
+	it("includes selected skills with descriptions when catalog is provided", () => {
+		const spec = minimalSpec({
+			relevantSkills: ["my-skill"],
+		});
+		const out = formatUserMessageWithPretreatment("do it", spec, [
+			{
+				dirName: "my-skill",
+				name: "my-skill",
+				description: "When testing.",
+				bodyMarkdown: "# Body",
+			},
+		]);
+		expect(out).toContain("Selected skills:");
+		expect(out).toContain("my-skill: When testing.");
 	});
 
 	it("mergeUserPromptWithPretreatmentSpec matches format helper", () => {

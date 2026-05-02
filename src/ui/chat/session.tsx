@@ -9,12 +9,14 @@ export async function runChatSessionInk(params: {
 	readonly persona: Persona;
 	readonly dryRun: boolean;
 	readonly initialUserPrompt: string;
+	readonly debug?: boolean;
 }): Promise<void> {
 	const instance = render(
 		<ChatSessionApp
 			initialModules={params.modules}
 			persona={params.persona}
 			dryRun={params.dryRun}
+			debug={params.debug ?? false}
 			initialUserPrompt={params.initialUserPrompt}
 		/>,
 	);

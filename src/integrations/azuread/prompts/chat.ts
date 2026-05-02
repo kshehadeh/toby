@@ -1,4 +1,5 @@
 import type { CoreMessage } from "../../../ai/chat";
+import { globalChatToolsPromptSection } from "../../../ai/global-chat-tools";
 import type { Persona } from "../../../config/index";
 import { composeSystemPromptWithPersona } from "../../../personas/prompt";
 
@@ -10,6 +11,7 @@ Rules:
 - If you need a decision from the user, call **askUser** with options.
 - Never claim permissions exist unless validated by tool results or explicit error messages.
 - Prefer returning concise user identifiers: displayName + userPrincipalName + id.
+${globalChatToolsPromptSection()}
 `;
 
 	return {

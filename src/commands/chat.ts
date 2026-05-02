@@ -1,11 +1,17 @@
 import chalk from "chalk";
 import type { Command } from "commander";
+import { wrapUserPromptWithPretreatment } from "../ai/pretreatment";
 import type { Persona } from "../config/index";
 import type { IntegrationModule } from "../integrations/types";
 import { listPersonas, resolvePersona } from "../personas/index";
-import { prepareChatSessionMessages } from "../ui/chat/prepare-messages";
+import { loadLocalSkills } from "../skills/index";
+import {
+	injectSkillBodiesIntoFirstSystemMessage,
+	prepareChatSessionMessages,
+} from "../ui/chat/prepare-messages";
 import { runIntegrationChatTurn } from "../ui/chat/run-turn";
 import { runChatSessionInk } from "../ui/chat/session";
+import { getSkillDebugTextLines } from "../ui/chat/skill-debug";
 import {
 	parseChatCliInput,
 	resolveChatIntegrationModules,
@@ -16,6 +22,7 @@ interface ChatCommandOptions {
 	persona?: string;
 	dryRun?: boolean;
 	noTui?: boolean;
+	debug?: boolean;
 	integration?: string[];
 }
 
@@ -37,11 +44,11 @@ export function registerChatCommand(program: Command): void {
 	program
 		.command("chat")
 		.description(
-			"Chat with connected integrations using AI and tools (Ink TUI with follow-ups; omit prompt to type in the TUI). Pass a chat integration as the first word, or use --integration (repeatable). With no selection, all connected chat integrations are used. Use --no-tui for one-shot console output.",
+			"Chat with connected integrations using AI and tools (Ink TUI with follow-ups; omit prompt to type in the TUI). Pass a chat integration as the first word, or use --integration (repeatable). With no selection, all connected chat integrations are used. Use --no-tui for one-shot console output. Use --debug to print local skills and preflight skill selection.",
 		)
 		.argument(
 			"[words...]",
-			"Optional: first word may be an integration name (gmail, todoist, azuread); remaining words are the prompt. If the first word is not an integration, the full text is the prompt and all connected chat integrations are used.",
+			"Optional: first word may be an integration name (gmail, todoist, azuread, applemail); remaining words are the prompt. If the first word is not an integration, the full text is the prompt and all connected chat integrations are used.",
 		)
 		.option("-p, --persona <name>", "Optional persona to shape behavior")
 		.option(
@@ -58,6 +65,11 @@ export function registerChatCommand(program: Command): void {
 		.option(
 			"--no-tui",
 			"Skip the Ink session; run a single console turn (no follow-ups in TUI)",
+			false,
+		)
+		.option(
+			"--debug",
+			"Show local skill catalog and preflight skill selection (meta lines in TUI; dim lines in --no-tui)",
 			false,
 		)
 		.action(
@@ -86,6 +98,7 @@ export function registerChatCommand(program: Command): void {
 					}
 
 					const dryRun = Boolean(options.dryRun);
+					const debug = Boolean(options.debug);
 					if (options.noTui) {
 						if (!prompt) {
 							console.error(
@@ -96,31 +109,13 @@ export function registerChatCommand(program: Command): void {
 							process.exitCode = 1;
 							return;
 						}
-						if (modules.length === 1) {
-							const only = modules[0];
-							const chat = only?.chat;
-							if (!only || !chat) {
-								console.error(
-									chalk.red(
-										"Internal error: single module has no chat handler.",
-									),
-								);
-								process.exitCode = 1;
-								return;
-							}
-							await chat({
-								prompt,
-								dryRun,
-								personaForModel: persona,
-							});
-							return;
-						}
 
-						await runCombinedConsoleChatTurn({
+						await runConsoleChatTurn({
 							modules,
 							prompt,
 							persona,
 							dryRun,
+							debug,
 						});
 						return;
 					}
@@ -129,6 +124,7 @@ export function registerChatCommand(program: Command): void {
 						modules,
 						persona,
 						dryRun,
+						debug,
 						initialUserPrompt: prompt,
 					});
 				} catch (error) {
@@ -141,13 +137,23 @@ export function registerChatCommand(program: Command): void {
 		);
 }
 
-async function runCombinedConsoleChatTurn(params: {
+function formatConsoleScopeLabel(
+	modules: readonly IntegrationModule[],
+): string {
+	if (modules.length === 0) {
+		return "(none)";
+	}
+	return modules.map((m) => m.displayName).join(" + ");
+}
+
+async function runConsoleChatTurn(params: {
 	readonly modules: readonly IntegrationModule[];
 	readonly prompt: string;
 	readonly persona: Persona;
 	readonly dryRun: boolean;
+	readonly debug: boolean;
 }): Promise<void> {
-	const { modules, prompt, persona, dryRun } = params;
+	const { modules, prompt, persona, dryRun, debug } = params;
 	const names = modules.map((m) => m.name).join(", ");
 
 	console.log(chalk.cyan(`Chat (${names}) — persona "${persona.name}"…`));
@@ -161,7 +167,35 @@ async function runCombinedConsoleChatTurn(params: {
 	console.log(chalk.dim(`  Goal: ${prompt}`));
 	console.log();
 
-	const messages = await prepareChatSessionMessages(modules, persona, prompt);
+	const skills = loadLocalSkills();
+	const { content, spec } = await wrapUserPromptWithPretreatment({
+		priorMessages: null,
+		rawUserText: prompt,
+		integrationLabels: formatConsoleScopeLabel(modules),
+		isFirstTurn: true,
+		skillsCatalog: skills,
+	});
+
+	if (debug) {
+		console.log(chalk.dim("── Skill debug ──"));
+		for (const ln of getSkillDebugTextLines({
+			available: skills,
+			priorMessages: null,
+			rawUserText: prompt,
+			isFirstTurn: true,
+			spec,
+		})) {
+			console.log(chalk.dim(ln));
+		}
+		console.log();
+	}
+
+	let messages = await prepareChatSessionMessages(modules, persona, content);
+	messages = injectSkillBodiesIntoFirstSystemMessage(
+		messages,
+		spec?.relevantSkills ?? [],
+		skills,
+	);
 	const moduleNames = modules.map((m) => m.name);
 
 	console.log(chalk.cyan("Running assistant…\n"));

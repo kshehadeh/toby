@@ -1,3 +1,4 @@
+import { applemailIntegrationModule } from "./applemail/index";
 import { azureAdIntegrationModule } from "./azuread/index";
 import { gmailIntegrationModule } from "./gmail/index";
 import { todoistIntegrationModule } from "./todoist/index";
@@ -11,6 +12,7 @@ const MODULES: IntegrationModule[] = [
 	gmailIntegrationModule,
 	todoistIntegrationModule,
 	azureAdIntegrationModule,
+	applemailIntegrationModule,
 ];
 
 export function getIntegrationModules(): IntegrationModule[] {

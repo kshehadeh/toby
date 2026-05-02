@@ -113,6 +113,8 @@ export function ChatInputDock(props: ChatInputDockProps) {
 
 	useEffect(() => {
 		setCursorIndex(input.length);
+		// Token bumps when the parent resets the multiline input; length alone may be unchanged.
+		void cursorResetToken;
 	}, [cursorResetToken, input.length]);
 
 	const deleteWordBackward = () => {

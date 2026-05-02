@@ -1,4 +1,5 @@
 import type { CoreMessage } from "../../../ai/chat";
+import { globalChatToolsPromptSection } from "../../../ai/global-chat-tools";
 import type { Persona } from "../../../config/index";
 import { composeSystemPromptWithPersona } from "../../../personas/prompt";
 
@@ -20,6 +21,7 @@ Critical rules:
 - Prefer **askUser** before large destructive batches if the instruction is ambiguous.
 - If the user's request is fully satisfied with data from tools (e.g. "are there unread emails?"), answer clearly and **stop**. Do not end with "Would you like…?" or similar in plain text unless you **first** call **askUser** with concrete options (e.g. "List subject lines" / "No further action").
 - When listing emails or action options, format them as markdown list items (\`- item\`) with one item per line.
+${globalChatToolsPromptSection()}
 `;
 }
 

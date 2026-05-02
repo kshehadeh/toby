@@ -89,6 +89,7 @@ describe.skipIf(!isBun)("chat session store", () => {
 			assumptions: [],
 			openQuestions: [],
 			relevantIntegrations: ["example"],
+			relevantSkills: [],
 		});
 		const loaded = getPretreatmentCache(key);
 		expect(loaded).not.toBeNull();

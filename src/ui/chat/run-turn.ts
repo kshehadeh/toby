@@ -4,6 +4,7 @@ import { withAskUserTool } from "../../ai/ask-user-tool";
 import { applyChatPromptCaching } from "../../ai/cache-hints";
 import type { ChatWithToolsOptions, CoreMessage } from "../../ai/chat";
 import { chatWithTools, createModelForPersona } from "../../ai/chat";
+import { createGlobalChatTools } from "../../ai/global-chat-tools";
 import type { Persona } from "../../config/index";
 import { getIntegrationModule } from "../../integrations/index";
 import type { IntegrationModule } from "../../integrations/types";
@@ -110,6 +111,16 @@ async function runSharedChatTurn(
 	}
 	const appliedActionsArrays = toolBundles.map((b) => b.appliedActions);
 	const appliedActions = appliedActionsArrays.flatMap((a) => [...a]);
+	const globalAppliedSink: string[] = [];
+	Object.assign(
+		mergedTools,
+		createGlobalChatTools({
+			dryRun: options.dryRun,
+			persona: options.persona,
+			appliedActions: globalAppliedSink,
+		}),
+	);
+	appliedActions.push(...globalAppliedSink);
 	const moduleNames = modules.map((m) => m.name);
 
 	const tools = withAskUserTool(mergedTools, options.askUser);

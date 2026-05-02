@@ -7,6 +7,7 @@ import {
 	BOXED_STEP_BODY_MARGIN_LEFT,
 	TOOL_FEEDBACK_DETAIL_INDENT,
 } from "../constants";
+import { AssistantMarkdownLine, MarkdownInlineText } from "../markdown-inline";
 import type { DisplayRow } from "../types";
 import { UserPromptRow } from "./user-prompt-row";
 
@@ -50,15 +51,23 @@ export function buildTranscriptNodes(
 							marginTop={0}
 							flexDirection="column"
 						>
-							{bb.bodyLines.map((line, j) => (
-								<Text
-									key={`${bb.id}-ln-${j}`}
-									dimColor={bodyDim}
-									wrap="truncate-end"
-								>
-									{line.length > 0 ? line : " "}
-								</Text>
-							))}
+							{bb.bodyLines.map((line, j) =>
+								bb.variant === "assistant" ? (
+									<MarkdownInlineText
+										key={`${bb.id}-ln-${j}`}
+										line={line}
+										dimColor={bodyDim}
+									/>
+								) : (
+									<Text
+										key={`${bb.id}-ln-${j}`}
+										dimColor={bodyDim}
+										wrap="truncate-end"
+									>
+										{line.length > 0 ? line : " "}
+									</Text>
+								),
+							)}
 						</Box>
 					</Box>
 				</Box>,
@@ -97,12 +106,11 @@ export function buildTranscriptNodes(
 					paddingX={1}
 				>
 					{lines.map((ln, j) => (
-						<Text
+						<AssistantMarkdownLine
 							key={`${bk}-${j}-${ln.text.slice(0, 12)}`}
-							wrap="truncate-end"
-						>
-							{ln.marker ? `${ln.marker}${ln.text || " "}` : (ln.text ?? " ")}
-						</Text>
+							marker={ln.marker}
+							text={ln.text ?? ""}
+						/>
 					))}
 				</Box>,
 			);

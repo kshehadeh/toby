@@ -5,12 +5,13 @@ import type { ChatWithToolsOptions, CoreMessage } from "../../ai/chat";
 import { chatWithTools, createModelForPersona } from "../../ai/chat";
 import { createGlobalChatTools } from "../../ai/global-chat-tools";
 import type { Persona } from "../../config/index";
-import { createTodoistTools } from "./tools";
+import { createAppleMailTools } from "./tools";
 
-export async function runTodoistChatTurn(params: {
+export async function runAppleMailChatTurn(params: {
 	readonly messages: CoreMessage[];
 	readonly persona: Persona;
 	readonly dryRun: boolean;
+	/** Caps default searchEmails limit when the model omits `limit`. */
 	readonly maxResults?: number;
 	readonly askUser?: AskUserHandler;
 	readonly chatWithToolsOptions?: ChatWithToolsOptions;
@@ -22,11 +23,15 @@ export async function runTodoistChatTurn(params: {
 	readonly usage?: LanguageModelUsage;
 	readonly providerMetadata?: ProviderMetadata;
 }> {
-	const ctx = { dryRun: params.dryRun, appliedActions: [] as string[] };
+	const ctx = {
+		dryRun: params.dryRun,
+		appliedActions: [] as string[],
+		maxResults: params.maxResults,
+	};
 	const globalAppliedSink: string[] = [];
 	const tools = withAskUserTool(
 		{
-			...createTodoistTools(ctx),
+			...createAppleMailTools(ctx),
 			...createGlobalChatTools({
 				dryRun: params.dryRun,
 				persona: params.persona,
