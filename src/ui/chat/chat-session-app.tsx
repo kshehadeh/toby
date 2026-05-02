@@ -1347,11 +1347,13 @@ export function ChatSessionApp({
 				if (!completion) {
 					return;
 				}
-				const normalizedInput = input.trim().toLowerCase();
-				if (normalizedInput !== completion.command) {
-					setInput(`${completion.command} `);
-					setInputCursorResetToken((token) => token + 1);
+				const completed = `${completion.command} `;
+				if (input !== completed) {
+					setInput(completed);
 				}
+				// Explicitly request a caret reset so slash-completion always places
+				// the cursor at the end, without relying on generic input-length changes.
+				setInputCursorResetToken((token) => token + 1);
 				return;
 			}
 		},

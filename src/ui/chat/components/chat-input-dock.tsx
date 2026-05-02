@@ -4,6 +4,7 @@ import type { Key } from "ink";
 import { ControlledMultilineInput } from "ink-multiline-input";
 import React, { useEffect, useRef, useState } from "react";
 import type { Persona } from "../../../config/index";
+import { reconcileCursorIndex } from "../input-cursor";
 import {
 	ACCENT,
 	ACCENT_MODEL,
@@ -106,15 +107,19 @@ export function ChatInputDock(props: ChatInputDockProps) {
 
 	const pendingBackslashRef = useRef(false);
 	const [cursorIndex, setCursorIndex] = useState(input.length);
+	const previousCursorResetTokenRef = useRef(cursorResetToken);
 
 	useEffect(() => {
-		setCursorIndex((prev) => Math.min(prev, input.length));
-	}, [input.length]);
-
-	useEffect(() => {
-		setCursorIndex(input.length);
-		// Token bumps when the parent resets the multiline input; length alone may be unchanged.
-		void cursorResetToken;
+		const forceResetToEnd =
+			previousCursorResetTokenRef.current !== cursorResetToken;
+		previousCursorResetTokenRef.current = cursorResetToken;
+		setCursorIndex((prev) =>
+			reconcileCursorIndex({
+				currentCursorIndex: prev,
+				nextInputLength: input.length,
+				forceResetToEnd,
+			}),
+		);
 	}, [cursorResetToken, input.length]);
 
 	const deleteWordBackward = () => {
