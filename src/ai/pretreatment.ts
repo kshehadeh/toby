@@ -9,7 +9,7 @@ import {
 } from "../ui/chat/session-store";
 import type { CoreMessage } from "./chat";
 
-export const PRETREATMENT_DEFAULT_MODEL = "gpt-4.1-mini";
+const PRETREATMENT_DEFAULT_MODEL = "gpt-4.1-mini";
 const PRETREATMENT_CACHE_SCHEMA_VERSION = "1";
 
 const userIntentSpecSchema = z.object({
@@ -172,7 +172,7 @@ export function formatUserMessageWithPretreatment(
 	return sections.join("\n");
 }
 
-export type PretreatUserPromptParams = {
+type PretreatUserPromptParams = {
 	readonly userText: string;
 	readonly integrationLabels: string;
 	readonly abortSignal?: AbortSignal;
@@ -182,7 +182,7 @@ export type PretreatUserPromptParams = {
 /**
  * Calls a small model to extract intent. Returns null on failure/timeout so the caller can fall back to verbatim text.
  */
-export async function pretreatUserPrompt(
+async function pretreatUserPrompt(
 	params: PretreatUserPromptParams,
 ): Promise<UserIntentSpec | null> {
 	const { userText, integrationLabels, abortSignal } = params;
@@ -231,7 +231,7 @@ ${text}`,
 	}
 }
 
-export type WrapUserPromptParams = {
+type WrapUserPromptParams = {
 	readonly priorMessages: readonly CoreMessage[] | null;
 	readonly rawUserText: string;
 	readonly integrationLabels: string;

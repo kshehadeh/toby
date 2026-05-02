@@ -26,7 +26,7 @@ export type ToolCallLifecycleStart = {
 	readonly args: Record<string, unknown>;
 };
 
-export type ToolCallLifecycleComplete = {
+type ToolCallLifecycleComplete = {
 	readonly toolName: string;
 	readonly blockKey: string;
 	readonly args: Record<string, unknown>;

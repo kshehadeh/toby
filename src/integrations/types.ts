@@ -33,7 +33,7 @@ export interface CredentialFieldDescriptor {
 	readonly multiline?: boolean;
 }
 
-export interface IntegrationAuthMethodDescriptor {
+interface IntegrationAuthMethodDescriptor {
 	readonly id: string;
 	readonly label: string;
 	readonly isDefault?: boolean;
@@ -58,7 +58,7 @@ export interface ChatRunOptions {
 	readonly personaForModel: Persona;
 }
 
-export interface ChatModelPrep {
+interface ChatModelPrep {
 	/** A short, integration-specific block to append to the combined system prompt. */
 	readonly systemPromptSection: string;
 	/** Single-integration boot messages for TUI chat sessions. */
@@ -70,21 +70,21 @@ export interface ChatModelPrep {
 	buildMultiUserContent(userPrompt: string): Promise<string>;
 }
 
-export interface ChatIntegrationReadiness {
+interface ChatIntegrationReadiness {
 	/** True when the integration can participate in chat selection/routing. */
 	readonly ok: boolean;
 	/** Optional user-facing guidance to make it ready (configure/connect steps). */
 	readonly hint?: string;
 }
 
-export interface IntegrationChatTools {
+interface IntegrationChatTools {
 	/** Tool definitions for this integration (without `askUser`; shared runner will wrap it). */
 	readonly tools: Record<string, Tool>;
 	/** Accumulates side-effect summaries (push strings into this array). */
 	readonly appliedActions: string[];
 }
 
-export interface IntegrationChatTurnParams {
+interface IntegrationChatTurnParams {
 	readonly messages: CoreMessage[];
 	readonly persona: Persona;
 	readonly dryRun: boolean;
@@ -93,7 +93,7 @@ export interface IntegrationChatTurnParams {
 	readonly chatWithToolsOptions?: ChatWithToolsOptions;
 }
 
-export interface IntegrationChatTurnResult {
+interface IntegrationChatTurnResult {
 	readonly text: string;
 	readonly toolCalls: { name: string; args: Record<string, unknown> }[];
 	readonly appliedActions: string[];

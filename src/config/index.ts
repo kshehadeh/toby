@@ -57,7 +57,7 @@ interface TodoistCredentials {
 	apiKey: string;
 }
 
-export type AzureAdAuthMethod = "oauth_pkce" | "client_credentials";
+type AzureAdAuthMethod = "oauth_pkce" | "client_credentials";
 
 interface AzureAdCredentials {
 	tenantId?: string;
@@ -70,7 +70,7 @@ interface AzureAdCredentials {
 	oauthExpiresAt?: string;
 }
 
-export interface AzureAdResolvedCredentials {
+interface AzureAdResolvedCredentials {
 	tenantId: string;
 	clientId: string;
 	clientSecret?: string;

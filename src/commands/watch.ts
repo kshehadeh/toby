@@ -1,6 +1,6 @@
 import parseDuration from "parse-duration";
 
-export interface WatchLoopOptions {
+interface WatchLoopOptions {
 	readonly label?: string;
 	readonly intervalMs: number;
 	readonly runOnce: () => Promise<void>;

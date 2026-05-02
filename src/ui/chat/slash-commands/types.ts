@@ -1,4 +1,4 @@
-export interface SlashCommandRuntime {
+interface SlashCommandRuntime {
 	readonly exit: () => void;
 	readonly openHelp: () => void;
 	readonly openIntegrationPicker: () => void;
