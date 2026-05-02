@@ -29,6 +29,11 @@ export function getChatDbPath(): string {
 	return path.join(resolveTobyDir(), "chat.sqlite");
 }
 
+/** Local agent-style skills: `~/.toby/skills/<skill-name>/SKILL.md`. */
+export function getSkillsDir(): string {
+	return path.join(resolveTobyDir(), "skills");
+}
+
 interface AIProvider {
 	provider: string;
 	model: string;
