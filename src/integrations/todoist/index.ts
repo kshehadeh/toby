@@ -14,6 +14,7 @@ import { runTodoistChatTurn } from "./chat-turn";
 import {
 	fetchCompletedTasks,
 	fetchOpenTasks,
+	fetchProjects,
 	testTodoistConnection,
 } from "./client";
 import {
@@ -336,6 +337,28 @@ async function validateTodoistTools(): Promise<IntegrationToolHealth[]> {
 		});
 	}
 
+	try {
+		await fetchProjects();
+		checks.push({
+			tool: "listProjectNames",
+			ok: true,
+			details: "Fetched Todoist projects successfully.",
+		});
+	} catch (error) {
+		checks.push({
+			tool: "listProjectNames",
+			ok: false,
+			details: toErrorMessage(error),
+		});
+	}
+
+	checks.push({
+		tool: "getProjectNameById",
+		ok: availableTools.has("getProjectNameById"),
+		details: availableTools.has("getProjectNameById")
+			? "Project ID -> name resolution is available."
+			: "Tool is not available in the Todoist toolset.",
+	});
 	checks.push({
 		tool: "completeTask",
 		ok: availableTools.has("completeTask"),

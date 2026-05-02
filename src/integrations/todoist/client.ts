@@ -1,6 +1,6 @@
+import { TodoistApi } from "@doist/todoist-sdk";
+import type { AddTaskArgs, Task, UpdateTaskArgs } from "@doist/todoist-sdk";
 import { getTodoistCredentials } from "../../config/index";
-
-const TODOIST_API_BASE = "https://api.todoist.com/api/v1";
 
 export interface TodoistTask {
 	id: string;
@@ -24,36 +24,14 @@ export interface TodoistCompletedTask {
 	projectId: string | null;
 }
 
-interface TodoistCompletedResponse {
-	items?: Array<{
-		id?: string;
-		task_id: string;
-		content: string;
-		completed_at: string;
-		project_id?: string;
-	}>;
-	next_cursor?: string | null;
+interface TodoistProject {
+	id: string;
+	name: string;
+	isInboxProject: boolean;
 }
 
 const COMPLETED_FETCH_PAGE_MAX = 200;
 const COMPLETED_FETCH_MAX_PAGES = 100;
-
-interface TodoistOpenTaskResponse {
-	id: string;
-	content: string;
-	description?: string;
-	priority: number;
-	project_id: string;
-	section_id?: string;
-	checked?: boolean;
-	is_deleted?: boolean;
-	due?: {
-		date?: string;
-		datetime?: string;
-		string?: string;
-	};
-	url: string;
-}
 
 export interface TodoistTaskUpdateInput {
 	content?: string;
@@ -79,15 +57,16 @@ export interface TodoistTaskCreateInput {
 }
 
 export async function testTodoistConnection(): Promise<void> {
-	await todoistRequest(`${TODOIST_API_BASE}/projects`);
+	const api = getTodoistApiClient();
+	await api.getProjects({ limit: 1 });
 }
 
 const TASKS_PAGE_MAX = 200;
 /** Todoist paginates `GET /tasks`; shared projects often appear before inbox on early pages. */
 const TASKS_FETCH_MAX_PAGES = 100;
 
-function isActiveOpenTaskRow(task: TodoistOpenTaskResponse): boolean {
-	if (task.is_deleted === true) {
+function isActiveOpenTaskRow(task: Task): boolean {
+	if (task.isDeleted === true) {
 		return false;
 	}
 	if (task.checked === true) {
@@ -97,15 +76,13 @@ function isActiveOpenTaskRow(task: TodoistOpenTaskResponse): boolean {
 }
 
 /**
- * Loads **active** (incomplete) tasks from Todoist `GET /api/v1/tasks` only.
- * Todoist documents that endpoint as active tasks; completed work is listed via
- * `tasks/completed/...` (see {@link fetchCompletedTasks}). Rows with `checked: true` or
- * `is_deleted: true` are dropped if they ever appear.
+ * Loads active (incomplete) tasks from Todoist API v1 via the official SDK.
  *
  * @param limit When set, returns at most this many tasks. When omitted, fetches every page until the API has no more (still bounded by an internal max page count).
  */
 export async function fetchOpenTasks(limit?: number): Promise<TodoistTask[]> {
-	const collected: TodoistOpenTaskResponse[] = [];
+	const api = getTodoistApiClient();
+	const collected: TodoistTask[] = [];
 	let cursor: string | null = null;
 
 	for (
@@ -114,18 +91,19 @@ export async function fetchOpenTasks(limit?: number): Promise<TodoistTask[]> {
 		(limit === undefined || collected.length < limit);
 		page++
 	) {
-		const params = new URLSearchParams();
-		params.set("limit", String(TASKS_PAGE_MAX));
-		if (cursor) {
-			params.set("cursor", cursor);
-		}
-		const response = await todoistRequest(
-			`${TODOIST_API_BASE}/tasks?${params.toString()}`,
-		);
-		const { results, nextCursor } = parseOpenTasksPage(response);
+		const pageLimit =
+			limit === undefined
+				? TASKS_PAGE_MAX
+				: Math.min(TASKS_PAGE_MAX, Math.max(1, limit - collected.length));
+		const response = await api.getTasks({
+			...(cursor ? { cursor } : {}),
+			limit: pageLimit,
+		});
+		const results = response.results ?? [];
+		const nextCursor = response.nextCursor ?? null;
 		for (const task of results) {
 			if (isActiveOpenTaskRow(task)) {
-				collected.push(task);
+				collected.push(mapSdkTaskToTodoistTask(task));
 			}
 		}
 		if (!nextCursor || results.length === 0) {
@@ -134,24 +112,7 @@ export async function fetchOpenTasks(limit?: number): Promise<TodoistTask[]> {
 		cursor = nextCursor;
 	}
 
-	const tasks = limit === undefined ? collected : collected.slice(0, limit);
-
-	return tasks.map((task) => ({
-		id: task.id,
-		content: task.content,
-		description: task.description ?? "",
-		priority: task.priority,
-		projectId: task.project_id,
-		sectionId: task.section_id ?? null,
-		due: task.due
-			? {
-					date: task.due.date,
-					datetime: task.due.datetime,
-					string: task.due.string,
-				}
-			: null,
-		url: task.url,
-	}));
+	return limit === undefined ? collected : collected.slice(0, limit);
 }
 
 /**
@@ -161,6 +122,7 @@ export async function fetchOpenTasks(limit?: number): Promise<TodoistTask[]> {
 export async function fetchCompletedTasks(
 	limit?: number,
 ): Promise<TodoistCompletedTask[]> {
+	const api = getTodoistApiClient();
 	const until = new Date();
 	const since = new Date(until);
 	since.setDate(since.getDate() - 30);
@@ -182,34 +144,26 @@ export async function fetchCompletedTasks(
 						Math.max(1, limit - collected.length),
 					);
 
-		const params = new URLSearchParams({
+		const response = await api.getCompletedTasksByCompletionDate({
 			since: since.toISOString(),
 			until: until.toISOString(),
-			limit: String(pageLimit),
+			limit: pageLimit,
+			...(cursor ? { cursor } : {}),
 		});
-		if (cursor) {
-			params.set("cursor", cursor);
-		}
-
-		const response = (await todoistRequest(
-			`${TODOIST_API_BASE}/tasks/completed/by_completion_date?${params.toString()}`,
-		)) as TodoistCompletedResponse;
-
 		const items = response.items ?? [];
 		for (const task of items) {
 			if (limit !== undefined && collected.length >= limit) {
 				break;
 			}
 			collected.push({
-				taskId: task.task_id ?? task.id ?? "unknown",
+				taskId: task.id,
 				content: task.content,
-				completedAt: task.completed_at,
-				projectId: task.project_id ?? null,
+				completedAt: task.completedAt?.toISOString() ?? "",
+				projectId: task.projectId ?? null,
 			});
 		}
 
-		const raw = response.next_cursor;
-		cursor = typeof raw === "string" && raw.length > 0 ? raw : null;
+		cursor = response.nextCursor ?? null;
 		if (!cursor || items.length === 0) {
 			break;
 		}
@@ -218,133 +172,145 @@ export async function fetchCompletedTasks(
 	return limit === undefined ? collected : collected.slice(0, limit);
 }
 
+export async function fetchProjects(): Promise<TodoistProject[]> {
+	const api = getTodoistApiClient();
+	const collected: TodoistProject[] = [];
+	let cursor: string | null = null;
+
+	for (let page = 0; page < TASKS_FETCH_MAX_PAGES; page++) {
+		const response = await api.getProjects({
+			...(cursor ? { cursor } : {}),
+			limit: TASKS_PAGE_MAX,
+		});
+		const projects = response.results ?? [];
+		for (const project of projects) {
+			collected.push({
+				id: project.id,
+				name: project.name,
+				isInboxProject:
+					"inboxProject" in project && project.inboxProject === true,
+			});
+		}
+		cursor = response.nextCursor ?? null;
+		if (!cursor || projects.length === 0) {
+			break;
+		}
+	}
+
+	return collected;
+}
+
+export async function fetchProjectNameById(
+	projectId: string,
+): Promise<string | null> {
+	const api = getTodoistApiClient();
+	const normalizedProjectId = projectId.trim();
+	if (!normalizedProjectId) {
+		return null;
+	}
+	try {
+		const project = await api.getProject(normalizedProjectId);
+		return project.name;
+	} catch (error) {
+		if (isTodoistNotFoundError(error)) {
+			return null;
+		}
+		throw error;
+	}
+}
+
 export async function createTask(
 	input: TodoistTaskCreateInput,
 ): Promise<{ id: string; url: string; content: string }> {
-	const body: Record<string, unknown> = {
+	const api = getTodoistApiClient();
+	const body = {
 		content: input.content,
+		...(input.description !== undefined && input.description !== ""
+			? { description: input.description }
+			: {}),
+		...(input.projectId !== undefined && input.projectId !== ""
+			? { projectId: input.projectId }
+			: {}),
+		...(input.sectionId !== undefined && input.sectionId !== ""
+			? { sectionId: input.sectionId }
+			: {}),
+		...(input.parentTaskId !== undefined && input.parentTaskId !== ""
+			? { parentId: input.parentTaskId }
+			: {}),
+		...(input.dueDate !== undefined && input.dueDate !== ""
+			? { dueDate: input.dueDate }
+			: {}),
+		...(input.dueString !== undefined && input.dueString !== ""
+			? { dueString: input.dueString }
+			: {}),
+		...(input.priority !== undefined ? { priority: input.priority } : {}),
 	};
-	if (input.description !== undefined && input.description !== "") {
-		body.description = input.description;
-	}
-	if (input.projectId !== undefined && input.projectId !== "") {
-		body.project_id = input.projectId;
-	}
-	if (input.sectionId !== undefined && input.sectionId !== "") {
-		body.section_id = input.sectionId;
-	}
-	if (input.parentTaskId !== undefined && input.parentTaskId !== "") {
-		body.parent_id = input.parentTaskId;
-	}
-	if (input.dueDate !== undefined && input.dueDate !== "") {
-		body.due_date = input.dueDate;
-	}
-	if (input.dueString !== undefined && input.dueString !== "") {
-		body.due_string = input.dueString;
-	}
-	if (input.priority !== undefined) {
-		body.priority = input.priority;
-	}
 
-	const response = (await todoistRequest(`${TODOIST_API_BASE}/tasks`, {
-		method: "POST",
-		body: JSON.stringify(body),
-	})) as { id?: string | number; url?: string; content?: string };
-
-	const idRaw = response.id;
-	if (idRaw === undefined || idRaw === null) {
-		throw new Error("Todoist create task: response missing task id");
-	}
-	const id = String(idRaw);
-	const url = response.url ?? "";
-	const content = response.content ?? input.content;
+	const created = await api.addTask(body as AddTaskArgs);
+	const id = created.id;
+	const url = created.url ?? "";
+	const content = created.content ?? input.content;
 	return { id, url, content };
 }
 
 export async function completeTask(taskId: string): Promise<void> {
-	await todoistRequest(`${TODOIST_API_BASE}/tasks/${taskId}/close`, {
-		method: "POST",
-	});
+	const api = getTodoistApiClient();
+	await api.closeTask(taskId);
 }
 
 export async function updateTask(
 	taskId: string,
 	updates: TodoistTaskUpdateInput,
 ): Promise<void> {
+	const api = getTodoistApiClient();
 	const requestBody: Record<string, unknown> = {
-		content: updates.content,
-		description: updates.description,
-		due_date: updates.dueDate,
-		due_string: updates.dueString,
-		due_datetime: updates.dueDatetime,
-		priority: updates.priority,
+		...(updates.content !== undefined ? { content: updates.content } : {}),
+		...(updates.description !== undefined
+			? { description: updates.description }
+			: {}),
+		...(updates.priority !== undefined ? { priority: updates.priority } : {}),
+		...(updates.labels !== undefined && updates.labels.length > 0
+			? { labels: updates.labels }
+			: {}),
 	};
-	if (updates.labels !== undefined && updates.labels.length > 0) {
-		requestBody.labels = updates.labels;
+	if (updates.dueDatetime !== undefined && updates.dueDatetime !== "") {
+		requestBody.dueDatetime = updates.dueDatetime;
+	} else if (updates.dueDate !== undefined && updates.dueDate !== "") {
+		requestBody.dueDate = updates.dueDate;
+	} else if (updates.dueString !== undefined && updates.dueString !== "") {
+		requestBody.dueString = updates.dueString;
 	}
-
-	await todoistRequest(`${TODOIST_API_BASE}/tasks/${taskId}`, {
-		method: "POST",
-		body: JSON.stringify(requestBody),
-	});
+	await api.updateTask(taskId, requestBody as UpdateTaskArgs);
 }
 
-async function todoistRequest(
-	url: string,
-	options: RequestInit = {},
-): Promise<unknown> {
+function getTodoistApiClient(): TodoistApi {
 	const credentials = getTodoistCredentials();
-	const response = await fetch(url, {
-		...options,
-		headers: {
-			Authorization: `Bearer ${credentials.apiKey}`,
-			"Content-Type": "application/json",
-			...options.headers,
-		},
-	});
-
-	if (!response.ok) {
-		const message = await readResponseBodySafely(response);
-		throw new Error(
-			`Todoist API request failed (${response.status}): ${message}`,
-		);
-	}
-
-	if (response.status === 204) {
-		return undefined;
-	}
-
-	return response.json();
+	return new TodoistApi(credentials.apiKey);
 }
 
-async function readResponseBodySafely(response: Response): Promise<string> {
-	try {
-		return await response.text();
-	} catch {
-		return "No response body";
-	}
+function mapSdkTaskToTodoistTask(task: Task): TodoistTask {
+	return {
+		id: task.id,
+		content: task.content,
+		description: task.description ?? "",
+		priority: task.priority,
+		projectId: task.projectId,
+		sectionId: task.sectionId ?? null,
+		due: task.due
+			? {
+					date: task.due.date,
+					datetime: task.due.datetime ?? undefined,
+					string: task.due.string,
+				}
+			: null,
+		url: task.url,
+	};
 }
 
-function parseOpenTasksPage(response: unknown): {
-	results: TodoistOpenTaskResponse[];
-	nextCursor: string | null;
-} {
-	if (Array.isArray(response)) {
-		return {
-			results: response as TodoistOpenTaskResponse[],
-			nextCursor: null,
-		};
+function isTodoistNotFoundError(error: unknown): boolean {
+	if (!(error instanceof Error)) {
+		return false;
 	}
-
-	if (response && typeof response === "object") {
-		const o = response as { results?: unknown; next_cursor?: unknown };
-		const results = Array.isArray(o.results)
-			? (o.results as TodoistOpenTaskResponse[])
-			: [];
-		const raw = o.next_cursor;
-		const nextCursor = typeof raw === "string" && raw.length > 0 ? raw : null;
-		return { results, nextCursor };
-	}
-
-	return { results: [], nextCursor: null };
+	const msg = error.message.toLowerCase();
+	return msg.includes("404") || msg.includes("not found");
 }

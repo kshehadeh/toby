@@ -11,6 +11,7 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | [`docs/architecture.md`](docs/architecture.md) | Repository layout, runtime entrypoints, config storage, and how major layers interact. |
 | [`docs/integrations.md`](docs/integrations.md) | Plugin-style integrations: `IntegrationModule`, registry, capabilities, credentials, and CLI contributions. |
 | [`docs/create-integration.md`](docs/create-integration.md) | Checklist for adding a new first-party integration module. |
+| [`docs/chat-pipeline.md`](docs/chat-pipeline.md) | `toby chat` message flow, prompt caching strategy, and tool-result caching behavior. |
 | [`docs/build-executable.md`](docs/build-executable.md) | Optional **Bun** single-file `dist/toby` binary (`bun run build:executable`). |
 | [`docs/README.md`](docs/README.md) | Short index of everything in `docs/`. |
 

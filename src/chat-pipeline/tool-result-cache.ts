@@ -25,6 +25,8 @@ const READ_ONLY_CHAT_TOOLS = new Set<string>([
 	"listLabels",
 	"fetchOpenTasks",
 	"fetchCompletedTasks",
+	"listProjectNames",
+	"getProjectNameById",
 	"listUsers",
 	"searchUsers",
 	"getUser",

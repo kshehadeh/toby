@@ -8,6 +8,8 @@ function buildTodoistChatSystemPrompt(): string {
 
 Tools:
 - fetchOpenTasks, fetchCompletedTasks — refresh context
+- listProjectNames — list available Todoist projects (names + ids)
+- getProjectNameById — resolve a Todoist project id to its name
 - createTask — add a new task (optional projectId, sectionId, due, priority, description)
 - completeTask — mark a task done
 - updateTask — change an existing task: list title (content or title field), description, due (dueDate / dueString / dueDatetime), priority, labels

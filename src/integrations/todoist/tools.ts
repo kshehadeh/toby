@@ -7,6 +7,8 @@ import {
 	createTask,
 	fetchCompletedTasks,
 	fetchOpenTasks,
+	fetchProjectNameById,
+	fetchProjects,
 	updateTask as submitTodoistTaskUpdate,
 } from "./client";
 
@@ -51,6 +53,46 @@ export function createTodoistTools(ctx: TodoistToolContext) {
 
 				const tasks = await fetchCompletedTasks(limit ?? 30);
 				return { tasks };
+			},
+		}),
+
+		listProjectNames: tool({
+			description:
+				"List Todoist project names (includes project id so you can map task.projectId values).",
+			inputSchema: z.object({}),
+			execute: async () => {
+				if (ctx.dryRun) {
+					return { dryRun: true, message: "Would list Todoist project names." };
+				}
+
+				const projects = await fetchProjects();
+				return {
+					projectNames: projects.map((project) => project.name),
+					projects,
+				};
+			},
+		}),
+
+		getProjectNameById: tool({
+			description:
+				"Convert a Todoist project id to a project name. Use this when context includes only projectId values.",
+			inputSchema: z.object({
+				projectId: z.string().describe("Todoist project id"),
+			}),
+			execute: async ({ projectId }) => {
+				if (ctx.dryRun) {
+					return {
+						dryRun: true,
+						message: `Would resolve Todoist project id "${projectId}" to a project name.`,
+					};
+				}
+
+				const projectName = await fetchProjectNameById(projectId);
+				return {
+					projectId,
+					projectName,
+					found: projectName !== null,
+				};
 			},
 		}),
 

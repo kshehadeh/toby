@@ -124,6 +124,40 @@ function registerBuiltInToolFeedbackFormatters(): void {
 		return defaultToolFeedbackOutput(ctx);
 	});
 
+	registerToolFeedbackFormatter("listProjectNames", (ctx) => {
+		const r = ctx.result as {
+			projectNames?: unknown[];
+			dryRun?: boolean;
+			message?: string;
+		} | null;
+		if (r?.dryRun && typeof r.message === "string") {
+			return sanitizeOneLine(r.message);
+		}
+		if (r && Array.isArray(r.projectNames)) {
+			return `Found ${r.projectNames.length} project name(s).`;
+		}
+		return defaultToolFeedbackOutput(ctx);
+	});
+
+	registerToolFeedbackFormatter("getProjectNameById", (ctx) => {
+		const r = ctx.result as {
+			projectName?: unknown;
+			found?: boolean;
+			dryRun?: boolean;
+			message?: string;
+		} | null;
+		if (r?.dryRun && typeof r.message === "string") {
+			return sanitizeOneLine(r.message);
+		}
+		if (r?.found === true && typeof r.projectName === "string") {
+			return `Project: ${sanitizeOneLine(r.projectName, 120)}`;
+		}
+		if (r?.found === false) {
+			return "No matching project found for that project ID.";
+		}
+		return defaultToolFeedbackOutput(ctx);
+	});
+
 	registerToolFeedbackFormatter("updateTask", (ctx) => {
 		const r = ctx.result as {
 			success?: boolean;

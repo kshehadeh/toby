@@ -13,6 +13,8 @@ const TOOL_LABEL_OVERRIDES: Record<string, string> = {
 	getRecentEmails: "Fetch recent unread emails",
 	fetchOpenTasks: "Fetch open Todoist tasks",
 	fetchCompletedTasks: "Fetch completed Todoist tasks",
+	listProjectNames: "List Todoist project names",
+	getProjectNameById: "Resolve Todoist project name",
 	completeTask: "Complete Todoist task",
 	createTask: "Create Todoist task",
 	updateTask: "Update Todoist task",
