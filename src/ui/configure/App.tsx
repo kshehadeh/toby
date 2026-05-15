@@ -7,6 +7,7 @@ import React, {
 	useRef,
 	type ReactNode,
 } from "react";
+import { DEFAULT_CHAT_PERSONA } from "../../personas/index";
 import { AppHeader } from "../chat/components/app-header";
 import { ACCENT, INPUT_BORDER } from "../chat/constants";
 import {
@@ -116,37 +117,46 @@ function Navigator({
 				else if (item.kind === "action") icon = "+";
 				else if (item.kind === "delete") icon = "✕";
 				return (
-					<Box key={item.key} paddingX={1}>
-						<Text wrap="truncate-end">
-							<Text color={selected ? ACCENT : "gray"} bold>
-								{selected ? "› " : "  "}
+					<Box key={item.key} paddingX={1} flexDirection="row">
+						<Box flexShrink={0}>
+							<Text wrap="truncate-end">
+								<Text color={selected ? ACCENT : "gray"} bold>
+									{selected ? "› " : "  "}
+								</Text>
+								<Text
+									color={
+										selected
+											? "white"
+											: item.kind === "action"
+												? "yellow"
+												: item.kind === "delete"
+													? "red"
+													: "green"
+									}
+									bold={selected}
+								>
+									{icon} {item.label}{" "}
+								</Text>
 							</Text>
-							<Text
-								color={
-									selected
-										? "white"
-										: item.kind === "action"
-											? "yellow"
-											: item.kind === "delete"
-												? "red"
-												: "green"
-								}
-								bold={selected}
-							>
-								{icon} {item.label}{" "}
-							</Text>
-						</Text>
+						</Box>
 						{item.kind === "value" && item.currentValue !== undefined ? (
-							<Text dimColor>
-								{item.masked
-									? " ••••••"
-									: item.multiline
-										? ` ${item.currentValue.split("\n")[0]}${item.currentValue.includes("\n") ? " ..." : ""}`
-										: ` ${item.currentValue}`}
-							</Text>
+							<Box flexShrink={1}>
+								<Text dimColor wrap="truncate-end">
+									{item.masked
+										? " ••••••"
+										: item.multiline
+											? ` ${item.currentValue.split("\n")[0]}${item.currentValue.includes("\n") ? " ..." : ""}`
+											: ` ${item.currentValue}`}
+								</Text>
+							</Box>
 						) : null}
 						{item.kind === "select" && item.currentValue ? (
-							<Text dimColor> {item.currentValue}</Text>
+							<Box flexShrink={1}>
+								<Text dimColor wrap="truncate-end">
+									{" "}
+									{item.currentValue}
+								</Text>
+							</Box>
 						) : null}
 					</Box>
 				);
@@ -514,13 +524,14 @@ export function ConfigureApp({
 			} else if (item.kind === "action") {
 				if (item.key === "personas._new") {
 					const personaName = callbacks.onCreatePersona();
+					const defaults = DEFAULT_CHAT_PERSONA;
 					const newValues = {
 						...values,
 						[`personas.${personaName}.name`]: personaName,
-						[`personas.${personaName}.instructions`]: "",
-						[`personas.${personaName}.promptMode`]: "add",
-						[`personas.${personaName}.ai.provider`]: "openai",
-						[`personas.${personaName}.ai.model`]: "gpt-5-mini",
+						[`personas.${personaName}.instructions`]: defaults.instructions,
+						[`personas.${personaName}.promptMode`]: defaults.promptMode,
+						[`personas.${personaName}.ai.provider`]: defaults.ai.provider,
+						[`personas.${personaName}.ai.model`]: defaults.ai.model,
 					};
 					setValues(newValues);
 					doRefresh(newValues);

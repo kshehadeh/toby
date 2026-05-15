@@ -15,6 +15,7 @@ import {
 	ALL_PROVIDER_CATEGORIES,
 	type ProviderCategory,
 } from "../../integrations/types";
+import { DEFAULT_CHAT_PERSONA } from "../../personas/index";
 import type { SettingsItem } from "./items";
 import { buildSettingsTree } from "./items";
 
@@ -83,18 +84,19 @@ export function createConfigureSession(): ConfigureSession {
 		onCreatePersona: (): string => {
 			const cfg = readConfig();
 			const name = `Persona ${cfg.personas.length + 1}`;
+			const defaults = DEFAULT_CHAT_PERSONA;
 			cfg.personas.push({
 				name,
-				instructions: "",
-				promptMode: "add",
-				ai: { provider: "openai", model: "gpt-5-mini" },
+				instructions: defaults.instructions,
+				promptMode: defaults.promptMode,
+				ai: { provider: defaults.ai.provider, model: defaults.ai.model },
 			});
 			writeConfig(cfg);
 			credentialValues[`personas.${name}.name`] = name;
-			credentialValues[`personas.${name}.instructions`] = "";
-			credentialValues[`personas.${name}.promptMode`] = "add";
-			credentialValues[`personas.${name}.ai.provider`] = "openai";
-			credentialValues[`personas.${name}.ai.model`] = "gpt-5-mini";
+			credentialValues[`personas.${name}.instructions`] = defaults.instructions;
+			credentialValues[`personas.${name}.promptMode`] = defaults.promptMode;
+			credentialValues[`personas.${name}.ai.provider`] = defaults.ai.provider;
+			credentialValues[`personas.${name}.ai.model`] = defaults.ai.model;
 			return name;
 		},
 		onDeletePersona: (personaName: string) => {
