@@ -60,6 +60,7 @@ import {
 	createConfigureSession,
 	refreshConfigureSessionTree,
 } from "../configure/session";
+import { SkillsApp } from "../skills/App";
 import { applyChatEvent } from "./chat-event-reducer";
 import { AppHeader } from "./components/app-header";
 import { AskUserModal } from "./components/ask-user-modal";
@@ -225,6 +226,7 @@ export function ChatSessionApp({
 	const [askSelected, setAskSelected] = useState(0);
 	const [showHelp, setShowHelp] = useState(false);
 	const [showConfig, setShowConfig] = useState(false);
+	const [showSkills, setShowSkills] = useState(false);
 	const [configureSession, setConfigureSession] = useState(() =>
 		createConfigureSession(),
 	);
@@ -1196,6 +1198,9 @@ export function ChatSessionApp({
 							setConfigureMountKey((k) => k + 1);
 							setShowConfig(true);
 						},
+						openSkills: () => {
+							setShowSkills(true);
+						},
 						openPersonaPicker: () => {
 							openPersonaPickerModal();
 						},
@@ -1671,7 +1676,7 @@ export function ChatSessionApp({
 				}
 				return;
 			}
-			if (showConfig) {
+			if (showConfig || showSkills) {
 				return;
 			}
 
@@ -1705,6 +1710,7 @@ export function ChatSessionApp({
 			loadSessionIntoMemory,
 			openPersonaEditorAtPath,
 			showConfig,
+			showSkills,
 		],
 	);
 
@@ -1797,6 +1803,20 @@ export function ChatSessionApp({
 		);
 	}
 
+	if (showSkills) {
+		return (
+			<SkillsApp
+				onQuitRequested={() => {
+					setShowSkills(false);
+					setTranscript((t) => [
+						...t,
+						{ kind: "meta", text: "Skills view closed." },
+					]);
+				}}
+			/>
+		);
+	}
+
 	const displayRows = allDisplayRows;
 
 	const inputDisabled =
@@ -1805,7 +1825,8 @@ export function ChatSessionApp({
 		Boolean(sessionPicker) ||
 		Boolean(personaPicker) ||
 		loading ||
-		showConfig;
+		showConfig ||
+		showSkills;
 	const modelLabel = `${activePersona.ai.provider}/${activePersona.ai.model}`;
 	const activityText =
 		messages === null ? "Loading session…" : loading ? activityLine : "";

@@ -7,6 +7,7 @@ import { registerConnectCommand } from "./commands/connect";
 import { registerDisconnectCommand } from "./commands/disconnect";
 import { registerOrganizeCommand } from "./commands/organize";
 import { registerSessionsCommand } from "./commands/sessions";
+import { registerSkillsCommand } from "./commands/skills";
 import { registerStatusCommand } from "./commands/status";
 import { registerSummarizeCommand } from "./commands/summarize";
 import { registerUpgradeCommand } from "./commands/upgrade";
@@ -29,6 +30,7 @@ for (const mod of getIntegrationModules()) {
 }
 registerConfigCommand(program);
 registerSessionsCommand(program);
+registerSkillsCommand(program);
 registerStatusCommand(program);
 registerSummarizeCommand(program);
 registerOrganizeCommand(program);

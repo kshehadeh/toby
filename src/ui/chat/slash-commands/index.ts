@@ -8,6 +8,7 @@ import { newSlashCommand } from "./new";
 import { personaSlashCommand } from "./persona";
 import { planSlashCommand } from "./plan";
 import { sessionsSlashCommand } from "./sessions";
+import { skillsSlashCommand } from "./skills";
 import { terminalSlashCommand } from "./terminal";
 import type { SlashCommand } from "./types";
 
@@ -28,6 +29,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
 	personaSlashCommand,
 	newSlashCommand,
 	sessionsSlashCommand,
+	skillsSlashCommand,
 	terminalSlashCommand,
 	exitSlashCommand,
 ];
