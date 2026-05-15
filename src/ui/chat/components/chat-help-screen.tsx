@@ -32,7 +32,7 @@ export function ChatHelpScreen({
 				</Text>
 				<Text dimColor>
 					Type `/` in the prompt to open command autocomplete; press Tab to
-					complete the closest match.
+					complete the closest match. Press Shift+Tab to cycle personas.
 				</Text>
 				<Text dimColor>Esc or Enter to return</Text>
 			</Box>

@@ -1688,6 +1688,22 @@ export function ChatSessionApp({
 				return;
 			}
 
+			if (key.tab && key.shift) {
+				const allPersonas = listPersonas();
+				if (allPersonas.length < 2) {
+					return;
+				}
+				const currentIdx = allPersonas.findIndex(
+					(p) => p.name === activePersonaRef.current.name,
+				);
+				const nextIdx = (currentIdx + 1) % allPersonas.length;
+				const nextPersona = allPersonas[nextIdx];
+				if (nextPersona) {
+					void applyPersonaFromPicker(nextPersona);
+				}
+				return;
+			}
+
 			if (key.tab) {
 				const completion = getNearestSlashCommand(input);
 				if (!completion) {
