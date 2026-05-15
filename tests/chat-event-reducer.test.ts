@@ -396,7 +396,8 @@ describe("flattenTranscript boxed_step", () => {
 		expect(bb?.kind).toBe("boxed_block");
 		if (bb?.kind === "boxed_block") {
 			expect(bb.header).toBe("List labels (x2)");
-			expect(bb.bodyLines).toHaveLength(3);
+			expect(bb.bodyLines).toHaveLength(2);
+			expect(bb.bodyLines[0]).toBe("2. List labels [cache]");
 			expect(bb.bodyLines.join("\n")).toContain("2. List labels [cache]");
 		}
 	});

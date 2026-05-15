@@ -209,7 +209,9 @@ function capBodyLines(
 	if (variant === "assistant" || lines.length <= 3) {
 		return lines;
 	}
-	return lines.slice(-3);
+	const capped = lines.slice(-3);
+	const firstContent = capped.findIndex((line) => line.length > 0);
+	return firstContent > 0 ? capped.slice(firstContent) : capped;
 }
 
 export function flattenTranscript(
