@@ -11,8 +11,6 @@ import type {
 	CredentialFieldDescriptor,
 	IntegrationModule,
 	IntegrationToolHealth,
-	SummarizeRunOptions,
-	SummarizeRunResult,
 } from "../types";
 import { runOAuthFlow } from "./auth";
 import {
@@ -21,15 +19,10 @@ import {
 	listInboxUnreadPage,
 	testGmailConnection,
 } from "./client";
-import { organizeGmailInbox } from "./organize";
 import {
 	buildGmailChatSystemMessage,
 	buildGmailChatUserMessage,
 } from "./prompts/chat";
-import {
-	buildGmailSummarySystemMessage,
-	buildGmailSummaryUserMessage,
-} from "./prompts/summarize";
 import { type EmailContext, createGmailTools } from "./tools";
 
 const gmailLifecycle = {
@@ -170,20 +163,6 @@ const CHAT_MUTATING_GMAIL_TOOLS = new Set([
 	"applyMultipleLabelsByMessageId",
 ]);
 
-async function summarize(
-	options: SummarizeRunOptions,
-): Promise<SummarizeRunResult> {
-	const emails = await fetchUnreadInbox(options.maxResults);
-	if (emails.length === 0) {
-		return { status: "empty", message: "No unread emails in your inbox." };
-	}
-	const messages = [
-		buildGmailSummarySystemMessage(options.summaryPersona),
-		buildGmailSummaryUserMessage(emails),
-	];
-	return { status: "ok", messages };
-}
-
 async function chat(options: ChatRunOptions): Promise<void> {
 	const maxResults = options.maxResults;
 	const dryRun = options.dryRun;
@@ -269,7 +248,7 @@ function formatChatArgs(args: Record<string, unknown>): string {
 
 export const gmailIntegrationModule: IntegrationModule = {
 	...gmailLifecycle,
-	capabilities: ["summarize", "organize", "chat"],
+	capabilities: ["chat"],
 	providerCategories: ["email"],
 	resources: ["inbox", "labels", "messages"],
 	chatReadiness: async (creds) => {
@@ -284,9 +263,6 @@ export const gmailIntegrationModule: IntegrationModule = {
 				? "Run `toby connect gmail` to authenticate."
 				: "Add Gmail clientId/clientSecret in `toby configure`, then run `toby connect gmail`.",
 		};
-	},
-	organize: async ({ maxResults, dryRun, personaForModel }) => {
-		await organizeGmailInbox({ maxResults, dryRun, personaForModel });
 	},
 	createChatTools: ({ dryRun, maxResults }) => {
 		const ctx: EmailContext = {
@@ -322,7 +298,6 @@ ${userPrompt || "(no additional text — follow the system instruction.)"}`;
 	getCredentialDescriptors,
 	seedCredentialValues,
 	mergeCredentialsPatch,
-	summarize,
 	chat,
 };
 

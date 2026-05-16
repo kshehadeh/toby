@@ -8,8 +8,6 @@ import type {
 	CredentialFieldDescriptor,
 	IntegrationModule,
 	IntegrationToolHealth,
-	SummarizeRunOptions,
-	SummarizeRunResult,
 } from "../types";
 import {
 	fetchCompletedTasks,
@@ -21,10 +19,6 @@ import {
 	buildTodoistChatSystemMessage,
 	buildTodoistChatUserMessage,
 } from "./prompts/chat";
-import {
-	buildTodoistSummarySystemMessage,
-	buildTodoistSummaryUserMessage,
-} from "./prompts/summarize";
 import { createTodoistTools } from "./tools";
 
 function hasTodoistApiKey(creds: CredentialsFile): boolean {
@@ -149,28 +143,6 @@ function mergeCredentialsPatch(
 	};
 }
 
-async function summarize(
-	options: SummarizeRunOptions,
-): Promise<SummarizeRunResult> {
-	const openTasks = await fetchOpenTasks(options.maxResults);
-	const completedTasks = await fetchCompletedTasks(
-		Math.min(20, options.maxResults),
-	);
-
-	if (openTasks.length === 0 && completedTasks.length === 0) {
-		return {
-			status: "empty",
-			message: "No Todoist tasks found to summarize.",
-		};
-	}
-
-	const messages = [
-		buildTodoistSummarySystemMessage(options.summaryPersona),
-		buildTodoistSummaryUserMessage(openTasks, completedTasks),
-	];
-	return { status: "ok", messages };
-}
-
 async function chat(options: ChatRunOptions): Promise<void> {
 	const persona = options.personaForModel;
 	const dryRun = options.dryRun;
@@ -237,7 +209,7 @@ async function chat(options: ChatRunOptions): Promise<void> {
 
 export const todoistIntegrationModule: IntegrationModule = {
 	...todoistLifecycle,
-	capabilities: ["summarize", "chat"],
+	capabilities: ["chat"],
 	providerCategories: ["tasks"],
 	resources: ["tasks", "projects"],
 	chatReadiness: async (creds) => {
@@ -293,7 +265,6 @@ ${todoistContent}`;
 	getCredentialDescriptors,
 	seedCredentialValues,
 	mergeCredentialsPatch,
-	summarize,
 	chat,
 	registerCommands(_program: Command) {
 		// Todoist-specific CLI subcommands can be registered here later.

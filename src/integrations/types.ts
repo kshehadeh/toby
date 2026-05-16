@@ -16,7 +16,7 @@ export interface IntegrationHealth {
 }
 
 /** Capabilities an integration may expose for the resource center / CLI. */
-export type IntegrationCapability = "summarize" | "organize" | "chat";
+export type IntegrationCapability = "chat";
 
 /** Provider categories an integration may belong to (used for default-provider selection). */
 export type ProviderCategory = "email" | "calendar" | "tasks" | "contacts";
@@ -52,16 +52,6 @@ interface IntegrationAuthMethodDescriptor {
 	readonly label: string;
 	readonly isDefault?: boolean;
 }
-
-export interface SummarizeRunOptions {
-	readonly maxResults: number;
-	readonly summaryPersona: Persona | undefined;
-	readonly personaForModel: Persona;
-}
-
-export type SummarizeRunResult =
-	| { readonly status: "ok"; readonly messages: CoreMessage[] }
-	| { readonly status: "empty"; readonly message: string };
 
 /** Options for the `chat` command: freeform instruction + AI persona context. */
 export interface ChatRunOptions {
@@ -135,19 +125,12 @@ export interface IntegrationModule extends Integration {
 		readonly dryRun: boolean;
 		readonly maxResults?: number;
 	}) => Promise<IntegrationChatTools> | IntegrationChatTools;
-	/** Optional organize runner (capability-gated by `capabilities`). */
-	readonly organize?: (params: {
-		readonly maxResults: number;
-		readonly dryRun: boolean;
-		readonly personaForModel: Persona;
-	}) => Promise<void>;
 	getCredentialDescriptors(): CredentialFieldDescriptor[];
 	seedCredentialValues(creds: CredentialsFile): Record<string, string>;
 	mergeCredentialsPatch(
 		values: Record<string, string>,
 		previous: CredentialsFile,
 	): Partial<CredentialsFile>;
-	summarize?(options: SummarizeRunOptions): Promise<SummarizeRunResult>;
 	/** Run a tool-calling AI flow for a user-supplied instruction (see `toby chat`). */
 	chat?(options: ChatRunOptions): Promise<void>;
 	registerCommands?(program: Command): void;
