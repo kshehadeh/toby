@@ -35,6 +35,8 @@ type SqliteDb = {
 
 let dbSingleton: SqliteDb | null = null;
 
+export type { SqliteDb };
+
 export function closeChatDbForTests(): void {
 	if (dbSingleton) {
 		dbSingleton.close();
@@ -120,6 +122,37 @@ CREATE TABLE IF NOT EXISTS chat_plan_phases (
 
 CREATE INDEX IF NOT EXISTS idx_chat_plans_session_id
   ON chat_plans(session_id);
+
+CREATE TABLE IF NOT EXISTS schedules (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  prompt TEXT NOT NULL,
+  persona_name TEXT NOT NULL,
+  cron_expression TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  last_run_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS schedule_runs (
+  id TEXT PRIMARY KEY,
+  schedule_id TEXT NOT NULL,
+  persona_name TEXT NOT NULL,
+  prompt TEXT NOT NULL,
+  output TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  error TEXT,
+  started_at TEXT NOT NULL,
+  completed_at TEXT,
+  FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_schedule_runs_schedule_id
+  ON schedule_runs(schedule_id);
+
+CREATE INDEX IF NOT EXISTS idx_schedule_runs_started_at
+  ON schedule_runs(started_at DESC);
 `);
 }
 

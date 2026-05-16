@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-function resolveTobyDir(): string {
+export function resolveTobyDir(): string {
 	const override = process.env.TOBY_DIR?.trim();
 	if (override) {
 		return override;
