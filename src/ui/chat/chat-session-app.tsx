@@ -54,12 +54,14 @@ import {
 	shouldGeneratePlan,
 	skipPhase,
 } from "../../planning/index";
+import { isDaemonRunning } from "../../schedules/daemon-status";
 import { loadLocalSkills } from "../../skills/index";
 import { ConfigureApp } from "../configure/App";
 import {
 	createConfigureSession,
 	refreshConfigureSessionTree,
 } from "../configure/session";
+import { SchedulesApp } from "../schedules/App";
 import { SkillsApp } from "../skills/App";
 import { applyChatEvent } from "./chat-event-reducer";
 import { AppHeader } from "./components/app-header";
@@ -227,6 +229,10 @@ export function ChatSessionApp({
 	const [showHelp, setShowHelp] = useState(false);
 	const [showConfig, setShowConfig] = useState(false);
 	const [showSkills, setShowSkills] = useState(false);
+	const [showSchedules, setShowSchedules] = useState(false);
+	const [daemonRunning, setDaemonRunning] = useState(
+		() => isDaemonRunning().running,
+	);
 	const [configureSession, setConfigureSession] = useState(() =>
 		createConfigureSession(),
 	);
@@ -392,6 +398,14 @@ export function ChatSessionApp({
 		return () => {
 			ongoingPretreatAbortRef.current?.abort();
 		};
+	}, []);
+
+	// Poll daemon status every 10 seconds
+	useEffect(() => {
+		const timer = setInterval(() => {
+			setDaemonRunning(isDaemonRunning().running);
+		}, 10_000);
+		return () => clearInterval(timer);
 	}, []);
 
 	useEffect(() => {
@@ -1201,6 +1215,9 @@ export function ChatSessionApp({
 						openSkills: () => {
 							setShowSkills(true);
 						},
+						openSchedules: () => {
+							setShowSchedules(true);
+						},
 						openPersonaPicker: () => {
 							openPersonaPickerModal();
 						},
@@ -1676,7 +1693,7 @@ export function ChatSessionApp({
 				}
 				return;
 			}
-			if (showConfig || showSkills) {
+			if (showConfig || showSkills || showSchedules) {
 				return;
 			}
 
@@ -1727,6 +1744,7 @@ export function ChatSessionApp({
 			openPersonaEditorAtPath,
 			showConfig,
 			showSkills,
+			showSchedules,
 		],
 	);
 
@@ -1833,6 +1851,20 @@ export function ChatSessionApp({
 		);
 	}
 
+	if (showSchedules) {
+		return (
+			<SchedulesApp
+				onQuitRequested={() => {
+					setShowSchedules(false);
+					setTranscript((t) => [
+						...t,
+						{ kind: "meta", text: "Schedules view closed." },
+					]);
+				}}
+			/>
+		);
+	}
+
 	const displayRows = allDisplayRows;
 
 	const inputDisabled =
@@ -1842,7 +1874,8 @@ export function ChatSessionApp({
 		Boolean(personaPicker) ||
 		loading ||
 		showConfig ||
-		showSkills;
+		showSkills ||
+		showSchedules;
 	const modelLabel = `${activePersona.ai.provider}/${activePersona.ai.model}`;
 	const activityText =
 		messages === null ? "Loading session…" : loading ? activityLine : "";
@@ -2039,6 +2072,7 @@ export function ChatSessionApp({
 				showPlaceholderWhenEmpty={!hasUserPromptInSession}
 				slashSuggestions={slashSuggestions}
 				selectedSlashCommand={selectedSlashCommand}
+				daemonRunning={daemonRunning}
 			/>
 		</Box>
 	);

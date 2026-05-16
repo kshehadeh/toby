@@ -4,12 +4,12 @@ import packageJson from "../package.json";
 import { registerChatCommand } from "./commands/chat";
 import { registerConfigCommand } from "./commands/configure";
 import { registerConnectCommand } from "./commands/connect";
+import { registerDaemonCommand } from "./commands/daemon";
 import { registerDisconnectCommand } from "./commands/disconnect";
-import { registerOrganizeCommand } from "./commands/organize";
+import { registerSchedulesCommand } from "./commands/schedules";
 import { registerSessionsCommand } from "./commands/sessions";
 import { registerSkillsCommand } from "./commands/skills";
 import { registerStatusCommand } from "./commands/status";
-import { registerSummarizeCommand } from "./commands/summarize";
 import { registerUpgradeCommand } from "./commands/upgrade";
 import { getIntegrationModules } from "./integrations/index";
 
@@ -29,11 +29,11 @@ for (const mod of getIntegrationModules()) {
 	mod.registerCommands?.(program);
 }
 registerConfigCommand(program);
+registerDaemonCommand(program);
+registerSchedulesCommand(program);
 registerSessionsCommand(program);
 registerSkillsCommand(program);
 registerStatusCommand(program);
-registerSummarizeCommand(program);
-registerOrganizeCommand(program);
 registerUpgradeCommand(program);
 registerChatCommand(program);
 

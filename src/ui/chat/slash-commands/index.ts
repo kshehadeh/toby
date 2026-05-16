@@ -7,8 +7,11 @@ import { logSlashCommand } from "./log";
 import { newSlashCommand } from "./new";
 import { personaSlashCommand } from "./persona";
 import { planSlashCommand } from "./plan";
+import { schedulesSlashCommand } from "./schedules";
 import { sessionsSlashCommand } from "./sessions";
 import { skillsSlashCommand } from "./skills";
+import { startDaemonSlashCommand } from "./start-daemon";
+import { stopDaemonSlashCommand } from "./stop-daemon";
 import { terminalSlashCommand } from "./terminal";
 import type { SlashCommand } from "./types";
 
@@ -28,8 +31,11 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
 	planSlashCommand,
 	personaSlashCommand,
 	newSlashCommand,
+	schedulesSlashCommand,
 	sessionsSlashCommand,
 	skillsSlashCommand,
+	startDaemonSlashCommand,
+	stopDaemonSlashCommand,
 	terminalSlashCommand,
 	exitSlashCommand,
 ];

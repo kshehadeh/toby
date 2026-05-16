@@ -82,6 +82,7 @@ type ChatInputDockProps = {
 	readonly showPlaceholderWhenEmpty?: boolean;
 	readonly slashSuggestions: readonly SlashCommand[];
 	readonly selectedSlashCommand: SlashCommand | null;
+	readonly daemonRunning: boolean;
 };
 
 export function ChatInputDock(props: ChatInputDockProps) {
@@ -100,6 +101,7 @@ export function ChatInputDock(props: ChatInputDockProps) {
 		showPlaceholderWhenEmpty,
 		slashSuggestions,
 		selectedSlashCommand,
+		daemonRunning,
 	} = props;
 
 	const placeholderText = placeholder ?? 'Try "What needs my attention today?"';
@@ -201,7 +203,13 @@ export function ChatInputDock(props: ChatInputDockProps) {
 				</Box>
 				<Box flexShrink={0}>
 					<Text dimColor wrap="truncate-start">
-						{formatUsage(lastUsage) ?? " "}
+						{"Daemon "}
+						{daemonRunning ? (
+							<Text color="green">✔︎</Text>
+						) : (
+							<Text color="red">✗</Text>
+						)}
+						{formatUsage(lastUsage) ? ` · ${formatUsage(lastUsage)}` : ""}
 					</Text>
 				</Box>
 			</Box>

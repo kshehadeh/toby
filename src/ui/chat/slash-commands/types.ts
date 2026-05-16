@@ -4,6 +4,7 @@ export interface SlashCommandRuntime {
 	readonly openIntegrationPicker: () => void;
 	readonly openConfig: () => void;
 	readonly openSkills: () => void;
+	readonly openSchedules: () => void;
 	readonly openPersonaPicker: () => void;
 	readonly openPersonaConfigure: (pathKeys: readonly string[]) => void;
 	readonly startNewSession: () => void;
