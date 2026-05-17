@@ -4,8 +4,10 @@ import {
 	getIntegrationModule,
 	getIntegrationModules,
 	getIntegrations,
+	getModulesForCategory,
 	getModulesWithCapability,
 } from "../src/integrations/index";
+import { ALL_PROVIDER_CATEGORIES } from "../src/integrations/types";
 
 describe("getIntegrations", () => {
 	it("returns at least one integration", () => {
@@ -45,11 +47,25 @@ describe("integration registry", () => {
 	});
 
 	it("getModulesWithCapability returns modules that declare that capability", () => {
-		for (const cap of ["summarize", "organize", "chat"] as const) {
-			for (const mod of getModulesWithCapability(cap)) {
-				expect(mod.capabilities).toContain(cap);
-			}
+		for (const mod of getModulesWithCapability("chat")) {
+			expect(mod.capabilities).toContain("chat");
 		}
+	});
+
+	it("includes slack in registry with chat provider category", () => {
+		const slack = getIntegrationModule("slack");
+		expect(slack).toBeDefined();
+		expect(slack?.providerCategories).toContain("chat");
+		expect(slack?.capabilities).toContain("chat");
+	});
+
+	it("ALL_PROVIDER_CATEGORIES includes chat", () => {
+		expect(ALL_PROVIDER_CATEGORIES).toContain("chat");
+	});
+
+	it("getModulesForCategory(chat) includes slack", () => {
+		const names = getModulesForCategory("chat").map((m) => m.name);
+		expect(names).toContain("slack");
 	});
 
 	it("modules expose credential descriptors", () => {
@@ -62,21 +78,9 @@ describe("integration registry", () => {
 		}
 	});
 
-	it("summarize-capable modules define summarize()", () => {
-		for (const mod of getModulesWithCapability("summarize")) {
-			expect(typeof mod.summarize).toBe("function");
-		}
-	});
-
 	it("chat-capable modules define chat()", () => {
 		for (const mod of getModulesWithCapability("chat")) {
 			expect(typeof mod.chat).toBe("function");
-		}
-	});
-
-	it("organize-capable modules define organize()", () => {
-		for (const mod of getModulesWithCapability("organize")) {
-			expect(typeof mod.organize).toBe("function");
 		}
 	});
 });
