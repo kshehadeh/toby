@@ -19,7 +19,8 @@ Extends `Integration` with optional **capabilities** and **hooks**:
 
 | Field / method | Purpose |
 | ---------------- | ------- |
-| `capabilities` | Subset of `IntegrationCapability`: `"summarize"` \| `"organize"` \| `"chat"`. |
+| `capabilities` | Subset of `IntegrationCapability` (currently `"chat"`). |
+| `providerCategories?` | Provider buckets for default-provider selection and schedule routing: `"email"` \| `"calendar"` \| `"tasks"` \| `"contacts"` \| `"chat"`. |
 | `authMethods?` | Optional supported auth options for configure UI (e.g. OAuth vs client credentials) with a default method. |
 | `resources?` | Optional strings describing entities (e.g. inbox, tasks) for discovery or docs. |
 | `getCredentialDescriptors()` | Fields shown under Integrations in configure UI (`CredentialFieldDescriptor`: flat `key`, `label`, `masked`, plus optional auth-method gating via `showForAuthMethods`). |
@@ -56,6 +57,8 @@ Each integration typically owns:
 
 **Gmail** and **Todoist** under [`src/integrations/gmail/`](../src/integrations/gmail/) and [`src/integrations/todoist/`](../src/integrations/todoist/) are the reference implementations.
 
+**Slack** ([`src/integrations/slack/`](../src/integrations/slack/)) is the **Chat** provider category integration: OAuth (PKCE + user scopes on localhost) or manual bot token auth, with chat tools to search channels/users, post messages, reply in threads, and search message history. For a classic bot token (`xoxb-…`), use manual bot token auth in configure.
+
 **Apple Mail** ([`src/integrations/applemail/`](../src/integrations/applemail/)) is **macOS-only**: it controls the local Mail.app via AppleScript for chat tools (`searchEmails`, `createDraft`, `updateDraft`). See [`apple-mail.md`](apple-mail.md) for setup, permissions, and limitations.
 
 **Apple Calendar** ([`src/integrations/applecalendar/`](../src/integrations/applecalendar/)) is **macOS-only**: it uses **EventKit** (AppleScriptObjC) for fast event search across all calendar types (including Exchange/iCloud), and Calendar.app AppleScript for create/update/delete operations. See [`apple-calendar.md`](apple-calendar.md) for setup, permissions, and AppleScript pitfalls.
@@ -66,7 +69,7 @@ Each integration typically owns:
 - **`status integration`** — `testConnection()`; modules return structured tool checks where applicable.
 - **`summarize <integration>`** — `getIntegrationModule`, require `summarize` in `capabilities` and a defined `summarize` function, then AI generation on returned messages.
 - **`organize <integration>`** — `getIntegrationModule`, require `organize` in `capabilities` and a defined `organize` function. Pass `--dry-run` to preview changes. Pass `--watch "<interval>"` to run immediately and then repeat periodically (e.g. `--watch "every hour"` or `--watch "30m"`); stop with Ctrl+C.
-- **`chat [words...]`** — Optional first word may be a chat integration name (`gmail`, `todoist`, `azuread`); remaining words are the prompt. If the first word is not an integration, the whole line is treated as the prompt and **all connected** chat integrations are used together (merged tools + combined system prompt). Repeat **`--integration <name>`** to choose an explicit set; when that flag is used, positional words are **only** the prompt. By default an **Ink** session keeps the full `CoreMessage[]` history; `askUser` is routed through the TUI. If there is no initial prompt, type the first message in the TUI. Pass **`--no-tui`** for a single console turn (one integration still uses `module.chat`; multiple integrations use one combined tool-calling turn, readline `askUser` only). In the TUI, **`/integration`** opens a multi-select picker (Space toggles, Enter applies).
+- **`chat [words...]`** — Optional first word may be a chat integration name (`gmail`, `todoist`, `slack`, `azuread`); remaining words are the prompt. If the first word is not an integration, the whole line is treated as the prompt and **all connected** chat integrations are used together (merged tools + combined system prompt). Repeat **`--integration <name>`** to choose an explicit set; when that flag is used, positional words are **only** the prompt. By default an **Ink** session keeps the full `CoreMessage[]` history; `askUser` is routed through the TUI. If there is no initial prompt, type the first message in the TUI. Pass **`--no-tui`** for a single console turn (one integration still uses `module.chat`; multiple integrations use one combined tool-calling turn, readline `askUser` only). In the TUI, **`/integration`** opens a multi-select picker (Space toggles, Enter applies).
 - **Chat tool feedback (Ink TUI)** — After each tool runs, a compact result line is shown in the transcript. Per-tool copy is customizable via `registerToolFeedbackFormatter` in [`src/ui/chat/tool-feedback-registry.ts`](../src/ui/chat/tool-feedback-registry.ts) (call from a side-effect import or bootstrap code; avoid import cycles with `tools.ts`).
 - **`configure`** — builds credential UI from `getCredentialDescriptors` across `getIntegrationModules()`, saves via each `mergeCredentialsPatch`.
   - When `authMethods` are provided, configure shows an auth-method selector and only method-relevant credential fields.
