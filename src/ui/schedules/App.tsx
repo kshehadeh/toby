@@ -1,10 +1,8 @@
 import { Box, Text, render, useApp, useInput, useStdout } from "ink";
-import type React from "react";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { listPersonas } from "../../personas/index";
 import {
 	cronToHuman,
-	humanToCron,
 	humanToCronAsync,
 	isValidCronExpression,
 } from "../../schedules/cron";
@@ -21,15 +19,38 @@ import type {
 	Schedule,
 	ScheduleRun,
 } from "../../schedules/types";
-import { AppHeader } from "../chat/components/app-header";
-import { ACCENT, INPUT_BORDER } from "../chat/constants";
-import { MultilineTextEdit, newlineHintText } from "../shared";
-import { detectTerminalProfile, resolveKittyKeyboardMode } from "../shared";
+import { ACCENT } from "../chat/constants";
+import {
+	ActionRow,
+	ConfirmDialog,
+	FieldEditor,
+	FieldSelector,
+	NavigatorRow,
+	SectionDivider,
+	SelectableTextRow,
+	StatusIcon,
+	UI_GLYPHS,
+	UI_HINTS,
+	ViewFrame,
+	detectTerminalProfile,
+	isBackKey,
+	isNavigateDown,
+	isNavigateUp,
+	isQuitKey,
+	isSaveKey,
+	isSelectKey,
+	resolveKittyKeyboardMode,
+	selectedPrefix,
+} from "../shared";
+import type { FieldNavigatorItem } from "../shared";
 
 const MAX_PROMPT_PREVIEW = 60;
 const MAX_OUTPUT_PREVIEW = 80;
 
-type Screen = "list" | "create" | "edit" | "detail" | "confirm" | "runOutput";
+type Screen = "list" | "schedule" | "edit" | "select" | "confirm" | "runOutput";
+
+type EditField = "name" | "prompt" | "persona" | "cron";
+type SelectField = "enabled" | "persona";
 
 interface ScheduleFormState {
 	name: string;
@@ -47,39 +68,15 @@ const DEFAULT_FORM: ScheduleFormState = {
 	enabled: true,
 };
 
-function SchedulesFrame({
-	title,
-	children,
-	footer,
-}: {
-	readonly title: string;
-	readonly children: React.ReactNode;
-	readonly footer?: React.ReactNode;
-}) {
-	return (
-		<Box flexDirection="column" padding={1}>
-			<AppHeader
-				subheader={
-					<Text color={ACCENT} bold wrap="truncate-end">
-						{title}
-					</Text>
-				}
-			/>
-			<Box
-				marginTop={1}
-				borderStyle="single"
-				borderColor={INPUT_BORDER}
-				flexDirection="column"
-			>
-				{children}
-			</Box>
-			{footer ? (
-				<Box marginTop={1} paddingX={1}>
-					{footer}
-				</Box>
-			) : null}
-		</Box>
-	);
+type ScheduleBrowseItem =
+	| (FieldNavigatorItem & { browseKind: "field" })
+	| { key: string; browseKind: "action"; label: string; actionKey: "run" }
+	| { key: string; browseKind: "delete"; label: string }
+	| { key: string; browseKind: "divider"; label: string }
+	| { key: string; browseKind: "run"; run: ScheduleRun };
+
+function truncatePreview(text: string, max: number): string {
+	return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
 interface ScheduleListProps {
@@ -100,7 +97,7 @@ function ScheduleList({
 	onQuit,
 }: ScheduleListProps) {
 	useInput((input, key) => {
-		if (input === "q") {
+		if (isQuitKey(input, key)) {
 			onQuit();
 			return;
 		}
@@ -108,22 +105,22 @@ function ScheduleList({
 			onCreate();
 			return;
 		}
-		if (key.upArrow) {
+		if (isNavigateUp(input, key)) {
 			onSelect(Math.max(0, selectedIndex - 1));
 			return;
 		}
-		if (key.downArrow) {
+		if (isNavigateDown(input, key)) {
 			onSelect(Math.min(schedules.length - 1, selectedIndex + 1));
 			return;
 		}
-		if (key.return && schedules[selectedIndex]) {
+		if (isSelectKey(input, key) && schedules[selectedIndex]) {
 			onSelectSchedule(schedules[selectedIndex]);
 		}
 	});
 
 	if (schedules.length === 0) {
 		return (
-			<SchedulesFrame
+			<ViewFrame
 				title="Schedules"
 				footer={<Text dimColor>c create · q close</Text>}
 			>
@@ -134,423 +131,137 @@ function ScheduleList({
 					</Text>
 					<Text dimColor> to create one.</Text>
 				</Box>
-			</SchedulesFrame>
+			</ViewFrame>
 		);
 	}
 
 	return (
-		<SchedulesFrame
+		<ViewFrame
 			title="Schedules"
-			footer={
-				<Text dimColor>↑↓ navigate · Enter select · c create · q close</Text>
-			}
+			footer={<Text dimColor>{UI_HINTS.list} · c create</Text>}
 		>
 			{schedules.map((schedule, i) => {
 				const selected = i === selectedIndex;
-				const statusIcon = schedule.enabled ? "✔︎" : "✗";
-				const statusColor = schedule.enabled ? "green" : "red";
 				const humanCron = cronToHuman(schedule.cronExpression);
-				const promptPreview =
-					schedule.prompt.length > MAX_PROMPT_PREVIEW
-						? `${schedule.prompt.slice(0, MAX_PROMPT_PREVIEW - 1)}…`
-						: schedule.prompt;
+				const promptPreview = truncatePreview(
+					schedule.prompt,
+					MAX_PROMPT_PREVIEW,
+				);
 				return (
-					<Box key={schedule.id} paddingX={1}>
-						<Text wrap="truncate-end">
-							<Text color={selected ? ACCENT : "gray"} bold>
-								{selected ? "› " : "  "}
-							</Text>
-							<Text color={statusColor}>{statusIcon}</Text>
-							<Text color={selected ? "white" : "gray"} bold={selected}>
-								{" "}
-								▸ {schedule.name}{" "}
-							</Text>
-							<Text dimColor>{humanCron} · </Text>
-							<Text dimColor italic>
-								{promptPreview}
-							</Text>
+					<SelectableTextRow key={schedule.id} selected={selected}>
+						<StatusIcon status={schedule.enabled ? "enabled" : "disabled"} />
+						{UI_GLYPHS.section} {schedule.name}{" "}
+						<Text dimColor>
+							{humanCron} · <Text italic>{promptPreview}</Text>
 						</Text>
-					</Box>
+					</SelectableTextRow>
 				);
 			})}
-		</SchedulesFrame>
+		</ViewFrame>
 	);
 }
 
-type FormField = "name" | "prompt" | "persona" | "cron" | "enabled";
-
-function formFieldToKey(field: FormField): keyof ScheduleFormState {
-	switch (field) {
-		case "persona":
-			return "personaName";
-		case "cron":
-			return "cronExpression";
-		default:
-			return field;
-	}
-}
-
-interface ScheduleFormProps {
-	form: ScheduleFormState;
-	selectedField: FormField;
-	personas: { name: string }[];
-	isCreating: boolean;
-	saving: boolean;
+interface ScheduleBrowseProps {
+	title: string;
+	breadcrumb: string[];
+	items: ScheduleBrowseItem[];
+	selectedIndex: number;
 	statusMessage?: string;
-	onFieldFocus: (field: FormField) => void;
-	onEditField: (field: FormField) => void;
-	onToggleEnabled: () => void;
-	onCyclePersona: () => void;
+	saving: boolean;
+	running: boolean;
+	onSelect: (index: number) => void;
+	onSelectItem: (item: ScheduleBrowseItem) => void;
 	onSave: () => void;
 	onBack: () => void;
+	onQuit: () => void;
 }
 
-function ScheduleForm({
-	form,
-	selectedField,
-	personas,
-	isCreating,
-	saving,
+function ScheduleBrowse({
+	title,
+	breadcrumb,
+	items,
+	selectedIndex,
 	statusMessage,
-	onFieldFocus,
-	onEditField,
-	onToggleEnabled,
-	onCyclePersona,
+	saving,
+	running,
+	onSelect,
+	onSelectItem,
 	onSave,
 	onBack,
-}: ScheduleFormProps) {
-	const fields: {
-		key: FormField;
-		label: string;
-		value: string;
-		editable: boolean;
-		multiline?: boolean;
-	}[] = [
-		{
-			key: "name",
-			label: "Name",
-			value: form.name || "(empty)",
-			editable: true,
-		},
-		{
-			key: "prompt",
-			label: "Prompt",
-			value:
-				form.prompt.length > MAX_PROMPT_PREVIEW
-					? `${form.prompt.slice(0, MAX_PROMPT_PREVIEW - 1)}…`
-					: form.prompt || "(empty)",
-			editable: true,
-			multiline: true,
-		},
-		{
-			key: "persona",
-			label: "Persona",
-			value: form.personaName,
-			editable: true,
-		},
-		{
-			key: "cron",
-			label: "Schedule",
-			value: `${form.cronExpression} (${cronToHuman(form.cronExpression)})`,
-			editable: true,
-		},
-		{
-			key: "enabled",
-			label: "Enabled",
-			value: form.enabled ? "Yes" : "No",
-			editable: false,
-		},
-	];
-
+	onQuit,
+}: ScheduleBrowseProps) {
 	useInput((input, key) => {
-		if (saving) return;
-		if (key.upArrow) {
-			const idx = fields.findIndex((f) => f.key === selectedField);
-			onFieldFocus(fields[Math.max(0, idx - 1)]?.key ?? "name");
+		if (saving || running) {
 			return;
 		}
-		if (key.downArrow) {
-			const idx = fields.findIndex((f) => f.key === selectedField);
-			onFieldFocus(
-				fields[Math.min(fields.length - 1, idx + 1)]?.key ?? "enabled",
-			);
+		if (isQuitKey(input, key)) {
+			onQuit();
 			return;
 		}
-		if (key.return) {
-			const current = fields.find((f) => f.key === selectedField);
-			if (current?.editable) {
-				onEditField(selectedField);
-			} else if (selectedField === "enabled") {
-				onToggleEnabled();
-			}
-			return;
-		}
-		if (key.escape || input === "b") {
-			onBack();
-			return;
-		}
-		if (input === "s") {
+		if (isSaveKey(input, key)) {
 			onSave();
 			return;
 		}
-		if (selectedField === "enabled" && (input === " " || input === "t")) {
-			onToggleEnabled();
-			return;
-		}
-		if (selectedField === "persona" && (key.tab || input === " ")) {
-			onCyclePersona();
-			return;
-		}
-	});
-
-	const title = isCreating ? "Schedules > New" : "Schedules > Edit";
-
-	return (
-		<SchedulesFrame
-			title={title}
-			footer={
-				<Text dimColor>
-					↑↓ navigate · Enter edit · s save · b back · Esc cancel · Schedule
-					accepts natural language
-				</Text>
-			}
-		>
-			{fields.map((field) => {
-				const active = field.key === selectedField;
-				const hint =
-					active && field.key === "enabled"
-						? " (Space/t toggle)"
-						: active && field.key === "persona"
-							? " (Tab cycle)"
-							: active && field.editable
-								? " (Enter edit)"
-								: "";
-				const prefix = active ? "› " : "  ";
-				if (field.multiline) {
-					return (
-						<Box key={field.key} paddingX={1} flexDirection="column">
-							<Text bold color={active ? ACCENT : undefined}>
-								{prefix}
-								{field.label}
-								{hint ? (
-									<Text dimColor italic>
-										{hint}
-									</Text>
-								) : null}
-							</Text>
-							<Text dimColor wrap="truncate-end">
-								{"    "}
-								{field.value}
-							</Text>
-						</Box>
-					);
-				}
-				return (
-					<Box key={field.key} paddingX={1} flexDirection="row">
-						<Text bold color={active ? ACCENT : undefined}>
-							{prefix}
-							{field.label}
-							{hint ? (
-								<Text dimColor italic>
-									{hint}
-								</Text>
-							) : null}
-						</Text>
-						<Text dimColor wrap="truncate-end">
-							{": "}
-							{field.value}
-						</Text>
-					</Box>
-				);
-			})}
-			{statusMessage ? (
-				<Box marginTop={1} paddingX={1}>
-					<Text color="yellow">{statusMessage}</Text>
-				</Box>
-			) : null}
-		</SchedulesFrame>
-	);
-}
-
-interface ScheduleDetailProps {
-	schedule: Schedule;
-	runs: ScheduleRun[];
-	selectedIndex: number;
-	running: boolean;
-	onSelect: (index: number) => void;
-	onEdit: () => void;
-	onDelete: () => void;
-	onRunNow: () => void;
-	onViewRun: (run: ScheduleRun) => void;
-	onBack: () => void;
-}
-
-function ScheduleDetail({
-	schedule,
-	runs,
-	selectedIndex,
-	running,
-	onSelect,
-	onEdit,
-	onDelete,
-	onRunNow,
-	onViewRun,
-	onBack,
-}: ScheduleDetailProps) {
-	type DetailItem =
-		| { kind: "info"; label: string; value: string; multiline?: boolean }
-		| { kind: "action"; label: string; actionKey: string }
-		| { kind: "delete"; label: string; actionKey: string }
-		| { kind: "run"; run: ScheduleRun };
-
-	const infoItems: DetailItem[] = [
-		{ kind: "info", label: "Name", value: schedule.name },
-		{ kind: "info", label: "Prompt", value: schedule.prompt, multiline: true },
-		{
-			kind: "info",
-			label: "Persona",
-			value: schedule.personaName,
-		},
-		{
-			kind: "info",
-			label: "Schedule",
-			value: `${schedule.cronExpression} (${cronToHuman(schedule.cronExpression)})`,
-		},
-		{
-			kind: "info",
-			label: "Enabled",
-			value: schedule.enabled ? "Yes" : "No",
-		},
-		{
-			kind: "info",
-			label: "Last run",
-			value: schedule.lastRunAt
-				? new Date(schedule.lastRunAt).toLocaleString()
-				: "Never",
-		},
-		{
-			kind: "action",
-			label: running ? "Running…" : "Run now",
-			actionKey: "run",
-		},
-		{ kind: "action", label: "Edit schedule", actionKey: "edit" },
-		{ kind: "delete", label: "Delete schedule", actionKey: "delete" },
-	];
-
-	const runItems: DetailItem[] = runs.map((r) => ({
-		kind: "run" as const,
-		run: r,
-	}));
-
-	const items =
-		runs.length > 0
-			? [
-					...infoItems,
-					{ kind: "info" as const, label: "Recent runs", value: "" },
-					...runItems,
-				]
-			: infoItems;
-
-	useInput((input, key) => {
-		if (running) return;
-		if (key.upArrow) {
+		if (isNavigateUp(input, key)) {
 			onSelect(Math.max(0, selectedIndex - 1));
 			return;
 		}
-		if (key.downArrow) {
+		if (isNavigateDown(input, key)) {
 			onSelect(Math.min(items.length - 1, selectedIndex + 1));
 			return;
 		}
-		if (key.backspace || input === "b") {
-			onBack();
+		if (isSelectKey(input, key)) {
+			const item = items[selectedIndex];
+			if (item) {
+				onSelectItem(item);
+			}
 			return;
 		}
-		if (key.return) {
-			const item = items[selectedIndex];
-			if (!item) return;
-			if (item.kind === "action" && item.actionKey === "edit") {
-				onEdit();
-			} else if (item.kind === "action" && item.actionKey === "run") {
-				onRunNow();
-			} else if (item.kind === "delete" && item.actionKey === "delete") {
-				onDelete();
-			} else if (item.kind === "run") {
-				onViewRun(item.run);
-			}
+		if (isBackKey(input, key)) {
+			onBack();
 		}
 	});
 
 	return (
-		<SchedulesFrame
-			title={`Schedules > ${schedule.name}`}
-			footer={
-				<Text dimColor>↑↓ navigate · Enter select · b back · q close</Text>
-			}
+		<ViewFrame
+			title={title}
+			footer={<Text dimColor>{UI_HINTS.fieldBrowse}</Text>}
 		>
+			<Box marginBottom={1} paddingX={1}>
+				<Text bold color={ACCENT}>
+					{breadcrumb.join(" > ")}
+				</Text>
+			</Box>
 			{items.map((item, i) => {
 				const selected = i === selectedIndex;
-				if (item.kind === "info") {
-					if (item.label === "Recent runs") {
-						return (
-							<Box key={item.label} paddingX={1} marginTop={1}>
-								<Text bold color={ACCENT}>
-									─── Recent runs ───
-								</Text>
-							</Box>
-						);
-					}
-					const prefix = selected ? "› " : "  ";
-					if (item.multiline) {
-						return (
-							<Box key={item.label} paddingX={1} flexDirection="column">
-								<Text bold color={selected ? ACCENT : undefined}>
-									{prefix}
-									{item.label}
-								</Text>
-								<Text dimColor wrap="truncate-end">
-									{"    "}
-									{item.value}
-								</Text>
-							</Box>
-						);
-					}
+				if (item.browseKind === "field") {
+					const rowKind = item.kind === "info" ? ("value" as const) : item.kind;
 					return (
-						<Box key={item.label} paddingX={1} flexDirection="row">
-							<Text bold color={selected ? ACCENT : undefined}>
-								{prefix}
-								{item.label}
-							</Text>
-							<Text dimColor wrap="truncate-end">
-								{": "}
-								{item.value}
-							</Text>
-						</Box>
+						<NavigatorRow
+							key={item.key}
+							label={item.label}
+							kind={rowKind}
+							selected={selected}
+							multiline={item.multiline}
+							currentValue={item.currentValue}
+						/>
 					);
 				}
-				if (item.kind === "run") {
-					const statusIcon =
-						item.run.status === "success"
-							? "✔︎"
-							: item.run.status === "error"
-								? "✗"
-								: "…";
-					const statusColor =
-						item.run.status === "success"
-							? "green"
-							: item.run.status === "error"
-								? "red"
-								: "yellow";
+				if (item.browseKind === "divider") {
+					return <SectionDivider key={item.key} label={item.label} />;
+				}
+				if (item.browseKind === "run") {
 					const output =
 						item.run.output && item.run.output.length > MAX_OUTPUT_PREVIEW
 							? `${item.run.output.slice(0, MAX_OUTPUT_PREVIEW - 1)}…`
 							: (item.run.output ?? "(no output)");
 					return (
-						<Box key={item.run.id} paddingX={1} flexDirection="column">
+						<Box key={item.key} paddingX={1} flexDirection="column">
 							<Text>
 								<Text color={selected ? ACCENT : "gray"} bold>
-									{selected ? "› " : "  "}
+									{selectedPrefix(selected)}
 								</Text>
-								<Text color={statusColor}>{statusIcon}</Text>
+								<StatusIcon status={item.run.status} />
 								<Text dimColor>
 									{" "}
 									{new Date(item.run.startedAt).toLocaleString()}
@@ -563,53 +274,19 @@ function ScheduleDetail({
 						</Box>
 					);
 				}
-				const icon = item.kind === "action" ? "+" : "✕";
-				const color = item.kind === "action" ? "yellow" : "red";
 				return (
-					<Box key={item.actionKey} paddingX={1}>
-						<Text>
-							<Text color={selected ? ACCENT : "gray"} bold>
-								{selected ? "› " : "  "}
-							</Text>
-							<Text color={selected ? "white" : color} bold={selected}>
-								{icon} {item.label}
-							</Text>
-						</Text>
-					</Box>
+					<ActionRow
+						key={item.key}
+						label={item.label}
+						selected={selected}
+						kind={item.browseKind === "delete" ? "delete" : "action"}
+					/>
 				);
 			})}
-		</SchedulesFrame>
-	);
-}
-
-interface ConfirmDialogProps {
-	message: string;
-	onConfirm: () => void;
-	onCancel: () => void;
-}
-
-function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
-	useInput((input, key) => {
-		if (key.return || input === "y") {
-			onConfirm();
-			return;
-		}
-		if (key.escape || input === "n") {
-			onCancel();
-		}
-	});
-
-	return (
-		<SchedulesFrame
-			title="Schedules"
-			footer={<Text dimColor>y/Enter confirm · n/Esc cancel</Text>}
-		>
-			<Box paddingX={1}>
-				<Text bold color="yellow">
-					{message}
-				</Text>
+			<Box marginTop={1} paddingX={1} flexDirection="column">
+				{statusMessage ? <Text color="yellow">{statusMessage}</Text> : null}
 			</Box>
-		</SchedulesFrame>
+		</ViewFrame>
 	);
 }
 
@@ -623,21 +300,10 @@ function RunOutputView({ run, scheduleName, onBack }: RunOutputViewProps) {
 	const [scrollOffset, setScrollOffset] = useState(0);
 	const { stdout } = useStdout();
 
-	const statusIcon =
-		run.status === "success" ? "✔︎" : run.status === "error" ? "✗" : "…";
-	const statusColor =
-		run.status === "success"
-			? "green"
-			: run.status === "error"
-				? "red"
-				: "yellow";
-
 	const rawOutput = run.output ?? "(no output)";
 	const lines = rawOutput.split("\n");
 	const totalLines = lines.length;
 
-	// Reserve rows for: AppHeader(2), border-top(1), status block(2),
-	// "Output" separator(1), border-bottom(1), footer(2), padding(2) = ~11
 	const chromeRows = 11;
 	const terminalRows = stdout?.rows ?? 24;
 	const visibleLines = Math.max(3, terminalRows - chromeRows);
@@ -646,15 +312,15 @@ function RunOutputView({ run, scheduleName, onBack }: RunOutputViewProps) {
 	const visible = lines.slice(scrollOffset, scrollOffset + visibleLines);
 
 	useInput((input, key) => {
-		if (key.escape || input === "b" || key.backspace) {
+		if (key.escape || isBackKey(input, key)) {
 			onBack();
 			return;
 		}
-		if (key.downArrow || input === "j") {
+		if (isNavigateDown(input, key)) {
 			setScrollOffset((o) => Math.min(o + 1, maxOffset));
 			return;
 		}
-		if (key.upArrow || input === "k") {
+		if (isNavigateUp(input, key)) {
 			setScrollOffset((o) => Math.max(o - 1, 0));
 			return;
 		}
@@ -672,7 +338,6 @@ function RunOutputView({ run, scheduleName, onBack }: RunOutputViewProps) {
 		}
 		if (input === "G") {
 			setScrollOffset(maxOffset);
-			return;
 		}
 	});
 
@@ -682,17 +347,17 @@ function RunOutputView({ run, scheduleName, onBack }: RunOutputViewProps) {
 			: "";
 
 	return (
-		<SchedulesFrame
+		<ViewFrame
 			title={`Schedules > ${scheduleName} > Run ${new Date(run.startedAt).toLocaleString()}`}
 			footer={
 				<Text dimColor>
-					↑↓/j/k scroll · Space/PageDn · PageUp · g/G top/bottom · b/Esc back
+					↑↓ scroll · Space/PageDn · PageUp · g/G top/bottom · b/Esc back
 				</Text>
 			}
 		>
 			<Box paddingX={1} flexDirection="column">
 				<Text>
-					<Text color={statusColor}>{statusIcon}</Text>
+					<StatusIcon status={run.status} />
 					<Text dimColor>
 						{" "}
 						{run.status.toUpperCase()} ·{" "}
@@ -704,85 +369,100 @@ function RunOutputView({ run, scheduleName, onBack }: RunOutputViewProps) {
 				</Text>
 				{run.error ? <Text color="red">{run.error}</Text> : null}
 			</Box>
-			<Box marginTop={1} paddingX={1}>
-				<Text bold color={ACCENT}>
-					─── Output{scrollIndicator} ───
-				</Text>
-			</Box>
+			<SectionDivider label={`Output${scrollIndicator}`} />
 			<Box paddingX={1} flexDirection="column">
 				{visible.map((line, i) => (
 					<Text key={`line-${run.id}-${scrollOffset + i}`}>{line}</Text>
 				))}
 			</Box>
-		</SchedulesFrame>
+		</ViewFrame>
 	);
 }
 
-interface FieldEditorProps {
-	label: string;
-	value: string;
-	placeholder?: string;
-	multiline?: boolean;
-	onSubmit: (value: string) => void;
-	onCancel: () => void;
-}
+function buildScheduleBrowseItems(
+	form: ScheduleFormState,
+	runs: ScheduleRun[],
+	lastRunAt: string | undefined,
+	isCreating: boolean,
+	running: boolean,
+): ScheduleBrowseItem[] {
+	const promptPreview = form.prompt
+		? truncatePreview(form.prompt, MAX_PROMPT_PREVIEW)
+		: "(empty)";
 
-function FieldEditor({
-	label,
-	value: initialValue,
-	placeholder,
-	multiline = false,
-	onSubmit,
-	onCancel,
-}: FieldEditorProps) {
-	const [value, setValue] = useState(initialValue);
-	const [cursorResetToken, setCursorResetToken] = useState(0);
+	const fields: ScheduleBrowseItem[] = [
+		{
+			browseKind: "field",
+			key: "name",
+			label: "Name",
+			kind: "value",
+			currentValue: form.name || "(empty)",
+		},
+		{
+			browseKind: "field",
+			key: "prompt",
+			label: "Prompt",
+			kind: "value",
+			currentValue: promptPreview,
+			multiline: true,
+		},
+		{
+			browseKind: "field",
+			key: "persona",
+			label: "Persona",
+			kind: "select",
+			currentValue: form.personaName,
+		},
+		{
+			browseKind: "field",
+			key: "cron",
+			label: "Schedule",
+			kind: "value",
+			currentValue: `${form.cronExpression} (${cronToHuman(form.cronExpression)})`,
+		},
+		{
+			browseKind: "field",
+			key: "enabled",
+			label: "Enabled",
+			kind: "select",
+			currentValue: form.enabled ? "Yes" : "No",
+		},
+	];
 
-	useInput((input, key) => {
-		if (key.escape) {
-			onCancel();
-		}
-	});
+	if (!isCreating) {
+		fields.push({
+			browseKind: "field",
+			key: "lastRun",
+			label: "Last run",
+			kind: "info",
+			currentValue: lastRunAt ? new Date(lastRunAt).toLocaleString() : "Never",
+		});
+		fields.push({
+			browseKind: "action",
+			key: "run",
+			label: running ? "Running…" : "Run now",
+			actionKey: "run",
+		});
+		fields.push({
+			browseKind: "delete",
+			key: "delete",
+			label: "Delete schedule",
+		});
+	}
 
-	const enterMode = multiline ? "newline" : "submit";
+	if (runs.length > 0 && !isCreating) {
+		return [
+			...fields,
+			{ browseKind: "divider", key: "runs-divider", label: "Recent runs" },
+			...runs.map((run) => ({
+				browseKind: "run" as const,
+				key: `run-${run.id}`,
+				run,
+			})),
+		];
+	}
 
-	return (
-		<SchedulesFrame
-			title="Schedules > Edit"
-			footer={
-				<Text dimColor>
-					{multiline
-						? `${newlineHintText(detectTerminalProfile())} · Ctrl+S confirm · Esc cancel`
-						: "Enter confirm · Esc cancel"}
-				</Text>
-			}
-		>
-			<Box paddingX={1} flexDirection="column">
-				<Text bold color={ACCENT}>
-					{label}
-				</Text>
-			</Box>
-			<Box marginTop={1} paddingX={1}>
-				<MultilineTextEdit
-					width={60}
-					value={value}
-					onChange={setValue}
-					onSubmit={(v) => {
-						onSubmit(v);
-						setCursorResetToken((t) => t + 1);
-					}}
-					focus
-					placeholder={placeholder}
-					accentColor={ACCENT}
-					rows={1}
-					maxRows={multiline ? 6 : 1}
-					cursorResetToken={cursorResetToken}
-					enterMode={enterMode}
-					onCancel={onCancel}
-				/>
-			</Box>
-		</SchedulesFrame>
-	);
+	return fields;
 }
 
 interface SchedulesAppProps {
@@ -794,7 +474,7 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 	const [schedules, setSchedules] = useState<Schedule[]>(() => listSchedules());
 	const [screen, setScreen] = useState<Screen>("list");
 	const [selectedIndex, setSelectedIndex] = useState(0);
-	const [detailIndex, setDetailIndex] = useState(0);
+	const [browseIndex, setBrowseIndex] = useState(0);
 	const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(
 		null,
 	);
@@ -804,22 +484,16 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 	const [statusMessage, setStatusMessage] = useState<string | undefined>(
 		undefined,
 	);
-	const [editingField, setEditingField] = useState<FormField | null>(null);
+	const [editField, setEditField] = useState<EditField | null>(null);
+	const [selectField, setSelectField] = useState<SelectField | null>(null);
 	const [form, setForm] = useState<ScheduleFormState>(DEFAULT_FORM);
-	const [formFieldIndex, setFormFieldIndex] = useState(0);
 	const [isCreating, setIsCreating] = useState(false);
 	const [saving, setSaving] = useState(false);
 	const [running, setRunning] = useState(false);
 	const [selectedRun, setSelectedRun] = useState<ScheduleRun | null>(null);
 
 	const personas = listPersonas();
-	const formFields: FormField[] = [
-		"name",
-		"prompt",
-		"persona",
-		"cron",
-		"enabled",
-	];
+	const personaNames = useMemo(() => personas.map((p) => p.name), [personas]);
 
 	const refreshSchedules = useCallback(() => {
 		setSchedules(listSchedules());
@@ -833,62 +507,59 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 		exit();
 	}, [onQuitRequested, exit]);
 
-	const handleSelectSchedule = useCallback((schedule: Schedule) => {
+	const openSchedule = useCallback((schedule: Schedule) => {
 		setSelectedSchedule(schedule);
+		setIsCreating(false);
+		setForm({
+			name: schedule.name,
+			prompt: schedule.prompt,
+			personaName: schedule.personaName,
+			cronExpression: schedule.cronExpression,
+			enabled: schedule.enabled,
+		});
 		setRuns(listScheduleRuns(schedule.id, 10));
-		setDetailIndex(0);
-		setScreen("detail");
+		setBrowseIndex(0);
+		setScreen("schedule");
 		setStatusMessage(undefined);
+		setEditField(null);
+		setSelectField(null);
 	}, []);
 
 	const handleCreate = useCallback(() => {
 		setIsCreating(true);
+		setSelectedSchedule(null);
 		setForm(DEFAULT_FORM);
-		setFormFieldIndex(0);
-		setEditingField(null);
-		setScreen("create");
+		setRuns([]);
+		setBrowseIndex(0);
+		setScreen("schedule");
 		setStatusMessage(undefined);
+		setEditField(null);
+		setSelectField(null);
 	}, []);
 
-	const handleEdit = useCallback(() => {
-		if (!selectedSchedule) return;
-		setIsCreating(false);
-		setForm({
-			name: selectedSchedule.name,
-			prompt: selectedSchedule.prompt,
-			personaName: selectedSchedule.personaName,
-			cronExpression: selectedSchedule.cronExpression,
-			enabled: selectedSchedule.enabled,
-		});
-		setFormFieldIndex(0);
-		setEditingField(null);
-		setScreen("edit");
-		setStatusMessage(undefined);
-	}, [selectedSchedule]);
-
 	const handleBack = useCallback(() => {
-		if (editingField) {
-			setEditingField(null);
-			return;
-		}
 		if (screen === "runOutput") {
-			setScreen("detail");
+			setScreen("schedule");
 			setSelectedRun(null);
 			return;
 		}
-		if (screen === "create" || screen === "edit") {
-			setScreen(isCreating ? "list" : "detail");
-			setEditingField(null);
-			setStatusMessage(undefined);
+		if (editField || selectField) {
+			setEditField(null);
+			setSelectField(null);
 			return;
 		}
-		setScreen("list");
-		setSelectedSchedule(null);
-		setStatusMessage(undefined);
-	}, [editingField, screen, isCreating]);
+		if (screen === "schedule") {
+			setScreen("list");
+			setSelectedSchedule(null);
+			setIsCreating(false);
+			setStatusMessage(undefined);
+		}
+	}, [screen, editField, selectField]);
 
-	const handleSaveForm = useCallback(async () => {
-		if (saving) return;
+	const handleSave = useCallback(async () => {
+		if (saving) {
+			return;
+		}
 		if (!form.name.trim()) {
 			setStatusMessage("Name is required.");
 			return;
@@ -918,7 +589,6 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 				createSchedule(params);
 				refreshSchedules();
 				setScreen("list");
-				setEditingField(null);
 				setStatusMessage(undefined);
 				setSaving(false);
 				return;
@@ -939,10 +609,15 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 				if (updated) {
 					setSelectedSchedule(updated);
 					setRuns(listScheduleRuns(updated.id, 10));
+					setForm({
+						name: updated.name,
+						prompt: updated.prompt,
+						personaName: updated.personaName,
+						cronExpression: updated.cronExpression,
+						enabled: updated.enabled,
+					});
 				}
-				setScreen("detail");
-				setEditingField(null);
-				setStatusMessage(undefined);
+				setStatusMessage("Schedule saved.");
 			}
 			setSaving(false);
 		} catch (e) {
@@ -953,23 +628,11 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 
 	const handleFieldEditSubmit = useCallback(
 		async (value: string) => {
-			if (!editingField) return;
+			if (!editField) {
+				return;
+			}
 
-			if (editingField === "enabled") {
-				setForm((f) => ({
-					...f,
-					enabled:
-						value.toLowerCase() === "yes" || value === "true" || value === "1",
-				}));
-			} else if (editingField === "persona") {
-				const match = personas.find(
-					(p) => p.name.toLowerCase() === value.toLowerCase(),
-				);
-				setForm((f) => ({
-					...f,
-					personaName: match?.name ?? value,
-				}));
-			} else if (editingField === "cron") {
+			if (editField === "cron") {
 				try {
 					setStatusMessage("Converting schedule expression…");
 					const cronExpr = await humanToCronAsync(value);
@@ -980,16 +643,37 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 						'Invalid schedule expression. Try a cron format like "0 9 * * *" or natural language like "every weekday at 9am".',
 					);
 				}
-			} else {
-				setForm((f) => ({ ...f, [formFieldToKey(editingField)]: value }));
+			} else if (editField === "name") {
+				setForm((f) => ({ ...f, name: value }));
+			} else if (editField === "prompt") {
+				setForm((f) => ({ ...f, prompt: value }));
 			}
-			setEditingField(null);
+			setEditField(null);
+			setScreen("schedule");
 		},
-		[editingField, personas],
+		[editField],
+	);
+
+	const handleSelectSubmit = useCallback(
+		(value: string) => {
+			if (selectField === "enabled") {
+				setForm((f) => ({
+					...f,
+					enabled: value === "Yes",
+				}));
+			} else if (selectField === "persona") {
+				setForm((f) => ({ ...f, personaName: value }));
+			}
+			setSelectField(null);
+			setScreen("schedule");
+		},
+		[selectField],
 	);
 
 	const handleRunNow = useCallback(async () => {
-		if (!selectedSchedule || running) return;
+		if (!selectedSchedule || running || isCreating) {
+			return;
+		}
 		setRunning(true);
 		setStatusMessage("Running schedule…");
 		try {
@@ -1007,13 +691,74 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 			);
 		}
 		setRunning(false);
-	}, [selectedSchedule, running, refreshSchedules]);
+	}, [selectedSchedule, running, isCreating, refreshSchedules]);
 
-	const currentFormField = formFields[formFieldIndex] ?? "name";
+	const browseItems = buildScheduleBrowseItems(
+		form,
+		runs,
+		selectedSchedule?.lastRunAt ?? undefined,
+		isCreating,
+		running,
+	);
+
+	const breadcrumb = isCreating
+		? ["Schedules", "New"]
+		: ["Schedules", form.name || selectedSchedule?.name || ""];
+
+	const handleBrowseItem = useCallback(
+		(item: ScheduleBrowseItem) => {
+			if (item.browseKind === "field") {
+				if (item.key === "lastRun") {
+					return;
+				}
+				if (item.key === "enabled" || item.key === "persona") {
+					setSelectField(item.key === "enabled" ? "enabled" : "persona");
+					setScreen("select");
+					return;
+				}
+				if (
+					item.key === "name" ||
+					item.key === "prompt" ||
+					item.key === "cron"
+				) {
+					setEditField(item.key);
+					setScreen("edit");
+				}
+				return;
+			}
+			if (item.browseKind === "action" && item.actionKey === "run") {
+				handleRunNow();
+				return;
+			}
+			if (item.browseKind === "delete") {
+				if (!selectedSchedule) {
+					return;
+				}
+				setConfirmMsg(`Delete schedule "${selectedSchedule.name}"?`);
+				setConfirmAction(() => () => {
+					deleteScheduleFromStore(selectedSchedule.id);
+					refreshSchedules();
+					setScreen("list");
+					setSelectedSchedule(null);
+					setSelectedIndex(0);
+					setConfirmAction(null);
+					setConfirmMsg("");
+				});
+				setScreen("confirm");
+				return;
+			}
+			if (item.browseKind === "run") {
+				setSelectedRun(item.run);
+				setScreen("runOutput");
+			}
+		},
+		[handleRunNow, refreshSchedules, selectedSchedule],
+	);
 
 	if (screen === "confirm" && confirmAction) {
 		return (
 			<ConfirmDialog
+				title="Schedules"
 				message={confirmMsg}
 				onConfirm={() => {
 					confirmAction();
@@ -1021,7 +766,7 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 				onCancel={() => {
 					setConfirmAction(null);
 					setConfirmMsg("");
-					setScreen("detail");
+					setScreen("schedule");
 				}}
 			/>
 		);
@@ -1037,89 +782,89 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 		);
 	}
 
-	if (editingField) {
-		const currentRaw = form[formFieldToKey(editingField)];
-		const currentValue =
-			typeof currentRaw === "boolean"
-				? currentRaw
-					? "yes"
-					: "no"
-				: String(currentRaw);
-		const placeholder =
-			editingField === "cron"
-				? "e.g. every weekday at 9am, every hour on mondays, 0 9 * * *"
-				: editingField === "persona"
-					? personas.map((p) => p.name).join(", ")
-					: undefined;
-
+	if (screen === "edit" && editField) {
+		const editValues: Record<
+			EditField,
+			{ value: string; multiline?: boolean }
+		> = {
+			name: { value: form.name },
+			prompt: { value: form.prompt, multiline: true },
+			persona: { value: form.personaName },
+			cron: { value: form.cronExpression },
+		};
+		const labels: Record<EditField, string> = {
+			name: "Name",
+			prompt: "Prompt",
+			persona: "Persona",
+			cron: "Schedule",
+		};
+		const current = editValues[editField];
 		return (
 			<FieldEditor
-				label={editingField.charAt(0).toUpperCase() + editingField.slice(1)}
-				value={currentValue}
-				placeholder={placeholder}
-				multiline={editingField === "prompt"}
+				appTitle="Schedules"
+				fieldLabel={labels[editField]}
+				value={current.value}
+				multiline={current.multiline}
+				placeholder={
+					editField === "cron"
+						? "e.g. every weekday at 9am, 0 9 * * *"
+						: undefined
+				}
 				onSubmit={handleFieldEditSubmit}
-				onCancel={() => setEditingField(null)}
+				onCancel={() => {
+					setEditField(null);
+					setScreen("schedule");
+				}}
 			/>
 		);
 	}
 
-	if (screen === "create" || screen === "edit") {
-		const currentFormField = formFields[formFieldIndex] ?? "name";
+	if (screen === "select" && selectField) {
+		if (selectField === "enabled") {
+			return (
+				<FieldSelector
+					appTitle="Schedules"
+					fieldLabel="Enabled"
+					options={["Yes", "No"]}
+					currentValue={form.enabled ? "Yes" : "No"}
+					onSubmit={handleSelectSubmit}
+					onCancel={() => {
+						setSelectField(null);
+						setScreen("schedule");
+					}}
+				/>
+			);
+		}
 		return (
-			<ScheduleForm
-				form={form}
-				selectedField={currentFormField}
-				personas={personas}
-				isCreating={isCreating}
-				saving={saving}
+			<FieldSelector
+				appTitle="Schedules"
+				fieldLabel="Persona"
+				options={personaNames}
+				currentValue={form.personaName}
+				onSubmit={handleSelectSubmit}
+				onCancel={() => {
+					setSelectField(null);
+					setScreen("schedule");
+				}}
+			/>
+		);
+	}
+
+	if (screen === "schedule") {
+		return (
+			<ScheduleBrowse
+				title="Schedules"
+				breadcrumb={breadcrumb}
+				items={browseItems}
+				selectedIndex={browseIndex}
 				statusMessage={statusMessage}
-				onFieldFocus={(field) => {
-					const idx = formFields.indexOf(field);
-					setFormFieldIndex(idx >= 0 ? idx : 0);
-				}}
-				onEditField={(field) => setEditingField(field)}
-				onToggleEnabled={() => setForm((f) => ({ ...f, enabled: !f.enabled }))}
-				onCyclePersona={() => {
-					const idx = personas.findIndex((p) => p.name === form.personaName);
-					const next = (idx + 1) % personas.length;
-					const nextName = personas[next]?.name ?? form.personaName;
-					setForm((f) => ({ ...f, personaName: nextName }));
-				}}
-				onSave={handleSaveForm}
-				onBack={handleBack}
-			/>
-		);
-	}
-
-	if (screen === "detail" && selectedSchedule) {
-		return (
-			<ScheduleDetail
-				schedule={selectedSchedule}
-				runs={runs}
-				selectedIndex={detailIndex}
+				saving={saving}
 				running={running}
-				onSelect={setDetailIndex}
-				onEdit={handleEdit}
-				onDelete={() => {
-					setConfirmMsg(`Delete schedule "${selectedSchedule.name}"?`);
-					setConfirmAction(() => () => {
-						deleteScheduleFromStore(selectedSchedule.id);
-						refreshSchedules();
-						setScreen("list");
-						setSelectedSchedule(null);
-						setSelectedIndex(0);
-						setConfirmAction(null);
-						setConfirmMsg("");
-					});
-					setScreen("confirm");
-				}}
-				onRunNow={handleRunNow}
-				onViewRun={(run) => {
-					setSelectedRun(run);
-					setScreen("runOutput");
-				}}
+				onSelect={setBrowseIndex}
+				onSelectItem={handleBrowseItem}
+				onSave={handleSave}
 				onBack={handleBack}
+				onQuit={handleQuit}
 			/>
 		);
 	}
@@ -1129,7 +874,7 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 			schedules={schedules}
 			selectedIndex={selectedIndex}
 			onSelect={setSelectedIndex}
-			onSelectSchedule={handleSelectSchedule}
+			onSelectSchedule={openSchedule}
 			onCreate={handleCreate}
 			onQuit={handleQuit}
 		/>

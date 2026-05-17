@@ -1,49 +1,32 @@
 import { Box, Text, render, useApp, useInput } from "ink";
-import type React from "react";
 import { useCallback, useState } from "react";
 import { getSkillsDir } from "../../config/index";
 import { type LocalSkill, loadLocalSkills } from "../../skills/index";
 import { deleteSkill, openSkillInEditor } from "../../skills/manage";
-import { AppHeader } from "../chat/components/app-header";
-import { ACCENT, INPUT_BORDER } from "../chat/constants";
-import { detectTerminalProfile, resolveKittyKeyboardMode } from "../shared";
+import { ACCENT } from "../chat/constants";
+import {
+	ActionRow,
+	ConfirmDialog,
+	NavigatorRow,
+	SelectableTextRow,
+	UI_GLYPHS,
+	UI_HINTS,
+	ViewFrame,
+	detectTerminalProfile,
+	isBackKey,
+	isNavigateDown,
+	isNavigateUp,
+	isQuitKey,
+	isSelectKey,
+	resolveKittyKeyboardMode,
+} from "../shared";
+import type { FieldNavigatorItem } from "../shared";
 
 const MAX_DESC_PREVIEW = 60;
 const MAX_BODY_PREVIEW = 200;
 
-function SkillsFrame({
-	title,
-	children,
-	footer,
-}: {
-	readonly title: string;
-	readonly children: React.ReactNode;
-	readonly footer?: React.ReactNode;
-}) {
-	return (
-		<Box flexDirection="column" padding={1}>
-			<AppHeader
-				subheader={
-					<Text color={ACCENT} bold wrap="truncate-end">
-						{title}
-					</Text>
-				}
-			/>
-			<Box
-				marginTop={1}
-				borderStyle="single"
-				borderColor={INPUT_BORDER}
-				flexDirection="column"
-			>
-				{children}
-			</Box>
-			{footer ? (
-				<Box marginTop={1} paddingX={1}>
-					{footer}
-				</Box>
-			) : null}
-		</Box>
-	);
+function truncatePreview(text: string, max: number): string {
+	return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
 interface SkillListProps {
@@ -62,165 +45,138 @@ function SkillList({
 	onQuit,
 }: SkillListProps) {
 	useInput((input, key) => {
-		if (input === "q") {
+		if (isQuitKey(input, key)) {
 			onQuit();
 			return;
 		}
-		if (key.upArrow) {
+		if (isNavigateUp(input, key)) {
 			onSelect(Math.max(0, selectedIndex - 1));
 			return;
 		}
-		if (key.downArrow) {
+		if (isNavigateDown(input, key)) {
 			onSelect(Math.min(skills.length - 1, selectedIndex + 1));
 			return;
 		}
-		if (key.return && skills[selectedIndex]) {
+		if (isSelectKey(input, key) && skills[selectedIndex]) {
 			onSelectSkill(skills[selectedIndex]);
 		}
 	});
 
 	if (skills.length === 0) {
 		return (
-			<SkillsFrame title="Skills" footer={<Text dimColor>q close</Text>}>
+			<ViewFrame title="Skills" footer={<Text dimColor>q close</Text>}>
 				<Box paddingX={1} paddingY={1}>
 					<Text dimColor>
 						No skills found. Add skills to{" "}
 						<Text color={ACCENT}>{getSkillsDir()}</Text>
 					</Text>
 				</Box>
-			</SkillsFrame>
+			</ViewFrame>
 		);
 	}
 
 	return (
-		<SkillsFrame
-			title="Skills"
-			footer={<Text dimColor>↑↓ navigate · Enter select · q close</Text>}
-		>
+		<ViewFrame title="Skills" footer={<Text dimColor>{UI_HINTS.list}</Text>}>
 			{skills.map((skill, i) => {
 				const selected = i === selectedIndex;
-				const desc =
-					skill.description.length > MAX_DESC_PREVIEW
-						? `${skill.description.slice(0, MAX_DESC_PREVIEW - 1)}…`
-						: skill.description;
+				const desc = truncatePreview(skill.description, MAX_DESC_PREVIEW);
 				return (
-					<Box key={skill.dirName} paddingX={1}>
-						<Text wrap="truncate-end">
-							<Text color={selected ? ACCENT : "gray"} bold>
-								{selected ? "› " : "  "}
-							</Text>
-							<Text color={selected ? "white" : "green"} bold={selected}>
-								▸ {skill.name}{" "}
-							</Text>
-							<Text dimColor>{desc}</Text>
-						</Text>
-					</Box>
+					<SelectableTextRow key={skill.dirName} selected={selected}>
+						{UI_GLYPHS.section} {skill.name} <Text dimColor>{desc}</Text>
+					</SelectableTextRow>
 				);
 			})}
-		</SkillsFrame>
+		</ViewFrame>
 	);
 }
 
-type DetailItem =
-	| { kind: "info"; label: string; value: string }
-	| { kind: "action"; label: string; actionKey: string }
-	| { kind: "delete"; label: string; actionKey: string };
+type SkillBrowseItem =
+	| FieldNavigatorItem
+	| { key: string; kind: "action"; label: string; actionKey: "edit" }
+	| { key: string; kind: "delete"; label: string };
 
-interface SkillDetailProps {
+interface SkillBrowseProps {
 	skill: LocalSkill;
+	items: SkillBrowseItem[];
 	selectedIndex: number;
-	onSelect: (index: number) => void;
-	onSelectItem: (item: DetailItem) => void;
-	onBack: () => void;
 	statusMessage?: string;
+	onSelect: (index: number) => void;
+	onSelectItem: (item: SkillBrowseItem) => void;
+	onBack: () => void;
+	onQuit: () => void;
 }
 
-function SkillDetail({
+function SkillBrowse({
 	skill,
+	items,
 	selectedIndex,
+	statusMessage,
 	onSelect,
 	onSelectItem,
 	onBack,
-	statusMessage,
-}: SkillDetailProps) {
-	const items: DetailItem[] = [
-		{ kind: "info", label: "Name", value: skill.name },
-		{
-			kind: "info",
-			label: "Description",
-			value: skill.description,
-		},
-		{
-			kind: "info",
-			label: "File",
-			value: `${getSkillsDir()}/${skill.dirName}/SKILL.md`,
-		},
-		{ kind: "action", label: "Edit in editor", actionKey: "edit" },
-		{ kind: "delete", label: "Delete skill", actionKey: "delete" },
-	];
-
+	onQuit,
+}: SkillBrowseProps) {
 	useInput((input, key) => {
-		if (key.upArrow) {
+		if (isQuitKey(input, key)) {
+			onQuit();
+			return;
+		}
+		if (isNavigateUp(input, key)) {
 			onSelect(Math.max(0, selectedIndex - 1));
 			return;
 		}
-		if (key.downArrow) {
+		if (isNavigateDown(input, key)) {
 			onSelect(Math.min(items.length - 1, selectedIndex + 1));
 			return;
 		}
-		if (key.return) {
+		if (isSelectKey(input, key)) {
 			const item = items[selectedIndex];
-			if (item) onSelectItem(item);
+			if (item) {
+				onSelectItem(item);
+			}
 			return;
 		}
-		if (key.backspace || input === "b") {
+		if (isBackKey(input, key)) {
 			onBack();
 		}
 	});
 
+	const bodyPreview = truncatePreview(skill.bodyMarkdown, MAX_BODY_PREVIEW);
+
 	return (
-		<SkillsFrame
-			title={`Skills > ${skill.name}`}
-			footer={
-				<Text dimColor>↑↓ navigate · Enter select · b back · q close</Text>
-			}
-		>
+		<ViewFrame title="Skills" footer={<Text dimColor>{UI_HINTS.detail}</Text>}>
+			<Box marginBottom={1} paddingX={1}>
+				<Text bold color={ACCENT}>
+					Skills &gt; {skill.name}
+				</Text>
+			</Box>
 			{items.map((item, i) => {
 				const selected = i === selectedIndex;
-				if (item.kind === "info") {
+				if (item.kind === "action" || item.kind === "delete") {
 					return (
-						<Box key={item.label} paddingX={1} flexDirection="column">
-							<Text bold color={selected ? ACCENT : undefined}>
-								{selected ? "› " : "  "}
-								{item.label}
-							</Text>
-							<Text dimColor wrap="truncate-end">
-								{"  "}
-								{item.value}
-							</Text>
-						</Box>
+						<ActionRow
+							key={item.key}
+							label={item.label}
+							selected={selected}
+							kind={item.kind}
+						/>
 					);
 				}
-				const icon = item.kind === "action" ? "+" : "✕";
-				const color = item.kind === "action" ? "yellow" : "red";
+				const rowKind = item.kind === "info" ? ("value" as const) : item.kind;
 				return (
-					<Box key={item.actionKey} paddingX={1}>
-						<Text>
-							<Text color={selected ? ACCENT : "gray"} bold>
-								{selected ? "› " : "  "}
-							</Text>
-							<Text color={selected ? "white" : color} bold={selected}>
-								{icon} {item.label}
-							</Text>
-						</Text>
-					</Box>
+					<NavigatorRow
+						key={item.key}
+						label={item.label}
+						kind={rowKind}
+						selected={selected}
+						multiline={item.multiline}
+						currentValue={item.currentValue}
+					/>
 				);
 			})}
 			<Box marginTop={1} paddingX={1}>
 				<Text dimColor italic wrap="truncate-end">
-					{skill.bodyMarkdown.length > MAX_BODY_PREVIEW
-						? `${skill.bodyMarkdown.slice(0, MAX_BODY_PREVIEW - 1)}…`
-						: skill.bodyMarkdown}
+					{bodyPreview}
 				</Text>
 			</Box>
 			{statusMessage ? (
@@ -228,38 +184,7 @@ function SkillDetail({
 					<Text color="yellow">{statusMessage}</Text>
 				</Box>
 			) : null}
-		</SkillsFrame>
-	);
-}
-
-interface ConfirmDialogProps {
-	message: string;
-	onConfirm: () => void;
-	onCancel: () => void;
-}
-
-function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
-	useInput((input, key) => {
-		if (key.return || input === "y") {
-			onConfirm();
-			return;
-		}
-		if (key.escape || input === "n") {
-			onCancel();
-		}
-	});
-
-	return (
-		<SkillsFrame
-			title="Skills"
-			footer={<Text dimColor>y/Enter confirm · n/Esc cancel</Text>}
-		>
-			<Box paddingX={1}>
-				<Text bold color="yellow">
-					{message}
-				</Text>
-			</Box>
-		</SkillsFrame>
+		</ViewFrame>
 	);
 }
 
@@ -307,9 +232,45 @@ export function SkillsApp({ onQuitRequested }: SkillsAppProps) {
 		setStatusMessage(undefined);
 	}, []);
 
+	const detailItems: SkillBrowseItem[] = selectedSkill
+		? [
+				{
+					key: "name",
+					label: "Name",
+					kind: "info",
+					currentValue: selectedSkill.name,
+				},
+				{
+					key: "description",
+					label: "Description",
+					kind: "info",
+					currentValue: selectedSkill.description,
+					multiline: true,
+				},
+				{
+					key: "file",
+					label: "File",
+					kind: "info",
+					currentValue: `${getSkillsDir()}/${selectedSkill.dirName}/SKILL.md`,
+				},
+				{
+					key: "edit",
+					kind: "action",
+					label: "Edit in editor",
+					actionKey: "edit",
+				},
+				{
+					key: "delete",
+					kind: "delete",
+					label: "Delete skill",
+				},
+			]
+		: [];
+
 	const handleDetailItem = useCallback(
-		(item: DetailItem) => {
+		(item: SkillBrowseItem) => {
 			if (
+				"actionKey" in item &&
 				item.kind === "action" &&
 				item.actionKey === "edit" &&
 				selectedSkill
@@ -324,11 +285,7 @@ export function SkillsApp({ onQuitRequested }: SkillsAppProps) {
 				}
 				return;
 			}
-			if (
-				item.kind === "delete" &&
-				item.actionKey === "delete" &&
-				selectedSkill
-			) {
+			if (item.kind === "delete" && selectedSkill) {
 				setConfirmMsg(`Delete skill "${selectedSkill.name}"?`);
 				setConfirmAction(() => () => {
 					try {
@@ -354,6 +311,7 @@ export function SkillsApp({ onQuitRequested }: SkillsAppProps) {
 	if (screen === "confirm" && confirmAction) {
 		return (
 			<ConfirmDialog
+				title="Skills"
 				message={confirmMsg}
 				onConfirm={() => {
 					confirmAction();
@@ -369,13 +327,15 @@ export function SkillsApp({ onQuitRequested }: SkillsAppProps) {
 
 	if (screen === "detail" && selectedSkill) {
 		return (
-			<SkillDetail
+			<SkillBrowse
 				skill={selectedSkill}
+				items={detailItems}
 				selectedIndex={selectedDetailIndex}
+				statusMessage={statusMessage}
 				onSelect={setSelectedDetailIndex}
 				onSelectItem={handleDetailItem}
 				onBack={handleBack}
-				statusMessage={statusMessage}
+				onQuit={handleQuit}
 			/>
 		);
 	}

@@ -1,357 +1,16 @@
-import { Box, Text, render, useApp, useInput } from "ink";
-import { ControlledMultilineInput } from "ink-multiline-input";
-import React, {
-	useState,
-	useCallback,
-	useLayoutEffect,
-	useRef,
-	type ReactNode,
-} from "react";
+import { Text, render, useApp } from "ink";
+import React, { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { DEFAULT_CHAT_PERSONA } from "../../personas/index";
-import { AppHeader } from "../chat/components/app-header";
-import { ACCENT, INPUT_BORDER } from "../chat/constants";
 import {
+	ConfirmDialog,
+	FieldEditor,
+	FieldNavigator,
+	FieldSelector,
+	UI_HINTS,
 	detectTerminalProfile,
 	resolveKittyKeyboardMode,
-	useMultilineInput,
 } from "../shared";
 import type { SettingsItem } from "./items";
-
-interface NavigatorProps {
-	items: SettingsItem[];
-	breadcrumb: string[];
-	selectedIndex: number;
-	statusMessage?: string;
-	onSelect: (index: number) => void;
-	onBack: () => void;
-	onSelectItem: (item: SettingsItem) => void;
-	onQuit: () => void;
-}
-
-function ConfigureFrame({
-	title,
-	children,
-	footer,
-}: {
-	readonly title: string;
-	readonly children: ReactNode;
-	readonly footer?: ReactNode;
-}) {
-	return (
-		<Box flexDirection="column" padding={1}>
-			<AppHeader
-				subheader={
-					<Text color={ACCENT} bold wrap="truncate-end">
-						{title}
-					</Text>
-				}
-			/>
-			<Box
-				marginTop={1}
-				borderStyle="single"
-				borderColor={INPUT_BORDER}
-				flexDirection="column"
-			>
-				{children}
-			</Box>
-			{footer ? (
-				<Box marginTop={1} paddingX={1}>
-					{footer}
-				</Box>
-			) : null}
-		</Box>
-	);
-}
-
-function Navigator({
-	items,
-	breadcrumb,
-	selectedIndex,
-	statusMessage,
-	onSelect,
-	onBack,
-	onSelectItem,
-	onQuit,
-}: NavigatorProps) {
-	useInput((input, key) => {
-		if (input === "q") {
-			onQuit();
-			return;
-		}
-		if (key.upArrow) {
-			onSelect(Math.max(0, selectedIndex - 1));
-			return;
-		}
-		if (key.downArrow) {
-			onSelect(Math.min(items.length - 1, selectedIndex + 1));
-			return;
-		}
-		if (key.return) {
-			const item = items[selectedIndex];
-			if (item) onSelectItem(item);
-			return;
-		}
-		if (key.backspace || input === "b") {
-			onBack();
-		}
-	});
-
-	return (
-		<ConfigureFrame
-			title="Configuration"
-			footer={
-				<Text dimColor>
-					↑↓ navigate · Enter select · b back · q save and close
-				</Text>
-			}
-		>
-			<Box marginBottom={1} paddingX={1}>
-				<Text bold color={ACCENT}>
-					{breadcrumb.join(" > ")}
-				</Text>
-			</Box>
-			{items.map((item, i) => {
-				const selected = i === selectedIndex;
-				let icon = " ";
-				if (item.kind === "section") icon = "▸";
-				else if (item.kind === "action") icon = "+";
-				else if (item.kind === "delete") icon = "✕";
-				return (
-					<Box key={item.key} paddingX={1} flexDirection="row">
-						<Box flexShrink={0}>
-							<Text wrap="truncate-end">
-								<Text color={selected ? ACCENT : "gray"} bold>
-									{selected ? "› " : "  "}
-								</Text>
-								<Text
-									color={
-										selected
-											? "white"
-											: item.kind === "action"
-												? "yellow"
-												: item.kind === "delete"
-													? "red"
-													: "green"
-									}
-									bold={selected}
-								>
-									{icon} {item.label}{" "}
-								</Text>
-							</Text>
-						</Box>
-						{item.kind === "value" && item.currentValue !== undefined ? (
-							<Box flexShrink={1}>
-								<Text dimColor wrap="truncate-end">
-									{item.masked
-										? " ••••••"
-										: item.multiline
-											? ` ${item.currentValue.split("\n")[0]}${item.currentValue.includes("\n") ? " ..." : ""}`
-											: ` ${item.currentValue}`}
-								</Text>
-							</Box>
-						) : null}
-						{item.kind === "select" && item.currentValue ? (
-							<Box flexShrink={1}>
-								<Text dimColor wrap="truncate-end">
-									{" "}
-									{item.currentValue}
-								</Text>
-							</Box>
-						) : null}
-					</Box>
-				);
-			})}
-			<Box marginTop={1} paddingX={1} flexDirection="column">
-				{statusMessage ? <Text color="yellow">{statusMessage}</Text> : null}
-			</Box>
-		</ConfigureFrame>
-	);
-}
-
-interface EditorProps {
-	item: SettingsItem;
-	onSubmit: (value: string) => void;
-	onCancel: () => void;
-}
-
-function Editor({ item, onSubmit, onCancel }: EditorProps) {
-	const [value, setValue] = useState(item.currentValue ?? "");
-
-	useInput((input, key) => {
-		if (key.backspace || key.delete) {
-			setValue((v) => v.slice(0, -1));
-			return;
-		}
-		if (key.escape) {
-			onCancel();
-			return;
-		}
-		if (key.return) {
-			onSubmit(value);
-			return;
-		}
-		if (input && !key.ctrl && !key.meta) {
-			setValue((v) => v + input);
-		}
-	});
-
-	return (
-		<ConfigureFrame
-			title="Configuration"
-			footer={<Text dimColor>Type value · Enter save · Esc cancel</Text>}
-		>
-			<Box marginBottom={1} paddingX={1}>
-				<Text bold color={ACCENT}>
-					Edit: {item.label}
-				</Text>
-			</Box>
-			<Box paddingX={1}>
-				<Text>
-					{item.label}:{" "}
-					<Text color="yellow">
-						{item.masked ? "•".repeat(value.length) : value}
-					</Text>
-					<Text dimColor>_</Text>
-				</Text>
-			</Box>
-		</ConfigureFrame>
-	);
-}
-
-interface MultilineEditorProps {
-	item: SettingsItem;
-	onSubmit: (value: string) => void;
-	onCancel: () => void;
-}
-
-function MultilineEditor({ item, onSubmit, onCancel }: MultilineEditorProps) {
-	const [value, setValue] = useState(item.currentValue ?? "");
-
-	const { cursorIndex } = useMultilineInput({
-		value,
-		onChange: setValue,
-		onSubmit,
-		active: true,
-		enterMode: "newline",
-		onCancel,
-	});
-
-	return (
-		<ConfigureFrame
-			title="Configuration"
-			footer={
-				<Text dimColor>
-					Enter new line · ↑↓ navigate lines · Ctrl+S save · Esc cancel
-				</Text>
-			}
-		>
-			<Box marginBottom={1} paddingX={1}>
-				<Text bold color={ACCENT}>
-					Edit: {item.label}
-				</Text>
-			</Box>
-			<Box paddingX={1}>
-				<ControlledMultilineInput
-					value={value}
-					cursorIndex={cursorIndex}
-					rows={1}
-					maxRows={8}
-					focus
-					placeholder="Enter value…"
-				/>
-			</Box>
-		</ConfigureFrame>
-	);
-}
-
-interface SelectorProps {
-	item: SettingsItem;
-	onSubmit: (value: string) => void;
-	onCancel: () => void;
-}
-
-function Selector({ item, onSubmit, onCancel }: SelectorProps) {
-	const options = item.options ?? [];
-	const [sel, setSel] = useState(() => {
-		const current = item.currentValue ?? "";
-		const idx = options.indexOf(current);
-		return idx >= 0 ? idx : 0;
-	});
-
-	useInput((input, key) => {
-		if (key.escape) {
-			onCancel();
-			return;
-		}
-		if (key.return) {
-			onSubmit(options[sel]);
-			return;
-		}
-		if (key.upArrow || key.leftArrow) {
-			setSel((s) => Math.max(0, s - 1));
-			return;
-		}
-		if (key.downArrow || key.rightArrow) {
-			setSel((s) => Math.min(options.length - 1, s + 1));
-		}
-	});
-
-	return (
-		<ConfigureFrame
-			title="Configuration"
-			footer={<Text dimColor>↑↓ choose · Enter select · Esc cancel</Text>}
-		>
-			<Box marginBottom={1} paddingX={1}>
-				<Text bold color={ACCENT}>
-					Select: {item.label}
-				</Text>
-			</Box>
-			{options.map((opt, i) => (
-				<Box key={opt} paddingX={1}>
-					<Text wrap="truncate-end">
-						<Text color={i === sel ? ACCENT : "gray"} bold>
-							{i === sel ? "› " : "  "}
-						</Text>
-						<Text color={i === sel ? "white" : "green"} bold={i === sel}>
-							{i === sel ? "▸" : " "} {opt}{" "}
-						</Text>
-					</Text>
-				</Box>
-			))}
-		</ConfigureFrame>
-	);
-}
-
-interface ConfirmDialogProps {
-	message: string;
-	onConfirm: () => void;
-	onCancel: () => void;
-}
-
-function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
-	useInput((input, key) => {
-		if (key.return || input === "y") {
-			onConfirm();
-			return;
-		}
-		if (key.escape || input === "n") {
-			onCancel();
-		}
-	});
-
-	return (
-		<ConfigureFrame
-			title="Configuration"
-			footer={<Text dimColor>y/Enter confirm · n/Esc cancel</Text>}
-		>
-			<Box marginBottom={1} paddingX={1}>
-				<Text bold color="yellow">
-					{message}
-				</Text>
-			</Box>
-		</ConfigureFrame>
-	);
-}
 
 type Screen = "nav" | "edit" | "select" | "confirm";
 
@@ -652,6 +311,7 @@ export function ConfigureApp({
 	if (screen === "confirm" && confirmAction) {
 		return (
 			<ConfirmDialog
+				title="Configuration"
 				message={confirmMsg}
 				onConfirm={() => {
 					confirmAction();
@@ -671,18 +331,13 @@ export function ConfigureApp({
 		const resolvedValue = values[editItem.key] ?? editItem.currentValue;
 		const itemWithCurrent = { ...editItem, currentValue: resolvedValue };
 
-		if (editItem.multiline) {
-			return (
-				<MultilineEditor
-					item={itemWithCurrent}
-					onSubmit={handleEditorSubmit}
-					onCancel={handleEditorCancel}
-				/>
-			);
-		}
 		return (
-			<Editor
-				item={itemWithCurrent}
+			<FieldEditor
+				appTitle="Configuration"
+				fieldLabel={itemWithCurrent.label}
+				value={itemWithCurrent.currentValue ?? ""}
+				multiline={itemWithCurrent.multiline}
+				masked={itemWithCurrent.masked}
 				onSubmit={handleEditorSubmit}
 				onCancel={handleEditorCancel}
 			/>
@@ -691,11 +346,11 @@ export function ConfigureApp({
 
 	if (screen === "select" && editItem) {
 		return (
-			<Selector
-				item={{
-					...editItem,
-					currentValue: values[editItem.key] ?? editItem.currentValue,
-				}}
+			<FieldSelector
+				appTitle="Configuration"
+				fieldLabel={editItem.label}
+				options={editItem.options ?? []}
+				currentValue={values[editItem.key] ?? editItem.currentValue}
 				onSubmit={handleSelectSubmit}
 				onCancel={handleEditorCancel}
 			/>
@@ -703,14 +358,16 @@ export function ConfigureApp({
 	}
 
 	return (
-		<Navigator
-			items={items}
+		<FieldNavigator
+			appTitle="Configuration"
 			breadcrumb={breadcrumb}
+			items={items}
 			selectedIndex={selectedIndex}
 			statusMessage={statusMessage}
+			footer={<Text dimColor>{UI_HINTS.navigator}</Text>}
 			onSelect={setSelectedIndex}
 			onBack={handleBack}
-			onSelectItem={handleSelectItem}
+			onSelectItem={(item) => handleSelectItem(item as SettingsItem)}
 			onQuit={handleQuit}
 		/>
 	);
