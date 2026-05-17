@@ -12,6 +12,7 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | [`docs/integrations.md`](docs/integrations.md) | Plugin-style integrations: `IntegrationModule`, registry, capabilities, credentials, and CLI contributions. |
 | [`docs/create-integration.md`](docs/create-integration.md) | Checklist for adding a new first-party integration module. |
 | [`docs/chat-pipeline.md`](docs/chat-pipeline.md) | `toby chat` message flow, prompt caching strategy, and tool-result caching behavior. |
+| [`docs/ui.md`](docs/ui.md) | Shared Ink UI components, visual conventions, and shortcut conventions. |
 | [`docs/apple-mail.md`](docs/apple-mail.md) | Apple Mail (macOS): local Mail.app integration and automation permissions. |
 | [`docs/build-executable.md`](docs/build-executable.md) | Optional **Bun** single-file `dist/toby` binary (`bun run build:executable`). |
 | [`docs/README.md`](docs/README.md) | Short index of everything in `docs/`. |
@@ -22,6 +23,7 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 - **Register** new integrations in [`src/integrations/index.ts`](src/integrations/index.ts) (`MODULES` array).
 - **Shared** commands (`connect`, `disconnect`, `status`, `summarize`, `organize`, `chat`, `configure`) live in [`src/commands/`](src/commands/) and should stay generic; they resolve behavior through the registry and module hooks.
 - After substantive changes, run `bun run lint`, `bun run typecheck`, and `bun run test`.
+- Use shared UI primitives from `src/ui/shared/` (`ViewFrame`, `ViewModal`, `ConfirmDialog`, `FieldNavigator`, `FieldEditor`, `FieldSelector`, `UI_GLYPHS`, row components, key predicates) when building Ink views. Do not create local frame/dialog/key/glyph duplicates. See [`docs/ui.md`](docs/ui.md).
 
 ## Quick paths
 

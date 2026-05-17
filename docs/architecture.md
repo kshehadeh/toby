@@ -50,6 +50,13 @@ Backup and restore behavior is documented in [`commands.md`](commands.md).
 
 ## UI stack
 
+All Ink/React views share a set of primitives in [`src/ui/shared/`](../src/ui/shared/):
+`ViewFrame` (standalone app frames), `ViewModal` (chat overlay frames),
+`ConfirmDialog`, `MultilineTextEdit`, row components (`InfoRow`, `ActionRow`,
+`SelectableTextRow`, `SectionDivider`, `StatusIcon`), key predicates
+(`src/ui/shared/keybindings.ts`), and glyph constants
+(`src/ui/shared/glyphs.ts`). See [`docs/ui.md`](ui.md) for conventions.
+
 The configure flow uses **Ink** and **React** (`src/ui/configure/`). The tree structure for the TUI is built in [`src/ui/configure/items.ts`](../src/ui/configure/items.ts), which pulls integration credential sections from the integration registry.
 
 For `toby chat`, slash commands are registered in
