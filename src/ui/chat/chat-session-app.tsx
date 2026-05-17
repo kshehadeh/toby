@@ -1042,7 +1042,7 @@ export function ChatSessionApp({
 				...t,
 				{
 					kind: "meta",
-					text: "No chat integrations ready to choose from (connect Gmail, add a Todoist API key, or configure Azure AD credentials).",
+					text: "No chat integrations ready to choose from (connect Gmail, add a Todoist API key, configure Slack, or configure Azure AD credentials).",
 				},
 			]);
 			return;
