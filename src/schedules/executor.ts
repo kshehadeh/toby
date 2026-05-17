@@ -70,6 +70,19 @@ const CATEGORY_KEYWORDS: Record<ProviderCategory, string[]> = {
 		"colleague",
 		"coworker",
 	],
+	chat: [
+		"slack",
+		"channel",
+		"channels",
+		"dm",
+		"dms",
+		"direct message",
+		"workspace",
+		"thread",
+		"post",
+		"message",
+		"chat",
+	],
 };
 
 function inferProviderCategoriesFromPrompt(prompt: string): ProviderCategory[] {

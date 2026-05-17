@@ -19,13 +19,19 @@ export interface IntegrationHealth {
 export type IntegrationCapability = "chat";
 
 /** Provider categories an integration may belong to (used for default-provider selection). */
-export type ProviderCategory = "email" | "calendar" | "tasks" | "contacts";
+export type ProviderCategory =
+	| "email"
+	| "calendar"
+	| "tasks"
+	| "contacts"
+	| "chat";
 
 export const PROVIDER_CATEGORY_LABELS: Record<ProviderCategory, string> = {
 	email: "Email Provider",
 	calendar: "Calendar Provider",
 	tasks: "Task List Provider",
 	contacts: "Contact List Provider",
+	chat: "Chat Provider",
 };
 
 export const ALL_PROVIDER_CATEGORIES: readonly ProviderCategory[] = [
@@ -33,6 +39,7 @@ export const ALL_PROVIDER_CATEGORIES: readonly ProviderCategory[] = [
 	"calendar",
 	"tasks",
 	"contacts",
+	"chat",
 ];
 
 /** Single credential field shown in configure UI (flat key namespace). */
