@@ -1,4 +1,4 @@
-import { Box, Text, render, useApp, useInput } from "ink";
+import { Box, Text, render, useApp, useInput, useStdout } from "ink";
 import type React from "react";
 import { useCallback, useState } from "react";
 import { listPersonas } from "../../personas/index";
@@ -29,7 +29,7 @@ import { detectTerminalProfile, resolveKittyKeyboardMode } from "../shared";
 const MAX_PROMPT_PREVIEW = 60;
 const MAX_OUTPUT_PREVIEW = 80;
 
-type Screen = "list" | "create" | "edit" | "detail" | "confirm";
+type Screen = "list" | "create" | "edit" | "detail" | "confirm" | "runOutput";
 
 interface ScheduleFormState {
 	name: string;
@@ -381,6 +381,7 @@ interface ScheduleDetailProps {
 	onEdit: () => void;
 	onDelete: () => void;
 	onRunNow: () => void;
+	onViewRun: (run: ScheduleRun) => void;
 	onBack: () => void;
 }
 
@@ -393,6 +394,7 @@ function ScheduleDetail({
 	onEdit,
 	onDelete,
 	onRunNow,
+	onViewRun,
 	onBack,
 }: ScheduleDetailProps) {
 	type DetailItem =
@@ -472,6 +474,8 @@ function ScheduleDetail({
 				onRunNow();
 			} else if (item.kind === "delete" && item.actionKey === "delete") {
 				onDelete();
+			} else if (item.kind === "run") {
+				onViewRun(item.run);
 			}
 		}
 	});
@@ -609,6 +613,111 @@ function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
 	);
 }
 
+interface RunOutputViewProps {
+	run: ScheduleRun;
+	scheduleName: string;
+	onBack: () => void;
+}
+
+function RunOutputView({ run, scheduleName, onBack }: RunOutputViewProps) {
+	const [scrollOffset, setScrollOffset] = useState(0);
+	const { stdout } = useStdout();
+
+	const statusIcon =
+		run.status === "success" ? "✔︎" : run.status === "error" ? "✗" : "…";
+	const statusColor =
+		run.status === "success"
+			? "green"
+			: run.status === "error"
+				? "red"
+				: "yellow";
+
+	const rawOutput = run.output ?? "(no output)";
+	const lines = rawOutput.split("\n");
+	const totalLines = lines.length;
+
+	// Reserve rows for: AppHeader(2), border-top(1), status block(2),
+	// "Output" separator(1), border-bottom(1), footer(2), padding(2) = ~11
+	const chromeRows = 11;
+	const terminalRows = stdout?.rows ?? 24;
+	const visibleLines = Math.max(3, terminalRows - chromeRows);
+	const maxOffset = Math.max(0, totalLines - visibleLines);
+
+	const visible = lines.slice(scrollOffset, scrollOffset + visibleLines);
+
+	useInput((input, key) => {
+		if (key.escape || input === "b" || key.backspace) {
+			onBack();
+			return;
+		}
+		if (key.downArrow || input === "j") {
+			setScrollOffset((o) => Math.min(o + 1, maxOffset));
+			return;
+		}
+		if (key.upArrow || input === "k") {
+			setScrollOffset((o) => Math.max(o - 1, 0));
+			return;
+		}
+		if (key.pageDown || input === " ") {
+			setScrollOffset((o) => Math.min(o + visibleLines, maxOffset));
+			return;
+		}
+		if (key.pageUp) {
+			setScrollOffset((o) => Math.max(o - visibleLines, 0));
+			return;
+		}
+		if (input === "g") {
+			setScrollOffset(0);
+			return;
+		}
+		if (input === "G") {
+			setScrollOffset(maxOffset);
+			return;
+		}
+	});
+
+	const scrollIndicator =
+		totalLines > visibleLines
+			? ` [${scrollOffset + 1}-${Math.min(scrollOffset + visibleLines, totalLines)}/${totalLines}]`
+			: "";
+
+	return (
+		<SchedulesFrame
+			title={`Schedules > ${scheduleName} > Run ${new Date(run.startedAt).toLocaleString()}`}
+			footer={
+				<Text dimColor>
+					↑↓/j/k scroll · Space/PageDn · PageUp · g/G top/bottom · b/Esc back
+				</Text>
+			}
+		>
+			<Box paddingX={1} flexDirection="column">
+				<Text>
+					<Text color={statusColor}>{statusIcon}</Text>
+					<Text dimColor>
+						{" "}
+						{run.status.toUpperCase()} ·{" "}
+						{new Date(run.startedAt).toLocaleString()}
+						{run.completedAt
+							? ` → ${new Date(run.completedAt).toLocaleString()}`
+							: ""}
+					</Text>
+				</Text>
+				{run.error ? <Text color="red">{run.error}</Text> : null}
+			</Box>
+			<Box marginTop={1} paddingX={1}>
+				<Text bold color={ACCENT}>
+					─── Output{scrollIndicator} ───
+				</Text>
+			</Box>
+			<Box paddingX={1} flexDirection="column">
+				{visible.map((line, i) => (
+					<Text key={`line-${run.id}-${scrollOffset + i}`}>{line}</Text>
+				))}
+			</Box>
+		</SchedulesFrame>
+	);
+}
+
 interface FieldEditorProps {
 	label: string;
 	value: string;
@@ -701,6 +810,7 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 	const [isCreating, setIsCreating] = useState(false);
 	const [saving, setSaving] = useState(false);
 	const [running, setRunning] = useState(false);
+	const [selectedRun, setSelectedRun] = useState<ScheduleRun | null>(null);
 
 	const personas = listPersonas();
 	const formFields: FormField[] = [
@@ -759,6 +869,11 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 	const handleBack = useCallback(() => {
 		if (editingField) {
 			setEditingField(null);
+			return;
+		}
+		if (screen === "runOutput") {
+			setScreen("detail");
+			setSelectedRun(null);
 			return;
 		}
 		if (screen === "create" || screen === "edit") {
@@ -912,6 +1027,16 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 		);
 	}
 
+	if (screen === "runOutput" && selectedRun && selectedSchedule) {
+		return (
+			<RunOutputView
+				run={selectedRun}
+				scheduleName={selectedSchedule.name}
+				onBack={handleBack}
+			/>
+		);
+	}
+
 	if (editingField) {
 		const currentRaw = form[formFieldToKey(editingField)];
 		const currentValue =
@@ -990,6 +1115,10 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 					setScreen("confirm");
 				}}
 				onRunNow={handleRunNow}
+				onViewRun={(run) => {
+					setSelectedRun(run);
+					setScreen("runOutput");
+				}}
 				onBack={handleBack}
 			/>
 		);
