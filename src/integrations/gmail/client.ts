@@ -453,6 +453,58 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
 	return chunks;
 }
 
+export async function createDraft(options: {
+	to: string[];
+	cc?: string[];
+	bcc?: string[];
+	subject: string;
+	body: string;
+}): Promise<{ draftId: string; messageId: string }> {
+	const auth = getAuthenticatedGmailClient();
+	const gmail = google.gmail({ version: "v1", auth });
+
+	const lines: string[] = [];
+	lines.push(`To: ${options.to.join(", ")}`);
+	if (options.cc?.length) {
+		lines.push(`Cc: ${options.cc.join(", ")}`);
+	}
+	if (options.bcc?.length) {
+		lines.push(`Bcc: ${options.bcc.join(", ")}`);
+	}
+	lines.push(
+		`Subject: =?utf-8?B?${Buffer.from(options.subject).toString("base64")}?=`,
+	);
+	lines.push("Content-Type: text/plain; charset=utf-8");
+	lines.push("MIME-Version: 1.0");
+	lines.push("");
+	lines.push(options.body);
+
+	const raw = Buffer.from(lines.join("\r\n"))
+		.toString("base64")
+		.replace(/\+/g, "-")
+		.replace(/\//g, "_")
+		.replace(/=+$/, "");
+
+	const draft = await withRateLimit(GMAIL_MUTATE_LIMIT, () =>
+		withRetry(() =>
+			gmail.users.drafts.create({
+				userId: "me",
+				requestBody: {
+					message: { raw },
+				},
+			}),
+		),
+	);
+
+	const draftId = draft.data.id;
+	const messageId = draft.data.message?.id;
+	if (!draftId || !messageId) {
+		throw new Error("Draft creation succeeded but returned incomplete data.");
+	}
+
+	return { draftId, messageId };
+}
+
 export async function testGmailConnection(): Promise<void> {
 	const auth = getAuthenticatedGmailClient();
 	const gmail = google.gmail({ version: "v1", auth });

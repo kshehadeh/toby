@@ -161,6 +161,7 @@ const CHAT_MUTATING_GMAIL_TOOLS = new Set([
 	"archiveEmailById",
 	"markAsReadById",
 	"applyMultipleLabelsByMessageId",
+	"createDraft",
 ]);
 
 async function chat(options: ChatRunOptions): Promise<void> {
@@ -278,7 +279,7 @@ export const gmailIntegrationModule: IntegrationModule = {
 	},
 	chatModelPrep: {
 		systemPromptSection: `### Gmail
-You are assisting with Gmail. Use Gmail tools to inspect or change the mailbox. Prefer holistic inbox overview before loading many messages. Never claim a mutation succeeded unless the corresponding Gmail tool succeeded.`,
+You are assisting with Gmail. Use Gmail tools to inspect or change the mailbox. Prefer holistic inbox overview before loading many messages. Never claim a mutation succeeded unless the corresponding Gmail tool succeeded. You can create draft emails using the createDraft tool — drafts are saved to the user's Gmail Drafts folder for review before sending.`,
 		async buildSingleSessionMessages(persona, userPrompt) {
 			return [
 				buildGmailChatSystemMessage(persona),
@@ -373,6 +374,13 @@ async function validateGmailTools(): Promise<IntegrationToolHealth[]> {
 				? "gmail.modify scope is present."
 				: "Missing required gmail.modify scope.",
 		});
+		checks.push({
+			tool: "createDraft",
+			ok: hasModifyScope,
+			details: hasModifyScope
+				? "gmail.modify scope is present."
+				: "Missing required gmail.modify scope.",
+		});
 	} catch (error) {
 		const message = `Could not validate token scopes: ${toErrorMessage(error)}`;
 		checks.push({
@@ -397,6 +405,11 @@ async function validateGmailTools(): Promise<IntegrationToolHealth[]> {
 		});
 		checks.push({
 			tool: "archiveEmail",
+			ok: false,
+			details: message,
+		});
+		checks.push({
+			tool: "createDraft",
 			ok: false,
 			details: message,
 		});

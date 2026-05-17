@@ -6,6 +6,7 @@ import {
 	applyLabels,
 	archiveEmail,
 	batchModifyMessages,
+	createDraft,
 	ensureLabels,
 	fetchUnreadInbox,
 	fetchUnreadMetadataByMessageIds,
@@ -499,6 +500,35 @@ Examples:
 				const msg = `Archived email "${ctx.currentEmail.subject}"`;
 				ctx.appliedActions.push(msg);
 				return { success: true };
+			},
+		}),
+
+		createDraft: tool({
+			description:
+				"Create a new draft email in Gmail. The draft will appear in the user's Drafts folder and can be reviewed/sent from Gmail.",
+			inputSchema: z.object({
+				to: z.array(z.string()).min(1).describe("Recipient email addresses"),
+				cc: z.array(z.string()).optional().describe("CC email addresses"),
+				bcc: z.array(z.string()).optional().describe("BCC email addresses"),
+				subject: z.string().describe("Email subject line"),
+				body: z.string().describe("Email body (plain text)"),
+			}),
+			execute: async ({ to, cc, bcc, subject, body }) => {
+				if (ctx.dryRun) {
+					const msg = `[DRY RUN] Would create draft to [${to.join(", ")}] subject "${truncateForLine(subject, 60)}"`;
+					ctx.appliedActions.push(msg);
+					return { dryRun: true, message: msg };
+				}
+
+				const result = await createDraft({ to, cc, bcc, subject, body });
+				const msg = `Created draft to [${to.join(", ")}] subject "${truncateForLine(subject, 60)}"`;
+				ctx.appliedActions.push(msg);
+				return {
+					success: true,
+					draftId: result.draftId,
+					messageId: result.messageId,
+					message: msg,
+				};
 			},
 		}),
 
