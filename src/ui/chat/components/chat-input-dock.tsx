@@ -131,7 +131,7 @@ export function ChatInputDock(props: ChatInputDockProps) {
 						const selected = item.command === selectedSlashCommand?.command;
 						return (
 							<Box key={item.command} flexDirection="row" flexWrap="wrap">
-								<Text color={selected ? "cyan" : "white"}>
+								<Text color={selected ? ACCENT : "white"}>
 									{selected ? "› " : "  "}
 									{item.command}
 								</Text>

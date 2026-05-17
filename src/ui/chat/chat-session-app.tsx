@@ -62,6 +62,7 @@ import {
 	refreshConfigureSessionTree,
 } from "../configure/session";
 import { SchedulesApp } from "../schedules/App";
+import { SelectableTextRow, ViewModal } from "../shared";
 import { SkillsApp } from "../skills/App";
 import { applyChatEvent } from "./chat-event-reducer";
 import { AppHeader } from "./components/app-header";
@@ -1975,14 +1976,7 @@ export function ChatSessionApp({
 					termCols={termCols}
 				/>
 			) : sessionPicker ? (
-				<Box
-					marginTop={1}
-					flexShrink={0}
-					flexDirection="column"
-					borderStyle="round"
-					borderColor={ACCENT}
-					paddingX={1}
-				>
+				<ViewModal termCols={termCols} borderColor={ACCENT}>
 					<Box width={termCols}>
 						<Text bold wrap="truncate-end">
 							Choose a session (Enter loads · Esc cancels)
@@ -1990,14 +1984,10 @@ export function ChatSessionApp({
 					</Box>
 					{sessionPicker.sessions.map((s, i) => {
 						const active = i === sessionPicker.cursorIndex;
-						const prefix = active ? "› " : "  ";
 						return (
-							<Box key={s.id} width={termCols}>
-								<Text color={active ? ACCENT : undefined} wrap="truncate-end">
-									{prefix}
-									{s.name}
-								</Text>
-							</Box>
+							<SelectableTextRow key={s.id} selected={active}>
+								{s.name}
+							</SelectableTextRow>
 						);
 					})}
 					<Box marginTop={1}>
@@ -2005,16 +1995,9 @@ export function ChatSessionApp({
 							Loaded: {sessionName}
 						</Text>
 					</Box>
-				</Box>
+				</ViewModal>
 			) : personaPicker ? (
-				<Box
-					marginTop={1}
-					flexShrink={0}
-					flexDirection="column"
-					borderStyle="round"
-					borderColor={ACCENT}
-					paddingX={1}
-				>
+				<ViewModal termCols={termCols} borderColor={ACCENT}>
 					<Box width={termCols}>
 						<Text bold wrap="truncate-end">
 							Personas (Enter select · e edit · Esc cancel)
@@ -2022,7 +2005,6 @@ export function ChatSessionApp({
 					</Box>
 					{personaPicker.rows.map((row, i) => {
 						const active = i === personaPicker.cursorIndex;
-						const prefix = active ? "› " : "  ";
 						const defaultName = getDefaultPersonaName();
 						const isDefault =
 							row.kind === "persona" && row.persona.name === defaultName;
@@ -2031,15 +2013,12 @@ export function ChatSessionApp({
 								? "New persona…"
 								: `${row.persona.name}${isDefault ? " ★" : ""}`;
 						return (
-							<Box
+							<SelectableTextRow
 								key={row.kind === "add" ? "add" : row.persona.name}
-								width={termCols}
+								selected={active}
 							>
-								<Text color={active ? ACCENT : undefined} wrap="truncate-end">
-									{prefix}
-									{label}
-								</Text>
-							</Box>
+								{label}
+							</SelectableTextRow>
 						);
 					})}
 					<Box marginTop={1}>
@@ -2050,7 +2029,7 @@ export function ChatSessionApp({
 								: ""}
 						</Text>
 					</Box>
-				</Box>
+				</ViewModal>
 			) : null}
 			{activePlan &&
 			activePlan.status !== "completed" &&

@@ -1,5 +1,7 @@
 import { Box, Text } from "ink";
 import React from "react";
+import { SelectableTextRow, ViewModal } from "../../shared";
+import { ACCENT } from "../constants";
 import type { AskModal } from "../types";
 
 export function AskUserModal({
@@ -15,32 +17,22 @@ export function AskUserModal({
 	const contentWidth = Math.max(12, termCols - 4);
 
 	return (
-		<Box
-			marginTop={1}
-			flexShrink={0}
-			flexDirection="column"
-			borderStyle="round"
-			borderColor="cyan"
-			paddingX={1}
-		>
+		<ViewModal termCols={termCols} borderColor={ACCENT}>
 			<Box width={contentWidth}>
 				<Text bold wrap="wrap">
 					{modal.query}
 				</Text>
 			</Box>
 			{modal.options.map((opt, i) => (
-				<Box key={opt} width={contentWidth}>
-					<Text color={i === selectedIndex ? "cyan" : undefined} wrap="wrap">
-						{i === selectedIndex ? "› " : "  "}
-						{i + 1}. {opt}
-					</Text>
-				</Box>
+				<SelectableTextRow key={opt} selected={i === selectedIndex}>
+					{i + 1}. {opt}
+				</SelectableTextRow>
 			))}
 			<Box marginTop={1} width={contentWidth}>
 				<Text dimColor wrap="truncate-end">
 					↑↓ Enter to choose · Esc to cancel
 				</Text>
 			</Box>
-		</Box>
+		</ViewModal>
 	);
 }

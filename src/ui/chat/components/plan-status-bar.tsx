@@ -1,16 +1,8 @@
 import { Box, Text } from "ink";
 import React from "react";
 import type { Plan, PlanPhaseStatus } from "../../../planning/types";
+import { PLAN_STATUS_GLYPHS } from "../../shared";
 import { ACCENT } from "../constants";
-
-const STATUS_GLYPHS: Record<PlanPhaseStatus, { glyph: string; color: string }> =
-	{
-		pending: { glyph: "○", color: "gray" },
-		in_progress: { glyph: "◉", color: "cyan" },
-		completed: { glyph: "✓", color: "green" },
-		skipped: { glyph: "–", color: "gray" },
-		failed: { glyph: "✗", color: "red" },
-	};
 
 interface PlanStatusBarProps {
 	readonly plan: Plan;
@@ -92,7 +84,7 @@ export function PlanStatusBar({ plan, termCols }: PlanStatusBarProps) {
 			</Box>
 			<Box flexDirection="row" flexWrap="wrap" gap={1} width={innerWidth}>
 				{groupPlanPhases(plan).map((phase, i) => {
-					const { glyph, color } = STATUS_GLYPHS[phase.status];
+					const { glyph, color } = PLAN_STATUS_GLYPHS[phase.status];
 					const label =
 						phase.label.length > 20
 							? `${phase.label.slice(0, 17)}…`
