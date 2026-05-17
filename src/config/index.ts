@@ -102,6 +102,20 @@ interface AICredentials {
 	openai?: { token: string };
 }
 
+type SlackAuthMethod = "oauth" | "bot_token";
+
+interface SlackCredentials {
+	clientId?: string;
+	clientSecret?: string;
+	redirectUri?: string;
+	authMethod?: SlackAuthMethod;
+	botToken?: string;
+	oauthBotToken?: string;
+	oauthUserToken?: string;
+	teamId?: string;
+	teamName?: string;
+}
+
 export interface CredentialsFile {
 	/**
 	 * Module-extensible credentials bag. Integrations should prefer storing under
@@ -111,6 +125,7 @@ export interface CredentialsFile {
 	gmail?: GmailCredentials;
 	todoist?: TodoistCredentials;
 	azuread?: AzureAdCredentials;
+	slack?: SlackCredentials;
 	ai?: AICredentials;
 }
 
@@ -265,6 +280,92 @@ export function getAzureAdAuthMethod(
 		getIntegrationCredential(creds, "azuread", "clientSecret") ??
 		creds.azuread?.clientSecret;
 	return clientSecret?.trim() ? "client_credentials" : "oauth_pkce";
+}
+
+export type { SlackAuthMethod };
+
+export function getSlackAuthMethod(
+	creds: CredentialsFile,
+	explicitMethod?: string,
+	botTokenHint?: string,
+): SlackAuthMethod {
+	const authMethod =
+		explicitMethod ??
+		getIntegrationCredential(creds, "slack", "authMethod") ??
+		creds.slack?.authMethod;
+	if (authMethod === "oauth" || authMethod === "bot_token") {
+		return authMethod;
+	}
+	const botToken =
+		botTokenHint ??
+		getIntegrationCredential(creds, "slack", "botToken") ??
+		creds.slack?.botToken;
+	return botToken?.trim() ? "bot_token" : "oauth";
+}
+
+export interface SlackResolvedCredentials {
+	readonly authMethod: SlackAuthMethod;
+	readonly clientId?: string;
+	readonly clientSecret?: string;
+	readonly redirectUri?: string;
+	readonly botToken: string;
+	readonly oauthUserToken?: string;
+	readonly teamId?: string;
+	readonly teamName?: string;
+}
+
+export function getSlackCredentials(): SlackResolvedCredentials {
+	const creds = readCredentials();
+	const authMethod = getSlackAuthMethod(creds);
+	const clientId =
+		getIntegrationCredential(creds, "slack", "clientId") ??
+		creds.slack?.clientId;
+	const clientSecret =
+		getIntegrationCredential(creds, "slack", "clientSecret") ??
+		creds.slack?.clientSecret;
+	const redirectUri =
+		getIntegrationCredential(creds, "slack", "redirectUri") ??
+		creds.slack?.redirectUri;
+	const manualBotToken =
+		getIntegrationCredential(creds, "slack", "botToken") ??
+		creds.slack?.botToken;
+	const oauthBotToken =
+		getIntegrationCredential(creds, "slack", "oauthBotToken") ??
+		creds.slack?.oauthBotToken;
+	const oauthUserToken =
+		getIntegrationCredential(creds, "slack", "oauthUserToken") ??
+		creds.slack?.oauthUserToken;
+	const teamId =
+		getIntegrationCredential(creds, "slack", "teamId") ?? creds.slack?.teamId;
+	const teamName =
+		getIntegrationCredential(creds, "slack", "teamName") ??
+		creds.slack?.teamName;
+
+	const botToken =
+		authMethod === "bot_token"
+			? manualBotToken?.trim()
+			: oauthUserToken?.trim() ||
+				oauthBotToken?.trim() ||
+				manualBotToken?.trim();
+
+	if (!botToken) {
+		throw new Error(
+			authMethod === "bot_token"
+				? "Slack bot token not found. Add it via `toby configure` or run `toby connect slack`."
+				: "Slack is not authenticated. Configure OAuth client credentials and run `toby connect slack`, or switch to manual bot token auth in configure.",
+		);
+	}
+
+	return {
+		authMethod,
+		clientId,
+		clientSecret,
+		redirectUri,
+		botToken,
+		oauthUserToken: oauthUserToken?.trim() || undefined,
+		teamId,
+		teamName,
+	};
 }
 
 export function getDefaultProvider(
