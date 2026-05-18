@@ -58,10 +58,12 @@ export function registerStatusCommand(program: Command): void {
 
 async function runIntegrationTest(integration: {
 	displayName: string;
-	testConnection: () => Promise<IntegrationHealth>;
+	testConnection: (options?: {
+		validateTools?: boolean;
+	}) => Promise<IntegrationHealth>;
 }): Promise<boolean> {
 	console.log(chalk.cyan(`Testing ${integration.displayName} integration...`));
-	const result = await integration.testConnection();
+	const result = await integration.testConnection({ validateTools: true });
 
 	if (result.tools && result.tools.length > 0) {
 		for (const toolCheck of result.tools) {

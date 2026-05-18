@@ -7,6 +7,7 @@ import type {
 	CredentialFieldDescriptor,
 	IntegrationModule,
 	IntegrationToolHealth,
+	TestConnectionOptions,
 } from "../types";
 import {
 	isAppleMailPlatformSupported,
@@ -58,6 +59,20 @@ const applemailLifecycle = {
 			throw new Error(`Could not reach Mail.app: ${message}`);
 		}
 
+		const toolChecks = await validateAppleMailTools();
+		const failed = toolChecks.filter((c) => !c.ok);
+		for (const check of toolChecks) {
+			const prefix = check.ok ? chalk.green("  ✓") : chalk.red("  ✗");
+			console.log(`${prefix} ${check.tool}: ${check.details}`);
+		}
+		if (failed.length > 0) {
+			console.log(
+				chalk.yellow(
+					`${failed.length}/${toolChecks.length} tool check(s) failed — chat may still work for some actions.`,
+				),
+			);
+		}
+
 		config.integrations = {
 			...config.integrations,
 			applemail: { connectedAt: new Date().toISOString() },
@@ -70,7 +85,7 @@ const applemailLifecycle = {
 		return isAppleMailConnectedConfig();
 	},
 
-	async testConnection() {
+	async testConnection(options?: TestConnectionOptions) {
 		if (!isAppleMailPlatformSupported()) {
 			return {
 				ok: false,
@@ -89,6 +104,12 @@ const applemailLifecycle = {
 
 		try {
 			await testAppleMailConnection();
+			if (!options?.validateTools) {
+				return {
+					ok: true,
+					details: "Mail.app reachable.",
+				};
+			}
 			const toolChecks = await validateAppleMailTools();
 			const failed = toolChecks.filter((c) => !c.ok);
 			return {

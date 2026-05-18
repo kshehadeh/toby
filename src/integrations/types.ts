@@ -15,6 +15,12 @@ export interface IntegrationHealth {
 	readonly tools?: IntegrationToolHealth[];
 }
 
+/** Options for {@link Integration.testConnection}. */
+export type TestConnectionOptions = {
+	/** When true, run per-tool probes (e.g. Apple Mail AppleScript searches). */
+	readonly validateTools?: boolean;
+};
+
 /** Capabilities an integration may expose for the resource center / CLI. */
 export type IntegrationCapability = "chat";
 
@@ -102,7 +108,7 @@ export interface Integration {
 	readonly description: string;
 	connect(): Promise<void>;
 	isConnected(): Promise<boolean>;
-	testConnection(): Promise<IntegrationHealth>;
+	testConnection(options?: TestConnectionOptions): Promise<IntegrationHealth>;
 	disconnect(): Promise<void>;
 }
 
