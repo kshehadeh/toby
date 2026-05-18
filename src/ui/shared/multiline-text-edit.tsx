@@ -26,6 +26,8 @@ export interface MultilineTextEditProps
 	readonly maxRows?: number;
 	/** Whether to show a static placeholder instead of the live input. */
 	readonly showStaticPlaceholder?: boolean;
+	/** Recent prompts for ↑/↓ recall when the input is empty. */
+	readonly recentPrompts?: readonly string[];
 }
 
 export function MultilineTextEdit({
@@ -43,6 +45,7 @@ export function MultilineTextEdit({
 	enterMode,
 	onCancel,
 	showStaticPlaceholder = false,
+	recentPrompts,
 }: MultilineTextEditProps) {
 	const { cursorIndex, terminalProfile } = useMultilineInput({
 		value,
@@ -52,6 +55,7 @@ export function MultilineTextEdit({
 		cursorResetToken,
 		enterMode,
 		onCancel,
+		recentPrompts,
 	});
 
 	const placeholderText = placeholder ?? "";

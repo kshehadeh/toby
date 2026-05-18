@@ -14,6 +14,10 @@ import {
 	wordForwardIndex,
 } from "../chat/input-keymap";
 import {
+	isPromptHistoryEligibleInput,
+	navigatePromptHistory,
+} from "../chat/prompt-history-nav";
+import {
 	type TerminalProfile,
 	detectTerminalProfile,
 	withKittyProtocol,
@@ -56,6 +60,8 @@ export interface UseMultilineInputOptions {
 	readonly onCancel?: () => void;
 	/** Override the auto-detected terminal profile (for testing). */
 	readonly profile?: TerminalProfile;
+	/** Recent submitted prompts (newest last); ↑/↓ cycles when input is empty. */
+	readonly recentPrompts?: readonly string[];
 }
 
 export interface UseMultilineInputReturn {
@@ -77,11 +83,14 @@ export function useMultilineInput(
 		enterMode = "submit",
 		onCancel,
 		profile: profileOverride,
+		recentPrompts = [],
 	} = options;
 
 	const [cursorIndex, setCursorIndex] = useState(value.length);
 	const cursorIndexRef = useRef(value.length);
 	const previousCursorResetTokenRef = useRef(cursorResetToken);
+	const promptHistoryBrowseIndexRef = useRef(-1);
+	const promptHistoryDraftRef = useRef("");
 
 	// Pending-backslash heuristic: when Kitty protocol is not active, some
 	// terminals (e.g. VS Code without `terminal.integrated.enableKittyKeyboardProtocol`)
@@ -122,6 +131,10 @@ export function useMultilineInput(
 		const forceResetToEnd =
 			previousCursorResetTokenRef.current !== cursorResetToken;
 		previousCursorResetTokenRef.current = cursorResetToken;
+		if (forceResetToEnd) {
+			promptHistoryBrowseIndexRef.current = -1;
+			promptHistoryDraftRef.current = "";
+		}
 		updateCursorIndex((prev) =>
 			reconcileCursorIndex({
 				currentCursorIndex: prev,
@@ -150,12 +163,36 @@ export function useMultilineInput(
 
 	const insertAtCursor = useCallback(
 		(text: string) => {
+			promptHistoryBrowseIndexRef.current = -1;
+			promptHistoryDraftRef.current = "";
 			const ci = cursorIndexRef.current;
 			const next = value.slice(0, ci) + text + value.slice(ci);
 			onChange(next);
 			updateCursorIndex(ci + text.length);
 		},
 		[value, onChange, updateCursorIndex],
+	);
+
+	const applyPromptHistoryNavigation = useCallback(
+		(direction: "up" | "down") => {
+			const result = navigatePromptHistory(
+				direction,
+				{
+					browseIndex: promptHistoryBrowseIndexRef.current,
+					draft: promptHistoryDraftRef.current,
+				},
+				recentPrompts,
+			);
+			if (!result) {
+				return false;
+			}
+			promptHistoryBrowseIndexRef.current = result.browseIndex;
+			promptHistoryDraftRef.current = result.draft;
+			onChange(result.value);
+			updateCursorIndex(result.value.length);
+			return true;
+		},
+		[recentPrompts, onChange, updateCursorIndex],
 	);
 
 	// Debug logging for input events — set DEBUG_INPUT to a file path to enable.
@@ -288,6 +325,25 @@ export function useMultilineInput(
 				return;
 			}
 
+			if (key.upArrow && recentPrompts.length > 0) {
+				const browsing = promptHistoryBrowseIndexRef.current >= 0;
+				if (browsing || isPromptHistoryEligibleInput(value)) {
+					if (applyPromptHistoryNavigation("up")) {
+						return;
+					}
+				}
+			}
+
+			if (
+				key.downArrow &&
+				recentPrompts.length > 0 &&
+				promptHistoryBrowseIndexRef.current >= 0
+			) {
+				if (applyPromptHistoryNavigation("down")) {
+					return;
+				}
+			}
+
 			if (key.upArrow) {
 				updateCursorIndex((ci) => {
 					const lines = value.split("\n");
@@ -387,12 +443,14 @@ export function useMultilineInput(
 
 			const deleteAction = resolveDeleteShortcutAction(typedInput, key);
 			if (deleteAction === "delete-word-backward") {
+				promptHistoryBrowseIndexRef.current = -1;
 				deleteWordBackward();
 				return;
 			}
 			if (deleteAction === "delete-char") {
 				const ci = cursorIndexRef.current;
 				if (ci > 0) {
+					promptHistoryBrowseIndexRef.current = -1;
 					onChange(value.slice(0, ci - 1) + value.slice(ci));
 					updateCursorIndex(ci - 1);
 				}

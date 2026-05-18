@@ -83,6 +83,7 @@ type ChatInputDockProps = {
 	readonly slashSuggestions: readonly SlashCommand[];
 	readonly selectedSlashCommand: SlashCommand | null;
 	readonly daemonRunning: boolean;
+	readonly recentPrompts?: readonly string[];
 };
 
 export function ChatInputDock(props: ChatInputDockProps) {
@@ -102,6 +103,7 @@ export function ChatInputDock(props: ChatInputDockProps) {
 		slashSuggestions,
 		selectedSlashCommand,
 		daemonRunning,
+		recentPrompts = [],
 	} = props;
 
 	const placeholderText = placeholder ?? 'Try "What needs my attention today?"';
@@ -124,6 +126,7 @@ export function ChatInputDock(props: ChatInputDockProps) {
 				placeholder={placeholderText}
 				accentColor={ACCENT}
 				showStaticPlaceholder={showStaticPlaceholder}
+				recentPrompts={recentPrompts}
 			/>
 			{slashSuggestions.length > 0 ? (
 				<Box marginTop={0} paddingX={1} flexDirection="column">
@@ -143,8 +146,8 @@ export function ChatInputDock(props: ChatInputDockProps) {
 			) : null}
 			<Box marginTop={0} paddingX={1}>
 				<Text dimColor wrap="truncate-end">
-					Type / to see commands · {newlineHint} · Enter to run · Shift+Tab
-					cycle persona · Ctrl+C to quit
+					Type / to see commands · ↑↓ recent prompts (when empty) · {newlineHint}{" "}
+					· Enter to run · Shift+Tab cycle persona · Ctrl+C to quit
 				</Text>
 			</Box>
 			<Box

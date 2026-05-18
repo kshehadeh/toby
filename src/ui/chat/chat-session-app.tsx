@@ -84,12 +84,13 @@ import {
 	prepareChatSessionMessages,
 	replaceSessionSystemMessageForPersona,
 } from "./prepare-messages";
+import { appendPromptHistory, loadPromptHistory } from "./prompt-history";
 import { runIntegrationChatTurn } from "./run-turn";
 import {
+	CHAT_SESSION_PICKER_LIMIT,
 	appendMessageBatch,
 	appendTranscriptBatch,
 	createChatSession,
-	CHAT_SESSION_PICKER_LIMIT,
 	listChatSessions,
 	loadChatSession,
 	renameChatSession,
@@ -237,6 +238,7 @@ export function ChatSessionApp({
 	const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
 	const [input, setInput] = useState("");
 	const [inputCursorResetToken, setInputCursorResetToken] = useState(0);
+	const [recentPrompts, setRecentPrompts] = useState(() => loadPromptHistory());
 	const [loading, setLoading] = useState(false);
 	const [activityLine, setActivityLine] = useState("Thinking…");
 	const [streamingAssistant, setStreamingAssistant] = useState("");
@@ -1220,6 +1222,10 @@ export function ChatSessionApp({
 			}
 			const line = rawValue.trim();
 			setInput("");
+			setInputCursorResetToken((token) => token + 1);
+			if (line) {
+				setRecentPrompts(appendPromptHistory(line));
+			}
 			const slash = resolveSlashSubmission(line, selectedSlashCommand);
 			if (slash.kind === "execute" && slash.command) {
 				void slash.command.run(
@@ -2072,6 +2078,7 @@ export function ChatSessionApp({
 				slashSuggestions={slashSuggestions}
 				selectedSlashCommand={selectedSlashCommand}
 				daemonRunning={daemonRunning}
+				recentPrompts={recentPrompts}
 			/>
 		</Box>
 	);
