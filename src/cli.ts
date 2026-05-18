@@ -1,6 +1,5 @@
 import process from "node:process";
 import { Command } from "commander";
-import packageJson from "../package.json";
 import { registerChatCommand } from "./commands/chat";
 import { registerConfigCommand } from "./commands/configure";
 import { registerConnectCommand } from "./commands/connect";
@@ -12,9 +11,10 @@ import { registerSkillsCommand } from "./commands/skills";
 import { registerStatusCommand } from "./commands/status";
 import { registerUpgradeCommand } from "./commands/upgrade";
 import { getIntegrationModules } from "./integrations/index";
+import { getTobyVersion } from "./version";
 
 const program = new Command();
-const cliVersion = resolveCliVersion();
+const cliVersion = getTobyVersion();
 
 program
 	.name("toby")
@@ -51,18 +51,3 @@ const adjustedArgs =
 		: rawArgs;
 
 program.parse(adjustedArgs, { from: "user" });
-
-function resolveCliVersion(): string {
-	const envVersion = process.env.TOBY_VERSION?.trim();
-	if (envVersion) {
-		return envVersion;
-	}
-
-	const packageVersion =
-		typeof packageJson.version === "string" ? packageJson.version.trim() : "";
-	if (packageVersion) {
-		return packageVersion;
-	}
-
-	return "0.1.0";
-}

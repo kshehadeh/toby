@@ -5,18 +5,17 @@ import path from "node:path";
 import process from "node:process";
 import chalk from "chalk";
 import type { Command } from "commander";
+import {
+	fetchLatestReleaseTag,
+	resolveTobyGitHubRepo,
+} from "../releases/github";
+import { normalizeReleaseVersion } from "../version";
 
 interface UpgradeCommandOptions {
 	version?: string;
 	repo?: string;
 	installDir?: string;
 }
-
-interface ReleaseResponse {
-	tag_name?: string;
-}
-
-const DEFAULT_REPO = "kshehadeh/toby";
 
 export function registerUpgradeCommand(program: Command): void {
 	program
@@ -46,10 +45,10 @@ export function registerUpgradeCommand(program: Command): void {
 }
 
 async function runUpgrade(options: UpgradeCommandOptions): Promise<void> {
-	const repo = resolveRepo(options.repo);
+	const repo = resolveTobyGitHubRepo(options.repo);
 	const installDir = resolveInstallDir(options.installDir);
 	const asset = resolveReleaseAsset();
-	const tag = options.version?.trim() || (await fetchLatestTag(repo));
+	const tag = options.version?.trim() || (await fetchLatestReleaseTag(repo));
 	const downloadUrl = `https://github.com/${repo}/releases/download/${tag}/${asset}`;
 	const destination = path.join(installDir, "toby");
 	const tempDestination = path.join(
@@ -87,19 +86,6 @@ async function runUpgrade(options: UpgradeCommandOptions): Promise<void> {
 	}
 
 	printPathGuidance(installDir);
-}
-
-function normalizeReleaseVersion(tag: string): string {
-	return tag.startsWith("v") ? tag.slice(1) : tag;
-}
-
-function resolveRepo(optionRepo?: string): string {
-	return (
-		optionRepo?.trim() ||
-		process.env.TOBY_REPO?.trim() ||
-		detectRepoFromGitRemote() ||
-		DEFAULT_REPO
-	);
 }
 
 function resolveInstallDir(optionInstallDir?: string): string {
@@ -143,35 +129,6 @@ function resolveReleaseAsset(): string {
 	);
 }
 
-async function fetchLatestTag(repo: string): Promise<string> {
-	const headers = new Headers({
-		Accept: "application/vnd.github+json",
-		"X-GitHub-Api-Version": "2022-11-28",
-	});
-	if (process.env.GITHUB_TOKEN) {
-		headers.set("Authorization", `Bearer ${process.env.GITHUB_TOKEN}`);
-	}
-
-	const response = await fetch(
-		`https://api.github.com/repos/${repo}/releases/latest`,
-		{
-			headers,
-		},
-	);
-	if (!response.ok) {
-		throw new Error(
-			`Failed to resolve latest release for ${repo}: ${response.status} ${response.statusText}`,
-		);
-	}
-
-	const release = (await response.json()) as ReleaseResponse;
-	const tag = release.tag_name?.trim();
-	if (!tag) {
-		throw new Error(`Could not determine latest release tag for ${repo}.`);
-	}
-	return tag;
-}
-
 async function downloadReleaseAsset(
 	downloadUrl: string,
 	destinationPath: string,
@@ -213,40 +170,6 @@ function readInstalledVersion(binaryPath: string): string | null {
 		return null;
 	}
 	return result.stdout.trim() || null;
-}
-
-function detectRepoFromGitRemote(): string | null {
-	const rootResult = spawnSync("git", ["rev-parse", "--show-toplevel"], {
-		encoding: "utf8",
-	});
-	if (rootResult.status !== 0) {
-		return null;
-	}
-	const root = rootResult.stdout.trim();
-	if (!root) {
-		return null;
-	}
-
-	const remoteResult = spawnSync(
-		"git",
-		["-C", root, "config", "--get", "remote.origin.url"],
-		{ encoding: "utf8" },
-	);
-	if (remoteResult.status !== 0) {
-		return null;
-	}
-
-	return parseGitHubRepo(remoteResult.stdout.trim());
-}
-
-function parseGitHubRepo(remoteUrl: string): string | null {
-	if (remoteUrl.startsWith("git@github.com:")) {
-		return remoteUrl.replace("git@github.com:", "").replace(/\.git$/, "");
-	}
-	if (remoteUrl.startsWith("https://github.com/")) {
-		return remoteUrl.replace("https://github.com/", "").replace(/\.git$/, "");
-	}
-	return null;
 }
 
 function printPathGuidance(installDir: string): void {

@@ -1,12 +1,9 @@
 import { Box, Text } from "ink";
 import type { ReactNode } from "react";
-import packageJson from "../../../../package.json";
+import { getTobyVersion } from "../../../version";
 import { ACCENT, CHAT_TITLE_ASCII, TIPS } from "../constants";
 
-const TOBY_VERSION =
-	(typeof packageJson.version === "string" ? packageJson.version.trim() : "") ||
-	process.env.TOBY_VERSION?.trim() ||
-	"0.1.0";
+const TOBY_VERSION = getTobyVersion();
 
 interface AppHeaderProps {
 	readonly termCols?: number;
