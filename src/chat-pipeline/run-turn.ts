@@ -1,7 +1,10 @@
 import type { LanguageModelUsage, ProviderMetadata, Tool } from "ai";
 import type { AskUserHandler } from "../ai/ask-user-tool";
 import { withAskUserTool } from "../ai/ask-user-tool";
-import { applyChatPromptCaching } from "../ai/cache-hints";
+import {
+	applyChatMessageCaching,
+	applyChatPromptCaching,
+} from "../ai/caching";
 import type { ChatWithToolsOptions, CoreMessage } from "../ai/chat";
 import { chatWithTools, createModelForPersona } from "../ai/chat";
 import { createGlobalChatTools } from "../ai/global-chat-tools";
@@ -125,11 +128,13 @@ export async function runSharedChatTurn(
 		toolCount: Object.keys(tools).length,
 		model: options.persona.ai.model,
 	});
+	const cacheContext = {
+		persona: options.persona,
+		moduleNames,
+	};
+	const messagesForModel = applyChatMessageCaching(messages, cacheContext);
 	const chatWithToolsOptions =
-		applyChatPromptCaching(options.chatWithToolsOptions, {
-			persona: options.persona,
-			moduleNames,
-		}) ?? {};
+		applyChatPromptCaching(options.chatWithToolsOptions, cacheContext) ?? {};
 	const onChatEvent = chatWithToolsOptions.onChatEvent;
 	const enrichedChatWithToolsOptions: ChatWithToolsOptions =
 		onChatEvent === undefined
@@ -161,7 +166,7 @@ export async function runSharedChatTurn(
 
 	const result = await chatWithTools(
 		model,
-		messages,
+		messagesForModel,
 		tools,
 		enrichedChatWithToolsOptions,
 	);

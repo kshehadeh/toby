@@ -1,6 +1,10 @@
 import type { LanguageModelUsage } from "ai";
 import { Box, Text } from "ink";
 import React, { useMemo } from "react";
+import {
+	extractTokenUsageReport,
+	formatTokenUsageStatus,
+} from "../../../ai/caching";
 import { getAIProviderDisplayName } from "../../../ai/providers";
 import type { Persona } from "../../../config/index";
 import { MultilineTextEdit, newlineHintText } from "../../shared";
@@ -10,25 +14,6 @@ import {
 } from "../../shared/terminal-profile";
 import { ACCENT, ACCENT_MODEL, ACCENT_PROVIDER } from "../constants";
 import type { SlashCommand } from "../slash-commands";
-
-function formatUsage(usage: LanguageModelUsage | null): string | null {
-	if (!usage?.inputTokenDetails || !usage.outputTokens) {
-		return null;
-	}
-	const inTokens = usage.inputTokens;
-	const outTokens = usage.outputTokens;
-	const total = usage.totalTokens;
-	const cache = usage.inputTokenDetails.cacheReadTokens;
-
-	const pieces = [
-		inTokens !== undefined ? `in=${inTokens}` : null,
-		outTokens !== undefined ? `out=${outTokens}` : null,
-		total !== undefined ? `tot=${total}` : null,
-		cache !== undefined ? `cache=${cache}` : null,
-	].filter(Boolean);
-
-	return pieces.length > 0 ? pieces.join(" ") : null;
-}
 
 function getModelContextWindow(model: string): number | null {
 	const m = model.toLowerCase().trim();
@@ -111,6 +96,10 @@ export function ChatInputDock(props: ChatInputDockProps) {
 	const showStaticPlaceholder =
 		(showPlaceholderWhenEmpty ?? false) && input.length === 0;
 	const contextFill = formatContextFill(modelLabel, lastUsage);
+	const tokenUsageStatus = useMemo(() => {
+		const report = extractTokenUsageReport(lastUsage, { persona });
+		return formatTokenUsageStatus(report);
+	}, [lastUsage, persona]);
 	const terminalProfile = useMemo(() => detectTerminalProfile(), []);
 	const modeLabel = inputModeLabel(terminalProfile);
 	const newlineHint = newlineHintText(terminalProfile);
@@ -215,7 +204,7 @@ export function ChatInputDock(props: ChatInputDockProps) {
 						) : (
 							<Text color="red">✗</Text>
 						)}
-						{formatUsage(lastUsage) ? ` · ${formatUsage(lastUsage)}` : ""}
+						{tokenUsageStatus ? ` · ${tokenUsageStatus}` : ""}
 					</Text>
 				</Box>
 			</Box>

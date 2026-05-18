@@ -10,6 +10,10 @@ import React, {
 	useState,
 } from "react";
 import type { AskUserHandler, AskUserToolResult } from "../../ai/ask-user-tool";
+import {
+	extractTokenUsageReport,
+	formatCacheDebugMeta,
+} from "../../ai/caching";
 import type { CoreMessage } from "../../ai/chat";
 import { formatPersonaAiLabel } from "../../ai/model-factory";
 import {
@@ -634,6 +638,10 @@ export function ChatSessionApp({
 				responseMessages = out.responseMessages;
 				responseText = out.text ?? "";
 
+				const tokenReport = extractTokenUsageReport(out.usage, {
+					persona: activePersonaRef.current,
+					moduleNames: moduleNames,
+				});
 				logTurnSummary(sid, undefined, {
 					turnIndex: undefined,
 					durationMs: Date.now() - turnStartMs,
@@ -641,10 +649,10 @@ export function ChatSessionApp({
 					toolsUsed: out.toolCalls.map((tc) => tc.name),
 					cacheHits: 0,
 					cacheMisses: 0,
-					inputTokens: out.usage?.inputTokens,
-					outputTokens: out.usage?.outputTokens,
-					cacheReadTokens: out.usage?.inputTokenDetails?.cacheReadTokens,
-					cacheWriteTokens: out.usage?.inputTokenDetails?.cacheWriteTokens,
+					inputTokens: tokenReport?.inputTokens,
+					outputTokens: tokenReport?.outputTokens,
+					cacheReadTokens: tokenReport?.cacheReadTokens,
+					cacheWriteTokens: tokenReport?.cacheWriteTokens,
 					errorCount: 0,
 				});
 
@@ -661,24 +669,25 @@ export function ChatSessionApp({
 						body: reply,
 					});
 				}
-				if (
-					process.env.TOBY_DEBUG_CACHE === "1" &&
-					out.usage?.inputTokenDetails
-				) {
-					const d = out.usage.inputTokenDetails;
-					const pieces = [
-						d.cacheReadTokens !== undefined
-							? `cacheRead=${d.cacheReadTokens}`
-							: null,
-						d.cacheWriteTokens !== undefined
-							? `cacheWrite=${d.cacheWriteTokens}`
-							: null,
-						d.noCacheTokens !== undefined ? `noCache=${d.noCacheTokens}` : null,
-					].filter(Boolean);
-					if (pieces.length > 0) {
+				if (process.env.TOBY_DEBUG_CACHE === "1" && tokenReport) {
+					const cacheMeta = formatCacheDebugMeta(tokenReport);
+					if (cacheMeta) {
 						additions.push({
 							kind: "meta",
-							text: `Usage: ${pieces.join(" · ")}`,
+							text: `Usage: ${cacheMeta}`,
+						});
+					}
+					const rawUsage = out.usage?.raw;
+					if (rawUsage && typeof rawUsage === "object") {
+						additions.push({
+							kind: "meta",
+							text: `Usage raw: ${JSON.stringify(rawUsage)}`,
+						});
+					}
+					if (out.providerMetadata) {
+						additions.push({
+							kind: "meta",
+							text: `Provider metadata: ${JSON.stringify(out.providerMetadata)}`,
 						});
 					}
 				}
