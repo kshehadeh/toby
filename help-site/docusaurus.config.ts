@@ -10,8 +10,8 @@ const config: Config = {
     v4: true,
   },
 
-  url: 'https://kshehadeh.github.io',
-  baseUrl: '/toby/',
+  url: 'https://toby.iwonderdesigns.com',
+  baseUrl: '/',
 
   organizationName: 'kshehadeh',
   projectName: 'toby',
