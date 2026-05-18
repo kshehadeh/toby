@@ -206,6 +206,9 @@ function capBodyLines(
 	lines: readonly string[],
 	variant: "prep" | "lifecycle" | "assistant" | "tool" | "plan",
 ): readonly string[] {
+	if (variant === "lifecycle" || variant === "prep") {
+		return lines;
+	}
 	if (variant === "assistant" || lines.length <= 3) {
 		return lines;
 	}

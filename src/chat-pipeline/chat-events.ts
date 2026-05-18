@@ -32,6 +32,19 @@ export type ChatEvent =
 			readonly detail: string;
 	  }
 	| {
+			readonly type: "lifecycle_append";
+			readonly id: string;
+			readonly seq: number;
+			readonly line: string;
+	  }
+	| {
+			/** Replaces the lifecycle body with a single status line (boot progress). */
+			readonly type: "lifecycle_set";
+			readonly id: string;
+			readonly seq: number;
+			readonly line: string;
+	  }
+	| {
 			readonly type: "assistant_segment_start";
 			readonly id: string;
 			readonly seq: number;

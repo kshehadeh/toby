@@ -12,6 +12,9 @@ export function activityLineForChatEvent(ev: ChatEvent): string | null {
 			return "Ready for model…";
 		case "lifecycle_start":
 			return ev.header;
+		case "lifecycle_append":
+		case "lifecycle_set":
+			return ev.line;
 		case "lifecycle_end":
 			return ev.detail;
 		case "assistant_segment_start":

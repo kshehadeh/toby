@@ -366,6 +366,70 @@ describe("flattenTranscript boxed_step", () => {
 		}
 	});
 
+	it("lifecycle_set replaces the lifecycle body with one line", () => {
+		const id = "lc-set";
+		let t: TranscriptEntry[] = [];
+		t = applyChatEvent(t, {
+			type: "lifecycle_start",
+			id,
+			seq: 1,
+			header: "Preparing Session…",
+		} satisfies ChatEvent);
+		t = applyChatEvent(t, {
+			type: "lifecycle_set",
+			id,
+			seq: 2,
+			line: "Loading Gmail connection context…",
+		} satisfies ChatEvent);
+		t = applyChatEvent(t, {
+			type: "lifecycle_set",
+			id,
+			seq: 3,
+			line: "Session ready.",
+		} satisfies ChatEvent);
+		const row = t[0];
+		expect(row?.kind).toBe("boxed_step");
+		if (row?.kind === "boxed_step") {
+			expect(row.body).toBe("Session ready.");
+		}
+	});
+
+	it("lifecycle_append accumulates detail lines on the same row", () => {
+		const id = "lc-2";
+		let t: TranscriptEntry[] = [];
+		t = applyChatEvent(t, {
+			type: "lifecycle_start",
+			id,
+			seq: 1,
+			header: "Preparing Session…",
+		} satisfies ChatEvent);
+		t = applyChatEvent(t, {
+			type: "lifecycle_append",
+			id,
+			seq: 2,
+			line: "Scope: Gmail",
+		} satisfies ChatEvent);
+		t = applyChatEvent(t, {
+			type: "lifecycle_append",
+			id,
+			seq: 3,
+			line: "Loading Gmail connection context…",
+		} satisfies ChatEvent);
+		t = applyChatEvent(t, {
+			type: "lifecycle_end",
+			id,
+			seq: 4,
+			detail: "Session ready.",
+		} satisfies ChatEvent);
+		const row = t[0];
+		expect(row?.kind).toBe("boxed_step");
+		if (row?.kind === "boxed_step") {
+			expect(row.body).toBe(
+				"Scope: Gmail\nLoading Gmail connection context…\nSession ready.",
+			);
+		}
+	});
+
 	it("renders grouped tool runs as expanded body lines", () => {
 		const entries: TranscriptEntry[] = [
 			{

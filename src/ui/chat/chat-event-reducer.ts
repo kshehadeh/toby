@@ -174,6 +174,38 @@ export function applyChatEvent(
 			},
 		];
 	}
+	if (event.type === "lifecycle_append") {
+		const idx = findLastBoxedStepIndex(entries, event.id, "lifecycle");
+		if (idx < 0) {
+			return [...entries];
+		}
+		const cur = entries[idx];
+		if (cur.kind !== "boxed_step") {
+			return [...entries];
+		}
+		const nextBody =
+			cur.body.trim().length > 0 ? `${cur.body}\n${event.line}` : event.line;
+		return replaceEntry(entries, idx, {
+			...cur,
+			body: nextBody,
+			seq: event.seq,
+		});
+	}
+	if (event.type === "lifecycle_set") {
+		const idx = findLastBoxedStepIndex(entries, event.id, "lifecycle");
+		if (idx < 0) {
+			return [...entries];
+		}
+		const cur = entries[idx];
+		if (cur.kind !== "boxed_step") {
+			return [...entries];
+		}
+		return replaceEntry(entries, idx, {
+			...cur,
+			body: event.line,
+			seq: event.seq,
+		});
+	}
 	if (event.type === "lifecycle_end") {
 		const idx = findLastBoxedStepIndex(entries, event.id, "lifecycle");
 		if (idx < 0) {
@@ -193,9 +225,13 @@ export function applyChatEvent(
 		if (cur.kind !== "boxed_step") {
 			return [...entries];
 		}
+		const nextBody =
+			cur.body.trim().length > 0
+				? `${cur.body}\n${event.detail}`
+				: event.detail;
 		return replaceEntry(entries, idx, {
 			...cur,
-			body: event.detail,
+			body: nextBody,
 			seq: event.seq,
 		});
 	}
