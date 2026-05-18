@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+	buildAiGatewayAttributionHeaders,
 	formatPersonaAiLabel,
 	normalizeModelOnProviderChange,
 	validatePersonaAi,
@@ -90,6 +91,51 @@ describe("normalizeModelOnProviderChange", () => {
 		expect(
 			normalizeModelOnProviderChange("vercel", "anthropic/claude-sonnet-4.6"),
 		).toBe("anthropic/claude-sonnet-4.6");
+	});
+});
+
+describe("buildAiGatewayAttributionHeaders", () => {
+	const envKeys = [
+		"TOBY_AI_GATEWAY_REFERER",
+		"AI_GATEWAY_HTTP_REFERER",
+		"TOBY_AI_GATEWAY_APP_TITLE",
+		"AI_GATEWAY_X_TITLE",
+	] as const;
+	const previous: Partial<
+		Record<(typeof envKeys)[number], string | undefined>
+	> = {};
+
+	beforeEach(() => {
+		for (const key of envKeys) {
+			previous[key] = process.env[key];
+			delete process.env[key];
+		}
+	});
+
+	afterEach(() => {
+		for (const key of envKeys) {
+			if (previous[key] === undefined) {
+				delete process.env[key];
+			} else {
+				process.env[key] = previous[key];
+			}
+		}
+	});
+
+	it("uses Toby defaults when env is unset", () => {
+		expect(buildAiGatewayAttributionHeaders()).toEqual({
+			"http-referer": "https://github.com/kshehadeh/toby",
+			"x-title": "Toby",
+		});
+	});
+
+	it("allows TOBY_AI_GATEWAY_* overrides", () => {
+		process.env.TOBY_AI_GATEWAY_REFERER = "https://example.com/toby";
+		process.env.TOBY_AI_GATEWAY_APP_TITLE = "My Toby";
+		expect(buildAiGatewayAttributionHeaders()).toEqual({
+			"http-referer": "https://example.com/toby",
+			"x-title": "My Toby",
+		});
 	});
 });
 

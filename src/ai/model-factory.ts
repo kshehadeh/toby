@@ -11,6 +11,26 @@ const GATEWAY_SLUG_RE = /^[a-z0-9-]+\/[a-z0-9][a-z0-9.-]*$/i;
 const OPENAI_AUX_DEFAULT = "gpt-4.1-mini";
 const VERCEL_AUX_DEFAULT = "openai/gpt-4.1-mini";
 
+/** Default app URL for Vercel AI Gateway attribution (https://vercel.com/docs/ai-gateway/ecosystem/app-attribution). */
+const DEFAULT_AI_GATEWAY_HTTP_REFERER = "https://github.com/kshehadeh/toby";
+const DEFAULT_AI_GATEWAY_X_TITLE = "Toby";
+
+/** Vercel AI Gateway app attribution headers (optional for gateway; see Vercel docs). */
+export function buildAiGatewayAttributionHeaders(): Record<string, string> {
+	const referer =
+		process.env.TOBY_AI_GATEWAY_REFERER?.trim() ||
+		process.env.AI_GATEWAY_HTTP_REFERER?.trim() ||
+		DEFAULT_AI_GATEWAY_HTTP_REFERER;
+	const title =
+		process.env.TOBY_AI_GATEWAY_APP_TITLE?.trim() ||
+		process.env.AI_GATEWAY_X_TITLE?.trim() ||
+		DEFAULT_AI_GATEWAY_X_TITLE;
+	return {
+		"http-referer": referer,
+		"x-title": title,
+	};
+}
+
 export function isGatewayModelSlug(model: string): boolean {
 	return model.includes("/");
 }
@@ -111,11 +131,17 @@ function createOpenAiModel(modelId: string): LanguageModel {
 	return openai(modelId);
 }
 
-function createVercelGatewayModel(modelId: string): LanguageModel {
+function createVercelGatewayProvider() {
 	assertVercelGatewayConfigured();
 	const apiKey = resolveVercelGatewayApiKey();
-	const provider = apiKey ? createGateway({ apiKey }) : createGateway();
-	return provider(modelId);
+	return createGateway({
+		...(apiKey ? { apiKey } : {}),
+		headers: buildAiGatewayAttributionHeaders(),
+	});
+}
+
+function createVercelGatewayModel(modelId: string): LanguageModel {
+	return createVercelGatewayProvider()(modelId);
 }
 
 export function resolveAuxiliaryModelId(

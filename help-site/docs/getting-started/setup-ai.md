@@ -37,6 +37,8 @@ Gateway models use **`provider/model`** format, for example:
 
 You can also set `AI_GATEWAY_API_KEY` in your environment instead of storing a key in credentials.
 
+Toby sends optional [app attribution](https://vercel.com/docs/ai-gateway/ecosystem/app-attribution) headers on gateway requests (`http-referer`, `x-title`) so Vercel can list Toby on AI Gateway pages. Defaults: referer `https://github.com/kshehadeh/toby`, title `Toby`. Override with `TOBY_AI_GATEWAY_REFERER` and `TOBY_AI_GATEWAY_APP_TITLE` if needed.
+
 Optional: developers linked to a Vercel project can use `vercel env pull` to provision `VERCEL_OIDC_TOKEN` for local runs without a static key.
 
 ## Default providers (optional)
