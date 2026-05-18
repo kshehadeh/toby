@@ -5,6 +5,7 @@ import {
 	ACCENT,
 	ASSISTANT_BOX_MARGIN_LEFT,
 	BOXED_STEP_BODY_MARGIN_LEFT,
+	META_ACCENT,
 	TOOL_FEEDBACK_DETAIL_INDENT,
 } from "../constants";
 import { AssistantMarkdownLine, MarkdownInlineText } from "../markdown-inline";
@@ -24,8 +25,18 @@ export function buildTranscriptNodes(
 		if (r.kind === "boxed_block") {
 			const bb = r;
 			const bodyDim = bb.variant !== "assistant";
-			const glyphColor = bb.variant === "plan" ? "magenta" : ACCENT;
-			const headerColor = bb.variant === "plan" ? "magenta" : ACCENT;
+			const glyphColor =
+				bb.variant === "plan"
+					? "magenta"
+					: bb.variant === "meta"
+						? META_ACCENT
+						: ACCENT;
+			const headerColor =
+				bb.variant === "plan"
+					? "magenta"
+					: bb.variant === "meta"
+						? META_ACCENT
+						: ACCENT;
 			nodes.push(
 				<Box
 					key={`bb-${bb.id}-${outIdx}`}

@@ -5,6 +5,7 @@ import {
 } from "./constants";
 import {
 	ASSISTANT_TRANSCRIPT_GLYPH,
+	META_STEP_GLYPH,
 	PIPELINE_STEP_GLYPH,
 } from "./tool-transcript-icons";
 import type { DisplayRow, TranscriptEntry } from "./types";
@@ -204,9 +205,9 @@ const HIDDEN_LIFECYCLE_HEADERS = new Set([
 
 function capBodyLines(
 	lines: readonly string[],
-	variant: "prep" | "lifecycle" | "assistant" | "tool" | "plan",
+	variant: "prep" | "lifecycle" | "assistant" | "tool" | "plan" | "meta",
 ): readonly string[] {
-	if (variant === "lifecycle" || variant === "prep") {
+	if (variant === "lifecycle" || variant === "prep" || variant === "meta") {
 		return lines;
 	}
 	if (variant === "assistant" || lines.length <= 3) {
@@ -365,8 +366,33 @@ export function flattenTranscript(
 				gapKey += 1;
 				rows.push({ kind: "spacer", rowKey: `gap-${gapKey}` });
 			}
+		} else if (e.kind === "meta") {
+			const metaBodyLines: string[] = [];
+			let groupEnd = i;
+			while (groupEnd < entries.length) {
+				const maybeMeta = entries[groupEnd];
+				if (maybeMeta?.kind !== "meta") {
+					break;
+				}
+				metaBodyLines.push(...flattenBoxedBodyLines(maybeMeta.text, termCols));
+				groupEnd += 1;
+			}
+			rows.push({
+				kind: "boxed_block",
+				id: `meta-${i}-${groupEnd - 1}`,
+				variant: "meta",
+				header: "Session note",
+				bodyLines: metaBodyLines.length > 0 ? metaBodyLines : [""],
+				leadingGlyph: META_STEP_GLYPH,
+			});
+			const entryAfterMetaGroup = entries[groupEnd];
+			if (entryAfterMetaGroup !== undefined) {
+				gapKey += 1;
+				rows.push({ kind: "spacer", rowKey: `gap-${gapKey}` });
+			}
+			i = groupEnd - 1;
 		} else {
-			// Match pipeline / user body inset (see `buildTranscriptNodes` meta + error margins).
+			// Match pipeline / user body inset (see `buildTranscriptNodes` error margins).
 			const insetCols = Math.max(8, termCols - 2);
 			for (const line of hardWrap(e.text, insetCols)) {
 				rows.push({ kind: e.kind, text: line });

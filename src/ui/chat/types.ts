@@ -52,7 +52,13 @@ export type DisplayRow =
 	| {
 			readonly kind: "boxed_block";
 			readonly id: string;
-			readonly variant: "prep" | "lifecycle" | "assistant" | "tool" | "plan";
+			readonly variant:
+				| "prep"
+				| "lifecycle"
+				| "assistant"
+				| "tool"
+				| "plan"
+				| "meta";
 			readonly header: string;
 			readonly bodyLines: readonly string[];
 			readonly leadingGlyph: string;

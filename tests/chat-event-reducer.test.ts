@@ -338,6 +338,40 @@ describe("flattenTranscript boxed_step", () => {
 		expect(boxed[1]?.kind === "boxed_block" && boxed[1].variant).toBe("tool");
 	});
 
+	it("renders meta entries as distinct boxed notes", () => {
+		const entries: TranscriptEntry[] = [
+			{ kind: "meta", text: "Configuration updated." },
+		];
+		const rows = flattenTranscript(entries, "", false, 80);
+		const boxed = rows.filter((r) => r.kind === "boxed_block");
+		expect(boxed).toHaveLength(1);
+		const note = boxed[0];
+		expect(note?.kind === "boxed_block" && note.variant).toBe("meta");
+		expect(note?.kind === "boxed_block" && note.header).toBe("Session note");
+		expect(note?.kind === "boxed_block" && note.leadingGlyph).toBe("ℹ");
+		expect(note?.kind === "boxed_block" && note.bodyLines).toEqual([
+			"Configuration updated.",
+		]);
+	});
+
+	it("groups consecutive meta entries into one boxed note", () => {
+		const entries: TranscriptEntry[] = [
+			{ kind: "meta", text: "Starting daemon…" },
+			{ kind: "meta", text: "Daemon started (PID 12345)." },
+			{ kind: "assistant", text: "Done." },
+		];
+		const rows = flattenTranscript(entries, "", false, 80);
+		const boxed = rows.filter((r) => r.kind === "boxed_block");
+		expect(boxed).toHaveLength(1);
+		const metaBox = boxed[0];
+		expect(metaBox?.kind === "boxed_block" && metaBox.variant).toBe("meta");
+		expect(metaBox?.kind === "boxed_block" && metaBox.bodyLines).toEqual([
+			"Starting daemon…",
+			"Daemon started (PID 12345).",
+		]);
+		expect(rows.some((r) => r.kind === "assistant_line")).toBe(true);
+	});
+
 	it("lifecycle_start then lifecycle_end updates the same boxed row", () => {
 		const id = "lc-1";
 		let t: TranscriptEntry[] = [];

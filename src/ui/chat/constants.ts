@@ -1,4 +1,5 @@
 export const ACCENT = "#a16207";
+export const META_ACCENT = "#0e7490";
 // Accent-adjacent shades for compact status UI (provider/model split).
 export const ACCENT_PROVIDER = "#d97706";
 export const ACCENT_MODEL = "#f59e0b";
