@@ -29,6 +29,7 @@ import {
 	readConfig,
 } from "../../config/index";
 import {
+	getIntegrationModule,
 	getModulesForCategory,
 	getModulesWithCapability,
 } from "../../integrations/index";
@@ -137,6 +138,24 @@ interface PersonaPickerState {
 }
 
 const ACTIVITY_GLYPH_FRAMES = ["·", "•", "●", "•"] as const;
+
+function collectModulesForConnectionProbe(
+	selected: readonly IntegrationModule[],
+): IntegrationModule[] {
+	const byName = new Map<string, IntegrationModule>();
+	for (const cat of ALL_PROVIDER_CATEGORIES) {
+		const defaultName = getDefaultProvider(cat);
+		if (!defaultName) continue;
+		const mod = getIntegrationModule(defaultName);
+		if (mod) {
+			byName.set(mod.name, mod);
+		}
+	}
+	for (const mod of selected) {
+		byName.set(mod.name, mod);
+	}
+	return [...byName.values()];
+}
 
 function formatScopeLabel(modules: readonly IntegrationModule[]): string {
 	if (modules.length === 0) {
@@ -324,20 +343,20 @@ export function ChatSessionApp({
 
 	useEffect(() => {
 		let cancelled = false;
-		const names = selectedModules.map((m) => m.name);
-		// Mark as unknown while we refresh.
+		const modulesToProbe = collectModulesForConnectionProbe(selectedModules);
 		setConnectedByIntegration((prev) => {
 			const next: Record<string, boolean | null> = { ...prev };
-			for (const n of names) {
-				next[n] = null;
+			for (const m of modulesToProbe) {
+				next[m.name] = null;
 			}
 			return next;
 		});
 		void (async () => {
 			const pairs = await Promise.all(
-				selectedModules.map(async (m) => {
+				modulesToProbe.map(async (m) => {
 					try {
-						return [m.name, await m.isConnected()] as const;
+						const health = await m.testConnection();
+						return [m.name, health.ok] as const;
 					} catch {
 						return [m.name, false] as const;
 					}

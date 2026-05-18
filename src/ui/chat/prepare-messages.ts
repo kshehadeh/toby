@@ -103,6 +103,47 @@ ${globalChatToolsPromptSection()}
 `;
 }
 
+function formatIntegrationPrepError(
+	module: IntegrationModule,
+	error: unknown,
+): string {
+	const message = error instanceof Error ? error.message : String(error);
+	return `## ${module.displayName}\n\nConnection context unavailable (${message}). Slack/Gmail tools may still work once the connection recovers.`;
+}
+
+async function buildSingleModuleSessionMessages(
+	module: IntegrationModule,
+	persona: Persona,
+	userPrompt: string,
+): Promise<CoreMessage[]> {
+	if (!module.chatModelPrep) {
+		throw new Error(
+			`prepareChatSessionMessages: integration "${module.name}" does not export chatModelPrep`,
+		);
+	}
+	try {
+		return await module.chatModelPrep.buildSingleSessionMessages(
+			persona,
+			userPrompt,
+		);
+	} catch (error) {
+		const section = module.chatModelPrep.systemPromptSection?.trim();
+		const systemContent = composeSystemPromptWithPersona(
+			section
+				? `### ${module.displayName}\n${section}`
+				: `### ${module.displayName}`,
+			persona,
+		);
+		return [
+			{ role: "system", content: systemContent },
+			{
+				role: "user",
+				content: `${formatIntegrationPrepError(module, error)}\n\nUser request:\n${userPrompt || "(no additional text — follow the system instruction.)"}`,
+			},
+		];
+	}
+}
+
 export async function prepareChatSessionMessages(
 	modules: readonly IntegrationModule[],
 	persona: Persona,
@@ -117,15 +158,7 @@ export async function prepareChatSessionMessages(
 		if (!module) {
 			throw new Error("prepareChatSessionMessages: missing module");
 		}
-		if (!module.chatModelPrep) {
-			throw new Error(
-				`prepareChatSessionMessages: integration "${module.name}" does not export chatModelPrep`,
-			);
-		}
-		return await module.chatModelPrep.buildSingleSessionMessages(
-			persona,
-			userPrompt,
-		);
+		return buildSingleModuleSessionMessages(module, persona, userPrompt);
 	}
 	const parts = await Promise.all(
 		modules.map(async (m) => {
@@ -134,7 +167,11 @@ export async function prepareChatSessionMessages(
 					`prepareChatSessionMessages: integration "${m.name}" does not export chatModelPrep`,
 				);
 			}
-			return await m.chatModelPrep.buildMultiUserContent(userPrompt);
+			try {
+				return await m.chatModelPrep.buildMultiUserContent(userPrompt);
+			} catch (error) {
+				return formatIntegrationPrepError(m, error);
+			}
 		}),
 	);
 
