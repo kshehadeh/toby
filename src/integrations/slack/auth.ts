@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import http from "node:http";
 import open from "open";
+import { parseSlackOAuthExpiry } from "./tokens";
 interface SlackOAuthClientCredentials {
 	readonly clientId: string;
 	readonly clientSecret: string;
@@ -31,6 +32,8 @@ export interface SlackOAuthTokens {
 	/** API access token (user token for localhost PKCE OAuth). */
 	readonly accessToken: string;
 	readonly tokenType: "user" | "bot";
+	readonly refreshToken?: string;
+	readonly expiresAt?: string;
 	readonly teamId: string;
 	readonly teamName: string;
 }
@@ -84,16 +87,34 @@ export async function runSlackOAuthFlow(
 		ok?: boolean;
 		error?: string;
 		access_token?: string;
+		refresh_token?: string;
+		expires_in?: number;
 		team?: { id?: string; name?: string };
-		authed_user?: { access_token?: string };
+		authed_user?: {
+			access_token?: string;
+			refresh_token?: string;
+			expires_in?: number;
+		};
 	};
 	const userToken =
 		typeof json.authed_user?.access_token === "string"
 			? json.authed_user.access_token
 			: undefined;
+	const userRefresh =
+		typeof json.authed_user?.refresh_token === "string"
+			? json.authed_user.refresh_token
+			: undefined;
 	const botToken =
 		typeof json.access_token === "string" ? json.access_token : undefined;
+	const botRefresh =
+		typeof json.refresh_token === "string" ? json.refresh_token : undefined;
 	const accessToken = userToken ?? botToken;
+	const tokenType = userToken ? "user" : "bot";
+	const refreshToken = tokenType === "user" ? userRefresh : botRefresh;
+	const expiresIn =
+		tokenType === "user"
+			? (json.authed_user?.expires_in ?? json.expires_in)
+			: (json.expires_in ?? json.authed_user?.expires_in);
 
 	if (!json.ok || !accessToken) {
 		throw new Error(
@@ -103,7 +124,11 @@ export async function runSlackOAuthFlow(
 
 	return {
 		accessToken,
-		tokenType: userToken ? "user" : "bot",
+		tokenType,
+		refreshToken,
+		expiresAt: parseSlackOAuthExpiry(
+			typeof expiresIn === "number" ? expiresIn : undefined,
+		),
 		teamId: json.team?.id ?? "",
 		teamName: json.team?.name ?? "",
 	};

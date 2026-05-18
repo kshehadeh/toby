@@ -112,6 +112,9 @@ interface SlackCredentials {
 	botToken?: string;
 	oauthBotToken?: string;
 	oauthUserToken?: string;
+	oauthUserRefreshToken?: string;
+	oauthBotRefreshToken?: string;
+	oauthExpiresAt?: string;
 	teamId?: string;
 	teamName?: string;
 }
@@ -310,6 +313,7 @@ export interface SlackResolvedCredentials {
 	readonly redirectUri?: string;
 	readonly botToken: string;
 	readonly oauthUserToken?: string;
+	readonly oauthExpiresAt?: string;
 	readonly teamId?: string;
 	readonly teamName?: string;
 }
@@ -340,6 +344,9 @@ export function getSlackCredentials(): SlackResolvedCredentials {
 	const teamName =
 		getIntegrationCredential(creds, "slack", "teamName") ??
 		creds.slack?.teamName;
+	const oauthExpiresAt =
+		getIntegrationCredential(creds, "slack", "oauthExpiresAt") ??
+		creds.slack?.oauthExpiresAt;
 
 	const botToken =
 		authMethod === "bot_token"
@@ -363,6 +370,7 @@ export function getSlackCredentials(): SlackResolvedCredentials {
 		redirectUri,
 		botToken,
 		oauthUserToken: oauthUserToken?.trim() || undefined,
+		oauthExpiresAt: oauthExpiresAt?.trim() || undefined,
 		teamId,
 		teamName,
 	};

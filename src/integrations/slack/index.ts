@@ -25,6 +25,7 @@ import {
 	buildSlackChatSystemMessage,
 	buildSlackChatUserMessage,
 } from "./prompts/chat";
+import { persistSlackOAuthTokens } from "./tokens";
 import { createSlackTools } from "./tools";
 
 type SlackAuthMethod = "oauth" | "bot_token";
@@ -103,34 +104,16 @@ const slackLifecycle = {
 				);
 			}
 
-			writeCredentials({
-				...credentials,
-				integrations: {
-					...(credentials.integrations ?? {}),
-					slack: {
-						...(credentials.integrations?.slack ?? {}),
-						authMethod: "oauth",
-						clientId,
-						clientSecret,
-						redirectUri: redirectUri ?? "",
-						oauthBotToken: tokens.tokenType === "bot" ? tokens.accessToken : "",
-						oauthUserToken:
-							tokens.tokenType === "user" ? tokens.accessToken : "",
-						teamId: tokens.teamId,
-						teamName: tokens.teamName,
-					},
-				},
-				slack: {
-					...(credentials.slack ?? {}),
-					authMethod: "oauth",
-					clientId,
-					clientSecret,
-					redirectUri: redirectUri ?? "",
-					oauthBotToken: tokens.tokenType === "bot" ? tokens.accessToken : "",
-					oauthUserToken: tokens.tokenType === "user" ? tokens.accessToken : "",
-					teamId: tokens.teamId,
-					teamName: tokens.teamName,
-				},
+			persistSlackOAuthTokens({
+				accessToken: tokens.accessToken,
+				tokenType: tokens.tokenType,
+				refreshToken: tokens.refreshToken,
+				expiresAt: tokens.expiresAt,
+				teamId: tokens.teamId,
+				teamName: tokens.teamName,
+				clientId,
+				clientSecret,
+				redirectUri: redirectUri ?? "",
 			});
 		} else {
 			try {
@@ -202,12 +185,18 @@ const slackLifecycle = {
 						...(creds.integrations?.slack ?? {}),
 						oauthBotToken: "",
 						oauthUserToken: "",
+						oauthUserRefreshToken: "",
+						oauthBotRefreshToken: "",
+						oauthExpiresAt: "",
 					},
 				},
 				slack: {
 					...(creds.slack ?? {}),
 					oauthBotToken: "",
 					oauthUserToken: "",
+					oauthUserRefreshToken: "",
+					oauthBotRefreshToken: "",
+					oauthExpiresAt: "",
 				},
 			});
 		}
@@ -321,6 +310,15 @@ function mergeCredentialsPatch(
 			oauthUserToken:
 				previous.integrations?.slack?.oauthUserToken ??
 				previous.slack?.oauthUserToken,
+			oauthUserRefreshToken:
+				previous.integrations?.slack?.oauthUserRefreshToken ??
+				previous.slack?.oauthUserRefreshToken,
+			oauthBotRefreshToken:
+				previous.integrations?.slack?.oauthBotRefreshToken ??
+				previous.slack?.oauthBotRefreshToken,
+			oauthExpiresAt:
+				previous.integrations?.slack?.oauthExpiresAt ??
+				previous.slack?.oauthExpiresAt,
 			teamId: previous.integrations?.slack?.teamId ?? previous.slack?.teamId,
 			teamName:
 				previous.integrations?.slack?.teamName ?? previous.slack?.teamName,

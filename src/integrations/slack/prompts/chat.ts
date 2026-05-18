@@ -37,27 +37,42 @@ export function buildSlackChatSystemMessage(persona: Persona): CoreMessage {
 export async function buildSlackChatUserMessage(
 	userPrompt: string,
 ): Promise<CoreMessage> {
-	const [auth, conversations] = await Promise.all([
-		testSlackConnection(),
-		listConversations(40),
-	]);
+	let auth: { team?: string; user?: string } = {};
+	let channelSummary: Array<{
+		id: string;
+		name: string;
+		kind: string;
+		isPrivate: boolean;
+		isMember: boolean;
+	}> = [];
+	let connectionNote = "";
 
-	const channelSummary = conversations
-		.filter((c) => c.kind !== "im" || c.isMember)
-		.slice(0, 40)
-		.map((c) => ({
-			id: c.id,
-			name: c.name,
-			kind: c.kind,
-			isPrivate: c.isPrivate,
-			isMember: c.isMember,
-		}));
+	try {
+		const [authResult, conversations] = await Promise.all([
+			testSlackConnection(),
+			listConversations(40).catch(() => []),
+		]);
+		auth = authResult;
+		channelSummary = conversations
+			.filter((c) => c.kind !== "im" || c.isMember)
+			.slice(0, 40)
+			.map((c) => ({
+				id: c.id,
+				name: c.name,
+				kind: c.kind,
+				isPrivate: c.isPrivate,
+				isMember: c.isMember,
+			}));
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		connectionNote = `Slack is not reachable right now (${message}). Use Slack tools when the connection recovers, or ask the user to run \`toby connect slack\`.`;
+	}
 
 	return {
 		role: "user",
 		content: `Current Slack context (apply the system instruction):
 
-Workspace: ${auth.team ?? "(unknown)"} (bot user: ${auth.user ?? "unknown"})
+${connectionNote ? `${connectionNote}\n\n` : ""}Workspace: ${auth.team ?? "(unknown)"} (user: ${auth.user ?? "unknown"})
 Sample channels (${channelSummary.length}):
 ${JSON.stringify(channelSummary, null, 2)}
 

@@ -1,4 +1,12 @@
-import { getSlackCredentials } from "../../config/index";
+import {
+	getSlackAuthMethod,
+	getSlackCredentials,
+	readCredentials,
+} from "../../config/index";
+import {
+	isSlackAccessTokenFresh,
+	refreshSlackOAuthAccessToken,
+} from "./tokens";
 
 export interface SlackConversation {
 	readonly id: string;
@@ -40,13 +48,17 @@ interface SlackApiResponse {
 	readonly error?: string;
 }
 
-async function slackApi<T extends SlackApiResponse>(
+const TOKEN_EXPIRED_ERRORS = new Set([
+	"token_expired",
+	"invalid_auth",
+	"account_inactive",
+]);
+
+async function callSlackApi<T extends SlackApiResponse>(
 	method: string,
-	params: Record<string, string | number | boolean | undefined> = {},
-	token?: string,
+	params: Record<string, string | number | boolean | undefined>,
+	authToken: string,
 ): Promise<T> {
-	const creds = getSlackCredentials();
-	const authToken = token ?? creds.botToken;
 	const body = new URLSearchParams();
 	for (const [key, value] of Object.entries(params)) {
 		if (value === undefined) continue;
@@ -68,7 +80,43 @@ async function slackApi<T extends SlackApiResponse>(
 		);
 	}
 
-	const json = (await res.json()) as T;
+	return (await res.json()) as T;
+}
+
+async function resolveSlackAuthToken(explicitToken?: string): Promise<string> {
+	if (explicitToken) {
+		return explicitToken;
+	}
+	const creds = getSlackCredentials();
+	if (
+		creds.authMethod === "oauth" &&
+		!isSlackAccessTokenFresh(creds.oauthExpiresAt)
+	) {
+		return refreshSlackOAuthAccessToken();
+	}
+	return creds.botToken;
+}
+
+async function slackApi<T extends SlackApiResponse>(
+	method: string,
+	params: Record<string, string | number | boolean | undefined> = {},
+	token?: string,
+	retried = false,
+): Promise<T> {
+	let authToken = await resolveSlackAuthToken(token);
+	let json = await callSlackApi<T>(method, params, authToken);
+
+	if (
+		!json.ok &&
+		!retried &&
+		!token &&
+		TOKEN_EXPIRED_ERRORS.has(json.error ?? "") &&
+		getSlackAuthMethod(readCredentials()) === "oauth"
+	) {
+		authToken = await refreshSlackOAuthAccessToken();
+		json = await callSlackApi<T>(method, params, authToken);
+	}
+
 	if (!json.ok) {
 		throw new Error(`Slack API ${method} error: ${json.error ?? "unknown"}`);
 	}
