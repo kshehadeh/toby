@@ -11,7 +11,8 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | [`docs/architecture.md`](docs/architecture.md) | Repository layout, runtime entrypoints, config storage, and how major layers interact. |
 | [`docs/integrations.md`](docs/integrations.md) | Plugin-style integrations: `IntegrationModule`, registry, capabilities, credentials, and CLI contributions. |
 | [`docs/create-integration.md`](docs/create-integration.md) | Checklist for adding a new first-party integration module. |
-| [`docs/chat-pipeline.md`](docs/chat-pipeline.md) | `toby chat` message flow, prompt caching strategy, and tool-result caching behavior. |
+| [`docs/chat-pipeline.md`](docs/chat-pipeline.md) | `toby chat` message flow and tool-result caching behavior. |
+| [`docs/ai-caching.md`](docs/ai-caching.md) | Provider prompt caching adapters, stable cache keys, and token telemetry. |
 | [`docs/ui.md`](docs/ui.md) | Shared Ink UI components, visual conventions, and shortcut conventions. |
 | [`docs/apple-mail.md`](docs/apple-mail.md) | Apple Mail (macOS): local Mail.app integration and automation permissions. |
 | [`docs/build-executable.md`](docs/build-executable.md) | Optional **Bun** single-file `dist/toby` binary (`bun run build:executable`). |

@@ -110,56 +110,12 @@ To clear cached tool results in chat, run:
 - Before each tool execution, the signal is checked; if already aborted the tool throws instead of running.
 - The Ink TUI wires an `AbortController` per turn and aborts it when the user presses **Escape** during a loading state.
 
-## OpenAI prompt caching configuration (current)
+## AI prompt caching
 
-`toby` enables OpenAI prompt caching hints for `toby chat` by setting:
+Provider-specific prompt caching (OpenAI direct, Vercel AI Gateway, stable cache keys, status-line `cache=` / `cacheW=` telemetry, and adding new adapters) is documented in **[ai-caching.md](ai-caching.md)**.
 
-- `providerOptions.openai.promptCacheKey`
+Wiring in this pipeline:
 
-This is plumbed through:
-
-- `src/ui/chat/run-turn.ts` → `applyChatPromptCaching(...)`
-- `src/ai/cache-hints.ts` → builds a stable cache key and merges it into `ChatWithToolsOptions.providerOptions`
-- `src/ai/chat.ts` → forwards `providerOptions` to `streamText` / `generateText`
-
-### Cache key strategy
-
-The key is designed to be:
-
-- **stable** across sessions when the same persona/model/integration set is used
-- **independent of user text** (to maximize prefix reuse)
-- sensitive to persona changes via a short hash of persona settings
-
-Intentionally excluded from the key:
-
-- user prompt text
-- any dynamic integration context (e.g. task snapshots)
-- any per-turn state
-
-If you change the “prompt schema” (for example, you substantially restructure the stable system prompt), bump the schema version constant in `src/ai/cache-hints.ts`.
-
-## Cache telemetry (how to tell it’s working)
-
-The AI SDK exposes normalized token usage, including cache reads/writes:
-
-- `usage.inputTokenDetails.cacheReadTokens`
-- `usage.inputTokenDetails.cacheWriteTokens`
-- `usage.inputTokenDetails.noCacheTokens`
-
-`toby chat` can display this in the transcript when:
-
-- `TOBY_DEBUG_CACHE=1`
-
-This is rendered as a meta line in `src/ui/chat/chat-session-app.tsx`.
-
-Expected behavior:
-
-- First qualifying request “warms” the cache (higher `cacheWriteTokens`, low/zero `cacheReadTokens`).
-- Subsequent turns (with the same cached prefix) show increased `cacheReadTokens` and decreased `noCacheTokens`.
-
-## Extending to Anthropic (future)
-
-Anthropic supports message-level cache control hints (via message `providerOptions`). The design here keeps a single “cache hints” module (`src/ai/cache-hints.ts`) so we can add:
-
-- message-level cache control breakpoints for Anthropic, without rewriting the turn runner or the AI wrapper.
+- `src/chat-pipeline/run-turn.ts` → `applyChatPromptCaching(...)` from `src/ai/caching`
+- `src/ai/chat.ts` → forwards merged `providerOptions` to `streamText` / `generateText`
 
