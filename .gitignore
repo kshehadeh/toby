@@ -1,6 +1,9 @@
 node_modules/
 dist/
 package-lock.json
+!help-site/package-lock.json
+help-site/build/
+help-site/.docusaurus/
 .toby/
 .factory/settings.json
 .vscode/settings.json

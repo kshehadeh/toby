@@ -19,7 +19,10 @@
 		"test:watch": "bunx vitest",
 		"release": "release-it",
 		"release:dry": "release-it --dry-run",
-		"release:ci": "bun ./scripts/release-ci.mjs"
+		"release:ci": "bun ./scripts/release-ci.mjs",
+		"docs:install": "npm --prefix help-site install",
+		"docs:start": "npm --prefix help-site run start",
+		"docs:build": "npm --prefix help-site run build"
 	},
 	"dependencies": {
 		"@ai-sdk/openai": "^3.0.53",

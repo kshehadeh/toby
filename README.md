@@ -86,6 +86,15 @@ bun run dev -- --help
 - [docs/commands.md](docs/commands.md) - shared CLI commands and examples
 - [AGENTS.md](AGENTS.md) - contributor and agent guidance
 
+## Documentation site
+
+This repo includes a Docusaurus-based docs site in `help-site/`, deployed to GitHub Pages from `.github/workflows/deploy-docs.yml`.
+
+```bash
+bun run docs:install
+bun run docs:start
+```
+
 ## Developer guide
 
 ### Local setup
