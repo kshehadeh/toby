@@ -2,13 +2,16 @@ import { Box, Text } from "ink";
 import type { ReactNode } from "react";
 import React from "react";
 import {
+	renderAssistantMarkdownLines,
+	renderMarkdownBodyLines,
+} from "../assistant-markdown-body";
+import {
 	ACCENT,
 	ASSISTANT_BOX_MARGIN_LEFT,
 	BOXED_STEP_BODY_MARGIN_LEFT,
 	META_ACCENT,
 	TOOL_FEEDBACK_DETAIL_INDENT,
 } from "../constants";
-import { AssistantMarkdownLine, MarkdownInlineText } from "../markdown-inline";
 import type { DisplayRow } from "../types";
 import { UserPromptRow } from "./user-prompt-row";
 
@@ -64,24 +67,22 @@ export function buildTranscriptNodes(
 							marginTop={0}
 							flexDirection="column"
 						>
-							{bb.bodyLines.map((line, j) =>
-								bb.variant === "assistant" ? (
-									<MarkdownInlineText
-										key={`${bb.id}-ln-${j}`}
-										line={line}
-										dimColor={bodyDim}
-									/>
-								) : (
-									<Text
-										key={`${bb.id}-ln-${j}`}
-										dimColor={bodyDim}
-										wrap="truncate-end"
-									>
-										{j === 0 ? "↳ " : "  "}
-										{line.length > 0 ? line : " "}
-									</Text>
-								),
-							)}
+							{bb.variant === "assistant"
+								? renderMarkdownBodyLines(
+										bb.bodyLines,
+										Math.max(12, termCols - 2 - BOXED_STEP_BODY_MARGIN_LEFT),
+										{ dimColor: bodyDim },
+									)
+								: bb.bodyLines.map((line, j) => (
+										<Text
+											key={`${bb.id}-ln-${j}`}
+											dimColor={bodyDim}
+											wrap="truncate-end"
+										>
+											{j === 0 ? "↳ " : "  "}
+											{line.length > 0 ? line : " "}
+										</Text>
+									))}
 						</Box>
 					</Box>
 				</Box>,
@@ -119,13 +120,7 @@ export function buildTranscriptNodes(
 					borderColor="gray"
 					paddingX={1}
 				>
-					{lines.map((ln, j) => (
-						<AssistantMarkdownLine
-							key={`${bk}-${j}-${ln.text.slice(0, 12)}`}
-							marker={ln.marker}
-							text={ln.text ?? ""}
-						/>
-					))}
+					{renderAssistantMarkdownLines(lines, boxWidth - 2)}
 				</Box>,
 			);
 			outIdx++;

@@ -3,6 +3,7 @@ import {
 	BOXED_STEP_BODY_MARGIN_LEFT,
 	TOOL_FEEDBACK_DETAIL_INDENT,
 } from "./constants";
+import { splitTextAndTables } from "./markdown-table";
 import {
 	ASSISTANT_TRANSCRIPT_GLYPH,
 	META_STEP_GLYPH,
@@ -42,12 +43,18 @@ function hardWrap(line: string, max: number): string[] {
 function wrapAssistantBlock(text: string, innerWidth: number): string[] {
 	const w = Math.max(8, innerWidth);
 	const out: string[] = [];
-	for (const segment of text.split(/\r?\n/)) {
-		if (segment.length === 0) {
-			out.push("");
+	for (const block of splitTextAndTables(text)) {
+		if (block.kind === "table") {
+			out.push(...block.lines);
 			continue;
 		}
-		out.push(...hardWrap(segment, w));
+		for (const segment of block.text.split(/\r?\n/)) {
+			if (segment.length === 0) {
+				out.push("");
+				continue;
+			}
+			out.push(...hardWrap(segment, w));
+		}
 	}
 	return out;
 }
