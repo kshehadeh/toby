@@ -45,19 +45,49 @@ const config: Config = {
     ],
   ],
 
+  headTags: [
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'preconnect',
+        href: 'https://fonts.googleapis.com',
+      },
+    },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'preconnect',
+        href: 'https://fonts.gstatic.com',
+        crossorigin: 'anonymous',
+      },
+    },
+  ],
+
   themeConfig: {
     colorMode: {
       defaultMode: 'dark',
-      respectPrefersColorScheme: true,
+      respectPrefersColorScheme: false,
+      disableSwitch: false,
     },
     navbar: {
-      title: 'Toby Docs',
+      title: 'Toby',
+      style: 'dark',
       items: [
         {
           type: 'docSidebar',
           sidebarId: 'helpSidebar',
           position: 'left',
           label: 'Docs',
+        },
+        {
+          to: '/docs/getting-started/install',
+          label: 'Guides',
+          position: 'left',
+        },
+        {
+          to: '/docs/examples',
+          label: 'Examples',
+          position: 'left',
         },
         {
           href: 'https://github.com/kshehadeh/toby',
@@ -71,7 +101,12 @@ const config: Config = {
       links: [
         {
           title: 'Help',
-          items: [{label: 'Introduction', to: '/docs/intro'}],
+          items: [
+            {label: 'Introduction', to: '/docs/intro'},
+            {label: 'Getting Started', to: '/docs/getting-started/install'},
+            {label: 'Integrations', to: '/docs/integrations/overview'},
+            {label: 'Examples', to: '/docs/examples'},
+          ],
         },
         {
           title: 'Project',
@@ -91,7 +126,8 @@ const config: Config = {
     },
     prism: {
       theme: prismThemes.github,
-      darkTheme: prismThemes.dracula,
+      darkTheme: prismThemes.oneDark,
+      additionalLanguages: ['bash', 'json', 'yaml'],
     },
   } satisfies Preset.ThemeConfig,
 };

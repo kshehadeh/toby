@@ -1,16 +1,68 @@
 import React from 'react';
 import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
+import styles from './index.module.css';
+
+const sections = [
+  {
+    title: 'Getting Started',
+    description: 'Install Toby, set up AI, connect integrations, and start chatting.',
+    to: '/docs/getting-started/install',
+  },
+  {
+    title: 'Integrations',
+    description: 'Gmail, Todoist, Slack, Azure AD, Apple Mail, and Apple Calendar.',
+    to: '/docs/integrations/overview',
+  },
+  {
+    title: 'Personas',
+    description: 'Shape how Toby prioritizes and responds.',
+    to: '/docs/personas',
+  },
+  {
+    title: 'Skills',
+    description: 'Reusable task instructions Toby applies when relevant.',
+    to: '/docs/skills',
+  },
+  {
+    title: 'Memories',
+    description: 'Durable context Toby remembers across sessions.',
+    to: '/docs/memories',
+  },
+  {
+    title: 'Schedules',
+    description: 'Recurring prompts that run on a cron timetable.',
+    to: '/docs/schedules',
+  },
+  {
+    title: 'Examples',
+    description: 'Real-world workflows combining Toby features.',
+    to: '/docs/examples',
+  },
+];
 
 export default function Home(): React.JSX.Element {
   return (
     <Layout title="Toby documentation" description="Documentation for Toby CLI.">
-      <main style={{padding: '3rem 1.25rem', maxWidth: 900, margin: '0 auto'}}>
-        <h1>Toby Documentation</h1>
-        <p>Documentation for installing and using the Toby CLI.</p>
-        <p>
-          Start with the <Link to="/docs/intro">Introduction and installation guide</Link>.
+      <main className={styles.page}>
+        <span className={styles.eyebrow}>Documentation</span>
+        <h1 className={styles.title}>Toby Documentation</h1>
+        <p className={styles.lead}>
+          Toby is an AI-assisted CLI for organizing and summarizing work across
+          Gmail, Todoist, Slack, Azure AD, Apple Mail, and Apple Calendar.
         </p>
+        <p className={styles.lead}>
+          New here? Start with the <Link to="/docs/intro">introduction</Link>, then{' '}
+          <Link to="/docs/getting-started/install">install Toby</Link>.
+        </p>
+        <div className={styles.grid}>
+          {sections.map((section) => (
+            <Link key={section.title} to={section.to} className={styles.card}>
+              <span className={styles.cardTitle}>{section.title}</span>
+              <p className={styles.cardDesc}>{section.description}</p>
+            </Link>
+          ))}
+        </div>
       </main>
     </Layout>
   );
