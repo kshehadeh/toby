@@ -1,6 +1,7 @@
 import type { LanguageModelUsage } from "ai";
 import { Box, Text } from "ink";
 import React, { useMemo } from "react";
+import { getAIProviderDisplayName } from "../../../ai/providers";
 import type { Persona } from "../../../config/index";
 import { MultilineTextEdit, newlineHintText } from "../../shared";
 import {
@@ -167,20 +168,21 @@ export function ChatInputDock(props: ChatInputDockProps) {
 							{" · "}
 						</Text>
 						{(() => {
-							const [provider, model] = modelLabel.split("/", 2);
+							const providerLabel = getAIProviderDisplayName(
+								persona.ai.provider,
+							);
+							const modelText = persona.ai.model;
 							return (
 								<>
 									<Text color={ACCENT_PROVIDER} wrap="truncate-end">
-										{provider ?? modelLabel}
+										{providerLabel}
 									</Text>
 									<Text dimColor wrap="truncate-end">
-										{model ? "/" : ""}
+										{" · "}
 									</Text>
-									{model ? (
-										<Text color={ACCENT_MODEL} wrap="truncate-end">
-											{model}
-										</Text>
-									) : null}
+									<Text color={ACCENT_MODEL} wrap="truncate-end">
+										{modelText}
+									</Text>
 									{contextFill ? (
 										<>
 											<Text dimColor wrap="truncate-end">

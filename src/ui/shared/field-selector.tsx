@@ -12,10 +12,16 @@ import {
 import { SelectableTextRow } from "./rows";
 import { ViewFrame } from "./view-frame";
 
+export type SelectChoice = {
+	readonly value: string;
+	readonly label: string;
+};
+
 export interface FieldSelectorProps {
 	readonly appTitle: string;
 	readonly fieldLabel: string;
-	readonly options: readonly string[];
+	readonly options?: readonly string[];
+	readonly choices?: readonly SelectChoice[];
 	readonly currentValue?: string;
 	readonly onSubmit: (value: string) => void;
 	readonly onCancel: () => void;
@@ -25,13 +31,19 @@ export function FieldSelector({
 	appTitle,
 	fieldLabel,
 	options,
+	choices,
 	currentValue,
 	onSubmit,
 	onCancel,
 }: FieldSelectorProps) {
+	const resolvedChoices: SelectChoice[] =
+		choices && choices.length > 0
+			? [...choices]
+			: (options ?? []).map((value) => ({ value, label: value }));
+
 	const [sel, setSel] = useState(() => {
 		const current = currentValue ?? "";
-		const idx = options.indexOf(current);
+		const idx = resolvedChoices.findIndex((c) => c.value === current);
 		return idx >= 0 ? idx : 0;
 	});
 
@@ -41,9 +53,9 @@ export function FieldSelector({
 			return;
 		}
 		if (isSelectKey(input, key)) {
-			const choice = options[sel];
+			const choice = resolvedChoices[sel];
 			if (choice !== undefined) {
-				onSubmit(choice);
+				onSubmit(choice.value);
 			}
 			return;
 		}
@@ -52,7 +64,7 @@ export function FieldSelector({
 			return;
 		}
 		if (isNavigateDown(input, key) || key.rightArrow) {
-			setSel((s) => Math.min(options.length - 1, s + 1));
+			setSel((s) => Math.min(resolvedChoices.length - 1, s + 1));
 		}
 	});
 
@@ -66,9 +78,9 @@ export function FieldSelector({
 					Select: {fieldLabel}
 				</Text>
 			</Box>
-			{options.map((opt, i) => (
-				<SelectableTextRow key={opt} selected={i === sel} color="green">
-					{i === sel ? UI_GLYPHS.section : " "} {opt}{" "}
+			{resolvedChoices.map((opt, i) => (
+				<SelectableTextRow key={opt.value} selected={i === sel} color="green">
+					{i === sel ? UI_GLYPHS.section : " "} {opt.label}{" "}
 				</SelectableTextRow>
 			))}
 		</ViewFrame>

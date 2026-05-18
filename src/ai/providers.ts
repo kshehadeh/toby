@@ -54,3 +54,7 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
 export function getAIProvider(id: string): AIProviderInfo | undefined {
 	return AI_PROVIDERS.find((p) => p.id === id);
 }
+
+export function getAIProviderDisplayName(id: string): string {
+	return getAIProvider(id)?.displayName ?? id;
+}

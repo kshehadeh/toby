@@ -15,6 +15,7 @@ import { ViewFrame } from "./view-frame";
 export type FieldNavigatorItemKind = NavigatorRowProps["kind"] | "info";
 
 export interface FieldNavigatorItem {
+	/** Unique row id for React keys. */
 	readonly key: string;
 	readonly label: string;
 	readonly kind: FieldNavigatorItemKind;

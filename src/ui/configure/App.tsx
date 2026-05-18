@@ -105,7 +105,7 @@ export function ConfigureApp({
 			return;
 		}
 		const { node } = resolvePath(tree, path);
-		const child = node.children?.find((c) => c.key === key);
+		const child = node.children?.find((c) => c.key === key || c.navKey === key);
 		if (!child) {
 			return;
 		}
@@ -120,13 +120,30 @@ export function ConfigureApp({
 	}, [path, tree]);
 
 	const { node: currentNode, resolvedPath } = resolvePath(tree, path);
-	const items = (currentNode.children ?? []).map((item) => ({
-		...item,
-		currentValue:
+	const childItems = currentNode.children ?? [];
+	const childByNavKey = new Map(
+		childItems.map((item) => [item.navKey ?? item.key, item]),
+	);
+	const items = childItems.map((item) => {
+		const rawValue =
 			item.kind === "value" || item.kind === "select"
 				? (values[item.key] ?? item.currentValue)
-				: undefined,
-	}));
+				: undefined;
+		let displayValue = rawValue;
+		if (item.kind === "select" && rawValue !== undefined) {
+			const labeled = item.selectChoices?.find((c) => c.value === rawValue);
+			displayValue = labeled?.label ?? rawValue;
+		}
+		return {
+			key: item.navKey ?? item.key,
+			label: item.label,
+			kind: item.kind,
+			masked: item.masked,
+			multiline: item.multiline,
+			options: item.options,
+			currentValue: displayValue,
+		};
+	});
 
 	const breadcrumb = resolvedPath
 		.map((_, index) => {
@@ -362,6 +379,7 @@ export function ConfigureApp({
 			<FieldSelector
 				appTitle="Configuration"
 				fieldLabel={editItem.label}
+				choices={editItem.selectChoices}
 				options={editItem.options ?? []}
 				currentValue={values[editItem.key] ?? editItem.currentValue}
 				onSubmit={handleSelectSubmit}
@@ -380,7 +398,12 @@ export function ConfigureApp({
 			footer={<Text dimColor>{UI_HINTS.navigator}</Text>}
 			onSelect={setSelectedIndex}
 			onBack={handleBack}
-			onSelectItem={(item) => handleSelectItem(item as SettingsItem)}
+			onSelectItem={(navItem) => {
+				const settingsItem = childByNavKey.get(navItem.key);
+				if (settingsItem) {
+					handleSelectItem(settingsItem);
+				}
+			}}
 			onQuit={handleQuit}
 		/>
 	);

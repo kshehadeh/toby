@@ -12,14 +12,25 @@ import {
 
 type ItemKind = "section" | "value" | "action" | "select" | "delete";
 
+export type SettingsSelectChoice = {
+	readonly value: string;
+	readonly label: string;
+};
+
 export interface SettingsItem {
 	label: string;
 	kind: ItemKind;
+	/** Storage key in configure values (and config on save). */
 	key: string;
+	/** Unique navigation row id; defaults to `key`. */
+	navKey?: string;
 	children?: SettingsItem[];
 	masked?: boolean;
 	multiline?: boolean;
+	/** Plain option values (label matches value). */
 	options?: string[];
+	/** Labeled options for select fields (value stored, label shown). */
+	selectChoices?: SettingsSelectChoice[];
 	currentValue?: string;
 }
 
@@ -93,9 +104,22 @@ export function buildSettingsTree(
 
 		const aiModelItems: SettingsItem[] = [
 			{
+				label: "AI Provider",
+				kind: "select" as const,
+				key: `personas.${p.name}.ai.provider`,
+				navKey: `personas.${p.name}.ai.provider`,
+				selectChoices: availableProviders.map((pr) => ({
+					value: pr.id,
+					label: pr.displayName,
+				})),
+				options: availableProviders.map((pr) => pr.id),
+				currentValue: providerId,
+			},
+			{
 				label: "AI Model",
 				kind: "select" as const,
 				key: `personas.${p.name}.ai.model`,
+				navKey: `personas.${p.name}.ai.model.select`,
 				options: providerInfo?.models ?? [],
 				currentValue: modelValue,
 			},
@@ -105,6 +129,7 @@ export function buildSettingsTree(
 				label: "Custom model slug",
 				kind: "value" as const,
 				key: `personas.${p.name}.ai.model`,
+				navKey: `personas.${p.name}.ai.model.custom`,
 				currentValue: modelValue,
 			});
 		}
@@ -133,13 +158,6 @@ export function buildSettingsTree(
 					key: `personas.${p.name}.promptMode`,
 					options: ["add", "replace"],
 					currentValue: p.promptMode,
-				},
-				{
-					label: "AI Provider",
-					kind: "select" as const,
-					key: `personas.${p.name}.ai.provider`,
-					options: availableProviders.map((pr) => pr.id),
-					currentValue: providerId,
 				},
 				...aiModelItems,
 				{
