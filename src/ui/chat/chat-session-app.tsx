@@ -89,6 +89,7 @@ import {
 	appendMessageBatch,
 	appendTranscriptBatch,
 	createChatSession,
+	CHAT_SESSION_PICKER_LIMIT,
 	listChatSessions,
 	loadChatSession,
 	renameChatSession,
@@ -1077,7 +1078,7 @@ export function ChatSessionApp({
 	}, [chatIntegrations]);
 
 	const openSessionsPicker = useCallback(() => {
-		const sessions = listChatSessions(100).map((s) => ({
+		const sessions = listChatSessions(CHAT_SESSION_PICKER_LIMIT).map((s) => ({
 			id: s.id,
 			name: s.name,
 		}));

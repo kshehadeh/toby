@@ -191,6 +191,9 @@ function touchChatSession(sessionId: string): void {
 	});
 }
 
+/** Max sessions shown in the `/sessions` picker (most recently updated first). */
+export const CHAT_SESSION_PICKER_LIMIT = 10;
+
 export function listChatSessions(limit = 50): ChatSessionSummary[] {
 	const db = getDb();
 	const rows = db
