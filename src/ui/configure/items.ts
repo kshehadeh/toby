@@ -1,3 +1,4 @@
+import type { AIProviderInfo } from "../../ai/providers";
 import { getDefaultPersonaName } from "../../config/index";
 import {
 	getIntegrationModules,
@@ -29,7 +30,7 @@ export function buildSettingsTree(
 		instructions: string;
 		promptMode: "add" | "replace";
 	}[],
-	availableProviders: { id: string; displayName: string; models: string[] }[],
+	availableProviders: AIProviderInfo[],
 	values: Record<string, string> = {},
 	defaultProviders?: Partial<Record<ProviderCategory, string>>,
 ): SettingsItem {
@@ -84,60 +85,77 @@ export function buildSettingsTree(
 
 	const currentDefault = getDefaultPersonaName();
 
-	const personaItems: SettingsItem[] = personas.map((p) => ({
-		label: p.name,
-		kind: "section" as const,
-		key: `personas.${p.name}`,
-		children: [
-			{
-				label: "Name",
-				kind: "value" as const,
-				key: `personas.${p.name}.name`,
-				currentValue: p.name,
-			},
-			{
-				label: "Instructions",
-				kind: "value" as const,
-				key: `personas.${p.name}.instructions`,
-				currentValue: p.instructions,
-				multiline: true,
-			},
-			{
-				label: "Prompt Mode",
-				kind: "select" as const,
-				key: `personas.${p.name}.promptMode`,
-				options: ["add", "replace"],
-				currentValue: p.promptMode,
-			},
-			{
-				label: "AI Provider",
-				kind: "select" as const,
-				key: `personas.${p.name}.ai.provider`,
-				options: availableProviders.map((pr) => pr.id),
-				currentValue: p.ai.provider,
-			},
+	const personaItems: SettingsItem[] = personas.map((p) => {
+		const providerId =
+			values[`personas.${p.name}.ai.provider`] ?? p.ai.provider;
+		const modelValue = values[`personas.${p.name}.ai.model`] ?? p.ai.model;
+		const providerInfo = availableProviders.find((pr) => pr.id === providerId);
+
+		const aiModelItems: SettingsItem[] = [
 			{
 				label: "AI Model",
 				kind: "select" as const,
 				key: `personas.${p.name}.ai.model`,
-				options:
-					availableProviders.find((pr) => pr.id === p.ai.provider)?.models ??
-					[],
-				currentValue: p.ai.model,
+				options: providerInfo?.models ?? [],
+				currentValue: modelValue,
 			},
-			{
-				label:
-					currentDefault === p.name ? "★ Default persona" : "Set as default",
-				kind: "action" as const,
-				key: `personas.${p.name}._setDefault`,
-			},
-			{
-				label: "Delete this persona",
-				kind: "delete" as const,
-				key: `personas.${p.name}._delete`,
-			},
-		],
-	}));
+		];
+		if (providerInfo?.allowCustomModel) {
+			aiModelItems.push({
+				label: "Custom model slug",
+				kind: "value" as const,
+				key: `personas.${p.name}.ai.model`,
+				currentValue: modelValue,
+			});
+		}
+
+		return {
+			label: p.name,
+			kind: "section" as const,
+			key: `personas.${p.name}`,
+			children: [
+				{
+					label: "Name",
+					kind: "value" as const,
+					key: `personas.${p.name}.name`,
+					currentValue: p.name,
+				},
+				{
+					label: "Instructions",
+					kind: "value" as const,
+					key: `personas.${p.name}.instructions`,
+					currentValue: p.instructions,
+					multiline: true,
+				},
+				{
+					label: "Prompt Mode",
+					kind: "select" as const,
+					key: `personas.${p.name}.promptMode`,
+					options: ["add", "replace"],
+					currentValue: p.promptMode,
+				},
+				{
+					label: "AI Provider",
+					kind: "select" as const,
+					key: `personas.${p.name}.ai.provider`,
+					options: availableProviders.map((pr) => pr.id),
+					currentValue: providerId,
+				},
+				...aiModelItems,
+				{
+					label:
+						currentDefault === p.name ? "★ Default persona" : "Set as default",
+					kind: "action" as const,
+					key: `personas.${p.name}._setDefault`,
+				},
+				{
+					label: "Delete this persona",
+					kind: "delete" as const,
+					key: `personas.${p.name}._delete`,
+				},
+			],
+		};
+	});
 
 	const defaultProviderItems: SettingsItem[] = ALL_PROVIDER_CATEGORIES.map(
 		(cat) => {
@@ -186,6 +204,19 @@ export function buildSettingsTree(
 								label: "API Token",
 								kind: "value",
 								key: "ai.openai.token",
+								masked: true,
+							},
+						],
+					},
+					{
+						label: "Vercel AI Gateway",
+						kind: "section",
+						key: "ai.vercel",
+						children: [
+							{
+								label: "API Key",
+								kind: "value",
+								key: "ai.vercel.apiKey",
 								masked: true,
 							},
 						],

@@ -68,7 +68,8 @@ registry powers autocomplete, execution, and help text (see
 
 Shared pieces live under `src/ai/`:
 
-- [`chat.ts`](../src/ai/chat.ts) (under `src/ai/`) — model creation and tool-assisted chat helpers used by Gmail organize, `toby chat`, and similar flows.
+- [`model-factory.ts`](../src/ai/model-factory.ts) — creates AI SDK language models from persona config (OpenAI direct, Vercel AI Gateway, and future providers).
+- [`chat.ts`](../src/ai/chat.ts) — tool-assisted chat helpers used by Gmail organize, `toby chat`, and similar flows.
 - [`ask-user-tool.ts`](../src/ai/ask-user-tool.ts) — shared **Ask User** tool merged into tool maps; optional handler for Ink (`toby chat` session) vs readline (`organize`, `--no-tui` chat).
 - [`ui/chat/session.tsx`](../src/ui/chat/session.tsx) — multi-turn Ink chat: keeps provider message history and wires `askUser` into the TUI.
 - [`providers.ts`](../src/ai/providers.ts) — provider/model lists for the configure UI.

@@ -146,8 +146,9 @@ export function ChatInputDock(props: ChatInputDockProps) {
 			) : null}
 			<Box marginTop={0} paddingX={1}>
 				<Text dimColor wrap="truncate-end">
-					Type / to see commands · ↑↓ recent prompts (when empty) · {newlineHint}{" "}
-					· Enter to run · Shift+Tab cycle persona · Ctrl+C to quit
+					Type / to see commands · ↑↓ recent prompts (when empty) ·{" "}
+					{newlineHint} · Enter to run · Shift+Tab cycle persona · Ctrl+C to
+					quit
 				</Text>
 			</Box>
 			<Box

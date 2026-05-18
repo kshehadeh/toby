@@ -56,6 +56,9 @@ export function createConfigureSession(): ConfigureSession {
 	if (creds.ai?.openai?.token) {
 		credentialValues["ai.openai.token"] = creds.ai.openai.token;
 	}
+	if (creds.ai?.vercel?.apiKey) {
+		credentialValues["ai.vercel.apiKey"] = creds.ai.vercel.apiKey;
+	}
 	for (const p of config.personas) {
 		credentialValues[`personas.${p.name}.name`] = p.name;
 		credentialValues[`personas.${p.name}.instructions`] = p.instructions;
@@ -148,7 +151,14 @@ function buildCredentialsFromValues(
 	}
 
 	const token = values["ai.openai.token"] ?? creds.ai?.openai?.token ?? "";
-	next = mergeCredentials(next, { ai: { openai: { token } } });
+	const vercelApiKey =
+		values["ai.vercel.apiKey"] ?? creds.ai?.vercel?.apiKey ?? "";
+	next = mergeCredentials(next, {
+		ai: {
+			openai: { token },
+			vercel: { apiKey: vercelApiKey },
+		},
+	});
 	return next;
 }
 

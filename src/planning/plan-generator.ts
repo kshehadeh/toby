@@ -1,8 +1,8 @@
-import { createOpenAI } from "@ai-sdk/openai";
 import { Output, generateText, zodSchema } from "ai";
 import { z } from "zod";
+import { createModelForAuxiliary } from "../ai/model-factory";
 import type { UserIntentSpec } from "../ai/pretreatment";
-import { readCredentials } from "../config/index";
+import type { Persona } from "../config/index";
 
 const PLAN_GENERATION_MODEL = "gpt-4.1-mini";
 
@@ -83,18 +83,6 @@ export function shouldGeneratePlan(
 	return false;
 }
 
-function createPlanModel() {
-	const creds = readCredentials();
-	const token = creds.ai?.openai?.token;
-	if (!token) {
-		throw new Error(
-			"OpenAI API token not configured. Run `toby configure` to set it.",
-		);
-	}
-	const openai = createOpenAI({ apiKey: token });
-	return openai(PLAN_GENERATION_MODEL);
-}
-
 type PlanGenerationResult = {
 	goal: string;
 	phases: readonly {
@@ -111,7 +99,11 @@ type PlanGenerationResult = {
 export async function generatePlan(
 	spec: UserIntentSpec | null,
 	userText: string,
-	options?: { abortSignal?: AbortSignal; timeoutMs?: number },
+	options?: {
+		abortSignal?: AbortSignal;
+		timeoutMs?: number;
+		persona?: Persona;
+	},
 ): Promise<PlanGenerationResult | null> {
 	if (!shouldGeneratePlan(spec, userText)) {
 		return null;
@@ -129,7 +121,10 @@ export async function generatePlan(
 	);
 
 	try {
-		const model = createPlanModel();
+		const model = createModelForAuxiliary({
+			persona: options?.persona,
+			modelId: PLAN_GENERATION_MODEL,
+		});
 
 		const intentSection = spec
 			? `Intent specification:

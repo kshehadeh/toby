@@ -45,10 +45,11 @@ Where this is implemented:
 
 ## Pretreatment (optional)
 
-Before the main model turn, `ChatSessionApp` may run a **small, fast** OpenAI call that extracts a structured intent spec (goal, must/must-not, assumptions, open questions, likely integrations, **relevant local skills**) and **prepends** it to the `role: "user"` content sent to the main model. The Ink transcript still shows the **verbatim** user line.
+Before the main model turn, `ChatSessionApp` may run a **small, fast** LLM call that extracts a structured intent spec (goal, must/must-not, assumptions, open questions, likely integrations, **relevant local skills**) and **prepends** it to the `role: "user"` content sent to the main model. The Ink transcript still shows the **verbatim** user line.
 
 - **When**: first user prompt in a session always; later prompts only when `[shouldPretreat](../src/ai/pretreatment.ts)` flags the text as ambiguous (short follow-ups, pronouns without a recent assistant reply, multi-clause requests, etc.).
-- **Model**: defaults to `**gpt-4.1-mini`**. Override with `TOBY_PRETREAT_MODEL`. Disable entirely with `TOBY_DISABLE_PRETREATMENT=1`.
+- **Provider**: uses the active persona’s AI provider (OpenAI direct or Vercel AI Gateway via [`model-factory.ts`](../src/ai/model-factory.ts)).
+- **Model**: defaults to `gpt-4.1-mini` for OpenAI, or `openai/gpt-4.1-mini` for Vercel gateway. Override with `TOBY_PRETREAT_MODEL` (bare id for OpenAI, or a full `provider/model` slug for gateway). Disable entirely with `TOBY_DISABLE_PRETREATMENT=1`.
 - **Debug**: `TOBY_DEBUG_PREP=1` adjusts the **prompt preparation** transcript box detail when a spec was attached (no separate `meta` line).
 - **Caching**:
   - Pretreatment uses its own short system prompt and is **not** included in the main `promptCacheKey` merge. The wrapped user text remains dynamic user-role content, so the stable-prefix caching strategy for the main turn is unchanged.

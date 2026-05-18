@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import type { Command } from "commander";
+import { formatPersonaAiLabel } from "../ai/model-factory";
 import { wrapUserPromptWithPretreatment } from "../ai/pretreatment";
 import type { Persona } from "../config/index";
 import type { IntegrationModule } from "../integrations/types";
@@ -152,7 +153,7 @@ async function runConsoleChatTurn(params: {
 	const names = modules.map((m) => m.name).join(", ");
 
 	console.log(chalk.cyan(`Chat (${names}) — persona "${persona.name}"…`));
-	console.log(chalk.dim(`  AI: ${persona.ai.provider}/${persona.ai.model}`));
+	console.log(chalk.dim(`  AI: ${formatPersonaAiLabel(persona)}`));
 	if (persona.instructions) {
 		console.log(chalk.dim(`  Instructions: ${persona.instructions}`));
 	}
@@ -168,6 +169,7 @@ async function runConsoleChatTurn(params: {
 		rawUserText: prompt,
 		integrationLabels: formatConsoleScopeLabel(modules),
 		isFirstTurn: true,
+		persona,
 		skillsCatalog: skills,
 	});
 
@@ -238,7 +240,7 @@ function resolveChatPersona(personaName?: string): Persona | null {
 		chalk.red(`Persona "${personaName}" not found. Available personas:`),
 	);
 	for (const p of listPersonas()) {
-		console.error(chalk.dim(`  - ${p.name} (${p.ai.provider}/${p.ai.model})`));
+		console.error(chalk.dim(`  - ${p.name} (${formatPersonaAiLabel(p)})`));
 	}
 
 	return null;

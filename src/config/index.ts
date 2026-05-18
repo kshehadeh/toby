@@ -100,6 +100,7 @@ interface AzureAdResolvedCredentials {
 
 interface AICredentials {
 	openai?: { token: string };
+	vercel?: { apiKey: string };
 }
 
 type SlackAuthMethod = "oauth" | "bot_token";

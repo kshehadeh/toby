@@ -1,7 +1,6 @@
-import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import { Cron } from "croner";
-import { readCredentials } from "../config/index";
+import { createModelForAuxiliary } from "../ai/model-factory";
 
 const NL_TO_CRON_MODEL = "gpt-4.1-mini";
 
@@ -21,17 +20,9 @@ Rules:
   - "every monday wednesday friday at 10am" → 0 10 * * 1,3,5`;
 
 export async function naturalLanguageToCron(input: string): Promise<string> {
-	const creds = readCredentials();
-	const token = creds.ai?.openai?.token;
-	if (!token) {
-		throw new Error(
-			"OpenAI API token not configured. Run `toby configure` to set it.",
-		);
-	}
-
-	const openai = createOpenAI({ apiKey: token });
+	const model = createModelForAuxiliary({ modelId: NL_TO_CRON_MODEL });
 	const result = await generateText({
-		model: openai(NL_TO_CRON_MODEL),
+		model,
 		system: NL_TO_CRON_SYSTEM,
 		prompt: input.trim(),
 		maxOutputTokens: 20,

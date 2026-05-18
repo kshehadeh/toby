@@ -11,6 +11,7 @@ import React, {
 } from "react";
 import type { AskUserHandler, AskUserToolResult } from "../../ai/ask-user-tool";
 import type { CoreMessage } from "../../ai/chat";
+import { formatPersonaAiLabel } from "../../ai/model-factory";
 import {
 	type UserIntentSpec,
 	shouldPretreat,
@@ -794,9 +795,7 @@ export function ChatSessionApp({
 				setBootActivityLine("Preparing Session…");
 				publishBootTranscript();
 				await yieldToRenderer();
-				await emitBootStatus(
-					`Scope: ${formatScopeLabel(selectedModules)}`,
-				);
+				await emitBootStatus(`Scope: ${formatScopeLabel(selectedModules)}`);
 				await emitBootStatus(`Persona: ${activePersona.name}`);
 				await emitBootStatus("Loading local skills catalog…");
 				const localSkills = loadLocalSkills();
@@ -826,6 +825,7 @@ export function ChatSessionApp({
 						rawUserText: sessionPrompt,
 						integrationLabels: formatScopeLabel(selectedModules),
 						isFirstTurn: true,
+						persona: activePersona,
 						skillsCatalog: localSkills,
 						abortSignal: ac.signal,
 					});
@@ -1026,6 +1026,7 @@ export function ChatSessionApp({
 
 			const planResult = await generatePlan(null, sessionPrompt, {
 				abortSignal: ongoingPretreatAbortRef.current?.signal,
+				persona: activePersonaRef.current,
 			});
 
 			if (!planResult || planResult.phases.length < 2) {
@@ -1438,6 +1439,7 @@ export function ChatSessionApp({
 					rawUserText: line,
 					integrationLabels: formatScopeLabel(selectedModulesRef.current),
 					isFirstTurn,
+					persona: activePersonaRef.current,
 					skillsCatalog: localSkills,
 					abortSignal: ac.signal,
 				});
@@ -1990,7 +1992,7 @@ export function ChatSessionApp({
 		showConfig ||
 		showSkills ||
 		showSchedules;
-	const modelLabel = `${activePersona.ai.provider}/${activePersona.ai.model}`;
+	const modelLabel = formatPersonaAiLabel(activePersona);
 	const activityText =
 		messages === null ? bootActivityLine : loading ? activityLine : "";
 	const activityDisplay =

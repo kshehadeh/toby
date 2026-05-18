@@ -1,8 +1,8 @@
 import crypto from "node:crypto";
-import { createOpenAI } from "@ai-sdk/openai";
 import { Output, generateText, zodSchema } from "ai";
 import { z } from "zod";
-import { getDefaultProvider, readCredentials } from "../config/index";
+import type { Persona } from "../config/index";
+import { getDefaultProvider } from "../config/index";
 import {
 	ALL_PROVIDER_CATEGORIES,
 	PROVIDER_CATEGORY_LABELS,
@@ -19,8 +19,11 @@ import {
 	setPretreatmentCache,
 } from "../ui/chat/session-store";
 import type { CoreMessage } from "./chat";
+import {
+	createModelForAuxiliary,
+	resolveAuxiliaryModelId,
+} from "./model-factory";
 
-const PRETREATMENT_DEFAULT_MODEL = "gpt-4.1-mini";
 const PRETREATMENT_CACHE_SCHEMA_VERSION = "3";
 
 const userIntentSpecSchema = z.object({
@@ -90,21 +93,9 @@ function buildPretreatmentCacheKey(params: {
 	return `toby-pretreat-v${PRETREATMENT_CACHE_SCHEMA_VERSION}-${digest}`;
 }
 
-function getPretreatmentModelId(): string {
-	const fromEnv = process.env.TOBY_PRETREAT_MODEL?.trim();
-	return fromEnv && fromEnv.length > 0 ? fromEnv : PRETREATMENT_DEFAULT_MODEL;
-}
-
-function createPretreatmentModel() {
-	const creds = readCredentials();
-	const token = creds.ai?.openai?.token;
-	if (!token) {
-		throw new Error(
-			"OpenAI API token not configured. Run `toby configure` to set it.",
-		);
-	}
-	const openai = createOpenAI({ apiKey: token });
-	return openai(getPretreatmentModelId());
+function getPretreatmentModelId(persona?: Persona): string {
+	const providerId = persona?.ai.provider ?? "openai";
+	return resolveAuxiliaryModelId(providerId);
 }
 
 /** Whether pretreatment is globally disabled via env. */
@@ -290,7 +281,7 @@ type PretreatUserPromptParams = {
  * Calls a small model to extract intent. Returns null on failure/timeout so the caller can fall back to verbatim text.
  */
 async function pretreatUserPrompt(
-	params: PretreatUserPromptParams,
+	params: PretreatUserPromptParams & { readonly persona?: Persona },
 ): Promise<UserIntentSpec | null> {
 	const { userText, integrationLabels, abortSignal } = params;
 	const hasSkillsCatalog = params.skillsCatalogText !== "(none)";
@@ -311,7 +302,7 @@ async function pretreatUserPrompt(
 	const timer = setTimeout(() => controller.abort(), timeoutMs);
 
 	try {
-		const model = createPretreatmentModel();
+		const model = createModelForAuxiliary({ persona: params.persona });
 		const skillsSection = `Available local skills (use exact names in relevantSkills only when clearly applicable; otherwise return an empty list):
 ${params.skillsCatalogText}`;
 		const result = await generateText({
@@ -353,6 +344,8 @@ type WrapUserPromptParams = {
 	readonly rawUserText: string;
 	readonly integrationLabels: string;
 	readonly isFirstTurn: boolean;
+	/** Persona whose AI provider drives pretreatment; defaults to configured default persona. */
+	readonly persona?: Persona;
 	/** Local ~/.toby/skills entries; omit or pass [] when none. */
 	readonly skillsCatalog?: readonly LocalSkill[];
 	readonly abortSignal?: AbortSignal;
@@ -377,7 +370,7 @@ export async function wrapUserPromptWithPretreatment(
 		skills.map((s) => s.name.trim().toLowerCase()),
 	);
 
-	const modelId = getPretreatmentModelId();
+	const modelId = getPretreatmentModelId(params.persona);
 	const promptKey = buildPretreatmentCacheKey({
 		userText: raw,
 		integrationLabels: params.integrationLabels,
@@ -411,6 +404,7 @@ export async function wrapUserPromptWithPretreatment(
 		skillsCatalogText,
 		allowedSkillNamesLower,
 		abortSignal: params.abortSignal,
+		persona: params.persona,
 	});
 	if (modelSpec && canUsePretreatmentCache()) {
 		setPretreatmentCache(promptKey, modelSpec);

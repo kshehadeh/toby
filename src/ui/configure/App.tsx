@@ -1,5 +1,6 @@
 import { Text, render, useApp } from "ink";
 import React, { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { normalizeModelOnProviderChange } from "../../ai/model-factory";
 import { DEFAULT_CHAT_PERSONA } from "../../personas/index";
 import {
 	ConfirmDialog,
@@ -293,7 +294,19 @@ export function ConfigureApp({
 	const handleSelectSubmit = useCallback(
 		(newValue: string) => {
 			if (editItem) {
-				const newValues = { ...values, [editItem.key]: newValue };
+				let newValues = { ...values, [editItem.key]: newValue };
+				const providerChangeMatch = /^personas\.(.+)\.ai\.provider$/.exec(
+					editItem.key,
+				);
+				if (providerChangeMatch) {
+					const personaName = providerChangeMatch[1];
+					const modelKey = `personas.${personaName}.ai.model`;
+					const previousModel = values[modelKey] ?? "";
+					newValues = {
+						...newValues,
+						[modelKey]: normalizeModelOnProviderChange(newValue, previousModel),
+					};
+				}
 				setValues(newValues);
 				doRefresh(newValues);
 			}

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { createOpenAI } from "@ai-sdk/openai";
 import {
+	type LanguageModel,
 	type LanguageModelUsage,
 	type ModelMessage,
 	type ProviderMetadata,
@@ -15,8 +15,7 @@ import {
 	isReadOnlyChatTool,
 	setCachedToolResult,
 } from "../chat-pipeline/tool-result-cache";
-import { readCredentials } from "../config/index";
-import type { Persona } from "../config/index";
+export { createModelForPersona } from "./model-factory";
 
 export type CoreMessage = ModelMessage;
 
@@ -219,27 +218,8 @@ function injectToolLifecycleHooks(
 	return wrapped;
 }
 
-export function createModelForPersona(persona: Persona) {
-	if (persona.ai.provider !== "openai") {
-		throw new Error(
-			`Unsupported AI provider: ${persona.ai.provider}. Only "openai" is supported.`,
-		);
-	}
-
-	const creds = readCredentials();
-	const token = creds.ai?.openai?.token;
-	if (!token) {
-		throw new Error(
-			"OpenAI API token not configured. Run `toby configure` to set it.",
-		);
-	}
-
-	const openai = createOpenAI({ apiKey: token });
-	return openai(persona.ai.model);
-}
-
 export async function chatWithTools(
-	model: ReturnType<typeof createModelForPersona>,
+	model: LanguageModel,
 	messages: CoreMessage[],
 	tools: Record<string, Tool>,
 	options?: ChatWithToolsOptions,

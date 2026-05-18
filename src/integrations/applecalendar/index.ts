@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { formatPersonaAiLabel } from "../../ai/model-factory";
 import { runSharedChatTurn } from "../../chat-pipeline/run-turn";
 import type { CredentialsFile } from "../../config/index";
 import { readConfig, writeConfig } from "../../config/index";
@@ -178,7 +179,7 @@ async function chat(options: ChatRunOptions): Promise<void> {
 	const maxResults = options.maxResults;
 
 	console.log(chalk.cyan(`Apple Calendar chat (persona "${persona.name}")...`));
-	console.log(chalk.dim(`  AI: ${persona.ai.provider}/${persona.ai.model}`));
+	console.log(chalk.dim(`  AI: ${formatPersonaAiLabel(persona)}`));
 	if (persona.instructions) {
 		console.log(chalk.dim(`  Instructions: ${persona.instructions}`));
 	}
