@@ -17,7 +17,7 @@ export const TIPS = [
 	'Type "/config" to open the configuration settings.',
 	"Associate integrations with organization tools (e.g. Gmail \u2194 E-Mail, Apple Calendar \u2194 Calendar) in the configuration view.",
 	'Type "/scope" to change which integrations are active for the current session.',
-	'Type "/help" to view all available slash commands and keyboard shortcuts.',
+	'Type "/help" for slash commands or press "?" with an empty prompt for keyboard shortcuts.',
 	"Use Tab to auto-complete slash commands.",
 	'Type "/persona" to switch between different AI personas.',
 	'Type "/sessions" to resume a previous chat session.',

@@ -62,6 +62,8 @@ export interface UseMultilineInputOptions {
 	readonly profile?: TerminalProfile;
 	/** Recent submitted prompts (newest last); ↑/↓ cycles when input is empty. */
 	readonly recentPrompts?: readonly string[];
+	/** Called when `?` is pressed with an empty input. */
+	readonly onEmptyQuestionMark?: () => void;
 }
 
 export interface UseMultilineInputReturn {
@@ -84,6 +86,7 @@ export function useMultilineInput(
 		onCancel,
 		profile: profileOverride,
 		recentPrompts = [],
+		onEmptyQuestionMark,
 	} = options;
 
 	const [cursorIndex, setCursorIndex] = useState(value.length);
@@ -454,6 +457,11 @@ export function useMultilineInput(
 					onChange(value.slice(0, ci - 1) + value.slice(ci));
 					updateCursorIndex(ci - 1);
 				}
+				return;
+			}
+
+			if (typedInput === "?" && value.length === 0 && onEmptyQuestionMark) {
+				onEmptyQuestionMark();
 				return;
 			}
 

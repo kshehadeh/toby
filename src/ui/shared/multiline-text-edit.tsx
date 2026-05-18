@@ -46,6 +46,7 @@ export function MultilineTextEdit({
 	onCancel,
 	showStaticPlaceholder = false,
 	recentPrompts,
+	onEmptyQuestionMark,
 }: MultilineTextEditProps) {
 	const { cursorIndex, terminalProfile } = useMultilineInput({
 		value,
@@ -56,6 +57,7 @@ export function MultilineTextEdit({
 		enterMode,
 		onCancel,
 		recentPrompts,
+		onEmptyQuestionMark,
 	});
 
 	const placeholderText = placeholder ?? "";

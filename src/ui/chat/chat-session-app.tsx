@@ -75,6 +75,7 @@ import { AppHeader } from "./components/app-header";
 import { AskUserModal } from "./components/ask-user-modal";
 import { ChatHelpScreen } from "./components/chat-help-screen";
 import { ChatInputDock } from "./components/chat-input-dock";
+import { ChatKeyboardShortcutsScreen } from "./components/chat-keyboard-shortcuts-screen";
 import {
 	IntegrationMultiPickerModal,
 	buildIntegrationPickerRows,
@@ -110,6 +111,7 @@ import {
 import { getToolDisplayLabel } from "./tool-labels";
 import { flattenTranscript } from "./transcript-layout";
 import type { AskModal, DisplayRow, TranscriptEntry } from "./types";
+import { useUpdateCheck } from "./use-update-check";
 import { yieldToRenderer } from "./yield-to-renderer";
 
 type TurnResult = {
@@ -278,6 +280,8 @@ export function ChatSessionApp({
 	const [askModal, setAskModal] = useState<AskModal | null>(null);
 	const [askSelected, setAskSelected] = useState(0);
 	const [showHelp, setShowHelp] = useState(false);
+	const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+	const updateAvailable = useUpdateCheck({ enabled: !dryRun });
 	const [showConfig, setShowConfig] = useState(false);
 	const [showSkills, setShowSkills] = useState(false);
 	const [showSchedules, setShowSchedules] = useState(false);
@@ -333,6 +337,7 @@ export function ChatSessionApp({
 		messages: null as CoreMessage[] | null,
 		loading: false,
 		showHelp: false,
+		showKeyboardShortcuts: false,
 		multiPicker: null as MultiPickerState | null,
 		sessionPicker: null as SessionPickerState | null,
 		personaPicker: null as PersonaPickerState | null,
@@ -496,6 +501,7 @@ export function ChatSessionApp({
 			messages,
 			loading,
 			showHelp,
+			showKeyboardShortcuts,
 			multiPicker,
 			sessionPicker,
 			personaPicker,
@@ -506,6 +512,7 @@ export function ChatSessionApp({
 		loading,
 		messages,
 		showHelp,
+		showKeyboardShortcuts,
 		multiPicker,
 		sessionPicker,
 		personaPicker,
@@ -1818,6 +1825,13 @@ export function ChatSessionApp({
 				}
 				return;
 			}
+
+			if (snapRef.current.showKeyboardShortcuts) {
+				if (key.escape || key.return) {
+					setShowKeyboardShortcuts(false);
+				}
+				return;
+			}
 			if (showConfig || showSkills || showSchedules) {
 				return;
 			}
@@ -1886,6 +1900,10 @@ export function ChatSessionApp({
 
 	if (showHelp) {
 		return <ChatHelpScreen termCols={termCols} commands={SLASH_COMMANDS} />;
+	}
+
+	if (showKeyboardShortcuts) {
+		return <ChatKeyboardShortcutsScreen termCols={termCols} />;
 	}
 
 	if (showConfig) {
@@ -2177,6 +2195,8 @@ export function ChatSessionApp({
 				selectedSlashCommand={selectedSlashCommand}
 				daemonRunning={daemonRunning}
 				recentPrompts={recentPrompts}
+				updateAvailable={updateAvailable}
+				onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
 			/>
 		</Box>
 	);

@@ -7,13 +7,15 @@ import {
 } from "../../../ai/caching";
 import { getAIProviderDisplayName } from "../../../ai/providers";
 import type { Persona } from "../../../config/index";
-import { MultilineTextEdit, newlineHintText } from "../../shared";
+import { MultilineTextEdit } from "../../shared";
 import {
 	detectTerminalProfile,
 	inputModeLabel,
 } from "../../shared/terminal-profile";
 import { ACCENT, ACCENT_MODEL, ACCENT_PROVIDER } from "../constants";
 import type { SlashCommand } from "../slash-commands";
+import type { TobyUpdateInfo } from "../use-update-check";
+import { formatUpdateStatusLine } from "../use-update-check";
 
 function getModelContextWindow(model: string): number | null {
 	const m = model.toLowerCase().trim();
@@ -70,6 +72,8 @@ type ChatInputDockProps = {
 	readonly selectedSlashCommand: SlashCommand | null;
 	readonly daemonRunning: boolean;
 	readonly recentPrompts?: readonly string[];
+	readonly updateAvailable?: TobyUpdateInfo | null;
+	readonly onShowKeyboardShortcuts?: () => void;
 };
 
 export function ChatInputDock(props: ChatInputDockProps) {
@@ -90,6 +94,8 @@ export function ChatInputDock(props: ChatInputDockProps) {
 		selectedSlashCommand,
 		daemonRunning,
 		recentPrompts = [],
+		updateAvailable = null,
+		onShowKeyboardShortcuts,
 	} = props;
 
 	const placeholderText = placeholder ?? 'Try "What needs my attention today?"';
@@ -102,7 +108,9 @@ export function ChatInputDock(props: ChatInputDockProps) {
 	}, [lastUsage, persona]);
 	const terminalProfile = useMemo(() => detectTerminalProfile(), []);
 	const modeLabel = inputModeLabel(terminalProfile);
-	const newlineHint = newlineHintText(terminalProfile);
+	const updateStatusLine = updateAvailable
+		? formatUpdateStatusLine(updateAvailable)
+		: null;
 
 	return (
 		<Box marginTop={0} flexShrink={0} flexDirection="column" width={termCols}>
@@ -117,6 +125,7 @@ export function ChatInputDock(props: ChatInputDockProps) {
 				accentColor={ACCENT}
 				showStaticPlaceholder={showStaticPlaceholder}
 				recentPrompts={recentPrompts}
+				onEmptyQuestionMark={onShowKeyboardShortcuts}
 			/>
 			{slashSuggestions.length > 0 ? (
 				<Box marginTop={0} paddingX={1} flexDirection="column">
@@ -136,9 +145,13 @@ export function ChatInputDock(props: ChatInputDockProps) {
 			) : null}
 			<Box marginTop={0} paddingX={1}>
 				<Text dimColor wrap="truncate-end">
-					Type / to see commands · ↑↓ recent prompts (when empty) ·{" "}
-					{newlineHint} · Enter to run · Shift+Tab cycle persona · Ctrl+C to
-					quit
+					Type / to see commands
+					{updateStatusLine ? (
+						<>
+							{" · "}
+							<Text color={ACCENT}>{updateStatusLine}</Text>
+						</>
+					) : null}
 				</Text>
 			</Box>
 			<Box
