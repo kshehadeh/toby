@@ -105,6 +105,7 @@ import {
 import { getToolDisplayLabel } from "./tool-labels";
 import { flattenTranscript } from "./transcript-layout";
 import type { AskModal, DisplayRow, TranscriptEntry } from "./types";
+import { yieldToRenderer } from "./yield-to-renderer";
 
 type TurnResult = {
 	readonly text: string;
@@ -219,6 +220,19 @@ function transcriptMetaForAttachedSkills(
 	return unique.map((name) => ({ kind: "meta", text: `Skill: ${name}` }));
 }
 
+function createBootPrepTranscript(lifecycleId: string): TranscriptEntry[] {
+	return [
+		{
+			kind: "boxed_step",
+			id: lifecycleId,
+			seq: 1,
+			variant: "lifecycle",
+			header: "Preparing Session…",
+			body: "Starting session preparation…",
+		},
+	];
+}
+
 export function ChatSessionApp({
 	initialModules,
 	persona,
@@ -235,7 +249,14 @@ export function ChatSessionApp({
 		"new",
 	);
 	const [messages, setMessages] = useState<CoreMessage[] | null>(null);
-	const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
+	const bootLifecycleIdRef = useRef(randomUUID());
+	const [transcript, setTranscript] = useState<TranscriptEntry[]>(() => {
+		const boot = createBootPrepTranscript(bootLifecycleIdRef.current);
+		if (initialUserPrompt.trim()) {
+			return [{ kind: "user", text: initialUserPrompt }, ...boot];
+		}
+		return boot;
+	});
 	const [input, setInput] = useState("");
 	const [inputCursorResetToken, setInputCursorResetToken] = useState(0);
 	const [recentPrompts, setRecentPrompts] = useState(() => loadPromptHistory());
@@ -247,6 +268,8 @@ export function ChatSessionApp({
 	);
 	const [lastUsage, setLastUsage] = useState<LanguageModelUsage | null>(null);
 	const [bootError, setBootError] = useState<string | null>(null);
+	const [bootActivityLine, setBootActivityLine] =
+		useState("Preparing session…");
 	const [askModal, setAskModal] = useState<AskModal | null>(null);
 	const [askSelected, setAskSelected] = useState(0);
 	const [showHelp, setShowHelp] = useState(false);
@@ -289,7 +312,7 @@ export function ChatSessionApp({
 	const didAutoRunFirstTurnRef = useRef(false);
 	const assistantStreamBufRef = useRef("");
 	const assistantSegmentHeaderRef = useRef(persona.name);
-	const transcriptLocalSeqRef = useRef(0);
+	const transcriptLocalSeqRef = useRef(1);
 	const assistantSegmentCommittedRef = useRef(false);
 	const askSelectedRef = useRef(0);
 	const selectedModulesRef = useRef(selectedModules);
@@ -311,13 +334,13 @@ export function ChatSessionApp({
 	});
 
 	const allDisplayRows = useMemo((): DisplayRow[] => {
-		if (messages === null) {
+		if (messages === null && transcript.length === 0) {
 			return [];
 		}
 		return flattenTranscript(
 			transcript,
 			streamingAssistant,
-			loading,
+			messages === null || loading,
 			termCols,
 			streamingAssistantHeader,
 			debug,
@@ -345,6 +368,11 @@ export function ChatSessionApp({
 	);
 
 	useEffect(() => {
+		// Defer probes until session boot finishes — Apple Mail's full tool
+		// validation uses blocking AppleScript and would freeze the Ink UI.
+		if (messages === null) {
+			return;
+		}
 		let cancelled = false;
 		const modulesToProbe = collectModulesForConnectionProbe(selectedModules);
 		setConnectedByIntegration((prev) => {
@@ -355,16 +383,19 @@ export function ChatSessionApp({
 			return next;
 		});
 		void (async () => {
-			const pairs = await Promise.all(
-				modulesToProbe.map(async (m) => {
-					try {
-						const health = await m.testConnection();
-						return [m.name, health.ok] as const;
-					} catch {
-						return [m.name, false] as const;
-					}
-				}),
-			);
+			const pairs: Array<readonly [string, boolean]> = [];
+			for (const m of modulesToProbe) {
+				if (cancelled) {
+					return;
+				}
+				try {
+					const health = await m.testConnection();
+					pairs.push([m.name, health.ok]);
+				} catch {
+					pairs.push([m.name, false]);
+				}
+				await yieldToRenderer();
+			}
 			if (cancelled) return;
 			setConnectedByIntegration((prev) => {
 				const next: Record<string, boolean | null> = { ...prev };
@@ -377,7 +408,7 @@ export function ChatSessionApp({
 		return () => {
 			cancelled = true;
 		};
-	}, [selectedModules]);
+	}, [selectedModules, messages]);
 
 	const pickerRows = useMemo(
 		() => (multiPicker ? buildIntegrationPickerRows(multiPicker.modules) : []),
@@ -483,13 +514,20 @@ export function ChatSessionApp({
 			didNameSessionRef.current = false;
 			lastSavedMessageCountRef.current = 0;
 			lastSavedTranscriptCountRef.current = 0;
-			transcriptLocalSeqRef.current = 0;
+			bootLifecycleIdRef.current = randomUUID();
+			transcriptLocalSeqRef.current = 1;
 			setBootError(null);
+			setBootActivityLine("Preparing session…");
 			setSessionPrompt(params?.prompt ?? "");
 			didAutoRunFirstTurnRef.current = false;
 			setMessages(null);
 			setActivePlan(null);
-			setTranscript(params?.note ? [{ kind: "meta", text: params.note }] : []);
+			const bootPrep = createBootPrepTranscript(bootLifecycleIdRef.current);
+			setTranscript(
+				params?.note
+					? [{ kind: "meta", text: params.note }, ...bootPrep]
+					: bootPrep,
+			);
 			log("info", "session", "session_create", { note: params?.note });
 		},
 		[],
@@ -717,22 +755,71 @@ export function ChatSessionApp({
 					transcriptLocalSeqRef.current += 1;
 					return transcriptLocalSeqRef.current;
 				};
+				const bootCtxLifecycleId = bootLifecycleIdRef.current;
+				let bootTranscript: TranscriptEntry[] = [...transcriptRef.current];
+				if (sessionPrompt.trim()) {
+					const hasUser = bootTranscript.some((e) => e.kind === "user");
+					if (!hasUser) {
+						bootTranscript = [
+							{ kind: "user", text: sessionPrompt },
+							...bootTranscript,
+						];
+					}
+				}
+				const publishBootTranscript = () => {
+					if (!cancelled) {
+						setTranscript([...bootTranscript]);
+					}
+				};
+				const emitBoot = async (event: ChatEvent) => {
+					if (cancelled) {
+						return;
+					}
+					bootTranscript = applyChatEvent(bootTranscript, event);
+					const footerHint = activityLineForChatEvent(event);
+					if (footerHint) {
+						setBootActivityLine(footerHint);
+					}
+					publishBootTranscript();
+					await yieldToRenderer();
+				};
+				const emitBootStatus = async (line: string) => {
+					await emitBoot({
+						type: "lifecycle_set",
+						id: bootCtxLifecycleId,
+						seq: bootSeq(),
+						line,
+					});
+				};
+				setBootActivityLine("Preparing Session…");
+				publishBootTranscript();
+				await yieldToRenderer();
+				await emitBootStatus(
+					`Scope: ${formatScopeLabel(selectedModules)}`,
+				);
+				await emitBootStatus(`Persona: ${activePersona.name}`);
+				await emitBootStatus("Loading local skills catalog…");
 				const localSkills = loadLocalSkills();
+				await emitBootStatus(
+					`Local skills catalog: ${localSkills.length} available.`,
+				);
 				let effectivePrompt = sessionPrompt;
 				let prepId: string | null = null;
 				if (sessionPrompt.trim() && shouldPretreat([], sessionPrompt, true)) {
 					prepId = randomUUID();
 				}
 				let prepSpec: UserIntentSpec | null = null;
-				let bootTranscript: TranscriptEntry[] = [];
 				if (sessionPrompt.trim()) {
 					if (prepId) {
-						bootTranscript = applyChatEvent(bootTranscript, {
+						await emitBoot({
 							type: "prep_start",
 							id: prepId,
 							seq: bootSeq(),
 							header: "Prompt preparation",
 						});
+						await emitBootStatus(
+							"Analyzing your request for intent and relevant skills…",
+						);
 					}
 					const wrapResult = await wrapUserPromptWithPretreatment({
 						priorMessages: [],
@@ -755,7 +842,7 @@ export function ChatSessionApp({
 								: effectivePrompt.trim() !== sessionPrompt.trim()
 									? "Intent specification attached to the model message."
 									: "Request prepared.";
-						bootTranscript = applyChatEvent(bootTranscript, {
+						await emitBoot({
 							type: "prep_end",
 							id: prepId,
 							seq: bootSeq(),
@@ -766,44 +853,36 @@ export function ChatSessionApp({
 				if (cancelled) {
 					return;
 				}
-				const bootCtxLifecycleId = randomUUID();
-				bootTranscript = applyChatEvent(bootTranscript, {
-					type: "lifecycle_start",
-					id: bootCtxLifecycleId,
-					seq: bootSeq(),
-					header: "Preparing Session…",
-				});
+				await emitBootStatus("Fetching integration connection context…");
 				let initial = await prepareChatSessionMessages(
 					selectedModules,
 					activePersona,
 					effectivePrompt,
+					emitBootStatus,
 				);
+				const attachedSkills = prepSpec?.relevantSkills ?? [];
+				if (attachedSkills.length > 0) {
+					await emitBootStatus(
+						`Attaching skill instructions: ${attachedSkills.join(", ")}.`,
+					);
+				}
 				initial = injectSkillBodiesIntoFirstSystemMessage(
 					initial,
-					prepSpec?.relevantSkills ?? [],
+					attachedSkills,
 					localSkills,
 				);
 				if (cancelled) {
 					return;
 				}
-				bootTranscript = applyChatEvent(bootTranscript, {
-					type: "lifecycle_end",
-					id: bootCtxLifecycleId,
-					seq: bootSeq(),
-					detail: "Session Ready.",
-				});
+				await emitBootStatus("Session ready.");
+				await yieldToRenderer();
 				setMessages(initial);
-				const userEntries: TranscriptEntry[] = sessionPrompt.trim()
-					? [{ kind: "user", text: sessionPrompt }]
-					: [];
 				const note = pendingScopeChangeNoteRef.current;
 				pendingScopeChangeNoteRef.current = null;
 				const metaEntries: TranscriptEntry[] = note
 					? [{ kind: "meta", text: note }]
 					: [];
-				const skillMeta = transcriptMetaForAttachedSkills(
-					prepSpec?.relevantSkills ?? [],
-				);
+				const skillMeta = transcriptMetaForAttachedSkills(attachedSkills);
 				const skillDebugMeta = buildSkillDebugTranscriptEntries({
 					debug,
 					available: localSkills,
@@ -813,22 +892,30 @@ export function ChatSessionApp({
 					spec: prepSpec,
 				});
 				const nextTranscript = [
-					...userEntries,
 					...bootTranscript,
 					...skillDebugMeta,
 					...skillMeta,
 					...metaEntries,
 				];
 				setTranscript(nextTranscript);
+				await yieldToRenderer();
 
-				// Persist boot state only after a session is materialized.
+				// Persist boot state after the UI has painted (SQLite is sync).
 				if (sid) {
-					appendMessageBatch(sid, 0, initial);
-					lastSavedMessageCountRef.current = initial.length;
-					if (nextTranscript.length > 0) {
-						appendTranscriptBatch(sid, 0, nextTranscript);
-						lastSavedTranscriptCountRef.current = nextTranscript.length;
-					}
+					const persistSid = sid;
+					const persistMessages = initial;
+					const persistTranscript = nextTranscript;
+					setImmediate(() => {
+						if (cancelled) {
+							return;
+						}
+						appendMessageBatch(persistSid, 0, persistMessages);
+						lastSavedMessageCountRef.current = persistMessages.length;
+						if (persistTranscript.length > 0) {
+							appendTranscriptBatch(persistSid, 0, persistTranscript);
+							lastSavedTranscriptCountRef.current = persistTranscript.length;
+						}
+					});
 				}
 			} catch (e) {
 				if (!cancelled) {
@@ -1905,7 +1992,7 @@ export function ChatSessionApp({
 		showSchedules;
 	const modelLabel = `${activePersona.ai.provider}/${activePersona.ai.model}`;
 	const activityText =
-		messages === null ? "Loading session…" : loading ? activityLine : "";
+		messages === null ? bootActivityLine : loading ? activityLine : "";
 	const activityDisplay =
 		activityText.length > 0
 			? `${ACTIVITY_GLYPH_FRAMES[activityGlyphFrame] ?? "·"} ${activityText}`

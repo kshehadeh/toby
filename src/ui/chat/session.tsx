@@ -4,6 +4,10 @@ import type { Persona } from "../../config/index";
 import type { IntegrationModule } from "../../integrations/types";
 import { detectTerminalProfile, resolveKittyKeyboardMode } from "../shared";
 import { ChatSessionApp } from "./chat-session-app";
+import {
+	registerInkRenderFlush,
+	unregisterInkRenderFlush,
+} from "./yield-to-renderer";
 
 export async function runChatSessionInk(params: {
 	readonly modules: readonly IntegrationModule[];
@@ -28,5 +32,10 @@ export async function runChatSessionInk(params: {
 			},
 		},
 	);
-	await instance.waitUntilExit();
+	registerInkRenderFlush(() => instance.waitUntilRenderFlush());
+	try {
+		await instance.waitUntilExit();
+	} finally {
+		unregisterInkRenderFlush();
+	}
 }

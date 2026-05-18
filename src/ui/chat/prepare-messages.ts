@@ -144,13 +144,31 @@ async function buildSingleModuleSessionMessages(
 	}
 }
 
+export type SessionPrepProgress = (detail: string) => void | Promise<void>;
+
 export async function prepareChatSessionMessages(
 	modules: readonly IntegrationModule[],
 	persona: Persona,
 	userPrompt: string,
+	onProgress?: SessionPrepProgress,
 ): Promise<CoreMessage[]> {
 	if (modules.length === 0) {
 		throw new Error("prepareChatSessionMessages: no modules");
+	}
+
+	const report = async (detail: string): Promise<void> => {
+		await onProgress?.(detail);
+	};
+
+	if (modules.length === 1) {
+		const only = modules[0];
+		if (only) {
+			await report(`Integration: ${only.displayName}`);
+		}
+	} else {
+		await report(
+			`Integrations: ${modules.map((m) => m.displayName).join(", ")}`,
+		);
 	}
 
 	if (modules.length === 1) {
@@ -158,8 +176,16 @@ export async function prepareChatSessionMessages(
 		if (!module) {
 			throw new Error("prepareChatSessionMessages: missing module");
 		}
-		return buildSingleModuleSessionMessages(module, persona, userPrompt);
+		await report(`Loading ${module.displayName} connection context…`);
+		const messages = await buildSingleModuleSessionMessages(
+			module,
+			persona,
+			userPrompt,
+		);
+		await report(`${module.displayName} context ready.`);
+		return messages;
 	}
+	await report("Loading integration context in parallel…");
 	const parts = await Promise.all(
 		modules.map(async (m) => {
 			if (!m.chatModelPrep) {
@@ -167,14 +193,19 @@ export async function prepareChatSessionMessages(
 					`prepareChatSessionMessages: integration "${m.name}" does not export chatModelPrep`,
 				);
 			}
+			await report(`Loading ${m.displayName} connection context…`);
 			try {
-				return await m.chatModelPrep.buildMultiUserContent(userPrompt);
+				const content = await m.chatModelPrep.buildMultiUserContent(userPrompt);
+				await report(`${m.displayName} context ready.`);
+				return content;
 			} catch (error) {
+				await report(`${m.displayName} context unavailable.`);
 				return formatIntegrationPrepError(m, error);
 			}
 		}),
 	);
 
+	await report("Assembling combined session prompt…");
 	const systemContent = composeSystemPromptWithPersona(
 		buildCombinedChatBasePrompt(modules),
 		persona,
