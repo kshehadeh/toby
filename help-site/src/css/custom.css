@@ -64,14 +64,6 @@
   --docusaurus-highlighted-code-line-bg: rgba(249, 115, 22, 0.08);
 }
 
-/* Light mode: keep readable if user toggles */
-[data-theme='light'] {
-  --ifm-color-primary: var(--toby-accent);
-  --ifm-color-primary-dark: var(--toby-accent-dim);
-  --ifm-font-family-base: var(--toby-font);
-  --ifm-global-radius: var(--toby-radius);
-}
-
 html {
   font-family: var(--toby-font);
 }
@@ -390,12 +382,6 @@ div[class*='codeBlockContainer'] {
 
 .theme-edit-this-page:hover {
   color: var(--toby-accent);
-}
-
-/* Color mode toggle */
-[data-theme='dark'] button[class*='toggleButton'],
-[data-theme='dark'] .clean-btn {
-  color: var(--toby-text-muted);
 }
 
 /* Doc page layout spacing */
