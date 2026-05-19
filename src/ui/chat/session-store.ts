@@ -153,7 +153,226 @@ CREATE INDEX IF NOT EXISTS idx_schedule_runs_schedule_id
 
 CREATE INDEX IF NOT EXISTS idx_schedule_runs_started_at
   ON schedule_runs(started_at DESC);
+
+CREATE TABLE IF NOT EXISTS chat_external_sessions (
+  integration TEXT NOT NULL,
+  external_key TEXT NOT NULL,
+  session_id TEXT NOT NULL,
+  display_name TEXT,
+  metadata_json TEXT,
+  awaiting_ask_user_json TEXT,
+  last_processed_message_id TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (integration, external_key),
+  FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_external_sessions_session_id
+  ON chat_external_sessions(session_id);
 `);
+}
+
+export type ExternalSessionRecord = {
+	readonly integration: string;
+	readonly externalKey: string;
+	readonly sessionId: string;
+	readonly displayName: string | null;
+	readonly metadata: Record<string, unknown>;
+	readonly awaitingAskUser: PendingAskUser | null;
+	readonly lastProcessedMessageId: string | null;
+};
+
+export type PendingAskUser = {
+	readonly question: string;
+	readonly options: readonly string[];
+	readonly createdAt: string;
+};
+
+export function getOrCreateExternalSession(params: {
+	readonly integration: string;
+	readonly externalKey: string;
+	readonly displayName: string;
+	readonly metadata: Record<string, unknown>;
+}): ExternalSessionRecord {
+	const db = getDb();
+	const existing = loadExternalSession(params.integration, params.externalKey);
+	if (existing) {
+		return existing;
+	}
+	const session = createChatSession({ name: params.displayName });
+	const ts = nowIso();
+	const metadataJson = JSON.stringify(params.metadata);
+	db.query(
+		`INSERT INTO chat_external_sessions (
+       integration, external_key, session_id, display_name, metadata_json,
+       awaiting_ask_user_json, last_processed_message_id, created_at, updated_at
+     ) VALUES (
+       $integration, $external_key, $session_id, $display_name, $metadata_json,
+       NULL, NULL, $created_at, $updated_at
+     )`,
+	).run({
+		$integration: params.integration,
+		$external_key: params.externalKey,
+		$session_id: session.id,
+		$display_name: params.displayName,
+		$metadata_json: metadataJson,
+		$created_at: ts,
+		$updated_at: ts,
+	});
+	return {
+		integration: params.integration,
+		externalKey: params.externalKey,
+		sessionId: session.id,
+		displayName: params.displayName,
+		metadata: params.metadata,
+		awaitingAskUser: null,
+		lastProcessedMessageId: null,
+	};
+}
+
+function parseExternalSessionRow(row: {
+	integration: string;
+	externalKey: string;
+	sessionId: string;
+	displayName: string | null;
+	metadataJson: string | null;
+	awaitingAskUserJson: string | null;
+	lastProcessedMessageId: string | null;
+}): ExternalSessionRecord {
+	let metadata: Record<string, unknown> = {};
+	if (row.metadataJson) {
+		try {
+			metadata = JSON.parse(row.metadataJson) as Record<string, unknown>;
+		} catch {
+			metadata = {};
+		}
+	}
+	let awaitingAskUser: PendingAskUser | null = null;
+	if (row.awaitingAskUserJson) {
+		try {
+			awaitingAskUser = JSON.parse(row.awaitingAskUserJson) as PendingAskUser;
+		} catch {
+			awaitingAskUser = null;
+		}
+	}
+	return {
+		integration: row.integration,
+		externalKey: row.externalKey,
+		sessionId: row.sessionId,
+		displayName: row.displayName,
+		metadata,
+		awaitingAskUser,
+		lastProcessedMessageId: row.lastProcessedMessageId,
+	};
+}
+
+export function loadExternalSession(
+	integration: string,
+	externalKey: string,
+): ExternalSessionRecord | null {
+	const db = getDb();
+	const row = db
+		.query(
+			`SELECT integration, external_key as externalKey, session_id as sessionId,
+              display_name as displayName, metadata_json as metadataJson,
+              awaiting_ask_user_json as awaitingAskUserJson,
+              last_processed_message_id as lastProcessedMessageId
+       FROM chat_external_sessions
+       WHERE integration = $integration AND external_key = $external_key`,
+		)
+		.get({ $integration: integration, $external_key: externalKey }) as
+		| {
+				integration: string;
+				externalKey: string;
+				sessionId: string;
+				displayName: string | null;
+				metadataJson: string | null;
+				awaitingAskUserJson: string | null;
+				lastProcessedMessageId: string | null;
+		  }
+		| undefined;
+	if (!row) return null;
+	return parseExternalSessionRow(row);
+}
+
+export function updateExternalSessionMetadata(
+	integration: string,
+	externalKey: string,
+	metadata: Record<string, unknown>,
+): void {
+	const db = getDb();
+	db.query(
+		`UPDATE chat_external_sessions
+     SET metadata_json = $metadata_json, updated_at = $updated_at
+     WHERE integration = $integration AND external_key = $external_key`,
+	).run({
+		$integration: integration,
+		$external_key: externalKey,
+		$metadata_json: JSON.stringify(metadata),
+		$updated_at: nowIso(),
+	});
+}
+
+export function setPendingAskUser(
+	integration: string,
+	externalKey: string,
+	pending: PendingAskUser,
+): void {
+	const db = getDb();
+	db.query(
+		`UPDATE chat_external_sessions
+     SET awaiting_ask_user_json = $json, updated_at = $updated_at
+     WHERE integration = $integration AND external_key = $external_key`,
+	).run({
+		$integration: integration,
+		$external_key: externalKey,
+		$json: JSON.stringify(pending),
+		$updated_at: nowIso(),
+	});
+}
+
+export function clearPendingAskUser(
+	integration: string,
+	externalKey: string,
+): void {
+	const db = getDb();
+	db.query(
+		`UPDATE chat_external_sessions
+     SET awaiting_ask_user_json = NULL, updated_at = $updated_at
+     WHERE integration = $integration AND external_key = $external_key`,
+	).run({
+		$integration: integration,
+		$external_key: externalKey,
+		$updated_at: nowIso(),
+	});
+}
+
+export function markMessageProcessed(
+	integration: string,
+	externalKey: string,
+	messageId: string,
+): void {
+	const db = getDb();
+	db.query(
+		`UPDATE chat_external_sessions
+     SET last_processed_message_id = $message_id, updated_at = $updated_at
+     WHERE integration = $integration AND external_key = $external_key`,
+	).run({
+		$integration: integration,
+		$external_key: externalKey,
+		$message_id: messageId,
+		$updated_at: nowIso(),
+	});
+}
+
+export function wasMessageProcessed(
+	integration: string,
+	externalKey: string,
+	messageId: string,
+): boolean {
+	const row = loadExternalSession(integration, externalKey);
+	return row?.lastProcessedMessageId === messageId;
 }
 
 function nowIso(): string {

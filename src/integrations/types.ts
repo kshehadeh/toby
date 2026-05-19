@@ -1,7 +1,14 @@
 import type { Tool } from "ai";
 import type { Command } from "commander";
 import type { CoreMessage } from "../ai/chat";
+import type { ChatInboundProvider } from "../chat-inbound/types";
 import type { CredentialsFile, Persona } from "../config/index";
+
+export type {
+	ChatInboundProvider,
+	InboundChatEvent,
+	InboundConversation,
+} from "../chat-inbound/types";
 
 export interface IntegrationToolHealth {
 	readonly tool: string;
@@ -56,6 +63,8 @@ export interface CredentialFieldDescriptor {
 	readonly options?: ReadonlyArray<string>;
 	/** Optional auth-method gating for configure UI. */
 	readonly showForAuthMethods?: ReadonlyArray<string>;
+	/** Shown when daemon/inbound is enabled for this integration (even if auth method differs). */
+	readonly showForInbound?: boolean;
 	readonly masked?: boolean;
 	readonly multiline?: boolean;
 }
@@ -146,5 +155,10 @@ export interface IntegrationModule extends Integration {
 	): Partial<CredentialsFile>;
 	/** Run a tool-calling AI flow for a user-supplied instruction (see `toby chat`). */
 	chat?(options: ChatRunOptions): Promise<void>;
+	/**
+	 * Long-lived inbound listener (daemon): maps external channel+thread to chat sessions.
+	 * Implementation lives under `src/integrations/<name>/inbound.ts`.
+	 */
+	readonly chatInbound?: ChatInboundProvider;
 	registerCommands?(program: Command): void;
 }

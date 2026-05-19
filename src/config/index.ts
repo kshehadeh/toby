@@ -37,6 +37,11 @@ export function getLogPath(): string {
 	return path.join(resolveTobyDir(), "toby.log");
 }
 
+/** JSON-lines log for `toby daemon` (schedules, inbound chat, Socket Mode). */
+export function getDaemonLogPath(): string {
+	return path.join(resolveTobyDir(), "daemon.log");
+}
+
 /** Local agent-style skills: `~/.toby/skills/<skill-name>/SKILL.md`. */
 export function getSkillsDir(): string {
 	return path.join(resolveTobyDir(), "skills");
@@ -58,11 +63,18 @@ export interface Persona {
 
 import type { ProviderCategory } from "../integrations/types";
 
+export interface ChatInboundConfig {
+	readonly enabled?: boolean;
+	readonly integration?: string;
+	readonly persona?: string;
+}
+
 interface TobyConfig {
 	integrations: Record<string, Record<string, unknown>>;
 	personas: Persona[];
 	defaultPersona?: string;
 	defaultProviders?: Partial<Record<ProviderCategory, string>>;
+	chatInbound?: ChatInboundConfig;
 }
 
 export interface GmailCredentials {
@@ -118,6 +130,8 @@ interface SlackCredentials {
 	oauthExpiresAt?: string;
 	teamId?: string;
 	teamName?: string;
+	appToken?: string;
+	botUserId?: string;
 }
 
 export interface CredentialsFile {
@@ -142,6 +156,19 @@ function getIntegrationCredential(
 	return typeof v === "string" && v.trim() ? v : undefined;
 }
 
+/** Prefer `integrations.slack`, then legacy top-level `slack`. */
+export function getSlackCredentialField(
+	creds: CredentialsFile,
+	field: keyof SlackCredentials,
+): string | undefined {
+	return (
+		getIntegrationCredential(creds, "slack", field) ??
+		(typeof creds.slack?.[field] === "string" && creds.slack[field]?.trim()
+			? creds.slack[field].trim()
+			: undefined)
+	);
+}
+
 export function readConfig(): TobyConfig {
 	const configPath = getConfigPath();
 	ensureTobyDir();
@@ -163,6 +190,7 @@ export function readConfig(): TobyConfig {
 		personas,
 		defaultPersona: parsed.defaultPersona,
 		defaultProviders: parsed.defaultProviders,
+		chatInbound: parsed.chatInbound,
 	};
 }
 
