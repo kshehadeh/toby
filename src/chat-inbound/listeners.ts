@@ -94,7 +94,7 @@ export async function startChatInboundListeners(
 			integration: active.module.name,
 			message: msg,
 		});
-		throw error;
+		return;
 	}
 
 	await new Promise<void>((resolve) => {
