@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="images/256x256.png" alt="Toby logo" width="128" height="128" />
-</p>
+![Toby logo](images/256x256.png)
 
 Toby is an assistant that experiments with the application of personas on top of the standard skill-based architecture.
 
