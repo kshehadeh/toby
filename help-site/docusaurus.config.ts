@@ -5,6 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'Toby',
   tagline: 'AI-assisted CLI for personal productivity workflows.',
+  favicon: 'img/64x64.png',
 
   future: {
     v4: true,
@@ -47,6 +48,13 @@ const config: Config = {
 
   headTags: [
     {
+      tagName: 'meta',
+      attributes: {
+        property: 'og:image',
+        content: 'https://toby.iwonderdesigns.com/img/512x512.png',
+      },
+    },
+    {
       tagName: 'link',
       attributes: {
         rel: 'preconnect',
@@ -71,6 +79,10 @@ const config: Config = {
     },
     navbar: {
       title: 'Toby',
+      logo: {
+        alt: 'Toby',
+        src: 'img/128x128.png',
+      },
       style: 'dark',
       items: [
         {

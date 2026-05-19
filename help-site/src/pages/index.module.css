@@ -4,6 +4,13 @@
   margin: 0 auto;
 }
 
+.logo {
+  display: block;
+  width: 128px;
+  height: 128px;
+  margin-bottom: 1.25rem;
+}
+
 .eyebrow {
   display: inline-block;
   font-size: 0.75rem;

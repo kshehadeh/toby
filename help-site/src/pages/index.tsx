@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from '@docusaurus/Link';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 import Layout from '@theme/Layout';
 import styles from './index.module.css';
 
@@ -42,9 +43,12 @@ const sections = [
 ];
 
 export default function Home(): React.JSX.Element {
+  const logoUrl = useBaseUrl('/img/256x256.png');
+
   return (
     <Layout title="Toby documentation" description="Documentation for Toby CLI.">
       <main className={styles.page}>
+        <img src={logoUrl} alt="Toby logo" className={styles.logo} width={128} height={128} />
         <span className={styles.eyebrow}>Documentation</span>
         <h1 className={styles.title}>Toby Documentation</h1>
         <p className={styles.lead}>

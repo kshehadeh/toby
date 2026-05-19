@@ -4,6 +4,10 @@ slug: /intro
 title: Introduction
 ---
 
+<p align="center">
+  <img src="/img/256x256.png" alt="Toby logo" width="128" height="128" />
+</p>
+
 # Welcome to Toby
 
 Toby is an AI-assisted CLI for organizing and summarizing work across integrations like Gmail, Todoist, Slack, Azure AD, Apple Mail, and Apple Calendar.

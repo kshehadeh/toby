@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "help-site/**"
+      - "images/**"
       - ".github/workflows/deploy-docs.yml"
   workflow_dispatch:
 
