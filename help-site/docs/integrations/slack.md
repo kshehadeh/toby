@@ -58,13 +58,100 @@ Everything below is set under **Integrations → Slack** in `toby configure` (st
 
 Toby’s OAuth flow uses **PKCE** on **`http://localhost:9878/callback`** (unless you override the redirect URI in configure). Slack treats localhost as a desktop redirect, so Toby requests **user token scopes only**—not bot scopes. Messages sent via chat post as **your Slack user**, not a bot.
 
-### 1. Create a Slack app
+### Create from app manifest (recommended)
+
+The fastest way to create a Slack app with the right PKCE redirect, OAuth scopes, Socket Mode, and inbound event subscriptions is to use Slack’s **app manifest**.
+
+1. Open [Slack API: Your Apps](https://api.slack.com/apps).
+2. Click **Create New App → From an app manifest**.
+3. Select the **workspace** where you will install the app.
+4. Paste the JSON below (or download [`slack-app-manifest.json`](/slack-app-manifest.json)).
+5. Review the summary and click **Create**.
+
+```json
+{
+  "display_information": {
+    "name": "Toby"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "Toby",
+      "always_online": true
+    }
+  },
+  "oauth_config": {
+    "redirect_urls": [
+      "http://localhost:9878/callback"
+    ],
+    "scopes": {
+      "user": [
+        "im:read",
+        "channels:read",
+        "channels:write",
+        "channels:history",
+        "im:history",
+        "im:write",
+        "search:read"
+      ],
+      "bot": [
+        "chat:write",
+        "app_mentions:read",
+        "groups:history",
+        "im:history",
+        "channels:history"
+      ]
+    },
+    "pkce_enabled": true
+  },
+  "settings": {
+    "event_subscriptions": {
+      "bot_events": [
+        "app_mention",
+        "message.channels",
+        "message.groups",
+        "message.im"
+      ]
+    },
+    "interactivity": {
+      "is_enabled": true
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": true,
+    "token_rotation_enabled": false,
+    "is_mcp_enabled": false
+  }
+}
+```
+
+What this manifest configures:
+
+| Area | Setting |
+| ---- | ------- |
+| **OAuth** | PKCE enabled; redirect `http://localhost:9878/callback` |
+| **User scopes** | Channel/DM read, history, write, and search (for `toby chat` via OAuth) |
+| **Bot scopes** | Post messages, read @mentions, and read channel/group/DM history (for daemon inbound) |
+| **Socket Mode** | Enabled (required for inbound without a public request URL) |
+| **Event subscriptions** | `app_mention`, `message.channels`, `message.groups`, `message.im` |
+
+After the app is created:
+
+1. Copy **Client ID** and **Client Secret** from **Basic Information → App Credentials** → [Configure](#configure).
+2. Run `toby connect slack` for OAuth chat.
+3. For [daemon inbound](#inbound-mentions-daemon): **Install to Workspace**, create an **App-Level Token** with `connections:write`, and paste **Bot Token** + **App Token** in configure.
+
+If you use a custom redirect URI in `toby config`, edit **OAuth & Permissions → Redirect URLs** to match (must be `http://localhost` or `http://127.0.0.1` with a port and path).
+
+### Configure manually
+
+Use these steps if you prefer not to use a manifest, or need to adjust scopes after creation.
+
+#### 1. Create a Slack app
 
 1. Open [Slack API: Your Apps](https://api.slack.com/apps).
 2. Click **Create New App → From scratch**.
 3. Name the app and pick the **workspace** where you will install it.
 
-### 2. Enable PKCE and set the redirect URI
+#### 2. Enable PKCE and set the redirect URI
 
 1. In the app, open **OAuth & Permissions**.
 2. Under **Redirect URLs**, add:
@@ -77,7 +164,7 @@ Toby’s OAuth flow uses **PKCE** on **`http://localhost:9878/callback`** (unles
 
 If you use a custom redirect URI in `toby config`, register that exact URL instead (must be `http://localhost` or `http://127.0.0.1` with a port and path).
 
-### 3. Add user token scopes
+#### 3. Add user token scopes
 
 Still on **OAuth & Permissions**, under **Scopes → User Token Scopes**, add:
 
@@ -98,14 +185,14 @@ Still on **OAuth & Permissions**, under **Scopes → User Token Scopes**, add:
 
 Do **not** rely on **Bot Token Scopes** for the OAuth path—localhost + PKCE cannot use bot scopes.
 
-### 4. Copy Client ID and Client Secret
+#### 4. Copy Client ID and Client Secret
 
 1. Open **Basic Information**.
 2. Under **App Credentials**, copy **Client ID** and **Client Secret**.
 
 Use these in the [Configure](#configure) section. Do not commit them to git; Toby stores them in `~/.toby/credentials.json`.
 
-### 5. Connect from Toby
+#### 5. Connect from Toby
 
 After saving credentials in `toby config`, run `toby connect slack`. Approve the app in the browser when prompted. This stores a **user token** for chat—not a bot token. If you plan to use [daemon inbound](#inbound-mentions-daemon), add **Bot Token** and **App Token** separately (steps in that section).
 
@@ -115,11 +202,11 @@ Use this if you prefer a fixed **bot token** instead of OAuth. The bot posts as 
 
 ### 1. Create or open a Slack app
 
-Same as [step 1](#1-create-a-slack-app) above at [api.slack.com/apps](https://api.slack.com/apps).
+Same as [Create a Slack app](#1-create-a-slack-app) above at [api.slack.com/apps](https://api.slack.com/apps), or use the [app manifest](#create-from-app-manifest-recommended) instead.
 
 ### 2. Add bot token scopes
 
-On **OAuth & Permissions**, under **Scopes → Bot Token Scopes**, add the same capabilities as the [user scope table](#3-add-user-token-scopes) (for example `channels:read`, `channels:history`, `chat:write`, `search:read`, and the other scopes listed there).
+On **OAuth & Permissions**, under **Scopes → Bot Token Scopes**, add the same capabilities as the [user scope table](#3-add-user-token-scopes) (for example `channels:read`, `channels:history`, `chat:write`, `search:read`, and the other scopes listed there). The [app manifest](#create-from-app-manifest-recommended) includes the bot scopes needed for inbound.
 
 ### 3. Install the app to your workspace
 
@@ -213,8 +300,10 @@ You can keep **Auth Method = OAuth** for `toby chat` and still paste **Bot Token
 
 ### Slack app setup for inbound
 
-1. **Socket Mode** — On in your Slack app settings.
-2. **Bot Token Scopes** — At minimum: `app_mentions:read`, `chat:write`, plus channel/history scopes you need for context (same family as the [user scope table](#3-add-user-token-scopes)).
+If you used the [app manifest](#create-from-app-manifest-recommended), Socket Mode, bot scopes, and event subscriptions are already configured. You still need to install the app, create an app-level token, and copy tokens into configure.
+
+1. **Socket Mode** — On in your Slack app settings (enabled by the manifest).
+2. **Bot Token Scopes** — At minimum: `app_mentions:read`, `chat:write`, plus channel/history scopes you need for context (included in the manifest).
 3. **Event Subscriptions** — Subscribe to bot events: `app_mention` (channels), `message.im` (DMs with the app), and `message.channels` / `message.groups` (thread follow-ups after an @mention in those places).
 4. **Install app** to the workspace; copy **Bot User OAuth Token** → configure **Bot Token**.
 5. **App-Level Token** — Create with `connections:write` → configure **App Token**.
