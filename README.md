@@ -1,13 +1,6 @@
-```text
- _______     _           
-|__   __|   | |          
-   | | ___  | |__  _   _ 
-   | |/ _ \ | '_ \| | | |
-   | | (_) || |_) | |_| |
-   |_|\___(_)|_.__/ \__, |
-                     __/ |
-                    |___/ 
-```
+<p align="center">
+  <img src="images/256x256.png" alt="Toby logo" width="128" height="128" />
+</p>
 
 Toby is an assistant that experiments with the application of personas on top of the standard skill-based architecture.
 
