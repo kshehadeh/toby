@@ -1,5 +1,9 @@
 import type { CoreMessage } from "../ai/chat";
 import { chatWithTools, createModelForPersona } from "../ai/chat";
+import {
+	inferProviderCategoriesFromPrompt,
+	resolveChatModulesForPrompt,
+} from "../chat-pipeline/resolve-chat-modules";
 import { getDefaultProvider } from "../config/index";
 import type { Persona } from "../config/index";
 import {
@@ -30,128 +34,6 @@ const SCHEDULE_SYSTEM_INSTRUCTION_APPENDIX = `
 This is an automated scheduled run. You **must not** ask questions or wait for user input. There is no interactive user available. Complete the task using your best judgment. If something is ambiguous, make a reasonable assumption and proceed. Do not call the askUser tool — it is not available in this context.
 `;
 
-const CATEGORY_KEYWORDS: Record<ProviderCategory, string[]> = {
-	email: [
-		"email",
-		"e-mail",
-		"mail",
-		"inbox",
-		"send",
-		"compose",
-		"draft",
-		"reply",
-		"forward",
-		"gmail",
-		"outlook",
-	],
-	calendar: [
-		"calendar",
-		"event",
-		"meeting",
-		"schedule",
-		"appointment",
-		"reminder",
-		"ical",
-	],
-	tasks: [
-		"task",
-		"todo",
-		"to-do",
-		"to do",
-		"todoist",
-		"checklist",
-		"assignment",
-	],
-	contacts: [
-		"contact",
-		"address book",
-		"directory",
-		"people",
-		"colleague",
-		"coworker",
-	],
-	chat: [
-		"slack",
-		"channel",
-		"channels",
-		"dm",
-		"dms",
-		"direct message",
-		"workspace",
-		"thread",
-		"post",
-		"message",
-		"chat",
-	],
-};
-
-function inferProviderCategoriesFromPrompt(prompt: string): ProviderCategory[] {
-	const lower = prompt.toLowerCase();
-	const matched: ProviderCategory[] = [];
-	for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-		if (keywords.some((kw) => lower.includes(kw))) {
-			matched.push(cat as ProviderCategory);
-		}
-	}
-	return matched;
-}
-
-function resolveModulesForSchedule(
-	prompt: string,
-	chatModules: IntegrationModule[],
-): { modules: IntegrationModule[]; warnings: string[] } {
-	const neededCategories = inferProviderCategoriesFromPrompt(prompt);
-
-	if (neededCategories.length === 0) {
-		return { modules: chatModules, warnings: [] };
-	}
-
-	const warnings: string[] = [];
-	const selectedNames = new Set<string>();
-
-	for (const cat of neededCategories) {
-		const defaultName = getDefaultProvider(cat);
-		if (defaultName) {
-			const mod = chatModules.find((m) => m.name === defaultName);
-			if (mod) {
-				selectedNames.add(mod.name);
-			} else {
-				warnings.push(
-					`Default ${PROVIDER_CATEGORY_LABELS[cat]} is set to "${defaultName}" but it is not available (not connected or not chat-capable). No ${cat} tools will be available for this run.`,
-				);
-			}
-		} else {
-			const catModules = getModulesForCategory(cat).filter((m) =>
-				chatModules.some((cm) => cm.name === m.name),
-			);
-			if (catModules.length === 0) {
-				warnings.push(
-					`No default ${PROVIDER_CATEGORY_LABELS[cat]} is configured and no connected ${cat} integration is available. Set a default provider via \`toby configure\` to use ${cat} tools in scheduled runs.`,
-				);
-			} else if (catModules.length === 1) {
-				selectedNames.add(catModules[0].name);
-			} else {
-				for (const m of catModules) {
-					selectedNames.add(m.name);
-				}
-				warnings.push(
-					`No default ${PROVIDER_CATEGORY_LABELS[cat]} is configured, but multiple ${cat} integrations are connected (${catModules.map((m) => m.displayName).join(", ")}). All will be included. Set a default via \`toby configure\` to choose one.`,
-				);
-			}
-		}
-	}
-
-	// Always include modules that have no provider categories (utility integrations)
-	for (const m of chatModules) {
-		if (!m.providerCategories || m.providerCategories.length === 0) {
-			selectedNames.add(m.name);
-		}
-	}
-
-	const modules = chatModules.filter((m) => selectedNames.has(m.name));
-	return { modules, warnings };
-}
-
 export async function executeSchedule(schedule: Schedule): Promise<void> {
 	const persona = resolvePersona(schedule.personaName);
 	if (!persona) {
@@ -167,7 +49,7 @@ export async function executeSchedule(schedule: Schedule): Promise<void> {
 		);
 	}
 
-	const { modules: chatModules, warnings } = resolveModulesForSchedule(
+	const { modules: chatModules, warnings } = resolveChatModulesForPrompt(
 		schedule.prompt,
 		allChatModules,
 	);
