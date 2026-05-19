@@ -92,16 +92,6 @@ const config: Config = {
           label: 'Docs',
         },
         {
-          to: '/docs/getting-started/install',
-          label: 'Guides',
-          position: 'left',
-        },
-        {
-          to: '/docs/examples',
-          label: 'Examples',
-          position: 'left',
-        },
-        {
           href: 'https://github.com/kshehadeh/toby',
           label: 'GitHub',
           position: 'right',
