@@ -1,6 +1,10 @@
 import { spawn } from "node:child_process";
 import { isDaemonRunning } from "../../../schedules/daemon-status";
-import { buildTobySpawnArgs, getTobyExecPath } from "../../../toby-spawn";
+import {
+	buildTobySpawnArgs,
+	getDetachedDaemonSpawnStdio,
+	getTobyExecPath,
+} from "../../../toby-spawn";
 import type { SlashCommand } from "./types";
 
 async function waitForDaemon(
@@ -30,10 +34,14 @@ export const startDaemonSlashCommand: SlashCommand = {
 		}
 
 		try {
-			const child = spawn(getTobyExecPath(), buildTobySpawnArgs("daemon", "start"), {
-				detached: true,
-				stdio: "ignore",
-			});
+			const child = spawn(
+				getTobyExecPath(),
+				buildTobySpawnArgs("daemon", "start"),
+				{
+					detached: true,
+					stdio: getDetachedDaemonSpawnStdio(),
+				},
+			);
 			child.unref();
 
 			runtime.addMetaLine("Starting daemon…");

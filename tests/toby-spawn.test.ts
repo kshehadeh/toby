@@ -1,5 +1,12 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { buildTobySpawnArgs, getTobyEntryScriptArgv } from "../src/toby-spawn";
+import {
+	buildTobySpawnArgs,
+	getDetachedDaemonSpawnStdio,
+	getTobyEntryScriptArgv,
+} from "../src/toby-spawn";
 
 describe("toby-spawn", () => {
 	const originalArgv = process.argv;
@@ -34,5 +41,23 @@ describe("toby-spawn", () => {
 			"daemon",
 			"start",
 		]);
+	});
+
+	it("opens daemon.log fds for detached spawns (not stdio ignore)", () => {
+		const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-spawn-"));
+		const prev = process.env.TOBY_DIR;
+		process.env.TOBY_DIR = tmpDir;
+		try {
+			const stdio = getDetachedDaemonSpawnStdio();
+			expect(stdio).toEqual(["ignore", expect.any(Number), expect.any(Number)]);
+			expect(fs.existsSync(path.join(tmpDir, "daemon.log"))).toBe(true);
+		} finally {
+			if (prev === undefined) {
+				process.env.TOBY_DIR = undefined;
+			} else {
+				process.env.TOBY_DIR = prev;
+			}
+			fs.rmSync(tmpDir, { recursive: true, force: true });
+		}
 	});
 });

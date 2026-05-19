@@ -13,7 +13,11 @@ import {
 	stopDaemon,
 } from "../schedules/daemon-status";
 import { runSchedulerLoop } from "../schedules/scheduler";
-import { buildTobySpawnArgs, getTobyExecPath } from "../toby-spawn";
+import {
+	buildTobySpawnArgs,
+	getDetachedDaemonSpawnStdio,
+	getTobyExecPath,
+} from "../toby-spawn";
 
 const DEFAULT_INTERVAL_SECONDS = 60;
 
@@ -191,7 +195,7 @@ export function registerDaemonCommand(program: Command): void {
 			);
 			const child = spawn(getTobyExecPath(), args, {
 				detached: true,
-				stdio: "ignore",
+				stdio: getDetachedDaemonSpawnStdio(),
 			});
 			child.unref();
 
