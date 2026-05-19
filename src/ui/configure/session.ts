@@ -1,4 +1,5 @@
 import { AI_PROVIDERS } from "../../ai/providers";
+import type { ChatInboundConfig } from "../../config/index";
 import {
 	type CredentialsFile,
 	type Persona,
@@ -71,6 +72,22 @@ export function createConfigureSession(): ConfigureSession {
 		credentialValues[`defaults.${cat}`] = current ?? "(none)";
 	}
 
+	credentialValues["chatInbound.enabled"] =
+		config.chatInbound?.enabled === true ? "true" : "false";
+	credentialValues["chatInbound.integration"] =
+		config.chatInbound?.integration?.trim() || "(none)";
+	credentialValues["chatInbound.persona"] =
+		config.chatInbound?.persona?.trim() || "(default)";
+
+	for (const mod of getIntegrationModules()) {
+		if (!mod.chatInbound) continue;
+		const entry = config.integrations[mod.name] as
+			| { inboundEnabled?: boolean }
+			| undefined;
+		credentialValues[`${mod.name}.inboundEnabled`] =
+			entry?.inboundEnabled === true ? "true" : "false";
+	}
+
 	const refreshTree = (vals: Record<string, string>) => {
 		const freshConfig = readConfig();
 		const personasFromVals = rebuildPersonas(vals, freshConfig.personas);
@@ -133,6 +150,8 @@ export function createConfigureSession(): ConfigureSession {
 			const cfg = readConfig();
 			cfg.personas = rebuildPersonas(values, cfg.personas);
 			cfg.defaultProviders = rebuildDefaultProviders(values);
+			cfg.chatInbound = rebuildChatInbound(values);
+			applyIntegrationInboundFlags(cfg, values);
 			writeConfig(cfg);
 		},
 		refreshTree,
@@ -183,6 +202,36 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 	if (typeof value !== "object" || value === null) return false;
 	const proto = Object.getPrototypeOf(value);
 	return proto === Object.prototype || proto === null;
+}
+
+function rebuildChatInbound(values: Record<string, string>): ChatInboundConfig {
+	const enabled = values["chatInbound.enabled"] === "true";
+	const integrationRaw = values["chatInbound.integration"]?.trim();
+	const integration =
+		integrationRaw && integrationRaw !== "(none)" ? integrationRaw : undefined;
+	const personaRaw = values["chatInbound.persona"]?.trim();
+	const persona =
+		personaRaw && personaRaw !== "(default)" ? personaRaw : undefined;
+	return { enabled, integration, persona };
+}
+
+function applyIntegrationInboundFlags(
+	cfg: ReturnType<typeof readConfig>,
+	values: Record<string, string>,
+): void {
+	const inbound = rebuildChatInbound(values);
+	for (const mod of getIntegrationModules()) {
+		if (!mod.chatInbound) continue;
+		let flag = values[`${mod.name}.inboundEnabled`] === "true";
+		if (inbound.enabled && inbound.integration === mod.name) {
+			flag = true;
+		}
+		const existing = cfg.integrations[mod.name] ?? {};
+		cfg.integrations[mod.name] = {
+			...existing,
+			inboundEnabled: flag,
+		};
+	}
 }
 
 function rebuildDefaultProviders(

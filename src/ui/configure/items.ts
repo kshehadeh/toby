@@ -67,9 +67,21 @@ export function buildSettingsTree(
 						]
 					: [];
 
+			const inboundActive =
+				values["chatInbound.enabled"] === "true" &&
+				(values["chatInbound.integration"] ?? "(none)") === mod.name;
+			const integrationInboundOn =
+				values[`${mod.name}.inboundEnabled`] === "true";
+			const showInboundCredentials =
+				Boolean(mod.chatInbound) &&
+				(inboundActive || integrationInboundOn);
+
 			const credentialItems = mod
 				.getCredentialDescriptors()
 				.filter((d) => {
+					if (d.showForInbound && showInboundCredentials) {
+						return true;
+					}
 					if (!d.showForAuthMethods || d.showForAuthMethods.length === 0) {
 						return true;
 					}
@@ -85,11 +97,34 @@ export function buildSettingsTree(
 					multiline: d.multiline,
 				}));
 
+			const globalInboundForMod =
+				values["chatInbound.enabled"] === "true" &&
+				(values["chatInbound.integration"] ?? "(none)") === mod.name;
+			const inboundItems: SettingsItem[] = mod.chatInbound
+				? [
+						{
+							label: "Daemon: listen for @mentions",
+							kind: "select" as const,
+							key: `${mod.name}.inboundEnabled`,
+							options: ["false", "true"],
+							selectChoices: [
+								{ value: "false", label: "Off" },
+								{ value: "true", label: "On" },
+							],
+							currentValue:
+								values[`${mod.name}.inboundEnabled`] === "true" ||
+								globalInboundForMod
+									? "true"
+									: "false",
+						},
+					]
+				: [];
+
 			return {
 				label: mod.displayName,
 				kind: "section" as const,
 				key: mod.name,
-				children: [...authSelect, ...credentialItems],
+				children: [...authSelect, ...credentialItems, ...inboundItems],
 			};
 		},
 	);
@@ -191,6 +226,48 @@ export function buildSettingsTree(
 		},
 	);
 
+	const inboundIntegrationModules = getIntegrationModules().filter(
+		(m) => m.chatInbound,
+	);
+	const inboundIntegrationOptions = [
+		"(none)",
+		...inboundIntegrationModules.map((m) => m.name),
+	];
+	const personaOptions = ["(default)", ...personas.map((p) => p.name)];
+
+	const chatInboundSection: SettingsItem = {
+		label: "Daemon / inbound chat",
+		kind: "section",
+		key: "chatInbound",
+		children: [
+			{
+				label: "Enable inbound chat",
+				kind: "select",
+				key: "chatInbound.enabled",
+				options: ["false", "true"],
+				selectChoices: [
+					{ value: "false", label: "Off" },
+					{ value: "true", label: "On" },
+				],
+				currentValue: values["chatInbound.enabled"] ?? "false",
+			},
+			{
+				label: "Active integration",
+				kind: "select",
+				key: "chatInbound.integration",
+				options: inboundIntegrationOptions,
+				currentValue: values["chatInbound.integration"] ?? "(none)",
+			},
+			{
+				label: "Persona for inbound turns",
+				kind: "select",
+				key: "chatInbound.persona",
+				options: personaOptions,
+				currentValue: values["chatInbound.persona"] ?? "(default)",
+			},
+		],
+	};
+
 	return {
 		label: "Toby Configuration",
 		kind: "section",
@@ -202,6 +279,7 @@ export function buildSettingsTree(
 				key: "integrations",
 				children: integrationSections,
 			},
+			chatInboundSection,
 			{
 				label: "Default Providers",
 				kind: "section",
