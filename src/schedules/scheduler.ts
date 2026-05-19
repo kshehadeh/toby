@@ -1,3 +1,4 @@
+import { daemonLog } from "../logging/daemon-log";
 import { shouldRun } from "./cron";
 import { executeSchedule } from "./executor";
 import { getDueSchedules } from "./store";
@@ -37,22 +38,32 @@ export async function runSchedulerLoop(
 				if (signal.aborted) break;
 				if (shouldRun(schedule.cronExpression, schedule.lastRunAt)) {
 					fired += 1;
+					daemonLog("info", "scheduler", "schedule_run_start", {
+						scheduleId: schedule.id,
+						name: schedule.name,
+					});
 					try {
 						await executeSchedule(schedule);
+						daemonLog("info", "scheduler", "schedule_run_complete", {
+							scheduleId: schedule.id,
+							name: schedule.name,
+						});
 					} catch (error) {
-						// eslint-disable-next-line no-console
-						console.error(
-							`[scheduler] schedule "${schedule.name}" failed: ${error instanceof Error ? error.message : String(error)}`,
-						);
+						const msg = error instanceof Error ? error.message : String(error);
+						daemonLog("error", "scheduler", "schedule_run_failed", {
+							scheduleId: schedule.id,
+							name: schedule.name,
+							message: msg,
+						});
 					}
 				}
 			}
 			options.onCycle?.({ checked: due.length, fired });
 		} catch (error) {
-			// eslint-disable-next-line no-console
-			console.error(
-				`[scheduler] cycle error: ${error instanceof Error ? error.message : String(error)}`,
-			);
+			const msg = error instanceof Error ? error.message : String(error);
+			daemonLog("error", "scheduler", "scheduler_cycle_error", {
+				message: msg,
+			});
 		}
 
 		if (options.maxCycles != null && cycles >= options.maxCycles) {

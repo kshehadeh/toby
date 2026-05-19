@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { isDaemonRunning } from "../../../schedules/daemon-status";
+import { buildTobySpawnArgs, getTobyExecPath } from "../../../toby-spawn";
 import type { SlashCommand } from "./types";
 
 async function waitForDaemon(
@@ -29,11 +30,7 @@ export const startDaemonSlashCommand: SlashCommand = {
 		}
 
 		try {
-			// Resolve the executable path: use the same runtime that launched this process.
-			const execPath = process.execPath;
-			const scriptPath = process.argv[1];
-
-			const child = spawn(execPath, [scriptPath, "daemon", "start"], {
+			const child = spawn(getTobyExecPath(), buildTobySpawnArgs("daemon", "start"), {
 				detached: true,
 				stdio: "ignore",
 			});

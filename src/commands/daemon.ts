@@ -2,13 +2,18 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import chalk from "chalk";
 import type { Command } from "commander";
-import { ensureTobyDir } from "../config/index";
+import { startChatInboundListeners } from "../chat-inbound/listeners";
+import { getChatInboundStatus } from "../chat-inbound/status";
+import { readChatInboundConfig } from "../config/chat-inbound";
+import { ensureTobyDir, getDaemonLogPath } from "../config/index";
+import { daemonLog, flushDaemonLogSync } from "../logging/daemon-log";
 import {
 	getDaemonLockPath,
 	isDaemonRunning,
 	stopDaemon,
 } from "../schedules/daemon-status";
 import { runSchedulerLoop } from "../schedules/scheduler";
+import { buildTobySpawnArgs, getTobyExecPath } from "../toby-spawn";
 
 const DEFAULT_INTERVAL_SECONDS = 60;
 
@@ -57,8 +62,10 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 
 	const controller = new AbortController();
 	const cleanup = () => {
+		daemonLog("info", "daemon", "daemon_stopping", { pid: process.pid });
 		controller.abort();
 		releaseLock();
+		flushDaemonLogSync();
 	};
 
 	process.on("SIGINT", () => {
@@ -70,38 +77,54 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 	});
 
 	const intervalMs = intervalSeconds * 1000;
+	const inboundCfg = readChatInboundConfig();
+	daemonLog("info", "daemon", "daemon_started", {
+		pid: process.pid,
+		intervalSeconds,
+		logPath: getDaemonLogPath(),
+		chatInboundEnabled: inboundCfg.enabled !== false,
+		chatInboundIntegration: inboundCfg.integration ?? null,
+		chatInboundPersona: inboundCfg.persona ?? null,
+	});
 	console.log(
 		chalk.cyan(
-			`Toby schedule daemon started (checking every ${intervalSeconds}s).`,
+			`Toby daemon started (schedules every ${intervalSeconds}s, chat inbound if configured).`,
 		),
 	);
+	console.log(chalk.dim(`  Log: ${getDaemonLogPath()}`));
 	console.log(chalk.dim("  Press Ctrl+C to stop."));
 	console.log();
 
 	try {
-		await runSchedulerLoop({
-			intervalMs,
-			signal: controller.signal,
-			onCycle: ({ checked, fired }) => {
-				if (fired > 0) {
-					console.log(
-						chalk.dim(
-							`[daemon] Checked ${checked} schedule(s), fired ${fired}.`,
-						),
-					);
-				}
-			},
-		});
+		await Promise.all([
+			runSchedulerLoop({
+				intervalMs,
+				signal: controller.signal,
+				onCycle: ({ checked, fired }) => {
+					if (fired > 0) {
+						daemonLog("info", "scheduler", "schedules_fired", {
+							checked,
+							fired,
+						});
+						console.log(
+							chalk.dim(
+								`[daemon] Checked ${checked} schedule(s), fired ${fired}.`,
+							),
+						);
+					}
+				},
+			}),
+			startChatInboundListeners(controller.signal),
+		]);
 	} catch (error) {
 		if (!controller.signal.aborted) {
-			console.error(
-				chalk.red(
-					`[daemon] Fatal: ${error instanceof Error ? error.message : String(error)}`,
-				),
-			);
+			const msg = error instanceof Error ? error.message : String(error);
+			daemonLog("error", "daemon", "daemon_fatal", { message: msg });
+			console.error(chalk.red(`[daemon] Fatal: ${msg}`));
 		}
 	} finally {
 		releaseLock();
+		flushDaemonLogSync();
 	}
 }
 
@@ -148,8 +171,6 @@ export function registerDaemonCommand(program: Command): void {
 				return;
 			}
 
-			const execPath = process.execPath;
-			const scriptPath = process.argv[1];
 			const intervalSeconds = Number.parseInt(
 				options.interval ?? String(DEFAULT_INTERVAL_SECONDS),
 				10,
@@ -162,14 +183,13 @@ export function registerDaemonCommand(program: Command): void {
 				return;
 			}
 
-			const args = [
-				scriptPath,
+			const args = buildTobySpawnArgs(
 				"daemon",
 				"run",
 				"--interval",
 				String(intervalSeconds),
-			];
-			const child = spawn(execPath, args, {
+			);
+			const child = spawn(getTobyExecPath(), args, {
 				detached: true,
 				stdio: "ignore",
 			});
@@ -180,6 +200,7 @@ export function registerDaemonCommand(program: Command): void {
 			const result = await waitForDaemon();
 			if (result.running) {
 				console.log(chalk.green(`Daemon started (PID ${result.pid}).`));
+				console.log(chalk.dim(`  Log: ${getDaemonLogPath()}`));
 			} else {
 				console.error(
 					chalk.red(
@@ -218,6 +239,23 @@ export function registerDaemonCommand(program: Command): void {
 			} else {
 				console.log(chalk.yellow("Daemon is not running."));
 			}
+			const inbound = getChatInboundStatus();
+			if (inbound.integration) {
+				const label =
+					inbound.status === "connected"
+						? chalk.green(inbound.status)
+						: inbound.status === "error"
+							? chalk.red(inbound.status)
+							: chalk.dim(inbound.status);
+				console.log(
+					`Chat inbound (${inbound.integration}): ${label}${
+						inbound.detail ? chalk.dim(` — ${inbound.detail}`) : ""
+					}`,
+				);
+			} else if (inbound.status !== "disabled") {
+				console.log(chalk.dim(`Chat inbound: ${inbound.status}`));
+			}
+			console.log(chalk.dim(`Daemon log: ${getDaemonLogPath()}`));
 		});
 
 	daemon
