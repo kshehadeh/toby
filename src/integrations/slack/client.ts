@@ -1,12 +1,20 @@
 import {
 	getSlackAuthMethod,
+	getSlackCredentialField,
 	getSlackCredentials,
 	readCredentials,
 } from "../../config/index";
 import {
+	buildMrkdwnSectionBlocks,
+	stripMarkdownForPlainFallback,
+	truncateSlackMarkdown,
+} from "./slack-markdown";
+import {
 	isSlackAccessTokenFresh,
 	refreshSlackOAuthAccessToken,
 } from "./tokens";
+
+export type SlackMessageFormat = "plain" | "markdown";
 
 export interface SlackConversation {
 	readonly id: string;
@@ -97,7 +105,18 @@ async function resolveSlackAuthToken(explicitToken?: string): Promise<string> {
 	return creds.botToken;
 }
 
-async function slackApi<T extends SlackApiResponse>(
+/** xoxb token for chat.postMessage — never the user OAuth token when both exist. */
+export function resolveSlackPostToken(): string {
+	const creds = readCredentials();
+	const manualBot = getSlackCredentialField(creds, "botToken")?.trim();
+	const oauthBot = getSlackCredentialField(creds, "oauthBotToken")?.trim();
+	if (manualBot || oauthBot) {
+		return manualBot || oauthBot || "";
+	}
+	return getSlackCredentials().botToken;
+}
+
+async function slackApiResult<T extends SlackApiResponse>(
 	method: string,
 	params: Record<string, string | number | boolean | undefined> = {},
 	token?: string,
@@ -117,23 +136,99 @@ async function slackApi<T extends SlackApiResponse>(
 		json = await callSlackApi<T>(method, params, authToken);
 	}
 
+	return json;
+}
+
+async function slackApi<T extends SlackApiResponse>(
+	method: string,
+	params: Record<string, string | number | boolean | undefined> = {},
+	token?: string,
+	retried = false,
+): Promise<T> {
+	const json = await slackApiResult<T>(method, params, token, retried);
 	if (!json.ok) {
 		throw new Error(`Slack API ${method} error: ${json.error ?? "unknown"}`);
 	}
 	return json;
 }
 
-export async function testSlackConnection(): Promise<{
+export async function testSlackConnection(token?: string): Promise<{
 	readonly team?: string;
 	readonly user?: string;
+	readonly userId?: string;
+	readonly teamId?: string;
 }> {
 	const json = await slackApi<{
 		ok: boolean;
 		error?: string;
 		team?: string;
 		user?: string;
-	}>("auth.test");
-	return { team: json.team, user: json.user };
+		user_id?: string;
+		team_id?: string;
+	}>("auth.test", {}, token);
+	return {
+		team: json.team,
+		user: json.user,
+		userId: json.user_id,
+		teamId: json.team_id,
+	};
+}
+
+/**
+ * Resolve the bot member id for inbound (@mention stripping, ignore own messages).
+ * Always prefers auth.test with the inbound bot token over a configured hint.
+ */
+export async function resolveSlackBotUserId(
+	botToken: string,
+	configuredHint?: string,
+): Promise<string> {
+	const auth = await testSlackConnection(botToken);
+	const fromAuth = auth.userId?.trim();
+	if (fromAuth) {
+		return fromAuth;
+	}
+	const hint = configuredHint?.trim();
+	if (hint) {
+		return hint;
+	}
+	throw new Error(
+		"Could not resolve Slack bot user id from auth.test. Set slack.botUserId in credentials.",
+	);
+}
+
+/** Bot token + app token for Socket Mode inbound (@mentions). */
+export function getSlackInboundCredentials(): {
+	readonly botToken: string;
+	readonly appToken: string;
+	readonly botUserId?: string;
+} {
+	const creds = readCredentials();
+	const manualBot = getSlackCredentialField(creds, "botToken");
+	const oauthBot = getSlackCredentialField(creds, "oauthBotToken");
+	const botToken = manualBot || oauthBot;
+	if (!botToken) {
+		const userOAuth = getSlackCredentialField(creds, "oauthUserToken");
+		if (userOAuth) {
+			throw new Error(
+				"Slack inbound needs a bot token (xoxb-...). `toby connect slack` only stores a user token (xoxp-...) for chat tools. In `toby configure` → Slack, paste Bot Token (OAuth & Permissions → install app → Bot User OAuth Token) and App Token (xapp-..., Socket Mode). Enable daemon/inbound to show Bot Token while Auth Method is OAuth.",
+			);
+		}
+		throw new Error(
+			"Slack inbound requires a bot token (xoxb-...) and an app token (xapp-...) for Socket Mode. Add both in `toby configure` → Slack (enable daemon/inbound to show Bot Token when using OAuth).",
+		);
+	}
+	const appToken = getSlackCredentialField(creds, "appToken");
+	if (!appToken) {
+		throw new Error(
+			"Slack inbound requires an app-level token (xapp-...) for Socket Mode (Basic Information → App-Level Tokens → connections:write). Add it in `toby configure` → Slack alongside the bot token (xoxb-...).",
+		);
+	}
+	const botUserId = getSlackCredentialField(creds, "botUserId");
+	return {
+		botToken,
+		appToken,
+		botUserId,
+	};
 }
 
 export async function listConversations(
@@ -423,28 +518,118 @@ export async function resolveChannelId(channelOrUser: string): Promise<string> {
 	);
 }
 
-export async function postSlackMessage(params: {
-	readonly channel: string;
-	readonly text: string;
-	readonly threadTs?: string;
-}): Promise<{ readonly channel: string; readonly ts: string }> {
-	const channelId = await resolveChannelId(params.channel);
-	const json = await slackApi<{
-		ok: boolean;
-		error?: string;
-		channel?: string;
-		ts?: string;
-	}>("chat.postMessage", {
-		channel: channelId,
-		text: params.text,
-		thread_ts: params.threadTs,
-	});
+function shouldFallbackFromMarkdownText(error: string | undefined): boolean {
+	if (!error) {
+		return false;
+	}
+	return (
+		error === "invalid_arguments" ||
+		error === "unknown_argument" ||
+		error.includes("markdown_text")
+	);
+}
+
+type ChatPostMessageResponse = {
+	ok: boolean;
+	error?: string;
+	channel?: string;
+	ts?: string;
+};
+
+async function chatPostMessage(
+	channelId: string,
+	fields: Record<string, string | undefined>,
+	token: string,
+): Promise<{ readonly channel: string; readonly ts: string }> {
+	const json = await slackApi<ChatPostMessageResponse>(
+		"chat.postMessage",
+		{ channel: channelId, ...fields },
+		token,
+	);
+	if (!json.ok) {
+		throw new Error(`Slack chat.postMessage error: ${json.error ?? "unknown"}`);
+	}
 	if (!json.ts) {
 		throw new Error(
 			"Slack chat.postMessage did not return a message timestamp.",
 		);
 	}
 	return { channel: json.channel ?? channelId, ts: json.ts };
+}
+
+async function tryChatPostMessage(
+	channelId: string,
+	fields: Record<string, string | undefined>,
+	token: string,
+): Promise<ChatPostMessageResponse> {
+	return slackApiResult<ChatPostMessageResponse>(
+		"chat.postMessage",
+		{ channel: channelId, ...fields },
+		token,
+	);
+}
+
+async function postSlackMessageAsMrkdwnBlocks(
+	channelId: string,
+	text: string,
+	threadTs: string | undefined,
+	token: string,
+): Promise<{ readonly channel: string; readonly ts: string }> {
+	const plain = stripMarkdownForPlainFallback(text).slice(0, 4000);
+	return chatPostMessage(
+		channelId,
+		{
+			text: plain,
+			thread_ts: threadTs,
+			blocks: buildMrkdwnSectionBlocks(text),
+		},
+		token,
+	);
+}
+
+export async function postSlackMessage(params: {
+	readonly channel: string;
+	readonly text: string;
+	readonly threadTs?: string;
+	readonly token?: string;
+	/** `markdown` uses Slack's markdown_text API (default). `plain` sends unformatted text. */
+	readonly format?: SlackMessageFormat;
+}): Promise<{ readonly channel: string; readonly ts: string }> {
+	const channelId = await resolveChannelId(params.channel);
+	const postToken = params.token?.trim() || resolveSlackPostToken();
+	const format = params.format ?? "markdown";
+
+	if (format === "plain") {
+		return chatPostMessage(
+			channelId,
+			{ text: params.text, thread_ts: params.threadTs },
+			postToken,
+		);
+	}
+
+	const markdown = truncateSlackMarkdown(params.text);
+	const markdownResult = await tryChatPostMessage(
+		channelId,
+		{ markdown_text: markdown, thread_ts: params.threadTs },
+		postToken,
+	);
+	if (markdownResult.ok && markdownResult.ts) {
+		return {
+			channel: markdownResult.channel ?? channelId,
+			ts: markdownResult.ts,
+		};
+	}
+	if (shouldFallbackFromMarkdownText(markdownResult.error)) {
+		return postSlackMessageAsMrkdwnBlocks(
+			channelId,
+			params.text,
+			params.threadTs,
+			postToken,
+		);
+	}
+	throw new Error(
+		`Slack chat.postMessage error: ${markdownResult.error ?? "unknown"}`,
+	);
 }
 
 export async function searchSlackMessages(

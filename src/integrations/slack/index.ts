@@ -27,6 +27,7 @@ import {
 	buildSlackChatUserMessage,
 } from "./prompts/chat";
 import { persistSlackOAuthTokens } from "./tokens";
+import { slackChatInboundProvider } from "./inbound";
 import { createSlackTools } from "./tools";
 
 type SlackAuthMethod = "oauth" | "bot_token";
@@ -127,7 +128,11 @@ const slackLifecycle = {
 			}
 		}
 
-		config.integrations.slack = { connectedAt: new Date().toISOString() };
+		const prev = config.integrations.slack;
+		config.integrations.slack = {
+			...(typeof prev === "object" && prev !== null ? prev : {}),
+			connectedAt: new Date().toISOString(),
+		};
 		writeConfig(config);
 		console.log(chalk.green("Slack connected successfully!"));
 	},
@@ -230,11 +235,36 @@ function getCredentialDescriptors(): CredentialFieldDescriptor[] {
 		},
 		{
 			key: "slack.botToken",
-			label: "Bot Token (xoxb-...)",
+			label: "Bot Token (xoxb-...) — required for daemon/inbound",
 			masked: true,
 			showForAuthMethods: ["bot_token"],
+			showForInbound: true,
+		},
+		{
+			key: "slack.appToken",
+			label: "App Token (xapp-...) — Socket Mode (inbound; pair with bot token)",
+			masked: true,
+		},
+		{
+			key: "slack.botUserId",
+			label: "Bot User ID (optional; from auth.test)",
+			masked: false,
 		},
 	];
+}
+
+function pickSlackCredentialValue(
+	previous: CredentialsFile,
+	values: Record<string, string>,
+	field: "botToken" | "appToken" | "botUserId",
+): string {
+	const fromValues = values[`slack.${field}`]?.trim();
+	if (fromValues) return fromValues;
+	return (
+		previous.integrations?.slack?.[field]?.trim() ||
+		previous.slack?.[field]?.trim() ||
+		""
+	);
 }
 
 function seedCredentialValues(creds: CredentialsFile): Record<string, string> {
@@ -247,6 +277,8 @@ function seedCredentialValues(creds: CredentialsFile): Record<string, string> {
 		"clientSecret",
 		"redirectUri",
 		"botToken",
+		"appToken",
+		"botUserId",
 	] as const;
 	for (const field of fields) {
 		const v =
@@ -276,11 +308,9 @@ function mergeCredentialsPatch(
 		previous.integrations?.slack?.redirectUri ??
 		previous.slack?.redirectUri ??
 		"";
-	const botToken =
-		values["slack.botToken"] ??
-		previous.integrations?.slack?.botToken ??
-		previous.slack?.botToken ??
-		"";
+	const botToken = pickSlackCredentialValue(previous, values, "botToken");
+	const appToken = pickSlackCredentialValue(previous, values, "appToken");
+	const botUserId = pickSlackCredentialValue(previous, values, "botUserId");
 	const authMethod = getSlackAuthMethod(
 		previous,
 		values["slack.authMethod"],
@@ -297,6 +327,8 @@ function mergeCredentialsPatch(
 				clientSecret,
 				redirectUri,
 				botToken,
+				appToken,
+				botUserId,
 			},
 		},
 		slack: {
@@ -305,6 +337,8 @@ function mergeCredentialsPatch(
 			clientSecret,
 			redirectUri,
 			botToken,
+			appToken,
+			botUserId,
 			oauthBotToken:
 				previous.integrations?.slack?.oauthBotToken ??
 				previous.slack?.oauthBotToken,
@@ -438,6 +472,7 @@ ${content}`;
 	seedCredentialValues,
 	mergeCredentialsPatch,
 	chat,
+	chatInbound: slackChatInboundProvider,
 };
 
 async function validateSlackTools(): Promise<IntegrationToolHealth[]> {
