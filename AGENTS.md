@@ -12,6 +12,8 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | [`docs/integrations.md`](docs/integrations.md) | Plugin-style integrations: `IntegrationModule`, registry, capabilities, credentials, and CLI contributions. |
 | [`docs/create-integration.md`](docs/create-integration.md) | Checklist for adding a new first-party integration module. |
 | [`docs/chat-pipeline.md`](docs/chat-pipeline.md) | `toby chat` message flow and tool-result caching behavior. |
+| [`docs/daemon.md`](docs/daemon.md) | Background daemon: schedules, chat inbound (@mentions), `daemon.log`, troubleshooting. |
+| [`docs/chat-inbound.md`](docs/chat-inbound.md) | Inbound provider contract, external session mapping, adding new chat platforms. |
 | [`docs/ai-caching.md`](docs/ai-caching.md) | Provider prompt caching adapters, stable cache keys, and token telemetry. |
 | [`docs/ui.md`](docs/ui.md) | Shared Ink UI components, visual conventions, and shortcut conventions. |
 | [`docs/apple-mail.md`](docs/apple-mail.md) | Apple Mail (macOS): local Mail.app integration and automation permissions. |

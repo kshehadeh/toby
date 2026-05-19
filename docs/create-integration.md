@@ -67,3 +67,19 @@ bun run lint && bun run typecheck && bun run test
 ## 6. Documentation
 
 Update [`docs/integrations.md`](integrations.md) if you introduce new capabilities, registry helpers, or conventions future modules should follow.
+
+## Inbound chat (optional)
+
+For chat-category integrations that should respond to @mentions or DMs while the daemon runs:
+
+1. Add `src/integrations/<id>/inbound.ts` implementing `ChatInboundProvider` from [`src/chat-inbound/types.ts`](../src/chat-inbound/types.ts):
+   - `start(ctx)` — long-lived connection; call `ctx.emit(normalizedEvent)` for each user message.
+   - `deliverReply` / `deliverAskUser` — post back to the same channel/thread.
+   - Optional `buildInboundPersonaAppendix`, `matchesAskUserReply`.
+2. Set `chatInbound` on your `IntegrationModule` export.
+3. Document your `external_key` format (stable per channel+thread).
+4. Store transport credentials via existing configure descriptors; use `integrations.<id>.inboundEnabled` in config for the toggle.
+
+Core routing, session mapping, and headless turns live in [`src/chat-inbound/`](../src/chat-inbound/) and [`src/chat-pipeline/headless-session.ts`](../src/chat-pipeline/headless-session.ts). See [`docs/chat-inbound.md`](chat-inbound.md).
+
+**Slack** is the reference implementation: [`src/integrations/slack/inbound.ts`](../src/integrations/slack/inbound.ts).

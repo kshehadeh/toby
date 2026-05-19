@@ -11,6 +11,8 @@ Human- and agent-oriented docs for this repository.
 | [apple-calendar.md](apple-calendar.md) | macOS Apple Calendar integration (Calendar.app, EventKit search, AppleScript CRUD). |
 | [create-integration.md](create-integration.md) | Checklist for adding a new integration. |
 | [chat-pipeline.md](chat-pipeline.md) | `toby chat` turn flow plus tool-result caching behavior. |
+| [daemon.md](daemon.md) | Background daemon: schedules, chat inbound (@mentions), `daemon.log`. |
+| [chat-inbound.md](chat-inbound.md) | Inbound provider contract, external sessions, extending to new chat platforms. |
 | [ai-caching.md](ai-caching.md) | Provider prompt caching adapters, stable cache keys, and token telemetry. |
 | [slash-commands.md](slash-commands.md) | `toby chat` slash-command registry and how to add new commands. |
 | [ui.md](ui.md) | Shared Ink UI components, visual conventions, and shortcut conventions. |

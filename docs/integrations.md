@@ -30,6 +30,7 @@ Extends `Integration` with optional **capabilities** and **hooks**:
 | `chat?(options)` | Run the shared `chat` command: tool-calling AI for a user-supplied instruction (`ChatRunOptions`). |
 | `createChatTools?(params)` | Provide tools + action accumulator for the shared turn runner (`runSharedChatTurn` in `src/chat-pipeline/run-turn.ts`). |
 | `registerCommands?(program)` | Attach Commander subcommands (e.g. Gmail’s `gmail fetch`, `gmail organize`). |
+| `chatInbound?` | Long-lived inbound listener for the daemon (`ChatInboundProvider`); maps external channel+thread to chat sessions. See [`chat-inbound.md`](chat-inbound.md). |
 
 Types such as `IntegrationModule` and `IntegrationCapability` are exported from [`types.ts`](../src/integrations/types.ts). Import them from there when you need them in implementation code; the barrel [`index.ts`](../src/integrations/index.ts) exposes runtime registry functions.
 
@@ -57,7 +58,7 @@ Each integration typically owns:
 
 **Gmail** and **Todoist** under [`src/integrations/gmail/`](../src/integrations/gmail/) and [`src/integrations/todoist/`](../src/integrations/todoist/) are the reference implementations.
 
-**Slack** ([`src/integrations/slack/`](../src/integrations/slack/)) is the **Chat** provider category integration: OAuth (PKCE + user scopes on localhost) or manual bot token auth, with chat tools to search channels/users, post messages, reply in threads, and search message history. For a classic bot token (`xoxb-…`), use manual bot token auth in configure.
+**Slack** ([`src/integrations/slack/`](../src/integrations/slack/)) is the **Chat** provider category integration: OAuth (PKCE + user scopes on localhost) or manual bot token auth, with chat tools to search channels/users, post messages, reply in threads, and search message history. **Daemon inbound** (@mentions via Socket Mode) always requires a **bot token** (`xoxb-…`) and **app token** (`xapp-…`) in addition to OAuth user credentials—see [help-site Slack credentials](../help-site/docs/integrations/slack.md#credentials-and-auth-reference).
 
 **Apple Mail** ([`src/integrations/applemail/`](../src/integrations/applemail/)) is **macOS-only**: it controls the local Mail.app via AppleScript for chat tools (`searchEmails`, `createDraft`, `updateDraft`). See [`apple-mail.md`](apple-mail.md) for setup, permissions, and limitations.
 

@@ -15,7 +15,8 @@ src/
     todoist/
   config/                # Read/write ~/.toby/config.json and credentials.json
   ai/                    # Shared AI helpers (chat, providers) — not integration-specific
-  chat-pipeline/         # Shared turn runner, tool cache, chat event types
+  chat-pipeline/         # Shared turn runner, tool cache, chat event types, headless sessions
+  chat-inbound/          # Provider-agnostic daemon inbound router (integrations implement chatInbound)
   personas/              # Named personas (model + instructions) used by AI flows
   ui/configure/          # Ink/React TUI for `toby configure`
   ui/chat/               # Ink TUI for `toby chat` when no prompt is passed on the CLI
@@ -43,6 +44,8 @@ src/
 | `~/.toby/config.json` | Integration connection flags, personas |
 | `~/.toby/credentials.json` | API keys, OAuth client secrets, OpenAI token |
 | `~/.toby/chat.sqlite` | Chat session storage (sessions, messages, transcript) |
+| `~/.toby/toby.log` | JSON-lines chat session log (turns, tools, prep) |
+| `~/.toby/daemon.log` | JSON-lines daemon log (scheduler, inbound chat, Slack Socket Mode) |
 
 Access is centralized in [`src/config/index.ts`](../src/config/index.ts). Integration modules should not hardcode paths; use the config helpers.
 
