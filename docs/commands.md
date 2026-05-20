@@ -46,6 +46,22 @@ Examples:
 
 The CLI also includes shared commands such as `connect`, `disconnect`, `status`, `summarize`, `organize`, `chat`, `sessions`, and `upgrade`.
 
+### `toby upgrade`
+
+Download and install the latest release binary (macOS/Linux). Options:
+
+- `--download-only` — stage the release under `~/.toby/staging` without replacing the live binary
+- `--apply-staged` — install a previously staged download
+
+### Chat slash commands: `/upgrade` and `/restart`
+
+Inside the chat TUI:
+
+- `/upgrade` — download the latest release to staging (shows progress in the input footer)
+- `/restart` — exit and relaunch with the same launch arguments; applies a staged upgrade first when running a compiled binary
+
+After upgrading, restart the schedule daemon separately if it is running (`toby daemon restart` or `/stop-daemon` then `/start-daemon`).
+
 ## Default command
 
 When no subcommand is provided, `toby` defaults to `chat`. This means:

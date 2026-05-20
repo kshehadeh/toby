@@ -3,35 +3,54 @@ import {
 	clearToolResultCache,
 	setCachedToolResult,
 } from "../src/chat-pipeline/tool-result-cache";
+import { captureLaunchContext } from "../src/toby-launch-context";
 import {
 	SLASH_COMMANDS,
 	getNearestSlashCommand,
 	resolveSlashSubmission,
 } from "../src/ui/chat/slash-commands";
+import { restartSlashCommand } from "../src/ui/chat/slash-commands/restart";
+import * as handoffSpawn from "../src/upgrade/handoff-spawn";
+import * as upgradeModule from "../src/upgrade/index";
+
+function mockRuntime(overrides: Record<string, unknown> = {}) {
+	return {
+		exit: vi.fn(),
+		openHelp: vi.fn(),
+		openIntegrationPicker: vi.fn(),
+		openConfig: vi.fn(),
+		openSkills: vi.fn(),
+		openSchedules: vi.fn(),
+		openPersonaPicker: vi.fn(),
+		openPersonaConfigure: vi.fn(),
+		startNewSession: vi.fn(),
+		openSessionsPicker: vi.fn(),
+		chatIntegrationsCount: 0,
+		launchContext: captureLaunchContext(["chat"]),
+		addMetaLine: vi.fn(),
+		setUpgradeStatus: vi.fn(),
+		getActivePlan: vi.fn(() => null),
+		skipPlanPhase: vi.fn(),
+		cancelPlan: vi.fn(),
+		...overrides,
+	};
+}
 
 describe("slash commands", () => {
 	it("resolves /clear-tool-cache and clears cached entries", () => {
 		clearToolResultCache();
 		setCachedToolResult("listLabels", {}, { labels: [{ id: "1" }] });
-		const addMetaLine = vi.fn();
+		const runtime = mockRuntime();
 		const result = resolveSlashSubmission("/clear-tool-cache", null);
 		expect(result.kind).toBe("execute");
 		if (result.kind !== "execute" || !result.command) {
 			throw new Error("expected execute result");
 		}
-		result.command.run({
-			exit: vi.fn(),
-			openHelp: vi.fn(),
-			openIntegrationPicker: vi.fn(),
-			openConfig: vi.fn(),
-			openPersonaPicker: vi.fn(),
-			openPersonaConfigure: vi.fn(),
-			startNewSession: vi.fn(),
-			openSessionsPicker: vi.fn(),
-			chatIntegrationsCount: 0,
-			addMetaLine,
-		});
-		expect(addMetaLine).toHaveBeenCalledWith("Cleared tool cache (1 entry).");
+		runtime.addMetaLine = vi.fn();
+		result.command.run(runtime);
+		expect(runtime.addMetaLine).toHaveBeenCalledWith(
+			"Cleared tool cache (1 entry).",
+		);
 	});
 
 	it("includes clear-tool-cache in slash command list", () => {
@@ -40,27 +59,42 @@ describe("slash commands", () => {
 		);
 	});
 
+	it("includes /upgrade and /restart commands", () => {
+		expect(SLASH_COMMANDS.some((c) => c.command === "/upgrade")).toBe(true);
+		expect(SLASH_COMMANDS.some((c) => c.command === "/restart")).toBe(true);
+	});
+
 	it("includes /persona and opens the picker", () => {
 		expect(SLASH_COMMANDS.some((c) => c.command === "/persona")).toBe(true);
 		const openPersonaPicker = vi.fn();
+		const runtime = mockRuntime({ openPersonaPicker });
 		const result = resolveSlashSubmission("/persona", null);
 		expect(result.kind).toBe("execute");
 		if (result.kind !== "execute" || !result.command) {
 			throw new Error("expected execute result");
 		}
-		result.command.run({
-			exit: vi.fn(),
-			openHelp: vi.fn(),
-			openIntegrationPicker: vi.fn(),
-			openConfig: vi.fn(),
-			openPersonaPicker,
-			openPersonaConfigure: vi.fn(),
-			startNewSession: vi.fn(),
-			openSessionsPicker: vi.fn(),
-			chatIntegrationsCount: 0,
-			addMetaLine: vi.fn(),
-		});
+		result.command.run(runtime);
 		expect(openPersonaPicker).toHaveBeenCalledTimes(1);
+	});
+
+	it("restart exits after spawning handoff", async () => {
+		const spawnSpy = vi
+			.spyOn(handoffSpawn, "spawnUpgradeHandoff")
+			.mockImplementation(() => undefined);
+		const manifestSpy = vi
+			.spyOn(upgradeModule, "readStagingManifest")
+			.mockResolvedValue(null);
+		const exit = vi.fn();
+		const runtime = mockRuntime({ exit });
+
+		await restartSlashCommand.run(runtime);
+
+		expect(spawnSpy).toHaveBeenCalledTimes(1);
+		expect(runtime.addMetaLine).toHaveBeenCalledWith("Restarting…");
+		expect(exit).toHaveBeenCalledTimes(1);
+
+		spawnSpy.mockRestore();
+		manifestSpy.mockRestore();
 	});
 
 	it("finds the nearest slash command for partial input", () => {
