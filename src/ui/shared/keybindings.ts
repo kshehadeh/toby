@@ -54,6 +54,8 @@ export function isSaveKey(input: string, _key: InputKey): boolean {
 export const UI_HINTS = {
 	confirm: "y/Enter confirm · n/Esc cancel",
 	selectCancel: "↑↓ choose · Enter select · Esc cancel",
+	selectFilter:
+		"Type to filter · ↑↓ choose · Enter select · Backspace clear · Esc cancel",
 	list: "↑↓ navigate · Enter select · q close",
 	detail: "↑↓ navigate · Enter select · b/Backspace back · q close",
 	navigator: "↑↓ navigate · Enter select · b/Backspace back · q save and close",
