@@ -47,6 +47,11 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
 			"mistral/mistral-medium",
 			"deepseek/deepseek-v3.2",
 			"xai/grok-4-fast-reasoning",
+			"zai/glm-5.1",
+			"zai/glm-4.7",
+			"zai/glm-4.7-flash",
+			"moonshotai/kimi-k2.6",
+			"moonshotai/kimi-k2.5",
 		],
 	},
 ];
