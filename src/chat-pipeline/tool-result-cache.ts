@@ -32,6 +32,7 @@ const READ_ONLY_CHAT_TOOLS = new Set<string>([
 	"getUser",
 	"getUserManager",
 	"getUserDirectReports",
+	"loadLocalSkillInstructions",
 ]);
 
 function stableSerialize(value: unknown): string {

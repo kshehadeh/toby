@@ -202,6 +202,32 @@ function registerBuiltInToolFeedbackFormatters(): void {
 		return defaultToolFeedbackOutput(ctx);
 	});
 
+	registerToolFeedbackFormatter("loadLocalSkillInstructions", (ctx) => {
+		const r = ctx.result as {
+			ok?: boolean;
+			loaded?: Array<{ name?: unknown }>;
+			missingNames?: unknown[];
+			error?: string;
+		} | null;
+		if (r?.ok !== true || !Array.isArray(r.loaded) || r.loaded.length === 0) {
+			if (typeof r?.error === "string" && r.error.trim().length > 0) {
+				return sanitizeOneLine(`No skills loaded: ${r.error}`);
+			}
+			return "No skills loaded.";
+		}
+		const names = r.loaded
+			.map((s) => (typeof s?.name === "string" ? s.name.trim() : ""))
+			.filter((n) => n.length > 0);
+		const listed = names.slice(0, 4).join(", ");
+		const more =
+			names.length > 4 ? ` (+${names.length - 4} more)` : "";
+		const missing =
+			Array.isArray(r.missingNames) && r.missingNames.length > 0
+				? ` Missing: ${r.missingNames.length}.`
+				: "";
+		return `Loaded skills: ${listed}${more}.${missing}`;
+	});
+
 	// Memory tools
 	registerToolFeedbackFormatter("memorySearch", (ctx) => {
 		const r = ctx.result as {

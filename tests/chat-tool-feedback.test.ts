@@ -90,6 +90,20 @@ describe("tool feedback registry", () => {
 			}),
 		).toBe("hello");
 	});
+
+	it("summarizes loaded local skills", () => {
+		expect(
+			formatToolFeedbackOutput({
+				toolName: "loadLocalSkillInstructions",
+				args: { names: ["a", "b", "c"] },
+				result: {
+					ok: true,
+					loaded: [{ name: "alpha" }, { name: "beta" }],
+					missingNames: [],
+				},
+			}),
+		).toBe("Loaded skills: alpha, beta.");
+	});
 });
 
 describe("transcript persistence for tool rows", () => {

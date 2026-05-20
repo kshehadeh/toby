@@ -4,8 +4,11 @@ import { Output, type Tool, generateText, tool, zodSchema } from "ai";
 import { z } from "zod";
 import { type Persona, ensureTobyDir, getSkillsDir } from "../config/index";
 import {
+	formatSkillsCatalogForPrompt,
+	loadLocalSkills,
 	parseSkillFileContent,
 	parseSkillFrontmatterAndBody,
+	resolveSkillsByNames,
 } from "../skills/index";
 import { createModelForPersona } from "./chat";
 
@@ -48,9 +51,11 @@ type GlobalChatToolsContext = {
 
 /** Explains global tools for integration system prompts. */
 export function globalChatToolsPromptSection(): string {
+	const skillsCatalog = formatSkillsCatalogForPrompt(loadLocalSkills());
 	return `
 Global Toby tools (always available in addition to integration tools):
 - **createLocalSkill**: Draft a SKILL.md from your written description and save it under ~/.toby/skills/<folder>/SKILL.md. Required: \`description\`. Optional: \`preferredFolderName\` (kebab-case). If the folder name is omitted, the drafting step recommends one; if that folder already exists and no preferred name was given, a numeric suffix is used. If the user supplied \`preferredFolderName\` and SKILL.md already exists there, the tool fails so nothing is overwritten.
+- **loadLocalSkillInstructions**: Load full SKILL.md instruction bodies for one or more local skills by exact name.
 - **memorySearch**: Search the user's stored personal memories (preferences, relationships, projects, facts, etc.).
 - **memoryPropose**: Propose saving a new memory. High-confidence normal preferences are auto-saved; sensitive or low-confidence items stay pending until confirmed with **memorySave**.
 - **memorySave**: Confirm a pending memory proposal.
@@ -64,6 +69,14 @@ Memory rules:
 - Use **memorySearch** when you need to look up something specific the user previously mentioned.
 - Use **memoryForget** when the user asks to remove a memory.
 - Use **memoryExplain** when the user asks why you know something.
+
+Local skill routing:
+- First, use the descriptions below to decide if a local skill is relevant.
+- If relevant, call **loadLocalSkillInstructions** with exact skill names before finalizing the answer.
+- Only load skills that are clearly applicable; do not load unrelated skills "just in case".
+
+Available local skills (name + description):
+${skillsCatalog}
 `;
 }
 
@@ -136,6 +149,47 @@ export function createGlobalChatTools(
 	ctx: GlobalChatToolsContext,
 ): Record<string, Tool> {
 	return {
+		loadLocalSkillInstructions: tool({
+			description:
+				"Load full local SKILL.md instruction bodies by exact skill name. Use this after reviewing available skill descriptions in the prompt when a skill appears relevant to the user's request.",
+			inputSchema: z.object({
+				names: z
+					.array(z.string().min(1))
+					.min(1)
+					.max(5)
+					.describe(
+						"Exact local skill names to load (as listed in available local skills)",
+					),
+			}),
+			execute: async ({ names }) => {
+				const all = loadLocalSkills();
+				const wanted = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
+				const resolved = resolveSkillsByNames(all, wanted);
+				const resolvedByLower = new Set(
+					resolved.map((s) => s.name.trim().toLowerCase()),
+				);
+				const missing = wanted.filter(
+					(n) => !resolvedByLower.has(n.trim().toLowerCase()),
+				);
+				if (resolved.length === 0) {
+					return {
+						ok: false as const,
+						error: "No matching local skills were found for the requested names.",
+						requested: wanted,
+						availableSkillNames: all.map((s) => s.name),
+					};
+				}
+				return {
+					ok: true as const,
+					loaded: resolved.map((s) => ({
+						name: s.name,
+						description: s.description,
+						bodyMarkdown: s.bodyMarkdown,
+					})),
+					missingNames: missing,
+				};
+			},
+		}),
 		createLocalSkill: tool({
 			description:
 				"Create a new Toby skill: drafts a SKILL.md (frontmatter + body) from a description and saves it under ~/.toby/skills/<folder>/SKILL.md. Use when the user wants reusable assistant instructions as a local skill.",
