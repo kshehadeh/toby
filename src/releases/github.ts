@@ -1,5 +1,3 @@
-import { spawnSync } from "node:child_process";
-
 export const DEFAULT_TOBY_GITHUB_REPO = "kshehadeh/toby";
 
 interface ReleaseResponse {
@@ -10,7 +8,6 @@ export function resolveTobyGitHubRepo(optionRepo?: string): string {
 	return (
 		optionRepo?.trim() ||
 		process.env.TOBY_REPO?.trim() ||
-		detectRepoFromGitRemote() ||
 		DEFAULT_TOBY_GITHUB_REPO
 	);
 }
@@ -40,38 +37,4 @@ export async function fetchLatestReleaseTag(repo: string): Promise<string> {
 		throw new Error(`Could not determine latest release tag for ${repo}.`);
 	}
 	return tag;
-}
-
-function detectRepoFromGitRemote(): string | null {
-	const rootResult = spawnSync("git", ["rev-parse", "--show-toplevel"], {
-		encoding: "utf8",
-	});
-	if (rootResult.status !== 0) {
-		return null;
-	}
-	const root = rootResult.stdout.trim();
-	if (!root) {
-		return null;
-	}
-
-	const remoteResult = spawnSync(
-		"git",
-		["-C", root, "config", "--get", "remote.origin.url"],
-		{ encoding: "utf8" },
-	);
-	if (remoteResult.status !== 0) {
-		return null;
-	}
-
-	return parseGitHubRepo(remoteResult.stdout.trim());
-}
-
-function parseGitHubRepo(remoteUrl: string): string | null {
-	if (remoteUrl.startsWith("git@github.com:")) {
-		return remoteUrl.replace("git@github.com:", "").replace(/\.git$/, "");
-	}
-	if (remoteUrl.startsWith("https://github.com/")) {
-		return remoteUrl.replace("https://github.com/", "").replace(/\.git$/, "");
-	}
-	return null;
 }
