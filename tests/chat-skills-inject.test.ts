@@ -74,6 +74,19 @@ describe("injectSkillBodiesIntoFirstSystemMessage", () => {
 		);
 		expect(out).toEqual(messages);
 	});
+
+	it("removes a prior appendix when no skills resolve", () => {
+		const messages: CoreMessage[] = [
+			{
+				role: "system",
+				content: `Base.${SKILL_INSTRUCTIONS_APPENDIX_START}### Skill: old\n\nold body`,
+			},
+			{ role: "user", content: "u" },
+		];
+		const out = injectSkillBodiesIntoFirstSystemMessage(messages, [], []);
+		expect(out[0]?.content).toBe("Base.");
+		expect((out[0]?.content as string).includes("old body")).toBe(false);
+	});
 });
 
 describe("stripSkillInstructionsAppendix", () => {

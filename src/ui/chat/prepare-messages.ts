@@ -39,9 +39,17 @@ export function injectSkillBodiesIntoFirstSystemMessage(
 	if (messages.length === 0) {
 		return [...messages];
 	}
+	const first = messages[0];
+	if (!first || first.role !== "system" || typeof first.content !== "string") {
+		return [...messages];
+	}
+	const base = stripSkillInstructionsAppendix(first.content);
 	const resolved = resolveSkillsByNames(allSkills, selectedSkillNames);
 	if (resolved.length === 0) {
-		return [...messages];
+		if (base === first.content) {
+			return [...messages];
+		}
+		return messages.map((m, i) => (i === 0 ? { ...m, content: base } : m));
 	}
 
 	const blocks = resolved
@@ -49,17 +57,7 @@ export function injectSkillBodiesIntoFirstSystemMessage(
 		.join("\n\n---\n\n");
 	const appendix = `${SKILL_INSTRUCTIONS_APPENDIX_START}${blocks}`;
 
-	return messages.map((m, i) => {
-		if (i !== 0 || m.role !== "system") {
-			return m;
-		}
-		const { content } = m;
-		if (typeof content !== "string") {
-			return m;
-		}
-		const base = stripSkillInstructionsAppendix(content);
-		return { ...m, content: base + appendix };
-	});
+	return messages.map((m, i) => (i === 0 ? { ...m, content: base + appendix } : m));
 }
 
 function buildDefaultProvidersSection(): string {
