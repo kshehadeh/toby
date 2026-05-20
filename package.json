@@ -1,6 +1,6 @@
 {
 	"name": "toby",
-	"version": "0.10.2",
+	"version": "0.10.3",
 	"description": "CLI-based tool for managing your life — email, calendar, todos, and more",
 	"type": "module",
 	"bin": {
