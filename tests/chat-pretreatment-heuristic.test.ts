@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CoreMessage } from "../src/ai/chat";
 import {
+	isFirstTurnPretreatmentEnabled,
 	isPretreatmentDisabled,
 	shouldPretreat,
 	wrapUserPromptWithPretreatment,
@@ -8,9 +9,31 @@ import {
 import * as sessionStore from "../src/ui/chat/session-store";
 
 describe("shouldPretreat", () => {
-	it("returns true on first turn when not disabled", () => {
-		expect(shouldPretreat([], "hello world", true)).toBe(true);
-		expect(shouldPretreat([], "  ", true)).toBe(false);
+	it("returns false on first turn by default", () => {
+		const prev = process.env.TOBY_PRETREAT_FIRST_TURN;
+		process.env.TOBY_PRETREAT_FIRST_TURN = undefined;
+		try {
+			expect(shouldPretreat([], "hello world", true)).toBe(false);
+			expect(shouldPretreat([], "  ", true)).toBe(false);
+		} finally {
+			if (prev !== undefined) {
+				process.env.TOBY_PRETREAT_FIRST_TURN = prev;
+			}
+		}
+	});
+
+	it("returns true on first turn when TOBY_PRETREAT_FIRST_TURN=1", () => {
+		const prev = process.env.TOBY_PRETREAT_FIRST_TURN;
+		process.env.TOBY_PRETREAT_FIRST_TURN = "1";
+		try {
+			expect(shouldPretreat([], "hello world", true)).toBe(true);
+		} finally {
+			if (prev === undefined) {
+				process.env.TOBY_PRETREAT_FIRST_TURN = undefined;
+			} else {
+				process.env.TOBY_PRETREAT_FIRST_TURN = prev;
+			}
+		}
 	});
 
 	it("returns false when pretreatment is disabled", () => {
@@ -90,10 +113,18 @@ describe("wrapUserPromptWithPretreatment", () => {
 	});
 
 	it("uses cached pretreatment when available (no OpenAI token needed)", async () => {
+		const prevFirstTurn = process.env.TOBY_PRETREAT_FIRST_TURN;
+		process.env.TOBY_PRETREAT_FIRST_TURN = "1";
 		// Pretreatment cache is only read when `globalThis.Bun` exists (see canUsePretreatmentCache).
 		const g = globalThis as { Bun?: unknown };
 		const prevBun = g.Bun;
-		g.Bun = prevBun ?? {};
+		if (prevBun === undefined) {
+			Object.defineProperty(g, "Bun", {
+				value: {},
+				configurable: true,
+				writable: true,
+			});
+		}
 
 		const getSpy = vi
 			.spyOn(sessionStore, "getPretreatmentCache")
@@ -123,18 +154,29 @@ describe("wrapUserPromptWithPretreatment", () => {
 		} finally {
 			getSpy.mockRestore();
 			setSpy.mockRestore();
-			if (prevBun === undefined) {
-				g.Bun = undefined;
+			if (prevFirstTurn === undefined) {
+				process.env.TOBY_PRETREAT_FIRST_TURN = undefined;
 			} else {
-				g.Bun = prevBun;
+				process.env.TOBY_PRETREAT_FIRST_TURN = prevFirstTurn;
+			}
+			if (prevBun === undefined) {
+				delete (g as { Bun?: unknown }).Bun;
 			}
 		}
 	});
 
 	it("merges skill heuristic on cache hit when cached spec has empty relevantSkills", async () => {
+		const prevFirstTurn = process.env.TOBY_PRETREAT_FIRST_TURN;
+		process.env.TOBY_PRETREAT_FIRST_TURN = "1";
 		const g = globalThis as { Bun?: unknown };
 		const prevBun = g.Bun;
-		g.Bun = prevBun ?? {};
+		if (prevBun === undefined) {
+			Object.defineProperty(g, "Bun", {
+				value: {},
+				configurable: true,
+				writable: true,
+			});
+		}
 
 		const getSpy = vi
 			.spyOn(sessionStore, "getPretreatmentCache")
@@ -173,10 +215,13 @@ describe("wrapUserPromptWithPretreatment", () => {
 		} finally {
 			getSpy.mockRestore();
 			setSpy.mockRestore();
-			if (prevBun === undefined) {
-				g.Bun = undefined;
+			if (prevFirstTurn === undefined) {
+				process.env.TOBY_PRETREAT_FIRST_TURN = undefined;
 			} else {
-				g.Bun = prevBun;
+				process.env.TOBY_PRETREAT_FIRST_TURN = prevFirstTurn;
+			}
+			if (prevBun === undefined) {
+				delete (g as { Bun?: unknown }).Bun;
 			}
 		}
 	});
@@ -193,6 +238,22 @@ describe("isPretreatmentDisabled", () => {
 				process.env.TOBY_DISABLE_PRETREATMENT = undefined;
 			} else {
 				process.env.TOBY_DISABLE_PRETREATMENT = prev;
+			}
+		}
+	});
+});
+
+describe("isFirstTurnPretreatmentEnabled", () => {
+	it("reflects TOBY_PRETREAT_FIRST_TURN", () => {
+		const prev = process.env.TOBY_PRETREAT_FIRST_TURN;
+		process.env.TOBY_PRETREAT_FIRST_TURN = "1";
+		try {
+			expect(isFirstTurnPretreatmentEnabled()).toBe(true);
+		} finally {
+			if (prev === undefined) {
+				process.env.TOBY_PRETREAT_FIRST_TURN = undefined;
+			} else {
+				process.env.TOBY_PRETREAT_FIRST_TURN = prev;
 			}
 		}
 	});

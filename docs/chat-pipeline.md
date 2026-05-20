@@ -47,7 +47,7 @@ Where this is implemented:
 
 Before the main model turn, `ChatSessionApp` may run a **small, fast** LLM call that extracts a structured intent spec (goal, must/must-not, assumptions, open questions, likely integrations, **relevant local skills**) and **prepends** it to the `role: "user"` content sent to the main model. The Ink transcript still shows the **verbatim** user line.
 
-- **When**: first user prompt in a session always; later prompts only when `[shouldPretreat](../src/ai/pretreatment.ts)` flags the text as ambiguous (short follow-ups, pronouns without a recent assistant reply, multi-clause requests, etc.).
+- **When**: optional on first user prompt (`TOBY_PRETREAT_FIRST_TURN=1`); later prompts when `[shouldPretreat](../src/ai/pretreatment.ts)` flags the text as ambiguous (short follow-ups, pronouns without a recent assistant reply, multi-clause requests, etc.).
 - **Provider**: uses the active persona’s AI provider (OpenAI direct or Vercel AI Gateway via [`model-factory.ts`](../src/ai/model-factory.ts)).
 - **Model**: defaults to `gpt-4.1-mini` for OpenAI, or `openai/gpt-4.1-mini` for Vercel gateway. Override with `TOBY_PRETREAT_MODEL` (bare id for OpenAI, or a full `provider/model` slug for gateway). Disable entirely with `TOBY_DISABLE_PRETREATMENT=1`.
 - **Debug**: `TOBY_DEBUG_PREP=1` adjusts the **prompt preparation** transcript box detail when a spec was attached (no separate `meta` line).
@@ -61,12 +61,22 @@ Before the main model turn, `ChatSessionApp` may run a **small, fast** LLM call 
 
 ## Local skills (optional)
 
-Markdown skills in `~/.toby/skills/<skill-folder>/SKILL.md` use YAML frontmatter with at least `name` and `description`. When pretreatment runs, the small model may set `relevantSkills` to exact names from that catalog. For each turn:
+Markdown skills in `~/.toby/skills/<skill-folder>/SKILL.md` use YAML frontmatter with at least `name` and `description`.
 
-- The **user** message includes a short “Selected skills” summary (names + descriptions).
-- The **system** message gains an appendix with the full markdown body of each selected skill (replacing any prior appendix from an earlier turn).
+There are now two ways skills get into model context:
 
-If pretreatment is skipped (`shouldPretreat` false) or disabled (`TOBY_DISABLE_PRETREATMENT=1`), no skills are selected automatically.
+1. **On-demand tool loading (default path)**:
+   - The global prompt includes a compact local skills catalog (`name: description`).
+   - The model can call global tool `loadLocalSkillInstructions` with exact names to fetch full `SKILL.md` bodies mid-turn without user intervention.
+2. **Pretreatment-selected skills (optional preflight path)**:
+   - When pretreatment runs, it may set `relevantSkills` from that catalog.
+
+For each turn:
+
+- The **user** message includes a short “Selected skills” summary (names + descriptions) only when pretreatment selected them.
+- The **system** message gains an appendix with the full markdown body of each selected skill (replacing any prior appendix from an earlier turn) only when pretreatment selected them.
+
+If pretreatment is skipped (`shouldPretreat` false) or disabled (`TOBY_DISABLE_PRETREATMENT=1`), skill routing can still happen via `loadLocalSkillInstructions`.
 
 To author a new skill from chat, the global tool **`createLocalSkill`** (see [`src/ai/global-chat-tools.ts`](../src/ai/global-chat-tools.ts)) drafts a full `SKILL.md` with the persona model and saves it under `~/.toby/skills/`.
 

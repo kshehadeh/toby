@@ -103,6 +103,11 @@ export function isPretreatmentDisabled(): boolean {
 	return process.env.TOBY_DISABLE_PRETREATMENT === "1";
 }
 
+/** Whether pretreatment should run unconditionally on the first turn. */
+export function isFirstTurnPretreatmentEnabled(): boolean {
+	return process.env.TOBY_PRETREAT_FIRST_TURN === "1";
+}
+
 /** True when the latest non-system message is from the assistant (follow-up has recent context). */
 function conversationEndsWithAssistant(
 	messages: readonly CoreMessage[],
@@ -134,7 +139,7 @@ export function shouldPretreat(
 		return false;
 	}
 	if (isFirstTurn) {
-		return true;
+		return isFirstTurnPretreatmentEnabled();
 	}
 	const msgs = messages ?? [];
 	if (t.length < 22) {
