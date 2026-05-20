@@ -2,6 +2,10 @@ import { render } from "ink";
 import React from "react";
 import type { Persona } from "../../config/index";
 import type { IntegrationModule } from "../../integrations/types";
+import {
+	type LaunchContext,
+	captureLaunchContext,
+} from "../../toby-launch-context";
 import { detectTerminalProfile, resolveKittyKeyboardMode } from "../shared";
 import { ChatSessionApp } from "./chat-session-app";
 import {
@@ -15,7 +19,9 @@ export async function runChatSessionInk(params: {
 	readonly dryRun: boolean;
 	readonly initialUserPrompt: string;
 	readonly debug?: boolean;
+	readonly launchContext?: LaunchContext;
 }): Promise<void> {
+	const launchContext = params.launchContext ?? captureLaunchContext();
 	const profile = detectTerminalProfile();
 	const instance = render(
 		<ChatSessionApp
@@ -24,6 +30,7 @@ export async function runChatSessionInk(params: {
 			dryRun={params.dryRun}
 			debug={params.debug ?? false}
 			initialUserPrompt={params.initialUserPrompt}
+			launchContext={launchContext}
 		/>,
 		{
 			kittyKeyboard: {

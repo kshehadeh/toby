@@ -14,8 +14,24 @@ import {
 } from "../../shared/terminal-profile";
 import { ACCENT, ACCENT_MODEL, ACCENT_PROVIDER } from "../constants";
 import type { SlashCommand } from "../slash-commands";
+import type { UpgradeUiStatus } from "../slash-commands/types";
 import type { TobyUpdateInfo } from "../use-update-check";
 import { formatUpdateStatusLine } from "../use-update-check";
+
+function formatUpgradeUiStatusLine(status: UpgradeUiStatus): string | null {
+	switch (status.status) {
+		case "downloading":
+			return status.progress !== null
+				? `Downloading upgrade… ${status.progress}%`
+				: "Downloading upgrade…";
+		case "ready":
+			return `Upgrade ready: v${status.version} · /restart to apply`;
+		case "error":
+			return `Upgrade failed: ${status.message}`;
+		default:
+			return null;
+	}
+}
 
 function getModelContextWindow(model: string): number | null {
 	const m = model.toLowerCase().trim();
@@ -73,6 +89,7 @@ type ChatInputDockProps = {
 	readonly daemonRunning: boolean;
 	readonly recentPrompts?: readonly string[];
 	readonly updateAvailable?: TobyUpdateInfo | null;
+	readonly upgradeUiStatus?: UpgradeUiStatus;
 	readonly onShowKeyboardShortcuts?: () => void;
 };
 
@@ -95,6 +112,7 @@ export function ChatInputDock(props: ChatInputDockProps) {
 		daemonRunning,
 		recentPrompts = [],
 		updateAvailable = null,
+		upgradeUiStatus = { status: "idle" },
 		onShowKeyboardShortcuts,
 	} = props;
 
@@ -111,6 +129,7 @@ export function ChatInputDock(props: ChatInputDockProps) {
 	const updateStatusLine = updateAvailable
 		? formatUpdateStatusLine(updateAvailable)
 		: null;
+	const upgradeStatusLine = formatUpgradeUiStatusLine(upgradeUiStatus);
 
 	return (
 		<Box marginTop={0} flexShrink={0} flexDirection="column" width={termCols}>
@@ -146,7 +165,12 @@ export function ChatInputDock(props: ChatInputDockProps) {
 			<Box marginTop={0} paddingX={1}>
 				<Text dimColor wrap="truncate-end">
 					Type / to see commands
-					{updateStatusLine ? (
+					{upgradeStatusLine ? (
+						<>
+							{" · "}
+							<Text color={ACCENT}>{upgradeStatusLine}</Text>
+						</>
+					) : updateStatusLine ? (
 						<>
 							{" · "}
 							<Text color={ACCENT}>{updateStatusLine}</Text>

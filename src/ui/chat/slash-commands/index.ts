@@ -7,6 +7,7 @@ import { logSlashCommand } from "./log";
 import { newSlashCommand } from "./new";
 import { personaSlashCommand } from "./persona";
 import { planSlashCommand } from "./plan";
+import { restartSlashCommand } from "./restart";
 import { schedulesSlashCommand } from "./schedules";
 import { sessionsSlashCommand } from "./sessions";
 import { skillsSlashCommand } from "./skills";
@@ -14,6 +15,7 @@ import { startDaemonSlashCommand } from "./start-daemon";
 import { stopDaemonSlashCommand } from "./stop-daemon";
 import { terminalSlashCommand } from "./terminal";
 import type { SlashCommand } from "./types";
+import { upgradeSlashCommand } from "./upgrade";
 
 interface SlashCommandResolution {
 	readonly kind: "none" | "execute" | "unknown";
@@ -37,6 +39,8 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
 	startDaemonSlashCommand,
 	stopDaemonSlashCommand,
 	terminalSlashCommand,
+	upgradeSlashCommand,
+	restartSlashCommand,
 	exitSlashCommand,
 ];
 

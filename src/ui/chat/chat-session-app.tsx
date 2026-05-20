@@ -62,6 +62,7 @@ import {
 } from "../../planning/index";
 import { isDaemonRunning } from "../../schedules/daemon-status";
 import { loadLocalSkills } from "../../skills/index";
+import type { LaunchContext } from "../../toby-launch-context";
 import { ConfigureApp } from "../configure/App";
 import {
 	createConfigureSession,
@@ -108,6 +109,7 @@ import {
 	getSlashSuggestions,
 	resolveSlashSubmission,
 } from "./slash-commands";
+import type { UpgradeUiStatus } from "./slash-commands/types";
 import { getToolDisplayLabel } from "./tool-labels";
 import { flattenTranscript } from "./transcript-layout";
 import type { AskModal, DisplayRow, TranscriptEntry } from "./types";
@@ -125,6 +127,7 @@ interface ChatSessionAppProps {
 	readonly dryRun: boolean;
 	readonly debug: boolean;
 	readonly initialUserPrompt: string;
+	readonly launchContext: LaunchContext;
 }
 
 interface MultiPickerState {
@@ -246,6 +249,7 @@ export function ChatSessionApp({
 	dryRun,
 	debug,
 	initialUserPrompt,
+	launchContext,
 }: ChatSessionAppProps) {
 	const { exit } = useApp();
 	const { columns } = useWindowSize();
@@ -282,6 +286,9 @@ export function ChatSessionApp({
 	const [showHelp, setShowHelp] = useState(false);
 	const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
 	const updateAvailable = useUpdateCheck({ enabled: !dryRun });
+	const [upgradeUiStatus, setUpgradeUiStatus] = useState<UpgradeUiStatus>({
+		status: "idle",
+	});
 	const [showConfig, setShowConfig] = useState(false);
 	const [showSkills, setShowSkills] = useState(false);
 	const [showSchedules, setShowSchedules] = useState(false);
@@ -1368,9 +1375,11 @@ export function ChatSessionApp({
 							});
 						},
 						chatIntegrationsCount: chatIntegrations.length,
+						launchContext,
 						addMetaLine: (text) => {
 							setTranscript((t) => [...t, { kind: "meta", text }]);
 						},
+						setUpgradeStatus: setUpgradeUiStatus,
 						getActivePlan: () => activePlanRef.current,
 						skipPlanPhase: (planId: string, phaseId: string) => {
 							skipPhase(planId, phaseId);
@@ -1540,6 +1549,7 @@ export function ChatSessionApp({
 			chatIntegrations.length,
 			debug,
 			exit,
+			launchContext,
 			openIntegrationPicker,
 			openPersonaEditorAtPath,
 			openPersonaPickerModal,
@@ -2196,6 +2206,7 @@ export function ChatSessionApp({
 				daemonRunning={daemonRunning}
 				recentPrompts={recentPrompts}
 				updateAvailable={updateAvailable}
+				upgradeUiStatus={upgradeUiStatus}
 				onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
 			/>
 		</Box>

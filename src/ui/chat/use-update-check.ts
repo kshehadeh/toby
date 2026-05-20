@@ -18,7 +18,7 @@ export type TobyUpdateInfo = {
 };
 
 export function formatUpdateStatusLine(info: TobyUpdateInfo): string {
-	return `Update available: v${info.latestVersion} · run toby upgrade`;
+	return `Update available: v${info.latestVersion} · /upgrade`;
 }
 
 type UseUpdateCheckOptions = {
