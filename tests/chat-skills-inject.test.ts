@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CoreMessage } from "../src/ai/chat";
 import {
 	SKILL_INSTRUCTIONS_APPENDIX_START,
+	injectCurrentDateTimeIntoFirstSystemMessage,
 	injectSkillBodiesIntoFirstSystemMessage,
 	stripSkillInstructionsAppendix,
 } from "../src/ui/chat/prepare-messages";
@@ -93,5 +94,32 @@ describe("stripSkillInstructionsAppendix", () => {
 	it("removes content after the appendix marker", () => {
 		const raw = `Hello${SKILL_INSTRUCTIONS_APPENDIX_START}### Skill: x\n\ntail`;
 		expect(stripSkillInstructionsAppendix(raw)).toBe("Hello");
+	});
+});
+
+describe("injectCurrentDateTimeIntoFirstSystemMessage", () => {
+	it("adds current datetime block to first system message", () => {
+		const messages: CoreMessage[] = [
+			{ role: "system", content: "Base system." },
+			{ role: "user", content: "Hi" },
+		];
+		const out = injectCurrentDateTimeIntoFirstSystemMessage(messages);
+		const content = out[0]?.content as string;
+		expect(content).toContain("## Current date and time");
+		expect(content).toContain("Local datetime:");
+		expect(content).toContain("Timezone:");
+		expect(content).toContain("UTC datetime:");
+		expect(content).toContain("Unix ms:");
+	});
+
+	it("replaces prior datetime block instead of duplicating it", () => {
+		const messages: CoreMessage[] = [
+			{ role: "system", content: "Base system." },
+			{ role: "user", content: "Hi" },
+		];
+		const first = injectCurrentDateTimeIntoFirstSystemMessage(messages);
+		const second = injectCurrentDateTimeIntoFirstSystemMessage(first);
+		const content = second[0]?.content as string;
+		expect((content.match(/## Current date and time/g) ?? []).length).toBe(1);
 	});
 });

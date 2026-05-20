@@ -14,6 +14,7 @@ import type { IntegrationModule } from "../integrations/types";
 import { log } from "../logging/chat-log";
 import { createMemoryTools } from "../memory/tools";
 import type { ChatEvent } from "./chat-events";
+import { injectCurrentDateTimeIntoFirstSystemMessage } from "../ui/chat/prepare-messages";
 
 type ChatTurnOptions = {
 	readonly persona: Persona;
@@ -132,7 +133,11 @@ export async function runSharedChatTurn(
 		persona: options.persona,
 		moduleNames,
 	};
-	const messagesForModel = applyChatMessageCaching(messages, cacheContext);
+	const messagesWithDateTime = injectCurrentDateTimeIntoFirstSystemMessage(messages);
+	const messagesForModel = applyChatMessageCaching(
+		messagesWithDateTime,
+		cacheContext,
+	);
 	const chatWithToolsOptions =
 		applyChatPromptCaching(options.chatWithToolsOptions, cacheContext) ?? {};
 	const onChatEvent = chatWithToolsOptions.onChatEvent;

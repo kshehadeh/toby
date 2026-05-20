@@ -14,10 +14,53 @@ import {
 import type { IntegrationModule } from "../../integrations/types";
 import { composeSystemPromptWithPersona } from "../../personas/prompt";
 import { type LocalSkill, resolveSkillsByNames } from "../../skills/index";
+import { getCurrentDateTimeInfo } from "../../ai/current-datetime";
 
 /** Marker appended to system prompts when preflight attaches full SKILL.md bodies. */
 export const SKILL_INSTRUCTIONS_APPENDIX_START =
 	"\n\n---\n\n## Attached skill instructions (preflight)\n\n";
+const CURRENT_DATETIME_START = "<!-- TOBY_DATETIME_START -->";
+const CURRENT_DATETIME_END = "<!-- TOBY_DATETIME_END -->";
+
+function buildCurrentDatetimeAppendix(): string {
+	const now = getCurrentDateTimeInfo();
+	return `\n\n${CURRENT_DATETIME_START}
+## Current date and time
+
+- Local datetime: ${now.localDateTime}
+- Timezone: ${now.timeZone}
+- UTC datetime: ${now.utcDateTime}
+- Unix ms: ${now.unixMs}
+${CURRENT_DATETIME_END}`;
+}
+
+function stripCurrentDatetimeAppendix(systemContent: string): string {
+	const pattern = new RegExp(
+		`\\n\\n${CURRENT_DATETIME_START}[\\s\\S]*?${CURRENT_DATETIME_END}`,
+		"g",
+	);
+	return systemContent.replace(pattern, "");
+}
+
+export function injectCurrentDateTimeIntoFirstSystemMessage(
+	messages: readonly CoreMessage[],
+): CoreMessage[] {
+	if (messages.length === 0) {
+		return [...messages];
+	}
+	const first = messages[0];
+	if (!first || first.role !== "system" || typeof first.content !== "string") {
+		return [...messages];
+	}
+	const withoutCurrentTime = stripCurrentDatetimeAppendix(first.content);
+	const nextSystem = `${withoutCurrentTime}${buildCurrentDatetimeAppendix()}`;
+	if (nextSystem === first.content) {
+		return [...messages];
+	}
+	const next = [...messages];
+	next[0] = { ...first, content: nextSystem };
+	return next;
+}
 
 export function stripSkillInstructionsAppendix(systemContent: string): string {
 	const idx = systemContent.indexOf(SKILL_INSTRUCTIONS_APPENDIX_START);
@@ -49,7 +92,9 @@ export function injectSkillBodiesIntoFirstSystemMessage(
 		if (base === first.content) {
 			return [...messages];
 		}
-		return messages.map((m, i) => (i === 0 ? { ...m, content: base } : m));
+		const next = [...messages];
+		next[0] = { ...first, content: base };
+		return next;
 	}
 
 	const blocks = resolved
@@ -57,7 +102,9 @@ export function injectSkillBodiesIntoFirstSystemMessage(
 		.join("\n\n---\n\n");
 	const appendix = `${SKILL_INSTRUCTIONS_APPENDIX_START}${blocks}`;
 
-	return messages.map((m, i) => (i === 0 ? { ...m, content: base + appendix } : m));
+	const next = [...messages];
+	next[0] = { ...first, content: base + appendix };
+	return next;
 }
 
 function buildDefaultProvidersSection(): string {
@@ -181,7 +228,7 @@ export async function prepareChatSessionMessages(
 			userPrompt,
 		);
 		await report(`${module.displayName} context ready.`);
-		return messages;
+		return injectCurrentDateTimeIntoFirstSystemMessage(messages);
 	}
 	await report("Loading integration context in parallel…");
 	const parts = await Promise.all(
@@ -209,13 +256,13 @@ export async function prepareChatSessionMessages(
 		persona,
 	);
 
-	return [
+	return injectCurrentDateTimeIntoFirstSystemMessage([
 		{ role: "system", content: systemContent },
 		{
 			role: "user",
 			content: parts.filter(Boolean).join("\n\n---\n\n"),
 		},
-	];
+	]);
 }
 
 function coreMessageUserText(message: CoreMessage | undefined): string {
@@ -278,7 +325,10 @@ export async function replaceSessionSystemMessageForPersona(
 				"replaceSessionSystemMessageForPersona: expected system message at index 0",
 			);
 		}
-		return [newSystem, ...messages.slice(1)];
+		return injectCurrentDateTimeIntoFirstSystemMessage([
+			newSystem,
+			...messages.slice(1),
+		]);
 	}
 
 	const systemContent = composeSystemPromptWithPersona(
@@ -286,7 +336,10 @@ export async function replaceSessionSystemMessageForPersona(
 		persona,
 	);
 
-	return [{ role: "system", content: systemContent }, ...messages.slice(1)];
+	return injectCurrentDateTimeIntoFirstSystemMessage([
+		{ role: "system", content: systemContent },
+		...messages.slice(1),
+	]);
 }
 
 /**

@@ -11,6 +11,7 @@ import {
 	resolveSkillsByNames,
 } from "../skills/index";
 import { createModelForPersona } from "./chat";
+import { getCurrentDateTimeInfo } from "./current-datetime";
 
 const SKILL_MD_BASENAME = "SKILL.md";
 
@@ -62,6 +63,7 @@ Global Toby tools (always available in addition to integration tools):
 - **memoryForget**: Delete a stored memory.
 - **memoryExplain**: Show why a memory exists (source and audit trail).
 - **memoryRetrieveForTask**: Retrieve memories relevant to the current task.
+- **getCurrentDateTime**: Return the current local/UTC date-time and timezone.
 
 Memory rules:
 - **Always** use **memoryPropose** when the user shares a durable preference, fact, or personal context worth remembering. Never skip this.
@@ -69,6 +71,10 @@ Memory rules:
 - Use **memorySearch** when you need to look up something specific the user previously mentioned.
 - Use **memoryForget** when the user asks to remove a memory.
 - Use **memoryExplain** when the user asks why you know something.
+
+Time/date rules:
+- Treat "today", "now", "this week", deadlines, and scheduling as time-sensitive requests.
+- For time-sensitive work, call **getCurrentDateTime** before finalizing your answer.
 
 Local skill routing:
 - First, use the descriptions below to decide if a local skill is relevant.
@@ -149,6 +155,14 @@ export function createGlobalChatTools(
 	ctx: GlobalChatToolsContext,
 ): Record<string, Tool> {
 	return {
+		getCurrentDateTime: tool({
+			description:
+				"Get the current local datetime, UTC datetime, timezone, and Unix milliseconds.",
+			inputSchema: z.object({}),
+			execute: async () => {
+				return getCurrentDateTimeInfo();
+			},
+		}),
 		loadLocalSkillInstructions: tool({
 			description:
 				"Load full local SKILL.md instruction bodies by exact skill name. Use this after reviewing available skill descriptions in the prompt when a skill appears relevant to the user's request.",
