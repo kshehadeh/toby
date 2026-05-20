@@ -7,16 +7,24 @@ export interface ViewFrameProps {
 	readonly title: string;
 	readonly children: React.ReactNode;
 	readonly footer?: React.ReactNode;
+	readonly subheader?: React.ReactNode;
 }
 
-export function ViewFrame({ title, children, footer }: ViewFrameProps) {
+export function ViewFrame({
+	title,
+	children,
+	footer,
+	subheader,
+}: ViewFrameProps) {
 	return (
 		<Box flexDirection="column" padding={1}>
 			<AppHeader
 				subheader={
-					<Text color={ACCENT} bold wrap="truncate-end">
-						{title}
-					</Text>
+					subheader ?? (
+						<Text color={ACCENT} bold wrap="truncate-end">
+							{title}
+						</Text>
+					)
 				}
 			/>
 			<Box

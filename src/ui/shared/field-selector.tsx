@@ -1,4 +1,5 @@
 import { Box, Text, useInput } from "ink";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { ACCENT } from "../chat/constants";
 import { UI_GLYPHS } from "./glyphs";
@@ -23,6 +24,7 @@ export interface FieldSelectorProps {
 	readonly options?: readonly string[];
 	readonly choices?: readonly SelectChoice[];
 	readonly currentValue?: string;
+	readonly subheader?: ReactNode;
 	readonly onSubmit: (value: string) => void;
 	readonly onCancel: () => void;
 }
@@ -33,6 +35,7 @@ export function FieldSelector({
 	options,
 	choices,
 	currentValue,
+	subheader,
 	onSubmit,
 	onCancel,
 }: FieldSelectorProps) {
@@ -71,6 +74,7 @@ export function FieldSelector({
 	return (
 		<ViewFrame
 			title={appTitle}
+			subheader={subheader}
 			footer={<Text dimColor>{UI_HINTS.selectCancel}</Text>}
 		>
 			<Box marginBottom={1} paddingX={1}>

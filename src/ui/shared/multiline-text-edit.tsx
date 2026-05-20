@@ -12,8 +12,8 @@ export interface MultilineTextEditProps
 	extends Omit<UseMultilineInputOptions, "active"> {
 	/** Whether the control has focus (drives both useInput and visual state). */
 	readonly focus: boolean;
-	/** Width of the outer box in terminal columns. */
-	readonly width: number;
+	/** Width of the outer box in terminal columns or percentage. */
+	readonly width: number | string;
 	/** Placeholder text shown when the input is empty. */
 	readonly placeholder?: string;
 	/** Color for the prompt symbol (e.g. ">"). */
@@ -61,7 +61,8 @@ export function MultilineTextEdit({
 	});
 
 	const placeholderText = placeholder ?? "";
-	const innerWidth = width - 2;
+	const innerWidth =
+		typeof width === "number" ? Math.max(1, width - 2) : undefined;
 
 	return (
 		<Box

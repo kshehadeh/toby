@@ -7,7 +7,7 @@ import {
 } from "../../../ai/caching";
 import { getAIProviderDisplayName } from "../../../ai/providers";
 import type { Persona } from "../../../config/index";
-import { MultilineTextEdit } from "../../shared";
+import { DaemonStatusLine, MultilineTextEdit } from "../../shared";
 import {
 	detectTerminalProfile,
 	inputModeLabel,
@@ -210,15 +210,10 @@ export function ChatInputDock(props: ChatInputDockProps) {
 					</Box>
 				</Box>
 				<Box flexShrink={0}>
-					<Text dimColor wrap="truncate-start">
-						{"Daemon "}
-						{daemonRunning ? (
-							<Text color="green">✔︎</Text>
-						) : (
-							<Text color="red">✗</Text>
-						)}
-						{tokenUsageStatus ? ` · ${tokenUsageStatus}` : ""}
-					</Text>
+					<DaemonStatusLine
+						daemonRunning={daemonRunning}
+						trailingText={tokenUsageStatus}
+					/>
 				</Box>
 			</Box>
 		</Box>

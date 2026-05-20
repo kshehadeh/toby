@@ -1,4 +1,5 @@
 import { Box, Text } from "ink";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { ACCENT } from "../chat/constants";
 import { MultilineTextEdit } from "./multiline-text-edit";
@@ -11,6 +12,7 @@ export interface FieldEditorProps {
 	readonly multiline?: boolean;
 	readonly masked?: boolean;
 	readonly placeholder?: string;
+	readonly subheader?: ReactNode;
 	readonly onSubmit: (value: string) => void;
 	readonly onCancel: () => void;
 }
@@ -22,6 +24,7 @@ export function FieldEditor({
 	multiline = false,
 	masked = false,
 	placeholder,
+	subheader,
 	onSubmit,
 	onCancel,
 }: FieldEditorProps) {
@@ -31,6 +34,7 @@ export function FieldEditor({
 	return (
 		<ViewFrame
 			title={appTitle}
+			subheader={subheader}
 			footer={
 				<Text dimColor>
 					{multiline
@@ -46,7 +50,7 @@ export function FieldEditor({
 			</Box>
 			<Box paddingX={1}>
 				<MultilineTextEdit
-					width={60}
+					width="100%"
 					value={value}
 					onChange={setValue}
 					onSubmit={(next) => {

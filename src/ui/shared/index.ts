@@ -47,6 +47,10 @@ export { ViewModal, type ViewModalProps } from "./view-modal";
 export { FieldEditor, type FieldEditorProps } from "./field-editor";
 export { FieldSelector, type FieldSelectorProps } from "./field-selector";
 export {
+	DaemonStatusLine,
+	type DaemonStatusLineProps,
+} from "./daemon-status-line";
+export {
 	FieldNavigator,
 	type FieldNavigatorItem,
 	type FieldNavigatorItemKind,

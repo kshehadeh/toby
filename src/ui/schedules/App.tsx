@@ -1,5 +1,5 @@
 import { Box, Text, render, useApp, useInput, useStdout } from "ink";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { listPersonas } from "../../personas/index";
 import {
 	cronToHuman,
@@ -14,6 +14,7 @@ import {
 	listSchedules,
 	updateSchedule,
 } from "../../schedules/store";
+import { isDaemonRunning } from "../../schedules/daemon-status";
 import type {
 	CreateScheduleParams,
 	Schedule,
@@ -23,6 +24,7 @@ import { ACCENT } from "../chat/constants";
 import {
 	ActionRow,
 	ConfirmDialog,
+	DaemonStatusLine,
 	FieldEditor,
 	FieldSelector,
 	NavigatorRow,
@@ -51,6 +53,26 @@ type Screen = "list" | "schedule" | "edit" | "select" | "confirm" | "runOutput";
 
 type EditField = "name" | "prompt" | "persona" | "cron";
 type SelectField = "enabled" | "persona";
+
+function schedulesSubheader(
+	daemonRunning: boolean,
+	activeScheduleCount: number,
+) {
+	const activeLabel = `${activeScheduleCount} active schedule${
+		activeScheduleCount === 1 ? "" : "s"
+	}`;
+	return (
+		<Box flexDirection="column" alignItems="center">
+			<Text bold color={ACCENT} wrap="truncate-end">
+				Schedules
+			</Text>
+			<DaemonStatusLine
+				daemonRunning={daemonRunning}
+				trailingText={activeLabel}
+			/>
+		</Box>
+	);
+}
 
 interface ScheduleFormState {
 	name: string;
@@ -82,6 +104,8 @@ function truncatePreview(text: string, max: number): string {
 interface ScheduleListProps {
 	schedules: Schedule[];
 	selectedIndex: number;
+	daemonRunning: boolean;
+	activeScheduleCount: number;
 	onSelect: (index: number) => void;
 	onSelectSchedule: (schedule: Schedule) => void;
 	onCreate: () => void;
@@ -91,6 +115,8 @@ interface ScheduleListProps {
 function ScheduleList({
 	schedules,
 	selectedIndex,
+	daemonRunning,
+	activeScheduleCount,
 	onSelect,
 	onSelectSchedule,
 	onCreate,
@@ -122,6 +148,7 @@ function ScheduleList({
 		return (
 			<ViewFrame
 				title="Schedules"
+				subheader={schedulesSubheader(daemonRunning, activeScheduleCount)}
 				footer={<Text dimColor>c create · q close</Text>}
 			>
 				<Box paddingX={1} paddingY={1}>
@@ -138,6 +165,7 @@ function ScheduleList({
 	return (
 		<ViewFrame
 			title="Schedules"
+			subheader={schedulesSubheader(daemonRunning, activeScheduleCount)}
 			footer={<Text dimColor>{UI_HINTS.list} · c create</Text>}
 		>
 			{schedules.map((schedule, i) => {
@@ -166,6 +194,8 @@ interface ScheduleBrowseProps {
 	breadcrumb: string[];
 	items: ScheduleBrowseItem[];
 	selectedIndex: number;
+	daemonRunning: boolean;
+	activeScheduleCount: number;
 	statusMessage?: string;
 	saving: boolean;
 	running: boolean;
@@ -181,6 +211,8 @@ function ScheduleBrowse({
 	breadcrumb,
 	items,
 	selectedIndex,
+	daemonRunning,
+	activeScheduleCount,
 	statusMessage,
 	saving,
 	running,
@@ -225,6 +257,7 @@ function ScheduleBrowse({
 	return (
 		<ViewFrame
 			title={title}
+			subheader={schedulesSubheader(daemonRunning, activeScheduleCount)}
 			footer={<Text dimColor>{UI_HINTS.fieldBrowse}</Text>}
 		>
 			<Box marginBottom={1} paddingX={1}>
@@ -491,9 +524,23 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 	const [saving, setSaving] = useState(false);
 	const [running, setRunning] = useState(false);
 	const [selectedRun, setSelectedRun] = useState<ScheduleRun | null>(null);
+	const [daemonRunning, setDaemonRunning] = useState(
+		() => isDaemonRunning().running,
+	);
+	const activeScheduleCount = useMemo(
+		() => schedules.filter((schedule) => schedule.enabled).length,
+		[schedules],
+	);
 
 	const personas = listPersonas();
 	const personaNames = useMemo(() => personas.map((p) => p.name), [personas]);
+
+	useEffect(() => {
+		const timer = setInterval(() => {
+			setDaemonRunning(isDaemonRunning().running);
+		}, 10_000);
+		return () => clearInterval(timer);
+	}, []);
 
 	const refreshSchedules = useCallback(() => {
 		setSchedules(listSchedules());
@@ -647,11 +694,29 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 				setForm((f) => ({ ...f, name: value }));
 			} else if (editField === "prompt") {
 				setForm((f) => ({ ...f, prompt: value }));
+				if (!isCreating && selectedSchedule) {
+					const updated = updateSchedule(selectedSchedule.id, { prompt: value });
+					if (updated) {
+						refreshSchedules();
+						setSelectedSchedule(updated);
+						setRuns(listScheduleRuns(updated.id, 10));
+						setForm({
+							name: updated.name,
+							prompt: updated.prompt,
+							personaName: updated.personaName,
+							cronExpression: updated.cronExpression,
+							enabled: updated.enabled,
+						});
+						setStatusMessage("Prompt saved.");
+					} else {
+						setStatusMessage("Failed to save prompt.");
+					}
+				}
 			}
 			setEditField(null);
 			setScreen("schedule");
 		},
-		[editField],
+		[editField, isCreating, refreshSchedules, selectedSchedule],
 	);
 
 	const handleSelectSubmit = useCallback(
@@ -802,6 +867,7 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 		return (
 			<FieldEditor
 				appTitle="Schedules"
+				subheader={schedulesSubheader(daemonRunning, activeScheduleCount)}
 				fieldLabel={labels[editField]}
 				value={current.value}
 				multiline={current.multiline}
@@ -824,6 +890,7 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 			return (
 				<FieldSelector
 					appTitle="Schedules"
+					subheader={schedulesSubheader(daemonRunning, activeScheduleCount)}
 					fieldLabel="Enabled"
 					options={["Yes", "No"]}
 					currentValue={form.enabled ? "Yes" : "No"}
@@ -838,6 +905,7 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 		return (
 			<FieldSelector
 				appTitle="Schedules"
+				subheader={schedulesSubheader(daemonRunning, activeScheduleCount)}
 				fieldLabel="Persona"
 				options={personaNames}
 				currentValue={form.personaName}
@@ -857,6 +925,8 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 				breadcrumb={breadcrumb}
 				items={browseItems}
 				selectedIndex={browseIndex}
+				daemonRunning={daemonRunning}
+				activeScheduleCount={activeScheduleCount}
 				statusMessage={statusMessage}
 				saving={saving}
 				running={running}
@@ -873,6 +943,8 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 		<ScheduleList
 			schedules={schedules}
 			selectedIndex={selectedIndex}
+			daemonRunning={daemonRunning}
+			activeScheduleCount={activeScheduleCount}
 			onSelect={setSelectedIndex}
 			onSelectSchedule={openSchedule}
 			onCreate={handleCreate}
