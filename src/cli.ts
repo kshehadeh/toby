@@ -5,6 +5,7 @@ import { registerConfigCommand } from "./commands/configure";
 import { registerConnectCommand } from "./commands/connect";
 import { registerDaemonCommand } from "./commands/daemon";
 import { registerDisconnectCommand } from "./commands/disconnect";
+import { registerInternalCommands } from "./commands/internal-handoff";
 import { registerSchedulesCommand } from "./commands/schedules";
 import { registerSessionsCommand } from "./commands/sessions";
 import { registerSkillsCommand } from "./commands/skills";
@@ -35,6 +36,7 @@ registerSessionsCommand(program);
 registerSkillsCommand(program);
 registerStatusCommand(program);
 registerUpgradeCommand(program);
+registerInternalCommands(program);
 registerChatCommand(program);
 
 const rawArgs = process.argv.slice(2);
