@@ -42,6 +42,10 @@ export function getDaemonLogPath(): string {
 	return path.join(resolveTobyDir(), "daemon.log");
 }
 
+export function getUpgradeLogPath(): string {
+	return path.join(resolveTobyDir(), "upgrade.log");
+}
+
 /** Local agent-style skills: `~/.toby/skills/<skill-name>/SKILL.md`. */
 export function getSkillsDir(): string {
 	return path.join(resolveTobyDir(), "skills");

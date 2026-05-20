@@ -1,6 +1,10 @@
 import type { StdioOptions } from "node:child_process";
 import fs from "node:fs";
-import { ensureTobyDir, getDaemonLogPath } from "./config/index";
+import {
+	ensureTobyDir,
+	getDaemonLogPath,
+	getUpgradeLogPath,
+} from "./config/index";
 
 const ENTRY_SCRIPT_EXTENSIONS = [".js", ".ts", ".mjs", ".cjs"] as const;
 
@@ -34,5 +38,15 @@ export function getTobyExecPath(): string {
 export function getDetachedDaemonSpawnStdio(): StdioOptions {
 	ensureTobyDir();
 	const logFd = fs.openSync(getDaemonLogPath(), "a");
+	return ["ignore", logFd, logFd];
+}
+
+/**
+ * stdio for detached upgrade handoff spawns.
+ * Same constraint as daemon: compiled Bun binaries hang with stdio "ignore".
+ */
+export function getDetachedUpgradeSpawnStdio(): StdioOptions {
+	ensureTobyDir();
+	const logFd = fs.openSync(getUpgradeLogPath(), "a");
 	return ["ignore", logFd, logFd];
 }
