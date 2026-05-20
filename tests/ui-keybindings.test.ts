@@ -32,8 +32,8 @@ describe("ui keybindings", () => {
 		it("matches upArrow", () => {
 			expect(isNavigateUp("", k({ upArrow: true }))).toBe(true);
 		});
-		it("matches k (vim)", () => {
-			expect(isNavigateUp("k", k())).toBe(true);
+		it("does not match k", () => {
+			expect(isNavigateUp("k", k())).toBe(false);
 		});
 		it("does not match plain j", () => {
 			expect(isNavigateUp("j", k())).toBe(false);
@@ -44,8 +44,8 @@ describe("ui keybindings", () => {
 		it("matches downArrow", () => {
 			expect(isNavigateDown("", k({ downArrow: true }))).toBe(true);
 		});
-		it("matches j (vim)", () => {
-			expect(isNavigateDown("j", k())).toBe(true);
+		it("does not match j", () => {
+			expect(isNavigateDown("j", k())).toBe(false);
 		});
 	});
 

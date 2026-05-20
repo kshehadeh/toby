@@ -48,7 +48,7 @@ Use the predicates in `src/ui/shared/keybindings.ts` so shortcuts stay discovera
 
 | Action | Shortcut |
 | --- | --- |
-| Navigate | `↑` / `↓` (also `j` / `k` where supported) |
+| Navigate | `↑` / `↓` |
 | Select / edit field | `Enter` |
 | Back | `b` / `Backspace` |
 | Close app | `q` |

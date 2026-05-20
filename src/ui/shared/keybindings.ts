@@ -15,12 +15,12 @@ export type InputKey = Pick<
 	| "upArrow"
 >;
 
-export function isNavigateUp(input: string, key: InputKey): boolean {
-	return key.upArrow || input === "k";
+export function isNavigateUp(_input: string, key: InputKey): boolean {
+	return key.upArrow;
 }
 
-export function isNavigateDown(input: string, key: InputKey): boolean {
-	return key.downArrow || input === "j";
+export function isNavigateDown(_input: string, key: InputKey): boolean {
+	return key.downArrow;
 }
 
 export function isSelectKey(_input: string, key: InputKey): boolean {
