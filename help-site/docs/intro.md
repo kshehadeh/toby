@@ -24,7 +24,7 @@ It combines:
 
 | Topic | Start here |
 | ----- | ---------- |
-| Install Toby and set up AI | [Install](./getting-started/install) → [Set up AI](./getting-started/setup-ai) |
+| Install Toby and set up AI | [Install](./getting-started/install) → [Set up AI](./getting-started/setup-ai) → [AI providers](./ai-providers/overview) |
 | Connect Gmail, Todoist, and more | [Configure & connect](./getting-started/configure-and-status) → [Integrations](./integrations/overview) |
 | Start chatting | [Your first chat](./getting-started/first-chat) |
 | Personas, skills, memories, schedules | [Personas](./personas) · [Skills](./skills) · [Memories](./memories) · [Schedules](./schedules) |
