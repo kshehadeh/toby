@@ -6,7 +6,7 @@
 #   ./install-toby.sh
 #
 # Environment:
-#   TOBY_REPO         GitHub repo as owner/name (default: kshehadeh/toby, or from git remote when run inside a clone)
+#   TOBY_REPO         GitHub repo as owner/name (default: kshehadeh/toby)
 #   TOBY_INSTALL_DIR  Directory for the binaries (default: $HOME/.local/bin)
 #   TOBY_VERSION      Exact tag to install, e.g. v0.2.0 (default: latest GitHub release)
 #   GITHUB_TOKEN      Optional; raises API rate limits when set
@@ -14,27 +14,7 @@
 set -euo pipefail
 
 default_repo="kshehadeh/toby"
-repo="${TOBY_REPO:-}"
-
-if [[ -z "$repo" ]] && git_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
-	remote_url="$(git -C "$git_root" config --get remote.origin.url 2>/dev/null || true)"
-	case "$remote_url" in
-	*github.com:*/*.git)
-		repo="${remote_url#*github.com:}"
-		repo="${repo%.git}"
-		;;
-	https://github.com/*/*.git)
-		repo="${remote_url#https://github.com/}"
-		repo="${repo%.git}"
-		;;
-	https://github.com/*/*)
-		repo="${remote_url#https://github.com/}"
-		repo="${repo%.git}"
-		;;
-	esac
-fi
-
-repo="${repo:-$default_repo}"
+repo="${TOBY_REPO:-$default_repo}"
 install_dir="${TOBY_INSTALL_DIR:-$HOME/.local/bin}"
 pinned_version="${TOBY_VERSION:-}"
 
