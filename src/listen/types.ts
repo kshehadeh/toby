@@ -18,6 +18,8 @@ export interface ListenRecordingFiles {
 	readonly mic?: string;
 	readonly system?: string;
 	readonly combined?: string;
+	readonly transcript?: string;
+	readonly transcriptJson?: string;
 }
 
 export interface ListenSession {

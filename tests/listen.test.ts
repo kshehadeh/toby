@@ -1,12 +1,19 @@
+import type { ChildProcessWithoutNullStreams } from "node:child_process";
+import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Command } from "commander";
-import { afterEach, describe, expect, it } from "vitest";
-import { registerListenCommand } from "../src/commands/listen";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+	applyTranscriptFilesToMetadata,
+	registerListenCommand,
+	resolveTranscriptionAudioInput,
+} from "../src/commands/listen";
 import {
 	parseAudioHelperEvent,
 	resolveAudioHelperPath,
+	waitForAudioHelperExit,
 } from "../src/listen/macos/audio-capture";
 import {
 	buildListenMetadata,
@@ -25,6 +32,22 @@ function tempDir(): string {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-listen-test-"));
 	tempDirs.push(dir);
 	return dir;
+}
+
+function fakeHelperChild(): ChildProcessWithoutNullStreams {
+	const child = new EventEmitter() as EventEmitter & {
+		exitCode: number | null;
+		killed: boolean;
+		kill: ReturnType<typeof vi.fn>;
+	};
+	child.exitCode = null;
+	child.killed = false;
+	child.kill = vi.fn(() => {
+		child.killed = true;
+		child.emit("exit", null, "SIGTERM");
+		return true;
+	});
+	return child as unknown as ChildProcessWithoutNullStreams;
 }
 
 afterEach(() => {
@@ -47,6 +70,21 @@ describe("listen command", () => {
 			"--system-only",
 		);
 		expect(listen?.options.map((option) => option.long)).toContain("--helper");
+	});
+
+	it("registers a retry transcription subcommand", () => {
+		const program = new Command();
+		registerListenCommand(program);
+
+		const listen = program.commands.find((cmd) => cmd.name() === "listen");
+		const transcribe = listen?.commands.find(
+			(cmd) => cmd.name() === "transcribe",
+		);
+
+		expect(transcribe).toBeDefined();
+		expect(transcribe?.options.map((option) => option.long)).toContain(
+			"--helper",
+		);
 	});
 });
 
@@ -164,6 +202,58 @@ describe("listen session storage", () => {
 		expect(saved.name).toBe("Team sync");
 		expect(saved.description).toBe("Notes from the weekly sync.");
 	});
+
+	it("resolves transcription input from metadata or folder fallback", () => {
+		const dir = tempDir();
+		const metadataCombined = path.join(dir, "from-metadata.m4a");
+		const fallbackCombined = path.join(dir, "combined.m4a");
+		fs.writeFileSync(metadataCombined, "");
+		fs.writeFileSync(fallbackCombined, "");
+
+		expect(
+			resolveTranscriptionAudioInput(dir, {
+				id: "rec",
+				createdAt: "2026-05-21T12:00:00Z",
+				startedAt: "2026-05-21T12:00:00Z",
+				sources: { mic: true, system: true },
+				files: { combined: metadataCombined },
+				platform: process.platform,
+			}),
+		).toBe(metadataCombined);
+
+		expect(
+			resolveTranscriptionAudioInput(dir, {
+				id: "rec",
+				createdAt: "2026-05-21T12:00:00Z",
+				startedAt: "2026-05-21T12:00:00Z",
+				sources: { mic: true, system: true },
+				files: { combined: path.join(dir, "missing.m4a") },
+				platform: process.platform,
+			}),
+		).toBe(fallbackCombined);
+	});
+
+	it("adds transcript files to recording metadata", () => {
+		const metadata = buildListenMetadata({
+			session: prepareListenSession({
+				recordingsDir: tempDir(),
+				id: "transcribed",
+				sources: { mic: true, system: true },
+			}),
+			files: { combined: "combined.m4a" },
+		});
+
+		const next = applyTranscriptFilesToMetadata(metadata, {
+			transcript: "transcript.txt",
+			transcriptJson: "transcript.json",
+		});
+
+		expect(next.files).toEqual({
+			combined: "combined.m4a",
+			transcript: "transcript.txt",
+			transcriptJson: "transcript.json",
+		});
+	});
 });
 
 describe("audio helper events", () => {
@@ -194,6 +284,33 @@ describe("audio helper events", () => {
 		});
 	});
 
+	it("parses transcript output file events", () => {
+		expect(
+			parseAudioHelperEvent(
+				'{"type":"transcribed","files":{"transcript":"transcript.txt","transcriptJson":"transcript.json"}}',
+			),
+		).toEqual({
+			type: "transcribed",
+			files: {
+				transcript: "transcript.txt",
+				transcriptJson: "transcript.json",
+			},
+		});
+	});
+
+	it("parses standalone combined output file events", () => {
+		expect(
+			parseAudioHelperEvent(
+				'{"type":"combined","files":{"combined":"combined.m4a"}}',
+			),
+		).toEqual({
+			type: "combined",
+			files: {
+				combined: "combined.m4a",
+			},
+		});
+	});
+
 	it("ignores malformed lines", () => {
 		expect(parseAudioHelperEvent("not json")).toBeNull();
 		expect(parseAudioHelperEvent('{"type":"unknown"}')).toBeNull();
@@ -203,5 +320,45 @@ describe("audio helper events", () => {
 		expect(resolveAudioHelperPath("/tmp/toby-audio-helper")).toBe(
 			"/tmp/toby-audio-helper",
 		);
+	});
+
+	it("waits for helper exit without a default timeout", async () => {
+		vi.useFakeTimers();
+		try {
+			const child = fakeHelperChild();
+			let resolved = false;
+			const wait = waitForAudioHelperExit(child).then(() => {
+				resolved = true;
+			});
+
+			vi.advanceTimersByTime(6_000);
+
+			expect(child.kill).not.toHaveBeenCalled();
+			expect(resolved).toBe(false);
+
+			child.exitCode = 0;
+			child.emit("exit", 0, null);
+			await wait;
+
+			expect(resolved).toBe(true);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it("kills the helper when an explicit timeout is provided", async () => {
+		vi.useFakeTimers();
+		try {
+			const child = fakeHelperChild();
+			const wait = waitForAudioHelperExit(child, 5_000);
+
+			vi.advanceTimersByTime(5_000);
+			await wait;
+
+			expect(child.kill).toHaveBeenCalledWith("SIGTERM");
+			expect(child.killed).toBe(true);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });

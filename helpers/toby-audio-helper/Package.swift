@@ -13,9 +13,21 @@ let package = Package(
 		.executableTarget(
 			name: "TobyAudioHelper",
 			path: "Sources/TobyAudioHelper",
+			exclude: ["Info.plist"],
 			linkerSettings: [
 				.linkedFramework("AVFoundation"),
 				.linkedFramework("ScreenCaptureKit"),
+				.linkedFramework("Speech"),
+				.unsafeFlags([
+					"-Xlinker",
+					"-sectcreate",
+					"-Xlinker",
+					"__TEXT",
+					"-Xlinker",
+					"__info_plist",
+					"-Xlinker",
+					"Sources/TobyAudioHelper/Info.plist",
+				]),
 			],
 		),
 	],

@@ -29,6 +29,14 @@ export type AudioHelperEvent =
 			readonly type: "stopped";
 			readonly files?: ListenRecordingFiles;
 			readonly durationMs?: number;
+	  }
+	| {
+			readonly type: "transcribed";
+			readonly files?: ListenRecordingFiles;
+	  }
+	| {
+			readonly type: "combined";
+			readonly files?: ListenRecordingFiles;
 	  };
 
 export interface AudioCaptureHandle {
@@ -40,6 +48,21 @@ export interface AudioCaptureHandle {
 
 export interface StartMacOSAudioCaptureOptions {
 	readonly session: ListenSession;
+	readonly helperPath?: string;
+	readonly onEvent?: (event: AudioHelperEvent) => void;
+}
+
+export interface TranscribeWithMacOSAudioHelperOptions {
+	readonly input: string;
+	readonly outDir: string;
+	readonly helperPath?: string;
+	readonly onEvent?: (event: AudioHelperEvent) => void;
+}
+
+export interface CombineWithMacOSAudioHelperOptions {
+	readonly outDir: string;
+	readonly mic?: string;
+	readonly system?: string;
 	readonly helperPath?: string;
 	readonly onEvent?: (event: AudioHelperEvent) => void;
 }
@@ -63,7 +86,10 @@ export function resolveAudioHelperPath(explicitPath?: string): string | null {
 	if (fromOption) return fromOption;
 	const fromEnv = process.env.TOBY_AUDIO_HELPER?.trim();
 	if (fromEnv) return fromEnv;
+	const executableDir = path.dirname(process.execPath);
 	const candidates = [
+		path.join(executableDir, "toby-listener"),
+		path.join(process.cwd(), "dist", "toby-listener"),
 		path.join(process.cwd(), "dist", "toby-audio-helper"),
 		path.join(
 			process.cwd(),
@@ -95,6 +121,8 @@ export function parseAudioHelperEvent(line: string): AudioHelperEvent | null {
 			case "permission":
 			case "error":
 			case "stopped":
+			case "transcribed":
+			case "combined":
 				return parsed as AudioHelperEvent;
 			default:
 				return null;
@@ -112,16 +140,19 @@ function helperArgs(session: ListenSession): string[] {
 	return args;
 }
 
-export function startMacOSAudioCapture(
-	options: StartMacOSAudioCaptureOptions,
-): AudioCaptureHandle {
-	if (!isMacOSListenSupported()) {
-		throw new ListenCaptureError(
-			"unsupported_platform",
-			"`toby listen` audio capture is currently supported on macOS only.",
-		);
-	}
-	const helperPath = resolveAudioHelperPath(options.helperPath);
+function transcribeArgs(input: string, outDir: string): string[] {
+	return ["transcribe", "--input", input, "--out-dir", outDir];
+}
+
+function combineArgs(options: CombineWithMacOSAudioHelperOptions): string[] {
+	const args = ["combine", "--out-dir", options.outDir];
+	if (options.mic) args.push("--mic", options.mic);
+	if (options.system) args.push("--system", options.system);
+	return args;
+}
+
+function requireAudioHelperPath(explicitPath?: string): string {
+	const helperPath = resolveAudioHelperPath(explicitPath);
 	if (!helperPath) {
 		throw new ListenCaptureError(
 			"helper_missing",
@@ -134,6 +165,19 @@ export function startMacOSAudioCapture(
 			`Audio helper does not exist at ${helperPath}.`,
 		);
 	}
+	return helperPath;
+}
+
+export function startMacOSAudioCapture(
+	options: StartMacOSAudioCaptureOptions,
+): AudioCaptureHandle {
+	if (!isMacOSListenSupported()) {
+		throw new ListenCaptureError(
+			"unsupported_platform",
+			"`toby listen` audio capture is currently supported on macOS only.",
+		);
+	}
+	const helperPath = requireAudioHelperPath(options.helperPath);
 
 	const child = spawn(helperPath, helperArgs(options.session), {
 		stdio: ["pipe", "pipe", "pipe"],
@@ -175,22 +219,143 @@ export function startMacOSAudioCapture(
 	};
 }
 
+export function transcribeWithMacOSAudioHelper(
+	options: TranscribeWithMacOSAudioHelperOptions,
+): Promise<ListenRecordingFiles> {
+	if (!isMacOSListenSupported()) {
+		throw new ListenCaptureError(
+			"unsupported_platform",
+			"`toby listen transcribe` is currently supported on macOS only.",
+		);
+	}
+	const helperPath = requireAudioHelperPath(options.helperPath);
+	const child = spawn(
+		helperPath,
+		transcribeArgs(options.input, options.outDir),
+		{
+			stdio: ["ignore", "pipe", "pipe"],
+		},
+	);
+
+	return new Promise((resolve, reject) => {
+		let stdoutBuffer = "";
+		let files: ListenRecordingFiles = {};
+		const errors: string[] = [];
+		child.stdout.on("data", (chunk) => {
+			stdoutBuffer += chunk.toString("utf8");
+			const lines = stdoutBuffer.split(/\r?\n/);
+			stdoutBuffer = lines.pop() ?? "";
+			for (const line of lines) {
+				const event = parseAudioHelperEvent(line);
+				if (!event) continue;
+				options.onEvent?.(event);
+				if ("files" in event && event.files) {
+					files = { ...files, ...event.files };
+				}
+				if (event.type === "error") {
+					errors.push(event.message);
+				}
+			}
+		});
+		child.stderr.on("data", (chunk) => {
+			const message = chunk.toString("utf8").trim();
+			if (message) {
+				options.onEvent?.({ type: "status", message });
+			}
+		});
+		child.on("error", reject);
+		child.on("exit", (code) => {
+			if (code === 0) {
+				resolve(files);
+				return;
+			}
+			reject(
+				new ListenCaptureError(
+					"transcribe_failed",
+					errors.at(-1) ??
+						`Audio helper exited with status ${code ?? "unknown"}.`,
+				),
+			);
+		});
+	});
+}
+
+export function combineWithMacOSAudioHelper(
+	options: CombineWithMacOSAudioHelperOptions,
+): Promise<ListenRecordingFiles> {
+	if (!isMacOSListenSupported()) {
+		throw new ListenCaptureError(
+			"unsupported_platform",
+			"`toby listen transcribe` is currently supported on macOS only.",
+		);
+	}
+	const helperPath = requireAudioHelperPath(options.helperPath);
+	const child = spawn(helperPath, combineArgs(options), {
+		stdio: ["ignore", "pipe", "pipe"],
+	});
+
+	return new Promise((resolve, reject) => {
+		let stdoutBuffer = "";
+		let files: ListenRecordingFiles = {};
+		const errors: string[] = [];
+		child.stdout.on("data", (chunk) => {
+			stdoutBuffer += chunk.toString("utf8");
+			const lines = stdoutBuffer.split(/\r?\n/);
+			stdoutBuffer = lines.pop() ?? "";
+			for (const line of lines) {
+				const event = parseAudioHelperEvent(line);
+				if (!event) continue;
+				options.onEvent?.(event);
+				if ("files" in event && event.files) {
+					files = { ...files, ...event.files };
+				}
+				if (event.type === "error") {
+					errors.push(event.message);
+				}
+			}
+		});
+		child.stderr.on("data", (chunk) => {
+			const message = chunk.toString("utf8").trim();
+			if (message) {
+				options.onEvent?.({ type: "status", message });
+			}
+		});
+		child.on("error", reject);
+		child.on("exit", (code) => {
+			if (code === 0) {
+				resolve(files);
+				return;
+			}
+			reject(
+				new ListenCaptureError(
+					"combine_failed",
+					errors.at(-1) ??
+						`Audio helper exited with status ${code ?? "unknown"}.`,
+				),
+			);
+		});
+	});
+}
+
 export function waitForAudioHelperExit(
 	child: ChildProcessWithoutNullStreams,
-	timeoutMs = 5_000,
+	timeoutMs?: number,
 ): Promise<void> {
 	if (child.exitCode !== null || child.killed) {
 		return Promise.resolve();
 	}
 	return new Promise((resolve) => {
-		const timeout = setTimeout(() => {
-			if (!child.killed) {
-				child.kill("SIGTERM");
-			}
-			resolve();
-		}, timeoutMs);
+		const timeout =
+			timeoutMs === undefined
+				? undefined
+				: setTimeout(() => {
+						if (!child.killed) {
+							child.kill("SIGTERM");
+						}
+						resolve();
+					}, timeoutMs);
 		child.once("exit", () => {
-			clearTimeout(timeout);
+			if (timeout) clearTimeout(timeout);
 			resolve();
 		});
 	});

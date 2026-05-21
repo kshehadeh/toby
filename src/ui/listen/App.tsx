@@ -391,7 +391,10 @@ export function ListenApp({
 			try {
 				await handle?.stop(action);
 				if (handle) {
-					await waitForAudioHelperExit(handle.child);
+					await waitForAudioHelperExit(
+						handle.child,
+						action === "discard" ? 5_000 : undefined,
+					);
 				}
 				handleRef.current = null;
 				if (action === "discard") {
