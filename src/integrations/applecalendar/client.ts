@@ -15,6 +15,21 @@ export function isAppleCalendarPlatformSupported(): boolean {
  * but does NOT understand ISO 8601 like "2026-05-12".
  */
 export function normalizeToAppleScriptDate(input: string): string {
+	const months = [
+		"January",
+		"February",
+		"March",
+		"April",
+		"May",
+		"June",
+		"July",
+		"August",
+		"September",
+		"October",
+		"November",
+		"December",
+	];
+
 	// If it already looks like a natural language date (contains month name letters),
 	// pass through. ISO 8601 strings like "2026-05-12T09:00:00" contain "T" but
 	// should NOT be treated as natural language.
@@ -22,34 +37,29 @@ export function normalizeToAppleScriptDate(input: string): string {
 		return input;
 	}
 
+	const trimmed = input.trim();
+	const isoDateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+	if (isoDateOnly) {
+		const year = Number(isoDateOnly[1]);
+		const monthIndex = Number(isoDateOnly[2]) - 1;
+		const day = Number(isoDateOnly[3]);
+		return `${months[monthIndex] ?? "January"} ${day}, ${year}`;
+	}
+
+	const slashDateOnly = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(trimmed);
+	if (slashDateOnly) {
+		const monthIndex = Number(slashDateOnly[1]) - 1;
+		const day = Number(slashDateOnly[2]);
+		const year = Number(slashDateOnly[3]);
+		return `${months[monthIndex] ?? "January"} ${day}, ${year}`;
+	}
+
 	// Try ISO 8601 or numeric formats: 2026-05-12, 2026-05-12T09:00:00, 05/12/2026
 	const d = new Date(input);
 	if (!Number.isNaN(d.getTime())) {
-		const months = [
-			"January",
-			"February",
-			"March",
-			"April",
-			"May",
-			"June",
-			"July",
-			"August",
-			"September",
-			"October",
-			"November",
-			"December",
-		];
 		const month = months[d.getMonth()];
 		const day = d.getDate();
 		const year = d.getFullYear();
-
-		// ISO date-only (YYYY-MM-DD with no time component) — parse as date-only
-		const isIsoDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(input.trim());
-		// Slash date-only (M/D/YYYY or MM/DD/YYYY) — also treat as date-only
-		const isSlashDateOnly = /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(input.trim());
-		if (isIsoDateOnly || isSlashDateOnly) {
-			return `${month} ${day}, ${year}`;
-		}
 
 		const hours = d.getHours();
 		const minutes = d.getMinutes();
