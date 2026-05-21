@@ -67,6 +67,25 @@ The release workflow uses the same Apple Developer secrets as DevDash:
 - `APPLE_APP_SPECIFIC_PASSWORD` — app-specific password for notarization
 - `APPLE_TEAM_ID` — Apple Developer Team ID
 
+Create `CSC_LINK` by base64-encoding the Developer ID Application `.p12`:
+
+```bash
+base64 -i /path/to/developer-id-application.p12 | tr -d '\n' | pbcopy
+```
+
+`CSC_KEY_PASSWORD` is the password used when exporting that `.p12` from
+Keychain Access.
+
+Signing is optional for CI mechanics but required for browser-downloaded
+executables to pass Gatekeeper. If any of the five signing/notarization secrets
+are missing, the workflow skips signing and notarization and uploads an unsigned
+archive with a warning. Invalid non-empty credentials fail the release instead
+of silently publishing an unexpectedly unsigned build.
+
+Local `bun run build:executable` builds `dist/toby` and `dist/toby-listener`
+without signing. Use the GitHub release workflow for signed and notarized
+distribution artifacts.
+
 Ensure **Actions** permissions allow the default `GITHUB_TOKEN` to create releases for tag pushes (Repository → Settings → Actions → General → Workflow permissions → read and write).
 
 ### Shipping a release with release-it

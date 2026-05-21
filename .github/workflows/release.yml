@@ -50,7 +50,31 @@ jobs:
           helper_bin="$(swift build --show-bin-path -c release --arch ${{ matrix.swift_arch }} --package-path helpers/toby-audio-helper)/toby-audio-helper"
           cp "$helper_bin" dist/toby-listener
 
+      - name: Check signing configuration
+        id: signing
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          missing=()
+          [ -n "$CSC_LINK" ] || missing+=("CSC_LINK")
+          [ -n "$CSC_KEY_PASSWORD" ] || missing+=("CSC_KEY_PASSWORD")
+          [ -n "$APPLE_ID" ] || missing+=("APPLE_ID")
+          [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] || missing+=("APPLE_APP_SPECIFIC_PASSWORD")
+          [ -n "$APPLE_TEAM_ID" ] || missing+=("APPLE_TEAM_ID")
+          if [ "${#missing[@]}" -eq 0 ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Signing and notarization are enabled."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Skipping signing and notarization. Missing secrets: ${missing[*]}"
+          fi
+
       - name: Import Developer ID certificate
+        if: steps.signing.outputs.enabled == 'true'
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
@@ -67,6 +91,7 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$keychain_path"
 
       - name: Sign release binaries
+        if: steps.signing.outputs.enabled == 'true'
         run: |
           identity="$(security find-identity -v -p codesigning | awk -F '"' '/Developer ID Application/ { print $2; exit }')"
           if [ -z "$identity" ]; then
@@ -87,6 +112,7 @@ jobs:
           ditto -c -k --sequesterRsrc release-payload ${{ matrix.asset }}
 
       - name: Notarize release archive
+        if: steps.signing.outputs.enabled == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}

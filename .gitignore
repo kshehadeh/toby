@@ -8,3 +8,4 @@ help-site/.docusaurus/
 .factory/settings.json
 .vscode/settings.json
 helpers/toby-audio-helper/.build/
+.env

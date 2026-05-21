@@ -34,6 +34,17 @@ Each archive must contain:
 
 Do not add Linux release assets; this project is macOS-focused.
 
+Signed browser-safe releases require these GitHub Actions secrets:
+
+- `CSC_LINK` — base64-encoded Developer ID Application `.p12`
+- `CSC_KEY_PASSWORD` — certificate export password
+- `APPLE_ID` — Apple Developer account email
+- `APPLE_APP_SPECIFIC_PASSWORD` — notarization app-specific password
+- `APPLE_TEAM_ID` — Apple Developer Team ID
+
+If any signing secret is missing, CI skips signing/notarization and uploads an
+unsigned archive. Invalid non-empty credentials should fail the release.
+
 ## Preflight
 
 1. Inspect state:
