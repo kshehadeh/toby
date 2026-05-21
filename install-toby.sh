@@ -7,7 +7,7 @@
 #
 # Environment:
 #   TOBY_REPO         GitHub repo as owner/name (default: kshehadeh/toby, or from git remote when run inside a clone)
-#   TOBY_INSTALL_DIR  Directory for the binary (default: $HOME/.local/bin)
+#   TOBY_INSTALL_DIR  Directory for the binaries (default: $HOME/.local/bin)
 #   TOBY_VERSION      Exact tag to install, e.g. v0.2.0 (default: latest GitHub release)
 #   GITHUB_TOKEN      Optional; raises API rate limits when set
 
@@ -53,20 +53,16 @@ Darwin)
 	esac
 	;;
 Linux)
-	case "$arch" in
-	aarch64 | arm64) asset="toby-linux-arm64" ;;
-	x86_64) asset="toby-linux-x64" ;;
-	*)
-		echo "Unsupported Linux architecture: $arch (need aarch64/arm64 or x86_64)." >&2
-		exit 1
-		;;
-	esac
+	echo "Unsupported operating system: Linux. Toby releases are macOS-only." >&2
+	exit 1
 	;;
 *)
-	echo "Unsupported operating system: $os (this installer supports macOS and Linux only)." >&2
+	echo "Unsupported operating system: $os (this installer supports macOS only)." >&2
 	exit 1
 	;;
 esac
+
+asset="${asset}.tar.gz"
 
 api_latest="https://api.github.com/repos/${repo}/releases/latest"
 curl_common=(-fsSL)
@@ -96,16 +92,23 @@ cleanup() { rm -rf "$tmpdir"; }
 trap cleanup EXIT
 
 echo "Installing Toby ${tag} (${asset}) from ${repo}..."
-if ! curl -fsSL -o "${tmpdir}/toby" "$download_url"; then
+if ! curl -fsSL -o "${tmpdir}/toby.tar.gz" "$download_url"; then
 	echo "Download failed: ${download_url}" >&2
 	echo "Check that this release exists and includes ${asset}." >&2
 	exit 1
 fi
+tar -xzf "${tmpdir}/toby.tar.gz" -C "$tmpdir"
+if [[ ! -f "${tmpdir}/toby" || ! -f "${tmpdir}/toby-listener" ]]; then
+	echo "Release archive is missing toby or toby-listener." >&2
+	exit 1
+fi
 
-chmod +x "${tmpdir}/toby"
+chmod +x "${tmpdir}/toby" "${tmpdir}/toby-listener"
 mkdir -p "$install_dir"
 mv "${tmpdir}/toby" "${install_dir}/toby"
+mv "${tmpdir}/toby-listener" "${install_dir}/toby-listener"
 echo "Installed: ${install_dir}/toby"
+echo "Installed: ${install_dir}/toby-listener"
 
 if "${install_dir}/toby" --version >/dev/null 2>&1; then
 	echo "Verified: $("${install_dir}/toby" --version)"

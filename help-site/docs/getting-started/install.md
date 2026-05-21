@@ -9,9 +9,9 @@ You can install Toby with the install script, from a release binary, or from sou
 
 ## Option 1: Install script (recommended)
 
-The [install script](https://github.com/kshehadeh/toby/blob/main/install-toby.sh) downloads the latest release for your platform and installs it to `~/.local/bin/toby`. It does not require `sudo`.
+The [install script](https://github.com/kshehadeh/toby/blob/main/install-toby.sh) downloads the latest macOS release archive and installs `toby` plus the `toby-listener` helper to `~/.local/bin`. It does not require `sudo`.
 
-On **macOS** or **Linux**, run:
+On **macOS**, run:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kshehadeh/toby/main/install-toby.sh | bash
@@ -27,10 +27,8 @@ The script picks the right asset for your system:
 
 | Platform | Architecture | Release asset |
 | -------- | ------------ | ------------- |
-| macOS | Apple Silicon | `toby-darwin-arm64` |
-| macOS | Intel | `toby-darwin-x64` |
-| Linux | arm64 / aarch64 | `toby-linux-arm64` |
-| Linux | x86_64 | `toby-linux-x64` |
+| macOS | Apple Silicon | `toby-darwin-arm64.tar.gz` |
+| macOS | Intel | `toby-darwin-x64.tar.gz` |
 
 After it finishes, verify the install:
 
@@ -60,12 +58,13 @@ TOBY_INSTALL_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/ksheha
 If you prefer to download the binary yourself:
 
 1. Open the [Toby releases page](https://github.com/kshehadeh/toby/releases).
-2. Download the asset for your platform (see the table above).
-3. Move it onto your PATH and make it executable:
+2. Download the archive for your platform (see the table above).
+3. Extract it, then move both executables onto your PATH:
 
 ```bash
-chmod +x toby-darwin-arm64
-sudo mv toby-darwin-arm64 /usr/local/bin/toby
+tar -xzf toby-darwin-arm64.tar.gz
+chmod +x toby toby-listener
+sudo mv toby toby-listener /usr/local/bin/
 ```
 
 4. Verify the install:

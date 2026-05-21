@@ -1,13 +1,15 @@
 # Standalone executable (Bun)
 
-You can ship Toby as a **single native binary** (Bun runtime + bundled app) using:
+You can ship Toby as a macOS executable plus its listener helper using:
 
 ```bash
 bun install
 bun run build:executable
 ```
 
-The output is **`dist/toby`** (on Windows, use `--outfile ./dist/toby.exe`).
+The main executable output is **`dist/toby`**.
+The macOS listener helper is copied to **`dist/toby-listener`** and should be
+installed beside `toby`.
 
 ## Requirements
 
@@ -35,13 +37,14 @@ Importing **`yoga-wasm-web/asm` directly in Ink is not enough**: that subpath’
 
 ## Cross-compilation
 
-To build for another OS/arch from a machine that has Bun:
+Toby releases are macOS-only. To cross-compile just the Bun executable for
+another macOS architecture from a machine that has Bun:
 
 ```bash
-bun build ./src/cli.ts --compile --target=bun-linux-x64 --outfile ./dist/toby-linux
+bun build ./src/cli.ts --compile --target=bun-darwin-x64 --outfile ./dist/toby-darwin-x64
 ```
 
-See [Bun’s executable docs](https://bun.sh/docs/bundler/executables) for `--target` values (`bun-darwin-arm64`, `bun-windows-x64`, etc.).
+See [Bun’s executable docs](https://bun.sh/docs/bundler/executables) for `--target` values.
 
 ## `tsup` library build
 
@@ -51,8 +54,10 @@ See [Bun’s executable docs](https://bun.sh/docs/bundler/executables) for `--ta
 
 Pushing a **version tag** matching `v*` runs [`.github/workflows/release.yml`](../.github/workflows/release.yml):
 
-1. Matrix builds **four** standalone binaries: `toby-linux-x64`, `toby-linux-arm64`, `toby-darwin-arm64`, `toby-darwin-x64`.
-2. Creates a **GitHub Release** for that tag and uploads those files as release assets (via `softprops/action-gh-release`).
+1. Matrix builds **two** macOS archives: `toby-darwin-arm64.tar.gz` and
+   `toby-darwin-x64.tar.gz`.
+2. Each archive contains `toby` and `toby-listener`.
+3. Creates a **GitHub Release** for that tag and uploads those files as release assets (via `softprops/action-gh-release`).
 
 Ensure **Actions** permissions allow the default `GITHUB_TOKEN` to create releases for tag pushes (Repository → Settings → Actions → General → Workflow permissions → read and write).
 
@@ -72,7 +77,11 @@ Configuration is in [`.release-it.json`](../.release-it.json): publishing to the
 
 ### One-liner install (end users)
 
-From the repo root, [`install-toby.sh`](../install-toby.sh) downloads the **latest matching release asset** (`toby-darwin-*` / `toby-linux-*`) into **`~/.local/bin/toby`** (override with `TOBY_INSTALL_DIR`). It does not use `sudo`. If that directory is not on `PATH`, the script prints how to add it for zsh, bash, or fish.
+From the repo root, [`install-toby.sh`](../install-toby.sh) downloads the
+**latest matching macOS release archive** into **`~/.local/bin/toby`** and
+**`~/.local/bin/toby-listener`** (override with `TOBY_INSTALL_DIR`). It does not
+use `sudo`. If that directory is not on `PATH`, the script prints how to add it
+for zsh, bash, or fish.
 
 Example after the script is published on your default branch:
 

@@ -57,11 +57,16 @@ Options:
 - `--helper <path>` — path to the macOS audio helper (or set `TOBY_AUDIO_HELPER`)
 - `--out-dir <path>` — directory where recording folders are saved
 
+Subcommands:
+
+- `toby listen transcribe <folder>` — retry macOS Speech transcription for an
+  existing saved recording folder
+
 See [`listen.md`](listen.md) for helper protocol and macOS permission details.
 
 ### `toby upgrade`
 
-Download and install the latest release binary (macOS/Linux). Options:
+Download and install the latest macOS release archive. Options:
 
 - `--download-only` — stage the release under `~/.toby/staging` without replacing the live binary
 - `--apply-staged` — install a previously staged download

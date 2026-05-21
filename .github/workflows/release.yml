@@ -1,4 +1,4 @@
-# Build Bun standalone binaries and attach them to a GitHub Release when you push a version tag (e.g. v0.2.0).
+# Build macOS release archives and attach them to a GitHub Release when you push a version tag (e.g. v0.2.0).
 #
 # Prerequisites: default GITHUB_TOKEN with contents: write (enabled for tags on the repo).
 
@@ -18,18 +18,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            target: bun-linux-x64
-            asset: toby-linux-x64
-          - os: ubuntu-latest
-            target: bun-linux-arm64
-            asset: toby-linux-arm64
           - os: macos-latest
             target: bun-darwin-arm64
-            asset: toby-darwin-arm64
+            swift_arch: arm64
+            asset: toby-darwin-arm64.tar.gz
           - os: macos-latest
             target: bun-darwin-x64
-            asset: toby-darwin-x64
+            swift_arch: x86_64
+            asset: toby-darwin-x64.tar.gz
 
     runs-on: ${{ matrix.os }}
 
@@ -45,8 +41,18 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build standalone binary
-        run: bun build ./src/cli.ts --compile --target=${{ matrix.target }} --outfile ${{ matrix.asset }}
+      - name: Build Toby binary
+        run: mkdir -p dist && bun build ./src/cli.ts --compile --target=${{ matrix.target }} --outfile dist/toby
+
+      - name: Build listener helper
+        run: |
+          helper_bin="$(swift build --show-bin-path -c release --arch ${{ matrix.swift_arch }} --package-path helpers/toby-audio-helper)/toby-audio-helper"
+          cp "$helper_bin" dist/toby-listener
+
+      - name: Package release archive
+        run: |
+          chmod +x dist/toby dist/toby-listener
+          tar -czf ${{ matrix.asset }} -C dist toby toby-listener
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

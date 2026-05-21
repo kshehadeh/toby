@@ -22,6 +22,7 @@ export interface StagingManifest {
 	readonly asset: string;
 	readonly repo: string;
 	readonly installTarget: string;
+	readonly listenerInstallTarget?: string;
 	readonly completedAt: string;
 }
 
@@ -75,9 +76,18 @@ export function resolveInstallTarget(installDir?: string): string {
 	return path.join(resolveInstallDir(installDir), "toby");
 }
 
+export function resolveListenerInstallTarget(installDir?: string): string {
+	return path.join(
+		path.dirname(resolveInstallTarget(installDir)),
+		"toby-listener",
+	);
+}
+
 export function getStagingPaths(): {
 	readonly stagingDir: string;
 	readonly binaryPath: string;
+	readonly listenerPath: string;
+	readonly archivePath: string;
 	readonly manifestPath: string;
 	readonly lockPath: string;
 } {
@@ -85,6 +95,8 @@ export function getStagingPaths(): {
 	return {
 		stagingDir,
 		binaryPath: path.join(stagingDir, "toby"),
+		listenerPath: path.join(stagingDir, "toby-listener"),
+		archivePath: path.join(stagingDir, "toby-release.tar.gz"),
 		manifestPath: path.join(stagingDir, "manifest.json"),
 		lockPath: path.join(stagingDir, ".lock"),
 	};
@@ -106,20 +118,8 @@ export function resolveReleaseAsset(): string {
 		);
 	}
 
-	if (platform === "linux") {
-		if (architecture === "arm64") {
-			return "toby-linux-arm64";
-		}
-		if (architecture === "x64") {
-			return "toby-linux-x64";
-		}
-		throw new Error(
-			`Unsupported Linux architecture: ${architecture} (need arm64 or x64).`,
-		);
-	}
-
 	throw new Error(
-		`Unsupported operating system: ${platform} (macOS and Linux are supported).`,
+		`Unsupported operating system: ${platform} (macOS is supported).`,
 	);
 }
 
@@ -164,7 +164,10 @@ export async function downloadRelease(
 ): Promise<DownloadReleaseResult> {
 	const repo = resolveTobyGitHubRepo(options.repo);
 	const installTarget = resolveInstallTarget(options.installDir);
-	const asset = resolveReleaseAsset();
+	const listenerInstallTarget = resolveListenerInstallTarget(
+		options.installDir,
+	);
+	const asset = `${resolveReleaseAsset()}.tar.gz`;
 	const tag = options.tag?.trim() || (await fetchLatestReleaseTag(repo));
 	const version = normalizeReleaseVersion(tag);
 	const currentVersion = getTobyVersion();
@@ -174,25 +177,34 @@ export async function downloadRelease(
 	}
 
 	const downloadUrl = `https://github.com/${repo}/releases/download/${tag}/${asset}`;
-	const { stagingDir, binaryPath, manifestPath } = getStagingPaths();
-	const tempBinaryPath = path.join(
+	const { stagingDir, binaryPath, listenerPath, archivePath, manifestPath } =
+		getStagingPaths();
+	const tempArchivePath = path.join(
 		stagingDir,
-		`.toby-download-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+		`.toby-download-${Date.now()}-${Math.random().toString(16).slice(2)}.tar.gz`,
 	);
 
 	const releaseLock = await acquireStagingLock();
 	try {
 		await mkdir(stagingDir, { recursive: true });
 		await rm(binaryPath, { force: true }).catch(() => undefined);
+		await rm(listenerPath, { force: true }).catch(() => undefined);
+		await rm(archivePath, { force: true }).catch(() => undefined);
 		await rm(manifestPath, { force: true }).catch(() => undefined);
 
-		await downloadReleaseAsset(downloadUrl, tempBinaryPath, options.onProgress);
-		await chmodExecutable(tempBinaryPath);
+		await downloadReleaseAsset(
+			downloadUrl,
+			tempArchivePath,
+			options.onProgress,
+		);
+		await extractReleaseArchive(tempArchivePath, stagingDir);
+		await chmodExecutable(binaryPath);
+		await chmodExecutable(listenerPath);
 
-		const installedVersion = readInstalledVersion(tempBinaryPath);
+		const installedVersion = readInstalledVersion(binaryPath);
 		if (!installedVersion) {
 			throw new Error(
-				`Downloaded binary at ${tempBinaryPath} did not return a version for --version.`,
+				`Downloaded binary at ${binaryPath} did not return a version for --version.`,
 			);
 		}
 		if (installedVersion !== version) {
@@ -204,13 +216,14 @@ export async function downloadRelease(
 			);
 		}
 
-		await rename(tempBinaryPath, binaryPath);
+		await rename(tempArchivePath, archivePath);
 		const manifest: StagingManifest = {
 			tag,
 			version,
 			asset,
 			repo,
 			installTarget,
+			listenerInstallTarget,
 			completedAt: new Date().toISOString(),
 		};
 		await writeFile(manifestPath, JSON.stringify(manifest, null, 2));
@@ -224,7 +237,7 @@ export async function downloadRelease(
 			stagingBinaryPath: binaryPath,
 		};
 	} catch (error) {
-		await rm(tempBinaryPath, { force: true }).catch(() => undefined);
+		await rm(tempArchivePath, { force: true }).catch(() => undefined);
 		throw error;
 	} finally {
 		await releaseLock();
@@ -241,12 +254,18 @@ export async function applyStagedRelease(
 		);
 	}
 
-	const { binaryPath, manifestPath } = getStagingPaths();
+	const { binaryPath, listenerPath, manifestPath } = getStagingPaths();
 	if (!fs.existsSync(binaryPath)) {
 		throw new Error(`Staged binary missing at ${binaryPath}.`);
 	}
+	if (!fs.existsSync(listenerPath)) {
+		throw new Error(`Staged listener helper missing at ${listenerPath}.`);
+	}
 
 	const installTarget = installTargetOverride ?? manifest.installTarget;
+	const listenerInstallTarget =
+		manifest.listenerInstallTarget ??
+		path.join(path.dirname(installTarget), "toby-listener");
 	await mkdir(path.dirname(installTarget), { recursive: true });
 
 	const tempDestination = path.join(
@@ -257,6 +276,15 @@ export async function applyStagedRelease(
 	await rename(binaryPath, tempDestination);
 	await chmodExecutable(tempDestination);
 	await rename(tempDestination, installTarget);
+
+	const tempListenerDestination = path.join(
+		path.dirname(listenerInstallTarget),
+		`.toby-listener-upgrade-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+	);
+	await rm(tempListenerDestination, { force: true }).catch(() => undefined);
+	await rename(listenerPath, tempListenerDestination);
+	await chmodExecutable(tempListenerDestination);
+	await rename(tempListenerDestination, listenerInstallTarget);
 
 	const installedVersion = readInstalledVersion(installTarget);
 	if (!installedVersion) {
@@ -349,6 +377,26 @@ async function downloadReleaseAsset(
 	} catch (error) {
 		await rm(destinationPath, { force: true }).catch(() => undefined);
 		throw error;
+	}
+}
+
+async function extractReleaseArchive(
+	archivePath: string,
+	destinationDir: string,
+): Promise<void> {
+	const result = spawnSync("tar", ["-xzf", archivePath, "-C", destinationDir], {
+		encoding: "utf8",
+	});
+	if (result.status !== 0) {
+		throw new Error(
+			`Failed to extract ${archivePath}: ${result.stderr || "unknown error"}`,
+		);
+	}
+	for (const fileName of ["toby", "toby-listener"]) {
+		const filePath = path.join(destinationDir, fileName);
+		if (!fs.existsSync(filePath)) {
+			throw new Error(`Release archive is missing ${fileName}.`);
+		}
 	}
 }
 
