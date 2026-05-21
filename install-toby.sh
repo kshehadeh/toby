@@ -62,7 +62,7 @@ Linux)
 	;;
 esac
 
-asset="${asset}.tar.gz"
+asset="${asset}.zip"
 
 api_latest="https://api.github.com/repos/${repo}/releases/latest"
 curl_common=(-fsSL)
@@ -92,12 +92,12 @@ cleanup() { rm -rf "$tmpdir"; }
 trap cleanup EXIT
 
 echo "Installing Toby ${tag} (${asset}) from ${repo}..."
-if ! curl -fsSL -o "${tmpdir}/toby.tar.gz" "$download_url"; then
+if ! curl -fsSL -o "${tmpdir}/toby.zip" "$download_url"; then
 	echo "Download failed: ${download_url}" >&2
 	echo "Check that this release exists and includes ${asset}." >&2
 	exit 1
 fi
-tar -xzf "${tmpdir}/toby.tar.gz" -C "$tmpdir"
+unzip -q "${tmpdir}/toby.zip" -d "$tmpdir"
 if [[ ! -f "${tmpdir}/toby" || ! -f "${tmpdir}/toby-listener" ]]; then
 	echo "Release archive is missing toby or toby-listener." >&2
 	exit 1

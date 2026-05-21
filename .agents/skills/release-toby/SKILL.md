@@ -24,8 +24,8 @@ Tag pushes matching `v*` run the GitHub Actions release workflow.
 
 Expected assets:
 
-- `toby-darwin-arm64.tar.gz`
-- `toby-darwin-x64.tar.gz`
+- `toby-darwin-arm64.zip`
+- `toby-darwin-x64.zip`
 
 Each archive must contain:
 
@@ -103,7 +103,7 @@ After GitHub Actions finishes:
 2. Download and inspect one archive:
 
 ```bash
-tar -tzf toby-darwin-arm64.tar.gz
+unzip -l toby-darwin-arm64.zip
 ```
 
 3. Smoke test install script with the release tag when appropriate:

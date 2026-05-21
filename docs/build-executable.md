@@ -54,10 +54,18 @@ See [Bun’s executable docs](https://bun.sh/docs/bundler/executables) for `--ta
 
 Pushing a **version tag** matching `v*` runs [`.github/workflows/release.yml`](../.github/workflows/release.yml):
 
-1. Matrix builds **two** macOS archives: `toby-darwin-arm64.tar.gz` and
-   `toby-darwin-x64.tar.gz`.
+1. Matrix builds **two** signed and notarized macOS archives:
+   `toby-darwin-arm64.zip` and `toby-darwin-x64.zip`.
 2. Each archive contains `toby` and `toby-listener`.
 3. Creates a **GitHub Release** for that tag and uploads those files as release assets (via `softprops/action-gh-release`).
+
+The release workflow uses the same Apple Developer secrets as DevDash:
+
+- `CSC_LINK` — base64-encoded Developer ID Application `.p12`
+- `CSC_KEY_PASSWORD` — certificate password
+- `APPLE_ID` — Apple Developer account email
+- `APPLE_APP_SPECIFIC_PASSWORD` — app-specific password for notarization
+- `APPLE_TEAM_ID` — Apple Developer Team ID
 
 Ensure **Actions** permissions allow the default `GITHUB_TOKEN` to create releases for tag pushes (Repository → Settings → Actions → General → Workflow permissions → read and write).
 

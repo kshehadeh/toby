@@ -27,8 +27,8 @@ The script picks the right asset for your system:
 
 | Platform | Architecture | Release asset |
 | -------- | ------------ | ------------- |
-| macOS | Apple Silicon | `toby-darwin-arm64.tar.gz` |
-| macOS | Intel | `toby-darwin-x64.tar.gz` |
+| macOS | Apple Silicon | `toby-darwin-arm64.zip` |
+| macOS | Intel | `toby-darwin-x64.zip` |
 
 After it finishes, verify the install:
 
@@ -62,7 +62,7 @@ If you prefer to download the binary yourself:
 3. Extract it, then move both executables onto your PATH:
 
 ```bash
-tar -xzf toby-darwin-arm64.tar.gz
+unzip toby-darwin-arm64.zip
 chmod +x toby toby-listener
 sudo mv toby toby-listener /usr/local/bin/
 ```

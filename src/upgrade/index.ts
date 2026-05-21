@@ -96,7 +96,7 @@ export function getStagingPaths(): {
 		stagingDir,
 		binaryPath: path.join(stagingDir, "toby"),
 		listenerPath: path.join(stagingDir, "toby-listener"),
-		archivePath: path.join(stagingDir, "toby-release.tar.gz"),
+		archivePath: path.join(stagingDir, "toby-release.zip"),
 		manifestPath: path.join(stagingDir, "manifest.json"),
 		lockPath: path.join(stagingDir, ".lock"),
 	};
@@ -167,7 +167,7 @@ export async function downloadRelease(
 	const listenerInstallTarget = resolveListenerInstallTarget(
 		options.installDir,
 	);
-	const asset = `${resolveReleaseAsset()}.tar.gz`;
+	const asset = `${resolveReleaseAsset()}.zip`;
 	const tag = options.tag?.trim() || (await fetchLatestReleaseTag(repo));
 	const version = normalizeReleaseVersion(tag);
 	const currentVersion = getTobyVersion();
@@ -181,7 +181,7 @@ export async function downloadRelease(
 		getStagingPaths();
 	const tempArchivePath = path.join(
 		stagingDir,
-		`.toby-download-${Date.now()}-${Math.random().toString(16).slice(2)}.tar.gz`,
+		`.toby-download-${Date.now()}-${Math.random().toString(16).slice(2)}.zip`,
 	);
 
 	const releaseLock = await acquireStagingLock();
@@ -384,7 +384,7 @@ async function extractReleaseArchive(
 	archivePath: string,
 	destinationDir: string,
 ): Promise<void> {
-	const result = spawnSync("tar", ["-xzf", archivePath, "-C", destinationDir], {
+	const result = spawnSync("unzip", ["-q", archivePath, "-d", destinationDir], {
 		encoding: "utf8",
 	});
 	if (result.status !== 0) {
