@@ -69,8 +69,9 @@ export function getSkillDebugTextLines(params: {
 }): string[] {
 	const raw = params.rawUserText.trim();
 	const preflightAttempted =
-		raw.length > 0 &&
-		shouldPretreat(params.priorMessages, raw, params.isFirstTurn);
+		params.spec !== null ||
+		(raw.length > 0 &&
+			shouldPretreat(params.priorMessages, raw, params.isFirstTurn));
 	const lines = [formatAvailableSkillsLine(params.available)];
 	if (params.available.length > 0) {
 		lines.push(...skillDescriptionLines(params.available));
