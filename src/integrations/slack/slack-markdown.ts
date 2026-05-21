@@ -12,7 +12,8 @@ export function truncateSlackMarkdown(text: string): string {
 }
 
 /**
- * Best-effort GFM → Slack mrkdwn for Block Kit fallback when `markdown_text` is unavailable.
+ * Best-effort GFM → Slack mrkdwn for Block Kit sections (`mrkdwn` text blocks).
+ * Incoming model output is commonly GFM; Slack mrkdwn expects `*` bold and `<url|label>` links, not literal `**` or `[text](url)`.
  */
 export function markdownToMrkdwn(text: string): string {
 	let s = text;

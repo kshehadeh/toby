@@ -518,17 +518,6 @@ export async function resolveChannelId(channelOrUser: string): Promise<string> {
 	);
 }
 
-function shouldFallbackFromMarkdownText(error: string | undefined): boolean {
-	if (!error) {
-		return false;
-	}
-	return (
-		error === "invalid_arguments" ||
-		error === "unknown_argument" ||
-		error.includes("markdown_text")
-	);
-}
-
 type ChatPostMessageResponse = {
 	ok: boolean;
 	error?: string;
@@ -592,7 +581,7 @@ export async function postSlackMessage(params: {
 	readonly text: string;
 	readonly threadTs?: string;
 	readonly token?: string;
-	/** `markdown` uses Slack's markdown_text API (default). `plain` sends unformatted text. */
+	/** `markdown` sends Block Kit `mrkdwn` sections (GFM-ish conversion via `markdownToMrkdwn`); falls back to Slack `markdown_text` if blocks fail. `plain` sends unformatted top-level text only. */
 	readonly format?: SlackMessageFormat;
 }): Promise<{ readonly channel: string; readonly ts: string }> {
 	const channelId = await resolveChannelId(params.channel);
@@ -607,29 +596,35 @@ export async function postSlackMessage(params: {
 		);
 	}
 
-	const markdown = truncateSlackMarkdown(params.text);
-	const markdownResult = await tryChatPostMessage(
-		channelId,
-		{ markdown_text: markdown, thread_ts: params.threadTs },
-		postToken,
-	);
-	if (markdownResult.ok && markdownResult.ts) {
-		return {
-			channel: markdownResult.channel ?? channelId,
-			ts: markdownResult.ts,
-		};
-	}
-	if (shouldFallbackFromMarkdownText(markdownResult.error)) {
-		return postSlackMessageAsMrkdwnBlocks(
+	try {
+		return await postSlackMessageAsMrkdwnBlocks(
 			channelId,
 			params.text,
 			params.threadTs,
 			postToken,
 		);
+	} catch (blocksError) {
+		const markdown = truncateSlackMarkdown(params.text);
+		const markdownResult = await tryChatPostMessage(
+			channelId,
+			{ markdown_text: markdown, thread_ts: params.threadTs },
+			postToken,
+		);
+		if (markdownResult.ok && markdownResult.ts) {
+			return {
+				channel: markdownResult.channel ?? channelId,
+				ts: markdownResult.ts,
+			};
+		}
+		const blocksMsg =
+			blocksError instanceof Error ? blocksError.message : String(blocksError);
+		if (markdownResult.error) {
+			throw new Error(
+				`${blocksMsg} (markdown_text fallback failed: ${markdownResult.error})`,
+			);
+		}
+		throw blocksError instanceof Error ? blocksError : new Error(blocksMsg);
 	}
-	throw new Error(
-		`Slack chat.postMessage error: ${markdownResult.error ?? "unknown"}`,
-	);
 }
 
 export async function searchSlackMessages(
