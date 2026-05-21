@@ -13,6 +13,7 @@ assets are macOS archives containing both `toby` and `toby-listener`.
 ## Source Of Truth
 
 - Release docs: `docs/build-executable.md`
+- Release script: `bun run release <patch|minor|major>`
 - Release config: `.release-it.json`
 - CI workflow: `.github/workflows/release.yml`
 - Installer: `install-toby.sh`
