@@ -6,6 +6,7 @@ import { registerConnectCommand } from "./commands/connect";
 import { registerDaemonCommand } from "./commands/daemon";
 import { registerDisconnectCommand } from "./commands/disconnect";
 import { registerInternalCommands } from "./commands/internal-handoff";
+import { registerListenCommand } from "./commands/listen";
 import { registerSchedulesCommand } from "./commands/schedules";
 import { registerSessionsCommand } from "./commands/sessions";
 import { registerSkillsCommand } from "./commands/skills";
@@ -36,6 +37,7 @@ registerSessionsCommand(program);
 registerSkillsCommand(program);
 registerStatusCommand(program);
 registerUpgradeCommand(program);
+registerListenCommand(program);
 registerInternalCommands(program);
 registerChatCommand(program);
 

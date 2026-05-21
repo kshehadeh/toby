@@ -9,6 +9,7 @@
 	"scripts": {
 		"postinstall": "bunx patch-package && bun ./scripts/install-git-hooks.mjs",
 		"build": "tsup",
+		"build:audio-helper": "swift build -c release --package-path helpers/toby-audio-helper",
 		"build:executable": "bun build ./src/cli.ts --compile --outfile ./dist/toby",
 		"dev": "bun src/cli.ts",
 		"typecheck": "tsc --noEmit",

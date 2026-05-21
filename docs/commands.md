@@ -44,7 +44,20 @@ Examples:
 
 ## Other shared commands
 
-The CLI also includes shared commands such as `connect`, `disconnect`, `status`, `summarize`, `organize`, `chat`, `sessions`, and `upgrade`.
+The CLI also includes shared commands such as `connect`, `disconnect`, `status`, `summarize`, `organize`, `chat`, `listen`, `sessions`, and `upgrade`.
+
+### `toby listen`
+
+Open the foreground audio listener UI. On macOS, Toby expects a native audio helper for microphone and system audio capture. Until that helper is installed, the UI shows a clear helper-missing state.
+
+Options:
+
+- `--mic-only` — record only microphone input
+- `--system-only` — record only computer/system output audio
+- `--helper <path>` — path to the macOS audio helper (or set `TOBY_AUDIO_HELPER`)
+- `--out-dir <path>` — directory where recording folders are saved
+
+See [`listen.md`](listen.md) for helper protocol and macOS permission details.
 
 ### `toby upgrade`
 

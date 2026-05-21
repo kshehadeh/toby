@@ -7,3 +7,4 @@ help-site/.docusaurus/
 .toby/
 .factory/settings.json
 .vscode/settings.json
+helpers/toby-audio-helper/.build/

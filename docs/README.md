@@ -10,6 +10,8 @@ Human- and agent-oriented docs for this repository.
 | [apple-mail.md](apple-mail.md) | macOS Apple Mail integration (local Mail.app, AppleScript tools). |
 | [apple-calendar.md](apple-calendar.md) | macOS Apple Calendar integration (Calendar.app, EventKit search, AppleScript CRUD). |
 | [macos-integration.md](macos-integration.md) | Local macOS system tools: Wi‑Fi, battery, audio, shortcuts, optional blueutil/SwitchAudioSource. |
+| [listen.md](listen.md) | Foreground audio recording mode, macOS helper protocol, and transcription notes. |
+| [native-helpers.md](native-helpers.md) | Pattern for small native executables that bridge Toby to platform APIs. |
 | [create-integration.md](create-integration.md) | Checklist for adding a new integration. |
 | [chat-pipeline.md](chat-pipeline.md) | `toby chat` turn flow plus tool-result caching behavior. |
 | [daemon.md](daemon.md) | Background daemon: schedules, chat inbound (@mentions), `daemon.log`. |

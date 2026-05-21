@@ -18,6 +18,8 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | [`docs/ui.md`](docs/ui.md) | Shared Ink UI components, visual conventions, and shortcut conventions. |
 | [`docs/apple-mail.md`](docs/apple-mail.md) | Apple Mail (macOS): local Mail.app integration and automation permissions. |
 | [`docs/macos-integration.md`](docs/macos-integration.md) | Local macOS system control: Wi‑Fi, battery/audio, shortcuts, optional Homebrew helpers. |
+| [`docs/listen.md`](docs/listen.md) | Foreground audio recording mode and macOS audio helper protocol. |
+| [`docs/native-helpers.md`](docs/native-helpers.md) | Pattern for adding native helper executables that bridge Toby to platform APIs. |
 | [`docs/build-executable.md`](docs/build-executable.md) | Optional **Bun** single-file `dist/toby` binary (`bun run build:executable`). |
 | [`docs/README.md`](docs/README.md) | Short index of everything in `docs/`. |
 
