@@ -103,14 +103,15 @@ const applemailLifecycle = {
 			};
 		}
 
+		if (!options?.validateTools) {
+			return {
+				ok: true,
+				details: "Apple Mail is configured; full Mail.app validation skipped.",
+			};
+		}
+
 		try {
 			await testAppleMailConnection();
-			if (!options?.validateTools) {
-				return {
-					ok: true,
-					details: "Mail.app reachable.",
-				};
-			}
 			const toolChecks = await validateAppleMailTools();
 			const failed = toolChecks.filter((c) => !c.ok);
 			return {

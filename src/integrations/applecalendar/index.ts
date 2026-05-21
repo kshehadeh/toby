@@ -8,6 +8,7 @@ import type {
 	CredentialFieldDescriptor,
 	IntegrationModule,
 	IntegrationToolHealth,
+	TestConnectionOptions,
 } from "../types";
 import {
 	isAppleCalendarPlatformSupported,
@@ -75,7 +76,7 @@ const applecalendarLifecycle = {
 		return isAppleCalendarConnectedConfig();
 	},
 
-	async testConnection() {
+	async testConnection(options?: TestConnectionOptions) {
 		if (!isAppleCalendarPlatformSupported()) {
 			return {
 				ok: false,
@@ -89,6 +90,14 @@ const applecalendarLifecycle = {
 				ok: false,
 				details:
 					"Apple Calendar is not connected. Run `toby connect applecalendar` on this Mac first.",
+			};
+		}
+
+		if (!options?.validateTools) {
+			return {
+				ok: true,
+				details:
+					"Apple Calendar is configured; full Calendar.app validation skipped.",
 			};
 		}
 

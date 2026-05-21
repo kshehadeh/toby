@@ -9,6 +9,7 @@ import type {
 	CredentialFieldDescriptor,
 	IntegrationModule,
 	IntegrationToolHealth,
+	TestConnectionOptions,
 } from "../types";
 import {
 	fetchCompletedTasks,
@@ -64,7 +65,7 @@ const todoistLifecycle = {
 		return !!config.integrations.todoist;
 	},
 
-	async testConnection() {
+	async testConnection(options?: TestConnectionOptions) {
 		const connected = await todoistLifecycle.isConnected();
 		if (!connected) {
 			return {
@@ -76,6 +77,12 @@ const todoistLifecycle = {
 
 		try {
 			await testTodoistConnection();
+			if (!options?.validateTools) {
+				return {
+					ok: true,
+					details: "Todoist API reachable.",
+				};
+			}
 			const toolChecks = await validateTodoistTools();
 			const failedChecks = toolChecks.filter((check) => !check.ok);
 

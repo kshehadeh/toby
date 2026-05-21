@@ -14,6 +14,7 @@ import type {
 	CredentialFieldDescriptor,
 	IntegrationModule,
 	IntegrationToolHealth,
+	TestConnectionOptions,
 } from "../types";
 import { runAzureAdOAuthPkceFlow } from "./auth";
 import {
@@ -129,7 +130,7 @@ const azureAdLifecycle = {
 		return !!config.integrations.azuread;
 	},
 
-	async testConnection() {
+	async testConnection(options?: TestConnectionOptions) {
 		const connected = await azureAdLifecycle.isConnected();
 		if (!connected) {
 			return {
@@ -141,6 +142,12 @@ const azureAdLifecycle = {
 
 		try {
 			await testAzureAdConnection();
+			if (!options?.validateTools) {
+				return {
+					ok: true,
+					details: "Graph API reachable.",
+				};
+			}
 			const toolChecks = await validateAzureAdTools();
 			const failedChecks = toolChecks.filter((c) => !c.ok);
 			return {

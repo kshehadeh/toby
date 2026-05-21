@@ -92,11 +92,15 @@ const macosLifecycle = {
 				details: "Not connected. Run `toby connect macos` on this Mac first.",
 			};
 		}
+		if (!options?.validateTools) {
+			return {
+				ok: true,
+				details:
+					"macOS integration is configured; full subsystem probes skipped.",
+			};
+		}
 		try {
 			await smokeTestMacOSSubsystem();
-			if (!options?.validateTools) {
-				return { ok: true, details: "sw_vers reachable." };
-			}
 			const checks = await validateMacOSSubtools();
 			const criticalFail = checks.some(
 				(c) =>

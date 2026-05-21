@@ -34,7 +34,6 @@ import {
 	readConfig,
 } from "../../config/index";
 import {
-	getIntegrationModule,
 	getModulesForCategory,
 	getModulesWithCapability,
 } from "../../integrations/index";
@@ -83,6 +82,10 @@ import {
 } from "./components/integration-multi-picker-modal";
 import { PlanStatusBar } from "./components/plan-status-bar";
 import { buildTranscriptNodes } from "./components/transcript";
+import {
+	collectModulesForConnectionProbe,
+	runConnectionProbes,
+} from "./connection-probe";
 import { ACCENT, TIPS } from "./constants";
 import { formatToolStatusLine } from "./format-tool-status";
 import { activityLineForChatEvent } from "./pipeline-footer";
@@ -151,24 +154,6 @@ interface PersonaPickerState {
 }
 
 const ACTIVITY_GLYPH_FRAMES = ["·", "•", "●", "•"] as const;
-
-function collectModulesForConnectionProbe(
-	selected: readonly IntegrationModule[],
-): IntegrationModule[] {
-	const byName = new Map<string, IntegrationModule>();
-	for (const cat of ALL_PROVIDER_CATEGORIES) {
-		const defaultName = getDefaultProvider(cat);
-		if (!defaultName) continue;
-		const mod = getIntegrationModule(defaultName);
-		if (mod) {
-			byName.set(mod.name, mod);
-		}
-	}
-	for (const mod of selected) {
-		byName.set(mod.name, mod);
-	}
-	return [...byName.values()];
-}
 
 function formatScopeLabel(modules: readonly IntegrationModule[]): string {
 	if (modules.length === 0) {
@@ -281,6 +266,7 @@ export function ChatSessionApp({
 	const [bootError, setBootError] = useState<string | null>(null);
 	const [bootActivityLine, setBootActivityLine] =
 		useState("Preparing session…");
+	const [connectionProbeLine, setConnectionProbeLine] = useState("");
 	const [askModal, setAskModal] = useState<AskModal | null>(null);
 	const [askSelected, setAskSelected] = useState(0);
 	const [showHelp, setShowHelp] = useState(false);
@@ -385,13 +371,18 @@ export function ChatSessionApp({
 	);
 
 	useEffect(() => {
-		// Defer probes until session boot finishes — Apple Mail's full tool
-		// validation uses blocking AppleScript and would freeze the Ink UI.
+		// Defer probes until session boot finishes so startup context can render first.
 		if (messages === null) {
+			setConnectionProbeLine("");
 			return;
 		}
 		let cancelled = false;
 		const modulesToProbe = collectModulesForConnectionProbe(selectedModules);
+		if (modulesToProbe.length === 0) {
+			setConnectionProbeLine("");
+			return;
+		}
+		const pending = new Set(modulesToProbe.map((m) => m.name));
 		setConnectedByIntegration((prev) => {
 			const next: Record<string, boolean | null> = { ...prev };
 			for (const m of modulesToProbe) {
@@ -399,28 +390,44 @@ export function ChatSessionApp({
 			}
 			return next;
 		});
+		setConnectionProbeLine(
+			`Checking ${modulesToProbe.length} integration connection${
+				modulesToProbe.length === 1 ? "" : "s"
+			}…`,
+		);
 		void (async () => {
-			const pairs: Array<readonly [string, boolean]> = [];
-			for (const m of modulesToProbe) {
-				if (cancelled) {
-					return;
-				}
-				try {
-					const health = await m.testConnection();
-					pairs.push([m.name, health.ok]);
-				} catch {
-					pairs.push([m.name, false]);
-				}
-				await yieldToRenderer();
-			}
-			if (cancelled) return;
-			setConnectedByIntegration((prev) => {
-				const next: Record<string, boolean | null> = { ...prev };
-				for (const [name, ok] of pairs) {
-					next[name] = ok;
-				}
-				return next;
+			await runConnectionProbes(modulesToProbe, {
+				onProgress: async (event) => {
+					if (cancelled) {
+						return;
+					}
+					if (event.type === "start") {
+						setConnectionProbeLine(
+							`Checking ${event.module.displayName} connection…`,
+						);
+					} else if (event.type === "result") {
+						pending.delete(event.module.name);
+						setConnectedByIntegration((prev) => ({
+							...prev,
+							[event.module.name]: event.result.ok,
+						}));
+						const status = event.result.ok ? "ready" : "unavailable";
+						const suffix =
+							pending.size > 0
+								? ` Checking ${pending.size} more…`
+								: " Connection checks complete.";
+						setConnectionProbeLine(
+							`${event.module.displayName} connection ${status}.${suffix}`,
+						);
+					} else {
+						setConnectionProbeLine("");
+					}
+					await yieldToRenderer();
+				},
 			});
+			if (!cancelled) {
+				setConnectionProbeLine("");
+			}
 		})();
 		return () => {
 			cancelled = true;
@@ -2031,7 +2038,11 @@ export function ChatSessionApp({
 		showSchedules;
 	const modelLabel = formatPersonaAiLabel(activePersona);
 	const activityText =
-		messages === null ? bootActivityLine : loading ? activityLine : "";
+		messages === null
+			? bootActivityLine
+			: loading
+				? activityLine
+				: connectionProbeLine;
 	const activityDisplay =
 		activityText.length > 0
 			? `${ACTIVITY_GLYPH_FRAMES[activityGlyphFrame] ?? "·"} ${activityText}`

@@ -12,6 +12,7 @@ import type {
 	CredentialFieldDescriptor,
 	IntegrationModule,
 	IntegrationToolHealth,
+	TestConnectionOptions,
 } from "../types";
 import { runOAuthFlow } from "./auth";
 import {
@@ -61,7 +62,7 @@ const gmailLifecycle = {
 		return !!config.integrations.gmail;
 	},
 
-	async testConnection() {
+	async testConnection(options?: TestConnectionOptions) {
 		const connected = await gmailLifecycle.isConnected();
 		if (!connected) {
 			return {
@@ -72,6 +73,12 @@ const gmailLifecycle = {
 
 		try {
 			await testGmailConnection();
+			if (!options?.validateTools) {
+				return {
+					ok: true,
+					details: "Gmail API reachable.",
+				};
+			}
 			const toolChecks = await validateGmailTools();
 			const failedChecks = toolChecks.filter((check) => !check.ok);
 

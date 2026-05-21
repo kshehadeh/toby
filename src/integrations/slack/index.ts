@@ -14,6 +14,7 @@ import type {
 	CredentialFieldDescriptor,
 	IntegrationModule,
 	IntegrationToolHealth,
+	TestConnectionOptions,
 } from "../types";
 import { runSlackOAuthFlow } from "./auth";
 import {
@@ -22,12 +23,12 @@ import {
 	searchSlackUsers,
 	testSlackConnection,
 } from "./client";
+import { slackChatInboundProvider } from "./inbound";
 import {
 	buildSlackChatSystemMessage,
 	buildSlackChatUserMessage,
 } from "./prompts/chat";
 import { persistSlackOAuthTokens } from "./tokens";
-import { slackChatInboundProvider } from "./inbound";
 import { createSlackTools } from "./tools";
 
 type SlackAuthMethod = "oauth" | "bot_token";
@@ -142,7 +143,7 @@ const slackLifecycle = {
 		return !!config.integrations.slack;
 	},
 
-	async testConnection() {
+	async testConnection(options?: TestConnectionOptions) {
 		const connected = await slackLifecycle.isConnected();
 		if (!connected) {
 			return {
@@ -154,6 +155,13 @@ const slackLifecycle = {
 
 		try {
 			const auth = await testSlackConnection();
+			if (!options?.validateTools) {
+				const teamLabel = auth.team ? ` (${auth.team})` : "";
+				return {
+					ok: true,
+					details: `Slack API reachable${teamLabel}.`,
+				};
+			}
 			const toolChecks = await validateSlackTools();
 			const failedChecks = toolChecks.filter((check) => !check.ok);
 			const teamLabel = auth.team ? ` (${auth.team})` : "";
@@ -242,7 +250,8 @@ function getCredentialDescriptors(): CredentialFieldDescriptor[] {
 		},
 		{
 			key: "slack.appToken",
-			label: "App Token (xapp-...) — Socket Mode (inbound; pair with bot token)",
+			label:
+				"App Token (xapp-...) — Socket Mode (inbound; pair with bot token)",
 			masked: true,
 		},
 		{
