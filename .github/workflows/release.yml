@@ -46,6 +46,7 @@ jobs:
 
       - name: Build listener helper
         run: |
+          swift build -c release --arch ${{ matrix.swift_arch }} --package-path helpers/toby-audio-helper
           helper_bin="$(swift build --show-bin-path -c release --arch ${{ matrix.swift_arch }} --package-path helpers/toby-audio-helper)/toby-audio-helper"
           cp "$helper_bin" dist/toby-listener
 
