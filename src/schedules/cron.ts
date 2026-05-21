@@ -64,6 +64,7 @@ export function getNextRunTime(
 export function shouldRun(
 	cronExpression: string,
 	lastRunAt: string | null,
+	scheduleCreatedAt: string,
 ): boolean {
 	try {
 		const now = new Date();
@@ -77,7 +78,13 @@ export function shouldRun(
 		}
 
 		if (!lastRun) {
-			return true;
+			// Catch up only for cron ticks at or after creation time (avoid backfilling
+			// slots that predate the schedule). Invalid createdAt ⇒ treat like legacy catch-up (always eligible).
+			const created = new Date(scheduleCreatedAt);
+			const createdTs = Number.isFinite(created.getTime())
+				? created.getTime()
+				: Number.NEGATIVE_INFINITY;
+			return previousRun.getTime() >= createdTs;
 		}
 
 		return previousRun.getTime() > lastRun.getTime();

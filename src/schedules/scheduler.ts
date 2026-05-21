@@ -36,7 +36,13 @@ export async function runSchedulerLoop(
 			const due = getDueSchedules();
 			for (const schedule of due) {
 				if (signal.aborted) break;
-				if (shouldRun(schedule.cronExpression, schedule.lastRunAt)) {
+				if (
+					shouldRun(
+						schedule.cronExpression,
+						schedule.lastRunAt,
+						schedule.createdAt,
+					)
+				) {
 					fired += 1;
 					daemonLog("info", "scheduler", "schedule_run_start", {
 						scheduleId: schedule.id,

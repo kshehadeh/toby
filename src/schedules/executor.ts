@@ -1,4 +1,3 @@
-import type { CoreMessage } from "../ai/chat";
 import { chatWithTools, createModelForPersona } from "../ai/chat";
 import {
 	inferProviderCategoriesFromPrompt,
@@ -11,13 +10,12 @@ import {
 	getModulesWithCapability,
 } from "../integrations/index";
 import {
-	ALL_PROVIDER_CATEGORIES,
-	type IntegrationModule,
 	PROVIDER_CATEGORY_LABELS,
 	type ProviderCategory,
 } from "../integrations/types";
 import { resolvePersona } from "../personas/index";
 import { prepareChatSessionMessages } from "../ui/chat/prepare-messages";
+import { recordScheduleInvariantFailureAndThrow } from "./invariant-record";
 import {
 	completeScheduleRun,
 	createScheduleRun,
@@ -37,14 +35,16 @@ This is an automated scheduled run. You **must not** ask questions or wait for u
 export async function executeSchedule(schedule: Schedule): Promise<void> {
 	const persona = resolvePersona(schedule.personaName);
 	if (!persona) {
-		throw new Error(
+		recordScheduleInvariantFailureAndThrow(
+			schedule,
 			`Schedule "${schedule.name}": persona "${schedule.personaName}" not found`,
 		);
 	}
 
 	const allChatModules = getModulesWithCapability("chat").filter((m) => m.chat);
 	if (allChatModules.length === 0) {
-		throw new Error(
+		recordScheduleInvariantFailureAndThrow(
+			schedule,
 			`Schedule "${schedule.name}": no chat-capable integrations available`,
 		);
 	}
