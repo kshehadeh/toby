@@ -1,0 +1,36 @@
+Wi-Fi:
+
+  Interfaces:
+    en0:
+
+      Supported PHY Modes: 802.11 a/b/g/n/ac/ax
+
+      Current Network Information:
+        AlphaWiFi:
+
+          PHY Mode: 802.11ac
+
+      Other Local Wi-Fi Networks:
+        Bravo:
+
+          PHY Mode: 802.11
+
+          Channel: 11 (2GHz, 20MHz)
+
+          Network Type: Infrastructure
+
+          Security: WPA2 Personal
+
+          Signal / Noise: -65 dBm / -91 dBm
+
+        Guest-Net:
+
+          PHY Mode: 802.11ax
+
+          Channel: 149 (5GHz, 80MHz)
+
+          Signal / Noise: -72 dBm / -93 dBm
+
+    awdl0:
+
+      Status: Idle

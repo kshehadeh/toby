@@ -1,0 +1,18 @@
+Built-in Speakers:
+      Manufacturer: Apple Inc.
+      Output Channels: 2
+      Core Audio UID: Speakers
+
+LG UltraFine:
+      Manufacturer: LG Electronics
+      Output Channels: 2
+      Core Audio UID: hdmi-out
+
+USB Microphone (Office):
+      Manufacturer: Acme Corp
+      Input Channels: 1
+      Core Audio UID: usb-mic
+
+Aggregate Device XY:
+      Output Channels: 2
+

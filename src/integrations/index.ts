@@ -2,6 +2,7 @@ import { applecalendarIntegrationModule } from "./applecalendar/index";
 import { applemailIntegrationModule } from "./applemail/index";
 import { azureAdIntegrationModule } from "./azuread/index";
 import { gmailIntegrationModule } from "./gmail/index";
+import { macosIntegrationModule } from "./macos/index";
 import { slackIntegrationModule } from "./slack/index";
 import { todoistIntegrationModule } from "./todoist/index";
 import type {
@@ -18,6 +19,7 @@ const MODULES: IntegrationModule[] = [
 	azureAdIntegrationModule,
 	applemailIntegrationModule,
 	applecalendarIntegrationModule,
+	macosIntegrationModule,
 ];
 
 export function getIntegrationModules(): IntegrationModule[] {

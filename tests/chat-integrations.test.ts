@@ -37,6 +37,13 @@ describe("parseChatCliInput", () => {
 		});
 	});
 
+	it("peels macos as integration", () => {
+		expect(parseChatCliInput(["macos", "wifi", "off"], [])).toEqual({
+			explicitNames: ["macos"],
+			prompt: "wifi off",
+		});
+	});
+
 	it("treats all positional as prompt when flags set", () => {
 		expect(parseChatCliInput(["gmail", "hello"], ["todoist", "gmail"])).toEqual(
 			{

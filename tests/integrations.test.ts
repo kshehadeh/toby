@@ -59,6 +59,14 @@ describe("integration registry", () => {
 		expect(slack?.capabilities).toContain("chat");
 	});
 
+	it("includes macos in registry with chat capability", () => {
+		const macos = getIntegrationModule("macos");
+		expect(macos).toBeDefined();
+		expect(macos?.name).toBe("macos");
+		expect(macos?.capabilities).toContain("chat");
+		expect(typeof macos?.createChatTools).toBe("function");
+	});
+
 	it("ALL_PROVIDER_CATEGORIES includes chat", () => {
 		expect(ALL_PROVIDER_CATEGORIES).toContain("chat");
 	});
