@@ -73,6 +73,7 @@ If you only connect one integration per category, defaults are optional—Toby c
 | Azure AD | `azuread` | [Azure AD](./azuread) |
 | Apple Mail | `applemail` | [Apple Mail](./apple-mail) |
 | Apple Calendar | `applecalendar` | [Apple Calendar](./apple-calendar) |
+| macOS | `macos` | [macOS](./macos) |
 
 ## Using integrations in chat
 
