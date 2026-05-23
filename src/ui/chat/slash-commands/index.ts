@@ -1,5 +1,7 @@
 import { clearToolCacheSlashCommand } from "./clear-tool-cache";
 import { configSlashCommand } from "./config";
+import { connectSlashCommand } from "./connect";
+import { disconnectSlashCommand } from "./disconnect";
 import { exitSlashCommand } from "./exit";
 import { helpSlashCommand } from "./help";
 import { integrationSlashCommand } from "./integration";
@@ -27,6 +29,8 @@ interface SlashCommandResolution {
 export const SLASH_COMMANDS: readonly SlashCommand[] = [
 	clearToolCacheSlashCommand,
 	configSlashCommand,
+	connectSlashCommand,
+	disconnectSlashCommand,
 	helpSlashCommand,
 	integrationSlashCommand,
 	logSlashCommand,
