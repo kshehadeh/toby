@@ -6,6 +6,7 @@ import {
 	humanToCronAsync,
 	isValidCronExpression,
 } from "../../schedules/cron";
+import { isDaemonRunning } from "../../schedules/daemon-status";
 import { executeSchedule } from "../../schedules/executor";
 import {
 	createSchedule,
@@ -14,7 +15,6 @@ import {
 	listSchedules,
 	updateSchedule,
 } from "../../schedules/store";
-import { isDaemonRunning } from "../../schedules/daemon-status";
 import type {
 	CreateScheduleParams,
 	Schedule,
@@ -38,7 +38,6 @@ import {
 	isBackKey,
 	isNavigateDown,
 	isNavigateUp,
-	isQuitKey,
 	isSaveKey,
 	isSelectKey,
 	resolveKittyKeyboardMode,
@@ -109,7 +108,7 @@ interface ScheduleListProps {
 	onSelect: (index: number) => void;
 	onSelectSchedule: (schedule: Schedule) => void;
 	onCreate: () => void;
-	onQuit: () => void;
+	onBack: () => void;
 }
 
 function ScheduleList({
@@ -120,11 +119,11 @@ function ScheduleList({
 	onSelect,
 	onSelectSchedule,
 	onCreate,
-	onQuit,
+	onBack,
 }: ScheduleListProps) {
 	useInput((input, key) => {
-		if (isQuitKey(input, key)) {
-			onQuit();
+		if (isBackKey(input, key)) {
+			onBack();
 			return;
 		}
 		if (input === "c" || input === "n") {
@@ -149,7 +148,7 @@ function ScheduleList({
 			<ViewFrame
 				title="Schedules"
 				subheader={schedulesSubheader(daemonRunning, activeScheduleCount)}
-				footer={<Text dimColor>c create · q close</Text>}
+				footer={<Text dimColor>c create · Esc close</Text>}
 			>
 				<Box paddingX={1} paddingY={1}>
 					<Text dimColor>No schedules yet. Press </Text>
@@ -203,7 +202,6 @@ interface ScheduleBrowseProps {
 	onSelectItem: (item: ScheduleBrowseItem) => void;
 	onSave: () => void;
 	onBack: () => void;
-	onQuit: () => void;
 }
 
 function ScheduleBrowse({
@@ -220,14 +218,9 @@ function ScheduleBrowse({
 	onSelectItem,
 	onSave,
 	onBack,
-	onQuit,
 }: ScheduleBrowseProps) {
 	useInput((input, key) => {
 		if (saving || running) {
-			return;
-		}
-		if (isQuitKey(input, key)) {
-			onQuit();
 			return;
 		}
 		if (isSaveKey(input, key)) {
@@ -337,7 +330,7 @@ function RunOutputView({ run, scheduleName, onBack }: RunOutputViewProps) {
 	const visible = lines.slice(scrollOffset, scrollOffset + visibleLines);
 
 	useInput((input, key) => {
-		if (key.escape || isBackKey(input, key)) {
+		if (key.escape) {
 			onBack();
 			return;
 		}
@@ -376,7 +369,7 @@ function RunOutputView({ run, scheduleName, onBack }: RunOutputViewProps) {
 			title={`Schedules > ${scheduleName} > Run ${new Date(run.startedAt).toLocaleString()}`}
 			footer={
 				<Text dimColor>
-					↑↓ scroll · Space/PageDn · PageUp · g/G top/bottom · b/Esc back
+					↑↓ scroll · Space/PageDn · PageUp · g/G top/bottom · Esc back
 				</Text>
 			}
 		>
@@ -546,6 +539,28 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 		exit();
 	}, [onQuitRequested, exit]);
 
+	const isFormDirty = useCallback((): boolean => {
+		if (isCreating) {
+			return (
+				form.name !== DEFAULT_FORM.name ||
+				form.prompt !== DEFAULT_FORM.prompt ||
+				form.personaName !== DEFAULT_FORM.personaName ||
+				form.cronExpression !== DEFAULT_FORM.cronExpression ||
+				form.enabled !== DEFAULT_FORM.enabled
+			);
+		}
+		if (selectedSchedule) {
+			return (
+				form.name !== selectedSchedule.name ||
+				form.prompt !== selectedSchedule.prompt ||
+				form.personaName !== selectedSchedule.personaName ||
+				form.cronExpression !== selectedSchedule.cronExpression ||
+				form.enabled !== selectedSchedule.enabled
+			);
+		}
+		return false;
+	}, [isCreating, form, selectedSchedule]);
+
 	const openSchedule = useCallback((schedule: Schedule) => {
 		setSelectedSchedule(schedule);
 		setIsCreating(false);
@@ -588,12 +603,29 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 			return;
 		}
 		if (screen === "schedule") {
+			if (isFormDirty()) {
+				setConfirmMsg("Discard unsaved changes?");
+				setConfirmAction(() => () => {
+					setConfirmAction(null);
+					setConfirmMsg("");
+					setScreen("list");
+					setSelectedSchedule(null);
+					setIsCreating(false);
+					setStatusMessage(undefined);
+				});
+				setScreen("confirm");
+				return;
+			}
 			setScreen("list");
 			setSelectedSchedule(null);
 			setIsCreating(false);
 			setStatusMessage(undefined);
 		}
-	}, [screen, editField, selectField]);
+	}, [screen, editField, selectField, isFormDirty]);
+
+	const handleListBack = useCallback(() => {
+		handleQuit();
+	}, [handleQuit]);
 
 	const handleSave = useCallback(async () => {
 		if (saving) {
@@ -687,7 +719,9 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 			} else if (editField === "prompt") {
 				setForm((f) => ({ ...f, prompt: value }));
 				if (!isCreating && selectedSchedule) {
-					const updated = updateSchedule(selectedSchedule.id, { prompt: value });
+					const updated = updateSchedule(selectedSchedule.id, {
+						prompt: value,
+					});
 					if (updated) {
 						refreshSchedules();
 						setSelectedSchedule(updated);
@@ -926,7 +960,6 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 				onSelectItem={handleBrowseItem}
 				onSave={handleSave}
 				onBack={handleBack}
-				onQuit={handleQuit}
 			/>
 		);
 	}
@@ -940,7 +973,7 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 			onSelect={setSelectedIndex}
 			onSelectSchedule={openSchedule}
 			onCreate={handleCreate}
-			onQuit={handleQuit}
+			onBack={handleListBack}
 		/>
 	);
 }

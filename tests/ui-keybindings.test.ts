@@ -59,14 +59,14 @@ describe("ui keybindings", () => {
 	});
 
 	describe("isBackKey", () => {
-		it("matches backspace", () => {
-			expect(isBackKey("", k({ backspace: true }))).toBe(true);
+		it("matches escape", () => {
+			expect(isBackKey("", k({ escape: true }))).toBe(true);
 		});
-		it("matches b", () => {
-			expect(isBackKey("b", k())).toBe(true);
+		it("does not match backspace", () => {
+			expect(isBackKey("", k({ backspace: true }))).toBe(false);
 		});
-		it("does not match escape alone", () => {
-			expect(isBackKey("", k({ escape: true }))).toBe(false);
+		it("does not match b", () => {
+			expect(isBackKey("b", k())).toBe(false);
 		});
 	});
 
@@ -74,8 +74,8 @@ describe("ui keybindings", () => {
 		it("matches escape", () => {
 			expect(isCancelKey("", k({ escape: true }))).toBe(true);
 		});
-		it("matches n", () => {
-			expect(isCancelKey("n", k())).toBe(true);
+		it("does not match n", () => {
+			expect(isCancelKey("n", k())).toBe(false);
 		});
 	});
 

@@ -29,7 +29,7 @@ Schedules, skills, and configure use the same high-level flow:
 3. **Edit overlay** — Enter on a text field opens `FieldEditor`; Enter on a select field opens `FieldSelector`.
 4. **Actions** — `ActionRow` / delete rows at the bottom of the browse list (run, delete, open in editor, etc.).
 
-Configure additionally nests sections via `FieldNavigator` and saves all credential/persona values on `q` (`UI_HINTS.navigator`).
+Configure additionally nests sections via `FieldNavigator` and saves all credential/persona values on `s` (`UI_HINTS.fieldBrowse`). Pressing `Esc` at the top level with unsaved changes shows a discard confirmation.
 
 Do not add a separate “edit screen” that duplicates the field list with `InfoRow` — keep one browse view and overlay editors only.
 
@@ -50,12 +50,15 @@ Use the predicates in `src/ui/shared/keybindings.ts` so shortcuts stay discovera
 | --- | --- |
 | Navigate | `↑` / `↓` |
 | Select / edit field | `Enter` |
-| Back | `b` / `Backspace` |
-| Close app | `q` |
+| Back / exit | `Esc` |
+| Save form | `s` |
 | Confirm | `y` / `Enter` |
-| Cancel | `n` / `Esc` |
+| Cancel | `Esc` |
 | Toggle | `Space` |
-| Save form | `s` when shown in the footer (`UI_HINTS.fieldBrowse`) |
+
+- `Esc` navigates back one level. At the top level, it exits the view. If there are unsaved changes, a discard confirmation dialog appears first.
+- `s` saves the current form without exiting, showing an inline status message (e.g. "Configuration saved.").
+- Read-only views (e.g. Skills detail) go back on `Esc` without a discard prompt.
 
 Editor controls should use `MultilineTextEdit` via `FieldEditor`: one-line fields submit with `Enter`; multiline fields insert new lines with `Enter` and submit with `Ctrl+S`.
 

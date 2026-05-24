@@ -5,7 +5,7 @@ import {
 	isBackKey,
 	isNavigateDown,
 	isNavigateUp,
-	isQuitKey,
+	isSaveKey,
 	isSelectKey,
 } from "./keybindings";
 import { NavigatorRow } from "./rows";
@@ -35,7 +35,7 @@ export interface FieldNavigatorProps {
 	readonly onSelect: (index: number) => void;
 	readonly onBack: () => void;
 	readonly onSelectItem: (item: FieldNavigatorItem) => void;
-	readonly onQuit?: () => void;
+	readonly onSave?: () => void;
 	readonly extraInput?: (input: string, key: import("ink").Key) => boolean;
 }
 
@@ -49,15 +49,15 @@ export function FieldNavigator({
 	onSelect,
 	onBack,
 	onSelectItem,
-	onQuit,
+	onSave,
 	extraInput,
 }: FieldNavigatorProps) {
 	useInput((input, key) => {
 		if (extraInput?.(input, key)) {
 			return;
 		}
-		if (onQuit && isQuitKey(input, key)) {
-			onQuit();
+		if (onSave && isSaveKey(input, key)) {
+			onSave();
 			return;
 		}
 		if (isNavigateUp(input, key)) {

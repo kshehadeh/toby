@@ -162,7 +162,11 @@ export function ConfigureApp({
 		[refreshTree],
 	);
 
-	const handleQuit = useCallback(() => {
+	const isDirty = Object.keys(values).some(
+		(key) => values[key] !== credentialValues[key],
+	);
+
+	const doExit = useCallback(() => {
 		if (onQuitRequested) {
 			onQuitRequested(values);
 			return;
@@ -171,13 +175,42 @@ export function ConfigureApp({
 		exit();
 	}, [values, onSave, exit, onQuitRequested]);
 
+	const handleSave = useCallback(() => {
+		onSave(values);
+		setStatusMessage("Configuration saved.");
+	}, [values, onSave]);
+
 	const handleBack = useCallback(() => {
 		if (path.length > 1) {
+			if (isDirty) {
+				setConfirmMsg("Discard unsaved changes?");
+				setConfirmAction(() => () => {
+					setConfirmAction(null);
+					setConfirmMsg("");
+					setPath((p) => p.slice(0, -1));
+					setSelectedIndex(0);
+					setStatusMessage(undefined);
+				});
+				setScreen("confirm");
+				return;
+			}
 			setPath((p) => p.slice(0, -1));
 			setSelectedIndex(0);
+		} else {
+			if (isDirty) {
+				setConfirmMsg("Discard unsaved changes?");
+				setConfirmAction(() => () => {
+					setConfirmAction(null);
+					setConfirmMsg("");
+					doExit();
+				});
+				setScreen("confirm");
+				return;
+			}
+			doExit();
 		}
 		setStatusMessage(undefined);
-	}, [path]);
+	}, [path, isDirty, doExit]);
 
 	const handleSelectItem = useCallback(
 		(item: SettingsItem) => {
@@ -395,7 +428,7 @@ export function ConfigureApp({
 			items={items}
 			selectedIndex={selectedIndex}
 			statusMessage={statusMessage}
-			footer={<Text dimColor>{UI_HINTS.navigator}</Text>}
+			footer={<Text dimColor>{UI_HINTS.fieldBrowse}</Text>}
 			onSelect={setSelectedIndex}
 			onBack={handleBack}
 			onSelectItem={(navItem) => {
@@ -404,7 +437,7 @@ export function ConfigureApp({
 					handleSelectItem(settingsItem);
 				}
 			}}
-			onQuit={handleQuit}
+			onSave={handleSave}
 		/>
 	);
 }

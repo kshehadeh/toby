@@ -27,12 +27,12 @@ export function isSelectKey(_input: string, key: InputKey): boolean {
 	return key.return;
 }
 
-export function isBackKey(input: string, key: InputKey): boolean {
-	return key.backspace || input === "b";
+export function isBackKey(_input: string, key: InputKey): boolean {
+	return key.escape;
 }
 
-export function isCancelKey(input: string, key: InputKey): boolean {
-	return key.escape || input === "n";
+export function isCancelKey(_input: string, key: InputKey): boolean {
+	return key.escape;
 }
 
 export function isConfirmKey(input: string, key: InputKey): boolean {
@@ -52,13 +52,12 @@ export function isSaveKey(input: string, _key: InputKey): boolean {
 }
 
 export const UI_HINTS = {
-	confirm: "y/Enter confirm · n/Esc cancel",
+	confirm: "y/Enter confirm · Esc cancel",
 	selectCancel: "↑↓ choose · Enter select · Esc cancel",
 	selectFilter:
 		"Type to filter · ↑↓ choose · Enter select · Backspace clear · Esc cancel",
-	list: "↑↓ navigate · Enter select · q close",
-	detail: "↑↓ navigate · Enter select · b/Backspace back · q close",
-	navigator: "↑↓ navigate · Enter select · b/Backspace back · q save and close",
-	fieldBrowse: "↑↓ navigate · Enter edit · s save · b/Backspace back · q close",
-	back: "b/Backspace back",
+	list: "↑↓ navigate · Enter select · Esc close",
+	detail: "↑↓ navigate · Enter select · Esc back",
+	fieldBrowse: "↑↓ navigate · Enter edit · s save · Esc back",
+	back: "Esc back",
 } as const;

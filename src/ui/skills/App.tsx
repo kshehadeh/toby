@@ -16,7 +16,6 @@ import {
 	isBackKey,
 	isNavigateDown,
 	isNavigateUp,
-	isQuitKey,
 	isSelectKey,
 	resolveKittyKeyboardMode,
 } from "../shared";
@@ -34,7 +33,7 @@ interface SkillListProps {
 	selectedIndex: number;
 	onSelect: (index: number) => void;
 	onSelectSkill: (skill: LocalSkill) => void;
-	onQuit: () => void;
+	onBack: () => void;
 }
 
 function SkillList({
@@ -42,11 +41,11 @@ function SkillList({
 	selectedIndex,
 	onSelect,
 	onSelectSkill,
-	onQuit,
+	onBack,
 }: SkillListProps) {
 	useInput((input, key) => {
-		if (isQuitKey(input, key)) {
-			onQuit();
+		if (isBackKey(input, key)) {
+			onBack();
 			return;
 		}
 		if (isNavigateUp(input, key)) {
@@ -64,7 +63,7 @@ function SkillList({
 
 	if (skills.length === 0) {
 		return (
-			<ViewFrame title="Skills" footer={<Text dimColor>q close</Text>}>
+			<ViewFrame title="Skills" footer={<Text dimColor>Esc close</Text>}>
 				<Box paddingX={1} paddingY={1}>
 					<Text dimColor>
 						No skills found. Add skills to{" "}
@@ -106,7 +105,6 @@ interface SkillBrowseProps {
 	onSelect: (index: number) => void;
 	onSelectItem: (item: SkillBrowseItem) => void;
 	onBack: () => void;
-	onQuit: () => void;
 }
 
 function SkillBrowse({
@@ -117,13 +115,8 @@ function SkillBrowse({
 	onSelect,
 	onSelectItem,
 	onBack,
-	onQuit,
 }: SkillBrowseProps) {
 	useInput((input, key) => {
-		if (isQuitKey(input, key)) {
-			onQuit();
-			return;
-		}
 		if (isNavigateUp(input, key)) {
 			onSelect(Math.max(0, selectedIndex - 1));
 			return;
@@ -222,6 +215,10 @@ export function SkillsApp({ onQuitRequested }: SkillsAppProps) {
 		exit();
 	}, [onQuitRequested, exit]);
 
+	const handleListBack = useCallback(() => {
+		handleQuit();
+	}, [handleQuit]);
+
 	const handleSelectSkill = useCallback((skill: LocalSkill) => {
 		setSelectedSkill(skill);
 		setSelectedDetailIndex(0);
@@ -236,7 +233,7 @@ export function SkillsApp({ onQuitRequested }: SkillsAppProps) {
 	}, []);
 
 	const detailItems: SkillBrowseItem[] = selectedSkill
-			? [
+		? [
 				{
 					key: "name",
 					label: "Name",
@@ -349,7 +346,6 @@ export function SkillsApp({ onQuitRequested }: SkillsAppProps) {
 				onSelect={setSelectedDetailIndex}
 				onSelectItem={handleDetailItem}
 				onBack={handleBack}
-				onQuit={handleQuit}
 			/>
 		);
 	}
@@ -360,7 +356,7 @@ export function SkillsApp({ onQuitRequested }: SkillsAppProps) {
 			selectedIndex={selectedIndex}
 			onSelect={setSelectedIndex}
 			onSelectSkill={handleSelectSkill}
-			onQuit={handleQuit}
+			onBack={handleListBack}
 		/>
 	);
 }

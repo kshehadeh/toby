@@ -2243,7 +2243,7 @@ export function ChatSessionApp({
 				<ViewModal termCols={termCols} borderColor={ACCENT}>
 					<Box width={termCols}>
 						<Text bold wrap="truncate-end">
-							Personas (Enter select · e edit · Esc cancel)
+							Personas
 						</Text>
 					</Box>
 					{personaPicker.rows.map((row, i) => {
@@ -2270,6 +2270,11 @@ export function ChatSessionApp({
 							{activePersona.name === getDefaultPersonaName()
 								? " (default)"
 								: ""}
+						</Text>
+					</Box>
+					<Box marginTop={1}>
+						<Text dimColor>
+							↑↓ navigate · Enter select · e edit · Esc cancel
 						</Text>
 					</Box>
 				</ViewModal>
