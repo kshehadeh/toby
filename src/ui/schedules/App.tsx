@@ -284,13 +284,9 @@ function ScheduleBrowse({
 					return <SectionDivider key={item.key} label={item.label} />;
 				}
 				if (item.browseKind === "run") {
-					const output =
-						item.run.output && item.run.output.length > MAX_OUTPUT_PREVIEW
-							? `${item.run.output.slice(0, MAX_OUTPUT_PREVIEW - 1)}…`
-							: (item.run.output ?? "(no output)");
 					return (
-						<Box key={item.key} paddingX={1} flexDirection="column">
-							<Text>
+						<Box key={item.key} paddingX={1}>
+							<Text wrap="truncate-end">
 								<Text color={selected ? ACCENT : "gray"} bold>
 									{selectedPrefix(selected)}
 								</Text>
@@ -299,10 +295,6 @@ function ScheduleBrowse({
 									{" "}
 									{new Date(item.run.startedAt).toLocaleString()}
 								</Text>
-							</Text>
-							<Text dimColor italic wrap="truncate-end">
-								{"    "}
-								{item.run.error ?? output}
 							</Text>
 						</Box>
 					);
@@ -564,7 +556,7 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 			cronExpression: schedule.cronExpression,
 			enabled: schedule.enabled,
 		});
-		setRuns(listScheduleRuns(schedule.id, 10));
+		setRuns(listScheduleRuns(schedule.id, 3));
 		setBrowseIndex(0);
 		setScreen("schedule");
 		setStatusMessage(undefined);
@@ -655,7 +647,7 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 				);
 				if (updated) {
 					setSelectedSchedule(updated);
-					setRuns(listScheduleRuns(updated.id, 10));
+					setRuns(listScheduleRuns(updated.id, 3));
 					setForm({
 						name: updated.name,
 						prompt: updated.prompt,
@@ -699,7 +691,7 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 					if (updated) {
 						refreshSchedules();
 						setSelectedSchedule(updated);
-						setRuns(listScheduleRuns(updated.id, 10));
+						setRuns(listScheduleRuns(updated.id, 3));
 						setForm({
 							name: updated.name,
 							prompt: updated.prompt,
@@ -747,7 +739,7 @@ export function SchedulesApp({ onQuitRequested }: SchedulesAppProps) {
 			const updated = listSchedules().find((s) => s.id === selectedSchedule.id);
 			if (updated) {
 				setSelectedSchedule(updated);
-				setRuns(listScheduleRuns(updated.id, 10));
+				setRuns(listScheduleRuns(updated.id, 3));
 			}
 			setStatusMessage(undefined);
 		} catch (e) {
