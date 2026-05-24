@@ -116,7 +116,10 @@ export function ChatInputDock(props: ChatInputDockProps) {
 		onShowKeyboardShortcuts,
 	} = props;
 
-	const placeholderText = placeholder ?? 'Try "What needs my attention today?"';
+	const placeholderText =
+		(showPlaceholderWhenEmpty ?? false)
+			? (placeholder ?? 'Try "What needs my attention today?"')
+			: "";
 	const showStaticPlaceholder =
 		(showPlaceholderWhenEmpty ?? false) && input.length === 0;
 	const contextFill = formatContextFill(modelLabel, lastUsage);
