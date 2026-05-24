@@ -6,6 +6,7 @@ import {
 } from "../../config/index";
 import {
 	buildMrkdwnSectionBlocks,
+	markdownToMrkdwn,
 	stripMarkdownForPlainFallback,
 	truncateSlackMarkdown,
 } from "./slack-markdown";
@@ -604,7 +605,7 @@ export async function postSlackMessage(params: {
 			postToken,
 		);
 	} catch (blocksError) {
-		const markdown = truncateSlackMarkdown(params.text);
+		const markdown = truncateSlackMarkdown(markdownToMrkdwn(params.text));
 		const markdownResult = await tryChatPostMessage(
 			channelId,
 			{ markdown_text: markdown, thread_ts: params.threadTs },
