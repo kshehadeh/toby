@@ -159,6 +159,32 @@ export function updateScheduleLastRun(id: string): void {
 	});
 }
 
+export function claimScheduleRun(
+	id: string,
+	lastRunAt: string | null,
+): boolean {
+	const db = getDb();
+	const ts = nowIso();
+	const params: Record<string, unknown> = {
+		$id: id,
+		$last_run_at: ts,
+		$updated_at: ts,
+	};
+	const lastRunWhere =
+		lastRunAt === null ? "last_run_at IS NULL" : "last_run_at = $expected";
+	if (lastRunAt !== null) {
+		params.$expected = lastRunAt;
+	}
+	const result = db
+		.query(
+			`UPDATE schedules
+       SET last_run_at = $last_run_at, updated_at = $updated_at
+       WHERE id = $id AND enabled = 1 AND ${lastRunWhere}`,
+		)
+		.run(params);
+	return Number((result as { changes: number } | null)?.changes ?? 0) > 0;
+}
+
 export function createScheduleRun(params: {
 	scheduleId: string;
 	personaName: string;

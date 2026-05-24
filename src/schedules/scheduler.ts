@@ -1,7 +1,7 @@
 import { daemonLog } from "../logging/daemon-log";
 import { shouldRun } from "./cron";
 import { executeSchedule } from "./executor";
-import { getDueSchedules } from "./store";
+import { claimScheduleRun, getDueSchedules } from "./store";
 
 interface SchedulerOptions {
 	readonly intervalMs: number;
@@ -43,6 +43,13 @@ export async function runSchedulerLoop(
 						schedule.createdAt,
 					)
 				) {
+					if (!claimScheduleRun(schedule.id, schedule.lastRunAt)) {
+						daemonLog("info", "scheduler", "schedule_run_already_claimed", {
+							scheduleId: schedule.id,
+							name: schedule.name,
+						});
+						continue;
+					}
 					fired += 1;
 					daemonLog("info", "scheduler", "schedule_run_start", {
 						scheduleId: schedule.id,
