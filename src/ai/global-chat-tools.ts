@@ -189,7 +189,8 @@ export function createGlobalChatTools(
 				if (resolved.length === 0) {
 					return {
 						ok: false as const,
-						error: "No matching local skills were found for the requested names.",
+						error:
+							"No matching local skills were found for the requested names.",
 						requested: wanted,
 						availableSkillNames: all.map((s) => s.name),
 					};

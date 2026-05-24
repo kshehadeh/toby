@@ -1,10 +1,7 @@
 import type { LanguageModelUsage, ProviderMetadata, Tool } from "ai";
 import type { AskUserHandler } from "../ai/ask-user-tool";
 import { withAskUserTool } from "../ai/ask-user-tool";
-import {
-	applyChatMessageCaching,
-	applyChatPromptCaching,
-} from "../ai/caching";
+import { applyChatMessageCaching, applyChatPromptCaching } from "../ai/caching";
 import type { ChatWithToolsOptions, CoreMessage } from "../ai/chat";
 import { chatWithTools, createModelForPersona } from "../ai/chat";
 import { createGlobalChatTools } from "../ai/global-chat-tools";
@@ -13,8 +10,8 @@ import { getIntegrationModule } from "../integrations/index";
 import type { IntegrationModule } from "../integrations/types";
 import { log } from "../logging/chat-log";
 import { createMemoryTools } from "../memory/tools";
-import type { ChatEvent } from "./chat-events";
 import { injectCurrentDateTimeIntoFirstSystemMessage } from "../ui/chat/prepare-messages";
+import type { ChatEvent } from "./chat-events";
 
 type ChatTurnOptions = {
 	readonly persona: Persona;
@@ -133,7 +130,8 @@ export async function runSharedChatTurn(
 		persona: options.persona,
 		moduleNames,
 	};
-	const messagesWithDateTime = injectCurrentDateTimeIntoFirstSystemMessage(messages);
+	const messagesWithDateTime =
+		injectCurrentDateTimeIntoFirstSystemMessage(messages);
 	const messagesForModel = applyChatMessageCaching(
 		messagesWithDateTime,
 		cacheContext,

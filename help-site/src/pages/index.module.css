@@ -1,90 +1,90 @@
 .page {
-  padding: 3.5rem 1.5rem 4rem;
-  max-width: 960px;
-  margin: 0 auto;
+	padding: 3.5rem 1.5rem 4rem;
+	max-width: 960px;
+	margin: 0 auto;
 }
 
 .logo {
-  display: block;
-  width: 128px;
-  height: 128px;
-  margin-bottom: 1.25rem;
+	display: block;
+	width: 128px;
+	height: 128px;
+	margin-bottom: 1.25rem;
 }
 
 .eyebrow {
-  display: inline-block;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--toby-accent, #f97316);
-  margin-bottom: 0.75rem;
+	display: inline-block;
+	font-size: 0.75rem;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--toby-accent, #f97316);
+	margin-bottom: 0.75rem;
 }
 
 .title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  color: var(--toby-text, #fafafa);
-  margin: 0 0 1rem;
-  line-height: 1.15;
+	font-size: 2.5rem;
+	font-weight: 700;
+	letter-spacing: -0.03em;
+	color: var(--toby-text, #fafafa);
+	margin: 0 0 1rem;
+	line-height: 1.15;
 }
 
 .lead {
-  font-size: 1.0625rem;
-  line-height: 1.65;
-  color: var(--toby-text-muted, #a3a3a3);
-  max-width: 36rem;
-  margin: 0 0 0.75rem;
+	font-size: 1.0625rem;
+	line-height: 1.65;
+	color: var(--toby-text-muted, #a3a3a3);
+	max-width: 36rem;
+	margin: 0 0 0.75rem;
 }
 
 .lead a {
-  color: var(--toby-text, #fafafa);
-  text-decoration: underline;
-  text-decoration-color: #404040;
-  text-underline-offset: 3px;
+	color: var(--toby-text, #fafafa);
+	text-decoration: underline;
+	text-decoration-color: #404040;
+	text-underline-offset: 3px;
 }
 
 .lead a:hover {
-  color: var(--toby-accent, #f97316);
-  text-decoration-color: var(--toby-accent, #f97316);
+	color: var(--toby-accent, #f97316);
+	text-decoration-color: var(--toby-accent, #f97316);
 }
 
 .grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 0.75rem;
-  margin-top: 2.5rem;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	gap: 0.75rem;
+	margin-top: 2.5rem;
 }
 
 .card {
-  display: block;
-  padding: 1.25rem 1.35rem;
-  border-radius: 8px;
-  border: 1px solid var(--toby-border, #262626);
-  background: var(--toby-surface, #0a0a0a);
-  text-decoration: none !important;
-  color: inherit;
-  transition: border-color 0.15s ease, background 0.15s ease;
+	display: block;
+	padding: 1.25rem 1.35rem;
+	border-radius: 8px;
+	border: 1px solid var(--toby-border, #262626);
+	background: var(--toby-surface, #0a0a0a);
+	text-decoration: none !important;
+	color: inherit;
+	transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .card:hover {
-  border-color: #404040;
-  background: var(--toby-surface-hover, #1a1a1a);
-  color: inherit;
+	border-color: #404040;
+	background: var(--toby-surface-hover, #1a1a1a);
+	color: inherit;
 }
 
 .cardTitle {
-  display: block;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--toby-text, #fafafa);
-  margin-bottom: 0.35rem;
+	display: block;
+	font-size: 0.9375rem;
+	font-weight: 600;
+	color: var(--toby-text, #fafafa);
+	margin-bottom: 0.35rem;
 }
 
 .cardDesc {
-  margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: var(--toby-text-muted, #a3a3a3);
+	margin: 0;
+	font-size: 0.875rem;
+	line-height: 1.5;
+	color: var(--toby-text-muted, #a3a3a3);
 }

@@ -12,7 +12,11 @@ export function DaemonStatusLine({
 	return (
 		<Text dimColor wrap="truncate-start">
 			{"Daemon "}
-			{daemonRunning ? <Text color="green">✔︎</Text> : <Text color="red">✗</Text>}
+			{daemonRunning ? (
+				<Text color="green">✔︎</Text>
+			) : (
+				<Text color="red">✗</Text>
+			)}
 			{trailingText ? ` · ${trailingText}` : ""}
 		</Text>
 	);

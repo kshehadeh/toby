@@ -66,8 +66,6 @@ describe.skipIf(!isBun)("chat external sessions", () => {
 		expect(loaded?.awaitingAskUser?.options).toEqual(["A", "B"]);
 
 		markMessageProcessed("mock", record.externalKey, "msg-1");
-		expect(wasMessageProcessed("mock", record.externalKey, "msg-1")).toBe(
-			true,
-		);
+		expect(wasMessageProcessed("mock", record.externalKey, "msg-1")).toBe(true);
 	});
 });

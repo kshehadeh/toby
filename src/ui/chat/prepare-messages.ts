@@ -1,4 +1,5 @@
 import type { CoreMessage } from "../../ai/chat";
+import { getCurrentDateTimeInfo } from "../../ai/current-datetime";
 import { globalChatToolsPromptSection } from "../../ai/global-chat-tools";
 import {
 	type UserIntentSpec,
@@ -14,7 +15,6 @@ import {
 import type { IntegrationModule } from "../../integrations/types";
 import { composeSystemPromptWithPersona } from "../../personas/prompt";
 import { type LocalSkill, resolveSkillsByNames } from "../../skills/index";
-import { getCurrentDateTimeInfo } from "../../ai/current-datetime";
 
 /** Marker appended to system prompts when preflight attaches full SKILL.md bodies. */
 export const SKILL_INSTRUCTIONS_APPENDIX_START =

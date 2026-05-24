@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, it } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import {
 	getChatInboundDisabledReason,
 	resolveActiveChatInbound,
@@ -48,11 +48,15 @@ describe("chat inbound config", () => {
 	it("reports when global inbound disabled", () => {
 		process.env.TOBY_DIR = makeTempDir();
 		writeConfig({
-			integrations: { slack: { connectedAt: "2026-01-01", inboundEnabled: false } },
+			integrations: {
+				slack: { connectedAt: "2026-01-01", inboundEnabled: false },
+			},
 			personas: [],
 			chatInbound: { enabled: false, integration: "slack" },
 		});
-		expect(getChatInboundDisabledReason()).toContain("chatInbound.enabled is false");
+		expect(getChatInboundDisabledReason()).toContain(
+			"chatInbound.enabled is false",
+		);
 	});
 
 	it("resolves when fully configured", () => {

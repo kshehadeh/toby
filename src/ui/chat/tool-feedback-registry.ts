@@ -219,8 +219,7 @@ function registerBuiltInToolFeedbackFormatters(): void {
 			.map((s) => (typeof s?.name === "string" ? s.name.trim() : ""))
 			.filter((n) => n.length > 0);
 		const listed = names.slice(0, 4).join(", ");
-		const more =
-			names.length > 4 ? ` (+${names.length - 4} more)` : "";
+		const more = names.length > 4 ? ` (+${names.length - 4} more)` : "";
 		const missing =
 			Array.isArray(r.missingNames) && r.missingNames.length > 0
 				? ` Missing: ${r.missingNames.length}.`

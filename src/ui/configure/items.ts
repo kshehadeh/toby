@@ -73,8 +73,7 @@ export function buildSettingsTree(
 			const integrationInboundOn =
 				values[`${mod.name}.inboundEnabled`] === "true";
 			const showInboundCredentials =
-				Boolean(mod.chatInbound) &&
-				(inboundActive || integrationInboundOn);
+				Boolean(mod.chatInbound) && (inboundActive || integrationInboundOn);
 
 			const credentialItems = mod
 				.getCredentialDescriptors()

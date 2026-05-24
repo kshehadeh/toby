@@ -23,7 +23,8 @@ export function readChatInboundConfig(): ChatInboundConfig {
 	const cfg = readConfig() as { chatInbound?: ChatInboundConfig };
 	const fromFile = cfg.chatInbound ?? {};
 	const enabled = envFlag("TOBY_CHAT_INBOUND_ENABLED") ?? fromFile.enabled;
-	const integration = envString("TOBY_CHAT_INBOUND_INTEGRATION") ?? fromFile.integration;
+	const integration =
+		envString("TOBY_CHAT_INBOUND_INTEGRATION") ?? fromFile.integration;
 	const persona = envString("TOBY_CHAT_INBOUND_PERSONA") ?? fromFile.persona;
 	return { enabled, integration, persona };
 }
@@ -47,7 +48,7 @@ export function isIntegrationInboundEnabled(integrationName: string): boolean {
 export function getChatInboundDisabledReason(): string | null {
 	const inboundCfg = readChatInboundConfig();
 	if (inboundCfg.enabled === false) {
-		return 'chatInbound.enabled is false (or TOBY_CHAT_INBOUND_ENABLED=0). Set enabled: true in ~/.toby/config.json.';
+		return "chatInbound.enabled is false (or TOBY_CHAT_INBOUND_ENABLED=0). Set enabled: true in ~/.toby/config.json.";
 	}
 	const integrationName = inboundCfg.integration?.trim();
 	if (!integrationName) {

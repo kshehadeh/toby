@@ -1,8 +1,8 @@
 {
-  "label": "AI Providers",
-  "position": 3,
-  "link": {
-    "type": "doc",
-    "id": "ai-providers/overview"
-  }
+	"label": "AI Providers",
+	"position": 3,
+	"link": {
+		"type": "doc",
+		"id": "ai-providers/overview"
+	}
 }

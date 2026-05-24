@@ -115,10 +115,22 @@ Run tests.
 describe("computeSkillCatalogSignature", () => {
 	it("changes when skill descriptions change", () => {
 		const a = [
-			{ name: "x", description: "one", summary: "", bodyMarkdown: "", dirName: "x" },
+			{
+				name: "x",
+				description: "one",
+				summary: "",
+				bodyMarkdown: "",
+				dirName: "x",
+			},
 		];
 		const b = [
-			{ name: "x", description: "two", summary: "", bodyMarkdown: "", dirName: "x" },
+			{
+				name: "x",
+				description: "two",
+				summary: "",
+				bodyMarkdown: "",
+				dirName: "x",
+			},
 		];
 		expect(computeSkillCatalogSignature(a)).not.toBe(
 			computeSkillCatalogSignature(b),
@@ -127,10 +139,22 @@ describe("computeSkillCatalogSignature", () => {
 
 	it("changes when skill summaries change", () => {
 		const a = [
-			{ name: "x", description: "same", summary: "old", bodyMarkdown: "", dirName: "x" },
+			{
+				name: "x",
+				description: "same",
+				summary: "old",
+				bodyMarkdown: "",
+				dirName: "x",
+			},
 		];
 		const b = [
-			{ name: "x", description: "same", summary: "new", bodyMarkdown: "", dirName: "x" },
+			{
+				name: "x",
+				description: "same",
+				summary: "new",
+				bodyMarkdown: "",
+				dirName: "x",
+			},
 		];
 		expect(computeSkillCatalogSignature(a)).not.toBe(
 			computeSkillCatalogSignature(b),
@@ -173,9 +197,7 @@ describe("formatSkillsCatalogForPrompt", () => {
 			},
 		];
 		const catalog = formatSkillsCatalogForPrompt(skills);
-		expect(catalog).toBe(
-			"- my-skill: Does things. — Short key instructions.",
-		);
+		expect(catalog).toBe("- my-skill: Does things. — Short key instructions.");
 	});
 
 	it("omits summary dash when summary is empty", () => {

@@ -1,8 +1,8 @@
 {
-  "label": "Integrations",
-  "position": 4,
-  "link": {
-    "type": "doc",
-    "id": "integrations/overview"
-  }
+	"label": "Integrations",
+	"position": 4,
+	"link": {
+		"type": "doc",
+		"id": "integrations/overview"
+	}
 }
