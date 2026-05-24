@@ -91,6 +91,7 @@ type ChatInputDockProps = {
 	readonly updateAvailable?: TobyUpdateInfo | null;
 	readonly upgradeUiStatus?: UpgradeUiStatus;
 	readonly onShowKeyboardShortcuts?: () => void;
+	readonly loading?: boolean;
 };
 
 export function ChatInputDock(props: ChatInputDockProps) {
@@ -114,14 +115,16 @@ export function ChatInputDock(props: ChatInputDockProps) {
 		updateAvailable = null,
 		upgradeUiStatus = { status: "idle" },
 		onShowKeyboardShortcuts,
+		loading = false,
 	} = props;
 
-	const placeholderText =
-		(showPlaceholderWhenEmpty ?? false)
+	const placeholderText = loading
+		? "Submit steering prompt"
+		: (showPlaceholderWhenEmpty ?? false)
 			? (placeholder ?? 'Try "What needs my attention today?"')
 			: "";
 	const showStaticPlaceholder =
-		(showPlaceholderWhenEmpty ?? false) && input.length === 0;
+		input.length === 0 && (loading || (showPlaceholderWhenEmpty ?? false));
 	const contextFill = formatContextFill(modelLabel, lastUsage);
 	const tokenUsageStatus = useMemo(() => {
 		const report = extractTokenUsageReport(lastUsage, { persona });

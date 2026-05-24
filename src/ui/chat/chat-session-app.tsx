@@ -155,6 +155,15 @@ interface PersonaPickerState {
 
 const ACTIVITY_GLYPH_FRAMES = ["·", "•", "●", "•"] as const;
 
+function isAbortError(e: unknown): boolean {
+	if (e instanceof DOMException && e.name === "AbortError") return true;
+	if (e instanceof Error) {
+		if (e.name === "AbortError") return true;
+		if (/abort/i.test(e.message)) return true;
+	}
+	return false;
+}
+
 function formatScopeLabel(modules: readonly IntegrationModule[]): string {
 	if (modules.length === 0) {
 		return "(none)";
@@ -325,6 +334,7 @@ export function ChatSessionApp({
 	const sessionIdRef = useRef<string | null>(null);
 	const transcriptRef = useRef(transcript);
 	const ongoingPretreatAbortRef = useRef<AbortController | null>(null);
+	const pendingSteeringPromptRef = useRef<string | null>(null);
 	const snapRef = useRef({
 		askModal: null as AskModal | null,
 		messages: null as CoreMessage[] | null,
@@ -755,6 +765,16 @@ export function ChatSessionApp({
 						},
 					]);
 				}
+				if (isAbortError(e)) {
+					const steering = pendingSteeringPromptRef.current;
+					const metaText = steering ? "Redirecting..." : "Turn cancelled.";
+					setTranscript((t) => [...t, { kind: "meta", text: metaText }]);
+					log("info", "turn", "turn_aborted", { steering: Boolean(steering) });
+					return {
+						text: partial,
+						responseMessages: [],
+					};
+				}
 				const msg = e instanceof Error ? e.message : String(e);
 				setTranscript((t) => [...t, { kind: "error", text: msg }]);
 				log("error", "turn", "turn_error", { message: msg });
@@ -1170,6 +1190,75 @@ export function ChatSessionApp({
 	const runModelTurnRef = useRef(runModelTurn);
 	runModelTurnRef.current = runModelTurn;
 
+	// Process a pending steering prompt after an aborted turn finishes.
+	useEffect(() => {
+		if (loading) return;
+		const steering = pendingSteeringPromptRef.current;
+		if (!steering) return;
+		pendingSteeringPromptRef.current = null;
+
+		const msgs = snapRef.current.messages;
+		if (!msgs) return;
+
+		let sid = sessionIdRef.current;
+		if (!sid) {
+			const created = createChatSession({ name: "New chat" });
+			sid = created.id;
+			setSessionId(created.id);
+			setSessionName(created.name);
+			lastSavedMessageCountRef.current = 0;
+			lastSavedTranscriptCountRef.current = 0;
+		}
+		const sidFinal = sid;
+
+		void (async () => {
+			const ac = new AbortController();
+			ongoingPretreatAbortRef.current = ac;
+			const msgsBefore = snapRef.current.messages;
+			if (!msgsBefore) return;
+
+			const isFirstTurn = !transcriptRef.current.some((e) => e.kind === "user");
+			const willPretreat = shouldPretreat(msgsBefore, steering, isFirstTurn);
+			setLoading(true);
+			setActivityLine(willPretreat ? "Preparing request..." : "Thinking...");
+
+			const localSkills = loadLocalSkills();
+			const { content, spec } = await wrapUserPromptWithPretreatment({
+				priorMessages: msgsBefore,
+				rawUserText: steering,
+				integrationLabels: formatScopeLabel(selectedModulesRef.current),
+				isFirstTurn,
+				persona: activePersonaRef.current,
+				skillsCatalog: localSkills,
+				abortSignal: ac.signal,
+			});
+
+			const msgsAfter = snapRef.current.messages;
+			if (!msgsAfter) {
+				setLoading(false);
+				return;
+			}
+
+			const userMsg: CoreMessage = { role: "user", content };
+			let next = [...msgsAfter, userMsg];
+			next = injectSkillBodiesIntoFirstSystemMessage(
+				next,
+				spec?.relevantSkills ?? [],
+				localSkills,
+			);
+			setMessages(next);
+
+			const skillMeta = transcriptMetaForAttachedSkills(
+				spec?.relevantSkills ?? [],
+			);
+			if (skillMeta.length > 0) {
+				setTranscript((t) => [...t, ...skillMeta]);
+			}
+
+			await runModelTurnRef.current(next, sidFinal);
+		})();
+	}, [loading]);
+
 	const openIntegrationPicker = useCallback(async () => {
 		const usable: IntegrationModule[] = [];
 		for (const m of chatIntegrations) {
@@ -1341,6 +1430,18 @@ export function ChatSessionApp({
 			const line = rawValue.trim();
 			setInput("");
 			setInputCursorResetToken((token) => token + 1);
+
+			// Steering prompt: if a turn is active, abort it and queue the
+			// new prompt for processing once the abort completes.
+			if (snapRef.current.loading && line) {
+				pendingSteeringPromptRef.current = line;
+				setRecentPrompts(appendPromptHistory(line));
+				setTranscript((t) => [...t, { kind: "user", text: line }]);
+				ongoingPretreatAbortRef.current?.abort();
+				setActivityLine("Redirecting...");
+				return;
+			}
+
 			if (line) {
 				setRecentPrompts(appendPromptHistory(line));
 			}
@@ -2032,7 +2133,7 @@ export function ChatSessionApp({
 		Boolean(multiPicker) ||
 		Boolean(sessionPicker) ||
 		Boolean(personaPicker) ||
-		loading ||
+		messages === null ||
 		showConfig ||
 		showSkills ||
 		showSchedules;
@@ -2219,6 +2320,7 @@ export function ChatSessionApp({
 				updateAvailable={updateAvailable}
 				upgradeUiStatus={upgradeUiStatus}
 				onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
+				loading={loading}
 			/>
 		</Box>
 	);

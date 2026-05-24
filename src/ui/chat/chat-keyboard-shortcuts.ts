@@ -17,6 +17,10 @@ export function buildChatKeyboardShortcuts(
 
 	return [
 		{ keys: "Enter", description: "Submit prompt" },
+		{
+			keys: "Enter",
+			description: "Submit steering prompt (while turn is active)",
+		},
 		{ keys: newlineHint, description: "Insert newline in prompt" },
 		{
 			keys: "↑ / ↓",

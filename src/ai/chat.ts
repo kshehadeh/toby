@@ -67,6 +67,35 @@ type StreamToolContext = {
 	readonly nextSeq: () => number;
 };
 
+function createAbortError(): Error {
+	const error = new Error("Chat turn aborted");
+	error.name = "AbortError";
+	return error;
+}
+
+function throwIfAborted(signal: AbortSignal | undefined): void {
+	if (signal?.aborted) {
+		throw createAbortError();
+	}
+}
+
+async function awaitWithAbort<T>(
+	promise: Promise<T>,
+	signal: AbortSignal | undefined,
+): Promise<T> {
+	if (!signal) {
+		return await promise;
+	}
+	throwIfAborted(signal);
+	return await new Promise<T>((resolve, reject) => {
+		const onAbort = () => reject(createAbortError());
+		signal.addEventListener("abort", onAbort, { once: true });
+		promise.then(resolve, reject).finally(() => {
+			signal.removeEventListener("abort", onAbort);
+		});
+	});
+}
+
 /**
  * Wraps read-only tools with an in-memory cache. When a cache hit occurs,
  * the original `execute` is skipped entirely. Write tools pass through unchanged.
@@ -140,9 +169,7 @@ function injectToolLifecycleHooks(
 					input && typeof input === "object" && !Array.isArray(input)
 						? (input as Record<string, unknown>)
 						: {};
-				if (abortSignal?.aborted) {
-					throw new Error(`Tool "${name}" aborted before execution`);
-				}
+				throwIfAborted(abortSignal);
 				const allowCache = isReadOnlyChatTool(name);
 				const cacheHit = allowCache && getCachedToolResult(name, args).hit;
 				streamCtx?.endAssistantSegment();
@@ -175,7 +202,11 @@ function injectToolLifecycleHooks(
 					return cachedValue;
 				}
 				try {
-					const result = await execute(input as never, toolOptions as never);
+					const result = await awaitWithAbort(
+						execute(input as never, toolOptions as never),
+						abortSignal,
+					);
+					throwIfAborted(abortSignal);
 					streamCtx?.emit?.({
 						type: "tool_call_complete",
 						blockKey,
@@ -291,7 +322,14 @@ export async function chatWithTools(
 		}
 
 		let sawTextDelta = false;
-		for await (const delta of result.textStream) {
+		const stream = result.textStream[Symbol.asyncIterator]();
+		while (true) {
+			const next = await awaitWithAbort(stream.next(), abortSignal);
+			throwIfAborted(abortSignal);
+			if (next.done) {
+				break;
+			}
+			const delta = next.value;
 			if (onChatEvent && !sawTextDelta) {
 				sawTextDelta = true;
 				onChatEvent({
@@ -331,16 +369,20 @@ export async function chatWithTools(
 		}
 
 		endAssistantSegment();
+		throwIfAborted(abortSignal);
 
 		const [response, text, steps, toolResults, usage, providerMetadata] =
-			await Promise.all([
-				result.response,
-				result.text,
-				result.steps,
-				result.toolResults,
-				result.usage,
-				result.providerMetadata,
-			]);
+			await awaitWithAbort(
+				Promise.all([
+					result.response,
+					result.text,
+					result.steps,
+					result.toolResults,
+					result.usage,
+					result.providerMetadata,
+				]),
+				abortSignal,
+			);
 
 		const toolCalls = steps.flatMap((step) =>
 			step.toolCalls.map((tc) => ({
@@ -362,14 +404,17 @@ export async function chatWithTools(
 		};
 	}
 
-	const result = await generateText({
-		model,
-		messages,
-		tools: toolsForModel,
-		stopWhen: stepCountIs(12),
-		providerOptions: providerOptions as never,
+	const result = await awaitWithAbort(
+		generateText({
+			model,
+			messages,
+			tools: toolsForModel,
+			stopWhen: stepCountIs(12),
+			providerOptions: providerOptions as never,
+			abortSignal,
+		}),
 		abortSignal,
-	});
+	);
 
 	return {
 		text: result.text,
