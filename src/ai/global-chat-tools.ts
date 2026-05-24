@@ -24,7 +24,7 @@ const skillDraftSchema = z.object({
 	skillMarkdown: z
 		.string()
 		.describe(
-			"Complete SKILL.md file: YAML frontmatter (name, description) between --- fences, then markdown body",
+			"Complete SKILL.md file: YAML frontmatter (name, description, optional summary) between --- fences, then markdown body",
 		),
 });
 
@@ -37,6 +37,7 @@ skillMarkdown requirements:
 - Frontmatter keys must include:
   - name: short identifier (prefer lowercase kebab-case matching the folder name)
   - description: when this skill should apply (one or two sentences; used for automatic routing)
+  - summary: optional concise summary of key instructions (one sentence; shown alongside description in skill catalogs for better routing)
 - After the closing ---, write the instructional markdown body (headings, lists, steps as appropriate).
 - Do not wrap the file in markdown code fences.
 - Do not invent user-specific secrets or paths outside ~/.toby/skills.
@@ -198,6 +199,7 @@ export function createGlobalChatTools(
 					loaded: resolved.map((s) => ({
 						name: s.name,
 						description: s.description,
+						summary: s.summary || undefined,
 						bodyMarkdown: s.bodyMarkdown,
 					})),
 					missingNames: missing,

@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
 	computeSkillCatalogSignature,
+	formatSkillsCatalogForPrompt,
 	loadLocalSkills,
 	parseSkillFileContent,
 	parseSkillFrontmatterAndBody,
@@ -43,6 +44,34 @@ name: only-name
 `,
 			),
 		).toBeNull();
+	});
+
+	it("parses optional summary from frontmatter", () => {
+		const raw = `---
+name: demo-skill
+description: One line description.
+summary: Concise summary of key instructions.
+---
+
+# Hello
+
+Body here.
+`;
+		const skill = parseSkillFileContent("demo-skill", raw);
+		expect(skill).not.toBeNull();
+		expect(skill?.summary).toBe("Concise summary of key instructions.");
+	});
+
+	it("defaults summary to empty string when absent", () => {
+		const raw = `---
+name: demo-skill
+description: One line description.
+---
+
+Body.
+`;
+		const skill = parseSkillFileContent("demo-skill", raw);
+		expect(skill?.summary).toBe("");
 	});
 });
 
@@ -86,10 +115,22 @@ Run tests.
 describe("computeSkillCatalogSignature", () => {
 	it("changes when skill descriptions change", () => {
 		const a = [
-			{ name: "x", description: "one", bodyMarkdown: "", dirName: "x" },
+			{ name: "x", description: "one", summary: "", bodyMarkdown: "", dirName: "x" },
 		];
 		const b = [
-			{ name: "x", description: "two", bodyMarkdown: "", dirName: "x" },
+			{ name: "x", description: "two", summary: "", bodyMarkdown: "", dirName: "x" },
+		];
+		expect(computeSkillCatalogSignature(a)).not.toBe(
+			computeSkillCatalogSignature(b),
+		);
+	});
+
+	it("changes when skill summaries change", () => {
+		const a = [
+			{ name: "x", description: "same", summary: "old", bodyMarkdown: "", dirName: "x" },
+		];
+		const b = [
+			{ name: "x", description: "same", summary: "new", bodyMarkdown: "", dirName: "x" },
 		];
 		expect(computeSkillCatalogSignature(a)).not.toBe(
 			computeSkillCatalogSignature(b),
@@ -104,16 +145,54 @@ describe("resolveSkillsByNames", () => {
 				dirName: "a",
 				name: "Alpha",
 				description: "d",
+				summary: "",
 				bodyMarkdown: "ba",
 			},
 			{
 				dirName: "b",
 				name: "Beta",
 				description: "d2",
+				summary: "",
 				bodyMarkdown: "bb",
 			},
 		];
 		const resolved = resolveSkillsByNames(skills, ["beta", "ALPHA"]);
 		expect(resolved.map((s) => s.name)).toEqual(["Beta", "Alpha"]);
+	});
+});
+
+describe("formatSkillsCatalogForPrompt", () => {
+	it("appends summary when present", () => {
+		const skills = [
+			{
+				dirName: "a",
+				name: "my-skill",
+				description: "Does things.",
+				summary: "Short key instructions.",
+				bodyMarkdown: "",
+			},
+		];
+		const catalog = formatSkillsCatalogForPrompt(skills);
+		expect(catalog).toBe(
+			"- my-skill: Does things. — Short key instructions.",
+		);
+	});
+
+	it("omits summary dash when summary is empty", () => {
+		const skills = [
+			{
+				dirName: "a",
+				name: "my-skill",
+				description: "Does things.",
+				summary: "",
+				bodyMarkdown: "",
+			},
+		];
+		const catalog = formatSkillsCatalogForPrompt(skills);
+		expect(catalog).toBe("- my-skill: Does things.");
+	});
+
+	it("returns (none) for empty list", () => {
+		expect(formatSkillsCatalogForPrompt([])).toBe("(none)");
 	});
 });

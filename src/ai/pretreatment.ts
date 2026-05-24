@@ -167,7 +167,12 @@ function bulletList(title: string, items: readonly string[]): string {
 function skillDescriptionLookup(
 	skills: readonly LocalSkill[],
 ): Map<string, string> {
-	return new Map(skills.map((s) => [s.name.toLowerCase(), s.description]));
+	return new Map(
+		skills.map((s) => [
+			s.name.toLowerCase(),
+			s.summary ? `${s.description} — ${s.summary}` : s.description,
+		]),
+	);
 }
 
 function sanitizeRelevantSkills(

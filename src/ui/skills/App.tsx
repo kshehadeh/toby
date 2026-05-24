@@ -80,9 +80,12 @@ function SkillList({
 			{skills.map((skill, i) => {
 				const selected = i === selectedIndex;
 				const desc = truncatePreview(skill.description, MAX_DESC_PREVIEW);
+				const label = skill.summary
+					? `${desc} — ${truncatePreview(skill.summary, MAX_DESC_PREVIEW)}`
+					: desc;
 				return (
 					<SelectableTextRow key={skill.dirName} selected={selected}>
-						{UI_GLYPHS.section} {skill.name} <Text dimColor>{desc}</Text>
+						{UI_GLYPHS.section} {skill.name} <Text dimColor>{label}</Text>
 					</SelectableTextRow>
 				);
 			})}
@@ -233,7 +236,7 @@ export function SkillsApp({ onQuitRequested }: SkillsAppProps) {
 	}, []);
 
 	const detailItems: SkillBrowseItem[] = selectedSkill
-		? [
+			? [
 				{
 					key: "name",
 					label: "Name",
@@ -247,6 +250,17 @@ export function SkillsApp({ onQuitRequested }: SkillsAppProps) {
 					currentValue: selectedSkill.description,
 					multiline: true,
 				},
+				...(selectedSkill.summary
+					? [
+							{
+								key: "summary" as const,
+								label: "Summary",
+								kind: "info" as const,
+								currentValue: selectedSkill.summary,
+								multiline: true,
+							},
+						]
+					: []),
 				{
 					key: "file",
 					label: "File",
