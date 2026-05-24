@@ -6,24 +6,31 @@ First-party integration id: **`macos`**.
 
 **macOS (Darwin) only.** The module is registered on any host so Toby can expose configure wiring and CI parser tests; chat tools short-circuit with a friendly error elsewhere.
 
-Run **`toby connect macos`** once on your Mac after `sw_vers`/`networksetup`/`pmset` smoke checks succeed. Connection stores `integrations.macos.connectedAt` in **`~/.toby/config.json`**. Disconnect with **`toby disconnect macos`**.
+Run **`toby connect macos`** once on your Mac. Connection stores `integrations.macos.connectedAt` in **`~/.toby/config.json`**. Disconnect with **`toby disconnect macos`**.
 
-Homebrew binaries required for the full macOS integration:
+## Native system helper
 
-| Binary | Brew package | Purpose |
-| ------ | ------------- | ------- |
-| `SwitchAudioSource` | `switchaudio-osx` | `macAudioSwitchOutput` |
-| `blueutil` | `blueutil` | `macBluetoothSetPower` |
+All macOS system operations are handled by the **`toby-macos`** native helper — a Swift binary that calls CoreWLAN, CoreAudio, IOBluetooth, IOKit, and AppKit directly. No Homebrew packages or third-party CLIs are required.
 
-Install them yourself before using the full audio/Bluetooth tool surface:
+The helper is installed alongside `toby` and `toby-listener` during `bun run build:executable` and the install/upgrade flow. It must be present for the macOS integration to function — if missing, Toby fails with a clear error message.
 
-```bash
-brew install switchaudio-osx blueutil
-```
+| Domain | Helper command | Native framework |
+| ------ | -------------- | ---------------- |
+| Wi‑Fi | `toby-macos wifi status/scan/power` | CoreWLAN |
+| Audio | `toby-macos audio list/switch-output/volume/set-volume/set-mute` | CoreAudio |
+| Bluetooth | `toby-macos bluetooth status/power` | IOBluetooth |
+| Battery | `toby-macos battery status` | IOKit PowerSources |
+| Display | `toby-macos display brightness/set-brightness` | IOKit IODisplay |
+| Low Power | `toby-macos lowpower status/set` | wraps `pmset` |
+| Shortcuts | `toby-macos shortcuts run` | wraps `/usr/bin/shortcuts` |
+| Clipboard | `toby-macos clipboard read/write` | AppKit NSPasteboard |
+| System Info | `toby-macos system info` | sysctl / ProcessInfo |
 
-Toby does **not** install Homebrew packages for you. Without these binaries, Toby can still use built-in macOS tools for Wi‑Fi, battery, audio listing via `system_profiler`, Shortcuts, and Low Power Mode probes, but it cannot switch audio outputs via `macAudioSwitchOutput` or toggle Bluetooth via `blueutil`.
+Resolution order for the helper binary:
 
-Toby resolves these by probing **`/opt/homebrew/bin`** and **`/usr/local/bin`**, enriched **`PATH` `which`**, and (last resort) a **login-shell** `command -v` similar to Terminal — Cursor/IDE/daemon launches often omit Homebrew on `PATH`. Use Configure **`switchAudioSourcePath`** to pin **`/opt/homebrew/bin/SwitchAudioSource`** if anything still hides it.
+1. `TOBY_MACOS_HELPER` environment variable
+2. Sibling of the Toby executable (e.g. `/usr/local/bin/toby-macos`)
+3. Development build at `helpers/toby-macos-helper/.build/release/toby-macos-helper`
 
 ## Configure fields (`macos.*`)
 
@@ -32,7 +39,6 @@ All values are plaintext (no masking). Shortcut strings must match **exact** nam
 | Key | Meaning |
 | --- | ------- |
 | `wifiPreferredDevice` | Optional override (e.g. `en0`) when Wi‑Fi auto-detect fails. |
-| `switchAudioSourcePath` | Absolute path to `SwitchAudioSource` when Toby’s process lacks your Terminal `PATH` (typically `/opt/homebrew/bin/SwitchAudioSource`). |
 | `shortcutFocusOn` / `shortcutFocusOff` | Shortcuts toggling Focus / Do Not Disturb. |
 | `shortcutBluetoothOn` / `shortcutBluetoothOff` | Shortcut-based Bluetooth toggle. |
 | `shortcutLowPowerOn` / `shortcutLowPowerOff` | Shortcut-based Low Power Mode toggle. |
@@ -44,16 +50,25 @@ The AI uses **`macShortcutsRun`** with a preset (`focusOn`, `focusOff`, …); ea
 
 | Tool | Approach |
 | ---- | -------- |
-| `macBatteryStatus` | `pmset -g batt` plus `system_profiler SPBatteryDataType` snippet |
-| `macWifiScanNearby` | Tries **`airport -s`**; on Sonoma 14.4+ (deprecated `airport`) uses **`system_profiler SPAirPortDataType`** *Other Local Wi‑Fi Networks* — see tool `scanSource` |
-| `macWifiStatus` / `macWifiSetPower` | Resolve Wi‑Fi NIC from `-listallhardwareports`, then `-getairportpower` / `-setairportpower` |
-| `macAudioListOutputs` | Lists outputs and inputs; prefers `SwitchAudioSource -a -t output/input` exact names when installed, otherwise parses `system_profiler SPAudioDataType` |
-| `macAudioSwitchOutput` | Requires user-installed `SwitchAudioSource` (`brew install switchaudio-osx`) |
-| `macBluetoothSetPower` | Requires user-installed `blueutil` (`brew install blueutil`); otherwise use configured Shortcuts |
-| `macLowPowerModeStatus` | `pmset -g custom` lines |
-| `macLowPowerModeSet` | `pmset lowpowermode` — often needs privileges; Prefer Shortcuts fallback |
-| `macShortcutsRun` | `/usr/bin/shortcuts run "<name>"` from configured presets |
-| `macNotificationsPeek` | **Explicitly unsupported** — Notification Center has no stable CLI |
+| `macBatteryStatus` | IOKit PowerSources + AppleSmartBattery cycle count via `toby-macos battery status` |
+| `macWifiScanNearby` | CoreWLAN scan via `toby-macos wifi scan` |
+| `macWifiStatus` / `macWifiSetPower` | CoreWLAN via `toby-macos wifi status/power` |
+| `macAudioListOutputs` | CoreAudio device list via `toby-macos audio list` |
+| `macAudioSwitchOutput` | CoreAudio output switch via `toby-macos audio switch-output` |
+| `macAudioVolume` | CoreAudio volume read via `toby-macos audio volume` |
+| `macAudioSetVolume` | CoreAudio volume set via `toby-macos audio set-volume` |
+| `macAudioSetMute` | CoreAudio mute toggle via `toby-macos audio set-mute` |
+| `macBluetoothStatus` | IOBluetooth power state + device list via `toby-macos bluetooth status` |
+| `macBluetoothSetPower` | IOBluetooth power toggle via `toby-macos bluetooth power` |
+| `macDisplayBrightness` | IOKit display brightness via `toby-macos display brightness` |
+| `macDisplaySetBrightness` | IOKit display brightness set via `toby-macos display set-brightness` |
+| `macClipboardRead` | NSPasteboard read via `toby-macos clipboard read` |
+| `macClipboardWrite` | NSPasteboard write via `toby-macos clipboard write` (text piped via stdin) |
+| `macLowPowerModeStatus` | `pmset` read via `toby-macos lowpower status` |
+| `macLowPowerModeSet` | `pmset` write via `toby-macos lowpower set` — often needs privileges; prefer Shortcuts fallback |
+| `macShortcutsRun` | `/usr/bin/shortcuts run "<name>"` via `toby-macos shortcuts run` from configured presets |
+| `macSystemInfo` | sysctl/ProcessInfo/sw_vers via `toby-macos system info` |
+| `macNotificationsPeek` | **Explicitly unsupported** — Notification Center has no stable API |
 
 Mutating calls respect **`dry run`** modes from `toby chat` when enabled.
 
@@ -63,16 +78,17 @@ Depending on OS version and invoking app (Terminal, Cursor agent, daemon):
 
 | Area | Typical prompt |
 | ---- | ---------------- |
-| Wi‑Fi / `networksetup` | May require automation or elevated context for power toggles. |
-| **`airport` scan** (`macWifiScanNearby`, first tier) | **Deprecated / broken from Sonoma 14.4+** — Toby falls back to **SPAirPortDataType** scan when needed. Requires Wi‑Fi **on**. |
-| Terminal / Toby | Automation for **Shortcuts** runner if Shortcuts accesses other apps. |
-| `blueutil`, `SwitchAudioSource` | No Apple prompts beyond normal executable permissions unless sandboxed incorrectly. |
+| Wi‑Fi scan | CoreWLAN may require Location Services authorization on first use. |
+| Microphone | Helper Info.plist declares `NSMicrophoneUsageDescription` for future audio capture features. |
+| Bluetooth | Helper Info.plist declares `NSBluetoothAlwaysUsageDescription`. |
+| Shortcuts | macOS may prompt for Automation permissions when Shortcuts access other apps. |
+| `pmset` | Low Power Mode writes may require admin privileges. Use a Shortcut or manual `sudo` per Apple guidance. |
 
-Toby never runs **`sudo`** for you — if `pmset` reports permission denial, toggle Low Power via a Shortcut or manual `sudo` per Apple guidance.
+Toby never runs **`sudo`** for you.
 
 ## Limitations
 
-- **`macWifiScanNearby`**: **Sonoma 14.4+** deprecates **`airport`**; Toby then uses **`system_profiler SPAirPortDataType`** (“Other Local Wi‑Fi Networks”). Both paths parse **plaintext** only — **`rawPreviewTail`** helps when fields move between OS releases.
-- **Bluetooth focus** via Apple-provided CLI is weak; **`blueutil`** or Shortcuts are the realistic paths.
+- **Display brightness** on Apple Silicon Macs: IODisplay brightness APIs do not function on some Apple Silicon configurations. The `macDisplayBrightness` and `macDisplaySetBrightness` tools may return errors on affected hardware. A future update may use the private CoreBrightness framework.
+- **Notification Center** is not exposed through a stable public API, so Toby does not list notifications.
 
 See also [`integrations.md`](integrations.md) and [`apple-mail.md`](apple-mail.md) for the Automation permission model reused by other macOS tooling.

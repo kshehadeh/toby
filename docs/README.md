@@ -9,7 +9,7 @@ Human- and agent-oriented docs for this repository.
 | [integrations.md](integrations.md) | `IntegrationModule`, registry API, per-integration layout. |
 | [apple-mail.md](apple-mail.md) | macOS Apple Mail integration (local Mail.app, AppleScript tools). |
 | [apple-calendar.md](apple-calendar.md) | macOS Apple Calendar integration (Calendar.app, EventKit search, AppleScript CRUD). |
-| [macos-integration.md](macos-integration.md) | Local macOS system tools: Wi‑Fi, battery, audio, shortcuts, optional blueutil/SwitchAudioSource. |
+| [macos-integration.md](macos-integration.md) | Local macOS system tools via native `toby-macos` helper: Wi‑Fi, Bluetooth, battery, audio, display brightness, clipboard, shortcuts. |
 | [listen.md](listen.md) | Foreground audio recording mode, macOS helper protocol, and transcription notes. |
 | [native-helpers.md](native-helpers.md) | Pattern for small native executables that bridge Toby to platform APIs. |
 | [create-integration.md](create-integration.md) | Checklist for adding a new integration. |
