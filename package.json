@@ -1,6 +1,6 @@
 {
 	"name": "toby",
-	"version": "0.13.1",
+	"version": "0.13.2",
 	"description": "CLI-based tool for managing your life — email, calendar, todos, and more",
 	"type": "module",
 	"bin": {
@@ -56,7 +56,11 @@
 		"vitest": "^2.1.0"
 	},
 	"lint-staged": {
-		"*.{js,jsx,ts,tsx,json,jsonc}": ["bunx biome check --write"],
-		"*.{js,jsx,ts,tsx}": ["bunx biome check --write"]
+		"*.{js,jsx,ts,tsx,json,jsonc}": [
+			"bunx biome check --write"
+		],
+		"*.{js,jsx,ts,tsx}": [
+			"bunx biome check --write"
+		]
 	}
 }
