@@ -82,19 +82,26 @@ if [[ ! -f "${tmpdir}/toby" || ! -f "${tmpdir}/toby-listener" ]]; then
 	echo "Release archive is missing toby or toby-listener." >&2
 	exit 1
 fi
-if [[ ! -f "${tmpdir}/toby-macos" ]]; then
-	echo "Release archive is missing toby-macos." >&2
-	exit 1
+
+has_macos_helper=false
+if [[ -f "${tmpdir}/toby-macos" ]]; then
+	has_macos_helper=true
+else
+	echo "Note: Release archive does not include toby-macos helper (macOS system tools may be limited)." >&2
 fi
 
-chmod +x "${tmpdir}/toby" "${tmpdir}/toby-listener" "${tmpdir}/toby-macos"
+chmod +x "${tmpdir}/toby" "${tmpdir}/toby-listener"
 mkdir -p "$install_dir"
 mv "${tmpdir}/toby" "${install_dir}/toby"
 mv "${tmpdir}/toby-listener" "${install_dir}/toby-listener"
-mv "${tmpdir}/toby-macos" "${install_dir}/toby-macos"
 echo "Installed: ${install_dir}/toby"
 echo "Installed: ${install_dir}/toby-listener"
-echo "Installed: ${install_dir}/toby-macos"
+
+if $has_macos_helper; then
+	chmod +x "${tmpdir}/toby-macos"
+	mv "${tmpdir}/toby-macos" "${install_dir}/toby-macos"
+	echo "Installed: ${install_dir}/toby-macos"
+fi
 
 if "${install_dir}/toby" --version >/dev/null 2>&1; then
 	echo "Verified: $("${install_dir}/toby" --version)"

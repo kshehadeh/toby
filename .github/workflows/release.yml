@@ -50,6 +50,12 @@ jobs:
           helper_bin="$(swift build --show-bin-path -c release --arch ${{ matrix.swift_arch }} --package-path helpers/toby-audio-helper)/toby-audio-helper"
           cp "$helper_bin" dist/toby-listener
 
+      - name: Build macOS system helper
+        run: |
+          swift build -c release --arch ${{ matrix.swift_arch }} --package-path helpers/toby-macos-helper
+          helper_bin="$(swift build --show-bin-path -c release --arch ${{ matrix.swift_arch }} --package-path helpers/toby-macos-helper)/toby-macos-helper"
+          cp "$helper_bin" dist/toby-macos
+
       - name: Check signing configuration
         id: signing
         env:
@@ -100,15 +106,17 @@ jobs:
           fi
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-listener
+          codesign --force --options runtime --timestamp --sign "$identity" dist/toby-macos
           codesign --verify --strict --verbose=2 dist/toby
           codesign --verify --strict --verbose=2 dist/toby-listener
+          codesign --verify --strict --verbose=2 dist/toby-macos
 
       - name: Package release archive
         run: |
-          chmod +x dist/toby dist/toby-listener
+          chmod +x dist/toby dist/toby-listener dist/toby-macos
           rm -rf release-payload
           mkdir release-payload
-          cp dist/toby dist/toby-listener release-payload/
+          cp dist/toby dist/toby-listener dist/toby-macos release-payload/
           ditto -c -k --sequesterRsrc release-payload ${{ matrix.asset }}
 
       - name: Notarize release archive
