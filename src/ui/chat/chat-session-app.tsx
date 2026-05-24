@@ -34,13 +34,13 @@ import {
 	readConfig,
 } from "../../config/index";
 import {
+	getIntegrationModules,
 	getModulesForCategory,
 	getModulesWithCapability,
 } from "../../integrations/index";
 import {
 	ALL_PROVIDER_CATEGORIES,
 	PROVIDER_CATEGORY_LABELS,
-	type ProviderCategory,
 } from "../../integrations/types";
 import type { IntegrationModule } from "../../integrations/types";
 import {
@@ -2007,6 +2007,20 @@ export function ChatSessionApp({
 
 	useInput(handleGlobalInput);
 
+	const integrationCounts = useMemo(() => {
+		const allModules = getIntegrationModules();
+		let connected = 0;
+		let disconnected = 0;
+		for (const m of allModules) {
+			const status = connectedByIntegration[m.name];
+			if (status === true) connected++;
+			else if (status === false) disconnected++;
+		}
+		return { connected, disconnected };
+	}, [connectedByIntegration]);
+
+	const skillsCount = useMemo(() => loadLocalSkills().length, []);
+
 	if (bootError) {
 		return (
 			<Box flexDirection="column" padding={1}>
@@ -2138,6 +2152,7 @@ export function ChatSessionApp({
 		showSkills ||
 		showSchedules;
 	const modelLabel = formatPersonaAiLabel(activePersona);
+
 	const activityText =
 		messages === null
 			? bootActivityLine
@@ -2160,62 +2175,26 @@ export function ChatSessionApp({
 				termCols={termCols}
 				tip={tip}
 				subheader={
-					selectedModules.length === 0 ? (
+					<Box flexDirection="row" justifyContent="center" gap={2}>
 						<Text dimColor wrap="truncate-end">
-							No integrations enabled.
-							{dryRun ? "  ·  dry-run" : ""}
+							<Text color="green">{integrationCounts.connected}</Text> connected
 						</Text>
-					) : (
-						<Box flexDirection="column" alignItems="center">
-							<Box flexDirection="row" flexWrap="wrap" justifyContent="center">
-								{ALL_PROVIDER_CATEGORIES.map((cat, idx) => {
-									const defaultName = getDefaultProvider(cat);
-									const defaultModule = defaultName
-										? getModulesForCategory(cat).find(
-												(m) => m.name === defaultName,
-											)
-										: undefined;
-									const ok = defaultModule
-										? connectedByIntegration[defaultModule.name]
-										: false;
-									const hasDefault = Boolean(defaultName && defaultModule);
-									return (
-										<Text key={cat} dimColor wrap="truncate-end">
-											{idx === 0 ? "" : "  "}
-											{hasDefault ? (
-												<>
-													{ok === true ? (
-														<Text color="green">✔︎</Text>
-													) : ok === false ? (
-														<Text color="red">✗</Text>
-													) : (
-														<Text dimColor>…</Text>
-													)}{" "}
-													{defaultModule?.displayName}
-												</>
-											) : (
-												<>
-													<Text color="red">❌</Text>{" "}
-													<Text italic>No {PROVIDER_CATEGORY_LABELS[cat]}</Text>
-												</>
-											)}
-										</Text>
-									);
-								})}
-								{dryRun ? (
-									<Text dimColor wrap="truncate-end">
-										{"  ·  "}dry-run
-									</Text>
-								) : null}
-							</Box>
-							{selectedModules.length > 0 ? (
-								<Text dimColor wrap="truncate-end">
-									{selectedModules.length} Connection
-									{selectedModules.length !== 1 ? "s" : ""}
-								</Text>
-							) : null}
-						</Box>
-					)
+						<Text dimColor wrap="truncate-end">
+							<Text color="red">{integrationCounts.disconnected}</Text>{" "}
+							disconnected
+						</Text>
+						{skillsCount > 0 ? (
+							<Text dimColor wrap="truncate-end">
+								<Text color={ACCENT}>{skillsCount}</Text> skill
+								{skillsCount !== 1 ? "s" : ""}
+							</Text>
+						) : null}
+						{dryRun ? (
+							<Text dimColor wrap="truncate-end">
+								dry-run
+							</Text>
+						) : null}
+					</Box>
 				}
 			/>
 			<Box flexDirection="column" marginTop={1} flexShrink={0}>
