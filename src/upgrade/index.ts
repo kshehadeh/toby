@@ -23,6 +23,7 @@ export interface StagingManifest {
 	readonly repo: string;
 	readonly installTarget: string;
 	readonly listenerInstallTarget?: string;
+	readonly macOSHelperInstallTarget?: string;
 	readonly completedAt: string;
 }
 
@@ -83,10 +84,18 @@ export function resolveListenerInstallTarget(installDir?: string): string {
 	);
 }
 
+export function resolveMacOSHelperInstallTarget(installDir?: string): string {
+	return path.join(
+		path.dirname(resolveInstallTarget(installDir)),
+		"toby-macos",
+	);
+}
+
 export function getStagingPaths(): {
 	readonly stagingDir: string;
 	readonly binaryPath: string;
 	readonly listenerPath: string;
+	readonly macOSHelperPath: string;
 	readonly archivePath: string;
 	readonly manifestPath: string;
 	readonly lockPath: string;
@@ -96,6 +105,7 @@ export function getStagingPaths(): {
 		stagingDir,
 		binaryPath: path.join(stagingDir, "toby"),
 		listenerPath: path.join(stagingDir, "toby-listener"),
+		macOSHelperPath: path.join(stagingDir, "toby-macos"),
 		archivePath: path.join(stagingDir, "toby-release.zip"),
 		manifestPath: path.join(stagingDir, "manifest.json"),
 		lockPath: path.join(stagingDir, ".lock"),
@@ -167,6 +177,9 @@ export async function downloadRelease(
 	const listenerInstallTarget = resolveListenerInstallTarget(
 		options.installDir,
 	);
+	const macOSHelperInstallTarget = resolveMacOSHelperInstallTarget(
+		options.installDir,
+	);
 	const asset = `${resolveReleaseAsset()}.zip`;
 	const tag = options.tag?.trim() || (await fetchLatestReleaseTag(repo));
 	const version = normalizeReleaseVersion(tag);
@@ -177,8 +190,14 @@ export async function downloadRelease(
 	}
 
 	const downloadUrl = `https://github.com/${repo}/releases/download/${tag}/${asset}`;
-	const { stagingDir, binaryPath, listenerPath, archivePath, manifestPath } =
-		getStagingPaths();
+	const {
+		stagingDir,
+		binaryPath,
+		listenerPath,
+		macOSHelperPath,
+		archivePath,
+		manifestPath,
+	} = getStagingPaths();
 	const tempArchivePath = path.join(
 		stagingDir,
 		`.toby-download-${Date.now()}-${Math.random().toString(16).slice(2)}.zip`,
@@ -189,6 +208,7 @@ export async function downloadRelease(
 		await mkdir(stagingDir, { recursive: true });
 		await rm(binaryPath, { force: true }).catch(() => undefined);
 		await rm(listenerPath, { force: true }).catch(() => undefined);
+		await rm(macOSHelperPath, { force: true }).catch(() => undefined);
 		await rm(archivePath, { force: true }).catch(() => undefined);
 		await rm(manifestPath, { force: true }).catch(() => undefined);
 
@@ -200,6 +220,9 @@ export async function downloadRelease(
 		await extractReleaseArchive(tempArchivePath, stagingDir);
 		await chmodExecutable(binaryPath);
 		await chmodExecutable(listenerPath);
+		if (fs.existsSync(macOSHelperPath)) {
+			await chmodExecutable(macOSHelperPath);
+		}
 
 		const installedVersion = readInstalledVersion(binaryPath);
 		if (!installedVersion) {
@@ -224,6 +247,7 @@ export async function downloadRelease(
 			repo,
 			installTarget,
 			listenerInstallTarget,
+			macOSHelperInstallTarget,
 			completedAt: new Date().toISOString(),
 		};
 		await writeFile(manifestPath, JSON.stringify(manifest, null, 2));
@@ -254,7 +278,8 @@ export async function applyStagedRelease(
 		);
 	}
 
-	const { binaryPath, listenerPath, manifestPath } = getStagingPaths();
+	const { binaryPath, listenerPath, macOSHelperPath, manifestPath } =
+		getStagingPaths();
 	if (!fs.existsSync(binaryPath)) {
 		throw new Error(`Staged binary missing at ${binaryPath}.`);
 	}
@@ -266,6 +291,9 @@ export async function applyStagedRelease(
 	const listenerInstallTarget =
 		manifest.listenerInstallTarget ??
 		path.join(path.dirname(installTarget), "toby-listener");
+	const macOSHelperInstallTarget =
+		manifest.macOSHelperInstallTarget ??
+		path.join(path.dirname(installTarget), "toby-macos");
 	await mkdir(path.dirname(installTarget), { recursive: true });
 
 	const tempDestination = path.join(
@@ -285,6 +313,18 @@ export async function applyStagedRelease(
 	await rename(listenerPath, tempListenerDestination);
 	await chmodExecutable(tempListenerDestination);
 	await rename(tempListenerDestination, listenerInstallTarget);
+
+	// Apply macOS system helper if it exists in staging
+	if (fs.existsSync(macOSHelperPath)) {
+		const tempMacOSDestination = path.join(
+			path.dirname(macOSHelperInstallTarget),
+			`.toby-macos-upgrade-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+		);
+		await rm(tempMacOSDestination, { force: true }).catch(() => undefined);
+		await rename(macOSHelperPath, tempMacOSDestination);
+		await chmodExecutable(tempMacOSDestination);
+		await rename(tempMacOSDestination, macOSHelperInstallTarget);
+	}
 
 	const installedVersion = readInstalledVersion(installTarget);
 	if (!installedVersion) {
@@ -398,6 +438,7 @@ async function extractReleaseArchive(
 			throw new Error(`Release archive is missing ${fileName}.`);
 		}
 	}
+	// toby-macos may not exist in older releases — that's fine, we skip it gracefully
 }
 
 async function chmodExecutable(filePath: string): Promise<void> {

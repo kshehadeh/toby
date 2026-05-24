@@ -19,6 +19,26 @@
 			"target": "toby-audio-helper",
 			"configuration": "release",
 			"preLaunchTask": "swift: Build Release toby-audio-helper (helpers/toby-audio-helper)"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:toby}/helpers/toby-macos-helper",
+			"name": "Debug toby-macos-helper (helpers/toby-macos-helper)",
+			"target": "toby-macos-helper",
+			"configuration": "debug",
+			"preLaunchTask": "swift: Build Debug toby-macos-helper (helpers/toby-macos-helper)"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:toby}/helpers/toby-macos-helper",
+			"name": "Release toby-macos-helper (helpers/toby-macos-helper)",
+			"target": "toby-macos-helper",
+			"configuration": "release",
+			"preLaunchTask": "swift: Build Release toby-macos-helper (helpers/toby-macos-helper)"
 		}
 	]
 }

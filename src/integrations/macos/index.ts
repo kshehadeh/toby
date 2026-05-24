@@ -11,15 +11,12 @@ import type {
 	IntegrationToolHealth,
 	TestConnectionOptions,
 } from "../types";
-import {
-	execFileUtf8,
-	isMacOSIntegrationSupported,
-	smokeTestMacOSSubsystem,
-} from "./client";
+import { isMacOSIntegrationSupported, smokeTestMacOSSubsystem } from "./client";
 import {
 	buildMacOSChatSystemMessage,
 	buildMacOSChatUserMessage,
 } from "./prompts/chat";
+import { execSystemHelper } from "./system-helper";
 import { type MacOSToolContext, createMacOSTools } from "./tools";
 
 function isMacOSConnected(): boolean {
@@ -30,7 +27,7 @@ const macosLifecycle = {
 	name: "macos" as const,
 	displayName: "macOS",
 	description:
-		"Control this Mac locally — Wi‑Fi radio, Bluetooth (blueutil), battery info, audio outputs (SwitchAudioSource), shortcuts, low power probes",
+		"Control this Mac locally — Wi‑Fi, Bluetooth, battery info, audio outputs, display brightness, volume, clipboard, shortcuts, low power probes",
 
 	async connect(): Promise<void> {
 		if (!isMacOSIntegrationSupported()) {
@@ -105,12 +102,13 @@ const macosLifecycle = {
 			const criticalFail = checks.some(
 				(c) =>
 					!c.ok &&
-					(c.tool.includes("networksetup") || c.tool.includes("pmset")),
+					(c.tool.includes("toby-macos wifi") ||
+						c.tool.includes("toby-macos battery")),
 			);
 			return {
 				ok: !criticalFail,
 				details: criticalFail
-					? "networksetup/pmset probe failed — Wi‑Fi or battery tooling may break."
+					? "toby-macos wifi/battery probe failed — Wi‑Fi or battery tooling may break."
 					: "Subsystem probes reachable.",
 				tools: checks,
 			};
@@ -261,17 +259,21 @@ function mergeCredentialsPatch(
 
 async function validateMacOSSubtools(): Promise<IntegrationToolHealth[]> {
 	const checks: IntegrationToolHealth[] = [];
-	const ns = execFileUtf8("/usr/sbin/networksetup", ["-listallhardwareports"]);
+	const wifiResult = execSystemHelper("wifi", "status");
 	checks.push({
-		tool: "networksetup -listallhardwareports",
-		ok: ns.ok,
-		details: ns.ok ? "reachable" : (ns.stderr || "failed").slice(0, 200),
+		tool: "toby-macos wifi status",
+		ok: wifiResult.ok,
+		details: wifiResult.ok
+			? "reachable"
+			: (wifiResult.error || "failed").slice(0, 200),
 	});
-	const pm = execFileUtf8("/usr/bin/pmset", ["-g", "batt"]);
+	const batteryResult = execSystemHelper("battery", "status");
 	checks.push({
-		tool: "pmset -g batt",
-		ok: pm.ok,
-		details: pm.ok ? "readable" : (pm.stderr || "failed").slice(0, 200),
+		tool: "toby-macos battery status",
+		ok: batteryResult.ok,
+		details: batteryResult.ok
+			? "readable"
+			: (batteryResult.error || "failed").slice(0, 200),
 	});
 	const hasShortcutsCli = fs.existsSync("/usr/bin/shortcuts");
 	checks.push({
@@ -285,9 +287,13 @@ async function validateMacOSSubtools(): Promise<IntegrationToolHealth[]> {
 const MACOS_MUTATING_TOOLS = new Set([
 	"macWifiSetPower",
 	"macAudioSwitchOutput",
+	"macAudioSetVolume",
+	"macAudioSetMute",
 	"macBluetoothSetPower",
 	"macLowPowerModeSet",
 	"macShortcutsRun",
+	"macDisplaySetBrightness",
+	"macClipboardWrite",
 ]);
 
 async function chat(options: ChatRunOptions): Promise<void> {
@@ -353,7 +359,16 @@ async function chat(options: ChatRunOptions): Promise<void> {
 export const macosIntegrationModule: IntegrationModule = {
 	...macosLifecycle,
 	capabilities: ["chat"],
-	resources: ["wifi", "bluetooth", "battery", "audio", "focus", "powermode"],
+	resources: [
+		"wifi",
+		"bluetooth",
+		"battery",
+		"audio",
+		"focus",
+		"powermode",
+		"display",
+		"clipboard",
+	],
 	chatReadiness: async () => {
 		if (!isMacOSIntegrationSupported()) {
 			return { ok: false, hint: "macOS integration runs only on macOS hosts." };
@@ -374,7 +389,7 @@ export const macosIntegrationModule: IntegrationModule = {
 	},
 	chatModelPrep: {
 		systemPromptSection: `### Local macOS
-Use mac* tools — Wi‑Fi scan (airport → SPAirPortDataType on Sonoma 14.4+), get/set radio power, Bluetooth (blueutil or shortcuts), battery info (pmset/system_profiler), audio input/output list + output switch, pmset Low Power probes, Shortcut runner, unsupported notifications ack.
+Use mac* tools — Wi‑Fi scan & power, Bluetooth, battery info, audio list/switch/volume/mute, display brightness, clipboard read/write, pmset Low Power probes, Shortcut runner, unsupported notifications ack.
 
 Audio rule: **macAudioListOutputs** returns both outputs and inputs. When the user asks to switch/change/set the output device, use **macAudioSwitchOutput** once the target is known. Use **macAudioListOutputs** only to discover exact names; do not stop after listing if there is a clear output match.`,
 		async buildSingleSessionMessages(persona, userPrompt) {
