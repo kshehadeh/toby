@@ -22,6 +22,7 @@ The helper is installed alongside `toby` and `toby-listener` during `bun run bui
 | Battery | `toby-macos battery status` | IOKit PowerSources |
 | Display | `toby-macos display brightness/set-brightness` | IOKit IODisplay |
 | Low Power | `toby-macos lowpower status/set` | wraps `pmset` |
+| Focus | `toby-macos focus status/list/set/off` | DoNotDisturb (private) |
 | Shortcuts | `toby-macos shortcuts run` | wraps `/usr/bin/shortcuts` |
 | Clipboard | `toby-macos clipboard read/write` | AppKit NSPasteboard |
 | System Info | `toby-macos system info` | sysctl / ProcessInfo |
@@ -34,17 +35,7 @@ Resolution order for the helper binary:
 
 ## Configure fields (`macos.*`)
 
-All values are plaintext (no masking). Shortcut strings must match **exact** names in Shortcuts.app.
-
-| Key | Meaning |
-| --- | ------- |
-| `wifiPreferredDevice` | Optional override (e.g. `en0`) when Wi‑Fi auto-detect fails. |
-| `shortcutFocusOn` / `shortcutFocusOff` | Shortcuts toggling Focus / Do Not Disturb. |
-| `shortcutBluetoothOn` / `shortcutBluetoothOff` | Shortcut-based Bluetooth toggle. |
-| `shortcutLowPowerOn` / `shortcutLowPowerOff` | Shortcut-based Low Power Mode toggle. |
-| `notes` | Free-form notes shown in Configure. |
-
-The AI uses **`macShortcutsRun`** with a preset (`focusOn`, `focusOff`, …); each preset resolves to one of those shortcut name fields.
+The macOS integration currently has no configurable fields. System control is handled by the native helper and runtime tool inputs.
 
 ## Chat tools
 
@@ -65,8 +56,8 @@ The AI uses **`macShortcutsRun`** with a preset (`focusOn`, `focusOff`, …); ea
 | `macClipboardRead` | NSPasteboard read via `toby-macos clipboard read` |
 | `macClipboardWrite` | NSPasteboard write via `toby-macos clipboard write` (text piped via stdin) |
 | `macLowPowerModeStatus` | `pmset` read via `toby-macos lowpower status` |
-| `macLowPowerModeSet` | `pmset` write via `toby-macos lowpower set` — often needs privileges; prefer Shortcuts fallback |
-| `macShortcutsRun` | `/usr/bin/shortcuts run "<name>"` via `toby-macos shortcuts run` from configured presets |
+| `macLowPowerModeSet` | `pmset` write via `toby-macos lowpower set` — often needs privileges |
+| `macShortcutRun` | `/usr/bin/shortcuts run "<name>"` via `toby-macos shortcuts run` |
 | `macSystemInfo` | sysctl/ProcessInfo/sw_vers via `toby-macos system info` |
 | `macNotificationsPeek` | **Explicitly unsupported** — Notification Center has no stable API |
 

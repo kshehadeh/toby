@@ -23,6 +23,7 @@ helpers/toby-macos-helper/
     BluetoothCommands.swift
     ClipboardCommands.swift
     DisplayCommands.swift
+    FocusCommands.swift
     LowPowerCommands.swift
     ShortcutsCommands.swift
     SystemInfoCommands.swift

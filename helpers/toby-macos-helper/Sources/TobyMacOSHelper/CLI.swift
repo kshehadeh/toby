@@ -89,7 +89,7 @@ enum TobyMacOSHelper {
 				print(JSONOutput.helperVersion)
 				return
 			}
-			JSONOutput.error(code: "usage", "Usage: toby-macos-helper <domain> <action> [flags]\nDomains: wifi, audio, bluetooth, battery, display, lowpower, shortcuts, clipboard, system")
+			JSONOutput.error(code: "usage", "Usage: toby-macos-helper <domain> <action> [flags]\nDomains: wifi, audio, bluetooth, battery, display, lowpower, focus, shortcuts, clipboard, system")
 			exit(2)
 		}
 
@@ -135,6 +135,15 @@ enum TobyMacOSHelper {
 				try LowPowerCommands.status()
 			case ("lowpower", "set"):
 				try LowPowerCommands.set(&parser)
+			// Focus
+			case ("focus", "status"):
+				try FocusCommands.status()
+			case ("focus", "list"):
+				try FocusCommands.list()
+			case ("focus", "set"):
+				try FocusCommands.set(&parser)
+			case ("focus", "off"):
+				try FocusCommands.off()
 			// Shortcuts
 			case ("shortcuts", "run"):
 				try ShortcutsCommands.run(&parser)
