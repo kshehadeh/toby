@@ -1,7 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
 import {
-	type ShortcutAction,
 	bluetoothSetPower,
 	getBatteryStatus,
 	getDisplayBrightness,
@@ -13,7 +12,6 @@ import {
 	pmsetLowPowerModeSet,
 	readClipboard,
 	resolvePreferredWifiInterface,
-	resolveShortcutName,
 	runShortcut,
 	setDisplayBrightness,
 	setSystemMute,
@@ -29,15 +27,6 @@ export interface MacOSToolContext {
 	readonly dryRun: boolean;
 	readonly appliedActions: string[];
 }
-
-const SHORTCUT_ACTION_ENUM = z.enum([
-	"focusOn",
-	"focusOff",
-	"bluetoothOn",
-	"bluetoothOff",
-	"lowPowerOn",
-	"lowPowerOff",
-]);
 
 export function createMacOSTools(ctx: MacOSToolContext) {
 	return {
@@ -189,11 +178,8 @@ export function createMacOSTools(ctx: MacOSToolContext) {
 					devices: r.devices,
 					outputs: r.outputs,
 					inputs: r.inputs,
-					switchAudioSourceDevices: r.switchAudioSourceDevices,
-					switchAudioSourceOutputs: r.switchAudioSourceOutputs,
-					switchAudioSourceInputs: r.switchAudioSourceInputs,
 					hintForSwitchTool:
-						r.switchAudioSourceDevices && r.switchAudioSourceDevices.length > 0
+						r.outputs.length > 0
 							? "These are the available output device names. If the user requested a target that clearly matches one, call macAudioSwitchOutput next with that exact or substring name; do not stop after listing."
 							: "Use macAudioSwitchOutput with a substring matching an entry.",
 				};
@@ -351,7 +337,7 @@ export function createMacOSTools(ctx: MacOSToolContext) {
 
 		macLowPowerModeSet: tool({
 			description:
-				"macOS only. Set low power mode on/off. May fail without admin privileges; fallback to Shortcut fields (`macShortcutsRun`).",
+				"macOS only. Set low power mode on/off. May fail without admin privileges.",
 			inputSchema: z.object({
 				enabled: z.boolean(),
 			}),
@@ -379,45 +365,40 @@ export function createMacOSTools(ctx: MacOSToolContext) {
 						: {
 								error:
 									r.stderr.trim() ||
-									"If permission denied configure Shortcuts (`macShortcutsRun`) or run manually with privileges.",
+									"If permission is denied, run manually with privileges.",
 							}),
 				};
 			},
 		}),
 
-		macShortcutsRun: tool({
+		macShortcutRun: tool({
 			description:
-				"macOS only. Run a macOS Shortcut configured in Toby Configure (`macos.shortcut*` fields): focus/bluetooth/low-power toggles. Action maps to Shortcut name configured by user.",
+				"macOS only. Run a Shortcut by its exact Shortcuts.app name.",
 			inputSchema: z.object({
-				action: SHORTCUT_ACTION_ENUM.describe(
-					"Configured shortcut preset (requires matching field in Toby Configure)",
-				),
+				name: z.string().describe("Exact name of the Shortcut to run."),
 			}),
-			execute: async ({ action }: { readonly action: ShortcutAction }) => {
+			execute: async ({ name }) => {
 				if (!isMacOSIntegrationSupported()) {
 					return { error: "macOS only." };
 				}
-				const shortcut = resolveShortcutName(action);
-				if (!shortcut) {
+				const shortcutName = name.trim();
+				if (!shortcutName) {
 					return {
 						ok: false,
-						error: `No shortcut name configured for action "${action}". Open Configure → macOS shortcut fields.`,
+						error: "Shortcut name is required.",
 					};
 				}
 				if (ctx.dryRun) {
-					ctx.appliedActions.push(
-						`[DRY RUN] shortcuts run "${shortcut}" (${action})`,
-					);
-					return { dryRun: true, shortcutName: shortcut, action };
+					ctx.appliedActions.push(`[DRY RUN] shortcuts run "${shortcutName}"`);
+					return { dryRun: true, shortcutName };
 				}
-				const r = runShortcut(shortcut);
+				const r = runShortcut(shortcutName);
 				if (r.ok) {
-					ctx.appliedActions.push(`Shortcuts ran "${shortcut}" (${action}).`);
+					ctx.appliedActions.push(`Shortcuts ran "${shortcutName}".`);
 				}
 				return {
 					ok: r.ok,
-					shortcutName: shortcut,
-					action,
+					shortcutName,
 					...(r.ok
 						? { stdoutTail: r.stdout.trim().slice(-2000) }
 						: { error: r.stderr.trim() || "shortcuts CLI failed" }),

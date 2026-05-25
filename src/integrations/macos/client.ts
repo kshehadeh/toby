@@ -1,4 +1,3 @@
-import { readConfig, readCredentials } from "../../config/index";
 import {
 	type AudioDeviceData,
 	type BatteryStatusData,
@@ -29,29 +28,6 @@ import {
 	helperWifiStatus,
 	isMacOSSystemHelperSupported,
 } from "./system-helper";
-
-export type ShortcutAction =
-	| "focusOn"
-	| "focusOff"
-	| "bluetoothOn"
-	| "bluetoothOff"
-	| "lowPowerOn"
-	| "lowPowerOff";
-
-export const SHORTCUT_FIELD_BY_ACTION: Record<ShortcutAction, string> = {
-	focusOn: "shortcutFocusOn",
-	focusOff: "shortcutFocusOff",
-	bluetoothOn: "shortcutBluetoothOn",
-	bluetoothOff: "shortcutBluetoothOff",
-	lowPowerOn: "shortcutLowPowerOn",
-	lowPowerOff: "shortcutLowPowerOff",
-};
-
-function getMergedMacosIntegrationBag(): Record<string, unknown> {
-	const fromCfg = readConfig().integrations?.macos ?? {};
-	const fromCreds = readCredentials().integrations?.macos ?? {};
-	return { ...fromCfg, ...fromCreds };
-}
 
 export function isMacOSIntegrationSupported(): boolean {
 	return isMacOSSystemHelperSupported();
@@ -174,9 +150,6 @@ export function listAudioOutputs(): {
 	readonly devices: string[];
 	readonly outputs: string[];
 	readonly inputs: string[];
-	readonly switchAudioSourceDevices?: string[];
-	readonly switchAudioSourceOutputs?: string[];
-	readonly switchAudioSourceInputs?: string[];
 	readonly rawPreview: string;
 	readonly error?: string;
 } {
@@ -189,9 +162,6 @@ export function listAudioOutputs(): {
 			devices: outputNames,
 			outputs: outputNames,
 			inputs: inputNames,
-			switchAudioSourceDevices: outputNames,
-			switchAudioSourceOutputs: outputNames,
-			switchAudioSourceInputs: inputNames,
 			rawPreview: JSON.stringify(data).slice(0, 2000),
 		};
 	} catch (e) {
@@ -250,15 +220,6 @@ export function bluetoothSetPower(enabled: boolean): {
 	} catch (e) {
 		return { ok: false, code: 1, stdout: "", stderr: (e as Error).message };
 	}
-}
-
-export function resolveShortcutName(action: ShortcutAction): string | null {
-	const cfg = getMergedMacosIntegrationBag();
-	const field = SHORTCUT_FIELD_BY_ACTION[action];
-	const v = cfg[field];
-	if (typeof v !== "string") return null;
-	const t = v.trim();
-	return t.length ? t : null;
 }
 
 export function runShortcut(shortcutName: string): {

@@ -76,10 +76,9 @@ describe("integration registry", () => {
 		expect(names).toContain("slack");
 	});
 
-	it("modules expose credential descriptors", () => {
+	it("modules expose namespaced credential descriptors when needed", () => {
 		for (const mod of getIntegrationModules()) {
 			const descriptors = mod.getCredentialDescriptors();
-			expect(descriptors.length).toBeGreaterThan(0);
 			for (const d of descriptors) {
 				expect(d.key).toMatch(/^[a-z]+\./);
 			}

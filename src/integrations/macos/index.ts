@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import chalk from "chalk";
 import { formatPersonaAiLabel } from "../../ai/model-factory";
 import { runSharedChatTurn } from "../../chat-pipeline/run-turn";
@@ -27,7 +26,7 @@ const macosLifecycle = {
 	name: "macos" as const,
 	displayName: "macOS",
 	description:
-		"Control this Mac locally — Wi‑Fi, Bluetooth, battery info, audio outputs, display brightness, volume, clipboard, shortcuts, low power probes",
+		"Control this Mac locally — Wi‑Fi, Bluetooth, battery info, audio outputs, display brightness, volume, clipboard, low power probes",
 
 	async connect(): Promise<void> {
 		if (!isMacOSIntegrationSupported()) {
@@ -133,74 +132,11 @@ const macosLifecycle = {
 };
 
 function getCredentialDescriptors(): CredentialFieldDescriptor[] {
-	const opt: Pick<CredentialFieldDescriptor, "masked"> = { masked: false };
-	return [
-		{
-			key: "macos.wifiPreferredDevice",
-			label: "Wi‑Fi Device (optional, e.g. en0)",
-			...opt,
-		},
-		{
-			key: "macos.switchAudioSourcePath",
-			label:
-				"SwitchAudioSource absolute path (optional, e.g. /opt/homebrew/bin/SwitchAudioSource)",
-			...opt,
-		},
-		{
-			key: "macos.shortcutFocusOn",
-			label: "Shortcut — Focus / DND ON (exact Shortcut name)",
-			...opt,
-		},
-		{
-			key: "macos.shortcutFocusOff",
-			label: "Shortcut — Focus / DND OFF",
-			...opt,
-		},
-		{
-			key: "macos.shortcutBluetoothOn",
-			label: "Shortcut — Bluetooth ON",
-			...opt,
-		},
-		{
-			key: "macos.shortcutBluetoothOff",
-			label: "Shortcut — Bluetooth OFF",
-			...opt,
-		},
-		{
-			key: "macos.shortcutLowPowerOn",
-			label: "Shortcut — Low Power Mode ON",
-			...opt,
-		},
-		{
-			key: "macos.shortcutLowPowerOff",
-			label: "Shortcut — Low Power Mode OFF",
-			...opt,
-		},
-		{
-			key: "macos.notes",
-			label: "Notes (optional)",
-			multiline: true,
-			masked: false,
-		},
-	];
+	return [];
 }
 
-function seedCredentialValues(creds: CredentialsFile): Record<string, string> {
-	const m = creds.integrations?.macos ?? {};
-	const def = "";
-	return {
-		"macos.wifiPreferredDevice": m.wifiPreferredDevice ?? def,
-		"macos.switchAudioSourcePath": m.switchAudioSourcePath ?? def,
-		"macos.shortcutFocusOn": m.shortcutFocusOn ?? def,
-		"macos.shortcutFocusOff": m.shortcutFocusOff ?? def,
-		"macos.shortcutBluetoothOn": m.shortcutBluetoothOn ?? def,
-		"macos.shortcutBluetoothOff": m.shortcutBluetoothOff ?? def,
-		"macos.shortcutLowPowerOn": m.shortcutLowPowerOn ?? def,
-		"macos.shortcutLowPowerOff": m.shortcutLowPowerOff ?? def,
-		"macos.notes":
-			m.notes?.trim() ||
-			"Optional local notes. Shortcuts referenced above must exist in Shortcuts.app.",
-	};
+function seedCredentialValues(_creds: CredentialsFile): Record<string, string> {
+	return {};
 }
 
 function mergeCredentialsPatch(
@@ -208,50 +144,25 @@ function mergeCredentialsPatch(
 	previous: CredentialsFile,
 ): Partial<CredentialsFile> {
 	const prev = previous.integrations?.macos ?? {};
-	const empty = "";
-
+	const {
+		wifiPreferredDevice: _wifiPreferredDevice,
+		notes: _notes,
+		switchAudioSourcePath: _switchAudioSourcePath,
+		focusModeIdentifier: _focusModeIdentifier,
+		shortcutFocusOn: _shortcutFocusOn,
+		shortcutFocusOff: _shortcutFocusOff,
+		shortcutBluetoothOn: _shortcutBluetoothOn,
+		shortcutBluetoothOff: _shortcutBluetoothOff,
+		shortcutLowPowerOn: _shortcutLowPowerOn,
+		shortcutLowPowerOff: _shortcutLowPowerOff,
+		...prevWithoutShortcutOptions
+	} = prev;
 	return {
 		integrations: {
 			...(previous.integrations ?? {}),
 			macos: {
-				...prev,
+				...prevWithoutShortcutOptions,
 				connectedAt: prev.connectedAt,
-				wifiPreferredDevice:
-					values["macos.wifiPreferredDevice"]?.trim() ??
-					prev.wifiPreferredDevice ??
-					empty,
-				switchAudioSourcePath:
-					values["macos.switchAudioSourcePath"]?.trim() ??
-					prev.switchAudioSourcePath ??
-					empty,
-				shortcutFocusOn:
-					values["macos.shortcutFocusOn"]?.trim() ??
-					prev.shortcutFocusOn ??
-					empty,
-				shortcutFocusOff:
-					values["macos.shortcutFocusOff"]?.trim() ??
-					prev.shortcutFocusOff ??
-					empty,
-				shortcutBluetoothOn:
-					values["macos.shortcutBluetoothOn"]?.trim() ??
-					prev.shortcutBluetoothOn ??
-					empty,
-				shortcutBluetoothOff:
-					values["macos.shortcutBluetoothOff"]?.trim() ??
-					prev.shortcutBluetoothOff ??
-					empty,
-				shortcutLowPowerOn:
-					values["macos.shortcutLowPowerOn"]?.trim() ??
-					prev.shortcutLowPowerOn ??
-					empty,
-				shortcutLowPowerOff:
-					values["macos.shortcutLowPowerOff"]?.trim() ??
-					prev.shortcutLowPowerOff ??
-					empty,
-				notes:
-					values["macos.notes"] ??
-					prev.notes ??
-					seedCredentialValues(previous)["macos.notes"],
 			},
 		},
 	};
@@ -275,12 +186,6 @@ async function validateMacOSSubtools(): Promise<IntegrationToolHealth[]> {
 			? "readable"
 			: (batteryResult.error || "failed").slice(0, 200),
 	});
-	const hasShortcutsCli = fs.existsSync("/usr/bin/shortcuts");
-	checks.push({
-		tool: "shortcuts binary",
-		ok: hasShortcutsCli,
-		details: hasShortcutsCli ? "/usr/bin/shortcuts exists" : "missing",
-	});
 	return checks;
 }
 
@@ -291,7 +196,7 @@ const MACOS_MUTATING_TOOLS = new Set([
 	"macAudioSetMute",
 	"macBluetoothSetPower",
 	"macLowPowerModeSet",
-	"macShortcutsRun",
+	"macShortcutRun",
 	"macDisplaySetBrightness",
 	"macClipboardWrite",
 ]);
@@ -364,7 +269,6 @@ export const macosIntegrationModule: IntegrationModule = {
 		"bluetooth",
 		"battery",
 		"audio",
-		"focus",
 		"powermode",
 		"display",
 		"clipboard",
