@@ -10,3 +10,4 @@ help-site/.docusaurus/
 helpers/toby-audio-helper/.build/
 helpers/toby-macos-helper/.build/
 .env
+.DS_Store
