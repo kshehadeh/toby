@@ -12,6 +12,7 @@ import {
 } from "../skills/index";
 import { createModelForPersona } from "./chat";
 import { getCurrentDateTimeInfo } from "./current-datetime";
+import { createReflectTools, reflectToolsPromptSection } from "./reflect-tools";
 
 const SKILL_MD_BASENAME = "SKILL.md";
 
@@ -84,6 +85,8 @@ Local skill routing:
 
 Available local skills (name + description):
 ${skillsCatalog}
+
+${reflectToolsPromptSection()}
 `;
 }
 
@@ -155,7 +158,12 @@ ${params.description.trim()}`,
 export function createGlobalChatTools(
 	ctx: GlobalChatToolsContext,
 ): Record<string, Tool> {
+	const reflectTools = createReflectTools({
+		dryRun: ctx.dryRun,
+		persona: ctx.persona,
+	});
 	return {
+		...reflectTools,
 		getCurrentDateTime: tool({
 			description:
 				"Get the current local datetime, UTC datetime, timezone, and Unix milliseconds.",

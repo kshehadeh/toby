@@ -342,6 +342,97 @@ function registerBuiltInToolFeedbackFormatters(): void {
 		}
 		return defaultToolFeedbackOutput(ctx);
 	});
+
+	// Reflect tools
+	registerToolFeedbackFormatter("tobyListIntegrations", (ctx) => {
+		const r = ctx.result as {
+			integrations?: unknown[];
+			dryRun?: boolean;
+			message?: string;
+		} | null;
+		if (r?.dryRun && typeof r.message === "string") {
+			return sanitizeOneLine(r.message);
+		}
+		if (Array.isArray(r?.integrations)) {
+			return `Listed ${r.integrations.length} integration(s).`;
+		}
+		return defaultToolFeedbackOutput(ctx);
+	});
+
+	registerToolFeedbackFormatter("tobyGetIntegrationSetup", (ctx) => {
+		const r = ctx.result as {
+			ok?: boolean;
+			name?: string;
+			displayName?: string;
+			connected?: boolean;
+			error?: string;
+			dryRun?: boolean;
+			message?: string;
+		} | null;
+		if (r?.dryRun && typeof r.message === "string") {
+			return sanitizeOneLine(r.message);
+		}
+		if (r?.ok === false && typeof r.error === "string") {
+			return sanitizeOneLine(r.error);
+		}
+		if (r?.ok && typeof r.displayName === "string") {
+			const status = r.connected ? "connected" : "not connected";
+			return `Setup for ${r.displayName}: ${status}.`;
+		}
+		return defaultToolFeedbackOutput(ctx);
+	});
+
+	registerToolFeedbackFormatter("tobyListDefaults", (ctx) => {
+		const r = ctx.result as {
+			categories?: unknown[];
+			dryRun?: boolean;
+			message?: string;
+		} | null;
+		if (r?.dryRun && typeof r.message === "string") {
+			return sanitizeOneLine(r.message);
+		}
+		if (Array.isArray(r?.categories)) {
+			return `Listed defaults for ${r.categories.length} categor(y/ies).`;
+		}
+		return defaultToolFeedbackOutput(ctx);
+	});
+
+	registerToolFeedbackFormatter("tobyListTools", (ctx) => {
+		const r = ctx.result as {
+			byIntegration?: Record<string, unknown[]>;
+			dryRun?: boolean;
+			message?: string;
+		} | null;
+		if (r?.dryRun && typeof r.message === "string") {
+			return sanitizeOneLine(r.message);
+		}
+		if (r?.byIntegration && typeof r.byIntegration === "object") {
+			const integrations = Object.keys(r.byIntegration);
+			const total = Object.values(r.byIntegration).reduce(
+				(sum, arr) => sum + (Array.isArray(arr) ? arr.length : 0),
+				0,
+			);
+			return `Listed ${total} tool(s) across ${integrations.length} integration(s).`;
+		}
+		return defaultToolFeedbackOutput(ctx);
+	});
+
+	registerToolFeedbackFormatter("tobyListSkills", (ctx) => {
+		const r = ctx.result as {
+			skills?: unknown[];
+			dryRun?: boolean;
+			message?: string;
+		} | null;
+		if (r?.dryRun && typeof r.message === "string") {
+			return sanitizeOneLine(r.message);
+		}
+		if (Array.isArray(r?.skills)) {
+			return r.skills.length === 0
+				? "No local skills installed."
+				: `Listed ${r.skills.length} skill(s).`;
+		}
+		return defaultToolFeedbackOutput(ctx);
+	});
 }
 
 registerBuiltInToolFeedbackFormatters();

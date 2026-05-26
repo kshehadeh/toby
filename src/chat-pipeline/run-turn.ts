@@ -29,6 +29,11 @@ const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"memoryForget",
 	"memoryExplain",
 	"memoryRetrieveForTask",
+	"tobyListIntegrations",
+	"tobyGetIntegrationSetup",
+	"tobyListDefaults",
+	"tobyListTools",
+	"tobyListSkills",
 ]);
 
 type ChatTurnOptions = {
