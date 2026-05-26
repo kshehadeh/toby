@@ -35,18 +35,77 @@ function formatUpgradeUiStatusLine(status: UpgradeUiStatus): string | null {
 
 function getModelContextWindow(model: string): number | null {
 	const m = model.toLowerCase().trim();
+
+	// OpenAI
 	if (
 		m.startsWith("gpt-4.1") ||
 		m.startsWith("gpt-5") ||
 		m.startsWith("o3") ||
 		m.startsWith("o4")
 	) {
-		// Current OpenAI long-context families used in Toby are ~1M context.
 		return 1_000_000;
 	}
 	if (m.startsWith("gpt-4o") || m.startsWith("gpt-4-turbo")) {
 		return 128_000;
 	}
+
+	// Anthropic
+	if (m.includes("claude-opus") || m.includes("claude-sonnet")) {
+		return 1_000_000;
+	}
+	if (m.includes("claude-haiku")) {
+		return 200_000;
+	}
+
+	// Google Gemini
+	if (m.startsWith("gemini-3") || m.startsWith("gemini-2.5")) {
+		return 1_000_000;
+	}
+
+	// Amazon Nova
+	if (m.startsWith("nova")) {
+		return 300_000;
+	}
+
+	// Meta Llama
+	if (m.includes("llama-4-scout")) {
+		return 10_000_000;
+	}
+
+	// Mistral
+	if (m.startsWith("mistral-medium")) {
+		return 131_000;
+	}
+
+	// DeepSeek
+	if (m.startsWith("deepseek")) {
+		return 128_000;
+	}
+
+	// xAI Grok
+	if (m.includes("grok-4")) {
+		return 2_000_000;
+	}
+
+	// Zhipu GLM
+	if (m.includes("glm-5")) {
+		return 1_000_000;
+	}
+	if (m.includes("glm-4.7-flash")) {
+		return 131_000;
+	}
+	if (m.includes("glm-4.7")) {
+		return 200_000;
+	}
+
+	// Moonshot Kimi
+	if (m.includes("kimi-k2.6")) {
+		return 262_000;
+	}
+	if (m.includes("kimi-k2.5")) {
+		return 128_000;
+	}
+
 	return null;
 }
 
