@@ -37,7 +37,8 @@ export type ProviderCategory =
 	| "calendar"
 	| "tasks"
 	| "contacts"
-	| "chat";
+	| "chat"
+	| "search";
 
 export const PROVIDER_CATEGORY_LABELS: Record<ProviderCategory, string> = {
 	email: "Email Provider",
@@ -45,6 +46,7 @@ export const PROVIDER_CATEGORY_LABELS: Record<ProviderCategory, string> = {
 	tasks: "Task List Provider",
 	contacts: "Contact List Provider",
 	chat: "Chat Provider",
+	search: "Search Provider",
 };
 
 export const ALL_PROVIDER_CATEGORIES: readonly ProviderCategory[] = [
@@ -53,6 +55,7 @@ export const ALL_PROVIDER_CATEGORIES: readonly ProviderCategory[] = [
 	"tasks",
 	"contacts",
 	"chat",
+	"search",
 ];
 
 /** Single credential field shown in configure UI (flat key namespace). */

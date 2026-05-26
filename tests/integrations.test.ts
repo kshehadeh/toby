@@ -71,6 +71,10 @@ describe("integration registry", () => {
 		expect(ALL_PROVIDER_CATEGORIES).toContain("chat");
 	});
 
+	it("ALL_PROVIDER_CATEGORIES includes search", () => {
+		expect(ALL_PROVIDER_CATEGORIES).toContain("search");
+	});
+
 	it("getModulesForCategory(chat) includes slack", () => {
 		const names = getModulesForCategory("chat").map((m) => m.name);
 		expect(names).toContain("slack");
@@ -83,6 +87,18 @@ describe("integration registry", () => {
 				expect(d.key).toMatch(/^[a-z]+\./);
 			}
 		}
+	});
+
+	it("includes bravesearch in registry with search provider category", () => {
+		const brave = getIntegrationModule("bravesearch");
+		expect(brave).toBeDefined();
+		expect(brave?.providerCategories).toContain("search");
+		expect(brave?.capabilities).toContain("chat");
+	});
+
+	it("getModulesForCategory(search) includes bravesearch", () => {
+		const names = getModulesForCategory("search").map((m) => m.name);
+		expect(names).toContain("bravesearch");
 	});
 
 	it("chat-capable modules define chat()", () => {

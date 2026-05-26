@@ -66,6 +66,16 @@ const CATEGORY_KEYWORDS: Record<ProviderCategory, string[]> = {
 		"message",
 		"chat",
 	],
+	search: [
+		"search",
+		"find",
+		"look up",
+		"lookup",
+		"google",
+		"brave",
+		"web search",
+		"research",
+	],
 };
 
 export function inferProviderCategoriesFromPrompt(

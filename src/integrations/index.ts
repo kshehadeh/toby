@@ -1,6 +1,7 @@
 import { applecalendarIntegrationModule } from "./applecalendar/index";
 import { applemailIntegrationModule } from "./applemail/index";
 import { azureAdIntegrationModule } from "./azuread/index";
+import { braveSearchIntegrationModule } from "./bravesearch/index";
 import { gmailIntegrationModule } from "./gmail/index";
 import { macosIntegrationModule } from "./macos/index";
 import { slackIntegrationModule } from "./slack/index";
@@ -20,6 +21,7 @@ const MODULES: IntegrationModule[] = [
 	applemailIntegrationModule,
 	applecalendarIntegrationModule,
 	macosIntegrationModule,
+	braveSearchIntegrationModule,
 ];
 
 export function getIntegrationModules(): IntegrationModule[] {

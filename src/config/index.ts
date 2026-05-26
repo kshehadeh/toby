@@ -151,7 +151,7 @@ export interface CredentialsFile {
 	ai?: AICredentials;
 }
 
-function getIntegrationCredential(
+export function getIntegrationCredential(
 	creds: CredentialsFile,
 	moduleName: string,
 	field: string,
