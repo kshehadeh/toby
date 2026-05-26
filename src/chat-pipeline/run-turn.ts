@@ -34,6 +34,8 @@ const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"tobyListDefaults",
 	"tobyListTools",
 	"tobyListSkills",
+	"fetchWebContent",
+	"webSearch",
 ]);
 
 type ChatTurnOptions = {

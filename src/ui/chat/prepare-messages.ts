@@ -7,6 +7,7 @@ import {
 } from "../../ai/pretreatment";
 import type { Persona } from "../../config/index";
 import { getDefaultProvider } from "../../config/index";
+import { getBraveSearchApiKeyRaw } from "../../integrations/bravesearch/client";
 import {
 	ALL_PROVIDER_CATEGORIES,
 	PROVIDER_CATEGORY_LABELS,
@@ -134,14 +135,19 @@ function buildCombinedChatBasePrompt(
 		.join("\n\n");
 	const defaultsSection = buildDefaultProvidersSection();
 
+	const hasSearch = Boolean(getBraveSearchApiKeyRaw());
+	const searchToolsList = hasSearch ? ", **webSearch**" : "";
+	const searchRule = hasSearch
+		? "\n- **Web search**: When the user asks about current events, facts, research, or anything requiring up-to-date information, use **webSearch** to find results. When the user shares a URL or asks to read a page, use **fetchWebContent** to extract the article content. Never claim knowledge about current events without searching first."
+		: "";
 	return `You are Toby, a personal assistant with access to: **${labels}**.
 
-Use the integration tools below for Gmail/Todoist/Slack/Azure AD work, plus the global Toby tools (**createLocalSkill**, **askUser**). Pick the right integration based on the user's request.
+Use the integration tools below for Gmail/Todoist/Slack/Azure AD work, plus the global Toby tools (**createLocalSkill**, **askUser**, **fetchWebContent**${searchToolsList}). Pick the right integration based on the user's request.
 
 Shared rules:
 - Use **askUser** whenever you need a multiple-choice decision from the user. The terminal does not respond to questions written only in plain assistant text.
 - If the request is fully answered, stop without dangling "Would you like…?" in prose unless you call **askUser** with concrete options.
-- When listing emails, tasks, or options in assistant text, prefer markdown list items (\`- item\`) with one item per line.
+- When listing emails, tasks, or options in assistant text, prefer markdown list items (\`- item\`) with one item per line.${searchRule}
 ${defaultsSection ? `\n${defaultsSection}\n` : ""}
 ${integrationBlocks}
 ${globalChatToolsPromptSection()}

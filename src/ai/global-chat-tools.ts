@@ -3,6 +3,8 @@ import path from "node:path";
 import { Output, type Tool, generateText, tool, zodSchema } from "ai";
 import { z } from "zod";
 import { type Persona, ensureTobyDir, getSkillsDir } from "../config/index";
+import { getBraveSearchApiKeyRaw } from "../integrations/bravesearch/client";
+import { createBraveSearchTools } from "../integrations/bravesearch/tools";
 import {
 	formatSkillsCatalogForPrompt,
 	loadLocalSkills,
@@ -13,6 +15,7 @@ import {
 import { createModelForPersona } from "./chat";
 import { getCurrentDateTimeInfo } from "./current-datetime";
 import { createReflectTools, reflectToolsPromptSection } from "./reflect-tools";
+import { createWebFetchTools } from "./web-fetch-tool";
 
 const SKILL_MD_BASENAME = "SKILL.md";
 
@@ -55,6 +58,17 @@ type GlobalChatToolsContext = {
 /** Explains global tools for integration system prompts. */
 export function globalChatToolsPromptSection(): string {
 	const skillsCatalog = formatSkillsCatalogForPrompt(loadLocalSkills());
+	const hasSearch = Boolean(getBraveSearchApiKeyRaw());
+	const searchToolLine = hasSearch
+		? "\n- **webSearch**: Search the web using Brave Search. Returns titles, URLs, descriptions, and optional page age. Use when the user asks about current events, facts, research, or anything requiring up-to-date information from the web. Always cite source URLs from search results."
+		: "";
+	const searchRules = hasSearch
+		? `
+Web search and fetch rules:
+- When the user asks to search, find, look up, or research something on the web, use **webSearch** first, then optionally **fetchWebContent** on the most relevant result URLs.
+- When the user shares a URL or asks to read a specific page, use **fetchWebContent** directly.
+- Never claim knowledge about current events, recent news, or time-sensitive facts without using **webSearch** first.`
+		: "";
 	return `
 Global Toby tools (always available in addition to integration tools):
 - **createLocalSkill**: Draft a SKILL.md from your written description and save it under ~/.toby/skills/<folder>/SKILL.md. Required: \`description\`. Optional: \`preferredFolderName\` (kebab-case). If the folder name is omitted, the drafting step recommends one; if that folder already exists and no preferred name was given, a numeric suffix is used. If the user supplied \`preferredFolderName\` and SKILL.md already exists there, the tool fails so nothing is overwritten.
@@ -66,6 +80,8 @@ Global Toby tools (always available in addition to integration tools):
 - **memoryExplain**: Show why a memory exists (source and audit trail).
 - **memoryRetrieveForTask**: Retrieve memories relevant to the current task.
 - **getCurrentDateTime**: Return the current local/UTC date-time and timezone.
+- **fetchWebContent**: Fetch a web page and extract its main readable content (strips ads, navigation, footers). Returns article title, text content, excerpt, and metadata. Use to read blog posts, articles, documentation, or any page with substantive text.${searchToolLine}
+${searchRules}
 
 Memory rules:
 - **Always** use **memoryPropose** when the user shares a durable preference, fact, or personal context worth remembering. Never skip this.
@@ -164,6 +180,13 @@ export function createGlobalChatTools(
 	});
 	return {
 		...reflectTools,
+		...createWebFetchTools(),
+		...(getBraveSearchApiKeyRaw()
+			? createBraveSearchTools({
+					dryRun: ctx.dryRun,
+					appliedActions: ctx.appliedActions,
+				})
+			: {}),
 		getCurrentDateTime: tool({
 			description:
 				"Get the current local datetime, UTC datetime, timezone, and Unix milliseconds.",
