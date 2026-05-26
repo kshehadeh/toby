@@ -80,6 +80,15 @@ If pretreatment is skipped (`shouldPretreat` false) or disabled (`TOBY_DISABLE_P
 
 To author a new skill from chat, the global tool **`createLocalSkill`** (see [`src/ai/global-chat-tools.ts`](../src/ai/global-chat-tools.ts)) drafts a full `SKILL.md` with the persona model and saves it under `~/.toby/skills/`.
 
+### Web content tools (always-included)
+
+Two global tools extend Toby's ability to access the web:
+
+- **`fetchWebContent`** — Fetches a URL and extracts its main readable content using `@mozilla/readability`. Strips ads, navigation, footers, and other boilerplate. Returns article title, text content, excerpt, and metadata. Always available (no credentials needed). Implemented in [`src/ai/web-fetch-tool.ts`](../src/ai/web-fetch-tool.ts).
+- **`webSearch`** — Searches the web using the Brave Search API. Returns titles, URLs, descriptions, and optional page age. Available as a **conditional global tool** when a Brave Search API key is configured in credentials. When available, it is always included in the tool set (protected from pretreatment filtering via `ALWAYS_INCLUDED_TOOLS`). Implemented in [`src/integrations/bravesearch/tools.ts`](../src/integrations/bravesearch/tools.ts).
+
+Both tools are in the `ALWAYS_INCLUDED_TOOLS` set, so pretreatment's relevance filtering never removes them. The combined system prompt includes routing rules: use `webSearch` when the user asks about current events or research, use `fetchWebContent` when the user shares a URL or asks to read a specific page.
+
 ## Turn execution (tools + streaming)
 
 For each user submission:

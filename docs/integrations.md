@@ -20,7 +20,7 @@ Extends `Integration` with optional **capabilities** and **hooks**:
 | Field / method | Purpose |
 | ---------------- | ------- |
 | `capabilities` | Subset of `IntegrationCapability` (currently `"chat"`). |
-| `providerCategories?` | Provider buckets for default-provider selection and schedule routing: `"email"` \| `"calendar"` \| `"tasks"` \| `"contacts"` \| `"chat"`. |
+| `providerCategories?` | Provider buckets for default-provider selection and schedule routing: `"email"` \| `"calendar"` \| `"tasks"` \| `"contacts"` \| `"chat"` \| `"search"`. |
 | `authMethods?` | Optional supported auth options for configure UI (e.g. OAuth vs client credentials) with a default method. |
 | `resources?` | Optional strings describing entities (e.g. inbox, tasks) for discovery or docs. |
 | `getCredentialDescriptors()` | Fields shown under Integrations in configure UI (`CredentialFieldDescriptor`: flat `key`, `label`, `masked`, plus optional auth-method gating via `showForAuthMethods`). |
@@ -63,6 +63,12 @@ Each integration typically owns:
 **Apple Mail** ([`src/integrations/applemail/`](../src/integrations/applemail/)) is **macOS-only**: it controls the local Mail.app via AppleScript for chat tools (`searchEmails`, `createDraft`, `updateDraft`). See [`apple-mail.md`](apple-mail.md) for setup, permissions, and limitations.
 
 **Apple Calendar** ([`src/integrations/applecalendar/`](../src/integrations/applecalendar/)) is **macOS-only**: it uses **EventKit** (AppleScriptObjC) for fast event search across all calendar types (including Exchange/iCloud), and Calendar.app AppleScript for create/update/delete operations. See [`apple-calendar.md`](apple-calendar.md) for setup, permissions, and AppleScript pitfalls.
+
+**Brave Search** ([`src/integrations/bravesearch/`](../src/integrations/bravesearch/)) is the **Search** provider category integration: API-key auth, with a `webSearch` chat tool for web search (query, count, freshness filter). The `webSearch` tool is also wired as a **conditional global tool** — when a Brave Search API key is present in credentials, the tool is available in every chat session without needing to explicitly select the integration.
+
+### Web content fetching
+
+The global `fetchWebContent` tool ([`src/ai/web-fetch-tool.ts`](../src/ai/web-fetch-tool.ts)) fetches any URL and extracts clean readable content using `@mozilla/readability` (the same engine Firefox Reader View uses) plus `linkedom` for server-side DOM parsing. It strips ads, navigation, footers, and other boilerplate, returning the article title, text content, excerpt, site name, and byline. This tool is always available in chat sessions (no credentials needed).
 
 ## How core commands use modules
 

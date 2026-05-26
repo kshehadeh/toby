@@ -28,6 +28,7 @@ Each integration declares one or more **provider categories**. A category descri
 | `tasks` | Task List Provider | Todos, projects, and due dates |
 | `contacts` | Contact List Provider | Directory and people lookup |
 | `chat` | Chat Provider | Channels, DMs, and workspace messages |
+| `search` | Search Provider | Web search and research |
 
 ### Which integration belongs where
 
@@ -39,6 +40,7 @@ Each integration declares one or more **provider categories**. A category descri
 | Todoist | `todoist` | `tasks` |
 | Azure AD | `azuread` | `contacts` |
 | Slack | `slack` | `chat` |
+| Brave Search | `bravesearch` | `search` |
 
 Only **email** currently has two first-party integrations in the same category. That is the main case where defaults matter.
 
@@ -74,6 +76,7 @@ If you only connect one integration per category, defaults are optional—Toby c
 | Apple Mail | `applemail` | [Apple Mail](./apple-mail) |
 | Apple Calendar | `applecalendar` | [Apple Calendar](./apple-calendar) |
 | macOS | `macos` | [macOS](./macos) |
+| Brave Search | `bravesearch` | [Brave Search](./brave-search) |
 
 ## Using integrations in chat
 
@@ -86,6 +89,15 @@ gmail summarize unread messages from this week
 ```
 
 **Pick explicitly** — `toby chat --integration gmail --integration todoist "..."` or **`/integration`** in the TUI.
+
+## Web content tools
+
+Toby includes two tools for accessing web content in chat—no explicit integration selection needed:
+
+- **`fetchWebContent`** — Always available. Fetches a URL and extracts the main readable article content (strips ads, navigation, footers). Use when you share a URL or ask Toby to read a page.
+- **`webSearch`** — Available when a Brave Search API key is configured. Searches the web and returns titles, URLs, and descriptions. Use when you ask Toby to look something up, research a topic, or find current information.
+
+Toby automatically routes to the right tool based on your request. If you ask to "search the web for …" it uses `webSearch`; if you share a URL it uses `fetchWebContent`. You can combine both: search first, then read a result.
 
 ## Other commands
 
