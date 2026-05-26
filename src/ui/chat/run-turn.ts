@@ -1,1 +1,4 @@
-export { runIntegrationChatTurn } from "../../chat-pipeline/run-turn";
+export {
+	buildToolsCatalogForPretreatment,
+	runIntegrationChatTurn,
+} from "../../chat-pipeline/run-turn";

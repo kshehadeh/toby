@@ -18,7 +18,10 @@ import {
 } from "../ui/chat/prepare-messages";
 import { appendMessageBatch, loadChatSession } from "../ui/chat/session-store";
 import { resolveHeadlessChatModules } from "./resolve-chat-modules";
-import { runIntegrationChatTurn } from "./run-turn";
+import {
+	buildToolsCatalogForPretreatment,
+	runIntegrationChatTurn,
+} from "./run-turn";
 
 const INBOUND_PERSONA_APPENDIX_BASE = `
 
@@ -110,6 +113,10 @@ export async function runHeadlessChatTurn(params: {
 		null;
 
 	if (shouldPretreat(priorMessages, userText, isFirstTurn)) {
+		const toolCatalog = await buildToolsCatalogForPretreatment(modules, {
+			dryRun,
+			persona: inboundPersona,
+		});
 		const wrapResult = await wrapUserPromptWithPretreatment({
 			priorMessages: isFirstTurn ? null : priorMessages,
 			rawUserText: userText,
@@ -117,6 +124,8 @@ export async function runHeadlessChatTurn(params: {
 			isFirstTurn,
 			persona: inboundPersona,
 			skillsCatalog: skills,
+			toolsCatalogText: toolCatalog.catalogText,
+			allowedToolNamesLower: toolCatalog.allowedToolNamesLower,
 		});
 		effectiveText = wrapResult.content;
 		spec = wrapResult.spec;
@@ -144,6 +153,7 @@ export async function runHeadlessChatTurn(params: {
 		persona: inboundPersona,
 		dryRun,
 		askUser,
+		relevantTools: spec?.relevantTools,
 	});
 
 	const next = [...messages, ...result.responseMessages];

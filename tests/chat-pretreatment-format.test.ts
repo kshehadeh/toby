@@ -14,6 +14,8 @@ function minimalSpec(over: Partial<UserIntentSpec> = {}): UserIntentSpec {
 		openQuestions: [],
 		relevantIntegrations: ["todoist"],
 		relevantSkills: [],
+		relevantTools: [],
+		sessionName: "",
 		...over,
 	};
 }
@@ -55,11 +57,13 @@ describe("formatUserMessageWithPretreatment", () => {
 			openQuestions: [],
 			relevantIntegrations: [],
 			relevantSkills: [],
+			relevantTools: [],
 		});
 		const out = formatUserMessageWithPretreatment("x", spec);
 		expect(out).toContain("- Must: (none)");
 		expect(out).toContain("- Must not: (none)");
 		expect(out).toContain("- Selected skills: (none)");
+		expect(out).toContain("- Selected tools: (none)");
 	});
 
 	it("includes selected skills with descriptions when catalog is provided", () => {
@@ -76,6 +80,22 @@ describe("formatUserMessageWithPretreatment", () => {
 		]);
 		expect(out).toContain("Selected skills:");
 		expect(out).toContain("my-skill: When testing.");
+	});
+
+	it("includes selected tools in formatted output", () => {
+		const spec = minimalSpec({
+			relevantTools: ["fetchOpenTasks", "listProjectNames"],
+		});
+		const out = formatUserMessageWithPretreatment("show tasks", spec);
+		expect(out).toContain("Selected tools:");
+		expect(out).toContain("fetchOpenTasks");
+		expect(out).toContain("listProjectNames");
+	});
+
+	it("includes session name in formatted output", () => {
+		const spec = minimalSpec({ sessionName: "Inbox Triage" });
+		const out = formatUserMessageWithPretreatment("triage my inbox", spec);
+		expect(out).toContain("- Session name: Inbox Triage");
 	});
 
 	it("mergeUserPromptWithPretreatmentSpec matches format helper", () => {

@@ -136,6 +136,8 @@ describe("wrapUserPromptWithPretreatment", () => {
 				openQuestions: [],
 				relevantIntegrations: [],
 				relevantSkills: [],
+				relevantTools: [],
+				sessionName: "",
 			});
 		const setSpy = vi.spyOn(sessionStore, "setPretreatmentCache");
 
@@ -188,6 +190,8 @@ describe("wrapUserPromptWithPretreatment", () => {
 				openQuestions: [],
 				relevantIntegrations: [],
 				relevantSkills: [],
+				relevantTools: [],
+				sessionName: "",
 			});
 		const setSpy = vi.spyOn(sessionStore, "setPretreatmentCache");
 

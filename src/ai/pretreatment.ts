@@ -24,7 +24,7 @@ import {
 	resolveAuxiliaryModelId,
 } from "./model-factory";
 
-const PRETREATMENT_CACHE_SCHEMA_VERSION = "3";
+const PRETREATMENT_CACHE_SCHEMA_VERSION = "4";
 
 const userIntentSpecSchema = z.object({
 	goal: z.string().describe("One sentence: what the user wants to achieve"),
@@ -42,15 +42,26 @@ const userIntentSpecSchema = z.object({
 		.describe(
 			"Names of applicable local skills from the provided catalog (exact names only); empty if none apply",
 		),
+	relevantTools: z
+		.array(z.string())
+		.describe(
+			"Names of tools from the provided catalog that are likely needed for this request (exact names only); empty if unsure",
+		),
+	sessionName: z
+		.string()
+		.describe(
+			"A short descriptive name for this chat session (3-6 words, title case, no punctuation); e.g. 'Inbox Triage' or 'Schedule Team Meeting'",
+		),
 });
 
 export type UserIntentSpec = z.infer<typeof userIntentSpecSchema>;
 
 const PREP_SYSTEM = `You extract a compact intent specification from a user message for a CLI assistant (Toby) that may use multiple integration tools.
 You may also select relevant **local skills** when the catalog lists skills whose descriptions clearly match the user's request; otherwise leave relevantSkills empty.
+You must also select **relevant tools** from the provided tool catalog — choose only the tools whose capabilities are clearly needed for the user's request. Do not include tools "just in case"; be selective to reduce context size. If unsure, leave relevantTools empty.
 Return only structured fields that match the schema. Be conservative: if unsure, put detail in openQuestions rather than assumptions.
 Do not invent email addresses, task IDs, or dates that are not in the user message.
-For relevantSkills, use only exact skill names from the catalog (no invented names).`;
+For relevantSkills and relevantTools, use only exact names from the catalogs (no invented names).`;
 
 function sha256Base64Url(input: string): string {
 	return crypto
@@ -81,6 +92,7 @@ function buildPretreatmentCacheKey(params: {
 	readonly integrationLabels: string;
 	readonly modelId: string;
 	readonly skillsCatalogSignature: string;
+	readonly toolsCatalogSignature: string;
 }): string {
 	const signature = JSON.stringify({
 		schema: PRETREATMENT_CACHE_SCHEMA_VERSION,
@@ -88,6 +100,7 @@ function buildPretreatmentCacheKey(params: {
 		integrationLabels: normalizeIntegrationLabels(params.integrationLabels),
 		userText: normalizePretreatmentCacheText(params.userText),
 		skillsCatalogSignature: params.skillsCatalogSignature,
+		toolsCatalogSignature: params.toolsCatalogSignature,
 	});
 	const digest = sha256Base64Url(signature).slice(0, 40);
 	return `toby-pretreat-v${PRETREATMENT_CACHE_SCHEMA_VERSION}-${digest}`;
@@ -185,6 +198,16 @@ function sanitizeRelevantSkills(
 	return { ...spec, relevantSkills: filtered };
 }
 
+function sanitizeRelevantTools(
+	spec: UserIntentSpec,
+	allowedLower: ReadonlySet<string>,
+): UserIntentSpec {
+	const filtered = spec.relevantTools.filter((n) =>
+		allowedLower.has(n.trim().toLowerCase()),
+	);
+	return { ...spec, relevantTools: filtered };
+}
+
 /**
  * When preflight fails or omits skills, infer from token overlap (see inferRelevantSkillsFromUserPrompt).
  * Does not override non-empty model-selected relevantSkills.
@@ -215,6 +238,8 @@ function mergeSkillHeuristicIntoSpec(
 				openQuestions: [],
 				relevantIntegrations: [],
 				relevantSkills: names,
+				relevantTools: [],
+				sessionName: "",
 			},
 			allowedLower,
 		);
@@ -254,12 +279,14 @@ export function formatUserMessageWithPretreatment(
 		"",
 		"Auto-extracted intent (best-effort):",
 		`- Goal: ${spec.goal.trim() || "(unspecified)"}`,
+		`- Session name: ${spec.sessionName.trim() || "(unspecified)"}`,
 		bulletList("Must", spec.mustDo),
 		bulletList("Must not", spec.mustNotDo),
 		bulletList("Assumptions", spec.assumptions),
 		bulletList("Open questions", spec.openQuestions),
 		bulletList("Likely integrations", spec.relevantIntegrations),
 		bulletList("Selected skills", skillLines),
+		bulletList("Selected tools", spec.relevantTools),
 	];
 	return sections.join("\n");
 }
@@ -283,6 +310,8 @@ type PretreatUserPromptParams = {
 	readonly integrationLabels: string;
 	readonly skillsCatalogText: string;
 	readonly allowedSkillNamesLower: ReadonlySet<string>;
+	readonly toolsCatalogText: string;
+	readonly allowedToolNamesLower: ReadonlySet<string>;
 	readonly abortSignal?: AbortSignal;
 	readonly timeoutMs?: number;
 };
@@ -295,7 +324,9 @@ async function pretreatUserPrompt(
 ): Promise<UserIntentSpec | null> {
 	const { userText, integrationLabels, abortSignal } = params;
 	const hasSkillsCatalog = params.skillsCatalogText !== "(none)";
-	const timeoutMs = params.timeoutMs ?? (hasSkillsCatalog ? 8000 : 4000);
+	const hasToolsCatalog = params.toolsCatalogText !== "(none)";
+	const timeoutMs =
+		params.timeoutMs ?? (hasSkillsCatalog || hasToolsCatalog ? 8000 : 4000);
 	const text = userText.trim();
 	if (!text) {
 		return null;
@@ -315,10 +346,13 @@ async function pretreatUserPrompt(
 		const model = createModelForAuxiliary({ persona: params.persona });
 		const skillsSection = `Available local skills (use exact names in relevantSkills only when clearly applicable; otherwise return an empty list):
 ${params.skillsCatalogText}`;
+		const toolsSection = hasToolsCatalog
+			? `\n\nAvailable tools (use exact names in relevantTools only when clearly needed; otherwise return an empty list):\n${params.toolsCatalogText}`
+			: "";
 		const result = await generateText({
 			model,
 			system: PREP_SYSTEM,
-			prompt: `${skillsSection}
+			prompt: `${skillsSection}${toolsSection}
 
 Integrations in scope: ${integrationLabels || "(none)"}
 ${buildDefaultProvidersForPretreatment()}
@@ -332,13 +366,17 @@ ${text}`,
 			}),
 			abortSignal: controller.signal,
 			temperature: 0,
-			maxOutputTokens: hasSkillsCatalog ? 2048 : 400,
+			maxOutputTokens: hasSkillsCatalog || hasToolsCatalog ? 2048 : 400,
 		});
 		const out = result.output;
 		if (!out) {
 			return null;
 		}
-		return sanitizeRelevantSkills(out, params.allowedSkillNamesLower);
+		const withSkills = sanitizeRelevantSkills(
+			out,
+			params.allowedSkillNamesLower,
+		);
+		return sanitizeRelevantTools(withSkills, params.allowedToolNamesLower);
 	} catch {
 		return null;
 	} finally {
@@ -358,6 +396,10 @@ type WrapUserPromptParams = {
 	readonly persona?: Persona;
 	/** Local ~/.toby/skills entries; omit or pass [] when none. */
 	readonly skillsCatalog?: readonly LocalSkill[];
+	/** Compact tool catalog string (name + description + params) for tool selection. */
+	readonly toolsCatalogText?: string;
+	/** Set of allowed tool names (lowercased) for sanitization. */
+	readonly allowedToolNamesLower?: ReadonlySet<string>;
 	readonly abortSignal?: AbortSignal;
 };
 
@@ -380,24 +422,33 @@ export async function wrapUserPromptWithPretreatment(
 		skills.map((s) => s.name.trim().toLowerCase()),
 	);
 
+	const toolsCatalogText = params.toolsCatalogText ?? "(none)";
+	const allowedToolNamesLower = params.allowedToolNamesLower ?? new Set();
+	const toolsCatalogSignature = sha256Base64Url(toolsCatalogText).slice(0, 20);
+
 	const modelId = getPretreatmentModelId(params.persona);
 	const promptKey = buildPretreatmentCacheKey({
 		userText: raw,
 		integrationLabels: params.integrationLabels,
 		modelId,
 		skillsCatalogSignature,
+		toolsCatalogSignature,
 	});
 	if (canUsePretreatmentCache()) {
 		const cached = getPretreatmentCache(promptKey);
 		const parsed = userIntentSpecSchema.safeParse(cached);
 		if (parsed.success) {
-			const normalized = sanitizeRelevantSkills(
+			const withSkills = sanitizeRelevantSkills(
 				parsed.data,
 				allowedSkillNamesLower,
 			);
+			const withTools = sanitizeRelevantTools(
+				withSkills,
+				allowedToolNamesLower,
+			);
 			const merged = mergeSkillHeuristicIntoSpec(
 				raw,
-				normalized,
+				withTools,
 				skills,
 				allowedSkillNamesLower,
 			);
@@ -413,6 +464,8 @@ export async function wrapUserPromptWithPretreatment(
 		integrationLabels: params.integrationLabels,
 		skillsCatalogText,
 		allowedSkillNamesLower,
+		toolsCatalogText,
+		allowedToolNamesLower,
 		abortSignal: params.abortSignal,
 		persona: params.persona,
 	});

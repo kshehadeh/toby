@@ -95,7 +95,10 @@ import {
 	replaceSessionSystemMessageForPersona,
 } from "./prepare-messages";
 import { appendPromptHistory, loadPromptHistory } from "./prompt-history";
-import { runIntegrationChatTurn } from "./run-turn";
+import {
+	buildToolsCatalogForPretreatment,
+	runIntegrationChatTurn,
+} from "./run-turn";
 import {
 	CHAT_SESSION_PICKER_LIMIT,
 	appendMessageBatch,
@@ -335,6 +338,8 @@ export function ChatSessionApp({
 	const transcriptRef = useRef(transcript);
 	const ongoingPretreatAbortRef = useRef<AbortController | null>(null);
 	const pendingSteeringPromptRef = useRef<string | null>(null);
+	const relevantToolsRef = useRef<readonly string[]>([]);
+	const pretreatSessionNameRef = useRef<string | null>(null);
 	const snapRef = useRef({
 		askModal: null as AskModal | null,
 		messages: null as CoreMessage[] | null,
@@ -648,6 +653,7 @@ export function ChatSessionApp({
 					persona: activePersona,
 					dryRun,
 					askUser: askUserHandler,
+					relevantTools: relevantToolsRef.current,
 					chatWithToolsOptions: {
 						onChatEvent: emitChatEvent,
 						abortSignal: turnAbort.signal,
@@ -852,6 +858,14 @@ export function ChatSessionApp({
 				await emitBootStatus(
 					`Local skills catalog: ${localSkills.length} available.`,
 				);
+				await emitBootStatus("Loading tool catalog…");
+				const toolCatalog = await buildToolsCatalogForPretreatment(
+					selectedModules,
+					{ dryRun, persona: activePersona },
+				);
+				await emitBootStatus(
+					`Tool catalog: ${toolCatalog.allowedToolNamesLower.size} tools available.`,
+				);
 				let effectivePrompt = sessionPrompt;
 				let prepId: string | null = null;
 				if (sessionPrompt.trim() && shouldPretreat([], sessionPrompt, true)) {
@@ -867,7 +881,7 @@ export function ChatSessionApp({
 							header: "Prompt preparation",
 						});
 						await emitBootStatus(
-							"Analyzing your request for intent and relevant skills…",
+							"Analyzing your request for intent, relevant skills, and tools…",
 						);
 					}
 					const wrapResult = await wrapUserPromptWithPretreatment({
@@ -877,11 +891,17 @@ export function ChatSessionApp({
 						isFirstTurn: true,
 						persona: activePersona,
 						skillsCatalog: localSkills,
+						toolsCatalogText: toolCatalog.catalogText,
+						allowedToolNamesLower: toolCatalog.allowedToolNamesLower,
 						abortSignal: ac.signal,
 					});
 					if (!cancelled) {
 						effectivePrompt = wrapResult.content;
 						prepSpec = wrapResult.spec;
+						relevantToolsRef.current = prepSpec?.relevantTools ?? [];
+						if (prepSpec?.sessionName?.trim()) {
+							pretreatSessionNameRef.current = prepSpec.sessionName.trim();
+						}
 					}
 					if (prepId && !cancelled) {
 						const detail =
@@ -985,6 +1005,7 @@ export function ChatSessionApp({
 		sessionBootMode,
 		messages,
 		debug,
+		dryRun,
 	]);
 
 	// Incrementally persist new messages and transcript entries.
@@ -1017,6 +1038,20 @@ export function ChatSessionApp({
 		const sid = sessionId;
 		if (!sid) return;
 		if (didNameSessionRef.current) return;
+		// Prefer pretreatment-provided session name (available immediately).
+		const pretreatName = pretreatSessionNameRef.current;
+		if (pretreatName) {
+			renameChatSession(sid, pretreatName);
+			setSessionName(pretreatName);
+			didNameSessionRef.current = true;
+			log("info", "session", "session_rename", {
+				id: sid,
+				name: pretreatName,
+				source: "pretreatment",
+			});
+			return;
+		}
+		// Fallback: derive name from first user message once assistant has replied.
 		const hasAssistant = transcript.some(
 			(e) =>
 				e.kind === "assistant" ||
@@ -1027,7 +1062,11 @@ export function ChatSessionApp({
 		renameChatSession(sid, suggested);
 		setSessionName(suggested);
 		didNameSessionRef.current = true;
-		log("info", "session", "session_rename", { id: sid, name: suggested });
+		log("info", "session", "session_rename", {
+			id: sid,
+			name: suggested,
+			source: "transcript",
+		});
 	}, [sessionId, transcript]);
 
 	useEffect(() => {
@@ -1223,6 +1262,10 @@ export function ChatSessionApp({
 			setActivityLine(willPretreat ? "Preparing request..." : "Thinking...");
 
 			const localSkills = loadLocalSkills();
+			const toolCatalog = await buildToolsCatalogForPretreatment(
+				selectedModulesRef.current,
+				{ dryRun, persona: activePersonaRef.current },
+			);
 			const { content, spec } = await wrapUserPromptWithPretreatment({
 				priorMessages: msgsBefore,
 				rawUserText: steering,
@@ -1230,8 +1273,14 @@ export function ChatSessionApp({
 				isFirstTurn,
 				persona: activePersonaRef.current,
 				skillsCatalog: localSkills,
+				toolsCatalogText: toolCatalog.catalogText,
+				allowedToolNamesLower: toolCatalog.allowedToolNamesLower,
 				abortSignal: ac.signal,
 			});
+			relevantToolsRef.current = spec?.relevantTools ?? [];
+			if (spec?.sessionName?.trim()) {
+				pretreatSessionNameRef.current = spec.sessionName.trim();
+			}
 
 			const msgsAfter = snapRef.current.messages;
 			if (!msgsAfter) {
@@ -1257,7 +1306,7 @@ export function ChatSessionApp({
 
 			await runModelTurnRef.current(next, sidFinal);
 		})();
-	}, [loading]);
+	}, [loading, dryRun]);
 
 	const openIntegrationPicker = useCallback(async () => {
 		const usable: IntegrationModule[] = [];
@@ -1567,6 +1616,10 @@ export function ChatSessionApp({
 					);
 				}
 				const localSkills = loadLocalSkills();
+				const toolCatalog = await buildToolsCatalogForPretreatment(
+					selectedModulesRef.current,
+					{ dryRun, persona: activePersonaRef.current },
+				);
 				const { content, spec } = await wrapUserPromptWithPretreatment({
 					priorMessages: msgsBefore,
 					rawUserText: line,
@@ -1574,8 +1627,14 @@ export function ChatSessionApp({
 					isFirstTurn,
 					persona: activePersonaRef.current,
 					skillsCatalog: localSkills,
+					toolsCatalogText: toolCatalog.catalogText,
+					allowedToolNamesLower: toolCatalog.allowedToolNamesLower,
 					abortSignal: ac.signal,
 				});
+				relevantToolsRef.current = spec?.relevantTools ?? [];
+				if (spec?.sessionName?.trim()) {
+					pretreatSessionNameRef.current = spec.sessionName.trim();
+				}
 				const msgsAfter = snapRef.current.messages;
 				if (!msgsAfter) {
 					setLoading(false);
@@ -1656,6 +1715,7 @@ export function ChatSessionApp({
 		[
 			chatIntegrations.length,
 			debug,
+			dryRun,
 			exit,
 			launchContext,
 			openIntegrationPicker,
