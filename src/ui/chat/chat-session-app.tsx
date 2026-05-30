@@ -1561,7 +1561,7 @@ export function ChatSessionApp({
 							setTranscript((t) => [...t, { kind: "meta", text }]);
 						},
 						addUserContextMessage: (text) => {
-							setTranscript((t) => [...t, { kind: "user", text }]);
+							setTranscript((t) => [...t, { kind: "meta", text }]);
 							setMessages((msgs) =>
 								msgs
 									? [
