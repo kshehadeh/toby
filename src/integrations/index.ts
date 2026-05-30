@@ -3,6 +3,7 @@ import { applemailIntegrationModule } from "./applemail/index";
 import { azureAdIntegrationModule } from "./azuread/index";
 import { braveSearchIntegrationModule } from "./bravesearch/index";
 import { gmailIntegrationModule } from "./gmail/index";
+import { jiraIntegrationModule } from "./jira/index";
 import { macosIntegrationModule } from "./macos/index";
 import { slackIntegrationModule } from "./slack/index";
 import { todoistIntegrationModule } from "./todoist/index";
@@ -22,6 +23,7 @@ const MODULES: IntegrationModule[] = [
 	applecalendarIntegrationModule,
 	macosIntegrationModule,
 	braveSearchIntegrationModule,
+	jiraIntegrationModule,
 ];
 
 export function getIntegrationModules(): IntegrationModule[] {

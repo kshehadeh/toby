@@ -428,6 +428,25 @@ export function setDefaultProvider(
 	writeConfig(cfg);
 }
 
+export interface JiraResolvedCredentials {
+	readonly domain: string;
+	readonly email: string;
+	readonly apiToken: string;
+}
+
+export function getJiraCredentials(): JiraResolvedCredentials {
+	const creds = readCredentials();
+	const domain = getIntegrationCredential(creds, "jira", "domain");
+	const email = getIntegrationCredential(creds, "jira", "email");
+	const apiToken = getIntegrationCredential(creds, "jira", "apiToken");
+	if (!domain || !email || !apiToken) {
+		throw new Error(
+			"Jira credentials not found. Add them to ~/.toby/credentials.json or run `toby configure`.",
+		);
+	}
+	return { domain, email, apiToken };
+}
+
 export function getDefaultPersonaName(): string | undefined {
 	return readConfig().defaultPersona;
 }
