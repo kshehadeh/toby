@@ -101,6 +101,33 @@ describe("integration registry", () => {
 		expect(names).toContain("bravesearch");
 	});
 
+	it("includes jira in registry with work_tracker provider category", () => {
+		const jira = getIntegrationModule("jira");
+		expect(jira).toBeDefined();
+		expect(jira?.providerCategories).toContain("work_tracker");
+		expect(jira?.capabilities).toContain("chat");
+		expect(jira?.resources).toContain("issues");
+		expect(jira?.resources).toContain("projects");
+	});
+
+	it("getModulesForCategory(work_tracker) includes jira", () => {
+		const names = getModulesForCategory("work_tracker").map((m) => m.name);
+		expect(names).toContain("jira");
+	});
+
+	it("jira credential descriptors include domain, email, apiToken", () => {
+		const jira = getIntegrationModule("jira");
+		expect(jira).toBeDefined();
+		const keys = jira?.getCredentialDescriptors().map((d) => d.key);
+		expect(keys).toContain("jira.domain");
+		expect(keys).toContain("jira.email");
+		expect(keys).toContain("jira.apiToken");
+	});
+
+	it("ALL_PROVIDER_CATEGORIES includes work_tracker", () => {
+		expect(ALL_PROVIDER_CATEGORIES).toContain("work_tracker");
+	});
+
 	it("chat-capable modules define chat()", () => {
 		for (const mod of getModulesWithCapability("chat")) {
 			expect(typeof mod.chat).toBe("function");
