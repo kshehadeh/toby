@@ -27,19 +27,24 @@ toby listen --helper /path/to/toby-listener
 toby listen transcribe ~/.toby/listen/recordings/<recording-id>
 ```
 
-The UI uses:
+The UI is a two-pane layout:
 
-- `Enter` to run the selected action.
+- **Left pane**: scrollable list of recordings, sorted newest first, with "Start new recording" at the top.
+- **Right pane**: shows details for the selected item — source toggles and start prompt when idle, a recording interface with animated indicator and timer when recording, or full metadata and actions when a saved recording is selected.
+
+Keyboard shortcuts:
+
+- `↑↓` navigate within the focused pane.
+- `Tab` switches focus between panes (auto-focused on the right pane while recording).
+- `Enter` to select/toggle the focused item.
 - `s` to stop and save while listening.
 - `d` to stop and discard while listening.
-- `Enter` on a saved recording to open its detail view.
-- In the detail view, `Enter` on Name or Description opens an editor.
-- In the detail view, `Enter` on "Open folder in Finder" opens the folder.
-- In the detail view, `Enter` on "Delete recording" deletes after confirmation.
+- `Esc` to move focus back to the left pane from the right pane.
 - `q` to close, confirming discard if a recording is active.
 
-Saved recordings appear below the listener actions. The list is sorted newest
-first and scrolls with the normal arrow keys.
+The recording interface shows an animated red dot indicator, a bold "Recording" label, an elapsed timer, and two actions: a green bold "Stop and Save" (default) and a red bold "Stop and Discard".
+
+In the recording detail view, `Enter` on Name or Description opens an editor, `Enter` on "Open folder in Finder" opens the folder, and `Enter` on "Delete recording" deletes after confirmation.
 
 Each recording's `metadata.json` can include optional `name` and `description`
 fields. The listen UI edits those fields in place.

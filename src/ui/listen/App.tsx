@@ -1,4 +1,4 @@
-import { Box, Text, render, useApp, useInput } from "ink";
+import { Box, Text, render, useApp, useInput, useStdout } from "ink";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	type AudioCaptureHandle,
@@ -32,7 +32,6 @@ import {
 	ActionRow,
 	ConfirmDialog,
 	FieldEditor,
-	InfoRow,
 	NavigatorRow,
 	SelectableTextRow,
 	StatusIcon,
@@ -44,6 +43,7 @@ import {
 	isNavigateUp,
 	isQuitKey,
 	isSelectKey,
+	isToggleKey,
 	resolveKittyKeyboardMode,
 } from "../shared";
 
@@ -55,71 +55,25 @@ export interface ListenAppOptions {
 
 type ConfirmAction = "discard" | "quit" | "deleteRecording";
 type EditRecordingField = "name" | "description";
-type ListenAction = "start" | "save" | "discard" | "toggleMic" | "toggleSystem";
-type ListenScreen = "main" | "recordingDetail";
-type ListenRow =
-	| { readonly kind: "action"; readonly action: ListenAction }
-	| { readonly kind: "recording"; readonly recording: ListenRecordingSummary };
-type RecordingDetailRow =
-	| {
-			readonly kind: "field";
-			readonly field: EditRecordingField | "location";
-			readonly label: string;
-			readonly value: string;
-			readonly multiline?: boolean;
-	  }
-	| {
-			readonly kind: "action";
-			readonly action: "open";
-			readonly label: string;
-	  }
-	| {
-			readonly kind: "delete";
-			readonly action: "delete";
-			readonly label: string;
-	  };
 
-const MAX_RECORDINGS_VISIBLE = 8;
-
-function listenStatusIcon(status: ListenState["status"]) {
-	if (status === "error") return <StatusIcon status="error" />;
-	if (status === "saved" || status === "discarded") {
-		return <StatusIcon status="success" />;
-	}
-	if (
-		status === "requestingPermission" ||
-		status === "listening" ||
-		status === "stopping"
-	) {
-		return <StatusIcon status="running" />;
-	}
-	return <StatusIcon status="pending" />;
-}
+const RECORDING_DOT_FRAMES = ["⏺", " "];
+const RECORDING_DOT_INTERVAL_MS = 600;
 
 function formatElapsed(session: ListenSession | undefined): string {
-	if (!session) return "0s";
+	if (!session) return "0:00";
 	const elapsedMs = Math.max(0, Date.now() - Date.parse(session.startedAt));
-	const seconds = Math.floor(elapsedMs / 1000);
-	const mins = Math.floor(seconds / 60);
-	const secs = seconds % 60;
+	const totalSeconds = Math.floor(elapsedMs / 1000);
+	const mins = Math.floor(totalSeconds / 60);
+	const secs = totalSeconds % 60;
+	return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+function formatDuration(ms: number | undefined): string {
+	if (ms === undefined) return "";
+	const totalSeconds = Math.round(ms / 1000);
+	const mins = Math.floor(totalSeconds / 60);
+	const secs = totalSeconds % 60;
 	return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-}
-
-function listenFooter(status: ListenState["status"]): string {
-	if (status === "listening") {
-		return "s stop and save · d discard · q close";
-	}
-	if (status === "requestingPermission" || status === "stopping") {
-		return "Waiting for listener…";
-	}
-	return "↑↓ navigate · Enter select · q close";
-}
-
-function helperErrorMessage(error: unknown): string {
-	if (error instanceof ListenCaptureError) {
-		return error.message;
-	}
-	return error instanceof Error ? error.message : String(error);
 }
 
 function formatRecordingDate(value: string): string {
@@ -128,137 +82,281 @@ function formatRecordingDate(value: string): string {
 	return date.toLocaleString();
 }
 
-function formatDuration(ms: number | undefined): string {
-	if (ms === undefined) return "";
-	const seconds = Math.round(ms / 1000);
-	const mins = Math.floor(seconds / 60);
-	const secs = seconds % 60;
-	return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-}
-
-function actionLabel(
-	action: ListenAction,
-	sources: ListenSourceSelection,
-): string {
-	if (action === "start") return "Start listening";
-	if (action === "save") return "Stop and save";
-	if (action === "discard") return "Stop and discard";
-	if (action === "toggleMic") {
-		return `${sources.mic ? UI_GLYPHS.checkboxOn : UI_GLYPHS.checkboxOff} Microphone`;
-	}
-	return `${sources.system ? UI_GLYPHS.checkboxOn : UI_GLYPHS.checkboxOff} System audio`;
-}
-
 function recordingLabel(recording: ListenRecordingSummary): string {
 	const duration = formatDuration(recording.metadata.durationMs);
 	const date = formatRecordingDate(
 		recording.metadata.startedAt || recording.metadata.createdAt,
 	);
 	const title = recording.metadata.name?.trim() || date;
-	const fileBits = [
-		recording.metadata.files.combined ? "combined" : null,
-		recording.metadata.files.mic ? "mic" : null,
-		recording.metadata.files.system ? "system" : null,
-	].filter(Boolean);
-	return `${title}${duration ? ` · ${duration}` : ""} · ${fileBits.join("/")}`;
+	return `${title}${duration ? ` · ${duration}` : ""}`;
 }
 
-function visibleRows(params: {
-	readonly rows: readonly ListenRow[];
-	readonly selectedIndex: number;
-}): Array<readonly [ListenRow, number]> {
-	const actionRows = params.rows
-		.map((row, index) => [row, index] as const)
-		.filter(([row]) => row.kind === "action");
-	const recordingRows = params.rows
-		.map((row, index) => [row, index] as const)
-		.filter(([row]) => row.kind === "recording");
-	if (recordingRows.length <= MAX_RECORDINGS_VISIBLE) {
-		return [...actionRows, ...recordingRows];
-	}
-	const selectedRecordingOffset = recordingRows.findIndex(
-		([, index]) => index === params.selectedIndex,
-	);
-	const focusedOffset =
-		selectedRecordingOffset === -1 ? 0 : selectedRecordingOffset;
-	const half = Math.floor(MAX_RECORDINGS_VISIBLE / 2);
-	const start = Math.min(
-		Math.max(0, focusedOffset - half),
-		Math.max(0, recordingRows.length - MAX_RECORDINGS_VISIBLE),
-	);
-	return [
-		...actionRows,
-		...recordingRows.slice(start, start + MAX_RECORDINGS_VISIBLE),
-	];
+function helperErrorMessage(error: unknown): string {
+	if (error instanceof ListenCaptureError) return error.message;
+	return error instanceof Error ? error.message : String(error);
 }
 
-function renderRows(params: {
-	readonly rows: readonly ListenRow[];
-	readonly selectedIndex: number;
-	readonly sources: ListenSourceSelection;
-}) {
-	const rowsToRender = visibleRows(params);
-	const recordingCount = params.rows.filter(
-		(row) => row.kind === "recording",
-	).length;
-	const hasRecordings = recordingCount > 0;
+function RecordingIndicator({ active }: { readonly active: boolean }) {
+	const [frame, setFrame] = useState(0);
+	useEffect(() => {
+		if (!active) return;
+		const id = setInterval(
+			() => setFrame((f) => (f + 1) % 2),
+			RECORDING_DOT_INTERVAL_MS,
+		);
+		return () => clearInterval(id);
+	}, [active]);
+	if (!active) return null;
 	return (
-		<>
-			{rowsToRender.map(([row, index]) => {
-				if (row.kind === "action") {
-					return (
-						<ActionRow
-							key={`action-${row.action}`}
-							label={actionLabel(row.action, params.sources)}
-							kind={row.action === "discard" ? "delete" : "action"}
-							selected={index === params.selectedIndex}
-						/>
-					);
-				}
-				return (
-					<SelectableTextRow
-						key={row.recording.id}
-						selected={index === params.selectedIndex}
-					>
-						{UI_GLYPHS.section} {recordingLabel(row.recording)}{" "}
-						{row.recording.metadata.description ? (
-							<Text dimColor>{row.recording.metadata.description}</Text>
-						) : null}
-					</SelectableTextRow>
-				);
-			})}
-			{hasRecordings ? (
+		<Text color="red" bold>
+			{RECORDING_DOT_FRAMES[frame]}
+		</Text>
+	);
+}
+
+function RecordingView({
+	state,
+	elapsed,
+	onSave,
+	onDiscard,
+	focusIndex,
+}: {
+	readonly state: ListenState;
+	readonly elapsed: string;
+	readonly onSave: () => void;
+	readonly onDiscard: () => void;
+	readonly focusIndex: number;
+}) {
+	const isListening = state.status === "listening";
+	const isRequesting = state.status === "requestingPermission";
+	const isStopping = state.status === "stopping";
+	const isSaving = isStopping && state.message?.includes("saving");
+
+	const actionItems = [
+		{ id: "save", label: "Stop and Save", color: "green" as const },
+		{ id: "discard", label: "Stop and Discard", color: "red" as const },
+	];
+
+	return (
+		<Box flexDirection="column">
+			<Box flexDirection="row" alignItems="center" gap={1} paddingX={1}>
+				<RecordingIndicator active={isListening} />
+				<Text bold color={isListening ? "red" : "yellow"}>
+					Recording
+				</Text>
+			</Box>
+
+			<Box paddingX={1} marginTop={1}>
+				<Text bold>
+					Elapsed: <Text color={ACCENT}>{elapsed}</Text>
+				</Text>
+			</Box>
+
+			{state.message && !isListening ? (
 				<Box paddingX={1} marginTop={1}>
-					<Text dimColor>
-						Enter details · showing{" "}
-						{Math.min(MAX_RECORDINGS_VISIBLE, recordingCount)} of{" "}
-						{recordingCount}
+					<Text dimColor>{state.message}</Text>
+				</Box>
+			) : null}
+
+			{state.error ? (
+				<Box paddingX={1} marginTop={1}>
+					<Text color="red" wrap="wrap">
+						{state.error}
 					</Text>
 				</Box>
-			) : (
-				<Box paddingX={1} marginTop={1}>
-					<Text dimColor>No recordings saved yet.</Text>
+			) : null}
+
+			{isListening || isStopping ? (
+				<Box flexDirection="column" marginTop={1}>
+					{actionItems.map((item, i) => (
+						<SelectableTextRow key={item.id} selected={i === focusIndex}>
+							<Text bold color={item.color}>
+								{UI_GLYPHS.action} {item.label}
+							</Text>
+						</SelectableTextRow>
+					))}
 				</Box>
-			)}
-		</>
+			) : null}
+
+			{isRequesting ? (
+				<Box paddingX={1} marginTop={1}>
+					<Text dimColor>Waiting for permissions…</Text>
+				</Box>
+			) : null}
+
+			<Box paddingX={1} marginTop={1}>
+				<Text dimColor>{formatListenSources(state.sources)}</Text>
+			</Box>
+		</Box>
 	);
 }
 
-export function ListenApp({
+function RecordingDetailView({
+	recording,
+	focusIndex,
+	onOpenFinder,
+	onDelete,
+}: {
+	readonly recording: ListenRecordingSummary;
+	readonly focusIndex: number;
+	readonly onOpenFinder: () => void;
+	readonly onDelete: () => void;
+}) {
+	const rows = [
+		{
+			kind: "field" as const,
+			field: "name",
+			label: "Name",
+			value: recording.metadata.name ?? "",
+		},
+		{
+			kind: "field" as const,
+			field: "description",
+			label: "Description",
+			value: recording.metadata.description ?? "",
+			multiline: true,
+		},
+		{
+			kind: "field" as const,
+			field: "location",
+			label: "Location",
+			value: recording.dir,
+		},
+		{
+			kind: "info" as const,
+			label: "Duration",
+			value: formatDuration(recording.metadata.durationMs) || "N/A",
+		},
+		{
+			kind: "info" as const,
+			label: "Date",
+			value: formatRecordingDate(
+				recording.metadata.startedAt || recording.metadata.createdAt,
+			),
+		},
+		{
+			kind: "info" as const,
+			label: "Sources",
+			value: formatListenSources(recording.metadata.sources),
+		},
+		{ kind: "action" as const, action: "open", label: "Open folder in Finder" },
+		{ kind: "delete" as const, action: "delete", label: "Delete recording" },
+	];
+
+	return (
+		<Box flexDirection="column">
+			<Box paddingX={1}>
+				<Text bold color={ACCENT}>
+					{UI_GLYPHS.section} {recording.metadata.name || recording.id}
+				</Text>
+			</Box>
+			{recording.metadata.description ? (
+				<Box paddingX={1} marginTop={1}>
+					<Text dimColor>{recording.metadata.description}</Text>
+				</Box>
+			) : null}
+			<Box flexDirection="column" marginTop={1}>
+				{rows.map((row, i) => {
+					const selected = i === focusIndex;
+					if (row.kind === "field") {
+						return (
+							<NavigatorRow
+								key={row.field}
+								label={row.label}
+								kind={row.field === "location" ? "value" : "value"}
+								selected={selected}
+								currentValue={row.value}
+								multiline={row.multiline}
+							/>
+						);
+					}
+					if (row.kind === "info") {
+						return (
+							<NavigatorRow
+								key={row.label}
+								label={row.label}
+								kind="value"
+								selected={selected}
+								currentValue={row.value}
+							/>
+						);
+					}
+					return (
+						<ActionRow
+							key={row.action}
+							label={row.label}
+							selected={selected}
+							kind={row.kind === "delete" ? "delete" : "action"}
+						/>
+					);
+				})}
+			</Box>
+		</Box>
+	);
+}
+
+function IdleStartView({
 	sources,
+	focusIndex,
+	onToggleMic,
+	onToggleSystem,
+}: {
+	readonly sources: ListenSourceSelection;
+	readonly focusIndex: number;
+	readonly onToggleMic: () => void;
+	readonly onToggleSystem: () => void;
+}) {
+	const items = [
+		{
+			id: "mic",
+			label: `${sources.mic ? UI_GLYPHS.checkboxOn : UI_GLYPHS.checkboxOff} Microphone`,
+			color: sources.mic ? "green" : "gray",
+		},
+		{
+			id: "system",
+			label: `${sources.system ? UI_GLYPHS.checkboxOn : UI_GLYPHS.checkboxOff} System audio`,
+			color: sources.system ? "green" : "gray",
+		},
+	];
+
+	return (
+		<Box flexDirection="column">
+			<Box paddingX={1}>
+				<Text bold color={ACCENT}>
+					{UI_GLYPHS.action} Start a New Recording
+				</Text>
+			</Box>
+			<Box paddingX={1} marginTop={1}>
+				<Text dimColor>
+					Select sources, then press Enter on "Start" in the list.
+				</Text>
+			</Box>
+			<Box flexDirection="column" marginTop={1}>
+				{items.map((item, i) => (
+					<SelectableTextRow key={item.id} selected={i === focusIndex}>
+						<Text color={item.color}>{item.label}</Text>
+					</SelectableTextRow>
+				))}
+			</Box>
+		</Box>
+	);
+}
+
+type LeftPaneItem =
+	| { readonly kind: "start" }
+	| { readonly kind: "recording"; readonly recording: ListenRecordingSummary };
+
+export function ListenApp({
+	sources: initialSources,
 	helperPath,
 	recordingsDir,
 }: ListenAppOptions) {
 	const { exit } = useApp();
 	const [state, setState] = useState<ListenState>(() =>
-		createInitialListenState(sources),
+		createInitialListenState(initialSources),
 	);
-	const [selectedIndex, setSelectedIndex] = useState(0);
-	const [screen, setScreen] = useState<ListenScreen>("main");
-	const [selectedRecordingId, setSelectedRecordingId] = useState<string | null>(
-		null,
-	);
-	const [selectedDetailIndex, setSelectedDetailIndex] = useState(0);
+	const [leftIndex, setLeftIndex] = useState(0);
+	const [rightIndex, setRightIndex] = useState(0);
 	const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(
 		null,
 	);
@@ -266,15 +364,51 @@ export function ListenApp({
 		readonly field: EditRecordingField;
 		readonly recording: ListenRecordingSummary;
 	} | null>(null);
-	const [elapsed, setElapsed] = useState("0s");
+	const [elapsed, setElapsed] = useState("0:00");
 	const [recordings, setRecordings] = useState<ListenRecordingSummary[]>(() =>
 		listListenRecordings(recordingsDir),
 	);
+	const [dotFrame, setDotFrame] = useState(0);
 	const handleRef = useRef<AudioCaptureHandle | null>(null);
 	const helperVersionRef = useRef<string | undefined>(undefined);
 	const filesRef = useRef<ListenRecordingFiles>({});
 	const errorsRef = useRef<string[]>([]);
 
+	const leftItems = useMemo((): LeftPaneItem[] => {
+		const items: LeftPaneItem[] = [{ kind: "start" }];
+		for (const recording of recordings) {
+			items.push({ kind: "recording", recording });
+		}
+		return items;
+	}, [recordings]);
+
+	const selectedItem = leftItems[leftIndex] ?? leftItems[0];
+	const isRecording =
+		state.status === "listening" ||
+		state.status === "requestingPermission" ||
+		state.status === "stopping";
+
+	const selectedRecording = useMemo(() => {
+		if (selectedItem?.kind === "recording") return selectedItem.recording;
+		return null;
+	}, [selectedItem]);
+
+	const isStartSelected = selectedItem?.kind === "start";
+
+	// Animated recording dot
+	useEffect(() => {
+		if (state.status !== "listening") {
+			setDotFrame(0);
+			return;
+		}
+		const id = setInterval(
+			() => setDotFrame((f) => (f + 1) % 2),
+			RECORDING_DOT_INTERVAL_MS,
+		);
+		return () => clearInterval(id);
+	}, [state.status]);
+
+	// Elapsed timer
 	useEffect(() => {
 		if (state.status !== "listening" || !state.session) {
 			setElapsed(formatElapsed(state.session));
@@ -286,6 +420,7 @@ export function ListenApp({
 		return () => clearInterval(interval);
 	}, [state.status, state.session]);
 
+	// Cleanup handle on unmount
 	useEffect(() => {
 		return () => {
 			handleRef.current?.dispose();
@@ -296,15 +431,16 @@ export function ListenApp({
 		setRecordings(listListenRecordings(recordingsDir));
 	}, [recordingsDir]);
 
-	const selectedRecording = useMemo(
-		() =>
-			selectedRecordingId
-				? (recordings.find(
-						(recording) => recording.id === selectedRecordingId,
-					) ?? null)
-				: null,
-		[recordings, selectedRecordingId],
-	);
+	// Reset right index when selection changes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional — fire on leftIndex change
+	useEffect(() => {
+		setRightIndex(0);
+	}, [leftIndex]);
+
+	// Clamp left index when items change
+	useEffect(() => {
+		setLeftIndex((prev) => Math.min(prev, Math.max(0, leftItems.length - 1)));
+	}, [leftItems.length]);
 
 	const onHelperEvent = useCallback((event: AudioHelperEvent) => {
 		if (event.type === "ready") {
@@ -359,6 +495,7 @@ export function ListenApp({
 				outputDir: session.finalDir,
 				message: "Starting audio helper…",
 			});
+			setLeftIndex(0); // select the "start/recording" row
 			const handle = startMacOSAudioCapture({
 				session,
 				helperPath,
@@ -434,54 +571,20 @@ export function ListenApp({
 		[helperPath, refreshRecordings, state.session],
 	);
 
-	const actionRows = useMemo((): ListenAction[] => {
-		if (state.status === "listening") return ["save", "discard"];
-		return ["toggleMic", "toggleSystem", "start"];
-	}, [state.status]);
-
-	const rows = useMemo((): ListenRow[] => {
-		const actions: ListenRow[] = actionRows.map((action) => ({
-			kind: "action" as const,
-			action,
-		}));
-		if (
-			state.status === "listening" ||
-			state.status === "requestingPermission"
-		) {
-			return actions;
-		}
-		return [
-			...actions,
-			...recordings.map((recording) => ({
-				kind: "recording" as const,
-				recording,
-			})),
-		];
-	}, [actionRows, recordings, state.status]);
-
-	useEffect(() => {
-		setSelectedIndex((prev) => Math.min(prev, Math.max(0, rows.length - 1)));
-	}, [rows.length]);
-
+	// ---- Input handling ----
 	useInput((input, key) => {
-		if (confirmAction) return;
-		if (screen === "recordingDetail") return;
+		if (confirmAction || editField) return;
+
 		if (isQuitKey(input, key)) {
-			if (state.status === "listening") {
+			if (isRecording) {
 				setConfirmAction("quit");
 				return;
 			}
 			exit();
 			return;
 		}
-		if (isNavigateUp(input, key)) {
-			setSelectedIndex((prev) => Math.max(0, prev - 1));
-			return;
-		}
-		if (isNavigateDown(input, key)) {
-			setSelectedIndex((prev) => Math.min(rows.length - 1, prev + 1));
-			return;
-		}
+
+		// Global shortcuts while recording (work regardless of pane focus)
 		if (state.status === "listening" && input === "s") {
 			void finalize("save");
 			return;
@@ -490,124 +593,182 @@ export function ListenApp({
 			setConfirmAction("discard");
 			return;
 		}
-		const selectedRow = rows[selectedIndex] ?? rows[0];
-		if (isSelectKey(input, key)) {
-			if (selectedRow?.kind === "recording") {
-				setSelectedRecordingId(selectedRow.recording.id);
-				setSelectedDetailIndex(0);
-				setScreen("recordingDetail");
-				return;
-			}
-			const selected = selectedRow?.action;
-			if (selected === "start") startListening();
-			if (selected === "save") void finalize("save");
-			if (selected === "discard") setConfirmAction("discard");
-			if (selected === "toggleMic") {
-				setState((prev) => ({
-					...prev,
-					sources: { ...prev.sources, mic: !prev.sources.mic },
-				}));
-			}
-			if (selected === "toggleSystem") {
-				setState((prev) => ({
-					...prev,
-					sources: { ...prev.sources, system: !prev.sources.system },
-				}));
-			}
-		}
-	});
 
-	const detailRows = useMemo((): RecordingDetailRow[] => {
-		if (!selectedRecording) return [];
-		return [
-			{
-				kind: "field",
-				field: "name",
-				label: "Name",
-				value: selectedRecording.metadata.name ?? "",
-			},
-			{
-				kind: "field",
-				field: "description",
-				label: "Description",
-				value: selectedRecording.metadata.description ?? "",
-				multiline: true,
-			},
-			{
-				kind: "field",
-				field: "location",
-				label: "Location",
-				value: selectedRecording.dir,
-			},
-			{
-				kind: "action",
-				action: "open",
-				label: "Open folder in Finder",
-			},
-			{
-				kind: "delete",
-				action: "delete",
-				label: "Delete recording",
-			},
-		];
-	}, [selectedRecording]);
-
-	useEffect(() => {
-		setSelectedDetailIndex((prev) =>
-			Math.min(prev, Math.max(0, detailRows.length - 1)),
-		);
-	}, [detailRows.length]);
-
-	useInput((input, key) => {
-		if (confirmAction || editField || screen !== "recordingDetail") return;
-		if (isQuitKey(input, key)) {
-			exit();
+		// Tab switches panes, but when recording the right pane is always active
+		if (key.tab && !isRecording) {
+			setFocusedPane((prev) => (prev === "left" ? "right" : "left"));
 			return;
 		}
+
+		const activePane = isRecording ? "right" : focusedPane;
+
+		if (activePane === "left") {
+			if (isNavigateUp(input, key)) {
+				setLeftIndex((prev) => Math.max(0, prev - 1));
+				return;
+			}
+			if (isNavigateDown(input, key)) {
+				setLeftIndex((prev) => Math.min(leftItems.length - 1, prev + 1));
+				return;
+			}
+			if (isSelectKey(input, key)) {
+				if (isStartSelected && !isRecording) {
+					startListening();
+				} else if (!isRecording) {
+					// Switch focus to right pane to view recording details
+					setFocusedPane("right");
+					setRightIndex(0);
+				}
+				return;
+			}
+			return;
+		}
+
+		// Right pane
+		if (isRecording) {
+			// Navigate between save/discard
+			if (isNavigateUp(input, key)) {
+				setRightIndex((prev) => Math.max(0, prev - 1));
+				return;
+			}
+			if (isNavigateDown(input, key)) {
+				setRightIndex((prev) => Math.min(1, prev + 1));
+				return;
+			}
+			if (isSelectKey(input, key)) {
+				if (rightIndex === 0) void finalize("save");
+				else setConfirmAction("discard");
+				return;
+			}
+			return;
+		}
+
+		// Right pane for saved recording detail
 		if (isBackKey(input, key)) {
-			setScreen("main");
-			setSelectedRecordingId(null);
+			setFocusedPane("left");
 			return;
 		}
 		if (isNavigateUp(input, key)) {
-			setSelectedDetailIndex((prev) => Math.max(0, prev - 1));
+			setRightIndex((prev) => Math.max(0, prev - 1));
 			return;
 		}
 		if (isNavigateDown(input, key)) {
-			setSelectedDetailIndex((prev) =>
-				Math.min(detailRows.length - 1, prev + 1),
-			);
+			const maxIndex = isStartSelected
+				? 1 // mic + system toggles
+				: selectedRecording
+					? detailRowCount(selectedRecording) - 1
+					: 0;
+			setRightIndex((prev) => Math.min(maxIndex, prev + 1));
 			return;
 		}
-		if (!isSelectKey(input, key) || !selectedRecording) return;
-		const row = detailRows[selectedDetailIndex];
-		if (!row) return;
-		if (row.kind === "field" && row.field !== "location") {
-			setEditField({ field: row.field, recording: selectedRecording });
-			return;
-		}
-		if (row.kind === "action") {
-			try {
-				openListenRecordingInFinder(selectedRecording);
-				setState((prev) => ({
-					...prev,
-					message: `Opened ${selectedRecording.id} in Finder.`,
-				}));
-			} catch (error) {
-				setState((prev) => ({
-					...prev,
-					status: "error",
-					error: helperErrorMessage(error),
-					message: "Could not open recording folder.",
-				}));
+		if (isSelectKey(input, key) && selectedRecording) {
+			const rows = detailRows(selectedRecording);
+			const row = rows[rightIndex];
+			if (!row) return;
+			if (row.kind === "field" && row.field !== "location") {
+				setEditField({ field: row.field, recording: selectedRecording });
+				return;
+			}
+			if (row.kind === "action" && row.action === "open") {
+				try {
+					openListenRecordingInFinder(selectedRecording);
+					setState((prev) => ({
+						...prev,
+						message: `Opened ${selectedRecording.id} in Finder.`,
+					}));
+				} catch (error) {
+					setState((prev) => ({
+						...prev,
+						status: "error",
+						error: helperErrorMessage(error),
+						message: "Could not open recording folder.",
+					}));
+				}
+				return;
+			}
+			if (row.kind === "delete") {
+				setConfirmAction("deleteRecording");
 			}
 			return;
 		}
-		if (row.kind === "delete") {
-			setConfirmAction("deleteRecording");
+		if (isStartSelected) {
+			// Source toggles in idle start view — Enter or Space to toggle
+			if (isSelectKey(input, key) || isToggleKey(input, key)) {
+				if (rightIndex === 0) {
+					setState((prev) => ({
+						...prev,
+						sources: { ...prev.sources, mic: !prev.sources.mic },
+					}));
+				} else if (rightIndex === 1) {
+					setState((prev) => ({
+						...prev,
+						sources: { ...prev.sources, system: !prev.sources.system },
+					}));
+				}
+				return;
+			}
 		}
 	});
 
+	const [focusedPane, setFocusedPane] = useState<"left" | "right">("left");
+
+	// Detail rows for a saved recording
+	function detailRows(recording: ListenRecordingSummary) {
+		return [
+			{
+				kind: "field" as const,
+				field: "name" as const,
+				label: "Name",
+				value: recording.metadata.name ?? "",
+			},
+			{
+				kind: "field" as const,
+				field: "description" as const,
+				label: "Description",
+				value: recording.metadata.description ?? "",
+				multiline: true,
+			},
+			{
+				kind: "field" as const,
+				field: "location" as const,
+				label: "Location",
+				value: recording.dir,
+			},
+			{
+				kind: "info" as const,
+				label: "Duration",
+				value: formatDuration(recording.metadata.durationMs) || "N/A",
+			},
+			{
+				kind: "info" as const,
+				label: "Date",
+				value: formatRecordingDate(
+					recording.metadata.startedAt || recording.metadata.createdAt,
+				),
+			},
+			{
+				kind: "info" as const,
+				label: "Sources",
+				value: formatListenSources(recording.metadata.sources),
+			},
+			{
+				kind: "action" as const,
+				action: "open" as const,
+				label: "Open folder in Finder",
+			},
+			{
+				kind: "delete" as const,
+				action: "delete" as const,
+				label: "Delete recording",
+			},
+		];
+	}
+
+	function detailRowCount(recording: ListenRecordingSummary): number {
+		return detailRows(recording).length;
+	}
+
+	// ---- Edit overlay ----
 	if (editField) {
 		return (
 			<FieldEditor
@@ -640,16 +801,10 @@ export function ListenApp({
 		);
 	}
 
+	// ---- Confirm dialog ----
 	if (confirmAction) {
 		const recordingForDelete =
-			screen === "recordingDetail"
-				? selectedRecording
-				: (() => {
-						const selectedRow = rows[selectedIndex] ?? rows[0];
-						return selectedRow?.kind === "recording"
-							? selectedRow.recording
-							: null;
-					})();
+			selectedItem?.kind === "recording" ? selectedItem.recording : null;
 		return (
 			<ConfirmDialog
 				title="Listen"
@@ -665,8 +820,6 @@ export function ListenApp({
 					if (confirmAction === "deleteRecording" && recordingForDelete) {
 						deleteListenRecording(recordingForDelete);
 						refreshRecordings();
-						setScreen("main");
-						setSelectedRecordingId(null);
 						setState((prev) => ({
 							...prev,
 							message: `Deleted ${recordingForDelete.id}.`,
@@ -682,52 +835,81 @@ export function ListenApp({
 		);
 	}
 
-	if (screen === "recordingDetail" && selectedRecording) {
-		return (
-			<ViewFrame
-				title="Listen"
-				subheader={
-					<Box flexDirection="column" alignItems="center">
-						<Text bold color={ACCENT}>
-							Listen &gt; Recording
-						</Text>
-						<Text dimColor>
-							{selectedRecording.metadata.name || selectedRecording.id}
-						</Text>
-					</Box>
+	// ---- Main two-pane layout ----
+	const displayFocusedPane = isRecording ? "right" : focusedPane;
+	const { stdout } = useStdout();
+	const terminalRows = stdout?.rows ?? 24;
+	// Chrome: ViewFrame padding(2) + header(8) + marginTop(1) + outer border(2) +
+	// footer(2) + bottom status(1) = ~16. Inner border on each pane = 2.
+	const chromeRows = 16;
+	const panesHeight = Math.max(6, terminalRows - chromeRows);
+
+	// Build the right pane content
+	let rightContent: React.ReactNode;
+	if (isRecording) {
+		rightContent = (
+			<RecordingView
+				state={state}
+				elapsed={elapsed}
+				onSave={() => void finalize("save")}
+				onDiscard={() => setConfirmAction("discard")}
+				focusIndex={rightIndex}
+			/>
+		);
+	} else if (isStartSelected) {
+		rightContent = (
+			<IdleStartView
+				sources={state.sources}
+				focusIndex={rightIndex}
+				onToggleMic={() =>
+					setState((prev) => ({
+						...prev,
+						sources: { ...prev.sources, mic: !prev.sources.mic },
+					}))
 				}
-				footer={
-					<Text dimColor>
-						↑↓ navigate · Enter edit/select · b/Backspace back · q close
-					</Text>
+				onToggleSystem={() =>
+					setState((prev) => ({
+						...prev,
+						sources: { ...prev.sources, system: !prev.sources.system },
+					}))
 				}
-			>
-				{detailRows.map((row, index) => {
-					const selected = index === selectedDetailIndex;
-					if (row.kind === "field") {
-						return (
-							<NavigatorRow
-								key={row.field}
-								label={row.label}
-								kind="value"
-								selected={selected}
-								currentValue={row.value}
-								multiline={row.multiline}
-							/>
-						);
+			/>
+		);
+	} else if (selectedRecording) {
+		rightContent = (
+			<RecordingDetailView
+				recording={selectedRecording}
+				focusIndex={rightIndex}
+				onOpenFinder={() => {
+					try {
+						openListenRecordingInFinder(selectedRecording);
+						setState((prev) => ({
+							...prev,
+							message: `Opened ${selectedRecording.id} in Finder.`,
+						}));
+					} catch (error) {
+						setState((prev) => ({
+							...prev,
+							status: "error",
+							error: helperErrorMessage(error),
+							message: "Could not open recording folder.",
+						}));
 					}
-					return (
-						<ActionRow
-							key={row.action}
-							label={row.label}
-							selected={selected}
-							kind={row.kind === "delete" ? "delete" : "action"}
-						/>
-					);
-				})}
-			</ViewFrame>
+				}}
+				onDelete={() => setConfirmAction("deleteRecording")}
+			/>
+		);
+	} else {
+		rightContent = (
+			<Box paddingX={1}>
+				<Text dimColor>Select an item on the left.</Text>
+			</Box>
 		);
 	}
+
+	const footerText = isRecording
+		? "s stop & save · d stop & discard · q close"
+		: "↑↓ navigate · Enter select · Tab switch pane · q close";
 
 	return (
 		<ViewFrame
@@ -737,48 +919,77 @@ export function ListenApp({
 					<Text bold color={ACCENT}>
 						Listen
 					</Text>
-					<Text dimColor>{formatListenSources(state.sources)}</Text>
+					{isRecording && (
+						<Text color="red" bold>
+							{RECORDING_DOT_FRAMES[dotFrame]} Recording — {elapsed}
+						</Text>
+					)}
 				</Box>
 			}
-			footer={<Text dimColor>{listenFooter(state.status)}</Text>}
+			footer={<Text dimColor>{footerText}</Text>}
 		>
-			<Box paddingX={1} marginBottom={1}>
-				<Text>
-					{listenStatusIcon(state.status)} <Text bold>{state.status}</Text>{" "}
-					<Text dimColor>{state.message ?? ""}</Text>
-				</Text>
+			<Box flexDirection="row" height={panesHeight}>
+				{/* Left pane — recording list */}
+				<Box
+					flexDirection="column"
+					width="40%"
+					height={panesHeight}
+					borderStyle="single"
+					borderColor={displayFocusedPane === "left" ? ACCENT : "gray"}
+					paddingRight={0}
+				>
+					{leftItems.map((item, i) => {
+						const isSelected = i === leftIndex && displayFocusedPane === "left";
+						if (item.kind === "start") {
+							const label = isRecording ? "Recording…" : "Start new recording";
+							return (
+								<SelectableTextRow key="start" selected={isSelected}>
+									<Text bold color={isRecording ? "red" : "green"}>
+										{UI_GLYPHS.action} {label}
+									</Text>
+								</SelectableTextRow>
+							);
+						}
+						const rec = item.recording;
+						return (
+							<SelectableTextRow key={rec.id} selected={isSelected}>
+								<Text>
+									{UI_GLYPHS.section} {recordingLabel(rec)}
+								</Text>
+							</SelectableTextRow>
+						);
+					})}
+					{recordings.length === 0 && !isRecording ? (
+						<Box paddingX={1}>
+							<Text dimColor>No recordings yet.</Text>
+						</Box>
+					) : null}
+				</Box>
+
+				{/* Right pane — details / recording UI */}
+				<Box
+					flexDirection="column"
+					width="60%"
+					height={panesHeight}
+					borderStyle="single"
+					borderColor={displayFocusedPane === "right" ? ACCENT : "gray"}
+				>
+					{rightContent}
+				</Box>
 			</Box>
-			<InfoRow
-				label="Elapsed"
-				value={elapsed}
-				selected={false}
-				hint={state.status === "listening" ? " active" : undefined}
-			/>
-			<InfoRow
-				label="Output"
-				value={state.outputDir ?? resolveListenRecordingsDir(recordingsDir)}
-				selected={false}
-			/>
-			{state.error ? (
+
+			{state.status === "saved" && state.message ? (
 				<Box paddingX={1} marginTop={1}>
-					<Text color="red" wrap="wrap">
-						{state.error}
+					<Text color="green">
+						{UI_GLYPHS.success} {state.message}
 					</Text>
 				</Box>
 			) : null}
-			<Box marginTop={1} flexDirection="column">
-				{renderRows({
-					rows,
-					selectedIndex,
-					sources: state.sources,
-				})}
-			</Box>
-			<Box paddingX={1} marginTop={1}>
-				<Text dimColor>
-					{UI_GLYPHS.pending} Transcription is not enabled yet; recordings are
-					saved for later processing.
-				</Text>
-			</Box>
+			{state.status === "discarded" && state.message ? (
+				<Box paddingX={1} marginTop={1}>
+					<Text dimColor>{state.message}</Text>
+				</Box>
+			) : null}
 		</ViewFrame>
 	);
 }
