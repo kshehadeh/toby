@@ -28,6 +28,14 @@ export interface SlashCommandRuntime {
 	readonly getActivePlan: () => import("../../../planning/types").Plan | null;
 	readonly skipPlanPhase: (planId: string, phaseId: string) => void;
 	readonly cancelPlan: (planId: string) => void;
+	readonly startListenRecording: () => void;
+	readonly stopListenRecording: (
+		action: "save" | "discard",
+	) => Promise<{
+		readonly outputDir: string;
+		readonly transcript?: string;
+	} | null>;
+	readonly isListenRecording: () => boolean;
 }
 
 export interface SlashCommand {

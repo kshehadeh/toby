@@ -44,6 +44,16 @@ import {
 } from "../../integrations/types";
 import type { IntegrationModule } from "../../integrations/types";
 import {
+	startMacOSAudioCapture,
+	waitForAudioHelperExit,
+} from "../../listen/macos/audio-capture";
+import {
+	buildListenMetadata,
+	discardListenSession,
+	prepareListenSession,
+	saveListenSession,
+} from "../../listen/session-controller";
+import {
 	createChatEventLogSink,
 	log,
 	logTurnSummary,
@@ -115,6 +125,7 @@ import {
 	getSlashSuggestions,
 	resolveSlashSubmission,
 } from "./slash-commands";
+import { readTranscriptFile } from "./slash-commands/stop-listening";
 import type { UpgradeUiStatus } from "./slash-commands/types";
 import { getToolDisplayLabel } from "./tool-labels";
 import { flattenTranscript } from "./transcript-layout";
@@ -338,6 +349,18 @@ export function ChatSessionApp({
 	const transcriptRef = useRef(transcript);
 	const ongoingPretreatAbortRef = useRef<AbortController | null>(null);
 	const pendingSteeringPromptRef = useRef<string | null>(null);
+	const [isListenRecording, setIsListenRecording] = useState(false);
+	const listenHandleRef = useRef<
+		import("../../listen/macos/audio-capture").AudioCaptureHandle | null
+	>(null);
+	const listenSessionRef = useRef<
+		import("../../listen/types").ListenSession | null
+	>(null);
+	const listenHelperVersionRef = useRef<string | undefined>(undefined);
+	const listenFilesRef = useRef<
+		import("../../listen/types").ListenRecordingFiles
+	>({});
+	const listenErrorsRef = useRef<string[]>([]);
 	const relevantToolsRef = useRef<readonly string[]>([]);
 	const pretreatSessionNameRef = useRef<string | null>(null);
 	const snapRef = useRef({
@@ -490,6 +513,7 @@ export function ChatSessionApp({
 	useEffect(() => {
 		return () => {
 			ongoingPretreatAbortRef.current?.abort();
+			listenHandleRef.current?.dispose();
 		};
 	}, []);
 
@@ -1554,6 +1578,111 @@ export function ChatSessionApp({
 								activePlanRef.current = refreshed;
 							}
 						},
+						startListenRecording: () => {
+							if (listenHandleRef.current) return;
+							try {
+								const session = prepareListenSession({
+									sources: { mic: true, system: true },
+								});
+								listenHelperVersionRef.current = undefined;
+								listenFilesRef.current = {};
+								listenErrorsRef.current = [];
+								const handle = startMacOSAudioCapture({
+									session,
+									onEvent: (event) => {
+										if (event.type === "ready") {
+											listenHelperVersionRef.current = event.helperVersion;
+											listenFilesRef.current = {
+												...listenFilesRef.current,
+												...(event.files ?? {}),
+											};
+											setTranscript((t) => [
+												...t,
+												{
+													kind: "meta",
+													text: "Recording started. Use /stop-listening to stop.",
+												},
+											]);
+											return;
+										}
+										if (event.type === "error") {
+											listenErrorsRef.current = [
+												...listenErrorsRef.current,
+												event.message,
+											];
+											setTranscript((t) => [
+												...t,
+												{
+													kind: "error",
+													text: `Recording error: ${event.message}`,
+												},
+											]);
+											listenHandleRef.current = null;
+											listenSessionRef.current = null;
+											setIsListenRecording(false);
+											return;
+										}
+										if ("files" in event && event.files) {
+											listenFilesRef.current = {
+												...listenFilesRef.current,
+												...event.files,
+											};
+										}
+									},
+								});
+								listenHandleRef.current = handle;
+								listenSessionRef.current = session;
+								setIsListenRecording(true);
+							} catch (error) {
+								const msg =
+									error instanceof Error ? error.message : String(error);
+								setTranscript((t) => [
+									...t,
+									{ kind: "error", text: `Could not start recording: ${msg}` },
+								]);
+							}
+						},
+						stopListenRecording: async (action) => {
+							const handle = listenHandleRef.current;
+							const session = listenSessionRef.current;
+							if (!handle || !session) return null;
+							try {
+								await handle.stop(action);
+								await waitForAudioHelperExit(handle.child);
+								listenHandleRef.current = null;
+								listenSessionRef.current = null;
+								setIsListenRecording(false);
+								if (action === "discard") {
+									discardListenSession(session);
+									return null;
+								}
+								const metadata = buildListenMetadata({
+									session,
+									files: listenFilesRef.current,
+									stoppedAt: new Date(),
+									helperVersion: listenHelperVersionRef.current,
+									errors: listenErrorsRef.current,
+								});
+								const outputDir = saveListenSession(session, metadata);
+								const transcript = readTranscriptFile(outputDir);
+								return { outputDir, transcript };
+							} catch (error) {
+								const msg =
+									error instanceof Error ? error.message : String(error);
+								listenHandleRef.current = null;
+								listenSessionRef.current = null;
+								setIsListenRecording(false);
+								setTranscript((t) => [
+									...t,
+									{
+										kind: "error",
+										text: `Could not finalize recording: ${msg}`,
+									},
+								]);
+								return null;
+							}
+						},
+						isListenRecording: () => listenHandleRef.current !== null,
 					},
 					slash.rawArgs,
 				);
@@ -2365,6 +2494,7 @@ export function ChatSessionApp({
 				upgradeUiStatus={upgradeUiStatus}
 				onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
 				loading={loading}
+				isListenRecording={isListenRecording}
 			/>
 		</Box>
 	);

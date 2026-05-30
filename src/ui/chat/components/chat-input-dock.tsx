@@ -1,6 +1,6 @@
 import type { LanguageModelUsage } from "ai";
 import { Box, Text } from "ink";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
 	extractTokenUsageReport,
 	formatTokenUsageStatus,
@@ -151,6 +151,7 @@ type ChatInputDockProps = {
 	readonly upgradeUiStatus?: UpgradeUiStatus;
 	readonly onShowKeyboardShortcuts?: () => void;
 	readonly loading?: boolean;
+	readonly isListenRecording?: boolean;
 };
 
 export function ChatInputDock(props: ChatInputDockProps) {
@@ -175,6 +176,7 @@ export function ChatInputDock(props: ChatInputDockProps) {
 		upgradeUiStatus = { status: "idle" },
 		onShowKeyboardShortcuts,
 		loading = false,
+		isListenRecording = false,
 	} = props;
 
 	const placeholderText = loading
@@ -195,6 +197,15 @@ export function ChatInputDock(props: ChatInputDockProps) {
 		? formatUpdateStatusLine(updateAvailable)
 		: null;
 	const upgradeStatusLine = formatUpgradeUiStatusLine(upgradeUiStatus);
+	const [dotFrame, setDotFrame] = useState(0);
+	useEffect(() => {
+		if (!isListenRecording) {
+			setDotFrame(0);
+			return;
+		}
+		const id = setInterval(() => setDotFrame((f) => (f + 1) % 2), 600);
+		return () => clearInterval(id);
+	}, [isListenRecording]);
 
 	return (
 		<Box marginTop={0} flexShrink={0} flexDirection="column" width={termCols}>
@@ -211,6 +222,13 @@ export function ChatInputDock(props: ChatInputDockProps) {
 				recentPrompts={recentPrompts}
 				onEmptyQuestionMark={onShowKeyboardShortcuts}
 			/>
+			{isListenRecording ? (
+				<Box marginTop={0} paddingX={1}>
+					<Text bold color="red">
+						{dotFrame === 0 ? "⏺" : " "} Recording — /stop-listening to save
+					</Text>
+				</Box>
+			) : null}
 			{slashSuggestions.length > 0 ? (
 				<Box marginTop={0} paddingX={1} flexDirection="column">
 					{slashSuggestions.map((item) => {

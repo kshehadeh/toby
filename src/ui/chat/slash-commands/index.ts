@@ -5,6 +5,7 @@ import { disconnectSlashCommand } from "./disconnect";
 import { exitSlashCommand } from "./exit";
 import { helpSlashCommand } from "./help";
 import { integrationSlashCommand } from "./integration";
+import { listenSlashCommand } from "./listen";
 import { logSlashCommand } from "./log";
 import { newSlashCommand } from "./new";
 import { personaSlashCommand } from "./persona";
@@ -15,6 +16,7 @@ import { sessionsSlashCommand } from "./sessions";
 import { skillsSlashCommand } from "./skills";
 import { startDaemonSlashCommand } from "./start-daemon";
 import { stopDaemonSlashCommand } from "./stop-daemon";
+import { stopListeningSlashCommand } from "./stop-listening";
 import { terminalSlashCommand } from "./terminal";
 import type { SlashCommand } from "./types";
 import { upgradeSlashCommand } from "./upgrade";
@@ -33,6 +35,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
 	disconnectSlashCommand,
 	helpSlashCommand,
 	integrationSlashCommand,
+	listenSlashCommand,
 	logSlashCommand,
 	planSlashCommand,
 	personaSlashCommand,
@@ -42,6 +45,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
 	skillsSlashCommand,
 	startDaemonSlashCommand,
 	stopDaemonSlashCommand,
+	stopListeningSlashCommand,
 	terminalSlashCommand,
 	upgradeSlashCommand,
 	restartSlashCommand,
