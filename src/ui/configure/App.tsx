@@ -77,6 +77,8 @@ export function ConfigureApp({
 	const [editItem, setEditItem] = useState<SettingsItem | null>(null);
 	const [values, setValues] =
 		useState<Record<string, string>>(credentialValues);
+	const [savedValues, setSavedValues] =
+		useState<Record<string, string>>(credentialValues);
 	const [confirmMsg, setConfirmMsg] = useState("");
 	const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
 	const [statusMessage, setStatusMessage] = useState<string | undefined>(
@@ -163,7 +165,7 @@ export function ConfigureApp({
 	);
 
 	const isDirty = Object.keys(values).some(
-		(key) => values[key] !== credentialValues[key],
+		(key) => values[key] !== savedValues[key],
 	);
 
 	const doExit = useCallback(() => {
@@ -177,6 +179,7 @@ export function ConfigureApp({
 
 	const handleSave = useCallback(() => {
 		onSave(values);
+		setSavedValues(values);
 		setStatusMessage("Configuration saved.");
 	}, [values, onSave]);
 
@@ -187,6 +190,8 @@ export function ConfigureApp({
 				setConfirmAction(() => () => {
 					setConfirmAction(null);
 					setConfirmMsg("");
+					setValues(savedValues);
+					doRefresh(savedValues);
 					setPath((p) => p.slice(0, -1));
 					setSelectedIndex(0);
 					setStatusMessage(undefined);
@@ -202,6 +207,8 @@ export function ConfigureApp({
 				setConfirmAction(() => () => {
 					setConfirmAction(null);
 					setConfirmMsg("");
+					setValues(savedValues);
+					doRefresh(savedValues);
 					doExit();
 				});
 				setScreen("confirm");
@@ -210,7 +217,7 @@ export function ConfigureApp({
 			doExit();
 		}
 		setStatusMessage(undefined);
-	}, [path, isDirty, doExit]);
+	}, [path, isDirty, savedValues, doRefresh, doExit]);
 
 	const handleSelectItem = useCallback(
 		(item: SettingsItem) => {
