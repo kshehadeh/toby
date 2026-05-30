@@ -76,6 +76,19 @@ const CATEGORY_KEYWORDS: Record<ProviderCategory, string[]> = {
 		"web search",
 		"research",
 	],
+	work_tracker: [
+		"jira",
+		"issue",
+		"ticket",
+		"bug",
+		"backlog",
+		"sprint",
+		"epic",
+		"board",
+		"tracker",
+		"work tracker",
+		"project management",
+	],
 };
 
 export function inferProviderCategoriesFromPrompt(

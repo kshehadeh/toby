@@ -38,7 +38,8 @@ export type ProviderCategory =
 	| "tasks"
 	| "contacts"
 	| "chat"
-	| "search";
+	| "search"
+	| "work_tracker";
 
 export const PROVIDER_CATEGORY_LABELS: Record<ProviderCategory, string> = {
 	email: "Email Provider",
@@ -47,6 +48,7 @@ export const PROVIDER_CATEGORY_LABELS: Record<ProviderCategory, string> = {
 	contacts: "Contact List Provider",
 	chat: "Chat Provider",
 	search: "Search Provider",
+	work_tracker: "Work Tracker",
 };
 
 export const ALL_PROVIDER_CATEGORIES: readonly ProviderCategory[] = [
@@ -56,6 +58,7 @@ export const ALL_PROVIDER_CATEGORIES: readonly ProviderCategory[] = [
 	"contacts",
 	"chat",
 	"search",
+	"work_tracker",
 ];
 
 /** Single credential field shown in configure UI (flat key namespace). */
@@ -99,7 +102,7 @@ interface ChatModelPrep {
 	buildMultiUserContent(userPrompt: string): Promise<string>;
 }
 
-interface ChatIntegrationReadiness {
+export interface ChatIntegrationReadiness {
 	/** True when the integration can participate in chat selection/routing. */
 	readonly ok: boolean;
 	/** Optional user-facing guidance to make it ready (configure/connect steps). */
