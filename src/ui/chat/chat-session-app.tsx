@@ -1560,6 +1560,20 @@ export function ChatSessionApp({
 						addMetaLine: (text) => {
 							setTranscript((t) => [...t, { kind: "meta", text }]);
 						},
+						addUserContextMessage: (text) => {
+							setTranscript((t) => [...t, { kind: "user", text }]);
+							setMessages((msgs) =>
+								msgs
+									? [
+											...msgs,
+											{
+												role: "user" as const,
+												content: text,
+											},
+										]
+									: msgs,
+							);
+						},
 						setUpgradeStatus: setUpgradeUiStatus,
 						getActivePlan: () => activePlanRef.current,
 						skipPlanPhase: (planId: string, phaseId: string) => {

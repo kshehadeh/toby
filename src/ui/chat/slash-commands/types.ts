@@ -24,14 +24,13 @@ export interface SlashCommandRuntime {
 	readonly chatIntegrationsCount: number;
 	readonly launchContext: LaunchContext;
 	readonly addMetaLine: (text: string) => void;
+	readonly addUserContextMessage: (text: string) => void;
 	readonly setUpgradeStatus?: (status: UpgradeUiStatus) => void;
 	readonly getActivePlan: () => import("../../../planning/types").Plan | null;
 	readonly skipPlanPhase: (planId: string, phaseId: string) => void;
 	readonly cancelPlan: (planId: string) => void;
 	readonly startListenRecording: () => void;
-	readonly stopListenRecording: (
-		action: "save" | "discard",
-	) => Promise<{
+	readonly stopListenRecording: (action: "save" | "discard") => Promise<{
 		readonly outputDir: string;
 		readonly transcript?: string;
 	} | null>;

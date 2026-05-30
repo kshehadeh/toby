@@ -24,7 +24,12 @@ summarized by asking the AI.`,
 		}
 		runtime.addMetaLine(`Recording saved to ${result.outputDir}`);
 		if (result.transcript) {
-			runtime.addMetaLine(`Transcript:\n${result.transcript}`);
+			runtime.addMetaLine(
+				`Transcript saved (${result.transcript.length} chars).`,
+			);
+			runtime.addUserContextMessage(
+				`[Recording transcript from /listen]\n${result.transcript}`,
+			);
 		} else {
 			runtime.addMetaLine(
 				`Transcription not available — audio saved to ${result.outputDir}`,
