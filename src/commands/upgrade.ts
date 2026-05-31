@@ -71,6 +71,15 @@ async function runUpgrade(options: UpgradeCommandOptions): Promise<void> {
 		const applied = await applyStagedRelease(manifest.installTarget);
 		console.log(chalk.green(`Installed: ${applied.installTarget}`));
 		console.log(chalk.green(`Verified: ${applied.version}`));
+		if (applied.daemonRestarted) {
+			const intervalText =
+				applied.daemonIntervalSeconds === null
+					? "default interval"
+					: `${applied.daemonIntervalSeconds}s interval`;
+			console.log(
+				chalk.dim(`Daemon was running and has been restarted (${intervalText}).`),
+			);
+		}
 		printPathGuidanceWithChalk(installDir);
 		return;
 	}
@@ -103,6 +112,15 @@ async function runUpgrade(options: UpgradeCommandOptions): Promise<void> {
 	});
 	console.log(chalk.green(`Installed: ${applied.installTarget}`));
 	console.log(chalk.green(`Verified: ${applied.version}`));
+	if (applied.daemonRestarted) {
+		const intervalText =
+			applied.daemonIntervalSeconds === null
+				? "default interval"
+				: `${applied.daemonIntervalSeconds}s interval`;
+		console.log(
+			chalk.dim(`Daemon was running and has been restarted (${intervalText}).`),
+		);
+	}
 	printPathGuidanceWithChalk(installDir);
 }
 

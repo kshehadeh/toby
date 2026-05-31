@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { ensureTobyDir, resolveTobyDir } from "../config/index";
+import { restartDaemonIfRunning } from "../schedules/daemon-status";
 import {
 	fetchLatestReleaseTag,
 	resolveTobyGitHubRepo,
@@ -52,6 +53,8 @@ export interface DownloadReleaseResult {
 export interface ApplyStagedResult {
 	readonly installTarget: string;
 	readonly version: string;
+	readonly daemonRestarted: boolean;
+	readonly daemonIntervalSeconds: number | null;
 }
 
 export function isRunningAsCompiledBinary(): boolean {
@@ -338,11 +341,15 @@ export async function applyStagedRelease(
 		);
 	}
 
+	const daemonRestart = await restartDaemonIfRunning();
+
 	await rm(manifestPath, { force: true }).catch(() => undefined);
 
 	return {
 		installTarget,
 		version: installedVersion,
+		daemonRestarted: daemonRestart.restarted,
+		daemonIntervalSeconds: daemonRestart.intervalSeconds,
 	};
 }
 

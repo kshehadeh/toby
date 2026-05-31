@@ -21,12 +21,28 @@ import {
 
 const DEFAULT_INTERVAL_SECONDS = 60;
 
-function acquireLock(): () => void {
+function acquireLock(intervalSeconds: number): () => void {
 	ensureTobyDir();
 	const lockPath = getDaemonLockPath();
 	if (fs.existsSync(lockPath)) {
 		const raw = fs.readFileSync(lockPath, "utf-8").trim();
-		const pid = Number.parseInt(raw, 10);
+		const lockData = (() => {
+			const parsedPid = Number.parseInt(raw, 10);
+			if (Number.isFinite(parsedPid) && parsedPid > 0) {
+				return { pid: parsedPid };
+			}
+			try {
+				const parsed = JSON.parse(raw) as unknown;
+				const pidValue = (parsed as { pid?: unknown }).pid;
+				if (typeof pidValue === "number" && Number.isFinite(pidValue)) {
+					return { pid: pidValue };
+				}
+			} catch {
+				// fall through
+			}
+			return { pid: Number.NaN };
+		})();
+		const pid = lockData.pid;
 		if (!Number.isNaN(pid)) {
 			try {
 				process.kill(pid, 0);
@@ -44,7 +60,10 @@ function acquireLock(): () => void {
 			}
 		}
 	}
-	fs.writeFileSync(lockPath, String(process.pid));
+	fs.writeFileSync(
+		lockPath,
+		JSON.stringify({ pid: process.pid, intervalSeconds }),
+	);
 	return () => {
 		try {
 			fs.unlinkSync(lockPath);
@@ -57,7 +76,7 @@ function acquireLock(): () => void {
 async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 	let releaseLock: () => void;
 	try {
-		releaseLock = acquireLock();
+		releaseLock = acquireLock(intervalSeconds);
 	} catch (e) {
 		console.error(chalk.red(e instanceof Error ? e.message : String(e)));
 		process.exitCode = 1;
