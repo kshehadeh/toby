@@ -5,11 +5,11 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { ensureTobyDir, resolveTobyDir } from "../config/index";
-import { restartDaemonIfRunning } from "../schedules/daemon-status";
 import {
 	fetchLatestReleaseTag,
 	resolveTobyGitHubRepo,
 } from "../releases/github";
+import { restartDaemonIfRunning } from "../schedules/daemon-status";
 import { getTobyEntryScriptArgv } from "../toby-spawn";
 import {
 	getTobyVersion,
@@ -99,6 +99,7 @@ export function getStagingPaths(): {
 	readonly binaryPath: string;
 	readonly listenerPath: string;
 	readonly macOSHelperPath: string;
+	readonly pluginSamplePath: string;
 	readonly archivePath: string;
 	readonly manifestPath: string;
 	readonly lockPath: string;
@@ -109,6 +110,7 @@ export function getStagingPaths(): {
 		binaryPath: path.join(stagingDir, "toby"),
 		listenerPath: path.join(stagingDir, "toby-listener"),
 		macOSHelperPath: path.join(stagingDir, "toby-macos"),
+		pluginSamplePath: path.join(stagingDir, "toby-plugin-sample"),
 		archivePath: path.join(stagingDir, "toby-release.zip"),
 		manifestPath: path.join(stagingDir, "manifest.json"),
 		lockPath: path.join(stagingDir, ".lock"),
@@ -198,6 +200,7 @@ export async function downloadRelease(
 		binaryPath,
 		listenerPath,
 		macOSHelperPath,
+		pluginSamplePath,
 		archivePath,
 		manifestPath,
 	} = getStagingPaths();
@@ -212,6 +215,7 @@ export async function downloadRelease(
 		await rm(binaryPath, { force: true }).catch(() => undefined);
 		await rm(listenerPath, { force: true }).catch(() => undefined);
 		await rm(macOSHelperPath, { force: true }).catch(() => undefined);
+		await rm(pluginSamplePath, { force: true }).catch(() => undefined);
 		await rm(archivePath, { force: true }).catch(() => undefined);
 		await rm(manifestPath, { force: true }).catch(() => undefined);
 
@@ -431,9 +435,13 @@ async function extractReleaseArchive(
 	archivePath: string,
 	destinationDir: string,
 ): Promise<void> {
-	const result = spawnSync("unzip", ["-q", archivePath, "-d", destinationDir], {
-		encoding: "utf8",
-	});
+	const result = spawnSync(
+		"unzip",
+		["-o", "-q", archivePath, "-d", destinationDir],
+		{
+			encoding: "utf8",
+		},
+	);
 	if (result.status !== 0) {
 		throw new Error(
 			`Failed to extract ${archivePath}: ${result.stderr || "unknown error"}`,

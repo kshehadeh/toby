@@ -37,6 +37,9 @@ describe("upgrade staging paths", () => {
 		expect(paths.listenerPath).toBe(
 			path.join(tempDir, "staging", "toby-listener"),
 		);
+		expect(paths.pluginSamplePath).toBe(
+			path.join(tempDir, "staging", "toby-plugin-sample"),
+		);
 		expect(paths.archivePath).toBe(
 			path.join(tempDir, "staging", "toby-release.zip"),
 		);
