@@ -100,10 +100,12 @@ sequenceDiagram
   Slack->>Listener: app_mention event
   Listener->>Router: InboundChatEvent
   Router->>DB: getOrCreateExternalSession
+  Router->>Slack: status message post/update (progress)
   Router->>Runner: runHeadlessChatTurn
   Runner->>Runner: runChatTurnPipeline (init through persist)
   Runner->>DB: PersistTurnNode append messages
   Runner->>Router: assistant text / tool actions
+  Router->>Slack: delete status message
   Router->>Slack: deliverReply if needed
   Slack->>User: reply in thread
 ```

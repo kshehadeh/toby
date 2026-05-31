@@ -11,7 +11,7 @@ This document describes the **provider-agnostic inbound architecture**: how exte
 | Core | `src/chat-inbound/` | Router, askUser bridge, status, listener startup |
 | Pipeline | `src/chat-pipeline/headless-session.ts` | Calls `runChatTurnPipeline` (full node chain through persist); integration selection via [`resolve-chat-modules.ts`](../src/chat-pipeline/resolve-chat-modules.ts) |
 | Storage | `src/ui/chat/session-store.ts` | `chat_external_sessions` maps external conversation → Toby session |
-| Provider | `src/integrations/<name>/inbound.ts` | Transport, event normalization, `deliverReply` / `deliverAskUser` |
+| Provider | `src/integrations/<name>/inbound.ts` | Transport, event normalization, `deliverReply` / `deliverAskUser`, optional `createStatusReporter` |
 
 ## Session model
 
@@ -91,11 +91,25 @@ Triggers:
 - **`app_mention`** — starts or continues a turn (mention stripped from prompt).
 - **Thread reply** — while `askUser` is pending, the next user message in that thread completes the choice.
 
+### Processing status (Slack)
+
+While a turn runs, Slack inbound posts a **temporary status message** in the same thread (not ephemeral):
+
+1. First progress line → `chat.postMessage` with a **context** Block Kit block (dimmed/smaller text), e.g. `⏳ _Preparing request…_` (emoji per action + italic mrkdwn).
+2. Later lines → `chat.update` (throttled ~1s, same mapping as the CLI activity footer: prep/lifecycle events and tool calls).
+3. When the turn finishes or errors → `chat.delete` on the status message, then the final reply (or error) is posted.
+
+Emoji hints include ⏳ prep, 🤖 model, 📧 email tools, ✅ tasks, 🧠 thinking, ❓ askUser, 📋 plans. Providers implement `formatInboundStatusLine` for custom formatting.
+
+The router wires `ChatEvent`s from `runHeadlessChatTurn` through an optional `InboundStatusReporter` (`createStatusReporter` on the provider). `dryRun` skips all status API calls.
+
 ## Adding a provider (e.g. Discord)
 
 Implement `ChatInboundProvider` on your `IntegrationModule` (`chatInbound` field). See [create-integration.md](create-integration.md#inbound-chat).
 
-No changes to `src/chat-inbound/router.ts` are required beyond tests.
+Optional: implement `createStatusReporter` to show transient progress during a turn (Slack uses post/update/delete; other platforms may use typing indicators or ephemeral messages).
+
+The router already calls `createStatusReporter`, passes `onProgress` into `runHeadlessChatTurn`, and `clear()`s the reporter before `deliverReply`.
 
 ## Related
 
