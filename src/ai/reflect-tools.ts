@@ -1,12 +1,9 @@
+import os from "node:os";
 import type { Tool } from "ai";
 import { tool } from "ai";
 import { z } from "zod";
 import type { Persona } from "../config/index";
-import {
-	getDefaultProvider,
-	readConfig,
-	readCredentials,
-} from "../config/index";
+import { readConfig, readCredentials } from "../config/index";
 import {
 	getIntegrationModule,
 	getIntegrationModules,
@@ -17,6 +14,9 @@ import {
 	PROVIDER_CATEGORY_LABELS,
 } from "../integrations/types";
 import { loadLocalSkills } from "../skills/index";
+import { isRunningAsCompiledBinary } from "../upgrade/index";
+import { getTobyVersion } from "../version";
+import { formatPersonaAiLabel } from "./model-factory";
 
 type ReflectToolsContext = {
 	readonly dryRun: boolean;
@@ -253,6 +253,38 @@ export function createReflectTools(
 				};
 			},
 		}),
+
+		tobyInstanceInfo: tool({
+			description:
+				"Get information about the running Toby instance: computer hostname, process PID, active AI model, active persona, version, OS/platform, compiled-vs-script mode, uptime, and working directory. Use this when the user asks what machine Toby is running on, its PID, which model or persona is active, or other runtime details.",
+			inputSchema: z.object({}),
+			execute: async () => {
+				// Pure read with no side effects — returns live data even in dryRun.
+				return {
+					hostname: os.hostname(),
+					pid: process.pid,
+					model: {
+						provider: ctx.persona.ai.provider,
+						model: ctx.persona.ai.model,
+						label: formatPersonaAiLabel(ctx.persona),
+					},
+					persona: {
+						name: ctx.persona.name,
+						promptMode: ctx.persona.promptMode,
+					},
+					extras: {
+						version: getTobyVersion(),
+						platform: process.platform,
+						osRelease: os.release(),
+						arch: os.arch(),
+						compiled: isRunningAsCompiledBinary(),
+						runtime: process.versions.bun ? "bun" : "node",
+						uptimeSeconds: process.uptime(),
+						cwd: process.cwd(),
+					},
+				};
+			},
+		}),
 	};
 }
 
@@ -323,6 +355,11 @@ function createGlobalToolsPreview(): { name: string; description: string }[] {
 			description:
 				"List installed local skills and how to create or update them.",
 		},
+		{
+			name: "tobyInstanceInfo",
+			description:
+				"Get information about the running Toby instance (hostname, PID, model, persona, version, OS, uptime).",
+		},
 	];
 	return lines;
 }
@@ -336,6 +373,7 @@ Toby self-reflection tools (always available):
 - **tobyListDefaults**: Show the default provider for every provider category (email, calendar, tasks, contacts, chat) and which integrations are eligible.
 - **tobyListTools**: List all currently available chat tools across integrations, grouped by integration, plus global tools.
 - **tobyListSkills**: List installed local skills from ~/.toby/skills/ with descriptions, and explain how to create or update skills.
+- **tobyInstanceInfo**: Get information about the running Toby instance — hostname, PID, active AI model, active persona, version, OS/platform, compiled-vs-script mode, uptime, and working directory.
 
 When to use:
 - Use **tobyListIntegrations** when the user asks what integrations exist or which are connected.
@@ -343,5 +381,6 @@ When to use:
 - Use **tobyListDefaults** when the user asks about default integrations per category.
 - Use **tobyListTools** when the user asks what actions or capabilities are available.
 - Use **tobyListSkills** when the user asks about installed skills or how to create/update a skill.
+- Use **tobyInstanceInfo** when the user asks what machine Toby is running on, its PID, which model or persona is active, or other runtime details.
 `;
 }

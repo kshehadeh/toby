@@ -34,6 +34,7 @@ const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"tobyListDefaults",
 	"tobyListTools",
 	"tobyListSkills",
+	"tobyInstanceInfo",
 	"fetchWebContent",
 	"webSearch",
 ]);
