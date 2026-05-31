@@ -2,24 +2,100 @@
 
 This document describes how `toby chat` prepares messages, runs a model turn, and (optionally) takes advantage of provider prompt caching to reduce repeated prompt tokens.
 
-## High-level flow
+## Node pipeline architecture
+
+Both the Ink TUI (`toby chat`) and the headless daemon/inbound path run the same **node pipeline** via `runChatTurnPipeline` in [`src/chat-pipeline/pipeline.ts`](../src/chat-pipeline/pipeline.ts). Each node is a discrete unit with typed inputs and outputs; nodes emit existing `ChatEvent` milestones for observability. Rendering (transcript rows, streaming assistant text) is **not** part of the pipeline — consumers subscribe to the event stream.
 
 ```mermaid
 flowchart LR
-pretreat[pretreatment_optional] --> prepare[prepareChatSessionMessages]
-prepare --> messages[ModelMessages_history]
-messages --> runTurn[runIntegrationChatTurn]
-runTurn --> chatWithTools[chatWithTools]
+  init[TurnInitNode] --> expand[ExpandPromptNode]
+  expand --> assemble[AssembleMessagesNode]
+  assemble --> run[RunModelTurnNode]
+  run --> persist[PersistTurnNode]
+```
+
+| Node | Responsibility | Key implementation |
+| ---- | -------------- | ------------------ |
+| **TurnInitNode** | Load skills catalog, build tool catalog, decide `shouldPretreat` | [`nodes/turn-init.ts`](../src/chat-pipeline/nodes/turn-init.ts) |
+| **ExpandPromptNode** | Optional pretreatment; emits `prep_start` / `prep_end` | [`nodes/expand-prompt.ts`](../src/chat-pipeline/nodes/expand-prompt.ts), [`pretreatment.ts`](../src/ai/pretreatment.ts) |
+| **AssembleMessagesNode** | Build/append `CoreMessage[]`, inject skill bodies; emits merge `lifecycle_*` on follow-up turns | [`nodes/assemble-messages.ts`](../src/chat-pipeline/nodes/assemble-messages.ts), [`prepare-messages.ts`](../src/ui/chat/prepare-messages.ts) |
+| **RunModelTurnNode** | Single fused model+tool turn (AI SDK agentic loop) | [`nodes/run-model-turn.ts`](../src/chat-pipeline/nodes/run-model-turn.ts), [`run-turn.ts`](../src/chat-pipeline/run-turn.ts), [`chat.ts`](../src/ai/chat.ts) |
+| **PersistTurnNode** | Append messages to SQLite (headless) or emit save `lifecycle_*` (Ink UI) | [`nodes/persist-turn.ts`](../src/chat-pipeline/nodes/persist-turn.ts) |
+
+**Query Model** and **Execute Tool** are intentionally **not** separate nodes. They alternate inside a single AI SDK `streamText` / `generateText` call (up to 12 steps) wrapped by `RunModelTurnNode`.
+
+### Core types
+
+Each node implements `PipelineNode<In, Out>`:
+
+```ts
+interface PipelineNode<In, Out> {
+  readonly name: string;
+  run(input: In, ctx: TurnContext): Promise<Out>;
+}
+```
+
+Payloads chain across stages:
+
+```
+TurnRequest → InitedTurn → ExpandedTurn → AssembledTurn → RanTurn → CommittedTurn
+```
+
+| Payload | Carries |
+| ------- | ------- |
+| `TurnRequest` | `rawUserText`, `priorMessages`, `isFirstTurn` |
+| `InitedTurn` | Skills catalog, tool catalog, `willPretreat`, integration label |
+| `ExpandedTurn` | Effective prompt text, pretreatment `spec`, `prepId` |
+| `AssembledTurn` | Full `CoreMessage[]` ready for the model |
+| `RanTurn` | Model text, tool calls, `responseMessages`, usage |
+| `CommittedTurn` | `messagesAfterTurn` (history + response) |
+
+`TurnContext` holds per-turn services shared by all nodes (persona, modules, dry-run flag, abort signal, `askUser` handler, event sink, optional persistence config). Ink builds context via [`pipeline-turn-context.ts`](../src/ui/chat/pipeline-turn-context.ts); headless uses a daemon-log event adapter.
+
+### Driver and entry points
+
+`runChatTurnPipeline(request, ctx, options?)` chains nodes in order. Options:
+
+- **`stopAfter`** — run only through a given stage (e.g. Ink boot/submit stop at `"assemble"` before updating React state).
+- **`assembled`** — skip prep stages and run `RunModelTurnNode` + `PersistTurnNode` from an existing `AssembledTurn` (Ink execution after submit).
+
+| Entry point | Pipeline usage |
+| ----------- | -------------- |
+| [`headless-session.ts`](../src/chat-pipeline/headless-session.ts) | Full pipeline (`init` → `persist`); SQLite batch via `ctx.persist` |
+| [`chat-session-app.tsx`](../src/ui/chat/chat-session-app.tsx) boot/submit | `stopAfter: "assemble"`, then `{ assembled }` for model turn |
+| [`chat-session-app.tsx`](../src/ui/chat/chat-session-app.tsx) `runModelTurn` | `{ assembled }` only; `emitPersistLifecycle: true`, React effects handle SQLite |
+
+### Observability (`ChatEvent`)
+
+Nodes emit the existing event vocabulary — no new event types. Ink maps events to transcript rows via [`chat-event-reducer.ts`](../src/ui/chat/chat-event-reducer.ts); the daemon logs events at debug level.
+
+| Event family | Emitted by |
+| ------------ | ---------- |
+| `prep_start` / `prep_end` | ExpandPromptNode |
+| `lifecycle_*` | AssembleMessagesNode (merge), RunModelTurnNode (model request), PersistTurnNode (save) |
+| `assistant_segment_*` / `assistant_text_delta` | RunModelTurnNode (via `chatWithTools`) |
+| `tool_call_start` / `tool_call_complete` | RunModelTurnNode (via tool lifecycle hooks) |
+
+### RunModelTurnNode internals
+
+Inside `RunModelTurnNode`, the model/tool loop is unchanged:
+
+```mermaid
+flowchart LR
+runTurn[runIntegrationChatTurn] --> chatWithTools[chatWithTools]
 chatWithTools --> modelCall[streamText_or_generateText]
 modelCall --> responseMsgs[response.messages]
-responseMsgs --> store[append_to_session_history]
 ```
 
 
 
 Key files:
 
-- `src/ui/chat/chat-session-app.tsx`: Ink TUI, transcript, message history, turn loop.
+- `src/chat-pipeline/pipeline.ts`: node types, `runChatTurnPipeline` driver, and stage chaining.
+- `src/chat-pipeline/nodes/`: discrete turn nodes (`turn-init`, `expand-prompt`, `assemble-messages`, `run-model-turn`, `persist-turn`).
+- `src/chat-pipeline/headless-session.ts`: daemon/inbound turn entry; builds `TurnContext` and runs the full pipeline.
+- `src/ui/chat/chat-session-app.tsx`: Ink TUI; runs prep stages (`stopAfter: "assemble"`) then execution via `{ assembled }`.
+- `src/ui/chat/pipeline-turn-context.ts`: helper to build `TurnContext` for the Ink session.
 - `src/chat-pipeline/chat-events.ts`: shared UI-agnostic chat pipeline event types.
 - `src/ai/pretreatment.ts`: optional fast pretreatment (`generateText` + structured output) before the main turn; see **Pretreatment** below.
 - `src/skills/index.ts`: loads optional local skills from `~/.toby/skills/<name>/SKILL.md` (frontmatter `name` + `description`) for pretreatment selection and injection; see **Local skills** below.
@@ -45,7 +121,7 @@ Where this is implemented:
 
 ## Pretreatment (optional)
 
-Before the main model turn, `ChatSessionApp` may run a **small, fast** LLM call that extracts a structured intent spec (goal, must/must-not, assumptions, open questions, likely integrations, **relevant local skills**, and relevant tools) and **prepends** it to the `role: "user"` content sent to the main model. The Ink transcript still shows the **verbatim** user line.
+Before the main model turn, **ExpandPromptNode** may run a **small, fast** LLM call that extracts a structured intent spec (goal, must/must-not, assumptions, open questions, likely integrations, **relevant local skills**, and relevant tools) and **prepends** it to the `role: "user"` content sent to the main model. The Ink transcript still shows the **verbatim** user line.
 
 - **When**: optional on first user prompt (`TOBY_PRETREAT_FIRST_TURN=1`); later prompts when `[shouldPretreat](../src/ai/pretreatment.ts)` flags the text as ambiguous (short follow-ups, pronouns without a recent assistant reply, multi-clause requests, etc.).
 - **Provider**: uses the active persona’s AI provider (OpenAI direct or Vercel AI Gateway via [`model-factory.ts`](../src/ai/model-factory.ts)).
@@ -107,14 +183,14 @@ Both tools are in the `ALWAYS_INCLUDED_TOOLS` set, so pretreatment's relevance f
 
 For each user submission:
 
-1. `ChatSessionApp` may run pretreatment, then appends a `role: "user"` message (verbatim + optional spec block) to the in-memory history.
-2. It calls `runIntegrationChatTurn(...)` with the full `messages` array (wiring an `AbortSignal` so the user can cancel with Escape).
+1. `runChatTurnPipeline` runs **TurnInit → ExpandPrompt → AssembleMessages** (Ink boot/submit stop here; headless continues).
+2. **RunModelTurnNode** calls `runIntegrationChatTurn(...)` with the full `messages` array (wiring an `AbortSignal` so the user can cancel with Escape).
 3. `runIntegrationChatTurn` resolves integration modules by name, then delegates to `runSharedChatTurn` which merges their tools, adds global tools, applies prompt caching, and calls `chatWithTools(...)`.
 4. `chatWithTools` applies `injectToolCache` (read-only tool result cache) then `injectToolLifecycleHooks` (events, callbacks, abort checks), and uses:
   - `streamText(...)` when the Ink UI wants incremental tokens, or
   - `generateText(...)` in non-streaming contexts.
 5. Tool lifecycle hooks (`onToolCallStart` / `onToolCallComplete`) and abort-signal checks are implemented by wrapping each tool’s `execute` in `[src/ai/chat.ts](../src/ai/chat.ts)`. The `abortSignal` on `ChatWithToolsOptions` is propagated to `streamText`/`generateText` and checked before each tool execution. Optional `**onChatEvent**` emits UI-agnostic `[ChatEvent](../src/chat-pipeline/chat-events.ts)` values (assistant segments at tool boundaries, tool start/complete, `prep_*`, `lifecycle_*` milestones, etc.). The Ink session maps those events to transcript rows via `[src/ui/chat/chat-event-reducer.ts](../src/ui/chat/chat-event-reducer.ts)` (prep and lifecycle render as boxed pipeline steps in the TUI transcript).
-6. The SDK returns `response.messages` (assistant + tool result messages), which are appended to history for the next turn.
+6. **PersistTurnNode** appends `response.messages` to session history (SQLite batch in headless; Ink emits save lifecycle and relies on incremental React persistence).
 
 ### Tool result cache (read-only tools)
 

@@ -80,7 +80,7 @@ For chat-category integrations that should respond to @mentions or DMs while the
 3. Document your `external_key` format (stable per channel+thread).
 4. Store transport credentials via existing configure descriptors; use `integrations.<id>.inboundEnabled` in config for the toggle.
 
-Core routing, session mapping, and headless turns live in [`src/chat-inbound/`](../src/chat-inbound/) and [`src/chat-pipeline/headless-session.ts`](../src/chat-pipeline/headless-session.ts). See [`docs/chat-inbound.md`](chat-inbound.md).
+Core routing, session mapping, and headless turns live in [`src/chat-inbound/`](../src/chat-inbound/) and [`src/chat-pipeline/headless-session.ts`](../src/chat-pipeline/headless-session.ts) (which runs the shared node pipeline). See [`docs/chat-inbound.md`](chat-inbound.md) and [`docs/chat-pipeline.md`](chat-pipeline.md).
 
 **Slack** is the reference implementation: [`src/integrations/slack/inbound.ts`](../src/integrations/slack/inbound.ts).
 

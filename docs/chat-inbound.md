@@ -9,7 +9,7 @@ This document describes the **provider-agnostic inbound architecture**: how exte
 | Layer | Location | Role |
 | ----- | -------- | ---- |
 | Core | `src/chat-inbound/` | Router, askUser bridge, status, listener startup |
-| Pipeline | `src/chat-pipeline/headless-session.ts` | Pretreatment, integration selection, `runIntegrationChatTurn`, SQLite persistence |
+| Pipeline | `src/chat-pipeline/headless-session.ts` | Calls `runChatTurnPipeline` (full node chain through persist); integration selection via [`resolve-chat-modules.ts`](../src/chat-pipeline/resolve-chat-modules.ts) |
 | Storage | `src/ui/chat/session-store.ts` | `chat_external_sessions` maps external conversation → Toby session |
 | Provider | `src/integrations/<name>/inbound.ts` | Transport, event normalization, `deliverReply` / `deliverAskUser` |
 

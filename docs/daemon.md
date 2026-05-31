@@ -101,8 +101,8 @@ sequenceDiagram
   Listener->>Router: InboundChatEvent
   Router->>DB: getOrCreateExternalSession
   Router->>Runner: runHeadlessChatTurn
-  Runner->>Runner: pretreatment + runIntegrationChatTurn
-  Runner->>DB: append messages
+  Runner->>Runner: runChatTurnPipeline (init through persist)
+  Runner->>DB: PersistTurnNode append messages
   Runner->>Router: assistant text / tool actions
   Router->>Slack: deliverReply if needed
   Slack->>User: reply in thread
@@ -231,6 +231,6 @@ Compact one-line format (for scripts): `formatDaemonLogEntry()` in the same modu
 ## Related docs
 
 - [chat-inbound.md](chat-inbound.md) — provider contract, layers, Discord checklist
-- [chat-pipeline.md](chat-pipeline.md) — pretreatment, tools, caching (shared with TUI chat)
+- [chat-pipeline.md](chat-pipeline.md) — node pipeline, pretreatment, tools, caching (shared with TUI chat)
 - [integrations.md](integrations.md) — `chatInbound` on `IntegrationModule`
 - [create-integration.md](create-integration.md#inbound-chat) — adding a new inbound provider

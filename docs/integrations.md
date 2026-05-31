@@ -28,7 +28,7 @@ Extends `Integration` with optional **capabilities** and **hooks**:
 | `mergeCredentialsPatch(values, previous)` | Return a `Partial<CredentialsFile>` fragment when saving; configure merges patches from all modules. |
 | `summarize?(options)` | Build `CoreMessage[]` (or return `empty`) for the shared `summarize` command. |
 | `chat?(options)` | Run the shared `chat` command: tool-calling AI for a user-supplied instruction (`ChatRunOptions`). |
-| `createChatTools?(params)` | Provide tools + action accumulator for the shared turn runner (`runSharedChatTurn` in `src/chat-pipeline/run-turn.ts`). |
+| `createChatTools?(params)` | Provide tools + action accumulator for **RunModelTurnNode** (`runSharedChatTurn` in `src/chat-pipeline/run-turn.ts`). |
 | `registerCommands?(program)` | Attach Commander subcommands (e.g. Gmail’s `gmail fetch`, `gmail organize`). |
 | `chatInbound?` | Long-lived inbound listener for the daemon (`ChatInboundProvider`); maps external channel+thread to chat sessions. See [`chat-inbound.md`](chat-inbound.md). |
 

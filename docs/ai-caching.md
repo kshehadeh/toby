@@ -36,7 +36,7 @@ flowchart LR
   report --> ui
 ```
 
-1. **Before the model call** — [`src/chat-pipeline/run-turn.ts`](../src/chat-pipeline/run-turn.ts) calls `applyChatMessageCaching` on the message list, then `applyChatPromptCaching` with the active persona and integration module names.
+1. **Before the model call** — **RunModelTurnNode** (via [`run-turn.ts`](../src/chat-pipeline/run-turn.ts)) calls `applyChatMessageCaching` on the message list, then `applyChatPromptCaching` with the active persona and integration module names.
 2. **Adapter** — Looks up `getCacheAdapter(persona.ai.provider)` and merges provider-specific message hints and `providerOptions` patches.
 3. **Model call** — [`src/ai/chat.ts`](../src/ai/chat.ts) forwards `providerOptions` to the AI SDK (`streamText` / `generateText`).
 4. **After the turn** — Callers use `extractTokenUsageReport(usage, { persona, moduleNames })` for logging and UI instead of reading `usage.inputTokenDetails` directly.

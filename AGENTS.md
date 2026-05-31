@@ -12,7 +12,7 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | [`docs/integrations.md`](docs/integrations.md) | Plugin-style integrations: `IntegrationModule`, registry, capabilities, credentials, and CLI contributions. |
 | [`docs/plugin-protocol.md`](docs/plugin-protocol.md) | Installable plugin executables: subcommand contract, discovery, JSON protocol v1. |
 | [`docs/create-integration.md`](docs/create-integration.md) | Checklist for adding a new first-party integration module. |
-| [`docs/chat-pipeline.md`](docs/chat-pipeline.md) | `toby chat` message flow and tool-result caching behavior. |
+| [`docs/chat-pipeline.md`](docs/chat-pipeline.md) | Chat turn node pipeline, `ChatEvent` observability, and tool-result caching. |
 | [`docs/daemon.md`](docs/daemon.md) | Background daemon: schedules, chat inbound (@mentions), `daemon.log`, troubleshooting. |
 | [`docs/chat-inbound.md`](docs/chat-inbound.md) | Inbound provider contract, external session mapping, adding new chat platforms. |
 | [`docs/ai-caching.md`](docs/ai-caching.md) | Provider prompt caching adapters, stable cache keys, and token telemetry. |
