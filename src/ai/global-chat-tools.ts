@@ -48,6 +48,12 @@ skillMarkdown requirements:
 
 recommendedFolderName must be a single path segment: lowercase letters, digits, and hyphens only (kebab-case).`;
 
+const UPDATE_APPENDIX = `
+When updating an existing skill:
+- Keep the same skill intent unless the user explicitly asks to repurpose it.
+- Preserve useful existing instructions, refining them instead of replacing everything by default.
+- Keep frontmatter valid with non-empty name and description.`;
+
 type GlobalChatToolsContext = {
 	readonly dryRun: boolean;
 	readonly persona: Persona;
@@ -71,7 +77,7 @@ Web search and fetch rules:
 		: "";
 	return `
 Global Toby tools (always available in addition to integration tools):
-- **createLocalSkill**: Draft a SKILL.md from your written description and save it under ~/.toby/skills/<folder>/SKILL.md. Required: \`description\`. Optional: \`preferredFolderName\` (kebab-case). If the folder name is omitted, the drafting step recommends one; if that folder already exists and no preferred name was given, a numeric suffix is used. If the user supplied \`preferredFolderName\` and SKILL.md already exists there, the tool fails so nothing is overwritten.
+- **createLocalSkill**: Draft a SKILL.md from your written description and save it under ~/.toby/skills/<folder>/SKILL.md. Required: \`description\`. Optional: \`preferredFolderName\` (kebab-case). Optional: \`updateExisting\` (boolean, default false). If the folder name is omitted, the drafting step recommends one; if that folder already exists and no preferred name was given, a numeric suffix is used. If \`updateExisting\` is true with a matching folder, the existing SKILL.md is revised in place; otherwise existing skills are not overwritten.
 - **loadLocalSkillInstructions**: Load full SKILL.md instruction bodies for one or more local skills by exact name.
 - **memorySearch**: Search the user's stored personal memories (preferences, relationships, projects, facts, etc.).
 - **memoryPropose**: Propose saving a new memory. High-confidence normal preferences are auto-saved; sensitive or low-confidence items stay pending until confirmed with **memorySave**.
@@ -142,21 +148,27 @@ async function draftSkillMarkdown(params: {
 	readonly persona: Persona;
 	readonly description: string;
 	readonly preferredFolderHint?: string;
+	readonly existingSkillMarkdown?: string;
 }): Promise<z.infer<typeof skillDraftSchema> | null> {
 	const hint =
 		params.preferredFolderHint?.trim() &&
 		params.preferredFolderHint.trim().length > 0
 			? `\nPreferred folder name (if valid kebab-case): ${params.preferredFolderHint.trim()}`
 			: "";
+	const existing =
+		params.existingSkillMarkdown &&
+		params.existingSkillMarkdown.trim().length > 0
+			? `\n\nExisting SKILL.md to revise:\n${params.existingSkillMarkdown.trim()}`
+			: "";
 	try {
 		const model = createModelForPersona(params.persona);
 		const result = await generateText({
 			model,
-			system: DRAFT_SYSTEM,
+			system: `${DRAFT_SYSTEM}${existing ? UPDATE_APPENDIX : ""}`,
 			prompt: `Write a SKILL.md for this skill request:${hint}
 
 User description:
-${params.description.trim()}`,
+${params.description.trim()}${existing}`,
 			output: Output.object({
 				schema: zodSchema(skillDraftSchema),
 				name: "SkillDraft",
@@ -240,7 +252,7 @@ export function createGlobalChatTools(
 		}),
 		createLocalSkill: tool({
 			description:
-				"Create a new Toby skill: drafts a SKILL.md (frontmatter + body) from a description and saves it under ~/.toby/skills/<folder>/SKILL.md. Use when the user wants reusable assistant instructions as a local skill.",
+				"Create or update a Toby skill: drafts a SKILL.md (frontmatter + body) from a description and saves it under ~/.toby/skills/<folder>/SKILL.md. Use updateExisting=true to revise an existing skill in place.",
 			inputSchema: z.object({
 				description: z
 					.string()
@@ -250,14 +262,88 @@ export function createGlobalChatTools(
 					.string()
 					.optional()
 					.describe(
-						"Optional kebab-case folder name; must not collide with an existing SKILL.md",
+						"Optional kebab-case folder name; when updateExisting=true this targets the skill folder to revise",
+					),
+				updateExisting: z
+					.boolean()
+					.optional()
+					.describe(
+						"When true, overwrite an existing ~/.toby/skills/<folder>/SKILL.md instead of creating a new one",
 					),
 			}),
-			execute: async ({ description, preferredFolderName }) => {
+			execute: async ({ description, preferredFolderName, updateExisting }) => {
+				const shouldUpdate = updateExisting === true;
+				const preferred = preferredFolderName?.trim()
+					? sanitizeSkillFolderSegment(preferredFolderName)
+					: null;
+				if (preferredFolderName?.trim() && !preferred) {
+					return {
+						ok: false as const,
+						error:
+							"preferredFolderName must be kebab-case (letters, digits, hyphens only).",
+					};
+				}
+
+				if (shouldUpdate && !preferred) {
+					return {
+						ok: false as const,
+						error:
+							"updateExisting=true requires preferredFolderName so Toby knows which skill to update.",
+					};
+				}
+
+				ensureTobyDir();
+				const skillsRoot = getSkillsDir();
+				try {
+					fs.mkdirSync(skillsRoot, { recursive: true });
+				} catch (e) {
+					return {
+						ok: false as const,
+						error:
+							e instanceof Error
+								? e.message
+								: "Could not create skills directory.",
+					};
+				}
+
+				let folder: string | null = null;
+				let existingSkillMarkdown: string | undefined;
+				if (preferred) {
+					folder = preferred;
+					const targetFile = skillFilePath(skillsRoot, folder);
+					const exists = skillMarkdownExists(skillsRoot, folder);
+					if (shouldUpdate && !exists) {
+						return {
+							ok: false as const,
+							error: `No existing skill found at ~/.toby/skills/${folder}/SKILL.md to update.`,
+						};
+					}
+					if (!shouldUpdate && exists) {
+						return {
+							ok: false as const,
+							error: `SKILL.md already exists at ~/.toby/skills/${folder}/SKILL.md — choose another preferredFolderName or set updateExisting=true.`,
+						};
+					}
+					if (shouldUpdate) {
+						try {
+							existingSkillMarkdown = fs.readFileSync(targetFile, "utf-8");
+						} catch (e) {
+							return {
+								ok: false as const,
+								error:
+									e instanceof Error
+										? e.message
+										: "Failed to read existing SKILL.md for update.",
+							};
+						}
+					}
+				}
+
 				const draft = await draftSkillMarkdown({
 					persona: ctx.persona,
 					description,
 					preferredFolderHint: preferredFolderName,
+					existingSkillMarkdown,
 				});
 				if (!draft) {
 					return {
@@ -284,54 +370,24 @@ export function createGlobalChatTools(
 							"Draft frontmatter must include non-empty name and description.",
 					};
 				}
-
-				const aiFolder = sanitizeSkillFolderSegment(
-					draft.recommendedFolderName,
-				);
-				if (!aiFolder) {
-					return {
-						ok: false as const,
-						error:
-							"Model returned an invalid recommendedFolderName; ask for a preferredFolderName.",
-					};
-				}
-
-				const preferred = preferredFolderName?.trim()
-					? sanitizeSkillFolderSegment(preferredFolderName)
-					: null;
-				if (preferredFolderName?.trim() && !preferred) {
-					return {
-						ok: false as const,
-						error:
-							"preferredFolderName must be kebab-case (letters, digits, hyphens only).",
-					};
-				}
-
-				ensureTobyDir();
-				const skillsRoot = getSkillsDir();
-				try {
-					fs.mkdirSync(skillsRoot, { recursive: true });
-				} catch (e) {
-					return {
-						ok: false as const,
-						error:
-							e instanceof Error
-								? e.message
-								: "Could not create skills directory.",
-					};
-				}
-
-				let folder: string;
-				if (preferred) {
-					folder = preferred;
-					if (skillMarkdownExists(skillsRoot, folder)) {
+				if (!preferred) {
+					const aiFolder = sanitizeSkillFolderSegment(
+						draft.recommendedFolderName,
+					);
+					if (!aiFolder) {
 						return {
 							ok: false as const,
-							error: `SKILL.md already exists at ~/.toby/skills/${folder}/SKILL.md — choose another preferredFolderName or delete the existing skill.`,
+							error:
+								"Model returned an invalid recommendedFolderName; ask for a preferredFolderName.",
 						};
 					}
-				} else {
 					folder = allocateUniqueFolder(skillsRoot, aiFolder);
+				}
+				if (!folder) {
+					return {
+						ok: false as const,
+						error: "Could not resolve target skill folder.",
+					};
 				}
 
 				const probe = parseSkillFileContent(folder, draft.skillMarkdown);
@@ -346,7 +402,8 @@ export function createGlobalChatTools(
 				const targetFile = skillFilePath(skillsRoot, folder);
 
 				if (ctx.dryRun) {
-					const msg = `[dry-run] Would write ${targetFile}`;
+					const action = shouldUpdate ? "update" : "write";
+					const msg = `[dry-run] Would ${action} ${targetFile}`;
 					ctx.appliedActions.push(msg);
 					return {
 						ok: true as const,
@@ -360,10 +417,13 @@ export function createGlobalChatTools(
 
 				try {
 					fs.mkdirSync(targetDir, { recursive: true });
-					fs.writeFileSync(targetFile, `${draft.skillMarkdown.trimEnd()}\n`, {
-						encoding: "utf-8",
-						flag: "wx",
-					});
+					fs.writeFileSync(
+						targetFile,
+						`${draft.skillMarkdown.trimEnd()}\n`,
+						shouldUpdate
+							? { encoding: "utf-8", flag: "w" }
+							: { encoding: "utf-8", flag: "wx" },
+					);
 				} catch (e) {
 					const code =
 						e !== null &&
@@ -384,7 +444,9 @@ export function createGlobalChatTools(
 					};
 				}
 
-				const msg = `Wrote skill ~/.toby/skills/${folder}/SKILL.md (${probe.name})`;
+				const msg = shouldUpdate
+					? `Updated skill ~/.toby/skills/${folder}/SKILL.md (${probe.name})`
+					: `Wrote skill ~/.toby/skills/${folder}/SKILL.md (${probe.name})`;
 				ctx.appliedActions.push(msg);
 				return {
 					ok: true as const,

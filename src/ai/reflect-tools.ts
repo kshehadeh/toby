@@ -231,7 +231,7 @@ export function createReflectTools(
 
 		tobyListSkills: tool({
 			description:
-				"List installed local skills from ~/.toby/skills/ with name, description, and folder. Also explains how to create a new skill. Use this when the user asks about available skills or how to add a skill.",
+				"List installed local skills from ~/.toby/skills/ with name, description, and folder. Also explains how to create or update skills. Use this when the user asks about available skills or how to manage local skills.",
 			inputSchema: z.object({}),
 			execute: async () => {
 				if (ctx.dryRun) {
@@ -249,7 +249,7 @@ export function createReflectTools(
 						folder: s.dirName,
 					})),
 					createSkillHint:
-						"Use the createLocalSkill tool to draft and save a new SKILL.md under ~/.toby/skills/<folder>/SKILL.md.",
+						"Use createLocalSkill to draft a new SKILL.md, or pass updateExisting=true with preferredFolderName to revise an existing ~/.toby/skills/<folder>/SKILL.md.",
 				};
 			},
 		}),
@@ -271,7 +271,7 @@ function createGlobalToolsPreview(): { name: string; description: string }[] {
 		{
 			name: "createLocalSkill",
 			description:
-				"Create a new Toby skill: drafts a SKILL.md from a description and saves it under ~/.toby/skills/.",
+				"Create or update a Toby skill: drafts a SKILL.md from a description and saves it under ~/.toby/skills/.",
 		},
 		{
 			name: "memorySearch",
@@ -320,7 +320,8 @@ function createGlobalToolsPreview(): { name: string; description: string }[] {
 		},
 		{
 			name: "tobyListSkills",
-			description: "List installed local skills and how to create new ones.",
+			description:
+				"List installed local skills and how to create or update them.",
 		},
 	];
 	return lines;
@@ -334,13 +335,13 @@ Toby self-reflection tools (always available):
 - **tobyGetIntegrationSetup**: Get detailed setup info for a specific integration — credential fields, auth methods, health probe, and setup hints. Takes \`integration\` (name string).
 - **tobyListDefaults**: Show the default provider for every provider category (email, calendar, tasks, contacts, chat) and which integrations are eligible.
 - **tobyListTools**: List all currently available chat tools across integrations, grouped by integration, plus global tools.
-- **tobyListSkills**: List installed local skills from ~/.toby/skills/ with descriptions, and explain how to create new skills.
+- **tobyListSkills**: List installed local skills from ~/.toby/skills/ with descriptions, and explain how to create or update skills.
 
 When to use:
 - Use **tobyListIntegrations** when the user asks what integrations exist or which are connected.
 - Use **tobyGetIntegrationSetup** when the user asks how to set up, connect, or configure a specific integration.
 - Use **tobyListDefaults** when the user asks about default integrations per category.
 - Use **tobyListTools** when the user asks what actions or capabilities are available.
-- Use **tobyListSkills** when the user asks about installed skills or how to create a new skill.
+- Use **tobyListSkills** when the user asks about installed skills or how to create/update a skill.
 `;
 }
