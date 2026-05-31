@@ -26,23 +26,23 @@ flowchart TD
     U[User Input] --> C[toby chat command]
     C --> P[Chat Pipeline Orchestrator]
 
-    P --> CTX[Load conversation + integration context]
-    CTX --> SEL[Select active persona + relevant skills]
+    P --> CTX["Load conversation + integration context"]
+    CTX --> SEL["Select active persona + relevant skills"]
 
-    SEL --> PER[Persona layer]
-    SEL --> SK[Skill layer]
+    SEL --> PER["Persona layer"]
+    SEL --> SK["Skill layer"]
 
-    PER -->|adjusts framing and priorities| SYS[System prompt assembly]
+    PER -->|adjusts framing and priorities| SYS["System prompt assembly"]
     SK -->|injects task instructions and constraints| SYS
 
-    SYS --> LLM[LLM inference]
+    SYS --> LLM["LLM inference"]
     LLM --> TOOLS{Tool call needed?}
 
-    TOOLS -->|Yes| INT[Integration/tool execution]
-    INT --> CACHE[Tool result cache]
+    TOOLS -->|Yes| INT["Integration/tool execution"]
+    INT --> CACHE["Tool result cache"]
     CACHE --> P
 
-    TOOLS -->|No| OUT[Assistant response]
+    TOOLS -->|No| OUT["Assistant response"]
     P --> OUT
 ```
 
