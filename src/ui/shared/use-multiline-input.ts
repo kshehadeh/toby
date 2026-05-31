@@ -56,7 +56,7 @@ export interface UseMultilineInputOptions {
 	 * - "newline" : plain Enter inserts newline, Ctrl+S submits
 	 */
 	readonly enterMode?: "submit" | "newline";
-	/** Called on Escape when enterMode is "newline". Ignored for "submit" mode. */
+	/** Called on Escape to cancel editing. */
 	readonly onCancel?: () => void;
 	/** Override the auto-detected terminal profile (for testing). */
 	readonly profile?: TerminalProfile;
@@ -271,6 +271,10 @@ export function useMultilineInput(
 			}
 
 			const isEnter = key.return || typedInput === "\n" || typedInput === "\r";
+			if (key.escape) {
+				onCancel?.();
+				return;
+			}
 
 			if (enterMode === "submit") {
 				// With Kitty protocol or "meta-return" terminals, Ink correctly
@@ -292,10 +296,6 @@ export function useMultilineInput(
 				// "newline" mode: Enter inserts a newline, Ctrl+S submits.
 				if (key.ctrl && typedInput === "s") {
 					onSubmit(value);
-					return;
-				}
-				if (key.escape) {
-					onCancel?.();
 					return;
 				}
 				if (isEnter) {
