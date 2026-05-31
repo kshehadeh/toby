@@ -162,7 +162,7 @@ describe("wrapUserPromptWithPretreatment", () => {
 				process.env.TOBY_PRETREAT_FIRST_TURN = prevFirstTurn;
 			}
 			if (prevBun === undefined) {
-				delete (g as { Bun?: unknown }).Bun;
+				Reflect.deleteProperty(g, "Bun");
 			}
 		}
 	});
@@ -225,7 +225,7 @@ describe("wrapUserPromptWithPretreatment", () => {
 				process.env.TOBY_PRETREAT_FIRST_TURN = prevFirstTurn;
 			}
 			if (prevBun === undefined) {
-				delete (g as { Bun?: unknown }).Bun;
+				Reflect.deleteProperty(g, "Bun");
 			}
 		}
 	});

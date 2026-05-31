@@ -1,6 +1,6 @@
 import { tool } from "ai";
-import { z } from "zod";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import { buildToolsCatalog } from "../src/chat-pipeline/run-turn";
 
 describe("buildToolsCatalog", () => {
@@ -18,7 +18,9 @@ describe("buildToolsCatalog", () => {
 			}),
 		};
 		const catalog = buildToolsCatalog(tools);
-		expect(catalog).toContain("- fetchOpenTasks: Fetch open tasks from Todoist");
+		expect(catalog).toContain(
+			"- fetchOpenTasks: Fetch open tasks from Todoist",
+		);
 		expect(catalog).toContain("params: projectId");
 		expect(catalog).toContain("- completeTask: Mark a task as completed");
 		expect(catalog).toContain("params: taskId");
@@ -33,7 +35,9 @@ describe("buildToolsCatalog", () => {
 			}),
 		};
 		const catalog = buildToolsCatalog(tools);
-		expect(catalog).toContain("- getCurrentDateTime: Get the current local datetime");
+		expect(catalog).toContain(
+			"- getCurrentDateTime: Get the current local datetime",
+		);
 		expect(catalog).not.toContain("params:");
 	});
 

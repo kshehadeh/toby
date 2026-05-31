@@ -17,9 +17,9 @@ afterEach(() => {
 	if (dir && fs.existsSync(dir)) {
 		fs.rmSync(dir, { recursive: true, force: true });
 	}
-	delete process.env.TOBY_DIR;
-	delete process.env.TOBY_CHAT_INBOUND_ENABLED;
-	delete process.env.TOBY_CHAT_INBOUND_INTEGRATION;
+	Reflect.deleteProperty(process.env, "TOBY_DIR");
+	Reflect.deleteProperty(process.env, "TOBY_CHAT_INBOUND_ENABLED");
+	Reflect.deleteProperty(process.env, "TOBY_CHAT_INBOUND_INTEGRATION");
 });
 
 describe("chat inbound config", () => {

@@ -14,7 +14,7 @@ afterEach(() => {
 	if (dir && fs.existsSync(dir)) {
 		fs.rmSync(dir, { recursive: true, force: true });
 	}
-	delete process.env.TOBY_DIR;
+	Reflect.deleteProperty(process.env, "TOBY_DIR");
 });
 
 describe("configure chat inbound", () => {

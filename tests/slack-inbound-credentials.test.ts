@@ -10,7 +10,8 @@ function makeTempDir(): string {
 }
 
 function writeCredentials(data: object): void {
-	const dir = process.env.TOBY_DIR!;
+	const dir = process.env.TOBY_DIR;
+	if (!dir) throw new Error("TOBY_DIR must be set for this test.");
 	fs.mkdirSync(dir, { recursive: true });
 	fs.writeFileSync(
 		path.join(dir, "credentials.json"),
@@ -43,7 +44,7 @@ afterEach(() => {
 	if (dir && fs.existsSync(dir)) {
 		fs.rmSync(dir, { recursive: true, force: true });
 	}
-	delete process.env.TOBY_DIR;
+	Reflect.deleteProperty(process.env, "TOBY_DIR");
 });
 
 describe("Slack inbound credentials", () => {

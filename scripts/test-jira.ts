@@ -7,7 +7,7 @@
  */
 
 import { Version3Client } from "jira.js/version3";
-import { readCredentials, getIntegrationCredential } from "../src/config/index";
+import { getIntegrationCredential, readCredentials } from "../src/config/index";
 
 function getCredentials() {
 	const creds = readCredentials();
@@ -55,22 +55,40 @@ async function main() {
 	console.log();
 
 	// Test 2: Search issues using the enhanced search endpoint
-	console.log("--- Test 2: issueSearch.searchForIssuesUsingJqlEnhancedSearch() ---");
+	console.log(
+		"--- Test 2: issueSearch.searchForIssuesUsingJqlEnhancedSearch() ---",
+	);
 	try {
 		const result =
 			await client.issueSearch.searchForIssuesUsingJqlEnhancedSearch({
 				jql: "assignee = currentUser() ORDER BY updated DESC",
 				maxResults: 2,
-				fields: ["summary", "status", "assignee", "priority", "issuetype", "project", "updated", "labels", "created"],
+				fields: [
+					"summary",
+					"status",
+					"assignee",
+					"priority",
+					"issuetype",
+					"project",
+					"updated",
+					"labels",
+					"created",
+				],
 				fieldsByKeys: true,
 			});
 		console.log("Raw result keys:", Object.keys(result));
 		const firstIssue = result.issues?.[0];
 		if (firstIssue) {
 			console.log("First issue keys:", Object.keys(firstIssue));
-			console.log("First issue (raw):", JSON.stringify(firstIssue, null, 2).slice(0, 3000));
+			console.log(
+				"First issue (raw):",
+				JSON.stringify(firstIssue, null, 2).slice(0, 3000),
+			);
 		} else {
-			console.log("No issues returned. Full response:", JSON.stringify(result, null, 2).slice(0, 2000));
+			console.log(
+				"No issues returned. Full response:",
+				JSON.stringify(result, null, 2).slice(0, 2000),
+			);
 		}
 	} catch (err: unknown) {
 		printError(err);
@@ -86,13 +104,18 @@ async function main() {
 			await client.issueSearch.searchForIssuesUsingJqlEnhancedSearchPost({
 				jql: "assignee = currentUser() ORDER BY updated DESC",
 				maxResults: 2,
-				fields: ["summary", "status", "assignee", "priority", "issuetype", "project", "updated"],
+				fields: [
+					"summary",
+					"status",
+					"assignee",
+					"priority",
+					"issuetype",
+					"project",
+					"updated",
+				],
 				fieldsByKeys: true,
 			});
-		console.log(
-			"OK: issues count =",
-			result.issues?.length ?? 0,
-		);
+		console.log("OK: issues count =", result.issues?.length ?? 0);
 		const firstIssue = result.issues?.[0];
 		if (firstIssue) {
 			const f = firstIssue.fields as Record<string, unknown>;
@@ -134,7 +157,11 @@ async function main() {
 			const issue = await client.issues.getIssue({
 				issueIdOrKey: firstIssue.key,
 			});
-			console.log("OK:", issue.key, (issue.fields as Record<string, unknown>)?.summary);
+			console.log(
+				"OK:",
+				issue.key,
+				(issue.fields as Record<string, unknown>)?.summary,
+			);
 		} else {
 			console.log("SKIP: No issues found to test with");
 		}
@@ -181,7 +208,7 @@ function printError(err: unknown) {
 	if (err instanceof Error) {
 		console.error("FAILED:", err.message);
 		// The jira.js SDK wraps HTTP errors with useful details
-		if ("response' in err" || "response" in err) {
+		if ("response" in err) {
 			const withResponse = err as Error & { response?: Response };
 			if (withResponse.response) {
 				console.error(
