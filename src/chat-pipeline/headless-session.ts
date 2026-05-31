@@ -1,9 +1,5 @@
 import type { AskUserHandler } from "../ai/ask-user-tool";
 import type { CoreMessage } from "../ai/chat";
-import {
-	shouldPretreat,
-	wrapUserPromptWithPretreatment,
-} from "../ai/pretreatment";
 import type {
 	ChatInboundProvider,
 	InboundConversation,
@@ -11,17 +7,10 @@ import type {
 import type { Persona } from "../config/index";
 import type { IntegrationModule } from "../integrations/types";
 import { daemonLog } from "../logging/daemon-log";
-import { loadLocalSkills } from "../skills/index";
-import {
-	injectSkillBodiesIntoFirstSystemMessage,
-	prepareChatSessionMessages,
-} from "../ui/chat/prepare-messages";
-import { appendMessageBatch, loadChatSession } from "../ui/chat/session-store";
+import { loadChatSession } from "../ui/chat/session-store";
+import type { ChatEvent } from "./chat-events";
+import { type TurnContext, runChatTurnPipeline } from "./pipeline";
 import { resolveHeadlessChatModules } from "./resolve-chat-modules";
-import {
-	buildToolsCatalogForPretreatment,
-	runIntegrationChatTurn,
-} from "./run-turn";
 
 const INBOUND_PERSONA_APPENDIX_BASE = `
 
@@ -65,6 +54,12 @@ function appliedActionsIndicateReply(
 	);
 }
 
+function createHeadlessEventSink(): (event: ChatEvent) => void {
+	return (event) => {
+		daemonLog("debug", "turn", "pipeline_event", { type: event.type });
+	};
+}
+
 export async function runHeadlessChatTurn(params: {
 	readonly inboundModule: IntegrationModule;
 	readonly sessionId: string;
@@ -104,65 +99,45 @@ export async function runHeadlessChatTurn(params: {
 	const priorMessages = loaded?.messages ?? [];
 	const isFirstTurn = priorMessages.length === 0;
 	const inboundPersona = buildInboundPersona(persona, provider, conversation);
-	const skills = loadLocalSkills();
-	const integrationLabel = modules.map((m) => m.displayName).join(", ");
-	const moduleNames = modules.map((m) => m.name);
 
-	let effectiveText = userText;
-	let spec: Awaited<ReturnType<typeof wrapUserPromptWithPretreatment>>["spec"] =
-		null;
-
-	if (shouldPretreat(priorMessages, userText, isFirstTurn)) {
-		const toolCatalog = await buildToolsCatalogForPretreatment(modules, {
-			dryRun,
-			persona: inboundPersona,
-		});
-		const wrapResult = await wrapUserPromptWithPretreatment({
-			priorMessages: isFirstTurn ? null : priorMessages,
-			rawUserText: userText,
-			integrationLabels: integrationLabel,
-			isFirstTurn,
-			persona: inboundPersona,
-			skillsCatalog: skills,
-			toolsCatalogText: toolCatalog.catalogText,
-			allowedToolNamesLower: toolCatalog.allowedToolNamesLower,
-		});
-		effectiveText = wrapResult.content;
-		spec = wrapResult.spec;
-	}
-
-	let messages: CoreMessage[];
-	if (isFirstTurn) {
-		messages = await prepareChatSessionMessages(
-			modules,
-			inboundPersona,
-			effectiveText,
-		);
-	} else {
-		messages = [...priorMessages, { role: "user", content: effectiveText }];
-	}
-
-	messages = injectSkillBodiesIntoFirstSystemMessage(
-		messages,
-		spec?.relevantSkills ?? [],
-		skills,
-	);
-
-	const startIdx = priorMessages.length;
-	const result = await runIntegrationChatTurn(moduleNames, messages, {
+	let seq = 0;
+	const ctx: TurnContext = {
 		persona: inboundPersona,
+		modules,
 		dryRun,
 		askUser,
-		relevantTools: spec?.relevantTools,
-	});
+		emit: createHeadlessEventSink(),
+		nextSeq: () => {
+			seq += 1;
+			return seq;
+		},
+		emitPersistLifecycle: false,
+		persist: {
+			sessionId,
+			startIdx: priorMessages.length,
+		},
+	};
 
-	const next = [...messages, ...result.responseMessages];
-	appendMessageBatch(sessionId, startIdx, next.slice(startIdx));
+	const result = await runChatTurnPipeline(
+		{
+			rawUserText: userText,
+			priorMessages,
+			isFirstTurn,
+		},
+		ctx,
+	);
 
+	if (result.stage !== "persist") {
+		throw new Error(
+			`runHeadlessChatTurn: expected persist stage, got ${result.stage}`,
+		);
+	}
+
+	const turn = result.turn;
 	return {
-		responseMessages: result.responseMessages,
-		text: result.text?.trim() ?? "",
-		appliedActions: result.appliedActions,
-		deliveredViaTools: appliedActionsIndicateReply(result.appliedActions),
+		responseMessages: turn.responseMessages,
+		text: turn.text?.trim() ?? "",
+		appliedActions: turn.appliedActions,
+		deliveredViaTools: appliedActionsIndicateReply(turn.appliedActions),
 	};
 }

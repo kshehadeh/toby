@@ -17,12 +17,14 @@ import {
 import type { CoreMessage } from "../../ai/chat";
 import { formatChatModelError } from "../../ai/chat-errors";
 import { formatPersonaAiLabel } from "../../ai/model-factory";
-import {
-	type UserIntentSpec,
-	shouldPretreat,
-	wrapUserPromptWithPretreatment,
-} from "../../ai/pretreatment";
+import { shouldPretreat } from "../../ai/pretreatment";
 import type { ChatEvent } from "../../chat-pipeline/chat-events";
+import { formatScopeLabel } from "../../chat-pipeline/format-scope-label";
+import {
+	type AssembledTurn,
+	runChatTurnPipeline,
+	withAssembledMessages,
+} from "../../chat-pipeline/pipeline";
 import {
 	isIntegrationUsableInChat,
 	modulesEqual,
@@ -31,7 +33,6 @@ import {
 import {
 	type Persona,
 	getDefaultPersonaName,
-	getDefaultProvider,
 	readConfig,
 } from "../../config/index";
 import {
@@ -39,10 +40,6 @@ import {
 	getModulesForCategory,
 	getModulesWithCapability,
 } from "../../integrations/index";
-import {
-	ALL_PROVIDER_CATEGORIES,
-	PROVIDER_CATEGORY_LABELS,
-} from "../../integrations/types";
 import type { IntegrationModule } from "../../integrations/types";
 import {
 	startMacOSAudioCapture,
@@ -100,16 +97,9 @@ import {
 import { ACCENT, TIPS } from "./constants";
 import { formatToolStatusLine } from "./format-tool-status";
 import { activityLineForChatEvent } from "./pipeline-footer";
-import {
-	injectSkillBodiesIntoFirstSystemMessage,
-	prepareChatSessionMessages,
-	replaceSessionSystemMessageForPersona,
-} from "./prepare-messages";
+import { buildUiTurnContext } from "./pipeline-turn-context";
+import { replaceSessionSystemMessageForPersona } from "./prepare-messages";
 import { appendPromptHistory, loadPromptHistory } from "./prompt-history";
-import {
-	buildToolsCatalogForPretreatment,
-	runIntegrationChatTurn,
-} from "./run-turn";
 import {
 	CHAT_SESSION_PICKER_LIMIT,
 	appendMessageBatch,
@@ -178,24 +168,6 @@ function isAbortError(e: unknown): boolean {
 		if (/abort/i.test(e.message)) return true;
 	}
 	return false;
-}
-
-function formatScopeLabel(modules: readonly IntegrationModule[]): string {
-	if (modules.length === 0) {
-		return "(none)";
-	}
-	const base = modules.map((m) => m.displayName).join(" + ");
-	const defaultParts: string[] = [];
-	for (const cat of ALL_PROVIDER_CATEGORIES) {
-		const name = getDefaultProvider(cat);
-		if (name && modules.some((m) => m.name === name)) {
-			defaultParts.push(`${PROVIDER_CATEGORY_LABELS[cat]}=${name}`);
-		}
-	}
-	if (defaultParts.length === 0) {
-		return base;
-	}
-	return `${base} [defaults: ${defaultParts.join(", ")}]`;
 }
 
 function toggleNameInList(
@@ -364,6 +336,7 @@ export function ChatSessionApp({
 	>({});
 	const listenErrorsRef = useRef<string[]>([]);
 	const relevantToolsRef = useRef<readonly string[]>([]);
+	const lastAssembledTurnRef = useRef<AssembledTurn | null>(null);
 	const pretreatSessionNameRef = useRef<string | null>(null);
 	const snapRef = useRef({
 		askModal: null as AskModal | null,
@@ -611,7 +584,7 @@ export function ChatSessionApp({
 
 	const runModelTurn = useCallback(
 		async (
-			msgs: CoreMessage[],
+			assembled: AssembledTurn,
 			overrideSessionId?: string,
 		): Promise<TurnResult> => {
 			const sid = overrideSessionId ?? sessionIdRef.current;
@@ -675,28 +648,45 @@ export function ChatSessionApp({
 			let responseMessages: CoreMessage[] = [];
 			let responseText = "";
 			try {
-				const out = await runIntegrationChatTurn(moduleNames, msgs, {
-					persona: activePersona,
-					dryRun,
-					askUser: askUserHandler,
-					relevantTools: relevantToolsRef.current,
-					chatWithToolsOptions: {
-						onChatEvent: emitChatEvent,
-						abortSignal: turnAbort.signal,
-						onToolCallStart: ({ toolName }) => {
-							activeToolCalls += 1;
-							setActivityLine(formatToolStatusLine(toolName));
-						},
-						onToolCallComplete: () => {
-							activeToolCalls = Math.max(0, activeToolCalls - 1);
-							if (activeToolCalls === 0) {
-								setActivityLine("Thinking…");
-							}
-						},
+				const pipelineResult = await runChatTurnPipeline(
+					{
+						rawUserText: assembled.rawUserText,
+						priorMessages: assembled.priorMessages,
+						isFirstTurn: assembled.isFirstTurn,
 					},
-				});
-				const next = [...msgs, ...out.responseMessages];
-				setMessages(next);
+					buildUiTurnContext({
+						persona: activePersona,
+						modules: selectedModulesRef.current,
+						dryRun,
+						emit: emitChatEvent,
+						nextSeq: nextLocalSeq,
+						abortSignal: turnAbort.signal,
+						askUser: askUserHandler,
+						emitPersistLifecycle: true,
+						chatWithToolsOptions: {
+							onChatEvent: emitChatEvent,
+							abortSignal: turnAbort.signal,
+							onToolCallStart: ({ toolName }) => {
+								activeToolCalls += 1;
+								setActivityLine(formatToolStatusLine(toolName));
+							},
+							onToolCallComplete: () => {
+								activeToolCalls = Math.max(0, activeToolCalls - 1);
+								if (activeToolCalls === 0) {
+									setActivityLine("Thinking…");
+								}
+							},
+						},
+					}),
+					{ assembled },
+				);
+				if (pipelineResult.stage !== "persist") {
+					throw new Error(
+						`runModelTurn: expected persist stage, got ${pipelineResult.stage}`,
+					);
+				}
+				const out = pipelineResult.turn;
+				setMessages(out.messagesAfterTurn);
 				setLastUsage(out.usage ?? null);
 				responseMessages = out.responseMessages;
 				responseText = out.text ?? "";
@@ -762,23 +752,9 @@ export function ChatSessionApp({
 					}
 				}
 				setStreamingAssistant("");
-				setTranscript((t) => {
-					const persistId = randomUUID();
-					let nt = [...t, ...additions];
-					nt = applyChatEvent(nt, {
-						type: "lifecycle_start",
-						id: persistId,
-						seq: nextLocalSeq(),
-						header: "Saving session…",
-					});
-					nt = applyChatEvent(nt, {
-						type: "lifecycle_end",
-						id: persistId,
-						seq: nextLocalSeq(),
-						detail: "Session data queued to save.",
-					});
-					return nt;
-				});
+				if (additions.length > 0) {
+					setTranscript((t) => [...t, ...additions]);
+				}
 			} catch (e) {
 				const partial = assistantStreamBufRef.current.trim();
 				assistantStreamBufRef.current = "";
@@ -877,100 +853,45 @@ export function ChatSessionApp({
 				setBootActivityLine("Preparing Session…");
 				publishBootTranscript();
 				await yieldToRenderer();
-				await emitBootStatus(`Scope: ${formatScopeLabel(selectedModules)}`);
-				await emitBootStatus(`Persona: ${activePersona.name}`);
-				await emitBootStatus("Loading local skills catalog…");
-				const localSkills = loadLocalSkills();
-				await emitBootStatus(
-					`Local skills catalog: ${localSkills.length} available.`,
-				);
-				await emitBootStatus("Loading tool catalog…");
-				const toolCatalog = await buildToolsCatalogForPretreatment(
-					selectedModules,
-					{ dryRun, persona: activePersona },
-				);
-				await emitBootStatus(
-					`Tool catalog: ${toolCatalog.allowedToolNamesLower.size} tools available.`,
-				);
-				let effectivePrompt = sessionPrompt;
-				let prepId: string | null = null;
-				if (sessionPrompt.trim() && shouldPretreat([], sessionPrompt, true)) {
-					prepId = randomUUID();
-				}
-				let prepSpec: UserIntentSpec | null = null;
-				if (sessionPrompt.trim()) {
-					if (prepId) {
-						await emitBoot({
-							type: "prep_start",
-							id: prepId,
-							seq: bootSeq(),
-							header: "Prompt preparation",
-						});
-						await emitBootStatus(
-							"Analyzing your request for intent, relevant skills, and tools…",
-						);
-					}
-					const wrapResult = await wrapUserPromptWithPretreatment({
-						priorMessages: [],
+				const prepResult = await runChatTurnPipeline(
+					{
 						rawUserText: sessionPrompt,
-						integrationLabels: formatScopeLabel(selectedModules),
+						priorMessages: [],
 						isFirstTurn: true,
+					},
+					buildUiTurnContext({
 						persona: activePersona,
-						skillsCatalog: localSkills,
-						toolsCatalogText: toolCatalog.catalogText,
-						allowedToolNamesLower: toolCatalog.allowedToolNamesLower,
+						modules: selectedModules,
+						dryRun,
+						emit: (event) => {
+							void emitBoot(event);
+						},
+						nextSeq: bootSeq,
+						onStatusLine: emitBootStatus,
 						abortSignal: ac.signal,
-					});
-					if (!cancelled) {
-						effectivePrompt = wrapResult.content;
-						prepSpec = wrapResult.spec;
-						relevantToolsRef.current = prepSpec?.relevantTools ?? [];
-						if (prepSpec?.sessionName?.trim()) {
-							pretreatSessionNameRef.current = prepSpec.sessionName.trim();
-						}
-					}
-					if (prepId && !cancelled) {
-						const detail =
-							process.env.TOBY_DEBUG_PREP === "1" &&
-							prepSpec &&
-							effectivePrompt.trim() !== sessionPrompt.trim()
-								? "Intent specification attached to the model message (debug)."
-								: effectivePrompt.trim() !== sessionPrompt.trim()
-									? "Intent specification attached to the model message."
-									: "Request prepared.";
-						await emitBoot({
-							type: "prep_end",
-							id: prepId,
-							seq: bootSeq(),
-							detail,
-						});
-					}
-				}
+						emitPersistLifecycle: false,
+					}),
+					{ stopAfter: "assemble" },
+				);
 				if (cancelled) {
 					return;
 				}
-				await emitBootStatus("Fetching integration connection context…");
-				let initial = await prepareChatSessionMessages(
-					selectedModules,
-					activePersona,
-					effectivePrompt,
-					emitBootStatus,
-				);
-				const attachedSkills = prepSpec?.relevantSkills ?? [];
-				if (attachedSkills.length > 0) {
-					await emitBootStatus(
-						`Attaching skill instructions: ${attachedSkills.join(", ")}.`,
+				if (prepResult.stage !== "assemble") {
+					throw new Error(
+						`boot: expected assemble stage, got ${prepResult.stage}`,
 					);
 				}
-				initial = injectSkillBodiesIntoFirstSystemMessage(
-					initial,
-					attachedSkills,
-					localSkills,
-				);
-				if (cancelled) {
-					return;
+				const assembled = prepResult.turn;
+				lastAssembledTurnRef.current = assembled;
+				relevantToolsRef.current = assembled.spec?.relevantTools ?? [];
+				if (assembled.spec?.sessionName?.trim()) {
+					pretreatSessionNameRef.current = assembled.spec.sessionName.trim();
 				}
-				await emitBootStatus("Session ready.");
+				const initial = assembled.messages;
+				const prepSpec = assembled.spec;
+				const localSkills = assembled.localSkills;
+				const toolCatalog = assembled.toolCatalog;
+				const attachedSkills = prepSpec?.relevantSkills ?? [];
 				await yieldToRenderer();
 				setMessages(initial);
 				const note = pendingScopeChangeNoteRef.current;
@@ -1141,8 +1062,12 @@ export function ChatSessionApp({
 			const userContent =
 				typeof lastUserMsg?.content === "string" ? lastUserMsg.content : "";
 			// Only attempt plan generation if the prompt looks multi-step.
+			const bootAssembled = lastAssembledTurnRef.current;
+			if (!bootAssembled) {
+				throw new Error("auto-run: missing assembled turn after boot");
+			}
 			if (!shouldGeneratePlan(null, sessionPrompt)) {
-				void runModelTurnRef.current(messages, sidFinal);
+				void runModelTurnRef.current(bootAssembled, sidFinal);
 				return;
 			}
 
@@ -1153,7 +1078,7 @@ export function ChatSessionApp({
 
 			if (!planResult || planResult.phases.length < 2) {
 				// No plan needed, run a single turn
-				void runModelTurnRef.current(messages, sidFinal);
+				void runModelTurnRef.current(bootAssembled, sidFinal);
 				return;
 			}
 
@@ -1190,6 +1115,10 @@ export function ChatSessionApp({
 				return m;
 			});
 			setMessages(augmentedMessages);
+			lastAssembledTurnRef.current = withAssembledMessages(
+				bootAssembled,
+				augmentedMessages,
+			);
 
 			const nextLocalSeq = () => {
 				transcriptLocalSeqRef.current += 1;
@@ -1236,7 +1165,14 @@ export function ChatSessionApp({
 					},
 					nextSeq: nextLocalSeq,
 					runTurn: async (msgs, overrideSid) => {
-						await runModelTurnRef.current(msgs, overrideSid);
+						const base = lastAssembledTurnRef.current;
+						if (!base) {
+							throw new Error("executePlan: missing assembled turn");
+						}
+						await runModelTurnRef.current(
+							withAssembledMessages(base, msgs),
+							overrideSid,
+						);
 						// After the turn, the messages state has been updated.
 						// Return a minimal result since executePlan needs responseMessages
 						// but the actual state update happens in runModelTurn.
@@ -1294,25 +1230,38 @@ export function ChatSessionApp({
 			setLoading(true);
 			setActivityLine(willPretreat ? "Preparing request..." : "Thinking...");
 
-			const localSkills = loadLocalSkills();
-			const toolCatalog = await buildToolsCatalogForPretreatment(
-				selectedModulesRef.current,
-				{ dryRun, persona: activePersonaRef.current },
+			const prepResult = await runChatTurnPipeline(
+				{
+					rawUserText: steering,
+					priorMessages: msgsBefore,
+					isFirstTurn,
+				},
+				buildUiTurnContext({
+					persona: activePersonaRef.current,
+					modules: selectedModulesRef.current,
+					dryRun,
+					emit: (ev) => {
+						setTranscript((t) => applyChatEvent(t, ev));
+					},
+					nextSeq: () => {
+						transcriptLocalSeqRef.current += 1;
+						return transcriptLocalSeqRef.current;
+					},
+					abortSignal: ac.signal,
+					emitPersistLifecycle: false,
+				}),
+				{ stopAfter: "assemble" },
 			);
-			const { content, spec } = await wrapUserPromptWithPretreatment({
-				priorMessages: msgsBefore,
-				rawUserText: steering,
-				integrationLabels: formatScopeLabel(selectedModulesRef.current),
-				isFirstTurn,
-				persona: activePersonaRef.current,
-				skillsCatalog: localSkills,
-				toolsCatalogText: toolCatalog.catalogText,
-				allowedToolNamesLower: toolCatalog.allowedToolNamesLower,
-				abortSignal: ac.signal,
-			});
-			relevantToolsRef.current = spec?.relevantTools ?? [];
-			if (spec?.sessionName?.trim()) {
-				pretreatSessionNameRef.current = spec.sessionName.trim();
+			if (prepResult.stage !== "assemble") {
+				throw new Error(
+					`steering: expected assemble stage, got ${prepResult.stage}`,
+				);
+			}
+			const assembled = prepResult.turn;
+			lastAssembledTurnRef.current = assembled;
+			relevantToolsRef.current = assembled.spec?.relevantTools ?? [];
+			if (assembled.spec?.sessionName?.trim()) {
+				pretreatSessionNameRef.current = assembled.spec.sessionName.trim();
 			}
 
 			const msgsAfter = snapRef.current.messages;
@@ -1321,29 +1270,22 @@ export function ChatSessionApp({
 				return;
 			}
 
-			const userMsg: CoreMessage = { role: "user", content };
-			let next = [...msgsAfter, userMsg];
-			next = injectSkillBodiesIntoFirstSystemMessage(
-				next,
-				spec?.relevantSkills ?? [],
-				localSkills,
-			);
-			setMessages(next);
+			setMessages(assembled.messages);
 
 			const skillMeta = transcriptMetaForAttachedSkills(
-				spec?.relevantSkills ?? [],
+				assembled.spec?.relevantSkills ?? [],
 			);
 			const toolMeta = buildToolSelectionTranscriptEntries({
-				allToolNames: toolCatalog.allToolNames,
-				toolIntegrationLabels: toolCatalog.toolIntegrationLabels,
-				relevantTools: spec?.relevantTools,
-				pretreatmentRan: spec !== null,
+				allToolNames: assembled.toolCatalog.allToolNames,
+				toolIntegrationLabels: assembled.toolCatalog.toolIntegrationLabels,
+				relevantTools: assembled.spec?.relevantTools,
+				pretreatmentRan: assembled.spec !== null,
 			});
 			if (skillMeta.length > 0 || toolMeta.length > 0) {
 				setTranscript((t) => [...t, ...skillMeta, ...toolMeta]);
 			}
 
-			await runModelTurnRef.current(next, sidFinal);
+			await runModelTurnRef.current(assembled, sidFinal);
 		})();
 	}, [loading, dryRun]);
 
@@ -1762,119 +1704,68 @@ export function ChatSessionApp({
 					return transcriptLocalSeqRef.current;
 				};
 				setTranscript((t) => [...t, { kind: "user", text: line }]);
-				const prepId = willPretreat ? randomUUID() : null;
-				if (willPretreat && prepId) {
-					setTranscript((t) =>
-						applyChatEvent(t, {
-							type: "prep_start",
-							id: prepId,
-							seq: submitSeq(),
-							header: "Prompt preparation",
-						}),
+				const prepResult = await runChatTurnPipeline(
+					{
+						rawUserText: line,
+						priorMessages: msgsBefore,
+						isFirstTurn,
+					},
+					buildUiTurnContext({
+						persona: activePersonaRef.current,
+						modules: selectedModulesRef.current,
+						dryRun,
+						emit: (ev) => {
+							setTranscript((t) => applyChatEvent(t, ev));
+							const footerHint = activityLineForChatEvent(ev);
+							if (footerHint !== null) {
+								setActivityLine(footerHint);
+							}
+						},
+						nextSeq: submitSeq,
+						abortSignal: ac.signal,
+						emitPersistLifecycle: false,
+					}),
+					{ stopAfter: "assemble" },
+				);
+				if (prepResult.stage !== "assemble") {
+					throw new Error(
+						`submit: expected assemble stage, got ${prepResult.stage}`,
 					);
 				}
-				const localSkills = loadLocalSkills();
-				const toolCatalog = await buildToolsCatalogForPretreatment(
-					selectedModulesRef.current,
-					{ dryRun, persona: activePersonaRef.current },
-				);
-				const { content, spec } = await wrapUserPromptWithPretreatment({
-					priorMessages: msgsBefore,
-					rawUserText: line,
-					integrationLabels: formatScopeLabel(selectedModulesRef.current),
-					isFirstTurn,
-					persona: activePersonaRef.current,
-					skillsCatalog: localSkills,
-					toolsCatalogText: toolCatalog.catalogText,
-					allowedToolNamesLower: toolCatalog.allowedToolNamesLower,
-					abortSignal: ac.signal,
-				});
-				relevantToolsRef.current = spec?.relevantTools ?? [];
-				if (spec?.sessionName?.trim()) {
-					pretreatSessionNameRef.current = spec.sessionName.trim();
+				const assembled = prepResult.turn;
+				lastAssembledTurnRef.current = assembled;
+				relevantToolsRef.current = assembled.spec?.relevantTools ?? [];
+				if (assembled.spec?.sessionName?.trim()) {
+					pretreatSessionNameRef.current = assembled.spec.sessionName.trim();
 				}
 				const msgsAfter = snapRef.current.messages;
 				if (!msgsAfter) {
 					setLoading(false);
 					return;
 				}
-				const mergeLifecycleId = randomUUID();
-				const mergeStartEv = {
-					type: "lifecycle_start" as const,
-					id: mergeLifecycleId,
-					seq: submitSeq(),
-					header: "Updating session messages…",
-				};
-				setTranscript((t) => applyChatEvent(t, mergeStartEv));
-				const mergeStartFooter = activityLineForChatEvent(mergeStartEv);
-				if (mergeStartFooter !== null) {
-					setActivityLine(mergeStartFooter);
-				}
-				const userMsg: CoreMessage = { role: "user", content };
-				let next = [...msgsAfter, userMsg];
-				next = injectSkillBodiesIntoFirstSystemMessage(
-					next,
-					spec?.relevantSkills ?? [],
-					localSkills,
-				);
-				setMessages(next);
-				const mergeEndEv = {
-					type: "lifecycle_end" as const,
-					id: mergeLifecycleId,
-					seq: submitSeq(),
-					detail: "Session messages updated.",
-				};
-				setTranscript((t) => applyChatEvent(t, mergeEndEv));
-				const mergeEndFooter = activityLineForChatEvent(mergeEndEv);
-				if (mergeEndFooter !== null) {
-					setActivityLine(mergeEndFooter);
-				}
+				setMessages(assembled.messages);
 				const skillDebugMeta = buildSkillDebugTranscriptEntries({
 					debug,
-					available: localSkills,
+					available: assembled.localSkills,
 					priorMessages: msgsBefore,
 					rawUserText: line,
 					isFirstTurn,
-					spec,
+					spec: assembled.spec,
 				});
-				if (willPretreat && prepId) {
-					const detail =
-						process.env.TOBY_DEBUG_PREP === "1" &&
-						spec &&
-						content.trim() !== line.trim()
-							? "Intent specification attached to the model message (debug)."
-							: content.trim() !== line.trim()
-								? "Intent specification attached to the model message."
-								: "Request prepared.";
-					const skillMeta = transcriptMetaForAttachedSkills(
-						spec?.relevantSkills ?? [],
-					);
-					const toolMeta = buildToolSelectionTranscriptEntries({
-						allToolNames: toolCatalog.allToolNames,
-						toolIntegrationLabels: toolCatalog.toolIntegrationLabels,
-						relevantTools: spec?.relevantTools,
-						pretreatmentRan: spec !== null,
-					});
-					const prepEndEv = {
-						type: "prep_end" as const,
-						id: prepId,
-						seq: submitSeq(),
-						detail,
-					};
-					setTranscript((t) => [
-						...applyChatEvent(t, prepEndEv),
-						...skillDebugMeta,
-						...skillMeta,
-						...toolMeta,
-					]);
-					const prepEndFooter = activityLineForChatEvent(prepEndEv);
-					if (prepEndFooter !== null) {
-						setActivityLine(prepEndFooter);
-					}
-				} else if (skillDebugMeta.length > 0) {
-					setTranscript((t) => [...t, ...skillDebugMeta]);
+				const skillMeta = transcriptMetaForAttachedSkills(
+					assembled.spec?.relevantSkills ?? [],
+				);
+				const toolMeta = buildToolSelectionTranscriptEntries({
+					allToolNames: assembled.toolCatalog.allToolNames,
+					toolIntegrationLabels: assembled.toolCatalog.toolIntegrationLabels,
+					relevantTools: assembled.spec?.relevantTools,
+					pretreatmentRan: assembled.spec !== null,
+				});
+				const extraMeta = [...skillDebugMeta, ...skillMeta, ...toolMeta];
+				if (extraMeta.length > 0) {
+					setTranscript((t) => [...t, ...extraMeta]);
 				}
-				await runModelTurnRef.current(next, sidFinal);
+				await runModelTurnRef.current(assembled, sidFinal);
 			})();
 		},
 		[
