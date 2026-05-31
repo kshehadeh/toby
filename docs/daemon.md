@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **daemon** is a single long-running Toby process that runs work in the background without the Ink chat UI. Only one instance may run at a time; it records its process ID in **`~/.toby/daemon.lock`** so `toby daemon start` can detect duplicates and `toby daemon stop` knows which process to signal.
+The **daemon** is a single long-running Toby process that runs work in the background without the Ink chat UI. Only one instance may run at a time; it records lock metadata in **`~/.toby/daemon.lock`** (PID and poll interval) so `toby daemon start` can detect duplicates and `toby daemon stop` knows which process to signal.
 
 Today the daemon has two responsibilities that run **in parallel** inside that process:
 
@@ -30,7 +30,7 @@ flowchart TB
 
 | File | Role |
 | ---- | ---- |
-| `~/.toby/daemon.lock` | Holds the daemon PID; prevents duplicate instances |
+| `~/.toby/daemon.lock` | Holds daemon lock metadata (PID + interval); prevents duplicate instances |
 | `~/.toby/daemon.log` | Structured log for schedules, inbound, Slack connection |
 | `~/.toby/chat.sqlite` | Schedules, schedule runs, chat sessions, external session mapping |
 
