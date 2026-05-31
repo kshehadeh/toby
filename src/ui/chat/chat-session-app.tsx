@@ -15,6 +15,7 @@ import {
 	formatCacheDebugMeta,
 } from "../../ai/caching";
 import type { CoreMessage } from "../../ai/chat";
+import { formatChatModelError } from "../../ai/chat-errors";
 import { formatPersonaAiLabel } from "../../ai/model-factory";
 import {
 	type UserIntentSpec,
@@ -128,6 +129,7 @@ import {
 import { readTranscriptFile } from "./slash-commands/stop-listening";
 import type { UpgradeUiStatus } from "./slash-commands/types";
 import { getToolDisplayLabel } from "./tool-labels";
+import { buildToolSelectionTranscriptEntries } from "./tool-selection-transcript";
 import { flattenTranscript } from "./transcript-layout";
 import type { AskModal, DisplayRow, TranscriptEntry } from "./types";
 import { useUpdateCheck } from "./use-update-check";
@@ -805,7 +807,7 @@ export function ChatSessionApp({
 						responseMessages: [],
 					};
 				}
-				const msg = e instanceof Error ? e.message : String(e);
+				const msg = formatChatModelError(e);
 				setTranscript((t) => [...t, { kind: "error", text: msg }]);
 				log("error", "turn", "turn_error", { message: msg });
 				throw e;
@@ -977,6 +979,12 @@ export function ChatSessionApp({
 					? [{ kind: "meta", text: note }]
 					: [];
 				const skillMeta = transcriptMetaForAttachedSkills(attachedSkills);
+				const toolMeta = buildToolSelectionTranscriptEntries({
+					allToolNames: toolCatalog.allToolNames,
+					toolIntegrationLabels: toolCatalog.toolIntegrationLabels,
+					relevantTools: prepSpec?.relevantTools,
+					pretreatmentRan: prepSpec !== null,
+				});
 				const skillDebugMeta = buildSkillDebugTranscriptEntries({
 					debug,
 					available: localSkills,
@@ -989,6 +997,7 @@ export function ChatSessionApp({
 					...bootTranscript,
 					...skillDebugMeta,
 					...skillMeta,
+					...toolMeta,
 					...metaEntries,
 				];
 				setTranscript(nextTranscript);
@@ -1013,7 +1022,7 @@ export function ChatSessionApp({
 				}
 			} catch (e) {
 				if (!cancelled) {
-					setBootError(e instanceof Error ? e.message : String(e));
+					setBootError(formatChatModelError(e));
 				}
 			}
 		})();
@@ -1244,7 +1253,7 @@ export function ChatSessionApp({
 				setActivePlan(resultPlan);
 				activePlanRef.current = resultPlan;
 			} catch (e) {
-				const msg = e instanceof Error ? e.message : String(e);
+				const msg = formatChatModelError(e);
 				setTranscript((t) => [...t, { kind: "error", text: msg }]);
 			}
 		})();
@@ -1324,8 +1333,14 @@ export function ChatSessionApp({
 			const skillMeta = transcriptMetaForAttachedSkills(
 				spec?.relevantSkills ?? [],
 			);
-			if (skillMeta.length > 0) {
-				setTranscript((t) => [...t, ...skillMeta]);
+			const toolMeta = buildToolSelectionTranscriptEntries({
+				allToolNames: toolCatalog.allToolNames,
+				toolIntegrationLabels: toolCatalog.toolIntegrationLabels,
+				relevantTools: spec?.relevantTools,
+				pretreatmentRan: spec !== null,
+			});
+			if (skillMeta.length > 0 || toolMeta.length > 0) {
+				setTranscript((t) => [...t, ...skillMeta, ...toolMeta]);
 			}
 
 			await runModelTurnRef.current(next, sidFinal);
@@ -1834,6 +1849,12 @@ export function ChatSessionApp({
 					const skillMeta = transcriptMetaForAttachedSkills(
 						spec?.relevantSkills ?? [],
 					);
+					const toolMeta = buildToolSelectionTranscriptEntries({
+						allToolNames: toolCatalog.allToolNames,
+						toolIntegrationLabels: toolCatalog.toolIntegrationLabels,
+						relevantTools: spec?.relevantTools,
+						pretreatmentRan: spec !== null,
+					});
 					const prepEndEv = {
 						type: "prep_end" as const,
 						id: prepId,
@@ -1844,6 +1865,7 @@ export function ChatSessionApp({
 						...applyChatEvent(t, prepEndEv),
 						...skillDebugMeta,
 						...skillMeta,
+						...toolMeta,
 					]);
 					const prepEndFooter = activityLineForChatEvent(prepEndEv);
 					if (prepEndFooter !== null) {

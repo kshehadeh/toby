@@ -132,6 +132,8 @@ export async function buildToolsCatalogForPretreatment(
 ): Promise<{
 	readonly catalogText: string;
 	readonly allowedToolNamesLower: ReadonlySet<string>;
+	readonly allToolNames: readonly string[];
+	readonly toolIntegrationLabels: Readonly<Record<string, string>>;
 }> {
 	const toolBundles = await Promise.all(
 		modules.map(async (m) => {
@@ -142,39 +144,71 @@ export async function buildToolsCatalogForPretreatment(
 		}),
 	);
 	const mergedTools: Record<string, Tool> = {};
-	for (const b of toolBundles) {
-		if (!b) continue;
+	const toolIntegrationLabels: Record<string, string> = {};
+	for (let i = 0; i < toolBundles.length; i++) {
+		const b = toolBundles[i];
+		const module = modules[i];
+		if (!b || !module) continue;
 		Object.assign(mergedTools, b.tools);
+		for (const toolName of Object.keys(b.tools)) {
+			toolIntegrationLabels[toolName] = module.displayName;
+		}
 	}
-	Object.assign(
-		mergedTools,
-		createGlobalChatTools({
-			dryRun: options?.dryRun ?? false,
-			persona: options.persona,
-			appliedActions: [],
-		}),
-	);
-	Object.assign(
-		mergedTools,
-		createMemoryTools({
-			userId: "default",
-			dryRun: options?.dryRun ?? false,
-			appliedActions: [],
-		}),
-	);
+	const globalTools = createGlobalChatTools({
+		dryRun: options?.dryRun ?? false,
+		persona: options.persona,
+		appliedActions: [],
+	});
+	Object.assign(mergedTools, globalTools);
+	for (const toolName of Object.keys(globalTools)) {
+		toolIntegrationLabels[toolName] = "Toby";
+	}
+	const memoryTools = createMemoryTools({
+		userId: "default",
+		dryRun: options?.dryRun ?? false,
+		appliedActions: [],
+	});
+	Object.assign(mergedTools, memoryTools);
+	for (const toolName of Object.keys(memoryTools)) {
+		toolIntegrationLabels[toolName] = "Toby";
+	}
 	Object.assign(mergedTools, withAskUserTool(mergedTools, undefined));
+	toolIntegrationLabels.askUser = "Toby";
 
 	const catalogText = buildToolsCatalog(mergedTools);
+	const allToolNames = Object.keys(mergedTools);
 	const allowedToolNamesLower = new Set(
-		Object.keys(mergedTools).map((n) => n.trim().toLowerCase()),
+		allToolNames.map((n) => n.trim().toLowerCase()),
 	);
-	return { catalogText, allowedToolNamesLower };
+	return {
+		catalogText,
+		allowedToolNamesLower,
+		allToolNames,
+		toolIntegrationLabels,
+	};
 }
 
 /**
  * Filter merged tools to only include relevant + always-included tools.
  * Returns all tools when relevantTools is empty/undefined (no regression).
  */
+export function filterToolNamesByRelevance(
+	allToolNames: readonly string[],
+	relevantTools: readonly string[] | undefined,
+): string[] {
+	if (!relevantTools || relevantTools.length === 0) {
+		return [...allToolNames];
+	}
+	const relevantLower = new Set(
+		relevantTools.map((n) => n.trim().toLowerCase()),
+	);
+	return allToolNames.filter(
+		(name) =>
+			ALWAYS_INCLUDED_TOOLS.has(name) ||
+			relevantLower.has(name.trim().toLowerCase()),
+	);
+}
+
 function filterToolsByRelevance(
 	tools: Record<string, Tool>,
 	relevantTools: readonly string[] | undefined,
@@ -182,15 +216,12 @@ function filterToolsByRelevance(
 	if (!relevantTools || relevantTools.length === 0) {
 		return tools;
 	}
-	const relevantLower = new Set(
-		relevantTools.map((n) => n.trim().toLowerCase()),
+	const allowed = new Set(
+		filterToolNamesByRelevance(Object.keys(tools), relevantTools),
 	);
 	const filtered: Record<string, Tool> = {};
 	for (const [name, tool] of Object.entries(tools)) {
-		if (
-			ALWAYS_INCLUDED_TOOLS.has(name) ||
-			relevantLower.has(name.trim().toLowerCase())
-		) {
+		if (allowed.has(name)) {
 			filtered[name] = tool;
 		}
 	}
