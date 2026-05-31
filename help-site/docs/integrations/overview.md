@@ -7,6 +7,56 @@ title: Integrations overview
 
 Integrations connect Toby to your email, tasks, chat, contacts, and calendar. Once connected, Toby can search, summarize, organize, and take action through **chat tools**—you describe what you want in natural language.
 
+## Available integrations
+
+<div className="integrationIconGrid">
+	<a className="integrationIconCard" href="./gmail">
+		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/gmail/EA4335" alt="" /></span>
+		<span className="integrationIconName">Gmail</span>
+		<span className="integrationIconMeta">Email · <code>gmail</code></span>
+	</a>
+	<a className="integrationIconCard" href="./todoist">
+		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/todoist/E44332" alt="" /></span>
+		<span className="integrationIconName">Todoist</span>
+		<span className="integrationIconMeta">Tasks · <code>todoist</code></span>
+	</a>
+	<a className="integrationIconCard" href="./slack">
+		<span className="integrationIconBadge integrationIconBadgeSlack"><span className="integrationIconGlyph">#</span></span>
+		<span className="integrationIconName">Slack</span>
+		<span className="integrationIconMeta">Chat · <code>slack</code></span>
+	</a>
+	<a className="integrationIconCard" href="./azuread">
+		<span className="integrationIconBadge integrationIconBadgeAzure"><span className="integrationIconGlyph">AD</span></span>
+		<span className="integrationIconName">Azure AD</span>
+		<span className="integrationIconMeta">Contacts · <code>azuread</code></span>
+	</a>
+	<a className="integrationIconCard" href="./apple-mail">
+		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/apple/A2AAAD" alt="" /></span>
+		<span className="integrationIconName">Apple Mail</span>
+		<span className="integrationIconMeta">Email · <code>applemail</code></span>
+	</a>
+	<a className="integrationIconCard" href="./apple-calendar">
+		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/apple/A2AAAD" alt="" /></span>
+		<span className="integrationIconName">Apple Calendar</span>
+		<span className="integrationIconMeta">Calendar · <code>applecalendar</code></span>
+	</a>
+	<a className="integrationIconCard" href="./macos">
+		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/apple/FFFFFF" alt="" /></span>
+		<span className="integrationIconName">macOS</span>
+		<span className="integrationIconMeta">System controls · <code>macos</code></span>
+	</a>
+	<a className="integrationIconCard" href="./brave-search">
+		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/brave/FB542B" alt="" /></span>
+		<span className="integrationIconName">Brave Search</span>
+		<span className="integrationIconMeta">Search · <code>bravesearch</code></span>
+	</a>
+	<a className="integrationIconCard" href="./jira">
+		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/jira/0052CC" alt="" /></span>
+		<span className="integrationIconName">Jira</span>
+		<span className="integrationIconMeta">Work Tracker · <code>jira</code></span>
+	</a>
+</div>
+
 ## The three-step pattern
 
 Every integration uses the same workflow:
@@ -66,56 +116,6 @@ toby config
 Open **Default Providers** and choose an integration (or **(none)**) for each category. See also [Set up AI](../getting-started/setup-ai#default-providers-optional) for how defaults interact with personas and models.
 
 If you only connect one integration per category, defaults are optional—Toby can infer that integration for schedules and chat. Defaults become important when two integrations share a category (Gmail and Apple Mail) or when you want schedules to target a specific provider.
-
-## Available integrations
-
-<div className="integrationIconGrid">
-	<a className="integrationIconCard" href="./gmail">
-		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/gmail/EA4335" alt="" /></span>
-		<span className="integrationIconName">Gmail</span>
-		<span className="integrationIconMeta">Email · <code>gmail</code></span>
-	</a>
-	<a className="integrationIconCard" href="./todoist">
-		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/todoist/E44332" alt="" /></span>
-		<span className="integrationIconName">Todoist</span>
-		<span className="integrationIconMeta">Tasks · <code>todoist</code></span>
-	</a>
-	<a className="integrationIconCard" href="./slack">
-		<span className="integrationIconBadge integrationIconBadgeSlack"><span className="integrationIconGlyph">#</span></span>
-		<span className="integrationIconName">Slack</span>
-		<span className="integrationIconMeta">Chat · <code>slack</code></span>
-	</a>
-	<a className="integrationIconCard" href="./azuread">
-		<span className="integrationIconBadge integrationIconBadgeAzure"><span className="integrationIconGlyph">AD</span></span>
-		<span className="integrationIconName">Azure AD</span>
-		<span className="integrationIconMeta">Contacts · <code>azuread</code></span>
-	</a>
-	<a className="integrationIconCard" href="./apple-mail">
-		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/apple/A2AAAD" alt="" /></span>
-		<span className="integrationIconName">Apple Mail</span>
-		<span className="integrationIconMeta">Email · <code>applemail</code></span>
-	</a>
-	<a className="integrationIconCard" href="./apple-calendar">
-		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/apple/A2AAAD" alt="" /></span>
-		<span className="integrationIconName">Apple Calendar</span>
-		<span className="integrationIconMeta">Calendar · <code>applecalendar</code></span>
-	</a>
-	<a className="integrationIconCard" href="./macos">
-		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/apple/FFFFFF" alt="" /></span>
-		<span className="integrationIconName">macOS</span>
-		<span className="integrationIconMeta">System controls · <code>macos</code></span>
-	</a>
-	<a className="integrationIconCard" href="./brave-search">
-		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/brave/FB542B" alt="" /></span>
-		<span className="integrationIconName">Brave Search</span>
-		<span className="integrationIconMeta">Search · <code>bravesearch</code></span>
-	</a>
-	<a className="integrationIconCard" href="./jira">
-		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/jira/0052CC" alt="" /></span>
-		<span className="integrationIconName">Jira</span>
-		<span className="integrationIconMeta">Work Tracker · <code>jira</code></span>
-	</a>
-</div>
 
 ## Using integrations in chat
 
