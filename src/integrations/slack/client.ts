@@ -6,10 +6,12 @@ import {
 } from "../../config/index";
 import {
 	buildMrkdwnSectionBlocks,
+	buildSlackStatusContextBlocks,
 	markdownToMrkdwn,
 	stripMarkdownForPlainFallback,
 	truncateSlackMarkdown,
 } from "./slack-markdown";
+import { slackStatusPlainFallback } from "./status-format";
 import {
 	isSlackAccessTokenFresh,
 	refreshSlackOAuthAccessToken,
@@ -574,6 +576,85 @@ async function postSlackMessageAsMrkdwnBlocks(
 			blocks: buildMrkdwnSectionBlocks(text),
 		},
 		token,
+	);
+}
+
+export async function updateSlackMessage(params: {
+	readonly channel: string;
+	readonly ts: string;
+	readonly text: string;
+	readonly token?: string;
+	readonly blocks?: string;
+}): Promise<void> {
+	const channelId = await resolveChannelId(params.channel);
+	const postToken = params.token?.trim() || resolveSlackPostToken();
+	await slackApi<ChatPostMessageResponse>(
+		"chat.update",
+		{
+			channel: channelId,
+			ts: params.ts,
+			text: params.text,
+			blocks: params.blocks,
+		},
+		postToken,
+	);
+}
+
+export async function postSlackStatusMessage(params: {
+	readonly channel: string;
+	readonly mrkdwnLine: string;
+	readonly threadTs?: string;
+	readonly token?: string;
+}): Promise<{ readonly channel: string; readonly ts: string }> {
+	const channelId = await resolveChannelId(params.channel);
+	const postToken = params.token?.trim() || resolveSlackPostToken();
+	const plain = slackStatusPlainFallback(params.mrkdwnLine);
+	return chatPostMessage(
+		channelId,
+		{
+			text: plain,
+			thread_ts: params.threadTs,
+			blocks: buildSlackStatusContextBlocks(params.mrkdwnLine),
+		},
+		postToken,
+	);
+}
+
+export async function updateSlackStatusMessage(params: {
+	readonly channel: string;
+	readonly ts: string;
+	readonly mrkdwnLine: string;
+	readonly token?: string;
+}): Promise<void> {
+	const channelId = await resolveChannelId(params.channel);
+	const postToken = params.token?.trim() || resolveSlackPostToken();
+	const plain = slackStatusPlainFallback(params.mrkdwnLine);
+	await slackApi<ChatPostMessageResponse>(
+		"chat.update",
+		{
+			channel: channelId,
+			ts: params.ts,
+			text: plain,
+			blocks: buildSlackStatusContextBlocks(params.mrkdwnLine),
+		},
+		postToken,
+	);
+}
+
+export async function deleteSlackMessage(params: {
+	readonly channel: string;
+	readonly ts: string;
+	readonly token?: string;
+}): Promise<void> {
+	const channelId = await resolveChannelId(params.channel);
+	const postToken = params.token?.trim() || resolveSlackPostToken();
+	await slackApi<ChatPostMessageResponse>(
+		"chat.delete",
+		{
+			channel: channelId,
+			ts: params.ts,
+		},
+		postToken,
 	);
 }
 

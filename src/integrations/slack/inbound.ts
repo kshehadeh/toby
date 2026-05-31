@@ -13,6 +13,11 @@ import {
 	resolveSlackBotUserId,
 	resolveSlackPostToken,
 } from "./client";
+import { formatSlackInboundStatusMrkdwn } from "./status-format";
+import {
+	createNoOpStatusReporter,
+	createSlackStatusReporter,
+} from "./status-reporter";
 
 export type SlackConversationMetadata = {
 	readonly teamId: string;
@@ -351,6 +356,20 @@ export const slackChatInboundProvider: ChatInboundProvider = {
 You are in Slack ${isSlackDmChannel(meta.channelId) ? "DM" : `channel \`${meta.channelId}\``}${isSlackDmChannel(meta.channelId) ? "" : `, thread \`${meta.threadRootTs}\``}.
 Your main assistant reply is posted automatically. Use **replyToPost** only for an extra follow-up message (not as a substitute for your normal reply).
 `;
+	},
+
+	formatInboundStatusLine: formatSlackInboundStatusMrkdwn,
+
+	createStatusReporter({ conversation, dryRun }) {
+		if (dryRun) {
+			return createNoOpStatusReporter();
+		}
+		const meta = metadataFromConversation(conversation);
+		return createSlackStatusReporter({
+			channelId: meta.channelId,
+			threadTs: slackReplyThreadTs(meta),
+			token: resolveSlackPostToken(),
+		});
 	},
 
 	async deliverReply({ conversation, text, dryRun }) {

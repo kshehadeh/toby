@@ -66,3 +66,14 @@ export function buildMrkdwnSectionBlocks(text: string): string {
 	}));
 	return JSON.stringify(blocks);
 }
+
+/** Context blocks render smaller, dimmed text — used for inbound processing status. */
+export function buildSlackStatusContextBlocks(mrkdwnLine: string): string {
+	const text = mrkdwnLine.slice(0, SLACK_MRKDWN_BLOCK_MAX);
+	return JSON.stringify([
+		{
+			type: "context",
+			elements: [{ type: "mrkdwn", text }],
+		},
+	]);
+}

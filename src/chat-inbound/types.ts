@@ -1,3 +1,4 @@
+import type { ChatEvent } from "../chat-pipeline/chat-events";
 import type { Persona } from "../config/index";
 import type { IntegrationModule } from "../integrations/types";
 import type { PendingAskUser } from "../ui/chat/session-store";
@@ -33,6 +34,14 @@ export interface ChatInboundStartContext {
 	readonly emit: (event: InboundChatEvent) => void;
 }
 
+/** Transient progress UI during an inbound turn (e.g. Slack status message). */
+export interface InboundStatusReporter {
+	/** Fire-and-forget; implementations throttle and dedupe internally. */
+	update(line: string): void;
+	/** Remove the status message before the final reply is posted. */
+	clear(): Promise<void>;
+}
+
 export interface ChatInboundProvider {
 	start(ctx: ChatInboundStartContext): Promise<() => void>;
 	buildInboundPersonaAppendix?(conversation: InboundConversation): string;
@@ -51,6 +60,12 @@ export interface ChatInboundProvider {
 		event: InboundChatEvent,
 		pending: PendingAskUser,
 	): boolean;
+	createStatusReporter?(params: {
+		conversation: InboundConversation;
+		dryRun: boolean;
+	}): InboundStatusReporter;
+	/** Provider-specific status line (e.g. Slack mrkdwn + emoji). */
+	formatInboundStatusLine?(event: ChatEvent): string | null;
 }
 
 export type ActiveChatInbound = {

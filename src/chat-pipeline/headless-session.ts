@@ -7,6 +7,8 @@ import type {
 import type { Persona } from "../config/index";
 import type { IntegrationModule } from "../integrations/types";
 import { daemonLog } from "../logging/daemon-log";
+import { formatToolStatusLine } from "../ui/chat/format-tool-status";
+import { activityLineForChatEvent } from "../ui/chat/pipeline-footer";
 import { loadChatSession } from "../ui/chat/session-store";
 import type { ChatEvent } from "./chat-events";
 import { type TurnContext, runChatTurnPipeline } from "./pipeline";
@@ -54,10 +56,26 @@ function appliedActionsIndicateReply(
 	);
 }
 
-function createHeadlessEventSink(): (event: ChatEvent) => void {
-	return (event) => {
+export function headlessProgressLineForChatEvent(
+	event: ChatEvent,
+): string | null {
+	if (event.type === "tool_call_start") {
+		return formatToolStatusLine(event.toolName);
+	}
+	return activityLineForChatEvent(event);
+}
+
+function createHeadlessEventSink(onProgress?: (event: ChatEvent) => void): {
+	readonly emit: (event: ChatEvent) => void;
+	readonly onChatEvent: (event: ChatEvent) => void;
+} {
+	const handle = (event: ChatEvent) => {
 		daemonLog("debug", "turn", "pipeline_event", { type: event.type });
+		if (onProgress && headlessProgressLineForChatEvent(event)) {
+			onProgress(event);
+		}
 	};
+	return { emit: handle, onChatEvent: handle };
 }
 
 export async function runHeadlessChatTurn(params: {
@@ -69,6 +87,7 @@ export async function runHeadlessChatTurn(params: {
 	readonly askUser?: AskUserHandler;
 	readonly provider?: ChatInboundProvider;
 	readonly conversation?: InboundConversation;
+	readonly onProgress?: (event: ChatEvent) => void;
 }): Promise<HeadlessTurnResult> {
 	const {
 		inboundModule,
@@ -79,6 +98,7 @@ export async function runHeadlessChatTurn(params: {
 		askUser,
 		provider,
 		conversation,
+		onProgress,
 	} = params;
 
 	const { modules, warnings } = await resolveHeadlessChatModules(
@@ -101,17 +121,21 @@ export async function runHeadlessChatTurn(params: {
 	const inboundPersona = buildInboundPersona(persona, provider, conversation);
 
 	let seq = 0;
+	const eventSink = createHeadlessEventSink(onProgress);
 	const ctx: TurnContext = {
 		persona: inboundPersona,
 		modules,
 		dryRun,
 		askUser,
-		emit: createHeadlessEventSink(),
+		emit: eventSink.emit,
 		nextSeq: () => {
 			seq += 1;
 			return seq;
 		},
 		emitPersistLifecycle: false,
+		chatWithToolsOptions: onProgress
+			? { onChatEvent: eventSink.onChatEvent }
+			: undefined,
 		persist: {
 			sessionId,
 			startIdx: priorMessages.length,

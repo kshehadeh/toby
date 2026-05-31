@@ -119,6 +119,11 @@ export async function handleInboundEvent(
 			dryRun: active.dryRun,
 		});
 
+		const statusReporter = provider.createStatusReporter?.({
+			conversation: event.conversation,
+			dryRun: active.dryRun,
+		});
+
 		try {
 			const turn = await runHeadlessChatTurn({
 				inboundModule: active.module,
@@ -129,6 +134,14 @@ export async function handleInboundEvent(
 				askUser,
 				provider,
 				conversation: event.conversation,
+				onProgress: statusReporter
+					? (event) => {
+							const line = provider.formatInboundStatusLine?.(event);
+							if (line) {
+								statusReporter.update(line);
+							}
+						}
+					: undefined,
 			});
 
 			daemonLog("info", "turn", "turn_complete", {
@@ -138,6 +151,8 @@ export async function handleInboundEvent(
 				replyLength: turn.text.length,
 				toolActions: turn.appliedActions.length,
 			});
+
+			await statusReporter?.clear();
 
 			if (turn.text && !turn.deliveredViaTools) {
 				await provider.deliverReply({
@@ -161,6 +176,7 @@ export async function handleInboundEvent(
 				sessionId: record.sessionId,
 				message: msg,
 			});
+			await statusReporter?.clear();
 			try {
 				await provider.deliverReply({
 					conversation: event.conversation,
