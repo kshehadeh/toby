@@ -52,6 +52,55 @@ List my Todoist tasks due this week and summarize Slack mentions of my handle in
 
 ---
 
+## Sprint health check (Jira)
+
+**Setup:** [Jira](./integrations/jira) connected.
+
+**Chat:**
+
+```text
+Find unresolved Jira bugs assigned to me in the current sprint. Group them by priority and call out anything blocked.
+```
+
+**Outcome:** A read-only issue summary using Jira search, issue details, and comments.
+
+---
+
+## Research a URL and the web
+
+**Setup:** AI configured. For web search, [Brave Search](./integrations/brave-search) configured.
+
+**Chat:**
+
+```text
+Search the web for recent changes to the vendor API, then read https://example.com/changelog and summarize what affects us.
+```
+
+**Outcome:** Toby can combine Brave Search results with direct URL reading.
+
+---
+
+## Capture meeting notes in chat
+
+**Setup:** macOS audio helper available for [listen mode](./listen).
+
+**Chat:**
+
+```text
+/listen
+```
+
+After the meeting:
+
+```text
+/stop-listening
+Summarize the transcript and list action items by owner.
+```
+
+**Outcome:** The recording is saved, transcribed, and added to chat context.
+
+---
+
 ## Remember preferences after calendar work
 
 **Setup:** [Apple Calendar](./integrations/apple-calendar) connected on macOS.

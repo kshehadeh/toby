@@ -20,11 +20,30 @@ src/ui/chat/slash-commands/
   config.ts        # /config
   help.ts          # /help
   integration.ts   # /integration
+  listen.ts        # /listen
   new.ts           # /new
   sessions.ts      # /sessions
+  stop-listening.ts # /stop-listening
   exit.ts          # /exit
   index.ts         # registry + suggestion/resolve helpers
 ```
+
+## User-facing commands
+
+Current chat commands include:
+
+- `/help` — show commands and shortcuts.
+- `/config` — open the configure UI.
+- `/connect` / `/disconnect` — connect or disconnect integrations without leaving chat.
+- `/integration` — choose active integrations for the session.
+- `/listen` — begin recording microphone and system audio in chat.
+- `/stop-listening` — stop, save, transcribe, and inject the recording transcript as chat context.
+- `/persona` — switch persona.
+- `/skills` — open the skills manager.
+- `/schedules` — open the schedules manager.
+- `/start-daemon` / `/stop-daemon` — control daemon startup from chat.
+- `/upgrade` / `/restart` — stage an upgrade and relaunch.
+- `/new`, `/sessions`, `/log`, `/terminal`, `/clear-tool-cache`, `/plan`, and `/exit` — session and utility actions.
 
 ## Add a new slash command
 

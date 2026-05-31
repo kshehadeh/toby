@@ -53,6 +53,19 @@ Use `toby listen transcribe <recording-folder>` to retry transcription for an
 existing saved recording. The command uses `metadata.files.combined` when it
 points to an existing file, otherwise it falls back to `<recording-folder>/combined.m4a`.
 
+## Chat slash commands
+
+The chat TUI also exposes lightweight recording controls:
+
+```text
+/listen
+/stop-listening
+```
+
+`/listen` starts recording microphone and system audio for the active chat session. `/stop-listening` stops and saves the recording, runs transcription, writes the same recording folder artifacts as `toby listen`, and injects the transcript as hidden user context so the assistant can summarize or reason about what was said. If transcription is unavailable, the saved audio path is still shown in chat.
+
+These commands use the same helper discovery, macOS-only capture support, and permission requirements as the standalone `toby listen` UI.
+
 ## Helper boundary
 
 Node/Bun does not provide direct access to macOS audio capture APIs, so Toby

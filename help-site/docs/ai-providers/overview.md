@@ -40,6 +40,10 @@ Model ids differ by provider:
 - **OpenAI (direct)** — bare ids, e.g. `gpt-5-mini`
 - **Vercel AI Gateway** — `provider/model` slugs, e.g. `anthropic/claude-sonnet-4.6`
 
+## Context window display
+
+In chat, Toby may show context usage as `ctx N%` when it knows the selected model family’s context window. The estimate supports common OpenAI and gateway-routed model families, including Anthropic, Gemini, Nova, Llama, Mistral, DeepSeek, Grok, GLM, and Kimi models.
+
 ## Auxiliary models
 
 Pretreatment, planning, and other lightweight LLM steps use a smaller **auxiliary** model tied to the active persona’s provider:

@@ -20,7 +20,7 @@ Extends `Integration` with optional **capabilities** and **hooks**:
 | Field / method | Purpose |
 | ---------------- | ------- |
 | `capabilities` | Subset of `IntegrationCapability` (currently `"chat"`). |
-| `providerCategories?` | Provider buckets for default-provider selection and schedule routing: `"email"` \| `"calendar"` \| `"tasks"` \| `"contacts"` \| `"chat"` \| `"search"`. |
+| `providerCategories?` | Provider buckets for default-provider selection and schedule routing: `"email"` \| `"calendar"` \| `"tasks"` \| `"contacts"` \| `"chat"` \| `"search"` \| `"work_tracker"`. |
 | `authMethods?` | Optional supported auth options for configure UI (e.g. OAuth vs client credentials) with a default method. |
 | `resources?` | Optional strings describing entities (e.g. inbox, tasks) for discovery or docs. |
 | `getCredentialDescriptors()` | Fields shown under Integrations in configure UI (`CredentialFieldDescriptor`: flat `key`, `label`, `masked`, plus optional auth-method gating via `showForAuthMethods`). |
@@ -65,6 +65,8 @@ Each integration typically owns:
 **Apple Calendar** ([`src/integrations/applecalendar/`](../src/integrations/applecalendar/)) is **macOS-only**: it uses **EventKit** (AppleScriptObjC) for fast event search across all calendar types (including Exchange/iCloud), and Calendar.app AppleScript for create/update/delete operations. See [`apple-calendar.md`](apple-calendar.md) for setup, permissions, and AppleScript pitfalls.
 
 **Brave Search** ([`src/integrations/bravesearch/`](../src/integrations/bravesearch/)) is the **Search** provider category integration: API-key auth, with a `webSearch` chat tool for web search (query, count, freshness filter). The `webSearch` tool is also wired as a **conditional global tool** — when a Brave Search API key is present in credentials, the tool is available in every chat session without needing to explicitly select the integration.
+
+**Jira** ([`src/integrations/jira/`](../src/integrations/jira/)) is the **Work Tracker** provider category integration: Atlassian domain + email + API-token auth, with read-only chat tools to search Jira issues with JQL (`searchJiraIssues`), fetch full issue details (`getJiraIssue`), read issue comments (`getJiraIssueComments`), and list accessible projects (`listJiraProjects`).
 
 ### Web content fetching
 

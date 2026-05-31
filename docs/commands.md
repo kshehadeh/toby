@@ -8,6 +8,8 @@ This page documents the shared Toby CLI commands and the primary usage patterns.
 
 Open the interactive configure UI (integrations, credentials, personas, AI provider/model).
 
+The UI uses a two-pane layout: the left pane is an expandable settings tree and the right pane shows the selected detail view. Use arrow keys to move, `Enter` to select, expand, collapse, or edit, `Tab` to switch panes, `Esc` to move back, `s` to save, and `q` to quit. Toby tracks unsaved edits and prompts before discarding changes.
+
 ### `toby config backup [destination]`
 
 Create an encrypted backup of `config.json` and `credentials.json`.
@@ -79,6 +81,15 @@ Inside the chat TUI:
 - `/restart` — exit and relaunch with the same launch arguments; applies a staged upgrade first when running a compiled binary
 
 After upgrading, restart the schedule daemon separately if it is running (`toby daemon restart` or `/stop-daemon` then `/start-daemon`).
+
+### Chat slash commands: `/listen` and `/stop-listening`
+
+Inside the chat TUI:
+
+- `/listen` — start recording microphone and system audio for the current chat session.
+- `/stop-listening` — stop, save, and transcribe the recording. The transcript is added as hidden user context so the assistant can summarize or act on it without showing the transcript as a normal user prompt.
+
+These commands use the same macOS audio helper and permissions as `toby listen`; see [`listen.md`](listen.md).
 
 ## Default command
 

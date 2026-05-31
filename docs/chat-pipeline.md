@@ -45,7 +45,7 @@ Where this is implemented:
 
 ## Pretreatment (optional)
 
-Before the main model turn, `ChatSessionApp` may run a **small, fast** LLM call that extracts a structured intent spec (goal, must/must-not, assumptions, open questions, likely integrations, **relevant local skills**) and **prepends** it to the `role: "user"` content sent to the main model. The Ink transcript still shows the **verbatim** user line.
+Before the main model turn, `ChatSessionApp` may run a **small, fast** LLM call that extracts a structured intent spec (goal, must/must-not, assumptions, open questions, likely integrations, **relevant local skills**, and relevant tools) and **prepends** it to the `role: "user"` content sent to the main model. The Ink transcript still shows the **verbatim** user line.
 
 - **When**: optional on first user prompt (`TOBY_PRETREAT_FIRST_TURN=1`); later prompts when `[shouldPretreat](../src/ai/pretreatment.ts)` flags the text as ambiguous (short follow-ups, pronouns without a recent assistant reply, multi-clause requests, etc.).
 - **Provider**: uses the active persona’s AI provider (OpenAI direct or Vercel AI Gateway via [`model-factory.ts`](../src/ai/model-factory.ts)).
@@ -58,6 +58,8 @@ Before the main model turn, `ChatSessionApp` may run a **small, fast** LLM call 
     - **Storage**: stored in `chat.sqlite` (see `src/ui/chat/session-store.ts`).
     - **Invalidation**: bumping the pretreat cache schema version (or changing model id / prompt construction inputs / local skill catalog) naturally produces new keys.
   - **Policy**: success-only (failed/timeout pretreatments are not cached).
+- **Tool filtering**: When pretreatment identifies relevant tools, Toby can narrow the active tool set for the main turn while preserving always-included global tools.
+- **Session naming**: Pretreatment may suggest a short descriptive session name for newly started chats.
 
 ## Local skills (optional)
 
@@ -79,6 +81,18 @@ For each turn:
 If pretreatment is skipped (`shouldPretreat` false) or disabled (`TOBY_DISABLE_PRETREATMENT=1`), skill routing can still happen via `loadLocalSkillInstructions`.
 
 To author a new skill from chat, the global tool **`createLocalSkill`** (see [`src/ai/global-chat-tools.ts`](../src/ai/global-chat-tools.ts)) drafts a full `SKILL.md` with the persona model and saves it under `~/.toby/skills/`.
+
+## Toby self-reflection tools
+
+Global reflection tools let the assistant answer questions about Toby itself without guessing from stale prompt text:
+
+- `tobyListIntegrations` — list available integrations, connection state, categories, capabilities, and resources.
+- `tobyGetIntegrationSetup` — explain setup requirements for a specific integration.
+- `tobyListDefaults` — show configured default providers by category.
+- `tobyListTools` — list tools available in the current chat scope.
+- `tobyListSkills` — list installed local skills.
+
+These tools support prompts such as “Which integrations are connected?”, “How do I set up Jira?”, “What tools can you use right now?”, and “What skills are installed?”
 
 ### Web content tools (always-included)
 

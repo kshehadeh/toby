@@ -13,6 +13,13 @@ Every integration follows the same pattern: **configure credentials → connect 
 toby config
 ```
 
+The configure UI has two panes:
+
+- **Left pane** — expandable settings tree for AI, personas, default providers, integrations, daemon settings, and other sections.
+- **Right pane** — details and editable fields for the selected item.
+
+Use arrow keys to navigate, `Enter` to select/edit or expand/collapse, `Tab` to switch panes, `Esc` to move back, `s` to save, and `q` to quit. Toby warns before discarding unsaved edits.
+
 Open **Integrations**, choose a service, and fill in the fields (API keys, OAuth client IDs, and so on). Save when done.
 
 Credentials live in `~/.toby/credentials.json`. Connection flags live in `~/.toby/config.json`. You can override the directory with the `TOBY_DIR` environment variable.
@@ -22,6 +29,7 @@ Credentials live in `~/.toby/credentials.json`. Connection flags live in `~/.tob
 ```bash
 toby connect gmail
 toby connect todoist
+toby connect jira
 ```
 
 List all integrations and whether they are connected:
@@ -30,7 +38,7 @@ List all integrations and whether they are connected:
 toby connect
 ```
 
-OAuth integrations (Gmail, Slack, Azure AD) open a browser or local callback during `connect`. API-key integrations (Todoist) validate the key and mark the integration connected.
+OAuth integrations (Gmail, Slack, Azure AD) open a browser or local callback during `connect`. API-key integrations (Todoist, Jira, Brave Search) validate credentials and mark the integration connected.
 
 ## 3. Check status
 
@@ -60,6 +68,8 @@ This clears Toby’s connection flag. It does not delete your mail, tasks, or ca
 | Apple Mail (macOS) | [Apple Mail](../integrations/apple-mail) |
 | Apple Calendar (macOS) | [Apple Calendar](../integrations/apple-calendar) |
 | macOS system controls | [macOS](../integrations/macos) |
+| Brave Search | [Brave Search](../integrations/brave-search) |
+| Jira | [Jira](../integrations/jira) |
 
 ## Next steps
 

@@ -13,7 +13,7 @@ persona.
 
 Toby combines:
 
-- Integration-aware commands (for services like Gmail and Todoist)
+- Integration-aware commands (for services like Gmail, Todoist, Slack, Jira, and local macOS apps)
 - Interactive terminal experiences (`config` and `chat`)
 - AI-powered flows for organizing and summarizing work
 - Personas for filtering responses through the lens of a particular interest
@@ -67,6 +67,7 @@ bun run dev -- --help
 - `toby connect <integration>` - connect an integration account
 - `toby disconnect <integration>` - disconnect an integration account
 - `toby status` - view connection and integration status
+- `toby listen` - record microphone and/or system audio for transcription
 - `toby sessions clear` - clear saved chat sessions
 - `toby upgrade` - install the latest Toby release
 

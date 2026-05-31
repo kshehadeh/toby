@@ -35,6 +35,8 @@ In the same configure UI, open **Default Providers** to pick which connected int
 | Tasks | Todoist |
 | Chat | Slack |
 | Contacts | Azure AD |
+| Search | Brave Search |
+| Work Tracker | Jira |
 
 These defaults help schedules and multi-integration chat pick the right tools.
 

@@ -29,6 +29,7 @@ Each integration declares one or more **provider categories**. A category descri
 | `contacts` | Contact List Provider | Directory and people lookup |
 | `chat` | Chat Provider | Channels, DMs, and workspace messages |
 | `search` | Search Provider | Web search and research |
+| `work_tracker` | Work Tracker | Issues, tickets, bugs, backlogs, and project work |
 
 ### Which integration belongs where
 
@@ -41,6 +42,7 @@ Each integration declares one or more **provider categories**. A category descri
 | Azure AD | `azuread` | `contacts` |
 | Slack | `slack` | `chat` |
 | Brave Search | `bravesearch` | `search` |
+| Jira | `jira` | `work_tracker` |
 
 Only **email** currently has two first-party integrations in the same category. That is the main case where defaults matter.
 
@@ -67,16 +69,53 @@ If you only connect one integration per category, defaults are optional—Toby c
 
 ## Available integrations
 
-| Service | CLI name | Guide |
-| ------- | -------- | ----- |
-| Gmail | `gmail` | [Gmail](./gmail) |
-| Todoist | `todoist` | [Todoist](./todoist) |
-| Slack | `slack` | [Slack](./slack) |
-| Azure AD | `azuread` | [Azure AD](./azuread) |
-| Apple Mail | `applemail` | [Apple Mail](./apple-mail) |
-| Apple Calendar | `applecalendar` | [Apple Calendar](./apple-calendar) |
-| macOS | `macos` | [macOS](./macos) |
-| Brave Search | `bravesearch` | [Brave Search](./brave-search) |
+<div className="integrationIconGrid">
+	<a className="integrationIconCard" href="./gmail">
+		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/gmail/EA4335" alt="" /></span>
+		<span className="integrationIconName">Gmail</span>
+		<span className="integrationIconMeta">Email · <code>gmail</code></span>
+	</a>
+	<a className="integrationIconCard" href="./todoist">
+		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/todoist/E44332" alt="" /></span>
+		<span className="integrationIconName">Todoist</span>
+		<span className="integrationIconMeta">Tasks · <code>todoist</code></span>
+	</a>
+	<a className="integrationIconCard" href="./slack">
+		<span className="integrationIconBadge integrationIconBadgeSlack"><span className="integrationIconGlyph">#</span></span>
+		<span className="integrationIconName">Slack</span>
+		<span className="integrationIconMeta">Chat · <code>slack</code></span>
+	</a>
+	<a className="integrationIconCard" href="./azuread">
+		<span className="integrationIconBadge integrationIconBadgeAzure"><span className="integrationIconGlyph">AD</span></span>
+		<span className="integrationIconName">Azure AD</span>
+		<span className="integrationIconMeta">Contacts · <code>azuread</code></span>
+	</a>
+	<a className="integrationIconCard" href="./apple-mail">
+		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/apple/A2AAAD" alt="" /></span>
+		<span className="integrationIconName">Apple Mail</span>
+		<span className="integrationIconMeta">Email · <code>applemail</code></span>
+	</a>
+	<a className="integrationIconCard" href="./apple-calendar">
+		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/apple/A2AAAD" alt="" /></span>
+		<span className="integrationIconName">Apple Calendar</span>
+		<span className="integrationIconMeta">Calendar · <code>applecalendar</code></span>
+	</a>
+	<a className="integrationIconCard" href="./macos">
+		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/apple/FFFFFF" alt="" /></span>
+		<span className="integrationIconName">macOS</span>
+		<span className="integrationIconMeta">System controls · <code>macos</code></span>
+	</a>
+	<a className="integrationIconCard" href="./brave-search">
+		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/brave/FB542B" alt="" /></span>
+		<span className="integrationIconName">Brave Search</span>
+		<span className="integrationIconMeta">Search · <code>bravesearch</code></span>
+	</a>
+	<a className="integrationIconCard" href="./jira">
+		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/jira/0052CC" alt="" /></span>
+		<span className="integrationIconName">Jira</span>
+		<span className="integrationIconMeta">Work Tracker · <code>jira</code></span>
+	</a>
+</div>
 
 ## Using integrations in chat
 
@@ -98,6 +137,10 @@ Toby includes two tools for accessing web content in chat—no explicit integrat
 - **`webSearch`** — Available when a Brave Search API key is configured. Searches the web and returns titles, URLs, and descriptions. Use when you ask Toby to look something up, research a topic, or find current information.
 
 Toby automatically routes to the right tool based on your request. If you ask to "search the web for …" it uses `webSearch`; if you share a URL it uses `fetchWebContent`. You can combine both: search first, then read a result.
+
+## Work tracking
+
+Jira is the first **Work Tracker** integration. It adds read-only chat tools for JQL issue search, full issue lookup, issue comments, and accessible project lists. Use it for prompts about tickets, bugs, epics, sprints, backlogs, or project issue status.
 
 ## Other commands
 
