@@ -51,6 +51,11 @@ export function getSkillsDir(): string {
 	return path.join(resolveTobyDir(), "skills");
 }
 
+/** User-managed installable plugins: `~/.toby/plugins/toby-plugin-<name>`. */
+export function getPluginsDir(): string {
+	return path.join(resolveTobyDir(), "plugins");
+}
+
 interface AIProvider {
 	provider: string;
 	model: string;

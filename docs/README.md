@@ -7,6 +7,7 @@ Human- and agent-oriented docs for this repository.
 | [architecture.md](architecture.md) | Repo layout, CLI entry, config paths, AI/UI boundaries. |
 | [commands.md](commands.md) | Shared CLI commands, including `config backup` and `config restore`. |
 | [integrations.md](integrations.md) | `IntegrationModule`, registry API, per-integration layout. |
+| [plugin-protocol.md](plugin-protocol.md) | Installable plugin CLI contract (v1): discovery, subcommands, JSON envelopes. |
 | [apple-mail.md](apple-mail.md) | macOS Apple Mail integration (local Mail.app, AppleScript tools). |
 | [apple-calendar.md](apple-calendar.md) | macOS Apple Calendar integration (Calendar.app, EventKit search, AppleScript CRUD). |
 | [macos-integration.md](macos-integration.md) | Local macOS system tools via native `toby-macos` helper: Wi‑Fi, Bluetooth, battery, audio, display brightness, clipboard, shortcuts. |

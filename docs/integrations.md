@@ -84,3 +84,25 @@ The global `fetchWebContent` tool ([`src/ai/web-fetch-tool.ts`](../src/ai/web-fe
   - When `authMethods` are provided, configure shows an auth-method selector and only method-relevant credential fields.
 
 Keeping this wiring generic avoids adding new `if (name === "…")` branches in core commands when a new integration is added.
+
+## Installable plugins
+
+Third-party (or independently built) integrations can ship as executables named
+`toby-plugin-<name>`. Toby discovers them under `~/.toby/plugins/` (or
+`$TOBY_DIR/plugins/`), then adapts them into `IntegrationModule` instances using
+the subprocess protocol in [`plugin-protocol.md`](plugin-protocol.md).
+
+| Command | Purpose |
+| ------- | ------- |
+| `toby plugins list` | Show discovered plugin binaries and metadata |
+| `toby plugins install <path>` | Validate and copy a plugin into `~/.toby/plugins/` |
+| `toby plugins uninstall <name>` | Remove a managed plugin and purge its stored configuration |
+| `toby plugins inspect <name>` | Show plugin details and tool catalog |
+| `toby plugins doctor` | Validate protocol compatibility |
+
+Runtime code lives under [`src/integrations/plugins/`](../src/integrations/plugins/).
+The reference implementation is [`helpers/toby-plugin-sample/`](../helpers/toby-plugin-sample/).
+
+Built-in modules in `MODULES` take precedence when names collide. Toby remains
+the source of truth for credentials (`credentials.json`) and connection state
+(`config.json`); plugins receive config envelopes on stdin.

@@ -10,6 +10,9 @@ bun run build:executable
 The main executable output is **`dist/toby`**.
 The macOS listener helper is copied to **`dist/toby-listener`** and should be
 installed beside `toby`.
+The sample installable plugin is built to **`dist/toby-plugin-sample`**. Install
+it with `toby plugins install ./dist/toby-plugin-sample` (see
+[`docs/plugin-protocol.md`](plugin-protocol.md)).
 
 ## Requirements
 
@@ -56,7 +59,7 @@ Pushing a **version tag** matching `v*` runs [`.github/workflows/release.yml`](.
 
 1. Matrix builds **two** signed and notarized macOS archives:
    `toby-darwin-arm64.zip` and `toby-darwin-x64.zip`.
-2. Each archive contains `toby` and `toby-listener`.
+2. Each archive contains `toby`, `toby-listener`, `toby-macos`, and `toby-plugin-sample`.
 3. Creates a **GitHub Release** for that tag and uploads those files as release assets (via `softprops/action-gh-release`).
 
 The release workflow uses the same Apple Developer secrets as DevDash:
@@ -82,9 +85,10 @@ are missing, the workflow skips signing and notarization and uploads an unsigned
 archive with a warning. Invalid non-empty credentials fail the release instead
 of silently publishing an unexpectedly unsigned build.
 
-Local `bun run build:executable` builds `dist/toby` and `dist/toby-listener`
-without signing. Use the GitHub release workflow for signed and notarized
-distribution artifacts.
+Local `bun run build:executable` builds `dist/toby`, `dist/toby-listener`,
+`dist/toby-macos`, and `dist/toby-plugin-sample` without signing. Verify staged
+artifacts with `node scripts/verify-release-artifacts.mjs release-payload`.
+Use the GitHub release workflow for signed and notarized distribution artifacts.
 
 Ensure **Actions** permissions allow the default `GITHUB_TOKEN` to create releases for tag pushes (Repository → Settings → Actions → General → Workflow permissions → read and write).
 

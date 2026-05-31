@@ -90,12 +90,25 @@ else
 	echo "Note: Release archive does not include toby-macos helper (macOS system tools may be limited)." >&2
 fi
 
+has_sample_plugin=false
+if [[ -f "${tmpdir}/toby-plugin-sample" ]]; then
+	has_sample_plugin=true
+fi
+
 chmod +x "${tmpdir}/toby" "${tmpdir}/toby-listener"
 mkdir -p "$install_dir"
 mv "${tmpdir}/toby" "${install_dir}/toby"
 mv "${tmpdir}/toby-listener" "${install_dir}/toby-listener"
 echo "Installed: ${install_dir}/toby"
 echo "Installed: ${install_dir}/toby-listener"
+
+if $has_sample_plugin; then
+	chmod +x "${tmpdir}/toby-plugin-sample"
+	toby_plugins_dir="${TOBY_DIR:-$HOME/.toby}/plugins"
+	mkdir -p "$toby_plugins_dir"
+	mv "${tmpdir}/toby-plugin-sample" "${toby_plugins_dir}/toby-plugin-sample"
+	echo "Installed: ${toby_plugins_dir}/toby-plugin-sample"
+fi
 
 if $has_macos_helper; then
 	chmod +x "${tmpdir}/toby-macos"

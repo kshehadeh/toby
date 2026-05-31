@@ -1,4 +1,5 @@
 import { ensureTobyDir, getChatDbPath } from "../config/index";
+import { getPluginMetadataRecord } from "../integrations/plugins/registry";
 
 const DEFAULT_TOOL_RESULT_TTL_MS = 5 * 60 * 1000;
 
@@ -82,7 +83,15 @@ CREATE INDEX IF NOT EXISTS idx_chat_tool_result_cache_expires_at
 }
 
 export function isReadOnlyChatTool(toolName: string): boolean {
-	return READ_ONLY_CHAT_TOOLS.has(toolName);
+	if (READ_ONLY_CHAT_TOOLS.has(toolName)) {
+		return true;
+	}
+	for (const metadata of getPluginMetadataRecord().values()) {
+		if (metadata.readOnlyTools.includes(toolName)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 export function buildToolResultCacheKey(
@@ -174,5 +183,41 @@ export function clearToolResultCache(): number {
 	}
 	const cleared = toolResultCacheFallback.size;
 	toolResultCacheFallback.clear();
+	return cleared;
+}
+
+export function clearToolResultCacheForTools(
+	toolNames: readonly string[],
+): number {
+	if (toolNames.length === 0) {
+		return 0;
+	}
+
+	const db = getDb();
+	if (db) {
+		let cleared = 0;
+		for (const toolName of toolNames) {
+			const row = db
+				.query(
+					"SELECT COUNT(*) as count FROM chat_tool_result_cache WHERE tool_name = $tool_name",
+				)
+				.get({ $tool_name: toolName }) as { count: number } | undefined;
+			cleared += Number(row?.count ?? 0);
+			db.query(
+				"DELETE FROM chat_tool_result_cache WHERE tool_name = $tool_name",
+			).run({ $tool_name: toolName });
+		}
+		return cleared;
+	}
+
+	let cleared = 0;
+	for (const toolName of toolNames) {
+		const prefix = `${toolName}:`;
+		for (const key of [...toolResultCacheFallback.keys()]) {
+			if (!key.startsWith(prefix)) continue;
+			toolResultCacheFallback.delete(key);
+			cleared += 1;
+		}
+	}
 	return cleared;
 }

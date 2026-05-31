@@ -1,0 +1,532 @@
+import { tool } from "ai";
+import type { Tool } from "ai";
+import chalk from "chalk";
+import { runSharedChatTurn } from "../../chat-pipeline/run-turn";
+import type { CredentialsFile } from "../../config/index";
+import { readConfig, readCredentials, writeConfig } from "../../config/index";
+import type {
+	ChatRunOptions,
+	CredentialFieldDescriptor,
+	IntegrationModule,
+	IntegrationToolHealth,
+	TestConnectionOptions,
+} from "../types";
+import {
+	pluginConfigSet,
+	pluginConfigShape,
+	pluginConnect,
+	pluginDisconnect,
+	pluginStatus,
+	pluginToolsExecute,
+	pluginToolsList,
+} from "./client";
+import { jsonSchemaToZod } from "./json-schema";
+import type { DiscoveredPlugin, PluginConfigEnvelope } from "./protocol";
+import {
+	isSupportedProtocolVersion,
+	parsePluginNameFromBinary,
+} from "./protocol";
+
+export type PluginMetadata = {
+	readonly binaryPath: string;
+	readonly name: string;
+	readonly displayName: string;
+	readonly description: string;
+	readonly version: string;
+	readonly protocolVersion: string;
+	readonly capabilities: IntegrationModule["capabilities"];
+	readonly providerCategories: IntegrationModule["providerCategories"];
+	readonly resources: IntegrationModule["resources"];
+	readonly readOnlyTools: readonly string[];
+};
+
+function readPluginConfig(
+	creds: CredentialsFile,
+	name: string,
+): Record<string, unknown> {
+	const block = creds.integrations?.[name];
+	if (!block || typeof block !== "object") {
+		return {};
+	}
+	return { ...block };
+}
+
+function readPluginState(name: string): Record<string, unknown> {
+	const config = readConfig();
+	const block = config.integrations?.[name];
+	if (!block || typeof block !== "object") {
+		return {};
+	}
+	return { ...block };
+}
+
+function buildEnvelope(name: string): PluginConfigEnvelope {
+	const creds = readCredentials();
+	return {
+		config: readPluginConfig(creds, name),
+		state: readPluginState(name),
+	};
+}
+
+function namespacedKey(pluginName: string, fieldKey: string): string {
+	return `${pluginName}.${fieldKey}`;
+}
+
+function localKey(pluginName: string, namespaced: string): string {
+	const prefix = `${pluginName}.`;
+	return namespaced.startsWith(prefix)
+		? namespaced.slice(prefix.length)
+		: namespaced;
+}
+
+export function loadPluginMetadata(
+	discovered: DiscoveredPlugin,
+): PluginMetadata | { error: string; code: string } {
+	const parsedName = parsePluginNameFromBinary(discovered.binaryName);
+	if (!parsedName) {
+		return {
+			error: `Invalid plugin binary name: ${discovered.binaryName}`,
+			code: "invalid_name",
+		};
+	}
+
+	const statusResult = pluginStatus(discovered.binaryPath);
+	if (!statusResult.ok) {
+		return {
+			error: statusResult.error,
+			code: statusResult.code,
+		};
+	}
+
+	const status = statusResult.data;
+	if (!status.ok) {
+		return {
+			error: status.error ?? "Plugin status returned ok:false",
+			code: status.code ?? "status_failed",
+		};
+	}
+
+	if (!status.name || !status.displayName || !status.description) {
+		return {
+			error: "Plugin status missing required identity fields",
+			code: "invalid_status",
+		};
+	}
+
+	if (status.name !== parsedName) {
+		return {
+			error: `Plugin name mismatch: binary implies "${parsedName}" but status reports "${status.name}"`,
+			code: "name_mismatch",
+		};
+	}
+
+	if (
+		!status.protocolVersion ||
+		!isSupportedProtocolVersion(status.protocolVersion)
+	) {
+		return {
+			error: `Unsupported plugin protocol version: ${status.protocolVersion ?? "(missing)"}`,
+			code: "unsupported_protocol",
+		};
+	}
+
+	return {
+		binaryPath: discovered.binaryPath,
+		name: status.name,
+		displayName: status.displayName,
+		description: status.description,
+		version: status.version ?? "0.0.0",
+		protocolVersion: status.protocolVersion,
+		capabilities: status.capabilities?.length ? status.capabilities : ["chat"],
+		providerCategories: status.providerCategories,
+		resources: status.resources,
+		readOnlyTools: loadReadOnlyToolNames(discovered.binaryPath),
+	};
+}
+
+function loadReadOnlyToolNames(binaryPath: string): string[] {
+	const toolsResult = pluginToolsList(binaryPath);
+	if (!toolsResult.ok || !toolsResult.data.ok || !toolsResult.data.tools) {
+		return [];
+	}
+	return toolsResult.data.tools.filter((t) => t.readOnly).map((t) => t.name);
+}
+
+export function createPluginIntegrationModule(
+	metadata: PluginMetadata,
+): IntegrationModule {
+	const { name, binaryPath } = metadata;
+
+	const lifecycle = {
+		name,
+		displayName: metadata.displayName,
+		description: metadata.description,
+
+		async connect(): Promise<void> {
+			const envelope = buildEnvelope(name);
+			const config = readConfig();
+			if (config.integrations[name]?.connectedAt) {
+				console.log(
+					chalk.yellow(
+						`${metadata.displayName} is already connected. Disconnect first to reconnect.`,
+					),
+				);
+				return;
+			}
+
+			const result = pluginConnect(binaryPath, envelope);
+			if (!result.ok) {
+				throw new Error(result.error);
+			}
+			if (!result.data.ok) {
+				throw new Error(
+					result.data.reason ?? result.data.error ?? "Connect failed",
+				);
+			}
+
+			config.integrations[name] = {
+				...(config.integrations[name] ?? {}),
+				connectedAt: new Date().toISOString(),
+				pluginVersion: metadata.version,
+			};
+			writeConfig(config);
+
+			const sync = pluginConfigSet(binaryPath, envelope);
+			if (!sync.ok) {
+				console.log(
+					chalk.yellow(`Warning: plugin config sync failed: ${sync.error}`),
+				);
+			} else if (!sync.data.ok) {
+				console.log(
+					chalk.yellow(
+						`Warning: plugin config sync failed: ${sync.data.reason ?? sync.data.error ?? "unknown"}`,
+					),
+				);
+			}
+
+			console.log(
+				chalk.green(`${metadata.displayName} connected successfully!`),
+			);
+		},
+
+		async isConnected(): Promise<boolean> {
+			const config = readConfig();
+			return Boolean(config.integrations[name]?.connectedAt);
+		},
+
+		async testConnection(options?: TestConnectionOptions) {
+			const connected = await lifecycle.isConnected();
+			if (!connected) {
+				return {
+					ok: false,
+					details: `${metadata.displayName} is not connected. Run \`toby connect ${name}\` after configuring credentials.`,
+				};
+			}
+
+			const envelope = buildEnvelope(name);
+			const statusResult = pluginStatus(binaryPath, envelope);
+			if (!statusResult.ok) {
+				return {
+					ok: false,
+					details: `Plugin status failed: ${statusResult.error}`,
+				};
+			}
+			if (!statusResult.data.ok) {
+				return {
+					ok: false,
+					details:
+						statusResult.data.error ?? "Plugin reported unhealthy status",
+				};
+			}
+
+			if (!options?.validateTools) {
+				return {
+					ok: true,
+					details:
+						statusResult.data.details ?? `${metadata.displayName} is healthy.`,
+				};
+			}
+
+			const toolsResult = pluginToolsList(binaryPath);
+			if (!toolsResult.ok) {
+				return {
+					ok: true,
+					details: `Connected, but tool list failed: ${toolsResult.error}`,
+				};
+			}
+			if (!toolsResult.data.ok || !toolsResult.data.tools) {
+				return {
+					ok: true,
+					details: "Connected, but plugin returned no tools.",
+				};
+			}
+
+			const toolChecks: IntegrationToolHealth[] = toolsResult.data.tools.map(
+				(t) => ({
+					tool: t.name,
+					ok: true,
+					details: t.readOnly
+						? "Read-only tool available."
+						: "Mutating tool available.",
+				}),
+			);
+
+			return {
+				ok: true,
+				details: `Connected with ${toolChecks.length} tool(s) available.`,
+				tools: toolChecks,
+			};
+		},
+
+		async disconnect(): Promise<void> {
+			const config = readConfig();
+			if (!config.integrations[name]) {
+				console.log(chalk.yellow(`${metadata.displayName} is not connected.`));
+				return;
+			}
+
+			const envelope = buildEnvelope(name);
+			const result = pluginDisconnect(binaryPath, envelope);
+			if (!result.ok) {
+				throw new Error(result.error);
+			}
+			if (!result.data.ok) {
+				throw new Error(
+					result.data.reason ?? result.data.error ?? "Disconnect failed",
+				);
+			}
+
+			Reflect.deleteProperty(config.integrations, name);
+			writeConfig(config);
+			console.log(chalk.green(`${metadata.displayName} disconnected.`));
+		},
+	};
+
+	function getCredentialDescriptors(): CredentialFieldDescriptor[] {
+		const shapeResult = pluginConfigShape(binaryPath);
+		if (!shapeResult.ok || !shapeResult.data.ok || !shapeResult.data.fields) {
+			return [];
+		}
+
+		return shapeResult.data.fields.map((field) => {
+			const descriptor: CredentialFieldDescriptor = {
+				key: namespacedKey(name, field.key),
+				label: field.label,
+				masked: field.masked,
+				multiline: field.multiline,
+			};
+			if (field.type === "select" && field.options?.length) {
+				return {
+					...descriptor,
+					kind: "select" as const,
+					options: field.options,
+				};
+			}
+			return descriptor;
+		});
+	}
+
+	function seedCredentialValues(
+		creds: CredentialsFile,
+	): Record<string, string> {
+		const out: Record<string, string> = {};
+		const block = creds.integrations?.[name];
+		if (!block) return out;
+
+		for (const [key, value] of Object.entries(block)) {
+			if (value === undefined || value === null) continue;
+			out[namespacedKey(name, key)] = String(value);
+		}
+		return out;
+	}
+
+	function mergeCredentialsPatch(
+		values: Record<string, string>,
+		previous: CredentialsFile,
+	): Partial<CredentialsFile> {
+		const previousBlock = previous.integrations?.[name] ?? {};
+		const nextBlock: Record<string, string> = {};
+
+		for (const [key, value] of Object.entries(previousBlock)) {
+			nextBlock[key] = String(value);
+		}
+
+		const prefix = `${name}.`;
+		for (const [key, value] of Object.entries(values)) {
+			if (!key.startsWith(prefix)) continue;
+			nextBlock[localKey(name, key)] = value;
+		}
+
+		return {
+			integrations: {
+				...(previous.integrations ?? {}),
+				[name]: nextBlock,
+			},
+		};
+	}
+
+	async function createChatTools(params: {
+		readonly dryRun: boolean;
+		readonly maxResults?: number;
+	}) {
+		const appliedActions: string[] = [];
+		const toolsResult = pluginToolsList(binaryPath);
+		if (!toolsResult.ok || !toolsResult.data.ok || !toolsResult.data.tools) {
+			return { tools: {}, appliedActions };
+		}
+
+		const tools: Record<string, Tool> = {};
+		for (const definition of toolsResult.data.tools) {
+			const inputSchema = jsonSchemaToZod(definition.inputSchema);
+			tools[definition.name] = tool({
+				description: definition.description,
+				inputSchema,
+				execute: async (input) => {
+					const envelope = buildEnvelope(name);
+					const execResult = pluginToolsExecute(binaryPath, {
+						tool: definition.name,
+						input: input as Record<string, unknown>,
+						config: envelope.config,
+						state: envelope.state,
+						dryRun: params.dryRun,
+					});
+
+					if (!execResult.ok) {
+						return { error: execResult.error };
+					}
+					if (!execResult.data.ok) {
+						return { error: execResult.data.error ?? "Tool execution failed" };
+					}
+
+					if (execResult.data.appliedActions?.length) {
+						appliedActions.push(...execResult.data.appliedActions);
+					}
+
+					return execResult.data.result ?? { ok: true };
+				},
+			});
+		}
+
+		return { tools, appliedActions };
+	}
+
+	async function chat(options: ChatRunOptions): Promise<void> {
+		const persona = options.personaForModel;
+		const dryRun = options.dryRun;
+
+		console.log(
+			chalk.cyan(`${metadata.displayName} chat (persona "${persona.name}")...`),
+		);
+		if (dryRun) {
+			console.log(chalk.yellow("  (dry run - changes will not be applied)"));
+		}
+		console.log(chalk.dim(`  Goal: ${options.prompt}`));
+		console.log();
+
+		const module = createPluginIntegrationModule(metadata);
+		const result = await runSharedChatTurn(
+			[module],
+			[
+				{
+					role: "system",
+					content: buildPluginSystemMessage(metadata, persona),
+				},
+				{ role: "user", content: options.prompt },
+			],
+			{ persona, dryRun },
+		);
+
+		for (const line of result.appliedActions) {
+			console.log(chalk.green(`+ ${line}`));
+		}
+
+		if (result.text?.trim()) {
+			console.log();
+			console.log(chalk.bold("Result"));
+			console.log(result.text.trim());
+		}
+
+		console.log();
+		console.log(chalk.green("Done."));
+	}
+
+	return {
+		...lifecycle,
+		capabilities: metadata.capabilities,
+		providerCategories: metadata.providerCategories,
+		resources: metadata.resources,
+		getCredentialDescriptors,
+		seedCredentialValues,
+		mergeCredentialsPatch,
+		createChatTools,
+		chat,
+		chatReadiness: async (creds: CredentialsFile) => {
+			if (await lifecycle.isConnected()) return { ok: true };
+			const configBlock = creds.integrations?.[name];
+			const hasConfig = Boolean(
+				configBlock && Object.keys(configBlock).length > 0,
+			);
+			return hasConfig
+				? { ok: true }
+				: {
+						ok: false,
+						hint: `Configure ${metadata.displayName} in \`toby configure\` or run \`toby connect ${name}\`.`,
+					};
+		},
+		chatModelPrep: {
+			systemPromptSection: `### ${metadata.displayName}\n${metadata.description}`,
+			async buildSingleSessionMessages(persona, userPrompt) {
+				return [
+					{
+						role: "system" as const,
+						content: buildPluginSystemMessage(metadata, persona),
+					},
+					...(userPrompt.trim()
+						? ([{ role: "user" as const, content: userPrompt }] as const)
+						: []),
+				];
+			},
+			async buildMultiUserContent(userPrompt) {
+				return `## ${metadata.displayName} context\n${metadata.description}\nQuery: "${userPrompt.slice(0, 200)}"`;
+			},
+		},
+	};
+}
+
+function buildPluginSystemMessage(
+	metadata: PluginMetadata,
+	persona: { name: string; instructions: string },
+): string {
+	return `You are assisting via the ${metadata.displayName} integration (plugin v${metadata.version}). ${metadata.description}
+
+Persona: ${persona.name}${persona.instructions ? `\nInstructions: ${persona.instructions}` : ""}`;
+}
+
+export function getPluginReadOnlyToolNames(
+	metadata: PluginMetadata,
+): readonly string[] {
+	return metadata.readOnlyTools;
+}
+
+/** Exposed for plugin diagnostics and `toby plugins` commands. */
+export function getPluginMetadataRecord(): Map<string, PluginMetadata> {
+	return pluginMetadataCache;
+}
+
+export function rememberPluginMetadata(metadata: PluginMetadata): void {
+	pluginMetadataCache.set(metadata.name, metadata);
+}
+
+const pluginMetadataCache = new Map<string, PluginMetadata>();
+
+/** Lookup a plugin binary metadata entry (includes load errors via doctor command). */
+export function inspectPluginBinary(
+	discovered: DiscoveredPlugin,
+): PluginMetadata | { error: string; code: string; binaryPath: string } {
+	const loaded = loadPluginMetadata(discovered);
+	if ("error" in loaded) {
+		return { ...loaded, binaryPath: discovered.binaryPath };
+	}
+	rememberPluginMetadata(loaded);
+	return loaded;
+}

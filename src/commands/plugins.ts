@@ -1,0 +1,253 @@
+import chalk from "chalk";
+import type { Command } from "commander";
+import { pluginToolsList } from "../integrations/plugins/client";
+import {
+	PluginInstallException,
+	installPlugin,
+	uninstallPlugin,
+} from "../integrations/plugins/install";
+import { CURRENT_PROTOCOL_VERSION } from "../integrations/plugins/protocol";
+import {
+	discoverPluginBinaries,
+	getPluginMetadata,
+	inspectPluginBinary,
+	resolvePluginSearchDirectories,
+} from "../integrations/plugins/registry";
+import { validatePluginBinary } from "../integrations/plugins/validate";
+
+export function registerPluginsCommand(program: Command): void {
+	const plugins = program
+		.command("plugins")
+		.description("Manage installable integration plugins");
+
+	plugins
+		.command("list")
+		.description("List discovered plugin binaries")
+		.action(async () => {
+			await listPlugins();
+		});
+
+	plugins
+		.command("install <path>")
+		.description("Validate and install a plugin binary into ~/.toby/plugins/")
+		.option("--force", "Overwrite an existing install in ~/.toby/plugins/")
+		.option("--link", "Symlink instead of copying (useful during development)")
+		.action(
+			async (
+				sourcePath: string,
+				options: { force?: boolean; link?: boolean },
+			) => {
+				await runInstallPlugin(sourcePath, options);
+			},
+		);
+
+	plugins
+		.command("uninstall <name>")
+		.description(
+			"Remove a managed plugin and purge its credentials, config, and cached tool results",
+		)
+		.action(async (name: string) => {
+			await runUninstallPlugin(name);
+		});
+
+	plugins
+		.command("inspect <name>")
+		.description("Show plugin metadata and tool catalog")
+		.action(async (name: string) => {
+			await inspectPlugin(name);
+		});
+
+	plugins
+		.command("doctor")
+		.description("Validate discovered plugins against the protocol")
+		.action(async () => {
+			await doctorPlugins();
+		});
+
+	plugins.action(async () => {
+		await listPlugins();
+	});
+}
+
+async function listPlugins(): Promise<void> {
+	const discovered = discoverPluginBinaries();
+	const pluginsDir = resolvePluginSearchDirectories()[0];
+	console.log(chalk.bold("\nPlugin directory:\n"));
+	console.log(`  ${chalk.dim(pluginsDir ?? "(unknown)")}`);
+
+	console.log(chalk.bold("\nDiscovered plugins:\n"));
+	if (discovered.length === 0) {
+		console.log(chalk.dim("  No plugin binaries found."));
+		console.log(
+			chalk.dim(
+				'  Install plugins with "toby plugins install <path>" or place binaries in ~/.toby/plugins/.',
+			),
+		);
+		return;
+	}
+
+	for (const entry of discovered) {
+		const inspected = inspectPluginBinary(entry);
+		if ("error" in inspected) {
+			console.log(
+				`  ${chalk.red("✗")} ${chalk.bold(entry.binaryName)} ${chalk.dim(entry.binaryPath)}`,
+			);
+			console.log(`    ${chalk.red(inspected.error)} (${inspected.code})`);
+			continue;
+		}
+
+		const metadata = getPluginMetadata(inspected.name) ?? inspected;
+		console.log(
+			`  ${chalk.green("✓")} ${chalk.bold(metadata.displayName)} ${chalk.dim(`(${metadata.name})`)}`,
+		);
+		console.log(`    ${chalk.dim(metadata.description)}`);
+		console.log(
+			`    ${chalk.dim(`v${metadata.version} · protocol ${metadata.protocolVersion} · ${entry.binaryPath}`)}`,
+		);
+	}
+	console.log();
+}
+
+async function runInstallPlugin(
+	sourcePath: string,
+	options: { force?: boolean; link?: boolean },
+): Promise<void> {
+	try {
+		const result = installPlugin(sourcePath, options);
+		const mode = result.linked ? "Linked" : "Installed";
+		console.log(
+			chalk.green(
+				`\n${mode} ${result.displayName} v${result.version} (${result.name})`,
+			),
+		);
+		console.log(chalk.dim(`  ${result.installPath}`));
+		console.log(
+			chalk.dim(`  Run "toby connect ${result.name}" to configure it.`),
+		);
+		console.log();
+	} catch (error) {
+		if (error instanceof PluginInstallException) {
+			console.error(chalk.red(`\n${error.message}\n`));
+			process.exitCode = 1;
+			return;
+		}
+		throw error;
+	}
+}
+
+async function runUninstallPlugin(name: string): Promise<void> {
+	try {
+		const result = uninstallPlugin(name);
+		console.log(chalk.green(`\nRemoved plugin "${result.name}"`));
+		console.log(chalk.dim(`  ${result.removedPath}`));
+
+		const cleaned: string[] = [];
+		if (result.purged.credentials) cleaned.push("credentials");
+		if (result.purged.connectionState) cleaned.push("connection state");
+		if (result.purged.disabledEntry) cleaned.push("disabled entry");
+		if (result.purged.defaultProviderReferences > 0) {
+			cleaned.push(
+				`${result.purged.defaultProviderReferences} default provider reference(s)`,
+			);
+		}
+		if (result.purged.chatInboundReference)
+			cleaned.push("chat inbound reference");
+		if (result.purged.toolCacheEntries > 0) {
+			cleaned.push(`${result.purged.toolCacheEntries} cached tool result(s)`);
+		}
+
+		if (cleaned.length > 0) {
+			console.log(chalk.dim(`  Purged: ${cleaned.join(", ")}`));
+		} else {
+			console.log(chalk.dim("  No stored plugin configuration found."));
+		}
+		console.log();
+	} catch (error) {
+		if (error instanceof PluginInstallException) {
+			console.error(chalk.red(`\n${error.message}\n`));
+			process.exitCode = 1;
+			return;
+		}
+		throw error;
+	}
+}
+
+async function inspectPlugin(name: string): Promise<void> {
+	const discovered = discoverPluginBinaries().find(
+		(p) => p.binaryName === `toby-plugin-${name}`,
+	);
+	if (!discovered) {
+		console.log(chalk.red(`Plugin not found: ${name}`));
+		return;
+	}
+
+	const inspected = inspectPluginBinary(discovered);
+	if ("error" in inspected) {
+		console.log(chalk.red(`Failed to inspect plugin: ${inspected.error}`));
+		console.log(chalk.dim(`Code: ${inspected.code}`));
+		console.log(chalk.dim(`Path: ${inspected.binaryPath}`));
+		return;
+	}
+
+	console.log(chalk.bold(`\n${inspected.displayName}\n`));
+	console.log(`  Name:       ${inspected.name}`);
+	console.log(`  Version:    ${inspected.version}`);
+	console.log(`  Protocol:   ${inspected.protocolVersion}`);
+	console.log(`  Binary:     ${discovered.binaryPath}`);
+	console.log(
+		`  Capabilities: ${(inspected.capabilities ?? []).join(", ") || "(none)"}`,
+	);
+	if (inspected.providerCategories?.length) {
+		console.log(`  Categories: ${inspected.providerCategories.join(", ")}`);
+	}
+	console.log(`  ${chalk.dim(inspected.description)}`);
+
+	const tools = pluginToolsList(discovered.binaryPath);
+	if (tools.ok && tools.data.ok && tools.data.tools?.length) {
+		console.log(chalk.bold("\nTools:\n"));
+		for (const tool of tools.data.tools) {
+			const mode = tool.readOnly
+				? chalk.green("read-only")
+				: chalk.yellow("mutating");
+			console.log(`  ${chalk.bold(tool.name)} ${chalk.dim(`[${mode}]`)}`);
+			console.log(`    ${chalk.dim(tool.description)}`);
+		}
+	}
+	console.log();
+}
+
+async function doctorPlugins(): Promise<void> {
+	const discovered = discoverPluginBinaries();
+	console.log(chalk.bold("\nPlugin doctor\n"));
+	console.log(`  Protocol expected: ${CURRENT_PROTOCOL_VERSION}`);
+	console.log(`  Search paths: ${resolvePluginSearchDirectories().length}`);
+
+	if (discovered.length === 0) {
+		console.log(chalk.yellow("\n  No plugin binaries discovered."));
+		return;
+	}
+
+	let failures = 0;
+	for (const entry of discovered) {
+		const validated = validatePluginBinary(entry);
+		if (!validated.ok) {
+			failures += 1;
+			console.log(
+				`\n  ${chalk.red("✗")} ${entry.binaryName}: ${validated.error} (${validated.code})`,
+			);
+			continue;
+		}
+
+		console.log(
+			`\n  ${chalk.green("✓")} ${validated.metadata.displayName} v${validated.metadata.version} — validated`,
+		);
+	}
+
+	console.log();
+	if (failures > 0) {
+		console.log(chalk.red(`${failures} plugin(s) failed validation.`));
+		process.exitCode = 1;
+	} else {
+		console.log(chalk.green("All discovered plugins passed validation."));
+	}
+}

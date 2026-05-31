@@ -83,3 +83,15 @@ For chat-category integrations that should respond to @mentions or DMs while the
 Core routing, session mapping, and headless turns live in [`src/chat-inbound/`](../src/chat-inbound/) and [`src/chat-pipeline/headless-session.ts`](../src/chat-pipeline/headless-session.ts). See [`docs/chat-inbound.md`](chat-inbound.md).
 
 **Slack** is the reference implementation: [`src/integrations/slack/inbound.ts`](../src/integrations/slack/inbound.ts).
+
+## External installable plugin (optional)
+
+To ship an integration **outside** the main Toby binary:
+
+1. Implement a standalone CLI named `toby-plugin-<name>` following [`docs/plugin-protocol.md`](plugin-protocol.md).
+2. Install the binary with `toby plugins install <path>` or copy it into `~/.toby/plugins/`.
+3. Run `toby plugins doctor` to validate protocol compatibility.
+
+See [`helpers/toby-plugin-sample/`](../helpers/toby-plugin-sample/) for a minimal reference plugin and build script (`bun run build:plugin:sample`).
+
+No changes to `MODULES` are required — discovery registers plugin-backed modules automatically.

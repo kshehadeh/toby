@@ -10,6 +10,7 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | -------- | ------- |
 | [`docs/architecture.md`](docs/architecture.md) | Repository layout, runtime entrypoints, config storage, and how major layers interact. |
 | [`docs/integrations.md`](docs/integrations.md) | Plugin-style integrations: `IntegrationModule`, registry, capabilities, credentials, and CLI contributions. |
+| [`docs/plugin-protocol.md`](docs/plugin-protocol.md) | Installable plugin executables: subcommand contract, discovery, JSON protocol v1. |
 | [`docs/create-integration.md`](docs/create-integration.md) | Checklist for adding a new first-party integration module. |
 | [`docs/chat-pipeline.md`](docs/chat-pipeline.md) | `toby chat` message flow and tool-result caching behavior. |
 | [`docs/daemon.md`](docs/daemon.md) | Background daemon: schedules, chat inbound (@mentions), `daemon.log`, troubleshooting. |
