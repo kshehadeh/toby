@@ -1,19 +1,36 @@
-import { Text, render, useApp } from "ink";
-import React, { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { Box, Text, render, useApp, useInput, useStdout } from "ink";
+import React, {
+	useCallback,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { normalizeModelOnProviderChange } from "../../ai/model-factory";
 import { DEFAULT_CHAT_PERSONA } from "../../personas/index";
+import { ACCENT } from "../chat/constants";
 import {
+	ActionRow,
 	ConfirmDialog,
 	FieldEditor,
-	FieldNavigator,
 	FieldSelector,
-	UI_HINTS,
+	NavigatorRow,
+	SelectableTextRow,
+	UI_GLYPHS,
+	ViewFrame,
 	detectTerminalProfile,
+	isBackKey,
+	isNavigateDown,
+	isNavigateUp,
+	isQuitKey,
+	isSaveKey,
+	isSelectKey,
 	resolveKittyKeyboardMode,
 } from "../shared";
 import type { SettingsItem } from "./items";
 
 type Screen = "nav" | "edit" | "select" | "confirm";
+type PaneFocus = "left" | "right";
 
 interface AppCallbacks {
 	onCreatePersona: () => string;
@@ -29,33 +46,75 @@ interface AppProps {
 	refreshTree: (values: Record<string, string>) => SettingsItem;
 	callbacks: AppCallbacks;
 	onQuitRequested?: (values: Record<string, string>) => void;
-	/** When set (e.g. from chat `/persona`), open navigation at this key path under root. */
 	initialPath?: readonly string[];
 	initialSelectedIndex?: number;
-	/** When set, open the value/select editor for this item key under the current section (after `initialPath` resolves). */
 	initialEditorItemKey?: string;
 }
 
-function resolvePath(
-	root: SettingsItem,
-	keys: string[],
-): {
-	node: SettingsItem;
-	resolvedPath: string[];
-} {
-	let node = root;
-	const resolvedPath = [root.key];
+interface FlatTreeNode {
+	item: SettingsItem;
+	depth: number;
+}
 
-	for (let i = 1; i < keys.length; i++) {
-		const child = node.children?.find((c) => c.key === keys[i]);
-		if (!child) {
-			break;
+/** Flatten the SettingsItem tree into section-only nodes, respecting expansion state. */
+function flattenTreeSections(
+	root: SettingsItem,
+	expandedKeys: Set<string>,
+): FlatTreeNode[] {
+	const result: FlatTreeNode[] = [];
+
+	function walk(node: SettingsItem, depth: number) {
+		if (node.kind !== "section") return;
+		result.push({ item: node, depth });
+		if (expandedKeys.has(node.key) && node.children) {
+			for (const child of node.children) {
+				walk(child, depth + 1);
+			}
 		}
-		node = child;
-		resolvedPath.push(keys[i]);
 	}
 
-	return { node, resolvedPath };
+	if (root.children) {
+		for (const child of root.children) {
+			walk(child, 0);
+		}
+	}
+
+	return result;
+}
+
+/** Find ancestor section keys that must be expanded for `targetKey` to be visible. */
+function findAncestorKeys(root: SettingsItem, targetKey: string): string[] {
+	const ancestors: string[] = [];
+
+	function search(node: SettingsItem): boolean {
+		if (node.key === targetKey) return true;
+		if (node.children) {
+			for (const child of node.children) {
+				if (search(child)) {
+					if (node.kind === "section" && node.key !== "root") {
+						ancestors.push(node.key);
+					}
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	search(root);
+	return ancestors;
+}
+
+/** Find the index of the parent node in the flattened tree. */
+function findParentIndex(
+	flatNodes: FlatTreeNode[],
+	currentIndex: number,
+): number {
+	const currentDepth = flatNodes[currentIndex]?.depth ?? 0;
+	for (let i = currentIndex - 1; i >= 0; i--) {
+		if (flatNodes[i].depth < currentDepth) return i;
+	}
+	return -1;
 }
 
 export function ConfigureApp({
@@ -72,8 +131,12 @@ export function ConfigureApp({
 	const { exit } = useApp();
 	const [tree, setTree] = useState(root);
 	const [screen, setScreen] = useState<Screen>("nav");
-	const [path, setPath] = useState<string[]>(["root"]);
-	const [selectedIndex, setSelectedIndex] = useState(0);
+	const [expandedKeys, setExpandedKeys] = useState<Set<string>>(
+		() => new Set(),
+	);
+	const [leftIndex, setLeftIndex] = useState(0);
+	const [rightIndex, setRightIndex] = useState(0);
+	const [focusedPane, setFocusedPane] = useState<PaneFocus>("left");
 	const [editItem, setEditItem] = useState<SettingsItem | null>(null);
 	const [values, setValues] =
 		useState<Record<string, string>>(credentialValues);
@@ -85,32 +148,86 @@ export function ConfigureApp({
 		undefined,
 	);
 
+	// ── Flatten tree for left pane ──────────────────────────────────────
+	const flatNodes = useMemo(
+		() => flattenTreeSections(tree, expandedKeys),
+		[tree, expandedKeys],
+	);
+
+	const selectedNode = flatNodes[leftIndex]?.item ?? null;
+
+	// A "branch" node has section children (sub-categories) and uses expand/collapse.
+	// A "leaf" node has no section children — only fields — and acts like a sub-item.
+	const selectedHasSubCategories =
+		selectedNode?.children?.some((c) => c.kind === "section") ?? false;
+
+	// ── Build right pane items ──────────────────────────────────────────
+	// Branch nodes with sub-categories hide the right pane until a sub-item is selected.
+	// Leaf nodes and sub-items always show their fields.
+	const rightPaneItems = useMemo(() => {
+		if (!selectedNode || selectedHasSubCategories) return [];
+		const children = selectedNode.children ?? [];
+		return children.map((item) => {
+			const rawValue =
+				item.kind === "value" || item.kind === "select"
+					? (values[item.key] ?? item.currentValue)
+					: undefined;
+			let displayValue = rawValue;
+			if (item.kind === "select" && rawValue !== undefined) {
+				const labeled = item.selectChoices?.find((c) => c.value === rawValue);
+				displayValue = labeled?.label ?? rawValue;
+			}
+			return {
+				item,
+				key: item.navKey ?? item.key,
+				label: item.label,
+				kind: item.kind,
+				masked: item.masked,
+				multiline: item.multiline,
+				options: item.options,
+				currentValue: displayValue,
+			};
+		});
+	}, [selectedNode, selectedHasSubCategories, values]);
+
+	// ── Initial navigation from external (e.g. chat /persona) ──────────
 	const initialNavigateRef = useRef({
 		path: initialPath,
 		index: initialSelectedIndex,
 	});
+	// biome-ignore lint/correctness/useExhaustiveDependencies: one-shot init — expandedKeys intentionally excluded to avoid re-triggering
 	useLayoutEffect(() => {
 		const spec = initialNavigateRef.current;
-		if (!spec.path?.length) {
-			return;
+		if (!spec.path?.length) return;
+
+		const targetKey = spec.path[spec.path.length - 1];
+		const ancestorKeys = findAncestorKeys(tree, targetKey);
+		const newExpanded = new Set(expandedKeys);
+		for (const key of ancestorKeys) newExpanded.add(key);
+
+		const newFlat = flattenTreeSections(tree, newExpanded);
+		const idx = newFlat.findIndex((n) => n.item.key === targetKey);
+
+		setExpandedKeys(newExpanded);
+		if (idx >= 0) {
+			setLeftIndex(idx);
+			setFocusedPane("right");
 		}
-		const { resolvedPath } = resolvePath(tree, [...spec.path]);
-		setPath(resolvedPath);
-		setSelectedIndex(spec.index);
+
 		initialNavigateRef.current = { path: undefined, index: 0 };
 	}, [tree]);
 
+	// ── Initial editor key ──────────────────────────────────────────────
 	const initialEditorKeyRef = useRef(initialEditorItemKey);
 	useLayoutEffect(() => {
 		const key = initialEditorKeyRef.current;
-		if (!key) {
-			return;
-		}
-		const { node } = resolvePath(tree, path);
-		const child = node.children?.find((c) => c.key === key || c.navKey === key);
-		if (!child) {
-			return;
-		}
+		if (!key || !selectedNode) return;
+
+		const child = selectedNode.children?.find(
+			(c) => c.key === key || c.navKey === key,
+		);
+		if (!child) return;
+
 		initialEditorKeyRef.current = undefined;
 		if (child.kind === "value") {
 			setEditItem(child);
@@ -119,55 +236,35 @@ export function ConfigureApp({
 			setEditItem(child);
 			setScreen("select");
 		}
-	}, [path, tree]);
+	}, [selectedNode]);
 
-	const { node: currentNode, resolvedPath } = resolvePath(tree, path);
-	const childItems = currentNode.children ?? [];
-	const childByNavKey = new Map(
-		childItems.map((item) => [item.navKey ?? item.key, item]),
-	);
-	const items = childItems.map((item) => {
-		const rawValue =
-			item.kind === "value" || item.kind === "select"
-				? (values[item.key] ?? item.currentValue)
-				: undefined;
-		let displayValue = rawValue;
-		if (item.kind === "select" && rawValue !== undefined) {
-			const labeled = item.selectChoices?.find((c) => c.value === rawValue);
-			displayValue = labeled?.label ?? rawValue;
-		}
-		return {
-			key: item.navKey ?? item.key,
-			label: item.label,
-			kind: item.kind,
-			masked: item.masked,
-			multiline: item.multiline,
-			options: item.options,
-			currentValue: displayValue,
-		};
-	});
+	// ── Reset right index when left selection changes ───────────────────
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional
+	useLayoutEffect(() => {
+		setRightIndex(0);
+	}, [leftIndex, selectedNode]);
 
-	const breadcrumb = resolvedPath
-		.map((_, index) => {
-			const node = resolvePath(tree, resolvedPath.slice(0, index + 1)).node;
-			return node.label;
-		})
-		.filter(Boolean);
+	// ── Clamp left index when tree changes ───────────────────────────────
+	useLayoutEffect(() => {
+		setLeftIndex((prev) => Math.min(prev, Math.max(0, flatNodes.length - 1)));
+	}, [flatNodes.length]);
 
-	const doRefresh = useCallback(
-		(newValues: Record<string, string>) => {
-			const newTree = refreshTree(newValues);
-			setTree(newTree);
-			setPath((prevPath) => resolvePath(newTree, prevPath).resolvedPath);
-			setSelectedIndex(0);
-		},
-		[refreshTree],
-	);
-
+	// ── Dirty detection ─────────────────────────────────────────────────
 	const isDirty = Object.keys(values).some(
 		(key) => values[key] !== savedValues[key],
 	);
 
+	// ── Tree refresh (returns new tree for immediate use) ───────────────
+	const doRefresh = useCallback(
+		(newValues: Record<string, string>): SettingsItem => {
+			const newTree = refreshTree(newValues);
+			setTree(newTree);
+			return newTree;
+		},
+		[refreshTree],
+	);
+
+	// ── Exit ─────────────────────────────────────────────────────────────
 	const doExit = useCallback(() => {
 		if (onQuitRequested) {
 			onQuitRequested(values);
@@ -177,62 +274,41 @@ export function ConfigureApp({
 		exit();
 	}, [values, onSave, exit, onQuitRequested]);
 
+	// ── Save ─────────────────────────────────────────────────────────────
 	const handleSave = useCallback(() => {
 		onSave(values);
 		setSavedValues(values);
 		setStatusMessage("Configuration saved.");
 	}, [values, onSave]);
 
-	const handleBack = useCallback(() => {
-		if (path.length > 1) {
-			if (isDirty) {
-				setConfirmMsg("Discard unsaved changes?");
-				setConfirmAction(() => () => {
-					setConfirmAction(null);
-					setConfirmMsg("");
-					setValues(savedValues);
-					doRefresh(savedValues);
-					setPath((p) => p.slice(0, -1));
-					setSelectedIndex(0);
-					setStatusMessage(undefined);
-				});
-				setScreen("confirm");
-				return;
-			}
-			setPath((p) => p.slice(0, -1));
-			setSelectedIndex(0);
-		} else {
-			if (isDirty) {
-				setConfirmMsg("Discard unsaved changes?");
-				setConfirmAction(() => () => {
-					setConfirmAction(null);
-					setConfirmMsg("");
-					setValues(savedValues);
-					doRefresh(savedValues);
-					doExit();
-				});
-				setScreen("confirm");
-				return;
-			}
-			doExit();
-		}
-		setStatusMessage(undefined);
-	}, [path, isDirty, savedValues, doRefresh, doExit]);
+	// ── Navigate to a section in the left tree ───────────────────────────
+	const navigateToSection = useCallback(
+		(sectionKey: string, focusRightPane = true) => {
+			const ancestorKeys = findAncestorKeys(tree, sectionKey);
+			const newExpanded = new Set(expandedKeys);
+			for (const key of ancestorKeys) newExpanded.add(key);
 
+			const newFlat = flattenTreeSections(tree, newExpanded);
+			const idx = newFlat.findIndex((n) => n.item.key === sectionKey);
+
+			setExpandedKeys(newExpanded);
+			if (idx >= 0) setLeftIndex(idx);
+			if (focusRightPane) setFocusedPane("right");
+		},
+		[tree, expandedKeys],
+	);
+
+	// ── Handle item activation in right pane ────────────────────────────
 	const handleSelectItem = useCallback(
 		(item: SettingsItem) => {
 			setStatusMessage(undefined);
+
 			if (item.kind === "section") {
-				setPath((p) => {
-					const nextPath = [...p, item.key];
-					const resolvedNextPath = resolvePath(tree, nextPath).resolvedPath;
-					if (resolvedNextPath.length !== nextPath.length) {
-						return p;
-					}
-					setSelectedIndex(0);
-					return nextPath;
-				});
-			} else if (item.kind === "value") {
+				navigateToSection(item.key);
+				return;
+			}
+
+			if (item.kind === "value") {
 				setEditItem(item);
 				setScreen("edit");
 			} else if (item.kind === "select") {
@@ -251,7 +327,23 @@ export function ConfigureApp({
 						[`personas.${personaName}.ai.model`]: defaults.ai.model,
 					};
 					setValues(newValues);
-					doRefresh(newValues);
+					const newTree = doRefresh(newValues);
+
+					// Navigate to the new persona using the refreshed tree
+					const ancestorKeys = findAncestorKeys(
+						newTree,
+						`personas.${personaName}`,
+					);
+					const newExpanded = new Set(expandedKeys);
+					newExpanded.add("personas");
+					for (const key of ancestorKeys) newExpanded.add(key);
+					const newFlat = flattenTreeSections(newTree, newExpanded);
+					const idx = newFlat.findIndex(
+						(n) => n.item.key === `personas.${personaName}`,
+					);
+					setExpandedKeys(newExpanded);
+					if (idx >= 0) setLeftIndex(idx);
+					setFocusedPane("right");
 				} else if (item.key.endsWith("._setDefault")) {
 					const personaName = item.key
 						.replace("personas.", "")
@@ -281,16 +373,15 @@ export function ConfigureApp({
 					}
 					setValues(cleanedValues);
 					doRefresh(cleanedValues);
-					setPath((p) => p.slice(0, -1));
-					setSelectedIndex(0);
 					setScreen("nav");
 				});
 				setScreen("confirm");
 			}
 		},
-		[values, doRefresh, callbacks, tree],
+		[values, doRefresh, callbacks, navigateToSection, expandedKeys],
 	);
 
+	// ── Editor submit ───────────────────────────────────────────────────
 	const handleEditorSubmit = useCallback(
 		(newValue: string) => {
 			if (editItem) {
@@ -320,14 +411,10 @@ export function ConfigureApp({
 						}
 
 						const oldPrefix = `personas.${oldName}.`;
-						const migratedValues: Record<string, string> = {
-							...newValues,
-						};
+						const migratedValues: Record<string, string> = { ...newValues };
 
 						for (const [key, value] of Object.entries(newValues)) {
-							if (!key.startsWith(oldPrefix)) {
-								continue;
-							}
+							if (!key.startsWith(oldPrefix)) continue;
 							const suffix = key.slice(oldPrefix.length);
 							delete migratedValues[key];
 							migratedValues[`personas.${newName}.${suffix}`] = value;
@@ -348,6 +435,7 @@ export function ConfigureApp({
 		[editItem, values, doRefresh],
 	);
 
+	// ── Select submit ────────────────────────────────────────────────────
 	const handleSelectSubmit = useCallback(
 		(newValue: string) => {
 			if (editItem) {
@@ -373,11 +461,170 @@ export function ConfigureApp({
 		[editItem, values, doRefresh],
 	);
 
+	// ── Editor cancel ───────────────────────────────────────────────────
 	const handleEditorCancel = useCallback(() => {
 		setScreen("nav");
 		setEditItem(null);
 	}, []);
 
+	// ── Input handling ──────────────────────────────────────────────────
+	useInput((input, key) => {
+		if (screen !== "nav") return;
+
+		// Global: save from any pane
+		if (isSaveKey(input, key)) {
+			handleSave();
+			return;
+		}
+
+		// Global: quit
+		if (isQuitKey(input, key)) {
+			if (isDirty) {
+				setConfirmMsg("Discard unsaved changes?");
+				setConfirmAction(() => () => {
+					setConfirmAction(null);
+					setConfirmMsg("");
+					setValues(savedValues);
+					doRefresh(savedValues);
+					doExit();
+				});
+				setScreen("confirm");
+				return;
+			}
+			doExit();
+			return;
+		}
+
+		// Tab switches panes
+		if (key.tab) {
+			setFocusedPane((prev) => {
+				if (prev === "left") {
+					return rightPaneItems.length > 0 ? "right" : "left";
+				}
+				return "left";
+			});
+			return;
+		}
+
+		// ── Left pane: tree navigation ──────────────────────────────────
+		if (focusedPane === "left") {
+			if (isNavigateUp(input, key)) {
+				setLeftIndex((prev) => Math.max(0, prev - 1));
+				return;
+			}
+			if (isNavigateDown(input, key)) {
+				setLeftIndex((prev) => Math.min(flatNodes.length - 1, prev + 1));
+				return;
+			}
+			if (key.rightArrow) {
+				const node = flatNodes[leftIndex]?.item;
+				if (!node) return;
+				const hasSubCats =
+					node.children?.some((c) => c.kind === "section") ?? false;
+				if (hasSubCats) {
+					if (!expandedKeys.has(node.key)) {
+						// Expand collapsed branch
+						setExpandedKeys((prev) => {
+							const next = new Set(prev);
+							next.add(node.key);
+							return next;
+						});
+					} else if (
+						leftIndex + 1 < flatNodes.length &&
+						flatNodes[leftIndex + 1].depth > flatNodes[leftIndex].depth
+					) {
+						// Move to first child
+						setLeftIndex(leftIndex + 1);
+					}
+				} else if (rightPaneItems.length > 0) {
+					// Leaf node: focus right pane
+					setFocusedPane("right");
+					setRightIndex(0);
+				}
+				return;
+			}
+			if (key.leftArrow) {
+				const node = flatNodes[leftIndex]?.item;
+				if (!node) return;
+				const hasSubCats =
+					node.children?.some((c) => c.kind === "section") ?? false;
+				if (hasSubCats && expandedKeys.has(node.key)) {
+					// Collapse expanded branch
+					setExpandedKeys((prev) => {
+						const next = new Set(prev);
+						next.delete(node.key);
+						return next;
+					});
+				} else {
+					// Move to parent
+					const parentIdx = findParentIndex(flatNodes, leftIndex);
+					if (parentIdx >= 0) setLeftIndex(parentIdx);
+				}
+				return;
+			}
+			if (isSelectKey(input, key)) {
+				// Branch nodes (with sub-categories): Enter toggles expand/collapse.
+				// Leaf nodes (fields only): Enter focuses the right pane to edit.
+				if (selectedHasSubCategories) {
+					const node = flatNodes[leftIndex]?.item;
+					if (!node) return;
+					setExpandedKeys((prev) => {
+						const next = new Set(prev);
+						if (next.has(node.key)) {
+							next.delete(node.key);
+						} else {
+							next.add(node.key);
+						}
+						return next;
+					});
+				} else if (rightPaneItems.length > 0) {
+					setFocusedPane("right");
+					setRightIndex(0);
+				}
+				return;
+			}
+			if (isBackKey(input, key)) {
+				if (isDirty) {
+					setConfirmMsg("Discard unsaved changes?");
+					setConfirmAction(() => () => {
+						setConfirmAction(null);
+						setConfirmMsg("");
+						setValues(savedValues);
+						doRefresh(savedValues);
+						doExit();
+					});
+					setScreen("confirm");
+					return;
+				}
+				doExit();
+				return;
+			}
+			return;
+		}
+
+		// ── Right pane: field navigation ─────────────────────────────────
+		if (isNavigateUp(input, key)) {
+			setRightIndex((prev) => Math.max(0, prev - 1));
+			return;
+		}
+		if (isNavigateDown(input, key)) {
+			setRightIndex((prev) => Math.min(rightPaneItems.length - 1, prev + 1));
+			return;
+		}
+		if (isSelectKey(input, key)) {
+			const rightItem = rightPaneItems[rightIndex];
+			if (rightItem) {
+				handleSelectItem(rightItem.item);
+			}
+			return;
+		}
+		if (isBackKey(input, key)) {
+			setFocusedPane("left");
+			return;
+		}
+	});
+
+	// ── Confirm dialog overlay ──────────────────────────────────────────
 	if (screen === "confirm" && confirmAction) {
 		return (
 			<ConfirmDialog
@@ -397,6 +644,7 @@ export function ConfigureApp({
 		);
 	}
 
+	// ── Editor overlay ──────────────────────────────────────────────────
 	if (screen === "edit" && editItem) {
 		const resolvedValue = values[editItem.key] ?? editItem.currentValue;
 		const itemWithCurrent = { ...editItem, currentValue: resolvedValue };
@@ -414,6 +662,7 @@ export function ConfigureApp({
 		);
 	}
 
+	// ── Select overlay ───────────────────────────────────────────────────
 	if (screen === "select" && editItem) {
 		return (
 			<FieldSelector
@@ -428,24 +677,149 @@ export function ConfigureApp({
 		);
 	}
 
+	// ── Main 2-pane layout ──────────────────────────────────────────────
+	const { stdout } = useStdout();
+	const terminalRows = stdout?.rows ?? 24;
+	const chromeRows = 14;
+	const panesHeight = Math.max(6, terminalRows - chromeRows);
+
+	const footerText =
+		focusedPane === "left"
+			? "↑↓ navigate · → expand · ← collapse · Enter open · s save · q close"
+			: "↑↓ navigate · Enter edit · s save · Tab/Esc tree · q close";
+
 	return (
-		<FieldNavigator
-			appTitle="Configuration"
-			breadcrumb={breadcrumb}
-			items={items}
-			selectedIndex={selectedIndex}
-			statusMessage={statusMessage}
-			footer={<Text dimColor>{UI_HINTS.fieldBrowse}</Text>}
-			onSelect={setSelectedIndex}
-			onBack={handleBack}
-			onSelectItem={(navItem) => {
-				const settingsItem = childByNavKey.get(navItem.key);
-				if (settingsItem) {
-					handleSelectItem(settingsItem);
-				}
-			}}
-			onSave={handleSave}
-		/>
+		<ViewFrame
+			title="Configuration"
+			footer={<Text dimColor>{footerText}</Text>}
+		>
+			<Box flexDirection="row" height={panesHeight}>
+				{/* Left pane — tree */}
+				<Box
+					flexDirection="column"
+					width="40%"
+					height={panesHeight}
+					borderStyle="single"
+					borderColor={focusedPane === "left" ? ACCENT : "gray"}
+				>
+					{flatNodes.map((node, i) => {
+						const isSelected = i === leftIndex;
+						const isActive = focusedPane === "left";
+						const isExpanded = expandedKeys.has(node.item.key);
+						const hasSubCats =
+							node.item.children?.some((c) => c.kind === "section") ?? false;
+						const indent = "  ".repeat(node.depth);
+						const expandGlyph = hasSubCats ? (isExpanded ? "▾" : "▸") : " ";
+
+						return (
+							<SelectableTextRow
+								key={node.item.key}
+								selected={isSelected && isActive}
+								dim={isSelected && !isActive}
+							>
+								<Text>
+									{indent}
+									{expandGlyph} {node.item.label}
+								</Text>
+							</SelectableTextRow>
+						);
+					})}
+					{flatNodes.length === 0 ? (
+						<Box paddingX={1}>
+							<Text dimColor>No configuration categories.</Text>
+						</Box>
+					) : null}
+				</Box>
+
+				{/* Right pane — fields */}
+				<Box
+					flexDirection="column"
+					width="60%"
+					height={panesHeight}
+					borderStyle="single"
+					borderColor={focusedPane === "right" ? ACCENT : "gray"}
+				>
+					{selectedNode && !selectedHasSubCategories ? (
+						<>
+							<Box paddingX={1} marginBottom={1}>
+								<Text bold color={ACCENT}>
+									{selectedNode.label}
+								</Text>
+							</Box>
+							{rightPaneItems.length === 0 ? (
+								<Box paddingX={1}>
+									<Text dimColor>
+										{selectedNode.children?.some((c) => c.kind === "section")
+											? "Expand this category to select a sub-category."
+											: "No fields in this section."}
+									</Text>
+								</Box>
+							) : (
+								rightPaneItems.map((rightItem, i) => {
+									const selected = i === rightIndex && focusedPane === "right";
+
+									if (rightItem.kind === "section") {
+										return (
+											<SelectableTextRow
+												key={rightItem.key}
+												selected={selected}
+											>
+												<Text color="green">
+													{UI_GLYPHS.section} {rightItem.label}
+												</Text>
+											</SelectableTextRow>
+										);
+									}
+									if (rightItem.kind === "action") {
+										return (
+											<ActionRow
+												key={rightItem.key}
+												label={rightItem.label}
+												selected={selected}
+												kind="action"
+											/>
+										);
+									}
+									if (rightItem.kind === "delete") {
+										return (
+											<ActionRow
+												key={rightItem.key}
+												label={rightItem.label}
+												selected={selected}
+												kind="delete"
+											/>
+										);
+									}
+									return (
+										<NavigatorRow
+											key={rightItem.key}
+											label={rightItem.label}
+											kind={rightItem.kind as "value" | "select"}
+											selected={selected}
+											masked={rightItem.masked}
+											multiline={rightItem.multiline}
+											currentValue={rightItem.currentValue}
+											options={rightItem.options}
+										/>
+									);
+								})
+							)}
+						</>
+					) : (
+						<Box paddingX={1}>
+							<Text dimColor>Select a category on the left.</Text>
+						</Box>
+					)}
+				</Box>
+			</Box>
+
+			{/* Status message */}
+			{statusMessage ? (
+				<Box paddingX={1} marginTop={1}>
+					<Text color="yellow">{statusMessage}</Text>
+				</Box>
+			) : null}
+		</ViewFrame>
 	);
 }
 
