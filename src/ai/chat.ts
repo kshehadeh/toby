@@ -15,6 +15,8 @@ import {
 	isReadOnlyChatTool,
 	setCachedToolResult,
 } from "../chat-pipeline/tool-result-cache";
+import { enrichChatModelError } from "./chat-errors";
+export { formatChatModelError } from "./chat-errors";
 export { createModelForPersona } from "./model-factory";
 
 export type CoreMessage = ModelMessage;
@@ -302,6 +304,7 @@ export async function chatWithTools(
 
 	/** Need streamText when either the legacy delta callback or chat pipeline events are used. */
 	if (onAssistantTextDelta || onChatEvent) {
+		let capturedStreamError: unknown;
 		const result = streamText({
 			model,
 			messages,
@@ -309,6 +312,11 @@ export async function chatWithTools(
 			stopWhen: stepCountIs(12),
 			providerOptions: providerOptions as never,
 			abortSignal,
+			onError: ({ error }) => {
+				if (!capturedStreamError) {
+					capturedStreamError = error;
+				}
+			},
 		});
 
 		const modelRequestId = randomUUID();
@@ -371,37 +379,41 @@ export async function chatWithTools(
 		endAssistantSegment();
 		throwIfAborted(abortSignal);
 
-		const [response, text, steps, toolResults, usage, providerMetadata] =
-			await awaitWithAbort(
-				Promise.all([
-					result.response,
-					result.text,
-					result.steps,
-					result.toolResults,
-					result.usage,
-					result.providerMetadata,
-				]),
-				abortSignal,
+		try {
+			const [response, text, steps, toolResults, usage, providerMetadata] =
+				await awaitWithAbort(
+					Promise.all([
+						result.response,
+						result.text,
+						result.steps,
+						result.toolResults,
+						result.usage,
+						result.providerMetadata,
+					]),
+					abortSignal,
+				);
+
+			const toolCalls = steps.flatMap((step) =>
+				step.toolCalls.map((tc) => ({
+					name: tc.toolName,
+					args:
+						tc.input && typeof tc.input === "object" && !Array.isArray(tc.input)
+							? (tc.input as Record<string, unknown>)
+							: {},
+				})),
 			);
 
-		const toolCalls = steps.flatMap((step) =>
-			step.toolCalls.map((tc) => ({
-				name: tc.toolName,
-				args:
-					tc.input && typeof tc.input === "object" && !Array.isArray(tc.input)
-						? (tc.input as Record<string, unknown>)
-						: {},
-			})),
-		);
-
-		return {
-			text,
-			toolResults,
-			toolCalls,
-			responseMessages: response.messages as CoreMessage[],
-			usage,
-			providerMetadata,
-		};
+			return {
+				text,
+				toolResults,
+				toolCalls,
+				responseMessages: response.messages as CoreMessage[],
+				usage,
+				providerMetadata,
+			};
+		} catch (error) {
+			throw enrichChatModelError(error, capturedStreamError);
+		}
 	}
 
 	const result = await awaitWithAbort(
