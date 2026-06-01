@@ -5,8 +5,8 @@ import {
 	openSkillInEditor,
 	updateSkillFrontmatter,
 } from "@toby/core/skills/manage";
-import { Box, Text, render, useApp, useInput, useStdout } from "ink";
-import { useCallback, useLayoutEffect, useMemo, useState } from "react";
+import { Box, Text, render, useApp, useInput } from "ink";
+import { useCallback, useState } from "react";
 import { ACCENT } from "../chat/constants";
 import {
 	ActionRow,
@@ -14,8 +14,8 @@ import {
 	FieldEditor,
 	NavigatorRow,
 	SelectableTextRow,
+	TwoPaneView,
 	UI_GLYPHS,
-	ViewFrame,
 	detectTerminalProfile,
 	isBackKey,
 	isNavigateDown,
@@ -23,6 +23,7 @@ import {
 	isQuitKey,
 	isSelectKey,
 	resolveKittyKeyboardMode,
+	useTwoPaneNavigation,
 } from "../shared";
 
 const MAX_DESC_PREVIEW = 60;
@@ -46,7 +47,6 @@ type SkillPaneItem =
 	| { key: string; kind: "action"; label: string; actionKey: "edit" }
 	| { key: string; kind: "delete"; label: string };
 
-type PaneFocus = "left" | "right";
 type Screen = "nav" | "edit" | "confirm";
 
 interface SkillsAppProps {
@@ -57,9 +57,15 @@ export function SkillsApp({ onQuitRequested }: SkillsAppProps) {
 	const { exit } = useApp();
 	const [skills, setSkills] = useState<LocalSkill[]>(() => loadLocalSkills());
 	const [screen, setScreen] = useState<Screen>("nav");
-	const [leftIndex, setLeftIndex] = useState(0);
-	const [rightIndex, setRightIndex] = useState(0);
-	const [focusedPane, setFocusedPane] = useState<PaneFocus>("left");
+	const {
+		focusedPane,
+		setFocusedPane,
+		leftIndex,
+		setLeftIndex,
+		rightIndex,
+		setRightIndex,
+		toggleFocus,
+	} = useTwoPaneNavigation({ leftCount: skills.length });
 	const [confirmMsg, setConfirmMsg] = useState("");
 	const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
 	const [statusMessage, setStatusMessage] = useState<string | undefined>(
@@ -134,15 +140,6 @@ export function SkillsApp({ onQuitRequested }: SkillsAppProps) {
 			]
 		: [];
 
-	useLayoutEffect(() => {
-		setLeftIndex((prev) => Math.min(prev, Math.max(0, skills.length - 1)));
-	}, [skills.length]);
-
-	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional — reset right selection when left selection changes
-	useLayoutEffect(() => {
-		setRightIndex(0);
-	}, [leftIndex]);
-
 	useInput((input, key) => {
 		if (screen !== "nav") return;
 
@@ -152,12 +149,7 @@ export function SkillsApp({ onQuitRequested }: SkillsAppProps) {
 		}
 
 		if (key.tab) {
-			setFocusedPane((prev) => {
-				if (prev === "left") {
-					return skills.length > 0 ? "right" : "left";
-				}
-				return "left";
-			});
+			toggleFocus(skills.length > 0);
 			return;
 		}
 
@@ -251,7 +243,7 @@ export function SkillsApp({ onQuitRequested }: SkillsAppProps) {
 				setScreen("confirm");
 			}
 		},
-		[selectedSkill, refreshSkills],
+		[selectedSkill, refreshSkills, setFocusedPane, setLeftIndex, setRightIndex],
 	);
 
 	const handleEditorSubmit = useCallback(
@@ -282,7 +274,7 @@ export function SkillsApp({ onQuitRequested }: SkillsAppProps) {
 			setScreen("nav");
 			setEditItem(null);
 		},
-		[editItem, refreshSkills, selectedSkill],
+		[editItem, refreshSkills, selectedSkill, setFocusedPane, setLeftIndex],
 	);
 
 	const handleEditorCancel = useCallback(() => {
@@ -320,11 +312,6 @@ export function SkillsApp({ onQuitRequested }: SkillsAppProps) {
 		);
 	}
 
-	const { stdout } = useStdout();
-	const terminalRows = stdout?.rows ?? 24;
-	const chromeRows = 14;
-	const panesHeight = Math.max(6, terminalRows - chromeRows);
-
 	const footerText =
 		focusedPane === "left"
 			? "↑↓ navigate · Enter open · Tab switch pane · q close"
@@ -334,96 +321,89 @@ export function SkillsApp({ onQuitRequested }: SkillsAppProps) {
 		? truncatePreview(selectedSkill.bodyMarkdown, MAX_BODY_PREVIEW)
 		: "";
 
-	return (
-		<ViewFrame title="Skills" footer={<Text dimColor>{footerText}</Text>}>
-			<Box flexDirection="row" height={panesHeight}>
-				<Box
-					flexDirection="column"
-					width="40%"
-					height={panesHeight}
-					borderStyle="single"
-					borderColor={focusedPane === "left" ? ACCENT : "gray"}
-				>
-					{skills.map((skill, i) => {
-						const isSelected = i === leftIndex && focusedPane === "left";
-						const desc = truncatePreview(skill.description, MAX_DESC_PREVIEW);
-						const label = skill.summary
-							? `${desc} — ${truncatePreview(skill.summary, MAX_DESC_PREVIEW)}`
-							: desc;
-						return (
-							<SelectableTextRow key={skill.dirName} selected={isSelected}>
-								{UI_GLYPHS.section} {skill.name} <Text dimColor>{label}</Text>
-							</SelectableTextRow>
-						);
-					})}
-					{skills.length === 0 ? (
-						<Box paddingX={1} paddingY={1}>
-							<Text dimColor>
-								No skills found. Add skills to{" "}
-								<Text color={ACCENT}>{getSkillsDir()}</Text>
-							</Text>
-						</Box>
-					) : null}
-				</Box>
-
-				<Box
-					flexDirection="column"
-					width="60%"
-					height={panesHeight}
-					borderStyle="single"
-					borderColor={focusedPane === "right" ? ACCENT : "gray"}
-				>
-					{selectedSkill ? (
-						<>
-							<Box marginBottom={1} paddingX={1}>
-								<Text bold color={ACCENT}>
-									Skills &gt; {selectedSkill.name}
-								</Text>
-							</Box>
-							{detailItems.map((item, i) => {
-								const isSelected = i === rightIndex && focusedPane === "right";
-								if (item.kind === "action" || item.kind === "delete") {
-									return (
-										<ActionRow
-											key={item.key}
-											label={item.label}
-											selected={isSelected}
-											kind={item.kind}
-										/>
-									);
-								}
-								const rowKind =
-									item.kind === "info" ? ("value" as const) : item.kind;
-								return (
-									<NavigatorRow
-										key={item.key}
-										label={item.label}
-										kind={rowKind}
-										selected={isSelected}
-										multiline={"multiline" in item ? item.multiline : undefined}
-										currentValue={item.currentValue}
-									/>
-								);
-							})}
-							<Box marginTop={1} paddingX={1}>
-								<Text dimColor italic wrap="truncate-end">
-									{bodyPreview}
-								</Text>
-							</Box>
-						</>
-					) : (
-						<Box paddingX={1}>
-							<Text dimColor>Select a skill on the left.</Text>
-						</Box>
-					)}
-				</Box>
-			</Box>
-			{statusMessage ? (
-				<Box marginTop={1} paddingX={1}>
-					<Text color="yellow">{statusMessage}</Text>
+	const leftPane = (
+		<>
+			{skills.map((skill, i) => {
+				const isSelected = i === leftIndex && focusedPane === "left";
+				const desc = truncatePreview(skill.description, MAX_DESC_PREVIEW);
+				const label = skill.summary
+					? `${desc} — ${truncatePreview(skill.summary, MAX_DESC_PREVIEW)}`
+					: desc;
+				return (
+					<SelectableTextRow key={skill.dirName} selected={isSelected}>
+						{UI_GLYPHS.section} {skill.name} <Text dimColor>{label}</Text>
+					</SelectableTextRow>
+				);
+			})}
+			{skills.length === 0 ? (
+				<Box paddingX={1} paddingY={1}>
+					<Text dimColor>
+						No skills found. Add skills to{" "}
+						<Text color={ACCENT}>{getSkillsDir()}</Text>
+					</Text>
 				</Box>
 			) : null}
-		</ViewFrame>
+		</>
+	);
+
+	const rightPane = selectedSkill ? (
+		<>
+			<Box marginBottom={1} paddingX={1}>
+				<Text bold color={ACCENT}>
+					Skills &gt; {selectedSkill.name}
+				</Text>
+			</Box>
+			{detailItems.map((item, i) => {
+				const isSelected = i === rightIndex && focusedPane === "right";
+				if (item.kind === "action" || item.kind === "delete") {
+					return (
+						<ActionRow
+							key={item.key}
+							label={item.label}
+							selected={isSelected}
+							kind={item.kind}
+						/>
+					);
+				}
+				const rowKind = item.kind === "info" ? ("value" as const) : item.kind;
+				return (
+					<NavigatorRow
+						key={item.key}
+						label={item.label}
+						kind={rowKind}
+						selected={isSelected}
+						multiline={"multiline" in item ? item.multiline : undefined}
+						currentValue={item.currentValue}
+					/>
+				);
+			})}
+			<Box marginTop={1} paddingX={1}>
+				<Text dimColor italic wrap="truncate-end">
+					{bodyPreview}
+				</Text>
+			</Box>
+		</>
+	) : (
+		<Box paddingX={1}>
+			<Text dimColor>Select a skill on the left.</Text>
+		</Box>
+	);
+
+	return (
+		<TwoPaneView
+			title="Skills"
+			statusBar={<Text dimColor>{footerText}</Text>}
+			focusedPane={focusedPane}
+			left={leftPane}
+			right={rightPane}
+			status={
+				statusMessage ? (
+					<Box marginTop={1} paddingX={1}>
+						<Text color="yellow">{statusMessage}</Text>
+					</Box>
+				) : null
+			}
+		/>
 	);
 }
 

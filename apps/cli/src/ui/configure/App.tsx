@@ -1,6 +1,6 @@
 import { normalizeModelOnProviderChange } from "@toby/core/ai/model-factory";
 import { DEFAULT_CHAT_PERSONA } from "@toby/core/personas/index";
-import { Box, Text, render, useApp, useInput, useStdout } from "ink";
+import { Box, Text, render, useApp, useInput } from "ink";
 import React, {
 	useCallback,
 	useLayoutEffect,
@@ -16,8 +16,8 @@ import {
 	FieldSelector,
 	NavigatorRow,
 	SelectableTextRow,
+	TwoPaneView,
 	UI_GLYPHS,
-	ViewFrame,
 	detectTerminalProfile,
 	isBackKey,
 	isNavigateDown,
@@ -26,11 +26,11 @@ import {
 	isSaveKey,
 	isSelectKey,
 	resolveKittyKeyboardMode,
+	useTwoPaneNavigation,
 } from "../shared";
 import type { SettingsItem } from "./items";
 
 type Screen = "nav" | "edit" | "select" | "confirm";
-type PaneFocus = "left" | "right";
 
 interface AppCallbacks {
 	onCreatePersona: () => string;
@@ -134,9 +134,6 @@ export function ConfigureApp({
 	const [expandedKeys, setExpandedKeys] = useState<Set<string>>(
 		() => new Set(),
 	);
-	const [leftIndex, setLeftIndex] = useState(0);
-	const [rightIndex, setRightIndex] = useState(0);
-	const [focusedPane, setFocusedPane] = useState<PaneFocus>("left");
 	const [editItem, setEditItem] = useState<SettingsItem | null>(null);
 	const [values, setValues] =
 		useState<Record<string, string>>(credentialValues);
@@ -153,6 +150,21 @@ export function ConfigureApp({
 		() => flattenTreeSections(tree, expandedKeys),
 		[tree, expandedKeys],
 	);
+
+	// Auto-reset is disabled because the right index must also reset when the
+	// selected node changes without `leftIndex` changing (e.g. tree refresh).
+	const {
+		focusedPane,
+		setFocusedPane,
+		leftIndex,
+		setLeftIndex,
+		rightIndex,
+		setRightIndex,
+		toggleFocus,
+	} = useTwoPaneNavigation({
+		leftCount: flatNodes.length,
+		resetRightOnLeftChange: false,
+	});
 
 	const selectedNode = flatNodes[leftIndex]?.item ?? null;
 
@@ -244,11 +256,6 @@ export function ConfigureApp({
 		setRightIndex(0);
 	}, [leftIndex, selectedNode]);
 
-	// ── Clamp left index when tree changes ───────────────────────────────
-	useLayoutEffect(() => {
-		setLeftIndex((prev) => Math.min(prev, Math.max(0, flatNodes.length - 1)));
-	}, [flatNodes.length]);
-
 	// ── Dirty detection ─────────────────────────────────────────────────
 	const isDirty = Object.keys(values).some(
 		(key) => values[key] !== savedValues[key],
@@ -295,7 +302,7 @@ export function ConfigureApp({
 			if (idx >= 0) setLeftIndex(idx);
 			if (focusRightPane) setFocusedPane("right");
 		},
-		[tree, expandedKeys],
+		[tree, expandedKeys, setLeftIndex, setFocusedPane],
 	);
 
 	// ── Handle item activation in right pane ────────────────────────────
@@ -378,7 +385,15 @@ export function ConfigureApp({
 				setScreen("confirm");
 			}
 		},
-		[values, doRefresh, callbacks, navigateToSection, expandedKeys],
+		[
+			values,
+			doRefresh,
+			callbacks,
+			navigateToSection,
+			expandedKeys,
+			setLeftIndex,
+			setFocusedPane,
+		],
 	);
 
 	// ── Editor submit ───────────────────────────────────────────────────
@@ -497,12 +512,7 @@ export function ConfigureApp({
 
 		// Tab switches panes
 		if (key.tab) {
-			setFocusedPane((prev) => {
-				if (prev === "left") {
-					return rightPaneItems.length > 0 ? "right" : "left";
-				}
-				return "left";
-			});
+			toggleFocus(rightPaneItems.length > 0);
 			return;
 		}
 
@@ -678,148 +688,129 @@ export function ConfigureApp({
 	}
 
 	// ── Main 2-pane layout ──────────────────────────────────────────────
-	const { stdout } = useStdout();
-	const terminalRows = stdout?.rows ?? 24;
-	const chromeRows = 14;
-	const panesHeight = Math.max(6, terminalRows - chromeRows);
-
 	const footerText =
 		focusedPane === "left"
 			? "↑↓ navigate · → expand · ← collapse · Enter open · s save · q close"
 			: "↑↓ navigate · Enter edit · s save · Tab/Esc tree · q close";
 
-	return (
-		<ViewFrame
-			title="Configuration"
-			footer={<Text dimColor>{footerText}</Text>}
-		>
-			<Box flexDirection="row" height={panesHeight}>
-				{/* Left pane — tree */}
-				<Box
-					flexDirection="column"
-					width="40%"
-					height={panesHeight}
-					borderStyle="single"
-					borderColor={focusedPane === "left" ? ACCENT : "gray"}
-				>
-					{flatNodes.map((node, i) => {
-						const isSelected = i === leftIndex;
-						const isActive = focusedPane === "left";
-						const isExpanded = expandedKeys.has(node.item.key);
-						const hasSubCats =
-							node.item.children?.some((c) => c.kind === "section") ?? false;
-						const indent = "  ".repeat(node.depth);
-						const expandGlyph = hasSubCats ? (isExpanded ? "▾" : "▸") : " ";
+	const leftPane = (
+		<>
+			{flatNodes.map((node, i) => {
+				const isSelected = i === leftIndex;
+				const isActive = focusedPane === "left";
+				const isExpanded = expandedKeys.has(node.item.key);
+				const hasSubCats =
+					node.item.children?.some((c) => c.kind === "section") ?? false;
+				const indent = "  ".repeat(node.depth);
+				const expandGlyph = hasSubCats ? (isExpanded ? "▾" : "▸") : " ";
 
-						return (
-							<SelectableTextRow
-								key={node.item.key}
-								selected={isSelected && isActive}
-								dim={isSelected && !isActive}
-							>
-								<Text>
-									{indent}
-									{expandGlyph} {node.item.label}
-								</Text>
-							</SelectableTextRow>
-						);
-					})}
-					{flatNodes.length === 0 ? (
-						<Box paddingX={1}>
-							<Text dimColor>No configuration categories.</Text>
-						</Box>
-					) : null}
-				</Box>
-
-				{/* Right pane — fields */}
-				<Box
-					flexDirection="column"
-					width="60%"
-					height={panesHeight}
-					borderStyle="single"
-					borderColor={focusedPane === "right" ? ACCENT : "gray"}
-				>
-					{selectedNode && !selectedHasSubCategories ? (
-						<>
-							<Box paddingX={1} marginBottom={1}>
-								<Text bold color={ACCENT}>
-									{selectedNode.label}
-								</Text>
-							</Box>
-							{rightPaneItems.length === 0 ? (
-								<Box paddingX={1}>
-									<Text dimColor>
-										{selectedNode.children?.some((c) => c.kind === "section")
-											? "Expand this category to select a sub-category."
-											: "No fields in this section."}
-									</Text>
-								</Box>
-							) : (
-								rightPaneItems.map((rightItem, i) => {
-									const selected = i === rightIndex && focusedPane === "right";
-
-									if (rightItem.kind === "section") {
-										return (
-											<SelectableTextRow
-												key={rightItem.key}
-												selected={selected}
-											>
-												<Text color="green">
-													{UI_GLYPHS.section} {rightItem.label}
-												</Text>
-											</SelectableTextRow>
-										);
-									}
-									if (rightItem.kind === "action") {
-										return (
-											<ActionRow
-												key={rightItem.key}
-												label={rightItem.label}
-												selected={selected}
-												kind="action"
-											/>
-										);
-									}
-									if (rightItem.kind === "delete") {
-										return (
-											<ActionRow
-												key={rightItem.key}
-												label={rightItem.label}
-												selected={selected}
-												kind="delete"
-											/>
-										);
-									}
-									return (
-										<NavigatorRow
-											key={rightItem.key}
-											label={rightItem.label}
-											kind={rightItem.kind as "value" | "select"}
-											selected={selected}
-											masked={rightItem.masked}
-											multiline={rightItem.multiline}
-											currentValue={rightItem.currentValue}
-											options={rightItem.options}
-										/>
-									);
-								})
-							)}
-						</>
-					) : (
-						<Box paddingX={1}>
-							<Text dimColor>Select a category on the left.</Text>
-						</Box>
-					)}
-				</Box>
-			</Box>
-
-			{/* Status message */}
-			{statusMessage ? (
-				<Box paddingX={1} marginTop={1}>
-					<Text color="yellow">{statusMessage}</Text>
+				return (
+					<SelectableTextRow
+						key={node.item.key}
+						selected={isSelected && isActive}
+						dim={isSelected && !isActive}
+					>
+						<Text>
+							{indent}
+							{expandGlyph} {node.item.label}
+						</Text>
+					</SelectableTextRow>
+				);
+			})}
+			{flatNodes.length === 0 ? (
+				<Box paddingX={1}>
+					<Text dimColor>No configuration categories.</Text>
 				</Box>
 			) : null}
-		</ViewFrame>
+		</>
+	);
+
+	const rightPane =
+		selectedNode && !selectedHasSubCategories ? (
+			<>
+				<Box paddingX={1} marginBottom={1}>
+					<Text bold color={ACCENT}>
+						{selectedNode.label}
+					</Text>
+				</Box>
+				{rightPaneItems.length === 0 ? (
+					<Box paddingX={1}>
+						<Text dimColor>
+							{selectedNode.children?.some((c) => c.kind === "section")
+								? "Expand this category to select a sub-category."
+								: "No fields in this section."}
+						</Text>
+					</Box>
+				) : (
+					rightPaneItems.map((rightItem, i) => {
+						const selected = i === rightIndex && focusedPane === "right";
+
+						if (rightItem.kind === "section") {
+							return (
+								<SelectableTextRow key={rightItem.key} selected={selected}>
+									<Text color="green">
+										{UI_GLYPHS.section} {rightItem.label}
+									</Text>
+								</SelectableTextRow>
+							);
+						}
+						if (rightItem.kind === "action") {
+							return (
+								<ActionRow
+									key={rightItem.key}
+									label={rightItem.label}
+									selected={selected}
+									kind="action"
+								/>
+							);
+						}
+						if (rightItem.kind === "delete") {
+							return (
+								<ActionRow
+									key={rightItem.key}
+									label={rightItem.label}
+									selected={selected}
+									kind="delete"
+								/>
+							);
+						}
+						return (
+							<NavigatorRow
+								key={rightItem.key}
+								label={rightItem.label}
+								kind={rightItem.kind as "value" | "select"}
+								selected={selected}
+								masked={rightItem.masked}
+								multiline={rightItem.multiline}
+								currentValue={rightItem.currentValue}
+								options={rightItem.options}
+							/>
+						);
+					})
+				)}
+			</>
+		) : (
+			<Box paddingX={1}>
+				<Text dimColor>Select a category on the left.</Text>
+			</Box>
+		);
+
+	return (
+		<TwoPaneView
+			title="Configuration"
+			leftMaxWidth={100}
+			statusBar={<Text dimColor>{footerText}</Text>}
+			focusedPane={focusedPane}
+			left={leftPane}
+			right={rightPane}
+			status={
+				statusMessage ? (
+					<Box paddingX={1} marginTop={1}>
+						<Text color="yellow">{statusMessage}</Text>
+					</Box>
+				) : null
+			}
+		/>
 	);
 }
 

@@ -1,4 +1,4 @@
-import { Box, Text, render, useApp, useInput, useStdout } from "ink";
+import { Box, Text, render, useApp, useInput } from "ink";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	type AudioCaptureHandle,
@@ -35,8 +35,8 @@ import {
 	NavigatorRow,
 	SelectableTextRow,
 	StatusIcon,
+	TwoPaneView,
 	UI_GLYPHS,
-	ViewFrame,
 	detectTerminalProfile,
 	isBackKey,
 	isNavigateDown,
@@ -45,6 +45,7 @@ import {
 	isSelectKey,
 	isToggleKey,
 	resolveKittyKeyboardMode,
+	useTwoPaneNavigation,
 } from "../shared";
 
 export interface ListenAppOptions {
@@ -355,8 +356,6 @@ function ListenApp({
 	const [state, setState] = useState<ListenState>(() =>
 		createInitialListenState(initialSources),
 	);
-	const [leftIndex, setLeftIndex] = useState(0);
-	const [rightIndex, setRightIndex] = useState(0);
 	const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(
 		null,
 	);
@@ -381,6 +380,16 @@ function ListenApp({
 		}
 		return items;
 	}, [recordings]);
+
+	const {
+		focusedPane,
+		setFocusedPane,
+		leftIndex,
+		setLeftIndex,
+		rightIndex,
+		setRightIndex,
+		toggleFocus,
+	} = useTwoPaneNavigation({ leftCount: leftItems.length });
 
 	const selectedItem = leftItems[leftIndex] ?? leftItems[0];
 	const isRecording =
@@ -430,17 +439,6 @@ function ListenApp({
 	const refreshRecordings = useCallback(() => {
 		setRecordings(listListenRecordings(recordingsDir));
 	}, [recordingsDir]);
-
-	// Reset right index when selection changes
-	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional — fire on leftIndex change
-	useEffect(() => {
-		setRightIndex(0);
-	}, [leftIndex]);
-
-	// Clamp left index when items change
-	useEffect(() => {
-		setLeftIndex((prev) => Math.min(prev, Math.max(0, leftItems.length - 1)));
-	}, [leftItems.length]);
 
 	const onHelperEvent = useCallback((event: AudioHelperEvent) => {
 		if (event.type === "ready") {
@@ -510,7 +508,7 @@ function ListenApp({
 				message: "Could not start listener.",
 			}));
 		}
-	}, [helperPath, onHelperEvent, recordingsDir, state.sources]);
+	}, [helperPath, onHelperEvent, recordingsDir, state.sources, setLeftIndex]);
 
 	const finalize = useCallback(
 		async (action: "save" | "discard") => {
@@ -596,7 +594,7 @@ function ListenApp({
 
 		// Tab switches panes, but when recording the right pane is always active
 		if (key.tab && !isRecording) {
-			setFocusedPane((prev) => (prev === "left" ? "right" : "left"));
+			toggleFocus();
 			return;
 		}
 
@@ -709,8 +707,6 @@ function ListenApp({
 			}
 		}
 	});
-
-	const [focusedPane, setFocusedPane] = useState<"left" | "right">("left");
 
 	// Detail rows for a saved recording
 	function detailRows(recording: ListenRecordingSummary) {
@@ -836,13 +832,9 @@ function ListenApp({
 	}
 
 	// ---- Main two-pane layout ----
+	// When recording, the right pane is always the active one regardless of
+	// where the user last left the focus.
 	const displayFocusedPane = isRecording ? "right" : focusedPane;
-	const { stdout } = useStdout();
-	const terminalRows = stdout?.rows ?? 24;
-	// Chrome: ViewFrame padding(2) + header(8) + marginTop(1) + outer border(2) +
-	// footer(2) + bottom status(1) = ~16. Inner border on each pane = 2.
-	const chromeRows = 16;
-	const panesHeight = Math.max(6, terminalRows - chromeRows);
 
 	// Build the right pane content
 	let rightContent: React.ReactNode;
@@ -911,86 +903,68 @@ function ListenApp({
 		? "s stop & save · d stop & discard · q close"
 		: "↑↓ navigate · Enter select · Tab switch pane · q close";
 
+	const leftPane = (
+		<>
+			{leftItems.map((item, i) => {
+				const isSelected = i === leftIndex && displayFocusedPane === "left";
+				if (item.kind === "start") {
+					const label = isRecording ? "Recording…" : "Start new recording";
+					return (
+						<SelectableTextRow key="start" selected={isSelected}>
+							<Text bold color={isRecording ? "red" : "green"}>
+								{UI_GLYPHS.action} {label}
+							</Text>
+						</SelectableTextRow>
+					);
+				}
+				const rec = item.recording;
+				return (
+					<SelectableTextRow key={rec.id} selected={isSelected}>
+						<Text>
+							{UI_GLYPHS.section} {recordingLabel(rec)}
+						</Text>
+					</SelectableTextRow>
+				);
+			})}
+			{recordings.length === 0 && !isRecording ? (
+				<Box paddingX={1}>
+					<Text dimColor>No recordings yet.</Text>
+				</Box>
+			) : null}
+		</>
+	);
+
 	return (
-		<ViewFrame
+		<TwoPaneView
 			title="Listen"
 			subheader={
-				<Box flexDirection="column" alignItems="center">
-					<Text bold color={ACCENT}>
-						Listen
+				isRecording ? (
+					<Text color="red" bold>
+						{RECORDING_DOT_FRAMES[dotFrame]} Recording — {elapsed}
 					</Text>
-					{isRecording && (
-						<Text color="red" bold>
-							{RECORDING_DOT_FRAMES[dotFrame]} Recording — {elapsed}
-						</Text>
-					)}
-				</Box>
+				) : undefined
 			}
-			footer={<Text dimColor>{footerText}</Text>}
-		>
-			<Box flexDirection="row" height={panesHeight}>
-				{/* Left pane — recording list */}
-				<Box
-					flexDirection="column"
-					width="40%"
-					height={panesHeight}
-					borderStyle="single"
-					borderColor={displayFocusedPane === "left" ? ACCENT : "gray"}
-					paddingRight={0}
-				>
-					{leftItems.map((item, i) => {
-						const isSelected = i === leftIndex && displayFocusedPane === "left";
-						if (item.kind === "start") {
-							const label = isRecording ? "Recording…" : "Start new recording";
-							return (
-								<SelectableTextRow key="start" selected={isSelected}>
-									<Text bold color={isRecording ? "red" : "green"}>
-										{UI_GLYPHS.action} {label}
-									</Text>
-								</SelectableTextRow>
-							);
-						}
-						const rec = item.recording;
-						return (
-							<SelectableTextRow key={rec.id} selected={isSelected}>
-								<Text>
-									{UI_GLYPHS.section} {recordingLabel(rec)}
-								</Text>
-							</SelectableTextRow>
-						);
-					})}
-					{recordings.length === 0 && !isRecording ? (
-						<Box paddingX={1}>
-							<Text dimColor>No recordings yet.</Text>
+			statusBar={<Text dimColor>{footerText}</Text>}
+			focusedPane={displayFocusedPane}
+			left={leftPane}
+			right={rightContent}
+			status={
+				<>
+					{state.status === "saved" && state.message ? (
+						<Box paddingX={1} marginTop={1}>
+							<Text color="green">
+								{UI_GLYPHS.success} {state.message}
+							</Text>
 						</Box>
 					) : null}
-				</Box>
-
-				{/* Right pane — details / recording UI */}
-				<Box
-					flexDirection="column"
-					width="60%"
-					height={panesHeight}
-					borderStyle="single"
-					borderColor={displayFocusedPane === "right" ? ACCENT : "gray"}
-				>
-					{rightContent}
-				</Box>
-			</Box>
-
-			{state.status === "saved" && state.message ? (
-				<Box paddingX={1} marginTop={1}>
-					<Text color="green">
-						{UI_GLYPHS.success} {state.message}
-					</Text>
-				</Box>
-			) : null}
-			{state.status === "discarded" && state.message ? (
-				<Box paddingX={1} marginTop={1}>
-					<Text dimColor>{state.message}</Text>
-				</Box>
-			) : null}
-		</ViewFrame>
+					{state.status === "discarded" && state.message ? (
+						<Box paddingX={1} marginTop={1}>
+							<Text dimColor>{state.message}</Text>
+						</Box>
+					) : null}
+				</>
+			}
+		/>
 	);
 }
 
