@@ -9,12 +9,50 @@ export interface LocalSkill {
 	readonly description: string;
 	readonly summary: string;
 	readonly bodyMarkdown: string;
+	/**
+	 * Tool names this skill needs (from frontmatter `tools`). When the skill is
+	 * selected by pretreatment, these are unioned into the turn's relevant tools
+	 * so tool scope is deterministic rather than left to the auxiliary model.
+	 */
+	readonly tools?: readonly string[];
+	/**
+	 * Integration labels/names this skill needs (from frontmatter
+	 * `integrations`). Every tool belonging to a listed integration is unioned
+	 * into the turn's relevant tools when the skill is selected.
+	 */
+	readonly integrations?: readonly string[];
 }
 
 const SKILL_FILENAME = "SKILL.md";
 
 function normalizeWs(input: string): string {
 	return input.trim().replaceAll(/\s+/g, " ");
+}
+
+/**
+ * Parse a frontmatter list value that may be comma-separated, newline
+ * separated, or YAML-ish `- item` bullets. Returns trimmed, de-duplicated,
+ * non-empty entries preserving first-seen order.
+ */
+function parseListField(raw: string | undefined): string[] {
+	if (!raw) {
+		return [];
+	}
+	const parts = raw
+		.split(/[\n,]/)
+		.map((part) => part.replace(/^\s*[-*]\s*/, "").trim())
+		.filter(Boolean);
+	const seen = new Set<string>();
+	const out: string[] = [];
+	for (const part of parts) {
+		const key = part.toLowerCase();
+		if (seen.has(key)) {
+			continue;
+		}
+		seen.add(key);
+		out.push(part);
+	}
+	return out;
 }
 
 /**
@@ -89,6 +127,8 @@ export function parseSkillFileContent(
 		description,
 		summary,
 		bodyMarkdown: parsed.body.trim(),
+		tools: parseListField(parsed.frontmatter.tools),
+		integrations: parseListField(parsed.frontmatter.integrations),
 	};
 }
 
@@ -168,6 +208,74 @@ export function computeSkillCatalogSignature(
 ): string {
 	const payload = stableCatalogPayload(skills);
 	return crypto.createHash("sha256").update(payload).digest("hex").slice(0, 16);
+}
+
+/**
+ * Expand the tools declared by the selected skills into concrete tool names.
+ *
+ * Combines each selected skill's explicit `tools` frontmatter (validated
+ * against the allowed tool set) with every tool belonging to an integration
+ * listed in its `integrations` frontmatter. Returns canonical tool names with
+ * stable first-seen ordering and no duplicates.
+ */
+export function collectToolsForSelectedSkills(params: {
+	readonly selectedSkillNames: readonly string[];
+	readonly skills: readonly LocalSkill[];
+	readonly allowedToolNamesLower: ReadonlySet<string>;
+	readonly toolIntegrationLabels: Readonly<Record<string, string>>;
+}): string[] {
+	const selectedLower = new Set(
+		params.selectedSkillNames.map((n) => n.trim().toLowerCase()),
+	);
+	const selected = params.skills.filter((s) =>
+		selectedLower.has(s.name.trim().toLowerCase()),
+	);
+	if (selected.length === 0) {
+		return [];
+	}
+
+	const actualByLower = new Map<string, string>();
+	const toolsByIntegration = new Map<string, string[]>();
+	for (const [toolName, label] of Object.entries(
+		params.toolIntegrationLabels,
+	)) {
+		actualByLower.set(toolName.trim().toLowerCase(), toolName);
+		const key = label.trim().toLowerCase();
+		const arr = toolsByIntegration.get(key) ?? [];
+		arr.push(toolName);
+		toolsByIntegration.set(key, arr);
+	}
+
+	const out: string[] = [];
+	const seen = new Set<string>();
+	const add = (name: string) => {
+		const lower = name.trim().toLowerCase();
+		if (!lower || seen.has(lower)) {
+			return;
+		}
+		seen.add(lower);
+		out.push(name);
+	};
+
+	for (const skill of selected) {
+		for (const tool of skill.tools ?? []) {
+			const lower = tool.trim().toLowerCase();
+			if (!params.allowedToolNamesLower.has(lower)) {
+				continue;
+			}
+			add(actualByLower.get(lower) ?? tool.trim());
+		}
+		for (const integration of skill.integrations ?? []) {
+			const names = toolsByIntegration.get(integration.trim().toLowerCase());
+			if (!names) {
+				continue;
+			}
+			for (const name of names) {
+				add(name);
+			}
+		}
+	}
+	return out;
 }
 
 export function resolveSkillsByNames(

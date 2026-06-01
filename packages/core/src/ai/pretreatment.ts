@@ -11,6 +11,7 @@ import {
 import { getPretreatmentCache, setPretreatmentCache } from "../session-store";
 import {
 	type LocalSkill,
+	collectToolsForSelectedSkills,
 	computeSkillCatalogSignature,
 	formatSkillsCatalogForPrompt,
 	inferRelevantSkillsFromUserPrompt,
@@ -55,7 +56,7 @@ export type UserIntentSpec = z.infer<typeof userIntentSpecSchema>;
 
 const PREP_SYSTEM = `You extract a compact intent specification from a user message for a CLI assistant (Toby) that may use multiple integration tools.
 You may also select relevant **local skills** when the catalog lists skills whose descriptions clearly match the user's request; otherwise leave relevantSkills empty.
-You must also select **relevant tools** from the provided tool catalog — choose only the tools whose capabilities are clearly needed for the user's request. Do not include tools "just in case"; be selective to reduce context size. If unsure, leave relevantTools empty.
+You must also select **relevant tools** from the provided tool catalog — choose only the tools whose capabilities are clearly needed for the user's request. Do not include tools "just in case"; be selective to reduce context size.
 Return only structured fields that match the schema. Be conservative: if unsure, put detail in openQuestions rather than assumptions.
 Do not invent email addresses, task IDs, or dates that are not in the user message.
 For relevantSkills and relevantTools, use only exact names from the catalogs (no invented names).`;
@@ -227,6 +228,44 @@ function mergeSkillHeuristicIntoSpec(
 	);
 }
 
+/**
+ * Union the tools declared by the spec's selected skills into relevantTools.
+ *
+ * This makes tool scope deterministic: when a skill is selected, its declared
+ * tools/integrations are always in scope regardless of whether the auxiliary
+ * model independently listed them in relevantTools.
+ */
+function applySkillDeclaredTools(
+	spec: UserIntentSpec | null,
+	skills: readonly LocalSkill[],
+	allowedToolNamesLower: ReadonlySet<string>,
+	toolIntegrationLabels: Readonly<Record<string, string>>,
+): UserIntentSpec | null {
+	if (!spec || spec.relevantSkills.length === 0) {
+		return spec;
+	}
+	const declared = collectToolsForSelectedSkills({
+		selectedSkillNames: spec.relevantSkills,
+		skills,
+		allowedToolNamesLower,
+		toolIntegrationLabels,
+	});
+	if (declared.length === 0) {
+		return spec;
+	}
+	const seen = new Set(spec.relevantTools.map((t) => t.trim().toLowerCase()));
+	const merged = [...spec.relevantTools];
+	for (const name of declared) {
+		const lower = name.trim().toLowerCase();
+		if (seen.has(lower)) {
+			continue;
+		}
+		seen.add(lower);
+		merged.push(name);
+	}
+	return { ...spec, relevantTools: merged };
+}
+
 /** Wrap verbatim user text plus optional structured spec for the main model. */
 export function formatUserMessageWithPretreatment(
 	verbatim: string,
@@ -374,6 +413,8 @@ type WrapUserPromptParams = {
 	readonly toolsCatalogText?: string;
 	/** Set of allowed tool names (lowercased) for sanitization. */
 	readonly allowedToolNamesLower?: ReadonlySet<string>;
+	/** Map of tool name → integration display label, for skill `integrations` expansion. */
+	readonly toolIntegrationLabels?: Readonly<Record<string, string>>;
 	readonly abortSignal?: AbortSignal;
 };
 
@@ -398,6 +439,7 @@ export async function wrapUserPromptWithPretreatment(
 
 	const toolsCatalogText = params.toolsCatalogText ?? "(none)";
 	const allowedToolNamesLower = params.allowedToolNamesLower ?? new Set();
+	const toolIntegrationLabels = params.toolIntegrationLabels ?? {};
 	const toolsCatalogSignature = sha256Base64Url(toolsCatalogText).slice(0, 20);
 
 	const modelId = getPretreatmentModelId(params.persona);
@@ -426,9 +468,15 @@ export async function wrapUserPromptWithPretreatment(
 				skills,
 				allowedSkillNamesLower,
 			);
+			const expanded = applySkillDeclaredTools(
+				merged,
+				skills,
+				allowedToolNamesLower,
+				toolIntegrationLabels,
+			);
 			return {
-				content: formatUserMessageWithPretreatment(raw, merged, skills),
-				spec: merged,
+				content: formatUserMessageWithPretreatment(raw, expanded, skills),
+				spec: expanded,
 			};
 		}
 	}
@@ -452,8 +500,14 @@ export async function wrapUserPromptWithPretreatment(
 		skills,
 		allowedSkillNamesLower,
 	);
-	return {
-		content: formatUserMessageWithPretreatment(raw, spec, skills),
+	const expanded = applySkillDeclaredTools(
 		spec,
+		skills,
+		allowedToolNamesLower,
+		toolIntegrationLabels,
+	);
+	return {
+		content: formatUserMessageWithPretreatment(raw, expanded, skills),
+		spec: expanded,
 	};
 }

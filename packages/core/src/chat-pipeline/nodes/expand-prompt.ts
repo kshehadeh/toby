@@ -30,6 +30,7 @@ export const expandPromptNode: PipelineNode<InitedTurn, ExpandedTurn> = {
 			skillsCatalog: [...input.localSkills],
 			toolsCatalogText: input.toolCatalog.catalogText,
 			allowedToolNamesLower: input.toolCatalog.allowedToolNamesLower,
+			toolIntegrationLabels: input.toolCatalog.toolIntegrationLabels,
 			abortSignal: ctx.abortSignal,
 		});
 
