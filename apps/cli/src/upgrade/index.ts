@@ -367,6 +367,7 @@ export async function runFullUpgrade(options: {
 	readonly tag?: string;
 	readonly repo?: string;
 	readonly installDir?: string;
+	readonly onProgress?: (progress: DownloadProgress) => void;
 }): Promise<ApplyStagedResult> {
 	const download = await downloadRelease(options);
 	return applyStagedRelease(download.installTarget);

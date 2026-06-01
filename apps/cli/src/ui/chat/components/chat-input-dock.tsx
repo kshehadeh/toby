@@ -18,12 +18,39 @@ import type { UpgradeUiStatus } from "../slash-commands/types";
 import type { TobyUpdateInfo } from "../use-update-check";
 import { formatUpdateStatusLine } from "../use-update-check";
 
-function formatUpgradeUiStatusLine(status: UpgradeUiStatus): string | null {
+const UPGRADE_SPINNER_FRAMES = [
+	"⠋",
+	"⠙",
+	"⠹",
+	"⠸",
+	"⠼",
+	"⠴",
+	"⠦",
+	"⠧",
+	"⠇",
+	"⠏",
+] as const;
+const UPGRADE_PROGRESS_BAR_WIDTH = 12;
+
+function renderUpgradeProgressBar(percent: number): string {
+	const clamped = Math.max(0, Math.min(100, percent));
+	const filled = Math.round((clamped / 100) * UPGRADE_PROGRESS_BAR_WIDTH);
+	return `${"█".repeat(filled)}${"░".repeat(UPGRADE_PROGRESS_BAR_WIDTH - filled)}`;
+}
+
+function formatUpgradeUiStatusLine(
+	status: UpgradeUiStatus,
+	frame: number,
+): string | null {
 	switch (status.status) {
-		case "downloading":
-			return status.progress !== null
-				? `Downloading upgrade… ${status.progress}%`
-				: "Downloading upgrade…";
+		case "downloading": {
+			const spinner =
+				UPGRADE_SPINNER_FRAMES[frame % UPGRADE_SPINNER_FRAMES.length];
+			if (status.progress !== null) {
+				return `${spinner} Downloading upgrade ${renderUpgradeProgressBar(status.progress)} ${status.progress}%`;
+			}
+			return `${spinner} Downloading upgrade…`;
+		}
 		case "ready":
 			return `Upgrade ready: v${status.version} · /restart to apply`;
 		case "error":
@@ -196,7 +223,6 @@ export function ChatInputDock(props: ChatInputDockProps) {
 	const updateStatusLine = updateAvailable
 		? formatUpdateStatusLine(updateAvailable)
 		: null;
-	const upgradeStatusLine = formatUpgradeUiStatusLine(upgradeUiStatus);
 	const [dotFrame, setDotFrame] = useState(0);
 	useEffect(() => {
 		if (!isListenRecording) {
@@ -206,6 +232,22 @@ export function ChatInputDock(props: ChatInputDockProps) {
 		const id = setInterval(() => setDotFrame((f) => (f + 1) % 2), 600);
 		return () => clearInterval(id);
 	}, [isListenRecording]);
+	const isDownloadingUpgrade = upgradeUiStatus.status === "downloading";
+	const [upgradeSpinnerFrame, setUpgradeSpinnerFrame] = useState(0);
+	useEffect(() => {
+		if (!isDownloadingUpgrade) {
+			setUpgradeSpinnerFrame(0);
+			return;
+		}
+		const id = setInterval(() => {
+			setUpgradeSpinnerFrame((f) => (f + 1) % UPGRADE_SPINNER_FRAMES.length);
+		}, 100);
+		return () => clearInterval(id);
+	}, [isDownloadingUpgrade]);
+	const upgradeStatusLine = formatUpgradeUiStatusLine(
+		upgradeUiStatus,
+		upgradeSpinnerFrame,
+	);
 
 	return (
 		<Box marginTop={0} flexShrink={0} flexDirection="column" width={termCols}>

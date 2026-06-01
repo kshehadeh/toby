@@ -3,12 +3,66 @@ import process from "node:process";
 import chalk from "chalk";
 import type { Command } from "commander";
 import {
+	type DownloadProgress,
 	applyStagedRelease,
 	downloadRelease,
 	readStagingManifest,
 	resolveInstallDir,
 	runFullUpgrade,
 } from "../upgrade/index";
+
+const PROGRESS_SPINNER_FRAMES = [
+	"⠋",
+	"⠙",
+	"⠹",
+	"⠸",
+	"⠼",
+	"⠴",
+	"⠦",
+	"⠧",
+	"⠇",
+	"⠏",
+];
+const PROGRESS_BAR_WIDTH = 24;
+
+function formatBytes(bytes: number): string {
+	if (bytes >= 1024 * 1024) {
+		return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+	}
+	if (bytes >= 1024) {
+		return `${(bytes / 1024).toFixed(0)} KB`;
+	}
+	return `${bytes} B`;
+}
+
+/**
+ * Returns an `onProgress` handler that renders an animated, single-line
+ * download indicator. Shows a filled bar with percentage when the total size
+ * is known, otherwise a spinner with bytes received.
+ */
+function makeProgressRenderer(): (progress: DownloadProgress) => void {
+	let frame = 0;
+	const isTTY = Boolean(process.stdout.isTTY);
+	return (progress) => {
+		const spinner =
+			PROGRESS_SPINNER_FRAMES[frame % PROGRESS_SPINNER_FRAMES.length];
+		frame += 1;
+		if (progress.percent !== null) {
+			const filled = Math.round((progress.percent / 100) * PROGRESS_BAR_WIDTH);
+			const bar = `${"█".repeat(filled)}${"░".repeat(PROGRESS_BAR_WIDTH - filled)}`;
+			const line = `${spinner} Downloading [${bar}] ${progress.percent}%`;
+			if (isTTY) {
+				process.stdout.write(`\r${line}`);
+			}
+			return;
+		}
+		if (isTTY) {
+			process.stdout.write(
+				`\r${spinner} Downloading… ${formatBytes(progress.bytesReceived)}`,
+			);
+		}
+	};
+}
 
 interface UpgradeCommandOptions {
 	version?: string;
@@ -87,15 +141,12 @@ async function runUpgrade(options: UpgradeCommandOptions): Promise<void> {
 	}
 
 	if (options.downloadOnly) {
+		const renderProgress = makeProgressRenderer();
 		const result = await downloadRelease({
 			tag: options.version,
 			repo: options.repo,
 			installDir: options.installDir,
-			onProgress: (progress) => {
-				if (progress.percent !== null) {
-					process.stdout.write(`\rDownloading… ${progress.percent}%`);
-				}
-			},
+			onProgress: renderProgress,
 		});
 		process.stdout.write("\n");
 		console.log(
@@ -111,7 +162,9 @@ async function runUpgrade(options: UpgradeCommandOptions): Promise<void> {
 		tag: options.version,
 		repo: options.repo,
 		installDir: options.installDir,
+		onProgress: makeProgressRenderer(),
 	});
+	process.stdout.write("\n");
 	console.log(chalk.green(`Installed: ${applied.installTarget}`));
 	console.log(chalk.green(`Verified: ${applied.version}`));
 	if (applied.daemonRestarted) {
