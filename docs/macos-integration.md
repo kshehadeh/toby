@@ -31,7 +31,7 @@ Resolution order for the helper binary:
 
 1. `TOBY_MACOS_HELPER` environment variable
 2. Sibling of the Toby executable (e.g. `/usr/local/bin/toby-macos`)
-3. Development build at `helpers/toby-macos-helper/.build/release/toby-macos-helper`
+3. Development build at `apps/macos-helper/.build/release/toby-macos-helper`
 
 ## Configure fields (`macos.*`)
 

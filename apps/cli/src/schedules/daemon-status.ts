@@ -31,9 +31,12 @@ export function parseDaemonLock(raw: string): DaemonLockData | null {
 			return null;
 		}
 		const pidValue = (parsed as { pid?: unknown }).pid;
-		const intervalValue = (parsed as { intervalSeconds?: unknown }).intervalSeconds;
+		const intervalValue = (parsed as { intervalSeconds?: unknown })
+			.intervalSeconds;
 		const pid =
-			typeof pidValue === "number" && Number.isFinite(pidValue) ? pidValue : NaN;
+			typeof pidValue === "number" && Number.isFinite(pidValue)
+				? pidValue
+				: Number.NaN;
 		if (!Number.isFinite(pid) || pid <= 0) {
 			return null;
 		}
@@ -131,7 +134,9 @@ async function waitForDaemonStopped(
 	return false;
 }
 
-export async function restartDaemonIfRunning(defaultIntervalSeconds = 60): Promise<{
+export async function restartDaemonIfRunning(
+	defaultIntervalSeconds = 60,
+): Promise<{
 	wasRunning: boolean;
 	restarted: boolean;
 	intervalSeconds: number | null;

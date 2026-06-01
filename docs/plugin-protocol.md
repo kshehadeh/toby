@@ -253,7 +253,7 @@ an unsupported protocol version.
 
 ## Reference implementation
 
-See [`helpers/toby-plugin-sample/`](../helpers/toby-plugin-sample/) for a
+See [`apps/plugin-sample/`](../apps/plugin-sample/) for a
 minimal plugin built independently. Release archives include the sample plugin;
 `install-toby.sh` installs it into `~/.toby/plugins/`.
 

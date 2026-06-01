@@ -17,7 +17,7 @@ assets are macOS archives containing both `toby` and `toby-listener`.
 - Release config: `.release-it.json`
 - CI workflow: `.github/workflows/release.yml`
 - Installer: `install-toby.sh`
-- Self-upgrade logic: `src/upgrade/index.ts`
+- Self-upgrade logic: `apps/cli/src/upgrade/index.ts`
 
 ## Release Shape
 

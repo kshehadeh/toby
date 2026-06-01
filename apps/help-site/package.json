@@ -1,12 +1,12 @@
 {
-	"name": "help-site",
+	"name": "@toby/help-site",
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {
 		"docusaurus": "docusaurus",
-		"prestart": "mkdir -p static/img && cp ../images/*.png static/img/",
+		"prestart": "mkdir -p static/img && cp ../../images/*.png static/img/",
 		"start": "docusaurus start",
-		"prebuild": "mkdir -p static/img && cp ../images/*.png static/img/",
+		"prebuild": "mkdir -p static/img && cp ../../images/*.png static/img/",
 		"build": "docusaurus build",
 		"swizzle": "docusaurus swizzle",
 		"deploy": "docusaurus deploy",
@@ -23,8 +23,8 @@
 		"@mdx-js/react": "^3.0.0",
 		"clsx": "^2.0.0",
 		"prism-react-renderer": "^2.3.0",
-		"react": "^19.0.0",
-		"react-dom": "^19.0.0"
+		"react": "19.2.6",
+		"react-dom": "19.2.6"
 	},
 	"devDependencies": {
 		"@docusaurus/module-type-aliases": "3.10.0",

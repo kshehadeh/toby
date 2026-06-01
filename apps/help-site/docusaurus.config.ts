@@ -36,7 +36,8 @@ const config: Config = {
 			{
 				docs: {
 					sidebarPath: "./sidebars.ts",
-					editUrl: "https://github.com/kshehadeh/toby/tree/main/help-site/",
+					editUrl:
+						"https://github.com/kshehadeh/toby/tree/main/apps/help-site/",
 				},
 				blog: false,
 				theme: {

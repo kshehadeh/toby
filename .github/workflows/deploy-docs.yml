@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "help-site/**"
+      - "apps/help-site/**"
       - "images/**"
       - ".github/workflows/deploy-docs.yml"
   workflow_dispatch:
@@ -22,24 +22,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: help-site/package-lock.json
+          bun-version: "1.3"
 
       - name: Install dependencies
-        working-directory: help-site
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       - name: Build site
-        working-directory: help-site
-        run: npm run build
+        run: bunx turbo run build --filter @toby/help-site
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: help-site/build
+          path: apps/help-site/build
 
   deploy:
     name: Deploy to GitHub Pages

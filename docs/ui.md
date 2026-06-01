@@ -1,6 +1,6 @@
 # Ink UI conventions
 
-Toby's interactive views use Ink/React. New views should compose the shared primitives in `src/ui/shared/` instead of creating local frame, modal, row, key, or glyph helpers.
+Toby's interactive views use Ink/React. New views should compose the shared primitives in `apps/cli/src/ui/shared/` instead of creating local frame, modal, row, key, or glyph helpers.
 
 ## Shared primitives
 
@@ -44,7 +44,7 @@ Do not add a separate “edit screen” that duplicates the field list with `Inf
 
 ## Shortcut conventions
 
-Use the predicates in `src/ui/shared/keybindings.ts` so shortcuts stay discoverable and consistent.
+Use the predicates in `apps/cli/src/ui/shared/keybindings.ts` so shortcuts stay discoverable and consistent.
 
 | Action | Shortcut |
 | --- | --- |

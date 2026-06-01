@@ -8,10 +8,10 @@ This document describes the **provider-agnostic inbound architecture**: how exte
 
 | Layer | Location | Role |
 | ----- | -------- | ---- |
-| Core | `src/chat-inbound/` | Router, askUser bridge, status, listener startup |
-| Pipeline | `src/chat-pipeline/headless-session.ts` | Calls `runChatTurnPipeline` (full node chain through persist); integration selection via [`resolve-chat-modules.ts`](../src/chat-pipeline/resolve-chat-modules.ts) |
-| Storage | `src/ui/chat/session-store.ts` | `chat_external_sessions` maps external conversation → Toby session |
-| Provider | `src/integrations/<name>/inbound.ts` | Transport, event normalization, `deliverReply` / `deliverAskUser`, optional `createStatusReporter` |
+| Core | `apps/cli/src/chat-inbound/` | Router, askUser bridge, status, listener startup |
+| Pipeline | `apps/cli/src/chat-pipeline/headless-session.ts` | Calls `runChatTurnPipeline` (full node chain through persist); integration selection via [`resolve-chat-modules.ts`](../apps/cli/src/chat-pipeline/resolve-chat-modules.ts) |
+| Storage | `apps/cli/src/ui/chat/session-store.ts` | `chat_external_sessions` maps external conversation → Toby session |
+| Provider | `apps/cli/src/integrations/<name>/inbound.ts` | Transport, event normalization, `deliverReply` / `deliverAskUser`, optional `createStatusReporter` |
 
 ## Session model
 
@@ -76,7 +76,7 @@ Inbound needs **two tokens** that OAuth connect does not provide:
 
 `oauthUserToken` from `toby connect slack` is only for **`toby chat`** (user-scoped tools). You can use OAuth for chat and still paste bot + app tokens for the daemon.
 
-Also set `inboundEnabled` on the Slack integration (and global `chatInbound`). Full field-by-field reference: [help-site Slack credentials](../help-site/docs/integrations/slack.md#credentials-and-auth-reference).
+Also set `inboundEnabled` on the Slack integration (and global `chatInbound`). Full field-by-field reference: [help-site Slack credentials](../apps/help-site/docs/integrations/slack.md#credentials-and-auth-reference).
 
 Setup checklist:
 

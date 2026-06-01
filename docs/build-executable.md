@@ -44,7 +44,7 @@ Toby releases are macOS-only. To cross-compile just the Bun executable for
 another macOS architecture from a machine that has Bun:
 
 ```bash
-bun build ./src/cli.ts --compile --target=bun-darwin-x64 --outfile ./dist/toby-darwin-x64
+bun build ./apps/cli/src/cli.ts --compile --target=bun-darwin-x64 --outfile ./dist/toby-darwin-x64
 ```
 
 See [Bun’s executable docs](https://bun.sh/docs/bundler/executables) for `--target` values.
@@ -55,7 +55,9 @@ See [Bun’s executable docs](https://bun.sh/docs/bundler/executables) for `--ta
 
 ## GitHub Releases (CI)
 
-Pushing a **version tag** matching `v*` runs [`.github/workflows/release.yml`](../.github/workflows/release.yml):
+Pushing a **version tag** matching `v*` runs [`.github/workflows/release.yml`](../.github/workflows/release.yml). The workflow calls [`scripts/build-release-artifacts.sh`](../scripts/build-release-artifacts.sh) (same layout as local `bun run build:release` on macOS with `BUN_TARGET` / `SWIFT_ARCH` set).
+
+Release build steps:
 
 1. Matrix builds **two** signed and notarized macOS archives:
    `toby-darwin-arm64.zip` and `toby-darwin-x64.zip`.
@@ -104,7 +106,7 @@ This repo uses **[release-it](https://github.com/release-it/release-it)** so you
 
 Configuration is in [`.release-it.json`](../.release-it.json): publishing to the **npm registry** and **GitHub release from release-it** are both **off** so the tag push only triggers CI to attach binaries. To also publish the package to the registry, set `"npm": { "publish": true }` (and configure auth) in `.release-it.json`.
 
-`src/cli.ts` resolves version from `package.json` by default (with optional `TOBY_VERSION` override), so `toby --version` stays in sync with releases.
+`apps/cli/src/cli.ts` resolves version from `package.json` by default (with optional `TOBY_VERSION` override), so `toby --version` stays in sync with releases.
 
 ### One-liner install (end users)
 

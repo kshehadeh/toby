@@ -2,10 +2,10 @@
 
 Slash commands for the Ink chat UI are defined in:
 
-- `src/ui/chat/slash-commands/`
+- `apps/cli/src/ui/chat/slash-commands/`
 
 Each command is a self-contained module that exports a `SlashCommand` object.
-The registry in `src/ui/chat/slash-commands/index.ts` is the single source of truth
+The registry in `apps/cli/src/ui/chat/slash-commands/index.ts` is the single source of truth
 used by:
 
 - autocomplete suggestions in the input dock
@@ -47,13 +47,13 @@ Current chat commands include:
 
 ## Add a new slash command
 
-1. Create a new command file in `src/ui/chat/slash-commands/`, for example `refresh.ts`.
+1. Create a new command file in `apps/cli/src/ui/chat/slash-commands/`, for example `refresh.ts`.
 2. Export a `SlashCommand` object with:
    - `command` (must start with `/`)
    - `description` (used by autocomplete)
    - `helpText` (used by help screen)
    - `run(runtime)` (command behavior)
-3. Register it in `src/ui/chat/slash-commands/index.ts` by adding it to `SLASH_COMMANDS`.
+3. Register it in `apps/cli/src/ui/chat/slash-commands/index.ts` by adding it to `SLASH_COMMANDS`.
 4. Use only runtime callbacks/context passed into `run(...)` instead of reaching into chat component state directly.
 5. Run checks:
    - `bun run lint`

@@ -36,10 +36,10 @@ flowchart TB
 
 Implementation entrypoints:
 
-- CLI: [`src/commands/daemon.ts`](../src/commands/daemon.ts)
-- Scheduler: [`src/schedules/scheduler.ts`](../src/schedules/scheduler.ts)
-- Inbound: [`src/chat-inbound/`](../src/chat-inbound/)
-- Log: [`src/logging/daemon-log.ts`](../src/logging/daemon-log.ts)
+- CLI: [`apps/cli/src/commands/daemon.ts`](../apps/cli/src/commands/daemon.ts)
+- Scheduler: [`apps/cli/src/schedules/scheduler.ts`](../apps/cli/src/schedules/scheduler.ts)
+- Inbound: [`apps/cli/src/chat-inbound/`](../apps/cli/src/chat-inbound/)
+- Log: [`apps/cli/src/logging/daemon-log.ts`](../apps/cli/src/logging/daemon-log.ts)
 
 ## Commands
 
@@ -66,7 +66,7 @@ When the daemon is running, every poll interval it:
 
 Schedule execution is logged under category `scheduler` in `daemon.log` (`schedule_run_start`, `schedule_run_complete`, `schedules_fired`, etc.).
 
-User-facing setup: [help-site schedules doc](../help-site/docs/schedules.md).
+User-facing setup: [help-site schedules doc](../apps/help-site/docs/schedules.md).
 
 ## Chat inbound
 
@@ -167,7 +167,7 @@ Inbound uses **Socket Mode** with a **bot token** (`xoxb-...`) and **app token**
 2. `toby configure`: **Bot Token**, **App Token**, optional **Bot User ID** (visible when daemon inbound targets Slack, even if Auth Method is OAuth).
 3. Enable `chatInbound` / `integrations.slack.inboundEnabled`, `toby connect slack` if using OAuth for chat, then `toby daemon start`.
 
-**Which credential when:** see the tables in [help-site Slack integration](../help-site/docs/integrations/slack.md#credentials-and-auth-reference) and [inbound section](../help-site/docs/integrations/slack.md#inbound-mentions-daemon).
+**Which credential when:** see the tables in [help-site Slack integration](../apps/help-site/docs/integrations/slack.md#credentials-and-auth-reference) and [inbound section](../apps/help-site/docs/integrations/slack.md#inbound-mentions-daemon).
 
 ### askUser in inbound threads
 
@@ -182,13 +182,13 @@ This mirrors TUI behavior, but the “terminal” is the chat thread.
 
 ### Provider contract (for new integrations)
 
-Integrations implement `ChatInboundProvider` on `IntegrationModule` (`chatInbound` field). The daemon never imports provider SDKs directly—all transport code lives under `src/integrations/<name>/inbound.ts`.
+Integrations implement `ChatInboundProvider` on `IntegrationModule` (`chatInbound` field). The daemon never imports provider SDKs directly—all transport code lives under `apps/cli/src/integrations/<name>/inbound.ts`.
 
 Deep dive on types and extending: [chat-inbound.md](chat-inbound.md).
 
 ## Daemon log
 
-All daemon subsystems log to **`~/.toby/daemon.log`** via `daemonLog()` in [`src/logging/daemon-log.ts`](../src/logging/daemon-log.ts):
+All daemon subsystems log to **`~/.toby/daemon.log`** via `daemonLog()` in [`apps/cli/src/logging/daemon-log.ts`](../apps/cli/src/logging/daemon-log.ts):
 
 - Buffered append (flush every ~2s or 50 entries)
 - JSON one object per line: `{ ts, level, category, type, data }`
@@ -225,7 +225,7 @@ Compact one-line format (for scripts): `formatDaemonLogEntry()` in the same modu
 | Schedules never run | `toby daemon status`; log for `schedules_fired`; cron and `enabled` on schedule |
 | No inbound activity | `chatInbound.enabled`, `integrations.slack.inboundEnabled`, Slack connected |
 | Log shows `inbound_not_connected` | Run `toby connect slack` |
-| No `slack_socket_connected` | Bot + app tokens in configure (not user OAuth alone); Socket Mode enabled; see [Slack credential reference](../help-site/docs/integrations/slack.md#credentials-and-auth-reference) |
+| No `slack_socket_connected` | Bot + app tokens in configure (not user OAuth alone); Socket Mode enabled; see [Slack credential reference](../apps/help-site/docs/integrations/slack.md#credentials-and-auth-reference) |
 | Fatal: needs bot token (`xoxb`) | Paste **Bot Token** in configure; OAuth connect does not set it |
 | Mentions ignored | Bot invited to channel; `app_mentions:read` scope; check `slack_app_mention` in log |
 | Duplicate replies | Router dedupes by `messageId`; check log for `inbound_duplicate` |

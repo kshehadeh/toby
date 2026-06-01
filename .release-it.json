@@ -10,6 +10,6 @@
 		"tagAnnotation": "Release v${version}"
 	},
 	"hooks": {
-		"after:bump": "bun install && git add bun.lock"
+		"after:bump": "node -e \"const v=require('./package.json').version; const fs=require('fs'); const p='apps/cli/package.json'; const j=JSON.parse(fs.readFileSync(p,'utf8')); j.version=v; fs.writeFileSync(p, JSON.stringify(j,null,'\\t')+'\\n');\" && bun install && git add bun.lock apps/cli/package.json"
 	}
 }

@@ -311,7 +311,7 @@ export function flattenTranscript(
 						: e.variant === "plan"
 							? "◆"
 							: ASSISTANT_TRANSCRIPT_GLYPH;
-			let bodyLines =
+			let bodyLines: readonly string[] =
 				e.variant === "tool" &&
 				e.toolRuns !== undefined &&
 				e.toolRuns.length > 1

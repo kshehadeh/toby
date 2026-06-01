@@ -1,13 +1,13 @@
 /**
  * Standalone Jira SDK diagnostic script.
- * Run: bun run scripts/test-jira.ts
+ * Run: bun run test:jira --filter @toby/helper-scripts
  *
  * Reads credentials from ~/.toby/credentials.json (jira.domain, jira.email, jira.apiToken).
  * Tests each API call individually and prints detailed error info.
  */
 
+import { getIntegrationCredential, readCredentials } from "@toby/cli/config";
 import { Version3Client } from "jira.js/version3";
-import { getIntegrationCredential, readCredentials } from "../src/config/index";
 
 function getCredentials() {
 	const creds = readCredentials();

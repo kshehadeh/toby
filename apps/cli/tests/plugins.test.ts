@@ -30,7 +30,7 @@ import {
 } from "../src/integrations/plugins/registry";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
-const sampleCli = path.join(repoRoot, "helpers/toby-plugin-sample/src/cli.ts");
+const sampleCli = path.join(repoRoot, "../plugin-sample/src/cli.ts");
 
 function writeSamplePluginWrapper(pluginDir: string): string {
 	fs.mkdirSync(pluginDir, { recursive: true });

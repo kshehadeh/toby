@@ -26,15 +26,16 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 
 ## Conventions for agents
 
-- Prefer **integration-local** code under `src/integrations/<name>/` (client, prompts, tools, CLI) over new cross-cutting branches in `src/commands/` when the behavior belongs to one integration.
-- **Register** new integrations in [`src/integrations/index.ts`](src/integrations/index.ts) (`MODULES` array).
-- **Shared** commands (`connect`, `disconnect`, `status`, `summarize`, `organize`, `chat`, `configure`) live in [`src/commands/`](src/commands/) and should stay generic; they resolve behavior through the registry and module hooks.
+- Prefer **integration-local** code under `apps/cli/src/integrations/<name>/` (client, prompts, tools, CLI) over new cross-cutting branches in `apps/cli/src/commands/` when the behavior belongs to one integration.
+- **Register** new integrations in [`apps/cli/src/integrations/index.ts`](apps/cli/src/integrations/index.ts) (`MODULES` array).
+- **Shared** commands (`connect`, `disconnect`, `status`, `summarize`, `organize`, `chat`, `configure`) live in [`apps/cli/src/commands/`](apps/cli/src/commands/) and should stay generic; they resolve behavior through the registry and module hooks.
 - After substantive changes, run `bun run lint`, `bun run typecheck`, and `bun run test`.
-- Use shared UI primitives from `src/ui/shared/` (`ViewFrame`, `ViewModal`, `ConfirmDialog`, `FieldNavigator`, `FieldEditor`, `FieldSelector`, `UI_GLYPHS`, row components, key predicates) when building Ink views. Do not create local frame/dialog/key/glyph duplicates. See [`docs/ui.md`](docs/ui.md).
+- Use `bun run dev` for the Ink chat TUI (runs the CLI directly; do not use `dev:turbo` — Turborepo log prefixes break the TUI).
+- Use shared UI primitives from `apps/cli/src/ui/shared/` (`ViewFrame`, `ViewModal`, `ConfirmDialog`, `FieldNavigator`, `FieldEditor`, `FieldSelector`, `UI_GLYPHS`, row components, key predicates) when building Ink views. Do not create local frame/dialog/key/glyph duplicates. See [`docs/ui.md`](docs/ui.md).
 
 ## Quick paths
 
-- CLI entry: [`src/cli.ts`](src/cli.ts)
-- Integration types: [`src/integrations/types.ts`](src/integrations/types.ts)
-- Integration registry: [`src/integrations/index.ts`](src/integrations/index.ts)
-- User config and credentials: [`src/config/index.ts`](src/config/index.ts) (paths under `~/.toby/`, including optional `~/.toby/skills/` for `SKILL.md` skills)
+- CLI entry: [`apps/cli/src/cli.ts`](apps/cli/src/cli.ts)
+- Integration types: [`apps/cli/src/integrations/types.ts`](apps/cli/src/integrations/types.ts)
+- Integration registry: [`apps/cli/src/integrations/index.ts`](apps/cli/src/integrations/index.ts)
+- User config and credentials: [`apps/cli/src/config/index.ts`](apps/cli/src/config/index.ts) (paths under `~/.toby/`, including optional `~/.toby/skills/` for `SKILL.md` skills)

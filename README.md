@@ -80,7 +80,7 @@ bun run dev -- --help
 
 ## Documentation site
 
-This repo includes a Docusaurus-based docs site in `help-site/`, deployed to GitHub Pages from `.github/workflows/deploy-docs.yml`.
+This repo includes a Docusaurus-based docs site in `apps/help-site/`, deployed to GitHub Pages from `.github/workflows/deploy-docs.yml`.
 
 ```bash
 bun run docs:install
@@ -110,5 +110,5 @@ bun run test
 ### Contributing notes
 
 - Start with [AGENTS.md](AGENTS.md) for repository conventions and quick paths.
-- Keep shared CLI behavior in `src/commands/` and integration-specific behavior in `src/integrations/<name>/`.
+- Keep shared CLI behavior in `apps/cli/src/commands/` and integration-specific behavior in `apps/cli/src/integrations/<name>/`.
 - Add or update tests in `tests/` for substantive behavior changes.

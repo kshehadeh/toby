@@ -1,4 +1,4 @@
-import packageJson from "../package.json";
+import packageJson from "../../../package.json";
 
 export function getTobyVersion(): string {
 	const envVersion = process.env.TOBY_VERSION?.trim();

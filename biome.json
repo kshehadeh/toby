@@ -3,10 +3,11 @@
 	"files": {
 		"ignore": [
 			"dist/**",
-			"help-site/build/**",
-			"help-site/.docusaurus/**",
-			"helpers/toby-audio-helper/.build/**",
-			"helpers/toby-macos-helper/.build/**"
+			"apps/help-site/build/**",
+			"apps/help-site/.docusaurus/**",
+			"apps/audio-helper/.build/**",
+			"apps/macos-helper/.build/**",
+			".turbo/**"
 		]
 	},
 	"organizeImports": { "enabled": true },

@@ -77,7 +77,9 @@ async function runUpgrade(options: UpgradeCommandOptions): Promise<void> {
 					? "default interval"
 					: `${applied.daemonIntervalSeconds}s interval`;
 			console.log(
-				chalk.dim(`Daemon was running and has been restarted (${intervalText}).`),
+				chalk.dim(
+					`Daemon was running and has been restarted (${intervalText}).`,
+				),
 			);
 		}
 		printPathGuidanceWithChalk(installDir);

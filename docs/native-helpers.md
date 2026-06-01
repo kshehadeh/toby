@@ -9,11 +9,11 @@ Two helpers currently exist:
 - **toby-macos-helper** — macOS system control for the `macos` integration (single-invocation JSON protocol)
 
 ```text
-helpers/toby-audio-helper/
+apps/audio-helper/
   Package.swift
   Sources/TobyAudioHelper/main.swift
 
-helpers/toby-macos-helper/
+apps/macos-helper/
   Package.swift
   Info.plist
   Sources/TobyMacOSHelper/
@@ -195,8 +195,8 @@ Build commands should live in `package.json`, for example:
 ```json
 {
   "scripts": {
-    "build:audio-helper": "swift build -c release --package-path helpers/toby-audio-helper",
-    "build:system-helper": "swift build -c release --package-path helpers/toby-macos-helper"
+    "build:audio-helper": "swift build -c release --package-path apps/audio-helper",
+    "build:system-helper": "swift build -c release --package-path apps/macos-helper"
   }
 }
 ```
@@ -259,11 +259,11 @@ prompts or real audio devices.
 
 `toby listen` follows this pattern:
 
-- `src/commands/listen.ts` registers the command.
-- `src/ui/listen/App.tsx` owns the Ink UI.
-- `src/listen/session-controller.ts` owns recording folders and metadata.
-- `src/listen/macos/audio-capture.ts` spawns and supervises the helper.
-- `helpers/toby-audio-helper/` contains the Swift executable.
+- `apps/cli/src/commands/listen.ts` registers the command.
+- `apps/cli/src/ui/listen/App.tsx` owns the Ink UI.
+- `apps/cli/src/listen/session-controller.ts` owns recording folders and metadata.
+- `apps/cli/src/listen/macos/audio-capture.ts` spawns and supervises the helper.
+- `apps/audio-helper/` contains the Swift executable.
 
 See [listen.md](listen.md) for the command-specific recording behavior and audio
 protocol details.
@@ -272,10 +272,10 @@ protocol details.
 
 The `macos` integration follows this pattern:
 
-- `src/integrations/macos/system-helper.ts` resolves the helper path, spawns it, and provides typed wrapper functions for all commands.
-- `src/integrations/macos/client.ts` calls typed wrappers and adapts results to the existing tool interface.
-- `src/integrations/macos/tools.ts` defines AI tools that call client functions.
-- `src/integrations/macos/index.ts` registers the integration and probes the helper on connect.
-- `helpers/toby-macos-helper/` contains the Swift executable with 10 command domains.
+- `apps/cli/src/integrations/macos/system-helper.ts` resolves the helper path, spawns it, and provides typed wrapper functions for all commands.
+- `apps/cli/src/integrations/macos/client.ts` calls typed wrappers and adapts results to the existing tool interface.
+- `apps/cli/src/integrations/macos/tools.ts` defines AI tools that call client functions.
+- `apps/cli/src/integrations/macos/index.ts` registers the integration and probes the helper on connect.
+- `apps/macos-helper/` contains the Swift executable with 10 command domains.
 
 See [macos-integration.md](macos-integration.md) for the full tool surface and capabilities.
