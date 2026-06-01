@@ -10,6 +10,7 @@ import {
 	PIPELINE_STEP_GLYPH,
 } from "./tool-transcript-icons";
 import type { DisplayRow, TranscriptEntry } from "./types";
+import { formatTranscriptWorkingLine } from "./working-placeholder";
 
 /** Break a string into lines of at most `max` columns (prefer spaces). */
 function hardWrap(line: string, max: number): string[] {
@@ -79,6 +80,45 @@ function flattenBoxedBodyLines(text: string, termCols: number): string[] {
 		lines.push(...hardWrap(segment, w));
 	}
 	return lines;
+}
+
+function boxedStepHasPendingBody(
+	entry: Extract<TranscriptEntry, { kind: "boxed_step" }>,
+): boolean {
+	if (entry.variant === "tool") {
+		const runs = entry.toolRuns;
+		if (runs !== undefined && runs.length > 0) {
+			return runs.some((run) => run.body.trim() === "");
+		}
+		return entry.body.trim() === "";
+	}
+	return entry.body.trim() === "";
+}
+
+function bodyLinesLookEmpty(lines: readonly string[]): boolean {
+	return lines.every((line) => line.trim() === "");
+}
+
+function applyWorkingPlaceholderIfPending(
+	entry: Extract<TranscriptEntry, { kind: "boxed_step" }>,
+	bodyLines: readonly string[],
+	loading: boolean,
+	animFrame: number,
+): readonly string[] {
+	if (!loading || !boxedStepHasPendingBody(entry)) {
+		return bodyLines;
+	}
+	if (bodyLinesLookEmpty(bodyLines)) {
+		return [formatTranscriptWorkingLine(animFrame)];
+	}
+	if (
+		entry.variant === "tool" &&
+		entry.toolRuns !== undefined &&
+		entry.toolRuns.length > 0
+	) {
+		return [...bodyLines, formatTranscriptWorkingLine(animFrame)];
+	}
+	return bodyLines;
 }
 
 function flattenGroupedToolRunLines(
@@ -232,6 +272,7 @@ export function flattenTranscript(
 	termCols: number,
 	streamingHeader = "Toby",
 	debug = false,
+	animFrame = 0,
 ): DisplayRow[] {
 	const userContentWidth = Math.max(8, termCols - 1);
 	const assistantW = assistantInnerTextWidth(termCols);
@@ -270,18 +311,24 @@ export function flattenTranscript(
 						: e.variant === "plan"
 							? "◆"
 							: ASSISTANT_TRANSCRIPT_GLYPH;
-			const bodyLines =
+			let bodyLines =
 				e.variant === "tool" &&
 				e.toolRuns !== undefined &&
 				e.toolRuns.length > 1
 					? flattenGroupedToolRunLines(e.toolRuns, termCols)
 					: flattenBoxedBodyLines(e.body, termCols);
+			bodyLines = applyWorkingPlaceholderIfPending(
+				e,
+				capBodyLines(bodyLines, e.variant),
+				loading,
+				animFrame,
+			);
 			rows.push({
 				kind: "boxed_block",
 				id: e.id,
 				variant: e.variant,
 				header: e.header,
-				bodyLines: capBodyLines(bodyLines, e.variant),
+				bodyLines,
 				leadingGlyph,
 				...(e.integrationLabel !== undefined
 					? { integrationLabel: e.integrationLabel }
@@ -342,8 +389,16 @@ export function flattenTranscript(
 				blockKey: e.blockKey,
 				title: e.title,
 			});
-			const skipGapBeforePairedOutput =
+			const hasOutput =
 				next?.kind === "tool_output" && next.blockKey === e.blockKey;
+			if (loading && !hasOutput) {
+				rows.push({
+					kind: "tool_feedback_output",
+					blockKey: e.blockKey,
+					detail: formatTranscriptWorkingLine(animFrame),
+				});
+			}
+			const skipGapBeforePairedOutput = hasOutput;
 			if (next !== undefined && !skipGapBeforePairedOutput) {
 				gapKey += 1;
 				rows.push({ kind: "spacer", rowKey: `gap-${gapKey}` });

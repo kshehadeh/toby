@@ -360,6 +360,7 @@ export function ChatSessionApp({
 			termCols,
 			streamingAssistantHeader,
 			debug,
+			activityGlyphFrame,
 		);
 	}, [
 		messages,
@@ -369,6 +370,7 @@ export function ChatSessionApp({
 		loading,
 		termCols,
 		debug,
+		activityGlyphFrame,
 	]);
 
 	const tip = useMemo(() => TIPS[Math.floor(Math.random() * TIPS.length)], []);

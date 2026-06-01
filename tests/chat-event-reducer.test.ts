@@ -288,6 +288,42 @@ describe("boxed_step persistence", () => {
 });
 
 describe("flattenTranscript boxed_step", () => {
+	it("shows animated Working placeholder while tool body is pending", () => {
+		const entries: TranscriptEntry[] = [
+			{
+				kind: "boxed_step",
+				id: "t1",
+				seq: 1,
+				variant: "tool",
+				header: "Gmail: Fetch inbox overview",
+				body: "",
+				toolBlockKey: "t1",
+				toolName: "getInboxUnreadOverview",
+			},
+		];
+		const rows = flattenTranscript(entries, "", true, 80, "Toby", false, 2);
+		const bb = rows.find((r) => r.kind === "boxed_block");
+		expect(bb?.kind === "boxed_block" && bb.bodyLines).toEqual(["● Working…"]);
+	});
+
+	it("does not show Working placeholder when not loading", () => {
+		const entries: TranscriptEntry[] = [
+			{
+				kind: "boxed_step",
+				id: "t1",
+				seq: 1,
+				variant: "tool",
+				header: "Gmail: Fetch inbox overview",
+				body: "",
+				toolBlockKey: "t1",
+				toolName: "getInboxUnreadOverview",
+			},
+		];
+		const rows = flattenTranscript(entries, "", false, 80);
+		const bb = rows.find((r) => r.kind === "boxed_block");
+		expect(bb?.kind === "boxed_block" && bb.bodyLines).toEqual([""]);
+	});
+
 	it("emits boxed_block rows", () => {
 		const entries: TranscriptEntry[] = [
 			{
