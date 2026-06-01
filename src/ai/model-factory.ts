@@ -1,10 +1,17 @@
 import { createGateway } from "@ai-sdk/gateway";
 import { createOpenAI } from "@ai-sdk/openai";
-import type { LanguageModel } from "ai";
+import type { LanguageModelV3 } from "@ai-sdk/provider";
+import { type LanguageModel, wrapLanguageModel } from "ai";
 import { readCredentials } from "../config/index";
 import type { Persona } from "../config/index";
 import { resolveDefaultPersona } from "../personas/index";
 import { getAIProvider } from "./providers";
+import {
+	createRecordMiddleware,
+	createReplayModel,
+	isRecording,
+	isReplaying,
+} from "./replay";
 
 const GATEWAY_SLUG_RE = /^[a-z0-9-]+\/[a-z0-9][a-z0-9.-]*$/i;
 
@@ -168,18 +175,34 @@ export function resolveAuxiliaryModelId(
 }
 
 export function createModelForPersona(persona: Persona): LanguageModel {
+	if (isReplaying()) {
+		return createReplayModel(persona);
+	}
+
 	validatePersonaAi(persona);
 
+	let model: LanguageModel;
 	switch (persona.ai.provider) {
 		case "openai":
-			return createOpenAiModel(persona.ai.model);
+			model = createOpenAiModel(persona.ai.model);
+			break;
 		case "vercel":
-			return createVercelGatewayModel(persona.ai.model);
+			model = createVercelGatewayModel(persona.ai.model);
+			break;
 		default:
 			throw new Error(
 				`Unsupported AI provider: ${persona.ai.provider}. Run \`toby configure\` to choose a supported provider.`,
 			);
 	}
+
+	if (isRecording()) {
+		return wrapLanguageModel({
+			model: model as LanguageModelV3,
+			middleware: createRecordMiddleware(),
+		});
+	}
+
+	return model;
 }
 
 export function createModelForAuxiliary(options?: {

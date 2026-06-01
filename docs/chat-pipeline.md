@@ -219,6 +219,56 @@ To clear cached tool results in chat, run:
 - Before each tool execution, the signal is checked; if already aborted the tool throws instead of running.
 - The Ink TUI wires an `AbortController` per turn and aborts it when the user presses **Escape** during a loading state.
 
+## Session recording & playback
+
+`toby chat` can record model responses to a JSON file and replay them later **without consuming AI tokens**. This is useful for UI testing, pipeline debugging, and repeatable demos.
+
+### Flags
+
+| Flag | Purpose |
+| ---- | ------- |
+| `--record <file>` | Record every model call (pretreatment + main turns) to `<file>`. Bare filenames are stored under `~/.toby/recordings/`. |
+| `--replay <file>` | Replay recorded model responses from `<file>`. No API key is required. |
+
+The flags are mutually exclusive. Both the Ink TUI and `--no-tui` one-shot mode support record/replay.
+
+Examples:
+
+```bash
+# Record a session
+toby chat gmail --record inbox-triage.json
+
+# Replay it (tools still run live against real integrations)
+toby chat gmail --replay inbox-triage.json
+
+# One-shot replay
+toby chat --no-tui --replay inbox-triage.json "same prompt as recording"
+```
+
+### What is recorded
+
+Recording intercepts model creation in [`createModelForPersona`](../src/ai/model-factory.ts) via AI SDK middleware ([`src/ai/replay/`](../src/ai/replay/)). Each entry captures either:
+
+- a **`generate`** result (`content`, `finishReason`, `usage`, …), or
+- a **`stream`** sequence (ordered stream chunks including text deltas and tool calls).
+
+The file format is versioned JSON (`version: 1`) with metadata (`createdAt`, persona provider/model) and an ordered `entries` array.
+
+Call matching during replay uses a stable digest of normalized request params (prompt messages, tools, settings). Volatile bits are stripped before digesting — for example the injected current-datetime system appendix and cache-only `providerOptions` keys.
+
+### Scope and caveats
+
+- **Model-only**: replay substitutes model responses only. Integration tools (Gmail, Todoist, web fetch, etc.) still execute live during replay.
+- **Pretreatment**: pretreatment has its own local SQLite cache that can change how many model calls occur between record and replay. Digest matching plus cursor fallback tolerates minor differences; for fully deterministic replays, use the same pretreatment cache state on both runs or set `TOBY_DISABLE_PRETREATMENT=1`.
+- **Tool alignment**: because tool *calls* come from the recording but tool *results* are live, replay works best when external state has not changed materially since the recording.
+
+Implementation paths:
+
+- [`src/ai/replay/session.ts`](../src/ai/replay/session.ts) — process-global record/replay session state and file I/O
+- [`src/ai/replay/record-middleware.ts`](../src/ai/replay/record-middleware.ts) — capture middleware
+- [`src/ai/replay/replay-model.ts`](../src/ai/replay/replay-model.ts) — synthetic replay model
+- [`src/commands/chat.ts`](../src/commands/chat.ts) — CLI flag wiring
+
 ## AI prompt caching
 
 Provider-specific prompt caching (OpenAI direct, Vercel AI Gateway, stable cache keys, status-line `cache=` / `cacheW=` telemetry, and adding new adapters) is documented in **[ai-caching.md](ai-caching.md)**.

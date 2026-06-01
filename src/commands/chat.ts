@@ -2,6 +2,12 @@ import chalk from "chalk";
 import type { Command } from "commander";
 import { formatPersonaAiLabel } from "../ai/model-factory";
 import { wrapUserPromptWithPretreatment } from "../ai/pretreatment";
+import {
+	beginRecording,
+	beginReplay,
+	flushRecording,
+	getRecordingFilePath,
+} from "../ai/replay";
 import type { Persona } from "../config/index";
 import type { IntegrationModule } from "../integrations/types";
 import {
@@ -30,6 +36,8 @@ interface ChatCommandOptions {
 	noTui?: boolean;
 	debug?: boolean;
 	integration?: string[];
+	record?: string;
+	replay?: string;
 }
 
 function collectIntegration(value: string, previous: string[] = []): string[] {
@@ -68,6 +76,14 @@ export function registerChatCommand(program: Command): void {
 			"Show local skill catalog and preflight skill selection (meta lines in TUI; dim lines in --no-tui)",
 			false,
 		)
+		.option(
+			"--record <file>",
+			"Record model responses to a JSON file for token-free replay (bare names go under ~/.toby/recordings/)",
+		)
+		.option(
+			"--replay <file>",
+			"Replay model responses from a recorded JSON file (no AI tokens; tools still run live)",
+		)
 		.action(
 			async (words: string[] | undefined, options: ChatCommandOptions) => {
 				try {
@@ -93,36 +109,73 @@ export function registerChatCommand(program: Command): void {
 						return;
 					}
 
-					const dryRun = Boolean(options.dryRun);
-					const debug = Boolean(options.debug);
-					if (options.noTui) {
-						if (!prompt) {
-							console.error(
-								chalk.red(
-									'With --no-tui, pass a prompt (e.g. toby chat --no-tui "summarize unread" or toby chat gmail --no-tui "archive promos").',
-								),
-							);
-							process.exitCode = 1;
-							return;
-						}
-
-						await runConsoleChatTurn({
-							modules,
-							prompt,
-							persona,
-							dryRun,
-							debug,
-						});
+					if (options.record && options.replay) {
+						console.error(
+							chalk.red("Cannot use --record and --replay together."),
+						);
+						process.exitCode = 1;
 						return;
 					}
 
-					await runChatSessionInk({
-						modules,
-						persona,
-						dryRun,
-						debug,
-						initialUserPrompt: prompt,
-					});
+					try {
+						if (options.record) {
+							beginRecording(options.record, {
+								provider: persona.ai.provider,
+								model: persona.ai.model,
+							});
+							console.log(
+								chalk.dim(
+									`Recording model responses to ${getRecordingFilePath() ?? options.record}`,
+								),
+							);
+						} else if (options.replay) {
+							beginReplay(options.replay);
+							console.log(
+								chalk.dim(
+									`Replaying model responses from ${options.replay} (tools still run live)`,
+								),
+							);
+						}
+
+						const dryRun = Boolean(options.dryRun);
+						const debug = Boolean(options.debug);
+						if (options.noTui) {
+							if (!prompt) {
+								console.error(
+									chalk.red(
+										'With --no-tui, pass a prompt (e.g. toby chat --no-tui "summarize unread" or toby chat gmail --no-tui "archive promos").',
+									),
+								);
+								process.exitCode = 1;
+								return;
+							}
+
+							await runConsoleChatTurn({
+								modules,
+								prompt,
+								persona,
+								dryRun,
+								debug,
+							});
+							return;
+						}
+
+						await runChatSessionInk({
+							modules,
+							persona,
+							dryRun,
+							debug,
+							initialUserPrompt: prompt,
+						});
+					} finally {
+						if (options.record) {
+							flushRecording();
+							const savedPath = getRecordingFilePath();
+							if (savedPath) {
+								console.log(chalk.green(`Recording saved to ${savedPath}`));
+							}
+						}
+					}
 				} catch (error) {
 					console.error(
 						chalk.red(error instanceof Error ? error.message : String(error)),
