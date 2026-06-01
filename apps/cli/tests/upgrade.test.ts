@@ -7,8 +7,11 @@ import { waitForProcessExit } from "../src/commands/internal-handoff";
 import {
 	getStagingPaths,
 	readStagingManifest,
+	removeLegacySiblingHelpers,
 	resolveInstallDir,
 	resolveInstallTarget,
+	resolveListenerInstallTarget,
+	resolveMacOSHelperInstallTarget,
 } from "../src/upgrade/index";
 
 describe("upgrade staging paths", () => {
@@ -56,6 +59,56 @@ describe("upgrade staging paths", () => {
 		expect(resolveInstallDir()).toBe(
 			path.resolve(path.join(os.homedir(), ".local", "bin")),
 		);
+	});
+
+	it("installs helper binaries under ~/.toby/helpers, not the bin dir", () => {
+		expect(resolveListenerInstallTarget()).toBe(
+			path.join(tempDir, "helpers", "toby-listener"),
+		);
+		expect(resolveMacOSHelperInstallTarget()).toBe(
+			path.join(tempDir, "helpers", "toby-macos"),
+		);
+	});
+});
+
+describe("removeLegacySiblingHelpers", () => {
+	let binDir: string;
+
+	beforeEach(() => {
+		binDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-bin-"));
+	});
+
+	afterEach(() => {
+		fs.rmSync(binDir, { recursive: true, force: true });
+	});
+
+	it("removes stale helper binaries left beside the toby binary", async () => {
+		const installTarget = path.join(binDir, "toby");
+		fs.writeFileSync(installTarget, "binary");
+		const staleListener = path.join(binDir, "toby-listener");
+		const staleMacOS = path.join(binDir, "toby-macos");
+		fs.writeFileSync(staleListener, "old");
+		fs.writeFileSync(staleMacOS, "old");
+
+		await removeLegacySiblingHelpers(installTarget, [
+			path.join(binDir, "..", "helpers", "toby-listener"),
+			path.join(binDir, "..", "helpers", "toby-macos"),
+		]);
+
+		expect(fs.existsSync(staleListener)).toBe(false);
+		expect(fs.existsSync(staleMacOS)).toBe(false);
+		expect(fs.existsSync(installTarget)).toBe(true);
+	});
+
+	it("never deletes a sibling that is also the new helper target", async () => {
+		const installTarget = path.join(binDir, "toby");
+		fs.writeFileSync(installTarget, "binary");
+		const sibling = path.join(binDir, "toby-listener");
+		fs.writeFileSync(sibling, "current");
+
+		await removeLegacySiblingHelpers(installTarget, [sibling]);
+
+		expect(fs.existsSync(sibling)).toBe(true);
 	});
 });
 

@@ -4,7 +4,11 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
-import { ensureTobyDir, resolveTobyDir } from "@toby/core/config/index";
+import {
+	ensureTobyDir,
+	getHelpersDir,
+	resolveTobyDir,
+} from "@toby/core/config/index";
 import {
 	getTobyEntryScriptArgv,
 	isRunningAsCompiledBinary,
@@ -81,18 +85,12 @@ export function resolveInstallTarget(installDir?: string): string {
 	return path.join(resolveInstallDir(installDir), "toby");
 }
 
-export function resolveListenerInstallTarget(installDir?: string): string {
-	return path.join(
-		path.dirname(resolveInstallTarget(installDir)),
-		"toby-listener",
-	);
+export function resolveListenerInstallTarget(_installDir?: string): string {
+	return path.join(getHelpersDir(), "toby-listener");
 }
 
-export function resolveMacOSHelperInstallTarget(installDir?: string): string {
-	return path.join(
-		path.dirname(resolveInstallTarget(installDir)),
-		"toby-macos",
-	);
+export function resolveMacOSHelperInstallTarget(_installDir?: string): string {
+	return path.join(getHelpersDir(), "toby-macos");
 }
 
 export function getStagingPaths(): {
@@ -297,12 +295,11 @@ export async function applyStagedRelease(
 
 	const installTarget = installTargetOverride ?? manifest.installTarget;
 	const listenerInstallTarget =
-		manifest.listenerInstallTarget ??
-		path.join(path.dirname(installTarget), "toby-listener");
+		manifest.listenerInstallTarget ?? resolveListenerInstallTarget();
 	const macOSHelperInstallTarget =
-		manifest.macOSHelperInstallTarget ??
-		path.join(path.dirname(installTarget), "toby-macos");
+		manifest.macOSHelperInstallTarget ?? resolveMacOSHelperInstallTarget();
 	await mkdir(path.dirname(installTarget), { recursive: true });
+	await mkdir(path.dirname(listenerInstallTarget), { recursive: true });
 
 	const tempDestination = path.join(
 		path.dirname(installTarget),
@@ -333,6 +330,14 @@ export async function applyStagedRelease(
 		await chmodExecutable(tempMacOSDestination);
 		await rename(tempMacOSDestination, macOSHelperInstallTarget);
 	}
+
+	// Migration: older installs placed helper binaries next to `toby` on PATH.
+	// Now that helpers live under ~/.toby/helpers, remove the stale siblings so
+	// only `toby` remains in the bin directory.
+	await removeLegacySiblingHelpers(installTarget, [
+		listenerInstallTarget,
+		macOSHelperInstallTarget,
+	]);
 
 	const installedVersion = readInstalledVersion(installTarget);
 	if (!installedVersion) {
@@ -365,6 +370,32 @@ export async function runFullUpgrade(options: {
 }): Promise<ApplyStagedResult> {
 	const download = await downloadRelease(options);
 	return applyStagedRelease(download.installTarget);
+}
+
+const LEGACY_SIBLING_HELPER_NAMES = ["toby-listener", "toby-macos"] as const;
+
+/**
+ * Remove helper binaries that older installers left next to the `toby` binary
+ * on PATH. Helpers now live under ~/.toby/helpers, so the siblings are stale
+ * duplicates. Best-effort: never fails the upgrade, and never touches the new
+ * helper targets (in case someone points the bin dir at the helpers dir).
+ */
+export async function removeLegacySiblingHelpers(
+	installTarget: string,
+	newHelperTargets: readonly string[],
+): Promise<void> {
+	const binDir = path.dirname(installTarget);
+	const keep = new Set(newHelperTargets.map((target) => path.resolve(target)));
+	for (const name of LEGACY_SIBLING_HELPER_NAMES) {
+		const siblingPath = path.join(binDir, name);
+		if (keep.has(path.resolve(siblingPath))) {
+			continue;
+		}
+		if (!fs.existsSync(siblingPath)) {
+			continue;
+		}
+		await rm(siblingPath, { force: true }).catch(() => undefined);
+	}
 }
 
 async function downloadReleaseAsset(
