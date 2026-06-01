@@ -1,7 +1,7 @@
+import { getIntegration, getIntegrations } from "@toby/core/integrations/index";
+import type { IntegrationHealth } from "@toby/core/integrations/types";
 import chalk from "chalk";
 import type { Command } from "commander";
-import { getIntegration, getIntegrations } from "../integrations/index";
-import type { IntegrationHealth } from "../integrations/types";
 
 interface IntegrationStatusOptions {
 	integration?: string;

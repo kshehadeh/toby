@@ -1,10 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { generateText, streamText, wrapLanguageModel } from "ai";
-import { MockLanguageModelV3 } from "ai/test";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createModelForPersona } from "../../src/ai/model-factory";
+import { createModelForPersona } from "@toby/core/ai/model-factory";
 import {
 	beginRecording,
 	beginReplay,
@@ -14,8 +11,11 @@ import {
 	flushRecording,
 	parseRecording,
 	resetReplaySessionForTests,
-} from "../../src/ai/replay";
-import type { Persona } from "../../src/config/index";
+} from "@toby/core/ai/replay";
+import type { Persona } from "@toby/core/config/index";
+import { generateText, streamText, wrapLanguageModel } from "ai";
+import { MockLanguageModelV3 } from "ai/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let tempDir: string;
 let previousTobyDir: string | undefined;
@@ -225,7 +225,7 @@ describe("chat replay recording", () => {
 describe("computeParamsDigest stability", () => {
 	it("ignores injected datetime blocks when digesting", async () => {
 		const { computeParamsDigest, normalizeCallParams } = await import(
-			"../../src/ai/replay/recording-format"
+			"@toby/core/ai/replay/recording-format"
 		);
 		const baseParams = {
 			prompt: [

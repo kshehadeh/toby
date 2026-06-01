@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
 import {
 	closeChatDbForTests,
 	getOrCreateExternalSession,
@@ -9,7 +8,8 @@ import {
 	markMessageProcessed,
 	setPendingAskUser,
 	wasMessageProcessed,
-} from "../src/ui/chat/session-store";
+} from "@toby/core/session-store";
+import { afterEach, describe, expect, it } from "vitest";
 
 const isBun =
 	typeof (globalThis as unknown as { Bun?: unknown }).Bun !== "undefined";

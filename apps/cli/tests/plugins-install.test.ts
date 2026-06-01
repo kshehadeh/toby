@@ -1,17 +1,16 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
 	getConfigPath,
 	getPluginsDir,
 	readCredentials,
-} from "../src/config/index";
+} from "@toby/core/config/index";
 import {
 	getIntegrationModule,
 	isBuiltinIntegration,
-} from "../src/integrations/index";
-import { discoverPluginBinaries } from "../src/integrations/plugins/discovery";
+} from "@toby/core/integrations/index";
+import { discoverPluginBinaries } from "@toby/core/integrations/plugins/discovery";
 import {
 	PluginInstallException,
 	installPlugin,
@@ -19,12 +18,13 @@ import {
 	resolvePluginSourcePath,
 	uninstallPlugin,
 	validatePluginForInstall,
-} from "../src/integrations/plugins/install";
-import { parsePluginNameFromBinary } from "../src/integrations/plugins/protocol";
+} from "@toby/core/integrations/plugins/install";
+import { parsePluginNameFromBinary } from "@toby/core/integrations/plugins/protocol";
 import {
 	getPluginModules,
 	resetPluginModuleCache,
-} from "../src/integrations/plugins/registry";
+} from "@toby/core/integrations/plugins/registry";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const sampleCli = path.join(repoRoot, "../plugin-sample/src/cli.ts");

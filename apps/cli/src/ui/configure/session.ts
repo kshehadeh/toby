@@ -1,5 +1,5 @@
-import { AI_PROVIDERS } from "../../ai/providers";
-import type { ChatInboundConfig } from "../../config/index";
+import { AI_PROVIDERS } from "@toby/core/ai/providers";
+import type { ChatInboundConfig } from "@toby/core/config/index";
 import {
 	type CredentialsFile,
 	type Persona,
@@ -10,13 +10,13 @@ import {
 	setDefaultPersona,
 	writeConfig,
 	writeCredentials,
-} from "../../config/index";
-import { getIntegrationModules } from "../../integrations/index";
+} from "@toby/core/config/index";
+import { getIntegrationModules } from "@toby/core/integrations/index";
 import {
 	ALL_PROVIDER_CATEGORIES,
 	type ProviderCategory,
-} from "../../integrations/types";
-import { DEFAULT_CHAT_PERSONA } from "../../personas/index";
+} from "@toby/core/integrations/types";
+import { DEFAULT_CHAT_PERSONA } from "@toby/core/personas/index";
 import type { SettingsItem } from "./items";
 import { buildSettingsTree } from "./items";
 

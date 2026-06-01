@@ -1,5 +1,5 @@
+import type { SlackUser } from "@toby/core/integrations/slack/client";
 import { describe, expect, it } from "vitest";
-import type { SlackUser } from "../src/integrations/slack/client";
 
 describe("Slack user search helpers", () => {
 	const sampleUser: SlackUser = {

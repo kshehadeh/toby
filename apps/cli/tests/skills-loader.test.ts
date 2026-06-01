@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
 import {
 	computeSkillCatalogSignature,
 	formatSkillsCatalogForPrompt,
@@ -9,7 +8,8 @@ import {
 	parseSkillFileContent,
 	parseSkillFrontmatterAndBody,
 	resolveSkillsByNames,
-} from "../src/skills/index";
+} from "@toby/core/skills/index";
+import { afterEach, describe, expect, it } from "vitest";
 
 describe("parseSkillFrontmatterAndBody", () => {
 	it("parses standard SKILL.md shape", () => {

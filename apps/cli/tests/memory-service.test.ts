@@ -6,8 +6,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const isBun =
 	typeof (globalThis as unknown as { Bun?: unknown }).Bun !== "undefined";
-import * as memory from "../src/memory/memory-service";
-import { closeMemoryDbForTests } from "../src/memory/memory-store";
+import * as memory from "@toby/core/memory/memory-service";
+import { closeMemoryDbForTests } from "@toby/core/memory/memory-store";
 
 const TMP_DIR = path.join(
 	os.tmpdir(),

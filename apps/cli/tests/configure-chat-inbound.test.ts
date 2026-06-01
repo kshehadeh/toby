@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { readConfig } from "@toby/core/config/index";
 import { afterEach, describe, expect, it } from "vitest";
-import { readConfig } from "../src/config/index";
 import { createConfigureSession } from "../src/ui/configure/session";
 
 function makeTempDir(): string {

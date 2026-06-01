@@ -1,4 +1,4 @@
-import type { PlanPhase } from "../../../planning/types";
+import type { PlanPhase } from "@toby/core/planning/types";
 import type { SlashCommand, SlashCommandRuntime } from "./types";
 
 function runPlanCommand(runtime: SlashCommandRuntime, subcommand?: string) {

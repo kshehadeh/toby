@@ -1,7 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
 import {
 	extractBatterySnippet,
 	parseAirportScanStdout,
@@ -9,7 +8,8 @@ import {
 	parseAudioOutputDeviceNames,
 	parseSpAirPortNearbyNetworks,
 	parseWifiDeviceFromNetworkSetupList,
-} from "../src/integrations/macos/parsers";
+} from "@toby/core/integrations/macos/parsers";
+import { describe, expect, it } from "vitest";
 
 const testsDir = fileURLToPath(new URL(".", import.meta.url));
 describe("macos parsers", () => {

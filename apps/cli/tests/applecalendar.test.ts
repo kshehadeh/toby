@@ -1,14 +1,14 @@
-import { describe, expect, it } from "vitest";
 import {
 	normalizeToAppleScriptDate,
 	parseCalendarListOutput,
 	parseEventListOutput,
-} from "../src/integrations/applecalendar/client";
+} from "@toby/core/integrations/applecalendar/client";
 import {
 	getIntegrationModule,
 	getIntegrationModules,
 	getModulesForCategory,
-} from "../src/integrations/index";
+} from "@toby/core/integrations/index";
+import { describe, expect, it } from "vitest";
 
 describe("Apple Calendar integration registration", () => {
 	it("is registered in the module list", () => {

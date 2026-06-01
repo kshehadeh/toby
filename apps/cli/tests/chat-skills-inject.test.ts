@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
-import type { CoreMessage } from "../src/ai/chat";
+import type { CoreMessage } from "@toby/core/ai/chat";
 import {
 	SKILL_INSTRUCTIONS_APPENDIX_START,
 	injectCurrentDateTimeIntoFirstSystemMessage,
 	injectSkillBodiesIntoFirstSystemMessage,
 	stripSkillInstructionsAppendix,
-} from "../src/ui/chat/prepare-messages";
+} from "@toby/core/prepare-messages";
+import { describe, expect, it } from "vitest";
 
 describe("injectSkillBodiesIntoFirstSystemMessage", () => {
 	it("appends skill bodies to the first system message", () => {

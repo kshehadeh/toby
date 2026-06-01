@@ -1,33 +1,33 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
 	getIntegrationModule,
 	getIntegrationModules,
-} from "../src/integrations/index";
+} from "@toby/core/integrations/index";
 import {
 	createPluginIntegrationModule,
 	inspectPluginBinary,
 	loadPluginMetadata,
-} from "../src/integrations/plugins/adapter";
+} from "@toby/core/integrations/plugins/adapter";
 import {
 	pluginConfigShape,
 	pluginConnect,
 	pluginStatus,
 	pluginToolsExecute,
 	pluginToolsList,
-} from "../src/integrations/plugins/client";
+} from "@toby/core/integrations/plugins/client";
 import {
 	discoverPluginBinaries,
 	resolvePluginSearchDirectories,
-} from "../src/integrations/plugins/discovery";
-import { jsonSchemaToZod } from "../src/integrations/plugins/json-schema";
-import { parsePluginNameFromBinary } from "../src/integrations/plugins/protocol";
+} from "@toby/core/integrations/plugins/discovery";
+import { jsonSchemaToZod } from "@toby/core/integrations/plugins/json-schema";
+import { parsePluginNameFromBinary } from "@toby/core/integrations/plugins/protocol";
 import {
 	getPluginModules,
 	resetPluginModuleCache,
-} from "../src/integrations/plugins/registry";
+} from "@toby/core/integrations/plugins/registry";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const sampleCli = path.join(repoRoot, "../plugin-sample/src/cli.ts");

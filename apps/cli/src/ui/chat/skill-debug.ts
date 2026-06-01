@@ -1,10 +1,10 @@
-import type { CoreMessage } from "../../ai/chat";
+import type { CoreMessage } from "@toby/core/ai/chat";
 import {
 	type UserIntentSpec,
 	isPretreatmentDisabled,
 	shouldPretreat,
-} from "../../ai/pretreatment";
-import type { LocalSkill } from "../../skills/index";
+} from "@toby/core/ai/pretreatment";
+import type { LocalSkill } from "@toby/core/skills/index";
 import type { TranscriptEntry } from "./types";
 
 const MAX_SKILL_NAMES_IN_ONE_LINE = 12;

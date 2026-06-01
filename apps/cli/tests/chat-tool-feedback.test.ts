@@ -1,13 +1,13 @@
+import {
+	deserializeTranscriptRow,
+	serializeTranscriptEntry,
+} from "@toby/core/transcript-persist";
 import { describe, expect, it } from "vitest";
 import {
 	formatToolFeedbackOutput,
 	registerToolFeedbackFormatter,
 } from "../src/ui/chat/tool-feedback-registry";
 import { flattenTranscript } from "../src/ui/chat/transcript-layout";
-import {
-	deserializeTranscriptRow,
-	serializeTranscriptEntry,
-} from "../src/ui/chat/transcript-persist";
 import type { TranscriptEntry } from "../src/ui/chat/types";
 
 describe("tool feedback registry", () => {

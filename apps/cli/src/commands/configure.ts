@@ -3,8 +3,6 @@ import { mkdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import readline from "node:readline/promises";
-import chalk from "chalk";
-import type { Command } from "commander";
 import {
 	getConfigPath,
 	getCredentialsPath,
@@ -12,7 +10,9 @@ import {
 	readCredentials,
 	writeConfig,
 	writeCredentials,
-} from "../config/index";
+} from "@toby/core/config/index";
+import chalk from "chalk";
+import type { Command } from "commander";
 import { runConfigureUI } from "../ui/configure/App";
 import { createConfigureSession } from "../ui/configure/session";
 import {

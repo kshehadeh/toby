@@ -1,17 +1,17 @@
-import { describe, expect, it, vi } from "vitest";
-import type { CoreMessage } from "../src/ai/chat";
-import { assembleMessagesNode } from "../src/chat-pipeline/nodes/assemble-messages";
-import { expandPromptNode } from "../src/chat-pipeline/nodes/expand-prompt";
-import { persistTurnNode } from "../src/chat-pipeline/nodes/persist-turn";
-import { runModelTurnNode } from "../src/chat-pipeline/nodes/run-model-turn";
-import { turnInitNode } from "../src/chat-pipeline/nodes/turn-init";
+import type { CoreMessage } from "@toby/core/ai/chat";
+import { assembleMessagesNode } from "@toby/core/chat-pipeline/nodes/assemble-messages";
+import { expandPromptNode } from "@toby/core/chat-pipeline/nodes/expand-prompt";
+import { persistTurnNode } from "@toby/core/chat-pipeline/nodes/persist-turn";
+import { runModelTurnNode } from "@toby/core/chat-pipeline/nodes/run-model-turn";
+import { turnInitNode } from "@toby/core/chat-pipeline/nodes/turn-init";
 import {
 	type AssembledTurn,
 	type TurnContext,
 	type TurnRequest,
 	runChatTurnPipeline,
 	withAssembledMessages,
-} from "../src/chat-pipeline/pipeline";
+} from "@toby/core/chat-pipeline/pipeline";
+import { describe, expect, it, vi } from "vitest";
 
 const request: TurnRequest = {
 	rawUserText: "hello",

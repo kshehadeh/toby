@@ -1,8 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
-import { resolveSlackPostToken } from "../src/integrations/slack/client";
+import { resolveSlackPostToken } from "@toby/core/integrations/slack/client";
 import {
 	buildSlackExternalKey,
 	classifySlackInboundMessage,
@@ -10,7 +9,8 @@ import {
 	resolveSlackThreadRootTs,
 	slackReplyThreadTs,
 	stripSlackBotMention,
-} from "../src/integrations/slack/inbound";
+} from "@toby/core/integrations/slack/inbound";
+import { afterEach, describe, expect, it } from "vitest";
 
 function makeTempDir(): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), "toby-slack-thread-"));

@@ -1,6 +1,6 @@
+import { formatScopeLabel } from "@toby/core/chat-pipeline/format-scope-label";
+import type { IntegrationModule } from "@toby/core/integrations/types";
 import { describe, expect, it } from "vitest";
-import { formatScopeLabel } from "../src/chat-pipeline/format-scope-label";
-import type { IntegrationModule } from "../src/integrations/types";
 
 function mockModule(name: string, displayName?: string): IntegrationModule {
 	return {

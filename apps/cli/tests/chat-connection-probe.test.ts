@@ -1,5 +1,5 @@
+import type { IntegrationModule } from "@toby/core/integrations/types";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { IntegrationModule } from "../src/integrations/types";
 import {
 	type ConnectionProbeProgress,
 	runConnectionProbes,

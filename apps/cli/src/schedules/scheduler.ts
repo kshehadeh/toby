@@ -1,4 +1,4 @@
-import { daemonLog } from "../logging/daemon-log";
+import { daemonLog } from "@toby/core/logging/daemon-log";
 import { shouldRun } from "./cron";
 import { executeSchedule } from "./executor";
 import { claimScheduleRun, getDueSchedules } from "./store";

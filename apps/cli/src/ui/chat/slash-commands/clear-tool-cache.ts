@@ -1,4 +1,4 @@
-import { clearToolResultCache } from "../../../chat-pipeline/tool-result-cache";
+import { clearToolResultCache } from "@toby/core/chat-pipeline/tool-result-cache";
 import type { SlashCommand } from "./types";
 
 export const clearToolCacheSlashCommand: SlashCommand = {

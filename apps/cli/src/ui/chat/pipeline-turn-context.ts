@@ -1,9 +1,9 @@
-import type { AskUserHandler } from "../../ai/ask-user-tool";
-import type { ChatWithToolsOptions } from "../../ai/chat";
-import type { ChatEventSink } from "../../chat-pipeline/chat-events";
-import type { TurnContext } from "../../chat-pipeline/pipeline";
-import type { Persona } from "../../config/index";
-import type { IntegrationModule } from "../../integrations/types";
+import type { AskUserHandler } from "@toby/core/ai/ask-user-tool";
+import type { ChatWithToolsOptions } from "@toby/core/ai/chat";
+import type { ChatEventSink } from "@toby/core/chat-pipeline/chat-events";
+import type { TurnContext } from "@toby/core/chat-pipeline/pipeline";
+import type { Persona } from "@toby/core/config/index";
+import type { IntegrationModule } from "@toby/core/integrations/types";
 
 export function buildUiTurnContext(params: {
 	readonly persona: Persona;

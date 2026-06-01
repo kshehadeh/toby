@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
 import {
 	createPrepId,
 	formatPrepEndDetail,
-} from "../src/chat-pipeline/prep-format";
+} from "@toby/core/chat-pipeline/prep-format";
+import { describe, expect, it } from "vitest";
 
 describe("formatPrepEndDetail", () => {
 	it("returns Request prepared when content is unchanged", () => {

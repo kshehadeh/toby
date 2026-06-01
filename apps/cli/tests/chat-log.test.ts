@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "toby-log-test-"));
 const LOG_PATH = path.join(TMP_DIR, "toby.log");
 
-vi.mock("../src/config/index", () => ({
+vi.mock("@toby/core/config/index", () => ({
 	ensureTobyDir: () => {
 		if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
 	},
@@ -16,7 +16,7 @@ vi.mock("../src/config/index", () => ({
 
 // Import after mock is set up
 const { clearLog, flush, formatLogEntry, log, logTurnSummary, readLogTail } =
-	await import("../src/logging/chat-log");
+	await import("@toby/core/logging/chat-log");
 
 beforeEach(() => {
 	clearLog();

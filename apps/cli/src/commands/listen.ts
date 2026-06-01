@@ -143,7 +143,7 @@ export function applyTranscriptFilesToMetadata(
 	};
 }
 
-export async function transcribeListenRecordingFolder(params: {
+async function transcribeListenRecordingFolder(params: {
 	readonly recordingDir: string;
 	readonly helperPath?: string;
 }): Promise<ListenRecordingFiles> {

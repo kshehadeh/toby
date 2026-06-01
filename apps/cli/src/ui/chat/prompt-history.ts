@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { resolveTobyDir } from "../../config/index";
+import { resolveTobyDir } from "@toby/core/config/index";
 
 const PROMPT_HISTORY_FILE = "prompt-history.json";
 const MAX_PROMPT_HISTORY = 100;

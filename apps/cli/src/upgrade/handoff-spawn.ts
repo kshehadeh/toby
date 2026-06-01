@@ -1,10 +1,10 @@
 import { spawn } from "node:child_process";
-import type { LaunchContext } from "../toby-launch-context";
 import {
 	buildTobySpawnArgs,
 	getDetachedUpgradeSpawnStdio,
 	getTobyExecPath,
-} from "../toby-spawn";
+} from "@toby/core/toby-spawn";
+import type { LaunchContext } from "../toby-launch-context";
 import { readStagingManifest } from "./index";
 
 export interface SpawnHandoffOptions {

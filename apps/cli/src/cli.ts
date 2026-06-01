@@ -1,4 +1,6 @@
 import process from "node:process";
+import { getIntegrationModules } from "@toby/core/integrations/index";
+import { getTobyVersion } from "@toby/core/version";
 import { Command } from "commander";
 import { registerChatCommand } from "./commands/chat";
 import { registerConfigCommand } from "./commands/configure";
@@ -13,8 +15,6 @@ import { registerSessionsCommand } from "./commands/sessions";
 import { registerSkillsCommand } from "./commands/skills";
 import { registerStatusCommand } from "./commands/status";
 import { registerUpgradeCommand } from "./commands/upgrade";
-import { getIntegrationModules } from "./integrations/index";
-import { getTobyVersion } from "./version";
 
 const program = new Command();
 const cliVersion = getTobyVersion();

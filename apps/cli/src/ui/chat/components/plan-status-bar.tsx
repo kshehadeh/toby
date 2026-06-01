@@ -1,6 +1,6 @@
+import type { Plan, PlanPhaseStatus } from "@toby/core/planning/types";
 import { Box, Text } from "ink";
 import React from "react";
-import type { Plan, PlanPhaseStatus } from "../../../planning/types";
 import { PLAN_STATUS_GLYPHS } from "../../shared";
 import { ACCENT } from "../constants";
 

@@ -1,12 +1,12 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
 import {
 	getChatInboundDisabledReason,
 	resolveActiveChatInbound,
-} from "../src/config/chat-inbound";
-import { writeConfig } from "../src/config/index";
+} from "@toby/core/config/chat-inbound";
+import { writeConfig } from "@toby/core/config/index";
+import { afterEach, describe, expect, it } from "vitest";
 
 function makeTempDir(): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), "toby-inbound-cfg-"));

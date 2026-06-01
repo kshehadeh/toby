@@ -1,20 +1,20 @@
-import { chatWithTools, createModelForPersona } from "../ai/chat";
+import { chatWithTools, createModelForPersona } from "@toby/core/ai/chat";
 import {
 	inferProviderCategoriesFromPrompt,
 	resolveChatModulesForPrompt,
-} from "../chat-pipeline/resolve-chat-modules";
-import { getDefaultProvider } from "../config/index";
-import type { Persona } from "../config/index";
+} from "@toby/core/chat-pipeline/resolve-chat-modules";
+import { getDefaultProvider } from "@toby/core/config/index";
+import type { Persona } from "@toby/core/config/index";
 import {
 	getModulesForCategory,
 	getModulesWithCapability,
-} from "../integrations/index";
+} from "@toby/core/integrations/index";
 import {
 	PROVIDER_CATEGORY_LABELS,
 	type ProviderCategory,
-} from "../integrations/types";
-import { resolvePersona } from "../personas/index";
-import { prepareChatSessionMessages } from "../ui/chat/prepare-messages";
+} from "@toby/core/integrations/types";
+import { resolvePersona } from "@toby/core/personas/index";
+import { prepareChatSessionMessages } from "@toby/core/prepare-messages";
 import { recordScheduleInvariantFailureAndThrow } from "./invariant-record";
 import {
 	completeScheduleRun,
@@ -120,7 +120,9 @@ export async function executeSchedule(schedule: Schedule): Promise<void> {
 		}
 
 		// Add global and memory tools (same as runSharedChatTurn)
-		const { createGlobalChatTools } = await import("../ai/global-chat-tools");
+		const { createGlobalChatTools } = await import(
+			"@toby/core/ai/global-chat-tools"
+		);
 		const globalApplied: string[] = [];
 		Object.assign(
 			mergedTools,
@@ -131,7 +133,7 @@ export async function executeSchedule(schedule: Schedule): Promise<void> {
 			}),
 		);
 
-		const { createMemoryTools } = await import("../memory/tools");
+		const { createMemoryTools } = await import("@toby/core/memory/tools");
 		const memoryApplied: string[] = [];
 		Object.assign(
 			mergedTools,

@@ -1,5 +1,5 @@
+import { postSlackMessage } from "@toby/core/integrations/slack/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { postSlackMessage } from "../src/integrations/slack/client";
 
 describe("postSlackMessage", () => {
 	afterEach(() => {

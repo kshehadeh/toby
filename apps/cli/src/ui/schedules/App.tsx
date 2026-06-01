@@ -1,6 +1,6 @@
+import { listPersonas } from "@toby/core/personas/index";
 import { Box, Text, render, useApp, useInput, useStdout } from "ink";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { listPersonas } from "../../personas/index";
 import {
 	cronToHuman,
 	humanToCronAsync,

@@ -1,5 +1,5 @@
+import { resolveSlackBotUserId } from "@toby/core/integrations/slack/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resolveSlackBotUserId } from "../src/integrations/slack/client";
 
 afterEach(() => {
 	vi.restoreAllMocks();

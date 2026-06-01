@@ -1,12 +1,12 @@
-import { Box, Text, render, useApp, useInput, useStdout } from "ink";
-import { useCallback, useLayoutEffect, useMemo, useState } from "react";
-import { getSkillsDir } from "../../config/index";
-import { type LocalSkill, loadLocalSkills } from "../../skills/index";
+import { getSkillsDir } from "@toby/core/config/index";
+import { type LocalSkill, loadLocalSkills } from "@toby/core/skills/index";
 import {
 	deleteSkill,
 	openSkillInEditor,
 	updateSkillFrontmatter,
-} from "../../skills/manage";
+} from "@toby/core/skills/manage";
+import { Box, Text, render, useApp, useInput, useStdout } from "ink";
+import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { ACCENT } from "../chat/constants";
 import {
 	ActionRow,

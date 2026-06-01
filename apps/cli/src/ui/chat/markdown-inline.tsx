@@ -70,7 +70,7 @@ export function parseBoldSegments(
 /**
  * Within non-bold spans, treat `*segment*` as italic (does not cross `**`, which is removed earlier).
  */
-export function splitItalicInPlain(text: string): {
+function splitItalicInPlain(text: string): {
 	bold: boolean;
 	italic: boolean;
 	text: string;

@@ -1,6 +1,6 @@
+import { clearChatSessions } from "@toby/core/session-store";
 import chalk from "chalk";
 import type { Command } from "commander";
-import { clearChatSessions } from "../ui/chat/session-store";
 
 export function registerSessionsCommand(program: Command): void {
 	const sessions = program

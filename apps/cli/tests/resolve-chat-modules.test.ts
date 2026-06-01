@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
 import {
 	inferProviderCategoriesFromPrompt,
 	resolveChatModulesForPrompt,
-} from "../src/chat-pipeline/resolve-chat-modules";
-import type { IntegrationModule } from "../src/integrations/types";
+} from "@toby/core/chat-pipeline/resolve-chat-modules";
+import type { IntegrationModule } from "@toby/core/integrations/types";
+import { describe, expect, it } from "vitest";
 
 function mockModule(
 	name: string,

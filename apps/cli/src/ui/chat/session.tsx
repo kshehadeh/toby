@@ -1,7 +1,7 @@
+import type { Persona } from "@toby/core/config/index";
+import type { IntegrationModule } from "@toby/core/integrations/types";
 import { render } from "ink";
 import React from "react";
-import type { Persona } from "../../config/index";
-import type { IntegrationModule } from "../../integrations/types";
 import {
 	type LaunchContext,
 	captureLaunchContext,

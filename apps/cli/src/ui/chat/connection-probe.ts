@@ -1,9 +1,9 @@
-import { getDefaultProvider } from "../../config/index";
-import { getIntegrationModule } from "../../integrations/index";
-import type { IntegrationModule } from "../../integrations/types";
-import { ALL_PROVIDER_CATEGORIES } from "../../integrations/types";
+import { getDefaultProvider } from "@toby/core/config/index";
+import { getIntegrationModule } from "@toby/core/integrations/index";
+import type { IntegrationModule } from "@toby/core/integrations/types";
+import { ALL_PROVIDER_CATEGORIES } from "@toby/core/integrations/types";
 
-export const CHAT_CONNECTION_PROBE_TIMEOUT_MS = 5_000;
+const CHAT_CONNECTION_PROBE_TIMEOUT_MS = 5_000;
 
 export interface ConnectionProbeResult {
 	readonly name: string;

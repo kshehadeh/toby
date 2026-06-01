@@ -1,14 +1,17 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { clearDefaultPersona, setDefaultPersona } from "../src/config/index";
+import {
+	clearDefaultPersona,
+	setDefaultPersona,
+} from "@toby/core/config/index";
 import {
 	DEFAULT_CHAT_PERSONA,
 	listPersonas,
 	resolveDefaultPersona,
 	resolvePersona,
-} from "../src/personas/index";
+} from "@toby/core/personas/index";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 let tempDir: string;
 let previousTobyDir: string | undefined;

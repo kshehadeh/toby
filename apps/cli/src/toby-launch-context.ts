@@ -3,7 +3,7 @@ import {
 	buildTobySpawnArgs,
 	getTobyEntryScriptArgv,
 	getTobyExecPath,
-} from "./toby-spawn";
+} from "@toby/core/toby-spawn";
 import {
 	isRunningAsCompiledBinary,
 	resolveInstallTarget,

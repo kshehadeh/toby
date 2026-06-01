@@ -1,9 +1,9 @@
 import crypto from "node:crypto";
+import { getSlackAuthMethod } from "@toby/core/config/index";
+import { getIntegrationModule } from "@toby/core/integrations/index";
+import { createSlackPkceChallenge } from "@toby/core/integrations/slack/auth";
+import { createSlackTools } from "@toby/core/integrations/slack/tools";
 import { describe, expect, it } from "vitest";
-import { getSlackAuthMethod } from "../src/config/index";
-import { getIntegrationModule } from "../src/integrations/index";
-import { createSlackPkceChallenge } from "../src/integrations/slack/auth";
-import { createSlackTools } from "../src/integrations/slack/tools";
 
 function toBase64Url(value: Buffer): string {
 	return value

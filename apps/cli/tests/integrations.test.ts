@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import {
 	getIntegration,
 	getIntegrationModule,
@@ -6,8 +5,9 @@ import {
 	getIntegrations,
 	getModulesForCategory,
 	getModulesWithCapability,
-} from "../src/integrations/index";
-import { ALL_PROVIDER_CATEGORIES } from "../src/integrations/types";
+} from "@toby/core/integrations/index";
+import { ALL_PROVIDER_CATEGORIES } from "@toby/core/integrations/types";
+import { describe, expect, it } from "vitest";
 
 describe("getIntegrations", () => {
 	it("returns at least one integration", () => {

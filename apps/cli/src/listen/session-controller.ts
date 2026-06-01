@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { resolveTobyDir } from "../config/index";
+import { resolveTobyDir } from "@toby/core/config/index";
 import type {
 	ListenRecordingFiles,
 	ListenRecordingMetadata,
@@ -16,11 +16,11 @@ const LISTEN_DIR = "listen";
 const RECORDINGS_DIR = "recordings";
 const TEMP_DIR = "tmp";
 
-export function getListenDir(baseDir = resolveTobyDir()): string {
+function getListenDir(baseDir = resolveTobyDir()): string {
 	return path.join(baseDir, LISTEN_DIR);
 }
 
-export function getListenRecordingsDir(baseDir = resolveTobyDir()): string {
+function getListenRecordingsDir(baseDir = resolveTobyDir()): string {
 	return path.join(getListenDir(baseDir), RECORDINGS_DIR);
 }
 
@@ -28,11 +28,11 @@ export function resolveListenRecordingsDir(recordingsDir?: string): string {
 	return recordingsDir?.trim() || getListenRecordingsDir();
 }
 
-export function getListenTempDir(baseDir = resolveTobyDir()): string {
+function getListenTempDir(baseDir = resolveTobyDir()): string {
 	return path.join(getListenDir(baseDir), TEMP_DIR);
 }
 
-export function ensureListenDirs(baseDir = resolveTobyDir()): void {
+function ensureListenDirs(baseDir = resolveTobyDir()): void {
 	fs.mkdirSync(getListenRecordingsDir(baseDir), { recursive: true });
 	fs.mkdirSync(getListenTempDir(baseDir), { recursive: true });
 }
@@ -42,13 +42,13 @@ function ensureCustomRecordingDirs(recordingsDir: string): void {
 	fs.mkdirSync(path.join(recordingsDir, ".tmp"), { recursive: true });
 }
 
-export function createListenRecordingId(date = new Date()): string {
+function createListenRecordingId(date = new Date()): string {
 	const stamp = date.toISOString().replace(/[:.]/g, "-");
 	const random = Math.random().toString(36).slice(2, 8);
 	return `${stamp}-${random}`;
 }
 
-export function validateListenSources(sources: ListenSourceSelection): void {
+function validateListenSources(sources: ListenSourceSelection): void {
 	if (selectedListenSources(sources).length === 0) {
 		throw new Error("At least one listen source must be selected.");
 	}
@@ -112,7 +112,7 @@ export interface ListenRecordingSummary {
 	readonly metadata: ListenRecordingMetadata;
 }
 
-export function defaultListenRecordingFiles(
+function defaultListenRecordingFiles(
 	session: ListenSession,
 ): ListenRecordingFiles {
 	return {

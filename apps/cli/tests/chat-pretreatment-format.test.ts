@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
 import {
 	type UserIntentSpec,
 	formatUserMessageWithPretreatment,
-} from "../src/ai/pretreatment";
-import { mergeUserPromptWithPretreatmentSpec } from "../src/ui/chat/prepare-messages";
+} from "@toby/core/ai/pretreatment";
+import { mergeUserPromptWithPretreatmentSpec } from "@toby/core/prepare-messages";
+import { describe, expect, it } from "vitest";
 
 function minimalSpec(over: Partial<UserIntentSpec> = {}): UserIntentSpec {
 	return {

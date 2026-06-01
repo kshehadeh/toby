@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { getDb } from "../ui/chat/session-store";
+import { getDb } from "@toby/core/session-store";
 import type {
 	CreateScheduleParams,
 	Schedule,
@@ -52,7 +52,7 @@ export function listSchedules(): Schedule[] {
 	return rows.map(rowToSchedule);
 }
 
-export function getSchedule(id: string): Schedule | null {
+function getSchedule(id: string): Schedule | null {
 	const db = getDb();
 	const row = db
 		.query(

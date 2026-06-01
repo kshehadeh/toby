@@ -1,12 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
-import type { CoreMessage } from "../src/ai/chat";
+import type { CoreMessage } from "@toby/core/ai/chat";
 import {
 	isFirstTurnPretreatmentEnabled,
 	isPretreatmentDisabled,
 	shouldPretreat,
 	wrapUserPromptWithPretreatment,
-} from "../src/ai/pretreatment";
-import * as sessionStore from "../src/ui/chat/session-store";
+} from "@toby/core/ai/pretreatment";
+import * as sessionStore from "@toby/core/session-store";
+import { describe, expect, it, vi } from "vitest";
 
 describe("shouldPretreat", () => {
 	it("returns true on the first turn for any non-empty prompt", () => {

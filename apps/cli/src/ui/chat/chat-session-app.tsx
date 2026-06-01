@@ -1,4 +1,69 @@
 import { randomUUID } from "node:crypto";
+import type {
+	AskUserHandler,
+	AskUserToolResult,
+} from "@toby/core/ai/ask-user-tool";
+import {
+	extractTokenUsageReport,
+	formatCacheDebugMeta,
+} from "@toby/core/ai/caching";
+import type { CoreMessage } from "@toby/core/ai/chat";
+import { formatChatModelError } from "@toby/core/ai/chat-errors";
+import { formatPersonaAiLabel } from "@toby/core/ai/model-factory";
+import { shouldPretreat } from "@toby/core/ai/pretreatment";
+import {
+	isIntegrationUsableInChat,
+	modulesEqual,
+	sortModulesByName,
+} from "@toby/core/chat-integrations";
+import type { ChatEvent } from "@toby/core/chat-pipeline/chat-events";
+import { formatScopeLabel } from "@toby/core/chat-pipeline/format-scope-label";
+import {
+	type AssembledTurn,
+	runChatTurnPipeline,
+	withAssembledMessages,
+} from "@toby/core/chat-pipeline/pipeline";
+import {
+	type Persona,
+	getDefaultPersonaName,
+	readConfig,
+} from "@toby/core/config/index";
+import { formatToolStatusLine } from "@toby/core/format-tool-status";
+import {
+	getIntegrationModules,
+	getModulesForCategory,
+	getModulesWithCapability,
+} from "@toby/core/integrations/index";
+import type { IntegrationModule } from "@toby/core/integrations/types";
+import {
+	createChatEventLogSink,
+	log,
+	logTurnSummary,
+} from "@toby/core/logging/chat-log";
+import { listPersonas, resolvePersona } from "@toby/core/personas/index";
+import { activityLineForChatEvent } from "@toby/core/pipeline-footer";
+import {
+	type Plan,
+	cancelPlan,
+	createPlan,
+	executePlan,
+	generatePlan,
+	loadPlanBySession,
+	shouldGeneratePlan,
+	skipPhase,
+} from "@toby/core/planning/index";
+import { replaceSessionSystemMessageForPersona } from "@toby/core/prepare-messages";
+import {
+	CHAT_SESSION_PICKER_LIMIT,
+	appendMessageBatch,
+	appendTranscriptBatch,
+	createChatSession,
+	listChatSessions,
+	loadChatSession,
+	renameChatSession,
+} from "@toby/core/session-store";
+import { loadLocalSkills } from "@toby/core/skills/index";
+import { getToolDisplayLabel } from "@toby/core/tool-labels";
 import type { LanguageModelUsage } from "ai";
 import { Box, Text, useApp, useInput, useWindowSize } from "ink";
 import React, {
@@ -9,38 +74,6 @@ import React, {
 	useRef,
 	useState,
 } from "react";
-import type { AskUserHandler, AskUserToolResult } from "../../ai/ask-user-tool";
-import {
-	extractTokenUsageReport,
-	formatCacheDebugMeta,
-} from "../../ai/caching";
-import type { CoreMessage } from "../../ai/chat";
-import { formatChatModelError } from "../../ai/chat-errors";
-import { formatPersonaAiLabel } from "../../ai/model-factory";
-import { shouldPretreat } from "../../ai/pretreatment";
-import type { ChatEvent } from "../../chat-pipeline/chat-events";
-import { formatScopeLabel } from "../../chat-pipeline/format-scope-label";
-import {
-	type AssembledTurn,
-	runChatTurnPipeline,
-	withAssembledMessages,
-} from "../../chat-pipeline/pipeline";
-import {
-	isIntegrationUsableInChat,
-	modulesEqual,
-	sortModulesByName,
-} from "../../commands/chat-integrations";
-import {
-	type Persona,
-	getDefaultPersonaName,
-	readConfig,
-} from "../../config/index";
-import {
-	getIntegrationModules,
-	getModulesForCategory,
-	getModulesWithCapability,
-} from "../../integrations/index";
-import type { IntegrationModule } from "../../integrations/types";
 import {
 	startMacOSAudioCapture,
 	waitForAudioHelperExit,
@@ -51,24 +84,7 @@ import {
 	prepareListenSession,
 	saveListenSession,
 } from "../../listen/session-controller";
-import {
-	createChatEventLogSink,
-	log,
-	logTurnSummary,
-} from "../../logging/chat-log";
-import { listPersonas, resolvePersona } from "../../personas/index";
-import {
-	type Plan,
-	cancelPlan,
-	createPlan,
-	executePlan,
-	generatePlan,
-	loadPlanBySession,
-	shouldGeneratePlan,
-	skipPhase,
-} from "../../planning/index";
 import { isDaemonRunning } from "../../schedules/daemon-status";
-import { loadLocalSkills } from "../../skills/index";
 import type { LaunchContext } from "../../toby-launch-context";
 import { ConfigureApp } from "../configure/App";
 import {
@@ -95,20 +111,8 @@ import {
 	runConnectionProbes,
 } from "./connection-probe";
 import { ACCENT, TIPS } from "./constants";
-import { formatToolStatusLine } from "./format-tool-status";
-import { activityLineForChatEvent } from "./pipeline-footer";
 import { buildUiTurnContext } from "./pipeline-turn-context";
-import { replaceSessionSystemMessageForPersona } from "./prepare-messages";
 import { appendPromptHistory, loadPromptHistory } from "./prompt-history";
-import {
-	CHAT_SESSION_PICKER_LIMIT,
-	appendMessageBatch,
-	appendTranscriptBatch,
-	createChatSession,
-	listChatSessions,
-	loadChatSession,
-	renameChatSession,
-} from "./session-store";
 import { buildSkillDebugTranscriptEntries } from "./skill-debug";
 import {
 	SLASH_COMMANDS,
@@ -118,7 +122,6 @@ import {
 } from "./slash-commands";
 import { readTranscriptFile } from "./slash-commands/stop-listening";
 import type { UpgradeUiStatus } from "./slash-commands/types";
-import { getToolDisplayLabel } from "./tool-labels";
 import { buildToolSelectionTranscriptEntries } from "./tool-selection-transcript";
 import { flattenTranscript } from "./transcript-layout";
 import type { AskModal, DisplayRow, TranscriptEntry } from "./types";

@@ -54,7 +54,7 @@ describe("getSkillDebugTextLines", () => {
 		}
 	});
 
-	it("reports heuristic skip when pretreatment does not run", () => {
+	it("reports preflight attempted when user text is non-empty", () => {
 		const prev = process.env.TOBY_DISABLE_PRETREATMENT;
 		process.env.TOBY_DISABLE_PRETREATMENT = undefined;
 		try {
@@ -66,7 +66,9 @@ describe("getSkillDebugTextLines", () => {
 				isFirstTurn: false,
 				spec: null,
 			});
-			expect(lines.some((l) => l.includes("heuristic"))).toBe(true);
+			expect(
+				lines.some((l) => l.includes("Preflight: ran — no structured spec")),
+			).toBe(true);
 		} finally {
 			if (prev !== undefined) {
 				process.env.TOBY_DISABLE_PRETREATMENT = prev;

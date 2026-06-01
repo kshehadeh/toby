@@ -40,7 +40,7 @@ export function SelectableTextRow({
 	);
 }
 
-export interface InfoRowProps {
+interface InfoRowProps {
 	readonly label: string;
 	readonly value: string;
 	readonly selected: boolean;
@@ -48,7 +48,7 @@ export interface InfoRowProps {
 	readonly hint?: string;
 }
 
-export function InfoRow({
+function InfoRow({
 	label,
 	value,
 	selected,

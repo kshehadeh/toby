@@ -1,10 +1,10 @@
 import { spawn } from "node:child_process";
-import { isDaemonRunning } from "../../../schedules/daemon-status";
 import {
 	buildTobySpawnArgs,
 	getDetachedDaemonSpawnStdio,
 	getTobyExecPath,
-} from "../../../toby-spawn";
+} from "@toby/core/toby-spawn";
+import { isDaemonRunning } from "../../../schedules/daemon-status";
 import type { SlashCommand } from "./types";
 
 async function waitForDaemon(

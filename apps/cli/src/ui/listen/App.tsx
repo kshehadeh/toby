@@ -346,7 +346,7 @@ type LeftPaneItem =
 	| { readonly kind: "start" }
 	| { readonly kind: "recording"; readonly recording: ListenRecordingSummary };
 
-export function ListenApp({
+function ListenApp({
 	sources: initialSources,
 	helperPath,
 	recordingsDir,

@@ -1,6 +1,6 @@
+import type { IntegrationModule } from "@toby/core/integrations/types";
 import { Box, Text } from "ink";
 import React from "react";
-import type { IntegrationModule } from "../../../integrations/types";
 import { SelectableTextRow, UI_GLYPHS, ViewModal } from "../../shared";
 import { ACCENT } from "../constants";
 

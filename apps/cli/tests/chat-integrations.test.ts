@@ -1,5 +1,5 @@
+import { parseChatCliInput } from "@toby/core/chat-integrations";
 import { describe, expect, it } from "vitest";
-import { parseChatCliInput } from "../src/commands/chat-integrations";
 
 describe("parseChatCliInput", () => {
 	it("defaults to all connected when no flags and no words", () => {

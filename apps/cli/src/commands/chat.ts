@@ -1,34 +1,34 @@
-import chalk from "chalk";
-import type { Command } from "commander";
-import { formatPersonaAiLabel } from "../ai/model-factory";
-import { wrapUserPromptWithPretreatment } from "../ai/pretreatment";
+import { formatPersonaAiLabel } from "@toby/core/ai/model-factory";
+import { wrapUserPromptWithPretreatment } from "@toby/core/ai/pretreatment";
 import {
 	beginRecording,
 	beginReplay,
 	flushRecording,
 	getRecordingFilePath,
-} from "../ai/replay";
-import type { Persona } from "../config/index";
-import type { IntegrationModule } from "../integrations/types";
+} from "@toby/core/ai/replay";
+import {
+	parseChatCliInput,
+	resolveChatIntegrationModules,
+	sortModulesByName,
+} from "@toby/core/chat-integrations";
+import type { Persona } from "@toby/core/config/index";
+import type { IntegrationModule } from "@toby/core/integrations/types";
 import {
 	DEFAULT_CHAT_PERSONA,
 	listPersonas,
 	resolveDefaultPersona,
 	resolvePersona,
-} from "../personas/index";
-import { loadLocalSkills } from "../skills/index";
+} from "@toby/core/personas/index";
 import {
 	injectSkillBodiesIntoFirstSystemMessage,
 	prepareChatSessionMessages,
-} from "../ui/chat/prepare-messages";
+} from "@toby/core/prepare-messages";
+import { loadLocalSkills } from "@toby/core/skills/index";
+import chalk from "chalk";
+import type { Command } from "commander";
 import { runIntegrationChatTurn } from "../ui/chat/run-turn";
 import { runChatSessionInk } from "../ui/chat/session";
 import { getSkillDebugTextLines } from "../ui/chat/skill-debug";
-import {
-	parseChatCliInput,
-	resolveChatIntegrationModules,
-	sortModulesByName,
-} from "./chat-integrations";
 
 interface ChatCommandOptions {
 	persona?: string;

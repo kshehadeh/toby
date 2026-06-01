@@ -1,4 +1,4 @@
-import { getIntegration, getIntegrations } from "../../../integrations/index";
+import { getIntegration, getIntegrations } from "@toby/core/integrations/index";
 import type { SlashCommand } from "./types";
 
 export const connectSlashCommand: SlashCommand = {

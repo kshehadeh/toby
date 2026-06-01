@@ -1,7 +1,7 @@
+import { buildToolsCatalog } from "@toby/core/chat-pipeline/run-turn";
 import { tool } from "ai";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { buildToolsCatalog } from "../src/chat-pipeline/run-turn";
 
 describe("buildToolsCatalog", () => {
 	it("produces a compact catalog with name + description + params", () => {

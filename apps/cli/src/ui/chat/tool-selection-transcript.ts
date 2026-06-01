@@ -1,4 +1,4 @@
-import { filterToolNamesByRelevance } from "../../chat-pipeline/run-turn";
+import { filterToolNamesByRelevance } from "@toby/core/chat-pipeline/run-turn";
 import type { TranscriptEntry } from "./types";
 
 const TOBY_INTEGRATION_LABEL = "Toby";

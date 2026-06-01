@@ -5,7 +5,7 @@ export interface ListenSourceSelection {
 	readonly system: boolean;
 }
 
-export type ListenStatus =
+type ListenStatus =
 	| "idle"
 	| "requestingPermission"
 	| "listening"

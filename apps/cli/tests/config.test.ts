@@ -1,14 +1,14 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
 	getConfigPath,
 	getCredentialsPath,
 	readConfig,
 	readCredentials,
 	writeConfig,
-} from "../src/config/index";
+} from "@toby/core/config/index";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const TOBY_DIR = path.join(os.homedir(), ".toby");
 const CONFIG_PATH = path.join(TOBY_DIR, "config.json");

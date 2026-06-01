@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
 import {
 	clearToolResultCache,
 	setCachedToolResult,
-} from "../src/chat-pipeline/tool-result-cache";
+} from "@toby/core/chat-pipeline/tool-result-cache";
+import { describe, expect, it, vi } from "vitest";
 import { captureLaunchContext } from "../src/toby-launch-context";
 import {
 	SLASH_COMMANDS,

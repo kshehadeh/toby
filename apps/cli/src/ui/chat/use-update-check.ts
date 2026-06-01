@@ -1,13 +1,13 @@
+import {
+	getTobyVersion,
+	isVersionNewer,
+	normalizeReleaseVersion,
+} from "@toby/core/version";
 import { useEffect, useState } from "react";
 import {
 	fetchLatestReleaseTag,
 	resolveTobyGitHubRepo,
 } from "../../releases/github";
-import {
-	getTobyVersion,
-	isVersionNewer,
-	normalizeReleaseVersion,
-} from "../../version";
 
 const DEFAULT_INITIAL_DELAY_MS = 5_000;
 const DEFAULT_INTERVAL_MS = 6 * 60 * 60 * 1000;

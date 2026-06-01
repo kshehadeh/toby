@@ -25,7 +25,7 @@ import {
 	searchItems,
 	updateItem,
 	updateProposalStatus,
-} from "../src/memory/memory-store";
+} from "@toby/core/memory/memory-store";
 
 const TMP_DIR = path.join(
 	os.tmpdir(),

@@ -26,7 +26,7 @@ export interface SlashCommandRuntime {
 	readonly addMetaLine: (text: string) => void;
 	readonly addUserContextMessage: (text: string) => void;
 	readonly setUpgradeStatus?: (status: UpgradeUiStatus) => void;
-	readonly getActivePlan: () => import("../../../planning/types").Plan | null;
+	readonly getActivePlan: () => import("@toby/core/planning/types").Plan | null;
 	readonly skipPlanPhase: (planId: string, phaseId: string) => void;
 	readonly cancelPlan: (planId: string) => void;
 	readonly startListenRecording: () => void;

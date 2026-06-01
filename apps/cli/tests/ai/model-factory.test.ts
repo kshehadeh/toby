@@ -1,14 +1,14 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
 	buildAiGatewayAttributionHeaders,
 	formatPersonaAiLabel,
 	normalizeModelOnProviderChange,
 	validatePersonaAi,
-} from "../../src/ai/model-factory";
-import type { Persona } from "../../src/config/index";
+} from "@toby/core/ai/model-factory";
+import type { Persona } from "@toby/core/config/index";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 let tempDir: string;
 let previousTobyDir: string | undefined;

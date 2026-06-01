@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { getSlackInboundCredentials } from "@toby/core/integrations/slack/client";
 import { afterEach, describe, expect, it } from "vitest";
-import { getSlackInboundCredentials } from "../src/integrations/slack/client";
 import { buildSettingsTree } from "../src/ui/configure/items";
 
 function makeTempDir(): string {

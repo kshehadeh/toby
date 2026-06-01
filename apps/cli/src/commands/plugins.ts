@@ -1,19 +1,19 @@
-import chalk from "chalk";
-import type { Command } from "commander";
-import { pluginToolsList } from "../integrations/plugins/client";
+import { pluginToolsList } from "@toby/core/integrations/plugins/client";
 import {
 	PluginInstallException,
 	installPlugin,
 	uninstallPlugin,
-} from "../integrations/plugins/install";
-import { CURRENT_PROTOCOL_VERSION } from "../integrations/plugins/protocol";
+} from "@toby/core/integrations/plugins/install";
+import { CURRENT_PROTOCOL_VERSION } from "@toby/core/integrations/plugins/protocol";
 import {
 	discoverPluginBinaries,
 	getPluginMetadata,
 	inspectPluginBinary,
 	resolvePluginSearchDirectories,
-} from "../integrations/plugins/registry";
-import { validatePluginBinary } from "../integrations/plugins/validate";
+} from "@toby/core/integrations/plugins/registry";
+import { validatePluginBinary } from "@toby/core/integrations/plugins/validate";
+import chalk from "chalk";
+import type { Command } from "commander";
 
 export function registerPluginsCommand(program: Command): void {
 	const plugins = program

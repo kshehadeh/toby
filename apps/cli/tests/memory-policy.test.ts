@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
 import {
 	classifySensitivity,
 	detectExplicitStatement,
 	shouldAutoSave,
 	suggestVisibility,
-} from "../src/memory/policy";
-import type { MemoryCandidate, MemoryProposal } from "../src/memory/types";
+} from "@toby/core/memory/policy";
+import type { MemoryCandidate, MemoryProposal } from "@toby/core/memory/types";
+import { describe, expect, it } from "vitest";
 
 function makeCandidate(
 	overrides: Partial<MemoryCandidate> = {},

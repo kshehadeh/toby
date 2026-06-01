@@ -1,14 +1,14 @@
+import type { ChatEvent } from "@toby/core/chat-pipeline/chat-events";
+import {
+	deserializeTranscriptRow,
+	serializeTranscriptEntry,
+} from "@toby/core/transcript-persist";
 import { describe, expect, it } from "vitest";
-import type { ChatEvent } from "../src/chat-pipeline/chat-events";
 import {
 	applyChatEvent,
 	formatToolCallHeader,
 } from "../src/ui/chat/chat-event-reducer";
 import { flattenTranscript } from "../src/ui/chat/transcript-layout";
-import {
-	deserializeTranscriptRow,
-	serializeTranscriptEntry,
-} from "../src/ui/chat/transcript-persist";
 import type { TranscriptEntry } from "../src/ui/chat/types";
 
 describe("applyChatEvent", () => {

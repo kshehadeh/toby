@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
 import {
 	escapeForAppleScript,
 	parseAppleMailAccountListOutput,
 	parseAppleScriptDate,
 	parseMailboxListOutput,
-} from "../src/integrations/applemail/client";
+} from "@toby/core/integrations/applemail/client";
+import { describe, expect, it } from "vitest";
 
 describe("escapeForAppleScript", () => {
 	it("escapes backslashes and double quotes", () => {

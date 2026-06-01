@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
 import {
 	buildToolResultCacheKey,
 	clearToolResultCache,
 	getCachedToolResult,
 	isReadOnlyChatTool,
 	setCachedToolResult,
-} from "../src/chat-pipeline/tool-result-cache";
+} from "@toby/core/chat-pipeline/tool-result-cache";
+import { describe, expect, it } from "vitest";
 
 describe("tool-result-cache", () => {
 	it("builds stable keys regardless object property order", () => {

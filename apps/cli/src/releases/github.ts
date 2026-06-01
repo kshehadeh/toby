@@ -1,4 +1,4 @@
-export const DEFAULT_TOBY_GITHUB_REPO = "kshehadeh/toby";
+const DEFAULT_TOBY_GITHUB_REPO = "kshehadeh/toby";
 
 interface ReleaseResponse {
 	tag_name?: string;

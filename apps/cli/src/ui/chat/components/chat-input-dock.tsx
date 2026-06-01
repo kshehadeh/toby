@@ -1,12 +1,12 @@
-import type { LanguageModelUsage } from "ai";
-import { Box, Text } from "ink";
-import React, { useEffect, useMemo, useState } from "react";
 import {
 	extractTokenUsageReport,
 	formatTokenUsageStatus,
-} from "../../../ai/caching";
-import { getAIProviderDisplayName } from "../../../ai/providers";
-import type { Persona } from "../../../config/index";
+} from "@toby/core/ai/caching";
+import { getAIProviderDisplayName } from "@toby/core/ai/providers";
+import type { Persona } from "@toby/core/config/index";
+import type { LanguageModelUsage } from "ai";
+import { Box, Text } from "ink";
+import React, { useEffect, useMemo, useState } from "react";
 import { DaemonStatusLine, MultilineTextEdit } from "../../shared";
 import {
 	detectTerminalProfile,

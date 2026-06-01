@@ -1,3 +1,5 @@
+import { normalizeModelOnProviderChange } from "@toby/core/ai/model-factory";
+import { DEFAULT_CHAT_PERSONA } from "@toby/core/personas/index";
 import { Box, Text, render, useApp, useInput, useStdout } from "ink";
 import React, {
 	useCallback,
@@ -6,8 +8,6 @@ import React, {
 	useRef,
 	useState,
 } from "react";
-import { normalizeModelOnProviderChange } from "../../ai/model-factory";
-import { DEFAULT_CHAT_PERSONA } from "../../personas/index";
 import { ACCENT } from "../chat/constants";
 import {
 	ActionRow,

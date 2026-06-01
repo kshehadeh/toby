@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../src/logging/daemon-log", () => ({
+vi.mock("@toby/core/logging/daemon-log", () => ({
 	daemonLog: vi.fn(),
 }));
 

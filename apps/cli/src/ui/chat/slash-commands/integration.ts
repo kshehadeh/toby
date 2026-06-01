@@ -1,13 +1,13 @@
-import { getDefaultProvider } from "../../../config/index";
+import { getDefaultProvider } from "@toby/core/config/index";
 import {
 	getIntegrationModules,
 	getModulesForCategory,
-} from "../../../integrations/index";
+} from "@toby/core/integrations/index";
 import {
 	ALL_PROVIDER_CATEGORIES,
 	PROVIDER_CATEGORY_LABELS,
 	type ProviderCategory,
-} from "../../../integrations/types";
+} from "@toby/core/integrations/types";
 import type { SlashCommand } from "./types";
 
 export const integrationSlashCommand: SlashCommand = {

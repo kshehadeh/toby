@@ -16,19 +16,19 @@
  * correct logical actions.
  */
 
-export type ShiftEnterMode =
+type ShiftEnterMode =
 	| "native" // Kitty protocol — Ink reports key.shift accurately
 	| "meta-return" // Terminal sends ESC + CR (iTerm2, VS Code integrated)
 	| "escape-newline" // Terminal sends ESC + LF
 	| "unsupported"; // Apple Terminal — swallows Shift+Enter entirely
 
-export type MetaBackspaceMode =
+type MetaBackspaceMode =
 	| "native" // Kitty protocol — Ink reports key.meta accurately
 	| "escape-delete" // Terminal sends ESC + DEL
 	| "ctrl-u" // Terminal maps Cmd+Backspace to Ctrl+U
 	| "unsupported"; // No reliable sequence available
 
-export type WordDeleteMode =
+type WordDeleteMode =
 	| "native" // Kitty protocol handles it
 	| "ctrl-w" // Ctrl+W is the standard fallback
 	| "meta-delete" // ESC + DEL

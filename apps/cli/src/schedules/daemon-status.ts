@@ -1,11 +1,11 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
-import { ensureTobyDir, resolveTobyDir } from "../config/index";
+import { ensureTobyDir, resolveTobyDir } from "@toby/core/config/index";
 import {
 	buildTobySpawnArgs,
 	getDetachedDaemonSpawnStdio,
 	getTobyExecPath,
-} from "../toby-spawn";
+} from "@toby/core/toby-spawn";
 
 export interface DaemonLockData {
 	readonly pid: number;
@@ -52,7 +52,7 @@ export function parseDaemonLock(raw: string): DaemonLockData | null {
 	}
 }
 
-export function readDaemonLock(): DaemonLockData | null {
+function readDaemonLock(): DaemonLockData | null {
 	ensureTobyDir();
 	const lockPath = getDaemonLockPath();
 	if (!fs.existsSync(lockPath)) {

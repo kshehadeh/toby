@@ -1,6 +1,6 @@
+import type { InboundStatusReporter } from "@toby/core/chat-inbound/types";
+import type { IntegrationModule } from "@toby/core/integrations/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { InboundStatusReporter } from "../src/chat-inbound/types";
-import type { IntegrationModule } from "../src/integrations/types";
 
 const {
 	runHeadlessChatTurn,
@@ -20,31 +20,31 @@ const {
 	withConversationMutex: vi.fn(),
 }));
 
-vi.mock("../src/chat-pipeline/headless-session", () => ({
+vi.mock("@toby/core/chat-pipeline/headless-session", () => ({
 	runHeadlessChatTurn,
 }));
 
-vi.mock("../src/ui/chat/session-store", () => ({
+vi.mock("@toby/core/session-store", () => ({
 	getOrCreateExternalSession,
 	loadExternalSession,
 	wasMessageProcessed,
 	markMessageProcessed,
 }));
 
-vi.mock("../src/chat-inbound/ask-user-bridge", () => ({
+vi.mock("@toby/core/chat-inbound/ask-user-bridge", () => ({
 	createAskUserBridge,
 	tryResolvePendingAskUser: vi.fn(),
 }));
 
-vi.mock("../src/chat-inbound/mutex", () => ({
+vi.mock("@toby/core/chat-inbound/mutex", () => ({
 	withConversationMutex,
 }));
 
-vi.mock("../src/logging/daemon-log", () => ({
+vi.mock("@toby/core/logging/daemon-log", () => ({
 	daemonLog: vi.fn(),
 }));
 
-import { handleInboundEvent } from "../src/chat-inbound/router";
+import { handleInboundEvent } from "@toby/core/chat-inbound/router";
 
 describe("handleInboundEvent status reporter", () => {
 	const conversation = {

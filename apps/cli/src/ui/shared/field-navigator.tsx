@@ -12,7 +12,7 @@ import { NavigatorRow } from "./rows";
 import type { NavigatorRowProps } from "./rows";
 import { ViewFrame } from "./view-frame";
 
-export type FieldNavigatorItemKind = NavigatorRowProps["kind"] | "info";
+type FieldNavigatorItemKind = NavigatorRowProps["kind"] | "info";
 
 export interface FieldNavigatorItem {
 	/** Unique row id for React keys. */
@@ -25,7 +25,7 @@ export interface FieldNavigatorItem {
 	readonly options?: string[];
 }
 
-export interface FieldNavigatorProps {
+interface FieldNavigatorProps {
 	readonly appTitle: string;
 	readonly breadcrumb: string[];
 	readonly items: FieldNavigatorItem[];
@@ -39,7 +39,7 @@ export interface FieldNavigatorProps {
 	readonly extraInput?: (input: string, key: import("ink").Key) => boolean;
 }
 
-export function FieldNavigator({
+function FieldNavigator({
 	appTitle,
 	breadcrumb,
 	items,

@@ -1,6 +1,6 @@
+import { getIntegration, getIntegrations } from "@toby/core/integrations/index";
 import chalk from "chalk";
 import type { Command } from "commander";
-import { getIntegration, getIntegrations } from "../integrations/index";
 
 export function registerConnectCommand(program: Command): void {
 	program

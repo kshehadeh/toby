@@ -4,18 +4,23 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
-import { ensureTobyDir, resolveTobyDir } from "../config/index";
+import { ensureTobyDir, resolveTobyDir } from "@toby/core/config/index";
+import {
+	getTobyEntryScriptArgv,
+	isRunningAsCompiledBinary,
+} from "@toby/core/toby-spawn";
+import {
+	getTobyVersion,
+	isVersionNewer,
+	normalizeReleaseVersion,
+} from "@toby/core/version";
 import {
 	fetchLatestReleaseTag,
 	resolveTobyGitHubRepo,
 } from "../releases/github";
 import { restartDaemonIfRunning } from "../schedules/daemon-status";
-import { getTobyEntryScriptArgv } from "../toby-spawn";
-import {
-	getTobyVersion,
-	isVersionNewer,
-	normalizeReleaseVersion,
-} from "../version";
+
+export { isRunningAsCompiledBinary };
 
 export interface StagingManifest {
 	readonly tag: string;
@@ -55,10 +60,6 @@ export interface ApplyStagedResult {
 	readonly version: string;
 	readonly daemonRestarted: boolean;
 	readonly daemonIntervalSeconds: number | null;
-}
-
-export function isRunningAsCompiledBinary(): boolean {
-	return getTobyEntryScriptArgv() === null;
 }
 
 export function resolveInstallDir(optionInstallDir?: string): string {

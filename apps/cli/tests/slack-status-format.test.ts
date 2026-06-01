@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { buildSlackStatusContextBlocks } from "../src/integrations/slack/slack-markdown";
+import { buildSlackStatusContextBlocks } from "@toby/core/integrations/slack/slack-markdown";
 import {
 	formatSlackInboundStatusMrkdwn,
 	slackStatusPlainFallback,
-} from "../src/integrations/slack/status-format";
+} from "@toby/core/integrations/slack/status-format";
+import { describe, expect, it } from "vitest";
 
 describe("formatSlackInboundStatusMrkdwn", () => {
 	it("wraps prep lines with emoji and italic mrkdwn", () => {

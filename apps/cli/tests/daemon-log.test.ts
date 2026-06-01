@@ -1,15 +1,15 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
-import { getDaemonLogPath } from "../src/config/index";
+import { getDaemonLogPath } from "@toby/core/config/index";
 import {
 	clearDaemonLog,
 	daemonLog,
 	flushDaemonLogSync,
 	formatDaemonLogEntry,
 	readDaemonLogTail,
-} from "../src/logging/daemon-log";
+} from "@toby/core/logging/daemon-log";
+import { afterEach, describe, expect, it } from "vitest";
 
 function makeTempDir(): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), "toby-daemon-log-"));

@@ -1,6 +1,6 @@
+import { createModelForAuxiliary } from "@toby/core/ai/model-factory";
 import { generateText } from "ai";
 import { Cron } from "croner";
-import { createModelForAuxiliary } from "../ai/model-factory";
 
 const NL_TO_CRON_MODEL = "gpt-4.1-mini";
 
@@ -19,7 +19,7 @@ Rules:
   - "every 6 hours" → 0 */6 * * *
   - "every monday wednesday friday at 10am" → 0 10 * * 1,3,5`;
 
-export async function naturalLanguageToCron(input: string): Promise<string> {
+async function naturalLanguageToCron(input: string): Promise<string> {
 	const model = createModelForAuxiliary({ modelId: NL_TO_CRON_MODEL });
 	const result = await generateText({
 		model,
@@ -45,19 +45,6 @@ export function isValidCronExpression(expression: string): boolean {
 		return true;
 	} catch {
 		return false;
-	}
-}
-
-export function getNextRunTime(
-	cronExpression: string,
-	after?: Date,
-): Date | null {
-	try {
-		const cron = new Cron(cronExpression);
-		const next = cron.nextRun(after ?? new Date());
-		return next ?? null;
-	} catch {
-		return null;
 	}
 }
 
@@ -173,25 +160,6 @@ function parseHour(raw: string, ampm?: string | null): number {
 		}
 	}
 	return hour;
-}
-
-export function humanToCron(input: string): string {
-	const trimmed = input.trim();
-
-	if (isValidCronExpression(trimmed)) {
-		return trimmed;
-	}
-
-	for (const { pattern, toCron } of PATTERNS) {
-		const match = trimmed.match(pattern);
-		if (match) {
-			return toCron(match);
-		}
-	}
-
-	throw new Error(
-		`Unrecognized schedule expression: "${input}". Use a cron expression (e.g. "0 9 * * *") or natural language (e.g. "every weekday at 9am", "every hour on mondays only").`,
-	);
 }
 
 export async function humanToCronAsync(input: string): Promise<string> {

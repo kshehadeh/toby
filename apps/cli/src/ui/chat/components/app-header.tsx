@@ -1,6 +1,6 @@
+import { getTobyVersion } from "@toby/core/version";
 import { Box, Text } from "ink";
 import type { ReactNode } from "react";
-import { getTobyVersion } from "../../../version";
 import { ACCENT, CHAT_TITLE_ASCII, TIPS } from "../constants";
 
 const TOBY_VERSION = getTobyVersion();

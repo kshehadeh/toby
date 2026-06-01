@@ -1,4 +1,4 @@
-import { formatLogEntry, readLogTail } from "../../../logging/chat-log";
+import { formatLogEntry, readLogTail } from "@toby/core/logging/chat-log";
 import type { SlashCommand } from "./types";
 
 export const logSlashCommand: SlashCommand = {

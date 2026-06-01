@@ -1,5 +1,5 @@
+import { createSlackStatusReporter } from "@toby/core/integrations/slack/status-reporter";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createSlackStatusReporter } from "../src/integrations/slack/status-reporter";
 
 describe("createSlackStatusReporter", () => {
 	afterEach(() => {

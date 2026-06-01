@@ -1,8 +1,8 @@
-import type { AskUserToolResult } from "../../ai/ask-user-tool";
-import type { ChatEvent } from "../../chat-pipeline/chat-events";
-import type { PlanPhaseStatus } from "../../planning/types";
+import type { AskUserToolResult } from "@toby/core/ai/ask-user-tool";
+import type { ChatEvent } from "@toby/core/chat-pipeline/chat-events";
+import type { PlanPhaseStatus } from "@toby/core/planning/types";
+import { getToolDisplayLabel } from "@toby/core/tool-labels";
 import { formatToolFeedbackOutput } from "./tool-feedback-registry";
-import { getToolDisplayLabel } from "./tool-labels";
 import type { ToolRunEntry, TranscriptEntry } from "./types";
 
 function summarizeArgsForHeader(

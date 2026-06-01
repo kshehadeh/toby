@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
 import {
 	compareVersions,
 	isVersionNewer,
 	normalizeReleaseVersion,
-} from "../src/version";
+} from "@toby/core/version";
+import { describe, expect, it } from "vitest";
 
 describe("version", () => {
 	it("normalizes release tags", () => {

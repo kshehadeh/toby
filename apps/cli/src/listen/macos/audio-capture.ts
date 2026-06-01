@@ -77,7 +77,7 @@ export class ListenCaptureError extends Error {
 	}
 }
 
-export function isMacOSListenSupported(): boolean {
+function isMacOSListenSupported(): boolean {
 	return process.platform === "darwin";
 }
 

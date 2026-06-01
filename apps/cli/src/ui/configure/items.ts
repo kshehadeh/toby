@@ -1,18 +1,18 @@
-import type { AIProviderInfo } from "../../ai/providers";
-import { getDefaultPersonaName } from "../../config/index";
+import type { AIProviderInfo } from "@toby/core/ai/providers";
+import { getDefaultPersonaName } from "@toby/core/config/index";
 import {
 	getIntegrationModules,
 	getModulesForCategory,
-} from "../../integrations/index";
+} from "@toby/core/integrations/index";
 import {
 	ALL_PROVIDER_CATEGORIES,
 	PROVIDER_CATEGORY_LABELS,
 	type ProviderCategory,
-} from "../../integrations/types";
+} from "@toby/core/integrations/types";
 
 type ItemKind = "section" | "value" | "action" | "select" | "delete";
 
-export type SettingsSelectChoice = {
+type SettingsSelectChoice = {
 	readonly value: string;
 	readonly label: string;
 };

@@ -1,8 +1,12 @@
 {
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
-		"outDir": "dist",
-		"rootDir": "src"
+		"rootDir": "../..",
+		"noEmit": true,
+		"paths": {
+			"@toby/core": ["../../packages/core/src/index.ts"],
+			"@toby/core/*": ["../../packages/core/src/*"]
+		}
 	},
 	"include": ["src"],
 	"exclude": ["node_modules", "dist"]

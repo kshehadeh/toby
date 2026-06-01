@@ -14,7 +14,7 @@ interface HandoffOptions {
 const POLL_INTERVAL_MS = 200;
 const MAX_WAIT_MS = 60_000;
 
-export function registerInternalHandoffCommand(internal: Command): void {
+function registerInternalHandoffCommand(internal: Command): void {
 	internal
 		.command("handoff")
 		.description(

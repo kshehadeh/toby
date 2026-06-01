@@ -1,5 +1,5 @@
+import { shouldGeneratePlan } from "@toby/core/planning/plan-generator";
 import { describe, expect, it } from "vitest";
-import { shouldGeneratePlan } from "../src/planning/plan-generator";
 
 describe("shouldGeneratePlan", () => {
 	it("returns false when TOBY_DISABLE_PLANNING is set", () => {

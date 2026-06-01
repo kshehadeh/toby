@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { CoreMessage } from "../src/ai/chat";
+import type { CoreMessage } from "@toby/core/ai/chat";
 import {
 	appendMessageBatch,
 	appendTranscriptBatch,
@@ -14,7 +14,7 @@ import {
 	loadChatSession,
 	renameChatSession,
 	setPretreatmentCache,
-} from "../src/ui/chat/session-store";
+} from "@toby/core/session-store";
 
 const isBun =
 	typeof (globalThis as unknown as { Bun?: unknown }).Bun !== "undefined";

@@ -1,14 +1,14 @@
 import {
+	getTobyVersion,
+	isVersionNewer,
+	normalizeReleaseVersion,
+} from "@toby/core/version";
+import {
 	fetchLatestReleaseTag,
 	resolveTobyGitHubRepo,
 } from "../../../releases/github";
 import { isScriptLaunch } from "../../../toby-launch-context";
 import { downloadRelease } from "../../../upgrade/index";
-import {
-	getTobyVersion,
-	isVersionNewer,
-	normalizeReleaseVersion,
-} from "../../../version";
 import type { SlashCommand, SlashCommandRuntime } from "./types";
 
 let activeDownload: Promise<void> | null = null;
