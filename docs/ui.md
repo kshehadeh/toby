@@ -37,7 +37,7 @@ Do not add a separate “edit screen” that duplicates the field list with `Inf
 
 ## Visual conventions
 
-- Full-screen sub-apps use `ViewFrame`: Toby header, single gray border, and optional dim footer.
+- Full-screen sub-apps use `ViewFrame`: a compact bordered title bar reading `Toby — <View> — v<version>`, the bordered content area, and an optional dim footer.
 - Chat overlays use `ViewModal`: rounded border, `ACCENT` border color, and compact rows.
 - Selected rows use the shared `› ` cursor and `ACCENT`.
 - Section rows use `▸`, action rows use `+`, delete rows use `✕`.
