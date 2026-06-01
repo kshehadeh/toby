@@ -1,4 +1,4 @@
-import { Box, type Key, Text, useInput, useStdout } from "ink";
+import { Box, type Key, Text, useInput } from "ink";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { ACCENT } from "../chat/constants";
@@ -18,6 +18,7 @@ import {
 	isSelectKey,
 } from "./keybindings";
 import { SelectableTextRow } from "./rows";
+import { useTerminalLayout } from "./use-terminal-layout";
 import { ViewFrame } from "./view-frame";
 
 export type { SelectChoice };
@@ -86,10 +87,9 @@ export function FieldSelector({
 	);
 	const [scrollOffset, setScrollOffset] = useState(0);
 
-	const { stdout } = useStdout();
+	const { rows } = useTerminalLayout();
 	const chromeRows = 8;
-	const terminalRows = stdout?.rows ?? 24;
-	const visibleLines = Math.max(3, terminalRows - chromeRows);
+	const visibleLines = Math.max(3, rows - chromeRows);
 	const totalLines = filteredChoices.length;
 	const clampedSel = clampSelectionIndex(sel, totalLines);
 	const effectiveScrollOffset = scrollOffsetForSelection(

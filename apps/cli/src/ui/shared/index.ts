@@ -23,8 +23,16 @@ export {
 	detectTerminalProfile,
 	resolveKittyKeyboardMode,
 } from "./terminal-profile";
-export { ViewFrame } from "./view-frame";
+export { ViewFrame, ViewHeader } from "./view-frame";
 export { ViewModal } from "./view-modal";
+export { TwoPaneView, useTwoPaneNavigation } from "./two-pane-view";
+export { useTerminalLayout } from "./use-terminal-layout";
+export type { TerminalLayout } from "./use-terminal-layout";
+export type {
+	PaneFocus,
+	TwoPaneViewProps,
+	UseTwoPaneNavigationResult,
+} from "./two-pane-view";
 export { FieldEditor } from "./field-editor";
 export { FieldSelector } from "./field-selector";
 export { DaemonStatusLine } from "./daemon-status-line";

@@ -1,5 +1,5 @@
 import { listPersonas } from "@toby/core/personas/index";
-import { Box, Text, render, useApp, useInput, useStdout } from "ink";
+import { Box, Text, render, useApp, useInput } from "ink";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
 	cronToHuman,
@@ -42,6 +42,7 @@ import {
 	isSelectKey,
 	resolveKittyKeyboardMode,
 	selectedPrefix,
+	useTerminalLayout,
 } from "../shared";
 import type { FieldNavigatorItem } from "../shared";
 
@@ -316,15 +317,14 @@ interface RunOutputViewProps {
 
 function RunOutputView({ run, scheduleName, onBack }: RunOutputViewProps) {
 	const [scrollOffset, setScrollOffset] = useState(0);
-	const { stdout } = useStdout();
+	const { rows } = useTerminalLayout();
 
 	const rawOutput = run.output ?? "(no output)";
 	const lines = rawOutput.split("\n");
 	const totalLines = lines.length;
 
 	const chromeRows = 11;
-	const terminalRows = stdout?.rows ?? 24;
-	const visibleLines = Math.max(3, terminalRows - chromeRows);
+	const visibleLines = Math.max(3, rows - chromeRows);
 	const maxOffset = Math.max(0, totalLines - visibleLines);
 
 	const visible = lines.slice(scrollOffset, scrollOffset + visibleLines);
