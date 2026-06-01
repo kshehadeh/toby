@@ -76,8 +76,18 @@ body {
 /* ── Navbar ──────────────────────────────────────────────────────────── */
 .navbar {
 	border-bottom: 1px solid var(--toby-border-subtle);
-	backdrop-filter: blur(12px);
 	padding: 0 0.5rem;
+}
+
+/*
+ * Only apply the blur on desktop. `backdrop-filter` makes the navbar a
+ * containing block for its `position: fixed` descendants, which would clamp
+ * the mobile `.navbar-sidebar` to the navbar height and hide its contents.
+ */
+@media (min-width: 997px) {
+	.navbar {
+		backdrop-filter: blur(12px);
+	}
 }
 
 .navbar__inner {
