@@ -162,7 +162,10 @@ export async function buildToolsCatalogForPretreatment(
 	});
 	Object.assign(mergedTools, globalTools);
 	for (const toolName of Object.keys(globalTools)) {
-		toolIntegrationLabels[toolName] = "Toby";
+		// Don't clobber an integration-owned label: some tools (e.g. webSearch)
+		// are exposed both as an integration tool and a global tool. Keep the
+		// integration attribution so the "Tools selected" summary is accurate.
+		toolIntegrationLabels[toolName] ??= "Toby";
 	}
 	const memoryTools = createMemoryTools({
 		userId: "default",
@@ -171,10 +174,10 @@ export async function buildToolsCatalogForPretreatment(
 	});
 	Object.assign(mergedTools, memoryTools);
 	for (const toolName of Object.keys(memoryTools)) {
-		toolIntegrationLabels[toolName] = "Toby";
+		toolIntegrationLabels[toolName] ??= "Toby";
 	}
 	Object.assign(mergedTools, withAskUserTool(mergedTools, undefined));
-	toolIntegrationLabels.askUser = "Toby";
+	toolIntegrationLabels.askUser ??= "Toby";
 
 	const catalogText = buildToolsCatalog(mergedTools);
 	const allToolNames = Object.keys(mergedTools);
