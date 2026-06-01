@@ -1,6 +1,8 @@
 # Ink UI conventions
 
-Toby's interactive views use Ink/React. New views should compose the shared primitives in `apps/cli/src/ui/shared/` instead of creating local frame, modal, row, key, or glyph helpers.
+Toby's interactive views use Ink/React in the **CLI app only** (`apps/cli/src/ui/`). Harness logic (chat pipeline, AI, integrations) lives in **`@toby/core`** — do not add Ink imports there. See [`architecture.md`](architecture.md#core-vs-apps).
+
+New CLI views should compose the shared primitives in `apps/cli/src/ui/shared/` instead of creating local frame, modal, row, key, or glyph helpers.
 
 ## Shared primitives
 

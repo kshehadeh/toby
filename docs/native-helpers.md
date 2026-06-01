@@ -272,10 +272,10 @@ protocol details.
 
 The `macos` integration follows this pattern:
 
-- `apps/cli/src/integrations/macos/system-helper.ts` resolves the helper path, spawns it, and provides typed wrapper functions for all commands.
-- `apps/cli/src/integrations/macos/client.ts` calls typed wrappers and adapts results to the existing tool interface.
-- `apps/cli/src/integrations/macos/tools.ts` defines AI tools that call client functions.
-- `apps/cli/src/integrations/macos/index.ts` registers the integration and probes the helper on connect.
+- `packages/core/src/integrations/macos/system-helper.ts` resolves the helper path, spawns it, and provides typed wrapper functions for all commands.
+- `packages/core/src/integrations/macos/client.ts` calls typed wrappers and adapts results to the existing tool interface.
+- `packages/core/src/integrations/macos/tools.ts` defines AI tools that call client functions.
+- `packages/core/src/integrations/macos/index.ts` registers the integration and probes the helper on connect.
 - `apps/macos-helper/` contains the Swift executable with 10 command domains.
 
 See [macos-integration.md](macos-integration.md) for the full tool surface and capabilities.

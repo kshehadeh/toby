@@ -1,8 +1,8 @@
 # Integrations
 
-Integrations are **first-party plugins**: each is an object implementing `IntegrationModule`, registered in [`apps/cli/src/integrations/index.ts`](../apps/cli/src/integrations/index.ts).
+Integrations are **first-party plugins** in **`@toby/core`**: each is an object implementing `IntegrationModule`, registered in [`packages/core/src/integrations/index.ts`](../packages/core/src/integrations/index.ts). The CLI app loads the registry and may add Ink-specific UX; integration behavior itself lives in core. See [`architecture.md`](architecture.md#core-vs-apps).
 
-## Types (`apps/cli/src/integrations/types.ts`)
+## Types (`packages/core/src/integrations/types.ts`)
 
 ### `Integration`
 
@@ -28,15 +28,15 @@ Extends `Integration` with optional **capabilities** and **hooks**:
 | `mergeCredentialsPatch(values, previous)` | Return a `Partial<CredentialsFile>` fragment when saving; configure merges patches from all modules. |
 | `summarize?(options)` | Build `CoreMessage[]` (or return `empty`) for the shared `summarize` command. |
 | `chat?(options)` | Run the shared `chat` command: tool-calling AI for a user-supplied instruction (`ChatRunOptions`). |
-| `createChatTools?(params)` | Provide tools + action accumulator for **RunModelTurnNode** (`runSharedChatTurn` in `apps/cli/src/chat-pipeline/run-turn.ts`). |
+| `createChatTools?(params)` | Provide tools + action accumulator for **RunModelTurnNode** (`runSharedChatTurn` in `packages/core/src/chat-pipeline/run-turn.ts`). |
 | `registerCommands?(program)` | Attach Commander subcommands (e.g. Gmail’s `gmail fetch`, `gmail organize`). |
 | `chatInbound?` | Long-lived inbound listener for the daemon (`ChatInboundProvider`); maps external channel+thread to chat sessions. See [`chat-inbound.md`](chat-inbound.md). |
 
-Types such as `IntegrationModule` and `IntegrationCapability` are exported from [`types.ts`](../apps/cli/src/integrations/types.ts). Import them from there when you need them in implementation code; the barrel [`index.ts`](../apps/cli/src/integrations/index.ts) exposes runtime registry functions.
+Types such as `IntegrationModule` and `IntegrationCapability` are exported from [`types.ts`](../packages/core/src/integrations/types.ts). Import them from there when you need them in implementation code; the barrel [`index.ts`](../packages/core/src/integrations/index.ts) exposes runtime registry functions.
 
 ## Registry
 
-[`apps/cli/src/integrations/index.ts`](../apps/cli/src/integrations/index.ts) holds the authoritative `MODULES` array.
+[`packages/core/src/integrations/index.ts`](../packages/core/src/integrations/index.ts) holds the authoritative `MODULES` array.
 
 | Function | Use |
 | -------- | --- |
@@ -49,28 +49,28 @@ Types such as `IntegrationModule` and `IntegrationCapability` are exported from 
 
 Each integration typically owns:
 
-- **`index.ts`** — exports `*IntegrationModule` constant wiring lifecycle, capabilities, credentials, `summarize`, optional `chat`, `createChatTools`, `registerCommands`, and tool validation used by `testConnection`. Chat turn execution is delegated to the shared `runSharedChatTurn` from `apps/cli/src/chat-pipeline/run-turn.ts` (no per-integration `chat-turn.ts` needed).
+- **`index.ts`** — exports `*IntegrationModule` constant wiring lifecycle, capabilities, credentials, `summarize`, optional `chat`, `createChatTools`, `registerCommands`, and tool validation used by `testConnection`. Chat turn execution is delegated to the shared `runSharedChatTurn` from `packages/core/src/chat-pipeline/run-turn.ts` (no per-integration `chat-turn.ts` needed).
 - **`client.ts`** — HTTP/API calls, typed DTOs.
 - **`auth.ts`** (if OAuth) — OAuth helper used by `connect`.
 - **`tools.ts`** — AI SDK `tool()` definitions and context types (module-private unless needed elsewhere).
 - **`prompts/`** — System/user message builders for summarize, organize, etc.
 - **`cli.ts`** (optional) — Commander registration kept out of `apps/cli/src/commands/`.
 
-**Gmail** and **Todoist** under [`apps/cli/src/integrations/gmail/`](../apps/cli/src/integrations/gmail/) and [`apps/cli/src/integrations/todoist/`](../apps/cli/src/integrations/todoist/) are the reference implementations.
+**Gmail** and **Todoist** under [`packages/core/src/integrations/gmail/`](../packages/core/src/integrations/gmail/) and [`packages/core/src/integrations/todoist/`](../packages/core/src/integrations/todoist/) are the reference implementations.
 
-**Slack** ([`apps/cli/src/integrations/slack/`](../apps/cli/src/integrations/slack/)) is the **Chat** provider category integration: OAuth (PKCE + user scopes on localhost) or manual bot token auth, with chat tools to search channels/users, post messages, reply in threads, and search message history. **Daemon inbound** (@mentions via Socket Mode) always requires a **bot token** (`xoxb-…`) and **app token** (`xapp-…`) in addition to OAuth user credentials—see [help-site Slack credentials](../apps/help-site/docs/integrations/slack.md#credentials-and-auth-reference).
+**Slack** ([`packages/core/src/integrations/slack/`](../packages/core/src/integrations/slack/)) is the **Chat** provider category integration: OAuth (PKCE + user scopes on localhost) or manual bot token auth, with chat tools to search channels/users, post messages, reply in threads, and search message history. **Daemon inbound** (@mentions via Socket Mode) always requires a **bot token** (`xoxb-…`) and **app token** (`xapp-…`) in addition to OAuth user credentials—see [help-site Slack credentials](../apps/help-site/docs/integrations/slack.md#credentials-and-auth-reference).
 
-**Apple Mail** ([`apps/cli/src/integrations/applemail/`](../apps/cli/src/integrations/applemail/)) is **macOS-only**: it controls the local Mail.app via AppleScript for chat tools (`searchEmails`, `createDraft`, `updateDraft`). See [`apple-mail.md`](apple-mail.md) for setup, permissions, and limitations.
+**Apple Mail** ([`packages/core/src/integrations/applemail/`](../packages/core/src/integrations/applemail/)) is **macOS-only**: it controls the local Mail.app via AppleScript for chat tools (`searchEmails`, `createDraft`, `updateDraft`). See [`apple-mail.md`](apple-mail.md) for setup, permissions, and limitations.
 
-**Apple Calendar** ([`apps/cli/src/integrations/applecalendar/`](../apps/cli/src/integrations/applecalendar/)) is **macOS-only**: it uses **EventKit** (AppleScriptObjC) for fast event search across all calendar types (including Exchange/iCloud), and Calendar.app AppleScript for create/update/delete operations. See [`apple-calendar.md`](apple-calendar.md) for setup, permissions, and AppleScript pitfalls.
+**Apple Calendar** ([`packages/core/src/integrations/applecalendar/`](../packages/core/src/integrations/applecalendar/)) is **macOS-only**: it uses **EventKit** (AppleScriptObjC) for fast event search across all calendar types (including Exchange/iCloud), and Calendar.app AppleScript for create/update/delete operations. See [`apple-calendar.md`](apple-calendar.md) for setup, permissions, and AppleScript pitfalls.
 
-**Brave Search** ([`apps/cli/src/integrations/bravesearch/`](../apps/cli/src/integrations/bravesearch/)) is the **Search** provider category integration: API-key auth, with a `webSearch` chat tool for web search (query, count, freshness filter). The `webSearch` tool is also wired as a **conditional global tool** — when a Brave Search API key is present in credentials, the tool is available in every chat session without needing to explicitly select the integration.
+**Brave Search** ([`packages/core/src/integrations/bravesearch/`](../packages/core/src/integrations/bravesearch/)) is the **Search** provider category integration: API-key auth, with a `webSearch` chat tool for web search (query, count, freshness filter). The `webSearch` tool is also wired as a **conditional global tool** — when a Brave Search API key is present in credentials, the tool is available in every chat session without needing to explicitly select the integration.
 
-**Jira** ([`apps/cli/src/integrations/jira/`](../apps/cli/src/integrations/jira/)) is the **Work Tracker** provider category integration: Atlassian domain + email + API-token auth, with read-only chat tools to search Jira issues with JQL (`searchJiraIssues`), fetch full issue details (`getJiraIssue`), read issue comments (`getJiraIssueComments`), and list accessible projects (`listJiraProjects`).
+**Jira** ([`packages/core/src/integrations/jira/`](../packages/core/src/integrations/jira/)) is the **Work Tracker** provider category integration: Atlassian domain + email + API-token auth, with read-only chat tools to search Jira issues with JQL (`searchJiraIssues`), fetch full issue details (`getJiraIssue`), read issue comments (`getJiraIssueComments`), and list accessible projects (`listJiraProjects`).
 
 ### Web content fetching
 
-The global `fetchWebContent` tool ([`apps/cli/src/ai/web-fetch-tool.ts`](../apps/cli/src/ai/web-fetch-tool.ts)) fetches any URL and extracts clean readable content using `@mozilla/readability` (the same engine Firefox Reader View uses) plus `linkedom` for server-side DOM parsing. It strips ads, navigation, footers, and other boilerplate, returning the article title, text content, excerpt, site name, and byline. This tool is always available in chat sessions (no credentials needed).
+The global `fetchWebContent` tool ([`packages/core/src/ai/web-fetch-tool.ts`](../packages/core/src/ai/web-fetch-tool.ts)) fetches any URL and extracts clean readable content using `@mozilla/readability` (the same engine Firefox Reader View uses) plus `linkedom` for server-side DOM parsing. It strips ads, navigation, footers, and other boilerplate, returning the article title, text content, excerpt, site name, and byline. This tool is always available in chat sessions (no credentials needed).
 
 ## How core commands use modules
 
@@ -100,7 +100,7 @@ the subprocess protocol in [`plugin-protocol.md`](plugin-protocol.md).
 | `toby plugins inspect <name>` | Show plugin details and tool catalog |
 | `toby plugins doctor` | Validate protocol compatibility |
 
-Runtime code lives under [`apps/cli/src/integrations/plugins/`](../apps/cli/src/integrations/plugins/).
+Runtime code lives under [`packages/core/src/integrations/plugins/`](../packages/core/src/integrations/plugins/).
 The reference implementation is [`apps/plugin-sample/`](../apps/plugin-sample/).
 
 Built-in modules in `MODULES` take precedence when names collide. Toby remains

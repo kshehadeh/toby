@@ -6,15 +6,15 @@ Toby configures **provider prompt caching** for `toby chat` and normalizes **cac
 
 | Path | Role |
 | --- | --- |
-| [`apps/cli/src/ai/caching/index.ts`](../apps/cli/src/ai/caching/index.ts) | Orchestrator entry: `applyChatPromptCaching`, public exports |
-| [`apps/cli/src/ai/caching/types.ts`](../apps/cli/src/ai/caching/types.ts) | `CacheAdapter`, `TokenUsageReport`, `ChatCacheContext` |
-| [`apps/cli/src/ai/caching/registry.ts`](../apps/cli/src/ai/caching/registry.ts) | Maps `persona.ai.provider` → adapter |
-| [`apps/cli/src/ai/caching/shared.ts`](../apps/cli/src/ai/caching/shared.ts) | Stable `promptCacheKey`, `mergeProviderOptions`, gateway slug parsing |
-| [`apps/cli/src/ai/caching/usage.ts`](../apps/cli/src/ai/caching/usage.ts) | `extractTokenUsageReport`, status-line and debug formatting |
-| [`apps/cli/src/ai/caching/adapters/openai.ts`](../apps/cli/src/ai/caching/adapters/openai.ts) | Direct OpenAI |
-| [`apps/cli/src/ai/caching/adapters/vercel-gateway.ts`](../apps/cli/src/ai/caching/adapters/vercel-gateway.ts) | Vercel AI Gateway |
+| [`packages/core/src/ai/caching/index.ts`](../packages/core/src/ai/caching/index.ts) | Orchestrator entry: `applyChatPromptCaching`, public exports |
+| [`packages/core/src/ai/caching/types.ts`](../packages/core/src/ai/caching/types.ts) | `CacheAdapter`, `TokenUsageReport`, `ChatCacheContext` |
+| [`packages/core/src/ai/caching/registry.ts`](../packages/core/src/ai/caching/registry.ts) | Maps `persona.ai.provider` → adapter |
+| [`packages/core/src/ai/caching/shared.ts`](../packages/core/src/ai/caching/shared.ts) | Stable `promptCacheKey`, `mergeProviderOptions`, gateway slug parsing |
+| [`packages/core/src/ai/caching/usage.ts`](../packages/core/src/ai/caching/usage.ts) | `extractTokenUsageReport`, status-line and debug formatting |
+| [`packages/core/src/ai/caching/adapters/openai.ts`](../packages/core/src/ai/caching/adapters/openai.ts) | Direct OpenAI |
+| [`packages/core/src/ai/caching/adapters/vercel-gateway.ts`](../packages/core/src/ai/caching/adapters/vercel-gateway.ts) | Vercel AI Gateway |
 
-[`apps/cli/src/ai/cache-hints.ts`](../apps/cli/src/ai/cache-hints.ts) re-exports the orchestrator for older imports; new code should import from `apps/cli/src/ai/caching`.
+[`packages/core/src/ai/cache-hints.ts`](../packages/core/src/ai/cache-hints.ts) re-exports the orchestrator for older imports; new code should import from `packages/core/src/ai/caching`.
 
 ## End-to-end flow
 
@@ -36,19 +36,19 @@ flowchart LR
   report --> ui
 ```
 
-1. **Before the model call** — **RunModelTurnNode** (via [`run-turn.ts`](../apps/cli/src/chat-pipeline/run-turn.ts)) calls `applyChatMessageCaching` on the message list, then `applyChatPromptCaching` with the active persona and integration module names.
+1. **Before the model call** — **RunModelTurnNode** (via [`run-turn.ts`](../packages/core/src/chat-pipeline/run-turn.ts)) calls `applyChatMessageCaching` on the message list, then `applyChatPromptCaching` with the active persona and integration module names.
 2. **Adapter** — Looks up `getCacheAdapter(persona.ai.provider)` and merges provider-specific message hints and `providerOptions` patches.
-3. **Model call** — [`apps/cli/src/ai/chat.ts`](../apps/cli/src/ai/chat.ts) forwards `providerOptions` to the AI SDK (`streamText` / `generateText`).
+3. **Model call** — [`packages/core/src/ai/chat.ts`](../packages/core/src/ai/chat.ts) forwards `providerOptions` to the AI SDK (`streamText` / `generateText`).
 4. **After the turn** — Callers use `extractTokenUsageReport(usage, { persona, moduleNames })` for logging and UI instead of reading `usage.inputTokenDetails` directly.
 
 ## Provider adapters
 
-Each adapter implements [`CacheAdapter`](../apps/cli/src/ai/caching/types.ts):
+Each adapter implements [`CacheAdapter`](../packages/core/src/ai/caching/types.ts):
 
 - **`applyProviderOptions`** — Returns a `providerOptions` object to merge (or `undefined` if this provider has nothing to add for the current model).
 - **`normalizeUsageReport`** (optional) — Override how AI SDK usage maps into `TokenUsageReport`. All current adapters use the default mapping.
 
-Register new providers in [`apps/cli/src/ai/caching/registry.ts`](../apps/cli/src/ai/caching/registry.ts).
+Register new providers in [`packages/core/src/ai/caching/registry.ts`](../packages/core/src/ai/caching/registry.ts).
 
 ### OpenAI (`provider: "openai"`)
 
@@ -90,7 +90,7 @@ The Vercel adapter also reads `usage.raw` when the AI SDK omits `inputTokenDetai
 
 ## Stable cache key
 
-Built in [`buildStablePromptCacheKey`](../apps/cli/src/ai/caching/shared.ts). The key is:
+Built in [`buildStablePromptCacheKey`](../packages/core/src/ai/caching/shared.ts). The key is:
 
 - **Stable** across sessions for the same persona, model, and integration set
 - **Independent of user text** (maximizes prefix reuse)
@@ -104,7 +104,7 @@ Intentionally **excluded**:
 
 OpenAI enforces a 64-character limit on `prompt_cache_key`; Toby keeps the key short with a schema version prefix and base64url digest.
 
-If you change the stable system prompt layout in a breaking way, bump `DEFAULT_CHAT_PROMPT_SCHEMA_VERSION` in [`apps/cli/src/ai/caching/shared.ts`](../apps/cli/src/ai/caching/shared.ts).
+If you change the stable system prompt layout in a breaking way, bump `DEFAULT_CHAT_PROMPT_SCHEMA_VERSION` in [`packages/core/src/ai/caching/shared.ts`](../packages/core/src/ai/caching/shared.ts).
 
 ## Token usage contract (`TokenUsageReport`)
 
@@ -123,7 +123,7 @@ Default extraction reads AI SDK [`LanguageModelUsage`](https://sdk.vercel.ai/doc
 
 ### UI status line
 
-[`formatTokenUsageStatus`](../apps/cli/src/ai/caching/usage.ts) drives the chat input dock footer, for example:
+[`formatTokenUsageStatus`](../packages/core/src/ai/caching/usage.ts) drives the chat input dock footer, for example:
 
 ```text
 in=21381 out=116 tot=21497 cache=60 cacheW=0
@@ -134,7 +134,7 @@ in=21381 out=116 tot=21497 cache=60 cacheW=0
 
 ### Debug transcript
 
-Set `TOBY_DEBUG_CACHE=1` to append a meta line per turn with `cacheRead`, `cacheWrite`, and `noCache` via [`formatCacheDebugMeta`](../apps/cli/src/ai/caching/usage.ts) in [`apps/cli/src/ui/chat/chat-session-app.tsx`](../apps/cli/src/ui/chat/chat-session-app.tsx).
+Set `TOBY_DEBUG_CACHE=1` to append a meta line per turn with `cacheRead`, `cacheWrite`, and `noCache` via [`formatCacheDebugMeta`](../packages/core/src/ai/caching/usage.ts) in [`apps/cli/src/ui/chat/chat-session-app.tsx`](../apps/cli/src/ui/chat/chat-session-app.tsx).
 
 ### Turn logs
 
@@ -156,7 +156,7 @@ If `cache` stays at zero across many similar turns, check:
 
 ## Adding a provider adapter
 
-1. Create `apps/cli/src/ai/caching/adapters/<id>.ts`:
+1. Create `packages/core/src/ai/caching/adapters/<id>.ts`:
 
 ```typescript
 import type { CacheAdapter } from "../types";
@@ -173,7 +173,7 @@ export const myProviderCacheAdapter: CacheAdapter = {
 };
 ```
 
-2. Register in [`apps/cli/src/ai/caching/registry.ts`](../apps/cli/src/ai/caching/registry.ts).
+2. Register in [`packages/core/src/ai/caching/registry.ts`](../packages/core/src/ai/caching/registry.ts).
 3. Add tests in [`tests/ai/prompt-caching.test.ts`](../tests/ai/prompt-caching.test.ts).
 4. Document upstream-specific options in this file.
 

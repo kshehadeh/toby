@@ -8,10 +8,10 @@ This document describes the **provider-agnostic inbound architecture**: how exte
 
 | Layer | Location | Role |
 | ----- | -------- | ---- |
-| Core | `apps/cli/src/chat-inbound/` | Router, askUser bridge, status, listener startup |
-| Pipeline | `apps/cli/src/chat-pipeline/headless-session.ts` | Calls `runChatTurnPipeline` (full node chain through persist); integration selection via [`resolve-chat-modules.ts`](../apps/cli/src/chat-pipeline/resolve-chat-modules.ts) |
-| Storage | `apps/cli/src/ui/chat/session-store.ts` | `chat_external_sessions` maps external conversation → Toby session |
-| Provider | `apps/cli/src/integrations/<name>/inbound.ts` | Transport, event normalization, `deliverReply` / `deliverAskUser`, optional `createStatusReporter` |
+| Core | `packages/core/src/chat-inbound/` | Router, askUser bridge, status, listener startup |
+| Pipeline | `packages/core/src/chat-pipeline/headless-session.ts` | Calls `runChatTurnPipeline` (full node chain through persist); integration selection via [`resolve-chat-modules.ts`](../packages/core/src/chat-pipeline/resolve-chat-modules.ts) |
+| Storage | `packages/core/src/session-store.ts` | `chat_external_sessions` maps external conversation → Toby session |
+| Provider | `packages/core/src/integrations/<name>/inbound.ts` | Transport, event normalization, `deliverReply` / `deliverAskUser`, optional `createStatusReporter` |
 
 ## Session model
 

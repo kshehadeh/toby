@@ -1,41 +1,74 @@
 # Architecture
 
-Toby is a **Commander.js** CLI distributed as the `toby` package binary. The codebase favors a **plugin-first integration model**: each integration is a self-contained module under `apps/cli/src/integrations/<name>/`, registered in a central list and discovered by capability.
+Toby is a **Commander.js** CLI (`@toby/cli`) built on a shared harness package (`@toby/core`). The harness holds everything needed to run chat turns, integrations, and headless/daemon flows **without** Ink or React. The CLI app adds terminal UI, command registration, and macOS-specific app wiring.
+
+See also: [Core vs apps](#core-vs-apps) (where new code should live).
+
+## Core vs apps
+
+| Package | Path | Role |
+| ------- | ---- | ---- |
+| **`@toby/core`** | [`packages/core/src/`](../packages/core/src/) | Harness: chat pipeline, AI, integrations, config, personas, skills, memory, planning, chat-inbound, logging, session store, message prep. Consumable from scripts, daemons, or other apps via `@toby/core/...` imports. |
+| **`@toby/cli`** | [`apps/cli/src/`](../apps/cli/src/) | CLI app: Commander entry, generic commands, Ink TUIs (`ui/`), listen/schedules/upgrade UI and glue. Depends on `@toby/core`; must not be imported by core. |
+
+```mermaid
+flowchart TB
+  subgraph core ["@toby/core"]
+    pipe[chat-pipeline]
+    ai[ai]
+    integ[integrations]
+    cfg[config]
+  end
+  subgraph cli ["@toby/cli"]
+    entry[cli.ts + commands]
+    ui[ui/ Ink + React]
+  end
+  cli --> core
+```
+
+**Put in core** when the behavior is UI-agnostic: model calls, tools, integration APIs, pipeline nodes, SQLite persistence, daemon inbound routing, pretreatment, prompt caching.
+
+**Put in the CLI app** when the behavior is presentation or shell-specific: transcript rows, slash commands, configure/schedules/listen Ink screens, `ViewFrame` / keybindings, upgrade handoff, readline `--no-tui` formatting that is not shared headless logic.
+
+Integration **implementations** live in core (`packages/core/src/integrations/<name>/`). Integration **Ink pickers** and **slash commands** stay in the CLI under `apps/cli/src/ui/`.
 
 ## High-level layout
 
 ```
-src/
-  cli.ts                 # Program entry: registers shared + integration commands
-  commands/              # Cross-integration CLI commands (connect, summarize, chat, …)
+packages/core/src/       # @toby/core — harness (no Ink/React)
+  chat-pipeline/         # Node pipeline (turn init → expand → assemble → run → persist)
+  ai/                    # Shared AI helpers (chat, providers, pretreatment, replay)
   integrations/          # Integration modules + registry (see integrations.md)
-    index.ts             # MODULES registry and lookup helpers
-    types.ts             # Integration, IntegrationModule, capabilities, descriptors
-    gmail/
-    todoist/
   config/                # Read/write ~/.toby/config.json and credentials.json
-  ai/                    # Shared AI helpers (chat, providers) — not integration-specific
-  chat-pipeline/         # Node pipeline (turn init → expand → assemble → run → persist), tool cache, chat events, headless sessions
-  chat-inbound/          # Provider-agnostic daemon inbound router (integrations implement chatInbound)
-  personas/              # Named personas (model + instructions) used by AI flows
-  ui/configure/          # Ink/React TUI for `toby configure`
-  ui/chat/               # Ink TUI for `toby chat` when no prompt is passed on the CLI
+  chat-inbound/          # Provider-agnostic daemon inbound router
+  session-store.ts       # SQLite chat sessions (TUI + headless)
+  prepare-messages.ts    # Message assembly for chat turns
+  chat-integrations.ts   # Resolve usable chat modules from config/registry
+  …
+
+apps/cli/src/
+  cli.ts                 # Program entry: registers commands, loads integration CLI hooks
+  commands/              # Cross-integration Commander commands (connect, chat, daemon, …)
+  ui/configure/          # Ink TUI for `toby configure`
+  ui/chat/               # Ink TUI for `toby chat` (events → transcript; not the pipeline itself)
+  ui/shared/             # Shared Ink primitives (CLI-only)
+  schedules/ listen/ upgrade/ releases/   # App-specific orchestration and UI glue
 ```
 
-**Tests** live in `tests/` (Vitest).
+**Tests:** Vitest suites for the CLI live in [`apps/cli/tests/`](../apps/cli/tests/). Import harness symbols from `@toby/core/...`.
 
 **Build**
 
-- **`bun run build`** — `tsup` emits `dist/cli.js` (the `package.json` `"bin"` entry).
+- **`bun run build`** — `tsup` bundles [`apps/cli/src/cli.ts`](../apps/cli/src/cli.ts) (and inlines `@toby/core` source) to `apps/cli/dist/cli.js` (the `toby` binary).
 - **`bun run build:executable`** — optional single-file native binary via `bun build --compile` (see [build-executable.md](build-executable.md)).
 
 ## Runtime flow
 
-1. **`apps/cli/src/cli.ts`** constructs the Commander program, registers built-in commands, then calls `registerCommands` on each loaded `IntegrationModule` (if present). When no subcommand is provided on the command line, `chat` is used as the default (implemented by prepending `"chat"` to the args before parsing if the first arg is not a known subcommand or root option like `--help`/`--version`).
-2. **Connect / disconnect / status** use [`getIntegration`](../apps/cli/src/integrations/index.ts) or [`getIntegrations`](../apps/cli/src/integrations/index.ts) to invoke lifecycle and health checks on the right module.
-3. **`summarize`** resolves a module by name, checks the `summarize` capability, calls `module.summarize(...)`, then runs the AI SDK with returned messages.
-4. **`chat`** (`apps/cli/src/commands/chat.ts`) resolves one or more connected integrations (positional / `--integration` / default all), then runs an Ink multi-turn session or `--no-tui` console flow. Each turn is orchestrated by [`runChatTurnPipeline`](../apps/cli/src/chat-pipeline/pipeline.ts) (five chained nodes: init, expand prompt, assemble messages, run model turn, persist). Tool merging, prompt caching, and abort handling live inside **RunModelTurnNode** via [`run-turn.ts`](../apps/cli/src/chat-pipeline/run-turn.ts) and [`chat.ts`](../apps/cli/src/ai/chat.ts) (see [`ask-user-tool.ts`](../apps/cli/src/ai/ask-user-tool.ts)).
-5. **`config`** is the primary settings command. `toby config` launches the configure UI, while `toby config backup` and `toby config restore` manage encrypted config backups. `toby configure` remains as a compatibility alias.
+1. **`apps/cli/src/cli.ts`** constructs the Commander program, registers built-in commands, then calls `registerCommands` on each loaded `IntegrationModule` (if present). When no subcommand is provided on the command line, `chat` is used as the default.
+2. **Connect / disconnect / status** use [`getIntegration`](../packages/core/src/integrations/index.ts) or [`getIntegrations`](../packages/core/src/integrations/index.ts) from core.
+3. **`summarize`** resolves a module by name, checks capabilities, and runs AI with returned messages (core integrations + core AI).
+4. **`chat`** ([`apps/cli/src/commands/chat.ts`](../apps/cli/src/commands/chat.ts)) resolves integrations, then either runs the Ink session ([`ui/chat/`](../apps/cli/src/ui/chat/)) or a console one-shot. Each turn is orchestrated by [`runChatTurnPipeline`](../packages/core/src/chat-pipeline/pipeline.ts) in core. The CLI subscribes to `ChatEvent`s for rendering; it does not reimplement pipeline stages.
+5. **`config`** launches the configure UI (`ui/configure/`), while backup/restore logic stays in CLI commands using core config helpers.
 
 ## Local data
 
@@ -47,34 +80,27 @@ src/
 | `~/.toby/toby.log` | JSON-lines chat session log (turns, tools, prep) |
 | `~/.toby/daemon.log` | JSON-lines daemon log (scheduler, inbound chat, Slack Socket Mode) |
 
-Access is centralized in [`apps/cli/src/config/index.ts`](../apps/cli/src/config/index.ts). Integration modules should not hardcode paths; use the config helpers.
+Access is centralized in [`packages/core/src/config/index.ts`](../packages/core/src/config/index.ts). Integration modules should not hardcode paths; use the config helpers.
 
 Backup and restore behavior is documented in [`commands.md`](commands.md).
 
-## UI stack
+## UI stack (CLI app only)
 
-All Ink/React views share a set of primitives in [`apps/cli/src/ui/shared/`](../apps/cli/src/ui/shared/):
-`ViewFrame` (standalone app frames), `ViewModal` (chat overlay frames),
-`ConfirmDialog`, `MultilineTextEdit`, row components (`InfoRow`, `ActionRow`,
-`SelectableTextRow`, `SectionDivider`, `StatusIcon`), key predicates
-(`apps/cli/src/ui/shared/keybindings.ts`), and glyph constants
-(`apps/cli/src/ui/shared/glyphs.ts`). See [`docs/ui.md`](ui.md) for conventions.
+Ink/React lives under **`apps/cli/src/ui/`** only. Shared primitives are in [`apps/cli/src/ui/shared/`](../apps/cli/src/ui/shared/): `ViewFrame`, `ViewModal`, `ConfirmDialog`, row components, key predicates, glyphs. See [`docs/ui.md`](ui.md).
 
-The configure flow uses **Ink** and **React** (`apps/cli/src/ui/configure/`). The tree structure for the TUI is built in [`apps/cli/src/ui/configure/items.ts`](../apps/cli/src/ui/configure/items.ts), which pulls integration credential sections from the integration registry.
+The configure tree is built in [`apps/cli/src/ui/configure/items.ts`](../apps/cli/src/ui/configure/items.ts) using credential descriptors from the **core** integration registry.
 
-For `toby chat`, slash commands are registered in
-[`apps/cli/src/ui/chat/slash-commands/`](../apps/cli/src/ui/chat/slash-commands/), and the same
-registry powers autocomplete, execution, and help text (see
-[`docs/slash-commands.md`](slash-commands.md)).
+Chat slash commands are registered in [`apps/cli/src/ui/chat/slash-commands/`](../apps/cli/src/ui/chat/slash-commands/) (CLI-only; see [`slash-commands.md`](slash-commands.md)).
 
-## AI stack
+## AI stack (core)
 
-Shared pieces live under `apps/cli/src/ai/`:
+Shared AI and pipeline code lives under **`packages/core/src/ai/`** and **`packages/core/src/chat-pipeline/`**:
 
-- [`model-factory.ts`](../apps/cli/src/ai/model-factory.ts) — creates AI SDK language models from persona config (OpenAI direct, Vercel AI Gateway, and future providers).
-- [`chat.ts`](../apps/cli/src/ai/chat.ts) — tool-assisted chat helpers used by Gmail organize, `toby chat`, and similar flows.
-- [`ask-user-tool.ts`](../apps/cli/src/ai/ask-user-tool.ts) — shared **Ask User** tool merged into tool maps; optional handler for Ink (`toby chat` session) vs readline (`organize`, `--no-tui` chat).
-- [`ui/chat/session.tsx`](../apps/cli/src/ui/chat/session.tsx) — multi-turn Ink chat: keeps provider message history and wires `askUser` into the TUI.
-- [`providers.ts`](../apps/cli/src/ai/providers.ts) — provider/model lists for the configure UI.
+- [`model-factory.ts`](../packages/core/src/ai/model-factory.ts) — language models from persona config.
+- [`chat.ts`](../packages/core/src/ai/chat.ts) — tool-assisted chat (`streamText` / `generateText`, tool cache, lifecycle hooks).
+- [`ask-user-tool.ts`](../packages/core/src/ai/ask-user-tool.ts) — **Ask User** tool; the CLI supplies an Ink or readline handler when wiring the turn context.
+- [`providers.ts`](../packages/core/src/ai/providers.ts) — provider/model lists (configure UI reads these via core).
 
-Integration-specific **prompts** and **tool definitions** should live next to the integration (e.g. `apps/cli/src/integrations/gmail/prompts/`, `tools.ts`) so the core stays integration-agnostic.
+Integration-specific **prompts** and **tool definitions** live under `packages/core/src/integrations/<name>/` so the harness stays integration-agnostic.
+
+For pipeline stages, events, and caching, see [`chat-pipeline.md`](chat-pipeline.md) and [`ai-caching.md`](ai-caching.md).

@@ -2,9 +2,11 @@
 
 This document describes how `toby chat` prepares messages, runs a model turn, and (optionally) takes advantage of provider prompt caching to reduce repeated prompt tokens.
 
+The pipeline implementation lives in **`@toby/core`** ([`packages/core/src/chat-pipeline/`](../packages/core/src/chat-pipeline/)). The CLI Ink session ([`apps/cli/src/ui/chat/`](../apps/cli/src/ui/chat/)) subscribes to `ChatEvent`s for display only. See [`architecture.md`](architecture.md#core-vs-apps).
+
 ## Node pipeline architecture
 
-Both the Ink TUI (`toby chat`) and the headless daemon/inbound path run the same **node pipeline** via `runChatTurnPipeline` in [`apps/cli/src/chat-pipeline/pipeline.ts`](../apps/cli/src/chat-pipeline/pipeline.ts). Each node is a discrete unit with typed inputs and outputs; nodes emit existing `ChatEvent` milestones for observability. Rendering (transcript rows, streaming assistant text) is **not** part of the pipeline — consumers subscribe to the event stream.
+Both the Ink TUI (`toby chat`) and the headless daemon/inbound path run the same **node pipeline** via `runChatTurnPipeline` in [`packages/core/src/chat-pipeline/pipeline.ts`](../packages/core/src/chat-pipeline/pipeline.ts). Each node is a discrete unit with typed inputs and outputs; nodes emit existing `ChatEvent` milestones for observability. Rendering (transcript rows, streaming assistant text) is **not** part of the pipeline — consumers subscribe to the event stream.
 
 ```mermaid
 flowchart LR
@@ -16,11 +18,11 @@ flowchart LR
 
 | Node | Responsibility | Key implementation |
 | ---- | -------------- | ------------------ |
-| **TurnInitNode** | Load skills catalog, build tool catalog, decide `shouldPretreat` | [`nodes/turn-init.ts`](../apps/cli/src/chat-pipeline/nodes/turn-init.ts) |
-| **ExpandPromptNode** | Optional pretreatment; emits `prep_start` / `prep_end` | [`nodes/expand-prompt.ts`](../apps/cli/src/chat-pipeline/nodes/expand-prompt.ts), [`pretreatment.ts`](../apps/cli/src/ai/pretreatment.ts) |
-| **AssembleMessagesNode** | Build/append `CoreMessage[]`, inject skill bodies; emits merge `lifecycle_*` on follow-up turns | [`nodes/assemble-messages.ts`](../apps/cli/src/chat-pipeline/nodes/assemble-messages.ts), [`prepare-messages.ts`](../apps/cli/src/ui/chat/prepare-messages.ts) |
-| **RunModelTurnNode** | Single fused model+tool turn (AI SDK agentic loop) | [`nodes/run-model-turn.ts`](../apps/cli/src/chat-pipeline/nodes/run-model-turn.ts), [`run-turn.ts`](../apps/cli/src/chat-pipeline/run-turn.ts), [`chat.ts`](../apps/cli/src/ai/chat.ts) |
-| **PersistTurnNode** | Append messages to SQLite (headless) or emit save `lifecycle_*` (Ink UI) | [`nodes/persist-turn.ts`](../apps/cli/src/chat-pipeline/nodes/persist-turn.ts) |
+| **TurnInitNode** | Load skills catalog, build tool catalog, decide `shouldPretreat` | [`nodes/turn-init.ts`](../packages/core/src/chat-pipeline/nodes/turn-init.ts) |
+| **ExpandPromptNode** | Optional pretreatment; emits `prep_start` / `prep_end` | [`nodes/expand-prompt.ts`](../packages/core/src/chat-pipeline/nodes/expand-prompt.ts), [`pretreatment.ts`](../packages/core/src/ai/pretreatment.ts) |
+| **AssembleMessagesNode** | Build/append `CoreMessage[]`, inject skill bodies; emits merge `lifecycle_*` on follow-up turns | [`nodes/assemble-messages.ts`](../packages/core/src/chat-pipeline/nodes/assemble-messages.ts), [`prepare-messages.ts`](../packages/core/src/prepare-messages.ts) |
+| **RunModelTurnNode** | Single fused model+tool turn (AI SDK agentic loop) | [`nodes/run-model-turn.ts`](../packages/core/src/chat-pipeline/nodes/run-model-turn.ts), [`run-turn.ts`](../packages/core/src/chat-pipeline/run-turn.ts), [`chat.ts`](../packages/core/src/ai/chat.ts) |
+| **PersistTurnNode** | Append messages to SQLite (headless) or emit save `lifecycle_*` (Ink UI) | [`nodes/persist-turn.ts`](../packages/core/src/chat-pipeline/nodes/persist-turn.ts) |
 
 **Query Model** and **Execute Tool** are intentionally **not** separate nodes. They alternate inside a single AI SDK `streamText` / `generateText` call (up to 12 steps) wrapped by `RunModelTurnNode`.
 
@@ -61,7 +63,7 @@ TurnRequest → InitedTurn → ExpandedTurn → AssembledTurn → RanTurn → Co
 
 | Entry point | Pipeline usage |
 | ----------- | -------------- |
-| [`headless-session.ts`](../apps/cli/src/chat-pipeline/headless-session.ts) | Full pipeline (`init` → `persist`); SQLite batch via `ctx.persist` |
+| [`headless-session.ts`](../packages/core/src/chat-pipeline/headless-session.ts) | Full pipeline (`init` → `persist`); SQLite batch via `ctx.persist` |
 | [`chat-session-app.tsx`](../apps/cli/src/ui/chat/chat-session-app.tsx) boot/submit | `stopAfter: "assemble"`, then `{ assembled }` for model turn |
 | [`chat-session-app.tsx`](../apps/cli/src/ui/chat/chat-session-app.tsx) `runModelTurn` | `{ assembled }` only; `emitPersistLifecycle: true`, React effects handle SQLite |
 
@@ -91,17 +93,17 @@ modelCall --> responseMsgs[response.messages]
 
 Key files:
 
-- `apps/cli/src/chat-pipeline/pipeline.ts`: node types, `runChatTurnPipeline` driver, and stage chaining.
-- `apps/cli/src/chat-pipeline/nodes/`: discrete turn nodes (`turn-init`, `expand-prompt`, `assemble-messages`, `run-model-turn`, `persist-turn`).
-- `apps/cli/src/chat-pipeline/headless-session.ts`: daemon/inbound turn entry; builds `TurnContext` and runs the full pipeline.
+- `packages/core/src/chat-pipeline/pipeline.ts`: node types, `runChatTurnPipeline` driver, and stage chaining.
+- `packages/core/src/chat-pipeline/nodes/`: discrete turn nodes (`turn-init`, `expand-prompt`, `assemble-messages`, `run-model-turn`, `persist-turn`).
+- `packages/core/src/chat-pipeline/headless-session.ts`: daemon/inbound turn entry; builds `TurnContext` and runs the full pipeline.
 - `apps/cli/src/ui/chat/chat-session-app.tsx`: Ink TUI; runs prep stages (`stopAfter: "assemble"`) then execution via `{ assembled }`.
 - `apps/cli/src/ui/chat/pipeline-turn-context.ts`: helper to build `TurnContext` for the Ink session.
-- `apps/cli/src/chat-pipeline/chat-events.ts`: shared UI-agnostic chat pipeline event types.
-- `apps/cli/src/ai/pretreatment.ts`: optional fast pretreatment (`generateText` + structured output) before the main turn; see **Pretreatment** below.
-- `apps/cli/src/skills/index.ts`: loads optional local skills from `~/.toby/skills/<name>/SKILL.md` (frontmatter `name` + `description`) for pretreatment selection and injection; see **Local skills** below.
-- `apps/cli/src/ui/chat/prepare-messages.ts`: initial message construction for a session.
-- `apps/cli/src/chat-pipeline/run-turn.ts`: shared integration turn runner (`runIntegrationChatTurn`, `runSharedChatTurn`). `apps/cli/src/ui/chat/run-turn.ts` re-exports from this module.
-- `apps/cli/src/ai/chat.ts`: shared wrapper around AI SDK `streamText` / `generateText`, tool cache injection, lifecycle hooks, and abort signal propagation.
+- `packages/core/src/chat-pipeline/chat-events.ts`: shared UI-agnostic chat pipeline event types.
+- `packages/core/src/ai/pretreatment.ts`: optional fast pretreatment (`generateText` + structured output) before the main turn; see **Pretreatment** below.
+- `packages/core/src/skills/index.ts`: loads optional local skills from `~/.toby/skills/<name>/SKILL.md` (frontmatter `name` + `description`) for pretreatment selection and injection; see **Local skills** below.
+- `packages/core/src/prepare-messages.ts`: initial message construction for a session.
+- `packages/core/src/chat-pipeline/run-turn.ts`: shared integration turn runner (`runIntegrationChatTurn`, `runSharedChatTurn`). `apps/cli/src/ui/chat/run-turn.ts` re-exports from this module.
+- `packages/core/src/ai/chat.ts`: shared wrapper around AI SDK `streamText` / `generateText`, tool cache injection, lifecycle hooks, and abort signal propagation.
 
 ## Message construction (stable prefix vs dynamic content)
 
@@ -114,24 +116,24 @@ Why:
 
 Where this is implemented:
 
-- Gmail system prompt is static policy + tool strategy in `apps/cli/src/integrations/gmail/prompts/chat.ts` (`buildGmailChatSystemMessage`).
-- Todoist system prompt is static policy + tool rules in `apps/cli/src/integrations/todoist/prompts/chat.ts` (`buildTodoistChatSystemMessage`).
-- Multi-integration system prompt is assembled in `apps/cli/src/ui/chat/prepare-messages.ts` and does **not** embed the user request.
+- Gmail system prompt is static policy + tool strategy in `packages/core/src/integrations/gmail/prompts/chat.ts` (`buildGmailChatSystemMessage`).
+- Todoist system prompt is static policy + tool rules in `packages/core/src/integrations/todoist/prompts/chat.ts` (`buildTodoistChatSystemMessage`).
+- Multi-integration system prompt is assembled in `packages/core/src/prepare-messages.ts` and does **not** embed the user request.
 - The actual user request (and dynamic context like task snapshots) is always provided via `role: "user"` messages.
 
 ## Pretreatment (optional)
 
 Before the main model turn, **ExpandPromptNode** may run a **small, fast** LLM call that extracts a structured intent spec (goal, must/must-not, assumptions, open questions, likely integrations, **relevant local skills**, and relevant tools) and **prepends** it to the `role: "user"` content sent to the main model. The Ink transcript still shows the **verbatim** user line.
 
-- **When**: on **every** non-empty prompt. `[shouldPretreat](../apps/cli/src/ai/pretreatment.ts)` now returns `true` for any non-blank user text so each turn validates intent and narrows the tool/skill set. Disable entirely with `TOBY_DISABLE_PRETREATMENT=1`. (The legacy `TOBY_PRETREAT_FIRST_TURN` flag is deprecated and no longer gates first-turn behavior. Repeated cost is mitigated by the local pretreatment cache; per-turn selectivity is a future optimization.)
-- **Provider**: uses the active persona’s AI provider (OpenAI direct or Vercel AI Gateway via [`model-factory.ts`](../apps/cli/src/ai/model-factory.ts)).
+- **When**: on **every** non-empty prompt. `[shouldPretreat](../packages/core/src/ai/pretreatment.ts)` now returns `true` for any non-blank user text so each turn validates intent and narrows the tool/skill set. Disable entirely with `TOBY_DISABLE_PRETREATMENT=1`. (The legacy `TOBY_PRETREAT_FIRST_TURN` flag is deprecated and no longer gates first-turn behavior. Repeated cost is mitigated by the local pretreatment cache; per-turn selectivity is a future optimization.)
+- **Provider**: uses the active persona’s AI provider (OpenAI direct or Vercel AI Gateway via [`model-factory.ts`](../packages/core/src/ai/model-factory.ts)).
 - **Model**: defaults to `gpt-4.1-mini` for OpenAI, or `openai/gpt-4.1-mini` for Vercel gateway. Override with `TOBY_PRETREAT_MODEL` (bare id for OpenAI, or a full `provider/model` slug for gateway). Disable entirely with `TOBY_DISABLE_PRETREATMENT=1`.
 - **Debug**: `TOBY_DEBUG_PREP=1` adjusts the **prompt preparation** transcript box detail when a spec was attached (no separate `meta` line).
 - **Caching**:
   - Pretreatment uses its own short system prompt and is **not** included in the main `promptCacheKey` merge. The wrapped user text remains dynamic user-role content, so the stable-prefix caching strategy for the main turn is unchanged.
   - Toby also keeps a small **local SQLite cache** of successful pretreatment results (global across sessions) so repeated prompts can **skip the pretreatment model call** entirely.
     - **Keying**: derived from normalized user text + normalized integration labels + pretreat model id + a digest of the available skill catalog + a pretreat cache schema version.
-    - **Storage**: stored in `chat.sqlite` (see `apps/cli/src/ui/chat/session-store.ts`).
+    - **Storage**: stored in `chat.sqlite` (see `packages/core/src/session-store.ts`).
     - **Invalidation**: bumping the pretreat cache schema version (or changing model id / prompt construction inputs / local skill catalog) naturally produces new keys.
   - **Policy**: success-only (failed/timeout pretreatments are not cached).
 - **Tool filtering**: When pretreatment identifies relevant tools, Toby can narrow the active tool set for the main turn while preserving always-included global tools.
@@ -156,7 +158,7 @@ For each turn:
 
 If pretreatment is skipped (`shouldPretreat` false) or disabled (`TOBY_DISABLE_PRETREATMENT=1`), skill routing can still happen via `loadLocalSkillInstructions`.
 
-To author a new skill from chat, the global tool **`createLocalSkill`** (see [`apps/cli/src/ai/global-chat-tools.ts`](../apps/cli/src/ai/global-chat-tools.ts)) drafts a full `SKILL.md` with the persona model and saves it under `~/.toby/skills/`.
+To author a new skill from chat, the global tool **`createLocalSkill`** (see [`packages/core/src/ai/global-chat-tools.ts`](../packages/core/src/ai/global-chat-tools.ts)) drafts a full `SKILL.md` with the persona model and saves it under `~/.toby/skills/`.
 
 ## Toby self-reflection tools
 
@@ -174,8 +176,8 @@ These tools support prompts such as “Which integrations are connected?”, “
 
 Two global tools extend Toby's ability to access the web:
 
-- **`fetchWebContent`** — Fetches a URL and extracts its main readable content using `@mozilla/readability`. Strips ads, navigation, footers, and other boilerplate. Returns article title, text content, excerpt, and metadata. Always available (no credentials needed). Implemented in [`apps/cli/src/ai/web-fetch-tool.ts`](../apps/cli/src/ai/web-fetch-tool.ts).
-- **`webSearch`** — Searches the web using the Brave Search API. Returns titles, URLs, descriptions, and optional page age. Available as a **conditional global tool** when a Brave Search API key is configured in credentials. When available, it is always included in the tool set (protected from pretreatment filtering via `ALWAYS_INCLUDED_TOOLS`). Implemented in [`apps/cli/src/integrations/bravesearch/tools.ts`](../apps/cli/src/integrations/bravesearch/tools.ts).
+- **`fetchWebContent`** — Fetches a URL and extracts its main readable content using `@mozilla/readability`. Strips ads, navigation, footers, and other boilerplate. Returns article title, text content, excerpt, and metadata. Always available (no credentials needed). Implemented in [`packages/core/src/ai/web-fetch-tool.ts`](../packages/core/src/ai/web-fetch-tool.ts).
+- **`webSearch`** — Searches the web using the Brave Search API. Returns titles, URLs, descriptions, and optional page age. Available as a **conditional global tool** when a Brave Search API key is configured in credentials. When available, it is always included in the tool set (protected from pretreatment filtering via `ALWAYS_INCLUDED_TOOLS`). Implemented in [`packages/core/src/integrations/bravesearch/tools.ts`](../packages/core/src/integrations/bravesearch/tools.ts).
 
 Both tools are in the `ALWAYS_INCLUDED_TOOLS` set, so pretreatment's relevance filtering never removes them. The combined system prompt includes routing rules: use `webSearch` when the user asks about current events or research, use `fetchWebContent` when the user shares a URL or asks to read a specific page.
 
@@ -189,7 +191,7 @@ For each user submission:
 4. `chatWithTools` applies `injectToolCache` (read-only tool result cache) then `injectToolLifecycleHooks` (events, callbacks, abort checks), and uses:
   - `streamText(...)` when the Ink UI wants incremental tokens, or
   - `generateText(...)` in non-streaming contexts.
-5. Tool lifecycle hooks (`onToolCallStart` / `onToolCallComplete`) and abort-signal checks are implemented by wrapping each tool’s `execute` in `[apps/cli/src/ai/chat.ts](../apps/cli/src/ai/chat.ts)`. The `abortSignal` on `ChatWithToolsOptions` is propagated to `streamText`/`generateText` and checked before each tool execution. Optional `**onChatEvent**` emits UI-agnostic `[ChatEvent](../apps/cli/src/chat-pipeline/chat-events.ts)` values (assistant segments at tool boundaries, tool start/complete, `prep_*`, `lifecycle_*` milestones, etc.). The Ink session maps those events to transcript rows via `[apps/cli/src/ui/chat/chat-event-reducer.ts](../apps/cli/src/ui/chat/chat-event-reducer.ts)` (prep and lifecycle render as boxed pipeline steps in the TUI transcript).
+5. Tool lifecycle hooks (`onToolCallStart` / `onToolCallComplete`) and abort-signal checks are implemented by wrapping each tool’s `execute` in `[packages/core/src/ai/chat.ts](../packages/core/src/ai/chat.ts)`. The `abortSignal` on `ChatWithToolsOptions` is propagated to `streamText`/`generateText` and checked before each tool execution. Optional `**onChatEvent**` emits UI-agnostic `[ChatEvent](../packages/core/src/chat-pipeline/chat-events.ts)` values (assistant segments at tool boundaries, tool start/complete, `prep_*`, `lifecycle_*` milestones, etc.). The Ink session maps those events to transcript rows via `[apps/cli/src/ui/chat/chat-event-reducer.ts](../apps/cli/src/ui/chat/chat-event-reducer.ts)` (prep and lifecycle render as boxed pipeline steps in the TUI transcript).
 6. **PersistTurnNode** appends `response.messages` to session history (SQLite batch in headless; Ink emits save lifecycle and relies on incremental React persistence).
 
 ### Tool result cache (read-only tools)
@@ -203,8 +205,8 @@ For each user submission:
 
 Implementation paths:
 
-- Cache implementation: `apps/cli/src/chat-pipeline/tool-result-cache.ts`
-- Cache lookup/store hook: `apps/cli/src/ai/chat.ts` (`injectToolCache` wraps read-only tools; `injectToolLifecycleHooks` emits cache-hit events)
+- Cache implementation: `packages/core/src/chat-pipeline/tool-result-cache.ts`
+- Cache lookup/store hook: `packages/core/src/ai/chat.ts` (`injectToolCache` wraps read-only tools; `injectToolLifecycleHooks` emits cache-hit events)
 - UI marker: tool transcript rows append `[cache]` when a cached result is used
 
 To clear cached tool results in chat, run:
@@ -247,7 +249,7 @@ toby chat --no-tui --replay inbox-triage.json "same prompt as recording"
 
 ### What is recorded
 
-Recording intercepts model creation in [`createModelForPersona`](../apps/cli/src/ai/model-factory.ts) via AI SDK middleware ([`apps/cli/src/ai/replay/`](../apps/cli/src/ai/replay/)). Each entry captures either:
+Recording intercepts model creation in [`createModelForPersona`](../packages/core/src/ai/model-factory.ts) via AI SDK middleware ([`packages/core/src/ai/replay/`](../packages/core/src/ai/replay/)). Each entry captures either:
 
 - a **`generate`** result (`content`, `finishReason`, `usage`, …), or
 - a **`stream`** sequence (ordered stream chunks including text deltas and tool calls).
@@ -264,9 +266,9 @@ Call matching during replay uses a stable digest of normalized request params (p
 
 Implementation paths:
 
-- [`apps/cli/src/ai/replay/session.ts`](../apps/cli/src/ai/replay/session.ts) — process-global record/replay session state and file I/O
-- [`apps/cli/src/ai/replay/record-middleware.ts`](../apps/cli/src/ai/replay/record-middleware.ts) — capture middleware
-- [`apps/cli/src/ai/replay/replay-model.ts`](../apps/cli/src/ai/replay/replay-model.ts) — synthetic replay model
+- [`packages/core/src/ai/replay/session.ts`](../packages/core/src/ai/replay/session.ts) — process-global record/replay session state and file I/O
+- [`packages/core/src/ai/replay/record-middleware.ts`](../packages/core/src/ai/replay/record-middleware.ts) — capture middleware
+- [`packages/core/src/ai/replay/replay-model.ts`](../packages/core/src/ai/replay/replay-model.ts) — synthetic replay model
 - [`apps/cli/src/commands/chat.ts`](../apps/cli/src/commands/chat.ts) — CLI flag wiring
 
 ## AI prompt caching
@@ -275,6 +277,6 @@ Provider-specific prompt caching (OpenAI direct, Vercel AI Gateway, stable cache
 
 Wiring in this pipeline:
 
-- `apps/cli/src/chat-pipeline/run-turn.ts` → `applyChatPromptCaching(...)` from `apps/cli/src/ai/caching`
-- `apps/cli/src/ai/chat.ts` → forwards merged `providerOptions` to `streamText` / `generateText`
+- `packages/core/src/chat-pipeline/run-turn.ts` → `applyChatPromptCaching(...)` from `packages/core/src/ai/caching`
+- `packages/core/src/ai/chat.ts` → forwards merged `providerOptions` to `streamText` / `generateText`
 

@@ -38,7 +38,7 @@ Implementation entrypoints:
 
 - CLI: [`apps/cli/src/commands/daemon.ts`](../apps/cli/src/commands/daemon.ts)
 - Scheduler: [`apps/cli/src/schedules/scheduler.ts`](../apps/cli/src/schedules/scheduler.ts)
-- Inbound: [`apps/cli/src/chat-inbound/`](../apps/cli/src/chat-inbound/)
+- Inbound: [`packages/core/src/chat-inbound/`](../packages/core/src/chat-inbound/)
 - Log: [`apps/cli/src/logging/daemon-log.ts`](../apps/cli/src/logging/daemon-log.ts)
 
 ## Commands
@@ -182,7 +182,7 @@ This mirrors TUI behavior, but the “terminal” is the chat thread.
 
 ### Provider contract (for new integrations)
 
-Integrations implement `ChatInboundProvider` on `IntegrationModule` (`chatInbound` field). The daemon never imports provider SDKs directly—all transport code lives under `apps/cli/src/integrations/<name>/inbound.ts`.
+Integrations implement `ChatInboundProvider` on `IntegrationModule` (`chatInbound` field). The daemon never imports provider SDKs directly—all transport code lives under `packages/core/src/integrations/<name>/inbound.ts`.
 
 Deep dive on types and extending: [chat-inbound.md](chat-inbound.md).
 
