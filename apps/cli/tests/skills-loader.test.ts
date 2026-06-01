@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+	collectToolsForSelectedSkills,
 	computeSkillCatalogSignature,
 	formatSkillsCatalogForPrompt,
 	loadLocalSkills,
@@ -72,6 +73,118 @@ Body.
 `;
 		const skill = parseSkillFileContent("demo-skill", raw);
 		expect(skill?.summary).toBe("");
+	});
+
+	it("parses comma-separated tools and integrations frontmatter", () => {
+		const raw = `---
+name: demo-skill
+description: One line description.
+tools: searchEmails, listLabels , searchEmails
+integrations: Gmail, Todoist
+---
+
+Body.
+`;
+		const skill = parseSkillFileContent("demo-skill", raw);
+		expect(skill?.tools).toEqual(["searchEmails", "listLabels"]);
+		expect(skill?.integrations).toEqual(["Gmail", "Todoist"]);
+	});
+
+	it("parses YAML-ish bulleted tools list", () => {
+		const raw = `---
+name: demo-skill
+description: One line description.
+tools:
+  - searchEmails
+  - createDraft
+---
+
+Body.
+`;
+		const skill = parseSkillFileContent("demo-skill", raw);
+		expect(skill?.tools).toEqual(["searchEmails", "createDraft"]);
+	});
+
+	it("defaults tools and integrations to empty arrays when absent", () => {
+		const raw = `---
+name: demo-skill
+description: One line description.
+---
+
+Body.
+`;
+		const skill = parseSkillFileContent("demo-skill", raw);
+		expect(skill?.tools).toEqual([]);
+		expect(skill?.integrations).toEqual([]);
+	});
+});
+
+describe("collectToolsForSelectedSkills", () => {
+	const skills = [
+		{
+			dirName: "organize",
+			name: "organize-email",
+			description: "Organize the inbox.",
+			summary: "",
+			bodyMarkdown: "",
+			tools: ["searchEmails", "listLabels", "notARealTool"],
+			integrations: ["Todoist"],
+		},
+		{
+			dirName: "other",
+			name: "other-skill",
+			description: "Unrelated.",
+			summary: "",
+			bodyMarkdown: "",
+			tools: ["macWifiStatus"],
+			integrations: [],
+		},
+	];
+	const toolIntegrationLabels: Record<string, string> = {
+		searchEmails: "Gmail",
+		listLabels: "Gmail",
+		macWifiStatus: "macOS",
+		fetchOpenTasks: "Todoist",
+		createTask: "Todoist",
+	};
+	const allowedToolNamesLower = new Set(
+		Object.keys(toolIntegrationLabels).map((n) => n.toLowerCase()),
+	);
+
+	it("expands explicit tools and integration tools for selected skills, dropping unknown tools", () => {
+		const result = collectToolsForSelectedSkills({
+			selectedSkillNames: ["organize-email"],
+			skills,
+			allowedToolNamesLower,
+			toolIntegrationLabels,
+		});
+		expect(result).toEqual([
+			"searchEmails",
+			"listLabels",
+			"fetchOpenTasks",
+			"createTask",
+		]);
+	});
+
+	it("returns empty when no selected skill matches", () => {
+		expect(
+			collectToolsForSelectedSkills({
+				selectedSkillNames: ["missing"],
+				skills,
+				allowedToolNamesLower,
+				toolIntegrationLabels,
+			}),
+		).toEqual([]);
+	});
+
+	it("matches integration labels case-insensitively", () => {
+		const result = collectToolsForSelectedSkills({
+			selectedSkillNames: ["other-skill"],
+			skills,
+			allowedToolNamesLower,
+			toolIntegrationLabels,
+		});
+		expect(result).toEqual(["macWifiStatus"]);
 	});
 });
 
