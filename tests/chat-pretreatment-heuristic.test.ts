@@ -9,31 +9,13 @@ import {
 import * as sessionStore from "../src/ui/chat/session-store";
 
 describe("shouldPretreat", () => {
-	it("returns false on first turn by default", () => {
-		const prev = process.env.TOBY_PRETREAT_FIRST_TURN;
-		process.env.TOBY_PRETREAT_FIRST_TURN = undefined;
-		try {
-			expect(shouldPretreat([], "hello world", true)).toBe(false);
-			expect(shouldPretreat([], "  ", true)).toBe(false);
-		} finally {
-			if (prev !== undefined) {
-				process.env.TOBY_PRETREAT_FIRST_TURN = prev;
-			}
-		}
+	it("returns true on the first turn for any non-empty prompt", () => {
+		expect(shouldPretreat([], "hello world", true)).toBe(true);
 	});
 
-	it("returns true on first turn when TOBY_PRETREAT_FIRST_TURN=1", () => {
-		const prev = process.env.TOBY_PRETREAT_FIRST_TURN;
-		process.env.TOBY_PRETREAT_FIRST_TURN = "1";
-		try {
-			expect(shouldPretreat([], "hello world", true)).toBe(true);
-		} finally {
-			if (prev === undefined) {
-				process.env.TOBY_PRETREAT_FIRST_TURN = undefined;
-			} else {
-				process.env.TOBY_PRETREAT_FIRST_TURN = prev;
-			}
-		}
+	it("returns false for blank prompts", () => {
+		expect(shouldPretreat([], "  ", true)).toBe(false);
+		expect(shouldPretreat([], "", false)).toBe(false);
 	});
 
 	it("returns false when pretreatment is disabled", () => {
@@ -41,6 +23,7 @@ describe("shouldPretreat", () => {
 		process.env.TOBY_DISABLE_PRETREATMENT = "1";
 		try {
 			expect(shouldPretreat([], "hello", true)).toBe(false);
+			expect(shouldPretreat([], "hello", false)).toBe(false);
 		} finally {
 			if (prev === undefined) {
 				process.env.TOBY_DISABLE_PRETREATMENT = undefined;
@@ -50,32 +33,24 @@ describe("shouldPretreat", () => {
 		}
 	});
 
-	it("returns false on later turn when message is long and unambiguous", () => {
+	it("returns true on later turns even for long, unambiguous prompts", () => {
 		const long =
 			"Please list my open Todoist tasks sorted by due date and exclude completed items.";
-		expect(shouldPretreat([], long, false)).toBe(false);
+		expect(shouldPretreat([], long, false)).toBe(true);
 	});
 
 	it("returns true on later turn for very short follow-ups", () => {
 		expect(shouldPretreat([], "ok", false)).toBe(true);
 	});
 
-	it("returns true for pronoun-heavy text without assistant after last user", () => {
-		const msgs: CoreMessage[] = [
-			{ role: "system", content: "sys" },
-			{ role: "user", content: "first" },
-		];
-		expect(shouldPretreat(msgs, "Do the same for that one", false)).toBe(true);
-	});
-
-	it("returns false for pronoun-heavy text when the thread ends with an assistant reply", () => {
+	it("returns true for pronoun-heavy text regardless of conversation state", () => {
 		const msgs: CoreMessage[] = [
 			{ role: "user", content: "first" },
 			{ role: "assistant", content: "done" },
 			{ role: "user", content: "second" },
 			{ role: "assistant", content: "ok" },
 		];
-		expect(shouldPretreat(msgs, "Do the same for that one", false)).toBe(false);
+		expect(shouldPretreat(msgs, "Do the same for that one", false)).toBe(true);
 	});
 
 	it("returns true for multi-clause follow-ups", () => {

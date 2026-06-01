@@ -123,7 +123,7 @@ Where this is implemented:
 
 Before the main model turn, **ExpandPromptNode** may run a **small, fast** LLM call that extracts a structured intent spec (goal, must/must-not, assumptions, open questions, likely integrations, **relevant local skills**, and relevant tools) and **prepends** it to the `role: "user"` content sent to the main model. The Ink transcript still shows the **verbatim** user line.
 
-- **When**: optional on first user prompt (`TOBY_PRETREAT_FIRST_TURN=1`); later prompts when `[shouldPretreat](../src/ai/pretreatment.ts)` flags the text as ambiguous (short follow-ups, pronouns without a recent assistant reply, multi-clause requests, etc.).
+- **When**: on **every** non-empty prompt. `[shouldPretreat](../src/ai/pretreatment.ts)` now returns `true` for any non-blank user text so each turn validates intent and narrows the tool/skill set. Disable entirely with `TOBY_DISABLE_PRETREATMENT=1`. (The legacy `TOBY_PRETREAT_FIRST_TURN` flag is deprecated and no longer gates first-turn behavior. Repeated cost is mitigated by the local pretreatment cache; per-turn selectivity is a future optimization.)
 - **Provider**: uses the active persona’s AI provider (OpenAI direct or Vercel AI Gateway via [`model-factory.ts`](../src/ai/model-factory.ts)).
 - **Model**: defaults to `gpt-4.1-mini` for OpenAI, or `openai/gpt-4.1-mini` for Vercel gateway. Override with `TOBY_PRETREAT_MODEL` (bare id for OpenAI, or a full `provider/model` slug for gateway). Disable entirely with `TOBY_DISABLE_PRETREATMENT=1`.
 - **Debug**: `TOBY_DEBUG_PREP=1` adjusts the **prompt preparation** transcript box detail when a spec was attached (no separate `meta` line).

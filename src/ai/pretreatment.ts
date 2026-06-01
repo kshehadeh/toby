@@ -116,58 +116,35 @@ export function isPretreatmentDisabled(): boolean {
 	return process.env.TOBY_DISABLE_PRETREATMENT === "1";
 }
 
-/** Whether pretreatment should run unconditionally on the first turn. */
+/**
+ * Reads the legacy `TOBY_PRETREAT_FIRST_TURN` flag.
+ *
+ * @deprecated Pretreatment now runs on every non-empty prompt, so this flag no
+ * longer gates first-turn behavior. Retained for backwards compatibility.
+ */
 export function isFirstTurnPretreatmentEnabled(): boolean {
 	return process.env.TOBY_PRETREAT_FIRST_TURN === "1";
 }
 
-/** True when the latest non-system message is from the assistant (follow-up has recent context). */
-function conversationEndsWithAssistant(
-	messages: readonly CoreMessage[],
-): boolean {
-	for (let i = messages.length - 1; i >= 0; i--) {
-		const role = messages[i]?.role;
-		if (role === "system") {
-			continue;
-		}
-		return role === "assistant";
-	}
-	return false;
-}
-
 /**
- * First turn: always pretreat (caller passes isFirstTurn=true).
- * Later turns: pretreat when the message looks ambiguous or underspecified.
+ * Pretreatment runs on every non-empty prompt so each turn validates the
+ * request and narrows the tool/skill set to what is relevant. The repeated
+ * cost is mitigated by the local pretreatment cache (see
+ * `wrapUserPromptWithPretreatment`). Set `TOBY_DISABLE_PRETREATMENT=1` to opt
+ * out entirely.
+ *
+ * `messages` and `isFirstTurn` are retained for signature compatibility and to
+ * support future, more selective gating.
  */
 export function shouldPretreat(
-	messages: readonly CoreMessage[] | null,
+	_messages: readonly CoreMessage[] | null,
 	userText: string,
-	isFirstTurn: boolean,
+	_isFirstTurn: boolean,
 ): boolean {
 	if (isPretreatmentDisabled()) {
 		return false;
 	}
-	const t = userText.trim();
-	if (!t) {
-		return false;
-	}
-	if (isFirstTurn) {
-		return isFirstTurnPretreatmentEnabled();
-	}
-	const msgs = messages ?? [];
-	if (t.length < 22) {
-		return true;
-	}
-	const pronoun =
-		/\b(this|that|these|those|the same|above|those ones|it|them)\b/i.test(t);
-	if (pronoun && !conversationEndsWithAssistant(msgs)) {
-		return true;
-	}
-	const multiClause = /\band also\b|\band then\b|;/i.test(t);
-	if (multiClause) {
-		return true;
-	}
-	return false;
+	return userText.trim().length > 0;
 }
 
 function bulletList(title: string, items: readonly string[]): string {
