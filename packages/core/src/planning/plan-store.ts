@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { getDb } from "../ui/chat/session-store";
+import { getDb } from "../session-store";
 import type { Plan, PlanPhase, PlanPhaseStatus, PlanStatus } from "./types";
 
 function nowIso(): string {

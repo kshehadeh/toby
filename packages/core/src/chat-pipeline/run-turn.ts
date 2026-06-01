@@ -10,7 +10,7 @@ import { getIntegrationModule } from "../integrations/index";
 import type { IntegrationModule } from "../integrations/types";
 import { log } from "../logging/chat-log";
 import { createMemoryTools } from "../memory/tools";
-import { injectCurrentDateTimeIntoFirstSystemMessage } from "../ui/chat/prepare-messages";
+import { injectCurrentDateTimeIntoFirstSystemMessage } from "../prepare-messages";
 import type { ChatEvent } from "./chat-events";
 
 /**

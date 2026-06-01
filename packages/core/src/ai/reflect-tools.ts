@@ -14,7 +14,7 @@ import {
 	PROVIDER_CATEGORY_LABELS,
 } from "../integrations/types";
 import { loadLocalSkills } from "../skills/index";
-import { isRunningAsCompiledBinary } from "../upgrade/index";
+import { isRunningAsCompiledBinary } from "../toby-spawn";
 import { getTobyVersion } from "../version";
 import { formatPersonaAiLabel } from "./model-factory";
 

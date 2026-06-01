@@ -5,8 +5,8 @@ import type {
 	InboundConversation,
 } from "../../chat-inbound/types";
 import { daemonLog } from "../../logging/daemon-log";
-import type { PendingAskUser } from "../../ui/chat/session-store";
-import { loadExternalSession } from "../../ui/chat/session-store";
+import type { PendingAskUser } from "../../session-store";
+import { loadExternalSession } from "../../session-store";
 import {
 	getSlackInboundCredentials,
 	postSlackMessage,
@@ -105,9 +105,6 @@ export function classifySlackInboundMessage(params: {
 	}
 	return "new_turn";
 }
-
-/** @deprecated Use classifySlackInboundMessage */
-export const classifySlackThreadInbound = classifySlackInboundMessage;
 
 function conversationFromMetadata(
 	displayName: string,

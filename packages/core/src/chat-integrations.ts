@@ -1,9 +1,9 @@
-import { readCredentials } from "../config/index";
+import { readCredentials } from "./config/index";
 import {
 	getIntegrationModule,
 	getModulesWithCapability,
-} from "../integrations/index";
-import type { IntegrationModule } from "../integrations/types";
+} from "./integrations/index";
+import type { IntegrationModule } from "./integrations/types";
 
 /**
  * Whether this integration can run in chat (picker + default selection).

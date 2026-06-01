@@ -3,7 +3,7 @@ import type { CoreMessage } from "../../ai/chat";
 import {
 	injectSkillBodiesIntoFirstSystemMessage,
 	prepareChatSessionMessages,
-} from "../../ui/chat/prepare-messages";
+} from "../../prepare-messages";
 import type { AssembledTurn, ExpandedTurn, PipelineNode } from "../pipeline";
 
 export const assembleMessagesNode: PipelineNode<ExpandedTurn, AssembledTurn> = {

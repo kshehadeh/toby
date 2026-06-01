@@ -5,11 +5,11 @@ import type {
 	InboundConversation,
 } from "../chat-inbound/types";
 import type { Persona } from "../config/index";
+import { formatToolStatusLine } from "../format-tool-status";
 import type { IntegrationModule } from "../integrations/types";
 import { daemonLog } from "../logging/daemon-log";
-import { formatToolStatusLine } from "../ui/chat/format-tool-status";
-import { activityLineForChatEvent } from "../ui/chat/pipeline-footer";
-import { loadChatSession } from "../ui/chat/session-store";
+import { activityLineForChatEvent } from "../pipeline-footer";
+import { loadChatSession } from "../session-store";
 import type { ChatEvent } from "./chat-events";
 import { type TurnContext, runChatTurnPipeline } from "./pipeline";
 import { resolveHeadlessChatModules } from "./resolve-chat-modules";

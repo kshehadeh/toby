@@ -1,4 +1,4 @@
-import type { TranscriptEntry } from "./types";
+import type { TranscriptEntry } from "./chat-pipeline/transcript-types";
 
 type ToolCallPayload = { readonly blockKey: string; readonly title: string };
 type ToolOutputPayload = { readonly blockKey: string; readonly detail: string };

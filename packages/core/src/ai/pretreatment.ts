@@ -8,16 +8,13 @@ import {
 	PROVIDER_CATEGORY_LABELS,
 	type ProviderCategory,
 } from "../integrations/types";
+import { getPretreatmentCache, setPretreatmentCache } from "../session-store";
 import {
 	type LocalSkill,
 	computeSkillCatalogSignature,
 	formatSkillsCatalogForPrompt,
 	inferRelevantSkillsFromUserPrompt,
 } from "../skills/index";
-import {
-	getPretreatmentCache,
-	setPretreatmentCache,
-} from "../ui/chat/session-store";
 import type { CoreMessage } from "./chat";
 import {
 	createModelForAuxiliary,

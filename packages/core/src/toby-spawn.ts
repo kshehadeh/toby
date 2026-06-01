@@ -31,6 +31,11 @@ export function getTobyExecPath(): string {
 	return process.execPath;
 }
 
+/** True when running as a compiled binary (no script path in argv). */
+export function isRunningAsCompiledBinary(): boolean {
+	return getTobyEntryScriptArgv() === null;
+}
+
 /**
  * stdio for detached `toby daemon run` spawns.
  * `stdio: "ignore"` hangs Bun-compiled binaries (`bun build --compile`); append to daemon.log instead.

@@ -1,21 +1,21 @@
-import type { CoreMessage } from "../../ai/chat";
-import { getCurrentDateTimeInfo } from "../../ai/current-datetime";
-import { globalChatToolsPromptSection } from "../../ai/global-chat-tools";
+import type { CoreMessage } from "./ai/chat";
+import { getCurrentDateTimeInfo } from "./ai/current-datetime";
+import { globalChatToolsPromptSection } from "./ai/global-chat-tools";
 import {
 	type UserIntentSpec,
 	formatUserMessageWithPretreatment,
-} from "../../ai/pretreatment";
-import type { Persona } from "../../config/index";
-import { getDefaultProvider } from "../../config/index";
-import { getBraveSearchApiKeyRaw } from "../../integrations/bravesearch/client";
+} from "./ai/pretreatment";
+import type { Persona } from "./config/index";
+import { getDefaultProvider } from "./config/index";
+import { getBraveSearchApiKeyRaw } from "./integrations/bravesearch/client";
 import {
 	ALL_PROVIDER_CATEGORIES,
 	PROVIDER_CATEGORY_LABELS,
 	type ProviderCategory,
-} from "../../integrations/types";
-import type { IntegrationModule } from "../../integrations/types";
-import { composeSystemPromptWithPersona } from "../../personas/prompt";
-import { type LocalSkill, resolveSkillsByNames } from "../../skills/index";
+} from "./integrations/types";
+import type { IntegrationModule } from "./integrations/types";
+import { composeSystemPromptWithPersona } from "./personas/prompt";
+import { type LocalSkill, resolveSkillsByNames } from "./skills/index";
 
 /** Marker appended to system prompts when preflight attaches full SKILL.md bodies. */
 export const SKILL_INSTRUCTIONS_APPENDIX_START =

@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
-import type { CoreMessage } from "../../ai/chat";
-import type { UserIntentSpec } from "../../ai/pretreatment";
-import { ensureTobyDir, getChatDbPath } from "../../config/index";
+import type { CoreMessage } from "./ai/chat";
+import type { UserIntentSpec } from "./ai/pretreatment";
+import type { TranscriptEntry } from "./chat-pipeline/transcript-types";
+import { ensureTobyDir, getChatDbPath } from "./config/index";
 import {
 	deserializeTranscriptRow,
 	serializeTranscriptEntry,
 } from "./transcript-persist";
-import type { TranscriptEntry } from "./types";
 
 type ChatSessionSummary = {
 	readonly id: string;

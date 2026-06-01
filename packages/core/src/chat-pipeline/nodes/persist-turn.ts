@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { appendMessageBatch } from "../../ui/chat/session-store";
+import { appendMessageBatch } from "../../session-store";
 import type {
 	CommittedTurn,
 	PipelineNode,

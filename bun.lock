@@ -19,28 +19,18 @@
     },
     "apps/cli": {
       "name": "@toby/cli",
-      "version": "0.18.0",
+      "version": "0.19.0",
       "bin": {
         "toby": "./dist/cli.js",
       },
       "dependencies": {
-        "@ai-sdk/gateway": "^3.0.104",
-        "@ai-sdk/openai": "^3.0.53",
-        "@ai-sdk/provider": "^3.0.10",
-        "@doist/todoist-sdk": "^10.1.0",
-        "@mozilla/readability": "^0.6.0",
-        "@slack/bolt": "^4.7.2",
+        "@toby/core": "workspace:*",
         "ai": "^6.0.168",
         "chalk": "^5.3.0",
         "commander": "^12.1.0",
         "croner": "^10.0.1",
-        "googleapis": "^140.0.0",
         "ink": "^7.0.1",
         "ink-multiline-input": "^0.1.0",
-        "jira.js": "^5.3.1",
-        "linkedom": "^0.18.12",
-        "open": "^10.1.0",
-        "parse-duration": "^2.1.6",
         "react": "19.2.6",
         "react-devtools-core": "^7.0.1",
         "zod": "3",
@@ -61,14 +51,12 @@
         "@docusaurus/faster": "3.10.0",
         "@docusaurus/preset-classic": "3.10.0",
         "@mdx-js/react": "^3.0.0",
-        "clsx": "^2.0.0",
         "prism-react-renderer": "^2.3.0",
         "react": "19.2.6",
         "react-dom": "19.2.6",
       },
       "devDependencies": {
         "@docusaurus/module-type-aliases": "3.10.0",
-        "@docusaurus/tsconfig": "3.10.0",
         "@docusaurus/types": "3.10.0",
         "typescript": "~5.6.2",
       },
@@ -81,14 +69,39 @@
       "name": "@toby/plugin-sample",
       "version": "1.0.0",
     },
+    "packages/core": {
+      "name": "@toby/core",
+      "version": "0.19.0",
+      "dependencies": {
+        "@ai-sdk/gateway": "^3.0.104",
+        "@ai-sdk/openai": "^3.0.53",
+        "@ai-sdk/provider": "^3.0.10",
+        "@doist/todoist-sdk": "^10.1.0",
+        "@mozilla/readability": "^0.6.0",
+        "@slack/bolt": "^4.7.2",
+        "ai": "^6.0.168",
+        "chalk": "^5.3.0",
+        "commander": "^12.1.0",
+        "googleapis": "^140.0.0",
+        "jira.js": "^5.3.1",
+        "linkedom": "^0.18.12",
+        "open": "^10.1.0",
+        "zod": "3",
+      },
+      "devDependencies": {
+        "@types/node": "^25.6.0",
+        "typescript": "^5.6.0",
+      },
+    },
     "packages/helper-scripts": {
       "name": "@toby/helper-scripts",
       "version": "0.18.0",
       "dependencies": {
-        "@toby/cli": "workspace:*",
+        "@toby/core": "workspace:*",
         "jira.js": "^5.3.1",
       },
       "devDependencies": {
+        "@types/node": "^25.6.0",
         "typescript": "^5.6.0",
       },
     },
@@ -524,8 +537,6 @@
 
     "@docusaurus/theme-translations": ["@docusaurus/theme-translations@3.10.0", "", { "dependencies": { "fs-extra": "^11.1.1", "tslib": "^2.6.0" } }, "sha512-L9IbFLwTc5+XdgH45iQYufLn0SVZd6BUNelDbKIFlH+E4hhjuj/XHWAFMX/w2K59rfy8wak9McOaei7BSUfRPA=="],
 
-    "@docusaurus/tsconfig": ["@docusaurus/tsconfig@3.10.0", "", {}, "sha512-TXdC3WXuPrdQAexLvjUJfnYf3YKEgEqAs5nK0Q88pRBCW7t7oN4ILvWYb3A5Z1wlSXyXGWW/mCUmLEhdWsjnDQ=="],
-
     "@docusaurus/types": ["@docusaurus/types@3.10.0", "", { "dependencies": { "@mdx-js/mdx": "^3.0.0", "@types/history": "^4.7.11", "@types/mdast": "^4.0.2", "@types/react": "*", "commander": "^5.1.0", "joi": "^17.9.2", "react-helmet-async": "npm:@slorber/react-helmet-async@1.3.0", "utility-types": "^3.10.0", "webpack": "^5.95.0", "webpack-merge": "^5.9.0" }, "peerDependencies": { "react": "^18.0.0 || ^19.0.0", "react-dom": "^18.0.0 || ^19.0.0" } }, "sha512-F0dOt3FOoO20rRaFK7whGFQZ3ggyrWEdQc/c8/UiRuzhtg4y1w9FspXH5zpCT07uMnJKBPGh+qNazbNlCQqvSw=="],
 
     "@docusaurus/utils": ["@docusaurus/utils@3.10.0", "", { "dependencies": { "@docusaurus/logger": "3.10.0", "@docusaurus/types": "3.10.0", "@docusaurus/utils-common": "3.10.0", "escape-string-regexp": "^4.0.0", "execa": "^5.1.1", "file-loader": "^6.2.0", "fs-extra": "^11.1.1", "github-slugger": "^1.5.0", "globby": "^11.1.0", "gray-matter": "^4.0.3", "jiti": "^1.20.0", "js-yaml": "^4.1.0", "lodash": "^4.17.21", "micromatch": "^4.0.5", "p-queue": "^6.6.2", "prompts": "^2.4.2", "resolve-pathname": "^3.0.0", "tslib": "^2.6.0", "url-loader": "^4.1.1", "utility-types": "^3.10.0", "webpack": "^5.88.1" } }, "sha512-T3B0WTigsIthe0D4LQa2k+7bJY+c3WS+Wq2JhcznOSpn1lSN64yNtHQXboCj3QnUs1EuAZszQG1SHKu5w5ZrlA=="],
@@ -955,6 +966,8 @@
     "@toby/audio-helper": ["@toby/audio-helper@workspace:apps/audio-helper"],
 
     "@toby/cli": ["@toby/cli@workspace:apps/cli"],
+
+    "@toby/core": ["@toby/core@workspace:packages/core"],
 
     "@toby/help-site": ["@toby/help-site@workspace:apps/help-site"],
 
@@ -2307,8 +2320,6 @@
     "param-case": ["param-case@3.0.4", "", { "dependencies": { "dot-case": "^3.0.4", "tslib": "^2.0.3" } }, "sha512-RXlj7zCYokReqWpOPH9oYivUzLYZ5vAPIfEmCTNViosC78F8F0H9y7T7gG2M39ymgutxF5gcFEsyZQSph9Bp3A=="],
 
     "parent-module": ["parent-module@1.0.1", "", { "dependencies": { "callsites": "^3.0.0" } }, "sha512-GQ2EWRpQV8/o+Aw8YqtfZZPfNRWZYkbidE9k5rpl/hC3vtHHBfGm2Ifi6qWV+coDGkrUKZAxE3Lot5kcsRlh+g=="],
-
-    "parse-duration": ["parse-duration@2.1.6", "", {}, "sha512-1/A2Exg3NcJGcYdgV/dn4frR7vO2hOW/ohQ4KIgbT4W3raVcpYSszPWiL6I6cKufi4jQM5NbGRXLBj8AoLM4iQ=="],
 
     "parse-entities": ["parse-entities@4.0.2", "", { "dependencies": { "@types/unist": "^2.0.0", "character-entities-legacy": "^3.0.0", "character-reference-invalid": "^2.0.0", "decode-named-character-reference": "^1.0.0", "is-alphanumerical": "^2.0.0", "is-decimal": "^2.0.0", "is-hexadecimal": "^2.0.0" } }, "sha512-GG2AQYWoLgL877gQIKeRPGO1xF9+eG1ujIb5soS5gPvLQ1y2o8FL90w2QWNdf9I361Mpp7726c+lj3U0qK1uGw=="],
 

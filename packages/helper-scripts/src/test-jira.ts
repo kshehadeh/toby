@@ -6,7 +6,10 @@
  * Tests each API call individually and prints detailed error info.
  */
 
-import { getIntegrationCredential, readCredentials } from "@toby/cli/config";
+import {
+	getIntegrationCredential,
+	readCredentials,
+} from "@toby/core/config/index";
 import { Version3Client } from "jira.js/version3";
 
 function getCredentials() {
@@ -219,7 +222,7 @@ function printError(err: unknown) {
 			}
 		}
 		// Try to extract the response body from the error
-		const anyErr = err as Record<string, unknown>;
+		const anyErr = err as unknown as Record<string, unknown>;
 		if (anyErr.response) {
 			const resp = anyErr.response as Record<string, unknown>;
 			console.error("  Response details:", JSON.stringify(resp, null, 2));

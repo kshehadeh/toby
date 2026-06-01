@@ -1,4 +1,4 @@
-import type { ChatEvent } from "../../chat-pipeline/chat-events";
+import type { ChatEvent } from "./chat-pipeline/chat-events";
 
 /**
  * Human-readable footer line for the bottom activity spinner.

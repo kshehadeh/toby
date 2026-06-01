@@ -6,7 +6,7 @@ import {
 	loadExternalSession,
 	markMessageProcessed,
 	wasMessageProcessed,
-} from "../ui/chat/session-store";
+} from "../session-store";
 import {
 	createAskUserBridge,
 	tryResolvePendingAskUser,

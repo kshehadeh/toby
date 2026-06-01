@@ -1,3 +1,4 @@
+/** Monorepo root `package.json` — canonical Toby release version (not `@toby/core`). */
 import packageJson from "../../../package.json";
 
 export function getTobyVersion(): string {

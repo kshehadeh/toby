@@ -2,7 +2,10 @@
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
 		"noEmit": true,
-		"rootDir": "src"
+		"paths": {
+			"@toby/core": ["../core/src/index.ts"],
+			"@toby/core/*": ["../core/src/*"]
+		}
 	},
 	"include": ["src"]
 }

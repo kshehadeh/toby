@@ -4,7 +4,7 @@ import {
 	type PendingAskUser,
 	clearPendingAskUser,
 	setPendingAskUser,
-} from "../ui/chat/session-store";
+} from "../session-store";
 import type { ChatInboundProvider, InboundConversation } from "./types";
 
 type PendingResolver = {

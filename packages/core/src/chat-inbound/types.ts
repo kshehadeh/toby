@@ -1,7 +1,7 @@
 import type { ChatEvent } from "../chat-pipeline/chat-events";
 import type { Persona } from "../config/index";
 import type { IntegrationModule } from "../integrations/types";
-import type { PendingAskUser } from "../ui/chat/session-store";
+import type { PendingAskUser } from "../session-store";
 
 /** Stable id for one external conversation (channel + thread). Provider computes this. */
 export type ExternalConversationKey = string;

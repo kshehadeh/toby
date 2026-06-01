@@ -1,7 +1,7 @@
 import {
 	isIntegrationUsableInChat,
 	sortModulesByName,
-} from "../commands/chat-integrations";
+} from "../chat-integrations";
 import { getDefaultProvider } from "../config/index";
 import {
 	getModulesForCategory,
