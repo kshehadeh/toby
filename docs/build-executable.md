@@ -38,20 +38,38 @@ Importing **`yoga-wasm-web/asm` directly in Ink is not enough**: that subpath’
 - **`ink`**: If a new version still imports `yoga-wasm-web/auto`, re-apply the import swap to `../../yoga-wasm-web/dist/ink-default.js` (from each `build/*.js` file), then `bunx patch-package ink`.
 - **`yoga-wasm-web`**: If the asm entry or package exports change, refresh **`patches/yoga-wasm-web+0.3.3.patch`** (re-add `dist/ink-default.js` and the `./ink-default` export if needed), then `bunx patch-package yoga-wasm-web`.
 
+## How the CLI is bundled
+
+Release and local executable builds use **Bun only** (no tsup):
+
+1. **Entry:** [`apps/cli/src/cli.ts`](../apps/cli/src/cli.ts)
+2. **Workspace:** `@toby/core` is a normal workspace dependency of `@toby/cli`; integration npm packages stay on [`packages/core/package.json`](../packages/core/package.json) only.
+3. **Compile:** `bun build` runs from **`apps/cli`** so the resolver sees `@toby/core` and bundles the full dependency graph into `dist/toby`.
+
+[`scripts/build-release-artifacts.sh`](../scripts/build-release-artifacts.sh) (CI) and `bun run build:executable` use:
+
+```bash
+cd apps/cli
+bun build ./src/cli.ts --compile --target=bun-darwin-arm64 --outfile ../../dist/toby
+```
+
+Non-compiled bundle for the `toby` bin (`./dist/cli.js`):
+
+```bash
+bun run --cwd apps/cli build
+```
+
 ## Cross-compilation
 
 Toby releases are macOS-only. To cross-compile just the Bun executable for
 another macOS architecture from a machine that has Bun:
 
 ```bash
-bun build ./apps/cli/src/cli.ts --compile --target=bun-darwin-x64 --outfile ./dist/toby-darwin-x64
+cd apps/cli
+bun build ./src/cli.ts --compile --target=bun-darwin-x64 --outfile ../../dist/toby-darwin-x64
 ```
 
 See [Bun’s executable docs](https://bun.sh/docs/bundler/executables) for `--target` values.
-
-## `tsup` library build
-
-`bun run build` produces **`dist/cli.js`** via **tsup** (for linking, `bun link`, or publishing). The standalone Bun binary is an **optional** distribution path.
 
 ## GitHub Releases (CI)
 

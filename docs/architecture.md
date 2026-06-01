@@ -59,7 +59,7 @@ apps/cli/src/
 
 **Build**
 
-- **`bun run build`** — `tsup` bundles [`apps/cli/src/cli.ts`](../apps/cli/src/cli.ts) (and inlines `@toby/core` source) to `apps/cli/dist/cli.js` (the `toby` binary).
+- **`bun run build`** (in `apps/cli`) — `bun build` bundles [`apps/cli/src/cli.ts`](../apps/cli/src/cli.ts) to `apps/cli/dist/cli.js` (the `toby` bin). Release binaries use `bun build --compile` from the same entrypoint (see [`docs/build-executable.md`](build-executable.md)).
 - **`bun run build:executable`** — optional single-file native binary via `bun build --compile` (see [build-executable.md](build-executable.md)).
 
 ## Runtime flow
