@@ -17,7 +17,7 @@
 		"build:system-helper": "swift build -c release --package-path apps/macos-helper",
 		"build:plugin:sample": "bun run --cwd apps/plugin-sample build",
 		"build:plugins": "bun run build:plugin:sample",
-		"build:executable": "bun run build:audio-helper && bun run build:system-helper && bun run build:plugins && mkdir -p ./dist && bun build ./apps/cli/src/cli.ts --compile --outfile ./dist/toby && cp ./apps/audio-helper/.build/release/toby-audio-helper ./dist/toby-listener && cp ./apps/macos-helper/.build/release/toby-macos-helper ./dist/toby-macos",
+		"build:executable": "bun run build:audio-helper && bun run build:system-helper && bun run build:plugins && bun run --cwd apps/cli build && mkdir -p ./dist && bun build ./apps/cli/dist/cli.js --compile --outfile ./dist/toby && cp ./apps/audio-helper/.build/release/toby-audio-helper ./dist/toby-listener && cp ./apps/macos-helper/.build/release/toby-macos-helper ./dist/toby-macos",
 		"build:release": "BUN_TARGET=bun-darwin-$(uname -m | sed 's/x86_64/x64/;s/arm64/arm64/') SWIFT_ARCH=$(uname -m) ./scripts/build-release-artifacts.sh",
 		"dev": "bun run --cwd apps/cli dev",
 		"dev:turbo": "turbo run dev --filter @toby/cli --log-prefix=none --ui=stream",

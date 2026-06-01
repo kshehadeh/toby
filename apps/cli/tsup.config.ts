@@ -1,10 +1,14 @@
+import corePackage from "../../packages/core/package.json";
 import { defineConfig } from "tsup";
+
+const coreDependencyNames = Object.keys(corePackage.dependencies ?? {});
 
 export default defineConfig({
 	entry: ["src/cli.ts"],
 	format: ["esm"],
 	target: "node20",
-	external: ["bun:sqlite"],
+	external: ["bun:sqlite", ...coreDependencyNames],
+	noExternal: [/^@toby\/core/],
 	banner: { js: "#!/usr/bin/env node" },
 	clean: true,
 	splitting: false,
