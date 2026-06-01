@@ -141,7 +141,13 @@ Before the main model turn, **ExpandPromptNode** may run a **small, fast** LLM c
 
 ## Local skills (optional)
 
-Markdown skills in `~/.toby/skills/<skill-folder>/SKILL.md` use YAML frontmatter with at least `name` and `description`.
+Markdown skills in `~/.toby/skills/<skill-folder>/SKILL.md` use YAML frontmatter with at least `name` and `description`. Optional frontmatter fields:
+
+- `summary` — concise key instructions appended to the catalog entry.
+- `tools` — explicit tool names the skill needs (comma-separated or YAML-ish `- item` bullets).
+- `integrations` — integration display labels (e.g. `Gmail`, `Todoist`); every tool belonging to a listed integration is included.
+
+When pretreatment selects a skill, the tools declared by `tools` and `integrations` are **unioned into the turn's `relevantTools`** (see `collectToolsForSelectedSkills` in [`skills/index.ts`](../packages/core/src/skills/index.ts) and `applySkillDeclaredTools` in [`pretreatment.ts`](../packages/core/src/ai/pretreatment.ts)). This makes tool scope deterministic for skill-driven flows instead of relying on the auxiliary model to independently list every needed tool. Declared tool names are validated against the active tool catalog; unknown names are dropped.
 
 There are now two ways skills get into model context:
 
