@@ -56,6 +56,11 @@ export function getPluginsDir(): string {
 	return path.join(resolveTobyDir(), "plugins");
 }
 
+/** Bundled native helper binaries: `~/.toby/helpers/toby-listener`, `toby-macos`. */
+export function getHelpersDir(): string {
+	return path.join(resolveTobyDir(), "helpers");
+}
+
 interface AIProvider {
 	provider: string;
 	model: string;

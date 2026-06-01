@@ -95,16 +95,25 @@ if [[ -f "${tmpdir}/toby-plugin-sample" ]]; then
 	has_sample_plugin=true
 fi
 
-chmod +x "${tmpdir}/toby" "${tmpdir}/toby-listener"
+# Only the `toby` binary goes on PATH (install_dir). All bundled helper
+# binaries live under ~/.toby/helpers, and installable plugins under
+# ~/.toby/plugins, so they don't clutter the user's bin directory.
+toby_dir="${TOBY_DIR:-$HOME/.toby}"
+toby_helpers_dir="${toby_dir}/helpers"
+toby_plugins_dir="${toby_dir}/plugins"
+
+chmod +x "${tmpdir}/toby"
 mkdir -p "$install_dir"
 mv "${tmpdir}/toby" "${install_dir}/toby"
-mv "${tmpdir}/toby-listener" "${install_dir}/toby-listener"
 echo "Installed: ${install_dir}/toby"
-echo "Installed: ${install_dir}/toby-listener"
+
+chmod +x "${tmpdir}/toby-listener"
+mkdir -p "$toby_helpers_dir"
+mv "${tmpdir}/toby-listener" "${toby_helpers_dir}/toby-listener"
+echo "Installed: ${toby_helpers_dir}/toby-listener"
 
 if $has_sample_plugin; then
 	chmod +x "${tmpdir}/toby-plugin-sample"
-	toby_plugins_dir="${TOBY_DIR:-$HOME/.toby}/plugins"
 	mkdir -p "$toby_plugins_dir"
 	mv "${tmpdir}/toby-plugin-sample" "${toby_plugins_dir}/toby-plugin-sample"
 	echo "Installed: ${toby_plugins_dir}/toby-plugin-sample"
@@ -112,8 +121,9 @@ fi
 
 if $has_macos_helper; then
 	chmod +x "${tmpdir}/toby-macos"
-	mv "${tmpdir}/toby-macos" "${install_dir}/toby-macos"
-	echo "Installed: ${install_dir}/toby-macos"
+	mkdir -p "$toby_helpers_dir"
+	mv "${tmpdir}/toby-macos" "${toby_helpers_dir}/toby-macos"
+	echo "Installed: ${toby_helpers_dir}/toby-macos"
 fi
 
 if "${install_dir}/toby" --version >/dev/null 2>&1; then

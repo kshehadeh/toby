@@ -1,6 +1,7 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { getHelpersDir } from "@toby/core/config/index";
 import type { ListenRecordingFiles, ListenSession } from "../types";
 import { selectedListenSources } from "../types";
 
@@ -88,6 +89,7 @@ export function resolveAudioHelperPath(explicitPath?: string): string | null {
 	if (fromEnv) return fromEnv;
 	const executableDir = path.dirname(process.execPath);
 	const candidates = [
+		path.join(getHelpersDir(), "toby-listener"),
 		path.join(executableDir, "toby-listener"),
 		path.join(process.cwd(), "dist", "toby-listener"),
 		path.join(process.cwd(), "dist", "toby-audio-helper"),

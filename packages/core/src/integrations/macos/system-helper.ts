@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { getHelpersDir } from "../../config/index";
 
 export interface SystemHelperResult {
 	readonly ok: boolean;
@@ -21,6 +22,7 @@ export function resolveSystemHelperPath(explicitPath?: string): string | null {
 	if (fromEnv) return fromEnv;
 	const executableDir = path.dirname(process.execPath);
 	const candidates = [
+		path.join(getHelpersDir(), "toby-macos"),
 		path.join(executableDir, "toby-macos"),
 		path.join(process.cwd(), "dist", "toby-macos"),
 		path.join(process.cwd(), "dist", "toby-macos-helper"),
