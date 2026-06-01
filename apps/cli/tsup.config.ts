@@ -13,7 +13,6 @@ export default defineConfig({
 	clean: true,
 	splitting: false,
 	sourcemap: true,
-	charset: "utf8",
 	esbuildOptions(options) {
 		options.jsx = "automatic";
 		options.charset = "utf8";
