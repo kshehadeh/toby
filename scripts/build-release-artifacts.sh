@@ -17,11 +17,11 @@ swift_arch="${SWIFT_ARCH:?Set SWIFT_ARCH (e.g. arm64)}"
 
 mkdir -p dist
 
-echo "Bundling CLI (tsup)..."
-bun run --cwd apps/cli build
-
 echo "Building toby (${bun_target})..."
-bun build ./apps/cli/dist/cli.js --compile --target="${bun_target}" --outfile dist/toby
+(
+	cd apps/cli
+	bun build ./src/cli.ts --compile --target="${bun_target}" --outfile ../../dist/toby
+)
 
 echo "Building toby-listener (swift ${swift_arch})..."
 swift build -c release --arch "${swift_arch}" --package-path apps/audio-helper
