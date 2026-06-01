@@ -18,7 +18,7 @@ Connect Toby to local macOS system controls. Toby uses a native **`toby-macos`**
 ## Prerequisites
 
 - macOS 14+ (Sonoma or later) with Toby running locally on the Mac you want to control
-- The `toby-macos` helper binary installed alongside Toby (included automatically in releases)
+- The `toby-macos` helper binary, installed to `~/.toby/helpers/` by the install/upgrade flow (included automatically in releases)
 - Optional Shortcuts in Shortcuts.app for Focus, Bluetooth, or Low Power Mode workflows you prefer to run through Shortcuts rather than direct API control
 
 No Homebrew packages are needed. The native helper replaces the previous dependencies on `SwitchAudioSource`, `blueutil`, `airport`, and `networksetup`.

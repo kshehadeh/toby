@@ -12,7 +12,7 @@ Run **`toby connect macos`** once on your Mac. Connection stores `integrations.m
 
 All macOS system operations are handled by the **`toby-macos`** native helper — a Swift binary that calls CoreWLAN, CoreAudio, IOBluetooth, IOKit, and AppKit directly. No Homebrew packages or third-party CLIs are required.
 
-The helper is installed alongside `toby` and `toby-listener` during `bun run build:executable` and the install/upgrade flow. It must be present for the macOS integration to function — if missing, Toby fails with a clear error message.
+The install/upgrade flow places `toby-macos` (and `toby-listener`) under `~/.toby/helpers/`, keeping the `toby` binary the only thing installed on your `PATH`. It must be present for the macOS integration to function — if missing, Toby fails with a clear error message.
 
 | Domain | Helper command | Native framework |
 | ------ | -------------- | ---------------- |
@@ -30,8 +30,9 @@ The helper is installed alongside `toby` and `toby-listener` during `bun run bui
 Resolution order for the helper binary:
 
 1. `TOBY_MACOS_HELPER` environment variable
-2. Sibling of the Toby executable (e.g. `/usr/local/bin/toby-macos`)
-3. Development build at `apps/macos-helper/.build/release/toby-macos-helper`
+2. `~/.toby/helpers/toby-macos` (the install/upgrade location)
+3. Sibling of the Toby executable (e.g. `/usr/local/bin/toby-macos`, for legacy installs)
+4. Development build at `apps/macos-helper/.build/release/toby-macos-helper`
 
 ## Configure fields (`macos.*`)
 

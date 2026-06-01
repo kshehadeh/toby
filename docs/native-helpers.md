@@ -209,8 +209,9 @@ TypeScript should resolve helpers in this order:
 
 1. An explicit command option, such as `--helper /path/to/helper`.
 2. An environment variable, such as `TOBY_AUDIO_HELPER`.
-3. A packaged sibling beside the compiled Toby binary, such as `toby-listener`.
-4. The development build path under `helpers/<helper-name>/.build/release/`.
+3. The packaged helper under `~/.toby/helpers/`, such as `~/.toby/helpers/toby-listener`.
+4. A packaged sibling beside the compiled Toby binary (legacy installs).
+5. The development build path under `helpers/<helper-name>/.build/release/`.
 
 If a required helper is missing, fail with a message that tells the user how to
 build it. Do not silently degrade into a broken UI state.

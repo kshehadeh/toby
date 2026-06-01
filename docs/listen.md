@@ -81,8 +81,9 @@ Build it from the repo root:
 bun run build:audio-helper
 ```
 
-In packaged installs, Toby auto-detects `toby-listener` beside the `toby`
-binary. In development, Toby auto-detects the release build at
+In packaged installs, Toby auto-detects `toby-listener` under
+`~/.toby/helpers/` (falling back to a sibling of the `toby` binary for
+legacy installs). In development, Toby auto-detects the release build at
 `apps/audio-helper/.build/release/toby-audio-helper` when launched from
 the repo root. You can also set `TOBY_AUDIO_HELPER=/path/to/toby-audio-helper`
 or pass `--helper`.

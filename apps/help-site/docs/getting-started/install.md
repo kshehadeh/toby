@@ -9,7 +9,7 @@ You can install Toby with the install script, from a release binary, or from sou
 
 ## Option 1: Install script (recommended)
 
-The [install script](https://github.com/kshehadeh/toby/blob/main/install-toby.sh) downloads the latest macOS release archive and installs `toby` plus the `toby-listener` helper to `~/.local/bin`. It does not require `sudo`.
+The [install script](https://github.com/kshehadeh/toby/blob/main/install-toby.sh) downloads the latest macOS release archive and installs the `toby` binary to `~/.local/bin`. Bundled helper binaries (`toby-listener`, `toby-macos`) go to `~/.toby/helpers/` and the sample plugin to `~/.toby/plugins/`, so only `toby` is added to your `PATH`. It does not require `sudo`.
 
 On **macOS**, run:
 
@@ -59,12 +59,14 @@ If you prefer to download the binary yourself:
 
 1. Open the [Toby releases page](https://github.com/kshehadeh/toby/releases).
 2. Download the archive for your platform (see the table above).
-3. Extract it, then move both executables onto your PATH:
+3. Extract it, then put `toby` on your PATH and the helper binaries under `~/.toby/helpers/`:
 
 ```bash
 unzip toby-darwin-arm64.zip
-chmod +x toby toby-listener
-sudo mv toby toby-listener /usr/local/bin/
+chmod +x toby toby-listener toby-macos
+mkdir -p ~/.toby/helpers
+mv toby-listener toby-macos ~/.toby/helpers/
+sudo mv toby /usr/local/bin/
 ```
 
 4. Verify the install:

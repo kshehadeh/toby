@@ -52,6 +52,6 @@ Inside `toby chat`, use:
 
 ## macOS helper and permissions
 
-Audio capture is currently macOS-only and requires the `toby-listener` helper. Packaged installs auto-detect the helper beside the `toby` binary; development builds can pass `--helper` or set `TOBY_AUDIO_HELPER`.
+Audio capture is currently macOS-only and requires the `toby-listener` helper. Packaged installs auto-detect the helper under `~/.toby/helpers/`; development builds can pass `--helper` or set `TOBY_AUDIO_HELPER`.
 
 Depending on selected sources, macOS may request Microphone, Screen/System Audio Recording, and Speech Recognition permissions.

@@ -129,10 +129,12 @@ Configuration is in [`.release-it.json`](../.release-it.json): publishing to the
 ### One-liner install (end users)
 
 From the repo root, [`install-toby.sh`](../install-toby.sh) downloads the
-**latest matching macOS release archive** into **`~/.local/bin/toby`** and
-**`~/.local/bin/toby-listener`** (override with `TOBY_INSTALL_DIR`). It does not
-use `sudo`. If that directory is not on `PATH`, the script prints how to add it
-for zsh, bash, or fish.
+**latest matching macOS release archive** and installs the `toby` binary into
+**`~/.local/bin/toby`** (override with `TOBY_INSTALL_DIR`). The bundled helper
+binaries (`toby-listener`, `toby-macos`) are placed under **`~/.toby/helpers/`**
+and the sample plugin under **`~/.toby/plugins/`**, so only `toby` lands on your
+`PATH`. It does not use `sudo`. If the install directory is not on `PATH`, the
+script prints how to add it for zsh, bash, or fish.
 
 Example after the script is published on your default branch:
 
