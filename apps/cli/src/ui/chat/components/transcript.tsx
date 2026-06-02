@@ -1,6 +1,7 @@
 import { Box, Text } from "ink";
 import type { ReactNode } from "react";
 import React from "react";
+import { UI_GLYPHS } from "../../shared/glyphs";
 import {
 	renderAssistantMarkdownLines,
 	renderMarkdownBodyLines,
@@ -154,10 +155,16 @@ export function buildTranscriptNodes(
 					key={`e-${outIdx}-${r.text.slice(0, 80)}`}
 					marginLeft={2}
 					width={Math.max(12, termCols - 2)}
+					flexDirection="column"
 				>
 					<Text color="red" wrap="truncate-end">
-						{r.text}
+						{UI_GLYPHS.failure} Session error
 					</Text>
+					<Box marginLeft={2}>
+						<Text color="red" wrap="wrap">
+							↳ {r.text}
+						</Text>
+					</Box>
 				</Box>,
 			);
 			i++;
