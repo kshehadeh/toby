@@ -96,7 +96,10 @@ import { applyChatEvent } from "./chat-event-reducer";
 import { AppHeader } from "./components/app-header";
 import { AskUserModal } from "./components/ask-user-modal";
 import { ChatHelpScreen } from "./components/chat-help-screen";
-import { ChatInputDock } from "./components/chat-input-dock";
+import {
+	ChatInputPanel,
+	type ChatInputPanelHandle,
+} from "./components/chat-input-panel";
 import { ChatKeyboardShortcutsScreen } from "./components/chat-keyboard-shortcuts-screen";
 import { ChatTranscriptPanel } from "./components/chat-transcript-panel";
 import {
@@ -115,9 +118,9 @@ import { buildSkillDebugTranscriptEntries } from "./skill-debug";
 import {
 	SLASH_COMMANDS,
 	getNearestSlashCommand,
-	getSlashSuggestions,
 	resolveSlashSubmission,
 } from "./slash-commands";
+import type { SlashCommand } from "./slash-commands";
 import { readTranscriptFile } from "./slash-commands/stop-listening";
 import type { UpgradeUiStatus } from "./slash-commands/types";
 import { buildToolSelectionTranscriptEntries } from "./tool-selection-transcript";
@@ -251,8 +254,7 @@ export function ChatSessionApp({
 		}
 		return boot;
 	});
-	const [input, setInput] = useState("");
-	const [inputCursorResetToken, setInputCursorResetToken] = useState(0);
+	const inputPanelRef = useRef<ChatInputPanelHandle>(null);
 	const [recentPrompts, setRecentPrompts] = useState(() => loadPromptHistory());
 	const [loading, setLoading] = useState(false);
 	const [activityLine, setActivityLine] = useState("Thinking…");
@@ -286,7 +288,6 @@ export function ChatSessionApp({
 	const [connectedByIntegration, setConnectedByIntegration] = useState<
 		Record<string, boolean | null>
 	>(() => ({}));
-	const [slashCursorIndex, setSlashCursorIndex] = useState(0);
 	const [sessionPrompt, setSessionPrompt] = useState(initialUserPrompt);
 	const [multiPicker, setMultiPicker] = useState<MultiPickerState | null>(null);
 	const [sessionPicker, setSessionPicker] = useState<SessionPickerState | null>(
@@ -460,22 +461,6 @@ export function ChatSessionApp({
 		() => new Set(multiPicker?.selectedNames ?? []),
 		[multiPicker?.selectedNames],
 	);
-
-	const slashSuggestions = useMemo(() => getSlashSuggestions(input), [input]);
-
-	useEffect(() => {
-		setSlashCursorIndex((prev) => {
-			if (slashSuggestions.length === 0) {
-				return 0;
-			}
-			return Math.min(prev, slashSuggestions.length - 1);
-		});
-	}, [slashSuggestions]);
-
-	const selectedSlashCommand =
-		slashSuggestions.length > 0
-			? (slashSuggestions[slashCursorIndex] ?? slashSuggestions[0] ?? null)
-			: null;
 
 	useLayoutEffect(() => {
 		selectedModulesRef.current = selectedModules;
@@ -1455,15 +1440,15 @@ export function ChatSessionApp({
 	}, []);
 
 	const handlePromptSubmit = useCallback(
-		(rawValue: string) => {
+		(rawValue: string, selectedSlashCommand: SlashCommand | null) => {
+			const inputPanel = inputPanelRef.current;
 			// Terminal fallback: some setups send "\" before Enter for modified return.
 			if (rawValue.endsWith("\\")) {
-				setInput(`${rawValue.slice(0, -1)}\n`);
+				inputPanel?.setInput(`${rawValue.slice(0, -1)}\n`);
 				return;
 			}
 			const line = rawValue.trim();
-			setInput("");
-			setInputCursorResetToken((token) => token + 1);
+			inputPanel?.clearInput();
 
 			// Steering prompt: if a turn is active, abort it and queue the
 			// new prompt for processing once the abort completes.
@@ -1790,7 +1775,6 @@ export function ChatSessionApp({
 			openPersonaEditorAtPath,
 			openPersonaPickerModal,
 			openSessionsPicker,
-			selectedSlashCommand,
 			startFreshSession,
 		],
 	);
@@ -2107,24 +2091,25 @@ export function ChatSessionApp({
 			}
 
 			if (key.tab) {
-				const completion = getNearestSlashCommand(input);
+				const inputPanel = inputPanelRef.current;
+				const currentInput = inputPanel?.getInput() ?? "";
+				const completion = getNearestSlashCommand(currentInput);
 				if (!completion) {
 					return;
 				}
 				const completed = `${completion.command} `;
-				if (input !== completed) {
-					setInput(completed);
+				if (currentInput !== completed) {
+					inputPanel?.setInput(completed);
 				}
 				// Explicitly request a caret reset so slash-completion always places
 				// the cursor at the end, without relying on generic input-length changes.
-				setInputCursorResetToken((token) => token + 1);
+				inputPanel?.bumpCursorReset();
 				return;
 			}
 		},
 		[
 			applyPersonaFromPicker,
 			exit,
-			input,
 			loadSessionIntoMemory,
 			openPersonaEditorAtPath,
 			showConfig,
@@ -2379,12 +2364,10 @@ export function ChatSessionApp({
 			activePlan.status !== "failed" ? (
 				<PlanStatusBar plan={activePlan} termCols={termCols} />
 			) : null}
-			<ChatInputDock
+			<ChatInputPanel
+				ref={inputPanelRef}
 				termCols={termCols}
-				input={input}
-				onInputChange={setInput}
-				onInputSubmit={handlePromptSubmit}
-				cursorResetToken={inputCursorResetToken}
+				onSubmit={handlePromptSubmit}
 				inputDisabled={inputDisabled}
 				persona={activePersona}
 				modelLabel={modelLabel}
@@ -2392,8 +2375,6 @@ export function ChatSessionApp({
 				lastUsage={lastUsage}
 				placeholder={suggestedPlaceholder}
 				showPlaceholderWhenEmpty={!hasUserPromptInSession}
-				slashSuggestions={slashSuggestions}
-				selectedSlashCommand={selectedSlashCommand}
 				daemonRunning={daemonRunning}
 				recentPrompts={recentPrompts}
 				updateAvailable={updateAvailable}

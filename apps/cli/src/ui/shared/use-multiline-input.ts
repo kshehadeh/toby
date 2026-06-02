@@ -1,4 +1,4 @@
-import { useInput } from "ink";
+import { type Key, useInput } from "ink";
 import React, {
 	useCallback,
 	useEffect,
@@ -95,6 +95,23 @@ export function useMultilineInput(
 	const promptHistoryBrowseIndexRef = useRef(-1);
 	const promptHistoryDraftRef = useRef("");
 
+	const valueRef = useRef(value);
+	valueRef.current = value;
+	const onChangeRef = useRef(onChange);
+	onChangeRef.current = onChange;
+	const onSubmitRef = useRef(onSubmit);
+	onSubmitRef.current = onSubmit;
+	const onCancelRef = useRef(onCancel);
+	onCancelRef.current = onCancel;
+	const enterModeRef = useRef(enterMode);
+	enterModeRef.current = enterMode;
+	const recentPromptsRef = useRef(recentPrompts);
+	recentPromptsRef.current = recentPrompts;
+	const onEmptyQuestionMarkRef = useRef(onEmptyQuestionMark);
+	onEmptyQuestionMarkRef.current = onEmptyQuestionMark;
+	const activeRef = useRef(active);
+	activeRef.current = active;
+
 	// Pending-backslash heuristic: when Kitty protocol is not active, some
 	// terminals (e.g. VS Code without `terminal.integrated.enableKittyKeyboardProtocol`)
 	// encode Shift+Enter as `\` followed by Enter. We buffer a `\` character
@@ -156,47 +173,54 @@ export function useMultilineInput(
 		};
 	}, []);
 
-	const deleteWordBackward = useCallback(() => {
+	const deleteWordBackward = () => {
+		const value = valueRef.current;
 		const ci = cursorIndexRef.current;
 		if (ci <= 0) return;
 		const start = wordBackwardIndex(value, ci);
-		onChange(value.slice(0, start) + value.slice(ci));
+		onChangeRef.current(value.slice(0, start) + value.slice(ci));
 		updateCursorIndex(start);
-	}, [value, onChange, updateCursorIndex]);
+	};
 
-	const insertAtCursor = useCallback(
-		(text: string) => {
-			promptHistoryBrowseIndexRef.current = -1;
-			promptHistoryDraftRef.current = "";
-			const ci = cursorIndexRef.current;
-			const next = value.slice(0, ci) + text + value.slice(ci);
-			onChange(next);
-			updateCursorIndex(ci + text.length);
-		},
-		[value, onChange, updateCursorIndex],
-	);
+	const insertAtCursor = (text: string) => {
+		const value = valueRef.current;
+		promptHistoryBrowseIndexRef.current = -1;
+		promptHistoryDraftRef.current = "";
+		const ci = cursorIndexRef.current;
+		const next = value.slice(0, ci) + text + value.slice(ci);
+		onChangeRef.current(next);
+		updateCursorIndex(ci + text.length);
+	};
 
-	const applyPromptHistoryNavigation = useCallback(
-		(direction: "up" | "down") => {
-			const result = navigatePromptHistory(
-				direction,
-				{
-					browseIndex: promptHistoryBrowseIndexRef.current,
-					draft: promptHistoryDraftRef.current,
-				},
-				recentPrompts,
-			);
-			if (!result) {
-				return false;
-			}
-			promptHistoryBrowseIndexRef.current = result.browseIndex;
-			promptHistoryDraftRef.current = result.draft;
-			onChange(result.value);
-			updateCursorIndex(result.value.length);
-			return true;
-		},
-		[recentPrompts, onChange, updateCursorIndex],
-	);
+	const applyPromptHistoryNavigation = (direction: "up" | "down") => {
+		const result = navigatePromptHistory(
+			direction,
+			{
+				browseIndex: promptHistoryBrowseIndexRef.current,
+				draft: promptHistoryDraftRef.current,
+			},
+			recentPromptsRef.current,
+		);
+		if (!result) {
+			return false;
+		}
+		promptHistoryBrowseIndexRef.current = result.browseIndex;
+		promptHistoryDraftRef.current = result.draft;
+		onChangeRef.current(result.value);
+		updateCursorIndex(result.value.length);
+		return true;
+	};
+
+	const inputActionsRef = useRef({
+		insertAtCursor,
+		deleteWordBackward,
+		applyPromptHistoryNavigation,
+	});
+	inputActionsRef.current = {
+		insertAtCursor,
+		deleteWordBackward,
+		applyPromptHistoryNavigation,
+	};
 
 	// Debug logging for input events — set DEBUG_INPUT to a file path to enable.
 	// Helps diagnose Shift+Enter issues across terminals.
@@ -207,9 +231,11 @@ export function useMultilineInput(
 		return createWriteStream(process.env.DEBUG_INPUT, { flags: "a" });
 	}, []);
 
-	useInput(
-		(typedInput, key) => {
-			if (!active) return;
+	const handleInput = useCallback(
+		(typedInput: string, key: Key) => {
+			if (!activeRef.current) return;
+
+			const value = valueRef.current;
 
 			if (debugStream) {
 				const printable = typedInput
@@ -252,7 +278,7 @@ export function useMultilineInput(
 
 			// Pattern 1: single-event backslash+CR (or backslash+LF).
 			if (/^\\\r?$/.test(typedInput) || /^\\\n$/.test(typedInput)) {
-				insertAtCursor("\n");
+				inputActionsRef.current.insertAtCursor("\n");
 				return;
 			}
 
@@ -262,21 +288,21 @@ export function useMultilineInput(
 				const isEnter =
 					key.return || typedInput === "\n" || typedInput === "\r";
 				if (isEnter) {
-					insertAtCursor("\n");
+					inputActionsRef.current.insertAtCursor("\n");
 					return;
 				}
 				// Not Enter — flush the pending backslash as a real character.
-				insertAtCursor("\\");
+				inputActionsRef.current.insertAtCursor("\\");
 				// Fall through to process the current event normally.
 			}
 
 			const isEnter = key.return || typedInput === "\n" || typedInput === "\r";
 			if (key.escape) {
-				onCancel?.();
+				onCancelRef.current?.();
 				return;
 			}
 
-			if (enterMode === "submit") {
+			if (enterModeRef.current === "submit") {
 				// With Kitty protocol or "meta-return" terminals, Ink correctly
 				// reports key.shift/key.meta on modified Enter events. Without
 				// Kitty, Shift+Enter is indistinguishable from plain Enter on
@@ -285,21 +311,21 @@ export function useMultilineInput(
 				const shouldNewline = isEnter && (key.shift || key.meta || key.ctrl);
 
 				if (shouldSubmit) {
-					onSubmit(value);
+					onSubmitRef.current(value);
 					return;
 				}
 				if (shouldNewline) {
-					insertAtCursor("\n");
+					inputActionsRef.current.insertAtCursor("\n");
 					return;
 				}
 			} else {
 				// "newline" mode: Enter inserts a newline, Ctrl+S submits.
 				if (key.ctrl && typedInput === "s") {
-					onSubmit(value);
+					onSubmitRef.current(value);
 					return;
 				}
 				if (isEnter) {
-					insertAtCursor("\n");
+					inputActionsRef.current.insertAtCursor("\n");
 					return;
 				}
 			}
@@ -328,10 +354,10 @@ export function useMultilineInput(
 				return;
 			}
 
-			if (key.upArrow && recentPrompts.length > 0) {
+			if (key.upArrow && recentPromptsRef.current.length > 0) {
 				const browsing = promptHistoryBrowseIndexRef.current >= 0;
 				if (browsing || isPromptHistoryEligibleInput(value)) {
-					if (applyPromptHistoryNavigation("up")) {
+					if (inputActionsRef.current.applyPromptHistoryNavigation("up")) {
 						return;
 					}
 				}
@@ -339,10 +365,10 @@ export function useMultilineInput(
 
 			if (
 				key.downArrow &&
-				recentPrompts.length > 0 &&
+				recentPromptsRef.current.length > 0 &&
 				promptHistoryBrowseIndexRef.current >= 0
 			) {
-				if (applyPromptHistoryNavigation("down")) {
+				if (inputActionsRef.current.applyPromptHistoryNavigation("down")) {
 					return;
 				}
 			}
@@ -440,28 +466,32 @@ export function useMultilineInput(
 
 			// Terminal-friendly fallback for deleting previous word.
 			if (key.ctrl && typedInput === "w") {
-				deleteWordBackward();
+				inputActionsRef.current.deleteWordBackward();
 				return;
 			}
 
 			const deleteAction = resolveDeleteShortcutAction(typedInput, key);
 			if (deleteAction === "delete-word-backward") {
 				promptHistoryBrowseIndexRef.current = -1;
-				deleteWordBackward();
+				inputActionsRef.current.deleteWordBackward();
 				return;
 			}
 			if (deleteAction === "delete-char") {
 				const ci = cursorIndexRef.current;
 				if (ci > 0) {
 					promptHistoryBrowseIndexRef.current = -1;
-					onChange(value.slice(0, ci - 1) + value.slice(ci));
+					onChangeRef.current(value.slice(0, ci - 1) + value.slice(ci));
 					updateCursorIndex(ci - 1);
 				}
 				return;
 			}
 
-			if (typedInput === "?" && value.length === 0 && onEmptyQuestionMark) {
-				onEmptyQuestionMark();
+			if (
+				typedInput === "?" &&
+				value.length === 0 &&
+				onEmptyQuestionMarkRef.current
+			) {
+				onEmptyQuestionMarkRef.current();
 				return;
 			}
 
@@ -482,16 +512,18 @@ export function useMultilineInput(
 						// character. Insert it and clear the flag.
 						pendingBackslashRef.current = false;
 						pendingBackslashTimerRef.current = null;
-						insertAtCursor("\\");
+						inputActionsRef.current.insertAtCursor("\\");
 					}, PENDING_BACKSLASH_TIMEOUT_MS);
 					return;
 				}
 
-				insertAtCursor(typedInput);
+				inputActionsRef.current.insertAtCursor(typedInput);
 			}
 		},
-		{ isActive: active },
+		[debugStream, kittyConfirmed, updateCursorIndex],
 	);
+
+	useInput(handleInput, { isActive: active });
 
 	return { cursorIndex, terminalProfile };
 }
