@@ -30,7 +30,7 @@ Put code in **`packages/core`** when it is **harness functionality** — usable 
 
 | Belongs in `@toby/core` | Belongs in `apps/cli` |
 | ----------------------- | --------------------- |
-| Chat pipeline (`runChatTurnPipeline`, nodes, headless sessions) | Ink/React TUI (`ui/chat/`, `ui/configure/`, `ui/schedules/`, …) |
+| Chat pipeline (`runChatTurnPipeline`, nodes, headless sessions) | Ink/React TUI (`ui/chat/`, `ui/configure/`, …) |
 | AI layer (models, tools, pretreatment, caching, replay) | Commander wiring (`cli.ts`, generic `commands/`) |
 | Integrations (registry, clients, tools, prompts, inbound) | Slash commands, transcript rendering, chat event → row reducers |
 | Config, personas, skills, memory, planning, logging | `listen/`, `schedules/` orchestration UI, `upgrade/`, `releases/` |

@@ -260,8 +260,8 @@ prompts or real audio devices.
 
 `toby listen` follows this pattern:
 
-- `apps/cli/src/commands/listen.ts` registers the command.
-- `apps/cli/src/ui/listen/App.tsx` owns the Ink UI.
+- `apps/cli/src/commands/listen.ts` registers the command and opens configure.
+- `apps/cli/src/ui/configure/` owns the Listen section in the configuration UI (`listen-panes.tsx`, `use-listen-controller.ts`).
 - `apps/cli/src/listen/session-controller.ts` owns recording folders and metadata.
 - `apps/cli/src/listen/macos/audio-capture.ts` spawns and supervises the helper.
 - `apps/audio-helper/` contains the Swift executable.

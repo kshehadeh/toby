@@ -9,7 +9,7 @@ See also: [Core vs apps](#core-vs-apps) (where new code should live).
 | Package | Path | Role |
 | ------- | ---- | ---- |
 | **`@toby/core`** | [`packages/core/src/`](../packages/core/src/) | Harness: chat pipeline, AI, integrations, config, personas, skills, memory, planning, chat-inbound, logging, session store, message prep. Consumable from scripts, daemons, or other apps via `@toby/core/...` imports. |
-| **`@toby/cli`** | [`apps/cli/src/`](../apps/cli/src/) | CLI app: Commander entry, generic commands, Ink TUIs (`ui/`), listen/schedules/upgrade UI and glue. Depends on `@toby/core`; must not be imported by core. |
+| **`@toby/cli`** | [`apps/cli/src/`](../apps/cli/src/) | CLI app: Commander entry, generic commands, Ink TUIs (`ui/`), schedules/upgrade UI and glue. Depends on `@toby/core`; must not be imported by core. |
 
 ```mermaid
 flowchart TB
@@ -28,7 +28,7 @@ flowchart TB
 
 **Put in core** when the behavior is UI-agnostic: model calls, tools, integration APIs, pipeline nodes, SQLite persistence, daemon inbound routing, pretreatment, prompt caching.
 
-**Put in the CLI app** when the behavior is presentation or shell-specific: transcript rows, slash commands, configure/schedules/listen Ink screens, `ViewFrame` / keybindings, upgrade handoff, readline `--no-tui` formatting that is not shared headless logic.
+**Put in the CLI app** when the behavior is presentation or shell-specific: transcript rows, slash commands, configure/schedules Ink screens, `ViewFrame` / keybindings, upgrade handoff, readline `--no-tui` formatting that is not shared headless logic.
 
 Integration **implementations** live in core (`packages/core/src/integrations/<name>/`). Integration **Ink pickers** and **slash commands** stay in the CLI under `apps/cli/src/ui/`.
 

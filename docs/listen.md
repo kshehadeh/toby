@@ -1,8 +1,8 @@
 # Listen mode
 
-`toby listen` is a foreground recording mode for collecting local audio and
-saving it for later processing. It is intentionally not an integration
-capability: it owns its own UI and recording lifecycle.
+`toby listen` opens **Configuration** focused on the **Listen** section. It is
+not a separate integration capability: recording lifecycle and metadata live in
+`apps/cli/src/listen/`, and the Ink UI is part of the configure tree (like Skills).
 
 ## Current scope
 
@@ -27,19 +27,23 @@ toby listen --helper /path/to/toby-listener
 toby listen transcribe ~/.toby/listen/recordings/<recording-id>
 ```
 
-The UI is a two-pane layout:
+## UI
 
-- **Left pane**: scrollable list of recordings, sorted newest first, with "Start new recording" at the top.
-- **Right pane**: shows details for the selected item — source toggles and start prompt when idle, a recording interface with animated indicator and timer when recording, or full metadata and actions when a saved recording is selected.
+Listen lives under **Configuration → Listen** (same pattern as Skills):
 
-Keyboard shortcuts:
+- **`toby listen`** opens config with Listen expanded and **Start new recording** selected.
+- **`toby config`** → expand **Listen** to browse recordings or start a new one.
+- **Start new recording** — action row at the top; the right pane shows mic/system source toggles.
+- **Saved recordings** — one row per recording under Listen; the right pane shows metadata and actions.
+
+Keyboard shortcuts (with Listen or a recording selected):
 
 - `↑↓` navigate within the focused pane.
-- `Tab` switches focus between panes (auto-focused on the right pane while recording).
+- `Tab` switches focus between the category tree and the detail pane (auto-focused on the detail pane while recording).
 - `Enter` to select/toggle the focused item.
 - `s` to stop and save while listening.
 - `d` to stop and discard while listening.
-- `Esc` to move focus back to the left pane from the right pane.
+- `Esc` moves focus back to the category tree from the detail pane.
 - `q` to close, confirming discard if a recording is active.
 
 The recording interface shows an animated red dot indicator, a bold "Recording" label, an elapsed timer, and two actions: a green bold "Stop and Save" (default) and a red bold "Stop and Discard".
@@ -64,7 +68,7 @@ The chat TUI also exposes lightweight recording controls:
 
 `/listen` starts recording microphone and system audio for the active chat session. `/stop-listening` stops and saves the recording, runs transcription, writes the same recording folder artifacts as `toby listen`, and injects the transcript as hidden user context so the assistant can summarize or reason about what was said. If transcription is unavailable, the saved audio path is still shown in chat.
 
-These commands use the same helper discovery, macOS-only capture support, and permission requirements as the standalone `toby listen` UI.
+These commands use the same helper discovery, macOS-only capture support, and permission requirements as the configure Listen section.
 
 ## Helper boundary
 

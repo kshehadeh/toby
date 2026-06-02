@@ -50,7 +50,7 @@ The CLI also includes shared commands such as `connect`, `disconnect`, `status`,
 
 ### `toby listen`
 
-Open the foreground audio listener UI. On macOS, Toby expects a native audio helper for microphone and system audio capture. Until that helper is installed, the UI shows a clear helper-missing state.
+Open **Configuration → Listen** for recording. On macOS, Toby expects a native audio helper for microphone and system audio capture. Until that helper is installed, starting a recording shows a clear helper-missing state.
 
 Options:
 
