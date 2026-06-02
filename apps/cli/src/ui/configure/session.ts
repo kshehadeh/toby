@@ -17,8 +17,37 @@ import {
 	type ProviderCategory,
 } from "@toby/core/integrations/types";
 import { DEFAULT_CHAT_PERSONA } from "@toby/core/personas/index";
+import { loadLocalSkills } from "@toby/core/skills/index";
+import {
+	deleteSkill,
+	openSkillInEditor,
+	updateSkillFrontmatter,
+} from "@toby/core/skills/manage";
+import {
+	deleteListenRecording,
+	openListenRecordingInFinder,
+	updateListenRecordingMetadata,
+} from "../../listen/session-controller";
+import { executeSchedule } from "../../schedules/executor";
+import {
+	createSchedule,
+	deleteSchedule,
+	listSchedules,
+	updateSchedule,
+} from "../../schedules/store";
+import type { CreateScheduleParams, Schedule } from "../../schedules/types";
 import type { SettingsItem } from "./items";
 import { buildSettingsTree } from "./items";
+import {
+	findListenRecordingById,
+	seedListenRecordingValues,
+} from "./listen-values";
+import type { ListenControllerOptions } from "./use-listen-controller";
+
+export interface ConfigureSessionOptions {
+	readonly listenOptions?: ListenControllerOptions;
+	readonly schedulesEnabled?: boolean;
+}
 
 interface ConfigureSession {
 	readonly initialTree: SettingsItem;
@@ -30,7 +59,61 @@ interface ConfigureSession {
 		readonly onDeletePersona: (name: string) => void;
 		readonly onSetDefaultPersona: (name: string) => void;
 		readonly onClearDefaultPersona: () => void;
+		readonly onUpdateSkillField: (
+			dirName: string,
+			field: "name" | "description" | "summary",
+			value: string,
+		) => void;
+		readonly onOpenSkillInEditor: (dirName: string) => void;
+		readonly onDeleteSkill: (dirName: string) => void;
+		readonly onUpdateRecordingField: (
+			recordingId: string,
+			field: "name" | "description",
+			value: string,
+		) => void;
+		readonly onOpenRecordingInFinder: (recordingId: string) => void;
+		readonly onDeleteRecording: (recordingId: string) => void;
+		readonly onCreateSchedule: () => string;
+		readonly onUpdateScheduleField: (
+			scheduleId: string,
+			field: "name" | "prompt" | "personaName" | "cronExpression" | "enabled",
+			value: string | boolean,
+		) => void;
+		readonly onDeleteSchedule: (scheduleId: string) => void;
+		readonly onRunScheduleNow: (scheduleId: string) => Promise<void>;
 	};
+	readonly listenRecordingsDir?: string;
+}
+
+function seedScheduleValues(values: Record<string, string>): void {
+	for (const key of Object.keys(values)) {
+		if (key.startsWith("schedules.")) {
+			delete values[key];
+		}
+	}
+	let schedules: Schedule[] = [];
+	try {
+		schedules = listSchedules();
+	} catch {
+		schedules = [];
+	}
+	for (const schedule of schedules) {
+		values[`schedules.${schedule.id}.name`] = schedule.name;
+		values[`schedules.${schedule.id}.prompt`] = schedule.prompt;
+		values[`schedules.${schedule.id}.persona`] = schedule.personaName;
+		values[`schedules.${schedule.id}.cron`] = schedule.cronExpression;
+		values[`schedules.${schedule.id}.enabled`] = schedule.enabled
+			? "Yes"
+			: "No";
+	}
+}
+
+function findScheduleById(scheduleId: string): Schedule | null {
+	try {
+		return listSchedules().find((s) => s.id === scheduleId) ?? null;
+	} catch {
+		return null;
+	}
 }
 
 /**
@@ -46,7 +129,10 @@ export function refreshConfigureSessionTree(
 	};
 }
 
-export function createConfigureSession(): ConfigureSession {
+export function createConfigureSession(
+	options: ConfigureSessionOptions = {},
+): ConfigureSession {
+	const listenRecordingsDir = options.listenOptions?.recordingsDir;
 	const creds = readCredentials();
 	const config = readConfig();
 
@@ -67,6 +153,13 @@ export function createConfigureSession(): ConfigureSession {
 		credentialValues[`personas.${p.name}.ai.provider`] = p.ai.provider;
 		credentialValues[`personas.${p.name}.ai.model`] = p.ai.model;
 	}
+	for (const skill of loadLocalSkills()) {
+		credentialValues[`skills.${skill.dirName}.name`] = skill.name;
+		credentialValues[`skills.${skill.dirName}.description`] = skill.description;
+		credentialValues[`skills.${skill.dirName}.summary`] = skill.summary;
+	}
+	seedListenRecordingValues(credentialValues, listenRecordingsDir);
+	seedScheduleValues(credentialValues);
 	for (const cat of ALL_PROVIDER_CATEGORIES) {
 		const current = config.defaultProviders?.[cat];
 		credentialValues[`defaults.${cat}`] = current ?? "(none)";
@@ -91,12 +184,18 @@ export function createConfigureSession(): ConfigureSession {
 	const refreshTree = (vals: Record<string, string>) => {
 		const freshConfig = readConfig();
 		const personasFromVals = rebuildPersonas(vals, freshConfig.personas);
+		const withBuiltIn = personasFromVals.some(
+			(p) => p.name === DEFAULT_CHAT_PERSONA.name,
+		)
+			? personasFromVals
+			: [DEFAULT_CHAT_PERSONA, ...personasFromVals];
 		const defaultProvidersFromVals = rebuildDefaultProviders(vals);
 		return buildSettingsTree(
-			personasFromVals,
+			withBuiltIn,
 			AI_PROVIDERS,
 			vals,
 			defaultProvidersFromVals,
+			listenRecordingsDir,
 		);
 	};
 
@@ -138,6 +237,106 @@ export function createConfigureSession(): ConfigureSession {
 		onClearDefaultPersona: () => {
 			clearDefaultPersona();
 		},
+		onUpdateSkillField: (
+			dirName: string,
+			field: "name" | "description" | "summary",
+			value: string,
+		) => {
+			updateSkillFrontmatter(dirName, { [field]: value });
+			credentialValues[`skills.${dirName}.${field}`] = value;
+		},
+		onOpenSkillInEditor: (dirName: string) => {
+			openSkillInEditor(dirName);
+		},
+		onDeleteSkill: (dirName: string) => {
+			deleteSkill(dirName);
+			for (const key of Object.keys(credentialValues)) {
+				if (key.startsWith(`skills.${dirName}.`)) {
+					delete credentialValues[key];
+				}
+			}
+		},
+		onUpdateRecordingField: (
+			recordingId: string,
+			field: "name" | "description",
+			value: string,
+		) => {
+			const recording = findListenRecordingById(
+				recordingId,
+				listenRecordingsDir,
+			);
+			if (!recording) {
+				throw new Error(`Recording not found: ${recordingId}`);
+			}
+			updateListenRecordingMetadata(recording, { [field]: value });
+			credentialValues[`listen.recordings.${recordingId}.${field}`] = value;
+		},
+		onOpenRecordingInFinder: (recordingId: string) => {
+			const recording = findListenRecordingById(
+				recordingId,
+				listenRecordingsDir,
+			);
+			if (!recording) {
+				throw new Error(`Recording not found: ${recordingId}`);
+			}
+			openListenRecordingInFinder(recording);
+		},
+		onDeleteRecording: (recordingId: string) => {
+			const recording = findListenRecordingById(
+				recordingId,
+				listenRecordingsDir,
+			);
+			if (!recording) {
+				throw new Error(`Recording not found: ${recordingId}`);
+			}
+			deleteListenRecording(recording);
+			for (const key of Object.keys(credentialValues)) {
+				if (key.startsWith(`listen.recordings.${recordingId}.`)) {
+					delete credentialValues[key];
+				}
+			}
+		},
+		onCreateSchedule: (): string => {
+			const params: CreateScheduleParams = {
+				name: "New schedule",
+				prompt: "",
+				personaName: getDefaultPersonaName() ?? "Toby",
+				cronExpression: "0 9 * * *",
+				enabled: true,
+			};
+			const created = createSchedule(params);
+			seedScheduleValues(credentialValues);
+			return created.id;
+		},
+		onUpdateScheduleField: (
+			scheduleId: string,
+			field: "name" | "prompt" | "personaName" | "cronExpression" | "enabled",
+			value: string | boolean,
+		) => {
+			const schedule = findScheduleById(scheduleId);
+			if (!schedule) throw new Error(`Schedule not found: ${scheduleId}`);
+			if (field === "enabled") {
+				updateSchedule(scheduleId, { enabled: Boolean(value) });
+			} else if (field === "name") {
+				updateSchedule(scheduleId, { name: String(value) });
+			} else if (field === "prompt") {
+				updateSchedule(scheduleId, { prompt: String(value) });
+			} else if (field === "personaName") {
+				updateSchedule(scheduleId, { personaName: String(value) });
+			} else if (field === "cronExpression") {
+				updateSchedule(scheduleId, { cronExpression: String(value) });
+			}
+			seedScheduleValues(credentialValues);
+		},
+		onDeleteSchedule: (scheduleId: string) => {
+			deleteSchedule(scheduleId);
+			seedScheduleValues(credentialValues);
+		},
+		onRunScheduleNow: async (scheduleId: string) => {
+			const schedule = findScheduleById(scheduleId);
+			if (!schedule) throw new Error(`Schedule not found: ${scheduleId}`);
+			await executeSchedule(schedule);
+		},
 	};
 
 	return {
@@ -156,6 +355,7 @@ export function createConfigureSession(): ConfigureSession {
 		},
 		refreshTree,
 		callbacks,
+		listenRecordingsDir,
 	};
 }
 

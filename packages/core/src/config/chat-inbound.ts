@@ -55,7 +55,7 @@ export function getChatInboundDisabledReason(): string | null {
 		return 'chatInbound.integration is missing. Set e.g. "integration": "slack" under chatInbound in ~/.toby/config.json (or TOBY_CHAT_INBOUND_INTEGRATION=slack).';
 	}
 	if (!isIntegrationInboundEnabled(integrationName)) {
-		return `Inbound is not enabled for "${integrationName}". In configure: turn on **Daemon / inbound chat** with **Active integration** set to "${integrationName}", or set **Daemon: listen for @mentions** to On under that integration.`;
+		return `Inbound is not enabled for "${integrationName}". In configure: turn on **Chat** with **Active integration** set to "${integrationName}", or set **Daemon: listen for @mentions** to On under that integration.`;
 	}
 	const module = getIntegrationModule(integrationName);
 	if (!module) {

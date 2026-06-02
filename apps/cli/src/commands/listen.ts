@@ -15,7 +15,8 @@ import type {
 	ListenRecordingMetadata,
 	ListenSourceSelection,
 } from "../listen/types";
-import { runListenUI } from "../ui/listen/App";
+import { runConfigureUI } from "../ui/configure/App";
+import { createConfigureSession } from "../ui/configure/session";
 
 interface ListenCommandOptions {
 	readonly micOnly?: boolean;
@@ -188,7 +189,7 @@ export function registerListenCommand(program: Command): void {
 	const listen = program
 		.command("listen")
 		.description(
-			"Record microphone and/or system audio in a foreground listener UI",
+			"Record microphone and/or system audio (opens Configuration → Listen)",
 		)
 		.option("--mic-only", "Record only microphone input")
 		.option("--system-only", "Record only computer/system output audio")
@@ -201,11 +202,23 @@ export function registerListenCommand(program: Command): void {
 			"Directory for recordings (defaults to ~/.toby/listen/recordings)",
 		)
 		.action((options: ListenCommandOptions) => {
-			runListenUI({
+			const listenOptions = {
 				sources: resolveSources(options),
 				helperPath: options.helper,
 				recordingsDir: options.outDir,
-			});
+			};
+			const session = createConfigureSession({ listenOptions });
+			runConfigureUI(
+				session.initialTree,
+				session.initialValues,
+				session.onSave,
+				session.refreshTree,
+				session.callbacks,
+				{
+					initialPath: ["root", "listen", "listen._start"],
+					listenOptions,
+				},
+			);
 		});
 
 	listen

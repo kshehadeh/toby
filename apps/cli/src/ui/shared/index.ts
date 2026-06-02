@@ -13,6 +13,7 @@ export {
 } from "./keybindings";
 export {
 	ActionRow,
+	DetailPaneTitle,
 	NavigatorRow,
 	SectionDivider,
 	SelectableTextRow,

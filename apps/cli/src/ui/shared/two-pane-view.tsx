@@ -45,6 +45,11 @@ export interface TwoPaneViewProps {
 	 * accounted for in the height calculation.
 	 */
 	readonly status?: React.ReactNode;
+	/**
+	 * When set, replaces the status bar (e.g. a {@link ConfirmDialog} overlay).
+	 * The main layout stays visible underneath.
+	 */
+	readonly overlay?: React.ReactNode;
 }
 
 /**
@@ -72,6 +77,7 @@ export function TwoPaneView({
 	leftMaxWidth,
 	rightWidth,
 	status,
+	overlay,
 }: TwoPaneViewProps) {
 	const { termCols, frameHeight } = useTerminalLayout();
 	const resolvedLeftWidth = resolveLeftPaneWidth(
@@ -90,19 +96,11 @@ export function TwoPaneView({
 		>
 			<ViewHeader title={title} />
 			{subheader ? (
-				<Box marginTop={1} flexShrink={0} justifyContent="center">
+				<Box flexShrink={0} justifyContent="center">
 					{subheader}
 				</Box>
 			) : null}
-			<Box
-				marginTop={1}
-				flexGrow={1}
-				minHeight={0}
-				overflow="hidden"
-				borderStyle="single"
-				borderColor={INPUT_BORDER}
-				flexDirection="row"
-			>
+			<Box flexGrow={1} minHeight={0} overflow="hidden" flexDirection="row">
 				<Box
 					flexDirection="column"
 					flexShrink={0}
@@ -126,14 +124,17 @@ export function TwoPaneView({
 					{right}
 				</Box>
 			</Box>
-			{status ? (
-				<Box marginTop={1} flexShrink={0} paddingX={1}>
+			{status && !overlay ? (
+				<Box flexShrink={0} paddingX={1}>
 					{status}
 				</Box>
 			) : null}
-			{statusBar ? (
+			{overlay ? (
+				<Box flexShrink={0} marginTop={1}>
+					{overlay}
+				</Box>
+			) : statusBar ? (
 				<Box
-					marginTop={1}
 					flexShrink={0}
 					borderStyle="single"
 					borderColor={INPUT_BORDER}

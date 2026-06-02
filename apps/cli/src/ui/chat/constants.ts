@@ -1,5 +1,7 @@
 export const ACCENT = "#a16207";
 export const META_ACCENT = "#0e7490";
+/** Secondary accent for right-pane chrome (e.g. detail title bar when focused). */
+export const SECONDARY_ACCENT = "#2563eb";
 // Accent-adjacent shades for compact status UI (provider/model split).
 export const ACCENT_PROVIDER = "#d97706";
 export const ACCENT_MODEL = "#f59e0b";

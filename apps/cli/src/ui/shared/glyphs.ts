@@ -3,6 +3,8 @@ export const UI_GLYPHS = {
 	spacer: "  ",
 	section: "▸",
 	action: "+",
+	edit: "[✎]",
+	defaultPersona: "★",
 	delete: "✕",
 	success: "✔︎",
 	failure: "✗",

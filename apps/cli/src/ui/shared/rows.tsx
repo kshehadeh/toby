@@ -1,10 +1,39 @@
 import { Box, Text } from "ink";
 import type React from "react";
-import { ACCENT } from "../chat/constants";
+import { ACCENT, SECONDARY_ACCENT } from "../chat/constants";
 import { STATUS_GLYPHS, UI_GLYPHS } from "./glyphs";
 
 export function selectedPrefix(selected: boolean): string {
 	return selected ? UI_GLYPHS.cursor : UI_GLYPHS.spacer;
+}
+
+export interface DetailPaneTitleProps {
+	readonly title: string;
+	/** Full-width accent background when this pane is focused. */
+	readonly active?: boolean;
+	/** `primary` (amber) for the category tree; `secondary` (blue) for detail pane. */
+	readonly accent?: "primary" | "secondary";
+}
+
+export function DetailPaneTitle({
+	title,
+	active = false,
+	accent = "secondary",
+}: DetailPaneTitleProps) {
+	const activeBackground = accent === "primary" ? ACCENT : SECONDARY_ACCENT;
+
+	return (
+		<Box
+			width="100%"
+			paddingX={1}
+			marginBottom={1}
+			backgroundColor={active ? activeBackground : undefined}
+		>
+			<Text bold color={active ? "white" : ACCENT} wrap="truncate-end">
+				{title}
+			</Text>
+		</Box>
+	);
 }
 
 export interface SelectableTextRowProps {
@@ -23,9 +52,13 @@ export function SelectableTextRow({
 	dim = false,
 }: SelectableTextRowProps) {
 	return (
-		<Box paddingX={1}>
+		<Box
+			width="100%"
+			paddingX={1}
+			backgroundColor={selected ? ACCENT : undefined}
+		>
 			<Text wrap="truncate-end">
-				<Text color={selected ? ACCENT : "gray"} bold>
+				<Text color={selected ? "white" : "gray"} bold={selected}>
 					{selectedPrefix(selected)}
 				</Text>
 				<Text
@@ -166,10 +199,15 @@ export function NavigatorRow({
 					: "green";
 
 	return (
-		<Box paddingX={1} flexDirection="row">
+		<Box
+			width="100%"
+			paddingX={1}
+			flexDirection="row"
+			backgroundColor={selected ? ACCENT : undefined}
+		>
 			<Box flexShrink={0}>
 				<Text wrap="truncate-end">
-					<Text color={selected ? ACCENT : "gray"} bold>
+					<Text color={selected ? "white" : "gray"} bold={selected}>
 						{selectedPrefix(selected)}
 					</Text>
 					<Text color={selected ? "white" : color} bold={selected}>

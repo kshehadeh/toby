@@ -1,11 +1,20 @@
 import type { Command } from "commander";
-import { runSkillsUI } from "../ui/skills/App";
+import { runConfigureUI } from "../ui/configure/App";
+import { createConfigureSession } from "../ui/configure/session";
 
 export function registerSkillsCommand(program: Command): void {
 	program
 		.command("skills")
 		.description("View, edit, and delete local skills")
 		.action(() => {
-			runSkillsUI();
+			const session = createConfigureSession();
+			runConfigureUI(
+				session.initialTree,
+				session.initialValues,
+				session.onSave,
+				session.refreshTree,
+				session.callbacks,
+				{ initialPath: ["root", "skills"] },
+			);
 		});
 }

@@ -1,5 +1,5 @@
 import type { AIProviderInfo } from "@toby/core/ai/providers";
-import { getDefaultPersonaName } from "@toby/core/config/index";
+import { getDefaultPersonaName, getSkillsDir } from "@toby/core/config/index";
 import {
 	getIntegrationModules,
 	getModulesForCategory,
@@ -9,8 +9,34 @@ import {
 	PROVIDER_CATEGORY_LABELS,
 	type ProviderCategory,
 } from "@toby/core/integrations/types";
+import { DEFAULT_CHAT_PERSONA } from "@toby/core/personas/index";
+import { loadLocalSkills } from "@toby/core/skills/index";
+import { listListenRecordings } from "../../listen/session-controller";
+import { formatListenSources } from "../../listen/types";
+import { cronToHuman } from "../../schedules/cron";
+import { isDaemonRunning } from "../../schedules/daemon-status";
+import { listScheduleRuns, listSchedules } from "../../schedules/store";
+import {
+	formatListenDuration,
+	formatListenRecordingDate,
+	listenRecordingTreeLabel,
+} from "./listen-panes";
 
-type ItemKind = "section" | "value" | "action" | "select" | "delete";
+type ItemKind = "section" | "value" | "action" | "select" | "delete" | "hint";
+
+/** Action items shown in the configure left tree when their parent section is expanded. */
+export const CONFIGURE_TREE_ACTION_KEYS = new Set([
+	"personas._new",
+	"listen._start",
+	"schedules._new",
+]);
+
+const MAX_SKILL_BODY_PREVIEW = 200;
+const MAX_PERSONA_INSTRUCTION_PREVIEW = 120;
+
+function truncateSkillPreview(text: string, max: number): string {
+	return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
 
 type SettingsSelectChoice = {
 	readonly value: string;
@@ -44,6 +70,7 @@ export function buildSettingsTree(
 	availableProviders: AIProviderInfo[],
 	values: Record<string, string> = {},
 	defaultProviders?: Partial<Record<ProviderCategory, string>>,
+	listenRecordingsDir?: string,
 ): SettingsItem {
 	const integrationSections: SettingsItem[] = getIntegrationModules().map(
 		(mod) => {
@@ -119,11 +146,26 @@ export function buildSettingsTree(
 					]
 				: [];
 
+			const configChildren: SettingsItem[] = [
+				...authSelect,
+				...credentialItems,
+				...inboundItems,
+			];
+			if (configChildren.length === 0) {
+				configChildren.push({
+					label:
+						mod.configureHint ??
+						"No configuration options for this integration.",
+					kind: "hint",
+					key: `${mod.name}._hint`,
+				});
+			}
+
 			return {
 				label: mod.displayName,
 				kind: "section" as const,
 				key: mod.name,
-				children: [...authSelect, ...credentialItems, ...inboundItems],
+				children: configChildren,
 			};
 		},
 	);
@@ -131,6 +173,7 @@ export function buildSettingsTree(
 	const currentDefault = getDefaultPersonaName();
 
 	const personaItems: SettingsItem[] = personas.map((p) => {
+		const isBuiltIn = p.name === DEFAULT_CHAT_PERSONA.name;
 		const providerId =
 			values[`personas.${p.name}.ai.provider`] ?? p.ai.provider;
 		const modelValue = values[`personas.${p.name}.ai.model`] ?? p.ai.model;
@@ -168,43 +211,72 @@ export function buildSettingsTree(
 			});
 		}
 
+		const readOnlyAiItems: SettingsItem[] = [
+			{
+				label: "AI Provider",
+				kind: "hint" as const,
+				key: `personas.${p.name}.ai.provider`,
+				currentValue:
+					providerInfo?.displayName ??
+					availableProviders.find((pr) => pr.id === providerId)?.displayName ??
+					providerId,
+			},
+			{
+				label: "AI Model",
+				kind: "hint" as const,
+				key: `personas.${p.name}.ai.model`,
+				currentValue: modelValue,
+			},
+		];
+
+		const labelPrefix = currentDefault === p.name ? "★ " : "";
+
 		return {
-			label: p.name,
+			label: `${labelPrefix}${p.name}`,
 			kind: "section" as const,
 			key: `personas.${p.name}`,
 			children: [
 				{
 					label: "Name",
-					kind: "value" as const,
+					kind: isBuiltIn ? ("hint" as const) : ("value" as const),
 					key: `personas.${p.name}.name`,
 					currentValue: p.name,
 				},
 				{
 					label: "Instructions",
-					kind: "value" as const,
+					kind: isBuiltIn ? ("hint" as const) : ("value" as const),
 					key: `personas.${p.name}.instructions`,
-					currentValue: p.instructions,
+					currentValue: isBuiltIn
+						? truncateSkillPreview(
+								p.instructions.trim(),
+								MAX_PERSONA_INSTRUCTION_PREVIEW,
+							)
+						: p.instructions,
 					multiline: true,
 				},
 				{
 					label: "Prompt Mode",
-					kind: "select" as const,
+					kind: isBuiltIn ? ("hint" as const) : ("select" as const),
 					key: `personas.${p.name}.promptMode`,
 					options: ["add", "replace"],
 					currentValue: p.promptMode,
 				},
-				...aiModelItems,
+				...(isBuiltIn ? readOnlyAiItems : aiModelItems),
 				{
 					label:
 						currentDefault === p.name ? "★ Default persona" : "Set as default",
 					kind: "action" as const,
 					key: `personas.${p.name}._setDefault`,
 				},
-				{
-					label: "Delete this persona",
-					kind: "delete" as const,
-					key: `personas.${p.name}._delete`,
-				},
+				...(isBuiltIn
+					? []
+					: [
+							{
+								label: "Delete persona",
+								kind: "delete" as const,
+								key: `personas.${p.name}._delete`,
+							},
+						]),
 			],
 		};
 	});
@@ -235,7 +307,7 @@ export function buildSettingsTree(
 	const personaOptions = ["(default)", ...personas.map((p) => p.name)];
 
 	const chatInboundSection: SettingsItem = {
-		label: "Daemon / inbound chat",
+		label: "Chat",
 		kind: "section",
 		key: "chatInbound",
 		children: [
@@ -264,6 +336,287 @@ export function buildSettingsTree(
 				options: personaOptions,
 				currentValue: values["chatInbound.persona"] ?? "(default)",
 			},
+		],
+	};
+
+	const skillSections: SettingsItem[] = loadLocalSkills().map((skill) => ({
+		label: skill.name,
+		kind: "section" as const,
+		key: `skills.${skill.dirName}`,
+		children: [
+			{
+				label: "Name",
+				kind: "value" as const,
+				key: `skills.${skill.dirName}.name`,
+				currentValue: skill.name,
+			},
+			{
+				label: "Description",
+				kind: "value" as const,
+				key: `skills.${skill.dirName}.description`,
+				currentValue: skill.description,
+				multiline: true,
+			},
+			{
+				label: "Summary",
+				kind: "value" as const,
+				key: `skills.${skill.dirName}.summary`,
+				currentValue: skill.summary,
+				multiline: true,
+			},
+			{
+				label: "Path",
+				kind: "hint" as const,
+				key: `skills.${skill.dirName}._file`,
+				currentValue: `${getSkillsDir()}/${skill.dirName}/SKILL.md`,
+			},
+			...(skill.bodyMarkdown.trim()
+				? [
+						{
+							label: "Excerpt",
+							kind: "hint" as const,
+							key: `skills.${skill.dirName}._preview`,
+							currentValue: truncateSkillPreview(
+								skill.bodyMarkdown,
+								MAX_SKILL_BODY_PREVIEW,
+							),
+							multiline: true,
+						},
+					]
+				: []),
+			{
+				label: "Edit in editor",
+				kind: "action" as const,
+				key: `skills.${skill.dirName}._edit`,
+			},
+			{
+				label: "Delete skill",
+				kind: "delete" as const,
+				key: `skills.${skill.dirName}._delete`,
+			},
+		],
+	}));
+
+	const skillsSection: SettingsItem = {
+		label: "Skills",
+		kind: "section",
+		key: "skills",
+		children:
+			skillSections.length > 0
+				? skillSections
+				: [
+						{
+							label: `No skills found. Add skills to ${getSkillsDir()}`,
+							kind: "hint",
+							key: "skills._empty",
+						},
+					],
+	};
+
+	const recordingSections: SettingsItem[] = listListenRecordings(
+		listenRecordingsDir,
+	).map((recording) => ({
+		label: listenRecordingTreeLabel(
+			recording.metadata.startedAt,
+			recording.metadata.createdAt,
+			recording.metadata.name,
+			recording.id,
+		),
+		kind: "section" as const,
+		key: `listen.recordings.${recording.id}`,
+		children: [
+			{
+				label: "Name",
+				kind: "value" as const,
+				key: `listen.recordings.${recording.id}.name`,
+				currentValue: recording.metadata.name ?? "",
+			},
+			{
+				label: "Description",
+				kind: "value" as const,
+				key: `listen.recordings.${recording.id}.description`,
+				currentValue: recording.metadata.description ?? "",
+				multiline: true,
+			},
+			{
+				label: "Location",
+				kind: "hint" as const,
+				key: `listen.recordings.${recording.id}._location`,
+				currentValue: recording.dir,
+			},
+			{
+				label: "Duration",
+				kind: "hint" as const,
+				key: `listen.recordings.${recording.id}._duration`,
+				currentValue:
+					formatListenDuration(recording.metadata.durationMs) || "N/A",
+			},
+			{
+				label: "Date",
+				kind: "hint" as const,
+				key: `listen.recordings.${recording.id}._date`,
+				currentValue: formatListenRecordingDate(
+					recording.metadata.startedAt || recording.metadata.createdAt,
+				),
+			},
+			{
+				label: "Sources",
+				kind: "hint" as const,
+				key: `listen.recordings.${recording.id}._sources`,
+				currentValue: formatListenSources(recording.metadata.sources),
+			},
+			{
+				label: "Open folder in Finder",
+				kind: "action" as const,
+				key: `listen.recordings.${recording.id}._open`,
+			},
+			{
+				label: "Delete recording",
+				kind: "delete" as const,
+				key: `listen.recordings.${recording.id}._delete`,
+			},
+		],
+	}));
+
+	const listenSection: SettingsItem = {
+		label: "Listen",
+		kind: "section",
+		key: "listen",
+		children: [
+			{
+				label: "Start new recording",
+				kind: "action",
+				key: "listen._start",
+			},
+			...(recordingSections.length > 0
+				? recordingSections
+				: [
+						{
+							label: "No recordings yet.",
+							kind: "hint" as const,
+							key: "listen._empty",
+						},
+					]),
+		],
+	};
+
+	let schedules = [] as ReturnType<typeof listSchedules>;
+	try {
+		schedules = listSchedules();
+	} catch {
+		schedules = [];
+	}
+	const daemonRunning = isDaemonRunning().running;
+	const activeScheduleCount = schedules.filter((s) => s.enabled).length;
+	const scheduleSections: SettingsItem[] = schedules.map((schedule) => {
+		let runs: ReturnType<typeof listScheduleRuns> = [];
+		try {
+			runs = listScheduleRuns(schedule.id, 3);
+		} catch {
+			runs = [];
+		}
+		const runItems: SettingsItem[] = runs.map((run) => ({
+			label: `${new Date(run.startedAt).toLocaleString()} · ${run.status.toUpperCase()}`,
+			kind: "action" as const,
+			key: `schedules.${schedule.id}.runs.${run.id}`,
+		}));
+
+		return {
+			label: `${schedule.name}${schedule.enabled ? "" : " (off)"}`,
+			kind: "section" as const,
+			key: `schedules.${schedule.id}`,
+			children: [
+				{
+					label: "Name",
+					kind: "value" as const,
+					key: `schedules.${schedule.id}.name`,
+					currentValue: schedule.name,
+				},
+				{
+					label: "Prompt",
+					kind: "value" as const,
+					key: `schedules.${schedule.id}.prompt`,
+					currentValue: schedule.prompt,
+					multiline: true,
+				},
+				{
+					label: "Persona",
+					kind: "select" as const,
+					key: `schedules.${schedule.id}.persona`,
+					options: personas.map((p) => p.name),
+					currentValue: schedule.personaName,
+				},
+				{
+					label: "Schedule",
+					kind: "value" as const,
+					key: `schedules.${schedule.id}.cron`,
+					currentValue: `${schedule.cronExpression} (${cronToHuman(schedule.cronExpression)})`,
+				},
+				{
+					label: "Enabled",
+					kind: "select" as const,
+					key: `schedules.${schedule.id}.enabled`,
+					options: ["Yes", "No"],
+					currentValue: schedule.enabled ? "Yes" : "No",
+					selectChoices: [
+						{ value: "Yes", label: "On" },
+						{ value: "No", label: "Off" },
+					],
+				},
+				{
+					label: "Last run",
+					kind: "hint" as const,
+					key: `schedules.${schedule.id}._lastRun`,
+					currentValue: schedule.lastRunAt
+						? new Date(schedule.lastRunAt).toLocaleString()
+						: "Never",
+				},
+				...(runs.length > 0
+					? [
+							{
+								label: "Recent runs",
+								kind: "hint" as const,
+								key: `schedules.${schedule.id}._runsHeader`,
+								currentValue: "",
+							},
+							...runItems,
+						]
+					: []),
+				{
+					label: "Run now",
+					kind: "action" as const,
+					key: `schedules.${schedule.id}._run`,
+				},
+				{
+					label: "Delete schedule",
+					kind: "delete" as const,
+					key: `schedules.${schedule.id}._delete`,
+				},
+			],
+		};
+	});
+
+	const schedulesSection: SettingsItem = {
+		label: `Schedules${daemonRunning ? "" : " (daemon off)"}${
+			activeScheduleCount > 0 ? ` · ${activeScheduleCount} active` : ""
+		}`,
+		kind: "section",
+		key: "schedules",
+		children: [
+			{
+				label: "Create schedule",
+				kind: "action",
+				key: "schedules._new",
+			},
+			...(scheduleSections.length > 0
+				? scheduleSections
+				: [
+						{
+							label: "No schedules yet.",
+							kind: "hint" as const,
+							key: "schedules._empty",
+						},
+					]),
 		],
 	};
 
@@ -324,13 +677,16 @@ export function buildSettingsTree(
 				key: "personas",
 				children: [
 					{
-						label: "New Persona",
+						label: "Add Persona",
 						kind: "action",
 						key: "personas._new",
 					},
 					...personaItems,
 				],
 			},
+			skillsSection,
+			listenSection,
+			schedulesSection,
 		],
 	};
 }

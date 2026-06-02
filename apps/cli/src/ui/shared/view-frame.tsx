@@ -11,6 +11,8 @@ export interface ViewFrameProps {
 	readonly children: React.ReactNode;
 	readonly footer?: React.ReactNode;
 	readonly subheader?: React.ReactNode;
+	/** When set, replaces the footer (e.g. a confirmation overlay). */
+	readonly overlay?: React.ReactNode;
 }
 
 /**
@@ -44,6 +46,7 @@ export function ViewFrame({
 	children,
 	footer,
 	subheader,
+	overlay,
 }: ViewFrameProps) {
 	const { termCols, frameHeight } = useTerminalLayout();
 
@@ -55,23 +58,20 @@ export function ViewFrame({
 			height={frameHeight}
 		>
 			<ViewHeader title={title} />
-			{subheader ? (
-				<Box marginTop={1} justifyContent="center">
-					{subheader}
-				</Box>
-			) : null}
+			{subheader ? <Box justifyContent="center">{subheader}</Box> : null}
 			<Box
-				marginTop={1}
 				borderStyle="single"
 				borderColor={INPUT_BORDER}
 				flexDirection="column"
 			>
 				{children}
 			</Box>
-			{footer ? (
-				<Box marginTop={1} paddingX={1}>
-					{footer}
+			{overlay ? (
+				<Box flexShrink={0} marginTop={1}>
+					{overlay}
 				</Box>
+			) : footer ? (
+				<Box paddingX={1}>{footer}</Box>
 			) : null}
 		</Box>
 	);

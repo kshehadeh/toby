@@ -91,9 +91,7 @@ import {
 	createConfigureSession,
 	refreshConfigureSessionTree,
 } from "../configure/session";
-import { SchedulesApp } from "../schedules/App";
 import { SelectableTextRow, ViewModal } from "../shared";
-import { SkillsApp } from "../skills/App";
 import { applyChatEvent } from "./chat-event-reducer";
 import { AppHeader } from "./components/app-header";
 import { AskUserModal } from "./components/ask-user-modal";
@@ -276,8 +274,6 @@ export function ChatSessionApp({
 		status: "idle",
 	});
 	const [showConfig, setShowConfig] = useState(false);
-	const [showSkills, setShowSkills] = useState(false);
-	const [showSchedules, setShowSchedules] = useState(false);
 	const [daemonRunning, setDaemonRunning] = useState(
 		() => isDaemonRunning().running,
 	);
@@ -1494,10 +1490,18 @@ export function ChatSessionApp({
 							setShowConfig(true);
 						},
 						openSkills: () => {
-							setShowSkills(true);
+							setConfigureSession(createConfigureSession());
+							setConfigureInitialPath(["root", "skills"]);
+							setConfigureEditorItemKey(undefined);
+							setConfigureMountKey((k) => k + 1);
+							setShowConfig(true);
 						},
 						openSchedules: () => {
-							setShowSchedules(true);
+							setConfigureSession(createConfigureSession());
+							setConfigureInitialPath(["root", "schedules"]);
+							setConfigureEditorItemKey(undefined);
+							setConfigureMountKey((k) => k + 1);
+							setShowConfig(true);
 						},
 						openPersonaPicker: () => {
 							openPersonaPickerModal();
@@ -2071,7 +2075,7 @@ export function ChatSessionApp({
 				}
 				return;
 			}
-			if (showConfig || showSkills || showSchedules) {
+			if (showConfig) {
 				return;
 			}
 
@@ -2121,8 +2125,6 @@ export function ChatSessionApp({
 			loadSessionIntoMemory,
 			openPersonaEditorAtPath,
 			showConfig,
-			showSkills,
-			showSchedules,
 		],
 	);
 
@@ -2233,34 +2235,6 @@ export function ChatSessionApp({
 		);
 	}
 
-	if (showSkills) {
-		return (
-			<SkillsApp
-				onQuitRequested={() => {
-					setShowSkills(false);
-					setTranscript((t) => [
-						...t,
-						{ kind: "meta", text: "Skills view closed." },
-					]);
-				}}
-			/>
-		);
-	}
-
-	if (showSchedules) {
-		return (
-			<SchedulesApp
-				onQuitRequested={() => {
-					setShowSchedules(false);
-					setTranscript((t) => [
-						...t,
-						{ kind: "meta", text: "Schedules view closed." },
-					]);
-				}}
-			/>
-		);
-	}
-
 	const displayRows = allDisplayRows;
 
 	const inputDisabled =
@@ -2269,9 +2243,7 @@ export function ChatSessionApp({
 		Boolean(sessionPicker) ||
 		Boolean(personaPicker) ||
 		messages === null ||
-		showConfig ||
-		showSkills ||
-		showSchedules;
+		showConfig;
 	const modelLabel = formatPersonaAiLabel(activePersona);
 
 	const activityText =
