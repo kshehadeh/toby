@@ -98,12 +98,12 @@ import { AskUserModal } from "./components/ask-user-modal";
 import { ChatHelpScreen } from "./components/chat-help-screen";
 import { ChatInputDock } from "./components/chat-input-dock";
 import { ChatKeyboardShortcutsScreen } from "./components/chat-keyboard-shortcuts-screen";
+import { ChatTranscriptPanel } from "./components/chat-transcript-panel";
 import {
 	IntegrationMultiPickerModal,
 	buildIntegrationPickerRows,
 } from "./components/integration-multi-picker-modal";
 import { PlanStatusBar } from "./components/plan-status-bar";
-import { buildTranscriptNodes } from "./components/transcript";
 import {
 	collectModulesForConnectionProbe,
 	runConnectionProbes,
@@ -359,7 +359,6 @@ export function ChatSessionApp({
 			termCols,
 			streamingAssistantHeader,
 			debug,
-			activityGlyphFrame,
 		);
 	}, [
 		messages,
@@ -369,8 +368,12 @@ export function ChatSessionApp({
 		loading,
 		termCols,
 		debug,
-		activityGlyphFrame,
 	]);
+
+	const hasUserPromptInSession = useMemo(
+		() => transcript.some((e) => e.kind === "user"),
+		[transcript],
+	);
 
 	const tip = useMemo(() => TIPS[Math.floor(Math.random() * TIPS.length)], []);
 
@@ -2235,8 +2238,6 @@ export function ChatSessionApp({
 		);
 	}
 
-	const displayRows = allDisplayRows;
-
 	const inputDisabled =
 		Boolean(askModal) ||
 		Boolean(multiPicker) ||
@@ -2256,7 +2257,6 @@ export function ChatSessionApp({
 		activityText.length > 0
 			? `${ACTIVITY_GLYPH_FRAMES[activityGlyphFrame] ?? "·"} ${activityText}`
 			: " ";
-	const hasUserPromptInSession = transcript.some((e) => e.kind === "user");
 	const suggestedPlaceholder =
 		sessionBootMode === "new" && !hasUserPromptInSession
 			? 'Try "What needs my attention today?"'
@@ -2290,9 +2290,11 @@ export function ChatSessionApp({
 					</Box>
 				}
 			/>
-			<Box flexDirection="column" marginTop={1} flexShrink={0}>
-				{buildTranscriptNodes(displayRows, termCols)}
-			</Box>
+			<ChatTranscriptPanel
+				rows={allDisplayRows}
+				termCols={termCols}
+				animFrame={activityGlyphFrame}
+			/>
 			<Box marginTop={1} width={termCols} flexShrink={0}>
 				<Text dimColor wrap="truncate-end">
 					{activityDisplay}

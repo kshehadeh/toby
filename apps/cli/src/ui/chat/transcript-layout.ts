@@ -10,7 +10,7 @@ import {
 	PIPELINE_STEP_GLYPH,
 } from "./tool-transcript-icons";
 import type { DisplayRow, TranscriptEntry } from "./types";
-import { formatTranscriptWorkingLine } from "./working-placeholder";
+import { WORKING_PLACEHOLDER_SENTINEL } from "./working-placeholder";
 
 /** Break a string into lines of at most `max` columns (prefer spaces). */
 function hardWrap(line: string, max: number): string[] {
@@ -103,20 +103,19 @@ function applyWorkingPlaceholderIfPending(
 	entry: Extract<TranscriptEntry, { kind: "boxed_step" }>,
 	bodyLines: readonly string[],
 	loading: boolean,
-	animFrame: number,
 ): readonly string[] {
 	if (!loading || !boxedStepHasPendingBody(entry)) {
 		return bodyLines;
 	}
 	if (bodyLinesLookEmpty(bodyLines)) {
-		return [formatTranscriptWorkingLine(animFrame)];
+		return [WORKING_PLACEHOLDER_SENTINEL];
 	}
 	if (
 		entry.variant === "tool" &&
 		entry.toolRuns !== undefined &&
 		entry.toolRuns.length > 0
 	) {
-		return [...bodyLines, formatTranscriptWorkingLine(animFrame)];
+		return [...bodyLines, WORKING_PLACEHOLDER_SENTINEL];
 	}
 	return bodyLines;
 }
@@ -272,7 +271,6 @@ export function flattenTranscript(
 	termCols: number,
 	streamingHeader = "Toby",
 	debug = false,
-	animFrame = 0,
 ): DisplayRow[] {
 	const userContentWidth = Math.max(8, termCols - 1);
 	const assistantW = assistantInnerTextWidth(termCols);
@@ -321,7 +319,6 @@ export function flattenTranscript(
 				e,
 				capBodyLines(bodyLines, e.variant),
 				loading,
-				animFrame,
 			);
 			rows.push({
 				kind: "boxed_block",
@@ -395,7 +392,7 @@ export function flattenTranscript(
 				rows.push({
 					kind: "tool_feedback_output",
 					blockKey: e.blockKey,
-					detail: formatTranscriptWorkingLine(animFrame),
+					detail: WORKING_PLACEHOLDER_SENTINEL,
 				});
 			}
 			const skipGapBeforePairedOutput = hasOutput;

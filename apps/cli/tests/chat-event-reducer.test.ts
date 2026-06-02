@@ -10,6 +10,7 @@ import {
 } from "../src/ui/chat/chat-event-reducer";
 import { flattenTranscript } from "../src/ui/chat/transcript-layout";
 import type { TranscriptEntry } from "../src/ui/chat/types";
+import { WORKING_PLACEHOLDER_SENTINEL } from "../src/ui/chat/working-placeholder";
 
 describe("applyChatEvent", () => {
 	it("prep_start then prep_end updates the same boxed row", () => {
@@ -301,9 +302,11 @@ describe("flattenTranscript boxed_step", () => {
 				toolName: "getInboxUnreadOverview",
 			},
 		];
-		const rows = flattenTranscript(entries, "", true, 80, "Toby", false, 2);
+		const rows = flattenTranscript(entries, "", true, 80, "Toby", false);
 		const bb = rows.find((r) => r.kind === "boxed_block");
-		expect(bb?.kind === "boxed_block" && bb.bodyLines).toEqual(["● Working…"]);
+		expect(bb?.kind === "boxed_block" && bb.bodyLines).toEqual([
+			WORKING_PLACEHOLDER_SENTINEL,
+		]);
 	});
 
 	it("does not show Working placeholder when not loading", () => {
