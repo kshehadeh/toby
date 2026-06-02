@@ -139,38 +139,22 @@ const applecalendarLifecycle = {
 };
 
 function getCredentialDescriptors(): CredentialFieldDescriptor[] {
-	return [
-		{
-			key: "applecalendar.info",
-			label: "Notes (optional)",
-			multiline: true,
-			masked: false,
-		},
-	];
+	return [];
 }
 
-function seedCredentialValues(creds: CredentialsFile): Record<string, string> {
-	const note =
-		creds.integrations?.applecalendar?.info?.trim() ||
-		"No API keys required — uses Calendar.app on this Mac via automation.";
-	return { "applecalendar.info": note };
+function seedCredentialValues(_creds: CredentialsFile): Record<string, string> {
+	return {};
 }
 
 function mergeCredentialsPatch(
-	values: Record<string, string>,
+	_values: Record<string, string>,
 	previous: CredentialsFile,
 ): Partial<CredentialsFile> {
-	const info =
-		values["applecalendar.info"] ??
-		previous.integrations?.applecalendar?.info ??
-		seedCredentialValues(previous)["applecalendar.info"] ??
-		"";
 	return {
 		integrations: {
 			...(previous.integrations ?? {}),
 			applecalendar: {
 				...(previous.integrations?.applecalendar ?? {}),
-				info,
 			},
 		},
 	};
@@ -261,6 +245,8 @@ export const applecalendarIntegrationModule: IntegrationModule = {
 	capabilities: ["chat"],
 	providerCategories: ["calendar"],
 	resources: ["calendars", "events"],
+	configureHint:
+		"No configuration options — uses Calendar.app on this Mac via automation.",
 	chatReadiness: async () => {
 		if (!isAppleCalendarPlatformSupported()) {
 			return {

@@ -33,13 +33,9 @@ describe("Apple Calendar integration registration", () => {
 		expect(calendarMods.some((m) => m.name === "applecalendar")).toBe(true);
 	});
 
-	it("exposes credential descriptors", () => {
+	it("has no credential descriptors (configure shows a hint instead)", () => {
 		const mod = getIntegrationModule("applecalendar");
-		const descriptors = mod?.getCredentialDescriptors();
-		expect(descriptors.length).toBeGreaterThan(0);
-		for (const d of descriptors) {
-			expect(d.key).toMatch(/^applecalendar\./);
-		}
+		expect(mod?.getCredentialDescriptors()).toEqual([]);
 	});
 
 	it("chat-capable module defines chat()", () => {

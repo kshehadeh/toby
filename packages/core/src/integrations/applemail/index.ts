@@ -148,38 +148,22 @@ const applemailLifecycle = {
 };
 
 function getCredentialDescriptors(): CredentialFieldDescriptor[] {
-	return [
-		{
-			key: "applemail.info",
-			label: "Notes (optional)",
-			multiline: true,
-			masked: false,
-		},
-	];
+	return [];
 }
 
-function seedCredentialValues(creds: CredentialsFile): Record<string, string> {
-	const note =
-		creds.integrations?.applemail?.info?.trim() ||
-		"No API keys required — uses Mail.app on this Mac via automation.";
-	return { "applemail.info": note };
+function seedCredentialValues(_creds: CredentialsFile): Record<string, string> {
+	return {};
 }
 
 function mergeCredentialsPatch(
-	values: Record<string, string>,
+	_values: Record<string, string>,
 	previous: CredentialsFile,
 ): Partial<CredentialsFile> {
-	const info =
-		values["applemail.info"] ??
-		previous.integrations?.applemail?.info ??
-		seedCredentialValues(previous)["applemail.info"] ??
-		"";
 	return {
 		integrations: {
 			...(previous.integrations ?? {}),
 			applemail: {
 				...(previous.integrations?.applemail ?? {}),
-				info,
 			},
 		},
 	};
@@ -272,6 +256,8 @@ export const applemailIntegrationModule: IntegrationModule = {
 	capabilities: ["chat"],
 	providerCategories: ["email"],
 	resources: ["inbox", "drafts", "messages"],
+	configureHint:
+		"No configuration options — uses Mail.app on this Mac via automation.",
 	chatReadiness: async () => {
 		if (!isAppleMailPlatformSupported()) {
 			return {

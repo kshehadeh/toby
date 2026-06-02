@@ -133,6 +133,11 @@ export interface IntegrationModule extends Integration {
 	readonly providerCategories?: ReadonlyArray<ProviderCategory>;
 	/** Optional auth methods supported by this integration. */
 	readonly authMethods?: ReadonlyArray<IntegrationAuthMethodDescriptor>;
+	/**
+	 * Shown in Configure when the integration has no editable settings (e.g.
+	 * local-only integrations with no API keys).
+	 */
+	readonly configureHint?: string;
 	/** Optional high-level resources this integration surfaces (for discovery UI). */
 	readonly resources?: ReadonlyArray<string>;
 	/** Model-prep for the Ink TUI chat flow (replaces hardcoded integration checks). */

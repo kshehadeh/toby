@@ -273,6 +273,8 @@ export const macosIntegrationModule: IntegrationModule = {
 		"display",
 		"clipboard",
 	],
+	configureHint:
+		"No configuration options — uses local macOS system APIs after connect.",
 	chatReadiness: async () => {
 		if (!isMacOSIntegrationSupported()) {
 			return { ok: false, hint: "macOS integration runs only on macOS hosts." };
