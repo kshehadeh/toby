@@ -249,7 +249,7 @@ export function createReflectTools(
 						folder: s.dirName,
 					})),
 					createSkillHint:
-						"Use createLocalSkill to draft a new SKILL.md, or pass updateExisting=true with preferredFolderName to revise an existing ~/.toby/skills/<folder>/SKILL.md.",
+						"When the user explicitly asks to create or update a skill, use createLocalSkill (or pass updateExisting=true with preferredFolderName to revise ~/.toby/skills/<folder>/SKILL.md).",
 				};
 			},
 		}),
@@ -303,7 +303,7 @@ function createGlobalToolsPreview(): { name: string; description: string }[] {
 		{
 			name: "createLocalSkill",
 			description:
-				"Create or update a Toby skill: drafts a SKILL.md from a description and saves it under ~/.toby/skills/.",
+				"Create or update a Toby skill when explicitly requested: drafts a SKILL.md and saves it under ~/.toby/skills/.",
 		},
 		{
 			name: "memorySearch",

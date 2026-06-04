@@ -57,6 +57,7 @@ export type UserIntentSpec = z.infer<typeof userIntentSpecSchema>;
 const PREP_SYSTEM = `You extract a compact intent specification from a user message for a CLI assistant (Toby) that may use multiple integration tools.
 You may also select relevant **local skills** when the catalog lists skills whose descriptions clearly match the user's request; otherwise leave relevantSkills empty.
 You must also select **relevant tools** from the provided tool catalog — choose only the tools whose capabilities are clearly needed for the user's request. Do not include tools "just in case"; be selective to reduce context size.
+Include **createLocalSkill** only when the user explicitly asks to create, draft, or update a Toby skill file under ~/.toby/skills — never for general tasks, memories, or capturing conversation context.
 Return only structured fields that match the schema. Be conservative: if unsure, put detail in openQuestions rather than assumptions.
 Do not invent email addresses, task IDs, or dates that are not in the user message.
 For relevantSkills and relevantTools, use only exact names from the catalogs (no invented names).`;

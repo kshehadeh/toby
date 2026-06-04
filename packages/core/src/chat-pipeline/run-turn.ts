@@ -22,7 +22,6 @@ const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"askUser",
 	"getCurrentDateTime",
 	"loadLocalSkillInstructions",
-	"createLocalSkill",
 	"memorySearch",
 	"memoryPropose",
 	"memorySave",
@@ -39,6 +38,14 @@ const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"webSearch",
 ]);
 
+/**
+ * Tools omitted from the default set unless pretreatment (or the user) explicitly
+ * selects them — analogous to Cursor skills with `disable-model-invocation: true`.
+ */
+const EXPLICIT_REQUEST_ONLY_TOOLS: ReadonlySet<string> = new Set([
+	"createLocalSkill",
+]);
+
 type ChatTurnOptions = {
 	readonly persona: Persona;
 	readonly dryRun: boolean;
@@ -47,8 +54,9 @@ type ChatTurnOptions = {
 	readonly chatWithToolsOptions?: ChatWithToolsOptions;
 	/**
 	 * Tool names selected by pretreatment as relevant for this turn.
-	 * When non-empty, only these tools (plus ALWAYS_INCLUDED_TOOLS)
-	 * are exposed to the model. When empty/undefined, all tools pass through.
+	 * When defined, only these tools (plus ALWAYS_INCLUDED_TOOLS) are exposed,
+	 * except EXPLICIT_REQUEST_ONLY_TOOLS which require an explicit selection.
+	 * When undefined (pretreatment skipped), all tools pass through.
 	 */
 	readonly relevantTools?: readonly string[];
 };
@@ -194,30 +202,39 @@ export async function buildToolsCatalogForPretreatment(
 
 /**
  * Filter merged tools to only include relevant + always-included tools.
- * Returns all tools when relevantTools is empty/undefined (no regression).
+ * When pretreatment did not run (`relevantTools` undefined), all tools pass through.
+ * When pretreatment ran with an empty tool list, only always-included tools remain
+ * (plus any explicit-request-only tools are still excluded).
  */
 export function filterToolNamesByRelevance(
 	allToolNames: readonly string[],
 	relevantTools: readonly string[] | undefined,
 ): string[] {
-	if (!relevantTools || relevantTools.length === 0) {
+	if (relevantTools === undefined) {
 		return [...allToolNames];
+	}
+	if (relevantTools.length === 0) {
+		return allToolNames.filter((name) => !EXPLICIT_REQUEST_ONLY_TOOLS.has(name));
 	}
 	const relevantLower = new Set(
 		relevantTools.map((n) => n.trim().toLowerCase()),
 	);
-	return allToolNames.filter(
-		(name) =>
+	return allToolNames.filter((name) => {
+		if (EXPLICIT_REQUEST_ONLY_TOOLS.has(name)) {
+			return relevantLower.has(name.trim().toLowerCase());
+		}
+		return (
 			ALWAYS_INCLUDED_TOOLS.has(name) ||
-			relevantLower.has(name.trim().toLowerCase()),
-	);
+			relevantLower.has(name.trim().toLowerCase())
+		);
+	});
 }
 
 function filterToolsByRelevance(
 	tools: Record<string, Tool>,
 	relevantTools: readonly string[] | undefined,
 ): Record<string, Tool> {
-	if (!relevantTools || relevantTools.length === 0) {
+	if (relevantTools === undefined) {
 		return tools;
 	}
 	const allowed = new Set(

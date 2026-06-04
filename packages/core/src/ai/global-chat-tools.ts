@@ -77,7 +77,6 @@ Web search and fetch rules:
 		: "";
 	return `
 Global Toby tools (always available in addition to integration tools):
-- **createLocalSkill**: Draft a SKILL.md from your written description and save it under ~/.toby/skills/<folder>/SKILL.md. Required: \`description\`. Optional: \`preferredFolderName\` (kebab-case). Optional: \`updateExisting\` (boolean, default false). If the folder name is omitted, the drafting step recommends one; if that folder already exists and no preferred name was given, a numeric suffix is used. If \`updateExisting\` is true with a matching folder, the existing SKILL.md is revised in place; otherwise existing skills are not overwritten.
 - **loadLocalSkillInstructions**: Load full SKILL.md instruction bodies for one or more local skills by exact name.
 - **memorySearch**: Search the user's stored personal memories (preferences, relationships, projects, facts, etc.).
 - **memoryPropose**: Propose saving a new memory. High-confidence normal preferences are auto-saved; sensitive or low-confidence items stay pending until confirmed with **memorySave**.
@@ -104,6 +103,10 @@ Local skill routing:
 - First, use the descriptions below to decide if a local skill is relevant.
 - If relevant, call **loadLocalSkillInstructions** with exact skill names before finalizing the answer.
 - Only load skills that are clearly applicable; do not load unrelated skills "just in case".
+
+Create or update a skill (explicit request only):
+- **createLocalSkill** is available only when the user explicitly asks to create, draft, or update a Toby skill (or when pretreatment selected it for that request). Do not use it to capture general conversation, memories, or one-off instructions.
+- Required: \`description\`. Optional: \`preferredFolderName\` (kebab-case). Optional: \`updateExisting\` (boolean, default false).
 
 Available local skills (name + description):
 ${skillsCatalog}
@@ -252,7 +255,7 @@ export function createGlobalChatTools(
 		}),
 		createLocalSkill: tool({
 			description:
-				"Create or update a Toby skill: drafts a SKILL.md (frontmatter + body) from a description and saves it under ~/.toby/skills/<folder>/SKILL.md. Use updateExisting=true to revise an existing skill in place.",
+				"Create or update a Toby skill: drafts a SKILL.md (frontmatter + body) from a description and saves it under ~/.toby/skills/<folder>/SKILL.md. Only call when the user explicitly asks to create, draft, or update a local skill — not for general notes, memories, or workflow capture unless they asked for a skill file. Use updateExisting=true to revise an existing skill in place.",
 			inputSchema: z.object({
 				description: z
 					.string()
