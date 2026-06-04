@@ -46,7 +46,7 @@ Each [persona](../personas) can use its own AI provider and model. The built-in 
 
 For recommended models per provider, see [OpenAI (direct)](../ai-providers/openai#recommended-models) and [Vercel AI Gateway](../ai-providers/vercel-ai-gateway#recommended-models).
 
-Pretreatment, planning, and other auxiliary LLM calls follow the **active persona’s provider** (or your default persona when no session persona applies). Override the auxiliary model with `TOBY_PRETREAT_MODEL` (bare id for OpenAI, or a full gateway slug such as `openai/gpt-4.1-mini`).
+Pretreatment follows the **active persona’s provider** (or your default persona when no session persona applies). Default pretreatment models are `gpt-4.1-nano` (OpenAI) or `openai/gpt-4.1-nano` (gateway). Override with `TOBY_PRETREAT_MODEL`. Planning uses its own model (`gpt-4.1-mini`). Set `TOBY_PRETREAT_DELTA=0` to disable follow-up delta pretreatment.
 
 ## Back up your configuration
 

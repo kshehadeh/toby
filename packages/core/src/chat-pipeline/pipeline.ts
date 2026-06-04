@@ -1,7 +1,9 @@
 import type { LanguageModelUsage, ProviderMetadata } from "ai";
 import type { AskUserHandler } from "../ai/ask-user-tool";
 import type { ChatWithToolsOptions, CoreMessage } from "../ai/chat";
-import type { UserIntentSpec } from "../ai/pretreatment";
+import type { PriorPretreatment, UserIntentSpec } from "../ai/pretreatment";
+
+export type { PriorPretreatment };
 import type { Persona } from "../config/index";
 import type { IntegrationModule } from "../integrations/types";
 import type { LocalSkill } from "../skills/index";
@@ -26,6 +28,8 @@ export type TurnRequest = {
 	readonly rawUserText: string;
 	readonly priorMessages: readonly CoreMessage[];
 	readonly isFirstTurn: boolean;
+	/** Previous turn verbatim prompt + spec for follow-up reuse / delta pretreatment. */
+	readonly priorPretreatment?: PriorPretreatment;
 };
 
 export type InitedTurn = TurnRequest & {

@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { appendMessageBatch } from "../../session-store";
+import {
+	appendMessageBatch,
+	setSessionLastPretreatment,
+} from "../../session-store";
 import type {
 	CommittedTurn,
 	PipelineNode,
@@ -35,6 +38,12 @@ export const persistTurnNode: PipelineNode<RanTurn, CommittedTurn> = {
 				startIdx,
 				messagesAfterTurn.slice(startIdx),
 			);
+			if (input.spec) {
+				setSessionLastPretreatment(sessionId, {
+					rawUserText: input.rawUserText,
+					spec: input.spec,
+				});
+			}
 		}
 
 		return {

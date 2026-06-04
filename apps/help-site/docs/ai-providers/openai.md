@@ -38,7 +38,8 @@ These models are built into Toby’s configure picker and work well for everyday
 | Model | Role |
 | ----- | ---- |
 | `gpt-5-mini` | **Default for the built-in Toby persona.** Strong balance of quality, speed, and cost for chat, summarization, and organization. |
-| `gpt-4.1-mini` | Reliable fallback; also the default **auxiliary** model for pretreatment and planning when you use OpenAI direct. |
+| `gpt-4.1-mini` | Reliable fallback for planning and other auxiliary calls. |
+| `gpt-4.1-nano` | Default **pretreatment** model when using OpenAI direct (fast classification). |
 
 ### Faster or lower cost
 
@@ -68,7 +69,8 @@ Toby sends a stable OpenAI `promptCacheKey` on chat turns so repeated system pro
 
 | Variable | Purpose |
 | -------- | ------- |
-| `TOBY_PRETREAT_MODEL` | Override the auxiliary model (bare OpenAI id, e.g. `gpt-4.1-mini`) |
+| `TOBY_PRETREAT_MODEL` | Override the pretreatment model (bare OpenAI id, e.g. `gpt-4.1-nano`) |
+| `TOBY_PRETREAT_DELTA` | Set to `0` to disable follow-up delta pretreatment (default: enabled) |
 
 OpenAI credentials are **not** read from `OPENAI_API_KEY` by Toby today—use configure or `~/.toby/credentials.json` via backup/restore.
 

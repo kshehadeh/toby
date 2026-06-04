@@ -22,7 +22,12 @@ import {
 	resolveAuxiliaryModelId,
 } from "./model-factory";
 
-const PRETREATMENT_CACHE_SCHEMA_VERSION = "4";
+const PRETREATMENT_CACHE_SCHEMA_VERSION = "5";
+
+export type PriorPretreatment = {
+	readonly rawUserText: string;
+	readonly spec: UserIntentSpec;
+};
 
 const userIntentSpecSchema = z.object({
 	goal: z.string().describe("One sentence: what the user wants to achieve"),
@@ -54,13 +59,58 @@ const userIntentSpecSchema = z.object({
 
 export type UserIntentSpec = z.infer<typeof userIntentSpecSchema>;
 
-const PREP_SYSTEM = `You extract a compact intent specification from a user message for a CLI assistant (Toby) that may use multiple integration tools.
-You may also select relevant **local skills** when the catalog lists skills whose descriptions clearly match the user's request; otherwise leave relevantSkills empty.
-You must also select **relevant tools** from the provided tool catalog — choose only the tools whose capabilities are clearly needed for the user's request. Do not include tools "just in case"; be selective to reduce context size.
-Include **createLocalSkill** only when the user explicitly asks to create, draft, or update a Toby skill file under ~/.toby/skills — never for general tasks, memories, or capturing conversation context.
-Return only structured fields that match the schema. Be conservative: if unsure, put detail in openQuestions rather than assumptions.
-Do not invent email addresses, task IDs, or dates that are not in the user message.
-For relevantSkills and relevantTools, use only exact names from the catalogs (no invented names).`;
+const PREP_SYSTEM = `You classify a user message for Toby (CLI assistant with integrations). Output structured fields only — no reasoning text, no chain-of-thought.
+Select **relevantSkills** and **relevantTools** only when clearly required; prefer empty lists over guessing. Use exact catalog names only.
+Include **createLocalSkill** only when the user explicitly asks to create or edit a skill under ~/.toby/skills.
+Be conservative: uncertain details go in openQuestions, not assumptions. Do not invent IDs, emails, or dates absent from the message.`;
+
+const PREP_DELTA_SYSTEM = `You decide whether a follow-up message continues the same task with the same tool/skill scope as the previous turn.
+Output structured fields only — no reasoning text. Set reusePriorSelection true when the new message is a continuation and prior skills/tools still apply.
+When reusePriorSelection is true, omit relevantSkills and relevantTools unless the follow-up clearly needs additions or removals.
+When reusePriorSelection is false, omit skill/tool lists (full pretreatment will run next).`;
+
+const pretreatmentDeltaSchema = z.object({
+	reusePriorSelection: z
+		.boolean()
+		.describe(
+			"True when the follow-up continues the same task and prior skill/tool selection need not change",
+		),
+	goal: z
+		.string()
+		.optional()
+		.describe(
+			"One-sentence updated goal when the follow-up shifts focus slightly",
+		),
+	relevantSkills: z
+		.array(z.string())
+		.optional()
+		.describe(
+			"Skill names to add or replace when scope changes; exact catalog names only",
+		),
+	relevantTools: z
+		.array(z.string())
+		.optional()
+		.describe("Tool names to add when scope changes; exact catalog names only"),
+});
+
+type PretreatmentDelta = z.infer<typeof pretreatmentDeltaSchema>;
+
+/** Short acknowledgements that can reuse prior skill/tool selection without an LLM call. */
+const TRIVIAL_FOLLOW_UP_RE =
+	/^(ok|okay|yes|yeah|yep|thanks|thank you|thx|continue|go ahead|sure|do it|please do|sounds good|got it|perfect|great|proceed|next)\.?$/i;
+
+/** Whether delta (follow-up) pretreatment is enabled. Disabled when `TOBY_PRETREAT_DELTA=0`. */
+export function isDeltaPretreatmentEnabled(): boolean {
+	return process.env.TOBY_PRETREAT_DELTA !== "0";
+}
+
+export function isTrivialFollowUp(userText: string): boolean {
+	const t = userText.trim();
+	if (t.length === 0 || t.length > 40) {
+		return false;
+	}
+	return TRIVIAL_FOLLOW_UP_RE.test(t);
+}
 
 function sha256Base64Url(input: string): string {
 	return crypto
@@ -127,13 +177,13 @@ export function isFirstTurnPretreatmentEnabled(): boolean {
 
 /**
  * Pretreatment runs on every non-empty prompt so each turn validates the
- * request and narrows the tool/skill set to what is relevant. The repeated
- * cost is mitigated by the local pretreatment cache (see
- * `wrapUserPromptWithPretreatment`). Set `TOBY_DISABLE_PRETREATMENT=1` to opt
+ * request and narrows the tool/skill set to what is relevant. Savings on
+ * follow-ups come from trivial reuse, delta pretreatment, and the SQLite cache
+ * (`wrapUserPromptWithPretreatment`). Set `TOBY_DISABLE_PRETREATMENT=1` to opt
  * out entirely.
  *
- * `messages` and `isFirstTurn` are retained for signature compatibility and to
- * support future, more selective gating.
+ * Returning false would skip pretreatment and expose all tools to the main
+ * model; follow-up optimizations reuse prior specs while still pretreating.
  */
 export function shouldPretreat(
 	_messages: readonly CoreMessage[] | null,
@@ -267,6 +317,82 @@ function applySkillDeclaredTools(
 	return { ...spec, relevantTools: merged };
 }
 
+function reusePriorPretreatmentSpec(
+	raw: string,
+	prior: UserIntentSpec,
+): UserIntentSpec {
+	const base = prior.goal.trim();
+	const goal = base
+		? `${base} (follow-up: ${raw})`
+		: `Continue prior task (follow-up: ${raw})`;
+	return { ...prior, goal };
+}
+
+function mergeDeltaIntoPriorSpec(
+	prior: UserIntentSpec,
+	delta: PretreatmentDelta,
+	allowedSkillNamesLower: ReadonlySet<string>,
+	allowedToolNamesLower: ReadonlySet<string>,
+): UserIntentSpec {
+	if (!delta.reusePriorSelection) {
+		return prior;
+	}
+	let spec: UserIntentSpec = { ...prior };
+	if (delta.goal?.trim()) {
+		spec = { ...spec, goal: delta.goal.trim() };
+	}
+	if (delta.relevantSkills && delta.relevantSkills.length > 0) {
+		spec = sanitizeRelevantSkills(
+			{ ...spec, relevantSkills: [...delta.relevantSkills] },
+			allowedSkillNamesLower,
+		);
+	}
+	if (delta.relevantTools && delta.relevantTools.length > 0) {
+		const seen = new Set(spec.relevantTools.map((t) => t.trim().toLowerCase()));
+		const merged = [...spec.relevantTools];
+		for (const name of delta.relevantTools) {
+			const lower = name.trim().toLowerCase();
+			if (!allowedToolNamesLower.has(lower) || seen.has(lower)) {
+				continue;
+			}
+			seen.add(lower);
+			merged.push(name);
+		}
+		spec = { ...spec, relevantTools: merged };
+	}
+	return spec;
+}
+
+function finalizePretreatmentResult(params: {
+	readonly raw: string;
+	readonly spec: UserIntentSpec | null;
+	readonly skills: readonly LocalSkill[];
+	readonly allowedSkillNamesLower: ReadonlySet<string>;
+	readonly allowedToolNamesLower: ReadonlySet<string>;
+	readonly toolIntegrationLabels: Readonly<Record<string, string>>;
+}): { readonly content: string; readonly spec: UserIntentSpec | null } {
+	const merged = mergeSkillHeuristicIntoSpec(
+		params.raw,
+		params.spec,
+		params.skills,
+		params.allowedSkillNamesLower,
+	);
+	const expanded = applySkillDeclaredTools(
+		merged,
+		params.skills,
+		params.allowedToolNamesLower,
+		params.toolIntegrationLabels,
+	);
+	return {
+		content: formatUserMessageWithPretreatment(
+			params.raw,
+			expanded,
+			params.skills,
+		),
+		spec: expanded,
+	};
+}
+
 /** Wrap verbatim user text plus optional structured spec for the main model. */
 export function formatUserMessageWithPretreatment(
 	verbatim: string,
@@ -326,8 +452,20 @@ type PretreatUserPromptParams = {
 	readonly allowedSkillNamesLower: ReadonlySet<string>;
 	readonly toolsCatalogText: string;
 	readonly allowedToolNamesLower: ReadonlySet<string>;
+	readonly isFirstTurn: boolean;
 	readonly abortSignal?: AbortSignal;
 	readonly timeoutMs?: number;
+};
+
+type PretreatDeltaParams = {
+	readonly prior: PriorPretreatment;
+	readonly userText: string;
+	readonly integrationLabels: string;
+	readonly skillsCatalogText: string;
+	readonly toolsCatalogText: string;
+	readonly abortSignal?: AbortSignal;
+	readonly timeoutMs?: number;
+	readonly persona?: Persona;
 };
 
 /**
@@ -340,7 +478,13 @@ async function pretreatUserPrompt(
 	const hasSkillsCatalog = params.skillsCatalogText !== "(none)";
 	const hasToolsCatalog = params.toolsCatalogText !== "(none)";
 	const timeoutMs =
-		params.timeoutMs ?? (hasSkillsCatalog || hasToolsCatalog ? 8000 : 4000);
+		params.timeoutMs ?? (hasSkillsCatalog || hasToolsCatalog ? 6000 : 4000);
+	const maxOutputTokens =
+		hasSkillsCatalog || hasToolsCatalog
+			? params.isFirstTurn
+				? 768
+				: 512
+			: 400;
 	const text = userText.trim();
 	if (!text) {
 		return null;
@@ -380,7 +524,7 @@ ${text}`,
 			}),
 			abortSignal: controller.signal,
 			temperature: 0,
-			maxOutputTokens: hasSkillsCatalog || hasToolsCatalog ? 2048 : 400,
+			maxOutputTokens,
 		});
 		const out = result.output;
 		if (!out) {
@@ -390,7 +534,14 @@ ${text}`,
 			out,
 			params.allowedSkillNamesLower,
 		);
-		return sanitizeRelevantTools(withSkills, params.allowedToolNamesLower);
+		const withTools = sanitizeRelevantTools(
+			withSkills,
+			params.allowedToolNamesLower,
+		);
+		if (!params.isFirstTurn) {
+			return { ...withTools, sessionName: "" };
+		}
+		return withTools;
 	} catch {
 		return null;
 	} finally {
@@ -401,11 +552,84 @@ ${text}`,
 	}
 }
 
+/**
+ * Lightweight follow-up pretreatment: decide whether prior skill/tool scope still applies.
+ */
+async function pretreatUserPromptDelta(
+	params: PretreatDeltaParams,
+): Promise<PretreatmentDelta | null> {
+	const text = params.userText.trim();
+	if (!text) {
+		return null;
+	}
+
+	const controller = new AbortController();
+	const onAbort = () => controller.abort();
+	if (params.abortSignal) {
+		if (params.abortSignal.aborted) {
+			return null;
+		}
+		params.abortSignal.addEventListener("abort", onAbort, { once: true });
+	}
+	const timer = setTimeout(() => controller.abort(), params.timeoutMs ?? 4000);
+
+	try {
+		const prior = params.prior;
+		const model = createModelForAuxiliary({ persona: params.persona });
+		const priorSkills =
+			prior.spec.relevantSkills.length > 0
+				? prior.spec.relevantSkills.join(", ")
+				: "(none)";
+		const priorTools =
+			prior.spec.relevantTools.length > 0
+				? prior.spec.relevantTools.join(", ")
+				: "(none)";
+		const result = await generateText({
+			model,
+			system: PREP_DELTA_SYSTEM,
+			prompt: `Previous user message:
+${prior.rawUserText.trim()}
+
+Previous goal: ${prior.spec.goal.trim() || "(unspecified)"}
+Previous selected skills: ${priorSkills}
+Previous selected tools: ${priorTools}
+
+Available local skills (exact names only if adding):
+${params.skillsCatalogText}
+
+Available tools (exact names only if adding):
+${params.toolsCatalogText}
+
+Integrations in scope: ${params.integrationLabels || "(none)"}
+
+New user message:
+${text}`,
+			output: Output.object({
+				schema: zodSchema(pretreatmentDeltaSchema),
+				name: "PretreatmentDelta",
+				description: "Follow-up scope decision",
+			}),
+			abortSignal: controller.signal,
+			temperature: 0,
+			maxOutputTokens: 256,
+		});
+		return result.output ?? null;
+	} catch {
+		return null;
+	} finally {
+		clearTimeout(timer);
+		if (params.abortSignal) {
+			params.abortSignal.removeEventListener("abort", onAbort);
+		}
+	}
+}
+
 type WrapUserPromptParams = {
 	readonly priorMessages: readonly CoreMessage[] | null;
 	readonly rawUserText: string;
 	readonly integrationLabels: string;
 	readonly isFirstTurn: boolean;
+	readonly priorPretreatment?: PriorPretreatment;
 	/** Persona whose AI provider drives pretreatment; defaults to configured default persona. */
 	readonly persona?: Persona;
 	/** Local ~/.toby/skills entries; omit or pass [] when none. */
@@ -443,6 +667,49 @@ export async function wrapUserPromptWithPretreatment(
 	const toolIntegrationLabels = params.toolIntegrationLabels ?? {};
 	const toolsCatalogSignature = sha256Base64Url(toolsCatalogText).slice(0, 20);
 
+	const finalize = (spec: UserIntentSpec | null) =>
+		finalizePretreatmentResult({
+			raw,
+			spec,
+			skills,
+			allowedSkillNamesLower,
+			allowedToolNamesLower,
+			toolIntegrationLabels,
+		});
+
+	const prior = params.priorPretreatment;
+	if (prior && !params.isFirstTurn) {
+		if (isTrivialFollowUp(raw)) {
+			return finalize(reusePriorPretreatmentSpec(raw, prior.spec));
+		}
+
+		if (isDeltaPretreatmentEnabled()) {
+			const delta = await pretreatUserPromptDelta({
+				prior,
+				userText: raw,
+				integrationLabels: params.integrationLabels,
+				skillsCatalogText,
+				toolsCatalogText,
+				abortSignal: params.abortSignal,
+				persona: params.persona,
+			});
+			if (delta?.reusePriorSelection) {
+				const merged = mergeDeltaIntoPriorSpec(
+					prior.spec,
+					delta,
+					allowedSkillNamesLower,
+					allowedToolNamesLower,
+				);
+				return finalize(merged);
+			}
+			if (delta && !delta.reusePriorSelection) {
+				// Fall through to full pretreatment below.
+			} else if (delta === null) {
+				return finalize(reusePriorPretreatmentSpec(raw, prior.spec));
+			}
+		}
+	}
+
 	const modelId = getPretreatmentModelId(params.persona);
 	const promptKey = buildPretreatmentCacheKey({
 		userText: raw,
@@ -455,30 +722,11 @@ export async function wrapUserPromptWithPretreatment(
 		const cached = getPretreatmentCache(promptKey);
 		const parsed = userIntentSpecSchema.safeParse(cached);
 		if (parsed.success) {
-			const withSkills = sanitizeRelevantSkills(
-				parsed.data,
-				allowedSkillNamesLower,
-			);
-			const withTools = sanitizeRelevantTools(
-				withSkills,
-				allowedToolNamesLower,
-			);
-			const merged = mergeSkillHeuristicIntoSpec(
-				raw,
-				withTools,
-				skills,
-				allowedSkillNamesLower,
-			);
-			const expanded = applySkillDeclaredTools(
-				merged,
-				skills,
-				allowedToolNamesLower,
-				toolIntegrationLabels,
-			);
-			return {
-				content: formatUserMessageWithPretreatment(raw, expanded, skills),
-				spec: expanded,
-			};
+			let fromCache = parsed.data;
+			if (!params.isFirstTurn) {
+				fromCache = { ...fromCache, sessionName: "" };
+			}
+			return finalize(fromCache);
 		}
 	}
 
@@ -489,26 +737,12 @@ export async function wrapUserPromptWithPretreatment(
 		allowedSkillNamesLower,
 		toolsCatalogText,
 		allowedToolNamesLower,
+		isFirstTurn: params.isFirstTurn,
 		abortSignal: params.abortSignal,
 		persona: params.persona,
 	});
 	if (modelSpec && canUsePretreatmentCache()) {
 		setPretreatmentCache(promptKey, modelSpec);
 	}
-	const spec = mergeSkillHeuristicIntoSpec(
-		raw,
-		modelSpec,
-		skills,
-		allowedSkillNamesLower,
-	);
-	const expanded = applySkillDeclaredTools(
-		spec,
-		skills,
-		allowedToolNamesLower,
-		toolIntegrationLabels,
-	);
-	return {
-		content: formatUserMessageWithPretreatment(raw, expanded, skills),
-		spec: expanded,
-	};
+	return finalize(modelSpec);
 }

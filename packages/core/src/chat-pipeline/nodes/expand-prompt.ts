@@ -26,6 +26,7 @@ export const expandPromptNode: PipelineNode<InitedTurn, ExpandedTurn> = {
 			rawUserText: input.rawUserText,
 			integrationLabels: input.integrationLabel,
 			isFirstTurn: input.isFirstTurn,
+			priorPretreatment: input.priorPretreatment,
 			persona: ctx.persona,
 			skillsCatalog: [...input.localSkills],
 			toolsCatalogText: input.toolCatalog.catalogText,

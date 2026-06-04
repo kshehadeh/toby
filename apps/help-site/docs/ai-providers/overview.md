@@ -48,10 +48,10 @@ In chat, Toby may show context usage as `ctx N%` when it knows the selected mode
 
 Pretreatment, planning, and other lightweight LLM steps use a smaller **auxiliary** model tied to the active persona’s provider:
 
-- OpenAI direct: `gpt-4.1-mini` by default
-- Vercel AI Gateway: `openai/gpt-4.1-mini` by default
+- OpenAI direct: `gpt-4.1-nano` by default
+- Vercel AI Gateway: `openai/gpt-4.1-nano` by default
 
-Override with the `TOBY_PRETREAT_MODEL` environment variable (bare id for OpenAI, or a full gateway slug such as `openai/gpt-4.1-mini`).
+Override with `TOBY_PRETREAT_MODEL` (bare id for OpenAI, or a full gateway slug such as `openai/gpt-4.1-nano`). Set `TOBY_PRETREAT_DELTA=0` to disable follow-up delta pretreatment.
 
 ## Default integration providers
 

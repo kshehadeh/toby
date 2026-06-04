@@ -1,12 +1,85 @@
 import type { CoreMessage } from "@toby/core/ai/chat";
+import type { UserIntentSpec } from "@toby/core/ai/pretreatment";
 import {
+	isDeltaPretreatmentEnabled,
 	isFirstTurnPretreatmentEnabled,
 	isPretreatmentDisabled,
+	isTrivialFollowUp,
 	shouldPretreat,
 	wrapUserPromptWithPretreatment,
 } from "@toby/core/ai/pretreatment";
 import * as sessionStore from "@toby/core/session-store";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { generateTextMock } = vi.hoisted(() => ({
+	generateTextMock: vi.fn(),
+}));
+
+vi.mock("ai", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("ai")>();
+	return {
+		...actual,
+		generateText: (...args: unknown[]) => generateTextMock(...args),
+	};
+});
+
+function minimalSpec(over: Partial<UserIntentSpec> = {}): UserIntentSpec {
+	return {
+		goal: "Prior goal",
+		mustDo: [],
+		mustNotDo: [],
+		assumptions: [],
+		openQuestions: [],
+		relevantIntegrations: ["Todoist"],
+		relevantSkills: [],
+		relevantTools: ["todoistListTasks"],
+		sessionName: "Task List",
+		...over,
+	};
+}
+
+describe("isTrivialFollowUp", () => {
+	it("matches short acknowledgements", () => {
+		expect(isTrivialFollowUp("ok")).toBe(true);
+		expect(isTrivialFollowUp("Yes.")).toBe(true);
+		expect(isTrivialFollowUp("go ahead")).toBe(true);
+	});
+
+	it("rejects long or substantive follow-ups", () => {
+		expect(isTrivialFollowUp("also archive the other thread")).toBe(false);
+		expect(isTrivialFollowUp("")).toBe(false);
+	});
+});
+
+describe("isDeltaPretreatmentEnabled", () => {
+	it("is enabled by default", () => {
+		const prev = process.env.TOBY_PRETREAT_DELTA;
+		process.env.TOBY_PRETREAT_DELTA = undefined;
+		try {
+			expect(isDeltaPretreatmentEnabled()).toBe(true);
+		} finally {
+			if (prev === undefined) {
+				process.env.TOBY_PRETREAT_DELTA = undefined;
+			} else {
+				process.env.TOBY_PRETREAT_DELTA = prev;
+			}
+		}
+	});
+
+	it("can be disabled with TOBY_PRETREAT_DELTA=0", () => {
+		const prev = process.env.TOBY_PRETREAT_DELTA;
+		process.env.TOBY_PRETREAT_DELTA = "0";
+		try {
+			expect(isDeltaPretreatmentEnabled()).toBe(false);
+		} finally {
+			if (prev === undefined) {
+				process.env.TOBY_PRETREAT_DELTA = undefined;
+			} else {
+				process.env.TOBY_PRETREAT_DELTA = prev;
+			}
+		}
+	});
+});
 
 describe("shouldPretreat", () => {
 	it("returns true on the first turn for any non-empty prompt", () => {
@@ -66,6 +139,84 @@ describe("shouldPretreat", () => {
 });
 
 describe("wrapUserPromptWithPretreatment", () => {
+	beforeEach(() => {
+		generateTextMock.mockReset();
+	});
+
+	it("reuses prior spec for trivial follow-ups without calling the model", async () => {
+		const prior = {
+			rawUserText: "List my open tasks",
+			spec: minimalSpec(),
+		};
+		const r = await wrapUserPromptWithPretreatment({
+			priorMessages: [{ role: "user", content: "prior" }],
+			rawUserText: "ok",
+			integrationLabels: "Todoist",
+			isFirstTurn: false,
+			priorPretreatment: prior,
+		});
+		expect(generateTextMock).not.toHaveBeenCalled();
+		expect(r.spec?.relevantTools).toEqual(["todoistListTasks"]);
+		expect(r.spec?.goal).toContain("Prior goal");
+		expect(r.spec?.goal).toContain("ok");
+	});
+
+	it("uses delta pretreatment when scope is unchanged", async () => {
+		generateTextMock.mockResolvedValueOnce({
+			output: { reusePriorSelection: true, goal: "Continue listing tasks" },
+		});
+		const prior = {
+			rawUserText: "List my open tasks",
+			spec: minimalSpec(),
+		};
+		const r = await wrapUserPromptWithPretreatment({
+			priorMessages: [{ role: "user", content: "prior" }],
+			rawUserText: "same but only overdue",
+			integrationLabels: "Todoist",
+			isFirstTurn: false,
+			priorPretreatment: prior,
+		});
+		expect(generateTextMock).toHaveBeenCalledTimes(1);
+		expect(r.spec?.goal).toBe("Continue listing tasks");
+		expect(r.spec?.relevantTools).toEqual(["todoistListTasks"]);
+	});
+
+	it("runs full pretreatment when delta reports a scope change", async () => {
+		generateTextMock
+			.mockResolvedValueOnce({
+				output: { reusePriorSelection: false },
+			})
+			.mockResolvedValueOnce({
+				output: {
+					goal: "Search Gmail",
+					mustDo: [],
+					mustNotDo: [],
+					assumptions: [],
+					openQuestions: [],
+					relevantIntegrations: ["Gmail"],
+					relevantSkills: [],
+					relevantTools: ["gmailSearch"],
+					sessionName: "",
+				},
+			});
+		const prior = {
+			rawUserText: "List my open tasks",
+			spec: minimalSpec(),
+		};
+		const r = await wrapUserPromptWithPretreatment({
+			priorMessages: [{ role: "user", content: "prior" }],
+			rawUserText: "search my inbox for invoices instead",
+			integrationLabels: "Gmail + Todoist",
+			isFirstTurn: false,
+			priorPretreatment: prior,
+			toolsCatalogText: "- gmailSearch: Search mail",
+			allowedToolNamesLower: new Set(["gmailsearch"]),
+		});
+		expect(generateTextMock).toHaveBeenCalledTimes(2);
+		expect(r.spec?.goal).toBe("Search Gmail");
+		expect(r.spec?.relevantTools).toEqual(["gmailSearch"]);
+	});
+
 	it("skips the model call when pretreatment is disabled", async () => {
 		const prev = process.env.TOBY_DISABLE_PRETREATMENT;
 		process.env.TOBY_DISABLE_PRETREATMENT = "1";

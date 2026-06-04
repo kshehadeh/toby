@@ -9,7 +9,7 @@ import { formatToolStatusLine } from "../format-tool-status";
 import type { IntegrationModule } from "../integrations/types";
 import { daemonLog } from "../logging/daemon-log";
 import { activityLineForChatEvent } from "../pipeline-footer";
-import { loadChatSession } from "../session-store";
+import { getSessionLastPretreatment, loadChatSession } from "../session-store";
 import type { ChatEvent } from "./chat-events";
 import { type TurnContext, runChatTurnPipeline } from "./pipeline";
 import { resolveHeadlessChatModules } from "./resolve-chat-modules";
@@ -118,6 +118,9 @@ export async function runHeadlessChatTurn(params: {
 	const loaded = loadChatSession(sessionId);
 	const priorMessages = loaded?.messages ?? [];
 	const isFirstTurn = priorMessages.length === 0;
+	const priorPretreatment = isFirstTurn
+		? undefined
+		: (getSessionLastPretreatment(sessionId) ?? undefined);
 	const inboundPersona = buildInboundPersona(persona, provider, conversation);
 
 	let seq = 0;
@@ -147,6 +150,7 @@ export async function runHeadlessChatTurn(params: {
 			rawUserText: userText,
 			priorMessages,
 			isFirstTurn,
+			priorPretreatment,
 		},
 		ctx,
 	);

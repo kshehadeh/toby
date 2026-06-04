@@ -171,6 +171,70 @@ CREATE TABLE IF NOT EXISTS chat_external_sessions (
 CREATE INDEX IF NOT EXISTS idx_chat_external_sessions_session_id
   ON chat_external_sessions(session_id);
 `);
+	migrateChatSessionsSchema(db);
+}
+
+function migrateChatSessionsSchema(db: SqliteDb): void {
+	const cols = db.query("PRAGMA table_info(chat_sessions)").all() as Array<{
+		name: string;
+	}>;
+	if (!cols.some((c) => c.name === "last_pretreatment_json")) {
+		db.exec("ALTER TABLE chat_sessions ADD COLUMN last_pretreatment_json TEXT");
+	}
+}
+
+export type LastPretreatmentRecord = {
+	readonly rawUserText: string;
+	readonly spec: UserIntentSpec;
+};
+
+export function getSessionLastPretreatment(
+	sessionId: string,
+): LastPretreatmentRecord | null {
+	const id = sessionId.trim();
+	if (!id) return null;
+	const db = getDb();
+	const row = db
+		.query(
+			`SELECT last_pretreatment_json as lastPretreatmentJson
+       FROM chat_sessions WHERE id = $id`,
+		)
+		.get({ $id: id }) as { lastPretreatmentJson: string | null } | undefined;
+	if (!row?.lastPretreatmentJson) return null;
+	try {
+		const parsed = JSON.parse(row.lastPretreatmentJson) as {
+			rawUserText?: string;
+			spec?: UserIntentSpec;
+		};
+		if (
+			typeof parsed.rawUserText !== "string" ||
+			!parsed.spec ||
+			typeof parsed.spec !== "object"
+		) {
+			return null;
+		}
+		return { rawUserText: parsed.rawUserText, spec: parsed.spec };
+	} catch {
+		return null;
+	}
+}
+
+export function setSessionLastPretreatment(
+	sessionId: string,
+	record: LastPretreatmentRecord,
+): void {
+	const id = sessionId.trim();
+	if (!id) return;
+	const db = getDb();
+	db.query(
+		`UPDATE chat_sessions
+     SET last_pretreatment_json = $json, updated_at = $updated_at
+     WHERE id = $id`,
+	).run({
+		$id: id,
+		$json: JSON.stringify(record),
+		$updated_at: nowIso(),
+	});
 }
 
 export type ExternalSessionRecord = {

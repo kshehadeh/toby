@@ -42,7 +42,8 @@ The configure UI lists slugs Toby tests against regularly. These work well for T
 | Slug | Role |
 | ---- | ---- |
 | `openai/gpt-5-mini` | **Best default** on the gateway—same family as the built-in Toby persona’s OpenAI direct default. |
-| `openai/gpt-4.1-mini` | Default **auxiliary** model for pretreatment and planning on the vercel provider. |
+| `openai/gpt-4.1-nano` | Default **pretreatment** model on the vercel provider. |
+| `openai/gpt-4.1-mini` | Used for planning and other explicit auxiliary calls. |
 | `anthropic/claude-sonnet-4.6` | Strong all-rounder if you prefer Anthropic for long context and careful tool use. |
 | `google/gemini-3-flash` | Fast Google option for quick turns and high-volume schedules. |
 
@@ -93,7 +94,8 @@ Override with:
 | -------- | ------- |
 | `TOBY_AI_GATEWAY_REFERER` or `AI_GATEWAY_HTTP_REFERER` | Custom referer URL |
 | `TOBY_AI_GATEWAY_APP_TITLE` or `AI_GATEWAY_X_TITLE` | Custom app title |
-| `TOBY_PRETREAT_MODEL` | Auxiliary model (full slug, e.g. `openai/gpt-4.1-mini`) |
+| `TOBY_PRETREAT_MODEL` | Pretreatment model (full slug, e.g. `openai/gpt-4.1-nano`) |
+| `TOBY_PRETREAT_DELTA` | Set to `0` to disable follow-up delta pretreatment |
 | `AI_GATEWAY_API_KEY` | API key instead of configure-stored credentials |
 
 ## Switching from OpenAI direct
