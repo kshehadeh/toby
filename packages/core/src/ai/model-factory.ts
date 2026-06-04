@@ -15,8 +15,8 @@ import {
 
 const GATEWAY_SLUG_RE = /^[a-z0-9-]+\/[a-z0-9][a-z0-9.-]*$/i;
 
-const OPENAI_AUX_DEFAULT = "gpt-4.1-mini";
-const VERCEL_AUX_DEFAULT = "openai/gpt-4.1-mini";
+const OPENAI_AUX_DEFAULT = "gpt-4.1-nano";
+const VERCEL_AUX_DEFAULT = "openai/gpt-4.1-nano";
 
 /** Default app URL for Vercel AI Gateway attribution (https://vercel.com/docs/ai-gateway/ecosystem/app-attribution). */
 const DEFAULT_AI_GATEWAY_HTTP_REFERER = "https://github.com/kshehadeh/toby";
