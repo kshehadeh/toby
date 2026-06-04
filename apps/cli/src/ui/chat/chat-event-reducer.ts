@@ -493,23 +493,8 @@ export function applyChatEvent(
 			seq: event.seq,
 		});
 	}
-	if (event.type === "plan_amended") {
-		return [
-			...entries,
-			{
-				kind: "meta",
-				text: `Plan amended: ${event.detail}`,
-			},
-		];
-	}
-	if (event.type === "plan_completed") {
-		return [
-			...entries,
-			{
-				kind: "meta",
-				text: `Plan ${event.status}`,
-			},
-		];
+	if (event.type === "plan_amended" || event.type === "plan_completed") {
+		return [...entries];
 	}
 	return [...entries];
 }

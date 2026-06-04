@@ -15,8 +15,15 @@ vi.mock("@toby/core/config/index", () => ({
 }));
 
 // Import after mock is set up
-const { clearLog, flush, formatLogEntry, log, logTurnSummary, readLogTail } =
-	await import("@toby/core/logging/chat-log");
+const {
+	clearLog,
+	flush,
+	formatLogEntry,
+	log,
+	logSessionNote,
+	logTurnSummary,
+	readLogTail,
+} = await import("@toby/core/logging/chat-log");
 
 beforeEach(() => {
 	clearLog();
@@ -32,6 +39,16 @@ afterAll(() => {
 });
 
 describe("chat-log", () => {
+	test("logSessionNote writes session_note entries", () => {
+		logSessionNote("sess-note", "Tools in scope: Gmail (1)");
+		flush();
+		const entries = readLogTail(1);
+		expect(entries[0]?.type).toBe("session_note");
+		expect(entries[0]?.category).toBe("session");
+		expect(entries[0]?.sessionId).toBe("sess-note");
+		expect(entries[0]?.data?.text).toBe("Tools in scope: Gmail (1)");
+	});
+
 	test("log writes entries that can be read back", () => {
 		log("info", "session", "session_create", { id: "abc123" });
 		flush();

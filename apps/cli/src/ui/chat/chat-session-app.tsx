@@ -20,6 +20,7 @@ import type { ChatEvent } from "@toby/core/chat-pipeline/chat-events";
 import { formatScopeLabel } from "@toby/core/chat-pipeline/format-scope-label";
 import {
 	type AssembledTurn,
+	type PriorPretreatment,
 	runChatTurnPipeline,
 	withAssembledMessages,
 } from "@toby/core/chat-pipeline/pipeline";
@@ -91,8 +92,13 @@ import {
 	createConfigureSession,
 	refreshConfigureSessionTree,
 } from "../configure/session";
-import { SelectableTextRow, ViewModal } from "../shared";
-import { applyChatEvent } from "./chat-event-reducer";
+import {
+	DOT_GRID_SPINNER_FRAMES,
+	DOT_GRID_SPINNER_INTERVAL_MS,
+	SelectableTextRow,
+	ViewModal,
+} from "../shared";
+import { ActivityStatusLine } from "./components/activity-status-line";
 import { AppHeader } from "./components/app-header";
 import { AskUserModal } from "./components/ask-user-modal";
 import { ChatHelpScreen } from "./components/chat-help-screen";
@@ -114,7 +120,8 @@ import {
 import { ACCENT, TIPS } from "./constants";
 import { buildUiTurnContext } from "./pipeline-turn-context";
 import { appendPromptHistory, loadPromptHistory } from "./prompt-history";
-import { buildSkillDebugTranscriptEntries } from "./skill-debug";
+import { recordSessionNote } from "./session-note";
+import { logSkillDebugNotes } from "./skill-debug";
 import {
 	SLASH_COMMANDS,
 	getNearestSlashCommand,
@@ -123,7 +130,8 @@ import {
 import type { SlashCommand } from "./slash-commands";
 import { readTranscriptFile } from "./slash-commands/stop-listening";
 import type { UpgradeUiStatus } from "./slash-commands/types";
-import { buildToolSelectionTranscriptEntries } from "./tool-selection-transcript";
+import { logToolSelectionNotes } from "./tool-selection-transcript";
+import { applyPersistedChatEvent } from "./transcript-events";
 import { flattenTranscript } from "./transcript-layout";
 import type { AskModal, DisplayRow, TranscriptEntry } from "./types";
 import { useUpdateCheck } from "./use-update-check";
@@ -162,8 +170,6 @@ interface PersonaPickerState {
 	readonly rows: readonly PersonaPickerRow[];
 	readonly cursorIndex: number;
 }
-
-const ACTIVITY_GLYPH_FRAMES = ["·", "•", "●", "•"] as const;
 
 function isAbortError(e: unknown): boolean {
 	if (e instanceof DOMException && e.name === "AbortError") return true;
@@ -209,24 +215,24 @@ function suggestSessionNameFromTranscript(
 	return clipped;
 }
 
-function transcriptMetaForAttachedSkills(
+function logAttachedSkills(
+	sessionId: string | null | undefined,
 	names: readonly string[],
-): TranscriptEntry[] {
+): void {
 	const unique = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
-	return unique.map((name) => ({ kind: "meta", text: `Skill: ${name}` }));
+	for (const name of unique) {
+		recordSessionNote(sessionId, `Skill: ${name}`);
+	}
 }
 
-function createBootPrepTranscript(lifecycleId: string): TranscriptEntry[] {
-	return [
-		{
-			kind: "boxed_step",
-			id: lifecycleId,
-			seq: 1,
-			variant: "lifecycle",
-			header: "Preparing Session…",
-			body: "Starting session preparation…",
-		},
-	];
+function priorPretreatmentFromLastTurn(
+	last: AssembledTurn | null,
+	isFirstTurn: boolean,
+): PriorPretreatment | undefined {
+	if (isFirstTurn || !last?.spec) {
+		return undefined;
+	}
+	return { rawUserText: last.rawUserText, spec: last.spec };
 }
 
 export function ChatSessionApp({
@@ -247,13 +253,9 @@ export function ChatSessionApp({
 	);
 	const [messages, setMessages] = useState<CoreMessage[] | null>(null);
 	const bootLifecycleIdRef = useRef(randomUUID());
-	const [transcript, setTranscript] = useState<TranscriptEntry[]>(() => {
-		const boot = createBootPrepTranscript(bootLifecycleIdRef.current);
-		if (initialUserPrompt.trim()) {
-			return [{ kind: "user", text: initialUserPrompt }, ...boot];
-		}
-		return boot;
-	});
+	const [transcript, setTranscript] = useState<TranscriptEntry[]>(() =>
+		initialUserPrompt.trim() ? [{ kind: "user", text: initialUserPrompt }] : [],
+	);
 	const inputPanelRef = useRef<ChatInputPanelHandle>(null);
 	const [recentPrompts, setRecentPrompts] = useState(() => loadPromptHistory());
 	const [loading, setLoading] = useState(false);
@@ -497,9 +499,9 @@ export function ChatSessionApp({
 		}
 		const timer = setInterval(() => {
 			setActivityGlyphFrame(
-				(prev) => (prev + 1) % ACTIVITY_GLYPH_FRAMES.length,
+				(prev) => (prev + 1) % DOT_GRID_SPINNER_FRAMES.length,
 			);
-		}, 120);
+		}, DOT_GRID_SPINNER_INTERVAL_MS);
 		return () => clearInterval(timer);
 	}, [messages, loading]);
 
@@ -551,12 +553,10 @@ export function ChatSessionApp({
 			didAutoRunFirstTurnRef.current = false;
 			setMessages(null);
 			setActivePlan(null);
-			const bootPrep = createBootPrepTranscript(bootLifecycleIdRef.current);
-			setTranscript(
-				params?.note
-					? [{ kind: "meta", text: params.note }, ...bootPrep]
-					: bootPrep,
-			);
+			setTranscript([]);
+			if (params?.note?.trim()) {
+				recordSessionNote(null, params.note.trim());
+			}
 			log("info", "session", "session_create", { note: params?.note });
 		},
 		[],
@@ -601,6 +601,14 @@ export function ChatSessionApp({
 				if (footerHint !== null) {
 					setActivityLine(footerHint);
 				}
+				if (ev.type === "plan_amended") {
+					recordSessionNote(sessionIdRef.current, `Plan amended: ${ev.detail}`);
+					return;
+				}
+				if (ev.type === "plan_completed") {
+					recordSessionNote(sessionIdRef.current, `Plan ${ev.status}`);
+					return;
+				}
 				if (ev.type === "assistant_segment_start") {
 					assistantSegmentHeaderRef.current = ev.header;
 					assistantStreamBufRef.current = "";
@@ -632,7 +640,7 @@ export function ChatSessionApp({
 					}
 					return;
 				}
-				setTranscript((t) => applyChatEvent(t, ev));
+				setTranscript((t) => applyPersistedChatEvent(t, ev));
 			};
 			let responseMessages: CoreMessage[] = [];
 			let responseText = "";
@@ -714,30 +722,27 @@ export function ChatSessionApp({
 				if (process.env.TOBY_DEBUG_CACHE === "1" && tokenReport) {
 					const cacheMeta = formatCacheDebugMeta(tokenReport);
 					if (cacheMeta) {
-						additions.push({
-							kind: "meta",
-							text: `Usage: ${cacheMeta}`,
-						});
+						recordSessionNote(sessionIdRef.current, `Usage: ${cacheMeta}`);
 					}
 					const rawUsage = out.usage?.raw;
 					if (rawUsage && typeof rawUsage === "object") {
-						additions.push({
-							kind: "meta",
-							text: `Usage raw: ${JSON.stringify(rawUsage)}`,
-						});
+						recordSessionNote(
+							sessionIdRef.current,
+							`Usage raw: ${JSON.stringify(rawUsage)}`,
+						);
 					}
 					if (out.providerMetadata) {
-						additions.push({
-							kind: "meta",
-							text: `Provider metadata: ${JSON.stringify(out.providerMetadata)}`,
-						});
+						recordSessionNote(
+							sessionIdRef.current,
+							`Provider metadata: ${JSON.stringify(out.providerMetadata)}`,
+						);
 					}
 				}
 				// Avoid duplicating what the assistant already summarized.
 				// If the model produced no text (tool-only turn), we still show actions.
 				if (reply.length === 0) {
 					for (const a of out.appliedActions) {
-						additions.push({ kind: "meta", text: `+ ${a}` });
+						recordSessionNote(sessionIdRef.current, `+ ${a}`);
 					}
 				}
 				setStreamingAssistant("");
@@ -765,7 +770,7 @@ export function ChatSessionApp({
 				if (isAbortError(e)) {
 					const steering = pendingSteeringPromptRef.current;
 					const metaText = steering ? "Redirecting..." : "Turn cancelled.";
-					setTranscript((t) => [...t, { kind: "meta", text: metaText }]);
+					recordSessionNote(sessionIdRef.current, metaText);
 					log("info", "turn", "turn_aborted", { steering: Boolean(steering) });
 					return {
 						text: partial,
@@ -823,7 +828,7 @@ export function ChatSessionApp({
 					if (cancelled) {
 						return;
 					}
-					bootTranscript = applyChatEvent(bootTranscript, event);
+					bootTranscript = applyPersistedChatEvent(bootTranscript, event);
 					const footerHint = activityLineForChatEvent(event);
 					if (footerHint) {
 						setBootActivityLine(footerHint);
@@ -839,8 +844,7 @@ export function ChatSessionApp({
 						line,
 					});
 				};
-				setBootActivityLine("Preparing Session…");
-				publishBootTranscript();
+				setBootActivityLine("Preparing session…");
 				await yieldToRenderer();
 				const prepResult = await runChatTurnPipeline(
 					{
@@ -885,17 +889,17 @@ export function ChatSessionApp({
 				setMessages(initial);
 				const note = pendingScopeChangeNoteRef.current;
 				pendingScopeChangeNoteRef.current = null;
-				const metaEntries: TranscriptEntry[] = note
-					? [{ kind: "meta", text: note }]
-					: [];
-				const skillMeta = transcriptMetaForAttachedSkills(attachedSkills);
-				const toolMeta = buildToolSelectionTranscriptEntries({
+				if (note?.trim()) {
+					recordSessionNote(sid, note.trim());
+				}
+				logAttachedSkills(sid, attachedSkills);
+				logToolSelectionNotes(sid, {
 					allToolNames: toolCatalog.allToolNames,
 					toolIntegrationLabels: toolCatalog.toolIntegrationLabels,
 					relevantTools: prepSpec?.relevantTools,
 					pretreatmentRan: prepSpec !== null,
 				});
-				const skillDebugMeta = buildSkillDebugTranscriptEntries({
+				logSkillDebugNotes(sid, {
 					debug,
 					available: localSkills,
 					priorMessages: [],
@@ -903,13 +907,7 @@ export function ChatSessionApp({
 					isFirstTurn: true,
 					spec: prepSpec,
 				});
-				const nextTranscript = [
-					...bootTranscript,
-					...skillDebugMeta,
-					...skillMeta,
-					...toolMeta,
-					...metaEntries,
-				];
+				const nextTranscript = [...bootTranscript];
 				setTranscript(nextTranscript);
 				await yieldToRenderer();
 
@@ -1124,20 +1122,18 @@ export function ChatSessionApp({
 						if (footerHint !== null) {
 							setActivityLine(footerHint);
 						}
-						if (
-							ev.type === "plan_phase_start" ||
-							ev.type === "plan_phase_end"
-						) {
-							setTranscript((t) => applyChatEvent(t, ev));
-						}
-						if (ev.type === "plan_created") {
-							setTranscript((t) => applyChatEvent(t, ev));
-						}
 						if (ev.type === "plan_amended") {
-							setTranscript((t) => applyChatEvent(t, ev));
+							recordSessionNote(sidFinal, `Plan amended: ${ev.detail}`);
 						}
 						if (ev.type === "plan_completed") {
-							setTranscript((t) => applyChatEvent(t, ev));
+							recordSessionNote(sidFinal, `Plan ${ev.status}`);
+						}
+						if (
+							ev.type === "plan_phase_start" ||
+							ev.type === "plan_phase_end" ||
+							ev.type === "plan_created"
+						) {
+							setTranscript((t) => applyPersistedChatEvent(t, ev));
 						}
 						// Refresh active plan state on phase transitions
 						if (
@@ -1224,13 +1220,21 @@ export function ChatSessionApp({
 					rawUserText: steering,
 					priorMessages: msgsBefore,
 					isFirstTurn,
+					priorPretreatment: priorPretreatmentFromLastTurn(
+						lastAssembledTurnRef.current,
+						isFirstTurn,
+					),
 				},
 				buildUiTurnContext({
 					persona: activePersonaRef.current,
 					modules: selectedModulesRef.current,
 					dryRun,
 					emit: (ev) => {
-						setTranscript((t) => applyChatEvent(t, ev));
+						const footerHint = activityLineForChatEvent(ev);
+						if (footerHint !== null) {
+							setActivityLine(footerHint);
+						}
+						setTranscript((t) => applyPersistedChatEvent(t, ev));
 					},
 					nextSeq: () => {
 						transcriptLocalSeqRef.current += 1;
@@ -1261,18 +1265,13 @@ export function ChatSessionApp({
 
 			setMessages(assembled.messages);
 
-			const skillMeta = transcriptMetaForAttachedSkills(
-				assembled.spec?.relevantSkills ?? [],
-			);
-			const toolMeta = buildToolSelectionTranscriptEntries({
+			logAttachedSkills(sidFinal, assembled.spec?.relevantSkills ?? []);
+			logToolSelectionNotes(sidFinal, {
 				allToolNames: assembled.toolCatalog.allToolNames,
 				toolIntegrationLabels: assembled.toolCatalog.toolIntegrationLabels,
 				relevantTools: assembled.spec?.relevantTools,
 				pretreatmentRan: assembled.spec !== null,
 			});
-			if (skillMeta.length > 0 || toolMeta.length > 0) {
-				setTranscript((t) => [...t, ...skillMeta, ...toolMeta]);
-			}
 
 			await runModelTurnRef.current(assembled, sidFinal);
 		})();
@@ -1286,13 +1285,13 @@ export function ChatSessionApp({
 			}
 		}
 		if (usable.length === 0) {
-			setTranscript((t) => [
-				...t,
-				{
-					kind: "meta",
-					text: "No chat integrations ready to choose from (connect Gmail, add a Todoist API key, configure Slack, or configure Azure AD credentials).",
-				},
-			]);
+			recordSessionNote(
+				sessionIdRef.current,
+				"No chat integrations ready to choose from (connect Gmail, add a Todoist API key, configure Slack, or configure Azure AD credentials).",
+			);
+			setActivityLine(
+				"No integrations ready — connect an integration in configure.",
+			);
 			return;
 		}
 		const sorted = sortModulesByName(usable);
@@ -1310,13 +1309,6 @@ export function ChatSessionApp({
 			id: s.id,
 			name: s.name,
 		}));
-		if (sessions.length === 0) {
-			setTranscript((t) => [
-				...t,
-				{ kind: "meta", text: "No saved sessions yet." },
-			]);
-			return;
-		}
 		setSessionPicker({ sessions, cursorIndex: 0 });
 	}, []);
 
@@ -1369,10 +1361,10 @@ export function ChatSessionApp({
 				]);
 			}
 		}
-		setTranscript((t) => [
-			...t,
-			{ kind: "meta", text: `Switched persona to "${resolved.name}".` },
-		]);
+		recordSessionNote(
+			sessionIdRef.current,
+			`Switched persona to "${resolved.name}".`,
+		);
 	}, []);
 
 	const loadSessionIntoMemory = useCallback((id: string) => {
@@ -1387,10 +1379,10 @@ export function ChatSessionApp({
 		}
 		const tailCount = 12;
 		const tail = loaded.transcript.slice(-tailCount);
-		const resumeLine: TranscriptEntry = {
-			kind: "meta",
-			text: `Resumed "${loaded.name}" · showing last ${tail.length} lines`,
-		};
+		recordSessionNote(
+			loaded.id,
+			`Resumed "${loaded.name}" · showing last ${tail.length} lines`,
+		);
 		setSessionPicker(null);
 		setSessionId(loaded.id);
 		setSessionName(loaded.name);
@@ -1402,11 +1394,11 @@ export function ChatSessionApp({
 		// immediately sees recent context at the bottom (like an in-progress session).
 		// Mark them as already persisted to avoid duplicating rows in SQLite.
 		lastSavedTranscriptCountRef.current =
-			loaded.transcript.length + 1 + tail.length;
+			loaded.transcript.length + tail.length;
 		setBootError(null);
 		setSessionPrompt("");
 		setMessages(loaded.messages);
-		setTranscript([...loaded.transcript, resumeLine, ...tail]);
+		setTranscript([...loaded.transcript, ...tail]);
 		let maxSeq = 0;
 		for (const e of loaded.transcript) {
 			if (e.kind === "boxed_step" && e.seq > maxSeq) {
@@ -1426,13 +1418,10 @@ export function ChatSessionApp({
 			const completedCount = plan.phases.filter(
 				(p) => p.status === "completed",
 			).length;
-			setTranscript((t) => [
-				...t,
-				{
-					kind: "meta",
-					text: `Resuming plan: ${plan.goal} (${completedCount}/${plan.phases.length} phases complete)`,
-				},
-			]);
+			recordSessionNote(
+				loaded.id,
+				`Resuming plan: ${plan.goal} (${completedCount}/${plan.phases.length} phases complete)`,
+			);
 		} else {
 			setActivePlan(null);
 			activePlanRef.current = null;
@@ -1512,10 +1501,10 @@ export function ChatSessionApp({
 						chatIntegrationsCount: chatIntegrations.length,
 						launchContext,
 						addMetaLine: (text) => {
-							setTranscript((t) => [...t, { kind: "meta", text }]);
+							recordSessionNote(sessionIdRef.current, text);
 						},
 						addUserContextMessage: (text) => {
-							setTranscript((t) => [...t, { kind: "meta", text }]);
+							recordSessionNote(sessionIdRef.current, text);
 							setMessages((msgs) =>
 								msgs
 									? [
@@ -1564,13 +1553,10 @@ export function ChatSessionApp({
 												...listenFilesRef.current,
 												...(event.files ?? {}),
 											};
-											setTranscript((t) => [
-												...t,
-												{
-													kind: "meta",
-													text: "Recording started. Use /stop-listening to stop.",
-												},
-											]);
+											recordSessionNote(
+												sessionIdRef.current,
+												"Recording started. Use /stop-listening to stop.",
+											);
 											return;
 										}
 										if (event.type === "error") {
@@ -1657,13 +1643,10 @@ export function ChatSessionApp({
 				return;
 			}
 			if (slash.kind === "unknown") {
-				setTranscript((t) => [
-					...t,
-					{
-						kind: "meta",
-						text: `Unknown command: ${slash.attemptedToken ?? line}.`,
-					},
-				]);
+				recordSessionNote(
+					sessionIdRef.current,
+					`Unknown command: ${slash.attemptedToken ?? line}.`,
+				);
 				return;
 			}
 			if (!line) {
@@ -1706,17 +1689,21 @@ export function ChatSessionApp({
 						rawUserText: line,
 						priorMessages: msgsBefore,
 						isFirstTurn,
+						priorPretreatment: priorPretreatmentFromLastTurn(
+							lastAssembledTurnRef.current,
+							isFirstTurn,
+						),
 					},
 					buildUiTurnContext({
 						persona: activePersonaRef.current,
 						modules: selectedModulesRef.current,
 						dryRun,
 						emit: (ev) => {
-							setTranscript((t) => applyChatEvent(t, ev));
 							const footerHint = activityLineForChatEvent(ev);
 							if (footerHint !== null) {
 								setActivityLine(footerHint);
 							}
+							setTranscript((t) => applyPersistedChatEvent(t, ev));
 						},
 						nextSeq: submitSeq,
 						abortSignal: ac.signal,
@@ -1741,7 +1728,7 @@ export function ChatSessionApp({
 					return;
 				}
 				setMessages(assembled.messages);
-				const skillDebugMeta = buildSkillDebugTranscriptEntries({
+				logSkillDebugNotes(sidFinal, {
 					debug,
 					available: assembled.localSkills,
 					priorMessages: msgsBefore,
@@ -1749,19 +1736,13 @@ export function ChatSessionApp({
 					isFirstTurn,
 					spec: assembled.spec,
 				});
-				const skillMeta = transcriptMetaForAttachedSkills(
-					assembled.spec?.relevantSkills ?? [],
-				);
-				const toolMeta = buildToolSelectionTranscriptEntries({
+				logAttachedSkills(sidFinal, assembled.spec?.relevantSkills ?? []);
+				logToolSelectionNotes(sidFinal, {
 					allToolNames: assembled.toolCatalog.allToolNames,
 					toolIntegrationLabels: assembled.toolCatalog.toolIntegrationLabels,
 					relevantTools: assembled.spec?.relevantTools,
 					pretreatmentRan: assembled.spec !== null,
 				});
-				const extraMeta = [...skillDebugMeta, ...skillMeta, ...toolMeta];
-				if (extraMeta.length > 0) {
-					setTranscript((t) => [...t, ...extraMeta]);
-				}
 				await runModelTurnRef.current(assembled, sidFinal);
 			})();
 		},
@@ -1897,13 +1878,10 @@ export function ChatSessionApp({
 					}
 					const chosenNames = currentPicker.selectedNames;
 					if (chosenNames.length === 0) {
-						setTranscript((t) => [
-							...t,
-							{
-								kind: "meta",
-								text: "Select at least one integration (Space), then press Enter.",
-							},
-						]);
+						recordSessionNote(
+							sessionIdRef.current,
+							"Select at least one integration (Space), then press Enter.",
+						);
 						return;
 					}
 					const nextModules = sortModulesByName(
@@ -1911,13 +1889,10 @@ export function ChatSessionApp({
 					);
 					setMultiPicker(null);
 					if (modulesEqual(nextModules, selectedModulesRef.current)) {
-						setTranscript((t) => [
-							...t,
-							{
-								kind: "meta",
-								text: `Already using ${formatScopeLabel(nextModules)}.`,
-							},
-						]);
+						recordSessionNote(
+							sessionIdRef.current,
+							`Already using ${formatScopeLabel(nextModules)}.`,
+						);
 						return;
 					}
 					pendingScopeChangeNoteRef.current = `Using ${formatScopeLabel(nextModules)}.`;
@@ -2165,10 +2140,7 @@ export function ChatSessionApp({
 					setShowConfig(false);
 					setConfigureInitialPath(undefined);
 					setConfigureEditorItemKey(undefined);
-					setTranscript((t) => [
-						...t,
-						{ kind: "meta", text: "Configuration updated." },
-					]);
+					recordSessionNote(sessionIdRef.current, "Configuration updated.");
 					void (async () => {
 						const cfg = readConfig();
 						const prev = activePersonaRef.current;
@@ -2177,13 +2149,10 @@ export function ChatSessionApp({
 							const fallback = cfg.personas[0];
 							if (fallback) {
 								nextP = fallback;
-								setTranscript((t) => [
-									...t,
-									{
-										kind: "meta",
-										text: `Active persona "${prev.name}" is gone; using "${fallback.name}".`,
-									},
-								]);
+								recordSessionNote(
+									sessionIdRef.current,
+									`Active persona "${prev.name}" is gone; using "${fallback.name}".`,
+								);
 							}
 						}
 						if (!nextP) {
@@ -2238,10 +2207,7 @@ export function ChatSessionApp({
 			: loading
 				? activityLine
 				: connectionProbeLine;
-	const activityDisplay =
-		activityText.length > 0
-			? `${ACTIVITY_GLYPH_FRAMES[activityGlyphFrame] ?? "·"} ${activityText}`
-			: " ";
+	const activityAnimating = messages === null || loading;
 	const suggestedPlaceholder =
 		sessionBootMode === "new" && !hasUserPromptInSession
 			? 'Try "What needs my attention today?"'
@@ -2280,11 +2246,12 @@ export function ChatSessionApp({
 				termCols={termCols}
 				animFrame={activityGlyphFrame}
 			/>
-			<Box marginTop={1} width={termCols} flexShrink={0}>
-				<Text dimColor wrap="truncate-end">
-					{activityDisplay}
-				</Text>
-			</Box>
+			<ActivityStatusLine
+				text={activityText}
+				animating={activityAnimating}
+				termCols={termCols}
+				frame={activityGlyphFrame}
+			/>
 			{askModal ? (
 				<AskUserModal
 					modal={askModal}
@@ -2305,14 +2272,22 @@ export function ChatSessionApp({
 							Choose a session (Enter loads · Esc cancels)
 						</Text>
 					</Box>
-					{sessionPicker.sessions.map((s, i) => {
-						const active = i === sessionPicker.cursorIndex;
-						return (
-							<SelectableTextRow key={s.id} selected={active}>
-								{s.name}
-							</SelectableTextRow>
-						);
-					})}
+					{sessionPicker.sessions.length === 0 ? (
+						<Box marginTop={1}>
+							<Text dimColor wrap="truncate-end">
+								No saved sessions yet.
+							</Text>
+						</Box>
+					) : (
+						sessionPicker.sessions.map((s, i) => {
+							const active = i === sessionPicker.cursorIndex;
+							return (
+								<SelectableTextRow key={s.id} selected={active}>
+									{s.name}
+								</SelectableTextRow>
+							);
+						})
+					)}
 					<Box marginTop={1}>
 						<Text dimColor wrap="truncate-end">
 							Loaded: {sessionName}

@@ -5,7 +5,7 @@ import {
 	shouldPretreat,
 } from "@toby/core/ai/pretreatment";
 import type { LocalSkill } from "@toby/core/skills/index";
-import type { TranscriptEntry } from "./types";
+import { recordSessionNote } from "./session-note";
 
 const MAX_SKILL_NAMES_IN_ONE_LINE = 12;
 const MAX_DESC_PREVIEW = 72;
@@ -88,19 +88,21 @@ export function getSkillDebugTextLines(params: {
 	return lines;
 }
 
-export function buildSkillDebugTranscriptEntries(params: {
-	readonly debug: boolean;
-	readonly available: readonly LocalSkill[];
-	readonly priorMessages: readonly CoreMessage[] | null;
-	readonly rawUserText: string;
-	readonly isFirstTurn: boolean;
-	readonly spec: UserIntentSpec | null;
-}): TranscriptEntry[] {
+export function logSkillDebugNotes(
+	sessionId: string | null | undefined,
+	params: {
+		readonly debug: boolean;
+		readonly available: readonly LocalSkill[];
+		readonly priorMessages: readonly CoreMessage[] | null;
+		readonly rawUserText: string;
+		readonly isFirstTurn: boolean;
+		readonly spec: UserIntentSpec | null;
+	},
+): void {
 	if (!params.debug) {
-		return [];
+		return;
 	}
-	return getSkillDebugTextLines(params).map((text) => ({
-		kind: "meta" as const,
-		text,
-	}));
+	for (const text of getSkillDebugTextLines(params)) {
+		recordSessionNote(sessionId, text);
+	}
 }

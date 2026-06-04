@@ -247,6 +247,7 @@ const HIDDEN_LIFECYCLE_HEADERS = new Set([
 	"Sending request to model…",
 	"Updating session messages…",
 	"Saving session…",
+	"Preparing Session…",
 ]);
 
 function capBodyLines(
@@ -285,6 +286,12 @@ export function flattenTranscript(
 			e.variant === "lifecycle" &&
 			HIDDEN_LIFECYCLE_HEADERS.has(e.header)
 		) {
+			continue;
+		}
+		if (!debug && e.kind === "boxed_step" && e.variant === "prep") {
+			continue;
+		}
+		if (!debug && e.kind === "meta") {
 			continue;
 		}
 		const next = entries[i + 1];

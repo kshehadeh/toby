@@ -37,4 +37,9 @@ export type {
 export { FieldEditor } from "./field-editor";
 export { FieldSelector } from "./field-selector";
 export { DaemonStatusLine } from "./daemon-status-line";
+export {
+	DOT_GRID_SPINNER_FRAMES,
+	DOT_GRID_SPINNER_INTERVAL_MS,
+	dotGridSpinnerFrame,
+} from "./dot-grid-spinner";
 export type { FieldNavigatorItem } from "./field-navigator";

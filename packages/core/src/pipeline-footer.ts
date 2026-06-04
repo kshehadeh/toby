@@ -6,8 +6,13 @@ import type { ChatEvent } from "./chat-pipeline/chat-events";
  */
 export function activityLineForChatEvent(ev: ChatEvent): string | null {
 	switch (ev.type) {
-		case "prep_start":
-			return "Preparing request…";
+		case "prep_start": {
+			const header = ev.header.trim();
+			if (!header) {
+				return "Preparing request…";
+			}
+			return header.endsWith("…") ? header : `${header}…`;
+		}
 		case "prep_end":
 			return "Ready for model…";
 		case "lifecycle_start":

@@ -1,5 +1,5 @@
 import { filterToolNamesByRelevance } from "@toby/core/chat-pipeline/run-turn";
-import type { TranscriptEntry } from "./types";
+import { recordSessionNote } from "./session-note";
 
 const TOBY_INTEGRATION_LABEL = "Toby";
 
@@ -23,27 +23,29 @@ export function summarizeToolCountsByIntegration(params: {
 		.map(([label, count]) => ({ label, count }));
 }
 
-export function buildToolSelectionTranscriptEntries(params: {
-	readonly allToolNames: readonly string[];
-	readonly toolIntegrationLabels: Readonly<Record<string, string>>;
-	readonly relevantTools: readonly string[] | undefined;
-	readonly pretreatmentRan: boolean;
-}): TranscriptEntry[] {
+export function logToolSelectionNotes(
+	sessionId: string | null | undefined,
+	params: {
+		readonly allToolNames: readonly string[];
+		readonly toolIntegrationLabels: Readonly<Record<string, string>>;
+		readonly relevantTools: readonly string[] | undefined;
+		readonly pretreatmentRan: boolean;
+	},
+): void {
 	if (!params.pretreatmentRan) {
-		return [];
+		return;
 	}
 
 	const summary = summarizeToolCountsByIntegration(params);
 	if (summary.length === 0) {
-		return [];
+		return;
 	}
 
 	const narrowed =
 		params.relevantTools !== undefined && params.relevantTools.length > 0;
 	const prefix = narrowed ? "Tools selected" : "Tools in scope";
 
-	return summary.map(({ label, count }) => ({
-		kind: "meta" as const,
-		text: `${prefix}: ${label} (${count})`,
-	}));
+	for (const { label, count } of summary) {
+		recordSessionNote(sessionId, `${prefix}: ${label} (${count})`);
+	}
 }

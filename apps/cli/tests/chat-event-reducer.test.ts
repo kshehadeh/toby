@@ -349,7 +349,7 @@ describe("flattenTranscript boxed_step", () => {
 		expect(bb && bb.kind === "boxed_block" && bb.cacheHit).toBe(true);
 	});
 
-	it("shows prep boxed_step in display rows", () => {
+	it("hides prep boxed_step when debug is off", () => {
 		const entries: TranscriptEntry[] = [
 			{
 				kind: "boxed_step",
@@ -370,36 +370,59 @@ describe("flattenTranscript boxed_step", () => {
 				toolName: "listLabels",
 			},
 		];
-		const rows = flattenTranscript(entries, "", false, 80);
+		const rows = flattenTranscript(entries, "", false, 80, "Toby", false);
 		const boxed = rows.filter((r) => r.kind === "boxed_block");
-		expect(boxed).toHaveLength(2);
-		expect(boxed[0]?.kind === "boxed_block" && boxed[0].variant).toBe("prep");
-		expect(boxed[1]?.kind === "boxed_block" && boxed[1].variant).toBe("tool");
+		expect(boxed).toHaveLength(1);
+		expect(boxed[0]?.kind === "boxed_block" && boxed[0].variant).toBe("tool");
 	});
 
-	it("renders meta entries as distinct boxed notes", () => {
+	it("shows prep boxed_step when debug is on", () => {
+		const entries: TranscriptEntry[] = [
+			{
+				kind: "boxed_step",
+				id: "p1",
+				seq: 1,
+				variant: "prep",
+				header: "Prompt preparation",
+				body: "Ready.",
+			},
+		];
+		const rows = flattenTranscript(entries, "", false, 80, "Toby", true);
+		const boxed = rows.filter((r) => r.kind === "boxed_block");
+		expect(boxed).toHaveLength(1);
+		expect(boxed[0]?.kind === "boxed_block" && boxed[0].variant).toBe("prep");
+	});
+
+	it("hides meta entries when debug is off", () => {
 		const entries: TranscriptEntry[] = [
 			{ kind: "meta", text: "Configuration updated." },
 		];
-		const rows = flattenTranscript(entries, "", false, 80);
+		const rows = flattenTranscript(entries, "", false, 80, "Toby", false);
+		expect(rows.filter((r) => r.kind === "boxed_block")).toHaveLength(0);
+	});
+
+	it("renders meta entries as boxed notes when debug is on", () => {
+		const entries: TranscriptEntry[] = [
+			{ kind: "meta", text: "Configuration updated." },
+		];
+		const rows = flattenTranscript(entries, "", false, 80, "Toby", true);
 		const boxed = rows.filter((r) => r.kind === "boxed_block");
 		expect(boxed).toHaveLength(1);
 		const note = boxed[0];
 		expect(note?.kind === "boxed_block" && note.variant).toBe("meta");
 		expect(note?.kind === "boxed_block" && note.header).toBe("Session note");
-		expect(note?.kind === "boxed_block" && note.leadingGlyph).toBe("ℹ");
 		expect(note?.kind === "boxed_block" && note.bodyLines).toEqual([
 			"Configuration updated.",
 		]);
 	});
 
-	it("groups consecutive meta entries into one boxed note", () => {
+	it("groups consecutive meta entries when debug is on", () => {
 		const entries: TranscriptEntry[] = [
 			{ kind: "meta", text: "Starting daemon…" },
 			{ kind: "meta", text: "Daemon started (PID 12345)." },
 			{ kind: "assistant", text: "Done." },
 		];
-		const rows = flattenTranscript(entries, "", false, 80);
+		const rows = flattenTranscript(entries, "", false, 80, "Toby", true);
 		const boxed = rows.filter((r) => r.kind === "boxed_block");
 		expect(boxed).toHaveLength(1);
 		const metaBox = boxed[0];
@@ -650,7 +673,7 @@ describe("plan events", () => {
 		}
 	});
 
-	it("plan_amended adds a meta entry", () => {
+	it("plan_amended does not add transcript rows", () => {
 		let t: TranscriptEntry[] = [];
 		t = applyChatEvent(t, {
 			type: "plan_amended",
@@ -658,12 +681,10 @@ describe("plan events", () => {
 			seq: 1,
 			detail: 'Added phase "Review" after phase 2',
 		} satisfies ChatEvent);
-		expect(t).toHaveLength(1);
-		expect(t[0]?.kind).toBe("meta");
-		expect(t[0]?.kind === "meta" && t[0].text).toContain("Plan amended");
+		expect(t).toHaveLength(0);
 	});
 
-	it("plan_completed adds a meta entry", () => {
+	it("plan_completed does not add transcript rows", () => {
 		let t: TranscriptEntry[] = [];
 		t = applyChatEvent(t, {
 			type: "plan_completed",
@@ -671,9 +692,7 @@ describe("plan events", () => {
 			seq: 1,
 			status: "completed",
 		} satisfies ChatEvent);
-		expect(t).toHaveLength(1);
-		expect(t[0]?.kind).toBe("meta");
-		expect(t[0]?.kind === "meta" && t[0].text).toBe("Plan completed");
+		expect(t).toHaveLength(0);
 	});
 
 	it("round-trips plan boxed_step", () => {
@@ -745,5 +764,20 @@ describe("flattenTranscript hidden lifecycle headers", () => {
 		const rows = flattenTranscript(entries, "", false, 80, "Toby", false);
 		const boxed = rows.filter((r) => r.kind === "boxed_block");
 		expect(boxed).toHaveLength(1);
+	});
+
+	it("hides Preparing Session lifecycle when debug is off", () => {
+		const entries: TranscriptEntry[] = [
+			{
+				kind: "boxed_step",
+				id: "boot",
+				seq: 1,
+				variant: "lifecycle",
+				header: "Preparing Session…",
+				body: "Fetching integration connection context…",
+			},
+		];
+		const rows = flattenTranscript(entries, "", false, 80, "Toby", false);
+		expect(rows.filter((r) => r.kind === "boxed_block")).toHaveLength(0);
 	});
 });

@@ -1,10 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const logSessionNote = vi.fn();
+
+vi.mock("@toby/core/logging/chat-log", () => ({
+	logSessionNote: (...args: unknown[]) => logSessionNote(...args),
+}));
+
 import {
-	buildToolSelectionTranscriptEntries,
+	logToolSelectionNotes,
 	summarizeToolCountsByIntegration,
 } from "../src/ui/chat/tool-selection-transcript";
 
-describe("tool selection transcript", () => {
+describe("tool selection notes", () => {
 	const labels = {
 		fetchOpenTasks: "Todoist",
 		listProjectNames: "Todoist",
@@ -13,15 +20,18 @@ describe("tool selection transcript", () => {
 		askUser: "Toby",
 	};
 
-	it("returns no entries when pretreatment did not run", () => {
-		expect(
-			buildToolSelectionTranscriptEntries({
-				allToolNames: Object.keys(labels),
-				toolIntegrationLabels: labels,
-				relevantTools: ["fetchOpenTasks"],
-				pretreatmentRan: false,
-			}),
-		).toEqual([]);
+	beforeEach(() => {
+		logSessionNote.mockClear();
+	});
+
+	it("logs nothing when pretreatment did not run", () => {
+		logToolSelectionNotes("sess-1", {
+			allToolNames: Object.keys(labels),
+			toolIntegrationLabels: labels,
+			relevantTools: ["fetchOpenTasks"],
+			pretreatmentRan: false,
+		});
+		expect(logSessionNote).not.toHaveBeenCalled();
 	});
 
 	it("summarizes full catalog when pretreatment ran but did not narrow tools", () => {
@@ -36,30 +46,42 @@ describe("tool selection transcript", () => {
 			{ label: "Todoist", count: 2 },
 		]);
 
-		const entries = buildToolSelectionTranscriptEntries({
+		logToolSelectionNotes("sess-1", {
 			allToolNames: Object.keys(labels),
 			toolIntegrationLabels: labels,
 			relevantTools: [],
 			pretreatmentRan: true,
 		});
-		expect(entries).toEqual([
-			{ kind: "meta", text: "Tools in scope: Gmail (1)" },
-			{ kind: "meta", text: "Tools in scope: Toby (2)" },
-			{ kind: "meta", text: "Tools in scope: Todoist (2)" },
-		]);
+		expect(logSessionNote).toHaveBeenCalledTimes(3);
+		expect(logSessionNote).toHaveBeenCalledWith(
+			"sess-1",
+			"Tools in scope: Gmail (1)",
+		);
+		expect(logSessionNote).toHaveBeenCalledWith(
+			"sess-1",
+			"Tools in scope: Toby (2)",
+		);
+		expect(logSessionNote).toHaveBeenCalledWith(
+			"sess-1",
+			"Tools in scope: Todoist (2)",
+		);
 	});
 
 	it("summarizes narrowed tools including always-included Toby tools", () => {
-		const entries = buildToolSelectionTranscriptEntries({
+		logToolSelectionNotes(null, {
 			allToolNames: Object.keys(labels),
 			toolIntegrationLabels: labels,
 			relevantTools: ["fetchOpenTasks"],
 			pretreatmentRan: true,
 		});
-		expect(entries).toEqual([
-			{ kind: "meta", text: "Tools selected: Toby (2)" },
-			{ kind: "meta", text: "Tools selected: Todoist (1)" },
-		]);
+		expect(logSessionNote).toHaveBeenCalledWith(
+			null,
+			"Tools selected: Toby (2)",
+		);
+		expect(logSessionNote).toHaveBeenCalledWith(
+			null,
+			"Tools selected: Todoist (1)",
+		);
 	});
 
 	it("includes plugin integration labels in summaries", () => {
@@ -67,15 +89,15 @@ describe("tool selection transcript", () => {
 			...labels,
 			sampleEcho: "Sample Plugin",
 		};
-		const entries = buildToolSelectionTranscriptEntries({
+		logToolSelectionNotes("s2", {
 			allToolNames: Object.keys(pluginLabels),
 			toolIntegrationLabels: pluginLabels,
 			relevantTools: ["sampleEcho"],
 			pretreatmentRan: true,
 		});
-		expect(entries).toEqual([
-			{ kind: "meta", text: "Tools selected: Sample Plugin (1)" },
-			{ kind: "meta", text: "Tools selected: Toby (2)" },
-		]);
+		expect(logSessionNote).toHaveBeenCalledWith(
+			"s2",
+			"Tools selected: Sample Plugin (1)",
+		);
 	});
 });

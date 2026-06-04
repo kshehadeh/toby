@@ -14,7 +14,7 @@ describe("formatSlackInboundStatusMrkdwn", () => {
 				seq: 1,
 				header: "Expand",
 			}),
-		).toBe("⏳ _Preparing request…_");
+		).toBe("⏳ _Expand…_");
 	});
 
 	it("uses tool-specific emoji for tool_call_start", () => {

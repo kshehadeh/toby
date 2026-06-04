@@ -7,7 +7,11 @@ import type { Persona } from "@toby/core/config/index";
 import type { LanguageModelUsage } from "ai";
 import { Box, Text } from "ink";
 import React, { useEffect, useMemo, useState } from "react";
-import { DaemonStatusLine, MultilineTextEdit } from "../../shared";
+import {
+	DaemonStatusLine,
+	MultilineTextEdit,
+	dotGridSpinnerFrame,
+} from "../../shared";
 import {
 	detectTerminalProfile,
 	inputModeLabel,
@@ -18,18 +22,6 @@ import type { UpgradeUiStatus } from "../slash-commands/types";
 import type { TobyUpdateInfo } from "../use-update-check";
 import { formatUpdateStatusLine } from "../use-update-check";
 
-const UPGRADE_SPINNER_FRAMES = [
-	"⠋",
-	"⠙",
-	"⠹",
-	"⠸",
-	"⠼",
-	"⠴",
-	"⠦",
-	"⠧",
-	"⠇",
-	"⠏",
-] as const;
 const UPGRADE_PROGRESS_BAR_WIDTH = 12;
 
 function renderUpgradeProgressBar(percent: number): string {
@@ -44,8 +36,7 @@ function formatUpgradeUiStatusLine(
 ): string | null {
 	switch (status.status) {
 		case "downloading": {
-			const spinner =
-				UPGRADE_SPINNER_FRAMES[frame % UPGRADE_SPINNER_FRAMES.length];
+			const spinner = dotGridSpinnerFrame(frame);
 			if (status.progress !== null) {
 				return `${spinner} Downloading upgrade ${renderUpgradeProgressBar(status.progress)} ${status.progress}%`;
 			}
@@ -240,7 +231,7 @@ export function ChatInputDock(props: ChatInputDockProps) {
 			return;
 		}
 		const id = setInterval(() => {
-			setUpgradeSpinnerFrame((f) => (f + 1) % UPGRADE_SPINNER_FRAMES.length);
+			setUpgradeSpinnerFrame((f) => f + 1);
 		}, 100);
 		return () => clearInterval(id);
 	}, [isDownloadingUpgrade]);

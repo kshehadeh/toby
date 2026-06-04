@@ -10,7 +10,7 @@ describe("headlessProgressLineForChatEvent", () => {
 				seq: 1,
 				header: "Expand",
 			}),
-		).toBe("Preparing request…");
+		).toBe("Expand…");
 	});
 
 	it("maps tool_call_start to tool status lines", () => {

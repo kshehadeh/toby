@@ -27,6 +27,7 @@ const FLUSH_INTERVAL_MS = 2000;
 const FLUSH_BUFFER_SIZE = 50;
 const ROTATION_KEEP_RATIO = 0.6;
 const TRUNCATE_MAX_CHARS = 200;
+const SESSION_NOTE_MAX_CHARS = 2000;
 
 function getMaxKb(): number {
 	const env = process.env.TOBY_LOG_MAX_KB?.trim();
@@ -132,6 +133,25 @@ export function log(
 		startFlushTimer();
 		ensureFlushOnExit();
 	}
+}
+
+export function logSessionNote(
+	sessionId: string | null | undefined,
+	text: string,
+	data?: Record<string, unknown>,
+): void {
+	const trimmed = text.trim();
+	if (trimmed.length === 0) {
+		return;
+	}
+	const noteText =
+		trimmed.length > SESSION_NOTE_MAX_CHARS
+			? `${trimmed.slice(0, SESSION_NOTE_MAX_CHARS)}…`
+			: trimmed;
+	logWithSession(sessionId, undefined, "info", "session", "session_note", {
+		text: noteText,
+		...data,
+	});
 }
 
 export function logWithSession(

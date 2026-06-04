@@ -23,6 +23,7 @@ function escapeSlackMrkdwnItalic(text: string): string {
 /** CLI footer lines → emoji (when event type alone is ambiguous). */
 const KNOWN_PROGRESS_LINE_EMOJI: Readonly<Record<string, string>> = {
 	"Preparing request…": "⏳",
+	"Prompt preparation…": "⏳",
 	"Ready for model…": "✨",
 	"Receiving response…": "💬",
 	"Thinking…": "🧠",
