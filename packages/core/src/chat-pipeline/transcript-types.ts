@@ -1,3 +1,5 @@
+export type NoticeTone = "info" | "success" | "error";
+
 export type ToolRunEntry = {
 	readonly blockKey: string;
 	readonly header: string;
@@ -9,6 +11,11 @@ export type TranscriptEntry =
 	| { readonly kind: "user"; readonly text: string }
 	| { readonly kind: "assistant"; readonly text: string }
 	| { readonly kind: "meta"; readonly text: string }
+	| {
+			readonly kind: "notice";
+			readonly text: string;
+			readonly tone?: NoticeTone;
+	  }
 	| { readonly kind: "error"; readonly text: string }
 	| {
 			readonly kind: "boxed_step";

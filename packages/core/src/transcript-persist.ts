@@ -9,6 +9,11 @@ type AskUserQaPayload = {
 	readonly error?: string;
 };
 
+type NoticePayload = {
+	readonly text: string;
+	readonly tone?: "info" | "success" | "error";
+};
+
 type BoxedStepPayload = {
 	readonly id: string;
 	readonly seq: number;
@@ -71,6 +76,13 @@ export function serializeTranscriptEntry(e: TranscriptEntry): {
 			...(e.error !== undefined ? { error: e.error } : {}),
 		};
 		return { kind: "ask_user_qa", text: JSON.stringify(payload) };
+	}
+	if (e.kind === "notice") {
+		const payload: NoticePayload = {
+			text: e.text,
+			...(e.tone !== undefined ? { tone: e.tone } : {}),
+		};
+		return { kind: "notice", text: JSON.stringify(payload) };
 	}
 	return { kind: e.kind, text: e.text };
 }
@@ -197,6 +209,23 @@ export function deserializeTranscriptRow(row: {
 			// fall through
 		}
 		return { kind: "meta", text: row.text };
+	}
+	if (row.kind === "notice") {
+		try {
+			const p = JSON.parse(row.text) as Partial<NoticePayload>;
+			if (typeof p.text === "string") {
+				return {
+					kind: "notice",
+					text: p.text,
+					...(p.tone === "info" || p.tone === "success" || p.tone === "error"
+						? { tone: p.tone }
+						: {}),
+				};
+			}
+		} catch {
+			// fall through — legacy plain-text notice rows
+		}
+		return { kind: "notice", text: row.text };
 	}
 	if (
 		row.kind === "user" ||
