@@ -8,16 +8,17 @@ export const stopDaemonSlashCommand: SlashCommand = {
 	run(runtime) {
 		const { running, pid } = isDaemonRunning();
 		if (!running) {
-			runtime.addMetaLine("Daemon is not running.");
+			runtime.addNoticeLine("Daemon is not running.", "info");
 			return;
 		}
 
 		const success = stopDaemon();
 		if (success) {
-			runtime.addMetaLine(`Daemon stopped (was PID ${pid}).`);
+			runtime.addNoticeLine(`Daemon stopped (was PID ${pid}).`, "success");
 		} else {
-			runtime.addMetaLine(
+			runtime.addNoticeLine(
 				`Failed to stop daemon (PID ${pid}). You may need to kill it manually.`,
+				"error",
 			);
 		}
 	},

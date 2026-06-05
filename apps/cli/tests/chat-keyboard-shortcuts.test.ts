@@ -24,8 +24,7 @@ describe("buildChatKeyboardShortcuts", () => {
 		const shortcuts = buildChatKeyboardShortcuts(TEST_PROFILE);
 		expect(
 			shortcuts.some(
-				(item) =>
-					item.keys === "?" && item.description.includes("when input is empty"),
+				(item) => item.keys === "?" && item.description.includes("Show help"),
 			),
 		).toBe(true);
 	});

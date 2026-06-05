@@ -32,25 +32,33 @@ export const disconnectSlashCommand: SlashCommand = {
 
 		const integration = getIntegration(name);
 		if (!integration) {
-			runtime.addMetaLine(`Unknown integration: ${name}`);
-			runtime.addMetaLine("Run /disconnect to see connected integrations.");
+			runtime.addNoticeLine(`Unknown integration: ${name}`, "error");
+			runtime.addNoticeLine(
+				"Run /disconnect to see connected integrations.",
+				"info",
+			);
 			return;
 		}
 
 		const connected = await integration.isConnected();
 		if (!connected) {
-			runtime.addMetaLine(`${integration.displayName} is not connected.`);
+			runtime.addNoticeLine(
+				`${integration.displayName} is not connected.`,
+				"info",
+			);
 			return;
 		}
 
 		try {
 			await integration.disconnect();
-			runtime.addMetaLine(
+			runtime.addNoticeLine(
 				`${integration.displayName} disconnected successfully.`,
+				"success",
 			);
 		} catch (e) {
-			runtime.addMetaLine(
+			runtime.addNoticeLine(
 				`Failed to disconnect ${integration.displayName}: ${e instanceof Error ? e.message : String(e)}`,
+				"error",
 			);
 		}
 	},

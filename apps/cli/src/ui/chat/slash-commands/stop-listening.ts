@@ -13,26 +13,31 @@ transcribes it. The transcript appears in the chat and can be
 summarized by asking the AI.`,
 	async run(runtime) {
 		if (!runtime.isListenRecording()) {
-			runtime.addMetaLine("No active recording. Use /listen to start.");
+			runtime.addNoticeLine(
+				"No active recording. Use /listen to start.",
+				"info",
+			);
 			return;
 		}
-		runtime.addMetaLine("Stopping and saving recording…");
+		runtime.addNoticeLine("Stopping and saving recording…", "info");
 		const result = await runtime.stopListenRecording("save");
 		if (!result) {
-			runtime.addMetaLine("Could not finalize recording.");
+			runtime.addNoticeLine("Could not finalize recording.", "error");
 			return;
 		}
-		runtime.addMetaLine(`Recording saved to ${result.outputDir}`);
+		runtime.addNoticeLine(`Recording saved to ${result.outputDir}`, "success");
 		if (result.transcript) {
-			runtime.addMetaLine(
+			runtime.addNoticeLine(
 				`Transcript saved (${result.transcript.length} chars).`,
+				"success",
 			);
 			runtime.addUserContextMessage(
 				`[Recording transcript from /listen]\n${result.transcript}`,
 			);
 		} else {
-			runtime.addMetaLine(
+			runtime.addNoticeLine(
 				`Transcription not available — audio saved to ${result.outputDir}`,
+				"info",
 			);
 		}
 	},

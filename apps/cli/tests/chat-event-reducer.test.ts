@@ -286,6 +286,26 @@ describe("boxed_step persistence", () => {
 		const row = serializeTranscriptEntry(e);
 		expect(deserializeTranscriptRow(row)).toEqual(e);
 	});
+
+	it("round-trips notice with tone", () => {
+		const e: TranscriptEntry = {
+			kind: "notice",
+			text: "Daemon started (PID 12345).",
+			tone: "success",
+		};
+		const row = serializeTranscriptEntry(e);
+		expect(row.kind).toBe("notice");
+		expect(deserializeTranscriptRow(row)).toEqual(e);
+	});
+
+	it("round-trips notice without tone", () => {
+		const e: TranscriptEntry = {
+			kind: "notice",
+			text: "Starting daemon…",
+		};
+		const row = serializeTranscriptEntry(e);
+		expect(deserializeTranscriptRow(row)).toEqual(e);
+	});
 });
 
 describe("flattenTranscript boxed_step", () => {
@@ -432,6 +452,52 @@ describe("flattenTranscript boxed_step", () => {
 			"Daemon started (PID 12345).",
 		]);
 		expect(rows.some((r) => r.kind === "assistant_line")).toBe(true);
+	});
+
+	it("shows notice entries when debug is off", () => {
+		const entries: TranscriptEntry[] = [
+			{ kind: "notice", text: "Daemon started (PID 12345).", tone: "success" },
+		];
+		const rows = flattenTranscript(entries, "", false, 80, "Toby", false);
+		expect(rows.filter((r) => r.kind === "notice")).toEqual([
+			{
+				kind: "notice",
+				text: "Daemon started (PID 12345).",
+				tone: "success",
+			},
+		]);
+	});
+
+	it("groups consecutive notice entries without debug", () => {
+		const entries: TranscriptEntry[] = [
+			{ kind: "notice", text: "Starting daemon…", tone: "info" },
+			{ kind: "notice", text: "Daemon started (PID 12345).", tone: "success" },
+			{ kind: "assistant", text: "Done." },
+		];
+		const rows = flattenTranscript(entries, "", false, 80, "Toby", false);
+		const notices = rows.filter((r) => r.kind === "notice");
+		expect(notices).toHaveLength(2);
+		expect(notices[0]).toEqual({
+			kind: "notice",
+			text: "Starting daemon…",
+			tone: "info",
+		});
+		expect(notices[1]).toEqual({
+			kind: "notice",
+			text: "Daemon started (PID 12345).",
+			tone: "success",
+		});
+		expect(rows.some((r) => r.kind === "assistant_line")).toBe(true);
+	});
+
+	it("hides meta but shows notice in the same transcript", () => {
+		const entries: TranscriptEntry[] = [
+			{ kind: "meta", text: "Tools in scope: Gmail (1)" },
+			{ kind: "notice", text: "Daemon started (PID 12345).", tone: "success" },
+		];
+		const rows = flattenTranscript(entries, "", false, 80, "Toby", false);
+		expect(rows.some((r) => r.kind === "notice")).toBe(true);
+		expect(rows.some((r) => r.kind === "boxed_block")).toBe(false);
 	});
 
 	it("lifecycle_start then lifecycle_end updates the same boxed row", () => {

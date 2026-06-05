@@ -32,7 +32,7 @@ export function buildChatKeyboardShortcuts(
 		{ keys: "Shift+Tab", description: "Cycle personas" },
 		{
 			keys: "?",
-			description: "Show keyboard shortcuts (when input is empty)",
+			description: "Show help (when input is empty)",
 		},
 		{ keys: "← / →", description: "Move cursor within the prompt" },
 		{

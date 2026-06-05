@@ -9,6 +9,9 @@ import {
 	getNearestSlashCommand,
 	resolveSlashSubmission,
 } from "../src/ui/chat/slash-commands";
+import { helpSlashCommand } from "../src/ui/chat/slash-commands/help";
+import { logSlashCommand } from "../src/ui/chat/slash-commands/log";
+import { terminalSlashCommand } from "../src/ui/chat/slash-commands/terminal";
 import { restartSlashCommand } from "../src/ui/chat/slash-commands/restart";
 import * as handoffSpawn from "../src/upgrade/handoff-spawn";
 import * as upgradeModule from "../src/upgrade/index";
@@ -17,6 +20,8 @@ function mockRuntime(overrides: Record<string, unknown> = {}) {
 	return {
 		exit: vi.fn(),
 		openHelp: vi.fn(),
+		openLogViewer: vi.fn(),
+		openTerminalViewer: vi.fn(),
 		openIntegrationPicker: vi.fn(),
 		openConfig: vi.fn(),
 		openSkills: vi.fn(),
@@ -28,7 +33,8 @@ function mockRuntime(overrides: Record<string, unknown> = {}) {
 		chatIntegrationsCount: 0,
 		launchContext: captureLaunchContext(["chat"]),
 		addMetaLine: vi.fn(),
-		setUpgradeStatus: vi.fn(),
+		addNoticeLine: vi.fn(),
+		addUserContextMessage: vi.fn(),
 		getActivePlan: vi.fn(() => null),
 		skipPlanPhase: vi.fn(),
 		cancelPlan: vi.fn(),
@@ -46,10 +52,11 @@ describe("slash commands", () => {
 		if (result.kind !== "execute" || !result.command) {
 			throw new Error("expected execute result");
 		}
-		runtime.addMetaLine = vi.fn();
+		runtime.addNoticeLine = vi.fn();
 		result.command.run(runtime);
-		expect(runtime.addMetaLine).toHaveBeenCalledWith(
+		expect(runtime.addNoticeLine).toHaveBeenCalledWith(
 			"Cleared tool cache (1 entry).",
+			"success",
 		);
 	});
 
@@ -62,6 +69,27 @@ describe("slash commands", () => {
 	it("includes /upgrade and /restart commands", () => {
 		expect(SLASH_COMMANDS.some((c) => c.command === "/upgrade")).toBe(true);
 		expect(SLASH_COMMANDS.some((c) => c.command === "/restart")).toBe(true);
+	});
+
+	it("opens the help viewer modal for /help", () => {
+		const openHelp = vi.fn();
+		const runtime = mockRuntime({ openHelp });
+		helpSlashCommand.run(runtime);
+		expect(openHelp).toHaveBeenCalledTimes(1);
+	});
+
+	it("opens the log viewer modal for /log", () => {
+		const openLogViewer = vi.fn();
+		const runtime = mockRuntime({ openLogViewer });
+		logSlashCommand.run(runtime);
+		expect(openLogViewer).toHaveBeenCalledTimes(1);
+	});
+
+	it("opens the terminal viewer modal for /terminal", () => {
+		const openTerminalViewer = vi.fn();
+		const runtime = mockRuntime({ openTerminalViewer });
+		terminalSlashCommand.run(runtime);
+		expect(openTerminalViewer).toHaveBeenCalledTimes(1);
 	});
 
 	it("includes /persona and opens the picker", () => {
@@ -90,7 +118,7 @@ describe("slash commands", () => {
 		await restartSlashCommand.run(runtime);
 
 		expect(spawnSpy).toHaveBeenCalledTimes(1);
-		expect(runtime.addMetaLine).toHaveBeenCalledWith("Restarting…");
+		expect(runtime.addNoticeLine).toHaveBeenCalledWith("Restarting…", "info");
 		expect(exit).toHaveBeenCalledTimes(1);
 
 		spawnSpy.mockRestore();

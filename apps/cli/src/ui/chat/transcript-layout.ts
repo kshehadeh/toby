@@ -426,6 +426,31 @@ export function flattenTranscript(
 				gapKey += 1;
 				rows.push({ kind: "spacer", rowKey: `gap-${gapKey}` });
 			}
+		} else if (e.kind === "notice") {
+			let groupEnd = i;
+			while (groupEnd < entries.length) {
+				const maybeNotice = entries[groupEnd];
+				if (maybeNotice?.kind !== "notice") {
+					break;
+				}
+				const insetCols = Math.max(8, termCols - 2);
+				for (const line of hardWrap(maybeNotice.text, insetCols)) {
+					rows.push({
+						kind: "notice",
+						text: line,
+						...(maybeNotice.tone !== undefined
+							? { tone: maybeNotice.tone }
+							: {}),
+					});
+				}
+				groupEnd += 1;
+			}
+			const entryAfterNoticeGroup = entries[groupEnd];
+			if (entryAfterNoticeGroup !== undefined) {
+				gapKey += 1;
+				rows.push({ kind: "spacer", rowKey: `gap-${gapKey}` });
+			}
+			i = groupEnd - 1;
 		} else if (e.kind === "meta") {
 			const metaBodyLines: string[] = [];
 			let groupEnd = i;

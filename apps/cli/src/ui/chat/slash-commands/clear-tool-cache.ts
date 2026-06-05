@@ -7,8 +7,9 @@ export const clearToolCacheSlashCommand: SlashCommand = {
 	helpText: "Remove all in-memory chat tool cache entries.",
 	run(runtime) {
 		const cleared = clearToolResultCache();
-		runtime.addMetaLine(
+		runtime.addNoticeLine(
 			`Cleared tool cache (${cleared} entr${cleared === 1 ? "y" : "ies"}).`,
+			"success",
 		);
 	},
 };

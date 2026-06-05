@@ -13,6 +13,8 @@ export type UpgradeUiStatus =
 export interface SlashCommandRuntime {
 	readonly exit: () => void;
 	readonly openHelp: () => void;
+	readonly openLogViewer: () => void;
+	readonly openTerminalViewer: () => void;
 	readonly openIntegrationPicker: () => void;
 	readonly openConfig: () => void;
 	readonly openSkills: () => void;
@@ -24,6 +26,10 @@ export interface SlashCommandRuntime {
 	readonly chatIntegrationsCount: number;
 	readonly launchContext: LaunchContext;
 	readonly addMetaLine: (text: string) => void;
+	readonly addNoticeLine: (
+		text: string,
+		tone?: "info" | "success" | "error",
+	) => void;
 	readonly addUserContextMessage: (text: string) => void;
 	readonly setUpgradeStatus?: (status: UpgradeUiStatus) => void;
 	readonly getActivePlan: () => import("@toby/core/planning/types").Plan | null;

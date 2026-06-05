@@ -22,16 +22,17 @@ is applied after this session exits, then Toby relaunches automatically.`,
 			});
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			runtime.addMetaLine(`Restart failed: ${message}`);
+			runtime.addNoticeLine(`Restart failed: ${message}`, "error");
 			return;
 		}
 
 		if (applyStaged) {
-			runtime.addMetaLine(
+			runtime.addNoticeLine(
 				"Restarting… staged upgrade will be applied, then Toby will relaunch.",
+				"info",
 			);
 		} else {
-			runtime.addMetaLine("Restarting…");
+			runtime.addNoticeLine("Restarting…", "info");
 		}
 		runtime.exit();
 	},

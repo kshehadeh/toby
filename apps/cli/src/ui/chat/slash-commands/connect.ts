@@ -29,23 +29,33 @@ export const connectSlashCommand: SlashCommand = {
 
 		const integration = getIntegration(name);
 		if (!integration) {
-			runtime.addMetaLine(`Unknown integration: ${name}`);
-			runtime.addMetaLine("Run /connect to see available integrations.");
+			runtime.addNoticeLine(`Unknown integration: ${name}`, "error");
+			runtime.addNoticeLine(
+				"Run /connect to see available integrations.",
+				"info",
+			);
 			return;
 		}
 
 		const alreadyConnected = await integration.isConnected();
 		if (alreadyConnected) {
-			runtime.addMetaLine(`${integration.displayName} is already connected.`);
+			runtime.addNoticeLine(
+				`${integration.displayName} is already connected.`,
+				"info",
+			);
 			return;
 		}
 
 		try {
 			await integration.connect();
-			runtime.addMetaLine(`${integration.displayName} connected successfully.`);
+			runtime.addNoticeLine(
+				`${integration.displayName} connected successfully.`,
+				"success",
+			);
 		} catch (e) {
-			runtime.addMetaLine(
+			runtime.addNoticeLine(
 				`Failed to connect ${integration.displayName}: ${e instanceof Error ? e.message : String(e)}`,
+				"error",
 			);
 		}
 	},

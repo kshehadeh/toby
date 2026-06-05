@@ -24,13 +24,14 @@ After download completes, run /restart to apply and relaunch.
 In dev/script mode, use git pull or bun run build instead of applying a binary swap.`,
 	async run(runtime) {
 		if (activeDownload) {
-			runtime.addMetaLine("Upgrade download already in progress.");
+			runtime.addNoticeLine("Upgrade download already in progress.", "info");
 			return;
 		}
 
 		if (isScriptLaunch()) {
-			runtime.addMetaLine(
+			runtime.addNoticeLine(
 				"Running from source (bun/node). Binary upgrade is staged for ~/.local/bin/toby; use git pull or bun run build to update this session.",
+				"info",
 			);
 		}
 
@@ -41,7 +42,10 @@ In dev/script mode, use git pull or bun run build instead of applying a binary s
 			const currentVersion = getTobyVersion();
 
 			if (!isVersionNewer(latestVersion, currentVersion)) {
-				runtime.addMetaLine(`Already on latest version (v${currentVersion}).`);
+				runtime.addNoticeLine(
+					`Already on latest version (v${currentVersion}).`,
+					"info",
+				);
 				runtime.setUpgradeStatus?.({ status: "idle" });
 				return;
 			}
@@ -51,7 +55,7 @@ In dev/script mode, use git pull or bun run build instead of applying a binary s
 				tag: latestTag,
 				progress: null,
 			});
-			runtime.addMetaLine(`Downloading v${latestVersion}…`);
+			runtime.addNoticeLine(`Downloading v${latestVersion}…`, "info");
 
 			activeDownload = (async () => {
 				try {
@@ -70,19 +74,21 @@ In dev/script mode, use git pull or bun run build instead of applying a binary s
 						status: "ready",
 						version: result.version,
 					});
-					runtime.addMetaLine(
+					runtime.addNoticeLine(
 						`Download complete: v${result.version} staged. Run /restart to apply and relaunch.`,
+						"success",
 					);
 					if (!runtime.launchContext.compiled) {
-						runtime.addMetaLine(
+						runtime.addNoticeLine(
 							"Note: /restart will relaunch this dev session without swapping the staged binary.",
+							"info",
 						);
 					}
 				} catch (error) {
 					const message =
 						error instanceof Error ? error.message : String(error);
 					runtime.setUpgradeStatus?.({ status: "error", message });
-					runtime.addMetaLine(`Upgrade failed: ${message}`);
+					runtime.addNoticeLine(`Upgrade failed: ${message}`, "error");
 				} finally {
 					activeDownload = null;
 				}
@@ -92,7 +98,7 @@ In dev/script mode, use git pull or bun run build instead of applying a binary s
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			runtime.setUpgradeStatus?.({ status: "error", message });
-			runtime.addMetaLine(`Upgrade failed: ${message}`);
+			runtime.addNoticeLine(`Upgrade failed: ${message}`, "error");
 		}
 	},
 };

@@ -12,7 +12,10 @@ stop and save. The transcript will appear in the chat and can be
 summarized by the AI.`,
 	run(runtime) {
 		if (runtime.isListenRecording()) {
-			runtime.addMetaLine("Already recording. Use /stop-listening to stop.");
+			runtime.addNoticeLine(
+				"Already recording. Use /stop-listening to stop.",
+				"info",
+			);
 			return;
 		}
 		runtime.startListenRecording();

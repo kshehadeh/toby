@@ -13,8 +13,22 @@ import {
 	META_ACCENT,
 	TOOL_FEEDBACK_DETAIL_INDENT,
 } from "../constants";
+import { META_STEP_GLYPH } from "../tool-transcript-icons";
 import type { DisplayRow } from "../types";
 import { UserPromptRow } from "./user-prompt-row";
+
+function noticeGlyphAndColor(tone: "info" | "success" | "error" | undefined): {
+	readonly glyph: string;
+	readonly color: string;
+} {
+	if (tone === "success") {
+		return { glyph: UI_GLYPHS.success, color: "green" };
+	}
+	if (tone === "error") {
+		return { glyph: UI_GLYPHS.failure, color: "red" };
+	}
+	return { glyph: META_STEP_GLYPH, color: META_ACCENT };
+}
 
 export function buildTranscriptNodes(
 	rows: readonly DisplayRow[],
@@ -144,6 +158,25 @@ export function buildTranscriptNodes(
 					text={r.text}
 					width={termCols}
 				/>,
+			);
+			i++;
+			outIdx++;
+			continue;
+		}
+		if (r.kind === "notice") {
+			const { glyph, color } = noticeGlyphAndColor(r.tone);
+			nodes.push(
+				<Box
+					key={`n-${outIdx}-${r.text.slice(0, 80)}`}
+					marginLeft={2}
+					width={Math.max(12, termCols - 2)}
+				>
+					<Text wrap="truncate-end">
+						<Text color={color}>{glyph}</Text>
+						<Text> </Text>
+						<Text color={color}>{r.text}</Text>
+					</Text>
+				</Box>,
 			);
 			i++;
 			outIdx++;

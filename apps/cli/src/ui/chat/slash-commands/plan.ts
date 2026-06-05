@@ -4,7 +4,7 @@ import type { SlashCommand, SlashCommandRuntime } from "./types";
 function runPlanCommand(runtime: SlashCommandRuntime, subcommand?: string) {
 	const plan = runtime.getActivePlan();
 	if (!plan) {
-		runtime.addMetaLine("No active plan in this session.");
+		runtime.addNoticeLine("No active plan in this session.", "info");
 		return;
 	}
 
@@ -35,22 +35,26 @@ function runPlanCommand(runtime: SlashCommandRuntime, subcommand?: string) {
 			(p: PlanPhase) => p.status === "in_progress",
 		);
 		if (!current) {
-			runtime.addMetaLine("No phase currently in progress to skip.");
+			runtime.addNoticeLine("No phase currently in progress to skip.", "info");
 			return;
 		}
 		runtime.skipPlanPhase(plan.id, current.id);
-		runtime.addMetaLine(`Skipped phase: ${current.label}`);
+		runtime.addNoticeLine(`Skipped phase: ${current.label}`, "success");
 		return;
 	}
 
 	if (subcommand === "cancel") {
 		runtime.cancelPlan(plan.id);
-		runtime.addMetaLine("Plan cancelled. Returning to free-form chat.");
+		runtime.addNoticeLine(
+			"Plan cancelled. Returning to free-form chat.",
+			"success",
+		);
 		return;
 	}
 
-	runtime.addMetaLine(
+	runtime.addNoticeLine(
 		`Unknown /plan subcommand: ${subcommand}. Use: /plan, /plan skip, /plan cancel`,
+		"error",
 	);
 }
 

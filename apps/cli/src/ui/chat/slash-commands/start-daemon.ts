@@ -29,7 +29,7 @@ export const startDaemonSlashCommand: SlashCommand = {
 	async run(runtime) {
 		const { running, pid } = isDaemonRunning();
 		if (running) {
-			runtime.addMetaLine(`Daemon is already running (PID ${pid}).`);
+			runtime.addNoticeLine(`Daemon is already running (PID ${pid}).`, "info");
 			return;
 		}
 
@@ -44,19 +44,21 @@ export const startDaemonSlashCommand: SlashCommand = {
 			);
 			child.unref();
 
-			runtime.addMetaLine("Starting daemon…");
+			runtime.addNoticeLine("Starting daemon…", "info");
 
 			const result = await waitForDaemon();
 			if (result.running) {
-				runtime.addMetaLine(`Daemon started (PID ${result.pid}).`);
+				runtime.addNoticeLine(`Daemon started (PID ${result.pid}).`, "success");
 			} else {
-				runtime.addMetaLine(
+				runtime.addNoticeLine(
 					"Daemon process was spawned but did not start within the expected time. Try running `toby daemon run` directly.",
+					"error",
 				);
 			}
 		} catch (e) {
-			runtime.addMetaLine(
+			runtime.addNoticeLine(
 				`Failed to start daemon: ${e instanceof Error ? e.message : String(e)}`,
+				"error",
 			);
 		}
 	},

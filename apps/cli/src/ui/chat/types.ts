@@ -54,6 +54,11 @@ export type DisplayRow =
 			readonly error?: string;
 	  }
 	| { readonly kind: "meta"; readonly text: string }
+	| {
+			readonly kind: "notice";
+			readonly text: string;
+			readonly tone?: "info" | "success" | "error";
+	  }
 	| { readonly kind: "error"; readonly text: string };
 
 export type AskModal = {
