@@ -1,17 +1,16 @@
 import { getTobyVersion } from "@toby/core/version";
 import { Box, Text } from "ink";
 import type { ReactNode } from "react";
-import { ACCENT, CHAT_TITLE_ASCII, TIPS } from "../constants";
+import { ACCENT, CHAT_TITLE_ASCII } from "../constants";
 
 const TOBY_VERSION = getTobyVersion();
 
 interface AppHeaderProps {
 	readonly termCols?: number;
 	readonly subheader?: ReactNode;
-	readonly tip?: string;
 }
 
-export function AppHeader({ termCols, subheader, tip }: AppHeaderProps) {
+export function AppHeader({ termCols, subheader }: AppHeaderProps) {
 	return (
 		<>
 			<Box flexShrink={0} width={termCols} flexDirection="column">
@@ -28,21 +27,6 @@ export function AppHeader({ termCols, subheader, tip }: AppHeaderProps) {
 					</Text>
 				</Box>
 			</Box>
-			{tip ? (
-				<Box
-					marginTop={0}
-					flexShrink={0}
-					width={termCols}
-					justifyContent="center"
-				>
-					<Text wrap="truncate-end">
-						<Text color={ACCENT} bold>
-							TIP{" "}
-						</Text>
-						<Text dimColor>{tip}</Text>
-					</Text>
-				</Box>
-			) : null}
 			{subheader ? (
 				<Box
 					marginTop={0}

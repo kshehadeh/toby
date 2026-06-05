@@ -42,6 +42,7 @@ export type ChatInputPanelProps = {
 	readonly onShowKeyboardShortcuts?: () => void;
 	readonly loading?: boolean;
 	readonly isListenRecording?: boolean;
+	readonly tip?: string;
 };
 
 export const ChatInputPanel = forwardRef<
@@ -65,6 +66,7 @@ export const ChatInputPanel = forwardRef<
 		onShowKeyboardShortcuts,
 		loading = false,
 		isListenRecording = false,
+		tip,
 	} = props;
 
 	const [input, setInput] = useState("");
@@ -142,6 +144,7 @@ export const ChatInputPanel = forwardRef<
 			onShowKeyboardShortcuts={onShowKeyboardShortcuts}
 			loading={loading}
 			isListenRecording={isListenRecording}
+			tip={tip}
 		/>
 	);
 });

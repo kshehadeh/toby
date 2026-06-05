@@ -13,7 +13,9 @@ export const TOOL_FEEDBACK_DETAIL_INDENT = 4;
 /** Extra indent for body text inside a boxed step (characters). */
 export const BOXED_STEP_BODY_MARGIN_LEFT = 2;
 
-/** Rotating tips shown below the header in chat sessions. */
+/** Label prefix for the rotating tip on the input hint line. */
+export const TIP_LABEL = "Tip: ";
+/** Rotating tips shown on the input hint line in chat sessions. */
 export const TIPS = [
 	'Type "/" to see a list of commands you can run.',
 	'Type "/config" to open the configuration settings.',

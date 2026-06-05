@@ -2326,7 +2326,6 @@ export function ChatSessionApp({
 		<Box flexDirection="column" width="100%" padding={1}>
 			<AppHeader
 				termCols={termCols}
-				tip={tip}
 				subheader={
 					<Box flexDirection="row" justifyContent="center" gap={2}>
 						<Text dimColor wrap="truncate-end">
@@ -2474,6 +2473,7 @@ export function ChatSessionApp({
 				onShowKeyboardShortcuts={openHelpViewer}
 				loading={loading}
 				isListenRecording={isListenRecording}
+				tip={tip}
 			/>
 		</Box>
 	);

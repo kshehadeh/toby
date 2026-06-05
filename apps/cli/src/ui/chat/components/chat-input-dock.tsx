@@ -16,7 +16,7 @@ import {
 	detectTerminalProfile,
 	inputModeLabel,
 } from "../../shared/terminal-profile";
-import { ACCENT, ACCENT_MODEL, ACCENT_PROVIDER } from "../constants";
+import { ACCENT, ACCENT_MODEL, ACCENT_PROVIDER, TIP_LABEL } from "../constants";
 import type { SlashCommand } from "../slash-commands";
 import type { UpgradeUiStatus } from "../slash-commands/types";
 import type { TobyUpdateInfo } from "../use-update-check";
@@ -170,6 +170,7 @@ type ChatInputDockProps = {
 	readonly onShowKeyboardShortcuts?: () => void;
 	readonly loading?: boolean;
 	readonly isListenRecording?: boolean;
+	readonly tip?: string;
 };
 
 export function ChatInputDock(props: ChatInputDockProps) {
@@ -195,6 +196,7 @@ export function ChatInputDock(props: ChatInputDockProps) {
 		onShowKeyboardShortcuts,
 		loading = false,
 		isListenRecording = false,
+		tip,
 	} = props;
 
 	const placeholderText = loading
@@ -279,8 +281,13 @@ export function ChatInputDock(props: ChatInputDockProps) {
 				</Box>
 			) : null}
 			<Box marginTop={0} paddingX={1}>
-				<Text dimColor wrap="truncate-end">
-					Type / to see commands
+				<Text wrap="truncate-end">
+					{tip ? (
+						<>
+							<Text color={ACCENT}>{TIP_LABEL}</Text>
+							<Text dimColor>{tip}</Text>
+						</>
+					) : null}
 					{upgradeStatusLine ? (
 						<>
 							{" · "}
