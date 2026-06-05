@@ -1,4 +1,5 @@
 export const UI_GLYPHS = {
+	inputCursor: "|",
 	cursor: "› ",
 	spacer: "  ",
 	section: "▸",

@@ -1,7 +1,7 @@
 import { Box, Text } from "ink";
-import { ControlledMultilineInput } from "ink-multiline-input";
 import React from "react";
 import { INPUT_BORDER } from "../chat/constants";
+import { ControlledMultilineInput } from "./controlled-multiline-input";
 import type { TerminalProfile } from "./terminal-profile";
 import {
 	type UseMultilineInputOptions,
@@ -63,6 +63,8 @@ export function MultilineTextEdit({
 	const placeholderText = placeholder ?? "";
 	const innerWidth =
 		typeof width === "number" ? Math.max(1, width - 2) : undefined;
+	const showPlaceholderOnly =
+		showStaticPlaceholder && !(value.length === 0 && focus);
 
 	return (
 		<Box
@@ -78,7 +80,7 @@ export function MultilineTextEdit({
 					</Text>
 				</Box>
 				<Box flexGrow={1} flexDirection="column">
-					{showStaticPlaceholder ? (
+					{showPlaceholderOnly ? (
 						<Text dimColor wrap="truncate-end">
 							{placeholderText}
 						</Text>
@@ -90,6 +92,7 @@ export function MultilineTextEdit({
 							maxRows={maxRows}
 							focus={focus}
 							placeholder={placeholderText}
+							cursorColor={accentColor}
 						/>
 					)}
 				</Box>
