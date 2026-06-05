@@ -15,6 +15,7 @@ import {
 	isReadOnlyChatTool,
 	setCachedToolResult,
 } from "../chat-pipeline/tool-result-cache";
+import { formatChattingWithPersona } from "../pipeline-footer";
 import { enrichChatModelError } from "./chat-errors";
 export { formatChatModelError } from "./chat-errors";
 export { createModelForPersona } from "./model-factory";
@@ -325,7 +326,7 @@ export async function chatWithTools(
 				type: "lifecycle_start",
 				id: modelRequestId,
 				seq: nextSeq(),
-				header: "Sending request to model…",
+				header: formatChattingWithPersona(options?.assistantHeader),
 			});
 		}
 

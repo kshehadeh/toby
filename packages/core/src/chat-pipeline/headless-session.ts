@@ -58,20 +58,24 @@ function appliedActionsIndicateReply(
 
 export function headlessProgressLineForChatEvent(
 	event: ChatEvent,
+	personaName?: string,
 ): string | null {
 	if (event.type === "tool_call_start") {
 		return formatToolStatusLine(event.toolName);
 	}
-	return activityLineForChatEvent(event);
+	return activityLineForChatEvent(event, { personaName });
 }
 
-function createHeadlessEventSink(onProgress?: (event: ChatEvent) => void): {
+function createHeadlessEventSink(
+	onProgress: ((event: ChatEvent) => void) | undefined,
+	personaName: string,
+): {
 	readonly emit: (event: ChatEvent) => void;
 	readonly onChatEvent: (event: ChatEvent) => void;
 } {
 	const handle = (event: ChatEvent) => {
 		daemonLog("debug", "turn", "pipeline_event", { type: event.type });
-		if (onProgress && headlessProgressLineForChatEvent(event)) {
+		if (onProgress && headlessProgressLineForChatEvent(event, personaName)) {
 			onProgress(event);
 		}
 	};
@@ -124,7 +128,7 @@ export async function runHeadlessChatTurn(params: {
 	const inboundPersona = buildInboundPersona(persona, provider, conversation);
 
 	let seq = 0;
-	const eventSink = createHeadlessEventSink(onProgress);
+	const eventSink = createHeadlessEventSink(onProgress, inboundPersona.name);
 	const ctx: TurnContext = {
 		persona: inboundPersona,
 		modules,

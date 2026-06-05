@@ -35,4 +35,29 @@ describe("headlessProgressLineForChatEvent", () => {
 			}),
 		).toBeNull();
 	});
+
+	it("uses persona name for listening and chatting lines", () => {
+		expect(
+			headlessProgressLineForChatEvent(
+				{
+					type: "assistant_segment_end",
+					id: "s1",
+					seq: 4,
+					header: "Toby",
+				},
+				"Research",
+			),
+		).toBe("Listening to what Research has to say");
+		expect(
+			headlessProgressLineForChatEvent(
+				{
+					type: "lifecycle_start",
+					id: "l1",
+					seq: 5,
+					header: "Chatting with Research",
+				},
+				"Research",
+			),
+		).toBe("Chatting with Research");
+	});
 });

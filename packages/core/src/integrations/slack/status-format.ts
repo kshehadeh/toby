@@ -26,7 +26,6 @@ const KNOWN_PROGRESS_LINE_EMOJI: Readonly<Record<string, string>> = {
 	"Prompt preparation…": "⏳",
 	"Ready for model…": "✨",
 	"Receiving response…": "💬",
-	"Thinking…": "🧠",
 	"Waiting for your choice…": "❓",
 	"Plan created…": "📋",
 	"Plan updated…": "✏️",
@@ -105,7 +104,7 @@ function integrationLabelEmoji(label: string): string | null {
 
 function lifecycleStatusEmoji(headerOrLine: string): string {
 	const lower = headerOrLine.toLowerCase();
-	if (lower.includes("model") || lower.includes("request")) {
+	if (lower.includes("chatting with") || lower.includes("model")) {
 		return "🤖";
 	}
 	if (lower.includes("save") || lower.includes("persist")) {
@@ -127,6 +126,12 @@ function emojiForProgressLine(line: string, event: ChatEvent): string {
 	const known = KNOWN_PROGRESS_LINE_EMOJI[line];
 	if (known) {
 		return known;
+	}
+	if (line.startsWith("Listening to what ")) {
+		return "🧠";
+	}
+	if (line.startsWith("Chatting with ")) {
+		return "🤖";
 	}
 	if (line.startsWith("Executing phase")) {
 		return "🚀";

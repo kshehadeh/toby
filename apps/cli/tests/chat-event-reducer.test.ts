@@ -717,7 +717,7 @@ describe("flattenTranscript hidden lifecycle headers", () => {
 			id: "l1",
 			seq: 1,
 			variant: "lifecycle",
-			header: "Sending request to model…",
+			header: "Chatting with Default",
 			body: "",
 		},
 		{

@@ -1,3 +1,4 @@
+import { isHiddenLifecycleHeader } from "@toby/core/pipeline-footer";
 import {
 	ASSISTANT_BOX_MARGIN_LEFT,
 	BOXED_STEP_BODY_MARGIN_LEFT,
@@ -243,13 +244,6 @@ function parseAssistantSegments(text: string): AssistantSegment[] {
 	return segments;
 }
 
-const HIDDEN_LIFECYCLE_HEADERS = new Set([
-	"Sending request to model…",
-	"Updating session messages…",
-	"Saving session…",
-	"Preparing Session…",
-]);
-
 function capBodyLines(
 	lines: readonly string[],
 	variant: "prep" | "lifecycle" | "assistant" | "tool" | "plan" | "meta",
@@ -284,7 +278,7 @@ export function flattenTranscript(
 			!debug &&
 			e.kind === "boxed_step" &&
 			e.variant === "lifecycle" &&
-			HIDDEN_LIFECYCLE_HEADERS.has(e.header)
+			isHiddenLifecycleHeader(e.header)
 		) {
 			continue;
 		}

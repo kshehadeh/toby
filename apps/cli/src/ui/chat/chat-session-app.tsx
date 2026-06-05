@@ -42,7 +42,10 @@ import {
 	logTurnSummary,
 } from "@toby/core/logging/chat-log";
 import { listPersonas, resolvePersona } from "@toby/core/personas/index";
-import { activityLineForChatEvent } from "@toby/core/pipeline-footer";
+import {
+	activityLineForChatEvent,
+	formatListeningToPersona,
+} from "@toby/core/pipeline-footer";
 import {
 	type Plan,
 	cancelPlan,
@@ -259,7 +262,9 @@ export function ChatSessionApp({
 	const inputPanelRef = useRef<ChatInputPanelHandle>(null);
 	const [recentPrompts, setRecentPrompts] = useState(() => loadPromptHistory());
 	const [loading, setLoading] = useState(false);
-	const [activityLine, setActivityLine] = useState("Thinking…");
+	const [activityLine, setActivityLine] = useState(() =>
+		formatListeningToPersona(persona.name),
+	);
 	const [streamingAssistant, setStreamingAssistant] = useState("");
 	const [streamingAssistantHeader, setStreamingAssistantHeader] = useState(
 		persona.name,
@@ -597,7 +602,9 @@ export function ChatSessionApp({
 			};
 			const emitChatEvent = (ev: ChatEvent) => {
 				eventLogSink(ev);
-				const footerHint = activityLineForChatEvent(ev);
+				const footerHint = activityLineForChatEvent(ev, {
+					personaName: activePersonaRef.current.name,
+				});
 				if (footerHint !== null) {
 					setActivityLine(footerHint);
 				}
@@ -670,7 +677,9 @@ export function ChatSessionApp({
 							onToolCallComplete: () => {
 								activeToolCalls = Math.max(0, activeToolCalls - 1);
 								if (activeToolCalls === 0) {
-									setActivityLine("Thinking…");
+									setActivityLine(
+										formatListeningToPersona(activePersonaRef.current.name),
+									);
 								}
 							},
 						},
@@ -829,7 +838,9 @@ export function ChatSessionApp({
 						return;
 					}
 					bootTranscript = applyPersistedChatEvent(bootTranscript, event);
-					const footerHint = activityLineForChatEvent(event);
+					const footerHint = activityLineForChatEvent(event, {
+						personaName: activePersonaRef.current.name,
+					});
 					if (footerHint) {
 						setBootActivityLine(footerHint);
 					}
@@ -1118,7 +1129,9 @@ export function ChatSessionApp({
 					emitChatEvent: (ev: ChatEvent) => {
 						const eventLogSink = createChatEventLogSink(sidFinal);
 						eventLogSink(ev);
-						const footerHint = activityLineForChatEvent(ev);
+						const footerHint = activityLineForChatEvent(ev, {
+							personaName: activePersonaRef.current.name,
+						});
 						if (footerHint !== null) {
 							setActivityLine(footerHint);
 						}
@@ -1213,7 +1226,11 @@ export function ChatSessionApp({
 			const isFirstTurn = !transcriptRef.current.some((e) => e.kind === "user");
 			const willPretreat = shouldPretreat(msgsBefore, steering, isFirstTurn);
 			setLoading(true);
-			setActivityLine(willPretreat ? "Preparing request..." : "Thinking...");
+			setActivityLine(
+				willPretreat
+					? "Preparing request..."
+					: formatListeningToPersona(activePersonaRef.current.name),
+			);
 
 			const prepResult = await runChatTurnPipeline(
 				{
@@ -1230,7 +1247,9 @@ export function ChatSessionApp({
 					modules: selectedModulesRef.current,
 					dryRun,
 					emit: (ev) => {
-						const footerHint = activityLineForChatEvent(ev);
+						const footerHint = activityLineForChatEvent(ev, {
+							personaName: activePersonaRef.current.name,
+						});
 						if (footerHint !== null) {
 							setActivityLine(footerHint);
 						}
@@ -1678,7 +1697,11 @@ export function ChatSessionApp({
 				);
 				const willPretreat = shouldPretreat(msgsBefore, line, isFirstTurn);
 				setLoading(true);
-				setActivityLine(willPretreat ? "Preparing request…" : "Thinking…");
+				setActivityLine(
+					willPretreat
+						? "Preparing request…"
+						: formatListeningToPersona(activePersonaRef.current.name),
+				);
 				const submitSeq = () => {
 					transcriptLocalSeqRef.current += 1;
 					return transcriptLocalSeqRef.current;
@@ -1699,7 +1722,9 @@ export function ChatSessionApp({
 						modules: selectedModulesRef.current,
 						dryRun,
 						emit: (ev) => {
-							const footerHint = activityLineForChatEvent(ev);
+							const footerHint = activityLineForChatEvent(ev, {
+								personaName: activePersonaRef.current.name,
+							});
 							if (footerHint !== null) {
 								setActivityLine(footerHint);
 							}
@@ -1790,7 +1815,9 @@ export function ChatSessionApp({
 				if (key.return) {
 					const idx = askSelectedRef.current;
 					const label = modal.options[idx] ?? "";
-					setActivityLine("Thinking…");
+					setActivityLine(
+						formatListeningToPersona(activePersonaRef.current.name),
+					);
 					modal.resolve({
 						selectedIndex: idx,
 						selectedLabel: label,
@@ -1800,7 +1827,9 @@ export function ChatSessionApp({
 					return;
 				}
 				if (key.escape) {
-					setActivityLine("Thinking…");
+					setActivityLine(
+						formatListeningToPersona(activePersonaRef.current.name),
+					);
 					modal.resolve({
 						selectedIndex: -1,
 						selectedLabel: "",
