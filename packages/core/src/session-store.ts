@@ -99,6 +99,19 @@ CREATE INDEX IF NOT EXISTS idx_chat_sessions_updated_at
 CREATE INDEX IF NOT EXISTS idx_chat_pretreatment_cache_last_hit_at
   ON chat_pretreatment_cache(last_hit_at DESC);
 
+CREATE TABLE IF NOT EXISTS routing_embeddings (
+  entity_type TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  catalog_signature TEXT NOT NULL,
+  model TEXT NOT NULL,
+  embedding_blob BLOB NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (entity_type, entity_id, catalog_signature, model)
+);
+
+CREATE INDEX IF NOT EXISTS idx_routing_embeddings_catalog
+  ON routing_embeddings(catalog_signature, model);
+
 CREATE TABLE IF NOT EXISTS chat_plans (
   id TEXT PRIMARY KEY,
   session_id TEXT NOT NULL,
@@ -655,4 +668,96 @@ export function setPretreatmentCache(
 		$c: nowIso(),
 		$h: null,
 	});
+}
+
+export type RoutingEntityType = "tool" | "skill";
+
+export type StoredRoutingEmbedding = {
+	readonly entityType: RoutingEntityType;
+	readonly entityId: string;
+	readonly vector: number[];
+};
+
+export function loadRoutingEmbeddings(params: {
+	readonly catalogSignature: string;
+	readonly model: string;
+}): StoredRoutingEmbedding[] {
+	const db = getDb();
+	const rows = db
+		.query(
+			`SELECT entity_type as entityType, entity_id as entityId, embedding_blob as embeddingBlob
+       FROM routing_embeddings
+       WHERE catalog_signature = $sig AND model = $model`,
+		)
+		.all({
+			$sig: params.catalogSignature,
+			$model: params.model,
+		}) as Array<{
+		entityType: string;
+		entityId: string;
+		embeddingBlob: Buffer;
+	}>;
+
+	const out: StoredRoutingEmbedding[] = [];
+	for (const row of rows) {
+		if (row.entityType !== "tool" && row.entityType !== "skill") {
+			continue;
+		}
+		out.push({
+			entityType: row.entityType,
+			entityId: row.entityId,
+			vector: bufferToRoutingVector(row.embeddingBlob),
+		});
+	}
+	return out;
+}
+
+export function upsertRoutingEmbedding(params: {
+	readonly entityType: RoutingEntityType;
+	readonly entityId: string;
+	readonly catalogSignature: string;
+	readonly model: string;
+	readonly vector: readonly number[];
+}): void {
+	const db = getDb();
+	db.query(
+		`INSERT OR REPLACE INTO routing_embeddings
+       (entity_type, entity_id, catalog_signature, model, embedding_blob, created_at)
+       VALUES ($type, $id, $sig, $model, $blob, $created)`,
+	).run({
+		$type: params.entityType,
+		$id: params.entityId,
+		$sig: params.catalogSignature,
+		$model: params.model,
+		$blob: routingVectorToBuffer(params.vector),
+		$created: nowIso(),
+	});
+}
+
+export function deleteRoutingEmbeddingsNotMatching(params: {
+	readonly catalogSignature: string;
+	readonly model: string;
+}): void {
+	const db = getDb();
+	db.query(
+		`DELETE FROM routing_embeddings
+     WHERE model = $model AND catalog_signature != $sig`,
+	).run({ $model: params.model, $sig: params.catalogSignature });
+}
+
+function routingVectorToBuffer(vec: readonly number[]): Buffer {
+	const f32 = new Float32Array(vec.length);
+	for (let i = 0; i < vec.length; i++) {
+		f32[i] = vec[i] ?? 0;
+	}
+	return Buffer.from(f32.buffer);
+}
+
+function bufferToRoutingVector(blob: Buffer): number[] {
+	const f32 = new Float32Array(
+		blob.buffer,
+		blob.byteOffset,
+		blob.byteLength / Float32Array.BYTES_PER_ELEMENT,
+	);
+	return Array.from(f32);
 }

@@ -8,6 +8,16 @@ import {
 	PROVIDER_CATEGORY_LABELS,
 	type ProviderCategory,
 } from "../integrations/types";
+import { resolveDefaultPersona } from "../personas/index";
+import {
+	type RoutingIndex,
+	getActiveRoutingIndex,
+	getRoutingMinScore,
+	getRoutingTopK,
+	isSemanticRoutingEnabled,
+	resolveRoutingEmbedModelId,
+	routeToolsAndSkills,
+} from "../routing/index";
 import { getPretreatmentCache, setPretreatmentCache } from "../session-store";
 import {
 	type LocalSkill,
@@ -22,7 +32,9 @@ import {
 	resolveAuxiliaryModelId,
 } from "./model-factory";
 
-const PRETREATMENT_CACHE_SCHEMA_VERSION = "5";
+const PRETREATMENT_CACHE_SCHEMA_VERSION = "6";
+
+export { isSemanticRoutingEnabled } from "../routing/config";
 
 export type PriorPretreatment = {
 	readonly rawUserText: string;
@@ -142,9 +154,11 @@ function buildPretreatmentCacheKey(params: {
 	readonly modelId: string;
 	readonly skillsCatalogSignature: string;
 	readonly toolsCatalogSignature: string;
+	readonly routingMode: "semantic" | "llm";
 }): string {
 	const signature = JSON.stringify({
 		schema: PRETREATMENT_CACHE_SCHEMA_VERSION,
+		routingMode: params.routingMode,
 		modelId: params.modelId,
 		integrationLabels: normalizeIntegrationLabels(params.integrationLabels),
 		userText: normalizePretreatmentCacheText(params.userText),
@@ -158,6 +172,76 @@ function buildPretreatmentCacheKey(params: {
 function getPretreatmentModelId(persona?: Persona): string {
 	const providerId = persona?.ai.provider ?? "openai";
 	return resolveAuxiliaryModelId(providerId);
+}
+
+function getPretreatmentCacheModelId(persona?: Persona): string {
+	const p = persona ?? resolveDefaultPersona();
+	if (isSemanticRoutingEnabled()) {
+		return `${resolveRoutingEmbedModelId(p)}:k${getRoutingTopK()}:m${getRoutingMinScore()}`;
+	}
+	return getPretreatmentModelId(p);
+}
+
+function heuristicSessionName(userText: string): string {
+	const words = userText.trim().split(/\s+/).filter(Boolean).slice(0, 6);
+	if (words.length === 0) {
+		return "";
+	}
+	return words
+		.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+		.join(" ");
+}
+
+function buildMinimalIntentSpec(params: {
+	readonly userText: string;
+	readonly isFirstTurn: boolean;
+	readonly routing: {
+		readonly relevantTools: readonly string[];
+		readonly relevantSkills: readonly string[];
+		readonly relevantIntegrations: readonly string[];
+	};
+}): UserIntentSpec {
+	return {
+		goal: params.userText.trim() || "Address the user's request.",
+		mustDo: [],
+		mustNotDo: [],
+		assumptions: [],
+		openQuestions: [],
+		relevantIntegrations: [...params.routing.relevantIntegrations],
+		relevantSkills: [...params.routing.relevantSkills],
+		relevantTools: [...params.routing.relevantTools],
+		sessionName: params.isFirstTurn
+			? heuristicSessionName(params.userText)
+			: "",
+	};
+}
+
+async function pretreatWithSemanticRouting(params: {
+	readonly raw: string;
+	readonly isFirstTurn: boolean;
+	readonly persona?: Persona;
+	readonly allowedToolNamesLower: ReadonlySet<string>;
+	readonly allowedSkillNamesLower: ReadonlySet<string>;
+	readonly toolIntegrationLabels: Readonly<Record<string, string>>;
+	readonly routingIndex: RoutingIndex | null;
+	readonly abortSignal?: AbortSignal;
+}): Promise<UserIntentSpec | null> {
+	const index = params.routingIndex ?? getActiveRoutingIndex() ?? null;
+	const persona = params.persona ?? resolveDefaultPersona();
+	const routing = await routeToolsAndSkills({
+		persona,
+		userText: params.raw,
+		toolIntegrationLabels: params.toolIntegrationLabels,
+		allowedToolNamesLower: params.allowedToolNamesLower,
+		allowedSkillNamesLower: params.allowedSkillNamesLower,
+		index,
+		abortSignal: params.abortSignal,
+	});
+	return buildMinimalIntentSpec({
+		userText: params.raw,
+		isFirstTurn: params.isFirstTurn,
+		routing,
+	});
 }
 
 /** Whether pretreatment is globally disabled via env. */
@@ -641,6 +725,8 @@ type WrapUserPromptParams = {
 	/** Map of tool name → integration display label, for skill `integrations` expansion. */
 	readonly toolIntegrationLabels?: Readonly<Record<string, string>>;
 	readonly abortSignal?: AbortSignal;
+	/** Pre-warmed embedding index from turn-init; falls back to module cache. */
+	readonly routingIndex?: RoutingIndex | null;
 };
 
 /** Runs pretreatment when indicated and returns content for `role: "user"`. */
@@ -683,7 +769,7 @@ export async function wrapUserPromptWithPretreatment(
 			return finalize(reusePriorPretreatmentSpec(raw, prior.spec));
 		}
 
-		if (isDeltaPretreatmentEnabled()) {
+		if (!isSemanticRoutingEnabled() && isDeltaPretreatmentEnabled()) {
 			const delta = await pretreatUserPromptDelta({
 				prior,
 				userText: raw,
@@ -710,13 +796,15 @@ export async function wrapUserPromptWithPretreatment(
 		}
 	}
 
-	const modelId = getPretreatmentModelId(params.persona);
+	const routingMode = isSemanticRoutingEnabled() ? "semantic" : "llm";
+	const modelId = getPretreatmentCacheModelId(params.persona);
 	const promptKey = buildPretreatmentCacheKey({
 		userText: raw,
 		integrationLabels: params.integrationLabels,
 		modelId,
 		skillsCatalogSignature,
 		toolsCatalogSignature,
+		routingMode,
 	});
 	if (canUsePretreatmentCache()) {
 		const cached = getPretreatmentCache(promptKey);
@@ -730,17 +818,31 @@ export async function wrapUserPromptWithPretreatment(
 		}
 	}
 
-	const modelSpec = await pretreatUserPrompt({
-		userText: raw,
-		integrationLabels: params.integrationLabels,
-		skillsCatalogText,
-		allowedSkillNamesLower,
-		toolsCatalogText,
-		allowedToolNamesLower,
-		isFirstTurn: params.isFirstTurn,
-		abortSignal: params.abortSignal,
-		persona: params.persona,
-	});
+	let modelSpec: UserIntentSpec | null;
+	if (isSemanticRoutingEnabled()) {
+		modelSpec = await pretreatWithSemanticRouting({
+			raw,
+			isFirstTurn: params.isFirstTurn,
+			persona: params.persona,
+			allowedToolNamesLower,
+			allowedSkillNamesLower,
+			toolIntegrationLabels,
+			routingIndex: params.routingIndex ?? null,
+			abortSignal: params.abortSignal,
+		});
+	} else {
+		modelSpec = await pretreatUserPrompt({
+			userText: raw,
+			integrationLabels: params.integrationLabels,
+			skillsCatalogText,
+			allowedSkillNamesLower,
+			toolsCatalogText,
+			allowedToolNamesLower,
+			isFirstTurn: params.isFirstTurn,
+			abortSignal: params.abortSignal,
+			persona: params.persona,
+		});
+	}
 	if (modelSpec && canUsePretreatmentCache()) {
 		setPretreatmentCache(promptKey, modelSpec);
 	}

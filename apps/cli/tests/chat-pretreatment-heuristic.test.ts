@@ -9,7 +9,7 @@ import {
 	wrapUserPromptWithPretreatment,
 } from "@toby/core/ai/pretreatment";
 import * as sessionStore from "@toby/core/session-store";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { generateTextMock } = vi.hoisted(() => ({
 	generateTextMock: vi.fn(),
@@ -139,8 +139,19 @@ describe("shouldPretreat", () => {
 });
 
 describe("wrapUserPromptWithPretreatment", () => {
+	const prevSemantic = process.env.TOBY_SEMANTIC_ROUTING;
+
 	beforeEach(() => {
 		generateTextMock.mockReset();
+		process.env.TOBY_SEMANTIC_ROUTING = "0";
+	});
+
+	afterEach(() => {
+		if (prevSemantic === undefined) {
+			process.env.TOBY_SEMANTIC_ROUTING = undefined;
+		} else {
+			process.env.TOBY_SEMANTIC_ROUTING = prevSemantic;
+		}
 	});
 
 	it("reuses prior spec for trivial follow-ups without calling the model", async () => {

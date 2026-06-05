@@ -121,24 +121,42 @@ Where this is implemented:
 - Multi-integration system prompt is assembled in `packages/core/src/prepare-messages.ts` and does **not** embed the user request.
 - The actual user request (and dynamic context like task snapshots) is always provided via `role: "user"` messages.
 
-## Pretreatment (optional)
+## Pretreatment and semantic routing (optional)
 
-Before the main model turn, **ExpandPromptNode** may run a **small, fast** LLM call that extracts a structured intent spec (goal, must/must-not, assumptions, open questions, likely integrations, **relevant local skills**, and relevant tools) and **prepends** it to the `role: "user"` content sent to the main model. The Ink transcript still shows the **verbatim** user line.
+Before the main model turn, **ExpandPromptNode** runs **prompt preparation** that narrows **relevant local skills** and **relevant tools**, then **prepends** a compact intent block to the `role: "user"` content sent to the main model. The Ink transcript still shows the **verbatim** user line.
 
-- **When**: on **every** non-empty prompt. `[shouldPretreat](../packages/core/src/ai/pretreatment.ts)` returns `true` for any non-blank user text so each turn validates intent and narrows the tool/skill set. Disable entirely with `TOBY_DISABLE_PRETREATMENT=1`. Follow-up savings: trivial acknowledgements reuse the prior spec without an LLM call; other follow-ups may use **delta** pretreatment when prior context is available (see below).
-- **Provider**: uses the active persona’s AI provider (OpenAI direct or Vercel AI Gateway via [`model-factory.ts`](../packages/core/src/ai/model-factory.ts)).
-- **Model**: defaults to `gpt-4.1-nano` for OpenAI, or `openai/gpt-4.1-nano` for Vercel gateway. Override with `TOBY_PRETREAT_MODEL` (bare id for OpenAI, or a full `provider/model` slug for gateway). Disable entirely with `TOBY_DISABLE_PRETREATMENT=1`.
-- **Follow-up optimization**: when `priorPretreatment` is provided (Ink: previous assembled turn; headless: `chat_sessions.last_pretreatment_json`), trivial messages (`ok`, `yes`, `continue`, …) reuse prior skill/tool selection. Otherwise **delta** pretreatment (`TOBY_PRETREAT_DELTA=0` to disable) asks a small model whether scope is unchanged; if so, prior selection is reused. If delta fails, prior selection is reused conservatively; if delta reports a scope change, a full pretreatment run follows.
-- **Debug**: `TOBY_DEBUG_PREP=1` adjusts the **prompt preparation** transcript box detail when a spec was attached (no separate `meta` line).
-- **Caching**:
-  - Pretreatment uses its own short system prompt and is **not** included in the main `promptCacheKey` merge. The wrapped user text remains dynamic user-role content, so the stable-prefix caching strategy for the main turn is unchanged.
-  - Toby also keeps a small **local SQLite cache** of successful pretreatment results (global across sessions) so repeated prompts can **skip the pretreatment model call** entirely.
-    - **Keying**: derived from normalized user text + normalized integration labels + pretreat model id + a digest of the available skill catalog + a pretreat cache schema version.
-    - **Storage**: stored in `chat.sqlite` (see `packages/core/src/session-store.ts`).
-    - **Invalidation**: bumping the pretreat cache schema version (or changing model id / prompt construction inputs / local skill catalog) naturally produces new keys.
-  - **Policy**: success-only (failed/timeout pretreatments are not cached).
-- **Tool filtering**: When pretreatment identifies relevant tools, Toby can narrow the active tool set for the main turn while preserving always-included global tools.
-- **Session naming**: Pretreatment may suggest a short descriptive session name for newly started chats.
+### Default: static semantic routing
+
+By default, Toby uses **embedding-based routing** ([`packages/core/src/routing/`](../packages/core/src/routing/)) instead of an auxiliary LLM on the hot path:
+
+1. **Turn-init** builds the tool catalog and **warms** a static index: tool/skill descriptions are embedded once per catalog signature and stored in SQLite (`routing_embeddings` in [`session-store.ts`](../packages/core/src/session-store.ts)).
+2. **Expand-prompt** embeds the user message, runs cosine search, and selects up to **`TOBY_ROUTING_TOP_K`** integration-specific tools (default **8**) plus up to **2** skills above **`TOBY_ROUTING_MIN_SCORE`** (default **0.2**).
+3. **Finalize** still applies the token-overlap skill heuristic and unions tools declared in selected skill frontmatter.
+
+**Always-included tools** (~16: `askUser`, memory tools, `loadLocalSkillInstructions`, `tobyList*`, `webSearch`, etc.) are **not** part of the top-K count; they are always passed to the main model regardless of routing. So “top 8” means eight *additional* integration tools, not eight tools total.
+
+| Variable | Purpose |
+| -------- | ------- |
+| `TOBY_DISABLE_PRETREATMENT=1` | Skip preparation entirely; all tools are exposed to the main model. |
+| `TOBY_SEMANTIC_ROUTING=0` | Opt into **legacy LLM pretreatment** (see below). |
+| `TOBY_ROUTING_TOP_K` | Max integration-specific tools from semantic search (default `8`). |
+| `TOBY_ROUTING_MIN_SCORE` | Minimum cosine similarity (default `0.2`). |
+| `TOBY_ROUTING_EMBED_MODEL` | Embedding model (`text-embedding-3-small` or gateway `openai/text-embedding-3-small`). |
+
+Embedding calls use the active persona’s AI provider (OpenAI or Vercel AI Gateway), same credentials as chat.
+
+### Legacy LLM pretreatment (`TOBY_SEMANTIC_ROUTING=0`)
+
+When semantic routing is disabled, **ExpandPromptNode** uses a **small structured LLM** (`gpt-4.1-nano` by default) to extract a full `UserIntentSpec` (goal, must/must-not, assumptions, open questions, integrations, skills, tools). Override with `TOBY_PRETREAT_MODEL`. **Delta** pretreatment (`TOBY_PRETREAT_DELTA=0` to disable) can reuse prior skill/tool scope on follow-ups.
+
+### Shared behavior
+
+- **When**: on **every** non-empty prompt unless `TOBY_DISABLE_PRETREATMENT=1`. [`shouldPretreat`](../packages/core/src/ai/pretreatment.ts) gates this.
+- **Follow-up optimization**: trivial messages (`ok`, `yes`, `continue`, …) reuse the prior spec without re-embedding. Non-trivial follow-ups re-run semantic routing (legacy mode may use delta LLM instead).
+- **Debug**: `TOBY_DEBUG_PREP=1` adjusts the **prompt preparation** transcript box detail when a spec was attached.
+- **Caching**: SQLite **pretreatment cache** (`chat_pretreatment_cache`) stores successful routing results keyed by normalized user text, integration labels, catalog digests, routing mode, and embed/routing parameters — so identical prompts skip re-embedding.
+- **Tool filtering**: Selected tools narrow the main turn via [`filterToolsByRelevance`](../packages/core/src/chat-pipeline/run-turn.ts).
+- **Session naming**: First-turn session titles use a short heuristic from the user message (semantic mode) or LLM output (legacy mode).
 
 ## Local skills (optional)
 

@@ -6,6 +6,7 @@ import type { PriorPretreatment, UserIntentSpec } from "../ai/pretreatment";
 export type { PriorPretreatment };
 import type { Persona } from "../config/index";
 import type { IntegrationModule } from "../integrations/types";
+import type { RoutingIndex } from "../routing/index";
 import type { LocalSkill } from "../skills/index";
 import type { ChatEventSink } from "./chat-events";
 import { assembleMessagesNode } from "./nodes/assemble-messages";
@@ -37,6 +38,7 @@ export type InitedTurn = TurnRequest & {
 	readonly toolCatalog: ToolCatalogInfo;
 	readonly willPretreat: boolean;
 	readonly integrationLabel: string;
+	readonly routingIndex: RoutingIndex | null;
 };
 
 export type ExpandedTurn = InitedTurn & {

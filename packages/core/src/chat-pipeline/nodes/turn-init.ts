@@ -1,5 +1,11 @@
+import crypto from "node:crypto";
 import { shouldPretreat } from "../../ai/pretreatment";
-import { loadLocalSkills } from "../../skills/index";
+import { warmRoutingIndex } from "../../routing/index";
+import {
+	computeSkillCatalogSignature,
+	formatSkillsCatalogForPrompt,
+	loadLocalSkills,
+} from "../../skills/index";
 import { formatScopeLabel } from "../format-scope-label";
 import type {
 	InitedTurn,
@@ -8,6 +14,17 @@ import type {
 	TurnRequest,
 } from "../pipeline";
 import { buildToolsCatalogForPretreatment } from "../run-turn";
+
+function sha256CatalogDigest(catalogText: string): string {
+	return crypto
+		.createHash("sha256")
+		.update(catalogText)
+		.digest("base64")
+		.replaceAll("+", "-")
+		.replaceAll("/", "_")
+		.replaceAll("=", "")
+		.slice(0, 20);
+}
 
 export const turnInitNode: PipelineNode<TurnRequest, InitedTurn> = {
 	name: "turn-init",
@@ -39,6 +56,24 @@ export const turnInitNode: PipelineNode<TurnRequest, InitedTurn> = {
 			);
 		}
 
+		const skillsCatalogText = formatSkillsCatalogForPrompt(localSkills);
+		const skillsCatalogSignature = computeSkillCatalogSignature(localSkills);
+		const toolsCatalogSignature = sha256CatalogDigest(toolCatalog.catalogText);
+
+		let routingIndex = null;
+		const warm = await warmRoutingIndex({
+			persona: ctx.persona,
+			toolsCatalogText: toolCatalog.catalogText,
+			skillsCatalogText,
+			toolsCatalogSignature,
+			skillsCatalogSignature,
+			abortSignal: ctx.abortSignal,
+		});
+		routingIndex = warm.index;
+		if (onStatus && warm.rebuilt) {
+			await onStatus("Indexing tools for routing…");
+		}
+
 		const willPretreat =
 			input.rawUserText.trim().length > 0 &&
 			shouldPretreat(input.priorMessages, input.rawUserText, input.isFirstTurn);
@@ -49,6 +84,7 @@ export const turnInitNode: PipelineNode<TurnRequest, InitedTurn> = {
 			toolCatalog,
 			willPretreat,
 			integrationLabel,
+			routingIndex,
 		};
 	},
 };

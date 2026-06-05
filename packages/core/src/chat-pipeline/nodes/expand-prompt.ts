@@ -15,9 +15,7 @@ export const expandPromptNode: PipelineNode<InitedTurn, ExpandedTurn> = {
 				header: "Prompt preparation",
 			});
 			if (ctx.onStatusLine) {
-				await ctx.onStatusLine(
-					"Analyzing your request for intent, relevant skills, and tools…",
-				);
+				await ctx.onStatusLine("Routing skills and tools…");
 			}
 		}
 
@@ -33,6 +31,7 @@ export const expandPromptNode: PipelineNode<InitedTurn, ExpandedTurn> = {
 			allowedToolNamesLower: input.toolCatalog.allowedToolNamesLower,
 			toolIntegrationLabels: input.toolCatalog.toolIntegrationLabels,
 			abortSignal: ctx.abortSignal,
+			routingIndex: input.routingIndex,
 		});
 
 		if (prepId) {
