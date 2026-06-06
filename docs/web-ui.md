@@ -58,4 +58,4 @@ The header also shows **chat inbound** status (configured provider and live conn
 
 ## Release
 
-Release builds copy `apps/web/dist` to `dist/web/` alongside the compiled `toby` binary.
+Release builds copy `apps/web/dist` to `dist/web/` alongside the compiled `toby` binary. Installers and upgrades place that folder at **`web/` next to the `toby` binary** (e.g. `~/.local/bin/web` when `toby` is on your PATH).

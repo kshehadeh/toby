@@ -106,9 +106,9 @@ archive with a warning. Invalid non-empty credentials fail the release instead
 of silently publishing an unexpectedly unsigned build.
 
 Local `bun run build:release` builds `dist/toby`, `dist/toby-listener`,
-`dist/toby-macos`, `dist/toby-plugin-sample`, and `dist/whisper-cli` (whisper.cpp
-is compiled via [`scripts/build-whisper-cli.sh`](../scripts/build-whisper-cli.sh)).
-Verify staged artifacts with `node scripts/verify-release-artifacts.mjs release-payload`.
+`dist/toby-macos`, `dist/toby-plugin-sample`, `dist/whisper-cli`, and `dist/web/`
+(the built React UI). Verify staged artifacts with
+`node scripts/verify-release-artifacts.mjs release-payload`.
 Use the GitHub release workflow for signed and notarized distribution artifacts.
 
 For how the listener and transcriber binaries are built, cross-compiled in CI,
@@ -136,7 +136,9 @@ Configuration is in [`.release-it.json`](../.release-it.json): publishing to the
 
 From the repo root, [`install-toby.sh`](../install-toby.sh) downloads the
 **latest matching macOS release archive** and installs the `toby` binary into
-**`~/.local/bin/toby`** (override with `TOBY_INSTALL_DIR`). The bundled helper
+**`~/.local/bin/toby`** (override with `TOBY_INSTALL_DIR`). The web UI static
+files are installed as **`~/.local/bin/web/`** (sibling of the `toby` binary).
+The bundled helper
 binaries (`toby-listener`, `toby-macos`, `whisper-cli`) are placed under **`~/.toby/helpers/`**
 and the sample plugin under **`~/.toby/plugins/`**, so only `toby` lands on your
 `PATH`. It does not use `sudo`. The script then runs **`toby whisper setup`** to
