@@ -1,3 +1,4 @@
+import { seedListenRecordingValues as seedCoreListenRecordingValues } from "@toby/core/configure/persistence";
 import {
 	type ListenRecordingSummary,
 	listListenRecordings,
@@ -7,17 +8,10 @@ export function seedListenRecordingValues(
 	values: Record<string, string>,
 	recordingsDir?: string,
 ): void {
-	for (const key of Object.keys(values)) {
-		if (key.startsWith("listen.recordings.")) {
-			delete values[key];
-		}
-	}
-	for (const recording of listListenRecordings(recordingsDir)) {
-		values[`listen.recordings.${recording.id}.name`] =
-			recording.metadata.name ?? "";
-		values[`listen.recordings.${recording.id}.description`] =
-			recording.metadata.description ?? "";
-	}
+	seedCoreListenRecordingValues(
+		values,
+		listListenRecordings(recordingsDir),
+	);
 }
 
 export function findListenRecordingById(

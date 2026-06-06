@@ -1,28 +1,19 @@
 import { AI_PROVIDERS } from "@toby/core/ai/providers";
-import type { ChatInboundConfig } from "@toby/core/config/index";
 import {
-	type CredentialsFile,
-	type Persona,
 	clearDefaultPersona,
 	getDefaultPersonaName,
 	readConfig,
-	readCredentials,
 	setDefaultPersona,
 	writeConfig,
-	writeCredentials,
 } from "@toby/core/config/index";
-import { getIntegrationModules } from "@toby/core/integrations/index";
 import {
-	ALL_PROVIDER_CATEGORIES,
-	type ProviderCategory,
-} from "@toby/core/integrations/types";
-import type { ListenConfig } from "@toby/core/listen/whisper-config";
-import {
-	resolveDefaultWhisperModelPath,
-	resolveWhisperCliInstallTarget,
-} from "@toby/core/listen/whisper-config";
+	rebuildDefaultProviders,
+	rebuildPersonas,
+	saveConfigureValues,
+	seedConfigureValues,
+	seedScheduleValues,
+} from "@toby/core/configure/persistence";
 import { DEFAULT_CHAT_PERSONA } from "@toby/core/personas/index";
-import { loadLocalSkills } from "@toby/core/skills/index";
 import {
 	deleteSkill,
 	openSkillInEditor,
@@ -33,6 +24,7 @@ import {
 	openListenRecordingInFinder,
 	updateListenRecordingMetadata,
 } from "../../listen/session-controller";
+import { listListenRecordings } from "../../listen/session-controller";
 import { executeSchedule } from "../../schedules/executor";
 import {
 	createSchedule,
@@ -90,29 +82,6 @@ interface ConfigureSession {
 	readonly listenRecordingsDir?: string;
 }
 
-function seedScheduleValues(values: Record<string, string>): void {
-	for (const key of Object.keys(values)) {
-		if (key.startsWith("schedules.")) {
-			delete values[key];
-		}
-	}
-	let schedules: Schedule[] = [];
-	try {
-		schedules = listSchedules();
-	} catch {
-		schedules = [];
-	}
-	for (const schedule of schedules) {
-		values[`schedules.${schedule.id}.name`] = schedule.name;
-		values[`schedules.${schedule.id}.prompt`] = schedule.prompt;
-		values[`schedules.${schedule.id}.persona`] = schedule.personaName;
-		values[`schedules.${schedule.id}.cron`] = schedule.cronExpression;
-		values[`schedules.${schedule.id}.enabled`] = schedule.enabled
-			? "Yes"
-			: "No";
-	}
-}
-
 function findScheduleById(scheduleId: string): Schedule | null {
 	try {
 		return listSchedules().find((s) => s.id === scheduleId) ?? null;
@@ -138,61 +107,9 @@ export function createConfigureSession(
 	options: ConfigureSessionOptions = {},
 ): ConfigureSession {
 	const listenRecordingsDir = options.listenOptions?.recordingsDir;
-	const creds = readCredentials();
-	const config = readConfig();
-
-	const credentialValues: Record<string, string> = {};
-	for (const mod of getIntegrationModules()) {
-		Object.assign(credentialValues, mod.seedCredentialValues(creds));
-	}
-	if (creds.ai?.openai?.token) {
-		credentialValues["ai.openai.token"] = creds.ai.openai.token;
-	}
-	if (creds.ai?.vercel?.apiKey) {
-		credentialValues["ai.vercel.apiKey"] = creds.ai.vercel.apiKey;
-	}
-	for (const p of config.personas) {
-		credentialValues[`personas.${p.name}.name`] = p.name;
-		credentialValues[`personas.${p.name}.instructions`] = p.instructions;
-		credentialValues[`personas.${p.name}.promptMode`] = p.promptMode;
-		credentialValues[`personas.${p.name}.ai.provider`] = p.ai.provider;
-		credentialValues[`personas.${p.name}.ai.model`] = p.ai.model;
-	}
-	for (const skill of loadLocalSkills()) {
-		credentialValues[`skills.${skill.dirName}.name`] = skill.name;
-		credentialValues[`skills.${skill.dirName}.description`] = skill.description;
-		credentialValues[`skills.${skill.dirName}.summary`] = skill.summary;
-	}
-	seedListenRecordingValues(credentialValues, listenRecordingsDir);
-	seedScheduleValues(credentialValues);
-	for (const cat of ALL_PROVIDER_CATEGORIES) {
-		const current = config.defaultProviders?.[cat];
-		credentialValues[`defaults.${cat}`] = current ?? "(none)";
-	}
-
-	credentialValues["chatInbound.enabled"] =
-		config.chatInbound?.enabled === true ? "true" : "false";
-	credentialValues["chatInbound.integration"] =
-		config.chatInbound?.integration?.trim() || "(none)";
-	credentialValues["chatInbound.persona"] =
-		config.chatInbound?.persona?.trim() || "(default)";
-	credentialValues["listen.whisperCpp.binaryPath"] =
-		config.listen?.whisperCpp?.binaryPath?.trim() ||
-		resolveWhisperCliInstallTarget();
-	credentialValues["listen.whisperCpp.modelPath"] =
-		config.listen?.whisperCpp?.modelPath?.trim() ||
-		resolveDefaultWhisperModelPath();
-	credentialValues["listen.whisperCpp.language"] =
-		config.listen?.whisperCpp?.language?.trim() || "auto";
-
-	for (const mod of getIntegrationModules()) {
-		if (!mod.chatInbound) continue;
-		const entry = config.integrations[mod.name] as
-			| { inboundEnabled?: boolean }
-			| undefined;
-		credentialValues[`${mod.name}.inboundEnabled`] =
-			entry?.inboundEnabled === true ? "true" : "false";
-	}
+	const credentialValues = seedConfigureValues({
+		listenRecordings: listListenRecordings(listenRecordingsDir),
+	});
 
 	const refreshTree = (vals: Record<string, string>) => {
 		const freshConfig = readConfig();
@@ -356,159 +273,10 @@ export function createConfigureSession(
 		initialTree: refreshTree(credentialValues),
 		initialValues: credentialValues,
 		onSave: (values) => {
-			const updated = buildCredentialsFromValues(values, creds);
-			writeCredentials(updated);
-
-			const cfg = readConfig();
-			cfg.personas = rebuildPersonas(values, cfg.personas);
-			cfg.defaultProviders = rebuildDefaultProviders(values);
-			cfg.chatInbound = rebuildChatInbound(values);
-			cfg.listen = rebuildListenConfig(values);
-			applyIntegrationInboundFlags(cfg, values);
-			writeConfig(cfg);
+			saveConfigureValues(values);
 		},
 		refreshTree,
 		callbacks,
 		listenRecordingsDir,
 	};
-}
-
-function buildCredentialsFromValues(
-	values: Record<string, string>,
-	creds: CredentialsFile,
-): CredentialsFile {
-	let next: CredentialsFile = { ...creds };
-	for (const mod of getIntegrationModules()) {
-		const patch = mod.mergeCredentialsPatch(values, creds);
-		next = mergeCredentials(next, patch);
-	}
-
-	const token = values["ai.openai.token"] ?? creds.ai?.openai?.token ?? "";
-	const vercelApiKey =
-		values["ai.vercel.apiKey"] ?? creds.ai?.vercel?.apiKey ?? "";
-	next = mergeCredentials(next, {
-		ai: {
-			openai: { token },
-			vercel: { apiKey: vercelApiKey },
-		},
-	});
-	return next;
-}
-
-function mergeCredentials<T>(base: T, patch: Partial<T>): T {
-	const out: Record<string, unknown> = { ...(base as unknown as object) };
-	for (const [key, value] of Object.entries(patch as Record<string, unknown>)) {
-		if (value === undefined) continue;
-		const existing = out[key];
-		if (isPlainObject(existing) && isPlainObject(value)) {
-			out[key] = mergeCredentials(
-				existing as Record<string, unknown>,
-				value as Record<string, unknown>,
-			);
-		} else {
-			out[key] = value;
-		}
-	}
-	return out as T;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-	if (typeof value !== "object" || value === null) return false;
-	const proto = Object.getPrototypeOf(value);
-	return proto === Object.prototype || proto === null;
-}
-
-function rebuildListenConfig(values: Record<string, string>): ListenConfig {
-	const binaryPath = values["listen.whisperCpp.binaryPath"]?.trim();
-	const modelPath = values["listen.whisperCpp.modelPath"]?.trim();
-	const language = values["listen.whisperCpp.language"]?.trim() || "auto";
-	return {
-		whisperCpp: {
-			...(binaryPath ? { binaryPath } : {}),
-			...(modelPath ? { modelPath } : {}),
-			language,
-		},
-	};
-}
-
-function rebuildChatInbound(values: Record<string, string>): ChatInboundConfig {
-	const enabled = values["chatInbound.enabled"] === "true";
-	const integrationRaw = values["chatInbound.integration"]?.trim();
-	const integration =
-		integrationRaw && integrationRaw !== "(none)" ? integrationRaw : undefined;
-	const personaRaw = values["chatInbound.persona"]?.trim();
-	const persona =
-		personaRaw && personaRaw !== "(default)" ? personaRaw : undefined;
-	return { enabled, integration, persona };
-}
-
-function applyIntegrationInboundFlags(
-	cfg: ReturnType<typeof readConfig>,
-	values: Record<string, string>,
-): void {
-	const inbound = rebuildChatInbound(values);
-	for (const mod of getIntegrationModules()) {
-		if (!mod.chatInbound) continue;
-		let flag = values[`${mod.name}.inboundEnabled`] === "true";
-		if (inbound.enabled && inbound.integration === mod.name) {
-			flag = true;
-		}
-		const existing = cfg.integrations[mod.name] ?? {};
-		cfg.integrations[mod.name] = {
-			...existing,
-			inboundEnabled: flag,
-		};
-	}
-}
-
-function rebuildDefaultProviders(
-	values: Record<string, string>,
-): Partial<Record<ProviderCategory, string>> {
-	const out: Partial<Record<ProviderCategory, string>> = {};
-	for (const cat of ALL_PROVIDER_CATEGORIES) {
-		const val = values[`defaults.${cat}`];
-		if (val && val !== "(none)") {
-			out[cat] = val;
-		}
-	}
-	return out;
-}
-
-function rebuildPersonas(
-	values: Record<string, string>,
-	existing: Persona[],
-): Persona[] {
-	const names = new Set<string>();
-	for (const key of Object.keys(values)) {
-		if (key.startsWith("personas.") && key.endsWith(".name")) {
-			names.add(values[key]);
-		}
-	}
-
-	return [...names].map((name) => {
-		const existingPersona = existing.find((p) => p.name === name);
-		return {
-			name: values[`personas.${name}.name`] ?? name,
-			instructions:
-				values[`personas.${name}.instructions`] ??
-				existingPersona?.instructions ??
-				"",
-			promptMode:
-				values[`personas.${name}.promptMode`] === "replace"
-					? "replace"
-					: existingPersona?.promptMode === "replace"
-						? "replace"
-						: "add",
-			ai: {
-				provider:
-					values[`personas.${name}.ai.provider`] ??
-					existingPersona?.ai.provider ??
-					"openai",
-				model:
-					values[`personas.${name}.ai.model`] ??
-					existingPersona?.ai.model ??
-					"gpt-5-mini",
-			},
-		};
-	});
 }
