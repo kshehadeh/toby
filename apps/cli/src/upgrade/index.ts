@@ -9,6 +9,8 @@ import {
 	getHelpersDir,
 	resolveTobyDir,
 } from "@toby/core/config/index";
+import { ensureWhisperTranscriptionAssets } from "@toby/core/listen/whisper-assets";
+import { resolveWhisperCliInstallTarget } from "@toby/core/listen/whisper-config";
 import {
 	getTobyEntryScriptArgv,
 	isRunningAsCompiledBinary,
@@ -34,6 +36,7 @@ export interface StagingManifest {
 	readonly installTarget: string;
 	readonly listenerInstallTarget?: string;
 	readonly macOSHelperInstallTarget?: string;
+	readonly whisperCliInstallTarget?: string;
 	readonly completedAt: string;
 }
 
@@ -93,11 +96,16 @@ export function resolveMacOSHelperInstallTarget(_installDir?: string): string {
 	return path.join(getHelpersDir(), "toby-macos");
 }
 
+export function resolveWhisperCliInstallTargetFromUpgrade(): string {
+	return resolveWhisperCliInstallTarget();
+}
+
 export function getStagingPaths(): {
 	readonly stagingDir: string;
 	readonly binaryPath: string;
 	readonly listenerPath: string;
 	readonly macOSHelperPath: string;
+	readonly whisperCliPath: string;
 	readonly pluginSamplePath: string;
 	readonly archivePath: string;
 	readonly manifestPath: string;
@@ -109,6 +117,7 @@ export function getStagingPaths(): {
 		binaryPath: path.join(stagingDir, "toby"),
 		listenerPath: path.join(stagingDir, "toby-listener"),
 		macOSHelperPath: path.join(stagingDir, "toby-macos"),
+		whisperCliPath: path.join(stagingDir, "whisper-cli"),
 		pluginSamplePath: path.join(stagingDir, "toby-plugin-sample"),
 		archivePath: path.join(stagingDir, "toby-release.zip"),
 		manifestPath: path.join(stagingDir, "manifest.json"),
@@ -184,6 +193,7 @@ export async function downloadRelease(
 	const macOSHelperInstallTarget = resolveMacOSHelperInstallTarget(
 		options.installDir,
 	);
+	const whisperCliInstallTarget = resolveWhisperCliInstallTargetFromUpgrade();
 	const asset = `${resolveReleaseAsset()}.zip`;
 	const tag = options.tag?.trim() || (await fetchLatestReleaseTag(repo));
 	const version = normalizeReleaseVersion(tag);
@@ -199,6 +209,7 @@ export async function downloadRelease(
 		binaryPath,
 		listenerPath,
 		macOSHelperPath,
+		whisperCliPath,
 		pluginSamplePath,
 		archivePath,
 		manifestPath,
@@ -214,6 +225,7 @@ export async function downloadRelease(
 		await rm(binaryPath, { force: true }).catch(() => undefined);
 		await rm(listenerPath, { force: true }).catch(() => undefined);
 		await rm(macOSHelperPath, { force: true }).catch(() => undefined);
+		await rm(whisperCliPath, { force: true }).catch(() => undefined);
 		await rm(pluginSamplePath, { force: true }).catch(() => undefined);
 		await rm(archivePath, { force: true }).catch(() => undefined);
 		await rm(manifestPath, { force: true }).catch(() => undefined);
@@ -228,6 +240,9 @@ export async function downloadRelease(
 		await chmodExecutable(listenerPath);
 		if (fs.existsSync(macOSHelperPath)) {
 			await chmodExecutable(macOSHelperPath);
+		}
+		if (fs.existsSync(whisperCliPath)) {
+			await chmodExecutable(whisperCliPath);
 		}
 
 		const installedVersion = readInstalledVersion(binaryPath);
@@ -254,6 +269,7 @@ export async function downloadRelease(
 			installTarget,
 			listenerInstallTarget,
 			macOSHelperInstallTarget,
+			whisperCliInstallTarget,
 			completedAt: new Date().toISOString(),
 		};
 		await writeFile(manifestPath, JSON.stringify(manifest, null, 2));
@@ -284,8 +300,13 @@ export async function applyStagedRelease(
 		);
 	}
 
-	const { binaryPath, listenerPath, macOSHelperPath, manifestPath } =
-		getStagingPaths();
+	const {
+		binaryPath,
+		listenerPath,
+		macOSHelperPath,
+		whisperCliPath,
+		manifestPath,
+	} = getStagingPaths();
 	if (!fs.existsSync(binaryPath)) {
 		throw new Error(`Staged binary missing at ${binaryPath}.`);
 	}
@@ -298,8 +319,12 @@ export async function applyStagedRelease(
 		manifest.listenerInstallTarget ?? resolveListenerInstallTarget();
 	const macOSHelperInstallTarget =
 		manifest.macOSHelperInstallTarget ?? resolveMacOSHelperInstallTarget();
+	const whisperCliInstallTarget =
+		manifest.whisperCliInstallTarget ??
+		resolveWhisperCliInstallTargetFromUpgrade();
 	await mkdir(path.dirname(installTarget), { recursive: true });
 	await mkdir(path.dirname(listenerInstallTarget), { recursive: true });
+	await mkdir(path.dirname(whisperCliInstallTarget), { recursive: true });
 
 	const tempDestination = path.join(
 		path.dirname(installTarget),
@@ -331,12 +356,24 @@ export async function applyStagedRelease(
 		await rename(tempMacOSDestination, macOSHelperInstallTarget);
 	}
 
+	if (fs.existsSync(whisperCliPath)) {
+		const tempWhisperDestination = path.join(
+			path.dirname(whisperCliInstallTarget),
+			`.toby-whisper-upgrade-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+		);
+		await rm(tempWhisperDestination, { force: true }).catch(() => undefined);
+		await rename(whisperCliPath, tempWhisperDestination);
+		await chmodExecutable(tempWhisperDestination);
+		await rename(tempWhisperDestination, whisperCliInstallTarget);
+	}
+
 	// Migration: older installs placed helper binaries next to `toby` on PATH.
 	// Now that helpers live under ~/.toby/helpers, remove the stale siblings so
 	// only `toby` remains in the bin directory.
 	await removeLegacySiblingHelpers(installTarget, [
 		listenerInstallTarget,
 		macOSHelperInstallTarget,
+		whisperCliInstallTarget,
 	]);
 
 	const installedVersion = readInstalledVersion(installTarget);
@@ -352,6 +389,17 @@ export async function applyStagedRelease(
 	}
 
 	const daemonRestart = await restartDaemonIfRunning();
+
+	await ensureWhisperTranscriptionAssets({
+		onProgress: (message) => {
+			process.stderr.write(`${message}\n`);
+		},
+	}).catch((error) => {
+		const message = error instanceof Error ? error.message : String(error);
+		process.stderr.write(
+			`Note: whisper setup incomplete after upgrade: ${message}\nRun: toby whisper setup\n`,
+		);
+	});
 
 	await rm(manifestPath, { force: true }).catch(() => undefined);
 

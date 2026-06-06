@@ -8,7 +8,5 @@
 	<string>Toby Audio Helper</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Toby records microphone audio when you use listen mode.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Toby uses speech recognition to transcribe saved listen recordings.</string>
 </dict>
 </plist>

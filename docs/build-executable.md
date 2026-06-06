@@ -79,7 +79,7 @@ Release build steps:
 
 1. Matrix builds **two** signed and notarized macOS archives:
    `toby-darwin-arm64.zip` and `toby-darwin-x64.zip`.
-2. Each archive contains `toby`, `toby-listener`, `toby-macos`, and `toby-plugin-sample`.
+2. Each archive contains `toby`, `toby-listener`, `toby-macos`, `toby-plugin-sample`, and `whisper-cli`.
 3. Creates a **GitHub Release** for that tag and uploads those files as release assets (via `softprops/action-gh-release`).
 
 The release workflow uses the same Apple Developer secrets as DevDash:
@@ -105,9 +105,10 @@ are missing, the workflow skips signing and notarization and uploads an unsigned
 archive with a warning. Invalid non-empty credentials fail the release instead
 of silently publishing an unexpectedly unsigned build.
 
-Local `bun run build:executable` builds `dist/toby`, `dist/toby-listener`,
-`dist/toby-macos`, and `dist/toby-plugin-sample` without signing. Verify staged
-artifacts with `node scripts/verify-release-artifacts.mjs release-payload`.
+Local `bun run build:release` builds `dist/toby`, `dist/toby-listener`,
+`dist/toby-macos`, `dist/toby-plugin-sample`, and `dist/whisper-cli` (whisper.cpp
+is compiled via [`scripts/build-whisper-cli.sh`](../scripts/build-whisper-cli.sh)).
+Verify staged artifacts with `node scripts/verify-release-artifacts.mjs release-payload`.
 Use the GitHub release workflow for signed and notarized distribution artifacts.
 
 Ensure **Actions** permissions allow the default `GITHUB_TOKEN` to create releases for tag pushes (Repository → Settings → Actions → General → Workflow permissions → read and write).
@@ -131,9 +132,10 @@ Configuration is in [`.release-it.json`](../.release-it.json): publishing to the
 From the repo root, [`install-toby.sh`](../install-toby.sh) downloads the
 **latest matching macOS release archive** and installs the `toby` binary into
 **`~/.local/bin/toby`** (override with `TOBY_INSTALL_DIR`). The bundled helper
-binaries (`toby-listener`, `toby-macos`) are placed under **`~/.toby/helpers/`**
+binaries (`toby-listener`, `toby-macos`, `whisper-cli`) are placed under **`~/.toby/helpers/`**
 and the sample plugin under **`~/.toby/plugins/`**, so only `toby` lands on your
-`PATH`. It does not use `sudo`. If the install directory is not on `PATH`, the
+`PATH`. It does not use `sudo`. The script then runs **`toby whisper setup`** to
+download the default transcription model into **`~/.toby/models/`**. If the install directory is not on `PATH`, the
 script prints how to add it for zsh, bash, or fish.
 
 Example after the script is published on your default branch:

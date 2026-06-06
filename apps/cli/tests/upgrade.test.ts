@@ -12,6 +12,7 @@ import {
 	resolveInstallTarget,
 	resolveListenerInstallTarget,
 	resolveMacOSHelperInstallTarget,
+	resolveWhisperCliInstallTargetFromUpgrade,
 } from "../src/upgrade/index";
 
 describe("upgrade staging paths", () => {
@@ -40,6 +41,9 @@ describe("upgrade staging paths", () => {
 		expect(paths.listenerPath).toBe(
 			path.join(tempDir, "staging", "toby-listener"),
 		);
+		expect(paths.whisperCliPath).toBe(
+			path.join(tempDir, "staging", "whisper-cli"),
+		);
 		expect(paths.pluginSamplePath).toBe(
 			path.join(tempDir, "staging", "toby-plugin-sample"),
 		);
@@ -67,6 +71,9 @@ describe("upgrade staging paths", () => {
 		);
 		expect(resolveMacOSHelperInstallTarget()).toBe(
 			path.join(tempDir, "helpers", "toby-macos"),
+		);
+		expect(resolveWhisperCliInstallTargetFromUpgrade()).toBe(
+			path.join(tempDir, "helpers", "whisper-cli"),
 		);
 	});
 });

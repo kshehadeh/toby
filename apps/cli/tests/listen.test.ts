@@ -284,7 +284,7 @@ describe("audio helper events", () => {
 		});
 	});
 
-	it("parses transcript output file events", () => {
+	it("parses transcribed helper events", () => {
 		expect(
 			parseAudioHelperEvent(
 				'{"type":"transcribed","files":{"transcript":"transcript.txt","transcriptJson":"transcript.json"}}',

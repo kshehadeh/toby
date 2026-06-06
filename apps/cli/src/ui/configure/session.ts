@@ -16,6 +16,11 @@ import {
 	ALL_PROVIDER_CATEGORIES,
 	type ProviderCategory,
 } from "@toby/core/integrations/types";
+import type { ListenConfig } from "@toby/core/listen/whisper-config";
+import {
+	resolveDefaultWhisperModelPath,
+	resolveWhisperCliInstallTarget,
+} from "@toby/core/listen/whisper-config";
 import { DEFAULT_CHAT_PERSONA } from "@toby/core/personas/index";
 import { loadLocalSkills } from "@toby/core/skills/index";
 import {
@@ -171,6 +176,14 @@ export function createConfigureSession(
 		config.chatInbound?.integration?.trim() || "(none)";
 	credentialValues["chatInbound.persona"] =
 		config.chatInbound?.persona?.trim() || "(default)";
+	credentialValues["listen.whisperCpp.binaryPath"] =
+		config.listen?.whisperCpp?.binaryPath?.trim() ||
+		resolveWhisperCliInstallTarget();
+	credentialValues["listen.whisperCpp.modelPath"] =
+		config.listen?.whisperCpp?.modelPath?.trim() ||
+		resolveDefaultWhisperModelPath();
+	credentialValues["listen.whisperCpp.language"] =
+		config.listen?.whisperCpp?.language?.trim() || "auto";
 
 	for (const mod of getIntegrationModules()) {
 		if (!mod.chatInbound) continue;
@@ -350,6 +363,7 @@ export function createConfigureSession(
 			cfg.personas = rebuildPersonas(values, cfg.personas);
 			cfg.defaultProviders = rebuildDefaultProviders(values);
 			cfg.chatInbound = rebuildChatInbound(values);
+			cfg.listen = rebuildListenConfig(values);
 			applyIntegrationInboundFlags(cfg, values);
 			writeConfig(cfg);
 		},
@@ -402,6 +416,19 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 	if (typeof value !== "object" || value === null) return false;
 	const proto = Object.getPrototypeOf(value);
 	return proto === Object.prototype || proto === null;
+}
+
+function rebuildListenConfig(values: Record<string, string>): ListenConfig {
+	const binaryPath = values["listen.whisperCpp.binaryPath"]?.trim();
+	const modelPath = values["listen.whisperCpp.modelPath"]?.trim();
+	const language = values["listen.whisperCpp.language"]?.trim() || "auto";
+	return {
+		whisperCpp: {
+			...(binaryPath ? { binaryPath } : {}),
+			...(modelPath ? { modelPath } : {}),
+			language,
+		},
+	};
 }
 
 function rebuildChatInbound(values: Record<string, string>): ChatInboundConfig {

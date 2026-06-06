@@ -7,7 +7,13 @@ import fs from "node:fs";
 import path from "node:path";
 
 const directory = path.resolve(process.argv[2] ?? "release-payload");
-const required = ["toby", "toby-listener", "toby-macos", "toby-plugin-sample"];
+const required = [
+	"toby",
+	"toby-listener",
+	"toby-macos",
+	"toby-plugin-sample",
+	"whisper-cli",
+];
 
 const missing = [];
 for (const name of required) {

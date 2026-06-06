@@ -3,10 +3,8 @@ import CoreMedia
 import Darwin
 import Foundation
 import ScreenCaptureKit
-import Speech
 
-let helperVersion = "0.3.0"
-let maxSpeechChunkDurationSeconds: TimeInterval = 55
+let helperVersion = "0.5.0"
 
 struct RecordOptions {
 	let outDir: URL
@@ -15,22 +13,24 @@ struct RecordOptions {
 	let system: Bool
 }
 
-struct TranscribeOptions {
-	let input: URL
-	let outDir: URL
-}
-
 struct CombineOptions {
 	let outDir: URL
 	let mic: URL?
 	let system: URL?
 }
 
+struct TranscribeOptions {
+	let input: URL
+	let outDir: URL
+	let whisperCli: URL
+	let model: URL
+	let language: String
+}
+
 enum HelperCommand {
 	case record(RecordOptions)
 	case combine(CombineOptions)
 	case transcribe(TranscribeOptions)
-	case transcribeWorker(TranscribeOptions)
 }
 
 struct TranscriptSegment: Codable {
@@ -47,6 +47,18 @@ struct TranscriptPayload: Codable {
 	let sourceAudio: String
 	let createdAt: String
 	let locale: String
+}
+
+struct WhisperJsonSegment: Decodable {
+	let start: TimeInterval?
+	let end: TimeInterval?
+	let text: String?
+}
+
+struct WhisperJsonPayload: Decodable {
+	let text: String?
+	let transcription: [WhisperJsonSegment]?
+	let segments: [WhisperJsonSegment]?
 }
 
 enum HelperError: Error, CustomStringConvertible {
@@ -115,7 +127,7 @@ func parseCommand(_ args: [String]) throws -> HelperCommand {
 	}
 	guard let command = args.first else {
 		throw HelperError.usage(
-			"Usage: toby-audio-helper record --out-dir <dir> --format wav [--mic] [--system] | transcribe --input <audio-file> --out-dir <dir>"
+			"Usage: toby-audio-helper record --out-dir <dir> --format wav [--mic] [--system] | combine --out-dir <dir> [--mic <path>] [--system <path>] | transcribe --input <audio-file> --out-dir <dir> --whisper-cli <path> --model <path> [--language <code>]"
 		)
 	}
 	switch command {
@@ -125,8 +137,6 @@ func parseCommand(_ args: [String]) throws -> HelperCommand {
 		return .combine(try parseCombineOptions(args))
 	case "transcribe":
 		return .transcribe(try parseTranscribeOptions(args))
-	case "transcribe-worker":
-		return .transcribeWorker(try parseTranscribeOptions(args))
 	default:
 		throw HelperError.usage("Unknown command: \(command)")
 	}
@@ -223,6 +233,9 @@ func parseRecordOptions(_ args: [String]) throws -> RecordOptions {
 func parseTranscribeOptions(_ args: [String]) throws -> TranscribeOptions {
 	var input: URL?
 	var outDir: URL?
+	var whisperCli: URL?
+	var model: URL?
+	var language = "auto"
 	var index = 1
 	while index < args.count {
 		let arg = args[index]
@@ -239,6 +252,24 @@ func parseTranscribeOptions(_ args: [String]) throws -> TranscribeOptions {
 				throw HelperError.usage("--out-dir requires a path")
 			}
 			outDir = URL(fileURLWithPath: args[index], isDirectory: true)
+		case "--whisper-cli":
+			index += 1
+			guard index < args.count else {
+				throw HelperError.usage("--whisper-cli requires a path")
+			}
+			whisperCli = URL(fileURLWithPath: args[index])
+		case "--model":
+			index += 1
+			guard index < args.count else {
+				throw HelperError.usage("--model requires a path")
+			}
+			model = URL(fileURLWithPath: args[index])
+		case "--language":
+			index += 1
+			guard index < args.count else {
+				throw HelperError.usage("--language requires a value")
+			}
+			language = args[index]
 		default:
 			throw HelperError.usage("Unknown argument: \(arg)")
 		}
@@ -253,7 +284,25 @@ func parseTranscribeOptions(_ args: [String]) throws -> TranscribeOptions {
 	guard let outDir else {
 		throw HelperError.usage("--out-dir is required")
 	}
-	return TranscribeOptions(input: input, outDir: outDir)
+	guard let whisperCli else {
+		throw HelperError.usage("--whisper-cli is required")
+	}
+	guard FileManager.default.isExecutableFile(atPath: whisperCli.path) else {
+		throw HelperError.usage("whisper-cli is not executable: \(whisperCli.path)")
+	}
+	guard let model else {
+		throw HelperError.usage("--model is required")
+	}
+	guard FileManager.default.fileExists(atPath: model.path) else {
+		throw HelperError.usage("Whisper model does not exist: \(model.path)")
+	}
+	return TranscribeOptions(
+		input: input,
+		outDir: outDir,
+		whisperCli: whisperCli,
+		model: model,
+		language: language
+	)
 }
 
 func requestMicrophonePermission() async throws {
@@ -267,33 +316,6 @@ func requestMicrophonePermission() async throws {
 	throw HelperError.permission(
 		"Microphone permission denied. Grant access in System Settings > Privacy & Security > Microphone."
 	)
-}
-
-func requestSpeechPermission() async throws {
-	JSONEvent.permission(service: "speech", status: "prompting")
-	let status = await withCheckedContinuation { continuation in
-		SFSpeechRecognizer.requestAuthorization { status in
-			continuation.resume(returning: status)
-		}
-	}
-	switch status {
-	case .authorized:
-		JSONEvent.permission(service: "speech", status: "granted")
-	case .denied:
-		JSONEvent.permission(service: "speech", status: "denied")
-		throw HelperError.permission(
-			"Speech recognition permission denied. Grant access in System Settings > Privacy & Security > Speech Recognition."
-		)
-	case .restricted:
-		JSONEvent.permission(service: "speech", status: "denied")
-		throw HelperError.permission("Speech recognition is restricted on this Mac.")
-	case .notDetermined:
-		JSONEvent.permission(service: "speech", status: "unknown")
-		throw HelperError.permission("Speech recognition permission was not determined.")
-	@unknown default:
-		JSONEvent.permission(service: "speech", status: "unknown")
-		throw HelperError.permission("Unknown speech recognition permission status.")
-	}
 }
 
 final class MicrophoneRecorder {
@@ -530,6 +552,193 @@ func isoTimestamp(_ date: Date = Date()) -> String {
 	return formatter.string(from: date)
 }
 
+func whisperOutputSettings() -> [String: Any] {
+	[
+		AVFormatIDKey: kAudioFormatLinearPCM,
+		AVSampleRateKey: 16_000,
+		AVNumberOfChannelsKey: 1,
+		AVLinearPCMBitDepthKey: 16,
+		AVLinearPCMIsFloatKey: false,
+		AVLinearPCMIsBigEndianKey: false,
+		AVLinearPCMIsNonInterleaved: false,
+	]
+}
+
+func exportWhisperCompatibleWav(from inputURL: URL, to outputURL: URL) async throws {
+	let asset = AVURLAsset(url: inputURL)
+	guard let track = try await asset.loadTracks(withMediaType: .audio).first else {
+		throw HelperError.runtime("No audio track found in \(inputURL.lastPathComponent)")
+	}
+
+	let reader = try AVAssetReader(asset: asset)
+	let outputSettings = whisperOutputSettings()
+	let readerOutput = AVAssetReaderTrackOutput(track: track, outputSettings: outputSettings)
+	readerOutput.alwaysCopiesSampleData = false
+	guard reader.canAdd(readerOutput) else {
+		throw HelperError.runtime("Could not configure audio reader")
+	}
+	reader.add(readerOutput)
+
+	if FileManager.default.fileExists(atPath: outputURL.path) {
+		try FileManager.default.removeItem(at: outputURL)
+	}
+	let writer = try AVAssetWriter(outputURL: outputURL, fileType: .wav)
+	let writerInput = AVAssetWriterInput(mediaType: .audio, outputSettings: outputSettings)
+	writerInput.expectsMediaDataInRealTime = false
+	guard writer.canAdd(writerInput) else {
+		throw HelperError.runtime("Could not configure audio writer")
+	}
+	writer.add(writerInput)
+
+	guard reader.startReading() else {
+		throw HelperError.runtime(reader.error?.localizedDescription ?? "Could not start reading audio")
+	}
+	guard writer.startWriting() else {
+		throw HelperError.runtime(writer.error?.localizedDescription ?? "Could not start writing audio")
+	}
+	writer.startSession(atSourceTime: .zero)
+
+	while reader.status == .reading {
+		if writerInput.isReadyForMoreMediaData {
+			guard let sampleBuffer = readerOutput.copyNextSampleBuffer() else {
+				writerInput.markAsFinished()
+				break
+			}
+			guard writerInput.append(sampleBuffer) else {
+				throw HelperError.runtime(writer.error?.localizedDescription ?? "Could not append audio sample")
+			}
+		}
+	}
+
+	await withCheckedContinuation { continuation in
+		writer.finishWriting {
+			continuation.resume()
+		}
+	}
+
+	if reader.status == .failed {
+		throw HelperError.runtime(reader.error?.localizedDescription ?? "Audio read failed")
+	}
+	if writer.status != .completed {
+		throw HelperError.runtime(writer.error?.localizedDescription ?? "Audio export failed")
+	}
+}
+
+func transcriptPayload(from whisper: WhisperJsonPayload, sourceAudio: URL) -> TranscriptPayload {
+	let segmentSource = whisper.transcription ?? whisper.segments ?? []
+	let segments = segmentSource.map { segment in
+		let start = segment.start ?? 0
+		let end = segment.end ?? start
+		return TranscriptSegment(
+			text: (segment.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines),
+			timestamp: start,
+			duration: max(0, end - start),
+			confidence: 0,
+			alternatives: []
+		)
+	}
+	let text =
+		whisper.text?.trimmingCharacters(in: .whitespacesAndNewlines)
+		?? segments.map(\.text).filter { !$0.isEmpty }.joined(separator: " ")
+	return TranscriptPayload(
+		text: text,
+		segments: segments,
+		sourceAudio: sourceAudio.path,
+		createdAt: isoTimestamp(),
+		locale: Locale.current.identifier
+	)
+}
+
+func runWhisperCli(
+	options: TranscribeOptions,
+	inputURL: URL,
+	outputPrefix: URL
+) throws -> WhisperJsonPayload {
+	var args = [
+		"-m", options.model.path,
+		"-f", inputURL.path,
+		"-oj",
+		"-of", outputPrefix.path,
+	]
+	if options.language != "auto" {
+		args.append(contentsOf: ["-l", options.language])
+	}
+
+	let stderrPipe = Pipe()
+	let process = Process()
+	process.executableURL = options.whisperCli
+	process.arguments = args
+	process.standardOutput = FileHandle.nullDevice
+	process.standardError = stderrPipe
+	if #available(macOS 10.15, *) {
+		process.qualityOfService = .background
+	}
+	try process.run()
+	process.waitUntilExit()
+
+	let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+	let stderrText = String(data: stderrData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+	guard process.terminationStatus == 0 else {
+		throw HelperError.runtime(
+			stderrText.isEmpty
+				? "whisper-cli exited with status \(process.terminationStatus)"
+				: stderrText
+		)
+	}
+
+	let jsonURL = URL(fileURLWithPath: outputPrefix.path + ".json")
+	guard FileManager.default.fileExists(atPath: jsonURL.path) else {
+		throw HelperError.runtime("whisper-cli did not produce JSON output")
+	}
+	let data = try Data(contentsOf: jsonURL)
+	return try JSONDecoder().decode(WhisperJsonPayload.self, from: data)
+}
+
+func transcribeAudio(_ options: TranscribeOptions) async throws -> [String: String] {
+	try FileManager.default.createDirectory(
+		at: options.outDir,
+		withIntermediateDirectories: true
+	)
+
+	let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(
+		"TobyWhisperTranscribe-\(UUID().uuidString)",
+		isDirectory: true
+	)
+	try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+	defer {
+		try? FileManager.default.removeItem(at: tempDir)
+	}
+
+	JSONEvent.status("preparing audio for transcription")
+	let whisperInputURL = tempDir.appendingPathComponent("whisper-input.wav")
+	try await exportWhisperCompatibleWav(from: options.input, to: whisperInputURL)
+
+	JSONEvent.status("transcribing audio")
+	let outputPrefix = tempDir.appendingPathComponent("whisper-output")
+	let whisperPayload = try runWhisperCli(
+		options: options,
+		inputURL: whisperInputURL,
+		outputPrefix: outputPrefix
+	)
+	let payload = transcriptPayload(from: whisperPayload, sourceAudio: options.input)
+
+	let textURL = options.outDir.appendingPathComponent("transcript.txt")
+	let jsonURL = options.outDir.appendingPathComponent("transcript.json")
+	let encoder = JSONEncoder()
+	encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+	let jsonData = try encoder.encode(payload)
+	guard let textData = payload.text.appending("\n").data(using: .utf8) else {
+		throw HelperError.runtime("Could not encode transcript text")
+	}
+	try atomicWriteData(textData, to: textURL)
+	try atomicWriteData(jsonData, to: jsonURL)
+	return [
+		"transcript": textURL.path,
+		"transcriptJson": jsonURL.path,
+	]
+}
+
 func exportCombinedAudio(files: [String: String], outDir: URL) async throws -> String? {
 	let sourceURLs = ["mic", "system"]
 		.compactMap { files[$0] }
@@ -612,322 +821,6 @@ func combineAudio(_ options: CombineOptions) async throws -> [String: String] {
 	return ["combined": combined]
 }
 
-func transcriptPayload(
-	from result: SFSpeechRecognitionResult,
-	sourceAudio: URL,
-	locale: Locale,
-	timeOffset: TimeInterval = 0
-) -> TranscriptPayload {
-	let transcription = result.bestTranscription
-	let segments = transcription.segments.map { segment in
-		TranscriptSegment(
-			text: segment.substring,
-			timestamp: segment.timestamp + timeOffset,
-			duration: segment.duration,
-			confidence: segment.confidence,
-			alternatives: segment.alternativeSubstrings
-		)
-	}
-	return TranscriptPayload(
-		text: transcription.formattedString,
-		segments: segments,
-		sourceAudio: sourceAudio.path,
-		createdAt: isoTimestamp(),
-		locale: locale.identifier
-	)
-}
-
-func recognizeSpeech(inputURL: URL) async throws -> TranscriptPayload {
-	let locale = Locale.current
-	guard let recognizer = SFSpeechRecognizer(locale: locale) else {
-		throw HelperError.runtime("Could not create speech recognizer for locale \(locale.identifier)")
-	}
-	guard recognizer.isAvailable else {
-		throw HelperError.runtime("Speech recognizer is not available for locale \(locale.identifier)")
-	}
-	let request = SFSpeechURLRecognitionRequest(url: inputURL)
-	request.shouldReportPartialResults = false
-	return try await withCheckedThrowingContinuation { continuation in
-		let lock = NSLock()
-		var didResume = false
-		var latestResult: SFSpeechRecognitionResult?
-		var task: SFSpeechRecognitionTask?
-		func resumeOnce(_ result: Result<TranscriptPayload, Error>) {
-			lock.lock()
-			defer { lock.unlock() }
-			guard !didResume else { return }
-			didResume = true
-			task?.cancel()
-			continuation.resume(with: result)
-		}
-		task = recognizer.recognitionTask(with: request) { result, error in
-			if let result {
-				latestResult = result
-				if result.isFinal {
-					resumeOnce(.success(transcriptPayload(
-						from: result,
-						sourceAudio: inputURL,
-						locale: locale
-					)))
-					return
-				}
-			}
-			if let error {
-				if let latestResult {
-					resumeOnce(.success(transcriptPayload(
-						from: latestResult,
-						sourceAudio: inputURL,
-						locale: locale
-					)))
-					return
-				}
-				resumeOnce(.failure(error))
-			}
-		}
-	}
-}
-
-func exportAudioChunk(
-	inputURL: URL,
-	start: TimeInterval,
-	duration: TimeInterval,
-	tempDir: URL,
-	index: Int
-) async throws -> URL {
-	let asset = AVURLAsset(url: inputURL)
-	let chunkURL = tempDir.appendingPathComponent(
-		"chunk-\(String(format: "%04d", index)).m4a"
-	)
-	if FileManager.default.fileExists(atPath: chunkURL.path) {
-		try FileManager.default.removeItem(at: chunkURL)
-	}
-	guard let exportSession = AVAssetExportSession(
-		asset: asset,
-		presetName: AVAssetExportPresetAppleM4A
-	) else {
-		throw HelperError.runtime("Could not create speech chunk export session")
-	}
-	exportSession.outputURL = chunkURL
-	exportSession.outputFileType = .m4a
-	exportSession.timeRange = CMTimeRange(
-		start: CMTime(seconds: start, preferredTimescale: 600),
-		duration: CMTime(seconds: duration, preferredTimescale: 600)
-	)
-	await withCheckedContinuation { continuation in
-		exportSession.exportAsynchronously {
-			continuation.resume()
-		}
-	}
-	if exportSession.status == .completed {
-		return chunkURL
-	}
-	let message = exportSession.error?.localizedDescription ?? "Unknown export failure"
-	throw HelperError.runtime("Could not export speech chunk: \(message)")
-}
-
-func recognizeSpeechInChunks(inputURL: URL) async throws -> TranscriptPayload {
-	try await requestSpeechPermission()
-	let asset = AVURLAsset(url: inputURL)
-	let duration = try await asset.load(.duration).seconds
-	guard duration.isFinite && duration > 0 else {
-		throw HelperError.runtime("Could not determine audio duration for transcription")
-	}
-	if duration <= maxSpeechChunkDurationSeconds {
-		let payload = try await recognizeSpeech(inputURL: inputURL)
-		return TranscriptPayload(
-			text: payload.text,
-			segments: payload.segments,
-			sourceAudio: inputURL.path,
-			createdAt: payload.createdAt,
-			locale: payload.locale
-		)
-	}
-
-	let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(
-		"TobyAudioSpeechChunks-\(UUID().uuidString)",
-		isDirectory: true
-	)
-	try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-	defer {
-		try? FileManager.default.removeItem(at: tempDir)
-	}
-	let chunkCount = Int(ceil(duration / maxSpeechChunkDurationSeconds))
-	var textParts: [String] = []
-	var segments: [TranscriptSegment] = []
-	var localeIdentifier = Locale.current.identifier
-	for index in 0..<chunkCount {
-		let start = TimeInterval(index) * maxSpeechChunkDurationSeconds
-		let chunkDuration = min(maxSpeechChunkDurationSeconds, duration - start)
-		JSONEvent.status("transcribing audio chunk \(index + 1) of \(chunkCount)")
-		let chunkURL = try await exportAudioChunk(
-			inputURL: inputURL,
-			start: start,
-			duration: chunkDuration,
-			tempDir: tempDir,
-			index: index
-		)
-		let payload = try await recognizeSpeech(inputURL: chunkURL)
-		if !payload.text.isEmpty {
-			textParts.append(payload.text)
-		}
-		segments.append(contentsOf: payload.segments.map { segment in
-			TranscriptSegment(
-				text: segment.text,
-				timestamp: segment.timestamp + start,
-				duration: segment.duration,
-				confidence: segment.confidence,
-				alternatives: segment.alternatives
-			)
-		})
-		localeIdentifier = payload.locale
-	}
-	return TranscriptPayload(
-		text: textParts.joined(separator: "\n"),
-		segments: segments,
-		sourceAudio: inputURL.path,
-		createdAt: isoTimestamp(),
-		locale: localeIdentifier
-	)
-}
-
-func transcribeAudio(inputURL: URL, outDir: URL) async throws -> [String: String] {
-	try FileManager.default.createDirectory(
-		at: outDir,
-		withIntermediateDirectories: true
-	)
-	JSONEvent.status("transcribing audio")
-	let payload = try await recognizeSpeechInChunks(inputURL: inputURL)
-	let textURL = outDir.appendingPathComponent("transcript.txt")
-	let jsonURL = outDir.appendingPathComponent("transcript.json")
-	let encoder = JSONEncoder()
-	encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-	let jsonData = try encoder.encode(payload)
-	guard let textData = payload.text.appending("\n").data(using: .utf8) else {
-		throw HelperError.runtime("Could not encode transcript text")
-	}
-	try atomicWriteData(textData, to: textURL)
-	try atomicWriteData(jsonData, to: jsonURL)
-	return [
-		"transcript": textURL.path,
-		"transcriptJson": jsonURL.path,
-	]
-}
-
-func speechBundleInfoPlist(executableName: String) -> String {
-	"""
-	<?xml version="1.0" encoding="UTF-8"?>
-	<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-	<plist version="1.0">
-	<dict>
-		<key>CFBundleExecutable</key>
-		<string>\(executableName)</string>
-		<key>CFBundleIdentifier</key>
-		<string>dev.karim.toby.audio-helper.speech</string>
-		<key>CFBundleName</key>
-		<string>Toby Audio Helper Speech</string>
-		<key>CFBundlePackageType</key>
-		<string>APPL</string>
-		<key>CFBundleShortVersionString</key>
-		<string>1.0</string>
-		<key>CFBundleVersion</key>
-		<string>1</string>
-		<key>NSMicrophoneUsageDescription</key>
-		<string>Toby records microphone audio when you use listen mode.</string>
-		<key>NSSpeechRecognitionUsageDescription</key>
-		<string>Toby uses speech recognition to transcribe saved listen recordings.</string>
-	</dict>
-	</plist>
-	"""
-}
-
-struct AppBundleTranscribeResult {
-	let status: Int32
-	let files: [String: String]
-}
-
-func runTranscribeInAppBundle(_ options: TranscribeOptions) throws -> AppBundleTranscribeResult {
-	let fileManager = FileManager.default
-	let executableName = "toby-audio-helper"
-	let bundleURL = fileManager.temporaryDirectory.appendingPathComponent(
-		"TobyAudioHelperSpeech-\(UUID().uuidString).app",
-		isDirectory: true
-	)
-	let contentsURL = bundleURL.appendingPathComponent("Contents", isDirectory: true)
-	let macOSURL = contentsURL.appendingPathComponent("MacOS", isDirectory: true)
-	try fileManager.createDirectory(at: macOSURL, withIntermediateDirectories: true)
-	defer {
-		try? fileManager.removeItem(at: bundleURL)
-	}
-	guard let sourceExecutable = Bundle.main.executableURL else {
-		throw HelperError.runtime("Could not locate helper executable")
-	}
-	let bundledExecutable = macOSURL.appendingPathComponent(executableName)
-	try fileManager.copyItem(at: sourceExecutable, to: bundledExecutable)
-	try fileManager.setAttributes(
-		[.posixPermissions: 0o755],
-		ofItemAtPath: bundledExecutable.path
-	)
-	try speechBundleInfoPlist(executableName: executableName).write(
-		to: contentsURL.appendingPathComponent("Info.plist"),
-		atomically: true,
-		encoding: .utf8
-	)
-	let signProcess = Process()
-	signProcess.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
-	signProcess.arguments = ["--force", "--sign", "-", bundleURL.path]
-	signProcess.standardOutput = Pipe()
-	signProcess.standardError = Pipe()
-	try signProcess.run()
-	signProcess.waitUntilExit()
-	if signProcess.terminationStatus != 0 {
-		throw HelperError.runtime("Could not sign Speech transcription helper bundle")
-	}
-
-	let process = Process()
-	process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-	process.arguments = [
-		"-W",
-		"-n",
-		bundleURL.path,
-		"--args",
-		"transcribe-worker",
-		"--input",
-		options.input.path,
-		"--out-dir",
-		options.outDir.path,
-	]
-	process.standardError = FileHandle.standardError
-	try process.run()
-	process.waitUntilExit()
-	let textURL = options.outDir.appendingPathComponent("transcript.txt")
-	let jsonURL = options.outDir.appendingPathComponent("transcript.json")
-	if process.terminationStatus == 0,
-		fileManager.fileExists(atPath: textURL.path),
-		fileManager.fileExists(atPath: jsonURL.path)
-	{
-		return AppBundleTranscribeResult(
-			status: 0,
-			files: [
-				"transcript": textURL.path,
-				"transcriptJson": jsonURL.path,
-			]
-		)
-	}
-	return AppBundleTranscribeResult(status: process.terminationStatus == 0 ? 1 : process.terminationStatus, files: [:])
-}
-
-func transcribeAudioWithBundleBootstrap(inputURL: URL, outDir: URL) async throws -> [String: String] {
-	if Bundle.main.bundleURL.pathExtension == "app" {
-		return try await transcribeAudio(inputURL: inputURL, outDir: outDir)
-	}
-	JSONEvent.status("transcribing audio")
-	let result = try runTranscribeInAppBundle(TranscribeOptions(input: inputURL, outDir: outDir))
-	if result.status != 0 {
-		throw HelperError.runtime("Transcription helper exited with status \(result.status)")
-	}
-	return result.files
-}
-
 func runRecord(_ options: RecordOptions) async -> Int32 {
 	let session = RecordingSession(options: options)
 	var files: [String: String]
@@ -954,11 +847,6 @@ func runRecord(_ options: RecordOptions) async -> Int32 {
 						outDir: options.outDir
 					) {
 						files["combined"] = combined
-						let transcriptFiles = try await transcribeAudioWithBundleBootstrap(
-							inputURL: URL(fileURLWithPath: combined),
-							outDir: options.outDir
-						)
-						files.merge(transcriptFiles) { _, new in new }
 					}
 				} catch {
 					JSONEvent.error(code: "processing_failed", "\(error)")
@@ -978,11 +866,6 @@ func runRecord(_ options: RecordOptions) async -> Int32 {
 		JSONEvent.status("combining audio")
 		if let combined = try await exportCombinedAudio(files: files, outDir: options.outDir) {
 			files["combined"] = combined
-			let transcriptFiles = try await transcribeAudioWithBundleBootstrap(
-				inputURL: URL(fileURLWithPath: combined),
-				outDir: options.outDir
-			)
-			files.merge(transcriptFiles) { _, new in new }
 		}
 	} catch {
 		JSONEvent.error(code: "processing_failed", "\(error)")
@@ -993,35 +876,6 @@ func runRecord(_ options: RecordOptions) async -> Int32 {
 		"files": files,
 	])
 	return 0
-}
-
-func runTranscribe(_ options: TranscribeOptions, bootstrapAppBundle: Bool = true) async -> Int32 {
-	if bootstrapAppBundle && Bundle.main.bundleURL.pathExtension != "app" {
-		do {
-			let result = try runTranscribeInAppBundle(options)
-			if result.status == 0 {
-				JSONEvent.emit([
-					"type": "transcribed",
-					"files": result.files,
-				])
-			}
-			return result.status
-		} catch {
-			JSONEvent.error(code: "transcribe_failed", "\(error)")
-			return 1
-		}
-	}
-	do {
-		let files = try await transcribeAudio(inputURL: options.input, outDir: options.outDir)
-		JSONEvent.emit([
-			"type": "transcribed",
-			"files": files,
-		])
-		return 0
-	} catch {
-		JSONEvent.error(code: "transcribe_failed", "\(error)")
-		return 1
-	}
 }
 
 func runCombine(_ options: CombineOptions) async -> Int32 {
@@ -1039,6 +893,20 @@ func runCombine(_ options: CombineOptions) async -> Int32 {
 	}
 }
 
+func runTranscribe(_ options: TranscribeOptions) async -> Int32 {
+	do {
+		let files = try await transcribeAudio(options)
+		JSONEvent.emit([
+			"type": "transcribed",
+			"files": files,
+		])
+		return 0
+	} catch {
+		JSONEvent.error(code: "transcribe_failed", "\(error)")
+		return 1
+	}
+}
+
 @main
 enum TobyAudioHelper {
 	static func main() async {
@@ -1052,8 +920,6 @@ enum TobyAudioHelper {
 				code = await runCombine(options)
 			case let .transcribe(options):
 				code = await runTranscribe(options)
-			case let .transcribeWorker(options):
-				code = await runTranscribe(options, bootstrapAppBundle: false)
 			}
 			exit(code)
 		} catch {

@@ -2,14 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Command } from "commander";
 import type { AudioHelperEvent } from "../listen/macos/audio-capture";
-import {
-	combineWithMacOSAudioHelper,
-	transcribeWithMacOSAudioHelper,
-} from "../listen/macos/audio-capture";
+import { combineWithMacOSAudioHelper } from "../listen/macos/audio-capture";
 import {
 	metadataPath,
 	writeListenMetadata,
 } from "../listen/session-controller";
+import { transcribeWithWhisperCpp } from "../listen/transcription";
 import type {
 	ListenRecordingFiles,
 	ListenRecordingMetadata,
@@ -170,11 +168,14 @@ async function transcribeListenRecordingFolder(params: {
 	if (!combinedFiles.combined) {
 		throw new Error(`No combined audio file found in ${recordingDir}.`);
 	}
-	const files = await transcribeWithMacOSAudioHelper({
+	const files = await transcribeWithWhisperCpp({
 		input: combinedFiles.combined,
 		outDir: recordingDir,
 		helperPath: params.helperPath,
-		onEvent,
+		onStatus: (message) => {
+			onEvent({ type: "status", message });
+			console.log(message);
+		},
 	});
 	if (metadata) {
 		writeListenMetadata(

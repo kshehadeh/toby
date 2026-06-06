@@ -10,8 +10,8 @@ not a separate integration capability: recording lifecycle and metadata live in
 - Record microphone, system audio, or both.
 - Save source tracks separately as PCM `wav` files when the helper is present.
 - Generate `combined.m4a` after listening stops for playback/transcription.
-- Generate `transcript.txt` and `transcript.json` with macOS Speech when saving
-  succeeds.
+- Generate `transcript.txt` and `transcript.json` with local **whisper.cpp**
+  when saving succeeds.
 - Write `metadata.json` next to each recording.
 
 Recordings are stored under `~/.toby/listen/recordings/<recording-id>/` by
@@ -96,7 +96,8 @@ The helper command shape is:
 
 ```bash
 toby-audio-helper record --out-dir <dir> --format wav [--mic] [--system]
-toby-audio-helper transcribe --input <audio-file> --out-dir <dir>
+toby-audio-helper combine --out-dir <dir> [--mic <path>] [--system <path>]
+toby-audio-helper transcribe --input <audio-file> --out-dir <dir> --whisper-cli <path> --model <path> [--language <code>]
 ```
 
 The helper should write JSON lines to stdout:
@@ -106,8 +107,10 @@ The helper should write JSON lines to stdout:
 {"type":"permission","service":"microphone","status":"granted"}
 {"type":"ready","helperVersion":"0.1.0","files":{"mic":"mic.wav","system":"system.wav"}}
 {"type":"status","message":"recording"}
+{"type":"status","message":"combining audio"}
+{"type":"stopped","durationMs":12000,"files":{"mic":"mic.wav","system":"system.wav","combined":"combined.m4a"}}
 {"type":"status","message":"transcribing audio"}
-{"type":"stopped","durationMs":12000,"files":{"mic":"mic.wav","system":"system.wav","combined":"combined.m4a","transcript":"transcript.txt","transcriptJson":"transcript.json"}}
+{"type":"transcribed","files":{"transcript":"transcript.txt","transcriptJson":"transcript.json"}}
 ```
 
 Toby sends one JSON line on stdin to stop:
@@ -135,13 +138,34 @@ or:
 
 ## Transcription
 
-Toby uses macOS Speech (`SFSpeechRecognizer`) to transcribe the generated
-`combined.m4a`. This requires Speech Recognition permission and may use Apple
-services. Successful transcription writes:
+Toby transcribes recordings with **whisper.cpp** after the Swift helper combines
+audio into `combined.m4a`. Transcription runs inside the same native helper
+(`toby-listener transcribe`) so Node does not spawn `ffmpeg` or `whisper-cli`
+directly. The helper converts audio with AVFoundation, runs whisper.cpp, and
+writes:
 
 - `transcript.txt` — readable transcript text.
 - `transcript.json` — structured transcript payload with text, segment timing,
-  confidence, source audio path, timestamp, and locale.
+  source audio path, timestamp, and locale.
+
+### Setup
+
+Release installs place `whisper-cli` under `~/.toby/helpers/whisper-cli` and
+download the default model (`ggml-base.en.bin`) to `~/.toby/models/` on first
+install or upgrade. Manual recovery:
+
+```bash
+toby whisper setup
+toby whisper status
+```
+
+Override paths in **Configuration → Listen** or with:
+
+| Variable | Purpose |
+| -------- | ------- |
+| `TOBY_WHISPER_CPP_BINARY` | Path to `whisper-cli` |
+| `TOBY_WHISPER_CPP_MODEL` | Path to `.bin` model file |
+| `TOBY_WHISPER_CPP_LANGUAGE` | Language code or `auto` |
 
 If transcription fails, Toby still saves the audio recording and records the
-helper error in metadata. Retry with `toby listen transcribe <recording-folder>`.
+error in metadata. Retry with `toby listen transcribe <recording-folder>`.

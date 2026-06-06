@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { applyTranscriptFilesToMetadata } from "../../commands/listen";
 import {
 	type AudioCaptureHandle,
 	type AudioHelperEvent,
@@ -13,8 +14,11 @@ import {
 	discardListenSession,
 	prepareListenSession,
 	saveListenSession,
+	updateListenRecordingMetadata,
+	writeListenMetadata,
 } from "../../listen/session-controller";
 import type { ListenRecordingSummary } from "../../listen/session-controller";
+import { transcribeWithWhisperCpp } from "../../listen/transcription";
 import type {
 	ListenRecordingFiles,
 	ListenSourceSelection,
@@ -199,6 +203,38 @@ export function useListenController(
 					errors: errorsRef.current,
 				});
 				const outputDir = saveListenSession(session, metadata);
+				try {
+					if (filesRef.current.combined) {
+						setListenStatusMessage("Transcribing recording…");
+						const transcriptFiles = await transcribeWithWhisperCpp({
+							input: filesRef.current.combined,
+							outDir: outputDir,
+							helperPath: handle?.helperPath ?? helperPath,
+							onStatus: (message) => setListenStatusMessage(message),
+						});
+						writeListenMetadata(
+							outputDir,
+							applyTranscriptFilesToMetadata(metadata, {
+								...filesRef.current,
+								...transcriptFiles,
+							}),
+						);
+					}
+				} catch (error) {
+					const message = helperErrorMessage(error);
+					errorsRef.current = [...errorsRef.current, message];
+					writeListenMetadata(
+						outputDir,
+						buildListenMetadata({
+							session,
+							files: filesRef.current,
+							stoppedAt: new Date(),
+							helperPath: handle?.helperPath ?? helperPath,
+							helperVersion: helperVersionRef.current,
+							errors: errorsRef.current,
+						}),
+					);
+				}
 				syncRecordings();
 				setState({
 					status: "saved",

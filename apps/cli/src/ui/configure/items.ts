@@ -9,6 +9,10 @@ import {
 	PROVIDER_CATEGORY_LABELS,
 	type ProviderCategory,
 } from "@toby/core/integrations/types";
+import {
+	resolveDefaultWhisperModelPath,
+	resolveWhisperCliInstallTarget,
+} from "@toby/core/listen/whisper-config";
 import { DEFAULT_CHAT_PERSONA } from "@toby/core/personas/index";
 import { loadLocalSkills } from "@toby/core/skills/index";
 import { listListenRecordings } from "../../listen/session-controller";
@@ -483,6 +487,24 @@ export function buildSettingsTree(
 		kind: "section",
 		key: "listen",
 		children: [
+			{
+				label: "Whisper CLI path",
+				kind: "value",
+				key: "listen.whisperCpp.binaryPath",
+				currentValue: values["listen.whisperCpp.binaryPath"],
+			},
+			{
+				label: "Whisper model path",
+				kind: "value",
+				key: "listen.whisperCpp.modelPath",
+				currentValue: values["listen.whisperCpp.modelPath"],
+			},
+			{
+				label: "Transcription language",
+				kind: "value",
+				key: "listen.whisperCpp.language",
+				currentValue: values["listen.whisperCpp.language"] ?? "auto",
+			},
 			{
 				label: "Start new recording",
 				kind: "action",

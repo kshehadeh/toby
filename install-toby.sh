@@ -78,8 +78,8 @@ if ! curl -fsSL -o "${tmpdir}/toby.zip" "$download_url"; then
 	exit 1
 fi
 unzip -q "${tmpdir}/toby.zip" -d "$tmpdir"
-if [[ ! -f "${tmpdir}/toby" || ! -f "${tmpdir}/toby-listener" ]]; then
-	echo "Release archive is missing toby or toby-listener." >&2
+if [[ ! -f "${tmpdir}/toby" || ! -f "${tmpdir}/toby-listener" || ! -f "${tmpdir}/whisper-cli" ]]; then
+	echo "Release archive is missing toby, toby-listener, or whisper-cli." >&2
 	exit 1
 fi
 
@@ -112,6 +112,10 @@ mkdir -p "$toby_helpers_dir"
 mv "${tmpdir}/toby-listener" "${toby_helpers_dir}/toby-listener"
 echo "Installed: ${toby_helpers_dir}/toby-listener"
 
+chmod +x "${tmpdir}/whisper-cli"
+mv "${tmpdir}/whisper-cli" "${toby_helpers_dir}/whisper-cli"
+echo "Installed: ${toby_helpers_dir}/whisper-cli"
+
 if $has_sample_plugin; then
 	chmod +x "${tmpdir}/toby-plugin-sample"
 	mkdir -p "$toby_plugins_dir"
@@ -128,6 +132,12 @@ fi
 
 if "${install_dir}/toby" --version >/dev/null 2>&1; then
 	echo "Verified: $("${install_dir}/toby" --version)"
+fi
+
+if "${install_dir}/toby" whisper setup --quiet; then
+	echo "Installed whisper transcription model."
+else
+	echo "Note: Could not download whisper model. Run: toby whisper setup" >&2
 fi
 
 install_dir_abs="$(cd "$install_dir" && pwd -P 2>/dev/null || printf '%s' "$install_dir")"

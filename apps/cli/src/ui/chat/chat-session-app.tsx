@@ -80,6 +80,7 @@ import React, {
 	useRef,
 	useState,
 } from "react";
+import { applyTranscriptFilesToMetadata } from "../../commands/listen";
 import {
 	startMacOSAudioCapture,
 	waitForAudioHelperExit,
@@ -89,7 +90,9 @@ import {
 	discardListenSession,
 	prepareListenSession,
 	saveListenSession,
+	writeListenMetadata,
 } from "../../listen/session-controller";
+import { transcribeWithWhisperCpp } from "../../listen/transcription";
 import { isDaemonRunning } from "../../schedules/daemon-status";
 import type { LaunchContext } from "../../toby-launch-context";
 import { ConfigureApp } from "../configure/App";
@@ -1696,7 +1699,41 @@ export function ChatSessionApp({
 									errors: listenErrorsRef.current,
 								});
 								const outputDir = saveListenSession(session, metadata);
-								const transcript = readTranscriptFile(outputDir);
+								const helperPath = handle.helperPath;
+								let transcript = readTranscriptFile(outputDir);
+								if (!transcript && listenFilesRef.current.combined) {
+									try {
+										const transcriptFiles = await transcribeWithWhisperCpp({
+											input: listenFilesRef.current.combined,
+											outDir: outputDir,
+											helperPath,
+										});
+										writeListenMetadata(
+											outputDir,
+											applyTranscriptFilesToMetadata(metadata, {
+												...listenFilesRef.current,
+												...transcriptFiles,
+											}),
+										);
+										transcript = readTranscriptFile(outputDir);
+									} catch (transcribeError) {
+										const msg =
+											transcribeError instanceof Error
+												? transcribeError.message
+												: String(transcribeError);
+										listenErrorsRef.current = [...listenErrorsRef.current, msg];
+										writeListenMetadata(
+											outputDir,
+											buildListenMetadata({
+												session,
+												files: listenFilesRef.current,
+												stoppedAt: new Date(),
+												helperVersion: listenHelperVersionRef.current,
+												errors: listenErrorsRef.current,
+											}),
+										);
+									}
+								}
 								return { outputDir, transcript };
 							} catch (error) {
 								const msg =

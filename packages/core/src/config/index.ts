@@ -56,10 +56,25 @@ export function getPluginsDir(): string {
 	return path.join(resolveTobyDir(), "plugins");
 }
 
-/** Bundled native helper binaries: `~/.toby/helpers/toby-listener`, `toby-macos`. */
+/** Bundled native helper binaries: `~/.toby/helpers/toby-listener`, `toby-macos`, `whisper-cli`. */
 export function getHelpersDir(): string {
 	return path.join(resolveTobyDir(), "helpers");
 }
+
+export type {
+	ListenConfig,
+	ListenWhisperCppConfig,
+} from "../listen/whisper-config";
+export {
+	getWhisperModelsDir,
+	resolveDefaultWhisperModelPath,
+	resolveWhisperCliInstallTarget,
+	resolveWhisperCppConfig,
+} from "../listen/whisper-config";
+export {
+	ensureWhisperTranscriptionAssets,
+	getWhisperAssetStatus,
+} from "../listen/whisper-assets";
 
 interface AIProvider {
 	provider: string;
@@ -83,12 +98,15 @@ export interface ChatInboundConfig {
 	readonly persona?: string;
 }
 
+import type { ListenConfig } from "../listen/whisper-config";
+
 interface TobyConfig {
 	integrations: Record<string, Record<string, unknown>>;
 	personas: Persona[];
 	defaultPersona?: string;
 	defaultProviders?: Partial<Record<ProviderCategory, string>>;
 	chatInbound?: ChatInboundConfig;
+	listen?: ListenConfig;
 }
 
 export interface GmailCredentials {
@@ -205,6 +223,7 @@ export function readConfig(): TobyConfig {
 		defaultPersona: parsed.defaultPersona,
 		defaultProviders: parsed.defaultProviders,
 		chatInbound: parsed.chatInbound,
+		listen: parsed.listen,
 	};
 }
 
