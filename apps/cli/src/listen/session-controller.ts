@@ -3,6 +3,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { resolveTobyDir } from "@toby/core/config/index";
+import {
+	type ListenRecordingSummary,
+	listListenRecordings,
+	metadataPath,
+	resolveListenRecordingsDir,
+} from "@toby/core/listen/recordings";
 import type {
 	ListenRecordingFiles,
 	ListenRecordingMetadata,
@@ -12,8 +18,10 @@ import type {
 } from "./types";
 import { DEFAULT_LISTEN_SOURCES, selectedListenSources } from "./types";
 
+export type { ListenRecordingSummary } from "@toby/core/listen/recordings";
+export { listListenRecordings, metadataPath, resolveListenRecordingsDir };
+
 const LISTEN_DIR = "listen";
-const RECORDINGS_DIR = "recordings";
 const TEMP_DIR = "tmp";
 
 function getListenDir(baseDir = resolveTobyDir()): string {
@@ -21,11 +29,7 @@ function getListenDir(baseDir = resolveTobyDir()): string {
 }
 
 function getListenRecordingsDir(baseDir = resolveTobyDir()): string {
-	return path.join(getListenDir(baseDir), RECORDINGS_DIR);
-}
-
-export function resolveListenRecordingsDir(recordingsDir?: string): string {
-	return recordingsDir?.trim() || getListenRecordingsDir();
+	return path.join(getListenDir(baseDir), "recordings");
 }
 
 function getListenTempDir(baseDir = resolveTobyDir()): string {
@@ -102,16 +106,6 @@ export function prepareListenSession(params: {
 	};
 }
 
-export function metadataPath(dir: string): string {
-	return path.join(dir, "metadata.json");
-}
-
-export interface ListenRecordingSummary {
-	readonly id: string;
-	readonly dir: string;
-	readonly metadata: ListenRecordingMetadata;
-}
-
 function defaultListenRecordingFiles(
 	session: ListenSession,
 ): ListenRecordingFiles {
@@ -185,39 +179,6 @@ export function saveListenSession(
 
 export function discardListenSession(session: ListenSession): void {
 	fs.rmSync(session.tempDir, { recursive: true, force: true });
-}
-
-function readRecordingSummary(dir: string): ListenRecordingSummary | null {
-	const file = metadataPath(dir);
-	if (!fs.existsSync(file)) return null;
-	try {
-		const raw = fs.readFileSync(file, "utf8");
-		const metadata = JSON.parse(raw) as ListenRecordingMetadata;
-		return {
-			id: metadata.id || path.basename(dir),
-			dir,
-			metadata,
-		};
-	} catch {
-		return null;
-	}
-}
-
-export function listListenRecordings(
-	recordingsDir?: string,
-): ListenRecordingSummary[] {
-	const root = resolveListenRecordingsDir(recordingsDir);
-	if (!fs.existsSync(root)) return [];
-	return fs
-		.readdirSync(root, { withFileTypes: true })
-		.filter((entry) => entry.isDirectory() && entry.name !== ".tmp")
-		.map((entry) => readRecordingSummary(path.join(root, entry.name)))
-		.filter((entry): entry is ListenRecordingSummary => entry !== null)
-		.sort((a, b) => {
-			const aTime = Date.parse(a.metadata.startedAt || a.metadata.createdAt);
-			const bTime = Date.parse(b.metadata.startedAt || b.metadata.createdAt);
-			return bTime - aTime;
-		});
 }
 
 export function deleteListenRecording(recording: ListenRecordingSummary): void {

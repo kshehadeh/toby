@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import { readListenTranscript } from "@toby/core/listen/recordings";
 import type { SlashCommand } from "./types";
 
 export const stopListeningSlashCommand: SlashCommand = {
@@ -44,12 +44,6 @@ summarized by asking the AI.`,
 };
 
 export function readTranscriptFile(outputDir: string): string | undefined {
-	for (const name of ["transcript.txt"]) {
-		const filePath = `${outputDir}/${name}`;
-		if (fs.existsSync(filePath)) {
-			const content = fs.readFileSync(filePath, "utf8").trim();
-			if (content) return content;
-		}
-	}
-	return undefined;
+	const result = readListenTranscript(outputDir);
+	return result.ok ? result.text : undefined;
 }
