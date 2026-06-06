@@ -4,10 +4,11 @@
 
 The **daemon** is a single long-running Toby process that runs work in the background without the Ink chat UI. Only one instance may run at a time; it records lock metadata in **`~/.toby/daemon.lock`** (PID and poll interval) so `toby daemon start` can detect duplicates and `toby daemon stop` knows which process to signal.
 
-Today the daemon has two responsibilities that run **in parallel** inside that process:
+Today the daemon has three responsibilities that run **in parallel** inside that process:
 
 1. **Schedules** — cron-based prompts (summaries, inbox triage, etc.).
 2. **Chat inbound** — listen on an external chat provider (Slack via Socket Mode today) and run chat turns when users @mention the bot.
+3. **Web UI** — localhost HTTP server for browsing sessions, memories, and configuration. See [`web-ui.md`](web-ui.md).
 
 Start it with `toby daemon start` (detached background) or `toby daemon run` (foreground, useful for debugging). Structured activity is appended to **`~/.toby/daemon.log`** (JSON lines, same buffering and rotation model as [`toby.log`](architecture.md#local-data)).
 
@@ -48,11 +49,12 @@ Implementation entrypoints:
 | `toby daemon start` | Spawn a detached background daemon (default schedule poll: 60s) |
 | `toby daemon run` | Foreground daemon (used internally by `start`) |
 | `toby daemon stop` | Stop the process recorded in `daemon.lock` |
+| `toby daemon restart` | Stop the daemon if running, then start it again (preserves poll interval unless `-i` is set) |
 | `toby daemon status` | Show PID, inbound connection state, log path |
 
-From chat you can also use **`/start-daemon`** and **`/stop-daemon`** (see [slash-commands.md](slash-commands.md)).
+From chat you can also use **`/start-daemon`**, **`/stop-daemon`**, and **`/web`** (see [slash-commands.md](slash-commands.md)).
 
-`start` accepts `-i, --interval <seconds>` to change the schedule poll interval.
+`start` accepts `-i, --interval <seconds>` to change the schedule poll interval. `restart` accepts the same option; when omitted, it reuses the interval from the running daemon's lock file, or 60s if the daemon was not running.
 
 ## Schedules
 

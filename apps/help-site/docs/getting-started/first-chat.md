@@ -55,6 +55,7 @@ If you configure [Brave Search](../integrations/brave-search), Toby can also sea
 | `/schedules` | Open the schedules manager |
 | `/start-daemon` | Start the background daemon |
 | `/stop-daemon` | Stop the background daemon |
+| `/web` | Open the local web UI in your browser |
 | `/upgrade` | Stage the latest release |
 | `/restart` | Restart Toby, applying a staged upgrade when available |
 | `/new` | Start a new chat session |
