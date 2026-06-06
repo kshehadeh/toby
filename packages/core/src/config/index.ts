@@ -100,6 +100,11 @@ export interface ChatInboundConfig {
 
 import type { ListenConfig } from "../listen/whisper-config";
 
+export interface WebConfig {
+	readonly enabled?: boolean;
+	readonly port?: number;
+}
+
 interface TobyConfig {
 	integrations: Record<string, Record<string, unknown>>;
 	personas: Persona[];
@@ -107,6 +112,7 @@ interface TobyConfig {
 	defaultProviders?: Partial<Record<ProviderCategory, string>>;
 	chatInbound?: ChatInboundConfig;
 	listen?: ListenConfig;
+	web?: WebConfig;
 }
 
 export interface GmailCredentials {
@@ -224,6 +230,17 @@ export function readConfig(): TobyConfig {
 		defaultProviders: parsed.defaultProviders,
 		chatInbound: parsed.chatInbound,
 		listen: parsed.listen,
+		web: parsed.web,
+	};
+}
+
+export const DEFAULT_WEB_PORT = 7847;
+
+export function getWebConfig(): { enabled: boolean; port: number } {
+	const config = readConfig();
+	return {
+		enabled: config.web?.enabled !== false,
+		port: config.web?.port ?? DEFAULT_WEB_PORT,
 	};
 }
 
