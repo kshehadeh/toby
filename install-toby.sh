@@ -82,6 +82,10 @@ if [[ ! -f "${tmpdir}/toby" || ! -f "${tmpdir}/toby-listener" || ! -f "${tmpdir}
 	echo "Release archive is missing toby, toby-listener, or whisper-cli." >&2
 	exit 1
 fi
+if [[ ! -f "${tmpdir}/web/index.html" ]]; then
+	echo "Release archive is missing web/index.html." >&2
+	exit 1
+fi
 
 has_macos_helper=false
 if [[ -f "${tmpdir}/toby-macos" ]]; then
@@ -106,6 +110,10 @@ chmod +x "${tmpdir}/toby"
 mkdir -p "$install_dir"
 mv "${tmpdir}/toby" "${install_dir}/toby"
 echo "Installed: ${install_dir}/toby"
+
+rm -rf "${install_dir}/web"
+cp -R "${tmpdir}/web" "${install_dir}/web"
+echo "Installed: ${install_dir}/web"
 
 chmod +x "${tmpdir}/toby-listener"
 mkdir -p "$toby_helpers_dir"

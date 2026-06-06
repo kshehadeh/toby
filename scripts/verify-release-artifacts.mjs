@@ -37,4 +37,11 @@ if (missing.length > 0) {
 	process.exit(1);
 }
 
+const webIndex = path.join(directory, "web", "index.html");
+if (!fs.existsSync(webIndex)) {
+	console.error(`Missing or invalid release artifacts in ${directory}:`);
+	console.error("  - web/index.html");
+	process.exit(1);
+}
+
 console.log(`Release artifacts OK in ${directory}`);
