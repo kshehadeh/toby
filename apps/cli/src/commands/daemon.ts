@@ -3,21 +3,32 @@ import fs from "node:fs";
 import { startChatInboundListeners } from "@toby/core/chat-inbound/listeners";
 import { getChatInboundStatus } from "@toby/core/chat-inbound/status";
 import { readChatInboundConfig } from "@toby/core/config/chat-inbound";
-import { ensureTobyDir, getDaemonLogPath } from "@toby/core/config/index";
+import {
+	ensureTobyDir,
+	getDaemonLogPath,
+	getWebConfig,
+} from "@toby/core/config/index";
 import { daemonLog, flushDaemonLogSync } from "@toby/core/logging/daemon-log";
 import {
 	buildTobySpawnArgs,
 	getDetachedDaemonSpawnStdio,
 	getTobyExecPath,
 } from "@toby/core/toby-spawn";
+import { getWebUiUrl, startWebServer } from "@toby/core/web/server";
 import chalk from "chalk";
 import type { Command } from "commander";
 import {
 	getDaemonLockPath,
 	isDaemonRunning,
+	restartDaemon,
 	stopDaemon,
 } from "../schedules/daemon-status";
 import { runSchedulerLoop } from "../schedules/scheduler";
+
+function getWebUiUrlFromConfig(): string | null {
+	const { enabled, port } = getWebConfig();
+	return enabled ? getWebUiUrl(port) : null;
+}
 
 const DEFAULT_INTERVAL_SECONDS = 60;
 
@@ -101,6 +112,7 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 
 	const intervalMs = intervalSeconds * 1000;
 	const inboundCfg = readChatInboundConfig();
+	const webCfg = getWebConfig();
 	daemonLog("info", "daemon", "daemon_started", {
 		pid: process.pid,
 		intervalSeconds,
@@ -108,6 +120,8 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 		chatInboundEnabled: inboundCfg.enabled !== false,
 		chatInboundIntegration: inboundCfg.integration ?? null,
 		chatInboundPersona: inboundCfg.persona ?? null,
+		webEnabled: webCfg.enabled,
+		webPort: webCfg.enabled ? webCfg.port : null,
 	});
 	console.log(
 		chalk.cyan(
@@ -115,11 +129,14 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 		),
 	);
 	console.log(chalk.dim(`  Log: ${getDaemonLogPath()}`));
+	if (webCfg.enabled) {
+		console.log(chalk.dim(`  Web UI: ${getWebUiUrl(webCfg.port)}`));
+	}
 	console.log(chalk.dim("  Press Ctrl+C to stop."));
 	console.log();
 
 	try {
-		await Promise.all([
+		const tasks: Promise<void>[] = [
 			runSchedulerLoop({
 				intervalMs,
 				signal: controller.signal,
@@ -138,7 +155,13 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 				},
 			}),
 			startChatInboundListeners(controller.signal),
-		]);
+		];
+		if (webCfg.enabled) {
+			tasks.push(
+				startWebServer({ port: webCfg.port, signal: controller.signal }),
+			);
+		}
+		await Promise.all(tasks);
 	} catch (error) {
 		if (!controller.signal.aborted) {
 			const msg = error instanceof Error ? error.message : String(error);
@@ -253,6 +276,61 @@ export function registerDaemonCommand(program: Command): void {
 		});
 
 	daemon
+		.command("restart")
+		.description("Restart the daemon (stop if running, then start)")
+		.option(
+			"-i, --interval <seconds>",
+			`Poll interval in seconds (default: keep current or ${DEFAULT_INTERVAL_SECONDS})`,
+		)
+		.action(async (options: { interval?: string }) => {
+			let intervalSeconds: number | undefined;
+			if (options.interval !== undefined) {
+				intervalSeconds = Number.parseInt(options.interval, 10);
+				if (Number.isNaN(intervalSeconds) || intervalSeconds < 1) {
+					console.error(
+						chalk.red("Interval must be a positive number of seconds."),
+					);
+					process.exitCode = 1;
+					return;
+				}
+			}
+
+			try {
+				console.log(chalk.dim("Restarting daemon…"));
+				const result = await restartDaemon(
+					intervalSeconds,
+					DEFAULT_INTERVAL_SECONDS,
+				);
+				if (result.running) {
+					const verb = result.wasRunning ? "restarted" : "started";
+					console.log(chalk.green(`Daemon ${verb} (PID ${result.pid}).`));
+					console.log(
+						chalk.dim(
+							`  Schedule poll interval: ${result.intervalSeconds}s`,
+						),
+					);
+					console.log(chalk.dim(`  Log: ${getDaemonLogPath()}`));
+					const webUrl = getWebUiUrlFromConfig();
+					if (webUrl) {
+						console.log(chalk.dim(`  Web UI: ${webUrl}`));
+					}
+				} else {
+					console.error(
+						chalk.red(
+							"Daemon process was spawned but did not start within the expected time. Try `toby daemon run` directly.",
+						),
+					);
+					process.exitCode = 1;
+				}
+			} catch (e) {
+				console.error(
+					chalk.red(e instanceof Error ? e.message : String(e)),
+				);
+				process.exitCode = 1;
+			}
+		});
+
+	daemon
 		.command("status")
 		.description("Show whether the daemon is running")
 		.action(() => {
@@ -279,6 +357,10 @@ export function registerDaemonCommand(program: Command): void {
 				console.log(chalk.dim(`Chat inbound: ${inbound.status}`));
 			}
 			console.log(chalk.dim(`Daemon log: ${getDaemonLogPath()}`));
+			const webUrl = getWebUiUrlFromConfig();
+			if (webUrl && running) {
+				console.log(chalk.dim(`Web UI: ${webUrl}`));
+			}
 		});
 
 	daemon

@@ -134,6 +134,65 @@ async function waitForDaemonStopped(
 	return false;
 }
 
+async function waitForDaemonRunning(
+	maxAttempts = 10,
+	intervalMs = 300,
+): Promise<{ running: boolean; pid: number | null }> {
+	return new Promise((resolve) => {
+		let attempts = 0;
+		const check = () => {
+			const result = isDaemonRunning();
+			if (result.running) {
+				resolve({ running: true, pid: result.pid });
+				return;
+			}
+			attempts++;
+			if (attempts >= maxAttempts) {
+				resolve({ running: false, pid: null });
+				return;
+			}
+			setTimeout(check, intervalMs);
+		};
+		check();
+	});
+}
+
+export async function restartDaemon(
+	intervalSeconds?: number,
+	defaultIntervalSeconds = 60,
+): Promise<{
+	wasRunning: boolean;
+	running: boolean;
+	pid: number | null;
+	intervalSeconds: number;
+}> {
+	const status = isDaemonRunning();
+	const resolvedInterval =
+		intervalSeconds ?? status.intervalSeconds ?? defaultIntervalSeconds;
+
+	if (status.running && status.pid !== null) {
+		if (!stopDaemon()) {
+			throw new Error("Failed to stop running daemon.");
+		}
+		const stopped = await waitForDaemonStopped(status.pid);
+		if (!stopped) {
+			throw new Error("Timed out waiting for daemon to stop.");
+		}
+	}
+
+	if (!startDaemon(resolvedInterval)) {
+		throw new Error("Failed to start daemon.");
+	}
+
+	const result = await waitForDaemonRunning();
+	return {
+		wasRunning: status.running,
+		running: result.running,
+		pid: result.pid,
+		intervalSeconds: resolvedInterval,
+	};
+}
+
 export async function restartDaemonIfRunning(
 	defaultIntervalSeconds = 60,
 ): Promise<{
@@ -158,4 +217,36 @@ export async function restartDaemonIfRunning(
 		throw new Error("Failed to restart daemon after upgrade.");
 	}
 	return { wasRunning: true, restarted: true, intervalSeconds };
+}
+
+const DEFAULT_DAEMON_INTERVAL_SECONDS = 60;
+
+/** Start the detached daemon if it is not already running. */
+export async function ensureDaemonRunning(
+	defaultIntervalSeconds = DEFAULT_DAEMON_INTERVAL_SECONDS,
+): Promise<{
+	wasAlreadyRunning: boolean;
+	running: boolean;
+	pid: number | null;
+}> {
+	const status = isDaemonRunning();
+	if (status.running) {
+		return {
+			wasAlreadyRunning: true,
+			running: true,
+			pid: status.pid,
+		};
+	}
+
+	const intervalSeconds = status.intervalSeconds ?? defaultIntervalSeconds;
+	if (!startDaemon(intervalSeconds)) {
+		return { wasAlreadyRunning: false, running: false, pid: null };
+	}
+
+	const result = await waitForDaemonRunning();
+	return {
+		wasAlreadyRunning: false,
+		running: result.running,
+		pid: result.pid,
+	};
 }

@@ -3,6 +3,7 @@
 	"compilerOptions": {
 		"rootDir": "../..",
 		"noEmit": true,
+		"types": ["bun"],
 		"paths": {
 			"@toby/core": ["../../packages/core/src/index.ts"],
 			"@toby/core/*": ["../../packages/core/src/*"]
