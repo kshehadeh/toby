@@ -14,6 +14,10 @@ import {
 } from "../skills/index";
 import { createModelForPersona } from "./chat";
 import { getCurrentDateTimeInfo } from "./current-datetime";
+import {
+	createListenChatTools,
+	listenChatToolsPromptSection,
+} from "./listen-chat-tools";
 import { createReflectTools, reflectToolsPromptSection } from "./reflect-tools";
 import { createWebFetchTools } from "./web-fetch-tool";
 
@@ -111,6 +115,7 @@ Create or update a skill (explicit request only):
 Available local skills (name + description):
 ${skillsCatalog}
 
+${listenChatToolsPromptSection()}
 ${reflectToolsPromptSection()}
 `;
 }
@@ -195,6 +200,7 @@ export function createGlobalChatTools(
 	});
 	return {
 		...reflectTools,
+		...createListenChatTools(),
 		...createWebFetchTools(),
 		...(getBraveSearchApiKeyRaw()
 			? createBraveSearchTools({

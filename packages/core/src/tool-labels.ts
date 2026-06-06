@@ -38,6 +38,8 @@ const TOOL_LABEL_OVERRIDES: Record<string, string> = {
 	memoryForget: "Forget memory",
 	memoryExplain: "Explain memory",
 	memoryRetrieveForTask: "Retrieve memories for task",
+	listListenRecordings: "List listen recordings",
+	readTranscript: "Read listen transcript",
 };
 
 function humanizeToolName(toolName: string): string {

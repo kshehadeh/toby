@@ -36,6 +36,8 @@ const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"tobyInstanceInfo",
 	"fetchWebContent",
 	"webSearch",
+	"listListenRecordings",
+	"readTranscript",
 ]);
 
 /**
@@ -214,7 +216,9 @@ export function filterToolNamesByRelevance(
 		return [...allToolNames];
 	}
 	if (relevantTools.length === 0) {
-		return allToolNames.filter((name) => !EXPLICIT_REQUEST_ONLY_TOOLS.has(name));
+		return allToolNames.filter(
+			(name) => !EXPLICIT_REQUEST_ONLY_TOOLS.has(name),
+		);
 	}
 	const relevantLower = new Set(
 		relevantTools.map((n) => n.trim().toLowerCase()),

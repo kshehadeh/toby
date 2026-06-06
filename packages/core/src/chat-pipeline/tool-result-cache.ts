@@ -34,6 +34,8 @@ const READ_ONLY_CHAT_TOOLS = new Set<string>([
 	"getUserManager",
 	"getUserDirectReports",
 	"loadLocalSkillInstructions",
+	"listListenRecordings",
+	"readTranscript",
 ]);
 
 function stableSerialize(value: unknown): string {
