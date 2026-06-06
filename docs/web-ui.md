@@ -2,6 +2,17 @@
 
 When the Toby daemon is running, a local web server exposes a React UI for browsing sessions and memories and viewing/editing non-secret configuration.
 
+## Opening the web UI (`/web`)
+
+From a chat session, run the **`/web`** slash command. It:
+
+1. Starts the daemon if it is not already running (equivalent to `toby daemon start`).
+2. Opens the web UI (`http://127.0.0.1:<port>`) in your default browser.
+
+If the daemon is already running, `/web` just opens the browser. If the web server is disabled (`web.enabled: false`), `/web` reports that and does nothing else. When a browser cannot be opened automatically (for example over SSH), `/web` prints the URL to visit manually.
+
+You can also reach the same UI without chat: start the daemon (`toby daemon start`) and open `http://127.0.0.1:7847`.
+
 ## Access
 
 - **URL:** `http://127.0.0.1:7847` (default port)
@@ -25,9 +36,9 @@ Configure port or disable the server in `~/.toby/config.json`:
 |------|------|------|
 | Sessions | Browse list and transcript | No |
 | Memories | Browse and search | No |
-| Configuration | Full tree (same sections as `toby configure`) | Non-secret fields only |
+| Configuration | Full tree (same sections as `toby configure`) | Yes, including secrets |
 
-Secrets (API tokens, OAuth credentials) are shown as **Configured / Not set** — never exposed or writable via the web API.
+Secret fields (API tokens, keys) are **write-only**: their saved values are never sent to the browser (the API returns a redacted `••••••` placeholder), but they can be set or replaced from the web UI via password inputs. Leaving a secret field blank keeps the existing value unchanged.
 
 ## Development
 
@@ -52,7 +63,7 @@ bun run dev:web                         # terminal 2 — proxies /api to :7847
 
 From chat, **`/web`** starts the daemon if needed and opens the web UI in your browser.
 
-The header **Restart daemon** button runs `toby daemon restart` (stop then start) and refreshes the UI when the daemon is back.
+The header shows a **daemon status badge**. Clicking it opens a popover with the daemon process details (PID, uptime, schedule poll interval, web port, log path) and buttons to **Restart** or **Stop** the daemon. Restart refreshes the UI once the daemon is back; stopping the daemon also stops the web server, so the UI goes offline.
 
 The header also shows **chat inbound** status (configured provider and live connection state from the daemon). Hover the badge for details.
 
