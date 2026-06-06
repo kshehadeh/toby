@@ -111,6 +111,11 @@ is compiled via [`scripts/build-whisper-cli.sh`](../scripts/build-whisper-cli.sh
 Verify staged artifacts with `node scripts/verify-release-artifacts.mjs release-payload`.
 Use the GitHub release workflow for signed and notarized distribution artifacts.
 
+For how the listener and transcriber binaries are built, cross-compiled in CI,
+and installed under `~/.toby/helpers/`, see [listen-binaries.md](listen-binaries.md).
+Note that `bun run build:executable` is a lighter dev build and does not include
+`whisper-cli` or `toby-plugin-sample`.
+
 Ensure **Actions** permissions allow the default `GITHUB_TOKEN` to create releases for tag pushes (Repository → Settings → Actions → General → Workflow permissions → read and write).
 
 ### Shipping a release with release-it

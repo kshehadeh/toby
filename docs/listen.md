@@ -79,7 +79,8 @@ The general helper pattern is documented in
 [native-helpers.md](native-helpers.md). This section describes the
 `toby listen` helper's command-specific protocol.
 
-Build it from the repo root:
+Build and release details for `toby-listener` and `whisper-cli` are documented in
+[listen-binaries.md](listen-binaries.md). For local development, build the listener from the repo root:
 
 ```bash
 bun run build:audio-helper

@@ -68,7 +68,8 @@ protocol because recording is a long-running session:
 - The CLI command, Ink UI, recording list, metadata, confirmation prompts, and
   storage policy live in TypeScript.
 - The Swift helper handles microphone capture, system audio capture, macOS
-  permissions, audio file writing, and combined audio export.
+  permissions, audio file writing, combined audio export, and whisper.cpp
+  transcription (orchestrating the bundled `whisper-cli` binary).
 - The helper reports progress through a line-delimited JSON protocol.
 - Toby sends a small JSON command over stdin when the recording should stop.
 
@@ -267,7 +268,8 @@ prompts or real audio devices.
 - `apps/audio-helper/` contains the Swift executable.
 
 See [listen.md](listen.md) for the command-specific recording behavior and audio
-protocol details.
+protocol details. See [listen-binaries.md](listen-binaries.md) for how
+`toby-listener` and `whisper-cli` are built and shipped in releases.
 
 ### toby-macos-helper (request/response)
 

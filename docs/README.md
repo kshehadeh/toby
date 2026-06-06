@@ -12,6 +12,7 @@ Human- and agent-oriented docs for this repository.
 | [apple-calendar.md](apple-calendar.md) | macOS Apple Calendar integration (Calendar.app, EventKit search, AppleScript CRUD). |
 | [macos-integration.md](macos-integration.md) | Local macOS system tools via native `toby-macos` helper: Wi‑Fi, Bluetooth, battery, audio, display brightness, clipboard, shortcuts. |
 | [listen.md](listen.md) | Foreground audio recording mode, macOS helper protocol, and transcription notes. |
+| [listen-binaries.md](listen-binaries.md) | Build and deploy `toby-listener` and `whisper-cli` for releases and local dev. |
 | [native-helpers.md](native-helpers.md) | Pattern for small native executables that bridge Toby to platform APIs. |
 | [create-integration.md](create-integration.md) | Checklist for adding a new integration. |
 | [chat-pipeline.md](chat-pipeline.md) | Chat turn node pipeline (`TurnInit` → `ExpandPrompt` → `AssembleMessages` → `RunModelTurn` → `PersistTurn`), events, and tool-result caching. |
