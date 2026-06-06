@@ -45,5 +45,10 @@ chmod +x scripts/build-whisper-cli.sh
 SWIFT_ARCH="${swift_arch}" ./scripts/build-whisper-cli.sh dist/whisper-cli
 
 chmod +x dist/toby dist/toby-listener dist/toby-macos dist/toby-plugin-sample dist/whisper-cli
+
+echo "Building web UI..."
+bun run --cwd apps/web build
+cp -R apps/web/dist dist/web
+
 node scripts/verify-release-artifacts.mjs dist
 echo "Release artifacts ready in dist/"
