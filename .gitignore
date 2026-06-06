@@ -10,3 +10,4 @@ apps/audio-helper/.build/
 apps/macos-helper/.build/
 .env
 .DS_Store
+.build/
