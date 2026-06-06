@@ -75,6 +75,9 @@ function isGmailIntegrationTokens(
 	return true;
 }
 
+/** Maximum message ids per metadata batch fetch (Gmail tools + client). */
+export const METADATA_BATCH_MAX = 100;
+
 export interface GmailMessage {
 	id: string;
 	threadId: string;
@@ -82,6 +85,7 @@ export interface GmailMessage {
 	subject: string;
 	date: string;
 	snippet: string;
+	labelIds: readonly string[];
 }
 
 // Rate-limit configs for Gmail API.
@@ -133,6 +137,7 @@ async function fetchOneMessageMetadata(
 		subject: getHeader("Subject"),
 		date: getHeader("Date"),
 		snippet: full.data.snippet ?? "",
+		labelIds: full.data.labelIds ?? [],
 	};
 }
 
@@ -194,9 +199,10 @@ export async function listInboxPage(
 /** Metadata headers + snippet for specific message ids (bounded, rate-limited batch). */
 export async function fetchUnreadMetadataByMessageIds(
 	ids: readonly string[],
-	maxParallel = 25,
+	maxParallel = METADATA_BATCH_MAX,
 ): Promise<GmailMessage[]> {
-	const unique = [...new Set(ids)].filter(Boolean).slice(0, maxParallel);
+	const cap = Math.min(Math.max(1, maxParallel), METADATA_BATCH_MAX);
+	const unique = [...new Set(ids)].filter(Boolean).slice(0, cap);
 	if (unique.length === 0) {
 		return [];
 	}

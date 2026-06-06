@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
 	type BatchModifyOperationResult,
 	type GmailMessage,
+	METADATA_BATCH_MAX,
 	applyLabels,
 	archiveEmail,
 	batchModifyMessages,
@@ -119,13 +120,12 @@ export function createGmailTools(ctx: EmailContext) {
 		}),
 
 		getUnreadEmailMetadataBatch: tool({
-			description:
-				"Load From/Subject/Date/snippet for specific message ids (up to 20). Use after getInboxUnreadOverview when you need subject lines or senders for a subset.",
+			description: `Load From/Subject/Date/snippet/labelIds for specific message ids (up to ${METADATA_BATCH_MAX}). Use after getInboxUnreadOverview when you need subject lines or senders — request as many ids as you need in one call (e.g. all ids on the first unread page for triage).`,
 			inputSchema: z.object({
 				messageIds: z
 					.array(z.string())
 					.min(1)
-					.max(20)
+					.max(METADATA_BATCH_MAX)
 					.describe("Gmail message ids to load metadata for"),
 			}),
 			execute: async ({ messageIds }) => {
@@ -136,7 +136,10 @@ export function createGmailTools(ctx: EmailContext) {
 					};
 				}
 
-				const emails = await fetchUnreadMetadataByMessageIds(messageIds, 20);
+				const emails = await fetchUnreadMetadataByMessageIds(
+					messageIds,
+					METADATA_BATCH_MAX,
+				);
 				return {
 					emails: emails.map((e) => ({
 						id: e.id,
@@ -145,6 +148,7 @@ export function createGmailTools(ctx: EmailContext) {
 						subject: e.subject,
 						date: e.date,
 						snippet: e.snippet.slice(0, 200),
+						labelIds: e.labelIds,
 					})),
 				};
 			},

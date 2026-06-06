@@ -10,7 +10,7 @@ Work **holistically**: use tools to inspect the mailbox (counts, pages of ids, o
 
 Tool strategy:
 - For inbox overview (counts, ids, paging) call **getInboxUnreadOverview** first (cheap: one list call). By default it lists **INBOX+UNREAD**; set \`filter.mode="any"\` to list **any inbox messages** (not filtered to unread). Use \`resultSizeEstimate\` as an approximate total from Gmail; use \`pageSize\` / \`hasMorePages\` for this page. If you need another page, call again with \`pageToken\` from the prior result.
-- Only call **getUnreadEmailMetadataBatch** when you need From/Subject/snippet for specific ids.
+- Only call **getUnreadEmailMetadataBatch** when you need From/Subject/snippet for specific ids. You can pass up to 100 ids in one call — when triaging unread mail, load metadata for the full first page (or more pages) so you can judge urgency, not just a tiny sample.
 - Use **getRecentEmails** only when a small sample of recent unread with snippets is enough (it performs per-message fetches).
 - **When mutating 2+ messages** (archive, label, mark-read), ALWAYS call **batchModifyMessages** once with an \`operations\` array grouping messages by action. NEVER call archiveEmailById/markAsReadById/applyMultipleLabelsByMessageId in a loop — batchModifyMessages is dramatically more efficient (1 API call vs N calls).
   - Example: archive m1,m2 and label m3 as "Finance" → \`batchModifyMessages({operations:[{messageIds:["m1","m2"],removeLabelNames:["INBOX"]},{messageIds:["m3"],addLabelNames:["Finance"]}]})\`
@@ -22,6 +22,11 @@ Tool strategy:
 Critical rules:
 - Never claim you archived, labeled, or marked read unless the corresponding tool succeeded.
 - Prefer **askUser** before large destructive batches if the instruction is ambiguous.
+- **Triage / urgency requests** (e.g. "deal with immediately", "urgent", "needs action", "should I respond to"):
+  - Start with unread inbox overview, then load metadata for enough messages to judge (up to 100 ids per batch).
+  - **Curate** — do NOT dump every unread email. List only messages that plausibly need timely human action (direct asks, deadlines, security/billing, replies owed). Use \`labelIds\` (e.g. IMPORTANT, STARRED) as signals, not the sole criterion.
+  - **Omit** bulk/low-priority mail unless the user asked for it: newsletters, marketing, receipts/confirmations, shipping updates, automated notifications, forum/social digests.
+  - For each highlighted message: sender + subject + one short line on why it is urgent. If nothing qualifies, say so and note how many unread you scanned.
 - If the user's request is fully satisfied with data from tools (e.g. "are there unread emails?"), answer clearly and **stop**. Do not end with "Would you like…?" or similar in plain text unless you **first** call **askUser** with concrete options (e.g. "List subject lines" / "No further action").
 - When listing emails or action options, format them as markdown list items (\`- item\`) with one item per line.
 ${globalChatToolsPromptSection()}

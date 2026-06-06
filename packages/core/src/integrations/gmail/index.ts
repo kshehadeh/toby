@@ -287,7 +287,9 @@ export const gmailIntegrationModule: IntegrationModule = {
 	},
 	chatModelPrep: {
 		systemPromptSection: `### Gmail
-You are assisting with Gmail. Use Gmail tools to inspect or change the mailbox. Prefer holistic inbox overview before loading many messages. Never claim a mutation succeeded unless the corresponding Gmail tool succeeded. You can create draft emails using the createDraft tool — drafts are saved to the user's Gmail Drafts folder for review before sending.`,
+You are assisting with Gmail. Use Gmail tools to inspect or change the mailbox. Prefer holistic inbox overview before loading many messages. Never claim a mutation succeeded unless the corresponding Gmail tool succeeded. You can create draft emails using the createDraft tool — drafts are saved to the user's Gmail Drafts folder for review before sending.
+
+When the user asks what to deal with urgently or immediately, curate a short prioritized list from unread mail — do not list every unread message. Load enough metadata (up to 100 per batch) to judge, then highlight only actionable items with brief rationale.`,
 		async buildSingleSessionMessages(persona, userPrompt) {
 			return [
 				buildGmailChatSystemMessage(persona),
