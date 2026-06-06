@@ -20,6 +20,7 @@ import { stopListeningSlashCommand } from "./stop-listening";
 import { terminalSlashCommand } from "./terminal";
 import type { SlashCommand } from "./types";
 import { upgradeSlashCommand } from "./upgrade";
+import { webSlashCommand } from "./web";
 
 interface SlashCommandResolution {
 	readonly kind: "none" | "execute" | "unknown";
@@ -48,6 +49,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
 	stopListeningSlashCommand,
 	terminalSlashCommand,
 	upgradeSlashCommand,
+	webSlashCommand,
 	restartSlashCommand,
 	exitSlashCommand,
 ];
