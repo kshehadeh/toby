@@ -322,6 +322,56 @@ export function searchItems(userId: string, query: string): MemoryItem[] {
 	}));
 }
 
+export function listItems(
+	userId: string,
+	opts?: { query?: string; limit?: number; offset?: number },
+): MemoryItem[] {
+	const db = getDb();
+	const limit = Math.max(1, Math.min(500, opts?.limit ?? 50));
+	const offset = Math.max(0, opts?.offset ?? 0);
+	const query = opts?.query?.trim();
+
+	let sql = `SELECT id, user_id, type, subject, value, confidence, sensitivity, visibility, expires_at, created_at, updated_at
+       FROM memory_items
+       WHERE user_id = $uid`;
+	const params: Record<string, unknown> = { $uid: userId, $limit: limit, $offset: offset };
+
+	if (query) {
+		sql += ` AND (value LIKE $pat OR subject LIKE $pat OR type LIKE $pat)`;
+		params.$pat = `%${query}%`;
+	}
+
+	sql += ` ORDER BY updated_at DESC LIMIT $limit OFFSET $offset`;
+
+	const rows = db.query(sql).all(params) as Array<{
+		id: string;
+		user_id: string;
+		type: string;
+		subject: string | null;
+		value: string;
+		confidence: number;
+		sensitivity: string;
+		visibility: string;
+		expires_at: string | null;
+		created_at: string;
+		updated_at: string;
+	}>;
+	return rows.map((r) => ({
+		id: r.id,
+		userId: r.user_id,
+		type: r.type as MemoryItem["type"],
+		subject: r.subject ?? undefined,
+		value: r.value,
+		confidence: r.confidence,
+		sensitivity: r.sensitivity as MemorySensitivity,
+		visibility: r.visibility as MemoryVisibility,
+		sourceIds: getItemSourceIds(r.id),
+		createdAt: r.created_at,
+		updatedAt: r.updated_at,
+		expiresAt: r.expires_at ?? undefined,
+	}));
+}
+
 export function getItemsForRetrieval(
 	userId: string,
 	visibilities: string[],

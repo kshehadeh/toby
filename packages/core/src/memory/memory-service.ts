@@ -26,6 +26,13 @@ export function get(userId: string, memoryId: string): MemoryItem | null {
 	return store.getItem(userId, memoryId);
 }
 
+export function listMemoryItems(
+	userId: string,
+	opts?: { query?: string; limit?: number; offset?: number },
+): MemoryItem[] {
+	return store.listItems(userId, opts);
+}
+
 export function propose(
 	userId: string,
 	candidate: MemoryCandidate,
