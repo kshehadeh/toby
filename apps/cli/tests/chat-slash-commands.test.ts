@@ -13,6 +13,9 @@ import { helpSlashCommand } from "../src/ui/chat/slash-commands/help";
 import { logSlashCommand } from "../src/ui/chat/slash-commands/log";
 import { terminalSlashCommand } from "../src/ui/chat/slash-commands/terminal";
 import { restartSlashCommand } from "../src/ui/chat/slash-commands/restart";
+import { webSlashCommand } from "../src/ui/chat/slash-commands/web";
+import * as daemonStatus from "../src/schedules/daemon-status";
+import * as openUi from "@toby/core/web/open-ui";
 import * as handoffSpawn from "../src/upgrade/handoff-spawn";
 import * as upgradeModule from "../src/upgrade/index";
 
@@ -69,6 +72,33 @@ describe("slash commands", () => {
 	it("includes /upgrade and /restart commands", () => {
 		expect(SLASH_COMMANDS.some((c) => c.command === "/upgrade")).toBe(true);
 		expect(SLASH_COMMANDS.some((c) => c.command === "/restart")).toBe(true);
+		expect(SLASH_COMMANDS.some((c) => c.command === "/web")).toBe(true);
+	});
+
+	it("opens the web UI after ensuring the daemon is running", async () => {
+		const ensureSpy = vi
+			.spyOn(daemonStatus, "ensureDaemonRunning")
+			.mockResolvedValue({
+				wasAlreadyRunning: true,
+				running: true,
+				pid: 4242,
+			});
+		const openSpy = vi
+			.spyOn(openUi, "openWebUiInBrowser")
+			.mockResolvedValue(true);
+		const runtime = mockRuntime();
+
+		await webSlashCommand.run(runtime);
+
+		expect(ensureSpy).toHaveBeenCalledTimes(1);
+		expect(openSpy).toHaveBeenCalledWith("http://127.0.0.1:7847");
+		expect(runtime.addNoticeLine).toHaveBeenCalledWith(
+			"Opened http://127.0.0.1:7847 in your browser.",
+			"success",
+		);
+
+		ensureSpy.mockRestore();
+		openSpy.mockRestore();
 	});
 
 	it("opens the help viewer modal for /help", () => {
