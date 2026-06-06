@@ -40,6 +40,7 @@ packages/core/src/       # @toby/core — harness (no Ink/React)
   ai/                    # Shared AI helpers (chat, providers, pretreatment, replay)
   integrations/          # Integration modules + registry (see integrations.md)
   config/                # Read/write ~/.toby/config.json and credentials.json
+  huggingface/           # HF cache path, model registry helpers, Windows download retry
   chat-inbound/          # Provider-agnostic daemon inbound router
   session-store.ts       # SQLite chat sessions (TUI + headless)
   prepare-messages.ts    # Message assembly for chat turns
@@ -74,8 +75,8 @@ apps/cli/src/
 
 | Location | Role |
 | -------- | ---- |
-| `~/.toby/config.json` | Integration connection flags, personas |
-| `~/.toby/credentials.json` | API keys, OAuth client secrets, OpenAI token |
+| `~/.toby/config.json` | Integration connection flags, personas, self-hosted ONNX model ids (`huggingFaceSelfHostedModels`), inference model ids (`huggingFaceInferenceModels`) |
+| `~/.toby/credentials.json` | API keys, OAuth client secrets, OpenAI token (`ai.openai.token`), optional Hugging Face Inference token (`ai.huggingface.accessToken`) |
 | `~/.toby/chat.sqlite` | Chat session storage (sessions, messages, transcript) |
 | `~/.toby/toby.log` | JSON-lines chat session log (turns, tools, prep) |
 | `~/.toby/daemon.log` | JSON-lines daemon log (scheduler, inbound chat, Slack Socket Mode) |
@@ -88,7 +89,7 @@ Backup and restore behavior is documented in [`commands.md`](commands.md).
 
 Ink/React lives under **`apps/cli/src/ui/`** only. Shared primitives are in [`apps/cli/src/ui/shared/`](../apps/cli/src/ui/shared/): `ViewFrame`, `ViewModal`, `ConfirmDialog`, row components, key predicates, glyphs. See [`docs/ui.md`](ui.md).
 
-The configure tree is built in [`apps/cli/src/ui/configure/items.ts`](../apps/cli/src/ui/configure/items.ts) using credential descriptors from the **core** integration registry.
+The configure tree is built in [`packages/core/src/configure/tree.ts`](../packages/core/src/configure/tree.ts) (wrapped by [`apps/cli/src/ui/configure/items.ts`](../apps/cli/src/ui/configure/items.ts)) using credential descriptors from the **core** integration registry.
 
 Chat slash commands are registered in [`apps/cli/src/ui/chat/slash-commands/`](../apps/cli/src/ui/chat/slash-commands/) (CLI-only; see [`slash-commands.md`](slash-commands.md)).
 
@@ -96,11 +97,18 @@ Chat slash commands are registered in [`apps/cli/src/ui/chat/slash-commands/`](.
 
 Shared AI and pipeline code lives under **`packages/core/src/ai/`** and **`packages/core/src/chat-pipeline/`**:
 
-- [`model-factory.ts`](../packages/core/src/ai/model-factory.ts) — language models from persona config.
-- [`chat.ts`](../packages/core/src/ai/chat.ts) — tool-assisted chat (`streamText` / `generateText`, tool cache, lifecycle hooks).
+- [`model-factory.ts`](../packages/core/src/ai/model-factory.ts) — language models from persona config (OpenAI, Vercel AI Gateway, Hugging Face self-hosted, Hugging Face inference).
+- [`chat.ts`](../packages/core/src/ai/chat.ts) — tool-assisted chat (`streamText` / `generateText`, tool cache, lifecycle hooks, self-hosted model download progress).
 - [`ask-user-tool.ts`](../packages/core/src/ai/ask-user-tool.ts) — **Ask User** tool; the CLI supplies an Ink or readline handler when wiring the turn context.
-- [`providers.ts`](../packages/core/src/ai/providers.ts) — provider/model lists (configure UI reads these via core).
+- [`providers.ts`](../packages/core/src/ai/providers.ts) — provider/model lists (`getAIProviders()` includes dynamic Hugging Face catalogs from config).
+- [`worker.ts`](../packages/core/src/ai/worker.ts) — `TransformersJSWorkerHandler` entry for self-hosted inference off the main thread.
 
-Integration-specific **prompts** and **tool definitions** live under `packages/core/src/integrations/<name>/` so the harness stays integration-agnostic.
+Hugging Face–specific helpers live under [`packages/core/src/huggingface/`](../packages/core/src/huggingface/):
+
+- [`downloadedmodels/index.ts`](../packages/core/src/huggingface/downloadedmodels/index.ts) — read/write `huggingFaceSelfHostedModels` and `huggingFaceInferenceModels` in config.
+- [`envconfig.ts`](../packages/core/src/huggingface/envconfig.ts) — `setHuggingFaceCacheDir()` (called from [`apps/cli/src/cli.ts`](../apps/cli/src/cli.ts) at startup).
+- [`retry.ts`](../packages/core/src/huggingface/retry.ts) — bounded retry when Windows returns transient file-lock errors during ONNX cache writes.
+
+**Hugging Face is not an `IntegrationModule`.** Each persona sets `ai.provider` and `ai.model`. The configure tree exposes **AI → Self Hosted Models** and **AI → Remote Hosted Models → Hugging Face Inference** so catalogued ids appear when the persona provider is `huggingface-self-hosted` or `huggingface-inference`.
 
 For pipeline stages, events, and caching, see [`chat-pipeline.md`](chat-pipeline.md) and [`ai-caching.md`](ai-caching.md).

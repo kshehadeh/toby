@@ -1,6 +1,10 @@
 import type { AIProviderInfo } from "../ai/providers";
 import { getDefaultPersonaName, getSkillsDir } from "../config/index";
 import {
+	getDownloadedModels,
+	getInferenceModels,
+} from "../huggingface/downloadedmodels";
+import {
 	getIntegrationModules,
 	getModulesForCategory,
 } from "../integrations/index";
@@ -151,6 +155,20 @@ export function buildSettingsTree(
 	);
 
 	const currentDefault = getDefaultPersonaName();
+
+	const installedModels: SettingsItem[] = getDownloadedModels().map((m) => ({
+		label: m,
+		kind: "delete" as const,
+		key: `ai.huggingface.self_hosted_models.model.${m}`,
+	}));
+
+	const availableInferenceModels: SettingsItem[] = getInferenceModels().map(
+		(m) => ({
+			label: m,
+			kind: "delete" as const,
+			key: `ai.huggingface.inference_models.model.${m}`,
+		}),
+	);
 
 	const personaItems: SettingsItem[] = personas.map((p) => {
 		const isBuiltIn = p.name === DEFAULT_CHAT_PERSONA.name;
@@ -667,6 +685,62 @@ export function buildSettingsTree(
 								kind: "value",
 								key: "ai.vercel.apiKey",
 								masked: true,
+							},
+						],
+					},
+					{
+						label: "Remote Hosted Models",
+						kind: "section",
+						key: "ai.remote_hosted_models",
+						children: [
+							{
+								label: "Hugging Face Inference",
+								kind: "section",
+								key: "ai.huggingface.inference_models",
+								children: [
+									{
+										label: "Add Model",
+										kind: "action",
+										key: "ai.huggingface.inference_models.add_model",
+									},
+									{
+										label: "Available Models",
+										kind: "section",
+										key: "ai.huggingface.inference_models.installed_models",
+										children: availableInferenceModels,
+									},
+									{
+										label: "Access Token",
+										kind: "value",
+										key: "ai.huggingface.accessToken",
+										masked: true,
+									},
+								],
+							},
+						],
+					},
+					{
+						label: "Self Hosted Models",
+						kind: "section",
+						key: "ai.self_hosted_models",
+						children: [
+							{
+								label: "Hugging Face",
+								kind: "section",
+								key: "ai.huggingface.self_hosted_models",
+								children: [
+									{
+										label: "Add Model",
+										kind: "action",
+										key: "ai.huggingface.self_hosted_models.add_model",
+									},
+									{
+										label: "Installed Models",
+										kind: "section",
+										key: "ai.huggingface.self_hosted_models.installed_models",
+										children: installedModels,
+									},
+								],
 							},
 						],
 					},

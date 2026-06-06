@@ -32,6 +32,18 @@ export type ChatEvent =
 			readonly detail: string;
 	  }
 	| {
+			readonly type: "model_download_start";
+			readonly id: string;
+			readonly seq: number;
+			readonly header: string;
+	  }
+	| {
+			readonly type: "model_download_end";
+			readonly id: string;
+			readonly seq: number;
+			readonly detail: string;
+	  }
+	| {
 			readonly type: "lifecycle_append";
 			readonly id: string;
 			readonly seq: number;

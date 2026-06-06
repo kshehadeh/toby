@@ -1,6 +1,10 @@
 import { createGateway } from "@ai-sdk/gateway";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { LanguageModelV3 } from "@ai-sdk/provider";
+import {
+	TransformersJSLanguageModel,
+	transformersJS,
+} from "@browser-ai/transformers-js";
 import { type LanguageModel, wrapLanguageModel } from "ai";
 import { readCredentials } from "../config/index";
 import type { Persona } from "../config/index";
@@ -14,6 +18,7 @@ import {
 } from "./replay";
 
 const GATEWAY_SLUG_RE = /^[a-z0-9-]+\/[a-z0-9][a-z0-9.-]*$/i;
+const HF_MODEL_RE = /^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/;
 
 const OPENAI_AUX_DEFAULT = "gpt-4.1-nano";
 const VERCEL_AUX_DEFAULT = "openai/gpt-4.1-nano";
@@ -54,6 +59,18 @@ export function validatePersonaAi(persona: Persona): void {
 		if (!GATEWAY_SLUG_RE.test(persona.ai.model)) {
 			throw new Error(
 				`Invalid Vercel AI Gateway model slug "${persona.ai.model}". Use provider/model format (e.g. openai/gpt-5-mini). See https://vercel.com/docs/ai-gateway`,
+			);
+		}
+		return;
+	}
+
+	if (
+		persona.ai.provider === "huggingface-self-hosted" ||
+		persona.ai.provider === "huggingface-inference"
+	) {
+		if (!HF_MODEL_RE.test(persona.ai.model)) {
+			throw new Error(
+				`Invalid Hugging Face model id "${persona.ai.model}". Use org/model format (e.g. Qwen/Qwen3-0.6B).`,
 			);
 		}
 		return;
@@ -151,6 +168,35 @@ function createVercelGatewayModel(modelId: string): LanguageModel {
 	return createVercelGatewayProvider()(modelId);
 }
 
+function resolveHuggingFaceAccessToken(): string {
+	const creds = readCredentials();
+	const token = creds.ai?.huggingface?.accessToken?.trim();
+	if (token) {
+		return token;
+	}
+	throw new Error(
+		"Hugging Face access token not configured. Run `toby configure` to set it.",
+	);
+}
+
+function createHuggingFaceSelfHostedModel(modelId: string): LanguageModel {
+	return transformersJS(modelId, {
+		device: "auto",
+		worker: new Worker(new URL("./worker.ts", import.meta.url), {
+			type: "module",
+		}),
+		dtype: "q8",
+	});
+}
+
+function createHuggingFaceInferenceModel(modelId: string): LanguageModel {
+	const huggingface = createOpenAI({
+		apiKey: resolveHuggingFaceAccessToken(),
+		baseURL: "https://router.huggingface.co/v1",
+	});
+	return huggingface(modelId);
+}
+
 export function resolveAuxiliaryModelId(
 	providerId: string,
 	override?: string,
@@ -188,6 +234,12 @@ export function createModelForPersona(persona: Persona): LanguageModel {
 			break;
 		case "vercel":
 			model = createVercelGatewayModel(persona.ai.model);
+			break;
+		case "huggingface-self-hosted":
+			model = createHuggingFaceSelfHostedModel(persona.ai.model);
+			break;
+		case "huggingface-inference":
+			model = createHuggingFaceInferenceModel(persona.ai.model);
 			break;
 		default:
 			throw new Error(

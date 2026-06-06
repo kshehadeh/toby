@@ -4,7 +4,7 @@ Human- and agent-oriented docs for this repository.
 
 | Doc | Description |
 | --- | ----------- |
-| [architecture.md](architecture.md) | Monorepo layout: `@toby/core` harness vs `@toby/cli` app, runtime flow, config paths. |
+| [architecture.md](architecture.md) | Monorepo layout: `@toby/core` harness vs `@toby/cli` app, runtime flow, config paths, OpenAI + Hugging Face AI wiring. |
 | [commands.md](commands.md) | Shared CLI commands, including `config backup` and `config restore`. |
 | [integrations.md](integrations.md) | `IntegrationModule`, registry API, per-integration layout. |
 | [plugin-protocol.md](plugin-protocol.md) | Installable plugin CLI contract (v1): discovery, subcommands, JSON envelopes. |

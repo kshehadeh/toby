@@ -85,6 +85,21 @@ The global `fetchWebContent` tool ([`packages/core/src/ai/web-fetch-tool.ts`](..
 
 Keeping this wiring generic avoids adding new `if (name === "…")` branches in core commands when a new integration is added.
 
+## AI providers (OpenAI, Vercel, Hugging Face) — not integrations
+
+**Email/calendar/task integrations** (`gmail`, `todoist`, `azuread`, `applemail`, …) implement `IntegrationModule` and appear under **Integrations** in `toby configure`.
+
+**LLM routing** is separate: each **persona** picks an AI backend via `ai.provider` and `ai.model` in `~/.toby/config.json`. Toby currently supports:
+
+| Persona `ai.provider` | Configure / storage | Main-turn model |
+| --------------------- | ------------------- | ---------------- |
+| `openai` | **AI → OpenAI → API Token** writes `credentials.json` → `ai.openai.token` | OpenAI models listed in [`providers.ts`](../packages/core/src/ai/providers.ts) |
+| `vercel` | **AI → Vercel AI Gateway → API Key** writes `credentials.json` → `ai.vercel.apiKey` | Gateway slugs via [`model-factory.ts`](../packages/core/src/ai/model-factory.ts) |
+| `huggingface-self-hosted` | **AI → Self Hosted Models** appends ONNX model repo ids to `config.json` → `huggingFaceSelfHostedModels` | [`@browser-ai/transformers-js`](https://www.npmjs.com/package/@browser-ai/transformers-js) + [`worker.ts`](../packages/core/src/ai/worker.ts) |
+| `huggingface-inference` | **AI → Remote Hosted Models → Hugging Face Inference** appends model ids to `huggingFaceInferenceModels`; access token under the same section | Hugging Face OpenAI-compatible router (`createOpenAI` + `https://router.huggingface.co/v1`) |
+
+See [`architecture.md`](architecture.md) and [`chat-pipeline.md`](chat-pipeline.md) for pretreatment and routing behavior.
+
 ## Installable plugins
 
 Third-party (or independently built) integrations can ship as executables named

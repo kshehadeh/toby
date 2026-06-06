@@ -16,9 +16,12 @@ import { registerSkillsCommand } from "./commands/skills";
 import { registerStatusCommand } from "./commands/status";
 import { registerUpgradeCommand } from "./commands/upgrade";
 import { registerWhisperCommand } from "./commands/whisper";
+import { setHuggingFaceCacheDir } from "@toby/core/huggingface/envconfig";
 
 const program = new Command();
 const cliVersion = getTobyVersion();
+
+setHuggingFaceCacheDir();
 
 program
 	.name("toby")

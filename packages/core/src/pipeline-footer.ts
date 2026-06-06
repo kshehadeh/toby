@@ -69,6 +69,10 @@ export function activityLineForChatEvent(
 			return ev.line;
 		case "lifecycle_end":
 			return ev.detail;
+		case "model_download_start":
+			return ev.header;
+		case "model_download_end":
+			return ev.detail;
 		case "assistant_segment_start":
 			return "Receiving response…";
 		case "assistant_text_delta":

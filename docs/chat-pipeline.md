@@ -105,6 +105,16 @@ Key files:
 - `packages/core/src/chat-pipeline/run-turn.ts`: shared integration turn runner (`runIntegrationChatTurn`, `runSharedChatTurn`). `apps/cli/src/ui/chat/run-turn.ts` re-exports from this module.
 - `packages/core/src/ai/chat.ts`: shared wrapper around AI SDK `streamText` / `generateText`, tool cache injection, lifecycle hooks, and abort signal propagation.
 
+## Persona model providers (OpenAI and Hugging Face)
+
+The **main** chat turn (`runIntegrationChatTurn` → `chatWithTools`) uses whatever model `createModelForPersona(persona)` returns:
+
+- **`openai`** — requires `ai.openai.token` in `~/.toby/credentials.json`; model id is the OpenAI model name on the persona.
+- **`huggingface-self-hosted`** — uses [`@browser-ai/transformers-js`](https://www.npmjs.com/package/@browser-ai/transformers-js) with the persona’s `ai.model` string (typically an ONNX community repo id such as `onnx-community/...`). Configure UI ids come from `config.json` **`huggingFaceSelfHostedModels`**, maintained via **AI → Self Hosted Models** and [`src/huggingface/downloadedmodels/index.ts`](../src/huggingface/downloadedmodels/index.ts). Inference runs in a dedicated worker ([`src/ai/worker.ts`](../src/ai/worker.ts)).
+- **`huggingface-inference`** — uses the Hugging Face OpenAI-compatible router with `ai.huggingface.accessToken` in `credentials.json` and the persona’s `ai.model`. Catalog ids for the UI come from **`huggingFaceInferenceModels`** (see **AI → Inference Models** and [`src/huggingface/downloadedmodels/index.ts`](../src/huggingface/downloadedmodels/index.ts)).
+
+Pretreatment (see below) is a **separate** small model call; it can target OpenAI or Hugging Face Inference depending on `TOBY_PRETREAT_MODEL` (see [`src/ai/pretreatment.ts`](../src/ai/pretreatment.ts)). It does not use the self-hosted Transformers.js persona path.
+
 ## Message construction (stable prefix vs dynamic content)
 
 The chat pipeline intentionally keeps the **system message** as stable as possible, and pushes per-session/per-turn content into **user messages**.

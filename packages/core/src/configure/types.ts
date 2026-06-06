@@ -11,6 +11,8 @@ export const CONFIGURE_TREE_ACTION_KEYS = new Set([
 	"personas._new",
 	"listen._start",
 	"schedules._new",
+	"ai.huggingface.self_hosted_models.add_model",
+	"ai.huggingface.inference_models.add_model",
 ]);
 
 export interface SettingsSelectChoice {

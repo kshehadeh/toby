@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { TransformersJSLanguageModel } from "@browser-ai/transformers-js";
 import {
 	type LanguageModel,
 	type LanguageModelUsage,
@@ -15,6 +16,7 @@ import {
 	isReadOnlyChatTool,
 	setCachedToolResult,
 } from "../chat-pipeline/tool-result-cache";
+import { withWindowsRenameRetry } from "../huggingface/retry";
 import { formatChattingWithPersona } from "../pipeline-footer";
 import { enrichChatModelError } from "./chat-errors";
 export { formatChatModelError } from "./chat-errors";
@@ -319,7 +321,40 @@ export async function chatWithTools(
 				}
 			},
 		});
-
+		if (model instanceof TransformersJSLanguageModel) {
+			const availability = await model.availability();
+			if (availability === "unavailable") {
+				throw new Error("Model is not available, or not supported.");
+			}
+			if (availability === "downloadable") {
+				const modelDownloadId = randomUUID();
+				await withWindowsRenameRetry(
+					() =>
+						model.createSessionWithProgress((progress: number) => {
+							if (onChatEvent) {
+								onChatEvent({
+									type: "model_download_start",
+									id: modelDownloadId,
+									seq: nextSeq(),
+									header: `Downloading model... ${Math.round(progress * 100)}%`,
+								});
+							}
+						}),
+					{
+						onRetry: (attempt) => {
+							if (onChatEvent) {
+								onChatEvent({
+									type: "model_download_start",
+									id: modelDownloadId,
+									seq: nextSeq(),
+									header: `Retrying model load (attempt ${attempt + 1}) after Windows file lock…`,
+								});
+							}
+						},
+					},
+				);
+			}
+		}
 		const modelRequestId = randomUUID();
 		if (onChatEvent) {
 			onChatEvent({

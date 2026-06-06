@@ -71,6 +71,19 @@ bun run dev -- --help
 - `toby sessions clear` - clear saved chat sessions
 - `toby upgrade` - install the latest Toby release
 
+## Getting Started With Locally Hosted Models
+
+To add a model 
+1. find a compatible one available on Huggingface.co that supports the ONNX library. 
+2. Go to `config` > `AI` > `Self Hosted Models` > `Hugging Face` > `Add Model`
+3. Add the name of the model you want to download and run, it should look something like `onnx-community/Qwen3-0.6B-Instruct-ONNX`
+4. Select the model in the Persona config menu
+5. Send a chat message and wait for the model to download
+
+Currently there isn't a way to download the models ahead of time, they are downloaded on first use. This is planned to be changed in the future
+
+Many models will not work well when self-hosted. Typically because they are either too large, or because they don't have good reasoning skills and so don't work well with tools. In general, use smaller locally hosted models for chat-only personas.
+
 ## Documentation
 
 - [docs/README.md](docs/README.md) - docs index
@@ -112,3 +125,4 @@ bun run test
 - Start with [AGENTS.md](AGENTS.md) for repository conventions and quick paths.
 - Keep shared CLI behavior in `apps/cli/src/commands/` and integration-specific behavior in `apps/cli/src/integrations/<name>/`.
 - Add or update tests in `tests/` for substantive behavior changes.
+

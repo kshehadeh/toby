@@ -1,4 +1,4 @@
-import { AI_PROVIDERS } from "@toby/core/ai/providers";
+import { getAIProviders } from "@toby/core/ai/providers";
 import {
 	clearDefaultPersona,
 	getDefaultPersonaName,
@@ -122,7 +122,7 @@ export function createConfigureSession(
 		const defaultProvidersFromVals = rebuildDefaultProviders(vals);
 		return buildSettingsTree(
 			withBuiltIn,
-			AI_PROVIDERS,
+			getAIProviders(),
 			vals,
 			defaultProvidersFromVals,
 			listenRecordingsDir,

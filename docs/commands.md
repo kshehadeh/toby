@@ -6,7 +6,11 @@ This page documents the shared Toby CLI commands and the primary usage patterns.
 
 ### `toby config`
 
-Open the interactive configure UI (integrations, credentials, personas, AI provider/model).
+Open the interactive configure UI:
+
+- **Integrations** — per-module credentials from `IntegrationModule.getCredentialDescriptors()`.
+- **AI** — **OpenAI** (API token in `credentials.json`). **Self Hosted Models** (ONNX / Transformers.js catalog in `huggingFaceSelfHostedModels`) and **Inference Models** (router catalog in `huggingFaceInferenceModels`); **Hugging Face** access token for inference lives under **AI → Hugging Face**. Under each **Persona**, pick provider `openai`, `huggingface-self-hosted`, or `huggingface-inference` and a matching **AI model** id.
+- **Personas** — name, instructions, prompt mode, and per-persona **AI provider** / **AI model**.
 
 The UI uses a two-pane layout: the left pane is an expandable settings tree and the right pane shows the selected detail view. Use arrow keys to move, `Enter` to select, expand, collapse, or edit, `Tab` to switch panes, `Esc` to move back, `s` to save, and `q` to quit. Toby tracks unsaved edits and prompts before discarding changes.
 

@@ -1,3 +1,8 @@
+import {
+	getDownloadedModels,
+	getInferenceModels,
+} from "../huggingface/downloadedmodels";
+
 export type AIProviderModelFormat = "openai-id" | "gateway-slug";
 
 export interface AIProviderInfo {
@@ -8,7 +13,7 @@ export interface AIProviderInfo {
 	allowCustomModel?: boolean;
 }
 
-export const AI_PROVIDERS: AIProviderInfo[] = [
+const BASE_AI_PROVIDERS: AIProviderInfo[] = [
 	{
 		id: "openai",
 		displayName: "OpenAI",
@@ -56,8 +61,31 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
 	},
 ];
 
+/** Static providers (OpenAI, Vercel). Prefer `getAIProviders()` when model lists must include Hugging Face catalogs. */
+export const AI_PROVIDERS: AIProviderInfo[] = BASE_AI_PROVIDERS;
+
+export function getAIProviders(): AIProviderInfo[] {
+	return [
+		...BASE_AI_PROVIDERS,
+		{
+			id: "huggingface-self-hosted",
+			displayName: "Hugging Face Self Hosted",
+			modelFormat: "openai-id",
+			allowCustomModel: true,
+			models: getDownloadedModels(),
+		},
+		{
+			id: "huggingface-inference",
+			displayName: "Hugging Face Inference",
+			modelFormat: "openai-id",
+			allowCustomModel: true,
+			models: getInferenceModels(),
+		},
+	];
+}
+
 export function getAIProvider(id: string): AIProviderInfo | undefined {
-	return AI_PROVIDERS.find((p) => p.id === id);
+	return getAIProviders().find((p) => p.id === id);
 }
 
 export function getAIProviderDisplayName(id: string): string {

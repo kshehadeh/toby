@@ -22,7 +22,11 @@ import { loadLocalSkills } from "../skills/index";
 import { updateSkillFrontmatter } from "../skills/manage";
 import type { ConfigureListenRecording } from "./types";
 
-const SECRET_KEY_PREFIXES = ["ai.openai.token", "ai.vercel.apiKey"] as const;
+const SECRET_KEY_PREFIXES = [
+	"ai.openai.token",
+	"ai.vercel.apiKey",
+	"ai.huggingface.accessToken",
+] as const;
 
 /** Keys that must never be written via the web API. */
 export function collectSecretConfigureKeys(): Set<string> {
@@ -97,6 +101,9 @@ export function seedConfigureValues(
 	}
 	if (creds.ai?.vercel?.apiKey) {
 		values["ai.vercel.apiKey"] = creds.ai.vercel.apiKey;
+	}
+	if (creds.ai?.huggingface?.accessToken) {
+		values["ai.huggingface.accessToken"] = creds.ai.huggingface.accessToken;
 	}
 	for (const p of config.personas) {
 		values[`personas.${p.name}.name`] = p.name;
@@ -295,10 +302,15 @@ export function buildCredentialsFromValues(
 	const token = values["ai.openai.token"] ?? creds.ai?.openai?.token ?? "";
 	const vercelApiKey =
 		values["ai.vercel.apiKey"] ?? creds.ai?.vercel?.apiKey ?? "";
+	const huggingfaceAccessToken =
+		values["ai.huggingface.accessToken"] ??
+		creds.ai?.huggingface?.accessToken ??
+		"";
 	next = mergeCredentials(next, {
 		ai: {
 			openai: { token },
 			vercel: { apiKey: vercelApiKey },
+			huggingface: { accessToken: huggingfaceAccessToken },
 		},
 	});
 	return next;

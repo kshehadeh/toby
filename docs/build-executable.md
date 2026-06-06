@@ -71,6 +71,10 @@ bun build ./src/cli.ts --compile --target=bun-darwin-x64 --outfile ../../dist/to
 
 See [Bun’s executable docs](https://bun.sh/docs/bundler/executables) for `--target` values.
 
+## Hugging Face / native dependencies and `--compile`
+
+Personas that use **Hugging Face** pull in `@browser-ai/transformers-js` and related stacks, which may depend on **native** Node addons (for example ONNX). **`bun build --compile`** bundles into a single binary; loading some native `.node` modules from inside that binary can fail on some platforms (you may see `ERR_DLOPEN_FAILED` / missing DLL errors on Windows). For local development and distribution where that happens, prefer running **`bun dist/cli.js`** / **`bun run dev`** instead of the compiled exe, or keep HF-only code paths lazy-loaded if you invest in a more complex packaging story.
+
 ## GitHub Releases (CI)
 
 Pushing a **version tag** matching `v*` runs [`.github/workflows/release.yml`](../.github/workflows/release.yml). The workflow calls [`scripts/build-release-artifacts.sh`](../scripts/build-release-artifacts.sh) (same layout as local `bun run build:release` on macOS with `BUN_TARGET` / `SWIFT_ARCH` set).

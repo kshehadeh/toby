@@ -1,4 +1,10 @@
 import { normalizeModelOnProviderChange } from "@toby/core/ai/model-factory";
+import {
+	addDownloadedModel,
+	addInferenceModel,
+	removeDownloadedModel,
+	removeInferenceModel,
+} from "@toby/core/huggingface/downloadedmodels";
 import { DEFAULT_CHAT_PERSONA } from "@toby/core/personas/index";
 import { Box, Text, render, useApp, useInput } from "ink";
 import React, {
@@ -556,6 +562,22 @@ export function ConfigureApp({
 				}
 				if (item.key === "personas._new") {
 					handleCreatePersona();
+				} else if (item.key === "ai.huggingface.self_hosted_models.add_model") {
+					setEditItem({
+						label: "Add Model",
+						kind: "value",
+						key: "ai.huggingface.self_hosted_models.model",
+						currentValue: "",
+					});
+					setScreen("edit");
+				} else if (item.key === "ai.huggingface.inference_models.add_model") {
+					setEditItem({
+						label: "Add Model",
+						kind: "value",
+						key: "ai.huggingface.inference_models.model",
+						currentValue: "",
+					});
+					setScreen("edit");
 				} else if (
 					item.key.endsWith("._edit") &&
 					item.key.startsWith("skills.")
@@ -728,6 +750,36 @@ export function ConfigureApp({
 								e instanceof Error ? e.message : "Failed to delete skill.",
 							);
 						}
+					});
+					return;
+				}
+				if (
+					item.key.startsWith("ai.huggingface.self_hosted_models.model.")
+				) {
+					const modelName = item.key.replace(
+						"ai.huggingface.self_hosted_models.model.",
+						"",
+					);
+					setConfirmMsg(`Delete model "${modelName}"?`);
+					setConfirmAction(() => async () => {
+						await removeDownloadedModel(modelName);
+						doRefresh(values);
+						setFocusedPane("left");
+						setStatusMessage(undefined);
+					});
+					return;
+				}
+				if (item.key.startsWith("ai.huggingface.inference_models.model.")) {
+					const modelName = item.key.replace(
+						"ai.huggingface.inference_models.model.",
+						"",
+					);
+					setConfirmMsg(`Delete model "${modelName}"?`);
+					setConfirmAction(() => () => {
+						removeInferenceModel(modelName);
+						doRefresh(values);
+						setFocusedPane("left");
+						setStatusMessage(undefined);
 					});
 					return;
 				}
@@ -908,6 +960,15 @@ export function ConfigureApp({
 						migratedValues[`personas.${newName}.name`] = newName;
 						newValues = migratedValues;
 					}
+				}
+
+				if (editItem.key === "ai.huggingface.self_hosted_models.model") {
+					addDownloadedModel(newValue);
+					newValues = { ...newValues, [editItem.key]: "" };
+				}
+				if (editItem.key === "ai.huggingface.inference_models.model") {
+					addInferenceModel(newValue);
+					newValues = { ...newValues, [editItem.key]: "" };
 				}
 
 				setValues(newValues);

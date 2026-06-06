@@ -1,4 +1,4 @@
-import { AI_PROVIDERS } from "../../ai/providers";
+import { getAIProviders } from "../../ai/providers";
 import {
 	clearDefaultPersona,
 	getDefaultPersonaName,
@@ -50,7 +50,7 @@ export function handleConfigureTree(): Response {
 		: [DEFAULT_CHAT_PERSONA, ...config.personas];
 	const tree = buildSettingsTree(
 		personas,
-		AI_PROVIDERS,
+		getAIProviders(),
 		redacted,
 		config.defaultProviders,
 		{ daemonRunning: true },

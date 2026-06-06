@@ -43,7 +43,12 @@ describe("readConfig", () => {
 	it("returns empty config when file does not exist", () => {
 		if (fs.existsSync(CONFIG_PATH)) fs.unlinkSync(CONFIG_PATH);
 		const config = readConfig();
-		expect(config).toEqual({ integrations: {}, personas: [] });
+		expect(config).toEqual({
+			integrations: {},
+			personas: [],
+			huggingFaceSelfHostedModels: [],
+			huggingFaceInferenceModels: [],
+		});
 	});
 
 	it("reads existing config", () => {
@@ -64,6 +69,9 @@ describe("writeConfig", () => {
 			integrations: {
 				gmail: { accessToken: "a", refreshToken: "b", expiresAt: 2 },
 			},
+			personas: [],
+			huggingFaceSelfHostedModels: [],
+			huggingFaceInferenceModels: [],
 		};
 		writeConfig(data);
 		const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
@@ -89,11 +97,12 @@ describe("readCredentials", () => {
 describe("config paths", () => {
 	it("resolves config and credentials paths from TOBY_DIR override", () => {
 		const previousTobyDir = process.env.TOBY_DIR;
-		process.env.TOBY_DIR = "/tmp/toby-test-dir";
+		const dir = path.join(os.tmpdir(), "toby-test-dir");
+		process.env.TOBY_DIR = dir;
 
 		try {
-			expect(getConfigPath()).toBe("/tmp/toby-test-dir/config.json");
-			expect(getCredentialsPath()).toBe("/tmp/toby-test-dir/credentials.json");
+			expect(getConfigPath()).toBe(path.join(dir, "config.json"));
+			expect(getCredentialsPath()).toBe(path.join(dir, "credentials.json"));
 		} finally {
 			if (previousTobyDir === undefined) {
 				process.env.TOBY_DIR = undefined;
