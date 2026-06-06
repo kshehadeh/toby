@@ -15,14 +15,13 @@ import React, {
 	useState,
 	type ReactNode,
 } from "react";
+import {
+	buildInputSegments,
+	type CursorStyle,
+	type SegmentType,
+	type TextSegment,
+} from "./controlled-multiline-input-segments";
 import { UI_GLYPHS } from "./glyphs";
-
-type SegmentType = "text" | "placeholder" | "highlight" | "cursor";
-
-interface TextSegment {
-	readonly value: string;
-	readonly type?: SegmentType;
-}
 
 function expandTabs(text: string, tabSize: number): string {
 	return text.replace(/\t/g, " ".repeat(tabSize));
@@ -78,6 +77,7 @@ export interface ControlledMultilineInputProps {
 	readonly refreshKey?: unknown;
 	readonly cursorColor?: string;
 	readonly cursorGlyph?: string;
+	readonly cursorStyle?: CursorStyle;
 }
 
 export function ControlledMultilineInput({
@@ -96,6 +96,7 @@ export function ControlledMultilineInput({
 	refreshKey,
 	cursorColor = "white",
 	cursorGlyph = UI_GLYPHS.inputCursor,
+	cursorStyle = "block",
 }: ControlledMultilineInputProps) {
 	const [scrollOffset, setScrollOffset] = useState(0);
 	const [contentHeight, setContentHeight] = useState(0);
@@ -117,119 +118,35 @@ export function ControlledMultilineInput({
 		[tabSize, mask],
 	);
 
-	const { preCursor, postCursor } = useMemo((): {
-		preCursor: TextSegment[];
-		postCursor: TextSegment[];
-	} => {
-		const cursorSegment = (): TextSegment => {
-			if (!showCursor || !focus) {
-				return { value: "" };
-			}
-			return {
-				value: cursorVisible ? cursorGlyph : " ",
-				type: cursorVisible ? "cursor" : undefined,
-			};
-		};
-
-		if (!value) {
-			if (placeholder && !focus) {
-				return {
-					preCursor: [
-						{ value: formatText(placeholder, true), type: "placeholder" },
-					],
-					postCursor: [],
-				};
-			}
-			return {
-				preCursor: [cursorSegment()],
-				postCursor: [],
-			};
-		}
-
-		const textBefore = value.slice(0, cursorIndex);
-		const textAfter = value.slice(cursorIndex);
-
-		if (!focus) {
-			return {
-				preCursor: [{ value: formatText(value) }],
-				postCursor: [],
-			};
-		}
-
-		const hasValidHighlight =
-			highlight &&
-			highlight.end > highlight.start &&
-			highlight.start >= 0 &&
-			highlight.end <= value.length;
-
-		if (!hasValidHighlight) {
-			const formattedBefore = formatText(textBefore);
-			const formattedAfter = formatText(textAfter);
-			const lineStart = formattedBefore.lastIndexOf("\n") + 1;
-			const lineEnd = formattedAfter.indexOf("\n");
-			return {
-				preCursor: [
-					{ value: formattedBefore.slice(0, lineStart) },
-					{ value: formattedBefore.slice(lineStart), type: "highlight" },
-					cursorSegment(),
-				],
-				postCursor: [
-					{ value: formattedAfter.slice(0, lineEnd), type: "highlight" },
-					{ value: formattedAfter.slice(lineEnd) },
-				],
-			};
-		}
-
-		return {
-			preCursor: [
-				{ value: formatText(textBefore.slice(0, highlight.start)) },
-				{
-					value: formatText(
-						textBefore.slice(
-							highlight.start,
-							Math.min(highlight.end, cursorIndex),
-						),
-					),
-					type: "highlight",
-				},
-				{ value: formatText(textBefore.slice(highlight.end)) },
-				cursorSegment(),
-			],
-			postCursor: [
-				{
-					value: formatText(
-						textAfter.slice(0, Math.max(highlight.start - cursorIndex, 0)),
-					),
-				},
-				{
-					value: formatText(
-						textAfter.slice(
-							Math.max(highlight.start - cursorIndex, 0),
-							Math.max(highlight.end - cursorIndex, 0),
-						),
-					),
-					type: "highlight",
-				},
-				{
-					value: formatText(
-						textAfter.slice(Math.max(highlight.end - cursorIndex, 0)),
-					),
-				},
-			],
-		};
-	}, [
-		cursorIndex,
-		showCursor,
-		focus,
-		value,
-		placeholder,
-		mask,
-		highlight,
-		formatText,
-		refreshKey,
-		cursorGlyph,
-		cursorVisible,
-	]);
+	const { preCursor, postCursor } = useMemo(
+		(): { preCursor: TextSegment[]; postCursor: TextSegment[] } =>
+			buildInputSegments({
+				value,
+				cursorIndex,
+				focus,
+				showCursor,
+				cursorVisible,
+				cursorStyle,
+				cursorGlyph,
+				placeholder,
+				highlight,
+				formatText,
+			}),
+		[
+			cursorIndex,
+			showCursor,
+			focus,
+			value,
+			placeholder,
+			mask,
+			highlight,
+			formatText,
+			refreshKey,
+			cursorGlyph,
+			cursorVisible,
+			cursorStyle,
+		],
+	);
 
 	const visibleRows = useMemo(() => {
 		if (contentHeight !== undefined) {
@@ -274,16 +191,18 @@ export function ControlledMultilineInput({
 				case "highlight":
 					return highlightStyle ?? textStyle ?? {};
 				case "cursor":
-					return {
-						...(highlightStyle ?? textStyle),
-						color: cursorColor,
-						inverse: false,
-					};
+					return cursorStyle === "block"
+						? { ...(highlightStyle ?? textStyle), inverse: true }
+						: {
+								...(highlightStyle ?? textStyle),
+								color: cursorColor,
+								inverse: false,
+							};
 				default:
 					return textStyle ?? {};
 			}
 		},
-		[textStyle, highlightStyle, cursorColor],
+		[textStyle, highlightStyle, cursorColor, cursorStyle],
 	);
 
 	const renderSegments = (segments: TextSegment[]) =>
