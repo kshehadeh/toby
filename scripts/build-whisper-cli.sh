@@ -41,7 +41,16 @@ cmake_args=(
 )
 
 if [[ "$cmake_arch" == "arm64" ]]; then
-	cmake_args+=(-DWHISPER_METAL=ON)
+	# GitHub Actions macos-latest can mis-detect i8mm: ggml enables vmmlaq_s32
+	# intrinsics but some translation units compile without +i8mm. Pin a baseline
+	# march and disable GGML_NATIVE so CI and release builds stay consistent.
+	# https://github.com/ggml-org/whisper.cpp/issues/3427
+	cmake_args+=(
+		-DWHISPER_METAL=ON
+		-DGGML_NATIVE=OFF
+		"-DCMAKE_C_FLAGS=-march=armv8.5-a+dotprod"
+		"-DCMAKE_CXX_FLAGS=-march=armv8.5-a+dotprod"
+	)
 fi
 
 cmake "${cmake_args[@]}" "${build_root}"
