@@ -3,11 +3,13 @@ import {
 	getChatInboundDisabledReason,
 	readChatInboundConfig,
 } from "../../config/chat-inbound";
-import { getIntegrationModule } from "../../integrations/index";
 import { spawnDetachedDaemonRestart } from "../../daemon/spawn-restart";
+import { getDaemonRuntimeInfo } from "../../daemon/status";
+import { getIntegrationModule } from "../../integrations/index";
 import { jsonResponse } from "../http-utils";
 
 const RESTART_DEFER_MS = 200;
+const STOP_DEFER_MS = 200;
 
 export function handleDaemonStatus(): Response {
 	const config = readChatInboundConfig();
@@ -18,6 +20,7 @@ export function handleDaemonStatus(): Response {
 		: undefined;
 
 	return jsonResponse({
+		process: getDaemonRuntimeInfo(),
 		chatInbound: {
 			enabled: config.enabled === true,
 			integration: integrationName,
@@ -36,4 +39,19 @@ export function handleDaemonRestart(): Response {
 	}, RESTART_DEFER_MS);
 
 	return jsonResponse({ ok: true, restarting: true });
+}
+
+export function handleDaemonStop(): Response {
+	// The web server runs inside the daemon process, so stopping the daemon
+	// means signalling our own process. Defer so the HTTP response flushes
+	// before the SIGTERM handler tears everything down.
+	setTimeout(() => {
+		try {
+			process.kill(process.pid, "SIGTERM");
+		} catch {
+			// Best effort — the daemon may already be exiting.
+		}
+	}, STOP_DEFER_MS);
+
+	return jsonResponse({ ok: true, stopping: true });
 }

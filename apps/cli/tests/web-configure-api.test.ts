@@ -73,11 +73,17 @@ describe("web API routes", () => {
 		);
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as {
+			process: { pid: number; uptimeSeconds: number; logPath: string };
 			chatInbound: { enabled: boolean; status: string };
 		};
 		expect(body.chatInbound).toMatchObject({
 			enabled: expect.any(Boolean),
 			status: expect.any(String),
+		});
+		expect(body.process).toMatchObject({
+			pid: expect.any(Number),
+			uptimeSeconds: expect.any(Number),
+			logPath: expect.any(String),
 		});
 	});
 

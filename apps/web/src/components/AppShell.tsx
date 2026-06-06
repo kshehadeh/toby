@@ -1,8 +1,8 @@
+import tobyLogo from "@/assets/toby-logo.png";
 import { ChatInboundStatusBadge } from "@/components/ChatInboundStatusBadge";
-import { DaemonRestartButton } from "@/components/DaemonRestartButton";
+import { DaemonStatusBadge } from "@/components/DaemonStatusBadge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import tobyLogo from "@/assets/toby-logo.png";
 
 const tabs = [
 	{ id: "configure", label: "Configuration", path: "/configure" },
@@ -47,7 +47,7 @@ export function AppShell() {
 				</Tabs>
 				<div className="ml-auto flex items-center gap-3 shrink-0">
 					<ChatInboundStatusBadge />
-					<DaemonRestartButton />
+					<DaemonStatusBadge />
 				</div>
 			</header>
 			<main className="flex-1 min-h-0 overflow-hidden">

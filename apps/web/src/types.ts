@@ -58,3 +58,12 @@ export interface ChatInboundStatus {
 	disabledReason: string | null;
 	updatedAt: string;
 }
+
+export interface DaemonProcessInfo {
+	pid: number;
+	uptimeSeconds: number;
+	startedAt: string;
+	intervalSeconds: number | null;
+	logPath: string;
+	webPort: number | null;
+}

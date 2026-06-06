@@ -5,7 +5,11 @@ import {
 	handleConfigurePatch,
 	handleConfigureTree,
 } from "./handlers/configure";
-import { handleDaemonRestart, handleDaemonStatus } from "./handlers/daemon";
+import {
+	handleDaemonRestart,
+	handleDaemonStatus,
+	handleDaemonStop,
+} from "./handlers/daemon";
 import {
 	handleMemoriesList,
 	handleMemoryDetail,
@@ -79,6 +83,9 @@ export async function handleWebRequest(
 		}
 		if (pathname === "/api/daemon/restart" && req.method === "POST") {
 			return handleDaemonRestart();
+		}
+		if (pathname === "/api/daemon/stop" && req.method === "POST") {
+			return handleDaemonStop();
 		}
 		if (pathname === "/api/sessions" && req.method === "GET") {
 			return handleSessionsList(url);

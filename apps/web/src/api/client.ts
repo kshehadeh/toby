@@ -19,10 +19,15 @@ export const api = {
 		apiFetch<{ ok: boolean; restarting: boolean }>("/api/daemon/restart", {
 			method: "POST",
 		}),
+	stopDaemon: () =>
+		apiFetch<{ ok: boolean; stopping: boolean }>("/api/daemon/stop", {
+			method: "POST",
+		}),
 	daemonStatus: () =>
-		apiFetch<{ chatInbound: import("@/types").ChatInboundStatus }>(
-			"/api/daemon/status",
-		),
+		apiFetch<{
+			process?: import("@/types").DaemonProcessInfo;
+			chatInbound: import("@/types").ChatInboundStatus;
+		}>("/api/daemon/status"),
 	sessions: (limit = 50) =>
 		apiFetch<{ sessions: import("@/types").SessionSummary[] }>(
 			`/api/sessions?limit=${limit}`,
