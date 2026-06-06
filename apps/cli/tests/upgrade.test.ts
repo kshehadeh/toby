@@ -47,6 +47,7 @@ describe("upgrade staging paths", () => {
 		expect(paths.pluginSamplePath).toBe(
 			path.join(tempDir, "staging", "toby-plugin-sample"),
 		);
+		expect(paths.webPath).toBe(path.join(tempDir, "staging", "web"));
 		expect(paths.archivePath).toBe(
 			path.join(tempDir, "staging", "toby-release.zip"),
 		);

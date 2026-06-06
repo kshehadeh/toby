@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
@@ -100,6 +100,10 @@ export function resolveWhisperCliInstallTargetFromUpgrade(): string {
 	return resolveWhisperCliInstallTarget();
 }
 
+export function resolveWebInstallTarget(installDir?: string): string {
+	return path.join(path.dirname(resolveInstallTarget(installDir)), "web");
+}
+
 export function getStagingPaths(): {
 	readonly stagingDir: string;
 	readonly binaryPath: string;
@@ -107,6 +111,7 @@ export function getStagingPaths(): {
 	readonly macOSHelperPath: string;
 	readonly whisperCliPath: string;
 	readonly pluginSamplePath: string;
+	readonly webPath: string;
 	readonly archivePath: string;
 	readonly manifestPath: string;
 	readonly lockPath: string;
@@ -119,6 +124,7 @@ export function getStagingPaths(): {
 		macOSHelperPath: path.join(stagingDir, "toby-macos"),
 		whisperCliPath: path.join(stagingDir, "whisper-cli"),
 		pluginSamplePath: path.join(stagingDir, "toby-plugin-sample"),
+		webPath: path.join(stagingDir, "web"),
 		archivePath: path.join(stagingDir, "toby-release.zip"),
 		manifestPath: path.join(stagingDir, "manifest.json"),
 		lockPath: path.join(stagingDir, ".lock"),
@@ -305,6 +311,7 @@ export async function applyStagedRelease(
 		listenerPath,
 		macOSHelperPath,
 		whisperCliPath,
+		webPath,
 		manifestPath,
 	} = getStagingPaths();
 	if (!fs.existsSync(binaryPath)) {
@@ -365,6 +372,12 @@ export async function applyStagedRelease(
 		await rename(whisperCliPath, tempWhisperDestination);
 		await chmodExecutable(tempWhisperDestination);
 		await rename(tempWhisperDestination, whisperCliInstallTarget);
+	}
+
+	if (fs.existsSync(path.join(webPath, "index.html"))) {
+		const webInstallTarget = path.join(path.dirname(installTarget), "web");
+		await rm(webInstallTarget, { recursive: true, force: true });
+		await cp(webPath, webInstallTarget, { recursive: true });
 	}
 
 	// Migration: older installs placed helper binaries next to `toby` on PATH.
