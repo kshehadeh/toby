@@ -25,6 +25,12 @@ function statusDotClass(status: ChatInboundStatus["status"]): string {
 	}
 }
 
+function statusBadgeVariant(
+	status: ChatInboundStatus["status"],
+): "secondary" | "destructive" {
+	return status === "error" ? "destructive" : "secondary";
+}
+
 function statusLabel(status: ChatInboundStatus["status"]): string {
 	switch (status) {
 		case "connected":
@@ -71,19 +77,11 @@ export function ChatInboundStatusBadge() {
 	});
 
 	if (isLoading) {
-		return (
-			<Badge variant="outline" className="text-muted-foreground">
-				Chat…
-			</Badge>
-		);
+		return <Badge variant="secondary">Chat…</Badge>;
 	}
 
 	if (isError || !data) {
-		return (
-			<Badge variant="outline" className="text-muted-foreground">
-				Chat unavailable
-			</Badge>
-		);
+		return <Badge variant="secondary">Chat unavailable</Badge>;
 	}
 
 	const chat = data.chatInbound;
@@ -94,25 +92,17 @@ export function ChatInboundStatusBadge() {
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>
-				<Badge
-					variant="outline"
-					className={cn(
-						"gap-1.5 font-normal max-w-56 truncate",
-						chat.status === "connected"
-							? "text-foreground"
-							: "text-muted-foreground",
-					)}
-				>
+				<Badge variant={statusBadgeVariant(chat.status)} className="max-w-56">
 					{showProvider ? (
 						<span
 							className={cn(
-								"size-2 rounded-full shrink-0",
+								"size-1.5 rounded-full shrink-0",
 								statusDotClass(chat.status),
 							)}
 							aria-hidden
 						/>
 					) : (
-						<MessageSquareOff className="size-3 shrink-0" aria-hidden />
+						<MessageSquareOff aria-hidden />
 					)}
 					<span className="truncate">{summary}</span>
 				</Badge>
