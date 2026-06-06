@@ -1,0 +1,11 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"noEmit": true,
+		"paths": {
+			"@toby/core": ["../core/src/index.ts"],
+			"@toby/core/*": ["../core/src/*"]
+		}
+	},
+	"include": ["src"]
+}

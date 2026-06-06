@@ -1,0 +1,125 @@
+import type { CoreMessage } from "@toby/core/ai/chat";
+import {
+	SKILL_INSTRUCTIONS_APPENDIX_START,
+	injectCurrentDateTimeIntoFirstSystemMessage,
+	injectSkillBodiesIntoFirstSystemMessage,
+	stripSkillInstructionsAppendix,
+} from "@toby/core/prepare-messages";
+import { describe, expect, it } from "vitest";
+
+describe("injectSkillBodiesIntoFirstSystemMessage", () => {
+	it("appends skill bodies to the first system message", () => {
+		const messages: CoreMessage[] = [
+			{ role: "system", content: "Base system." },
+			{ role: "user", content: "Hi" },
+		];
+		const skills = [
+			{
+				dirName: "s1",
+				name: "skill-one",
+				description: "d",
+				bodyMarkdown: "### Do\n\nStep **one**.",
+			},
+		];
+		const out = injectSkillBodiesIntoFirstSystemMessage(
+			messages,
+			["skill-one"],
+			skills,
+		);
+		const sys = out[0];
+		expect(sys?.role).toBe("system");
+		expect(typeof sys?.content).toBe("string");
+		const c = sys?.content as string;
+		expect(c.startsWith("Base system.")).toBe(true);
+		expect(c).toContain(SKILL_INSTRUCTIONS_APPENDIX_START);
+		expect(c).toContain("### Skill: skill-one");
+		expect(c).toContain("Step **one**.");
+	});
+
+	it("replaces a prior appendix on the next injection", () => {
+		const messages: CoreMessage[] = [
+			{
+				role: "system",
+				content: `Base.${SKILL_INSTRUCTIONS_APPENDIX_START}### Skill: old\n\nold body`,
+			},
+			{ role: "user", content: "x" },
+		];
+		const skills = [
+			{
+				dirName: "n",
+				name: "new-skill",
+				description: "d",
+				bodyMarkdown: "new body",
+			},
+		];
+		const out = injectSkillBodiesIntoFirstSystemMessage(
+			messages,
+			["new-skill"],
+			skills,
+		);
+		const c = out[0]?.content as string;
+		expect(c).toContain("new body");
+		expect(c).not.toContain("old body");
+		expect((c.match(/Attached skill instructions/g) ?? []).length).toBe(1);
+	});
+
+	it("returns unchanged messages when no skills resolve", () => {
+		const messages: CoreMessage[] = [
+			{ role: "system", content: "S" },
+			{ role: "user", content: "u" },
+		];
+		const out = injectSkillBodiesIntoFirstSystemMessage(
+			messages,
+			["missing"],
+			[],
+		);
+		expect(out).toEqual(messages);
+	});
+
+	it("removes a prior appendix when no skills resolve", () => {
+		const messages: CoreMessage[] = [
+			{
+				role: "system",
+				content: `Base.${SKILL_INSTRUCTIONS_APPENDIX_START}### Skill: old\n\nold body`,
+			},
+			{ role: "user", content: "u" },
+		];
+		const out = injectSkillBodiesIntoFirstSystemMessage(messages, [], []);
+		expect(out[0]?.content).toBe("Base.");
+		expect((out[0]?.content as string).includes("old body")).toBe(false);
+	});
+});
+
+describe("stripSkillInstructionsAppendix", () => {
+	it("removes content after the appendix marker", () => {
+		const raw = `Hello${SKILL_INSTRUCTIONS_APPENDIX_START}### Skill: x\n\ntail`;
+		expect(stripSkillInstructionsAppendix(raw)).toBe("Hello");
+	});
+});
+
+describe("injectCurrentDateTimeIntoFirstSystemMessage", () => {
+	it("adds current datetime block to first system message", () => {
+		const messages: CoreMessage[] = [
+			{ role: "system", content: "Base system." },
+			{ role: "user", content: "Hi" },
+		];
+		const out = injectCurrentDateTimeIntoFirstSystemMessage(messages);
+		const content = out[0]?.content as string;
+		expect(content).toContain("## Current date and time");
+		expect(content).toContain("Local datetime:");
+		expect(content).toContain("Timezone:");
+		expect(content).toContain("UTC datetime:");
+		expect(content).toContain("Unix ms:");
+	});
+
+	it("replaces prior datetime block instead of duplicating it", () => {
+		const messages: CoreMessage[] = [
+			{ role: "system", content: "Base system." },
+			{ role: "user", content: "Hi" },
+		];
+		const first = injectCurrentDateTimeIntoFirstSystemMessage(messages);
+		const second = injectCurrentDateTimeIntoFirstSystemMessage(first);
+		const content = second[0]?.content as string;
+		expect((content.match(/## Current date and time/g) ?? []).length).toBe(1);
+	});
+});

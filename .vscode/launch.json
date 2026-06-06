@@ -1,0 +1,44 @@
+{
+	"configurations": [
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:toby}/apps/audio-helper",
+			"name": "Debug toby-audio-helper (apps/audio-helper)",
+			"target": "toby-audio-helper",
+			"configuration": "debug",
+			"preLaunchTask": "swift: Build Debug toby-audio-helper (apps/audio-helper)"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:toby}/apps/audio-helper",
+			"name": "Release toby-audio-helper (apps/audio-helper)",
+			"target": "toby-audio-helper",
+			"configuration": "release",
+			"preLaunchTask": "swift: Build Release toby-audio-helper (apps/audio-helper)"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:toby}/apps/macos-helper",
+			"name": "Debug toby-macos-helper (apps/macos-helper)",
+			"target": "toby-macos-helper",
+			"configuration": "debug",
+			"preLaunchTask": "swift: Build Debug toby-macos-helper (apps/macos-helper)"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:toby}/apps/macos-helper",
+			"name": "Release toby-macos-helper (apps/macos-helper)",
+			"target": "toby-macos-helper",
+			"configuration": "release",
+			"preLaunchTask": "swift: Build Release toby-macos-helper (apps/macos-helper)"
+		}
+	]
+}

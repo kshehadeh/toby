@@ -12,6 +12,8 @@ Open the interactive configure UI:
 - **AI** — **OpenAI** (API token in `credentials.json`). **Self Hosted Models** (ONNX / Transformers.js catalog in `huggingFaceSelfHostedModels`) and **Inference Models** (router catalog in `huggingFaceInferenceModels`); **Hugging Face** access token for inference lives under **AI → Hugging Face**. Under each **Persona**, pick provider `openai`, `huggingface-self-hosted`, or `huggingface-inference` and a matching **AI model** id.
 - **Personas** — name, instructions, prompt mode, and per-persona **AI provider** / **AI model**.
 
+The UI uses a two-pane layout: the left pane is an expandable settings tree and the right pane shows the selected detail view. Use arrow keys to move, `Enter` to select, expand, collapse, or edit, `Tab` to switch panes, `Esc` to move back, `s` to save, and `q` to quit. Toby tracks unsaved edits and prompts before discarding changes.
+
 ### `toby config backup [destination]`
 
 Create an encrypted backup of `config.json` and `credentials.json`.
@@ -48,7 +50,50 @@ Examples:
 
 ## Other shared commands
 
-The CLI also includes shared commands such as `connect`, `disconnect`, `status`, `summarize`, `organize`, `chat`, `sessions`, and `upgrade`.
+The CLI also includes shared commands such as `connect`, `disconnect`, `status`, `summarize`, `organize`, `chat`, `listen`, `sessions`, and `upgrade`.
+
+### `toby listen`
+
+Open **Configuration → Listen** for recording. On macOS, Toby expects a native audio helper for microphone and system audio capture. Until that helper is installed, starting a recording shows a clear helper-missing state.
+
+Options:
+
+- `--mic-only` — record only microphone input
+- `--system-only` — record only computer/system output audio
+- `--helper <path>` — path to the macOS audio helper (or set `TOBY_AUDIO_HELPER`)
+- `--out-dir <path>` — directory where recording folders are saved
+
+Subcommands:
+
+- `toby listen transcribe <folder>` — retry macOS Speech transcription for an
+  existing saved recording folder
+
+See [`listen.md`](listen.md) for helper protocol and macOS permission details.
+
+### `toby upgrade`
+
+Download and install the latest macOS release archive. Options:
+
+- `--download-only` — stage the release under `~/.toby/staging` without replacing the live binary
+- `--apply-staged` — install a previously staged download
+
+### Chat slash commands: `/upgrade` and `/restart`
+
+Inside the chat TUI:
+
+- `/upgrade` — download the latest release to staging (shows progress in the input footer)
+- `/restart` — exit and relaunch with the same launch arguments; applies a staged upgrade first when running a compiled binary
+
+After upgrading, restart the schedule daemon separately if it is running (`toby daemon restart` or `/stop-daemon` then `/start-daemon`).
+
+### Chat slash commands: `/listen` and `/stop-listening`
+
+Inside the chat TUI:
+
+- `/listen` — start recording microphone and system audio for the current chat session.
+- `/stop-listening` — stop, save, and transcribe the recording. The transcript is added as hidden user context so the assistant can summarize or act on it without showing the transcript as a normal user prompt.
+
+These commands use the same macOS audio helper and permissions as `toby listen`; see [`listen.md`](listen.md).
 
 ## Default command
 

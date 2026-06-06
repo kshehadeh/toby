@@ -1,0 +1,2533 @@
+import { randomUUID } from "node:crypto";
+import type {
+	AskUserHandler,
+	AskUserToolResult,
+} from "@toby/core/ai/ask-user-tool";
+import {
+	extractTokenUsageReport,
+	formatCacheDebugMeta,
+} from "@toby/core/ai/caching";
+import type { CoreMessage } from "@toby/core/ai/chat";
+import { formatChatModelError } from "@toby/core/ai/chat-errors";
+import { formatPersonaAiLabel } from "@toby/core/ai/model-factory";
+import { shouldPretreat } from "@toby/core/ai/pretreatment";
+import {
+	isIntegrationUsableInChat,
+	modulesEqual,
+	sortModulesByName,
+} from "@toby/core/chat-integrations";
+import type { ChatEvent } from "@toby/core/chat-pipeline/chat-events";
+import { formatScopeLabel } from "@toby/core/chat-pipeline/format-scope-label";
+import {
+	type AssembledTurn,
+	type PriorPretreatment,
+	runChatTurnPipeline,
+	withAssembledMessages,
+} from "@toby/core/chat-pipeline/pipeline";
+import {
+	type Persona,
+	getDefaultPersonaName,
+	readConfig,
+} from "@toby/core/config/index";
+import { formatToolStatusLine } from "@toby/core/format-tool-status";
+import {
+	getIntegrationModules,
+	getModulesForCategory,
+	getModulesWithCapability,
+} from "@toby/core/integrations/index";
+import type { IntegrationModule } from "@toby/core/integrations/types";
+import {
+	createChatEventLogSink,
+	formatLogEntry,
+	log,
+	logTurnSummary,
+	readLogTail,
+} from "@toby/core/logging/chat-log";
+import { listPersonas, resolvePersona } from "@toby/core/personas/index";
+import {
+	activityLineForChatEvent,
+	formatListeningToPersona,
+} from "@toby/core/pipeline-footer";
+import {
+	type Plan,
+	cancelPlan,
+	createPlan,
+	executePlan,
+	generatePlan,
+	loadPlanBySession,
+	shouldGeneratePlan,
+	skipPhase,
+} from "@toby/core/planning/index";
+import { replaceSessionSystemMessageForPersona } from "@toby/core/prepare-messages";
+import {
+	CHAT_SESSION_PICKER_LIMIT,
+	appendMessageBatch,
+	appendTranscriptBatch,
+	createChatSession,
+	listChatSessions,
+	loadChatSession,
+	renameChatSession,
+} from "@toby/core/session-store";
+import { loadLocalSkills } from "@toby/core/skills/index";
+import { getToolDisplayLabel } from "@toby/core/tool-labels";
+import type { LanguageModelUsage } from "ai";
+import { Box, Text, useApp, useInput, useWindowSize } from "ink";
+import React, {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import { applyTranscriptFilesToMetadata } from "../../commands/listen";
+import {
+	startMacOSAudioCapture,
+	waitForAudioHelperExit,
+} from "../../listen/macos/audio-capture";
+import {
+	buildListenMetadata,
+	discardListenSession,
+	prepareListenSession,
+	saveListenSession,
+	writeListenMetadata,
+} from "../../listen/session-controller";
+import { transcribeWithWhisperCpp } from "../../listen/transcription";
+import { isDaemonRunning } from "../../schedules/daemon-status";
+import type { LaunchContext } from "../../toby-launch-context";
+import { ConfigureApp } from "../configure/App";
+import {
+	createConfigureSession,
+	refreshConfigureSessionTree,
+} from "../configure/session";
+import {
+	DOT_GRID_SPINNER_FRAMES,
+	DOT_GRID_SPINNER_INTERVAL_MS,
+	SelectableTextRow,
+	ViewModal,
+} from "../shared";
+import { ActivityStatusLine } from "./components/activity-status-line";
+import { AppHeader } from "./components/app-header";
+import { AskUserModal } from "./components/ask-user-modal";
+import {
+	ChatInputPanel,
+	type ChatInputPanelHandle,
+} from "./components/chat-input-panel";
+import { ChatTranscriptPanel } from "./components/chat-transcript-panel";
+import {
+	IntegrationMultiPickerModal,
+	buildIntegrationPickerRows,
+} from "./components/integration-multi-picker-modal";
+import { HelpPanel } from "./components/help-panel";
+import { PlanStatusBar } from "./components/plan-status-bar";
+import {
+	ScrollableTextModal,
+	maxScrollModalOffset,
+	scrollModalVisibleLineBudget,
+} from "./components/scrollable-text-modal";
+import {
+	collectModulesForConnectionProbe,
+	runConnectionProbes,
+} from "./connection-probe";
+import { ACCENT, TIPS } from "./constants";
+import { buildHelpSections } from "./help-sections";
+import { buildUiTurnContext } from "./pipeline-turn-context";
+import { appendPromptHistory, loadPromptHistory } from "./prompt-history";
+import { buildSessionNoticeEntry, recordSessionNote } from "./session-note";
+import { logSkillDebugNotes } from "./skill-debug";
+import {
+	SLASH_COMMANDS,
+	getNearestSlashCommand,
+	resolveSlashSubmission,
+} from "./slash-commands";
+import type { SlashCommand } from "./slash-commands";
+import { readTranscriptFile } from "./slash-commands/stop-listening";
+import type { UpgradeUiStatus } from "./slash-commands/types";
+import { buildTerminalInfoLines } from "./terminal-info-lines";
+import { logToolSelectionNotes } from "./tool-selection-transcript";
+import { applyPersistedChatEvent } from "./transcript-events";
+import { flattenTranscript } from "./transcript-layout";
+import type { AskModal, DisplayRow, TranscriptEntry } from "./types";
+import { useUpdateCheck } from "./use-update-check";
+import { yieldToRenderer } from "./yield-to-renderer";
+
+type TurnResult = {
+	readonly text: string;
+	readonly responseMessages: readonly CoreMessage[];
+};
+
+interface ChatSessionAppProps {
+	readonly initialModules: readonly IntegrationModule[];
+	readonly persona: Persona;
+	readonly dryRun: boolean;
+	readonly debug: boolean;
+	readonly initialUserPrompt: string;
+	readonly launchContext: LaunchContext;
+}
+
+interface MultiPickerState {
+	readonly modules: readonly IntegrationModule[];
+	readonly selectedNames: readonly string[];
+	readonly cursorIndex: number;
+}
+
+interface SessionPickerState {
+	readonly sessions: readonly { id: string; name: string }[];
+	readonly cursorIndex: number;
+}
+
+type PersonaPickerRow =
+	| { readonly kind: "add" }
+	| { readonly kind: "persona"; readonly persona: Persona };
+
+interface PersonaPickerState {
+	readonly rows: readonly PersonaPickerRow[];
+	readonly cursorIndex: number;
+}
+
+interface ScrollModalState {
+	readonly title: string;
+	readonly lines: readonly string[];
+	readonly scrollOffset: number;
+	readonly lineTone: "log" | "default";
+}
+
+function isAbortError(e: unknown): boolean {
+	if (e instanceof DOMException && e.name === "AbortError") return true;
+	if (e instanceof Error) {
+		if (e.name === "AbortError") return true;
+		if (/abort/i.test(e.message)) return true;
+	}
+	return false;
+}
+
+function toggleNameInList(
+	names: readonly string[],
+	name: string,
+	on: boolean,
+): string[] {
+	const set = new Set(names);
+	if (on) {
+		set.add(name);
+	} else {
+		set.delete(name);
+	}
+	return [...set].sort((a, b) => a.localeCompare(b));
+}
+
+function suggestSessionNameFromTranscript(
+	entries: readonly TranscriptEntry[],
+): string | null {
+	const firstUser = entries.find((e) => e.kind === "user");
+	if (!firstUser || !firstUser.text.trim()) {
+		return null;
+	}
+	const raw = firstUser.text
+		.trim()
+		.replace(/\s+/g, " ")
+		.replace(/[“”]/g, '"')
+		.replace(/[‘’]/g, "'");
+	const words = raw.split(" ").filter(Boolean);
+	if (words.length === 0) {
+		return null;
+	}
+	const picked = words.slice(0, 8).join(" ");
+	const clipped = picked.length > 60 ? `${picked.slice(0, 57)}…` : picked;
+	return clipped;
+}
+
+function logAttachedSkills(
+	sessionId: string | null | undefined,
+	names: readonly string[],
+): void {
+	const unique = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
+	for (const name of unique) {
+		recordSessionNote(sessionId, `Skill: ${name}`);
+	}
+}
+
+function priorPretreatmentFromLastTurn(
+	last: AssembledTurn | null,
+	isFirstTurn: boolean,
+): PriorPretreatment | undefined {
+	if (isFirstTurn || !last?.spec) {
+		return undefined;
+	}
+	return { rawUserText: last.rawUserText, spec: last.spec };
+}
+
+export function ChatSessionApp({
+	initialModules,
+	persona,
+	dryRun,
+	debug,
+	initialUserPrompt,
+	launchContext,
+}: ChatSessionAppProps) {
+	const { exit } = useApp();
+	const { columns, rows: terminalRows = 24 } = useWindowSize();
+	const termCols = Math.max(24, columns - 2);
+	const [sessionId, setSessionId] = useState<string | null>(null);
+	const [sessionName, setSessionName] = useState<string>("New chat");
+	const [sessionBootMode, setSessionBootMode] = useState<"new" | "loaded">(
+		"new",
+	);
+	const [messages, setMessages] = useState<CoreMessage[] | null>(null);
+	const bootLifecycleIdRef = useRef(randomUUID());
+	const [transcript, setTranscript] = useState<TranscriptEntry[]>(() =>
+		initialUserPrompt.trim() ? [{ kind: "user", text: initialUserPrompt }] : [],
+	);
+	const inputPanelRef = useRef<ChatInputPanelHandle>(null);
+	const [recentPrompts, setRecentPrompts] = useState(() => loadPromptHistory());
+	const [loading, setLoading] = useState(false);
+	const [activityLine, setActivityLine] = useState(() =>
+		formatListeningToPersona(persona.name),
+	);
+	const [streamingAssistant, setStreamingAssistant] = useState("");
+	const [streamingAssistantHeader, setStreamingAssistantHeader] = useState(
+		persona.name,
+	);
+	const [lastUsage, setLastUsage] = useState<LanguageModelUsage | null>(null);
+	const [bootError, setBootError] = useState<string | null>(null);
+	const [bootActivityLine, setBootActivityLine] =
+		useState("Preparing session…");
+	const [connectionProbeLine, setConnectionProbeLine] = useState("");
+	const [askModal, setAskModal] = useState<AskModal | null>(null);
+	const [askSelected, setAskSelected] = useState(0);
+	const updateAvailable = useUpdateCheck({ enabled: !dryRun });
+	const [upgradeUiStatus, setUpgradeUiStatus] = useState<UpgradeUiStatus>({
+		status: "idle",
+	});
+	const [showConfig, setShowConfig] = useState(false);
+	const [daemonRunning, setDaemonRunning] = useState(
+		() => isDaemonRunning().running,
+	);
+	const [configureSession, setConfigureSession] = useState(() =>
+		createConfigureSession(),
+	);
+	const [selectedModules, setSelectedModules] = useState<IntegrationModule[]>(
+		() => sortModulesByName(initialModules),
+	);
+	const [connectedByIntegration, setConnectedByIntegration] = useState<
+		Record<string, boolean | null>
+	>(() => ({}));
+	const [sessionPrompt, setSessionPrompt] = useState(initialUserPrompt);
+	const [multiPicker, setMultiPicker] = useState<MultiPickerState | null>(null);
+	const [sessionPicker, setSessionPicker] = useState<SessionPickerState | null>(
+		null,
+	);
+	const [personaPicker, setPersonaPicker] = useState<PersonaPickerState | null>(
+		null,
+	);
+	const [scrollModal, setScrollModal] = useState<ScrollModalState | null>(null);
+	const [helpOpen, setHelpOpen] = useState(false);
+	const [activePersona, setActivePersona] = useState(() => persona);
+	const activePersonaRef = useRef(activePersona);
+	const [activePlan, setActivePlan] = useState<Plan | null>(null);
+	const activePlanRef = useRef<Plan | null>(null);
+	const [configureInitialPath, setConfigureInitialPath] = useState<
+		readonly string[] | undefined
+	>(undefined);
+	const [configureEditorItemKey, setConfigureEditorItemKey] = useState<
+		string | undefined
+	>(undefined);
+	const [configureMountKey, setConfigureMountKey] = useState(0);
+	const [activityGlyphFrame, setActivityGlyphFrame] = useState(0);
+	const didAutoRunFirstTurnRef = useRef(false);
+	const assistantStreamBufRef = useRef("");
+	const assistantSegmentHeaderRef = useRef(persona.name);
+	const transcriptLocalSeqRef = useRef(1);
+	const assistantSegmentCommittedRef = useRef(false);
+	const askSelectedRef = useRef(0);
+	const selectedModulesRef = useRef(selectedModules);
+	const pendingScopeChangeNoteRef = useRef<string | null>(null);
+	const didNameSessionRef = useRef(false);
+	const lastSavedMessageCountRef = useRef(0);
+	const lastSavedTranscriptCountRef = useRef(0);
+	const sessionIdRef = useRef<string | null>(null);
+	const transcriptRef = useRef(transcript);
+	const ongoingPretreatAbortRef = useRef<AbortController | null>(null);
+	const pendingSteeringPromptRef = useRef<string | null>(null);
+	const [isListenRecording, setIsListenRecording] = useState(false);
+	const listenHandleRef = useRef<
+		import("../../listen/macos/audio-capture").AudioCaptureHandle | null
+	>(null);
+	const listenSessionRef = useRef<
+		import("../../listen/types").ListenSession | null
+	>(null);
+	const listenHelperVersionRef = useRef<string | undefined>(undefined);
+	const listenFilesRef = useRef<
+		import("../../listen/types").ListenRecordingFiles
+	>({});
+	const listenErrorsRef = useRef<string[]>([]);
+	const relevantToolsRef = useRef<readonly string[]>([]);
+	const lastAssembledTurnRef = useRef<AssembledTurn | null>(null);
+	const pretreatSessionNameRef = useRef<string | null>(null);
+	const snapRef = useRef({
+		askModal: null as AskModal | null,
+		messages: null as CoreMessage[] | null,
+		loading: false,
+		multiPicker: null as MultiPickerState | null,
+		sessionPicker: null as SessionPickerState | null,
+		personaPicker: null as PersonaPickerState | null,
+		scrollModal: null as ScrollModalState | null,
+		helpOpen: false,
+	});
+
+	const allDisplayRows = useMemo((): DisplayRow[] => {
+		if (messages === null && transcript.length === 0) {
+			return [];
+		}
+		return flattenTranscript(
+			transcript,
+			streamingAssistant,
+			messages === null || loading,
+			termCols,
+			streamingAssistantHeader,
+			debug,
+		);
+	}, [
+		messages,
+		transcript,
+		streamingAssistant,
+		streamingAssistantHeader,
+		loading,
+		termCols,
+		debug,
+	]);
+
+	const hasUserPromptInSession = useMemo(
+		() => transcript.some((e) => e.kind === "user"),
+		[transcript],
+	);
+
+	const tip = useMemo(() => TIPS[Math.floor(Math.random() * TIPS.length)], []);
+
+	const chatIntegrations = useMemo(
+		() => getModulesWithCapability("chat").filter((m) => m.chat),
+		[],
+	);
+
+	const moduleNames = useMemo(
+		() => selectedModules.map((m) => m.name),
+		[selectedModules],
+	);
+
+	useEffect(() => {
+		// Defer probes until session boot finishes so startup context can render first.
+		if (messages === null) {
+			setConnectionProbeLine("");
+			return;
+		}
+		let cancelled = false;
+		const modulesToProbe = collectModulesForConnectionProbe(selectedModules);
+		if (modulesToProbe.length === 0) {
+			setConnectionProbeLine("");
+			return;
+		}
+		const pending = new Set(modulesToProbe.map((m) => m.name));
+		setConnectedByIntegration((prev) => {
+			const next: Record<string, boolean | null> = { ...prev };
+			for (const m of modulesToProbe) {
+				next[m.name] = null;
+			}
+			return next;
+		});
+		setConnectionProbeLine(
+			`Checking ${modulesToProbe.length} integration connection${
+				modulesToProbe.length === 1 ? "" : "s"
+			}…`,
+		);
+		void (async () => {
+			await runConnectionProbes(modulesToProbe, {
+				onProgress: async (event) => {
+					if (cancelled) {
+						return;
+					}
+					if (event.type === "start") {
+						setConnectionProbeLine(
+							`Checking ${event.module.displayName} connection…`,
+						);
+					} else if (event.type === "result") {
+						pending.delete(event.module.name);
+						setConnectedByIntegration((prev) => ({
+							...prev,
+							[event.module.name]: event.result.ok,
+						}));
+						const status = event.result.ok ? "ready" : "unavailable";
+						const suffix =
+							pending.size > 0
+								? ` Checking ${pending.size} more…`
+								: " Connection checks complete.";
+						setConnectionProbeLine(
+							`${event.module.displayName} connection ${status}.${suffix}`,
+						);
+					} else {
+						setConnectionProbeLine("");
+					}
+					await yieldToRenderer();
+				},
+			});
+			if (!cancelled) {
+				setConnectionProbeLine("");
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [selectedModules, messages]);
+
+	const pickerRows = useMemo(
+		() => (multiPicker ? buildIntegrationPickerRows(multiPicker.modules) : []),
+		[multiPicker],
+	);
+
+	const selectedNameSet = useMemo(
+		() => new Set(multiPicker?.selectedNames ?? []),
+		[multiPicker?.selectedNames],
+	);
+
+	useLayoutEffect(() => {
+		selectedModulesRef.current = selectedModules;
+	}, [selectedModules]);
+
+	useLayoutEffect(() => {
+		sessionIdRef.current = sessionId;
+	}, [sessionId]);
+
+	useLayoutEffect(() => {
+		transcriptRef.current = transcript;
+	}, [transcript]);
+
+	useEffect(() => {
+		return () => {
+			ongoingPretreatAbortRef.current?.abort();
+			listenHandleRef.current?.dispose();
+		};
+	}, []);
+
+	// Poll daemon status every 10 seconds
+	useEffect(() => {
+		const timer = setInterval(() => {
+			setDaemonRunning(isDaemonRunning().running);
+		}, 10_000);
+		return () => clearInterval(timer);
+	}, []);
+
+	useEffect(() => {
+		const shouldAnimate = messages === null || loading;
+		if (!shouldAnimate) {
+			setActivityGlyphFrame(0);
+			return;
+		}
+		const timer = setInterval(() => {
+			setActivityGlyphFrame(
+				(prev) => (prev + 1) % DOT_GRID_SPINNER_FRAMES.length,
+			);
+		}, DOT_GRID_SPINNER_INTERVAL_MS);
+		return () => clearInterval(timer);
+	}, [messages, loading]);
+
+	useLayoutEffect(() => {
+		activePersonaRef.current = activePersona;
+	}, [activePersona]);
+
+	useLayoutEffect(() => {
+		activePlanRef.current = activePlan;
+	}, [activePlan]);
+
+	useLayoutEffect(() => {
+		askSelectedRef.current = askSelected;
+		snapRef.current = {
+			askModal,
+			messages,
+			loading,
+			multiPicker,
+			sessionPicker,
+			personaPicker,
+			scrollModal,
+			helpOpen,
+		};
+	}, [
+		askModal,
+		askSelected,
+		loading,
+		messages,
+		multiPicker,
+		sessionPicker,
+		personaPicker,
+		scrollModal,
+		helpOpen,
+	]);
+
+	const startFreshSession = useCallback(
+		(params?: { readonly prompt?: string; readonly note?: string }) => {
+			setSessionId(null);
+			setSessionName("New chat");
+			setSessionBootMode("new");
+			didNameSessionRef.current = false;
+			lastSavedMessageCountRef.current = 0;
+			lastSavedTranscriptCountRef.current = 0;
+			bootLifecycleIdRef.current = randomUUID();
+			transcriptLocalSeqRef.current = 1;
+			setBootError(null);
+			setBootActivityLine("Preparing session…");
+			setSessionPrompt(params?.prompt ?? "");
+			didAutoRunFirstTurnRef.current = false;
+			setMessages(null);
+			setActivePlan(null);
+			setTranscript([]);
+			if (params?.note?.trim()) {
+				recordSessionNote(null, params.note.trim());
+			}
+			log("info", "session", "session_create", { note: params?.note });
+		},
+		[],
+	);
+
+	const askUserHandler = useCallback<AskUserHandler>(
+		async ({ query, options }) =>
+			new Promise<AskUserToolResult>((resolve) => {
+				setAskModal({ query, options, resolve });
+				setAskSelected(0);
+			}),
+		[],
+	);
+
+	const runModelTurn = useCallback(
+		async (
+			assembled: AssembledTurn,
+			overrideSessionId?: string,
+		): Promise<TurnResult> => {
+			const sid = overrideSessionId ?? sessionIdRef.current;
+			if (!sid) {
+				throw new Error("Internal error: missing session id");
+			}
+			setLoading(true);
+			setStreamingAssistant("");
+			setStreamingAssistantHeader(activePersona.name);
+			assistantSegmentHeaderRef.current = activePersona.name;
+			assistantStreamBufRef.current = "";
+			assistantSegmentCommittedRef.current = false;
+			const turnAbort = new AbortController();
+			ongoingPretreatAbortRef.current = turnAbort;
+			let activeToolCalls = 0;
+			const turnStartMs = Date.now();
+			const eventLogSink = createChatEventLogSink(sid);
+			const nextLocalSeq = () => {
+				transcriptLocalSeqRef.current += 1;
+				return transcriptLocalSeqRef.current;
+			};
+			const emitChatEvent = (ev: ChatEvent) => {
+				eventLogSink(ev);
+				const footerHint = activityLineForChatEvent(ev, {
+					personaName: activePersonaRef.current.name,
+				});
+				if (footerHint !== null) {
+					setActivityLine(footerHint);
+				}
+				if (ev.type === "plan_amended") {
+					recordSessionNote(sessionIdRef.current, `Plan amended: ${ev.detail}`);
+					return;
+				}
+				if (ev.type === "plan_completed") {
+					recordSessionNote(sessionIdRef.current, `Plan ${ev.status}`);
+					return;
+				}
+				if (ev.type === "assistant_segment_start") {
+					assistantSegmentHeaderRef.current = ev.header;
+					assistantStreamBufRef.current = "";
+					return;
+				}
+				if (ev.type === "assistant_text_delta") {
+					assistantStreamBufRef.current += ev.delta;
+					setStreamingAssistant(assistantStreamBufRef.current);
+					setStreamingAssistantHeader(assistantSegmentHeaderRef.current);
+					return;
+				}
+				if (ev.type === "assistant_segment_end") {
+					const body = assistantStreamBufRef.current.trim();
+					assistantStreamBufRef.current = "";
+					setStreamingAssistant("");
+					if (body.length > 0) {
+						assistantSegmentCommittedRef.current = true;
+						setTranscript((t) => [
+							...t,
+							{
+								kind: "boxed_step",
+								id: ev.id,
+								seq: nextLocalSeq(),
+								variant: "assistant",
+								header: assistantSegmentHeaderRef.current,
+								body,
+							},
+						]);
+					}
+					return;
+				}
+				setTranscript((t) => applyPersistedChatEvent(t, ev));
+			};
+			let responseMessages: CoreMessage[] = [];
+			let responseText = "";
+			try {
+				const pipelineResult = await runChatTurnPipeline(
+					{
+						rawUserText: assembled.rawUserText,
+						priorMessages: assembled.priorMessages,
+						isFirstTurn: assembled.isFirstTurn,
+					},
+					buildUiTurnContext({
+						persona: activePersona,
+						modules: selectedModulesRef.current,
+						dryRun,
+						emit: emitChatEvent,
+						nextSeq: nextLocalSeq,
+						abortSignal: turnAbort.signal,
+						askUser: askUserHandler,
+						emitPersistLifecycle: true,
+						chatWithToolsOptions: {
+							onChatEvent: emitChatEvent,
+							abortSignal: turnAbort.signal,
+							onToolCallStart: ({ toolName }) => {
+								activeToolCalls += 1;
+								setActivityLine(formatToolStatusLine(toolName));
+							},
+							onToolCallComplete: () => {
+								activeToolCalls = Math.max(0, activeToolCalls - 1);
+								if (activeToolCalls === 0) {
+									setActivityLine(
+										formatListeningToPersona(activePersonaRef.current.name),
+									);
+								}
+							},
+						},
+					}),
+					{ assembled },
+				);
+				if (pipelineResult.stage !== "persist") {
+					throw new Error(
+						`runModelTurn: expected persist stage, got ${pipelineResult.stage}`,
+					);
+				}
+				const out = pipelineResult.turn;
+				setMessages(out.messagesAfterTurn);
+				setLastUsage(out.usage ?? null);
+				responseMessages = out.responseMessages;
+				responseText = out.text ?? "";
+
+				const tokenReport = extractTokenUsageReport(out.usage, {
+					persona: activePersonaRef.current,
+					moduleNames: moduleNames,
+				});
+				logTurnSummary(sid, undefined, {
+					turnIndex: undefined,
+					durationMs: Date.now() - turnStartMs,
+					toolCallCount: out.toolCalls.length,
+					toolsUsed: out.toolCalls.map((tc) => tc.name),
+					cacheHits: 0,
+					cacheMisses: 0,
+					inputTokens: tokenReport?.inputTokens,
+					outputTokens: tokenReport?.outputTokens,
+					cacheReadTokens: tokenReport?.cacheReadTokens,
+					cacheWriteTokens: tokenReport?.cacheWriteTokens,
+					errorCount: 0,
+				});
+
+				const reply = out.text?.trim() || "";
+
+				const additions: TranscriptEntry[] = [];
+				if (reply.length > 0 && !assistantSegmentCommittedRef.current) {
+					additions.push({
+						kind: "boxed_step",
+						id: randomUUID(),
+						seq: nextLocalSeq(),
+						variant: "assistant",
+						header: activePersonaRef.current.name,
+						body: reply,
+					});
+				}
+				if (process.env.TOBY_DEBUG_CACHE === "1" && tokenReport) {
+					const cacheMeta = formatCacheDebugMeta(tokenReport);
+					if (cacheMeta) {
+						recordSessionNote(sessionIdRef.current, `Usage: ${cacheMeta}`);
+					}
+					const rawUsage = out.usage?.raw;
+					if (rawUsage && typeof rawUsage === "object") {
+						recordSessionNote(
+							sessionIdRef.current,
+							`Usage raw: ${JSON.stringify(rawUsage)}`,
+						);
+					}
+					if (out.providerMetadata) {
+						recordSessionNote(
+							sessionIdRef.current,
+							`Provider metadata: ${JSON.stringify(out.providerMetadata)}`,
+						);
+					}
+				}
+				// Avoid duplicating what the assistant already summarized.
+				// If the model produced no text (tool-only turn), we still show actions.
+				if (reply.length === 0) {
+					for (const a of out.appliedActions) {
+						recordSessionNote(sessionIdRef.current, `+ ${a}`);
+					}
+				}
+				setStreamingAssistant("");
+				if (additions.length > 0) {
+					setTranscript((t) => [...t, ...additions]);
+				}
+			} catch (e) {
+				const partial = assistantStreamBufRef.current.trim();
+				assistantStreamBufRef.current = "";
+				setStreamingAssistant("");
+				if (partial.length > 0) {
+					transcriptLocalSeqRef.current += 1;
+					setTranscript((t) => [
+						...t,
+						{
+							kind: "boxed_step",
+							id: randomUUID(),
+							seq: transcriptLocalSeqRef.current,
+							variant: "assistant",
+							header: assistantSegmentHeaderRef.current,
+							body: partial,
+						},
+					]);
+				}
+				if (isAbortError(e)) {
+					const steering = pendingSteeringPromptRef.current;
+					const metaText = steering ? "Redirecting..." : "Turn cancelled.";
+					recordSessionNote(sessionIdRef.current, metaText);
+					log("info", "turn", "turn_aborted", { steering: Boolean(steering) });
+					return {
+						text: partial,
+						responseMessages: [],
+					};
+				}
+				const msg = formatChatModelError(e);
+				setTranscript((t) => [...t, { kind: "error", text: msg }]);
+				log("error", "turn", "turn_error", { message: msg });
+				throw e;
+			} finally {
+				setLoading(false);
+			}
+			return { text: responseText, responseMessages };
+		},
+		[moduleNames, askUserHandler, dryRun, activePersona],
+	);
+
+	useEffect(() => {
+		let cancelled = false;
+		const ac = new AbortController();
+		ongoingPretreatAbortRef.current = ac;
+		void (async () => {
+			try {
+				const sid = sessionId;
+				if (messages !== null) {
+					return;
+				}
+				// If we loaded an existing session, don't overwrite its transcript/messages
+				// by re-running the boot preparation effect.
+				if (sessionBootMode === "loaded") {
+					return;
+				}
+				const bootSeq = () => {
+					transcriptLocalSeqRef.current += 1;
+					return transcriptLocalSeqRef.current;
+				};
+				const bootCtxLifecycleId = bootLifecycleIdRef.current;
+				let bootTranscript: TranscriptEntry[] = [...transcriptRef.current];
+				if (sessionPrompt.trim()) {
+					const hasUser = bootTranscript.some((e) => e.kind === "user");
+					if (!hasUser) {
+						bootTranscript = [
+							{ kind: "user", text: sessionPrompt },
+							...bootTranscript,
+						];
+					}
+				}
+				const publishBootTranscript = () => {
+					if (!cancelled) {
+						setTranscript([...bootTranscript]);
+					}
+				};
+				const emitBoot = async (event: ChatEvent) => {
+					if (cancelled) {
+						return;
+					}
+					bootTranscript = applyPersistedChatEvent(bootTranscript, event);
+					const footerHint = activityLineForChatEvent(event, {
+						personaName: activePersonaRef.current.name,
+					});
+					if (footerHint) {
+						setBootActivityLine(footerHint);
+					}
+					publishBootTranscript();
+					await yieldToRenderer();
+				};
+				const emitBootStatus = async (line: string) => {
+					await emitBoot({
+						type: "lifecycle_set",
+						id: bootCtxLifecycleId,
+						seq: bootSeq(),
+						line,
+					});
+				};
+				setBootActivityLine("Preparing session…");
+				await yieldToRenderer();
+				const prepResult = await runChatTurnPipeline(
+					{
+						rawUserText: sessionPrompt,
+						priorMessages: [],
+						isFirstTurn: true,
+					},
+					buildUiTurnContext({
+						persona: activePersona,
+						modules: selectedModules,
+						dryRun,
+						emit: (event) => {
+							void emitBoot(event);
+						},
+						nextSeq: bootSeq,
+						onStatusLine: emitBootStatus,
+						abortSignal: ac.signal,
+						emitPersistLifecycle: false,
+					}),
+					{ stopAfter: "assemble" },
+				);
+				if (cancelled) {
+					return;
+				}
+				if (prepResult.stage !== "assemble") {
+					throw new Error(
+						`boot: expected assemble stage, got ${prepResult.stage}`,
+					);
+				}
+				const assembled = prepResult.turn;
+				lastAssembledTurnRef.current = assembled;
+				relevantToolsRef.current = assembled.spec?.relevantTools ?? [];
+				if (assembled.spec?.sessionName?.trim()) {
+					pretreatSessionNameRef.current = assembled.spec.sessionName.trim();
+				}
+				const initial = assembled.messages;
+				const prepSpec = assembled.spec;
+				const localSkills = assembled.localSkills;
+				const toolCatalog = assembled.toolCatalog;
+				const attachedSkills = prepSpec?.relevantSkills ?? [];
+				await yieldToRenderer();
+				setMessages(initial);
+				const note = pendingScopeChangeNoteRef.current;
+				pendingScopeChangeNoteRef.current = null;
+				if (note?.trim()) {
+					recordSessionNote(sid, note.trim());
+				}
+				logAttachedSkills(sid, attachedSkills);
+				logToolSelectionNotes(sid, {
+					allToolNames: toolCatalog.allToolNames,
+					toolIntegrationLabels: toolCatalog.toolIntegrationLabels,
+					relevantTools: prepSpec?.relevantTools,
+					pretreatmentRan: prepSpec !== null,
+				});
+				logSkillDebugNotes(sid, {
+					debug,
+					available: localSkills,
+					priorMessages: [],
+					rawUserText: sessionPrompt,
+					isFirstTurn: true,
+					spec: prepSpec,
+				});
+				const nextTranscript = [...bootTranscript];
+				setTranscript(nextTranscript);
+				await yieldToRenderer();
+
+				// Persist boot state after the UI has painted (SQLite is sync).
+				if (sid) {
+					const persistSid = sid;
+					const persistMessages = initial;
+					const persistTranscript = nextTranscript;
+					setImmediate(() => {
+						if (cancelled) {
+							return;
+						}
+						appendMessageBatch(persistSid, 0, persistMessages);
+						lastSavedMessageCountRef.current = persistMessages.length;
+						if (persistTranscript.length > 0) {
+							appendTranscriptBatch(persistSid, 0, persistTranscript);
+							lastSavedTranscriptCountRef.current = persistTranscript.length;
+						}
+					});
+				}
+			} catch (e) {
+				if (!cancelled) {
+					setBootError(formatChatModelError(e));
+				}
+			}
+		})();
+		return () => {
+			cancelled = true;
+			ac.abort();
+		};
+	}, [
+		selectedModules,
+		activePersona,
+		sessionPrompt,
+		sessionId,
+		sessionBootMode,
+		messages,
+		debug,
+		dryRun,
+	]);
+
+	// Incrementally persist new messages and transcript entries.
+	useEffect(() => {
+		const sid = sessionId;
+		if (!sid || !messages) {
+			return;
+		}
+		const prev = lastSavedMessageCountRef.current;
+		if (messages.length > prev) {
+			appendMessageBatch(sid, prev, messages.slice(prev));
+			lastSavedMessageCountRef.current = messages.length;
+		}
+	}, [messages, sessionId]);
+
+	useEffect(() => {
+		const sid = sessionId;
+		if (!sid) {
+			return;
+		}
+		const prev = lastSavedTranscriptCountRef.current;
+		if (transcript.length > prev) {
+			appendTranscriptBatch(sid, prev, transcript.slice(prev));
+			lastSavedTranscriptCountRef.current = transcript.length;
+		}
+	}, [transcript, sessionId]);
+
+	// Name the session once we have a real exchange.
+	useEffect(() => {
+		const sid = sessionId;
+		if (!sid) return;
+		if (didNameSessionRef.current) return;
+		// Prefer pretreatment-provided session name (available immediately).
+		const pretreatName = pretreatSessionNameRef.current;
+		if (pretreatName) {
+			renameChatSession(sid, pretreatName);
+			setSessionName(pretreatName);
+			didNameSessionRef.current = true;
+			log("info", "session", "session_rename", {
+				id: sid,
+				name: pretreatName,
+				source: "pretreatment",
+			});
+			return;
+		}
+		// Fallback: derive name from first user message once assistant has replied.
+		const hasAssistant = transcript.some(
+			(e) =>
+				e.kind === "assistant" ||
+				(e.kind === "boxed_step" && e.variant === "assistant"),
+		);
+		const suggested = suggestSessionNameFromTranscript(transcript);
+		if (!hasAssistant || !suggested) return;
+		renameChatSession(sid, suggested);
+		setSessionName(suggested);
+		didNameSessionRef.current = true;
+		log("info", "session", "session_rename", {
+			id: sid,
+			name: suggested,
+			source: "transcript",
+		});
+	}, [sessionId, transcript]);
+
+	useEffect(() => {
+		if (!messages || bootError) {
+			return;
+		}
+		if (!sessionPrompt.trim()) {
+			return;
+		}
+		if (didAutoRunFirstTurnRef.current) {
+			return;
+		}
+		didAutoRunFirstTurnRef.current = true;
+
+		let sid = sessionId;
+		if (!sid) {
+			const created = createChatSession({ name: "New chat" });
+			sid = created.id;
+			setSessionId(created.id);
+			setSessionName(created.name);
+			lastSavedMessageCountRef.current = 0;
+			lastSavedTranscriptCountRef.current = 0;
+		}
+		const sidFinal = sid;
+
+		void (async () => {
+			// Check if explicit plan generation should run based on the
+			// pretreatment spec that was already attached during boot preparation.
+			// Implicit plans (2+ tool calls in a turn) are handled reactively
+			// in runModelTurn's onToolCallStart/onToolCallComplete callbacks.
+			let lastUserMsg: CoreMessage | undefined;
+			for (let mi = messages.length - 1; mi >= 0; mi--) {
+				const m = messages[mi];
+				if (m.role === "user") {
+					lastUserMsg = m;
+					break;
+				}
+			}
+			const userContent =
+				typeof lastUserMsg?.content === "string" ? lastUserMsg.content : "";
+			// Only attempt plan generation if the prompt looks multi-step.
+			const bootAssembled = lastAssembledTurnRef.current;
+			if (!bootAssembled) {
+				throw new Error("auto-run: missing assembled turn after boot");
+			}
+			if (!shouldGeneratePlan(null, sessionPrompt)) {
+				void runModelTurnRef.current(bootAssembled, sidFinal);
+				return;
+			}
+
+			const planResult = await generatePlan(null, sessionPrompt, {
+				abortSignal: ongoingPretreatAbortRef.current?.signal,
+				persona: activePersonaRef.current,
+			});
+
+			if (!planResult || planResult.phases.length < 2) {
+				// No plan needed, run a single turn
+				void runModelTurnRef.current(bootAssembled, sidFinal);
+				return;
+			}
+
+			// Create and execute the plan
+			const plan = createPlan({
+				sessionId: sidFinal,
+				goal: planResult.goal,
+				phases: planResult.phases,
+			});
+			setActivePlan(plan);
+			activePlanRef.current = plan;
+
+			// Add plan context to the first user message
+			const planContextLines = [
+				`[Plan created with ${plan.phases.length} phases]`,
+				`Goal: ${plan.goal}`,
+				"Phases:",
+				...plan.phases.map(
+					(p, i) => `  ${i + 1}. ${p.label}: ${p.description}`,
+				),
+				"Execute the plan phase by phase.",
+			];
+			const planContext = planContextLines.join("\n");
+			const augmentedMessages = messages.map((m) => {
+				if (m.role === "user" && m === lastUserMsg) {
+					return {
+						...m,
+						content:
+							typeof m.content === "string"
+								? `${m.content}\n\n${planContext}`
+								: m.content,
+					};
+				}
+				return m;
+			});
+			setMessages(augmentedMessages);
+			lastAssembledTurnRef.current = withAssembledMessages(
+				bootAssembled,
+				augmentedMessages,
+			);
+
+			const nextLocalSeq = () => {
+				transcriptLocalSeqRef.current += 1;
+				return transcriptLocalSeqRef.current;
+			};
+
+			try {
+				const resultPlan = await executePlan(plan, {
+					sessionId: sidFinal,
+					emitChatEvent: (ev: ChatEvent) => {
+						const eventLogSink = createChatEventLogSink(sidFinal);
+						eventLogSink(ev);
+						const footerHint = activityLineForChatEvent(ev, {
+							personaName: activePersonaRef.current.name,
+						});
+						if (footerHint !== null) {
+							setActivityLine(footerHint);
+						}
+						if (ev.type === "plan_amended") {
+							recordSessionNote(sidFinal, `Plan amended: ${ev.detail}`);
+						}
+						if (ev.type === "plan_completed") {
+							recordSessionNote(sidFinal, `Plan ${ev.status}`);
+						}
+						if (
+							ev.type === "plan_phase_start" ||
+							ev.type === "plan_phase_end" ||
+							ev.type === "plan_created"
+						) {
+							setTranscript((t) => applyPersistedChatEvent(t, ev));
+						}
+						// Refresh active plan state on phase transitions
+						if (
+							ev.type === "plan_phase_end" ||
+							ev.type === "plan_amended" ||
+							ev.type === "plan_completed"
+						) {
+							const refreshed = loadPlanBySession(sidFinal);
+							if (refreshed) {
+								setActivePlan(refreshed);
+								activePlanRef.current = refreshed;
+							}
+						}
+					},
+					nextSeq: nextLocalSeq,
+					runTurn: async (msgs, overrideSid) => {
+						const base = lastAssembledTurnRef.current;
+						if (!base) {
+							throw new Error("executePlan: missing assembled turn");
+						}
+						await runModelTurnRef.current(
+							withAssembledMessages(base, msgs),
+							overrideSid,
+						);
+						// After the turn, the messages state has been updated.
+						// Return a minimal result since executePlan needs responseMessages
+						// but the actual state update happens in runModelTurn.
+						// We return empty since executePlan manages its own message flow
+						// by calling runTurn which appends to the session history.
+						return {
+							text: "",
+							responseMessages: [] as CoreMessage[],
+						};
+					},
+					abortSignal: ongoingPretreatAbortRef.current?.signal,
+				});
+
+				setActivePlan(resultPlan);
+				activePlanRef.current = resultPlan;
+			} catch (e) {
+				const msg = formatChatModelError(e);
+				setTranscript((t) => [...t, { kind: "error", text: msg }]);
+			}
+		})();
+	}, [bootError, messages, sessionPrompt, sessionId]);
+
+	const runModelTurnRef = useRef(runModelTurn);
+	runModelTurnRef.current = runModelTurn;
+
+	// Process a pending steering prompt after an aborted turn finishes.
+	useEffect(() => {
+		if (loading) return;
+		const steering = pendingSteeringPromptRef.current;
+		if (!steering) return;
+		pendingSteeringPromptRef.current = null;
+
+		const msgs = snapRef.current.messages;
+		if (!msgs) return;
+
+		let sid = sessionIdRef.current;
+		if (!sid) {
+			const created = createChatSession({ name: "New chat" });
+			sid = created.id;
+			setSessionId(created.id);
+			setSessionName(created.name);
+			lastSavedMessageCountRef.current = 0;
+			lastSavedTranscriptCountRef.current = 0;
+		}
+		const sidFinal = sid;
+
+		void (async () => {
+			const ac = new AbortController();
+			ongoingPretreatAbortRef.current = ac;
+			const msgsBefore = snapRef.current.messages;
+			if (!msgsBefore) return;
+
+			const isFirstTurn = !transcriptRef.current.some((e) => e.kind === "user");
+			const willPretreat = shouldPretreat(msgsBefore, steering, isFirstTurn);
+			setLoading(true);
+			setActivityLine(
+				willPretreat
+					? "Preparing request..."
+					: formatListeningToPersona(activePersonaRef.current.name),
+			);
+
+			const prepResult = await runChatTurnPipeline(
+				{
+					rawUserText: steering,
+					priorMessages: msgsBefore,
+					isFirstTurn,
+					priorPretreatment: priorPretreatmentFromLastTurn(
+						lastAssembledTurnRef.current,
+						isFirstTurn,
+					),
+				},
+				buildUiTurnContext({
+					persona: activePersonaRef.current,
+					modules: selectedModulesRef.current,
+					dryRun,
+					emit: (ev) => {
+						const footerHint = activityLineForChatEvent(ev, {
+							personaName: activePersonaRef.current.name,
+						});
+						if (footerHint !== null) {
+							setActivityLine(footerHint);
+						}
+						setTranscript((t) => applyPersistedChatEvent(t, ev));
+					},
+					nextSeq: () => {
+						transcriptLocalSeqRef.current += 1;
+						return transcriptLocalSeqRef.current;
+					},
+					abortSignal: ac.signal,
+					emitPersistLifecycle: false,
+				}),
+				{ stopAfter: "assemble" },
+			);
+			if (prepResult.stage !== "assemble") {
+				throw new Error(
+					`steering: expected assemble stage, got ${prepResult.stage}`,
+				);
+			}
+			const assembled = prepResult.turn;
+			lastAssembledTurnRef.current = assembled;
+			relevantToolsRef.current = assembled.spec?.relevantTools ?? [];
+			if (assembled.spec?.sessionName?.trim()) {
+				pretreatSessionNameRef.current = assembled.spec.sessionName.trim();
+			}
+
+			const msgsAfter = snapRef.current.messages;
+			if (!msgsAfter) {
+				setLoading(false);
+				return;
+			}
+
+			setMessages(assembled.messages);
+
+			logAttachedSkills(sidFinal, assembled.spec?.relevantSkills ?? []);
+			logToolSelectionNotes(sidFinal, {
+				allToolNames: assembled.toolCatalog.allToolNames,
+				toolIntegrationLabels: assembled.toolCatalog.toolIntegrationLabels,
+				relevantTools: assembled.spec?.relevantTools,
+				pretreatmentRan: assembled.spec !== null,
+			});
+
+			await runModelTurnRef.current(assembled, sidFinal);
+		})();
+	}, [loading, dryRun]);
+
+	const openIntegrationPicker = useCallback(async () => {
+		const usable: IntegrationModule[] = [];
+		for (const m of chatIntegrations) {
+			if (await isIntegrationUsableInChat(m)) {
+				usable.push(m);
+			}
+		}
+		if (usable.length === 0) {
+			recordSessionNote(
+				sessionIdRef.current,
+				"No chat integrations ready to choose from (connect Gmail, add a Todoist API key, configure Slack, or configure Azure AD credentials).",
+			);
+			setActivityLine(
+				"No integrations ready — connect an integration in configure.",
+			);
+			return;
+		}
+		const sorted = sortModulesByName(usable);
+		const current = selectedModulesRef.current;
+		const selectedNames = current.map((m) => m.name);
+		setMultiPicker({
+			modules: sorted,
+			selectedNames,
+			cursorIndex: 0,
+		});
+	}, [chatIntegrations]);
+
+	const openSessionsPicker = useCallback(() => {
+		const sessions = listChatSessions(CHAT_SESSION_PICKER_LIMIT).map((s) => ({
+			id: s.id,
+			name: s.name,
+		}));
+		setSessionPicker({ sessions, cursorIndex: 0 });
+	}, []);
+
+	const openPersonaPickerModal = useCallback(() => {
+		const people = listPersonas();
+		const rows: PersonaPickerRow[] = [
+			{ kind: "add" },
+			...people.map((p) => ({ kind: "persona" as const, persona: p })),
+		];
+		setPersonaPicker({ rows, cursorIndex: 0 });
+	}, []);
+
+	const openPersonaEditorAtPath = useCallback((pathKeys: readonly string[]) => {
+		setPersonaPicker(null);
+		setConfigureSession(createConfigureSession());
+		setConfigureInitialPath(pathKeys);
+		setConfigureEditorItemKey(undefined);
+		setConfigureMountKey((k) => k + 1);
+		setShowConfig(true);
+	}, []);
+
+	const applyPersonaFromPicker = useCallback(async (p: Persona) => {
+		const resolved = resolvePersona(p.name) ?? p;
+		setActivePersona(resolved);
+		setPersonaPicker(null);
+		const sid = sessionIdRef.current;
+		const mods = selectedModulesRef.current;
+		const msgs = snapRef.current.messages;
+		if (msgs && msgs.length > 0) {
+			try {
+				const next = await replaceSessionSystemMessageForPersona(
+					mods,
+					msgs,
+					resolved,
+				);
+				setMessages(next);
+				if (sid && next[0]) {
+					appendMessageBatch(sid, 0, [next[0]]);
+				}
+			} catch (e) {
+				setTranscript((t) => [
+					...t,
+					{
+						kind: "error",
+						text:
+							e instanceof Error
+								? e.message
+								: "Failed to apply persona to session.",
+					},
+				]);
+			}
+		}
+		recordSessionNote(
+			sessionIdRef.current,
+			`Switched persona to "${resolved.name}".`,
+		);
+	}, []);
+
+	const loadSessionIntoMemory = useCallback((id: string) => {
+		const loaded = loadChatSession(id);
+		log("info", "session", "session_load", { id, name: loaded?.name });
+		if (!loaded) {
+			setTranscript((t) => [
+				...t,
+				{ kind: "error", text: "Session not found." },
+			]);
+			return;
+		}
+		const tailCount = 12;
+		const tail = loaded.transcript.slice(-tailCount);
+		recordSessionNote(
+			loaded.id,
+			`Resumed "${loaded.name}" · showing last ${tail.length} lines`,
+		);
+		setSessionPicker(null);
+		setSessionId(loaded.id);
+		setSessionName(loaded.name);
+		setSessionBootMode("loaded");
+		didAutoRunFirstTurnRef.current = true;
+		didNameSessionRef.current = true;
+		lastSavedMessageCountRef.current = loaded.messages.length;
+		// We append a "resume" line plus a replay tail to the in-memory transcript so the user
+		// immediately sees recent context at the bottom (like an in-progress session).
+		// Mark them as already persisted to avoid duplicating rows in SQLite.
+		lastSavedTranscriptCountRef.current =
+			loaded.transcript.length + tail.length;
+		setBootError(null);
+		setSessionPrompt("");
+		setMessages(loaded.messages);
+		setTranscript([...loaded.transcript, ...tail]);
+		let maxSeq = 0;
+		for (const e of loaded.transcript) {
+			if (e.kind === "boxed_step" && e.seq > maxSeq) {
+				maxSeq = e.seq;
+			}
+		}
+		transcriptLocalSeqRef.current = maxSeq;
+
+		// Load any incomplete plan for this session
+		const plan = loadPlanBySession(loaded.id);
+		if (
+			plan &&
+			(plan.status === "in_progress" || plan.status === "interrupted")
+		) {
+			setActivePlan(plan);
+			activePlanRef.current = plan;
+			const completedCount = plan.phases.filter(
+				(p) => p.status === "completed",
+			).length;
+			recordSessionNote(
+				loaded.id,
+				`Resuming plan: ${plan.goal} (${completedCount}/${plan.phases.length} phases complete)`,
+			);
+		} else {
+			setActivePlan(null);
+			activePlanRef.current = null;
+		}
+	}, []);
+
+	const appendSessionNotice = useCallback(
+		(text: string, tone?: "info" | "success" | "error") => {
+			const trimmed = text.trim();
+			if (trimmed.length === 0) {
+				return;
+			}
+			recordSessionNote(sessionIdRef.current, trimmed);
+			setTranscript((t) => [...t, buildSessionNoticeEntry(trimmed, tone)]);
+		},
+		[],
+	);
+
+	const openLogViewer = useCallback(() => {
+		const entries = readLogTail(50);
+		const lines =
+			entries.length === 0
+				? ["Log is empty."]
+				: entries.map((entry) => formatLogEntry(entry));
+		setScrollModal({
+			title: `Session log (last ${entries.length} entries)`,
+			lines,
+			scrollOffset: 0,
+			lineTone: "log",
+		});
+	}, []);
+
+	const openTerminalViewer = useCallback(() => {
+		setScrollModal({
+			title: "Terminal capabilities",
+			lines: buildTerminalInfoLines(),
+			scrollOffset: 0,
+			lineTone: "default",
+		});
+	}, []);
+
+	const helpSections = useMemo(
+		() => buildHelpSections(SLASH_COMMANDS),
+		[],
+	);
+
+	const openHelpViewer = useCallback(() => {
+		setHelpOpen(true);
+	}, []);
+
+	const handlePromptSubmit = useCallback(
+		(rawValue: string, selectedSlashCommand: SlashCommand | null) => {
+			const inputPanel = inputPanelRef.current;
+			// Terminal fallback: some setups send "\" before Enter for modified return.
+			if (rawValue.endsWith("\\")) {
+				inputPanel?.setInput(`${rawValue.slice(0, -1)}\n`);
+				return;
+			}
+			const line = rawValue.trim();
+			inputPanel?.clearInput();
+
+			// Steering prompt: if a turn is active, abort it and queue the
+			// new prompt for processing once the abort completes.
+			if (snapRef.current.loading && line) {
+				pendingSteeringPromptRef.current = line;
+				setRecentPrompts(appendPromptHistory(line));
+				setTranscript((t) => [...t, { kind: "user", text: line }]);
+				ongoingPretreatAbortRef.current?.abort();
+				setActivityLine("Redirecting...");
+				return;
+			}
+
+			if (line) {
+				setRecentPrompts(appendPromptHistory(line));
+			}
+			const slash = resolveSlashSubmission(line, selectedSlashCommand);
+			if (slash.kind === "execute" && slash.command) {
+				void slash.command.run(
+					{
+						exit,
+						openHelp: openHelpViewer,
+						openLogViewer,
+						openTerminalViewer,
+						openConfig: () => {
+							setConfigureSession(createConfigureSession());
+							setConfigureInitialPath(undefined);
+							setConfigureEditorItemKey(undefined);
+							setConfigureMountKey((k) => k + 1);
+							setShowConfig(true);
+						},
+						openSkills: () => {
+							setConfigureSession(createConfigureSession());
+							setConfigureInitialPath(["root", "skills"]);
+							setConfigureEditorItemKey(undefined);
+							setConfigureMountKey((k) => k + 1);
+							setShowConfig(true);
+						},
+						openSchedules: () => {
+							setConfigureSession(createConfigureSession());
+							setConfigureInitialPath(["root", "schedules"]);
+							setConfigureEditorItemKey(undefined);
+							setConfigureMountKey((k) => k + 1);
+							setShowConfig(true);
+						},
+						openPersonaPicker: () => {
+							openPersonaPickerModal();
+						},
+						openPersonaConfigure: (pathKeys) => {
+							openPersonaEditorAtPath(pathKeys);
+						},
+						openIntegrationPicker: () => {
+							void openIntegrationPicker();
+						},
+						openSessionsPicker: () => {
+							openSessionsPicker();
+						},
+						startNewSession: () => {
+							startFreshSession({
+								prompt: "",
+								note: "Started a new chat session.",
+							});
+						},
+						chatIntegrationsCount: chatIntegrations.length,
+						launchContext,
+						addMetaLine: (text) => {
+							recordSessionNote(sessionIdRef.current, text);
+						},
+						addNoticeLine: (text, tone) => {
+							appendSessionNotice(text, tone);
+						},
+						addUserContextMessage: (text) => {
+							recordSessionNote(sessionIdRef.current, text);
+							setMessages((msgs) =>
+								msgs
+									? [
+											...msgs,
+											{
+												role: "user" as const,
+												content: text,
+											},
+										]
+									: msgs,
+							);
+						},
+						setUpgradeStatus: setUpgradeUiStatus,
+						getActivePlan: () => activePlanRef.current,
+						skipPlanPhase: (planId: string, phaseId: string) => {
+							skipPhase(planId, phaseId);
+							const refreshed = loadPlanBySession(sessionIdRef.current ?? "");
+							if (refreshed) {
+								setActivePlan(refreshed);
+								activePlanRef.current = refreshed;
+							}
+						},
+						cancelPlan: (planId: string) => {
+							cancelPlan(planId);
+							const refreshed = loadPlanBySession(sessionIdRef.current ?? "");
+							if (refreshed) {
+								setActivePlan(refreshed);
+								activePlanRef.current = refreshed;
+							}
+						},
+						startListenRecording: () => {
+							if (listenHandleRef.current) return;
+							try {
+								const session = prepareListenSession({
+									sources: { mic: true, system: true },
+								});
+								listenHelperVersionRef.current = undefined;
+								listenFilesRef.current = {};
+								listenErrorsRef.current = [];
+								const handle = startMacOSAudioCapture({
+									session,
+									onEvent: (event) => {
+										if (event.type === "ready") {
+											listenHelperVersionRef.current = event.helperVersion;
+											listenFilesRef.current = {
+												...listenFilesRef.current,
+												...(event.files ?? {}),
+											};
+											appendSessionNotice(
+												"Recording started. Use /stop-listening to stop.",
+												"success",
+											);
+											return;
+										}
+										if (event.type === "error") {
+											listenErrorsRef.current = [
+												...listenErrorsRef.current,
+												event.message,
+											];
+											setTranscript((t) => [
+												...t,
+												{
+													kind: "error",
+													text: `Recording error: ${event.message}`,
+												},
+											]);
+											listenHandleRef.current = null;
+											listenSessionRef.current = null;
+											setIsListenRecording(false);
+											return;
+										}
+										if ("files" in event && event.files) {
+											listenFilesRef.current = {
+												...listenFilesRef.current,
+												...event.files,
+											};
+										}
+									},
+								});
+								listenHandleRef.current = handle;
+								listenSessionRef.current = session;
+								setIsListenRecording(true);
+							} catch (error) {
+								const msg =
+									error instanceof Error ? error.message : String(error);
+								setTranscript((t) => [
+									...t,
+									{ kind: "error", text: `Could not start recording: ${msg}` },
+								]);
+							}
+						},
+						stopListenRecording: async (action) => {
+							const handle = listenHandleRef.current;
+							const session = listenSessionRef.current;
+							if (!handle || !session) return null;
+							try {
+								await handle.stop(action);
+								await waitForAudioHelperExit(handle.child);
+								listenHandleRef.current = null;
+								listenSessionRef.current = null;
+								setIsListenRecording(false);
+								if (action === "discard") {
+									discardListenSession(session);
+									return null;
+								}
+								const metadata = buildListenMetadata({
+									session,
+									files: listenFilesRef.current,
+									stoppedAt: new Date(),
+									helperVersion: listenHelperVersionRef.current,
+									errors: listenErrorsRef.current,
+								});
+								const outputDir = saveListenSession(session, metadata);
+								const helperPath = handle.helperPath;
+								let transcript = readTranscriptFile(outputDir);
+								if (!transcript && listenFilesRef.current.combined) {
+									try {
+										const transcriptFiles = await transcribeWithWhisperCpp({
+											input: listenFilesRef.current.combined,
+											outDir: outputDir,
+											helperPath,
+										});
+										writeListenMetadata(
+											outputDir,
+											applyTranscriptFilesToMetadata(metadata, {
+												...listenFilesRef.current,
+												...transcriptFiles,
+											}),
+										);
+										transcript = readTranscriptFile(outputDir);
+									} catch (transcribeError) {
+										const msg =
+											transcribeError instanceof Error
+												? transcribeError.message
+												: String(transcribeError);
+										listenErrorsRef.current = [...listenErrorsRef.current, msg];
+										writeListenMetadata(
+											outputDir,
+											buildListenMetadata({
+												session,
+												files: listenFilesRef.current,
+												stoppedAt: new Date(),
+												helperVersion: listenHelperVersionRef.current,
+												errors: listenErrorsRef.current,
+											}),
+										);
+									}
+								}
+								return { outputDir, transcript };
+							} catch (error) {
+								const msg =
+									error instanceof Error ? error.message : String(error);
+								listenHandleRef.current = null;
+								listenSessionRef.current = null;
+								setIsListenRecording(false);
+								setTranscript((t) => [
+									...t,
+									{
+										kind: "error",
+										text: `Could not finalize recording: ${msg}`,
+									},
+								]);
+								return null;
+							}
+						},
+						isListenRecording: () => listenHandleRef.current !== null,
+					},
+					slash.rawArgs,
+				);
+				return;
+			}
+			if (slash.kind === "unknown") {
+				appendSessionNotice(
+					`Unknown command: ${slash.attemptedToken ?? line}.`,
+					"error",
+				);
+				return;
+			}
+			if (!line) {
+				return;
+			}
+			const msgs = snapRef.current.messages;
+			if (!msgs) {
+				return;
+			}
+			let sid = sessionIdRef.current;
+			if (!sid) {
+				const created = createChatSession({ name: "New chat" });
+				sid = created.id;
+				setSessionId(created.id);
+				setSessionName(created.name);
+				lastSavedMessageCountRef.current = 0;
+				lastSavedTranscriptCountRef.current = 0;
+			}
+			const sidFinal = sid;
+			void (async () => {
+				const ac = new AbortController();
+				ongoingPretreatAbortRef.current = ac;
+				const msgsBefore = snapRef.current.messages;
+				if (!msgsBefore) {
+					return;
+				}
+				const isFirstTurn = !transcriptRef.current.some(
+					(e) => e.kind === "user",
+				);
+				const willPretreat = shouldPretreat(msgsBefore, line, isFirstTurn);
+				setLoading(true);
+				setActivityLine(
+					willPretreat
+						? "Preparing request…"
+						: formatListeningToPersona(activePersonaRef.current.name),
+				);
+				const submitSeq = () => {
+					transcriptLocalSeqRef.current += 1;
+					return transcriptLocalSeqRef.current;
+				};
+				setTranscript((t) => [...t, { kind: "user", text: line }]);
+				const prepResult = await runChatTurnPipeline(
+					{
+						rawUserText: line,
+						priorMessages: msgsBefore,
+						isFirstTurn,
+						priorPretreatment: priorPretreatmentFromLastTurn(
+							lastAssembledTurnRef.current,
+							isFirstTurn,
+						),
+					},
+					buildUiTurnContext({
+						persona: activePersonaRef.current,
+						modules: selectedModulesRef.current,
+						dryRun,
+						emit: (ev) => {
+							const footerHint = activityLineForChatEvent(ev, {
+								personaName: activePersonaRef.current.name,
+							});
+							if (footerHint !== null) {
+								setActivityLine(footerHint);
+							}
+							setTranscript((t) => applyPersistedChatEvent(t, ev));
+						},
+						nextSeq: submitSeq,
+						abortSignal: ac.signal,
+						emitPersistLifecycle: false,
+					}),
+					{ stopAfter: "assemble" },
+				);
+				if (prepResult.stage !== "assemble") {
+					throw new Error(
+						`submit: expected assemble stage, got ${prepResult.stage}`,
+					);
+				}
+				const assembled = prepResult.turn;
+				lastAssembledTurnRef.current = assembled;
+				relevantToolsRef.current = assembled.spec?.relevantTools ?? [];
+				if (assembled.spec?.sessionName?.trim()) {
+					pretreatSessionNameRef.current = assembled.spec.sessionName.trim();
+				}
+				const msgsAfter = snapRef.current.messages;
+				if (!msgsAfter) {
+					setLoading(false);
+					return;
+				}
+				setMessages(assembled.messages);
+				logSkillDebugNotes(sidFinal, {
+					debug,
+					available: assembled.localSkills,
+					priorMessages: msgsBefore,
+					rawUserText: line,
+					isFirstTurn,
+					spec: assembled.spec,
+				});
+				logAttachedSkills(sidFinal, assembled.spec?.relevantSkills ?? []);
+				logToolSelectionNotes(sidFinal, {
+					allToolNames: assembled.toolCatalog.allToolNames,
+					toolIntegrationLabels: assembled.toolCatalog.toolIntegrationLabels,
+					relevantTools: assembled.spec?.relevantTools,
+					pretreatmentRan: assembled.spec !== null,
+				});
+				await runModelTurnRef.current(assembled, sidFinal);
+			})();
+		},
+		[
+			appendSessionNotice,
+			chatIntegrations.length,
+			debug,
+			dryRun,
+			exit,
+			launchContext,
+			openIntegrationPicker,
+			openHelpViewer,
+			openLogViewer,
+			openTerminalViewer,
+			openPersonaEditorAtPath,
+			openPersonaPickerModal,
+			openSessionsPicker,
+			startFreshSession,
+		],
+	);
+
+	const handleGlobalInput = useCallback(
+		(
+			ch: string,
+			key: {
+				upArrow: boolean;
+				downArrow: boolean;
+				return: boolean;
+				shift: boolean;
+				escape: boolean;
+				ctrl: boolean;
+				meta: boolean;
+				tab: boolean;
+				backspace: boolean;
+				delete: boolean;
+			},
+		) => {
+			const modal = snapRef.current.askModal;
+			if (modal) {
+				const len = modal.options.length;
+				if (key.upArrow) {
+					setAskSelected((i) => (i <= 0 ? len - 1 : i - 1));
+					return;
+				}
+				if (key.downArrow) {
+					setAskSelected((i) => (i >= len - 1 ? 0 : i + 1));
+					return;
+				}
+				if (key.return) {
+					const idx = askSelectedRef.current;
+					const label = modal.options[idx] ?? "";
+					setActivityLine(
+						formatListeningToPersona(activePersonaRef.current.name),
+					);
+					modal.resolve({
+						selectedIndex: idx,
+						selectedLabel: label,
+						rawInput: String(idx + 1),
+					});
+					setAskModal(null);
+					return;
+				}
+				if (key.escape) {
+					setActivityLine(
+						formatListeningToPersona(activePersonaRef.current.name),
+					);
+					modal.resolve({
+						selectedIndex: -1,
+						selectedLabel: "",
+						rawInput: "",
+						error: "Cancelled",
+					});
+					setAskModal(null);
+					return;
+				}
+				return;
+			}
+
+			const picker = snapRef.current.multiPicker;
+			if (picker) {
+				const rows = buildIntegrationPickerRows(picker.modules);
+				const len = rows.length;
+				const cursor = picker.cursorIndex;
+
+				if (key.upArrow) {
+					setMultiPicker((p) =>
+						p
+							? {
+									...p,
+									cursorIndex: cursor <= 0 ? len - 1 : cursor - 1,
+								}
+							: p,
+					);
+					return;
+				}
+				if (key.downArrow) {
+					setMultiPicker((p) =>
+						p
+							? {
+									...p,
+									cursorIndex: cursor >= len - 1 ? 0 : cursor + 1,
+								}
+							: p,
+					);
+					return;
+				}
+
+				if (ch === " ") {
+					const row = rows[cursor];
+					if (!row) {
+						return;
+					}
+					setMultiPicker((p) => {
+						if (!p) {
+							return p;
+						}
+						if (row.kind === "all") {
+							const allNames = p.modules.map((m) => m.name);
+							const allSelected = allNames.every((n) =>
+								p.selectedNames.includes(n),
+							);
+							return {
+								...p,
+								selectedNames: allSelected ? [] : [...allNames],
+							};
+						}
+						const name = row.module.name;
+						const has = p.selectedNames.includes(name);
+						return {
+							...p,
+							selectedNames: toggleNameInList(p.selectedNames, name, !has),
+						};
+					});
+					return;
+				}
+
+				if (key.return) {
+					const currentPicker = snapRef.current.multiPicker;
+					if (!currentPicker) {
+						return;
+					}
+					const chosenNames = currentPicker.selectedNames;
+					if (chosenNames.length === 0) {
+						recordSessionNote(
+							sessionIdRef.current,
+							"Select at least one integration (Space), then press Enter.",
+						);
+						return;
+					}
+					const nextModules = sortModulesByName(
+						currentPicker.modules.filter((m) => chosenNames.includes(m.name)),
+					);
+					setMultiPicker(null);
+					if (modulesEqual(nextModules, selectedModulesRef.current)) {
+						recordSessionNote(
+							sessionIdRef.current,
+							`Already using ${formatScopeLabel(nextModules)}.`,
+						);
+						return;
+					}
+					pendingScopeChangeNoteRef.current = `Using ${formatScopeLabel(nextModules)}.`;
+					setBootError(null);
+					setSessionPrompt("");
+					didAutoRunFirstTurnRef.current = false;
+					setMessages(null);
+					setSelectedModules(nextModules);
+					return;
+				}
+
+				if (key.escape) {
+					setMultiPicker(null);
+					return;
+				}
+				return;
+			}
+
+			const sessPicker = snapRef.current.sessionPicker;
+			if (sessPicker) {
+				const len = sessPicker.sessions.length;
+				const cursor = sessPicker.cursorIndex;
+				if (key.upArrow) {
+					setSessionPicker((p) =>
+						p
+							? {
+									...p,
+									cursorIndex: cursor <= 0 ? len - 1 : cursor - 1,
+								}
+							: p,
+					);
+					return;
+				}
+				if (key.downArrow) {
+					setSessionPicker((p) =>
+						p
+							? {
+									...p,
+									cursorIndex: cursor >= len - 1 ? 0 : cursor + 1,
+								}
+							: p,
+					);
+					return;
+				}
+				if (key.return) {
+					const current = snapRef.current.sessionPicker;
+					if (!current) return;
+					const picked = current.sessions[current.cursorIndex];
+					if (!picked) return;
+					loadSessionIntoMemory(picked.id);
+					return;
+				}
+				if (key.escape) {
+					setSessionPicker(null);
+					return;
+				}
+				return;
+			}
+
+			const persPicker = snapRef.current.personaPicker;
+			if (persPicker) {
+				const len = persPicker.rows.length;
+				const cursor = persPicker.cursorIndex;
+				if (key.upArrow) {
+					setPersonaPicker((p) =>
+						p
+							? {
+									...p,
+									cursorIndex: cursor <= 0 ? len - 1 : cursor - 1,
+								}
+							: p,
+					);
+					return;
+				}
+				if (key.downArrow) {
+					setPersonaPicker((p) =>
+						p
+							? {
+									...p,
+									cursorIndex: cursor >= len - 1 ? 0 : cursor + 1,
+								}
+							: p,
+					);
+					return;
+				}
+				if (key.return) {
+					const row = persPicker.rows[persPicker.cursorIndex];
+					if (!row) {
+						return;
+					}
+					if (row.kind === "add") {
+						const sess = createConfigureSession();
+						const newName = sess.callbacks.onCreatePersona();
+						setConfigureSession(refreshConfigureSessionTree(sess));
+						setPersonaPicker(null);
+						setConfigureInitialPath([
+							"root",
+							"personas",
+							`personas.${newName}`,
+						]);
+						setConfigureEditorItemKey(`personas.${newName}.name`);
+						setConfigureMountKey((k) => k + 1);
+						setShowConfig(true);
+						return;
+					}
+					void applyPersonaFromPicker(row.persona);
+					return;
+				}
+				if (ch === "e" && !key.ctrl && !key.meta) {
+					const row = persPicker.rows[persPicker.cursorIndex];
+					if (row?.kind === "persona") {
+						openPersonaEditorAtPath([
+							"root",
+							"personas",
+							`personas.${row.persona.name}`,
+						]);
+					}
+					return;
+				}
+				if (key.escape) {
+					setPersonaPicker(null);
+					return;
+				}
+				return;
+			}
+
+			if ((key.ctrl && ch === "c") || ch === "\x03") {
+				exit();
+				return;
+			}
+
+			if (snapRef.current.helpOpen) {
+				if (key.escape || key.return) {
+					setHelpOpen(false);
+					return;
+				}
+				return;
+			}
+
+			const scrollView = snapRef.current.scrollModal;
+			if (scrollView) {
+				const visibleBudget = scrollModalVisibleLineBudget(terminalRows);
+				const maxOffset = maxScrollModalOffset(
+					scrollView.lines.length,
+					visibleBudget,
+				);
+				if (key.escape || key.return) {
+					setScrollModal(null);
+					return;
+				}
+				if (key.downArrow) {
+					setScrollModal((prev) =>
+						prev
+							? {
+									...prev,
+									scrollOffset: Math.min(prev.scrollOffset + 1, maxOffset),
+								}
+							: prev,
+					);
+					return;
+				}
+				if (key.upArrow) {
+					setScrollModal((prev) =>
+						prev
+							? {
+									...prev,
+									scrollOffset: Math.max(prev.scrollOffset - 1, 0),
+								}
+							: prev,
+					);
+					return;
+				}
+				return;
+			}
+
+			if (showConfig) {
+				return;
+			}
+
+			if (snapRef.current.loading || !snapRef.current.messages) {
+				if (key.escape && snapRef.current.loading) {
+					ongoingPretreatAbortRef.current?.abort();
+					setActivityLine("Turn cancelled.");
+				}
+				return;
+			}
+
+			if (key.tab && key.shift) {
+				const allPersonas = listPersonas();
+				if (allPersonas.length < 2) {
+					return;
+				}
+				const currentIdx = allPersonas.findIndex(
+					(p) => p.name === activePersonaRef.current.name,
+				);
+				const nextIdx = (currentIdx + 1) % allPersonas.length;
+				const nextPersona = allPersonas[nextIdx];
+				if (nextPersona) {
+					void applyPersonaFromPicker(nextPersona);
+				}
+				return;
+			}
+
+			if (key.tab) {
+				const inputPanel = inputPanelRef.current;
+				const currentInput = inputPanel?.getInput() ?? "";
+				const completion = getNearestSlashCommand(currentInput);
+				if (!completion) {
+					return;
+				}
+				const completed = `${completion.command} `;
+				if (currentInput !== completed) {
+					inputPanel?.setInput(completed);
+				}
+				// Explicitly request a caret reset so slash-completion always places
+				// the cursor at the end, without relying on generic input-length changes.
+				inputPanel?.bumpCursorReset();
+				return;
+			}
+		},
+		[
+			applyPersonaFromPicker,
+			exit,
+			loadSessionIntoMemory,
+			openPersonaEditorAtPath,
+			showConfig,
+			terminalRows,
+		],
+	);
+
+	useInput(handleGlobalInput);
+
+	const integrationCounts = useMemo(() => {
+		const allModules = getIntegrationModules();
+		let connected = 0;
+		let disconnected = 0;
+		for (const m of allModules) {
+			const status = connectedByIntegration[m.name];
+			if (status === true) connected++;
+			else if (status === false) disconnected++;
+		}
+		return { connected, disconnected };
+	}, [connectedByIntegration]);
+
+	const skillsCount = useMemo(() => loadLocalSkills().length, []);
+
+	if (bootError) {
+		return (
+			<Box flexDirection="column" padding={1}>
+				<Text color="red">{bootError}</Text>
+				<Text dimColor>Press Ctrl+C to exit.</Text>
+			</Box>
+		);
+	}
+
+	if (showConfig) {
+		return (
+			<ConfigureApp
+				key={configureMountKey}
+				root={configureSession.initialTree}
+				credentialValues={configureSession.initialValues}
+				onSave={configureSession.onSave}
+				refreshTree={configureSession.refreshTree}
+				callbacks={configureSession.callbacks}
+				initialPath={configureInitialPath}
+				initialEditorItemKey={configureEditorItemKey}
+				onQuitRequested={(values) => {
+					configureSession.onSave(values);
+					setShowConfig(false);
+					setConfigureInitialPath(undefined);
+					setConfigureEditorItemKey(undefined);
+					recordSessionNote(sessionIdRef.current, "Configuration updated.");
+					void (async () => {
+						const cfg = readConfig();
+						const prev = activePersonaRef.current;
+						let nextP = resolvePersona(prev.name);
+						if (!nextP && cfg.personas.length > 0) {
+							const fallback = cfg.personas[0];
+							if (fallback) {
+								nextP = fallback;
+								recordSessionNote(
+									sessionIdRef.current,
+									`Active persona "${prev.name}" is gone; using "${fallback.name}".`,
+								);
+							}
+						}
+						if (!nextP) {
+							return;
+						}
+						setActivePersona(nextP);
+						const msgs = snapRef.current.messages;
+						const mods = selectedModulesRef.current;
+						if (msgs?.length) {
+							try {
+								const replaced = await replaceSessionSystemMessageForPersona(
+									mods,
+									msgs,
+									nextP,
+								);
+								setMessages(replaced);
+								const sid = sessionIdRef.current;
+								if (sid && replaced[0]) {
+									appendMessageBatch(sid, 0, [replaced[0]]);
+								}
+							} catch (e) {
+								setTranscript((t) => [
+									...t,
+									{
+										kind: "error",
+										text:
+											e instanceof Error
+												? e.message
+												: "Could not refresh system prompt after config.",
+									},
+								]);
+							}
+						}
+					})();
+				}}
+			/>
+		);
+	}
+
+	const inputDisabled =
+		Boolean(askModal) ||
+		Boolean(multiPicker) ||
+		Boolean(sessionPicker) ||
+		Boolean(personaPicker) ||
+		Boolean(scrollModal) ||
+		helpOpen ||
+		messages === null ||
+		showConfig;
+	const modelLabel = formatPersonaAiLabel(activePersona);
+
+	const activityText =
+		messages === null
+			? bootActivityLine
+			: loading
+				? activityLine
+				: connectionProbeLine;
+	const activityAnimating = messages === null || loading;
+	const suggestedPlaceholder =
+		sessionBootMode === "new" && !hasUserPromptInSession
+			? 'Try "What needs my attention today?"'
+			: null;
+
+	return (
+		<Box flexDirection="column" width="100%" padding={1}>
+			<AppHeader
+				termCols={termCols}
+				subheader={
+					<Box flexDirection="row" justifyContent="center" gap={2}>
+						<Text dimColor wrap="truncate-end">
+							<Text color="green">{integrationCounts.connected}</Text> connected
+						</Text>
+						<Text dimColor wrap="truncate-end">
+							<Text color="red">{integrationCounts.disconnected}</Text>{" "}
+							disconnected
+						</Text>
+						{skillsCount > 0 ? (
+							<Text dimColor wrap="truncate-end">
+								<Text color={ACCENT}>{skillsCount}</Text> skill
+								{skillsCount !== 1 ? "s" : ""}
+							</Text>
+						) : null}
+						{dryRun ? (
+							<Text dimColor wrap="truncate-end">
+								dry-run
+							</Text>
+						) : null}
+					</Box>
+				}
+			/>
+			<ChatTranscriptPanel
+				rows={allDisplayRows}
+				termCols={termCols}
+				animFrame={activityGlyphFrame}
+			/>
+			<ActivityStatusLine
+				text={activityText}
+				animating={activityAnimating}
+				termCols={termCols}
+				frame={activityGlyphFrame}
+			/>
+			{askModal ? (
+				<AskUserModal
+					modal={askModal}
+					selectedIndex={askSelected}
+					termCols={termCols}
+				/>
+			) : multiPicker ? (
+				<IntegrationMultiPickerModal
+					rows={pickerRows}
+					cursorIndex={multiPicker.cursorIndex}
+					selectedNames={selectedNameSet}
+					termCols={termCols}
+				/>
+			) : sessionPicker ? (
+				<ViewModal termCols={termCols} borderColor={ACCENT}>
+					<Box width={termCols}>
+						<Text bold wrap="truncate-end">
+							Choose a session (Enter loads · Esc cancels)
+						</Text>
+					</Box>
+					{sessionPicker.sessions.length === 0 ? (
+						<Box marginTop={1}>
+							<Text dimColor wrap="truncate-end">
+								No saved sessions yet.
+							</Text>
+						</Box>
+					) : (
+						sessionPicker.sessions.map((s, i) => {
+							const active = i === sessionPicker.cursorIndex;
+							return (
+								<SelectableTextRow key={s.id} selected={active}>
+									{s.name}
+								</SelectableTextRow>
+							);
+						})
+					)}
+					<Box marginTop={1}>
+						<Text dimColor wrap="truncate-end">
+							Loaded: {sessionName}
+						</Text>
+					</Box>
+				</ViewModal>
+			) : personaPicker ? (
+				<ViewModal termCols={termCols} borderColor={ACCENT}>
+					<Box width={termCols}>
+						<Text bold wrap="truncate-end">
+							Personas
+						</Text>
+					</Box>
+					{personaPicker.rows.map((row, i) => {
+						const active = i === personaPicker.cursorIndex;
+						const defaultName = getDefaultPersonaName();
+						const isDefault =
+							row.kind === "persona" && row.persona.name === defaultName;
+						const label =
+							row.kind === "add"
+								? "New persona…"
+								: `${row.persona.name}${isDefault ? " ★" : ""}`;
+						return (
+							<SelectableTextRow
+								key={row.kind === "add" ? "add" : row.persona.name}
+								selected={active}
+							>
+								{label}
+							</SelectableTextRow>
+						);
+					})}
+					<Box marginTop={1}>
+						<Text dimColor wrap="truncate-end">
+							Active: {activePersona.name}
+							{activePersona.name === getDefaultPersonaName()
+								? " (default)"
+								: ""}
+						</Text>
+					</Box>
+					<Box marginTop={1}>
+						<Text dimColor>
+							↑↓ navigate · Enter select · e edit · Esc cancel
+						</Text>
+					</Box>
+				</ViewModal>
+			) : helpOpen ? (
+				<HelpPanel termCols={termCols} sections={helpSections} />
+			) : scrollModal ? (
+				<ScrollableTextModal
+					termCols={termCols}
+					title={scrollModal.title}
+					lines={scrollModal.lines}
+					scrollOffset={scrollModal.scrollOffset}
+					lineTone={scrollModal.lineTone}
+				/>
+			) : null}
+			{activePlan &&
+			activePlan.status !== "completed" &&
+			activePlan.status !== "failed" ? (
+				<PlanStatusBar plan={activePlan} termCols={termCols} />
+			) : null}
+			<ChatInputPanel
+				ref={inputPanelRef}
+				termCols={termCols}
+				onSubmit={handlePromptSubmit}
+				inputDisabled={inputDisabled}
+				persona={activePersona}
+				modelLabel={modelLabel}
+				dryRun={dryRun}
+				lastUsage={lastUsage}
+				placeholder={suggestedPlaceholder}
+				showPlaceholderWhenEmpty={!hasUserPromptInSession}
+				daemonRunning={daemonRunning}
+				recentPrompts={recentPrompts}
+				updateAvailable={updateAvailable}
+				upgradeUiStatus={upgradeUiStatus}
+				onShowKeyboardShortcuts={openHelpViewer}
+				loading={loading}
+				isListenRecording={isListenRecording}
+				tip={tip}
+			/>
+		</Box>
+	);
+}

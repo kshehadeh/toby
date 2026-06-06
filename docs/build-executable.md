@@ -1,13 +1,18 @@
 # Standalone executable (Bun)
 
-You can ship Toby as a **single native binary** (Bun runtime + bundled app) using:
+You can ship Toby as a macOS executable plus its listener helper using:
 
 ```bash
 bun install
 bun run build:executable
 ```
 
-The output is **`dist/toby`** (on Windows, use `--outfile ./dist/toby.exe`).
+The main executable output is **`dist/toby`**.
+The macOS listener helper is copied to **`dist/toby-listener`** and should be
+installed beside `toby`.
+The sample installable plugin is built to **`dist/toby-plugin-sample`**. Install
+it with `toby plugins install ./dist/toby-plugin-sample` (see
+[`docs/plugin-protocol.md`](plugin-protocol.md)).
 
 ## Requirements
 
@@ -33,19 +38,38 @@ Importing **`yoga-wasm-web/asm` directly in Ink is not enough**: that subpath’
 - **`ink`**: If a new version still imports `yoga-wasm-web/auto`, re-apply the import swap to `../../yoga-wasm-web/dist/ink-default.js` (from each `build/*.js` file), then `bunx patch-package ink`.
 - **`yoga-wasm-web`**: If the asm entry or package exports change, refresh **`patches/yoga-wasm-web+0.3.3.patch`** (re-add `dist/ink-default.js` and the `./ink-default` export if needed), then `bunx patch-package yoga-wasm-web`.
 
-## Cross-compilation
+## How the CLI is bundled
 
-To build for another OS/arch from a machine that has Bun:
+Release and local executable builds use **Bun only** (no tsup):
+
+1. **Entry:** [`apps/cli/src/cli.ts`](../apps/cli/src/cli.ts)
+2. **Workspace:** `@toby/core` is a normal workspace dependency of `@toby/cli`; integration npm packages stay on [`packages/core/package.json`](../packages/core/package.json) only.
+3. **Compile:** `bun build` runs from **`apps/cli`** so the resolver sees `@toby/core` and bundles the full dependency graph into `dist/toby`.
+
+[`scripts/build-release-artifacts.sh`](../scripts/build-release-artifacts.sh) (CI) and `bun run build:executable` use:
 
 ```bash
-bun build ./src/cli.ts --compile --target=bun-linux-x64 --outfile ./dist/toby-linux
+cd apps/cli
+bun build ./src/cli.ts --compile --target=bun-darwin-arm64 --outfile ../../dist/toby
 ```
 
-See [Bun’s executable docs](https://bun.sh/docs/bundler/executables) for `--target` values (`bun-darwin-arm64`, `bun-windows-x64`, etc.).
+Non-compiled bundle for the `toby` bin (`./dist/cli.js`):
 
-## `tsup` library build
+```bash
+bun run --cwd apps/cli build
+```
 
-`bun run build` produces **`dist/cli.js`** via **tsup** (for linking, `bun link`, or publishing). The standalone Bun binary is an **optional** distribution path.
+## Cross-compilation
+
+Toby releases are macOS-only. To cross-compile just the Bun executable for
+another macOS architecture from a machine that has Bun:
+
+```bash
+cd apps/cli
+bun build ./src/cli.ts --compile --target=bun-darwin-x64 --outfile ../../dist/toby-darwin-x64
+```
+
+See [Bun’s executable docs](https://bun.sh/docs/bundler/executables) for `--target` values.
 
 ## Hugging Face / native dependencies and `--compile`
 
@@ -53,10 +77,48 @@ Personas that use **Hugging Face** pull in `@browser-ai/transformers-js` and rel
 
 ## GitHub Releases (CI)
 
-Pushing a **version tag** matching `v*` runs [`.github/workflows/release.yml`](../.github/workflows/release.yml):
+Pushing a **version tag** matching `v*` runs [`.github/workflows/release.yml`](../.github/workflows/release.yml). The workflow calls [`scripts/build-release-artifacts.sh`](../scripts/build-release-artifacts.sh) (same layout as local `bun run build:release` on macOS with `BUN_TARGET` / `SWIFT_ARCH` set).
 
-1. Matrix builds **four** standalone binaries: `toby-linux-x64`, `toby-linux-arm64`, `toby-darwin-arm64`, `toby-darwin-x64`.
-2. Creates a **GitHub Release** for that tag and uploads those files as release assets (via `softprops/action-gh-release`).
+Release build steps:
+
+1. Matrix builds **two** signed and notarized macOS archives:
+   `toby-darwin-arm64.zip` and `toby-darwin-x64.zip`.
+2. Each archive contains `toby`, `toby-listener`, `toby-macos`, `toby-plugin-sample`, and `whisper-cli`.
+3. Creates a **GitHub Release** for that tag and uploads those files as release assets (via `softprops/action-gh-release`).
+
+The release workflow uses the same Apple Developer secrets as DevDash:
+
+- `CSC_LINK` — base64-encoded Developer ID Application `.p12`
+- `CSC_KEY_PASSWORD` — certificate password
+- `APPLE_ID` — Apple Developer account email
+- `APPLE_APP_SPECIFIC_PASSWORD` — app-specific password for notarization
+- `APPLE_TEAM_ID` — Apple Developer Team ID
+
+Create `CSC_LINK` by base64-encoding the Developer ID Application `.p12`:
+
+```bash
+base64 -i /path/to/developer-id-application.p12 | tr -d '\n' | pbcopy
+```
+
+`CSC_KEY_PASSWORD` is the password used when exporting that `.p12` from
+Keychain Access.
+
+Signing is optional for CI mechanics but required for browser-downloaded
+executables to pass Gatekeeper. If any of the five signing/notarization secrets
+are missing, the workflow skips signing and notarization and uploads an unsigned
+archive with a warning. Invalid non-empty credentials fail the release instead
+of silently publishing an unexpectedly unsigned build.
+
+Local `bun run build:release` builds `dist/toby`, `dist/toby-listener`,
+`dist/toby-macos`, `dist/toby-plugin-sample`, `dist/whisper-cli`, and `dist/web/`
+(the built React UI). Verify staged artifacts with
+`node scripts/verify-release-artifacts.mjs release-payload`.
+Use the GitHub release workflow for signed and notarized distribution artifacts.
+
+For how the listener and transcriber binaries are built, cross-compiled in CI,
+and installed under `~/.toby/helpers/`, see [listen-binaries.md](listen-binaries.md).
+Note that `bun run build:executable` is a lighter dev build and does not include
+`whisper-cli` or `toby-plugin-sample`.
 
 Ensure **Actions** permissions allow the default `GITHUB_TOKEN` to create releases for tag pushes (Repository → Settings → Actions → General → Workflow permissions → read and write).
 
@@ -72,11 +134,20 @@ This repo uses **[release-it](https://github.com/release-it/release-it)** so you
 
 Configuration is in [`.release-it.json`](../.release-it.json): publishing to the **npm registry** and **GitHub release from release-it** are both **off** so the tag push only triggers CI to attach binaries. To also publish the package to the registry, set `"npm": { "publish": true }` (and configure auth) in `.release-it.json`.
 
-`src/cli.ts` resolves version from `package.json` by default (with optional `TOBY_VERSION` override), so `toby --version` stays in sync with releases.
+`apps/cli/src/cli.ts` resolves version from `package.json` by default (with optional `TOBY_VERSION` override), so `toby --version` stays in sync with releases.
 
 ### One-liner install (end users)
 
-From the repo root, [`install-toby.sh`](../install-toby.sh) downloads the **latest matching release asset** (`toby-darwin-*` / `toby-linux-*`) into **`~/.local/bin/toby`** (override with `TOBY_INSTALL_DIR`). It does not use `sudo`. If that directory is not on `PATH`, the script prints how to add it for zsh, bash, or fish.
+From the repo root, [`install-toby.sh`](../install-toby.sh) downloads the
+**latest matching macOS release archive** and installs the `toby` binary into
+**`~/.local/bin/toby`** (override with `TOBY_INSTALL_DIR`). The web UI static
+files are installed as **`~/.local/bin/web/`** (sibling of the `toby` binary).
+The bundled helper
+binaries (`toby-listener`, `toby-macos`, `whisper-cli`) are placed under **`~/.toby/helpers/`**
+and the sample plugin under **`~/.toby/plugins/`**, so only `toby` lands on your
+`PATH`. It does not use `sudo`. The script then runs **`toby whisper setup`** to
+download the default transcription model into **`~/.toby/models/`**. If the install directory is not on `PATH`, the
+script prints how to add it for zsh, bash, or fish.
 
 Example after the script is published on your default branch:
 

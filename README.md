@@ -1,13 +1,4 @@
-```text
- _______     _           
-|__   __|   | |          
-   | | ___  | |__  _   _ 
-   | |/ _ \ | '_ \| | | |
-   | | (_) || |_) | |_| |
-   |_|\___(_)|_.__/ \__, |
-                     __/ |
-                    |___/ 
-```
+![Toby logo](images/256x256.png)
 
 Toby is an assistant that experiments with the application of personas on top of the standard skill-based architecture.
 
@@ -22,7 +13,7 @@ persona.
 
 Toby combines:
 
-- Integration-aware commands (for services like Gmail and Todoist)
+- Integration-aware commands (for services like Gmail, Todoist, Slack, Jira, and local macOS apps)
 - Interactive terminal experiences (`config` and `chat`)
 - AI-powered flows for organizing and summarizing work
 - Personas for filtering responses through the lens of a particular interest
@@ -35,23 +26,23 @@ flowchart TD
     U[User Input] --> C[toby chat command]
     C --> P[Chat Pipeline Orchestrator]
 
-    P --> CTX[Load conversation + integration context]
-    CTX --> SEL[Select active persona + relevant skills]
+    P --> CTX["Load conversation + integration context"]
+    CTX --> SEL["Select active persona + relevant skills"]
 
-    SEL --> PER[Persona layer]
-    SEL --> SK[Skill layer]
+    SEL --> PER["Persona layer"]
+    SEL --> SK["Skill layer"]
 
-    PER -->|adjusts framing and priorities| SYS[System prompt assembly]
+    PER -->|adjusts framing and priorities| SYS["System prompt assembly"]
     SK -->|injects task instructions and constraints| SYS
 
-    SYS --> LLM[LLM inference]
+    SYS --> LLM["LLM inference"]
     LLM --> TOOLS{Tool call needed?}
 
-    TOOLS -->|Yes| INT[Integration/tool execution]
-    INT --> CACHE[Tool result cache]
+    TOOLS -->|Yes| INT["Integration/tool execution"]
+    INT --> CACHE["Tool result cache"]
     CACHE --> P
 
-    TOOLS -->|No| OUT[Assistant response]
+    TOOLS -->|No| OUT["Assistant response"]
     P --> OUT
 ```
 
@@ -76,6 +67,7 @@ bun run dev -- --help
 - `toby connect <integration>` - connect an integration account
 - `toby disconnect <integration>` - disconnect an integration account
 - `toby status` - view connection and integration status
+- `toby listen` - record microphone and/or system audio for transcription
 - `toby sessions clear` - clear saved chat sessions
 - `toby upgrade` - install the latest Toby release
 
@@ -98,6 +90,15 @@ Many models will not work well when self-hosted. Typically because they are eith
 - [docs/architecture.md](docs/architecture.md) - project architecture
 - [docs/commands.md](docs/commands.md) - shared CLI commands and examples
 - [AGENTS.md](AGENTS.md) - contributor and agent guidance
+
+## Documentation site
+
+This repo includes a Docusaurus-based docs site in `apps/help-site/`, deployed to GitHub Pages from `.github/workflows/deploy-docs.yml`.
+
+```bash
+bun run docs:install
+bun run docs:start
+```
 
 ## Developer guide
 
@@ -122,6 +123,6 @@ bun run test
 ### Contributing notes
 
 - Start with [AGENTS.md](AGENTS.md) for repository conventions and quick paths.
-- Keep shared CLI behavior in `src/commands/` and integration-specific behavior in `src/integrations/<name>/`.
+- Keep shared CLI behavior in `apps/cli/src/commands/` and integration-specific behavior in `apps/cli/src/integrations/<name>/`.
 - Add or update tests in `tests/` for substantive behavior changes.
 

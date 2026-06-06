@@ -1,7 +1,14 @@
 {
 	"$schema": "https://biomejs.dev/schemas/1.9.0/schema.json",
 	"files": {
-		"ignore": ["dist/**"]
+		"ignore": [
+			"dist/**",
+			"apps/help-site/build/**",
+			"apps/help-site/.docusaurus/**",
+			"apps/audio-helper/.build/**",
+			"apps/macos-helper/.build/**",
+			".turbo/**"
+		]
 	},
 	"organizeImports": { "enabled": true },
 	"linter": { "enabled": true, "rules": { "recommended": true } },

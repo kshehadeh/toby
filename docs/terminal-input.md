@@ -33,9 +33,9 @@ Supporting modules:
 
 | Module | Role |
 | ------ | ---- |
-| `src/ui/shared/terminal-profile.ts` | Detects terminal type from `TERM_PROGRAM`/`TERM`; records which modifier encodings each terminal supports (Kitty, ESC+letter, Ctrl fallback, etc.) |
-| `src/ui/chat/input-keymap.ts` | Pure functions that map `(typedInput, key)` → logical actions; no React state |
-| `src/ui/chat/input-cursor.ts` | `reconcileCursorIndex` — clamps cursor after value changes |
+| `apps/cli/src/ui/shared/terminal-profile.ts` | Detects terminal type from `TERM_PROGRAM`/`TERM`; records which modifier encodings each terminal supports (Kitty, ESC+letter, Ctrl fallback, etc.) |
+| `apps/cli/src/ui/chat/input-keymap.ts` | Pure functions that map `(typedInput, key)` → logical actions; no React state |
+| `apps/cli/src/ui/chat/input-cursor.ts` | `reconcileCursorIndex` — clamps cursor after value changes |
 
 ## The encoding problem
 
@@ -103,6 +103,8 @@ The `useInput` handler processes events in this order (early return on match):
 **Order matters**: word navigation (step 10) must precede plain arrow keys (step 11) so Meta+Arrow isn't consumed as a plain arrow. It must also precede character insertion (step 14) so ESC+b/f isn't inserted as a literal "b"/"f" character.
 
 ## Adding a new keyboard shortcut
+
+For **view-level** shortcuts (navigate, select, back, quit, confirm, cancel, toggle, save), prefer the shared predicates in `apps/cli/src/ui/shared/keybindings.ts` (see [`docs/ui.md`](ui.md)). Only add new low-level resolvers here when the shortcut involves terminal-specific modifier encoding.
 
 ### Step 1: Determine the encoding
 

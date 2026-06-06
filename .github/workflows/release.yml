@@ -1,4 +1,4 @@
-# Build Bun standalone binaries and attach them to a GitHub Release when you push a version tag (e.g. v0.2.0).
+# Build macOS release archives and attach them to a GitHub Release when you push a version tag (e.g. v0.2.0).
 #
 # Prerequisites: default GITHUB_TOKEN with contents: write (enabled for tags on the repo).
 
@@ -18,18 +18,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            target: bun-linux-x64
-            asset: toby-linux-x64
-          - os: ubuntu-latest
-            target: bun-linux-arm64
-            asset: toby-linux-arm64
           - os: macos-latest
             target: bun-darwin-arm64
-            asset: toby-darwin-arm64
+            swift_arch: arm64
+            asset: toby-darwin-arm64.zip
           - os: macos-latest
             target: bun-darwin-x64
-            asset: toby-darwin-x64
+            swift_arch: x86_64
+            asset: toby-darwin-x64.zip
 
     runs-on: ${{ matrix.os }}
 
@@ -40,13 +36,97 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.3"
+          bun-version: "1.3.10"
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build standalone binary
-        run: bun build ./src/cli.ts --compile --target=${{ matrix.target }} --outfile ${{ matrix.asset }}
+      - name: Build release artifacts
+        env:
+          BUN_TARGET: ${{ matrix.target }}
+          SWIFT_ARCH: ${{ matrix.swift_arch }}
+        run: chmod +x scripts/build-release-artifacts.sh && ./scripts/build-release-artifacts.sh
+
+      - name: Check signing configuration
+        id: signing
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          missing=()
+          [ -n "$CSC_LINK" ] || missing+=("CSC_LINK")
+          [ -n "$CSC_KEY_PASSWORD" ] || missing+=("CSC_KEY_PASSWORD")
+          [ -n "$APPLE_ID" ] || missing+=("APPLE_ID")
+          [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] || missing+=("APPLE_APP_SPECIFIC_PASSWORD")
+          [ -n "$APPLE_TEAM_ID" ] || missing+=("APPLE_TEAM_ID")
+          if [ "${#missing[@]}" -eq 0 ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Signing and notarization are enabled."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Skipping signing and notarization. Missing secrets: ${missing[*]}"
+          fi
+
+      - name: Import Developer ID certificate
+        if: steps.signing.outputs.enabled == 'true'
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          keychain_path="$RUNNER_TEMP/toby-signing.keychain-db"
+          cert_path="$RUNNER_TEMP/developer-id.p12"
+          echo "$CSC_LINK" | base64 --decode > "$cert_path"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security import "$cert_path" -P "$CSC_KEY_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path"
+          security list-keychains -d user -s "$keychain_path" $(security list-keychains -d user | sed s/\"//g)
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$keychain_path"
+
+      - name: Sign release binaries
+        if: steps.signing.outputs.enabled == 'true'
+        run: |
+          identity="$(security find-identity -v -p codesigning | awk -F '"' '/Developer ID Application/ { print $2; exit }')"
+          if [ -z "$identity" ]; then
+            echo "Developer ID Application identity not found" >&2
+            exit 1
+          fi
+          codesign --force --options runtime --timestamp --sign "$identity" dist/toby
+          codesign --force --options runtime --timestamp --sign "$identity" dist/toby-listener
+          codesign --force --options runtime --timestamp --sign "$identity" dist/toby-macos
+          codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-sample
+          codesign --force --options runtime --timestamp --sign "$identity" dist/whisper-cli
+          codesign --verify --strict --verbose=2 dist/toby
+          codesign --verify --strict --verbose=2 dist/toby-listener
+          codesign --verify --strict --verbose=2 dist/toby-macos
+          codesign --verify --strict --verbose=2 dist/toby-plugin-sample
+          codesign --verify --strict --verbose=2 dist/whisper-cli
+
+      - name: Package release archive
+        run: |
+          rm -rf release-payload
+          mkdir release-payload
+          cp dist/toby dist/toby-listener dist/toby-macos dist/toby-plugin-sample dist/whisper-cli release-payload/
+          cp -R dist/web release-payload/web
+          node scripts/verify-release-artifacts.mjs release-payload
+          ditto -c -k --sequesterRsrc release-payload ${{ matrix.asset }}
+
+      - name: Notarize release archive
+        if: steps.signing.outputs.enabled == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcrun notarytool submit ${{ matrix.asset }} \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

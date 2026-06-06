@@ -1,0 +1,4 @@
+                            SSID BSSID             RSSI HT CC SECURITY (auth/unicast/group)
+                      MyHomeWi-Fi aa:bb:cc:01:02:03 -71  Y  US WPA3(PSK/SAE/AES) 
+                     CoffeeGuests 82:cf:bf:71:92:ea -85  Y  AU NONE
+                                             * dd:01:aa:bc:99:aa -92  Y  AU WPA2(PSK/AES/AES) 

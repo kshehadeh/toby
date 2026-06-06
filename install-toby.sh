@@ -6,35 +6,15 @@
 #   ./install-toby.sh
 #
 # Environment:
-#   TOBY_REPO         GitHub repo as owner/name (default: kshehadeh/toby, or from git remote when run inside a clone)
-#   TOBY_INSTALL_DIR  Directory for the binary (default: $HOME/.local/bin)
+#   TOBY_REPO         GitHub repo as owner/name (default: kshehadeh/toby)
+#   TOBY_INSTALL_DIR  Directory for the binaries (default: $HOME/.local/bin)
 #   TOBY_VERSION      Exact tag to install, e.g. v0.2.0 (default: latest GitHub release)
 #   GITHUB_TOKEN      Optional; raises API rate limits when set
 
 set -euo pipefail
 
 default_repo="kshehadeh/toby"
-repo="${TOBY_REPO:-}"
-
-if [[ -z "$repo" ]] && git_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
-	remote_url="$(git -C "$git_root" config --get remote.origin.url 2>/dev/null || true)"
-	case "$remote_url" in
-	*github.com:*/*.git)
-		repo="${remote_url#*github.com:}"
-		repo="${repo%.git}"
-		;;
-	https://github.com/*/*.git)
-		repo="${remote_url#https://github.com/}"
-		repo="${repo%.git}"
-		;;
-	https://github.com/*/*)
-		repo="${remote_url#https://github.com/}"
-		repo="${repo%.git}"
-		;;
-	esac
-fi
-
-repo="${repo:-$default_repo}"
+repo="${TOBY_REPO:-$default_repo}"
 install_dir="${TOBY_INSTALL_DIR:-$HOME/.local/bin}"
 pinned_version="${TOBY_VERSION:-}"
 
@@ -53,20 +33,16 @@ Darwin)
 	esac
 	;;
 Linux)
-	case "$arch" in
-	aarch64 | arm64) asset="toby-linux-arm64" ;;
-	x86_64) asset="toby-linux-x64" ;;
-	*)
-		echo "Unsupported Linux architecture: $arch (need aarch64/arm64 or x86_64)." >&2
-		exit 1
-		;;
-	esac
+	echo "Unsupported operating system: Linux. Toby releases are macOS-only." >&2
+	exit 1
 	;;
 *)
-	echo "Unsupported operating system: $os (this installer supports macOS and Linux only)." >&2
+	echo "Unsupported operating system: $os (this installer supports macOS only)." >&2
 	exit 1
 	;;
 esac
+
+asset="${asset}.zip"
 
 api_latest="https://api.github.com/repos/${repo}/releases/latest"
 curl_common=(-fsSL)
@@ -96,19 +72,80 @@ cleanup() { rm -rf "$tmpdir"; }
 trap cleanup EXIT
 
 echo "Installing Toby ${tag} (${asset}) from ${repo}..."
-if ! curl -fsSL -o "${tmpdir}/toby" "$download_url"; then
+if ! curl -fsSL -o "${tmpdir}/toby.zip" "$download_url"; then
 	echo "Download failed: ${download_url}" >&2
 	echo "Check that this release exists and includes ${asset}." >&2
 	exit 1
 fi
+unzip -q "${tmpdir}/toby.zip" -d "$tmpdir"
+if [[ ! -f "${tmpdir}/toby" || ! -f "${tmpdir}/toby-listener" || ! -f "${tmpdir}/whisper-cli" ]]; then
+	echo "Release archive is missing toby, toby-listener, or whisper-cli." >&2
+	exit 1
+fi
+if [[ ! -f "${tmpdir}/web/index.html" ]]; then
+	echo "Release archive is missing web/index.html." >&2
+	exit 1
+fi
+
+has_macos_helper=false
+if [[ -f "${tmpdir}/toby-macos" ]]; then
+	has_macos_helper=true
+else
+	echo "Note: Release archive does not include toby-macos helper (macOS system tools may be limited)." >&2
+fi
+
+has_sample_plugin=false
+if [[ -f "${tmpdir}/toby-plugin-sample" ]]; then
+	has_sample_plugin=true
+fi
+
+# Only the `toby` binary goes on PATH (install_dir). All bundled helper
+# binaries live under ~/.toby/helpers, and installable plugins under
+# ~/.toby/plugins, so they don't clutter the user's bin directory.
+toby_dir="${TOBY_DIR:-$HOME/.toby}"
+toby_helpers_dir="${toby_dir}/helpers"
+toby_plugins_dir="${toby_dir}/plugins"
 
 chmod +x "${tmpdir}/toby"
 mkdir -p "$install_dir"
 mv "${tmpdir}/toby" "${install_dir}/toby"
 echo "Installed: ${install_dir}/toby"
 
+rm -rf "${install_dir}/web"
+cp -R "${tmpdir}/web" "${install_dir}/web"
+echo "Installed: ${install_dir}/web"
+
+chmod +x "${tmpdir}/toby-listener"
+mkdir -p "$toby_helpers_dir"
+mv "${tmpdir}/toby-listener" "${toby_helpers_dir}/toby-listener"
+echo "Installed: ${toby_helpers_dir}/toby-listener"
+
+chmod +x "${tmpdir}/whisper-cli"
+mv "${tmpdir}/whisper-cli" "${toby_helpers_dir}/whisper-cli"
+echo "Installed: ${toby_helpers_dir}/whisper-cli"
+
+if $has_sample_plugin; then
+	chmod +x "${tmpdir}/toby-plugin-sample"
+	mkdir -p "$toby_plugins_dir"
+	mv "${tmpdir}/toby-plugin-sample" "${toby_plugins_dir}/toby-plugin-sample"
+	echo "Installed: ${toby_plugins_dir}/toby-plugin-sample"
+fi
+
+if $has_macos_helper; then
+	chmod +x "${tmpdir}/toby-macos"
+	mkdir -p "$toby_helpers_dir"
+	mv "${tmpdir}/toby-macos" "${toby_helpers_dir}/toby-macos"
+	echo "Installed: ${toby_helpers_dir}/toby-macos"
+fi
+
 if "${install_dir}/toby" --version >/dev/null 2>&1; then
 	echo "Verified: $("${install_dir}/toby" --version)"
+fi
+
+if "${install_dir}/toby" whisper setup --quiet; then
+	echo "Installed whisper transcription model."
+else
+	echo "Note: Could not download whisper model. Run: toby whisper setup" >&2
 fi
 
 install_dir_abs="$(cd "$install_dir" && pwd -P 2>/dev/null || printf '%s' "$install_dir")"

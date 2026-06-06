@@ -1,0 +1,26 @@
+{
+	"$schema": "https://unpkg.com/knip@5/schema.json",
+	"workspaces": {
+		"apps/cli": {
+			"entry": ["src/cli.ts"],
+			"project": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts"]
+		},
+		"packages/core": {
+			"project": ["src/**/*.ts"]
+		},
+		"packages/helper-scripts": {
+			"entry": ["src/**/*.ts"],
+			"project": ["src/**/*.ts"]
+		},
+		"apps/help-site": {
+			"entry": ["src/pages/**/*.{tsx,jsx,mdx}", "sidebars.ts"],
+			"project": ["src/**/*.{ts,tsx,js,jsx}"]
+		}
+	},
+	"ignoreDependencies": [
+		"react",
+		"@docusaurus/plugin-content-docs",
+		"lint-staged"
+	],
+	"ignoreBinaries": ["swift"]
+}

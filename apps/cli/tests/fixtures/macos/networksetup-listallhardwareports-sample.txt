@@ -1,0 +1,11 @@
+Hardware Port: Ethernet Adapter (en10)
+Device: en10
+Ethernet Address: aa:bb:cc:dd:ee:01
+
+Hardware Port: Wi-Fi
+Device: en0
+Ethernet Address: aa:bb:cc:dd:ee:02
+
+Hardware Port: Bluetooth Ethernet
+Device: en6
+Ethernet Address: aa:bb:cc:dd:ee:03
