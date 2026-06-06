@@ -70,7 +70,7 @@ export function MemoriesView() {
 			<div className="flex-1 overflow-y-auto min-w-0 min-h-0">
 				<div className="mx-auto max-w-3xl px-8 py-8">
 					{memoryId && explainQuery.data && (
-						<Card className="border shadow-sm">
+						<Card className="ring-0 shadow-none">
 							<CardHeader className="pb-4">
 								<div className="flex gap-2 flex-wrap items-center">
 									<CardTitle className="text-xl">

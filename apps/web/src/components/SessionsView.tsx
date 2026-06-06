@@ -65,7 +65,7 @@ export function SessionsView() {
 						<p className="text-muted-foreground">Loading session…</p>
 					)}
 					{sessionId && detailQuery.data && (
-						<Card className="border shadow-sm">
+						<Card className="ring-0 shadow-none">
 							<CardHeader className="pb-4">
 								<CardTitle className="text-xl">{detailQuery.data.name}</CardTitle>
 								<p className="text-sm text-muted-foreground">
@@ -73,7 +73,7 @@ export function SessionsView() {
 								</p>
 							</CardHeader>
 							<CardContent>
-								<div className="h-[calc(100vh-14rem)] overflow-y-auto overscroll-contain rounded-md border p-4">
+								<div className="h-[calc(100vh-14rem)] overflow-y-auto overscroll-contain rounded-md bg-muted/30 p-4">
 									<div className="space-y-4 font-mono text-sm leading-relaxed">
 										{detailQuery.data.transcript.map((entry, i) => (
 											<div

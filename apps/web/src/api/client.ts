@@ -49,11 +49,13 @@ export const api = {
 		apiFetch<{
 			tree: import("@/types").SettingsItem;
 			values: Record<string, string>;
+			integrationLabels: Record<string, string>;
 		}>("/api/configure/tree"),
 	patchConfigure: (changes: Record<string, string>) =>
 		apiFetch<{
 			tree: import("@/types").SettingsItem;
 			values: Record<string, string>;
+			integrationLabels: Record<string, string>;
 		}>("/api/configure/values", {
 			method: "PATCH",
 			body: JSON.stringify({ changes }),

@@ -8,12 +8,12 @@ import {
 } from "../../config/index";
 import {
 	applyConfigureValuesPatch,
-	collectSecretConfigureKeys,
 	redactConfigureValues,
 	seedConfigureValues,
 } from "../../configure/persistence";
 import { buildSettingsTree } from "../../configure/tree";
 import type { SettingsItem } from "../../configure/types";
+import { getIntegrationModules } from "../../integrations/index";
 import { DEFAULT_CHAT_PERSONA } from "../../personas/index";
 import {
 	createSchedule,
@@ -24,19 +24,25 @@ import { deleteSkill, updateSkillFrontmatter } from "../../skills/manage";
 import { errorResponse, jsonResponse, readJsonBody } from "../http-utils";
 
 function annotateTreeSecrets(node: SettingsItem): SettingsItem {
-	const secretKeys = collectSecretConfigureKeys();
+	// Masked/secret value fields are now editable from the web UI (rendered as
+	// password inputs) and persisted to the credentials file. Only structural
+	// nodes stay read-only.
 	const readOnly =
-		node.masked === true ||
-		secretKeys.has(node.key) ||
-		node.kind === "hint" ||
-		node.kind === "action" ||
-		node.kind === "delete";
+		node.kind === "hint" || node.kind === "action" || node.kind === "delete";
 	const children = node.children?.map(annotateTreeSecrets);
 	return {
 		...node,
 		readOnly,
 		children,
 	};
+}
+
+function buildIntegrationLabels(): Record<string, string> {
+	const labels: Record<string, string> = { "(none)": "None" };
+	for (const mod of getIntegrationModules()) {
+		labels[mod.name] = mod.displayName;
+	}
+	return labels;
 }
 
 export function handleConfigureTree(): Response {
@@ -58,6 +64,7 @@ export function handleConfigureTree(): Response {
 	return jsonResponse({
 		tree: annotateTreeSecrets(tree),
 		values: redacted,
+		integrationLabels: buildIntegrationLabels(),
 	});
 }
 

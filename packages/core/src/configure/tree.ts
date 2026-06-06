@@ -275,6 +275,13 @@ export function buildSettingsTree(
 				kind: "select" as const,
 				key: `defaults.${cat}`,
 				options,
+				selectChoices: [
+					{ value: "(none)", label: "None" },
+					...modules.map((m) => ({
+						value: m.name,
+						label: m.displayName,
+					})),
+				],
 				currentValue,
 			};
 		},
@@ -310,6 +317,13 @@ export function buildSettingsTree(
 				kind: "select",
 				key: "chatInbound.integration",
 				options: inboundIntegrationOptions,
+				selectChoices: [
+					{ value: "(none)", label: "None" },
+					...inboundIntegrationModules.map((m) => ({
+						value: m.name,
+						label: m.displayName,
+					})),
+				],
 				currentValue: values["chatInbound.integration"] ?? "(none)",
 			},
 			{

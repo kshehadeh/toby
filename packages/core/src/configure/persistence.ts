@@ -320,7 +320,10 @@ const SCHEDULE_FIELD_RE =
 
 function partitionConfigurePatch(patch: Record<string, string>): {
 	config: Record<string, string>;
-	skills: Map<string, { name?: string; description?: string; summary?: string }>;
+	skills: Map<
+		string,
+		{ name?: string; description?: string; summary?: string }
+	>;
 	schedules: Map<
 		string,
 		{
@@ -368,8 +371,7 @@ function partitionConfigurePatch(patch: Record<string, string>): {
 			else if (field === "prompt") entry.prompt = value;
 			else if (field === "persona") entry.personaName = value;
 			else if (field === "cron") entry.cronExpression = value;
-			else
-				entry.enabled = value === "Yes" || value === "true";
+			else entry.enabled = value === "Yes" || value === "true";
 			schedules.set(scheduleId, entry);
 			continue;
 		}
@@ -380,19 +382,34 @@ function partitionConfigurePatch(patch: Record<string, string>): {
 	return { config, skills, schedules };
 }
 
-/** Apply non-secret configure values (web-safe). */
+/** Apply configure values (web-safe), including secret credentials. */
 export function applyConfigureValuesPatch(
 	patch: Record<string, string>,
 	baseValues?: Record<string, string>,
 ): void {
 	const secretKeys = collectSecretConfigureKeys();
-	for (const key of Object.keys(patch)) {
+	const secretPatch: Record<string, string> = {};
+	const rest: Record<string, string> = {};
+	for (const [key, value] of Object.entries(patch)) {
 		if (secretKeys.has(key)) {
-			throw new Error(`Cannot modify secret field: ${key}`);
+			// Never persist the redacted placeholder — it means "unchanged".
+			if (value !== REDACTED) {
+				secretPatch[key] = value;
+			}
+		} else {
+			rest[key] = value;
 		}
 	}
 
-	const { config, skills, schedules } = partitionConfigurePatch(patch);
+	if (Object.keys(secretPatch).length > 0) {
+		const creds = readCredentials();
+		// Seed from disk so untouched secrets are preserved, then overlay the
+		// changed secret(s) before rebuilding the credentials file.
+		const merged = { ...seedConfigureValues(), ...secretPatch };
+		writeCredentials(buildCredentialsFromValues(merged, creds));
+	}
+
+	const { config, skills, schedules } = partitionConfigurePatch(rest);
 
 	if (Object.keys(config).length > 0) {
 		const merged = { ...(baseValues ?? seedConfigureValues()), ...config };

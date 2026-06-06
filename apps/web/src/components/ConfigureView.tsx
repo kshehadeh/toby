@@ -88,12 +88,13 @@ export function ConfigureView() {
 				</SidebarScrollPanel>
 			</aside>
 			<div className="flex-1 overflow-y-auto min-w-0 min-h-0">
-				<div className="mx-auto max-w-3xl px-8 py-8">
+				<div className="px-8 py-8">
 					{section ? (
 						<ConfigureDetail
 							section={section}
 							values={data.values}
 							isContainer={isContainerSection(section)}
+							integrationLabels={data.integrationLabels ?? {}}
 						/>
 					) : (
 						<p className="text-muted-foreground">Select a section</p>

@@ -1,11 +1,31 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { readCredentials } from "@toby/core/config/index";
 import {
 	applyConfigureValuesPatch,
 	collectSecretConfigureKeys,
 	redactConfigureValues,
 	seedConfigureValues,
 } from "@toby/core/configure/persistence";
-import { describe, expect, it } from "vitest";
 import { handleWebRequest } from "@toby/core/web/routes";
+import { describe, expect, it } from "vitest";
+
+function withTempTobyDir(run: () => void): void {
+	const previous = process.env.TOBY_DIR;
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-secret-test-"));
+	process.env.TOBY_DIR = dir;
+	try {
+		run();
+	} finally {
+		if (previous === undefined) {
+			Reflect.deleteProperty(process.env, "TOBY_DIR");
+		} else {
+			process.env.TOBY_DIR = previous;
+		}
+		fs.rmSync(dir, { recursive: true, force: true });
+	}
+}
 
 describe("configure persistence", () => {
 	it("redacts masked credential values", () => {
@@ -24,10 +44,19 @@ describe("configure persistence", () => {
 		expect(keys.has("ai.vercel.apiKey")).toBe(true);
 	});
 
-	it("rejects patching secret configure keys", () => {
-		expect(() =>
-			applyConfigureValuesPatch({ "ai.openai.token": "new-secret" }),
-		).toThrow(/secret field/i);
+	it("persists secret configure keys to credentials", () => {
+		withTempTobyDir(() => {
+			applyConfigureValuesPatch({ "ai.openai.token": "new-secret" });
+			expect(readCredentials().ai?.openai?.token).toBe("new-secret");
+		});
+	});
+
+	it("keeps an existing secret when the redacted placeholder is patched", () => {
+		withTempTobyDir(() => {
+			applyConfigureValuesPatch({ "ai.openai.token": "keep-me" });
+			applyConfigureValuesPatch({ "ai.openai.token": "••••••" });
+			expect(readCredentials().ai?.openai?.token).toBe("keep-me");
+		});
 	});
 
 	it("seeds configure values without throwing", () => {
@@ -50,6 +79,20 @@ describe("web API routes", () => {
 			enabled: expect.any(Boolean),
 			status: expect.any(String),
 		});
+	});
+
+	it("includes integration display names for configure selects", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/configure/tree"),
+			null,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			integrationLabels: Record<string, string>;
+		};
+		expect(body.integrationLabels.gmail).toBe("Gmail");
+		expect(body.integrationLabels.slack).toBe("Slack");
+		expect(body.integrationLabels["(none)"]).toBe("None");
 	});
 
 	it("handles POST /api/daemon/restart", async () => {
