@@ -3,7 +3,7 @@ import {
 	maxScrollModalOffset,
 	scrollModalVisibleLineBudget,
 } from "../src/ui/chat/components/scrollable-text-modal";
-import { buildHelpLines } from "../src/ui/chat/help-lines";
+import { buildHelpSections } from "../src/ui/chat/help-sections";
 import { buildTerminalInfoLines } from "../src/ui/chat/terminal-info-lines";
 import { SLASH_COMMANDS } from "../src/ui/chat/slash-commands";
 
@@ -19,9 +19,9 @@ describe("scrollable text modal helpers", () => {
 	});
 });
 
-describe("buildHelpLines", () => {
-	it("includes slash commands, shortcuts, and usage hints", () => {
-		const lines = buildHelpLines(SLASH_COMMANDS, {
+describe("buildHelpSections", () => {
+	it("includes grouped help sections for the panel UI", () => {
+		const sections = buildHelpSections(SLASH_COMMANDS, {
 			name: "test",
 			kittySupported: false,
 			kittyProtocol: false,
@@ -29,11 +29,15 @@ describe("buildHelpLines", () => {
 			metaBackspace: "escape-delete",
 			wordDelete: "ctrl-w",
 		});
-		expect(lines.some((line) => line.startsWith("/help  "))).toBe(true);
-		expect(lines.some((line) => line === "Keyboard shortcuts:")).toBe(true);
-		expect(lines.some((line) => line.includes("Press ? with an empty prompt"))).toBe(
-			true,
-		);
+		expect(sections.basics.some((row) => row.keys === "Enter")).toBe(true);
+		expect(sections.shortcuts.some((row) => row.keys === "/")).toBe(true);
+		expect(
+			sections.commonCommands.some((row) => row.keys === "/help"),
+		).toBe(true);
+		expect(sections.gettingStarted.length).toBeGreaterThan(0);
+		expect(
+			sections.tips.some((tip) => tip.includes("empty prompt")),
+		).toBe(true);
 	});
 });
 

@@ -118,6 +118,7 @@ import {
 	IntegrationMultiPickerModal,
 	buildIntegrationPickerRows,
 } from "./components/integration-multi-picker-modal";
+import { HelpPanel } from "./components/help-panel";
 import { PlanStatusBar } from "./components/plan-status-bar";
 import {
 	ScrollableTextModal,
@@ -129,7 +130,7 @@ import {
 	runConnectionProbes,
 } from "./connection-probe";
 import { ACCENT, TIPS } from "./constants";
-import { buildHelpLines } from "./help-lines";
+import { buildHelpSections } from "./help-sections";
 import { buildUiTurnContext } from "./pipeline-turn-context";
 import { appendPromptHistory, loadPromptHistory } from "./prompt-history";
 import { buildSessionNoticeEntry, recordSessionNote } from "./session-note";
@@ -319,6 +320,7 @@ export function ChatSessionApp({
 		null,
 	);
 	const [scrollModal, setScrollModal] = useState<ScrollModalState | null>(null);
+	const [helpOpen, setHelpOpen] = useState(false);
 	const [activePersona, setActivePersona] = useState(() => persona);
 	const activePersonaRef = useRef(activePersona);
 	const [activePlan, setActivePlan] = useState<Plan | null>(null);
@@ -369,6 +371,7 @@ export function ChatSessionApp({
 		sessionPicker: null as SessionPickerState | null,
 		personaPicker: null as PersonaPickerState | null,
 		scrollModal: null as ScrollModalState | null,
+		helpOpen: false,
 	});
 
 	const allDisplayRows = useMemo((): DisplayRow[] => {
@@ -543,6 +546,7 @@ export function ChatSessionApp({
 			sessionPicker,
 			personaPicker,
 			scrollModal,
+			helpOpen,
 		};
 	}, [
 		askModal,
@@ -553,6 +557,7 @@ export function ChatSessionApp({
 		sessionPicker,
 		personaPicker,
 		scrollModal,
+		helpOpen,
 	]);
 
 	const startFreshSession = useCallback(
@@ -1495,13 +1500,13 @@ export function ChatSessionApp({
 		});
 	}, []);
 
+	const helpSections = useMemo(
+		() => buildHelpSections(SLASH_COMMANDS),
+		[],
+	);
+
 	const openHelpViewer = useCallback(() => {
-		setScrollModal({
-			title: "Slash commands",
-			lines: buildHelpLines(SLASH_COMMANDS),
-			scrollOffset: 0,
-			lineTone: "default",
-		});
+		setHelpOpen(true);
 	}, []);
 
 	const handlePromptSubmit = useCallback(
@@ -2153,6 +2158,14 @@ export function ChatSessionApp({
 				return;
 			}
 
+			if (snapRef.current.helpOpen) {
+				if (key.escape || key.return) {
+					setHelpOpen(false);
+					return;
+				}
+				return;
+			}
+
 			const scrollView = snapRef.current.scrollModal;
 			if (scrollView) {
 				const visibleBudget = scrollModalVisibleLineBudget(terminalRows);
@@ -2343,6 +2356,7 @@ export function ChatSessionApp({
 		Boolean(sessionPicker) ||
 		Boolean(personaPicker) ||
 		Boolean(scrollModal) ||
+		helpOpen ||
 		messages === null ||
 		showConfig;
 	const modelLabel = formatPersonaAiLabel(activePersona);
@@ -2478,6 +2492,8 @@ export function ChatSessionApp({
 						</Text>
 					</Box>
 				</ViewModal>
+			) : helpOpen ? (
+				<HelpPanel termCols={termCols} sections={helpSections} />
 			) : scrollModal ? (
 				<ScrollableTextModal
 					termCols={termCols}
