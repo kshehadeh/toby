@@ -56,6 +56,9 @@ describe("upgrade staging paths", () => {
 		expect(paths.pluginApplemailPath).toBe(
 			path.join(tempDir, "staging", "toby-plugin-applemail"),
 		);
+		expect(paths.pluginApplecalendarPath).toBe(
+			path.join(tempDir, "staging", "toby-plugin-applecalendar"),
+		);
 		expect(paths.webPath).toBe(path.join(tempDir, "staging", "web"));
 		expect(paths.archivePath).toBe(
 			path.join(tempDir, "staging", "toby-release.zip"),
