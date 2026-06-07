@@ -74,6 +74,15 @@ function handleStatus(config: JsonRecord, state: JsonRecord): never {
 		capabilities: ["chat"],
 		providerCategories: ["search"],
 		resources: ["demo"],
+		chatModelPrep: {
+			systemPromptSection:
+				"### Sample Plugin\nDemo installable plugin for search-style chat tools.",
+			singleSessionRules:
+				"You are assisting via the Sample Plugin integration. Use sample tools when helpful.",
+			singleSessionUserTemplate: "{{userPrompt}}",
+			multiUserContentTemplate:
+				"## Sample Plugin context\nUse sample tools when the user request benefits from them.\n\nQuery: \"{{userPrompt}}\"",
+		},
 		details: connected
 			? "Sample plugin configured."
 			: "Configure sample.apiKey in Toby configure.",

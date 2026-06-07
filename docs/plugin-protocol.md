@@ -246,6 +246,79 @@ On failure:
 }
 ```
 
+## Complex integrations (OAuth, auth methods, chat prep)
+
+Plugins that need the same depth as first-party integrations can use these
+**optional, backward-compatible** v1 extensions. Toby merges responses into
+`credentials.integrations[<name>]`; plugins must not read `~/.toby/` directly.
+
+### Config writeback
+
+`connect`, `disconnect`, and `tools execute` may return a `config` object.
+Toby merges it into stored credentials (for OAuth tokens, disconnect cleanup,
+token refresh rotation, etc.):
+
+```json
+{ "ok": true, "config": { "oauthAccessToken": "...", "oauthRefreshToken": "..." } }
+```
+
+### Auth methods (`status`)
+
+Optional `authMethods` on `status` (same shape as built-in integrations):
+
+```json
+"authMethods": [
+  { "id": "oauth_pkce", "label": "OAuth (PKCE)", "isDefault": true },
+  { "id": "client_credentials", "label": "Client Credentials" }
+]
+```
+
+`config shape` fields may include `showForAuthMethods` to gate configure UI
+fields (Toby namespaces keys as `<name>.<key>`).
+
+### Config normalization (`config get`)
+
+Return normalized values from the stdin envelope, including inferred fields
+such as `authMethod`.
+
+### Deep health probes (`status` + `validateTools`)
+
+Stdin envelope may include `"validateTools": true`. Response may include per-tool
+rows (same semantics as `toby status integration --validate-tools`):
+
+```json
+"tools": [
+  { "tool": "tokenPermissions", "ok": true, "details": "Token permissions OK (delegated)." }
+]
+```
+
+### Chat model prep (`status.chatModelPrep`)
+
+Required when `capabilities` includes `"chat"`. Plugin supplies integration
+rules; Toby wraps them with persona composition and global chat-tool guidance:
+
+```json
+"chatModelPrep": {
+  "systemPromptSection": "### My Integration\nShort block for multi-integration prompts.",
+  "singleSessionRules": "You are Toby...\nRules:\n- ...",
+  "singleSessionUserTemplate": "User request:\n{{userPrompt}}",
+  "multiUserContentTemplate": "## My Integration\n...\n{{userPrompt}}"
+}
+```
+
+Use `{{userPrompt}}` placeholders in templates.
+
+### Chat readiness (`status.chatReadiness`)
+
+When `status` receives a config envelope, return readiness for the chat picker:
+
+```json
+"chatReadiness": { "ok": false, "hint": "Run `toby connect myintegration` after configuring credentials." }
+```
+
+Reference: [`apps/plugin-azuread/`](../apps/plugin-azuread/) (full parity migration
+from a built-in module). See [Migrating a built-in to a plugin](create-integration.md#migrating-a-built-in-to-a-plugin).
+
 ## Protocol versioning
 
 `protocolVersion` must be `"1"` for this spec. Toby rejects plugins reporting

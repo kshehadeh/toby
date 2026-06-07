@@ -9,9 +9,16 @@ export const PLUGIN_BINARY_PREFIX = "toby-plugin-";
 export type PluginConfigEnvelope = {
 	readonly config?: Record<string, unknown>;
 	readonly state?: Record<string, unknown>;
+	readonly validateTools?: boolean;
 };
 
 export type PluginConfigFieldType = "string" | "number" | "boolean" | "select";
+
+export interface PluginAuthMethodDescriptor {
+	readonly id: string;
+	readonly label: string;
+	readonly isDefault?: boolean;
+}
 
 export interface PluginConfigField {
 	readonly key: string;
@@ -26,6 +33,7 @@ export interface PluginConfigField {
 	readonly minLength?: number;
 	readonly maxLength?: number;
 	readonly description?: string;
+	readonly showForAuthMethods?: readonly string[];
 }
 
 export interface PluginToolDefinition {
@@ -33,6 +41,24 @@ export interface PluginToolDefinition {
 	readonly description: string;
 	readonly readOnly?: boolean;
 	readonly inputSchema: Record<string, unknown>;
+}
+
+export interface PluginToolHealth {
+	readonly tool: string;
+	readonly ok: boolean;
+	readonly details?: string;
+}
+
+export interface PluginChatReadiness {
+	readonly ok: boolean;
+	readonly hint?: string;
+}
+
+export interface PluginChatModelPrep {
+	readonly systemPromptSection: string;
+	readonly singleSessionRules: string;
+	readonly singleSessionUserTemplate?: string;
+	readonly multiUserContentTemplate: string;
 }
 
 export interface PluginStatusResponse {
@@ -46,6 +72,10 @@ export interface PluginStatusResponse {
 	readonly capabilities?: readonly IntegrationCapability[];
 	readonly providerCategories?: readonly ProviderCategory[];
 	readonly resources?: readonly string[];
+	readonly authMethods?: readonly PluginAuthMethodDescriptor[];
+	readonly chatModelPrep?: PluginChatModelPrep;
+	readonly chatReadiness?: PluginChatReadiness;
+	readonly tools?: readonly PluginToolHealth[];
 	readonly details?: string;
 	readonly error?: string;
 	readonly code?: string;
@@ -54,6 +84,7 @@ export interface PluginStatusResponse {
 export interface PluginActionResponse {
 	readonly ok: boolean;
 	readonly reason?: string;
+	readonly config?: Record<string, unknown>;
 	readonly details?: Record<string, unknown>;
 	readonly error?: string;
 	readonly code?: string;
@@ -90,6 +121,7 @@ export interface PluginToolExecuteResponse {
 	readonly ok: boolean;
 	readonly result?: unknown;
 	readonly appliedActions?: readonly string[];
+	readonly config?: Record<string, unknown>;
 	readonly error?: string;
 	readonly code?: string;
 }

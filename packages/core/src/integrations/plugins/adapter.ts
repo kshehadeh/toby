@@ -1,9 +1,16 @@
 import { tool } from "ai";
 import type { Tool } from "ai";
 import chalk from "chalk";
+import { globalChatToolsPromptSection } from "../../ai/global-chat-tools";
 import { runSharedChatTurn } from "../../chat-pipeline/run-turn";
-import type { CredentialsFile } from "../../config/index";
-import { readConfig, readCredentials, writeConfig } from "../../config/index";
+import type { CredentialsFile, Persona } from "../../config/index";
+import {
+	readConfig,
+	readCredentials,
+	writeConfig,
+	writeCredentials,
+} from "../../config/index";
+import { composeSystemPromptWithPersona } from "../../personas/prompt";
 import type {
 	ChatRunOptions,
 	CredentialFieldDescriptor,
@@ -21,7 +28,11 @@ import {
 	pluginToolsList,
 } from "./client";
 import { jsonSchemaToZod } from "./json-schema";
-import type { DiscoveredPlugin, PluginConfigEnvelope } from "./protocol";
+import type {
+	DiscoveredPlugin,
+	PluginChatModelPrep,
+	PluginConfigEnvelope,
+} from "./protocol";
 import {
 	isSupportedProtocolVersion,
 	parsePluginNameFromBinary,
@@ -37,6 +48,8 @@ export type PluginMetadata = {
 	readonly capabilities: IntegrationModule["capabilities"];
 	readonly providerCategories: IntegrationModule["providerCategories"];
 	readonly resources: IntegrationModule["resources"];
+	readonly authMethods: IntegrationModule["authMethods"];
+	readonly chatModelPrep?: PluginChatModelPrep;
 	readonly readOnlyTools: readonly string[];
 };
 
@@ -68,6 +81,36 @@ function buildEnvelope(name: string): PluginConfigEnvelope {
 	};
 }
 
+export function mergePluginConfigPatch(
+	name: string,
+	patch: Record<string, unknown> | undefined,
+): void {
+	if (!patch || Object.keys(patch).length === 0) {
+		return;
+	}
+
+	const creds = readCredentials();
+	const previous = creds.integrations?.[name] ?? {};
+	const nextBlock: Record<string, string> = {};
+
+	for (const [key, value] of Object.entries(previous)) {
+		nextBlock[key] = String(value);
+	}
+
+	for (const [key, value] of Object.entries(patch)) {
+		if (value === undefined || value === null) continue;
+		nextBlock[key] = String(value);
+	}
+
+	writeCredentials({
+		...creds,
+		integrations: {
+			...(creds.integrations ?? {}),
+			[name]: nextBlock,
+		},
+	});
+}
+
 function namespacedKey(pluginName: string, fieldKey: string): string {
 	return `${pluginName}.${fieldKey}`;
 }
@@ -77,6 +120,63 @@ function localKey(pluginName: string, namespaced: string): string {
 	return namespaced.startsWith(prefix)
 		? namespaced.slice(prefix.length)
 		: namespaced;
+}
+
+function substituteTemplate(
+	template: string,
+	vars: Record<string, string>,
+): string {
+	return template.replace(/\{\{(\w+)\}\}/g, (_match, key: string) => {
+		return vars[key] ?? "";
+	});
+}
+
+function buildPluginChatModelPrep(
+	metadata: PluginMetadata,
+): NonNullable<IntegrationModule["chatModelPrep"]> {
+	const prep = metadata.chatModelPrep;
+	if (!prep) {
+		throw new Error(
+			`Plugin "${metadata.name}" declares chat capability but status.chatModelPrep is missing`,
+		);
+	}
+
+	return {
+		systemPromptSection: prep.systemPromptSection,
+		async buildSingleSessionMessages(persona: Persona, userPrompt: string) {
+			const base = `${prep.singleSessionRules.trim()}\n${globalChatToolsPromptSection()}`;
+			const systemContent = composeSystemPromptWithPersona(base, persona);
+			const messages: Array<{ role: "system" | "user"; content: string }> = [
+				{ role: "system", content: systemContent },
+			];
+
+			const trimmed = userPrompt.trim();
+			if (trimmed) {
+				const userTemplate =
+					prep.singleSessionUserTemplate ?? "User request:\n{{userPrompt}}";
+				messages.push({
+					role: "user",
+					content: substituteTemplate(userTemplate, {
+						userPrompt: trimmed,
+					}),
+				});
+			} else {
+				messages.push({
+					role: "user",
+					content: "Follow the system instruction.",
+				});
+			}
+
+			return messages;
+		},
+		async buildMultiUserContent(userPrompt: string) {
+			const trimmed = userPrompt.trim();
+			return substituteTemplate(prep.multiUserContentTemplate, {
+				userPrompt:
+					trimmed || "(no additional text — follow the system instruction.)",
+			});
+		},
+	};
 }
 
 export function loadPluginMetadata(
@@ -130,6 +230,17 @@ export function loadPluginMetadata(
 		};
 	}
 
+	const capabilities: IntegrationModule["capabilities"] =
+		status.capabilities !== undefined
+			? [...status.capabilities]
+			: ["chat"];
+	if (capabilities.includes("chat") && !status.chatModelPrep) {
+		return {
+			error: `Plugin "${status.name}" declares chat capability but status.chatModelPrep is missing`,
+			code: "missing_chat_model_prep",
+		};
+	}
+
 	return {
 		binaryPath: discovered.binaryPath,
 		name: status.name,
@@ -137,9 +248,11 @@ export function loadPluginMetadata(
 		description: status.description,
 		version: status.version ?? "0.0.0",
 		protocolVersion: status.protocolVersion,
-		capabilities: status.capabilities?.length ? status.capabilities : ["chat"],
+		capabilities,
 		providerCategories: status.providerCategories,
 		resources: status.resources,
+		authMethods: status.authMethods,
+		chatModelPrep: status.chatModelPrep,
 		readOnlyTools: loadReadOnlyToolNames(discovered.binaryPath),
 	};
 }
@@ -152,10 +265,46 @@ function loadReadOnlyToolNames(binaryPath: string): string[] {
 	return toolsResult.data.tools.filter((t) => t.readOnly).map((t) => t.name);
 }
 
+async function resolvePluginChatReadiness(
+	binaryPath: string,
+	name: string,
+	creds: CredentialsFile,
+): Promise<{ ok: boolean; hint?: string }> {
+	const envelope: PluginConfigEnvelope = {
+		config: readPluginConfig(creds, name),
+		state: readPluginState(name),
+	};
+	const statusResult = pluginStatus(binaryPath, envelope);
+	if (!statusResult.ok || !statusResult.data.ok) {
+		const configBlock = creds.integrations?.[name];
+		const hasConfig = Boolean(
+			configBlock && Object.keys(configBlock).length > 0,
+		);
+		return hasConfig
+			? {
+					ok: false,
+					hint: `Run \`toby connect ${name}\` after configuring credentials.`,
+				}
+			: {
+					ok: false,
+					hint: `Configure credentials in \`toby configure\`, then run \`toby connect ${name}\`.`,
+				};
+	}
+
+	if (statusResult.data.chatReadiness) {
+		return statusResult.data.chatReadiness;
+	}
+
+	return { ok: true };
+}
+
 export function createPluginIntegrationModule(
 	metadata: PluginMetadata,
 ): IntegrationModule {
 	const { name, binaryPath } = metadata;
+	const chatModelPrep = metadata.capabilities.includes("chat")
+		? buildPluginChatModelPrep(metadata)
+		: undefined;
 
 	const lifecycle = {
 		name,
@@ -184,6 +333,8 @@ export function createPluginIntegrationModule(
 				);
 			}
 
+			mergePluginConfigPatch(name, result.data.config);
+
 			config.integrations[name] = {
 				...(config.integrations[name] ?? {}),
 				connectedAt: new Date().toISOString(),
@@ -191,7 +342,8 @@ export function createPluginIntegrationModule(
 			};
 			writeConfig(config);
 
-			const sync = pluginConfigSet(binaryPath, envelope);
+			const syncEnvelope = buildEnvelope(name);
+			const sync = pluginConfigSet(binaryPath, syncEnvelope);
 			if (!sync.ok) {
 				console.log(
 					chalk.yellow(`Warning: plugin config sync failed: ${sync.error}`),
@@ -202,6 +354,8 @@ export function createPluginIntegrationModule(
 						`Warning: plugin config sync failed: ${sync.data.reason ?? sync.data.error ?? "unknown"}`,
 					),
 				);
+			} else {
+				mergePluginConfigPatch(name, sync.data.config);
 			}
 
 			console.log(
@@ -223,7 +377,10 @@ export function createPluginIntegrationModule(
 				};
 			}
 
-			const envelope = buildEnvelope(name);
+			const envelope: PluginConfigEnvelope = {
+				...buildEnvelope(name),
+				validateTools: options?.validateTools,
+			};
 			const statusResult = pluginStatus(binaryPath, envelope);
 			if (!statusResult.ok) {
 				return {
@@ -247,33 +404,51 @@ export function createPluginIntegrationModule(
 				};
 			}
 
-			const toolsResult = pluginToolsList(binaryPath);
-			if (!toolsResult.ok) {
+			const toolChecks: IntegrationToolHealth[] = (
+				statusResult.data.tools ?? []
+			).map((t) => ({
+				tool: t.tool,
+				ok: t.ok,
+				details: t.details ?? "",
+			}));
+
+			if (toolChecks.length === 0) {
+				const toolsResult = pluginToolsList(binaryPath);
+				if (!toolsResult.ok) {
+					return {
+						ok: true,
+						details: `Connected, but tool list failed: ${toolsResult.error}`,
+					};
+				}
+				if (!toolsResult.data.ok || !toolsResult.data.tools) {
+					return {
+						ok: true,
+						details: "Connected, but plugin returned no tools.",
+					};
+				}
+
 				return {
 					ok: true,
-					details: `Connected, but tool list failed: ${toolsResult.error}`,
-				};
-			}
-			if (!toolsResult.data.ok || !toolsResult.data.tools) {
-				return {
-					ok: true,
-					details: "Connected, but plugin returned no tools.",
+					details: `Connected with ${toolsResult.data.tools.length} tool(s) available.`,
+					tools: toolsResult.data.tools.map((t) => ({
+						tool: t.name,
+						ok: true,
+						details: t.readOnly
+							? "Read-only tool available."
+							: "Mutating tool available.",
+					})),
 				};
 			}
 
-			const toolChecks: IntegrationToolHealth[] = toolsResult.data.tools.map(
-				(t) => ({
-					tool: t.name,
-					ok: true,
-					details: t.readOnly
-						? "Read-only tool available."
-						: "Mutating tool available.",
-				}),
-			);
-
+			const failedChecks = toolChecks.filter((c) => !c.ok);
 			return {
-				ok: true,
-				details: `Connected with ${toolChecks.length} tool(s) available.`,
+				ok: failedChecks.length === 0,
+				details:
+					failedChecks.length === 0
+						? statusResult.data.details ??
+							`Successfully authenticated and validated ${toolChecks.length}/${toolChecks.length} tools.`
+						: statusResult.data.details ??
+							`Connected, but ${failedChecks.length}/${toolChecks.length} tool checks failed.`,
 				tools: toolChecks,
 			};
 		},
@@ -296,6 +471,8 @@ export function createPluginIntegrationModule(
 				);
 			}
 
+			mergePluginConfigPatch(name, result.data.config);
+
 			Reflect.deleteProperty(config.integrations, name);
 			writeConfig(config);
 			console.log(chalk.green(`${metadata.displayName} disconnected.`));
@@ -314,6 +491,7 @@ export function createPluginIntegrationModule(
 				label: field.label,
 				masked: field.masked,
 				multiline: field.multiline,
+				showForAuthMethods: field.showForAuthMethods,
 			};
 			if (field.type === "select" && field.options?.length) {
 				return {
@@ -398,6 +576,8 @@ export function createPluginIntegrationModule(
 						return { error: execResult.data.error ?? "Tool execution failed" };
 					}
 
+					mergePluginConfigPatch(name, execResult.data.config);
+
 					if (execResult.data.appliedActions?.length) {
 						appliedActions.push(...execResult.data.appliedActions);
 					}
@@ -423,18 +603,21 @@ export function createPluginIntegrationModule(
 		console.log(chalk.dim(`  Goal: ${options.prompt}`));
 		console.log();
 
-		const module = createPluginIntegrationModule(metadata);
-		const result = await runSharedChatTurn(
-			[module],
-			[
-				{
-					role: "system",
-					content: buildPluginSystemMessage(metadata, persona),
-				},
-				{ role: "user", content: options.prompt },
-			],
-			{ persona, dryRun },
+		if (!chatModelPrep) {
+			throw new Error(
+				`Plugin "${name}" does not support chat (missing chatModelPrep)`,
+			);
+		}
+
+		const messages = await chatModelPrep.buildSingleSessionMessages(
+			persona,
+			options.prompt,
 		);
+		const module = createPluginIntegrationModule(metadata);
+		const result = await runSharedChatTurn([module], messages, {
+			persona,
+			dryRun,
+		});
 
 		for (const line of result.appliedActions) {
 			console.log(chalk.green(`+ ${line}`));
@@ -455,6 +638,7 @@ export function createPluginIntegrationModule(
 		capabilities: metadata.capabilities,
 		providerCategories: metadata.providerCategories,
 		resources: metadata.resources,
+		authMethods: metadata.authMethods,
 		getCredentialDescriptors,
 		seedCredentialValues,
 		mergeCredentialsPatch,
@@ -462,44 +646,10 @@ export function createPluginIntegrationModule(
 		chat,
 		chatReadiness: async (creds: CredentialsFile) => {
 			if (await lifecycle.isConnected()) return { ok: true };
-			const configBlock = creds.integrations?.[name];
-			const hasConfig = Boolean(
-				configBlock && Object.keys(configBlock).length > 0,
-			);
-			return hasConfig
-				? { ok: true }
-				: {
-						ok: false,
-						hint: `Configure ${metadata.displayName} in \`toby configure\` or run \`toby connect ${name}\`.`,
-					};
+			return resolvePluginChatReadiness(binaryPath, name, creds);
 		},
-		chatModelPrep: {
-			systemPromptSection: `### ${metadata.displayName}\n${metadata.description}`,
-			async buildSingleSessionMessages(persona, userPrompt) {
-				return [
-					{
-						role: "system" as const,
-						content: buildPluginSystemMessage(metadata, persona),
-					},
-					...(userPrompt.trim()
-						? ([{ role: "user" as const, content: userPrompt }] as const)
-						: []),
-				];
-			},
-			async buildMultiUserContent(userPrompt) {
-				return `## ${metadata.displayName} context\n${metadata.description}\nQuery: "${userPrompt.slice(0, 200)}"`;
-			},
-		},
+		...(chatModelPrep ? { chatModelPrep } : {}),
 	};
-}
-
-function buildPluginSystemMessage(
-	metadata: PluginMetadata,
-	persona: { name: string; instructions: string },
-): string {
-	return `You are assisting via the ${metadata.displayName} integration (plugin v${metadata.version}). ${metadata.description}
-
-Persona: ${persona.name}${persona.instructions ? `\nInstructions: ${persona.instructions}` : ""}`;
 }
 
 export function getPluginReadOnlyToolNames(

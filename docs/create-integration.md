@@ -95,3 +95,31 @@ To ship an integration **outside** the main Toby binary:
 See [`apps/plugin-sample/`](../apps/plugin-sample/) for a minimal reference plugin and build script (`bun run build:plugin:sample`).
 
 No changes to `MODULES` are required — discovery registers plugin-backed modules automatically.
+
+## Migrating a built-in to a plugin
+
+Use this checklist when moving an existing first-party integration out of
+`packages/core/src/integrations/<name>/` (Azure AD is the reference migration):
+
+1. **Audit** the built-in `IntegrationModule` — lifecycle, credentials, tools,
+   `chatModelPrep`, `chatReadiness`, and `testConnection({ validateTools })`.
+2. **Extend the plugin protocol** only if a gap appears; prefer reusing the
+   [complex integration extensions](plugin-protocol.md#complex-integrations-oauth-auth-methods-chat-prep)
+   (`config` writeback, `authMethods`, `validateTools`, `chatModelPrep`,
+   `chatReadiness`).
+3. **Port** `client.ts`, `auth.ts`, `tools.ts`, and prompt strings into
+   `apps/plugin-<name>/` (stdin config envelope; no `~/.toby/` access).
+4. **Map** each `IntegrationModule` hook to protocol subcommands/responses.
+5. **Remove** the module from `BUILTIN_MODULES` and delete integration-specific
+   config helpers from `@toby/core`.
+6. **Migrate** legacy credential shapes (e.g. top-level `credentials.azuread`
+   → `credentials.integrations.azuread`).
+7. **Bundle** the binary in release archives and auto-install to `~/.toby/plugins/`
+   (`install-toby.sh`, upgrade staging, `build:plugins`).
+8. **Verify** configure, connect (all auth methods), status `--validate-tools`,
+   chat, and disconnect against the pre-migration baseline.
+
+Reference implementations:
+
+- Minimal plugin: [`apps/plugin-sample/`](../apps/plugin-sample/)
+- Full parity migration: [`apps/plugin-azuread/`](../apps/plugin-azuread/)

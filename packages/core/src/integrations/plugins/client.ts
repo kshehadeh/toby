@@ -29,10 +29,14 @@ const DEFAULT_TIMEOUT_MS = 25_000;
 const DEFAULT_MAX_BUFFER = 4 * 1024 * 1024;
 
 function serializeEnvelope(envelope: PluginConfigEnvelope = {}): string {
-	return JSON.stringify({
+	const payload: Record<string, unknown> = {
 		config: envelope.config ?? {},
 		state: envelope.state ?? {},
-	});
+	};
+	if (envelope.validateTools) {
+		payload.validateTools = true;
+	}
+	return JSON.stringify(payload);
 }
 
 function invokePlugin<T>(
