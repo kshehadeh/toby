@@ -53,6 +53,9 @@ describe("upgrade staging paths", () => {
 		expect(paths.pluginGmailPath).toBe(
 			path.join(tempDir, "staging", "toby-plugin-gmail"),
 		);
+		expect(paths.pluginApplemailPath).toBe(
+			path.join(tempDir, "staging", "toby-plugin-applemail"),
+		);
 		expect(paths.webPath).toBe(path.join(tempDir, "staging", "web"));
 		expect(paths.archivePath).toBe(
 			path.join(tempDir, "staging", "toby-release.zip"),
