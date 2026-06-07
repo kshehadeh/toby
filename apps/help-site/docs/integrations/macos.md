@@ -5,23 +5,20 @@ title: macOS
 
 # macOS
 
-Connect Toby to local macOS system controls. Toby uses a native **`toby-macos`** helper binary that calls CoreWLAN, CoreAudio, IOBluetooth, IOKit, and AppKit directly — no third-party CLIs or Homebrew packages are required.
+Connect Toby to local macOS system controls. Toby ships **`toby-plugin-macos`**, a Swift plugin that calls CoreWLAN, CoreAudio, IOBluetooth, IOKit, and AppKit directly in-process — no third-party CLIs or Homebrew packages are required.
 
 **CLI name:** `macos`
 
 :::info[Platform]
 
-**macOS only.** On Linux or Windows the integration can appear in configuration, but chat tools only run on a Mac.
+**macOS only.** The plugin must be installed under `~/.toby/plugins/` (included automatically in releases).
 
 :::
 
 ## Prerequisites
 
 - macOS 14+ (Sonoma or later) with Toby running locally on the Mac you want to control
-- The `toby-macos` helper binary, installed to `~/.toby/helpers/` by the install/upgrade flow (included automatically in releases)
-- Optional Shortcuts in Shortcuts.app for Focus, Bluetooth, or Low Power Mode workflows you prefer to run through Shortcuts rather than direct API control
-
-No Homebrew packages are needed. The native helper replaces the previous dependencies on `SwitchAudioSource`, `blueutil`, `airport`, and `networksetup`.
+- `toby-plugin-macos` installed to `~/.toby/plugins/` by the install/upgrade flow
 
 ## Connect
 
@@ -29,7 +26,19 @@ No Homebrew packages are needed. The native helper replaces the previous depende
 toby connect macos
 ```
 
-Toby probes the `toby-macos` helper and stores a connected flag in `~/.toby/config.json`.
+Toby probes native system APIs and stores a connected flag in `~/.toby/config.json`.
+
+## Optional setup (bundled shortcuts)
+
+The macOS plugin can install signed **Toby Focus On** and **Toby Focus Off**
+shortcuts. Apple requires you to confirm each import in Shortcuts.app.
+
+```bash
+toby plugins setup macos
+```
+
+After `toby plugins install`, Toby may prompt to run setup when the plugin
+advertises it. Setup is idempotent — shortcuts already on your Mac are skipped.
 
 ## Configure
 
@@ -37,28 +46,16 @@ Toby probes the `toby-macos` helper and stores a connected flag in `~/.toby/conf
 toby config
 ```
 
-Go to **Integrations → macOS**.
-
-Useful fields:
-
-| Field | Purpose |
-| ----- | ------- |
-| **Wi-Fi Device** | Optional interface override such as `en0` when auto-detect fails. |
-| **Shortcut — Focus / DND ON/OFF** | Exact Shortcut names Toby can run for Focus or Do Not Disturb. |
-| **Shortcut — Bluetooth ON/OFF** | Exact Shortcut names for Bluetooth (alternative to direct IOBluetooth control). |
-| **Shortcut — Low Power Mode ON/OFF** | Exact Shortcut names for Low Power Mode (alternative to `pmset`). |
-
-Save after editing.
+Go to **Integrations → macOS**. There are no credential fields — connect is a one-time session flag on this Mac.
 
 ## Verify
 
 ```bash
 toby status integration -i macos
+toby plugins doctor
 ```
 
 ## Capabilities
-
-All capabilities use the native `toby-macos` helper and require no external tools:
 
 | Capability | Tool | Native framework |
 | ---------- | ---- | ---------------- |
@@ -78,7 +75,7 @@ All capabilities use the native `toby-macos` helper and require no external tool
 | Write clipboard | `macClipboardWrite` | AppKit NSPasteboard |
 | Low Power Mode status | `macLowPowerModeStatus` | `pmset` |
 | Low Power Mode set | `macLowPowerModeSet` | `pmset` |
-| Run Shortcut | `macShortcutsRun` | `/usr/bin/shortcuts` |
+| Run Shortcut | `macShortcutRun` | `/usr/bin/shortcuts` |
 | System information | `macSystemInfo` | sysctl / ProcessInfo |
 | Notifications | `macNotificationsPeek` | **Not supported** |
 
@@ -105,7 +102,7 @@ Mutating calls respect **dry run** modes from `toby chat` when enabled.
 | Area | Notes |
 | ---- | ----- |
 | Wi‑Fi scan | CoreWLAN may require Location Services authorization on first use. |
-| Bluetooth | The helper Info.plist declares `NSBluetoothAlwaysUsageDescription`. |
+| Bluetooth | Plugin Info.plist declares `NSBluetoothAlwaysUsageDescription`. |
 | Shortcuts | macOS may prompt for Automation permissions when Shortcuts access other apps. |
 | Low Power Mode | `pmset` writes may require admin privileges. Use a Shortcut or run `sudo pmset` manually. |
 
@@ -113,7 +110,7 @@ Toby never runs `sudo` for you.
 
 ## Limitations
 
-- **Display brightness** on some Apple Silicon Macs may not be readable or adjustable through the IODisplay APIs. A future update may address this.
+- **Display brightness** on some Apple Silicon Macs may not be readable or adjustable through the IODisplay APIs.
 - **Notification Center** is not exposed through a stable public API, so Toby does not list notifications.
 
 ## Disconnect
@@ -122,7 +119,7 @@ Toby never runs `sudo` for you.
 toby disconnect macos
 ```
 
-This clears Toby's connection flag; it does not delete Shortcuts or modify system settings.
+This clears Toby's connection flag; it does not modify system settings.
 
 ## Related
 

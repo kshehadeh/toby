@@ -1,6 +1,9 @@
 # toby-plugin-applemail
 
-Swift installable Toby plugin for local **Mail.app** automation on macOS (plugin protocol v1).
+Swift installable Toby plugin for local **Mail.app** automation on macOS. Implements
+[plugin protocol v1](../../docs/plugin-protocol.md).
+
+**CLI contract:** [`docs/plugin-protocol.md#cli-contract`](../../docs/plugin-protocol.md#cli-contract) — argv subcommands, stdin/stdout JSON, exit codes.
 
 ## Build
 

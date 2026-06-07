@@ -3,31 +3,21 @@
 Native helpers are small platform-specific executables that Toby can spawn when
 Node/Bun is not the right boundary for talking to the operating system.
 
-Two helpers currently exist:
+**Not the same as installable plugins.** Full integrations that expose connect,
+tools, and chat use the plugin argv contract in [`plugin-protocol.md`](plugin-protocol.md).
+Helpers are thin bridges for discrete native calls (Wi‑Fi status, audio capture)
+while TypeScript keeps product logic.
+
+One helper currently exists:
 
 - **toby-audio-helper** — macOS audio capture for `toby listen` (line-delimited JSON streaming protocol)
-- **toby-macos-helper** — macOS system control for the `macos` integration (single-invocation JSON protocol)
+
+macOS system control (`macos` integration) is an **installable plugin** (`toby-plugin-macos`) that calls native APIs in-process — see [`macos-integration.md`](macos-integration.md).
 
 ```text
 apps/audio-helper/
   Package.swift
   Sources/TobyAudioHelper/main.swift
-
-apps/macos-helper/
-  Package.swift
-  Info.plist
-  Sources/TobyMacOSHelper/
-    CLI.swift
-    AudioCommands.swift
-    BatteryCommands.swift
-    BluetoothCommands.swift
-    ClipboardCommands.swift
-    DisplayCommands.swift
-    FocusCommands.swift
-    LowPowerCommands.swift
-    ShortcutsCommands.swift
-    SystemInfoCommands.swift
-    WiFiCommands.swift
 ```
 
 Use this document as the reference pattern when adding future helpers for native
@@ -73,34 +63,10 @@ protocol because recording is a long-running session:
 - The helper reports progress through a line-delimited JSON protocol.
 - Toby sends a small JSON command over stdin when the recording should stop.
 
-### Request/response protocol (toby-macos-helper)
-
-For the `macos` integration, the system helper uses a **single-invocation JSON**
-protocol because each call does one thing and exits:
-
-- TypeScript wrapper functions (`helperWifiStatus`, `helperAudioList`, etc.)
-  spawn the helper with `[domain, action, ...flags]` arguments.
-- The helper performs one native operation, writes a single JSON object to
-  stdout, and exits.
-- TypeScript parses the JSON and returns typed data or throws on error.
-- Optional `input` option on `execSystemHelper` pipes data via stdin (used by
-  `clipboard write` to avoid ARG_MAX limits).
-
-Example successful response:
-
-```json
-{"ok":true,"helperVersion":"0.1.0","data":{"powerOn":true,"ssid":"MyNetwork","rssi":-42}}
-```
-
-Example error response:
-
-```json
-{"ok":false,"helperVersion":"0.1.0","error":"Wi-Fi is not powered on","code":"wifi_off"}
-```
-
-Choose the request/response pattern when the helper does discrete,
-short-lived operations. Choose the streaming pattern when the helper manages a
-long-lived session with progress events.
+Choose the streaming pattern when the helper manages a long-lived session with
+progress events. For discrete system-control tools exposed to chat, prefer an
+installable plugin that implements [`plugin-protocol.md`](plugin-protocol.md)
+and calls native code in-process (see `toby-plugin-macos`).
 
 ## Process boundary
 
@@ -135,24 +101,6 @@ Example stop command:
 
 ```json
 {"type":"stop","action":"save"}
-```
-
-### Request/response (single JSON)
-
-For short-lived helpers that do one thing per invocation:
-
-- `spawnSync` with `[domain, action, ...flags]` as argv.
-- stdout is a single JSON object (not line-delimited).
-- Optional `input` option on `spawnSync` for piping data via stdin.
-- stderr is for diagnostic text only.
-- The helper exits after writing the response.
-
-Example invocation:
-
-```
-toby-macos wifi status        → stdout: {"ok":true,"helperVersion":"0.1.0","data":{...}}
-toby-macos audio volume       → stdout: {"ok":true,"helperVersion":"0.1.0","data":{...}}
-toby-macos clipboard write --stdin  ← stdin: "text to clipboard", stdout: {"ok":true,...}
 ```
 
 ## Ownership rules
@@ -197,7 +145,7 @@ Build commands should live in `package.json`, for example:
 {
   "scripts": {
     "build:audio-helper": "swift build -c release --package-path apps/audio-helper",
-    "build:system-helper": "swift build -c release --package-path apps/macos-helper"
+    "build:audio-helper": "swift build -c release --package-path apps/audio-helper"
   }
 }
 ```
@@ -271,14 +219,4 @@ See [listen.md](listen.md) for the command-specific recording behavior and audio
 protocol details. See [listen-binaries.md](listen-binaries.md) for how
 `toby-listener` and `whisper-cli` are built and shipped in releases.
 
-### toby-macos-helper (request/response)
-
-The `macos` integration follows this pattern:
-
-- `packages/core/src/integrations/macos/system-helper.ts` resolves the helper path, spawns it, and provides typed wrapper functions for all commands.
-- `packages/core/src/integrations/macos/client.ts` calls typed wrappers and adapts results to the existing tool interface.
-- `packages/core/src/integrations/macos/tools.ts` defines AI tools that call client functions.
-- `packages/core/src/integrations/macos/index.ts` registers the integration and probes the helper on connect.
-- `apps/macos-helper/` contains the Swift executable with 10 command domains.
-
-See [macos-integration.md](macos-integration.md) for the full tool surface and capabilities.
+For macOS system tools, see [macos-integration.md](macos-integration.md) (`toby-plugin-macos`).

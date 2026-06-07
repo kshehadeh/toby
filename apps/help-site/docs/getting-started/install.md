@@ -9,7 +9,7 @@ You can install Toby with the install script, from a release binary, or from sou
 
 ## Option 1: Install script (recommended)
 
-The [install script](https://github.com/kshehadeh/toby/blob/main/install-toby.sh) downloads the latest macOS release archive and installs the `toby` binary to `~/.local/bin`. Bundled helper binaries (`toby-listener`, `toby-macos`, `whisper-cli`) go to `~/.toby/helpers/` and first-party plugins (`toby-plugin-sample`, `toby-plugin-azuread`, `toby-plugin-gmail`) to `~/.toby/plugins/`, so only `toby` is added to your `PATH`. It does not require `sudo`.
+The [install script](https://github.com/kshehadeh/toby/blob/main/install-toby.sh) downloads the latest macOS release archive and installs the `toby` binary to `~/.local/bin`. Bundled helper binaries (`toby-listener`, `whisper-cli`) go to `~/.toby/helpers/` and first-party plugins (`toby-plugin-sample`, `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-applemail`, `toby-plugin-macos`) to `~/.toby/plugins/`, so only `toby` is added to your `PATH`. It does not require `sudo`.
 
 After installing binaries, the script runs `toby whisper setup` to download the default local transcription model (`ggml-base.en.bin`) into `~/.toby/models/`. If that step fails (for example offline install), run `toby whisper setup` later.
 
@@ -65,9 +65,9 @@ If you prefer to download the binary yourself:
 
 ```bash
 unzip toby-darwin-arm64.zip
-chmod +x toby toby-listener toby-macos whisper-cli toby-plugin-*
+chmod +x toby toby-listener whisper-cli toby-plugin-*
 mkdir -p ~/.toby/helpers ~/.toby/plugins
-mv toby-listener toby-macos whisper-cli ~/.toby/helpers/
+mv toby-listener whisper-cli ~/.toby/helpers/
 mv toby-plugin-* ~/.toby/plugins/
 sudo mv toby /usr/local/bin/
 toby whisper setup

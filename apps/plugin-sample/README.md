@@ -3,6 +3,8 @@
 Reference installable integration plugin for [Toby](../../README.md). Implements
 [plugin protocol v1](../../docs/plugin-protocol.md).
 
+**CLI contract:** [`docs/plugin-protocol.md#cli-contract`](../../docs/plugin-protocol.md#cli-contract) — argv subcommands, stdin/stdout JSON, exit codes.
+
 ## Commands
 
 ```bash

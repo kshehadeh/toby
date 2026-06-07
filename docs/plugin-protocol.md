@@ -8,7 +8,17 @@ integrations.
 Toby remains the **source of truth** for configuration and connection state.
 Plugins receive the current config on each invocation and return JSON on stdout.
 
-## Binary naming and discovery
+For the **native helper** pattern (`toby-listener` for audio capture) — a different
+argv/JSON contract for thin platform bridges — see [`native-helpers.md`](native-helpers.md).
+Plugins own full integration logic (tools, connect, chat prep); helpers do not.
+
+## CLI contract
+
+Plugins are **language-agnostic executables**. Toby uses Node `spawnSync` on the
+binary path — no Bun, Node, or Swift runtime is required on the host beyond the
+plugin binary itself ([`packages/core/src/integrations/plugins/client.ts`](../packages/core/src/integrations/plugins/client.ts)).
+
+### Binary naming and discovery
 
 Plugin executables must be named:
 
@@ -28,9 +38,55 @@ When `TOBY_DIR` is set, plugins are loaded from `$TOBY_DIR/plugins/` instead.
 Install plugins with `toby plugins install <path>` or copy binaries into that
 directory manually.
 
-## Invocation contract
+The binary must be **executable** (`chmod +x`). `toby plugins doctor` and
+`toby plugins install` validate naming, `status`, protocol version, and
+`tools list`.
 
-Every subcommand writes **one JSON object** to stdout and uses these exit codes:
+### Invocation shape
+
+Every call is a **single subprocess** that runs one subcommand and exits:
+
+```text
+<absolute-path-to-toby-plugin-<name>> <command> [subcommand]
+```
+
+Examples:
+
+```bash
+~/.toby/plugins/toby-plugin-sample status
+~/.toby/plugins/toby-plugin-gmail connect          # stdin: config envelope
+~/.toby/plugins/toby-plugin-gmail config shape
+~/.toby/plugins/toby-plugin-gmail tools list
+~/.toby/plugins/toby-plugin-gmail tools execute    # stdin: tool request JSON
+```
+
+**Subcommand matrix** (what Toby actually runs):
+
+| argv | stdin | stdout JSON | Used for |
+| ---- | ----- | ----------- | -------- |
+| `status` | optional [config envelope](#config-envelope-stdin) | [status response](#status) | Identity, health, chat prep, `toby plugins doctor` |
+| `connect` | config envelope | `{ ok, reason?, config? }` | `toby connect <name>` |
+| `disconnect` | optional config envelope | `{ ok, reason?, config? }` | `toby disconnect <name>` |
+| `config shape` | *(none)* | `{ ok, fields? }` | Configure UI field defs |
+| `config get` | config envelope | `{ ok, config? }` | Normalized credential readback |
+| `config set` | config envelope | `{ ok }` | Post-save sync hook |
+| `tools list` | *(none)* | `{ ok, tools? }` | Chat tool catalog |
+| `tools execute` | [tool request](#tools-execute) | `{ ok, result?, appliedActions?, config?, error? }` | Chat tool runs |
+| `setup` | optional [config envelope](#config-envelope-stdin) | [setup response](#setup) | One-time plugin setup (`toby plugins setup`) |
+
+Unknown commands or invalid usage must exit **`2`** with JSON `{ ok: false, error, code? }`.
+
+### stdin, stdout, stderr
+
+| Stream | Rule |
+| ------ | ---- |
+| **stdin** | UTF-8 JSON when the subcommand requires it; empty or omitted otherwise |
+| **stdout** | Exactly **one** JSON object, then exit; no log prefixes or trailing text |
+| **stderr** | Human diagnostics only; Toby may surface stderr on failures but does not parse it |
+
+When stdin is empty for envelope-based commands, treat `config` and `state` as `{}`.
+
+### Exit codes
 
 | Code | Meaning |
 | ---- | ------- |
@@ -38,7 +94,39 @@ Every subcommand writes **one JSON object** to stdout and uses these exit codes:
 | `1` | Business failure (`ok: false`) |
 | `2` | Contract/usage error (invalid args, malformed plugin output) |
 
-Human-readable diagnostics may go to stderr. stdout must contain only JSON.
+### Timeouts and limits
+
+Default subprocess limits from the Toby harness:
+
+| Limit | Value |
+| ----- | ----- |
+| Timeout | 25 seconds (`DEFAULT_TIMEOUT_MS` in `client.ts`) |
+| stdout max size | 4 MiB |
+
+Long-running tool work (large mailbox searches, batch API calls) must complete
+within the timeout or Toby reports a spawn/timeout error. Plugins cannot extend
+the timeout from their side today.
+
+### Config ownership
+
+Plugins **must not** read or write `~/.toby/` directly. Toby passes credentials
+and session state on stdin and merges optional `config` writeback from responses
+into `credentials.json` / `config.json`.
+
+### Reference implementations
+
+| Plugin | Language | Build | Notes |
+| ------ | -------- | ----- | ----- |
+| [`apps/plugin-sample/`](../apps/plugin-sample/) | TypeScript → Bun `--compile` | `bun run build:plugin:sample` | Minimal protocol surface |
+| [`apps/plugin-gmail/`](../apps/plugin-gmail/) | TypeScript → Bun `--compile` | `bun run build:plugin:gmail` | OAuth, auth methods, token writeback |
+| [`apps/plugin-azuread/`](../apps/plugin-azuread/) | TypeScript → Bun `--compile` | `bun run build:plugin:azuread` | Full parity migration |
+| [`apps/plugin-applemail/`](../apps/plugin-applemail/) | Swift (SwiftPM) | `bun run build:plugin:applemail` | macOS-only; no embedded JS runtime |
+
+TypeScript plugins route argv in `src/cli.ts`; Swift plugins mirror the same argv
+table in their executable entry point. Protocol types shared with the harness live in
+[`packages/core/src/integrations/plugins/protocol.ts`](../packages/core/src/integrations/plugins/protocol.ts).
+
+## JSON payloads
 
 ### Config envelope (stdin)
 
@@ -89,7 +177,7 @@ Required fields: `ok`, `name`, `displayName`, `description`, `version`,
 `protocolVersion`, `connected`.
 
 Optional: `capabilities` (default `["chat"]`), `providerCategories`, `details`,
-`resources`.
+`resources`, `setupAvailable`, `setupDescription` (see [Plugin setup](#plugin-setup)).
 
 ### `connect`
 
@@ -215,6 +303,8 @@ Optional: `readOnly` (boolean, default `false`).
 
 Runs one tool.
 
+**argv:** `tools execute`
+
 **stdin:**
 
 ```json
@@ -320,6 +410,65 @@ Reference: [`apps/plugin-azuread/`](../apps/plugin-azuread/), [`apps/plugin-gmai
 [`apps/plugin-applemail/`](../apps/plugin-applemail/) (Swift, macOS-native Mail.app). See
 [Migrating a built-in to a plugin](create-integration.md#migrating-a-built-in-to-a-plugin).
 
+### Plugin setup
+
+Plugins that need **one-time setup** (for example installing bundled macOS
+Shortcuts that require user confirmation in Shortcuts.app) can advertise and
+implement an optional `setup` subcommand.
+
+**Advertise on `status`:**
+
+```json
+"setupAvailable": true,
+"setupDescription": "Install bundled Focus shortcuts for Toby"
+```
+
+Omit both fields when the plugin has no setup flow.
+
+**`setup` subcommand** — stdin: optional config envelope. stdout:
+
+```json
+{
+  "ok": true,
+  "actions": [
+    {
+      "id": "shortcut:toby-focus-on",
+      "label": "Install Toby Focus On shortcut",
+      "ok": true,
+      "skipped": true,
+      "detail": "Shortcut already installed."
+    },
+    {
+      "id": "shortcut:toby-focus-off",
+      "label": "Install Toby Focus Off shortcut",
+      "ok": true,
+      "detail": "Opened Shortcuts import — tap Add Shortcut to finish."
+    }
+  ]
+}
+```
+
+Per-action fields:
+
+| Field | Required | Meaning |
+| ----- | -------- | ------- |
+| `id` | yes | Stable machine id for the setup step |
+| `label` | yes | Human-readable step name |
+| `ok` | yes | Step succeeded (including already satisfied when `skipped: true`) |
+| `skipped` | no | Step not attempted because prerequisites are already met |
+| `detail` | no | Explanation, especially for user-intervention steps |
+
+Top-level `ok` is `true` when the setup command ran. Use `ok: false` only for
+fatal errors (unsupported platform, missing bundled assets). Partial per-action
+failures use `ok: false` on individual actions while top-level `ok` stays
+`true`.
+
+**Idempotency:** plugin-owned. Toby does not persist setup completion; plugins
+detect whether setup is already satisfied (for example by checking
+`shortcuts list` on macOS).
+
+Reference: [`apps/plugin-macos/`](../apps/plugin-macos/) (bundled Shortcuts).
+
 ## Protocol versioning
 
 `protocolVersion` must be `"1"` for this spec. Toby rejects plugins reporting
@@ -327,9 +476,9 @@ an unsupported protocol version.
 
 ## Reference implementation
 
-See [`apps/plugin-sample/`](../apps/plugin-sample/) for a
-minimal plugin built independently. Release archives include the sample plugin plus
-first-party integrations (`toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-applemail`);
+See the [reference implementations](#reference-implementations) table above.
+Release archives include the sample plugin plus first-party integrations
+(`toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-applemail`);
 `install-toby.sh` and `toby upgrade` install them into `~/.toby/plugins/`.
 
 ## Installing plugins
@@ -349,11 +498,23 @@ The install command:
 2. Validates naming, `status`, protocol version, and `tools list` (same bar as `toby plugins doctor`)
 3. Rejects names that collide with built-in integrations
 4. Copies the binary into `~/.toby/plugins/` (or `$TOBY_DIR/plugins/`)
+5. If `status.setupAvailable` is true, prompts to run setup (interactive TTY only)
 
 Flags:
 
 - `--force` — overwrite an existing managed install
 - `--link` — symlink instead of copy (useful while developing a plugin locally)
+- `--setup` — run setup after install without prompting (requires a TTY when setup needs user interaction)
+- `--no-setup` — skip the setup prompt and do not run setup
+
+Non-interactive installs skip setup unless `--setup` is passed; passing
+`--setup` without a TTY fails because setup may require GUI confirmation.
+
+Re-run setup anytime:
+
+```bash
+toby plugins setup macos
+```
 
 To remove a managed install:
 
@@ -379,3 +540,4 @@ install command. Run `toby plugins list` to confirm discovery.
 5. Honor `dryRun` in `tools execute` for mutating tools.
 6. Return `appliedActions` strings for side effects.
 7. Install with `toby plugins install <path>`, or copy the binary into `~/.toby/plugins/`.
+8. Optional: implement `setup` and set `status.setupAvailable` when one-time setup is needed.

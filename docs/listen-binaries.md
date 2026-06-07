@@ -18,7 +18,7 @@ Each macOS release archive (`toby-darwin-arm64.zip`, `toby-darwin-x64.zip`) cont
 ```text
 toby                 # Bun-compiled CLI (only binary on PATH after install)
 toby-listener        # Audio capture + transcription orchestration
-toby-macos           # macOS system integration helper
+toby-plugin-macos    # macOS system integration plugin
 toby-plugin-sample   # Sample installable plugin
 toby-plugin-azuread  # Azure AD integration plugin
 toby-plugin-gmail    # Gmail integration plugin
@@ -101,7 +101,7 @@ The whisper.cpp checkout is cached under `.build/whisper.cpp-${SWIFT_ARCH}/` bet
 
 ### Lightweight dev executable build
 
-`bun run build:executable` compiles `dist/toby`, `dist/toby-listener`, `dist/toby-macos`, and first-party plugins via `build:plugins` for the **host** architecture only. It does **not** build `whisper-cli`. Use `bun run build:release` when you need the full release payload locally.
+`bun run build:executable` compiles `dist/toby`, `dist/toby-listener`, and first-party plugins via `build:plugins` for the **host** architecture only. It does **not** build `whisper-cli`. Use `bun run build:release` when you need the full release payload locally.
 
 ## CI and GitHub Releases
 

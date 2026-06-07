@@ -81,7 +81,7 @@ Release build steps:
 
 1. Matrix builds **two** signed and notarized macOS archives:
    `toby-darwin-arm64.zip` and `toby-darwin-x64.zip`.
-2. Each archive contains `toby`, `toby-listener`, `toby-macos`, `toby-plugin-sample`, `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-applemail`, and `whisper-cli`.
+2. Each archive contains `toby`, `toby-listener`, `toby-plugin-sample`, `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-applemail`, `toby-plugin-macos`, and `whisper-cli`.
 3. Creates a **GitHub Release** for that tag and uploads those files as release assets (via `softprops/action-gh-release`).
 
 The release workflow uses the same Apple Developer secrets as DevDash:
@@ -108,7 +108,7 @@ archive with a warning. Invalid non-empty credentials fail the release instead
 of silently publishing an unexpectedly unsigned build.
 
 Local `bun run build:release` builds `dist/toby`, `dist/toby-listener`,
-`dist/toby-macos`, `dist/toby-plugin-sample`, `dist/toby-plugin-azuread`, `dist/toby-plugin-gmail`, `dist/toby-plugin-applemail`, `dist/whisper-cli`, and `dist/web/`
+`dist/toby-plugin-sample`, `dist/toby-plugin-azuread`, `dist/toby-plugin-gmail`, `dist/toby-plugin-applemail`, `dist/toby-plugin-macos`, `dist/whisper-cli`, and `dist/web/`
 (the built React UI). Verify staged artifacts with
 `node scripts/verify-release-artifacts.mjs release-payload`.
 Use the GitHub release workflow for signed and notarized distribution artifacts.
@@ -141,7 +141,7 @@ From the repo root, [`install-toby.sh`](../install-toby.sh) downloads the
 **`~/.local/bin/toby`** (override with `TOBY_INSTALL_DIR`). The web UI static
 files are installed as **`~/.local/bin/web/`** (sibling of the `toby` binary).
 The bundled helper
-binaries (`toby-listener`, `toby-macos`, `whisper-cli`) are placed under **`~/.toby/helpers/`**
+binaries (`toby-listener`, `whisper-cli`) are placed under **`~/.toby/helpers/`**
 and first-party plugins (`toby-plugin-sample`, `toby-plugin-azuread`,
 `toby-plugin-gmail`, `toby-plugin-applemail`) under **`~/.toby/plugins/`**, so only `toby` lands on your
 `PATH`. It does not use `sudo`. The script then runs **`toby whisper setup`** to

@@ -62,6 +62,8 @@ Each integration typically owns:
 
 **Apple Mail** is shipped as a Swift installable plugin (`toby-plugin-applemail`); see [`apps/plugin-applemail/`](../apps/plugin-applemail/) and [`apple-mail.md`](apple-mail.md). It is **macOS-only** and controls local Mail.app via AppleScript.
 
+**macOS** is shipped as a Swift installable plugin (`toby-plugin-macos`); see [`apps/plugin-macos/`](../apps/plugin-macos/) and [`macos-integration.md`](macos-integration.md). It is **macOS-only** and controls local system settings (Wi‑Fi, Bluetooth, battery, audio, display, clipboard, shortcuts) via native frameworks in-process.
+
 **Apple Calendar** ([`packages/core/src/integrations/applecalendar/`](../packages/core/src/integrations/applecalendar/)) is **macOS-only**: it uses **EventKit** (AppleScriptObjC) for fast event search across all calendar types (including Exchange/iCloud), and Calendar.app AppleScript for create/update/delete operations. See [`apple-calendar.md`](apple-calendar.md) for setup, permissions, and AppleScript pitfalls.
 
 **Brave Search** ([`packages/core/src/integrations/bravesearch/`](../packages/core/src/integrations/bravesearch/)) is the **Search** provider category integration: API-key auth, with a `webSearch` chat tool for web search (query, count, freshness filter). The `webSearch` tool is also wired as a **conditional global tool** — when a Brave Search API key is present in credentials, the tool is available in every chat session without needing to explicitly select the integration.
