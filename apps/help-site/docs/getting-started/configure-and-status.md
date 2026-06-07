@@ -38,7 +38,7 @@ List all integrations and whether they are connected:
 toby connect
 ```
 
-OAuth integrations (Gmail, Slack, Azure AD) open a browser or local callback during `connect`. API-key integrations (Todoist, Jira, Brave Search) validate credentials and mark the integration connected.
+OAuth integrations (Gmail, Slack, Azure AD) open a browser or local callback during `connect`. Gmail and Azure AD are installable plugins bundled in release archives (installed to `~/.toby/plugins/`). API-key integrations (Todoist, Jira, Brave Search) validate credentials and mark the integration connected.
 
 ## 3. Check status
 

@@ -13,15 +13,20 @@ Transcription models (for example `ggml-base.en.bin`) are **not** bundled in rel
 
 ## Release layout
 
-Each macOS release archive (`toby-darwin-arm64.zip`, `toby-darwin-x64.zip`) contains five executables:
+Each macOS release archive (`toby-darwin-arm64.zip`, `toby-darwin-x64.zip`) contains these executables:
 
 ```text
 toby                 # Bun-compiled CLI (only binary on PATH after install)
 toby-listener        # Audio capture + transcription orchestration
 toby-macos           # macOS system integration helper
 toby-plugin-sample   # Sample installable plugin
+toby-plugin-azuread  # Azure AD integration plugin
+toby-plugin-gmail    # Gmail integration plugin
 whisper-cli          # whisper.cpp CLI
 ```
+
+[`install-toby.sh`](../install-toby.sh) and `toby upgrade` install the plugin
+binaries into **`~/.toby/plugins/`** alongside helpers under **`~/.toby/helpers/`**.
 
 [`install-toby.sh`](../install-toby.sh) installs `toby` to `~/.local/bin/` (or `TOBY_INSTALL_DIR`) and places the helper binaries under **`~/.toby/helpers/`**. It then runs **`toby whisper setup`** to fetch the default model.
 
@@ -45,7 +50,7 @@ On a native macOS machine you can use the convenience script:
 bun run build:release
 ```
 
-This writes all five binaries to **`dist/`** and runs [`scripts/verify-release-artifacts.mjs`](../scripts/verify-release-artifacts.mjs) to confirm they exist and are executable.
+This writes all release binaries to **`dist/`** and runs [`scripts/verify-release-artifacts.mjs`](../scripts/verify-release-artifacts.mjs) to confirm they exist and are executable.
 
 ### Listener (`toby-listener`)
 
@@ -95,7 +100,7 @@ The whisper.cpp checkout is cached under `.build/whisper.cpp-${SWIFT_ARCH}/` bet
 
 ### Lightweight dev executable build
 
-`bun run build:executable` compiles `dist/toby`, `dist/toby-listener`, and `dist/toby-macos` for the **host** architecture only. It does **not** build `whisper-cli` or `toby-plugin-sample`. Use `bun run build:release` when you need the full release payload locally.
+`bun run build:executable` compiles `dist/toby`, `dist/toby-listener`, `dist/toby-macos`, and first-party plugins via `build:plugins` for the **host** architecture only. It does **not** build `whisper-cli`. Use `bun run build:release` when you need the full release payload locally.
 
 ## CI and GitHub Releases
 

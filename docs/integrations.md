@@ -56,7 +56,7 @@ Each integration typically owns:
 - **`prompts/`** — System/user message builders for summarize, organize, etc.
 - **`cli.ts`** (optional) — Commander registration kept out of `apps/cli/src/commands/`.
 
-**Gmail** and **Todoist** under [`packages/core/src/integrations/gmail/`](../packages/core/src/integrations/gmail/) and [`packages/core/src/integrations/todoist/`](../packages/core/src/integrations/todoist/) are the reference implementations.
+**Gmail** is shipped as an installable plugin (`toby-plugin-gmail`); **Todoist** under [`packages/core/src/integrations/todoist/`](../packages/core/src/integrations/todoist/) is the reference built-in implementation.
 
 **Slack** ([`packages/core/src/integrations/slack/`](../packages/core/src/integrations/slack/)) is the **Chat** provider category integration: OAuth (PKCE + user scopes on localhost) or manual bot token auth, with chat tools to search channels/users, post messages, reply in threads, and search message history. **Daemon inbound** (@mentions via Socket Mode) always requires a **bot token** (`xoxb-…`) and **app token** (`xapp-…`) in addition to OAuth user credentials—see [help-site Slack credentials](../apps/help-site/docs/integrations/slack.md#credentials-and-auth-reference).
 
@@ -102,8 +102,9 @@ the subprocess protocol in [`plugin-protocol.md`](plugin-protocol.md).
 
 Runtime code lives under [`packages/core/src/integrations/plugins/`](../packages/core/src/integrations/plugins/).
 Reference plugins: [`apps/plugin-sample/`](../apps/plugin-sample/) (minimal),
-[`apps/plugin-azuread/`](../apps/plugin-azuread/) (full parity; shipped in release
-archives as `toby-plugin-azuread`).
+[`apps/plugin-azuread/`](../apps/plugin-azuread/) and
+[`apps/plugin-gmail/`](../apps/plugin-gmail/) (full parity; shipped in release
+archives as `toby-plugin-azuread` and `toby-plugin-gmail`).
 
 Built-in modules in `MODULES` take precedence when names collide. Toby remains
 the source of truth for credentials (`credentials.json`) and connection state

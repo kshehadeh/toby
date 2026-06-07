@@ -9,6 +9,11 @@ Connect Toby to your Gmail account to read, search, and organize email from chat
 
 **CLI name:** `gmail`
 
+Gmail ships as an installable plugin (`toby-plugin-gmail`). Release installs
+and upgrades place it in `~/.toby/plugins/` automatically. When building from
+source, run `bun run build:plugin:gmail` then
+`toby plugins install ./dist/toby-plugin-gmail`.
+
 ## Prerequisites
 
 - A Google Cloud project with the Gmail API enabled

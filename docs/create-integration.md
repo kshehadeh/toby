@@ -1,6 +1,6 @@
 # Creating a new integration
 
-This checklist assumes a **first-party** integration in **`@toby/core`** under `packages/core/src/integrations/<id>/`, consistent with Gmail and Todoist. Ink/configure UX stays in `apps/cli`; harness code stays in core. See [`architecture.md`](architecture.md#core-vs-apps).
+This checklist assumes a **first-party** integration in **`@toby/core`** under `packages/core/src/integrations/<id>/`, consistent with Todoist and Slack. Gmail and Azure AD ship as installable plugins instead (see [Migrating a built-in to a plugin](#migrating-a-built-in-to-a-plugin)). Ink/configure UX stays in `apps/cli`; harness code stays in core. See [`architecture.md`](architecture.md#core-vs-apps).
 
 ## 1. Scaffold the folder
 
@@ -28,7 +28,7 @@ In `index.ts`:
 4. Implement **`getCredentialDescriptors`**, **`seedCredentialValues`**, and **`mergeCredentialsPatch`** so `configure` can show and persist secrets. Map into `CredentialsFile` in [`packages/core/src/config/index.ts`](../packages/core/src/config/index.ts) — you may need to extend `CredentialsFile` with a new optional block for your service.
    - If your integration supports multiple auth paths, set `authMethods` on the module and use `showForAuthMethods` on descriptors so the configure UI shows only fields relevant to the selected method.
 5. If the integration supports inbox-style summaries, implement **`summarize`** returning `{ status: "ok", messages }` or `{ status: "empty", message }` per [`SummarizeRunResult`](../packages/core/src/integrations/types.ts).
-6. Optionally implement **`registerCommands(program)`** for integration-specific commands (see [`packages/core/src/integrations/gmail/cli.ts`](../packages/core/src/integrations/gmail/cli.ts)).
+6. Optionally implement **`registerCommands(program)`** for integration-specific subcommands (see Todoist or Slack modules for examples).
 
 ### Note on watch / scheduling
 
@@ -99,7 +99,7 @@ No changes to `MODULES` are required — discovery registers plugin-backed modul
 ## Migrating a built-in to a plugin
 
 Use this checklist when moving an existing first-party integration out of
-`packages/core/src/integrations/<name>/` (Azure AD is the reference migration):
+`packages/core/src/integrations/<name>/` (Azure AD and Gmail are reference migrations):
 
 1. **Audit** the built-in `IntegrationModule` — lifecycle, credentials, tools,
    `chatModelPrep`, `chatReadiness`, and `testConnection({ validateTools })`.
@@ -122,4 +122,4 @@ Use this checklist when moving an existing first-party integration out of
 Reference implementations:
 
 - Minimal plugin: [`apps/plugin-sample/`](../apps/plugin-sample/)
-- Full parity migration: [`apps/plugin-azuread/`](../apps/plugin-azuread/)
+- Full parity migrations: [`apps/plugin-azuread/`](../apps/plugin-azuread/), [`apps/plugin-gmail/`](../apps/plugin-gmail/)

@@ -116,7 +116,7 @@ Why:
 
 Where this is implemented:
 
-- Gmail system prompt is static policy + tool strategy in `packages/core/src/integrations/gmail/prompts/chat.ts` (`buildGmailChatSystemMessage`).
+- Gmail system prompt is static policy + tool strategy in `apps/plugin-gmail/src/prompts.ts` (`GMAIL_SINGLE_SESSION_RULES`; adapter wraps persona and global tools).
 - Todoist system prompt is static policy + tool rules in `packages/core/src/integrations/todoist/prompts/chat.ts` (`buildTodoistChatSystemMessage`).
 - Multi-integration system prompt is assembled in `packages/core/src/prepare-messages.ts` and does **not** embed the user request.
 - The actual user request (and dynamic context like task snapshots) is always provided via `role: "user"` messages.

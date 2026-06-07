@@ -67,6 +67,22 @@ Every integration uses the same workflow:
 
 See [Configure and connect](../getting-started/configure-and-status) for the full walkthrough.
 
+## Installable plugins
+
+Gmail and Azure AD ship as **plugin binaries** bundled in release archives. Fresh
+installs (`install-toby.sh`) and `toby upgrade` copy them into `~/.toby/plugins/`
+automatically—no manual `toby plugins install` step is required for those
+integrations. The sample plugin (`toby-plugin-sample`) is also installed for
+reference and testing.
+
+When developing from a git clone, build and link plugins yourself:
+
+```bash
+bun run build:plugin:gmail
+toby plugins install ./dist/toby-plugin-gmail --link --force
+toby plugins doctor
+```
+
 ## Provider categories
 
 Each integration declares one or more **provider categories**. A category describes the *kind of work* the integration does—not the vendor name. Toby uses categories when more than one connected integration could answer the same kind of request.

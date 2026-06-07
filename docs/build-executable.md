@@ -10,8 +10,10 @@ bun run build:executable
 The main executable output is **`dist/toby`**.
 The macOS listener helper is copied to **`dist/toby-listener`** and should be
 installed beside `toby`.
-Installable plugins are built to **`dist/toby-plugin-sample`** and
-**`dist/toby-plugin-azuread`**. Install with `toby plugins install ./dist/...` (see
+Installable plugins are built to **`dist/toby-plugin-sample`**,
+**`dist/toby-plugin-azuread`**, and **`dist/toby-plugin-gmail`**. Release installs
+and upgrades copy first-party plugins into `~/.toby/plugins/` automatically; when
+building from source, install with `toby plugins install ./dist/...` (see
 [`docs/plugin-protocol.md`](plugin-protocol.md)).
 
 ## Requirements
@@ -79,7 +81,7 @@ Release build steps:
 
 1. Matrix builds **two** signed and notarized macOS archives:
    `toby-darwin-arm64.zip` and `toby-darwin-x64.zip`.
-2. Each archive contains `toby`, `toby-listener`, `toby-macos`, `toby-plugin-sample`, `toby-plugin-azuread`, and `whisper-cli`.
+2. Each archive contains `toby`, `toby-listener`, `toby-macos`, `toby-plugin-sample`, `toby-plugin-azuread`, `toby-plugin-gmail`, and `whisper-cli`.
 3. Creates a **GitHub Release** for that tag and uploads those files as release assets (via `softprops/action-gh-release`).
 
 The release workflow uses the same Apple Developer secrets as DevDash:
@@ -106,7 +108,7 @@ archive with a warning. Invalid non-empty credentials fail the release instead
 of silently publishing an unexpectedly unsigned build.
 
 Local `bun run build:release` builds `dist/toby`, `dist/toby-listener`,
-`dist/toby-macos`, `dist/toby-plugin-sample`, `dist/toby-plugin-azuread`, `dist/whisper-cli`, and `dist/web/`
+`dist/toby-macos`, `dist/toby-plugin-sample`, `dist/toby-plugin-azuread`, `dist/toby-plugin-gmail`, `dist/whisper-cli`, and `dist/web/`
 (the built React UI). Verify staged artifacts with
 `node scripts/verify-release-artifacts.mjs release-payload`.
 Use the GitHub release workflow for signed and notarized distribution artifacts.
@@ -114,7 +116,7 @@ Use the GitHub release workflow for signed and notarized distribution artifacts.
 For how the listener and transcriber binaries are built, cross-compiled in CI,
 and installed under `~/.toby/helpers/`, see [listen-binaries.md](listen-binaries.md).
 Note that `bun run build:executable` is a lighter dev build and does not include
-`whisper-cli` or `toby-plugin-sample`.
+`whisper-cli`. It does run `build:plugins` (sample, Azure AD, and Gmail).
 
 Ensure **Actions** permissions allow the default `GITHUB_TOKEN` to create releases for tag pushes (Repository → Settings → Actions → General → Workflow permissions → read and write).
 
@@ -140,7 +142,8 @@ From the repo root, [`install-toby.sh`](../install-toby.sh) downloads the
 files are installed as **`~/.local/bin/web/`** (sibling of the `toby` binary).
 The bundled helper
 binaries (`toby-listener`, `toby-macos`, `whisper-cli`) are placed under **`~/.toby/helpers/`**
-and the sample plugin under **`~/.toby/plugins/`**, so only `toby` lands on your
+and first-party plugins (`toby-plugin-sample`, `toby-plugin-azuread`,
+`toby-plugin-gmail`) under **`~/.toby/plugins/`**, so only `toby` lands on your
 `PATH`. It does not use `sudo`. The script then runs **`toby whisper setup`** to
 download the default transcription model into **`~/.toby/models/`**. If the install directory is not on `PATH`, the
 script prints how to add it for zsh, bash, or fish.
