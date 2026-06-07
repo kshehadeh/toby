@@ -95,6 +95,7 @@ include in `build:plugins` if shipping in release.
 | `config set` | envelope | Optional sync hook |
 | `tools list` | — | JSON Schema per tool |
 | `tools execute` | tool request JSON | Honor `dryRun`; `appliedActions` for mutations |
+| `setup` | optional envelope | **Optional** one-time setup; set `status.setupAvailable` |
 
 ### 3. Build & install
 
@@ -102,6 +103,7 @@ include in `build:plugins` if shipping in release.
 bun run build:plugin:<name>
 toby plugins install ./dist/toby-plugin-<name>   # or --link --force for dev
 toby plugins doctor
+toby plugins setup <name>   # when setupAvailable
 toby plugins inspect <name>
 ```
 
