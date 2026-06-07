@@ -5,7 +5,7 @@
 #   - toby → $TOBY_INSTALL_DIR (default ~/.local/bin)
 #   - web UI → sibling web/ directory
 #   - toby-listener, whisper-cli → ~/.toby/helpers/
-#   - toby-plugin-sample, toby-plugin-azuread, toby-plugin-gmail, toby-plugin-applemail, toby-plugin-macos → ~/.toby/plugins/
+#   - toby-plugin-sample, toby-plugin-azuread, toby-plugin-gmail, toby-plugin-applemail, toby-plugin-applecalendar, toby-plugin-macos → ~/.toby/plugins/
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/OWNER/toby/main/install-toby.sh | bash
@@ -113,6 +113,11 @@ if [[ -f "${tmpdir}/toby-plugin-applemail" ]]; then
 	has_applemail_plugin=true
 fi
 
+has_applecalendar_plugin=false
+if [[ -f "${tmpdir}/toby-plugin-applecalendar" ]]; then
+	has_applecalendar_plugin=true
+fi
+
 has_macos_plugin=false
 if [[ -f "${tmpdir}/toby-plugin-macos" ]]; then
 	has_macos_plugin=true
@@ -169,6 +174,13 @@ if $has_applemail_plugin; then
 	mkdir -p "$toby_plugins_dir"
 	mv "${tmpdir}/toby-plugin-applemail" "${toby_plugins_dir}/toby-plugin-applemail"
 	echo "Installed: ${toby_plugins_dir}/toby-plugin-applemail"
+fi
+
+if $has_applecalendar_plugin; then
+	chmod +x "${tmpdir}/toby-plugin-applecalendar"
+	mkdir -p "$toby_plugins_dir"
+	mv "${tmpdir}/toby-plugin-applecalendar" "${toby_plugins_dir}/toby-plugin-applecalendar"
+	echo "Installed: ${toby_plugins_dir}/toby-plugin-applecalendar"
 fi
 
 if $has_macos_plugin; then

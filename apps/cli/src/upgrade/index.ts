@@ -110,6 +110,7 @@ export function getStagingPaths(): {
 	readonly pluginAzureadPath: string;
 	readonly pluginGmailPath: string;
 	readonly pluginApplemailPath: string;
+	readonly pluginApplecalendarPath: string;
 	readonly pluginMacosPath: string;
 	readonly webPath: string;
 	readonly archivePath: string;
@@ -126,6 +127,7 @@ export function getStagingPaths(): {
 		pluginAzureadPath: path.join(stagingDir, "toby-plugin-azuread"),
 		pluginGmailPath: path.join(stagingDir, "toby-plugin-gmail"),
 		pluginApplemailPath: path.join(stagingDir, "toby-plugin-applemail"),
+		pluginApplecalendarPath: path.join(stagingDir, "toby-plugin-applecalendar"),
 		pluginMacosPath: path.join(stagingDir, "toby-plugin-macos"),
 		webPath: path.join(stagingDir, "web"),
 		archivePath: path.join(stagingDir, "toby-release.zip"),
@@ -219,6 +221,7 @@ export async function downloadRelease(
 		pluginAzureadPath,
 		pluginGmailPath,
 		pluginApplemailPath,
+		pluginApplecalendarPath,
 		pluginMacosPath,
 		archivePath,
 		manifestPath,
@@ -238,6 +241,7 @@ export async function downloadRelease(
 		await rm(pluginAzureadPath, { force: true }).catch(() => undefined);
 		await rm(pluginGmailPath, { force: true }).catch(() => undefined);
 		await rm(pluginApplemailPath, { force: true }).catch(() => undefined);
+		await rm(pluginApplecalendarPath, { force: true }).catch(() => undefined);
 		await rm(pluginMacosPath, { force: true }).catch(() => undefined);
 		await rm(archivePath, { force: true }).catch(() => undefined);
 		await rm(manifestPath, { force: true }).catch(() => undefined);
@@ -367,12 +371,17 @@ export async function applyStagedRelease(
 		pluginAzureadPath,
 		pluginGmailPath,
 		pluginApplemailPath,
+		pluginApplecalendarPath,
 		pluginMacosPath,
 	} = getStagingPaths();
 	await installStagedPluginBinary(pluginSamplePath, "toby-plugin-sample");
 	await installStagedPluginBinary(pluginAzureadPath, "toby-plugin-azuread");
 	await installStagedPluginBinary(pluginGmailPath, "toby-plugin-gmail");
 	await installStagedPluginBinary(pluginApplemailPath, "toby-plugin-applemail");
+	await installStagedPluginBinary(
+		pluginApplecalendarPath,
+		"toby-plugin-applecalendar",
+	);
 	await installStagedPluginBinary(pluginMacosPath, "toby-plugin-macos");
 
 	// Migration: older installs placed helper binaries next to `toby` on PATH.
