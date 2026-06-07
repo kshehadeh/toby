@@ -7,6 +7,14 @@ export type UpgradeUiStatus =
 			readonly tag?: string;
 			readonly progress: number | null;
 	  }
+	| {
+			readonly status: "extracting";
+			readonly tag?: string;
+	  }
+	| {
+			readonly status: "verifying";
+			readonly tag?: string;
+	  }
 	| { readonly status: "ready"; readonly version: string }
 	| { readonly status: "error"; readonly message: string };
 

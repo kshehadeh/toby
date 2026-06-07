@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import { cp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -41,17 +41,28 @@ export interface StagingManifest {
 	readonly completedAt: string;
 }
 
-export interface DownloadProgress {
-	readonly bytesReceived: number;
-	readonly totalBytes: number | null;
-	readonly percent: number | null;
+export type UpgradeProgressPhase =
+	| "downloading"
+	| "extracting"
+	| "verifying"
+	| "installing";
+
+export interface UpgradeProgress {
+	readonly phase: UpgradeProgressPhase;
+	readonly bytesReceived?: number;
+	readonly totalBytes?: number | null;
+	readonly percent?: number | null;
+	readonly detail?: string;
 }
+
+/** @deprecated Use {@link UpgradeProgress} */
+export type DownloadProgress = UpgradeProgress;
 
 export interface DownloadReleaseOptions {
 	readonly tag?: string;
 	readonly repo?: string;
 	readonly installDir?: string;
-	readonly onProgress?: (progress: DownloadProgress) => void;
+	readonly onProgress?: (progress: UpgradeProgress) => void;
 }
 
 export interface DownloadReleaseResult {
@@ -263,7 +274,11 @@ export async function downloadRelease(
 			tempArchivePath,
 			options.onProgress,
 		);
+		options.onProgress?.({ phase: "extracting" });
+		await yieldToEventLoop();
 		await extractReleaseArchive(tempArchivePath, stagingDir);
+		options.onProgress?.({ phase: "verifying" });
+		await yieldToEventLoop();
 		await chmodExecutable(binaryPath);
 		await chmodExecutable(listenerPath);
 		if (fs.existsSync(whisperCliPath)) {
@@ -316,7 +331,10 @@ export async function downloadRelease(
 
 export async function applyStagedRelease(
 	installTargetOverride?: string,
+	options?: { readonly onProgress?: (progress: UpgradeProgress) => void },
 ): Promise<ApplyStagedResult> {
+	options?.onProgress?.({ phase: "installing", detail: "toby" });
+	await yieldToEventLoop();
 	const manifest = await readStagingManifest();
 	if (!manifest) {
 		throw new Error(
@@ -373,6 +391,8 @@ export async function applyStagedRelease(
 	}
 
 	if (fs.existsSync(path.join(webPath, "index.html"))) {
+		options?.onProgress?.({ phase: "installing", detail: "web UI" });
+		await yieldToEventLoop();
 		const webInstallTarget = path.join(path.dirname(installTarget), "web");
 		await rm(webInstallTarget, { recursive: true, force: true });
 		await cp(webPath, webInstallTarget, { recursive: true });
@@ -389,6 +409,8 @@ export async function applyStagedRelease(
 		pluginApplecalendarPath,
 		pluginMacosPath,
 	} = getStagingPaths();
+	options?.onProgress?.({ phase: "installing", detail: "plugins" });
+	await yieldToEventLoop();
 	await installStagedPluginBinary(pluginSamplePath, "toby-plugin-sample");
 	await installStagedPluginBinary(pluginAzureadPath, "toby-plugin-azuread");
 	await installStagedPluginBinary(pluginGmailPath, "toby-plugin-gmail");
@@ -451,10 +473,12 @@ export async function runFullUpgrade(options: {
 	readonly tag?: string;
 	readonly repo?: string;
 	readonly installDir?: string;
-	readonly onProgress?: (progress: DownloadProgress) => void;
+	readonly onProgress?: (progress: UpgradeProgress) => void;
 }): Promise<ApplyStagedResult> {
 	const download = await downloadRelease(options);
-	return applyStagedRelease(download.installTarget);
+	return applyStagedRelease(download.installTarget, {
+		onProgress: options.onProgress,
+	});
 }
 
 async function installStagedPluginBinary(
@@ -521,7 +545,7 @@ export async function removeLegacySiblingHelpers(
 async function downloadReleaseAsset(
 	downloadUrl: string,
 	destinationPath: string,
-	onProgress?: (progress: DownloadProgress) => void,
+	onProgress?: (progress: UpgradeProgress) => void,
 ): Promise<void> {
 	try {
 		const response = await fetch(downloadUrl);
@@ -544,6 +568,7 @@ async function downloadReleaseAsset(
 			const arrayBuffer = await response.arrayBuffer();
 			await writeFile(destinationPath, Buffer.from(arrayBuffer));
 			onProgress?.({
+				phase: "downloading",
 				bytesReceived: arrayBuffer.byteLength,
 				totalBytes,
 				percent: totalBytes ? 100 : null,
@@ -567,6 +592,7 @@ async function downloadReleaseAsset(
 			chunks.push(chunk);
 			bytesReceived += chunk.length;
 			onProgress?.({
+				phase: "downloading",
 				bytesReceived,
 				totalBytes,
 				percent:
@@ -587,13 +613,13 @@ async function extractReleaseArchive(
 	archivePath: string,
 	destinationDir: string,
 ): Promise<void> {
-	const result = spawnSync(
-		"unzip",
-		["-o", "-q", archivePath, "-d", destinationDir],
-		{
-			encoding: "utf8",
-		},
-	);
+	const result = await runCommand("unzip", [
+		"-o",
+		"-q",
+		archivePath,
+		"-d",
+		destinationDir,
+	]);
 	if (result.status !== 0) {
 		throw new Error(
 			`Failed to extract ${archivePath}: ${result.stderr || "unknown error"}`,
@@ -605,6 +631,30 @@ async function extractReleaseArchive(
 			throw new Error(`Release archive is missing ${fileName}.`);
 		}
 	}
+}
+
+function runCommand(
+	command: string,
+	args: readonly string[],
+): Promise<{ status: number; stderr: string }> {
+	return new Promise((resolve, reject) => {
+		const child = spawn(command, args);
+		let stderr = "";
+		child.stderr?.setEncoding("utf8");
+		child.stderr?.on("data", (chunk: string) => {
+			stderr += chunk;
+		});
+		child.on("error", reject);
+		child.on("close", (status) => {
+			resolve({ status: status ?? 1, stderr });
+		});
+	});
+}
+
+async function yieldToEventLoop(): Promise<void> {
+	await new Promise<void>((resolve) => {
+		setImmediate(resolve);
+	});
 }
 
 /** Remove standalone toby-macos helper superseded by toby-plugin-macos. */

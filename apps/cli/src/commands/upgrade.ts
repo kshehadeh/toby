@@ -3,7 +3,7 @@ import process from "node:process";
 import chalk from "chalk";
 import type { Command } from "commander";
 import {
-	type DownloadProgress,
+	type UpgradeProgress,
 	applyStagedRelease,
 	downloadRelease,
 	readStagingManifest,
@@ -37,31 +37,93 @@ function formatBytes(bytes: number): string {
 
 /**
  * Returns an `onProgress` handler that renders an animated, single-line
- * download indicator. Shows a filled bar with percentage when the total size
- * is known, otherwise a spinner with bytes received.
+ * upgrade indicator for download, extract, verify, and install phases.
  */
-function makeProgressRenderer(): (progress: DownloadProgress) => void {
+function makeProgressRenderer(): {
+	readonly onProgress: (progress: UpgradeProgress) => void;
+	readonly finish: () => void;
+} {
 	let frame = 0;
+	let latestProgress: UpgradeProgress = { phase: "downloading" };
+	let spinnerInterval: ReturnType<typeof setInterval> | null = null;
 	const isTTY = Boolean(process.stdout.isTTY);
-	return (progress) => {
-		const spinner =
-			PROGRESS_SPINNER_FRAMES[frame % PROGRESS_SPINNER_FRAMES.length];
-		frame += 1;
-		if (progress.percent !== null) {
-			const filled = Math.round((progress.percent / 100) * PROGRESS_BAR_WIDTH);
-			const bar = `${"█".repeat(filled)}${"░".repeat(PROGRESS_BAR_WIDTH - filled)}`;
-			const line = `${spinner} Downloading [${bar}] ${progress.percent}%`;
-			if (isTTY) {
-				process.stdout.write(`\r${line}`);
-			}
-			return;
-		}
-		if (isTTY) {
-			process.stdout.write(
-				`\r${spinner} Downloading… ${formatBytes(progress.bytesReceived)}`,
-			);
+
+	const clearSpinner = () => {
+		if (spinnerInterval) {
+			clearInterval(spinnerInterval);
+			spinnerInterval = null;
 		}
 	};
+
+	const renderLine = () => {
+		if (!isTTY) {
+			return;
+		}
+		const spinner =
+			PROGRESS_SPINNER_FRAMES[frame % PROGRESS_SPINNER_FRAMES.length];
+		let line: string;
+		switch (latestProgress.phase) {
+			case "downloading": {
+				if (
+					latestProgress.percent !== null &&
+					latestProgress.percent !== undefined
+				) {
+					const filled = Math.round(
+						(latestProgress.percent / 100) * PROGRESS_BAR_WIDTH,
+					);
+					const bar = `${"█".repeat(filled)}${"░".repeat(PROGRESS_BAR_WIDTH - filled)}`;
+					line = `${spinner} Downloading [${bar}] ${latestProgress.percent}%`;
+				} else {
+					line = `${spinner} Downloading… ${formatBytes(latestProgress.bytesReceived ?? 0)}`;
+				}
+				break;
+			}
+			case "extracting":
+				line = `${spinner} Extracting release…`;
+				break;
+			case "verifying":
+				line = `${spinner} Verifying release…`;
+				break;
+			case "installing":
+				line = latestProgress.detail
+					? `${spinner} Installing ${latestProgress.detail}…`
+					: `${spinner} Installing…`;
+				break;
+		}
+		process.stdout.write(`\r${line}`);
+	};
+
+	const ensureSpinner = () => {
+		if (spinnerInterval) {
+			return;
+		}
+		spinnerInterval = setInterval(() => {
+			frame += 1;
+			renderLine();
+		}, 100);
+	};
+
+	const onProgress = (progress: UpgradeProgress) => {
+		latestProgress = progress;
+		if (progress.phase === "downloading") {
+			clearSpinner();
+			frame += 1;
+			renderLine();
+			return;
+		}
+		frame += 1;
+		renderLine();
+		ensureSpinner();
+	};
+
+	return { onProgress, finish: clearSpinner };
+}
+
+function finishProgressRenderer(renderer: {
+	readonly finish: () => void;
+}): void {
+	renderer.finish();
+	process.stdout.write("\n");
 }
 
 interface UpgradeCommandOptions {
@@ -122,7 +184,11 @@ async function runUpgrade(options: UpgradeCommandOptions): Promise<void> {
 		console.log(
 			chalk.cyan(`Applying staged upgrade to ${manifest.version}...`),
 		);
-		const applied = await applyStagedRelease(manifest.installTarget);
+		const renderProgress = makeProgressRenderer();
+		const applied = await applyStagedRelease(manifest.installTarget, {
+			onProgress: renderProgress.onProgress,
+		});
+		finishProgressRenderer(renderProgress);
 		console.log(chalk.green(`Installed: ${applied.installTarget}`));
 		console.log(chalk.green(`Verified: ${applied.version}`));
 		if (applied.daemonRestarted) {
@@ -146,9 +212,9 @@ async function runUpgrade(options: UpgradeCommandOptions): Promise<void> {
 			tag: options.version,
 			repo: options.repo,
 			installDir: options.installDir,
-			onProgress: renderProgress,
+			onProgress: renderProgress.onProgress,
 		});
-		process.stdout.write("\n");
+		finishProgressRenderer(renderProgress);
 		console.log(
 			chalk.green(
 				`Staged ${result.version} at ~/.toby/staging/toby. Run /restart in chat or toby upgrade --apply-staged to install.`,
@@ -158,13 +224,14 @@ async function runUpgrade(options: UpgradeCommandOptions): Promise<void> {
 	}
 
 	console.log(chalk.cyan("Upgrading Toby to the latest release..."));
+	const renderProgress = makeProgressRenderer();
 	const applied = await runFullUpgrade({
 		tag: options.version,
 		repo: options.repo,
 		installDir: options.installDir,
-		onProgress: makeProgressRenderer(),
+		onProgress: renderProgress.onProgress,
 	});
-	process.stdout.write("\n");
+	finishProgressRenderer(renderProgress);
 	console.log(chalk.green(`Installed: ${applied.installTarget}`));
 	console.log(chalk.green(`Verified: ${applied.version}`));
 	if (applied.daemonRestarted) {

@@ -63,11 +63,27 @@ In dev/script mode, use git pull or bun run build instead of applying a binary s
 						tag: latestTag,
 						repo,
 						onProgress: (progress) => {
-							runtime.setUpgradeStatus?.({
-								status: "downloading",
-								tag: latestTag,
-								progress: progress.percent,
-							});
+							if (progress.phase === "downloading") {
+								runtime.setUpgradeStatus?.({
+									status: "downloading",
+									tag: latestTag,
+									progress: progress.percent ?? null,
+								});
+								return;
+							}
+							if (progress.phase === "extracting") {
+								runtime.setUpgradeStatus?.({
+									status: "extracting",
+									tag: latestTag,
+								});
+								return;
+							}
+							if (progress.phase === "verifying") {
+								runtime.setUpgradeStatus?.({
+									status: "verifying",
+									tag: latestTag,
+								});
+							}
 						},
 					});
 					runtime.setUpgradeStatus?.({

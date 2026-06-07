@@ -42,6 +42,10 @@ function formatUpgradeUiStatusLine(
 			}
 			return `${spinner} Downloading upgrade…`;
 		}
+		case "extracting":
+			return `${dotGridSpinnerFrame(frame)} Extracting upgrade…`;
+		case "verifying":
+			return `${dotGridSpinnerFrame(frame)} Verifying upgrade…`;
 		case "ready":
 			return `Upgrade ready: v${status.version} · /restart to apply`;
 		case "error":
@@ -225,10 +229,13 @@ export function ChatInputDock(props: ChatInputDockProps) {
 		const id = setInterval(() => setDotFrame((f) => (f + 1) % 2), 600);
 		return () => clearInterval(id);
 	}, [isListenRecording]);
-	const isDownloadingUpgrade = upgradeUiStatus.status === "downloading";
+	const isUpgradeInProgress =
+		upgradeUiStatus.status === "downloading" ||
+		upgradeUiStatus.status === "extracting" ||
+		upgradeUiStatus.status === "verifying";
 	const [upgradeSpinnerFrame, setUpgradeSpinnerFrame] = useState(0);
 	useEffect(() => {
-		if (!isDownloadingUpgrade) {
+		if (!isUpgradeInProgress) {
 			setUpgradeSpinnerFrame(0);
 			return;
 		}
@@ -236,7 +243,7 @@ export function ChatInputDock(props: ChatInputDockProps) {
 			setUpgradeSpinnerFrame((f) => f + 1);
 		}, 100);
 		return () => clearInterval(id);
-	}, [isDownloadingUpgrade]);
+	}, [isUpgradeInProgress]);
 	const upgradeStatusLine = formatUpgradeUiStatusLine(
 		upgradeUiStatus,
 		upgradeSpinnerFrame,
