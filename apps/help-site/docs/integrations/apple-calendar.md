@@ -9,6 +9,13 @@ Connect Toby to **Calendar.app** on your Mac to search, create, and update event
 
 **CLI name:** `applecalendar`
 
+The plugin ships in Toby release archives as `toby-plugin-applecalendar` under `~/.toby/plugins/`. For local development:
+
+```bash
+bun run build:plugin:applecalendar
+toby plugins install ./dist/toby-plugin-applecalendar --link --force
+```
+
 :::info[Platform]
 
 **macOS only.** On Linux or Windows you can configure the integration, but chat tools require Calendar.app on a Mac.

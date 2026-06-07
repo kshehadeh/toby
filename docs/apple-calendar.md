@@ -1,10 +1,10 @@
 # Apple Calendar integration
 
-First-party integration id: **`applecalendar`**.
+First-party integration id: **`applecalendar`**, shipped as the Swift installable plugin **`toby-plugin-applecalendar`** ([`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/)). Release archives and `install-toby.sh` install it under `~/.toby/plugins/`.
 
 ## Platform
 
-- **macOS only.** Toby drives **Calendar.app** via AppleScript/EventKit on the local Mac. On Linux or Windows the module stays registered for configuration/tests but is **not usable** in chat until you are on a Mac.
+- **macOS only.** Toby drives **Calendar.app** via native **EventKit** and Calendar.app AppleScript fallbacks on the local Mac. On Linux or Windows the plugin can be installed for tests but chat tools require Calendar.app on a Mac.
 
 ## Setup
 
@@ -29,17 +29,17 @@ Event uids are **Calendar.app string identifiers** (e.g. `ABC123-DEF456`), not n
 
 ## AppleScript / EventKit architecture
 
-The integration uses **two different AppleScript approaches** depending on the operation:
+The plugin uses **native EventKit** (`EKEventStore`) for search, list, get, and CRUD whenever possible. Calendar.app **AppleScript** is used only as a fallback when EventKit cannot complete an operation (see `CalendarClient.swift` in the plugin).
 
-### Search: EventKit (AppleScriptObjC)
+### Search: EventKit (native Swift)
 
-Event search uses `AppleScriptObjC` with the **EventKit framework** (`EKEventStore`). This queries the local EventKit database directly via `predicateForEventsWithStartDate:endDate:calendars:`, which is ~100x faster than Calendar.app's AppleScript interface for large calendars.
+Event search uses `EKEventStore.predicateForEvents(withStart:end:calendars:)` against the local EventKit database. This is ~100x faster than Calendar.app's AppleScript interface for large calendars.
 
 **Why not Calendar.app AppleScript for search?** Calendar.app's `whose` clause (e.g. `events whose start date >= ...`) is **silently ignored** for Exchange and iCloud calendars. The script iterates all events (potentially thousands), which times out. EventKit's predicate-based search works correctly for all calendar types and returns results in under a second.
 
-### Create / Update / Delete / Get: Calendar.app AppleScript
+### Create / Update / Delete / Get: EventKit first, AppleScript fallback
 
-Mutating operations and single-event lookups use Calendar.app's standard AppleScript dictionary (`tell application "Calendar"`) because it handles property writes and event creation more naturally than EventKit from AppleScriptObjC.
+Mutating operations and single-event lookups prefer native `EKEvent` save/remove APIs. When EventKit fails (or an event is not found by identifier), the plugin falls back to Calendar.app AppleScript with the same date-preservation workarounds documented below.
 
 ## Known AppleScript pitfalls (for future integrations)
 
@@ -49,7 +49,7 @@ Calendar.app's AppleScript `whose` filters are silently ignored for non-local ca
 
 ### 2. Setting properties can silently corrupt other properties
 
-Calendar.app has a bug where setting certain properties (e.g. `location`, `description`) inside a `tell evt` block can silently reset `end date` to equal `start date`. Workarounds in `updateCalendarEventSync`:
+Calendar.app has a bug where setting certain properties (e.g. `location`, `description`) inside a `tell evt` block can silently reset `end date` to equal `start date`. The AppleScript fallback in the plugin applies these workarounds:
 
 - **Avoid `tell evt` blocks** — set properties directly on the `evt` variable from outside any tell block.
 - **Save start and end dates as scalar integers** (`year`, `month`, `day`, `hours`, `minutes`, `seconds`) before the update, then always explicitly re-set both dates as the final operations after the update.
@@ -57,7 +57,7 @@ Calendar.app has a bug where setting certain properties (e.g. `location`, `descr
 
 ### 3. AppleScript `date` command doesn't understand ISO 8601
 
-`date "2026-05-12"` returns 0 results or errors. AppleScript expects formats like `date "May 12, 2026"`. The `normalizeToAppleScriptDate()` helper converts ISO/numeric dates to AppleScript-compatible format.
+`date "2026-05-12"` returns 0 results or errors. AppleScript expects formats like `date "May 12, 2026"`. The plugin's `DateParser.normalizeToAppleScriptDate()` helper converts ISO/numeric dates for AppleScript fallback paths.
 
 ### 4. `tell calendar "X"` vs `events of calendar "X"` variable scoping
 
