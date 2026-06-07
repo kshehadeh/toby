@@ -47,6 +47,23 @@ export function migrateLegacyPluginCredentials(): void {
 	}
 
 	migrateLegacyGmailOAuthTokens();
+	migrateRetiredIntegrations();
+}
+
+/** Drop config entries for integrations removed from the product. */
+function migrateRetiredIntegrations(): void {
+	const config = readConfig();
+	const integrations = config.integrations;
+	if (!integrations?.applemail) {
+		return;
+	}
+
+	const nextIntegrations = { ...integrations };
+	Reflect.deleteProperty(nextIntegrations, "applemail");
+	writeConfig({
+		...config,
+		integrations: nextIntegrations,
+	});
 }
 
 /** Move OAuth tokens from config.integrations.gmail into credentials.integrations.gmail. */

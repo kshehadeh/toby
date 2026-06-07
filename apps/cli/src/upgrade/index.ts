@@ -111,7 +111,6 @@ export function getStagingPaths(): {
 	readonly pluginGmailPath: string;
 	readonly pluginTodoistPath: string;
 	readonly pluginJiraPath: string;
-	readonly pluginApplemailPath: string;
 	readonly pluginApplecalendarPath: string;
 	readonly pluginMacosPath: string;
 	readonly webPath: string;
@@ -130,7 +129,6 @@ export function getStagingPaths(): {
 		pluginGmailPath: path.join(stagingDir, "toby-plugin-gmail"),
 		pluginTodoistPath: path.join(stagingDir, "toby-plugin-todoist"),
 		pluginJiraPath: path.join(stagingDir, "toby-plugin-jira"),
-		pluginApplemailPath: path.join(stagingDir, "toby-plugin-applemail"),
 		pluginApplecalendarPath: path.join(stagingDir, "toby-plugin-applecalendar"),
 		pluginMacosPath: path.join(stagingDir, "toby-plugin-macos"),
 		webPath: path.join(stagingDir, "web"),
@@ -226,7 +224,6 @@ export async function downloadRelease(
 		pluginGmailPath,
 		pluginTodoistPath,
 		pluginJiraPath,
-		pluginApplemailPath,
 		pluginApplecalendarPath,
 		pluginMacosPath,
 		archivePath,
@@ -248,7 +245,6 @@ export async function downloadRelease(
 		await rm(pluginGmailPath, { force: true }).catch(() => undefined);
 		await rm(pluginTodoistPath, { force: true }).catch(() => undefined);
 		await rm(pluginJiraPath, { force: true }).catch(() => undefined);
-		await rm(pluginApplemailPath, { force: true }).catch(() => undefined);
 		await rm(pluginApplecalendarPath, { force: true }).catch(() => undefined);
 		await rm(pluginMacosPath, { force: true }).catch(() => undefined);
 		await rm(archivePath, { force: true }).catch(() => undefined);
@@ -380,7 +376,6 @@ export async function applyStagedRelease(
 		pluginGmailPath,
 		pluginTodoistPath,
 		pluginJiraPath,
-		pluginApplemailPath,
 		pluginApplecalendarPath,
 		pluginMacosPath,
 	} = getStagingPaths();
@@ -389,12 +384,12 @@ export async function applyStagedRelease(
 	await installStagedPluginBinary(pluginGmailPath, "toby-plugin-gmail");
 	await installStagedPluginBinary(pluginTodoistPath, "toby-plugin-todoist");
 	await installStagedPluginBinary(pluginJiraPath, "toby-plugin-jira");
-	await installStagedPluginBinary(pluginApplemailPath, "toby-plugin-applemail");
 	await installStagedPluginBinary(
 		pluginApplecalendarPath,
 		"toby-plugin-applecalendar",
 	);
 	await installStagedPluginBinary(pluginMacosPath, "toby-plugin-macos");
+	await removeDeprecatedPluginBinaries();
 
 	// Migration: older installs placed helper binaries next to `toby` on PATH.
 	// Now that helpers live under ~/.toby/helpers, remove the stale siblings so
@@ -469,6 +464,20 @@ async function installStagedPluginBinary(
 	await chmodExecutable(tempDestination);
 	await rename(tempDestination, installTarget);
 	copyPluginResourceBundlesFromSource(stagingPath);
+}
+
+const REMOVED_PLUGIN_BINARIES = ["toby-plugin-applemail"] as const;
+
+/** Remove plugin binaries retired from release bundles (best-effort). */
+export async function removeDeprecatedPluginBinaries(): Promise<void> {
+	const pluginsDir = getPluginsDir();
+	for (const binaryName of REMOVED_PLUGIN_BINARIES) {
+		const pluginPath = path.join(pluginsDir, binaryName);
+		if (!fs.existsSync(pluginPath)) {
+			continue;
+		}
+		await rm(pluginPath, { force: true }).catch(() => undefined);
+	}
 }
 
 const LEGACY_SIBLING_HELPER_NAMES = ["toby-listener", "toby-macos"] as const;

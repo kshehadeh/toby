@@ -24,7 +24,7 @@ export interface IntegrationHealth {
 
 /** Options for {@link Integration.testConnection}. */
 export type TestConnectionOptions = {
-	/** When true, run per-tool probes (e.g. Apple Mail AppleScript searches). */
+	/** When true, run per-tool connection probes during health checks. */
 	readonly validateTools?: boolean;
 };
 

@@ -49,13 +49,6 @@ jira_bin="$(
 )/toby-plugin-jira"
 cp "${jira_bin}" dist/toby-plugin-jira
 
-echo "Building toby-plugin-applemail (swift ${swift_arch})..."
-swift build -c release --arch "${swift_arch}" --package-path apps/plugin-applemail
-applemail_bin="$(
-	swift build --show-bin-path -c release --arch "${swift_arch}" --package-path apps/plugin-applemail
-)/toby-plugin-applemail"
-cp "${applemail_bin}" dist/toby-plugin-applemail
-
 echo "Building toby-plugin-applecalendar (swift ${swift_arch})..."
 swift build -c release --arch "${swift_arch}" --package-path apps/plugin-applecalendar
 applecalendar_bin="$(
@@ -76,7 +69,7 @@ echo "Building whisper-cli (${swift_arch})..."
 chmod +x scripts/build-whisper-cli.sh
 SWIFT_ARCH="${swift_arch}" ./scripts/build-whisper-cli.sh dist/whisper-cli
 
-chmod +x dist/toby dist/toby-listener dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-todoist dist/toby-plugin-jira dist/toby-plugin-applemail dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/whisper-cli
+chmod +x dist/toby dist/toby-listener dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-todoist dist/toby-plugin-jira dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/whisper-cli
 
 echo "Building web UI..."
 bun run --cwd apps/web build
