@@ -376,6 +376,25 @@ body {
 	line-height: 1.45;
 }
 
+/* Architecture diagram */
+.architectureDiagram {
+	width: min(100%, 66.25rem);
+	margin: 1.5rem 0 2rem;
+	padding: 0.75rem;
+	border: 1px solid var(--toby-border);
+	border-radius: var(--toby-radius);
+	background: var(--toby-surface-raised);
+	overflow-x: auto;
+}
+
+.architectureDiagram img {
+	display: block;
+	width: 100%;
+	min-width: 42rem;
+	height: auto;
+	border-radius: var(--toby-radius-sm);
+}
+
 /* Code */
 .theme-doc-markdown code {
 	border: 1px solid var(--toby-border-subtle);

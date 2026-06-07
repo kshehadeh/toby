@@ -1,6 +1,6 @@
 {
 	"label": "Plugins",
-	"position": 5,
+	"position": 6,
 	"link": {
 		"type": "doc",
 		"id": "plugins/creating-a-plugin"
