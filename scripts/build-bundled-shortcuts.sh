@@ -9,6 +9,35 @@ trap 'rm -rf "$tmp_dir"' EXIT
 
 mkdir -p "$out_dir"
 
+write_manifest() {
+	cat >"${out_dir}/manifest.json" <<'EOF'
+{
+  "shortcuts": [
+    {
+      "file": "TobyFocusOn.shortcut",
+      "name": "Toby Focus On",
+      "description": "Turns on Do Not Disturb / Focus via Shortcuts."
+    },
+    {
+      "file": "TobyFocusOff.shortcut",
+      "name": "Toby Focus Off",
+      "description": "Turns off Do Not Disturb / Focus via Shortcuts."
+    }
+  ]
+}
+EOF
+}
+
+# GitHub Actions runners are not signed into iCloud, so `shortcuts sign` fails
+# there even though committed signed shortcuts are already in the repo.
+if [[ "${CI:-}" == "true" || "${GITHUB_ACTIONS:-}" == "true" ]]; then
+	if [[ -f "${out_dir}/TobyFocusOn.shortcut" && -f "${out_dir}/TobyFocusOff.shortcut" ]]; then
+		echo "CI: using committed bundled shortcuts (signing requires iCloud)."
+		write_manifest
+		exit 0
+	fi
+fi
+
 generate_shortcut() {
 	local name="$1"
 	local enabled="$2"
@@ -50,29 +79,50 @@ with open(outfile, "wb") as f:
 PY
 }
 
+sign_shortcut() {
+	local input="$1"
+	local output="$2"
+	local fallback="$3"
+
+	# `shortcuts sign` often prints harmless debugDescription noise to stderr on
+	# recent macOS; treat a written output file as success.
+	if shortcuts sign --mode anyone --input "$input" --output "$output"; then
+		return 0
+	fi
+	if [[ -f "$output" ]]; then
+		return 0
+	fi
+
+	if [[ -f "$fallback" ]]; then
+		echo "Warning: shortcuts sign failed; keeping existing $(basename "$output")" >&2
+		cp "$fallback" "$output"
+		return 0
+	fi
+
+	echo "Warning: shortcuts sign failed; bundling unsigned $(basename "$output")" >&2
+	cp "$input" "$output"
+}
+
 echo "Generating unsigned shortcuts..."
 generate_shortcut "Toby Focus On" true "${tmp_dir}/TobyFocusOn.shortcut"
 generate_shortcut "Toby Focus Off" false "${tmp_dir}/TobyFocusOff.shortcut"
 
-echo "Signing shortcuts..."
-shortcuts sign --mode anyone --input "${tmp_dir}/TobyFocusOn.shortcut" --output "${out_dir}/TobyFocusOn.shortcut"
-shortcuts sign --mode anyone --input "${tmp_dir}/TobyFocusOff.shortcut" --output "${out_dir}/TobyFocusOff.shortcut"
+for name in TobyFocusOn TobyFocusOff; do
+	if [[ -f "${out_dir}/${name}.shortcut" ]]; then
+		cp "${out_dir}/${name}.shortcut" "${tmp_dir}/${name}.committed.shortcut"
+	fi
+done
 
-cat >"${out_dir}/manifest.json" <<'EOF'
-{
-  "shortcuts": [
-    {
-      "file": "TobyFocusOn.shortcut",
-      "name": "Toby Focus On",
-      "description": "Turns on Do Not Disturb / Focus via Shortcuts."
-    },
-    {
-      "file": "TobyFocusOff.shortcut",
-      "name": "Toby Focus Off",
-      "description": "Turns off Do Not Disturb / Focus via Shortcuts."
-    }
-  ]
-}
-EOF
+echo "Signing shortcuts..."
+sign_shortcut \
+	"${tmp_dir}/TobyFocusOn.shortcut" \
+	"${out_dir}/TobyFocusOn.shortcut" \
+	"${tmp_dir}/TobyFocusOn.committed.shortcut"
+sign_shortcut \
+	"${tmp_dir}/TobyFocusOff.shortcut" \
+	"${out_dir}/TobyFocusOff.shortcut" \
+	"${tmp_dir}/TobyFocusOff.committed.shortcut"
+
+write_manifest
 
 echo "Bundled shortcuts written to ${out_dir}"

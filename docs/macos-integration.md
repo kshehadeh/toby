@@ -31,7 +31,7 @@ toby plugins setup macos
 Setup is idempotent: shortcuts already listed by `shortcuts list` are skipped.
 Re-run setup anytime to import any shortcuts you have not added yet.
 
-Build regenerates signed shortcuts via [`scripts/build-bundled-shortcuts.sh`](../scripts/build-bundled-shortcuts.sh) before `swift build`.
+Build regenerates signed shortcuts via [`scripts/build-bundled-shortcuts.sh`](../scripts/build-bundled-shortcuts.sh) before `swift build`. On recent macOS, `shortcuts sign` may print harmless `debugDescription` stderr noise; CI reuses the committed signed shortcuts because GitHub runners are not signed into iCloud.
 
 ## Implementation
 
