@@ -48,7 +48,7 @@ Most users start with `add` so integration-specific tool guidance stays intact.
 | ------ | --- |
 | Default | Set default in configure; new sessions use it |
 | Switch in chat | `/persona` or **Shift+Tab** |
-| One-shot CLI | `toby chat --persona "Technologist"` |
+| One-shot CLI | `toby chat --persona "Technologist"` (inside `toby chat`, `-p` is persona; at the root, `-p` is an initial **prompt**) |
 
 ## Example personas
 

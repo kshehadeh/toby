@@ -93,11 +93,12 @@ These commands use the same macOS audio helper and permissions as `toby listen`;
 
 ## Default command
 
-When no subcommand is provided, `toby` defaults to `chat`. This means:
+When no subcommand is provided, `toby` defaults to `chat`. To avoid mistyped commands launching chat with a stray prompt, **only** these root forms open chat without an explicit `chat` subcommand:
 
 - `toby` → `toby chat`
-- `toby "summarize unread"` → `toby chat "summarize unread"`
-- `toby gmail --dry-run "archive promos"` → `toby chat gmail --dry-run "archive promos"`
-- `toby --no-tui "quick question"` → `toby chat --no-tui "quick question"`
+- `toby -p "summarize unread"` or `toby --prompt "summarize unread"` → `toby chat --prompt "summarize unread"`
+- `toby --debug`, `toby --no-tui`, `toby --persona <name>`, and other chat flags at the root → same as `toby chat …` with those flags
 
-All chat flags (`--persona`, `--integration`, `--no-tui`, `--debug`, `--dry-run`) and positional arguments work the same way with or without the `chat` keyword. Other subcommands (`status`, `connect`, `organize`, etc.) are unaffected — they are matched first before the default applies. Root-level flags like `--help` and `--version` also continue to work as expected.
+Unknown positional tokens at the root (for example `toby staatus` or `toby "summarize unread"`) are **not** treated as chat prompts; Commander reports an unknown command instead.
+
+Use `toby chat …` for integration-scoped prompts and positional arguments (for example `toby chat gmail --dry-run "archive promos"`). Chat flags (`--persona`, `--integration`, `--no-tui`, `--debug`, `--dry-run`, `--prompt`) and positional arguments work the same with or without the `chat` keyword when `chat` is explicit. Other subcommands (`status`, `connect`, `organize`, etc.) are matched first. Root-level flags like `--help` and `--version` continue to work as expected.

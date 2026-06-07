@@ -11,16 +11,29 @@ After you [set up AI](./setup-ai) and [connect at least one integration](./confi
 toby chat
 ```
 
-`toby` with no subcommand also opens chat.
+Bare `toby` (no subcommand) also opens chat.
+
+## Command-line syntax
+
+| What you want | Command |
+| ------------- | ------- |
+| Open chat and type your first message in the TUI | `toby` or `toby chat` |
+| Open chat with an initial message | `toby -p "summarize my unread email"` or `toby --prompt "…"` |
+| Scope to one integration from the shell | `toby chat gmail "summarize unread from today"` |
+| One-shot answer in the terminal | `toby chat --no-tui --prompt "quick question about my inbox"` |
+
+**Mistyped commands** — Unknown root commands (for example `toby staatus` or `toby "summarize unread"`) are reported as errors. They do **not** launch chat with your text as a prompt. Use `toby -p "…"` or `toby chat …` when you mean to pass a prompt from the shell.
+
+Root chat flags such as `--debug`, `--no-tui`, and `--persona` still work without the `chat` keyword (for example `toby --debug`). Inside `toby chat`, `-p` selects a **persona**; at the root, `-p` means **prompt**.
 
 ## How chat uses integrations
 
 **All connected integrations (default)** — Type your message normally. Toby merges tools from every connected chat integration (Gmail, Todoist, Slack, Jira, and so on).
 
-**One integration** — Start your message with the integration name:
+**One integration** — Start your message with the integration name in the TUI, or pass it on the command line:
 
 ```bash
-toby gmail summarize my unread email from today
+toby chat gmail summarize my unread email from today
 ```
 
 **Explicit set** — Use `--integration` one or more times; remaining words are only the prompt:
@@ -73,7 +86,13 @@ On macOS, `/listen` starts a recording inside the active chat session. `/stop-li
 For a one-shot answer in the terminal:
 
 ```bash
-toby --no-tui "quick question about my inbox"
+toby chat --no-tui --prompt "quick question about my inbox"
+```
+
+You can also combine a root prompt with `--no-tui`:
+
+```bash
+toby -p "quick question about my inbox" --no-tui
 ```
 
 ## Debug pretreatment (optional)

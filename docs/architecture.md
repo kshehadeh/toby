@@ -64,7 +64,7 @@ apps/cli/src/
 
 ## Runtime flow
 
-1. **`apps/cli/src/cli.ts`** constructs the Commander program, registers built-in commands, then calls `registerCommands` on each loaded `IntegrationModule` (if present). When no subcommand is provided on the command line, `chat` is used as the default.
+1. **`apps/cli/src/cli.ts`** constructs the Commander program, registers built-in commands, then calls `registerCommands` on each loaded `IntegrationModule` (if present). Bare `toby` (no subcommand) defaults to `chat`; root `-p` / `--prompt` supplies an initial message. Unknown positional tokens at the root are rejected instead of being treated as chat prompts.
 2. **Connect / disconnect / status** use [`getIntegration`](../packages/core/src/integrations/index.ts) or [`getIntegrations`](../packages/core/src/integrations/index.ts) from core.
 3. **`summarize`** resolves a module by name, checks capabilities, and runs AI with returned messages (core integrations + core AI).
 4. **`chat`** ([`apps/cli/src/commands/chat.ts`](../apps/cli/src/commands/chat.ts)) resolves integrations, then either runs the Ink session ([`ui/chat/`](../apps/cli/src/ui/chat/)) or a console one-shot. Each turn is orchestrated by [`runChatTurnPipeline`](../packages/core/src/chat-pipeline/pipeline.ts) in core. The CLI subscribes to `ChatEvent`s for rendering; it does not reimplement pipeline stages.

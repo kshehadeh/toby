@@ -5,7 +5,7 @@ Human- and agent-oriented docs for this repository.
 | Doc | Description |
 | --- | ----------- |
 | [architecture.md](architecture.md) | Monorepo layout: `@toby/core` harness vs `@toby/cli` app, runtime flow, config paths. |
-| [commands.md](commands.md) | Shared CLI commands, including `config backup` and `config restore`. |
+| [commands.md](commands.md) | Shared CLI commands, default `chat` behavior, `-p` / `--prompt`, and `config backup` / `config restore`. |
 | [integrations.md](integrations.md) | `IntegrationModule`, registry API, per-integration layout. |
 | [plugin-protocol.md](plugin-protocol.md) | Installable plugin CLI contract (v1): argv subcommands, stdin/stdout, exit codes, JSON payloads, discovery. |
 | [apple-calendar.md](apple-calendar.md) | macOS Apple Calendar integration (Calendar.app, EventKit search, AppleScript CRUD). |
