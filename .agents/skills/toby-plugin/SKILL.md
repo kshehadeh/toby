@@ -18,7 +18,7 @@ into `IntegrationModule` by `@toby/core`. Two paths:
 | Path | When | Reference |
 | ---- | ---- | --------- |
 | **New plugin** | Greenfield integration, no built-in module | [`apps/plugin-sample/`](../../../apps/plugin-sample/) |
-| **Migration** | Replace built-in in `BUILTIN_MODULES` with plugin | [`apps/plugin-azuread/`](../../../apps/plugin-azuread/) |
+| **Migration** | Replace built-in in `BUILTIN_MODULES` with plugin | [`apps/plugin-azuread/`](../../../apps/plugin-azuread/), [`apps/plugin-gmail/`](../../../apps/plugin-gmail/) |
 
 Read first: [`docs/plugin-protocol.md`](../../../docs/plugin-protocol.md),
 [`docs/create-integration.md`](../../../docs/create-integration.md) (migration section).
@@ -109,7 +109,8 @@ toby plugins inspect <name>
 
 Add contract tests under `apps/cli/tests/` (see
 [`plugins.test.ts`](../../../apps/cli/tests/plugins.test.ts),
-[`plugins-azuread.test.ts`](../../../apps/cli/tests/plugins-azuread.test.ts)):
+[`plugins-azuread.test.ts`](../../../apps/cli/tests/plugins-azuread.test.ts),
+[`plugins-gmail.test.ts`](../../../apps/cli/tests/plugins-gmail.test.ts)):
 status, connect failure/success, tools list/execute, config shape, registry
 discovery.
 
@@ -217,4 +218,4 @@ migration template changes.
 
 - Full parity table: [parity-checklist.md](parity-checklist.md)
 - Minimal example: [`apps/plugin-sample/`](../../../apps/plugin-sample/)
-- Full migration example: [`apps/plugin-azuread/`](../../../apps/plugin-azuread/)
+- Full migration examples: [`apps/plugin-azuread/`](../../../apps/plugin-azuread/), [`apps/plugin-gmail/`](../../../apps/plugin-gmail/)
