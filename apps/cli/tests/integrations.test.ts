@@ -86,16 +86,9 @@ describe("integration registry", () => {
 		}
 	});
 
-	it("includes bravesearch in registry with search provider category", () => {
-		const brave = getIntegrationModule("bravesearch");
-		expect(brave).toBeDefined();
-		expect(brave?.providerCategories).toContain("search");
-		expect(brave?.capabilities).toContain("chat");
-	});
-
-	it("getModulesForCategory(search) includes bravesearch", () => {
-		const names = getModulesForCategory("search").map((m) => m.name);
-		expect(names).toContain("bravesearch");
+	it("does not treat websearch as a built-in integration", () => {
+		expect(isBuiltinIntegration("websearch")).toBe(false);
+		expect(isBuiltinIntegration("bravesearch")).toBe(false);
 	});
 
 	it("does not treat jira as a built-in integration", () => {
