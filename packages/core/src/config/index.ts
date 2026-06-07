@@ -154,6 +154,7 @@ export interface CredentialsFile {
 	 * `integrations[<moduleName>]` to avoid hardcoding top-level keys.
 	 */
 	integrations?: Record<string, Record<string, string>>;
+	/** Legacy Gmail block; migrated to integrations.gmail on plugin load. */
 	gmail?: GmailCredentials;
 	todoist?: TodoistCredentials;
 	/** Legacy Azure AD block; migrated to integrations.azuread on plugin load. */
@@ -240,22 +241,6 @@ export function readCredentials(): CredentialsFile {
 	}
 	const raw = fs.readFileSync(credentialsPath, "utf-8");
 	return JSON.parse(raw) as CredentialsFile;
-}
-
-export function getGmailCredentials(): GmailCredentials {
-	const creds = readCredentials();
-	const clientId =
-		getIntegrationCredential(creds, "gmail", "clientId") ??
-		creds.gmail?.clientId;
-	const clientSecret =
-		getIntegrationCredential(creds, "gmail", "clientSecret") ??
-		creds.gmail?.clientSecret;
-	if (!clientId || !clientSecret) {
-		throw new Error(
-			"Gmail credentials not found. Add them to ~/.toby/credentials.json",
-		);
-	}
-	return { clientId, clientSecret };
 }
 
 export function getTodoistCredentials(): TodoistCredentials {

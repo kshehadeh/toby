@@ -113,6 +113,7 @@ export function getStagingPaths(): {
 	readonly whisperCliPath: string;
 	readonly pluginSamplePath: string;
 	readonly pluginAzureadPath: string;
+	readonly pluginGmailPath: string;
 	readonly webPath: string;
 	readonly archivePath: string;
 	readonly manifestPath: string;
@@ -127,6 +128,7 @@ export function getStagingPaths(): {
 		whisperCliPath: path.join(stagingDir, "whisper-cli"),
 		pluginSamplePath: path.join(stagingDir, "toby-plugin-sample"),
 		pluginAzureadPath: path.join(stagingDir, "toby-plugin-azuread"),
+		pluginGmailPath: path.join(stagingDir, "toby-plugin-gmail"),
 		webPath: path.join(stagingDir, "web"),
 		archivePath: path.join(stagingDir, "toby-release.zip"),
 		manifestPath: path.join(stagingDir, "manifest.json"),
@@ -220,6 +222,8 @@ export async function downloadRelease(
 		macOSHelperPath,
 		whisperCliPath,
 		pluginSamplePath,
+		pluginAzureadPath,
+		pluginGmailPath,
 		archivePath,
 		manifestPath,
 	} = getStagingPaths();
@@ -236,6 +240,8 @@ export async function downloadRelease(
 		await rm(macOSHelperPath, { force: true }).catch(() => undefined);
 		await rm(whisperCliPath, { force: true }).catch(() => undefined);
 		await rm(pluginSamplePath, { force: true }).catch(() => undefined);
+		await rm(pluginAzureadPath, { force: true }).catch(() => undefined);
+		await rm(pluginGmailPath, { force: true }).catch(() => undefined);
 		await rm(archivePath, { force: true }).catch(() => undefined);
 		await rm(manifestPath, { force: true }).catch(() => undefined);
 
@@ -383,9 +389,10 @@ export async function applyStagedRelease(
 		await cp(webPath, webInstallTarget, { recursive: true });
 	}
 
-	const { pluginSamplePath, pluginAzureadPath } = getStagingPaths();
+	const { pluginSamplePath, pluginAzureadPath, pluginGmailPath } = getStagingPaths();
 	await installStagedPluginBinary(pluginSamplePath, "toby-plugin-sample");
 	await installStagedPluginBinary(pluginAzureadPath, "toby-plugin-azuread");
+	await installStagedPluginBinary(pluginGmailPath, "toby-plugin-gmail");
 
 	// Migration: older installs placed helper binaries next to `toby` on PATH.
 	// Now that helpers live under ~/.toby/helpers, remove the stale siblings so

@@ -43,11 +43,14 @@ bun build ./apps/plugin-sample/src/cli.ts --compile --target="${bun_target}" --o
 echo "Building toby-plugin-azuread (${bun_target})..."
 bun build ./apps/plugin-azuread/src/cli.ts --compile --target="${bun_target}" --outfile dist/toby-plugin-azuread
 
+echo "Building toby-plugin-gmail (${bun_target})..."
+bun build ./apps/plugin-gmail/src/cli.ts --compile --target="${bun_target}" --outfile dist/toby-plugin-gmail
+
 echo "Building whisper-cli (${swift_arch})..."
 chmod +x scripts/build-whisper-cli.sh
 SWIFT_ARCH="${swift_arch}" ./scripts/build-whisper-cli.sh dist/whisper-cli
 
-chmod +x dist/toby dist/toby-listener dist/toby-macos dist/toby-plugin-sample dist/toby-plugin-azuread dist/whisper-cli
+chmod +x dist/toby dist/toby-listener dist/toby-macos dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/whisper-cli
 
 echo "Building web UI..."
 bun run --cwd apps/web build

@@ -1,0 +1,15 @@
+{
+	"name": "@toby/plugin-gmail",
+	"version": "1.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Gmail installable Toby integration plugin (protocol v1)",
+	"dependencies": {
+		"googleapis": "^140.0.0",
+		"open": "^10.1.0"
+	},
+	"scripts": {
+		"dev": "bun src/cli.ts",
+		"build": "bun build ./src/cli.ts --compile --outfile ../../dist/toby-plugin-gmail"
+	}
+}

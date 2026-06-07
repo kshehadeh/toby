@@ -1,7 +1,6 @@
 import http from "node:http";
 import { google } from "googleapis";
 import open from "open";
-import type { GmailCredentials } from "../../config/index";
 
 const SCOPES = [
 	"https://www.googleapis.com/auth/gmail.readonly",
@@ -10,9 +9,10 @@ const SCOPES = [
 const REDIRECT_PORT = 9876;
 const REDIRECT_PATH = "/callback";
 
-export async function runOAuthFlow(
-	credentials: GmailCredentials,
-): Promise<{ accessToken: string; refreshToken: string; expiresAt: number }> {
+export async function runOAuthFlow(credentials: {
+	clientId: string;
+	clientSecret: string;
+}): Promise<{ accessToken: string; refreshToken: string; expiresAt: number }> {
 	const oauth2Client = new google.auth.OAuth2(
 		credentials.clientId,
 		credentials.clientSecret,
@@ -79,9 +79,9 @@ function captureAuthCode(
 		});
 
 		server.listen(port, () => {
-			console.log("Opening browser for Gmail authorization...");
+			console.error("Opening browser for Gmail authorization...");
 			open(authUrl).catch(() => {
-				console.log(
+				console.error(
 					`Could not open browser. Visit this URL manually:\n${authUrl}`,
 				);
 			});

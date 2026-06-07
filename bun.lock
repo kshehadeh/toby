@@ -19,7 +19,7 @@
     },
     "apps/cli": {
       "name": "@toby/cli",
-      "version": "0.25.0",
+      "version": "0.27.0",
       "bin": {
         "toby": "./dist/cli.js",
       },
@@ -68,6 +68,14 @@
       "name": "@toby/plugin-azuread",
       "version": "1.0.0",
       "dependencies": {
+        "open": "^10.1.0",
+      },
+    },
+    "apps/plugin-gmail": {
+      "name": "@toby/plugin-gmail",
+      "version": "1.0.0",
+      "dependencies": {
+        "googleapis": "^140.0.0",
         "open": "^10.1.0",
       },
     },
@@ -1227,6 +1235,8 @@
     "@toby/macos-helper": ["@toby/macos-helper@workspace:apps/macos-helper"],
 
     "@toby/plugin-azuread": ["@toby/plugin-azuread@workspace:apps/plugin-azuread"],
+
+    "@toby/plugin-gmail": ["@toby/plugin-gmail@workspace:apps/plugin-gmail"],
 
     "@toby/plugin-sample": ["@toby/plugin-sample@workspace:apps/plugin-sample"],
 

@@ -1,78 +1,126 @@
 import { google } from "googleapis";
-import {
-	getGmailCredentials,
-	readConfig,
-	writeConfig,
-} from "../../config/index";
-import { type RateLimitConfig, withRateLimit, withRetry } from "../rate-limit";
+import { runOAuthFlow } from "./auth";
+import { withRateLimit, withRetry } from "./rate-limit";
 
-interface GmailIntegrationTokens {
-	accessToken: string;
-	refreshToken: string;
-	expiresAt: number;
+export type GmailConfig = {
+	readonly clientId: string;
+	readonly clientSecret: string;
+	readonly oauthAccessToken?: string;
+	readonly oauthRefreshToken?: string;
+	readonly oauthExpiresAt?: string;
+};
+
+type TokenRefreshPatch = {
+	readonly oauthAccessToken: string;
+	readonly oauthRefreshToken: string;
+	readonly oauthExpiresAt: string;
+};
+
+let lastTokenPatch: TokenRefreshPatch | undefined;
+
+export function consumeTokenRefreshPatch(): TokenRefreshPatch | undefined {
+	const patch = lastTokenPatch;
+	lastTokenPatch = undefined;
+	return patch;
 }
 
-function getAuthenticatedGmailClient() {
-	const config = readConfig();
-	const integrationState = config.integrations.gmail;
-	const tokens = isGmailIntegrationTokens(integrationState)
-		? integrationState
-		: null;
-	if (!tokens) {
-		throw new Error("Gmail is not connected. Run `toby connect gmail` first.");
+export function parseGmailConfig(raw: Record<string, unknown>): GmailConfig {
+	return {
+		clientId: String(raw.clientId ?? "").trim(),
+		clientSecret: String(raw.clientSecret ?? "").trim(),
+		oauthAccessToken: String(raw.oauthAccessToken ?? "").trim() || undefined,
+		oauthRefreshToken: String(raw.oauthRefreshToken ?? "").trim() || undefined,
+		oauthExpiresAt: String(raw.oauthExpiresAt ?? "").trim() || undefined,
+	};
+}
+
+export function normalizeConfig(
+	raw: Record<string, unknown>,
+): Record<string, unknown> {
+	const parsed = parseGmailConfig(raw);
+	return {
+		clientId: parsed.clientId,
+		clientSecret: parsed.clientSecret,
+		oauthAccessToken: parsed.oauthAccessToken ?? "",
+		oauthRefreshToken: parsed.oauthRefreshToken ?? "",
+		oauthExpiresAt: parsed.oauthExpiresAt ?? "",
+	};
+}
+
+export function hasGmailCredentials(config: Record<string, unknown>): boolean {
+	const parsed = parseGmailConfig(config);
+	return Boolean(parsed.clientId && parsed.clientSecret);
+}
+
+export function hasGmailOAuthTokens(config: Record<string, unknown>): boolean {
+	const parsed = parseGmailConfig(config);
+	return Boolean(parsed.oauthAccessToken && parsed.oauthRefreshToken);
+}
+
+export async function runOAuthConnect(
+	config: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+	const parsed = parseGmailConfig(config);
+	if (!parsed.clientId || !parsed.clientSecret) {
+		throw new Error(
+			"Gmail requires clientId and clientSecret. Set them in `toby configure`.",
+		);
 	}
 
-	const credentials = getGmailCredentials();
+	const tokens = await runOAuthFlow({
+		clientId: parsed.clientId,
+		clientSecret: parsed.clientSecret,
+	});
+
+	return {
+		oauthAccessToken: tokens.accessToken,
+		oauthRefreshToken: tokens.refreshToken,
+		oauthExpiresAt: new Date(tokens.expiresAt).toISOString(),
+	};
+}
+
+function parseExpiresAtMs(expiresAt?: string): number {
+	if (!expiresAt) return Date.now() + 3600_000;
+	const parsed = Date.parse(expiresAt);
+	return Number.isFinite(parsed) ? parsed : Date.now() + 3600_000;
+}
+
+function getAuthenticatedGmailClient(config: Record<string, unknown>) {
+	const parsed = parseGmailConfig(config);
+	if (!parsed.oauthAccessToken || !parsed.oauthRefreshToken) {
+		throw new Error("Gmail is not connected. Run `toby connect gmail` first.");
+	}
+	if (!parsed.clientId || !parsed.clientSecret) {
+		throw new Error(
+			"Gmail credentials not found. Add clientId/clientSecret in `toby configure`.",
+		);
+	}
+
 	const oauth2Client = new google.auth.OAuth2(
-		credentials.clientId,
-		credentials.clientSecret,
+		parsed.clientId,
+		parsed.clientSecret,
 	);
 
 	oauth2Client.setCredentials({
-		access_token: tokens.accessToken,
-		refresh_token: tokens.refreshToken,
-		expiry_date: tokens.expiresAt,
+		access_token: parsed.oauthAccessToken,
+		refresh_token: parsed.oauthRefreshToken,
+		expiry_date: parseExpiresAtMs(parsed.oauthExpiresAt),
 	});
 
 	oauth2Client.on("tokens", (newTokens) => {
 		if (newTokens.access_token) {
-			const cfg = readConfig();
-			if (isGmailIntegrationTokens(cfg.integrations.gmail)) {
-				cfg.integrations.gmail.accessToken = newTokens.access_token;
-				cfg.integrations.gmail.expiresAt =
-					newTokens.expiry_date ?? Date.now() + 3600_000;
-				writeConfig(cfg);
-			}
+			lastTokenPatch = {
+				oauthAccessToken: newTokens.access_token,
+				oauthRefreshToken:
+					parsed.oauthRefreshToken ?? newTokens.refresh_token ?? "",
+				oauthExpiresAt: new Date(
+					newTokens.expiry_date ?? Date.now() + 3600_000,
+				).toISOString(),
+			};
 		}
 	});
 
 	return oauth2Client;
-}
-
-function isGmailIntegrationTokens(
-	value: unknown,
-): value is GmailIntegrationTokens {
-	if (!value || typeof value !== "object") {
-		return false;
-	}
-
-	const candidate = value as {
-		accessToken?: unknown;
-		refreshToken?: unknown;
-		expiresAt?: unknown;
-	};
-	const accessToken = candidate.accessToken;
-	const refreshToken = candidate.refreshToken;
-	const expiresAt = candidate.expiresAt;
-	if (
-		typeof accessToken !== "string" ||
-		typeof refreshToken !== "string" ||
-		typeof expiresAt !== "number"
-	) {
-		return false;
-	}
-
-	return true;
 }
 
 /** Maximum message ids per metadata batch fetch (Gmail tools + client). */
@@ -88,22 +136,10 @@ export interface GmailMessage {
 	labelIds: readonly string[];
 }
 
-// Rate-limit configs for Gmail API.
-// Per-user limit: 15 000 quota units / min ≈ 250 / sec.
-// Concurrent cap: 50 parallel requests per mailbox.
-const GMAIL_READ_LIMIT: RateLimitConfig = {
-	maxConcurrent: 10,
-	minDelayMs: 50,
-};
-const GMAIL_MUTATE_LIMIT: RateLimitConfig = {
-	maxConcurrent: 5,
-	minDelayMs: 100,
-};
-
-/** Maximum message IDs per batchModify call (Gmail API limit). */
+const GMAIL_READ_LIMIT = { maxConcurrent: 10, minDelayMs: 50 };
+const GMAIL_MUTATE_LIMIT = { maxConcurrent: 5, minDelayMs: 100 };
 const BATCH_MODIFY_MAX_IDS = 1000;
 
-/** One page of message ids from Gmail list (no per-message fetches). */
 interface InboxListPage {
 	readonly messageSummaries: ReadonlyArray<{
 		readonly id: string;
@@ -141,24 +177,18 @@ async function fetchOneMessageMetadata(
 	};
 }
 
-/**
- * List unread messages in the inbox (ids + thread ids only). Uses a single
- * messages.list call — use for counts / pagination without loading bodies.
- */
 export async function listInboxUnreadPage(
+	config: Record<string, unknown>,
 	maxResults = 50,
 	pageToken?: string,
 ): Promise<InboxListPage> {
-	return listInboxPage(maxResults, pageToken, {
+	return listInboxPage(config, maxResults, pageToken, {
 		labelIds: ["INBOX", "UNREAD"],
 	});
 }
 
-/**
- * List messages (ids + thread ids only) using a single messages.list call.
- * By default callers should include INBOX in labelIds when they mean "inbox".
- */
 export async function listInboxPage(
+	config: Record<string, unknown>,
 	maxResults = 50,
 	pageToken?: string,
 	options?: {
@@ -166,7 +196,7 @@ export async function listInboxPage(
 		readonly query?: string;
 	},
 ): Promise<InboxListPage> {
-	const auth = getAuthenticatedGmailClient();
+	const auth = getAuthenticatedGmailClient(config);
 	const gmail = google.gmail({ version: "v1", auth });
 	const capped = Math.min(Math.max(1, maxResults), 500);
 
@@ -196,8 +226,8 @@ export async function listInboxPage(
 	};
 }
 
-/** Metadata headers + snippet for specific message ids (bounded, rate-limited batch). */
 export async function fetchUnreadMetadataByMessageIds(
+	config: Record<string, unknown>,
 	ids: readonly string[],
 	maxParallel = METADATA_BATCH_MAX,
 ): Promise<GmailMessage[]> {
@@ -207,7 +237,7 @@ export async function fetchUnreadMetadataByMessageIds(
 		return [];
 	}
 
-	const auth = getAuthenticatedGmailClient();
+	const auth = getAuthenticatedGmailClient(config);
 	const gmail = google.gmail({ version: "v1", auth });
 
 	const results = await Promise.all(
@@ -222,14 +252,15 @@ export async function fetchUnreadMetadataByMessageIds(
 }
 
 export async function fetchUnreadInbox(
+	config: Record<string, unknown>,
 	maxResults = 20,
 ): Promise<GmailMessage[]> {
-	const page = await listInboxUnreadPage(maxResults);
+	const page = await listInboxUnreadPage(config, maxResults);
 	if (page.messageSummaries.length === 0) {
 		return [];
 	}
 
-	const auth = getAuthenticatedGmailClient();
+	const auth = getAuthenticatedGmailClient(config);
 	const gmail = google.gmail({ version: "v1", auth });
 
 	const results = await Promise.all(
@@ -244,9 +275,10 @@ export async function fetchUnreadInbox(
 }
 
 export async function ensureLabels(
+	config: Record<string, unknown>,
 	labelNames: string[],
 ): Promise<Record<string, string>> {
-	const auth = getAuthenticatedGmailClient();
+	const auth = getAuthenticatedGmailClient(config);
 	const gmail = google.gmail({ version: "v1", auth });
 
 	const existing = await withRetry(() =>
@@ -282,25 +314,27 @@ export async function ensureLabels(
 }
 
 export async function applyLabels(
+	config: Record<string, unknown>,
 	messageId: string,
 	labelIds: string[],
 ): Promise<void> {
-	const auth = getAuthenticatedGmailClient();
+	const auth = getAuthenticatedGmailClient(config);
 	const gmail = google.gmail({ version: "v1", auth });
 
 	await withRetry(() =>
 		gmail.users.messages.modify({
 			userId: "me",
 			id: messageId,
-			requestBody: {
-				addLabelIds: labelIds,
-			},
+			requestBody: { addLabelIds: labelIds },
 		}),
 	);
 }
 
-export async function markEmailAsRead(messageId: string): Promise<void> {
-	const auth = getAuthenticatedGmailClient();
+export async function markEmailAsRead(
+	config: Record<string, unknown>,
+	messageId: string,
+): Promise<void> {
+	const auth = getAuthenticatedGmailClient(config);
 	const gmail = google.gmail({ version: "v1", auth });
 
 	await withRetry(() =>
@@ -312,8 +346,11 @@ export async function markEmailAsRead(messageId: string): Promise<void> {
 	);
 }
 
-export async function archiveEmail(messageId: string): Promise<void> {
-	const auth = getAuthenticatedGmailClient();
+export async function archiveEmail(
+	config: Record<string, unknown>,
+	messageId: string,
+): Promise<void> {
+	const auth = getAuthenticatedGmailClient(config);
 	const gmail = google.gmail({ version: "v1", auth });
 
 	await withRetry(() =>
@@ -325,42 +362,24 @@ export async function archiveEmail(messageId: string): Promise<void> {
 	);
 }
 
-/**
- * Result of a single operation within a batchModifyMessages call.
- */
 export interface BatchModifyOperationResult {
-	/** The operation that was executed (label names resolved to IDs). */
 	readonly addLabelIds: string[];
 	readonly removeLabelIds: string[];
-	/** Message IDs that were successfully modified. */
 	readonly succeeded: string[];
-	/** Message IDs that failed (e.g. not found). */
 	readonly failed: string[];
 }
 
-/**
- * Batch-modify labels on many messages at once using the Gmail batchModify API.
- *
- * Each operation specifies a set of messageIds and labels to add/remove.
- * Operations that share the same (addLabelIds, removeLabelIds) signature are
- * merged internally so fewer API calls are made.
- *
- * Each batchModify call costs 50 quota units (vs 5 per individual messages.modify),
- * but handles up to 1 000 IDs per call — dramatically cheaper per message.
- */
 export async function batchModifyMessages(
+	config: Record<string, unknown>,
 	operations: ReadonlyArray<{
 		readonly messageIds: readonly string[];
 		readonly addLabelIds?: readonly string[];
 		readonly removeLabelIds?: readonly string[];
 	}>,
 ): Promise<BatchModifyOperationResult[]> {
-	const auth = getAuthenticatedGmailClient();
+	const auth = getAuthenticatedGmailClient(config);
 	const gmail = google.gmail({ version: "v1", auth });
-
-	// Merge operations that share the same (add, remove) label signature.
 	const merged = mergeOperations(operations);
-
 	const results: BatchModifyOperationResult[] = [];
 
 	for (const op of merged) {
@@ -394,7 +413,6 @@ export async function batchModifyMessages(
 					failed: [],
 				});
 			} catch {
-				// On failure, report all IDs in this chunk as failed.
 				results.push({
 					addLabelIds: [...op.addLabelIds],
 					removeLabelIds: [...op.removeLabelIds],
@@ -408,7 +426,6 @@ export async function batchModifyMessages(
 	return results;
 }
 
-/** Group operations that share the same add/remove label signature and merge their IDs. */
 function mergeOperations(
 	operations: ReadonlyArray<{
 		readonly messageIds: readonly string[];
@@ -459,24 +476,23 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
 	return chunks;
 }
 
-export async function createDraft(options: {
-	to: string[];
-	cc?: string[];
-	bcc?: string[];
-	subject: string;
-	body: string;
-}): Promise<{ draftId: string; messageId: string }> {
-	const auth = getAuthenticatedGmailClient();
+export async function createDraft(
+	config: Record<string, unknown>,
+	options: {
+		to: string[];
+		cc?: string[];
+		bcc?: string[];
+		subject: string;
+		body: string;
+	},
+): Promise<{ draftId: string; messageId: string }> {
+	const auth = getAuthenticatedGmailClient(config);
 	const gmail = google.gmail({ version: "v1", auth });
 
 	const lines: string[] = [];
 	lines.push(`To: ${options.to.join(", ")}`);
-	if (options.cc?.length) {
-		lines.push(`Cc: ${options.cc.join(", ")}`);
-	}
-	if (options.bcc?.length) {
-		lines.push(`Bcc: ${options.bcc.join(", ")}`);
-	}
+	if (options.cc?.length) lines.push(`Cc: ${options.cc.join(", ")}`);
+	if (options.bcc?.length) lines.push(`Bcc: ${options.bcc.join(", ")}`);
 	lines.push(
 		`Subject: =?utf-8?B?${Buffer.from(options.subject).toString("base64")}?=`,
 	);
@@ -495,9 +511,7 @@ export async function createDraft(options: {
 		withRetry(() =>
 			gmail.users.drafts.create({
 				userId: "me",
-				requestBody: {
-					message: { raw },
-				},
+				requestBody: { message: { raw } },
 			}),
 		),
 	);
@@ -511,15 +525,18 @@ export async function createDraft(options: {
 	return { draftId, messageId };
 }
 
-export async function testGmailConnection(): Promise<void> {
-	const auth = getAuthenticatedGmailClient();
+export async function testGmailConnection(
+	config: Record<string, unknown>,
+): Promise<void> {
+	const auth = getAuthenticatedGmailClient(config);
 	const gmail = google.gmail({ version: "v1", auth });
-
 	await gmail.users.getProfile({ userId: "me" });
 }
 
-export async function getGmailGrantedScopes(): Promise<string[]> {
-	const auth = getAuthenticatedGmailClient();
+export async function getGmailGrantedScopes(
+	config: Record<string, unknown>,
+): Promise<string[]> {
+	const auth = getAuthenticatedGmailClient(config);
 	const accessTokenResult = await auth.getAccessToken();
 	const accessToken =
 		typeof accessTokenResult === "string"

@@ -1,10 +1,12 @@
 import {
 	type CredentialsFile,
+	readConfig,
 	readCredentials,
+	writeConfig,
 	writeCredentials,
 } from "../../config/index";
 
-const MIGRATED_PLUGINS = ["azuread"] as const;
+const MIGRATED_PLUGINS = ["azuread", "gmail"] as const;
 
 /** Copy legacy top-level credential blocks into integrations.<name> when empty. */
 export function migrateLegacyPluginCredentials(): void {
@@ -37,12 +39,87 @@ export function migrateLegacyPluginCredentials(): void {
 		changed = true;
 	}
 
-	if (!changed) {
+	if (changed) {
+		writeCredentials({
+			...creds,
+			integrations,
+		});
+	}
+
+	migrateLegacyGmailOAuthTokens();
+}
+
+/** Move OAuth tokens from config.integrations.gmail into credentials.integrations.gmail. */
+function migrateLegacyGmailOAuthTokens(): void {
+	const config = readConfig();
+	const gmailState = config.integrations?.gmail;
+	if (!gmailState || typeof gmailState !== "object") {
 		return;
 	}
 
-	writeCredentials({
-		...creds,
-		integrations,
-	});
+	const accessToken = gmailState.accessToken;
+	const refreshToken = gmailState.refreshToken;
+	const expiresAt = gmailState.expiresAt;
+
+	if (typeof accessToken !== "string" || typeof refreshToken !== "string") {
+		return;
+	}
+
+	const creds = readCredentials();
+	const existing = { ...(creds.integrations?.gmail ?? {}) };
+	let credsChanged = false;
+
+	if (!existing.oauthAccessToken) {
+		existing.oauthAccessToken = accessToken;
+		credsChanged = true;
+	}
+	if (!existing.oauthRefreshToken) {
+		existing.oauthRefreshToken = refreshToken;
+		credsChanged = true;
+	}
+	if (!existing.oauthExpiresAt && typeof expiresAt === "number") {
+		existing.oauthExpiresAt = new Date(expiresAt).toISOString();
+		credsChanged = true;
+	}
+
+	if (credsChanged) {
+		writeCredentials({
+			...creds,
+			integrations: {
+				...(creds.integrations ?? {}),
+				gmail: existing,
+			},
+		});
+	}
+
+	const nextGmailState = { ...gmailState };
+	let configChanged = false;
+
+	if ("accessToken" in nextGmailState) {
+		Reflect.deleteProperty(nextGmailState, "accessToken");
+		configChanged = true;
+	}
+	if ("refreshToken" in nextGmailState) {
+		Reflect.deleteProperty(nextGmailState, "refreshToken");
+		configChanged = true;
+	}
+	if ("expiresAt" in nextGmailState) {
+		Reflect.deleteProperty(nextGmailState, "expiresAt");
+		configChanged = true;
+	}
+
+	if (!nextGmailState.connectedAt) {
+		nextGmailState.connectedAt = new Date().toISOString();
+		configChanged = true;
+	}
+
+	if (configChanged) {
+		writeConfig({
+			...config,
+			integrations: {
+				...config.integrations,
+				gmail: nextGmailState,
+			},
+		});
+	}
 }
