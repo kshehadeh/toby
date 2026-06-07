@@ -111,6 +111,7 @@ export function getStagingPaths(): {
 	readonly pluginGmailPath: string;
 	readonly pluginTodoistPath: string;
 	readonly pluginJiraPath: string;
+	readonly pluginWebsearchPath: string;
 	readonly pluginApplecalendarPath: string;
 	readonly pluginMacosPath: string;
 	readonly webPath: string;
@@ -129,6 +130,7 @@ export function getStagingPaths(): {
 		pluginGmailPath: path.join(stagingDir, "toby-plugin-gmail"),
 		pluginTodoistPath: path.join(stagingDir, "toby-plugin-todoist"),
 		pluginJiraPath: path.join(stagingDir, "toby-plugin-jira"),
+		pluginWebsearchPath: path.join(stagingDir, "toby-plugin-websearch"),
 		pluginApplecalendarPath: path.join(stagingDir, "toby-plugin-applecalendar"),
 		pluginMacosPath: path.join(stagingDir, "toby-plugin-macos"),
 		webPath: path.join(stagingDir, "web"),
@@ -224,6 +226,7 @@ export async function downloadRelease(
 		pluginGmailPath,
 		pluginTodoistPath,
 		pluginJiraPath,
+		pluginWebsearchPath,
 		pluginApplecalendarPath,
 		pluginMacosPath,
 		archivePath,
@@ -245,6 +248,7 @@ export async function downloadRelease(
 		await rm(pluginGmailPath, { force: true }).catch(() => undefined);
 		await rm(pluginTodoistPath, { force: true }).catch(() => undefined);
 		await rm(pluginJiraPath, { force: true }).catch(() => undefined);
+		await rm(pluginWebsearchPath, { force: true }).catch(() => undefined);
 		await rm(pluginApplecalendarPath, { force: true }).catch(() => undefined);
 		await rm(pluginMacosPath, { force: true }).catch(() => undefined);
 		await rm(archivePath, { force: true }).catch(() => undefined);
@@ -376,6 +380,7 @@ export async function applyStagedRelease(
 		pluginGmailPath,
 		pluginTodoistPath,
 		pluginJiraPath,
+		pluginWebsearchPath,
 		pluginApplecalendarPath,
 		pluginMacosPath,
 	} = getStagingPaths();
@@ -384,6 +389,7 @@ export async function applyStagedRelease(
 	await installStagedPluginBinary(pluginGmailPath, "toby-plugin-gmail");
 	await installStagedPluginBinary(pluginTodoistPath, "toby-plugin-todoist");
 	await installStagedPluginBinary(pluginJiraPath, "toby-plugin-jira");
+	await installStagedPluginBinary(pluginWebsearchPath, "toby-plugin-websearch");
 	await installStagedPluginBinary(
 		pluginApplecalendarPath,
 		"toby-plugin-applecalendar",

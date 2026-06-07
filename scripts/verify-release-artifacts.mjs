@@ -15,6 +15,7 @@ const required = [
 	"toby-plugin-gmail",
 	"toby-plugin-todoist",
 	"toby-plugin-jira",
+	"toby-plugin-websearch",
 	"toby-plugin-applecalendar",
 	"toby-plugin-macos",
 	"whisper-cli",
