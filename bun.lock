@@ -19,7 +19,7 @@
     },
     "apps/cli": {
       "name": "@toby/cli",
-      "version": "0.29.0",
+      "version": "0.30.0",
       "bin": {
         "toby": "./dist/cli.js",
       },
@@ -78,6 +78,14 @@
     "apps/plugin-sample": {
       "name": "@toby/plugin-sample",
       "version": "1.0.0",
+    },
+    "apps/plugin-slack": {
+      "name": "@toby/plugin-slack",
+      "version": "1.0.0",
+      "dependencies": {
+        "@slack/bolt": "^4.4.0",
+        "open": "^10.1.0",
+      },
     },
     "apps/plugin-todoist": {
       "name": "@toby/plugin-todoist",
@@ -1238,6 +1246,8 @@
     "@toby/plugin-gmail": ["@toby/plugin-gmail@workspace:apps/plugin-gmail"],
 
     "@toby/plugin-sample": ["@toby/plugin-sample@workspace:apps/plugin-sample"],
+
+    "@toby/plugin-slack": ["@toby/plugin-slack@workspace:apps/plugin-slack"],
 
     "@toby/plugin-todoist": ["@toby/plugin-todoist@workspace:apps/plugin-todoist"],
 

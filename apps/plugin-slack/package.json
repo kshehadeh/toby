@@ -1,0 +1,15 @@
+{
+	"name": "@toby/plugin-slack",
+	"version": "1.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Slack installable Toby integration plugin (protocol v1)",
+	"dependencies": {
+		"@slack/bolt": "^4.4.0",
+		"open": "^10.1.0"
+	},
+	"scripts": {
+		"dev": "bun src/cli.ts",
+		"build": "bun build ./src/cli.ts --compile --outfile ../../dist/toby-plugin-slack"
+	}
+}
