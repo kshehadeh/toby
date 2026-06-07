@@ -1,54 +1,54 @@
-![Toby logo](images/256x256.png)
+<p align="center">
+  <img src="images/256x256.png" alt="Toby logo" width="128" height="128" />
+</p>
 
-Toby is an assistant that experiments with the application of personas on top of the standard skill-based architecture.
+# Toby
 
-Personas can mutate skills and bare prompts in interesting ways.  A concrete example would be a persona of a technologist
-who is defined as a person who is most interested in the technical aspects of the subject matter which is being discussed
-and probed with the AI.  A skill which describes how to organize emails would pair with the technologist in that the 
-technologist would prioritize emails related to technical subject matter before other subjects.
-
-This is in contrast to a persona of a project manager who is more focused on the organization of schedules and the 
-communications between disparate teams.  Those same emails would be prioritized differently for the project manager
-persona.
+Toby is an AI-assisted CLI for personal productivity workflows. It connects to
+services such as Gmail, Todoist, Slack, Jira, Web Search, Apple Calendar, and
+local macOS controls so you can search, summarize, organize, and act on work
+from chat.
 
 Toby combines:
 
-- Integration-aware commands (for services like Gmail, Todoist, Slack, Jira, Web Search, and local macOS apps)
-- Interactive terminal experiences (`config` and `chat`)
-- AI-powered flows for organizing and summarizing work
-- Personas for filtering responses through the lens of a particular interest
-- Skills for describing how to perform certain tasks or to interpret certain subjects.
+- **Chat-first workflows** through an Ink terminal UI and one-shot console mode
+- **Installable integrations** shipped as `@toby/plugin-*` binaries
+- **Personas, skills, and memories** for durable assistant context
+- **Schedules and daemon flows** for recurring prompts and inbound chat
+- **Listen mode** for local audio recording and transcription on macOS
+- **A local web UI** for sessions, memories, and configuration
 
-## Chat architecture overview
+## Install
 
-```mermaid
-flowchart TD
-    U[User Input] --> C[toby chat command]
-    C --> P[Chat Pipeline Orchestrator]
+On macOS, install the latest release with:
 
-    P --> CTX["Load conversation + integration context"]
-    CTX --> SEL["Select active persona + relevant skills"]
-
-    SEL --> PER["Persona layer"]
-    SEL --> SK["Skill layer"]
-
-    PER -->|adjusts framing and priorities| SYS["System prompt assembly"]
-    SK -->|injects task instructions and constraints| SYS
-
-    SYS --> LLM["LLM inference"]
-    LLM --> TOOLS{Tool call needed?}
-
-    TOOLS -->|Yes| INT["Integration/tool execution"]
-    INT --> CACHE["Tool result cache"]
-    CACHE --> P
-
-    TOOLS -->|No| OUT["Assistant response"]
-    P --> OUT
+```bash
+curl -fsSL https://raw.githubusercontent.com/kshehadeh/toby/main/install-toby.sh | bash
 ```
 
-## Quick start
+The installer places `toby` on your PATH, installs helper binaries under
+`~/.toby/helpers/`, installs first-party plugins under `~/.toby/plugins/`, and
+runs `toby whisper setup` for the default local transcription model.
 
-Use Bun-based scripts from the repo root:
+See the help-site [Install Toby](https://toby.iwonderdesigns.com/docs/getting-started/install)
+guide for manual release installs, source installs, and optional installer
+settings.
+
+## Quick Start
+
+After installing:
+
+```bash
+toby --help
+toby config
+toby connect gmail
+toby -p "summarize my unread email"
+```
+
+Bare `toby` opens chat. Use `toby -p "..."` or `toby chat --prompt "..."`
+for an initial message.
+
+From a source checkout:
 
 ```bash
 bun install
@@ -56,59 +56,127 @@ bun run build
 bun run dev -- --help
 ```
 
-## Core commands
+When developing plugin-backed integrations from source:
 
-- `toby chat` - launch the chat interface (default command: bare `toby` opens chat; use `toby -p "…"` for an initial prompt)
-- `toby config` - open the interactive configure UI
-- `toby config backup` - create an encrypted backup of config + credentials
-- `toby config restore <file>` - restore from a backup file
-- `toby summarize <integration>` - summarize items for an integration
-- `toby organize <integration>` - run AI-powered organization flows
-- `toby connect <integration>` - connect an integration account
-- `toby disconnect <integration>` - disconnect an integration account
-- `toby status` - view connection and integration status
-- `toby listen` - record microphone and/or system audio for transcription
-- `toby sessions clear` - clear saved chat sessions
-- `toby upgrade` - install the latest Toby release
+```bash
+bun run build:plugins
+toby plugins doctor
+```
+
+## Module Organization
+
+![Toby module organization](docs/assets/toby-architecture.svg)
+
+| Module | Role |
+| ------ | ---- |
+| `@toby/cli` | Commander entrypoint, Ink chat/configure UI, CLI-only presentation and orchestration. |
+| `@toby/web` | Local browser UI for sessions, memories, and configuration. |
+| `@toby/core` | Shared harness: chat pipeline, AI runtime, tools, integration registry, config, memory, sessions, logging, daemon-safe workflows. |
+| `@toby/plugin-*` | Installable CLI binaries with strict JSON stdin/stdout contracts. |
+| External systems | Email, tasks, chat, work tracking, search, calendars, and local macOS APIs. |
+
+Core is intentionally UI-agnostic. Put behavior in `@toby/core` when it should
+work from the CLI, web UI, daemon, headless scripts, or tests without importing
+Ink, React, or Commander.
+
+See [docs/architecture.md](docs/architecture.md) and the help-site
+[Architecture](https://toby.iwonderdesigns.com/docs/architecture/overview)
+page for more detail.
+
+## Integrations and Plugins
+
+First-party integrations ship as installable plugin binaries in release
+archives. Fresh installs and upgrades copy them into `~/.toby/plugins/`.
+
+Current first-party plugin integrations include:
+
+- Gmail
+- Todoist
+- Slack
+- Jira
+- Web Search
+- Apple Calendar
+- macOS
+- Azure AD
+- Sample plugin
+
+Plugins can be written in any language that can ship an executable. Toby
+discovers `toby-plugin-<name>` binaries, passes config on stdin, and reads one
+JSON object from stdout.
+
+See:
+
+- [Integrations overview](https://toby.iwonderdesigns.com/docs/integrations/overview)
+- [Creating a plugin](https://toby.iwonderdesigns.com/docs/plugins/creating-a-plugin)
+- [Plugin protocol](docs/plugin-protocol.md)
+
+## Core Commands
+
+| Command | Purpose |
+| ------- | ------- |
+| `toby` / `toby chat` | Open the chat UI. |
+| `toby -p "..."` | Start chat with an initial prompt. |
+| `toby config` | Open the interactive configuration UI. |
+| `toby connect <integration>` | Connect an integration account. |
+| `toby disconnect <integration>` | Disconnect an integration account. |
+| `toby status` | Show connection and integration health. |
+| `toby summarize <integration>` | Summarize integration content. |
+| `toby organize <integration>` | Run integration-specific organization flows. |
+| `toby listen` | Record and transcribe microphone/system audio on macOS. |
+| `toby sessions clear` | Clear saved chat sessions. |
+| `toby upgrade` | Download and install the latest release. |
+
+See [docs/commands.md](docs/commands.md) and the help-site
+[Your first chat](https://toby.iwonderdesigns.com/docs/getting-started/first-chat)
+guide for usage details.
 
 ## Documentation
 
-- [docs/README.md](docs/README.md) - docs index
-- [docs/architecture.md](docs/architecture.md) - project architecture
-- [docs/commands.md](docs/commands.md) - shared CLI commands and examples
-- [AGENTS.md](AGENTS.md) - contributor and agent guidance
+- Help site: <https://toby.iwonderdesigns.com/docs/intro>
+- Source docs index: [docs/README.md](docs/README.md)
+- Architecture: [docs/architecture.md](docs/architecture.md)
+- Integrations: [docs/integrations.md](docs/integrations.md)
+- Plugin protocol: [docs/plugin-protocol.md](docs/plugin-protocol.md)
+- Daemon and schedules: [docs/daemon.md](docs/daemon.md)
+- Web UI: [docs/web-ui.md](docs/web-ui.md)
+- Agent/contributor guide: [AGENTS.md](AGENTS.md)
 
-## Documentation site
-
-This repo includes a Docusaurus-based docs site in `apps/help-site/`, deployed to GitHub Pages from `.github/workflows/deploy-docs.yml`.
+The Docusaurus help site lives in `apps/help-site/`:
 
 ```bash
-bun run docs:install
 bun run docs:start
+bun run docs:build
 ```
 
-## Developer guide
+## Development
 
-### Local setup
+Use Bun from the repo root:
 
 ```bash
 bun install
-bun run dev -- --help
-```
-
-### Build and validate
-
-Run these before opening a PR:
-
-```bash
 bun run build
 bun run lint
 bun run typecheck
 bun run test
 ```
 
-### Contributing notes
+Useful development commands:
 
-- Start with [AGENTS.md](AGENTS.md) for repository conventions and quick paths.
-- Keep shared CLI behavior in `apps/cli/src/commands/` and integration-specific behavior in `apps/cli/src/integrations/<name>/`.
-- Add or update tests in `tests/` for substantive behavior changes.
+```bash
+bun run dev -- chat
+bun run dev:web
+bun run build:plugins
+bun run build:executable
+```
+
+Notes:
+
+- Use `bun run dev` for the Ink TUI. Avoid `dev:turbo`; Turborepo log prefixes
+  break the terminal UI.
+- CLI tests live under `apps/cli/tests/` and should import shared harness code
+  from `@toby/core/...`.
+- Integration behavior should live in core/plugin modules, not in generic CLI
+  command branches.
+- Shared Ink primitives live in `apps/cli/src/ui/shared/`.
+
+Start with [AGENTS.md](AGENTS.md) for repository conventions and quick paths.
