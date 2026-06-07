@@ -47,7 +47,50 @@ export function migrateLegacyPluginCredentials(): void {
 	}
 
 	migrateLegacyGmailOAuthTokens();
+	migrateBraveSearchToWebSearch();
 	migrateRetiredIntegrations();
+}
+
+/** Rename legacy bravesearch credentials/config to websearch. */
+function migrateBraveSearchToWebSearch(): void {
+	const creds = readCredentials();
+	const integrations = { ...(creds.integrations ?? {}) };
+	let credsChanged = false;
+
+	const legacyBrave = integrations.bravesearch;
+	const existingWeb = integrations.websearch;
+	if (
+		legacyBrave &&
+		Object.keys(legacyBrave).length > 0 &&
+		(!existingWeb || Object.keys(existingWeb).length === 0)
+	) {
+		integrations.websearch = { ...legacyBrave };
+		Reflect.deleteProperty(integrations, "bravesearch");
+		credsChanged = true;
+	}
+
+	if (credsChanged) {
+		writeCredentials({
+			...creds,
+			integrations,
+		});
+	}
+
+	const config = readConfig();
+	const configIntegrations = config.integrations;
+	if (!configIntegrations?.bravesearch) {
+		return;
+	}
+
+	const nextIntegrations = { ...configIntegrations };
+	if (!nextIntegrations.websearch) {
+		nextIntegrations.websearch = { ...configIntegrations.bravesearch };
+	}
+	Reflect.deleteProperty(nextIntegrations, "bravesearch");
+	writeConfig({
+		...config,
+		integrations: nextIntegrations,
+	});
 }
 
 /** Drop config entries for integrations removed from the product. */

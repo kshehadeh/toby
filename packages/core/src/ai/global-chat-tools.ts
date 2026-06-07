@@ -3,8 +3,10 @@ import path from "node:path";
 import { Output, type Tool, generateText, tool, zodSchema } from "ai";
 import { z } from "zod";
 import { type Persona, ensureTobyDir, getSkillsDir } from "../config/index";
-import { getBraveSearchApiKeyRaw } from "../integrations/bravesearch/client";
-import { createBraveSearchTools } from "../integrations/bravesearch/tools";
+import {
+	createWebSearchGlobalTools,
+	isWebSearchAvailable,
+} from "../integrations/websearch/global-tools";
 import {
 	formatSkillsCatalogForPrompt,
 	loadLocalSkills,
@@ -68,9 +70,9 @@ type GlobalChatToolsContext = {
 /** Explains global tools for integration system prompts. */
 export function globalChatToolsPromptSection(): string {
 	const skillsCatalog = formatSkillsCatalogForPrompt(loadLocalSkills());
-	const hasSearch = Boolean(getBraveSearchApiKeyRaw());
+	const hasSearch = isWebSearchAvailable();
 	const searchToolLine = hasSearch
-		? "\n- **webSearch**: Search the web using Brave Search. Returns titles, URLs, descriptions, and optional page age. Use when the user asks about current events, facts, research, or anything requiring up-to-date information from the web. Always cite source URLs from search results."
+		? "\n- **webSearch**: Search the web (Brave Search). Returns titles, URLs, descriptions, and optional page age. Use when the user asks about current events, facts, research, or anything requiring up-to-date information from the web. Always cite source URLs from search results."
 		: "";
 	const searchRules = hasSearch
 		? `
@@ -202,12 +204,10 @@ export function createGlobalChatTools(
 		...reflectTools,
 		...createListenChatTools(),
 		...createWebFetchTools(),
-		...(getBraveSearchApiKeyRaw()
-			? createBraveSearchTools({
-					dryRun: ctx.dryRun,
-					appliedActions: ctx.appliedActions,
-				})
-			: {}),
+		...createWebSearchGlobalTools({
+			dryRun: ctx.dryRun,
+			appliedActions: ctx.appliedActions,
+		}),
 		getCurrentDateTime: tool({
 			description:
 				"Get the current local datetime, UTC datetime, timezone, and Unix milliseconds.",

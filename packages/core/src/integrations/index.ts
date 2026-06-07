@@ -1,4 +1,3 @@
-import { braveSearchIntegrationModule } from "./bravesearch/index";
 import { getPluginModules } from "./plugins/registry";
 import { slackIntegrationModule } from "./slack/index";
 import type {
@@ -8,10 +7,7 @@ import type {
 	ProviderCategory,
 } from "./types";
 
-const BUILTIN_MODULES: IntegrationModule[] = [
-	slackIntegrationModule,
-	braveSearchIntegrationModule,
-];
+const BUILTIN_MODULES: IntegrationModule[] = [slackIntegrationModule];
 
 function allModules(): IntegrationModule[] {
 	const pluginModules = getPluginModules();

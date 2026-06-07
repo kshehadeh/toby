@@ -7,13 +7,13 @@ import {
 } from "./ai/pretreatment";
 import type { Persona } from "./config/index";
 import { getDefaultProvider } from "./config/index";
-import { getBraveSearchApiKeyRaw } from "./integrations/bravesearch/client";
 import {
 	ALL_PROVIDER_CATEGORIES,
 	PROVIDER_CATEGORY_LABELS,
 	type ProviderCategory,
 } from "./integrations/types";
 import type { IntegrationModule } from "./integrations/types";
+import { isWebSearchAvailable } from "./integrations/websearch/global-tools";
 import { composeSystemPromptWithPersona } from "./personas/prompt";
 import { type LocalSkill, resolveSkillsByNames } from "./skills/index";
 
@@ -135,7 +135,7 @@ function buildCombinedChatBasePrompt(
 		.join("\n\n");
 	const defaultsSection = buildDefaultProvidersSection();
 
-	const hasSearch = Boolean(getBraveSearchApiKeyRaw());
+	const hasSearch = isWebSearchAvailable();
 	const searchToolsList = hasSearch ? ", **webSearch**" : "";
 	const searchRule = hasSearch
 		? "\n- **Web search**: When the user asks about current events, facts, research, or anything requiring up-to-date information, use **webSearch** to find results. When the user shares a URL or asks to read a page, use **fetchWebContent** to extract the article content. Never claim knowledge about current events without searching first."
