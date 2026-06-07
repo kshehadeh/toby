@@ -1,8 +1,8 @@
-import { executeAppleScript } from "../applemail/applescript";
 import {
 	escapeForAppleScript,
+	executeAppleScript,
 	parseAppleScriptDate,
-} from "../applemail/client";
+} from "../shared/applescript";
 
 /** True when local Calendar.app automation is supported. */
 export function isAppleCalendarPlatformSupported(): boolean {
