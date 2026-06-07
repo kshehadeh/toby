@@ -29,3 +29,4 @@ It combines:
 | Start chatting | [Your first chat](./getting-started/first-chat) (includes CLI syntax for `toby`, `toby -p`, and `toby chat`) |
 | Personas, skills, memories, schedules | [Personas](./personas) · [Skills](./skills) · [Memories](./memories) · [Schedules](./schedules) |
 | Real-world workflows | [Examples](./examples) |
+| Build your own integration | [Creating a plugin](./plugins/creating-a-plugin) |

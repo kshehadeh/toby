@@ -66,6 +66,8 @@ See [Configure and connect](../getting-started/configure-and-status) for the ful
 
 Gmail, Azure AD, Todoist, Jira, Web Search, Apple Calendar, macOS, and other first-party integrations ship as **plugin binaries** bundled in release archives. Fresh installs (`install-toby.sh`) and `toby upgrade` copy them into `~/.toby/plugins/` automatically—no manual `toby plugins install` step is required for release users. The sample plugin (`toby-plugin-sample`) is also installed for reference and testing.
 
+Want to build your own? See **[Creating a plugin](../plugins/creating-a-plugin)** for the full protocol contract (any language), subcommand inputs/outputs, and `toby plugins` commands.
+
 When developing from a git clone, build and link plugins yourself:
 
 ```bash
