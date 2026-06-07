@@ -110,6 +110,7 @@ export function getStagingPaths(): {
 	readonly pluginAzureadPath: string;
 	readonly pluginGmailPath: string;
 	readonly pluginTodoistPath: string;
+	readonly pluginSlackPath: string;
 	readonly pluginJiraPath: string;
 	readonly pluginWebsearchPath: string;
 	readonly pluginApplecalendarPath: string;
@@ -129,6 +130,7 @@ export function getStagingPaths(): {
 		pluginAzureadPath: path.join(stagingDir, "toby-plugin-azuread"),
 		pluginGmailPath: path.join(stagingDir, "toby-plugin-gmail"),
 		pluginTodoistPath: path.join(stagingDir, "toby-plugin-todoist"),
+		pluginSlackPath: path.join(stagingDir, "toby-plugin-slack"),
 		pluginJiraPath: path.join(stagingDir, "toby-plugin-jira"),
 		pluginWebsearchPath: path.join(stagingDir, "toby-plugin-websearch"),
 		pluginApplecalendarPath: path.join(stagingDir, "toby-plugin-applecalendar"),
@@ -225,6 +227,7 @@ export async function downloadRelease(
 		pluginAzureadPath,
 		pluginGmailPath,
 		pluginTodoistPath,
+		pluginSlackPath,
 		pluginJiraPath,
 		pluginWebsearchPath,
 		pluginApplecalendarPath,
@@ -247,6 +250,7 @@ export async function downloadRelease(
 		await rm(pluginAzureadPath, { force: true }).catch(() => undefined);
 		await rm(pluginGmailPath, { force: true }).catch(() => undefined);
 		await rm(pluginTodoistPath, { force: true }).catch(() => undefined);
+		await rm(pluginSlackPath, { force: true }).catch(() => undefined);
 		await rm(pluginJiraPath, { force: true }).catch(() => undefined);
 		await rm(pluginWebsearchPath, { force: true }).catch(() => undefined);
 		await rm(pluginApplecalendarPath, { force: true }).catch(() => undefined);
@@ -379,6 +383,7 @@ export async function applyStagedRelease(
 		pluginAzureadPath,
 		pluginGmailPath,
 		pluginTodoistPath,
+		pluginSlackPath,
 		pluginJiraPath,
 		pluginWebsearchPath,
 		pluginApplecalendarPath,
@@ -388,6 +393,7 @@ export async function applyStagedRelease(
 	await installStagedPluginBinary(pluginAzureadPath, "toby-plugin-azuread");
 	await installStagedPluginBinary(pluginGmailPath, "toby-plugin-gmail");
 	await installStagedPluginBinary(pluginTodoistPath, "toby-plugin-todoist");
+	await installStagedPluginBinary(pluginSlackPath, "toby-plugin-slack");
 	await installStagedPluginBinary(pluginJiraPath, "toby-plugin-jira");
 	await installStagedPluginBinary(pluginWebsearchPath, "toby-plugin-websearch");
 	await installStagedPluginBinary(

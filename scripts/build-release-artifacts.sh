@@ -42,6 +42,9 @@ bun build ./apps/plugin-gmail/src/cli.ts --compile --target="${bun_target}" --ou
 echo "Building toby-plugin-todoist (${bun_target})..."
 bun build ./apps/plugin-todoist/src/cli.ts --compile --target="${bun_target}" --outfile dist/toby-plugin-todoist
 
+echo "Building toby-plugin-slack (${bun_target})..."
+bun build ./apps/plugin-slack/src/cli.ts --compile --target="${bun_target}" --outfile dist/toby-plugin-slack
+
 echo "Building toby-plugin-jira (swift ${swift_arch})..."
 swift build -c release --arch "${swift_arch}" --package-path apps/plugin-jira
 jira_bin="$(
@@ -76,7 +79,7 @@ echo "Building whisper-cli (${swift_arch})..."
 chmod +x scripts/build-whisper-cli.sh
 SWIFT_ARCH="${swift_arch}" ./scripts/build-whisper-cli.sh dist/whisper-cli
 
-chmod +x dist/toby dist/toby-listener dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-todoist dist/toby-plugin-jira dist/toby-plugin-websearch dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/whisper-cli
+chmod +x dist/toby dist/toby-listener dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-todoist dist/toby-plugin-slack dist/toby-plugin-jira dist/toby-plugin-websearch dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/whisper-cli
 
 echo "Building web UI..."
 bun run --cwd apps/web build

@@ -113,6 +113,11 @@ if [[ -f "${tmpdir}/toby-plugin-todoist" ]]; then
 	has_todoist_plugin=true
 fi
 
+has_slack_plugin=false
+if [[ -f "${tmpdir}/toby-plugin-slack" ]]; then
+	has_slack_plugin=true
+fi
+
 has_jira_plugin=false
 if [[ -f "${tmpdir}/toby-plugin-jira" ]]; then
 	has_jira_plugin=true
@@ -184,6 +189,13 @@ if $has_todoist_plugin; then
 	mkdir -p "$toby_plugins_dir"
 	mv "${tmpdir}/toby-plugin-todoist" "${toby_plugins_dir}/toby-plugin-todoist"
 	echo "Installed: ${toby_plugins_dir}/toby-plugin-todoist"
+fi
+
+if $has_slack_plugin; then
+	chmod +x "${tmpdir}/toby-plugin-slack"
+	mkdir -p "$toby_plugins_dir"
+	mv "${tmpdir}/toby-plugin-slack" "${toby_plugins_dir}/toby-plugin-slack"
+	echo "Installed: ${toby_plugins_dir}/toby-plugin-slack"
 fi
 
 if $has_jira_plugin; then
