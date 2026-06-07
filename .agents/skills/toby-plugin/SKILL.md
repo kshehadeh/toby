@@ -18,7 +18,7 @@ into `IntegrationModule` by `@toby/core`. Two paths:
 | Path | When | Reference |
 | ---- | ---- | --------- |
 | **New plugin** | Greenfield integration, no built-in module | [`apps/plugin-sample/`](../../../apps/plugin-sample/) |
-| **Migration** | Replace built-in in `BUILTIN_MODULES` with plugin | [`apps/plugin-azuread/`](../../../apps/plugin-azuread/), [`apps/plugin-gmail/`](../../../apps/plugin-gmail/), [`apps/plugin-applemail/`](../../../apps/plugin-applemail/) (Swift) |
+| **Migration** | Replace built-in in `BUILTIN_MODULES` with plugin | [`apps/plugin-azuread/`](../../../apps/plugin-azuread/), [`apps/plugin-gmail/`](../../../apps/plugin-gmail/), [`apps/plugin-applemail/`](../../../apps/plugin-applemail/) (Swift), [`apps/plugin-applecalendar/`](../../../apps/plugin-applecalendar/) (Swift/EventKit) |
 
 Read first: [`docs/plugin-protocol.md`](../../../docs/plugin-protocol.md),
 [`docs/create-integration.md`](../../../docs/create-integration.md) (migration section).
