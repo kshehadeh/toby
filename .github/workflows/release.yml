@@ -101,6 +101,7 @@ jobs:
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-azuread
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-gmail
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-todoist
+          codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-jira
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-applemail
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-applecalendar
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-macos
@@ -111,6 +112,7 @@ jobs:
           codesign --verify --strict --verbose=2 dist/toby-plugin-azuread
           codesign --verify --strict --verbose=2 dist/toby-plugin-gmail
           codesign --verify --strict --verbose=2 dist/toby-plugin-todoist
+          codesign --verify --strict --verbose=2 dist/toby-plugin-jira
           codesign --verify --strict --verbose=2 dist/toby-plugin-applemail
           codesign --verify --strict --verbose=2 dist/toby-plugin-applecalendar
           codesign --verify --strict --verbose=2 dist/toby-plugin-macos
@@ -120,7 +122,7 @@ jobs:
         run: |
           rm -rf release-payload
           mkdir release-payload
-          cp dist/toby dist/toby-listener dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-todoist dist/toby-plugin-applemail dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/whisper-cli release-payload/
+          cp dist/toby dist/toby-listener dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-todoist dist/toby-plugin-jira dist/toby-plugin-applemail dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/whisper-cli release-payload/
           cp -R dist/web release-payload/web
           node scripts/verify-release-artifacts.mjs release-payload
           ditto -c -k --sequesterRsrc release-payload ${{ matrix.asset }}

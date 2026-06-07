@@ -14,6 +14,7 @@ const required = [
 	"toby-plugin-azuread",
 	"toby-plugin-gmail",
 	"toby-plugin-todoist",
+	"toby-plugin-jira",
 	"toby-plugin-applemail",
 	"toby-plugin-applecalendar",
 	"toby-plugin-macos",

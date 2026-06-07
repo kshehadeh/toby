@@ -1,5 +1,4 @@
 import { braveSearchIntegrationModule } from "./bravesearch/index";
-import { jiraIntegrationModule } from "./jira/index";
 import { getPluginModules } from "./plugins/registry";
 import { slackIntegrationModule } from "./slack/index";
 import type {
@@ -12,7 +11,6 @@ import type {
 const BUILTIN_MODULES: IntegrationModule[] = [
 	slackIntegrationModule,
 	braveSearchIntegrationModule,
-	jiraIntegrationModule,
 ];
 
 function allModules(): IntegrationModule[] {

@@ -56,6 +56,9 @@ describe("upgrade staging paths", () => {
 		expect(paths.pluginTodoistPath).toBe(
 			path.join(tempDir, "staging", "toby-plugin-todoist"),
 		);
+		expect(paths.pluginJiraPath).toBe(
+			path.join(tempDir, "staging", "toby-plugin-jira"),
+		);
 		expect(paths.pluginApplemailPath).toBe(
 			path.join(tempDir, "staging", "toby-plugin-applemail"),
 		);
