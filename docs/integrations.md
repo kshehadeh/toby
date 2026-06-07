@@ -68,7 +68,7 @@ Each integration typically owns:
 
 **Brave Search** ([`packages/core/src/integrations/bravesearch/`](../packages/core/src/integrations/bravesearch/)) is the **Search** provider category integration: API-key auth, with a `webSearch` chat tool for web search (query, count, freshness filter). The `webSearch` tool is also wired as a **conditional global tool** — when a Brave Search API key is present in credentials, the tool is available in every chat session without needing to explicitly select the integration.
 
-**Jira** ([`packages/core/src/integrations/jira/`](../packages/core/src/integrations/jira/)) is the **Work Tracker** provider category integration: Atlassian domain + email + API-token auth, with read-only chat tools to search Jira issues with JQL (`searchJiraIssues`), fetch full issue details (`getJiraIssue`), read issue comments (`getJiraIssueComments`), and list accessible projects (`listJiraProjects`).
+**Jira** is shipped as a Swift installable plugin (`toby-plugin-jira`); see [`apps/plugin-jira/`](../apps/plugin-jira/). It is the **Work Tracker** provider category integration: Atlassian domain + email + API-token auth, with read-only chat tools to search Jira issues with JQL (`searchJiraIssues`), fetch full issue details (`getJiraIssue`), read issue comments (`getJiraIssueComments`), and list accessible projects (`listJiraProjects`).
 
 ### Web content fetching
 
@@ -106,7 +106,7 @@ Runtime code lives under [`packages/core/src/integrations/plugins/`](../packages
 Reference plugins: [`apps/plugin-sample/`](../apps/plugin-sample/) (minimal),
 [`apps/plugin-azuread/`](../apps/plugin-azuread/) and
 [`apps/plugin-gmail/`](../apps/plugin-gmail/) (full parity; shipped in release
-archives as `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-applemail`, and
+archives as `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-applemail`, and
 `toby-plugin-applecalendar`).
 
 Built-in modules in `MODULES` take precedence when names collide. Toby remains

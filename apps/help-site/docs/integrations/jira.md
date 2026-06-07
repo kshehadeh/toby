@@ -9,6 +9,8 @@ Connect Toby to Atlassian Jira to search and read issues, comments, and projects
 
 **CLI name:** `jira`
 
+Shipped as **`toby-plugin-jira`** (Swift). Release installs place it in `~/.toby/plugins/`; from source run `bun run build:plugin:jira` then `toby plugins install ./dist/toby-plugin-jira`.
+
 ## Prerequisites
 
 - An Atlassian account with access to your Jira site
