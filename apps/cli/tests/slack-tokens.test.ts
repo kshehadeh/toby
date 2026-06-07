@@ -1,7 +1,7 @@
 import {
 	isSlackAccessTokenFresh,
 	parseSlackOAuthExpiry,
-} from "@toby/core/integrations/slack/tokens";
+} from "../../plugin-slack/src/tokens";
 import { describe, expect, it } from "vitest";
 
 describe("slack token helpers", () => {

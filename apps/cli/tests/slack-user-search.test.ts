@@ -1,4 +1,4 @@
-import type { SlackUser } from "@toby/core/integrations/slack/client";
+import type { SlackUser } from "../../plugin-slack/src/client";
 import { describe, expect, it } from "vitest";
 
 describe("Slack user search helpers", () => {

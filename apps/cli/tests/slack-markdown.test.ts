@@ -3,7 +3,7 @@ import {
 	markdownToMrkdwn,
 	stripMarkdownForPlainFallback,
 	truncateSlackMarkdown,
-} from "@toby/core/integrations/slack/slack-markdown";
+} from "../../plugin-slack/src/slack-markdown";
 import { describe, expect, it } from "vitest";
 
 describe("slack markdown formatting", () => {

@@ -1,4 +1,4 @@
-import { resolveSlackBotUserId } from "@toby/core/integrations/slack/client";
+import { resolveSlackBotUserId } from "../../plugin-slack/src/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 afterEach(() => {
