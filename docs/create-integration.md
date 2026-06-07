@@ -1,6 +1,6 @@
 # Creating a new integration
 
-This checklist assumes a **first-party** integration in **`@toby/core`** under `packages/core/src/integrations/<id>/`, consistent with Slack and Jira. Gmail, Todoist, and Azure AD ship as installable plugins instead (see [Migrating a built-in to a plugin](#migrating-a-built-in-to-a-plugin)). Ink/configure UX stays in `apps/cli`; harness code stays in core. See [`architecture.md`](architecture.md#core-vs-apps).
+This checklist assumes a **first-party** integration in **`@toby/core`** under `packages/core/src/integrations/<id>/`, consistent with Slack. Gmail, Todoist, Azure AD, Jira, Web Search, Apple Calendar, and macOS ship as installable plugins instead (see [Migrating a built-in to a plugin](#migrating-a-built-in-to-a-plugin)). Ink/configure UX stays in `apps/cli`; harness code stays in core. See [`architecture.md`](architecture.md#core-vs-apps).
 
 ## 1. Scaffold the folder
 
@@ -123,3 +123,4 @@ Reference implementations:
 
 - Minimal plugin: [`apps/plugin-sample/`](../apps/plugin-sample/)
 - Full parity migrations: [`apps/plugin-azuread/`](../apps/plugin-azuread/), [`apps/plugin-gmail/`](../apps/plugin-gmail/)
+- Swift plugin migrations: [`apps/plugin-jira/`](../apps/plugin-jira/), [`apps/plugin-websearch/`](../apps/plugin-websearch/) (built-in `bravesearch` → plugin; global tool bridge in core)

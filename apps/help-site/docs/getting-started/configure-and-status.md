@@ -38,7 +38,7 @@ List all integrations and whether they are connected:
 toby connect
 ```
 
-OAuth integrations (Gmail, Slack, Azure AD) open a browser or local callback during `connect`. Gmail, Todoist, Jira, and Azure AD are installable plugins bundled in release archives (installed to `~/.toby/plugins/`). API-key integrations validate credentials and mark the integration connected; Brave Search remains a built-in integration.
+OAuth integrations (Gmail, Slack, Azure AD) open a browser or local callback during `connect`. Gmail, Todoist, Jira, Web Search, and other integrations are installable plugins bundled in release archives (installed to `~/.toby/plugins/`). API-key integrations validate credentials and mark the integration connected.
 
 ## 3. Check status
 
@@ -67,7 +67,7 @@ This clears Toby’s connection flag. It does not delete your mail, tasks, or ca
 | Azure AD | [Azure AD](../integrations/azuread) |
 | Apple Calendar (macOS) | [Apple Calendar](../integrations/apple-calendar) |
 | macOS system controls | [macOS](../integrations/macos) |
-| Brave Search | [Brave Search](../integrations/brave-search) |
+| Web Search | [Web Search](../integrations/web-search) |
 | Jira | [Jira](../integrations/jira) |
 
 ## Next steps

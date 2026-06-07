@@ -23,6 +23,7 @@ toby-plugin-sample   # Sample installable plugin
 toby-plugin-azuread  # Azure AD integration plugin
 toby-plugin-gmail    # Gmail integration plugin
 toby-plugin-jira      # Jira integration plugin (Swift)
+toby-plugin-websearch # Web search integration plugin (Swift, Brave Search API)
 whisper-cli          # whisper.cpp CLI
 ```
 

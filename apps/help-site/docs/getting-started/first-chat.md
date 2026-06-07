@@ -37,7 +37,7 @@ Toby can also answer questions about its own setup. Try prompts like “Which in
 
 You can paste a URL and ask Toby to read it; the built-in `fetchWebContent` tool extracts the main readable page text without extra setup.
 
-If you configure [Brave Search](../integrations/brave-search), Toby can also search the web from any chat session without selecting the Brave Search integration explicitly.
+If you configure [Web Search](../integrations/web-search), Toby can also search the web from any chat session without selecting the integration explicitly.
 
 ## Useful slash commands
 

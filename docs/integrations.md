@@ -64,7 +64,7 @@ Each integration typically owns:
 
 **Apple Calendar** is shipped as a Swift installable plugin (`toby-plugin-applecalendar`); see [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) and [`apple-calendar.md`](apple-calendar.md). It is **macOS-only** and uses native **EventKit** for search and CRUD, with Calendar.app AppleScript fallbacks when needed.
 
-**Brave Search** ([`packages/core/src/integrations/bravesearch/`](../packages/core/src/integrations/bravesearch/)) is the **Search** provider category integration: API-key auth, with a `webSearch` chat tool for web search (query, count, freshness filter). The `webSearch` tool is also wired as a **conditional global tool** — when a Brave Search API key is present in credentials, the tool is available in every chat session without needing to explicitly select the integration.
+**Web Search** ([`apps/plugin-websearch/`](../apps/plugin-websearch/), [`web-search.md`](web-search.md)) is the **Search** provider category integration (Swift plugin, Brave Search API backend): API-key auth, with a `webSearch` chat tool for web search (query, count, freshness filter). The `webSearch` tool is also wired as a **conditional global tool** — when the plugin is installed and a Brave Search API key is present in credentials, the tool is available in every chat session without needing to explicitly select the integration. Migrated from the former built-in `bravesearch` integration.
 
 **Jira** is shipped as a Swift installable plugin (`toby-plugin-jira`); see [`apps/plugin-jira/`](../apps/plugin-jira/). It is the **Work Tracker** provider category integration: Atlassian domain + email + API-token auth, with read-only chat tools to search Jira issues with JQL (`searchJiraIssues`), fetch full issue details (`getJiraIssue`), read issue comments (`getJiraIssueComments`), and list accessible projects (`listJiraProjects`).
 
@@ -104,8 +104,8 @@ Runtime code lives under [`packages/core/src/integrations/plugins/`](../packages
 Reference plugins: [`apps/plugin-sample/`](../apps/plugin-sample/) (minimal),
 [`apps/plugin-azuread/`](../apps/plugin-azuread/) and
 [`apps/plugin-gmail/`](../apps/plugin-gmail/) (full parity; shipped in release
-archives as `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, and
-`toby-plugin-applecalendar`).
+archives as `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-websearch`,
+`toby-plugin-applecalendar`, and `toby-plugin-macos`).
 
 Built-in modules in `MODULES` take precedence when names collide. Toby remains
 the source of truth for credentials (`credentials.json`) and connection state

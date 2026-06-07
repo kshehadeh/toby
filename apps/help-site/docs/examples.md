@@ -68,7 +68,7 @@ Find unresolved Jira bugs assigned to me in the current sprint. Group them by pr
 
 ## Research a URL and the web
 
-**Setup:** AI configured. For web search, [Brave Search](./integrations/brave-search) configured.
+**Setup:** AI configured. For web search, [Web Search](./integrations/web-search) configured.
 
 **Chat:**
 
@@ -76,7 +76,7 @@ Find unresolved Jira bugs assigned to me in the current sprint. Group them by pr
 Search the web for recent changes to the vendor API, then read https://example.com/changelog and summarize what affects us.
 ```
 
-**Outcome:** Toby can combine Brave Search results with direct URL reading.
+**Outcome:** Toby can combine web search results with direct URL reading.
 
 ---
 

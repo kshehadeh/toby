@@ -40,10 +40,10 @@ Integrations connect Toby to your email, tasks, chat, contacts, and calendar. On
 		<span className="integrationIconName">macOS</span>
 		<span className="integrationIconMeta">System controls · <code>macos</code></span>
 	</a>
-	<a className="integrationIconCard" href="./brave-search">
+	<a className="integrationIconCard" href="./web-search">
 		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/brave/FB542B" alt="" /></span>
-		<span className="integrationIconName">Brave Search</span>
-		<span className="integrationIconMeta">Search · <code>bravesearch</code></span>
+		<span className="integrationIconName">Web Search</span>
+		<span className="integrationIconMeta">Search · <code>websearch</code></span>
 	</a>
 	<a className="integrationIconCard" href="./jira">
 		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/jira/0052CC" alt="" /></span>
@@ -64,11 +64,7 @@ See [Configure and connect](../getting-started/configure-and-status) for the ful
 
 ## Installable plugins
 
-Gmail and Azure AD ship as **plugin binaries** bundled in release archives. Fresh
-installs (`install-toby.sh`) and `toby upgrade` copy them into `~/.toby/plugins/`
-automatically—no manual `toby plugins install` step is required for those
-integrations. The sample plugin (`toby-plugin-sample`) is also installed for
-reference and testing.
+Gmail, Azure AD, Todoist, Jira, Web Search, Apple Calendar, macOS, and other first-party integrations ship as **plugin binaries** bundled in release archives. Fresh installs (`install-toby.sh`) and `toby upgrade` copy them into `~/.toby/plugins/` automatically—no manual `toby plugins install` step is required for release users. The sample plugin (`toby-plugin-sample`) is also installed for reference and testing.
 
 When developing from a git clone, build and link plugins yourself:
 
@@ -101,7 +97,7 @@ Each integration declares one or more **provider categories**. A category descri
 | Todoist | `todoist` | `tasks` |
 | Azure AD | `azuread` | `contacts` |
 | Slack | `slack` | `chat` |
-| Brave Search | `bravesearch` | `search` |
+| Web Search | `websearch` | `search` |
 | Jira | `jira` | `work_tracker` |
 
 Only **email** currently has one first-party integration in that category (Gmail). Defaults become important when you connect multiple integrations in the same category or when you want schedules to target a specific provider.
@@ -144,7 +140,7 @@ gmail summarize unread messages from this week
 Toby includes two tools for accessing web content in chat—no explicit integration selection needed:
 
 - **`fetchWebContent`** — Always available. Fetches a URL and extracts the main readable article content (strips ads, navigation, footers). Use when you share a URL or ask Toby to read a page.
-- **`webSearch`** — Available when a Brave Search API key is configured. Searches the web and returns titles, URLs, and descriptions. Use when you ask Toby to look something up, research a topic, or find current information.
+- **`webSearch`** — Available when Web Search is configured (Brave Search API key). Searches the web and returns titles, URLs, and descriptions. Use when you ask Toby to look something up, research a topic, or find current information.
 
 Toby automatically routes to the right tool based on your request. If you ask to "search the web for …" it uses `webSearch`; if you share a URL it uses `fetchWebContent`. You can combine both: search first, then read a result.
 

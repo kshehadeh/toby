@@ -13,7 +13,7 @@ persona.
 
 Toby combines:
 
-- Integration-aware commands (for services like Gmail, Todoist, Slack, Jira, and local macOS apps)
+- Integration-aware commands (for services like Gmail, Todoist, Slack, Jira, Web Search, and local macOS apps)
 - Interactive terminal experiences (`config` and `chat`)
 - AI-powered flows for organizing and summarizing work
 - Personas for filtering responses through the lens of a particular interest

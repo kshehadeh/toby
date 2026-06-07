@@ -220,3 +220,5 @@ protocol details. See [listen-binaries.md](listen-binaries.md) for how
 `toby-listener` and `whisper-cli` are built and shipped in releases.
 
 For macOS system tools, see [macos-integration.md](macos-integration.md) (`toby-plugin-macos`).
+
+For web search (Brave Search API), see [web-search.md](web-search.md) (`toby-plugin-websearch`).

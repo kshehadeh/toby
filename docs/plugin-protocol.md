@@ -122,6 +122,9 @@ into `credentials.json` / `config.json`.
 | [`apps/plugin-todoist/`](../apps/plugin-todoist/) | TypeScript → Bun `--compile` | `bun run build:plugin:todoist` | API key auth, task tools |
 | [`apps/plugin-azuread/`](../apps/plugin-azuread/) | TypeScript → Bun `--compile` | `bun run build:plugin:azuread` | Full parity migration |
 | [`apps/plugin-jira/`](../apps/plugin-jira/) | Swift (SwiftPM) | `bun run build:plugin:jira` | macOS-only; no embedded JS runtime |
+| [`apps/plugin-websearch/`](../apps/plugin-websearch/) | Swift (SwiftPM) | `bun run build:plugin:websearch` | API-key auth; global `webSearch` tool via core bridge |
+| [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) | Swift (SwiftPM) | `bun run build:plugin:applecalendar` | EventKit + Calendar.app AppleScript |
+| [`apps/plugin-macos/`](../apps/plugin-macos/) | Swift (SwiftPM) | `bun run build:plugin:macos` | Native macOS APIs; optional `setup` subcommand |
 
 TypeScript plugins route argv in `src/cli.ts`; Swift plugins mirror the same argv
 table in their executable entry point. Protocol types shared with the harness live in
@@ -407,8 +410,8 @@ When `status` receives a config envelope, return readiness for the chat picker:
 "chatReadiness": { "ok": false, "hint": "Run `toby connect myintegration` after configuring credentials." }
 ```
 
-Reference: [`apps/plugin-azuread/`](../apps/plugin-azuread/), [`apps/plugin-gmail/`](../apps/plugin-gmail/), and
-[`apps/plugin-jira/`](../apps/plugin-jira/) (Swift). See
+Reference: [`apps/plugin-azuread/`](../apps/plugin-azuread/), [`apps/plugin-gmail/`](../apps/plugin-gmail/),
+[`apps/plugin-jira/`](../apps/plugin-jira/) (Swift), and [`apps/plugin-websearch/`](../apps/plugin-websearch/) (Swift API-key migration). See
 [Migrating a built-in to a plugin](create-integration.md#migrating-a-built-in-to-a-plugin).
 
 ### Plugin setup
@@ -479,7 +482,7 @@ an unsupported protocol version.
 
 See the [reference implementations](#reference-implementations) table above.
 Release archives include the sample plugin plus first-party integrations
-(`toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-applecalendar`);
+(`toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-websearch`, `toby-plugin-applecalendar`, `toby-plugin-macos`);
 `install-toby.sh` and `toby upgrade` install them into `~/.toby/plugins/`.
 
 ## Installing plugins

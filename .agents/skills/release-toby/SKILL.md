@@ -25,8 +25,8 @@ The `--` passes `<increment>` and `--ci` through to `release-it`.
 - Release config: `.release-it.json`
 - CI workflow: `.github/workflows/release.yml`
 - Installer: `install-toby.sh`
-- Self-upgrade logic: `apps/cli/src/upgrade/index.ts` (stages and installs
-  `toby-plugin-sample`, `toby-plugin-azuread`, and `toby-plugin-gmail`)
+- Self-upgrade logic: `apps/cli/src/upgrade/index.ts` (stages and installs all
+  first-party plugins from the release archive)
 
 ## Release Shape
 
@@ -41,9 +41,17 @@ Each archive must contain:
 
 - `toby`
 - `toby-listener`
+- `whisper-cli`
 - `toby-plugin-sample`
 - `toby-plugin-azuread`
 - `toby-plugin-gmail`
+- `toby-plugin-todoist`
+- `toby-plugin-jira`
+- `toby-plugin-websearch`
+- `toby-plugin-applecalendar`
+- `toby-plugin-macos`
+- `TobyPluginMacOS_TobyPluginMacOSLib.bundle`
+- `web/` (built web UI)
 
 Do not add Linux release assets; this project is macOS-focused.
 

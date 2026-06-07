@@ -1,13 +1,15 @@
 ---
 sidebar_position: 4
-title: Brave Search
+title: Web Search
 ---
 
-# Brave Search
+# Web Search
 
-Connect Toby to Brave Search to search the web from chat. When configured, the `webSearch` tool is available in **every** chat session automatically—you don't need to select the integration explicitly.
+Connect Toby to web search (powered by Brave Search) to search the web from chat. When configured, the `webSearch` tool is available in **every** chat session automatically—you don't need to select the integration explicitly.
 
-**CLI name:** `bravesearch`
+**CLI name:** `websearch`
+
+Shipped as **`toby-plugin-websearch`** (Swift). Release installs place it in `~/.toby/plugins/`; from source run `bun run build:plugin:websearch` then `toby plugins install ./dist/toby-plugin-websearch`.
 
 ## Prerequisites
 
@@ -37,37 +39,37 @@ Toby sends this token as the `X-Subscription-Token` header on each request.
 toby config
 ```
 
-Go to **Integrations → Brave Search** and enter:
+Go to **Integrations → Web Search** and enter:
 
 | Field | Description |
 | ----- | ----------- |
-| API Key | Your Brave Search API subscription token |
+| Brave Search API Key | Your Brave Search API subscription token |
 
 Save the configuration.
 
 ## Connect
 
 ```bash
-toby connect bravesearch
+toby connect websearch
 ```
 
-Toby validates the API key and marks Brave Search as connected.
+Toby validates the API key and marks Web Search as connected.
 
 ## Verify
 
 ```bash
-toby status integration -i bravesearch
+toby status integration -i websearch
 ```
 
 ## Disconnect
 
 ```bash
-toby disconnect bravesearch
+toby disconnect websearch
 ```
 
 ## Using web search in chat
 
-Once the API key is configured, `webSearch` is available in all chat sessions as a global tool. You don't need to specify `--integration bravesearch`—Toby includes it automatically when the API key is present.
+Once the API key is configured, `webSearch` is available in all chat sessions as a global tool. You don't need to specify `--integration websearch`—Toby includes it automatically when the plugin is installed and the API key is present.
 
 ### Example chat prompts
 
@@ -96,7 +98,12 @@ The `webSearch` tool supports optional parameters that Toby can use automaticall
 
 For example, asking *"What happened in tech news today?"* will automatically use `freshness: pd` (past day).
 
+## Migration from Brave Search
+
+If you previously used the built-in `bravesearch` integration, Toby migrates your API key and connected state to `websearch` automatically on startup.
+
 ## Related
 
 - [Integrations overview](overview)
 - [Configure and connect](../getting-started/configure-and-status)
+- Developer notes: [`docs/web-search.md`](https://github.com/kshehadeh/toby/blob/main/docs/web-search.md) in the Toby repository
