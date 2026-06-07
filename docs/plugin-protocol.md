@@ -411,7 +411,7 @@ When `status` receives a config envelope, return readiness for the chat picker:
 ```
 
 Reference: [`apps/plugin-azuread/`](../apps/plugin-azuread/), [`apps/plugin-gmail/`](../apps/plugin-gmail/),
-[`apps/plugin-jira/`](../apps/plugin-jira/) (Swift), and [`apps/plugin-websearch/`](../apps/plugin-websearch/) (Swift API-key migration). See
+[`apps/plugin-jira/`](../apps/plugin-jira/) (Swift), [`apps/plugin-slack/`](../apps/plugin-slack/) (chat + inbound sidecar), and [`apps/plugin-websearch/`](../apps/plugin-websearch/) (Swift API-key migration). See
 [Migrating a built-in to a plugin](create-integration.md#migrating-a-built-in-to-a-plugin).
 
 ### Plugin setup
@@ -472,6 +472,62 @@ detect whether setup is already satisfied (for example by checking
 `shortcuts list` on macOS).
 
 Reference: [`apps/plugin-macos/`](../apps/plugin-macos/) (bundled Shortcuts).
+
+## Inbound chat (daemon transport)
+
+Plugins that support daemon @mention / DM listening declare `"inbound"` in
+`capabilities` (alongside `"chat"` for tools). Inbound uses a **long-lived**
+subprocess with **NDJSON** on stdin/stdout — not the one-shot JSON contract
+used by `tools execute`.
+
+### Subcommand
+
+```text
+toby-plugin-<name> inbound run
+```
+
+| Stream | Rule |
+| ------ | ---- |
+| **stdin** | One JSON object per line ([core → plugin messages](#inbound-core-to-plugin)) |
+| **stdout** | One JSON object per line ([plugin → core messages](#inbound-plugin-to-core)) |
+| **stderr** | Human diagnostics only |
+
+Toby spawns `inbound run` when the daemon starts the active inbound integration.
+The subprocess stays alive until Toby sends `{ "type": "shutdown" }` or the daemon
+exits.
+
+Optional `status.inboundPrep` advertises transport metadata:
+
+```json
+"inboundPrep": {
+  "externalKeyFormat": "slack:{teamId}:{channelId}:{threadRootTs}",
+  "transportLabel": "socket_mode"
+}
+```
+
+### Inbound plugin → core (stdout lines)
+
+| `type` | Meaning |
+| ------ | ------- |
+| `ready` | Transport connected; Toby marks inbound status connected |
+| `event` | Normalized user message (`event` object matches inbound router shape) |
+| `personaAppendix` | Response to `getPersonaAppendix` (`requestId`, `text`) |
+| `error` | Fatal transport error before or after `ready` |
+
+### Inbound core → plugin (stdin lines)
+
+| `type` | Meaning |
+| ------ | ------- |
+| `start` | First message after spawn: `config`, `state`, `dryRun` — plugin connects transport, then emits `ready` |
+| `config` | Credential patch while running |
+| `deliverReply` | Post assistant reply (`conversation`, `text`, `dryRun`) |
+| `deliverAskUser` | Post askUser prompt (`conversation`, `question`, `options`, `dryRun`) |
+| `statusUpdate` | Update transient status UI (`conversation`, `line` — pre-formatted mrkdwn) |
+| `statusClear` | Remove status message before final reply |
+| `getPersonaAppendix` | Request persona appendix for a turn (`requestId`, `conversation`) |
+| `shutdown` | Stop transport and exit |
+
+Reference: [`apps/plugin-slack/`](../apps/plugin-slack/) (`inbound run` + Socket Mode).
 
 ## Protocol versioning
 

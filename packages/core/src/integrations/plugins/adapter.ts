@@ -27,11 +27,13 @@ import {
 	pluginToolsExecute,
 	pluginToolsList,
 } from "./client";
+import { createPluginChatInboundProvider } from "./inbound-adapter";
 import { jsonSchemaToZod } from "./json-schema";
 import type {
 	DiscoveredPlugin,
 	PluginChatModelPrep,
 	PluginConfigEnvelope,
+	PluginInboundPrep,
 } from "./protocol";
 import {
 	isSupportedProtocolVersion,
@@ -53,6 +55,7 @@ export type PluginMetadata = {
 	readonly readOnlyTools: readonly string[];
 	readonly setupAvailable?: boolean;
 	readonly setupDescription?: string;
+	readonly inboundPrep?: PluginInboundPrep;
 };
 
 function readPluginConfig(
@@ -258,6 +261,7 @@ export function loadPluginMetadata(
 		readOnlyTools: loadReadOnlyToolNames(discovered.binaryPath),
 		setupAvailable: status.setupAvailable,
 		setupDescription: status.setupDescription,
+		inboundPrep: status.inboundPrep,
 	};
 }
 
@@ -496,6 +500,7 @@ export function createPluginIntegrationModule(
 				masked: field.masked,
 				multiline: field.multiline,
 				showForAuthMethods: field.showForAuthMethods,
+				showForInbound: field.showForInbound,
 			};
 			if (field.type === "select" && field.options?.length) {
 				return {
@@ -653,6 +658,15 @@ export function createPluginIntegrationModule(
 			return resolvePluginChatReadiness(binaryPath, name, creds);
 		},
 		...(chatModelPrep ? { chatModelPrep } : {}),
+		...(metadata.capabilities.includes("inbound")
+			? {
+					chatInbound: createPluginChatInboundProvider({
+						binaryPath,
+						integrationName: name,
+						buildEnvelope: () => buildEnvelope(name),
+					}),
+				}
+			: {}),
 	};
 }
 

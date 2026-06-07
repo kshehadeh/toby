@@ -29,7 +29,7 @@ export type TestConnectionOptions = {
 };
 
 /** Capabilities an integration may expose for the resource center / CLI. */
-export type IntegrationCapability = "chat";
+export type IntegrationCapability = "chat" | "inbound";
 
 /** Provider categories an integration may belong to (used for default-provider selection). */
 export type ProviderCategory =

@@ -34,6 +34,7 @@ export interface PluginConfigField {
 	readonly maxLength?: number;
 	readonly description?: string;
 	readonly showForAuthMethods?: readonly string[];
+	readonly showForInbound?: boolean;
 }
 
 export interface PluginToolDefinition {
@@ -61,6 +62,77 @@ export interface PluginChatModelPrep {
 	readonly multiUserContentTemplate: string;
 }
 
+/** Optional metadata for daemon inbound transport (when capabilities includes "inbound"). */
+export interface PluginInboundPrep {
+	readonly externalKeyFormat?: string;
+	readonly transportLabel?: string;
+}
+
+/** Plugin → core messages on stdout during `inbound run` (one JSON object per line). */
+export type PluginInboundToCoreMessage =
+	| { readonly type: "ready" }
+	| { readonly type: "event"; readonly event: PluginInboundChatEvent }
+	| {
+			readonly type: "personaAppendix";
+			readonly requestId: string;
+			readonly text: string;
+	  }
+	| { readonly type: "error"; readonly message: string };
+
+/** Normalized inbound event emitted by the plugin transport. */
+export interface PluginInboundChatEvent {
+	readonly integration: string;
+	readonly externalKey: string;
+	readonly messageId: string;
+	readonly text: string;
+	readonly authorId: string;
+	readonly isNewConversationTurn: boolean;
+	readonly conversation: {
+		readonly externalKey: string;
+		readonly displayName: string;
+		readonly metadata: Record<string, unknown>;
+	};
+	readonly botUserId?: string;
+}
+
+/** Core → plugin messages on stdin during `inbound run` (one JSON object per line). */
+export type PluginInboundFromCoreMessage =
+	| {
+			readonly type: "start";
+			readonly config: Record<string, unknown>;
+			readonly state: Record<string, unknown>;
+			readonly dryRun: boolean;
+	  }
+	| { readonly type: "config"; readonly config: Record<string, unknown> }
+	| {
+			readonly type: "deliverReply";
+			readonly conversation: PluginInboundChatEvent["conversation"];
+			readonly text: string;
+			readonly dryRun: boolean;
+	  }
+	| {
+			readonly type: "deliverAskUser";
+			readonly conversation: PluginInboundChatEvent["conversation"];
+			readonly question: string;
+			readonly options: readonly string[];
+			readonly dryRun: boolean;
+	  }
+	| {
+			readonly type: "statusUpdate";
+			readonly conversation: PluginInboundChatEvent["conversation"];
+			readonly line: string;
+	  }
+	| {
+			readonly type: "statusClear";
+			readonly conversation: PluginInboundChatEvent["conversation"];
+	  }
+	| {
+			readonly type: "getPersonaAppendix";
+			readonly requestId: string;
+			readonly conversation: PluginInboundChatEvent["conversation"];
+	  }
+	| { readonly type: "shutdown" };
+
 export interface PluginStatusResponse {
 	readonly ok: boolean;
 	readonly name?: string;
@@ -75,6 +147,7 @@ export interface PluginStatusResponse {
 	readonly authMethods?: readonly PluginAuthMethodDescriptor[];
 	readonly chatModelPrep?: PluginChatModelPrep;
 	readonly chatReadiness?: PluginChatReadiness;
+	readonly inboundPrep?: PluginInboundPrep;
 	readonly tools?: readonly PluginToolHealth[];
 	readonly details?: string;
 	readonly setupAvailable?: boolean;
