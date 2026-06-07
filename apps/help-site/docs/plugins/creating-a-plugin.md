@@ -29,8 +29,10 @@ Examples:
 
 After the response is parsed, the subprocess exits. Chat tools and connect flows all use this same one-shot pattern.
 
-:::note Language-agnostic
+:::note[Language-agnostic]
+
 Toby uses ordinary process spawn on the binary path. Your plugin does not need Bun, Node, or any particular runtime on the user's machine—only your compiled executable (or script with a shebang).
+
 :::
 
 ## Binary naming and discovery
