@@ -1,5 +1,4 @@
 import { getPluginModules } from "./plugins/registry";
-import { slackIntegrationModule } from "./slack/index";
 import type {
 	Integration,
 	IntegrationCapability,
@@ -7,7 +6,7 @@ import type {
 	ProviderCategory,
 } from "./types";
 
-const BUILTIN_MODULES: IntegrationModule[] = [slackIntegrationModule];
+const BUILTIN_MODULES: IntegrationModule[] = [];
 
 function allModules(): IntegrationModule[] {
 	const pluginModules = getPluginModules();

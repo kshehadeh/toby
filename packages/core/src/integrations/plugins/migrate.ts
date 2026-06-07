@@ -6,7 +6,13 @@ import {
 	writeCredentials,
 } from "../../config/index";
 
-const MIGRATED_PLUGINS = ["azuread", "gmail", "todoist", "jira"] as const;
+const MIGRATED_PLUGINS = [
+	"azuread",
+	"gmail",
+	"todoist",
+	"jira",
+	"slack",
+] as const;
 
 /** Copy legacy top-level credential blocks into integrations.<name> when empty. */
 export function migrateLegacyPluginCredentials(): void {
