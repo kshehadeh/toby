@@ -4,10 +4,10 @@ import {
 	getIntegrationCredential,
 	readConfig,
 	readCredentials,
-} from "../../config/index";
-import { mergePluginConfigPatch } from "../plugins/adapter";
-import { pluginToolsExecute } from "../plugins/client";
-import { findDiscoveredPlugin } from "../plugins/registry";
+} from "../config/index";
+import { mergePluginConfigPatch } from "../integrations/plugins/adapter";
+import { pluginToolsExecute } from "../integrations/plugins/client";
+import { findDiscoveredPlugin } from "../integrations/plugins/registry";
 
 const PLUGIN_NAME = "websearch";
 

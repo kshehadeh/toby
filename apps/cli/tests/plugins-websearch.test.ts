@@ -25,7 +25,7 @@ import {
 } from "@toby/core/integrations/plugins/client";
 import { migrateLegacyPluginCredentials } from "@toby/core/integrations/plugins/migrate";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
-import { isWebSearchAvailable } from "@toby/core/integrations/websearch/global-tools";
+import { isWebSearchAvailable } from "@toby/core/ai/web-search-global-tools";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");

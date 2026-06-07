@@ -5,6 +5,7 @@ import {
 	type UserIntentSpec,
 	formatUserMessageWithPretreatment,
 } from "./ai/pretreatment";
+import { isWebSearchAvailable } from "./ai/web-search-global-tools";
 import type { Persona } from "./config/index";
 import { getDefaultProvider } from "./config/index";
 import {
@@ -13,7 +14,6 @@ import {
 	type ProviderCategory,
 } from "./integrations/types";
 import type { IntegrationModule } from "./integrations/types";
-import { isWebSearchAvailable } from "./integrations/websearch/global-tools";
 import { composeSystemPromptWithPersona } from "./personas/prompt";
 import { type LocalSkill, resolveSkillsByNames } from "./skills/index";
 

@@ -4,10 +4,6 @@ import { Output, type Tool, generateText, tool, zodSchema } from "ai";
 import { z } from "zod";
 import { type Persona, ensureTobyDir, getSkillsDir } from "../config/index";
 import {
-	createWebSearchGlobalTools,
-	isWebSearchAvailable,
-} from "../integrations/websearch/global-tools";
-import {
 	formatSkillsCatalogForPrompt,
 	loadLocalSkills,
 	parseSkillFileContent,
@@ -22,6 +18,10 @@ import {
 } from "./listen-chat-tools";
 import { createReflectTools, reflectToolsPromptSection } from "./reflect-tools";
 import { createWebFetchTools } from "./web-fetch-tool";
+import {
+	createWebSearchGlobalTools,
+	isWebSearchAvailable,
+} from "./web-search-global-tools";
 
 const SKILL_MD_BASENAME = "SKILL.md";
 
