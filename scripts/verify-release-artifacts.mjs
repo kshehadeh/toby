@@ -14,6 +14,7 @@ const required = [
 	"toby-plugin-sample",
 	"toby-plugin-azuread",
 	"toby-plugin-gmail",
+	"toby-plugin-applemail",
 	"whisper-cli",
 ];
 

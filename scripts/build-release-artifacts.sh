@@ -46,11 +46,18 @@ bun build ./apps/plugin-azuread/src/cli.ts --compile --target="${bun_target}" --
 echo "Building toby-plugin-gmail (${bun_target})..."
 bun build ./apps/plugin-gmail/src/cli.ts --compile --target="${bun_target}" --outfile dist/toby-plugin-gmail
 
+echo "Building toby-plugin-applemail (swift ${swift_arch})..."
+swift build -c release --arch "${swift_arch}" --package-path apps/plugin-applemail
+applemail_bin="$(
+	swift build --show-bin-path -c release --arch "${swift_arch}" --package-path apps/plugin-applemail
+)/toby-plugin-applemail"
+cp "${applemail_bin}" dist/toby-plugin-applemail
+
 echo "Building whisper-cli (${swift_arch})..."
 chmod +x scripts/build-whisper-cli.sh
 SWIFT_ARCH="${swift_arch}" ./scripts/build-whisper-cli.sh dist/whisper-cli
 
-chmod +x dist/toby dist/toby-listener dist/toby-macos dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/whisper-cli
+chmod +x dist/toby dist/toby-listener dist/toby-macos dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-applemail dist/whisper-cli
 
 echo "Building web UI..."
 bun run --cwd apps/web build

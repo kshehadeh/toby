@@ -5,7 +5,7 @@
 #   - toby → $TOBY_INSTALL_DIR (default ~/.local/bin)
 #   - web UI → sibling web/ directory
 #   - toby-listener, toby-macos, whisper-cli → ~/.toby/helpers/
-#   - toby-plugin-sample, toby-plugin-azuread, toby-plugin-gmail → ~/.toby/plugins/
+#   - toby-plugin-sample, toby-plugin-azuread, toby-plugin-gmail, toby-plugin-applemail → ~/.toby/plugins/
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/OWNER/toby/main/install-toby.sh | bash
@@ -115,6 +115,11 @@ if [[ -f "${tmpdir}/toby-plugin-gmail" ]]; then
 	has_gmail_plugin=true
 fi
 
+has_applemail_plugin=false
+if [[ -f "${tmpdir}/toby-plugin-applemail" ]]; then
+	has_applemail_plugin=true
+fi
+
 # Only the `toby` binary goes on PATH (install_dir). All bundled helper
 # binaries live under ~/.toby/helpers, and installable plugins under
 # ~/.toby/plugins, so they don't clutter the user's bin directory.
@@ -159,6 +164,13 @@ if $has_gmail_plugin; then
 	mkdir -p "$toby_plugins_dir"
 	mv "${tmpdir}/toby-plugin-gmail" "${toby_plugins_dir}/toby-plugin-gmail"
 	echo "Installed: ${toby_plugins_dir}/toby-plugin-gmail"
+fi
+
+if $has_applemail_plugin; then
+	chmod +x "${tmpdir}/toby-plugin-applemail"
+	mkdir -p "$toby_plugins_dir"
+	mv "${tmpdir}/toby-plugin-applemail" "${toby_plugins_dir}/toby-plugin-applemail"
+	echo "Installed: ${toby_plugins_dir}/toby-plugin-applemail"
 fi
 
 if $has_macos_helper; then

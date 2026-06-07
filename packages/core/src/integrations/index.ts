@@ -1,5 +1,4 @@
 import { applecalendarIntegrationModule } from "./applecalendar/index";
-import { applemailIntegrationModule } from "./applemail/index";
 import { braveSearchIntegrationModule } from "./bravesearch/index";
 import { jiraIntegrationModule } from "./jira/index";
 import { macosIntegrationModule } from "./macos/index";
@@ -16,7 +15,6 @@ import type {
 const BUILTIN_MODULES: IntegrationModule[] = [
 	todoistIntegrationModule,
 	slackIntegrationModule,
-	applemailIntegrationModule,
 	applecalendarIntegrationModule,
 	macosIntegrationModule,
 	braveSearchIntegrationModule,
