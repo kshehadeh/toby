@@ -4,6 +4,7 @@ import {
 	getTobyEntryScriptArgv,
 	getTobyExecPath,
 } from "@toby/core/toby-spawn";
+import { normalizeRootCliArgs } from "./cli-args";
 import {
 	isRunningAsCompiledBinary,
 	resolveInstallTarget,
@@ -17,37 +18,10 @@ export interface LaunchContext {
 	readonly pid: number;
 }
 
-const ROOT_OPTIONS = new Set(["--help", "-h", "--version", "-V"]);
-
-/** Subcommands registered on the root program (must stay in sync with cli.ts). */
-const KNOWN_SUBCOMMANDS = new Set([
-	"chat",
-	"config",
-	"configure",
-	"connect",
-	"disconnect",
-	"daemon",
-	"schedules",
-	"sessions",
-	"skills",
-	"status",
-	"upgrade",
-	"internal",
-]);
-
-function normalizeLaunchCliArgs(cliArgs: readonly string[]): string[] {
-	const args = [...cliArgs];
-	const first = args[0];
-	if (!first || (!KNOWN_SUBCOMMANDS.has(first) && !ROOT_OPTIONS.has(first))) {
-		return ["chat", ...args];
-	}
-	return args;
-}
-
 export function captureLaunchContext(
 	cliArgs: readonly string[] = process.argv.slice(2),
 ): LaunchContext {
-	const normalized = normalizeLaunchCliArgs(cliArgs);
+	const normalized = normalizeRootCliArgs(cliArgs);
 	return {
 		execPath: getTobyExecPath(),
 		args: buildTobySpawnArgs(...normalized),

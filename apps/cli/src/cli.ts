@@ -16,6 +16,7 @@ import { registerSkillsCommand } from "./commands/skills";
 import { registerStatusCommand } from "./commands/status";
 import { registerUpgradeCommand } from "./commands/upgrade";
 import { registerWhisperCommand } from "./commands/whisper";
+import { normalizeRootCliArgs } from "./cli-args";
 
 const program = new Command();
 const cliVersion = getTobyVersion();
@@ -23,7 +24,7 @@ const cliVersion = getTobyVersion();
 program
 	.name("toby")
 	.description(
-		"CLI-based tool for managing your life — email, calendar, todos, and more",
+		"CLI-based tool for managing your life — email, calendar, todos, and more. With no subcommand, `toby` opens chat; use `toby -p \"…\"` for an initial prompt. Unknown root commands are reported as errors, not chat prompts.",
 	)
 	.version(cliVersion);
 
@@ -45,17 +46,4 @@ registerPluginsCommand(program);
 registerInternalCommands(program);
 registerChatCommand(program);
 
-const rawArgs = process.argv.slice(2);
-const subcommandNames = new Set(program.commands.map((c) => c.name()));
-const first = rawArgs[0];
-const isRootOption =
-	first === "--help" ||
-	first === "-h" ||
-	first === "--version" ||
-	first === "-V";
-const adjustedArgs =
-	!first || (!subcommandNames.has(first) && !isRootOption)
-		? ["chat", ...rawArgs]
-		: rawArgs;
-
-program.parse(adjustedArgs, { from: "user" });
+program.parse(normalizeRootCliArgs(process.argv.slice(2)), { from: "user" });

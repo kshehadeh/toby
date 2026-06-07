@@ -32,6 +32,7 @@ import { getSkillDebugTextLines } from "../ui/chat/skill-debug";
 
 interface ChatCommandOptions {
 	persona?: string;
+	prompt?: string;
 	dryRun?: boolean;
 	noTui?: boolean;
 	debug?: boolean;
@@ -48,13 +49,17 @@ export function registerChatCommand(program: Command): void {
 	program
 		.command("chat")
 		.description(
-			"Chat with connected integrations using AI and tools (Ink TUI with follow-ups; omit prompt to type in the TUI). Pass a chat integration as the first word, or use --integration (repeatable). With no selection, all connected chat integrations are used. Use --no-tui for one-shot console output. Use --debug to print local skills and preflight skill selection.",
+			"Chat with connected integrations using AI and tools (Ink TUI with follow-ups). With no subcommand, `toby` opens chat; from the root command use `toby -p \"…\"` (maps to `--prompt`) for an initial message. Inside `toby chat`, `-p` selects a persona. Pass a chat integration as the first word, or use --integration (repeatable). With no selection, all connected chat integrations are used. Use --no-tui for one-shot console output. Use --debug to print local skills and preflight skill selection.",
 		)
 		.argument(
 			"[words...]",
-			"Optional: first word may be an integration name (gmail, todoist, slack, azuread, jira); remaining words are the prompt. If the first word is not an integration, the full text is the prompt and all connected chat integrations are used.",
+			"Optional with `toby chat`: first word may be an integration name (gmail, todoist, slack, azuread, jira); remaining words are the prompt. If the first word is not an integration, the full text is the prompt and all connected chat integrations are used. Prefer `toby -p \"…\"` or `--prompt` for an initial message when omitting the `chat` subcommand.",
 		)
 		.option("-p, --persona <name>", "Optional persona to shape behavior")
+		.option(
+			"--prompt <text>",
+			"Submit this message when the chat session opens (use `toby -p \"…\"` from the root command)",
+		)
 		.option(
 			"-i, --integration <name>",
 			"Include this integration (repeatable). When set, positional words are only the prompt.",
@@ -89,10 +94,9 @@ export function registerChatCommand(program: Command): void {
 				try {
 					const positional = Array.isArray(words) ? words : [];
 					const flagIntegrations = options.integration ?? [];
-					const { explicitNames, prompt } = parseChatCliInput(
-						positional,
-						flagIntegrations,
-					);
+					const { explicitNames, prompt: positionalPrompt } =
+						parseChatCliInput(positional, flagIntegrations);
+					const prompt = options.prompt?.trim() || positionalPrompt;
 
 					const resolved = await resolveChatIntegrationModules(explicitNames);
 					if (!resolved.ok) {
@@ -143,7 +147,7 @@ export function registerChatCommand(program: Command): void {
 							if (!prompt) {
 								console.error(
 									chalk.red(
-										'With --no-tui, pass a prompt (e.g. toby chat --no-tui "summarize unread" or toby chat gmail --no-tui "archive promos").',
+										'With --no-tui, pass a prompt with --prompt or positional words (e.g. toby chat --no-tui --prompt "summarize unread" or toby chat gmail --no-tui "archive promos").',
 									),
 								);
 								process.exitCode = 1;

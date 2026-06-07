@@ -11,11 +11,17 @@ describe("captureLaunchContext", () => {
 		process.argv = originalArgv;
 	});
 
-	it("prepends chat for bare prompts", () => {
+	it("maps root -p to chat --prompt for restart args", () => {
+		process.argv = ["/usr/local/bin/toby", "-p", "summarize inbox"];
+		const ctx = captureLaunchContext(["-p", "summarize inbox"]);
+		expect(ctx.args).toEqual(["chat", "--prompt", "summarize inbox"]);
+		expect(ctx.compiled).toBe(true);
+	});
+
+	it("does not prepend chat for unknown positional tokens", () => {
 		process.argv = ["/usr/local/bin/toby", "summarize", "inbox"];
 		const ctx = captureLaunchContext(["summarize", "inbox"]);
-		expect(ctx.args).toEqual(["chat", "summarize", "inbox"]);
-		expect(ctx.compiled).toBe(true);
+		expect(ctx.args).toEqual(["summarize", "inbox"]);
 	});
 
 	it("preserves explicit chat subcommand and flags", () => {
