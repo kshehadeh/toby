@@ -60,7 +60,7 @@ Each integration typically owns:
 
 **Slack** ([`packages/core/src/integrations/slack/`](../packages/core/src/integrations/slack/)) is the **Chat** provider category integration: OAuth (PKCE + user scopes on localhost) or manual bot token auth, with chat tools to search channels/users, post messages, reply in threads, and search message history. **Daemon inbound** (@mentions via Socket Mode) always requires a **bot token** (`xoxb-…`) and **app token** (`xapp-…`) in addition to OAuth user credentials—see [help-site Slack credentials](../apps/help-site/docs/integrations/slack.md#credentials-and-auth-reference).
 
-**Apple Mail** ([`packages/core/src/integrations/applemail/`](../packages/core/src/integrations/applemail/)) is **macOS-only**: it controls the local Mail.app via AppleScript for chat tools (`searchEmails`, `createDraft`, `updateDraft`). See [`apple-mail.md`](apple-mail.md) for setup, permissions, and limitations.
+**Apple Mail** is shipped as a Swift installable plugin (`toby-plugin-applemail`); see [`apps/plugin-applemail/`](../apps/plugin-applemail/) and [`apple-mail.md`](apple-mail.md). It is **macOS-only** and controls local Mail.app via AppleScript.
 
 **Apple Calendar** ([`packages/core/src/integrations/applecalendar/`](../packages/core/src/integrations/applecalendar/)) is **macOS-only**: it uses **EventKit** (AppleScriptObjC) for fast event search across all calendar types (including Exchange/iCloud), and Calendar.app AppleScript for create/update/delete operations. See [`apple-calendar.md`](apple-calendar.md) for setup, permissions, and AppleScript pitfalls.
 
@@ -104,7 +104,7 @@ Runtime code lives under [`packages/core/src/integrations/plugins/`](../packages
 Reference plugins: [`apps/plugin-sample/`](../apps/plugin-sample/) (minimal),
 [`apps/plugin-azuread/`](../apps/plugin-azuread/) and
 [`apps/plugin-gmail/`](../apps/plugin-gmail/) (full parity; shipped in release
-archives as `toby-plugin-azuread` and `toby-plugin-gmail`).
+archives as `toby-plugin-azuread`, `toby-plugin-gmail`, and `toby-plugin-applemail`).
 
 Built-in modules in `MODULES` take precedence when names collide. Toby remains
 the source of truth for credentials (`credentials.json`) and connection state

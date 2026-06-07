@@ -22,6 +22,7 @@ toby-macos           # macOS system integration helper
 toby-plugin-sample   # Sample installable plugin
 toby-plugin-azuread  # Azure AD integration plugin
 toby-plugin-gmail    # Gmail integration plugin
+toby-plugin-applemail # Apple Mail integration plugin (Swift)
 whisper-cli          # whisper.cpp CLI
 ```
 

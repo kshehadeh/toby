@@ -316,9 +316,9 @@ When `status` receives a config envelope, return readiness for the chat picker:
 "chatReadiness": { "ok": false, "hint": "Run `toby connect myintegration` after configuring credentials." }
 ```
 
-Reference: [`apps/plugin-azuread/`](../apps/plugin-azuread/) and
-[`apps/plugin-gmail/`](../apps/plugin-gmail/) (full parity migrations from built-in
-modules). See [Migrating a built-in to a plugin](create-integration.md#migrating-a-built-in-to-a-plugin).
+Reference: [`apps/plugin-azuread/`](../apps/plugin-azuread/), [`apps/plugin-gmail/`](../apps/plugin-gmail/), and
+[`apps/plugin-applemail/`](../apps/plugin-applemail/) (Swift, macOS-native Mail.app). See
+[Migrating a built-in to a plugin](create-integration.md#migrating-a-built-in-to-a-plugin).
 
 ## Protocol versioning
 
@@ -329,7 +329,7 @@ an unsupported protocol version.
 
 See [`apps/plugin-sample/`](../apps/plugin-sample/) for a
 minimal plugin built independently. Release archives include the sample plugin plus
-first-party integrations (`toby-plugin-azuread`, `toby-plugin-gmail`);
+first-party integrations (`toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-applemail`);
 `install-toby.sh` and `toby upgrade` install them into `~/.toby/plugins/`.
 
 ## Installing plugins

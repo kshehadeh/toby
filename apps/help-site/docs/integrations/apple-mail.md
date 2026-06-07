@@ -9,6 +9,8 @@ Connect Toby to the **Mail.app** mailbox on your Mac. Toby searches local mail a
 
 **CLI name:** `applemail`
 
+Shipped as **`toby-plugin-applemail`** (Swift). Release installs place it in `~/.toby/plugins/`; from source run `toby plugins install ./dist/toby-plugin-applemail`.
+
 :::info[Platform]
 
 **macOS only.** On Linux or Windows you can configure the integration, but chat tools require Mail.app on a Mac.
