@@ -56,9 +56,9 @@ Each integration typically owns:
 - **`prompts/`** — System/user message builders for summarize, organize, etc.
 - **`cli.ts`** (optional) — Commander registration kept out of `apps/cli/src/commands/`.
 
-**Gmail** is shipped as an installable plugin (`toby-plugin-gmail`); **Todoist** under [`packages/core/src/integrations/todoist/`](../packages/core/src/integrations/todoist/) is the reference built-in implementation.
+**Gmail** and **Todoist** are shipped as installable Bun plugins (`toby-plugin-gmail`, `toby-plugin-todoist`); see [`apps/plugin-gmail/`](../apps/plugin-gmail/) and [`apps/plugin-todoist/`](../apps/plugin-todoist/).
 
-**Slack** ([`packages/core/src/integrations/slack/`](../packages/core/src/integrations/slack/)) is the **Chat** provider category integration: OAuth (PKCE + user scopes on localhost) or manual bot token auth, with chat tools to search channels/users, post messages, reply in threads, and search message history. **Daemon inbound** (@mentions via Socket Mode) always requires a **bot token** (`xoxb-…`) and **app token** (`xapp-…`) in addition to OAuth user credentials—see [help-site Slack credentials](../apps/help-site/docs/integrations/slack.md#credentials-and-auth-reference).
+**Slack** ([`packages/core/src/integrations/slack/`](../packages/core/src/integrations/slack/)) is a representative built-in chat integration: OAuth (PKCE + user scopes on localhost) or manual bot token auth, with chat tools to search channels/users, post messages, reply in threads, and search message history. **Daemon inbound** (@mentions via Socket Mode) always requires a **bot token** (`xoxb-…`) and **app token** (`xapp-…`) in addition to OAuth user credentials—see [help-site Slack credentials](../apps/help-site/docs/integrations/slack.md#credentials-and-auth-reference).
 
 **Apple Mail** is shipped as a Swift installable plugin (`toby-plugin-applemail`); see [`apps/plugin-applemail/`](../apps/plugin-applemail/) and [`apple-mail.md`](apple-mail.md). It is **macOS-only** and controls local Mail.app via AppleScript.
 

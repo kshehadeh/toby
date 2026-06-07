@@ -1,0 +1,14 @@
+{
+	"name": "@toby/plugin-todoist",
+	"version": "1.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Todoist installable Toby integration plugin (protocol v1)",
+	"dependencies": {
+		"@doist/todoist-sdk": "^10.1.0"
+	},
+	"scripts": {
+		"dev": "bun src/cli.ts",
+		"build": "bun build ./src/cli.ts --compile --outfile ../../dist/toby-plugin-todoist"
+	}
+}

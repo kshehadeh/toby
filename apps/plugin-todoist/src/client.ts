@@ -1,7 +1,8 @@
 import { TodoistApi } from "@doist/todoist-sdk";
 import type { AddTaskArgs, Task, UpdateTaskArgs } from "@doist/todoist-sdk";
-import { getTodoistCredentials } from "../../config/index";
-import { withRetry } from "../rate-limit";
+import { withRetry } from "./rate-limit";
+
+type JsonRecord = Record<string, unknown>;
 
 export interface TodoistTask {
 	id: string;
@@ -39,10 +40,8 @@ export interface TodoistTaskUpdateInput {
 	description?: string;
 	dueDate?: string;
 	dueString?: string;
-	/** ISO 8601 date-time for the due (Todoist `due_datetime`). */
 	dueDatetime?: string;
 	priority?: 1 | 2 | 3 | 4;
-	/** Label names to set on the task (replaces existing labels for this task). */
 	labels?: string[];
 }
 
@@ -57,13 +56,22 @@ export interface TodoistTaskCreateInput {
 	readonly priority?: 1 | 2 | 3 | 4;
 }
 
-export async function testTodoistConnection(): Promise<void> {
-	const api = getTodoistApiClient();
+export function hasTodoistApiKey(config: JsonRecord): boolean {
+	return Boolean(String(config.apiKey ?? "").trim());
+}
+
+export function normalizeConfig(config: JsonRecord): JsonRecord {
+	return {
+		apiKey: String(config.apiKey ?? "").trim(),
+	};
+}
+
+export async function testTodoistConnection(config: JsonRecord): Promise<void> {
+	const api = getTodoistApiClient(config);
 	await api.getProjects({ limit: 1 });
 }
 
 const TASKS_PAGE_MAX = 200;
-/** Todoist paginates `GET /tasks`; shared projects often appear before inbox on early pages. */
 const TASKS_FETCH_MAX_PAGES = 100;
 
 function isActiveOpenTaskRow(task: Task): boolean {
@@ -76,13 +84,11 @@ function isActiveOpenTaskRow(task: Task): boolean {
 	return true;
 }
 
-/**
- * Loads active (incomplete) tasks from Todoist API v1 via the official SDK.
- *
- * @param limit When set, returns at most this many tasks. When omitted, fetches every page until the API has no more (still bounded by an internal max page count).
- */
-export async function fetchOpenTasks(limit?: number): Promise<TodoistTask[]> {
-	const api = getTodoistApiClient();
+export async function fetchOpenTasks(
+	config: JsonRecord,
+	limit?: number,
+): Promise<TodoistTask[]> {
+	const api = getTodoistApiClient(config);
 	const collected: TodoistTask[] = [];
 	let cursor: string | null = null;
 
@@ -116,14 +122,11 @@ export async function fetchOpenTasks(limit?: number): Promise<TodoistTask[]> {
 	return limit === undefined ? collected : collected.slice(0, limit);
 }
 
-/**
- * Completed tasks in the last 30 days (Todoist API window). Paginates when `limit` is omitted.
- * @param limit Max rows to return; omit to fetch all pages in the date window (bounded by max pages).
- */
 export async function fetchCompletedTasks(
+	config: JsonRecord,
 	limit?: number,
 ): Promise<TodoistCompletedTask[]> {
-	const api = getTodoistApiClient();
+	const api = getTodoistApiClient(config);
 	const until = new Date();
 	const since = new Date(until);
 	since.setDate(since.getDate() - 30);
@@ -173,8 +176,10 @@ export async function fetchCompletedTasks(
 	return limit === undefined ? collected : collected.slice(0, limit);
 }
 
-export async function fetchProjects(): Promise<TodoistProject[]> {
-	const api = getTodoistApiClient();
+export async function fetchProjects(
+	config: JsonRecord,
+): Promise<TodoistProject[]> {
+	const api = getTodoistApiClient(config);
 	const collected: TodoistProject[] = [];
 	let cursor: string | null = null;
 
@@ -202,9 +207,10 @@ export async function fetchProjects(): Promise<TodoistProject[]> {
 }
 
 export async function fetchProjectNameById(
+	config: JsonRecord,
 	projectId: string,
 ): Promise<string | null> {
-	const api = getTodoistApiClient();
+	const api = getTodoistApiClient(config);
 	const normalizedProjectId = projectId.trim();
 	if (!normalizedProjectId) {
 		return null;
@@ -221,9 +227,10 @@ export async function fetchProjectNameById(
 }
 
 export async function createTask(
+	config: JsonRecord,
 	input: TodoistTaskCreateInput,
 ): Promise<{ id: string; url: string; content: string }> {
-	const api = getTodoistApiClient();
+	const api = getTodoistApiClient(config);
 	const body = {
 		content: input.content,
 		...(input.description !== undefined && input.description !== ""
@@ -254,16 +261,20 @@ export async function createTask(
 	return { id, url, content };
 }
 
-export async function completeTask(taskId: string): Promise<void> {
-	const api = getTodoistApiClient();
+export async function completeTask(
+	config: JsonRecord,
+	taskId: string,
+): Promise<void> {
+	const api = getTodoistApiClient(config);
 	await withRetry(() => api.closeTask(taskId));
 }
 
 export async function updateTask(
+	config: JsonRecord,
 	taskId: string,
 	updates: TodoistTaskUpdateInput,
 ): Promise<void> {
-	const api = getTodoistApiClient();
+	const api = getTodoistApiClient(config);
 	const requestBody: Record<string, unknown> = {
 		...(updates.content !== undefined ? { content: updates.content } : {}),
 		...(updates.description !== undefined
@@ -284,9 +295,14 @@ export async function updateTask(
 	await withRetry(() => api.updateTask(taskId, requestBody as UpdateTaskArgs));
 }
 
-function getTodoistApiClient(): TodoistApi {
-	const credentials = getTodoistCredentials();
-	return new TodoistApi(credentials.apiKey);
+function getTodoistApiClient(config: JsonRecord): TodoistApi {
+	const apiKey = String(config.apiKey ?? "").trim();
+	if (!apiKey) {
+		throw new Error(
+			"Todoist API key not found. Add it in `toby configure` or run `toby connect todoist`.",
+		);
+	}
+	return new TodoistApi(apiKey);
 }
 
 function mapSdkTaskToTodoistTask(task: Task): TodoistTask {

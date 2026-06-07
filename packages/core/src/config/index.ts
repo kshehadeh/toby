@@ -120,10 +120,6 @@ export interface GmailCredentials {
 	clientSecret: string;
 }
 
-interface TodoistCredentials {
-	apiKey: string;
-}
-
 interface AICredentials {
 	openai?: { token: string };
 	vercel?: { apiKey: string };
@@ -156,7 +152,8 @@ export interface CredentialsFile {
 	integrations?: Record<string, Record<string, string>>;
 	/** Legacy Gmail block; migrated to integrations.gmail on plugin load. */
 	gmail?: GmailCredentials;
-	todoist?: TodoistCredentials;
+	/** Legacy Todoist block; migrated to integrations.todoist on plugin load. */
+	todoist?: Record<string, string>;
 	/** Legacy Azure AD block; migrated to integrations.azuread on plugin load. */
 	azuread?: Record<string, string>;
 	slack?: SlackCredentials;
@@ -241,19 +238,6 @@ export function readCredentials(): CredentialsFile {
 	}
 	const raw = fs.readFileSync(credentialsPath, "utf-8");
 	return JSON.parse(raw) as CredentialsFile;
-}
-
-export function getTodoistCredentials(): TodoistCredentials {
-	const creds = readCredentials();
-	const apiKey =
-		getIntegrationCredential(creds, "todoist", "apiKey") ??
-		creds.todoist?.apiKey;
-	if (!apiKey) {
-		throw new Error(
-			"Todoist API key not found. Add it to ~/.toby/credentials.json or run `toby configure`.",
-		);
-	}
-	return { apiKey };
 }
 
 export type { SlackAuthMethod };

@@ -19,7 +19,7 @@
     },
     "apps/cli": {
       "name": "@toby/cli",
-      "version": "0.27.0",
+      "version": "0.28.0",
       "bin": {
         "toby": "./dist/cli.js",
       },
@@ -60,10 +60,6 @@
         "typescript": "~5.6.2",
       },
     },
-    "apps/macos-helper": {
-      "name": "@toby/macos-helper",
-      "version": "0.18.0",
-    },
     "apps/plugin-azuread": {
       "name": "@toby/plugin-azuread",
       "version": "1.0.0",
@@ -82,6 +78,13 @@
     "apps/plugin-sample": {
       "name": "@toby/plugin-sample",
       "version": "1.0.0",
+    },
+    "apps/plugin-todoist": {
+      "name": "@toby/plugin-todoist",
+      "version": "1.0.0",
+      "dependencies": {
+        "@doist/todoist-sdk": "^10.1.0",
+      },
     },
     "apps/web": {
       "name": "@toby/web",
@@ -118,7 +121,6 @@
         "@ai-sdk/gateway": "^3.0.104",
         "@ai-sdk/openai": "^3.0.53",
         "@ai-sdk/provider": "^3.0.10",
-        "@doist/todoist-sdk": "^10.1.0",
         "@mozilla/readability": "^0.6.0",
         "@slack/bolt": "^4.7.2",
         "ai": "^6.0.168",
@@ -1232,13 +1234,13 @@
 
     "@toby/helper-scripts": ["@toby/helper-scripts@workspace:packages/helper-scripts"],
 
-    "@toby/macos-helper": ["@toby/macos-helper@workspace:apps/macos-helper"],
-
     "@toby/plugin-azuread": ["@toby/plugin-azuread@workspace:apps/plugin-azuread"],
 
     "@toby/plugin-gmail": ["@toby/plugin-gmail@workspace:apps/plugin-gmail"],
 
     "@toby/plugin-sample": ["@toby/plugin-sample@workspace:apps/plugin-sample"],
+
+    "@toby/plugin-todoist": ["@toby/plugin-todoist@workspace:apps/plugin-todoist"],
 
     "@toby/web": ["@toby/web@workspace:apps/web"],
 

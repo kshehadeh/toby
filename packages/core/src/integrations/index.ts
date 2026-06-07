@@ -2,7 +2,6 @@ import { braveSearchIntegrationModule } from "./bravesearch/index";
 import { jiraIntegrationModule } from "./jira/index";
 import { getPluginModules } from "./plugins/registry";
 import { slackIntegrationModule } from "./slack/index";
-import { todoistIntegrationModule } from "./todoist/index";
 import type {
 	Integration,
 	IntegrationCapability,
@@ -11,7 +10,6 @@ import type {
 } from "./types";
 
 const BUILTIN_MODULES: IntegrationModule[] = [
-	todoistIntegrationModule,
 	slackIntegrationModule,
 	braveSearchIntegrationModule,
 	jiraIntegrationModule,

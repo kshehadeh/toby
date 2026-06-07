@@ -5,7 +5,7 @@
 #   - toby → $TOBY_INSTALL_DIR (default ~/.local/bin)
 #   - web UI → sibling web/ directory
 #   - toby-listener, whisper-cli → ~/.toby/helpers/
-#   - toby-plugin-sample, toby-plugin-azuread, toby-plugin-gmail, toby-plugin-applemail, toby-plugin-applecalendar, toby-plugin-macos → ~/.toby/plugins/
+#   - toby-plugin-sample, toby-plugin-azuread, toby-plugin-gmail, toby-plugin-todoist, toby-plugin-applemail, toby-plugin-applecalendar, toby-plugin-macos → ~/.toby/plugins/
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/OWNER/toby/main/install-toby.sh | bash
@@ -108,6 +108,11 @@ if [[ -f "${tmpdir}/toby-plugin-gmail" ]]; then
 	has_gmail_plugin=true
 fi
 
+has_todoist_plugin=false
+if [[ -f "${tmpdir}/toby-plugin-todoist" ]]; then
+	has_todoist_plugin=true
+fi
+
 has_applemail_plugin=false
 if [[ -f "${tmpdir}/toby-plugin-applemail" ]]; then
 	has_applemail_plugin=true
@@ -167,6 +172,13 @@ if $has_gmail_plugin; then
 	mkdir -p "$toby_plugins_dir"
 	mv "${tmpdir}/toby-plugin-gmail" "${toby_plugins_dir}/toby-plugin-gmail"
 	echo "Installed: ${toby_plugins_dir}/toby-plugin-gmail"
+fi
+
+if $has_todoist_plugin; then
+	chmod +x "${tmpdir}/toby-plugin-todoist"
+	mkdir -p "$toby_plugins_dir"
+	mv "${tmpdir}/toby-plugin-todoist" "${toby_plugins_dir}/toby-plugin-todoist"
+	echo "Installed: ${toby_plugins_dir}/toby-plugin-todoist"
 fi
 
 if $has_applemail_plugin; then

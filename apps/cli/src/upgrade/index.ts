@@ -109,6 +109,7 @@ export function getStagingPaths(): {
 	readonly pluginSamplePath: string;
 	readonly pluginAzureadPath: string;
 	readonly pluginGmailPath: string;
+	readonly pluginTodoistPath: string;
 	readonly pluginApplemailPath: string;
 	readonly pluginApplecalendarPath: string;
 	readonly pluginMacosPath: string;
@@ -126,6 +127,7 @@ export function getStagingPaths(): {
 		pluginSamplePath: path.join(stagingDir, "toby-plugin-sample"),
 		pluginAzureadPath: path.join(stagingDir, "toby-plugin-azuread"),
 		pluginGmailPath: path.join(stagingDir, "toby-plugin-gmail"),
+		pluginTodoistPath: path.join(stagingDir, "toby-plugin-todoist"),
 		pluginApplemailPath: path.join(stagingDir, "toby-plugin-applemail"),
 		pluginApplecalendarPath: path.join(stagingDir, "toby-plugin-applecalendar"),
 		pluginMacosPath: path.join(stagingDir, "toby-plugin-macos"),
@@ -220,6 +222,7 @@ export async function downloadRelease(
 		pluginSamplePath,
 		pluginAzureadPath,
 		pluginGmailPath,
+		pluginTodoistPath,
 		pluginApplemailPath,
 		pluginApplecalendarPath,
 		pluginMacosPath,
@@ -240,6 +243,7 @@ export async function downloadRelease(
 		await rm(pluginSamplePath, { force: true }).catch(() => undefined);
 		await rm(pluginAzureadPath, { force: true }).catch(() => undefined);
 		await rm(pluginGmailPath, { force: true }).catch(() => undefined);
+		await rm(pluginTodoistPath, { force: true }).catch(() => undefined);
 		await rm(pluginApplemailPath, { force: true }).catch(() => undefined);
 		await rm(pluginApplecalendarPath, { force: true }).catch(() => undefined);
 		await rm(pluginMacosPath, { force: true }).catch(() => undefined);
@@ -370,6 +374,7 @@ export async function applyStagedRelease(
 		pluginSamplePath,
 		pluginAzureadPath,
 		pluginGmailPath,
+		pluginTodoistPath,
 		pluginApplemailPath,
 		pluginApplecalendarPath,
 		pluginMacosPath,
@@ -377,6 +382,7 @@ export async function applyStagedRelease(
 	await installStagedPluginBinary(pluginSamplePath, "toby-plugin-sample");
 	await installStagedPluginBinary(pluginAzureadPath, "toby-plugin-azuread");
 	await installStagedPluginBinary(pluginGmailPath, "toby-plugin-gmail");
+	await installStagedPluginBinary(pluginTodoistPath, "toby-plugin-todoist");
 	await installStagedPluginBinary(pluginApplemailPath, "toby-plugin-applemail");
 	await installStagedPluginBinary(
 		pluginApplecalendarPath,

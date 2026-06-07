@@ -9,6 +9,13 @@ Connect Toby to Todoist to manage tasks and projects from chat.
 
 **CLI name:** `todoist`
 
+Toby ships Todoist as a first-party installable plugin (`toby-plugin-todoist`). Release archives and `install-toby.sh` place it under `~/.toby/plugins/`. For development:
+
+```bash
+bun run build:plugin:todoist
+toby plugins install ./dist/toby-plugin-todoist --link --force
+```
+
 ## Prerequisites
 
 - A [Todoist](https://todoist.com) account

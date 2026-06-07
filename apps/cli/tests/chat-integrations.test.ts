@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const azureadCli = path.join(repoRoot, "../plugin-azuread/src/cli.ts");
 const gmailCli = path.join(repoRoot, "../plugin-gmail/src/cli.ts");
+const todoistCli = path.join(repoRoot, "../plugin-todoist/src/cli.ts");
 const macosPluginPackageDir = path.join(repoRoot, "../plugin-macos");
 
 function writePluginWrapper(
@@ -57,6 +58,7 @@ describe("parseChatCliInput", () => {
 		const pluginsDir = path.join(tempDir, "toby-home", "plugins");
 		writePluginWrapper(pluginsDir, "toby-plugin-azuread", azureadCli);
 		writePluginWrapper(pluginsDir, "toby-plugin-gmail", gmailCli);
+		writePluginWrapper(pluginsDir, "toby-plugin-todoist", todoistCli);
 		installMacOSPlugin(pluginsDir);
 	});
 

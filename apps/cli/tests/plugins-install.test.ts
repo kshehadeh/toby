@@ -176,11 +176,37 @@ describe("plugin install", () => {
 		expect("error" in result).toBe(false);
 	});
 
-	it("rejects built-in integration name collisions", () => {
-		expect(isBuiltinIntegration("todoist")).toBe(true);
+	it("allows todoist plugin install now that built-in module was removed", () => {
+		expect(isBuiltinIntegration("todoist")).toBe(false);
 
 		const sourcePath = writeFakeTodoistPlugin(
 			path.join(sourceDir, "toby-plugin-todoist"),
+		);
+		const discovered = resolvePluginSourcePath(sourcePath);
+		const result = validatePluginForInstall(discovered);
+		expect("error" in result).toBe(false);
+	});
+
+	it("rejects built-in integration name collisions", () => {
+		expect(isBuiltinIntegration("slack")).toBe(true);
+
+		const sourcePath = path.join(sourceDir, "toby-plugin-slack");
+		fs.mkdirSync(path.dirname(sourcePath), { recursive: true });
+		fs.writeFileSync(
+			sourcePath,
+			`#!/usr/bin/env bash
+case "$1" in
+  status)
+    echo '{"ok":true,"name":"slack","displayName":"Fake Slack","description":"collision test","version":"0.0.1","protocolVersion":"1","connected":false,"capabilities":[]}'
+    ;;
+  tools)
+    if [[ "$2" == "list" ]]; then
+      echo '{"ok":true,"tools":[]}'
+    fi
+    ;;
+esac
+`,
+			{ mode: 0o755 },
 		);
 		const discovered = resolvePluginSourcePath(sourcePath);
 		const result = validatePluginForInstall(discovered);
