@@ -14,7 +14,7 @@ const sections = [
 	{
 		title: "Integrations",
 		description:
-			"Gmail, Todoist, Slack, Azure AD, Apple Mail, and Apple Calendar.",
+			"Gmail, Todoist, Slack, Azure AD, and Apple Calendar.",
 		to: "/docs/integrations/overview",
 	},
 	{
@@ -64,7 +64,7 @@ export default function Home(): React.JSX.Element {
 				<h1 className={styles.title}>Toby Documentation</h1>
 				<p className={styles.lead}>
 					Toby is an AI-assisted CLI for organizing and summarizing work across
-					Gmail, Todoist, Slack, Azure AD, Apple Mail, and Apple Calendar.
+					Gmail, Todoist, Slack, Azure AD, and Apple Calendar.
 				</p>
 				<p className={styles.lead}>
 					New here? Start with the <Link to="/docs/intro">introduction</Link>,

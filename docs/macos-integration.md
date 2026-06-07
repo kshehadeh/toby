@@ -99,4 +99,4 @@ Toby never runs **`sudo`** for you.
 - **Display brightness** on Apple Silicon Macs: IODisplay brightness APIs do not function on some Apple Silicon configurations. The `macDisplayBrightness` and `macDisplaySetBrightness` tools may return errors on affected hardware.
 - **Notification Center** is not exposed through a stable public API, so Toby does not list notifications.
 
-See also [`integrations.md`](integrations.md), [`plugin-protocol.md`](plugin-protocol.md), and [`apple-mail.md`](apple-mail.md).
+See also [`integrations.md`](integrations.md) and [`plugin-protocol.md`](plugin-protocol.md).

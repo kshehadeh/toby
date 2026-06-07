@@ -121,7 +121,7 @@ into `credentials.json` / `config.json`.
 | [`apps/plugin-gmail/`](../apps/plugin-gmail/) | TypeScript → Bun `--compile` | `bun run build:plugin:gmail` | OAuth, auth methods, token writeback |
 | [`apps/plugin-todoist/`](../apps/plugin-todoist/) | TypeScript → Bun `--compile` | `bun run build:plugin:todoist` | API key auth, task tools |
 | [`apps/plugin-azuread/`](../apps/plugin-azuread/) | TypeScript → Bun `--compile` | `bun run build:plugin:azuread` | Full parity migration |
-| [`apps/plugin-applemail/`](../apps/plugin-applemail/) | Swift (SwiftPM) | `bun run build:plugin:applemail` | macOS-only; no embedded JS runtime |
+| [`apps/plugin-jira/`](../apps/plugin-jira/) | Swift (SwiftPM) | `bun run build:plugin:jira` | macOS-only; no embedded JS runtime |
 
 TypeScript plugins route argv in `src/cli.ts`; Swift plugins mirror the same argv
 table in their executable entry point. Protocol types shared with the harness live in
@@ -408,7 +408,7 @@ When `status` receives a config envelope, return readiness for the chat picker:
 ```
 
 Reference: [`apps/plugin-azuread/`](../apps/plugin-azuread/), [`apps/plugin-gmail/`](../apps/plugin-gmail/), and
-[`apps/plugin-applemail/`](../apps/plugin-applemail/) (Swift, macOS-native Mail.app). See
+[`apps/plugin-jira/`](../apps/plugin-jira/) (Swift). See
 [Migrating a built-in to a plugin](create-integration.md#migrating-a-built-in-to-a-plugin).
 
 ### Plugin setup
@@ -479,7 +479,7 @@ an unsupported protocol version.
 
 See the [reference implementations](#reference-implementations) table above.
 Release archives include the sample plugin plus first-party integrations
-(`toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-applemail`);
+(`toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-applecalendar`);
 `install-toby.sh` and `toby upgrade` install them into `~/.toby/plugins/`.
 
 ## Installing plugins

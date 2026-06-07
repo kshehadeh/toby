@@ -18,7 +18,6 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | [`docs/chat-inbound.md`](docs/chat-inbound.md) | Inbound provider contract, external session mapping, adding new chat platforms. |
 | [`docs/ai-caching.md`](docs/ai-caching.md) | Provider prompt caching adapters, stable cache keys, and token telemetry. |
 | [`docs/ui.md`](docs/ui.md) | Shared Ink UI components, visual conventions, and shortcut conventions. |
-| [`docs/apple-mail.md`](docs/apple-mail.md) | Apple Mail (macOS): local Mail.app integration and automation permissions. |
 | [`docs/macos-integration.md`](docs/macos-integration.md) | Local macOS system control: Wi‑Fi, battery/audio, shortcuts, optional Homebrew helpers. |
 | [`docs/listen.md`](docs/listen.md) | Foreground audio recording mode and macOS audio helper protocol. |
 | [`docs/listen-binaries.md`](docs/listen-binaries.md) | Build and deploy `toby-listener` and `whisper-cli` release binaries. |

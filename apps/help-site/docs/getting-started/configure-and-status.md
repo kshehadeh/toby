@@ -65,7 +65,6 @@ This clears Toby’s connection flag. It does not delete your mail, tasks, or ca
 | Todoist | [Todoist](../integrations/todoist) |
 | Slack | [Slack](../integrations/slack) |
 | Azure AD | [Azure AD](../integrations/azuread) |
-| Apple Mail (macOS) | [Apple Mail](../integrations/apple-mail) |
 | Apple Calendar (macOS) | [Apple Calendar](../integrations/apple-calendar) |
 | macOS system controls | [macOS](../integrations/macos) |
 | Brave Search | [Brave Search](../integrations/brave-search) |

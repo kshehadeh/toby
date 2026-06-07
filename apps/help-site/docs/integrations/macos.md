@@ -124,6 +124,5 @@ This clears Toby's connection flag; it does not modify system settings.
 ## Related
 
 - [Integrations overview](overview)
-- [Apple Mail](apple-mail)
 - [Apple Calendar](apple-calendar)
 - [Configure and connect](../getting-started/configure-and-status)

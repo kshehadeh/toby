@@ -10,7 +10,7 @@ title: Introduction
 
 # Welcome to Toby
 
-Toby is an AI-assisted CLI for organizing and summarizing work across integrations like Gmail, Todoist, Slack, Azure AD, Apple Mail, and Apple Calendar.
+Toby is an AI-assisted CLI for organizing and summarizing work across integrations like Gmail, Todoist, Slack, Azure AD, and Apple Calendar.
 
 It combines:
 

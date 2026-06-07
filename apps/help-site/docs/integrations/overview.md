@@ -30,11 +30,6 @@ Integrations connect Toby to your email, tasks, chat, contacts, and calendar. On
 		<span className="integrationIconName">Azure AD</span>
 		<span className="integrationIconMeta">Contacts · <code>azuread</code></span>
 	</a>
-	<a className="integrationIconCard" href="./apple-mail">
-		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/apple/A2AAAD" alt="" /></span>
-		<span className="integrationIconName">Apple Mail</span>
-		<span className="integrationIconMeta">Email · <code>applemail</code></span>
-	</a>
 	<a className="integrationIconCard" href="./apple-calendar">
 		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/apple/A2AAAD" alt="" /></span>
 		<span className="integrationIconName">Apple Calendar</span>
@@ -102,7 +97,6 @@ Each integration declares one or more **provider categories**. A category descri
 | Integration | CLI name | Category |
 | ----------- | -------- | -------- |
 | Gmail | `gmail` | `email` |
-| Apple Mail | `applemail` | `email` |
 | Apple Calendar | `applecalendar` | `calendar` |
 | Todoist | `todoist` | `tasks` |
 | Azure AD | `azuread` | `contacts` |
@@ -110,13 +104,13 @@ Each integration declares one or more **provider categories**. A category descri
 | Brave Search | `bravesearch` | `search` |
 | Jira | `jira` | `work_tracker` |
 
-Only **email** currently has two first-party integrations in the same category. That is the main case where defaults matter.
+Only **email** currently has one first-party integration in that category (Gmail). Defaults become important when you connect multiple integrations in the same category or when you want schedules to target a specific provider.
 
 ### Why categories exist
 
 Categories let Toby reason about *roles* instead of a flat list of app names:
 
-1. **Default providers** — In `toby config` → **Default Providers**, you pick which connected integration Toby should prefer per category (for example Gmail vs Apple Mail for email). Those choices are stored in your config and surfaced to the assistant during chat and pretreatment.
+1. **Default providers** — In `toby config` → **Default Providers**, you pick which connected integration Toby should prefer per category (for example Gmail for email). Those choices are stored in your config and surfaced to the assistant during chat and pretreatment.
 2. **Scheduled runs** — The daemon inspects schedule prompts for category-related keywords (such as “inbox”, “calendar”, “todoist”, “slack”). When a category is detected, Toby includes the default provider for that category if you set one; otherwise it uses heuristics (a single connected integration in that category, or all connected integrations in that category with a warning). This avoids loading every integration’s tools on every cron job when the prompt is clearly about email or tasks alone.
 3. **Multi-integration chat** — When several integrations are active in one session, the combined system prompt lists your default providers so the model reaches for the right tools (for example your chosen email provider when you ask to triage mail).
 4. **New integrations** — Module authors assign `providerCategories` in code so Toby can register the integration in the right bucket for configure, schedules, and routing—without hard-coding vendor names across the codebase.
@@ -131,7 +125,7 @@ toby config
 
 Open **Default Providers** and choose an integration (or **(none)**) for each category. See also [Set up AI](../getting-started/setup-ai#default-providers-optional) for how defaults interact with personas and models.
 
-If you only connect one integration per category, defaults are optional—Toby can infer that integration for schedules and chat. Defaults become important when two integrations share a category (Gmail and Apple Mail) or when you want schedules to target a specific provider.
+If you only connect one integration per category, defaults are optional—Toby can infer that integration for schedules and chat. Defaults become important when multiple integrations share a category or when you want schedules to target a specific provider.
 
 ## Using integrations in chat
 

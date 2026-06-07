@@ -60,8 +60,6 @@ Each integration typically owns:
 
 **Slack** ([`packages/core/src/integrations/slack/`](../packages/core/src/integrations/slack/)) is a representative built-in chat integration: OAuth (PKCE + user scopes on localhost) or manual bot token auth, with chat tools to search channels/users, post messages, reply in threads, and search message history. **Daemon inbound** (@mentions via Socket Mode) always requires a **bot token** (`xoxb-…`) and **app token** (`xapp-…`) in addition to OAuth user credentials—see [help-site Slack credentials](../apps/help-site/docs/integrations/slack.md#credentials-and-auth-reference).
 
-**Apple Mail** is shipped as a Swift installable plugin (`toby-plugin-applemail`); see [`apps/plugin-applemail/`](../apps/plugin-applemail/) and [`apple-mail.md`](apple-mail.md). It is **macOS-only** and controls local Mail.app via AppleScript.
-
 **macOS** is shipped as a Swift installable plugin (`toby-plugin-macos`); see [`apps/plugin-macos/`](../apps/plugin-macos/) and [`macos-integration.md`](macos-integration.md). It is **macOS-only** and controls local system settings (Wi‑Fi, Bluetooth, battery, audio, display, clipboard, shortcuts) via native frameworks in-process.
 
 **Apple Calendar** is shipped as a Swift installable plugin (`toby-plugin-applecalendar`); see [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) and [`apple-calendar.md`](apple-calendar.md). It is **macOS-only** and uses native **EventKit** for search and CRUD, with Calendar.app AppleScript fallbacks when needed.
@@ -106,7 +104,7 @@ Runtime code lives under [`packages/core/src/integrations/plugins/`](../packages
 Reference plugins: [`apps/plugin-sample/`](../apps/plugin-sample/) (minimal),
 [`apps/plugin-azuread/`](../apps/plugin-azuread/) and
 [`apps/plugin-gmail/`](../apps/plugin-gmail/) (full parity; shipped in release
-archives as `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-applemail`, and
+archives as `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, and
 `toby-plugin-applecalendar`).
 
 Built-in modules in `MODULES` take precedence when names collide. Toby remains

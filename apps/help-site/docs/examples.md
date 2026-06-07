@@ -121,20 +121,6 @@ What do you know about my meeting preferences?
 
 ---
 
-## macOS local mail search and draft
-
-**Setup:** [Apple Mail](./integrations/apple-mail) connected, Automation permission granted.
-
-**Chat:**
-
-```text
-Search unread mail in my Work account from the last three days about the budget. Draft a short reply to the most recent thread saying I'll review the spreadsheet today.
-```
-
-**Outcome:** Local Mail.app search and draft tools—no Gmail API required.
-
----
-
 ## Daily automated brief
 
 **Setup:** Gmail connected, [daemon running](./schedules), schedule created in `toby schedules`.
