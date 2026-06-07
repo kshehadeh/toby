@@ -19,7 +19,7 @@
     },
     "apps/cli": {
       "name": "@toby/cli",
-      "version": "0.24.0",
+      "version": "0.25.0",
       "bin": {
         "toby": "./dist/cli.js",
       },
@@ -63,6 +63,13 @@
     "apps/macos-helper": {
       "name": "@toby/macos-helper",
       "version": "0.18.0",
+    },
+    "apps/plugin-azuread": {
+      "name": "@toby/plugin-azuread",
+      "version": "1.0.0",
+      "dependencies": {
+        "open": "^10.1.0",
+      },
     },
     "apps/plugin-sample": {
       "name": "@toby/plugin-sample",
@@ -1218,6 +1225,8 @@
     "@toby/helper-scripts": ["@toby/helper-scripts@workspace:packages/helper-scripts"],
 
     "@toby/macos-helper": ["@toby/macos-helper@workspace:apps/macos-helper"],
+
+    "@toby/plugin-azuread": ["@toby/plugin-azuread@workspace:apps/plugin-azuread"],
 
     "@toby/plugin-sample": ["@toby/plugin-sample@workspace:apps/plugin-sample"],
 

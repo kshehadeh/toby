@@ -40,11 +40,14 @@ cp "${macos_bin}" dist/toby-macos
 echo "Building toby-plugin-sample (${bun_target})..."
 bun build ./apps/plugin-sample/src/cli.ts --compile --target="${bun_target}" --outfile dist/toby-plugin-sample
 
+echo "Building toby-plugin-azuread (${bun_target})..."
+bun build ./apps/plugin-azuread/src/cli.ts --compile --target="${bun_target}" --outfile dist/toby-plugin-azuread
+
 echo "Building whisper-cli (${swift_arch})..."
 chmod +x scripts/build-whisper-cli.sh
 SWIFT_ARCH="${swift_arch}" ./scripts/build-whisper-cli.sh dist/whisper-cli
 
-chmod +x dist/toby dist/toby-listener dist/toby-macos dist/toby-plugin-sample dist/whisper-cli
+chmod +x dist/toby dist/toby-listener dist/toby-macos dist/toby-plugin-sample dist/toby-plugin-azuread dist/whisper-cli
 
 echo "Building web UI..."
 bun run --cwd apps/web build

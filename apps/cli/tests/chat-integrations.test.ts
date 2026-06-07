@@ -1,7 +1,42 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { parseChatCliInput } from "@toby/core/chat-integrations";
-import { describe, expect, it } from "vitest";
+import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+const repoRoot = path.resolve(import.meta.dirname, "..");
+const azureadCli = path.join(repoRoot, "../plugin-azuread/src/cli.ts");
+
+function writeAzureAdPluginWrapper(pluginDir: string): void {
+	fs.mkdirSync(pluginDir, { recursive: true });
+	const wrapperPath = path.join(pluginDir, "toby-plugin-azuread");
+	const script = `#!/usr/bin/env bash\nexec bun ${JSON.stringify(azureadCli)} "$@"\n`;
+	fs.writeFileSync(wrapperPath, script, { mode: 0o755 });
+}
 
 describe("parseChatCliInput", () => {
+	let tempDir: string;
+	let previousTobyDir: string | undefined;
+
+	beforeEach(() => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-chat-int-"));
+		previousTobyDir = process.env.TOBY_DIR;
+		process.env.TOBY_DIR = path.join(tempDir, "toby-home");
+		resetPluginModuleCache();
+		writeAzureAdPluginWrapper(path.join(tempDir, "toby-home", "plugins"));
+	});
+
+	afterEach(() => {
+		if (previousTobyDir === undefined) {
+			Reflect.deleteProperty(process.env, "TOBY_DIR");
+		} else {
+			process.env.TOBY_DIR = previousTobyDir;
+		}
+		resetPluginModuleCache();
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
 	it("defaults to all connected when no flags and no words", () => {
 		expect(parseChatCliInput([], [])).toEqual({
 			explicitNames: null,

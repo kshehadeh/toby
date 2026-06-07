@@ -117,13 +117,13 @@ function captureAuthCode(
 		});
 
 		server.listen(redirect.port, () => {
-			console.log("Opening browser for Azure AD authorization...");
-			console.log(
-				`If sign-in fails with "No reply address provided", add this redirect URI to your Azure app registration: ${`http://localhost:${redirect.port}${redirect.path}`}`,
+			process.stderr.write("Opening browser for Azure AD authorization...\n");
+			process.stderr.write(
+				`If sign-in fails with "No reply address provided", add this redirect URI to your Azure app registration: ${`http://localhost:${redirect.port}${redirect.path}`}\n`,
 			);
 			open(authUrl).catch(() => {
-				console.log(
-					`Could not open browser. Visit this URL manually:\n${authUrl}`,
+				process.stderr.write(
+					`Could not open browser. Visit this URL manually:\n${authUrl}\n`,
 				);
 			});
 		});

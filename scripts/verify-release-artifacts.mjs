@@ -12,6 +12,7 @@ const required = [
 	"toby-listener",
 	"toby-macos",
 	"toby-plugin-sample",
+	"toby-plugin-azuread",
 	"whisper-cli",
 ];
 

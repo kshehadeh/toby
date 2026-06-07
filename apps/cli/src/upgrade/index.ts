@@ -7,6 +7,7 @@ import process from "node:process";
 import {
 	ensureTobyDir,
 	getHelpersDir,
+	getPluginsDir,
 	resolveTobyDir,
 } from "@toby/core/config/index";
 import { ensureWhisperTranscriptionAssets } from "@toby/core/listen/whisper-assets";
@@ -111,6 +112,7 @@ export function getStagingPaths(): {
 	readonly macOSHelperPath: string;
 	readonly whisperCliPath: string;
 	readonly pluginSamplePath: string;
+	readonly pluginAzureadPath: string;
 	readonly webPath: string;
 	readonly archivePath: string;
 	readonly manifestPath: string;
@@ -124,6 +126,7 @@ export function getStagingPaths(): {
 		macOSHelperPath: path.join(stagingDir, "toby-macos"),
 		whisperCliPath: path.join(stagingDir, "whisper-cli"),
 		pluginSamplePath: path.join(stagingDir, "toby-plugin-sample"),
+		pluginAzureadPath: path.join(stagingDir, "toby-plugin-azuread"),
 		webPath: path.join(stagingDir, "web"),
 		archivePath: path.join(stagingDir, "toby-release.zip"),
 		manifestPath: path.join(stagingDir, "manifest.json"),
@@ -380,6 +383,10 @@ export async function applyStagedRelease(
 		await cp(webPath, webInstallTarget, { recursive: true });
 	}
 
+	const { pluginSamplePath, pluginAzureadPath } = getStagingPaths();
+	await installStagedPluginBinary(pluginSamplePath, "toby-plugin-sample");
+	await installStagedPluginBinary(pluginAzureadPath, "toby-plugin-azuread");
+
 	// Migration: older installs placed helper binaries next to `toby` on PATH.
 	// Now that helpers live under ~/.toby/helpers, remove the stale siblings so
 	// only `toby` remains in the bin directory.
@@ -432,6 +439,26 @@ export async function runFullUpgrade(options: {
 }): Promise<ApplyStagedResult> {
 	const download = await downloadRelease(options);
 	return applyStagedRelease(download.installTarget);
+}
+
+async function installStagedPluginBinary(
+	stagingPath: string,
+	binaryName: string,
+): Promise<void> {
+	if (!fs.existsSync(stagingPath)) {
+		return;
+	}
+	const pluginsDir = getPluginsDir();
+	await mkdir(pluginsDir, { recursive: true });
+	const installTarget = path.join(pluginsDir, binaryName);
+	const tempDestination = path.join(
+		pluginsDir,
+		`.${binaryName}-upgrade-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+	);
+	await rm(tempDestination, { force: true }).catch(() => undefined);
+	await rename(stagingPath, tempDestination);
+	await chmodExecutable(tempDestination);
+	await rename(tempDestination, installTarget);
 }
 
 const LEGACY_SIBLING_HELPER_NAMES = ["toby-listener", "toby-macos"] as const;

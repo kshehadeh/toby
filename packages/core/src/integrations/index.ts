@@ -1,6 +1,5 @@
 import { applecalendarIntegrationModule } from "./applecalendar/index";
 import { applemailIntegrationModule } from "./applemail/index";
-import { azureAdIntegrationModule } from "./azuread/index";
 import { braveSearchIntegrationModule } from "./bravesearch/index";
 import { gmailIntegrationModule } from "./gmail/index";
 import { jiraIntegrationModule } from "./jira/index";
@@ -19,7 +18,6 @@ const BUILTIN_MODULES: IntegrationModule[] = [
 	gmailIntegrationModule,
 	todoistIntegrationModule,
 	slackIntegrationModule,
-	azureAdIntegrationModule,
 	applemailIntegrationModule,
 	applecalendarIntegrationModule,
 	macosIntegrationModule,

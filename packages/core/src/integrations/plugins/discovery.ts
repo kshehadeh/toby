@@ -20,7 +20,8 @@ function listPluginBinariesInDirectory(directory: string): DiscoveredPlugin[] {
 	const plugins: DiscoveredPlugin[] = [];
 
 	for (const entry of entries) {
-		if (!entry.isFile()) continue;
+		// Include symlinks (--link installs); Dirent.isFile() is false for links.
+		if (!entry.isFile() && !entry.isSymbolicLink()) continue;
 		const binaryName = entry.name;
 		if (!binaryName.startsWith(PLUGIN_BINARY_PREFIX)) continue;
 		if (!parsePluginNameFromBinary(binaryName)) continue;

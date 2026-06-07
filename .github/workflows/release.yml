@@ -99,18 +99,20 @@ jobs:
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-listener
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-macos
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-sample
+          codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-azuread
           codesign --force --options runtime --timestamp --sign "$identity" dist/whisper-cli
           codesign --verify --strict --verbose=2 dist/toby
           codesign --verify --strict --verbose=2 dist/toby-listener
           codesign --verify --strict --verbose=2 dist/toby-macos
           codesign --verify --strict --verbose=2 dist/toby-plugin-sample
+          codesign --verify --strict --verbose=2 dist/toby-plugin-azuread
           codesign --verify --strict --verbose=2 dist/whisper-cli
 
       - name: Package release archive
         run: |
           rm -rf release-payload
           mkdir release-payload
-          cp dist/toby dist/toby-listener dist/toby-macos dist/toby-plugin-sample dist/whisper-cli release-payload/
+          cp dist/toby dist/toby-listener dist/toby-macos dist/toby-plugin-sample dist/toby-plugin-azuread dist/whisper-cli release-payload/
           cp -R dist/web release-payload/web
           node scripts/verify-release-artifacts.mjs release-payload
           ditto -c -k --sequesterRsrc release-payload ${{ matrix.asset }}

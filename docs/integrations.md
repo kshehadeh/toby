@@ -101,7 +101,9 @@ the subprocess protocol in [`plugin-protocol.md`](plugin-protocol.md).
 | `toby plugins doctor` | Validate protocol compatibility |
 
 Runtime code lives under [`packages/core/src/integrations/plugins/`](../packages/core/src/integrations/plugins/).
-The reference implementation is [`apps/plugin-sample/`](../apps/plugin-sample/).
+Reference plugins: [`apps/plugin-sample/`](../apps/plugin-sample/) (minimal),
+[`apps/plugin-azuread/`](../apps/plugin-azuread/) (full parity; shipped in release
+archives as `toby-plugin-azuread`).
 
 Built-in modules in `MODULES` take precedence when names collide. Toby remains
 the source of truth for credentials (`credentials.json`) and connection state

@@ -1,4 +1,3 @@
-import { readConfig } from "../../config/index";
 import type { IntegrationModule } from "../types";
 import {
 	type PluginMetadata,
@@ -8,6 +7,8 @@ import {
 	rememberPluginMetadata,
 } from "./adapter";
 import { discoverPluginBinaries, findPluginBinary } from "./discovery";
+import { readDisabledPluginNames } from "./list-status";
+import { migrateLegacyPluginCredentials } from "./migrate";
 import type { DiscoveredPlugin } from "./protocol";
 
 let cachedPluginModules: IntegrationModule[] | null = null;
@@ -25,6 +26,7 @@ export function resetPluginModuleCache(): void {
 }
 
 function loadDiscoveredPluginModules(): IntegrationModule[] {
+	migrateLegacyPluginCredentials();
 	const disabled = readDisabledPluginNames();
 	const modules: IntegrationModule[] = [];
 
@@ -52,16 +54,12 @@ function loadPluginMetadataSafe(
 	return loaded;
 }
 
-function readDisabledPluginNames(): Set<string> {
-	try {
-		const config = readConfig() as { plugins?: { disabled?: string[] } };
-		return new Set(
-			(config.plugins?.disabled ?? []).filter((n) => typeof n === "string"),
-		);
-	} catch {
-		return new Set();
-	}
-}
+export {
+	collectPluginListEntries,
+	readDisabledPluginNames,
+	type PluginListEntry,
+	type PluginListEntryState,
+} from "./list-status";
 
 export function getDiscoveredPluginBinaries(): DiscoveredPlugin[] {
 	return discoverPluginBinaries();

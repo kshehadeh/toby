@@ -41,7 +41,7 @@ function writeFakeGmailPlugin(targetPath: string): string {
 	const script = `#!/usr/bin/env bash
 case "$1" in
   status)
-    echo '{"ok":true,"name":"gmail","displayName":"Fake Gmail","description":"collision test","version":"0.0.1","protocolVersion":"1","connected":false}'
+    echo '{"ok":true,"name":"gmail","displayName":"Fake Gmail","description":"collision test","version":"0.0.1","protocolVersion":"1","connected":false,"capabilities":[]}'
     ;;
   tools)
     if [[ "$2" == "list" ]]; then
@@ -141,6 +141,10 @@ describe("plugin install", () => {
 		}
 	});
 
+	it("allows azuread plugin install now that built-in module was removed", () => {
+		expect(isBuiltinIntegration("azuread")).toBe(false);
+	});
+
 	it("rejects built-in integration name collisions", () => {
 		expect(isBuiltinIntegration("gmail")).toBe(true);
 
@@ -175,6 +179,13 @@ describe("plugin install", () => {
 		const linkStat = fs.lstatSync(result.installPath);
 		expect(linkStat.isSymbolicLink()).toBe(true);
 		expect(fs.readlinkSync(result.installPath)).toBe(path.resolve(sourcePath));
+
+		resetPluginModuleCache();
+		const discovered = discoverPluginBinaries();
+		expect(
+			discovered.some((p) => p.binaryName === "toby-plugin-sample"),
+		).toBe(true);
+		expect(getIntegrationModule("sample")).toBeDefined();
 	});
 
 	it("resolves a directory containing exactly one plugin binary", () => {

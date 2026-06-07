@@ -1,8 +1,4 @@
-import {
-	getAzureAdCredentials,
-	readCredentials,
-	writeCredentials,
-} from "../../config/index";
+import { runAzureAdOAuthPkceFlow } from "./auth";
 
 const GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0";
 
@@ -11,12 +7,97 @@ const REQUIRED_GRAPH_PERMISSIONS = [
 	"User.ReadBasic.All",
 ] as const;
 
+export type AzureAdAuthMethod = "oauth_pkce" | "client_credentials";
+
+export type AzureAdConfig = {
+	readonly tenantId: string;
+	readonly clientId: string;
+	readonly clientSecret?: string;
+	readonly redirectUri?: string;
+	readonly authMethod: AzureAdAuthMethod;
+	readonly oauthAccessToken?: string;
+	readonly oauthRefreshToken?: string;
+	readonly oauthExpiresAt?: string;
+};
+
 type CachedToken = {
 	readonly accessToken: string;
 	readonly expiresAtMs: number;
 };
 
+type TokenRefreshPatch = {
+	readonly oauthAccessToken: string;
+	readonly oauthRefreshToken: string;
+	readonly oauthExpiresAt: string;
+};
+
 let cachedToken: CachedToken | null = null;
+let lastTokenPatch: TokenRefreshPatch | undefined;
+
+export function consumeTokenRefreshPatch(): TokenRefreshPatch | undefined {
+	const patch = lastTokenPatch;
+	lastTokenPatch = undefined;
+	return patch;
+}
+
+export function parseAzureAdConfig(raw: Record<string, unknown>): AzureAdConfig {
+	const tenantId = String(raw.tenantId ?? "").trim();
+	const clientId = String(raw.clientId ?? "").trim();
+	const clientSecret = String(raw.clientSecret ?? "").trim() || undefined;
+	const redirectUri = String(raw.redirectUri ?? "").trim() || undefined;
+	const authMethod = resolveAuthMethod(raw, clientSecret);
+
+	return {
+		tenantId,
+		clientId,
+		clientSecret,
+		redirectUri,
+		authMethod,
+		oauthAccessToken: String(raw.oauthAccessToken ?? "").trim() || undefined,
+		oauthRefreshToken: String(raw.oauthRefreshToken ?? "").trim() || undefined,
+		oauthExpiresAt: String(raw.oauthExpiresAt ?? "").trim() || undefined,
+	};
+}
+
+export function resolveAuthMethod(
+	raw: Record<string, unknown>,
+	clientSecretHint?: string,
+): AzureAdAuthMethod {
+	const explicit = String(raw.authMethod ?? "").trim();
+	if (explicit === "oauth_pkce" || explicit === "client_credentials") {
+		return explicit;
+	}
+	const clientSecret =
+		clientSecretHint ?? String(raw.clientSecret ?? "").trim();
+	return clientSecret ? "client_credentials" : "oauth_pkce";
+}
+
+export function normalizeConfig(
+	raw: Record<string, unknown>,
+): Record<string, unknown> {
+	const parsed = parseAzureAdConfig(raw);
+	return {
+		tenantId: parsed.tenantId,
+		clientId: parsed.clientId,
+		clientSecret: parsed.clientSecret ?? "",
+		redirectUri: parsed.redirectUri ?? "",
+		authMethod: parsed.authMethod,
+		oauthAccessToken: parsed.oauthAccessToken ?? "",
+		oauthRefreshToken: parsed.oauthRefreshToken ?? "",
+		oauthExpiresAt: parsed.oauthExpiresAt ?? "",
+	};
+}
+
+export function hasAzureAdCredentials(config: Record<string, unknown>): boolean {
+	const parsed = parseAzureAdConfig(config);
+	if (!parsed.tenantId || !parsed.clientId) return false;
+	if (parsed.authMethod === "oauth_pkce") return true;
+	return Boolean(parsed.clientSecret);
+}
+
+export function getRequiredAzureAdGraphPermissions(): readonly string[] {
+	return REQUIRED_GRAPH_PERMISSIONS;
+}
 
 function isTokenFresh(token: CachedToken): boolean {
 	return token.expiresAtMs - Date.now() > 60_000;
@@ -29,7 +110,9 @@ function base64UrlDecode(input: string): string {
 	return Buffer.from(`${normalized}${pad}`, "base64").toString("utf8");
 }
 
-function parseJwtClaims(accessToken: string): Record<string, unknown> | null {
+export function parseJwtClaims(
+	accessToken: string,
+): Record<string, unknown> | null {
 	const parts = accessToken.split(".");
 	if (parts.length < 2) return null;
 	const payload = parts[1];
@@ -41,11 +124,9 @@ function parseJwtClaims(accessToken: string): Record<string, unknown> | null {
 	}
 }
 
-export function getRequiredAzureAdGraphPermissions(): readonly string[] {
-	return REQUIRED_GRAPH_PERMISSIONS;
-}
-
-export async function getGraphAccessToken(): Promise<{
+export async function getGraphAccessToken(
+	creds: AzureAdConfig,
+): Promise<{
 	readonly accessToken: string;
 	readonly expiresAtMs: number;
 	readonly claims: Record<string, unknown> | null;
@@ -57,7 +138,6 @@ export async function getGraphAccessToken(): Promise<{
 		};
 	}
 
-	const creds = getAzureAdCredentials();
 	if (creds.authMethod === "oauth_pkce") {
 		const token = await getOAuthGraphAccessToken(creds);
 		cachedToken = token;
@@ -120,13 +200,9 @@ export async function getGraphAccessToken(): Promise<{
 	};
 }
 
-async function getOAuthGraphAccessToken(creds: {
-	readonly tenantId: string;
-	readonly clientId: string;
-	readonly oauthAccessToken?: string;
-	readonly oauthRefreshToken?: string;
-	readonly oauthExpiresAt?: string;
-}): Promise<CachedToken> {
+async function getOAuthGraphAccessToken(
+	creds: AzureAdConfig,
+): Promise<CachedToken> {
 	const expiresAtMs = parseOAuthExpiry(creds.oauthExpiresAt);
 	if (
 		creds.oauthAccessToken &&
@@ -180,49 +256,14 @@ async function getOAuthGraphAccessToken(creds: {
 	const nextExpiresAtMs =
 		Date.now() +
 		Math.max(60, normalizeExpiresInSeconds(json.expires_in)) * 1000;
-	persistAzureAdOAuthTokens({
-		accessToken: json.access_token,
-		refreshToken: nextRefreshToken,
-		expiresAtMs: nextExpiresAtMs,
-	});
+
+	lastTokenPatch = {
+		oauthAccessToken: json.access_token,
+		oauthRefreshToken: nextRefreshToken,
+		oauthExpiresAt: new Date(nextExpiresAtMs).toISOString(),
+	};
 
 	return { accessToken: json.access_token, expiresAtMs: nextExpiresAtMs };
-}
-
-function persistAzureAdOAuthTokens(params: {
-	readonly accessToken: string;
-	readonly refreshToken: string;
-	readonly expiresAtMs: number;
-}): void {
-	const creds = readCredentials();
-	const previous = creds.integrations?.azuread ?? {};
-	const tenantId = previous.tenantId ?? creds.azuread?.tenantId ?? "";
-	const clientId = previous.clientId ?? creds.azuread?.clientId ?? "";
-	const clientSecret = previous.clientSecret ?? creds.azuread?.clientSecret;
-	const oauthExpiresAt = new Date(params.expiresAtMs).toISOString();
-	writeCredentials({
-		...creds,
-		integrations: {
-			...(creds.integrations ?? {}),
-			azuread: {
-				...previous,
-				authMethod: "oauth_pkce",
-				oauthAccessToken: params.accessToken,
-				oauthRefreshToken: params.refreshToken,
-				oauthExpiresAt,
-			},
-		},
-		azuread: {
-			...(creds.azuread ?? {}),
-			authMethod: "oauth_pkce",
-			tenantId,
-			clientId,
-			clientSecret,
-			oauthAccessToken: params.accessToken,
-			oauthRefreshToken: params.refreshToken,
-			oauthExpiresAt,
-		},
-	});
 }
 
 function normalizeExpiresInSeconds(expiresIn: unknown): number {
@@ -236,17 +277,16 @@ function parseOAuthExpiry(value: string | undefined): number | undefined {
 }
 
 async function graphFetch<T>(
+	creds: AzureAdConfig,
 	path: string,
-	options?: { readonly signal?: AbortSignal },
 ): Promise<T> {
-	const { accessToken } = await getGraphAccessToken();
+	const { accessToken } = await getGraphAccessToken(creds);
 	const res = await fetch(`${GRAPH_BASE_URL}${path}`, {
 		method: "GET",
 		headers: {
 			Authorization: `Bearer ${accessToken}`,
 			Accept: "application/json",
 		},
-		signal: options?.signal,
 	});
 
 	if (!res.ok) {
@@ -269,6 +309,7 @@ type GraphUserBasic = {
 };
 
 export async function getUserManager(
+	creds: AzureAdConfig,
 	idOrUpn: string,
 ): Promise<GraphUserBasic | null> {
 	const key = idOrUpn.trim();
@@ -277,13 +318,13 @@ export async function getUserManager(
 	}
 	try {
 		const manager = await graphFetch<unknown>(
+			creds,
 			`/users/${encodeURIComponent(
 				key,
 			)}/manager?$select=id,displayName,userPrincipalName,mail,jobTitle,department`,
 		);
 		return isGraphUserBasic(manager) ? manager : null;
 	} catch (error) {
-		// Graph returns 404 when a user has no manager set.
 		if (error instanceof Error && /\(404\)/.test(error.message)) {
 			return null;
 		}
@@ -292,6 +333,7 @@ export async function getUserManager(
 }
 
 export async function getUserDirectReports(
+	creds: AzureAdConfig,
 	idOrUpn: string,
 	limit = 25,
 ): Promise<GraphUserBasic[]> {
@@ -301,6 +343,7 @@ export async function getUserDirectReports(
 	}
 	const top = Math.min(Math.max(1, limit), 999);
 	const res = await graphFetch<{ value?: unknown[] }>(
+		creds,
 		`/users/${encodeURIComponent(
 			key,
 		)}/directReports?$top=${top}&$select=id,displayName,userPrincipalName,mail,jobTitle,department`,
@@ -309,13 +352,20 @@ export async function getUserDirectReports(
 	return rows.filter(isGraphUserBasic);
 }
 
-export async function testAzureAdConnection(): Promise<void> {
-	await graphFetch<{ value?: unknown }>("/users?$top=1&$select=id");
+export async function testAzureAdConnection(creds: AzureAdConfig): Promise<void> {
+	await graphFetch<{ value?: unknown }>(
+		creds,
+		"/users?$top=1&$select=id",
+	);
 }
 
-export async function fetchUsersTop(limit = 10): Promise<GraphUserBasic[]> {
+export async function fetchUsersTop(
+	creds: AzureAdConfig,
+	limit = 10,
+): Promise<GraphUserBasic[]> {
 	const top = Math.min(Math.max(1, limit), 50);
 	const res = await graphFetch<{ value?: unknown[] }>(
+		creds,
 		`/users?$top=${top}&$select=id,displayName,userPrincipalName,mail,jobTitle,department`,
 	);
 	const rows = Array.isArray(res.value) ? res.value : [];
@@ -323,6 +373,7 @@ export async function fetchUsersTop(limit = 10): Promise<GraphUserBasic[]> {
 }
 
 export async function searchUsers(
+	creds: AzureAdConfig,
 	query: string,
 	limit = 10,
 ): Promise<GraphUserBasic[]> {
@@ -336,6 +387,7 @@ export async function searchUsers(
 		)}')`,
 	);
 	const res = await graphFetch<{ value?: unknown[] }>(
+		creds,
 		`/users?$top=${top}&$select=id,displayName,userPrincipalName,mail,jobTitle,department&$filter=${filter}`,
 	);
 	const rows = Array.isArray(res.value) ? res.value : [];
@@ -343,6 +395,7 @@ export async function searchUsers(
 }
 
 export async function getUserByIdOrUpn(
+	creds: AzureAdConfig,
 	idOrUpn: string,
 ): Promise<GraphUserBasic> {
 	const key = idOrUpn.trim();
@@ -350,6 +403,7 @@ export async function getUserByIdOrUpn(
 		throw new Error("Missing user id or UPN");
 	}
 	return await graphFetch<GraphUserBasic>(
+		creds,
 		`/users/${encodeURIComponent(
 			key,
 		)}?$select=id,displayName,userPrincipalName,mail,jobTitle,department`,
@@ -362,7 +416,6 @@ export function getTokenPermissionDiagnostics(
 	readonly present: readonly string[];
 	readonly missing: readonly string[];
 	readonly mode: "delegated" | "app" | "unknown";
-	readonly raw?: { readonly scp?: string; readonly roles?: string[] };
 } {
 	const scp = typeof claims?.scp === "string" ? claims.scp : undefined;
 	const rolesRaw = claims?.roles;
@@ -383,11 +436,49 @@ export function getTokenPermissionDiagnostics(
 	const present = REQUIRED_GRAPH_PERMISSIONS.filter((p) => granted.has(p));
 	const missing = REQUIRED_GRAPH_PERMISSIONS.filter((p) => !granted.has(p));
 
+	return { present, missing, mode };
+}
+
+export async function validateAzureAdConnectivity(
+	config: Record<string, unknown>,
+): Promise<void> {
+	const creds = parseAzureAdConfig(config);
+	const { accessToken, claims } = await getGraphAccessToken(creds);
+	if (!accessToken) {
+		throw new Error("Could not obtain Graph access token.");
+	}
+	const diag = getTokenPermissionDiagnostics(claims);
+	if (diag.missing.length > 0) {
+		const modeHelp =
+			diag.mode === "delegated"
+				? "Ensure delegated Microsoft Graph permissions are granted and consented."
+				: "Ensure your app has admin-consented Microsoft Graph application permissions.";
+		throw new Error(
+			`Token missing permissions: ${diag.missing.join(
+				", ",
+			)}. ${modeHelp} Required: ${getRequiredAzureAdGraphPermissions().join(
+				", ",
+			)}.`,
+		);
+	}
+
+	await testAzureAdConnection(creds);
+}
+
+export async function runOAuthConnect(
+	config: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+	const creds = parseAzureAdConfig(config);
+	const tokens = await runAzureAdOAuthPkceFlow({
+		tenantId: creds.tenantId,
+		clientId: creds.clientId,
+		redirectUri: creds.redirectUri,
+	});
 	return {
-		present,
-		missing,
-		mode,
-		raw: scp || roles ? { scp, roles } : undefined,
+		authMethod: "oauth_pkce",
+		oauthAccessToken: tokens.accessToken,
+		oauthRefreshToken: tokens.refreshToken,
+		oauthExpiresAt: new Date(tokens.expiresAtMs).toISOString(),
 	};
 }
 

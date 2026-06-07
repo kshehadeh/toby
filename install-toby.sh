@@ -99,6 +99,11 @@ if [[ -f "${tmpdir}/toby-plugin-sample" ]]; then
 	has_sample_plugin=true
 fi
 
+has_azuread_plugin=false
+if [[ -f "${tmpdir}/toby-plugin-azuread" ]]; then
+	has_azuread_plugin=true
+fi
+
 # Only the `toby` binary goes on PATH (install_dir). All bundled helper
 # binaries live under ~/.toby/helpers, and installable plugins under
 # ~/.toby/plugins, so they don't clutter the user's bin directory.
@@ -129,6 +134,13 @@ if $has_sample_plugin; then
 	mkdir -p "$toby_plugins_dir"
 	mv "${tmpdir}/toby-plugin-sample" "${toby_plugins_dir}/toby-plugin-sample"
 	echo "Installed: ${toby_plugins_dir}/toby-plugin-sample"
+fi
+
+if $has_azuread_plugin; then
+	chmod +x "${tmpdir}/toby-plugin-azuread"
+	mkdir -p "$toby_plugins_dir"
+	mv "${tmpdir}/toby-plugin-azuread" "${toby_plugins_dir}/toby-plugin-azuread"
+	echo "Installed: ${toby_plugins_dir}/toby-plugin-azuread"
 fi
 
 if $has_macos_helper; then

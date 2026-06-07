@@ -124,30 +124,6 @@ interface TodoistCredentials {
 	apiKey: string;
 }
 
-type AzureAdAuthMethod = "oauth_pkce" | "client_credentials";
-
-interface AzureAdCredentials {
-	tenantId?: string;
-	clientId?: string;
-	clientSecret?: string;
-	redirectUri?: string;
-	authMethod?: AzureAdAuthMethod;
-	oauthAccessToken?: string;
-	oauthRefreshToken?: string;
-	oauthExpiresAt?: string;
-}
-
-interface AzureAdResolvedCredentials {
-	tenantId: string;
-	clientId: string;
-	clientSecret?: string;
-	redirectUri?: string;
-	authMethod: AzureAdAuthMethod;
-	oauthAccessToken?: string;
-	oauthRefreshToken?: string;
-	oauthExpiresAt?: string;
-}
-
 interface AICredentials {
 	openai?: { token: string };
 	vercel?: { apiKey: string };
@@ -180,7 +156,8 @@ export interface CredentialsFile {
 	integrations?: Record<string, Record<string, string>>;
 	gmail?: GmailCredentials;
 	todoist?: TodoistCredentials;
-	azuread?: AzureAdCredentials;
+	/** Legacy Azure AD block; migrated to integrations.azuread on plugin load. */
+	azuread?: Record<string, string>;
 	slack?: SlackCredentials;
 	ai?: AICredentials;
 }
@@ -292,76 +269,6 @@ export function getTodoistCredentials(): TodoistCredentials {
 		);
 	}
 	return { apiKey };
-}
-
-export function getAzureAdCredentials(): AzureAdResolvedCredentials {
-	const creds = readCredentials();
-	const tenantId =
-		getIntegrationCredential(creds, "azuread", "tenantId") ??
-		creds.azuread?.tenantId;
-	const clientId =
-		getIntegrationCredential(creds, "azuread", "clientId") ??
-		creds.azuread?.clientId;
-	const clientSecret =
-		getIntegrationCredential(creds, "azuread", "clientSecret") ??
-		creds.azuread?.clientSecret;
-	const redirectUri =
-		getIntegrationCredential(creds, "azuread", "redirectUri") ??
-		creds.azuread?.redirectUri;
-	const authMethodRaw =
-		getIntegrationCredential(creds, "azuread", "authMethod") ??
-		creds.azuread?.authMethod;
-	const oauthAccessToken =
-		getIntegrationCredential(creds, "azuread", "oauthAccessToken") ??
-		creds.azuread?.oauthAccessToken;
-	const oauthRefreshToken =
-		getIntegrationCredential(creds, "azuread", "oauthRefreshToken") ??
-		creds.azuread?.oauthRefreshToken;
-	const oauthExpiresAt =
-		getIntegrationCredential(creds, "azuread", "oauthExpiresAt") ??
-		creds.azuread?.oauthExpiresAt;
-
-	if (!tenantId || !clientId) {
-		throw new Error(
-			"Azure AD credentials are incomplete. Ensure tenantId and clientId are set in ~/.toby/credentials.json or via `toby configure`.",
-		);
-	}
-	const authMethod = getAzureAdAuthMethod(creds, authMethodRaw, clientSecret);
-	if (authMethod === "client_credentials" && !clientSecret) {
-		throw new Error(
-			"Azure AD client-credentials auth requires clientSecret. Set it in `toby configure`.",
-		);
-	}
-	return {
-		tenantId,
-		clientId,
-		clientSecret,
-		redirectUri,
-		authMethod,
-		oauthAccessToken,
-		oauthRefreshToken,
-		oauthExpiresAt,
-	};
-}
-
-export function getAzureAdAuthMethod(
-	creds: CredentialsFile,
-	explicitMethod?: string,
-	clientSecretHint?: string,
-): AzureAdAuthMethod {
-	const authMethod =
-		explicitMethod ??
-		getIntegrationCredential(creds, "azuread", "authMethod") ??
-		creds.azuread?.authMethod;
-	if (authMethod === "oauth_pkce" || authMethod === "client_credentials") {
-		return authMethod;
-	}
-
-	const clientSecret =
-		clientSecretHint ??
-		getIntegrationCredential(creds, "azuread", "clientSecret") ??
-		creds.azuread?.clientSecret;
-	return clientSecret?.trim() ? "client_credentials" : "oauth_pkce";
 }
 
 export type { SlackAuthMethod };

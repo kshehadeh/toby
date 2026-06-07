@@ -9,6 +9,11 @@ Connect Toby to Microsoft Graph (Azure AD) for directory and contact-related cha
 
 **CLI name:** `azuread`
 
+Azure AD ships as an installable plugin (`toby-plugin-azuread`). Release installs
+and upgrades place it in `~/.toby/plugins/` automatically. When building from
+source, run `bun run build:plugin:azuread` then
+`toby plugins install ./dist/toby-plugin-azuread`.
+
 ## Prerequisites
 
 - A Microsoft Entra ID (Azure AD) tenant
