@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 public enum PluginConstants {
@@ -47,6 +48,10 @@ public enum PluginOutput {
 	}
 
 	public static func readStdin() -> String {
+		// Interactive terminals have no piped envelope; match Bun plugin behavior.
+		if isatty(STDIN_FILENO) != 0 {
+			return ""
+		}
 		var data = Data()
 		while true {
 			let chunk = FileHandle.standardInput.readData(ofLength: 4096)

@@ -7,13 +7,12 @@ enum TobyPluginJira {
 		let args = Array(CommandLine.arguments.dropFirst())
 		let command = args.first
 		let subcommand = args.count > 1 ? args[1] : nil
-		let stdin = PluginOutput.readStdin()
 
 		switch command {
 		case "status":
-			handleStatus(envelope: ConfigEnvelope.parse(stdin))
+			handleStatus(envelope: ConfigEnvelope.parse(PluginOutput.readStdin()))
 		case "connect":
-			handleConnect(envelope: ConfigEnvelope.parse(stdin))
+			handleConnect(envelope: ConfigEnvelope.parse(PluginOutput.readStdin()))
 		case "disconnect":
 			handleDisconnect()
 		case "config":
@@ -21,7 +20,7 @@ enum TobyPluginJira {
 			case "shape":
 				handleConfigShape()
 			case "get":
-				handleConfigGet(envelope: ConfigEnvelope.parse(stdin))
+				handleConfigGet(envelope: ConfigEnvelope.parse(PluginOutput.readStdin()))
 			case "set":
 				handleConfigSet()
 			default:
@@ -32,7 +31,7 @@ enum TobyPluginJira {
 			case "list":
 				handleToolsList()
 			case "execute":
-				handleToolsExecute(raw: stdin)
+				handleToolsExecute(raw: PluginOutput.readStdin())
 			default:
 				PluginOutput.emitError("Unknown tools subcommand", code: "usage", exitCode: 2)
 			}
