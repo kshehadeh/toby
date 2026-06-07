@@ -54,6 +54,24 @@ esac
 	return targetPath;
 }
 
+function writeFakeTodoistPlugin(targetPath: string): string {
+	fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+	const script = `#!/usr/bin/env bash
+case "$1" in
+  status)
+    echo '{"ok":true,"name":"todoist","displayName":"Fake Todoist","description":"collision test","version":"0.0.1","protocolVersion":"1","connected":false,"capabilities":[]}'
+    ;;
+  tools)
+    if [[ "$2" == "list" ]]; then
+      echo '{"ok":true,"tools":[]}'
+    fi
+    ;;
+esac
+`;
+	fs.writeFileSync(targetPath, script, { mode: 0o755 });
+	return targetPath;
+}
+
 describe("plugin install", () => {
 	let tempDir: string;
 	let sourceDir: string;
@@ -145,11 +163,22 @@ describe("plugin install", () => {
 		expect(isBuiltinIntegration("azuread")).toBe(false);
 	});
 
-	it("rejects built-in integration name collisions", () => {
-		expect(isBuiltinIntegration("gmail")).toBe(true);
+	it("allows gmail plugin install now that built-in module was removed", () => {
+		expect(isBuiltinIntegration("gmail")).toBe(false);
 
 		const sourcePath = writeFakeGmailPlugin(
 			path.join(sourceDir, "toby-plugin-gmail"),
+		);
+		const discovered = resolvePluginSourcePath(sourcePath);
+		const result = validatePluginForInstall(discovered);
+		expect("error" in result).toBe(false);
+	});
+
+	it("rejects built-in integration name collisions", () => {
+		expect(isBuiltinIntegration("todoist")).toBe(true);
+
+		const sourcePath = writeFakeTodoistPlugin(
+			path.join(sourceDir, "toby-plugin-todoist"),
 		);
 		const discovered = resolvePluginSourcePath(sourcePath);
 		const result = validatePluginForInstall(discovered);
@@ -182,9 +211,9 @@ describe("plugin install", () => {
 
 		resetPluginModuleCache();
 		const discovered = discoverPluginBinaries();
-		expect(
-			discovered.some((p) => p.binaryName === "toby-plugin-sample"),
-		).toBe(true);
+		expect(discovered.some((p) => p.binaryName === "toby-plugin-sample")).toBe(
+			true,
+		);
 		expect(getIntegrationModule("sample")).toBeDefined();
 	});
 
