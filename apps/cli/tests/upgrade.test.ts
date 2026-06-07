@@ -8,10 +8,10 @@ import {
 	getStagingPaths,
 	readStagingManifest,
 	removeLegacySiblingHelpers,
+	removeOrphanedLegacyMacOSHelper,
 	resolveInstallDir,
 	resolveInstallTarget,
 	resolveListenerInstallTarget,
-	resolveMacOSHelperInstallTarget,
 	resolveWhisperCliInstallTargetFromUpgrade,
 } from "../src/upgrade/index";
 
@@ -79,12 +79,40 @@ describe("upgrade staging paths", () => {
 		expect(resolveListenerInstallTarget()).toBe(
 			path.join(tempDir, "helpers", "toby-listener"),
 		);
-		expect(resolveMacOSHelperInstallTarget()).toBe(
-			path.join(tempDir, "helpers", "toby-macos"),
-		);
 		expect(resolveWhisperCliInstallTargetFromUpgrade()).toBe(
 			path.join(tempDir, "helpers", "whisper-cli"),
 		);
+	});
+});
+
+describe("removeOrphanedLegacyMacOSHelper", () => {
+	let tempDir: string;
+	let previousTobyDir: string | undefined;
+
+	beforeEach(() => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-legacy-macos-"));
+		previousTobyDir = process.env.TOBY_DIR;
+		process.env.TOBY_DIR = tempDir;
+	});
+
+	afterEach(() => {
+		if (previousTobyDir === undefined) {
+			Reflect.deleteProperty(process.env, "TOBY_DIR");
+		} else {
+			process.env.TOBY_DIR = previousTobyDir;
+		}
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	it("removes legacy toby-macos helper from ~/.toby/helpers", async () => {
+		const helpersDir = path.join(tempDir, "helpers");
+		fs.mkdirSync(helpersDir, { recursive: true });
+		const legacyPath = path.join(helpersDir, "toby-macos");
+		fs.writeFileSync(legacyPath, "legacy");
+
+		await removeOrphanedLegacyMacOSHelper();
+
+		expect(fs.existsSync(legacyPath)).toBe(false);
 	});
 });
 

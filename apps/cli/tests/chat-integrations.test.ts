@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -7,12 +8,41 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const azureadCli = path.join(repoRoot, "../plugin-azuread/src/cli.ts");
+const gmailCli = path.join(repoRoot, "../plugin-gmail/src/cli.ts");
+const macosPluginPackageDir = path.join(repoRoot, "../plugin-macos");
 
-function writeAzureAdPluginWrapper(pluginDir: string): void {
+function writePluginWrapper(
+	pluginDir: string,
+	binaryName: string,
+	cliPath: string,
+): void {
 	fs.mkdirSync(pluginDir, { recursive: true });
-	const wrapperPath = path.join(pluginDir, "toby-plugin-azuread");
-	const script = `#!/usr/bin/env bash\nexec bun ${JSON.stringify(azureadCli)} "$@"\n`;
+	const wrapperPath = path.join(pluginDir, binaryName);
+	const script = `#!/usr/bin/env bash\nexec bun ${JSON.stringify(cliPath)} "$@"\n`;
 	fs.writeFileSync(wrapperPath, script, { mode: 0o755 });
+}
+
+function resolveBuiltMacOSPluginBinary(): string {
+	const distBin = path.join(repoRoot, "../../dist/toby-plugin-macos");
+	const releaseBin = path.join(
+		macosPluginPackageDir,
+		".build/release/toby-plugin-macos",
+	);
+	if (fs.existsSync(distBin)) return distBin;
+	if (fs.existsSync(releaseBin)) return releaseBin;
+	execSync("swift build -c release", {
+		cwd: macosPluginPackageDir,
+		stdio: "pipe",
+	});
+	return releaseBin;
+}
+
+function installMacOSPlugin(pluginDir: string): void {
+	fs.mkdirSync(pluginDir, { recursive: true });
+	const source = resolveBuiltMacOSPluginBinary();
+	const dest = path.join(pluginDir, "toby-plugin-macos");
+	fs.copyFileSync(source, dest);
+	fs.chmodSync(dest, 0o755);
 }
 
 describe("parseChatCliInput", () => {
@@ -24,7 +54,10 @@ describe("parseChatCliInput", () => {
 		previousTobyDir = process.env.TOBY_DIR;
 		process.env.TOBY_DIR = path.join(tempDir, "toby-home");
 		resetPluginModuleCache();
-		writeAzureAdPluginWrapper(path.join(tempDir, "toby-home", "plugins"));
+		const pluginsDir = path.join(tempDir, "toby-home", "plugins");
+		writePluginWrapper(pluginsDir, "toby-plugin-azuread", azureadCli);
+		writePluginWrapper(pluginsDir, "toby-plugin-gmail", gmailCli);
+		installMacOSPlugin(pluginsDir);
 	});
 
 	afterEach(() => {

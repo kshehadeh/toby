@@ -107,6 +107,8 @@ describe("plugin install", () => {
 		expect(result.installPath).toBe(resolvePluginInstallTarget("sample"));
 		expect(fs.existsSync(result.installPath)).toBe(true);
 		expect(fs.readFileSync(result.installPath, "utf8")).toContain("exec bun");
+		expect(result.setupAvailable).toBe(true);
+		expect(result.setupDescription).toContain("Demo setup");
 	});
 
 	it("discovers installed plugin from user plugins directory", () => {

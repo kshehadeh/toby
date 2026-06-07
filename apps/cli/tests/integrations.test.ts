@@ -5,6 +5,7 @@ import {
 	getIntegrations,
 	getModulesForCategory,
 	getModulesWithCapability,
+	isBuiltinIntegration,
 } from "@toby/core/integrations/index";
 import { ALL_PROVIDER_CATEGORIES } from "@toby/core/integrations/types";
 import { describe, expect, it } from "vitest";
@@ -59,12 +60,8 @@ describe("integration registry", () => {
 		expect(slack?.capabilities).toContain("chat");
 	});
 
-	it("includes macos in registry with chat capability", () => {
-		const macos = getIntegrationModule("macos");
-		expect(macos).toBeDefined();
-		expect(macos?.name).toBe("macos");
-		expect(macos?.capabilities).toContain("chat");
-		expect(typeof macos?.createChatTools).toBe("function");
+	it("does not treat macos as a built-in integration", () => {
+		expect(isBuiltinIntegration("macos")).toBe(false);
 	});
 
 	it("ALL_PROVIDER_CATEGORIES includes chat", () => {
