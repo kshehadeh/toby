@@ -26,7 +26,7 @@ toby plugins doctor
 | ---- | ------- |
 | `webSearch` | Search the web. Returns titles, URLs, descriptions, and optional page age. Supports `count` (1–20) and `freshness` (`pd`, `pw`, `pm`, `py`). |
 
-`webSearch` is a **conditional global tool**: when the plugin is installed and an API key is configured, it is available in **every** chat session without selecting `--integration websearch`. Global wiring lives in [`packages/core/src/integrations/websearch/global-tools.ts`](../packages/core/src/integrations/websearch/global-tools.ts).
+`webSearch` is a **conditional global tool**: when the plugin is installed and an API key is configured, it is available in **every** chat session without selecting `--integration websearch`. Global wiring lives in [`packages/core/src/ai/web-search-global-tools.ts`](../packages/core/src/ai/web-search-global-tools.ts).
 
 Combine with the always-available **`fetchWebContent`** tool to read full articles from result URLs.
 
@@ -49,7 +49,7 @@ CLI commands are now `toby connect websearch`, `toby status integration -i webse
 | ----- | -------- |
 | Swift plugin (API client, tools, protocol) | [`apps/plugin-websearch/`](../apps/plugin-websearch/) |
 | Plugin adapter (discovery, configure, chat) | [`packages/core/src/integrations/plugins/`](../packages/core/src/integrations/plugins/) |
-| Global `webSearch` tool bridge | [`packages/core/src/integrations/websearch/global-tools.ts`](../packages/core/src/integrations/websearch/global-tools.ts) |
+| Global `webSearch` tool bridge | [`packages/core/src/ai/web-search-global-tools.ts`](../packages/core/src/ai/web-search-global-tools.ts) |
 | Legacy credential migration | [`packages/core/src/integrations/plugins/migrate.ts`](../packages/core/src/integrations/plugins/migrate.ts) |
 
 User-facing setup: [help-site Web Search](../apps/help-site/docs/integrations/web-search.md).

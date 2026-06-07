@@ -67,4 +67,4 @@ toby plugins doctor
 
 Automated: contract tests in `apps/cli/tests/plugins*.test.ts` (e.g. `plugins-websearch.test.ts` for Swift API-key + global tool migration).
 
-**Global tools:** when a built-in tool was exposed globally (e.g. `webSearch`), keep a thin bridge in `@toby/core` that delegates to the plugin — see [`packages/core/src/integrations/websearch/global-tools.ts`](../../../packages/core/src/integrations/websearch/global-tools.ts).
+**Global tools:** when a built-in tool was exposed globally (e.g. `webSearch`), keep a thin bridge in `@toby/core` that delegates to the plugin — see [`packages/core/src/ai/web-search-global-tools.ts`](../../../packages/core/src/ai/web-search-global-tools.ts).
