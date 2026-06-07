@@ -6,6 +6,7 @@ dist/
 .vscode/settings.json
 apps/help-site/build/
 apps/help-site/.docusaurus/
+.build/
 apps/audio-helper/.build/
 apps/macos-helper/.build/
 .env
