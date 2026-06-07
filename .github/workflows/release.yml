@@ -121,6 +121,7 @@ jobs:
           rm -rf release-payload
           mkdir release-payload
           cp dist/toby dist/toby-listener dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-todoist dist/toby-plugin-jira dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/whisper-cli release-payload/
+          cp -R dist/TobyPluginMacOS_TobyPluginMacOSLib.bundle release-payload/
           cp -R dist/web release-payload/web
           node scripts/verify-release-artifacts.mjs release-payload
           ditto -c -k --sequesterRsrc release-payload ${{ matrix.asset }}
