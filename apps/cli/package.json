@@ -24,6 +24,7 @@
 		"commander": "^12.1.0",
 		"croner": "^10.0.1",
 		"ink": "^7.0.1",
+		"ink-link": "^5.0.0",
 		"react": "19.2.6",
 		"react-devtools-core": "^7.0.1",
 		"zod": "3"

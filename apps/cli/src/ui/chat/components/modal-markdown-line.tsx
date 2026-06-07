@@ -6,28 +6,25 @@ import {
 	parseModalInlinePieces,
 	splitStatusGlyphPrefix,
 } from "../modal-markdown";
-import { parseMarkdownHeading } from "../markdown-inline";
+import {
+	parseMarkdownHeading,
+	renderInlineMarkdownChildren,
+} from "../markdown-inline";
 
 const HEADING_COLOR = "cyan";
 
 function renderInlinePieces(
 	pieces: ReturnType<typeof parseModalInlinePieces>,
 	options?: { readonly dimColor?: boolean },
-): ReactElement[] {
-	return pieces.map((piece, idx) => {
-		const pieceKey = `${piece.bold}-${piece.italic}-${piece.color ?? ""}-${idx}-${piece.text}`;
-		return (
-			<Text
-				key={pieceKey}
-				bold={piece.bold}
-				italic={piece.italic}
-				dimColor={options?.dimColor}
-				color={piece.color}
-			>
-				{piece.text}
-			</Text>
-		);
-	});
+): ReactElement {
+	return (
+		<>
+			{renderInlineMarkdownChildren(pieces, {
+				dimColor: options?.dimColor,
+				pieceColor: (piece) => piece.color,
+			})}
+		</>
+	);
 }
 
 export function ModalMarkdownLine(props: {

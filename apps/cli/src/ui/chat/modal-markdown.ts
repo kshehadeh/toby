@@ -92,7 +92,7 @@ export function parseModalInlinePieces(line: string): ModalInlinePiece[] {
 	const out: ModalInlinePiece[] = [];
 
 	for (const piece of raw) {
-		if (piece.bold || piece.italic) {
+		if (piece.href || piece.bold || piece.italic) {
 			out.push(piece);
 			continue;
 		}
