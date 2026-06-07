@@ -2,6 +2,7 @@ import { Box, Text, useWindowSize } from "ink";
 import React from "react";
 import { ViewModal } from "../../shared";
 import { META_ACCENT } from "../constants";
+import { ModalMarkdownLine } from "./modal-markdown-line";
 
 const MODAL_CHROME_ROWS = 8;
 
@@ -24,7 +25,7 @@ export type ScrollableTextModalProps = {
 	readonly title: string;
 	readonly lines: readonly string[];
 	readonly scrollOffset: number;
-	readonly lineTone?: "log" | "default";
+	readonly lineTone?: "log" | "default" | "markdown";
 };
 
 export function ScrollableTextModal({
@@ -57,6 +58,14 @@ export function ScrollableTextModal({
 			</Box>
 			<Box marginTop={1} flexDirection="column" width={contentWidth}>
 				{visible.map((line, index) => {
+					if (lineTone === "markdown") {
+						return (
+							<ModalMarkdownLine
+								key={`scroll-md-${scrollOffset + index}-${line.slice(0, 24)}`}
+								line={line}
+							/>
+						);
+					}
 					const color = lineTone === "log" ? logLineColor(line) : undefined;
 					return (
 						<Text

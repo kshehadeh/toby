@@ -222,6 +222,72 @@ export function readLogTail(lines = 50): LogEntry[] {
 	return entries;
 }
 
+export type SessionTokenLogTotals = {
+	readonly turnCount: number;
+	readonly inputTokens: number;
+	readonly outputTokens: number;
+	readonly cacheReadTokens: number;
+	readonly cacheWriteTokens: number;
+};
+
+export function aggregateSessionTokenTotalsFromLog(
+	sessionId: string,
+): SessionTokenLogTotals {
+	flush();
+	const logPath = getLogPath();
+	if (!fs.existsSync(logPath)) {
+		return {
+			turnCount: 0,
+			inputTokens: 0,
+			outputTokens: 0,
+			cacheReadTokens: 0,
+			cacheWriteTokens: 0,
+		};
+	}
+
+	const content = fs.readFileSync(logPath, "utf-8");
+	let turnCount = 0;
+	let inputTokens = 0;
+	let outputTokens = 0;
+	let cacheReadTokens = 0;
+	let cacheWriteTokens = 0;
+
+	for (const line of content.split("\n")) {
+		if (!line) continue;
+		const entry = parseEntry(line);
+		if (
+			!entry ||
+			entry.sessionId !== sessionId ||
+			entry.type !== "turn_summary"
+		) {
+			continue;
+		}
+
+		const data = entry.data ?? {};
+		turnCount += 1;
+		if (typeof data.inputTokens === "number") {
+			inputTokens += data.inputTokens;
+		}
+		if (typeof data.outputTokens === "number") {
+			outputTokens += data.outputTokens;
+		}
+		if (typeof data.cacheReadTokens === "number") {
+			cacheReadTokens += data.cacheReadTokens;
+		}
+		if (typeof data.cacheWriteTokens === "number") {
+			cacheWriteTokens += data.cacheWriteTokens;
+		}
+	}
+
+	return {
+		turnCount,
+		inputTokens,
+		outputTokens,
+		cacheReadTokens,
+		cacheWriteTokens,
+	};
+}
+
 export type TurnSummary = {
 	readonly turnIndex?: number;
 	readonly durationMs: number;

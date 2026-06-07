@@ -6,6 +6,8 @@ export interface AIProviderInfo {
 	modelFormat: AIProviderModelFormat;
 	models: string[];
 	allowCustomModel?: boolean;
+	/** Provider exposes plan spend / remaining balance via billing API. */
+	supportsPlanUsage?: boolean;
 }
 
 export const AI_PROVIDERS: AIProviderInfo[] = [
@@ -13,6 +15,7 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
 		id: "openai",
 		displayName: "OpenAI",
 		modelFormat: "openai-id",
+		supportsPlanUsage: false,
 		models: [
 			"gpt-5",
 			"gpt-5-mini",
@@ -31,6 +34,7 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
 		displayName: "Vercel AI Gateway",
 		modelFormat: "gateway-slug",
 		allowCustomModel: true,
+		supportsPlanUsage: true,
 		models: [
 			"openai/gpt-5.4",
 			"openai/gpt-5-mini",

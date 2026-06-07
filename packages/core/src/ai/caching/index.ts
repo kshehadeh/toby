@@ -16,6 +16,13 @@ export {
 	formatCacheDebugMeta,
 	formatTokenUsageStatus,
 } from "./usage";
+export {
+	addTurnToSessionTokenTotals,
+	emptySessionTokenTotals,
+	formatSessionTokenCount,
+	sessionTokenTotalTokens,
+	type SessionTokenTotals,
+} from "./session-usage";
 
 /**
  * Applies provider-specific prompt caching options before a model turn.

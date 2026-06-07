@@ -68,6 +68,7 @@ export function buildHelpSections(
 			{ label: "Complete command", keys: "Tab" },
 			{ label: "Cycle personas", keys: "Shift+Tab" },
 			{ label: "Show help", keys: "? (empty prompt)" },
+			{ label: "Show usage", keys: "/usage" },
 			{ label: "Open configuration", keys: "/config" },
 			{ label: "View session log", keys: "/log" },
 		],

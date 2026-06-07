@@ -13,8 +13,14 @@ export type UpgradeUiStatus =
 export interface SlashCommandRuntime {
 	readonly exit: () => void;
 	readonly openHelp: () => void;
+	readonly openUsageViewer: () => void;
 	readonly openLogViewer: () => void;
 	readonly openTerminalViewer: () => void;
+	readonly openTextViewer: (
+		title: string,
+		lines: readonly string[],
+		options?: { readonly lineTone?: "default" | "markdown" },
+	) => void;
 	readonly openIntegrationPicker: () => void;
 	readonly openConfig: () => void;
 	readonly openSkills: () => void;

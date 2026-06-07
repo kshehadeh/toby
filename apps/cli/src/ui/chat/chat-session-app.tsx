@@ -4,12 +4,19 @@ import type {
 	AskUserToolResult,
 } from "@toby/core/ai/ask-user-tool";
 import {
+	addTurnToSessionTokenTotals,
+	emptySessionTokenTotals,
 	extractTokenUsageReport,
 	formatCacheDebugMeta,
+	type SessionTokenTotals,
 } from "@toby/core/ai/caching";
 import type { CoreMessage } from "@toby/core/ai/chat";
 import { formatChatModelError } from "@toby/core/ai/chat-errors";
 import { formatPersonaAiLabel } from "@toby/core/ai/model-factory";
+import {
+	type AIProviderPlanUsage,
+	fetchAIProviderPlanUsage,
+} from "@toby/core/ai/plan-usage";
 import { shouldPretreat } from "@toby/core/ai/pretreatment";
 import {
 	isIntegrationUsableInChat,
@@ -37,6 +44,7 @@ import {
 } from "@toby/core/integrations/index";
 import type { IntegrationModule } from "@toby/core/integrations/types";
 import {
+	aggregateSessionTokenTotalsFromLog,
 	createChatEventLogSink,
 	formatLogEntry,
 	log,
@@ -119,6 +127,7 @@ import {
 	buildIntegrationPickerRows,
 } from "./components/integration-multi-picker-modal";
 import { HelpPanel } from "./components/help-panel";
+import { UsagePanel } from "./components/usage-panel";
 import { PlanStatusBar } from "./components/plan-status-bar";
 import {
 	ScrollableTextModal,
@@ -131,6 +140,7 @@ import {
 } from "./connection-probe";
 import { ACCENT, TIPS } from "./constants";
 import { buildHelpSections } from "./help-sections";
+import { buildUsageSections } from "./usage-sections";
 import { buildUiTurnContext } from "./pipeline-turn-context";
 import { appendPromptHistory, loadPromptHistory } from "./prompt-history";
 import { buildSessionNoticeEntry, recordSessionNote } from "./session-note";
@@ -138,11 +148,11 @@ import { logSkillDebugNotes } from "./skill-debug";
 import {
 	SLASH_COMMANDS,
 	getNearestSlashCommand,
-	resolveSlashSubmission,
 } from "./slash-commands";
 import type { SlashCommand } from "./slash-commands";
 import { readTranscriptFile } from "./slash-commands/stop-listening";
 import type { UpgradeUiStatus } from "./slash-commands/types";
+import { routePromptSubmit } from "./prompt-submit";
 import { buildTerminalInfoLines } from "./terminal-info-lines";
 import { logToolSelectionNotes } from "./tool-selection-transcript";
 import { applyPersistedChatEvent } from "./transcript-events";
@@ -189,7 +199,7 @@ interface ScrollModalState {
 	readonly title: string;
 	readonly lines: readonly string[];
 	readonly scrollOffset: number;
-	readonly lineTone: "log" | "default";
+	readonly lineTone: "log" | "default" | "markdown";
 }
 
 function isAbortError(e: unknown): boolean {
@@ -288,6 +298,12 @@ export function ChatSessionApp({
 		persona.name,
 	);
 	const [lastUsage, setLastUsage] = useState<LanguageModelUsage | null>(null);
+	const [sessionTokenTotals, setSessionTokenTotals] =
+		useState<SessionTokenTotals>(() => emptySessionTokenTotals());
+	const [usageOpen, setUsageOpen] = useState(false);
+	const [usagePlanUsage, setUsagePlanUsage] =
+		useState<AIProviderPlanUsage | null>(null);
+	const [usagePlanLoading, setUsagePlanLoading] = useState(false);
 	const [bootError, setBootError] = useState<string | null>(null);
 	const [bootActivityLine, setBootActivityLine] =
 		useState("Preparing session…");
@@ -372,6 +388,7 @@ export function ChatSessionApp({
 		personaPicker: null as PersonaPickerState | null,
 		scrollModal: null as ScrollModalState | null,
 		helpOpen: false,
+		usageOpen: false,
 	});
 
 	const allDisplayRows = useMemo((): DisplayRow[] => {
@@ -547,6 +564,7 @@ export function ChatSessionApp({
 			personaPicker,
 			scrollModal,
 			helpOpen,
+			usageOpen,
 		};
 	}, [
 		askModal,
@@ -558,6 +576,7 @@ export function ChatSessionApp({
 		personaPicker,
 		scrollModal,
 		helpOpen,
+		usageOpen,
 	]);
 
 	const startFreshSession = useCallback(
@@ -577,6 +596,8 @@ export function ChatSessionApp({
 			setMessages(null);
 			setActivePlan(null);
 			setTranscript([]);
+			setLastUsage(null);
+			setSessionTokenTotals(emptySessionTokenTotals());
 			if (params?.note?.trim()) {
 				recordSessionNote(null, params.note.trim());
 			}
@@ -719,6 +740,9 @@ export function ChatSessionApp({
 					persona: activePersonaRef.current,
 					moduleNames: moduleNames,
 				});
+				setSessionTokenTotals((totals) =>
+					addTurnToSessionTokenTotals(totals, tokenReport),
+				);
 				logTurnSummary(sid, undefined, {
 					turnIndex: undefined,
 					durationMs: Date.now() - turnStartMs,
@@ -1436,6 +1460,8 @@ export function ChatSessionApp({
 		setSessionPrompt("");
 		setMessages(loaded.messages);
 		setTranscript([...loaded.transcript, ...tail]);
+		setLastUsage(null);
+		setSessionTokenTotals(aggregateSessionTokenTotalsFromLog(loaded.id));
 		let maxSeq = 0;
 		for (const e of loaded.transcript) {
 			if (e.kind === "boxed_step" && e.seq > maxSeq) {
@@ -1500,6 +1526,22 @@ export function ChatSessionApp({
 		});
 	}, []);
 
+	const openTextViewer = useCallback(
+		(
+			title: string,
+			lines: readonly string[],
+			options?: { readonly lineTone?: "default" | "markdown" },
+		) => {
+			setScrollModal({
+				title,
+				lines: [...lines],
+				scrollOffset: 0,
+				lineTone: options?.lineTone ?? "default",
+			});
+		},
+		[],
+	);
+
 	const helpSections = useMemo(
 		() => buildHelpSections(SLASH_COMMANDS),
 		[],
@@ -1508,6 +1550,42 @@ export function ChatSessionApp({
 	const openHelpViewer = useCallback(() => {
 		setHelpOpen(true);
 	}, []);
+
+	const openUsageViewer = useCallback(() => {
+		const providerId = activePersonaRef.current.ai.provider;
+		setUsageOpen(true);
+		setUsagePlanLoading(true);
+		void fetchAIProviderPlanUsage(providerId)
+			.then((usage) => {
+				setUsagePlanUsage(usage);
+			})
+			.catch(() => {
+				setUsagePlanUsage(null);
+			})
+			.finally(() => {
+				setUsagePlanLoading(false);
+			});
+	}, []);
+
+	const usageSections = useMemo(
+		() =>
+			buildUsageSections({
+				persona: activePersona,
+				sessionName,
+				sessionTokenTotals,
+				lastUsage,
+				planUsage: usagePlanUsage,
+				planUsageLoading: usagePlanLoading,
+			}),
+		[
+			activePersona,
+			sessionName,
+			sessionTokenTotals,
+			lastUsage,
+			usagePlanUsage,
+			usagePlanLoading,
+		],
+	);
 
 	const handlePromptSubmit = useCallback(
 		(rawValue: string, selectedSlashCommand: SlashCommand | null) => {
@@ -1520,12 +1598,20 @@ export function ChatSessionApp({
 			const line = rawValue.trim();
 			inputPanel?.clearInput();
 
-			// Steering prompt: if a turn is active, abort it and queue the
-			// new prompt for processing once the abort completes.
-			if (snapRef.current.loading && line) {
-				pendingSteeringPromptRef.current = line;
-				setRecentPrompts(appendPromptHistory(line));
-				setTranscript((t) => [...t, { kind: "user", text: line }]);
+			const routed = routePromptSubmit(
+				line,
+				selectedSlashCommand,
+				snapRef.current.loading,
+			);
+			if (routed.kind === "empty") {
+				return;
+			}
+
+			if (routed.kind === "steering") {
+				// Turn is active: abort it and queue the new prompt for later.
+				pendingSteeringPromptRef.current = routed.line;
+				setRecentPrompts(appendPromptHistory(routed.line));
+				setTranscript((t) => [...t, { kind: "user", text: routed.line }]);
 				ongoingPretreatAbortRef.current?.abort();
 				setActivityLine("Redirecting...");
 				return;
@@ -1534,14 +1620,18 @@ export function ChatSessionApp({
 			if (line) {
 				setRecentPrompts(appendPromptHistory(line));
 			}
-			const slash = resolveSlashSubmission(line, selectedSlashCommand);
-			if (slash.kind === "execute" && slash.command) {
-				void slash.command.run(
+
+			if (routed.kind === "slash") {
+				const slash = routed.resolution;
+				if (slash.kind === "execute" && slash.command) {
+					void slash.command.run(
 					{
 						exit,
 						openHelp: openHelpViewer,
+						openUsageViewer,
 						openLogViewer,
 						openTerminalViewer,
+						openTextViewer,
 						openConfig: () => {
 							setConfigureSession(createConfigureSession());
 							setConfigureInitialPath(undefined);
@@ -1769,7 +1859,10 @@ export function ChatSessionApp({
 				);
 				return;
 			}
-			if (!line) {
+			return;
+			}
+
+			if (routed.kind !== "chat") {
 				return;
 			}
 			const msgs = snapRef.current.messages;
@@ -1881,8 +1974,10 @@ export function ChatSessionApp({
 			launchContext,
 			openIntegrationPicker,
 			openHelpViewer,
+			openUsageViewer,
 			openLogViewer,
 			openTerminalViewer,
+			openTextViewer,
 			openPersonaEditorAtPath,
 			openPersonaPickerModal,
 			openSessionsPicker,
@@ -2166,6 +2261,14 @@ export function ChatSessionApp({
 				return;
 			}
 
+			if (snapRef.current.usageOpen) {
+				if (key.escape || key.return) {
+					setUsageOpen(false);
+					return;
+				}
+				return;
+			}
+
 			const scrollView = snapRef.current.scrollModal;
 			if (scrollView) {
 				const visibleBudget = scrollModalVisibleLineBudget(terminalRows);
@@ -2357,6 +2460,7 @@ export function ChatSessionApp({
 		Boolean(personaPicker) ||
 		Boolean(scrollModal) ||
 		helpOpen ||
+		usageOpen ||
 		messages === null ||
 		showConfig;
 	const modelLabel = formatPersonaAiLabel(activePersona);
@@ -2494,6 +2598,8 @@ export function ChatSessionApp({
 				</ViewModal>
 			) : helpOpen ? (
 				<HelpPanel termCols={termCols} sections={helpSections} />
+			) : usageOpen ? (
+				<UsagePanel termCols={termCols} sections={usageSections} />
 			) : scrollModal ? (
 				<ScrollableTextModal
 					termCols={termCols}

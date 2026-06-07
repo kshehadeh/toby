@@ -4,6 +4,7 @@ import {
 	scrollModalVisibleLineBudget,
 } from "../src/ui/chat/components/scrollable-text-modal";
 import { buildHelpSections } from "../src/ui/chat/help-sections";
+import { buildUsageSections } from "../src/ui/chat/usage-sections";
 import { buildTerminalInfoLines } from "../src/ui/chat/terminal-info-lines";
 import { SLASH_COMMANDS } from "../src/ui/chat/slash-commands";
 
@@ -34,6 +35,9 @@ describe("buildHelpSections", () => {
 		expect(
 			sections.commonCommands.some((row) => row.keys === "/help"),
 		).toBe(true);
+		expect(sections.shortcuts.some((row) => row.keys === "/usage")).toBe(
+			true,
+		);
 		expect(sections.gettingStarted.length).toBeGreaterThan(0);
 		expect(
 			sections.tips.some((tip) => tip.includes("empty prompt")),

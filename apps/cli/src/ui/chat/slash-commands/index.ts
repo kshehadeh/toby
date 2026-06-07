@@ -10,6 +10,7 @@ import { logSlashCommand } from "./log";
 import { newSlashCommand } from "./new";
 import { personaSlashCommand } from "./persona";
 import { planSlashCommand } from "./plan";
+import { pluginsSlashCommand } from "./plugins";
 import { restartSlashCommand } from "./restart";
 import { schedulesSlashCommand } from "./schedules";
 import { sessionsSlashCommand } from "./sessions";
@@ -20,6 +21,7 @@ import { stopListeningSlashCommand } from "./stop-listening";
 import { terminalSlashCommand } from "./terminal";
 import type { SlashCommand } from "./types";
 import { upgradeSlashCommand } from "./upgrade";
+import { usageSlashCommand } from "./usage";
 import { webSlashCommand } from "./web";
 
 interface SlashCommandResolution {
@@ -39,6 +41,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
 	listenSlashCommand,
 	logSlashCommand,
 	planSlashCommand,
+	pluginsSlashCommand,
 	personaSlashCommand,
 	newSlashCommand,
 	schedulesSlashCommand,
@@ -49,6 +52,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
 	stopListeningSlashCommand,
 	terminalSlashCommand,
 	upgradeSlashCommand,
+	usageSlashCommand,
 	webSlashCommand,
 	restartSlashCommand,
 	exitSlashCommand,

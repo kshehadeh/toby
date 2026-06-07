@@ -21,6 +21,8 @@ import {
 	discoverPluginBinaries,
 	resolvePluginSearchDirectories,
 } from "@toby/core/integrations/plugins/discovery";
+import { collectPluginListEntries } from "@toby/core/integrations/plugins/list-status";
+import { buildPluginsReportLines } from "../src/ui/chat/slash-commands/plugins";
 import { jsonSchemaToZod } from "@toby/core/integrations/plugins/json-schema";
 import { parsePluginNameFromBinary } from "@toby/core/integrations/plugins/protocol";
 import {
@@ -70,6 +72,21 @@ describe("plugin protocol", () => {
 			true,
 		);
 		expect(parsePluginNameFromBinary("toby-plugin-sample")).toBe("sample");
+	});
+
+	it("builds markdown plugin report lines", () => {
+		const lines = buildPluginsReportLines();
+		expect(lines.some((line) => line.startsWith("## Plugin"))).toBe(true);
+		expect(lines.some((line) => line.includes("**"))).toBe(true);
+	});
+
+	it("collects plugin list entries with valid sample metadata", () => {
+		const entries = collectPluginListEntries();
+		const sample = entries.find((entry) => entry.name === "sample");
+		expect(sample).toBeDefined();
+		expect(sample?.state).toBe("valid");
+		expect(sample?.displayName).toBeTruthy();
+		expect(sample?.connected).toBe(false);
 	});
 
 	it("returns status metadata with supported protocol version", () => {
