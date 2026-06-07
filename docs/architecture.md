@@ -4,6 +4,8 @@ Toby is a **Commander.js** CLI (`@toby/cli`) built on a shared harness package (
 
 See also: [Core vs apps](#core-vs-apps) (where new code should live).
 
+![Toby high-level architecture](assets/toby-architecture.svg)
+
 ## Core vs apps
 
 | Package | Path | Role |
