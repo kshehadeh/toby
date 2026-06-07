@@ -8,6 +8,6 @@ apps/help-site/build/
 apps/help-site/.docusaurus/
 .build/
 apps/audio-helper/.build/
-apps/macos-helper/.build/
+apps/plugin-macos/.build/
 .env
 .DS_Store

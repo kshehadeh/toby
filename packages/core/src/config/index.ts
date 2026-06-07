@@ -56,7 +56,7 @@ export function getPluginsDir(): string {
 	return path.join(resolveTobyDir(), "plugins");
 }
 
-/** Bundled native helper binaries: `~/.toby/helpers/toby-listener`, `toby-macos`, `whisper-cli`. */
+/** Bundled native helper binaries: `~/.toby/helpers/toby-listener`, `whisper-cli`. */
 export function getHelpersDir(): string {
 	return path.join(resolveTobyDir(), "helpers");
 }

@@ -3,7 +3,7 @@ import IOKit
 import IOKit.ps
 
 enum BatteryCommands {
-	static func status() throws {
+	static func statusData() throws -> [String: Any] {
 		let snapshot = IOPSCopyPowerSourcesInfo().takeRetainedValue()
 		let sources = IOPSCopyPowerSourcesList(snapshot).takeRetainedValue() as [CFTypeRef]
 
@@ -52,7 +52,7 @@ enum BatteryCommands {
 			throw HelperError.runtime("No internal battery found (desktop Mac?)")
 		}
 
-		JSONOutput.success(batteryInfo)
+		return batteryInfo
 	}
 
 	private static func readCycleCount() -> Int? {

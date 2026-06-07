@@ -2,12 +2,11 @@ import CoreGraphics
 import Foundation
 import IOKit
 
-// IODisplay C functions from IOKit/IOKitDisplayPrivate.h — available at runtime
 @_silgen_name("IODisplayGetFloatParameter")
 func IODisplayGetFloatParameterFunc(_ service: io_object_t, _ options: UInt32, _ paramName: CFString, _ value: UnsafeMutablePointer<Float32>) -> kern_return_t
 
 enum DisplayCommands {
-	static func brightness() throws {
+	static func brightnessData() throws -> [String: Any] {
 		let serviceNames = ["IODisplayConnect", "AppleDisplay", "AppleBacklightDisplay", "AppleBacklight"]
 		var displays: [[String: Any]] = []
 
@@ -37,7 +36,6 @@ enum DisplayCommands {
 			if !displays.isEmpty { break }
 		}
 
-		// If IOKit approach failed, try the online display list for basic info
 		if displays.isEmpty {
 			var onlineCount: UInt32 = 0
 			var onlineIDs = [UInt32](repeating: 0, count: 16)
@@ -47,15 +45,12 @@ enum DisplayCommands {
 			throw HelperError.runtime("Could not read display brightness. No online displays found.")
 		}
 
-		JSONOutput.success(["displays": displays])
+		return ["displays": displays]
 	}
 
-	static func setBrightness(_ parser: inout ArgParser) throws {
-		guard let levelStr = parser.parseValue("--level") else {
-			throw HelperError.usage("--level <0-100> is required")
-		}
-		guard let level = Int(levelStr), (0...100).contains(level) else {
-			throw HelperError.usage("--level must be 0-100")
+	static func setBrightness(level: Int) throws -> [String: Any] {
+		guard (0...100).contains(level) else {
+			throw HelperError.usage("level must be 0-100")
 		}
 
 		let scalar = Float32(level) / 100.0
@@ -79,8 +74,7 @@ enum DisplayCommands {
 				}
 			}
 			if didSet {
-				JSONOutput.success(["level": level])
-				return
+				return ["level": level]
 			}
 		}
 

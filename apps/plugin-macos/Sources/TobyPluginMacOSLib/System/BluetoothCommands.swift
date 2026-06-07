@@ -1,14 +1,13 @@
 import Foundation
 import IOBluetooth
 
-// IOBluetoothPreference C functions — available in IOBluetooth framework but not auto-bridged
 @_silgen_name("IOBluetoothPreferenceSetControllerPowerState")
 func IOBluetoothPreferenceSetControllerPowerState(_ state: UInt32)
 @_silgen_name("IOBluetoothPreferenceGetControllerPowerState")
 func IOBluetoothPreferenceGetControllerPowerState() -> UInt32
 
 enum BluetoothCommands {
-	static func status() throws {
+	static func statusData() throws -> [String: Any] {
 		let powerState = IOBluetoothPreferenceGetControllerPowerState()
 		let powerStateName: String
 		switch powerState {
@@ -40,29 +39,18 @@ enum BluetoothCommands {
 		}
 		data["devices"] = deviceList
 		data["deviceCount"] = deviceList.count
-
-		JSONOutput.success(data)
+		return data
 	}
 
-	static func power(_ parser: inout ArgParser) throws {
-		let on = parser.parseFlag("--on")
-		let off = parser.parseFlag("--off")
-		guard on || off else {
-			throw HelperError.usage("Specify --on or --off")
-		}
-		let enabled = on
-
+	static func setPower(enabled: Bool) throws -> [String: Any] {
 		IOBluetoothPreferenceSetControllerPowerState(enabled ? 1 : 0)
-
-		// Brief wait and read back
 		usleep(500_000)
 		let actualPower = IOBluetoothPreferenceGetControllerPowerState()
 		let success = enabled ? (actualPower == 1) : (actualPower == 0)
-
-		JSONOutput.success([
+		return [
 			"requested": enabled,
 			"actual": actualPower == 1 ? "on" : (actualPower == 0 ? "off" : "unknown"),
 			"success": success,
-		])
+		]
 	}
 }

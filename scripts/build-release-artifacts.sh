@@ -30,13 +30,6 @@ listener_bin="$(
 )/toby-audio-helper"
 cp "${listener_bin}" dist/toby-listener
 
-echo "Building toby-macos (swift ${swift_arch})..."
-swift build -c release --arch "${swift_arch}" --package-path apps/macos-helper
-macos_bin="$(
-	swift build --show-bin-path -c release --arch "${swift_arch}" --package-path apps/macos-helper
-)/toby-macos-helper"
-cp "${macos_bin}" dist/toby-macos
-
 echo "Building toby-plugin-sample (${bun_target})..."
 bun build ./apps/plugin-sample/src/cli.ts --compile --target="${bun_target}" --outfile dist/toby-plugin-sample
 
@@ -53,11 +46,20 @@ applemail_bin="$(
 )/toby-plugin-applemail"
 cp "${applemail_bin}" dist/toby-plugin-applemail
 
+echo "Building toby-plugin-macos (swift ${swift_arch})..."
+bash ./scripts/build-bundled-shortcuts.sh
+swift build -c release --arch "${swift_arch}" --package-path apps/plugin-macos
+macos_build_dir="$(
+	swift build --show-bin-path -c release --arch "${swift_arch}" --package-path apps/plugin-macos
+)"
+cp "${macos_build_dir}/toby-plugin-macos" dist/toby-plugin-macos
+cp -R "${macos_build_dir}/TobyPluginMacOS_TobyPluginMacOSLib.bundle" dist/
+
 echo "Building whisper-cli (${swift_arch})..."
 chmod +x scripts/build-whisper-cli.sh
 SWIFT_ARCH="${swift_arch}" ./scripts/build-whisper-cli.sh dist/whisper-cli
 
-chmod +x dist/toby dist/toby-listener dist/toby-macos dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-applemail dist/whisper-cli
+chmod +x dist/toby dist/toby-listener dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-applemail dist/toby-plugin-macos dist/whisper-cli
 
 echo "Building web UI..."
 bun run --cwd apps/web build

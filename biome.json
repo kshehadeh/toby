@@ -6,7 +6,7 @@
 			"apps/help-site/build/**",
 			"apps/help-site/.docusaurus/**",
 			"apps/audio-helper/.build/**",
-			"apps/macos-helper/.build/**",
+			"apps/plugin-macos/.build/**",
 			".turbo/**"
 		]
 	},

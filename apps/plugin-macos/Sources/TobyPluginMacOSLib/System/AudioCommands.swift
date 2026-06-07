@@ -2,13 +2,12 @@ import CoreAudio
 import Foundation
 
 enum AudioCommands {
-	// Selector for kAudioDevicePropertyDeviceUIDCFString = 'uid '
 	private static let kDeviceUID: AudioObjectPropertySelector = 0x75696420
 	private static func addr(selector: AudioObjectPropertySelector, scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal) -> AudioObjectPropertyAddress {
 		AudioObjectPropertyAddress(mSelector: selector, mScope: scope, mElement: kAudioObjectPropertyElementMain)
 	}
 
-	static func list() throws {
+	static func listData() throws -> [String: Any] {
 		var address = addr(selector: kAudioHardwarePropertyDevices)
 		var size: UInt32 = 0
 		var status = AudioObjectGetPropertyDataSize(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size)
@@ -45,12 +44,12 @@ enum AudioCommands {
 			}
 		}
 
-		JSONOutput.success([
+		return [
 			"outputs": outputs,
 			"inputs": inputs,
 			"defaultOutputId": Int(defaultOutputID),
 			"defaultInputId": Int(defaultInputID),
-		])
+		]
 	}
 
 	private static func deviceInfo(id: AudioObjectID, defaultOutputID: AudioObjectID, defaultInputID: AudioObjectID) -> [String: Any]? {
@@ -100,11 +99,7 @@ enum AudioCommands {
 		return list.pointee.mNumberBuffers > 0
 	}
 
-	static func switchOutput(_ parser: inout ArgParser) throws {
-		guard let nameOrUid = parser.parseValue("--device") else {
-			throw HelperError.usage("--device <name-or-uid> is required")
-		}
-
+	static func switchOutput(device nameOrUid: String) throws -> [String: Any] {
 		var address = addr(selector: kAudioHardwarePropertyDevices)
 		var size: UInt32 = 0
 		var status = AudioObjectGetPropertyDataSize(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size)
@@ -165,13 +160,13 @@ enum AudioCommands {
 		AudioObjectGetPropertyData(targetID, &nameAddr, 0, nil, &nameSize, &nameRef)
 		let name = nameRef as String? ?? "unknown"
 
-		JSONOutput.success([
+		return [
 			"deviceId": Int(targetID),
 			"name": name,
-		])
+		]
 	}
 
-	static func volume() throws {
+	static func volumeData() throws -> [String: Any] {
 		var deviceID: AudioObjectID = 0
 		var size = UInt32(MemoryLayout<AudioObjectID>.size)
 		var addr = addr(selector: kAudioHardwarePropertyDefaultOutputDevice)
@@ -199,15 +194,12 @@ enum AudioCommands {
 		if hasMute {
 			result["muted"] = muted != 0
 		}
-		JSONOutput.success(result)
+		return result
 	}
 
-	static func setVolume(_ parser: inout ArgParser) throws {
-		guard let levelStr = parser.parseValue("--level") else {
-			throw HelperError.usage("--level <0-100> is required")
-		}
-		guard let level = Int(levelStr), (0...100).contains(level) else {
-			throw HelperError.usage("--level must be 0-100")
+	static func setVolume(level: Int) throws -> [String: Any] {
+		guard (0...100).contains(level) else {
+			throw HelperError.usage("level must be 0-100")
 		}
 
 		var deviceID: AudioObjectID = 0
@@ -233,16 +225,10 @@ enum AudioCommands {
 			AudioObjectSetPropertyData(deviceID, &muteAddr, 0, nil, muteSize, &zeroMute)
 		}
 
-		JSONOutput.success(["level": level, "deviceId": Int(deviceID)])
+		return ["level": level, "deviceId": Int(deviceID)]
 	}
 
-	static func setMute(_ parser: inout ArgParser) throws {
-		let on = parser.parseFlag("--on")
-		let off = parser.parseFlag("--off")
-		guard on || off else {
-			throw HelperError.usage("Specify --on or --off")
-		}
-
+	static func setMute(muted: Bool) throws -> [String: Any] {
 		var deviceID: AudioObjectID = 0
 		var size = UInt32(MemoryLayout<AudioObjectID>.size)
 		var devAddr = addr(selector: kAudioHardwarePropertyDefaultOutputDevice)
@@ -250,15 +236,15 @@ enum AudioCommands {
 			throw HelperError.runtime("No default output device")
 		}
 
-		var muted: UInt32 = on ? 1 : 0
+		var mutedVal: UInt32 = muted ? 1 : 0
 		let scope = kAudioObjectPropertyScopeOutput
 		var muteAddr = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyMute, mScope: scope, mElement: kAudioObjectPropertyElementMain)
 		let muteSize = UInt32(MemoryLayout<UInt32>.size)
-		let status = AudioObjectSetPropertyData(deviceID, &muteAddr, 0, nil, muteSize, &muted)
+		let status = AudioObjectSetPropertyData(deviceID, &muteAddr, 0, nil, muteSize, &mutedVal)
 		guard status == noErr else {
 			throw HelperError.runtime("Failed to set mute: \(status)")
 		}
 
-		JSONOutput.success(["muted": on, "deviceId": Int(deviceID)])
+		return ["muted": muted, "deviceId": Int(deviceID)]
 	}
 }

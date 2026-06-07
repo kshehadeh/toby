@@ -1,7 +1,7 @@
 import Foundation
 
 enum LowPowerCommands {
-	static func status() throws {
+	static func statusData() throws -> [String: Any] {
 		let process = Process()
 		process.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
 		process.arguments = ["-g", "custom"]
@@ -38,17 +38,11 @@ enum LowPowerCommands {
 			result["lowPowerMode"] = "not reported"
 			result["enabled"] = false
 		}
-		JSONOutput.success(result)
+		return result
 	}
 
-	static func set(_ parser: inout ArgParser) throws {
-		let on = parser.parseFlag("--on")
-		let off = parser.parseFlag("--off")
-		guard on || off else {
-			throw HelperError.usage("Specify --on or --off")
-		}
-		let value = on ? "1" : "0"
-
+	static func setEnabled(_ enabled: Bool) throws -> [String: Any] {
+		let value = enabled ? "1" : "0"
 		let process = Process()
 		process.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
 		process.arguments = ["-a", "lowpowermode", value]
@@ -64,6 +58,6 @@ enum LowPowerCommands {
 			throw HelperError.runtime("pmset lowpowermode failed: \(errMsg). May require admin privileges — use a Shortcut or run manually with sudo.")
 		}
 
-		JSONOutput.success(["lowPowerMode": value, "enabled": on])
+		return ["lowPowerMode": value, "enabled": enabled]
 	}
 }

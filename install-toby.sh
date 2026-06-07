@@ -4,8 +4,8 @@
 # Installs:
 #   - toby → $TOBY_INSTALL_DIR (default ~/.local/bin)
 #   - web UI → sibling web/ directory
-#   - toby-listener, toby-macos, whisper-cli → ~/.toby/helpers/
-#   - toby-plugin-sample, toby-plugin-azuread, toby-plugin-gmail, toby-plugin-applemail → ~/.toby/plugins/
+#   - toby-listener, whisper-cli → ~/.toby/helpers/
+#   - toby-plugin-sample, toby-plugin-azuread, toby-plugin-gmail, toby-plugin-applemail, toby-plugin-macos → ~/.toby/plugins/
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/OWNER/toby/main/install-toby.sh | bash
@@ -93,13 +93,6 @@ if [[ ! -f "${tmpdir}/web/index.html" ]]; then
 	exit 1
 fi
 
-has_macos_helper=false
-if [[ -f "${tmpdir}/toby-macos" ]]; then
-	has_macos_helper=true
-else
-	echo "Note: Release archive does not include toby-macos helper (macOS system tools may be limited)." >&2
-fi
-
 has_sample_plugin=false
 if [[ -f "${tmpdir}/toby-plugin-sample" ]]; then
 	has_sample_plugin=true
@@ -118,6 +111,11 @@ fi
 has_applemail_plugin=false
 if [[ -f "${tmpdir}/toby-plugin-applemail" ]]; then
 	has_applemail_plugin=true
+fi
+
+has_macos_plugin=false
+if [[ -f "${tmpdir}/toby-plugin-macos" ]]; then
+	has_macos_plugin=true
 fi
 
 # Only the `toby` binary goes on PATH (install_dir). All bundled helper
@@ -173,11 +171,22 @@ if $has_applemail_plugin; then
 	echo "Installed: ${toby_plugins_dir}/toby-plugin-applemail"
 fi
 
-if $has_macos_helper; then
-	chmod +x "${tmpdir}/toby-macos"
-	mkdir -p "$toby_helpers_dir"
-	mv "${tmpdir}/toby-macos" "${toby_helpers_dir}/toby-macos"
-	echo "Installed: ${toby_helpers_dir}/toby-macos"
+if $has_macos_plugin; then
+	chmod +x "${tmpdir}/toby-plugin-macos"
+	mkdir -p "$toby_plugins_dir"
+	mv "${tmpdir}/toby-plugin-macos" "${toby_plugins_dir}/toby-plugin-macos"
+	echo "Installed: ${toby_plugins_dir}/toby-plugin-macos"
+	if [[ -d "${tmpdir}/TobyPluginMacOS_TobyPluginMacOSLib.bundle" ]]; then
+		rm -rf "${toby_plugins_dir}/TobyPluginMacOS_TobyPluginMacOSLib.bundle"
+		cp -R "${tmpdir}/TobyPluginMacOS_TobyPluginMacOSLib.bundle" "${toby_plugins_dir}/"
+		echo "Installed: ${toby_plugins_dir}/TobyPluginMacOS_TobyPluginMacOSLib.bundle"
+	fi
+fi
+
+# Remove legacy standalone helper if present (macOS integration is now a plugin).
+if [[ -f "${toby_helpers_dir}/toby-macos" ]]; then
+	rm -f "${toby_helpers_dir}/toby-macos"
+	echo "Removed legacy helper: ${toby_helpers_dir}/toby-macos"
 fi
 
 if "${install_dir}/toby" --version >/dev/null 2>&1; then

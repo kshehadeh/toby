@@ -10,6 +10,7 @@ import {
 	getPluginsDir,
 	resolveTobyDir,
 } from "@toby/core/config/index";
+import { copyPluginResourceBundlesFromSource } from "@toby/core/integrations/plugins/install";
 import { ensureWhisperTranscriptionAssets } from "@toby/core/listen/whisper-assets";
 import { resolveWhisperCliInstallTarget } from "@toby/core/listen/whisper-config";
 import {
@@ -36,7 +37,6 @@ export interface StagingManifest {
 	readonly repo: string;
 	readonly installTarget: string;
 	readonly listenerInstallTarget?: string;
-	readonly macOSHelperInstallTarget?: string;
 	readonly whisperCliInstallTarget?: string;
 	readonly completedAt: string;
 }
@@ -93,10 +93,6 @@ export function resolveListenerInstallTarget(_installDir?: string): string {
 	return path.join(getHelpersDir(), "toby-listener");
 }
 
-export function resolveMacOSHelperInstallTarget(_installDir?: string): string {
-	return path.join(getHelpersDir(), "toby-macos");
-}
-
 export function resolveWhisperCliInstallTargetFromUpgrade(): string {
 	return resolveWhisperCliInstallTarget();
 }
@@ -109,12 +105,12 @@ export function getStagingPaths(): {
 	readonly stagingDir: string;
 	readonly binaryPath: string;
 	readonly listenerPath: string;
-	readonly macOSHelperPath: string;
 	readonly whisperCliPath: string;
 	readonly pluginSamplePath: string;
 	readonly pluginAzureadPath: string;
 	readonly pluginGmailPath: string;
 	readonly pluginApplemailPath: string;
+	readonly pluginMacosPath: string;
 	readonly webPath: string;
 	readonly archivePath: string;
 	readonly manifestPath: string;
@@ -125,12 +121,12 @@ export function getStagingPaths(): {
 		stagingDir,
 		binaryPath: path.join(stagingDir, "toby"),
 		listenerPath: path.join(stagingDir, "toby-listener"),
-		macOSHelperPath: path.join(stagingDir, "toby-macos"),
 		whisperCliPath: path.join(stagingDir, "whisper-cli"),
 		pluginSamplePath: path.join(stagingDir, "toby-plugin-sample"),
 		pluginAzureadPath: path.join(stagingDir, "toby-plugin-azuread"),
 		pluginGmailPath: path.join(stagingDir, "toby-plugin-gmail"),
 		pluginApplemailPath: path.join(stagingDir, "toby-plugin-applemail"),
+		pluginMacosPath: path.join(stagingDir, "toby-plugin-macos"),
 		webPath: path.join(stagingDir, "web"),
 		archivePath: path.join(stagingDir, "toby-release.zip"),
 		manifestPath: path.join(stagingDir, "manifest.json"),
@@ -203,9 +199,6 @@ export async function downloadRelease(
 	const listenerInstallTarget = resolveListenerInstallTarget(
 		options.installDir,
 	);
-	const macOSHelperInstallTarget = resolveMacOSHelperInstallTarget(
-		options.installDir,
-	);
 	const whisperCliInstallTarget = resolveWhisperCliInstallTargetFromUpgrade();
 	const asset = `${resolveReleaseAsset()}.zip`;
 	const tag = options.tag?.trim() || (await fetchLatestReleaseTag(repo));
@@ -221,12 +214,12 @@ export async function downloadRelease(
 		stagingDir,
 		binaryPath,
 		listenerPath,
-		macOSHelperPath,
 		whisperCliPath,
 		pluginSamplePath,
 		pluginAzureadPath,
 		pluginGmailPath,
 		pluginApplemailPath,
+		pluginMacosPath,
 		archivePath,
 		manifestPath,
 	} = getStagingPaths();
@@ -240,12 +233,12 @@ export async function downloadRelease(
 		await mkdir(stagingDir, { recursive: true });
 		await rm(binaryPath, { force: true }).catch(() => undefined);
 		await rm(listenerPath, { force: true }).catch(() => undefined);
-		await rm(macOSHelperPath, { force: true }).catch(() => undefined);
 		await rm(whisperCliPath, { force: true }).catch(() => undefined);
 		await rm(pluginSamplePath, { force: true }).catch(() => undefined);
 		await rm(pluginAzureadPath, { force: true }).catch(() => undefined);
 		await rm(pluginGmailPath, { force: true }).catch(() => undefined);
 		await rm(pluginApplemailPath, { force: true }).catch(() => undefined);
+		await rm(pluginMacosPath, { force: true }).catch(() => undefined);
 		await rm(archivePath, { force: true }).catch(() => undefined);
 		await rm(manifestPath, { force: true }).catch(() => undefined);
 
@@ -257,9 +250,6 @@ export async function downloadRelease(
 		await extractReleaseArchive(tempArchivePath, stagingDir);
 		await chmodExecutable(binaryPath);
 		await chmodExecutable(listenerPath);
-		if (fs.existsSync(macOSHelperPath)) {
-			await chmodExecutable(macOSHelperPath);
-		}
 		if (fs.existsSync(whisperCliPath)) {
 			await chmodExecutable(whisperCliPath);
 		}
@@ -287,7 +277,6 @@ export async function downloadRelease(
 			repo,
 			installTarget,
 			listenerInstallTarget,
-			macOSHelperInstallTarget,
 			whisperCliInstallTarget,
 			completedAt: new Date().toISOString(),
 		};
@@ -319,14 +308,8 @@ export async function applyStagedRelease(
 		);
 	}
 
-	const {
-		binaryPath,
-		listenerPath,
-		macOSHelperPath,
-		whisperCliPath,
-		webPath,
-		manifestPath,
-	} = getStagingPaths();
+	const { binaryPath, listenerPath, whisperCliPath, webPath, manifestPath } =
+		getStagingPaths();
 	if (!fs.existsSync(binaryPath)) {
 		throw new Error(`Staged binary missing at ${binaryPath}.`);
 	}
@@ -337,8 +320,6 @@ export async function applyStagedRelease(
 	const installTarget = installTargetOverride ?? manifest.installTarget;
 	const listenerInstallTarget =
 		manifest.listenerInstallTarget ?? resolveListenerInstallTarget();
-	const macOSHelperInstallTarget =
-		manifest.macOSHelperInstallTarget ?? resolveMacOSHelperInstallTarget();
 	const whisperCliInstallTarget =
 		manifest.whisperCliInstallTarget ??
 		resolveWhisperCliInstallTargetFromUpgrade();
@@ -364,18 +345,6 @@ export async function applyStagedRelease(
 	await chmodExecutable(tempListenerDestination);
 	await rename(tempListenerDestination, listenerInstallTarget);
 
-	// Apply macOS system helper if it exists in staging
-	if (fs.existsSync(macOSHelperPath)) {
-		const tempMacOSDestination = path.join(
-			path.dirname(macOSHelperInstallTarget),
-			`.toby-macos-upgrade-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-		);
-		await rm(tempMacOSDestination, { force: true }).catch(() => undefined);
-		await rename(macOSHelperPath, tempMacOSDestination);
-		await chmodExecutable(tempMacOSDestination);
-		await rename(tempMacOSDestination, macOSHelperInstallTarget);
-	}
-
 	if (fs.existsSync(whisperCliPath)) {
 		const tempWhisperDestination = path.join(
 			path.dirname(whisperCliInstallTarget),
@@ -393,21 +362,27 @@ export async function applyStagedRelease(
 		await cp(webPath, webInstallTarget, { recursive: true });
 	}
 
-	const { pluginSamplePath, pluginAzureadPath, pluginGmailPath, pluginApplemailPath } =
-		getStagingPaths();
+	const {
+		pluginSamplePath,
+		pluginAzureadPath,
+		pluginGmailPath,
+		pluginApplemailPath,
+		pluginMacosPath,
+	} = getStagingPaths();
 	await installStagedPluginBinary(pluginSamplePath, "toby-plugin-sample");
 	await installStagedPluginBinary(pluginAzureadPath, "toby-plugin-azuread");
 	await installStagedPluginBinary(pluginGmailPath, "toby-plugin-gmail");
 	await installStagedPluginBinary(pluginApplemailPath, "toby-plugin-applemail");
+	await installStagedPluginBinary(pluginMacosPath, "toby-plugin-macos");
 
 	// Migration: older installs placed helper binaries next to `toby` on PATH.
 	// Now that helpers live under ~/.toby/helpers, remove the stale siblings so
 	// only `toby` remains in the bin directory.
 	await removeLegacySiblingHelpers(installTarget, [
 		listenerInstallTarget,
-		macOSHelperInstallTarget,
 		whisperCliInstallTarget,
 	]);
+	await removeOrphanedLegacyMacOSHelper();
 
 	const installedVersion = readInstalledVersion(installTarget);
 	if (!installedVersion) {
@@ -472,6 +447,7 @@ async function installStagedPluginBinary(
 	await rename(stagingPath, tempDestination);
 	await chmodExecutable(tempDestination);
 	await rename(tempDestination, installTarget);
+	copyPluginResourceBundlesFromSource(stagingPath);
 }
 
 const LEGACY_SIBLING_HELPER_NAMES = ["toby-listener", "toby-macos"] as const;
@@ -587,7 +563,15 @@ async function extractReleaseArchive(
 			throw new Error(`Release archive is missing ${fileName}.`);
 		}
 	}
-	// toby-macos may not exist in older releases — that's fine, we skip it gracefully
+}
+
+/** Remove standalone toby-macos helper superseded by toby-plugin-macos. */
+export async function removeOrphanedLegacyMacOSHelper(): Promise<void> {
+	const legacyPath = path.join(getHelpersDir(), "toby-macos");
+	if (!fs.existsSync(legacyPath)) {
+		return;
+	}
+	await rm(legacyPath, { force: true }).catch(() => undefined);
 }
 
 async function chmodExecutable(filePath: string): Promise<void> {

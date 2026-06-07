@@ -2,7 +2,7 @@ import Foundation
 import IOKit
 
 enum SystemInfoCommands {
-	static func info() throws {
+	static func infoData() throws -> [String: Any] {
 		var result: [String: Any] = [:]
 
 		let swVers = runProcess("/usr/bin/sw_vers", [])
@@ -38,7 +38,7 @@ enum SystemInfoCommands {
 
 		result["isAppleSilicon"] = machineStr.hasPrefix("arm")
 
-		JSONOutput.success(result)
+		return result
 	}
 
 	private static func stringFromCChars(_ chars: [CChar]) -> String {

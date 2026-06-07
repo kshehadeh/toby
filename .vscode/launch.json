@@ -23,22 +23,22 @@
 		{
 			"type": "swift",
 			"request": "launch",
-			"args": [],
-			"cwd": "${workspaceFolder:toby}/apps/macos-helper",
-			"name": "Debug toby-macos-helper (apps/macos-helper)",
-			"target": "toby-macos-helper",
+			"args": ["status"],
+			"cwd": "${workspaceFolder:toby}/apps/plugin-macos",
+			"name": "Debug toby-plugin-macos (apps/plugin-macos)",
+			"target": "toby-plugin-macos",
 			"configuration": "debug",
-			"preLaunchTask": "swift: Build Debug toby-macos-helper (apps/macos-helper)"
+			"preLaunchTask": "swift: Build Debug toby-plugin-macos (apps/plugin-macos)"
 		},
 		{
 			"type": "swift",
 			"request": "launch",
-			"args": [],
-			"cwd": "${workspaceFolder:toby}/apps/macos-helper",
-			"name": "Release toby-macos-helper (apps/macos-helper)",
-			"target": "toby-macos-helper",
+			"args": ["status"],
+			"cwd": "${workspaceFolder:toby}/apps/plugin-macos",
+			"name": "Release toby-plugin-macos (apps/plugin-macos)",
+			"target": "toby-plugin-macos",
 			"configuration": "release",
-			"preLaunchTask": "swift: Build Release toby-macos-helper (apps/macos-helper)"
+			"preLaunchTask": "swift: Build Release toby-plugin-macos (apps/plugin-macos)"
 		}
 	]
 }

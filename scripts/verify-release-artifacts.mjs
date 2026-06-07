@@ -10,11 +10,11 @@ const directory = path.resolve(process.argv[2] ?? "release-payload");
 const required = [
 	"toby",
 	"toby-listener",
-	"toby-macos",
 	"toby-plugin-sample",
 	"toby-plugin-azuread",
 	"toby-plugin-gmail",
 	"toby-plugin-applemail",
+	"toby-plugin-macos",
 	"whisper-cli",
 ];
 
@@ -44,6 +44,16 @@ const webIndex = path.join(directory, "web", "index.html");
 if (!fs.existsSync(webIndex)) {
 	console.error(`Missing or invalid release artifacts in ${directory}:`);
 	console.error("  - web/index.html");
+	process.exit(1);
+}
+
+const macosPluginBundle = path.join(
+	directory,
+	"TobyPluginMacOS_TobyPluginMacOSLib.bundle",
+);
+if (!fs.existsSync(macosPluginBundle)) {
+	console.error(`Missing or invalid release artifacts in ${directory}:`);
+	console.error("  - TobyPluginMacOS_TobyPluginMacOSLib.bundle");
 	process.exit(1);
 }
 

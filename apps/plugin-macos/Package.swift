@@ -2,18 +2,21 @@
 import PackageDescription
 
 let package = Package(
-	name: "TobyMacOSHelper",
+	name: "TobyPluginMacOS",
 	platforms: [
 		.macOS(.v14),
 	],
 	products: [
-		.executable(name: "toby-macos-helper", targets: ["TobyMacOSHelper"]),
+		.executable(name: "toby-plugin-macos", targets: ["TobyPluginMacOS"]),
 	],
 	targets: [
-		.executableTarget(
-			name: "TobyMacOSHelper",
-			path: "Sources/TobyMacOSHelper",
+		.target(
+			name: "TobyPluginMacOSLib",
+			path: "Sources/TobyPluginMacOSLib",
 			exclude: ["Info.plist"],
+			resources: [
+				.process("BundledShortcuts"),
+			],
 			linkerSettings: [
 				.linkedFramework("CoreWLAN"),
 				.linkedFramework("CoreAudio"),
@@ -28,9 +31,14 @@ let package = Package(
 					"-Xlinker",
 					"__info_plist",
 					"-Xlinker",
-					"Sources/TobyMacOSHelper/Info.plist",
+					"Sources/TobyPluginMacOSLib/Info.plist",
 				]),
 			]
+		),
+		.executableTarget(
+			name: "TobyPluginMacOS",
+			dependencies: ["TobyPluginMacOSLib"],
+			path: "Sources/TobyPluginMacOS"
 		),
 	]
 )

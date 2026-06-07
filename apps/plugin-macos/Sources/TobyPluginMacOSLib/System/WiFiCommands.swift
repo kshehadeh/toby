@@ -2,7 +2,7 @@ import CoreWLAN
 import Foundation
 
 enum WiFiCommands {
-	static func status() throws {
+	static func statusData() throws -> [String: Any] {
 		let client = CWWiFiClient.shared()
 		guard let interface = client.interface() else {
 			throw HelperError.runtime("No Wi-Fi interface found")
@@ -21,10 +21,10 @@ enum WiFiCommands {
 			}
 			data["security"] = interface.security().rawValue
 		}
-		JSONOutput.success(data)
+		return data
 	}
 
-	static func scan() throws {
+	static func scanData() throws -> [String: Any] {
 		let client = CWWiFiClient.shared()
 		guard let interface = client.interface() else {
 			throw HelperError.runtime("No Wi-Fi interface found")
@@ -50,30 +50,24 @@ enum WiFiCommands {
 			}
 			items.append(item)
 		}
-		JSONOutput.success([
+		return [
 			"interface": interface.interfaceName ?? "unknown",
 			"networks": items,
 			"count": items.count,
-		])
+		]
 	}
 
-	static func power(_ parser: inout ArgParser) throws {
-		let on = parser.parseFlag("--on")
-		let off = parser.parseFlag("--off")
-		guard on || off else {
-			throw HelperError.usage("Specify --on or --off")
-		}
-		let enabled = on
+	static func setPower(enabled: Bool) throws -> [String: Any] {
 		let client = CWWiFiClient.shared()
 		guard let interface = client.interface() else {
 			throw HelperError.runtime("No Wi-Fi interface found")
 		}
 		do {
 			try interface.setPower(enabled)
-			JSONOutput.success([
+			return [
 				"interface": interface.interfaceName ?? "unknown",
 				"enabled": enabled,
-			])
+			]
 		} catch {
 			throw HelperError.runtime("Failed to \(enabled ? "enable" : "disable") Wi-Fi: \(error.localizedDescription)")
 		}

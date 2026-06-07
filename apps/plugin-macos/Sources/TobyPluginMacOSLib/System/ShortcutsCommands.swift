@@ -1,10 +1,7 @@
 import Foundation
 
 enum ShortcutsCommands {
-	static func run(_ parser: inout ArgParser) throws {
-		guard let name = parser.parseValue("--name") else {
-			throw HelperError.usage("--name <shortcut-name> is required")
-		}
+	static func run(name: String) throws -> [String: Any] {
 		let process = Process()
 		process.executableURL = URL(fileURLWithPath: "/usr/bin/shortcuts")
 		process.arguments = ["run", name]
@@ -25,9 +22,9 @@ enum ShortcutsCommands {
 			throw HelperError.runtime("Shortcut \"\(name)\" failed: \(stderr.isEmpty ? "exit code \(process.terminationStatus)" : stderr)")
 		}
 
-		JSONOutput.success([
+		return [
 			"shortcutName": name,
 			"output": stdout,
-		])
+		]
 	}
 }
