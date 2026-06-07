@@ -13,6 +13,7 @@ describe("createSlackStatusReporter", () => {
 		let nowMs = 0;
 
 		const reporter = createSlackStatusReporter({
+			config: {},
 			channelId: "C1",
 			threadTs: "root.1",
 			token: "xoxb-test",
@@ -23,6 +24,7 @@ describe("createSlackStatusReporter", () => {
 		reporter.update("⏳ _Preparing request…_");
 		await vi.waitFor(() => expect(post).toHaveBeenCalledOnce());
 		expect(post).toHaveBeenCalledWith({
+			config: {},
 			channel: "C1",
 			mrkdwnLine: "⏳ _Preparing request…_",
 			threadTs: "root.1",
@@ -33,6 +35,7 @@ describe("createSlackStatusReporter", () => {
 		reporter.update("📧 _Calling Gmail…_");
 		await vi.waitFor(() => expect(update).toHaveBeenCalledOnce());
 		expect(update).toHaveBeenCalledWith({
+			config: {},
 			channel: "C1",
 			ts: "1.0",
 			mrkdwnLine: "📧 _Calling Gmail…_",
@@ -41,6 +44,7 @@ describe("createSlackStatusReporter", () => {
 
 		await reporter.clear();
 		expect(del).toHaveBeenCalledWith({
+			config: {},
 			channel: "C1",
 			ts: "1.0",
 			token: "xoxb-test",
@@ -55,6 +59,7 @@ describe("createSlackStatusReporter", () => {
 		let nowMs = 0;
 
 		const reporter = createSlackStatusReporter({
+			config: {},
 			channelId: "C1",
 			token: "xoxb-test",
 			api: { post, update, delete: del },
@@ -89,7 +94,9 @@ describe("createSlackStatusReporter", () => {
 		const del = vi.fn().mockResolvedValue(undefined);
 
 		const reporter = createSlackStatusReporter({
+			config: {},
 			channelId: "C1",
+			token: "xoxb-test",
 			api: { post, update, delete: del },
 			now: () => Date.now(),
 		});

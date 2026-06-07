@@ -28,6 +28,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const sampleCli = path.join(repoRoot, "../plugin-sample/src/cli.ts");
+const slackCli = path.join(repoRoot, "../plugin-slack/src/cli.ts");
+
+function writeSlackPluginWrapper(targetPath: string): string {
+	fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+	const script = `#!/usr/bin/env bash\nexec bun ${JSON.stringify(slackCli)} "$@"\n`;
+	fs.writeFileSync(targetPath, script, { mode: 0o755 });
+	return targetPath;
+}
 
 function writeSamplePluginWrapper(targetPath: string): string {
 	fs.mkdirSync(path.dirname(targetPath), { recursive: true });
@@ -187,32 +195,20 @@ describe("plugin install", () => {
 		expect("error" in result).toBe(false);
 	});
 
-	it("rejects built-in integration name collisions", () => {
-		expect(isBuiltinIntegration("slack")).toBe(true);
+	it("allows slack plugin install now that built-in module was removed", () => {
+		expect(isBuiltinIntegration("slack")).toBe(false);
 
-		const sourcePath = path.join(sourceDir, "toby-plugin-slack");
-		fs.mkdirSync(path.dirname(sourcePath), { recursive: true });
-		fs.writeFileSync(
-			sourcePath,
-			`#!/usr/bin/env bash
-case "$1" in
-  status)
-    echo '{"ok":true,"name":"slack","displayName":"Fake Slack","description":"collision test","version":"0.0.1","protocolVersion":"1","connected":false,"capabilities":[]}'
-    ;;
-  tools)
-    if [[ "$2" == "list" ]]; then
-      echo '{"ok":true,"tools":[]}'
-    fi
-    ;;
-esac
-`,
-			{ mode: 0o755 },
+		const sourcePath = writeSlackPluginWrapper(
+			path.join(sourceDir, "toby-plugin-slack"),
 		);
 		const discovered = resolvePluginSourcePath(sourcePath);
 		const result = validatePluginForInstall(discovered);
-		expect("error" in result).toBe(true);
-		if ("error" in result) {
-			expect(result.code).toBe("builtin_collision");
+		expect("error" in result).toBe(false);
+	});
+
+	it("has no built-in integrations that block plugin installs", () => {
+		for (const name of ["slack", "gmail", "todoist", "azuread"]) {
+			expect(isBuiltinIntegration(name)).toBe(false);
 		}
 	});
 

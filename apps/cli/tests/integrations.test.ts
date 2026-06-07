@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
 	getIntegration,
 	getIntegrationModule,
@@ -7,8 +10,19 @@ import {
 	getModulesWithCapability,
 	isBuiltinIntegration,
 } from "@toby/core/integrations/index";
+import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
 import { ALL_PROVIDER_CATEGORIES } from "@toby/core/integrations/types";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+const repoRoot = path.resolve(import.meta.dirname, "..");
+const slackCli = path.join(repoRoot, "../plugin-slack/src/cli.ts");
+
+function writeSlackPluginWrapper(pluginDir: string): void {
+	fs.mkdirSync(pluginDir, { recursive: true });
+	const wrapperPath = path.join(pluginDir, "toby-plugin-slack");
+	const script = `#!/usr/bin/env bash\nexec bun ${JSON.stringify(slackCli)} "$@"\n`;
+	fs.writeFileSync(wrapperPath, script, { mode: 0o755 });
+}
 
 describe("getIntegrations", () => {
 	it("returns at least one integration", () => {
@@ -34,6 +48,27 @@ describe("getIntegration", () => {
 });
 
 describe("integration registry", () => {
+	let tempDir: string;
+	let previousTobyDir: string | undefined;
+
+	beforeEach(() => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-integ-registry-"));
+		previousTobyDir = process.env.TOBY_DIR;
+		process.env.TOBY_DIR = path.join(tempDir, "toby-home");
+		resetPluginModuleCache();
+		writeSlackPluginWrapper(path.join(tempDir, "toby-home", "plugins"));
+	});
+
+	afterEach(() => {
+		if (previousTobyDir === undefined) {
+			Reflect.deleteProperty(process.env, "TOBY_DIR");
+		} else {
+			process.env.TOBY_DIR = previousTobyDir;
+		}
+		resetPluginModuleCache();
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
 	it("getIntegrationModule matches getIntegration", () => {
 		for (const m of getIntegrationModules()) {
 			expect(getIntegrationModule(m.name)).toEqual(getIntegration(m.name));
@@ -58,6 +93,10 @@ describe("integration registry", () => {
 		expect(slack).toBeDefined();
 		expect(slack?.providerCategories).toContain("chat");
 		expect(slack?.capabilities).toContain("chat");
+	});
+
+	it("does not treat slack as a built-in integration", () => {
+		expect(isBuiltinIntegration("slack")).toBe(false);
 	});
 
 	it("does not treat macos as a built-in integration", () => {

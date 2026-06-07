@@ -2,24 +2,47 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { readConfig } from "@toby/core/config/index";
-import { afterEach, describe, expect, it } from "vitest";
+import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createConfigureSession } from "../src/ui/configure/session";
+
+const repoRoot = path.resolve(import.meta.dirname, "..");
+const slackCli = path.join(repoRoot, "../plugin-slack/src/cli.ts");
+
+function writeSlackPluginWrapper(pluginDir: string): void {
+	fs.mkdirSync(pluginDir, { recursive: true });
+	const wrapperPath = path.join(pluginDir, "toby-plugin-slack");
+	const script = `#!/usr/bin/env bash\nexec bun ${JSON.stringify(slackCli)} "$@"\n`;
+	fs.writeFileSync(wrapperPath, script, { mode: 0o755 });
+}
 
 function makeTempDir(): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), "toby-configure-"));
 }
 
+let tempDir: string;
+let previousTobyDir: string | undefined;
+
+beforeEach(() => {
+	tempDir = makeTempDir();
+	previousTobyDir = process.env.TOBY_DIR;
+	process.env.TOBY_DIR = path.join(tempDir, "toby-home");
+	resetPluginModuleCache();
+	writeSlackPluginWrapper(path.join(tempDir, "toby-home", "plugins"));
+});
+
 afterEach(() => {
-	const dir = process.env.TOBY_DIR;
-	if (dir && fs.existsSync(dir)) {
-		fs.rmSync(dir, { recursive: true, force: true });
+	if (previousTobyDir === undefined) {
+		Reflect.deleteProperty(process.env, "TOBY_DIR");
+	} else {
+		process.env.TOBY_DIR = previousTobyDir;
 	}
-	Reflect.deleteProperty(process.env, "TOBY_DIR");
+	resetPluginModuleCache();
+	fs.rmSync(tempDir, { recursive: true, force: true });
 });
 
 describe("configure chat inbound", () => {
 	it("persists chatInbound and integration inboundEnabled on save", () => {
-		process.env.TOBY_DIR = makeTempDir();
 		const session = createConfigureSession();
 		const values = {
 			...session.initialValues,

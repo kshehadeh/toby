@@ -6,25 +6,48 @@ import {
 	resolveActiveChatInbound,
 } from "@toby/core/config/chat-inbound";
 import { writeConfig } from "@toby/core/config/index";
-import { afterEach, describe, expect, it } from "vitest";
+import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+const repoRoot = path.resolve(import.meta.dirname, "..");
+const slackCli = path.join(repoRoot, "../plugin-slack/src/cli.ts");
+
+function writeSlackPluginWrapper(pluginDir: string): void {
+	fs.mkdirSync(pluginDir, { recursive: true });
+	const wrapperPath = path.join(pluginDir, "toby-plugin-slack");
+	const script = `#!/usr/bin/env bash\nexec bun ${JSON.stringify(slackCli)} "$@"\n`;
+	fs.writeFileSync(wrapperPath, script, { mode: 0o755 });
+}
 
 function makeTempDir(): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), "toby-inbound-cfg-"));
 }
 
+let tempDir: string;
+let previousTobyDir: string | undefined;
+
+beforeEach(() => {
+	tempDir = makeTempDir();
+	previousTobyDir = process.env.TOBY_DIR;
+	process.env.TOBY_DIR = path.join(tempDir, "toby-home");
+	resetPluginModuleCache();
+	writeSlackPluginWrapper(path.join(tempDir, "toby-home", "plugins"));
+});
+
 afterEach(() => {
-	const dir = process.env.TOBY_DIR;
-	if (dir && fs.existsSync(dir)) {
-		fs.rmSync(dir, { recursive: true, force: true });
+	if (previousTobyDir === undefined) {
+		Reflect.deleteProperty(process.env, "TOBY_DIR");
+	} else {
+		process.env.TOBY_DIR = previousTobyDir;
 	}
-	Reflect.deleteProperty(process.env, "TOBY_DIR");
+	resetPluginModuleCache();
+	fs.rmSync(tempDir, { recursive: true, force: true });
 	Reflect.deleteProperty(process.env, "TOBY_CHAT_INBOUND_ENABLED");
 	Reflect.deleteProperty(process.env, "TOBY_CHAT_INBOUND_INTEGRATION");
 });
 
 describe("chat inbound config", () => {
 	it("reports missing integration", () => {
-		process.env.TOBY_DIR = makeTempDir();
 		writeConfig({ integrations: {}, personas: [] });
 		expect(getChatInboundDisabledReason()).toContain(
 			"chatInbound.integration is missing",
@@ -33,7 +56,6 @@ describe("chat inbound config", () => {
 	});
 
 	it("allows inbound when global enabled targets integration", () => {
-		process.env.TOBY_DIR = makeTempDir();
 		writeConfig({
 			integrations: {
 				slack: { connectedAt: "2026-01-01", inboundEnabled: false },
@@ -46,7 +68,6 @@ describe("chat inbound config", () => {
 	});
 
 	it("reports when global inbound disabled", () => {
-		process.env.TOBY_DIR = makeTempDir();
 		writeConfig({
 			integrations: {
 				slack: { connectedAt: "2026-01-01", inboundEnabled: false },
@@ -60,7 +81,6 @@ describe("chat inbound config", () => {
 	});
 
 	it("resolves when fully configured", () => {
-		process.env.TOBY_DIR = makeTempDir();
 		writeConfig({
 			integrations: {
 				slack: { connectedAt: "2026-01-01", inboundEnabled: true },

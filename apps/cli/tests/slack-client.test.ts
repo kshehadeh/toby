@@ -22,6 +22,7 @@ describe("postSlackMessage", () => {
 		vi.stubGlobal("fetch", fetchMock);
 
 		await postSlackMessage({
+			config: {},
 			channel: "C123",
 			text: "## Heading\n\n**Bold** text",
 			token: "xoxb-test",

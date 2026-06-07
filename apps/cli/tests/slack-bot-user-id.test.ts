@@ -17,7 +17,7 @@ describe("resolveSlackBotUserId", () => {
 			}),
 		} as Response);
 
-		const botUserId = await resolveSlackBotUserId("xoxb-test", "U_HUMAN");
+		const botUserId = await resolveSlackBotUserId({}, "xoxb-test", "U_HUMAN");
 
 		expect(botUserId).toBe("U_BOT");
 		expect(fetchMock).toHaveBeenCalled();
@@ -33,7 +33,7 @@ describe("resolveSlackBotUserId", () => {
 			json: async () => ({ ok: true }),
 		} as Response);
 
-		const botUserId = await resolveSlackBotUserId("xoxb-test", "U_FALLBACK");
+		const botUserId = await resolveSlackBotUserId({}, "xoxb-test", "U_FALLBACK");
 		expect(botUserId).toBe("U_FALLBACK");
 	});
 });
