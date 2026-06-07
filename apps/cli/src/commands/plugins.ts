@@ -1,3 +1,4 @@
+import readline from "node:readline/promises";
 import { pluginToolsList } from "@toby/core/integrations/plugins/client";
 import {
 	PluginInstallException,
@@ -11,6 +12,11 @@ import {
 	inspectPluginBinary,
 	resolvePluginSearchDirectories,
 } from "@toby/core/integrations/plugins/registry";
+import {
+	formatPluginSetupActionLines,
+	pluginSetupHasFailures,
+	runPluginSetup,
+} from "@toby/core/integrations/plugins/setup";
 import { validatePluginBinary } from "@toby/core/integrations/plugins/validate";
 import chalk from "chalk";
 import type { Command } from "commander";
@@ -32,14 +38,31 @@ export function registerPluginsCommand(program: Command): void {
 		.description("Validate and install a plugin binary into ~/.toby/plugins/")
 		.option("--force", "Overwrite an existing install in ~/.toby/plugins/")
 		.option("--link", "Symlink instead of copying (useful during development)")
+		.option(
+			"--setup",
+			"Run plugin setup after install without prompting (requires a TTY)",
+		)
+		.option("--no-setup", "Skip the post-install setup prompt")
 		.action(
 			async (
 				sourcePath: string,
-				options: { force?: boolean; link?: boolean },
+				options: {
+					force?: boolean;
+					link?: boolean;
+					setup?: boolean;
+					noSetup?: boolean;
+				},
 			) => {
 				await runInstallPlugin(sourcePath, options);
 			},
 		);
+
+	plugins
+		.command("setup <name>")
+		.description("Run one-time setup for an installed plugin")
+		.action(async (name: string) => {
+			await runPluginSetupCommand(name);
+		});
 
 	plugins
 		.command("uninstall <name>")
@@ -110,8 +133,21 @@ async function listPlugins(): Promise<void> {
 
 async function runInstallPlugin(
 	sourcePath: string,
-	options: { force?: boolean; link?: boolean },
+	options: {
+		force?: boolean;
+		link?: boolean;
+		setup?: boolean;
+		noSetup?: boolean;
+	},
 ): Promise<void> {
+	if (options.setup && options.noSetup) {
+		console.error(
+			chalk.red("\nCannot use --setup and --no-setup together.\n"),
+		);
+		process.exitCode = 1;
+		return;
+	}
+
 	try {
 		const result = installPlugin(sourcePath, options);
 		const mode = result.linked ? "Linked" : "Installed";
@@ -124,6 +160,18 @@ async function runInstallPlugin(
 		console.log(
 			chalk.dim(`  Run "toby connect ${result.name}" to configure it.`),
 		);
+
+		if (result.setupAvailable) {
+			const shouldRunSetup = await resolvePostInstallSetup(
+				result,
+				options.setup,
+				options.noSetup,
+			);
+			if (shouldRunSetup) {
+				await printPluginSetupResult(runPluginSetup(result.name));
+			}
+		}
+
 		console.log();
 	} catch (error) {
 		if (error instanceof PluginInstallException) {
@@ -132,6 +180,122 @@ async function runInstallPlugin(
 			return;
 		}
 		throw error;
+	}
+}
+
+async function resolvePostInstallSetup(
+	result: {
+		name: string;
+		displayName: string;
+		setupDescription?: string;
+	},
+	requestSetup: boolean | undefined,
+	skipSetup: boolean | undefined,
+): Promise<boolean> {
+	if (skipSetup) {
+		return false;
+	}
+
+	if (requestSetup) {
+		if (!process.stdin.isTTY || !process.stdout.isTTY) {
+			throw new Error(
+				"Plugin setup requires a TTY because it may need user interaction. Re-run in an interactive terminal.",
+			);
+		}
+		return true;
+	}
+
+	if (!process.stdin.isTTY || !process.stdout.isTTY) {
+		console.log(
+			chalk.dim(
+				`  Setup available. Run "toby plugins setup ${result.name}" when ready.`,
+			),
+		);
+		return false;
+	}
+
+	const description = result.setupDescription?.trim();
+	const promptSuffix = description ? `\n  ${description}` : "";
+	const rl = readline.createInterface({
+		input: process.stdin,
+		output: process.stdout,
+	});
+
+	try {
+		const answer = await rl.question(
+			chalk.yellow(
+				`\nRun setup for ${result.displayName}? (y/N)${promptSuffix}\n> `,
+			),
+		);
+		const normalized = answer.trim().toLowerCase();
+		return normalized === "y" || normalized === "yes";
+	} finally {
+		rl.close();
+	}
+}
+
+async function runPluginSetupCommand(name: string): Promise<void> {
+	const discovered = discoverPluginBinaries().find(
+		(entry) => entry.binaryName === `toby-plugin-${name}`,
+	);
+	if (!discovered) {
+		console.error(chalk.red(`\nPlugin not found: ${name}\n`));
+		process.exitCode = 1;
+		return;
+	}
+
+	const inspected = inspectPluginBinary(discovered);
+	if ("error" in inspected) {
+		console.error(chalk.red(`\nFailed to inspect plugin: ${inspected.error}\n`));
+		process.exitCode = 1;
+		return;
+	}
+
+	if (!inspected.setupAvailable) {
+		console.error(
+			chalk.red(`\nPlugin "${name}" does not advertise setup.\n`),
+		);
+		process.exitCode = 1;
+		return;
+	}
+
+	await printPluginSetupResult(runPluginSetup(name));
+	console.log();
+}
+
+async function printPluginSetupResult(
+	result: Awaited<ReturnType<typeof runPluginSetup>>,
+): Promise<void> {
+	if (!result.ok) {
+		console.error(chalk.red(`\nSetup failed: ${result.error}\n`));
+		process.exitCode = 1;
+		return;
+	}
+
+	console.log(chalk.bold(`\nSetup: ${result.name}\n`));
+	const actions = result.response.actions ?? [];
+	if (actions.length === 0) {
+		console.log(chalk.dim("  No setup actions reported."));
+		return;
+	}
+
+	for (const line of formatPluginSetupActionLines(actions)) {
+		const action = actions.find((entry) => line.startsWith(entry.label));
+		if (!action) {
+			console.log(`  ${line}`);
+			continue;
+		}
+		const prefix = action.skipped
+			? chalk.dim("○")
+			: action.ok
+				? chalk.green("✓")
+				: chalk.red("✗");
+		const detail = action.detail ? chalk.dim(` — ${action.detail}`) : "";
+		console.log(`  ${prefix} ${action.label}${detail}`);
+	}
+
+	if (pluginSetupHasFailures(result.response)) {
+		process.exitCode = 1;
 	}
 }
 
@@ -201,6 +365,12 @@ async function inspectPlugin(name: string): Promise<void> {
 		console.log(`  Categories: ${inspected.providerCategories.join(", ")}`);
 	}
 	console.log(`  ${chalk.dim(inspected.description)}`);
+	if (inspected.setupAvailable) {
+		const setupDetail = inspected.setupDescription
+			? `: ${inspected.setupDescription}`
+			: "";
+		console.log(`  Setup:      available${setupDetail}`);
+	}
 
 	const tools = pluginToolsList(discovered.binaryPath);
 	if (tools.ok && tools.data.ok && tools.data.tools?.length) {

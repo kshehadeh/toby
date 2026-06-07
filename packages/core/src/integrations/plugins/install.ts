@@ -14,6 +14,7 @@ import {
 	purgePluginArtifacts,
 } from "./purge";
 import { resetPluginModuleCache } from "./registry";
+import { pluginStatus } from "./client";
 import { validatePluginBinary } from "./validate";
 
 export type PluginInstallError = {
@@ -27,6 +28,8 @@ export type PluginInstallResult = {
 	readonly version: string;
 	readonly installPath: string;
 	readonly linked: boolean;
+	readonly setupAvailable: boolean;
+	readonly setupDescription?: string;
 };
 
 export type PluginUninstallResult = {
@@ -128,6 +131,8 @@ export function validatePluginForInstall(
 		version: validated.metadata.version,
 		installPath: resolvePluginInstallTarget(validated.metadata.name),
 		linked: false,
+		setupAvailable: validated.metadata.setupAvailable ?? false,
+		setupDescription: validated.metadata.setupDescription,
 	};
 }
 
@@ -159,11 +164,25 @@ export function installPlugin(
 	const sourcePath = path.resolve(discovered.binaryPath);
 	if (options.link) {
 		fs.symlinkSync(sourcePath, installPath);
+		copyAdjacentPluginResourceBundles(sourcePath, getPluginsDir(), {
+			link: true,
+		});
 	} else {
 		copyBinaryAtomic(sourcePath, installPath);
+		copyAdjacentPluginResourceBundles(sourcePath, getPluginsDir());
 	}
 
 	resetPluginModuleCache();
+
+	const statusResult = pluginStatus(installPath);
+	const setupAvailable =
+		statusResult.ok &&
+		statusResult.data.ok &&
+		Boolean(statusResult.data.setupAvailable);
+	const setupDescription =
+		statusResult.ok && statusResult.data.ok
+			? statusResult.data.setupDescription
+			: undefined;
 
 	return {
 		name: preview.name,
@@ -171,6 +190,8 @@ export function installPlugin(
 		version: preview.version,
 		installPath,
 		linked: Boolean(options.link),
+		setupAvailable,
+		setupDescription,
 	};
 }
 
@@ -237,4 +258,54 @@ function copyBinaryAtomic(source: string, destination: string): void {
 	fs.copyFileSync(source, tempDestination);
 	fs.chmodSync(tempDestination, 0o755);
 	fs.renameSync(tempDestination, destination);
+}
+
+export function copyPluginResourceBundlesFromSource(
+	sourceBinaryPath: string,
+	destinationDir: string = getPluginsDir(),
+	options: { link?: boolean } = {},
+): void {
+	copyAdjacentPluginResourceBundles(sourceBinaryPath, destinationDir, options);
+}
+
+function copyAdjacentPluginResourceBundles(
+	sourceBinaryPath: string,
+	destinationDir: string,
+	options: { link?: boolean } = {},
+): void {
+	const sourceDir = path.dirname(path.resolve(sourceBinaryPath));
+	let entries: string[];
+	try {
+		entries = fs.readdirSync(sourceDir);
+	} catch {
+		return;
+	}
+
+	for (const entry of entries) {
+		if (!entry.endsWith(".bundle")) {
+			continue;
+		}
+		const sourceBundle = path.join(sourceDir, entry);
+		let stat: fs.Stats;
+		try {
+			stat = fs.statSync(sourceBundle);
+		} catch {
+			continue;
+		}
+		if (!stat.isDirectory()) {
+			continue;
+		}
+
+		const destinationBundle = path.join(destinationDir, entry);
+		if (fs.existsSync(destinationBundle)) {
+			fs.rmSync(destinationBundle, { recursive: true, force: true });
+		}
+
+		if (options.link) {
+			fs.symlinkSync(sourceBundle, destinationBundle);
+			continue;
+		}
+
+		fs.cpSync(sourceBundle, destinationBundle, { recursive: true });
+	}
 }

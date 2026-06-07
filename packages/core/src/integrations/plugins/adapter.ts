@@ -51,6 +51,8 @@ export type PluginMetadata = {
 	readonly authMethods: IntegrationModule["authMethods"];
 	readonly chatModelPrep?: PluginChatModelPrep;
 	readonly readOnlyTools: readonly string[];
+	readonly setupAvailable?: boolean;
+	readonly setupDescription?: string;
 };
 
 function readPluginConfig(
@@ -254,6 +256,8 @@ export function loadPluginMetadata(
 		authMethods: status.authMethods,
 		chatModelPrep: status.chatModelPrep,
 		readOnlyTools: loadReadOnlyToolNames(discovered.binaryPath),
+		setupAvailable: status.setupAvailable,
+		setupDescription: status.setupDescription,
 	};
 }
 

@@ -83,9 +83,32 @@ function handleStatus(config: JsonRecord, state: JsonRecord): never {
 			multiUserContentTemplate:
 				"## Sample Plugin context\nUse sample tools when the user request benefits from them.\n\nQuery: \"{{userPrompt}}\"",
 		},
+		setupAvailable: true,
+		setupDescription: "Demo setup for protocol testing",
 		details: connected
 			? "Sample plugin configured."
 			: "Configure sample.apiKey in Toby configure.",
+	});
+}
+
+function handleSetup(): never {
+	emitJson({
+		ok: true,
+		actions: [
+			{
+				id: "demo:already-done",
+				label: "Demo prerequisite check",
+				ok: true,
+				skipped: true,
+				detail: "Already satisfied.",
+			},
+			{
+				id: "demo:install",
+				label: "Demo install step",
+				ok: true,
+				detail: "Completed successfully.",
+			},
+		],
 	});
 }
 
@@ -270,6 +293,10 @@ async function main(): Promise<void> {
 			emitError("Invalid JSON on stdin", "invalid_input", 2);
 		}
 		handleToolsExecute(body);
+	}
+
+	if (command === "setup") {
+		handleSetup();
 	}
 
 	emitError(`Unknown command: ${command ?? "(none)"}`, "usage", 2);

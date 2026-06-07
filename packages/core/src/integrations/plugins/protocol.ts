@@ -77,6 +77,23 @@ export interface PluginStatusResponse {
 	readonly chatReadiness?: PluginChatReadiness;
 	readonly tools?: readonly PluginToolHealth[];
 	readonly details?: string;
+	readonly setupAvailable?: boolean;
+	readonly setupDescription?: string;
+	readonly error?: string;
+	readonly code?: string;
+}
+
+export interface PluginSetupActionResult {
+	readonly id: string;
+	readonly label: string;
+	readonly ok: boolean;
+	readonly skipped?: boolean;
+	readonly detail?: string;
+}
+
+export interface PluginSetupResponse {
+	readonly ok: boolean;
+	readonly actions?: readonly PluginSetupActionResult[];
 	readonly error?: string;
 	readonly code?: string;
 }

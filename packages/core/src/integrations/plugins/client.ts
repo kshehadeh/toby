@@ -4,6 +4,7 @@ import type {
 	PluginConfigEnvelope,
 	PluginConfigGetResponse,
 	PluginConfigShapeResponse,
+	PluginSetupResponse,
 	PluginStatusResponse,
 	PluginToolExecuteRequest,
 	PluginToolExecuteResponse,
@@ -209,6 +210,19 @@ export function pluginToolsExecute(
 			state: request.state ?? {},
 			dryRun: request.dryRun ?? false,
 		}),
+		options,
+	);
+}
+
+export function pluginSetup(
+	binaryPath: string,
+	envelope: PluginConfigEnvelope = {},
+	options?: PluginClientOptions,
+): PluginInvokeResult<PluginSetupResponse> {
+	return invokePlugin<PluginSetupResponse>(
+		binaryPath,
+		["setup"],
+		serializeEnvelope(envelope),
 		options,
 	);
 }
