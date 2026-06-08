@@ -12,7 +12,6 @@ import {
 	resolveInstallDir,
 	resolveInstallTarget,
 	resolveListenerInstallTarget,
-	resolveWhisperCliInstallTargetFromUpgrade,
 } from "../src/upgrade/index";
 
 describe("upgrade staging paths", () => {
@@ -40,9 +39,6 @@ describe("upgrade staging paths", () => {
 		expect(paths.binaryPath).toBe(path.join(tempDir, "staging", "toby"));
 		expect(paths.listenerPath).toBe(
 			path.join(tempDir, "staging", "toby-listener"),
-		);
-		expect(paths.whisperCliPath).toBe(
-			path.join(tempDir, "staging", "whisper-cli"),
 		);
 		expect(paths.pluginSamplePath).toBe(
 			path.join(tempDir, "staging", "toby-plugin-sample"),
@@ -84,12 +80,9 @@ describe("upgrade staging paths", () => {
 		);
 	});
 
-	it("installs helper binaries under ~/.toby/helpers, not the bin dir", () => {
+	it("installs listener helper under ~/.toby/helpers, not the bin dir", () => {
 		expect(resolveListenerInstallTarget()).toBe(
 			path.join(tempDir, "helpers", "toby-listener"),
-		);
-		expect(resolveWhisperCliInstallTargetFromUpgrade()).toBe(
-			path.join(tempDir, "helpers", "whisper-cli"),
 		);
 	});
 });

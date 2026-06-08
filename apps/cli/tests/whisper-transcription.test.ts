@@ -1,151 +1,111 @@
-import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { PassThrough } from "node:stream";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-const mockConfig = vi.hoisted(() => ({
-	binaryPath: "",
-	modelPath: "",
+const pluginToolsExecute = vi.hoisted(() => vi.fn());
+const findDiscoveredPlugin = vi.hoisted(() => vi.fn());
+const getPluginMetadata = vi.hoisted(() => vi.fn());
+
+vi.mock("@toby/core/integrations/plugins/client", () => ({
+	pluginToolsExecute,
+	pluginSetup: vi.fn(),
 }));
 
-vi.mock("@toby/core/listen/whisper-config", () => ({
-	resolveWhisperCppConfig: () => ({
-		binaryPath: mockConfig.binaryPath,
-		modelPath: mockConfig.modelPath,
-		language: "en",
-	}),
+vi.mock("@toby/core/integrations/plugins/registry", () => ({
+	findDiscoveredPlugin,
+	getPluginMetadata,
 }));
 
-vi.mock("node:child_process", async () => {
-	const actual =
-		await vi.importActual<typeof import("node:child_process")>(
-			"node:child_process",
-		);
+vi.mock("@toby/core/config/index", async () => {
+	const actual = await vi.importActual<typeof import("@toby/core/config/index")>(
+		"@toby/core/config/index",
+	);
 	return {
 		...actual,
-		spawn: vi.fn(),
+		readConfig: () => ({
+			integrations: {},
+			personas: [],
+			listen: { transcriptionPlugin: "whisper" },
+		}),
+		readCredentials: () => ({ integrations: { whisper: {} } }),
+		writeConfig: vi.fn(),
+		writeCredentials: vi.fn(),
+		getDefaultProvider: () => undefined,
 	};
 });
 
-import { spawn } from "node:child_process";
-import { transcribeWithWhisperCpp } from "../src/listen/transcription/whisper-cpp";
+import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
 
-describe("whisper transcription", () => {
+describe("transcription plugin bridge", () => {
 	const tempDirs: string[] = [];
-	let helpersDir = "";
-
-	beforeEach(() => {
-		helpersDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-whisper-bin-"));
-		tempDirs.push(helpersDir);
-		mockConfig.binaryPath = path.join(helpersDir, "whisper-cli");
-		mockConfig.modelPath = path.join(helpersDir, "ggml-base.en.bin");
-		fs.writeFileSync(mockConfig.binaryPath, "");
-		fs.chmodSync(mockConfig.binaryPath, 0o755);
-		fs.writeFileSync(mockConfig.modelPath, "model");
-	});
 
 	afterEach(() => {
 		for (const dir of tempDirs.splice(0)) {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
-		vi.mocked(spawn).mockReset();
+		vi.clearAllMocks();
 	});
 
-	it("delegates transcription to the macOS audio helper", async () => {
+	it("copies plugin temp transcript files into the recording folder", async () => {
 		const outDir = fs.mkdtempSync(
-			path.join(os.tmpdir(), "toby-whisper-transcribe-"),
+			path.join(os.tmpdir(), "toby-transcription-out-"),
 		);
 		tempDirs.push(outDir);
-		const input = path.join(outDir, "combined.wav");
+		const input = path.join(outDir, "combined.m4a");
 		fs.writeFileSync(input, "fake-audio");
-		const helperPath = path.join(helpersDir, "toby-listener");
-		fs.writeFileSync(helperPath, "");
-		fs.chmodSync(helperPath, 0o755);
 
-		vi.mocked(spawn).mockImplementation((_command, args) => {
-			const child = new EventEmitter() as import("node:child_process").ChildProcessWithoutNullStreams;
-			child.stdout = new PassThrough();
-			child.stderr = new PassThrough();
-
-			setImmediate(() => {
-				const outDirArg = args?.[args.indexOf("--out-dir") + 1];
-				if (typeof outDirArg !== "string") {
-					child.emit("exit", 1);
-					return;
-				}
-				const transcriptPath = path.join(outDirArg, "transcript.txt");
-				const transcriptJsonPath = path.join(outDirArg, "transcript.json");
-				const payload = {
-					text: "Hello world",
-					segments: [
-						{
-							text: "Hello world",
-							timestamp: 0,
-							duration: 1.2,
-							confidence: 0,
-							alternatives: [],
-						},
-					],
-					sourceAudio: input,
-					createdAt: "2026-06-06T12:00:00.000Z",
-					locale: "en_US",
-				};
-				fs.writeFileSync(transcriptPath, "Hello world\n");
-				fs.writeFileSync(transcriptJsonPath, JSON.stringify(payload));
-				child.stdout.emit(
-					"data",
-					Buffer.from(
-						`${JSON.stringify({
-							type: "transcribed",
-							files: {
-								transcript: transcriptPath,
-								transcriptJson: transcriptJsonPath,
-							},
-						})}\n`,
-					),
-				);
-				child.emit("exit", 0);
-			});
-
-			return child;
-		});
-
-		const files = await transcribeWithWhisperCpp({
-			input,
-			outDir,
-			helperPath,
-		});
-		expect(vi.mocked(spawn)).toHaveBeenCalledWith(
-			helperPath,
-			[
-				"transcribe",
-				"--input",
-				input,
-				"--out-dir",
-				outDir,
-				"--whisper-cli",
-				mockConfig.binaryPath,
-				"--model",
-				mockConfig.modelPath,
-				"--language",
-				"en",
-			],
-			expect.objectContaining({ stdio: ["ignore", "pipe", "pipe"] }),
+		const tmpDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), "TobyTranscription-test-"),
 		);
-		expect(files.transcript).toBeDefined();
-		expect(files.transcriptJson).toBeDefined();
-		expect(fs.readFileSync(files.transcript ?? "", "utf8").trim()).toBe(
+		tempDirs.push(tmpDir);
+		const transcriptPath = path.join(tmpDir, "transcript.txt");
+		const transcriptJsonPath = path.join(tmpDir, "transcript.json");
+		fs.writeFileSync(transcriptPath, "Hello world\n");
+		fs.writeFileSync(
+			transcriptJsonPath,
+			JSON.stringify({
+				text: "Hello world",
+				segments: [],
+				sourceAudio: input,
+				createdAt: "2026-06-06T12:00:00.000Z",
+				locale: "en_US",
+			}),
+		);
+
+		findDiscoveredPlugin.mockReturnValue({
+			binaryPath: "/fake/toby-plugin-whisper",
+			binaryName: "toby-plugin-whisper",
+		});
+		getPluginMetadata.mockReturnValue({
+			capabilities: ["transcription"],
+			name: "whisper",
+		});
+		pluginToolsExecute.mockReturnValue({
+			ok: true,
+			data: {
+				ok: true,
+				result: {
+					transcriptPath,
+					transcriptJsonPath,
+				},
+			},
+			stderr: "",
+		});
+
+		const files = await transcribeWithPlugin({ input, outDir });
+		expect(pluginToolsExecute).toHaveBeenCalledWith(
+			"/fake/toby-plugin-whisper",
+			expect.objectContaining({
+				tool: "doTranscription",
+				input: { audioFilePath: input },
+			}),
+			expect.objectContaining({ timeoutMs: expect.any(Number) }),
+		);
+		expect(files.transcript).toBe("transcript.txt");
+		expect(files.transcriptJson).toBe("transcript.json");
+		expect(fs.readFileSync(path.join(outDir, "transcript.txt"), "utf8").trim()).toBe(
 			"Hello world",
 		);
-		const payload = JSON.parse(
-			fs.readFileSync(files.transcriptJson ?? "", "utf8"),
-		) as {
-			text: string;
-			segments: Array<{ text: string; timestamp: number }>;
-		};
-		expect(payload.text).toBe("Hello world");
-		expect(payload.segments[0]?.text).toBe("Hello world");
 	});
 });

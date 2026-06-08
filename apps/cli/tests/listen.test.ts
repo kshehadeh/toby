@@ -22,6 +22,7 @@ import {
 	listListenRecordings,
 	metadataPath,
 	prepareListenSession,
+	remapListenFilesToFinalDir,
 	saveListenSession,
 	updateListenRecordingMetadata,
 } from "../src/listen/session-controller";
@@ -231,6 +232,25 @@ describe("listen session storage", () => {
 				platform: process.platform,
 			}),
 		).toBe(fallbackCombined);
+	});
+
+	it("remaps capture file paths from temp dir to final recording dir", () => {
+		const dir = tempDir();
+		const session = prepareListenSession({
+			recordingsDir: dir,
+			id: "remap-test",
+			sources: { mic: true, system: true },
+		});
+		const tempCombined = path.join(session.tempDir, "combined.m4a");
+		const remapped = remapListenFilesToFinalDir(session, {
+			mic: path.join(session.tempDir, "mic.wav"),
+			system: path.join(session.tempDir, "system.wav"),
+			combined: tempCombined,
+		});
+
+		expect(remapped.mic).toBe(path.join(session.finalDir, "mic.wav"));
+		expect(remapped.system).toBe(path.join(session.finalDir, "system.wav"));
+		expect(remapped.combined).toBe(path.join(session.finalDir, "combined.m4a"));
 	});
 
 	it("adds transcript files to recording metadata", () => {

@@ -3,7 +3,6 @@ import os from "node:os";
 import path from "node:path";
 import {
 	resolveDefaultWhisperModelPath,
-	resolveWhisperCliInstallTarget,
 	resolveWhisperCppConfig,
 } from "@toby/core/listen/whisper-config";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -28,29 +27,21 @@ describe("whisper config", () => {
 		fs.rmSync(tempDir, { recursive: true, force: true });
 	});
 
-	it("defaults whisper paths under TOBY_DIR", () => {
-		expect(resolveWhisperCliInstallTarget()).toBe(
-			path.join(tempDir, "helpers", "whisper-cli"),
-		);
+	it("defaults whisper model path under TOBY_DIR", () => {
 		expect(resolveDefaultWhisperModelPath()).toBe(
 			path.join(tempDir, "models", "ggml-base.en.bin"),
 		);
 	});
 
-	it("prefers TOBY_WHISPER_CPP_* env overrides", () => {
-		process.env.TOBY_WHISPER_CPP_BINARY = "/tmp/custom-whisper-cli";
+	it("prefers TOBY_WHISPER_CPP_* env overrides for model and language", () => {
 		process.env.TOBY_WHISPER_CPP_MODEL = "/tmp/custom-model.bin";
-		fs.writeFileSync("/tmp/custom-whisper-cli", "");
-		fs.chmodSync("/tmp/custom-whisper-cli", 0o755);
-		fs.writeFileSync("/tmp/custom-model.bin", "x".repeat(1024));
+		process.env.TOBY_WHISPER_CPP_LANGUAGE = "en";
 
 		const resolved = resolveWhisperCppConfig();
-		expect(resolved.binaryPath).toBe("/tmp/custom-whisper-cli");
 		expect(resolved.modelPath).toBe("/tmp/custom-model.bin");
+		expect(resolved.language).toBe("en");
 
-		fs.rmSync("/tmp/custom-whisper-cli", { force: true });
-		fs.rmSync("/tmp/custom-model.bin", { force: true });
-		process.env.TOBY_WHISPER_CPP_BINARY = undefined;
 		process.env.TOBY_WHISPER_CPP_MODEL = undefined;
+		process.env.TOBY_WHISPER_CPP_LANGUAGE = undefined;
 	});
 });
