@@ -39,6 +39,46 @@
 			"target": "toby-plugin-macos",
 			"configuration": "release",
 			"preLaunchTask": "swift: Build Release toby-plugin-macos (apps/plugin-macos)"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:toby}/apps/plugin-jira",
+			"name": "Debug toby-plugin-jira (apps/plugin-jira)",
+			"target": "toby-plugin-jira",
+			"configuration": "debug",
+			"preLaunchTask": "swift: Build Debug toby-plugin-jira (apps/plugin-jira)"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:toby}/apps/plugin-jira",
+			"name": "Release toby-plugin-jira (apps/plugin-jira)",
+			"target": "toby-plugin-jira",
+			"configuration": "release",
+			"preLaunchTask": "swift: Build Release toby-plugin-jira (apps/plugin-jira)"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:toby}/apps/plugin-websearch",
+			"name": "Debug toby-plugin-websearch (apps/plugin-websearch)",
+			"target": "toby-plugin-websearch",
+			"configuration": "debug",
+			"preLaunchTask": "swift: Build Debug toby-plugin-websearch (apps/plugin-websearch)"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:toby}/apps/plugin-websearch",
+			"name": "Release toby-plugin-websearch (apps/plugin-websearch)",
+			"target": "toby-plugin-websearch",
+			"configuration": "release",
+			"preLaunchTask": "swift: Build Release toby-plugin-websearch (apps/plugin-websearch)"
 		}
 	]
 }
