@@ -1,3 +1,4 @@
+import { isAbortError } from "../abort";
 import type { CoreMessage } from "../ai/chat";
 import type { ChatEvent, ChatEventSink } from "../chat-pipeline/chat-events";
 import {
@@ -162,6 +163,16 @@ export async function executePlan(
 
 		try {
 			const turnResult = await runTurn(allMessages, sessionId);
+			if (abortSignal?.aborted) {
+				updatePlanStatus(currentPlan.id, "interrupted");
+				emitChatEvent({
+					type: "plan_completed",
+					planId: currentPlan.id,
+					seq: nextSeq(),
+					status: "interrupted",
+				});
+				return loadPlan(currentPlan.id) ?? currentPlan;
+			}
 			messages = [...messages, userMsg, ...turnResult.responseMessages];
 
 			const phaseStatus = inferPhaseStatus(turnResult.text);
@@ -205,6 +216,24 @@ export async function executePlan(
 
 			currentPlan = loadPlan(currentPlan.id) ?? currentPlan;
 		} catch (e) {
+			if (isAbortError(e) || abortSignal?.aborted) {
+				updatePhaseStatus(phase.id, "failed");
+				updatePlanStatus(currentPlan.id, "interrupted");
+				emitChatEvent({
+					type: "plan_phase_end",
+					planId: currentPlan.id,
+					phaseId: phase.id,
+					seq: nextSeq(),
+					status: "failed",
+				});
+				emitChatEvent({
+					type: "plan_completed",
+					planId: currentPlan.id,
+					seq: nextSeq(),
+					status: "interrupted",
+				});
+				return loadPlan(currentPlan.id) ?? currentPlan;
+			}
 			updatePhaseStatus(phase.id, "failed");
 			updatePlanStatus(currentPlan.id, "failed");
 			emitChatEvent({

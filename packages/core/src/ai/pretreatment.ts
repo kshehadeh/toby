@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { Output, generateText, zodSchema } from "ai";
 import { z } from "zod";
+import { isAbortError, throwIfAborted } from "../abort";
 import type { Persona } from "../config/index";
 import { getDefaultProvider } from "../config/index";
 import {
@@ -577,9 +578,7 @@ async function pretreatUserPrompt(
 	const controller = new AbortController();
 	const onAbort = () => controller.abort();
 	if (abortSignal) {
-		if (abortSignal.aborted) {
-			return null;
-		}
+		throwIfAborted(abortSignal);
 		abortSignal.addEventListener("abort", onAbort, { once: true });
 	}
 	const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -626,7 +625,11 @@ ${text}`,
 			return { ...withTools, sessionName: "" };
 		}
 		return withTools;
-	} catch {
+	} catch (e) {
+		if (isAbortError(e)) {
+			throw e;
+		}
+		throwIfAborted(abortSignal);
 		return null;
 	} finally {
 		clearTimeout(timer);
@@ -650,9 +653,7 @@ async function pretreatUserPromptDelta(
 	const controller = new AbortController();
 	const onAbort = () => controller.abort();
 	if (params.abortSignal) {
-		if (params.abortSignal.aborted) {
-			return null;
-		}
+		throwIfAborted(params.abortSignal);
 		params.abortSignal.addEventListener("abort", onAbort, { once: true });
 	}
 	const timer = setTimeout(() => controller.abort(), params.timeoutMs ?? 4000);
@@ -698,7 +699,11 @@ ${text}`,
 			maxOutputTokens: 256,
 		});
 		return result.output ?? null;
-	} catch {
+	} catch (e) {
+		if (isAbortError(e)) {
+			throw e;
+		}
+		throwIfAborted(params.abortSignal);
 		return null;
 	} finally {
 		clearTimeout(timer);

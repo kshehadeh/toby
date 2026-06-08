@@ -1,3 +1,4 @@
+import { isAbortError } from "../abort";
 import type { Persona } from "../config/index";
 import { log } from "../logging/chat-log";
 import {
@@ -225,6 +226,9 @@ export async function warmRoutingIndex(
 				model: embedModelId,
 			});
 		} catch (err) {
+			if (isAbortError(err)) {
+				throw err;
+			}
 			log("warn", "prep", "routing_index_build_failed", {
 				error: err instanceof Error ? err.message : String(err),
 			});
@@ -369,6 +373,9 @@ export async function routeToolsAndSkills(
 		}
 		queryVector = vec;
 	} catch (err) {
+		if (isAbortError(err)) {
+			throw err;
+		}
 		log("warn", "prep", "routing_query_embed_failed", {
 			error: err instanceof Error ? err.message : String(err),
 		});

@@ -9,6 +9,7 @@ import {
 	stepCountIs,
 	streamText,
 } from "ai";
+import { awaitWithAbort, throwIfAborted } from "../abort";
 import type { ChatEventSink } from "../chat-pipeline/chat-events";
 import {
 	getCachedToolResult,
@@ -69,35 +70,6 @@ type StreamToolContext = {
 	readonly emit: ChatEventSink | undefined;
 	readonly nextSeq: () => number;
 };
-
-function createAbortError(): Error {
-	const error = new Error("Chat turn aborted");
-	error.name = "AbortError";
-	return error;
-}
-
-function throwIfAborted(signal: AbortSignal | undefined): void {
-	if (signal?.aborted) {
-		throw createAbortError();
-	}
-}
-
-async function awaitWithAbort<T>(
-	promise: Promise<T>,
-	signal: AbortSignal | undefined,
-): Promise<T> {
-	if (!signal) {
-		return await promise;
-	}
-	throwIfAborted(signal);
-	return await new Promise<T>((resolve, reject) => {
-		const onAbort = () => reject(createAbortError());
-		signal.addEventListener("abort", onAbort, { once: true });
-		promise.then(resolve, reject).finally(() => {
-			signal.removeEventListener("abort", onAbort);
-		});
-	});
-}
 
 /**
  * Wraps read-only tools with an in-memory cache. When a cache hit occurs,

@@ -1,3 +1,4 @@
+import { throwIfAborted } from "../../abort";
 import { wrapUserPromptWithPretreatment } from "../../ai/pretreatment";
 import type { ExpandedTurn, InitedTurn, PipelineNode } from "../pipeline";
 import { createPrepId, formatPrepEndDetail } from "../prep-format";
@@ -33,6 +34,8 @@ export const expandPromptNode: PipelineNode<InitedTurn, ExpandedTurn> = {
 			abortSignal: ctx.abortSignal,
 			routingIndex: input.routingIndex,
 		});
+
+		throwIfAborted(ctx.abortSignal);
 
 		if (prepId) {
 			ctx.emit({
