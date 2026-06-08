@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const pluginToolsExecute = vi.hoisted(() => vi.fn());
 const findDiscoveredPlugin = vi.hoisted(() => vi.fn());
-const getPluginMetadata = vi.hoisted(() => vi.fn());
+const inspectPluginBinary = vi.hoisted(() => vi.fn());
 
 vi.mock("@toby/core/integrations/plugins/client", () => ({
 	pluginToolsExecute,
@@ -14,7 +14,7 @@ vi.mock("@toby/core/integrations/plugins/client", () => ({
 
 vi.mock("@toby/core/integrations/plugins/registry", () => ({
 	findDiscoveredPlugin,
-	getPluginMetadata,
+	inspectPluginBinary,
 }));
 
 vi.mock("@toby/core/config/index", async () => {
@@ -77,7 +77,7 @@ describe("transcription plugin bridge", () => {
 			binaryPath: "/fake/toby-plugin-whisper",
 			binaryName: "toby-plugin-whisper",
 		});
-		getPluginMetadata.mockReturnValue({
+		inspectPluginBinary.mockReturnValue({
 			capabilities: ["transcription"],
 			name: "whisper",
 		});

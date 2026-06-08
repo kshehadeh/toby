@@ -15,7 +15,7 @@ import {
 } from "../integrations/plugins/client";
 import {
 	findDiscoveredPlugin,
-	getPluginMetadata,
+	inspectPluginBinary,
 } from "../integrations/plugins/registry";
 import type { DiscoveredPlugin } from "../integrations/plugins/protocol";
 import {
@@ -221,8 +221,11 @@ export async function transcribeWithPlugin(options: {
 	}
 
 	const pluginName = discovered.binaryName.replace(/^toby-plugin-/, "");
-	const metadata = getPluginMetadata(pluginName);
-	if (!metadata?.capabilities.includes("transcription")) {
+	const inspected = inspectPluginBinary(discovered);
+	if ("error" in inspected) {
+		throw new ListenTranscriptionError("plugin_missing", inspected.error);
+	}
+	if (!inspected.capabilities.includes("transcription")) {
 		throw new ListenTranscriptionError(
 			"plugin_missing",
 			`Plugin "${pluginName}" is not a transcription provider.`,
