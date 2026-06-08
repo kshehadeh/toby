@@ -4,7 +4,8 @@
 # Installs:
 #   - toby → $TOBY_INSTALL_DIR (default ~/.local/bin)
 #   - web UI → sibling web/ directory
-#   - toby-listener, whisper-cli → ~/.toby/helpers/
+#   - toby-listener → ~/.toby/helpers/
+#   - toby-plugin-whisper → ~/.toby/plugins/
 #   - toby-plugin-sample, toby-plugin-azuread, toby-plugin-gmail, toby-plugin-todoist, toby-plugin-jira, toby-plugin-websearch, toby-plugin-applecalendar, toby-plugin-macos → ~/.toby/plugins/
 #
 # Usage:
@@ -84,8 +85,8 @@ if ! curl -fsSL -o "${tmpdir}/toby.zip" "$download_url"; then
 	exit 1
 fi
 unzip -q "${tmpdir}/toby.zip" -d "$tmpdir"
-if [[ ! -f "${tmpdir}/toby" || ! -f "${tmpdir}/toby-listener" || ! -f "${tmpdir}/whisper-cli" ]]; then
-	echo "Release archive is missing toby, toby-listener, or whisper-cli." >&2
+if [[ ! -f "${tmpdir}/toby" || ! -f "${tmpdir}/toby-listener" || ! -f "${tmpdir}/toby-plugin-whisper" ]]; then
+	echo "Release archive is missing toby, toby-listener, or toby-plugin-whisper." >&2
 	exit 1
 fi
 if [[ ! -f "${tmpdir}/web/index.html" ]]; then
@@ -138,6 +139,11 @@ if [[ -f "${tmpdir}/toby-plugin-macos" ]]; then
 	has_macos_plugin=true
 fi
 
+has_whisper_plugin=false
+if [[ -f "${tmpdir}/toby-plugin-whisper" ]]; then
+	has_whisper_plugin=true
+fi
+
 # Only the `toby` binary goes on PATH (install_dir). All bundled helper
 # binaries live under ~/.toby/helpers, and installable plugins under
 # ~/.toby/plugins, so they don't clutter the user's bin directory.
@@ -159,9 +165,12 @@ mkdir -p "$toby_helpers_dir"
 mv "${tmpdir}/toby-listener" "${toby_helpers_dir}/toby-listener"
 echo "Installed: ${toby_helpers_dir}/toby-listener"
 
-chmod +x "${tmpdir}/whisper-cli"
-mv "${tmpdir}/whisper-cli" "${toby_helpers_dir}/whisper-cli"
-echo "Installed: ${toby_helpers_dir}/whisper-cli"
+if $has_whisper_plugin; then
+	chmod +x "${tmpdir}/toby-plugin-whisper"
+	mkdir -p "$toby_plugins_dir"
+	mv "${tmpdir}/toby-plugin-whisper" "${toby_plugins_dir}/toby-plugin-whisper"
+	echo "Installed: ${toby_plugins_dir}/toby-plugin-whisper"
+fi
 
 if $has_sample_plugin; then
 	chmod +x "${tmpdir}/toby-plugin-sample"
@@ -231,11 +240,13 @@ if $has_macos_plugin; then
 	fi
 fi
 
-# Remove legacy standalone helper if present (macOS integration is now a plugin).
-if [[ -f "${toby_helpers_dir}/toby-macos" ]]; then
-	rm -f "${toby_helpers_dir}/toby-macos"
-	echo "Removed legacy helper: ${toby_helpers_dir}/toby-macos"
-fi
+# Remove legacy standalone helpers if present.
+for legacy_helper in "${toby_helpers_dir}/toby-macos" "${toby_helpers_dir}/whisper-cli"; do
+	if [[ -f "$legacy_helper" ]]; then
+		rm -f "$legacy_helper"
+		echo "Removed legacy helper: $legacy_helper"
+	fi
+done
 
 if "${install_dir}/toby" --version >/dev/null 2>&1; then
 	echo "Verified: $("${install_dir}/toby" --version)"

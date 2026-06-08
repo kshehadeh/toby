@@ -75,11 +75,11 @@ macos_build_dir="$(
 cp "${macos_build_dir}/toby-plugin-macos" dist/toby-plugin-macos
 cp -R "${macos_build_dir}/TobyPluginMacOS_TobyPluginMacOSLib.bundle" dist/
 
-echo "Building whisper-cli (${swift_arch})..."
-chmod +x scripts/build-whisper-cli.sh
-SWIFT_ARCH="${swift_arch}" ./scripts/build-whisper-cli.sh dist/whisper-cli
+echo "Building toby-plugin-whisper with embedded whisper.cpp (${swift_arch})..."
+chmod +x scripts/build-plugin-whisper.sh
+SWIFT_ARCH="${swift_arch}" ./scripts/build-plugin-whisper.sh
 
-chmod +x dist/toby dist/toby-listener dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-todoist dist/toby-plugin-slack dist/toby-plugin-jira dist/toby-plugin-websearch dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/whisper-cli
+chmod +x dist/toby dist/toby-listener dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-todoist dist/toby-plugin-slack dist/toby-plugin-jira dist/toby-plugin-websearch dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/toby-plugin-whisper
 
 echo "Building web UI..."
 bun run --cwd apps/web build

@@ -3,6 +3,7 @@
  * Verify release payload contains expected Toby artifacts.
  * Usage: node scripts/verify-release-artifacts.mjs [directory]
  */
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -19,7 +20,7 @@ const required = [
 	"toby-plugin-websearch",
 	"toby-plugin-applecalendar",
 	"toby-plugin-macos",
-	"whisper-cli",
+	"toby-plugin-whisper",
 ];
 
 const missing = [];
@@ -59,6 +60,23 @@ if (!fs.existsSync(macosPluginBundle)) {
 	console.error(`Missing or invalid release artifacts in ${directory}:`);
 	console.error("  - TobyPluginMacOS_TobyPluginMacOSLib.bundle");
 	process.exit(1);
+}
+
+if (process.platform === "darwin") {
+	const whisperPluginPath = path.join(directory, "toby-plugin-whisper");
+	const otool = spawnSync("otool", ["-L", whisperPluginPath], {
+		encoding: "utf8",
+	});
+	if (otool.status !== 0) {
+		console.error(`Failed to inspect toby-plugin-whisper linkage: ${otool.stderr}`);
+		process.exit(1);
+	}
+	if (otool.stdout.includes("@rpath/libwhisper")) {
+		console.error(
+			"toby-plugin-whisper links shared @rpath/libwhisper libraries; expected embedded static whisper.cpp.",
+		);
+		process.exit(1);
+	}
 }
 
 console.log(`Release artifacts OK in ${directory}`);

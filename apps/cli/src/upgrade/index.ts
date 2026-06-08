@@ -11,8 +11,7 @@ import {
 	resolveTobyDir,
 } from "@toby/core/config/index";
 import { copyPluginResourceBundlesFromSource } from "@toby/core/integrations/plugins/install";
-import { ensureWhisperTranscriptionAssets } from "@toby/core/listen/whisper-assets";
-import { resolveWhisperCliInstallTarget } from "@toby/core/listen/whisper-config";
+import { ensureWhisperPluginSetup } from "@toby/core/listen/transcription-plugin";
 import {
 	getTobyEntryScriptArgv,
 	isRunningAsCompiledBinary,
@@ -37,7 +36,6 @@ export interface StagingManifest {
 	readonly repo: string;
 	readonly installTarget: string;
 	readonly listenerInstallTarget?: string;
-	readonly whisperCliInstallTarget?: string;
 	readonly completedAt: string;
 }
 
@@ -104,10 +102,6 @@ export function resolveListenerInstallTarget(_installDir?: string): string {
 	return path.join(getHelpersDir(), "toby-listener");
 }
 
-export function resolveWhisperCliInstallTargetFromUpgrade(): string {
-	return resolveWhisperCliInstallTarget();
-}
-
 export function resolveWebInstallTarget(installDir?: string): string {
 	return path.join(path.dirname(resolveInstallTarget(installDir)), "web");
 }
@@ -116,7 +110,6 @@ export function getStagingPaths(): {
 	readonly stagingDir: string;
 	readonly binaryPath: string;
 	readonly listenerPath: string;
-	readonly whisperCliPath: string;
 	readonly pluginSamplePath: string;
 	readonly pluginAzureadPath: string;
 	readonly pluginGmailPath: string;
@@ -126,6 +119,7 @@ export function getStagingPaths(): {
 	readonly pluginWebsearchPath: string;
 	readonly pluginApplecalendarPath: string;
 	readonly pluginMacosPath: string;
+	readonly pluginWhisperPath: string;
 	readonly webPath: string;
 	readonly archivePath: string;
 	readonly manifestPath: string;
@@ -136,7 +130,6 @@ export function getStagingPaths(): {
 		stagingDir,
 		binaryPath: path.join(stagingDir, "toby"),
 		listenerPath: path.join(stagingDir, "toby-listener"),
-		whisperCliPath: path.join(stagingDir, "whisper-cli"),
 		pluginSamplePath: path.join(stagingDir, "toby-plugin-sample"),
 		pluginAzureadPath: path.join(stagingDir, "toby-plugin-azuread"),
 		pluginGmailPath: path.join(stagingDir, "toby-plugin-gmail"),
@@ -146,6 +139,7 @@ export function getStagingPaths(): {
 		pluginWebsearchPath: path.join(stagingDir, "toby-plugin-websearch"),
 		pluginApplecalendarPath: path.join(stagingDir, "toby-plugin-applecalendar"),
 		pluginMacosPath: path.join(stagingDir, "toby-plugin-macos"),
+		pluginWhisperPath: path.join(stagingDir, "toby-plugin-whisper"),
 		webPath: path.join(stagingDir, "web"),
 		archivePath: path.join(stagingDir, "toby-release.zip"),
 		manifestPath: path.join(stagingDir, "manifest.json"),
@@ -218,7 +212,6 @@ export async function downloadRelease(
 	const listenerInstallTarget = resolveListenerInstallTarget(
 		options.installDir,
 	);
-	const whisperCliInstallTarget = resolveWhisperCliInstallTargetFromUpgrade();
 	const asset = `${resolveReleaseAsset()}.zip`;
 	const tag = options.tag?.trim() || (await fetchLatestReleaseTag(repo));
 	const version = normalizeReleaseVersion(tag);
@@ -233,7 +226,6 @@ export async function downloadRelease(
 		stagingDir,
 		binaryPath,
 		listenerPath,
-		whisperCliPath,
 		pluginSamplePath,
 		pluginAzureadPath,
 		pluginGmailPath,
@@ -256,7 +248,6 @@ export async function downloadRelease(
 		await mkdir(stagingDir, { recursive: true });
 		await rm(binaryPath, { force: true }).catch(() => undefined);
 		await rm(listenerPath, { force: true }).catch(() => undefined);
-		await rm(whisperCliPath, { force: true }).catch(() => undefined);
 		await rm(pluginSamplePath, { force: true }).catch(() => undefined);
 		await rm(pluginAzureadPath, { force: true }).catch(() => undefined);
 		await rm(pluginGmailPath, { force: true }).catch(() => undefined);
@@ -281,9 +272,6 @@ export async function downloadRelease(
 		await yieldToEventLoop();
 		await chmodExecutable(binaryPath);
 		await chmodExecutable(listenerPath);
-		if (fs.existsSync(whisperCliPath)) {
-			await chmodExecutable(whisperCliPath);
-		}
 
 		const installedVersion = readInstalledVersion(binaryPath);
 		if (!installedVersion) {
@@ -308,7 +296,6 @@ export async function downloadRelease(
 			repo,
 			installTarget,
 			listenerInstallTarget,
-			whisperCliInstallTarget,
 			completedAt: new Date().toISOString(),
 		};
 		await writeFile(manifestPath, JSON.stringify(manifest, null, 2));
@@ -342,8 +329,7 @@ export async function applyStagedRelease(
 		);
 	}
 
-	const { binaryPath, listenerPath, whisperCliPath, webPath, manifestPath } =
-		getStagingPaths();
+	const { binaryPath, listenerPath, webPath, manifestPath } = getStagingPaths();
 	if (!fs.existsSync(binaryPath)) {
 		throw new Error(`Staged binary missing at ${binaryPath}.`);
 	}
@@ -354,12 +340,8 @@ export async function applyStagedRelease(
 	const installTarget = installTargetOverride ?? manifest.installTarget;
 	const listenerInstallTarget =
 		manifest.listenerInstallTarget ?? resolveListenerInstallTarget();
-	const whisperCliInstallTarget =
-		manifest.whisperCliInstallTarget ??
-		resolveWhisperCliInstallTargetFromUpgrade();
 	await mkdir(path.dirname(installTarget), { recursive: true });
 	await mkdir(path.dirname(listenerInstallTarget), { recursive: true });
-	await mkdir(path.dirname(whisperCliInstallTarget), { recursive: true });
 
 	const tempDestination = path.join(
 		path.dirname(installTarget),
@@ -379,17 +361,6 @@ export async function applyStagedRelease(
 	await chmodExecutable(tempListenerDestination);
 	await rename(tempListenerDestination, listenerInstallTarget);
 
-	if (fs.existsSync(whisperCliPath)) {
-		const tempWhisperDestination = path.join(
-			path.dirname(whisperCliInstallTarget),
-			`.toby-whisper-upgrade-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-		);
-		await rm(tempWhisperDestination, { force: true }).catch(() => undefined);
-		await rename(whisperCliPath, tempWhisperDestination);
-		await chmodExecutable(tempWhisperDestination);
-		await rename(tempWhisperDestination, whisperCliInstallTarget);
-	}
-
 	if (fs.existsSync(path.join(webPath, "index.html"))) {
 		options?.onProgress?.({ phase: "installing", detail: "web UI" });
 		await yieldToEventLoop();
@@ -408,6 +379,7 @@ export async function applyStagedRelease(
 		pluginWebsearchPath,
 		pluginApplecalendarPath,
 		pluginMacosPath,
+		pluginWhisperPath,
 	} = getStagingPaths();
 	options?.onProgress?.({ phase: "installing", detail: "plugins" });
 	await yieldToEventLoop();
@@ -423,16 +395,15 @@ export async function applyStagedRelease(
 		"toby-plugin-applecalendar",
 	);
 	await installStagedPluginBinary(pluginMacosPath, "toby-plugin-macos");
+	await installStagedPluginBinary(pluginWhisperPath, "toby-plugin-whisper");
 	await removeDeprecatedPluginBinaries();
 
 	// Migration: older installs placed helper binaries next to `toby` on PATH.
 	// Now that helpers live under ~/.toby/helpers, remove the stale siblings so
 	// only `toby` remains in the bin directory.
-	await removeLegacySiblingHelpers(installTarget, [
-		listenerInstallTarget,
-		whisperCliInstallTarget,
-	]);
+	await removeLegacySiblingHelpers(installTarget, [listenerInstallTarget]);
 	await removeOrphanedLegacyMacOSHelper();
+	await removeLegacyWhisperCliHelper();
 
 	const installedVersion = readInstalledVersion(installTarget);
 	if (!installedVersion) {
@@ -448,16 +419,14 @@ export async function applyStagedRelease(
 
 	const daemonRestart = await restartDaemonIfRunning();
 
-	await ensureWhisperTranscriptionAssets({
-		onProgress: (message) => {
-			process.stderr.write(`${message}\n`);
-		},
-	}).catch((error) => {
+	try {
+		ensureWhisperPluginSetup();
+	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		process.stderr.write(
-			`Note: whisper setup incomplete after upgrade: ${message}\nRun: toby whisper setup\n`,
+			`Note: whisper setup incomplete after upgrade: ${message}\nRun: toby plugins setup whisper\n`,
 		);
-	});
+	}
 
 	await rm(manifestPath, { force: true }).catch(() => undefined);
 
@@ -517,6 +486,15 @@ export async function removeDeprecatedPluginBinaries(): Promise<void> {
 }
 
 const LEGACY_SIBLING_HELPER_NAMES = ["toby-listener", "toby-macos"] as const;
+
+/** Remove the standalone whisper-cli helper superseded by embedded whisper.cpp. */
+export async function removeLegacyWhisperCliHelper(): Promise<void> {
+	const legacyPath = path.join(getHelpersDir(), "whisper-cli");
+	if (!fs.existsSync(legacyPath)) {
+		return;
+	}
+	await rm(legacyPath, { force: true }).catch(() => undefined);
+}
 
 /**
  * Remove helper binaries that older installers left next to the `toby` binary
