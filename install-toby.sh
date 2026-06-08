@@ -166,9 +166,31 @@ mv "${tmpdir}/toby-listener" "${toby_helpers_dir}/toby-listener"
 echo "Installed: ${toby_helpers_dir}/toby-listener"
 
 if $has_whisper_plugin; then
-	chmod +x "${tmpdir}/toby-plugin-whisper"
 	mkdir -p "$toby_plugins_dir"
-	mv "${tmpdir}/toby-plugin-whisper" "${toby_plugins_dir}/toby-plugin-whisper"
+	if [[ -f "${tmpdir}/toby-plugin-whisper.bin" ]]; then
+		chmod +x "${tmpdir}/toby-plugin-whisper.bin"
+		mv "${tmpdir}/toby-plugin-whisper.bin" "${toby_plugins_dir}/toby-plugin-whisper.bin"
+		if [[ -f "${tmpdir}/toby-plugin-whisper" ]]; then
+			chmod +x "${tmpdir}/toby-plugin-whisper"
+			mv "${tmpdir}/toby-plugin-whisper" "${toby_plugins_dir}/toby-plugin-whisper"
+		else
+			cat >"${toby_plugins_dir}/toby-plugin-whisper" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exec "$(cd "$(dirname "$0")" && pwd)/toby-plugin-whisper.bin" "$@"
+EOF
+			chmod +x "${toby_plugins_dir}/toby-plugin-whisper"
+		fi
+	else
+		chmod +x "${tmpdir}/toby-plugin-whisper"
+		mv "${tmpdir}/toby-plugin-whisper" "${toby_plugins_dir}/toby-plugin-whisper.bin"
+		cat >"${toby_plugins_dir}/toby-plugin-whisper" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exec "$(cd "$(dirname "$0")" && pwd)/toby-plugin-whisper.bin" "$@"
+EOF
+		chmod +x "${toby_plugins_dir}/toby-plugin-whisper"
+	fi
 	echo "Installed: ${toby_plugins_dir}/toby-plugin-whisper"
 fi
 
