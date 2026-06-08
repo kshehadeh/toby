@@ -12,6 +12,9 @@ import { log } from "../logging/chat-log";
 import { createMemoryTools } from "../memory/tools";
 import { injectCurrentDateTimeIntoFirstSystemMessage } from "../prepare-messages";
 import type { ChatEvent } from "./chat-events";
+import { loadIntegrationToolBundle } from "./tool-bundle-cache";
+
+export { clearSessionToolBundleCache } from "./tool-bundle-cache";
 
 /**
  * Tools that are always included regardless of pretreatment tool selection.
@@ -61,6 +64,19 @@ type ChatTurnOptions = {
 	 * When undefined (pretreatment skipped), all tools pass through.
 	 */
 	readonly relevantTools?: readonly string[];
+	/**
+	 * Tool catalog from the prep phase of the same turn. Reuses integration tool
+	 * definitions so `createChatTools` is not invoked again for the model call.
+	 */
+	readonly prebuiltToolCatalog?: PrebuiltToolCatalog;
+};
+
+export type PrebuiltToolCatalog = {
+	readonly catalogText: string;
+	readonly allowedToolNamesLower: ReadonlySet<string>;
+	readonly allToolNames: readonly string[];
+	readonly toolIntegrationLabels: Readonly<Record<string, string>>;
+	readonly integrationTools: Record<string, Tool>;
 };
 
 type ChatTurnResult = {
@@ -133,42 +149,30 @@ export function buildToolsCatalog(tools: Record<string, Tool>): string {
 	return lines.length > 0 ? lines.join("\n") : "(none)";
 }
 
-/**
- * Eagerly resolve all tools for the given modules (integration + global + memory)
- * and return a compact catalog string for pretreatment consumption.
- */
-export async function buildToolsCatalogForPretreatment(
-	modules: readonly IntegrationModule[],
-	options: { readonly dryRun?: boolean; readonly persona: Persona },
-): Promise<{
-	readonly catalogText: string;
-	readonly allowedToolNamesLower: ReadonlySet<string>;
-	readonly allToolNames: readonly string[];
-	readonly toolIntegrationLabels: Readonly<Record<string, string>>;
-}> {
-	const toolBundles = await Promise.all(
-		modules.map(async (m) => {
-			if (!m.createChatTools) return null;
-			return await m.createChatTools({
-				dryRun: options?.dryRun ?? false,
-			});
-		}),
-	);
-	const mergedTools: Record<string, Tool> = {};
-	const toolIntegrationLabels: Record<string, string> = {};
-	for (let i = 0; i < toolBundles.length; i++) {
-		const b = toolBundles[i];
-		const module = modules[i];
-		if (!b || !module) continue;
-		Object.assign(mergedTools, b.tools);
-		for (const toolName of Object.keys(b.tools)) {
-			toolIntegrationLabels[toolName] = module.displayName;
-		}
-	}
+function mergeAuxiliaryChatTools(
+	integration: {
+		readonly tools: Record<string, Tool>;
+		readonly toolIntegrationLabels: Record<string, string>;
+	},
+	options: {
+		readonly dryRun: boolean;
+		readonly persona: Persona;
+		readonly globalAppliedActions?: string[];
+		readonly memoryAppliedActions?: string[];
+	},
+): {
+	readonly mergedTools: Record<string, Tool>;
+	readonly toolIntegrationLabels: Record<string, string>;
+} {
+	const mergedTools: Record<string, Tool> = { ...integration.tools };
+	const toolIntegrationLabels: Record<string, string> = {
+		...integration.toolIntegrationLabels,
+	};
+
 	const globalTools = createGlobalChatTools({
-		dryRun: options?.dryRun ?? false,
+		dryRun: options.dryRun,
 		persona: options.persona,
-		appliedActions: [],
+		appliedActions: options.globalAppliedActions ?? [],
 	});
 	Object.assign(mergedTools, globalTools);
 	for (const toolName of Object.keys(globalTools)) {
@@ -177,20 +181,31 @@ export async function buildToolsCatalogForPretreatment(
 		// integration attribution so the "Tools selected" summary is accurate.
 		toolIntegrationLabels[toolName] ??= "Toby";
 	}
+
 	const memoryTools = createMemoryTools({
 		userId: "default",
-		dryRun: options?.dryRun ?? false,
-		appliedActions: [],
+		dryRun: options.dryRun,
+		appliedActions: options.memoryAppliedActions ?? [],
 	});
 	Object.assign(mergedTools, memoryTools);
 	for (const toolName of Object.keys(memoryTools)) {
 		toolIntegrationLabels[toolName] ??= "Toby";
 	}
-	Object.assign(mergedTools, withAskUserTool(mergedTools, undefined));
-	toolIntegrationLabels.askUser ??= "Toby";
 
-	const catalogText = buildToolsCatalog(mergedTools);
-	const allToolNames = Object.keys(mergedTools);
+	return { mergedTools, toolIntegrationLabels };
+}
+
+function buildToolCatalogFromMergedTools(
+	mergedTools: Record<string, Tool>,
+	toolIntegrationLabels: Record<string, string>,
+	integrationTools: Record<string, Tool>,
+): PrebuiltToolCatalog {
+	const catalogTools = withAskUserTool(mergedTools, undefined);
+	const labels = { ...toolIntegrationLabels };
+	labels.askUser ??= "Toby";
+
+	const catalogText = buildToolsCatalog(catalogTools);
+	const allToolNames = Object.keys(catalogTools);
 	const allowedToolNamesLower = new Set(
 		allToolNames.map((n) => n.trim().toLowerCase()),
 	);
@@ -198,8 +213,30 @@ export async function buildToolsCatalogForPretreatment(
 		catalogText,
 		allowedToolNamesLower,
 		allToolNames,
-		toolIntegrationLabels,
+		toolIntegrationLabels: labels,
+		integrationTools,
 	};
+}
+
+/**
+ * Eagerly resolve all tools for the given modules (integration + global + memory)
+ * and return a compact catalog string for pretreatment consumption.
+ */
+export async function buildToolsCatalogForPretreatment(
+	modules: readonly IntegrationModule[],
+	options: { readonly dryRun?: boolean; readonly persona: Persona },
+): Promise<PrebuiltToolCatalog> {
+	const dryRun = options.dryRun ?? false;
+	const integration = await loadIntegrationToolBundle(modules, { dryRun });
+	const { mergedTools, toolIntegrationLabels } = mergeAuxiliaryChatTools(
+		integration,
+		{ dryRun, persona: options.persona },
+	);
+	return buildToolCatalogFromMergedTools(
+		mergedTools,
+		toolIntegrationLabels,
+		integration.tools,
+	);
 }
 
 /**
@@ -262,54 +299,58 @@ export async function runSharedChatTurn(
 	messages: CoreMessage[],
 	options: ChatTurnOptions,
 ): Promise<ChatTurnResult> {
-	const toolBundles = await Promise.all(
-		modules.map(async (m) => {
+	const appliedActions: string[] = [];
+	const globalAppliedSink: string[] = [];
+	const memoryAppliedSink: string[] = [];
+
+	let mergedTools: Record<string, Tool>;
+	let toolIntegrationLabels: Record<string, string>;
+
+	if (options.prebuiltToolCatalog) {
+		const integrationLabels: Record<string, string> = {};
+		for (const name of Object.keys(
+			options.prebuiltToolCatalog.integrationTools,
+		)) {
+			integrationLabels[name] =
+				options.prebuiltToolCatalog.toolIntegrationLabels[name] ?? "Toby";
+		}
+		const auxiliary = mergeAuxiliaryChatTools(
+			{
+				tools: options.prebuiltToolCatalog.integrationTools,
+				toolIntegrationLabels: integrationLabels,
+			},
+			{
+				dryRun: options.dryRun,
+				persona: options.persona,
+				globalAppliedActions: globalAppliedSink,
+				memoryAppliedActions: memoryAppliedSink,
+			},
+		);
+		mergedTools = auxiliary.mergedTools;
+		toolIntegrationLabels = auxiliary.toolIntegrationLabels;
+	} else {
+		for (const m of modules) {
 			if (!m.createChatTools) {
 				throw new Error(
 					`runIntegrationChatTurn: integration "${m.name}" does not export createChatTools`,
 				);
 			}
-			return await m.createChatTools({
-				dryRun: options.dryRun,
-				maxResults: options.maxResults,
-			});
-		}),
-	);
-	const mergedTools: Record<string, Tool> = {};
-	const toolIntegrationLabels: Record<string, string> = {};
-	for (let i = 0; i < toolBundles.length; i++) {
-		const b = toolBundles[i];
-		const module = modules[i];
-		if (!b || !module) {
-			continue;
 		}
-		Object.assign(mergedTools, b.tools);
-		for (const toolName of Object.keys(b.tools)) {
-			toolIntegrationLabels[toolName] = module.displayName;
-		}
-	}
-	const appliedActionsArrays = toolBundles.map((b) => b.appliedActions);
-	const appliedActions = appliedActionsArrays.flatMap((a) => [...a]);
-	const globalAppliedSink: string[] = [];
-	Object.assign(
-		mergedTools,
-		createGlobalChatTools({
+		const integration = await loadIntegrationToolBundle(modules, {
+			dryRun: options.dryRun,
+			maxResults: options.maxResults,
+		});
+		const auxiliary = mergeAuxiliaryChatTools(integration, {
 			dryRun: options.dryRun,
 			persona: options.persona,
-			appliedActions: globalAppliedSink,
-		}),
-	);
-	appliedActions.push(...globalAppliedSink);
-	const memoryAppliedSink: string[] = [];
-	Object.assign(
-		mergedTools,
-		createMemoryTools({
-			userId: "default",
-			dryRun: options.dryRun,
-			appliedActions: memoryAppliedSink,
-		}),
-	);
-	appliedActions.push(...memoryAppliedSink);
+			globalAppliedActions: globalAppliedSink,
+			memoryAppliedActions: memoryAppliedSink,
+		});
+		mergedTools = auxiliary.mergedTools;
+		toolIntegrationLabels = auxiliary.toolIntegrationLabels;
+	}
+
+	appliedActions.push(...globalAppliedSink, ...memoryAppliedSink);
 	const moduleNames = modules.map((m) => m.name);
 
 	// Filter tools based on pretreatment selection (no-op when relevantTools is empty)

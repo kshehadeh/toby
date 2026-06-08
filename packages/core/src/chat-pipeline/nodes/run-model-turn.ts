@@ -12,6 +12,7 @@ export const runModelTurnNode: PipelineNode<AssembledTurn, RanTurn> = {
 			askUser: ctx.askUser,
 			relevantTools: input.spec?.relevantTools,
 			chatWithToolsOptions: ctx.chatWithToolsOptions,
+			prebuiltToolCatalog: input.toolCatalog,
 		});
 
 		return {

@@ -2,7 +2,10 @@ import { tool } from "ai";
 import type { Tool } from "ai";
 import chalk from "chalk";
 import { globalChatToolsPromptSection } from "../../ai/global-chat-tools";
-import { runSharedChatTurn } from "../../chat-pipeline/run-turn";
+import {
+	clearSessionToolBundleCache,
+	runSharedChatTurn,
+} from "../../chat-pipeline/run-turn";
 import type { CredentialsFile, Persona } from "../../config/index";
 import {
 	readConfig,
@@ -383,6 +386,7 @@ export function createPluginIntegrationModule(
 			console.log(
 				chalk.green(`${metadata.displayName} connected successfully!`),
 			);
+			clearSessionToolBundleCache();
 		},
 
 		async isConnected(): Promise<boolean> {
@@ -498,6 +502,7 @@ export function createPluginIntegrationModule(
 			Reflect.deleteProperty(config.integrations, name);
 			writeConfig(config);
 			console.log(chalk.green(`${metadata.displayName} disconnected.`));
+			clearSessionToolBundleCache();
 		},
 	};
 
