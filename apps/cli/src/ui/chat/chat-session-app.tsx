@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { isAbortError, throwIfAborted } from "@toby/core/abort";
 import type {
 	AskUserHandler,
 	AskUserToolResult,
@@ -144,7 +145,7 @@ import { buildHelpSections } from "./help-sections";
 import { buildUsageSections } from "./usage-sections";
 import { buildUiTurnContext } from "./pipeline-turn-context";
 import { appendPromptHistory, loadPromptHistory } from "./prompt-history";
-import { buildSessionNoticeEntry, recordSessionNote } from "./session-note";
+import { buildSessionNoticeEntry, buildTurnCancellationNoticeEntry, recordSessionNote } from "./session-note";
 import { logSkillDebugNotes } from "./skill-debug";
 import {
 	SLASH_COMMANDS,
@@ -201,15 +202,6 @@ interface ScrollModalState {
 	readonly lines: readonly string[];
 	readonly scrollOffset: number;
 	readonly lineTone: "log" | "default" | "markdown";
-}
-
-function isAbortError(e: unknown): boolean {
-	if (e instanceof DOMException && e.name === "AbortError") return true;
-	if (e instanceof Error) {
-		if (e.name === "AbortError") return true;
-		if (/abort/i.test(e.message)) return true;
-	}
-	return false;
 }
 
 function toggleNameInList(
@@ -631,8 +623,24 @@ export function ChatSessionApp({
 			assistantSegmentHeaderRef.current = activePersona.name;
 			assistantStreamBufRef.current = "";
 			assistantSegmentCommittedRef.current = false;
-			const turnAbort = new AbortController();
-			ongoingPretreatAbortRef.current = turnAbort;
+			const turnAbort =
+				ongoingPretreatAbortRef.current ?? new AbortController();
+			if (!ongoingPretreatAbortRef.current) {
+				ongoingPretreatAbortRef.current = turnAbort;
+			}
+			if (turnAbort.signal.aborted) {
+				setLoading(false);
+				const steering = pendingSteeringPromptRef.current;
+				if (steering) {
+					recordSessionNote(sessionIdRef.current, "Redirecting...");
+				} else {
+					setTranscript((t) => [
+						...t,
+						buildTurnCancellationNoticeEntry(sessionIdRef.current),
+					]);
+				}
+				return { text: "", responseMessages: [] };
+			}
 			let activeToolCalls = 0;
 			const turnStartMs = Date.now();
 			const eventLogSink = createChatEventLogSink(sid);
@@ -821,8 +829,14 @@ export function ChatSessionApp({
 				}
 				if (isAbortError(e)) {
 					const steering = pendingSteeringPromptRef.current;
-					const metaText = steering ? "Redirecting..." : "Turn cancelled.";
-					recordSessionNote(sessionIdRef.current, metaText);
+					if (steering) {
+						recordSessionNote(sessionIdRef.current, "Redirecting...");
+					} else {
+						setTranscript((t) => [
+							...t,
+							buildTurnCancellationNoticeEntry(sessionIdRef.current),
+						]);
+					}
 					log("info", "turn", "turn_aborted", { steering: Boolean(steering) });
 					return {
 						text: partial,
@@ -920,7 +934,15 @@ export function ChatSessionApp({
 					}),
 					{ stopAfter: "assemble" },
 				);
-				if (cancelled) {
+				if (cancelled || ac.signal.aborted) {
+					if (ac.signal.aborted && !cancelled) {
+						setTranscript((t) => [
+							...t,
+							buildTurnCancellationNoticeEntry(
+								sessionIdRef.current ?? sid ?? null,
+							),
+						]);
+					}
 					return;
 				}
 				if (prepResult.stage !== "assemble") {
@@ -984,6 +1006,13 @@ export function ChatSessionApp({
 				}
 			} catch (e) {
 				if (!cancelled) {
+					if (isAbortError(e)) {
+						setTranscript((t) => [
+							...t,
+							buildTurnCancellationNoticeEntry(sessionIdRef.current),
+						]);
+						return;
+					}
 					setBootError(formatChatModelError(e));
 				}
 			}
@@ -1266,76 +1295,91 @@ export function ChatSessionApp({
 			const msgsBefore = snapRef.current.messages;
 			if (!msgsBefore) return;
 
-			const isFirstTurn = !transcriptRef.current.some((e) => e.kind === "user");
-			const willPretreat = shouldPretreat(msgsBefore, steering, isFirstTurn);
-			setLoading(true);
-			setActivityLine(
-				willPretreat
-					? "Preparing request..."
-					: formatListeningToPersona(activePersonaRef.current.name),
-			);
-
-			const prepResult = await runChatTurnPipeline(
-				{
-					rawUserText: steering,
-					priorMessages: msgsBefore,
-					isFirstTurn,
-					priorPretreatment: priorPretreatmentFromLastTurn(
-						lastAssembledTurnRef.current,
-						isFirstTurn,
-					),
-				},
-				buildUiTurnContext({
-					persona: activePersonaRef.current,
-					modules: selectedModulesRef.current,
-					dryRun,
-					emit: (ev) => {
-						const footerHint = activityLineForChatEvent(ev, {
-							personaName: activePersonaRef.current.name,
-						});
-						if (footerHint !== null) {
-							setActivityLine(footerHint);
-						}
-						setTranscript((t) => applyPersistedChatEvent(t, ev));
-					},
-					nextSeq: () => {
-						transcriptLocalSeqRef.current += 1;
-						return transcriptLocalSeqRef.current;
-					},
-					abortSignal: ac.signal,
-					emitPersistLifecycle: false,
-				}),
-				{ stopAfter: "assemble" },
-			);
-			if (prepResult.stage !== "assemble") {
-				throw new Error(
-					`steering: expected assemble stage, got ${prepResult.stage}`,
+			try {
+				const isFirstTurn = !transcriptRef.current.some(
+					(e) => e.kind === "user",
 				);
+				const willPretreat = shouldPretreat(msgsBefore, steering, isFirstTurn);
+				setLoading(true);
+				setActivityLine(
+					willPretreat
+						? "Preparing request..."
+						: formatListeningToPersona(activePersonaRef.current.name),
+				);
+
+				const prepResult = await runChatTurnPipeline(
+					{
+						rawUserText: steering,
+						priorMessages: msgsBefore,
+						isFirstTurn,
+						priorPretreatment: priorPretreatmentFromLastTurn(
+							lastAssembledTurnRef.current,
+							isFirstTurn,
+						),
+					},
+					buildUiTurnContext({
+						persona: activePersonaRef.current,
+						modules: selectedModulesRef.current,
+						dryRun,
+						emit: (ev) => {
+							const footerHint = activityLineForChatEvent(ev, {
+								personaName: activePersonaRef.current.name,
+							});
+							if (footerHint !== null) {
+								setActivityLine(footerHint);
+							}
+							setTranscript((t) => applyPersistedChatEvent(t, ev));
+						},
+						nextSeq: () => {
+							transcriptLocalSeqRef.current += 1;
+							return transcriptLocalSeqRef.current;
+						},
+						abortSignal: ac.signal,
+						emitPersistLifecycle: false,
+					}),
+					{ stopAfter: "assemble" },
+				);
+				throwIfAborted(ac.signal);
+				if (prepResult.stage !== "assemble") {
+					throw new Error(
+						`steering: expected assemble stage, got ${prepResult.stage}`,
+					);
+				}
+				const assembled = prepResult.turn;
+				lastAssembledTurnRef.current = assembled;
+				relevantToolsRef.current = assembled.spec?.relevantTools ?? [];
+				if (assembled.spec?.sessionName?.trim()) {
+					pretreatSessionNameRef.current = assembled.spec.sessionName.trim();
+				}
+
+				const msgsAfter = snapRef.current.messages;
+				if (!msgsAfter) {
+					setLoading(false);
+					return;
+				}
+
+				setMessages(assembled.messages);
+
+				logAttachedSkills(sidFinal, assembled.spec?.relevantSkills ?? []);
+				logToolSelectionNotes(sidFinal, {
+					allToolNames: assembled.toolCatalog.allToolNames,
+					toolIntegrationLabels: assembled.toolCatalog.toolIntegrationLabels,
+					relevantTools: assembled.spec?.relevantTools,
+					pretreatmentRan: assembled.spec !== null,
+				});
+
+				await runModelTurnRef.current(assembled, sidFinal);
+			} catch (e) {
+				if (isAbortError(e)) {
+					setTranscript((t) => [
+						...t,
+						buildTurnCancellationNoticeEntry(sessionIdRef.current),
+					]);
+					setLoading(false);
+					return;
+				}
+				throw e;
 			}
-			const assembled = prepResult.turn;
-			lastAssembledTurnRef.current = assembled;
-			relevantToolsRef.current = assembled.spec?.relevantTools ?? [];
-			if (assembled.spec?.sessionName?.trim()) {
-				pretreatSessionNameRef.current = assembled.spec.sessionName.trim();
-			}
-
-			const msgsAfter = snapRef.current.messages;
-			if (!msgsAfter) {
-				setLoading(false);
-				return;
-			}
-
-			setMessages(assembled.messages);
-
-			logAttachedSkills(sidFinal, assembled.spec?.relevantSkills ?? []);
-			logToolSelectionNotes(sidFinal, {
-				allToolNames: assembled.toolCatalog.allToolNames,
-				toolIntegrationLabels: assembled.toolCatalog.toolIntegrationLabels,
-				relevantTools: assembled.spec?.relevantTools,
-				pretreatmentRan: assembled.spec !== null,
-			});
-
-			await runModelTurnRef.current(assembled, sidFinal);
 		})();
 	}, [loading, dryRun]);
 
@@ -1890,83 +1934,98 @@ export function ChatSessionApp({
 				if (!msgsBefore) {
 					return;
 				}
-				const isFirstTurn = !transcriptRef.current.some(
-					(e) => e.kind === "user",
-				);
-				const willPretreat = shouldPretreat(msgsBefore, line, isFirstTurn);
-				setLoading(true);
-				setActivityLine(
-					willPretreat
-						? "Preparing request…"
-						: formatListeningToPersona(activePersonaRef.current.name),
-				);
-				const submitSeq = () => {
-					transcriptLocalSeqRef.current += 1;
-					return transcriptLocalSeqRef.current;
-				};
-				setTranscript((t) => [...t, { kind: "user", text: line }]);
-				const prepResult = await runChatTurnPipeline(
-					{
-						rawUserText: line,
-						priorMessages: msgsBefore,
-						isFirstTurn,
-						priorPretreatment: priorPretreatmentFromLastTurn(
-							lastAssembledTurnRef.current,
-							isFirstTurn,
-						),
-					},
-					buildUiTurnContext({
-						persona: activePersonaRef.current,
-						modules: selectedModulesRef.current,
-						dryRun,
-						emit: (ev) => {
-							const footerHint = activityLineForChatEvent(ev, {
-								personaName: activePersonaRef.current.name,
-							});
-							if (footerHint !== null) {
-								setActivityLine(footerHint);
-							}
-							setTranscript((t) => applyPersistedChatEvent(t, ev));
-						},
-						nextSeq: submitSeq,
-						abortSignal: ac.signal,
-						emitPersistLifecycle: false,
-					}),
-					{ stopAfter: "assemble" },
-				);
-				if (prepResult.stage !== "assemble") {
-					throw new Error(
-						`submit: expected assemble stage, got ${prepResult.stage}`,
+				try {
+					const isFirstTurn = !transcriptRef.current.some(
+						(e) => e.kind === "user",
 					);
-				}
-				const assembled = prepResult.turn;
-				lastAssembledTurnRef.current = assembled;
-				relevantToolsRef.current = assembled.spec?.relevantTools ?? [];
-				if (assembled.spec?.sessionName?.trim()) {
-					pretreatSessionNameRef.current = assembled.spec.sessionName.trim();
-				}
-				const msgsAfter = snapRef.current.messages;
-				if (!msgsAfter) {
+					const willPretreat = shouldPretreat(msgsBefore, line, isFirstTurn);
+					setLoading(true);
+					setActivityLine(
+						willPretreat
+							? "Preparing request…"
+							: formatListeningToPersona(activePersonaRef.current.name),
+					);
+					const submitSeq = () => {
+						transcriptLocalSeqRef.current += 1;
+						return transcriptLocalSeqRef.current;
+					};
+					setTranscript((t) => [...t, { kind: "user", text: line }]);
+					const prepResult = await runChatTurnPipeline(
+						{
+							rawUserText: line,
+							priorMessages: msgsBefore,
+							isFirstTurn,
+							priorPretreatment: priorPretreatmentFromLastTurn(
+								lastAssembledTurnRef.current,
+								isFirstTurn,
+							),
+						},
+						buildUiTurnContext({
+							persona: activePersonaRef.current,
+							modules: selectedModulesRef.current,
+							dryRun,
+							emit: (ev) => {
+								const footerHint = activityLineForChatEvent(ev, {
+									personaName: activePersonaRef.current.name,
+								});
+								if (footerHint !== null) {
+									setActivityLine(footerHint);
+								}
+								setTranscript((t) => applyPersistedChatEvent(t, ev));
+							},
+							nextSeq: submitSeq,
+							abortSignal: ac.signal,
+							emitPersistLifecycle: false,
+						}),
+						{ stopAfter: "assemble" },
+					);
+					throwIfAborted(ac.signal);
+					if (prepResult.stage !== "assemble") {
+						throw new Error(
+							`submit: expected assemble stage, got ${prepResult.stage}`,
+						);
+					}
+					const assembled = prepResult.turn;
+					lastAssembledTurnRef.current = assembled;
+					relevantToolsRef.current = assembled.spec?.relevantTools ?? [];
+					if (assembled.spec?.sessionName?.trim()) {
+						pretreatSessionNameRef.current = assembled.spec.sessionName.trim();
+					}
+					const msgsAfter = snapRef.current.messages;
+					if (!msgsAfter) {
+						setLoading(false);
+						return;
+					}
+					setMessages(assembled.messages);
+					logSkillDebugNotes(sidFinal, {
+						debug,
+						available: assembled.localSkills,
+						priorMessages: msgsBefore,
+						rawUserText: line,
+						isFirstTurn,
+						spec: assembled.spec,
+					});
+					logAttachedSkills(sidFinal, assembled.spec?.relevantSkills ?? []);
+					logToolSelectionNotes(sidFinal, {
+						allToolNames: assembled.toolCatalog.allToolNames,
+						toolIntegrationLabels: assembled.toolCatalog.toolIntegrationLabels,
+						relevantTools: assembled.spec?.relevantTools,
+						pretreatmentRan: assembled.spec !== null,
+					});
+					await runModelTurnRef.current(assembled, sidFinal);
+				} catch (e) {
+					if (isAbortError(e)) {
+						setTranscript((t) => [
+							...t,
+							buildTurnCancellationNoticeEntry(sessionIdRef.current),
+						]);
+						setLoading(false);
+						return;
+					}
+					const msg = formatChatModelError(e);
+					setTranscript((t) => [...t, { kind: "error", text: msg }]);
 					setLoading(false);
-					return;
 				}
-				setMessages(assembled.messages);
-				logSkillDebugNotes(sidFinal, {
-					debug,
-					available: assembled.localSkills,
-					priorMessages: msgsBefore,
-					rawUserText: line,
-					isFirstTurn,
-					spec: assembled.spec,
-				});
-				logAttachedSkills(sidFinal, assembled.spec?.relevantSkills ?? []);
-				logToolSelectionNotes(sidFinal, {
-					allToolNames: assembled.toolCatalog.allToolNames,
-					toolIntegrationLabels: assembled.toolCatalog.toolIntegrationLabels,
-					relevantTools: assembled.spec?.relevantTools,
-					pretreatmentRan: assembled.spec !== null,
-				});
-				await runModelTurnRef.current(assembled, sidFinal);
 			})();
 		},
 		[

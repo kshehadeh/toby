@@ -24,3 +24,13 @@ export function buildSessionNoticeEntry(
 		? { kind: "notice", text, tone }
 		: { kind: "notice", text };
 }
+
+export const TURN_CANCELLATION_NOTICE = "Cancellation received.";
+
+/** Logs and returns a notice entry for an in-flight turn cancelled by the user. */
+export function buildTurnCancellationNoticeEntry(
+	sessionId: string | null | undefined,
+): Extract<TranscriptEntry, { kind: "notice" }> {
+	recordSessionNote(sessionId, TURN_CANCELLATION_NOTICE);
+	return buildSessionNoticeEntry(TURN_CANCELLATION_NOTICE, "info");
+}
