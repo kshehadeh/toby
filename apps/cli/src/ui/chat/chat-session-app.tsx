@@ -1892,6 +1892,7 @@ export function ChatSessionApp({
 								const outputDir = saveListenSession(session, metadata);
 								const helperPath = handle.helperPath;
 								let transcript = readTranscriptFile(outputDir);
+								let transcriptionError: string | undefined;
 								if (!transcript && savedFiles.combined) {
 									try {
 										const transcriptFiles = await transcribeWithPlugin({
@@ -1911,6 +1912,7 @@ export function ChatSessionApp({
 											transcribeError instanceof Error
 												? transcribeError.message
 												: String(transcribeError);
+										transcriptionError = msg;
 										listenErrorsRef.current = [...listenErrorsRef.current, msg];
 										writeListenMetadata(
 											outputDir,
@@ -1924,7 +1926,7 @@ export function ChatSessionApp({
 										);
 									}
 								}
-								return { outputDir, transcript };
+								return { outputDir, transcript, transcriptionError };
 							} catch (error) {
 								const msg =
 									error instanceof Error ? error.message : String(error);

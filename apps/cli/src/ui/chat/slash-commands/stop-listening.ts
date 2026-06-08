@@ -35,9 +35,12 @@ summarized by asking the AI.`,
 				`[Recording transcript from /listen]\n${result.transcript}`,
 			);
 		} else {
+			const reason = result.transcriptionError
+				? ` Transcription failed: ${result.transcriptionError}`
+				: "";
 			runtime.addNoticeLine(
-				`Transcription not available — audio saved to ${result.outputDir}`,
-				"info",
+				`Transcription not available — audio saved to ${result.outputDir}.${reason}`,
+				result.transcriptionError ? "error" : "info",
 			);
 		}
 	},

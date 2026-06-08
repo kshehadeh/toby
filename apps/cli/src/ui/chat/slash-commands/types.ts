@@ -57,6 +57,7 @@ export interface SlashCommandRuntime {
 	readonly stopListenRecording: (action: "save" | "discard") => Promise<{
 		readonly outputDir: string;
 		readonly transcript?: string;
+		readonly transcriptionError?: string;
 	} | null>;
 	readonly isListenRecording: () => boolean;
 }
