@@ -20,9 +20,11 @@ Shipped as **`toby-plugin-jira`** (Swift). Release installs place it in `~/.toby
 ## Get an API token
 
 1. Open [Atlassian API tokens](https://id.atlassian.com/manage-profile/security/api-tokens).
-2. Choose **Create API token**.
+2. Choose **Create API token** (classic, without scopes — simplest for Toby).
 3. Give the token a name such as `Toby`.
 4. Copy the token and keep it safe until you paste it into Toby.
+
+If your organization requires a **scoped API token** instead, Toby automatically retries via the Atlassian gateway (`api.atlassian.com/ex/jira/{cloudId}`) when the site URL rejects authentication. The token still needs Jira read scopes (for example `read:jira-work`).
 
 Do not commit the token to git. Toby stores it in `~/.toby/credentials.json` and masks it in the configure UI.
 
