@@ -146,6 +146,10 @@ import { buildUsageSections } from "./usage-sections";
 import { buildUiTurnContext } from "./pipeline-turn-context";
 import { appendPromptHistory, loadPromptHistory } from "./prompt-history";
 import { buildSessionNoticeEntry, buildTurnCancellationNoticeEntry, recordSessionNote } from "./session-note";
+import {
+	isFirstSteeringTurn,
+	priorMessagesForSteeringTurn,
+} from "./steering-messages";
 import { logSkillDebugNotes } from "./skill-debug";
 import {
 	SLASH_COMMANDS,
@@ -357,6 +361,7 @@ export function ChatSessionApp({
 	const transcriptRef = useRef(transcript);
 	const ongoingPretreatAbortRef = useRef<AbortController | null>(null);
 	const pendingSteeringPromptRef = useRef<string | null>(null);
+	const inFlightUserPromptRef = useRef<string | null>(null);
 	const [isListenRecording, setIsListenRecording] = useState(false);
 	const listenHandleRef = useRef<
 		import("../../listen/macos/audio-capture").AudioCaptureHandle | null
@@ -1273,10 +1278,10 @@ export function ChatSessionApp({
 		if (loading) return;
 		const steering = pendingSteeringPromptRef.current;
 		if (!steering) return;
-		pendingSteeringPromptRef.current = null;
 
 		const msgs = snapRef.current.messages;
 		if (!msgs) return;
+		pendingSteeringPromptRef.current = null;
 
 		let sid = sessionIdRef.current;
 		if (!sid) {
@@ -1295,11 +1300,21 @@ export function ChatSessionApp({
 			const msgsBefore = snapRef.current.messages;
 			if (!msgsBefore) return;
 
+			const priorMessages = priorMessagesForSteeringTurn(
+				msgsBefore,
+				inFlightUserPromptRef.current,
+			);
+			if (priorMessages.length > msgsBefore.length) {
+				inFlightUserPromptRef.current = null;
+			}
+
 			try {
-				const isFirstTurn = !transcriptRef.current.some(
-					(e) => e.kind === "user",
+				const isFirstTurn = isFirstSteeringTurn(priorMessages);
+				const willPretreat = shouldPretreat(
+					priorMessages,
+					steering,
+					isFirstTurn,
 				);
-				const willPretreat = shouldPretreat(msgsBefore, steering, isFirstTurn);
 				setLoading(true);
 				setActivityLine(
 					willPretreat
@@ -1310,7 +1325,7 @@ export function ChatSessionApp({
 				const prepResult = await runChatTurnPipeline(
 					{
 						rawUserText: steering,
-						priorMessages: msgsBefore,
+						priorMessages,
 						isFirstTurn,
 						priorPretreatment: priorPretreatmentFromLastTurn(
 							lastAssembledTurnRef.current,
@@ -1935,6 +1950,7 @@ export function ChatSessionApp({
 					return;
 				}
 				try {
+					inFlightUserPromptRef.current = line;
 					const isFirstTurn = !transcriptRef.current.some(
 						(e) => e.kind === "user",
 					);
@@ -1997,6 +2013,7 @@ export function ChatSessionApp({
 						return;
 					}
 					setMessages(assembled.messages);
+					inFlightUserPromptRef.current = null;
 					logSkillDebugNotes(sidFinal, {
 						debug,
 						available: assembled.localSkills,
@@ -2015,6 +2032,12 @@ export function ChatSessionApp({
 					await runModelTurnRef.current(assembled, sidFinal);
 				} catch (e) {
 					if (isAbortError(e)) {
+						if (pendingSteeringPromptRef.current) {
+							recordSessionNote(sessionIdRef.current, "Redirecting...");
+							setLoading(false);
+							return;
+						}
+						inFlightUserPromptRef.current = null;
 						setTranscript((t) => [
 							...t,
 							buildTurnCancellationNoticeEntry(sessionIdRef.current),
