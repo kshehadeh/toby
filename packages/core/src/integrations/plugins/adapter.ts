@@ -120,14 +120,22 @@ export function mergePluginConfigPatch(
 }
 
 function namespacedKey(pluginName: string, fieldKey: string): string {
+	const prefix = `${pluginName}.`;
+	if (fieldKey.startsWith(prefix)) {
+		return fieldKey;
+	}
 	return `${pluginName}.${fieldKey}`;
 }
 
 function localKey(pluginName: string, namespaced: string): string {
 	const prefix = `${pluginName}.`;
-	return namespaced.startsWith(prefix)
+	let local = namespaced.startsWith(prefix)
 		? namespaced.slice(prefix.length)
 		: namespaced;
+	if (local.startsWith(prefix)) {
+		local = local.slice(prefix.length);
+	}
+	return local;
 }
 
 function substituteTemplate(
@@ -239,9 +247,7 @@ export function loadPluginMetadata(
 	}
 
 	const capabilities: IntegrationModule["capabilities"] =
-		status.capabilities !== undefined
-			? [...status.capabilities]
-			: ["chat"];
+		status.capabilities !== undefined ? [...status.capabilities] : ["chat"];
 	if (capabilities.includes("chat") && !status.chatModelPrep) {
 		return {
 			error: `Plugin "${status.name}" declares chat capability but status.chatModelPrep is missing`,
@@ -471,10 +477,10 @@ export function createPluginIntegrationModule(
 				ok: failedChecks.length === 0,
 				details:
 					failedChecks.length === 0
-						? statusResult.data.details ??
-							`Successfully authenticated and validated ${toolChecks.length}/${toolChecks.length} tools.`
-						: statusResult.data.details ??
-							`Connected, but ${failedChecks.length}/${toolChecks.length} tool checks failed.`,
+						? (statusResult.data.details ??
+							`Successfully authenticated and validated ${toolChecks.length}/${toolChecks.length} tools.`)
+						: (statusResult.data.details ??
+							`Connected, but ${failedChecks.length}/${toolChecks.length} tool checks failed.`),
 				tools: toolChecks,
 			};
 		},
@@ -539,9 +545,11 @@ export function createPluginIntegrationModule(
 		const block = creds.integrations?.[name];
 		if (!block) return out;
 
+		const prefix = `${name}.`;
 		for (const [key, value] of Object.entries(block)) {
 			if (value === undefined || value === null) continue;
-			out[namespacedKey(name, key)] = String(value);
+			const local = key.startsWith(prefix) ? key.slice(prefix.length) : key;
+			out[namespacedKey(name, local)] = String(value);
 		}
 		return out;
 	}

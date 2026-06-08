@@ -113,12 +113,12 @@ enum TobyPluginWhisper {
 			"ok": true,
 			"fields": [
 				[
-					"key": "whisper.modelPath",
+					"key": "modelPath",
 					"label": "Whisper model path",
 					"type": "string",
 				],
 				[
-					"key": "whisper.language",
+					"key": "language",
 					"label": "Transcription language",
 					"type": "string",
 				],

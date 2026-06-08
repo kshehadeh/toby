@@ -52,9 +52,50 @@ export function migrateLegacyPluginCredentials(): void {
 		});
 	}
 
+	migratePrefixedIntegrationCredentialKeys();
 	migrateLegacyGmailOAuthTokens();
 	migrateBraveSearchToWebSearch();
 	migrateRetiredIntegrations();
+}
+
+/** Normalize plugin credential keys stored as `<name>.<field>` inside integrations.<name>. */
+function migratePrefixedIntegrationCredentialKeys(): void {
+	const creds = readCredentials();
+	const integrations = { ...(creds.integrations ?? {}) };
+	let changed = false;
+
+	for (const [name, block] of Object.entries(integrations)) {
+		if (!block || typeof block !== "object") continue;
+
+		const prefix = `${name}.`;
+		const nextBlock = { ...block };
+		let blockChanged = false;
+
+		for (const [key, value] of Object.entries(block)) {
+			if (!key.startsWith(prefix)) continue;
+			const localKey = key.slice(prefix.length);
+			if (!localKey || nextBlock[localKey] !== undefined) {
+				Reflect.deleteProperty(nextBlock, key);
+				blockChanged = true;
+				continue;
+			}
+			nextBlock[localKey] = value;
+			Reflect.deleteProperty(nextBlock, key);
+			blockChanged = true;
+		}
+
+		if (blockChanged) {
+			integrations[name] = nextBlock;
+			changed = true;
+		}
+	}
+
+	if (changed) {
+		writeCredentials({
+			...creds,
+			integrations,
+		});
+	}
 }
 
 /** Rename legacy bravesearch credentials/config to websearch. */

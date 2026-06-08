@@ -119,19 +119,19 @@ enum TobyPluginJira {
 			"ok": true,
 			"fields": [
 				[
-					"key": "jira.domain",
+					"key": "domain",
 					"label": "Atlassian Domain",
 					"type": "string",
 					"required": true,
 				],
 				[
-					"key": "jira.email",
+					"key": "email",
 					"label": "Email",
 					"type": "string",
 					"required": true,
 				],
 				[
-					"key": "jira.apiToken",
+					"key": "apiToken",
 					"label": "API Token",
 					"type": "string",
 					"required": true,

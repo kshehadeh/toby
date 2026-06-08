@@ -119,7 +119,7 @@ enum TobyPluginWebSearch {
 			"ok": true,
 			"fields": [
 				[
-					"key": "websearch.apiKey",
+					"key": "apiKey",
 					"label": "Brave Search API Key",
 					"type": "string",
 					"required": true,

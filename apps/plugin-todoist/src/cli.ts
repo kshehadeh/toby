@@ -216,7 +216,7 @@ function handleConfigShape(): never {
 		ok: true,
 		fields: [
 			{
-				key: "todoist.apiKey",
+				key: "apiKey",
 				label: "API Key",
 				type: "string",
 				required: true,
