@@ -44,7 +44,9 @@ export interface InboundStatusReporter {
 
 export interface ChatInboundProvider {
 	start(ctx: ChatInboundStartContext): Promise<() => void>;
-	buildInboundPersonaAppendix?(conversation: InboundConversation): string;
+	buildInboundPersonaAppendix?(
+		conversation: InboundConversation,
+	): string | Promise<string>;
 	deliverReply(params: {
 		conversation: InboundConversation;
 		text: string;

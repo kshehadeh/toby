@@ -19,46 +19,9 @@ struct CombineOptions {
 	let system: URL?
 }
 
-struct TranscribeOptions {
-	let input: URL
-	let outDir: URL
-	let whisperCli: URL
-	let model: URL
-	let language: String
-}
-
 enum HelperCommand {
 	case record(RecordOptions)
 	case combine(CombineOptions)
-	case transcribe(TranscribeOptions)
-}
-
-struct TranscriptSegment: Codable {
-	let text: String
-	let timestamp: TimeInterval
-	let duration: TimeInterval
-	let confidence: Float
-	let alternatives: [String]
-}
-
-struct TranscriptPayload: Codable {
-	let text: String
-	let segments: [TranscriptSegment]
-	let sourceAudio: String
-	let createdAt: String
-	let locale: String
-}
-
-struct WhisperJsonSegment: Decodable {
-	let start: TimeInterval?
-	let end: TimeInterval?
-	let text: String?
-}
-
-struct WhisperJsonPayload: Decodable {
-	let text: String?
-	let transcription: [WhisperJsonSegment]?
-	let segments: [WhisperJsonSegment]?
 }
 
 enum HelperError: Error, CustomStringConvertible {
@@ -127,7 +90,7 @@ func parseCommand(_ args: [String]) throws -> HelperCommand {
 	}
 	guard let command = args.first else {
 		throw HelperError.usage(
-			"Usage: toby-audio-helper record --out-dir <dir> --format wav [--mic] [--system] | combine --out-dir <dir> [--mic <path>] [--system <path>] | transcribe --input <audio-file> --out-dir <dir> --whisper-cli <path> --model <path> [--language <code>]"
+			"Usage: toby-audio-helper record --out-dir <dir> --format wav [--mic] [--system] | combine --out-dir <dir> [--mic <path>] [--system <path>]"
 		)
 	}
 	switch command {
@@ -135,8 +98,6 @@ func parseCommand(_ args: [String]) throws -> HelperCommand {
 		return .record(try parseRecordOptions(args))
 	case "combine":
 		return .combine(try parseCombineOptions(args))
-	case "transcribe":
-		return .transcribe(try parseTranscribeOptions(args))
 	default:
 		throw HelperError.usage("Unknown command: \(command)")
 	}
@@ -228,81 +189,6 @@ func parseRecordOptions(_ args: [String]) throws -> RecordOptions {
 		throw HelperError.usage("Only --format wav is currently supported")
 	}
 	return RecordOptions(outDir: outDir, format: format, mic: mic, system: system)
-}
-
-func parseTranscribeOptions(_ args: [String]) throws -> TranscribeOptions {
-	var input: URL?
-	var outDir: URL?
-	var whisperCli: URL?
-	var model: URL?
-	var language = "auto"
-	var index = 1
-	while index < args.count {
-		let arg = args[index]
-		switch arg {
-		case "--input":
-			index += 1
-			guard index < args.count else {
-				throw HelperError.usage("--input requires a path")
-			}
-			input = URL(fileURLWithPath: args[index])
-		case "--out-dir":
-			index += 1
-			guard index < args.count else {
-				throw HelperError.usage("--out-dir requires a path")
-			}
-			outDir = URL(fileURLWithPath: args[index], isDirectory: true)
-		case "--whisper-cli":
-			index += 1
-			guard index < args.count else {
-				throw HelperError.usage("--whisper-cli requires a path")
-			}
-			whisperCli = URL(fileURLWithPath: args[index])
-		case "--model":
-			index += 1
-			guard index < args.count else {
-				throw HelperError.usage("--model requires a path")
-			}
-			model = URL(fileURLWithPath: args[index])
-		case "--language":
-			index += 1
-			guard index < args.count else {
-				throw HelperError.usage("--language requires a value")
-			}
-			language = args[index]
-		default:
-			throw HelperError.usage("Unknown argument: \(arg)")
-		}
-		index += 1
-	}
-	guard let input else {
-		throw HelperError.usage("--input is required")
-	}
-	guard FileManager.default.fileExists(atPath: input.path) else {
-		throw HelperError.usage("Input audio file does not exist: \(input.path)")
-	}
-	guard let outDir else {
-		throw HelperError.usage("--out-dir is required")
-	}
-	guard let whisperCli else {
-		throw HelperError.usage("--whisper-cli is required")
-	}
-	guard FileManager.default.isExecutableFile(atPath: whisperCli.path) else {
-		throw HelperError.usage("whisper-cli is not executable: \(whisperCli.path)")
-	}
-	guard let model else {
-		throw HelperError.usage("--model is required")
-	}
-	guard FileManager.default.fileExists(atPath: model.path) else {
-		throw HelperError.usage("Whisper model does not exist: \(model.path)")
-	}
-	return TranscribeOptions(
-		input: input,
-		outDir: outDir,
-		whisperCli: whisperCli,
-		model: model,
-		language: language
-	)
 }
 
 func requestMicrophonePermission() async throws {
@@ -533,212 +419,6 @@ func publishFile(from sourceURL: URL, to destinationURL: URL) throws {
 	}
 }
 
-func atomicWriteData(_ data: Data, to destinationURL: URL) throws {
-	let partialURL = destinationURL.deletingLastPathComponent().appendingPathComponent(
-		".\(destinationURL.deletingPathExtension().lastPathComponent).\(UUID().uuidString).partial.\(destinationURL.pathExtension)"
-	)
-	defer {
-		if FileManager.default.fileExists(atPath: partialURL.path) {
-			try? FileManager.default.removeItem(at: partialURL)
-		}
-	}
-	try data.write(to: partialURL, options: .atomic)
-	try publishFile(from: partialURL, to: destinationURL)
-}
-
-func isoTimestamp(_ date: Date = Date()) -> String {
-	let formatter = ISO8601DateFormatter()
-	formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-	return formatter.string(from: date)
-}
-
-func whisperOutputSettings() -> [String: Any] {
-	[
-		AVFormatIDKey: kAudioFormatLinearPCM,
-		AVSampleRateKey: 16_000,
-		AVNumberOfChannelsKey: 1,
-		AVLinearPCMBitDepthKey: 16,
-		AVLinearPCMIsFloatKey: false,
-		AVLinearPCMIsBigEndianKey: false,
-		AVLinearPCMIsNonInterleaved: false,
-	]
-}
-
-func exportWhisperCompatibleWav(from inputURL: URL, to outputURL: URL) async throws {
-	let asset = AVURLAsset(url: inputURL)
-	guard let track = try await asset.loadTracks(withMediaType: .audio).first else {
-		throw HelperError.runtime("No audio track found in \(inputURL.lastPathComponent)")
-	}
-
-	let reader = try AVAssetReader(asset: asset)
-	let outputSettings = whisperOutputSettings()
-	let readerOutput = AVAssetReaderTrackOutput(track: track, outputSettings: outputSettings)
-	readerOutput.alwaysCopiesSampleData = false
-	guard reader.canAdd(readerOutput) else {
-		throw HelperError.runtime("Could not configure audio reader")
-	}
-	reader.add(readerOutput)
-
-	if FileManager.default.fileExists(atPath: outputURL.path) {
-		try FileManager.default.removeItem(at: outputURL)
-	}
-	let writer = try AVAssetWriter(outputURL: outputURL, fileType: .wav)
-	let writerInput = AVAssetWriterInput(mediaType: .audio, outputSettings: outputSettings)
-	writerInput.expectsMediaDataInRealTime = false
-	guard writer.canAdd(writerInput) else {
-		throw HelperError.runtime("Could not configure audio writer")
-	}
-	writer.add(writerInput)
-
-	guard reader.startReading() else {
-		throw HelperError.runtime(reader.error?.localizedDescription ?? "Could not start reading audio")
-	}
-	guard writer.startWriting() else {
-		throw HelperError.runtime(writer.error?.localizedDescription ?? "Could not start writing audio")
-	}
-	writer.startSession(atSourceTime: .zero)
-
-	while reader.status == .reading {
-		if writerInput.isReadyForMoreMediaData {
-			guard let sampleBuffer = readerOutput.copyNextSampleBuffer() else {
-				writerInput.markAsFinished()
-				break
-			}
-			guard writerInput.append(sampleBuffer) else {
-				throw HelperError.runtime(writer.error?.localizedDescription ?? "Could not append audio sample")
-			}
-		}
-	}
-
-	await withCheckedContinuation { continuation in
-		writer.finishWriting {
-			continuation.resume()
-		}
-	}
-
-	if reader.status == .failed {
-		throw HelperError.runtime(reader.error?.localizedDescription ?? "Audio read failed")
-	}
-	if writer.status != .completed {
-		throw HelperError.runtime(writer.error?.localizedDescription ?? "Audio export failed")
-	}
-}
-
-func transcriptPayload(from whisper: WhisperJsonPayload, sourceAudio: URL) -> TranscriptPayload {
-	let segmentSource = whisper.transcription ?? whisper.segments ?? []
-	let segments = segmentSource.map { segment in
-		let start = segment.start ?? 0
-		let end = segment.end ?? start
-		return TranscriptSegment(
-			text: (segment.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines),
-			timestamp: start,
-			duration: max(0, end - start),
-			confidence: 0,
-			alternatives: []
-		)
-	}
-	let text =
-		whisper.text?.trimmingCharacters(in: .whitespacesAndNewlines)
-		?? segments.map(\.text).filter { !$0.isEmpty }.joined(separator: " ")
-	return TranscriptPayload(
-		text: text,
-		segments: segments,
-		sourceAudio: sourceAudio.path,
-		createdAt: isoTimestamp(),
-		locale: Locale.current.identifier
-	)
-}
-
-func runWhisperCli(
-	options: TranscribeOptions,
-	inputURL: URL,
-	outputPrefix: URL
-) throws -> WhisperJsonPayload {
-	var args = [
-		"-m", options.model.path,
-		"-f", inputURL.path,
-		"-oj",
-		"-of", outputPrefix.path,
-	]
-	if options.language != "auto" {
-		args.append(contentsOf: ["-l", options.language])
-	}
-
-	let stderrPipe = Pipe()
-	let process = Process()
-	process.executableURL = options.whisperCli
-	process.arguments = args
-	process.standardOutput = FileHandle.nullDevice
-	process.standardError = stderrPipe
-	if #available(macOS 10.15, *) {
-		process.qualityOfService = .background
-	}
-	try process.run()
-	process.waitUntilExit()
-
-	let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-	let stderrText = String(data: stderrData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-
-	guard process.terminationStatus == 0 else {
-		throw HelperError.runtime(
-			stderrText.isEmpty
-				? "whisper-cli exited with status \(process.terminationStatus)"
-				: stderrText
-		)
-	}
-
-	let jsonURL = URL(fileURLWithPath: outputPrefix.path + ".json")
-	guard FileManager.default.fileExists(atPath: jsonURL.path) else {
-		throw HelperError.runtime("whisper-cli did not produce JSON output")
-	}
-	let data = try Data(contentsOf: jsonURL)
-	return try JSONDecoder().decode(WhisperJsonPayload.self, from: data)
-}
-
-func transcribeAudio(_ options: TranscribeOptions) async throws -> [String: String] {
-	try FileManager.default.createDirectory(
-		at: options.outDir,
-		withIntermediateDirectories: true
-	)
-
-	let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(
-		"TobyWhisperTranscribe-\(UUID().uuidString)",
-		isDirectory: true
-	)
-	try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-	defer {
-		try? FileManager.default.removeItem(at: tempDir)
-	}
-
-	JSONEvent.status("preparing audio for transcription")
-	let whisperInputURL = tempDir.appendingPathComponent("whisper-input.wav")
-	try await exportWhisperCompatibleWav(from: options.input, to: whisperInputURL)
-
-	JSONEvent.status("transcribing audio")
-	let outputPrefix = tempDir.appendingPathComponent("whisper-output")
-	let whisperPayload = try runWhisperCli(
-		options: options,
-		inputURL: whisperInputURL,
-		outputPrefix: outputPrefix
-	)
-	let payload = transcriptPayload(from: whisperPayload, sourceAudio: options.input)
-
-	let textURL = options.outDir.appendingPathComponent("transcript.txt")
-	let jsonURL = options.outDir.appendingPathComponent("transcript.json")
-	let encoder = JSONEncoder()
-	encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-	let jsonData = try encoder.encode(payload)
-	guard let textData = payload.text.appending("\n").data(using: .utf8) else {
-		throw HelperError.runtime("Could not encode transcript text")
-	}
-	try atomicWriteData(textData, to: textURL)
-	try atomicWriteData(jsonData, to: jsonURL)
-	return [
-		"transcript": textURL.path,
-		"transcriptJson": jsonURL.path,
-	]
-}
-
 func exportCombinedAudio(files: [String: String], outDir: URL) async throws -> String? {
 	let sourceURLs = ["mic", "system"]
 		.compactMap { files[$0] }
@@ -893,20 +573,6 @@ func runCombine(_ options: CombineOptions) async -> Int32 {
 	}
 }
 
-func runTranscribe(_ options: TranscribeOptions) async -> Int32 {
-	do {
-		let files = try await transcribeAudio(options)
-		JSONEvent.emit([
-			"type": "transcribed",
-			"files": files,
-		])
-		return 0
-	} catch {
-		JSONEvent.error(code: "transcribe_failed", "\(error)")
-		return 1
-	}
-}
-
 @main
 enum TobyAudioHelper {
 	static func main() async {
@@ -918,8 +584,6 @@ enum TobyAudioHelper {
 				code = await runRecord(options)
 			case let .combine(options):
 				code = await runCombine(options)
-			case let .transcribe(options):
-				code = await runTranscribe(options)
 			}
 			exit(code)
 		} catch {

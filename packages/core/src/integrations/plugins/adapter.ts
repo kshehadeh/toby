@@ -246,6 +246,20 @@ export function loadPluginMetadata(
 		};
 	}
 
+	if (capabilities.includes("transcription")) {
+		const toolsResult = pluginToolsList(discovered.binaryPath);
+		const toolNames =
+			toolsResult.ok && toolsResult.data.ok && toolsResult.data.tools
+				? toolsResult.data.tools.map((tool) => tool.name)
+				: [];
+		if (!toolNames.includes("doTranscription")) {
+			return {
+				error: `Plugin "${status.name}" declares transcription capability but tools list is missing doTranscription`,
+				code: "missing_do_transcription",
+			};
+		}
+	}
+
 	return {
 		binaryPath: discovered.binaryPath,
 		name: status.name,
@@ -663,7 +677,13 @@ export function createPluginIntegrationModule(
 					chatInbound: createPluginChatInboundProvider({
 						binaryPath,
 						integrationName: name,
-						buildEnvelope: () => buildEnvelope(name),
+						buildEnvelope: () => {
+							const envelope = buildEnvelope(name);
+							return {
+								config: envelope.config ?? {},
+								state: envelope.state ?? {},
+							};
+						},
 					}),
 				}
 			: {}),

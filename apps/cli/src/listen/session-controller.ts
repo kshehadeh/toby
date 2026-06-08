@@ -164,6 +164,36 @@ export function writeListenMetadata(
 	fs.writeFileSync(metadataPath(dir), `${JSON.stringify(metadata, null, 2)}\n`);
 }
 
+/** Map capture file paths from the temp session dir to the final recording dir. */
+export function remapListenFilesToFinalDir(
+	session: ListenSession,
+	files: ListenRecordingFiles,
+): ListenRecordingFiles {
+	const remap = (filePath?: string): string | undefined => {
+		if (!filePath) return undefined;
+		const normalizedTemp = `${session.tempDir}${path.sep}`;
+		if (filePath.startsWith(normalizedTemp)) {
+			return path.join(
+				session.finalDir,
+				path.relative(session.tempDir, filePath),
+			);
+		}
+		if (path.isAbsolute(filePath)) {
+			return filePath;
+		}
+		return path.join(session.finalDir, filePath);
+	};
+
+	return {
+		mic: remap(files.mic),
+		system: remap(files.system),
+		combined:
+			remap(files.combined) ?? path.join(session.finalDir, "combined.m4a"),
+		transcript: remap(files.transcript),
+		transcriptJson: remap(files.transcriptJson),
+	};
+}
+
 export function saveListenSession(
 	session: ListenSession,
 	metadata: ListenRecordingMetadata,

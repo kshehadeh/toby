@@ -7,7 +7,7 @@ import {
 	metadataPath,
 	writeListenMetadata,
 } from "../listen/session-controller";
-import { transcribeWithWhisperCpp } from "../listen/transcription";
+import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
 import type {
 	ListenRecordingFiles,
 	ListenRecordingMetadata,
@@ -168,10 +168,9 @@ async function transcribeListenRecordingFolder(params: {
 	if (!combinedFiles.combined) {
 		throw new Error(`No combined audio file found in ${recordingDir}.`);
 	}
-	const files = await transcribeWithWhisperCpp({
+	const files = await transcribeWithPlugin({
 		input: combinedFiles.combined,
 		outDir: recordingDir,
-		helperPath: params.helperPath,
 		onStatus: (message) => {
 			onEvent({ type: "status", message });
 			console.log(message);

@@ -29,7 +29,7 @@ export type TestConnectionOptions = {
 };
 
 /** Capabilities an integration may expose for the resource center / CLI. */
-export type IntegrationCapability = "chat" | "inbound";
+export type IntegrationCapability = "chat" | "inbound" | "transcription";
 
 /** Provider categories an integration may belong to (used for default-provider selection). */
 export type ProviderCategory =
@@ -39,7 +39,8 @@ export type ProviderCategory =
 	| "contacts"
 	| "chat"
 	| "search"
-	| "work_tracker";
+	| "work_tracker"
+	| "transcription";
 
 export const PROVIDER_CATEGORY_LABELS: Record<ProviderCategory, string> = {
 	email: "Email Provider",
@@ -49,6 +50,7 @@ export const PROVIDER_CATEGORY_LABELS: Record<ProviderCategory, string> = {
 	chat: "Chat Provider",
 	search: "Search Provider",
 	work_tracker: "Work Tracker",
+	transcription: "Transcription Provider",
 };
 
 export const ALL_PROVIDER_CATEGORIES: readonly ProviderCategory[] = [
@@ -59,6 +61,7 @@ export const ALL_PROVIDER_CATEGORIES: readonly ProviderCategory[] = [
 	"chat",
 	"search",
 	"work_tracker",
+	"transcription",
 ];
 
 /** Single credential field shown in configure UI (flat key namespace). */

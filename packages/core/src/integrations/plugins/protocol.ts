@@ -166,6 +166,8 @@ export interface PluginSetupActionResult {
 
 export interface PluginSetupResponse {
 	readonly ok: boolean;
+	readonly reason?: string;
+	readonly config?: Record<string, unknown>;
 	readonly actions?: readonly PluginSetupActionResult[];
 	readonly error?: string;
 	readonly code?: string;

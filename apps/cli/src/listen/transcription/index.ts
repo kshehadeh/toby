@@ -1,4 +1,4 @@
 export {
 	ListenTranscriptionError,
-	transcribeWithWhisperCpp,
-} from "./whisper-cpp";
+	transcribeWithPlugin,
+} from "@toby/core/listen/transcription-plugin";

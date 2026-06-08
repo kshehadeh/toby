@@ -7,16 +7,16 @@ import {
 	writeConfig,
 	writeCredentials,
 } from "../config/index";
-import { getIntegrationModules } from "../integrations/index";
+import {
+	getIntegrationModules,
+	getModulesWithCapability,
+} from "../integrations/index";
 import {
 	ALL_PROVIDER_CATEGORIES,
 	type ProviderCategory,
 } from "../integrations/types";
+import { migrateListenWhisperConfig } from "../listen/transcription-plugin";
 import type { ListenConfig } from "../listen/whisper-config";
-import {
-	resolveDefaultWhisperModelPath,
-	resolveWhisperCliInstallTarget,
-} from "../listen/whisper-config";
 import { listSchedules, updateSchedule } from "../schedules/store";
 import { loadLocalSkills } from "../skills/index";
 import { updateSkillFrontmatter } from "../skills/manage";
@@ -85,6 +85,7 @@ export interface SeedConfigureValuesOptions {
 export function seedConfigureValues(
 	options: SeedConfigureValuesOptions = {},
 ): Record<string, string> {
+	migrateListenWhisperConfig();
 	const creds = readCredentials();
 	const config = readConfig();
 	const values: Record<string, string> = {};
@@ -123,14 +124,15 @@ export function seedConfigureValues(
 		config.chatInbound?.integration?.trim() || "(none)";
 	values["chatInbound.persona"] =
 		config.chatInbound?.persona?.trim() || "(default)";
-	values["listen.whisperCpp.binaryPath"] =
-		config.listen?.whisperCpp?.binaryPath?.trim() ||
-		resolveWhisperCliInstallTarget();
-	values["listen.whisperCpp.modelPath"] =
-		config.listen?.whisperCpp?.modelPath?.trim() ||
-		resolveDefaultWhisperModelPath();
-	values["listen.whisperCpp.language"] =
-		config.listen?.whisperCpp?.language?.trim() || "auto";
+	const transcriptionPlugins = getModulesWithCapability("transcription");
+	const transcriptionPlugin =
+		config.listen?.transcriptionPlugin?.trim() ||
+		config.defaultProviders?.transcription ||
+		(transcriptionPlugins.length === 1
+			? transcriptionPlugins[0]?.name
+			: undefined) ||
+		"(none)";
+	values["listen.transcriptionPlugin"] = transcriptionPlugin;
 
 	for (const mod of getIntegrationModules()) {
 		if (!mod.chatInbound) continue;
@@ -163,15 +165,13 @@ export function redactConfigureValues(
 export function rebuildListenConfig(
 	values: Record<string, string>,
 ): ListenConfig {
-	const binaryPath = values["listen.whisperCpp.binaryPath"]?.trim();
-	const modelPath = values["listen.whisperCpp.modelPath"]?.trim();
-	const language = values["listen.whisperCpp.language"]?.trim() || "auto";
+	const transcriptionPluginRaw = values["listen.transcriptionPlugin"]?.trim();
+	const transcriptionPlugin =
+		transcriptionPluginRaw && transcriptionPluginRaw !== "(none)"
+			? transcriptionPluginRaw
+			: undefined;
 	return {
-		whisperCpp: {
-			...(binaryPath ? { binaryPath } : {}),
-			...(modelPath ? { modelPath } : {}),
-			language,
-		},
+		...(transcriptionPlugin ? { transcriptionPlugin } : {}),
 	};
 }
 

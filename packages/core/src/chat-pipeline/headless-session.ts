@@ -30,14 +30,14 @@ export type HeadlessTurnResult = {
 	readonly deliveredViaTools: boolean;
 };
 
-function buildInboundPersona(
+async function buildInboundPersona(
 	persona: Persona,
 	provider: ChatInboundProvider | undefined,
 	conversation: InboundConversation | undefined,
-): Persona {
+): Promise<Persona> {
 	let appendix = INBOUND_PERSONA_APPENDIX_BASE;
 	if (provider && conversation && provider.buildInboundPersonaAppendix) {
-		appendix += provider.buildInboundPersonaAppendix(conversation);
+		appendix += await provider.buildInboundPersonaAppendix(conversation);
 	}
 	return {
 		...persona,
@@ -125,7 +125,11 @@ export async function runHeadlessChatTurn(params: {
 	const priorPretreatment = isFirstTurn
 		? undefined
 		: (getSessionLastPretreatment(sessionId) ?? undefined);
-	const inboundPersona = buildInboundPersona(persona, provider, conversation);
+	const inboundPersona = await buildInboundPersona(
+		persona,
+		provider,
+		conversation,
+	);
 
 	let seq = 0;
 	const eventSink = createHeadlessEventSink(onProgress, inboundPersona.name);

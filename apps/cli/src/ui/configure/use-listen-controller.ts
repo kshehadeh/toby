@@ -13,12 +13,13 @@ import {
 	deleteListenRecording,
 	discardListenSession,
 	prepareListenSession,
+	remapListenFilesToFinalDir,
 	saveListenSession,
 	updateListenRecordingMetadata,
 	writeListenMetadata,
 } from "../../listen/session-controller";
 import type { ListenRecordingSummary } from "../../listen/session-controller";
-import { transcribeWithWhisperCpp } from "../../listen/transcription";
+import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
 import type {
 	ListenRecordingFiles,
 	ListenSourceSelection,
@@ -194,9 +195,13 @@ export function useListenController(
 					});
 					return;
 				}
+				const savedFiles = remapListenFilesToFinalDir(
+					session,
+					filesRef.current,
+				);
 				const metadata = buildListenMetadata({
 					session,
-					files: filesRef.current,
+					files: savedFiles,
 					stoppedAt: new Date(),
 					helperPath: handle?.helperPath ?? helperPath,
 					helperVersion: helperVersionRef.current,
@@ -204,18 +209,17 @@ export function useListenController(
 				});
 				const outputDir = saveListenSession(session, metadata);
 				try {
-					if (filesRef.current.combined) {
+					if (savedFiles.combined) {
 						setListenStatusMessage("Transcribing recording…");
-						const transcriptFiles = await transcribeWithWhisperCpp({
-							input: filesRef.current.combined,
+						const transcriptFiles = await transcribeWithPlugin({
+							input: savedFiles.combined,
 							outDir: outputDir,
-							helperPath: handle?.helperPath ?? helperPath,
 							onStatus: (message) => setListenStatusMessage(message),
 						});
 						writeListenMetadata(
 							outputDir,
 							applyTranscriptFilesToMetadata(metadata, {
-								...filesRef.current,
+								...savedFiles,
 								...transcriptFiles,
 							}),
 						);
@@ -227,7 +231,7 @@ export function useListenController(
 						outputDir,
 						buildListenMetadata({
 							session,
-							files: filesRef.current,
+							files: savedFiles,
 							stoppedAt: new Date(),
 							helperPath: handle?.helperPath ?? helperPath,
 							helperVersion: helperVersionRef.current,

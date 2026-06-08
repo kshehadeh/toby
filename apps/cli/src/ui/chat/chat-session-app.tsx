@@ -97,10 +97,11 @@ import {
 	buildListenMetadata,
 	discardListenSession,
 	prepareListenSession,
+	remapListenFilesToFinalDir,
 	saveListenSession,
 	writeListenMetadata,
 } from "../../listen/session-controller";
-import { transcribeWithWhisperCpp } from "../../listen/transcription";
+import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
 import { isDaemonRunning } from "../../schedules/daemon-status";
 import type { LaunchContext } from "../../toby-launch-context";
 import { ConfigureApp } from "../configure/App";
@@ -1786,9 +1787,13 @@ export function ChatSessionApp({
 									discardListenSession(session);
 									return null;
 								}
+								const savedFiles = remapListenFilesToFinalDir(
+									session,
+									listenFilesRef.current,
+								);
 								const metadata = buildListenMetadata({
 									session,
-									files: listenFilesRef.current,
+									files: savedFiles,
 									stoppedAt: new Date(),
 									helperVersion: listenHelperVersionRef.current,
 									errors: listenErrorsRef.current,
@@ -1796,17 +1801,16 @@ export function ChatSessionApp({
 								const outputDir = saveListenSession(session, metadata);
 								const helperPath = handle.helperPath;
 								let transcript = readTranscriptFile(outputDir);
-								if (!transcript && listenFilesRef.current.combined) {
+								if (!transcript && savedFiles.combined) {
 									try {
-										const transcriptFiles = await transcribeWithWhisperCpp({
-											input: listenFilesRef.current.combined,
+										const transcriptFiles = await transcribeWithPlugin({
+											input: savedFiles.combined,
 											outDir: outputDir,
-											helperPath,
 										});
 										writeListenMetadata(
 											outputDir,
 											applyTranscriptFilesToMetadata(metadata, {
-												...listenFilesRef.current,
+												...savedFiles,
 												...transcriptFiles,
 											}),
 										);
@@ -1821,7 +1825,7 @@ export function ChatSessionApp({
 											outputDir,
 											buildListenMetadata({
 												session,
-												files: listenFilesRef.current,
+												files: savedFiles,
 												stoppedAt: new Date(),
 												helperVersion: listenHelperVersionRef.current,
 												errors: listenErrorsRef.current,

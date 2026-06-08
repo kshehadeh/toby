@@ -56,7 +56,7 @@ export function getPluginsDir(): string {
 	return path.join(resolveTobyDir(), "plugins");
 }
 
-/** Bundled native helper binaries: `~/.toby/helpers/toby-listener`, `whisper-cli`. */
+/** Bundled native helper binaries: `~/.toby/helpers/toby-listener`. */
 export function getHelpersDir(): string {
 	return path.join(resolveTobyDir(), "helpers");
 }
@@ -68,7 +68,6 @@ export type {
 export {
 	getWhisperModelsDir,
 	resolveDefaultWhisperModelPath,
-	resolveWhisperCliInstallTarget,
 	resolveWhisperCppConfig,
 } from "../listen/whisper-config";
 export {

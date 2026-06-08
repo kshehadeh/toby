@@ -61,16 +61,6 @@ export interface CombineWithMacOSAudioHelperOptions {
 	readonly onEvent?: (event: AudioHelperEvent) => void;
 }
 
-export interface TranscribeWithMacOSAudioHelperOptions {
-	readonly input: string;
-	readonly outDir: string;
-	readonly whisperCli: string;
-	readonly model: string;
-	readonly language: string;
-	readonly helperPath?: string;
-	readonly onEvent?: (event: AudioHelperEvent) => void;
-}
-
 export class ListenCaptureError extends Error {
 	readonly code: string;
 
@@ -150,22 +140,6 @@ function combineArgs(options: CombineWithMacOSAudioHelperOptions): string[] {
 	if (options.mic) args.push("--mic", options.mic);
 	if (options.system) args.push("--system", options.system);
 	return args;
-}
-
-function transcribeArgs(options: TranscribeWithMacOSAudioHelperOptions): string[] {
-	return [
-		"transcribe",
-		"--input",
-		options.input,
-		"--out-dir",
-		options.outDir,
-		"--whisper-cli",
-		options.whisperCli,
-		"--model",
-		options.model,
-		"--language",
-		options.language,
-	];
 }
 
 function requireAudioHelperPath(explicitPath?: string): string {
@@ -285,63 +259,6 @@ export function combineWithMacOSAudioHelper(
 			reject(
 				new ListenCaptureError(
 					"combine_failed",
-					errors.at(-1) ??
-						`Audio helper exited with status ${code ?? "unknown"}.`,
-				),
-			);
-		});
-	});
-}
-
-export function transcribeWithMacOSAudioHelper(
-	options: TranscribeWithMacOSAudioHelperOptions,
-): Promise<ListenRecordingFiles> {
-	if (!isMacOSListenSupported()) {
-		throw new ListenCaptureError(
-			"unsupported_platform",
-			"`toby listen transcribe` is currently supported on macOS only.",
-		);
-	}
-	const helperPath = requireAudioHelperPath(options.helperPath);
-	const child = spawn(helperPath, transcribeArgs(options), {
-		stdio: ["ignore", "pipe", "pipe"],
-	});
-
-	return new Promise((resolve, reject) => {
-		let stdoutBuffer = "";
-		let files: ListenRecordingFiles = {};
-		const errors: string[] = [];
-		child.stdout.on("data", (chunk) => {
-			stdoutBuffer += chunk.toString("utf8");
-			const lines = stdoutBuffer.split(/\r?\n/);
-			stdoutBuffer = lines.pop() ?? "";
-			for (const line of lines) {
-				const event = parseAudioHelperEvent(line);
-				if (!event) continue;
-				options.onEvent?.(event);
-				if ("files" in event && event.files) {
-					files = { ...files, ...event.files };
-				}
-				if (event.type === "error") {
-					errors.push(event.message);
-				}
-			}
-		});
-		child.stderr.on("data", (chunk) => {
-			const message = chunk.toString("utf8").trim();
-			if (message) {
-				options.onEvent?.({ type: "status", message });
-			}
-		});
-		child.on("error", reject);
-		child.on("exit", (code) => {
-			if (code === 0) {
-				resolve(files);
-				return;
-			}
-			reject(
-				new ListenCaptureError(
-					"transcribe_failed",
 					errors.at(-1) ??
 						`Audio helper exited with status ${code ?? "unknown"}.`,
 				),

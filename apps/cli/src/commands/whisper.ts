@@ -1,8 +1,9 @@
 import process from "node:process";
 import {
-	ensureWhisperTranscriptionAssets,
-	getWhisperAssetStatus,
-} from "@toby/core/listen/whisper-assets";
+	ensureWhisperPluginSetup,
+	isTranscriptionAvailable,
+} from "@toby/core/listen/transcription-plugin";
+import { getWhisperAssetStatus } from "@toby/core/listen/whisper-assets";
 import { resolveWhisperCppConfig } from "@toby/core/listen/whisper-config";
 import chalk from "chalk";
 import type { Command } from "commander";
@@ -17,28 +18,31 @@ function log(message: string, quiet?: boolean): void {
 	console.log(message);
 }
 
+function deprecationNotice(): void {
+	process.stderr.write(
+		"Note: `toby whisper` is deprecated. Use `toby plugins setup whisper` and configure under Plugins → whisper.\n",
+	);
+}
+
 export function registerWhisperCommand(program: Command): void {
 	const whisper = program
 		.command("whisper")
-		.description("Manage local whisper.cpp transcription assets");
+		.description(
+			"Manage local whisper.cpp transcription assets (deprecated — use plugins setup whisper)",
+		);
 
 	whisper
 		.command("setup")
-		.description(
-			"Install whisper-cli and download the default transcription model",
-		)
+		.description("Download the default whisper.cpp transcription model")
 		.option("--force", "Re-download the model even if it already exists")
 		.option("--quiet", "Suppress progress output")
-		.action(async (options: WhisperSetupOptions) => {
+		.action((options: WhisperSetupOptions) => {
+			deprecationNotice();
 			try {
-				const result = await ensureWhisperTranscriptionAssets({
-					forceModel: options.force,
-					onProgress: (message) => log(message, options.quiet),
-				});
+				ensureWhisperPluginSetup({ forceModel: options.force });
+				const result = getWhisperAssetStatus();
 				log(
-					chalk.green(
-						`Whisper ready.\n  CLI: ${result.whisperCliPath}\n  Model: ${result.modelPath}`,
-					),
+					chalk.green(`Whisper ready.\n  Model: ${result.modelPath}`),
 					options.quiet,
 				);
 			} catch (error) {
@@ -54,19 +58,20 @@ export function registerWhisperCommand(program: Command): void {
 
 	whisper
 		.command("status")
-		.description("Show whisper-cli and model installation status")
+		.description("Show whisper model installation status")
 		.action(() => {
+			deprecationNotice();
 			const status = getWhisperAssetStatus();
 			const config = resolveWhisperCppConfig();
 			console.log(
-				`whisper-cli: ${status.whisperCliInstalled ? "ready" : "missing"}`,
+				`transcription plugin: ${isTranscriptionAvailable() ? "available" : "missing"}`,
 			);
-			console.log(`  path: ${status.whisperCliPath}`);
+			console.log(`engine: embedded in toby-plugin-whisper`);
 			console.log(`model: ${status.modelInstalled ? "ready" : "missing"}`);
 			console.log(`  path: ${status.modelPath}`);
 			console.log(`language: ${config.language}`);
-			if (!status.whisperCliInstalled || !status.modelInstalled) {
-				console.log("\nRun: toby whisper setup");
+			if (!status.modelInstalled) {
+				console.log("\nRun: toby plugins setup whisper");
 			}
 		});
 }

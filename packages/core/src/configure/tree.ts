@@ -3,16 +3,13 @@ import { getDefaultPersonaName, getSkillsDir } from "../config/index";
 import {
 	getIntegrationModules,
 	getModulesForCategory,
+	getModulesWithCapability,
 } from "../integrations/index";
 import {
 	ALL_PROVIDER_CATEGORIES,
 	PROVIDER_CATEGORY_LABELS,
 	type ProviderCategory,
 } from "../integrations/types";
-import {
-	resolveDefaultWhisperModelPath,
-	resolveWhisperCliInstallTarget,
-} from "../listen/whisper-config";
 import { DEFAULT_CHAT_PERSONA } from "../personas/index";
 import { cronToHuman } from "../schedules/cron-human";
 import { listScheduleRuns, listSchedules } from "../schedules/store";
@@ -475,29 +472,37 @@ export function buildSettingsTree(
 		}),
 	);
 
+	const transcriptionPlugins = getModulesWithCapability("transcription");
+	const transcriptionPluginChoices = [
+		{ value: "(none)", label: "None" },
+		...transcriptionPlugins.map((mod) => ({
+			value: mod.name,
+			label: mod.displayName,
+		})),
+	];
 	const listenSection: SettingsItem = {
 		label: "Listen",
 		kind: "section",
 		key: "listen",
 		children: [
 			{
-				label: "Whisper CLI path",
-				kind: "value",
-				key: "listen.whisperCpp.binaryPath",
-				currentValue: values["listen.whisperCpp.binaryPath"],
+				label: "Transcription provider",
+				kind: "select",
+				key: "listen.transcriptionPlugin",
+				options: ["(none)", ...transcriptionPlugins.map((mod) => mod.name)],
+				selectChoices: transcriptionPluginChoices,
+				currentValue: values["listen.transcriptionPlugin"] ?? "(none)",
 			},
-			{
-				label: "Whisper model path",
-				kind: "value",
-				key: "listen.whisperCpp.modelPath",
-				currentValue: values["listen.whisperCpp.modelPath"],
-			},
-			{
-				label: "Transcription language",
-				kind: "value",
-				key: "listen.whisperCpp.language",
-				currentValue: values["listen.whisperCpp.language"] ?? "auto",
-			},
+			...(values["listen.transcriptionPlugin"] === "whisper"
+				? [
+						{
+							label:
+								"Configure whisper paths under Plugins → whisper in the category tree.",
+							kind: "hint" as const,
+							key: "listen._whisperHint",
+						},
+					]
+				: []),
 			{
 				label: "Start new recording",
 				kind: "action",

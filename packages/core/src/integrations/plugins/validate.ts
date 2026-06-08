@@ -43,5 +43,17 @@ export function validatePluginBinary(
 		};
 	}
 
+	if (
+		inspected.capabilities.includes("transcription") &&
+		!tools.data.tools?.some((tool) => tool.name === "doTranscription")
+	) {
+		return {
+			ok: false,
+			error: `Plugin "${inspected.name}" declares transcription capability but tools list is missing doTranscription`,
+			code: "missing_do_transcription",
+			binaryPath: discovered.binaryPath,
+		};
+	}
+
 	return { ok: true, metadata: inspected };
 }
