@@ -1,19 +1,32 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { readConfig } from "@toby/core/config/index";
+import { readConfig, readCredentials, writeCredentials } from "@toby/core/config/index";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createConfigureSession } from "../src/ui/configure/session";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const slackCli = path.join(repoRoot, "../plugin-slack/src/cli.ts");
+const todoistCli = path.join(repoRoot, "../plugin-todoist/src/cli.ts");
+
+function writePluginWrapper(
+	pluginDir: string,
+	binaryName: string,
+	cliPath: string,
+): void {
+	fs.mkdirSync(pluginDir, { recursive: true });
+	const wrapperPath = path.join(pluginDir, binaryName);
+	const script = `#!/usr/bin/env bash\nexec bun ${JSON.stringify(cliPath)} "$@"\n`;
+	fs.writeFileSync(wrapperPath, script, { mode: 0o755 });
+}
 
 function writeSlackPluginWrapper(pluginDir: string): void {
-	fs.mkdirSync(pluginDir, { recursive: true });
-	const wrapperPath = path.join(pluginDir, "toby-plugin-slack");
-	const script = `#!/usr/bin/env bash\nexec bun ${JSON.stringify(slackCli)} "$@"\n`;
-	fs.writeFileSync(wrapperPath, script, { mode: 0o755 });
+	writePluginWrapper(pluginDir, "toby-plugin-slack", slackCli);
+}
+
+function writeTodoistPluginWrapper(pluginDir: string): void {
+	writePluginWrapper(pluginDir, "toby-plugin-todoist", todoistCli);
 }
 
 function makeTempDir(): string {
@@ -39,6 +52,33 @@ afterEach(() => {
 	}
 	resetPluginModuleCache();
 	fs.rmSync(tempDir, { recursive: true, force: true });
+});
+
+describe("configure credential save", () => {
+	it("persists slack bot token when another plugin merges after slack", () => {
+		const pluginDir = path.join(tempDir, "toby-home", "plugins");
+		writeTodoistPluginWrapper(pluginDir);
+		resetPluginModuleCache();
+
+		writeCredentials({
+			integrations: {
+				slack: { botToken: "", authMethod: "bot_token" },
+				todoist: { apiToken: "existing-todoist-token" },
+			},
+		});
+
+		const session = createConfigureSession();
+		const values = {
+			...session.initialValues,
+			"slack.authMethod": "bot_token",
+			"slack.botToken": "xoxb-new-token",
+		};
+		session.onSave(values);
+
+		expect(readCredentials().integrations?.slack?.botToken).toBe(
+			"xoxb-new-token",
+		);
+	});
 });
 
 describe("configure chat inbound", () => {

@@ -563,9 +563,11 @@ export function createPluginIntegrationModule(
 			nextBlock[localKey(name, key)] = value;
 		}
 
+		// Return only this plugin's block. Spreading the full previous integrations bag
+		// caused later modules (alphabetically after this one) to clobber earlier
+		// credential updates with stale on-disk values during configure save.
 		return {
 			integrations: {
-				...(previous.integrations ?? {}),
 				[name]: nextBlock,
 			},
 		};
