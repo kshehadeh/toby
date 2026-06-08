@@ -4,7 +4,6 @@ import { connectSlashCommand } from "./connect";
 import { disconnectSlashCommand } from "./disconnect";
 import { exitSlashCommand } from "./exit";
 import { helpSlashCommand } from "./help";
-import { integrationSlashCommand } from "./integration";
 import { listenSlashCommand } from "./listen";
 import { logSlashCommand } from "./log";
 import { newSlashCommand } from "./new";
@@ -37,7 +36,6 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
 	connectSlashCommand,
 	disconnectSlashCommand,
 	helpSlashCommand,
-	integrationSlashCommand,
 	listenSlashCommand,
 	logSlashCommand,
 	planSlashCommand,

@@ -8,7 +8,8 @@ const CHAT_CONNECTION_PROBE_TIMEOUT_MS = 5_000;
 export interface ConnectionProbeResult {
 	readonly name: string;
 	readonly displayName: string;
-	readonly ok: boolean;
+	readonly connected: boolean;
+	readonly healthy: boolean;
 	readonly timedOut: boolean;
 }
 
@@ -82,6 +83,33 @@ async function withTimeout<T>(
 	}
 }
 
+export function probeResultsToStatusMap(
+	results: readonly ConnectionProbeResult[],
+): Record<string, boolean> {
+	const out: Record<string, boolean> = {};
+	for (const result of results) {
+		out[result.name] = result.connected;
+	}
+	return out;
+}
+
+export function countIntegrationConnectionStatuses(
+	modules: readonly { readonly name: string }[],
+	statusByName: Readonly<Record<string, boolean | null | undefined>>,
+): { readonly connected: number; readonly disconnected: number } {
+	let connected = 0;
+	let disconnected = 0;
+	for (const module of modules) {
+		const status = statusByName[module.name];
+		if (status === true) {
+			connected++;
+		} else if (status === false) {
+			disconnected++;
+		}
+	}
+	return { connected, disconnected };
+}
+
 export async function runConnectionProbes(
 	modules: readonly IntegrationModule[],
 	options: RunConnectionProbesOptions = {},
@@ -94,23 +122,34 @@ export async function runConnectionProbes(
 	const results = await Promise.all(
 		modules.map(async (module) => {
 			await report({ type: "start", module });
-			let ok = false;
+			let connected = false;
+			let healthy = false;
 			let timedOut = false;
 			try {
-				const health = await withTimeout(
-					module.testConnection({ validateTools: false }),
-					module.displayName,
-					timeoutMs,
-				);
-				ok = health.ok;
-			} catch (error) {
-				timedOut = error instanceof ConnectionProbeTimeoutError;
-				ok = false;
+				connected = await module.isConnected();
+			} catch {
+				connected = false;
 			}
+
+			if (connected) {
+				try {
+					const health = await withTimeout(
+						module.testConnection({ validateTools: false }),
+						module.displayName,
+						timeoutMs,
+					);
+					healthy = health.ok;
+				} catch (error) {
+					timedOut = error instanceof ConnectionProbeTimeoutError;
+					healthy = false;
+				}
+			}
+
 			const result: ConnectionProbeResult = {
 				name: module.name,
 				displayName: module.displayName,
-				ok,
+				connected,
+				healthy,
 				timedOut,
 			};
 			await report({ type: "result", module, result });

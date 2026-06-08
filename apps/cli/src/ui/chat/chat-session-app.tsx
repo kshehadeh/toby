@@ -138,7 +138,7 @@ import {
 	scrollModalVisibleLineBudget,
 } from "./components/scrollable-text-modal";
 import {
-	collectModulesForConnectionProbe,
+	countIntegrationConnectionStatuses,
 	runConnectionProbes,
 } from "./connection-probe";
 import { ACCENT, TIPS } from "./constants";
@@ -359,6 +359,7 @@ export function ChatSessionApp({
 	const lastSavedMessageCountRef = useRef(0);
 	const lastSavedTranscriptCountRef = useRef(0);
 	const sessionIdRef = useRef<string | null>(null);
+	const progressNoticeIndexRef = useRef<number | null>(null);
 	const transcriptRef = useRef(transcript);
 	const ongoingPretreatAbortRef = useRef<AbortController | null>(null);
 	const pendingSteeringPromptRef = useRef<string | null>(null);
@@ -436,7 +437,7 @@ export function ChatSessionApp({
 			return;
 		}
 		let cancelled = false;
-		const modulesToProbe = collectModulesForConnectionProbe(selectedModules);
+		const modulesToProbe = getIntegrationModules();
 		if (modulesToProbe.length === 0) {
 			setConnectionProbeLine("");
 			return;
@@ -468,9 +469,15 @@ export function ChatSessionApp({
 						pending.delete(event.module.name);
 						setConnectedByIntegration((prev) => ({
 							...prev,
-							[event.module.name]: event.result.ok,
+							[event.module.name]: event.result.connected,
 						}));
-						const status = event.result.ok ? "ready" : "unavailable";
+						const status = !event.result.connected
+							? "disconnected"
+							: event.result.healthy
+								? "ready"
+								: event.result.timedOut
+									? "timed out"
+									: "degraded";
 						const suffix =
 							pending.size > 0
 								? ` Checking ${pending.size} more…`
@@ -491,7 +498,7 @@ export function ChatSessionApp({
 		return () => {
 			cancelled = true;
 		};
-	}, [selectedModules, messages]);
+	}, [messages]);
 
 	const pickerRows = useMemo(
 		() => (multiPicker ? buildIntegrationPickerRows(multiPicker.modules) : []),
@@ -1564,6 +1571,29 @@ export function ChatSessionApp({
 		[],
 	);
 
+	const updateProgressNotice = useCallback(
+		async (text: string, tone: "info" | "success" | "error" = "info") => {
+			const trimmed = text.trim();
+			if (trimmed.length === 0) {
+				return;
+			}
+			recordSessionNote(sessionIdRef.current, trimmed);
+			setTranscript((t) => {
+				const entry = buildSessionNoticeEntry(trimmed, tone);
+				const idx = progressNoticeIndexRef.current;
+				if (idx !== null && idx < t.length && t[idx]?.kind === "notice") {
+					const next = [...t];
+					next[idx] = entry;
+					return next;
+				}
+				progressNoticeIndexRef.current = t.length;
+				return [...t, entry];
+			});
+			await yieldToRenderer();
+		},
+		[],
+	);
+
 	const openLogViewer = useCallback(() => {
 		const entries = readLogTail(50);
 		const lines =
@@ -1740,6 +1770,7 @@ export function ChatSessionApp({
 						addNoticeLine: (text, tone) => {
 							appendSessionNotice(text, tone);
 						},
+						updateProgressNotice,
 						addUserContextMessage: (text) => {
 							recordSessionNote(sessionIdRef.current, text);
 							setMessages((msgs) =>
@@ -2453,17 +2484,14 @@ export function ChatSessionApp({
 
 	useInput(handleGlobalInput);
 
-	const integrationCounts = useMemo(() => {
-		const allModules = getIntegrationModules();
-		let connected = 0;
-		let disconnected = 0;
-		for (const m of allModules) {
-			const status = connectedByIntegration[m.name];
-			if (status === true) connected++;
-			else if (status === false) disconnected++;
-		}
-		return { connected, disconnected };
-	}, [connectedByIntegration]);
+	const integrationCounts = useMemo(
+		() =>
+			countIntegrationConnectionStatuses(
+				getIntegrationModules(),
+				connectedByIntegration,
+			),
+		[connectedByIntegration],
+	);
 
 	const skillsCount = useMemo(() => loadLocalSkills().length, []);
 

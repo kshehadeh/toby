@@ -18,6 +18,7 @@ export type StatusGlyphPrefix = {
 const STATUS_WORD_COLORS: Record<string, string> = {
 	connected: "green",
 	disconnected: "red",
+	degraded: "yellow",
 	disabled: "yellow",
 	invalid: "red",
 };
@@ -54,7 +55,7 @@ function splitStatusWordPieces(text: string): ModalInlinePiece[] {
 	if (!text) {
 		return [];
 	}
-	const re = /\b(connected|disconnected|disabled|invalid)\b/g;
+	const re = /\b(connected|disconnected|degraded|disabled|invalid)\b/g;
 	const out: ModalInlinePiece[] = [];
 	let last = 0;
 	for (const match of text.matchAll(re)) {

@@ -44,6 +44,10 @@ export interface SlashCommandRuntime {
 		text: string,
 		tone?: "info" | "success" | "error",
 	) => void;
+	readonly updateProgressNotice: (
+		text: string,
+		tone?: "info" | "success" | "error",
+	) => void | Promise<void>;
 	readonly addUserContextMessage: (text: string) => void;
 	readonly setUpgradeStatus?: (status: UpgradeUiStatus) => void;
 	readonly getActivePlan: () => import("@toby/core/planning/types").Plan | null;

@@ -13,6 +13,7 @@ import { helpSlashCommand } from "../src/ui/chat/slash-commands/help";
 import { logSlashCommand } from "../src/ui/chat/slash-commands/log";
 import { terminalSlashCommand } from "../src/ui/chat/slash-commands/terminal";
 import { restartSlashCommand } from "../src/ui/chat/slash-commands/restart";
+import { connectSlashCommand } from "../src/ui/chat/slash-commands/connect";
 import { pluginsSlashCommand } from "../src/ui/chat/slash-commands/plugins";
 import { usageSlashCommand } from "../src/ui/chat/slash-commands/usage";
 import { webSlashCommand } from "../src/ui/chat/slash-commands/web";
@@ -41,6 +42,7 @@ function mockRuntime(overrides: Record<string, unknown> = {}) {
 		launchContext: captureLaunchContext(["chat"]),
 		addMetaLine: vi.fn(),
 		addNoticeLine: vi.fn(),
+		updateProgressNotice: vi.fn(async () => {}),
 		addUserContextMessage: vi.fn(),
 		getActivePlan: vi.fn(() => null),
 		skipPlanPhase: vi.fn(),
@@ -121,6 +123,29 @@ describe("slash commands", () => {
 
 	it("includes /usage in slash command list", () => {
 		expect(SLASH_COMMANDS.some((c) => c.command === "/usage")).toBe(true);
+	});
+
+	it("opens a connections viewer modal for /connect with no args", async () => {
+		const addMetaLine = vi.fn();
+		const openTextViewer = vi.fn();
+		const updateProgressNotice = vi.fn(async () => {});
+		const runtime = mockRuntime({ addMetaLine, openTextViewer, updateProgressNotice });
+		await connectSlashCommand.run(runtime);
+		expect(updateProgressNotice).toHaveBeenCalled();
+		expect(openTextViewer).toHaveBeenCalledTimes(1);
+		expect(openTextViewer.mock.calls[0]?.[0]).toBe("Connections");
+		expect(openTextViewer.mock.calls[0]?.[2]).toEqual({ lineTone: "markdown" });
+		const viewerLines = openTextViewer.mock.calls[0]?.[1] as string[];
+		expect(viewerLines.some((line) => line.includes("## Integrations"))).toBe(
+			true,
+		);
+		expect(addMetaLine).toHaveBeenCalled();
+	});
+
+	it("does not include /integration in slash command list", () => {
+		expect(SLASH_COMMANDS.some((c) => c.command === "/integration")).toBe(
+			false,
+		);
 	});
 
 	it("includes /plugins and opens a plugin status viewer", async () => {
