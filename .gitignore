@@ -9,5 +9,8 @@ apps/help-site/.docusaurus/
 .build/
 apps/audio-helper/.build/
 apps/plugin-macos/.build/
+apps/plugin-whisper/.build/
+apps/plugin-whisper/ThirdParty/
+apps/plugin-whisper/Sources/WhisperBridge/vendor/
 .env
 .DS_Store
