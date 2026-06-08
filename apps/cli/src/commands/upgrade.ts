@@ -24,6 +24,7 @@ const PROGRESS_SPINNER_FRAMES = [
 	"⠏",
 ];
 const PROGRESS_BAR_WIDTH = 24;
+const CLEAR_PROGRESS_LINE = "\r\x1b[2K";
 
 function formatBytes(bytes: number): string {
 	if (bytes >= 1024 * 1024) {
@@ -90,7 +91,7 @@ function makeProgressRenderer(): {
 					: `${spinner} Installing…`;
 				break;
 		}
-		process.stdout.write(`\r${line}`);
+		process.stdout.write(`\r${line}\x1b[K`);
 	};
 
 	const ensureSpinner = () => {
@@ -123,7 +124,11 @@ function finishProgressRenderer(renderer: {
 	readonly finish: () => void;
 }): void {
 	renderer.finish();
-	process.stdout.write("\n");
+	if (process.stdout.isTTY) {
+		process.stdout.write(CLEAR_PROGRESS_LINE);
+	} else {
+		process.stdout.write("\n");
+	}
 }
 
 interface UpgradeCommandOptions {
