@@ -32,6 +32,7 @@ import {
 	runChatTurnPipeline,
 	withAssembledMessages,
 } from "@toby/core/chat-pipeline/pipeline";
+import { clearSessionToolBundleCache } from "@toby/core/chat-pipeline/run-turn";
 import {
 	type Persona,
 	getDefaultPersonaName,
@@ -506,6 +507,10 @@ export function ChatSessionApp({
 		selectedModulesRef.current = selectedModules;
 	}, [selectedModules]);
 
+	useEffect(() => {
+		clearSessionToolBundleCache();
+	}, [selectedModules]);
+
 	useLayoutEffect(() => {
 		sessionIdRef.current = sessionId;
 	}, [sessionId]);
@@ -628,24 +633,8 @@ export function ChatSessionApp({
 			assistantSegmentHeaderRef.current = activePersona.name;
 			assistantStreamBufRef.current = "";
 			assistantSegmentCommittedRef.current = false;
-			const turnAbort =
-				ongoingPretreatAbortRef.current ?? new AbortController();
-			if (!ongoingPretreatAbortRef.current) {
-				ongoingPretreatAbortRef.current = turnAbort;
-			}
-			if (turnAbort.signal.aborted) {
-				setLoading(false);
-				const steering = pendingSteeringPromptRef.current;
-				if (steering) {
-					recordSessionNote(sessionIdRef.current, "Redirecting...");
-				} else {
-					setTranscript((t) => [
-						...t,
-						buildTurnCancellationNoticeEntry(sessionIdRef.current),
-					]);
-				}
-				return { text: "", responseMessages: [] };
-			}
+			const turnAbort = new AbortController();
+			ongoingPretreatAbortRef.current = turnAbort;
 			let activeToolCalls = 0;
 			const turnStartMs = Date.now();
 			const eventLogSink = createChatEventLogSink(sid);
@@ -861,20 +850,19 @@ export function ChatSessionApp({
 	);
 
 	useEffect(() => {
+		// Session is already booted (or was loaded from SQLite). Do not touch the
+		// in-flight abort controller — dependency churn (sessionId, messages, …)
+		// would otherwise clobber submit/model turns and surface false cancellations.
+		if (messages !== null || sessionBootMode === "loaded") {
+			return;
+		}
+
 		let cancelled = false;
 		const ac = new AbortController();
 		ongoingPretreatAbortRef.current = ac;
 		void (async () => {
 			try {
 				const sid = sessionId;
-				if (messages !== null) {
-					return;
-				}
-				// If we loaded an existing session, don't overwrite its transcript/messages
-				// by re-running the boot preparation effect.
-				if (sessionBootMode === "loaded") {
-					return;
-				}
 				const bootSeq = () => {
 					transcriptLocalSeqRef.current += 1;
 					return transcriptLocalSeqRef.current;
@@ -967,6 +955,11 @@ export function ChatSessionApp({
 				const toolCatalog = assembled.toolCatalog;
 				const attachedSkills = prepSpec?.relevantSkills ?? [];
 				await yieldToRenderer();
+				// Boot effect cleanup aborts this controller when `messages` updates;
+				// hand auto-run / first model turn a fresh signal instead.
+				if (ongoingPretreatAbortRef.current === ac) {
+					ongoingPretreatAbortRef.current = new AbortController();
+				}
 				setMessages(initial);
 				const note = pendingScopeChangeNoteRef.current;
 				pendingScopeChangeNoteRef.current = null;
@@ -1025,6 +1018,9 @@ export function ChatSessionApp({
 		return () => {
 			cancelled = true;
 			ac.abort();
+			if (ongoingPretreatAbortRef.current === ac) {
+				ongoingPretreatAbortRef.current = null;
+			}
 		};
 	}, [
 		selectedModules,
@@ -1142,6 +1138,7 @@ export function ChatSessionApp({
 				throw new Error("auto-run: missing assembled turn after boot");
 			}
 			if (!shouldGeneratePlan(null, sessionPrompt)) {
+				ongoingPretreatAbortRef.current = new AbortController();
 				void runModelTurnRef.current(bootAssembled, sidFinal);
 				return;
 			}
@@ -1295,8 +1292,8 @@ export function ChatSessionApp({
 		const sidFinal = sid;
 
 		void (async () => {
-			const ac = new AbortController();
-			ongoingPretreatAbortRef.current = ac;
+			const prepAc = new AbortController();
+			ongoingPretreatAbortRef.current = prepAc;
 			const msgsBefore = snapRef.current.messages;
 			if (!msgsBefore) return;
 
@@ -1349,12 +1346,12 @@ export function ChatSessionApp({
 							transcriptLocalSeqRef.current += 1;
 							return transcriptLocalSeqRef.current;
 						},
-						abortSignal: ac.signal,
+						abortSignal: prepAc.signal,
 						emitPersistLifecycle: false,
 					}),
 					{ stopAfter: "assemble" },
 				);
-				throwIfAborted(ac.signal);
+				throwIfAborted(prepAc.signal);
 				if (prepResult.stage !== "assemble") {
 					throw new Error(
 						`steering: expected assemble stage, got ${prepResult.stage}`,
@@ -1383,15 +1380,19 @@ export function ChatSessionApp({
 					pretreatmentRan: assembled.spec !== null,
 				});
 
+				ongoingPretreatAbortRef.current = new AbortController();
 				await runModelTurnRef.current(assembled, sidFinal);
 			} catch (e) {
 				if (isAbortError(e)) {
-					setTranscript((t) => [
-						...t,
-						buildTurnCancellationNoticeEntry(sessionIdRef.current),
-					]);
-					setLoading(false);
-					return;
+					if (prepAc.signal.aborted) {
+						setTranscript((t) => [
+							...t,
+							buildTurnCancellationNoticeEntry(sessionIdRef.current),
+						]);
+						setLoading(false);
+						return;
+					}
+					throw e;
 				}
 				throw e;
 			}
@@ -1943,8 +1944,8 @@ export function ChatSessionApp({
 			}
 			const sidFinal = sid;
 			void (async () => {
-				const ac = new AbortController();
-				ongoingPretreatAbortRef.current = ac;
+				const prepAc = new AbortController();
+				ongoingPretreatAbortRef.current = prepAc;
 				const msgsBefore = snapRef.current.messages;
 				if (!msgsBefore) {
 					return;
@@ -1990,12 +1991,12 @@ export function ChatSessionApp({
 								setTranscript((t) => applyPersistedChatEvent(t, ev));
 							},
 							nextSeq: submitSeq,
-							abortSignal: ac.signal,
+							abortSignal: prepAc.signal,
 							emitPersistLifecycle: false,
 						}),
 						{ stopAfter: "assemble" },
 					);
-					throwIfAborted(ac.signal);
+					throwIfAborted(prepAc.signal);
 					if (prepResult.stage !== "assemble") {
 						throw new Error(
 							`submit: expected assemble stage, got ${prepResult.stage}`,
@@ -2029,6 +2030,7 @@ export function ChatSessionApp({
 						relevantTools: assembled.spec?.relevantTools,
 						pretreatmentRan: assembled.spec !== null,
 					});
+					ongoingPretreatAbortRef.current = new AbortController();
 					await runModelTurnRef.current(assembled, sidFinal);
 				} catch (e) {
 					if (isAbortError(e)) {
@@ -2037,13 +2039,16 @@ export function ChatSessionApp({
 							setLoading(false);
 							return;
 						}
-						inFlightUserPromptRef.current = null;
-						setTranscript((t) => [
-							...t,
-							buildTurnCancellationNoticeEntry(sessionIdRef.current),
-						]);
-						setLoading(false);
-						return;
+						if (prepAc.signal.aborted) {
+							inFlightUserPromptRef.current = null;
+							setTranscript((t) => [
+								...t,
+								buildTurnCancellationNoticeEntry(sessionIdRef.current),
+							]);
+							setLoading(false);
+							return;
+						}
+						throw e;
 					}
 					const msg = formatChatModelError(e);
 					setTranscript((t) => [...t, { kind: "error", text: msg }]);
