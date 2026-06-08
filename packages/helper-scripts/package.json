@@ -5,11 +5,10 @@
 	"type": "module",
 	"description": "Development and diagnostic scripts for Toby",
 	"scripts": {
-		"test:jira": "bun src/test-jira.ts"
+		"test:jira-plugin": "bun src/test-jira-plugin.ts"
 	},
 	"dependencies": {
-		"@toby/core": "workspace:*",
-		"jira.js": "^5.3.1"
+		"@toby/core": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/node": "^25.6.0",
