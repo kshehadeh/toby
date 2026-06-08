@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { readCredentials, writeCredentials } from "@toby/core/config/index";
+import { buildCredentialsFromValues } from "@toby/core/configure/persistence";
 import {
 	getIntegrationModule,
 	isBuiltinIntegration,
@@ -82,17 +83,25 @@ describe("todoist plugin", () => {
 		expect(status.data.chatReadiness?.hint).toContain("toby configure");
 	});
 
-	it("maps todoist.apiKey in config shape", () => {
+	it("uses local apiKey in config shape", () => {
 		const binaryPath = path.join(pluginDir, "toby-plugin-todoist");
 		const shape = pluginConfigShape(binaryPath);
 		expect(shape.ok).toBe(true);
 		if (!shape.ok || !shape.data.fields) return;
 
 		const keys = shape.data.fields.map((f) => f.key);
-		expect(keys).toEqual(["todoist.apiKey"]);
-		expect(
-			shape.data.fields.find((f) => f.key === "todoist.apiKey")?.masked,
-		).toBe(true);
+		expect(keys).toEqual(["apiKey"]);
+		expect(shape.data.fields.find((f) => f.key === "apiKey")?.masked).toBe(
+			true,
+		);
+	});
+
+	it("persists configure values under integrations.todoist with local keys", () => {
+		const creds = buildCredentialsFromValues(
+			{ "todoist.apiKey": "secret" },
+			{},
+		);
+		expect(creds.integrations?.todoist).toEqual({ apiKey: "secret" });
 	});
 
 	it("lists seven todoist chat tools", () => {

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { readCredentials, writeCredentials } from "@toby/core/config/index";
+import { buildCredentialsFromValues } from "@toby/core/configure/persistence";
 import {
 	getIntegrationModule,
 	getModulesForCategory,
@@ -109,10 +110,10 @@ describe("jira plugin", () => {
 		if (!shape.ok || !shape.data.fields) return;
 
 		const keys = shape.data.fields.map((f) => f.key);
-		expect(keys).toEqual(["jira.domain", "jira.email", "jira.apiToken"]);
-		expect(
-			shape.data.fields.find((f) => f.key === "jira.apiToken")?.masked,
-		).toBe(true);
+		expect(keys).toEqual(["domain", "email", "apiToken"]);
+		expect(shape.data.fields.find((f) => f.key === "apiToken")?.masked).toBe(
+			true,
+		);
 	});
 
 	it("lists four jira chat tools", () => {
@@ -149,6 +150,54 @@ describe("jira plugin", () => {
 		expect(module.name).toBe("jira");
 		expect(module.chatModelPrep?.systemPromptSection).toContain("Jira");
 		expect(module.providerCategories).toEqual(["work_tracker"]);
+	});
+
+	it("maps credential descriptors to jira.<field> configure keys", () => {
+		const metadata = loadPluginMetadata({
+			binaryPath: path.join(pluginDir, "toby-plugin-jira"),
+			binaryName: "toby-plugin-jira",
+		});
+		expect("error" in metadata).toBe(false);
+		if ("error" in metadata) return;
+
+		const module = createPluginIntegrationModule(metadata);
+		const keys = module.getCredentialDescriptors().map((d) => d.key);
+		expect(keys).toEqual(["jira.domain", "jira.email", "jira.apiToken"]);
+	});
+
+	it("persists configure values under integrations.jira with local keys", () => {
+		const creds = buildCredentialsFromValues(
+			{
+				"jira.domain": "acme",
+				"jira.email": "user@example.com",
+				"jira.apiToken": "token",
+			},
+			{},
+		);
+		expect(creds.integrations?.jira).toEqual({
+			domain: "acme",
+			email: "user@example.com",
+			apiToken: "token",
+		});
+	});
+
+	it("migrates prefixed jira credential keys inside integrations.jira", () => {
+		writeCredentials({
+			integrations: {
+				jira: {
+					"jira.domain": "acme",
+					"jira.email": "user@example.com",
+					"jira.apiToken": "legacy-token",
+				},
+			},
+		});
+		migrateLegacyPluginCredentials();
+		const creds = readCredentials();
+		expect(creds.integrations?.jira).toEqual({
+			domain: "acme",
+			email: "user@example.com",
+			apiToken: "legacy-token",
+		});
 	});
 
 	it("migrates legacy top-level jira credentials", () => {

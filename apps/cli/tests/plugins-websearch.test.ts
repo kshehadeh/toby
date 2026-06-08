@@ -2,11 +2,13 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { isWebSearchAvailable } from "@toby/core/ai/web-search-global-tools";
 import {
 	readConfig,
 	readCredentials,
 	writeCredentials,
 } from "@toby/core/config/index";
+import { buildCredentialsFromValues } from "@toby/core/configure/persistence";
 import {
 	getIntegrationModule,
 	getModulesForCategory,
@@ -25,7 +27,6 @@ import {
 } from "@toby/core/integrations/plugins/client";
 import { migrateLegacyPluginCredentials } from "@toby/core/integrations/plugins/migrate";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
-import { isWebSearchAvailable } from "@toby/core/ai/web-search-global-tools";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
@@ -107,17 +108,25 @@ describe("websearch plugin", () => {
 		expect(status.data.chatReadiness?.hint).toContain("toby configure");
 	});
 
-	it("maps websearch credential fields in config shape", () => {
+	it("uses local apiKey in config shape", () => {
 		const binaryPath = path.join(pluginDir, "toby-plugin-websearch");
 		const shape = pluginConfigShape(binaryPath);
 		expect(shape.ok).toBe(true);
 		if (!shape.ok || !shape.data.fields) return;
 
 		const keys = shape.data.fields.map((f) => f.key);
-		expect(keys).toEqual(["websearch.apiKey"]);
-		expect(
-			shape.data.fields.find((f) => f.key === "websearch.apiKey")?.masked,
-		).toBe(true);
+		expect(keys).toEqual(["apiKey"]);
+		expect(shape.data.fields.find((f) => f.key === "apiKey")?.masked).toBe(
+			true,
+		);
+	});
+
+	it("persists configure values under integrations.websearch with local keys", () => {
+		const creds = buildCredentialsFromValues(
+			{ "websearch.apiKey": "secret" },
+			{},
+		);
+		expect(creds.integrations?.websearch).toEqual({ apiKey: "secret" });
 	});
 
 	it("lists webSearch chat tool", () => {
