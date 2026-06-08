@@ -1,20 +1,24 @@
 import { spawn } from "node:child_process";
+import fs from "node:fs";
 import {
 	buildTobySpawnArgs,
 	getDetachedUpgradeSpawnStdio,
 	getTobyExecPath,
 } from "@toby/core/toby-spawn";
 import type { LaunchContext } from "../toby-launch-context";
-import { readStagingManifest } from "./index";
+import { readStagingManifest, resolveStagedBinaryPath } from "./index";
 
 export interface SpawnHandoffOptions {
 	readonly launchContext: LaunchContext;
 	readonly applyStaged: boolean;
 }
 
-export function spawnUpgradeHandoff(options: SpawnHandoffOptions): void {
+export function resolveUpgradeHandoffSpawn(options: {
+	readonly launchContext: LaunchContext;
+	readonly applyStaged: boolean;
+}): { readonly execPath: string; readonly args: string[] } {
 	const { launchContext, applyStaged } = options;
-	const handoffArgs = buildTobySpawnArgs(
+	const rawHandoffArgs = [
 		"internal",
 		"handoff",
 		"--watch-pid",
@@ -23,13 +27,24 @@ export function spawnUpgradeHandoff(options: SpawnHandoffOptions): void {
 		launchContext.execPath,
 		"--args-json",
 		JSON.stringify([...launchContext.args]),
-	);
+	];
 	if (applyStaged) {
-		handoffArgs.push("--apply-staged");
-		handoffArgs.push("--install-target", launchContext.installTarget);
+		rawHandoffArgs.push("--apply-staged");
+		rawHandoffArgs.push("--install-target", launchContext.installTarget);
 	}
 
-	const child = spawn(getTobyExecPath(), handoffArgs, {
+	const stagedPath = resolveStagedBinaryPath();
+	const useStaged = applyStaged && fs.existsSync(stagedPath);
+	const execPath = useStaged ? stagedPath : getTobyExecPath();
+	return {
+		execPath,
+		args: useStaged ? rawHandoffArgs : buildTobySpawnArgs(...rawHandoffArgs),
+	};
+}
+
+export function spawnUpgradeHandoff(options: SpawnHandoffOptions): void {
+	const { execPath, args } = resolveUpgradeHandoffSpawn(options);
+	const child = spawn(execPath, args, {
 		detached: true,
 		stdio: getDetachedUpgradeSpawnStdio(),
 	});

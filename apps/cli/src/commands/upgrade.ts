@@ -4,7 +4,7 @@ import chalk from "chalk";
 import type { Command } from "commander";
 import {
 	type UpgradeProgress,
-	applyStagedRelease,
+	applyStagedReleaseDelegated,
 	downloadRelease,
 	readStagingManifest,
 	resolveInstallDir,
@@ -135,6 +135,7 @@ interface UpgradeCommandOptions {
 	version?: string;
 	repo?: string;
 	installDir?: string;
+	installTarget?: string;
 	downloadOnly?: boolean;
 	applyStaged?: boolean;
 }
@@ -165,6 +166,10 @@ export function registerUpgradeCommand(program: Command): void {
 			"Install a previously staged download from ~/.toby/staging",
 			false,
 		)
+		.option(
+			"--install-target <path>",
+			"Override install target when applying a staged upgrade (internal/delegated apply)",
+		)
 		.action(async (options: UpgradeCommandOptions) => {
 			try {
 				await runUpgrade(options);
@@ -190,9 +195,12 @@ async function runUpgrade(options: UpgradeCommandOptions): Promise<void> {
 			chalk.cyan(`Applying staged upgrade to ${manifest.version}...`),
 		);
 		const renderProgress = makeProgressRenderer();
-		const applied = await applyStagedRelease(manifest.installTarget, {
-			onProgress: renderProgress.onProgress,
-		});
+		const applied = await applyStagedReleaseDelegated(
+			options.installTarget ?? manifest.installTarget,
+			{
+				onProgress: renderProgress.onProgress,
+			},
+		);
 		finishProgressRenderer(renderProgress);
 		console.log(chalk.green(`Installed: ${applied.installTarget}`));
 		console.log(chalk.green(`Verified: ${applied.version}`));

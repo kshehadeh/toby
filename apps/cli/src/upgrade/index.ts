@@ -316,10 +316,82 @@ export async function downloadRelease(
 	}
 }
 
+export function resolveStagedBinaryPath(): string {
+	return getStagingPaths().binaryPath;
+}
+
+/** True when a staged release binary should run apply-staged (old install upgrading). */
+export function shouldDelegateApplyToStagedBinary(): boolean {
+	if (!isRunningAsCompiledBinary()) {
+		return false;
+	}
+	const stagedBinary = resolveStagedBinaryPath();
+	if (!fs.existsSync(stagedBinary)) {
+		return false;
+	}
+	try {
+		fs.accessSync(stagedBinary, fs.constants.X_OK);
+	} catch {
+		return false;
+	}
+	try {
+		return fs.realpathSync(process.execPath) !== fs.realpathSync(stagedBinary);
+	} catch {
+		return process.execPath !== stagedBinary;
+	}
+}
+
+export async function applyStagedReleaseDelegated(
+	installTargetOverride?: string,
+	options?: { readonly onProgress?: (progress: UpgradeProgress) => void },
+): Promise<ApplyStagedResult> {
+	if (!shouldDelegateApplyToStagedBinary()) {
+		return applyStagedRelease(installTargetOverride, options);
+	}
+
+	const stagedBinary = resolveStagedBinaryPath();
+	const args = ["upgrade", "--apply-staged"];
+	if (installTargetOverride) {
+		args.push("--install-target", installTargetOverride);
+	}
+
+	const result = spawnSync(stagedBinary, args, { encoding: "utf8" });
+	if (result.status !== 0) {
+		const detail = (result.stderr || result.stdout || "").trim();
+		throw new Error(
+			detail
+				? `Staged upgrade apply failed: ${detail}`
+				: `Staged upgrade apply failed with exit code ${result.status ?? 1}.`,
+		);
+	}
+
+	const manifest = await readStagingManifest();
+	const installTarget = installTargetOverride ?? manifest?.installTarget;
+	if (!installTarget) {
+		throw new Error(
+			"Staged upgrade apply completed but install target is unknown.",
+		);
+	}
+	const installedVersion = readInstalledVersion(installTarget);
+	if (!installedVersion) {
+		throw new Error(
+			`Installed binary at ${installTarget} did not return a version for --version.`,
+		);
+	}
+
+	return {
+		installTarget,
+		version: installedVersion,
+		daemonRestarted: false,
+		daemonIntervalSeconds: null,
+	};
+}
+
 export async function applyStagedRelease(
 	installTargetOverride?: string,
 	options?: { readonly onProgress?: (progress: UpgradeProgress) => void },
 ): Promise<ApplyStagedResult> {
+	ensureTobyDir();
 	options?.onProgress?.({ phase: "installing", detail: "toby" });
 	await yieldToEventLoop();
 	const manifest = await readStagingManifest();
@@ -445,7 +517,7 @@ export async function runFullUpgrade(options: {
 	readonly onProgress?: (progress: UpgradeProgress) => void;
 }): Promise<ApplyStagedResult> {
 	const download = await downloadRelease(options);
-	return applyStagedRelease(download.installTarget, {
+	return applyStagedReleaseDelegated(download.installTarget, {
 		onProgress: options.onProgress,
 	});
 }
@@ -468,7 +540,7 @@ async function installStagedPluginBinary(
 	await rename(stagingPath, tempDestination);
 	await chmodExecutable(tempDestination);
 	await rename(tempDestination, installTarget);
-	copyPluginResourceBundlesFromSource(stagingPath);
+	copyPluginResourceBundlesFromSource(installTarget);
 }
 
 const REMOVED_PLUGIN_BINARIES = ["toby-plugin-applemail"] as const;
