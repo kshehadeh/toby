@@ -1,7 +1,7 @@
 import AVFoundation
 import Foundation
 
-public enum TranscriptionError: Error, CustomStringConvertible {
+public enum TranscriptionError: Error, CustomStringConvertible, LocalizedError {
 	case runtime(String)
 
 	public var description: String {
@@ -9,6 +9,10 @@ public enum TranscriptionError: Error, CustomStringConvertible {
 		case let .runtime(message):
 			return message
 		}
+	}
+
+	public var errorDescription: String? {
+		description
 	}
 }
 
@@ -99,75 +103,68 @@ public enum TranscriptionEngine {
 		return formatter.string(from: Date())
 	}
 
-	private static func whisperOutputSettings() -> [String: Any] {
-		[
-			AVFormatIDKey: kAudioFormatLinearPCM,
-			AVSampleRateKey: 16_000,
-			AVNumberOfChannelsKey: 1,
-			AVLinearPCMBitDepthKey: 16,
-			AVLinearPCMIsFloatKey: false,
-			AVLinearPCMIsBigEndianKey: false,
-			AVLinearPCMIsNonInterleaved: false,
-		]
+	private static func isWhisperCompatibleWav(inputURL: URL, format: AVAudioFormat) -> Bool {
+		inputURL.pathExtension.lowercased() == "wav"
+			&& format.sampleRate == 16_000
+			&& format.channelCount == 1
+			&& format.commonFormat == .pcmFormatInt16
 	}
 
 	private static func exportWhisperCompatibleWav(from inputURL: URL, to outputURL: URL) async throws {
-		let asset = AVURLAsset(url: inputURL)
-		guard let track = try await asset.loadTracks(withMediaType: .audio).first else {
-			throw TranscriptionError.runtime("No audio track found in \(inputURL.lastPathComponent)")
-		}
-
-		let reader = try AVAssetReader(asset: asset)
-		let outputSettings = whisperOutputSettings()
-		let readerOutput = AVAssetReaderTrackOutput(track: track, outputSettings: outputSettings)
-		readerOutput.alwaysCopiesSampleData = false
-		guard reader.canAdd(readerOutput) else {
-			throw TranscriptionError.runtime("Could not configure audio reader")
-		}
-		reader.add(readerOutput)
-
 		if FileManager.default.fileExists(atPath: outputURL.path) {
 			try FileManager.default.removeItem(at: outputURL)
 		}
-		let writer = try AVAssetWriter(outputURL: outputURL, fileType: .wav)
-		let writerInput = AVAssetWriterInput(mediaType: .audio, outputSettings: outputSettings)
-		writerInput.expectsMediaDataInRealTime = false
-		guard writer.canAdd(writerInput) else {
-			throw TranscriptionError.runtime("Could not configure audio writer")
-		}
-		writer.add(writerInput)
 
-		guard reader.startReading() else {
-			throw TranscriptionError.runtime(reader.error?.localizedDescription ?? "Could not start reading audio")
-		}
-		guard writer.startWriting() else {
-			throw TranscriptionError.runtime(writer.error?.localizedDescription ?? "Could not start writing audio")
-		}
-		writer.startSession(atSourceTime: .zero)
+		let inputFile = try AVAudioFile(forReading: inputURL)
+		let inputFormat = inputFile.processingFormat
 
-		while reader.status == .reading {
-			if writerInput.isReadyForMoreMediaData {
-				guard let sampleBuffer = readerOutput.copyNextSampleBuffer() else {
-					writerInput.markAsFinished()
-					break
-				}
-				guard writerInput.append(sampleBuffer) else {
-					throw TranscriptionError.runtime(writer.error?.localizedDescription ?? "Could not append audio sample")
+		if isWhisperCompatibleWav(inputURL: inputURL, format: inputFormat) {
+			try FileManager.default.copyItem(at: inputURL, to: outputURL)
+			return
+		}
+
+		try await runAfconvert(
+			inputURL: inputURL,
+			outputURL: outputURL
+		)
+	}
+
+	private static func runAfconvert(inputURL: URL, outputURL: URL) async throws {
+		let afconvert = URL(fileURLWithPath: "/usr/bin/afconvert")
+		guard FileManager.default.isExecutableFile(atPath: afconvert.path) else {
+			throw TranscriptionError.runtime("macOS afconvert helper is not available")
+		}
+
+		try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+			let process = Process()
+			process.executableURL = afconvert
+			process.arguments = [
+				"-f", "WAVE",
+				"-d", "LEI16@16000",
+				"-c", "1",
+				inputURL.path,
+				outputURL.path,
+			]
+			process.terminationHandler = { finished in
+				if finished.terminationStatus == 0 {
+					continuation.resume()
+				} else {
+					continuation.resume(
+						throwing: TranscriptionError.runtime(
+							"Could not convert audio for transcription (afconvert exit \(finished.terminationStatus))"
+						)
+					)
 				}
 			}
-		}
-
-		await withCheckedContinuation { continuation in
-			writer.finishWriting {
-				continuation.resume()
+			do {
+				try process.run()
+			} catch {
+				continuation.resume(
+					throwing: TranscriptionError.runtime(
+						"Could not run afconvert: \(error.localizedDescription)"
+					)
+				)
 			}
-		}
-
-		if reader.status == .failed {
-			throw TranscriptionError.runtime(reader.error?.localizedDescription ?? "Audio read failed")
-		}
-		if writer.status != .completed {
-			throw TranscriptionError.runtime(writer.error?.localizedDescription ?? "Audio export failed")
 		}
 	}
 

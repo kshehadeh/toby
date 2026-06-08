@@ -89,7 +89,10 @@ public enum WhisperTools {
 				)
 			)
 		case let .failure(error):
-			return .failure(.message(error.localizedDescription))
+			if let transcriptionError = error as? TranscriptionError {
+				return .failure(.message(transcriptionError.description))
+			}
+			return .failure(.message(String(describing: error)))
 		case .none:
 			return .failure(.message("Transcription did not complete"))
 		}
