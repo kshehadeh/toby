@@ -125,6 +125,7 @@ into `credentials.json` / `config.json`.
 | [`apps/plugin-websearch/`](../apps/plugin-websearch/) | Swift (SwiftPM) | `bun run build:plugin:websearch` | API-key auth; global `webSearch` tool via core bridge |
 | [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) | Swift (SwiftPM) | `bun run build:plugin:applecalendar` | EventKit + Calendar.app AppleScript |
 | [`apps/plugin-macos/`](../apps/plugin-macos/) | Swift (SwiftPM) | `bun run build:plugin:macos` | Native macOS APIs; optional `setup` subcommand |
+| [`apps/plugin-whisper/`](../apps/plugin-whisper/) | Swift (SwiftPM) | `bun run build:plugin:whisper` | Local whisper.cpp transcription; `transcription` capability |
 
 TypeScript plugins route argv in `src/cli.ts`; Swift plugins mirror the same argv
 table in their executable entry point. Protocol types shared with the harness live in
@@ -472,6 +473,32 @@ detect whether setup is already satisfied (for example by checking
 `shortcuts list` on macOS).
 
 Reference: [`apps/plugin-macos/`](../apps/plugin-macos/) (bundled Shortcuts).
+
+## Transcription capability (listen harness)
+
+Plugins that transcribe saved listen recordings declare `"transcription"` in
+`capabilities`. They do **not** need `"chat"` or `chatModelPrep`. Toby invokes
+the harness-only tool **`doTranscription`** directly (not via chat tool
+selection).
+
+### Tool contract
+
+| Field | Rule |
+| ----- | ---- |
+| Tool name | `doTranscription` (required when capability includes `"transcription"`) |
+| `readOnly` | `true` (writes only plugin-owned temp files) |
+| Input | `{ "audioFilePath": "<absolute path>" }` — must exist on disk |
+| Result | `{ "transcriptPath": "<absolute tmp path>", "transcriptJsonPath"?: "<absolute tmp path>" }` |
+| Timeout | Listen harness uses an extended timeout (default 10 minutes); ordinary `tools execute` limits still apply for chat tools |
+
+Toby copies `transcriptPath` → `transcript.txt` and optional
+`transcriptJsonPath` → `transcript.json` in the recording folder, then deletes
+the plugin temp files.
+
+Install validation: transcription plugins must expose `doTranscription` in
+`tools list`.
+
+Reference: [`apps/plugin-whisper/`](../apps/plugin-whisper/) (local whisper.cpp).
 
 ## Inbound chat (daemon transport)
 
