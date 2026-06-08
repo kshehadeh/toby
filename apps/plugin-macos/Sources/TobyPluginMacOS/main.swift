@@ -53,7 +53,7 @@ enum TobyPluginMacOS {
 			"protocolVersion": PluginConstants.protocolVersion,
 			"connected": connected,
 			"capabilities": ["chat"],
-			"resources": ["wifi", "bluetooth", "battery", "audio", "powermode", "display", "clipboard"],
+			"resources": ["wifi", "bluetooth", "battery", "audio", "powermode", "display", "clipboard", "focus"],
 			"chatModelPrep": Prompts.buildChatModelPrep(),
 			"chatReadiness": Prompts.buildChatReadiness(state: envelope.state),
 		]

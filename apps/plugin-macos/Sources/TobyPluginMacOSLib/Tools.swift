@@ -10,6 +10,9 @@ public enum MacOSTools {
 		public let message: String
 	}
 
+	private static let focusOnShortcutName = "Toby Focus On"
+	private static let focusOffShortcutName = "Toby Focus Off"
+
 	private static let mutatingTools: Set<String> = [
 		"macWifiSetPower",
 		"macAudioSwitchOutput",
@@ -17,6 +20,7 @@ public enum MacOSTools {
 		"macAudioSetMute",
 		"macBluetoothSetPower",
 		"macLowPowerModeSet",
+		"macFocusSet",
 		"macShortcutRun",
 		"macDisplaySetBrightness",
 		"macClipboardWrite",
@@ -37,13 +41,14 @@ public enum MacOSTools {
 			tool(name: "macBluetoothSetPower", description: "macOS only. Enable/disable Bluetooth using native IOBluetooth APIs. No third-party tools required.", properties: ["enabled": prop("boolean", "")], required: ["enabled"]),
 			tool(name: "macLowPowerModeStatus", description: "macOS only. Read low power mode state (may not be available on desktops).", readOnly: true, properties: [:]),
 			tool(name: "macLowPowerModeSet", description: "macOS only. Set low power mode on/off. May fail without admin privileges.", properties: ["enabled": prop("boolean", "")], required: ["enabled"]),
-			tool(name: "macShortcutRun", description: "macOS only. Run a Shortcut by its exact Shortcuts.app name.", properties: ["name": prop("string", "Exact name of the Shortcut to run.")], required: ["name"]),
+			tool(name: "macFocusSet", description: "macOS only. Turn Do Not Disturb / Focus mode on or off on this Mac. Uses bundled Shortcuts \"Toby Focus On\" and \"Toby Focus Off\" (install via `toby plugins setup macos` if missing). Prefer this over macShortcutRun for Focus/DND requests.", properties: ["enabled": prop("boolean", "true = enable Focus/Do Not Disturb, false = disable")], required: ["enabled"]),
+			tool(name: "macShortcutRun", description: "macOS only. Run any Shortcuts.app shortcut by exact name. For Do Not Disturb / Focus, prefer macFocusSet; bundled shortcuts are \"Toby Focus On\" and \"Toby Focus Off\".", properties: ["name": prop("string", "Exact name of the Shortcut to run.")], required: ["name"]),
 			tool(name: "macDisplayBrightness", description: "macOS only. Get the current display brightness level (0-100). May not be supported on all hardware configurations (e.g. some Apple Silicon Macs).", readOnly: true, properties: [:]),
 			tool(name: "macDisplaySetBrightness", description: "macOS only. Set display brightness level (0-100). May not be supported on all hardware configurations.", properties: ["level": prop("number", "Brightness level 0-100")], required: ["level"]),
 			tool(name: "macClipboardRead", description: "macOS only. Read the current text content of the system clipboard.", readOnly: true, properties: [:]),
 			tool(name: "macClipboardWrite", description: "macOS only. Write text to the system clipboard, replacing any current content.", properties: ["text": prop("string", "Text to write to clipboard")], required: ["text"]),
 			tool(name: "macSystemInfo", description: "macOS only. Get system information: OS version, hardware model, hostname, uptime, processor count, physical memory, and Apple Silicon status.", readOnly: true, properties: [:]),
-			tool(name: "macNotificationsPeek", description: "macOS only. Notification Center is not exposed reliably via CLI or native APIs. This tool explicitly states limitation (no unread fetch).", readOnly: true, properties: [:]),
+			tool(name: "macNotificationsPeek", description: "macOS only. Read Notification Center items — not supported (no stable API). Does not toggle Do Not Disturb / Focus; use macFocusSet for that.", readOnly: true, properties: [:]),
 		]
 	}
 
@@ -269,6 +274,41 @@ public enum MacOSTools {
 				return .success(ExecuteResult(result: ["ok": false, "stdout": "", "error": SystemClient.errorMessage(error)], appliedActions: []))
 			}
 
+		case "macFocusSet":
+			guard let enabled = boolValue(input["enabled"]) else {
+				return .failure(ToolFailure(message: "enabled is required."))
+			}
+			let shortcutName = enabled ? focusOnShortcutName : focusOffShortcutName
+			if dryRun {
+				let msg = "[DRY RUN] Would \(enabled ? "enable" : "disable") Focus / Do Not Disturb via \"\(shortcutName)\"."
+				return .success(ExecuteResult(result: ["dryRun": true, "shortcutName": shortcutName], appliedActions: [msg]))
+			}
+			do {
+				let data = try ShortcutsCommands.run(name: shortcutName)
+				let output = data["output"] as? String ?? ""
+				let action = "Focus / Do Not Disturb \(enabled ? "enabled" : "disabled")."
+				return .success(ExecuteResult(
+					result: [
+						"ok": true,
+						"enabled": enabled,
+						"shortcutName": shortcutName,
+						"stdoutTail": String(output.suffix(2000)),
+					],
+					appliedActions: [action]
+				))
+			} catch {
+				return .success(ExecuteResult(
+					result: [
+						"ok": false,
+						"enabled": enabled,
+						"shortcutName": shortcutName,
+						"error": SystemClient.errorMessage(error),
+						"hint": "Run `toby plugins setup macos` to install bundled Focus shortcuts, then confirm each import in Shortcuts.app.",
+					],
+					appliedActions: []
+				))
+			}
+
 		case "macShortcutRun":
 			guard let shortcutName = stringValue(input["name"])?.trimmingCharacters(in: .whitespacesAndNewlines), !shortcutName.isEmpty else {
 				return .success(ExecuteResult(result: ["ok": false, "error": "Shortcut name is required."], appliedActions: []))
@@ -359,7 +399,7 @@ public enum MacOSTools {
 			return .success(ExecuteResult(
 				result: [
 					"supported": false,
-					"message": "Toby cannot list Notification Center items via a stable public API. Deferred by design.",
+					"message": "Toby cannot list Notification Center items via a stable public API. To turn Do Not Disturb / Focus on or off, use macFocusSet instead.",
 				],
 				appliedActions: []
 			))

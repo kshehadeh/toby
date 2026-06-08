@@ -5,9 +5,11 @@ public enum Prompts {
 		[
 			"systemPromptSection": """
 			### Local macOS
-			Use mac* tools — Wi‑Fi scan & power, Bluetooth, battery info, audio list/switch/volume/mute, display brightness, clipboard read/write, pmset Low Power probes, Shortcut runner, unsupported notifications ack.
+			Use mac* tools — Wi‑Fi scan & power, Bluetooth, battery info, audio list/switch/volume/mute, display brightness, clipboard read/write, pmset Low Power probes, Focus/Do Not Disturb, Shortcut runner, unsupported notifications ack.
 
 			Audio rule: **macAudioListOutputs** returns both outputs and inputs. When the user asks to switch/change/set the output device, use **macAudioSwitchOutput** once the target is known. Use **macAudioListOutputs** only to discover exact names; do not stop after listing if there is a clear output match.
+
+			Focus rule: When the user asks to turn on/off Do Not Disturb or Focus mode, call **macFocusSet** with `enabled: true` or `false`. Do not claim Focus is unsupported — there is no direct API, but Toby ships bundled Shortcuts ("Toby Focus On" / "Toby Focus Off"). If the shortcut is missing, tell the user to run `toby plugins setup macos` and confirm the import in Shortcuts.app. Use **macNotificationsPeek** only to acknowledge that Notification Center items cannot be listed — never for toggling Focus.
 			""",
 			"buildMultiUserContent": """
 			## Local macOS

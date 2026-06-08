@@ -115,16 +115,17 @@ describe("macos plugin", () => {
 		expect(shape.data.fields ?? []).toEqual([]);
 	});
 
-	it("lists twenty macOS chat tools including macBluetoothStatus", () => {
+	it("lists twenty-one macOS chat tools including macFocusSet", () => {
 		const binaryPath = path.join(pluginDir, "toby-plugin-macos");
 		const list = pluginToolsList(binaryPath);
 		expect(list.ok).toBe(true);
 		if (!list.ok || !list.data.tools) return;
 		const names = list.data.tools.map((t) => t.name);
 		expect(names).toContain("macBluetoothStatus");
+		expect(names).toContain("macFocusSet");
 		expect(names).toContain("macWifiStatus");
 		expect(names).toContain("macNotificationsPeek");
-		expect(names.length).toBe(20);
+		expect(names.length).toBe(21);
 	});
 
 	it("registers plugin-backed macos module with chatModelPrep", () => {
