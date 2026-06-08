@@ -20,6 +20,13 @@ final class JiraClientTests: XCTestCase {
 		)
 	}
 
+	func testBuildGatewayHost() {
+		XCTAssertEqual(
+			JiraClient.buildGatewayHost(cloudId: "01471ff9-bd52-4ad0-81cc-c26e7353b36b"),
+			"https://api.atlassian.com/ex/jira/01471ff9-bd52-4ad0-81cc-c26e7353b36b"
+		)
+	}
+
 	func testHasCredentialsRequiresAllFields() {
 		XCTAssertFalse(JiraClient.hasCredentials(config: [:]))
 		XCTAssertFalse(JiraClient.hasCredentials(config: ["domain": "acme", "email": "a@b.com"]))

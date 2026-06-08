@@ -44,6 +44,11 @@ public enum JiraClient {
 		return "https://\(normalized).atlassian.net"
 	}
 
+	public static func buildGatewayHost(cloudId: String) -> String {
+		let trimmed = cloudId.trimmingCharacters(in: .whitespacesAndNewlines)
+		return "https://api.atlassian.com/ex/jira/\(trimmed)"
+	}
+
 	public static func testConnection(config: [String: Any]) throws {
 		guard let creds = credentials(from: config) else {
 			throw JiraFailure(message: "Jira credentials not found.")
@@ -225,6 +230,14 @@ public enum JiraClient {
 		return detail
 	}
 
+	nonisolated(unsafe) private static var cloudIdCache: [String: String] = [:]
+	nonisolated(unsafe) private static var apiBaseCache: [String: String] = [:]
+
+	private struct HTTPResult {
+		let data: Data
+		let statusCode: Int
+	}
+
 	private static func request(
 		config: [String: Any],
 		path: String,
@@ -235,15 +248,82 @@ public enum JiraClient {
 			throw JiraFailure(message: "Jira credentials not found.")
 		}
 
-		let host = buildHost(domain: creds.domain)
-		guard let url = URL(string: host + path) else {
+		let siteHost = buildHost(domain: creds.domain)
+		if let cachedBase = apiBaseCache[siteHost] {
+			let result = try performHTTP(
+				base: cachedBase,
+				path: path,
+				method: method,
+				body: body,
+				creds: creds
+			)
+			if result.statusCode < 400 {
+				return result.data
+			}
+			let message = parseErrorMessage(result.data) ?? "HTTP \(result.statusCode)"
+			throw JiraFailure(message: message)
+		}
+
+		let siteResult = try performHTTP(
+			base: siteHost,
+			path: path,
+			method: method,
+			body: body,
+			creds: creds
+		)
+		if siteResult.statusCode < 400 {
+			apiBaseCache[siteHost] = siteHost
+			return siteResult.data
+		}
+
+		if siteResult.statusCode == 401 || siteResult.statusCode == 403,
+			let cloudId = fetchCloudId(siteHost: siteHost)
+		{
+			let gatewayHost = buildGatewayHost(cloudId: cloudId)
+			let gatewayResult = try performHTTP(
+				base: gatewayHost,
+				path: path,
+				method: method,
+				body: body,
+				creds: creds
+			)
+			if gatewayResult.statusCode < 400 {
+				apiBaseCache[siteHost] = gatewayHost
+				return gatewayResult.data
+			}
+
+			let siteMessage = parseErrorMessage(siteResult.data) ?? "HTTP \(siteResult.statusCode)"
+			let gatewayMessage =
+				parseErrorMessage(gatewayResult.data) ?? "HTTP \(gatewayResult.statusCode)"
+			throw JiraFailure(
+				message: authFailureMessage(
+					siteMessage: siteMessage,
+					gatewayMessage: gatewayMessage
+				)
+			)
+		}
+
+		let message = parseErrorMessage(siteResult.data) ?? "HTTP \(siteResult.statusCode)"
+		throw JiraFailure(message: message)
+	}
+
+	private static func performHTTP(
+		base: String,
+		path: String,
+		method: String,
+		body: [String: Any]?,
+		creds: (domain: String, email: String, apiToken: String)
+	) throws -> HTTPResult {
+		guard let url = URL(string: base + path) else {
 			throw JiraFailure(message: "Invalid Jira URL.")
 		}
 
 		var request = URLRequest(url: url)
 		request.httpMethod = method
 		request.setValue("application/json", forHTTPHeaderField: "Accept")
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		if body != nil {
+			request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		}
 
 		let authString = "\(creds.email):\(creds.apiToken)"
 		guard let authData = authString.data(using: .utf8) else {
@@ -269,7 +349,7 @@ public enum JiraClient {
 			if let http = response as? HTTPURLResponse {
 				statusCode = http.statusCode
 			}
-			resultData = data
+			resultData = data ?? Data()
 		}
 		task.resume()
 		semaphore.wait()
@@ -278,16 +358,54 @@ public enum JiraClient {
 			throw JiraFailure(message: resultError.localizedDescription)
 		}
 
-		guard let resultData else {
-			throw JiraFailure(message: "Empty response from Jira API.")
+		return HTTPResult(data: resultData ?? Data(), statusCode: statusCode)
+	}
+
+	private static func fetchCloudId(siteHost: String) -> String? {
+		if let cached = cloudIdCache[siteHost] {
+			return cached
 		}
 
-		if statusCode >= 400 {
-			let message = parseErrorMessage(resultData) ?? "HTTP \(statusCode)"
-			throw JiraFailure(message: message)
+		guard let url = URL(string: siteHost + "/_edge/tenant_info") else {
+			return nil
 		}
 
-		return resultData
+		var request = URLRequest(url: url)
+		request.httpMethod = "GET"
+		request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+		let semaphore = DispatchSemaphore(value: 0)
+		var resultData: Data?
+		var statusCode = 0
+
+		let task = URLSession.shared.dataTask(with: request) { data, response, error in
+			defer { semaphore.signal() }
+			guard error == nil else { return }
+			if let http = response as? HTTPURLResponse {
+				statusCode = http.statusCode
+			}
+			resultData = data
+		}
+		task.resume()
+		semaphore.wait()
+
+		guard statusCode < 400,
+			let resultData,
+			let json = try? JSONSerialization.jsonObject(with: resultData) as? [String: Any],
+			let cloudId = stringValue(json["cloudId"])?.trimmingCharacters(in: .whitespacesAndNewlines),
+			!cloudId.isEmpty
+		else {
+			return nil
+		}
+
+		cloudIdCache[siteHost] = cloudId
+		return cloudId
+	}
+
+	private static func authFailureMessage(siteMessage: String, gatewayMessage: String) -> String {
+		"\(siteMessage) (site URL). Scoped-token gateway retry also failed: \(gatewayMessage). " +
+			"Create a new classic API token (without scopes), or a scoped token with Jira read scopes. " +
+			"Confirm the email matches the Atlassian account that owns the token."
 	}
 
 	private static func parseJSONObject(_ data: Data) throws -> [String: Any] {
