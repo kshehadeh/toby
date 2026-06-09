@@ -27,6 +27,7 @@ import {
 	pluginConnect,
 	pluginDisconnect,
 	pluginStatus,
+	pluginStatusAsync,
 	pluginToolsExecute,
 	pluginToolsList,
 } from "./client";
@@ -413,7 +414,7 @@ export function createPluginIntegrationModule(
 				...buildEnvelope(name),
 				validateTools: options?.validateTools,
 			};
-			const statusResult = pluginStatus(binaryPath, envelope);
+			const statusResult = await pluginStatusAsync(binaryPath, envelope);
 			if (!statusResult.ok) {
 				return {
 					ok: false,

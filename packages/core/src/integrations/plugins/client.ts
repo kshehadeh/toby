@@ -205,6 +205,19 @@ export function pluginStatus(
 	);
 }
 
+export function pluginStatusAsync(
+	binaryPath: string,
+	envelope: PluginConfigEnvelope = {},
+	options?: PluginClientOptions,
+): Promise<PluginInvokeResult<PluginStatusResponse>> {
+	return invokePluginAsync<PluginStatusResponse>(
+		binaryPath,
+		["status"],
+		serializeEnvelope(envelope),
+		options,
+	);
+}
+
 export function pluginConnect(
 	binaryPath: string,
 	envelope: PluginConfigEnvelope,
