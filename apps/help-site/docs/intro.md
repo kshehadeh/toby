@@ -24,6 +24,7 @@ It combines:
 
 | Topic | Start here |
 | ----- | ---------- |
+| What Toby can do | [What Does Toby Do?](./what-does-toby-do) |
 | Install Toby and set up AI | [Install](./getting-started/install) → [Set up AI](./getting-started/setup-ai) → [AI providers](./ai-providers/overview) |
 | Connect Gmail, Todoist, and more | [Configure & connect](./getting-started/configure-and-status) → [Integrations](./integrations/overview) |
 | Start chatting | [Your first chat](./getting-started/first-chat) (includes CLI syntax for `toby`, `toby -p`, and `toby chat`) |

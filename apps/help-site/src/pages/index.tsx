@@ -6,6 +6,12 @@ import styles from "./index.module.css";
 
 const sections = [
 	{
+		title: "What Does Toby Do?",
+		description:
+			"AI support, audio transcription, chat integrations, macOS control, schedules, and personas.",
+		to: "/docs/what-does-toby-do",
+	},
+	{
 		title: "Getting Started",
 		description:
 			"Install Toby, set up AI, connect integrations, and start chatting.",
@@ -67,8 +73,9 @@ export default function Home(): React.JSX.Element {
 					Gmail, Todoist, Slack, Azure AD, and Apple Calendar.
 				</p>
 				<p className={styles.lead}>
-					New here? Start with the <Link to="/docs/intro">introduction</Link>,
-					then <Link to="/docs/getting-started/install">install Toby</Link>.
+					New here? Read{" "}
+					<Link to="/docs/what-does-toby-do">What Does Toby Do?</Link>, then{" "}
+					<Link to="/docs/getting-started/install">install Toby</Link>.
 				</p>
 				<div className={styles.grid}>
 					{sections.map((section) => (

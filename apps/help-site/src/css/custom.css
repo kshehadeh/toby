@@ -376,6 +376,75 @@ body {
 	line-height: 1.45;
 }
 
+/* Feature page section headings */
+.featureHeading {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	margin-top: 2.25rem;
+	margin-bottom: 1rem;
+	font-size: 1.5rem;
+	font-weight: 650;
+	color: var(--ifm-heading-color);
+}
+
+.featureHeadingIcon {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	width: 2.35rem;
+	height: 2.35rem;
+	border: 1px solid var(--toby-border-subtle);
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.04);
+}
+
+.featureHeadingIcon svg {
+	width: 1.15rem;
+	height: 1.15rem;
+	color: #ffffff;
+	stroke: currentColor;
+}
+
+.featureHeadingIconAi {
+	background: linear-gradient(135deg, #10a37f, #1a7f64);
+}
+
+.featureHeadingIconMic {
+	background: linear-gradient(135deg, #ef4444, #b91c1c);
+}
+
+.featureHeadingIconChat {
+	background: linear-gradient(
+		135deg,
+		#36c5f0,
+		#2eb67d 45%,
+		#ecb22e 70%,
+		#e01e5a
+	);
+}
+
+.featureHeadingIconMacos {
+	background: linear-gradient(135deg, #737373, #404040);
+}
+
+.featureHeadingIconSchedule {
+	background: linear-gradient(135deg, #6366f1, #4338ca);
+}
+
+.featureHeadingIconConfig {
+	background: linear-gradient(135deg, #525252, #262626);
+}
+
+.featureHeadingIconPersona {
+	background: linear-gradient(135deg, var(--toby-accent), var(--toby-accent-dim));
+}
+
+.featureHeadingIconNext {
+	background: linear-gradient(135deg, #0ea5e9, #0284c7);
+}
+
 /* Architecture diagram */
 .architectureDiagram {
 	width: min(100%, 66.25rem);
