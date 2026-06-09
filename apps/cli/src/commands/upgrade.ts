@@ -195,13 +195,17 @@ async function runUpgrade(options: UpgradeCommandOptions): Promise<void> {
 			chalk.cyan(`Applying staged upgrade to ${manifest.version}...`),
 		);
 		const renderProgress = makeProgressRenderer();
-		const applied = await applyStagedReleaseDelegated(
-			options.installTarget ?? manifest.installTarget,
-			{
-				onProgress: renderProgress.onProgress,
-			},
-		);
-		finishProgressRenderer(renderProgress);
+		let applied: Awaited<ReturnType<typeof applyStagedReleaseDelegated>>;
+		try {
+			applied = await applyStagedReleaseDelegated(
+				options.installTarget ?? manifest.installTarget,
+				{
+					onProgress: renderProgress.onProgress,
+				},
+			);
+		} finally {
+			finishProgressRenderer(renderProgress);
+		}
 		console.log(chalk.green(`Installed: ${applied.installTarget}`));
 		console.log(chalk.green(`Verified: ${applied.version}`));
 		if (applied.daemonRestarted) {
@@ -221,13 +225,17 @@ async function runUpgrade(options: UpgradeCommandOptions): Promise<void> {
 
 	if (options.downloadOnly) {
 		const renderProgress = makeProgressRenderer();
-		const result = await downloadRelease({
-			tag: options.version,
-			repo: options.repo,
-			installDir: options.installDir,
-			onProgress: renderProgress.onProgress,
-		});
-		finishProgressRenderer(renderProgress);
+		let result: Awaited<ReturnType<typeof downloadRelease>>;
+		try {
+			result = await downloadRelease({
+				tag: options.version,
+				repo: options.repo,
+				installDir: options.installDir,
+				onProgress: renderProgress.onProgress,
+			});
+		} finally {
+			finishProgressRenderer(renderProgress);
+		}
 		console.log(
 			chalk.green(
 				`Staged ${result.version} at ~/.toby/staging/toby. Run /restart in chat or toby upgrade --apply-staged to install.`,
@@ -238,13 +246,17 @@ async function runUpgrade(options: UpgradeCommandOptions): Promise<void> {
 
 	console.log(chalk.cyan("Upgrading Toby to the latest release..."));
 	const renderProgress = makeProgressRenderer();
-	const applied = await runFullUpgrade({
-		tag: options.version,
-		repo: options.repo,
-		installDir: options.installDir,
-		onProgress: renderProgress.onProgress,
-	});
-	finishProgressRenderer(renderProgress);
+	let applied: Awaited<ReturnType<typeof runFullUpgrade>>;
+	try {
+		applied = await runFullUpgrade({
+			tag: options.version,
+			repo: options.repo,
+			installDir: options.installDir,
+			onProgress: renderProgress.onProgress,
+		});
+	} finally {
+		finishProgressRenderer(renderProgress);
+	}
 	console.log(chalk.green(`Installed: ${applied.installTarget}`));
 	console.log(chalk.green(`Verified: ${applied.version}`));
 	if (applied.daemonRestarted) {
