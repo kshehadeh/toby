@@ -3,12 +3,12 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const pluginToolsExecute = vi.hoisted(() => vi.fn());
+const pluginToolsExecuteAsync = vi.hoisted(() => vi.fn());
 const findDiscoveredPlugin = vi.hoisted(() => vi.fn());
 const inspectPluginBinary = vi.hoisted(() => vi.fn());
 
 vi.mock("@toby/core/integrations/plugins/client", () => ({
-	pluginToolsExecute,
+	pluginToolsExecuteAsync,
 	pluginSetup: vi.fn(),
 }));
 
@@ -18,9 +18,9 @@ vi.mock("@toby/core/integrations/plugins/registry", () => ({
 }));
 
 vi.mock("@toby/core/config/index", async () => {
-	const actual = await vi.importActual<typeof import("@toby/core/config/index")>(
-		"@toby/core/config/index",
-	);
+	const actual = await vi.importActual<
+		typeof import("@toby/core/config/index")
+	>("@toby/core/config/index");
 	return {
 		...actual,
 		readConfig: () => ({
@@ -81,7 +81,7 @@ describe("transcription plugin bridge", () => {
 			capabilities: ["transcription"],
 			name: "whisper",
 		});
-		pluginToolsExecute.mockReturnValue({
+		pluginToolsExecuteAsync.mockResolvedValue({
 			ok: true,
 			data: {
 				ok: true,
@@ -94,7 +94,7 @@ describe("transcription plugin bridge", () => {
 		});
 
 		const files = await transcribeWithPlugin({ input, outDir });
-		expect(pluginToolsExecute).toHaveBeenCalledWith(
+		expect(pluginToolsExecuteAsync).toHaveBeenCalledWith(
 			"/fake/toby-plugin-whisper",
 			expect.objectContaining({
 				tool: "doTranscription",
@@ -104,8 +104,8 @@ describe("transcription plugin bridge", () => {
 		);
 		expect(files.transcript).toBe("transcript.txt");
 		expect(files.transcriptJson).toBe("transcript.json");
-		expect(fs.readFileSync(path.join(outDir, "transcript.txt"), "utf8").trim()).toBe(
-			"Hello world",
-		);
+		expect(
+			fs.readFileSync(path.join(outDir, "transcript.txt"), "utf8").trim(),
+		).toBe("Hello world");
 	});
 });

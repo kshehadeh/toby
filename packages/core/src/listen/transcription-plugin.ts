@@ -11,19 +11,19 @@ import { getModulesWithCapability } from "../integrations/index";
 import { mergePluginConfigPatch } from "../integrations/plugins/adapter";
 import {
 	pluginSetup,
-	pluginToolsExecute,
+	pluginToolsExecuteAsync,
 } from "../integrations/plugins/client";
+import type { DiscoveredPlugin } from "../integrations/plugins/protocol";
 import {
 	findDiscoveredPlugin,
 	inspectPluginBinary,
 } from "../integrations/plugins/registry";
-import type { DiscoveredPlugin } from "../integrations/plugins/protocol";
+import type { ListenRecordingFiles } from "./types";
 import {
 	DEFAULT_TRANSCRIPTION_TIMEOUT_MS,
 	type ListenConfig,
 	resolveDefaultWhisperModelPath,
 } from "./whisper-config";
-import type { ListenRecordingFiles } from "./types";
 
 export const TRANSCRIPTION_TOOL_NAME = "doTranscription";
 
@@ -100,9 +100,7 @@ export function resolveTranscriptionPlugin(
 	return findDiscoveredPlugin(name);
 }
 
-export function isTranscriptionAvailable(
-	listenConfig?: ListenConfig,
-): boolean {
+export function isTranscriptionAvailable(listenConfig?: ListenConfig): boolean {
 	return Boolean(resolveTranscriptionPlugin(listenConfig));
 }
 
@@ -155,7 +153,10 @@ function resolveTranscriptionTimeoutMs(listenConfig?: ListenConfig): number {
 	return DEFAULT_TRANSCRIPTION_TIMEOUT_MS;
 }
 
-async function copyFileAtomic(sourcePath: string, destPath: string): Promise<void> {
+async function copyFileAtomic(
+	sourcePath: string,
+	destPath: string,
+): Promise<void> {
 	await fs.promises.mkdir(path.dirname(destPath), { recursive: true });
 	const tempPath = path.join(
 		path.dirname(destPath),
@@ -209,7 +210,10 @@ export async function transcribeWithPlugin(options: {
 	const listenConfig = config.listen;
 	const discovered = resolveTranscriptionPlugin(listenConfig);
 	if (!discovered) {
-		throw new ListenTranscriptionError("plugin_missing", missingPluginMessage());
+		throw new ListenTranscriptionError(
+			"plugin_missing",
+			missingPluginMessage(),
+		);
 	}
 
 	const inputPath = path.resolve(options.input);
@@ -234,7 +238,7 @@ export async function transcribeWithPlugin(options: {
 
 	options.onStatus?.("Transcribing recording…");
 	const envelope = buildPluginEnvelope(pluginName);
-	const execResult = pluginToolsExecute(
+	const execResult = await pluginToolsExecuteAsync(
 		discovered.binaryPath,
 		{
 			tool: TRANSCRIPTION_TOOL_NAME,
@@ -248,7 +252,8 @@ export async function transcribeWithPlugin(options: {
 
 	if (!execResult.ok) {
 		const code =
-			execResult.code === "spawn_error" && execResult.error.includes("ETIMEDOUT")
+			execResult.code === "spawn_error" &&
+			execResult.error.includes("ETIMEDOUT")
 				? "transcription_timeout"
 				: "transcribe_failed";
 		throw new ListenTranscriptionError(

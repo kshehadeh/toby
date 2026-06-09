@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import type {
 	PluginActionResponse,
 	PluginConfigEnvelope,
@@ -40,6 +40,51 @@ function serializeEnvelope(envelope: PluginConfigEnvelope = {}): string {
 	return JSON.stringify(payload);
 }
 
+function interpretPluginOutput<T>(
+	stdout: string,
+	stderr: string,
+	exitCode: number | null,
+): PluginInvokeResult<T> {
+	const trimmedStderr = stderr.trim();
+	const trimmedStdout = stdout.trim();
+
+	if (!trimmedStdout) {
+		return {
+			ok: false,
+			error: "Plugin returned empty stdout",
+			code: "empty_output",
+			stderr: trimmedStderr,
+			exitCode,
+		};
+	}
+
+	let parsed: T;
+	try {
+		parsed = JSON.parse(trimmedStdout) as T;
+	} catch {
+		return {
+			ok: false,
+			error: `Plugin returned non-JSON stdout: ${trimmedStdout.slice(0, 500)}`,
+			code: "parse_error",
+			stderr: trimmedStderr,
+			exitCode,
+		};
+	}
+
+	if (exitCode === 2) {
+		const payload = parsed as { error?: string; code?: string };
+		return {
+			ok: false,
+			error: payload.error ?? "Plugin contract error",
+			code: payload.code ?? "contract_error",
+			stderr: trimmedStderr,
+			exitCode,
+		};
+	}
+
+	return { ok: true, data: parsed, stderr: trimmedStderr };
+}
+
 function invokePlugin<T>(
 	binaryPath: string,
 	args: string[],
@@ -56,54 +101,95 @@ function invokePlugin<T>(
 		input,
 	});
 
-	const stderr = typeof result.stderr === "string" ? result.stderr.trim() : "";
+	const stderr = typeof result.stderr === "string" ? result.stderr : "";
 
 	if (result.error) {
 		return {
 			ok: false,
 			error: result.error.message,
 			code: "spawn_error",
-			stderr,
+			stderr: stderr.trim(),
 			exitCode: result.status,
 		};
 	}
 
-	const stdout = typeof result.stdout === "string" ? result.stdout.trim() : "";
-	if (!stdout) {
-		return {
-			ok: false,
-			error: "Plugin returned empty stdout",
-			code: "empty_output",
-			stderr,
-			exitCode: result.status,
-		};
-	}
+	const stdout = typeof result.stdout === "string" ? result.stdout : "";
+	return interpretPluginOutput<T>(stdout, stderr, result.status);
+}
 
-	let parsed: T;
-	try {
-		parsed = JSON.parse(stdout) as T;
-	} catch {
-		return {
-			ok: false,
-			error: `Plugin returned non-JSON stdout: ${stdout.slice(0, 500)}`,
-			code: "parse_error",
-			stderr,
-			exitCode: result.status,
-		};
-	}
+function invokePluginAsync<T>(
+	binaryPath: string,
+	args: string[],
+	input?: string,
+	options: PluginClientOptions = {},
+): Promise<PluginInvokeResult<T>> {
+	const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+	const maxBuffer = options.maxBufferBytes ?? DEFAULT_MAX_BUFFER;
 
-	if (result.status === 2) {
-		const payload = parsed as { error?: string; code?: string };
-		return {
-			ok: false,
-			error: payload.error ?? "Plugin contract error",
-			code: payload.code ?? "contract_error",
-			stderr,
-			exitCode: result.status,
-		};
-	}
+	return new Promise((resolve) => {
+		const child = spawn(binaryPath, args, { stdio: ["pipe", "pipe", "pipe"] });
+		let stdout = "";
+		let stderr = "";
+		let settled = false;
 
-	return { ok: true, data: parsed, stderr };
+		const settle = (result: PluginInvokeResult<T>) => {
+			if (settled) return;
+			settled = true;
+			if (timeout) clearTimeout(timeout);
+			resolve(result);
+		};
+
+		let timeout: ReturnType<typeof setTimeout> | undefined;
+		if (timeoutMs > 0) {
+			timeout = setTimeout(() => {
+				child.kill();
+				settle({
+					ok: false,
+					error: "spawn ETIMEDOUT",
+					code: "spawn_error",
+					stderr: stderr.trim(),
+					exitCode: null,
+				});
+			}, timeoutMs);
+		}
+
+		child.stdout?.on("data", (chunk: Buffer | string) => {
+			stdout += chunk.toString();
+			if (stdout.length > maxBuffer) {
+				child.kill();
+				settle({
+					ok: false,
+					error: "maxBuffer exceeded",
+					code: "spawn_error",
+					stderr: stderr.trim(),
+					exitCode: null,
+				});
+			}
+		});
+
+		child.stderr?.on("data", (chunk: Buffer | string) => {
+			stderr += chunk.toString();
+		});
+
+		if (input !== undefined) {
+			child.stdin?.write(input);
+		}
+		child.stdin?.end();
+
+		child.on("error", (error) => {
+			settle({
+				ok: false,
+				error: error.message,
+				code: "spawn_error",
+				stderr: stderr.trim(),
+				exitCode: null,
+			});
+		});
+
+		child.on("close", (code) => {
+			settle(interpretPluginOutput<T>(stdout, stderr, code));
+		});
+	});
 }
 
 export function pluginStatus(
@@ -195,6 +281,18 @@ export function pluginToolsList(
 	);
 }
 
+function serializeToolExecuteRequest(
+	request: PluginToolExecuteRequest,
+): string {
+	return JSON.stringify({
+		tool: request.tool,
+		input: request.input ?? {},
+		config: request.config ?? {},
+		state: request.state ?? {},
+		dryRun: request.dryRun ?? false,
+	});
+}
+
 export function pluginToolsExecute(
 	binaryPath: string,
 	request: PluginToolExecuteRequest,
@@ -203,13 +301,20 @@ export function pluginToolsExecute(
 	return invokePlugin<PluginToolExecuteResponse>(
 		binaryPath,
 		["tools", "execute"],
-		JSON.stringify({
-			tool: request.tool,
-			input: request.input ?? {},
-			config: request.config ?? {},
-			state: request.state ?? {},
-			dryRun: request.dryRun ?? false,
-		}),
+		serializeToolExecuteRequest(request),
+		options,
+	);
+}
+
+export function pluginToolsExecuteAsync(
+	binaryPath: string,
+	request: PluginToolExecuteRequest,
+	options?: PluginClientOptions,
+): Promise<PluginInvokeResult<PluginToolExecuteResponse>> {
+	return invokePluginAsync<PluginToolExecuteResponse>(
+		binaryPath,
+		["tools", "execute"],
+		serializeToolExecuteRequest(request),
 		options,
 	);
 }
