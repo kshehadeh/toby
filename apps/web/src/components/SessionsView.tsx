@@ -1,4 +1,5 @@
 import { api } from "@/api/client";
+import { SessionTranscript } from "@/components/SessionTranscript";
 import { SidebarScrollPanel } from "@/components/SidebarScrollPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -74,22 +75,7 @@ export function SessionsView() {
 							</CardHeader>
 							<CardContent>
 								<div className="h-[calc(100vh-14rem)] overflow-y-auto overscroll-contain rounded-md bg-muted/30 p-4">
-									<div className="space-y-4 font-mono text-sm leading-relaxed">
-										{detailQuery.data.transcript.map((entry, i) => (
-											<div
-												key={`${entry.kind}-${i}`}
-												className="whitespace-pre-wrap"
-											>
-												<span className="text-muted-foreground mr-2">
-													[{entry.kind}]
-												</span>
-												{entry.text}
-											</div>
-										))}
-										{detailQuery.data.transcript.length === 0 && (
-											<p className="text-muted-foreground">Empty transcript</p>
-										)}
-									</div>
+									<SessionTranscript entries={detailQuery.data.transcript} />
 								</div>
 							</CardContent>
 						</Card>

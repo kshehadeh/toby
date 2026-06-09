@@ -19,10 +19,7 @@ export interface SessionSummary {
 	updatedAt: string;
 }
 
-export interface TranscriptEntry {
-	kind: string;
-	text: string;
-}
+export type { TranscriptEntry } from "@toby/core/chat-pipeline/transcript-types";
 
 export interface MemoryItem {
 	id: string;

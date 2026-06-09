@@ -36,7 +36,7 @@ export const api = {
 		apiFetch<{
 			id: string;
 			name: string;
-			transcript: import("@/types").TranscriptEntry[];
+			transcript: import("@toby/core/chat-pipeline/transcript-types").TranscriptEntry[];
 			messageCount: number;
 		}>(`/api/sessions/${encodeURIComponent(id)}`),
 	memories: (q?: string) => {
