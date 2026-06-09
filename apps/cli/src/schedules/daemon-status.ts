@@ -98,18 +98,31 @@ export function stopDaemon(): boolean {
 	}
 }
 
-function startDaemon(intervalSeconds: number): boolean {
+/**
+ * Start the detached `toby daemon run` process.
+ *
+ * `execPathOverride` selects the binary to spawn. During a staged upgrade the
+ * running process is the (about-to-be-moved) staging binary, so callers must
+ * pass the freshly installed binary path; otherwise the staging binary has
+ * already been renamed away and the spawn fails with ENOENT.
+ */
+function startDaemon(
+	intervalSeconds: number,
+	execPathOverride?: string,
+): boolean {
 	try {
-		const args = buildTobySpawnArgs(
-			"daemon",
-			"run",
-			"--interval",
-			String(intervalSeconds),
-		);
-		const child = spawn(getTobyExecPath(), args, {
+		const cliArgs = ["daemon", "run", "--interval", String(intervalSeconds)];
+		// An explicit override is always a compiled binary, so it must not be
+		// prefixed with the entry script that buildTobySpawnArgs adds in dev.
+		const execPath = execPathOverride ?? getTobyExecPath();
+		const args = execPathOverride ? cliArgs : buildTobySpawnArgs(...cliArgs);
+		const child = spawn(execPath, args, {
 			detached: true,
 			stdio: getDetachedDaemonSpawnStdio(),
 		});
+		// spawn reports a missing executable via an async "error" event; without
+		// a listener that becomes an unhandled error that crashes the process.
+		child.on("error", () => undefined);
 		child.unref();
 		return true;
 	} catch {
@@ -195,6 +208,7 @@ export async function restartDaemon(
 
 export async function restartDaemonIfRunning(
 	defaultIntervalSeconds = 60,
+	execPathOverride?: string,
 ): Promise<{
 	wasRunning: boolean;
 	restarted: boolean;
@@ -212,7 +226,7 @@ export async function restartDaemonIfRunning(
 	if (!stopped) {
 		throw new Error("Timed out waiting for daemon to stop before restart.");
 	}
-	const started = startDaemon(intervalSeconds);
+	const started = startDaemon(intervalSeconds, execPathOverride);
 	if (!started) {
 		throw new Error("Failed to restart daemon after upgrade.");
 	}

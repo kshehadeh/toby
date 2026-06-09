@@ -489,7 +489,10 @@ export async function applyStagedRelease(
 		);
 	}
 
-	const daemonRestart = await restartDaemonIfRunning();
+	// Restart from the freshly installed binary. process.execPath here is the
+	// staging binary, which we just renamed into installTarget, so spawning it
+	// would fail with ENOENT.
+	const daemonRestart = await restartDaemonIfRunning(60, installTarget);
 
 	try {
 		ensureWhisperPluginSetup();
