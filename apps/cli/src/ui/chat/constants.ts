@@ -19,12 +19,14 @@ export const TIP_LABEL = "Tip: ";
 export const TIPS = [
 	'Type "/" to see a list of commands you can run.',
 	'Type "/config" to open the configuration settings.',
-	"Associate integrations with organization tools (e.g. Gmail \u2194 E-Mail, Apple Calendar \u2194 Calendar) in the configuration view.",
-	'Type "/scope" to change which integrations are active for the current session.',
+	'Set default providers per category (e.g. Gmail for Email, Apple Calendar for Calendar) under "Default Providers" in the configuration view.',
 	'Type "/help" or press "?" with an empty prompt for slash commands and shortcuts.',
 	"Use Tab to auto-complete slash commands.",
+	"Press Shift+Tab to cycle through personas.",
 	'Type "/persona" to switch between different AI personas.',
 	'Type "/sessions" to resume a previous chat session.',
+	'Type "/new" to start a fresh chat session.',
+	'Type "/plugins" to manage installed Toby plugins.',
 ] as const;
 
 export const CHAT_TITLE_ASCII = [
