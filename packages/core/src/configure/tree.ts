@@ -20,10 +20,13 @@ import {
 	listenRecordingTreeLabel,
 } from "./format";
 import type { ConfigureTreeContext, SettingsItem } from "./types";
-import { DEFAULT_CONFIGURE_TREE_CONTEXT } from "./types";
+import {
+	ADD_CUSTOM_MODEL_SENTINEL,
+	DEFAULT_CONFIGURE_TREE_CONTEXT,
+} from "./types";
 
 export type { ConfigureTreeContext, SettingsItem } from "./types";
-export { CONFIGURE_TREE_ACTION_KEYS } from "./types";
+export { ADD_CUSTOM_MODEL_SENTINEL, CONFIGURE_TREE_ACTION_KEYS } from "./types";
 
 const MAX_SKILL_BODY_PREVIEW = 200;
 const MAX_PERSONA_INSTRUCTION_PREVIEW = 120;
@@ -156,6 +159,28 @@ export function buildSettingsTree(
 		const modelValue = values[`personas.${p.name}.ai.model`] ?? p.ai.model;
 		const providerInfo = availableProviders.find((pr) => pr.id === providerId);
 
+		const customModels = (values[`ai.customModels.${providerId}`] ?? "")
+			.split("\n")
+			.map((s) => s.trim())
+			.filter(Boolean);
+		const modelOptions = [
+			...new Set([...(providerInfo?.models ?? []), ...customModels]),
+		];
+		if (modelValue && !modelOptions.includes(modelValue)) {
+			modelOptions.push(modelValue);
+		}
+		const modelSelectChoices = modelOptions.map((m) => ({
+			value: m,
+			label: m,
+		}));
+		if (providerInfo?.allowCustomModel) {
+			modelOptions.push(ADD_CUSTOM_MODEL_SENTINEL);
+			modelSelectChoices.push({
+				value: ADD_CUSTOM_MODEL_SENTINEL,
+				label: "+ Add custom model…",
+			});
+		}
+
 		const aiModelItems: SettingsItem[] = [
 			{
 				label: "AI Provider",
@@ -174,19 +199,11 @@ export function buildSettingsTree(
 				kind: "select" as const,
 				key: `personas.${p.name}.ai.model`,
 				navKey: `personas.${p.name}.ai.model.select`,
-				options: providerInfo?.models ?? [],
+				options: modelOptions,
+				selectChoices: modelSelectChoices,
 				currentValue: modelValue,
 			},
 		];
-		if (providerInfo?.allowCustomModel) {
-			aiModelItems.push({
-				label: "Custom model slug",
-				kind: "value" as const,
-				key: `personas.${p.name}.ai.model`,
-				navKey: `personas.${p.name}.ai.model.custom`,
-				currentValue: modelValue,
-			});
-		}
 
 		const readOnlyAiItems: SettingsItem[] = [
 			{

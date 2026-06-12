@@ -1,4 +1,5 @@
 export {
+	ADD_CUSTOM_MODEL_SENTINEL,
 	CONFIGURE_TREE_ACTION_KEYS,
 	type ConfigureTreeContext,
 	type SettingsItem,

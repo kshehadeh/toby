@@ -107,6 +107,8 @@ export interface WebConfig {
 /** Non-secret AI provider settings persisted in config.json. */
 export interface AISettings {
 	readonly ollama?: { readonly baseUrl?: string };
+	/** User-added model names per provider id, shown alongside built-in models. */
+	readonly customModels?: Record<string, string[]>;
 }
 
 interface TobyConfig {

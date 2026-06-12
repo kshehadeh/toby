@@ -13,6 +13,9 @@ export const CONFIGURE_TREE_ACTION_KEYS = new Set([
 	"schedules._new",
 ]);
 
+/** Sentinel model-select value that triggers the "add custom model" editor. */
+export const ADD_CUSTOM_MODEL_SENTINEL = "__add_custom_model__";
+
 export interface SettingsSelectChoice {
 	readonly value: string;
 	readonly label: string;

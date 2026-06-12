@@ -33,7 +33,11 @@ import {
 } from "../shared";
 import { scrollOffsetForSelection } from "../shared/field-selector-logic";
 import { ConfigureDetailPane } from "./configure-detail-pane";
-import { CONFIGURE_TREE_ACTION_KEYS, type SettingsItem } from "./items";
+import {
+	ADD_CUSTOM_MODEL_SENTINEL,
+	CONFIGURE_TREE_ACTION_KEYS,
+	type SettingsItem,
+} from "./items";
 import { ListenRecordingView, ListenStartPane } from "./listen-panes";
 import { parseListenRecordingIdFromKey } from "./listen-values";
 import { ScheduleRunOutputView } from "./schedule-run-output";
@@ -913,6 +917,32 @@ export function ConfigureApp({
 				setValues(newValues);
 				doRefresh(newValues);
 			}
+
+			// When the user typed a custom model name via the add-custom sentinel
+			// flow, also append it to the provider's saved custom model list so it
+			// appears in future selector sessions.
+			if (editItem) {
+				const modelMatch = /^personas\.(.+)\.ai\.model$/.exec(editItem.key);
+				if (modelMatch && newValue.trim()) {
+					const personaName = modelMatch[1];
+					const providerId = values[`personas.${personaName}.ai.provider`];
+					if (providerId) {
+						const customModelsKey = `ai.customModels.${providerId}`;
+						const existing = (values[customModelsKey] ?? "")
+							.split("\n")
+							.map((s) => s.trim())
+							.filter(Boolean);
+						const trimmed = newValue.trim();
+						if (!existing.includes(trimmed)) {
+							const updated = [...existing, trimmed].join("\n");
+							const newValues = { ...values, [customModelsKey]: updated };
+							setValues(newValues);
+							doRefresh(newValues);
+						}
+					}
+				}
+			}
+
 			setStatusMessage(undefined);
 			setScreen("nav");
 			setEditItem(null);
@@ -924,6 +954,17 @@ export function ConfigureApp({
 	const handleSelectSubmit = useCallback(
 		(newValue: string) => {
 			if (editItem) {
+				// Selecting "+ Add custom model…" opens a text editor to capture a new
+				// model name instead of storing the sentinel as the model value.
+				if (
+					newValue === ADD_CUSTOM_MODEL_SENTINEL &&
+					/^personas\.(.+)\.ai\.model$/.test(editItem.key)
+				) {
+					setEditItem({ ...editItem, currentValue: "" });
+					setScreen("edit");
+					return;
+				}
+
 				let newValues = { ...values, [editItem.key]: newValue };
 
 				const scheduleSelectMatch = /^schedules\.(.+)\.(enabled|persona)$/.exec(

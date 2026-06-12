@@ -1,3 +1,4 @@
+import { getAIProvider } from "../ai/providers";
 import type { AISettings, ChatInboundConfig } from "../config/index";
 import {
 	type CredentialsFile,
@@ -108,6 +109,13 @@ export function seedConfigureValues(
 	}
 	if (config.ai?.ollama?.baseUrl) {
 		values["ai.ollama.baseUrl"] = config.ai.ollama.baseUrl;
+	}
+	if (config.ai?.customModels) {
+		for (const [providerId, models] of Object.entries(config.ai.customModels)) {
+			if (models.length > 0) {
+				values[`ai.customModels.${providerId}`] = models.join("\n");
+			}
+		}
 	}
 	for (const p of config.personas) {
 		values[`personas.${p.name}.name`] = p.name;
@@ -317,14 +325,47 @@ export function buildCredentialsFromValues(
 	return next;
 }
 
+const CUSTOM_MODELS_KEY_RE = /^ai\.customModels\.(.+)$/;
+
+export function rebuildCustomModels(
+	values: Record<string, string>,
+): Record<string, string[]> | undefined {
+	const out: Record<string, string[]> = {};
+	for (const [key, value] of Object.entries(values)) {
+		const match = CUSTOM_MODELS_KEY_RE.exec(key);
+		if (!match) continue;
+		const providerId = match[1];
+		const models = [
+			...new Set(
+				value
+					.split("\n")
+					.map((s) => s.trim())
+					.filter(Boolean),
+			),
+		];
+		if (models.length > 0) {
+			out[providerId] = models;
+		}
+	}
+	return Object.keys(out).length > 0 ? out : undefined;
+}
+
 export function rebuildAISettings(
 	values: Record<string, string>,
 ): AISettings | undefined {
 	const baseUrl = values["ai.ollama.baseUrl"]?.trim();
+	const customModels = rebuildCustomModels(values);
+	const out: {
+		ollama?: { baseUrl: string };
+		customModels?: Record<string, string[]>;
+	} = {};
 	if (baseUrl) {
-		return { ollama: { baseUrl } };
+		out.ollama = { baseUrl };
 	}
-	return undefined;
+	if (customModels) {
+		out.customModels = customModels;
+	}
+	return Object.keys(out).length > 0 ? out : undefined;
 }
 
 function applyConfigFromValues(values: Record<string, string>): void {
@@ -437,6 +478,29 @@ export function applyConfigureValuesPatch(
 
 	if (Object.keys(config).length > 0) {
 		const merged = { ...(baseValues ?? seedConfigureValues()), ...config };
+		// When a persona model is set to a value not in the provider's built-in
+		// list, automatically append it to the custom model list so it appears in
+		// future selector sessions.
+		for (const [key, value] of Object.entries(config)) {
+			const modelMatch = /^personas\.(.+)\.ai\.model$/.exec(key);
+			if (!modelMatch || !value.trim()) continue;
+			const personaName = modelMatch[1];
+			const providerId =
+				merged[`personas.${personaName}.ai.provider`] ?? "openai";
+			const provider = getAIProvider(providerId);
+			if (!provider) continue;
+			const builtIn = provider.models ?? [];
+			const trimmed = value.trim();
+			if (builtIn.includes(trimmed)) continue;
+			const customKey = `ai.customModels.${providerId}`;
+			const existing = (merged[customKey] ?? "")
+				.split("\n")
+				.map((s) => s.trim())
+				.filter(Boolean);
+			if (!existing.includes(trimmed)) {
+				merged[customKey] = [...existing, trimmed].join("\n");
+			}
+		}
 		applyConfigFromValues(merged);
 	}
 

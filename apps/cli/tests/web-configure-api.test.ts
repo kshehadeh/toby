@@ -5,6 +5,7 @@ import { readCredentials } from "@toby/core/config/index";
 import {
 	applyConfigureValuesPatch,
 	collectSecretConfigureKeys,
+	rebuildCustomModels,
 	redactConfigureValues,
 	seedConfigureValues,
 } from "@toby/core/configure/persistence";
@@ -74,6 +75,81 @@ describe("configure persistence", () => {
 	it("seeds configure values without throwing", () => {
 		const values = seedConfigureValues();
 		expect(typeof values["chatInbound.enabled"]).toBe("string");
+	});
+
+	it("persists custom model list for a provider", () => {
+		withTempTobyDir(() => {
+			applyConfigureValuesPatch({
+				"personas.Toby.name": "Toby",
+				"personas.Toby.instructions": "",
+				"personas.Toby.promptMode": "add",
+				"personas.Toby.ai.provider": "ollama",
+				"personas.Toby.ai.model": "my-custom-llama",
+			});
+			const values = seedConfigureValues();
+			expect(values["personas.Toby.ai.model"]).toBe("my-custom-llama");
+			const customModelsRaw = values["ai.customModels.ollama"] ?? "";
+			const models = customModelsRaw.split("\n").filter(Boolean);
+			expect(models).toContain("my-custom-llama");
+		});
+	});
+
+	it("auto-adds custom models not in built-in list", () => {
+		withTempTobyDir(() => {
+			applyConfigureValuesPatch({
+				"personas.Toby.name": "Toby",
+				"personas.Toby.instructions": "",
+				"personas.Toby.promptMode": "add",
+				"personas.Toby.ai.provider": "ollama",
+				"personas.Toby.ai.model": "phi3-mini",
+			});
+			const values = seedConfigureValues();
+			const models = (values["ai.customModels.ollama"] ?? "")
+				.split("\n")
+				.filter(Boolean);
+			expect(models).toContain("phi3-mini");
+		});
+	});
+
+	it("does not add built-in models to custom list", () => {
+		withTempTobyDir(() => {
+			applyConfigureValuesPatch({
+				"personas.Toby.name": "Toby",
+				"personas.Toby.instructions": "",
+				"personas.Toby.promptMode": "add",
+				"personas.Toby.ai.provider": "ollama",
+				"personas.Toby.ai.model": "llama3.2",
+			});
+			const values = seedConfigureValues();
+			const models = (values["ai.customModels.ollama"] ?? "")
+				.split("\n")
+				.filter(Boolean);
+			expect(models).not.toContain("llama3.2");
+		});
+	});
+});
+
+describe("rebuildCustomModels", () => {
+	it("parses newline-separated custom models per provider", () => {
+		const result = rebuildCustomModels({
+			"ai.customModels.ollama": "phi3-mini\ngemma-custom",
+			"ai.customModels.vercel": "xai/grok-5",
+		});
+		expect(result).toEqual({
+			ollama: ["phi3-mini", "gemma-custom"],
+			vercel: ["xai/grok-5"],
+		});
+	});
+
+	it("de-duplicates model names", () => {
+		const result = rebuildCustomModels({
+			"ai.customModels.ollama": "phi3-mini\nphi3-mini",
+		});
+		expect(result).toEqual({ ollama: ["phi3-mini"] });
+	});
+
+	it("returns undefined when no custom models exist", () => {
+		expect(rebuildCustomModels({})).toBeUndefined();
 	});
 });
 
