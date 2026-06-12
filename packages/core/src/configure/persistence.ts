@@ -1,4 +1,4 @@
-import type { ChatInboundConfig } from "../config/index";
+import type { AISettings, ChatInboundConfig } from "../config/index";
 import {
 	type CredentialsFile,
 	type Persona,
@@ -22,7 +22,11 @@ import { loadLocalSkills } from "../skills/index";
 import { updateSkillFrontmatter } from "../skills/manage";
 import type { ConfigureListenRecording } from "./types";
 
-const SECRET_KEY_PREFIXES = ["ai.openai.token", "ai.vercel.apiKey"] as const;
+const SECRET_KEY_PREFIXES = [
+	"ai.openai.token",
+	"ai.vercel.apiKey",
+	"ai.ollama.apiKey",
+] as const;
 
 /** Keys that must never be written via the web API. */
 export function collectSecretConfigureKeys(): Set<string> {
@@ -98,6 +102,12 @@ export function seedConfigureValues(
 	}
 	if (creds.ai?.vercel?.apiKey) {
 		values["ai.vercel.apiKey"] = creds.ai.vercel.apiKey;
+	}
+	if (creds.ai?.ollama?.apiKey) {
+		values["ai.ollama.apiKey"] = creds.ai.ollama.apiKey;
+	}
+	if (config.ai?.ollama?.baseUrl) {
+		values["ai.ollama.baseUrl"] = config.ai.ollama.baseUrl;
 	}
 	for (const p of config.personas) {
 		values[`personas.${p.name}.name`] = p.name;
@@ -295,13 +305,26 @@ export function buildCredentialsFromValues(
 	const token = values["ai.openai.token"] ?? creds.ai?.openai?.token ?? "";
 	const vercelApiKey =
 		values["ai.vercel.apiKey"] ?? creds.ai?.vercel?.apiKey ?? "";
+	const ollamaApiKey =
+		values["ai.ollama.apiKey"] ?? creds.ai?.ollama?.apiKey ?? "";
 	next = mergeCredentials(next, {
 		ai: {
 			openai: { token },
 			vercel: { apiKey: vercelApiKey },
+			ollama: { apiKey: ollamaApiKey },
 		},
 	});
 	return next;
+}
+
+export function rebuildAISettings(
+	values: Record<string, string>,
+): AISettings | undefined {
+	const baseUrl = values["ai.ollama.baseUrl"]?.trim();
+	if (baseUrl) {
+		return { ollama: { baseUrl } };
+	}
+	return undefined;
 }
 
 function applyConfigFromValues(values: Record<string, string>): void {
@@ -310,6 +333,7 @@ function applyConfigFromValues(values: Record<string, string>): void {
 	cfg.defaultProviders = rebuildDefaultProviders(values);
 	cfg.chatInbound = rebuildChatInbound(values);
 	cfg.listen = rebuildListenConfig(values);
+	cfg.ai = rebuildAISettings(values);
 	applyIntegrationInboundFlags(cfg, values);
 	writeConfig(cfg);
 }

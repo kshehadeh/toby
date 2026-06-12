@@ -72,6 +72,20 @@ describe("validatePersonaAi", () => {
 			),
 		).toThrow(/Invalid Vercel AI Gateway/);
 	});
+
+	it("accepts ollama model names with tags", () => {
+		expect(() =>
+			validatePersonaAi(
+				testPersona({ provider: "ollama", model: "qwen2.5-coder:7b" }),
+			),
+		).not.toThrow();
+	});
+
+	it("rejects empty ollama model names", () => {
+		expect(() =>
+			validatePersonaAi(testPersona({ provider: "ollama", model: "   " })),
+		).toThrow(/Ollama model name is required/);
+	});
 });
 
 describe("normalizeModelOnProviderChange", () => {
@@ -91,6 +105,18 @@ describe("normalizeModelOnProviderChange", () => {
 		expect(
 			normalizeModelOnProviderChange("vercel", "anthropic/claude-sonnet-4.6"),
 		).toBe("anthropic/claude-sonnet-4.6");
+	});
+
+	it("strips vendor prefix when switching to ollama", () => {
+		expect(normalizeModelOnProviderChange("ollama", "openai/gpt-5-mini")).toBe(
+			"gpt-5-mini",
+		);
+	});
+
+	it("keeps bare model names when switching to ollama", () => {
+		expect(normalizeModelOnProviderChange("ollama", "llama3.2")).toBe(
+			"llama3.2",
+		);
 	});
 });
 
@@ -154,5 +180,13 @@ describe("formatPersonaAiLabel", () => {
 				testPersona({ provider: "vercel", model: "openai/gpt-5-mini" }),
 			),
 		).toBe("openai/gpt-5-mini");
+	});
+
+	it("shows provider/model for ollama", () => {
+		expect(
+			formatPersonaAiLabel(
+				testPersona({ provider: "ollama", model: "llama3.2" }),
+			),
+		).toBe("ollama/llama3.2");
 	});
 });

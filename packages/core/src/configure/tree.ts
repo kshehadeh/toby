@@ -689,6 +689,26 @@ export function buildSettingsTree(
 							},
 						],
 					},
+					{
+						label: "Ollama",
+						kind: "section",
+						key: "ai.ollama",
+						children: [
+							{
+								label: "Base URL",
+								kind: "value",
+								key: "ai.ollama.baseUrl",
+								currentValue:
+									values["ai.ollama.baseUrl"] ?? "http://localhost:11434/v1",
+							},
+							{
+								label: "API Key (optional)",
+								kind: "value",
+								key: "ai.ollama.apiKey",
+								masked: true,
+							},
+						],
+					},
 				],
 			},
 			{

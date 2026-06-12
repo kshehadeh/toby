@@ -1,4 +1,4 @@
-export type AIProviderModelFormat = "openai-id" | "gateway-slug";
+export type AIProviderModelFormat = "openai-id" | "gateway-slug" | "ollama-id";
 
 export interface AIProviderInfo {
 	id: string;
@@ -56,6 +56,21 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
 			"zai/glm-4.7-flash",
 			"moonshotai/kimi-k2.6",
 			"moonshotai/kimi-k2.5",
+		],
+	},
+	{
+		id: "ollama",
+		displayName: "Ollama",
+		modelFormat: "ollama-id",
+		allowCustomModel: true,
+		supportsPlanUsage: false,
+		models: [
+			"llama3.2",
+			"llama3.1",
+			"qwen2.5-coder",
+			"mistral",
+			"deepseek-r1",
+			"gemma3",
 		],
 	},
 ];

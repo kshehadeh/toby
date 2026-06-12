@@ -42,6 +42,18 @@ describe("configure persistence", () => {
 		const keys = collectSecretConfigureKeys();
 		expect(keys.has("ai.openai.token")).toBe(true);
 		expect(keys.has("ai.vercel.apiKey")).toBe(true);
+		expect(keys.has("ai.ollama.apiKey")).toBe(true);
+	});
+
+	it("persists the non-secret ollama base URL to config", () => {
+		withTempTobyDir(() => {
+			applyConfigureValuesPatch({
+				"ai.ollama.baseUrl": "http://192.168.1.50:11434/v1",
+			});
+			expect(seedConfigureValues()["ai.ollama.baseUrl"]).toBe(
+				"http://192.168.1.50:11434/v1",
+			);
+		});
 	});
 
 	it("persists secret configure keys to credentials", () => {

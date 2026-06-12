@@ -104,6 +104,11 @@ export interface WebConfig {
 	readonly port?: number;
 }
 
+/** Non-secret AI provider settings persisted in config.json. */
+export interface AISettings {
+	readonly ollama?: { readonly baseUrl?: string };
+}
+
 interface TobyConfig {
 	integrations: Record<string, Record<string, unknown>>;
 	personas: Persona[];
@@ -112,6 +117,7 @@ interface TobyConfig {
 	chatInbound?: ChatInboundConfig;
 	listen?: ListenConfig;
 	web?: WebConfig;
+	ai?: AISettings;
 }
 
 export interface GmailCredentials {
@@ -122,6 +128,7 @@ export interface GmailCredentials {
 interface AICredentials {
 	openai?: { token: string };
 	vercel?: { apiKey: string };
+	ollama?: { apiKey?: string };
 }
 
 type SlackAuthMethod = "oauth" | "bot_token";
@@ -205,6 +212,7 @@ export function readConfig(): TobyConfig {
 		chatInbound: parsed.chatInbound,
 		listen: parsed.listen,
 		web: parsed.web,
+		ai: parsed.ai,
 	};
 }
 

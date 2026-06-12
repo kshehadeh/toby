@@ -4,6 +4,7 @@ import type { EmbeddingModel } from "ai";
 import { embed, embedMany } from "ai";
 import {
 	buildAiGatewayAttributionHeaders,
+	createOllamaProvider,
 	isGatewayModelSlug,
 } from "../ai/model-factory";
 import type { Persona } from "../config/index";
@@ -11,6 +12,7 @@ import { readCredentials } from "../config/index";
 
 const OPENAI_EMBED_DEFAULT = "text-embedding-3-small";
 const VERCEL_EMBED_DEFAULT = "openai/text-embedding-3-small";
+const OLLAMA_EMBED_DEFAULT = "nomic-embed-text";
 
 function resolveOpenAiToken(): string | null {
 	const creds = readCredentials();
@@ -45,6 +47,9 @@ export function resolveRoutingEmbedModelId(persona: Persona): string {
 	if (persona.ai.provider === "vercel") {
 		return VERCEL_EMBED_DEFAULT;
 	}
+	if (persona.ai.provider === "ollama") {
+		return OLLAMA_EMBED_DEFAULT;
+	}
 	return OPENAI_EMBED_DEFAULT;
 }
 
@@ -72,6 +77,9 @@ export function createEmbeddingModelForPersona(
 			});
 			const slug = isGatewayModelSlug(modelId) ? modelId : `openai/${modelId}`;
 			return gateway.textEmbeddingModel(slug);
+		}
+		if (persona.ai.provider === "ollama") {
+			return createOllamaProvider().textEmbeddingModel(modelId);
 		}
 	} catch {
 		return null;

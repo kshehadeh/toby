@@ -1,8 +1,9 @@
 import { createGateway } from "@ai-sdk/gateway";
 import { createOpenAI } from "@ai-sdk/openai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { LanguageModelV3 } from "@ai-sdk/provider";
 import { type LanguageModel, wrapLanguageModel } from "ai";
-import { readCredentials } from "../config/index";
+import { readConfig, readCredentials } from "../config/index";
 import type { Persona } from "../config/index";
 import { resolveDefaultPersona } from "../personas/index";
 import { getAIProvider } from "./providers";
@@ -17,6 +18,10 @@ const GATEWAY_SLUG_RE = /^[a-z0-9-]+\/[a-z0-9][a-z0-9.-]*$/i;
 
 const OPENAI_AUX_DEFAULT = "gpt-4.1-nano";
 const VERCEL_AUX_DEFAULT = "openai/gpt-4.1-nano";
+const OLLAMA_AUX_DEFAULT = "llama3.2";
+
+/** Default base URL for a local Ollama server's OpenAI-compatible API. */
+export const OLLAMA_DEFAULT_BASE_URL = "http://localhost:11434/v1";
 
 /** Default app URL for Vercel AI Gateway attribution (https://vercel.com/docs/ai-gateway/ecosystem/app-attribution). */
 const DEFAULT_AI_GATEWAY_HTTP_REFERER = "https://github.com/kshehadeh/toby";
@@ -59,6 +64,15 @@ export function validatePersonaAi(persona: Persona): void {
 		return;
 	}
 
+	if (provider.modelFormat === "ollama-id") {
+		if (!persona.ai.model.trim()) {
+			throw new Error(
+				"Ollama model name is required (e.g. llama3.2). Run `toby configure` to set it.",
+			);
+		}
+		return;
+	}
+
 	if (persona.ai.model.includes("/")) {
 		throw new Error(
 			`OpenAI model id must not contain "/". Got "${persona.ai.model}".`,
@@ -83,6 +97,18 @@ export function normalizeModelOnProviderChange(
 			return `openai/${previousModel}`;
 		}
 		return provider.models[0] ?? "openai/gpt-5-mini";
+	}
+
+	if (provider.modelFormat === "ollama-id") {
+		if (previousModel.includes("/")) {
+			const slash = previousModel.lastIndexOf("/");
+			return (
+				previousModel.slice(slash + 1) ||
+				provider.models[0] ||
+				OLLAMA_AUX_DEFAULT
+			);
+		}
+		return previousModel || provider.models[0] || OLLAMA_AUX_DEFAULT;
 	}
 
 	if (previousModel.includes("/")) {
@@ -151,6 +177,42 @@ function createVercelGatewayModel(modelId: string): LanguageModel {
 	return createVercelGatewayProvider()(modelId);
 }
 
+/** Resolve the Ollama OpenAI-compatible base URL (env > config > default). */
+export function resolveOllamaBaseUrl(): string {
+	const fromEnv = process.env.TOBY_OLLAMA_BASE_URL?.trim();
+	if (fromEnv) {
+		return fromEnv;
+	}
+	const fromConfig = readConfig().ai?.ollama?.baseUrl?.trim();
+	if (fromConfig) {
+		return fromConfig;
+	}
+	return OLLAMA_DEFAULT_BASE_URL;
+}
+
+/** Optional API key for protected/remote Ollama-compatible endpoints. */
+export function resolveOllamaApiKey(): string | undefined {
+	const fromCreds = readCredentials().ai?.ollama?.apiKey?.trim();
+	if (fromCreds) {
+		return fromCreds;
+	}
+	const fromEnv = process.env.OLLAMA_API_KEY?.trim();
+	return fromEnv && fromEnv.length > 0 ? fromEnv : undefined;
+}
+
+export function createOllamaProvider() {
+	const apiKey = resolveOllamaApiKey();
+	return createOpenAICompatible({
+		name: "ollama",
+		baseURL: resolveOllamaBaseUrl(),
+		...(apiKey ? { apiKey } : {}),
+	});
+}
+
+function createOllamaModel(modelId: string): LanguageModel {
+	return createOllamaProvider().chatModel(modelId);
+}
+
 export function resolveAuxiliaryModelId(
 	providerId: string,
 	override?: string,
@@ -159,6 +221,9 @@ export function resolveAuxiliaryModelId(
 	const raw = override ?? (fromEnv && fromEnv.length > 0 ? fromEnv : undefined);
 
 	if (raw) {
+		if (providerId === "ollama") {
+			return raw;
+		}
 		if (isGatewayModelSlug(raw)) {
 			return raw;
 		}
@@ -170,6 +235,9 @@ export function resolveAuxiliaryModelId(
 
 	if (providerId === "vercel") {
 		return VERCEL_AUX_DEFAULT;
+	}
+	if (providerId === "ollama") {
+		return OLLAMA_AUX_DEFAULT;
 	}
 	return OPENAI_AUX_DEFAULT;
 }
@@ -188,6 +256,9 @@ export function createModelForPersona(persona: Persona): LanguageModel {
 			break;
 		case "vercel":
 			model = createVercelGatewayModel(persona.ai.model);
+			break;
+		case "ollama":
+			model = createOllamaModel(persona.ai.model);
 			break;
 		default:
 			throw new Error(
