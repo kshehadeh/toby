@@ -2,11 +2,21 @@
 
 This document describes how `toby chat` prepares messages, runs a model turn, and (optionally) takes advantage of provider prompt caching to reduce repeated prompt tokens.
 
-The pipeline implementation lives in **`@toby/core`** ([`packages/core/src/chat-pipeline/`](../packages/core/src/chat-pipeline/)). The CLI Ink session ([`apps/cli/src/ui/chat/`](../apps/cli/src/ui/chat/)) subscribes to `ChatEvent`s for display only. See [`architecture.md`](architecture.md#core-vs-apps).
+The pipeline implementation lives in **`@toby/core`** ([`packages/core/src/chat-pipeline/`](../packages/core/src/chat-pipeline/)). **Web, Native, and Ink TUI clients** consume turns through the daemon HTTP API (`POST /api/sessions/:id/turn`, SSE `ChatEvent` stream). The turn runtime in [`turn-runtime.ts`](../packages/core/src/chat-pipeline/turn-runtime.ts) wraps `runChatTurnPipeline` for API consumers. See [`chat-api-parity.md`](chat-api-parity.md) and [`daemon.md`](daemon.md#unified-chat-api).
+
+## Unified chat API (daemon)
+
+| Layer | Path | Role |
+| ----- | ---- | ---- |
+| Contract types | [`packages/core/src/api/chat-api.ts`](../packages/core/src/api/chat-api.ts) | Request/response shapes shared by all surfaces |
+| Turn runtime | [`packages/core/src/chat-pipeline/turn-runtime.ts`](../packages/core/src/chat-pipeline/turn-runtime.ts) | In-flight turns, ask-user, cancellation, persistence |
+| Transcript reducer | [`packages/core/src/chat-pipeline/transcript-reducer.ts`](../packages/core/src/chat-pipeline/transcript-reducer.ts) | `ChatEvent` → `TranscriptEntry` (stream + reload parity) |
+| HTTP client | [`packages/core/src/web/client.ts`](../packages/core/src/web/client.ts) | TypeScript SSE/REST client for TUI and Web |
+| Ink adapter | [`apps/cli/src/ui/chat/daemon-chat-bridge.ts`](../apps/cli/src/ui/chat/daemon-chat-bridge.ts) | Ensures daemon + submits turns from the TUI |
 
 ## Node pipeline architecture
 
-Both the Ink TUI (`toby chat`) and the headless daemon/inbound path run the same **node pipeline** via `runChatTurnPipeline` in [`packages/core/src/chat-pipeline/pipeline.ts`](../packages/core/src/chat-pipeline/pipeline.ts). Each node is a discrete unit with typed inputs and outputs; nodes emit existing `ChatEvent` milestones for observability. Rendering (transcript rows, streaming assistant text) is **not** part of the pipeline — consumers subscribe to the event stream.
+Both the daemon API and the headless inbound path run the same **node pipeline** via `runChatTurnPipeline` in [`packages/core/src/chat-pipeline/pipeline.ts`](../packages/core/src/chat-pipeline/pipeline.ts). Each node is a discrete unit with typed inputs and outputs; nodes emit existing `ChatEvent` milestones for observability. Rendering (transcript rows, streaming assistant text) is **not** part of the pipeline — clients subscribe to the event stream.
 
 ```mermaid
 flowchart LR

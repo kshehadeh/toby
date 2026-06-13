@@ -45,7 +45,7 @@ Scheduled prompts only fire when the daemon is running.
 toby daemon start
 ```
 
-Or in chat: **`/start-daemon`**
+Or in chat: **`/restart-server`**
 
 The daemon polls on an interval (default about 60 seconds) for due schedules.
 
@@ -56,7 +56,7 @@ toby daemon status
 toby daemon stop
 ```
 
-In chat: **`/stop-daemon`**
+In chat: **`/restart-server`** (restarts the server; use `toby daemon stop` to stop without restarting)
 
 While running, the daemon uses a lock file at `~/.toby/daemon.lock`.
 

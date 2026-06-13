@@ -43,7 +43,7 @@ Current chat commands include:
 - `/project` — choose, create, or clear the active project.
 - `/skills` — open the skills manager.
 - `/schedules` — open the schedules manager.
-- `/start-daemon` / `/stop-daemon` — control daemon startup from chat.
+- `/restart-server` — restart the background server (stop + start + reconnect).
 - `/web` — start the daemon if needed and open the local web UI in your browser.
 - `/upgrade` / `/restart` — stage an upgrade and relaunch.
 - `/new`, `/sessions`, `/log`, `/terminal`, `/clear-tool-cache`, `/plan`, and `/exit` — session and utility actions.

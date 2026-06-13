@@ -80,7 +80,7 @@ Inside the chat TUI:
 - `/upgrade` — download the latest release to staging (shows progress in the input footer)
 - `/restart` — exit and relaunch with the same launch arguments; applies a staged upgrade first when running a compiled binary
 
-After upgrading, restart the schedule daemon separately if it is running (`toby daemon restart` or `/stop-daemon` then `/start-daemon`).
+After upgrading, restart the server separately if it is running (`toby daemon restart` or `/restart-server` in chat).
 
 ### Chat slash commands: `/listen` and `/stop-listening`
 

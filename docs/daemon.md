@@ -52,7 +52,7 @@ Implementation entrypoints:
 | `toby daemon restart` | Stop the daemon if running, then start it again (preserves poll interval unless `-i` is set) |
 | `toby daemon status` | Show PID, inbound connection state, log path |
 
-From chat you can also use **`/start-daemon`**, **`/stop-daemon`**, and **`/web`** (see [slash-commands.md](slash-commands.md)).
+From chat you can also use **`/restart-server`** and **`/web`** (see [slash-commands.md](slash-commands.md)).
 
 `start` accepts `-i, --interval <seconds>` to change the schedule poll interval. `restart` accepts the same option; when omitted, it reuses the interval from the running daemon's lock file, or 60s if the daemon was not running.
 
@@ -231,6 +231,26 @@ Compact one-line format (for scripts): `formatDaemonLogEntry()` in the same modu
 | Fatal: needs bot token (`xoxb`) | Paste **Bot Token** in configure; OAuth connect does not set it |
 | Mentions ignored | Bot invited to channel; `app_mentions:read` scope; check `slack_app_mention` in log |
 | Duplicate replies | Router dedupes by `messageId`; check log for `inbound_duplicate` |
+
+## Unified chat API
+
+The daemon exposes a **shared chat contract** for Web, Native (SwiftUI), and Ink TUI clients. Types live in [`packages/core/src/api/chat-api.ts`](../packages/core/src/api/chat-api.ts); turn execution in [`packages/core/src/chat-pipeline/turn-runtime.ts`](../packages/core/src/chat-pipeline/turn-runtime.ts).
+
+| Method | Path | Purpose |
+| ------ | ---- | ------- |
+| `GET` | `/api/status` | Persona, model, integrations |
+| `POST` | `/api/sessions` | Create session (optional `persona`, `modules`, `bootstrap`) |
+| `GET` | `/api/sessions/:id` | Transcript, settings, active plan |
+| `PATCH` | `/api/sessions/:id` | Rename / update persona, modules, dry-run |
+| `DELETE` | `/api/sessions/:id` | Delete session |
+| `POST` | `/api/sessions/:id/turn` | Submit turn → SSE `ChatEvent` stream + `done` / `error` |
+| `POST` | `/api/sessions/:id/turn/:turnId/cancel` | Cancel in-flight turn |
+| `POST` | `/api/sessions/:id/turn/:turnId/ask-user/:requestId` | Answer interactive `askUser` prompt |
+| `POST` | `/api/sessions/:id/plan/skip` | Skip plan phase |
+| `POST` | `/api/sessions/:id/plan/cancel` | Cancel active plan |
+| `GET` | `/api/personas`, `/api/modules`, `/api/skills` | Metadata for pickers |
+
+SSE streams emit `ChatEvent` JSON on default `data:` lines. Terminal events use named events: `done`, `error`, `ask_user_prompt`. See [`chat-api-parity.md`](chat-api-parity.md) for TUI feature mapping.
 
 ## Related docs
 

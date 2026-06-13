@@ -66,8 +66,7 @@ If you configure [Web Search](../integrations/web-search), Toby can also search 
 | `/persona` | Switch persona |
 | `/skills` | Open the skills manager |
 | `/schedules` | Open the schedules manager |
-| `/start-daemon` | Start the background daemon |
-| `/stop-daemon` | Stop the background daemon |
+| `/restart-server` | Restart the background server |
 | `/web` | Open the local web UI in your browser |
 | `/upgrade` | Stage the latest release |
 | `/restart` | Restart Toby, applying a staged upgrade when available |
