@@ -4,6 +4,7 @@ export type {
 	ChatEventSink,
 } from "./chat-pipeline/chat-events";
 export { runHeadlessChatTurn } from "./chat-pipeline/headless-session";
+export { runWebChatTurn } from "./chat-pipeline/web-session";
 export {
 	resolveChatIntegrationModules,
 	parseChatCliInput,

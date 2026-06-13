@@ -34,6 +34,46 @@ type TextStreamPart = {
 
 export type CoreMessage = ModelMessage;
 
+function extractAssistantReplyText(
+	text: string,
+	responseMessages: readonly CoreMessage[],
+): string {
+	for (let i = responseMessages.length - 1; i >= 0; i--) {
+		const msg = responseMessages[i];
+		if (msg?.role !== "assistant") {
+			continue;
+		}
+		const content = msg.content;
+		if (typeof content === "string") {
+			const fromString = content.trim();
+			if (fromString.length > 0) {
+				return fromString;
+			}
+			continue;
+		}
+		if (!Array.isArray(content)) {
+			continue;
+		}
+		const joined = content
+			.filter(
+				(part): part is { type: "text"; text: string } =>
+					typeof part === "object" &&
+					part !== null &&
+					"type" in part &&
+					part.type === "text" &&
+					"text" in part &&
+					typeof part.text === "string",
+			)
+			.map((part) => part.text)
+			.join("");
+		const fromParts = joined.trim();
+		if (fromParts.length > 0) {
+			return fromParts;
+		}
+	}
+	return text.trim();
+}
+
 type ToolCallLifecycleStart = {
 	readonly toolName: string;
 	readonly blockKey: string;
@@ -553,8 +593,11 @@ export async function chatWithTools(
 				})),
 			);
 
+			const responseMessages = response.messages as CoreMessage[];
+			const replyText = extractAssistantReplyText(text, responseMessages);
+
 			return {
-				text,
+				text: replyText,
 				toolResults,
 				toolCalls,
 				responseMessages: response.messages as CoreMessage[],

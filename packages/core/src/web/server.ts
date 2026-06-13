@@ -33,6 +33,7 @@ export function startWebServer(options: WebServerOptions): Promise<void> {
 			server = Bun.serve({
 				hostname: "127.0.0.1",
 				port,
+				idleTimeout: 255,
 				async fetch(req: Request) {
 					try {
 						return await handleWebRequest(req, staticDir);

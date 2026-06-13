@@ -186,6 +186,14 @@ export async function listUsableChatModules(): Promise<IntegrationModule[]> {
 	return sortModulesByName(usable);
 }
 
+/** Web/native app turns: prompt-scoped modules from connected chat integrations. */
+export async function resolveWebChatModules(
+	userText: string,
+): Promise<{ modules: IntegrationModule[]; warnings: string[] }> {
+	const usable = await listUsableChatModules();
+	return resolveChatModulesForPrompt(userText, usable);
+}
+
 /** Inbound turns: prompt-scoped modules plus the transport (e.g. slack). */
 export async function resolveHeadlessChatModules(
 	userText: string,

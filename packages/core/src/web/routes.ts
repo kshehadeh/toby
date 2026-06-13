@@ -1,6 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+	handleChatStatusDetail,
+	handleCreateSession,
+	handleSessionTurn,
+} from "./handlers/chat";
+import {
 	handleConfigureAction,
 	handleConfigurePatch,
 	handleConfigureTree,
@@ -78,6 +83,9 @@ export async function handleWebRequest(
 		if (pathname === "/api/health") {
 			return jsonResponse({ ok: true, daemon: true });
 		}
+		if (pathname === "/api/status" && req.method === "GET") {
+			return handleChatStatusDetail();
+		}
 		if (pathname === "/api/daemon/status" && req.method === "GET") {
 			return handleDaemonStatus();
 		}
@@ -89,6 +97,13 @@ export async function handleWebRequest(
 		}
 		if (pathname === "/api/sessions" && req.method === "GET") {
 			return handleSessionsList(url);
+		}
+		if (pathname === "/api/sessions" && req.method === "POST") {
+			return handleCreateSession();
+		}
+		const sessionTurnMatch = /^\/api\/sessions\/([^/]+)\/turn$/.exec(pathname);
+		if (sessionTurnMatch && req.method === "POST") {
+			return handleSessionTurn(decodeURIComponent(sessionTurnMatch[1]), req);
 		}
 		const sessionMatch = /^\/api\/sessions\/([^/]+)$/.exec(pathname);
 		if (sessionMatch && req.method === "GET") {
