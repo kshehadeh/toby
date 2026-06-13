@@ -55,6 +55,16 @@ import {
 } from "@toby/core/logging/chat-log";
 import { listPersonas, resolvePersona } from "@toby/core/personas/index";
 import {
+	clearActiveProjectSlug,
+	listProjectContextFiles,
+	listProjectOutputFiles,
+	listProjects,
+	resolveActiveProject,
+	resolveProject,
+	setActiveProjectSlug,
+	type Project,
+} from "@toby/core/projects/index";
+import {
 	activityLineForChatEvent,
 	formatListeningToPersona,
 } from "@toby/core/pipeline-footer";
@@ -132,6 +142,7 @@ import {
 import { HelpPanel } from "./components/help-panel";
 import { UsagePanel } from "./components/usage-panel";
 import { PlanStatusBar } from "./components/plan-status-bar";
+import { ProjectDetailModal } from "./components/project-detail-modal";
 import {
 	ScrollableTextModal,
 	maxScrollModalOffset,
@@ -202,6 +213,22 @@ type PersonaPickerRow =
 interface PersonaPickerState {
 	readonly rows: readonly PersonaPickerRow[];
 	readonly cursorIndex: number;
+}
+
+type ProjectPickerRow =
+	| { readonly kind: "clear" }
+	| { readonly kind: "add" }
+	| { readonly kind: "project"; readonly project: Project };
+
+interface ProjectPickerState {
+	readonly rows: readonly ProjectPickerRow[];
+	readonly cursorIndex: number;
+}
+
+interface ProjectDetailState {
+	readonly project: Project;
+	readonly contextFiles: readonly string[];
+	readonly outputFiles: readonly string[];
 }
 
 interface ScrollModalState {
@@ -336,6 +363,16 @@ export function ChatSessionApp({
 	const [personaPicker, setPersonaPicker] = useState<PersonaPickerState | null>(
 		null,
 	);
+	const [projectPicker, setProjectPicker] = useState<ProjectPickerState | null>(
+		null,
+	);
+	const [projectDetail, setProjectDetail] = useState<ProjectDetailState | null>(
+		null,
+	);
+	const [activeProject, setActiveProject] = useState<Project | null>(() =>
+		resolveActiveProject(),
+	);
+	const activeProjectRef = useRef(activeProject);
 	const [scrollModal, setScrollModal] = useState<ScrollModalState | null>(null);
 	const [helpOpen, setHelpOpen] = useState(false);
 	const [activePersona, setActivePersona] = useState(() => persona);
@@ -391,6 +428,8 @@ export function ChatSessionApp({
 		multiPicker: null as MultiPickerState | null,
 		sessionPicker: null as SessionPickerState | null,
 		personaPicker: null as PersonaPickerState | null,
+		projectPicker: null as ProjectPickerState | null,
+		projectDetail: null as ProjectDetailState | null,
 		scrollModal: null as ScrollModalState | null,
 		helpOpen: false,
 		usageOpen: false,
@@ -571,6 +610,10 @@ export function ChatSessionApp({
 	}, [activePlan]);
 
 	useLayoutEffect(() => {
+		activeProjectRef.current = activeProject;
+	}, [activeProject]);
+
+	useLayoutEffect(() => {
 		askSelectedRef.current = askSelected;
 		snapRef.current = {
 			askModal,
@@ -579,6 +622,8 @@ export function ChatSessionApp({
 			multiPicker,
 			sessionPicker,
 			personaPicker,
+			projectPicker,
+			projectDetail,
 			scrollModal,
 			helpOpen,
 			usageOpen,
@@ -591,6 +636,8 @@ export function ChatSessionApp({
 		multiPicker,
 		sessionPicker,
 		personaPicker,
+		projectPicker,
+		projectDetail,
 		scrollModal,
 		helpOpen,
 		usageOpen,
@@ -1087,6 +1134,26 @@ export function ChatSessionApp({
 		setShowConfig(true);
 	}, []);
 
+	const openProjectPickerModal = useCallback(() => {
+		const projects = listProjects();
+		const rows: ProjectPickerRow[] = [
+			{ kind: "clear" },
+			{ kind: "add" },
+			...projects.map((p) => ({ kind: "project" as const, project: p })),
+		];
+		setProjectPicker({ rows, cursorIndex: 0 });
+	}, []);
+
+	const openProjectEditorAtPath = useCallback((slug: string) => {
+		setProjectPicker(null);
+		setProjectDetail(null);
+		setConfigureSession(createConfigureSession());
+		setConfigureInitialPath(["root", "projects", `projects.${slug}`]);
+		setConfigureEditorItemKey(`projects.${slug}.name`);
+		setConfigureMountKey((k) => k + 1);
+		setShowConfig(true);
+	}, []);
+
 	const applyPersonaFromPicker = useCallback(async (p: Persona) => {
 		const resolved = resolvePersona(p.name) ?? p;
 		setActivePersona(resolved);
@@ -1100,6 +1167,7 @@ export function ChatSessionApp({
 					mods,
 					msgs,
 					resolved,
+					activeProjectRef.current,
 				);
 				setMessages(next);
 				if (sid && next[0]) {
@@ -1122,6 +1190,31 @@ export function ChatSessionApp({
 			sessionIdRef.current,
 			`Switched persona to "${resolved.name}".`,
 		);
+	}, []);
+
+	const applyProjectFromPicker = useCallback(async (slug: string | null) => {
+		if (slug === null) {
+			clearActiveProjectSlug();
+			setActiveProject(null);
+			recordSessionNote(sessionIdRef.current, "Cleared active project.");
+		} else {
+			const project = resolveProject(slug);
+			if (!project) {
+				recordSessionNote(sessionIdRef.current, `Project "${slug}" not found.`);
+				return;
+			}
+			setActiveProjectSlug(slug);
+			setActiveProject(project);
+			recordSessionNote(
+				sessionIdRef.current,
+				`Switched project to "${project.name}".`,
+			);
+		}
+		// Reboot the session so project context is injected fresh.
+		setBootError(null);
+		setSessionPrompt("");
+		didAutoRunFirstTurnRef.current = false;
+		setMessages(null);
 	}, []);
 
 	const loadSessionIntoMemory = useCallback((id: string) => {
@@ -1403,6 +1496,12 @@ export function ChatSessionApp({
 						},
 						openPersonaConfigure: (pathKeys) => {
 							openPersonaEditorAtPath(pathKeys);
+						},
+						openProjectPicker: () => {
+							openProjectPickerModal();
+						},
+						openProjectConfigure: (slug) => {
+							openProjectEditorAtPath(slug);
 						},
 						openIntegrationPicker: () => {
 							void openIntegrationPicker();
@@ -1880,6 +1979,101 @@ export function ChatSessionApp({
 				return;
 			}
 
+			const projPicker = snapRef.current.projectPicker;
+			if (projPicker) {
+				const len = projPicker.rows.length;
+				const cursor = projPicker.cursorIndex;
+				if (key.upArrow) {
+					setProjectPicker((p) =>
+						p
+							? {
+									...p,
+									cursorIndex: cursor <= 0 ? len - 1 : cursor - 1,
+								}
+							: p,
+					);
+					return;
+				}
+				if (key.downArrow) {
+					setProjectPicker((p) =>
+						p
+							? {
+									...p,
+									cursorIndex: cursor >= len - 1 ? 0 : cursor + 1,
+								}
+							: p,
+					);
+					return;
+				}
+				if (key.return) {
+					const row = projPicker.rows[projPicker.cursorIndex];
+					if (!row) {
+						return;
+					}
+					if (row.kind === "clear") {
+						setProjectPicker(null);
+						void applyProjectFromPicker(null);
+						return;
+					}
+					if (row.kind === "add") {
+						const sess = createConfigureSession();
+						const newSlug = sess.callbacks.onCreateProject();
+						setConfigureSession(refreshConfigureSessionTree(sess));
+						setProjectPicker(null);
+						setConfigureInitialPath([
+							"root",
+							"projects",
+							`projects.${newSlug}`,
+						]);
+						setConfigureEditorItemKey(`projects.${newSlug}.name`);
+						setConfigureMountKey((k) => k + 1);
+						setShowConfig(true);
+						return;
+					}
+					if (row.kind === "project") {
+						setProjectDetail({
+							project: row.project,
+							contextFiles: listProjectContextFiles(row.project),
+							outputFiles: listProjectOutputFiles(row.project),
+						});
+						setProjectPicker(null);
+						return;
+					}
+					return;
+				}
+				if (ch === "e" && !key.ctrl && !key.meta) {
+					const row = projPicker.rows[projPicker.cursorIndex];
+					if (row?.kind === "project") {
+						openProjectEditorAtPath(row.project.slug);
+					}
+					return;
+				}
+				if (key.escape) {
+					setProjectPicker(null);
+					return;
+				}
+				return;
+			}
+
+			const projDetail = snapRef.current.projectDetail;
+			if (projDetail) {
+				if (ch === "a" && !key.ctrl && !key.meta) {
+					const slug = projDetail.project.slug;
+					setProjectDetail(null);
+					void applyProjectFromPicker(slug);
+					return;
+				}
+				if (ch === "e" && !key.ctrl && !key.meta) {
+					openProjectEditorAtPath(projDetail.project.slug);
+					return;
+				}
+				if (key.escape) {
+					setProjectDetail(null);
+					return;
+				}
+				return;
+			}
+
 			const persPicker = snapRef.current.personaPicker;
 			if (persPicker) {
 				const len = persPicker.rows.length;
@@ -2153,6 +2347,8 @@ export function ChatSessionApp({
 		Boolean(askModal) ||
 		Boolean(multiPicker) ||
 		Boolean(sessionPicker) ||
+		Boolean(projectPicker) ||
+		Boolean(projectDetail) ||
 		Boolean(personaPicker) ||
 		Boolean(scrollModal) ||
 		helpOpen ||
@@ -2253,6 +2449,58 @@ export function ChatSessionApp({
 						</Text>
 					</Box>
 				</ViewModal>
+			) : projectPicker ? (
+				<ViewModal termCols={termCols} borderColor={ACCENT}>
+					<Box width={termCols}>
+						<Text bold wrap="truncate-end">
+							Projects
+						</Text>
+					</Box>
+					{projectPicker.rows.map((row, i) => {
+						const active = i === projectPicker.cursorIndex;
+						const isActive =
+							row.kind === "project" &&
+							row.project.slug === activeProject?.slug;
+						const label =
+							row.kind === "clear"
+								? "No project"
+								: row.kind === "add"
+									? "New project…"
+									: `${row.project.name}${isActive ? " ★" : ""}`;
+						return (
+							<SelectableTextRow
+								key={
+									row.kind === "clear"
+										? "clear"
+										: row.kind === "add"
+											? "add"
+											: row.project.slug
+								}
+								selected={active}
+							>
+								{label}
+							</SelectableTextRow>
+						);
+					})}
+					<Box marginTop={1}>
+						<Text dimColor wrap="truncate-end">
+							Active: {activeProject?.name ?? "none"}
+						</Text>
+					</Box>
+					<Box marginTop={1}>
+						<Text dimColor>
+							↑↓ navigate · Enter select · e edit · Esc cancel
+						</Text>
+					</Box>
+				</ViewModal>
+			) : projectDetail ? (
+				<ProjectDetailModal
+					termCols={termCols}
+					project={projectDetail.project}
+					contextFiles={projectDetail.contextFiles}
+					outputFiles={projectDetail.outputFiles}
+					isActive={projectDetail.project.slug === activeProject?.slug}
+				/>
 			) : personaPicker ? (
 				<ViewModal termCols={termCols} borderColor={ACCENT}>
 					<Box width={termCols}>
@@ -2316,6 +2564,7 @@ export function ChatSessionApp({
 				onSubmit={handlePromptSubmit}
 				inputDisabled={inputDisabled}
 				persona={activePersona}
+				project={activeProject}
 				modelLabel={modelLabel}
 				dryRun={dryRun}
 				lastUsage={lastUsage}
