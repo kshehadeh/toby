@@ -18,7 +18,8 @@ export type DisplayRow =
 				| "assistant"
 				| "tool"
 				| "plan"
-				| "meta";
+				| "meta"
+				| "thinking";
 			readonly header: string;
 			readonly bodyLines: readonly string[];
 			readonly leadingGlyph: string;

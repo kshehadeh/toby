@@ -17,7 +17,13 @@ type NoticePayload = {
 type BoxedStepPayload = {
 	readonly id: string;
 	readonly seq: number;
-	readonly variant: "prep" | "lifecycle" | "assistant" | "tool" | "plan";
+	readonly variant:
+		| "prep"
+		| "lifecycle"
+		| "assistant"
+		| "tool"
+		| "plan"
+		| "thinking";
 	readonly header: string;
 	readonly body: string;
 	readonly toolBlockKey?: string;
@@ -103,7 +109,8 @@ export function deserializeTranscriptRow(row: {
 					p.variant === "lifecycle" ||
 					p.variant === "assistant" ||
 					p.variant === "tool" ||
-					p.variant === "plan") &&
+					p.variant === "plan" ||
+					p.variant === "thinking") &&
 				typeof p.header === "string" &&
 				typeof p.body === "string"
 			) {

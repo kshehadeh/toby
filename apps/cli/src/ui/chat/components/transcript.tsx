@@ -42,19 +42,24 @@ export function buildTranscriptNodes(
 		const r = rows[i];
 		if (r.kind === "boxed_block") {
 			const bb = r;
+			const isThinking = bb.variant === "thinking";
 			const bodyDim = bb.variant !== "assistant";
 			const glyphColor =
 				bb.variant === "plan"
 					? "magenta"
 					: bb.variant === "meta"
 						? META_ACCENT
-						: ACCENT;
+						: isThinking
+							? "gray"
+							: ACCENT;
 			const headerColor =
 				bb.variant === "plan"
 					? "magenta"
 					: bb.variant === "meta"
 						? META_ACCENT
-						: ACCENT;
+						: isThinking
+							? "gray"
+							: ACCENT;
 			nodes.push(
 				<Box
 					key={`bb-${bb.id}-${outIdx}`}
@@ -92,6 +97,7 @@ export function buildTranscriptNodes(
 										<Text
 											key={`${bb.id}-ln-${j}`}
 											dimColor={bodyDim}
+											color={isThinking ? "gray" : undefined}
 											wrap="truncate-end"
 										>
 											{j === 0 ? "↳ " : "  "}

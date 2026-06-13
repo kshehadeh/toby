@@ -45,6 +45,22 @@ export type ChatEvent =
 			readonly line: string;
 	  }
 	| {
+			readonly type: "reasoning_start";
+			readonly id: string;
+			readonly seq: number;
+	  }
+	| {
+			readonly type: "reasoning_delta";
+			readonly segmentId: string;
+			readonly seq: number;
+			readonly delta: string;
+	  }
+	| {
+			readonly type: "reasoning_end";
+			readonly id: string;
+			readonly seq: number;
+	  }
+	| {
 			readonly type: "assistant_segment_start";
 			readonly id: string;
 			readonly seq: number;

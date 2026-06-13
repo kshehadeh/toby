@@ -322,7 +322,7 @@ describe("flattenTranscript boxed_step", () => {
 				toolName: "getInboxUnreadOverview",
 			},
 		];
-		const rows = flattenTranscript(entries, "", true, 80, "Toby", false);
+		const rows = flattenTranscript(entries, "", "", true, 80, "Toby", false);
 		const bb = rows.find((r) => r.kind === "boxed_block");
 		expect(bb?.kind === "boxed_block" && bb.bodyLines).toEqual([
 			WORKING_PLACEHOLDER_SENTINEL,
@@ -342,7 +342,7 @@ describe("flattenTranscript boxed_step", () => {
 				toolName: "getInboxUnreadOverview",
 			},
 		];
-		const rows = flattenTranscript(entries, "", false, 80);
+		const rows = flattenTranscript(entries, "", "", false, 80);
 		const bb = rows.find((r) => r.kind === "boxed_block");
 		expect(bb?.kind === "boxed_block" && bb.bodyLines).toEqual([""]);
 	});
@@ -361,7 +361,7 @@ describe("flattenTranscript boxed_step", () => {
 				cacheHit: true,
 			},
 		];
-		const rows = flattenTranscript(entries, "", false, 80);
+		const rows = flattenTranscript(entries, "", "", false, 80);
 		expect(rows.some((r) => r.kind === "boxed_block")).toBe(true);
 		const bb = rows.find((r) => r.kind === "boxed_block");
 		expect(bb && bb.kind === "boxed_block" && bb.header).toBe("List labels");
@@ -390,7 +390,7 @@ describe("flattenTranscript boxed_step", () => {
 				toolName: "listLabels",
 			},
 		];
-		const rows = flattenTranscript(entries, "", false, 80, "Toby", false);
+		const rows = flattenTranscript(entries, "", "", false, 80, "Toby", false);
 		const boxed = rows.filter((r) => r.kind === "boxed_block");
 		expect(boxed).toHaveLength(1);
 		expect(boxed[0]?.kind === "boxed_block" && boxed[0].variant).toBe("tool");
@@ -407,7 +407,7 @@ describe("flattenTranscript boxed_step", () => {
 				body: "Ready.",
 			},
 		];
-		const rows = flattenTranscript(entries, "", false, 80, "Toby", true);
+		const rows = flattenTranscript(entries, "", "", false, 80, "Toby", true);
 		const boxed = rows.filter((r) => r.kind === "boxed_block");
 		expect(boxed).toHaveLength(1);
 		expect(boxed[0]?.kind === "boxed_block" && boxed[0].variant).toBe("prep");
@@ -417,7 +417,7 @@ describe("flattenTranscript boxed_step", () => {
 		const entries: TranscriptEntry[] = [
 			{ kind: "meta", text: "Configuration updated." },
 		];
-		const rows = flattenTranscript(entries, "", false, 80, "Toby", false);
+		const rows = flattenTranscript(entries, "", "", false, 80, "Toby", false);
 		expect(rows.filter((r) => r.kind === "boxed_block")).toHaveLength(0);
 	});
 
@@ -425,7 +425,7 @@ describe("flattenTranscript boxed_step", () => {
 		const entries: TranscriptEntry[] = [
 			{ kind: "meta", text: "Configuration updated." },
 		];
-		const rows = flattenTranscript(entries, "", false, 80, "Toby", true);
+		const rows = flattenTranscript(entries, "", "", false, 80, "Toby", true);
 		const boxed = rows.filter((r) => r.kind === "boxed_block");
 		expect(boxed).toHaveLength(1);
 		const note = boxed[0];
@@ -442,7 +442,7 @@ describe("flattenTranscript boxed_step", () => {
 			{ kind: "meta", text: "Daemon started (PID 12345)." },
 			{ kind: "assistant", text: "Done." },
 		];
-		const rows = flattenTranscript(entries, "", false, 80, "Toby", true);
+		const rows = flattenTranscript(entries, "", "", false, 80, "Toby", true);
 		const boxed = rows.filter((r) => r.kind === "boxed_block");
 		expect(boxed).toHaveLength(1);
 		const metaBox = boxed[0];
@@ -458,7 +458,7 @@ describe("flattenTranscript boxed_step", () => {
 		const entries: TranscriptEntry[] = [
 			{ kind: "notice", text: "Daemon started (PID 12345).", tone: "success" },
 		];
-		const rows = flattenTranscript(entries, "", false, 80, "Toby", false);
+		const rows = flattenTranscript(entries, "", "", false, 80, "Toby", false);
 		expect(rows.filter((r) => r.kind === "notice")).toEqual([
 			{
 				kind: "notice",
@@ -474,7 +474,7 @@ describe("flattenTranscript boxed_step", () => {
 			{ kind: "notice", text: "Daemon started (PID 12345).", tone: "success" },
 			{ kind: "assistant", text: "Done." },
 		];
-		const rows = flattenTranscript(entries, "", false, 80, "Toby", false);
+		const rows = flattenTranscript(entries, "", "", false, 80, "Toby", false);
 		const notices = rows.filter((r) => r.kind === "notice");
 		expect(notices).toHaveLength(2);
 		expect(notices[0]).toEqual({
@@ -495,7 +495,7 @@ describe("flattenTranscript boxed_step", () => {
 			{ kind: "meta", text: "Tools in scope: Gmail (1)" },
 			{ kind: "notice", text: "Daemon started (PID 12345).", tone: "success" },
 		];
-		const rows = flattenTranscript(entries, "", false, 80, "Toby", false);
+		const rows = flattenTranscript(entries, "", "", false, 80, "Toby", false);
 		expect(rows.some((r) => r.kind === "notice")).toBe(true);
 		expect(rows.some((r) => r.kind === "boxed_block")).toBe(false);
 	});
@@ -617,7 +617,7 @@ describe("flattenTranscript boxed_step", () => {
 				],
 			},
 		];
-		const rows = flattenTranscript(entries, "", false, 80);
+		const rows = flattenTranscript(entries, "", "", false, 80);
 		const bb = rows.find((r) => r.kind === "boxed_block");
 		expect(bb?.kind).toBe("boxed_block");
 		if (bb?.kind === "boxed_block") {
@@ -657,7 +657,7 @@ describe("flattenTranscript boxed_step", () => {
 				],
 			},
 		];
-		const rows = flattenTranscript(entries, "", false, 80);
+		const rows = flattenTranscript(entries, "", "", false, 80);
 		const bb = rows.find((r) => r.kind === "boxed_block");
 		expect(bb?.kind).toBe("boxed_block");
 		if (bb?.kind === "boxed_block") {
@@ -678,7 +678,7 @@ describe("flattenTranscript boxed_step", () => {
 				toolName: "listLabels",
 			},
 		];
-		const rows = flattenTranscript(entries, "", false, 80);
+		const rows = flattenTranscript(entries, "", "", false, 80);
 		const bb = rows.find((r) => r.kind === "boxed_block");
 		expect(bb?.kind).toBe("boxed_block");
 		if (bb?.kind === "boxed_block") {
@@ -805,13 +805,29 @@ describe("flattenTranscript hidden lifecycle headers", () => {
 	];
 
 	it("hides specific lifecycle headers when debug is off", () => {
-		const rows = flattenTranscript(hiddenEntries, "", false, 80, "Toby", false);
+		const rows = flattenTranscript(
+			hiddenEntries,
+			"",
+			"",
+			false,
+			80,
+			"Toby",
+			false,
+		);
 		const boxed = rows.filter((r) => r.kind === "boxed_block");
 		expect(boxed).toHaveLength(0);
 	});
 
 	it("shows specific lifecycle headers when debug is on", () => {
-		const rows = flattenTranscript(hiddenEntries, "", false, 80, "Toby", true);
+		const rows = flattenTranscript(
+			hiddenEntries,
+			"",
+			"",
+			false,
+			80,
+			"Toby",
+			true,
+		);
 		const boxed = rows.filter((r) => r.kind === "boxed_block");
 		expect(boxed).toHaveLength(3);
 	});
@@ -827,7 +843,7 @@ describe("flattenTranscript hidden lifecycle headers", () => {
 				body: "Completed",
 			},
 		];
-		const rows = flattenTranscript(entries, "", false, 80, "Toby", false);
+		const rows = flattenTranscript(entries, "", "", false, 80, "Toby", false);
 		const boxed = rows.filter((r) => r.kind === "boxed_block");
 		expect(boxed).toHaveLength(1);
 	});
@@ -843,7 +859,7 @@ describe("flattenTranscript hidden lifecycle headers", () => {
 				body: "Fetching integration connection context…",
 			},
 		];
-		const rows = flattenTranscript(entries, "", false, 80, "Toby", false);
+		const rows = flattenTranscript(entries, "", "", false, 80, "Toby", false);
 		expect(rows.filter((r) => r.kind === "boxed_block")).toHaveLength(0);
 	});
 });

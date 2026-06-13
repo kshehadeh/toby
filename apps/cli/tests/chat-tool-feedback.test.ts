@@ -159,7 +159,7 @@ describe("flattenTranscript tool feedback", () => {
 				detail: "Updated task.",
 			},
 		];
-		const rows = flattenTranscript(entries, "", false, 80);
+		const rows = flattenTranscript(entries, "", "", false, 80);
 		const kinds = rows.map((r) => r.kind);
 		expect(kinds).toContain("tool_feedback_call");
 		expect(kinds).toContain("tool_feedback_output");
@@ -178,7 +178,7 @@ describe("flattenTranscript tool feedback", () => {
 				answer: "Yes, delete it",
 			},
 		];
-		const rows = flattenTranscript(entries, "", false, 80);
+		const rows = flattenTranscript(entries, "", "", false, 80);
 		expect(rows.some((r) => r.kind === "ask_user_qa")).toBe(true);
 		const row = rows.find((r) => r.kind === "ask_user_qa");
 		expect(row && row.kind === "ask_user_qa" && row.query).toBe(

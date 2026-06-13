@@ -21,7 +21,13 @@ export type TranscriptEntry =
 			readonly kind: "boxed_step";
 			readonly id: string;
 			readonly seq: number;
-			readonly variant: "prep" | "lifecycle" | "assistant" | "tool" | "plan";
+			readonly variant:
+				| "prep"
+				| "lifecycle"
+				| "assistant"
+				| "tool"
+				| "plan"
+				| "thinking";
 			readonly header: string;
 			readonly body: string;
 			readonly toolBlockKey?: string;

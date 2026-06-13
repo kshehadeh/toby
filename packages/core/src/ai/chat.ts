@@ -21,6 +21,17 @@ import { enrichChatModelError } from "./chat-errors";
 export { formatChatModelError } from "./chat-errors";
 export { createModelForPersona } from "./model-factory";
 
+type TextStreamPart = {
+	readonly type: string;
+	readonly text?: string;
+	readonly toolCallId?: string;
+	readonly toolName?: string;
+	readonly input?: unknown;
+	readonly output?: unknown;
+	readonly argsTextDelta?: string;
+	readonly isError?: boolean;
+};
+
 export type CoreMessage = ModelMessage;
 
 type ToolCallLifecycleStart = {
@@ -69,6 +80,9 @@ type StreamToolContext = {
 	readonly endAssistantSegment: () => void;
 	readonly emit: ChatEventSink | undefined;
 	readonly nextSeq: () => number;
+	/** When true, tool_call_start/tool_call_complete events are emitted from
+	 *  fullStream processing rather than from the execute wrapper. */
+	readonly toolEventsFromStream: boolean;
 };
 
 /**
@@ -117,6 +131,10 @@ function injectToolCache(tools: Record<string, Tool>): Record<string, Tool> {
 /**
  * Wraps all tools with lifecycle hooks: event emission, start/complete callbacks,
  * and abort-signal checks. Returns tools unchanged when no hooks or events are needed.
+ *
+ * When `streamCtx.toolEventsFromStream` is true, tool_call_start/tool_call_complete
+ * events and onToolCallStart/onToolCallComplete callbacks are emitted from fullStream
+ * processing instead of the execute wrapper, so the hooks skip them here.
  */
 function injectToolLifecycleHooks(
 	tools: Record<string, Tool>,
@@ -126,9 +144,16 @@ function injectToolLifecycleHooks(
 	const onToolCallStart = options?.onToolCallStart;
 	const onToolCallComplete = options?.onToolCallComplete;
 	const abortSignal = options?.abortSignal;
-	if (!onToolCallStart && !onToolCallComplete && !streamCtx?.emit) {
+	const skipStreamToolEvents = streamCtx?.toolEventsFromStream === true;
+	if (
+		!onToolCallStart &&
+		!onToolCallComplete &&
+		!(streamCtx?.emit && !skipStreamToolEvents) &&
+		!streamCtx
+	) {
 		return tools;
 	}
+	const emitToolEvents = !skipStreamToolEvents;
 	const wrapped: Record<string, Tool> = {};
 	for (const [name, tool] of Object.entries(tools)) {
 		const execute = tool.execute;
@@ -147,33 +172,37 @@ function injectToolLifecycleHooks(
 				throwIfAborted(abortSignal);
 				const allowCache = isReadOnlyChatTool(name);
 				const cacheHit = allowCache && getCachedToolResult(name, args).hit;
-				streamCtx?.endAssistantSegment();
-				streamCtx?.emit?.({
-					type: "tool_call_start",
-					blockKey,
-					seq: streamCtx.nextSeq(),
-					toolName: name,
-					args,
-				});
-				onToolCallStart?.({ toolName: name, blockKey, args });
-				if (cacheHit) {
-					const cachedValue = getCachedToolResult(name, args).value;
+				if (emitToolEvents) {
+					streamCtx?.endAssistantSegment();
 					streamCtx?.emit?.({
-						type: "tool_call_complete",
+						type: "tool_call_start",
 						blockKey,
 						seq: streamCtx.nextSeq(),
 						toolName: name,
 						args,
-						result: cachedValue,
-						cacheHit: true,
 					});
-					onToolCallComplete?.({
-						toolName: name,
-						blockKey,
-						args,
-						result: cachedValue,
-						cacheHit: true,
-					});
+					onToolCallStart?.({ toolName: name, blockKey, args });
+				}
+				if (cacheHit) {
+					const cachedValue = getCachedToolResult(name, args).value;
+					if (emitToolEvents) {
+						streamCtx?.emit?.({
+							type: "tool_call_complete",
+							blockKey,
+							seq: streamCtx.nextSeq(),
+							toolName: name,
+							args,
+							result: cachedValue,
+							cacheHit: true,
+						});
+						onToolCallComplete?.({
+							toolName: name,
+							blockKey,
+							args,
+							result: cachedValue,
+							cacheHit: true,
+						});
+					}
 					return cachedValue;
 				}
 				try {
@@ -182,40 +211,44 @@ function injectToolLifecycleHooks(
 						abortSignal,
 					);
 					throwIfAborted(abortSignal);
-					streamCtx?.emit?.({
-						type: "tool_call_complete",
-						blockKey,
-						seq: streamCtx.nextSeq(),
-						toolName: name,
-						args,
-						result,
-						cacheHit: false,
-					});
-					onToolCallComplete?.({
-						toolName: name,
-						blockKey,
-						args,
-						result,
-						cacheHit: false,
-					});
+					if (emitToolEvents) {
+						streamCtx?.emit?.({
+							type: "tool_call_complete",
+							blockKey,
+							seq: streamCtx.nextSeq(),
+							toolName: name,
+							args,
+							result,
+							cacheHit: false,
+						});
+						onToolCallComplete?.({
+							toolName: name,
+							blockKey,
+							args,
+							result,
+							cacheHit: false,
+						});
+					}
 					return result;
 				} catch (error) {
-					streamCtx?.emit?.({
-						type: "tool_call_complete",
-						blockKey,
-						seq: streamCtx.nextSeq(),
-						toolName: name,
-						args,
-						result: undefined,
-						error,
-					});
-					onToolCallComplete?.({
-						toolName: name,
-						blockKey,
-						args,
-						result: undefined,
-						error,
-					});
+					if (emitToolEvents) {
+						streamCtx?.emit?.({
+							type: "tool_call_complete",
+							blockKey,
+							seq: streamCtx.nextSeq(),
+							toolName: name,
+							args,
+							result: undefined,
+							error,
+						});
+						onToolCallComplete?.({
+							toolName: name,
+							blockKey,
+							args,
+							result: undefined,
+							error,
+						});
+					}
 					throw error;
 				}
 			},
@@ -263,7 +296,12 @@ export async function chatWithTools(
 
 	const streamCtx: StreamToolContext | undefined =
 		onChatEvent !== undefined
-			? { endAssistantSegment, emit: onChatEvent, nextSeq }
+			? {
+					endAssistantSegment,
+					emit: onChatEvent,
+					nextSeq,
+					toolEventsFromStream: true,
+				}
 			: undefined;
 
 	// Apply cache first (so cached reads skip execute entirely),
@@ -302,45 +340,183 @@ export async function chatWithTools(
 			});
 		}
 
-		let sawTextDelta = false;
-		const stream = result.textStream[Symbol.asyncIterator]();
+		let reasoningSegmentId: string | null = null;
+		const endReasoningSegment = () => {
+			if (reasoningSegmentId !== null && onChatEvent) {
+				onChatEvent({
+					type: "reasoning_end",
+					id: reasoningSegmentId,
+					seq: nextSeq(),
+				});
+				reasoningSegmentId = null;
+			}
+		};
+
+		let sawContent = false;
+		const emittedToolCallStarts = new Set<string>();
+
+		const stream = result.fullStream[Symbol.asyncIterator]();
 		while (true) {
 			const next = await awaitWithAbort(stream.next(), abortSignal);
 			throwIfAborted(abortSignal);
 			if (next.done) {
 				break;
 			}
-			const delta = next.value;
-			if (onChatEvent && !sawTextDelta) {
-				sawTextDelta = true;
-				onChatEvent({
-					type: "lifecycle_end",
-					id: modelRequestId,
-					seq: nextSeq(),
-					detail: "Streaming assistant output…",
-				});
-			}
-			if (onChatEvent) {
-				if (assistantSegmentId === null) {
-					assistantSegmentId = randomUUID();
-					onChatEvent({
-						type: "assistant_segment_start",
-						id: assistantSegmentId,
+			const part = next.value as TextStreamPart;
+
+			if (part.type === "reasoning" && part.text) {
+				if (!sawContent) {
+					sawContent = true;
+					onChatEvent?.({
+						type: "lifecycle_end",
+						id: modelRequestId,
 						seq: nextSeq(),
-						header: options?.assistantHeader ?? "Toby",
+						detail: "Model is thinking…",
 					});
 				}
-				onChatEvent({
-					type: "assistant_text_delta",
-					segmentId: assistantSegmentId,
-					seq: nextSeq(),
-					delta,
+				if (onChatEvent) {
+					if (reasoningSegmentId === null) {
+						reasoningSegmentId = randomUUID();
+						onChatEvent({
+							type: "reasoning_start",
+							id: reasoningSegmentId,
+							seq: nextSeq(),
+						});
+					}
+					onChatEvent({
+						type: "reasoning_delta",
+						segmentId: reasoningSegmentId,
+						seq: nextSeq(),
+						delta: part.text,
+					});
+				}
+				continue;
+			}
+
+			if (part.type === "reasoning-part-finish") {
+				endReasoningSegment();
+				continue;
+			}
+
+			if (part.type === "text-delta" && part.text) {
+				if (!sawContent) {
+					sawContent = true;
+					onChatEvent?.({
+						type: "lifecycle_end",
+						id: modelRequestId,
+						seq: nextSeq(),
+						detail: "Streaming assistant output…",
+					});
+				}
+				endReasoningSegment();
+				if (onChatEvent) {
+					if (assistantSegmentId === null) {
+						assistantSegmentId = randomUUID();
+						onChatEvent({
+							type: "assistant_segment_start",
+							id: assistantSegmentId,
+							seq: nextSeq(),
+							header: options?.assistantHeader ?? "Toby",
+						});
+					}
+					onChatEvent({
+						type: "assistant_text_delta",
+						segmentId: assistantSegmentId,
+						seq: nextSeq(),
+						delta: part.text,
+					});
+				}
+				onAssistantTextDelta?.(part.text);
+				continue;
+			}
+
+			if (part.type === "tool-call-streaming-start" && part.toolCallId) {
+				if (!sawContent) {
+					sawContent = true;
+					onChatEvent?.({
+						type: "lifecycle_end",
+						id: modelRequestId,
+						seq: nextSeq(),
+						detail: "Model turn continued (tools or structured output).",
+					});
+				}
+				endReasoningSegment();
+				endAssistantSegment();
+				if (onChatEvent && !emittedToolCallStarts.has(part.toolCallId)) {
+					emittedToolCallStarts.add(part.toolCallId);
+					const args: Record<string, unknown> = {};
+					onChatEvent({
+						type: "tool_call_start",
+						blockKey: part.toolCallId,
+						seq: nextSeq(),
+						toolName: part.toolName ?? "",
+						args,
+					});
+				}
+				options?.onToolCallStart?.({
+					toolName: part.toolName ?? "",
+					blockKey: part.toolCallId,
+					args: {},
+				});
+				continue;
+			}
+
+			if (part.type === "tool-call" && part.toolCallId) {
+				endReasoningSegment();
+				endAssistantSegment();
+				const args =
+					part.input &&
+					typeof part.input === "object" &&
+					!Array.isArray(part.input)
+						? (part.input as Record<string, unknown>)
+						: {};
+				if (onChatEvent && !emittedToolCallStarts.has(part.toolCallId)) {
+					emittedToolCallStarts.add(part.toolCallId);
+					onChatEvent({
+						type: "tool_call_start",
+						blockKey: part.toolCallId,
+						seq: nextSeq(),
+						toolName: part.toolName ?? "",
+						args,
+					});
+					options?.onToolCallStart?.({
+						toolName: part.toolName ?? "",
+						blockKey: part.toolCallId,
+						args,
+					});
+				}
+				continue;
+			}
+
+			if (part.type === "tool-result" && part.toolCallId) {
+				const args =
+					part.input &&
+					typeof part.input === "object" &&
+					!Array.isArray(part.input)
+						? (part.input as Record<string, unknown>)
+						: {};
+				if (onChatEvent) {
+					onChatEvent({
+						type: "tool_call_complete",
+						blockKey: part.toolCallId,
+						seq: nextSeq(),
+						toolName: part.toolName ?? "",
+						args,
+						result: part.output,
+						...(part.isError === true ? { error: part.output } : {}),
+					});
+				}
+				options?.onToolCallComplete?.({
+					toolName: part.toolName ?? "",
+					blockKey: part.toolCallId,
+					args,
+					result: part.output,
+					...(part.isError === true ? { error: part.output } : {}),
 				});
 			}
-			onAssistantTextDelta?.(delta);
 		}
 
-		if (onChatEvent && !sawTextDelta) {
+		if (onChatEvent && !sawContent) {
 			onChatEvent({
 				type: "lifecycle_end",
 				id: modelRequestId,
@@ -349,6 +525,7 @@ export async function chatWithTools(
 			});
 		}
 
+		endReasoningSegment();
 		endAssistantSegment();
 		throwIfAborted(abortSignal);
 

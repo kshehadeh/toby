@@ -27,6 +27,13 @@ export function shouldPersistChatEventInTranscript(ev: ChatEvent): boolean {
 	if (ev.type === "lifecycle_append" || ev.type === "lifecycle_set") {
 		return false;
 	}
+	if (
+		ev.type === "reasoning_start" ||
+		ev.type === "reasoning_delta" ||
+		ev.type === "reasoning_end"
+	) {
+		return false;
+	}
 	if (ev.type === "plan_amended" || ev.type === "plan_completed") {
 		return false;
 	}

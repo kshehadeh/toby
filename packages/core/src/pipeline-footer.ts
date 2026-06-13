@@ -69,6 +69,12 @@ export function activityLineForChatEvent(
 			return ev.line;
 		case "lifecycle_end":
 			return ev.detail;
+		case "reasoning_start":
+			return "Model is thinking…";
+		case "reasoning_delta":
+			return null;
+		case "reasoning_end":
+			return listening;
 		case "assistant_segment_start":
 			return "Receiving response…";
 		case "assistant_text_delta":

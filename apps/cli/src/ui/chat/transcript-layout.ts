@@ -9,9 +9,13 @@ import {
 	ASSISTANT_TRANSCRIPT_GLYPH,
 	META_STEP_GLYPH,
 	PIPELINE_STEP_GLYPH,
+	THINKING_TRANSCRIPT_GLYPH,
 } from "./tool-transcript-icons";
 import type { DisplayRow, TranscriptEntry } from "./types";
 import { WORKING_PLACEHOLDER_SENTINEL } from "./working-placeholder";
+
+/** Maximum visible lines for the thinking block (scrolling window). */
+const THINKING_MAX_VISIBLE_LINES = 5;
 
 /** Break a string into lines of at most `max` columns (prefer spaces). */
 function hardWrap(line: string, max: number): string[] {
@@ -246,10 +250,25 @@ function parseAssistantSegments(text: string): AssistantSegment[] {
 
 function capBodyLines(
 	lines: readonly string[],
-	variant: "prep" | "lifecycle" | "assistant" | "tool" | "plan" | "meta",
+	variant:
+		| "prep"
+		| "lifecycle"
+		| "assistant"
+		| "tool"
+		| "plan"
+		| "meta"
+		| "thinking",
 ): readonly string[] {
 	if (variant === "lifecycle" || variant === "prep" || variant === "meta") {
 		return lines;
+	}
+	if (variant === "thinking") {
+		if (lines.length <= THINKING_MAX_VISIBLE_LINES) {
+			return lines;
+		}
+		const hiddenCount = lines.length - THINKING_MAX_VISIBLE_LINES;
+		const capped = lines.slice(-THINKING_MAX_VISIBLE_LINES);
+		return [`↑ ${hiddenCount} line(s) hidden`, ...capped];
 	}
 	if (variant === "assistant" || lines.length <= 3) {
 		return lines;
@@ -262,6 +281,7 @@ function capBodyLines(
 export function flattenTranscript(
 	entries: readonly TranscriptEntry[],
 	streamingText: string,
+	streamingReasoning: string,
 	loading: boolean,
 	termCols: number,
 	streamingHeader = "Toby",
@@ -305,22 +325,23 @@ export function flattenTranscript(
 			const leadingGlyph =
 				e.variant === "tool"
 					? PIPELINE_STEP_GLYPH
-					: e.variant === "prep" || e.variant === "lifecycle"
-						? PIPELINE_STEP_GLYPH
-						: e.variant === "plan"
-							? "◆"
-							: ASSISTANT_TRANSCRIPT_GLYPH;
+					: e.variant === "thinking"
+						? THINKING_TRANSCRIPT_GLYPH
+						: e.variant === "prep" || e.variant === "lifecycle"
+							? PIPELINE_STEP_GLYPH
+							: e.variant === "plan"
+								? "◆"
+								: ASSISTANT_TRANSCRIPT_GLYPH;
 			let bodyLines: readonly string[] =
 				e.variant === "tool" &&
 				e.toolRuns !== undefined &&
 				e.toolRuns.length > 1
 					? flattenGroupedToolRunLines(e.toolRuns, termCols)
 					: flattenBoxedBodyLines(e.body, termCols);
-			bodyLines = applyWorkingPlaceholderIfPending(
-				e,
-				capBodyLines(bodyLines, e.variant),
-				loading,
-			);
+			bodyLines = capBodyLines(bodyLines, e.variant);
+			if (e.variant !== "thinking") {
+				bodyLines = applyWorkingPlaceholderIfPending(e, bodyLines, loading);
+			}
 			rows.push({
 				kind: "boxed_block",
 				id: e.id,
@@ -519,6 +540,29 @@ export function flattenTranscript(
 			header: streamingHeader,
 			bodyLines: streamLines.length > 0 ? streamLines : [""],
 			leadingGlyph: ASSISTANT_TRANSCRIPT_GLYPH,
+		});
+	}
+	if (loading && streamingReasoning.length > 0) {
+		const last = entries[entries.length - 1];
+		if (last?.kind === "user") {
+			gapKey += 1;
+			rows.push({ kind: "spacer", rowKey: `gap-${gapKey}` });
+		}
+		const reasoningLines = flattenBoxedBodyLines(streamingReasoning, termCols);
+		const visibleLines =
+			reasoningLines.length > THINKING_MAX_VISIBLE_LINES
+				? [
+						`↑ ${reasoningLines.length - THINKING_MAX_VISIBLE_LINES} line(s) hidden`,
+						...reasoningLines.slice(-THINKING_MAX_VISIBLE_LINES),
+					]
+				: reasoningLines;
+		rows.push({
+			kind: "boxed_block",
+			id: "thinking-stream",
+			variant: "thinking",
+			header: "Thinking",
+			bodyLines: visibleLines.length > 0 ? visibleLines : [""],
+			leadingGlyph: THINKING_TRANSCRIPT_GLYPH,
 		});
 	}
 	return rows;
