@@ -14,6 +14,7 @@ import {
 import { connectSlashCommand } from "../src/ui/chat/slash-commands/connect";
 import { helpSlashCommand } from "../src/ui/chat/slash-commands/help";
 import { logSlashCommand } from "../src/ui/chat/slash-commands/log";
+import { restartServerSlashCommand } from "../src/ui/chat/slash-commands/restart-server";
 import { pluginsSlashCommand } from "../src/ui/chat/slash-commands/plugins";
 import { restartSlashCommand } from "../src/ui/chat/slash-commands/restart";
 import { terminalSlashCommand } from "../src/ui/chat/slash-commands/terminal";
@@ -49,6 +50,10 @@ function mockRuntime(overrides: Record<string, unknown> = {}) {
 		getActivePlan: vi.fn(() => null),
 		skipPlanPhase: vi.fn(),
 		cancelPlan: vi.fn(),
+		restartServer: vi.fn(async () => {}),
+		startListenRecording: vi.fn(),
+		stopListenRecording: vi.fn(async () => null),
+		isListenRecording: vi.fn(() => false),
 		...overrides,
 	};
 }
@@ -77,10 +82,26 @@ describe("slash commands", () => {
 		);
 	});
 
-	it("includes /upgrade and /restart commands", () => {
+	it("includes /upgrade, /restart, and /restart-server commands", () => {
 		expect(SLASH_COMMANDS.some((c) => c.command === "/upgrade")).toBe(true);
 		expect(SLASH_COMMANDS.some((c) => c.command === "/restart")).toBe(true);
+		expect(SLASH_COMMANDS.some((c) => c.command === "/restart-server")).toBe(
+			true,
+		);
 		expect(SLASH_COMMANDS.some((c) => c.command === "/web")).toBe(true);
+		expect(SLASH_COMMANDS.some((c) => c.command === "/start-daemon")).toBe(
+			false,
+		);
+		expect(SLASH_COMMANDS.some((c) => c.command === "/stop-daemon")).toBe(
+			false,
+		);
+	});
+
+	it("delegates /restart-server to runtime.restartServer", async () => {
+		const restartServer = vi.fn(async () => {});
+		const runtime = mockRuntime({ restartServer });
+		await restartServerSlashCommand.run(runtime);
+		expect(restartServer).toHaveBeenCalledTimes(1);
 	});
 
 	it("opens the web UI after ensuring the daemon is running", async () => {

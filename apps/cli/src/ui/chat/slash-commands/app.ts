@@ -7,7 +7,7 @@ export const appSlashCommand: SlashCommand = {
 	command: "/app",
 	description: "Open the native Toby chat app.",
 	helpText:
-		"Starts the daemon if needed, then launches the native macOS Toby chat app.",
+		"Starts the server if needed, then launches the native macOS Toby chat app.",
 	async run(runtime) {
 		const webCfg = getWebConfig();
 		if (!webCfg.enabled) {
@@ -22,13 +22,13 @@ export const appSlashCommand: SlashCommand = {
 			const daemon = await ensureDaemonRunning();
 			if (!daemon.running) {
 				runtime.addNoticeLine(
-					"Failed to start daemon. Try `toby daemon start` or `/start-daemon`.",
+					"Failed to start server. Try `toby daemon start` or `/restart-server`.",
 					"error",
 				);
 				return;
 			}
 			if (!daemon.wasAlreadyRunning) {
-				runtime.addNoticeLine(`Daemon started (PID ${daemon.pid}).`, "success");
+				runtime.addNoticeLine(`Server started (PID ${daemon.pid}).`, "success");
 			}
 
 			const resolved = resolveTobyAppPath();

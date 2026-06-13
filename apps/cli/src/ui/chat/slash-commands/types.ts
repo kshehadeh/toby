@@ -62,6 +62,7 @@ export interface SlashCommandRuntime {
 		readonly transcriptionError?: string;
 	} | null>;
 	readonly isListenRecording: () => boolean;
+	readonly restartServer: () => Promise<void>;
 }
 
 export interface SlashCommand {

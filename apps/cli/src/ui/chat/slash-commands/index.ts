@@ -1,3 +1,4 @@
+import { apiLogSlashCommand } from "./api-log";
 import { appSlashCommand } from "./app";
 import { clearToolCacheSlashCommand } from "./clear-tool-cache";
 import { configSlashCommand } from "./config";
@@ -13,12 +14,11 @@ import { personaSlashCommand } from "./persona";
 import { planSlashCommand } from "./plan";
 import { pluginsSlashCommand } from "./plugins";
 import { projectSlashCommand } from "./project";
+import { restartServerSlashCommand } from "./restart-server";
 import { restartSlashCommand } from "./restart";
 import { schedulesSlashCommand } from "./schedules";
 import { sessionsSlashCommand } from "./sessions";
 import { skillsSlashCommand } from "./skills";
-import { startDaemonSlashCommand } from "./start-daemon";
-import { stopDaemonSlashCommand } from "./stop-daemon";
 import { stopListeningSlashCommand } from "./stop-listening";
 import { terminalSlashCommand } from "./terminal";
 import type { SlashCommand } from "./types";
@@ -34,6 +34,7 @@ interface SlashCommandResolution {
 }
 
 export const SLASH_COMMANDS: readonly SlashCommand[] = [
+	apiLogSlashCommand,
 	clearToolCacheSlashCommand,
 	configSlashCommand,
 	connectSlashCommand,
@@ -48,17 +49,16 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
 	newSlashCommand,
 	projectSlashCommand,
 	schedulesSlashCommand,
+	restartServerSlashCommand,
+	restartSlashCommand,
 	sessionsSlashCommand,
 	skillsSlashCommand,
-	startDaemonSlashCommand,
-	stopDaemonSlashCommand,
 	stopListeningSlashCommand,
 	terminalSlashCommand,
 	upgradeSlashCommand,
 	usageSlashCommand,
 	appSlashCommand,
 	webSlashCommand,
-	restartSlashCommand,
 	exitSlashCommand,
 ];
 

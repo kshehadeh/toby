@@ -8,7 +8,7 @@ export const webSlashCommand: SlashCommand = {
 	command: "/web",
 	description: "Open the local web UI in your browser.",
 	helpText:
-		"Starts the daemon if it is not running, then opens the Toby web UI in your default browser.",
+		"Starts the server if it is not running, then opens the Toby web UI in your default browser.",
 	async run(runtime) {
 		const webCfg = getWebConfig();
 		if (!webCfg.enabled) {
@@ -25,14 +25,14 @@ export const webSlashCommand: SlashCommand = {
 			const daemon = await ensureDaemonRunning();
 			if (!daemon.running) {
 				runtime.addNoticeLine(
-					"Failed to start daemon. Try `toby daemon start` or `/start-daemon`.",
+					"Failed to start server. Try `toby daemon start` or `/restart-server`.",
 					"error",
 				);
 				return;
 			}
 
 			if (!daemon.wasAlreadyRunning) {
-				runtime.addNoticeLine(`Daemon started (PID ${daemon.pid}).`, "success");
+				runtime.addNoticeLine(`Server started (PID ${daemon.pid}).`, "success");
 			}
 
 			const opened = await openWebUiInBrowser(url);

@@ -89,14 +89,14 @@ export function DaemonStatusBadge() {
 		mutationFn: () => api.restartDaemon(),
 		onMutate: () => {
 			setOffline(false);
-			setStatusMessage("Restarting daemon…");
+			setStatusMessage("Restarting server…");
 		},
 		onSuccess: async () => {
 			await sleep(500);
 			const back = await waitForDaemonHealth();
 			if (back) {
 				await queryClient.invalidateQueries();
-				setStatusMessage("Daemon restarted.");
+				setStatusMessage("Server restarted.");
 			} else {
 				setStatusMessage("Restart timed out. Check `toby daemon status`.");
 			}
@@ -104,7 +104,7 @@ export function DaemonStatusBadge() {
 		},
 		onError: (error) => {
 			const message =
-				error instanceof Error ? error.message : "Failed to restart daemon.";
+				error instanceof Error ? error.message : "Failed to restart server.";
 			const friendly =
 				message === "Not found"
 					? "Restart unavailable — run `toby daemon restart` once after updating Toby."
@@ -117,20 +117,20 @@ export function DaemonStatusBadge() {
 	const stopMutation = useMutation({
 		mutationFn: () => api.stopDaemon(),
 		onMutate: () => {
-			setStatusMessage("Stopping daemon…");
+			setStatusMessage("Stopping server…");
 		},
 		onSuccess: async () => {
 			const down = await waitForDaemonDown();
 			if (down) {
 				setOffline(true);
-				setStatusMessage("Daemon stopped. The web UI is now offline.");
+				setStatusMessage("Server stopped. The web UI is now offline.");
 			} else {
-				setStatusMessage("Stop signalled — daemon may still be shutting down.");
+				setStatusMessage("Stop signalled — server may still be shutting down.");
 			}
 		},
 		onError: (error) => {
 			const message =
-				error instanceof Error ? error.message : "Failed to stop daemon.";
+				error instanceof Error ? error.message : "Failed to stop server.";
 			const friendly =
 				message === "Not found"
 					? "Stop unavailable — run `toby daemon stop` once after updating Toby."
@@ -154,8 +154,8 @@ export function DaemonStatusBadge() {
 			? "Restarting"
 			: "Stopping"
 		: unreachable
-			? "Daemon offline"
-			: "Daemon";
+			? "Server offline"
+			: "Server";
 
 	return (
 		<Popover>
@@ -164,7 +164,7 @@ export function DaemonStatusBadge() {
 					badgeVariants({ variant: "secondary" }),
 					"cursor-pointer",
 				)}
-				aria-label="Daemon status and controls"
+				aria-label="Server status and controls"
 			>
 				<span
 					className={cn("size-1.5 shrink-0 rounded-full", dotClass)}
@@ -175,7 +175,7 @@ export function DaemonStatusBadge() {
 			<PopoverContent align="end" className="w-80 gap-3">
 				<PopoverHeader className="flex-row items-center gap-2">
 					<Server className="size-4 text-muted-foreground" aria-hidden />
-					<PopoverTitle className="flex-1">Toby daemon</PopoverTitle>
+					<PopoverTitle className="flex-1">Toby server</PopoverTitle>
 					<span className="flex items-center gap-1.5 text-xs text-muted-foreground">
 						<span
 							className={cn("size-1.5 rounded-full", dotClass)}
@@ -213,7 +213,7 @@ export function DaemonStatusBadge() {
 					) : (
 						<p className="text-muted-foreground">
 							{unreachable
-								? "The daemon is not responding."
+								? "The server is not responding."
 								: "Process details are unavailable."}
 						</p>
 					)}

@@ -11,7 +11,7 @@ export function DaemonStatusLine({
 }: DaemonStatusLineProps) {
 	return (
 		<Text dimColor wrap="truncate-start">
-			{"Daemon "}
+			{"Server "}
 			{daemonRunning ? (
 				<Text color="green">✔︎</Text>
 			) : (
