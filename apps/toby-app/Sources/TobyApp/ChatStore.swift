@@ -63,9 +63,9 @@ final class ChatStore {
 		errorMessage = nil
 
 		do {
-			let done = try await client.streamTurn(sessionId: sessionId, text: text) { event in
+			let done = try await client.streamTurn(sessionId: sessionId, text: text, onEvent: { event in
 				self.apply(event: event)
-			}
+			}, onAskUser: nil)
 			if !assistantBuffer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
 				commitAssistantSegment(id: UUID().uuidString)
 			}

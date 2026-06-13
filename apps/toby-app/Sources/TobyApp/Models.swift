@@ -20,11 +20,34 @@ struct SessionDetail: Decodable {
 	let name: String
 	let transcript: [TranscriptEntry]
 	let messageCount: Int
+	let settings: SessionSettings?
+	let activePlan: PlanSummary?
+}
+
+struct SessionSettings: Decodable {
+	let persona: String?
+	let modules: [String]?
+	let dryRun: Bool?
+	let debug: Bool?
+}
+
+struct PlanSummary: Decodable {
+	let id: String
+	let goal: String
+	let status: String
+	let phases: [PlanPhaseSummary]
+}
+
+struct PlanPhaseSummary: Decodable {
+	let id: String
+	let label: String
+	let status: String
 }
 
 struct CreateSessionResponse: Decodable {
 	let id: String
 	let name: String
+	let settings: SessionSettings?
 }
 
 enum TranscriptEntry: Decodable, Identifiable, Equatable {
@@ -161,9 +184,17 @@ struct ChatEventPayload: Decodable {
 }
 
 struct TurnDonePayload: Decodable {
+	let turnId: String?
 	let text: String
 	let appliedActions: [String]?
 	let sessionName: String?
+}
+
+struct AskUserPromptPayload: Decodable {
+	let turnId: String
+	let requestId: String
+	let query: String
+	let options: [String]
 }
 
 struct StreamingAssistantState: Equatable {

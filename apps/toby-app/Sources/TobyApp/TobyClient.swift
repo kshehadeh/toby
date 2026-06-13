@@ -65,6 +65,7 @@ struct TobyClient {
 		sessionId: String,
 		text: String,
 		onEvent: @escaping (ChatEventPayload) -> Void,
+		onAskUser: ((AskUserPromptPayload) async -> (selectedIndex: Int, selectedLabel: String, rawInput: String))?,
 	) async throws -> TurnDonePayload {
 		let turnURL = baseURL.appendingPathComponent("api/sessions/\(sessionId)/turn")
 		ServerEventLog.beginTurn(sessionId: sessionId, text: text, url: turnURL)
@@ -123,7 +124,26 @@ struct TobyClient {
 					}
 				}
 				ServerEventLog.append("sse.done.decodeFailed payload=\(payload)")
-				return TurnDonePayload(text: "", appliedActions: [], sessionName: nil)
+				return TurnDonePayload(text: "", appliedActions: [], sessionName: nil, turnId: nil)
+			}
+
+			if pendingEvent == "ask_user_prompt" {
+				pendingEvent = nil
+				if let data = payload.data(using: .utf8),
+					let prompt = try? JSONDecoder().decode(AskUserPromptPayload.self, from: data),
+					let onAskUser
+				{
+					let answer = await onAskUser(prompt)
+					try await answerAskUser(
+						sessionId: sessionId,
+						turnId: prompt.turnId,
+						requestId: prompt.requestId,
+						selectedIndex: answer.selectedIndex,
+						selectedLabel: answer.selectedLabel,
+						rawInput: answer.rawInput,
+					)
+				}
+				continue
 			}
 
 			if pendingEvent == "error" {
@@ -150,7 +170,31 @@ struct TobyClient {
 		}
 
 		ServerEventLog.append("sse.streamEndedWithoutDone")
-		return TurnDonePayload(text: "", appliedActions: [], sessionName: nil)
+		return TurnDonePayload(text: "", appliedActions: [], sessionName: nil, turnId: nil)
+	}
+
+	func answerAskUser(
+		sessionId: String,
+		turnId: String,
+		requestId: String,
+		selectedIndex: Int,
+		selectedLabel: String,
+		rawInput: String,
+	) async throws {
+		let url = baseURL.appendingPathComponent(
+			"api/sessions/\(sessionId)/turn/\(turnId)/ask-user/\(requestId)",
+		)
+		var request = URLRequest(url: url)
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		let body: [String: Any] = [
+			"selectedIndex": selectedIndex,
+			"selectedLabel": selectedLabel,
+			"rawInput": rawInput,
+		]
+		request.httpBody = try JSONSerialization.data(withJSONObject: body)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
 	}
 
 	private func validate(response: URLResponse, data: Data) throws {
