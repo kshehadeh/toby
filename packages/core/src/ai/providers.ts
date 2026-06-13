@@ -40,6 +40,7 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
 			"openai/gpt-5-mini",
 			"openai/gpt-5-nano",
 			"openai/gpt-4.1-mini",
+			"openai/o4-mini",
 			"anthropic/claude-sonnet-4.6",
 			"anthropic/claude-haiku-4.5",
 			"anthropic/claude-opus-4.6",
