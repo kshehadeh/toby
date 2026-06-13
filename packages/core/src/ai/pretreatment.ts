@@ -26,6 +26,7 @@ import {
 	computeSkillCatalogSignature,
 	formatSkillsCatalogForPrompt,
 	inferRelevantSkillsFromUserPrompt,
+	userRequestsSkillAuthoring,
 } from "../skills/index";
 import type { CoreMessage } from "./chat";
 import {
@@ -74,7 +75,7 @@ export type UserIntentSpec = z.infer<typeof userIntentSpecSchema>;
 
 const PREP_SYSTEM = `You classify a user message for Toby (CLI assistant with integrations). Output structured fields only — no reasoning text, no chain-of-thought.
 Select **relevantSkills** and **relevantTools** only when clearly required; prefer empty lists over guessing. Use exact catalog names only.
-Include **createLocalSkill** only when the user explicitly asks to create or edit a skill under ~/.toby/skills.
+Include **createLocalSkill** only when the user explicitly asks to create or edit a skill under ~/.toby/skills. For such skill-authoring requests, prefer **createLocalSkill** over generic file writing (writeTextFile).
 Be conservative: uncertain details go in openQuestions, not assumptions. Do not invent IDs, emails, or dates absent from the message.`;
 
 const PREP_DELTA_SYSTEM = `You decide whether a follow-up message continues the same task with the same tool/skill scope as the previous turn.
@@ -448,6 +449,40 @@ function mergeDeltaIntoPriorSpec(
 	return spec;
 }
 
+/**
+ * When the user expresses intent to author a local skill, deterministically
+ * ensure `createLocalSkill` is selected so it is available (and preferred over
+ * writeTextFile) regardless of the auxiliary routing model or routing mode.
+ */
+function applySkillAuthoringTool(
+	userText: string,
+	spec: UserIntentSpec | null,
+): UserIntentSpec | null {
+	if (!userRequestsSkillAuthoring(userText)) {
+		return spec;
+	}
+	const tool = "createLocalSkill";
+	const base: UserIntentSpec = spec ?? {
+		goal: "Address the user's request.",
+		mustDo: [],
+		mustNotDo: [],
+		assumptions: [],
+		openQuestions: [],
+		relevantIntegrations: [],
+		relevantSkills: [],
+		relevantTools: [],
+		sessionName: "",
+	};
+	if (
+		base.relevantTools.some(
+			(t) => t.trim().toLowerCase() === tool.toLowerCase(),
+		)
+	) {
+		return base;
+	}
+	return { ...base, relevantTools: [...base.relevantTools, tool] };
+}
+
 function finalizePretreatmentResult(params: {
 	readonly raw: string;
 	readonly spec: UserIntentSpec | null;
@@ -462,8 +497,9 @@ function finalizePretreatmentResult(params: {
 		params.skills,
 		params.allowedSkillNamesLower,
 	);
+	const withSkillAuthoring = applySkillAuthoringTool(params.raw, merged);
 	const expanded = applySkillDeclaredTools(
-		merged,
+		withSkillAuthoring,
 		params.skills,
 		params.allowedToolNamesLower,
 		params.toolIntegrationLabels,

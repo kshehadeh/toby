@@ -434,6 +434,24 @@ const SKILL_MATCH_STOPWORDS = new Set([
 	"turn",
 ]);
 
+/**
+ * Detect explicit intent to author (create, draft, or update) a local Toby
+ * skill. Used to deterministically force `createLocalSkill` into scope and to
+ * prefer it over generic file writing, independent of the auxiliary routing
+ * model. Conservative: requires an authoring verb near the word "skill"
+ * (either order) or an explicit "skill file" reference.
+ */
+export function userRequestsSkillAuthoring(userText: string): boolean {
+	const t = userText.toLowerCase();
+	if (!/\bskills?\b/.test(t)) {
+		return false;
+	}
+	const verbNearSkill =
+		/\b(create|creating|make|making|draft|drafting|author|authoring|build|building|write|writing|generate|generating|add|adding|update|updating|edit|editing|revise|revising|save|saving|new)\b[^\n]{0,40}?\bskills?\b/;
+	const skillFile = /\bskills?\b[^\n]{0,20}?\b(file|md|markdown)\b/;
+	return verbNearSkill.test(t) || skillFile.test(t);
+}
+
 function tokenizeForSkillMatch(text: string): Set<string> {
 	const raw = text
 		.toLowerCase()
