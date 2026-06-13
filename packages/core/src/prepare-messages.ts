@@ -15,6 +15,13 @@ import {
 } from "./integrations/types";
 import type { IntegrationModule } from "./integrations/types";
 import { composeSystemPromptWithPersona } from "./personas/prompt";
+import {
+	PROJECT_CONTEXT_APPENDIX_START,
+	type Project,
+	type ProjectContextDoc,
+	formatProjectContextForPrompt,
+	loadProjectContextDocuments,
+} from "./projects/index";
 import { type LocalSkill, resolveSkillsByNames } from "./skills/index";
 
 /** Marker appended to system prompts when preflight attaches full SKILL.md bodies. */
@@ -103,6 +110,49 @@ export function injectSkillBodiesIntoFirstSystemMessage(
 		.join("\n\n---\n\n");
 	const appendix = `${SKILL_INSTRUCTIONS_APPENDIX_START}${blocks}`;
 
+	const next = [...messages];
+	next[0] = { ...first, content: base + appendix };
+	return next;
+}
+
+/**
+ * Strip any existing project context appendix from a system message string.
+ */
+export function stripProjectContextAppendix(systemContent: string): string {
+	const idx = systemContent.indexOf(PROJECT_CONTEXT_APPENDIX_START);
+	if (idx === -1) {
+		return systemContent;
+	}
+	return systemContent.slice(0, idx);
+}
+
+/**
+ * Append project context documents into the first system message.
+ * Replaces any prior appendix from an earlier turn.
+ */
+export function injectProjectContextIntoFirstSystemMessage(
+	messages: readonly CoreMessage[],
+	project: Project,
+	docs?: readonly ProjectContextDoc[],
+): CoreMessage[] {
+	if (messages.length === 0) {
+		return [...messages];
+	}
+	const first = messages[0];
+	if (!first || first.role !== "system" || typeof first.content !== "string") {
+		return [...messages];
+	}
+	const loadedDocs = docs ?? loadProjectContextDocuments(project);
+	const base = stripProjectContextAppendix(first.content);
+	const appendix = formatProjectContextForPrompt(project, loadedDocs);
+	if (!appendix) {
+		if (base === first.content) {
+			return [...messages];
+		}
+		const next = [...messages];
+		next[0] = { ...first, content: base };
+		return next;
+	}
 	const next = [...messages];
 	next[0] = { ...first, content: base + appendix };
 	return next;
@@ -302,6 +352,7 @@ export async function replaceSessionSystemMessageForPersona(
 	modules: readonly IntegrationModule[],
 	messages: readonly CoreMessage[],
 	persona: Persona,
+	project?: Project | null,
 ): Promise<CoreMessage[]> {
 	if (messages.length === 0) {
 		throw new Error("replaceSessionSystemMessageForPersona: empty messages");
@@ -331,10 +382,14 @@ export async function replaceSessionSystemMessageForPersona(
 				"replaceSessionSystemMessageForPersona: expected system message at index 0",
 			);
 		}
-		return injectCurrentDateTimeIntoFirstSystemMessage([
+		let result = injectCurrentDateTimeIntoFirstSystemMessage([
 			newSystem,
 			...messages.slice(1),
 		]);
+		if (project) {
+			result = injectProjectContextIntoFirstSystemMessage(result, project);
+		}
+		return result;
 	}
 
 	const systemContent = composeSystemPromptWithPersona(
@@ -342,10 +397,14 @@ export async function replaceSessionSystemMessageForPersona(
 		persona,
 	);
 
-	return injectCurrentDateTimeIntoFirstSystemMessage([
+	let result = injectCurrentDateTimeIntoFirstSystemMessage([
 		{ role: "system", content: systemContent },
 		...messages.slice(1),
 	]);
+	if (project) {
+		result = injectProjectContextIntoFirstSystemMessage(result, project);
+	}
+	return result;
 }
 
 /**

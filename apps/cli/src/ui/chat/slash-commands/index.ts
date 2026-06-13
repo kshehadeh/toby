@@ -10,6 +10,7 @@ import { newSlashCommand } from "./new";
 import { personaSlashCommand } from "./persona";
 import { planSlashCommand } from "./plan";
 import { pluginsSlashCommand } from "./plugins";
+import { projectSlashCommand } from "./project";
 import { restartSlashCommand } from "./restart";
 import { schedulesSlashCommand } from "./schedules";
 import { sessionsSlashCommand } from "./sessions";
@@ -42,6 +43,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
 	pluginsSlashCommand,
 	personaSlashCommand,
 	newSlashCommand,
+	projectSlashCommand,
 	schedulesSlashCommand,
 	sessionsSlashCommand,
 	skillsSlashCommand,

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { CoreMessage } from "../../ai/chat";
 import {
+	injectProjectContextIntoFirstSystemMessage,
 	injectSkillBodiesIntoFirstSystemMessage,
 	prepareChatSessionMessages,
 } from "../../prepare-messages";
@@ -53,6 +54,16 @@ export const assembleMessagesNode: PipelineNode<ExpandedTurn, AssembledTurn> = {
 			attachedSkills,
 			[...input.localSkills],
 		);
+
+		if (ctx.project) {
+			if (ctx.onStatusLine) {
+				await ctx.onStatusLine(`Loading project context: ${ctx.project.name}…`);
+			}
+			messages = injectProjectContextIntoFirstSystemMessage(
+				messages,
+				ctx.project,
+			);
+		}
 
 		if (ctx.onStatusLine) {
 			await ctx.onStatusLine("Session ready.");

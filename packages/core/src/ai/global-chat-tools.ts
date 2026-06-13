@@ -2,7 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { Output, type Tool, generateText, tool, zodSchema } from "ai";
 import { z } from "zod";
-import { type Persona, ensureTobyDir, getSkillsDir } from "../config/index";
+import {
+	type Persona,
+	ensureTobyDir,
+	getGeneratedFilesDir,
+	getSkillsDir,
+} from "../config/index";
+import type { Project } from "../projects/index";
 import {
 	formatSkillsCatalogForPrompt,
 	loadLocalSkills,
@@ -65,7 +71,107 @@ type GlobalChatToolsContext = {
 	readonly persona: Persona;
 	/** Mutated on successful writes (and dry-run previews). */
 	readonly appliedActions: string[];
+	/** Active project, used to scope `writeTextFile` into the project context. */
+	readonly project?: Project | null;
 };
+
+/** Text file extensions `writeTextFile` is allowed to create. */
+const WRITE_TEXT_FILE_EXTENSIONS: ReadonlySet<string> = new Set([
+	".md",
+	".markdown",
+	".txt",
+	".text",
+	".json",
+	".yaml",
+	".yml",
+	".csv",
+	".tsv",
+	".log",
+	".xml",
+	".html",
+	".rst",
+]);
+
+type WriteTextFileLocation = "context" | "outputs";
+
+interface ResolveWriteTargetResult {
+	readonly ok: boolean;
+	readonly error?: string;
+	readonly absPath?: string;
+	readonly baseDir?: string;
+	/** Human-readable label for the base location. */
+	readonly baseLabel?: string;
+}
+
+/**
+ * Resolve and validate the absolute target path for `writeTextFile`. Rejects
+ * absolute inputs, parent-directory traversal, and paths that escape the base
+ * directory (active project context/root, or the generated-files fallback).
+ */
+export function resolveWriteTextFileTarget(params: {
+	readonly inputPath: string;
+	readonly location: WriteTextFileLocation;
+	readonly project?: Project | null;
+}): ResolveWriteTargetResult {
+	const raw = params.inputPath.trim();
+	if (!raw) {
+		return { ok: false, error: "path must not be empty." };
+	}
+	if (path.isAbsolute(raw)) {
+		return {
+			ok: false,
+			error: "path must be relative (absolute paths are not allowed).",
+		};
+	}
+	const normalized = path.normalize(raw);
+	if (
+		normalized === ".." ||
+		normalized.startsWith(`..${path.sep}`) ||
+		normalized.split(path.sep).includes("..")
+	) {
+		return {
+			ok: false,
+			error: "path must not traverse outside the base directory.",
+		};
+	}
+
+	let baseDir: string;
+	let baseLabel: string;
+	if (params.project) {
+		switch (params.location) {
+			case "outputs":
+				baseDir = params.project.outputsDir;
+				baseLabel = `project "${params.project.name}" outputs`;
+				break;
+			default:
+				baseDir = params.project.contextDir;
+				baseLabel = `project "${params.project.name}" context`;
+				break;
+		}
+	} else {
+		baseDir = getGeneratedFilesDir();
+		baseLabel = "~/.toby/generated-files";
+	}
+
+	const absPath = path.resolve(baseDir, normalized);
+	const relCheck = path.relative(baseDir, absPath);
+	if (relCheck.startsWith("..") || path.isAbsolute(relCheck)) {
+		return { ok: false, error: "Resolved path escapes the base directory." };
+	}
+
+	const ext = path.extname(absPath).toLowerCase();
+	if (!ext) {
+		return { ok: false, error: "path must include a file extension." };
+	}
+	if (!WRITE_TEXT_FILE_EXTENSIONS.has(ext)) {
+		return {
+			ok: false,
+			error: `Unsupported file type "${ext}". Allowed: ${[...WRITE_TEXT_FILE_EXTENSIONS].join(", ")}.`,
+		};
+	}
+
+	return { ok: true, absPath, baseDir, baseLabel };
+}
 
 /** Explains global tools for integration system prompts. */
 export function globalChatToolsPromptSection(): string {
@@ -112,7 +218,15 @@ Local skill routing:
 
 Create or update a skill (explicit request only):
 - **createLocalSkill** is available only when the user explicitly asks to create, draft, or update a Toby skill (or when pretreatment selected it for that request). Do not use it to capture general conversation, memories, or one-off instructions.
+- It saves to the shared skills folder at \`~/.toby/skills/<folder>/SKILL.md\`.
+- When the request is to author a skill, **always prefer createLocalSkill over writeTextFile** — do not hand-write a SKILL.md with writeTextFile.
 - Required: \`description\`. Optional: \`preferredFolderName\` (kebab-case). Optional: \`updateExisting\` (boolean, default false).
+
+Write a text file (explicit request only):
+- **writeTextFile** is available only when the user explicitly asks to write, generate, or save a file (Markdown or any text format). Do not use it for general notes or memories.
+- Do not use writeTextFile to author Toby skills (SKILL.md). Use **createLocalSkill** instead.
+- When a project is active, writes go to the project's **outputs** folder by default (for generated artifacts). Use \`location='context'\` for reference documents the AI should read in future turns. When no project is active, writes go to \`~/.toby/generated-files\`.
+- Required: \`path\` (relative) and \`content\`. Optional: \`location\` (\`outputs\` | \`context\`), \`overwrite\` (default false).
 
 Available local skills (name + description):
 ${skillsCatalog}
@@ -214,6 +328,120 @@ export function createGlobalChatTools(
 			inputSchema: z.object({}),
 			execute: async () => {
 				return getCurrentDateTimeInfo();
+			},
+		}),
+		writeTextFile: tool({
+			description:
+				"Create or update a UTF-8 text file (Markdown or any other text format). Only call when the user explicitly asks to write, generate, or save a file. Do NOT use this to author a Toby skill (a SKILL.md file under ~/.toby/skills) — use createLocalSkill instead, which takes precedence for skill authoring. When a project is active, writes go to the project's outputs folder by default (location='outputs') — use location='context' for reference documents the AI should read in future turns. When no project is active, writes go to ~/.toby/generated-files. Paths must be relative and within the base directory. Set overwrite=true to replace an existing file.",
+			inputSchema: z.object({
+				path: z
+					.string()
+					.min(1)
+					.describe(
+						"Relative path (including filename and extension) within the base location, e.g. 'notes.md' or 'reports/summary.md'",
+					),
+				content: z
+					.string()
+					.describe("Full UTF-8 text content to write to the file"),
+				location: z
+					.enum(["context", "outputs"])
+					.optional()
+					.describe(
+						"Where to write within the active project: 'outputs' (default — for generated artifacts), or 'context' (reference documents). Ignored when no project is active.",
+					),
+				overwrite: z
+					.boolean()
+					.optional()
+					.describe(
+						"When true, overwrite an existing file instead of failing (default false)",
+					),
+			}),
+			execute: async ({ path: inputPath, content, location, overwrite }) => {
+				if (content.includes("\u0000")) {
+					return {
+						ok: false as const,
+						error: "content appears to be binary (contains NUL bytes).",
+					};
+				}
+				const resolved = resolveWriteTextFileTarget({
+					inputPath,
+					location: location ?? "outputs",
+					project: ctx.project ?? null,
+				});
+				if (!resolved.ok || !resolved.absPath) {
+					return {
+						ok: false as const,
+						error: resolved.error ?? "Could not resolve target path.",
+					};
+				}
+				const targetFile = resolved.absPath;
+
+				let alreadyExists = false;
+				try {
+					const stat = fs.lstatSync(targetFile);
+					alreadyExists = true;
+					if (stat.isSymbolicLink()) {
+						return {
+							ok: false as const,
+							error: "Refusing to write through a symlink.",
+						};
+					}
+					if (stat.isDirectory()) {
+						return {
+							ok: false as const,
+							error: "Target path is a directory.",
+						};
+					}
+				} catch {
+					alreadyExists = false;
+				}
+
+				if (alreadyExists && overwrite !== true) {
+					return {
+						ok: false as const,
+						error: `File already exists at ${targetFile}. Set overwrite=true to replace it.`,
+					};
+				}
+
+				if (ctx.dryRun) {
+					const verb = alreadyExists ? "update" : "write";
+					const msg = `[dry-run] Would ${verb} ${targetFile}`;
+					ctx.appliedActions.push(msg);
+					return {
+						ok: true as const,
+						dryRun: true,
+						path: targetFile,
+						created: !alreadyExists,
+						message: msg,
+					};
+				}
+
+				try {
+					ensureTobyDir();
+					fs.mkdirSync(path.dirname(targetFile), { recursive: true });
+					const normalizedContent = content.endsWith("\n")
+						? content
+						: `${content}\n`;
+					fs.writeFileSync(targetFile, normalizedContent, "utf-8");
+				} catch (e) {
+					return {
+						ok: false as const,
+						error:
+							e instanceof Error ? e.message : "Failed to write text file.",
+					};
+				}
+
+				const msg = alreadyExists
+					? `Updated ${targetFile}`
+					: `Wrote ${targetFile} (${resolved.baseLabel})`;
+				ctx.appliedActions.push(msg);
+				return {
+					ok: true as const,
+					dryRun: false,
+					path: targetFile,
+					created: !alreadyExists,
+					message: msg,
+				};
 			},
 		}),
 		loadLocalSkillInstructions: tool({

@@ -30,6 +30,7 @@ export type ChatInputPanelProps = {
 	) => void;
 	readonly inputDisabled: boolean;
 	readonly persona: Persona;
+	readonly project?: { readonly name: string } | null;
 	readonly modelLabel: string;
 	readonly dryRun: boolean;
 	readonly lastUsage: LanguageModelUsage | null;
@@ -54,6 +55,7 @@ export const ChatInputPanel = forwardRef<
 		onSubmit,
 		inputDisabled,
 		persona,
+		project,
 		modelLabel,
 		dryRun,
 		lastUsage,
@@ -130,6 +132,7 @@ export const ChatInputPanel = forwardRef<
 			cursorResetToken={cursorResetToken}
 			inputDisabled={inputDisabled}
 			persona={persona}
+			project={project}
 			modelLabel={modelLabel}
 			dryRun={dryRun}
 			lastUsage={lastUsage}

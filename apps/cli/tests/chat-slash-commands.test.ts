@@ -2,23 +2,23 @@ import {
 	clearToolResultCache,
 	setCachedToolResult,
 } from "@toby/core/chat-pipeline/tool-result-cache";
+import * as openUi from "@toby/core/web/open-ui";
 import { describe, expect, it, vi } from "vitest";
+import * as daemonStatus from "../src/schedules/daemon-status";
 import { captureLaunchContext } from "../src/toby-launch-context";
 import {
 	SLASH_COMMANDS,
 	getNearestSlashCommand,
 	resolveSlashSubmission,
 } from "../src/ui/chat/slash-commands";
+import { connectSlashCommand } from "../src/ui/chat/slash-commands/connect";
 import { helpSlashCommand } from "../src/ui/chat/slash-commands/help";
 import { logSlashCommand } from "../src/ui/chat/slash-commands/log";
-import { terminalSlashCommand } from "../src/ui/chat/slash-commands/terminal";
-import { restartSlashCommand } from "../src/ui/chat/slash-commands/restart";
-import { connectSlashCommand } from "../src/ui/chat/slash-commands/connect";
 import { pluginsSlashCommand } from "../src/ui/chat/slash-commands/plugins";
+import { restartSlashCommand } from "../src/ui/chat/slash-commands/restart";
+import { terminalSlashCommand } from "../src/ui/chat/slash-commands/terminal";
 import { usageSlashCommand } from "../src/ui/chat/slash-commands/usage";
 import { webSlashCommand } from "../src/ui/chat/slash-commands/web";
-import * as daemonStatus from "../src/schedules/daemon-status";
-import * as openUi from "@toby/core/web/open-ui";
 import * as handoffSpawn from "../src/upgrade/handoff-spawn";
 import * as upgradeModule from "../src/upgrade/index";
 
@@ -36,6 +36,8 @@ function mockRuntime(overrides: Record<string, unknown> = {}) {
 		openSchedules: vi.fn(),
 		openPersonaPicker: vi.fn(),
 		openPersonaConfigure: vi.fn(),
+		openProjectPicker: vi.fn(),
+		openProjectConfigure: vi.fn(),
 		startNewSession: vi.fn(),
 		openSessionsPicker: vi.fn(),
 		chatIntegrationsCount: 0,
@@ -129,7 +131,11 @@ describe("slash commands", () => {
 		const addMetaLine = vi.fn();
 		const openTextViewer = vi.fn();
 		const updateProgressNotice = vi.fn(async () => {});
-		const runtime = mockRuntime({ addMetaLine, openTextViewer, updateProgressNotice });
+		const runtime = mockRuntime({
+			addMetaLine,
+			openTextViewer,
+			updateProgressNotice,
+		});
 		await connectSlashCommand.run(runtime);
 		expect(updateProgressNotice).toHaveBeenCalled();
 		expect(openTextViewer).toHaveBeenCalledTimes(1);
@@ -158,9 +164,9 @@ describe("slash commands", () => {
 		expect(openTextViewer.mock.calls[0]?.[0]).toBe("Plugins");
 		expect(openTextViewer.mock.calls[0]?.[2]).toEqual({ lineTone: "markdown" });
 		const viewerLines = openTextViewer.mock.calls[0]?.[1] as string[];
-		expect(viewerLines.some((line) => line.includes("## Plugin directory"))).toBe(
-			true,
-		);
+		expect(
+			viewerLines.some((line) => line.includes("## Plugin directory")),
+		).toBe(true);
 		expect(addMetaLine).toHaveBeenCalled();
 	});
 
@@ -189,6 +195,19 @@ describe("slash commands", () => {
 		}
 		result.command.run(runtime);
 		expect(openPersonaPicker).toHaveBeenCalledTimes(1);
+	});
+
+	it("includes /project and opens the picker", () => {
+		expect(SLASH_COMMANDS.some((c) => c.command === "/project")).toBe(true);
+		const openProjectPicker = vi.fn();
+		const runtime = mockRuntime({ openProjectPicker });
+		const result = resolveSlashSubmission("/project", null);
+		expect(result.kind).toBe("execute");
+		if (result.kind !== "execute" || !result.command) {
+			throw new Error("expected execute result");
+		}
+		result.command.run(runtime);
+		expect(openProjectPicker).toHaveBeenCalledTimes(1);
 	});
 
 	it("restart exits after spawning handoff", async () => {

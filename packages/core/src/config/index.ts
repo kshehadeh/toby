@@ -56,6 +56,16 @@ export function getPluginsDir(): string {
 	return path.join(resolveTobyDir(), "plugins");
 }
 
+/** Local projects: `~/.toby/projects/<slug>/project.json`. */
+export function getProjectsDir(): string {
+	return path.join(resolveTobyDir(), "projects");
+}
+
+/** Fallback location for `writeTextFile` when no project is active. */
+export function getGeneratedFilesDir(): string {
+	return path.join(resolveTobyDir(), "generated-files");
+}
+
 /** Bundled native helper binaries: `~/.toby/helpers/toby-listener`. */
 export function getHelpersDir(): string {
 	return path.join(resolveTobyDir(), "helpers");
@@ -120,6 +130,8 @@ interface TobyConfig {
 	listen?: ListenConfig;
 	web?: WebConfig;
 	ai?: AISettings;
+	/** Slug of the currently active project (see `~/.toby/projects/<slug>/`). */
+	activeProject?: string;
 }
 
 export interface GmailCredentials {
@@ -215,6 +227,7 @@ export function readConfig(): TobyConfig {
 		listen: parsed.listen,
 		web: parsed.web,
 		ai: parsed.ai,
+		activeProject: parsed.activeProject,
 	};
 }
 
@@ -372,5 +385,21 @@ export function setDefaultPersona(personaName: string): void {
 export function clearDefaultPersona(): void {
 	const cfg = readConfig();
 	cfg.defaultPersona = undefined;
+	writeConfig(cfg);
+}
+
+export function getActiveProjectSlug(): string | undefined {
+	return readConfig().activeProject;
+}
+
+export function setActiveProjectSlug(slug: string): void {
+	const cfg = readConfig();
+	cfg.activeProject = slug;
+	writeConfig(cfg);
+}
+
+export function clearActiveProjectSlug(): void {
+	const cfg = readConfig();
+	cfg.activeProject = undefined;
 	writeConfig(cfg);
 }

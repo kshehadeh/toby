@@ -79,6 +79,8 @@ interface AppCallbacks {
 	) => void;
 	onDeleteSchedule: (scheduleId: string) => void;
 	onRunScheduleNow: (scheduleId: string) => Promise<void>;
+	onCreateProject: () => string;
+	onDeleteProject: (slug: string) => void;
 }
 
 interface AppProps {
@@ -512,6 +514,40 @@ export function ConfigureApp({
 		setRightIndex,
 	]);
 
+	// ── Create project ──────────────────────────────────────────────────
+	const handleCreateProject = useCallback(() => {
+		const slug = callbacks.onCreateProject();
+		const newValues = {
+			...values,
+			[`projects.${slug}.name`]: "Project",
+			[`projects.${slug}.skills`]: "",
+			[`projects.${slug}.integrations`]: "",
+		};
+		setValues(newValues);
+		setSavedValues(newValues);
+		const newTree = doRefresh(newValues);
+
+		const ancestorKeys = findAncestorKeys(newTree, `projects.${slug}`);
+		const newExpanded = new Set(expandedKeys);
+		newExpanded.add("projects");
+		for (const key of ancestorKeys) newExpanded.add(key);
+		const newFlat = flattenTreeSections(newTree, newExpanded);
+		const idx = newFlat.findIndex((n) => n.item.key === `projects.${slug}`);
+		setExpandedKeys(newExpanded);
+		if (idx >= 0) setLeftIndex(idx);
+		setFocusedPane("right");
+		setRightIndex(0);
+		setStatusMessage(undefined);
+	}, [
+		values,
+		doRefresh,
+		callbacks,
+		expandedKeys,
+		setLeftIndex,
+		setFocusedPane,
+		setRightIndex,
+	]);
+
 	// ── Handle item activation in right pane ────────────────────────────
 	const handleSelectItem = useCallback(
 		(item: SettingsItem) => {
@@ -560,6 +596,8 @@ export function ConfigureApp({
 				}
 				if (item.key === "personas._new") {
 					handleCreatePersona();
+				} else if (item.key === "projects._new") {
+					handleCreateProject();
 				} else if (
 					item.key.endsWith("._edit") &&
 					item.key.startsWith("skills.")
@@ -751,6 +789,27 @@ export function ConfigureApp({
 					setValues(cleanedValues);
 					doRefresh(cleanedValues);
 				});
+			} else if (
+				item.key.startsWith("projects.") &&
+				item.key.endsWith("._delete")
+			) {
+				const slug = item.key
+					.replace(/^projects\./, "")
+					.replace(/\._delete$/, "");
+				const projectName = values[`projects.${slug}.name`] ?? slug;
+				setConfirmMsg(`Delete project "${projectName}"?`);
+				setConfirmAction(() => () => {
+					callbacks.onDeleteProject(slug);
+					const cleanedValues: Record<string, string> = {};
+					const deletedPrefix = `projects.${slug}.`;
+					for (const [key, value] of Object.entries(values)) {
+						if (!key.startsWith(deletedPrefix)) {
+							cleanedValues[key] = value;
+						}
+					}
+					setValues(cleanedValues);
+					doRefresh(cleanedValues);
+				});
 			}
 		},
 		[
@@ -761,6 +820,7 @@ export function ConfigureApp({
 			tree,
 			navigateToSection,
 			handleCreatePersona,
+			handleCreateProject,
 			setLeftIndex,
 			setFocusedPane,
 			setRightIndex,

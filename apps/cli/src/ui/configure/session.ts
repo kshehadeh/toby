@@ -15,6 +15,14 @@ import {
 } from "@toby/core/configure/persistence";
 import { DEFAULT_CHAT_PERSONA } from "@toby/core/personas/index";
 import {
+	type CreateProjectParams,
+	createProject,
+	deleteProject,
+	listProjects,
+	slugifyProjectName,
+	updateProjectMetadata,
+} from "@toby/core/projects/index";
+import {
 	deleteSkill,
 	openSkillInEditor,
 	updateSkillFrontmatter,
@@ -78,6 +86,8 @@ interface ConfigureSession {
 		) => void;
 		readonly onDeleteSchedule: (scheduleId: string) => void;
 		readonly onRunScheduleNow: (scheduleId: string) => Promise<void>;
+		readonly onCreateProject: () => string;
+		readonly onDeleteProject: (slug: string) => void;
 	};
 	readonly listenRecordingsDir?: string;
 }
@@ -266,6 +276,22 @@ export function createConfigureSession(
 			const schedule = findScheduleById(scheduleId);
 			if (!schedule) throw new Error(`Schedule not found: ${scheduleId}`);
 			await executeSchedule(schedule);
+		},
+		onCreateProject: (): string => {
+			const existing = listProjects();
+			const name = `Project ${existing.length + 1}`;
+			const slug = slugifyProjectName(name) || `project-${existing.length + 1}`;
+			const project = createProject({ name });
+			credentialValues[`projects.${project.slug}.name`] = project.name;
+			return project.slug;
+		},
+		onDeleteProject: (slug: string) => {
+			deleteProject(slug);
+			for (const key of Object.keys(credentialValues)) {
+				if (key.startsWith(`projects.${slug}.`)) {
+					delete credentialValues[key];
+				}
+			}
 		},
 	};
 

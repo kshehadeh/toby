@@ -48,6 +48,7 @@ export const turnInitNode: PipelineNode<TurnRequest, InitedTurn> = {
 		const toolCatalog = await buildToolsCatalogForPretreatment(ctx.modules, {
 			dryRun: ctx.dryRun,
 			persona: ctx.persona,
+			project: ctx.project,
 		});
 
 		if (onStatus) {

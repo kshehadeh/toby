@@ -18,6 +18,11 @@ import {
 } from "../integrations/types";
 import { migrateListenWhisperConfig } from "../listen/transcription-plugin";
 import type { ListenConfig } from "../listen/whisper-config";
+import {
+	type ProjectMetadataUpdate,
+	listProjects,
+	updateProjectMetadata,
+} from "../projects/index";
 import { listSchedules, updateSchedule } from "../schedules/store";
 import { loadLocalSkills } from "../skills/index";
 import { updateSkillFrontmatter } from "../skills/manage";
@@ -131,6 +136,12 @@ export function seedConfigureValues(
 	}
 	seedListenRecordingValues(values, options.listenRecordings ?? []);
 	seedScheduleValues(values);
+	for (const project of listProjects()) {
+		values[`projects.${project.slug}.name`] = project.name;
+		values[`projects.${project.slug}.skills`] = project.skills.join(", ");
+		values[`projects.${project.slug}.integrations`] =
+			project.integrations.join(", ");
+	}
 	for (const cat of ALL_PROVIDER_CATEGORIES) {
 		const current = config.defaultProviders?.[cat];
 		values[`defaults.${cat}`] = current ?? "(none)";
@@ -382,6 +393,7 @@ function applyConfigFromValues(values: Record<string, string>): void {
 const SKILL_FIELD_RE = /^skills\.([^.]+)\.(name|description|summary)$/;
 const SCHEDULE_FIELD_RE =
 	/^schedules\.([^.]+)\.(name|prompt|persona|cron|enabled)$/;
+const PROJECT_FIELD_RE = /^projects\.([^.]+)\.(name|skills|integrations)$/;
 
 function partitionConfigurePatch(patch: Record<string, string>): {
 	config: Record<string, string>;
@@ -399,6 +411,10 @@ function partitionConfigurePatch(patch: Record<string, string>): {
 			enabled?: boolean;
 		}
 	>;
+	projects: Map<
+		string,
+		{ name?: string; skills?: string; integrations?: string }
+	>;
 } {
 	const config: Record<string, string> = {};
 	const skills = new Map<
@@ -414,6 +430,10 @@ function partitionConfigurePatch(patch: Record<string, string>): {
 			cronExpression?: string;
 			enabled?: boolean;
 		}
+	>();
+	const projects = new Map<
+		string,
+		{ name?: string; skills?: string; integrations?: string }
 	>();
 
 	for (const [key, value] of Object.entries(patch)) {
@@ -441,10 +461,21 @@ function partitionConfigurePatch(patch: Record<string, string>): {
 			continue;
 		}
 
+		const projectMatch = PROJECT_FIELD_RE.exec(key);
+		if (projectMatch) {
+			const [, slug, field] = projectMatch;
+			const entry = projects.get(slug) ?? {};
+			if (field === "name") entry.name = value;
+			else if (field === "skills") entry.skills = value;
+			else entry.integrations = value;
+			projects.set(slug, entry);
+			continue;
+		}
+
 		config[key] = value;
 	}
 
-	return { config, skills, schedules };
+	return { config, skills, schedules, projects };
 }
 
 /** Apply configure values (web-safe), including secret credentials. */
@@ -474,7 +505,7 @@ export function applyConfigureValuesPatch(
 		writeCredentials(buildCredentialsFromValues(merged, creds));
 	}
 
-	const { config, skills, schedules } = partitionConfigurePatch(rest);
+	const { config, skills, schedules, projects } = partitionConfigurePatch(rest);
 
 	if (Object.keys(config).length > 0) {
 		const merged = { ...(baseValues ?? seedConfigureValues()), ...config };
@@ -510,6 +541,34 @@ export function applyConfigureValuesPatch(
 
 	for (const [scheduleId, updates] of schedules) {
 		updateSchedule(scheduleId, updates);
+	}
+
+	for (const [slug, updates] of projects) {
+		const name = updates.name?.trim() || undefined;
+		const skills = updates.skills
+			? updates.skills
+					.split(",")
+					.map((s) => s.trim())
+					.filter(Boolean)
+			: undefined;
+		const integrations = updates.integrations
+			? updates.integrations
+					.split(",")
+					.map((s) => s.trim())
+					.filter(Boolean)
+			: undefined;
+		if (name || skills || integrations) {
+			const projectUpdates: ProjectMetadataUpdate = {
+				...(name ? { name } : {}),
+				...(skills ? { skills } : {}),
+				...(integrations ? { integrations } : {}),
+			};
+			try {
+				updateProjectMetadata(slug, projectUpdates);
+			} catch {
+				// Project may have been deleted concurrently; ignore.
+			}
+		}
 	}
 }
 

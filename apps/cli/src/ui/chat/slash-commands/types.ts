@@ -35,6 +35,8 @@ export interface SlashCommandRuntime {
 	readonly openSchedules: () => void;
 	readonly openPersonaPicker: () => void;
 	readonly openPersonaConfigure: (pathKeys: readonly string[]) => void;
+	readonly openProjectPicker: () => void;
+	readonly openProjectConfigure: (slug: string) => void;
 	readonly startNewSession: () => void;
 	readonly openSessionsPicker: () => void;
 	readonly chatIntegrationsCount: number;

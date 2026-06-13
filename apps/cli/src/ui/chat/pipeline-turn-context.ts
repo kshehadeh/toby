@@ -4,6 +4,7 @@ import type { ChatEventSink } from "@toby/core/chat-pipeline/chat-events";
 import type { TurnContext } from "@toby/core/chat-pipeline/pipeline";
 import type { Persona } from "@toby/core/config/index";
 import type { IntegrationModule } from "@toby/core/integrations/types";
+import type { Project } from "@toby/core/projects/index";
 
 export function buildUiTurnContext(params: {
 	readonly persona: Persona;
@@ -16,6 +17,7 @@ export function buildUiTurnContext(params: {
 	readonly chatWithToolsOptions?: ChatWithToolsOptions;
 	readonly onStatusLine?: (line: string) => void | Promise<void>;
 	readonly emitPersistLifecycle?: boolean;
+	readonly project?: Project | null;
 }): TurnContext {
 	return {
 		persona: params.persona,
@@ -28,5 +30,6 @@ export function buildUiTurnContext(params: {
 		chatWithToolsOptions: params.chatWithToolsOptions,
 		onStatusLine: params.onStatusLine,
 		emitPersistLifecycle: params.emitPersistLifecycle ?? false,
+		project: params.project,
 	};
 }

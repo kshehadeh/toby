@@ -9,6 +9,7 @@ export const runModelTurnNode: PipelineNode<AssembledTurn, RanTurn> = {
 		const result = await runIntegrationChatTurn(moduleNames, input.messages, {
 			persona: ctx.persona,
 			dryRun: ctx.dryRun,
+			project: ctx.project,
 			askUser: ctx.askUser,
 			relevantTools: input.spec?.relevantTools,
 			chatWithToolsOptions: ctx.chatWithToolsOptions,

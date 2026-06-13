@@ -26,8 +26,30 @@ export {
 	readCredentials,
 	writeConfig,
 	writeCredentials,
+	getActiveProjectSlug,
+	setActiveProjectSlug,
+	clearActiveProjectSlug,
 } from "./config/index";
 export type { Persona, CredentialsFile } from "./config/index";
+export {
+	type Project,
+	type ProjectContextDoc,
+	type CreateProjectParams,
+	type ProjectMetadataUpdate,
+	listProjects,
+	resolveProject,
+	resolveActiveProject,
+	createProject,
+	updateProjectMetadata,
+	deleteProject,
+	loadProjectContextDocuments,
+	listProjectContextFiles,
+	listProjectOutputFiles,
+	formatProjectContextForPrompt,
+	PROJECT_CONTEXT_APPENDIX_START,
+	slugifyProjectName,
+	generateProjectNameFromPrompt,
+} from "./projects/index";
 export {
 	buildTobySpawnArgs,
 	getTobyEntryScriptArgv,

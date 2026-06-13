@@ -11,6 +11,7 @@ import type { IntegrationModule } from "../integrations/types";
 import { log } from "../logging/chat-log";
 import { createMemoryTools } from "../memory/tools";
 import { injectCurrentDateTimeIntoFirstSystemMessage } from "../prepare-messages";
+import type { Project } from "../projects/index";
 import type { ChatEvent } from "./chat-events";
 import { loadIntegrationToolBundle } from "./tool-bundle-cache";
 
@@ -25,6 +26,7 @@ const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"askUser",
 	"getCurrentDateTime",
 	"loadLocalSkillInstructions",
+	"writeTextFile",
 	"memorySearch",
 	"memoryPropose",
 	"memorySave",
@@ -43,6 +45,8 @@ const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"readTranscript",
 ]);
 
+export { ALWAYS_INCLUDED_TOOLS };
+
 /**
  * Tools omitted from the default set unless pretreatment (or the user) explicitly
  * selects them — analogous to Cursor skills with `disable-model-invocation: true`.
@@ -54,6 +58,7 @@ const EXPLICIT_REQUEST_ONLY_TOOLS: ReadonlySet<string> = new Set([
 type ChatTurnOptions = {
 	readonly persona: Persona;
 	readonly dryRun: boolean;
+	readonly project?: Project | null;
 	readonly maxResults?: number;
 	readonly askUser?: AskUserHandler;
 	readonly chatWithToolsOptions?: ChatWithToolsOptions;
@@ -157,6 +162,7 @@ function mergeAuxiliaryChatTools(
 	options: {
 		readonly dryRun: boolean;
 		readonly persona: Persona;
+		readonly project?: Project | null;
 		readonly globalAppliedActions?: string[];
 		readonly memoryAppliedActions?: string[];
 	},
@@ -173,6 +179,7 @@ function mergeAuxiliaryChatTools(
 		dryRun: options.dryRun,
 		persona: options.persona,
 		appliedActions: options.globalAppliedActions ?? [],
+		project: options.project ?? null,
 	});
 	Object.assign(mergedTools, globalTools);
 	for (const toolName of Object.keys(globalTools)) {
@@ -224,13 +231,17 @@ function buildToolCatalogFromMergedTools(
  */
 export async function buildToolsCatalogForPretreatment(
 	modules: readonly IntegrationModule[],
-	options: { readonly dryRun?: boolean; readonly persona: Persona },
+	options: {
+		readonly dryRun?: boolean;
+		readonly persona: Persona;
+		readonly project?: Project | null;
+	},
 ): Promise<PrebuiltToolCatalog> {
 	const dryRun = options.dryRun ?? false;
 	const integration = await loadIntegrationToolBundle(modules, { dryRun });
 	const { mergedTools, toolIntegrationLabels } = mergeAuxiliaryChatTools(
 		integration,
-		{ dryRun, persona: options.persona },
+		{ dryRun, persona: options.persona, project: options.project ?? null },
 	);
 	return buildToolCatalogFromMergedTools(
 		mergedTools,
@@ -322,6 +333,7 @@ export async function runSharedChatTurn(
 			{
 				dryRun: options.dryRun,
 				persona: options.persona,
+				project: options.project ?? null,
 				globalAppliedActions: globalAppliedSink,
 				memoryAppliedActions: memoryAppliedSink,
 			},
@@ -343,6 +355,7 @@ export async function runSharedChatTurn(
 		const auxiliary = mergeAuxiliaryChatTools(integration, {
 			dryRun: options.dryRun,
 			persona: options.persona,
+			project: options.project ?? null,
 			globalAppliedActions: globalAppliedSink,
 			memoryAppliedActions: memoryAppliedSink,
 		});

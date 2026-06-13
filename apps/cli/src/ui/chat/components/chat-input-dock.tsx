@@ -160,6 +160,7 @@ type ChatInputDockProps = {
 	readonly cursorResetToken?: number;
 	readonly inputDisabled: boolean;
 	readonly persona: Persona;
+	readonly project?: { readonly name: string } | null;
 	readonly modelLabel: string;
 	readonly dryRun: boolean;
 	readonly lastUsage: LanguageModelUsage | null;
@@ -186,6 +187,7 @@ export function ChatInputDock(props: ChatInputDockProps) {
 		cursorResetToken = 0,
 		inputDisabled,
 		persona,
+		project,
 		modelLabel,
 		dryRun,
 		lastUsage,
@@ -320,6 +322,16 @@ export function ChatInputDock(props: ChatInputDockProps) {
 						<Text bold wrap="truncate-end">
 							{persona.name}
 						</Text>
+						{project ? (
+							<>
+								<Text dimColor wrap="truncate-end">
+									{" · "}
+								</Text>
+								<Text color="cyan" wrap="truncate-end">
+									{project.name}
+								</Text>
+							</>
+						) : null}
 						<Text dimColor wrap="truncate-end">
 							{" · "}
 						</Text>

@@ -6,6 +6,7 @@ import type { PriorPretreatment, UserIntentSpec } from "../ai/pretreatment";
 export type { PriorPretreatment };
 import type { Persona } from "../config/index";
 import type { IntegrationModule } from "../integrations/types";
+import type { Project } from "../projects/index";
 import type { RoutingIndex } from "../routing/index";
 import type { LocalSkill } from "../skills/index";
 import type { ChatEventSink } from "./chat-events";
@@ -74,6 +75,8 @@ export type TurnContext = {
 	readonly nextSeq: () => number;
 	readonly onStatusLine?: (line: string) => void | Promise<void>;
 	readonly chatWithToolsOptions?: ChatWithToolsOptions;
+	/** Active project context, resolved before the turn starts. */
+	readonly project?: Project | null;
 	readonly persist?: {
 		readonly sessionId: string;
 		readonly startIdx: number;
