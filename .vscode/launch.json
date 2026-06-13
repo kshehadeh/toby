@@ -23,7 +23,9 @@
 		{
 			"type": "swift",
 			"request": "launch",
-			"args": ["status"],
+			"args": [
+				"status"
+			],
 			"cwd": "${workspaceFolder:toby}/apps/plugin-macos",
 			"name": "Debug toby-plugin-macos (apps/plugin-macos)",
 			"target": "toby-plugin-macos",
@@ -33,7 +35,9 @@
 		{
 			"type": "swift",
 			"request": "launch",
-			"args": ["status"],
+			"args": [
+				"status"
+			],
 			"cwd": "${workspaceFolder:toby}/apps/plugin-macos",
 			"name": "Release toby-plugin-macos (apps/plugin-macos)",
 			"target": "toby-plugin-macos",
@@ -79,6 +83,26 @@
 			"target": "toby-plugin-websearch",
 			"configuration": "release",
 			"preLaunchTask": "swift: Build Release toby-plugin-websearch (apps/plugin-websearch)"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:toby}/apps/toby-app",
+			"name": "Debug toby-app (apps/toby-app)",
+			"target": "toby-app",
+			"configuration": "debug",
+			"preLaunchTask": "swift: Build Debug toby-app (apps/toby-app)"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:toby}/apps/toby-app",
+			"name": "Release toby-app (apps/toby-app)",
+			"target": "toby-app",
+			"configuration": "release",
+			"preLaunchTask": "swift: Build Release toby-app (apps/toby-app)"
 		}
 	]
 }

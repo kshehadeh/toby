@@ -1,9 +1,11 @@
+import { appSlashCommand } from "./app";
 import { clearToolCacheSlashCommand } from "./clear-tool-cache";
 import { configSlashCommand } from "./config";
 import { connectSlashCommand } from "./connect";
 import { disconnectSlashCommand } from "./disconnect";
 import { exitSlashCommand } from "./exit";
 import { helpSlashCommand } from "./help";
+import { installAppSlashCommand } from "./install-app";
 import { listenSlashCommand } from "./listen";
 import { logSlashCommand } from "./log";
 import { newSlashCommand } from "./new";
@@ -37,6 +39,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
 	connectSlashCommand,
 	disconnectSlashCommand,
 	helpSlashCommand,
+	installAppSlashCommand,
 	listenSlashCommand,
 	logSlashCommand,
 	planSlashCommand,
@@ -53,6 +56,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
 	terminalSlashCommand,
 	upgradeSlashCommand,
 	usageSlashCommand,
+	appSlashCommand,
 	webSlashCommand,
 	restartSlashCommand,
 	exitSlashCommand,
