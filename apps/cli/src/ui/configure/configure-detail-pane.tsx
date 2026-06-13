@@ -88,7 +88,11 @@ function renderFormField(field: DetailPaneField, selected: boolean): ReactNode {
 	const label = field.item.label;
 	const value = displayFieldValue(field, selected);
 
-	if (field.kind === "value" || field.kind === "select") {
+	if (
+		field.kind === "value" ||
+		field.kind === "select" ||
+		field.kind === "multiSelect"
+	) {
 		return (
 			<InlineFieldRow
 				key={detailPaneFieldKey(field)}

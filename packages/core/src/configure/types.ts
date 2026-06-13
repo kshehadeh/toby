@@ -3,6 +3,7 @@ export type ItemKind =
 	| "value"
 	| "action"
 	| "select"
+	| "multiSelect"
 	| "delete"
 	| "hint";
 
@@ -37,6 +38,8 @@ export interface SettingsItem {
 	/** Labeled options for select fields (value stored, label shown). */
 	selectChoices?: SettingsSelectChoice[];
 	currentValue?: string;
+	/** Currently selected values for multiSelect fields. */
+	selectedValues?: readonly string[];
 	/** When true, field is read-only in the web UI (credentials). */
 	readOnly?: boolean;
 }

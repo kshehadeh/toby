@@ -6,6 +6,7 @@ import {
 	getProjectsDir,
 	setActiveProjectSlug,
 } from "../config/index";
+import { type LocalSkill, loadLocalSkills } from "../skills/index";
 
 export interface Project {
 	/** Stable folder name under ~/.toby/projects. */
@@ -18,6 +19,8 @@ export interface Project {
 	readonly contextDir: string;
 	/** Absolute path to the project outputs directory (for generated artifacts). */
 	readonly outputsDir: string;
+	/** Absolute path to the project-local skills directory. */
+	readonly skillsDir: string;
 	/** Global skill names pinned to this project. */
 	readonly skills: readonly string[];
 	/** Integration module names used as context sources. */
@@ -33,6 +36,7 @@ export interface ProjectContextDoc {
 const PROJECT_METADATA_FILENAME = "project.json";
 const CONTEXT_DIRNAME = "context";
 const OUTPUTS_DIRNAME = "outputs";
+const SKILLS_DIRNAME = "skills";
 
 /** Extensions treated as readable text context. */
 const CONTEXT_TEXT_EXTENSIONS: ReadonlySet<string> = new Set([
@@ -122,6 +126,7 @@ function toProject(slug: string, dir: string): Project {
 		dir,
 		contextDir: path.join(dir, CONTEXT_DIRNAME),
 		outputsDir: path.join(dir, OUTPUTS_DIRNAME),
+		skillsDir: path.join(dir, SKILLS_DIRNAME),
 		skills,
 		integrations,
 	};
@@ -167,6 +172,11 @@ export function resolveActiveProject(): Project | null {
 		return null;
 	}
 	return resolveProject(slug);
+}
+
+/** Load skills stored in the project-local `skills/` directory. */
+export function loadProjectSkills(project: Project): LocalSkill[] {
+	return loadLocalSkills(project.skillsDir);
 }
 
 function writeProjectMetadata(dir: string, meta: ProjectMetadataFile): void {
@@ -215,6 +225,7 @@ export function createProject(params: CreateProjectParams = {}): Project {
 	});
 	fs.mkdirSync(path.join(dir, CONTEXT_DIRNAME), { recursive: true });
 	fs.mkdirSync(path.join(dir, OUTPUTS_DIRNAME), { recursive: true });
+	fs.mkdirSync(path.join(dir, SKILLS_DIRNAME), { recursive: true });
 
 	return toProject(slug, dir);
 }

@@ -36,6 +36,8 @@ export type {
 } from "./two-pane-view";
 export { FieldEditor } from "./field-editor";
 export { FieldSelector } from "./field-selector";
+export { FieldMultiSelector } from "./field-multi-selector";
+export type { FieldMultiSelectorProps } from "./field-multi-selector";
 export { DaemonStatusLine } from "./daemon-status-line";
 export {
 	DOT_GRID_SPINNER_FRAMES,

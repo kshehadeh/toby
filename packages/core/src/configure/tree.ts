@@ -665,6 +665,8 @@ export function buildSettingsTree(
 	function buildProjectsSection(values: Record<string, string>): SettingsItem {
 		const projects = listProjects();
 		const activeSlug = getActiveProjectSlug();
+		const allSkillNames = loadLocalSkills().map((s) => s.name);
+		const allIntegrationNames = getIntegrationModules().map((m) => m.name);
 		const projectSections: SettingsItem[] = projects.map((project) => {
 			const isActive = project.slug === activeSlug;
 			const skillValue =
@@ -690,16 +692,30 @@ export function buildSettingsTree(
 						currentValue: project.contextDir,
 					},
 					{
-						label: "Pinned skills (comma-separated)",
-						kind: "value" as const,
+						label: "Pinned skills",
+						kind: "multiSelect" as const,
 						key: `projects.${project.slug}.skills`,
 						currentValue: skillValue,
+						options: allSkillNames,
+						selectedValues: skillValue
+							? skillValue
+									.split(",")
+									.map((s) => s.trim())
+									.filter(Boolean)
+							: [],
 					},
 					{
-						label: "Context integrations (comma-separated)",
-						kind: "value" as const,
+						label: "Context integrations",
+						kind: "multiSelect" as const,
 						key: `projects.${project.slug}.integrations`,
 						currentValue: integrationsValue,
+						options: allIntegrationNames,
+						selectedValues: integrationsValue
+							? integrationsValue
+									.split(",")
+									.map((s) => s.trim())
+									.filter(Boolean)
+							: [],
 					},
 					{
 						label: "Delete project",

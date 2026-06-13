@@ -9,6 +9,7 @@ import {
 	getSkillsDir,
 } from "../config/index";
 import type { Project } from "../projects/index";
+import { loadProjectSkills } from "../projects/index";
 import {
 	formatSkillsCatalogForPrompt,
 	loadLocalSkills,
@@ -174,8 +175,11 @@ export function resolveWriteTextFileTarget(params: {
 }
 
 /** Explains global tools for integration system prompts. */
-export function globalChatToolsPromptSection(): string {
-	const skillsCatalog = formatSkillsCatalogForPrompt(loadLocalSkills());
+export function globalChatToolsPromptSection(project?: Project | null): string {
+	const globalSkills = loadLocalSkills();
+	const projectSkills = project ? loadProjectSkills(project) : [];
+	const allSkills = [...globalSkills, ...projectSkills];
+	const skillsCatalog = formatSkillsCatalogForPrompt(allSkills);
 	const hasSearch = isWebSearchAvailable();
 	const searchToolLine = hasSearch
 		? "\n- **webSearch**: Search the web (Brave Search). Returns titles, URLs, descriptions, and optional page age. Use when the user asks about current events, facts, research, or anything requiring up-to-date information from the web. Always cite source URLs from search results."
@@ -457,7 +461,9 @@ export function createGlobalChatTools(
 					),
 			}),
 			execute: async ({ names }) => {
-				const all = loadLocalSkills();
+				const globalSkills = loadLocalSkills();
+				const projectSkills = ctx.project ? loadProjectSkills(ctx.project) : [];
+				const all = [...globalSkills, ...projectSkills];
 				const wanted = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
 				const resolved = resolveSkillsByNames(all, wanted);
 				const resolvedByLower = new Set(
@@ -489,7 +495,7 @@ export function createGlobalChatTools(
 		}),
 		createLocalSkill: tool({
 			description:
-				"Create or update a Toby skill: drafts a SKILL.md (frontmatter + body) from a description and saves it under ~/.toby/skills/<folder>/SKILL.md. Only call when the user explicitly asks to create, draft, or update a local skill — not for general notes, memories, or workflow capture unless they asked for a skill file. Use updateExisting=true to revise an existing skill in place.",
+				"Create or update a Toby skill: drafts a SKILL.md (frontmatter + body) from a description and saves it under ~/.toby/skills/<folder>/SKILL.md. When a project is active, saves to the project's skills/ directory instead so the skill is automatically included in that project's sessions. Only call when the user explicitly asks to create, draft, or update a local skill — not for general notes, memories, or workflow capture unless they asked for a skill file. Use updateExisting=true to revise an existing skill in place.",
 			inputSchema: z.object({
 				description: z
 					.string()
@@ -505,7 +511,7 @@ export function createGlobalChatTools(
 					.boolean()
 					.optional()
 					.describe(
-						"When true, overwrite an existing ~/.toby/skills/<folder>/SKILL.md instead of creating a new one",
+						"When true, overwrite an existing skill SKILL.md instead of creating a new one",
 					),
 			}),
 			execute: async ({ description, preferredFolderName, updateExisting }) => {
@@ -530,7 +536,12 @@ export function createGlobalChatTools(
 				}
 
 				ensureTobyDir();
-				const skillsRoot = getSkillsDir();
+				const project = ctx.project;
+				const isProject = project != null;
+				const skillsRoot = isProject ? project.skillsDir : getSkillsDir();
+				const skillsRootLabel = isProject
+					? `project "${project.name}" skills`
+					: "~/.toby/skills";
 				try {
 					fs.mkdirSync(skillsRoot, { recursive: true });
 				} catch (e) {
@@ -552,13 +563,13 @@ export function createGlobalChatTools(
 					if (shouldUpdate && !exists) {
 						return {
 							ok: false as const,
-							error: `No existing skill found at ~/.toby/skills/${folder}/SKILL.md to update.`,
+							error: `No existing skill found at ${skillsRootLabel}/${folder}/SKILL.md to update.`,
 						};
 					}
 					if (!shouldUpdate && exists) {
 						return {
 							ok: false as const,
-							error: `SKILL.md already exists at ~/.toby/skills/${folder}/SKILL.md — choose another preferredFolderName or set updateExisting=true.`,
+							error: `SKILL.md already exists at ${skillsRootLabel}/${folder}/SKILL.md — choose another preferredFolderName or set updateExisting=true.`,
 						};
 					}
 					if (shouldUpdate) {
@@ -682,8 +693,8 @@ export function createGlobalChatTools(
 				}
 
 				const msg = shouldUpdate
-					? `Updated skill ~/.toby/skills/${folder}/SKILL.md (${probe.name})`
-					: `Wrote skill ~/.toby/skills/${folder}/SKILL.md (${probe.name})`;
+					? `Updated skill ${skillsRootLabel}/${folder}/SKILL.md (${probe.name})`
+					: `Wrote skill ${skillsRootLabel}/${folder}/SKILL.md (${probe.name})`;
 				ctx.appliedActions.push(msg);
 				return {
 					ok: true as const,

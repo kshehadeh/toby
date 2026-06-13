@@ -177,6 +177,7 @@ ${lines.join("\n")}`;
 
 function buildCombinedChatBasePrompt(
 	modules: readonly IntegrationModule[],
+	project?: Project | null,
 ): string {
 	const labels = modules.map((m) => m.displayName).join(", ");
 	const integrationBlocks = modules
@@ -200,7 +201,7 @@ Shared rules:
 - When listing emails, tasks, or options in assistant text, prefer markdown list items (\`- item\`) with one item per line.${searchRule}
 ${defaultsSection ? `\n${defaultsSection}\n` : ""}
 ${integrationBlocks}
-${globalChatToolsPromptSection()}
+${globalChatToolsPromptSection(project)}
 `;
 }
 
@@ -252,6 +253,7 @@ export async function prepareChatSessionMessages(
 	persona: Persona,
 	userPrompt: string,
 	onProgress?: SessionPrepProgress,
+	project?: Project | null,
 ): Promise<CoreMessage[]> {
 	if (modules.length === 0) {
 		throw new Error("prepareChatSessionMessages: no modules");
@@ -308,7 +310,7 @@ export async function prepareChatSessionMessages(
 
 	await report("Assembling combined session prompt…");
 	const systemContent = composeSystemPromptWithPersona(
-		buildCombinedChatBasePrompt(modules),
+		buildCombinedChatBasePrompt(modules, project),
 		persona,
 	);
 
@@ -393,7 +395,7 @@ export async function replaceSessionSystemMessageForPersona(
 	}
 
 	const systemContent = composeSystemPromptWithPersona(
-		buildCombinedChatBasePrompt(modules),
+		buildCombinedChatBasePrompt(modules, project),
 		persona,
 	);
 

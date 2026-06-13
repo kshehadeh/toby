@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { shouldPretreat } from "../../ai/pretreatment";
+import { loadProjectSkills } from "../../projects/index";
 import { warmRoutingIndex } from "../../routing/index";
 import {
 	computeSkillCatalogSignature,
@@ -39,9 +40,16 @@ export const turnInitNode: PipelineNode<TurnRequest, InitedTurn> = {
 		}
 
 		const localSkills = loadLocalSkills();
+		const projectSkills = ctx.project ? loadProjectSkills(ctx.project) : [];
+		const allSkills = [...localSkills, ...projectSkills];
 
 		if (onStatus) {
-			await onStatus(`Local skills catalog: ${localSkills.length} available.`);
+			const total = allSkills.length;
+			const parts = [`${localSkills.length} global`];
+			if (projectSkills.length > 0) {
+				parts.push(`${projectSkills.length} project`);
+			}
+			await onStatus(`Skills catalog: ${parts.join(" + ")} (${total} total).`);
 			await onStatus("Loading tool catalog…");
 		}
 
@@ -57,8 +65,8 @@ export const turnInitNode: PipelineNode<TurnRequest, InitedTurn> = {
 			);
 		}
 
-		const skillsCatalogText = formatSkillsCatalogForPrompt(localSkills);
-		const skillsCatalogSignature = computeSkillCatalogSignature(localSkills);
+		const skillsCatalogText = formatSkillsCatalogForPrompt(allSkills);
+		const skillsCatalogSignature = computeSkillCatalogSignature(allSkills);
 		const toolsCatalogSignature = sha256CatalogDigest(toolCatalog.catalogText);
 
 		let routingIndex = null;
@@ -81,7 +89,7 @@ export const turnInitNode: PipelineNode<TurnRequest, InitedTurn> = {
 
 		return {
 			...input,
-			localSkills,
+			localSkills: allSkills,
 			toolCatalog,
 			willPretreat,
 			integrationLabel,

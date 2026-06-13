@@ -15,6 +15,7 @@ import {
 	ConfirmDialog,
 	DetailPaneTitle,
 	FieldEditor,
+	FieldMultiSelector,
 	FieldSelector,
 	SelectableTextRow,
 	TwoPaneView,
@@ -46,11 +47,18 @@ import {
 	useListenController,
 } from "./use-listen-controller";
 
-type Screen = "nav" | "edit" | "select";
+type Screen = "nav" | "edit" | "select" | "multiSelect";
 
 const DEFAULT_LISTEN_OPTIONS: ListenSectionOptions = {
 	sources: { mic: true, system: true },
 };
+
+function parseCommaList(raw: string): string[] {
+	return raw
+		.split(",")
+		.map((s) => s.trim())
+		.filter(Boolean);
+}
 
 interface AppCallbacks {
 	onCreatePersona: () => string;
@@ -273,11 +281,15 @@ export function ConfigureApp({
 		const children = selectedNode.children ?? [];
 		return children.map((item) => {
 			const rawValue =
-				item.kind === "value" || item.kind === "select"
+				item.kind === "value" ||
+				item.kind === "select" ||
+				item.kind === "multiSelect"
 					? (values[item.key] ?? item.currentValue)
 					: undefined;
 			let displayValue = rawValue;
-			if (item.kind === "select" && rawValue !== undefined) {
+			if (item.kind === "multiSelect" && rawValue !== undefined) {
+				displayValue = rawValue || "(none)";
+			} else if (item.kind === "select" && rawValue !== undefined) {
 				const labeled = item.selectChoices?.find((c) => c.value === rawValue);
 				displayValue = labeled?.label ?? rawValue;
 			}
@@ -289,6 +301,8 @@ export function ConfigureApp({
 				masked: item.masked,
 				multiline: item.multiline,
 				options: item.options,
+				selectChoices: item.selectChoices,
+				selectedValues: item.selectedValues,
 				currentValue: displayValue,
 			};
 		});
@@ -383,6 +397,7 @@ export function ConfigureApp({
 
 	// ── Initial editor key ──────────────────────────────────────────────
 	const initialEditorKeyRef = useRef(initialEditorItemKey);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: one-shot init — values read only for multiSelect init
 	useLayoutEffect(() => {
 		const key = initialEditorKeyRef.current;
 		if (!key || !selectedNode) return;
@@ -399,6 +414,14 @@ export function ConfigureApp({
 		} else if (child.kind === "select") {
 			setEditItem(child);
 			setScreen("select");
+		} else if (child.kind === "multiSelect") {
+			setEditItem({
+				...child,
+				selectedValues: parseCommaList(
+					values[child.key] ?? child.currentValue ?? "",
+				),
+			});
+			setScreen("multiSelect");
 		}
 	}, [selectedNode]);
 
@@ -568,6 +591,14 @@ export function ConfigureApp({
 			} else if (item.kind === "select") {
 				setEditItem(item);
 				setScreen("select");
+			} else if (item.kind === "multiSelect") {
+				setEditItem({
+					...item,
+					selectedValues: parseCommaList(
+						values[item.key] ?? item.currentValue ?? "",
+					),
+				});
+				setScreen("multiSelect");
 			} else if (item.kind === "action") {
 				if (item.key === "schedules._new") {
 					const scheduleId = callbacks.onCreateSchedule();
@@ -1080,6 +1111,21 @@ export function ConfigureApp({
 		[editItem, values, doRefresh, callbacks],
 	);
 
+	// ── Multi-select submit ────────────────────────────────────────────
+	const handleMultiSelectSubmit = useCallback(
+		(newSelectedValues: string[]) => {
+			if (editItem) {
+				const joined = newSelectedValues.join(", ");
+				const newValues = { ...values, [editItem.key]: joined };
+				setValues(newValues);
+				doRefresh(newValues);
+			}
+			setScreen("nav");
+			setEditItem(null);
+		},
+		[editItem, values, doRefresh],
+	);
+
 	// ── Editor cancel ───────────────────────────────────────────────────
 	const handleEditorCancel = useCallback(() => {
 		setScreen("nav");
@@ -1344,6 +1390,21 @@ export function ConfigureApp({
 				options={editItem.options ?? []}
 				currentValue={values[editItem.key] ?? editItem.currentValue}
 				onSubmit={handleSelectSubmit}
+				onCancel={handleEditorCancel}
+			/>
+		);
+	}
+
+	// ── Multi-select overlay ────────────────────────────────────────────
+	if (screen === "multiSelect" && editItem) {
+		return (
+			<FieldMultiSelector
+				appTitle="Configuration"
+				fieldLabel={editItem.label}
+				choices={editItem.selectChoices}
+				options={editItem.options ?? []}
+				selectedValues={editItem.selectedValues ?? []}
+				onSubmit={handleMultiSelectSubmit}
 				onCancel={handleEditorCancel}
 			/>
 		);

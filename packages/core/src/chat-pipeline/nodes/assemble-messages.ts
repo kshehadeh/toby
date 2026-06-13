@@ -5,6 +5,7 @@ import {
 	injectSkillBodiesIntoFirstSystemMessage,
 	prepareChatSessionMessages,
 } from "../../prepare-messages";
+import { loadProjectSkills } from "../../projects/index";
 import type { AssembledTurn, ExpandedTurn, PipelineNode } from "../pipeline";
 
 export const assembleMessagesNode: PipelineNode<ExpandedTurn, AssembledTurn> = {
@@ -21,6 +22,7 @@ export const assembleMessagesNode: PipelineNode<ExpandedTurn, AssembledTurn> = {
 				ctx.persona,
 				input.effectiveText,
 				ctx.onStatusLine,
+				ctx.project,
 			);
 		} else {
 			const mergeLifecycleId = randomUUID();
@@ -43,15 +45,24 @@ export const assembleMessagesNode: PipelineNode<ExpandedTurn, AssembledTurn> = {
 		}
 
 		const attachedSkills = input.spec?.relevantSkills ?? [];
-		if (attachedSkills.length > 0 && ctx.onStatusLine) {
+
+		// Auto-attach project-local skills as if they were built-in.
+		const projectSkillNames = ctx.project
+			? loadProjectSkills(ctx.project).map((s) => s.name)
+			: [];
+		const allAttachedSkills = [
+			...new Set([...projectSkillNames, ...attachedSkills]),
+		];
+
+		if (allAttachedSkills.length > 0 && ctx.onStatusLine) {
 			await ctx.onStatusLine(
-				`Attaching skill instructions: ${attachedSkills.join(", ")}.`,
+				`Attaching skill instructions: ${allAttachedSkills.join(", ")}.`,
 			);
 		}
 
 		messages = injectSkillBodiesIntoFirstSystemMessage(
 			messages,
-			attachedSkills,
+			allAttachedSkills,
 			[...input.localSkills],
 		);
 

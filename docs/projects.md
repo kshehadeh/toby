@@ -118,11 +118,21 @@ project that generates weekly email digests might pin a skill like
 
 Pinned skills are stored in `project.json` and shown in the project detail
 view. They serve as a record of which skills are appropriate for the project.
+Select skills from a multi-select picker via `/config`.
 
 To create a new skill for a project, ask Toby in chat:
-"Create a skill for weekly email summaries" — the `createLocalSkill` tool
-generates a `SKILL.md` under `~/.toby/skills/` and you can then pin it to
-the project via `/config`.
+"Create a skill for weekly email summaries" — when a project is active,
+the `createLocalSkill` tool saves the `SKILL.md` under the project's
+`skills/` directory so it is automatically included in that project's sessions.
+Global skills (under `~/.toby/skills/`) can also be pinned to a project
+via the multi-select picker in `/config`.
+
+## Project-local skills
+
+Skills placed in the project's `skills/` directory are automatically loaded
+and injected into the system prompt when that project is active, as if they
+were built-in. No pinning is needed — every `SKILL.md` under
+`~/.toby/projects/<slug>/skills/` is included automatically.
 
 ## Example: weekly overview project
 
@@ -140,7 +150,7 @@ cp team-goals.md ~/.toby/projects/weekly-overview/context/
  Write it in a concise bullet-point style."
 
 # 4. Pin the skill to the project
-/config  →  Projects  →  weekly-overview  →  Skills: weekly-overview-format
+/config  →  Projects  →  weekly-overview  →  Pinned skills  →  select weekly-overview-format
 
 # 5. Generate each week
 "Generate this week's overview based on my recent emails and tasks"
@@ -162,6 +172,8 @@ with the same style and informed by the same reference documents.
     outputs/            # generated artifacts from writeTextFile
       2026-06-13-weekly-overview.md
       2026-06-06-weekly-overview.md
+    skills/             # project-local skills (auto-loaded when project is active)
+      weekly-format/SKILL.md
 ```
 
 ## Implementation
