@@ -27,6 +27,7 @@
 		"ink-link": "^5.0.0",
 		"react": "19.2.6",
 		"react-devtools-core": "^7.0.1",
+		"react-ink-textarea": "^0.1.3",
 		"zod": "3"
 	},
 	"devDependencies": {

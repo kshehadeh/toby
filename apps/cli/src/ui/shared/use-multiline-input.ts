@@ -1,4 +1,4 @@
-import { type Key, useInput } from "ink";
+import { type Key, useInput, usePaste } from "ink";
 import React, {
 	useCallback,
 	useEffect,
@@ -524,6 +524,19 @@ export function useMultilineInput(
 	);
 
 	useInput(handleInput, { isActive: active });
+
+	// Bracketed paste arrives via `usePaste` (not `useInput`) when the renderer
+	// also subscribes to paste. Insert the pasted text at the cursor so paste
+	// keeps working regardless of who else is listening.
+	usePaste(
+		(text) => {
+			if (!activeRef.current) return;
+			const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+			if (!normalized) return;
+			inputActionsRef.current.insertAtCursor(normalized);
+		},
+		{ isActive: active },
+	);
 
 	return { cursorIndex, terminalProfile };
 }

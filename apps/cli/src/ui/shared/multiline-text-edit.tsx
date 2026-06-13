@@ -1,7 +1,7 @@
 import { Box, Text } from "ink";
 import React from "react";
 import { INPUT_BORDER } from "../chat/constants";
-import { ControlledMultilineInput } from "./controlled-multiline-input";
+import { MultilineTextArea } from "./multiline-textarea";
 import type { TerminalProfile } from "./terminal-profile";
 import {
 	type UseMultilineInputOptions,
@@ -85,14 +85,13 @@ export function MultilineTextEdit({
 							{placeholderText}
 						</Text>
 					) : (
-						<ControlledMultilineInput
+						<MultilineTextArea
 							value={value}
 							cursorIndex={cursorIndex}
 							rows={rows}
 							maxRows={maxRows}
 							focus={focus}
 							placeholder={placeholderText}
-							cursorColor={accentColor}
 						/>
 					)}
 				</Box>
