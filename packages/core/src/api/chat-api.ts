@@ -1,0 +1,157 @@
+import type { LanguageModelUsage } from "ai";
+import type { ChatEvent } from "../chat-pipeline/chat-events";
+import type { TranscriptEntry } from "../chat-pipeline/transcript-types";
+import type { Plan, PlanPhaseStatus } from "../planning/types";
+
+/** Per-session settings persisted in SQLite and honored by the turn runtime. */
+export type ChatSessionSettings = {
+	readonly persona?: string;
+	readonly modules?: readonly string[];
+	readonly dryRun?: boolean;
+	readonly debug?: boolean;
+};
+
+export type CreateSessionRequest = {
+	readonly name?: string;
+	readonly persona?: string;
+	readonly modules?: readonly string[];
+	readonly dryRun?: boolean;
+	readonly debug?: boolean;
+	/** Run assemble-only pipeline to seed system messages (no model call). */
+	readonly bootstrap?: boolean;
+};
+
+export type CreateSessionResponse = {
+	readonly id: string;
+	readonly name: string;
+	readonly settings: ChatSessionSettings;
+};
+
+export type SessionSummary = {
+	readonly id: string;
+	readonly name: string;
+	readonly createdAt: string;
+	readonly updatedAt: string;
+};
+
+export type SessionDetailResponse = {
+	readonly id: string;
+	readonly name: string;
+	readonly transcript: readonly TranscriptEntry[];
+	readonly messageCount: number;
+	readonly settings: ChatSessionSettings;
+	readonly activePlan: PlanSummary | null;
+};
+
+export type PlanSummary = {
+	readonly id: string;
+	readonly goal: string;
+	readonly status: Plan["status"];
+	readonly phases: readonly {
+		readonly id: string;
+		readonly label: string;
+		readonly status: PlanPhaseStatus;
+	}[];
+};
+
+export type PatchSessionRequest = Partial<{
+	readonly name: string;
+	readonly persona: string;
+	readonly modules: readonly string[];
+	readonly dryRun: boolean;
+	readonly debug: boolean;
+}>;
+
+export type TurnRequestBody = {
+	readonly text: string;
+	readonly persona?: string;
+	readonly modules?: readonly string[];
+	readonly dryRun?: boolean;
+	/** Client idempotency / correlation (optional). */
+	readonly clientTurnId?: string;
+	/** Submit while another turn is active; cancels in-flight turn first. */
+	readonly steering?: boolean;
+	/** First-turn plan generation (multi-step prompts). */
+	readonly generatePlan?: boolean;
+};
+
+export type TurnDonePayload = {
+	readonly turnId: string;
+	readonly text: string;
+	readonly appliedActions: readonly string[];
+	readonly sessionName?: string;
+	readonly usage?: LanguageModelUsage;
+	readonly warnings?: readonly string[];
+};
+
+export type TurnErrorPayload = {
+	readonly turnId?: string;
+	readonly error: string;
+};
+
+export type AskUserPromptPayload = {
+	readonly requestId: string;
+	readonly query: string;
+	readonly options: readonly string[];
+};
+
+export type AskUserAnswerRequest = {
+	readonly selectedIndex: number;
+	readonly selectedLabel: string;
+	readonly rawInput?: string;
+};
+
+export type AskUserAnswerResponse = {
+	readonly ok: boolean;
+};
+
+export type CancelTurnResponse = {
+	readonly ok: boolean;
+	readonly cancelled: boolean;
+};
+
+export type ChatStatusResponse = {
+	readonly version: string;
+	readonly persona: string;
+	readonly model: string;
+	readonly connectedIntegrations: readonly string[];
+	readonly skillCount: number;
+};
+
+export type PersonaListItem = {
+	readonly name: string;
+	readonly label: string;
+};
+
+export type ModuleListItem = {
+	readonly name: string;
+	readonly displayName: string;
+	readonly connected: boolean;
+};
+
+export type SkillListItem = {
+	readonly name: string;
+	readonly description: string;
+};
+
+export type SessionUsageResponse = {
+	readonly sessionId: string;
+	readonly inputTokens: number;
+	readonly outputTokens: number;
+	readonly cacheReadTokens: number;
+	readonly cacheWriteTokens: number;
+};
+
+export type PlanSkipRequest = {
+	readonly planId: string;
+	readonly phaseId: string;
+};
+
+export type PlanCancelRequest = {
+	readonly planId: string;
+};
+
+/** Named SSE terminal events (in addition to default `data:` ChatEvent lines). */
+export type ChatSseTerminalEvent = "done" | "error" | "ask_user_prompt";
+
+export type { ChatEvent, TranscriptEntry };

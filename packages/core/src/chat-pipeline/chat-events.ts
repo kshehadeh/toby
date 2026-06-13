@@ -130,6 +130,15 @@ export type ChatEvent =
 			readonly planId: string;
 			readonly seq: number;
 			readonly status: PlanStatus;
+	  }
+	| {
+			/** Server waits for client answer via ask-user HTTP endpoint. */
+			readonly type: "ask_user_prompt";
+			readonly turnId: string;
+			readonly requestId: string;
+			readonly seq: number;
+			readonly query: string;
+			readonly options: readonly string[];
 	  };
 
 export type ChatEventSink = (event: ChatEvent) => void;

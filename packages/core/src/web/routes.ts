@@ -1,10 +1,22 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+	handleAskUserAnswer,
+	handleCancelTurn,
 	handleChatStatusDetail,
 	handleCreateSession,
+	handleDeleteSession,
+	handlePatchSession,
+	handleSessionBootstrap,
+	handleSessionPlanDetail,
 	handleSessionTurn,
 } from "./handlers/chat";
+import {
+	handleModulesList,
+	handlePersonasList,
+	handleSkillsList,
+} from "./handlers/metadata";
+import { handlePlanCancel, handlePlanSkip } from "./handlers/plan";
 import {
 	handleConfigureAction,
 	handleConfigurePatch,
@@ -99,15 +111,75 @@ export async function handleWebRequest(
 			return handleSessionsList(url);
 		}
 		if (pathname === "/api/sessions" && req.method === "POST") {
-			return handleCreateSession();
+			return handleCreateSession(req);
+		}
+		if (pathname === "/api/personas" && req.method === "GET") {
+			return handlePersonasList();
+		}
+		if (pathname === "/api/modules" && req.method === "GET") {
+			return handleModulesList();
+		}
+		if (pathname === "/api/skills" && req.method === "GET") {
+			return handleSkillsList();
+		}
+		const sessionTurnCancelMatch =
+			/^\/api\/sessions\/([^/]+)\/turn\/([^/]+)\/cancel$/.exec(pathname);
+		if (sessionTurnCancelMatch && req.method === "POST") {
+			return handleCancelTurn(
+				decodeURIComponent(sessionTurnCancelMatch[1]),
+				decodeURIComponent(sessionTurnCancelMatch[2]),
+			);
+		}
+		const sessionAskUserMatch =
+			/^\/api\/sessions\/([^/]+)\/turn\/([^/]+)\/ask-user\/([^/]+)$/.exec(
+				pathname,
+			);
+		if (sessionAskUserMatch && req.method === "POST") {
+			return handleAskUserAnswer(
+				decodeURIComponent(sessionAskUserMatch[1]),
+				decodeURIComponent(sessionAskUserMatch[2]),
+				decodeURIComponent(sessionAskUserMatch[3]),
+				req,
+			);
 		}
 		const sessionTurnMatch = /^\/api\/sessions\/([^/]+)\/turn$/.exec(pathname);
 		if (sessionTurnMatch && req.method === "POST") {
 			return handleSessionTurn(decodeURIComponent(sessionTurnMatch[1]), req);
 		}
+		const sessionBootstrapMatch =
+			/^\/api\/sessions\/([^/]+)\/bootstrap$/.exec(pathname);
+		if (sessionBootstrapMatch && req.method === "POST") {
+			return handleSessionBootstrap(
+				decodeURIComponent(sessionBootstrapMatch[1]),
+				req,
+			);
+		}
+		const sessionPlanSkipMatch =
+			/^\/api\/sessions\/([^/]+)\/plan\/skip$/.exec(pathname);
+		if (sessionPlanSkipMatch && req.method === "POST") {
+			return handlePlanSkip(decodeURIComponent(sessionPlanSkipMatch[1]), req);
+		}
+		const sessionPlanCancelMatch =
+			/^\/api\/sessions\/([^/]+)\/plan\/cancel$/.exec(pathname);
+		if (sessionPlanCancelMatch && req.method === "POST") {
+			return handlePlanCancel(
+				decodeURIComponent(sessionPlanCancelMatch[1]),
+				req,
+			);
+		}
+		const sessionPlanMatch = /^\/api\/sessions\/([^/]+)\/plan$/.exec(pathname);
+		if (sessionPlanMatch && req.method === "GET") {
+			return handleSessionPlanDetail(decodeURIComponent(sessionPlanMatch[1]));
+		}
 		const sessionMatch = /^\/api\/sessions\/([^/]+)$/.exec(pathname);
 		if (sessionMatch && req.method === "GET") {
 			return handleSessionDetail(decodeURIComponent(sessionMatch[1]));
+		}
+		if (sessionMatch && req.method === "PATCH") {
+			return handlePatchSession(decodeURIComponent(sessionMatch[1]), req);
+		}
+		if (sessionMatch && req.method === "DELETE") {
+			return handleDeleteSession(decodeURIComponent(sessionMatch[1]));
 		}
 		if (pathname === "/api/memories" && req.method === "GET") {
 			return handleMemoriesList(url);

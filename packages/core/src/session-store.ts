@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { CoreMessage } from "./ai/chat";
 import type { UserIntentSpec } from "./ai/pretreatment";
 import type { TranscriptEntry } from "./chat-pipeline/transcript-types";
+import type { ChatSessionSettings } from "./api/chat-api";
 import { ensureTobyDir, getChatDbPath } from "./config/index";
 import {
 	deserializeTranscriptRow,
@@ -20,6 +21,7 @@ type LoadedChatSession = {
 	readonly name: string;
 	readonly messages: CoreMessage[];
 	readonly transcript: TranscriptEntry[];
+	readonly settings: ChatSessionSettings;
 };
 
 type SqliteDb = {
@@ -194,6 +196,94 @@ function migrateChatSessionsSchema(db: SqliteDb): void {
 	if (!cols.some((c) => c.name === "last_pretreatment_json")) {
 		db.exec("ALTER TABLE chat_sessions ADD COLUMN last_pretreatment_json TEXT");
 	}
+	if (!cols.some((c) => c.name === "settings_json")) {
+		db.exec("ALTER TABLE chat_sessions ADD COLUMN settings_json TEXT");
+	}
+}
+
+export function parseSessionSettingsJson(
+	raw: string | null | undefined,
+): ChatSessionSettings {
+	if (!raw?.trim()) {
+		return {};
+	}
+	try {
+		const parsed = JSON.parse(raw) as ChatSessionSettings;
+		return {
+			...(parsed.persona ? { persona: String(parsed.persona) } : {}),
+			...(Array.isArray(parsed.modules)
+				? { modules: parsed.modules.map(String) }
+				: {}),
+			...(parsed.dryRun !== undefined ? { dryRun: Boolean(parsed.dryRun) } : {}),
+			...(parsed.debug !== undefined ? { debug: Boolean(parsed.debug) } : {}),
+		};
+	} catch {
+		return {};
+	}
+}
+
+export function getSessionSettings(sessionId: string): ChatSessionSettings {
+	const id = sessionId.trim();
+	if (!id) return {};
+	const db = getDb();
+	const row = db
+		.query("SELECT settings_json as settingsJson FROM chat_sessions WHERE id = $id")
+		.get({ $id: id }) as { settingsJson: string | null } | undefined;
+	return parseSessionSettingsJson(row?.settingsJson);
+}
+
+export function setSessionSettings(
+	sessionId: string,
+	settings: ChatSessionSettings,
+): void {
+	const id = sessionId.trim();
+	if (!id) return;
+	const db = getDb();
+	db.query(
+		`UPDATE chat_sessions SET settings_json = $json, updated_at = $updated_at WHERE id = $id`,
+	).run({
+		$id: id,
+		$json: JSON.stringify(settings),
+		$updated_at: nowIso(),
+	});
+}
+
+export function mergeSessionSettings(
+	sessionId: string,
+	patch: Partial<ChatSessionSettings>,
+): ChatSessionSettings {
+	const current = getSessionSettings(sessionId);
+	const next: ChatSessionSettings = {
+		...current,
+		...(patch.persona !== undefined ? { persona: patch.persona } : {}),
+		...(patch.modules !== undefined ? { modules: [...patch.modules] } : {}),
+		...(patch.dryRun !== undefined ? { dryRun: patch.dryRun } : {}),
+		...(patch.debug !== undefined ? { debug: patch.debug } : {}),
+	};
+	setSessionSettings(sessionId, next);
+	return next;
+}
+
+export function deleteChatSession(sessionId: string): boolean {
+	const id = sessionId.trim();
+	if (!id) return false;
+	const db = getDb();
+	const existing = db
+		.query("SELECT id FROM chat_sessions WHERE id = $id")
+		.get({ $id: id });
+	if (!existing) return false;
+	const tx = db.transaction(() => {
+		db.query("DELETE FROM chat_session_messages WHERE session_id = $id").run({
+			$id: id,
+		});
+		db.query("DELETE FROM chat_session_transcript WHERE session_id = $id").run({
+			$id: id,
+		});
+		db.query("DELETE FROM chat_plans WHERE session_id = $id").run({ $id: id });
+		db.query("DELETE FROM chat_sessions WHERE id = $id").run({ $id: id });
+	});
+	tx();
+	return true;
 }
 
 export type LastPretreatmentRecord = {
@@ -458,15 +548,25 @@ function nowIso(): string {
 
 export function createChatSession(params?: {
 	readonly name?: string;
+	readonly settings?: ChatSessionSettings;
 }): ChatSessionSummary {
 	const db = getDb();
 	const id = randomUUID();
 	const ts = nowIso();
 	const name = params?.name?.trim() || "New chat";
+	const settingsJson = params?.settings
+		? JSON.stringify(params.settings)
+		: null;
 	db.query(
-		`INSERT INTO chat_sessions (id, name, created_at, updated_at)
-     VALUES ($id, $name, $created_at, $updated_at)`,
-	).run({ $id: id, $name: name, $created_at: ts, $updated_at: ts });
+		`INSERT INTO chat_sessions (id, name, created_at, updated_at, settings_json)
+     VALUES ($id, $name, $created_at, $updated_at, $settings_json)`,
+	).run({
+		$id: id,
+		$name: name,
+		$created_at: ts,
+		$updated_at: ts,
+		$settings_json: settingsJson,
+	});
 	return { id, name, createdAt: ts, updatedAt: ts };
 }
 
@@ -516,8 +616,12 @@ export function listChatSessions(limit = 50): ChatSessionSummary[] {
 export function loadChatSession(sessionId: string): LoadedChatSession | null {
 	const db = getDb();
 	const sess = db
-		.query("SELECT id, name FROM chat_sessions WHERE id = $id")
-		.get({ $id: sessionId }) as { id: string; name: string } | undefined;
+		.query(
+			"SELECT id, name, settings_json as settingsJson FROM chat_sessions WHERE id = $id",
+		)
+		.get({ $id: sessionId }) as
+		| { id: string; name: string; settingsJson: string | null }
+		| undefined;
 	if (!sess) return null;
 
 	const msgRows = db
@@ -554,7 +658,13 @@ export function loadChatSession(sessionId: string): LoadedChatSession | null {
 		deserializeTranscriptRow({ kind: r.kind as string, text: r.text }),
 	);
 
-	return { id: sess.id, name: sess.name, messages, transcript };
+	return {
+		id: sess.id,
+		name: sess.name,
+		messages,
+		transcript,
+		settings: parseSessionSettingsJson(sess.settingsJson),
+	};
 }
 
 export function clearChatSessions(): number {

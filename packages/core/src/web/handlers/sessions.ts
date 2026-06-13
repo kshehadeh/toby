@@ -1,5 +1,21 @@
 import { listChatSessions, loadChatSession } from "../../session-store";
+import { loadPlanBySession } from "../../planning/plan-store";
 import { errorResponse, jsonResponse, parseIntParam } from "../http-utils";
+
+function planSummaryForSession(sessionId: string) {
+	const plan = loadPlanBySession(sessionId);
+	if (!plan) return null;
+	return {
+		id: plan.id,
+		goal: plan.goal,
+		status: plan.status,
+		phases: plan.phases.map((p) => ({
+			id: p.id,
+			label: p.label,
+			status: p.status,
+		})),
+	};
+}
 
 export function handleSessionsList(url: URL): Response {
 	const limit = parseIntParam(url.searchParams.get("limit"), 50, 500);
@@ -17,5 +33,7 @@ export function handleSessionDetail(sessionId: string): Response {
 		name: session.name,
 		transcript: session.transcript,
 		messageCount: session.messages.length,
+		settings: session.settings,
+		activePlan: planSummaryForSession(sessionId),
 	});
 }

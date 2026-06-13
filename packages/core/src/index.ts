@@ -3,6 +3,31 @@ export type {
 	ChatEvent,
 	ChatEventSink,
 } from "./chat-pipeline/chat-events";
+export type {
+	ChatSessionSettings,
+	CreateSessionRequest,
+	TurnDonePayload,
+	TurnRequestBody,
+} from "./api/chat-api";
+export {
+	applyChatEvent,
+	applyPersistedChatEvent,
+	shouldPersistChatEventInTranscript,
+} from "./chat-pipeline/transcript-reducer";
+export { TranscriptAccumulator } from "./chat-pipeline/transcript-accumulator";
+export {
+	runApiChatTurn,
+	runApiChatTurnWithPersistence,
+	bootstrapChatSession,
+	cancelTurnById,
+	submitAskUserAnswer,
+} from "./chat-pipeline/turn-runtime";
+export { TobyDaemonClient, resolveDaemonBaseUrl } from "./web/client";
+export {
+	ServerEventLog,
+	getTuiServerEventLogPath,
+	readServerEventLogTail,
+} from "./web/server-event-log";
 export { runHeadlessChatTurn } from "./chat-pipeline/headless-session";
 export { runWebChatTurn } from "./chat-pipeline/web-session";
 export {
