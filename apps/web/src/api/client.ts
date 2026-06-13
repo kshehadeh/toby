@@ -38,7 +38,30 @@ export const api = {
 			name: string;
 			transcript: import("@toby/core/chat-pipeline/transcript-types").TranscriptEntry[];
 			messageCount: number;
+			settings: import("@toby/core/api/chat-api").ChatSessionSettings;
+			activePlan: import("@toby/core/api/chat-api").PlanSummary | null;
 		}>(`/api/sessions/${encodeURIComponent(id)}`),
+	createSession: (body: import("@toby/core/api/chat-api").CreateSessionRequest = {}) =>
+		apiFetch<import("@toby/core/api/chat-api").CreateSessionResponse>(
+			"/api/sessions",
+			{ method: "POST", body: JSON.stringify(body) },
+		),
+	patchSession: (
+		id: string,
+		body: import("@toby/core/api/chat-api").PatchSessionRequest,
+	) =>
+		apiFetch<{ id: string; name: string; settings: import("@toby/core/api/chat-api").ChatSessionSettings }>(
+			`/api/sessions/${encodeURIComponent(id)}`,
+			{ method: "PATCH", body: JSON.stringify(body) },
+		),
+	personas: () =>
+		apiFetch<{ personas: import("@toby/core/api/chat-api").PersonaListItem[] }>(
+			"/api/personas",
+		),
+	modules: () =>
+		apiFetch<{ modules: import("@toby/core/api/chat-api").ModuleListItem[] }>(
+			"/api/modules",
+		),
 	memories: (q?: string) => {
 		const params = new URLSearchParams();
 		if (q) params.set("q", q);
