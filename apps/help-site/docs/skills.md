@@ -76,6 +76,12 @@ In chat, Toby can use the **createLocalSkill** tool to draft a full `SKILL.md` a
 
 The same skill with different personas can produce different prioritization—for example, an email-organize skill under a technologist vs project manager persona (see [Examples](./examples)).
 
+## Pinning skills to a project
+
+A [project](./projects) can declare **pinned skills** — skills that are relevant to that project's recurring workflow. Pinning makes the association explicit so you remember which skills to use, and the project detail view shows them at a glance.
+
+To pin a skill: `/config` → **Projects** → the project → **Skills** field. Enter comma-separated skill names.
+
 ## Debug skill selection
 
 ```bash
@@ -87,4 +93,5 @@ Shows the skill catalog and which skills pretreatment selected for the turn.
 ## Related
 
 - [Personas](./personas)
+- [Projects](./projects)
 - [Examples](./examples)

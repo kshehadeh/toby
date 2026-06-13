@@ -136,8 +136,47 @@ What do you know about my meeting preferences?
 
 ---
 
+## Recurring weekly overview (Projects)
+
+**Setup:** [Gmail](./integrations/gmail) or [Todoist](./integrations/todoist) connected, a [project](./projects) created.
+
+**Create the project:**
+
+```text
+/project  →  Add Project  →  name: "Weekly Overview"
+```
+
+**Add reference context** (from a terminal):
+
+```bash
+mkdir -p ~/.toby/projects/weekly-overview/context
+cp last-weeks-overview.md ~/.toby/projects/weekly-overview/context/
+cp team-goals.md ~/.toby/projects/weekly-overview/context/
+```
+
+**Create and pin a skill** for consistent formatting:
+
+```text
+Create a skill called weekly-overview-format that formats a weekly status
+update with sections: Accomplishments, Blockers, Priorities Next Week.
+```
+
+Then pin it via `/config` &rarr; Projects &rarr; Weekly Overview &rarr; Skills.
+
+**Chat each week:**
+
+```text
+Generate this week's overview based on my recent emails and tasks.
+```
+
+**Outcome:** Every weekly overview lands in the project's `outputs/` folder, formatted consistently and informed by the same reference documents.
+
+**Optional schedule:** [Schedule](./schedules) `0 9 * * 1` (Mondays 9am) with the same prompt for a fully automated weekly brief.
+
+---
+
 ## Where to go next
 
 - [Getting Started](./getting-started/install)
 - [Integrations](./integrations/overview)
-- [Personas](./personas) · [Skills](./skills) · [Memories](./memories) · [Schedules](./schedules)
+- [Personas](./personas) · [Skills](./skills) · [Memories](./memories) · [Projects](./projects) · [Schedules](./schedules)

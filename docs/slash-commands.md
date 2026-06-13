@@ -22,6 +22,7 @@ src/ui/chat/slash-commands/
   integration.ts   # /integration
   listen.ts        # /listen
   new.ts           # /new
+  project.ts       # /project
   sessions.ts      # /sessions
   stop-listening.ts # /stop-listening
   exit.ts          # /exit
@@ -39,6 +40,7 @@ Current chat commands include:
 - `/listen` — begin recording microphone and system audio in chat.
 - `/stop-listening` — stop, save, transcribe, and inject the recording transcript as chat context.
 - `/persona` — switch persona.
+- `/project` — choose, create, or clear the active project.
 - `/skills` — open the skills manager.
 - `/schedules` — open the schedules manager.
 - `/start-daemon` / `/stop-daemon` — control daemon startup from chat.

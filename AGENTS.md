@@ -13,6 +13,7 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | [`docs/plugin-protocol.md`](docs/plugin-protocol.md) | Installable plugin executables: subcommand contract, discovery, JSON protocol v1. |
 | [`docs/create-integration.md`](docs/create-integration.md) | Checklist for adding a new first-party integration module. |
 | [`docs/chat-pipeline.md`](docs/chat-pipeline.md) | Chat turn node pipeline, `ChatEvent` observability, and tool-result caching. |
+| [`docs/projects.md`](docs/projects.md) | Projects: scoped artifact collection with reference context, pinned skills, and recurring workflow support. |
 | [`docs/daemon.md`](docs/daemon.md) | Background daemon: schedules, chat inbound (@mentions), `daemon.log`, troubleshooting. |
 | [`docs/web-ui.md`](docs/web-ui.md) | Localhost web UI served by the daemon (sessions, memories, configuration). |
 | [`docs/chat-inbound.md`](docs/chat-inbound.md) | Inbound provider contract, external session mapping, adding new chat platforms. |
