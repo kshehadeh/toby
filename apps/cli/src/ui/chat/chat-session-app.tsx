@@ -5,11 +5,11 @@ import type {
 	AskUserToolResult,
 } from "@toby/core/ai/ask-user-tool";
 import {
-	type SessionTokenTotals,
 	addTurnToSessionTokenTotals,
 	emptySessionTokenTotals,
 	extractTokenUsageReport,
 	formatCacheDebugMeta,
+	type SessionTokenTotals,
 } from "@toby/core/ai/caching";
 import type { CoreMessage } from "@toby/core/ai/chat";
 import { formatChatModelError } from "@toby/core/ai/chat-errors";
@@ -45,7 +45,6 @@ import {
 	getModulesWithCapability,
 } from "@toby/core/integrations/index";
 import type { IntegrationModule } from "@toby/core/integrations/types";
-import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
 import {
 	aggregateSessionTokenTotalsFromLog,
 	createChatEventLogSink,
@@ -70,16 +69,6 @@ import {
 	skipPhase,
 } from "@toby/core/planning/index";
 import { replaceSessionSystemMessageForPersona } from "@toby/core/prepare-messages";
-import {
-	type Project,
-	clearActiveProjectSlug,
-	listProjectContextFiles,
-	listProjectOutputFiles,
-	listProjects,
-	resolveActiveProject,
-	resolveProject,
-	setActiveProjectSlug,
-} from "@toby/core/projects/index";
 import {
 	CHAT_SESSION_PICKER_LIMIT,
 	appendMessageBatch,
@@ -114,7 +103,8 @@ import {
 	saveListenSession,
 	writeListenMetadata,
 } from "../../listen/session-controller";
-import { isDaemonRunning } from "../../schedules/daemon-status";
+import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
+import { isDaemonRunning, restartDaemon } from "../../schedules/daemon-status";
 import type { LaunchContext } from "../../toby-launch-context";
 import { ConfigureApp } from "../configure/App";
 import {
@@ -135,51 +125,48 @@ import {
 	type ChatInputPanelHandle,
 } from "./components/chat-input-panel";
 import { ChatTranscriptPanel } from "./components/chat-transcript-panel";
-import { HelpPanel } from "./components/help-panel";
 import {
 	IntegrationMultiPickerModal,
 	buildIntegrationPickerRows,
 } from "./components/integration-multi-picker-modal";
+import { HelpPanel } from "./components/help-panel";
+import { UsagePanel } from "./components/usage-panel";
 import { PlanStatusBar } from "./components/plan-status-bar";
-import { ProjectDetailModal } from "./components/project-detail-modal";
 import {
 	ScrollableTextModal,
 	maxScrollModalOffset,
 	scrollModalVisibleLineBudget,
 } from "./components/scrollable-text-modal";
-import { UsagePanel } from "./components/usage-panel";
 import {
 	countIntegrationConnectionStatuses,
 	runConnectionProbes,
 } from "./connection-probe";
 import { ACCENT, TIPS } from "./constants";
 import { buildHelpSections } from "./help-sections";
+import { buildUsageSections } from "./usage-sections";
 import { buildUiTurnContext } from "./pipeline-turn-context";
+import { DaemonChatBridge } from "./daemon-chat-bridge";
+import { runDaemonChatTurn } from "./run-daemon-turn";
 import { appendPromptHistory, loadPromptHistory } from "./prompt-history";
-import { routePromptSubmit } from "./prompt-submit";
-import {
-	buildSessionNoticeEntry,
-	buildTurnCancellationNoticeEntry,
-	recordSessionNote,
-} from "./session-note";
-import { logSkillDebugNotes } from "./skill-debug";
-import { SLASH_COMMANDS, getNearestSlashCommand } from "./slash-commands";
-import type { SlashCommand } from "./slash-commands";
-import { readTranscriptFile } from "./slash-commands/stop-listening";
-import type { UpgradeUiStatus } from "./slash-commands/types";
+import { buildSessionNoticeEntry, buildTurnCancellationNoticeEntry, recordSessionNote } from "./session-note";
 import {
 	isFirstSteeringTurn,
 	priorMessagesForSteeringTurn,
 } from "./steering-messages";
-import { buildTerminalInfoLines } from "./terminal-info-lines";
+import { logSkillDebugNotes } from "./skill-debug";
 import {
-	buildSelectionTranscriptEntries,
-	logToolSelectionNotes,
-} from "./tool-selection-transcript";
+	SLASH_COMMANDS,
+	getNearestSlashCommand,
+} from "./slash-commands";
+import type { SlashCommand } from "./slash-commands";
+import { readTranscriptFile } from "./slash-commands/stop-listening";
+import type { UpgradeUiStatus } from "./slash-commands/types";
+import { routePromptSubmit } from "./prompt-submit";
+import { buildTerminalInfoLines } from "./terminal-info-lines";
+import { logToolSelectionNotes } from "./tool-selection-transcript";
 import { applyPersistedChatEvent } from "./transcript-events";
 import { flattenTranscript } from "./transcript-layout";
 import type { AskModal, DisplayRow, TranscriptEntry } from "./types";
-import { buildUsageSections } from "./usage-sections";
 import { useUpdateCheck } from "./use-update-check";
 import { yieldToRenderer } from "./yield-to-renderer";
 
@@ -215,22 +202,6 @@ type PersonaPickerRow =
 interface PersonaPickerState {
 	readonly rows: readonly PersonaPickerRow[];
 	readonly cursorIndex: number;
-}
-
-type ProjectPickerRow =
-	| { readonly kind: "clear" }
-	| { readonly kind: "add" }
-	| { readonly kind: "project"; readonly project: Project };
-
-interface ProjectPickerState {
-	readonly rows: readonly ProjectPickerRow[];
-	readonly cursorIndex: number;
-}
-
-interface ProjectDetailState {
-	readonly project: Project;
-	readonly contextFiles: readonly string[];
-	readonly outputFiles: readonly string[];
 }
 
 interface ScrollModalState {
@@ -323,10 +294,10 @@ export function ChatSessionApp({
 		formatListeningToPersona(persona.name),
 	);
 	const [streamingAssistant, setStreamingAssistant] = useState("");
+	const [streamingReasoning, setStreamingReasoning] = useState("");
 	const [streamingAssistantHeader, setStreamingAssistantHeader] = useState(
 		persona.name,
 	);
-	const [streamingReasoning, setStreamingReasoning] = useState("");
 	const [lastUsage, setLastUsage] = useState<LanguageModelUsage | null>(null);
 	const [sessionTokenTotals, setSessionTokenTotals] =
 		useState<SessionTokenTotals>(() => emptySessionTokenTotals());
@@ -365,20 +336,10 @@ export function ChatSessionApp({
 	const [personaPicker, setPersonaPicker] = useState<PersonaPickerState | null>(
 		null,
 	);
-	const [projectPicker, setProjectPicker] = useState<ProjectPickerState | null>(
-		null,
-	);
-	const [projectDetail, setProjectDetail] = useState<ProjectDetailState | null>(
-		null,
-	);
 	const [scrollModal, setScrollModal] = useState<ScrollModalState | null>(null);
 	const [helpOpen, setHelpOpen] = useState(false);
 	const [activePersona, setActivePersona] = useState(() => persona);
 	const activePersonaRef = useRef(activePersona);
-	const [activeProject, setActiveProject] = useState<Project | null>(() =>
-		resolveActiveProject(),
-	);
-	const activeProjectRef = useRef(activeProject);
 	const [activePlan, setActivePlan] = useState<Plan | null>(null);
 	const activePlanRef = useRef<Plan | null>(null);
 	const [configureInitialPath, setConfigureInitialPath] = useState<
@@ -392,7 +353,6 @@ export function ChatSessionApp({
 	const didAutoRunFirstTurnRef = useRef(false);
 	const assistantStreamBufRef = useRef("");
 	const assistantSegmentHeaderRef = useRef(persona.name);
-	const reasoningStreamBufRef = useRef("");
 	const transcriptLocalSeqRef = useRef(1);
 	const assistantSegmentCommittedRef = useRef(false);
 	const askSelectedRef = useRef(0);
@@ -420,6 +380,8 @@ export function ChatSessionApp({
 	>({});
 	const listenErrorsRef = useRef<string[]>([]);
 	const relevantToolsRef = useRef<readonly string[]>([]);
+	const daemonBridgeRef = useRef<DaemonChatBridge | null>(null);
+	const [daemonReady, setDaemonReady] = useState(false);
 	const lastAssembledTurnRef = useRef<AssembledTurn | null>(null);
 	const pretreatSessionNameRef = useRef<string | null>(null);
 	const snapRef = useRef({
@@ -429,8 +391,6 @@ export function ChatSessionApp({
 		multiPicker: null as MultiPickerState | null,
 		sessionPicker: null as SessionPickerState | null,
 		personaPicker: null as PersonaPickerState | null,
-		projectPicker: null as ProjectPickerState | null,
-		projectDetail: null as ProjectDetailState | null,
 		scrollModal: null as ScrollModalState | null,
 		helpOpen: false,
 		usageOpen: false,
@@ -453,8 +413,8 @@ export function ChatSessionApp({
 		messages,
 		transcript,
 		streamingAssistant,
-		streamingAssistantHeader,
 		streamingReasoning,
+		streamingAssistantHeader,
 		loading,
 		termCols,
 		debug,
@@ -561,7 +521,6 @@ export function ChatSessionApp({
 		selectedModulesRef.current = selectedModules;
 	}, [selectedModules]);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional re-run when modules change
 	useEffect(() => {
 		clearSessionToolBundleCache();
 	}, [selectedModules]);
@@ -608,10 +567,6 @@ export function ChatSessionApp({
 	}, [activePersona]);
 
 	useLayoutEffect(() => {
-		activeProjectRef.current = activeProject;
-	}, [activeProject]);
-
-	useLayoutEffect(() => {
 		activePlanRef.current = activePlan;
 	}, [activePlan]);
 
@@ -624,8 +579,6 @@ export function ChatSessionApp({
 			multiPicker,
 			sessionPicker,
 			personaPicker,
-			projectPicker,
-			projectDetail,
 			scrollModal,
 			helpOpen,
 			usageOpen,
@@ -638,8 +591,6 @@ export function ChatSessionApp({
 		multiPicker,
 		sessionPicker,
 		personaPicker,
-		projectPicker,
-		projectDetail,
 		scrollModal,
 		helpOpen,
 		usageOpen,
@@ -681,6 +632,95 @@ export function ChatSessionApp({
 		[],
 	);
 
+	const daemonTurnCallbacks = useCallback(
+		() => ({
+			persona: activePersonaRef.current,
+			moduleNames,
+			onActivityLine: setActivityLine,
+			onLoading: setLoading,
+			onStreamingClear: () => {
+				setStreamingAssistant("");
+				setStreamingReasoning("");
+			},
+			onStreamingDelta: (header: string, text: string) => {
+				setStreamingAssistantHeader(header);
+				setStreamingAssistant(text);
+			},
+			onReasoningDelta: (text: string) => {
+				setStreamingReasoning(text);
+			},
+			onReasoningCommitted: (id: string, body: string) => {
+				setStreamingReasoning("");
+				setTranscript((t) => [
+					...t,
+					{
+						kind: "boxed_step",
+						id,
+						seq: transcriptLocalSeqRef.current + 1,
+						variant: "thinking",
+						header: "Thinking",
+						body,
+					},
+				]);
+				transcriptLocalSeqRef.current += 1;
+			},
+			onTranscript: (
+				updater: (entries: readonly TranscriptEntry[]) => TranscriptEntry[],
+			) => {
+				setTranscript(updater);
+			},
+			onUsage: setLastUsage,
+			onSessionTokenTotals: setSessionTokenTotals,
+			onSessionName: (name: string) => setSessionName(name),
+			askUserHandler,
+			nextSeq: () => {
+				transcriptLocalSeqRef.current += 1;
+				return transcriptLocalSeqRef.current;
+			},
+			sessionIdRef,
+			pendingSteeringPromptRef,
+		}),
+		[askUserHandler, moduleNames],
+	);
+
+	useEffect(() => {
+		let cancelled = false;
+		const bridge = new DaemonChatBridge({
+			persona: activePersona,
+			modules: selectedModules,
+			dryRun,
+		});
+		daemonBridgeRef.current = bridge;
+		void (async () => {
+			try {
+				await bridge.connect();
+				if (cancelled) return;
+				setDaemonRunning(true);
+				setDaemonReady(true);
+				setBootActivityLine("Preparing session…");
+			} catch (error) {
+				if (!cancelled) {
+					setBootError(
+						error instanceof Error ? error.message : String(error),
+					);
+				}
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [activePersona, dryRun, selectedModules]);
+
+	useEffect(() => {
+		if (!daemonReady) return;
+		daemonBridgeRef.current?.updatePersona(activePersona);
+	}, [activePersona, daemonReady]);
+
+	useEffect(() => {
+		if (!daemonReady) return;
+		daemonBridgeRef.current?.updateModules(selectedModules);
+	}, [selectedModules, daemonReady]);
+
 	const runModelTurn = useCallback(
 		async (
 			assembled: AssembledTurn,
@@ -690,458 +730,70 @@ export function ChatSessionApp({
 			if (!sid) {
 				throw new Error("Internal error: missing session id");
 			}
-			setLoading(true);
-			setStreamingAssistant("");
-			setStreamingReasoning("");
-			setStreamingAssistantHeader(activePersona.name);
-			assistantSegmentHeaderRef.current = activePersona.name;
-			assistantStreamBufRef.current = "";
-			reasoningStreamBufRef.current = "";
-			assistantSegmentCommittedRef.current = false;
-			const turnAbort = new AbortController();
-			ongoingPretreatAbortRef.current = turnAbort;
-			let activeToolCalls = 0;
-			const turnStartMs = Date.now();
-			const eventLogSink = createChatEventLogSink(sid);
-			const nextLocalSeq = () => {
-				transcriptLocalSeqRef.current += 1;
-				return transcriptLocalSeqRef.current;
-			};
-			const emitChatEvent = (ev: ChatEvent) => {
-				eventLogSink(ev);
-				const footerHint = activityLineForChatEvent(ev, {
-					personaName: activePersonaRef.current.name,
-				});
-				if (footerHint !== null) {
-					setActivityLine(footerHint);
-				}
-				if (ev.type === "plan_amended") {
-					recordSessionNote(sessionIdRef.current, `Plan amended: ${ev.detail}`);
-					return;
-				}
-				if (ev.type === "plan_completed") {
-					recordSessionNote(sessionIdRef.current, `Plan ${ev.status}`);
-					return;
-				}
-				if (ev.type === "reasoning_start") {
-					reasoningStreamBufRef.current = "";
-					return;
-				}
-				if (ev.type === "reasoning_delta") {
-					reasoningStreamBufRef.current += ev.delta;
-					setStreamingReasoning(reasoningStreamBufRef.current);
-					return;
-				}
-				if (ev.type === "reasoning_end") {
-					const body = reasoningStreamBufRef.current.trim();
-					reasoningStreamBufRef.current = "";
-					setStreamingReasoning("");
-					if (body.length > 0) {
-						setTranscript((t) => [
-							...t,
-							{
-								kind: "boxed_step",
-								id: ev.id,
-								seq: nextLocalSeq(),
-								variant: "thinking",
-								header: "Thinking",
-								body,
-							},
-						]);
-					}
-					return;
-				}
-				if (ev.type === "assistant_segment_start") {
-					assistantSegmentHeaderRef.current = ev.header;
-					assistantStreamBufRef.current = "";
-					return;
-				}
-				if (ev.type === "assistant_text_delta") {
-					assistantStreamBufRef.current += ev.delta;
-					setStreamingAssistant(assistantStreamBufRef.current);
-					setStreamingAssistantHeader(assistantSegmentHeaderRef.current);
-					return;
-				}
-				if (ev.type === "assistant_segment_end") {
-					const body = assistantStreamBufRef.current.trim();
-					assistantStreamBufRef.current = "";
-					setStreamingAssistant("");
-					if (body.length > 0) {
-						assistantSegmentCommittedRef.current = true;
-						setTranscript((t) => [
-							...t,
-							{
-								kind: "boxed_step",
-								id: ev.id,
-								seq: nextLocalSeq(),
-								variant: "assistant",
-								header: assistantSegmentHeaderRef.current,
-								body,
-							},
-						]);
-					}
-					return;
-				}
-				setTranscript((t) => applyPersistedChatEvent(t, ev));
-			};
-			let responseMessages: CoreMessage[] = [];
-			let responseText = "";
-			try {
-				const pipelineResult = await runChatTurnPipeline(
-					{
-						rawUserText: assembled.rawUserText,
-						priorMessages: assembled.priorMessages,
-						isFirstTurn: assembled.isFirstTurn,
-					},
-					buildUiTurnContext({
-						persona: activePersona,
-						modules: selectedModulesRef.current,
-						dryRun,
-						emit: emitChatEvent,
-						nextSeq: nextLocalSeq,
-						abortSignal: turnAbort.signal,
-						askUser: askUserHandler,
-						emitPersistLifecycle: true,
-						project: activeProjectRef.current,
-						chatWithToolsOptions: {
-							onChatEvent: emitChatEvent,
-							abortSignal: turnAbort.signal,
-							onToolCallStart: ({ toolName }) => {
-								activeToolCalls += 1;
-								setActivityLine(formatToolStatusLine(toolName));
-							},
-							onToolCallComplete: () => {
-								activeToolCalls = Math.max(0, activeToolCalls - 1);
-								if (activeToolCalls === 0) {
-									setActivityLine(
-										formatListeningToPersona(activePersonaRef.current.name),
-									);
-								}
-							},
-						},
-					}),
-					{ assembled },
-				);
-				if (pipelineResult.stage !== "persist") {
-					throw new Error(
-						`runModelTurn: expected persist stage, got ${pipelineResult.stage}`,
-					);
-				}
-				const out = pipelineResult.turn;
-				setMessages(out.messagesAfterTurn);
-				setLastUsage(out.usage ?? null);
-				responseMessages = out.responseMessages;
-				responseText = out.text ?? "";
-
-				const tokenReport = extractTokenUsageReport(out.usage, {
-					persona: activePersonaRef.current,
-					moduleNames: moduleNames,
-				});
-				setSessionTokenTotals((totals) =>
-					addTurnToSessionTokenTotals(totals, tokenReport),
-				);
-				logTurnSummary(sid, undefined, {
-					turnIndex: undefined,
-					durationMs: Date.now() - turnStartMs,
-					toolCallCount: out.toolCalls.length,
-					toolsUsed: out.toolCalls.map((tc) => tc.name),
-					cacheHits: 0,
-					cacheMisses: 0,
-					inputTokens: tokenReport?.inputTokens,
-					outputTokens: tokenReport?.outputTokens,
-					cacheReadTokens: tokenReport?.cacheReadTokens,
-					cacheWriteTokens: tokenReport?.cacheWriteTokens,
-					errorCount: 0,
-				});
-
-				const reply = out.text?.trim() || "";
-
-				const additions: TranscriptEntry[] = [];
-				if (reply.length > 0 && !assistantSegmentCommittedRef.current) {
-					additions.push({
-						kind: "boxed_step",
-						id: randomUUID(),
-						seq: nextLocalSeq(),
-						variant: "assistant",
-						header: activePersonaRef.current.name,
-						body: reply,
-					});
-				}
-				if (process.env.TOBY_DEBUG_CACHE === "1" && tokenReport) {
-					const cacheMeta = formatCacheDebugMeta(tokenReport);
-					if (cacheMeta) {
-						recordSessionNote(sessionIdRef.current, `Usage: ${cacheMeta}`);
-					}
-					const rawUsage = out.usage?.raw;
-					if (rawUsage && typeof rawUsage === "object") {
-						recordSessionNote(
-							sessionIdRef.current,
-							`Usage raw: ${JSON.stringify(rawUsage)}`,
-						);
-					}
-					if (out.providerMetadata) {
-						recordSessionNote(
-							sessionIdRef.current,
-							`Provider metadata: ${JSON.stringify(out.providerMetadata)}`,
-						);
-					}
-				}
-				// Avoid duplicating what the assistant already summarized.
-				// If the model produced no text (tool-only turn), we still show actions.
-				if (reply.length === 0) {
-					for (const a of out.appliedActions) {
-						recordSessionNote(sessionIdRef.current, `+ ${a}`);
-					}
-				}
-				setStreamingAssistant("");
-				setStreamingReasoning("");
-				if (additions.length > 0) {
-					setTranscript((t) => [...t, ...additions]);
-				}
-			} catch (e) {
-				const partial = assistantStreamBufRef.current.trim();
-				assistantStreamBufRef.current = "";
-				setStreamingAssistant("");
-				setStreamingReasoning("");
-				if (partial.length > 0) {
-					transcriptLocalSeqRef.current += 1;
-					setTranscript((t) => [
-						...t,
-						{
-							kind: "boxed_step",
-							id: randomUUID(),
-							seq: transcriptLocalSeqRef.current,
-							variant: "assistant",
-							header: assistantSegmentHeaderRef.current,
-							body: partial,
-						},
-					]);
-				}
-				if (isAbortError(e)) {
-					const steering = pendingSteeringPromptRef.current;
-					if (steering) {
-						recordSessionNote(sessionIdRef.current, "Redirecting...");
-					} else {
-						setTranscript((t) => [
-							...t,
-							buildTurnCancellationNoticeEntry(sessionIdRef.current),
-						]);
-					}
-					log("info", "turn", "turn_aborted", { steering: Boolean(steering) });
-					return {
-						text: partial,
-						responseMessages: [],
-					};
-				}
-				const msg = formatChatModelError(e);
-				setTranscript((t) => [...t, { kind: "error", text: msg }]);
-				log("error", "turn", "turn_error", { message: msg });
-				throw e;
-			} finally {
-				setLoading(false);
+			const bridge = daemonBridgeRef.current;
+			if (!bridge) {
+				throw new Error("Daemon API not ready");
 			}
-			return { text: responseText, responseMessages };
+			ongoingPretreatAbortRef.current = new AbortController();
+			try {
+				const result = await runDaemonChatTurn({
+					bridge,
+					sessionId: sid,
+					userText: assembled.rawUserText,
+					callbacks: daemonTurnCallbacks(),
+				});
+				const loaded = await bridge.loadSession(sid);
+				setMessages(loaded.messageCount > 0 ? [{ role: "user", content: "" }] : []);
+				return { text: result.text, responseMessages: [] };
+			} catch {
+				return { text: "", responseMessages: [] };
+			}
 		},
-		[moduleNames, askUserHandler, dryRun, activePersona],
+		[daemonTurnCallbacks],
 	);
 
 	useEffect(() => {
-		// Session is already booted (or was loaded from SQLite). Do not touch the
-		// in-flight abort controller — dependency churn (sessionId, messages, …)
-		// would otherwise clobber submit/model turns and surface false cancellations.
-		if (messages !== null || sessionBootMode === "loaded") {
+		if (!daemonReady || messages !== null || sessionBootMode === "loaded") {
 			return;
 		}
 
 		let cancelled = false;
-		const ac = new AbortController();
-		ongoingPretreatAbortRef.current = ac;
 		void (async () => {
 			try {
-				const sid = sessionId;
-				const bootSeq = () => {
-					transcriptLocalSeqRef.current += 1;
-					return transcriptLocalSeqRef.current;
-				};
-				const bootCtxLifecycleId = bootLifecycleIdRef.current;
-				let bootTranscript: TranscriptEntry[] = [...transcriptRef.current];
-				if (sessionPrompt.trim()) {
-					const hasUser = bootTranscript.some((e) => e.kind === "user");
-					if (!hasUser) {
-						bootTranscript = [
-							{ kind: "user", text: sessionPrompt },
-							...bootTranscript,
-						];
-					}
+				const bridge = daemonBridgeRef.current;
+				if (!bridge) {
+					throw new Error("Daemon API not ready");
 				}
-				const publishBootTranscript = () => {
-					if (!cancelled) {
-						setTranscript([...bootTranscript]);
-					}
-				};
-				const emitBoot = async (event: ChatEvent) => {
-					if (cancelled) {
-						return;
-					}
-					bootTranscript = applyPersistedChatEvent(bootTranscript, event);
-					const footerHint = activityLineForChatEvent(event, {
-						personaName: activePersonaRef.current.name,
-					});
-					if (footerHint) {
-						setBootActivityLine(footerHint);
-					}
-					publishBootTranscript();
-					await yieldToRenderer();
-				};
-				const emitBootStatus = async (line: string) => {
-					await emitBoot({
-						type: "lifecycle_set",
-						id: bootCtxLifecycleId,
-						seq: bootSeq(),
-						line,
-					});
-				};
-				setBootActivityLine("Preparing session…");
-				await yieldToRenderer();
-				const prepResult = await runChatTurnPipeline(
-					{
-						rawUserText: sessionPrompt,
-						priorMessages: [],
-						isFirstTurn: true,
-					},
-					buildUiTurnContext({
-						persona: activePersona,
-						modules: selectedModules,
-						dryRun,
-						emit: (event) => {
-							void emitBoot(event);
-						},
-						nextSeq: bootSeq,
-						onStatusLine: emitBootStatus,
-						abortSignal: ac.signal,
-						emitPersistLifecycle: false,
-						project: activeProject,
-					}),
-					{ stopAfter: "assemble" },
-				);
-				if (cancelled || ac.signal.aborted) {
-					if (ac.signal.aborted && !cancelled) {
-						setTranscript((t) => [
-							...t,
-							buildTurnCancellationNoticeEntry(
-								sessionIdRef.current ?? sid ?? null,
-							),
-						]);
-					}
-					return;
-				}
-				if (prepResult.stage !== "assemble") {
-					throw new Error(
-						`boot: expected assemble stage, got ${prepResult.stage}`,
-					);
-				}
-				const assembled = prepResult.turn;
-				lastAssembledTurnRef.current = assembled;
-				relevantToolsRef.current = assembled.spec?.relevantTools ?? [];
-				if (assembled.spec?.sessionName?.trim()) {
-					pretreatSessionNameRef.current = assembled.spec.sessionName.trim();
-				}
-				const initial = assembled.messages;
-				const prepSpec = assembled.spec;
-				const localSkills = assembled.localSkills;
-				const toolCatalog = assembled.toolCatalog;
-				const attachedSkills = prepSpec?.relevantSkills ?? [];
-				await yieldToRenderer();
-				// Boot effect cleanup aborts this controller when `messages` updates;
-				// hand auto-run / first model turn a fresh signal instead.
-				if (ongoingPretreatAbortRef.current === ac) {
-					ongoingPretreatAbortRef.current = new AbortController();
-				}
-				setMessages(initial);
-				const note = pendingScopeChangeNoteRef.current;
-				pendingScopeChangeNoteRef.current = null;
-				if (note?.trim()) {
-					recordSessionNote(sid, note.trim());
-				}
-				logAttachedSkills(sid, attachedSkills);
-				logToolSelectionNotes(sid, {
-					allToolNames: toolCatalog.allToolNames,
-					toolIntegrationLabels: toolCatalog.toolIntegrationLabels,
-					relevantTools: prepSpec?.relevantTools,
-					pretreatmentRan: prepSpec !== null,
-				});
-				logSkillDebugNotes(sid, {
-					debug,
-					available: localSkills,
-					priorMessages: [],
-					rawUserText: sessionPrompt,
-					isFirstTurn: true,
-					spec: prepSpec,
-				});
-				const nextTranscript = [
-					...bootTranscript,
-					...buildSelectionTranscriptEntries({
-						relevantSkills: attachedSkills,
-						allToolNames: toolCatalog.allToolNames,
-						toolIntegrationLabels: toolCatalog.toolIntegrationLabels,
-						relevantTools: prepSpec?.relevantTools,
-						pretreatmentRan: prepSpec !== null,
-					}),
-				];
-				setTranscript(nextTranscript);
-				await yieldToRenderer();
-
-				// Persist boot state after the UI has painted (SQLite is sync).
-				if (sid) {
-					const persistSid = sid;
-					const persistMessages = initial;
-					const persistTranscript = nextTranscript;
-					setImmediate(() => {
-						if (cancelled) {
-							return;
-						}
-						appendMessageBatch(persistSid, 0, persistMessages);
-						lastSavedMessageCountRef.current = persistMessages.length;
-						if (persistTranscript.length > 0) {
-							appendTranscriptBatch(persistSid, 0, persistTranscript);
-							lastSavedTranscriptCountRef.current = persistTranscript.length;
-						}
-					});
-				}
+				const created = await bridge.createSession({ bootstrap: true });
+				if (cancelled) return;
+				setSessionId(created.id);
+				sessionIdRef.current = created.id;
+				setSessionName(created.name);
+				setMessages([]);
+				setBootError(null);
+				setBootActivityLine(formatListeningToPersona(activePersona.name));
+				setActivityLine(formatListeningToPersona(activePersona.name));
 			} catch (e) {
 				if (!cancelled) {
-					if (isAbortError(e)) {
-						setTranscript((t) => [
-							...t,
-							buildTurnCancellationNoticeEntry(sessionIdRef.current),
-						]);
-						return;
-					}
 					setBootError(formatChatModelError(e));
 				}
 			}
 		})();
 		return () => {
 			cancelled = true;
-			ac.abort();
-			if (ongoingPretreatAbortRef.current === ac) {
-				ongoingPretreatAbortRef.current = null;
-			}
 		};
 	}, [
-		selectedModules,
-		activePersona,
-		activeProject,
-		sessionPrompt,
-		sessionId,
+		daemonReady,
 		sessionBootMode,
 		messages,
-		debug,
-		dryRun,
+		activePersona.name,
 	]);
 
-	// Incrementally persist new messages and transcript entries.
+	// Daemon persists messages/transcript; skip local SQLite incremental writes.
 	useEffect(() => {
+		if (daemonReady) {
+			return;
+		}
 		const sid = sessionId;
 		if (!sid || !messages) {
 			return;
@@ -1151,9 +803,12 @@ export function ChatSessionApp({
 			appendMessageBatch(sid, prev, messages.slice(prev));
 			lastSavedMessageCountRef.current = messages.length;
 		}
-	}, [messages, sessionId]);
+	}, [messages, sessionId, daemonReady]);
 
 	useEffect(() => {
+		if (daemonReady) {
+			return;
+		}
 		const sid = sessionId;
 		if (!sid) {
 			return;
@@ -1163,7 +818,7 @@ export function ChatSessionApp({
 			appendTranscriptBatch(sid, prev, transcript.slice(prev));
 			lastSavedTranscriptCountRef.current = transcript.length;
 		}
-	}, [transcript, sessionId]);
+	}, [transcript, sessionId, daemonReady]);
 
 	// Name the session once we have a real exchange.
 	useEffect(() => {
@@ -1215,164 +870,37 @@ export function ChatSessionApp({
 
 		let sid = sessionId;
 		if (!sid) {
-			const created = createChatSession({ name: "New chat" });
-			sid = created.id;
-			setSessionId(created.id);
-			setSessionName(created.name);
-			lastSavedMessageCountRef.current = 0;
-			lastSavedTranscriptCountRef.current = 0;
+			const bridge = daemonBridgeRef.current;
+			if (!bridge) return;
+			void bridge.createSession({ bootstrap: true }).then((created) => {
+				setSessionId(created.id);
+				setSessionName(created.name);
+			});
+			return;
 		}
 		const sidFinal = sid;
+		const bridge = daemonBridgeRef.current;
+		if (!bridge) return;
 
 		void (async () => {
-			// Check if explicit plan generation should run based on the
-			// pretreatment spec that was already attached during boot preparation.
-			// Implicit plans (2+ tool calls in a turn) are handled reactively
-			// in runModelTurn's onToolCallStart/onToolCallComplete callbacks.
-			let lastUserMsg: CoreMessage | undefined;
-			for (let mi = messages.length - 1; mi >= 0; mi--) {
-				const m = messages[mi];
-				if (m.role === "user") {
-					lastUserMsg = m;
-					break;
-				}
-			}
-			const userContent =
-				typeof lastUserMsg?.content === "string" ? lastUserMsg.content : "";
-			// Only attempt plan generation if the prompt looks multi-step.
-			const bootAssembled = lastAssembledTurnRef.current;
-			if (!bootAssembled) {
-				throw new Error("auto-run: missing assembled turn after boot");
-			}
-			if (!shouldGeneratePlan(null, sessionPrompt)) {
-				ongoingPretreatAbortRef.current = new AbortController();
-				void runModelTurnRef.current(bootAssembled, sidFinal);
-				return;
-			}
-
-			const planResult = await generatePlan(null, sessionPrompt, {
-				abortSignal: ongoingPretreatAbortRef.current?.signal,
-				persona: activePersonaRef.current,
+			setTranscript((t) => {
+				const hasUser = t.some((e) => e.kind === "user");
+				if (hasUser) return t;
+				return [{ kind: "user", text: sessionPrompt }, ...t];
 			});
-
-			if (!planResult || planResult.phases.length < 2) {
-				// No plan needed, run a single turn
-				void runModelTurnRef.current(bootAssembled, sidFinal);
-				return;
-			}
-
-			// Create and execute the plan
-			const plan = createPlan({
-				sessionId: sidFinal,
-				goal: planResult.goal,
-				phases: planResult.phases,
-			});
-			setActivePlan(plan);
-			activePlanRef.current = plan;
-
-			// Add plan context to the first user message
-			const planContextLines = [
-				`[Plan created with ${plan.phases.length} phases]`,
-				`Goal: ${plan.goal}`,
-				"Phases:",
-				...plan.phases.map(
-					(p, i) => `  ${i + 1}. ${p.label}: ${p.description}`,
-				),
-				"Execute the plan phase by phase.",
-			];
-			const planContext = planContextLines.join("\n");
-			const augmentedMessages = messages.map((m) => {
-				if (m.role === "user" && m === lastUserMsg) {
-					return {
-						...m,
-						content:
-							typeof m.content === "string"
-								? `${m.content}\n\n${planContext}`
-								: m.content,
-					};
-				}
-				return m;
-			});
-			setMessages(augmentedMessages);
-			lastAssembledTurnRef.current = withAssembledMessages(
-				bootAssembled,
-				augmentedMessages,
-			);
-
-			const nextLocalSeq = () => {
-				transcriptLocalSeqRef.current += 1;
-				return transcriptLocalSeqRef.current;
-			};
-
 			try {
-				const resultPlan = await executePlan(plan, {
+				await runDaemonChatTurn({
+					bridge,
 					sessionId: sidFinal,
-					emitChatEvent: (ev: ChatEvent) => {
-						const eventLogSink = createChatEventLogSink(sidFinal);
-						eventLogSink(ev);
-						const footerHint = activityLineForChatEvent(ev, {
-							personaName: activePersonaRef.current.name,
-						});
-						if (footerHint !== null) {
-							setActivityLine(footerHint);
-						}
-						if (ev.type === "plan_amended") {
-							recordSessionNote(sidFinal, `Plan amended: ${ev.detail}`);
-						}
-						if (ev.type === "plan_completed") {
-							recordSessionNote(sidFinal, `Plan ${ev.status}`);
-						}
-						if (
-							ev.type === "plan_phase_start" ||
-							ev.type === "plan_phase_end" ||
-							ev.type === "plan_created"
-						) {
-							setTranscript((t) => applyPersistedChatEvent(t, ev));
-						}
-						// Refresh active plan state on phase transitions
-						if (
-							ev.type === "plan_phase_end" ||
-							ev.type === "plan_amended" ||
-							ev.type === "plan_completed"
-						) {
-							const refreshed = loadPlanBySession(sidFinal);
-							if (refreshed) {
-								setActivePlan(refreshed);
-								activePlanRef.current = refreshed;
-							}
-						}
-					},
-					nextSeq: nextLocalSeq,
-					runTurn: async (msgs, overrideSid) => {
-						const base = lastAssembledTurnRef.current;
-						if (!base) {
-							throw new Error("executePlan: missing assembled turn");
-						}
-						await runModelTurnRef.current(
-							withAssembledMessages(base, msgs),
-							overrideSid,
-						);
-						// After the turn, the messages state has been updated.
-						// Return a minimal result since executePlan needs responseMessages
-						// but the actual state update happens in runModelTurn.
-						// We return empty since executePlan manages its own message flow
-						// by calling runTurn which appends to the session history.
-						return {
-							text: "",
-							responseMessages: [] as CoreMessage[],
-						};
-					},
-					abortSignal: ongoingPretreatAbortRef.current?.signal,
+					userText: sessionPrompt,
+					callbacks: daemonTurnCallbacks(),
 				});
-
-				setActivePlan(resultPlan);
-				activePlanRef.current = resultPlan;
 			} catch (e) {
 				const msg = formatChatModelError(e);
 				setTranscript((t) => [...t, { kind: "error", text: msg }]);
 			}
 		})();
-	}, [bootError, messages, sessionPrompt, sessionId]);
+	}, [bootError, messages, sessionPrompt, sessionId, daemonTurnCallbacks]);
 
 	const runModelTurnRef = useRef(runModelTurn);
 	runModelTurnRef.current = runModelTurn;
@@ -1440,7 +968,6 @@ export function ChatSessionApp({
 						persona: activePersonaRef.current,
 						modules: selectedModulesRef.current,
 						dryRun,
-						project: activeProjectRef.current,
 						emit: (ev) => {
 							const footerHint = activityLineForChatEvent(ev, {
 								personaName: activePersonaRef.current.name,
@@ -1487,16 +1014,6 @@ export function ChatSessionApp({
 					relevantTools: assembled.spec?.relevantTools,
 					pretreatmentRan: assembled.spec !== null,
 				});
-				setTranscript((t) => [
-					...t,
-					...buildSelectionTranscriptEntries({
-						relevantSkills: assembled.spec?.relevantSkills ?? [],
-						allToolNames: assembled.toolCatalog.allToolNames,
-						toolIntegrationLabels: assembled.toolCatalog.toolIntegrationLabels,
-						relevantTools: assembled.spec?.relevantTools,
-						pretreatmentRan: assembled.spec !== null,
-					}),
-				]);
 
 				ongoingPretreatAbortRef.current = new AbortController();
 				await runModelTurnRef.current(assembled, sidFinal);
@@ -1570,26 +1087,6 @@ export function ChatSessionApp({
 		setShowConfig(true);
 	}, []);
 
-	const openProjectPickerModal = useCallback(() => {
-		const projects = listProjects();
-		const rows: ProjectPickerRow[] = [
-			{ kind: "clear" },
-			{ kind: "add" },
-			...projects.map((p) => ({ kind: "project" as const, project: p })),
-		];
-		setProjectPicker({ rows, cursorIndex: 0 });
-	}, []);
-
-	const openProjectEditorAtPath = useCallback((slug: string) => {
-		setProjectPicker(null);
-		setProjectDetail(null);
-		setConfigureSession(createConfigureSession());
-		setConfigureInitialPath(["root", "projects", `projects.${slug}`]);
-		setConfigureEditorItemKey(`projects.${slug}.name`);
-		setConfigureMountKey((k) => k + 1);
-		setShowConfig(true);
-	}, []);
-
 	const applyPersonaFromPicker = useCallback(async (p: Persona) => {
 		const resolved = resolvePersona(p.name) ?? p;
 		setActivePersona(resolved);
@@ -1603,7 +1100,6 @@ export function ChatSessionApp({
 					mods,
 					msgs,
 					resolved,
-					activeProjectRef.current,
 				);
 				setMessages(next);
 				if (sid && next[0]) {
@@ -1626,31 +1122,6 @@ export function ChatSessionApp({
 			sessionIdRef.current,
 			`Switched persona to "${resolved.name}".`,
 		);
-	}, []);
-
-	const applyProjectFromPicker = useCallback(async (slug: string | null) => {
-		if (slug === null) {
-			clearActiveProjectSlug();
-			setActiveProject(null);
-			recordSessionNote(sessionIdRef.current, "Cleared active project.");
-		} else {
-			const project = resolveProject(slug);
-			if (!project) {
-				recordSessionNote(sessionIdRef.current, `Project "${slug}" not found.`);
-				return;
-			}
-			setActiveProjectSlug(slug);
-			setActiveProject(project);
-			recordSessionNote(
-				sessionIdRef.current,
-				`Switched project to "${project.name}".`,
-			);
-		}
-		// Reboot the session so project context is injected fresh.
-		setBootError(null);
-		setSessionPrompt("");
-		didAutoRunFirstTurnRef.current = false;
-		setMessages(null);
 	}, []);
 
 	const loadSessionIntoMemory = useCallback((id: string) => {
@@ -1751,6 +1222,28 @@ export function ChatSessionApp({
 		[],
 	);
 
+	const restartServer = useCallback(async () => {
+		appendSessionNotice("Restarting server…", "info");
+		try {
+			const result = await restartDaemon();
+			await daemonBridgeRef.current?.connect();
+			setDaemonRunning(result.running);
+			setDaemonReady(result.running);
+			if (result.running && result.pid !== null) {
+				appendSessionNotice(`Server restarted (PID ${result.pid}).`, "success");
+				return;
+			}
+			appendSessionNotice("Server restart failed.", "error");
+		} catch (e) {
+			setDaemonReady(false);
+			setDaemonRunning(false);
+			appendSessionNotice(
+				`Failed to restart server: ${e instanceof Error ? e.message : String(e)}`,
+				"error",
+			);
+		}
+	}, [appendSessionNotice]);
+
 	const openLogViewer = useCallback(() => {
 		const entries = readLogTail(50);
 		const lines =
@@ -1790,7 +1283,10 @@ export function ChatSessionApp({
 		[],
 	);
 
-	const helpSections = useMemo(() => buildHelpSections(SLASH_COMMANDS), []);
+	const helpSections = useMemo(
+		() => buildHelpSections(SLASH_COMMANDS),
+		[],
+	);
 
 	const openHelpViewer = useCallback(() => {
 		setHelpOpen(true);
@@ -1857,6 +1353,10 @@ export function ChatSessionApp({
 				pendingSteeringPromptRef.current = routed.line;
 				setRecentPrompts(appendPromptHistory(routed.line));
 				setTranscript((t) => [...t, { kind: "user", text: routed.line }]);
+				const sid = sessionIdRef.current;
+				if (sid) {
+					daemonBridgeRef.current?.cancelActiveTurn(sid);
+				}
 				ongoingPretreatAbortRef.current?.abort();
 				setActivityLine("Redirecting...");
 				return;
@@ -1870,400 +1370,296 @@ export function ChatSessionApp({
 				const slash = routed.resolution;
 				if (slash.kind === "execute" && slash.command) {
 					void slash.command.run(
-						{
-							exit,
-							openHelp: openHelpViewer,
-							openUsageViewer,
-							openLogViewer,
-							openTerminalViewer,
-							openTextViewer,
-							openConfig: () => {
-								setConfigureSession(createConfigureSession());
-								setConfigureInitialPath(undefined);
-								setConfigureEditorItemKey(undefined);
-								setConfigureMountKey((k) => k + 1);
-								setShowConfig(true);
-							},
-							openSkills: () => {
-								setConfigureSession(createConfigureSession());
-								setConfigureInitialPath(["root", "skills"]);
-								setConfigureEditorItemKey(undefined);
-								setConfigureMountKey((k) => k + 1);
-								setShowConfig(true);
-							},
-							openSchedules: () => {
-								setConfigureSession(createConfigureSession());
-								setConfigureInitialPath(["root", "schedules"]);
-								setConfigureEditorItemKey(undefined);
-								setConfigureMountKey((k) => k + 1);
-								setShowConfig(true);
-							},
-							openPersonaPicker: () => {
-								openPersonaPickerModal();
-							},
-							openPersonaConfigure: (pathKeys) => {
-								openPersonaEditorAtPath(pathKeys);
-							},
-							openProjectPicker: () => {
-								openProjectPickerModal();
-							},
-							openProjectConfigure: (slug) => {
-								openProjectEditorAtPath(slug);
-							},
-							openIntegrationPicker: () => {
-								void openIntegrationPicker();
-							},
-							openSessionsPicker: () => {
-								openSessionsPicker();
-							},
-							startNewSession: () => {
-								startFreshSession({
-									prompt: "",
-									note: "Started a new chat session.",
+					{
+						exit,
+						openHelp: openHelpViewer,
+						openUsageViewer,
+						openLogViewer,
+						openTerminalViewer,
+						openTextViewer,
+						openConfig: () => {
+							setConfigureSession(createConfigureSession());
+							setConfigureInitialPath(undefined);
+							setConfigureEditorItemKey(undefined);
+							setConfigureMountKey((k) => k + 1);
+							setShowConfig(true);
+						},
+						openSkills: () => {
+							setConfigureSession(createConfigureSession());
+							setConfigureInitialPath(["root", "skills"]);
+							setConfigureEditorItemKey(undefined);
+							setConfigureMountKey((k) => k + 1);
+							setShowConfig(true);
+						},
+						openSchedules: () => {
+							setConfigureSession(createConfigureSession());
+							setConfigureInitialPath(["root", "schedules"]);
+							setConfigureEditorItemKey(undefined);
+							setConfigureMountKey((k) => k + 1);
+							setShowConfig(true);
+						},
+						openPersonaPicker: () => {
+							openPersonaPickerModal();
+						},
+						openPersonaConfigure: (pathKeys) => {
+							openPersonaEditorAtPath(pathKeys);
+						},
+						openIntegrationPicker: () => {
+							void openIntegrationPicker();
+						},
+						openSessionsPicker: () => {
+							openSessionsPicker();
+						},
+						startNewSession: () => {
+							startFreshSession({
+								prompt: "",
+								note: "Started a new chat session.",
+							});
+						},
+						restartServer,
+						chatIntegrationsCount: chatIntegrations.length,
+						launchContext,
+						addMetaLine: (text) => {
+							recordSessionNote(sessionIdRef.current, text);
+						},
+						addNoticeLine: (text, tone) => {
+							appendSessionNotice(text, tone);
+						},
+						updateProgressNotice,
+						addUserContextMessage: (text) => {
+							recordSessionNote(sessionIdRef.current, text);
+							setMessages((msgs) =>
+								msgs
+									? [
+											...msgs,
+											{
+												role: "user" as const,
+												content: text,
+											},
+										]
+									: msgs,
+							);
+						},
+						setUpgradeStatus: setUpgradeUiStatus,
+						getActivePlan: () => activePlanRef.current,
+						skipPlanPhase: (planId: string, phaseId: string) => {
+							skipPhase(planId, phaseId);
+							const refreshed = loadPlanBySession(sessionIdRef.current ?? "");
+							if (refreshed) {
+								setActivePlan(refreshed);
+								activePlanRef.current = refreshed;
+							}
+						},
+						cancelPlan: (planId: string) => {
+							cancelPlan(planId);
+							const refreshed = loadPlanBySession(sessionIdRef.current ?? "");
+							if (refreshed) {
+								setActivePlan(refreshed);
+								activePlanRef.current = refreshed;
+							}
+						},
+						startListenRecording: () => {
+							if (listenHandleRef.current) return;
+							try {
+								const session = prepareListenSession({
+									sources: { mic: true, system: true },
 								});
-							},
-							chatIntegrationsCount: chatIntegrations.length,
-							launchContext,
-							addMetaLine: (text) => {
-								recordSessionNote(sessionIdRef.current, text);
-							},
-							addNoticeLine: (text, tone) => {
-								appendSessionNotice(text, tone);
-							},
-							updateProgressNotice,
-							addUserContextMessage: (text) => {
-								recordSessionNote(sessionIdRef.current, text);
-								setMessages((msgs) =>
-									msgs
-										? [
-												...msgs,
-												{
-													role: "user" as const,
-													content: text,
-												},
-											]
-										: msgs,
-								);
-							},
-							setUpgradeStatus: setUpgradeUiStatus,
-							getActivePlan: () => activePlanRef.current,
-							skipPlanPhase: (planId: string, phaseId: string) => {
-								skipPhase(planId, phaseId);
-								const refreshed = loadPlanBySession(sessionIdRef.current ?? "");
-								if (refreshed) {
-									setActivePlan(refreshed);
-									activePlanRef.current = refreshed;
-								}
-							},
-							cancelPlan: (planId: string) => {
-								cancelPlan(planId);
-								const refreshed = loadPlanBySession(sessionIdRef.current ?? "");
-								if (refreshed) {
-									setActivePlan(refreshed);
-									activePlanRef.current = refreshed;
-								}
-							},
-							startListenRecording: () => {
-								if (listenHandleRef.current) return;
-								try {
-									const session = prepareListenSession({
-										sources: { mic: true, system: true },
-									});
-									listenHelperVersionRef.current = undefined;
-									listenFilesRef.current = {};
-									listenErrorsRef.current = [];
-									const handle = startMacOSAudioCapture({
-										session,
-										onEvent: (event) => {
-											if (event.type === "ready") {
-												listenHelperVersionRef.current = event.helperVersion;
-												listenFilesRef.current = {
-													...listenFilesRef.current,
-													...(event.files ?? {}),
-												};
-												appendSessionNotice(
-													"Recording started. Use /stop-listening to stop.",
-													"success",
-												);
-												return;
-											}
-											if (event.type === "error") {
-												listenErrorsRef.current = [
-													...listenErrorsRef.current,
-													event.message,
-												];
-												setTranscript((t) => [
-													...t,
-													{
-														kind: "error",
-														text: `Recording error: ${event.message}`,
-													},
-												]);
-												listenHandleRef.current = null;
-												listenSessionRef.current = null;
-												setIsListenRecording(false);
-												return;
-											}
-											if ("files" in event && event.files) {
-												listenFilesRef.current = {
-													...listenFilesRef.current,
-													...event.files,
-												};
-											}
-										},
-									});
-									listenHandleRef.current = handle;
-									listenSessionRef.current = session;
-									setIsListenRecording(true);
-								} catch (error) {
-									const msg =
-										error instanceof Error ? error.message : String(error);
-									setTranscript((t) => [
-										...t,
-										{
-											kind: "error",
-											text: `Could not start recording: ${msg}`,
-										},
-									]);
-								}
-							},
-							stopListenRecording: async (action) => {
-								const handle = listenHandleRef.current;
-								const session = listenSessionRef.current;
-								if (!handle || !session) return null;
-								try {
-									await handle.stop(action);
-									await waitForAudioHelperExit(handle.child);
-									listenHandleRef.current = null;
-									listenSessionRef.current = null;
-									setIsListenRecording(false);
-									if (action === "discard") {
-										discardListenSession(session);
-										return null;
-									}
-									const savedFiles = remapListenFilesToFinalDir(
-										session,
-										listenFilesRef.current,
-									);
-									const metadata = buildListenMetadata({
-										session,
-										files: savedFiles,
-										stoppedAt: new Date(),
-										helperVersion: listenHelperVersionRef.current,
-										errors: listenErrorsRef.current,
-									});
-									const outputDir = saveListenSession(session, metadata);
-									const helperPath = handle.helperPath;
-									let transcript = readTranscriptFile(outputDir);
-									let transcriptionError: string | undefined;
-									if (!transcript && savedFiles.combined) {
-										try {
-											const transcriptFiles = await transcribeWithPlugin({
-												input: savedFiles.combined,
-												outDir: outputDir,
-											});
-											writeListenMetadata(
-												outputDir,
-												applyTranscriptFilesToMetadata(metadata, {
-													...savedFiles,
-													...transcriptFiles,
-												}),
+								listenHelperVersionRef.current = undefined;
+								listenFilesRef.current = {};
+								listenErrorsRef.current = [];
+								const handle = startMacOSAudioCapture({
+									session,
+									onEvent: (event) => {
+										if (event.type === "ready") {
+											listenHelperVersionRef.current = event.helperVersion;
+											listenFilesRef.current = {
+												...listenFilesRef.current,
+												...(event.files ?? {}),
+											};
+											appendSessionNotice(
+												"Recording started. Use /stop-listening to stop.",
+												"success",
 											);
-											transcript = readTranscriptFile(outputDir);
-										} catch (transcribeError) {
-											const msg =
-												transcribeError instanceof Error
-													? transcribeError.message
-													: String(transcribeError);
-											transcriptionError = msg;
+											return;
+										}
+										if (event.type === "error") {
 											listenErrorsRef.current = [
 												...listenErrorsRef.current,
-												msg,
+												event.message,
 											];
-											writeListenMetadata(
-												outputDir,
-												buildListenMetadata({
-													session,
-													files: savedFiles,
-													stoppedAt: new Date(),
-													helperVersion: listenHelperVersionRef.current,
-													errors: listenErrorsRef.current,
-												}),
-											);
+											setTranscript((t) => [
+												...t,
+												{
+													kind: "error",
+													text: `Recording error: ${event.message}`,
+												},
+											]);
+											listenHandleRef.current = null;
+											listenSessionRef.current = null;
+											setIsListenRecording(false);
+											return;
 										}
-									}
-									return { outputDir, transcript, transcriptionError };
-								} catch (error) {
-									const msg =
-										error instanceof Error ? error.message : String(error);
-									listenHandleRef.current = null;
-									listenSessionRef.current = null;
-									setIsListenRecording(false);
-									setTranscript((t) => [
-										...t,
-										{
-											kind: "error",
-											text: `Could not finalize recording: ${msg}`,
-										},
-									]);
+										if ("files" in event && event.files) {
+											listenFilesRef.current = {
+												...listenFilesRef.current,
+												...event.files,
+											};
+										}
+									},
+								});
+								listenHandleRef.current = handle;
+								listenSessionRef.current = session;
+								setIsListenRecording(true);
+							} catch (error) {
+								const msg =
+									error instanceof Error ? error.message : String(error);
+								setTranscript((t) => [
+									...t,
+									{ kind: "error", text: `Could not start recording: ${msg}` },
+								]);
+							}
+						},
+						stopListenRecording: async (action) => {
+							const handle = listenHandleRef.current;
+							const session = listenSessionRef.current;
+							if (!handle || !session) return null;
+							try {
+								await handle.stop(action);
+								await waitForAudioHelperExit(handle.child);
+								listenHandleRef.current = null;
+								listenSessionRef.current = null;
+								setIsListenRecording(false);
+								if (action === "discard") {
+									discardListenSession(session);
 									return null;
 								}
-							},
-							isListenRecording: () => listenHandleRef.current !== null,
+								const savedFiles = remapListenFilesToFinalDir(
+									session,
+									listenFilesRef.current,
+								);
+								const metadata = buildListenMetadata({
+									session,
+									files: savedFiles,
+									stoppedAt: new Date(),
+									helperVersion: listenHelperVersionRef.current,
+									errors: listenErrorsRef.current,
+								});
+								const outputDir = saveListenSession(session, metadata);
+								const helperPath = handle.helperPath;
+								let transcript = readTranscriptFile(outputDir);
+								let transcriptionError: string | undefined;
+								if (!transcript && savedFiles.combined) {
+									try {
+										const transcriptFiles = await transcribeWithPlugin({
+											input: savedFiles.combined,
+											outDir: outputDir,
+										});
+										writeListenMetadata(
+											outputDir,
+											applyTranscriptFilesToMetadata(metadata, {
+												...savedFiles,
+												...transcriptFiles,
+											}),
+										);
+										transcript = readTranscriptFile(outputDir);
+									} catch (transcribeError) {
+										const msg =
+											transcribeError instanceof Error
+												? transcribeError.message
+												: String(transcribeError);
+										transcriptionError = msg;
+										listenErrorsRef.current = [...listenErrorsRef.current, msg];
+										writeListenMetadata(
+											outputDir,
+											buildListenMetadata({
+												session,
+												files: savedFiles,
+												stoppedAt: new Date(),
+												helperVersion: listenHelperVersionRef.current,
+												errors: listenErrorsRef.current,
+											}),
+										);
+									}
+								}
+								return { outputDir, transcript, transcriptionError };
+							} catch (error) {
+								const msg =
+									error instanceof Error ? error.message : String(error);
+								listenHandleRef.current = null;
+								listenSessionRef.current = null;
+								setIsListenRecording(false);
+								setTranscript((t) => [
+									...t,
+									{
+										kind: "error",
+										text: `Could not finalize recording: ${msg}`,
+									},
+								]);
+								return null;
+							}
 						},
-						slash.rawArgs,
-					);
-					return;
-				}
-				if (slash.kind === "unknown") {
-					appendSessionNotice(
-						`Unknown command: ${slash.attemptedToken ?? line}.`,
-						"error",
-					);
-					return;
-				}
+						isListenRecording: () => listenHandleRef.current !== null,
+					},
+					slash.rawArgs,
+				);
 				return;
+			}
+			if (slash.kind === "unknown") {
+				appendSessionNotice(
+					`Unknown command: ${slash.attemptedToken ?? line}.`,
+					"error",
+				);
+				return;
+			}
+			return;
 			}
 
 			if (routed.kind !== "chat") {
 				return;
 			}
 			const msgs = snapRef.current.messages;
-			if (!msgs) {
+			if (msgs === null) {
 				return;
 			}
 			let sid = sessionIdRef.current;
+			const bridge = daemonBridgeRef.current;
+			if (!bridge) {
+				appendSessionNotice("Server API not ready.", "error");
+				return;
+			}
 			if (!sid) {
-				const created = createChatSession({ name: "New chat" });
-				sid = created.id;
-				setSessionId(created.id);
-				setSessionName(created.name);
-				lastSavedMessageCountRef.current = 0;
-				lastSavedTranscriptCountRef.current = 0;
+				void bridge.createSession({ bootstrap: true }).then((created) => {
+					setSessionId(created.id);
+					setSessionName(created.name);
+				});
+				return;
 			}
 			const sidFinal = sid;
 			void (async () => {
-				const prepAc = new AbortController();
-				ongoingPretreatAbortRef.current = prepAc;
-				const msgsBefore = snapRef.current.messages;
-				if (!msgsBefore) {
-					return;
-				}
 				try {
 					inFlightUserPromptRef.current = line;
-					const isFirstTurn = !transcriptRef.current.some(
-						(e) => e.kind === "user",
-					);
-					const willPretreat = shouldPretreat(msgsBefore, line, isFirstTurn);
-					setLoading(true);
-					setActivityLine(
-						willPretreat
-							? "Preparing request…"
-							: formatListeningToPersona(activePersonaRef.current.name),
-					);
-					const submitSeq = () => {
-						transcriptLocalSeqRef.current += 1;
-						return transcriptLocalSeqRef.current;
-					};
 					setTranscript((t) => [...t, { kind: "user", text: line }]);
-					const prepResult = await runChatTurnPipeline(
-						{
-							rawUserText: line,
-							priorMessages: msgsBefore,
-							isFirstTurn,
-							priorPretreatment: priorPretreatmentFromLastTurn(
-								lastAssembledTurnRef.current,
-								isFirstTurn,
-							),
-						},
-						buildUiTurnContext({
-							persona: activePersonaRef.current,
-							modules: selectedModulesRef.current,
-							dryRun,
-							project: activeProjectRef.current,
-							emit: (ev) => {
-								const footerHint = activityLineForChatEvent(ev, {
-									personaName: activePersonaRef.current.name,
-								});
-								if (footerHint !== null) {
-									setActivityLine(footerHint);
-								}
-								setTranscript((t) => applyPersistedChatEvent(t, ev));
-							},
-							nextSeq: submitSeq,
-							abortSignal: prepAc.signal,
-							emitPersistLifecycle: false,
-						}),
-						{ stopAfter: "assemble" },
-					);
-					throwIfAborted(prepAc.signal);
-					if (prepResult.stage !== "assemble") {
-						throw new Error(
-							`submit: expected assemble stage, got ${prepResult.stage}`,
-						);
-					}
-					const assembled = prepResult.turn;
-					lastAssembledTurnRef.current = assembled;
-					relevantToolsRef.current = assembled.spec?.relevantTools ?? [];
-					if (assembled.spec?.sessionName?.trim()) {
-						pretreatSessionNameRef.current = assembled.spec.sessionName.trim();
-					}
-					const msgsAfter = snapRef.current.messages;
-					if (!msgsAfter) {
-						setLoading(false);
-						return;
-					}
-					setMessages(assembled.messages);
+					await runDaemonChatTurn({
+						bridge,
+						sessionId: sidFinal,
+						userText: line,
+						callbacks: daemonTurnCallbacks(),
+					});
 					inFlightUserPromptRef.current = null;
-					logSkillDebugNotes(sidFinal, {
-						debug,
-						available: assembled.localSkills,
-						priorMessages: msgsBefore,
-						rawUserText: line,
-						isFirstTurn,
-						spec: assembled.spec,
-					});
-					logAttachedSkills(sidFinal, assembled.spec?.relevantSkills ?? []);
-					logToolSelectionNotes(sidFinal, {
-						allToolNames: assembled.toolCatalog.allToolNames,
-						toolIntegrationLabels: assembled.toolCatalog.toolIntegrationLabels,
-						relevantTools: assembled.spec?.relevantTools,
-						pretreatmentRan: assembled.spec !== null,
-					});
-					setTranscript((t) => [
-						...t,
-						...buildSelectionTranscriptEntries({
-							relevantSkills: assembled.spec?.relevantSkills ?? [],
-							allToolNames: assembled.toolCatalog.allToolNames,
-							toolIntegrationLabels:
-								assembled.toolCatalog.toolIntegrationLabels,
-							relevantTools: assembled.spec?.relevantTools,
-							pretreatmentRan: assembled.spec !== null,
-						}),
-					]);
-					ongoingPretreatAbortRef.current = new AbortController();
-					await runModelTurnRef.current(assembled, sidFinal);
 				} catch (e) {
 					if (isAbortError(e)) {
 						if (pendingSteeringPromptRef.current) {
 							recordSessionNote(sessionIdRef.current, "Redirecting...");
-							setLoading(false);
 							return;
 						}
-						if (prepAc.signal.aborted) {
-							inFlightUserPromptRef.current = null;
-							setTranscript((t) => [
-								...t,
-								buildTurnCancellationNoticeEntry(sessionIdRef.current),
-							]);
-							setLoading(false);
-							return;
-						}
-						throw e;
+						setTranscript((t) => [
+							...t,
+							buildTurnCancellationNoticeEntry(sessionIdRef.current),
+						]);
+						return;
 					}
 					const msg = formatChatModelError(e);
 					setTranscript((t) => [...t, { kind: "error", text: msg }]);
-					setLoading(false);
 				}
 			})();
 		},
@@ -2282,11 +1678,9 @@ export function ChatSessionApp({
 			openTextViewer,
 			openPersonaEditorAtPath,
 			openPersonaPickerModal,
-			openProjectEditorAtPath,
-			openProjectPickerModal,
 			openSessionsPicker,
+			restartServer,
 			startFreshSession,
-			updateProgressNotice,
 		],
 	);
 
@@ -2553,101 +1947,6 @@ export function ChatSessionApp({
 				return;
 			}
 
-			const projPicker = snapRef.current.projectPicker;
-			if (projPicker) {
-				const len = projPicker.rows.length;
-				const cursor = projPicker.cursorIndex;
-				if (key.upArrow) {
-					setProjectPicker((p) =>
-						p
-							? {
-									...p,
-									cursorIndex: cursor <= 0 ? len - 1 : cursor - 1,
-								}
-							: p,
-					);
-					return;
-				}
-				if (key.downArrow) {
-					setProjectPicker((p) =>
-						p
-							? {
-									...p,
-									cursorIndex: cursor >= len - 1 ? 0 : cursor + 1,
-								}
-							: p,
-					);
-					return;
-				}
-				if (key.return) {
-					const row = projPicker.rows[projPicker.cursorIndex];
-					if (!row) {
-						return;
-					}
-					if (row.kind === "clear") {
-						setProjectPicker(null);
-						void applyProjectFromPicker(null);
-						return;
-					}
-					if (row.kind === "add") {
-						const sess = createConfigureSession();
-						const newSlug = sess.callbacks.onCreateProject();
-						setConfigureSession(refreshConfigureSessionTree(sess));
-						setProjectPicker(null);
-						setConfigureInitialPath([
-							"root",
-							"projects",
-							`projects.${newSlug}`,
-						]);
-						setConfigureEditorItemKey(`projects.${newSlug}.name`);
-						setConfigureMountKey((k) => k + 1);
-						setShowConfig(true);
-						return;
-					}
-					if (row.kind === "project") {
-						setProjectDetail({
-							project: row.project,
-							contextFiles: listProjectContextFiles(row.project),
-							outputFiles: listProjectOutputFiles(row.project),
-						});
-						setProjectPicker(null);
-						return;
-					}
-					return;
-				}
-				if (ch === "e" && !key.ctrl && !key.meta) {
-					const row = projPicker.rows[projPicker.cursorIndex];
-					if (row?.kind === "project") {
-						openProjectEditorAtPath(row.project.slug);
-					}
-					return;
-				}
-				if (key.escape) {
-					setProjectPicker(null);
-					return;
-				}
-				return;
-			}
-
-			const projDetail = snapRef.current.projectDetail;
-			if (projDetail) {
-				if (ch === "a" && !key.ctrl && !key.meta) {
-					const slug = projDetail.project.slug;
-					setProjectDetail(null);
-					void applyProjectFromPicker(slug);
-					return;
-				}
-				if (ch === "e" && !key.ctrl && !key.meta) {
-					openProjectEditorAtPath(projDetail.project.slug);
-					return;
-				}
-				if (key.escape) {
-					setProjectDetail(null);
-					return;
-				}
-				return;
-			}
-
 			if ((key.ctrl && ch === "c") || ch === "\x03") {
 				exit();
 				return;
@@ -2752,11 +2051,9 @@ export function ChatSessionApp({
 		},
 		[
 			applyPersonaFromPicker,
-			applyProjectFromPicker,
 			exit,
 			loadSessionIntoMemory,
 			openPersonaEditorAtPath,
-			openProjectEditorAtPath,
 			showConfig,
 			terminalRows,
 		],
@@ -2827,7 +2124,6 @@ export function ChatSessionApp({
 									mods,
 									msgs,
 									nextP,
-									activeProjectRef.current,
 								);
 								setMessages(replaced);
 								const sid = sessionIdRef.current;
@@ -2858,8 +2154,6 @@ export function ChatSessionApp({
 		Boolean(multiPicker) ||
 		Boolean(sessionPicker) ||
 		Boolean(personaPicker) ||
-		Boolean(projectPicker) ||
-		Boolean(projectDetail) ||
 		Boolean(scrollModal) ||
 		helpOpen ||
 		usageOpen ||
@@ -2998,58 +2292,6 @@ export function ChatSessionApp({
 						</Text>
 					</Box>
 				</ViewModal>
-			) : projectPicker ? (
-				<ViewModal termCols={termCols} borderColor={ACCENT}>
-					<Box width={termCols}>
-						<Text bold wrap="truncate-end">
-							Projects
-						</Text>
-					</Box>
-					{projectPicker.rows.map((row, i) => {
-						const active = i === projectPicker.cursorIndex;
-						const isActive =
-							row.kind === "project" &&
-							row.project.slug === activeProject?.slug;
-						const label =
-							row.kind === "clear"
-								? "No project"
-								: row.kind === "add"
-									? "New project…"
-									: `${row.project.name}${isActive ? " ★" : ""}`;
-						return (
-							<SelectableTextRow
-								key={
-									row.kind === "clear"
-										? "clear"
-										: row.kind === "add"
-											? "add"
-											: row.project.slug
-								}
-								selected={active}
-							>
-								{label}
-							</SelectableTextRow>
-						);
-					})}
-					<Box marginTop={1}>
-						<Text dimColor wrap="truncate-end">
-							Active: {activeProject?.name ?? "none"}
-						</Text>
-					</Box>
-					<Box marginTop={1}>
-						<Text dimColor>
-							↑↓ navigate · Enter select · e edit · Esc cancel
-						</Text>
-					</Box>
-				</ViewModal>
-			) : projectDetail ? (
-				<ProjectDetailModal
-					termCols={termCols}
-					project={projectDetail.project}
-					contextFiles={projectDetail.contextFiles}
-					outputFiles={projectDetail.outputFiles}
-					isActive={projectDetail.project.slug === activeProject?.slug}
-				/>
 			) : helpOpen ? (
 				<HelpPanel termCols={termCols} sections={helpSections} />
 			) : usageOpen ? (
@@ -3074,7 +2316,6 @@ export function ChatSessionApp({
 				onSubmit={handlePromptSubmit}
 				inputDisabled={inputDisabled}
 				persona={activePersona}
-				project={activeProject}
 				modelLabel={modelLabel}
 				dryRun={dryRun}
 				lastUsage={lastUsage}
