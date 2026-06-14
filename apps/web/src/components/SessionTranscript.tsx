@@ -19,6 +19,9 @@ export function filterVisibleEntries(
 		if (e.kind === "meta") {
 			return false;
 		}
+		if (e.kind === "turn_work") {
+			return false;
+		}
 		if (e.kind === "boxed_step") {
 			if (e.variant === "prep") {
 				return false;

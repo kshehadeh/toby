@@ -55,4 +55,9 @@ export type TranscriptEntry =
 			/** The chosen option text (empty if cancelled / error). */
 			readonly answer: string;
 			readonly error?: string;
+	  }
+	| {
+			/** Persisted duration of pipeline work before the assistant reply (milliseconds). */
+			readonly kind: "turn_work";
+			readonly durationMs: number;
 	  };

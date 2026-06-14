@@ -308,6 +308,9 @@ export function flattenTranscript(
 		if (!debug && e.kind === "meta") {
 			continue;
 		}
+		if (!debug && e.kind === "turn_work") {
+			continue;
+		}
 		const next = entries[i + 1];
 		if (e.kind === "user") {
 			for (const line of hardWrap(e.text, userContentWidth)) {

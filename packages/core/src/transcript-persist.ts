@@ -90,6 +90,12 @@ export function serializeTranscriptEntry(e: TranscriptEntry): {
 		};
 		return { kind: "notice", text: JSON.stringify(payload) };
 	}
+	if (e.kind === "turn_work") {
+		return {
+			kind: "turn_work",
+			text: JSON.stringify({ durationMs: e.durationMs }),
+		};
+	}
 	return { kind: e.kind, text: e.text };
 }
 
@@ -233,6 +239,17 @@ export function deserializeTranscriptRow(row: {
 			// fall through — legacy plain-text notice rows
 		}
 		return { kind: "notice", text: row.text };
+	}
+	if (row.kind === "turn_work") {
+		try {
+			const p = JSON.parse(row.text) as { durationMs?: number };
+			if (typeof p.durationMs === "number" && Number.isFinite(p.durationMs)) {
+				return { kind: "turn_work", durationMs: Math.max(0, p.durationMs) };
+			}
+		} catch {
+			// fall through
+		}
+		return { kind: "meta", text: row.text };
 	}
 	if (
 		row.kind === "user" ||

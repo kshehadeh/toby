@@ -22,6 +22,7 @@ import type { ChatEvent, ChatEventSink } from "./chat-events";
 import { type TurnContext, runChatTurnPipeline } from "./pipeline";
 import { resolveWebChatModules } from "./resolve-chat-modules";
 import { TranscriptAccumulator } from "./transcript-accumulator";
+import { insertTurnWorkSummary } from "./turn-work-summary";
 
 export type ApiChatTurnResult = {
 	readonly turnId: string;
@@ -403,6 +404,8 @@ export async function runApiChatTurnWithPersistence(params: {
 	}
 
 	const startIdx = loaded.transcript.length;
+	const userTurnIndex = startIdx;
+	const turnStartedAt = Date.now();
 	const accumulator = new TranscriptAccumulator(loaded.transcript);
 	accumulator.addUser(params.userText);
 
@@ -433,7 +436,11 @@ export async function runApiChatTurnWithPersistence(params: {
 	appendTranscriptBatch(
 		params.sessionId,
 		startIdx,
-		accumulator.snapshot.slice(startIdx),
+		insertTurnWorkSummary(
+			accumulator.snapshot,
+			userTurnIndex,
+			Date.now() - turnStartedAt,
+		).slice(startIdx),
 	);
 
 	return result;
