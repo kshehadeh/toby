@@ -3,12 +3,12 @@ import os from "node:os";
 import path from "node:path";
 import { pluginSetup } from "@toby/core/integrations/plugins/client";
 import { installPlugin } from "@toby/core/integrations/plugins/install";
+import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
 import {
 	formatPluginSetupActionLines,
 	pluginSetupHasFailures,
 	runPluginSetup,
 } from "@toby/core/integrations/plugins/setup";
-import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");

@@ -18,9 +18,7 @@ export type PluginSetupRunResult =
 			readonly code: string;
 	  };
 
-export function pluginSetupHasFailures(
-	response: PluginSetupResponse,
-): boolean {
+export function pluginSetupHasFailures(response: PluginSetupResponse): boolean {
 	if (!response.ok) {
 		return true;
 	}
@@ -33,11 +31,7 @@ export function formatPluginSetupActionLines(
 	actions: readonly PluginSetupActionResult[],
 ): string[] {
 	return actions.map((action) => {
-		const status = action.skipped
-			? "skipped"
-			: action.ok
-				? "ok"
-				: "failed";
+		const status = action.skipped ? "skipped" : action.ok ? "ok" : "failed";
 		const detail = action.detail ? ` — ${action.detail}` : "";
 		return `${action.label} [${status}]${detail}`;
 	});

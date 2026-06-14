@@ -1,8 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
-import { fetchAIProviderPlanUsage, clearPlanUsageCache } from "@toby/core/ai/plan-usage/fetch";
 import { openAiPlanUsageAdapter } from "@toby/core/ai/plan-usage/adapters/openai";
 import { vercelGatewayPlanUsageAdapter } from "@toby/core/ai/plan-usage/adapters/vercel-gateway";
+import {
+	clearPlanUsageCache,
+	fetchAIProviderPlanUsage,
+} from "@toby/core/ai/plan-usage/fetch";
 import { formatPlanUsageStatusLine } from "@toby/core/ai/plan-usage/format";
+import { describe, expect, it, vi } from "vitest";
 
 describe("plan usage adapters", () => {
 	it("reports OpenAI plan usage as unsupported", async () => {
@@ -25,9 +28,7 @@ describe("plan usage adapters", () => {
 		expect(usage.supported).toBe(true);
 		expect(usage.remaining).toBe(95.5);
 		expect(usage.totalSpent).toBe(4.5);
-		expect(formatPlanUsageStatusLine(usage)).toBe(
-			"$4.50 used · $95.50 left",
-		);
+		expect(formatPlanUsageStatusLine(usage)).toBe("$4.50 used · $95.50 left");
 
 		vi.unstubAllGlobals();
 		vi.unstubAllEnvs();

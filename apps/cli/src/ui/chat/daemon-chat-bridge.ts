@@ -1,17 +1,17 @@
 import type { AskUserToolResult } from "@toby/core/ai/ask-user-tool";
-import type { ChatEvent } from "@toby/core/chat-pipeline/chat-events";
 import type {
 	AskUserPromptPayload,
 	ChatSessionSettings,
 	TurnDonePayload,
 } from "@toby/core/api/chat-api";
+import type { ChatEvent } from "@toby/core/chat-pipeline/chat-events";
 import type { Persona } from "@toby/core/config/index";
 import { getWebConfig } from "@toby/core/config/index";
 import type { IntegrationModule } from "@toby/core/integrations/types";
 import {
-	resolveDaemonBaseUrl,
-	TobyDaemonClient,
 	type StreamTurnOptions,
+	TobyDaemonClient,
+	resolveDaemonBaseUrl,
 } from "@toby/core/web/client";
 import { ServerEventLog } from "@toby/core/web/server-event-log";
 import { ensureDaemonRunning } from "../../schedules/daemon-status";
@@ -131,6 +131,7 @@ export class DaemonChatBridge {
 		const client = this.requireClient();
 		const abort = new AbortController();
 		this.activeAbort = abort;
+		const onAskUser = params.onAskUser;
 
 		const streamOptions: StreamTurnOptions = {
 			sessionId: params.sessionId,
@@ -141,9 +142,9 @@ export class DaemonChatBridge {
 			steering: params.steering,
 			onEvent: params.onEvent,
 			signal: abort.signal,
-			onAskUser: params.onAskUser
+			onAskUser: onAskUser
 				? async (prompt) => {
-						const answer = await params.onAskUser!(prompt);
+						const answer = await onAskUser(prompt);
 						return {
 							selectedIndex: answer.selectedIndex,
 							selectedLabel: answer.selectedLabel,

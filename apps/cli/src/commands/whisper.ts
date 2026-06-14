@@ -66,7 +66,7 @@ export function registerWhisperCommand(program: Command): void {
 			console.log(
 				`transcription plugin: ${isTranscriptionAvailable() ? "available" : "missing"}`,
 			);
-			console.log(`engine: embedded in toby-plugin-whisper`);
+			console.log("engine: embedded in toby-plugin-whisper");
 			console.log(`model: ${status.modelInstalled ? "ready" : "missing"}`);
 			console.log(`  path: ${status.modelPath}`);
 			console.log(`language: ${config.language}`);

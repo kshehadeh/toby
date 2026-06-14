@@ -1,5 +1,5 @@
-import { resolveSlackBotUserId } from "../../plugin-slack/src/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { resolveSlackBotUserId } from "../../plugin-slack/src/client";
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -33,7 +33,11 @@ describe("resolveSlackBotUserId", () => {
 			json: async () => ({ ok: true }),
 		} as Response);
 
-		const botUserId = await resolveSlackBotUserId({}, "xoxb-test", "U_FALLBACK");
+		const botUserId = await resolveSlackBotUserId(
+			{},
+			"xoxb-test",
+			"U_FALLBACK",
+		);
 		expect(botUserId).toBe("U_FALLBACK");
 	});
 });

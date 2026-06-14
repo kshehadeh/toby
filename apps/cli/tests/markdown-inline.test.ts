@@ -59,7 +59,9 @@ describe("parseInlineMarkdownPieces", () => {
 	});
 
 	it("detects bare https URLs", () => {
-		expect(parseInlineMarkdownPieces("visit https://example.com today")).toEqual([
+		expect(
+			parseInlineMarkdownPieces("visit https://example.com today"),
+		).toEqual([
 			{ bold: false, italic: false, text: "visit " },
 			{
 				bold: false,

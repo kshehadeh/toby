@@ -438,7 +438,11 @@ body {
 }
 
 .featureHeadingIconPersona {
-	background: linear-gradient(135deg, var(--toby-accent), var(--toby-accent-dim));
+	background: linear-gradient(
+		135deg,
+		var(--toby-accent),
+		var(--toby-accent-dim)
+	);
 }
 
 .featureHeadingIconNext {

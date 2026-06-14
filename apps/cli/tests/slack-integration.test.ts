@@ -4,10 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import { getIntegrationModule } from "@toby/core/integrations/index";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createSlackPkceChallenge } from "../../plugin-slack/src/auth";
 import { getSlackAuthMethod } from "../../plugin-slack/src/config";
 import { TOOL_DEFINITIONS } from "../../plugin-slack/src/tools";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const slackCli = path.join(repoRoot, "../plugin-slack/src/cli.ts");

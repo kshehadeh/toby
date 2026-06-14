@@ -108,16 +108,14 @@ export async function executeTool(
 
 	switch (tool) {
 		case "listUsers": {
-			const limit =
-				typeof input.limit === "number" ? input.limit : undefined;
+			const limit = typeof input.limit === "number" ? input.limit : undefined;
 			const users = await fetchUsersTop(creds, limit ?? 10);
 			return withTokenPatch({ users });
 		}
 		case "searchUsers": {
 			const query = String(input.query ?? "").trim();
 			if (!query) throw new Error("query is required");
-			const limit =
-				typeof input.limit === "number" ? input.limit : undefined;
+			const limit = typeof input.limit === "number" ? input.limit : undefined;
 			const users = await searchUsers(creds, query, limit ?? 10);
 			return withTokenPatch({ users });
 		}
@@ -136,8 +134,7 @@ export async function executeTool(
 		case "getUserDirectReports": {
 			const idOrUpn = String(input.idOrUpn ?? "").trim();
 			if (!idOrUpn) throw new Error("idOrUpn is required");
-			const limit =
-				typeof input.limit === "number" ? input.limit : undefined;
+			const limit = typeof input.limit === "number" ? input.limit : undefined;
 			const reports = await getUserDirectReports(creds, idOrUpn, limit ?? 25);
 			return withTokenPatch({ reports });
 		}

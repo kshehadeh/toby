@@ -50,6 +50,10 @@ export function emitJson(payload: JsonRecord, exitCode = 0): never {
 	process.exit(exitCode);
 }
 
-export function emitError(message: string, code: string, exitCode: 1 | 2 = 1): never {
+export function emitError(
+	message: string,
+	code: string,
+	exitCode: 1 | 2 = 1,
+): never {
 	emitJson({ ok: false, error: message, code }, exitCode);
 }

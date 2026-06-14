@@ -5,11 +5,11 @@ import type {
 	AskUserToolResult,
 } from "@toby/core/ai/ask-user-tool";
 import {
+	type SessionTokenTotals,
 	addTurnToSessionTokenTotals,
 	emptySessionTokenTotals,
 	extractTokenUsageReport,
 	formatCacheDebugMeta,
-	type SessionTokenTotals,
 } from "@toby/core/ai/caching";
 import type { CoreMessage } from "@toby/core/ai/chat";
 import { formatChatModelError } from "@toby/core/ai/chat-errors";
@@ -45,6 +45,7 @@ import {
 	getModulesWithCapability,
 } from "@toby/core/integrations/index";
 import type { IntegrationModule } from "@toby/core/integrations/types";
+import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
 import {
 	aggregateSessionTokenTotalsFromLog,
 	createChatEventLogSink,
@@ -54,16 +55,6 @@ import {
 	readLogTail,
 } from "@toby/core/logging/chat-log";
 import { listPersonas, resolvePersona } from "@toby/core/personas/index";
-import {
-	clearActiveProjectSlug,
-	listProjectContextFiles,
-	listProjectOutputFiles,
-	listProjects,
-	resolveActiveProject,
-	resolveProject,
-	setActiveProjectSlug,
-	type Project,
-} from "@toby/core/projects/index";
 import {
 	activityLineForChatEvent,
 	formatListeningToPersona,
@@ -79,6 +70,16 @@ import {
 	skipPhase,
 } from "@toby/core/planning/index";
 import { replaceSessionSystemMessageForPersona } from "@toby/core/prepare-messages";
+import {
+	type Project,
+	clearActiveProjectSlug,
+	listProjectContextFiles,
+	listProjectOutputFiles,
+	listProjects,
+	resolveActiveProject,
+	resolveProject,
+	setActiveProjectSlug,
+} from "@toby/core/projects/index";
 import {
 	CHAT_SESSION_PICKER_LIMIT,
 	appendMessageBatch,
@@ -113,7 +114,6 @@ import {
 	saveListenSession,
 	writeListenMetadata,
 } from "../../listen/session-controller";
-import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
 import { isDaemonRunning, restartDaemon } from "../../schedules/daemon-status";
 import type { LaunchContext } from "../../toby-launch-context";
 import { ConfigureApp } from "../configure/App";
@@ -135,12 +135,11 @@ import {
 	type ChatInputPanelHandle,
 } from "./components/chat-input-panel";
 import { ChatTranscriptPanel } from "./components/chat-transcript-panel";
+import { HelpPanel } from "./components/help-panel";
 import {
 	IntegrationMultiPickerModal,
 	buildIntegrationPickerRows,
 } from "./components/integration-multi-picker-modal";
-import { HelpPanel } from "./components/help-panel";
-import { UsagePanel } from "./components/usage-panel";
 import { PlanStatusBar } from "./components/plan-status-bar";
 import { ProjectDetailModal } from "./components/project-detail-modal";
 import {
@@ -148,36 +147,38 @@ import {
 	maxScrollModalOffset,
 	scrollModalVisibleLineBudget,
 } from "./components/scrollable-text-modal";
+import { UsagePanel } from "./components/usage-panel";
 import {
 	countIntegrationConnectionStatuses,
 	runConnectionProbes,
 } from "./connection-probe";
 import { ACCENT, TIPS } from "./constants";
-import { buildHelpSections } from "./help-sections";
-import { buildUsageSections } from "./usage-sections";
-import { buildUiTurnContext } from "./pipeline-turn-context";
 import { DaemonChatBridge } from "./daemon-chat-bridge";
-import { runDaemonChatTurn } from "./run-daemon-turn";
+import { buildHelpSections } from "./help-sections";
+import { buildUiTurnContext } from "./pipeline-turn-context";
 import { appendPromptHistory, loadPromptHistory } from "./prompt-history";
-import { buildSessionNoticeEntry, buildTurnCancellationNoticeEntry, recordSessionNote } from "./session-note";
+import { routePromptSubmit } from "./prompt-submit";
+import { runDaemonChatTurn } from "./run-daemon-turn";
+import {
+	buildSessionNoticeEntry,
+	buildTurnCancellationNoticeEntry,
+	recordSessionNote,
+} from "./session-note";
+import { logSkillDebugNotes } from "./skill-debug";
+import { SLASH_COMMANDS, getNearestSlashCommand } from "./slash-commands";
+import type { SlashCommand } from "./slash-commands";
+import { readTranscriptFile } from "./slash-commands/stop-listening";
+import type { UpgradeUiStatus } from "./slash-commands/types";
 import {
 	isFirstSteeringTurn,
 	priorMessagesForSteeringTurn,
 } from "./steering-messages";
-import { logSkillDebugNotes } from "./skill-debug";
-import {
-	SLASH_COMMANDS,
-	getNearestSlashCommand,
-} from "./slash-commands";
-import type { SlashCommand } from "./slash-commands";
-import { readTranscriptFile } from "./slash-commands/stop-listening";
-import type { UpgradeUiStatus } from "./slash-commands/types";
-import { routePromptSubmit } from "./prompt-submit";
 import { buildTerminalInfoLines } from "./terminal-info-lines";
 import { logToolSelectionNotes } from "./tool-selection-transcript";
 import { applyPersistedChatEvent } from "./transcript-events";
 import { flattenTranscript } from "./transcript-layout";
 import type { AskModal, DisplayRow, TranscriptEntry } from "./types";
+import { buildUsageSections } from "./usage-sections";
 import { useUpdateCheck } from "./use-update-check";
 import { yieldToRenderer } from "./yield-to-renderer";
 
@@ -558,9 +559,6 @@ export function ChatSessionApp({
 
 	useLayoutEffect(() => {
 		selectedModulesRef.current = selectedModules;
-	}, [selectedModules]);
-
-	useEffect(() => {
 		clearSessionToolBundleCache();
 	}, [selectedModules]);
 
@@ -747,9 +745,7 @@ export function ChatSessionApp({
 				setBootActivityLine("Preparing session…");
 			} catch (error) {
 				if (!cancelled) {
-					setBootError(
-						error instanceof Error ? error.message : String(error),
-					);
+					setBootError(error instanceof Error ? error.message : String(error));
 				}
 			}
 		})();
@@ -790,7 +786,9 @@ export function ChatSessionApp({
 					callbacks: daemonTurnCallbacks(),
 				});
 				const loaded = await bridge.loadSession(sid);
-				setMessages(loaded.messageCount > 0 ? [{ role: "user", content: "" }] : []);
+				setMessages(
+					loaded.messageCount > 0 ? [{ role: "user", content: "" }] : [],
+				);
 				return { text: result.text, responseMessages: [] };
 			} catch {
 				return { text: "", responseMessages: [] };
@@ -829,12 +827,7 @@ export function ChatSessionApp({
 		return () => {
 			cancelled = true;
 		};
-	}, [
-		daemonReady,
-		sessionBootMode,
-		messages,
-		activePersona.name,
-	]);
+	}, [daemonReady, sessionBootMode, messages, activePersona.name]);
 
 	// Daemon persists messages/transcript; skip local SQLite incremental writes.
 	useEffect(() => {
@@ -915,7 +908,7 @@ export function ChatSessionApp({
 		}
 		didAutoRunFirstTurnRef.current = true;
 
-		let sid = sessionId;
+		const sid = sessionId;
 		if (!sid) {
 			const bridge = daemonBridgeRef.current;
 			if (!bridge) return;
@@ -1376,10 +1369,7 @@ export function ChatSessionApp({
 		[],
 	);
 
-	const helpSections = useMemo(
-		() => buildHelpSections(SLASH_COMMANDS),
-		[],
-	);
+	const helpSections = useMemo(() => buildHelpSections(SLASH_COMMANDS), []);
 
 	const openHelpViewer = useCallback(() => {
 		setHelpOpen(true);
@@ -1463,254 +1453,260 @@ export function ChatSessionApp({
 				const slash = routed.resolution;
 				if (slash.kind === "execute" && slash.command) {
 					void slash.command.run(
-					{
-						exit,
-						openHelp: openHelpViewer,
-						openUsageViewer,
-						openLogViewer,
-						openTerminalViewer,
-						openTextViewer,
-						openConfig: () => {
-							setConfigureSession(createConfigureSession());
-							setConfigureInitialPath(undefined);
-							setConfigureEditorItemKey(undefined);
-							setConfigureMountKey((k) => k + 1);
-							setShowConfig(true);
-						},
-						openSkills: () => {
-							setConfigureSession(createConfigureSession());
-							setConfigureInitialPath(["root", "skills"]);
-							setConfigureEditorItemKey(undefined);
-							setConfigureMountKey((k) => k + 1);
-							setShowConfig(true);
-						},
-						openSchedules: () => {
-							setConfigureSession(createConfigureSession());
-							setConfigureInitialPath(["root", "schedules"]);
-							setConfigureEditorItemKey(undefined);
-							setConfigureMountKey((k) => k + 1);
-							setShowConfig(true);
-						},
-						openPersonaPicker: () => {
-							openPersonaPickerModal();
-						},
-						openPersonaConfigure: (pathKeys) => {
-							openPersonaEditorAtPath(pathKeys);
-						},
-						openProjectPicker: () => {
-							openProjectPickerModal();
-						},
-						openProjectConfigure: (slug) => {
-							openProjectEditorAtPath(slug);
-						},
-						openIntegrationPicker: () => {
-							void openIntegrationPicker();
-						},
-						openSessionsPicker: () => {
-							openSessionsPicker();
-						},
-						startNewSession: () => {
-							startFreshSession({
-								prompt: "",
-								note: "Started a new chat session.",
-							});
-						},
-						restartServer,
-						chatIntegrationsCount: chatIntegrations.length,
-						launchContext,
-						addMetaLine: (text) => {
-							recordSessionNote(sessionIdRef.current, text);
-						},
-						addNoticeLine: (text, tone) => {
-							appendSessionNotice(text, tone);
-						},
-						updateProgressNotice,
-						addUserContextMessage: (text) => {
-							recordSessionNote(sessionIdRef.current, text);
-							setMessages((msgs) =>
-								msgs
-									? [
-											...msgs,
-											{
-												role: "user" as const,
-												content: text,
-											},
-										]
-									: msgs,
-							);
-						},
-						setUpgradeStatus: setUpgradeUiStatus,
-						getActivePlan: () => activePlanRef.current,
-						skipPlanPhase: (planId: string, phaseId: string) => {
-							skipPhase(planId, phaseId);
-							const refreshed = loadPlanBySession(sessionIdRef.current ?? "");
-							if (refreshed) {
-								setActivePlan(refreshed);
-								activePlanRef.current = refreshed;
-							}
-						},
-						cancelPlan: (planId: string) => {
-							cancelPlan(planId);
-							const refreshed = loadPlanBySession(sessionIdRef.current ?? "");
-							if (refreshed) {
-								setActivePlan(refreshed);
-								activePlanRef.current = refreshed;
-							}
-						},
-						startListenRecording: () => {
-							if (listenHandleRef.current) return;
-							try {
-								const session = prepareListenSession({
-									sources: { mic: true, system: true },
+						{
+							exit,
+							openHelp: openHelpViewer,
+							openUsageViewer,
+							openLogViewer,
+							openTerminalViewer,
+							openTextViewer,
+							openConfig: () => {
+								setConfigureSession(createConfigureSession());
+								setConfigureInitialPath(undefined);
+								setConfigureEditorItemKey(undefined);
+								setConfigureMountKey((k) => k + 1);
+								setShowConfig(true);
+							},
+							openSkills: () => {
+								setConfigureSession(createConfigureSession());
+								setConfigureInitialPath(["root", "skills"]);
+								setConfigureEditorItemKey(undefined);
+								setConfigureMountKey((k) => k + 1);
+								setShowConfig(true);
+							},
+							openSchedules: () => {
+								setConfigureSession(createConfigureSession());
+								setConfigureInitialPath(["root", "schedules"]);
+								setConfigureEditorItemKey(undefined);
+								setConfigureMountKey((k) => k + 1);
+								setShowConfig(true);
+							},
+							openPersonaPicker: () => {
+								openPersonaPickerModal();
+							},
+							openPersonaConfigure: (pathKeys) => {
+								openPersonaEditorAtPath(pathKeys);
+							},
+							openProjectPicker: () => {
+								openProjectPickerModal();
+							},
+							openProjectConfigure: (slug) => {
+								openProjectEditorAtPath(slug);
+							},
+							openIntegrationPicker: () => {
+								void openIntegrationPicker();
+							},
+							openSessionsPicker: () => {
+								openSessionsPicker();
+							},
+							startNewSession: () => {
+								startFreshSession({
+									prompt: "",
+									note: "Started a new chat session.",
 								});
-								listenHelperVersionRef.current = undefined;
-								listenFilesRef.current = {};
-								listenErrorsRef.current = [];
-								const handle = startMacOSAudioCapture({
-									session,
-									onEvent: (event) => {
-										if (event.type === "ready") {
-											listenHelperVersionRef.current = event.helperVersion;
-											listenFilesRef.current = {
-												...listenFilesRef.current,
-												...(event.files ?? {}),
-											};
-											appendSessionNotice(
-												"Recording started. Use /stop-listening to stop.",
-												"success",
+							},
+							restartServer,
+							chatIntegrationsCount: chatIntegrations.length,
+							launchContext,
+							addMetaLine: (text) => {
+								recordSessionNote(sessionIdRef.current, text);
+							},
+							addNoticeLine: (text, tone) => {
+								appendSessionNotice(text, tone);
+							},
+							updateProgressNotice,
+							addUserContextMessage: (text) => {
+								recordSessionNote(sessionIdRef.current, text);
+								setMessages((msgs) =>
+									msgs
+										? [
+												...msgs,
+												{
+													role: "user" as const,
+													content: text,
+												},
+											]
+										: msgs,
+								);
+							},
+							setUpgradeStatus: setUpgradeUiStatus,
+							getActivePlan: () => activePlanRef.current,
+							skipPlanPhase: (planId: string, phaseId: string) => {
+								skipPhase(planId, phaseId);
+								const refreshed = loadPlanBySession(sessionIdRef.current ?? "");
+								if (refreshed) {
+									setActivePlan(refreshed);
+									activePlanRef.current = refreshed;
+								}
+							},
+							cancelPlan: (planId: string) => {
+								cancelPlan(planId);
+								const refreshed = loadPlanBySession(sessionIdRef.current ?? "");
+								if (refreshed) {
+									setActivePlan(refreshed);
+									activePlanRef.current = refreshed;
+								}
+							},
+							startListenRecording: () => {
+								if (listenHandleRef.current) return;
+								try {
+									const session = prepareListenSession({
+										sources: { mic: true, system: true },
+									});
+									listenHelperVersionRef.current = undefined;
+									listenFilesRef.current = {};
+									listenErrorsRef.current = [];
+									const handle = startMacOSAudioCapture({
+										session,
+										onEvent: (event) => {
+											if (event.type === "ready") {
+												listenHelperVersionRef.current = event.helperVersion;
+												listenFilesRef.current = {
+													...listenFilesRef.current,
+													...(event.files ?? {}),
+												};
+												appendSessionNotice(
+													"Recording started. Use /stop-listening to stop.",
+													"success",
+												);
+												return;
+											}
+											if (event.type === "error") {
+												listenErrorsRef.current = [
+													...listenErrorsRef.current,
+													event.message,
+												];
+												setTranscript((t) => [
+													...t,
+													{
+														kind: "error",
+														text: `Recording error: ${event.message}`,
+													},
+												]);
+												listenHandleRef.current = null;
+												listenSessionRef.current = null;
+												setIsListenRecording(false);
+												return;
+											}
+											if ("files" in event && event.files) {
+												listenFilesRef.current = {
+													...listenFilesRef.current,
+													...event.files,
+												};
+											}
+										},
+									});
+									listenHandleRef.current = handle;
+									listenSessionRef.current = session;
+									setIsListenRecording(true);
+								} catch (error) {
+									const msg =
+										error instanceof Error ? error.message : String(error);
+									setTranscript((t) => [
+										...t,
+										{
+											kind: "error",
+											text: `Could not start recording: ${msg}`,
+										},
+									]);
+								}
+							},
+							stopListenRecording: async (action) => {
+								const handle = listenHandleRef.current;
+								const session = listenSessionRef.current;
+								if (!handle || !session) return null;
+								try {
+									await handle.stop(action);
+									await waitForAudioHelperExit(handle.child);
+									listenHandleRef.current = null;
+									listenSessionRef.current = null;
+									setIsListenRecording(false);
+									if (action === "discard") {
+										discardListenSession(session);
+										return null;
+									}
+									const savedFiles = remapListenFilesToFinalDir(
+										session,
+										listenFilesRef.current,
+									);
+									const metadata = buildListenMetadata({
+										session,
+										files: savedFiles,
+										stoppedAt: new Date(),
+										helperVersion: listenHelperVersionRef.current,
+										errors: listenErrorsRef.current,
+									});
+									const outputDir = saveListenSession(session, metadata);
+									const helperPath = handle.helperPath;
+									let transcript = readTranscriptFile(outputDir);
+									let transcriptionError: string | undefined;
+									if (!transcript && savedFiles.combined) {
+										try {
+											const transcriptFiles = await transcribeWithPlugin({
+												input: savedFiles.combined,
+												outDir: outputDir,
+											});
+											writeListenMetadata(
+												outputDir,
+												applyTranscriptFilesToMetadata(metadata, {
+													...savedFiles,
+													...transcriptFiles,
+												}),
 											);
-											return;
-										}
-										if (event.type === "error") {
+											transcript = readTranscriptFile(outputDir);
+										} catch (transcribeError) {
+											const msg =
+												transcribeError instanceof Error
+													? transcribeError.message
+													: String(transcribeError);
+											transcriptionError = msg;
 											listenErrorsRef.current = [
 												...listenErrorsRef.current,
-												event.message,
+												msg,
 											];
-											setTranscript((t) => [
-												...t,
-												{
-													kind: "error",
-													text: `Recording error: ${event.message}`,
-												},
-											]);
-											listenHandleRef.current = null;
-											listenSessionRef.current = null;
-											setIsListenRecording(false);
-											return;
+											writeListenMetadata(
+												outputDir,
+												buildListenMetadata({
+													session,
+													files: savedFiles,
+													stoppedAt: new Date(),
+													helperVersion: listenHelperVersionRef.current,
+													errors: listenErrorsRef.current,
+												}),
+											);
 										}
-										if ("files" in event && event.files) {
-											listenFilesRef.current = {
-												...listenFilesRef.current,
-												...event.files,
-											};
-										}
-									},
-								});
-								listenHandleRef.current = handle;
-								listenSessionRef.current = session;
-								setIsListenRecording(true);
-							} catch (error) {
-								const msg =
-									error instanceof Error ? error.message : String(error);
-								setTranscript((t) => [
-									...t,
-									{ kind: "error", text: `Could not start recording: ${msg}` },
-								]);
-							}
-						},
-						stopListenRecording: async (action) => {
-							const handle = listenHandleRef.current;
-							const session = listenSessionRef.current;
-							if (!handle || !session) return null;
-							try {
-								await handle.stop(action);
-								await waitForAudioHelperExit(handle.child);
-								listenHandleRef.current = null;
-								listenSessionRef.current = null;
-								setIsListenRecording(false);
-								if (action === "discard") {
-									discardListenSession(session);
+									}
+									return { outputDir, transcript, transcriptionError };
+								} catch (error) {
+									const msg =
+										error instanceof Error ? error.message : String(error);
+									listenHandleRef.current = null;
+									listenSessionRef.current = null;
+									setIsListenRecording(false);
+									setTranscript((t) => [
+										...t,
+										{
+											kind: "error",
+											text: `Could not finalize recording: ${msg}`,
+										},
+									]);
 									return null;
 								}
-								const savedFiles = remapListenFilesToFinalDir(
-									session,
-									listenFilesRef.current,
-								);
-								const metadata = buildListenMetadata({
-									session,
-									files: savedFiles,
-									stoppedAt: new Date(),
-									helperVersion: listenHelperVersionRef.current,
-									errors: listenErrorsRef.current,
-								});
-								const outputDir = saveListenSession(session, metadata);
-								const helperPath = handle.helperPath;
-								let transcript = readTranscriptFile(outputDir);
-								let transcriptionError: string | undefined;
-								if (!transcript && savedFiles.combined) {
-									try {
-										const transcriptFiles = await transcribeWithPlugin({
-											input: savedFiles.combined,
-											outDir: outputDir,
-										});
-										writeListenMetadata(
-											outputDir,
-											applyTranscriptFilesToMetadata(metadata, {
-												...savedFiles,
-												...transcriptFiles,
-											}),
-										);
-										transcript = readTranscriptFile(outputDir);
-									} catch (transcribeError) {
-										const msg =
-											transcribeError instanceof Error
-												? transcribeError.message
-												: String(transcribeError);
-										transcriptionError = msg;
-										listenErrorsRef.current = [...listenErrorsRef.current, msg];
-										writeListenMetadata(
-											outputDir,
-											buildListenMetadata({
-												session,
-												files: savedFiles,
-												stoppedAt: new Date(),
-												helperVersion: listenHelperVersionRef.current,
-												errors: listenErrorsRef.current,
-											}),
-										);
-									}
-								}
-								return { outputDir, transcript, transcriptionError };
-							} catch (error) {
-								const msg =
-									error instanceof Error ? error.message : String(error);
-								listenHandleRef.current = null;
-								listenSessionRef.current = null;
-								setIsListenRecording(false);
-								setTranscript((t) => [
-									...t,
-									{
-										kind: "error",
-										text: `Could not finalize recording: ${msg}`,
-									},
-								]);
-								return null;
-							}
+							},
+							isListenRecording: () => listenHandleRef.current !== null,
 						},
-						isListenRecording: () => listenHandleRef.current !== null,
-					},
-					slash.rawArgs,
-				);
+						slash.rawArgs,
+					);
+					return;
+				}
+				if (slash.kind === "unknown") {
+					appendSessionNotice(
+						`Unknown command: ${slash.attemptedToken ?? line}.`,
+						"error",
+					);
+					return;
+				}
 				return;
-			}
-			if (slash.kind === "unknown") {
-				appendSessionNotice(
-					`Unknown command: ${slash.attemptedToken ?? line}.`,
-					"error",
-				);
-				return;
-			}
-			return;
 			}
 
 			if (routed.kind !== "chat") {
@@ -1720,7 +1716,7 @@ export function ChatSessionApp({
 			if (msgs === null) {
 				return;
 			}
-			let sid = sessionIdRef.current;
+			const sid = sessionIdRef.current;
 			const bridge = daemonBridgeRef.current;
 			if (!bridge) {
 				appendSessionNotice("Server API not ready.", "error");
@@ -1765,8 +1761,7 @@ export function ChatSessionApp({
 		[
 			appendSessionNotice,
 			chatIntegrations.length,
-			debug,
-			dryRun,
+			daemonTurnCallbacks,
 			exit,
 			launchContext,
 			openIntegrationPicker,
@@ -1777,9 +1772,12 @@ export function ChatSessionApp({
 			openTextViewer,
 			openPersonaEditorAtPath,
 			openPersonaPickerModal,
+			openProjectEditorAtPath,
+			openProjectPickerModal,
 			openSessionsPicker,
 			restartServer,
 			startFreshSession,
+			updateProgressNotice,
 		],
 	);
 
@@ -2244,10 +2242,12 @@ export function ChatSessionApp({
 			}
 		},
 		[
+			applyProjectFromPicker,
 			applyPersonaFromPicker,
 			exit,
 			loadSessionIntoMemory,
 			openPersonaEditorAtPath,
+			openProjectEditorAtPath,
 			showConfig,
 			terminalRows,
 		],

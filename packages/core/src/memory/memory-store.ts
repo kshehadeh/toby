@@ -334,14 +334,18 @@ export function listItems(
 	let sql = `SELECT id, user_id, type, subject, value, confidence, sensitivity, visibility, expires_at, created_at, updated_at
        FROM memory_items
        WHERE user_id = $uid`;
-	const params: Record<string, unknown> = { $uid: userId, $limit: limit, $offset: offset };
+	const params: Record<string, unknown> = {
+		$uid: userId,
+		$limit: limit,
+		$offset: offset,
+	};
 
 	if (query) {
-		sql += ` AND (value LIKE $pat OR subject LIKE $pat OR type LIKE $pat)`;
+		sql += " AND (value LIKE $pat OR subject LIKE $pat OR type LIKE $pat)";
 		params.$pat = `%${query}%`;
 	}
 
-	sql += ` ORDER BY updated_at DESC LIMIT $limit OFFSET $offset`;
+	sql += " ORDER BY updated_at DESC LIMIT $limit OFFSET $offset";
 
 	const rows = db.query(sql).all(params) as Array<{
 		id: string;

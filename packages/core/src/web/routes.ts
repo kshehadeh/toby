@@ -12,12 +12,6 @@ import {
 	handleSessionTurn,
 } from "./handlers/chat";
 import {
-	handleModulesList,
-	handlePersonasList,
-	handleSkillsList,
-} from "./handlers/metadata";
-import { handlePlanCancel, handlePlanSkip } from "./handlers/plan";
-import {
 	handleConfigureAction,
 	handleConfigurePatch,
 	handleConfigureTree,
@@ -32,6 +26,12 @@ import {
 	handleMemoryDetail,
 	handleMemoryExplain,
 } from "./handlers/memories";
+import {
+	handleModulesList,
+	handlePersonasList,
+	handleSkillsList,
+} from "./handlers/metadata";
+import { handlePlanCancel, handlePlanSkip } from "./handlers/plan";
 import { handleSessionDetail, handleSessionsList } from "./handlers/sessions";
 import { errorResponse, jsonResponse } from "./http-utils";
 
@@ -146,16 +146,18 @@ export async function handleWebRequest(
 		if (sessionTurnMatch && req.method === "POST") {
 			return handleSessionTurn(decodeURIComponent(sessionTurnMatch[1]), req);
 		}
-		const sessionBootstrapMatch =
-			/^\/api\/sessions\/([^/]+)\/bootstrap$/.exec(pathname);
+		const sessionBootstrapMatch = /^\/api\/sessions\/([^/]+)\/bootstrap$/.exec(
+			pathname,
+		);
 		if (sessionBootstrapMatch && req.method === "POST") {
 			return handleSessionBootstrap(
 				decodeURIComponent(sessionBootstrapMatch[1]),
 				req,
 			);
 		}
-		const sessionPlanSkipMatch =
-			/^\/api\/sessions\/([^/]+)\/plan\/skip$/.exec(pathname);
+		const sessionPlanSkipMatch = /^\/api\/sessions\/([^/]+)\/plan\/skip$/.exec(
+			pathname,
+		);
 		if (sessionPlanSkipMatch && req.method === "POST") {
 			return handlePlanSkip(decodeURIComponent(sessionPlanSkipMatch[1]), req);
 		}

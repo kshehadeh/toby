@@ -1,10 +1,10 @@
+import { describe, expect, it } from "vitest";
 import {
 	buildMrkdwnSectionBlocks,
 	markdownToMrkdwn,
 	stripMarkdownForPlainFallback,
 	truncateSlackMarkdown,
 } from "../../plugin-slack/src/slack-markdown";
-import { describe, expect, it } from "vitest";
 
 describe("slack markdown formatting", () => {
 	it("converts common GFM to mrkdwn", () => {

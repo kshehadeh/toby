@@ -39,7 +39,9 @@ export function priorMessagesForSteeringTurn(
 }
 
 /** Whether the steering prep pipeline should treat this as a first user turn. */
-export function isFirstSteeringTurn(priorMessages: readonly CoreMessage[]): boolean {
+export function isFirstSteeringTurn(
+	priorMessages: readonly CoreMessage[],
+): boolean {
 	return !priorMessages.some((message) => message.role === "user");
 }
 

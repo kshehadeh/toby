@@ -1,7 +1,11 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { readConfig, readCredentials, writeCredentials } from "@toby/core/config/index";
+import {
+	readConfig,
+	readCredentials,
+	writeCredentials,
+} from "@toby/core/config/index";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createConfigureSession } from "../src/ui/configure/session";

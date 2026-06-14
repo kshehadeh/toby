@@ -76,7 +76,9 @@ if (process.platform === "darwin") {
 		encoding: "utf8",
 	});
 	if (otool.status !== 0) {
-		console.error(`Failed to inspect toby-plugin-whisper linkage: ${otool.stderr}`);
+		console.error(
+			`Failed to inspect toby-plugin-whisper linkage: ${otool.stderr}`,
+		);
 		process.exit(1);
 	}
 	if (otool.stdout.includes("@rpath/libwhisper")) {

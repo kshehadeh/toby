@@ -1,3 +1,4 @@
+import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { applyTranscriptFilesToMetadata } from "../../commands/listen";
 import {
@@ -19,7 +20,6 @@ import {
 	writeListenMetadata,
 } from "../../listen/session-controller";
 import type { ListenRecordingSummary } from "../../listen/session-controller";
-import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
 import type {
 	ListenRecordingFiles,
 	ListenSourceSelection,

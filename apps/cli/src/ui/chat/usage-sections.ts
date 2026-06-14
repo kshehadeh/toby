@@ -1,8 +1,8 @@
 import {
+	type SessionTokenTotals,
 	extractTokenUsageReport,
 	formatSessionTokenCount,
 	sessionTokenTotalTokens,
-	type SessionTokenTotals,
 } from "@toby/core/ai/caching";
 import type { AIProviderPlanUsage } from "@toby/core/ai/plan-usage";
 import { getAIProviderDisplayName } from "@toby/core/ai/providers";
@@ -123,9 +123,7 @@ function buildProviderPlanRows(
 	if (!planUsage.supported) {
 		rows.push({
 			label: "Plan usage",
-			keys:
-				planUsage.unavailableReason ??
-				"Not available for this provider.",
+			keys: planUsage.unavailableReason ?? "Not available for this provider.",
 		});
 		return rows;
 	}

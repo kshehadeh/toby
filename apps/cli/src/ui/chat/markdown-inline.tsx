@@ -23,9 +23,9 @@ type InlineRenderOptions = {
 	readonly heading?: boolean;
 	readonly headingColor?: string;
 	readonly dimColor?: boolean;
-	readonly pieceColor?: (piece: InlinePiece & { readonly color?: string }) =>
-		| string
-		| undefined;
+	readonly pieceColor?: (
+		piece: InlinePiece & { readonly color?: string },
+	) => string | undefined;
 };
 
 const HEADING_STYLE: Record<MarkdownHeading["level"], { color: string }> = {
@@ -43,7 +43,10 @@ const LINK_COLOR = "cyan";
 
 type ParsedMarkdownLink = LinkSegment & { readonly consumed: number };
 
-function splitMarkdownLinksAt(line: string, start: number): ParsedMarkdownLink | null {
+function splitMarkdownLinksAt(
+	line: string,
+	start: number,
+): ParsedMarkdownLink | null {
 	if (line[start] !== "[") {
 		return null;
 	}
@@ -245,9 +248,7 @@ export function parseInlineMarkdownPieces(line: string): InlinePiece[] {
 		const segments = linkSeg.href ? [linkSeg] : splitBareUrls(linkSeg.text);
 		for (const segment of segments) {
 			const styled = parseBoldItalicPieces(segment.text);
-			out.push(
-				...(segment.href ? attachHref(styled, segment.href) : styled),
-			);
+			out.push(...(segment.href ? attachHref(styled, segment.href) : styled));
 		}
 	}
 	return out.length > 0 ? out : [{ bold: false, italic: false, text: "" }];
@@ -324,10 +325,14 @@ export function renderInlineMarkdownChildren(
 ): ReactNode[] {
 	const renderOptions = options ?? {};
 	const nodes: ReactNode[] = [];
-	for (const [groupIdx, group] of groupInlinePiecesForRender(pieces).entries()) {
+	for (const [groupIdx, group] of groupInlinePiecesForRender(
+		pieces,
+	).entries()) {
 		if (group.kind === "text") {
 			for (const [pieceIdx, piece] of group.pieces.entries()) {
-				nodes.push(renderStyledText(piece, groupIdx * 100 + pieceIdx, renderOptions));
+				nodes.push(
+					renderStyledText(piece, groupIdx * 100 + pieceIdx, renderOptions),
+				);
 			}
 			continue;
 		}

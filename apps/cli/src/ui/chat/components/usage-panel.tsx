@@ -1,5 +1,5 @@
 import { Box, Text } from "ink";
-import React from "react";
+import type React from "react";
 import { ViewModal } from "../../shared";
 import { ACCENT } from "../constants";
 import type { HelpKeyRow } from "../help-sections";

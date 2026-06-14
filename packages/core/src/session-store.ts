@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { CoreMessage } from "./ai/chat";
 import type { UserIntentSpec } from "./ai/pretreatment";
-import type { TranscriptEntry } from "./chat-pipeline/transcript-types";
 import type { ChatSessionSettings } from "./api/chat-api";
+import type { TranscriptEntry } from "./chat-pipeline/transcript-types";
 import { ensureTobyDir, getChatDbPath } from "./config/index";
 import {
 	deserializeTranscriptRow,
@@ -214,7 +214,9 @@ export function parseSessionSettingsJson(
 			...(Array.isArray(parsed.modules)
 				? { modules: parsed.modules.map(String) }
 				: {}),
-			...(parsed.dryRun !== undefined ? { dryRun: Boolean(parsed.dryRun) } : {}),
+			...(parsed.dryRun !== undefined
+				? { dryRun: Boolean(parsed.dryRun) }
+				: {}),
 			...(parsed.debug !== undefined ? { debug: Boolean(parsed.debug) } : {}),
 		};
 	} catch {
@@ -227,7 +229,9 @@ export function getSessionSettings(sessionId: string): ChatSessionSettings {
 	if (!id) return {};
 	const db = getDb();
 	const row = db
-		.query("SELECT settings_json as settingsJson FROM chat_sessions WHERE id = $id")
+		.query(
+			"SELECT settings_json as settingsJson FROM chat_sessions WHERE id = $id",
+		)
 		.get({ $id: id }) as { settingsJson: string | null } | undefined;
 	return parseSessionSettingsJson(row?.settingsJson);
 }
@@ -240,7 +244,7 @@ export function setSessionSettings(
 	if (!id) return;
 	const db = getDb();
 	db.query(
-		`UPDATE chat_sessions SET settings_json = $json, updated_at = $updated_at WHERE id = $id`,
+		"UPDATE chat_sessions SET settings_json = $json, updated_at = $updated_at WHERE id = $id",
 	).run({
 		$id: id,
 		$json: JSON.stringify(settings),

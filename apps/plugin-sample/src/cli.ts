@@ -81,7 +81,7 @@ function handleStatus(config: JsonRecord, state: JsonRecord): never {
 				"You are assisting via the Sample Plugin integration. Use sample tools when helpful.",
 			singleSessionUserTemplate: "{{userPrompt}}",
 			multiUserContentTemplate:
-				"## Sample Plugin context\nUse sample tools when the user request benefits from them.\n\nQuery: \"{{userPrompt}}\"",
+				'## Sample Plugin context\nUse sample tools when the user request benefits from them.\n\nQuery: "{{userPrompt}}"',
 		},
 		setupAvailable: true,
 		setupDescription: "Demo setup for protocol testing",

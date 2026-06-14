@@ -63,9 +63,13 @@ const markdownComponents: Components = {
 		<thead className="border-b border-border bg-muted/60">{children}</thead>
 	),
 	tbody: ({ children }) => <tbody>{children}</tbody>,
-	tr: ({ children }) => <tr className="border-b border-border/70">{children}</tr>,
+	tr: ({ children }) => (
+		<tr className="border-b border-border/70">{children}</tr>
+	),
 	th: ({ children }) => (
-		<th className="px-3 py-1.5 text-left align-top font-semibold">{children}</th>
+		<th className="px-3 py-1.5 text-left align-top font-semibold">
+			{children}
+		</th>
 	),
 	td: ({ children }) => (
 		<td className="px-3 py-1.5 align-top leading-relaxed">{children}</td>
@@ -75,7 +79,10 @@ const markdownComponents: Components = {
 export function AssistantMarkdown({ text }: { readonly text: string }) {
 	return (
 		<div className="ml-4 font-sans text-sm leading-relaxed text-foreground">
-			<ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+			<ReactMarkdown
+				remarkPlugins={[remarkGfm]}
+				components={markdownComponents}
+			>
 				{text}
 			</ReactMarkdown>
 		</div>

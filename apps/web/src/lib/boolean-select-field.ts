@@ -3,14 +3,11 @@ import type { SettingsItem } from "@/types";
 const TRUE_FALSE_OPTIONS = ["false", "true"] as const;
 const YES_NO_OPTIONS = ["No", "Yes"] as const;
 
-function optionsMatch(
-	options: string[],
-	expected: readonly string[],
-): boolean {
+function optionsMatch(options: string[], expected: readonly string[]): boolean {
 	return (
 		options.length === expected.length &&
 		expected.every((value) => options.includes(value))
-	)
+	);
 }
 
 export function isBooleanSelectField(field: SettingsItem): boolean {

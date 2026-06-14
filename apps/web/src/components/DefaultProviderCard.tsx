@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfigureSelect } from "@/components/ConfigureSelect";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getProviderCategoryIcon } from "@/lib/provider-category-icons";
 import type { SettingsItem } from "@/types";
 

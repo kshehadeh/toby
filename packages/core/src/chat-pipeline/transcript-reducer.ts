@@ -1,7 +1,7 @@
 import type { AskUserToolResult } from "../ai/ask-user-tool";
+import { getToolDisplayLabel } from "../tool-labels";
 import type { ChatEvent } from "./chat-events";
 import type { ToolRunEntry, TranscriptEntry } from "./transcript-types";
-import { getToolDisplayLabel } from "../tool-labels";
 
 export type ToolOutputFormatContext = {
 	readonly toolName: string;
@@ -39,10 +39,16 @@ function defaultToolOutputFormatter(ctx: ToolOutputFormatContext): string {
 	}
 	if (result && typeof result === "object") {
 		const record = result as Record<string, unknown>;
-		if (typeof record.message === "string" && record.message.trim().length > 0) {
+		if (
+			typeof record.message === "string" &&
+			record.message.trim().length > 0
+		) {
 			return sanitizeOneLine(record.message);
 		}
-		if (typeof record.summary === "string" && record.summary.trim().length > 0) {
+		if (
+			typeof record.summary === "string" &&
+			record.summary.trim().length > 0
+		) {
 			return sanitizeOneLine(record.summary);
 		}
 		if (record.success === true) {

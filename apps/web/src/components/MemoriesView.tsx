@@ -1,13 +1,13 @@
 import { api } from "@/api/client";
-import type { MemoryExplanation } from "@/types";
 import { SidebarScrollPanel } from "@/components/SidebarScrollPanel";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import type { MemoryExplanation } from "@/types";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 export function MemoriesView() {
 	const { memoryId } = useParams();
@@ -21,7 +21,12 @@ export function MemoriesView() {
 
 	const explainQuery = useQuery({
 		queryKey: ["memory-explain", memoryId],
-		queryFn: () => api.memoryExplain(memoryId!),
+		queryFn: () => {
+			if (!memoryId) {
+				throw new Error("Memory id is required");
+			}
+			return api.memoryExplain(memoryId);
+		},
 		enabled: Boolean(memoryId),
 	});
 

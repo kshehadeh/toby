@@ -1,10 +1,10 @@
+import { api } from "@/api/client";
 import { Badge } from "@/components/ui/badge";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { api } from "@/api/client";
 import { cn } from "@/lib/utils";
 import type { ChatInboundStatus } from "@/types";
 import { useQuery } from "@tanstack/react-query";
@@ -62,7 +62,9 @@ function buildTooltip(chat: ChatInboundStatus): string {
 		return chat.disabledReason;
 	}
 	const provider = chat.integrationLabel ?? chat.integration ?? "Chat provider";
-	const lines = [`Listening on ${provider} (${statusLabel(chat.status).toLowerCase()}).`];
+	const lines = [
+		`Listening on ${provider} (${statusLabel(chat.status).toLowerCase()}).`,
+	];
 	if (chat.detail) {
 		lines.push(chat.detail);
 	}

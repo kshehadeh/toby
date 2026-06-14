@@ -1,7 +1,4 @@
-import {
-	resolveSlashSubmission,
-	type SlashCommand,
-} from "./slash-commands";
+import { type SlashCommand, resolveSlashSubmission } from "./slash-commands";
 
 export type PromptSubmitRoute =
 	| { readonly kind: "empty" }

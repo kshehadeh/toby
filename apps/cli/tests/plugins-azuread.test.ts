@@ -1,6 +1,11 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { readCredentials, writeCredentials } from "@toby/core/config/index";
+import {
+	getIntegrationModule,
+	isBuiltinIntegration,
+} from "@toby/core/integrations/index";
 import {
 	createPluginIntegrationModule,
 	loadPluginMetadata,
@@ -13,15 +18,7 @@ import {
 	pluginToolsList,
 } from "@toby/core/integrations/plugins/client";
 import { migrateLegacyPluginCredentials } from "@toby/core/integrations/plugins/migrate";
-import {
-	getIntegrationModule,
-	isBuiltinIntegration,
-} from "@toby/core/integrations/index";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
-import {
-	readCredentials,
-	writeCredentials,
-} from "@toby/core/config/index";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
@@ -88,7 +85,9 @@ describe("azuread plugin", () => {
 		expect(shape.ok).toBe(true);
 		if (!shape.ok || !shape.data.fields) return;
 
-		const clientSecret = shape.data.fields.find((f) => f.key === "clientSecret");
+		const clientSecret = shape.data.fields.find(
+			(f) => f.key === "clientSecret",
+		);
 		expect(clientSecret?.showForAuthMethods).toEqual(["client_credentials"]);
 	});
 
@@ -139,7 +138,9 @@ describe("azuread plugin", () => {
 	});
 
 	it("mergePluginConfigPatch writes oauth tokens to integrations.azuread", () => {
-		writeCredentials({ integrations: { azuread: { tenantId: "t", clientId: "c" } } });
+		writeCredentials({
+			integrations: { azuread: { tenantId: "t", clientId: "c" } },
+		});
 		mergePluginConfigPatch("azuread", {
 			oauthAccessToken: "token-a",
 			oauthRefreshToken: "token-r",

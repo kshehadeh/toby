@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
 import type { Command } from "commander";
 import type { AudioHelperEvent } from "../listen/macos/audio-capture";
 import { combineWithMacOSAudioHelper } from "../listen/macos/audio-capture";
@@ -7,7 +8,6 @@ import {
 	metadataPath,
 	writeListenMetadata,
 } from "../listen/session-controller";
-import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
 import type {
 	ListenRecordingFiles,
 	ListenRecordingMetadata,

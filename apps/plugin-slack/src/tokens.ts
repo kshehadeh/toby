@@ -1,8 +1,8 @@
 import {
+	type SlackAuthMethod,
 	getConfigField,
 	getSlackAuthMethod,
 	normalizeConfig,
-	type SlackAuthMethod,
 } from "./config";
 
 const SLACK_OAUTH_ACCESS_URL = "https://slack.com/api/oauth.v2.access";
@@ -54,8 +54,7 @@ export function mergeOAuthTokens(
 	},
 ): JsonRecord {
 	const authMethod = getSlackAuthMethod(config);
-	const clientId =
-		tokens.clientId ?? getConfigField(config, "clientId") ?? "";
+	const clientId = tokens.clientId ?? getConfigField(config, "clientId") ?? "";
 	const clientSecret =
 		tokens.clientSecret ?? getConfigField(config, "clientSecret") ?? "";
 	const redirectUri =

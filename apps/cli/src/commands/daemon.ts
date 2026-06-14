@@ -305,9 +305,7 @@ export function registerDaemonCommand(program: Command): void {
 					const verb = result.wasRunning ? "restarted" : "started";
 					console.log(chalk.green(`Daemon ${verb} (PID ${result.pid}).`));
 					console.log(
-						chalk.dim(
-							`  Schedule poll interval: ${result.intervalSeconds}s`,
-						),
+						chalk.dim(`  Schedule poll interval: ${result.intervalSeconds}s`),
 					);
 					console.log(chalk.dim(`  Log: ${getDaemonLogPath()}`));
 					const webUrl = getWebUiUrlFromConfig();
@@ -323,9 +321,7 @@ export function registerDaemonCommand(program: Command): void {
 					process.exitCode = 1;
 				}
 			} catch (e) {
-				console.error(
-					chalk.red(e instanceof Error ? e.message : String(e)),
-				);
+				console.error(chalk.red(e instanceof Error ? e.message : String(e)));
 				process.exitCode = 1;
 			}
 		});

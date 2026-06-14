@@ -2,6 +2,7 @@ import process from "node:process";
 import { getIntegrationModules } from "@toby/core/integrations/index";
 import { getTobyVersion } from "@toby/core/version";
 import { Command } from "commander";
+import { normalizeRootCliArgs } from "./cli-args";
 import { registerChatCommand } from "./commands/chat";
 import { registerConfigCommand } from "./commands/configure";
 import { registerConnectCommand } from "./commands/connect";
@@ -16,7 +17,6 @@ import { registerSkillsCommand } from "./commands/skills";
 import { registerStatusCommand } from "./commands/status";
 import { registerUpgradeCommand } from "./commands/upgrade";
 import { registerWhisperCommand } from "./commands/whisper";
-import { normalizeRootCliArgs } from "./cli-args";
 
 const program = new Command();
 const cliVersion = getTobyVersion();
@@ -24,7 +24,7 @@ const cliVersion = getTobyVersion();
 program
 	.name("toby")
 	.description(
-		"CLI-based tool for managing your life — email, calendar, todos, and more. With no subcommand, `toby` opens chat; use `toby -p \"…\"` for an initial prompt. Unknown root commands are reported as errors, not chat prompts.",
+		'CLI-based tool for managing your life — email, calendar, todos, and more. With no subcommand, `toby` opens chat; use `toby -p "…"` for an initial prompt. Unknown root commands are reported as errors, not chat prompts.',
 	)
 	.version(cliVersion);
 

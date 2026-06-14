@@ -40,7 +40,9 @@ export function ConfirmDialog({
 					<AlertDialogDescription>{message}</AlertDialogDescription>
 				</AlertDialogHeader>
 				<AlertDialogFooter>
-					<AlertDialogCancel disabled={disabled}>{cancelLabel}</AlertDialogCancel>
+					<AlertDialogCancel disabled={disabled}>
+						{cancelLabel}
+					</AlertDialogCancel>
 					<AlertDialogAction
 						variant={confirmVariant}
 						disabled={disabled}

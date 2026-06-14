@@ -21,8 +21,7 @@ function mockModule(
 		connect: async () => {},
 		isConnected: options.isConnected ?? (async () => true),
 		testConnection:
-			options.testConnection ??
-			(async () => ({ ok: true, details: "ok" })),
+			options.testConnection ?? (async () => ({ ok: true, details: "ok" })),
 		disconnect: async () => {},
 		getCredentialDescriptors: () => [],
 		seedCredentialValues: () => ({}),
@@ -80,11 +79,7 @@ describe("runConnectionProbes", () => {
 	});
 
 	it("counts connected and disconnected modules from probe status map", () => {
-		const modules = [
-			{ name: "a" },
-			{ name: "b" },
-			{ name: "c" },
-		] as const;
+		const modules = [{ name: "a" }, { name: "b" }, { name: "c" }] as const;
 		expect(
 			countIntegrationConnectionStatuses(modules, {
 				a: true,

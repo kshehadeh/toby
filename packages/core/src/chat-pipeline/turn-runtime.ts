@@ -1,14 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { isAbortError } from "../abort";
-import type {
-	AskUserHandler,
-	AskUserToolResult,
-} from "../ai/ask-user-tool";
+import type { AskUserHandler, AskUserToolResult } from "../ai/ask-user-tool";
 import type { ChatSessionSettings } from "../api/chat-api";
 import { resolveChatIntegrationModules } from "../chat-integrations";
-import { daemonLog } from "../logging/daemon-log";
-import { listPersonas, resolveDefaultPersona, resolvePersona } from "../personas/index";
 import type { IntegrationModule } from "../integrations/types";
+import { daemonLog } from "../logging/daemon-log";
+import {
+	listPersonas,
+	resolveDefaultPersona,
+	resolvePersona,
+} from "../personas/index";
 import {
 	appendMessageBatch,
 	appendTranscriptBatch,
@@ -126,7 +127,9 @@ function resolvePersonaForTurn(params: {
 		);
 	}
 	if (params.settings.persona?.trim()) {
-		return resolvePersona(params.settings.persona.trim()) ?? resolveDefaultPersona();
+		return (
+			resolvePersona(params.settings.persona.trim()) ?? resolveDefaultPersona()
+		);
 	}
 	return resolveDefaultPersona();
 }
@@ -143,12 +146,17 @@ function unregisterActiveTurn(active: ActiveTurn): void {
 	}
 	activeTurnsById.delete(active.turnId);
 	for (const pending of active.pendingAskUsers.values()) {
-		pending.reject(new Error("Turn ended before ask-user answer was received."));
+		pending.reject(
+			new Error("Turn ended before ask-user answer was received."),
+		);
 	}
 	active.pendingAskUsers.clear();
 }
 
-function createApiAskUserHandler(active: ActiveTurn, emit: ChatEventSink): AskUserHandler {
+function createApiAskUserHandler(
+	active: ActiveTurn,
+	emit: ChatEventSink,
+): AskUserHandler {
 	return async ({ query, options }) =>
 		new Promise<AskUserToolResult>((resolve, reject) => {
 			const requestId = randomUUID();

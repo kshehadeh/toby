@@ -5,12 +5,12 @@ import {
 	applyChatEvent,
 	shouldPersistChatEventInTranscript,
 } from "@toby/core/chat-pipeline/transcript-reducer";
-import {
-	readServerEventLogTail,
-	ServerEventLog,
-} from "@toby/core/web/server-event-log";
 import { closeChatDbForTests } from "@toby/core/session-store";
 import { handleWebRequest } from "@toby/core/web/routes";
+import {
+	ServerEventLog,
+	readServerEventLogTail,
+} from "@toby/core/web/server-event-log";
 import { afterEach, describe, expect, it } from "vitest";
 
 function canUseBunSqlite(): boolean {
@@ -141,42 +141,45 @@ describe("web chat API routes", () => {
 		});
 	});
 
-	it.skipIf(!canUseBunSqlite())("handles POST /api/sessions with settings", async () => {
-		await withTempTobyDir(async () => {
-			const res = await handleWebRequest(
-				new Request("http://127.0.0.1/api/sessions", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						persona: "default",
-						bootstrap: true,
+	it.skipIf(!canUseBunSqlite())(
+		"handles POST /api/sessions with settings",
+		async () => {
+			await withTempTobyDir(async () => {
+				const res = await handleWebRequest(
+					new Request("http://127.0.0.1/api/sessions", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							persona: "default",
+							bootstrap: true,
+						}),
 					}),
-				}),
-				null,
-			);
-			expect(res.status).toBe(201);
-			const body = (await res.json()) as {
-				id: string;
-				name: string;
-				settings: { persona?: string };
-			};
-			expect(body.id).toMatch(
-				/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-			);
-			expect(body.settings.persona).toBe("default");
+					null,
+				);
+				expect(res.status).toBe(201);
+				const body = (await res.json()) as {
+					id: string;
+					name: string;
+					settings: { persona?: string };
+				};
+				expect(body.id).toMatch(
+					/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+				);
+				expect(body.settings.persona).toBe("default");
 
-			const detail = await handleWebRequest(
-				new Request(`http://127.0.0.1/api/sessions/${body.id}`),
-				null,
-			);
-			expect(detail.status).toBe(200);
-			const detailBody = (await detail.json()) as {
-				settings: { persona?: string };
-				messageCount: number;
-			};
-			expect(detailBody.settings.persona).toBe("default");
-		});
-	});
+				const detail = await handleWebRequest(
+					new Request(`http://127.0.0.1/api/sessions/${body.id}`),
+					null,
+				);
+				expect(detail.status).toBe(200);
+				const detailBody = (await detail.json()) as {
+					settings: { persona?: string };
+					messageCount: number;
+				};
+				expect(detailBody.settings.persona).toBe("default");
+			});
+		},
+	);
 
 	it.skipIf(!canUseBunSqlite())(
 		"handles PATCH and DELETE /api/sessions/:id",

@@ -1,10 +1,5 @@
 import { cn } from "@/lib/utils";
-import {
-	useCallback,
-	useEffect,
-	useRef,
-	type ReactNode,
-} from "react";
+import { type ReactNode, useCallback, useEffect, useRef } from "react";
 
 const SCROLLBAR_HIDE_DELAY_MS = 900;
 

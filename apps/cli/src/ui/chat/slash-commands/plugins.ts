@@ -1,6 +1,6 @@
 import {
-	collectPluginListEntries,
 	type PluginListEntry,
+	collectPluginListEntries,
 } from "@toby/core/integrations/plugins/list-status";
 import { resolvePluginSearchDirectories } from "@toby/core/integrations/plugins/registry";
 import type { SlashCommand } from "./types";
@@ -73,7 +73,9 @@ export function buildPluginsReportLines(): string[] {
 		`**${connectedCount}** connected · **${disconnectedCount}** disconnected · **${disabledCount}** disabled · **${invalidCount}** invalid`,
 	);
 	lines.push("Run `toby plugins install <path>` to add or update plugins.");
-	lines.push("Run `/connect <name>` or `/disconnect <name>` to change connection.");
+	lines.push(
+		"Run `/connect <name>` or `/disconnect <name>` to change connection.",
+	);
 	return lines;
 }
 

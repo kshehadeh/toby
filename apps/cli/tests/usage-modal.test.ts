@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
 import {
 	addTurnToSessionTokenTotals,
 	emptySessionTokenTotals,
 	extractTokenUsageReport,
 } from "@toby/core/ai/caching";
+import { describe, expect, it } from "vitest";
 import { buildUsageSections } from "../src/ui/chat/usage-sections";
 
 describe("session token totals", () => {
@@ -70,9 +70,9 @@ describe("buildUsageSections", () => {
 			planUsageLoading: false,
 		});
 
-		expect(
-			sections.providerPlan.some((row) => row.label === "Remaining"),
-		).toBe(true);
+		expect(sections.providerPlan.some((row) => row.label === "Remaining")).toBe(
+			true,
+		);
 		expect(
 			sections.activeSession.some((row) => row.keys === "Morning planning"),
 		).toBe(true);
@@ -90,8 +90,8 @@ describe("buildUsageSections", () => {
 			planUsageLoading: true,
 		});
 
-		expect(
-			sections.providerPlan.some((row) => row.keys === "Loading…"),
-		).toBe(true);
+		expect(sections.providerPlan.some((row) => row.keys === "Loading…")).toBe(
+			true,
+		);
 	});
 });

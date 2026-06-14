@@ -1,8 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 import {
 	CalendarClock,
-	Mic,
 	MessageSquare,
+	Mic,
 	Plug,
 	SlidersHorizontal,
 	Sparkles,

@@ -1,5 +1,5 @@
-import { formatPersonaAiLabel } from "../../ai/model-factory";
 import type { AskUserToolResult } from "../../ai/ask-user-tool";
+import { formatPersonaAiLabel } from "../../ai/model-factory";
 import type {
 	CreateSessionRequest,
 	PatchSessionRequest,
@@ -146,8 +146,7 @@ export async function handleSessionBootstrap(
 	if (!loaded) {
 		return errorResponse("Session not found", 404);
 	}
-	const body =
-		(await readJsonBody<{ initialText?: string }>(req)) ?? undefined;
+	const body = (await readJsonBody<{ initialText?: string }>(req)) ?? undefined;
 	try {
 		const result = await bootstrapChatSession({
 			sessionId,

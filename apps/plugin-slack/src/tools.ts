@@ -19,8 +19,7 @@ export const TOOL_DEFINITIONS = [
 			properties: {
 				channel: {
 					type: "string",
-					description:
-						"Channel name, #channel, channel ID, or username for DM",
+					description: "Channel name, #channel, channel ID, or username for DM",
 				},
 				text: {
 					type: "string",
@@ -40,8 +39,7 @@ export const TOOL_DEFINITIONS = [
 			properties: {
 				channel: {
 					type: "string",
-					description:
-						"Channel name, #channel, channel ID, or username for DM",
+					description: "Channel name, #channel, channel ID, or username for DM",
 				},
 				threadTs: {
 					type: "string",
@@ -176,8 +174,7 @@ export async function executeTool(
 		}
 		case "searchUsers": {
 			const query = String(input.query ?? "");
-			const limit =
-				typeof input.limit === "number" ? input.limit : undefined;
+			const limit = typeof input.limit === "number" ? input.limit : undefined;
 			if (dryRun) {
 				return {
 					result: {
@@ -193,8 +190,7 @@ export async function executeTool(
 		}
 		case "searchChannels": {
 			const query = String(input.query ?? "");
-			const limit =
-				typeof input.limit === "number" ? input.limit : undefined;
+			const limit = typeof input.limit === "number" ? input.limit : undefined;
 			if (dryRun) {
 				return {
 					result: {
@@ -210,8 +206,7 @@ export async function executeTool(
 		}
 		case "searchMessages": {
 			const query = String(input.query ?? "");
-			const limit =
-				typeof input.limit === "number" ? input.limit : undefined;
+			const limit = typeof input.limit === "number" ? input.limit : undefined;
 			if (dryRun) {
 				return {
 					result: {

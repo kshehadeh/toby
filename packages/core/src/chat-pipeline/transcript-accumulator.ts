@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { ChatEvent } from "./chat-events";
-import type { TranscriptEntry } from "./transcript-types";
 import {
 	applyPersistedChatEvent,
 	shouldPersistChatEventInTranscript,
 } from "./transcript-reducer";
+import type { TranscriptEntry } from "./transcript-types";
 
 export { shouldPersistChatEventInTranscript, applyPersistedChatEvent };
 

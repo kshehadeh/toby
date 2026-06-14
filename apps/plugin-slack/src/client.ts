@@ -155,13 +155,7 @@ async function slackApi<T extends SlackApiResponse>(
 	token?: string,
 	retried = false,
 ): Promise<T> {
-	const json = await slackApiResult<T>(
-		config,
-		method,
-		params,
-		token,
-		retried,
-	);
+	const json = await slackApiResult<T>(config, method, params, token, retried);
 	if (!json.ok) {
 		throw new Error(`Slack API ${method} error: ${json.error ?? "unknown"}`);
 	}
@@ -618,7 +612,8 @@ export async function updateSlackMessage(params: {
 	readonly blocks?: string;
 }): Promise<void> {
 	const channelId = await resolveChannelId(params.config, params.channel);
-	const postToken = params.token?.trim() || resolveSlackPostToken(params.config);
+	const postToken =
+		params.token?.trim() || resolveSlackPostToken(params.config);
 	await slackApi<ChatPostMessageResponse>(
 		params.config,
 		"chat.update",
@@ -640,7 +635,8 @@ export async function postSlackStatusMessage(params: {
 	readonly token?: string;
 }): Promise<{ readonly channel: string; readonly ts: string }> {
 	const channelId = await resolveChannelId(params.config, params.channel);
-	const postToken = params.token?.trim() || resolveSlackPostToken(params.config);
+	const postToken =
+		params.token?.trim() || resolveSlackPostToken(params.config);
 	const plain = slackStatusPlainFallback(params.mrkdwnLine);
 	return chatPostMessage(
 		params.config,
@@ -662,7 +658,8 @@ export async function updateSlackStatusMessage(params: {
 	readonly token?: string;
 }): Promise<void> {
 	const channelId = await resolveChannelId(params.config, params.channel);
-	const postToken = params.token?.trim() || resolveSlackPostToken(params.config);
+	const postToken =
+		params.token?.trim() || resolveSlackPostToken(params.config);
 	const plain = slackStatusPlainFallback(params.mrkdwnLine);
 	await slackApi<ChatPostMessageResponse>(
 		params.config,
@@ -684,7 +681,8 @@ export async function deleteSlackMessage(params: {
 	readonly token?: string;
 }): Promise<void> {
 	const channelId = await resolveChannelId(params.config, params.channel);
-	const postToken = params.token?.trim() || resolveSlackPostToken(params.config);
+	const postToken =
+		params.token?.trim() || resolveSlackPostToken(params.config);
 	await slackApi<ChatPostMessageResponse>(
 		params.config,
 		"chat.delete",
@@ -705,7 +703,8 @@ export async function postSlackMessage(params: {
 	readonly format?: SlackMessageFormat;
 }): Promise<{ readonly channel: string; readonly ts: string }> {
 	const channelId = await resolveChannelId(params.config, params.channel);
-	const postToken = params.token?.trim() || resolveSlackPostToken(params.config);
+	const postToken =
+		params.token?.trim() || resolveSlackPostToken(params.config);
 	const format = params.format ?? "markdown";
 
 	if (format === "plain") {

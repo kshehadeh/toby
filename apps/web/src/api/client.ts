@@ -1,3 +1,22 @@
+import type {
+	ChatInboundStatus,
+	DaemonProcessInfo,
+	MemoryExplanation,
+	MemoryItem,
+	SessionSummary,
+	SettingsItem,
+	TranscriptEntry,
+} from "@/types";
+import type {
+	ChatSessionSettings,
+	CreateSessionRequest,
+	CreateSessionResponse,
+	ModuleListItem,
+	PatchSessionRequest,
+	PersonaListItem,
+	PlanSummary,
+} from "@toby/core/api/chat-api";
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 	const res = await fetch(path, {
 		...init,
@@ -25,63 +44,54 @@ export const api = {
 		}),
 	daemonStatus: () =>
 		apiFetch<{
-			process?: import("@/types").DaemonProcessInfo;
-			chatInbound: import("@/types").ChatInboundStatus;
+			process?: DaemonProcessInfo;
+			chatInbound: ChatInboundStatus;
 		}>("/api/daemon/status"),
 	sessions: (limit = 50) =>
-		apiFetch<{ sessions: import("@/types").SessionSummary[] }>(
-			`/api/sessions?limit=${limit}`,
-		),
+		apiFetch<{ sessions: SessionSummary[] }>(`/api/sessions?limit=${limit}`),
 	session: (id: string) =>
 		apiFetch<{
 			id: string;
 			name: string;
-			transcript: import("@toby/core/chat-pipeline/transcript-types").TranscriptEntry[];
+			transcript: TranscriptEntry[];
 			messageCount: number;
-			settings: import("@toby/core/api/chat-api").ChatSessionSettings;
-			activePlan: import("@toby/core/api/chat-api").PlanSummary | null;
+			settings: ChatSessionSettings;
+			activePlan: PlanSummary | null;
 		}>(`/api/sessions/${encodeURIComponent(id)}`),
-	createSession: (body: import("@toby/core/api/chat-api").CreateSessionRequest = {}) =>
-		apiFetch<import("@toby/core/api/chat-api").CreateSessionResponse>(
-			"/api/sessions",
-			{ method: "POST", body: JSON.stringify(body) },
-		),
-	patchSession: (
-		id: string,
-		body: import("@toby/core/api/chat-api").PatchSessionRequest,
-	) =>
-		apiFetch<{ id: string; name: string; settings: import("@toby/core/api/chat-api").ChatSessionSettings }>(
-			`/api/sessions/${encodeURIComponent(id)}`,
-			{ method: "PATCH", body: JSON.stringify(body) },
-		),
-	personas: () =>
-		apiFetch<{ personas: import("@toby/core/api/chat-api").PersonaListItem[] }>(
-			"/api/personas",
-		),
-	modules: () =>
-		apiFetch<{ modules: import("@toby/core/api/chat-api").ModuleListItem[] }>(
-			"/api/modules",
-		),
+	createSession: (body: CreateSessionRequest = {}) =>
+		apiFetch<CreateSessionResponse>("/api/sessions", {
+			method: "POST",
+			body: JSON.stringify(body),
+		}),
+	patchSession: (id: string, body: PatchSessionRequest) =>
+		apiFetch<{
+			id: string;
+			name: string;
+			settings: ChatSessionSettings;
+		}>(`/api/sessions/${encodeURIComponent(id)}`, {
+			method: "PATCH",
+			body: JSON.stringify(body),
+		}),
+	personas: () => apiFetch<{ personas: PersonaListItem[] }>("/api/personas"),
+	modules: () => apiFetch<{ modules: ModuleListItem[] }>("/api/modules"),
 	memories: (q?: string) => {
 		const params = new URLSearchParams();
 		if (q) params.set("q", q);
-		return apiFetch<{ memories: import("@/types").MemoryItem[] }>(
-			`/api/memories?${params}`,
-		);
+		return apiFetch<{ memories: MemoryItem[] }>(`/api/memories?${params}`);
 	},
 	memoryExplain: (id: string) =>
-		apiFetch<{ explanation: import("@/types").MemoryExplanation }>(
+		apiFetch<{ explanation: MemoryExplanation }>(
 			`/api/memories/${encodeURIComponent(id)}/explain`,
 		),
 	configureTree: () =>
 		apiFetch<{
-			tree: import("@/types").SettingsItem;
+			tree: SettingsItem;
 			values: Record<string, string>;
 			integrationLabels: Record<string, string>;
 		}>("/api/configure/tree"),
 	patchConfigure: (changes: Record<string, string>) =>
 		apiFetch<{
-			tree: import("@/types").SettingsItem;
+			tree: SettingsItem;
 			values: Record<string, string>;
 			integrationLabels: Record<string, string>;
 		}>("/api/configure/values", {

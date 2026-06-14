@@ -1,6 +1,6 @@
+import { AssistantMarkdown } from "@/components/AssistantMarkdown";
 import type { TranscriptEntry } from "@toby/core/chat-pipeline/transcript-types";
 import { isHiddenLifecycleHeader } from "@toby/core/pipeline-footer";
-import { AssistantMarkdown } from "@/components/AssistantMarkdown";
 import type { ReactNode } from "react";
 
 const ACCENT = "text-amber-700 dark:text-amber-500";
@@ -23,10 +23,7 @@ export function filterVisibleEntries(
 			if (e.variant === "prep") {
 				return false;
 			}
-			if (
-				e.variant === "lifecycle" &&
-				isHiddenLifecycleHeader(e.header)
-			) {
+			if (e.variant === "lifecycle" && isHiddenLifecycleHeader(e.header)) {
 				return false;
 			}
 		}
@@ -34,10 +31,9 @@ export function filterVisibleEntries(
 	});
 }
 
-function boxedStepGlyph(variant: Extract<
-	TranscriptEntry,
-	{ kind: "boxed_step" }
->["variant"]): string {
+function boxedStepGlyph(
+	variant: Extract<TranscriptEntry, { kind: "boxed_step" }>["variant"],
+): string {
 	if (variant === "tool" || variant === "prep" || variant === "lifecycle") {
 		return PIPELINE_GLYPH;
 	}
@@ -122,7 +118,9 @@ function formatGroupedToolRuns(
 	return lines.length > 0 ? lines.join("\n") : "";
 }
 
-function boxedStepBody(entry: Extract<TranscriptEntry, { kind: "boxed_step" }>): string {
+function boxedStepBody(
+	entry: Extract<TranscriptEntry, { kind: "boxed_step" }>,
+): string {
 	if (
 		entry.variant === "tool" &&
 		entry.toolRuns !== undefined &&
@@ -224,8 +222,7 @@ function NoticeLine({
 	readonly text: string;
 	readonly tone?: "info" | "success" | "error";
 }) {
-	const glyph =
-		tone === "success" ? "✔︎" : tone === "error" ? "✗" : META_GLYPH;
+	const glyph = tone === "success" ? "✔︎" : tone === "error" ? "✗" : META_GLYPH;
 	const colorClass =
 		tone === "success"
 			? "text-green-600 dark:text-green-400"
@@ -294,9 +291,7 @@ function renderEntry(
 			node: (
 				<div key={key}>
 					<UserLine text={entry.text} />
-					{shouldGapAfter(index < visible.length - 1) ? (
-						<TurnSpacer />
-					) : null}
+					{shouldGapAfter(index < visible.length - 1) ? <TurnSpacer /> : null}
 				</div>
 			),
 			skip: 0,
@@ -308,9 +303,7 @@ function renderEntry(
 			node: (
 				<div key={key}>
 					<BoxedStepBlock entry={entry} />
-					{shouldGapAfter(index < visible.length - 1) ? (
-						<TurnSpacer />
-					) : null}
+					{shouldGapAfter(index < visible.length - 1) ? <TurnSpacer /> : null}
 				</div>
 			),
 			skip: 0,
@@ -322,9 +315,7 @@ function renderEntry(
 			node: (
 				<div key={key}>
 					<AssistantBlock text={entry.text} />
-					{shouldGapAfter(index < visible.length - 1) ? (
-						<TurnSpacer />
-					) : null}
+					{shouldGapAfter(index < visible.length - 1) ? <TurnSpacer /> : null}
 				</div>
 			),
 			skip: 0,
@@ -346,10 +337,7 @@ function renderEntry(
 		return {
 			node: (
 				<div key={key}>
-					<ToolFeedbackBlock
-						title={entry.title}
-						detail={details.join("\n")}
-					/>
+					<ToolFeedbackBlock title={entry.title} detail={details.join("\n")} />
 					{shouldGapAfter(index + skip < visible.length - 1) ? (
 						<TurnSpacer />
 					) : null}
@@ -366,9 +354,7 @@ function renderEntry(
 					<div className="ml-6 text-muted-foreground whitespace-pre-wrap">
 						{entry.detail}
 					</div>
-					{shouldGapAfter(index < visible.length - 1) ? (
-						<TurnSpacer />
-					) : null}
+					{shouldGapAfter(index < visible.length - 1) ? <TurnSpacer /> : null}
 				</div>
 			),
 			skip: 0,
@@ -376,8 +362,17 @@ function renderEntry(
 	}
 
 	if (entry.kind === "notice") {
-		const noticeLines: Array<{ text: string; tone?: "info" | "success" | "error" }> =
-			[{ text: entry.text, ...(entry.tone !== undefined ? { tone: entry.tone } : {}) }];
+		const noticeLines: Array<{
+			key: string;
+			text: string;
+			tone?: "info" | "success" | "error";
+		}> = [
+			{
+				key: `${key}-n-${index}`,
+				text: entry.text,
+				...(entry.tone !== undefined ? { tone: entry.tone } : {}),
+			},
+		];
 		let groupEnd = index + 1;
 		while (groupEnd < visible.length) {
 			const next = visible[groupEnd];
@@ -385,6 +380,7 @@ function renderEntry(
 				break;
 			}
 			noticeLines.push({
+				key: `${key}-n-${groupEnd}`,
 				text: next.text,
 				...(next.tone !== undefined ? { tone: next.tone } : {}),
 			});
@@ -393,12 +389,8 @@ function renderEntry(
 		return {
 			node: (
 				<div key={key}>
-					{noticeLines.map((line, j) => (
-						<NoticeLine
-							key={`${key}-n-${j}`}
-							text={line.text}
-							tone={line.tone}
-						/>
+					{noticeLines.map((line) => (
+						<NoticeLine key={line.key} text={line.text} tone={line.tone} />
 					))}
 					{shouldGapAfter(groupEnd - 1 < visible.length - 1) ? (
 						<TurnSpacer />
@@ -414,9 +406,7 @@ function renderEntry(
 			node: (
 				<div key={key}>
 					<ErrorBlock text={entry.text} />
-					{shouldGapAfter(index < visible.length - 1) ? (
-						<TurnSpacer />
-					) : null}
+					{shouldGapAfter(index < visible.length - 1) ? <TurnSpacer /> : null}
 				</div>
 			),
 			skip: 0,
@@ -432,9 +422,7 @@ function renderEntry(
 						answer={entry.answer}
 						{...(entry.error !== undefined ? { error: entry.error } : {})}
 					/>
-					{shouldGapAfter(index < visible.length - 1) ? (
-						<TurnSpacer />
-					) : null}
+					{shouldGapAfter(index < visible.length - 1) ? <TurnSpacer /> : null}
 				</div>
 			),
 			skip: 0,

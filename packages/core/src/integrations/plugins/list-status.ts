@@ -1,7 +1,7 @@
 import { readConfig } from "../../config/index";
+import type { IntegrationCapability } from "../types";
 import { inspectPluginBinary } from "./adapter";
 import { discoverPluginBinaries } from "./discovery";
-import type { IntegrationCapability } from "../types";
 import type { DiscoveredPlugin } from "./protocol";
 
 export type PluginListEntryState = "valid" | "invalid" | "disabled";

@@ -9,7 +9,8 @@ Rules:
 - Never claim permissions exist unless validated by tool results or explicit error messages.
 - Prefer returning concise user identifiers: displayName + userPrincipalName + id.`;
 
-export const AZURE_AD_SINGLE_SESSION_USER_TEMPLATE = "User request:\n{{userPrompt}}";
+export const AZURE_AD_SINGLE_SESSION_USER_TEMPLATE =
+	"User request:\n{{userPrompt}}";
 
 export const AZURE_AD_MULTI_USER_CONTENT_TEMPLATE = `## Azure AD
 Use Microsoft Graph tools to resolve users/teams mentioned by the user request.

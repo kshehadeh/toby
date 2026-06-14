@@ -1,8 +1,8 @@
+import { newlineHintText } from "../shared/multiline-text-edit";
 import {
 	type TerminalProfile,
 	detectTerminalProfile,
 } from "../shared/terminal-profile";
-import { newlineHintText } from "../shared/multiline-text-edit";
 import type { SlashCommand } from "./slash-commands";
 
 export type HelpKeyRow = {
@@ -46,7 +46,9 @@ export function buildHelpSections(
 		profile.wordDelete === "native" || profile.wordDelete === "meta-delete"
 			? "Option+Backspace"
 			: "Ctrl+W";
-	const commandByName = new Map(commands.map((command) => [command.command, command]));
+	const commandByName = new Map(
+		commands.map((command) => [command.command, command]),
+	);
 
 	return {
 		basics: [

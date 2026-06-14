@@ -1,5 +1,5 @@
-import type { SlackUser } from "../../plugin-slack/src/client";
 import { describe, expect, it } from "vitest";
+import type { SlackUser } from "../../plugin-slack/src/client";
 
 describe("Slack user search helpers", () => {
 	const sampleUser: SlackUser = {

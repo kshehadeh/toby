@@ -23,9 +23,7 @@
 		{
 			"type": "swift",
 			"request": "launch",
-			"args": [
-				"status"
-			],
+			"args": ["status"],
 			"cwd": "${workspaceFolder:toby}/apps/plugin-macos",
 			"name": "Debug toby-plugin-macos (apps/plugin-macos)",
 			"target": "toby-plugin-macos",
@@ -35,9 +33,7 @@
 		{
 			"type": "swift",
 			"request": "launch",
-			"args": [
-				"status"
-			],
+			"args": ["status"],
 			"cwd": "${workspaceFolder:toby}/apps/plugin-macos",
 			"name": "Release toby-plugin-macos (apps/plugin-macos)",
 			"target": "toby-plugin-macos",

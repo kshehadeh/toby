@@ -2,14 +2,14 @@ import { Text } from "ink";
 import type { ReactElement } from "react";
 import { META_ACCENT } from "../constants";
 import {
+	parseMarkdownHeading,
+	renderInlineMarkdownChildren,
+} from "../markdown-inline";
+import {
 	isDimModalHintLine,
 	parseModalInlinePieces,
 	splitStatusGlyphPrefix,
 } from "../modal-markdown";
-import {
-	parseMarkdownHeading,
-	renderInlineMarkdownChildren,
-} from "../markdown-inline";
 
 const HEADING_COLOR = "cyan";
 

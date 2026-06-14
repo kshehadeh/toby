@@ -40,7 +40,9 @@ export function consumeTokenRefreshPatch(): TokenRefreshPatch | undefined {
 	return patch;
 }
 
-export function parseAzureAdConfig(raw: Record<string, unknown>): AzureAdConfig {
+export function parseAzureAdConfig(
+	raw: Record<string, unknown>,
+): AzureAdConfig {
 	const tenantId = String(raw.tenantId ?? "").trim();
 	const clientId = String(raw.clientId ?? "").trim();
 	const clientSecret = String(raw.clientSecret ?? "").trim() || undefined;
@@ -88,7 +90,9 @@ export function normalizeConfig(
 	};
 }
 
-export function hasAzureAdCredentials(config: Record<string, unknown>): boolean {
+export function hasAzureAdCredentials(
+	config: Record<string, unknown>,
+): boolean {
 	const parsed = parseAzureAdConfig(config);
 	if (!parsed.tenantId || !parsed.clientId) return false;
 	if (parsed.authMethod === "oauth_pkce") return true;
@@ -124,9 +128,7 @@ export function parseJwtClaims(
 	}
 }
 
-export async function getGraphAccessToken(
-	creds: AzureAdConfig,
-): Promise<{
+export async function getGraphAccessToken(creds: AzureAdConfig): Promise<{
 	readonly accessToken: string;
 	readonly expiresAtMs: number;
 	readonly claims: Record<string, unknown> | null;
@@ -276,10 +278,7 @@ function parseOAuthExpiry(value: string | undefined): number | undefined {
 	return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-async function graphFetch<T>(
-	creds: AzureAdConfig,
-	path: string,
-): Promise<T> {
+async function graphFetch<T>(creds: AzureAdConfig, path: string): Promise<T> {
 	const { accessToken } = await getGraphAccessToken(creds);
 	const res = await fetch(`${GRAPH_BASE_URL}${path}`, {
 		method: "GET",
@@ -352,11 +351,10 @@ export async function getUserDirectReports(
 	return rows.filter(isGraphUserBasic);
 }
 
-export async function testAzureAdConnection(creds: AzureAdConfig): Promise<void> {
-	await graphFetch<{ value?: unknown }>(
-		creds,
-		"/users?$top=1&$select=id",
-	);
+export async function testAzureAdConnection(
+	creds: AzureAdConfig,
+): Promise<void> {
+	await graphFetch<{ value?: unknown }>(creds, "/users?$top=1&$select=id");
 }
 
 export async function fetchUsersTop(

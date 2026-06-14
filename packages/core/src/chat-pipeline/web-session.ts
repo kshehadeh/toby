@@ -1,10 +1,10 @@
 import { daemonLog } from "../logging/daemon-log";
 import { resolveDefaultPersona } from "../personas/index";
-import {
-	runApiChatTurnWithPersistence,
-	type ApiChatTurnResult,
-} from "./turn-runtime";
 import type { ChatEventSink } from "./chat-events";
+import {
+	type ApiChatTurnResult,
+	runApiChatTurnWithPersistence,
+} from "./turn-runtime";
 
 export type WebChatTurnResult = {
 	readonly text: string;

@@ -1,6 +1,6 @@
-import { cn } from "@/lib/utils";
 import { getSidebarSectionIcon } from "@/lib/configure-sidebar-icons";
 import type { SidebarTreeNode } from "@/lib/configure-tree";
+import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 
 interface ConfigureSidebarProps {

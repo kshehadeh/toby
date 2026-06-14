@@ -21,15 +21,15 @@ import {
 	discoverPluginBinaries,
 	resolvePluginSearchDirectories,
 } from "@toby/core/integrations/plugins/discovery";
-import { collectPluginListEntries } from "@toby/core/integrations/plugins/list-status";
-import { buildPluginsReportLines } from "../src/ui/chat/slash-commands/plugins";
 import { jsonSchemaToZod } from "@toby/core/integrations/plugins/json-schema";
+import { collectPluginListEntries } from "@toby/core/integrations/plugins/list-status";
 import { parsePluginNameFromBinary } from "@toby/core/integrations/plugins/protocol";
 import {
 	getPluginModules,
 	resetPluginModuleCache,
 } from "@toby/core/integrations/plugins/registry";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { buildPluginsReportLines } from "../src/ui/chat/slash-commands/plugins";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const sampleCli = path.join(repoRoot, "../plugin-sample/src/cli.ts");

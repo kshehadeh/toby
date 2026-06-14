@@ -141,9 +141,7 @@ async function runInstallPlugin(
 	},
 ): Promise<void> {
 	if (options.setup && options.noSetup) {
-		console.error(
-			chalk.red("\nCannot use --setup and --no-setup together.\n"),
-		);
+		console.error(chalk.red("\nCannot use --setup and --no-setup together.\n"));
 		process.exitCode = 1;
 		return;
 	}
@@ -246,15 +244,15 @@ async function runPluginSetupCommand(name: string): Promise<void> {
 
 	const inspected = inspectPluginBinary(discovered);
 	if ("error" in inspected) {
-		console.error(chalk.red(`\nFailed to inspect plugin: ${inspected.error}\n`));
+		console.error(
+			chalk.red(`\nFailed to inspect plugin: ${inspected.error}\n`),
+		);
 		process.exitCode = 1;
 		return;
 	}
 
 	if (!inspected.setupAvailable) {
-		console.error(
-			chalk.red(`\nPlugin "${name}" does not advertise setup.\n`),
-		);
+		console.error(chalk.red(`\nPlugin "${name}" does not advertise setup.\n`));
 		process.exitCode = 1;
 		return;
 	}

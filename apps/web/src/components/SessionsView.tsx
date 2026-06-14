@@ -4,7 +4,7 @@ import { SidebarScrollPanel } from "@/components/SidebarScrollPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 export function SessionsView() {
 	const { sessionId } = useParams();
@@ -17,14 +17,17 @@ export function SessionsView() {
 
 	const detailQuery = useQuery({
 		queryKey: ["session", sessionId],
-		queryFn: () => api.session(sessionId!),
+		queryFn: () => {
+			if (!sessionId) {
+				throw new Error("Session id is required");
+			}
+			return api.session(sessionId);
+		},
 		enabled: Boolean(sessionId),
 	});
 
 	if (sessionsQuery.isLoading) {
-		return (
-			<p className="text-muted-foreground px-8 py-6">Loading sessions…</p>
-		);
+		return <p className="text-muted-foreground px-8 py-6">Loading sessions…</p>;
 	}
 
 	const sessions = sessionsQuery.data?.sessions ?? [];
@@ -68,7 +71,9 @@ export function SessionsView() {
 					{sessionId && detailQuery.data && (
 						<Card className="ring-0 shadow-none">
 							<CardHeader className="pb-4">
-								<CardTitle className="text-xl">{detailQuery.data.name}</CardTitle>
+								<CardTitle className="text-xl">
+									{detailQuery.data.name}
+								</CardTitle>
 								<p className="text-sm text-muted-foreground">
 									{detailQuery.data.messageCount} model messages
 								</p>

@@ -15,7 +15,7 @@ import { isBooleanSelectField } from "@/lib/boolean-select-field";
 import { cn } from "@/lib/utils";
 import type { SettingsItem } from "@/types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const CONFIGURE_CARD_WIDTH = "w-[32rem]";
 const CONFIGURE_CARD_WIDTH_WIDE = "w-[44rem]";
@@ -58,12 +58,17 @@ export function ConfigureDetail({
 }: ConfigureDetailProps) {
 	const queryClient = useQueryClient();
 	const sectionKey = section.navKey ?? section.key;
+	const previousSectionKeyRef = useRef(sectionKey);
 	const [draft, setDraft] = useState<Record<string, string>>({});
 	const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(
 		null,
 	);
 
 	useEffect(() => {
+		if (previousSectionKeyRef.current === sectionKey) {
+			return;
+		}
+		previousSectionKeyRef.current = sectionKey;
 		setDraft({});
 		setPendingDelete(null);
 	}, [sectionKey]);

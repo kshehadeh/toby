@@ -6,8 +6,8 @@ import {
 } from "@toby/core/integrations/index";
 import {
 	ALL_PROVIDER_CATEGORIES,
-	PROVIDER_CATEGORY_LABELS,
 	type IntegrationModule,
+	PROVIDER_CATEGORY_LABELS,
 } from "@toby/core/integrations/types";
 import {
 	countIntegrationConnectionStatuses,
@@ -69,9 +69,7 @@ export async function buildConnectionsReportLines(options?: {
 	const connectedByModule = new Map(
 		probeResults.map((r) => [r.name, r.connected]),
 	);
-	const healthyByModule = new Map(
-		probeResults.map((r) => [r.name, r.healthy]),
-	);
+	const healthyByModule = new Map(probeResults.map((r) => [r.name, r.healthy]));
 	const timedOutByModule = new Map(
 		probeResults.map((r) => [r.name, r.timedOut]),
 	);
@@ -122,9 +120,7 @@ export async function buildConnectionsReportLines(options?: {
 			const connected = connectedByModule.get(m.name) ?? false;
 			const healthy = healthyByModule.get(m.name) ?? false;
 			const timedOut = timedOutByModule.get(m.name) ?? false;
-			lines.push(
-				formatIntegrationLine(m, connected, healthy, timedOut, false),
-			);
+			lines.push(formatIntegrationLine(m, connected, healthy, timedOut, false));
 			if (m.description) {
 				lines.push(`    *${m.description}*`);
 			}
@@ -139,7 +135,10 @@ export async function buildConnectionsReportLines(options?: {
 	}
 
 	const { connected: connectedCount, disconnected: disconnectedCount } =
-		countIntegrationConnectionStatuses(modules, Object.fromEntries(connectedByModule));
+		countIntegrationConnectionStatuses(
+			modules,
+			Object.fromEntries(connectedByModule),
+		);
 
 	lines.push(
 		`**${connectedCount}** connected · **${disconnectedCount}** disconnected`,

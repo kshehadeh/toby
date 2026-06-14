@@ -300,7 +300,11 @@ async function handleToolsExecute(body: JsonRecord): Promise<never> {
 	}
 
 	try {
-		const { result, config: configPatch } = await executeTool(tool, input, config);
+		const { result, config: configPatch } = await executeTool(
+			tool,
+			input,
+			config,
+		);
 		const response: JsonRecord = { ok: true, result };
 		const tokenPatch = configPatch ?? consumeTokenRefreshPatch();
 		if (tokenPatch) {

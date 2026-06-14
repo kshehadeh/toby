@@ -1,8 +1,8 @@
+import { describe, expect, it } from "vitest";
 import {
 	isSlackAccessTokenFresh,
 	parseSlackOAuthExpiry,
 } from "../../plugin-slack/src/tokens";
-import { describe, expect, it } from "vitest";
 
 describe("slack token helpers", () => {
 	it("parseSlackOAuthExpiry returns ISO timestamp", () => {

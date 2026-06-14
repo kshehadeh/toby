@@ -19,8 +19,7 @@ const sections = [
 	},
 	{
 		title: "Integrations",
-		description:
-			"Gmail, Todoist, Slack, Azure AD, and Apple Calendar.",
+		description: "Gmail, Todoist, Slack, Azure AD, and Apple Calendar.",
 		to: "/docs/integrations/overview",
 	},
 	{

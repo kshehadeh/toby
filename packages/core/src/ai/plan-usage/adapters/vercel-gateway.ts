@@ -52,7 +52,9 @@ export const vercelGatewayPlanUsageAdapter: PlanUsageAdapter = {
 		if (!response.ok) {
 			let detail = response.statusText;
 			try {
-				const body = (await response.json()) as { error?: { message?: string } };
+				const body = (await response.json()) as {
+					error?: { message?: string };
+				};
 				if (body.error?.message) {
 					detail = body.error.message;
 				}

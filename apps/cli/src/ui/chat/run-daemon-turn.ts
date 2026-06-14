@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 import { isAbortError } from "@toby/core/abort";
 import type { AskUserHandler } from "@toby/core/ai/ask-user-tool";
 import {
+	type SessionTokenTotals,
 	addTurnToSessionTokenTotals,
 	extractTokenUsageReport,
-	type SessionTokenTotals,
 } from "@toby/core/ai/caching";
 import { formatChatModelError } from "@toby/core/ai/chat-errors";
 import type { ChatEvent } from "@toby/core/chat-pipeline/chat-events";

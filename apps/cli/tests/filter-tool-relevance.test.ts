@@ -1,13 +1,8 @@
-import { describe, expect, it } from "vitest";
 import { filterToolNamesByRelevance } from "@toby/core/chat-pipeline/run-turn";
+import { describe, expect, it } from "vitest";
 
 describe("filterToolNamesByRelevance", () => {
-	const all = [
-		"askUser",
-		"createLocalSkill",
-		"fetchOpenTasks",
-		"memorySearch",
-	];
+	const all = ["askUser", "createLocalSkill", "fetchOpenTasks", "memorySearch"];
 
 	it("passes all tools when pretreatment did not run", () => {
 		expect(filterToolNamesByRelevance(all, undefined)).toEqual(all);

@@ -11,7 +11,7 @@ import type {
 	TurnRequestBody,
 } from "../api/chat-api";
 import type { ChatEvent } from "../chat-pipeline/chat-events";
-import { ServerEventLog } from "./server-event-log";
+import type { ServerEventLog } from "./server-event-log";
 
 export type TobyClientOptions = {
 	readonly baseUrl: string;
@@ -43,14 +43,10 @@ export class TobyDaemonClient {
 		return `${this.baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
 	}
 
-	private async json<T>(
-		path: string,
-		init?: RequestInit,
-	): Promise<T> {
+	private async json<T>(path: string, init?: RequestInit): Promise<T> {
 		const url = this.url(path);
 		const method = init?.method ?? "GET";
-		const body =
-			typeof init?.body === "string" ? init.body : undefined;
+		const body = typeof init?.body === "string" ? init.body : undefined;
 		this.eventLog?.logRequest(method, url, body);
 		const res = await this.fetchFn(url, {
 			...init,
@@ -106,7 +102,11 @@ export class TobyDaemonClient {
 	async patchSession(
 		sessionId: string,
 		body: PatchSessionRequest,
-	): Promise<{ id: string; name: string; settings: CreateSessionResponse["settings"] }> {
+	): Promise<{
+		id: string;
+		name: string;
+		settings: CreateSessionResponse["settings"];
+	}> {
 		return this.json(`/api/sessions/${encodeURIComponent(sessionId)}`, {
 			method: "PATCH",
 			body: JSON.stringify(body),
@@ -180,7 +180,9 @@ export class TobyDaemonClient {
 
 	async streamTurn(options: StreamTurnOptions): Promise<TurnDonePayload> {
 		const { sessionId, onEvent, onAskUser, signal, ...body } = options;
-		const turnUrl = this.url(`/api/sessions/${encodeURIComponent(sessionId)}/turn`);
+		const turnUrl = this.url(
+			`/api/sessions/${encodeURIComponent(sessionId)}/turn`,
+		);
 		const requestBody = JSON.stringify(body);
 		this.eventLog?.beginTurn({
 			sessionId,

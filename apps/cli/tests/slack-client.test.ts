@@ -1,5 +1,5 @@
-import { postSlackMessage } from "../../plugin-slack/src/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { postSlackMessage } from "../../plugin-slack/src/client";
 
 describe("postSlackMessage", () => {
 	afterEach(() => {

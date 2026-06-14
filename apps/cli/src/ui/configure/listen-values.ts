@@ -8,10 +8,7 @@ export function seedListenRecordingValues(
 	values: Record<string, string>,
 	recordingsDir?: string,
 ): void {
-	seedCoreListenRecordingValues(
-		values,
-		listListenRecordings(recordingsDir),
-	);
+	seedCoreListenRecordingValues(values, listListenRecordings(recordingsDir));
 }
 
 export function findListenRecordingById(

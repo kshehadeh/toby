@@ -6,6 +6,9 @@ import {
 	resolveSlackPostToken,
 } from "./client";
 import {
+	type InboundConversation,
+	type PluginInboundChatEvent,
+	type SlackConversationMetadata,
 	buildInboundPersonaAppendix,
 	buildSlackExternalKey,
 	classifySlackInboundMessage,
@@ -13,19 +16,16 @@ import {
 	formatAskUserMessage,
 	isSlackDmChannel,
 	metadataFromConversation,
-	type InboundConversation,
-	type PluginInboundChatEvent,
-	type SlackConversationMetadata,
+	resolveSlackThreadRootTs,
 	slackChannelLabel,
 	slackReplyThreadTs,
 	stripSlackBotMention,
-	resolveSlackThreadRootTs,
 } from "./inbound-logic";
 import { emitInboundLine, readStdinLines } from "./protocol";
 import {
+	type InboundStatusReporter,
 	createNoOpStatusReporter,
 	createSlackStatusReporter,
-	type InboundStatusReporter,
 } from "./status-reporter";
 
 type JsonRecord = Record<string, unknown>;

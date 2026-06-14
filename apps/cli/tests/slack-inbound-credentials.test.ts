@@ -4,8 +4,8 @@ import path from "node:path";
 import { readCredentials, writeCredentials } from "@toby/core/config/index";
 import { migrateLegacyPluginCredentials } from "@toby/core/integrations/plugins/migrate";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
-import { getSlackInboundCredentials } from "../../plugin-slack/src/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { getSlackInboundCredentials } from "../../plugin-slack/src/client";
 import { buildSettingsTree } from "../src/ui/configure/items";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
@@ -76,8 +76,12 @@ describe("Slack inbound credentials", () => {
 			oauthUserToken: "xoxp-user",
 			appToken: "xapp-test",
 		};
-		expect(() => getSlackInboundCredentials(config)).toThrow(/bot token \(xoxb/);
-		expect(() => getSlackInboundCredentials(config)).toThrow(/user token \(xoxp/);
+		expect(() => getSlackInboundCredentials(config)).toThrow(
+			/bot token \(xoxb/,
+		);
+		expect(() => getSlackInboundCredentials(config)).toThrow(
+			/user token \(xoxp/,
+		);
 	});
 
 	it("returns tokens when bot and app are set", () => {

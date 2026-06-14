@@ -1,3 +1,4 @@
+import { api } from "@/api/client";
 import { ConfigureDetail } from "@/components/ConfigureDetail";
 import { ConfigureSidebar } from "@/components/ConfigureSidebar";
 import { SidebarScrollPanel } from "@/components/SidebarScrollPanel";
@@ -7,15 +8,16 @@ import {
 	findSidebarAncestorKeys,
 	isContainerSection,
 } from "@/lib/configure-tree";
-import { api } from "@/api/client";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 export function ConfigureView() {
 	const { navKey } = useParams();
 	const navigate = useNavigate();
-	const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
+	const [expandedKeys, setExpandedKeys] = useState<Set<string>>(
+		() => new Set(),
+	);
 
 	const { data, isLoading, error } = useQuery({
 		queryKey: ["configure-tree"],
@@ -65,7 +67,9 @@ export function ConfigureView() {
 	if (error || !data) {
 		return (
 			<p className="text-destructive px-8 py-6">
-				{error instanceof Error ? error.message : "Failed to load configuration"}
+				{error instanceof Error
+					? error.message
+					: "Failed to load configuration"}
 			</p>
 		);
 	}

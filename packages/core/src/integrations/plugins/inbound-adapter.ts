@@ -1,13 +1,13 @@
+import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import readline from "node:readline";
-import type { ChatEvent } from "../../chat-pipeline/chat-events";
 import type {
 	ChatInboundProvider,
 	InboundChatEvent,
 	InboundConversation,
 	InboundStatusReporter,
 } from "../../chat-inbound/types";
+import type { ChatEvent } from "../../chat-pipeline/chat-events";
 import { daemonLog } from "../../logging/daemon-log";
 import type { PendingAskUser } from "../../session-store";
 import { formatSlackInboundStatusMrkdwn } from "./inbound-slack-status-format";
@@ -145,13 +145,17 @@ function createInboundBridge(
 				const timer = setTimeout(() => {
 					reject(new Error("Plugin persona appendix request timed out"));
 				}, INBOUND_RPC_TIMEOUT_MS);
-				dispatcher.registerAppendixWaiter(requestId, (text) => {
-					clearTimeout(timer);
-					resolve(text);
-				}, (err) => {
-					clearTimeout(timer);
-					reject(err);
-				});
+				dispatcher.registerAppendixWaiter(
+					requestId,
+					(text) => {
+						clearTimeout(timer);
+						resolve(text);
+					},
+					(err) => {
+						clearTimeout(timer);
+						reject(err);
+					},
+				);
 				writeLine({ type: "getPersonaAppendix", requestId, conversation });
 			});
 		},

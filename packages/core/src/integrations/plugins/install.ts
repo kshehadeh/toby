@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ensureTobyDir, getPluginsDir } from "../../config/index";
 import { isBuiltinIntegration } from "../index";
+import { pluginStatus } from "./client";
 import {
 	type DiscoveredPlugin,
 	PLUGIN_BINARY_PREFIX,
@@ -14,7 +15,6 @@ import {
 	purgePluginArtifacts,
 } from "./purge";
 import { resetPluginModuleCache } from "./registry";
-import { pluginStatus } from "./client";
 import { validatePluginBinary } from "./validate";
 
 export type PluginInstallError = {

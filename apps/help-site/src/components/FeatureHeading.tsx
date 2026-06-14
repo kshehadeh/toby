@@ -63,9 +63,7 @@ export default function FeatureHeading({
 		<h2 className="featureHeading">
 			<span
 				className={
-					toneClass
-						? `featureHeadingIcon ${toneClass}`
-						: "featureHeadingIcon"
+					toneClass ? `featureHeadingIcon ${toneClass}` : "featureHeadingIcon"
 				}
 				aria-hidden="true"
 			>

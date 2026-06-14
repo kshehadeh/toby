@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { resolveSlackPostToken } from "../../plugin-slack/src/client";
 import {
 	buildSlackExternalKey,
@@ -7,7 +8,6 @@ import {
 	slackReplyThreadTs,
 	stripSlackBotMention,
 } from "../../plugin-slack/src/inbound-logic";
-import { describe, expect, it } from "vitest";
 
 describe("slack inbound helpers", () => {
 	it("builds stable external keys", () => {

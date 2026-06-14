@@ -70,8 +70,7 @@ export function findSidebarAncestorKeys(
 export function flattenSidebarSections(
 	root: SettingsItem,
 ): Array<{ item: SettingsItem; depth: number; navKey: string }> {
-	const rows: Array<{ item: SettingsItem; depth: number; navKey: string }> =
-		[];
+	const rows: Array<{ item: SettingsItem; depth: number; navKey: string }> = [];
 
 	function walk(node: SettingsItem, depth: number) {
 		if (node.key === "root") {
