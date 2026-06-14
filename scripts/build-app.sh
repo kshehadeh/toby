@@ -6,9 +6,33 @@ PKG="$ROOT/apps/toby-app"
 DIST="$ROOT/dist"
 APP="$DIST/Toby.app"
 ARCH="${SWIFT_ARCH:-$(uname -m)}"
-ICON_SRC="$ROOT/images/512x512.png"
+ICON_MASTER="$ROOT/images/512x512.png"
+ICON_SRC="$ROOT/images/app-icon.png"
+
+prepare_app_icon_source() {
+	if [[ -f "${ICON_SRC}" ]]; then
+		return
+	fi
+	if [[ ! -f "${ICON_MASTER}" ]]; then
+		echo "Missing icon source: ${ICON_MASTER}" >&2
+		exit 1
+	fi
+	if ! command -v magick >/dev/null 2>&1; then
+		echo "ImageMagick (magick) is required to generate ${ICON_SRC}." >&2
+		exit 1
+	fi
+	echo "Generating app icon from ${ICON_MASTER}…"
+	# Flatten the speech-bubble portrait onto a white square canvas.
+	magick "${ICON_MASTER}" \
+		-trim +repage \
+		-background white -alpha remove -alpha off \
+		-resize 820x820 \
+		-background white -gravity center -extent 1024x1024 \
+		"${ICON_SRC}"
+}
 
 build_app_icon() {
+	prepare_app_icon_source
 	local iconset icns
 	iconset="$(mktemp -d)/AppIcon.iconset"
 	icns="$(mktemp -t toby-app-icon).icns"
@@ -30,8 +54,8 @@ build_app_icon() {
 	rm -f "${icns}"
 }
 
-if [[ ! -f "${ICON_SRC}" ]]; then
-	echo "Missing app icon source: ${ICON_SRC}" >&2
+if [[ ! -f "${ICON_SRC}" && ! -f "${ICON_MASTER}" ]]; then
+	echo "Missing app icon source: ${ICON_SRC} or ${ICON_MASTER}" >&2
 	exit 1
 fi
 
