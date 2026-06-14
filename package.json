@@ -34,6 +34,7 @@
 		"build:release": "BUN_TARGET=bun-darwin-$(uname -m | sed 's/x86_64/x64/;s/arm64/arm64/') SWIFT_ARCH=$(uname -m) ./scripts/build-release-artifacts.sh",
 		"dev": "bun run --cwd apps/cli dev",
 		"dev:web": "bun run --cwd apps/web dev",
+		"restart:server": "bun run --cwd apps/cli dev daemon restart",
 		"dev:turbo": "turbo run dev --filter @toby/cli --log-prefix=none --ui=stream",
 		"typecheck": "turbo run typecheck",
 		"lint": "bunx biome check .",
