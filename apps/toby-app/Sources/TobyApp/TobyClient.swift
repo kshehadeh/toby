@@ -124,7 +124,7 @@ struct TobyClient {
 					}
 				}
 				ServerEventLog.append("sse.done.decodeFailed payload=\(payload)")
-				return TurnDonePayload(text: "", appliedActions: [], sessionName: nil, turnId: nil)
+				return TurnDonePayload(turnId: nil, text: "", appliedActions: [], sessionName: nil)
 			}
 
 			if pendingEvent == "ask_user_prompt" {
@@ -170,7 +170,7 @@ struct TobyClient {
 		}
 
 		ServerEventLog.append("sse.streamEndedWithoutDone")
-		return TurnDonePayload(text: "", appliedActions: [], sessionName: nil, turnId: nil)
+		return TurnDonePayload(turnId: nil, text: "", appliedActions: [], sessionName: nil)
 	}
 
 	func answerAskUser(
