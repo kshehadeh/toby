@@ -27,7 +27,7 @@ try {
 		`#!/bin/sh
 set -e
 
-bunx lint-staged
+bun run lint
 `,
 	);
 } catch {

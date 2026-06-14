@@ -6,6 +6,7 @@
 	"description": "Reference installable Toby integration plugin (protocol v1)",
 	"scripts": {
 		"dev": "bun src/cli.ts",
+		"lint": "bunx biome check .",
 		"build": "bun build ./src/cli.ts --compile --outfile ../../dist/toby-plugin-sample"
 	}
 }

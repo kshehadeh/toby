@@ -5,6 +5,7 @@
 	"type": "module",
 	"description": "Development and diagnostic scripts for Toby",
 	"scripts": {
+		"lint": "bunx biome check .",
 		"test:jira-plugin": "bun src/test-jira-plugin.ts"
 	},
 	"dependencies": {

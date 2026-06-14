@@ -13,6 +13,7 @@
 		"build": "bun build ./src/cli.ts --outfile ./dist/cli.js --target=bun --banner \"#!/usr/bin/env node\"",
 		"build:compile": "bun build ./src/cli.ts --compile --outfile ../../dist/toby",
 		"dev": "bun src/cli.ts",
+		"lint": "bunx biome check .",
 		"typecheck": "tsc --noEmit",
 		"test": "bunx vitest run",
 		"test:watch": "bunx vitest"

@@ -9,6 +9,7 @@
 		"./*": "./src/*"
 	},
 	"scripts": {
+		"lint": "bunx biome check .",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {

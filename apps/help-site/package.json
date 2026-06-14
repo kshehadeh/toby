@@ -8,6 +8,7 @@
 		"start": "docusaurus start",
 		"prebuild": "mkdir -p static/img && cp ../../images/*.png static/img/",
 		"build": "docusaurus build",
+		"lint": "bunx biome check package.json docusaurus.config.ts sidebars.ts src docs",
 		"swizzle": "docusaurus swizzle",
 		"deploy": "docusaurus deploy",
 		"clear": "docusaurus clear",
