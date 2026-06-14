@@ -6,6 +6,34 @@ PKG="$ROOT/apps/toby-app"
 DIST="$ROOT/dist"
 APP="$DIST/Toby.app"
 ARCH="${SWIFT_ARCH:-$(uname -m)}"
+ICON_SRC="$ROOT/images/512x512.png"
+
+build_app_icon() {
+	local iconset icns
+	iconset="$(mktemp -d)/AppIcon.iconset"
+	icns="$(mktemp -t toby-app-icon).icns"
+	mkdir -p "${iconset}"
+
+	sips -z 16 16 "${ICON_SRC}" --out "${iconset}/icon_16x16.png" >/dev/null
+	sips -z 32 32 "${ICON_SRC}" --out "${iconset}/icon_16x16@2x.png" >/dev/null
+	sips -z 32 32 "${ICON_SRC}" --out "${iconset}/icon_32x32.png" >/dev/null
+	sips -z 64 64 "${ICON_SRC}" --out "${iconset}/icon_32x32@2x.png" >/dev/null
+	sips -z 128 128 "${ICON_SRC}" --out "${iconset}/icon_128x128.png" >/dev/null
+	sips -z 256 256 "${ICON_SRC}" --out "${iconset}/icon_128x128@2x.png" >/dev/null
+	sips -z 256 256 "${ICON_SRC}" --out "${iconset}/icon_256x256.png" >/dev/null
+	sips -z 512 512 "${ICON_SRC}" --out "${iconset}/icon_256x256@2x.png" >/dev/null
+	sips -z 512 512 "${ICON_SRC}" --out "${iconset}/icon_512x512.png" >/dev/null
+	sips -z 1024 1024 "${ICON_SRC}" --out "${iconset}/icon_512x512@2x.png" >/dev/null
+
+	iconutil -c icns "${iconset}" -o "${icns}"
+	cp "${icns}" "${APP}/Contents/Resources/AppIcon.icns"
+	rm -f "${icns}"
+}
+
+if [[ ! -f "${ICON_SRC}" ]]; then
+	echo "Missing app icon source: ${ICON_SRC}" >&2
+	exit 1
+fi
 
 echo "Building toby-app (swift ${ARCH})..."
 swift build -c release --arch "${ARCH}" --package-path "${PKG}"
@@ -27,6 +55,8 @@ cat >"${APP}/Contents/Info.plist" <<'PLIST'
 	<string>toby-app</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.toby.app</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -47,6 +77,7 @@ PLIST
 
 cp "${BIN}" "${APP}/Contents/MacOS/toby-app"
 chmod +x "${APP}/Contents/MacOS/toby-app"
+build_app_icon
 codesign -s - --force --deep "${APP}" >/dev/null 2>&1 || true
 
 echo "Built ${APP}"
