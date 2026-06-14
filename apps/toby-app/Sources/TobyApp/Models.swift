@@ -60,6 +60,7 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 	case toolCall(blockKey: String, title: String)
 	case toolOutput(blockKey: String, detail: String)
 	case askUserQA(blockKey: String, query: String, answer: String, error: String?)
+	case turnWork(durationMs: Int)
 
 	var id: String {
 		switch self {
@@ -81,6 +82,8 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 			return "tool-output-\(blockKey)"
 		case .askUserQA(let blockKey, _, _, _):
 			return "ask-user-\(blockKey)"
+		case .turnWork(let durationMs):
+			return "turn-work-\(durationMs)"
 		}
 	}
 
@@ -103,6 +106,7 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 		case query
 		case answer
 		case error
+		case durationMs
 	}
 
 	init(from decoder: Decoder) throws {
@@ -153,6 +157,8 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 				answer: try container.decode(String.self, forKey: .answer),
 				error: try container.decodeIfPresent(String.self, forKey: .error),
 			)
+		case "turn_work":
+			self = .turnWork(durationMs: try container.decode(Int.self, forKey: .durationMs))
 		default:
 			self = .meta(text: kind)
 		}

@@ -78,6 +78,9 @@ private struct ActiveChatWorkspace: View {
 			TranscriptView(
 				entries: store.transcript,
 				streamingAssistant: store.streamingAssistant,
+				isLoading: store.isLoading,
+				turnWorkDurations: store.turnWorkDurations,
+				activeWorkStartDate: store.activeWorkStartDate,
 			)
 			if let errorMessage = store.errorMessage {
 				Text(errorMessage)
