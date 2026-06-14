@@ -187,6 +187,9 @@ struct ChatEventPayload: Decodable {
 	let toolName: String?
 	let integrationLabel: String?
 	let cacheHit: Bool?
+	let text: String?
+	let tone: String?
+	let interim: Bool?
 }
 
 struct TurnDonePayload: Decodable {
@@ -206,4 +209,6 @@ struct AskUserPromptPayload: Decodable {
 struct StreamingAssistantState: Equatable {
 	var header: String
 	var text: String
+	/// When true, stream inside the active "Worked for" group instead of the main transcript line.
+	var inWorkArea: Bool
 }

@@ -26,6 +26,7 @@ final class ChatStore {
 	private let client = TobyClient()
 	private var assistantHeader = ""
 	private var assistantBuffer = ""
+	private var sawToolCallThisTurn = false
 	private var activeTurnStartedAt: Date?
 	private var activeTurnUserIndex: Int?
 
@@ -109,6 +110,7 @@ final class ChatStore {
 		streamingAssistant = nil
 		assistantHeader = ""
 		assistantBuffer = ""
+		sawToolCallThisTurn = false
 		errorMessage = nil
 
 		do {
@@ -116,13 +118,13 @@ final class ChatStore {
 				self.apply(event: event)
 			}, onAskUser: nil)
 			if !assistantBuffer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-				commitAssistantSegment(id: UUID().uuidString)
+				commitAssistantSegment(id: UUID().uuidString, interim: false)
 			}
 			let reply = done.text.trimmingCharacters(in: .whitespacesAndNewlines)
 			if !reply.isEmpty && !hasAssistantReplyBody(reply, sinceIndex: userTurnStartIndex) {
 				assistantHeader = status?.persona ?? "Assistant"
 				assistantBuffer = reply
-				commitAssistantSegment(id: UUID().uuidString)
+				commitAssistantSegment(id: UUID().uuidString, interim: false)
 			}
 			if let nextSessionName = done.sessionName?.trimmingCharacters(
 				in: .whitespacesAndNewlines,
@@ -188,17 +190,26 @@ final class ChatStore {
 		case "assistant_segment_start":
 			assistantHeader = event.header ?? status?.persona ?? "Assistant"
 			assistantBuffer = ""
-			streamingAssistant = StreamingAssistantState(header: assistantHeader, text: "")
+			streamingAssistant = StreamingAssistantState(
+				header: assistantHeader,
+				text: "",
+				inWorkArea: !sawToolCallThisTurn,
+			)
 			activityLine = "Responding…"
 		case "assistant_text_delta":
 			assistantBuffer += event.delta ?? ""
 			streamingAssistant = StreamingAssistantState(
 				header: assistantHeader,
 				text: assistantBuffer,
+				inWorkArea: !sawToolCallThisTurn,
 			)
 		case "assistant_segment_end":
-			commitAssistantSegment(id: event.id ?? UUID().uuidString)
+			commitAssistantSegment(
+				id: event.id ?? UUID().uuidString,
+				interim: event.interim == true,
+			)
 		case "tool_call_start":
+			sawToolCallThisTurn = true
 			if let toolName = event.toolName {
 				appendToolRow(
 					id: event.blockKey ?? event.id ?? UUID().uuidString,
@@ -225,6 +236,10 @@ final class ChatStore {
 		case "prep_start":
 			if let header = event.header {
 				activityLine = header
+			}
+		case "transcript_notice":
+			if let text = event.text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
+				transcript.append(.notice(text: text, tone: event.tone))
 			}
 		default:
 			break
@@ -362,7 +377,7 @@ final class ChatStore {
 		return false
 	}
 
-	private func commitAssistantSegment(id: String) {
+	private func commitAssistantSegment(id: String, interim: Bool) {
 		let body = assistantBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
 		guard !body.isEmpty else { return }
 		transcript.append(
@@ -370,7 +385,7 @@ final class ChatStore {
 				BoxedStepPayload(
 					id: id,
 					seq: transcript.count + 1,
-					variant: "assistant",
+					variant: interim ? "assistant_interim" : "assistant",
 					header: assistantHeader,
 					body: body,
 					toolName: nil,

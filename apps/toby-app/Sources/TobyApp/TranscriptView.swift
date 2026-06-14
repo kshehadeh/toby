@@ -37,11 +37,14 @@ struct TranscriptView: View {
 								activeWorkStartDate: group.isActive ? activeWorkStartDate : nil,
 								isExpanded: isWorkGroupExpanded(group),
 								onToggle: { toggleWorkGroup(group) },
+								streamingAssistant: group.isActive && streamingAssistant?.inWorkArea == true
+									? streamingAssistant
+									: nil,
 							)
 							.id(group.id)
 						}
 					}
-					if let streamingAssistant {
+					if let streamingAssistant, !streamingAssistant.inWorkArea {
 						AssistantBox(
 							header: streamingAssistant.header,
 							messageBody: streamingAssistant.text,
@@ -117,6 +120,7 @@ private struct WorkedForRow: View {
 	let activeWorkStartDate: Date?
 	let isExpanded: Bool
 	let onToggle: () -> Void
+	var streamingAssistant: StreamingAssistantState?
 
 	var body: some View {
 		TimelineView(.periodic(from: .now, by: 1.0)) { context in
@@ -145,6 +149,13 @@ private struct WorkedForRow: View {
 					VStack(alignment: .leading, spacing: 8) {
 						ForEach(Array(group.entries.enumerated()), id: \.offset) { _, entry in
 							WorkDetailRow(entry: entry)
+						}
+						if let streamingAssistant {
+							InterimAssistantRow(
+								header: streamingAssistant.header,
+								messageBody: streamingAssistant.text,
+								isStreaming: true,
+							)
 						}
 					}
 					.padding(.bottom, 10)
@@ -199,6 +210,12 @@ private struct WorkDetailRow: View {
 				TranscriptGrouping.isHiddenLifecycleHeader(payload.header)
 			{
 				EmptyView()
+			} else if payload.variant == "assistant_interim" {
+				InterimAssistantRow(
+					header: payload.header,
+					messageBody: payload.body,
+					isStreaming: false,
+				)
 			} else {
 				HStack(alignment: .top, spacing: 8) {
 				Image(systemName: iconName(for: payload))
@@ -238,9 +255,49 @@ private struct WorkDetailRow: View {
 			return payload.cacheHit == true ? "checkmark.circle" : "wrench.and.screwdriver"
 		case "lifecycle", "prep":
 			return payload.body == "Thinking" ? "brain.head.profile" : "checkmark"
+		case "assistant_interim":
+			return "text.bubble"
 		default:
 			return "circle"
 		}
+	}
+}
+
+private struct InterimAssistantRow: View {
+	let header: String
+	let messageBody: String
+	let isStreaming: Bool
+
+	var body: some View {
+		HStack(alignment: .top, spacing: 6) {
+			Image(systemName: "text.bubble")
+				.font(.caption)
+				.foregroundStyle(AppTheme.tertiaryText)
+				.frame(width: 14, alignment: .center)
+				.padding(.top, 2)
+			VStack(alignment: .leading, spacing: 4) {
+				HStack(spacing: 6) {
+					Text(header)
+						.font(.caption.weight(.semibold))
+						.foregroundStyle(AppTheme.secondaryText)
+					if isStreaming {
+						ProgressView()
+							.controlSize(.mini)
+					}
+				}
+				if !messageBody.isEmpty {
+					MarkdownText(
+						text: messageBody,
+						font: .callout,
+						foregroundStyle: AppTheme.tertiaryText,
+					)
+					.frame(maxWidth: .infinity, alignment: .leading)
+				}
+			}
+		}
+		.frame(maxWidth: .infinity, alignment: .leading)
+		.padding(.vertical, 4)
+		.padding(.leading, 4)
 	}
 }
 
@@ -281,6 +338,8 @@ private struct TranscriptRow: View {
 		case .boxedStep(let payload):
 			if payload.variant == "assistant" {
 				AssistantBox(header: payload.header, messageBody: payload.body, isStreaming: false)
+			} else if payload.variant == "assistant_interim" {
+				EmptyView()
 			} else {
 				EmptyView()
 			}
@@ -399,8 +458,26 @@ private struct NoticeRow: View {
 	let tone: String?
 
 	var body: some View {
-		MarkdownText(text: text, font: .callout, foregroundStyle: color)
-			.frame(maxWidth: .infinity, alignment: .leading)
+		HStack(alignment: .top, spacing: 8) {
+			Image(systemName: iconName)
+				.font(.caption)
+				.foregroundStyle(AppTheme.tertiaryText)
+				.frame(width: 14, alignment: .center)
+				.padding(.top, 2)
+			MarkdownText(text: text, font: .callout, foregroundStyle: color)
+		}
+		.frame(maxWidth: .infinity, alignment: .leading)
+		.padding(.vertical, 2)
+	}
+
+	private var iconName: String {
+		if text.hasPrefix("Skills:") {
+			return "sparkles"
+		}
+		if text.contains(" tools") || text.contains(" core tools") {
+			return "wrench.and.screwdriver"
+		}
+		return "info.circle"
 	}
 
 	private var color: Color {
@@ -410,7 +487,7 @@ private struct NoticeRow: View {
 		case "error":
 			return .red
 		default:
-			return .secondary
+			return AppTheme.secondaryText
 		}
 	}
 }

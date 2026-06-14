@@ -20,7 +20,7 @@ enum TranscriptGrouping {
 		case .meta, .turnWork:
 			return false
 		case .boxedStep(let payload):
-			if payload.variant == "prep" {
+			if payload.variant == "prep" || payload.variant == "assistant_interim" {
 				return false
 			}
 			if payload.variant == "lifecycle", isHiddenLifecycleHeader(payload.header) {
@@ -36,7 +36,7 @@ enum TranscriptGrouping {
 		switch entry {
 		case .boxedStep(let payload):
 			switch payload.variant {
-			case "lifecycle", "prep", "tool", "plan", "thinking":
+			case "lifecycle", "prep", "tool", "plan", "thinking", "assistant_interim":
 				return true
 			default:
 				return false
