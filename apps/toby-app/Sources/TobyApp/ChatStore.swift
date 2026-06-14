@@ -21,6 +21,9 @@ final class ChatStore {
 
 	func bootstrap() async {
 		do {
+			activityLine = "Checking server…"
+			try await DaemonBootstrap.ensureServerAvailable(baseURL: client.baseURL)
+			activityLine = "Connecting…"
 			status = try await client.fetchStatus()
 			let created = try await client.createSession()
 			sessionId = created.id
