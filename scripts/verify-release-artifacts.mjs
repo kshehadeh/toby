@@ -62,6 +62,14 @@ if (!fs.existsSync(macosPluginBundle)) {
 	process.exit(1);
 }
 
+const tobyApp = path.join(directory, "Toby.app");
+const tobyAppExecutable = path.join(tobyApp, "Contents", "MacOS", "toby-app");
+if (!fs.existsSync(tobyAppExecutable)) {
+	console.error(`Missing or invalid release artifacts in ${directory}:`);
+	console.error("  - Toby.app/Contents/MacOS/toby-app");
+	process.exit(1);
+}
+
 if (process.platform === "darwin") {
 	const whisperPluginPath = path.join(directory, "toby-plugin-whisper");
 	const otool = spawnSync("otool", ["-L", whisperPluginPath], {

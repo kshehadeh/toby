@@ -106,6 +106,10 @@ export function resolveWebInstallTarget(installDir?: string): string {
 	return path.join(path.dirname(resolveInstallTarget(installDir)), "web");
 }
 
+export function resolveAppInstallTarget(installDir?: string): string {
+	return path.join(path.dirname(resolveInstallTarget(installDir)), "Toby.app");
+}
+
 export function getStagingPaths(): {
 	readonly stagingDir: string;
 	readonly binaryPath: string;
@@ -120,6 +124,7 @@ export function getStagingPaths(): {
 	readonly pluginApplecalendarPath: string;
 	readonly pluginMacosPath: string;
 	readonly pluginWhisperPath: string;
+	readonly appPath: string;
 	readonly webPath: string;
 	readonly archivePath: string;
 	readonly manifestPath: string;
@@ -140,6 +145,7 @@ export function getStagingPaths(): {
 		pluginApplecalendarPath: path.join(stagingDir, "toby-plugin-applecalendar"),
 		pluginMacosPath: path.join(stagingDir, "toby-plugin-macos"),
 		pluginWhisperPath: path.join(stagingDir, "toby-plugin-whisper"),
+		appPath: path.join(stagingDir, "Toby.app"),
 		webPath: path.join(stagingDir, "web"),
 		archivePath: path.join(stagingDir, "toby-release.zip"),
 		manifestPath: path.join(stagingDir, "manifest.json"),
@@ -401,7 +407,8 @@ export async function applyStagedRelease(
 		);
 	}
 
-	const { binaryPath, listenerPath, webPath, manifestPath } = getStagingPaths();
+	const { binaryPath, listenerPath, webPath, appPath, manifestPath } =
+		getStagingPaths();
 	if (!fs.existsSync(binaryPath)) {
 		throw new Error(`Staged binary missing at ${binaryPath}.`);
 	}
@@ -439,6 +446,14 @@ export async function applyStagedRelease(
 		const webInstallTarget = path.join(path.dirname(installTarget), "web");
 		await rm(webInstallTarget, { recursive: true, force: true });
 		await cp(webPath, webInstallTarget, { recursive: true });
+	}
+
+	if (fs.existsSync(path.join(appPath, "Contents", "MacOS", "toby-app"))) {
+		options?.onProgress?.({ phase: "installing", detail: "native app" });
+		await yieldToEventLoop();
+		const appInstallTarget = path.join(path.dirname(installTarget), "Toby.app");
+		await rm(appInstallTarget, { recursive: true, force: true });
+		await cp(appPath, appInstallTarget, { recursive: true });
 	}
 
 	const {

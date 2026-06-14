@@ -160,6 +160,12 @@ rm -rf "${install_dir}/web"
 cp -R "${tmpdir}/web" "${install_dir}/web"
 echo "Installed: ${install_dir}/web"
 
+if [[ -d "${tmpdir}/Toby.app" ]]; then
+	rm -rf "${install_dir}/Toby.app"
+	cp -R "${tmpdir}/Toby.app" "${install_dir}/Toby.app"
+	echo "Installed: ${install_dir}/Toby.app"
+fi
+
 chmod +x "${tmpdir}/toby-listener"
 mkdir -p "$toby_helpers_dir"
 mv "${tmpdir}/toby-listener" "${toby_helpers_dir}/toby-listener"

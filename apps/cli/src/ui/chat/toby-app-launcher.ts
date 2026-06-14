@@ -3,6 +3,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+	getTobyExecPath,
+	isRunningAsCompiledBinary,
+} from "@toby/core/toby-spawn";
 
 const repoRoot = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
@@ -22,6 +26,24 @@ function exists(candidate: string): boolean {
 	}
 }
 
+function resolveInstallDir(): string {
+	return path.dirname(getTobyExecPath());
+}
+
+/** Toby.app shipped next to the `toby` binary (release install) or in dist/ (dev). */
+export function resolveBundledTobyAppSource(): string | null {
+	const candidates = [
+		path.join(resolveInstallDir(), "Toby.app"),
+		path.join(repoRoot, "dist/Toby.app"),
+	];
+	for (const candidate of candidates) {
+		if (exists(candidate)) {
+			return candidate;
+		}
+	}
+	return null;
+}
+
 export function resolveTobyAppPath(): ResolvedTobyApp | null {
 	const explicit = process.env.TOBY_APP?.trim();
 	if (explicit) {
@@ -31,13 +53,14 @@ export function resolveTobyAppPath(): ResolvedTobyApp | null {
 		return { kind: "executable", path: explicit };
 	}
 
+	const bundled = resolveBundledTobyAppSource();
 	const candidates: Array<ResolvedTobyApp> = [
 		{ kind: "app-bundle", path: "/Applications/Toby.app" },
 		{
 			kind: "app-bundle",
 			path: path.join(os.homedir(), "Applications/Toby.app"),
 		},
-		{ kind: "app-bundle", path: path.join(repoRoot, "dist/Toby.app") },
+		...(bundled ? [{ kind: "app-bundle" as const, path: bundled }] : []),
 		{
 			kind: "executable",
 			path: path.join(repoRoot, "apps/toby-app/.build/release/toby-app"),
@@ -92,12 +115,13 @@ export function installTobyAppFromDist(): {
 	readonly message: string;
 	readonly target?: string;
 } {
-	const source = path.join(repoRoot, "dist/Toby.app");
-	if (!exists(source)) {
+	const source = resolveBundledTobyAppSource();
+	if (!source) {
 		return {
 			ok: false,
-			message:
-				"Toby.app is not built. Run `bun run build:app` or `/install-app` again after building.",
+			message: isRunningAsCompiledBinary()
+				? "Toby.app is not bundled with this install. Re-run the installer after upgrading to a release that includes the native app."
+				: "Toby.app is not built. Run `bun run build:app` from the repo, then try again.",
 		};
 	}
 	const installDir = resolveInstallApplicationsDir();
@@ -116,11 +140,19 @@ export function buildTobyAppIfNeeded(): {
 	readonly ok: boolean;
 	readonly message: string;
 } {
-	const distApp = path.join(repoRoot, "dist/Toby.app");
-	if (exists(distApp)) {
-		return { ok: true, message: "Using existing dist/Toby.app." };
+	const bundled = resolveBundledTobyAppSource();
+	if (bundled) {
+		return { ok: true, message: "Using bundled Toby.app." };
 	}
 	const script = path.join(repoRoot, "scripts/build-app.sh");
+	if (!exists(script)) {
+		return {
+			ok: false,
+			message: isRunningAsCompiledBinary()
+				? "Cannot build Toby.app from an installed release. Re-run the installer after upgrading, or use `/web` for the browser UI."
+				: "Cannot build Toby.app: scripts/build-app.sh not found.",
+		};
+	}
 	const result = spawnSync("bash", [script], {
 		cwd: repoRoot,
 		stdio: "pipe",

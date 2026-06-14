@@ -15,7 +15,7 @@ export const installAppSlashCommand: SlashCommand = {
 			runtime.addNoticeLine(built.message, "error");
 			return;
 		}
-		if (built.message !== "Using existing dist/Toby.app.") {
+		if (built.message !== "Using bundled Toby.app.") {
 			runtime.addNoticeLine(built.message, "success");
 		}
 
