@@ -44,6 +44,14 @@ struct TobyClient {
 		return try JSONDecoder().decode(Payload.self, from: data).sessions
 	}
 
+	func listPersonas() async throws -> [PersonaOption] {
+		let url = baseURL.appendingPathComponent("api/personas")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		struct Payload: Decodable { let personas: [PersonaOption] }
+		return try JSONDecoder().decode(Payload.self, from: data).personas
+	}
+
 	func fetchSession(id: String) async throws -> SessionDetail {
 		let url = baseURL.appendingPathComponent("api/sessions/\(id)")
 		let (data, response) = try await URLSession.shared.data(from: url)

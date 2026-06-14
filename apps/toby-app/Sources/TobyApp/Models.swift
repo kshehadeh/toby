@@ -8,6 +8,12 @@ struct AppStatus: Decodable {
 	let skillCount: Int?
 }
 
+struct PersonaOption: Decodable, Identifiable {
+	var id: String { name }
+	let name: String
+	let label: String
+}
+
 struct SessionSummary: Decodable, Identifiable {
 	let id: String
 	let name: String

@@ -18,6 +18,8 @@ struct RootView: View {
 				onSearch: { isCommandPalettePresented = true },
 				onSelectSession: selectSession,
 				onOpenSettings: openSettings,
+				onOpenPersonasSettings: openPersonasSettings,
+				onPersonaSelected: refreshStatus,
 			)
 			ChatWorkspaceView(store: store)
 		}
@@ -54,6 +56,15 @@ struct RootView: View {
 
 	private func openSettings() {
 		isConfigurePresented = true
+	}
+
+	private func openPersonasSettings() {
+		configureStore.selectedNavKey = "personas"
+		isConfigurePresented = true
+	}
+
+	private func refreshStatus() {
+		Task { await store.refreshStatus() }
 	}
 }
 

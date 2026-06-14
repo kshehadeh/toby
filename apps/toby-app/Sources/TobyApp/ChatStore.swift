@@ -59,6 +59,15 @@ final class ChatStore {
 		}
 	}
 
+	func refreshStatus() async {
+		do {
+			status = try await client.fetchStatus()
+			errorMessage = nil
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
 	func selectSession(id: String) async {
 		guard !isLoading else { return }
 		guard sessionId != id || transcript.isEmpty else { return }

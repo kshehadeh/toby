@@ -10,6 +10,8 @@ struct AppSidebar: View {
 	let onSearch: () -> Void
 	let onSelectSession: (String) -> Void
 	let onOpenSettings: () -> Void
+	let onOpenPersonasSettings: () -> Void
+	let onPersonaSelected: () -> Void
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
@@ -65,7 +67,11 @@ struct AppSidebar: View {
 				.frame(maxWidth: .infinity, alignment: .leading)
 			}
 			Spacer(minLength: AppTheme.contentPadding)
-			SidebarFooter(status: status)
+			SidebarFooter(
+				status: status,
+				onOpenPersonasSettings: onOpenPersonasSettings,
+				onPersonaSelected: onPersonaSelected,
+			)
 		}
 		.padding(.horizontal, 10)
 		.padding(.vertical, 12)
@@ -166,18 +172,162 @@ private struct SidebarRow: View {
 
 private struct SidebarFooter: View {
 	let status: AppStatus?
+	let onOpenPersonasSettings: () -> Void
+	let onPersonaSelected: () -> Void
+
+	@State private var isPersonaPickerPresented = false
 
 	var body: some View {
-		VStack(alignment: .leading, spacing: 4) {
-			Text(status?.persona ?? "Connecting")
-				.font(.callout)
-				.foregroundStyle(AppTheme.primaryText)
-			Text(status?.model ?? "Waiting for daemon")
-				.font(.caption)
-				.foregroundStyle(AppTheme.tertiaryText)
-				.lineLimit(1)
+		Button {
+			isPersonaPickerPresented = true
+		} label: {
+			HStack(alignment: .center, spacing: 8) {
+				VStack(alignment: .leading, spacing: 4) {
+					Text(status?.persona ?? "Connecting")
+						.font(.callout)
+						.foregroundStyle(AppTheme.primaryText)
+					Text(status?.model ?? "Waiting for daemon")
+						.font(.caption)
+						.foregroundStyle(AppTheme.tertiaryText)
+						.lineLimit(1)
+				}
+				Spacer(minLength: 0)
+				Image(systemName: "chevron.up.chevron.down")
+					.font(.caption2.weight(.semibold))
+					.foregroundStyle(AppTheme.tertiaryText)
+			}
+			.frame(maxWidth: .infinity, alignment: .leading)
+			.contentShape(Rectangle())
 		}
+		.buttonStyle(.plain)
 		.padding(8)
+		.background(
+			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
+				.fill(isPersonaPickerPresented ? AppTheme.selection : Color.clear)
+		)
+		.popover(isPresented: $isPersonaPickerPresented, arrowEdge: .bottom) {
+			PersonaPickerPopover(
+				currentPersona: status?.persona,
+				onOpenPersonasSettings: {
+					isPersonaPickerPresented = false
+					onOpenPersonasSettings()
+				},
+				onPersonaSelected: {
+					isPersonaPickerPresented = false
+					onPersonaSelected()
+				},
+			)
+		}
+		.accessibilityLabel("Persona")
+		.accessibilityValue(status?.persona ?? "Connecting")
+	}
+}
+
+private struct PersonaPickerPopover: View {
+	let currentPersona: String?
+	let onOpenPersonasSettings: () -> Void
+	let onPersonaSelected: () -> Void
+
+	@State private var personas: [PersonaOption] = []
+	@State private var isLoading = false
+	@State private var isSaving = false
+	@State private var errorMessage: String?
+
+	private let client = TobyClient()
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 8) {
+			Text("Select Persona")
+				.font(.headline)
+				.foregroundStyle(AppTheme.primaryText)
+
+			if isLoading && personas.isEmpty {
+				ProgressView("Loading personas...")
+					.controlSize(.small)
+			} else {
+				VStack(alignment: .leading, spacing: 2) {
+					ForEach(personas) { persona in
+						Button {
+							selectPersona(persona)
+						} label: {
+							HStack(spacing: 8) {
+								if persona.name == currentPersona {
+									Image(systemName: "checkmark")
+										.frame(width: 14)
+								} else {
+									Color.clear
+										.frame(width: 14, height: 1)
+								}
+								Text(persona.label)
+									.lineLimit(1)
+								Spacer(minLength: 0)
+							}
+							.frame(maxWidth: .infinity, alignment: .leading)
+							.contentShape(Rectangle())
+						}
+						.buttonStyle(.plain)
+						.padding(.horizontal, 6)
+						.padding(.vertical, 5)
+						.disabled(isSaving)
+					}
+				}
+			}
+
+			Divider()
+
+			Button {
+				onOpenPersonasSettings()
+			} label: {
+				Label("Configure Personas...", systemImage: "gearshape")
+					.frame(maxWidth: .infinity, alignment: .leading)
+					.contentShape(Rectangle())
+			}
+			.buttonStyle(.plain)
+			.padding(.horizontal, 6)
+			.padding(.vertical, 5)
+
+			if let errorMessage {
+				Text(errorMessage)
+					.font(.caption)
+					.foregroundStyle(.red)
+					.fixedSize(horizontal: false, vertical: true)
+			}
+		}
+		.padding(12)
+		.frame(width: 240)
+		.task {
+			await loadPersonas()
+		}
+	}
+
+	private func loadPersonas() async {
+		guard !isLoading else { return }
+		isLoading = true
+		errorMessage = nil
+		defer { isLoading = false }
+		do {
+			personas = try await client.listPersonas()
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	private func selectPersona(_ persona: PersonaOption) {
+		guard persona.name != currentPersona, !isSaving else { return }
+		Task {
+			isSaving = true
+			errorMessage = nil
+			defer { isSaving = false }
+			do {
+				_ = try await client.runConfigureAction(
+					"set-default-persona",
+					body: ["personaName": persona.name],
+				)
+				onPersonaSelected()
+			} catch {
+				errorMessage = error.localizedDescription
+			}
+		}
 	}
 }
 
