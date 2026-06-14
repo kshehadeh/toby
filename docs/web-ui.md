@@ -32,7 +32,7 @@ Configure port or disable the server in `~/.toby/config.json`:
 
 ## Shared chat API
 
-The React web UI, native macOS app (`apps/toby-app`), and Ink TUI all use the same daemon routes documented in [`daemon.md`](daemon.md#unified-chat-api). The TypeScript client is [`packages/core/src/web/client.ts`](../packages/core/src/web/client.ts). Interactive turns stream `ChatEvent` over SSE; session settings (`persona`, `modules`, `dryRun`) are stored per session in SQLite.
+The React web UI, native macOS app (`apps/toby-app`), and Ink TUI all use the same daemon routes documented in [`server-api.md`](server-api.md). The shared TypeScript daemon client is [`packages/core/src/web/client.ts`](../packages/core/src/web/client.ts), and the browser client is [`apps/web/src/api/client.ts`](../apps/web/src/api/client.ts). Interactive turns stream `ChatEvent` over SSE; session settings (`persona`, `modules`, `dryRun`) are stored per session in SQLite.
 
 ## What you can do
 

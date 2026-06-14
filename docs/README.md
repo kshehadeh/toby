@@ -19,6 +19,7 @@ Human- and agent-oriented docs for this repository.
 | [chat-pipeline.md](chat-pipeline.md) | Chat turn node pipeline (`TurnInit` → `ExpandPrompt` → `AssembleMessages` → `RunModelTurn` → `PersistTurn`), events, and tool-result caching. |
 | [daemon.md](daemon.md) | Background daemon: schedules, chat inbound (@mentions), `daemon.log`. |
 | [web-ui.md](web-ui.md) | Localhost web UI (sessions, memories, configuration) served by the daemon. |
+| [server-api.md](server-api.md) | Local daemon HTTP API reference: routes, request/response shapes, SSE chat turns, configure actions. |
 | [chat-inbound.md](chat-inbound.md) | Inbound provider contract, external sessions, extending to new chat platforms. |
 | [ai-caching.md](ai-caching.md) | Provider prompt caching adapters, stable cache keys, and token telemetry. |
 | [slash-commands.md](slash-commands.md) | `toby chat` slash-command registry, current user-facing commands, and how to add new commands. |

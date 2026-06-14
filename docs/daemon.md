@@ -234,21 +234,7 @@ Compact one-line format (for scripts): `formatDaemonLogEntry()` in the same modu
 
 ## Unified chat API
 
-The daemon exposes a **shared chat contract** for Web, Native (SwiftUI), and Ink TUI clients. Types live in [`packages/core/src/api/chat-api.ts`](../packages/core/src/api/chat-api.ts); turn execution in [`packages/core/src/chat-pipeline/turn-runtime.ts`](../packages/core/src/chat-pipeline/turn-runtime.ts).
-
-| Method | Path | Purpose |
-| ------ | ---- | ------- |
-| `GET` | `/api/status` | Persona, model, integrations |
-| `POST` | `/api/sessions` | Create session (optional `persona`, `modules`, `bootstrap`) |
-| `GET` | `/api/sessions/:id` | Transcript, settings, active plan |
-| `PATCH` | `/api/sessions/:id` | Rename / update persona, modules, dry-run |
-| `DELETE` | `/api/sessions/:id` | Delete session |
-| `POST` | `/api/sessions/:id/turn` | Submit turn → SSE `ChatEvent` stream + `done` / `error` |
-| `POST` | `/api/sessions/:id/turn/:turnId/cancel` | Cancel in-flight turn |
-| `POST` | `/api/sessions/:id/turn/:turnId/ask-user/:requestId` | Answer interactive `askUser` prompt |
-| `POST` | `/api/sessions/:id/plan/skip` | Skip plan phase |
-| `POST` | `/api/sessions/:id/plan/cancel` | Cancel active plan |
-| `GET` | `/api/personas`, `/api/modules`, `/api/skills` | Metadata for pickers |
+The daemon exposes a **shared chat contract** for Web, Native (SwiftUI), and Ink TUI clients. The full HTTP reference is [`server-api.md`](server-api.md). Types live in [`packages/core/src/api/chat-api.ts`](../packages/core/src/api/chat-api.ts); turn execution in [`packages/core/src/chat-pipeline/turn-runtime.ts`](../packages/core/src/chat-pipeline/turn-runtime.ts).
 
 SSE streams emit `ChatEvent` JSON on default `data:` lines. Terminal events use named events: `done`, `error`, `ask_user_prompt`. See [`chat-api-parity.md`](chat-api-parity.md) for TUI feature mapping.
 

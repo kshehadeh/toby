@@ -16,6 +16,7 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | [`docs/projects.md`](docs/projects.md) | Projects: scoped artifact collection with reference context, pinned skills, and recurring workflow support. |
 | [`docs/daemon.md`](docs/daemon.md) | Background daemon: schedules, chat inbound (@mentions), `daemon.log`, troubleshooting. |
 | [`docs/web-ui.md`](docs/web-ui.md) | Localhost web UI served by the daemon (sessions, memories, configuration). |
+| [`docs/server-api.md`](docs/server-api.md) | Local daemon HTTP API reference: routes, request/response shapes, SSE chat turns, configure actions. |
 | [`docs/chat-inbound.md`](docs/chat-inbound.md) | Inbound provider contract, external session mapping, adding new chat platforms. |
 | [`docs/ai-caching.md`](docs/ai-caching.md) | Provider prompt caching adapters, stable cache keys, and token telemetry. |
 | [`docs/ui.md`](docs/ui.md) | Shared Ink UI components, visual conventions, and shortcut conventions. |
