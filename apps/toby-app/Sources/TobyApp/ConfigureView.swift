@@ -1,0 +1,511 @@
+import SwiftUI
+
+struct ConfigureView: View {
+	@Bindable var store: ConfigureStore
+	let onClose: () -> Void
+
+	var body: some View {
+		NavigationSplitView {
+			ConfigureSidebarView(store: store)
+				.navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 280)
+		} detail: {
+			ConfigureDetailView(store: store)
+		}
+		.frame(minWidth: 860, minHeight: 560)
+		.background(SettingsDesign.canvasBackground)
+		.toolbar {
+			ToolbarItem(placement: .cancellationAction) {
+				Button("Cancel", action: onClose)
+			}
+			ToolbarItem(placement: .confirmationAction) {
+				Button("Save") {
+					Task { await store.save() }
+				}
+				.disabled(!store.hasPendingChanges || store.isSaving)
+			}
+			ToolbarItem(placement: .principal) {
+				Text("Settings")
+					.font(.headline)
+			}
+			ToolbarItem(placement: .primaryAction) {
+				if store.isSaving || store.isLoading {
+					ProgressView()
+						.controlSize(.small)
+				}
+			}
+		}
+		.task {
+			await store.load()
+		}
+		.alert(
+			store.pendingDelete?.title ?? "",
+			isPresented: Binding(
+				get: { store.pendingDelete != nil },
+				set: { if !$0 { store.pendingDelete = nil } },
+			),
+		) {
+			Button("Cancel", role: .cancel) {
+				store.pendingDelete = nil
+			}
+			Button(store.pendingDelete?.confirmLabel ?? "Delete", role: .destructive) {
+				Task { await store.confirmDelete() }
+			}
+		} message: {
+			Text(store.pendingDelete?.message ?? "")
+		}
+	}
+}
+
+private struct ConfigureSidebarView: View {
+	@Bindable var store: ConfigureStore
+
+	var body: some View {
+		ScrollView {
+			VStack(alignment: .leading, spacing: 2) {
+				ForEach(store.sidebarTree) { node in
+					ConfigureSidebarNodeView(store: store, node: node)
+				}
+			}
+			.frame(maxWidth: .infinity, alignment: .leading)
+			.padding(10)
+		}
+		.background(AppTheme.sidebarBackground)
+	}
+}
+
+private struct ConfigureSidebarNodeView: View {
+	@Bindable var store: ConfigureStore
+	let node: SidebarTreeNode
+
+	private var isSelected: Bool {
+		store.selectedNavKey == node.navKey
+	}
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 2) {
+			Button {
+				store.selectSection(node.navKey)
+			} label: {
+				HStack(spacing: 0) {
+					Color.clear.frame(width: 22)
+					Text(node.item.label)
+						.font(.callout)
+						.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.secondaryText)
+						.lineLimit(1)
+					Spacer(minLength: 0)
+				}
+				.frame(maxWidth: .infinity, alignment: .leading)
+				.padding(.vertical, 6)
+				.padding(.horizontal, 8)
+				.contentShape(Rectangle())
+			}
+			.buttonStyle(.plain)
+			.background(
+				RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
+					.fill(isSelected ? SettingsDesign.sidebarSelection : Color.clear)
+			)
+			.overlay(alignment: .leading) {
+				if !node.children.isEmpty {
+					Button {
+						store.toggleExpanded(node.navKey)
+					} label: {
+						Image(systemName: "chevron.right")
+							.font(.caption2.weight(.semibold))
+							.foregroundStyle(AppTheme.tertiaryText)
+							.rotationEffect(.degrees(store.expandedKeys.contains(node.navKey) ? 90 : 0))
+							.frame(width: 22, height: 28)
+							.contentShape(Rectangle())
+					}
+					.buttonStyle(.plain)
+					.padding(.leading, 8)
+				}
+			}
+			.frame(maxWidth: .infinity, alignment: .leading)
+
+			if store.expandedKeys.contains(node.navKey) {
+				VStack(alignment: .leading, spacing: 2) {
+					ForEach(node.children) { child in
+						ConfigureSidebarNodeView(store: store, node: child)
+							.padding(.leading, 14)
+					}
+				}
+			}
+		}
+	}
+}
+
+private struct ConfigureDetailView: View {
+	@Bindable var store: ConfigureStore
+
+	var body: some View {
+		ScrollView {
+			VStack(alignment: .leading, spacing: 20) {
+				if store.isLoading && store.tree == nil {
+					ProgressView("Loading configuration…")
+						.frame(maxWidth: .infinity, minHeight: 240)
+				} else if let errorMessage = store.errorMessage, store.tree == nil {
+					ContentUnavailableView {
+						Label("Configuration unavailable", systemImage: "exclamationmark.triangle")
+					} description: {
+						Text(errorMessage)
+					}
+				} else if let section = store.selectedSection {
+					ConfigureSectionDetailView(store: store, section: section)
+				} else {
+					Text("Select a section")
+						.foregroundStyle(SettingsDesign.rowDescription)
+				}
+
+				if let errorMessage = store.errorMessage, store.tree != nil {
+					Text(errorMessage)
+						.font(.caption)
+						.foregroundStyle(.red)
+				}
+			}
+			.frame(maxWidth: SettingsDesign.contentMaxWidth)
+			.frame(maxWidth: .infinity)
+			.padding(.horizontal, 32)
+			.padding(.vertical, 28)
+		}
+		.background(SettingsDesign.canvasBackground)
+	}
+}
+
+private struct ConfigureSectionDetailView: View {
+	@Bindable var store: ConfigureStore
+	let section: SettingsItem
+
+	private var fields: [SettingsItem] {
+		store.detailFields(for: section)
+	}
+
+	private var mainFields: [SettingsItem] {
+		fields.filter { $0.kind != .delete }
+	}
+
+	private var deleteFields: [SettingsItem] {
+		fields.filter { $0.kind == .delete }
+	}
+
+	private var blockFields: [SettingsItem] {
+		mainFields.filter { field in
+			field.multiline == true
+				|| field.kind == .hint
+				|| (field.readOnly == true && field.kind != .action)
+		}
+	}
+
+	private var rowFields: [SettingsItem] {
+		mainFields.filter { field in
+			!blockFields.contains(where: { $0.id == field.id })
+		}
+	}
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 20) {
+			SettingsSectionHeader(title: section.label)
+
+			if ConfigureTreeHelpers.isContainerSection(section) {
+				SettingsCard {
+					SettingsRow(
+						title: section.label,
+						description: "Select an item in the sidebar to view and edit its settings.",
+						showsDivider: false,
+					) {
+						EmptyView()
+					}
+				}
+			} else {
+				if !rowFields.isEmpty {
+					SettingsCard {
+						ForEach(Array(rowFields.enumerated()), id: \.element.id) { index, field in
+							ConfigureFieldRowView(
+								store: store,
+								field: field,
+								sectionLabel: section.label,
+								showsDivider: index < rowFields.count - 1,
+							)
+						}
+					}
+				}
+
+				ForEach(blockFields) { field in
+					ConfigureBlockFieldView(
+						store: store,
+						field: field,
+						sectionLabel: section.label,
+					)
+				}
+
+				if !deleteFields.isEmpty {
+					SettingsSectionHeader(title: "Danger Zone")
+					SettingsCard {
+						ForEach(Array(deleteFields.enumerated()), id: \.element.id) { index, field in
+							SettingsRow(
+								title: field.label,
+								description: "This action cannot be undone.",
+								showsDivider: index < deleteFields.count - 1,
+							) {
+								SettingsDestructiveButton(title: field.label) {
+									store.requestDelete(for: field, sectionLabel: section.label)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+private struct ConfigureFieldRowView: View {
+	@Bindable var store: ConfigureStore
+	let field: SettingsItem
+	let sectionLabel: String
+	let showsDivider: Bool
+
+	var body: some View {
+		SettingsRow(
+			title: field.label,
+			description: fieldDescription,
+			showsDivider: showsDivider,
+		) {
+			fieldControl
+		}
+	}
+
+	@ViewBuilder
+	private var fieldControl: some View {
+		switch field.kind {
+		case .action:
+			if let action = ConfigureTreeHelpers.actionForKey(field.key) {
+				SettingsActionButton(title: actionButtonTitle, showsExternalIcon: false) {
+					Task { await store.runAction(action.name, body: action.body) }
+				}
+				.disabled(store.isSaving)
+			}
+		case .select:
+			if let options = field.options, !options.isEmpty {
+				if ConfigureTreeHelpers.isBooleanSelectField(field) {
+					SettingsToggle(isOn: booleanBinding)
+				} else {
+					selectMenu(options: options)
+				}
+			}
+		case .multiSelect:
+			multiSelectMenu
+		default:
+			if field.masked == true {
+				SettingsInlineField(
+					text: maskedDraftBinding,
+					isSecure: true,
+					placeholder: maskedPlaceholder,
+				)
+			} else if field.kind == .value || field.kind == .select {
+				SettingsInlineField(text: draftBinding, placeholder: "Enter value")
+			} else if field.readOnly == true {
+				Text(store.value(for: field.key).isEmpty ? "Not set" : "Configured")
+					.font(.body)
+					.foregroundStyle(SettingsDesign.rowDescription)
+			}
+		}
+	}
+
+	private var actionButtonTitle: String {
+		switch field.key {
+		case "personas._new", "schedules._new":
+			return "Create"
+		default:
+			if field.key.hasSuffix("._setDefault") {
+				return "Set Default"
+			}
+			return field.label
+		}
+	}
+
+	private var fieldDescription: String? {
+		if field.masked == true,
+			store.value(for: field.key) == ConfigureConstants.redactedSecret,
+			store.draft[field.key] == nil
+		{
+			return "A value is saved. Enter a new value to replace it."
+		}
+		if field.kind == .select, ConfigureTreeHelpers.isBooleanSelectField(field) {
+			return booleanBinding.wrappedValue
+				? "This setting is currently enabled."
+				: "This setting is currently disabled."
+		}
+		return nil
+	}
+
+	private var maskedPlaceholder: String {
+		if store.value(for: field.key) == ConfigureConstants.redactedSecret,
+			store.draft[field.key] == nil
+		{
+			return "••••••"
+		}
+		return "Enter value"
+	}
+
+	private func selectMenu(options: [String]) -> some View {
+		Menu {
+			ForEach(selectOptions(options), id: \.value) { option in
+				Button(option.label) {
+					store.setDraftValue(field.key, option.value)
+				}
+			}
+		} label: {
+			SettingsDropdownLabel(title: currentSelectLabel(options: options))
+		}
+		.menuStyle(.borderlessButton)
+		.fixedSize()
+	}
+
+	private var multiSelectMenu: some View {
+		let choices = field.selectChoices ?? field.options?.map {
+			SettingsSelectChoice(value: $0, label: $0)
+		} ?? []
+		return Menu {
+			ForEach(choices, id: \.value) { choice in
+				Button {
+					toggleMultiSelectValue(choice.value)
+				} label: {
+					if multiSelectValues.contains(choice.value) {
+						Label(choice.label, systemImage: "checkmark")
+					} else {
+						Text(choice.label)
+					}
+				}
+			}
+		} label: {
+			SettingsDropdownLabel(title: multiSelectSummary(from: choices))
+		}
+		.menuStyle(.borderlessButton)
+		.fixedSize()
+	}
+
+	private var multiSelectValues: Set<String> {
+		let raw = store.draft[field.key] ?? store.savedValues[field.key] ?? ""
+		return Set(
+			raw.split(separator: ",")
+				.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+				.filter { !$0.isEmpty },
+		)
+	}
+
+	private func toggleMultiSelectValue(_ value: String) {
+		var next = multiSelectValues
+		if next.contains(value) {
+			next.remove(value)
+		} else {
+			next.insert(value)
+		}
+		store.setDraftValue(field.key, next.sorted().joined(separator: ","))
+	}
+
+	private func multiSelectSummary(from choices: [SettingsSelectChoice]) -> String {
+		let selected = choices.filter { multiSelectValues.contains($0.value) }
+		if selected.isEmpty { return "None" }
+		if selected.count == 1 { return selected[0].label }
+		return "\(selected.count) selected"
+	}
+
+	private func currentSelectLabel(options: [String]) -> String {
+		let value = store.value(for: field.key)
+		return selectOptions(options).first(where: { $0.value == value })?.label ?? value
+	}
+
+	private var booleanBinding: Binding<Bool> {
+		Binding(
+			get: {
+				let value = store.value(for: field.key).lowercased()
+				return value == "yes" || value == "true"
+			},
+			set: { enabled in
+				store.setDraftValue(field.key, enabled ? "Yes" : "No")
+			},
+		)
+	}
+
+	private var draftBinding: Binding<String> {
+		Binding(
+			get: { store.value(for: field.key) },
+			set: { store.setDraftValue(field.key, $0) },
+		)
+	}
+
+	private var maskedDraftBinding: Binding<String> {
+		Binding(
+			get: {
+				if let draftValue = store.draft[field.key] {
+					return draftValue
+				}
+				let saved = store.savedValues[field.key] ?? ""
+				return saved == ConfigureConstants.redactedSecret ? "" : saved
+			},
+			set: { store.setDraftValue(field.key, $0) },
+		)
+	}
+
+	private func selectOptions(_ options: [String]) -> [SettingsSelectChoice] {
+		if let choices = field.selectChoices, !choices.isEmpty {
+			return choices
+		}
+		return options.map { option in
+			let label = store.integrationLabels[option] ?? option
+			return SettingsSelectChoice(value: option, label: label)
+		}
+	}
+}
+
+private struct ConfigureBlockFieldView: View {
+	@Bindable var store: ConfigureStore
+	let field: SettingsItem
+	let sectionLabel: String
+
+	var body: some View {
+		SettingsCard {
+			VStack(alignment: .leading, spacing: 12) {
+				Text(field.label)
+					.font(.body)
+					.foregroundStyle(SettingsDesign.rowTitle)
+
+				if field.kind == .hint {
+					Text(field.currentValue ?? store.value(for: field.key))
+						.font(.subheadline)
+						.foregroundStyle(SettingsDesign.rowDescription)
+						.textSelection(.enabled)
+						.frame(maxWidth: .infinity, alignment: .leading)
+				} else if field.multiline == true {
+					TextEditor(text: draftBinding)
+						.font(.body.monospaced())
+						.foregroundStyle(SettingsDesign.rowTitle)
+						.scrollContentBackground(.hidden)
+						.frame(minHeight: 140)
+						.padding(10)
+						.background(
+							RoundedRectangle(cornerRadius: SettingsDesign.controlCornerRadius)
+								.fill(SettingsDesign.canvasBackground.opacity(0.55))
+						)
+						.overlay {
+							RoundedRectangle(cornerRadius: SettingsDesign.controlCornerRadius)
+								.stroke(SettingsDesign.controlBorder, lineWidth: 1)
+						}
+				} else if field.readOnly == true {
+					Text(store.value(for: field.key).isEmpty ? "Not set" : "Configured")
+						.font(.subheadline)
+						.foregroundStyle(SettingsDesign.rowDescription)
+				}
+			}
+			.padding(SettingsDesign.rowHorizontalPadding)
+			.padding(.vertical, SettingsDesign.rowVerticalPadding)
+		}
+	}
+
+	private var draftBinding: Binding<String> {
+		Binding(
+			get: { store.value(for: field.key) },
+			set: { store.setDraftValue(field.key, $0) },
+		)
+	}
+}

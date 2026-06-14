@@ -1,23 +1,68 @@
 import SwiftUI
 
 struct AppSidebar: View {
-	let sessionName: String
+	let sessions: [SessionSummary]
+	let selectedSessionId: String?
 	let status: AppStatus?
 	let isLoading: Bool
+	let isSessionsLoading: Bool
 	let onNewChat: () -> Void
+	let onSearch: () -> Void
+	let onSelectSession: (String) -> Void
+	let onOpenSettings: () -> Void
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
 			SidebarHeader(status: status)
-			SidebarPrimaryActions(onNewChat: onNewChat, isLoading: isLoading)
+			SidebarPrimaryActions(
+				onNewChat: onNewChat,
+				onSearch: onSearch,
+				isLoading: isLoading,
+			)
 			SidebarSection(title: "Workspace") {
-				SidebarRow(title: sessionName, systemImage: "message", isSelected: true)
+				if isSessionsLoading && sessions.isEmpty {
+					Text("Loading sessions…")
+						.font(.caption)
+						.foregroundStyle(AppTheme.tertiaryText)
+						.padding(.horizontal, 8)
+						.padding(.vertical, 7)
+				} else if sessions.isEmpty {
+					Text("No past sessions")
+						.font(.caption)
+						.foregroundStyle(AppTheme.tertiaryText)
+						.padding(.horizontal, 8)
+						.padding(.vertical, 7)
+				} else {
+					ScrollView {
+						VStack(alignment: .leading, spacing: 2) {
+							ForEach(sessions) { session in
+								Button {
+									onSelectSession(session.id)
+								} label: {
+									SidebarRow(
+										title: session.name,
+										systemImage: "message",
+										isSelected: session.id == selectedSessionId,
+									)
+								}
+								.buttonStyle(.plain)
+								.frame(maxWidth: .infinity, alignment: .leading)
+								.disabled(isLoading)
+							}
+						}
+					}
+					.frame(maxHeight: 220)
+				}
 				SidebarRow(title: "Server event log", systemImage: "doc.text.magnifyingglass")
 			}
 			SidebarSection(title: "Toby") {
 				SidebarRow(title: "Plugins", systemImage: "square.grid.2x2")
 				SidebarRow(title: "Schedules", systemImage: "clock")
-				SidebarRow(title: "Settings", systemImage: "gearshape")
+				Button(action: onOpenSettings) {
+					SidebarRow(title: "Settings", systemImage: "gearshape")
+				}
+				.buttonStyle(.plain)
+				.frame(maxWidth: .infinity, alignment: .leading)
 			}
 			Spacer(minLength: AppTheme.contentPadding)
 			SidebarFooter(status: status)
@@ -59,6 +104,7 @@ private struct SidebarHeader: View {
 
 private struct SidebarPrimaryActions: View {
 	let onNewChat: () -> Void
+	let onSearch: () -> Void
 	let isLoading: Bool
 
 	var body: some View {
@@ -66,10 +112,16 @@ private struct SidebarPrimaryActions: View {
 			Button(action: onNewChat) {
 				Label("New chat", systemImage: "square.and.pencil")
 					.frame(maxWidth: .infinity, alignment: .leading)
+					.contentShape(Rectangle())
 			}
 			.buttonStyle(SidebarButtonStyle())
 			.disabled(isLoading)
-			SidebarRow(title: "Search", systemImage: "magnifyingglass")
+			Button(action: onSearch) {
+				Label("Search", systemImage: "magnifyingglass")
+					.frame(maxWidth: .infinity, alignment: .leading)
+					.contentShape(Rectangle())
+			}
+			.buttonStyle(SidebarButtonStyle())
 		}
 		.padding(.bottom, 14)
 	}
@@ -104,6 +156,7 @@ private struct SidebarRow: View {
 			.frame(maxWidth: .infinity, alignment: .leading)
 			.padding(.horizontal, 8)
 			.padding(.vertical, 7)
+			.contentShape(Rectangle())
 			.background(
 				RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
 					.fill(isSelected ? AppTheme.selection : Color.clear)
@@ -133,8 +186,10 @@ private struct SidebarButtonStyle: ButtonStyle {
 		configuration.label
 			.font(.callout)
 			.foregroundStyle(AppTheme.primaryText)
+			.frame(maxWidth: .infinity, alignment: .leading)
 			.padding(.horizontal, 8)
 			.padding(.vertical, 7)
+			.contentShape(Rectangle())
 			.background(
 				RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
 					.fill(configuration.isPressed ? AppTheme.selection : Color.clear)

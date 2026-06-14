@@ -211,4 +211,35 @@ struct TobyClient {
 			throw TobyClientError.serverError("HTTP \(http.statusCode)")
 		}
 	}
+
+	func fetchConfigureTree() async throws -> ConfigureTreeResponse {
+		let url = baseURL.appendingPathComponent("api/configure/tree")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ConfigureTreeResponse.self, from: data)
+	}
+
+	func patchConfigure(changes: [String: String]) async throws -> ConfigureTreeResponse {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/configure/values"))
+		request.httpMethod = "PATCH"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = try JSONEncoder().encode(["changes": changes])
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ConfigureTreeResponse.self, from: data)
+	}
+
+	func runConfigureAction(
+		_ action: String,
+		body: [String: String],
+	) async throws -> ConfigureActionResponse {
+		let url = baseURL.appendingPathComponent("api/configure/actions/\(action)")
+		var request = URLRequest(url: url)
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = try JSONEncoder().encode(body)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ConfigureActionResponse.self, from: data)
+	}
 }

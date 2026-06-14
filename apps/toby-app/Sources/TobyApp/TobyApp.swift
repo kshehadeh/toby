@@ -11,5 +11,13 @@ struct TobyApp: App {
 		}
 		.windowStyle(.automatic)
 		.defaultSize(width: 1024, height: 720)
+		.commands {
+			CommandGroup(after: .sidebar) {
+				Button("Search Sessions…") {
+					NotificationCenter.default.post(name: .openCommandPalette, object: nil)
+				}
+				.keyboardShortcut("k", modifiers: .command)
+			}
+		}
 	}
 }

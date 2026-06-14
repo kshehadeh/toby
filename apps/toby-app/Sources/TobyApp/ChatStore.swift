@@ -7,17 +7,27 @@ final class ChatStore {
 	var status: AppStatus?
 	var sessionId: String?
 	var sessionName: String = "New chat"
+	var sessions: [SessionSummary] = []
+	var isSessionsLoading = false
 	var transcript: [TranscriptEntry] = []
 	var streamingAssistant: StreamingAssistantState?
 	var activityLine: String = "Connecting…"
 	var promptText: String = ""
 	var isLoading = false
+	var isSelectingSession = false
 	var errorMessage: String?
+	var turnWorkDurations: [Int: TimeInterval] = [:]
 	let serverEventLogPath = ServerEventLog.path
+
+	var activeWorkStartDate: Date? {
+		isLoading ? activeTurnStartedAt : nil
+	}
 
 	private let client = TobyClient()
 	private var assistantHeader = ""
 	private var assistantBuffer = ""
+	private var activeTurnStartedAt: Date?
+	private var activeTurnUserIndex: Int?
 
 	func bootstrap() async {
 		do {
@@ -25,14 +35,46 @@ final class ChatStore {
 			try await DaemonBootstrap.ensureServerAvailable(baseURL: client.baseURL)
 			activityLine = "Connecting…"
 			status = try await client.fetchStatus()
-			let created = try await client.createSession()
-			sessionId = created.id
-			sessionName = created.name
-			activityLine = "Ready"
+			await refreshSessions()
+			if let mostRecent = sessions.first {
+				await selectSession(id: mostRecent.id)
+			} else {
+				await startNewSession()
+			}
 			errorMessage = nil
 		} catch {
 			errorMessage = error.localizedDescription
 			activityLine = "Daemon unavailable"
+		}
+	}
+
+	func refreshSessions() async {
+		isSessionsLoading = true
+		defer { isSessionsLoading = false }
+		do {
+			sessions = try await client.listSessions(limit: 50)
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	func selectSession(id: String) async {
+		guard !isLoading else { return }
+		guard sessionId != id || transcript.isEmpty else { return }
+		isSelectingSession = true
+		defer { isSelectingSession = false }
+		do {
+			let detail = try await client.fetchSession(id: id)
+			sessionId = detail.id
+			sessionName = detail.name
+			transcript = detail.transcript
+			streamingAssistant = nil
+			turnWorkDurations = [:]
+			promptText = ""
+			errorMessage = nil
+			activityLine = "Ready"
+		} catch {
+			errorMessage = error.localizedDescription
 		}
 	}
 
@@ -44,8 +86,10 @@ final class ChatStore {
 			sessionName = created.name
 			transcript = []
 			streamingAssistant = nil
+			turnWorkDurations = [:]
 			errorMessage = nil
 			activityLine = "Ready"
+			await refreshSessions()
 		} catch {
 			errorMessage = error.localizedDescription
 		}
@@ -58,6 +102,8 @@ final class ChatStore {
 		promptText = ""
 		transcript.append(.user(text: text))
 		let userTurnStartIndex = transcript.count - 1
+		activeTurnStartedAt = Date()
+		activeTurnUserIndex = userTurnStartIndex
 		isLoading = true
 		activityLine = "Thinking…"
 		streamingAssistant = nil
@@ -83,8 +129,10 @@ final class ChatStore {
 			), !nextSessionName.isEmpty {
 				sessionName = nextSessionName
 			}
+			await reloadTranscriptFromServer(clearTurnDurationForIndex: userTurnStartIndex)
 			streamingAssistant = nil
 			activityLine = "Ready"
+			await refreshSessions()
 		} catch {
 			errorMessage = error.localizedDescription
 			transcript.append(.error(text: error.localizedDescription))
@@ -92,6 +140,28 @@ final class ChatStore {
 		}
 
 		isLoading = false
+		recordTurnDuration()
+	}
+
+	private func recordTurnDuration() {
+		if let started = activeTurnStartedAt, let index = activeTurnUserIndex {
+			turnWorkDurations[index] = Date().timeIntervalSince(started)
+		}
+		activeTurnStartedAt = nil
+		activeTurnUserIndex = nil
+	}
+
+	private func reloadTranscriptFromServer(clearTurnDurationForIndex userIndex: Int?) async {
+		guard let sessionId else { return }
+		do {
+			let detail = try await client.fetchSession(id: sessionId)
+			transcript = detail.transcript
+			if let userIndex {
+				turnWorkDurations.removeValue(forKey: userIndex)
+			}
+		} catch {
+			// Keep the locally streamed transcript if refresh fails.
+		}
 	}
 
 	private func apply(event: ChatEventPayload) {
