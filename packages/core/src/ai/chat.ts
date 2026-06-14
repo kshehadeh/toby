@@ -117,7 +117,7 @@ export type ChatWithToolsOptions = {
 };
 
 type StreamToolContext = {
-	readonly endAssistantSegment: () => void;
+	readonly endAssistantSegment: (interim?: boolean) => void;
 	readonly emit: ChatEventSink | undefined;
 	readonly nextSeq: () => number;
 	/** When true, tool_call_start/tool_call_complete events are emitted from
@@ -213,7 +213,7 @@ function injectToolLifecycleHooks(
 				const allowCache = isReadOnlyChatTool(name);
 				const cacheHit = allowCache && getCachedToolResult(name, args).hit;
 				if (emitToolEvents) {
-					streamCtx?.endAssistantSegment();
+					streamCtx?.endAssistantSegment(true);
 					streamCtx?.emit?.({
 						type: "tool_call_start",
 						blockKey,
@@ -323,12 +323,13 @@ export async function chatWithTools(
 	};
 
 	let assistantSegmentId: string | null = null;
-	const endAssistantSegment = () => {
+	const endAssistantSegment = (interim = false) => {
 		if (assistantSegmentId !== null && onChatEvent) {
 			onChatEvent({
 				type: "assistant_segment_end",
 				id: assistantSegmentId,
 				seq: nextSeq(),
+				...(interim ? { interim: true } : {}),
 			});
 			assistantSegmentId = null;
 		}
@@ -481,7 +482,7 @@ export async function chatWithTools(
 					});
 				}
 				endReasoningSegment();
-				endAssistantSegment();
+				endAssistantSegment(true);
 				if (onChatEvent && !emittedToolCallStarts.has(part.toolCallId)) {
 					emittedToolCallStarts.add(part.toolCallId);
 					const args: Record<string, unknown> = {};
@@ -503,7 +504,7 @@ export async function chatWithTools(
 
 			if (part.type === "tool-call" && part.toolCallId) {
 				endReasoningSegment();
-				endAssistantSegment();
+				endAssistantSegment(true);
 				const args =
 					part.input &&
 					typeof part.input === "object" &&

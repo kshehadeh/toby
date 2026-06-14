@@ -254,6 +254,7 @@ function capBodyLines(
 		| "prep"
 		| "lifecycle"
 		| "assistant"
+		| "assistant_interim"
 		| "tool"
 		| "plan"
 		| "meta"
@@ -262,7 +263,7 @@ function capBodyLines(
 	if (variant === "lifecycle" || variant === "prep" || variant === "meta") {
 		return lines;
 	}
-	if (variant === "thinking") {
+	if (variant === "thinking" || variant === "assistant_interim") {
 		if (lines.length <= THINKING_MAX_VISIBLE_LINES) {
 			return lines;
 		}
@@ -303,6 +304,9 @@ export function flattenTranscript(
 			continue;
 		}
 		if (!debug && e.kind === "boxed_step" && e.variant === "prep") {
+			continue;
+		}
+		if (!debug && e.kind === "boxed_step" && e.variant === "assistant_interim") {
 			continue;
 		}
 		if (!debug && e.kind === "meta") {
@@ -500,11 +504,11 @@ export function flattenTranscript(
 				rows.push({ kind: "spacer", rowKey: `gap-${gapKey}` });
 			}
 			i = groupEnd - 1;
-		} else {
+		} else if (e.kind === "error") {
 			// Match pipeline / user body inset (see `buildTranscriptNodes` error margins).
 			const insetCols = Math.max(8, termCols - 2);
 			for (const line of hardWrap(e.text, insetCols)) {
-				rows.push({ kind: e.kind, text: line });
+				rows.push({ kind: "error", text: line });
 			}
 		}
 	}

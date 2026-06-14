@@ -94,7 +94,7 @@ export class TranscriptAccumulator {
 					kind: "boxed_step",
 					id: event.id,
 					seq: this.localSeq,
-					variant: "assistant",
+					variant: event.interim ? "assistant_interim" : "assistant",
 					header: this.assistantHeader,
 					body,
 				},

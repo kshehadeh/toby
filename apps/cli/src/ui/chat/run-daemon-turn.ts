@@ -115,7 +115,7 @@ export async function runDaemonChatTurn(params: {
 						kind: "boxed_step",
 						id: ev.id,
 						seq: callbacks.nextSeq(),
-						variant: "assistant",
+						variant: ev.interim ? "assistant_interim" : "assistant",
 						header: assistantSegmentHeaderRef.current,
 						body,
 					},

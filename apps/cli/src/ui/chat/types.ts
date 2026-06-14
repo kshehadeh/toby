@@ -16,6 +16,7 @@ export type DisplayRow =
 				| "prep"
 				| "lifecycle"
 				| "assistant"
+				| "assistant_interim"
 				| "tool"
 				| "plan"
 				| "meta"

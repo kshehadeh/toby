@@ -12,7 +12,8 @@ export function isTranscriptWorkEntry(entry: TranscriptEntry): boolean {
 		entry.variant === "prep" ||
 		entry.variant === "tool" ||
 		entry.variant === "plan" ||
-		entry.variant === "thinking"
+		entry.variant === "thinking" ||
+		entry.variant === "assistant_interim"
 	);
 }
 

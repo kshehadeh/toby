@@ -76,6 +76,8 @@ export type ChatEvent =
 			readonly type: "assistant_segment_end";
 			readonly id: string;
 			readonly seq: number;
+			/** True when the segment ended because tools are about to run (not the turn's final reply). */
+			readonly interim?: boolean;
 	  }
 	| {
 			readonly type: "tool_call_start";

@@ -25,6 +25,7 @@ export type TranscriptEntry =
 				| "prep"
 				| "lifecycle"
 				| "assistant"
+				| "assistant_interim"
 				| "tool"
 				| "plan"
 				| "thinking";

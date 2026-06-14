@@ -21,6 +21,7 @@ type BoxedStepPayload = {
 		| "prep"
 		| "lifecycle"
 		| "assistant"
+		| "assistant_interim"
 		| "tool"
 		| "plan"
 		| "thinking";
@@ -114,6 +115,7 @@ export function deserializeTranscriptRow(row: {
 				(p.variant === "prep" ||
 					p.variant === "lifecycle" ||
 					p.variant === "assistant" ||
+					p.variant === "assistant_interim" ||
 					p.variant === "tool" ||
 					p.variant === "plan" ||
 					p.variant === "thinking") &&
