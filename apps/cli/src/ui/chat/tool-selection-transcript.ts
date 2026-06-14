@@ -1,12 +1,8 @@
-import {
-	ALWAYS_INCLUDED_TOOLS,
-	filterToolNamesByRelevance,
-} from "@toby/core/chat-pipeline/run-turn";
-import type { TranscriptEntry } from "@toby/core/chat-pipeline/transcript-types";
-import { buildSessionNoticeEntry, recordSessionNote } from "./session-note";
+import { filterToolNamesByRelevance } from "@toby/core/chat-pipeline/run-turn";
+export { buildSelectionTranscriptEntries } from "@toby/core/chat-pipeline/selection-transcript";
+import { recordSessionNote } from "./session-note";
 
 const TOBY_INTEGRATION_LABEL = "Toby";
-const MAX_NON_GLOBAL_TOOL_NAMES = 3;
 
 export function summarizeToolCountsByIntegration(params: {
 	readonly allToolNames: readonly string[];
@@ -53,53 +49,4 @@ export function logToolSelectionNotes(
 	for (const { label, count } of summary) {
 		recordSessionNote(sessionId, `${prefix}: ${label} (${count})`);
 	}
-}
-
-/** Build transcript notice entries for selected skills and tools. */
-export function buildSelectionTranscriptEntries(params: {
-	readonly relevantSkills: readonly string[];
-	readonly allToolNames: readonly string[];
-	readonly toolIntegrationLabels: Readonly<Record<string, string>>;
-	readonly relevantTools: readonly string[] | undefined;
-	readonly pretreatmentRan: boolean;
-}): TranscriptEntry[] {
-	const entries: TranscriptEntry[] = [];
-	if (!params.pretreatmentRan) {
-		return entries;
-	}
-
-	// Skills
-	const skills = params.relevantSkills.filter((s) => s.trim());
-	if (skills.length > 0) {
-		entries.push(buildSessionNoticeEntry(`Skills: ${skills.join(", ")}`));
-	}
-
-	// Tools: count of active tools + first few non-global names
-	const activeNames = filterToolNamesByRelevance(
-		params.allToolNames,
-		params.relevantTools,
-	);
-	if (activeNames.length === 0) {
-		return entries;
-	}
-
-	const nonGlobal = activeNames.filter((n) => !ALWAYS_INCLUDED_TOOLS.has(n));
-	const globalCount = activeNames.length - nonGlobal.length;
-	const totalLabel =
-		nonGlobal.length > 0
-			? `${activeNames.length} tools`
-			: `${globalCount} core tools`;
-
-	const head = nonGlobal.slice(0, MAX_NON_GLOBAL_TOOL_NAMES);
-	const extra = nonGlobal.length - head.length;
-
-	let text = totalLabel;
-	if (head.length > 0) {
-		const namesStr = head.join(", ");
-		const suffix = extra > 0 ? ` … +${extra} more` : "";
-		text = `${totalLabel}: ${namesStr}${suffix}`;
-	}
-
-	entries.push(buildSessionNoticeEntry(text));
-	return entries;
 }

@@ -2,6 +2,7 @@ import { throwIfAborted } from "../../abort";
 import { wrapUserPromptWithPretreatment } from "../../ai/pretreatment";
 import type { ExpandedTurn, InitedTurn, PipelineNode } from "../pipeline";
 import { createPrepId, formatPrepEndDetail } from "../prep-format";
+import { buildSelectionTranscriptEntries } from "../selection-transcript";
 
 export const expandPromptNode: PipelineNode<InitedTurn, ExpandedTurn> = {
 	name: "expand-prompt",
@@ -48,6 +49,27 @@ export const expandPromptNode: PipelineNode<InitedTurn, ExpandedTurn> = {
 					wrapResult.spec,
 				),
 			});
+		}
+
+		if (wrapResult.spec !== null) {
+			const notices = buildSelectionTranscriptEntries({
+				relevantSkills: wrapResult.spec.relevantSkills,
+				allToolNames: input.toolCatalog.allToolNames,
+				toolIntegrationLabels: input.toolCatalog.toolIntegrationLabels,
+				relevantTools: wrapResult.spec.relevantTools,
+				pretreatmentRan: true,
+			});
+			for (const notice of notices) {
+				if (notice.kind !== "notice") {
+					continue;
+				}
+				ctx.emit({
+					type: "transcript_notice",
+					seq: ctx.nextSeq(),
+					text: notice.text,
+					...(notice.tone !== undefined ? { tone: notice.tone } : {}),
+				});
+			}
 		}
 
 		return {

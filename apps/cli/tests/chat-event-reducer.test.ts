@@ -761,6 +761,19 @@ describe("plan events", () => {
 		expect(t).toHaveLength(0);
 	});
 
+	it("transcript_notice adds a persisted notice row", () => {
+		let t: TranscriptEntry[] = [];
+		t = applyChatEvent(t, {
+			type: "transcript_notice",
+			seq: 1,
+			text: "Skills: inbox-triage",
+			tone: "info",
+		} satisfies ChatEvent);
+		expect(t).toEqual([
+			{ kind: "notice", text: "Skills: inbox-triage", tone: "info" },
+		]);
+	});
+
 	it("round-trips plan boxed_step", () => {
 		const e: TranscriptEntry = {
 			kind: "boxed_step",

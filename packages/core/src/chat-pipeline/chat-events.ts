@@ -139,6 +139,13 @@ export type ChatEvent =
 			readonly seq: number;
 			readonly query: string;
 			readonly options: readonly string[];
+	  }
+	| {
+			/** Persisted transcript notice (skills/tools selection, session info). */
+			readonly type: "transcript_notice";
+			readonly seq: number;
+			readonly text: string;
+			readonly tone?: "info" | "success" | "error";
 	  };
 
 export type ChatEventSink = (event: ChatEvent) => void;

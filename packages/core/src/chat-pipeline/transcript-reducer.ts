@@ -579,6 +579,16 @@ export function applyChatEvent(
 	if (event.type === "plan_amended" || event.type === "plan_completed") {
 		return [...entries];
 	}
+	if (event.type === "transcript_notice") {
+		return [
+			...entries,
+			{
+				kind: "notice",
+				text: event.text,
+				...(event.tone !== undefined ? { tone: event.tone } : {}),
+			},
+		];
+	}
 	return [...entries];
 }
 

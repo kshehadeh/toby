@@ -8,8 +8,8 @@ vi.mock("@toby/core/logging/chat-log", () => ({
 
 import {
 	buildSelectionTranscriptEntries,
-	logToolSelectionNotes,
 	summarizeToolCountsByIntegration,
+	logToolSelectionNotes,
 } from "../src/ui/chat/tool-selection-transcript";
 
 describe("tool selection notes", () => {
@@ -127,6 +127,7 @@ describe("buildSelectionTranscriptEntries", () => {
 		expect(entries[0]).toEqual({
 			kind: "notice",
 			text: "Skills: inbox-triage, draft-reply",
+			tone: "info",
 		});
 	});
 
