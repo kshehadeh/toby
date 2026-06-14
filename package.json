@@ -30,6 +30,7 @@
 		"build:plugins": "bun run build:plugin:sample && bun run build:plugin:azuread && bun run build:plugin:gmail && bun run build:plugin:todoist && bun run build:plugin:slack && bun run build:plugin:jira && bun run build:plugin:websearch && bun run build:plugin:applecalendar && bun run build:plugin:macos && bun run build:plugin:whisper",
 		"build:executable": "bun run build:audio-helper && bun run build:plugins && mkdir -p ./dist && (cd apps/cli && bun build ./src/cli.ts --compile --outfile ../../dist/toby) && cp ./apps/audio-helper/.build/release/toby-audio-helper ./dist/toby-listener",
 		"build:app": "bash ./scripts/build-app.sh",
+		"app": "bun run build:app && open ./dist/Toby.app",
 		"build:release": "BUN_TARGET=bun-darwin-$(uname -m | sed 's/x86_64/x64/;s/arm64/arm64/') SWIFT_ARCH=$(uname -m) ./scripts/build-release-artifacts.sh",
 		"dev": "bun run --cwd apps/cli dev",
 		"dev:web": "bun run --cwd apps/web dev",
