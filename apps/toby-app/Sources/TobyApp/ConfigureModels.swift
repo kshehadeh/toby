@@ -124,6 +124,19 @@ enum ConfigureTreeHelpers {
 		return nil
 	}
 
+	static func findSidebarNode(
+		_ nodes: [SidebarTreeNode],
+		targetKey: String,
+	) -> SidebarTreeNode? {
+		for node in nodes {
+			if node.navKey == targetKey { return node }
+			if let found = findSidebarNode(node.children, targetKey: targetKey) {
+				return found
+			}
+		}
+		return nil
+	}
+
 	static func isContainerSection(_ section: SettingsItem) -> Bool {
 		let children = section.children ?? []
 		let substantive = children.filter { $0.kind != .hint && $0.kind != .action }

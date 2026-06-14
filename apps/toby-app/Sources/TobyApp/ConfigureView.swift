@@ -81,13 +81,22 @@ private struct ConfigureSidebarNodeView: View {
 		store.selectedNavKey == node.navKey
 	}
 
+	private var iconName: String {
+		SettingsSidebarIcon.systemName(for: node.item)
+	}
+
 	var body: some View {
 		VStack(alignment: .leading, spacing: 2) {
 			Button {
 				store.selectSection(node.navKey)
 			} label: {
-				HStack(spacing: 0) {
+				HStack(spacing: 8) {
 					Color.clear.frame(width: 22)
+					Image(systemName: iconName)
+						.font(.callout)
+						.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.tertiaryText)
+						.frame(width: 18)
+						.accessibilityHidden(true)
 					Text(node.item.label)
 						.font(.callout)
 						.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.secondaryText)
@@ -131,6 +140,39 @@ private struct ConfigureSidebarNodeView: View {
 				}
 			}
 		}
+	}
+}
+
+private enum SettingsSidebarIcon {
+	static func systemName(for item: SettingsItem) -> String {
+		let key = item.key.lowercased()
+		let label = item.label.lowercased()
+
+		if key == "personas" || key.hasPrefix("personas.") {
+			return "person.crop.circle"
+		}
+		if key == "schedules" || key.hasPrefix("schedules.") {
+			return "calendar"
+		}
+		if key == "skills" || key.hasPrefix("skills.") {
+			return "wand.and.stars"
+		}
+		if key == "projects" || key.hasPrefix("projects.") {
+			return "folder"
+		}
+		if key == "listen" || key.hasPrefix("listen.") {
+			return "mic"
+		}
+		if key.contains(".ai.") || label.contains("model") || label.contains("provider") {
+			return "cpu"
+		}
+		if label.contains("integration") || label.contains("plugin") {
+			return "puzzlepiece.extension"
+		}
+		if label.contains("ai") {
+			return "sparkles"
+		}
+		return "gearshape"
 	}
 }
 

@@ -80,6 +80,11 @@ final class ConfigureStore {
 				expandedKeys.insert(key)
 			}
 		}
+		if let selectedNode = ConfigureTreeHelpers.findSidebarNode(sidebarTree, targetKey: navKey),
+			!selectedNode.children.isEmpty
+		{
+			expandedKeys.insert(navKey)
+		}
 	}
 
 	func toggleExpanded(_ navKey: String) {
