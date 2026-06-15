@@ -42,6 +42,9 @@ function defaultToolFeedbackOutput(ctx: ToolFeedbackFormatContext): string {
 	}
 	if (r && typeof r === "object") {
 		const o = r as Record<string, unknown>;
+		if (typeof o.error === "string" && o.error.trim().length > 0) {
+			return sanitizeOneLine(`Error: ${o.error}`);
+		}
 		if (Array.isArray(o.tasks)) {
 			return `Found ${o.tasks.length} item(s).`;
 		}
@@ -69,6 +72,11 @@ function defaultToolFeedbackOutput(ctx: ToolFeedbackFormatContext): string {
 			return o.events.length === 0
 				? "No events found."
 				: `Found ${o.events.length} event(s).`;
+		}
+		if (Array.isArray(o.calendars)) {
+			return o.calendars.length === 0
+				? "No calendars found."
+				: `Found ${o.calendars.length} calendar(s).`;
 		}
 		if (Array.isArray(o.items)) {
 			return o.items.length === 0
@@ -127,10 +135,7 @@ function defaultToolFeedbackOutput(ctx: ToolFeedbackFormatContext): string {
 		if (typeof o.content === "string" && o.content.trim().length > 0) {
 			return sanitizeOneLine(o.content);
 		}
-		if (
-			typeof o.description === "string" &&
-			o.description.trim().length > 0
-		) {
+		if (typeof o.description === "string" && o.description.trim().length > 0) {
 			return sanitizeOneLine(o.description);
 		}
 		if (typeof o.name === "string" && o.name.trim().length > 0) {

@@ -45,6 +45,26 @@ describe("tool feedback registry", () => {
 		).toBe("Found 1 label(s).");
 	});
 
+	it("summarizes calendar list results", () => {
+		expect(
+			formatToolFeedbackOutput({
+				toolName: "listCalendars",
+				args: {},
+				result: { calendars: [{ name: "Work" }, { name: "Personal" }] },
+			}),
+		).toBe("Found 2 calendar(s).");
+	});
+
+	it("prefers returned error messages over empty result arrays", () => {
+		expect(
+			formatToolFeedbackOutput({
+				toolName: "searchCalendarEvents",
+				args: {},
+				result: { error: "Calendar access denied.", events: [] },
+			}),
+		).toBe("Error: Calendar access denied.");
+	});
+
 	it("formats tool errors", () => {
 		expect(
 			formatToolFeedbackOutput({

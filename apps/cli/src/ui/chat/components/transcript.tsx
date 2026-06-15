@@ -105,21 +105,21 @@ export function buildTranscriptNodes(
 										{ dimColor: bodyDim },
 									)
 								: bb.bodyLines.map((line, j) => {
-											const isError = isErrorBodyLine(line);
-											return (
-												<Text
-													key={`${bb.id}-ln-${j}`}
-													dimColor={bodyDim && !isError}
-													color={
-														isError ? "red" : isThinking ? "gray" : undefined
-													}
-													wrap="truncate-end"
-												>
-													{j === 0 ? "↳ " : "  "}
-													{line.length > 0 ? line : " "}
-												</Text>
-											);
-										})}
+										const isError = isErrorBodyLine(line);
+										return (
+											<Text
+												key={`${bb.id}-ln-${j}`}
+												dimColor={bodyDim && !isError}
+												color={
+													isError ? "red" : isThinking ? "gray" : undefined
+												}
+												wrap="truncate-end"
+											>
+												{j === 0 ? "↳ " : "  "}
+												{line.length > 0 ? line : " "}
+											</Text>
+										);
+									})}
 						</Box>
 					</Box>
 				</Box>,

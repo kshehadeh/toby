@@ -48,10 +48,18 @@ function defaultToolOutputFormatter(ctx: ToolOutputFormatContext): string {
 	}
 	if (result && typeof result === "object") {
 		const record = result as Record<string, unknown>;
+		if (typeof record.error === "string" && record.error.trim().length > 0) {
+			return sanitizeOneLine(`Error: ${record.error}`);
+		}
 		if (Array.isArray(record.events)) {
 			return record.events.length === 0
 				? "No events found."
 				: `Found ${record.events.length} event(s).`;
+		}
+		if (Array.isArray(record.calendars)) {
+			return record.calendars.length === 0
+				? "No calendars found."
+				: `Found ${record.calendars.length} calendar(s).`;
 		}
 		if (Array.isArray(record.items)) {
 			return record.items.length === 0

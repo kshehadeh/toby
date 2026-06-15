@@ -78,8 +78,34 @@ public enum CalendarClient {
 		guard isPlatformSupported else {
 			throw CalendarFailure(message: "Apple Calendar is only available on macOS.")
 		}
-		try ensureAccess()
-		let calendars = store.calendars(for: .event)
+
+		// Try Toby.app native helper first
+		if NativeHelperClient.isAvailable() {
+			let response = NativeHelperClient.listCalendars()
+			if response.ok, let data = response.data, let calendars = data["calendars"] as? [[String: Any]] {
+				if calendars.isEmpty {
+					throw CalendarFailure(message: "Calendar.app has no calendars configured.")
+				}
+				return
+			}
+			if response.needsPermission {
+				throw CalendarFailure(message: "Calendar access denied. Grant Calendar access to Toby in System Settings > Privacy & Security > Calendars.")
+			}
+		}
+
+		// Fall back to in-process EventKit + AppleScript
+		let calendars: [AppleCalendarSummary]
+		do {
+			try ensureAccess()
+			calendars = store.calendars(for: .event).map { cal in
+				AppleCalendarSummary(name: cal.title, color: colorString(from: cal.cgColor))
+			}
+		} catch {
+			calendars = fallbackListCalendarsAppleScript()
+			if calendars.isEmpty {
+				throw CalendarFailure(message: "Could not reach Calendar.app via EventKit (\(error.localizedDescription)) or AppleScript fallback.")
+			}
+		}
 		if calendars.isEmpty {
 			throw CalendarFailure(message: "Calendar.app has no calendars configured.")
 		}
@@ -97,7 +123,7 @@ public enum CalendarClient {
 
 		do {
 			try ensureAccess()
-			let sample = searchCalendarEvents(SearchParams(limit: 1))
+			let sample = try searchCalendarEvents(SearchParams(limit: 1))
 			checks.append([
 				"tool": "searchCalendarEvents",
 				"ok": true,
@@ -164,6 +190,19 @@ public enum CalendarClient {
 
 	public static func listCalendars() -> [AppleCalendarSummary] {
 		guard isPlatformSupported else { return [] }
+
+		// Try Toby.app native helper first
+		if NativeHelperClient.isAvailable() {
+			let response = NativeHelperClient.listCalendars()
+			if response.ok, let data = response.data, let raw = data["calendars"] as? [[String: Any]] {
+				return raw.compactMap { item in
+					guard let name = item["name"] as? String else { return nil }
+					return AppleCalendarSummary(name: name, color: (item["color"] as? String) ?? "")
+				}
+			}
+		}
+
+		// Fall back to in-process EventKit + AppleScript
 		do {
 			try ensureAccess()
 		} catch {
@@ -175,12 +214,28 @@ public enum CalendarClient {
 		}
 	}
 
-	public static func searchCalendarEvents(_ params: SearchParams) -> [AppleCalendarEventSummary] {
-		guard isPlatformSupported else { return [] }
+	public static func searchCalendarEvents(_ params: SearchParams) throws -> [AppleCalendarEventSummary] {
+		guard isPlatformSupported else {
+			throw CalendarFailure(message: "Apple Calendar is only available on macOS.")
+		}
+
+		// Try Toby.app native helper first
+		if NativeHelperClient.isAvailable() {
+			let response = NativeHelperClient.searchEvents(params)
+			if response.ok, let data = response.data, let raw = data["events"] as? [[String: Any]] {
+				return raw.compactMap { dictToEventSummary($0) }
+			}
+			if response.needsPermission {
+				throw CalendarFailure(message: "Calendar access denied. Grant Calendar access to Toby in System Settings > Privacy & Security > Calendars.")
+			}
+			// If helper request failed for other reasons, fall through
+		}
+
+		// Fall back to in-process EventKit + AppleScript
 		do {
 			try ensureAccess()
 		} catch {
-			return []
+			return try fallbackSearchCalendarEventsAppleScript(params, accessError: error)
 		}
 
 		let limit = min(max(1, params.limit), 200)
@@ -208,6 +263,19 @@ public enum CalendarClient {
 		guard isPlatformSupported else {
 			return .failure(CalendarFailure(message: "Apple Calendar is only available on macOS."))
 		}
+
+		// Try Toby.app native helper first
+		if NativeHelperClient.isAvailable() {
+			let response = NativeHelperClient.getEvent(uid: uid, calendar: calendar)
+			if response.ok, let data = response.data {
+				return .success(dictToEventDetail(data))
+			}
+			if let error = response.error {
+				return .failure(CalendarFailure(message: error))
+			}
+		}
+
+		// Fall back to in-process EventKit + AppleScript
 		do {
 			try ensureAccess()
 		} catch {
@@ -240,6 +308,19 @@ public enum CalendarClient {
 		guard isPlatformSupported else {
 			return .failure(CalendarFailure(message: "Apple Calendar is only available on macOS."))
 		}
+
+		// Try Toby.app native helper first
+		if NativeHelperClient.isAvailable() {
+			let response = NativeHelperClient.createEvent(params)
+			if response.ok, let data = response.data, let uid = data["uid"] as? String {
+				return .success(uid)
+			}
+			if let error = response.error {
+				return .failure(CalendarFailure(message: error))
+			}
+		}
+
+		// Fall back to in-process EventKit + AppleScript
 		do {
 			try ensureAccess()
 			let start = try DateParser.parseUserDate(params.startDate)
@@ -296,6 +377,18 @@ public enum CalendarClient {
 			))
 		}
 
+		// Try Toby.app native helper first
+		if NativeHelperClient.isAvailable() {
+			let response = NativeHelperClient.updateEvent(params)
+			if response.ok {
+				return .success(())
+			}
+			if let error = response.error {
+				return .failure(CalendarFailure(message: error))
+			}
+		}
+
+		// Fall back to in-process EventKit + AppleScript
 		do {
 			try ensureAccess()
 			guard let event = store.event(withIdentifier: params.uid) else {
@@ -335,6 +428,19 @@ public enum CalendarClient {
 		guard isPlatformSupported else {
 			return .failure(CalendarFailure(message: "Apple Calendar is only available on macOS."))
 		}
+
+		// Try Toby.app native helper first
+		if NativeHelperClient.isAvailable() {
+			let response = NativeHelperClient.deleteEvent(uid: uid, calendar: calendar)
+			if response.ok {
+				return .success(())
+			}
+			if let error = response.error {
+				return .failure(CalendarFailure(message: error))
+			}
+		}
+
+		// Fall back to in-process EventKit + AppleScript
 		do {
 			try ensureAccess()
 			guard let event = store.event(withIdentifier: uid) else {
@@ -489,6 +595,123 @@ public enum CalendarClient {
 			out.append(AppleCalendarSummary(name: name, color: color))
 		}
 		return out
+	}
+
+	private static func fallbackSearchCalendarEventsAppleScript(_ params: SearchParams, accessError: Error) throws -> [AppleCalendarEventSummary] {
+		let rowSep = "|||EVTROW|||"
+		let colSep = "|||EVTCOL|||"
+		let limit = min(max(1, params.limit), 200)
+		let safeQuery = AppleScriptRunner.escapeForAppleScript(trimmedOptional(params.query) ?? "")
+		let safeCalendar = AppleScriptRunner.escapeForAppleScript(trimmedOptional(params.calendar) ?? "")
+		let startFilter = DateParser.searchRangeStart(params.dateFrom).map { appleScriptDateLiteral($0) }
+		let endFilter = DateParser.searchRangeEnd(params.dateTo).map { appleScriptDateLiteral($0) }
+		let startBlock = startFilter.map {
+			"if eventStart < date \"\(AppleScriptRunner.escapeForAppleScript($0))\" then set includeEvent to false"
+		} ?? ""
+		let endBlock = endFilter.map {
+			"if eventStart is greater than or equal to date \"\(AppleScriptRunner.escapeForAppleScript($0))\" then set includeEvent to false"
+		} ?? ""
+		let script = """
+		tell application "Calendar"
+		try
+		set outputText to ""
+		set matchedCount to 0
+		set targetCalendar to "\(safeCalendar)"
+		set queryText to "\(safeQuery)"
+		repeat with cal in calendars
+		set calName to name of cal as string
+		if targetCalendar is "" or calName is targetCalendar then
+		repeat with evt in events of cal
+		try
+		set includeEvent to true
+		set evtSummary to summary of evt as string
+		set eventStart to start date of evt
+		\(startBlock)
+		\(endBlock)
+		if queryText is not "" then
+		ignoring case
+		if evtSummary does not contain queryText then set includeEvent to false
+		end ignoring
+		end if
+		if includeEvent then
+		set evtUid to uid of evt as string
+		set d to start date of evt
+		set evtStartStr to ((year of d) as string) & "-" & ((month of d as integer) as string) & "-" & ((day of d) as string) & "-" & ((hours of d) as string) & "-" & ((minutes of d) as string) & "-" & ((seconds of d) as string)
+		set d2 to end date of evt
+		set evtEndStr to ((year of d2) as string) & "-" & ((month of d2 as integer) as string) & "-" & ((day of d2) as string) & "-" & ((hours of d2) as string) & "-" & ((minutes of d2) as string) & "-" & ((seconds of d2) as string)
+		set evtAllDay to allday event of evt as string
+		set evtLocation to ""
+		try
+		set evtLocation to location of evt
+		end try
+		set evtDescription to ""
+		try
+		set evtDescription to description of evt
+		end try
+		if length of outputText > 0 then set outputText to outputText & "\(rowSep)"
+		set outputText to outputText & evtUid & "\(colSep)" & evtSummary & "\(colSep)" & evtStartStr & "\(colSep)" & evtEndStr & "\(colSep)" & evtAllDay & "\(colSep)" & evtLocation & "\(colSep)" & evtDescription & "\(colSep)" & calName
+		set matchedCount to matchedCount + 1
+		if matchedCount is greater than or equal to \(limit) then return outputText
+		end if
+		end try
+		end repeat
+		end if
+		end repeat
+		return outputText
+		on error errMsg
+		return "error:" & errMsg
+		end try
+		end tell
+		"""
+		let result = AppleScriptRunner.execute(script, timeoutMs: 60_000)
+		guard result.success else {
+			throw CalendarFailure(message: "EventKit access failed: \(accessError.localizedDescription). AppleScript fallback failed: \(result.error ?? "unknown error")")
+		}
+		let parsed = parseSearchEventsAppleScriptOutput(result.output)
+		switch parsed {
+		case let .success(events):
+			return events
+		case let .failure(error):
+			throw CalendarFailure(message: "EventKit access failed: \(accessError.localizedDescription). AppleScript fallback failed: \(error.message)")
+		}
+	}
+
+	private static func parseSearchEventsAppleScriptOutput(_ raw: String) -> Result<[AppleCalendarEventSummary], CalendarFailure> {
+		let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+		if trimmed.isEmpty { return .success([]) }
+		if trimmed.hasPrefix("error:") {
+			return .failure(CalendarFailure(message: String(trimmed.dropFirst("error:".count)).trimmingCharacters(in: .whitespacesAndNewlines)))
+		}
+		let rowSep = "|||EVTROW|||"
+		let colSep = "|||EVTCOL|||"
+		var events: [AppleCalendarEventSummary] = []
+		for row in trimmed.components(separatedBy: rowSep) {
+			let parts = row.components(separatedBy: colSep)
+			guard parts.count >= 8,
+				let startDate = parseAppleScriptDate(parts[2]),
+				let endDate = parseAppleScriptDate(parts[3])
+			else {
+				return .failure(CalendarFailure(message: "Unexpected Calendar.app response: \(row)"))
+			}
+			events.append(AppleCalendarEventSummary(
+				uid: parts[0],
+				summary: parts[1],
+				startDate: startDate,
+				endDate: endDate,
+				isAllDay: parts[4] == "true",
+				location: parts[5],
+				description: parts[6],
+				calendar: parts[7]
+			))
+		}
+		return .success(events.sorted { $0.startDate < $1.startDate })
+	}
+
+	private static func appleScriptDateLiteral(_ date: Date) -> String {
+		let formatter = DateFormatter()
+		formatter.locale = Locale(identifier: "en_US_POSIX")
+		formatter.dateFormat = "MMMM d, yyyy h:mm:ss a"
+		return formatter.string(from: date)
 	}
 
 	private static func fallbackGetEventAppleScript(uid: String, calendar: String?) -> Result<AppleCalendarEventDetail, CalendarFailure> {
@@ -866,5 +1089,50 @@ public enum CalendarClient {
 		components.minute = minute
 		components.second = second
 		return Calendar.current.date(from: components)
+	}
+
+	// MARK: - Native helper dict conversion
+
+	private static func dictToEventSummary(_ dict: [String: Any]) -> AppleCalendarEventSummary? {
+		guard let uid = dict["uid"] as? String,
+			let summary = dict["summary"] as? String,
+			let startDateStr = dict["startDate"] as? String,
+			let endDateStr = dict["endDate"] as? String,
+			let startDate = parseISO8601Date(startDateStr),
+			let endDate = parseISO8601Date(endDateStr)
+		else { return nil }
+		return AppleCalendarEventSummary(
+			uid: uid,
+			summary: summary,
+			startDate: startDate,
+			endDate: endDate,
+			isAllDay: dict["isAllDay"] as? Bool ?? false,
+			location: dict["location"] as? String ?? "",
+			description: dict["description"] as? String ?? "",
+			calendar: dict["calendar"] as? String ?? ""
+		)
+	}
+
+	private static func dictToEventDetail(_ dict: [String: Any]) -> AppleCalendarEventDetail {
+		let attendees = (dict["attendees"] as? [String]) ?? []
+		return AppleCalendarEventDetail(
+			uid: dict["uid"] as? String ?? "",
+			summary: dict["summary"] as? String ?? "",
+			startDate: parseISO8601Date(dict["startDate"] as? String ?? "") ?? Date(),
+			endDate: parseISO8601Date(dict["endDate"] as? String ?? "") ?? Date(),
+			isAllDay: dict["isAllDay"] as? Bool ?? false,
+			location: dict["location"] as? String ?? "",
+			description: dict["description"] as? String ?? "",
+			calendar: dict["calendar"] as? String ?? "",
+			attendees: attendees
+		)
+	}
+
+	private static func parseISO8601Date(_ string: String) -> Date? {
+		let formatter = ISO8601DateFormatter()
+		formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+		if let date = formatter.date(from: string) { return date }
+		formatter.formatOptions = [.withInternetDateTime]
+		return formatter.date(from: string)
 	}
 }

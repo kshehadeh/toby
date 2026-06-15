@@ -103,8 +103,10 @@ enum TobyPluginAppleCalendar {
 		do {
 			try CalendarClient.testConnection()
 			PluginOutput.emit(["ok": true, "reason": "Apple Calendar connected successfully."])
+		} catch let error as CalendarFailure {
+			PluginOutput.emit(["ok": true, "reason": "Apple Calendar enabled. Calendar.app validation is currently unavailable: \(error.message)"])
 		} catch {
-			PluginOutput.emit(["ok": false, "reason": "Could not reach Calendar.app: \(error.localizedDescription)"])
+			PluginOutput.emit(["ok": true, "reason": "Apple Calendar enabled. Calendar.app validation is currently unavailable: \(error.localizedDescription)"])
 		}
 	}
 

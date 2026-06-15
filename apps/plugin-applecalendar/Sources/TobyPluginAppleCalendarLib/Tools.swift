@@ -121,17 +121,24 @@ public enum CalendarTools {
 				return .success(ExecuteResult(result: ["dryRun": true, "message": "Would search Apple Calendar with the given filters."], appliedActions: []))
 			}
 			let cap = min(max(1, intValue(input["limit"]) ?? maxResults ?? 30), 200)
-			let events = CalendarClient.searchCalendarEvents(CalendarClient.SearchParams(
-				query: stringValue(input["query"]),
-				calendar: stringValue(input["calendar"]),
-				dateFrom: stringValue(input["dateFrom"]),
-				dateTo: stringValue(input["dateTo"]),
-				limit: cap
-			))
-			return .success(ExecuteResult(
-				result: ["count": events.count, "events": events.map { $0.toDictionary() }],
-				appliedActions: []
-			))
+			do {
+				let events = try CalendarClient.searchCalendarEvents(CalendarClient.SearchParams(
+					query: stringValue(input["query"]),
+					calendar: stringValue(input["calendar"]),
+					dateFrom: stringValue(input["dateFrom"]),
+					dateTo: stringValue(input["dateTo"]),
+					limit: cap
+				))
+				return .success(ExecuteResult(
+					result: ["count": events.count, "events": events.map { $0.toDictionary() }],
+					appliedActions: []
+				))
+			} catch {
+				return .success(ExecuteResult(
+					result: ["error": error.localizedDescription, "events": []],
+					appliedActions: []
+				))
+			}
 
 		case "getCalendarEvent":
 			guard let uid = stringValue(input["uid"]), !uid.isEmpty else {
