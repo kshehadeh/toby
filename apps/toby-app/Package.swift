@@ -17,6 +17,7 @@ let package = Package(
 			linkerSettings: [
 				.linkedFramework("EventKit"),
 				.linkedFramework("Network"),
+				.linkedFramework("ApplicationServices"),
 				.unsafeFlags([
 					"-Xlinker",
 					"-sectcreate",

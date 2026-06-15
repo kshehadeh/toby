@@ -2,7 +2,6 @@ import AppKit
 import ApplicationServices
 import Foundation
 
-@MainActor
 enum NativeMacOSHandler {
 	// MARK: - Accessibility status
 

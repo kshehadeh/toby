@@ -28,14 +28,15 @@ final class NativeServer {
 			return
 		}
 
-		newListener.stateUpdateHandler = { state in
+		newListener.stateUpdateHandler = { [weak self] state in
 			switch state {
 			case .ready:
 				if let portValue = newListener.port {
+					let p = UInt16(portValue.rawValue)
 					Task { @MainActor in
-						self.port = UInt16(portValue.rawValue)
-						self.writePortFile(self.port!)
-						print("[native-server] listening on port \(self.port!)")
+						self?.port = p
+						self?.writePortFile(p)
+						print("[native-server] listening on port \(p)")
 					}
 				}
 			case .failed(let error):
@@ -45,13 +46,12 @@ final class NativeServer {
 			}
 		}
 
-		newListener.newConnectionHandler = { connection in
-			Task { @MainActor in
-				self.handleConnection(connection)
-			}
+		newListener.newConnectionHandler = { [weak self] connection in
+			connection.start(queue: .global(qos: .utility))
+			self?.readRequest(from: connection)
 		}
 
-		newListener.start(queue: .main)
+		newListener.start(queue: .global(qos: .utility))
 		listener = newListener
 	}
 
@@ -65,45 +65,97 @@ final class NativeServer {
 
 	// MARK: - Port file
 
-	private func writePortFile(_ port: UInt16) {
+	private nonisolated func writePortFile(_ port: UInt16) {
+		let home = FileManager.default.homeDirectoryForCurrentUser
+		let url = home.appendingPathComponent(".toby/native-port")
 		let data = "\(port)".data(using: .utf8)
-		try? data?.write(to: portFileURL, options: .atomic)
+		try? data?.write(to: url, options: .atomic)
 	}
 
-	private func deletePortFile() {
-		try? FileManager.default.removeItem(at: portFileURL)
+	private nonisolated func deletePortFile() {
+		let home = FileManager.default.homeDirectoryForCurrentUser
+		let url = home.appendingPathComponent(".toby/native-port")
+		try? FileManager.default.removeItem(at: url)
 	}
 
-	// MARK: - Connection handling
+	// MARK: - Request reading
 
-	private func handleConnection(_ connection: NWConnection) {
-		connection.start(queue: .main)
-
+	private nonisolated func readRequest(from connection: NWConnection) {
 		var buffer = Data()
-		let receiveBuffer: (_: Data?) -> Void = { [weak self] data in
-			guard let self, let data else { return }
-			buffer.append(data)
 
-			guard let request = self.parseHTTPRequest(buffer) else { return }
+		func readChunk() {
+			connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { content, _, isComplete, error in
+				if let error {
+					print("[native-server] receive error: \(error)")
+					connection.cancel()
+					return
+				}
+				if let content {
+					buffer.append(content)
+				}
 
-			Task { @MainActor in
-				let response = await self.route(request: request)
-				self.sendResponse(response, on: connection)
-				connection.cancel()
+				guard let headerEnd = buffer.range(of: Data("\r\n\r\n".utf8)) else {
+					if isComplete == true {
+						connection.cancel()
+						return
+					}
+					readChunk()
+					return
+				}
+
+				let headerData = buffer[..<headerEnd.lowerBound]
+				guard let headerText = String(data: headerData, encoding: .utf8) else {
+					connection.cancel()
+					return
+				}
+
+				let headerLines = headerText.split(separator: "\r\n")
+				guard let requestLine = headerLines.first else {
+					connection.cancel()
+					return
+				}
+				let parts = requestLine.split(separator: " ")
+				guard parts.count >= 2 else {
+					connection.cancel()
+					return
+				}
+
+				let method = String(parts[0])
+				let path = String(parts[1])
+
+				var contentLength = 0
+				for line in headerLines.dropFirst() {
+					if line.lowercased().hasPrefix("content-length:") {
+						contentLength = Int(line.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)) ?? 0
+					}
+				}
+
+				let bodyStart = headerEnd.upperBound
+				let bodySoFar = buffer[bodyStart...]
+
+				if bodySoFar.count >= contentLength || isComplete == true {
+					let body = contentLength > 0 ? Data(bodySoFar.prefix(contentLength)) : nil
+					let request = HTTPRequest(method: method, path: path, body: body)
+					// Route on the main actor for Swift concurrency safety (EventKit needs it)
+					Task { @MainActor in
+						let response = await NativeServer.shared.route(request: request)
+						connection.send(content: response, completion: .contentProcessed { error in
+							if let error {
+								print("[native-server] send error: \(error)")
+							}
+							connection.cancel()
+						})
+					}
+				} else {
+					readChunk()
+				}
 			}
 		}
 
-		connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { content, _, _, error in
-			if let error {
-				print("[native-server] receive error: \(error)")
-				connection.cancel()
-				return
-			}
-			receiveBuffer(content)
-		}
+		readChunk()
 	}
 
-	// MARK: - HTTP parsing
+	// MARK: - Routing (on MainActor)
 
 	private struct HTTPRequest {
 		let method: String
@@ -111,87 +163,59 @@ final class NativeServer {
 		let body: Data?
 	}
 
-	private func parseHTTPRequest(_ data: Data) -> HTTPRequest? {
-		guard let text = String(data: data, encoding: .utf8) else { return nil }
-		guard let headerEnd = text.range(of: "\r\n\r\n") else { return nil }
-
-		let headerSection = String(text[..<headerEnd.lowerBound])
-		let headerLines = headerSection.split(separator: "\r\n")
-		guard let requestLine = headerLines.first else { return nil }
-
-		let parts = requestLine.split(separator: " ")
-		guard parts.count >= 2 else { return nil }
-
-		let method = String(parts[0])
-		let path = String(parts[1])
-
-		var bodyLength = 0
-		for line in headerLines.dropFirst() {
-			let lower = line.lowercased()
-			if lower.hasPrefix("content-length:") {
-				bodyLength = Int(line.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)) ?? 0
-			}
-		}
-
-		let bodyStart = headerEnd.upperBound
-		let bodyData = text[bodyStart...].data(using: .utf8)
-		if bodyLength > 0, bodyData?.count ?? 0 < bodyLength {
-			return nil
-		}
-
-		return HTTPRequest(method: method, path: path, body: bodyLength > 0 ? bodyData : nil)
-	}
-
-	// MARK: - Routing
-
 	private func route(request: HTTPRequest) async -> Data {
 		let path = request.path
 
 		guard path.hasPrefix("/api/native/") else {
-			return jsonResponse(["ok": false, "error": "Not found"], status: 404)
+			return httpResponse(json: ["ok": false, "error": "Not found"], status: 404)
 		}
 
 		switch path {
 		case "/api/native/health":
-			return jsonResponse(["ok": true, "service": "toby-native"])
+			return httpResponse(json: ["ok": true, "service": "toby-native"])
 		case "/api/native/calendar/request-access":
-			return NativeCalendarHandler.requestAccess()
+			return wrapHandlerData(NativeCalendarHandler.requestAccess())
 		case "/api/native/calendar/list":
-			return NativeCalendarHandler.listCalendars()
+			return wrapHandlerData(await NativeCalendarHandler.listCalendars())
 		case "/api/native/calendar/search":
-			return NativeCalendarHandler.searchEvents(body: request.body)
+			return wrapHandlerData(await NativeCalendarHandler.searchEvents(body: request.body))
 		case "/api/native/calendar/get":
-			return NativeCalendarHandler.getEvent(body: request.body)
+			return wrapHandlerData(await NativeCalendarHandler.getEvent(body: request.body))
 		case "/api/native/calendar/create":
-			return NativeCalendarHandler.createEvent(body: request.body)
+			return wrapHandlerData(await NativeCalendarHandler.createEvent(body: request.body))
 		case "/api/native/calendar/update":
-			return NativeCalendarHandler.updateEvent(body: request.body)
+			return wrapHandlerData(await NativeCalendarHandler.updateEvent(body: request.body))
 		case "/api/native/calendar/delete":
-			return NativeCalendarHandler.deleteEvent(body: request.body)
+			return wrapHandlerData(await NativeCalendarHandler.deleteEvent(body: request.body))
 		case "/api/native/macos/minimize-all":
-			return NativeMacOSHandler.minimizeAll()
+			return wrapHandlerData(NativeMacOSHandler.minimizeAll())
 		case "/api/native/macos/minimize-app":
-			return NativeMacOSHandler.minimizeApp(body: request.body)
+			return wrapHandlerData(NativeMacOSHandler.minimizeApp(body: request.body))
 		case "/api/native/macos/accessibility-status":
-			return NativeMacOSHandler.accessibilityStatus()
+			return wrapHandlerData(NativeMacOSHandler.accessibilityStatus())
 		default:
-			return jsonResponse(["ok": false, "error": "Unknown endpoint: \(path)"], status: 404)
+			return httpResponse(json: ["ok": false, "error": "Unknown endpoint: \(path)"], status: 404)
 		}
 	}
 
-	// MARK: - Response
+	// MARK: - Response building
 
-	private func jsonResponse(_ payload: [String: Any], status: Int = 200) -> Data {
-		guard JSONSerialization.isValidJSONObject(payload),
-			let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
-		else {
-			let fallback = "{\"ok\":false,\"error\":\"internal encoding error\"}".data(using: .utf8)!
-			return httpResponse(body: fallback, status: 500)
-		}
-		return httpResponse(body: body, status: status)
+	/// Wraps handler-returned JSON body Data with HTTP headers.
+	private nonisolated func wrapHandlerData(_ body: Data) -> Data {
+		let header = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n"
+		return Data(header.utf8) + body
 	}
 
-	private func httpResponse(body: Data, status: Int) -> Data {
+	private nonisolated func httpResponse(json payload: [String: Any], status: Int = 200) -> Data {
+		let body: Data
+		if JSONSerialization.isValidJSONObject(payload),
+			let encoded = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+		{
+			body = encoded
+		} else {
+			body = Data("{\"ok\":false,\"error\":\"encoding error\"}".utf8)
+		}
+
 		let statusText: String
 		switch status {
 		case 200: statusText = "OK"
@@ -201,13 +225,5 @@ final class NativeServer {
 		}
 		let header = "HTTP/1.1 \(status) \(statusText)\r\nContent-Type: application/json\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n"
 		return Data(header.utf8) + body
-	}
-
-	private func sendResponse(_ data: Data, on connection: NWConnection) {
-		connection.send(content: data, completion: .contentProcessed { error in
-			if let error {
-				print("[native-server] send error: \(error)")
-			}
-		})
 	}
 }

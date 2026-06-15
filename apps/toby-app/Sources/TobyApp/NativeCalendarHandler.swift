@@ -8,38 +8,19 @@ enum NativeCalendarHandler {
 	// MARK: - Access
 
 	static func requestAccess() -> Data {
-		let sem = DispatchSemaphore(value: 0)
-		final class AccessResult: @unchecked Sendable {
-			var granted = false
-			var error: String?
+		Task {
+			let granted = await ensureAccessAsync()
+			// Response is returned by the caller; this just triggers the prompt
+			_ = granted
 		}
-		let result = AccessResult()
-
-		if #available(macOS 14.0, *) {
-			store.requestFullAccessToEvents { ok, error in
-				result.granted = ok
-				result.error = error?.localizedDescription
-				sem.signal()
-			}
-		} else {
-			store.requestAccess(to: .event) { ok, error in
-				result.granted = ok
-				result.error = error?.localizedDescription
-				sem.signal()
-			}
-		}
-		sem.wait()
-
-		if result.granted {
-			return json(["ok": true, "data": ["granted": true]])
-		}
-		return json(["ok": false, "error": result.error ?? "Calendar access denied.", "needsPermission": true])
+		// Return immediately - the prompt will show and subsequent calls will use the granted access
+		return json(["ok": true, "data": ["prompted": true]])
 	}
 
 	// MARK: - List calendars
 
-	static func listCalendars() -> Data {
-		guard ensureAccess() else {
+	static func listCalendars() async -> Data {
+		guard await ensureAccessAsync() else {
 			return json(["ok": false, "error": "Calendar access denied.", "needsPermission": true])
 		}
 		let calendars = store.calendars(for: .event).map { cal -> [String: Any] in
@@ -50,8 +31,8 @@ enum NativeCalendarHandler {
 
 	// MARK: - Search events
 
-	static func searchEvents(body: Data?) -> Data {
-		guard ensureAccess() else {
+	static func searchEvents(body: Data?) async -> Data {
+		guard await ensureAccessAsync() else {
 			return json(["ok": false, "error": "Calendar access denied.", "needsPermission": true])
 		}
 		guard let body,
@@ -84,8 +65,8 @@ enum NativeCalendarHandler {
 
 	// MARK: - Get event
 
-	static func getEvent(body: Data?) -> Data {
-		guard ensureAccess() else {
+	static func getEvent(body: Data?) async -> Data {
+		guard await ensureAccessAsync() else {
 			return json(["ok": false, "error": "Calendar access denied.", "needsPermission": true])
 		}
 		guard let body,
@@ -120,8 +101,8 @@ enum NativeCalendarHandler {
 
 	// MARK: - Create event
 
-	static func createEvent(body: Data?) -> Data {
-		guard ensureAccess() else {
+	static func createEvent(body: Data?) async -> Data {
+		guard await ensureAccessAsync() else {
 			return json(["ok": false, "error": "Calendar access denied.", "needsPermission": true])
 		}
 		guard let body,
@@ -168,8 +149,8 @@ enum NativeCalendarHandler {
 
 	// MARK: - Update event
 
-	static func updateEvent(body: Data?) -> Data {
-		guard ensureAccess() else {
+	static func updateEvent(body: Data?) async -> Data {
+		guard await ensureAccessAsync() else {
 			return json(["ok": false, "error": "Calendar access denied.", "needsPermission": true])
 		}
 		guard let body,
@@ -211,8 +192,8 @@ enum NativeCalendarHandler {
 
 	// MARK: - Delete event
 
-	static func deleteEvent(body: Data?) -> Data {
-		guard ensureAccess() else {
+	static func deleteEvent(body: Data?) async -> Data {
+		guard await ensureAccessAsync() else {
 			return json(["ok": false, "error": "Calendar access denied.", "needsPermission": true])
 		}
 		guard let body,
@@ -236,25 +217,20 @@ enum NativeCalendarHandler {
 
 	// MARK: - Helpers
 
-	private static func ensureAccess() -> Bool {
-		let sem = DispatchSemaphore(value: 0)
-		final class AccessResult: @unchecked Sendable {
-			var granted = false
-		}
-		let result = AccessResult()
+	private static func ensureAccessAsync() async -> Bool {
 		if #available(macOS 14.0, *) {
-			store.requestFullAccessToEvents { ok, _ in
-				result.granted = ok
-				sem.signal()
+			return await withCheckedContinuation { continuation in
+				store.requestFullAccessToEvents { granted, _ in
+					continuation.resume(returning: granted)
+				}
 			}
 		} else {
-			store.requestAccess(to: .event) { ok, _ in
-				result.granted = ok
-				sem.signal()
+			return await withCheckedContinuation { continuation in
+				store.requestAccess(to: .event) { granted, _ in
+					continuation.resume(returning: granted)
+				}
 			}
 		}
-		sem.wait()
-		return result.granted
 	}
 
 	private static func resolveCalendar(named name: String?) throws -> EKCalendar {

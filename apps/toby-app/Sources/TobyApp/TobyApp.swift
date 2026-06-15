@@ -1,3 +1,4 @@
+import ApplicationServices
 import SwiftUI
 
 @main
@@ -11,6 +12,7 @@ struct TobyApp: App {
 				.frame(minWidth: 860, minHeight: 560)
 				.onAppear {
 					nativeServer.start()
+					requestNativePermissions()
 				}
 				.onDisappear {
 					nativeServer.stop()
@@ -25,6 +27,16 @@ struct TobyApp: App {
 				}
 				.keyboardShortcut("k", modifiers: .command)
 			}
+		}
+	}
+
+	private func requestNativePermissions() {
+		// Request Calendar access if not yet determined
+		_ = NativeCalendarHandler.requestAccess()
+		// Prompt for Accessibility if not yet granted
+		if !AXIsProcessTrusted() {
+			let options: CFDictionary = ["AXTrustedCheckOptionPrompt": kCFBooleanTrue!] as CFDictionary
+			_ = AXIsProcessTrustedWithOptions(options)
 		}
 	}
 }
