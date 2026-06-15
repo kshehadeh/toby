@@ -37,6 +37,19 @@ enum WindowCommands {
 	}
 
 	static func minimizeAll() throws -> [String: Any] {
+		// Try Toby.app native helper first (proper Accessibility identity)
+		if NativeHelperClient.isAvailable() {
+			let response = NativeHelperClient.minimizeAll()
+			if response.ok, let data = response.data {
+				return data
+			}
+			if response.needsPermission {
+				throw HelperError.permission("Accessibility permission is required to minimize windows. Grant access to Toby in System Settings → Privacy & Security → Accessibility.")
+			}
+			// Fall through to in-process attempt
+		}
+
+		// Fall back to in-process Accessibility
 		try requireAccessibility()
 		let apps = regularApps()
 		var minimizedWindowCount = 0
@@ -77,6 +90,19 @@ enum WindowCommands {
 	}
 
 	static func minimizeApp(name: String) throws -> [String: Any] {
+		// Try Toby.app native helper first (proper Accessibility identity)
+		if NativeHelperClient.isAvailable() {
+			let response = NativeHelperClient.minimizeApp(name: name)
+			if response.ok, let data = response.data {
+				return data
+			}
+			if response.needsPermission {
+				throw HelperError.permission("Accessibility permission is required to minimize windows. Grant access to Toby in System Settings → Privacy & Security → Accessibility.")
+			}
+			// Fall through to in-process attempt
+		}
+
+		// Fall back to in-process Accessibility
 		try requireAccessibility()
 		let matches = matchApps(name: name)
 		guard !matches.isEmpty else {
