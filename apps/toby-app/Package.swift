@@ -13,6 +13,21 @@ let package = Package(
 		.executableTarget(
 			name: "TobyApp",
 			path: "Sources/TobyApp",
+			exclude: ["Info.plist"],
+			linkerSettings: [
+				.linkedFramework("EventKit"),
+				.linkedFramework("Network"),
+				.unsafeFlags([
+					"-Xlinker",
+					"-sectcreate",
+					"-Xlinker",
+					"__TEXT",
+					"-Xlinker",
+					"__info_plist",
+					"-Xlinker",
+					"Sources/TobyApp/Info.plist",
+				]),
+			],
 		),
 	],
 )

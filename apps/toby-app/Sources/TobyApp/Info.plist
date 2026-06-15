@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>dev.karim.toby.app</string>
+	<key>CFBundleName</key>
+	<string>Toby</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Toby reads and manages your calendars when you use Apple Calendar integration.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Toby needs full calendar access to search, create, update, and delete events.</string>
+</dict>
+</plist>
