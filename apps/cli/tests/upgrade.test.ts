@@ -304,6 +304,51 @@ describe("applyStagedRelease", () => {
 			fs.existsSync(path.join(getPluginsDir(), "toby-plugin-sample")),
 		).toBe(true);
 	});
+
+	it("replaces an installed plugin resource bundle from staging", async () => {
+		const binDir = path.join(tempDir, "bin");
+		const installTarget = path.join(binDir, "toby");
+		const paths = getStagingPaths();
+		const bundleName = "TobyPluginMacOS_TobyPluginMacOSLib.bundle";
+		const stagedBundle = path.join(paths.stagingDir, bundleName);
+		const installedBundle = path.join(getPluginsDir(), bundleName);
+		fs.mkdirSync(stagedBundle, { recursive: true });
+		fs.mkdirSync(installedBundle, { recursive: true });
+		fs.mkdirSync(binDir, { recursive: true });
+
+		const versionScript = `#!/bin/sh\nif [ "$1" = "--version" ]; then echo "9.9.9"; exit 0; fi\nexit 1\n`;
+		fs.writeFileSync(paths.binaryPath, versionScript, { mode: 0o755 });
+		fs.writeFileSync(paths.listenerPath, "#!/bin/sh\nexit 0\n", {
+			mode: 0o755,
+		});
+		fs.writeFileSync(paths.pluginMacosPath, "#!/bin/sh\nexit 0\n", {
+			mode: 0o755,
+		});
+		fs.writeFileSync(path.join(stagedBundle, "resource.txt"), "new");
+		fs.writeFileSync(path.join(installedBundle, "resource.txt"), "old");
+
+		fs.writeFileSync(
+			paths.manifestPath,
+			JSON.stringify({
+				tag: "v9.9.9",
+				version: "9.9.9",
+				asset: "toby-darwin-arm64.zip",
+				repo: "kshehadeh/toby",
+				installTarget,
+				listenerInstallTarget: path.join(
+					tempDir,
+					"helpers",
+					"toby-listener",
+				),
+				completedAt: new Date().toISOString(),
+			}),
+		);
+
+		await applyStagedRelease(installTarget);
+
+		expect(fs.readFileSync(path.join(installedBundle, "resource.txt"), "utf8"))
+			.toBe("new");
+	});
 });
 
 describe("applyStagedReleaseDelegated", () => {

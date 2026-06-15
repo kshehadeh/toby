@@ -554,11 +554,11 @@ async function installStagedPluginBinary(
 		pluginsDir,
 		`.${binaryName}-upgrade-${Date.now()}-${Math.random().toString(16).slice(2)}`,
 	);
+	copyPluginResourceBundlesFromSource(stagingPath);
 	await rm(tempDestination, { force: true }).catch(() => undefined);
 	await rename(stagingPath, tempDestination);
 	await chmodExecutable(tempDestination);
 	await rename(tempDestination, installTarget);
-	copyPluginResourceBundlesFromSource(installTarget);
 }
 
 const REMOVED_PLUGIN_BINARIES = ["toby-plugin-applemail"] as const;
