@@ -80,7 +80,7 @@ public enum CalendarClient {
 		}
 
 		// Try Toby.app native helper first
-		if NativeHelperClient.isAvailable() {
+		if NativeHelperClient.ensureAvailable() {
 			let response = NativeHelperClient.listCalendars()
 			if response.ok, let data = response.data, let calendars = data["calendars"] as? [[String: Any]] {
 				if calendars.isEmpty {
@@ -192,7 +192,7 @@ public enum CalendarClient {
 		guard isPlatformSupported else { return [] }
 
 		// Try Toby.app native helper first
-		if NativeHelperClient.isAvailable() {
+		if NativeHelperClient.ensureAvailable() {
 			let response = NativeHelperClient.listCalendars()
 			if response.ok, let data = response.data, let raw = data["calendars"] as? [[String: Any]] {
 				return raw.compactMap { item in
@@ -220,7 +220,7 @@ public enum CalendarClient {
 		}
 
 		// Try Toby.app native helper first
-		if NativeHelperClient.isAvailable() {
+		if NativeHelperClient.ensureAvailable() {
 			let response = NativeHelperClient.searchEvents(params)
 			if response.ok, let data = response.data, let raw = data["events"] as? [[String: Any]] {
 				return raw.compactMap { dictToEventSummary($0) }
@@ -265,7 +265,7 @@ public enum CalendarClient {
 		}
 
 		// Try Toby.app native helper first
-		if NativeHelperClient.isAvailable() {
+		if NativeHelperClient.ensureAvailable() {
 			let response = NativeHelperClient.getEvent(uid: uid, calendar: calendar)
 			if response.ok, let data = response.data {
 				return .success(dictToEventDetail(data))
@@ -310,7 +310,7 @@ public enum CalendarClient {
 		}
 
 		// Try Toby.app native helper first
-		if NativeHelperClient.isAvailable() {
+		if NativeHelperClient.ensureAvailable() {
 			let response = NativeHelperClient.createEvent(params)
 			if response.ok, let data = response.data, let uid = data["uid"] as? String {
 				return .success(uid)
@@ -378,7 +378,7 @@ public enum CalendarClient {
 		}
 
 		// Try Toby.app native helper first
-		if NativeHelperClient.isAvailable() {
+		if NativeHelperClient.ensureAvailable() {
 			let response = NativeHelperClient.updateEvent(params)
 			if response.ok {
 				return .success(())
@@ -430,7 +430,7 @@ public enum CalendarClient {
 		}
 
 		// Try Toby.app native helper first
-		if NativeHelperClient.isAvailable() {
+		if NativeHelperClient.ensureAvailable() {
 			let response = NativeHelperClient.deleteEvent(uid: uid, calendar: calendar)
 			if response.ok {
 				return .success(())

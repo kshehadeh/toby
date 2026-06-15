@@ -2,8 +2,11 @@ import Foundation
 
 /// HTTP client that routes permission-gated operations through Toby.app's native API server.
 /// Falls back to in-process calls when Toby.app is not running.
+/// If Toby.app is not running, attempts to auto-launch it in the background.
 enum NativeHelperClient {
 	private static let timeoutInterval: TimeInterval = 30
+	private static let launchRetryDelay: TimeInterval = 1
+	private static let maxLaunchRetries: Int = 8
 
 	// MARK: - Discovery
 
@@ -18,6 +21,10 @@ enum NativeHelperClient {
 	}
 
 	static func isAvailable() -> Bool {
+		return checkHealth()
+	}
+
+	private static func checkHealth() -> Bool {
 		guard let port = resolveNativePort() else { return false }
 		let url = URL(string: "http://127.0.0.1:\(port)/api/native/health")!
 		var request = URLRequest(url: url)
@@ -39,6 +46,64 @@ enum NativeHelperClient {
 		return healthResult.healthy
 	}
 
+	// MARK: - Auto-launch
+
+	/// Attempts to launch Toby.app and waits for the native server to become available.
+	/// Returns true if the server is ready after launch, false otherwise.
+	@discardableResult
+	static func ensureAvailable() -> Bool {
+		if isAvailable() { return true }
+
+		guard let appURL = resolveTobyAppPath() else {
+			return false
+		}
+
+		let process = Process()
+		process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+		process.arguments = ["-g", appURL.path]
+		process.standardInput = FileHandle.nullDevice
+		process.standardOutput = FileHandle.nullDevice
+		process.standardError = FileHandle.nullDevice
+		do {
+			try process.run()
+		} catch {
+			return false
+		}
+
+		// Give Toby.app time to launch and start the native server.
+		// open -g returns immediately, so we poll for the port file + health.
+		for _ in 0..<maxLaunchRetries {
+			Thread.sleep(forTimeInterval: launchRetryDelay)
+			if checkHealth() { return true }
+		}
+		return false
+	}
+
+	private static func resolveTobyAppPath() -> URL? {
+		let home = FileManager.default.homeDirectoryForCurrentUser
+
+		// 1. Explicit env var
+		if let env = ProcessInfo.processInfo.environment["TOBY_APP_PATH"],
+			!env.isEmpty, FileManager.default.fileExists(atPath: env)
+		{
+			return URL(fileURLWithPath: env)
+		}
+
+		// 2. Development build (has the native server)
+		let devPath = home.appendingPathComponent("dev/karim/toby/dist/Toby.app")
+		if FileManager.default.fileExists(atPath: devPath.path) {
+			return devPath
+		}
+
+		// 3. Installed alongside toby binary
+		let installDir = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".local/bin/Toby.app")
+		if FileManager.default.fileExists(atPath: installDir.path) {
+			return installDir
+		}
+
+		return nil
+	}
+
 	// MARK: - Generic request
 
 	struct HelperResponse {
@@ -49,6 +114,11 @@ enum NativeHelperClient {
 	}
 
 	static func request(_ endpoint: String, body: [String: Any]? = nil) -> HelperResponse {
+		// If server not available, try auto-launching Toby.app
+		if resolveNativePort() == nil || !checkHealth() {
+			ensureAvailable()
+		}
+
 		guard let port = resolveNativePort() else {
 			return HelperResponse(ok: false, data: nil, error: "Toby.app native server not found.", needsPermission: false)
 		}
