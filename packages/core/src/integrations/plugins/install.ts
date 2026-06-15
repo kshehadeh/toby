@@ -297,6 +297,9 @@ function copyAdjacentPluginResourceBundles(
 		}
 
 		const destinationBundle = path.join(destinationDir, entry);
+		if (path.resolve(sourceBundle) === path.resolve(destinationBundle)) {
+			continue;
+		}
 		if (fs.existsSync(destinationBundle)) {
 			fs.rmSync(destinationBundle, { recursive: true, force: true });
 		}
