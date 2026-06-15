@@ -37,8 +37,79 @@ function defaultToolOutputFormatter(ctx: ToolOutputFormatContext): string {
 	if (Array.isArray(result)) {
 		return `Returned ${result.length} item(s).`;
 	}
+	if (typeof result === "string") {
+		return sanitizeOneLine(result);
+	}
+	if (typeof result === "number") {
+		return String(result);
+	}
+	if (typeof result === "boolean") {
+		return result ? "Done." : "No result.";
+	}
 	if (result && typeof result === "object") {
 		const record = result as Record<string, unknown>;
+		if (Array.isArray(record.events)) {
+			return record.events.length === 0
+				? "No events found."
+				: `Found ${record.events.length} event(s).`;
+		}
+		if (Array.isArray(record.items)) {
+			return record.items.length === 0
+				? "No items found."
+				: `Found ${record.items.length} item(s).`;
+		}
+		if (Array.isArray(record.results)) {
+			return record.results.length === 0
+				? "No results found."
+				: `Found ${record.results.length} result(s).`;
+		}
+		if (Array.isArray(record.data)) {
+			return record.data.length === 0
+				? "No data found."
+				: `Found ${record.data.length} item(s).`;
+		}
+		if (Array.isArray(record.tasks)) {
+			return `Found ${record.tasks.length} item(s).`;
+		}
+		if (Array.isArray(record.emails)) {
+			return `Found ${record.emails.length} email(s).`;
+		}
+		if (Array.isArray(record.users)) {
+			return `Found ${record.users.length} user(s).`;
+		}
+		if (Array.isArray(record.labels)) {
+			return `Found ${record.labels.length} label(s).`;
+		}
+		if (Array.isArray(record.files)) {
+			return record.files.length === 0
+				? "No files found."
+				: `Found ${record.files.length} file(s).`;
+		}
+		if (Array.isArray(record.contacts)) {
+			return record.contacts.length === 0
+				? "No contacts found."
+				: `Found ${record.contacts.length} contact(s).`;
+		}
+		if (Array.isArray(record.messages)) {
+			return record.messages.length === 0
+				? "No messages found."
+				: `Found ${record.messages.length} message(s).`;
+		}
+		if (Array.isArray(record.notes)) {
+			return record.notes.length === 0
+				? "No notes found."
+				: `Found ${record.notes.length} note(s).`;
+		}
+		if (Array.isArray(record.records)) {
+			return record.records.length === 0
+				? "No records found."
+				: `Found ${record.records.length} record(s).`;
+		}
+		if (Array.isArray(record.entries)) {
+			return record.entries.length === 0
+				? "No entries found."
+				: `Found ${record.entries.length} entry(s).`;
+		}
 		if (
 			typeof record.message === "string" &&
 			record.message.trim().length > 0
@@ -50,6 +121,33 @@ function defaultToolOutputFormatter(ctx: ToolOutputFormatContext): string {
 			record.summary.trim().length > 0
 		) {
 			return sanitizeOneLine(record.summary);
+		}
+		if (typeof record.text === "string" && record.text.trim().length > 0) {
+			return sanitizeOneLine(record.text);
+		}
+		if (
+			typeof record.content === "string" &&
+			record.content.trim().length > 0
+		) {
+			return sanitizeOneLine(record.content);
+		}
+		if (
+			typeof record.description === "string" &&
+			record.description.trim().length > 0
+		) {
+			return sanitizeOneLine(record.description);
+		}
+		if (typeof record.name === "string" && record.name.trim().length > 0) {
+			return sanitizeOneLine(record.name);
+		}
+		if (typeof record.title === "string" && record.title.trim().length > 0) {
+			return sanitizeOneLine(record.title);
+		}
+		if (
+			typeof record.subject === "string" &&
+			record.subject.trim().length > 0
+		) {
+			return sanitizeOneLine(record.subject);
 		}
 		if (record.success === true) {
 			return "Done.";
