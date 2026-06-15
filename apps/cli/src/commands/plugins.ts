@@ -94,9 +94,15 @@ export function registerPluginsCommand(program: Command): void {
 
 async function listPlugins(): Promise<void> {
 	const discovered = discoverPluginBinaries();
-	const pluginsDir = resolvePluginSearchDirectories()[0];
-	console.log(chalk.bold("\nPlugin directory:\n"));
-	console.log(`  ${chalk.dim(pluginsDir ?? "(unknown)")}`);
+	const searchDirs = resolvePluginSearchDirectories();
+	console.log(chalk.bold("\nPlugin search paths (precedence order):\n"));
+	if (searchDirs.length === 0) {
+		console.log(`  ${chalk.dim("(none)")}`);
+	} else {
+		for (const dir of searchDirs) {
+			console.log(`  ${chalk.dim(dir)}`);
+		}
+	}
 
 	console.log(chalk.bold("\nDiscovered plugins:\n"));
 	if (discovered.length === 0) {
@@ -388,7 +394,11 @@ async function doctorPlugins(): Promise<void> {
 	const discovered = discoverPluginBinaries();
 	console.log(chalk.bold("\nPlugin doctor\n"));
 	console.log(`  Protocol expected: ${CURRENT_PROTOCOL_VERSION}`);
-	console.log(`  Search paths: ${resolvePluginSearchDirectories().length}`);
+	const searchDirs = resolvePluginSearchDirectories();
+	console.log(`  Search paths (precedence order):`);
+	for (const dir of searchDirs) {
+		console.log(`    ${chalk.dim(dir)}`);
+	}
 
 	if (discovered.length === 0) {
 		console.log(chalk.yellow("\n  No plugin binaries discovered."));

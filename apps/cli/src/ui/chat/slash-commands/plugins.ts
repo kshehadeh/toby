@@ -36,12 +36,18 @@ function formatPluginLine(entry: PluginListEntry): string {
 }
 
 export function buildPluginsReportLines(): string[] {
-	const pluginsDir = resolvePluginSearchDirectories()[0];
+	const searchDirs = resolvePluginSearchDirectories();
 	const entries = collectPluginListEntries();
 	const lines: string[] = [];
 
-	lines.push("## Plugin directory");
-	lines.push(`  ${pluginsDir ?? "(unknown)"}`);
+	lines.push("## Plugin search paths");
+	if (searchDirs.length === 0) {
+		lines.push("  (none)");
+	} else {
+		for (const dir of searchDirs) {
+			lines.push(`  ${dir}`);
+		}
+	}
 	lines.push("");
 	lines.push("## Plugins");
 
