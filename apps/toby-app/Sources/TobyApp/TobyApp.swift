@@ -1,4 +1,5 @@
 import ApplicationServices
+import EventKit
 import SwiftUI
 
 @main
@@ -31,12 +32,18 @@ struct TobyApp: App {
 	}
 
 	private func requestNativePermissions() {
-		// Request Calendar access if not yet determined
-		_ = NativeCalendarHandler.requestAccess()
-		// Prompt for Accessibility if not yet granted
-		if !AXIsProcessTrusted() {
-			let options: CFDictionary = ["AXTrustedCheckOptionPrompt": kCFBooleanTrue!] as CFDictionary
-			_ = AXIsProcessTrustedWithOptions(options)
+		// Only prompt for Calendar access if not already granted
+		if #available(macOS 14.0, *) {
+			if EKEventStore.authorizationStatus(for: .event) != .fullAccess {
+				_ = NativeCalendarHandler.requestAccess()
+			}
+		} else {
+			if EKEventStore.authorizationStatus(for: .event) != .authorized {
+				_ = NativeCalendarHandler.requestAccess()
+			}
 		}
+		// Don't prompt for Accessibility on launch - it's not persistent for
+		// ad-hoc signed binaries. The native API endpoints will prompt on-demand
+		// when an Accessibility operation is actually needed.
 	}
 }
