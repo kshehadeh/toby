@@ -8,6 +8,13 @@ enum TobyPluginMacOS {
 		let command = args.first
 		let subcommand = args.count > 1 ? args[1] : nil
 
+		PluginLog.debug("invocation", data: [
+			"command": command ?? "(none)",
+			"subcommand": subcommand ?? "",
+			"pid": Int(getpid()),
+			"ppid": Int(getppid()),
+		])
+
 		switch command {
 		case "status":
 			handleStatus(envelope: ConfigEnvelope.parse(PluginOutput.readStdin()))
@@ -60,7 +67,9 @@ enum TobyPluginMacOS {
 
 		if SystemClient.isPlatformSupported {
 			payload["setupAvailable"] = true
-			payload["setupDescription"] = "Install bundled Focus shortcuts for Toby"
+			payload["setupDescription"] = SetupCommands.isAccessibilityTrusted()
+				? "Install bundled Focus shortcuts for Toby"
+				: "Install Focus shortcuts and request Accessibility permission for window minimize"
 		}
 
 		if !SystemClient.isPlatformSupported {
@@ -158,12 +167,24 @@ enum TobyPluginMacOS {
 
 		switch MacOSTools.execute(tool: tool, input: input, dryRun: dryRun) {
 		case let .success(executed):
+			if let resultOk = executed.result["ok"] as? Bool, resultOk == false {
+				PluginLog.warn("tool_failed", data: [
+					"tool": tool,
+					"error": executed.result["error"] as? String ?? "",
+					"dryRun": dryRun,
+				])
+			}
 			var response: [String: Any] = ["ok": true, "result": executed.result]
 			if !executed.appliedActions.isEmpty {
 				response["appliedActions"] = executed.appliedActions
 			}
 			PluginOutput.emit(response)
 		case let .failure(error):
+			PluginLog.warn("tool_failed", data: [
+				"tool": tool,
+				"error": error.message,
+				"dryRun": dryRun,
+			])
 			PluginOutput.emit(["ok": false, "error": error.message])
 		}
 	}

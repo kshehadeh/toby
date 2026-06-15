@@ -1,3 +1,4 @@
+import ApplicationServices
 import Foundation
 
 struct BundledShortcutEntry: Decodable {
@@ -22,13 +23,14 @@ public enum SetupCommands {
 
 		let manifest = try loadManifest()
 		let installed = try listInstalledShortcutNames()
+		var previouslyOpened = loadPreviouslyOpenedShortcuts()
 		var actions: [[String: Any]] = []
 
 		for entry in manifest.shortcuts {
 			let actionId = shortcutActionId(for: entry.name)
 			let label = "Install \(entry.name) shortcut"
 
-			if installed.contains(entry.name) {
+			if isShortcutInstalled(entry.name, in: installed) {
 				actions.append([
 					"id": actionId,
 					"label": label,
@@ -39,8 +41,21 @@ public enum SetupCommands {
 				continue
 			}
 
+			if previouslyOpened.contains(entry.name) {
+				actions.append([
+					"id": actionId,
+					"label": label,
+					"ok": true,
+					"skipped": true,
+					"detail": "Shortcut import was already opened in a previous setup run. If you still need to add it, open Shortcuts.app manually.",
+				])
+				continue
+			}
+
 			do {
 				try openBundledShortcutImport(entry: entry)
+				previouslyOpened.insert(entry.name)
+				savePreviouslyOpenedShortcuts(previouslyOpened)
 				actions.append([
 					"id": actionId,
 					"label": label,
@@ -57,7 +72,45 @@ public enum SetupCommands {
 			}
 		}
 
+		actions.append(accessibilityPermissionAction())
+
 		return actions
+	}
+
+	public static func isAccessibilityTrusted() -> Bool {
+		AXIsProcessTrusted()
+	}
+
+	private static func accessibilityPermissionAction() -> [String: Any] {
+		let actionId = "accessibility-permission"
+		let label = "Grant Accessibility permission for window minimize"
+		if AXIsProcessTrusted() {
+			PluginLog.info("accessibility_already_trusted", data: PluginLog.processFingerprint())
+			return [
+				"id": actionId,
+				"label": label,
+				"ok": true,
+				"skipped": true,
+				"detail": "Accessibility permission is already granted for the plugin.",
+			]
+		}
+		PluginLog.info("accessibility_prompt_requested", data: PluginLog.processFingerprint())
+		let options: CFDictionary = ["AXTrustedCheckOptionPrompt": kCFBooleanTrue!] as CFDictionary
+		_ = AXIsProcessTrustedWithOptions(options)
+		let fp = PluginLog.processFingerprint()
+		let exe = fp["executable"] as? String ?? "(unknown)"
+		let parent = fp["parentExecutable"] as? String ?? ""
+		var detail = "Requested Accessibility prompt. macOS sees the calling executable as: \(exe)."
+		if !parent.isEmpty {
+			detail += " Parent process: \(parent)."
+		}
+		detail += " Toggle the matching entry on in System Settings → Privacy & Security → Accessibility, then re-run setup. Plugin log: ~/.toby/plugin-macos.log."
+		return [
+			"id": actionId,
+			"label": label,
+			"ok": true,
+			"detail": detail,
+		]
 	}
 
 	private static func bundledResourceURL(
@@ -80,6 +133,39 @@ public enum SetupCommands {
 			.replacingOccurrences(of: " ", with: "-")
 			.filter { $0.isLetter || $0.isNumber || $0 == "-" }
 		return "shortcut:\(slug)"
+	}
+
+	private static func isShortcutInstalled(_ name: String, in installed: Set<String>) -> Bool {
+		let target = name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+		return installed.contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == target })
+	}
+
+	private static var stateFileURL: URL {
+		tobyDir().appendingPathComponent("plugin-macos-setup-state.json")
+	}
+
+	private static func tobyDir() -> URL {
+		if let override = ProcessInfo.processInfo.environment["TOBY_DIR"], !override.isEmpty {
+			return URL(fileURLWithPath: (override as NSString).expandingTildeInPath, isDirectory: true)
+		}
+		let home = FileManager.default.homeDirectoryForCurrentUser
+		return home.appendingPathComponent(".toby", isDirectory: true)
+	}
+
+	private static func loadPreviouslyOpenedShortcuts() -> Set<String> {
+		let url = stateFileURL
+		guard let data = try? Data(contentsOf: url),
+			let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+			let names = json["openedShortcuts"] as? [String]
+		else { return [] }
+		return Set(names)
+	}
+
+	private static func savePreviouslyOpenedShortcuts(_ names: Set<String>) {
+		let url = stateFileURL
+		let json: [String: Any] = ["openedShortcuts": Array(names)]
+		guard let data = try? JSONSerialization.data(withJSONObject: json, options: [.sortedKeys]) else { return }
+		try? data.write(to: url, options: .atomic)
 	}
 
 	private static func loadManifest() throws -> BundledShortcutsManifest {
@@ -111,6 +197,18 @@ public enum SetupCommands {
 		let stdout = String(data: outData, encoding: .utf8) ?? ""
 		let stderr = String(data: errData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
+		let rawLines = stdout
+			.split(whereSeparator: \.isNewline)
+			.map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+			.filter { !$0.isEmpty }
+
+		PluginLog.debug("shortcuts_list_raw", data: [
+			"exitCode": process.terminationStatus,
+			"lineCount": rawLines.count,
+			"names": rawLines,
+			"stderr": stderr,
+		])
+
 		if process.terminationStatus != 0 {
 			throw HelperError.runtime(
 				stderr.isEmpty
@@ -119,11 +217,7 @@ public enum SetupCommands {
 			)
 		}
 
-		let names = stdout
-			.split(whereSeparator: \.isNewline)
-			.map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
-			.filter { !$0.isEmpty }
-		return Set(names)
+		return Set(rawLines)
 	}
 
 	private static func openBundledShortcutImport(entry: BundledShortcutEntry) throws {

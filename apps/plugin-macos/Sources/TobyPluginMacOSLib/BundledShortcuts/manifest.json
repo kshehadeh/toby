@@ -1,14 +1,14 @@
 {
-	"shortcuts": [
-		{
-			"file": "TobyFocusOn.shortcut",
-			"name": "Toby Focus On",
-			"description": "Turns on Do Not Disturb / Focus via Shortcuts."
-		},
-		{
-			"file": "TobyFocusOff.shortcut",
-			"name": "Toby Focus Off",
-			"description": "Turns off Do Not Disturb / Focus via Shortcuts."
-		}
-	]
+  "shortcuts": [
+    {
+      "file": "TobyFocusOn.shortcut",
+      "name": "Toby Focus On",
+      "description": "Turns on Do Not Disturb / Focus via Shortcuts."
+    },
+    {
+      "file": "TobyFocusOff.shortcut",
+      "name": "Toby Focus Off",
+      "description": "Turns off Do Not Disturb / Focus via Shortcuts."
+    }
+  ]
 }

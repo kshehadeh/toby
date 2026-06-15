@@ -24,6 +24,11 @@ public enum MacOSTools {
 		"macShortcutRun",
 		"macDisplaySetBrightness",
 		"macClipboardWrite",
+		"macWindowsHideAll",
+		"macWindowsShowAll",
+		"macWindowsMinimizeAll",
+		"macWindowHideApp",
+		"macWindowMinimizeApp",
 	]
 
 	public static var definitions: [[String: Any]] {
@@ -49,6 +54,11 @@ public enum MacOSTools {
 			tool(name: "macClipboardWrite", description: "macOS only. Write text to the system clipboard, replacing any current content.", properties: ["text": prop("string", "Text to write to clipboard")], required: ["text"]),
 			tool(name: "macSystemInfo", description: "macOS only. Get system information: OS version, hardware model, hostname, uptime, processor count, physical memory, and Apple Silicon status.", readOnly: true, properties: [:]),
 			tool(name: "macNotificationsPeek", description: "macOS only. Read Notification Center items — not supported (no stable API). Does not toggle Do Not Disturb / Focus; use macFocusSet for that.", readOnly: true, properties: [:]),
+			tool(name: "macWindowsHideAll", description: "macOS only. Hide all other application windows (like the macOS \"Hide Others\" command). Uses native AppKit; no extra permission required.", properties: [:]),
+			tool(name: "macWindowsShowAll", description: "macOS only. Show/unhide all currently hidden application windows. Uses native AppKit; no extra permission required.", properties: [:]),
+			tool(name: "macWindowsMinimizeAll", description: "macOS only. Minimize all windows of all open applications via the native Accessibility API. Requires Accessibility permission for the app running Toby (System Settings → Privacy & Security → Accessibility).", properties: [:]),
+			tool(name: "macWindowHideApp", description: "macOS only. Hide a specific running application's windows by name. Matches localized app name or bundle id substring (case-insensitive). Uses native AppKit.", properties: ["appName": prop("string", "App name to hide (e.g. Safari, Slack). Substring match is allowed.")], required: ["appName"]),
+			tool(name: "macWindowMinimizeApp", description: "macOS only. Minimize all windows of a specific running application via the native Accessibility API. Requires Accessibility permission.", properties: ["appName": prop("string", "App name to minimize (e.g. Safari, Slack). Substring match is allowed.")], required: ["appName"]),
 		]
 	}
 
@@ -403,6 +413,77 @@ public enum MacOSTools {
 				],
 				appliedActions: []
 			))
+
+		case "macWindowsHideAll":
+			if dryRun {
+				let msg = "[DRY RUN] Would hide all other application windows."
+				return .success(ExecuteResult(result: ["dryRun": true, "message": msg], appliedActions: [msg]))
+			}
+			do {
+				let data = try WindowCommands.hideAll()
+				let count = data["hiddenCount"] as? Int ?? 0
+				return .success(ExecuteResult(result: ["ok": true, "hiddenCount": count, "hiddenApps": data["hiddenApps"] as? [String] ?? []], appliedActions: ["Hid \(count) other application(s)."]))
+			} catch {
+				return .success(ExecuteResult(result: ["ok": false, "error": SystemClient.errorMessage(error)], appliedActions: []))
+			}
+
+		case "macWindowsShowAll":
+			if dryRun {
+				let msg = "[DRY RUN] Would unhide all hidden applications."
+				return .success(ExecuteResult(result: ["dryRun": true, "message": msg], appliedActions: [msg]))
+			}
+			do {
+				let data = try WindowCommands.showAll()
+				let count = data["shownCount"] as? Int ?? 0
+				return .success(ExecuteResult(result: ["ok": true, "shownCount": count, "shownApps": data["shownApps"] as? [String] ?? []], appliedActions: ["Unhid \(count) application(s)."]))
+			} catch {
+				return .success(ExecuteResult(result: ["ok": false, "error": SystemClient.errorMessage(error)], appliedActions: []))
+			}
+
+		case "macWindowsMinimizeAll":
+			if dryRun {
+				let msg = "[DRY RUN] Would minimize all windows of all open applications."
+				return .success(ExecuteResult(result: ["dryRun": true, "message": msg], appliedActions: [msg]))
+			}
+			do {
+				let data = try WindowCommands.minimizeAll()
+				let count = data["minimizedWindowCount"] as? Int ?? 0
+				return .success(ExecuteResult(result: ["ok": true, "minimizedWindowCount": count, "apps": data["apps"] as? [String] ?? []], appliedActions: ["Minimized \(count) window(s)."]))
+			} catch {
+				return .success(ExecuteResult(result: ["ok": false, "error": SystemClient.errorMessage(error)], appliedActions: []))
+			}
+
+		case "macWindowHideApp":
+			guard let appName = stringValue(input["appName"])?.trimmingCharacters(in: .whitespacesAndNewlines), !appName.isEmpty else {
+				return .failure(ToolFailure(message: "appName is required."))
+			}
+			if dryRun {
+				let msg = "[DRY RUN] Would hide \"\(appName)\"."
+				return .success(ExecuteResult(result: ["dryRun": true, "message": msg], appliedActions: [msg]))
+			}
+			do {
+				let data = try WindowCommands.hideApp(name: appName)
+				let count = data["hiddenCount"] as? Int ?? 0
+				return .success(ExecuteResult(result: ["ok": true, "hiddenCount": count, "hiddenApps": data["hiddenApps"] as? [String] ?? []], appliedActions: ["Hid \(count) app(s) matching \"\(appName)\"."]))
+			} catch {
+				return .success(ExecuteResult(result: ["ok": false, "error": SystemClient.errorMessage(error)], appliedActions: []))
+			}
+
+		case "macWindowMinimizeApp":
+			guard let appName = stringValue(input["appName"])?.trimmingCharacters(in: .whitespacesAndNewlines), !appName.isEmpty else {
+				return .failure(ToolFailure(message: "appName is required."))
+			}
+			if dryRun {
+				let msg = "[DRY RUN] Would minimize windows of \"\(appName)\"."
+				return .success(ExecuteResult(result: ["dryRun": true, "message": msg], appliedActions: [msg]))
+			}
+			do {
+				let data = try WindowCommands.minimizeApp(name: appName)
+				let count = data["minimizedWindowCount"] as? Int ?? 0
+				return .success(ExecuteResult(result: ["ok": true, "minimizedWindowCount": count, "apps": data["apps"] as? [String] ?? []], appliedActions: ["Minimized \(count) window(s) of \"\(appName)\"."]))
+			} catch {
+				return .success(ExecuteResult(result: ["ok": false, "error": SystemClient.errorMessage(error)], appliedActions: []))
+			}
 
 		default:
 			return .failure(ToolFailure(message: "Unknown tool: \(name)"))

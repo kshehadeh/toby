@@ -6,7 +6,7 @@ public enum PluginConstants {
 	public static let displayName = "macOS"
 	public static let description =
 		"Control this Mac locally — Wi‑Fi, Bluetooth, battery info, audio outputs, display brightness, volume, clipboard, low power probes"
-	public static let version = "1.0.0"
+	public static let version = "1.1.0"
 	public static let protocolVersion = "1"
 }
 

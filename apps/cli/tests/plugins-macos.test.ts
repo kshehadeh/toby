@@ -115,7 +115,7 @@ describe("macos plugin", () => {
 		expect(shape.data.fields ?? []).toEqual([]);
 	});
 
-	it("lists twenty-one macOS chat tools including macFocusSet", () => {
+	it("lists twenty-six macOS chat tools including macFocusSet and window controls", () => {
 		const binaryPath = path.join(pluginDir, "toby-plugin-macos");
 		const list = pluginToolsList(binaryPath);
 		expect(list.ok).toBe(true);
@@ -125,7 +125,12 @@ describe("macos plugin", () => {
 		expect(names).toContain("macFocusSet");
 		expect(names).toContain("macWifiStatus");
 		expect(names).toContain("macNotificationsPeek");
-		expect(names.length).toBe(21);
+		expect(names).toContain("macWindowsHideAll");
+		expect(names).toContain("macWindowsShowAll");
+		expect(names).toContain("macWindowsMinimizeAll");
+		expect(names).toContain("macWindowHideApp");
+		expect(names).toContain("macWindowMinimizeApp");
+		expect(names.length).toBe(26);
 	});
 
 	it("registers plugin-backed macos module with chatModelPrep", () => {
@@ -163,8 +168,10 @@ describe("macos plugin", () => {
 		expect(setup.ok).toBe(true);
 		if (!setup.ok) return;
 		expect(setup.data.ok).toBe(true);
-		expect(setup.data.actions?.length).toBe(2);
+		expect(setup.data.actions?.length).toBe(3);
 		expect(setup.data.actions?.every((action) => action.ok)).toBe(true);
+		const ids = setup.data.actions?.map((a) => a.id) ?? [];
+		expect(ids).toContain("accessibility-permission");
 
 		const run = runPluginSetup("macos");
 		expect(run.ok).toBe(true);

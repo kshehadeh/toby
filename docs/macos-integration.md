@@ -16,11 +16,17 @@ toby plugins doctor
 
 Run **`toby connect macos`** once on your Mac. Connection stores `integrations.macos.connectedAt` in **`~/.toby/config.json`**. Disconnect with **`toby disconnect macos`**.
 
-## Bundled shortcuts (optional setup)
+## Plugin setup
 
 The plugin ships signed **Toby Focus On** and **Toby Focus Off** shortcuts for
 Focus / Do Not Disturb control via `macShortcutRun`. Apple requires a one-click
 confirmation in Shortcuts.app to import them — Toby cannot install silently.
+
+Setup also requests **Accessibility permission** for the plugin binary so the
+window-minimize tools (`macWindowsMinimizeAll`, `macWindowMinimizeApp`) can
+work. Because macOS TCC is keyed to the calling executable, the binary that
+needs the grant is `~/.toby/plugins/toby-plugin-macos` itself, not the host
+terminal or the Toby daemon.
 
 After install, Toby may prompt to run setup, or run it manually:
 
@@ -28,8 +34,12 @@ After install, Toby may prompt to run setup, or run it manually:
 toby plugins setup macos
 ```
 
-Setup is idempotent: shortcuts already listed by `shortcuts list` are skipped.
-Re-run setup anytime to import any shortcuts you have not added yet.
+Setup is idempotent:
+
+- Shortcuts already listed by `shortcuts list` are skipped (matching is case‑insensitive and whitespace‑normalized, and a local state file tracks which imports have already been opened so the UI never reappears).
+- The Accessibility step is skipped when the plugin is already trusted; otherwise it triggers the macOS "would like to control your computer" prompt that surfaces toby-plugin-macos in System Settings → Privacy & Security → Accessibility with a single toggle.
+
+Re-run setup anytime to finish steps you have not completed yet. If `shortcuts list` does not reliably detect a shortcut (for example, due to iCloud sync delays), the state file at `~/.toby/plugin-macos-setup-state.json` prevents the import UI from being opened again.
 
 Build regenerates signed shortcuts via [`scripts/build-bundled-shortcuts.sh`](../scripts/build-bundled-shortcuts.sh) before `swift build`. On recent macOS, `shortcuts sign` may print harmless `debugDescription` stderr noise; CI reuses the committed signed shortcuts because GitHub runners are not signed into iCloud.
 
@@ -49,6 +59,7 @@ Source: [`apps/plugin-macos/`](../apps/plugin-macos/).
 | Low Power | wraps `pmset` |
 | Shortcuts | wraps `/usr/bin/shortcuts` |
 | Clipboard | AppKit NSPasteboard |
+| Windows | AppKit `NSRunningApplication` (hide/show) + `AXUIElement` (minimize) |
 | System Info | sysctl / ProcessInfo |
 
 ## Configure fields (`macos.*`)
@@ -78,6 +89,11 @@ The macOS integration has no configurable fields. System control is handled by n
 | `macShortcutRun` | `/usr/bin/shortcuts run "<name>"` |
 | `macSystemInfo` | sysctl/ProcessInfo/sw_vers |
 | `macNotificationsPeek` | **Explicitly unsupported** — Notification Center has no stable API |
+| `macWindowsHideAll` | AppKit `NSRunningApplication.hide()` for every other regular app |
+| `macWindowsShowAll` | AppKit `NSRunningApplication.unhide()` |
+| `macWindowsMinimizeAll` | `AXUIElement` + `kAXMinimizedAttribute` across all GUI apps |
+| `macWindowHideApp` | AppKit hide, matched by localized name / bundle id substring |
+| `macWindowMinimizeApp` | `AXUIElement` minimize for a specific app |
 
 Mutating calls respect **`dry run`** modes from `toby chat` when enabled.
 
@@ -91,8 +107,19 @@ Depending on OS version and invoking app (Terminal, Cursor agent, daemon):
 | Bluetooth | Plugin Info.plist declares `NSBluetoothAlwaysUsageDescription`. |
 | Shortcuts | macOS may prompt for Automation permissions when Shortcuts access other apps. |
 | `pmset` | Low Power Mode writes may require admin privileges. Use a Shortcut or manual `sudo` per Apple guidance. |
+| Window minimize | `macWindowsMinimizeAll` and `macWindowMinimizeApp` require Accessibility permission for **the plugin binary itself** (`~/.toby/plugins/toby-plugin-macos`) under System Settings → Privacy & Security → Accessibility. Run `toby plugins setup macos` to trigger the macOS Accessibility prompt for the plugin and surface it in the list with a single toggle. Hide/show work without extra permission. |
 
 Toby never runs **`sudo`** for you.
+
+## Logs
+
+The plugin writes a structured JSON-line log to **`~/.toby/plugin-macos.log`** (same schema as `daemon.log`: `{ ts, level, category, type, data }`, with `category: "plugin-macos"`). Errors from Accessibility/AX calls, tool failures, and setup actions are recorded along with a process fingerprint (`pid`, `ppid`, `executable`, `parentExecutable`, `accessibilityTrusted`). Tail it while reproducing an issue:
+
+```bash
+tail -f ~/.toby/plugin-macos.log
+```
+
+The `executable` and `parentExecutable` fields are particularly useful for figuring out which binary macOS attributes Accessibility calls to. The file rotates automatically once it exceeds ~512 KB.
 
 ## Limitations
 
