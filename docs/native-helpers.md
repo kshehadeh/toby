@@ -12,6 +12,8 @@ One helper currently exists:
 
 - **toby-audio-helper** — macOS audio capture for `toby listen` (line-delimited JSON streaming protocol)
 
+In addition, **Toby.app** runs a native API server for permission-gated operations that plugins cannot perform as raw CLI binaries (EventKit, Accessibility). See the Toby.app native API section below.
+
 macOS system control (`macos` integration) is an **installable plugin** (`toby-plugin-macos`) that calls native APIs in-process — see [`macos-integration.md`](macos-integration.md).
 
 ```text
@@ -222,3 +224,46 @@ protocol details. See [listen-binaries.md](listen-binaries.md) for how
 For macOS system tools, see [macos-integration.md](macos-integration.md) (`toby-plugin-macos`).
 
 For web search (Brave Search API), see [web-search.md](web-search.md) (`toby-plugin-websearch`).
+
+## Toby.app native API server
+
+Toby.app (`apps/toby-app/`) is a SwiftUI macOS app with a proper bundle identity and `Info.plist`. When running, it starts a local HTTP server for native operations that require TCC permissions (EventKit, Accessibility). CLI plugins discover this server via `~/.toby/native-port` and route privileged calls through it, falling back to in-process or AppleScript when Toby.app is not running.
+
+### Why this exists
+
+macOS TCC ties permission grants to the calling binary's identity. Raw CLI plugin binaries show up with confusing names in System Settings, or get XPC errors from `calaccessd` when requesting EventKit access. By routing through Toby.app, users grant permissions once to a clearly-identified app.
+
+### Protocol
+
+The native server listens on a random localhost port written to `~/.toby/native-port`. All endpoints return JSON: `{"ok":true,"data":{...}}` or `{"ok":false,"error":"...","needsPermission":true}`.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/api/native/health` | Check native server is alive |
+| `POST` | `/api/native/calendar/request-access` | Prompt for Calendar permission |
+| `POST` | `/api/native/calendar/list` | List calendars |
+| `POST` | `/api/native/calendar/search` | Search events |
+| `POST` | `/api/native/calendar/get` | Get event by uid |
+| `POST` | `/api/native/calendar/create` | Create event |
+| `POST` | `/api/native/calendar/update` | Update event |
+| `POST` | `/api/native/calendar/delete` | Delete event |
+| `POST` | `/api/native/macos/minimize-all` | Minimize all windows (Accessibility) |
+| `POST` | `/api/native/macos/minimize-app` | Minimize app windows (Accessibility) |
+| `GET` | `/api/native/macos/accessibility-status` | Check if Accessibility is granted |
+
+### Plugin integration
+
+Plugins use a `NativeHelperClient` that:
+
+1. Reads `~/.toby/native-port` for the port number
+2. Calls `/api/native/health` to confirm Toby.app is responsive
+3. Routes the operation to Toby.app if available
+4. Falls back to current behavior (EventKit + AppleScript for calendar; in-process with permission error for macOS)
+
+### Source
+
+- `apps/toby-app/Sources/TobyApp/NativeServer.swift` — HTTP server using Network.framework
+- `apps/toby-app/Sources/TobyApp/NativeCalendarHandler.swift` — EventKit operations
+- `apps/toby-app/Sources/TobyApp/NativeMacOSHandler.swift` — Accessibility-gated operations
+- `apps/plugin-applecalendar/Sources/TobyPluginAppleCalendarLib/NativeHelperClient.swift` — calendar plugin client
+- `apps/plugin-macos/Sources/TobyPluginMacOSLib/System/NativeHelperClient.swift` — macOS plugin client

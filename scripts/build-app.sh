@@ -95,6 +95,10 @@ cat >"${APP}/Contents/Info.plist" <<'PLIST'
 	<string>14.0</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Toby reads and manages your calendars when you use Apple Calendar integration.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Toby needs full calendar access to search, create, update, and delete events.</string>
 </dict>
 </plist>
 PLIST

@@ -107,7 +107,7 @@ Depending on OS version and invoking app (Terminal, Cursor agent, daemon):
 | Bluetooth | Plugin Info.plist declares `NSBluetoothAlwaysUsageDescription`. |
 | Shortcuts | macOS may prompt for Automation permissions when Shortcuts access other apps. |
 | `pmset` | Low Power Mode writes may require admin privileges. Use a Shortcut or manual `sudo` per Apple guidance. |
-| Window minimize | `macWindowsMinimizeAll` and `macWindowMinimizeApp` require Accessibility permission for **the plugin binary itself** (`~/.toby/plugins/toby-plugin-macos`) under System Settings → Privacy & Security → Accessibility. Run `toby plugins setup macos` to trigger the macOS Accessibility prompt for the plugin and surface it in the list with a single toggle. Hide/show work without extra permission. |
+| Window minimize | `macWindowsMinimizeAll` and `macWindowMinimizeApp` first try Toby.app's native API server (which has a proper app bundle identity for Accessibility). If Toby.app is not running, they fall back to in-process `AXUIElement` calls, which require Accessibility permission for the **plugin binary itself** (`~/.toby/plugins/toby-plugin-macos`) under System Settings → Privacy & Security → Accessibility. Run `toby plugins setup macos` to trigger the prompt. When using Toby.app, the user grants Accessibility to "Toby" instead of the plugin binary. Hide/show work without extra permission. |
 
 Toby never runs **`sudo`** for you.
 
