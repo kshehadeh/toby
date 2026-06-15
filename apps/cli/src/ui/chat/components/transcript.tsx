@@ -30,6 +30,17 @@ function noticeGlyphAndColor(tone: "info" | "success" | "error" | undefined): {
 	return { glyph: META_STEP_GLYPH, color: META_ACCENT };
 }
 
+function isErrorBodyLine(line: string): boolean {
+	const lower = line.trim().toLowerCase();
+	return (
+		lower.startsWith("failed:") ||
+		lower.startsWith("error:") ||
+		lower.startsWith("save failed:") ||
+		lower.startsWith("forget failed:") ||
+		lower.startsWith("no skills loaded")
+	);
+}
+
 export function buildTranscriptNodes(
 	rows: readonly DisplayRow[],
 	termCols: number,
@@ -93,17 +104,22 @@ export function buildTranscriptNodes(
 										Math.max(12, termCols - 2 - BOXED_STEP_BODY_MARGIN_LEFT),
 										{ dimColor: bodyDim },
 									)
-								: bb.bodyLines.map((line, j) => (
-										<Text
-											key={`${bb.id}-ln-${j}`}
-											dimColor={bodyDim}
-											color={isThinking ? "gray" : undefined}
-											wrap="truncate-end"
-										>
-											{j === 0 ? "↳ " : "  "}
-											{line.length > 0 ? line : " "}
-										</Text>
-									))}
+								: bb.bodyLines.map((line, j) => {
+											const isError = isErrorBodyLine(line);
+											return (
+												<Text
+													key={`${bb.id}-ln-${j}`}
+													dimColor={bodyDim && !isError}
+													color={
+														isError ? "red" : isThinking ? "gray" : undefined
+													}
+													wrap="truncate-end"
+												>
+													{j === 0 ? "↳ " : "  "}
+													{line.length > 0 ? line : " "}
+												</Text>
+											);
+										})}
 						</Box>
 					</Box>
 				</Box>,
