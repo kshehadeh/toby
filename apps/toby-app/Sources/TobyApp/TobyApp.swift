@@ -5,11 +5,12 @@ import SwiftUI
 @main
 struct TobyApp: App {
 	@State private var store = ChatStore()
+	@State private var configureStore = ConfigureStore()
 	@State private var nativeServer = NativeServer.shared
 
 	var body: some Scene {
 		WindowGroup {
-			RootView(store: store)
+			RootView(store: store, configureStore: configureStore)
 				.frame(minWidth: 860, minHeight: 560)
 				.onAppear {
 					nativeServer.start()
@@ -21,6 +22,13 @@ struct TobyApp: App {
 		}
 		.windowStyle(.automatic)
 		.defaultSize(width: 1024, height: 720)
+
+		Window("Settings", id: "settings") {
+			ConfigureView(store: configureStore)
+		}
+		.windowStyle(.automatic)
+		.defaultSize(width: 920, height: 640)
+
 		.commands {
 			CommandGroup(after: .sidebar) {
 				Button("Search Sessions…") {

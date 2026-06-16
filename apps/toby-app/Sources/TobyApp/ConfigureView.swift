@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ConfigureView: View {
 	@Bindable var store: ConfigureStore
-	let onClose: () -> Void
 
 	var body: some View {
 		NavigationSplitView {
@@ -13,29 +12,11 @@ struct ConfigureView: View {
 		}
 		.frame(minWidth: 860, minHeight: 560)
 		.background(SettingsDesign.canvasBackground)
-		.toolbar {
-			ToolbarItem(placement: .cancellationAction) {
-				Button("Cancel", action: onClose)
-			}
-			ToolbarItem(placement: .confirmationAction) {
-				Button("Save") {
-					Task { await store.save() }
-				}
-				.disabled(!store.hasPendingChanges || store.isSaving)
-			}
-			ToolbarItem(placement: .principal) {
-				Text("Settings")
-					.font(.headline)
-			}
-			ToolbarItem(placement: .primaryAction) {
-				if store.isSaving || store.isLoading {
-					ProgressView()
-						.controlSize(.small)
-				}
-			}
-		}
 		.task {
 			await store.load()
+		}
+		.onDisappear {
+			Task { await store.flushPendingSave() }
 		}
 		.alert(
 			store.pendingDelete?.title ?? "",
@@ -393,7 +374,7 @@ private struct ConfigureFieldRowView: View {
 		Menu {
 			ForEach(selectOptions(options), id: \.value) { option in
 				Button(option.label) {
-					store.setDraftValue(field.key, option.value)
+					store.setDraftValue(field.key, option.value, autosaveImmediately: true)
 				}
 			}
 		} label: {
@@ -442,7 +423,7 @@ private struct ConfigureFieldRowView: View {
 		} else {
 			next.insert(value)
 		}
-		store.setDraftValue(field.key, next.sorted().joined(separator: ","))
+		store.setDraftValue(field.key, next.sorted().joined(separator: ","), autosaveImmediately: true)
 	}
 
 	private func multiSelectSummary(from choices: [SettingsSelectChoice]) -> String {
@@ -464,7 +445,7 @@ private struct ConfigureFieldRowView: View {
 				return value == "yes" || value == "true"
 			},
 			set: { enabled in
-				store.setDraftValue(field.key, enabled ? "Yes" : "No")
+				store.setDraftValue(field.key, enabled ? "Yes" : "No", autosaveImmediately: true)
 			},
 		)
 	}

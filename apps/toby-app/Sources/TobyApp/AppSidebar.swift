@@ -9,7 +9,7 @@ struct AppSidebar: View {
 	let onNewChat: () -> Void
 	let onSearch: () -> Void
 	let onSelectSession: (String) -> Void
-	let onOpenSettings: () -> Void
+	let onOpenSettings: (String?) -> Void
 	let onOpenPersonasSettings: () -> Void
 	let onPersonaSelected: () -> Void
 
@@ -55,12 +55,25 @@ struct AppSidebar: View {
 					}
 					.frame(maxHeight: 220)
 				}
-				SidebarRow(title: "Server event log", systemImage: "doc.text.magnifyingglass")
 			}
 			SidebarSection(title: "Toby") {
-				SidebarRow(title: "Plugins", systemImage: "square.grid.2x2")
-				SidebarRow(title: "Schedules", systemImage: "clock")
-				Button(action: onOpenSettings) {
+				Button {
+					onOpenSettings("integrations")
+				} label: {
+					SidebarRow(title: "Plugins", systemImage: "square.grid.2x2")
+				}
+				.buttonStyle(.plain)
+				.frame(maxWidth: .infinity, alignment: .leading)
+				Button {
+					onOpenSettings("schedules")
+				} label: {
+					SidebarRow(title: "Schedules", systemImage: "clock")
+				}
+				.buttonStyle(.plain)
+				.frame(maxWidth: .infinity, alignment: .leading)
+				Button {
+					onOpenSettings(nil)
+				} label: {
 					SidebarRow(title: "Settings", systemImage: "gearshape")
 				}
 				.buttonStyle(.plain)

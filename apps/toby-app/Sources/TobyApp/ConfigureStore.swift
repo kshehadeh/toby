@@ -17,6 +17,8 @@ final class ConfigureStore {
 
 	private let client = TobyClient()
 	private var fieldByKey: [String: SettingsItem] = [:]
+	@ObservationIgnored private var autosaveTask: Task<Void, Never>?
+	@ObservationIgnored private let autosaveDelay: Duration = .milliseconds(450)
 
 	struct PendingDelete {
 		let action: String
@@ -99,18 +101,21 @@ final class ConfigureStore {
 		draft[key] ?? savedValues[key] ?? ""
 	}
 
-	func setDraftValue(_ key: String, _ value: String) {
+	func setDraftValue(_ key: String, _ value: String, autosaveImmediately: Bool = false) {
 		if fieldByKey[key]?.masked == true {
 			let saved = savedValues[key] ?? ""
 			if value.isEmpty, saved == ConfigureConstants.redactedSecret || saved.isEmpty {
 				draft.removeValue(forKey: key)
+				scheduleAutosave(immediately: autosaveImmediately)
 				return
 			}
 			if value == saved {
 				draft.removeValue(forKey: key)
+				scheduleAutosave(immediately: autosaveImmediately)
 				return
 			}
 			draft[key] = value
+			scheduleAutosave(immediately: autosaveImmediately)
 			return
 		}
 
@@ -120,9 +125,47 @@ final class ConfigureStore {
 		} else {
 			draft[key] = value
 		}
+		scheduleAutosave(immediately: autosaveImmediately)
 	}
 
 	func save() async {
+		await savePendingChanges()
+	}
+
+	func flushPendingSave() async {
+		autosaveTask?.cancel()
+		autosaveTask = nil
+		await savePendingChanges()
+	}
+
+	private func scheduleAutosave(immediately: Bool = false) {
+		autosaveTask?.cancel()
+		guard hasPendingChanges else {
+			autosaveTask = nil
+			return
+		}
+		autosaveTask = Task { [weak self, autosaveDelay] in
+			if !immediately {
+				do {
+					try await Task.sleep(for: autosaveDelay)
+				} catch {
+					return
+				}
+			}
+			await self?.runAutosaveTask()
+		}
+	}
+
+	private func runAutosaveTask() async {
+		autosaveTask = nil
+		await savePendingChanges()
+	}
+
+	private func savePendingChanges() async {
+		if isSaving {
+			scheduleAutosave()
+			return
+		}
 		let changes = allPendingChanges
 		guard !changes.isEmpty else { return }
 		isSaving = true
@@ -130,7 +173,10 @@ final class ConfigureStore {
 		defer { isSaving = false }
 		do {
 			let response = try await client.patchConfigure(changes: changes)
-			apply(response: response, resetDraft: true)
+			apply(response: response, resetDraft: false)
+			if hasPendingChanges {
+				scheduleAutosave()
+			}
 		} catch {
 			errorMessage = error.localizedDescription
 		}

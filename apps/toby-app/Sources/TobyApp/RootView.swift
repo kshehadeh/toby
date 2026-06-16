@@ -2,9 +2,9 @@ import SwiftUI
 
 struct RootView: View {
 	@Bindable var store: ChatStore
-	@State private var configureStore = ConfigureStore()
+	@Bindable var configureStore: ConfigureStore
+	@Environment(\.openWindow) private var openWindow
 	@State private var isCommandPalettePresented = false
-	@State private var isConfigurePresented = false
 
 	var body: some View {
 		HStack(spacing: 0) {
@@ -31,15 +31,10 @@ struct RootView: View {
 				sessions: store.sessions,
 				onSelectSession: selectSession,
 				onNewChat: startNewChat,
-				onOpenSettings: openSettings,
+				onOpenSettings: { openSettings() },
 				onDismiss: { isCommandPalettePresented = false },
 			)
 			.presentationBackground(.clear)
-		}
-		.sheet(isPresented: $isConfigurePresented) {
-			ConfigureView(store: configureStore) {
-				isConfigurePresented = false
-			}
 		}
 		.onReceive(NotificationCenter.default.publisher(for: .openCommandPalette)) { _ in
 			isCommandPalettePresented = true
@@ -54,13 +49,15 @@ struct RootView: View {
 		Task { await store.selectSession(id: id) }
 	}
 
-	private func openSettings() {
-		isConfigurePresented = true
+	private func openSettings(navKey: String? = nil) {
+		if let navKey {
+			configureStore.selectedNavKey = navKey
+		}
+		openWindow(id: "settings")
 	}
 
 	private func openPersonasSettings() {
-		configureStore.selectedNavKey = "personas"
-		isConfigurePresented = true
+		openSettings(navKey: "personas")
 	}
 
 	private func refreshStatus() {
