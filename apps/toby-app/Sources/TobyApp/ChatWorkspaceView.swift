@@ -78,31 +78,50 @@ private struct EmptyChatWorkspace: View {
 
 private struct ActiveChatWorkspace: View {
 	@Bindable var store: ChatStore
+	private let promptOverlayBottomPadding: CGFloat = 126
 
 	var body: some View {
-		VStack(spacing: 0) {
+		ZStack(alignment: .bottom) {
 			TranscriptView(
 				entries: store.transcript,
 				streamingAssistant: store.streamingAssistant,
 				isLoading: store.isLoading,
 				turnWorkDurations: store.turnWorkDurations,
 				activeWorkStartDate: store.activeWorkStartDate,
+				bottomContentPadding: promptOverlayBottomPadding,
 			)
-			if let errorMessage = store.errorMessage {
-				Text(errorMessage)
-					.font(.caption)
-					.foregroundStyle(.red)
-					.frame(maxWidth: .infinity, alignment: .leading)
-					.padding(.horizontal, AppTheme.contentPadding)
-					.padding(.bottom, 8)
+			VStack(spacing: 8) {
+				if let errorMessage = store.errorMessage {
+					Text(errorMessage)
+						.font(.caption)
+						.foregroundStyle(.red)
+						.frame(maxWidth: .infinity, alignment: .leading)
+				}
+				InputDock(
+					text: $store.promptText,
+					isLoading: store.isLoading,
+					onSubmit: submit,
+				)
 			}
-			InputDock(
-				text: $store.promptText,
-				isLoading: store.isLoading,
-				onSubmit: submit,
-			)
 			.padding(.horizontal, AppTheme.contentPadding)
 			.padding(.bottom, 18)
+			.frame(maxWidth: .infinity)
+			.background(alignment: .bottom) {
+				Rectangle()
+					.fill(.ultraThinMaterial)
+					.frame(height: promptOverlayBottomPadding)
+					.mask(
+						LinearGradient(
+							stops: [
+								.init(color: .clear, location: 0),
+								.init(color: .black, location: 0.28),
+								.init(color: .black, location: 1),
+							],
+							startPoint: .top,
+							endPoint: .bottom,
+						),
+					)
+			}
 		}
 	}
 

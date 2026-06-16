@@ -69,6 +69,13 @@ struct TobyClient {
 		return try JSONDecoder().decode(CreateSessionResponse.self, from: data)
 	}
 
+	func deleteSession(id: String) async throws {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/sessions/\(id)"))
+		request.httpMethod = "DELETE"
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+	}
+
 	func streamTurn(
 		sessionId: String,
 		text: String,

@@ -9,6 +9,7 @@ struct AppSidebar: View {
 	let onNewChat: () -> Void
 	let onSearch: () -> Void
 	let onSelectSession: (String) -> Void
+	let onDeleteSession: (SessionSummary) -> Void
 	let onOpenSettings: (String?) -> Void
 	let onOpenPersonasSettings: () -> Void
 	let onPersonaSelected: () -> Void
@@ -50,6 +51,14 @@ struct AppSidebar: View {
 								.buttonStyle(.plain)
 								.frame(maxWidth: .infinity, alignment: .leading)
 								.disabled(isLoading)
+								.contextMenu {
+									Button(role: .destructive) {
+										onDeleteSession(session)
+									} label: {
+										Label("Delete Session", systemImage: "trash")
+									}
+									.disabled(isLoading)
+								}
 							}
 						}
 					}
@@ -60,7 +69,7 @@ struct AppSidebar: View {
 				Button {
 					onOpenSettings("integrations")
 				} label: {
-					SidebarRow(title: "Plugins", systemImage: "square.grid.2x2")
+					SidebarRow(title: "Integrations", systemImage: "square.grid.2x2")
 				}
 				.buttonStyle(.plain)
 				.frame(maxWidth: .infinity, alignment: .leading)
@@ -88,13 +97,8 @@ struct AppSidebar: View {
 		}
 		.padding(.horizontal, 10)
 		.padding(.vertical, 12)
-		.frame(width: AppTheme.sidebarWidth)
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 		.background(AppTheme.sidebarBackground)
-		.overlay(alignment: .trailing) {
-			Rectangle()
-				.fill(AppTheme.separator)
-				.frame(width: 1)
-		}
 	}
 }
 

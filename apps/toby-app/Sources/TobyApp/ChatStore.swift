@@ -105,6 +105,24 @@ final class ChatStore {
 		}
 	}
 
+	func deleteSession(id: String) async {
+		guard !isLoading else { return }
+		do {
+			try await client.deleteSession(id: id)
+			await refreshSessions()
+			if sessionId == id {
+				if let nextSession = sessions.first {
+					await selectSession(id: nextSession.id)
+				} else {
+					await startNewSession()
+				}
+			}
+			errorMessage = nil
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
 	func submitPrompt() async {
 		let text = promptText.trimmingCharacters(in: .whitespacesAndNewlines)
 		guard !text.isEmpty, !isLoading, let sessionId else { return }

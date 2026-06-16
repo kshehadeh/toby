@@ -7,6 +7,7 @@ struct TranscriptView: View {
 	var isLoading = false
 	var turnWorkDurations: [Int: TimeInterval] = [:]
 	var activeWorkStartDate: Date?
+	var bottomContentPadding: CGFloat = 18
 
 	@State private var expandedWorkGroups: Set<String> = []
 	@State private var collapsedWhileActive: Set<String> = []
@@ -54,7 +55,8 @@ struct TranscriptView: View {
 					}
 				}
 				.padding(.horizontal, AppTheme.contentPadding)
-				.padding(.vertical, 18)
+				.padding(.top, 18)
+				.padding(.bottom, bottomContentPadding)
 			}
 			.onChange(of: entries.count) { _, _ in
 				scrollToBottom(proxy: proxy)

@@ -5,9 +5,10 @@ struct RootView: View {
 	@Bindable var configureStore: ConfigureStore
 	@Environment(\.openWindow) private var openWindow
 	@State private var isCommandPalettePresented = false
+	@State private var pendingDeleteSession: SessionSummary?
 
 	var body: some View {
-		HStack(spacing: 0) {
+		NavigationSplitView {
 			AppSidebar(
 				sessions: store.sessions,
 				selectedSessionId: store.sessionId,
@@ -17,10 +18,17 @@ struct RootView: View {
 				onNewChat: startNewChat,
 				onSearch: { isCommandPalettePresented = true },
 				onSelectSession: selectSession,
+				onDeleteSession: { pendingDeleteSession = $0 },
 				onOpenSettings: openSettings,
 				onOpenPersonasSettings: openPersonasSettings,
 				onPersonaSelected: refreshStatus,
 			)
+			.navigationSplitViewColumnWidth(
+				min: 220,
+				ideal: AppTheme.sidebarWidth,
+				max: 320,
+			)
+		} detail: {
 			ChatWorkspaceView(store: store)
 		}
 		.task {
@@ -38,6 +46,24 @@ struct RootView: View {
 		}
 		.onReceive(NotificationCenter.default.publisher(for: .openCommandPalette)) { _ in
 			isCommandPalettePresented = true
+		}
+		.alert(
+			"Delete Session?",
+			isPresented: Binding(
+				get: { pendingDeleteSession != nil },
+				set: { if !$0 { pendingDeleteSession = nil } },
+			),
+			presenting: pendingDeleteSession,
+		) { session in
+			Button("Cancel", role: .cancel) {
+				pendingDeleteSession = nil
+			}
+			Button("Delete", role: .destructive) {
+				pendingDeleteSession = nil
+				Task { await store.deleteSession(id: session.id) }
+			}
+		} message: { session in
+			Text("Are you sure you want to delete \"\(session.name)\"? This cannot be undone.")
 		}
 	}
 
