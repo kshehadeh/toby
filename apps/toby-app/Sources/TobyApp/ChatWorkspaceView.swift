@@ -105,23 +105,6 @@ private struct ActiveChatWorkspace: View {
 			}
 			.padding(.horizontal, AppTheme.contentPadding)
 			.padding(.bottom, 18)
-			.frame(maxWidth: .infinity)
-			.background(alignment: .bottom) {
-				Rectangle()
-					.fill(.ultraThinMaterial)
-					.frame(height: promptOverlayBottomPadding)
-					.mask(
-						LinearGradient(
-							stops: [
-								.init(color: .clear, location: 0),
-								.init(color: .black, location: 0.28),
-								.init(color: .black, location: 1),
-							],
-							startPoint: .top,
-							endPoint: .bottom,
-						),
-					)
-			}
 		}
 	}
 

@@ -47,7 +47,7 @@ struct InputDock: View {
 		}
 		.background(
 			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
-				.fill(AppTheme.panelBackground)
+				.fill(AppTheme.contentBackground)
 		)
 		.overlay(
 			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
