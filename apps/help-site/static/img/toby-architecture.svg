@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="980" viewBox="0 0 1060 980" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="1040" viewBox="0 0 1160 1040" role="img" aria-labelledby="title desc">
   <title id="title">Toby high-level architecture</title>
-  <desc id="desc">A layered architecture diagram showing Toby user surfaces, the core harness, installable plugins, the Toby.app native API server, and external systems.</desc>
+  <desc id="desc">A diagram showing the CLI, web UI, Toby.app, the daemon server API, the core harness, installable plugins, Toby.app native API server, and external systems.</desc>
   <defs>
     <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0" stop-color="#f8fafc"/>
@@ -10,7 +10,7 @@
       <stop offset="0" stop-color="#0f766e"/>
       <stop offset="1" stop-color="#15803d"/>
     </linearGradient>
-    <linearGradient id="core" x1="0" x2="1" y1="0" y2="1">
+    <linearGradient id="server" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0" stop-color="#2563eb"/>
       <stop offset="1" stop-color="#4338ca"/>
     </linearGradient>
@@ -18,11 +18,11 @@
       <stop offset="0" stop-color="#be123c"/>
       <stop offset="1" stop-color="#9d174d"/>
     </linearGradient>
-    <linearGradient id="app" x1="0" x2="1" y1="0" y2="1">
+    <linearGradient id="native" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0" stop-color="#b45309"/>
       <stop offset="1" stop-color="#92400e"/>
     </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+    <filter id="shadow" x="-18%" y="-18%" width="136%" height="136%">
       <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#0f172a" flood-opacity="0.13"/>
     </filter>
     <marker id="arrow" viewBox="0 0 10 10" refX="8.4" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
@@ -34,164 +34,119 @@
     <style>
       .page { fill: url(#bg); }
       .title { font: 700 38px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #0f172a; letter-spacing: 0; }
-      .subtitle { font: 500 18px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #475569; letter-spacing: 0; }
+      .subtitle { font: 500 17px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #475569; letter-spacing: 0; }
       .eyebrow { font: 700 13px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #64748b; letter-spacing: 1.8px; }
       .layer-label { font: 700 22px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #ffffff; letter-spacing: 0; }
-      .layer-note { font: 500 13px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: rgba(255,255,255,0.78); letter-spacing: 0; }
+      .layer-note { font: 500 13px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: rgba(255,255,255,0.8); letter-spacing: 0; }
       .card-title { font: 700 18px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #0f172a; letter-spacing: 0; }
       .card-text { font: 500 13.5px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #475569; letter-spacing: 0; }
-      .card-code { font: 600 13px "SFMono-Regular", Consolas, "Liberation Mono", monospace; fill: #334155; letter-spacing: 0; }
       .white-title { font: 700 18px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #ffffff; letter-spacing: 0; }
-      .white-text { font: 500 13.5px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: rgba(255,255,255,0.82); letter-spacing: 0; }
-      .pill { fill: #ffffff; stroke: #dbe4ee; stroke-width: 1.2; }
+      .white-text { font: 500 13.5px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: rgba(255,255,255,0.84); letter-spacing: 0; }
       .panel { fill: #ffffff; stroke: #dbe4ee; stroke-width: 1.3; }
       .soft { fill: #f8fafc; stroke: #dbe4ee; stroke-width: 1.1; }
       .line { fill: none; stroke: #64748b; stroke-width: 2.2; marker-end: url(#arrow); }
       .line-dark { fill: none; stroke: #334155; stroke-width: 2.3; marker-end: url(#arrowDark); }
+      .dashed { fill: none; stroke: #64748b; stroke-width: 2.1; stroke-dasharray: 8 7; marker-end: url(#arrow); }
       .tiny { font: 700 11px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #64748b; letter-spacing: 1.2px; }
     </style>
   </defs>
 
-  <rect class="page" width="1060" height="980"/>
+  <rect class="page" width="1160" height="1040"/>
 
-  <text x="80" y="82" class="eyebrow">TOBY ARCHITECTURE</text>
-  <text x="80" y="126" class="title">Toby Module Organization</text>
-  <text x="80" y="160" class="subtitle">Toby's app surfaces present the experience; the core package runs chat, AI, config, persistence, and integrations.</text>
+  <text x="70" y="78" class="eyebrow">TOBY ARCHITECTURE</text>
+  <text x="70" y="122" class="title">Surfaces, Server, Core, Plugins</text>
+  <text x="70" y="156" class="subtitle">The web UI and Toby.app use the daemon API; the CLI can run the core harness directly and manage server-backed flows.</text>
 
   <g filter="url(#shadow)">
-    <g transform="translate(80 210)">
-      <rect width="280" height="104" rx="10" fill="url(#surface)"/>
-      <text x="32" y="44" class="layer-label">@toby/cli</text>
-      <text x="32" y="72" class="layer-note">CLI</text>
+    <g transform="translate(70 205)">
+      <rect width="300" height="118" rx="10" fill="url(#surface)"/>
+      <text x="28" y="43" class="layer-label">@toby/cli</text>
+      <text x="28" y="70" class="layer-note">Commander + Ink terminal UI</text>
+      <text x="28" y="93" class="layer-note">Runs core directly; starts daemon</text>
     </g>
-    <g transform="translate(390 210)">
-      <rect width="280" height="104" rx="10" fill="url(#surface)"/>
-      <text x="32" y="44" class="layer-label">@toby/web</text>
-      <text x="32" y="72" class="layer-note">Web</text>
+    <g transform="translate(430 205)">
+      <rect width="300" height="118" rx="10" fill="url(#surface)"/>
+      <text x="28" y="43" class="layer-label">@toby/web</text>
+      <text x="28" y="70" class="layer-note">Browser UI served locally</text>
+      <text x="28" y="93" class="layer-note">Calls daemon API</text>
     </g>
-    <g transform="translate(700 210)">
-      <rect width="280" height="104" rx="10" fill="url(#app)"/>
-      <text x="32" y="44" class="layer-label">Toby.app</text>
-      <text x="32" y="72" class="layer-note">Native macOS app</text>
+    <g transform="translate(790 205)">
+      <rect width="300" height="118" rx="10" fill="url(#native)"/>
+      <text x="28" y="43" class="layer-label">Toby.app</text>
+      <text x="28" y="70" class="layer-note">SwiftUI macOS app</text>
+      <text x="28" y="93" class="layer-note">Calls daemon API; hosts native API</text>
     </g>
   </g>
 
-  <path class="line" d="M 220 314 C 220 338 220 338 220 362"/>
-  <path class="line" d="M 530 314 C 530 338 530 338 530 362"/>
+  <path class="line" d="M 580 323 L 580 370"/>
+  <path class="line" d="M 940 323 C 940 348 890 354 835 370"/>
+  <path class="dashed" d="M 220 323 C 220 352 274 358 330 378"/>
+  <text x="246" y="352" class="tiny">MANAGES</text>
 
   <g filter="url(#shadow)">
-    <rect x="80" y="362" width="900" height="286" rx="10" fill="url(#core)"/>
-    <text x="112" y="403" class="layer-label">@toby/core</text>
-    <text x="112" y="429" class="layer-note">UI-agnostic harness used by app surfaces, scripts, daemon flows, and plugins</text>
-
-    <g transform="translate(112 460)">
-      <rect width="388" height="74" rx="8" fill="#ffffff" fill-opacity="0.96"/>
-      <text x="18" y="30" class="card-title">Chat turn pipeline</text>
-      <text x="18" y="54" class="card-text">init, expand, assemble, run, persist</text>
+    <rect x="300" y="370" width="560" height="136" rx="10" fill="url(#server)"/>
+    <text x="332" y="411" class="layer-label">Daemon server API</text>
+    <text x="332" y="438" class="layer-note">Localhost HTTP API at 127.0.0.1:7847</text>
+    <g transform="translate(332 458)">
+      <rect width="154" height="30" rx="7" fill="rgba(255,255,255,0.16)" stroke="rgba(255,255,255,0.28)"/>
+      <text x="18" y="20" class="white-text">sessions</text>
     </g>
-    <g transform="translate(560 460)">
-      <rect width="388" height="74" rx="8" fill="#ffffff" fill-opacity="0.96"/>
-      <text x="18" y="30" class="card-title">AI runtime</text>
-      <text x="18" y="54" class="card-text">models, tools, caching</text>
+    <g transform="translate(502 458)">
+      <rect width="154" height="30" rx="7" fill="rgba(255,255,255,0.16)" stroke="rgba(255,255,255,0.28)"/>
+      <text x="18" y="20" class="white-text">SSE chat turns</text>
     </g>
-    <g transform="translate(112 556)">
-      <rect width="388" height="74" rx="8" fill="#ffffff" fill-opacity="0.96"/>
-      <text x="18" y="30" class="card-title">Integration registry</text>
-      <text x="18" y="54" class="card-text">modules, capabilities, credentials</text>
-    </g>
-    <g transform="translate(560 556)">
-      <rect width="388" height="74" rx="8" fill="#ffffff" fill-opacity="0.96"/>
-      <text x="18" y="30" class="card-title">State and context</text>
-      <text x="18" y="54" class="card-text">config, sessions, memory, logging</text>
+    <g transform="translate(672 458)">
+      <rect width="154" height="30" rx="7" fill="rgba(255,255,255,0.16)" stroke="rgba(255,255,255,0.28)"/>
+      <text x="18" y="20" class="white-text">configuration</text>
     </g>
   </g>
 
-  <path class="line-dark" d="M 350 648 L 350 688"/>
+  <path class="line-dark" d="M 580 506 L 580 550"/>
+  <path class="line-dark" d="M 220 323 C 220 430 250 500 330 560"/>
 
   <g filter="url(#shadow)">
-    <rect x="80" y="688" width="540" height="104" rx="10" fill="url(#plugin)"/>
-    <text x="112" y="724" class="layer-label">@toby/plugin-*</text>
-    <text x="112" y="750" class="layer-note">CLI binaries with strict contracts</text>
-    <rect x="300" y="708" width="300" height="34" rx="8" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.28)"/>
-    <text x="320" y="731" class="white-text">JSON protocol v1 over stdin/stdout</text>
-  </g>
+    <rect x="170" y="550" width="820" height="196" rx="10" fill="url(#server)"/>
+    <text x="202" y="592" class="layer-label">@toby/core</text>
+    <text x="202" y="618" class="layer-note">UI-agnostic harness for chat, AI, integrations, persistence, memory, and daemon workflows</text>
 
-  <g filter="url(#shadow)">
-    <rect x="660" y="688" width="320" height="104" rx="10" fill="url(#app)"/>
-    <text x="688" y="720" class="layer-label">Native API server</text>
-    <text x="688" y="744" class="layer-note">Hosted by Toby.app (macOS)</text>
-    <text x="688" y="766" class="layer-note">TCC-gated EventKit + Accessibility</text>
-  </g>
-
-  <path class="line" d="M 620 740 L 656 740"/>
-  <text x="624" y="731" class="tiny">HTTP</text>
-
-  <path class="line" d="M 350 792 L 350 822"/>
-  <path class="line" d="M 864 792 L 864 822"/>
-
-  <g filter="url(#shadow)">
-    <rect x="80" y="822" width="900" height="94" rx="10" class="panel"/>
-    <text x="112" y="860" class="card-title">External systems</text>
-
-    <g transform="translate(112 876)">
-      <rect width="124" height="28" rx="8" class="soft"/>
-      <g transform="translate(14 8)" fill="none" stroke="#475569" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <rect width="16" height="12" rx="2"/>
-        <path d="M 1 2 L 8 7 L 15 2"/>
-      </g>
-      <text x="40" y="19" class="card-text">Email</text>
+    <g transform="translate(202 646)">
+      <rect width="356" height="72" rx="8" fill="#ffffff" fill-opacity="0.96"/>
+      <text x="18" y="29" class="card-title">Chat pipeline + AI runtime</text>
+      <text x="18" y="53" class="card-text">turn assembly, tools, model calls, caching</text>
     </g>
-
-    <g transform="translate(250 876)">
-      <rect width="124" height="28" rx="8" class="soft"/>
-      <g transform="translate(14 6)" fill="none" stroke="#475569" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M 5 3 H 15"/>
-        <path d="M 5 8 H 15"/>
-        <path d="M 5 13 H 15"/>
-        <path d="M 1 3 H 1.5"/>
-        <path d="M 1 8 H 1.5"/>
-        <path d="M 1 13 H 1.5"/>
-      </g>
-      <text x="40" y="19" class="card-text">Tasks</text>
-    </g>
-
-    <g transform="translate(388 876)">
-      <rect width="124" height="28" rx="8" class="soft"/>
-      <g transform="translate(14 6)" fill="none" stroke="#475569" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M 2 2 H 16 V 11 H 8 L 4 15 V 11 H 2 Z"/>
-      </g>
-      <text x="40" y="19" class="card-text">Chat</text>
-    </g>
-
-    <g transform="translate(526 876)">
-      <rect width="124" height="28" rx="8" class="soft"/>
-      <g transform="translate(14 6)" fill="none" stroke="#475569" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="1" y="5" width="17" height="11" rx="2"/>
-        <path d="M 6 5 V 3 H 13 V 5"/>
-        <path d="M 1 10 H 18"/>
-      </g>
-      <text x="40" y="19" class="card-text">Work</text>
-    </g>
-
-    <g transform="translate(664 876)">
-      <rect width="124" height="28" rx="8" class="soft"/>
-      <g transform="translate(14 6)" fill="none" stroke="#475569" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="7" cy="7" r="5"/>
-        <path d="M 11 11 L 16 16"/>
-      </g>
-      <text x="40" y="19" class="card-text">Search</text>
-    </g>
-
-    <g transform="translate(802 876)">
-      <rect width="124" height="28" rx="8" class="soft"/>
-      <g transform="translate(14 5)" fill="none" stroke="#475569" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="1" y="3" width="17" height="15" rx="2"/>
-        <path d="M 5 1 V 5"/>
-        <path d="M 14 1 V 5"/>
-        <path d="M 1 8 H 18"/>
-      </g>
-      <text x="40" y="19" class="card-text">Calendar</text>
+    <g transform="translate(602 646)">
+      <rect width="356" height="72" rx="8" fill="#ffffff" fill-opacity="0.96"/>
+      <text x="18" y="29" class="card-title">State, context, integrations</text>
+      <text x="18" y="53" class="card-text">config, sessions, memory, registry, logs</text>
     </g>
   </g>
 
+  <path class="line-dark" d="M 580 746 L 580 788"/>
+
+  <g filter="url(#shadow)">
+    <rect x="170" y="788" width="500" height="112" rx="10" fill="url(#plugin)"/>
+    <text x="202" y="828" class="layer-label">@toby/plugin-*</text>
+    <text x="202" y="854" class="layer-note">Installable integration executables</text>
+    <rect x="382" y="812" width="250" height="34" rx="8" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.28)"/>
+    <text x="402" y="835" class="white-text">JSON protocol over stdin/stdout</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="730" y="788" width="260" height="112" rx="10" fill="url(#native)"/>
+    <text x="758" y="826" class="layer-label">Native API server</text>
+    <text x="758" y="852" class="layer-note">Hosted by Toby.app</text>
+    <text x="758" y="875" class="layer-note">EventKit + Accessibility</text>
+  </g>
+
+  <path class="line" d="M 670 844 L 726 844"/>
+  <text x="682" y="834" class="tiny">HTTP</text>
+
+  <path class="line" d="M 420 900 L 420 932"/>
+  <path class="line" d="M 860 900 L 860 932"/>
+
+  <g filter="url(#shadow)">
+    <rect x="170" y="932" width="820" height="70" rx="10" class="panel"/>
+    <text x="202" y="974" class="card-title">External systems and macOS services</text>
+    <text x="504" y="974" class="card-text">Email, tasks, chat, work tracking, search, calendars, EventKit, Accessibility</text>
+  </g>
 </svg>

@@ -19,6 +19,7 @@ Connect Toby to local macOS system controls. Toby ships **`toby-plugin-macos`**,
 
 - macOS 14+ (Sonoma or later) with Toby running locally on the Mac you want to control
 - `toby-plugin-macos` installed to `~/.toby/plugins/` by the install/upgrade flow
+- Toby.app running for Accessibility-gated window operations such as minimize and restore
 
 ## Connect
 
@@ -103,6 +104,7 @@ Mutating calls respect **dry run** modes from `toby chat` when enabled.
 | ---- | ----- |
 | Wi‑Fi scan | CoreWLAN may require Location Services authorization on first use. |
 | Bluetooth | Plugin Info.plist declares `NSBluetoothAlwaysUsageDescription`. |
+| Window control | Minimize and restore tools route through Toby.app's native API server when available, so grant Accessibility to Toby.app in System Settings. |
 | Shortcuts | macOS may prompt for Automation permissions when Shortcuts access other apps. |
 | Low Power Mode | `pmset` writes may require admin privileges. Use a Shortcut or run `sudo pmset` manually. |
 
@@ -125,4 +127,5 @@ This clears Toby's connection flag; it does not modify system settings.
 
 - [Integrations overview](overview)
 - [Apple Calendar](apple-calendar)
+- [Toby.app](../toby-app)
 - [Configure and connect](../getting-started/configure-and-status)
