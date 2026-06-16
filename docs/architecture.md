@@ -12,6 +12,7 @@ See also: [Core vs apps](#core-vs-apps) (where new code should live).
 | ------- | ---- | ---- |
 | **`@toby/core`** | [`packages/core/src/`](../packages/core/src/) | Harness: chat pipeline, AI, integrations, config, personas, skills, memory, planning, chat-inbound, logging, session store, message prep. Consumable from scripts, daemons, or other apps via `@toby/core/...` imports. |
 | **`@toby/cli`** | [`apps/cli/src/`](../apps/cli/src/) | CLI app: Commander entry, generic commands, Ink TUIs (`ui/`), schedules/upgrade UI and glue. Depends on `@toby/core`; must not be imported by core. |
+| **`Toby.app`** | [`apps/toby-app/`](../apps/toby-app/) | Native macOS app (SwiftUI) with a real bundle identity. Runs a localhost **native API server** for TCC-gated operations (EventKit, Accessibility). macOS plugins route privileged calls through it; it does not import core. See [`native-helpers.md`](native-helpers.md). |
 
 ```mermaid
 flowchart TB
@@ -55,6 +56,12 @@ apps/cli/src/
   ui/chat/               # Ink TUI for `toby chat` (events → transcript; not the pipeline itself)
   ui/shared/             # Shared Ink primitives (CLI-only)
   schedules/ listen/ upgrade/ releases/   # App-specific orchestration and UI glue
+
+apps/toby-app/             # Toby.app — native macOS app (SwiftUI)
+  Sources/TobyApp/
+    NativeServer.swift            # Localhost HTTP server (Network.framework); port in ~/.toby/native-port
+    NativeCalendarHandler.swift   # EventKit calendar operations
+    NativeMacOSHandler.swift      # Accessibility-gated window operations
 ```
 
 **Tests:** Vitest suites for the CLI live in [`apps/cli/tests/`](../apps/cli/tests/). Import harness symbols from `@toby/core/...`.
@@ -85,6 +92,17 @@ apps/cli/src/
 Access is centralized in [`packages/core/src/config/index.ts`](../packages/core/src/config/index.ts). Integration modules should not hardcode paths; use the config helpers.
 
 Backup and restore behavior is documented in [`commands.md`](commands.md).
+
+## Native macOS app (Toby.app)
+
+**`apps/toby-app/`** builds **Toby.app**, a SwiftUI macOS app with a proper bundle identity and `Info.plist`. While running it exposes a localhost HTTP **native API server** for operations that require macOS TCC permissions (Calendar/EventKit, Accessibility) which raw CLI plugin binaries cannot perform reliably — macOS ties permission grants to the calling binary's identity.
+
+- **Discovery:** Toby.app writes its random port to `~/.toby/native-port`; clients confirm liveness via `GET /api/native/health`.
+- **Routing:** the macOS-facing plugins (`toby-plugin-applecalendar`, `toby-plugin-macos`) use a `NativeHelperClient` that routes privileged calls to Toby.app when available, and **auto-launches** it on demand when it is not running.
+- **Fallback:** when Toby.app is unavailable, plugins fall back to in-process EventKit/AppleScript (calendar) or return a permission error (macOS window control).
+- **Relationship to core:** Toby.app is a peer app surface; it does **not** import `@toby/core`. It is reached only by plugins over HTTP, so the harness and the plugin protocol stay unchanged.
+
+See [`native-helpers.md`](native-helpers.md) for the full endpoint table and source map.
 
 ## UI stack (CLI app only)
 
