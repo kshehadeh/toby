@@ -19,6 +19,7 @@ import { restartServerSlashCommand } from "./restart-server";
 import { schedulesSlashCommand } from "./schedules";
 import { sessionsSlashCommand } from "./sessions";
 import { skillsSlashCommand } from "./skills";
+import { statusSlashCommand } from "./status";
 import { stopListeningSlashCommand } from "./stop-listening";
 import { terminalSlashCommand } from "./terminal";
 import type { SlashCommand } from "./types";
@@ -53,6 +54,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
 	restartSlashCommand,
 	sessionsSlashCommand,
 	skillsSlashCommand,
+	statusSlashCommand,
 	stopListeningSlashCommand,
 	terminalSlashCommand,
 	upgradeSlashCommand,

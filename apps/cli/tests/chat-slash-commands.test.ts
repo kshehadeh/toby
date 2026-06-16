@@ -15,6 +15,7 @@ import { connectSlashCommand } from "../src/ui/chat/slash-commands/connect";
 import { helpSlashCommand } from "../src/ui/chat/slash-commands/help";
 import { logSlashCommand } from "../src/ui/chat/slash-commands/log";
 import { pluginsSlashCommand } from "../src/ui/chat/slash-commands/plugins";
+import { statusSlashCommand } from "../src/ui/chat/slash-commands/status";
 import { restartSlashCommand } from "../src/ui/chat/slash-commands/restart";
 import { restartServerSlashCommand } from "../src/ui/chat/slash-commands/restart-server";
 import { terminalSlashCommand } from "../src/ui/chat/slash-commands/terminal";
@@ -187,6 +188,38 @@ describe("slash commands", () => {
 		const viewerLines = openTextViewer.mock.calls[0]?.[1] as string[];
 		expect(
 			viewerLines.some((line) => line.includes("## Plugin directory")),
+		).toBe(true);
+		expect(addMetaLine).toHaveBeenCalled();
+	});
+
+	it("includes /status and opens a status viewer", async () => {
+		expect(SLASH_COMMANDS.some((c) => c.command === "/status")).toBe(true);
+		const addMetaLine = vi.fn();
+		const openTextViewer = vi.fn();
+		const runtime = mockRuntime({ addMetaLine, openTextViewer });
+		await statusSlashCommand.run(runtime);
+		expect(openTextViewer).toHaveBeenCalledTimes(1);
+		expect(openTextViewer.mock.calls[0]?.[0]).toBe("Status");
+		expect(openTextViewer.mock.calls[0]?.[2]).toEqual({ lineTone: "markdown" });
+		const viewerLines = openTextViewer.mock.calls[0]?.[1] as string[];
+		expect(viewerLines.some((line) => line.includes("## Version"))).toBe(true);
+		expect(viewerLines.some((line) => line.includes("## CLI binary"))).toBe(
+			true,
+		);
+		expect(
+			viewerLines.some((line) => line.includes("## Native app")),
+		).toBe(true);
+		expect(viewerLines.some((line) => line.includes("## Server"))).toBe(true);
+		expect(viewerLines.some((line) => line.includes("## Web UI"))).toBe(true);
+		expect(
+			viewerLines.some((line) => line.includes("## Plugin directories")),
+		).toBe(true);
+		expect(
+			viewerLines.some((line) => line.includes("## Discovered plugins")),
+		).toBe(true);
+		expect(viewerLines.some((line) => line.includes("## Helpers"))).toBe(true);
+		expect(
+			viewerLines.some((line) => line.includes("## Data directories")),
 		).toBe(true);
 		expect(addMetaLine).toHaveBeenCalled();
 	});
