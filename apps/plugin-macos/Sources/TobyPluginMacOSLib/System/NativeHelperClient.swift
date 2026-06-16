@@ -101,6 +101,18 @@ enum NativeHelperClient {
 			return installDir
 		}
 
+		// 4. Installed in /Applications
+		let systemApplications = URL(fileURLWithPath: "/Applications/Toby.app")
+		if FileManager.default.fileExists(atPath: systemApplications.path) {
+			return systemApplications
+		}
+
+		// 5. Installed in ~/Applications
+		let userApplications = home.appendingPathComponent("Applications/Toby.app")
+		if FileManager.default.fileExists(atPath: userApplications.path) {
+			return userApplications
+		}
+
 		return nil
 	}
 
