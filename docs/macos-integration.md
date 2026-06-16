@@ -23,8 +23,9 @@ Focus / Do Not Disturb control via `macShortcutRun`. Apple requires a one-click
 confirmation in Shortcuts.app to import them — Toby cannot install silently.
 
 Setup also requests **Accessibility permission** for the plugin binary so the
-window-minimize tools (`macWindowsMinimizeAll`, `macWindowMinimizeApp`) can
-work. Because macOS TCC is keyed to the calling executable, the binary that
+window-minimize and window-unminimize tools (`macWindowsMinimizeAll`,
+`macWindowsUnminimizeAll`, `macWindowMinimizeApp`, `macWindowUnminimizeApp`)
+can work. Because macOS TCC is keyed to the calling executable, the binary that
 needs the grant is `~/.toby/plugins/toby-plugin-macos` itself, not the host
 terminal or the Toby daemon.
 
@@ -59,7 +60,7 @@ Source: [`apps/plugin-macos/`](../apps/plugin-macos/).
 | Low Power | wraps `pmset` |
 | Shortcuts | wraps `/usr/bin/shortcuts` |
 | Clipboard | AppKit NSPasteboard |
-| Windows | AppKit `NSRunningApplication` (hide/show) + `AXUIElement` (minimize) |
+| Windows | AppKit `NSRunningApplication` (hide/show) + `AXUIElement` (minimize/unminimize) |
 | System Info | sysctl / ProcessInfo |
 
 ## Configure fields (`macos.*`)
@@ -92,8 +93,10 @@ The macOS integration has no configurable fields. System control is handled by n
 | `macWindowsHideAll` | AppKit `NSRunningApplication.hide()` for every other regular app |
 | `macWindowsShowAll` | AppKit `NSRunningApplication.unhide()` |
 | `macWindowsMinimizeAll` | `AXUIElement` + `kAXMinimizedAttribute` across all GUI apps |
+| `macWindowsUnminimizeAll` | `AXUIElement` + `kAXMinimizedAttribute` restore across all GUI apps |
 | `macWindowHideApp` | AppKit hide, matched by localized name / bundle id substring |
 | `macWindowMinimizeApp` | `AXUIElement` minimize for a specific app |
+| `macWindowUnminimizeApp` | `AXUIElement` unminimize for a specific app |
 
 Mutating calls respect **`dry run`** modes from `toby chat` when enabled.
 
@@ -107,7 +110,7 @@ Depending on OS version and invoking app (Terminal, Cursor agent, daemon):
 | Bluetooth | Plugin Info.plist declares `NSBluetoothAlwaysUsageDescription`. |
 | Shortcuts | macOS may prompt for Automation permissions when Shortcuts access other apps. |
 | `pmset` | Low Power Mode writes may require admin privileges. Use a Shortcut or manual `sudo` per Apple guidance. |
-| Window minimize | `macWindowsMinimizeAll` and `macWindowMinimizeApp` first try Toby.app's native API server (which has a proper app bundle identity for Accessibility). If Toby.app is not running, they fall back to in-process `AXUIElement` calls, which require Accessibility permission for the **plugin binary itself** (`~/.toby/plugins/toby-plugin-macos`) under System Settings → Privacy & Security → Accessibility. Run `toby plugins setup macos` to trigger the prompt. When using Toby.app, the user grants Accessibility to "Toby" instead of the plugin binary. Hide/show work without extra permission. |
+| Window minimize / unminimize | `macWindowsMinimizeAll`, `macWindowsUnminimizeAll`, `macWindowMinimizeApp`, and `macWindowUnminimizeApp` first try Toby.app's native API server (which has a proper app bundle identity for Accessibility). If Toby.app is not running, they fall back to in-process `AXUIElement` calls, which require Accessibility permission for the **plugin binary itself** (`~/.toby/plugins/toby-plugin-macos`) under System Settings → Privacy & Security → Accessibility. Run `toby plugins setup macos` to trigger the prompt. When using Toby.app, the user grants Accessibility to "Toby" instead of the plugin binary. Hide/show work without extra permission. |
 
 Toby never runs **`sudo`** for you.
 

@@ -188,8 +188,16 @@ enum NativeHelperClient {
 		return request("macos/minimize-all")
 	}
 
+	static func unminimizeAll() -> HelperResponse {
+		return request("macos/unminimize-all")
+	}
+
 	static func minimizeApp(name: String) -> HelperResponse {
 		return request("macos/minimize-app", body: ["name": name])
+	}
+
+	static func unminimizeApp(name: String) -> HelperResponse {
+		return request("macos/unminimize-app", body: ["name": name])
 	}
 
 	static func accessibilityStatus() -> HelperResponse {

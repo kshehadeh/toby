@@ -83,7 +83,7 @@ public enum SetupCommands {
 
 	private static func accessibilityPermissionAction() -> [String: Any] {
 		let actionId = "accessibility-permission"
-		let label = "Grant Accessibility permission for window minimize"
+		let label = "Grant Accessibility permission for window minimize and unminimize"
 		if AXIsProcessTrusted() {
 			PluginLog.info("accessibility_already_trusted", data: PluginLog.processFingerprint())
 			return [

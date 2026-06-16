@@ -189,8 +189,12 @@ final class NativeServer {
 			return wrapHandlerData(await NativeCalendarHandler.deleteEvent(body: request.body))
 		case "/api/native/macos/minimize-all":
 			return wrapHandlerData(NativeMacOSHandler.minimizeAll())
+		case "/api/native/macos/unminimize-all":
+			return wrapHandlerData(NativeMacOSHandler.unminimizeAll())
 		case "/api/native/macos/minimize-app":
 			return wrapHandlerData(NativeMacOSHandler.minimizeApp(body: request.body))
+		case "/api/native/macos/unminimize-app":
+			return wrapHandlerData(NativeMacOSHandler.unminimizeApp(body: request.body))
 		case "/api/native/macos/accessibility-status":
 			return wrapHandlerData(NativeMacOSHandler.accessibilityStatus())
 		default:

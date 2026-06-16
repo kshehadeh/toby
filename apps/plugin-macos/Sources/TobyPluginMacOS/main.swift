@@ -69,7 +69,7 @@ enum TobyPluginMacOS {
 			payload["setupAvailable"] = true
 			payload["setupDescription"] = SetupCommands.isAccessibilityTrusted()
 				? "Install bundled Focus shortcuts for Toby"
-				: "Install Focus shortcuts and request Accessibility permission for window minimize"
+				: "Install Focus shortcuts and request Accessibility permission for window minimize and unminimize"
 		}
 
 		if !SystemClient.isPlatformSupported {

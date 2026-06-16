@@ -248,7 +248,9 @@ The native server listens on a random localhost port written to `~/.toby/native-
 | `POST` | `/api/native/calendar/update` | Update event |
 | `POST` | `/api/native/calendar/delete` | Delete event |
 | `POST` | `/api/native/macos/minimize-all` | Minimize all windows (Accessibility) |
+| `POST` | `/api/native/macos/unminimize-all` | Unminimize all windows (Accessibility) |
 | `POST` | `/api/native/macos/minimize-app` | Minimize app windows (Accessibility) |
+| `POST` | `/api/native/macos/unminimize-app` | Unminimize app windows (Accessibility) |
 | `GET` | `/api/native/macos/accessibility-status` | Check if Accessibility is granted |
 
 ### Plugin integration

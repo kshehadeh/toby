@@ -27,8 +27,10 @@ public enum MacOSTools {
 		"macWindowsHideAll",
 		"macWindowsShowAll",
 		"macWindowsMinimizeAll",
+		"macWindowsUnminimizeAll",
 		"macWindowHideApp",
 		"macWindowMinimizeApp",
+		"macWindowUnminimizeApp",
 	]
 
 	public static var definitions: [[String: Any]] {
@@ -57,8 +59,10 @@ public enum MacOSTools {
 			tool(name: "macWindowsHideAll", description: "macOS only. Hide all other application windows (like the macOS \"Hide Others\" command). Uses native AppKit; no extra permission required.", properties: [:]),
 			tool(name: "macWindowsShowAll", description: "macOS only. Show/unhide all currently hidden application windows. Uses native AppKit; no extra permission required.", properties: [:]),
 			tool(name: "macWindowsMinimizeAll", description: "macOS only. Minimize all windows of all open applications via the native Accessibility API. Requires Accessibility permission for the app running Toby (System Settings → Privacy & Security → Accessibility).", properties: [:]),
+			tool(name: "macWindowsUnminimizeAll", description: "macOS only. Unminimize all minimized windows of all open applications via the native Accessibility API. Requires Accessibility permission.", properties: [:]),
 			tool(name: "macWindowHideApp", description: "macOS only. Hide a specific running application's windows by name. Matches localized app name or bundle id substring (case-insensitive). Uses native AppKit.", properties: ["appName": prop("string", "App name to hide (e.g. Safari, Slack). Substring match is allowed.")], required: ["appName"]),
 			tool(name: "macWindowMinimizeApp", description: "macOS only. Minimize all windows of a specific running application via the native Accessibility API. Requires Accessibility permission.", properties: ["appName": prop("string", "App name to minimize (e.g. Safari, Slack). Substring match is allowed.")], required: ["appName"]),
+			tool(name: "macWindowUnminimizeApp", description: "macOS only. Unminimize all minimized windows of a specific running application via the native Accessibility API. Requires Accessibility permission.", properties: ["appName": prop("string", "App name to unminimize (e.g. Safari, Slack). Substring match is allowed.")], required: ["appName"]),
 		]
 	}
 
@@ -453,6 +457,19 @@ public enum MacOSTools {
 				return .success(ExecuteResult(result: ["ok": false, "error": SystemClient.errorMessage(error)], appliedActions: []))
 			}
 
+		case "macWindowsUnminimizeAll":
+			if dryRun {
+				let msg = "[DRY RUN] Would unminimize all minimized windows of all open applications."
+				return .success(ExecuteResult(result: ["dryRun": true, "message": msg], appliedActions: [msg]))
+			}
+			do {
+				let data = try WindowCommands.unminimizeAll()
+				let count = data["unminimizedWindowCount"] as? Int ?? 0
+				return .success(ExecuteResult(result: ["ok": true, "unminimizedWindowCount": count, "apps": data["apps"] as? [String] ?? []], appliedActions: ["Unminimized \(count) window(s)."]))
+			} catch {
+				return .success(ExecuteResult(result: ["ok": false, "error": SystemClient.errorMessage(error)], appliedActions: []))
+			}
+
 		case "macWindowHideApp":
 			guard let appName = stringValue(input["appName"])?.trimmingCharacters(in: .whitespacesAndNewlines), !appName.isEmpty else {
 				return .failure(ToolFailure(message: "appName is required."))
@@ -481,6 +498,22 @@ public enum MacOSTools {
 				let data = try WindowCommands.minimizeApp(name: appName)
 				let count = data["minimizedWindowCount"] as? Int ?? 0
 				return .success(ExecuteResult(result: ["ok": true, "minimizedWindowCount": count, "apps": data["apps"] as? [String] ?? []], appliedActions: ["Minimized \(count) window(s) of \"\(appName)\"."]))
+			} catch {
+				return .success(ExecuteResult(result: ["ok": false, "error": SystemClient.errorMessage(error)], appliedActions: []))
+			}
+
+		case "macWindowUnminimizeApp":
+			guard let appName = stringValue(input["appName"])?.trimmingCharacters(in: .whitespacesAndNewlines), !appName.isEmpty else {
+				return .failure(ToolFailure(message: "appName is required."))
+			}
+			if dryRun {
+				let msg = "[DRY RUN] Would unminimize windows of \"\(appName)\"."
+				return .success(ExecuteResult(result: ["dryRun": true, "message": msg], appliedActions: [msg]))
+			}
+			do {
+				let data = try WindowCommands.unminimizeApp(name: appName)
+				let count = data["unminimizedWindowCount"] as? Int ?? 0
+				return .success(ExecuteResult(result: ["ok": true, "unminimizedWindowCount": count, "apps": data["apps"] as? [String] ?? []], appliedActions: ["Unminimized \(count) window(s) of \"\(appName)\"."]))
 			} catch {
 				return .success(ExecuteResult(result: ["ok": false, "error": SystemClient.errorMessage(error)], appliedActions: []))
 			}

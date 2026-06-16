@@ -71,6 +71,41 @@ enum WindowCommands {
 		]
 	}
 
+	static func unminimizeAll() throws -> [String: Any] {
+		// Try Toby.app native helper first (proper Accessibility identity)
+		if NativeHelperClient.isAvailable() {
+			let response = NativeHelperClient.unminimizeAll()
+			if response.ok, let data = response.data {
+				return data
+			}
+			if response.needsPermission {
+				throw HelperError.permission("Accessibility permission is required to unminimize windows. Grant access to Toby in System Settings → Privacy & Security → Accessibility.")
+			}
+			// Fall through to in-process attempt
+		}
+
+		// Fall back to in-process Accessibility
+		try requireAccessibility()
+		let apps = regularApps()
+		var unminimizedWindowCount = 0
+		var touchedApps: [String] = []
+		var skippedApps: [String] = []
+		for app in apps {
+			let result = unminimizeWindows(for: app.processIdentifier)
+			if result.unminimized > 0 {
+				unminimizedWindowCount += result.unminimized
+				if let name = app.localizedName { touchedApps.append(name) }
+			} else if result.hadWindows == false, let name = app.localizedName {
+				skippedApps.append(name)
+			}
+		}
+		return [
+			"unminimizedWindowCount": unminimizedWindowCount,
+			"apps": touchedApps,
+			"appsWithoutWindows": skippedApps,
+		]
+	}
+
 	static func hideApp(name: String) throws -> [String: Any] {
 		let matches = matchApps(name: name)
 		guard !matches.isEmpty else {
@@ -123,6 +158,40 @@ enum WindowCommands {
 		]
 	}
 
+	static func unminimizeApp(name: String) throws -> [String: Any] {
+		// Try Toby.app native helper first (proper Accessibility identity)
+		if NativeHelperClient.isAvailable() {
+			let response = NativeHelperClient.unminimizeApp(name: name)
+			if response.ok, let data = response.data {
+				return data
+			}
+			if response.needsPermission {
+				throw HelperError.permission("Accessibility permission is required to unminimize windows. Grant access to Toby in System Settings → Privacy & Security → Accessibility.")
+			}
+			// Fall through to in-process attempt
+		}
+
+		// Fall back to in-process Accessibility
+		try requireAccessibility()
+		let matches = matchApps(name: name)
+		guard !matches.isEmpty else {
+			throw HelperError.runtime("No running application matched \"\(name)\".")
+		}
+		var unminimizedWindowCount = 0
+		var touchedApps: [String] = []
+		for app in matches {
+			let result = unminimizeWindows(for: app.processIdentifier)
+			if result.unminimized > 0 {
+				unminimizedWindowCount += result.unminimized
+				if let n = app.localizedName { touchedApps.append(n) }
+			}
+		}
+		return [
+			"unminimizedWindowCount": unminimizedWindowCount,
+			"apps": touchedApps,
+		]
+	}
+
 	private static func regularApps() -> [NSRunningApplication] {
 		NSWorkspace.shared.runningApplications.filter { $0.activationPolicy == .regular }
 	}
@@ -144,7 +213,7 @@ enum WindowCommands {
 		PluginLog.warn("accessibility_denied", data: fingerprint)
 		let exe = fingerprint["executable"] as? String ?? "(unknown)"
 		let parent = fingerprint["parentExecutable"] as? String
-		var hint = "Accessibility permission is required to minimize windows. macOS attributes this call to: \(exe)."
+		var hint = "Accessibility permission is required to minimize or unminimize windows. macOS attributes this call to: \(exe)."
 		if let parent, !parent.isEmpty {
 			hint += " Parent process: \(parent)."
 		}
@@ -154,6 +223,11 @@ enum WindowCommands {
 
 	private struct MinimizeResult {
 		let minimized: Int
+		let hadWindows: Bool
+	}
+
+	private struct UnminimizeResult {
+		let unminimized: Int
 		let hadWindows: Bool
 	}
 
@@ -191,6 +265,42 @@ enum WindowCommands {
 			}
 		}
 		return MinimizeResult(minimized: count, hadWindows: true)
+	}
+
+	private static func unminimizeWindows(for pid: pid_t) -> UnminimizeResult {
+		let appElement = AXUIElementCreateApplication(pid)
+		var windowsRef: CFTypeRef?
+		let status = AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef)
+		if status != .success {
+			PluginLog.warn("ax_copy_windows_failed", data: [
+				"pid": Int(pid),
+				"axError": status.rawValue,
+				"axErrorName": axErrorName(status),
+			])
+			return UnminimizeResult(unminimized: 0, hadWindows: false)
+		}
+		guard let windows = windowsRef as? [AXUIElement], !windows.isEmpty else {
+			return UnminimizeResult(unminimized: 0, hadWindows: false)
+		}
+		var count = 0
+		for window in windows {
+			var minimizedRef: CFTypeRef?
+			let getStatus = AXUIElementCopyAttributeValue(window, kAXMinimizedAttribute as CFString, &minimizedRef)
+			if getStatus == .success, let already = minimizedRef as? Bool, !already {
+				continue
+			}
+			let setStatus = AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
+			if setStatus == .success {
+				count += 1
+			} else {
+				PluginLog.warn("ax_set_unminimized_failed", data: [
+					"pid": Int(pid),
+					"axError": setStatus.rawValue,
+					"axErrorName": axErrorName(setStatus),
+				])
+			}
+		}
+		return UnminimizeResult(unminimized: count, hadWindows: true)
 	}
 
 	private static func axErrorName(_ error: AXError) -> String {

@@ -44,6 +44,38 @@ enum NativeMacOSHandler {
 		])
 	}
 
+	// MARK: - Unminimize all
+
+	static func unminimizeAll() -> Data {
+		guard ensureAccessibility() else {
+			return json(["ok": false, "error": "Accessibility permission is required to unminimize windows. Grant access to Toby in System Settings > Privacy & Security > Accessibility.", "needsPermission": true])
+		}
+
+		let apps = regularApps()
+		var unminimizedWindowCount = 0
+		var touchedApps: [String] = []
+		var skippedApps: [String] = []
+
+		for app in apps {
+			let result = unminimizeWindows(for: app.processIdentifier)
+			if result.unminimized > 0 {
+				unminimizedWindowCount += result.unminimized
+				if let name = app.localizedName { touchedApps.append(name) }
+			} else if !result.hadWindows, let name = app.localizedName {
+				skippedApps.append(name)
+			}
+		}
+
+		return json([
+			"ok": true,
+			"data": [
+				"unminimizedWindowCount": unminimizedWindowCount,
+				"apps": touchedApps,
+				"appsWithoutWindows": skippedApps,
+			],
+		])
+	}
+
 	// MARK: - Minimize app
 
 	static func minimizeApp(body: Data?) -> Data {
@@ -82,6 +114,44 @@ enum NativeMacOSHandler {
 		])
 	}
 
+	// MARK: - Unminimize app
+
+	static func unminimizeApp(body: Data?) -> Data {
+		guard ensureAccessibility() else {
+			return json(["ok": false, "error": "Accessibility permission is required to unminimize windows. Grant access to Toby in System Settings > Privacy & Security > Accessibility.", "needsPermission": true])
+		}
+
+		guard let body,
+			let input = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+			let name = stringValue(input["name"]), !name.isEmpty
+		else {
+			return json(["ok": false, "error": "name is required."])
+		}
+
+		let matches = matchApps(name: name)
+		guard !matches.isEmpty else {
+			return json(["ok": false, "error": "No running application matched \"\(name)\"."])
+		}
+
+		var unminimizedWindowCount = 0
+		var touchedApps: [String] = []
+		for app in matches {
+			let result = unminimizeWindows(for: app.processIdentifier)
+			if result.unminimized > 0 {
+				unminimizedWindowCount += result.unminimized
+				if let n = app.localizedName { touchedApps.append(n) }
+			}
+		}
+
+		return json([
+			"ok": true,
+			"data": [
+				"unminimizedWindowCount": unminimizedWindowCount,
+				"apps": touchedApps,
+			],
+		])
+	}
+
 	// MARK: - Helpers
 
 	private static func ensureAccessibility() -> Bool {
@@ -110,6 +180,11 @@ enum NativeMacOSHandler {
 		let hadWindows: Bool
 	}
 
+	private struct UnminimizeResult {
+		let unminimized: Int
+		let hadWindows: Bool
+	}
+
 	private static func minimizeWindows(for pid: pid_t) -> MinimizeResult {
 		let appElement = AXUIElementCreateApplication(pid)
 		var windowsRef: CFTypeRef?
@@ -133,6 +208,31 @@ enum NativeMacOSHandler {
 			}
 		}
 		return MinimizeResult(minimized: count, hadWindows: true)
+	}
+
+	private static func unminimizeWindows(for pid: pid_t) -> UnminimizeResult {
+		let appElement = AXUIElementCreateApplication(pid)
+		var windowsRef: CFTypeRef?
+		let status = AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef)
+		if status != .success {
+			return UnminimizeResult(unminimized: 0, hadWindows: false)
+		}
+		guard let windows = windowsRef as? [AXUIElement], !windows.isEmpty else {
+			return UnminimizeResult(unminimized: 0, hadWindows: false)
+		}
+		var count = 0
+		for window in windows {
+			var minimizedRef: CFTypeRef?
+			let getStatus = AXUIElementCopyAttributeValue(window, kAXMinimizedAttribute as CFString, &minimizedRef)
+			if getStatus == .success, let already = minimizedRef as? Bool, !already {
+				continue
+			}
+			let setStatus = AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
+			if setStatus == .success {
+				count += 1
+			}
+		}
+		return UnminimizeResult(unminimized: count, hadWindows: true)
 	}
 
 	private static func stringValue(_ value: Any?) -> String? {

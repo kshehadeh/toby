@@ -115,7 +115,7 @@ describe("macos plugin", () => {
 		expect(shape.data.fields ?? []).toEqual([]);
 	});
 
-	it("lists twenty-six macOS chat tools including macFocusSet and window controls", () => {
+	it("lists twenty-eight macOS chat tools including macFocusSet and window controls", () => {
 		const binaryPath = path.join(pluginDir, "toby-plugin-macos");
 		const list = pluginToolsList(binaryPath);
 		expect(list.ok).toBe(true);
@@ -128,9 +128,11 @@ describe("macos plugin", () => {
 		expect(names).toContain("macWindowsHideAll");
 		expect(names).toContain("macWindowsShowAll");
 		expect(names).toContain("macWindowsMinimizeAll");
+		expect(names).toContain("macWindowsUnminimizeAll");
 		expect(names).toContain("macWindowHideApp");
 		expect(names).toContain("macWindowMinimizeApp");
-		expect(names.length).toBe(26);
+		expect(names).toContain("macWindowUnminimizeApp");
+		expect(names.length).toBe(28);
 	});
 
 	it("registers plugin-backed macos module with chatModelPrep", () => {
