@@ -224,7 +224,7 @@ enum NativeCalendarHandler {
 				return true
 			}
 			return await withCheckedContinuation { continuation in
-				store.requestFullAccessToEvents { granted, _ in
+				store.requestFullAccessToEvents { @Sendable granted, _ in
 					continuation.resume(returning: granted)
 				}
 			}
@@ -233,7 +233,7 @@ enum NativeCalendarHandler {
 				return true
 			}
 			return await withCheckedContinuation { continuation in
-				store.requestAccess(to: .event) { granted, _ in
+				store.requestAccess(to: .event) { @Sendable granted, _ in
 					continuation.resume(returning: granted)
 				}
 			}
