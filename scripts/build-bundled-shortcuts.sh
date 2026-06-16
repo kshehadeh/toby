@@ -12,18 +12,18 @@ mkdir -p "$out_dir"
 write_manifest() {
 	cat >"${out_dir}/manifest.json" <<'EOF'
 {
-  "shortcuts": [
-    {
-      "file": "TobyFocusOn.shortcut",
-      "name": "Toby Focus On",
-      "description": "Turns on Do Not Disturb / Focus via Shortcuts."
-    },
-    {
-      "file": "TobyFocusOff.shortcut",
-      "name": "Toby Focus Off",
-      "description": "Turns off Do Not Disturb / Focus via Shortcuts."
-    }
-  ]
+	"shortcuts": [
+		{
+			"file": "TobyFocusOn.shortcut",
+			"name": "TobyFocusOn",
+			"description": "Turns on Do Not Disturb / Focus via Shortcuts."
+		},
+		{
+			"file": "TobyFocusOff.shortcut",
+			"name": "TobyFocusOff",
+			"description": "Turns off Do Not Disturb / Focus via Shortcuts."
+		}
+	]
 }
 EOF
 }
@@ -104,8 +104,8 @@ sign_shortcut() {
 }
 
 echo "Generating unsigned shortcuts..."
-generate_shortcut "Toby Focus On" true "${tmp_dir}/TobyFocusOn.shortcut"
-generate_shortcut "Toby Focus Off" false "${tmp_dir}/TobyFocusOff.shortcut"
+generate_shortcut "TobyFocusOn" true "${tmp_dir}/TobyFocusOn.shortcut"
+generate_shortcut "TobyFocusOff" false "${tmp_dir}/TobyFocusOff.shortcut"
 
 for name in TobyFocusOn TobyFocusOff; do
 	if [[ -f "${out_dir}/${name}.shortcut" ]]; then

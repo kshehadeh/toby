@@ -10,8 +10,8 @@ public enum MacOSTools {
 		public let message: String
 	}
 
-	private static let focusOnShortcutName = "Toby Focus On"
-	private static let focusOffShortcutName = "Toby Focus Off"
+	private static let focusOnShortcutName = "TobyFocusOn"
+	private static let focusOffShortcutName = "TobyFocusOff"
 
 	private static let mutatingTools: Set<String> = [
 		"macWifiSetPower",
@@ -48,8 +48,8 @@ public enum MacOSTools {
 			tool(name: "macBluetoothSetPower", description: "macOS only. Enable/disable Bluetooth using native IOBluetooth APIs. No third-party tools required.", properties: ["enabled": prop("boolean", "")], required: ["enabled"]),
 			tool(name: "macLowPowerModeStatus", description: "macOS only. Read low power mode state (may not be available on desktops).", readOnly: true, properties: [:]),
 			tool(name: "macLowPowerModeSet", description: "macOS only. Set low power mode on/off. May fail without admin privileges.", properties: ["enabled": prop("boolean", "")], required: ["enabled"]),
-			tool(name: "macFocusSet", description: "macOS only. Turn Do Not Disturb / Focus mode on or off on this Mac. Uses bundled Shortcuts \"Toby Focus On\" and \"Toby Focus Off\" (install via `toby plugins setup macos` if missing). Prefer this over macShortcutRun for Focus/DND requests.", properties: ["enabled": prop("boolean", "true = enable Focus/Do Not Disturb, false = disable")], required: ["enabled"]),
-			tool(name: "macShortcutRun", description: "macOS only. Run any Shortcuts.app shortcut by exact name. For Do Not Disturb / Focus, prefer macFocusSet; bundled shortcuts are \"Toby Focus On\" and \"Toby Focus Off\".", properties: ["name": prop("string", "Exact name of the Shortcut to run.")], required: ["name"]),
+			tool(name: "macFocusSet", description: "macOS only. Turn Do Not Disturb / Focus mode on or off on this Mac. Uses bundled Shortcuts \"TobyFocusOn\" and \"TobyFocusOff\" (install via `toby plugins setup macos` if missing). Prefer this over macShortcutRun for Focus/DND requests.", properties: ["enabled": prop("boolean", "true = enable Focus/Do Not Disturb, false = disable")], required: ["enabled"]),
+			tool(name: "macShortcutRun", description: "macOS only. Run any Shortcuts.app shortcut by exact name. For Do Not Disturb / Focus, prefer macFocusSet; bundled shortcuts are \"TobyFocusOn\" and \"TobyFocusOff\".", properties: ["name": prop("string", "Exact name of the Shortcut to run.")], required: ["name"]),
 			tool(name: "macDisplayBrightness", description: "macOS only. Get the current display brightness level (0-100). May not be supported on all hardware configurations (e.g. some Apple Silicon Macs).", readOnly: true, properties: [:]),
 			tool(name: "macDisplaySetBrightness", description: "macOS only. Set display brightness level (0-100). May not be supported on all hardware configurations.", properties: ["level": prop("number", "Brightness level 0-100")], required: ["level"]),
 			tool(name: "macClipboardRead", description: "macOS only. Read the current text content of the system clipboard.", readOnly: true, properties: [:]),
