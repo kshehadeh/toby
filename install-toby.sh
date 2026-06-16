@@ -4,6 +4,7 @@
 # Installs:
 #   - toby → $TOBY_INSTALL_DIR (default ~/.local/bin)
 #   - web UI → sibling web/ directory
+#   - Toby.app → /Applications (or ~/Applications when /Applications is not writable)
 #   - toby-listener → ~/.toby/helpers/
 #   - toby-plugin-whisper → ~/.toby/plugins/
 #   - toby-plugin-sample, toby-plugin-azuread, toby-plugin-gmail, toby-plugin-todoist, toby-plugin-jira, toby-plugin-websearch, toby-plugin-applecalendar, toby-plugin-macos → ~/.toby/plugins/
@@ -161,9 +162,24 @@ cp -R "${tmpdir}/web" "${install_dir}/web"
 echo "Installed: ${install_dir}/web"
 
 if [[ -d "${tmpdir}/Toby.app" ]]; then
-	rm -rf "${install_dir}/Toby.app"
-	cp -R "${tmpdir}/Toby.app" "${install_dir}/Toby.app"
-	echo "Installed: ${install_dir}/Toby.app"
+	# Install the native app into the Applications directory so it is
+	# discoverable in Finder/Spotlight. Prefer /Applications when writable,
+	# otherwise fall back to the per-user ~/Applications directory.
+	if [[ -w /Applications ]]; then
+		applications_dir="/Applications"
+	else
+		applications_dir="${HOME}/Applications"
+	fi
+	mkdir -p "$applications_dir"
+	rm -rf "${applications_dir}/Toby.app"
+	cp -R "${tmpdir}/Toby.app" "${applications_dir}/Toby.app"
+	echo "Installed: ${applications_dir}/Toby.app"
+
+	# Remove any legacy copy left next to the toby binary by older installers.
+	if [[ -d "${install_dir}/Toby.app" ]]; then
+		rm -rf "${install_dir}/Toby.app"
+		echo "Removed legacy app: ${install_dir}/Toby.app"
+	fi
 fi
 
 chmod +x "${tmpdir}/toby-listener"

@@ -26,6 +26,7 @@ import {
 	resolveTobyGitHubRepo,
 } from "../releases/github";
 import { restartDaemonIfRunning } from "../schedules/daemon-status";
+import { resolveInstallApplicationsDir } from "../ui/chat/toby-app-launcher";
 
 export { isRunningAsCompiledBinary };
 
@@ -451,9 +452,20 @@ export async function applyStagedRelease(
 	if (fs.existsSync(path.join(appPath, "Contents", "MacOS", "toby-app"))) {
 		options?.onProgress?.({ phase: "installing", detail: "native app" });
 		await yieldToEventLoop();
-		const appInstallTarget = path.join(path.dirname(installTarget), "Toby.app");
-		await rm(appInstallTarget, { recursive: true, force: true });
-		await cp(appPath, appInstallTarget, { recursive: true });
+		const applicationsDir = resolveInstallApplicationsDir();
+		await mkdir(applicationsDir, { recursive: true });
+		const applicationsAppTarget = path.join(applicationsDir, "Toby.app");
+		await rm(applicationsAppTarget, { recursive: true, force: true });
+		await cp(appPath, applicationsAppTarget, { recursive: true });
+
+		// Remove any legacy copy left next to the toby binary by older installers.
+		const legacyAppTarget = path.join(
+			path.dirname(installTarget),
+			"Toby.app",
+		);
+		await rm(legacyAppTarget, { recursive: true, force: true }).catch(
+			() => undefined,
+		);
 	}
 
 	const {
