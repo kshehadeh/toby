@@ -7,6 +7,10 @@ title: Web UI
 
 Toby includes a local **web UI** for browsing your sessions and memories and for viewing and editing your configuration in a browser. It is served by the background **daemon** and runs entirely on your machine.
 
+The web UI is one of Toby's local app surfaces. It calls the same daemon
+localhost API that powers Toby.app, while the CLI can run the core harness
+directly and start the daemon when a server-backed surface is needed.
+
 ## Open it with `/web`
 
 The quickest way to open the web UI is the **`/web`** slash command from a chat session:
@@ -70,6 +74,8 @@ A second badge shows **chat inbound** status — the configured provider and whe
 
 ## Related
 
+- [Toby.app](./toby-app)
+- [Architecture](./architecture/overview)
 - [Configure & connect](./getting-started/configure-and-status)
 - [Schedules](./schedules) and the daemon
 - [Memories](./memories)

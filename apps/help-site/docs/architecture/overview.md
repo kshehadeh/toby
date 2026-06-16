@@ -5,9 +5,10 @@ title: Architecture
 
 # Architecture
 
-Toby is organized as a small set of modules with strict boundaries. The app
-surfaces present the experience, `@toby/core` owns the reusable harness, and
-installable plugins connect Toby to external systems through a JSON protocol.
+Toby is organized as a small set of modules with strict boundaries. User
+surfaces present the experience, the daemon exposes a localhost API for local
+apps, `@toby/core` owns the reusable harness, and installable plugins connect
+Toby to external systems through a JSON protocol.
 
 <div className="architectureDiagram">
 	<img src="/img/toby-architecture.svg" alt="Toby module organization diagram" />
@@ -20,7 +21,9 @@ configuration screens, local orchestration for commands such as `listen`, and
 presentation-specific behavior.
 
 It depends on `@toby/core` for chat turns, integrations, configuration, and
-session state. Core code should not import from the CLI app.
+session state. It can also start and manage the daemon for flows such as
+`/web`, schedules, inbound chat, and local HTTP API access. Core code should not
+import from the CLI app.
 
 See [Your first chat](../getting-started/first-chat) for CLI usage and
 [Configure and connect](../getting-started/configure-and-status) for the
@@ -28,14 +31,45 @@ configuration flow.
 
 ## `@toby/web`
 
-`@toby/web` is the local web interface served by Toby. It gives a browser-based
-view into sessions, memories, and configuration while relying on the same core
-harness as the CLI.
+`@toby/web` is the local browser interface served by the daemon. It gives a
+browser-based view into sessions, memories, and configuration by calling the
+daemon's localhost API.
 
-The web surface is deliberately thin: UI state and HTTP routing live in the web
-app, while durable data and assistant behavior remain in `@toby/core`.
+The web surface is deliberately thin: browser UI state lives in the web app, the
+HTTP routes live in the daemon, and durable data plus assistant behavior remain
+in `@toby/core`.
 
 See [Web UI](../web-ui) for how to start and use it.
+
+## Toby.app
+
+`Toby.app` is the native macOS SwiftUI app. It is a peer user surface for chat
+and configuration: it bootstraps the daemon when needed, then calls the same
+localhost API used by the web UI.
+
+Toby.app also hosts a separate native API server for macOS permission-gated work
+that raw plugin binaries cannot reliably perform themselves. The
+Apple Calendar and macOS plugins discover that server through
+`~/.toby/native-port` and route EventKit or Accessibility calls through the app
+when it is available.
+
+See [Toby.app](../toby-app) for the user-facing app documentation and the source
+[native helper notes](https://github.com/kshehadeh/toby/blob/main/docs/native-helpers.md)
+for implementation details.
+
+## Daemon server API
+
+The daemon serves the local HTTP API at `http://127.0.0.1:7847` by default. The
+web UI and Toby.app use it for sessions, streaming chat turns, memories,
+configuration, daemon status, and configure actions.
+
+The server is local-only and uses the same core harness as the terminal
+experience. Interactive chat turns stream `ChatEvent` payloads over SSE, so UI
+surfaces can render the same turn lifecycle without reimplementing the
+pipeline.
+
+See [Web UI](../web-ui) and the source
+[server API reference](https://github.com/kshehadeh/toby/blob/main/docs/server-api.md).
 
 ## `@toby/core`
 
@@ -63,6 +97,11 @@ This lets integrations be written in TypeScript, Swift, Go, Rust, Python, or any
 other language that can ship an executable. Toby remains the source of truth for
 credentials and connection state; plugins should not read or write `~/.toby/`
 directly.
+
+Most plugins call external systems directly. Some macOS plugins have a second
+local path: when privileged native access is needed, they call Toby.app's native
+API server over localhost instead of asking the raw plugin binary to own the
+permission prompt.
 
 See [Creating a plugin](../plugins/creating-a-plugin) for the help-site guide
 and the source [plugin protocol](https://github.com/kshehadeh/toby/blob/main/docs/plugin-protocol.md)

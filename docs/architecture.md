@@ -2,7 +2,9 @@
 
 Toby is a **Commander.js** CLI (`@toby/cli`) built on a shared harness package (`@toby/core`). The harness holds everything needed to run chat turns, integrations, and headless/daemon flows **without** Ink or React. The CLI app adds terminal UI, command registration, and macOS-specific app wiring.
 
-See also: [Core vs apps](#core-vs-apps) (where new code should live).
+See also: [Core vs apps](#core-vs-apps) (where new code should live) and
+[`server-api.md`](server-api.md) (the localhost API used by the web UI and
+Toby.app).
 
 ![Toby high-level architecture](assets/toby-architecture.svg)
 
@@ -12,7 +14,7 @@ See also: [Core vs apps](#core-vs-apps) (where new code should live).
 | ------- | ---- | ---- |
 | **`@toby/core`** | [`packages/core/src/`](../packages/core/src/) | Harness: chat pipeline, AI, integrations, config, personas, skills, memory, planning, chat-inbound, logging, session store, message prep. Consumable from scripts, daemons, or other apps via `@toby/core/...` imports. |
 | **`@toby/cli`** | [`apps/cli/src/`](../apps/cli/src/) | CLI app: Commander entry, generic commands, Ink TUIs (`ui/`), schedules/upgrade UI and glue. Depends on `@toby/core`; must not be imported by core. |
-| **`Toby.app`** | [`apps/toby-app/`](../apps/toby-app/) | Native macOS app (SwiftUI) with a real bundle identity. Runs a localhost **native API server** for TCC-gated operations (EventKit, Accessibility). macOS plugins route privileged calls through it; it does not import core. See [`native-helpers.md`](native-helpers.md). |
+| **`Toby.app`** | [`apps/toby-app/`](../apps/toby-app/) | Native macOS app (SwiftUI) with a real bundle identity. Uses the daemon localhost API for chat/configuration and runs a separate **native API server** for TCC-gated operations (EventKit, Accessibility). macOS plugins route privileged calls through it; it does not import core. See [`native-helpers.md`](native-helpers.md). |
 
 ```mermaid
 flowchart TB
@@ -26,7 +28,18 @@ flowchart TB
     entry[cli.ts + commands]
     ui[ui/ Ink + React]
   end
+  subgraph daemon ["daemon server API"]
+    api[localhost HTTP + SSE]
+  end
+  subgraph surfaces ["local app surfaces"]
+    web["@toby/web"]
+    app["Toby.app"]
+  end
   cli --> core
+  cli -. starts/manages .-> daemon
+  web --> api
+  app --> api
+  api --> core
 ```
 
 **Put in core** when the behavior is UI-agnostic: model calls, tools, integration APIs, pipeline nodes, SQLite persistence, daemon inbound routing, pretreatment, prompt caching.
@@ -59,6 +72,8 @@ apps/cli/src/
 
 apps/toby-app/             # Toby.app — native macOS app (SwiftUI)
   Sources/TobyApp/
+    TobyClient.swift              # Client for daemon /api routes and SSE chat turns
+    DaemonBootstrap.swift         # Starts `toby daemon start` when the API is unavailable
     NativeServer.swift            # Localhost HTTP server (Network.framework); port in ~/.toby/native-port
     NativeCalendarHandler.swift   # EventKit calendar operations
     NativeMacOSHandler.swift      # Accessibility-gated window operations
@@ -93,14 +108,41 @@ Access is centralized in [`packages/core/src/config/index.ts`](../packages/core/
 
 Backup and restore behavior is documented in [`commands.md`](commands.md).
 
+## Daemon server API
+
+The daemon exposes a local HTTP API for non-terminal surfaces:
+
+- **`@toby/web`** is served by the daemon and calls `/api/*` from the browser.
+- **`Toby.app`** checks `/api/status`, starts `toby daemon start` when needed,
+  then calls the same session, chat, persona, and configure endpoints.
+- Interactive chat turns stream `ChatEvent` payloads over SSE from
+  `/api/sessions/:id/turn`.
+
+The API binds to `127.0.0.1` and uses the local trust model documented in
+[`server-api.md`](server-api.md).
+
 ## Native macOS app (Toby.app)
 
-**`apps/toby-app/`** builds **Toby.app**, a SwiftUI macOS app with a proper bundle identity and `Info.plist`. While running it exposes a localhost HTTP **native API server** for operations that require macOS TCC permissions (Calendar/EventKit, Accessibility) which raw CLI plugin binaries cannot perform reliably — macOS ties permission grants to the calling binary's identity.
+**`apps/toby-app/`** builds **Toby.app**, a SwiftUI macOS app with a proper
+bundle identity and `Info.plist`. It is both a native user surface and a native
+permission bridge:
+
+- **User surface:** `TobyClient.swift` calls the daemon server API for status,
+  sessions, streaming chat turns, personas, and configuration. If the daemon is
+  not available, `DaemonBootstrap.swift` starts it through `toby daemon start`.
+- **Permission bridge:** while running, Toby.app exposes a localhost HTTP
+  **native API server** for operations that require macOS TCC permissions
+  (Calendar/EventKit, Accessibility) which raw CLI plugin binaries cannot
+  perform reliably — macOS ties permission grants to the calling binary's
+  identity.
 
 - **Discovery:** Toby.app writes its random port to `~/.toby/native-port`; clients confirm liveness via `GET /api/native/health`.
 - **Routing:** the macOS-facing plugins (`toby-plugin-applecalendar`, `toby-plugin-macos`) use a `NativeHelperClient` that routes privileged calls to Toby.app when available, and **auto-launches** it on demand when it is not running.
 - **Fallback:** when Toby.app is unavailable, plugins fall back to in-process EventKit/AppleScript (calendar) or return a permission error (macOS window control).
-- **Relationship to core:** Toby.app is a peer app surface; it does **not** import `@toby/core`. It is reached only by plugins over HTTP, so the harness and the plugin protocol stay unchanged.
+- **Relationship to core:** Toby.app does **not** import `@toby/core`. It uses
+  the daemon API for product behavior and is reached by plugins over its native
+  API only for permission-gated macOS calls, so the harness and the plugin
+  protocol stay unchanged.
 
 See [`native-helpers.md`](native-helpers.md) for the full endpoint table and source map.
 
