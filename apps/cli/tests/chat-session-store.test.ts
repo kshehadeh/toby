@@ -96,4 +96,29 @@ describe.skipIf(!isBun)("chat session store", () => {
 		expect(loaded?.goal).toBe("Test goal");
 		expect(loaded?.relevantIntegrations).toEqual(["example"]);
 	});
+
+	it("preserves prior chat messages when appending a follow-up turn", () => {
+		process.env.TOBY_DIR = makeTempDir();
+		const s = createChatSession({ name: "Multi turn" });
+		const firstTurn: CoreMessage[] = [
+			{ role: "system", content: "sys" },
+			{ role: "user", content: "remember pineapple" },
+			{ role: "assistant", content: "I will remember pineapple." },
+		];
+		appendMessageBatch(s.id, 0, firstTurn);
+
+		const loaded = loadChatSession(s.id);
+		expect(loaded?.messages).toEqual(firstTurn);
+
+		appendMessageBatch(s.id, firstTurn.length, [
+			{ role: "user", content: "what did I ask you to remember?" },
+			{ role: "assistant", content: "pineapple" },
+		]);
+
+		expect(loadChatSession(s.id)?.messages).toEqual([
+			...firstTurn,
+			{ role: "user", content: "what did I ask you to remember?" },
+			{ role: "assistant", content: "pineapple" },
+		]);
+	});
 });
