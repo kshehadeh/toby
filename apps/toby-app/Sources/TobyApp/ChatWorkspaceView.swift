@@ -31,8 +31,6 @@ private struct ChatTopBar: View {
 				.foregroundStyle(AppTheme.tertiaryText)
 				.lineLimit(1)
 			Spacer()
-			Image(systemName: "ellipsis")
-				.foregroundStyle(AppTheme.secondaryText)
 		}
 		.padding(.horizontal, AppTheme.contentPadding)
 		.padding(.vertical, 14)
@@ -50,16 +48,24 @@ private struct EmptyChatWorkspace: View {
 	var body: some View {
 		VStack(spacing: 18) {
 			Spacer()
-			Text("What should we build in toby?")
-				.font(.title2)
-				.foregroundStyle(AppTheme.primaryText)
+			VStack(spacing: 8) {
+				Text("What should Toby take care of?")
+					.font(.title2.weight(.semibold))
+					.foregroundStyle(AppTheme.primaryText)
+				Text("Use your connected apps, schedules, memory, and Mac controls from one place.")
+					.font(.callout)
+					.foregroundStyle(AppTheme.secondaryText)
+					.multilineTextAlignment(.center)
+			}
 			InputDock(
 				text: $store.promptText,
 				isLoading: store.isLoading,
 				onSubmit: submit,
 			)
 			.frame(maxWidth: 620)
-			EmptySuggestionList()
+			EmptySuggestionList { suggestion in
+				store.promptText = suggestion
+			}
 			Spacer()
 		}
 		.padding(.horizontal, AppTheme.contentPadding)
@@ -106,23 +112,35 @@ private struct ActiveChatWorkspace: View {
 }
 
 private struct EmptySuggestionList: View {
+	let onSelect: (String) -> Void
+
 	private let suggestions = [
-		"Show me today’s agenda",
-		"Summarize my open tasks",
-		"Find time for deep work this week",
+		"Show me today’s calendar and conflicts",
+		"Summarize unread mail that needs a reply",
+		"Create a recurring schedule for my weekly review",
+		"Find open tasks that are blocked or stale",
+		"Turn on Focus and minimize distracting windows",
 	]
 
 	var body: some View {
 		VStack(spacing: 0) {
 			ForEach(suggestions, id: \.self) { suggestion in
-				HStack(spacing: 10) {
-					Image(systemName: "sparkles")
-						.foregroundStyle(AppTheme.tertiaryText)
-					Text(suggestion)
-						.font(.callout)
-						.foregroundStyle(AppTheme.secondaryText)
-					Spacer()
+				Button {
+					onSelect(suggestion)
+				} label: {
+					HStack(spacing: 10) {
+						Image(systemName: iconName(for: suggestion))
+							.foregroundStyle(AppTheme.tertiaryText)
+							.frame(width: 16)
+						Text(suggestion)
+							.font(.callout)
+							.foregroundStyle(AppTheme.secondaryText)
+							.lineLimit(1)
+						Spacer()
+					}
+					.contentShape(Rectangle())
 				}
+				.buttonStyle(.plain)
 				.padding(.vertical, 10)
 				.overlay(alignment: .bottom) {
 					Rectangle()
@@ -132,5 +150,21 @@ private struct EmptySuggestionList: View {
 			}
 		}
 		.frame(maxWidth: 620)
+	}
+
+	private func iconName(for suggestion: String) -> String {
+		if suggestion.localizedCaseInsensitiveContains("calendar") {
+			return "calendar"
+		}
+		if suggestion.localizedCaseInsensitiveContains("mail") {
+			return "envelope"
+		}
+		if suggestion.localizedCaseInsensitiveContains("schedule") {
+			return "clock"
+		}
+		if suggestion.localizedCaseInsensitiveContains("tasks") {
+			return "checklist"
+		}
+		return "macwindow"
 	}
 }

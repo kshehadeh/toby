@@ -7,7 +7,7 @@ struct InputDock: View {
 
 	var body: some View {
 		VStack(spacing: 0) {
-			TextField("Do anything", text: $text, axis: .vertical)
+			TextField("Ask Toby to handle something", text: $text, axis: .vertical)
 				.textFieldStyle(.plain)
 				.font(.body)
 				.foregroundStyle(AppTheme.primaryText)
@@ -23,14 +23,11 @@ struct InputDock: View {
 				.padding(.horizontal, 14)
 				.padding(.top, 12)
 				.padding(.bottom, 8)
-			HStack(spacing: 10) {
-				Image(systemName: "plus")
-				Image(systemName: "shield.checkered")
-				Text("Approve for me")
-				Image(systemName: "chevron.down")
-				Spacer()
-				Text("⌘↩︎")
+			HStack(spacing: 8) {
+				Text("Return to send")
+				Text("Shift+Return for newline")
 					.foregroundStyle(AppTheme.tertiaryText)
+				Spacer()
 				Button(action: onSubmit) {
 					Image(systemName: "arrow.up")
 						.frame(width: 26, height: 26)

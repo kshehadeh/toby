@@ -25,7 +25,7 @@ struct TranscriptView: View {
 	var body: some View {
 		ScrollViewReader { proxy in
 			ScrollView {
-				LazyVStack(alignment: .leading, spacing: 12) {
+				LazyVStack(alignment: .leading, spacing: 16) {
 					ForEach(displayItems) { item in
 						switch item {
 						case .entry(let entry, _):
@@ -53,7 +53,8 @@ struct TranscriptView: View {
 						.id("streaming")
 					}
 				}
-				.padding(AppTheme.contentPadding)
+				.padding(.horizontal, AppTheme.contentPadding)
+				.padding(.vertical, 18)
 			}
 			.onChange(of: entries.count) { _, _ in
 				scrollToBottom(proxy: proxy)
@@ -132,7 +133,7 @@ private struct WorkedForRow: View {
 								.controlSize(.small)
 						}
 						Text(summaryLabel(at: context.date))
-							.font(.subheadline)
+							.font(.caption.weight(.medium))
 							.foregroundStyle(AppTheme.secondaryText)
 						Spacer(minLength: 0)
 						Image(systemName: "chevron.right")
@@ -140,7 +141,7 @@ private struct WorkedForRow: View {
 							.foregroundStyle(AppTheme.tertiaryText)
 							.rotationEffect(.degrees(isExpanded ? 90 : 0))
 					}
-					.padding(.vertical, 8)
+					.padding(.vertical, 7)
 					.contentShape(Rectangle())
 				}
 				.buttonStyle(.plain)
@@ -377,8 +378,8 @@ private struct UserPromptRow: View {
 				.foregroundStyle(AppTheme.accent)
 				.bold()
 			Text(text)
-				.font(.title3)
-				.bold()
+				.font(.headline)
+				.fontWeight(.semibold)
 				.foregroundStyle(AppTheme.primaryText)
 				.textSelection(.enabled)
 		}
@@ -394,11 +395,11 @@ private struct AssistantBox: View {
 	var body: some View {
 		VStack(alignment: .leading, spacing: 6) {
 			Text(header)
-				.font(.headline)
+				.font(.subheadline.weight(.semibold))
 				.foregroundStyle(AppTheme.secondaryText)
 			MarkdownText(
 				text: messageBody,
-				font: .title3,
+				font: .body,
 				foregroundStyle: AppTheme.primaryText,
 			)
 			if isStreaming {
@@ -412,14 +413,14 @@ private struct AssistantBox: View {
 				.padding(.top, 4)
 			}
 		}
-		.padding(.horizontal, 18)
-		.padding(.vertical, 16)
+		.padding(.horizontal, 16)
+		.padding(.vertical, 14)
 		.background(
-			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
-				.fill(AppTheme.panelBackground),
+			RoundedRectangle(cornerRadius: 12)
+				.fill(AppTheme.elevatedBackground.opacity(0.72)),
 		)
 		.overlay(
-			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
+			RoundedRectangle(cornerRadius: 12)
 				.stroke(AppTheme.separator),
 		)
 	}
