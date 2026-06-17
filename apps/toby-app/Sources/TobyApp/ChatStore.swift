@@ -15,6 +15,8 @@ final class ChatStore {
 	var promptText: String = ""
 	var isLoading = false
 	var isSelectingSession = false
+	var listenStatus: ListenStatusResponse?
+	var isListenRequestInFlight = false
 	var errorMessage: String?
 	var turnWorkDurations: [Int: TimeInterval] = [:]
 	let serverEventLogPath = ServerEventLog.path
@@ -23,7 +25,16 @@ final class ChatStore {
 		isLoading ? activeTurnStartedAt : nil
 	}
 
+	var isRecordingActive: Bool {
+		listenStatus?.isActive == true
+	}
+
+	var isRecordButtonDisabled: Bool {
+		status == nil || isListenRequestInFlight
+	}
+
 	private let client = TobyClient()
+	private let nativeAudioClient = NativeAudioClient()
 	private var assistantHeader = ""
 	private var assistantBuffer = ""
 	private var sawToolCallThisTurn = false
@@ -36,6 +47,7 @@ final class ChatStore {
 			try await DaemonBootstrap.ensureServerAvailable(baseURL: client.baseURL)
 			activityLine = "Connecting…"
 			status = try await client.fetchStatus()
+			listenStatus = try? await nativeAudioClient.status()
 			await refreshSessions()
 			if let mostRecent = sessions.first {
 				await selectSession(id: mostRecent.id)
@@ -62,10 +74,24 @@ final class ChatStore {
 	func refreshStatus() async {
 		do {
 			status = try await client.fetchStatus()
+			listenStatus = try? await nativeAudioClient.status()
 			errorMessage = nil
 		} catch {
 			errorMessage = error.localizedDescription
 		}
+	}
+
+	func toggleRecording() async {
+		guard !isListenRequestInFlight else { return }
+		if isRecordingActive {
+			await stopRecording()
+		} else {
+			await startRecording()
+		}
+	}
+
+	func dismissError() {
+		errorMessage = nil
 	}
 
 	func selectSession(id: String) async {
@@ -120,6 +146,46 @@ final class ChatStore {
 			errorMessage = nil
 		} catch {
 			errorMessage = error.localizedDescription
+		}
+	}
+
+	private func startRecording() async {
+		isListenRequestInFlight = true
+		defer { isListenRequestInFlight = false }
+		do {
+			listenStatus = try await nativeAudioClient.start()
+			activityLine = "Recording audio"
+			errorMessage = nil
+		} catch {
+			errorMessage = error.localizedDescription
+			activityLine = "Error"
+			listenStatus = try? await nativeAudioClient.status()
+		}
+	}
+
+	private func stopRecording() async {
+		isListenRequestInFlight = true
+		defer { isListenRequestInFlight = false }
+		do {
+			let result = try await nativeAudioClient.stop()
+			listenStatus = result.asStatus
+			if let id = result.id {
+				do {
+					_ = try await client.transcribeRecording(id: id)
+					errorMessage = nil
+					activityLine = "Recording transcribed"
+				} catch {
+					errorMessage = "Recording saved, but transcription failed: \(error.localizedDescription)"
+					activityLine = "Recording saved"
+				}
+			} else {
+				errorMessage = nil
+				activityLine = "Recording saved"
+			}
+		} catch {
+			errorMessage = error.localizedDescription
+			activityLine = "Error"
+			listenStatus = try? await nativeAudioClient.status()
 		}
 	}
 

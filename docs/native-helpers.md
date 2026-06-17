@@ -252,6 +252,9 @@ The native server listens on a random localhost port written to `~/.toby/native-
 | `POST` | `/api/native/macos/minimize-app` | Minimize app windows (Accessibility) |
 | `POST` | `/api/native/macos/unminimize-app` | Unminimize app windows (Accessibility) |
 | `GET` | `/api/native/macos/accessibility-status` | Check if Accessibility is granted |
+| `GET` | `/api/native/audio/status` | Check active native audio recording state |
+| `POST` | `/api/native/audio/start` | Start native microphone/system audio capture |
+| `POST` | `/api/native/audio/stop` | Stop native audio capture and save recording files |
 
 ### Plugin integration
 

@@ -54,10 +54,12 @@ struct TranscriptView: View {
 						.id("streaming")
 					}
 				}
+				.frame(maxWidth: .infinity, alignment: .leading)
 				.padding(.horizontal, AppTheme.contentPadding)
-				.padding(.top, 18)
+				.padding(.top, 10)
 				.padding(.bottom, bottomContentPadding)
 			}
+			.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 			.onChange(of: entries.count) { _, _ in
 				scrollToBottom(proxy: proxy)
 			}
@@ -417,6 +419,7 @@ private struct AssistantBox: View {
 		}
 		.padding(.horizontal, 16)
 		.padding(.vertical, 14)
+		.frame(maxWidth: .infinity, alignment: .leading)
 		.background(
 			RoundedRectangle(cornerRadius: 12)
 				.fill(AppTheme.elevatedBackground.opacity(0.72)),

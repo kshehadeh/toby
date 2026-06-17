@@ -99,6 +99,10 @@ cat >"${APP}/Contents/Info.plist" <<'PLIST'
 	<string>Toby reads and manages your calendars when you use Apple Calendar integration.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Toby needs full calendar access to search, create, update, and delete events.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Toby records microphone audio when you use Record Audio.</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>Toby captures system audio for recordings when you use Record Audio.</string>
 </dict>
 </plist>
 PLIST

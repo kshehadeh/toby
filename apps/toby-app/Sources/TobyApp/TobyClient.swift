@@ -76,6 +76,57 @@ struct TobyClient {
 		try validate(response: response, data: data)
 	}
 
+	func fetchListenStatus() async throws -> ListenStatusResponse {
+		let url = baseURL.appendingPathComponent("api/listen/status")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ListenStatusResponse.self, from: data)
+	}
+
+	func startListening() async throws -> ListenStatusResponse {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/start"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = Data("{}".utf8)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ListenStatusResponse.self, from: data)
+	}
+
+	func stopListening() async throws -> ListenStopResponse {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/stop"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = Data("{}".utf8)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ListenStopResponse.self, from: data)
+	}
+
+	func listRecordings() async throws -> [ListenRecordingSummary] {
+		let url = baseURL.appendingPathComponent("api/listen/recordings")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ListenRecordingsListResponse.self, from: data).recordings
+	}
+
+	func fetchRecording(id: String) async throws -> ListenRecordingDetail {
+		let url = baseURL.appendingPathComponent("api/listen/recordings/\(id)")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ListenRecordingDetail.self, from: data)
+	}
+
+	func transcribeRecording(id: String) async throws -> ListenRecordingDetail {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)/transcribe"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = Data("{}".utf8)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ListenRecordingDetail.self, from: data)
+	}
+
 	func streamTurn(
 		sessionId: String,
 		text: String,

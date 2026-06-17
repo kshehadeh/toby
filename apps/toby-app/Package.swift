@@ -18,6 +18,9 @@ let package = Package(
 				.linkedFramework("EventKit"),
 				.linkedFramework("Network"),
 				.linkedFramework("ApplicationServices"),
+				.linkedFramework("AVFoundation"),
+				.linkedFramework("CoreMedia"),
+				.linkedFramework("ScreenCaptureKit"),
 				.unsafeFlags([
 					"-Xlinker",
 					"-sectcreate",

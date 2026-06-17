@@ -6,11 +6,15 @@ struct AppSidebar: View {
 	let status: AppStatus?
 	let isLoading: Bool
 	let isSessionsLoading: Bool
+	let isRecording: Bool
+	let isRecordDisabled: Bool
 	let onNewChat: () -> Void
 	let onSearch: () -> Void
+	let onToggleRecording: () -> Void
 	let onSelectSession: (String) -> Void
 	let onDeleteSession: (SessionSummary) -> Void
 	let onOpenSettings: (String?) -> Void
+	let onOpenRecordings: () -> Void
 	let onOpenPersonasSettings: () -> Void
 	let onPersonaSelected: () -> Void
 
@@ -20,7 +24,10 @@ struct AppSidebar: View {
 			SidebarPrimaryActions(
 				onNewChat: onNewChat,
 				onSearch: onSearch,
+				onToggleRecording: onToggleRecording,
 				isLoading: isLoading,
+				isRecording: isRecording,
+				isRecordDisabled: isRecordDisabled,
 			)
 			SidebarSection(title: "Workspace") {
 				if isSessionsLoading && sessions.isEmpty {
@@ -81,6 +88,13 @@ struct AppSidebar: View {
 				.buttonStyle(.plain)
 				.frame(maxWidth: .infinity, alignment: .leading)
 				Button {
+					onOpenRecordings()
+				} label: {
+					SidebarRow(title: "Recordings", systemImage: "waveform")
+				}
+				.buttonStyle(.plain)
+				.frame(maxWidth: .infinity, alignment: .leading)
+				Button {
 					onOpenSettings(nil)
 				} label: {
 					SidebarRow(title: "Settings", systemImage: "gearshape")
@@ -128,7 +142,10 @@ private struct SidebarHeader: View {
 private struct SidebarPrimaryActions: View {
 	let onNewChat: () -> Void
 	let onSearch: () -> Void
+	let onToggleRecording: () -> Void
 	let isLoading: Bool
+	let isRecording: Bool
+	let isRecordDisabled: Bool
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 4) {
@@ -145,8 +162,48 @@ private struct SidebarPrimaryActions: View {
 					.contentShape(Rectangle())
 			}
 			.buttonStyle(SidebarButtonStyle())
+			Button(action: onToggleRecording) {
+				HStack(spacing: 8) {
+					if isRecording {
+						RecordingPulseIcon()
+					} else {
+						Image(systemName: "record.circle")
+							.frame(width: 16, height: 16)
+					}
+					Text(isRecording ? "Stop Recording" : "Record Audio")
+					Spacer(minLength: 0)
+				}
+				.frame(maxWidth: .infinity, alignment: .leading)
+				.contentShape(Rectangle())
+			}
+			.buttonStyle(SidebarButtonStyle())
+			.disabled(isRecordDisabled)
 		}
 		.padding(.bottom, 14)
+	}
+}
+
+private struct RecordingPulseIcon: View {
+	@State private var pulse = false
+
+	var body: some View {
+		ZStack {
+			Circle()
+				.fill(Color.red.opacity(pulse ? 0.18 : 0.08))
+				.frame(width: pulse ? 16 : 10, height: pulse ? 16 : 10)
+			Circle()
+				.fill(Color.red)
+				.frame(width: 8, height: 8)
+		}
+		.frame(width: 16, height: 16)
+		.onAppear {
+			withAnimation(.easeInOut(duration: 0.75).repeatForever(autoreverses: true)) {
+				pulse = true
+			}
+		}
+		.onDisappear {
+			pulse = false
+		}
 	}
 }
 

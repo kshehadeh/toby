@@ -197,6 +197,12 @@ final class NativeServer {
 			return wrapHandlerData(NativeMacOSHandler.unminimizeApp(body: request.body))
 		case "/api/native/macos/accessibility-status":
 			return wrapHandlerData(NativeMacOSHandler.accessibilityStatus())
+		case "/api/native/audio/status":
+			return wrapHandlerData(NativeAudioHandler.shared.status())
+		case "/api/native/audio/start":
+			return wrapHandlerData(await NativeAudioHandler.shared.start(body: request.body))
+		case "/api/native/audio/stop":
+			return wrapHandlerData(await NativeAudioHandler.shared.stop(body: request.body))
 		default:
 			return httpResponse(json: ["ok": false, "error": "Unknown endpoint: \(path)"], status: 404)
 		}

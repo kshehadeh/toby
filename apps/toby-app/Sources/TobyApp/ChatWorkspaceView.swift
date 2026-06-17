@@ -13,6 +13,7 @@ struct ChatWorkspaceView: View {
 			}
 		}
 		.background(AppTheme.contentBackground)
+		.ignoresSafeArea(.container, edges: .top)
 	}
 }
 
@@ -21,24 +22,41 @@ private struct ChatTopBar: View {
 	let activityLine: String
 
 	var body: some View {
-		HStack(spacing: 10) {
-			Text(sessionName)
-				.font(.headline)
-				.foregroundStyle(AppTheme.primaryText)
-				.lineLimit(1)
-			Text(activityLine)
-				.font(.caption)
-				.foregroundStyle(AppTheme.tertiaryText)
-				.lineLimit(1)
+		HStack(spacing: 12) {
+			SessionTitleBadge(title: sessionName)
+			if !activityLine.isEmpty {
+				Text(activityLine)
+					.font(.caption)
+					.foregroundStyle(AppTheme.tertiaryText)
+					.lineLimit(1)
+			}
 			Spacer()
 		}
 		.padding(.horizontal, AppTheme.contentPadding)
-		.padding(.vertical, 14)
-		.overlay(alignment: .bottom) {
-			Rectangle()
-				.fill(AppTheme.separator)
-				.frame(height: 1)
-		}
+		.padding(.top, 8)
+		.padding(.bottom, 8)
+		.frame(maxWidth: .infinity, alignment: .leading)
+	}
+}
+
+private struct SessionTitleBadge: View {
+	let title: String
+
+	var body: some View {
+		Text(title)
+			.font(.headline.weight(.semibold))
+			.foregroundStyle(AppTheme.primaryText)
+			.lineLimit(1)
+			.padding(.horizontal, 14)
+			.padding(.vertical, 8)
+			.background(
+				Capsule()
+					.fill(AppTheme.elevatedBackground.opacity(0.62)),
+			)
+			.overlay(
+				Capsule()
+					.stroke(Color.white.opacity(0.12), lineWidth: 1),
+			)
 	}
 }
 
@@ -92,10 +110,9 @@ private struct ActiveChatWorkspace: View {
 			)
 			VStack(spacing: 8) {
 				if let errorMessage = store.errorMessage {
-					Text(errorMessage)
-						.font(.caption)
-						.foregroundStyle(.red)
-						.frame(maxWidth: .infinity, alignment: .leading)
+					ErrorBanner(message: errorMessage) {
+						store.dismissError()
+					}
 				}
 				InputDock(
 					text: $store.promptText,
@@ -110,6 +127,45 @@ private struct ActiveChatWorkspace: View {
 
 	private func submit() {
 		Task { await store.submitPrompt() }
+	}
+}
+
+private struct ErrorBanner: View {
+	let message: String
+	let onDismiss: () -> Void
+
+	var body: some View {
+		HStack(alignment: .center, spacing: 10) {
+			Image(systemName: "exclamationmark.triangle.fill")
+				.font(.caption.weight(.semibold))
+				.foregroundStyle(Color.white.opacity(0.92))
+			Text(message)
+				.font(.caption)
+				.foregroundStyle(Color.white.opacity(0.95))
+				.lineLimit(3)
+				.fixedSize(horizontal: false, vertical: true)
+				.frame(maxWidth: .infinity, alignment: .leading)
+			Button(action: onDismiss) {
+				Image(systemName: "xmark")
+					.font(.caption.weight(.bold))
+					.foregroundStyle(Color.white.opacity(0.85))
+					.frame(width: 22, height: 22)
+					.contentShape(Circle())
+			}
+			.buttonStyle(.plain)
+			.help("Dismiss error")
+		}
+		.padding(.horizontal, 12)
+		.padding(.vertical, 9)
+		.background(
+			Capsule(style: .continuous)
+				.fill(Color.red.opacity(0.78))
+		)
+		.overlay {
+			Capsule(style: .continuous)
+				.stroke(Color.white.opacity(0.12), lineWidth: 1)
+		}
+		.shadow(color: Color.black.opacity(0.20), radius: 10, y: 4)
 	}
 }
 

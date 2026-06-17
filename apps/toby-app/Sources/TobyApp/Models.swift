@@ -56,6 +56,116 @@ struct CreateSessionResponse: Decodable {
 	let settings: SessionSettings?
 }
 
+struct ListenSourceSelection: Decodable {
+	let mic: Bool
+	let system: Bool
+}
+
+struct ListenSessionInfo: Decodable {
+	let id: String
+	let startedAt: String
+	let sources: ListenSourceSelection
+}
+
+struct ListenStatusResponse: Decodable {
+	let status: String
+	let session: ListenSessionInfo?
+	let outputDir: String?
+	let message: String?
+	let error: String?
+
+	var isActive: Bool {
+		status == "starting" || status == "recording" || status == "stopping"
+			|| (status == "error" && session != nil)
+	}
+}
+
+struct ListenStopResponse: Decodable {
+	let status: String
+	let session: ListenSessionInfo?
+	let outputDir: String?
+	let message: String?
+	let error: String?
+	let transcript: String?
+	let transcriptionError: String?
+
+	var asStatus: ListenStatusResponse {
+		ListenStatusResponse(
+			status: status,
+			session: session,
+			outputDir: outputDir,
+			message: message,
+			error: error,
+		)
+	}
+}
+
+struct NativeAudioStopResponse: Decodable {
+	let status: String
+	let message: String?
+	let id: String?
+	let outputDir: String?
+	let files: [String: String]?
+
+	var asStatus: ListenStatusResponse {
+		ListenStatusResponse(
+			status: status,
+			session: nil,
+			outputDir: outputDir,
+			message: message,
+			error: nil,
+		)
+	}
+}
+
+struct ListenRecordingSummary: Decodable, Identifiable {
+	let id: String
+	let dir: String
+	let name: String?
+	let description: String?
+	let createdAt: String
+	let startedAt: String
+	let stoppedAt: String?
+	let durationMs: Int?
+	let sources: ListenSourceSelection
+	let hasAudio: Bool
+	let hasTranscript: Bool
+
+	var displayName: String {
+		if let name, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+			return name
+		}
+		return startedAt
+	}
+}
+
+struct ListenRecordingsListResponse: Decodable {
+	let recordings: [ListenRecordingSummary]
+}
+
+struct ListenRecordingMetadata: Decodable {
+	let id: String
+	let name: String?
+	let description: String?
+	let createdAt: String
+	let startedAt: String
+	let stoppedAt: String?
+	let durationMs: Int?
+	let sources: ListenSourceSelection
+	let errors: [String]?
+}
+
+struct ListenRecordingDetail: Decodable {
+	let id: String
+	let dir: String
+	let metadata: ListenRecordingMetadata
+	let hasAudio: Bool
+	let hasTranscript: Bool
+	let transcript: String?
+	let transcriptError: String?
+	let warnings: [String]?
+}
+
 enum TranscriptEntry: Decodable, Identifiable, Equatable {
 	case user(text: String)
 	case assistant(text: String)

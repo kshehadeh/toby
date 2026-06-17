@@ -6,6 +6,7 @@ import SwiftUI
 struct TobyApp: App {
 	@State private var store = ChatStore()
 	@State private var configureStore = ConfigureStore()
+	@State private var recordingsStore = RecordingsStore()
 	@State private var nativeServer = NativeServer.shared
 
 	var body: some Scene {
@@ -20,7 +21,7 @@ struct TobyApp: App {
 					nativeServer.stop()
 				}
 		}
-		.windowStyle(.automatic)
+		.windowStyle(.hiddenTitleBar)
 		.defaultSize(width: 1024, height: 720)
 
 		Window("Settings", id: "settings") {
@@ -29,7 +30,20 @@ struct TobyApp: App {
 		.windowStyle(.automatic)
 		.defaultSize(width: 920, height: 640)
 
+		Window("Recordings", id: "recordings") {
+			RecordingsView(store: recordingsStore)
+		}
+		.windowStyle(.automatic)
+		.defaultSize(width: 920, height: 640)
+
 		.commands {
+			CommandGroup(replacing: .newItem) {
+				Button("New Chat") {
+					NotificationCenter.default.post(name: .startNewChat, object: nil)
+				}
+				.keyboardShortcut("n", modifiers: .command)
+			}
+
 			CommandGroup(after: .sidebar) {
 				Button("Search Sessions…") {
 					NotificationCenter.default.post(name: .openCommandPalette, object: nil)

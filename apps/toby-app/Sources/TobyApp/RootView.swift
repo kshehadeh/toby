@@ -15,11 +15,15 @@ struct RootView: View {
 				status: store.status,
 				isLoading: store.isLoading,
 				isSessionsLoading: store.isSessionsLoading,
+				isRecording: store.isRecordingActive,
+				isRecordDisabled: store.isRecordButtonDisabled,
 				onNewChat: startNewChat,
 				onSearch: { isCommandPalettePresented = true },
+				onToggleRecording: toggleRecording,
 				onSelectSession: selectSession,
 				onDeleteSession: { pendingDeleteSession = $0 },
 				onOpenSettings: openSettings,
+				onOpenRecordings: openRecordings,
 				onOpenPersonasSettings: openPersonasSettings,
 				onPersonaSelected: refreshStatus,
 			)
@@ -46,6 +50,9 @@ struct RootView: View {
 		}
 		.onReceive(NotificationCenter.default.publisher(for: .openCommandPalette)) { _ in
 			isCommandPalettePresented = true
+		}
+		.onReceive(NotificationCenter.default.publisher(for: .startNewChat)) { _ in
+			startNewChat()
 		}
 		.alert(
 			"Delete Session?",
@@ -75,11 +82,19 @@ struct RootView: View {
 		Task { await store.selectSession(id: id) }
 	}
 
+	private func toggleRecording() {
+		Task { await store.toggleRecording() }
+	}
+
 	private func openSettings(navKey: String? = nil) {
 		if let navKey {
 			configureStore.selectedNavKey = navKey
 		}
 		openWindow(id: "settings")
+	}
+
+	private func openRecordings() {
+		openWindow(id: "recordings")
 	}
 
 	private func openPersonasSettings() {
@@ -93,4 +108,5 @@ struct RootView: View {
 
 extension Notification.Name {
 	static let openCommandPalette = Notification.Name("openCommandPalette")
+	static let startNewChat = Notification.Name("startNewChat")
 }
