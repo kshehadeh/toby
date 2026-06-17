@@ -65,7 +65,7 @@ private struct RecordingSidebarRow: View {
 				.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.tertiaryText)
 				.frame(width: 18)
 			VStack(alignment: .leading, spacing: 3) {
-				Text(recording.displayName)
+				Text(recordingSidebarTitle(recording))
 					.font(.callout)
 					.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.secondaryText)
 					.lineLimit(1)
@@ -181,7 +181,43 @@ private func isNonFatalScreenCaptureDecline(_ message: String) -> Bool {
 
 private func recordingSummary(_ recording: ListenRecordingSummary) -> String {
 	let duration = durationText(recording.durationMs)
-	return recording.hasTranscript ? "\(duration) · Transcript" : duration
+	let transcript = recording.hasTranscript ? " · Transcript" : ""
+	if hasRecordingName(recording) {
+		let startedAt = friendlyRecordingDate(recording.startedAt, fallback: recording.createdAt)
+		return "\(startedAt) · \(duration)\(transcript)"
+	}
+	return "\(duration)\(transcript)"
+}
+
+private func recordingSidebarTitle(_ recording: ListenRecordingSummary) -> String {
+	if let name = normalizedRecordingName(recording) {
+		return name
+	}
+	return friendlyRecordingDate(recording.startedAt, fallback: recording.createdAt)
+}
+
+private func hasRecordingName(_ recording: ListenRecordingSummary) -> Bool {
+	normalizedRecordingName(recording) != nil
+}
+
+private func normalizedRecordingName(_ recording: ListenRecordingSummary) -> String? {
+	guard let name = recording.name?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else {
+		return nil
+	}
+	return name
+}
+
+private func friendlyRecordingDate(_ value: String, fallback: String) -> String {
+	guard let date = isoRecordingDate(value) ?? isoRecordingDate(fallback) else {
+		return value.isEmpty ? fallback : value
+	}
+	return RecordingDateFormatters.friendly.string(from: date)
+}
+
+private func isoRecordingDate(_ value: String) -> Date? {
+	let fractional = ISO8601DateFormatter()
+	fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+	return fractional.date(from: value) ?? ISO8601DateFormatter().date(from: value)
 }
 
 private func durationText(_ durationMs: Int?) -> String {
@@ -190,6 +226,15 @@ private func durationText(_ durationMs: Int?) -> String {
 	let minutes = seconds / 60
 	let remainder = seconds % 60
 	return "\(minutes):\(String(format: "%02d", remainder))"
+}
+
+private enum RecordingDateFormatters {
+	static let friendly: DateFormatter = {
+		let formatter = DateFormatter()
+		formatter.dateStyle = .medium
+		formatter.timeStyle = .short
+		return formatter
+	}()
 }
 
 private func sourceText(_ sources: ListenSourceSelection) -> String {
