@@ -37,6 +37,32 @@ export const DEFAULT_LISTEN_SOURCES: ListenSourceSelection = {
 	system: true,
 };
 
+export type ListenStatus =
+	| "idle"
+	| "requestingPermission"
+	| "listening"
+	| "stopping"
+	| "saved"
+	| "discarded"
+	| "error";
+
+export interface ListenSession {
+	readonly id: string;
+	readonly startedAt: string;
+	readonly tempDir: string;
+	readonly finalDir: string;
+	readonly sources: ListenSourceSelection;
+}
+
+export interface ListenState {
+	readonly status: ListenStatus;
+	readonly sources: ListenSourceSelection;
+	readonly session?: ListenSession;
+	readonly outputDir?: string;
+	readonly message?: string;
+	readonly error?: string;
+}
+
 export function selectedListenSources(
 	sources: ListenSourceSelection,
 ): ListenSource[] {

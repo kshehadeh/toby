@@ -118,6 +118,59 @@ export type ChatStatusResponse = {
 	readonly skillCount: number;
 };
 
+export type ListenApiStatus =
+	| "idle"
+	| "starting"
+	| "recording"
+	| "stopping"
+	| "error";
+
+export type ListenStatusResponse = {
+	readonly status: ListenApiStatus;
+	readonly session?: {
+		readonly id: string;
+		readonly startedAt: string;
+		readonly sources: {
+			readonly mic: boolean;
+			readonly system: boolean;
+		};
+	};
+	readonly outputDir?: string;
+	readonly message?: string;
+	readonly error?: string;
+};
+
+export type ListenStartResponse = ListenStatusResponse;
+
+export type ListenStopRequest = Record<string, never>;
+
+export type ListenStopResponse = ListenStatusResponse & {
+	readonly outputDir?: string;
+	readonly transcript?: string;
+	readonly transcriptionError?: string;
+};
+
+export type ListenRecordingSummaryResponse = {
+	readonly id: string;
+	readonly dir: string;
+	readonly name?: string;
+	readonly description?: string;
+	readonly createdAt: string;
+	readonly startedAt: string;
+	readonly stoppedAt?: string;
+	readonly durationMs?: number;
+	readonly sources: {
+		readonly mic: boolean;
+		readonly system: boolean;
+	};
+	readonly hasAudio: boolean;
+	readonly hasTranscript: boolean;
+};
+
+export type ListenRecordingsListResponse = {
+	readonly recordings: readonly ListenRecordingSummaryResponse[];
+};
+
 export type PersonaListItem = {
 	readonly name: string;
 	readonly label: string;

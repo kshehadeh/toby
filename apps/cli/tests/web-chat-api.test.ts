@@ -5,13 +5,19 @@ import {
 	applyChatEvent,
 	shouldPersistChatEventInTranscript,
 } from "@toby/core/chat-pipeline/transcript-reducer";
+import { listenManager } from "@toby/core/listen/manager";
+import {
+	buildListenMetadata,
+	prepareListenSession,
+	saveListenSession,
+} from "@toby/core/listen/session-controller";
 import { closeChatDbForTests } from "@toby/core/session-store";
 import { handleWebRequest } from "@toby/core/web/routes";
 import {
 	ServerEventLog,
 	readServerEventLogTail,
 } from "@toby/core/web/server-event-log";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 function canUseBunSqlite(): boolean {
 	try {
@@ -105,6 +111,7 @@ describe("transcript reducer", () => {
 
 describe("web chat API routes", () => {
 	afterEach(() => {
+		vi.restoreAllMocks();
 		closeChatDbForTests();
 	});
 
@@ -125,6 +132,88 @@ describe("web chat API routes", () => {
 			expect(body.model.length).toBeGreaterThan(0);
 		});
 	});
+
+	it.skipIf(!canUseBunSqlite())(
+		"handles listen status/start/stop routes",
+		async () => {
+			await withTempTobyDir(async () => {
+				vi.spyOn(listenManager, "start").mockReturnValue({
+					status: "recording",
+					message: "Recording.",
+				});
+				vi.spyOn(listenManager, "stop").mockResolvedValue({
+					status: "idle",
+					message: "Recording saved.",
+					outputDir: "/tmp/recording",
+					transcript: "hello",
+				});
+
+				const status = await handleWebRequest(
+					new Request("http://127.0.0.1/api/listen/status"),
+					null,
+				);
+				expect(status.status).toBe(200);
+
+				const start = await handleWebRequest(
+					new Request("http://127.0.0.1/api/listen/start", { method: "POST" }),
+					null,
+				);
+				expect(start.status).toBe(200);
+				expect((await start.json()) as { status: string }).toMatchObject({
+					status: "recording",
+				});
+
+				const created = await handleWebRequest(
+					new Request("http://127.0.0.1/api/sessions", { method: "POST" }),
+					null,
+				);
+				const { id } = (await created.json()) as { id: string };
+				const stop = await handleWebRequest(
+					new Request("http://127.0.0.1/api/listen/stop", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({}),
+					}),
+					null,
+				);
+				expect(stop.status).toBe(200);
+				expect(listenManager.stop).toHaveBeenCalledWith();
+				expect(id).toMatch(
+					/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+				);
+			});
+		},
+	);
+
+	it.skipIf(!canUseBunSqlite())(
+		"maps listen conflicts and inactive stop to HTTP errors",
+		async () => {
+			await withTempTobyDir(async () => {
+				vi.spyOn(listenManager, "start").mockImplementation(() => {
+					throw new Error("Already recording.");
+				});
+				vi.spyOn(listenManager, "stop").mockImplementation(async () => {
+					throw new Error("No active recording.");
+				});
+
+				const start = await handleWebRequest(
+					new Request("http://127.0.0.1/api/listen/start", { method: "POST" }),
+					null,
+				);
+				expect(start.status).toBe(409);
+
+				const stop = await handleWebRequest(
+					new Request("http://127.0.0.1/api/listen/stop", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({}),
+					}),
+					null,
+				);
+				expect(stop.status).toBe(409);
+			});
+		},
+	);
 
 	it("handles GET /api/personas and /api/skills", async () => {
 		await withTempTobyDir(async () => {
@@ -180,6 +269,59 @@ describe("web chat API routes", () => {
 			});
 		},
 	);
+
+	it("lists listen recordings and returns transcript detail", async () => {
+		await withTempTobyDir(async () => {
+			const recordingsDir = path.join(
+				process.env.TOBY_DIR ?? "",
+				"listen",
+				"recordings",
+			);
+			const session = prepareListenSession({
+				recordingsDir,
+				id: "route-recording",
+				now: new Date("2026-06-17T10:00:00Z"),
+				sources: { mic: true, system: true },
+			});
+			const outputDir = saveListenSession(
+				session,
+				buildListenMetadata({
+					session,
+					stoppedAt: new Date("2026-06-17T10:00:05Z"),
+					files: { transcript: "transcript.txt", combined: "combined.m4a" },
+				}),
+			);
+			fs.writeFileSync(
+				path.join(outputDir, "transcript.txt"),
+				"route transcript\n",
+			);
+			fs.writeFileSync(path.join(outputDir, "combined.m4a"), "audio");
+
+			const list = await handleWebRequest(
+				new Request("http://127.0.0.1/api/listen/recordings"),
+				null,
+			);
+			expect(list.status).toBe(200);
+			const listBody = (await list.json()) as {
+				recordings: Array<{ id: string; hasTranscript: boolean }>;
+			};
+			expect(listBody.recordings).toEqual([
+				expect.objectContaining({
+					id: "route-recording",
+					hasTranscript: true,
+				}),
+			]);
+
+			const detail = await handleWebRequest(
+				new Request("http://127.0.0.1/api/listen/recordings/route-recording"),
+				null,
+			);
+			expect(detail.status).toBe(200);
+			expect((await detail.json()) as { transcript?: string }).toMatchObject({
+				transcript: "route transcript",
+			});
+		});
+	});
 
 	it.skipIf(!canUseBunSqlite())(
 		"handles PATCH and DELETE /api/sessions/:id",

@@ -22,6 +22,14 @@ import {
 	handleDaemonStop,
 } from "./handlers/daemon";
 import {
+	handleListenRecordingDetail,
+	handleListenRecordingTranscribe,
+	handleListenRecordingsList,
+	handleListenStart,
+	handleListenStatus,
+	handleListenStop,
+} from "./handlers/listen";
+import {
 	handleMemoriesList,
 	handleMemoryDetail,
 	handleMemoryExplain,
@@ -97,6 +105,33 @@ export async function handleWebRequest(
 		}
 		if (pathname === "/api/status" && req.method === "GET") {
 			return handleChatStatusDetail();
+		}
+		if (pathname === "/api/listen/status" && req.method === "GET") {
+			return handleListenStatus();
+		}
+		if (pathname === "/api/listen/start" && req.method === "POST") {
+			return handleListenStart();
+		}
+		if (pathname === "/api/listen/stop" && req.method === "POST") {
+			return handleListenStop(req);
+		}
+		if (pathname === "/api/listen/recordings" && req.method === "GET") {
+			return handleListenRecordingsList();
+		}
+		const listenRecordingMatch = /^\/api\/listen\/recordings\/([^/]+)$/.exec(
+			pathname,
+		);
+		if (listenRecordingMatch && req.method === "GET") {
+			return handleListenRecordingDetail(
+				decodeURIComponent(listenRecordingMatch[1]),
+			);
+		}
+		const listenRecordingTranscribeMatch =
+			/^\/api\/listen\/recordings\/([^/]+)\/transcribe$/.exec(pathname);
+		if (listenRecordingTranscribeMatch && req.method === "POST") {
+			return handleListenRecordingTranscribe(
+				decodeURIComponent(listenRecordingTranscribeMatch[1]),
+			);
 		}
 		if (pathname === "/api/daemon/status" && req.method === "GET") {
 			return handleDaemonStatus();
