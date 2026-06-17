@@ -1,5 +1,7 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { spawn } from "node:child_process";
 import {
 	getDefaultProvider,
 	readConfig,
@@ -174,6 +176,62 @@ async function removePathBestEffort(targetPath: string): Promise<void> {
 	}
 }
 
+async function runAfconvert(inputPath: string, outputPath: string): Promise<void> {
+	await new Promise<void>((resolve, reject) => {
+		const child = spawn("/usr/bin/afconvert", [
+			"-f",
+			"WAVE",
+			"-d",
+			"LEI16@16000",
+			"-c",
+			"1",
+			inputPath,
+			outputPath,
+		]);
+		let stderr = "";
+		child.stderr.on("data", (chunk) => {
+			stderr += String(chunk);
+		});
+		child.on("error", reject);
+		child.on("close", (code) => {
+			if (code === 0) {
+				resolve();
+				return;
+			}
+			reject(
+				new ListenTranscriptionError(
+					"audio_convert_failed",
+					stderr.trim() || `afconvert exited with status ${code}`,
+				),
+			);
+		});
+	});
+}
+
+async function prepareWhisperCompatibleInput(inputPath: string): Promise<{
+	readonly inputPath: string;
+	readonly cleanupDir?: string;
+}> {
+	if (process.platform !== "darwin") {
+		return { inputPath };
+	}
+	const afconvert = "/usr/bin/afconvert";
+	if (!fs.existsSync(afconvert)) {
+		return { inputPath };
+	}
+	const cleanupDir = await fs.promises.mkdtemp(
+		path.join(os.tmpdir(), "TobyTranscriptionInput-"),
+	);
+	const outputPath = path.join(cleanupDir, "whisper-input.wav");
+	try {
+		await runAfconvert(inputPath, outputPath);
+		return { inputPath: outputPath, cleanupDir };
+	} catch (error) {
+		await removePathBestEffort(cleanupDir);
+		throw error;
+	}
+}
+
 function parseDoTranscriptionResult(result: unknown): DoTranscriptionResult {
 	if (!isRecord(result)) {
 		throw new ListenTranscriptionError(
@@ -236,73 +294,80 @@ export async function transcribeWithPlugin(options: {
 		);
 	}
 
-	options.onStatus?.("Transcribing recording…");
-	const envelope = buildPluginEnvelope(pluginName);
-	const execResult = await pluginToolsExecuteAsync(
-		discovered.binaryPath,
-		{
-			tool: TRANSCRIPTION_TOOL_NAME,
-			input: { audioFilePath: inputPath },
-			config: envelope.config,
-			state: envelope.state,
-			dryRun: false,
-		},
-		{ timeoutMs: resolveTranscriptionTimeoutMs(listenConfig) },
-	);
-
-	if (!execResult.ok) {
-		const code =
-			execResult.code === "spawn_error" &&
-			execResult.error.includes("ETIMEDOUT")
-				? "transcription_timeout"
-				: "transcribe_failed";
-		throw new ListenTranscriptionError(
-			code,
-			execResult.error || "Transcription plugin invocation failed.",
+	const preparedInput = await prepareWhisperCompatibleInput(inputPath);
+	try {
+		options.onStatus?.("Transcribing recording…");
+		const envelope = buildPluginEnvelope(pluginName);
+		const execResult = await pluginToolsExecuteAsync(
+			discovered.binaryPath,
+			{
+				tool: TRANSCRIPTION_TOOL_NAME,
+				input: { audioFilePath: preparedInput.inputPath },
+				config: envelope.config,
+				state: envelope.state,
+				dryRun: false,
+			},
+			{ timeoutMs: resolveTranscriptionTimeoutMs(listenConfig) },
 		);
-	}
-	if (!execResult.data.ok) {
-		throw new ListenTranscriptionError(
-			"transcribe_failed",
-			execResult.data.error ?? "Transcription plugin returned ok:false.",
-		);
-	}
 
-	const parsed = parseDoTranscriptionResult(execResult.data.result);
-	if (!fs.existsSync(parsed.transcriptPath)) {
-		throw new ListenTranscriptionError(
-			"invalid_result",
-			`Transcription plugin returned missing transcript file: ${parsed.transcriptPath}`,
-		);
-	}
+		if (!execResult.ok) {
+			const code =
+				execResult.code === "spawn_error" &&
+				execResult.error.includes("ETIMEDOUT")
+					? "transcription_timeout"
+					: "transcribe_failed";
+			throw new ListenTranscriptionError(
+				code,
+				execResult.error || "Transcription plugin invocation failed.",
+			);
+		}
+		if (!execResult.data.ok) {
+			throw new ListenTranscriptionError(
+				"transcribe_failed",
+				execResult.data.error ?? "Transcription plugin returned ok:false.",
+			);
+		}
 
-	const outDir = path.resolve(options.outDir);
-	await fs.promises.mkdir(outDir, { recursive: true });
-	const transcriptDest = path.join(outDir, "transcript.txt");
-	await copyFileAtomic(parsed.transcriptPath, transcriptDest);
+		const parsed = parseDoTranscriptionResult(execResult.data.result);
+		if (!fs.existsSync(parsed.transcriptPath)) {
+			throw new ListenTranscriptionError(
+				"invalid_result",
+				`Transcription plugin returned missing transcript file: ${parsed.transcriptPath}`,
+			);
+		}
 
-	const cleanupPaths = [parsed.transcriptPath];
-	let hasTranscriptJson = false;
+		const outDir = path.resolve(options.outDir);
+		await fs.promises.mkdir(outDir, { recursive: true });
+		const transcriptDest = path.join(outDir, "transcript.txt");
+		await copyFileAtomic(parsed.transcriptPath, transcriptDest);
 
-	if (parsed.transcriptJsonPath && fs.existsSync(parsed.transcriptJsonPath)) {
-		const jsonDest = path.join(outDir, "transcript.json");
-		await copyFileAtomic(parsed.transcriptJsonPath, jsonDest);
-		hasTranscriptJson = true;
-		cleanupPaths.push(parsed.transcriptJsonPath);
-	}
+		const cleanupPaths = [parsed.transcriptPath];
+		let hasTranscriptJson = false;
 
-	for (const cleanupPath of cleanupPaths) {
-		await removePathBestEffort(cleanupPath);
-		const parentDir = path.dirname(cleanupPath);
-		if (parentDir.includes("TobyTranscription-")) {
-			await removePathBestEffort(parentDir);
+		if (parsed.transcriptJsonPath && fs.existsSync(parsed.transcriptJsonPath)) {
+			const jsonDest = path.join(outDir, "transcript.json");
+			await copyFileAtomic(parsed.transcriptJsonPath, jsonDest);
+			hasTranscriptJson = true;
+			cleanupPaths.push(parsed.transcriptJsonPath);
+		}
+
+		for (const cleanupPath of cleanupPaths) {
+			await removePathBestEffort(cleanupPath);
+			const parentDir = path.dirname(cleanupPath);
+			if (parentDir.includes("TobyTranscription-")) {
+				await removePathBestEffort(parentDir);
+			}
+		}
+
+		return {
+			transcript: "transcript.txt",
+			...(hasTranscriptJson ? { transcriptJson: "transcript.json" } : {}),
+		};
+	} finally {
+		if (preparedInput.cleanupDir) {
+			await removePathBestEffort(preparedInput.cleanupDir);
 		}
 	}
-
-	return {
-		transcript: "transcript.txt",
-		...(hasTranscriptJson ? { transcriptJson: "transcript.json" } : {}),
-	};
 }
 
 export interface EnsureWhisperPluginSetupOptions {

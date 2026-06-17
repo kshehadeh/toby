@@ -11,6 +11,9 @@
 
 namespace {
 
+void whisper_log_silent(enum ggml_log_level, const char *, void *) {
+}
+
 char *dup_cstr(const std::string &value) {
 	char *out = static_cast<char *>(std::malloc(value.size() + 1));
 	if (out == nullptr) {
@@ -184,8 +187,9 @@ char *whisper_bridge_transcribe_wav_json(
 		return nullptr;
 	}
 
+	whisper_log_set(whisper_log_silent, nullptr);
 	whisper_context_params cparams = whisper_context_default_params();
-	cparams.use_gpu = true;
+	cparams.use_gpu = false;
 	whisper_context *ctx = whisper_init_from_file_with_params(model_path, cparams);
 	if (ctx == nullptr) {
 		set_error(error_out, std::string("Could not load whisper model: ") + model_path);

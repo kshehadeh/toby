@@ -38,12 +38,25 @@ function getLocalPluginsDirectoryIfPopulated(): string | null {
 	}
 }
 
+function getRepoDistPluginsDirectoryIfPopulated(): string | null {
+	try {
+		const distDir = path.resolve(process.cwd(), "dist");
+		const pluginsDir = path.resolve(getPluginsDir());
+		if (distDir === pluginsDir) return null;
+		return dirContainsPluginBinary(distDir) ? distDir : null;
+	} catch {
+		return null;
+	}
+}
+
 export function resolvePluginSearchDirectories(): string[] {
 	const dirs: string[] = [];
 	const local = getLocalPluginsDirectoryIfPopulated();
 	if (local) dirs.push(local);
+	const repoDist = getRepoDistPluginsDirectoryIfPopulated();
+	if (repoDist) dirs.push(repoDist);
 	dirs.push(getPluginsDir());
-	return dirs;
+	return Array.from(new Set(dirs));
 }
 
 function listPluginBinariesInDirectory(directory: string): DiscoveredPlugin[] {
