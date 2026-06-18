@@ -31,9 +31,13 @@ where `<name>` matches `/^[a-z0-9_-]+$/` (the integration CLI name).
 Toby discovers plugin binaries from these locations, in precedence order:
 
 1. **The directory containing the running `toby` binary** (`dirname(process.execPath)`), if it contains at least one `toby-plugin-*` file. This makes `./dist/toby` use plugins built into `./dist/` without any install step, which is handy for local development.
-2. **The Toby data directory**, `~/.toby/plugins/` (or `$TOBY_DIR/plugins/` when `TOBY_DIR` is set). This is where `toby plugins install` and release upgrades put binaries.
+2. **The current repository's `dist/` directory**, when it contains plugin binaries and is different from the installed plugin directory. This supports running an uncompiled CLI from the repository against locally built plugins.
+3. **The Toby data directory**, `~/.toby/plugins/` (or `$TOBY_DIR/plugins/` when `TOBY_DIR` is set). This is where `toby plugins install` and release upgrades put binaries.
 
-When the same plugin name exists in both directories, the local (executable-adjacent) copy wins. For end-user installs (binary on `PATH`, plugins under `~/.toby/plugins/`), the first directory is empty and behavior is unchanged.
+When the same plugin name exists in multiple directories, the first location in
+that precedence order wins. For end-user installs (binary on `PATH`, plugins
+under `~/.toby/plugins/`), the development directories are normally empty and
+behavior is unchanged.
 
 Install plugins with `toby plugins install <path>` or copy binaries into the
 data directory manually.
