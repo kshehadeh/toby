@@ -1,6 +1,85 @@
 import Foundation
 import Network
 
+private struct NativeHTTPRequest: Sendable {
+	let method: String
+	let path: String
+	let body: Data?
+}
+
+private final class NativeHTTPRequestReader: @unchecked Sendable {
+	private let connection: NWConnection
+	private let onRequest: @Sendable (NativeHTTPRequest) -> Void
+	private var buffer = Data()
+
+	init(connection: NWConnection, onRequest: @escaping @Sendable (NativeHTTPRequest) -> Void) {
+		self.connection = connection
+		self.onRequest = onRequest
+	}
+
+	func start() {
+		readChunk()
+	}
+
+	private func readChunk() {
+		connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [self] content, _, isComplete, error in
+			if let error {
+				print("[native-server] receive error: \(error)")
+				connection.cancel()
+				return
+			}
+			if let content {
+				buffer.append(content)
+			}
+
+			guard let headerEnd = buffer.range(of: Data("\r\n\r\n".utf8)) else {
+				if isComplete == true {
+					connection.cancel()
+					return
+				}
+				readChunk()
+				return
+			}
+
+			let headerData = buffer[..<headerEnd.lowerBound]
+			guard let headerText = String(data: headerData, encoding: .utf8) else {
+				connection.cancel()
+				return
+			}
+
+			let headerLines = headerText.split(separator: "\r\n")
+			guard let requestLine = headerLines.first else {
+				connection.cancel()
+				return
+			}
+			let parts = requestLine.split(separator: " ")
+			guard parts.count >= 2 else {
+				connection.cancel()
+				return
+			}
+
+			let method = String(parts[0])
+			let path = String(parts[1])
+			var contentLength = 0
+			for line in headerLines.dropFirst() {
+				if line.lowercased().hasPrefix("content-length:") {
+					contentLength = Int(line.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)) ?? 0
+				}
+			}
+
+			let bodyStart = headerEnd.upperBound
+			let bodySoFar = buffer[bodyStart...]
+			guard bodySoFar.count >= contentLength || isComplete == true else {
+				readChunk()
+				return
+			}
+
+			let body = contentLength > 0 ? Data(bodySoFar.prefix(contentLength)) : nil
+			onRequest(NativeHTTPRequest(method: method, path: path, body: body))
+		}
+	}
+}
+
 @MainActor
 final class NativeServer {
 	private var listener: NWListener?
@@ -81,89 +160,23 @@ final class NativeServer {
 	// MARK: - Request reading
 
 	private nonisolated func readRequest(from connection: NWConnection) {
-		var buffer = Data()
-
-		func readChunk() {
-			connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { content, _, isComplete, error in
-				if let error {
-					print("[native-server] receive error: \(error)")
-					connection.cancel()
-					return
-				}
-				if let content {
-					buffer.append(content)
-				}
-
-				guard let headerEnd = buffer.range(of: Data("\r\n\r\n".utf8)) else {
-					if isComplete == true {
-						connection.cancel()
-						return
+		let reader = NativeHTTPRequestReader(connection: connection) { request in
+			Task { @MainActor in
+				let response = await NativeServer.shared.route(request: request)
+				connection.send(content: response, completion: .contentProcessed { error in
+					if let error {
+						print("[native-server] send error: \(error)")
 					}
-					readChunk()
-					return
-				}
-
-				let headerData = buffer[..<headerEnd.lowerBound]
-				guard let headerText = String(data: headerData, encoding: .utf8) else {
 					connection.cancel()
-					return
-				}
-
-				let headerLines = headerText.split(separator: "\r\n")
-				guard let requestLine = headerLines.first else {
-					connection.cancel()
-					return
-				}
-				let parts = requestLine.split(separator: " ")
-				guard parts.count >= 2 else {
-					connection.cancel()
-					return
-				}
-
-				let method = String(parts[0])
-				let path = String(parts[1])
-
-				var contentLength = 0
-				for line in headerLines.dropFirst() {
-					if line.lowercased().hasPrefix("content-length:") {
-						contentLength = Int(line.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)) ?? 0
-					}
-				}
-
-				let bodyStart = headerEnd.upperBound
-				let bodySoFar = buffer[bodyStart...]
-
-				if bodySoFar.count >= contentLength || isComplete == true {
-					let body = contentLength > 0 ? Data(bodySoFar.prefix(contentLength)) : nil
-					let request = HTTPRequest(method: method, path: path, body: body)
-					// Route on the main actor for Swift concurrency safety (EventKit needs it)
-					Task { @MainActor in
-						let response = await NativeServer.shared.route(request: request)
-						connection.send(content: response, completion: .contentProcessed { error in
-							if let error {
-								print("[native-server] send error: \(error)")
-							}
-							connection.cancel()
-						})
-					}
-				} else {
-					readChunk()
-				}
+				})
 			}
 		}
-
-		readChunk()
+		reader.start()
 	}
 
 	// MARK: - Routing (on MainActor)
 
-	private struct HTTPRequest {
-		let method: String
-		let path: String
-		let body: Data?
-	}
-
-	private func route(request: HTTPRequest) async -> Data {
+	private func route(request: NativeHTTPRequest) async -> Data {
 		let path = request.path
 
 		guard path.hasPrefix("/api/native/") else {
