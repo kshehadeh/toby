@@ -13,6 +13,7 @@ struct TobyApp: App {
 		WindowGroup {
 			RootView(store: store, configureStore: configureStore)
 				.frame(minWidth: 860, minHeight: 560)
+				.coordinateSpace(name: "TobyWindow")
 				.onAppear {
 					nativeServer.start()
 					requestNativePermissions()
