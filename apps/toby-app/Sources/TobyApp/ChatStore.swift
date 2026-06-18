@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 
@@ -98,6 +99,49 @@ final class ChatStore {
 
 	func dismissError() {
 		errorMessage = nil
+	}
+
+	func submitIssue(type: String, details: String) async {
+		activityLine = "Submitting issue report…"
+		defer { activityLine = "Ready" }
+		do {
+			let result = try await client.createIssue(type: type, details: details)
+			if result.ok, let url = result.url {
+				toast = AppToastState(
+					style: .success,
+					title: "Issue created",
+					message: url,
+				)
+				return
+			}
+			if let fallbackUrl = result.fallbackUrl {
+				if let url = URL(string: fallbackUrl), NSWorkspace.shared.open(url) {
+					toast = AppToastState(
+						style: .success,
+						title: "Issue report opened",
+						message: result.reason ?? "Complete the report in your browser.",
+					)
+				} else {
+					toast = AppToastState(
+						style: .error,
+						title: "Could not open browser",
+						message: fallbackUrl,
+					)
+				}
+				return
+			}
+			toast = AppToastState(
+				style: .error,
+				title: "Issue report failed",
+				message: "Unexpected response from server.",
+			)
+		} catch {
+			toast = AppToastState(
+				style: .error,
+				title: "Issue report failed",
+				message: error.localizedDescription,
+			)
+		}
 	}
 
 	func selectSession(id: String) async {

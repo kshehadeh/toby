@@ -50,6 +50,13 @@ struct TobyApp: App {
 				}
 				.keyboardShortcut("k", modifiers: .command)
 			}
+
+			CommandGroup(after: .help) {
+				Button("Report an Issue…") {
+					NotificationCenter.default.post(name: .openIssueReport, object: nil)
+				}
+				.keyboardShortcut("i", modifiers: [.command, .shift])
+			}
 		}
 	}
 

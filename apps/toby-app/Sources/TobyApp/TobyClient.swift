@@ -285,6 +285,21 @@ struct TobyClient {
 		}
 	}
 
+	func createIssue(type: String, details: String) async throws -> CreateIssueResponse {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/issues"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		let body: [String: Any] = [
+			"type": type,
+			"details": details,
+			"source": "native-app",
+		]
+		request.httpBody = try JSONSerialization.data(withJSONObject: body)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(CreateIssueResponse.self, from: data)
+	}
+
 	func fetchConfigureTree() async throws -> ConfigureTreeResponse {
 		let url = baseURL.appendingPathComponent("api/configure/tree")
 		let (data, response) = try await URLSession.shared.data(from: url)

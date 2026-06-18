@@ -322,6 +322,14 @@ struct ChatEventPayload: Decodable {
 	let interim: Bool?
 }
 
+struct CreateIssueResponse: Decodable {
+	let ok: Bool
+	let url: String?
+	let number: Int?
+	let fallbackUrl: String?
+	let reason: String?
+}
+
 struct TurnDonePayload: Decodable {
 	let turnId: String?
 	let text: String
