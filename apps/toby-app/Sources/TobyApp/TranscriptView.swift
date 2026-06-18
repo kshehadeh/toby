@@ -26,7 +26,7 @@ struct TranscriptView: View {
 	var body: some View {
 		ScrollViewReader { proxy in
 			ScrollView {
-				LazyVStack(alignment: .leading, spacing: 16) {
+				LazyVStack(alignment: .leading, spacing: 22) {
 					ForEach(displayItems) { item in
 						switch item {
 						case .entry(let entry, _):
@@ -46,7 +46,8 @@ struct TranscriptView: View {
 						}
 					}
 					if let streamingAssistant, !streamingAssistant.inWorkArea {
-						AssistantBox(
+						AssistantMessageRow(
+							iconName: "sparkle",
 							header: streamingAssistant.header,
 							messageBody: streamingAssistant.text,
 							isStreaming: true,
@@ -119,6 +120,28 @@ struct TranscriptView: View {
 	}
 }
 
+private struct AssistantRailColumn: View {
+	let iconName: String
+	var iconColor: Color? = nil
+
+	var body: some View {
+		VStack(spacing: 0) {
+			Image(systemName: iconName)
+				.font(.system(size: 10, weight: .semibold))
+				.foregroundStyle(iconColor ?? AppTheme.accent)
+				.frame(width: 26, height: 26)
+				.background(Circle().fill(AppTheme.panelBackground))
+				.overlay(Circle().stroke(AppTheme.accent.opacity(0.4), lineWidth: 1))
+			Rectangle()
+				.fill(AppTheme.accent.opacity(0.35))
+				.frame(width: 1.5)
+				.frame(maxHeight: .infinity)
+				.padding(.top, 6)
+		}
+		.frame(width: 34)
+	}
+}
+
 private struct WorkedForRow: View {
 	let group: TranscriptWorkGroup
 	let duration: TimeInterval?
@@ -129,47 +152,55 @@ private struct WorkedForRow: View {
 
 	var body: some View {
 		TimelineView(.periodic(from: .now, by: 1.0)) { context in
-			VStack(alignment: .leading, spacing: 0) {
-				Button(action: onToggle) {
-					HStack(spacing: 8) {
-						if group.isActive {
-							ProgressView()
-								.controlSize(.small)
+			HStack(alignment: .top, spacing: 10) {
+				AssistantRailColumn(iconName: "cpu", iconColor: AppTheme.secondaryText)
+				VStack(alignment: .leading, spacing: 0) {
+					Button(action: onToggle) {
+						HStack(spacing: 8) {
+							if group.isActive {
+								ProgressView()
+									.controlSize(.small)
+							}
+							Text(summaryLabel(at: context.date))
+								.font(.caption.weight(.medium))
+								.foregroundStyle(AppTheme.secondaryText)
+							Spacer(minLength: 0)
+							Image(systemName: "chevron.right")
+								.font(.caption.weight(.semibold))
+								.foregroundStyle(AppTheme.tertiaryText)
+								.rotationEffect(.degrees(isExpanded ? 90 : 0))
 						}
-						Text(summaryLabel(at: context.date))
-							.font(.caption.weight(.medium))
-							.foregroundStyle(AppTheme.secondaryText)
-						Spacer(minLength: 0)
-						Image(systemName: "chevron.right")
-							.font(.caption.weight(.semibold))
-							.foregroundStyle(AppTheme.tertiaryText)
-							.rotationEffect(.degrees(isExpanded ? 90 : 0))
+						.padding(.vertical, 6)
+						.contentShape(Rectangle())
 					}
-					.padding(.vertical, 7)
-					.contentShape(Rectangle())
-				}
-				.buttonStyle(.plain)
+					.buttonStyle(.plain)
+					.background(AppTheme.contentBackground)
+					.zIndex(1)
 
-				if isExpanded {
-					VStack(alignment: .leading, spacing: 8) {
-						ForEach(Array(group.entries.enumerated()), id: \.offset) { _, entry in
-							WorkDetailRow(entry: entry)
+					if isExpanded {
+						VStack(alignment: .leading, spacing: 8) {
+							ForEach(Array(group.entries.enumerated()), id: \.offset) { _, entry in
+								WorkDetailCard(entry: entry)
+							}
+							if let streamingAssistant {
+								AssistantMessageRow(
+									iconName: "sparkle",
+									header: streamingAssistant.header,
+									messageBody: streamingAssistant.text,
+									isStreaming: true,
+								)
+							}
 						}
-						if let streamingAssistant {
-							InterimAssistantRow(
-								header: streamingAssistant.header,
-								messageBody: streamingAssistant.text,
-								isStreaming: true,
-							)
-						}
+						.padding(.top, 8)
+						.padding(.bottom, 10)
+						.transition(.opacity.combined(with: .move(edge: .top)))
+						.zIndex(0)
+						.clipped()
 					}
-					.padding(.bottom, 10)
-					.transition(.opacity.combined(with: .move(edge: .top)))
 				}
-
-				Rectangle()
-					.fill(AppTheme.separator)
-					.frame(height: 1)
+				.frame(maxWidth: 640, alignment: .leading)
+				.clipped()
+				Spacer(minLength: 0)
 			}
 			.animation(.easeOut(duration: 0.2), value: isExpanded)
 		}
@@ -205,7 +236,7 @@ private struct WorkedForRow: View {
 	}
 }
 
-private struct WorkDetailRow: View {
+private struct WorkDetailCard: View {
 	let entry: TranscriptEntry
 
 	var body: some View {
@@ -216,39 +247,21 @@ private struct WorkDetailRow: View {
 			{
 				EmptyView()
 			} else if payload.variant == "assistant_interim" {
-				InterimAssistantRow(
-					header: payload.header,
-					messageBody: payload.body,
-					isStreaming: false,
-				)
+				AssistantInterimCard(header: payload.header, messageBody: payload.body)
 			} else {
-				HStack(alignment: .top, spacing: 8) {
-				Image(systemName: iconName(for: payload))
-					.font(.caption)
-					.foregroundStyle(AppTheme.tertiaryText)
-					.frame(width: 14, alignment: .center)
-					.padding(.top, 2)
-				VStack(alignment: .leading, spacing: 2) {
-					Text(payload.header)
-						.font(.caption.weight(.medium))
-						.foregroundStyle(AppTheme.secondaryText)
-					if !payload.body.isEmpty {
-						Text(payload.body)
-							.font(.caption)
-							.foregroundStyle(AppTheme.tertiaryText)
-							.lineLimit(4)
-					}
-				}
-				}
-				.frame(maxWidth: .infinity, alignment: .leading)
-				.padding(.leading, 4)
+				ToolCard(
+					iconName: iconName(for: payload),
+					title: payload.header,
+					bodyText: payload.body,
+					cacheHit: payload.cacheHit
+				)
 			}
 		case .toolCall(_, let title):
-			WorkDetailLine(systemImage: "wrench.and.screwdriver", text: title)
+			ToolCard(iconName: "wrench.and.screwdriver", title: title, bodyText: "", cacheHit: nil)
 		case .toolOutput(_, let detail):
-			WorkDetailLine(systemImage: "text.alignleft", text: detail)
+			ToolCard(iconName: "text.alignleft", title: "Result", bodyText: detail, cacheHit: nil)
 		case .meta(let text):
-			WorkDetailLine(systemImage: "info.circle", text: text)
+			ToolCard(iconName: "info.circle", title: "Info", bodyText: text, cacheHit: nil)
 		default:
 			EmptyView()
 		}
@@ -268,62 +281,90 @@ private struct WorkDetailRow: View {
 	}
 }
 
-private struct InterimAssistantRow: View {
-	let header: String
-	let messageBody: String
-	let isStreaming: Bool
+private struct ToolCard: View {
+	let iconName: String
+	let title: String
+	let bodyText: String
+	let cacheHit: Bool?
 
 	var body: some View {
-		HStack(alignment: .top, spacing: 6) {
-			Image(systemName: "text.bubble")
-				.font(.caption)
+		HStack(alignment: .top, spacing: 10) {
+			Image(systemName: iconName)
+				.font(.system(size: 12, weight: .medium))
 				.foregroundStyle(AppTheme.tertiaryText)
-				.frame(width: 14, alignment: .center)
-				.padding(.top, 2)
-			VStack(alignment: .leading, spacing: 4) {
+				.frame(width: 26, height: 26)
+				.background(Circle().fill(AppTheme.elevatedBackground))
+				.overlay(Circle().stroke(AppTheme.separator, lineWidth: 1))
+			VStack(alignment: .leading, spacing: 3) {
 				HStack(spacing: 6) {
-					Text(header)
+					Text(title)
 						.font(.caption.weight(.semibold))
 						.foregroundStyle(AppTheme.secondaryText)
-					if isStreaming {
-						ProgressView()
-							.controlSize(.mini)
+					if cacheHit == true {
+						Text("cache")
+							.font(.caption2.weight(.medium))
+							.foregroundStyle(AppTheme.accent)
+							.padding(.horizontal, 5)
+							.padding(.vertical, 1)
+							.background(Capsule().fill(AppTheme.accent.opacity(0.12)))
 					}
 				}
-				if !messageBody.isEmpty {
-					MarkdownText(
-						text: messageBody,
-						font: .callout,
-						foregroundStyle: AppTheme.tertiaryText,
-					)
-					.frame(maxWidth: .infinity, alignment: .leading)
+				if !bodyText.isEmpty {
+					Text(bodyText)
+						.font(.caption)
+						.foregroundStyle(AppTheme.tertiaryText)
+						.lineLimit(4)
+						.fixedSize(horizontal: false, vertical: true)
 				}
 			}
+			Spacer(minLength: 0)
 		}
-		.frame(maxWidth: .infinity, alignment: .leading)
-		.padding(.vertical, 4)
-		.padding(.leading, 4)
+		.padding(10)
+		.background(
+			RoundedRectangle(cornerRadius: 10, style: .continuous)
+				.fill(AppTheme.panelBackground)
+		)
+		.overlay(
+			RoundedRectangle(cornerRadius: 10, style: .continuous)
+				.stroke(AppTheme.separator)
+		)
 	}
 }
 
-private struct WorkDetailLine: View {
-	let systemImage: String
-	let text: String
+private struct AssistantInterimCard: View {
+	let header: String
+	let messageBody: String
 
 	var body: some View {
-		HStack(alignment: .top, spacing: 8) {
-			Image(systemName: systemImage)
-				.font(.caption)
-				.foregroundStyle(AppTheme.tertiaryText)
-				.frame(width: 14, alignment: .center)
-				.padding(.top, 2)
-			Text(text)
-				.font(.caption)
-				.foregroundStyle(AppTheme.tertiaryText)
-				.lineLimit(4)
+		HStack(alignment: .top, spacing: 10) {
+			Image(systemName: "text.bubble")
+				.font(.system(size: 12, weight: .medium))
+				.foregroundStyle(AppTheme.accent)
+				.frame(width: 26, height: 26)
+				.background(Circle().fill(AppTheme.elevatedBackground))
+				.overlay(Circle().stroke(AppTheme.separator, lineWidth: 1))
+			VStack(alignment: .leading, spacing: 4) {
+				Text(header)
+					.font(.caption.weight(.semibold))
+					.foregroundStyle(AppTheme.secondaryText)
+				MarkdownText(
+					text: messageBody,
+					font: .callout,
+					foregroundStyle: AppTheme.tertiaryText,
+				)
+				.frame(maxWidth: .infinity, alignment: .leading)
+			}
+			Spacer(minLength: 0)
 		}
-		.frame(maxWidth: .infinity, alignment: .leading)
-		.padding(.leading, 4)
+		.padding(10)
+		.background(
+			RoundedRectangle(cornerRadius: 10, style: .continuous)
+				.fill(AppTheme.panelBackground)
+		)
+		.overlay(
+			RoundedRectangle(cornerRadius: 10, style: .continuous)
+				.stroke(AppTheme.separator)
+		)
 	}
 }
 
@@ -333,101 +374,134 @@ private struct TranscriptRow: View {
 	var body: some View {
 		switch entry {
 		case .user(let text):
-			UserPromptRow(text: text)
+			UserMessageRow(text: text)
 		case .assistant(let text):
-			AssistantBox(header: "Assistant", messageBody: text, isStreaming: false)
+			AssistantMessageRow(
+				iconName: "sparkle",
+				header: "Assistant",
+				messageBody: text,
+				isStreaming: false,
+			)
 		case .notice(let text, let tone):
 			NoticeRow(text: text, tone: tone)
 		case .error(let text):
 			NoticeRow(text: text, tone: "error")
 		case .boxedStep(let payload):
 			if payload.variant == "assistant" {
-				AssistantBox(header: payload.header, messageBody: payload.body, isStreaming: false)
-			} else if payload.variant == "assistant_interim" {
-				EmptyView()
+				AssistantMessageRow(
+					iconName: "sparkle",
+					header: payload.header,
+					messageBody: payload.body,
+					isStreaming: false,
+				)
 			} else {
 				EmptyView()
 			}
 		case .askUserQA(_, let query, let answer, let error):
-			VStack(alignment: .leading, spacing: 4) {
-				MarkdownText(
-					text: query,
-					font: .headline,
-					foregroundStyle: AppTheme.primaryText,
-				)
-				if let error {
-					MarkdownText(text: error, font: .callout, foregroundStyle: .red)
-				} else {
-					MarkdownText(
-						text: answer,
-						font: .callout,
-						foregroundStyle: AppTheme.secondaryText,
-					)
-				}
-			}
-			.padding(10)
-			.background(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary.opacity(0.3)))
+			AskUserQARow(query: query, answer: answer, error: error)
 		case .meta, .toolCall, .toolOutput, .turnWork:
 			EmptyView()
 		}
 	}
 }
 
-private struct UserPromptRow: View {
+private struct UserMessageRow: View {
 	let text: String
 
 	var body: some View {
-		HStack(alignment: .top, spacing: 8) {
-			Text("▌")
-				.foregroundStyle(AppTheme.accent)
-				.bold()
+		HStack(alignment: .top, spacing: 0) {
+			Spacer(minLength: 0)
 			Text(text)
-				.font(.headline)
-				.fontWeight(.semibold)
+				.font(.body)
 				.foregroundStyle(AppTheme.primaryText)
 				.textSelection(.enabled)
+				.fixedSize(horizontal: false, vertical: true)
+				.padding(.horizontal, 16)
+				.padding(.vertical, 12)
+				.background(
+					RoundedRectangle(cornerRadius: 14, style: .continuous)
+						.fill(AppTheme.elevatedBackground.opacity(0.92))
+				)
+				.overlay(
+					RoundedRectangle(cornerRadius: 14, style: .continuous)
+						.stroke(AppTheme.separator)
+				)
+				.overlay(alignment: .leading) {
+					RoundedRectangle(cornerRadius: 14, style: .continuous)
+						.fill(AppTheme.accent)
+						.mask(alignment: .leading) {
+							Rectangle()
+								.frame(width: 4)
+						}
+				}
+				.frame(maxWidth: 520, alignment: .trailing)
 		}
-		.frame(maxWidth: .infinity, alignment: .leading)
 	}
 }
 
-private struct AssistantBox: View {
+private struct AssistantMessageRow: View {
+	let iconName: String
 	let header: String
 	let messageBody: String
 	let isStreaming: Bool
 
 	var body: some View {
-		VStack(alignment: .leading, spacing: 6) {
-			Text(header)
-				.font(.subheadline.weight(.semibold))
-				.foregroundStyle(AppTheme.secondaryText)
-			MarkdownText(
-				text: messageBody,
-				font: .body,
-				foregroundStyle: AppTheme.primaryText,
-			)
-			if isStreaming {
-				ProgressView()
-					.controlSize(.small)
-			} else if !messageBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-				HStack {
-					CopyResponseButton(text: messageBody)
-					Spacer(minLength: 0)
+		HStack(alignment: .top, spacing: 10) {
+			AssistantRailColumn(iconName: iconName)
+			VStack(alignment: .leading, spacing: 6) {
+				Text(header)
+					.font(.caption.weight(.semibold))
+					.foregroundStyle(AppTheme.secondaryText)
+				MarkdownText(
+					text: messageBody,
+					font: .body,
+					foregroundStyle: AppTheme.primaryText,
+				)
+				.frame(maxWidth: .infinity, alignment: .leading)
+				if isStreaming {
+					ProgressView()
+						.controlSize(.small)
+				} else if !messageBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+					HStack {
+						CopyResponseButton(text: messageBody)
+						Spacer(minLength: 0)
+					}
+					.padding(.top, 2)
 				}
-				.padding(.top, 4)
 			}
+			.frame(maxWidth: 640, alignment: .leading)
+			Spacer(minLength: 0)
 		}
-		.padding(.horizontal, 16)
-		.padding(.vertical, 14)
-		.frame(maxWidth: .infinity, alignment: .leading)
-		.background(
-			RoundedRectangle(cornerRadius: 12)
-				.fill(AppTheme.elevatedBackground.opacity(0.72)),
-		)
-		.overlay(
-			RoundedRectangle(cornerRadius: 12)
-				.stroke(AppTheme.separator),
-		)
+	}
+}
+
+private struct AskUserQARow: View {
+	let query: String
+	let answer: String
+	let error: String?
+
+	var body: some View {
+		HStack(alignment: .top, spacing: 10) {
+			AssistantRailColumn(iconName: "questionmark.bubble")
+			VStack(alignment: .leading, spacing: 6) {
+				Text(query)
+					.font(.callout.weight(.semibold))
+					.foregroundStyle(AppTheme.primaryText)
+				if let error {
+					Text(error)
+						.font(.callout)
+						.foregroundStyle(.red)
+						.textSelection(.enabled)
+				} else {
+					Text(answer)
+						.font(.callout)
+						.foregroundStyle(AppTheme.secondaryText)
+						.textSelection(.enabled)
+				}
+			}
+			.frame(maxWidth: 520, alignment: .leading)
+			Spacer(minLength: 0)
+		}
 	}
 }
 
