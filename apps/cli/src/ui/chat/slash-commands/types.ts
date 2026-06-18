@@ -29,6 +29,7 @@ export interface SlashCommandRuntime {
 		lines: readonly string[],
 		options?: { readonly lineTone?: "default" | "markdown" },
 	) => void;
+	readonly openIssueReport: () => void;
 	readonly openIntegrationPicker: () => void;
 	readonly openConfig: () => void;
 	readonly openSkills: () => void;

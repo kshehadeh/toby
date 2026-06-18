@@ -36,6 +36,7 @@ import { clearSessionToolBundleCache } from "@toby/core/chat-pipeline/run-turn";
 import {
 	type Persona,
 	getDefaultPersonaName,
+	getWebConfig,
 	readConfig,
 } from "@toby/core/config/index";
 import { formatToolStatusLine } from "@toby/core/format-tool-status";
@@ -91,6 +92,8 @@ import {
 } from "@toby/core/session-store";
 import { loadLocalSkills } from "@toby/core/skills/index";
 import { getToolDisplayLabel } from "@toby/core/tool-labels";
+import { TobyDaemonClient, resolveDaemonBaseUrl } from "@toby/core/web/client";
+import { openWebUiInBrowser } from "@toby/core/web/open-ui";
 import type { LanguageModelUsage } from "ai";
 import { Box, Text, useApp, useInput, useWindowSize } from "ink";
 import React, {
@@ -114,7 +117,11 @@ import {
 	saveListenSession,
 	writeListenMetadata,
 } from "../../listen/session-controller";
-import { isDaemonRunning, restartDaemon } from "../../schedules/daemon-status";
+import {
+	ensureDaemonRunning,
+	isDaemonRunning,
+	restartDaemon,
+} from "../../schedules/daemon-status";
 import type { LaunchContext } from "../../toby-launch-context";
 import { ConfigureApp } from "../configure/App";
 import {
@@ -140,6 +147,7 @@ import {
 	IntegrationMultiPickerModal,
 	buildIntegrationPickerRows,
 } from "./components/integration-multi-picker-modal";
+import { IssueReportModal } from "./components/issue-report-modal";
 import { PlanStatusBar } from "./components/plan-status-bar";
 import { ProjectDetailModal } from "./components/project-detail-modal";
 import {
@@ -376,6 +384,7 @@ export function ChatSessionApp({
 	const activeProjectRef = useRef(activeProject);
 	const [scrollModal, setScrollModal] = useState<ScrollModalState | null>(null);
 	const [helpOpen, setHelpOpen] = useState(false);
+	const [issueReportOpen, setIssueReportOpen] = useState(false);
 	const [activePersona, setActivePersona] = useState(() => persona);
 	const activePersonaRef = useRef(activePersona);
 	const [activePlan, setActivePlan] = useState<Plan | null>(null);
@@ -1375,6 +1384,55 @@ export function ChatSessionApp({
 		setHelpOpen(true);
 	}, []);
 
+	const submitIssueReport = useCallback(
+		async (type: "bug" | "feature", details: string) => {
+			setIssueReportOpen(false);
+			appendSessionNotice("Submitting issue report…", "info");
+			try {
+				const daemon = await ensureDaemonRunning();
+				if (!daemon.running) {
+					appendSessionNotice(
+						"Failed to start server. Try `toby daemon start` and then `/issue` again.",
+						"error",
+					);
+					return;
+				}
+
+				const webCfg = getWebConfig();
+				const baseUrl = resolveDaemonBaseUrl(webCfg.port);
+				const client = new TobyDaemonClient({ baseUrl });
+				const result = await client.createIssue({
+					type,
+					details,
+					metadata: { source: "tui" },
+				});
+
+				if (result.ok) {
+					appendSessionNotice(
+						`Issue created: ${result.url} (#${result.number})`,
+						"success",
+					);
+					return;
+				}
+
+				const opened = await openWebUiInBrowser(result.fallbackUrl);
+				appendSessionNotice(
+					opened
+						? `Opened a pre-filled issue report. ${result.reason}`
+						: `Could not open browser. Visit this URL to complete the report:\n${result.fallbackUrl}`,
+					"info",
+				);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				appendSessionNotice(
+					`Failed to submit issue report: ${message}`,
+					"error",
+				);
+			}
+		},
+		[appendSessionNotice],
+	);
+
 	const openUsageViewer = useCallback(() => {
 		const providerId = activePersonaRef.current.ai.provider;
 		setUsageOpen(true);
@@ -1456,6 +1514,9 @@ export function ChatSessionApp({
 						{
 							exit,
 							openHelp: openHelpViewer,
+							openIssueReport: () => {
+								setIssueReportOpen(true);
+							},
 							openUsageViewer,
 							openLogViewer,
 							openTerminalViewer,
@@ -2353,6 +2414,7 @@ export function ChatSessionApp({
 		Boolean(scrollModal) ||
 		helpOpen ||
 		usageOpen ||
+		issueReportOpen ||
 		messages === null ||
 		showConfig;
 	const modelLabel = formatPersonaAiLabel(activePersona);
@@ -2542,6 +2604,12 @@ export function ChatSessionApp({
 				</ViewModal>
 			) : helpOpen ? (
 				<HelpPanel termCols={termCols} sections={helpSections} />
+			) : issueReportOpen ? (
+				<IssueReportModal
+					termCols={termCols}
+					onSubmit={submitIssueReport}
+					onCancel={() => setIssueReportOpen(false)}
+				/>
 			) : usageOpen ? (
 				<UsagePanel termCols={termCols} sections={usageSections} />
 			) : scrollModal ? (

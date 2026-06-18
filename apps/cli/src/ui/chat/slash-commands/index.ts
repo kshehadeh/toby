@@ -7,6 +7,7 @@ import { disconnectSlashCommand } from "./disconnect";
 import { exitSlashCommand } from "./exit";
 import { helpSlashCommand } from "./help";
 import { installAppSlashCommand } from "./install-app";
+import { issueSlashCommand } from "./issue";
 import { listenSlashCommand } from "./listen";
 import { logSlashCommand } from "./log";
 import { newSlashCommand } from "./new";
@@ -42,6 +43,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
 	disconnectSlashCommand,
 	helpSlashCommand,
 	installAppSlashCommand,
+	issueSlashCommand,
 	listenSlashCommand,
 	logSlashCommand,
 	planSlashCommand,

@@ -1,4 +1,5 @@
 export { MultilineTextEdit } from "./multiline-text-edit";
+export { MultilineTextArea } from "./multiline-textarea";
 export { ConfirmDialog } from "./confirm-dialog";
 export { PLAN_STATUS_GLYPHS, UI_GLYPHS } from "./glyphs";
 export {
