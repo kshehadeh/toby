@@ -21,6 +21,7 @@ import {
 	handleDaemonStatus,
 	handleDaemonStop,
 } from "./handlers/daemon";
+import { handleCreateIssue } from "./handlers/issues";
 import {
 	handleListenRecordingDelete,
 	handleListenRecordingDetail,
@@ -103,6 +104,9 @@ export async function handleWebRequest(
 	if (pathname.startsWith("/api/")) {
 		if (pathname === "/api/health") {
 			return jsonResponse({ ok: true, daemon: true });
+		}
+		if (pathname === "/api/issues" && req.method === "POST") {
+			return handleCreateIssue(req);
 		}
 		if (pathname === "/api/status" && req.method === "GET") {
 			return handleChatStatusDetail();

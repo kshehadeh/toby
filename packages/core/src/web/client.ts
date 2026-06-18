@@ -11,6 +11,7 @@ import type {
 	TurnRequestBody,
 } from "../api/chat-api";
 import type { ChatEvent } from "../chat-pipeline/chat-events";
+import type { CreateIssueInput, CreateIssueResult } from "../issues/github";
 import type { ServerEventLog } from "./server-event-log";
 
 export type TobyClientOptions = {
@@ -75,6 +76,13 @@ export class TobyDaemonClient {
 
 	async fetchStatus(): Promise<ChatStatusResponse> {
 		return this.json<ChatStatusResponse>("/api/status");
+	}
+
+	async createIssue(input: CreateIssueInput): Promise<CreateIssueResult> {
+		return this.json<CreateIssueResult>("/api/issues", {
+			method: "POST",
+			body: JSON.stringify(input),
+		});
 	}
 
 	async listSessions(limit = 20): Promise<SessionSummary[]> {
