@@ -2,18 +2,22 @@ import SwiftUI
 
 struct ChatWorkspaceView: View {
 	@Bindable var store: ChatStore
+	@FocusState private var isPromptFocused: Bool
 
 	var body: some View {
 		VStack(spacing: 0) {
 			ChatTopBar(sessionName: store.sessionName, activityLine: store.activityLine)
 			if store.transcript.isEmpty && store.streamingAssistant == nil {
-				EmptyChatWorkspace(store: store)
+				EmptyChatWorkspace(store: store, promptFocus: $isPromptFocused)
 			} else {
-				ActiveChatWorkspace(store: store)
+				ActiveChatWorkspace(store: store, promptFocus: $isPromptFocused)
 			}
 		}
 		.background(AppTheme.contentBackground)
 		.ignoresSafeArea(.container, edges: .top)
+		.onChange(of: store.promptFocusRequestId) { _, _ in
+			isPromptFocused = true
+		}
 	}
 }
 
@@ -62,6 +66,7 @@ private struct SessionTitleBadge: View {
 
 private struct EmptyChatWorkspace: View {
 	@Bindable var store: ChatStore
+	let promptFocus: FocusState<Bool>.Binding
 
 	var body: some View {
 		VStack(spacing: 18) {
@@ -77,6 +82,7 @@ private struct EmptyChatWorkspace: View {
 			}
 			InputDock(
 				text: $store.promptText,
+				focus: promptFocus,
 				isLoading: store.isLoading,
 				onSubmit: submit,
 			)
@@ -96,6 +102,7 @@ private struct EmptyChatWorkspace: View {
 
 private struct ActiveChatWorkspace: View {
 	@Bindable var store: ChatStore
+	let promptFocus: FocusState<Bool>.Binding
 	private let promptOverlayBottomPadding: CGFloat = 126
 
 	var body: some View {
@@ -116,6 +123,7 @@ private struct ActiveChatWorkspace: View {
 				}
 				InputDock(
 					text: $store.promptText,
+					focus: promptFocus,
 					isLoading: store.isLoading,
 					onSubmit: submit,
 				)

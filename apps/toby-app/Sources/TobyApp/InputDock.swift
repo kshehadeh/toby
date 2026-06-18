@@ -2,12 +2,14 @@ import SwiftUI
 
 struct InputDock: View {
 	@Binding var text: String
+	let focus: FocusState<Bool>.Binding
 	let isLoading: Bool
 	let onSubmit: () -> Void
 
 	var body: some View {
 		VStack(spacing: 0) {
 			TextField("Ask Toby to handle something", text: $text, axis: .vertical)
+				.focused(focus)
 				.textFieldStyle(.plain)
 				.font(.body)
 				.foregroundStyle(AppTheme.primaryText)

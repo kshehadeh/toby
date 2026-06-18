@@ -13,6 +13,7 @@ final class ChatStore {
 	var streamingAssistant: StreamingAssistantState?
 	var activityLine: String = "Connecting…"
 	var promptText: String = ""
+	var promptFocusRequestId = UUID()
 	var isLoading = false
 	var isSelectingSession = false
 	var listenStatus: ListenStatusResponse?
@@ -31,6 +32,10 @@ final class ChatStore {
 
 	var isRecordButtonDisabled: Bool {
 		status == nil || isListenRequestInFlight
+	}
+
+	var hasCleanCurrentSession: Bool {
+		sessionId != nil && transcript.isEmpty && streamingAssistant == nil
 	}
 
 	private let client = TobyClient()
@@ -116,6 +121,10 @@ final class ChatStore {
 
 	func startNewSession() async {
 		guard !isLoading else { return }
+		if hasCleanCurrentSession {
+			focusPrompt()
+			return
+		}
 		do {
 			let created = try await client.createSession()
 			sessionId = created.id
@@ -129,6 +138,10 @@ final class ChatStore {
 		} catch {
 			errorMessage = error.localizedDescription
 		}
+	}
+
+	func focusPrompt() {
+		promptFocusRequestId = UUID()
 	}
 
 	func deleteSession(id: String) async {
