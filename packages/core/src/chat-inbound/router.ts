@@ -124,6 +124,12 @@ export async function handleInboundEvent(
 			dryRun: active.dryRun,
 		});
 
+		setChatInboundStatus({
+			activeConversationName: event.conversation.displayName,
+			activeSince: new Date().toISOString(),
+			activeKind: "turn",
+		});
+
 		try {
 			const turn = await runHeadlessChatTurn({
 				inboundModule: active.module,
@@ -176,7 +182,6 @@ export async function handleInboundEvent(
 				sessionId: record.sessionId,
 				message: msg,
 			});
-			await statusReporter?.clear();
 			try {
 				await provider.deliverReply({
 					conversation: event.conversation,
@@ -186,6 +191,13 @@ export async function handleInboundEvent(
 			} catch {
 				// best effort
 			}
+		} finally {
+			setChatInboundStatus({
+				activeConversationName: null,
+				activeSince: null,
+				activeKind: null,
+			});
+			await statusReporter?.clear();
 		}
 
 		markMessageProcessed(event.integration, event.externalKey, event.messageId);

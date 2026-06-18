@@ -10,6 +10,11 @@ export type ChatInboundStatusSnapshot = {
 	readonly status: ChatInboundConnectionStatus;
 	readonly detail: string | null;
 	readonly updatedAt: string;
+	/** Provider-neutral display name of the conversation currently being processed. */
+	readonly activeConversationName: string | null;
+	/** When the current active conversation started processing (ISO 8601). */
+	readonly activeSince: string | null;
+	readonly activeKind: "turn" | null;
 };
 
 let snapshot: ChatInboundStatusSnapshot = {
@@ -17,6 +22,9 @@ let snapshot: ChatInboundStatusSnapshot = {
 	status: "disabled",
 	detail: null,
 	updatedAt: new Date().toISOString(),
+	activeConversationName: null,
+	activeSince: null,
+	activeKind: null,
 };
 
 export function getChatInboundStatus(): ChatInboundStatusSnapshot {
@@ -39,5 +47,8 @@ export function resetChatInboundStatus(): void {
 		status: "disabled",
 		detail: null,
 		updatedAt: new Date().toISOString(),
+		activeConversationName: null,
+		activeSince: null,
+		activeKind: null,
 	};
 }

@@ -73,6 +73,7 @@ export async function handleChatStatusDetail(): Promise<Response> {
 		model: formatPersonaAiLabel(persona),
 		connectedIntegrations: modules.map((m) => m.displayName),
 		skillCount: skills.length,
+		skills: skills.map((s) => ({ name: s.name, description: s.description })),
 	});
 }
 

@@ -29,6 +29,9 @@ export function handleDaemonStatus(): Response {
 			detail: runtime.detail,
 			disabledReason: getChatInboundDisabledReason(),
 			updatedAt: runtime.updatedAt,
+			activeConversationName: runtime.activeConversationName,
+			activeSince: runtime.activeSince,
+			activeKind: runtime.activeKind,
 		},
 	});
 }
