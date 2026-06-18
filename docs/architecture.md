@@ -14,7 +14,7 @@ Toby.app).
 | ------- | ---- | ---- |
 | **`@toby/core`** | [`packages/core/src/`](../packages/core/src/) | Harness: chat pipeline, AI, integrations, config, personas, skills, memory, planning, chat-inbound, logging, session store, message prep. Consumable from scripts, daemons, or other apps via `@toby/core/...` imports. |
 | **`@toby/cli`** | [`apps/cli/src/`](../apps/cli/src/) | CLI app: Commander entry, generic commands, Ink TUIs (`ui/`), schedules/upgrade UI and glue. Depends on `@toby/core`; must not be imported by core. |
-| **`Toby.app`** | [`apps/toby-app/`](../apps/toby-app/) | Native macOS app (SwiftUI) with a real bundle identity. Uses the daemon localhost API for chat/configuration and runs a separate **native API server** for TCC-gated operations (EventKit, Accessibility). macOS plugins route privileged calls through it; it does not import core. See [`native-helpers.md`](native-helpers.md). |
+| **`Toby.app`** | [`apps/toby-app/`](../apps/toby-app/) | Native macOS app (SwiftUI) with a real bundle identity. Uses the daemon localhost API for chat/configuration/recordings and runs a separate **native API server** for TCC-gated operations (EventKit, Accessibility, microphone, and system audio). macOS plugins route privileged calls through it; it does not import core. See [`native-helpers.md`](native-helpers.md). |
 
 ```mermaid
 flowchart TB
@@ -31,14 +31,20 @@ flowchart TB
   subgraph daemon ["daemon server API"]
     api[localhost HTTP + SSE]
   end
+  subgraph native ["Toby.app native API"]
+    nativeApi["localhost HTTP on ~/.toby/native-port"]
+  end
   subgraph surfaces ["local app surfaces"]
     web["@toby/web"]
     app["Toby.app"]
   end
+  plugins["macOS plugins"]
   cli --> core
   cli -. starts/manages .-> daemon
   web --> api
   app --> api
+  app --> nativeApi
+  plugins --> nativeApi
   api --> core
 ```
 
@@ -77,6 +83,9 @@ apps/toby-app/             # Toby.app — native macOS app (SwiftUI)
     NativeServer.swift            # Localhost HTTP server (Network.framework); port in ~/.toby/native-port
     NativeCalendarHandler.swift   # EventKit calendar operations
     NativeMacOSHandler.swift      # Accessibility-gated window operations
+    NativeAudioHandler.swift      # In-process microphone/system audio capture
+    RecordingsStore.swift         # Daemon-backed recording list/detail/delete state
+    RecordingsView.swift          # Native recording browser and audio playback
 ```
 
 **Tests:** Vitest suites for the CLI live in [`apps/cli/tests/`](../apps/cli/tests/). Import harness symbols from `@toby/core/...`.
@@ -103,6 +112,9 @@ apps/toby-app/             # Toby.app — native macOS app (SwiftUI)
 | `~/.toby/chat.sqlite` | Chat session storage (sessions, messages, transcript) |
 | `~/.toby/toby.log` | JSON-lines chat session log (turns, tools, prep) |
 | `~/.toby/daemon.log` | JSON-lines daemon log (scheduler, inbound chat, Slack Socket Mode) |
+| `~/.toby/listen/recordings/<id>/` | Saved audio, metadata, and transcript artifacts. |
+| `~/.toby/native-port` | Ephemeral port published by Toby.app's native permission/audio server. |
+| `~/.toby/projects/<slug>/` | Project metadata, reference context, local skills, and generated outputs. |
 
 Access is centralized in [`packages/core/src/config/index.ts`](../packages/core/src/config/index.ts). Integration modules should not hardcode paths; use the config helpers.
 
@@ -128,8 +140,9 @@ bundle identity and `Info.plist`. It is both a native user surface and a native
 permission bridge:
 
 - **User surface:** `TobyClient.swift` calls the daemon server API for status,
-  sessions, streaming chat turns, personas, and configuration. If the daemon is
-  not available, `DaemonBootstrap.swift` starts it through `toby daemon start`.
+  sessions, streaming chat turns, personas, configuration, and recording
+  list/detail/transcription/deletion. If the daemon is not available,
+  `DaemonBootstrap.swift` starts it through `toby daemon start`.
 - **Permission bridge:** while running, Toby.app exposes a localhost HTTP
   **native API server** for operations that require macOS TCC permissions
   (Calendar/EventKit, Accessibility) which raw CLI plugin binaries cannot
@@ -145,6 +158,51 @@ permission bridge:
   protocol stay unchanged.
 
 See [`native-helpers.md`](native-helpers.md) for the full endpoint table and source map.
+
+## Recording and transcription architecture
+
+Toby has two capture implementations but one recording format and one
+transcription boundary:
+
+```mermaid
+flowchart LR
+  subgraph cliCapture ["CLI / daemon capture"]
+    cliListen["Listen UI or /api/listen/start"] --> manager["core ListenManager"]
+    manager --> helper["toby-audio-helper"]
+  end
+
+  subgraph appCapture ["Toby.app capture"]
+    appRecord["Record Audio"] --> nativeClient["NativeAudioClient"]
+    nativeClient --> nativeServer["Toby.app native API"]
+    nativeServer --> nativeHandler["NativeAudioHandler"]
+  end
+
+  helper --> artifacts["~/.toby/listen/recordings/<id>"]
+  nativeHandler --> artifacts
+  manager --> transcribe["core transcription adapter"]
+  appRecord -->|"POST /api/listen/recordings/:id/transcribe"| daemonApi["daemon API"]
+  daemonApi --> transcribe
+  transcribe --> whisper["transcription plugin, normally whisper"]
+  whisper --> artifacts
+
+  recordingsWindow["Toby.app Recordings window"] -->|"GET / DELETE /api/listen/recordings/*"| daemonApi
+  daemonApi --> artifacts
+```
+
+- The CLI/core path supervises `toby-audio-helper`; Toby.app captures directly
+  with AVFoundation and ScreenCaptureKit because its stable bundle identity is
+  the correct macOS permission owner.
+- Both paths write `metadata.json`, source tracks, and preferably
+  `combined.m4a` under the same recording directory layout.
+- Transcription is harness behavior. The daemon resolves combined audio first,
+  then microphone or system WAV fallbacks, and invokes the configured
+  transcription plugin. WAV input bypasses unnecessary `afconvert` conversion.
+- The native Recordings window never parses or deletes recording directories
+  itself. `RecordingsStore` uses `TobyClient`, and the daemon owns list, detail,
+  transcription, and deletion operations.
+
+See [`listen.md`](listen.md) for user-facing behavior and
+[`server-api.md`](server-api.md#listen-and-recordings) for the HTTP contract.
 
 ## UI stack (CLI app only)
 

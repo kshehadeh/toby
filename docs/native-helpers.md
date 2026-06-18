@@ -227,7 +227,13 @@ For web search (Brave Search API), see [web-search.md](web-search.md) (`toby-plu
 
 ## Toby.app native API server
 
-Toby.app (`apps/toby-app/`) is a SwiftUI macOS app with a proper bundle identity and `Info.plist`. When running, it starts a local HTTP server for native operations that require TCC permissions (EventKit, Accessibility). CLI plugins discover this server via `~/.toby/native-port` and route privileged calls through it, falling back to in-process or AppleScript when Toby.app is not running.
+Toby.app (`apps/toby-app/`) is a SwiftUI macOS app with a proper bundle identity and `Info.plist`. When running, it starts a local HTTP server for native operations that require TCC permissions (EventKit, Accessibility, microphone, and system audio). CLI plugins discover this server via `~/.toby/native-port` and route privileged calls through it, falling back to in-process or AppleScript when Toby.app is not running.
+
+The same server also exposes audio endpoints used internally by Toby.app. Audio
+is not a plugin fallback path: the native app calls its own loopback server so
+AVFoundation and ScreenCaptureKit capture remain owned by the app process and
+bundle identity. Saved recordings then rejoin the daemon/core path for
+transcription, listing, and deletion.
 
 ### Why this exists
 
@@ -266,6 +272,10 @@ Plugins use a `NativeHelperClient` that:
 4. Falls back to current behavior (EventKit + AppleScript for calendar; in-process with permission error for macOS)
 
 ### Source
+
+- `apps/toby-app/Sources/TobyApp/NativeAudioHandler.swift` — AVFoundation/ScreenCaptureKit capture and recording finalization
+- `apps/toby-app/Sources/TobyApp/NativeAudioClient.swift` — Toby.app client for its native audio endpoints
+- `apps/toby-app/Sources/TobyApp/RecordingsStore.swift` — daemon client state for recording list/detail/delete
 
 - `apps/toby-app/Sources/TobyApp/NativeServer.swift` — HTTP server using Network.framework
 - `apps/toby-app/Sources/TobyApp/NativeCalendarHandler.swift` — EventKit operations
