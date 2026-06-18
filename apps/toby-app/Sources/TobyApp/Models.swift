@@ -18,6 +18,48 @@ struct AppStatus: Decodable {
 	let model: String
 	let connectedIntegrations: [String]?
 	let skillCount: Int?
+	let skills: [SkillSummary]?
+}
+
+struct SkillSummary: Decodable, Identifiable {
+	let name: String
+	let description: String?
+	var id: String { name }
+}
+
+struct DaemonProcessInfo: Decodable {
+	let pid: Int
+	let uptimeSeconds: Int
+	let startedAt: String?
+	let intervalSeconds: Int?
+	let logPath: String?
+	let webPort: Int?
+}
+
+struct ChatInboundStatus: Decodable {
+	let enabled: Bool
+	let integration: String?
+	let integrationLabel: String?
+	let status: String
+	let detail: String?
+	let disabledReason: String?
+	let updatedAt: String?
+	let activeConversationName: String?
+	let activeSince: String?
+	let activeKind: String?
+
+	var isConnected: Bool {
+		status == "connected"
+	}
+
+	var isActive: Bool {
+		activeKind != nil && activeConversationName != nil
+	}
+}
+
+struct DaemonStatus: Decodable {
+	let process: DaemonProcessInfo?
+	let chatInbound: ChatInboundStatus?
 }
 
 struct PersonaOption: Decodable, Identifiable {

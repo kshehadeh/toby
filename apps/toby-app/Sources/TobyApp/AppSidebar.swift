@@ -4,6 +4,7 @@ struct AppSidebar: View {
 	let sessions: [SessionSummary]
 	let selectedSessionId: String?
 	let status: AppStatus?
+	let daemonStatus: DaemonStatus?
 	let isLoading: Bool
 	let isSessionsLoading: Bool
 	let isRecording: Bool
@@ -20,7 +21,7 @@ struct AppSidebar: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			SidebarHeader(status: status)
+			SidebarHeader(status: status, daemonStatus: daemonStatus)
 			SidebarPrimaryActions(
 				onNewChat: onNewChat,
 				onSearch: onSearch,
@@ -118,24 +119,288 @@ struct AppSidebar: View {
 
 private struct SidebarHeader: View {
 	let status: AppStatus?
+	let daemonStatus: DaemonStatus?
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 10) {
+			HStack(spacing: 8) {
+				Circle()
+					.fill(AppTheme.accent)
+					.frame(width: 10, height: 10)
+				Text("Toby")
+					.font(.headline)
+					.foregroundStyle(AppTheme.primaryText)
+				Spacer()
+				if let version = status?.version {
+					Text("v\(version)")
+						.font(.caption)
+						.foregroundStyle(AppTheme.tertiaryText)
+				}
+			}
+			ServerCard(status: status, daemonStatus: daemonStatus)
+		}
+		.padding(.horizontal, 8)
+		.padding(.bottom, 14)
+	}
+}
+
+private struct ServerCard: View {
+	let status: AppStatus?
+	let daemonStatus: DaemonStatus?
+	@State private var isExpanded = false
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 0) {
+			Button {
+				withAnimation(.easeInOut(duration: 0.2)) {
+					isExpanded.toggle()
+				}
+			} label: {
+				HStack(spacing: 6) {
+					Circle()
+						.fill(isServerConnected ? Color.green : AppTheme.tertiaryText)
+						.frame(width: 8, height: 8)
+					Text(isServerConnected ? "Server connected" : "Server offline")
+						.font(.callout.weight(.medium))
+						.foregroundStyle(AppTheme.primaryText)
+					Spacer()
+					Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+						.font(.caption2)
+						.foregroundStyle(AppTheme.tertiaryText)
+				}
+				.contentShape(Rectangle())
+			}
+			.buttonStyle(.plain)
+			.accessibilityLabel(isServerConnected ? "Server connected" : "Server offline")
+			if isExpanded {
+				VStack(alignment: .leading, spacing: 6) {
+					Text(uptimeText)
+						.font(.caption)
+						.foregroundStyle(AppTheme.tertiaryText)
+						.padding(.top, 8)
+					Divider()
+						.background(AppTheme.separator)
+					SlackStatusRow(status: status, daemonStatus: daemonStatus)
+					ActiveChatRow(daemonStatus: daemonStatus)
+					Divider()
+						.background(AppTheme.separator)
+					CollapsiblePluginsList(plugins: status?.connectedIntegrations ?? [])
+					CollapsibleSkillsList(skills: status?.skills ?? [])
+				}
+			}
+		}
+		.padding(10)
+		.background(
+			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
+				.fill(AppTheme.panelBackground)
+		)
+		.overlay(
+			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
+				.stroke(AppTheme.separator, lineWidth: 1)
+		)
+	}
+
+	private var isServerConnected: Bool {
+		status != nil
+	}
+
+	private var uptimeText: String {
+		guard let seconds = daemonStatus?.process?.uptimeSeconds, seconds > 0 else {
+			return "Just started"
+		}
+		let minutes = seconds / 60
+		let hours = minutes / 60
+		let remainingMinutes = minutes % 60
+		if hours > 0 {
+			return "Online for \(hours)h \(remainingMinutes)m"
+		}
+		return "Online for \(minutes)m"
+	}
+}
+
+private struct SlackStatusRow: View {
+	let status: AppStatus?
+	let daemonStatus: DaemonStatus?
 
 	var body: some View {
 		HStack(spacing: 8) {
-			Circle()
-				.fill(AppTheme.accent)
-				.frame(width: 10, height: 10)
-			Text("Toby")
-				.font(.headline)
+			Text("Slack")
+				.font(.caption)
 				.foregroundStyle(AppTheme.primaryText)
 			Spacer()
-			if let version = status?.version {
-				Text("v\(version)")
+			if isConnected {
+				HStack(spacing: 4) {
+					Circle()
+						.fill(Color.green)
+						.frame(width: 6, height: 6)
+					Text("Connected")
+						.font(.caption)
+						.foregroundStyle(AppTheme.secondaryText)
+				}
+				.padding(.horizontal, 6)
+				.padding(.vertical, 2)
+				.background(
+					Capsule()
+						.fill(Color.green.opacity(0.15))
+				)
+				.overlay(
+					Capsule()
+						.stroke(Color.green.opacity(0.35), lineWidth: 1)
+				)
+			} else {
+				Text("Not connected")
 					.font(.caption)
 					.foregroundStyle(AppTheme.tertiaryText)
 			}
 		}
-		.padding(.horizontal, 8)
-		.padding(.bottom, 14)
+	}
+
+	private var isConnected: Bool {
+		guard let status else { return false }
+		return status.connectedIntegrations?.contains(where: { $0.lowercased() == "slack" }) == true
+	}
+}
+
+private struct ActiveChatRow: View {
+	let daemonStatus: DaemonStatus?
+
+	var body: some View {
+		HStack(spacing: 8) {
+			if let name = activeConversationName {
+				Text("\(name) is chatting now")
+					.font(.caption)
+					.foregroundStyle(AppTheme.primaryText)
+					.lineLimit(1)
+				Spacer()
+				ActivePulseIcon()
+			} else {
+				Text("No active Slack chat")
+					.font(.caption)
+					.foregroundStyle(AppTheme.tertiaryText)
+				Spacer()
+			}
+		}
+	}
+
+	private var activeConversationName: String? {
+		guard let inbound = daemonStatus?.chatInbound,
+			inbound.integration?.lowercased() == "slack",
+			inbound.isActive
+		else {
+			return nil
+		}
+		return inbound.activeConversationName
+	}
+}
+
+private struct ActivePulseIcon: View {
+	@State private var pulse = false
+
+	var body: some View {
+		ZStack {
+			Circle()
+				.fill(Color.green.opacity(pulse ? 0.25 : 0.0))
+				.frame(width: pulse ? 10 : 6, height: pulse ? 10 : 6)
+			Circle()
+				.fill(Color.green)
+				.frame(width: 6, height: 6)
+		}
+		.frame(width: 10, height: 10)
+		.onAppear {
+			withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+				pulse = true
+			}
+		}
+		.onDisappear {
+			pulse = false
+		}
+	}
+}
+
+private struct CollapsiblePluginsList: View {
+	let plugins: [String]
+	@State private var isExpanded = false
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 4) {
+			Button {
+				withAnimation(.easeInOut(duration: 0.2)) {
+					isExpanded.toggle()
+				}
+			} label: {
+				HStack(spacing: 8) {
+					Text("Plugins")
+						.font(.caption)
+						.foregroundStyle(AppTheme.secondaryText)
+					Spacer()
+					Text("\(plugins.count)")
+						.font(.caption)
+						.foregroundStyle(AppTheme.primaryText)
+					Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+						.font(.caption2)
+						.foregroundStyle(AppTheme.tertiaryText)
+				}
+				.contentShape(Rectangle())
+			}
+			.buttonStyle(.plain)
+			.accessibilityLabel("Plugins, \(plugins.count) available")
+			if isExpanded {
+				VStack(alignment: .leading, spacing: 4) {
+					ForEach(plugins, id: \.self) { plugin in
+						Text(plugin)
+							.font(.caption)
+							.foregroundStyle(AppTheme.primaryText)
+							.lineLimit(1)
+					}
+				}
+				.padding(.leading, 8)
+				.padding(.top, 2)
+			}
+		}
+	}
+}
+
+private struct CollapsibleSkillsList: View {
+	let skills: [SkillSummary]
+	@State private var isExpanded = false
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 4) {
+			Button {
+				withAnimation(.easeInOut(duration: 0.2)) {
+					isExpanded.toggle()
+				}
+			} label: {
+				HStack(spacing: 8) {
+					Text("Skills")
+						.font(.caption)
+						.foregroundStyle(AppTheme.secondaryText)
+					Spacer()
+					Text("\(skills.count)")
+						.font(.caption)
+						.foregroundStyle(AppTheme.primaryText)
+					Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+						.font(.caption2)
+						.foregroundStyle(AppTheme.tertiaryText)
+				}
+				.contentShape(Rectangle())
+			}
+			.buttonStyle(.plain)
+			.accessibilityLabel("Skills, \(skills.count) available")
+			if isExpanded {
+				VStack(alignment: .leading, spacing: 4) {
+					ForEach(skills) { skill in
+						Text(skill.name)
+							.font(.caption)
+							.foregroundStyle(AppTheme.primaryText)
+							.lineLimit(1)
+							.help(skill.description ?? "")
+					}
+				}
+				.padding(.leading, 8)
+				.padding(.top, 2)
+			}
+		}
 	}
 }
 

@@ -19,6 +19,7 @@ struct RootView: View {
 				sessions: store.sessions,
 				selectedSessionId: store.sessionId,
 				status: store.status,
+				daemonStatus: store.daemonStatus,
 				isLoading: store.isLoading,
 				isSessionsLoading: store.isSessionsLoading,
 				isRecording: store.isRecordingActive,
@@ -79,6 +80,9 @@ struct RootView: View {
 		}
 		.task {
 			await store.bootstrap()
+		}
+		.task {
+			await store.daemonStatusRefreshLoop()
 		}
 		.sheet(isPresented: $isCommandPalettePresented) {
 			CommandPaletteView(

@@ -6,6 +6,7 @@ import Observation
 @MainActor
 final class ChatStore {
 	var status: AppStatus?
+	var daemonStatus: DaemonStatus?
 	var sessionId: String?
 	var sessionName: String = "New chat"
 	var sessions: [SessionSummary] = []
@@ -55,6 +56,7 @@ final class ChatStore {
 			activityLine = "Connecting…"
 			status = try await client.fetchStatus()
 			listenStatus = try? await nativeAudioClient.status()
+			await refreshDaemonStatus()
 			await refreshSessions()
 			if let mostRecent = sessions.first {
 				await selectSession(id: mostRecent.id)
@@ -85,6 +87,22 @@ final class ChatStore {
 			errorMessage = nil
 		} catch {
 			errorMessage = error.localizedDescription
+		}
+		await refreshDaemonStatus()
+	}
+
+	func refreshDaemonStatus() async {
+		do {
+			daemonStatus = try await client.fetchDaemonStatus()
+		} catch {
+			daemonStatus = nil
+		}
+	}
+
+	func daemonStatusRefreshLoop() async {
+		while !Task.isCancelled {
+			await refreshDaemonStatus()
+			try? await Task.sleep(nanoseconds: 5_000_000_000)
 		}
 	}
 

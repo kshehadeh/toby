@@ -32,6 +32,13 @@ struct TobyClient {
 		return try JSONDecoder().decode(AppStatus.self, from: data)
 	}
 
+	func fetchDaemonStatus() async throws -> DaemonStatus {
+		let url = baseURL.appendingPathComponent("api/daemon/status")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(DaemonStatus.self, from: data)
+	}
+
 	func listSessions(limit: Int = 20) async throws -> [SessionSummary] {
 		var components = URLComponents(
 			url: baseURL.appendingPathComponent("api/sessions"),
