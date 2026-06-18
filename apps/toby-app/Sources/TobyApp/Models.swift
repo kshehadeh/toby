@@ -1,5 +1,17 @@
 import Foundation
 
+enum AppToastStyle {
+	case success
+	case error
+}
+
+struct AppToastState: Identifiable {
+	let id = UUID()
+	let style: AppToastStyle
+	let title: String
+	let message: String?
+}
+
 struct AppStatus: Decodable {
 	let version: String
 	let persona: String
@@ -106,6 +118,7 @@ struct NativeAudioStopResponse: Decodable {
 	let id: String?
 	let outputDir: String?
 	let files: [String: String]?
+	let errors: [String]?
 
 	var asStatus: ListenStatusResponse {
 		ListenStatusResponse(
@@ -160,6 +173,7 @@ struct ListenRecordingDetail: Decodable {
 	let dir: String
 	let metadata: ListenRecordingMetadata
 	let hasAudio: Bool
+	let audioPath: String?
 	let hasTranscript: Bool
 	let transcript: String?
 	let transcriptError: String?

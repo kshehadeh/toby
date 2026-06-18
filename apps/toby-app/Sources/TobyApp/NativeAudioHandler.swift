@@ -60,6 +60,7 @@ final class NativeAudioHandler {
 		let discard = parseDiscard(body: body)
 		self.session = nil
 		await session.stop()
+		files = await validatedAudioFiles(files)
 
 		if discard {
 			try? FileManager.default.removeItem(at: session.options.tempDir)
@@ -72,13 +73,16 @@ final class NativeAudioHandler {
 				files["combined"] = combined
 			}
 			let finalDir = try save(session: session, files: files)
-			let payload: [String: Any] = [
+			var payload: [String: Any] = [
 				"status": "idle",
 				"message": "Recording saved.",
 				"id": session.options.id,
 				"outputDir": finalDir.path,
 				"files": remapFiles(files, from: session.options.tempDir, to: finalDir),
 			]
+			if !session.errors.isEmpty {
+				payload["errors"] = session.errors
+			}
 			files = [:]
 			return json(["ok": true, "data": payload])
 		} catch {
@@ -149,7 +153,6 @@ final class NativeAudioHandler {
 		let stoppedAt = Date()
 		let remapped = remapFiles(files, from: options.tempDir, to: finalDir)
 		let capturedSources = ["mic": remapped["mic"] != nil, "system": remapped["system"] != nil]
-		let errors = session.errors.filter { !isNonFatalScreenCaptureDecline($0, files: remapped) }
 		var metadata: [String: Any] = [
 			"id": options.id,
 			"createdAt": isoString(options.startedAt),
@@ -162,8 +165,8 @@ final class NativeAudioHandler {
 			"osVersion": ProcessInfo.processInfo.operatingSystemVersionString,
 			"helper": ["path": "Toby.app", "version": helperVersion],
 		]
-		if !errors.isEmpty {
-			metadata["errors"] = errors
+		if !session.errors.isEmpty {
+			metadata["errors"] = session.errors
 		}
 		if !JSONSerialization.isValidJSONObject(metadata) {
 			metadata["files"] = [:]
@@ -219,13 +222,6 @@ final class NativeAudioHandler {
 			"outputDir": options.finalDir.path,
 		]
 	}
-}
-
-private func isNonFatalScreenCaptureDecline(_ message: String, files: [String: String]) -> Bool {
-	guard files["mic"] != nil || files["combined"] != nil else { return false }
-	return message.contains("SCStreamErrorDomain")
-		&& message.contains("Code=-3801")
-		&& message.localizedCaseInsensitiveContains("declined")
 }
 
 struct NativeListenSources {
@@ -299,6 +295,7 @@ final class NativeSystemAudioRecorder: NSObject, SCStreamOutput, SCStreamDelegat
 	private var writer: AVAssetWriter?
 	private var input: AVAssetWriterInput?
 	private var startedWriting = false
+	private(set) var didWriteAudio = false
 
 	init(url: URL) {
 		self.url = url
@@ -373,7 +370,9 @@ final class NativeSystemAudioRecorder: NSObject, SCStreamOutput, SCStreamDelegat
 			startedWriting = true
 		}
 		if input.isReadyForMoreMediaData {
-			input.append(sampleBuffer)
+			if input.append(sampleBuffer) {
+				didWriteAudio = true
+			}
 		}
 	}
 
@@ -455,10 +454,27 @@ final class NativeRecordingSession {
 
 	func stop() async {
 		micRecorder?.stop()
+		let didWriteSystemAudio = systemRecorder?.didWriteAudio ?? false
 		await systemRecorder?.stop()
+		if options.system && !didWriteSystemAudio {
+			errors.append("System audio was enabled, but no system audio was captured. Check Screen Recording permission and make sure another app is producing audio.")
+		}
 		micRecorder = nil
 		systemRecorder = nil
 	}
+}
+
+func validatedAudioFiles(_ files: [String: String]) async -> [String: String] {
+	var valid: [String: String] = [:]
+	for (key, path) in files {
+		let url = URL(fileURLWithPath: path)
+		guard FileManager.default.fileExists(atPath: url.path) else { continue }
+		let asset = AVURLAsset(url: url)
+		if let tracks = try? await asset.loadTracks(withMediaType: .audio), !tracks.isEmpty {
+			valid[key] = path
+		}
+	}
+	return valid
 }
 
 func exportCombinedAudio(files: [String: String], outDir: URL) async throws -> String? {

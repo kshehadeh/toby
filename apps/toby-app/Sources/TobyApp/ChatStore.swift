@@ -19,6 +19,7 @@ final class ChatStore {
 	var listenStatus: ListenStatusResponse?
 	var isListenRequestInFlight = false
 	var errorMessage: String?
+	var toast: AppToastState?
 	var turnWorkDurations: [Int: TimeInterval] = [:]
 	let serverEventLogPath = ServerEventLog.path
 
@@ -170,7 +171,7 @@ final class ChatStore {
 			activityLine = "Recording audio"
 			errorMessage = nil
 		} catch {
-			errorMessage = error.localizedDescription
+			showRecordingError(error.localizedDescription)
 			activityLine = "Error"
 			listenStatus = try? await nativeAudioClient.status()
 		}
@@ -187,19 +188,49 @@ final class ChatStore {
 					_ = try await client.transcribeRecording(id: id)
 					errorMessage = nil
 					activityLine = "Recording transcribed"
+					showRecordingCompletionToast(errors: result.errors)
 				} catch {
-					errorMessage = "Recording saved, but transcription failed: \(error.localizedDescription)"
+					showRecordingError("Recording saved, but transcription failed: \(error.localizedDescription)")
 					activityLine = "Recording saved"
 				}
 			} else {
 				errorMessage = nil
 				activityLine = "Recording saved"
+				showRecordingCompletionToast(errors: result.errors)
 			}
 		} catch {
-			errorMessage = error.localizedDescription
+			showRecordingError(error.localizedDescription)
 			activityLine = "Error"
 			listenStatus = try? await nativeAudioClient.status()
 		}
+	}
+
+	private func showRecordingError(_ message: String) {
+		errorMessage = message
+		toast = AppToastState(
+			style: .error,
+			title: "Recording failed",
+			message: message,
+		)
+	}
+
+	private func showRecordingCompletionToast(errors: [String]?) {
+		let message = errors?.first?.trimmingCharacters(in: .whitespacesAndNewlines)
+		if let message, !message.isEmpty {
+			errorMessage = message
+			toast = AppToastState(
+				style: .error,
+				title: "Recording issue",
+				message: message,
+			)
+			return
+		}
+		errorMessage = nil
+		toast = AppToastState(
+			style: .success,
+			title: "Recording transcribed",
+			message: "Your recording is ready.",
+		)
 	}
 
 	func submitPrompt() async {

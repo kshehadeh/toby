@@ -95,6 +95,7 @@ private enum LocalRecordingsRepository {
 		let transcriptError: String? = transcript == nil
 			? "No transcript is available for this recording."
 			: nil
+		let audioFile = resolveAudioFile(metadata: metadata, directory: directory)
 		return ListenRecordingDetail(
 			id: summary.id,
 			dir: summary.dir,
@@ -109,7 +110,8 @@ private enum LocalRecordingsRepository {
 				sources: metadata.sources,
 				errors: metadata.errors,
 			),
-			hasAudio: hasAudio(metadata: metadata, directory: directory),
+			hasAudio: audioFile != nil,
+			audioPath: audioFile?.path,
 			hasTranscript: transcript != nil,
 			transcript: transcript,
 			transcriptError: transcriptError,
@@ -134,9 +136,13 @@ private enum LocalRecordingsRepository {
 	}
 
 	private static func hasAudio(metadata: LocalRecordingMetadata, directory: URL) -> Bool {
-		resolveFile(directory: directory, path: metadata.files.combined, fallbackName: "combined.m4a") != nil
-			|| resolveFile(directory: directory, path: metadata.files.mic, fallbackName: "mic.wav") != nil
-			|| resolveFile(directory: directory, path: metadata.files.system, fallbackName: "system.wav") != nil
+		resolveAudioFile(metadata: metadata, directory: directory) != nil
+	}
+
+	private static func resolveAudioFile(metadata: LocalRecordingMetadata, directory: URL) -> URL? {
+		resolveFile(directory: directory, path: metadata.files.combined, fallbackName: "combined.m4a")
+			?? resolveFile(directory: directory, path: metadata.files.mic, fallbackName: "mic.wav")
+			?? resolveFile(directory: directory, path: metadata.files.system, fallbackName: "system.wav")
 	}
 
 	private static func hasTranscript(metadata: LocalRecordingMetadata, directory: URL) -> Bool {

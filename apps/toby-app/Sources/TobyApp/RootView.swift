@@ -1,3 +1,4 @@
+import AlertToast
 import SwiftUI
 
 struct RootView: View {
@@ -6,6 +7,10 @@ struct RootView: View {
 	@Environment(\.openWindow) private var openWindow
 	@State private var isCommandPalettePresented = false
 	@State private var pendingDeleteSession: SessionSummary?
+	@State private var isToastHovered = false
+	@State private var toastDismissTask: Task<Void, Never>?
+
+	private let toastDuration: UInt64 = 4_000_000_000
 
 	var body: some View {
 		NavigationSplitView {
@@ -34,6 +39,42 @@ struct RootView: View {
 			)
 		} detail: {
 			ChatWorkspaceView(store: store)
+		}
+		.overlay(alignment: .top) {
+			if let toast = store.toast {
+				alertToast(for: toast)
+					.frame(maxWidth: 420)
+					.padding(.horizontal, 16)
+					.padding(.top, 16)
+					.contentShape(Rectangle())
+					.onHover { hovering in
+						isToastHovered = hovering
+						if hovering {
+							toastDismissTask?.cancel()
+							toastDismissTask = nil
+						} else {
+							scheduleToastDismiss()
+						}
+					}
+					.onTapGesture {
+						dismissToast()
+					}
+					.transition(.move(edge: .top).combined(with: .opacity))
+			}
+		}
+		.animation(.spring(response: 0.28, dampingFraction: 0.82), value: store.toast?.id)
+		.onChange(of: store.toast?.id) { _, id in
+			isToastHovered = false
+			if id == nil {
+				toastDismissTask?.cancel()
+				toastDismissTask = nil
+			} else {
+				scheduleToastDismiss()
+			}
+		}
+		.onDisappear {
+			toastDismissTask?.cancel()
+			toastDismissTask = nil
 		}
 		.task {
 			await store.bootstrap()
@@ -103,6 +144,54 @@ struct RootView: View {
 
 	private func refreshStatus() {
 		Task { await store.refreshStatus() }
+	}
+
+	private func scheduleToastDismiss() {
+		toastDismissTask?.cancel()
+		guard store.toast != nil, !isToastHovered else { return }
+		toastDismissTask = Task {
+			try? await Task.sleep(nanoseconds: toastDuration)
+			guard !Task.isCancelled else { return }
+			await MainActor.run {
+				if !isToastHovered {
+					store.toast = nil
+					toastDismissTask = nil
+				}
+			}
+		}
+	}
+
+	private func dismissToast() {
+		toastDismissTask?.cancel()
+		toastDismissTask = nil
+		store.toast = nil
+		isToastHovered = false
+	}
+
+	private func alertToast(for toast: AppToastState) -> AlertToast {
+		switch toast.style {
+		case .success:
+			return AlertToast(
+				displayMode: .banner(.slide),
+				type: .complete(.green),
+				title: toast.title,
+				subTitle: toastSubtitle(toast.message),
+			)
+		case .error:
+			return AlertToast(
+				displayMode: .banner(.slide),
+				type: .error(.red),
+				title: toast.title,
+				subTitle: toastSubtitle(toast.message),
+			)
+		}
+	}
+
+	private func toastSubtitle(_ message: String?) -> String? {
+		guard let message else { return nil }
+		let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard trimmed.count > 120 else { return trimmed }
+		return "\(trimmed.prefix(117))..."
 	}
 }
 
