@@ -5,6 +5,7 @@ Human- and agent-oriented docs for this repository.
 | Doc | Description |
 | --- | ----------- |
 | [architecture.md](architecture.md) | Monorepo layout: `@toby/core` harness vs `@toby/cli` app, runtime flow, config paths. |
+| [recent-changes-2026-06-12-to-18.md](recent-changes-2026-06-12-to-18.md) | Dated summary of native app, recording, daemon, project, AI, plugin, and chat changes made June 12–18, 2026. |
 | [commands.md](commands.md) | Shared CLI commands, default `chat` behavior, `-p` / `--prompt`, and `config backup` / `config restore`. |
 | [projects.md](projects.md) | Projects: scoped artifact collection with reference context, pinned skills, and recurring workflow support. |
 | [integrations.md](integrations.md) | `IntegrationModule`, registry API, per-integration layout. |

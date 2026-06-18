@@ -9,6 +9,7 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | Document | Purpose |
 | -------- | ------- |
 | [`docs/architecture.md`](docs/architecture.md) | Repository layout, runtime entrypoints, config storage, and how major layers interact. |
+| [`docs/recent-changes-2026-06-12-to-18.md`](docs/recent-changes-2026-06-12-to-18.md) | Dated summary of major native app, recording, daemon, project, AI, plugin, and chat changes from June 12–18, 2026. |
 | [`docs/integrations.md`](docs/integrations.md) | Plugin-style integrations: `IntegrationModule`, registry, capabilities, credentials, and CLI contributions. |
 | [`docs/plugin-protocol.md`](docs/plugin-protocol.md) | Installable plugin executables: subcommand contract, discovery, JSON protocol v1. |
 | [`docs/create-integration.md`](docs/create-integration.md) | Checklist for adding a new first-party integration module. |
