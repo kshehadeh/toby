@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct AppSidebar: View {
@@ -121,12 +122,20 @@ private struct SidebarHeader: View {
 	let status: AppStatus?
 	let daemonStatus: DaemonStatus?
 
+	private var appIcon: Image {
+		if let nsImage = NSImage(named: NSImage.applicationIconName) {
+			return Image(nsImage: nsImage)
+		}
+		return Image(systemName: "app.fill")
+	}
+
 	var body: some View {
 		VStack(alignment: .leading, spacing: 10) {
-			HStack(spacing: 8) {
-				Circle()
-					.fill(AppTheme.accent)
-					.frame(width: 10, height: 10)
+			HStack(spacing: 10) {
+				appIcon
+					.resizable()
+					.aspectRatio(contentMode: .fit)
+					.frame(width: 22, height: 22)
 				Text("Toby")
 					.font(.headline)
 					.foregroundStyle(AppTheme.primaryText)
