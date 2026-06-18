@@ -8,7 +8,6 @@ APP="$DIST/Toby.app"
 ARCH="${SWIFT_ARCH:-$(uname -m)}"
 APP_BUNDLE_ID="${TOBY_APP_BUNDLE_ID:-dev.karim.toby.app}"
 APP_VARIANT="${TOBY_APP_VARIANT:-development}"
-CODE_SIGN_IDENTITY="${TOBY_CODESIGN_IDENTITY:--}"
 ICON_MASTER="$ROOT/images/512x512.png"
 ICON_SRC="$ROOT/images/app-icon.png"
 
@@ -24,6 +23,51 @@ case "${APP_VARIANT}" in
 		exit 1
 		;;
 esac
+
+resolve_code_sign_identity() {
+	# If an explicit identity was provided, use it verbatim.
+	if [[ -n "${TOBY_CODESIGN_IDENTITY:-}" ]]; then
+		echo "${TOBY_CODESIGN_IDENTITY}"
+		return
+	fi
+
+	# Production artifacts are re-signed by the release workflow, so ad-hoc is fine here.
+	if [[ "${APP_VARIANT}" == "production" ]]; then
+		echo "-"
+		return
+	fi
+
+	# Development builds need a stable identity so macOS TCC permissions persist across rebuilds.
+	if [[ "${TOBY_ALLOW_ADHOC_DEV_SIGNING:-0}" == "1" ]]; then
+		echo "-"
+		return
+	fi
+
+	local identity
+	identity="$(security find-identity -v -p codesigning 2>/dev/null | awk -F '"' '/Apple Development/ { print $2; exit }')"
+	if [[ -n "${identity}" ]]; then
+		echo "${identity}"
+		return
+	fi
+
+	identity="$(security find-identity -v -p codesigning 2>/dev/null | awk -F '"' '/Developer ID Application/ { print $2; exit }')"
+	if [[ -n "${identity}" ]]; then
+		echo "${identity}"
+		return
+	fi
+
+	# No stable identity found; signal the caller to fail the build.
+	echo ""
+}
+
+CODE_SIGN_IDENTITY="$(resolve_code_sign_identity)"
+if [[ -z "${CODE_SIGN_IDENTITY}" ]]; then
+	echo "Development builds require a non-ad-hoc Apple code signing identity so macOS permissions persist across rebuilds." >&2
+	echo "Options:" >&2
+	echo "  - Set TOBY_CODESIGN_IDENTITY to a valid Apple Development or Developer ID Application identity." >&2
+	echo "  - Set TOBY_ALLOW_ADHOC_DEV_SIGNING=1 to build ad-hoc anyway (permissions will reset each rebuild)." >&2
+	exit 1
+fi
 
 prepare_app_icon_source() {
 	if [[ -f "${ICON_SRC}" ]]; then
@@ -143,11 +187,21 @@ PY
 cp "${BIN}" "${APP}/Contents/MacOS/toby-app"
 chmod +x "${APP}/Contents/MacOS/toby-app"
 build_app_icon
-if codesign -s "${CODE_SIGN_IDENTITY}" --force --deep "${APP}" >/dev/null 2>&1; then
-	echo "Signed ${APP} with ${CODE_SIGN_IDENTITY}"
+if [[ "${CODE_SIGN_IDENTITY}" == "-" ]]; then
+	if codesign -s "${CODE_SIGN_IDENTITY}" --force --deep "${APP}" >/dev/null 2>&1; then
+		echo "Signed ${APP} with ad-hoc identity"
+	else
+		echo "Warning: ad-hoc codesign failed for ${APP}." >&2
+		echo "The app was built, but macOS may ask for permissions again after rebuilds." >&2
+	fi
 else
-	echo "Warning: codesign failed for identity '${CODE_SIGN_IDENTITY}'." >&2
-	echo "The app was built, but macOS may ask for permissions again after rebuilds." >&2
+	if codesign -s "${CODE_SIGN_IDENTITY}" --force --deep "${APP}" >/dev/null 2>&1; then
+		echo "Signed ${APP} with ${CODE_SIGN_IDENTITY}"
+	else
+		echo "Error: codesign failed for identity '${CODE_SIGN_IDENTITY}'." >&2
+		echo "The app was built unsigned." >&2
+		exit 1
+	fi
 fi
 
 echo "Built ${APP} as ${APP_DISPLAY_NAME} (${APP_VARIANT})"
