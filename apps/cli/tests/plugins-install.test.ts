@@ -44,34 +44,35 @@ function writeSamplePluginWrapper(targetPath: string): string {
 	return targetPath;
 }
 
-function writeFakeGmailPlugin(targetPath: string): string {
+function writeFakePlugin(
+	targetPath: string,
+	name: string,
+	displayName: string,
+): string {
 	fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+	const status = JSON.stringify({
+		ok: true,
+		name,
+		displayName,
+		description: "Test plugin",
+		version: "0.0.1",
+		protocolVersion: "1",
+		connected: false,
+		capabilities: [],
+	});
 	const script = `#!/usr/bin/env bash
 case "$1" in
   status)
-    echo '{"ok":true,"name":"gmail","displayName":"Fake Gmail","description":"collision test","version":"0.0.1","protocolVersion":"1","connected":false,"capabilities":[]}'
+		echo '${status}'
     ;;
   tools)
     if [[ "$2" == "list" ]]; then
       echo '{"ok":true,"tools":[]}'
     fi
     ;;
-esac
-`;
-	fs.writeFileSync(targetPath, script, { mode: 0o755 });
-	return targetPath;
-}
-
-function writeFakeTodoistPlugin(targetPath: string): string {
-	fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-	const script = `#!/usr/bin/env bash
-case "$1" in
-  status)
-    echo '{"ok":true,"name":"todoist","displayName":"Fake Todoist","description":"collision test","version":"0.0.1","protocolVersion":"1","connected":false,"capabilities":[]}'
-    ;;
-  tools)
-    if [[ "$2" == "list" ]]; then
-      echo '{"ok":true,"tools":[]}'
+	config)
+		if [[ "$2" == "shape" ]]; then
+			echo '{"ok":true,"fields":[]}'
     fi
     ;;
 esac
@@ -120,8 +121,10 @@ describe("plugin install", () => {
 	});
 
 	it("discovers installed plugin from user plugins directory", () => {
-		const sourcePath = writeSamplePluginWrapper(
-			path.join(sourceDir, "toby-plugin-sample"),
+		const sourcePath = writeFakePlugin(
+			path.join(sourceDir, "toby-plugin-discovery-test"),
+			"discovery-test",
+			"Discovery Test",
 		);
 		installPlugin(sourcePath);
 
@@ -129,8 +132,8 @@ describe("plugin install", () => {
 		expect(
 			discovered.some(
 				(p) =>
-					p.binaryName === "toby-plugin-sample" &&
-					p.binaryPath === resolvePluginInstallTarget("sample"),
+					p.binaryName === "toby-plugin-discovery-test" &&
+					p.binaryPath === resolvePluginInstallTarget("discovery-test"),
 			),
 		).toBe(true);
 	});
@@ -176,8 +179,10 @@ describe("plugin install", () => {
 	it("allows gmail plugin install now that built-in module was removed", () => {
 		expect(isBuiltinIntegration("gmail")).toBe(false);
 
-		const sourcePath = writeFakeGmailPlugin(
+		const sourcePath = writeFakePlugin(
 			path.join(sourceDir, "toby-plugin-gmail"),
+			"gmail",
+			"Fake Gmail",
 		);
 		const discovered = resolvePluginSourcePath(sourcePath);
 		const result = validatePluginForInstall(discovered);
@@ -187,8 +192,10 @@ describe("plugin install", () => {
 	it("allows todoist plugin install now that built-in module was removed", () => {
 		expect(isBuiltinIntegration("todoist")).toBe(false);
 
-		const sourcePath = writeFakeTodoistPlugin(
+		const sourcePath = writeFakePlugin(
 			path.join(sourceDir, "toby-plugin-todoist"),
+			"todoist",
+			"Fake Todoist",
 		);
 		const discovered = resolvePluginSourcePath(sourcePath);
 		const result = validatePluginForInstall(discovered);

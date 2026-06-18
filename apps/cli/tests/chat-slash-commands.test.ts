@@ -15,9 +15,9 @@ import { connectSlashCommand } from "../src/ui/chat/slash-commands/connect";
 import { helpSlashCommand } from "../src/ui/chat/slash-commands/help";
 import { logSlashCommand } from "../src/ui/chat/slash-commands/log";
 import { pluginsSlashCommand } from "../src/ui/chat/slash-commands/plugins";
-import { statusSlashCommand } from "../src/ui/chat/slash-commands/status";
 import { restartSlashCommand } from "../src/ui/chat/slash-commands/restart";
 import { restartServerSlashCommand } from "../src/ui/chat/slash-commands/restart-server";
+import { statusSlashCommand } from "../src/ui/chat/slash-commands/status";
 import { terminalSlashCommand } from "../src/ui/chat/slash-commands/terminal";
 import { usageSlashCommand } from "../src/ui/chat/slash-commands/usage";
 import { webSlashCommand } from "../src/ui/chat/slash-commands/web";
@@ -187,7 +187,7 @@ describe("slash commands", () => {
 		expect(openTextViewer.mock.calls[0]?.[2]).toEqual({ lineTone: "markdown" });
 		const viewerLines = openTextViewer.mock.calls[0]?.[1] as string[];
 		expect(
-			viewerLines.some((line) => line.includes("## Plugin directory")),
+			viewerLines.some((line) => line.includes("## Plugin search paths")),
 		).toBe(true);
 		expect(addMetaLine).toHaveBeenCalled();
 	});
@@ -206,9 +206,9 @@ describe("slash commands", () => {
 		expect(viewerLines.some((line) => line.includes("## CLI binary"))).toBe(
 			true,
 		);
-		expect(
-			viewerLines.some((line) => line.includes("## Native app")),
-		).toBe(true);
+		expect(viewerLines.some((line) => line.includes("## Native app"))).toBe(
+			true,
+		);
 		expect(viewerLines.some((line) => line.includes("## Server"))).toBe(true);
 		expect(viewerLines.some((line) => line.includes("## Web UI"))).toBe(true);
 		expect(
