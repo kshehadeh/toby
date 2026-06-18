@@ -2,7 +2,7 @@ import AVFoundation
 import CoreMedia
 import Darwin
 import Foundation
-import ScreenCaptureKit
+@preconcurrency import ScreenCaptureKit
 
 @MainActor
 final class NativeAudioHandler {
