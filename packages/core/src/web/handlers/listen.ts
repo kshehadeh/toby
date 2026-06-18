@@ -136,9 +136,9 @@ function resolveTranscriptionInput(
 	files: ListenRecordingMetadata["files"],
 ): string | undefined {
 	return (
+		resolveRecordingFile(recordingDir, files.combined, "combined.m4a") ??
 		resolveRecordingFile(recordingDir, files.mic, "mic.wav") ??
-		resolveRecordingFile(recordingDir, files.system, "system.wav") ??
-		resolveRecordingFile(recordingDir, files.combined, "combined.m4a")
+		resolveRecordingFile(recordingDir, files.system, "system.wav")
 	);
 }
 

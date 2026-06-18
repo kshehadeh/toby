@@ -6,6 +6,7 @@ import {
 	shouldPersistChatEventInTranscript,
 } from "@toby/core/chat-pipeline/transcript-reducer";
 import { listenManager } from "@toby/core/listen/manager";
+import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
 import {
 	buildListenMetadata,
 	prepareListenSession,
@@ -18,6 +19,15 @@ import {
 	readServerEventLogTail,
 } from "@toby/core/web/server-event-log";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@toby/core/listen/transcription-plugin", () => ({
+	transcribeWithPlugin: vi.fn(async ({ outDir }: { outDir: string }) => {
+		const fs = await import("node:fs");
+		const path = await import("node:path");
+		fs.writeFileSync(path.join(outDir, "transcript.txt"), "mock transcript\n");
+		return { transcript: "transcript.txt" };
+	}),
+}));
 
 function canUseBunSqlite(): boolean {
 	try {
@@ -320,6 +330,54 @@ describe("web chat API routes", () => {
 			expect((await detail.json()) as { transcript?: string }).toMatchObject({
 				transcript: "route transcript",
 			});
+		});
+	});
+
+	it("transcribes combined listen audio before source tracks", async () => {
+		await withTempTobyDir(async () => {
+			vi.mocked(transcribeWithPlugin).mockClear();
+			const recordingsDir = path.join(
+				process.env.TOBY_DIR ?? "",
+				"listen",
+				"recordings",
+			);
+			const session = prepareListenSession({
+				recordingsDir,
+				id: "combined-route-recording",
+				now: new Date("2026-06-17T10:00:00Z"),
+				sources: { mic: true, system: true },
+			});
+			const outputDir = saveListenSession(
+				session,
+				buildListenMetadata({
+					session,
+					stoppedAt: new Date("2026-06-17T10:00:05Z"),
+					files: {
+						mic: "mic.wav",
+						system: "system.wav",
+						combined: "combined.m4a",
+					},
+				}),
+			);
+			fs.writeFileSync(path.join(outputDir, "mic.wav"), "mic");
+			fs.writeFileSync(path.join(outputDir, "system.wav"), "system");
+			fs.writeFileSync(path.join(outputDir, "combined.m4a"), "combined");
+
+			const response = await handleWebRequest(
+				new Request(
+					"http://127.0.0.1/api/listen/recordings/combined-route-recording/transcribe",
+					{ method: "POST" },
+				),
+				null,
+			);
+
+			expect(response.status).toBe(200);
+			expect(transcribeWithPlugin).toHaveBeenCalledWith(
+				expect.objectContaining({
+					input: path.join(outputDir, "combined.m4a"),
+					outDir: outputDir,
+				}),
+			);
 		});
 	});
 
