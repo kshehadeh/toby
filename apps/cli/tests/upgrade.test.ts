@@ -335,19 +335,16 @@ describe("applyStagedRelease", () => {
 				asset: "toby-darwin-arm64.zip",
 				repo: "kshehadeh/toby",
 				installTarget,
-				listenerInstallTarget: path.join(
-					tempDir,
-					"helpers",
-					"toby-listener",
-				),
+				listenerInstallTarget: path.join(tempDir, "helpers", "toby-listener"),
 				completedAt: new Date().toISOString(),
 			}),
 		);
 
 		await applyStagedRelease(installTarget);
 
-		expect(fs.readFileSync(path.join(installedBundle, "resource.txt"), "utf8"))
-			.toBe("new");
+		expect(
+			fs.readFileSync(path.join(installedBundle, "resource.txt"), "utf8"),
+		).toBe("new");
 	});
 });
 

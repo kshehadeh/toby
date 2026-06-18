@@ -395,7 +395,7 @@ async function doctorPlugins(): Promise<void> {
 	console.log(chalk.bold("\nPlugin doctor\n"));
 	console.log(`  Protocol expected: ${CURRENT_PROTOCOL_VERSION}`);
 	const searchDirs = resolvePluginSearchDirectories();
-	console.log(`  Search paths (precedence order):`);
+	console.log("  Search paths (precedence order):");
 	for (const dir of searchDirs) {
 		console.log(`    ${chalk.dim(dir)}`);
 	}

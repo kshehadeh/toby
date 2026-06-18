@@ -8,8 +8,8 @@ vi.mock("@toby/core/logging/chat-log", () => ({
 
 import {
 	buildSelectionTranscriptEntries,
-	summarizeToolCountsByIntegration,
 	logToolSelectionNotes,
+	summarizeToolCountsByIntegration,
 } from "../src/ui/chat/tool-selection-transcript";
 
 describe("tool selection notes", () => {

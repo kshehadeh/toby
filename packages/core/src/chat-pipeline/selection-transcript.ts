@@ -1,8 +1,5 @@
+import { ALWAYS_INCLUDED_TOOLS, filterToolNamesByRelevance } from "./run-turn";
 import type { NoticeTone, TranscriptEntry } from "./transcript-types";
-import {
-	ALWAYS_INCLUDED_TOOLS,
-	filterToolNamesByRelevance,
-} from "./run-turn";
 
 const MAX_NON_GLOBAL_TOOL_NAMES = 3;
 

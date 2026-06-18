@@ -306,7 +306,11 @@ export function flattenTranscript(
 		if (!debug && e.kind === "boxed_step" && e.variant === "prep") {
 			continue;
 		}
-		if (!debug && e.kind === "boxed_step" && e.variant === "assistant_interim") {
+		if (
+			!debug &&
+			e.kind === "boxed_step" &&
+			e.variant === "assistant_interim"
+		) {
 			continue;
 		}
 		if (!debug && e.kind === "meta") {

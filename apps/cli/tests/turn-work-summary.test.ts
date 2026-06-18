@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { insertTurnWorkSummary } from "@toby/core/chat-pipeline/turn-work-summary";
 import type { TranscriptEntry } from "@toby/core/chat-pipeline/transcript-types";
+import { insertTurnWorkSummary } from "@toby/core/chat-pipeline/turn-work-summary";
 import {
 	deserializeTranscriptRow,
 	serializeTranscriptEntry,
 } from "@toby/core/transcript-persist";
+import { describe, expect, it } from "vitest";
 
 describe("turn_work transcript entry", () => {
 	it("round-trips through SQLite serialization", () => {

@@ -459,10 +459,7 @@ export async function applyStagedRelease(
 		await cp(appPath, applicationsAppTarget, { recursive: true });
 
 		// Remove any legacy copy left next to the toby binary by older installers.
-		const legacyAppTarget = path.join(
-			path.dirname(installTarget),
-			"Toby.app",
-		);
+		const legacyAppTarget = path.join(path.dirname(installTarget), "Toby.app");
 		await rm(legacyAppTarget, { recursive: true, force: true }).catch(
 			() => undefined,
 		);
