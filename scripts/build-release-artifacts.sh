@@ -87,7 +87,7 @@ cp -R apps/web/dist dist/web
 
 echo "Building native Toby.app..."
 chmod +x scripts/build-app.sh
-SWIFT_ARCH="${swift_arch}" ./scripts/build-app.sh
+SWIFT_ARCH="${swift_arch}" TOBY_APP_VARIANT=production ./scripts/build-app.sh
 
 node scripts/verify-release-artifacts.mjs dist
 echo "Release artifacts ready in dist/"

@@ -6,8 +6,24 @@ PKG="$ROOT/apps/toby-app"
 DIST="$ROOT/dist"
 APP="$DIST/Toby.app"
 ARCH="${SWIFT_ARCH:-$(uname -m)}"
+APP_BUNDLE_ID="${TOBY_APP_BUNDLE_ID:-dev.karim.toby.app}"
+APP_VARIANT="${TOBY_APP_VARIANT:-development}"
+CODE_SIGN_IDENTITY="${TOBY_CODESIGN_IDENTITY:--}"
 ICON_MASTER="$ROOT/images/512x512.png"
 ICON_SRC="$ROOT/images/app-icon.png"
+
+case "${APP_VARIANT}" in
+	development)
+		APP_DISPLAY_NAME="Toby (Dev)"
+		;;
+	production)
+		APP_DISPLAY_NAME="Toby"
+		;;
+	*)
+		echo "Invalid TOBY_APP_VARIANT '${APP_VARIANT}'; expected development or production." >&2
+		exit 1
+		;;
+esac
 
 prepare_app_icon_source() {
 	if [[ -f "${ICON_SRC}" ]]; then
@@ -78,13 +94,15 @@ cat >"${APP}/Contents/Info.plist" <<'PLIST'
 	<key>CFBundleExecutable</key>
 	<string>toby-app</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.toby.app</string>
+	<string>__TOBY_APP_BUNDLE_ID__</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>CFBundleDisplayName</key>
+	<string>__TOBY_APP_DISPLAY_NAME__</string>
 	<key>CFBundleName</key>
-	<string>Toby</string>
+	<string>__TOBY_APP_DISPLAY_NAME__</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -106,10 +124,30 @@ cat >"${APP}/Contents/Info.plist" <<'PLIST'
 </dict>
 </plist>
 PLIST
+python3 - "$APP/Contents/Info.plist" "$APP_BUNDLE_ID" "$APP_DISPLAY_NAME" <<'PY'
+import pathlib
+import sys
+from xml.sax.saxutils import escape
+
+path = pathlib.Path(sys.argv[1])
+bundle_id = sys.argv[2]
+display_name = sys.argv[3]
+path.write_text(
+	path.read_text()
+	.replace("__TOBY_APP_BUNDLE_ID__", escape(bundle_id))
+	.replace("__TOBY_APP_DISPLAY_NAME__", escape(display_name)),
+	encoding="utf-8",
+)
+PY
 
 cp "${BIN}" "${APP}/Contents/MacOS/toby-app"
 chmod +x "${APP}/Contents/MacOS/toby-app"
 build_app_icon
-codesign -s - --force --deep "${APP}" >/dev/null 2>&1 || true
+if codesign -s "${CODE_SIGN_IDENTITY}" --force --deep "${APP}" >/dev/null 2>&1; then
+	echo "Signed ${APP} with ${CODE_SIGN_IDENTITY}"
+else
+	echo "Warning: codesign failed for identity '${CODE_SIGN_IDENTITY}'." >&2
+	echo "The app was built, but macOS may ask for permissions again after rebuilds." >&2
+fi
 
-echo "Built ${APP}"
+echo "Built ${APP} as ${APP_DISPLAY_NAME} (${APP_VARIANT})"
