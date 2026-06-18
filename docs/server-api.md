@@ -62,6 +62,13 @@ type PlanSummary = {
 | `GET` | `/api/daemon/status` | Daemon process and inbound chat status. |
 | `POST` | `/api/daemon/restart` | Restart the background daemon. |
 | `POST` | `/api/daemon/stop` | Stop the current daemon process. |
+| `GET` | `/api/listen/status` | Get shared Listen manager state. |
+| `POST` | `/api/listen/start` | Start helper-backed audio capture. |
+| `POST` | `/api/listen/stop` | Stop and save or discard helper-backed capture. |
+| `GET` | `/api/listen/recordings` | List saved recording summaries. |
+| `GET` | `/api/listen/recordings/:id` | Fetch recording metadata, audio path, and transcript. |
+| `DELETE` | `/api/listen/recordings/:id` | Delete a saved recording and its artifacts. |
+| `POST` | `/api/listen/recordings/:id/transcribe` | Transcribe or retranscribe a saved recording. |
 | `GET` | `/api/sessions` | List chat sessions. |
 | `POST` | `/api/sessions` | Create a chat session. |
 | `GET` | `/api/sessions/:id` | Fetch transcript, settings, and active plan for a session. |
@@ -149,6 +156,118 @@ Schedules `SIGTERM` for the current daemon process after the response is flushed
 ```json
 { "ok": true, "stopping": true }
 ```
+
+## Listen And Recordings
+
+These endpoints own the daemon-facing recording lifecycle. The native
+Recordings window uses the list, detail, and delete endpoints; Toby.app also
+uses the transcribe endpoint after capture. Toby.app's **capture** control uses
+its separate native API because AVFoundation and ScreenCaptureKit permissions
+belong to the app bundle, then returns to this daemon API for transcription and
+browsing.
+
+### `GET /api/listen/status`
+
+Returns the state of the shared helper-backed `ListenManager`:
+
+```ts
+type ListenManagerState = {
+  status: "idle" | "starting" | "recording" | "stopping" | "error";
+  session?: {
+    id: string;
+    startedAt: string;
+    sources: { mic: boolean; system: boolean };
+  };
+  outputDir?: string;
+  message?: string;
+  error?: string;
+};
+```
+
+This state is independent of Toby.app's in-process native capture state.
+
+### `POST /api/listen/start`
+
+Starts the shared macOS audio helper with the default microphone and system
+audio sources. Returns `ListenManagerState`.
+
+Errors:
+
+- `409` when a helper-backed recording is already active.
+- `500` when capture cannot start.
+
+### `POST /api/listen/stop`
+
+Stops the active helper-backed recording. The JSON body is optional; an empty
+body or object saves by default. Use `{ "action": "discard" }` to discard.
+
+On save, the manager finalizes metadata, transcribes combined audio when
+available, and returns the output directory plus transcript or transcription
+error.
+
+Errors:
+
+- `400` for invalid JSON.
+- `409` when no helper-backed recording is active.
+- `500` when finalization fails.
+
+### `GET /api/listen/recordings`
+
+Lists saved recording summaries, newest first:
+
+```ts
+type ListenRecordingsListResponse = {
+  recordings: Array<{
+    id: string;
+    dir: string;
+    name?: string;
+    description?: string;
+    createdAt: string;
+    startedAt: string;
+    stoppedAt?: string;
+    durationMs?: number;
+    sources: { mic: boolean; system: boolean };
+    hasAudio: boolean;
+    hasTranscript: boolean;
+  }>;
+};
+```
+
+### `GET /api/listen/recordings/:id`
+
+Returns full metadata, the resolved playable `audioPath`, transcript text, and
+optional structured-segment warnings. Audio resolution prefers
+`combined.m4a`, then microphone WAV, then system WAV.
+
+Errors:
+
+- `404` when the recording does not exist.
+
+### `DELETE /api/listen/recordings/:id`
+
+Recursively removes the recording directory selected by its metadata id.
+
+```json
+{ "ok": true }
+```
+
+Errors:
+
+- `404` when the recording does not exist.
+- `500` when removal fails.
+
+### `POST /api/listen/recordings/:id/transcribe`
+
+Invokes the configured transcription plugin against the resolved audio file,
+copies transcript artifacts into the recording directory, updates
+`metadata.json`, and returns refreshed metadata and transcript detail.
+
+Errors:
+
+- `400` when no readable combined, microphone, or system audio exists.
+- `404` when the recording does not exist.
+- `500` when plugin transcription fails. The error is also appended to the
+  recording metadata.
 
 ## Sessions
 
@@ -670,4 +789,3 @@ Requests outside `/api/*` serve files from the built web UI directory when avail
 ```
 
 with HTTP status `503`.
-

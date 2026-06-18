@@ -1,8 +1,10 @@
 # Listen mode
 
 `toby listen` opens **Configuration** focused on the **Listen** section. It is
-not a separate integration capability: recording lifecycle and metadata live in
-`apps/cli/src/listen/`, and the Ink UI is part of the configure tree (like Skills).
+not a separate integration capability: the shared recording lifecycle,
+metadata, lookup, and transcription adapters live in `packages/core/src/listen/`.
+The Ink UI is part of the configure tree, while Toby.app provides a native
+recording control and a separate Recordings window.
 
 ## Current scope
 
@@ -29,6 +31,8 @@ toby listen transcribe ~/.toby/listen/recordings/<recording-id>
 ```
 
 ## UI
+
+### CLI / Ink
 
 Listen lives under **Configuration → Listen** (same pattern as Skills):
 
@@ -58,6 +62,31 @@ Use `toby listen transcribe <recording-folder>` to retry transcription for an
 existing saved recording. The command uses `metadata.files.combined` when it
 points to an existing file, otherwise it falls back to `<recording-folder>/combined.m4a`.
 
+### Toby.app
+
+Toby.app exposes **Record Audio** in the chat sidebar. Starting it calls the
+app's own native localhost API and captures microphone and system audio in the
+Toby.app process. This keeps Microphone and Screen/System Audio permission tied
+to the app's stable bundle identity instead of a development helper binary.
+
+Stopping performs these steps:
+
+1. `NativeAudioHandler` stops capture, validates the source files, exports
+   `combined.m4a`, and moves the temporary session into the shared recordings
+   directory.
+2. The app calls the daemon's
+   `POST /api/listen/recordings/:id/transcribe` endpoint.
+3. The daemon invokes the configured transcription plugin and updates
+   `metadata.json` with transcript paths or errors.
+4. Toby.app shows a success/error toast and the result becomes available in
+   the **Recordings** window.
+
+The Recordings window fetches list and detail data from the daemon. It supports
+audio playback, transcript viewing, and confirmed deletion either from the
+sidebar context menu or the red detail-toolbar button. Deletion is sent to
+`DELETE /api/listen/recordings/:id`; the SwiftUI app does not remove recording
+directories directly.
+
 ## Chat slash commands
 
 The chat TUI also exposes lightweight recording controls:
@@ -69,7 +98,9 @@ The chat TUI also exposes lightweight recording controls:
 
 `/listen` starts recording microphone and system audio for the active chat session. `/stop-listening` stops and saves the recording, runs transcription, writes the same recording folder artifacts as `toby listen`, and injects the transcript as hidden user context so the assistant can summarize or reason about what was said. If transcription is unavailable, the saved audio path is still shown in chat.
 
-These commands use the same helper discovery, macOS-only capture support, and permission requirements as the configure Listen section.
+These commands use the shared core `ListenManager`, helper discovery,
+macOS-only capture support, and permission requirements as the configure Listen
+section. They do not use Toby.app's in-process capture implementation.
 
 ## Helper boundary
 
@@ -140,6 +171,12 @@ or:
 After the Swift helper combines audio into `combined.m4a`, Toby invokes the
 configured **transcription plugin** (`doTranscription` tool). The default
 plugin is **`toby-plugin-whisper`**, which uses whisper.cpp locally.
+
+The shared manager transcribes the combined output it generates. The daemon's
+saved-recording endpoint prefers combined audio, then falls back to microphone
+or system WAV files when necessary. Input already stored as WAV is passed
+directly to the plugin; other formats are converted to whisper-compatible mono
+16 kHz WAV on macOS before invocation.
 
 The plugin writes temp transcript files; Toby copies them into the recording
 folder as:
