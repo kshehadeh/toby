@@ -1,7 +1,7 @@
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawn } from "node:child_process";
 import {
 	getDefaultProvider,
 	readConfig,
@@ -176,7 +176,10 @@ async function removePathBestEffort(targetPath: string): Promise<void> {
 	}
 }
 
-async function runAfconvert(inputPath: string, outputPath: string): Promise<void> {
+async function runAfconvert(
+	inputPath: string,
+	outputPath: string,
+): Promise<void> {
 	await new Promise<void>((resolve, reject) => {
 		const child = spawn("/usr/bin/afconvert", [
 			"-f",
@@ -212,6 +215,9 @@ async function prepareWhisperCompatibleInput(inputPath: string): Promise<{
 	readonly inputPath: string;
 	readonly cleanupDir?: string;
 }> {
+	if (path.extname(inputPath).toLowerCase() === ".wav") {
+		return { inputPath };
+	}
 	if (process.platform !== "darwin") {
 		return { inputPath };
 	}

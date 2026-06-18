@@ -52,7 +52,7 @@ describe("transcription plugin bridge", () => {
 			path.join(os.tmpdir(), "toby-transcription-out-"),
 		);
 		tempDirs.push(outDir);
-		const input = path.join(outDir, "combined.m4a");
+		const input = path.join(outDir, "combined.wav");
 		fs.writeFileSync(input, "fake-audio");
 
 		const tmpDir = fs.mkdtempSync(
