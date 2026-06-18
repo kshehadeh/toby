@@ -1,13 +1,14 @@
 import fs from "node:fs";
-import path from "node:path";
 import { listenManager } from "../../listen/manager";
 import {
+	deleteListenRecordingById,
 	findListenRecordingById,
 	listListenRecordings,
 	metadataPath,
 	readListenTranscript,
 	recordingHasAudio,
 	recordingHasTranscript,
+	resolveListenRecordingAudioPath,
 } from "../../listen/recordings";
 import { transcribeWithPlugin } from "../../listen/transcription-plugin";
 import type { ListenRecordingMetadata } from "../../listen/types";
@@ -67,17 +68,31 @@ export function handleListenRecordingDetail(recordingId: string): Response {
 	const transcript = readListenTranscript(recording.dir, {
 		includeSegments: true,
 	});
+	const audioPath = resolveListenRecordingAudioPath(recording);
 	return jsonResponse({
 		id: recording.id,
 		dir: recording.dir,
 		metadata: recording.metadata,
-		hasAudio: recordingHasAudio(recording),
+		hasAudio: audioPath !== undefined,
+		audioPath,
 		hasTranscript: transcript.ok,
 		transcript: transcript.ok ? transcript.text : undefined,
 		transcriptError: transcript.ok ? undefined : transcript.error,
 		segments: transcript.ok ? transcript.segments : undefined,
 		warnings: transcript.ok ? transcript.warnings : undefined,
 	});
+}
+
+export function handleListenRecordingDelete(recordingId: string): Response {
+	try {
+		if (!deleteListenRecordingById(recordingId)) {
+			return errorResponse("Recording not found", 404);
+		}
+		return jsonResponse({ ok: true });
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return errorResponse(message, 500);
+	}
 }
 
 export async function handleListenRecordingTranscribe(
@@ -87,7 +102,7 @@ export async function handleListenRecordingTranscribe(
 	if (!recording) {
 		return errorResponse("Recording not found", 404);
 	}
-	const input = resolveTranscriptionInput(recording.dir, recording.metadata.files);
+	const input = resolveListenRecordingAudioPath(recording);
 	if (!input) {
 		const message =
 			"Recording has no readable audio file. Expected combined.m4a, mic.wav, or system.wav.";
@@ -131,17 +146,6 @@ export async function handleListenRecordingTranscribe(
 	}
 }
 
-function resolveTranscriptionInput(
-	recordingDir: string,
-	files: ListenRecordingMetadata["files"],
-): string | undefined {
-	return (
-		resolveRecordingFile(recordingDir, files.combined, "combined.m4a") ??
-		resolveRecordingFile(recordingDir, files.mic, "mic.wav") ??
-		resolveRecordingFile(recordingDir, files.system, "system.wav")
-	);
-}
-
 function writeRecordingError(
 	metadata: ListenRecordingMetadata,
 	recordingDir: string,
@@ -157,22 +161,4 @@ function writeRecordingError(
 		metadataPath(recordingDir),
 		`${JSON.stringify(nextMetadata, null, 2)}\n`,
 	);
-}
-
-function resolveRecordingFile(
-	recordingDir: string,
-	filePath?: string,
-	fallbackName?: string,
-): string | undefined {
-	if (filePath?.trim()) {
-		const candidate = path.isAbsolute(filePath)
-			? filePath
-			: path.join(recordingDir, filePath);
-		if (fs.existsSync(candidate)) return candidate;
-	}
-	if (fallbackName) {
-		const fallback = path.join(recordingDir, fallbackName);
-		if (fs.existsSync(fallback)) return fallback;
-	}
-	return undefined;
 }

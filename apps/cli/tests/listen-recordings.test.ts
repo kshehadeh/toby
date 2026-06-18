@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { createListenChatTools } from "@toby/core/ai/listen-chat-tools";
 import {
+	deleteListenRecordingById,
 	findListenRecordingById,
 	listListenRecordings,
 	readListenTranscript,
@@ -185,6 +186,19 @@ describe("listen recordings core", () => {
 
 		expect(findListenRecordingById("target-id", dir)?.id).toBe("target-id");
 		expect(findListenRecordingById("missing", dir)).toBeNull();
+	});
+
+	it("deletes recordings by id", () => {
+		const dir = tempDir();
+		const outputDir = saveRecording({
+			dir,
+			id: "delete-me",
+			startedAt: "2026-05-21T12:00:00Z",
+		});
+
+		expect(deleteListenRecordingById("delete-me", dir)).toBe(true);
+		expect(fs.existsSync(outputDir)).toBe(false);
+		expect(deleteListenRecordingById("delete-me", dir)).toBe(false);
 	});
 });
 

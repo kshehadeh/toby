@@ -117,6 +117,13 @@ struct TobyClient {
 		return try JSONDecoder().decode(ListenRecordingDetail.self, from: data)
 	}
 
+	func deleteRecording(id: String) async throws {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)"))
+		request.httpMethod = "DELETE"
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+	}
+
 	func transcribeRecording(id: String) async throws -> ListenRecordingDetail {
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)/transcribe"))
 		request.httpMethod = "POST"

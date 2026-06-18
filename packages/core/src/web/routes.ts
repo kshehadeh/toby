@@ -22,6 +22,7 @@ import {
 	handleDaemonStop,
 } from "./handlers/daemon";
 import {
+	handleListenRecordingDelete,
 	handleListenRecordingDetail,
 	handleListenRecordingTranscribe,
 	handleListenRecordingsList,
@@ -123,6 +124,11 @@ export async function handleWebRequest(
 		);
 		if (listenRecordingMatch && req.method === "GET") {
 			return handleListenRecordingDetail(
+				decodeURIComponent(listenRecordingMatch[1]),
+			);
+		}
+		if (listenRecordingMatch && req.method === "DELETE") {
+			return handleListenRecordingDelete(
 				decodeURIComponent(listenRecordingMatch[1]),
 			);
 		}

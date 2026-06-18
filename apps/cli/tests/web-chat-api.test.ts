@@ -6,12 +6,12 @@ import {
 	shouldPersistChatEventInTranscript,
 } from "@toby/core/chat-pipeline/transcript-reducer";
 import { listenManager } from "@toby/core/listen/manager";
-import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
 import {
 	buildListenMetadata,
 	prepareListenSession,
 	saveListenSession,
 } from "@toby/core/listen/session-controller";
+import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
 import { closeChatDbForTests } from "@toby/core/session-store";
 import { handleWebRequest } from "@toby/core/web/routes";
 import {
@@ -327,9 +327,55 @@ describe("web chat API routes", () => {
 				null,
 			);
 			expect(detail.status).toBe(200);
-			expect((await detail.json()) as { transcript?: string }).toMatchObject({
+			expect(
+				(await detail.json()) as { transcript?: string; audioPath?: string },
+			).toMatchObject({
 				transcript: "route transcript",
+				audioPath: path.join(outputDir, "combined.m4a"),
 			});
+		});
+	});
+
+	it("deletes listen recordings", async () => {
+		await withTempTobyDir(async () => {
+			const recordingsDir = path.join(
+				process.env.TOBY_DIR ?? "",
+				"listen",
+				"recordings",
+			);
+			const session = prepareListenSession({
+				recordingsDir,
+				id: "delete-route-recording",
+				now: new Date("2026-06-17T10:00:00Z"),
+				sources: { mic: true, system: true },
+			});
+			const outputDir = saveListenSession(
+				session,
+				buildListenMetadata({
+					session,
+					stoppedAt: new Date("2026-06-17T10:00:05Z"),
+					files: {},
+				}),
+			);
+
+			const deleted = await handleWebRequest(
+				new Request(
+					"http://127.0.0.1/api/listen/recordings/delete-route-recording",
+					{ method: "DELETE" },
+				),
+				null,
+			);
+			expect(deleted.status).toBe(200);
+			expect(fs.existsSync(outputDir)).toBe(false);
+
+			const missing = await handleWebRequest(
+				new Request(
+					"http://127.0.0.1/api/listen/recordings/delete-route-recording",
+					{ method: "DELETE" },
+				),
+				null,
+			);
+			expect(missing.status).toBe(404);
 		});
 	});
 

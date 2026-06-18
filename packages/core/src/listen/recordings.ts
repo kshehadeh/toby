@@ -9,6 +9,8 @@ const RECORDINGS_DIR = "recordings";
 const TRANSCRIPT_TXT = "transcript.txt";
 const TRANSCRIPT_JSON = "transcript.json";
 const COMBINED_M4A = "combined.m4a";
+const MIC_WAV = "mic.wav";
+const SYSTEM_WAV = "system.wav";
 
 function getListenDir(baseDir = resolveTobyDir()): string {
 	return path.join(baseDir, LISTEN_DIR);
@@ -78,6 +80,16 @@ export function findListenRecordingById(
 	);
 }
 
+export function deleteListenRecordingById(
+	id: string,
+	recordingsDir?: string,
+): boolean {
+	const recording = findListenRecordingById(id, recordingsDir);
+	if (!recording) return false;
+	fs.rmSync(recording.dir, { recursive: true });
+	return true;
+}
+
 function resolveFilePath(
 	recordingDir: string,
 	relativeOrAbsolute?: string,
@@ -113,12 +125,20 @@ export function recordingHasTranscript(
 }
 
 export function recordingHasAudio(recording: ListenRecordingSummary): boolean {
-	return Boolean(
+	return resolveListenRecordingAudioPath(recording) !== undefined;
+}
+
+export function resolveListenRecordingAudioPath(
+	recording: ListenRecordingSummary,
+): string | undefined {
+	return (
 		resolveFilePath(
 			recording.dir,
 			recording.metadata.files.combined,
 			COMBINED_M4A,
-		),
+		) ??
+		resolveFilePath(recording.dir, recording.metadata.files.mic, MIC_WAV) ??
+		resolveFilePath(recording.dir, recording.metadata.files.system, SYSTEM_WAV)
 	);
 }
 

@@ -3,24 +3,47 @@ import SwiftUI
 
 struct RecordingsView: View {
 	@Bindable var store: RecordingsStore
+	@State private var pendingDeleteRecording: ListenRecordingSummary?
+	@State private var isDeleteAlertPresented = false
 
 	var body: some View {
 		NavigationSplitView {
-			RecordingsSidebarView(store: store)
+			RecordingsSidebarView(store: store, onDeleteRecording: confirmDelete)
 				.navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 300)
 		} detail: {
-			RecordingsDetailView(store: store)
+			RecordingsDetailView(store: store, onDeleteRecording: confirmDelete)
 		}
 		.frame(minWidth: 860, minHeight: 560)
 		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.load()
 		}
+		.alert(
+			"Delete Recording?",
+			isPresented: $isDeleteAlertPresented,
+			presenting: pendingDeleteRecording,
+		) { recording in
+			Button("Cancel", role: .cancel) {
+				pendingDeleteRecording = nil
+			}
+			Button("Delete", role: .destructive) {
+				pendingDeleteRecording = nil
+				Task { await store.deleteRecording(id: recording.id) }
+			}
+		} message: { recording in
+			Text("Are you sure you want to delete \"\(recordingSidebarTitle(recording))\"? This cannot be undone.")
+		}
+	}
+
+	private func confirmDelete(_ recording: ListenRecordingSummary) {
+		pendingDeleteRecording = recording
+		isDeleteAlertPresented = true
 	}
 }
 
 private struct RecordingsSidebarView: View {
 	@Bindable var store: RecordingsStore
+	let onDeleteRecording: (ListenRecordingSummary) -> Void
 
 	var body: some View {
 		ScrollView {
@@ -46,6 +69,11 @@ private struct RecordingsSidebarView: View {
 							)
 						}
 						.buttonStyle(.plain)
+						.contextMenu {
+							Button("Delete Recording", systemImage: "trash", role: .destructive) {
+								onDeleteRecording(recording)
+							}
+						}
 					}
 				}
 			}
@@ -89,6 +117,7 @@ private struct RecordingSidebarRow: View {
 
 private struct RecordingsDetailView: View {
 	@Bindable var store: RecordingsStore
+	let onDeleteRecording: (ListenRecordingSummary) -> Void
 
 	var body: some View {
 		ScrollView {
@@ -121,6 +150,18 @@ private struct RecordingsDetailView: View {
 			.padding(.vertical, 28)
 		}
 		.background(SettingsDesign.canvasBackground)
+		.toolbar {
+			ToolbarItem(placement: .primaryAction) {
+				if let recording = store.selectedRecording {
+					Button("Delete Recording", systemImage: "trash", role: .destructive) {
+						onDeleteRecording(recording)
+					}
+					.buttonStyle(.borderedProminent)
+					.tint(.red)
+					.disabled(store.deletingRecordingId != nil)
+				}
+			}
+		}
 	}
 }
 
