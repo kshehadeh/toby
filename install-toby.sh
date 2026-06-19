@@ -5,7 +5,6 @@
 #   - toby → $TOBY_INSTALL_DIR (default ~/.local/bin)
 #   - web UI → sibling web/ directory
 #   - Toby.app → /Applications (or ~/Applications when /Applications is not writable)
-#   - toby-listener → ~/.toby/helpers/
 #   - toby-plugin-whisper → ~/.toby/plugins/
 #   - toby-plugin-sample, toby-plugin-azuread, toby-plugin-gmail, toby-plugin-todoist, toby-plugin-jira, toby-plugin-websearch, toby-plugin-applecalendar, toby-plugin-macos → ~/.toby/plugins/
 #
@@ -86,8 +85,8 @@ if ! curl -fsSL -o "${tmpdir}/toby.zip" "$download_url"; then
 	exit 1
 fi
 unzip -q "${tmpdir}/toby.zip" -d "$tmpdir"
-if [[ ! -f "${tmpdir}/toby" || ! -f "${tmpdir}/toby-listener" || ! -f "${tmpdir}/toby-plugin-whisper" ]]; then
-	echo "Release archive is missing toby, toby-listener, or toby-plugin-whisper." >&2
+if [[ ! -f "${tmpdir}/toby" || ! -f "${tmpdir}/toby-plugin-whisper" ]]; then
+	echo "Release archive is missing toby or toby-plugin-whisper." >&2
 	exit 1
 fi
 if [[ ! -f "${tmpdir}/web/index.html" ]]; then
@@ -182,11 +181,6 @@ if [[ -d "${tmpdir}/Toby.app" ]]; then
 	fi
 fi
 
-chmod +x "${tmpdir}/toby-listener"
-mkdir -p "$toby_helpers_dir"
-mv "${tmpdir}/toby-listener" "${toby_helpers_dir}/toby-listener"
-echo "Installed: ${toby_helpers_dir}/toby-listener"
-
 if $has_whisper_plugin; then
 	chmod +x "${tmpdir}/toby-plugin-whisper"
 	mkdir -p "$toby_plugins_dir"
@@ -263,7 +257,7 @@ if $has_macos_plugin; then
 fi
 
 # Remove legacy standalone helpers if present.
-for legacy_helper in "${toby_helpers_dir}/toby-macos" "${toby_helpers_dir}/whisper-cli"; do
+for legacy_helper in "${toby_helpers_dir}/toby-macos" "${toby_helpers_dir}/whisper-cli" "${toby_helpers_dir}/toby-listener"; do
 	if [[ -f "$legacy_helper" ]]; then
 		rm -f "$legacy_helper"
 		echo "Removed legacy helper: $legacy_helper"

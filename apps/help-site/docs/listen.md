@@ -13,7 +13,6 @@ title: Listen mode
 toby listen
 toby listen --mic-only
 toby listen --system-only
-toby listen --helper /path/to/toby-listener
 toby listen --out-dir ./recordings
 toby listen transcribe ~/.toby/listen/recordings/<recording-id>
 ```
@@ -52,6 +51,6 @@ Inside `toby chat`, use:
 
 ## macOS helper and permissions
 
-Audio capture is currently macOS-only and requires the `toby-listener` helper. Packaged installs auto-detect the helper under `~/.toby/helpers/`; development builds can pass `--helper` or set `TOBY_AUDIO_HELPER`.
+Audio capture is currently macOS-only and is handled by the native **Toby.app**. The CLI launches Toby.app and routes recording through its native localhost server (`~/.toby/native-port`).
 
 Depending on selected sources, macOS may request Microphone, Screen/System Audio Recording, and Speech Recognition permissions.

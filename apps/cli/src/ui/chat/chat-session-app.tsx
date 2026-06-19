@@ -105,10 +105,7 @@ import React, {
 	useState,
 } from "react";
 import { applyTranscriptFilesToMetadata } from "../../commands/listen";
-import {
-	startMacOSAudioCapture,
-	waitForAudioHelperExit,
-} from "../../listen/macos/audio-capture";
+import { startMacOSAudioCapture } from "../../listen/macos/audio-capture";
 import {
 	buildListenMetadata,
 	discardListenSession,
@@ -1678,7 +1675,6 @@ export function ChatSessionApp({
 								if (!handle || !session) return null;
 								try {
 									await handle.stop(action);
-									await waitForAudioHelperExit(handle.child);
 									listenHandleRef.current = null;
 									listenSessionRef.current = null;
 									setIsListenRecording(false);
@@ -1698,7 +1694,6 @@ export function ChatSessionApp({
 										errors: listenErrorsRef.current,
 									});
 									const outputDir = saveListenSession(session, metadata);
-									const helperPath = handle.helperPath;
 									let transcript = readTranscriptFile(outputDir);
 									let transcriptionError: string | undefined;
 									if (!transcript && savedFiles.combined) {

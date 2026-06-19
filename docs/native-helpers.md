@@ -5,22 +5,21 @@ Node/Bun is not the right boundary for talking to the operating system.
 
 **Not the same as installable plugins.** Full integrations that expose connect,
 tools, and chat use the plugin argv contract in [`plugin-protocol.md`](plugin-protocol.md).
-Helpers are thin bridges for discrete native calls (Wi‑Fi status, audio capture)
-while TypeScript keeps product logic.
+Helpers are thin bridges for discrete native calls while TypeScript keeps product
+logic.
 
-One helper currently exists:
+Audio capture used to be handled by a standalone **toby-audio-helper** helper. It
+has been removed; `toby listen` now routes recording through the native
+**Toby.app** API server so microphone and system audio permissions are tied to
+Toby.app's stable bundle identity.
 
-- **toby-audio-helper** — macOS audio capture for `toby listen` (line-delimited JSON streaming protocol)
+**Toby.app** runs a native API server for permission-gated operations that plugins
+cannot perform as raw CLI binaries (EventKit, Accessibility, microphone, and
+system audio). See the Toby.app native API section below.
 
-In addition, **Toby.app** runs a native API server for permission-gated operations that plugins cannot perform as raw CLI binaries (EventKit, Accessibility). See the Toby.app native API section below.
-
-macOS system control (`macos` integration) is an **installable plugin** (`toby-plugin-macos`) that calls native APIs in-process — see [`macos-integration.md`](macos-integration.md).
-
-```text
-apps/audio-helper/
-  Package.swift
-  Sources/TobyAudioHelper/main.swift
-```
+macOS system control (`macos` integration) is an **installable plugin**
+(`toby-plugin-macos`) that calls native APIs in-process — see
+[`macos-integration.md`](macos-integration.md).
 
 Use this document as the reference pattern when adding future helpers for native
 system interaction.
@@ -52,20 +51,16 @@ The TypeScript app owns product behavior. The helper owns native mechanics.
 
 Helpers follow one of two protocol patterns depending on the use case:
 
-### Streaming protocol (toby-audio-helper)
+### Streaming protocol (example pattern)
 
-For `toby listen`, the audio helper uses a **line-delimited JSON streaming**
-protocol because recording is a long-running session:
+A long-running helper can use a **line-delimited JSON streaming** protocol:
 
-- The CLI command, Ink UI, recording list, metadata, confirmation prompts, and
-  storage policy live in TypeScript.
-- The Swift helper handles microphone capture, system audio capture, macOS
-  permissions, audio file writing, combined audio export, and whisper.cpp
-  transcription (orchestrating the bundled `whisper-cli` binary).
+- The CLI command, Ink UI, state machine, and storage policy live in TypeScript.
+- The native helper handles platform APIs, permissions, and resource cleanup.
 - The helper reports progress through a line-delimited JSON protocol.
-- Toby sends a small JSON command over stdin when the recording should stop.
+- Toby sends a small JSON command over stdin when the session should stop.
 
-Choose the streaming pattern when the helper manages a long-lived session with
+Choose the streaming pattern when a helper manages a long-lived session with
 progress events. For discrete system-control tools exposed to chat, prefer an
 installable plugin that implements [`plugin-protocol.md`](plugin-protocol.md)
 and calls native code in-process (see `toby-plugin-macos`).
@@ -146,8 +141,7 @@ Build commands should live in `package.json`, for example:
 ```json
 {
   "scripts": {
-    "build:audio-helper": "swift build -c release --package-path apps/audio-helper",
-    "build:audio-helper": "swift build -c release --package-path apps/audio-helper"
+    "build:<helper-name>": "swift build -c release --package-path helpers/<helper-name>"
   }
 }
 ```
@@ -159,8 +153,8 @@ Ignore generated build output in `.gitignore`.
 TypeScript should resolve helpers in this order:
 
 1. An explicit command option, such as `--helper /path/to/helper`.
-2. An environment variable, such as `TOBY_AUDIO_HELPER`.
-3. The packaged helper under `~/.toby/helpers/`, such as `~/.toby/helpers/toby-listener`.
+2. An environment variable, such as `TOBY_<HELPER>_HELPER`.
+3. The packaged helper under `~/.toby/helpers/`.
 4. A packaged sibling beside the compiled Toby binary (legacy installs).
 5. The development build path under `helpers/<helper-name>/.build/release/`.
 
@@ -207,19 +201,18 @@ prompts or real audio devices.
 
 ## Current helpers
 
-### toby-audio-helper (streaming)
+### Audio capture (Toby.app native API)
 
-`toby listen` follows this pattern:
+`toby listen` routes recording through Toby.app's native API server:
 
 - `apps/cli/src/commands/listen.ts` registers the command and opens configure.
 - `apps/cli/src/ui/configure/` owns the Listen section in the configuration UI (`listen-panes.tsx`, `use-listen-controller.ts`).
 - `apps/cli/src/listen/session-controller.ts` owns recording folders and metadata.
-- `apps/cli/src/listen/macos/audio-capture.ts` spawns and supervises the helper.
-- `apps/audio-helper/` contains the Swift executable.
+- `apps/cli/src/listen/macos/audio-capture.ts` discovers Toby.app and calls its native audio endpoints.
+- `apps/toby-app/Sources/TobyApp/NativeAudioHandler.swift` performs AVFoundation/ScreenCaptureKit capture and combines source tracks.
+- `apps/toby-app/Sources/TobyApp/NativeServer.swift` exposes the `/api/native/audio/*` endpoints.
 
-See [listen.md](listen.md) for the command-specific recording behavior and audio
-protocol details. See [listen-binaries.md](listen-binaries.md) for how
-`toby-listener` and `whisper-cli` are built and shipped in releases.
+See [listen.md](listen.md) for the command-specific recording behavior.
 
 For macOS system tools, see [macos-integration.md](macos-integration.md) (`toby-plugin-macos`).
 
@@ -261,6 +254,7 @@ The native server listens on a random localhost port written to `~/.toby/native-
 | `GET` | `/api/native/audio/status` | Check active native audio recording state |
 | `POST` | `/api/native/audio/start` | Start native microphone/system audio capture |
 | `POST` | `/api/native/audio/stop` | Stop native audio capture and save recording files |
+| `POST` | `/api/native/audio/combine` | Combine existing mic/system WAV files into `combined.m4a` |
 
 ### Plugin integration
 

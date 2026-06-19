@@ -8,7 +8,8 @@ description: Perform Toby project releases using release-it, macOS release archi
 ## Goal
 
 Prepare and cut a Toby release safely. Toby is a macOS-focused CLI; release
-assets are macOS archives containing both `toby` and `toby-listener`.
+assets are macOS archives containing `toby`, `Toby.app`, and the bundled
+plugins/helper.
 
 **Default for agents:** use non-interactive release-it mode so prompts are skipped:
 
@@ -40,7 +41,7 @@ Expected assets:
 Each archive must contain:
 
 - `toby`
-- `toby-listener`
+- `Toby.app`
 - `whisper-cli`
 - `toby-plugin-sample`
 - `toby-plugin-azuread`

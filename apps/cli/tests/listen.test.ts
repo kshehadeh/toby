@@ -1,20 +1,13 @@
-import type { ChildProcessWithoutNullStreams } from "node:child_process";
-import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Command } from "commander";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
 	applyTranscriptFilesToMetadata,
 	registerListenCommand,
 	resolveTranscriptionAudioInput,
 } from "../src/commands/listen";
-import {
-	parseAudioHelperEvent,
-	resolveAudioHelperPath,
-	waitForAudioHelperExit,
-} from "../src/listen/macos/audio-capture";
 import {
 	buildListenMetadata,
 	deleteListenRecording,
@@ -33,22 +26,6 @@ function tempDir(): string {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-listen-test-"));
 	tempDirs.push(dir);
 	return dir;
-}
-
-function fakeHelperChild(): ChildProcessWithoutNullStreams {
-	const child = new EventEmitter() as EventEmitter & {
-		exitCode: number | null;
-		killed: boolean;
-		kill: ReturnType<typeof vi.fn>;
-	};
-	child.exitCode = null;
-	child.killed = false;
-	child.kill = vi.fn(() => {
-		child.killed = true;
-		child.emit("exit", null, "SIGTERM");
-		return true;
-	});
-	return child as unknown as ChildProcessWithoutNullStreams;
 }
 
 afterEach(() => {
@@ -70,7 +47,6 @@ describe("listen command", () => {
 		expect(listen?.options.map((option) => option.long)).toContain(
 			"--system-only",
 		);
-		expect(listen?.options.map((option) => option.long)).toContain("--helper");
 	});
 
 	it("registers a retry transcription subcommand", () => {
@@ -83,9 +59,6 @@ describe("listen command", () => {
 		);
 
 		expect(transcribe).toBeDefined();
-		expect(transcribe?.options.map((option) => option.long)).toContain(
-			"--helper",
-		);
 	});
 });
 
@@ -273,112 +246,5 @@ describe("listen session storage", () => {
 			transcript: "transcript.txt",
 			transcriptJson: "transcript.json",
 		});
-	});
-});
-
-describe("audio helper events", () => {
-	it("parses supported JSON lines", () => {
-		expect(
-			parseAudioHelperEvent(
-				'{"type":"permission","service":"microphone","status":"granted"}',
-			),
-		).toEqual({
-			type: "permission",
-			service: "microphone",
-			status: "granted",
-		});
-	});
-
-	it("parses combined output file events", () => {
-		expect(
-			parseAudioHelperEvent(
-				'{"type":"stopped","files":{"mic":"mic.wav","system":"system.wav","combined":"combined.m4a"}}',
-			),
-		).toEqual({
-			type: "stopped",
-			files: {
-				mic: "mic.wav",
-				system: "system.wav",
-				combined: "combined.m4a",
-			},
-		});
-	});
-
-	it("parses transcribed helper events", () => {
-		expect(
-			parseAudioHelperEvent(
-				'{"type":"transcribed","files":{"transcript":"transcript.txt","transcriptJson":"transcript.json"}}',
-			),
-		).toEqual({
-			type: "transcribed",
-			files: {
-				transcript: "transcript.txt",
-				transcriptJson: "transcript.json",
-			},
-		});
-	});
-
-	it("parses standalone combined output file events", () => {
-		expect(
-			parseAudioHelperEvent(
-				'{"type":"combined","files":{"combined":"combined.m4a"}}',
-			),
-		).toEqual({
-			type: "combined",
-			files: {
-				combined: "combined.m4a",
-			},
-		});
-	});
-
-	it("ignores malformed lines", () => {
-		expect(parseAudioHelperEvent("not json")).toBeNull();
-		expect(parseAudioHelperEvent('{"type":"unknown"}')).toBeNull();
-	});
-
-	it("prefers explicit helper paths", () => {
-		expect(resolveAudioHelperPath("/tmp/toby-audio-helper")).toBe(
-			"/tmp/toby-audio-helper",
-		);
-	});
-
-	it("waits for helper exit without a default timeout", async () => {
-		vi.useFakeTimers();
-		try {
-			const child = fakeHelperChild();
-			let resolved = false;
-			const wait = waitForAudioHelperExit(child).then(() => {
-				resolved = true;
-			});
-
-			vi.advanceTimersByTime(6_000);
-
-			expect(child.kill).not.toHaveBeenCalled();
-			expect(resolved).toBe(false);
-
-			child.exitCode = 0;
-			child.emit("exit", 0, null);
-			await wait;
-
-			expect(resolved).toBe(true);
-		} finally {
-			vi.useRealTimers();
-		}
-	});
-
-	it("kills the helper when an explicit timeout is provided", async () => {
-		vi.useFakeTimers();
-		try {
-			const child = fakeHelperChild();
-			const wait = waitForAudioHelperExit(child, 5_000);
-
-			vi.advanceTimersByTime(5_000);
-			await wait;
-
-			expect(child.kill).toHaveBeenCalledWith("SIGTERM");
-			expect(child.killed).toBe(true);
-		} finally {
-			vi.useRealTimers();
-		}
 	});
 });

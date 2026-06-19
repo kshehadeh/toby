@@ -10,7 +10,7 @@ recording control and a separate Recordings window.
 
 - macOS-only capture adapter.
 - Record microphone, system audio, or both.
-- Save source tracks separately as PCM `wav` files when the helper is present.
+- Save source tracks separately as PCM `wav` files.
 - Generate `combined.m4a` after listening stops for playback/transcription.
 - Generate `transcript.txt` and `transcript.json` via an installed
   **transcription plugin** (default: `toby-plugin-whisper` / whisper.cpp) when
@@ -26,7 +26,6 @@ default. Pass `--out-dir <path>` to store recording folders elsewhere.
 toby listen
 toby listen --mic-only
 toby listen --system-only
-toby listen --helper /path/to/toby-listener
 toby listen transcribe ~/.toby/listen/recordings/<recording-id>
 ```
 
@@ -98,62 +97,43 @@ The chat TUI also exposes lightweight recording controls:
 
 `/listen` starts recording microphone and system audio for the active chat session. `/stop-listening` stops and saves the recording, runs transcription, writes the same recording folder artifacts as `toby listen`, and injects the transcript as hidden user context so the assistant can summarize or reason about what was said. If transcription is unavailable, the saved audio path is still shown in chat.
 
-These commands use the shared core `ListenManager`, helper discovery,
-macOS-only capture support, and permission requirements as the configure Listen
-section. They do not use Toby.app's in-process capture implementation.
+These commands use the shared core `ListenManager` and macOS-only capture
+support. They now route recording through Toby.app's native localhost server,
+so the same app bundle identity handles microphone and system audio
+permissions.
 
 ## Helper boundary
 
-Node/Bun does not provide direct access to macOS audio capture APIs, so Toby
-uses a small native Swift helper.
+Node/Bun does not provide direct access to macOS audio capture APIs, so the
+CLI routes recording through the native **Toby.app**.
 
-The general helper pattern is documented in
-[native-helpers.md](native-helpers.md). This section describes the
-`toby listen` helper's command-specific protocol.
+Toby.app runs a local HTTP server on an ephemeral port published to
+`~/.toby/native-port`. The core audio capture client reads that port, launches
+Toby.app if it is not already running, and calls the `/api/native/audio/*`
+endpoints. Audio capture, permission handling, and source-track combination
+all happen inside Toby.app's `NativeAudioHandler`.
 
-Build and release details for `toby-listener` and `whisper-cli` are documented in
-[listen-binaries.md](listen-binaries.md). For local development, build the listener from the repo root:
-
-```bash
-bun run build:audio-helper
-```
-
-In packaged installs, Toby auto-detects `toby-listener` under
-`~/.toby/helpers/` (falling back to a sibling of the `toby` binary for
-legacy installs). In development, Toby auto-detects the release build at
-`apps/audio-helper/.build/release/toby-audio-helper` when launched from
-the repo root. You can also set `TOBY_AUDIO_HELPER=/path/to/toby-audio-helper`
-or pass `--helper`.
-
-The helper command shape is:
+Build and release details for `whisper-cli` are documented in
+[listen-binaries.md](listen-binaries.md). For local development, build Toby.app
+from the repo root:
 
 ```bash
-toby-audio-helper record --out-dir <dir> --format wav [--mic] [--system]
-toby-audio-helper combine --out-dir <dir> [--mic <path>] [--system <path>]
+bun run build:app
 ```
 
-The helper should write JSON lines to stdout:
+In development, the core client looks for Toby.app at common locations (with
+`TOBY_APP_PATH` taking precedence):
 
-```json
-{"type":"permission","service":"microphone","status":"prompting"}
-{"type":"permission","service":"microphone","status":"granted"}
-{"type":"ready","helperVersion":"0.1.0","files":{"mic":"mic.wav","system":"system.wav"}}
-{"type":"status","message":"recording"}
-{"type":"status","message":"combining audio"}
-{"type":"stopped","durationMs":12000,"files":{"mic":"mic.wav","system":"system.wav","combined":"combined.m4a"}}
-```
+- `~/dev/karim/toby/dist/Toby.app`
+- `~/.local/bin/Toby.app`
+- `/Applications/Toby.app`
+- `~/Applications/Toby.app`
 
-Toby sends one JSON line on stdin to stop:
+The native audio endpoints are:
 
-```json
-{"type":"stop","action":"save"}
-```
-
-or:
-
-```json
-{"type":"stop","action":"discard"}
-```
+- `POST /api/native/audio/start` with body `{ "mic": true, "system": true }`
+- `POST /api/native/audio/stop` with body `{ "action": "save" | "discard" }`
+- `POST /api/native/audio/combine` with body `{ "outDir": "...", "mic": "...", "system": "..." }`
 
 ## macOS APIs
 

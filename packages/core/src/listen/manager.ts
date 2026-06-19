@@ -1,9 +1,7 @@
-import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import {
 	type AudioCaptureHandle,
 	type AudioHelperEvent,
 	startMacOSAudioCapture,
-	waitForAudioHelperExit,
 } from "./macos/audio-capture";
 import { readListenTranscript } from "./recordings";
 import {
@@ -55,10 +53,6 @@ export interface ListenManagerDeps {
 		readonly helperPath?: string;
 		readonly onEvent?: (event: AudioHelperEvent) => void;
 	}) => AudioCaptureHandle;
-	readonly waitForExit?: (
-		child: ChildProcessWithoutNullStreams,
-		timeoutMs?: number,
-	) => Promise<void>;
 	readonly transcribe?: (options: {
 		readonly input: string;
 		readonly outDir: string;
@@ -106,12 +100,10 @@ export class ListenManager {
 	private error: string | undefined;
 
 	private readonly startCapture: NonNullable<ListenManagerDeps["startCapture"]>;
-	private readonly waitForExit: NonNullable<ListenManagerDeps["waitForExit"]>;
 	private readonly transcribe: NonNullable<ListenManagerDeps["transcribe"]>;
 
 	constructor(deps: ListenManagerDeps = {}) {
 		this.startCapture = deps.startCapture ?? startMacOSAudioCapture;
-		this.waitForExit = deps.waitForExit ?? waitForAudioHelperExit;
 		this.transcribe = deps.transcribe ?? transcribeWithPlugin;
 	}
 
@@ -141,7 +133,7 @@ export class ListenManager {
 		});
 		this.session = session;
 		this.statusValue = "starting";
-		this.message = "Starting audio helper...";
+		this.message = "Starting recording...";
 		this.error = undefined;
 		this.helperVersion = undefined;
 		this.files = {};
@@ -182,10 +174,6 @@ export class ListenManager {
 
 		try {
 			await handle.stop(action);
-			await this.waitForExit(
-				handle.child,
-				action === "discard" ? 5_000 : undefined,
-			);
 			this.handle = null;
 			this.session = null;
 

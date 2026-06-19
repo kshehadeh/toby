@@ -1,7 +1,7 @@
-import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { getHelpersDir } from "../../config/index";
 import type { ListenRecordingFiles, ListenSession } from "../types";
 import { selectedListenSources } from "../types";
 
@@ -42,7 +42,6 @@ export type AudioHelperEvent =
 
 export interface AudioCaptureHandle {
 	readonly helperPath: string;
-	readonly child: ChildProcessWithoutNullStreams;
 	stop(action: "save" | "discard"): Promise<void>;
 	dispose(): void;
 }
@@ -75,26 +74,16 @@ function isMacOSListenSupported(): boolean {
 	return process.platform === "darwin";
 }
 
-export function resolveAudioHelperPath(explicitPath?: string): string | null {
-	const fromOption = explicitPath?.trim();
-	if (fromOption) return fromOption;
-	const fromEnv = process.env.TOBY_AUDIO_HELPER?.trim();
-	if (fromEnv) return fromEnv;
-	const executableDir = path.dirname(process.execPath);
+function resolveTobyAppPath(): string | null {
+	const env = process.env.TOBY_APP_PATH?.trim();
+	if (env && fs.existsSync(env)) return env;
+	const home = os.homedir();
 	const candidates = [
-		path.join(getHelpersDir(), "toby-listener"),
-		path.join(executableDir, "toby-listener"),
-		path.join(process.cwd(), "dist", "toby-listener"),
-		path.join(process.cwd(), "dist", "toby-audio-helper"),
-		path.join(
-			process.cwd(),
-			"helpers",
-			"toby-audio-helper",
-			".build",
-			"release",
-			"toby-audio-helper",
-		),
-		path.join(process.cwd(), "helpers", "toby-audio-helper"),
+		path.join(home, "dev/karim/toby/dist/Toby.app"),
+		path.join(home, ".local/bin/Toby.app"),
+		"/Applications/Toby.app",
+		path.join(home, "Applications/Toby.app"),
+		path.join(process.cwd(), "dist/Toby.app"),
 	];
 	for (const candidate of candidates) {
 		if (fs.existsSync(candidate)) return candidate;
@@ -102,61 +91,98 @@ export function resolveAudioHelperPath(explicitPath?: string): string | null {
 	return null;
 }
 
-export function parseAudioHelperEvent(line: string): AudioHelperEvent | null {
-	const trimmed = line.trim();
-	if (!trimmed) return null;
+function resolveNativePort(): number | null {
+	const home = os.homedir();
+	const portFile = path.join(home, ".toby/native-port");
+	if (!fs.existsSync(portFile)) return null;
+	const text = fs.readFileSync(portFile, "utf8").trim();
+	const port = Number.parseInt(text, 10);
+	return Number.isNaN(port) ? null : port;
+}
+
+async function isNativeServerAlive(port: number): Promise<boolean> {
 	try {
-		const parsed = JSON.parse(trimmed) as Partial<AudioHelperEvent>;
-		if (!parsed || typeof parsed !== "object" || !("type" in parsed)) {
-			return null;
-		}
-		switch (parsed.type) {
-			case "ready":
-			case "status":
-			case "permission":
-			case "error":
-			case "stopped":
-			case "combined":
-			case "transcribed":
-				return parsed as AudioHelperEvent;
-			default:
-				return null;
-		}
+		const res = await fetch(`http://127.0.0.1:${port}/api/native/health`, {
+			signal: AbortSignal.timeout(1000),
+		});
+		return res.ok;
 	} catch {
-		return null;
+		return false;
 	}
 }
 
-function helperArgs(session: ListenSession): string[] {
-	const args = ["record", "--out-dir", session.tempDir, "--format", "wav"];
-	for (const source of selectedListenSources(session.sources)) {
-		args.push(source === "mic" ? "--mic" : "--system");
-	}
-	return args;
-}
-
-function combineArgs(options: CombineWithMacOSAudioHelperOptions): string[] {
-	const args = ["combine", "--out-dir", options.outDir];
-	if (options.mic) args.push("--mic", options.mic);
-	if (options.system) args.push("--system", options.system);
-	return args;
-}
-
-function requireAudioHelperPath(explicitPath?: string): string {
-	const helperPath = resolveAudioHelperPath(explicitPath);
-	if (!helperPath) {
+async function launchTobyApp(): Promise<number> {
+	const appPath = resolveTobyAppPath();
+	if (!appPath) {
 		throw new ListenCaptureError(
-			"helper_missing",
-			"Audio helper not found. Set TOBY_AUDIO_HELPER or install the Swift helper described in docs/listen.md.",
+			"app_missing",
+			"Toby.app not found. Set TOBY_APP_PATH or install the app.",
 		);
 	}
-	if (!fs.existsSync(helperPath)) {
+	spawn("open", [appPath], { detached: true });
+	for (let i = 0; i < 30; i++) {
+		await new Promise((resolve) => setTimeout(resolve, 1000));
+		const port = resolveNativePort();
+		if (port && (await isNativeServerAlive(port))) {
+			return port;
+		}
+	}
+	throw new ListenCaptureError(
+		"app_not_ready",
+		"Toby.app native server did not become available.",
+	);
+}
+
+async function ensureNativeServer(): Promise<number> {
+	const port = resolveNativePort();
+	if (port && (await isNativeServerAlive(port))) {
+		return port;
+	}
+	return launchTobyApp();
+}
+
+async function nativeRequest(
+	endpoint: string,
+	method: string,
+	body?: Record<string, unknown>,
+): Promise<unknown> {
+	const port = await ensureNativeServer();
+	const url = `http://127.0.0.1:${port}/api/native/${endpoint}`;
+	const res = await fetch(url, {
+		method,
+		headers: body ? { "Content-Type": "application/json" } : undefined,
+		body: body ? JSON.stringify(body) : undefined,
+	});
+	if (!res.ok) {
 		throw new ListenCaptureError(
-			"helper_missing",
-			`Audio helper does not exist at ${helperPath}.`,
+			"server_error",
+			`Native server returned ${res.status}`,
 		);
 	}
-	return helperPath;
+	const data = (await res.json()) as {
+		ok: boolean;
+		data?: unknown;
+		error?: string;
+	};
+	if (!data.ok) {
+		throw new ListenCaptureError(
+			"native_error",
+			data.error ?? "Native server request failed",
+		);
+	}
+	return data.data;
+}
+
+export function resolveAudioHelperPath(_explicitPath?: string): string | null {
+	// Deprecated: audio-helper (toby-listener) has been removed. Toby.app is the
+	// only supported audio capture path. This function is kept for compatibility
+	// with existing callers that may pass a helper path.
+	return null;
+}
+
+export function parseAudioHelperEvent(_line: string): AudioHelperEvent | null {
+	// Deprecated: events are no longer parsed from stdout. Kept for compatibility.
+	return null;
 }
 
 export function startMacOSAudioCapture(
@@ -168,43 +194,90 @@ export function startMacOSAudioCapture(
 			"`toby listen` audio capture is currently supported on macOS only.",
 		);
 	}
-	const helperPath = requireAudioHelperPath(options.helperPath);
+	const appPath = resolveTobyAppPath();
+	if (!appPath) {
+		throw new ListenCaptureError(
+			"app_missing",
+			"Toby.app not found. Set TOBY_APP_PATH or install the app.",
+		);
+	}
 
-	const child = spawn(helperPath, helperArgs(options.session), {
-		stdio: ["pipe", "pipe", "pipe"],
-	});
+	let running = false;
+	let stopPromise: Promise<void> | null = null;
+	const onEvent = options.onEvent;
 
-	let stdoutBuffer = "";
-	child.stdout.on("data", (chunk) => {
-		stdoutBuffer += chunk.toString("utf8");
-		const lines = stdoutBuffer.split(/\r?\n/);
-		stdoutBuffer = lines.pop() ?? "";
-		for (const line of lines) {
-			const event = parseAudioHelperEvent(line);
-			if (event) options.onEvent?.(event);
+	const startPromise = (async () => {
+		try {
+			const sources = selectedListenSources(options.session.sources);
+			const data = (await nativeRequest("audio/start", "POST", {
+				mic: sources.includes("mic"),
+				system: sources.includes("system"),
+			})) as {
+				status: string;
+				message?: string;
+				session?: { id: string; sources: { mic: boolean; system: boolean } };
+				outputDir?: string;
+			};
+			running = true;
+			onEvent?.({
+				type: "ready",
+				helperVersion: "toby-app",
+				files: {},
+			});
+			onEvent?.({
+				type: "status",
+				message: data.message ?? "Recording.",
+			});
+		} catch (error) {
+			onEvent?.({
+				type: "error",
+				message: error instanceof Error ? error.message : String(error),
+			});
 		}
-	});
-	child.stderr.on("data", (chunk) => {
-		const message = chunk.toString("utf8").trim();
-		if (message) {
-			options.onEvent?.({ type: "status", message });
-		}
-	});
-	child.on("error", (error) => {
-		options.onEvent?.({ type: "error", message: error.message });
-	});
+	})();
+
+	const stop = async (action: "save" | "discard"): Promise<void> => {
+		await startPromise;
+		if (!running && !stopPromise) return;
+		if (stopPromise) return stopPromise;
+		stopPromise = (async () => {
+			try {
+				const data = (await nativeRequest("audio/stop", "POST", {
+					action,
+				})) as {
+					status: string;
+					message?: string;
+					id?: string;
+					outputDir?: string;
+					files?: ListenRecordingFiles;
+					errors?: string[];
+				};
+				running = false;
+				if (action !== "discard") {
+					onEvent?.({ type: "stopped", files: data.files });
+				}
+				onEvent?.({
+					type: "status",
+					message: data.message ?? "Recording stopped.",
+				});
+			} catch (error) {
+				running = false;
+				onEvent?.({
+					type: "error",
+					message: error instanceof Error ? error.message : String(error),
+				});
+				throw error;
+			}
+		})();
+		return stopPromise;
+	};
 
 	return {
-		helperPath,
-		child,
-		stop: async (action) => {
-			if (child.killed) return;
-			child.stdin.write(`${JSON.stringify({ type: "stop", action })}\n`);
-			child.stdin.end();
-		},
+		helperPath: appPath,
+		stop,
 		dispose: () => {
-			if (!child.killed) {
-				child.kill("SIGTERM");
+			if (running || stopPromise) {
+				void stop("discard");
 			}
 		},
 	};
@@ -219,74 +292,20 @@ export function combineWithMacOSAudioHelper(
 			"`toby listen transcribe` is currently supported on macOS only.",
 		);
 	}
-	const helperPath = requireAudioHelperPath(options.helperPath);
-	const child = spawn(helperPath, combineArgs(options), {
-		stdio: ["ignore", "pipe", "pipe"],
-	});
-
-	return new Promise((resolve, reject) => {
-		let stdoutBuffer = "";
-		let files: ListenRecordingFiles = {};
-		const errors: string[] = [];
-		child.stdout.on("data", (chunk) => {
-			stdoutBuffer += chunk.toString("utf8");
-			const lines = stdoutBuffer.split(/\r?\n/);
-			stdoutBuffer = lines.pop() ?? "";
-			for (const line of lines) {
-				const event = parseAudioHelperEvent(line);
-				if (!event) continue;
-				options.onEvent?.(event);
-				if ("files" in event && event.files) {
-					files = { ...files, ...event.files };
-				}
-				if (event.type === "error") {
-					errors.push(event.message);
-				}
-			}
-		});
-		child.stderr.on("data", (chunk) => {
-			const message = chunk.toString("utf8").trim();
-			if (message) {
-				options.onEvent?.({ type: "status", message });
-			}
-		});
-		child.on("error", reject);
-		child.on("exit", (code) => {
-			if (code === 0) {
-				resolve(files);
-				return;
-			}
-			reject(
-				new ListenCaptureError(
-					"combine_failed",
-					errors.at(-1) ??
-						`Audio helper exited with status ${code ?? "unknown"}.`,
-				),
-			);
-		});
-	});
+	return (async () => {
+		const data = (await nativeRequest("audio/combine", "POST", {
+			outDir: options.outDir,
+			mic: options.mic,
+			system: options.system,
+		})) as { combined?: string };
+		const files: ListenRecordingFiles = data.combined
+			? { combined: data.combined }
+			: {};
+		return files;
+	})();
 }
 
-export function waitForAudioHelperExit(
-	child: ChildProcessWithoutNullStreams,
-	timeoutMs?: number,
-): Promise<void> {
-	if (child.exitCode !== null || child.killed) {
-		return Promise.resolve();
-	}
-	return new Promise((resolve) => {
-		const timeout =
-			timeoutMs === undefined
-				? undefined
-				: setTimeout(() => {
-						if (!child.killed) {
-							child.kill("SIGTERM");
-						}
-						resolve();
-					}, timeoutMs);
-		child.once("exit", () => {
-			if (timeout) clearTimeout(timeout);
-			resolve();
-		});
-	});
+export function waitForAudioHelperExit(): Promise<void> {
+	// Deprecated: no child process to wait for. Kept for compatibility.
+	return Promise.resolve();
 }

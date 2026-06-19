@@ -91,6 +91,27 @@ final class NativeAudioHandler {
 		}
 	}
 
+	func combine(body: Data?) async -> Data {
+		guard let body,
+			let raw = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+			let outDirPath = raw["outDir"] as? String
+		else {
+			return json(["ok": false, "error": "Missing outDir."])
+		}
+		let outDir = URL(fileURLWithPath: outDirPath)
+		var files: [String: String] = [:]
+		if let mic = raw["mic"] as? String { files["mic"] = mic }
+		if let system = raw["system"] as? String { files["system"] = system }
+		do {
+			guard let combined = try await exportCombinedAudio(files: files, outDir: outDir) else {
+				return json(["ok": false, "error": "No usable audio tracks to combine."])
+			}
+			return json(["ok": true, "data": ["combined": combined]])
+		} catch {
+			return json(["ok": false, "error": "\(error)"])
+		}
+	}
+
 	private func parseSources(body: Data?) -> NativeListenSources {
 		guard let body,
 			let raw = try? JSONSerialization.jsonObject(with: body) as? [String: Any]
