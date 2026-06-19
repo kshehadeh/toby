@@ -97,10 +97,10 @@ The chat TUI also exposes lightweight recording controls:
 
 `/listen` starts recording microphone and system audio for the active chat session. `/stop-listening` stops and saves the recording, runs transcription, writes the same recording folder artifacts as `toby listen`, and injects the transcript as hidden user context so the assistant can summarize or reason about what was said. If transcription is unavailable, the saved audio path is still shown in chat.
 
-These commands use the shared core `ListenManager` and macOS-only capture
-support. They now route recording through Toby.app's native localhost server,
-so the same app bundle identity handles microphone and system audio
-permissions.
+These commands use the shared macOS audio capture client and session
+controller, then route transcription through the daemon. Recording happens
+inside Toby.app, so the same app bundle identity handles microphone and system
+audio permissions.
 
 ## Recording flow diagrams
 
@@ -108,10 +108,9 @@ The two diagrams below show the same end-to-end recording lifecycle from the
 app and CLI perspectives. The actors are:
 
 - **User** — the person starting or stopping a recording.
-- **Toby.app** — the native SwiftUI app; owns `NativeAudioHandler` and the
-  macOS audio/screen permissions.
+- **Toby.app** — the native SwiftUI app; owns `NativeAudioHandler`, the
+  macOS audio/screen permissions, and the localhost interface used by the CLI.
 - **CLI / Ink** — the terminal configure UI or chat slash commands.
-- **Core ListenManager** — the shared `@toby/core` recording lifecycle.
 - **Daemon** — the background `toby` server that runs transcription for saved
   recordings and serves the recordings API.
 - **Transcription plugin** — normally `toby-plugin-whisper` / whisper.cpp.
@@ -123,21 +122,20 @@ app and CLI perspectives. The actors are:
 sequenceDiagram
     actor User
     participant App as Toby.app
-    participant Handler as NativeAudioHandler
     participant Daemon as Daemon server
     participant Plugin as Transcription plugin
     participant Files as Recording files
 
     User->>App: Click "Record Audio"
-    App->>Handler: startCapture(mic, system)
-    Handler->>Files: Write source WAV tracks
-    Handler-->>App: Recording...
+    App->>App: NativeAudioHandler startCapture(mic, system)
+    App->>Files: Write source WAV tracks
+    App-->>App: Recording...
 
     User->>App: Click Stop / Save
-    App->>Handler: stop(action: save)
-    Handler->>Handler: Validate tracks, export combined.m4a
-    Handler->>Files: Move session to recordings dir
-    Handler-->>App: files (source + combined)
+    App->>App: NativeAudioHandler stop(action: save)
+    App->>App: Validate tracks, export combined.m4a
+    App->>Files: Move session to recordings dir
+    App-->>App: files (source + combined)
 
     App->>Daemon: POST /api/listen/recordings/:id/transcribe
     Daemon->>Files: Read combined.m4a
@@ -155,40 +153,33 @@ sequenceDiagram
 sequenceDiagram
     actor User
     participant Ink as CLI / Ink UI
-    participant Manager as Core ListenManager
-    participant Client as NativeAudioClient
     participant App as Toby.app
-    participant Handler as NativeAudioHandler
+    participant Daemon as Daemon server
     participant Plugin as Transcription plugin
     participant Files as Recording files
 
     User->>Ink: toby listen (or /listen)
-    Ink->>Manager: start(sources)
-    Manager->>Client: startMacOSAudioCapture(session)
-    Client->>App: Ensure native server running
-    App->>Handler: startCapture(mic, system)
-    Handler->>Files: Write source WAV tracks
-    Handler-->>App: Recording...
-    App-->>Client: 200 OK
-    Client-->>Manager: ready
-    Manager-->>Ink: Recording UI
+    Ink->>App: Start recording
+    App->>App: NativeAudioHandler startCapture(mic, system)
+    App->>Files: Write source WAV tracks
+    App-->>App: Recording...
+    App-->>Ink: Recording UI
 
     User->>Ink: Stop and Save
-    Ink->>Manager: stop(action: save)
-    Manager->>Client: stop(save)
-    Client->>App: POST /api/native/audio/stop
-    App->>Handler: stop(action: save)
-    Handler->>Handler: Validate tracks, export combined.m4a
-    Handler-->>App: files (source + combined)
-    App-->>Client: files + outputDir
-    Client-->>Manager: stopped
-    Manager->>Files: saveListenSession + metadata.json
+    Ink->>App: Stop and save
+    App->>App: NativeAudioHandler stop(action: save)
+    App->>App: Validate tracks, export combined.m4a
+    App->>Files: Move session to recordings dir
+    App-->>App: files (source + combined)
+    App-->>Ink: Recording saved
 
-    Manager->>Plugin: transcribeWithPlugin(combined.m4a)
+    Ink->>Daemon: POST /api/listen/recordings/:id/transcribe
+    Daemon->>Files: Read combined.m4a
+    Daemon->>Plugin: doTranscription
     Plugin->>Files: Write transcript.txt / transcript.json
-    Plugin-->>Manager: transcript paths
-    Manager->>Files: Update metadata.json
-    Manager-->>Ink: Recording saved + transcript
+    Plugin-->>Daemon: transcript paths
+    Daemon->>Files: Update metadata.json
+    Daemon-->>Ink: Transcription result
     Ink-->>User: Show result / path
 ```
 
@@ -239,14 +230,14 @@ The native audio endpoints are:
 ## Transcription
 
 After the Swift helper combines audio into `combined.m4a`, Toby invokes the
-configured **transcription plugin** (`doTranscription` tool). The default
-plugin is **`toby-plugin-whisper`**, which uses whisper.cpp locally.
+configured **transcription plugin** (`doTranscription` tool) through the
+daemon's saved-recording endpoint. The default plugin is
+**`toby-plugin-whisper`**, which uses whisper.cpp locally.
 
-The shared manager transcribes the combined output it generates. The daemon's
-saved-recording endpoint prefers combined audio, then falls back to microphone
-or system WAV files when necessary. Input already stored as WAV is passed
-directly to the plugin; other formats are converted to whisper-compatible mono
-16 kHz WAV on macOS before invocation.
+The daemon endpoint prefers combined audio, then falls back to microphone or
+system WAV files when necessary. Input already stored as WAV is passed directly
+to the plugin; other formats are converted to whisper-compatible mono 16 kHz
+WAV on macOS before invocation.
 
 The plugin writes temp transcript files; Toby copies them into the recording
 folder as:

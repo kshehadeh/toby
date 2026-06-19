@@ -1,3 +1,5 @@
+import type { TranscriptPayload } from "./transcript-types";
+
 export type ListenSource = "mic" | "system";
 
 export interface ListenSourceSelection {
@@ -30,6 +32,19 @@ export interface ListenRecordingMetadata {
 		readonly version?: string;
 	};
 	readonly errors?: string[];
+}
+
+export interface ListenTranscriptionResponse {
+	readonly id: string;
+	readonly dir: string;
+	readonly metadata: ListenRecordingMetadata;
+	readonly hasAudio: boolean;
+	readonly audioPath?: string;
+	readonly hasTranscript: boolean;
+	readonly transcript?: string;
+	readonly transcriptError?: string;
+	readonly segments?: TranscriptPayload["segments"];
+	readonly warnings?: readonly string[];
 }
 
 export const DEFAULT_LISTEN_SOURCES: ListenSourceSelection = {

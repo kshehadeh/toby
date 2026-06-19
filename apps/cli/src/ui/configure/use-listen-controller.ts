@@ -1,6 +1,6 @@
-import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
+import path from "node:path";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { applyTranscriptFilesToMetadata } from "../../commands/listen";
+import { transcribeRecordingViaDaemon } from "../../listen/daemon-transcribe";
 import {
 	type AudioCaptureHandle,
 	type AudioHelperEvent,
@@ -202,17 +202,17 @@ export function useListenController(
 				try {
 					if (savedFiles.combined) {
 						setListenStatusMessage("Transcribing recording…");
-						const transcriptFiles = await transcribeWithPlugin({
-							input: savedFiles.combined,
-							outDir: outputDir,
-							onStatus: (message) => setListenStatusMessage(message),
-						});
-						writeListenMetadata(
-							outputDir,
-							applyTranscriptFilesToMetadata(metadata, {
-								...savedFiles,
-								...transcriptFiles,
-							}),
+						const result = await transcribeRecordingViaDaemon(
+							path.basename(outputDir),
+							recordingsDir,
+						);
+						if (!result.ok) {
+							throw new Error(result.error);
+						}
+						setListenStatusMessage(
+							result.transcriptError
+								? `Transcription error: ${result.transcriptError}`
+								: "Transcription complete.",
 						);
 					}
 				} catch (error) {
@@ -247,7 +247,7 @@ export function useListenController(
 				}));
 			}
 		},
-		[state.session, syncRecordings],
+		[state.session, syncRecordings, recordingsDir],
 	);
 
 	const toggleMic = useCallback(() => {

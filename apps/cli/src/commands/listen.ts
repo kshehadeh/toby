@@ -1,13 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
 import type { Command } from "commander";
+import { transcribeRecordingViaDaemon } from "../listen/daemon-transcribe";
 import type { AudioHelperEvent } from "../listen/macos/audio-capture";
 import { combineWithMacOSAudioHelper } from "../listen/macos/audio-capture";
-import {
-	metadataPath,
-	writeListenMetadata,
-} from "../listen/session-controller";
+import { metadataPath } from "../listen/session-controller";
 import type {
 	ListenRecordingFiles,
 	ListenRecordingMetadata,
@@ -159,21 +156,23 @@ async function transcribeListenRecordingFolder(params: {
 	if (!combinedFiles.combined) {
 		throw new Error(`No combined audio file found in ${recordingDir}.`);
 	}
-	const files = await transcribeWithPlugin({
-		input: combinedFiles.combined,
-		outDir: recordingDir,
-		onStatus: (message) => {
-			onEvent({ type: "status", message });
-			console.log(message);
-		},
-	});
-	if (metadata) {
-		writeListenMetadata(
-			recordingDir,
-			applyTranscriptFilesToMetadata(metadata, { ...combinedFiles, ...files }),
-		);
+	const recordingId = path.basename(recordingDir);
+	const recordingsDir = path.dirname(recordingDir);
+	const result = await transcribeRecordingViaDaemon(recordingId, recordingsDir);
+	if (!result.ok) {
+		throw new Error(result.error);
 	}
-	return { ...combinedFiles, ...files };
+	const updatedMetadata = readRecordingMetadata(recordingDir);
+	const files: ListenRecordingFiles = {
+		...combinedFiles,
+		...(updatedMetadata?.files.transcript
+			? { transcript: updatedMetadata.files.transcript }
+			: {}),
+		...(updatedMetadata?.files.transcriptJson
+			? { transcriptJson: updatedMetadata.files.transcriptJson }
+			: {}),
+	};
+	return files;
 }
 
 export function registerListenCommand(program: Command): void {

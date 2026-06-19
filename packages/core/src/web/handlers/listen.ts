@@ -97,8 +97,12 @@ export function handleListenRecordingDelete(recordingId: string): Response {
 
 export async function handleListenRecordingTranscribe(
 	recordingId: string,
+	req: Request,
 ): Promise<Response> {
-	const recording = findListenRecordingById(recordingId);
+	const body = await readJsonBody<Record<string, unknown>>(req);
+	const recordingsDir =
+		typeof body?.recordingsDir === "string" ? body.recordingsDir : undefined;
+	const recording = findListenRecordingById(recordingId, recordingsDir);
 	if (!recording) {
 		return errorResponse("Recording not found", 404);
 	}

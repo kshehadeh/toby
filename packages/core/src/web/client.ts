@@ -12,6 +12,7 @@ import type {
 } from "../api/chat-api";
 import type { ChatEvent } from "../chat-pipeline/chat-events";
 import type { CreateIssueInput, CreateIssueResult } from "../issues/github";
+import type { ListenTranscriptionResponse } from "../listen/types";
 import type { ServerEventLog } from "./server-event-log";
 
 export type TobyClientOptions = {
@@ -182,6 +183,19 @@ export class TobyDaemonClient {
 			{
 				method: "POST",
 				body: JSON.stringify({ planId }),
+			},
+		);
+	}
+
+	async transcribeRecording(
+		recordingId: string,
+		recordingsDir?: string,
+	): Promise<ListenTranscriptionResponse> {
+		return this.json<ListenTranscriptionResponse>(
+			`/api/listen/recordings/${encodeURIComponent(recordingId)}/transcribe`,
+			{
+				method: "POST",
+				body: JSON.stringify({ ...(recordingsDir ? { recordingsDir } : {}) }),
 			},
 		);
 	}
