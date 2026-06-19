@@ -37,12 +37,22 @@ struct TobyApp: App {
 		.windowStyle(.automatic)
 		.defaultSize(width: 920, height: 640)
 
+		Window("Permissions", id: "permissions") {
+			PermissionsView()
+		}
+		.windowStyle(.automatic)
+		.defaultSize(width: 620, height: 520)
+
 		.commands {
 			CommandGroup(replacing: .newItem) {
 				Button("New Chat") {
 					NotificationCenter.default.post(name: .startNewChat, object: nil)
 				}
 				.keyboardShortcut("n", modifiers: .command)
+			}
+
+			CommandGroup(after: .newItem) {
+				OpenPermissionsMenuItem()
 			}
 
 			CommandGroup(after: .sidebar) {
@@ -75,5 +85,15 @@ struct TobyApp: App {
 		// Don't prompt for Accessibility on launch - it's not persistent for
 		// ad-hoc signed binaries. The native API endpoints will prompt on-demand
 		// when an Accessibility operation is actually needed.
+	}
+}
+
+struct OpenPermissionsMenuItem: View {
+	@Environment(\.openWindow) private var openWindow
+
+	var body: some View {
+		Button("Permissions…") {
+			openWindow(id: "permissions")
+		}
 	}
 }
