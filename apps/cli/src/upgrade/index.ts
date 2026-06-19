@@ -470,6 +470,7 @@ export async function applyStagedRelease(
 	await removeLegacySiblingHelpers(installTarget, []);
 	await removeOrphanedLegacyMacOSHelper();
 	await removeLegacyWhisperCliHelper();
+	await removeLegacyListenerHelper();
 
 	const installedVersion = readInstalledVersion(installTarget);
 	if (!installedVersion) {
@@ -559,6 +560,15 @@ const LEGACY_SIBLING_HELPER_NAMES = ["toby-listener", "toby-macos"] as const;
 /** Remove the standalone whisper-cli helper superseded by embedded whisper.cpp. */
 export async function removeLegacyWhisperCliHelper(): Promise<void> {
 	const legacyPath = path.join(getHelpersDir(), "whisper-cli");
+	if (!fs.existsSync(legacyPath)) {
+		return;
+	}
+	await rm(legacyPath, { force: true }).catch(() => undefined);
+}
+
+/** Remove the deprecated standalone toby-listener helper superseded by Toby.app. */
+export async function removeLegacyListenerHelper(): Promise<void> {
+	const legacyPath = path.join(getHelpersDir(), "toby-listener");
 	if (!fs.existsSync(legacyPath)) {
 		return;
 	}

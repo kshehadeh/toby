@@ -123,7 +123,7 @@ jobs:
         run: |
           rm -rf release-payload
           mkdir release-payload
-          cp dist/toby dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-todoist dist/toby-plugin-slack dist/toby-plugin-jira dist/toby-plugin-websearch dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/toby-plugin-whisper release-payload/
+          cp dist/toby dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-todoist dist/toby-plugin-slack dist/toby-plugin-jira dist/toby-plugin-websearch dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/toby-plugin-whisper dist/toby-listener release-payload/
           cp -R dist/TobyPluginMacOS_TobyPluginMacOSLib.bundle release-payload/
           cp -R dist/web release-payload/web
           cp -R dist/Toby.app release-payload/Toby.app

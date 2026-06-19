@@ -74,6 +74,18 @@ SWIFT_ARCH="${swift_arch}" ./scripts/build-plugin-whisper.sh
 
 chmod +x dist/toby dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-todoist dist/toby-plugin-slack dist/toby-plugin-jira dist/toby-plugin-websearch dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/toby-plugin-whisper
 
+# Create a legacy toby-listener placeholder so releases remain compatible with
+# v0.49.0 and earlier self-upgraders, which validate that the archive contains
+# the helper before installing. Toby.app now handles audio capture; the helper
+# itself is deprecated and will be removed after the upgrade.
+echo "Creating legacy toby-listener placeholder..."
+cat > dist/toby-listener <<'EOF'
+#!/bin/sh
+echo "toby-listener is deprecated; audio capture now uses Toby.app." >&2
+exit 1
+EOF
+chmod +x dist/toby-listener
+
 echo "Building web UI..."
 bun run --cwd apps/web build
 cp -R apps/web/dist dist/web
