@@ -460,6 +460,7 @@ final class ChatStore {
 					toolName: toolName,
 					integrationLabel: event.integrationLabel,
 					cacheHit: nil,
+					durationMs: nil,
 				)
 				activityLine = "Running \(toolName)…"
 			}
@@ -472,6 +473,7 @@ final class ChatStore {
 					toolName: toolName,
 					integrationLabel: event.integrationLabel,
 					cacheHit: event.cacheHit,
+					durationMs: event.durationMs,
 				)
 			}
 			activityLine = "Thinking…"
@@ -505,6 +507,7 @@ final class ChatStore {
 					toolName: nil,
 					integrationLabel: nil,
 					cacheHit: nil,
+					durationMs: nil,
 				),
 			),
 		)
@@ -522,6 +525,7 @@ final class ChatStore {
 				toolName: current.toolName,
 				integrationLabel: current.integrationLabel,
 				cacheHit: current.cacheHit,
+				durationMs: current.durationMs,
 			)
 		}
 	}
@@ -539,6 +543,7 @@ final class ChatStore {
 				toolName: current.toolName,
 				integrationLabel: current.integrationLabel,
 				cacheHit: current.cacheHit,
+				durationMs: current.durationMs,
 			)
 		}
 	}
@@ -550,6 +555,7 @@ final class ChatStore {
 		toolName: String,
 		integrationLabel: String?,
 		cacheHit: Bool?,
+		durationMs: Int?,
 	) {
 		transcript.append(
 			.boxedStep(
@@ -562,6 +568,7 @@ final class ChatStore {
 					toolName: toolName,
 					integrationLabel: integrationLabel,
 					cacheHit: cacheHit,
+					durationMs: durationMs,
 				),
 			),
 		)
@@ -574,6 +581,7 @@ final class ChatStore {
 		toolName: String,
 		integrationLabel: String?,
 		cacheHit: Bool?,
+		durationMs: Int?,
 	) {
 		let replaced = replaceBoxedStep(id: id) { current in
 			BoxedStepPayload(
@@ -585,6 +593,7 @@ final class ChatStore {
 				toolName: toolName,
 				integrationLabel: integrationLabel,
 				cacheHit: cacheHit,
+				durationMs: durationMs,
 			)
 		}
 		if !replaced {
@@ -595,6 +604,7 @@ final class ChatStore {
 				toolName: toolName,
 				integrationLabel: integrationLabel,
 				cacheHit: cacheHit,
+				durationMs: durationMs,
 			)
 		}
 	}
@@ -633,6 +643,7 @@ final class ChatStore {
 					toolName: nil,
 					integrationLabel: nil,
 					cacheHit: nil,
+					durationMs: nil,
 				),
 			),
 		)

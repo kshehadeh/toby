@@ -310,6 +310,7 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 					toolName: try container.decodeIfPresent(String.self, forKey: .toolName),
 					integrationLabel: try container.decodeIfPresent(String.self, forKey: .integrationLabel),
 					cacheHit: try container.decodeIfPresent(Bool.self, forKey: .cacheHit),
+					durationMs: try container.decodeIfPresent(Int.self, forKey: .durationMs),
 				),
 			)
 		case "tool_call":
@@ -346,6 +347,7 @@ struct BoxedStepPayload: Equatable {
 	let toolName: String?
 	let integrationLabel: String?
 	let cacheHit: Bool?
+	let durationMs: Int?
 }
 
 struct ChatEventPayload: Decodable {
@@ -359,6 +361,7 @@ struct ChatEventPayload: Decodable {
 	let toolName: String?
 	let integrationLabel: String?
 	let cacheHit: Bool?
+	let durationMs: Int?
 	let text: String?
 	let tone: String?
 	let interim: Bool?
