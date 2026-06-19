@@ -102,6 +102,96 @@ support. They now route recording through Toby.app's native localhost server,
 so the same app bundle identity handles microphone and system audio
 permissions.
 
+## Recording flow diagrams
+
+The two diagrams below show the same end-to-end recording lifecycle from the
+app and CLI perspectives. The actors are:
+
+- **User** — the person starting or stopping a recording.
+- **Toby.app** — the native SwiftUI app; owns `NativeAudioHandler` and the
+  macOS audio/screen permissions.
+- **CLI / Ink** — the terminal configure UI or chat slash commands.
+- **Core ListenManager** — the shared `@toby/core` recording lifecycle.
+- **Daemon** — the background `toby` server that runs transcription for saved
+  recordings and serves the recordings API.
+- **Transcription plugin** — normally `toby-plugin-whisper` / whisper.cpp.
+- **Files** — the recording directory under `~/.toby/listen/recordings/<id>/`.
+
+### App recording flow
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant App as Toby.app
+    participant Handler as NativeAudioHandler
+    participant Daemon as Daemon server
+    participant Plugin as Transcription plugin
+    participant Files as Recording files
+
+    User->>App: Click "Record Audio"
+    App->>Handler: startCapture(mic, system)
+    Handler->>Files: Write source WAV tracks
+    Handler-->>App: Recording...
+
+    User->>App: Click Stop / Save
+    App->>Handler: stop(action: save)
+    Handler->>Handler: Validate tracks, export combined.m4a
+    Handler->>Files: Move session to recordings dir
+    Handler-->>App: files (source + combined)
+
+    App->>Daemon: POST /api/listen/recordings/:id/transcribe
+    Daemon->>Files: Read combined.m4a
+    Daemon->>Plugin: doTranscription
+    Plugin->>Files: Write transcript.txt / transcript.json
+    Plugin-->>Daemon: transcript paths
+    Daemon->>Files: Update metadata.json
+    Daemon-->>App: Transcription result
+    App-->>User: Show success / error toast
+```
+
+### CLI recording flow
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Ink as CLI / Ink UI
+    participant Manager as Core ListenManager
+    participant Client as NativeAudioClient
+    participant App as Toby.app
+    participant Handler as NativeAudioHandler
+    participant Plugin as Transcription plugin
+    participant Files as Recording files
+
+    User->>Ink: toby listen (or /listen)
+    Ink->>Manager: start(sources)
+    Manager->>Client: startMacOSAudioCapture(session)
+    Client->>App: Ensure native server running
+    App->>Handler: startCapture(mic, system)
+    Handler->>Files: Write source WAV tracks
+    Handler-->>App: Recording...
+    App-->>Client: 200 OK
+    Client-->>Manager: ready
+    Manager-->>Ink: Recording UI
+
+    User->>Ink: Stop and Save
+    Ink->>Manager: stop(action: save)
+    Manager->>Client: stop(save)
+    Client->>App: POST /api/native/audio/stop
+    App->>Handler: stop(action: save)
+    Handler->>Handler: Validate tracks, export combined.m4a
+    Handler-->>App: files (source + combined)
+    App-->>Client: files + outputDir
+    Client-->>Manager: stopped
+    Manager->>Files: saveListenSession + metadata.json
+
+    Manager->>Plugin: transcribeWithPlugin(combined.m4a)
+    Plugin->>Files: Write transcript.txt / transcript.json
+    Plugin-->>Manager: transcript paths
+    Manager->>Files: Update metadata.json
+    Manager-->>Ink: Recording saved + transcript
+    Ink-->>User: Show result / path
+```
+
 ## Helper boundary
 
 Node/Bun does not provide direct access to macOS audio capture APIs, so the
