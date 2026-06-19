@@ -193,7 +193,7 @@ func parseRecordOptions(_ args: [String]) throws -> RecordOptions {
 
 func requestMicrophonePermission() async throws {
 	JSONEvent.permission(service: "microphone", status: "prompting")
-	let granted = await AVCaptureDevice.requestAccess(for: .audio)
+	let granted = await AVAudioApplication.requestRecordPermission()
 	if granted {
 		JSONEvent.permission(service: "microphone", status: "granted")
 		return

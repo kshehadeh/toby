@@ -74,7 +74,7 @@ final class PermissionsStore {
 		case .screenCapture, .systemAudio:
 			_ = CGRequestScreenCaptureAccess()
 		case .microphone:
-			_ = await AVCaptureDevice.requestAccess(for: .audio)
+			_ = await AVAudioApplication.requestRecordPermission()
 		case .accessibility:
 			let options: CFDictionary = ["AXTrustedCheckOptionPrompt": kCFBooleanTrue!] as CFDictionary
 			_ = AXIsProcessTrustedWithOptions(options)
@@ -117,7 +117,7 @@ final class PermissionsStore {
 		case .screenCapture, .systemAudio:
 			return CGPreflightScreenCaptureAccess()
 		case .microphone:
-			return AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
+			return AVAudioApplication.shared.recordPermission == .granted
 		case .accessibility:
 			return AXIsProcessTrusted()
 		case .calendar:

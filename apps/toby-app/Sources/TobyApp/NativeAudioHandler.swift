@@ -422,7 +422,7 @@ final class NativeRecordingSession {
 		var files: [String: String] = [:]
 		if options.mic {
 			do {
-				let granted = await AVCaptureDevice.requestAccess(for: .audio)
+				let granted = await AVAudioApplication.requestRecordPermission()
 				guard granted else {
 					throw NativeAudioError.permission("Microphone permission denied.")
 				}
