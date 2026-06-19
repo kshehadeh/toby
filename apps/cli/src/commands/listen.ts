@@ -1,13 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
 import type { Command } from "commander";
+import { transcribeRecordingViaDaemon } from "../listen/daemon-transcribe";
 import type { AudioHelperEvent } from "../listen/macos/audio-capture";
 import { combineWithMacOSAudioHelper } from "../listen/macos/audio-capture";
-import {
-	metadataPath,
-	writeListenMetadata,
-} from "../listen/session-controller";
+import { metadataPath } from "../listen/session-controller";
 import type {
 	ListenRecordingFiles,
 	ListenRecordingMetadata,
@@ -19,12 +16,7 @@ import { createConfigureSession } from "../ui/configure/session";
 interface ListenCommandOptions {
 	readonly micOnly?: boolean;
 	readonly systemOnly?: boolean;
-	readonly helper?: string;
 	readonly outDir?: string;
-}
-
-interface ListenTranscribeOptions {
-	readonly helper?: string;
 }
 
 function resolveSources(options: ListenCommandOptions): ListenSourceSelection {
@@ -92,7 +84,6 @@ export function resolveTranscriptionAudioInput(
 async function resolveOrCreateTranscriptionAudioInput(params: {
 	readonly recordingDir: string;
 	readonly metadata: ListenRecordingMetadata | null;
-	readonly helperPath?: string;
 	readonly onEvent?: (event: AudioHelperEvent) => void;
 }): Promise<ListenRecordingFiles> {
 	const fromMetadata = resolveRecordingPath(
@@ -116,7 +107,6 @@ async function resolveOrCreateTranscriptionAudioInput(params: {
 			outDir: params.recordingDir,
 			mic,
 			system,
-			helperPath: params.helperPath,
 			onEvent: params.onEvent,
 		});
 	}
@@ -144,7 +134,6 @@ export function applyTranscriptFilesToMetadata(
 
 async function transcribeListenRecordingFolder(params: {
 	readonly recordingDir: string;
-	readonly helperPath?: string;
 }): Promise<ListenRecordingFiles> {
 	const recordingDir = path.resolve(params.recordingDir);
 	if (
@@ -162,27 +151,28 @@ async function transcribeListenRecordingFolder(params: {
 	const combinedFiles = await resolveOrCreateTranscriptionAudioInput({
 		recordingDir,
 		metadata,
-		helperPath: params.helperPath,
 		onEvent,
 	});
 	if (!combinedFiles.combined) {
 		throw new Error(`No combined audio file found in ${recordingDir}.`);
 	}
-	const files = await transcribeWithPlugin({
-		input: combinedFiles.combined,
-		outDir: recordingDir,
-		onStatus: (message) => {
-			onEvent({ type: "status", message });
-			console.log(message);
-		},
-	});
-	if (metadata) {
-		writeListenMetadata(
-			recordingDir,
-			applyTranscriptFilesToMetadata(metadata, { ...combinedFiles, ...files }),
-		);
+	const recordingId = path.basename(recordingDir);
+	const recordingsDir = path.dirname(recordingDir);
+	const result = await transcribeRecordingViaDaemon(recordingId, recordingsDir);
+	if (!result.ok) {
+		throw new Error(result.error);
 	}
-	return { ...combinedFiles, ...files };
+	const updatedMetadata = readRecordingMetadata(recordingDir);
+	const files: ListenRecordingFiles = {
+		...combinedFiles,
+		...(updatedMetadata?.files.transcript
+			? { transcript: updatedMetadata.files.transcript }
+			: {}),
+		...(updatedMetadata?.files.transcriptJson
+			? { transcriptJson: updatedMetadata.files.transcriptJson }
+			: {}),
+	};
+	return files;
 }
 
 export function registerListenCommand(program: Command): void {
@@ -194,17 +184,12 @@ export function registerListenCommand(program: Command): void {
 		.option("--mic-only", "Record only microphone input")
 		.option("--system-only", "Record only computer/system output audio")
 		.option(
-			"--helper <path>",
-			"Path to the macOS audio helper (or set TOBY_AUDIO_HELPER)",
-		)
-		.option(
 			"--out-dir <path>",
 			"Directory for recordings (defaults to ~/.toby/listen/recordings)",
 		)
 		.action((options: ListenCommandOptions) => {
 			const listenOptions = {
 				sources: resolveSources(options),
-				helperPath: options.helper,
 				recordingsDir: options.outDir,
 			};
 			const session = createConfigureSession({ listenOptions });
@@ -224,14 +209,9 @@ export function registerListenCommand(program: Command): void {
 	listen
 		.command("transcribe <folder>")
 		.description("Transcribe a saved listen recording folder")
-		.option(
-			"--helper <path>",
-			"Path to the macOS audio helper (or set TOBY_AUDIO_HELPER)",
-		)
-		.action(async (folder: string, options: ListenTranscribeOptions) => {
+		.action(async (folder: string) => {
 			const files = await transcribeListenRecordingFolder({
 				recordingDir: folder,
-				helperPath: options.helper,
 			});
 			if (files.transcript) {
 				console.log(`Transcript saved to ${files.transcript}`);

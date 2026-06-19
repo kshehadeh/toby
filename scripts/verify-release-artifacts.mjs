@@ -10,7 +10,6 @@ import path from "node:path";
 const directory = path.resolve(process.argv[2] ?? "release-payload");
 const required = [
 	"toby",
-	"toby-listener",
 	"toby-plugin-sample",
 	"toby-plugin-azuread",
 	"toby-plugin-gmail",

@@ -1,10 +1,11 @@
 # Listen binaries: build and deploy
 
-Listen mode depends on two native executables that ship with Toby releases:
+Listen mode depends on the native **Toby.app** for audio capture and on the
+**`toby-plugin-whisper`** plugin for local transcription.
 
 | Binary | Source | Role |
 | ------ | ------ | ---- |
-| **`toby-listener`** | Swift package [`apps/audio-helper/`](../apps/audio-helper/) | Records mic/system audio and combines tracks |
+| **`Toby.app`** | Swift package [`apps/toby-app/`](../apps/toby-app/) | Records mic/system audio and combines tracks via `NativeAudioHandler` |
 | **`toby-plugin-whisper`** | Swift package [`apps/plugin-whisper/`](../apps/plugin-whisper/) | Local transcription plugin with **embedded** whisper.cpp (`doTranscription`) |
 
 After a recording stops, the CLI invokes the configured transcription plugin
@@ -22,14 +23,15 @@ Each macOS release archive (`toby-darwin-arm64.zip`, `toby-darwin-x64.zip`) cont
 
 ```text
 toby                 # Bun-compiled CLI (only binary on PATH after install)
-toby-listener        # Audio capture helper (record / combine)
+Toby.app             # Native macOS app for audio capture and privileged APIs
 toby-plugin-whisper  # Local whisper.cpp transcription plugin (statically linked)
 toby-plugin-macos    # macOS system integration plugin
 ...other plugins...
 ```
 
 [`install-toby.sh`](../install-toby.sh) and `toby upgrade` install plugins under
-**`~/.toby/plugins/`** and the listener helper under **`~/.toby/helpers/`**.
+**`~/.toby/plugins/`** and `Toby.app` into `/Applications` (or `~/Applications`).
+The bundled `whisper-cli` helper is installed under **`~/.toby/helpers/`**.
 
 ## Build commands
 
@@ -53,13 +55,13 @@ bun run build:release
 
 This writes all release binaries to **`dist/`** and runs [`scripts/verify-release-artifacts.mjs`](../scripts/verify-release-artifacts.mjs).
 
-### Listener (`toby-listener`)
+### Native app (`Toby.app`)
 
 ```bash
-bun run build:audio-helper
+bun run build:app
 ```
 
-Packaged installs resolve `~/.toby/helpers/toby-listener`.
+Packaged installs install `Toby.app` to `/Applications` or `~/Applications`.
 
 ### Transcription (`toby-plugin-whisper`)
 

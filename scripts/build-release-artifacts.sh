@@ -23,13 +23,6 @@ echo "Building toby (${bun_target})..."
 	bun build ./src/cli.ts --compile --target="${bun_target}" --outfile ../../dist/toby
 )
 
-echo "Building toby-listener (swift ${swift_arch})..."
-swift build -c release --arch "${swift_arch}" --package-path apps/audio-helper
-listener_bin="$(
-	swift build --show-bin-path -c release --arch "${swift_arch}" --package-path apps/audio-helper
-)/toby-audio-helper"
-cp "${listener_bin}" dist/toby-listener
-
 echo "Building toby-plugin-sample (${bun_target})..."
 bun build ./apps/plugin-sample/src/cli.ts --compile --target="${bun_target}" --outfile dist/toby-plugin-sample
 
@@ -79,7 +72,7 @@ echo "Building toby-plugin-whisper with embedded whisper.cpp (${swift_arch})..."
 chmod +x scripts/build-plugin-whisper.sh
 SWIFT_ARCH="${swift_arch}" ./scripts/build-plugin-whisper.sh
 
-chmod +x dist/toby dist/toby-listener dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-todoist dist/toby-plugin-slack dist/toby-plugin-jira dist/toby-plugin-websearch dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/toby-plugin-whisper
+chmod +x dist/toby dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-todoist dist/toby-plugin-slack dist/toby-plugin-jira dist/toby-plugin-websearch dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/toby-plugin-whisper
 
 echo "Building web UI..."
 bun run --cwd apps/web build

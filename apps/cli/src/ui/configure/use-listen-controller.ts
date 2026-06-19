@@ -1,12 +1,11 @@
-import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
+import path from "node:path";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { applyTranscriptFilesToMetadata } from "../../commands/listen";
+import { transcribeRecordingViaDaemon } from "../../listen/daemon-transcribe";
 import {
 	type AudioCaptureHandle,
 	type AudioHelperEvent,
 	ListenCaptureError,
 	startMacOSAudioCapture,
-	waitForAudioHelperExit,
 } from "../../listen/macos/audio-capture";
 import {
 	buildListenMetadata,
@@ -30,7 +29,6 @@ import { seedListenRecordingValues } from "./listen-values";
 
 export interface ListenControllerOptions {
 	readonly sources: ListenSourceSelection;
-	readonly helperPath?: string;
 	readonly recordingsDir?: string;
 }
 
@@ -48,7 +46,7 @@ export function useListenController(
 	onRecordingsChanged: (values: Record<string, string>) => void,
 	values: Record<string, string>,
 ) {
-	const { helperPath, recordingsDir } = options;
+	const { recordingsDir } = options;
 	const [state, setState] = useState<ListenState>(() =>
 		createInitialListenState(options.sources),
 	);
@@ -146,11 +144,10 @@ export function useListenController(
 				sources: state.sources,
 				session,
 				outputDir: session.finalDir,
-				message: "Starting audio helper…",
+				message: "Starting recording…",
 			});
 			const handle = startMacOSAudioCapture({
 				session,
-				helperPath,
 				onEvent: onHelperEvent,
 			});
 			handleRef.current = handle;
@@ -162,7 +159,7 @@ export function useListenController(
 				message: "Could not start listener.",
 			}));
 		}
-	}, [helperPath, onHelperEvent, recordingsDir, state.sources]);
+	}, [onHelperEvent, recordingsDir, state.sources]);
 
 	const finalize = useCallback(
 		async (action: "save" | "discard") => {
@@ -179,12 +176,6 @@ export function useListenController(
 			}));
 			try {
 				await handle?.stop(action);
-				if (handle) {
-					await waitForAudioHelperExit(
-						handle.child,
-						action === "discard" ? 5_000 : undefined,
-					);
-				}
 				handleRef.current = null;
 				if (action === "discard") {
 					discardListenSession(session);
@@ -203,7 +194,7 @@ export function useListenController(
 					session,
 					files: savedFiles,
 					stoppedAt: new Date(),
-					helperPath: handle?.helperPath ?? helperPath,
+					helperPath: handle?.helperPath,
 					helperVersion: helperVersionRef.current,
 					errors: errorsRef.current,
 				});
@@ -211,17 +202,17 @@ export function useListenController(
 				try {
 					if (savedFiles.combined) {
 						setListenStatusMessage("Transcribing recording…");
-						const transcriptFiles = await transcribeWithPlugin({
-							input: savedFiles.combined,
-							outDir: outputDir,
-							onStatus: (message) => setListenStatusMessage(message),
-						});
-						writeListenMetadata(
-							outputDir,
-							applyTranscriptFilesToMetadata(metadata, {
-								...savedFiles,
-								...transcriptFiles,
-							}),
+						const result = await transcribeRecordingViaDaemon(
+							path.basename(outputDir),
+							recordingsDir,
+						);
+						if (!result.ok) {
+							throw new Error(result.error);
+						}
+						setListenStatusMessage(
+							result.transcriptError
+								? `Transcription error: ${result.transcriptError}`
+								: "Transcription complete.",
 						);
 					}
 				} catch (error) {
@@ -233,7 +224,7 @@ export function useListenController(
 							session,
 							files: savedFiles,
 							stoppedAt: new Date(),
-							helperPath: handle?.helperPath ?? helperPath,
+							helperPath: handle?.helperPath,
 							helperVersion: helperVersionRef.current,
 							errors: errorsRef.current,
 						}),
@@ -256,7 +247,7 @@ export function useListenController(
 				}));
 			}
 		},
-		[helperPath, state.session, syncRecordings],
+		[state.session, syncRecordings, recordingsDir],
 	);
 
 	const toggleMic = useCallback(() => {

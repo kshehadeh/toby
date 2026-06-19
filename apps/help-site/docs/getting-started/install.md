@@ -9,7 +9,7 @@ You can install Toby with the install script, from a release binary, or from sou
 
 ## Option 1: Install script (recommended)
 
-The [install script](https://github.com/kshehadeh/toby/blob/main/install-toby.sh) downloads the latest macOS release archive and installs the `toby` binary to `~/.local/bin`. Bundled helper binaries (`toby-listener`, `whisper-cli`) go to `~/.toby/helpers/` and first-party plugins (`toby-plugin-sample`, `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-websearch`, `toby-plugin-applecalendar`, `toby-plugin-macos`) to `~/.toby/plugins/`, so only `toby` is added to your `PATH`. It does not require `sudo`.
+The [install script](https://github.com/kshehadeh/toby/blob/main/install-toby.sh) downloads the latest macOS release archive and installs the `toby` binary to `~/.local/bin`. The bundled `whisper-cli` helper goes to `~/.toby/helpers/` and first-party plugins (`toby-plugin-sample`, `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-websearch`, `toby-plugin-applecalendar`, `toby-plugin-macos`) to `~/.toby/plugins/`, so only `toby` is added to your `PATH`. The native `Toby.app` is installed to `/Applications` (or `~/Applications`). It does not require `sudo`.
 
 After installing binaries, the script runs `toby whisper setup` to download the default local transcription model (`ggml-base.en.bin`) into `~/.toby/models/`. If that step fails (for example offline install), run `toby whisper setup` later.
 
@@ -61,15 +61,16 @@ If you prefer to download the binary yourself:
 
 1. Open the [Toby releases page](https://github.com/kshehadeh/toby/releases).
 2. Download the archive for your platform (see the table above).
-3. Extract it, then put `toby` on your PATH, helpers under `~/.toby/helpers/`, and plugins under `~/.toby/plugins/`:
+3. Extract it, then put `toby` on your PATH, the `whisper-cli` helper under `~/.toby/helpers/`, plugins under `~/.toby/plugins/`, and `Toby.app` in `/Applications` (or `~/Applications`):
 
 ```bash
 unzip toby-darwin-arm64.zip
-chmod +x toby toby-listener whisper-cli toby-plugin-*
+chmod +x toby whisper-cli toby-plugin-*
 mkdir -p ~/.toby/helpers ~/.toby/plugins
-mv toby-listener whisper-cli ~/.toby/helpers/
+mv whisper-cli ~/.toby/helpers/
 mv toby-plugin-* ~/.toby/plugins/
 sudo mv toby /usr/local/bin/
+sudo mv Toby.app /Applications/
 toby whisper setup
 ```
 

@@ -262,6 +262,16 @@ Invokes the configured transcription plugin against the resolved audio file,
 copies transcript artifacts into the recording directory, updates
 `metadata.json`, and returns refreshed metadata and transcript detail.
 
+Body (optional):
+
+```json
+{ "recordingsDir": "/path/to/recordings" }
+```
+
+Pass `recordingsDir` when the recording lives outside the default
+`~/.toby/listen/recordings` directory. The endpoint uses this directory as the
+search root for `:id`.
+
 Errors:
 
 - `400` when no readable combined, microphone, or system audio exists.

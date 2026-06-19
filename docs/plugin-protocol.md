@@ -8,7 +8,7 @@ integrations.
 Toby remains the **source of truth** for configuration and connection state.
 Plugins receive the current config on each invocation and return JSON on stdout.
 
-For the **native helper** pattern (`toby-listener` for audio capture) — a different
+For the **native helper** pattern used by Toby.app for audio capture — a different
 argv/JSON contract for thin platform bridges — see [`native-helpers.md`](native-helpers.md).
 Plugins own full integration logic (tools, connect, chat prep); helpers do not.
 

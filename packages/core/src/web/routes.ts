@@ -141,6 +141,7 @@ export async function handleWebRequest(
 		if (listenRecordingTranscribeMatch && req.method === "POST") {
 			return handleListenRecordingTranscribe(
 				decodeURIComponent(listenRecordingTranscribeMatch[1]),
+				req,
 			);
 		}
 		if (pathname === "/api/daemon/status" && req.method === "GET") {

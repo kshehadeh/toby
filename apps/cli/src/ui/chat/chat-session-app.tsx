@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import path from "node:path";
 import { isAbortError, throwIfAborted } from "@toby/core/abort";
 import type {
 	AskUserHandler,
@@ -46,7 +47,6 @@ import {
 	getModulesWithCapability,
 } from "@toby/core/integrations/index";
 import type { IntegrationModule } from "@toby/core/integrations/types";
-import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
 import {
 	aggregateSessionTokenTotalsFromLog,
 	createChatEventLogSink,
@@ -104,11 +104,8 @@ import React, {
 	useRef,
 	useState,
 } from "react";
-import { applyTranscriptFilesToMetadata } from "../../commands/listen";
-import {
-	startMacOSAudioCapture,
-	waitForAudioHelperExit,
-} from "../../listen/macos/audio-capture";
+import { transcribeRecordingViaDaemon } from "../../listen/daemon-transcribe";
+import { startMacOSAudioCapture } from "../../listen/macos/audio-capture";
 import {
 	buildListenMetadata,
 	discardListenSession,
@@ -1678,7 +1675,6 @@ export function ChatSessionApp({
 								if (!handle || !session) return null;
 								try {
 									await handle.stop(action);
-									await waitForAudioHelperExit(handle.child);
 									listenHandleRef.current = null;
 									listenSessionRef.current = null;
 									setIsListenRecording(false);
@@ -1698,23 +1694,18 @@ export function ChatSessionApp({
 										errors: listenErrorsRef.current,
 									});
 									const outputDir = saveListenSession(session, metadata);
-									const helperPath = handle.helperPath;
 									let transcript = readTranscriptFile(outputDir);
 									let transcriptionError: string | undefined;
 									if (!transcript && savedFiles.combined) {
 										try {
-											const transcriptFiles = await transcribeWithPlugin({
-												input: savedFiles.combined,
-												outDir: outputDir,
-											});
-											writeListenMetadata(
-												outputDir,
-												applyTranscriptFilesToMetadata(metadata, {
-													...savedFiles,
-													...transcriptFiles,
-												}),
+											const result = await transcribeRecordingViaDaemon(
+												path.basename(outputDir),
 											);
-											transcript = readTranscriptFile(outputDir);
+											if (!result.ok) {
+												throw new Error(result.error);
+											}
+											transcript = result.transcript;
+											transcriptionError = result.transcriptError;
 										} catch (transcribeError) {
 											const msg =
 												transcribeError instanceof Error

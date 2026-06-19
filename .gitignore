@@ -7,7 +7,6 @@ dist/
 apps/help-site/build/
 apps/help-site/.docusaurus/
 .build/
-apps/audio-helper/.build/
 apps/plugin-macos/.build/
 apps/plugin-whisper/.build/
 apps/plugin-whisper/ThirdParty/

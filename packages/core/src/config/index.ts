@@ -66,7 +66,7 @@ export function getGeneratedFilesDir(): string {
 	return path.join(resolveTobyDir(), "generated-files");
 }
 
-/** Bundled native helper binaries: `~/.toby/helpers/toby-listener`. */
+/** Directory for bundled native helper binaries (e.g. whisper-cli). */
 export function getHelpersDir(): string {
 	return path.join(resolveTobyDir(), "helpers");
 }

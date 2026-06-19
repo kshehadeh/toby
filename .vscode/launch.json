@@ -3,26 +3,6 @@
 		{
 			"type": "swift",
 			"request": "launch",
-			"args": [],
-			"cwd": "${workspaceFolder:toby}/apps/audio-helper",
-			"name": "Debug toby-audio-helper (apps/audio-helper)",
-			"target": "toby-audio-helper",
-			"configuration": "debug",
-			"preLaunchTask": "swift: Build Debug toby-audio-helper (apps/audio-helper)"
-		},
-		{
-			"type": "swift",
-			"request": "launch",
-			"args": [],
-			"cwd": "${workspaceFolder:toby}/apps/audio-helper",
-			"name": "Release toby-audio-helper (apps/audio-helper)",
-			"target": "toby-audio-helper",
-			"configuration": "release",
-			"preLaunchTask": "swift: Build Release toby-audio-helper (apps/audio-helper)"
-		},
-		{
-			"type": "swift",
-			"request": "launch",
 			"args": ["status"],
 			"cwd": "${workspaceFolder:toby}/apps/plugin-macos",
 			"name": "Debug toby-plugin-macos (apps/plugin-macos)",

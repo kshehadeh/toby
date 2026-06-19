@@ -216,6 +216,8 @@ final class NativeServer {
 			return wrapHandlerData(await NativeAudioHandler.shared.start(body: request.body))
 		case "/api/native/audio/stop":
 			return wrapHandlerData(await NativeAudioHandler.shared.stop(body: request.body))
+		case "/api/native/audio/combine":
+			return wrapHandlerData(await NativeAudioHandler.shared.combine(body: request.body))
 		default:
 			return httpResponse(json: ["ok": false, "error": "Unknown endpoint: \(path)"], status: 404)
 		}

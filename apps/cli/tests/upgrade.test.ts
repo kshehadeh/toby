@@ -16,7 +16,6 @@ import {
 	removeOrphanedLegacyMacOSHelper,
 	resolveInstallDir,
 	resolveInstallTarget,
-	resolveListenerInstallTarget,
 	resolveStagedBinaryPath,
 	shouldDelegateApplyToStagedBinary,
 } from "../src/upgrade/index";
@@ -47,9 +46,6 @@ describe("upgrade staging paths", () => {
 		const paths = getStagingPaths();
 		expect(paths.stagingDir).toBe(path.join(tempDir, "staging"));
 		expect(paths.binaryPath).toBe(path.join(tempDir, "staging", "toby"));
-		expect(paths.listenerPath).toBe(
-			path.join(tempDir, "staging", "toby-listener"),
-		);
 		expect(paths.pluginSamplePath).toBe(
 			path.join(tempDir, "staging", "toby-plugin-sample"),
 		);
@@ -87,12 +83,6 @@ describe("upgrade staging paths", () => {
 	it("resolves default install dir", () => {
 		expect(resolveInstallDir()).toBe(
 			path.resolve(path.join(os.homedir(), ".local", "bin")),
-		);
-	});
-
-	it("installs listener helper under ~/.toby/helpers, not the bin dir", () => {
-		expect(resolveListenerInstallTarget()).toBe(
-			path.join(tempDir, "helpers", "toby-listener"),
 		);
 	});
 });
@@ -148,7 +138,6 @@ describe("removeLegacySiblingHelpers", () => {
 		fs.writeFileSync(staleMacOS, "old");
 
 		await removeLegacySiblingHelpers(installTarget, [
-			path.join(binDir, "..", "helpers", "toby-listener"),
 			path.join(binDir, "..", "helpers", "toby-macos"),
 		]);
 
@@ -160,7 +149,7 @@ describe("removeLegacySiblingHelpers", () => {
 	it("never deletes a sibling that is also the new helper target", async () => {
 		const installTarget = path.join(binDir, "toby");
 		fs.writeFileSync(installTarget, "binary");
-		const sibling = path.join(binDir, "toby-listener");
+		const sibling = path.join(binDir, "toby-macos");
 		fs.writeFileSync(sibling, "current");
 
 		await removeLegacySiblingHelpers(installTarget, [sibling]);
@@ -280,9 +269,6 @@ describe("applyStagedRelease", () => {
 
 		const versionScript = `#!/bin/sh\nif [ "$1" = "--version" ]; then echo "9.9.9"; exit 0; fi\nexit 1\n`;
 		fs.writeFileSync(paths.binaryPath, versionScript, { mode: 0o755 });
-		fs.writeFileSync(paths.listenerPath, "#!/bin/sh\nexit 0\n", {
-			mode: 0o755,
-		});
 		fs.writeFileSync(paths.pluginSamplePath, "#!/bin/sh\necho sample\n", {
 			mode: 0o755,
 		});
@@ -293,7 +279,6 @@ describe("applyStagedRelease", () => {
 			asset: "toby-darwin-arm64.zip",
 			repo: "kshehadeh/toby",
 			installTarget,
-			listenerInstallTarget: path.join(tempDir, "helpers", "toby-listener"),
 			completedAt: new Date().toISOString(),
 		};
 		fs.writeFileSync(paths.manifestPath, JSON.stringify(manifest, null, 2));
@@ -318,9 +303,6 @@ describe("applyStagedRelease", () => {
 
 		const versionScript = `#!/bin/sh\nif [ "$1" = "--version" ]; then echo "9.9.9"; exit 0; fi\nexit 1\n`;
 		fs.writeFileSync(paths.binaryPath, versionScript, { mode: 0o755 });
-		fs.writeFileSync(paths.listenerPath, "#!/bin/sh\nexit 0\n", {
-			mode: 0o755,
-		});
 		fs.writeFileSync(paths.pluginMacosPath, "#!/bin/sh\nexit 0\n", {
 			mode: 0o755,
 		});
@@ -335,7 +317,6 @@ describe("applyStagedRelease", () => {
 				asset: "toby-darwin-arm64.zip",
 				repo: "kshehadeh/toby",
 				installTarget,
-				listenerInstallTarget: path.join(tempDir, "helpers", "toby-listener"),
 				completedAt: new Date().toISOString(),
 			}),
 		);
@@ -377,9 +358,6 @@ describe("applyStagedReleaseDelegated", () => {
 		fs.mkdirSync(paths.stagingDir, { recursive: true });
 		fs.mkdirSync(binDir, { recursive: true });
 
-		fs.writeFileSync(paths.listenerPath, "#!/bin/sh\nexit 0\n", {
-			mode: 0o755,
-		});
 		fs.writeFileSync(paths.pluginSamplePath, "#!/bin/sh\necho sample\n", {
 			mode: 0o755,
 		});
@@ -390,7 +368,6 @@ describe("applyStagedReleaseDelegated", () => {
 			asset: "toby-darwin-arm64.zip",
 			repo: "kshehadeh/toby",
 			installTarget,
-			listenerInstallTarget: path.join(tempDir, "helpers", "toby-listener"),
 			completedAt: new Date().toISOString(),
 		};
 		fs.writeFileSync(paths.manifestPath, JSON.stringify(manifest, null, 2));

@@ -1,9 +1,0 @@
-{
-	"name": "@toby/audio-helper",
-	"version": "0.18.0",
-	"private": true,
-	"description": "macOS audio capture helper for Toby listen mode",
-	"scripts": {
-		"build": "swift build -c release"
-	}
-}

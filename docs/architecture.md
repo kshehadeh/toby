@@ -161,24 +161,23 @@ See [`native-helpers.md`](native-helpers.md) for the full endpoint table and sou
 
 ## Recording and transcription architecture
 
-Toby has two capture implementations but one recording format and one
-transcription boundary:
+Toby has one capture implementation (inside Toby.app) but two entry points and
+one transcription boundary:
 
 ```mermaid
 flowchart LR
   subgraph cliCapture ["CLI / daemon capture"]
     cliListen["Listen UI or /api/listen/start"] --> manager["core ListenManager"]
-    manager --> helper["toby-audio-helper"]
+    manager --> nativeClient["NativeAudioClient"]
   end
 
   subgraph appCapture ["Toby.app capture"]
-    appRecord["Record Audio"] --> nativeClient["NativeAudioClient"]
+    appRecord["Record Audio"] --> nativeClient
     nativeClient --> nativeServer["Toby.app native API"]
     nativeServer --> nativeHandler["NativeAudioHandler"]
   end
 
-  helper --> artifacts["~/.toby/listen/recordings/<id>"]
-  nativeHandler --> artifacts
+  nativeHandler --> artifacts["~/.toby/listen/recordings/<id>"]
   manager --> transcribe["core transcription adapter"]
   appRecord -->|"POST /api/listen/recordings/:id/transcribe"| daemonApi["daemon API"]
   daemonApi --> transcribe
@@ -189,9 +188,8 @@ flowchart LR
   daemonApi --> artifacts
 ```
 
-- The CLI/core path supervises `toby-audio-helper`; Toby.app captures directly
-  with AVFoundation and ScreenCaptureKit because its stable bundle identity is
-  the correct macOS permission owner.
+- The CLI/core path routes recording through Toby.app's native API server so
+  microphone and system audio capture share the same stable bundle identity.
 - Both paths write `metadata.json`, source tracks, and preferably
   `combined.m4a` under the same recording directory layout.
 - Transcription is harness behavior. The daemon resolves combined audio first,

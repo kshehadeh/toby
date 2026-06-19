@@ -36,7 +36,6 @@ export interface StagingManifest {
 	readonly asset: string;
 	readonly repo: string;
 	readonly installTarget: string;
-	readonly listenerInstallTarget?: string;
 	readonly completedAt: string;
 }
 
@@ -99,10 +98,6 @@ export function resolveInstallTarget(installDir?: string): string {
 	return path.join(resolveInstallDir(installDir), "toby");
 }
 
-export function resolveListenerInstallTarget(_installDir?: string): string {
-	return path.join(getHelpersDir(), "toby-listener");
-}
-
 export function resolveWebInstallTarget(installDir?: string): string {
 	return path.join(path.dirname(resolveInstallTarget(installDir)), "web");
 }
@@ -114,7 +109,6 @@ export function resolveAppInstallTarget(installDir?: string): string {
 export function getStagingPaths(): {
 	readonly stagingDir: string;
 	readonly binaryPath: string;
-	readonly listenerPath: string;
 	readonly pluginSamplePath: string;
 	readonly pluginAzureadPath: string;
 	readonly pluginGmailPath: string;
@@ -135,7 +129,6 @@ export function getStagingPaths(): {
 	return {
 		stagingDir,
 		binaryPath: path.join(stagingDir, "toby"),
-		listenerPath: path.join(stagingDir, "toby-listener"),
 		pluginSamplePath: path.join(stagingDir, "toby-plugin-sample"),
 		pluginAzureadPath: path.join(stagingDir, "toby-plugin-azuread"),
 		pluginGmailPath: path.join(stagingDir, "toby-plugin-gmail"),
@@ -216,9 +209,6 @@ export async function downloadRelease(
 ): Promise<DownloadReleaseResult> {
 	const repo = resolveTobyGitHubRepo(options.repo);
 	const installTarget = resolveInstallTarget(options.installDir);
-	const listenerInstallTarget = resolveListenerInstallTarget(
-		options.installDir,
-	);
 	const asset = `${resolveReleaseAsset()}.zip`;
 	const tag = options.tag?.trim() || (await fetchLatestReleaseTag(repo));
 	const version = normalizeReleaseVersion(tag);
@@ -232,7 +222,6 @@ export async function downloadRelease(
 	const {
 		stagingDir,
 		binaryPath,
-		listenerPath,
 		pluginSamplePath,
 		pluginAzureadPath,
 		pluginGmailPath,
@@ -254,7 +243,6 @@ export async function downloadRelease(
 	try {
 		await mkdir(stagingDir, { recursive: true });
 		await rm(binaryPath, { force: true }).catch(() => undefined);
-		await rm(listenerPath, { force: true }).catch(() => undefined);
 		await rm(pluginSamplePath, { force: true }).catch(() => undefined);
 		await rm(pluginAzureadPath, { force: true }).catch(() => undefined);
 		await rm(pluginGmailPath, { force: true }).catch(() => undefined);
@@ -278,7 +266,6 @@ export async function downloadRelease(
 		options.onProgress?.({ phase: "verifying" });
 		await yieldToEventLoop();
 		await chmodExecutable(binaryPath);
-		await chmodExecutable(listenerPath);
 
 		const installedVersion = readInstalledVersion(binaryPath);
 		if (!installedVersion) {
@@ -302,7 +289,6 @@ export async function downloadRelease(
 			asset,
 			repo,
 			installTarget,
-			listenerInstallTarget,
 			completedAt: new Date().toISOString(),
 		};
 		await writeFile(manifestPath, JSON.stringify(manifest, null, 2));
@@ -408,20 +394,13 @@ export async function applyStagedRelease(
 		);
 	}
 
-	const { binaryPath, listenerPath, webPath, appPath, manifestPath } =
-		getStagingPaths();
+	const { binaryPath, webPath, appPath, manifestPath } = getStagingPaths();
 	if (!fs.existsSync(binaryPath)) {
 		throw new Error(`Staged binary missing at ${binaryPath}.`);
 	}
-	if (!fs.existsSync(listenerPath)) {
-		throw new Error(`Staged listener helper missing at ${listenerPath}.`);
-	}
 
 	const installTarget = installTargetOverride ?? manifest.installTarget;
-	const listenerInstallTarget =
-		manifest.listenerInstallTarget ?? resolveListenerInstallTarget();
 	await mkdir(path.dirname(installTarget), { recursive: true });
-	await mkdir(path.dirname(listenerInstallTarget), { recursive: true });
 
 	const tempDestination = path.join(
 		path.dirname(installTarget),
@@ -431,15 +410,6 @@ export async function applyStagedRelease(
 	await rename(binaryPath, tempDestination);
 	await chmodExecutable(tempDestination);
 	await rename(tempDestination, installTarget);
-
-	const tempListenerDestination = path.join(
-		path.dirname(listenerInstallTarget),
-		`.toby-listener-upgrade-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-	);
-	await rm(tempListenerDestination, { force: true }).catch(() => undefined);
-	await rename(listenerPath, tempListenerDestination);
-	await chmodExecutable(tempListenerDestination);
-	await rename(tempListenerDestination, listenerInstallTarget);
 
 	if (fs.existsSync(path.join(webPath, "index.html"))) {
 		options?.onProgress?.({ phase: "installing", detail: "web UI" });
@@ -497,7 +467,7 @@ export async function applyStagedRelease(
 	// Migration: older installs placed helper binaries next to `toby` on PATH.
 	// Now that helpers live under ~/.toby/helpers, remove the stale siblings so
 	// only `toby` remains in the bin directory.
-	await removeLegacySiblingHelpers(installTarget, [listenerInstallTarget]);
+	await removeLegacySiblingHelpers(installTarget, []);
 	await removeOrphanedLegacyMacOSHelper();
 	await removeLegacyWhisperCliHelper();
 
@@ -702,11 +672,9 @@ async function extractReleaseArchive(
 			`Failed to extract ${archivePath}: ${result.stderr || "unknown error"}`,
 		);
 	}
-	for (const fileName of ["toby", "toby-listener"]) {
-		const filePath = path.join(destinationDir, fileName);
-		if (!fs.existsSync(filePath)) {
-			throw new Error(`Release archive is missing ${fileName}.`);
-		}
+	const filePath = path.join(destinationDir, "toby");
+	if (!fs.existsSync(filePath)) {
+		throw new Error("Release archive is missing toby.");
 	}
 }
 
