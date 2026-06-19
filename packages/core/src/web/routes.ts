@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { handleChangelog } from "./handlers/changelog";
 import {
 	handleAskUserAnswer,
 	handleCancelTurn,
@@ -167,6 +168,9 @@ export async function handleWebRequest(
 		}
 		if (pathname === "/api/skills" && req.method === "GET") {
 			return handleSkillsList();
+		}
+		if (pathname === "/api/releases/changelog" && req.method === "GET") {
+			return handleChangelog(url);
 		}
 		const sessionTurnCancelMatch =
 			/^\/api\/sessions\/([^/]+)\/turn\/([^/]+)\/cancel$/.exec(pathname);

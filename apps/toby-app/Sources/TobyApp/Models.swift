@@ -400,3 +400,28 @@ struct StreamingAssistantState: Equatable {
 	/// When true, stream inside the active "Worked for" group instead of the main transcript line.
 	var inWorkArea: Bool
 }
+
+struct ChangelogResponse: Decodable {
+	let releases: [ChangelogRelease]
+}
+
+struct ChangelogRelease: Decodable, Identifiable {
+	let version: String
+	let tagName: String
+	let url: String
+	let publishedAt: String
+	let features: [ChangelogChange]
+	let bugs: [ChangelogChange]
+	let enhancements: [ChangelogChange]
+
+	var id: String { tagName }
+}
+
+struct ChangelogChange: Decodable, Identifiable {
+	let type: String
+	let scope: String?
+	let description: String
+	let sha: String?
+
+	var id: String { "\(type):\(scope ?? ""):\(description)" }
+}

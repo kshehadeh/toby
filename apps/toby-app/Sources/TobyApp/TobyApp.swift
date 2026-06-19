@@ -63,6 +63,10 @@ struct TobyApp: App {
 			}
 
 			CommandGroup(after: .help) {
+				Button("Show Changelog") {
+					NotificationCenter.default.post(name: .openChangelog, object: nil)
+				}
+				.keyboardShortcut("l", modifiers: [.command, .shift])
 				Button("Report an Issue…") {
 					NotificationCenter.default.post(name: .openIssueReport, object: nil)
 				}

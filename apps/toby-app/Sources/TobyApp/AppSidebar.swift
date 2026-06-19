@@ -18,10 +18,11 @@ struct AppSidebar: View {
 	let onOpenRecordings: () -> Void
 	let onOpenPersonasSettings: () -> Void
 	let onPersonaSelected: () -> Void
+	let onOpenChangelog: () -> Void
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			SidebarHeader(status: status, daemonStatus: daemonStatus)
+			SidebarHeader(status: status, daemonStatus: daemonStatus, onOpenChangelog: onOpenChangelog)
 			SidebarPrimaryActions(
 				onSearch: onSearch,
 				onToggleRecording: onToggleRecording,
@@ -119,6 +120,7 @@ struct AppSidebar: View {
 private struct SidebarHeader: View {
 	let status: AppStatus?
 	let daemonStatus: DaemonStatus?
+	let onOpenChangelog: () -> Void
 
 	private var appIcon: Image {
 		if let nsImage = NSImage(named: NSImage.applicationIconName) {
@@ -129,21 +131,29 @@ private struct SidebarHeader: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 10) {
-			HStack(spacing: 10) {
-				appIcon
-					.resizable()
-					.aspectRatio(contentMode: .fit)
-					.frame(width: 22, height: 22)
-				Text("Toby")
-					.font(.headline)
-					.foregroundStyle(AppTheme.primaryText)
-				Spacer()
-				if let version = status?.version {
-					Text("v\(version)")
-						.font(.caption)
-						.foregroundStyle(AppTheme.tertiaryText)
+			Button {
+				onOpenChangelog()
+			} label: {
+				HStack(spacing: 10) {
+					appIcon
+						.resizable()
+						.aspectRatio(contentMode: .fit)
+						.frame(width: 22, height: 22)
+					Text("Toby")
+						.font(.headline)
+						.foregroundStyle(AppTheme.primaryText)
+					Spacer()
+					if let version = status?.version {
+						Text("v\(version)")
+							.font(.caption)
+							.foregroundStyle(AppTheme.tertiaryText)
+					}
 				}
+				.contentShape(Rectangle())
 			}
+			.buttonStyle(.plain)
+			.accessibilityLabel("Toby version \(status?.version ?? "")")
+			.accessibilityHint("Open changelog")
 			ServerCard(status: status, daemonStatus: daemonStatus)
 		}
 		.padding(.horizontal, 8)

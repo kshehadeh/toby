@@ -342,4 +342,15 @@ struct TobyClient {
 		try validate(response: response, data: data)
 		return try JSONDecoder().decode(ConfigureActionResponse.self, from: data)
 	}
+
+	func fetchChangelog(limit: Int = 10) async throws -> ChangelogResponse {
+		var components = URLComponents(
+			url: baseURL.appendingPathComponent("api/releases/changelog"),
+			resolvingAgainstBaseURL: false,
+		)!
+		components.queryItems = [URLQueryItem(name: "limit", value: String(max(1, min(limit, 10))))]
+		let (data, response) = try await URLSession.shared.data(from: components.url!)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ChangelogResponse.self, from: data)
+	}
 }

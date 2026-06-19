@@ -6,6 +6,7 @@ struct RootView: View {
     @Environment(\.openWindow) private var openWindow
     @State private var isCommandPalettePresented = false
     @State private var isIssueReportPresented = false
+    @State private var isChangelogPresented = false
     @State private var pendingDeleteSession: SessionSummary?
     @State private var isToastHovered = false
     @State private var toastDismissTask: Task<Void, Never>?
@@ -32,6 +33,7 @@ struct RootView: View {
                 onOpenRecordings: openRecordings,
                 onOpenPersonasSettings: openPersonasSettings,
                 onPersonaSelected: refreshStatus,
+                onOpenChangelog: { isChangelogPresented = true },
             )
             .navigationSplitViewColumnWidth(
                 min: 220,
@@ -108,11 +110,20 @@ struct RootView: View {
                 isIssueReportPresented = false
             }
         }
+        .sheet(isPresented: $isChangelogPresented) {
+            ChangelogView {
+                isChangelogPresented = false
+            }
+            .presentationBackground(.clear)
+        }
         .onReceive(NotificationCenter.default.publisher(for: .openCommandPalette)) { _ in
             isCommandPalettePresented = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .openIssueReport)) { _ in
             isIssueReportPresented = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openChangelog)) { _ in
+            isChangelogPresented = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .startNewChat)) { _ in
             startNewChat()
@@ -195,5 +206,6 @@ struct RootView: View {
 extension Notification.Name {
     static let openCommandPalette = Notification.Name("openCommandPalette")
     static let openIssueReport = Notification.Name("openIssueReport")
+    static let openChangelog = Notification.Name("openChangelog")
     static let startNewChat = Notification.Name("startNewChat")
 }

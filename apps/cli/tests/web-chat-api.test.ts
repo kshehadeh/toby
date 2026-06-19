@@ -483,3 +483,85 @@ describe("web chat API routes", () => {
 		},
 	);
 });
+
+describe("changelog API", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it("GET /api/releases/changelog returns parsed releases", async () => {
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			statusText: "OK",
+			json: async () => [
+				{
+					tag_name: "v0.49.0",
+					name: "v0.49.0",
+					body: "- feat(app): hide Listen section (a407cf9)\n- fix(app): keep chat title clear (d6f0323)\n- chore(release): v0.49.0",
+					html_url: "https://github.com/kshehadeh/toby/releases/tag/v0.49.0",
+					published_at: "2026-06-19T09:43:31Z",
+				},
+			],
+		});
+		vi.stubGlobal("fetch", fetchMock);
+
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/releases/changelog"),
+			null,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			releases: Array<{
+				version: string;
+				features: Array<{ description: string }>;
+				bugs: Array<{ description: string }>;
+			}>;
+		};
+		expect(body.releases).toHaveLength(1);
+		expect(body.releases[0]?.version).toBe("v0.49.0");
+		expect(body.releases[0]?.features).toHaveLength(1);
+		expect(body.releases[0]?.features[0]?.description).toBe(
+			"hide Listen section",
+		);
+		expect(body.releases[0]?.bugs).toHaveLength(1);
+		expect(body.releases[0]?.bugs[0]?.description).toBe(
+			"keep chat title clear",
+		);
+	});
+
+	it("GET /api/releases/changelog?limit=5 respects the limit", async () => {
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			statusText: "OK",
+			json: async () => [],
+		});
+		vi.stubGlobal("fetch", fetchMock);
+
+		await handleWebRequest(
+			new Request("http://127.0.0.1/api/releases/changelog?limit=5"),
+			null,
+		);
+		expect(fetchMock).toHaveBeenCalledOnce();
+		const callUrl = fetchMock.mock.calls[0]?.[0] as string;
+		expect(callUrl).toContain("per_page=5");
+	});
+
+	it("GET /api/releases/changelog returns 502 when GitHub is unavailable", async () => {
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: false,
+			status: 500,
+			statusText: "Internal Server Error",
+		});
+		vi.stubGlobal("fetch", fetchMock);
+
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/releases/changelog"),
+			null,
+		);
+		expect(res.status).toBe(502);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toContain("Failed to fetch changelog");
+	});
+});
