@@ -269,6 +269,7 @@ export async function handleAskUserAnswer(
 		selectedIndex?: number;
 		selectedLabel?: string;
 		rawInput?: string;
+		error?: string;
 	}>(req);
 	if (body === null) {
 		return errorResponse("Invalid JSON body", 400);
@@ -277,6 +278,7 @@ export async function handleAskUserAnswer(
 		selectedIndex: body.selectedIndex ?? -1,
 		selectedLabel: body.selectedLabel ?? "",
 		rawInput: body.rawInput ?? "",
+		...(body.error ? { error: body.error } : {}),
 	};
 	const ok = submitAskUserAnswer({
 		sessionId,

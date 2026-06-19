@@ -99,6 +99,7 @@ export type AskUserAnswerRequest = {
 	readonly selectedIndex: number;
 	readonly selectedLabel: string;
 	readonly rawInput?: string;
+	readonly error?: string;
 };
 
 export type AskUserAnswerResponse = {
