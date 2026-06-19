@@ -17,7 +17,8 @@ struct InputDock: View {
 				.disabled(isLoading)
 				.onKeyPress(.return, phases: .down) { press in
 					if press.modifiers.contains(.shift) {
-						return .ignored
+						text.append("\n")
+						return .handled
 					}
 					onSubmit()
 					return .handled

@@ -128,7 +128,8 @@ private struct AskUserCustomOptionRow: View {
 				.lineLimit(1 ... 3)
 				.onKeyPress(.return, phases: .down) { press in
 					if press.modifiers.contains(.shift) {
-						return .ignored
+						text.append("\n")
+						return .handled
 					}
 					submit()
 					return .handled
