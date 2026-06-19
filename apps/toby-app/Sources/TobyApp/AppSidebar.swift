@@ -10,7 +10,6 @@ struct AppSidebar: View {
 	let isSessionsLoading: Bool
 	let isRecording: Bool
 	let isRecordDisabled: Bool
-	let onSearch: () -> Void
 	let onToggleRecording: () -> Void
 	let onSelectSession: (String) -> Void
 	let onDeleteSession: (SessionSummary) -> Void
@@ -24,7 +23,6 @@ struct AppSidebar: View {
 		VStack(alignment: .leading, spacing: 0) {
 			SidebarHeader(status: status, daemonStatus: daemonStatus, onOpenChangelog: onOpenChangelog)
 			SidebarPrimaryActions(
-				onSearch: onSearch,
 				onToggleRecording: onToggleRecording,
 				isLoading: isLoading,
 				isRecording: isRecording,
@@ -423,7 +421,6 @@ private struct CollapsibleSkillsList: View {
 }
 
 private struct SidebarPrimaryActions: View {
-	let onSearch: () -> Void
 	let onToggleRecording: () -> Void
 	let isLoading: Bool
 	let isRecording: Bool
@@ -431,12 +428,6 @@ private struct SidebarPrimaryActions: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 4) {
-			Button(action: onSearch) {
-				Label("Search", systemImage: "magnifyingglass")
-					.frame(maxWidth: .infinity, alignment: .leading)
-					.contentShape(Rectangle())
-			}
-			.buttonStyle(SidebarButtonStyle())
 			Button(action: onToggleRecording) {
 				HStack(spacing: 8) {
 					if isRecording {

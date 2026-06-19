@@ -25,7 +25,6 @@ struct RootView: View {
                 isSessionsLoading: store.isSessionsLoading,
                 isRecording: store.isRecordingActive,
                 isRecordDisabled: store.isRecordButtonDisabled,
-                onSearch: { isCommandPalettePresented = true },
                 onToggleRecording: toggleRecording,
                 onSelectSession: selectSession,
                 onDeleteSession: { pendingDeleteSession = $0 },
@@ -48,6 +47,13 @@ struct RootView: View {
                     }
                     .help("New Chat")
                     .disabled(store.isLoading)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(action: { isCommandPalettePresented = true }) {
+                        Image(systemName: "magnifyingglass")
+                    }
+                    .help("Search")
+                    .accessibilityLabel("Search")
                 }
             }
         } detail: {
