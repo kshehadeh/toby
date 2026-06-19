@@ -4,9 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PKG="$ROOT/apps/toby-app"
 DIST="$ROOT/dist"
-APP="$DIST/Toby.app"
 ARCH="${SWIFT_ARCH:-$(uname -m)}"
-APP_BUNDLE_ID="${TOBY_APP_BUNDLE_ID:-dev.karim.toby.app}"
 APP_VARIANT="${TOBY_APP_VARIANT:-development}"
 ICON_MASTER="$ROOT/images/512x512.png"
 ICON_SRC="$ROOT/images/app-icon.png"
@@ -14,15 +12,19 @@ ICON_SRC="$ROOT/images/app-icon.png"
 case "${APP_VARIANT}" in
 	development)
 		APP_DISPLAY_NAME="Toby (Dev)"
+		APP_BUNDLE_ID="${TOBY_APP_BUNDLE_ID:-dev.karim.toby.app.dev}"
 		;;
 	production)
 		APP_DISPLAY_NAME="Toby"
+		APP_BUNDLE_ID="${TOBY_APP_BUNDLE_ID:-dev.karim.toby.app}"
 		;;
 	*)
 		echo "Invalid TOBY_APP_VARIANT '${APP_VARIANT}'; expected development or production." >&2
 		exit 1
 		;;
 esac
+
+APP="$DIST/${APP_DISPLAY_NAME}.app"
 
 resolve_code_sign_identity() {
 	# If an explicit identity was provided, use it verbatim.
@@ -62,7 +64,34 @@ resolve_code_sign_identity() {
 
 CODE_SIGN_IDENTITY="$(resolve_code_sign_identity)"
 if [[ -z "${CODE_SIGN_IDENTITY}" ]]; then
-	echo "Development builds require a non-ad-hoc Apple code signing identity so macOS permissions persist across rebuilds." >&2
+	echo "Development builds require a valid Apple Development code signing identity so macOS permissions persist across rebuilds." >&2
+	echo "" >&2
+
+	matching_identities="$(security find-identity -p codesigning 2>/dev/null | awk -F '"' '/Apple Development|Developer ID Application|Mac Developer/ { print $2 }' | sort -u)"
+	if [[ -n "${matching_identities}" ]]; then
+		echo "Found these matching certificates, but none are valid identities:" >&2
+		while IFS= read -r line; do
+			echo "  - $line" >&2
+		done <<< "${matching_identities}"
+		echo "" >&2
+		echo "A certificate is only a valid signing identity when:" >&2
+		echo "  1. its private key is present in the same keychain, and" >&2
+		echo "  2. its trust chain (Apple Worldwide Developer Relations -> Apple Root CA) is valid." >&2
+		echo "" >&2
+		echo "If the private key is missing, the certificate was likely downloaded from the Apple Developer" >&2
+		echo "portal but the private key was created on a different Mac. Generate a new CSR on this Mac and" >&2
+		echo "request a new Apple Development certificate." >&2
+		echo "" >&2
+		echo "If the private key is present but the identity is still invalid, the Apple intermediate certificate" >&2
+		echo "chain may be stale. Download the latest Apple Worldwide Developer Relations certificate from:" >&2
+		echo "  https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer" >&2
+		echo "and install it in Keychain Access (login keychain)." >&2
+	else
+		echo "No Apple Development or Developer ID Application certificates were found in your keychain." >&2
+		echo "Create one at: https://developer.apple.com/account/resources/certificates/list" >&2
+	fi
+
+	echo "" >&2
 	echo "Options:" >&2
 	echo "  - Set TOBY_CODESIGN_IDENTITY to a valid Apple Development or Developer ID Application identity." >&2
 	echo "  - Set TOBY_ALLOW_ADHOC_DEV_SIGNING=1 to build ad-hoc anyway (permissions will reset each rebuild)." >&2
@@ -125,7 +154,7 @@ BIN="$(
 	swift build --show-bin-path -c release --arch "${ARCH}" --package-path "${PKG}"
 )/toby-app"
 
-rm -rf "${APP}"
+rm -rf "$DIST"/*.app
 mkdir -p "${APP}/Contents/MacOS" "${APP}/Contents/Resources"
 
 cat >"${APP}/Contents/Info.plist" <<'PLIST'
