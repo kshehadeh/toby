@@ -1,4 +1,3 @@
-import AlertToast
 import SwiftUI
 
 struct RootView: View {
@@ -54,7 +53,7 @@ struct RootView: View {
         }
         .overlay(alignment: .top) {
             if let toast = store.toast {
-                alertToast(for: toast)
+                ToastView(toast: toast, onDismiss: dismissToast)
                     .frame(maxWidth: 420)
                     .padding(.horizontal, 16)
                     .padding(.top, 16)
@@ -191,31 +190,6 @@ struct RootView: View {
         isToastHovered = false
     }
 
-    private func alertToast(for toast: AppToastState) -> AlertToast {
-        switch toast.style {
-        case .success:
-            return AlertToast(
-                displayMode: .banner(.slide),
-                type: .complete(.green),
-                title: toast.title,
-                subTitle: toastSubtitle(toast.message),
-            )
-        case .error:
-            return AlertToast(
-                displayMode: .banner(.slide),
-                type: .error(.red),
-                title: toast.title,
-                subTitle: toastSubtitle(toast.message),
-            )
-        }
-    }
-
-    private func toastSubtitle(_ message: String?) -> String? {
-        guard let message else { return nil }
-        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count > 120 else { return trimmed }
-        return "\(trimmed.prefix(117))..."
-    }
 }
 
 extension Notification.Name {

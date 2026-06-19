@@ -10,13 +10,11 @@ let package = Package(
 		.executable(name: "toby-app", targets: ["TobyApp"]),
 	],
 	dependencies: [
-		.package(url: "https://github.com/elai950/AlertToast.git", from: "1.3.9"),
 	],
 	targets: [
 		.executableTarget(
 			name: "TobyApp",
 			dependencies: [
-				.product(name: "AlertToast", package: "AlertToast"),
 			],
 			path: "Sources/TobyApp",
 			exclude: ["Info.plist"],
