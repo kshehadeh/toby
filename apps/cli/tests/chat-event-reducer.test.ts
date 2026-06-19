@@ -79,6 +79,28 @@ describe("applyChatEvent", () => {
 		expect(b?.kind === "boxed_step" && b.cacheHit).toBe(true);
 	});
 
+	it("propagates durationMs from tool_call_complete to the boxed_step", () => {
+		let t: TranscriptEntry[] = [];
+		t = applyChatEvent(t, {
+			type: "tool_call_start",
+			blockKey: "a",
+			seq: 1,
+			toolName: "listLabels",
+			args: {},
+		} satisfies ChatEvent);
+		t = applyChatEvent(t, {
+			type: "tool_call_complete",
+			blockKey: "a",
+			seq: 2,
+			toolName: "listLabels",
+			args: {},
+			result: { labels: [] },
+			durationMs: 1234,
+		} satisfies ChatEvent);
+		const row = t.find((e) => e.kind === "boxed_step" && e.id === "a");
+		expect(row?.kind === "boxed_step" && row.durationMs).toBe(1234);
+	});
+
 	it("groups consecutive starts for the same tool into one boxed row", () => {
 		let t: TranscriptEntry[] = [];
 		t = applyChatEvent(t, {
@@ -240,6 +262,22 @@ describe("boxed_step persistence", () => {
 			toolName: "listLabels",
 			integrationLabel: "Gmail",
 			cacheHit: true,
+		};
+		const row = serializeTranscriptEntry(e);
+		expect(deserializeTranscriptRow(row)).toEqual(e);
+	});
+
+	it("round-trips tool boxed_step with durationMs", () => {
+		const e: TranscriptEntry = {
+			kind: "boxed_step",
+			id: "bk",
+			seq: 1,
+			variant: "tool",
+			header: "List labels",
+			body: "Found 1 label(s).",
+			toolBlockKey: "bk",
+			toolName: "listLabels",
+			durationMs: 1234,
 		};
 		const row = serializeTranscriptEntry(e);
 		expect(deserializeTranscriptRow(row)).toEqual(e);

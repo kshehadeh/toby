@@ -87,6 +87,7 @@ type ToolCallLifecycleComplete = {
 	readonly result: unknown;
 	readonly error?: unknown;
 	readonly cacheHit?: boolean;
+	readonly durationMs?: number;
 };
 
 export type ChatWithToolsOptions = {
@@ -212,6 +213,7 @@ function injectToolLifecycleHooks(
 				throwIfAborted(abortSignal);
 				const allowCache = isReadOnlyChatTool(name);
 				const cacheHit = allowCache && getCachedToolResult(name, args).hit;
+				const toolStartMs = Date.now();
 				if (emitToolEvents) {
 					streamCtx?.endAssistantSegment(true);
 					streamCtx?.emit?.({
@@ -234,6 +236,7 @@ function injectToolLifecycleHooks(
 							args,
 							result: cachedValue,
 							cacheHit: true,
+							durationMs: Date.now() - toolStartMs,
 						});
 						onToolCallComplete?.({
 							toolName: name,
@@ -241,6 +244,7 @@ function injectToolLifecycleHooks(
 							args,
 							result: cachedValue,
 							cacheHit: true,
+							durationMs: Date.now() - toolStartMs,
 						});
 					}
 					return cachedValue;
@@ -260,6 +264,7 @@ function injectToolLifecycleHooks(
 							args,
 							result,
 							cacheHit: false,
+							durationMs: Date.now() - toolStartMs,
 						});
 						onToolCallComplete?.({
 							toolName: name,
@@ -267,6 +272,7 @@ function injectToolLifecycleHooks(
 							args,
 							result,
 							cacheHit: false,
+							durationMs: Date.now() - toolStartMs,
 						});
 					}
 					return result;
@@ -280,6 +286,7 @@ function injectToolLifecycleHooks(
 							args,
 							result: undefined,
 							error,
+							durationMs: Date.now() - toolStartMs,
 						});
 						onToolCallComplete?.({
 							toolName: name,
@@ -287,6 +294,7 @@ function injectToolLifecycleHooks(
 							args,
 							result: undefined,
 							error,
+							durationMs: Date.now() - toolStartMs,
 						});
 					}
 					throw error;
@@ -394,7 +402,7 @@ export async function chatWithTools(
 		};
 
 		let sawContent = false;
-		const emittedToolCallStarts = new Set<string>();
+		const emittedToolCallStarts = new Map<string, number>();
 
 		const stream = result.fullStream[Symbol.asyncIterator]();
 		while (true) {
@@ -484,7 +492,7 @@ export async function chatWithTools(
 				endReasoningSegment();
 				endAssistantSegment(true);
 				if (onChatEvent && !emittedToolCallStarts.has(part.toolCallId)) {
-					emittedToolCallStarts.add(part.toolCallId);
+					emittedToolCallStarts.set(part.toolCallId, Date.now());
 					const args: Record<string, unknown> = {};
 					onChatEvent({
 						type: "tool_call_start",
@@ -512,7 +520,7 @@ export async function chatWithTools(
 						? (part.input as Record<string, unknown>)
 						: {};
 				if (onChatEvent && !emittedToolCallStarts.has(part.toolCallId)) {
-					emittedToolCallStarts.add(part.toolCallId);
+					emittedToolCallStarts.set(part.toolCallId, Date.now());
 					onChatEvent({
 						type: "tool_call_start",
 						blockKey: part.toolCallId,
@@ -536,6 +544,7 @@ export async function chatWithTools(
 					!Array.isArray(part.input)
 						? (part.input as Record<string, unknown>)
 						: {};
+				const toolStartMs = emittedToolCallStarts.get(part.toolCallId);
 				if (onChatEvent) {
 					onChatEvent({
 						type: "tool_call_complete",
@@ -545,6 +554,9 @@ export async function chatWithTools(
 						args,
 						result: part.output,
 						...(part.isError === true ? { error: part.output } : {}),
+						...(toolStartMs !== undefined
+							? { durationMs: Date.now() - toolStartMs }
+							: {}),
 					});
 				}
 				options?.onToolCallComplete?.({
@@ -553,6 +565,9 @@ export async function chatWithTools(
 					args,
 					result: part.output,
 					...(part.isError === true ? { error: part.output } : {}),
+					...(toolStartMs !== undefined
+						? { durationMs: Date.now() - toolStartMs }
+						: {}),
 				});
 			}
 		}

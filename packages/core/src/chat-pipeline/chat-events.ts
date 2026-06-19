@@ -97,6 +97,8 @@ export type ChatEvent =
 			readonly result: unknown;
 			readonly error?: unknown;
 			readonly cacheHit?: boolean;
+			/** Elapsed time for the tool call in milliseconds. */
+			readonly durationMs?: number;
 	  }
 	| {
 			readonly type: "plan_created";

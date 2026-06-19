@@ -31,11 +31,13 @@ type BoxedStepPayload = {
 	readonly toolName?: string;
 	readonly integrationLabel?: string;
 	readonly cacheHit?: boolean;
+	readonly durationMs?: number;
 	readonly toolRuns?: readonly {
 		readonly blockKey: string;
 		readonly header: string;
 		readonly body: string;
 		readonly cacheHit?: boolean;
+		readonly durationMs?: number;
 	}[];
 };
 
@@ -57,6 +59,7 @@ export function serializeTranscriptEntry(e: TranscriptEntry): {
 				? { integrationLabel: e.integrationLabel }
 				: {}),
 			...(e.cacheHit !== undefined ? { cacheHit: e.cacheHit } : {}),
+			...(e.durationMs !== undefined ? { durationMs: e.durationMs } : {}),
 			...(e.toolRuns !== undefined ? { toolRuns: e.toolRuns } : {}),
 		};
 		return { kind: "boxed_step", text: JSON.stringify(payload) };
@@ -137,6 +140,9 @@ export function deserializeTranscriptRow(row: {
 						? { integrationLabel: p.integrationLabel }
 						: {}),
 					...(typeof p.cacheHit === "boolean" ? { cacheHit: p.cacheHit } : {}),
+					...(typeof p.durationMs === "number" && Number.isFinite(p.durationMs)
+						? { durationMs: Math.max(0, p.durationMs) }
+						: {}),
 					...(Array.isArray(p.toolRuns)
 						? {
 								toolRuns: p.toolRuns
@@ -148,13 +154,17 @@ export function deserializeTranscriptRow(row: {
 											header: string;
 											body: string;
 											cacheHit?: boolean;
+											durationMs?: number;
 										} =>
 											typeof run?.blockKey === "string" &&
 											run.blockKey.length > 0 &&
 											typeof run.header === "string" &&
 											typeof run.body === "string" &&
 											(run.cacheHit === undefined ||
-												typeof run.cacheHit === "boolean"),
+												typeof run.cacheHit === "boolean") &&
+											(run.durationMs === undefined ||
+												(typeof run.durationMs === "number" &&
+													Number.isFinite(run.durationMs))),
 									)
 									.map((run) => ({
 										blockKey: run.blockKey,
@@ -162,6 +172,10 @@ export function deserializeTranscriptRow(row: {
 										body: run.body,
 										...(typeof run.cacheHit === "boolean"
 											? { cacheHit: run.cacheHit }
+											: {}),
+										...(typeof run.durationMs === "number" &&
+										Number.isFinite(run.durationMs)
+											? { durationMs: Math.max(0, run.durationMs) }
 											: {}),
 									})),
 							}

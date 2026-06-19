@@ -558,6 +558,9 @@ export function applyChatEvent(
 						? { integrationLabel: event.integrationLabel }
 						: {}),
 					...(event.cacheHit !== undefined ? { cacheHit: event.cacheHit } : {}),
+					...(event.durationMs !== undefined
+						? { durationMs: event.durationMs }
+						: {}),
 				},
 			];
 		}
@@ -575,6 +578,9 @@ export function applyChatEvent(
 				...nextRuns[runIndex],
 				body: detail,
 				...(event.cacheHit !== undefined ? { cacheHit: event.cacheHit } : {}),
+				...(event.durationMs !== undefined
+					? { durationMs: event.durationMs }
+					: {}),
 			};
 			return replaceEntry(entries, idx, {
 				...cur,
@@ -606,6 +612,7 @@ export function applyChatEvent(
 									: (nextRuns[0]?.header ?? cur.header),
 							body: nextRuns[0]?.body ?? detail,
 							cacheHit: nextRuns[0]?.cacheHit,
+							durationMs: nextRuns[0]?.durationMs ?? event.durationMs,
 						}),
 			});
 		}
@@ -618,6 +625,9 @@ export function applyChatEvent(
 				? { integrationLabel: event.integrationLabel }
 				: {}),
 			...(event.cacheHit !== undefined ? { cacheHit: event.cacheHit } : {}),
+			...(event.durationMs !== undefined
+				? { durationMs: event.durationMs }
+				: {}),
 		});
 	}
 	if (event.type === "plan_created") {

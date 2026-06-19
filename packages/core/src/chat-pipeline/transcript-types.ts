@@ -5,6 +5,8 @@ export type ToolRunEntry = {
 	readonly header: string;
 	readonly body: string;
 	readonly cacheHit?: boolean;
+	/** Elapsed time for this run in milliseconds, when known. */
+	readonly durationMs?: number;
 };
 
 export type TranscriptEntry =
@@ -36,6 +38,8 @@ export type TranscriptEntry =
 			readonly toolName?: string;
 			readonly integrationLabel?: string;
 			readonly cacheHit?: boolean;
+			/** Elapsed time for this step in milliseconds, when known. */
+			readonly durationMs?: number;
 			/** Optional grouped runs for consecutive calls to the same tool. */
 			readonly toolRuns?: readonly ToolRunEntry[];
 	  }
