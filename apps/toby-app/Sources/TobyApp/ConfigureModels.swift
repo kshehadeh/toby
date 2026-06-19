@@ -57,6 +57,7 @@ struct SidebarTreeNode: Identifiable {
 
 enum ConfigureTreeHelpers {
 	private static let sidebarExcludedKeys: Set<String> = [
+		"listen",
 		"listen._start",
 		"personas._new",
 		"schedules._new",
