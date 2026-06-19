@@ -197,6 +197,7 @@ private struct ServerCard: View {
 			}
 		}
 		.padding(10)
+		.frame(maxWidth: .infinity, alignment: .leading)
 		.background(
 			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
 				.fill(AppTheme.panelBackground)
