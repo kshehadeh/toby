@@ -386,6 +386,14 @@ struct AskUserPromptPayload: Decodable {
 	let options: [String]
 }
 
+struct ActiveAskUserPrompt: Equatable, Identifiable {
+	let id: String
+	let turnId: String
+	let requestId: String
+	let query: String
+	let options: [String]
+}
+
 struct StreamingAssistantState: Equatable {
 	var header: String
 	var text: String

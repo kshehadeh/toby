@@ -6,34 +6,40 @@ struct ChatWorkspaceView: View {
     @State private var isSidebarCollapsed = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            ChatTopBar(
-                sessionName: store.sessionName,
-                activityLine: store.activityLine,
-                isSidebarCollapsed: isSidebarCollapsed,
+        ZStack {
+            VStack(spacing: 0) {
+                ChatTopBar(
+                    sessionName: store.sessionName,
+                    activityLine: store.activityLine,
+                    isSidebarCollapsed: isSidebarCollapsed,
+                )
+                if store.transcript.isEmpty && store.streamingAssistant == nil {
+                    EmptyChatWorkspace(store: store, promptFocus: $isPromptFocused)
+                } else {
+                    ActiveChatWorkspace(store: store, promptFocus: $isPromptFocused)
+                }
+            }
+            .background(AppTheme.contentBackground)
+            .background(
+                GeometryReader { proxy in
+                    Color.clear
+                        .onAppear {
+                            // The detail view starts at the window edge when the sidebar is collapsed.
+                            isSidebarCollapsed = proxy.frame(in: .named("TobyWindow")).minX < 60
+                        }
+                        .onChange(of: proxy.frame(in: .named("TobyWindow")).minX) { _, minX in
+                            isSidebarCollapsed = minX < 60
+                        }
+                }
             )
-            if store.transcript.isEmpty && store.streamingAssistant == nil {
-                EmptyChatWorkspace(store: store, promptFocus: $isPromptFocused)
-            } else {
-                ActiveChatWorkspace(store: store, promptFocus: $isPromptFocused)
+            .ignoresSafeArea(.container, edges: .top)
+            .onChange(of: store.promptFocusRequestId) { _, _ in
+                isPromptFocused = true
             }
-        }
-        .background(AppTheme.contentBackground)
-        .background(
-            GeometryReader { proxy in
-                Color.clear
-                    .onAppear {
-                        // The detail view starts at the window edge when the sidebar is collapsed.
-                        isSidebarCollapsed = proxy.frame(in: .named("TobyWindow")).minX < 60
-                    }
-                    .onChange(of: proxy.frame(in: .named("TobyWindow")).minX) { _, minX in
-                        isSidebarCollapsed = minX < 60
-                    }
+
+            if store.activeAskUserPrompt != nil {
+                AskUserPromptView(store: store)
             }
-        )
-        .ignoresSafeArea(.container, edges: .top)
-        .onChange(of: store.promptFocusRequestId) { _, _ in
-            isPromptFocused = true
         }
     }
 }

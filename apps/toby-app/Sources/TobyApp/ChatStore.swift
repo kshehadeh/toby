@@ -23,6 +23,7 @@ final class ChatStore {
 	var errorMessage: String?
 	var toast: AppToastState?
 	var turnWorkDurations: [Int: TimeInterval] = [:]
+	var activeAskUserPrompt: ActiveAskUserPrompt?
 	let serverEventLogPath = ServerEventLog.path
 
 	var activeWorkStartDate: Date? {
@@ -48,6 +49,7 @@ final class ChatStore {
 	private var sawToolCallThisTurn = false
 	private var activeTurnStartedAt: Date?
 	private var activeTurnUserIndex: Int?
+	private var askUserContinuation: CheckedContinuation<(selectedIndex: Int, selectedLabel: String, rawInput: String, error: String?), Never>?
 
 	func bootstrap() async {
 		do {
@@ -315,7 +317,10 @@ final class ChatStore {
 		do {
 			let done = try await client.streamTurn(sessionId: sessionId, text: text, onEvent: { event in
 				self.apply(event: event)
-			}, onAskUser: nil)
+			}, onAskUser: { [weak self] prompt in
+				guard let self else { return (-1, "", "", "Prompt dismissed") }
+				return await self.promptForAskUser(prompt)
+			})
 			if !assistantBuffer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
 				commitAssistantSegment(id: UUID().uuidString, interim: false)
 			}
@@ -350,6 +355,44 @@ final class ChatStore {
 		}
 		activeTurnStartedAt = nil
 		activeTurnUserIndex = nil
+	}
+
+	private func promptForAskUser(_ payload: AskUserPromptPayload) async -> (selectedIndex: Int, selectedLabel: String, rawInput: String, error: String?) {
+		await withCheckedContinuation { continuation in
+			self.askUserContinuation = continuation
+			self.activeAskUserPrompt = ActiveAskUserPrompt(
+				id: payload.requestId,
+				turnId: payload.turnId,
+				requestId: payload.requestId,
+				query: payload.query,
+				options: payload.options
+			)
+		}
+	}
+
+	func submitAskUserOption(index: Int) {
+		guard let prompt = activeAskUserPrompt, let continuation = askUserContinuation else { return }
+		guard index >= 0, index < prompt.options.count else { return }
+		let label = prompt.options[index]
+		askUserContinuation = nil
+		activeAskUserPrompt = nil
+		continuation.resume(returning: (index, label, String(index + 1), nil))
+	}
+
+	func submitAskUserCustomAnswer(_ rawInput: String) {
+		guard let continuation = askUserContinuation else { return }
+		let trimmed = rawInput.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard !trimmed.isEmpty else { return }
+		askUserContinuation = nil
+		activeAskUserPrompt = nil
+		continuation.resume(returning: (-1, trimmed, trimmed, nil))
+	}
+
+	func cancelAskUserPrompt() {
+		guard let continuation = askUserContinuation else { return }
+		askUserContinuation = nil
+		activeAskUserPrompt = nil
+		continuation.resume(returning: (-1, "", "", "Cancelled"))
 	}
 
 	private func reloadTranscriptFromServer(clearTurnDurationForIndex userIndex: Int?) async {

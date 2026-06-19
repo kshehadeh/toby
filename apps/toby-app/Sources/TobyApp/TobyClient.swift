@@ -145,7 +145,7 @@ struct TobyClient {
 		sessionId: String,
 		text: String,
 		onEvent: @escaping (ChatEventPayload) -> Void,
-		onAskUser: ((AskUserPromptPayload) async -> (selectedIndex: Int, selectedLabel: String, rawInput: String))?,
+		onAskUser: ((AskUserPromptPayload) async -> (selectedIndex: Int, selectedLabel: String, rawInput: String, error: String?))?,
 	) async throws -> TurnDonePayload {
 		let turnURL = baseURL.appendingPathComponent("api/sessions/\(sessionId)/turn")
 		ServerEventLog.beginTurn(sessionId: sessionId, text: text, url: turnURL)
@@ -221,6 +221,7 @@ struct TobyClient {
 						selectedIndex: answer.selectedIndex,
 						selectedLabel: answer.selectedLabel,
 						rawInput: answer.rawInput,
+						error: answer.error,
 					)
 				}
 				continue
@@ -260,6 +261,7 @@ struct TobyClient {
 		selectedIndex: Int,
 		selectedLabel: String,
 		rawInput: String,
+		error: String? = nil,
 	) async throws {
 		let url = baseURL.appendingPathComponent(
 			"api/sessions/\(sessionId)/turn/\(turnId)/ask-user/\(requestId)",
@@ -267,11 +269,14 @@ struct TobyClient {
 		var request = URLRequest(url: url)
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		let body: [String: Any] = [
+		var body: [String: Any] = [
 			"selectedIndex": selectedIndex,
 			"selectedLabel": selectedLabel,
 			"rawInput": rawInput,
 		]
+		if let error {
+			body["error"] = error
+		}
 		request.httpBody = try JSONSerialization.data(withJSONObject: body)
 		let (data, response) = try await URLSession.shared.data(for: request)
 		try validate(response: response, data: data)
