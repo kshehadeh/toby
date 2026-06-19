@@ -8,6 +8,7 @@ struct TranscriptView: View {
 	var turnWorkDurations: [Int: TimeInterval] = [:]
 	var activeWorkStartDate: Date?
 	var bottomContentPadding: CGFloat = 18
+	private let bottomAnchorID = "transcript-bottom-anchor"
 
 	@State private var expandedWorkGroups: Set<String> = []
 	@State private var collapsedWhileActive: Set<String> = []
@@ -54,11 +55,13 @@ struct TranscriptView: View {
 						)
 						.id("streaming")
 					}
+					Color.clear
+						.frame(height: bottomContentPadding)
+						.id(bottomAnchorID)
 				}
 				.frame(maxWidth: .infinity, alignment: .leading)
 				.padding(.horizontal, AppTheme.contentPadding)
 				.padding(.top, 10)
-				.padding(.bottom, bottomContentPadding)
 			}
 			.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 			.onChange(of: entries.count) { _, _ in
@@ -111,11 +114,7 @@ struct TranscriptView: View {
 
 	private func scrollToBottom(proxy: ScrollViewProxy) {
 		withAnimation(.easeOut(duration: 0.15)) {
-			if streamingAssistant != nil {
-				proxy.scrollTo("streaming", anchor: .bottom)
-			} else if let last = displayItems.last {
-				proxy.scrollTo(last.id, anchor: .bottom)
-			}
+			proxy.scrollTo(bottomAnchorID, anchor: .bottom)
 		}
 	}
 }

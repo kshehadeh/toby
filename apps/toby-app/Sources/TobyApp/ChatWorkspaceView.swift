@@ -1,5 +1,12 @@
 import SwiftUI
 
+private struct OverlayHeightPreferenceKey: PreferenceKey {
+    static let defaultValue: CGFloat = 126
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 struct ChatWorkspaceView: View {
     @Bindable var store: ChatStore
     @FocusState private var isPromptFocused: Bool
@@ -134,7 +141,7 @@ private struct EmptyChatWorkspace: View {
 private struct ActiveChatWorkspace: View {
     @Bindable var store: ChatStore
     let promptFocus: FocusState<Bool>.Binding
-    private let promptOverlayBottomPadding: CGFloat = 126
+    @State private var overlayHeight: CGFloat = 126
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -144,7 +151,7 @@ private struct ActiveChatWorkspace: View {
                 isLoading: store.isLoading,
                 turnWorkDurations: store.turnWorkDurations,
                 activeWorkStartDate: store.activeWorkStartDate,
-                bottomContentPadding: promptOverlayBottomPadding,
+                bottomContentPadding: overlayHeight,
             )
             VStack(spacing: 8) {
                 if let errorMessage = store.errorMessage {
@@ -161,6 +168,17 @@ private struct ActiveChatWorkspace: View {
             }
             .padding(.horizontal, AppTheme.contentPadding)
             .padding(.bottom, 18)
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(
+                        key: OverlayHeightPreferenceKey.self,
+                        value: proxy.size.height
+                    )
+                }
+            )
+        }
+        .onPreferenceChange(OverlayHeightPreferenceKey.self) { newValue in
+            overlayHeight = newValue
         }
     }
 
