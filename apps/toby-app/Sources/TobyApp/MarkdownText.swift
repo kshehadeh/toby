@@ -219,14 +219,13 @@ private struct TableGrid: View {
 					GridRow {
 						ForEach(Array(row.enumerated()), id: \.offset) { colIndex, cell in
 							let alignment = table.alignments[safe: colIndex] ?? .leading
-							InlineMarkdownText(text: cell)
-								.font(font)
-								.bold(isHeader)
-								.foregroundStyle(foregroundStyle)
-								.multilineTextAlignment(alignment)
-								.padding(.horizontal, 12)
-								.padding(.vertical, 8)
-								.frame(maxWidth: .infinity, alignment: alignment.alignment)
+							TableCell(
+								text: cell,
+								font: font,
+								foregroundStyle: foregroundStyle,
+								alignment: alignment,
+								isHeader: isHeader
+							)
 						}
 					}
 					.background(isHeader ? AppTheme.elevatedBackground.opacity(0.5) : Color.clear)
@@ -246,6 +245,29 @@ private struct TableGrid: View {
 			)
 		}
 		.frame(maxWidth: .infinity)
+	}
+}
+
+private struct TableCell: View {
+	let text: String
+	let font: Font
+	let foregroundStyle: Color
+	let alignment: TextAlignment
+	let isHeader: Bool
+
+	var body: some View {
+		ZStack(alignment: alignment.zstackAlignment) {
+			Rectangle()
+				.fill(isHeader ? AppTheme.elevatedBackground.opacity(0.5) : Color.clear)
+				.frame(maxWidth: .infinity, maxHeight: .infinity)
+			InlineMarkdownText(text: text)
+				.font(font)
+				.bold(isHeader)
+				.foregroundStyle(foregroundStyle)
+				.multilineTextAlignment(alignment)
+				.padding(.horizontal, 12)
+				.padding(.vertical, 8)
+		}
 	}
 }
 
@@ -286,6 +308,24 @@ private extension TextAlignment {
 		case .center: return .center
 		case .trailing: return .trailing
 		@unknown default: return .leading
+		}
+	}
+
+	var unitPoint: UnitPoint {
+		switch self {
+		case .leading: return .topLeading
+		case .center: return .top
+		case .trailing: return .topTrailing
+		@unknown default: return .topLeading
+		}
+	}
+
+	var zstackAlignment: Alignment {
+		switch self {
+		case .leading: return .topLeading
+		case .center: return .top
+		case .trailing: return .topTrailing
+		@unknown default: return .topLeading
 		}
 	}
 }

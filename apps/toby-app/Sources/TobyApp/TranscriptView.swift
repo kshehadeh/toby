@@ -27,7 +27,7 @@ struct TranscriptView: View {
 	var body: some View {
 		ScrollViewReader { proxy in
 			ScrollView {
-				LazyVStack(alignment: .leading, spacing: 22) {
+				VStack(alignment: .leading, spacing: 22) {
 					ForEach(displayItems) { item in
 						switch item {
 						case .entry(let entry, _):
@@ -149,37 +149,49 @@ private struct WorkedForRow: View {
 	let onToggle: () -> Void
 	var streamingAssistant: StreamingAssistantState?
 
+	private var steps: [WorkStep] {
+		workSteps(from: group)
+	}
+
 	var body: some View {
 		TimelineView(.periodic(from: .now, by: 1.0)) { context in
-			HStack(alignment: .top, spacing: 10) {
-				AssistantRailColumn(iconName: "cpu", iconColor: AppTheme.secondaryText)
+			HStack(alignment: .top, spacing: 0) {
 				VStack(alignment: .leading, spacing: 0) {
 					Button(action: onToggle) {
 						HStack(spacing: 8) {
 							if group.isActive {
 								ProgressView()
 									.controlSize(.small)
+									.frame(width: 14, height: 14)
+							} else {
+								Image(systemName: "clock")
+									.font(.caption.weight(.semibold))
+									.foregroundStyle(AppTheme.secondaryText)
 							}
 							Text(summaryLabel(at: context.date))
 								.font(.caption.weight(.medium))
 								.foregroundStyle(AppTheme.secondaryText)
+							if isExpanded, steps.count > 0 {
+								Text("· \(steps.count) steps")
+									.font(.caption)
+									.foregroundStyle(AppTheme.tertiaryText)
+							}
 							Spacer(minLength: 0)
 							Image(systemName: "chevron.right")
 								.font(.caption.weight(.semibold))
 								.foregroundStyle(AppTheme.tertiaryText)
 								.rotationEffect(.degrees(isExpanded ? 90 : 0))
 						}
-						.padding(.vertical, 6)
+						.padding(.vertical, 10)
+						.padding(.horizontal, 12)
 						.contentShape(Rectangle())
 					}
 					.buttonStyle(.plain)
-					.background(AppTheme.contentBackground)
-					.zIndex(1)
 
 					if isExpanded {
-						VStack(alignment: .leading, spacing: 8) {
-							ForEach(Array(group.entries.enumerated()), id: \.offset) { _, entry in
-								WorkDetailCard(entry: entry)
+						VStack(alignment: .leading, spacing: 0) {
+							ForEach(steps) { step in
+								WorkStepRow(step: step)
 							}
 							if let streamingAssistant {
 								AssistantMessageRow(
@@ -190,14 +202,20 @@ private struct WorkedForRow: View {
 								)
 							}
 						}
-						.padding(.top, 8)
-						.padding(.bottom, 10)
+						.padding(.horizontal, 12)
+						.padding(.bottom, 12)
 						.transition(.opacity.combined(with: .move(edge: .top)))
-						.zIndex(0)
-						.clipped()
 					}
 				}
 				.frame(maxWidth: 640, alignment: .leading)
+				.background(
+					RoundedRectangle(cornerRadius: 12, style: .continuous)
+						.fill(AppTheme.panelBackground)
+				)
+				.overlay(
+					RoundedRectangle(cornerRadius: 12, style: .continuous)
+						.stroke(AppTheme.separator)
+				)
 				.clipped()
 				Spacer(minLength: 0)
 			}
@@ -235,135 +253,139 @@ private struct WorkedForRow: View {
 	}
 }
 
-private struct WorkDetailCard: View {
-	let entry: TranscriptEntry
+private struct WorkStep: Identifiable {
+	let id: String
+	let title: String
+	let body: String
+	let durationMs: Int?
+	let isActive: Bool
+	let cacheHit: Bool?
+	let isAssistantInterim: Bool
+}
 
-	var body: some View {
+private func workSteps(from group: TranscriptWorkGroup) -> [WorkStep] {
+	let entries = group.entries
+	return entries.enumerated().compactMap { index, entry in
 		switch entry {
 		case .boxedStep(let payload):
-			if payload.variant == "lifecycle",
-				TranscriptGrouping.isHiddenLifecycleHeader(payload.header)
-			{
-				EmptyView()
-			} else if payload.variant == "assistant_interim" {
-				AssistantInterimCard(header: payload.header, messageBody: payload.body)
-			} else {
-				ToolCard(
-					iconName: iconName(for: payload),
-					title: payload.header,
-					bodyText: payload.body,
-					cacheHit: payload.cacheHit
-				)
+			if payload.variant == "lifecycle", TranscriptGrouping.isHiddenLifecycleHeader(payload.header) {
+				return nil
 			}
-		case .toolCall(_, let title):
-			ToolCard(iconName: "wrench.and.screwdriver", title: title, bodyText: "", cacheHit: nil)
-		case .toolOutput(_, let detail):
-			ToolCard(iconName: "text.alignleft", title: "Result", bodyText: detail, cacheHit: nil)
+			let isActive = group.isActive && index == entries.count - 1 && payload.durationMs == nil
+			let title = payload.toolName ?? payload.header
+			return WorkStep(
+				id: "\(payload.id)-\(payload.seq)",
+				title: title,
+				body: payload.body,
+				durationMs: payload.durationMs,
+				isActive: isActive,
+				cacheHit: payload.cacheHit,
+				isAssistantInterim: payload.variant == "assistant_interim"
+			)
+		case .toolCall(let blockKey, let title):
+			let isActive = group.isActive && index == entries.count - 1
+			return WorkStep(
+				id: "tool-call-\(blockKey)",
+				title: title,
+				body: "",
+				durationMs: nil,
+				isActive: isActive,
+				cacheHit: nil,
+				isAssistantInterim: false
+			)
+		case .toolOutput(let blockKey, let detail):
+			return WorkStep(
+				id: "tool-output-\(blockKey)",
+				title: "Result",
+				body: detail,
+				durationMs: nil,
+				isActive: false,
+				cacheHit: nil,
+				isAssistantInterim: false
+			)
 		case .meta(let text):
-			ToolCard(iconName: "info.circle", title: "Info", bodyText: text, cacheHit: nil)
+			return WorkStep(
+				id: "meta-\(text.hashValue)",
+				title: "Info",
+				body: text,
+				durationMs: nil,
+				isActive: false,
+				cacheHit: nil,
+				isAssistantInterim: false
+			)
 		default:
-			EmptyView()
-		}
-	}
-
-	private func iconName(for payload: BoxedStepPayload) -> String {
-		switch payload.variant {
-		case "tool":
-			return payload.cacheHit == true ? "checkmark.circle" : "wrench.and.screwdriver"
-		case "lifecycle", "prep":
-			return payload.body == "Thinking" ? "brain.head.profile" : "checkmark"
-		case "assistant_interim":
-			return "text.bubble"
-		default:
-			return "circle"
+			return nil
 		}
 	}
 }
 
-private struct ToolCard: View {
-	let iconName: String
-	let title: String
-	let bodyText: String
-	let cacheHit: Bool?
+private struct WorkStepRow: View {
+	let step: WorkStep
 
 	var body: some View {
 		HStack(alignment: .top, spacing: 10) {
-			Image(systemName: iconName)
-				.font(.system(size: 12, weight: .medium))
-				.foregroundStyle(AppTheme.tertiaryText)
-				.frame(width: 26, height: 26)
-				.background(Circle().fill(AppTheme.elevatedBackground))
-				.overlay(Circle().stroke(AppTheme.separator, lineWidth: 1))
-			VStack(alignment: .leading, spacing: 3) {
-				HStack(spacing: 6) {
-					Text(title)
+			statusIndicator
+			VStack(alignment: .leading, spacing: 2) {
+				HStack(alignment: .top, spacing: 8) {
+					Text(step.title)
 						.font(.caption.weight(.semibold))
 						.foregroundStyle(AppTheme.secondaryText)
-					if cacheHit == true {
-						Text("cache")
-							.font(.caption2.weight(.medium))
-							.foregroundStyle(AppTheme.accent)
-							.padding(.horizontal, 5)
-							.padding(.vertical, 1)
-							.background(Capsule().fill(AppTheme.accent.opacity(0.12)))
+					Spacer(minLength: 0)
+					if let durationMs = step.durationMs, durationMs > 0 {
+						Text(formatDurationMs(durationMs))
+							.font(.caption)
+							.foregroundStyle(AppTheme.tertiaryText)
+							.monospacedDigit()
 					}
 				}
-				if !bodyText.isEmpty {
-					Text(bodyText)
-						.font(.caption)
-						.foregroundStyle(AppTheme.tertiaryText)
-						.lineLimit(4)
-						.fixedSize(horizontal: false, vertical: true)
+				if !step.body.isEmpty {
+					if step.isAssistantInterim {
+						MarkdownText(
+							text: step.body,
+							font: .caption,
+							foregroundStyle: AppTheme.tertiaryText,
+						)
+						.frame(maxWidth: .infinity, alignment: .leading)
+					} else {
+						Text(step.body)
+							.font(.caption)
+							.foregroundStyle(AppTheme.tertiaryText)
+							.lineLimit(4)
+							.frame(maxWidth: .infinity, alignment: .leading)
+					}
 				}
 			}
 			Spacer(minLength: 0)
 		}
-		.padding(10)
-		.background(
-			RoundedRectangle(cornerRadius: 10, style: .continuous)
-				.fill(AppTheme.panelBackground)
-		)
-		.overlay(
-			RoundedRectangle(cornerRadius: 10, style: .continuous)
-				.stroke(AppTheme.separator)
-		)
+		.padding(.vertical, 6)
 	}
-}
 
-private struct AssistantInterimCard: View {
-	let header: String
-	let messageBody: String
-
-	var body: some View {
-		HStack(alignment: .top, spacing: 10) {
-			Image(systemName: "text.bubble")
-				.font(.system(size: 12, weight: .medium))
+	@ViewBuilder
+	private var statusIndicator: some View {
+		if step.isActive {
+			ProgressView()
+				.controlSize(.small)
+				.frame(width: 8, height: 8)
+		} else if step.cacheHit == true {
+			Image(systemName: "checkmark.circle.fill")
+				.font(.system(size: 8))
 				.foregroundStyle(AppTheme.accent)
-				.frame(width: 26, height: 26)
-				.background(Circle().fill(AppTheme.elevatedBackground))
-				.overlay(Circle().stroke(AppTheme.separator, lineWidth: 1))
-			VStack(alignment: .leading, spacing: 4) {
-				Text(header)
-					.font(.caption.weight(.semibold))
-					.foregroundStyle(AppTheme.secondaryText)
-				MarkdownText(
-					text: messageBody,
-					font: .callout,
-					foregroundStyle: AppTheme.tertiaryText,
-				)
-				.frame(maxWidth: .infinity, alignment: .leading)
-			}
-			Spacer(minLength: 0)
+		} else {
+			Circle()
+				.fill(AppTheme.accent)
+				.frame(width: 8, height: 8)
 		}
-		.padding(10)
-		.background(
-			RoundedRectangle(cornerRadius: 10, style: .continuous)
-				.fill(AppTheme.panelBackground)
-		)
-		.overlay(
-			RoundedRectangle(cornerRadius: 10, style: .continuous)
-				.stroke(AppTheme.separator)
-		)
+	}
+
+	private func formatDurationMs(_ ms: Int) -> String {
+		let seconds = Double(ms) / 1000.0
+		if seconds < 0.1 {
+			return "0.1s"
+		}
+		if seconds < 100 {
+			return String(format: "%.1fs", seconds)
+		}
+		return String(format: "%.0fs", seconds)
 	}
 }
 
