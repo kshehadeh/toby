@@ -10,7 +10,6 @@ struct AppSidebar: View {
 	let isSessionsLoading: Bool
 	let isRecording: Bool
 	let isRecordDisabled: Bool
-	let onNewChat: () -> Void
 	let onSearch: () -> Void
 	let onToggleRecording: () -> Void
 	let onSelectSession: (String) -> Void
@@ -24,7 +23,6 @@ struct AppSidebar: View {
 		VStack(alignment: .leading, spacing: 0) {
 			SidebarHeader(status: status, daemonStatus: daemonStatus)
 			SidebarPrimaryActions(
-				onNewChat: onNewChat,
 				onSearch: onSearch,
 				onToggleRecording: onToggleRecording,
 				isLoading: isLoading,
@@ -414,7 +412,6 @@ private struct CollapsibleSkillsList: View {
 }
 
 private struct SidebarPrimaryActions: View {
-	let onNewChat: () -> Void
 	let onSearch: () -> Void
 	let onToggleRecording: () -> Void
 	let isLoading: Bool
@@ -423,13 +420,6 @@ private struct SidebarPrimaryActions: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 4) {
-			Button(action: onNewChat) {
-				Label("New chat", systemImage: "square.and.pencil")
-					.frame(maxWidth: .infinity, alignment: .leading)
-					.contentShape(Rectangle())
-			}
-			.buttonStyle(SidebarButtonStyle())
-			.disabled(isLoading)
 			Button(action: onSearch) {
 				Label("Search", systemImage: "magnifyingglass")
 					.frame(maxWidth: .infinity, alignment: .leading)
