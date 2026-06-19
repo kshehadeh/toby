@@ -14,3 +14,4 @@ apps/plugin-whisper/ThirdParty/
 apps/plugin-whisper/Sources/WhisperBridge/vendor/
 .env
 .DS_Store
+.swiftpm
