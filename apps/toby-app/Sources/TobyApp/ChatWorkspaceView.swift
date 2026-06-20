@@ -64,13 +64,7 @@ private struct ChatTopBar: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            SessionTitleBadge(title: sessionName)
-            if !activityLine.isEmpty {
-                Text(activityLine)
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.tertiaryText)
-                    .lineLimit(1)
-            }
+            SessionTitleBadge(title: sessionName, activityLine: activityLine)
             Spacer()
         }
         .padding(.leading, leadingPadding)
@@ -78,27 +72,37 @@ private struct ChatTopBar: View {
         .padding(.top, 8)
         .padding(.bottom, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppTheme.contentBackground.opacity(0.95))
     }
 }
 
 private struct SessionTitleBadge: View {
     let title: String
+    let activityLine: String
 
     var body: some View {
-        Text(title)
-            .font(.headline.weight(.semibold))
-            .foregroundStyle(AppTheme.primaryText)
-            .lineLimit(1)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(
-                Capsule()
-                    .fill(AppTheme.elevatedBackground.opacity(0.62)),
-            )
-            .overlay(
-                Capsule()
-                    .stroke(Color.white.opacity(0.12), lineWidth: 1),
-            )
+        HStack(spacing: 8) {
+            Text(title)
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(AppTheme.primaryText)
+                .lineLimit(1)
+            if !activityLine.isEmpty {
+                Text(activityLine)
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.tertiaryText)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(
+            Capsule()
+                .fill(AppTheme.elevatedBackground.opacity(0.92)),
+        )
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(0.12), lineWidth: 1),
+        )
     }
 }
 
