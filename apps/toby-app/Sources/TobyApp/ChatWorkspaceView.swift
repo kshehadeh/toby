@@ -72,7 +72,8 @@ private struct ChatTopBar: View {
         .padding(.top, 8)
         .padding(.bottom, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(AppTheme.contentBackground.opacity(0.95))
+        .background(AppTheme.contentBackground)
+        .zIndex(1)
     }
 }
 
