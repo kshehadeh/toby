@@ -7,7 +7,21 @@ description: Creates feature-level and bug-level atomic git commits with Convent
 
 ## Goal
 
-Turn a working tree with changes into **small, reviewable, logically complete commits**, using **Conventional Commit** messages.
+Turn a working tree into **cohesive, reviewable commits**, using **Conventional Commit** messages. A commit should be atomic enough to be complete and understandable, but not split so finely that related changes end up in separate commits purely because they touch different files or types of files.
+
+## When to split vs. combine
+
+**Prefer a single commit when:**
+- All changes relate to the same issue, task, or user-facing goal (e.g., one GitHub issue).
+- The changes are naturally coupled: a feature, its tests, and the docs that describe it belong together.
+- Splitting would create incomplete or misleading intermediate states.
+
+**Prefer multiple commits when:**
+- The working tree contains genuinely unrelated work (e.g., a bug fix and a new feature, or a refactor that stands on its own).
+- A large change has clear, independent milestones that are useful to review separately.
+- Mixing the changes would make the commit message incoherent or misleading.
+
+A commit is atomic when it represents one logical, complete unit of work, not necessarily one file or one type of change.
 
 ## Commit message format
 
@@ -34,31 +48,35 @@ git diff --staged
 git log -n 10 --oneline
 ```
 
-Identify **separable groups** by user-facing intent:
-- **feat**: new capability
-- **fix**: bug fix
+Identify **separable groups** by intent, not just file type:
+- **feat**: new capability, plus the tests and docs that complete it
+- **fix**: bug fix, plus related regression tests
 - **docs**: documentation only
-- **refactor**: internal restructure without behavior change
+- **refactor**: internal restructure without behavior change (only split if it’s large and self-contained)
 - **test**: tests only
 - **chore/build/ci**: tooling/config/packaging
 
-### 2) Make commits atomic (staging strategy)
+If changes are tied to one issue, treat them as one unit of work unless there is a strong reason to separate them.
 
-- Prefer staging **whole files** when changes are cleanly separated by file.
-- If multiple intents are mixed in one file, stage hunks with patch staging:
+### 2) Stage commits as cohesive units
+
+- Prefer staging **whole files** when the files are part of the same logical change.
+- If multiple unrelated intents are mixed in one file, stage hunks with patch staging:
 
 ```bash
 git add -p <path>
 ```
 
 If patch-staging becomes messy or risky, stop and do one of:
-- Rework the edit to separate concerns (move refactor into its own commit).
-- Keep a single commit only if separation would create broken intermediate states.
+- Rework the edit to separate concerns (e.g., move an unrelated refactor into its own commit).
+- Keep a single commit when the changes are still part of one issue or goal.
+
+Do not split a single issue into separate commits just because the diff touches multiple packages, files, or concerns, unless those concerns are independently meaningful.
 
 ### 3) Write a conventional commit message (why over what)
 
 Rules:
-- Imperative subject (“add”, “fix”, “remove”…)
+- Imperative subject ("add", "fix", "remove"…)
 - Subject <= ~50 chars when possible
 - Body explains **why** / constraints / behavior changes
 - Include scope when it adds clarity (module/package/area)
@@ -75,6 +93,15 @@ Skip repeated pretreatment calls by persisting successful specs in SQLite.
 fix(ui): treat literal newline input as Shift+Enter
 
 Some terminals emit Shift+Enter as a raw newline without shift flags.
+```
+
+Example of a single commit spanning multiple concerns for one issue:
+
+```
+feat(auth): add password reset flow
+
+Add the password reset endpoint, UI form, and integration tests.
+Closes #123.
 ```
 
 ### 4) Commit safely
@@ -107,7 +134,6 @@ Repeat steps 2–5 until the working tree matches the intended final state.
 ## Output expectations
 
 When asked to “commit my changes”, respond with:
-- Proposed commit breakdown (1–N commits) with type/scope/subject
+- Proposed commit breakdown (1–N commits) with type/scope/subject and why each is one logical unit
 - Exact staging plan per commit
 - Final `git status` summary after committing
-
