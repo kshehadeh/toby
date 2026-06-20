@@ -43,6 +43,41 @@ struct ConfigureActionResponse: Decodable {
 	let scheduleId: String?
 }
 
+enum IntegrationAction: String, Sendable {
+	case connect
+	case disconnect
+	case reauthorize
+	case setup
+}
+
+struct IntegrationStatus: Decodable {
+	let name: String
+	let displayName: String
+	let description: String?
+	let connected: Bool
+	let pluginPath: String?
+	let supportsSetup: Bool
+	let setupDescription: String?
+	let health: IntegrationHealth?
+}
+
+struct IntegrationHealth: Decodable {
+	let ok: Bool
+	let details: String?
+	let tools: [IntegrationToolHealth]?
+}
+
+struct IntegrationToolHealth: Decodable {
+	let tool: String
+	let ok: Bool
+	let details: String?
+}
+
+struct IntegrationActionResponse: Decodable {
+	let ok: Bool
+	let error: String?
+}
+
 enum ConfigureConstants {
 	static let redactedSecret = "••••••"
 }

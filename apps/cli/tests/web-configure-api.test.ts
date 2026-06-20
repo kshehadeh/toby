@@ -197,4 +197,50 @@ describe("web API routes", () => {
 		expect(res.status).toBe(200);
 		expect(await res.json()).toEqual({ ok: true, restarting: true });
 	});
+
+	it("returns integration status for a discovered integration", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/integrations/gmail/status"),
+			null,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			name: string;
+			displayName: string;
+			connected: boolean;
+			pluginPath: string | null;
+			supportsSetup: boolean;
+			health: { ok: boolean; details: string };
+		};
+		expect(body.name).toBe("gmail");
+		expect(body.displayName).toBe("Gmail");
+		expect(typeof body.connected).toBe("boolean");
+		expect(
+			body.pluginPath === null || typeof body.pluginPath === "string",
+		).toBe(true);
+		expect(typeof body.supportsSetup).toBe("boolean");
+		expect(body.health).toMatchObject({
+			ok: expect.any(Boolean),
+			details: expect.any(String),
+		});
+	});
+
+	it("returns 404 for an unknown integration status", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/integrations/unknown/status"),
+			null,
+		);
+		expect(res.status).toBe(404);
+	});
+
+	it("handles disconnect for a non-connected integration", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/integrations/gmail/disconnect", {
+				method: "POST",
+			}),
+			null,
+		);
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ ok: true });
+	});
 });

@@ -14,6 +14,9 @@ final class ConfigureStore {
 	var isSaving = false
 	var errorMessage: String?
 	var pendingDelete: PendingDelete?
+	var integrationStatus: [String: IntegrationStatus] = [:]
+	var integrationStatusLoading: String?
+	var integrationActionLoading: String?
 
 	private let client = TobyClient()
 	private var fieldByKey: [String: SettingsItem] = [:]
@@ -212,6 +215,31 @@ final class ConfigureStore {
 		let body = pendingDelete.body
 		self.pendingDelete = nil
 		await runAction(action, body: body)
+	}
+
+	func loadIntegrationStatus(for name: String) async {
+		integrationStatusLoading = name
+		defer { integrationStatusLoading = nil }
+		do {
+			let status = try await client.fetchIntegrationStatus(name: name)
+			integrationStatus[name] = status
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	func runIntegrationAction(name: String, action: IntegrationAction) async {
+		integrationActionLoading = "\(name).\(action.rawValue)"
+		defer { integrationActionLoading = nil }
+		await flushPendingSave()
+		do {
+			_ = try await client.runIntegrationAction(name: name, action: action)
+			await loadIntegrationStatus(for: name)
+			let response = try await client.fetchConfigureTree()
+			apply(response: response, resetDraft: false)
+		} catch {
+			errorMessage = error.localizedDescription
+		}
 	}
 
 	func detailFields(for section: SettingsItem) -> [SettingsItem] {

@@ -22,6 +22,13 @@ import {
 	handleDaemonStatus,
 	handleDaemonStop,
 } from "./handlers/daemon";
+import {
+	handleIntegrationConnect,
+	handleIntegrationDisconnect,
+	handleIntegrationReauthorize,
+	handleIntegrationSetup,
+	handleIntegrationStatus,
+} from "./handlers/integrations";
 import { handleCreateIssue } from "./handlers/issues";
 import {
 	handleListenRecordingDelete,
@@ -255,6 +262,31 @@ export async function handleWebRequest(
 		const actionMatch = /^\/api\/configure\/actions\/([^/]+)$/.exec(pathname);
 		if (actionMatch && req.method === "POST") {
 			return handleConfigureAction(decodeURIComponent(actionMatch[1]), req);
+		}
+		const integrationStatusMatch =
+			/^\/api\/integrations\/([^/]+)\/status$/.exec(pathname);
+		if (integrationStatusMatch && req.method === "GET") {
+			return handleIntegrationStatus(
+				decodeURIComponent(integrationStatusMatch[1]),
+			);
+		}
+		const integrationActionMatch =
+			/^\/api\/integrations\/([^/]+)\/(connect|disconnect|reauthorize|setup)$/.exec(
+				pathname,
+			);
+		if (integrationActionMatch && req.method === "POST") {
+			const name = decodeURIComponent(integrationActionMatch[1]);
+			const action = integrationActionMatch[2];
+			switch (action) {
+				case "connect":
+					return handleIntegrationConnect(name);
+				case "disconnect":
+					return handleIntegrationDisconnect(name);
+				case "reauthorize":
+					return handleIntegrationReauthorize(name);
+				case "setup":
+					return handleIntegrationSetup(name);
+			}
 		}
 		return errorResponse("Not found", 404);
 	}

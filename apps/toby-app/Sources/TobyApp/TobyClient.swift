@@ -343,6 +343,27 @@ struct TobyClient {
 		return try JSONDecoder().decode(ConfigureActionResponse.self, from: data)
 	}
 
+	func fetchIntegrationStatus(name: String) async throws -> IntegrationStatus {
+		let url = baseURL.appendingPathComponent("api/integrations/\(name)/status")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(IntegrationStatus.self, from: data)
+	}
+
+	func runIntegrationAction(
+		name: String,
+		action: IntegrationAction,
+	) async throws -> IntegrationActionResponse {
+		let url = baseURL.appendingPathComponent("api/integrations/\(name)/\(action.rawValue)")
+		var request = URLRequest(url: url)
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = Data("{}".utf8)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(IntegrationActionResponse.self, from: data)
+	}
+
 	func fetchChangelog(limit: Int = 10) async throws -> ChangelogResponse {
 		var components = URLComponents(
 			url: baseURL.appendingPathComponent("api/releases/changelog"),
