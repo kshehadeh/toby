@@ -1,6 +1,6 @@
 {
 	"name": "toby",
-	"version": "0.51.0",
+	"version": "0.52.0",
 	"private": true,
 	"description": "Toby monorepo — personal productivity CLI",
 	"type": "module",
@@ -42,7 +42,7 @@
 		"test": "turbo run test",
 		"test:watch": "bun run --cwd apps/cli test:watch",
 		"test:swift": "swift test --package-path apps/toby-app",
-"release": "release-it",
+		"release": "release-it",
 		"release:dry": "release-it --dry-run",
 		"release:ci": "bun ./scripts/release-ci.mjs",
 		"docs:install": "bun install",
