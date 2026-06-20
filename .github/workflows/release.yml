@@ -107,6 +107,7 @@ jobs:
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-macos
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-whisper
           codesign --force --options runtime --timestamp --deep --sign "$identity" dist/Toby.app
+          codesign --verify --strict --verbose=2 dist/Toby.app
           codesign --verify --strict --verbose=2 dist/toby
           codesign --verify --strict --verbose=2 dist/toby-plugin-sample
           codesign --verify --strict --verbose=2 dist/toby-plugin-azuread
@@ -118,6 +119,25 @@ jobs:
           codesign --verify --strict --verbose=2 dist/toby-plugin-applecalendar
           codesign --verify --strict --verbose=2 dist/toby-plugin-macos
           codesign --verify --strict --verbose=2 dist/toby-plugin-whisper
+
+      - name: Notarize Toby.app
+        if: steps.signing.outputs.enabled == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcrun notarytool submit dist/Toby.app \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
+      - name: Staple notarization ticket to Toby.app
+        if: steps.signing.outputs.enabled == 'true'
+        run: |
+          xcrun stapler staple dist/Toby.app
+          xcrun stapler validate dist/Toby.app
 
       - name: Package release archive
         run: |
