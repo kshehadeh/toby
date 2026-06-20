@@ -108,6 +108,7 @@ Every plugin should implement the subcommands in this table. Toby invokes them w
 | `tools list` | *(none)* | `{ ok, tools? }` | Chat tool catalog |
 | `tools execute` | [Tool request](#tools-execute) | [Tool response](#tools-execute) | Run one chat tool |
 | `setup` | Optional config envelope | [Setup response](#setup-optional) | One-time setup (`toby plugins setup`) |
+| `setup guide` | Optional config envelope | [Setup guide response](#setup-guide-optional) | Onboarding wizard in Toby.app |
 
 ---
 
@@ -422,6 +423,67 @@ Setup is **idempotent**—plugins detect whether work is already done; Toby does
 
 ---
 
+### `setup guide` (optional)
+
+Provide a guided onboarding experience for the native **Toby.app**. When a user opens an integration in the app's configure view and taps **Setup Guide**, Toby runs `toby-plugin-<name> setup guide` and renders the returned steps.
+
+**stdin:** optional config envelope.
+
+**stdout:**
+
+```json
+{
+  "ok": true,
+  "name": "myapp",
+  "displayName": "My App",
+  "description": "Short description for the wizard header",
+  "steps": [
+    {
+      "id": "overview",
+      "title": "What My App can do",
+      "description": "One or two sentences about the integration."
+    },
+    {
+      "id": "provider",
+      "title": "Create credentials in the provider console",
+      "links": [
+        { "label": "Open provider console", "url": "https://example.com/apps" }
+      ],
+      "artifacts": [
+        {
+          "id": "redirectUri",
+          "label": "Redirect URI",
+          "value": "http://localhost:9876/callback",
+          "hint": "Paste this into the provider's OAuth redirect settings."
+        }
+      ]
+    },
+    {
+      "id": "credentials",
+      "title": "Add credentials",
+      "description": "Paste the API key or client secret into the fields below."
+    },
+    {
+      "id": "validate",
+      "title": "Validate",
+      "description": "Toby will run a health check to confirm the integration is ready."
+    }
+  ]
+}
+```
+
+| Step field | Required | Meaning |
+| ---------- | -------- | ------- |
+| `id` | yes | Stable machine id |
+| `title` | yes | Heading shown in the wizard |
+| `description` | no | Longer explanation |
+| `links` | no | Array of `{ label, url }` buttons |
+| `artifacts` | no | Array of `{ id, label, value, hint? }` copyable values |
+
+If your plugin does not implement `setup guide`, Toby builds a generic guide from `status`, `config shape`, and `authMethods`. Custom guides are especially useful for OAuth integrations so users know exactly which redirect URI and scopes to use.
+
+---
+
 ## Inbound chat (optional, advanced)
 
 Plugins that listen for @mentions or DMs in a chat platform declare `"inbound"` in `capabilities` (in addition to `"chat"` for tools). Inbound uses a **different transport**: a long-lived subprocess and **newline-delimited JSON** (NDJSON), not the one-shot contract above.
@@ -513,7 +575,8 @@ toby chat --integration myapp "try my tools"
 7. Return `appliedActions` strings when tools change remote state.
 8. Install with `toby plugins install`, then run `toby plugins doctor`.
 9. Optional: implement `setup` and set `setupAvailable` on `status`.
-10. Optional: implement `inbound run` when the integration should respond to daemon @mentions.
+10. Optional: implement `setup guide` for a native-app onboarding wizard.
+11. Optional: implement `inbound run` when the integration should respond to daemon @mentions.
 
 ## Reference implementations
 

@@ -34,6 +34,16 @@ struct ConfigureView: View {
 		} message: {
 			Text(store.pendingDelete?.message ?? "")
 		}
+		.sheet(
+			isPresented: Binding(
+				get: { store.setupGuidePresented },
+				set: { if !$0 { store.dismissSetupGuide() } },
+			),
+		) {
+			if let section = store.selectedSection {
+				IntegrationSetupWizardView(store: store, section: section)
+			}
+		}
 	}
 }
 
@@ -232,6 +242,7 @@ private struct ConfigureSectionDetailView: View {
 		VStack(alignment: .leading, spacing: 20) {
 			if isIntegrationSection {
 				IntegrationDetailHeader(
+					store: store,
 					section: section,
 					status: store.integrationStatus[section.key],
 					isLoading: store.integrationStatusLoading == section.key,
@@ -305,6 +316,7 @@ private struct ConfigureSectionDetailView: View {
 }
 
 private struct IntegrationDetailHeader: View {
+	@Bindable var store: ConfigureStore
 	let section: SettingsItem
 	let status: IntegrationStatus?
 	let isLoading: Bool
@@ -346,6 +358,12 @@ private struct IntegrationDetailHeader: View {
 				}
 
 				HStack(spacing: 10) {
+					SettingsActionButton(title: "Setup Guide") {
+						Task {
+							await store.loadSetupGuide(for: section.key)
+						}
+					}
+					.disabled(isActionLoading)
 					if !status.connected {
 						SettingsActionButton(title: "Connect") {
 							onAction(.connect)
@@ -422,7 +440,7 @@ private struct IntegrationDetailHeader: View {
 	}
 }
 
-private struct ConfigureFieldRowView: View {
+struct ConfigureFieldRowView: View {
 	@Bindable var store: ConfigureStore
 	let field: SettingsItem
 	let sectionLabel: String
@@ -622,7 +640,7 @@ private struct ConfigureFieldRowView: View {
 	}
 }
 
-private struct ConfigureBlockFieldView: View {
+struct ConfigureBlockFieldView: View {
 	@Bindable var store: ConfigureStore
 	let field: SettingsItem
 	let sectionLabel: String

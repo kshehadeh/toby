@@ -4,6 +4,7 @@
  * Build: bun run build (from this directory) or `bun run build:plugin:gmail` from repo root.
  */
 
+import { GMAIL_REDIRECT_URI, GMAIL_SCOPES } from "./auth";
 import {
 	consumeTokenRefreshPatch,
 	fetchUnreadInbox,
@@ -310,6 +311,67 @@ async function handleToolsExecute(body: JsonRecord): Promise<never> {
 	}
 }
 
+function handleSetupGuide(): never {
+	emitJson({
+		ok: true,
+		name: "gmail",
+		displayName: DISPLAY_NAME,
+		description: DESCRIPTION,
+		steps: [
+			{
+				id: "overview",
+				title: "What Gmail can do in Toby",
+				description:
+					"Connect Toby to your Gmail account so you can read unread messages, apply labels, mark messages as read, archive emails, and create drafts from chat.",
+			},
+			{
+				id: "provider",
+				title: "Set up Google Cloud OAuth",
+				description:
+					"Open Google Cloud Console, create or select a project, enable the Gmail API, and create an OAuth 2.0 Desktop app credential. On the OAuth consent screen, add the Gmail scopes listed below. When prompted, paste the redirect URI.",
+				links: [
+					{
+						label: "Google Cloud Console",
+						url: "https://console.cloud.google.com/",
+					},
+				],
+				artifacts: [
+					{
+						id: "redirectUri",
+						label: "Authorized redirect URI",
+						value: GMAIL_REDIRECT_URI,
+						hint: "Add this to the OAuth credential's Authorized redirect URIs.",
+					},
+					{
+						id: "scopes",
+						label: "Gmail scopes",
+						value: GMAIL_SCOPES.join("\n"),
+						hint: "Add these on the OAuth consent screen under Scopes.",
+					},
+				],
+			},
+			{
+				id: "credentials",
+				title: "Add OAuth credentials",
+				description:
+					"Copy the Client ID and Client Secret from Google Cloud Console into the fields below. Keep them secret.",
+			},
+			{
+				id: "auth",
+				title: "Authorize Toby",
+				description:
+					"Click Connect. Toby will open your browser to sign in with Google and return an access token automatically.",
+			},
+			{
+				id: "validate",
+				title: "Validate",
+				description:
+					"Toby will run a health check to confirm Gmail is reachable and token scopes are sufficient for reading and modifying messages.",
+			},
+		],
+	});
+}
+
 async function main(): Promise<void> {
 	const [command, subcommand] = process.argv.slice(2);
 	const stdin = await readStdin();
@@ -357,6 +419,10 @@ async function main(): Promise<void> {
 			emitError("Invalid JSON on stdin", "invalid_input", 2);
 		}
 		await handleToolsExecute(body);
+	}
+
+	if (command === "setup" && subcommand === "guide") {
+		handleSetupGuide();
 	}
 
 	emitError(`Unknown command: ${command ?? "(none)"}`, "usage", 2);

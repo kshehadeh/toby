@@ -82,8 +82,29 @@ The global `fetchWebContent` tool ([`packages/core/src/ai/web-fetch-tool.ts`](..
 - **Chat tool feedback (Ink TUI)** — After each tool runs, a compact result line is shown in the transcript. Per-tool copy is customizable via `registerToolFeedbackFormatter` in [`apps/cli/src/ui/chat/tool-feedback-registry.ts`](../apps/cli/src/ui/chat/tool-feedback-registry.ts) (call from a side-effect import or bootstrap code; avoid import cycles with `tools.ts`).
 - **`configure`** — builds credential UI from `getCredentialDescriptors` across `getIntegrationModules()`, saves via each `mergeCredentialsPatch`.
   - When `authMethods` are provided, configure shows an auth-method selector and only method-relevant credential fields.
+  - The native **Toby.app** can also open an **Integration Setup Wizard** for a guided onboarding flow: numbered steps, provider links, copyable artifacts (redirect URI, scopes), inline credential fields, and connect/validate actions.
 
 Keeping this wiring generic avoids adding new `if (name === "…")` branches in core commands when a new integration is added.
+
+## Integration setup guide
+
+Toby can show a guided onboarding flow for an integration instead of leaving users to figure out provider console steps on their own. The wizard is surfaced in the native **Toby.app**; the underlying content is also available at the daemon API endpoint:
+
+```text
+GET /api/integrations/<name>/setup-guide
+```
+
+The response contains:
+
+- `displayName` and `description` for the integration.
+- A list of `steps` with `title`, `description`, optional `links`, and optional `artifacts`.
+- Each `artifact` has a `label`, `value`, and optional `hint` (e.g. the redirect URI or OAuth scopes to paste into a provider console).
+
+Plugins supply the guide by implementing the **`setup guide`** subcommand (`toby-plugin-<name> setup guide`). If a plugin does not implement it, Toby falls back to a generic guide built from the plugin's `status`, `config shape`, and `authMethods`.
+
+The configure UI still owns credential editing and storage; the wizard reads from and writes through the same configure API so values stay in `~/.toby/credentials.json` and `~/.toby/config.json`. After credentials are filled in, the wizard runs the existing `connect` and `status` integration actions to authorize and validate.
+
+For the plugin contract, see [`plugin-protocol.md`](plugin-protocol.md#setup-guide).
 
 ## Installable plugins
 

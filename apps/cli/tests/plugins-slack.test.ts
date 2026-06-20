@@ -17,6 +17,7 @@ import {
 } from "@toby/core/integrations/plugins/adapter";
 import {
 	pluginConfigShape,
+	pluginSetupGuide,
 	pluginStatus,
 	pluginToolsList,
 } from "@toby/core/integrations/plugins/client";
@@ -140,5 +141,21 @@ describe("slack plugin", () => {
 		expect(creds.integrations?.slack?.botToken).toBe("xoxb-legacy");
 		const cfg = readConfig();
 		expect(cfg).toBeDefined();
+	});
+
+	it("returns a setup guide with redirect URI and scopes", () => {
+		const binaryPath = path.join(pluginDir, "toby-plugin-slack");
+		const guide = pluginSetupGuide(binaryPath);
+		expect(guide.ok).toBe(true);
+		if (!guide.ok) return;
+		expect(guide.data.ok).toBe(true);
+		expect(guide.data.name).toBe("slack");
+		const steps = guide.data.steps ?? [];
+		expect(steps.map((s) => s.id)).toContain("provider");
+		const providerStep = steps.find((s) => s.id === "provider");
+		expect(providerStep?.artifacts?.some((a) => a.id === "redirectUri")).toBe(
+			true,
+		);
+		expect(providerStep?.artifacts?.some((a) => a.id === "scopes")).toBe(true);
 	});
 });

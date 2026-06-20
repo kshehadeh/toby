@@ -2,12 +2,13 @@ import http from "node:http";
 import { google } from "googleapis";
 import open from "open";
 
-const SCOPES = [
+export const GMAIL_SCOPES = [
 	"https://www.googleapis.com/auth/gmail.readonly",
 	"https://www.googleapis.com/auth/gmail.modify",
 ];
 const REDIRECT_PORT = 9876;
 const REDIRECT_PATH = "/callback";
+export const GMAIL_REDIRECT_URI = `http://localhost:${REDIRECT_PORT}${REDIRECT_PATH}`;
 
 export async function runOAuthFlow(credentials: {
 	clientId: string;

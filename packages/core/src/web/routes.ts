@@ -28,6 +28,7 @@ import {
 	handleIntegrationDisconnect,
 	handleIntegrationReauthorize,
 	handleIntegrationSetup,
+	handleIntegrationSetupGuide,
 	handleIntegrationStatus,
 } from "./handlers/integrations";
 import { handleCreateIssue } from "./handlers/issues";
@@ -273,6 +274,13 @@ export async function handleWebRequest(
 		if (integrationStatusMatch && req.method === "GET") {
 			return handleIntegrationStatus(
 				decodeURIComponent(integrationStatusMatch[1]),
+			);
+		}
+		const integrationSetupGuideMatch =
+			/^\/api\/integrations\/([^/]+)\/setup-guide$/.exec(pathname);
+		if (integrationSetupGuideMatch && req.method === "GET") {
+			return handleIntegrationSetupGuide(
+				decodeURIComponent(integrationSetupGuideMatch[1]),
 			);
 		}
 		const integrationActionMatch =

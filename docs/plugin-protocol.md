@@ -77,6 +77,7 @@ Examples:
 | `tools list` | *(none)* | `{ ok, tools? }` | Chat tool catalog |
 | `tools execute` | [tool request](#tools-execute) | `{ ok, result?, appliedActions?, config?, error? }` | Chat tool runs |
 | `setup` | optional [config envelope](#config-envelope-stdin) | [setup response](#setup) | One-time plugin setup (`toby plugins setup`) |
+| `setup guide` | optional [config envelope](#config-envelope-stdin) | [setup guide response](#setup-guide) | Onboarding wizard content for the native app |
 
 Unknown commands or invalid usage must exit **`2`** with JSON `{ ok: false, error, code? }`.
 
@@ -477,6 +478,77 @@ detect whether setup is already satisfied (for example by checking
 `shortcuts list` on macOS).
 
 Reference: [`apps/plugin-macos/`](../apps/plugin-macos/) (bundled Shortcuts).
+
+### Setup guide
+
+Plugins can provide a guided onboarding experience for the native **Toby.app** by implementing the optional `setup guide` subcommand. The app renders the guide as a step-by-step wizard with provider links, copyable artifacts, inline credential fields, and connect/validate actions.
+
+**`setup guide` subcommand** — stdin: optional config envelope. stdout:
+
+```json
+{
+  "ok": true,
+  "name": "gmail",
+  "displayName": "Gmail",
+  "description": "Connect to your Gmail account to read and organize email",
+  "steps": [
+    {
+      "id": "overview",
+      "title": "What Gmail can do in Toby",
+      "description": "Connect Toby to your Gmail account so you can read unread messages, apply labels, and create drafts from chat."
+    },
+    {
+      "id": "provider",
+      "title": "Set up Google Cloud OAuth",
+      "description": "Open Google Cloud Console, create or select a project, enable the Gmail API, and create an OAuth 2.0 Desktop app credential.",
+      "links": [
+        { "label": "Google Cloud Console", "url": "https://console.cloud.google.com/" }
+      ],
+      "artifacts": [
+        {
+          "id": "redirectUri",
+          "label": "Authorized redirect URI",
+          "value": "http://localhost:9876/callback",
+          "hint": "Add this to the OAuth credential's Authorized redirect URIs."
+        },
+        {
+          "id": "scopes",
+          "label": "Gmail scopes",
+          "value": "https://www.googleapis.com/auth/gmail.readonly\nhttps://www.googleapis.com/auth/gmail.modify",
+          "hint": "Add these on the OAuth consent screen under Scopes."
+        }
+      ]
+    },
+    {
+      "id": "credentials",
+      "title": "Add OAuth credentials",
+      "description": "Copy the Client ID and Client Secret from Google Cloud Console into the fields below. Keep them secret."
+    },
+    {
+      "id": "auth",
+      "title": "Authorize Toby",
+      "description": "Click Connect. Toby will open your browser to sign in with Google and return an access token automatically."
+    },
+    {
+      "id": "validate",
+      "title": "Validate",
+      "description": "Toby will run a health check to confirm Gmail is reachable and token scopes are sufficient."
+    }
+  ]
+}
+```
+
+Step fields:
+
+| Field | Required | Meaning |
+| ----- | -------- | ------- |
+| `id` | yes | Stable machine id for the step |
+| `title` | yes | Short heading shown in the wizard |
+| `description` | no | Longer explanation for the step |
+| `links` | no | Array of `{ label, url }` link buttons |
+| `artifacts` | no | Array of `{ id, label, value, hint? }` copyable values |
+
+**Fallback:** If a plugin does not implement `setup guide`, Toby builds a generic guide from the plugin's `status`, `config shape`, and `authMethods`. Custom guides are recommended for OAuth integrations so users know exactly which redirect URI, scopes, and console steps to use.
 
 ## Transcription capability (listen harness)
 

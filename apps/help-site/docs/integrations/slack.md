@@ -18,6 +18,10 @@ Connect Toby to Slack to search channels, read history, and post messages from c
 
 OAuth and inbound are **not** the same credential: `toby connect slack` never stores a bot token, because Slack’s localhost PKCE flow only issues **user** scopes.
 
+:::tip[Use the Setup Guide in Toby.app]
+On macOS, open **Toby.app** → **Integrations → Slack** and click **Setup Guide**. The wizard shows the exact redirect URI and user scopes to paste into your Slack app, and helps you enter credentials and connect.
+:::
+
 ## Credentials and auth reference
 
 Everything below is set under **Integrations → Slack** in `toby configure` (stored in `~/.toby/credentials.json`). Toby may mirror some fields under both `integrations.slack` and top-level `slack`; either location works.

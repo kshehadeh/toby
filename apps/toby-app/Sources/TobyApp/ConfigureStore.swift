@@ -17,6 +17,9 @@ final class ConfigureStore {
 	var integrationStatus: [String: IntegrationStatus] = [:]
 	var integrationStatusLoading: String?
 	var integrationActionLoading: String?
+	var setupGuide: IntegrationSetupGuide?
+	var setupGuideLoading: String?
+	var setupGuidePresented: Bool = false
 
 	private let client = TobyClient()
 	private var fieldByKey: [String: SettingsItem] = [:]
@@ -240,6 +243,22 @@ final class ConfigureStore {
 		} catch {
 			errorMessage = error.localizedDescription
 		}
+	}
+
+	func loadSetupGuide(for name: String) async {
+		setupGuideLoading = name
+		defer { setupGuideLoading = nil }
+		do {
+			setupGuide = try await client.fetchIntegrationSetupGuide(name: name)
+			setupGuidePresented = true
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	func dismissSetupGuide() {
+		setupGuidePresented = false
+		setupGuide = nil
 	}
 
 	func detailFields(for section: SettingsItem) -> [SettingsItem] {

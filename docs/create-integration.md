@@ -68,6 +68,8 @@ bun run lint && bun run typecheck && bun run test
 
 Update [`docs/integrations.md`](integrations.md) if you introduce new capabilities, registry helpers, or conventions future modules should follow.
 
+If you are shipping as an installable plugin, consider implementing the optional [`setup guide`](plugin-protocol.md#setup-guide) subcommand so **Toby.app** can show a guided onboarding wizard for your integration (provider links, copyable redirect URIs/scopes, inline credential fields, and connect/validate actions).
+
 ## Inbound chat (optional)
 
 For chat-category integrations that should respond to @mentions or DMs while the daemon runs:

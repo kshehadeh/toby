@@ -173,6 +173,36 @@ export interface PluginSetupResponse {
 	readonly code?: string;
 }
 
+export interface PluginSetupGuideLink {
+	readonly label: string;
+	readonly url: string;
+}
+
+export interface PluginSetupGuideArtifact {
+	readonly id: string;
+	readonly label: string;
+	readonly value: string;
+	readonly hint?: string;
+}
+
+export interface PluginSetupGuideStep {
+	readonly id: string;
+	readonly title: string;
+	readonly description?: string;
+	readonly links?: readonly PluginSetupGuideLink[];
+	readonly artifacts?: readonly PluginSetupGuideArtifact[];
+}
+
+export interface PluginSetupGuideResponse {
+	readonly ok: boolean;
+	readonly name?: string;
+	readonly displayName?: string;
+	readonly description?: string;
+	readonly steps?: readonly PluginSetupGuideStep[];
+	readonly error?: string;
+	readonly code?: string;
+}
+
 export interface PluginActionResponse {
 	readonly ok: boolean;
 	readonly reason?: string;

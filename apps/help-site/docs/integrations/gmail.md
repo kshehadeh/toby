@@ -19,6 +19,10 @@ source, run `bun run build:plugin:gmail` then
 - A Google Cloud project with the Gmail API enabled
 - OAuth 2.0 **Client ID** and **Client Secret** from the [Google Cloud Console](https://console.cloud.google.com/)
 
+:::tip[Use the Setup Guide in Toby.app]
+On macOS, open **Toby.app** → **Integrations → Gmail** and click **Setup Guide**. The wizard shows the exact redirect URI and Gmail scopes to paste into Google Cloud Console, then walks you through entering credentials and connecting.
+:::
+
 ## Google Cloud Console setup
 
 Toby runs a local OAuth callback on **`http://localhost:9876/callback`** and requests Gmail **read** and **modify** scopes. Create credentials in a project you control (personal Gmail or Google Workspace).

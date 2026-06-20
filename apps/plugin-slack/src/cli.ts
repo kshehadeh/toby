@@ -4,7 +4,11 @@
  * Build: bun run build (from this directory) or `bun run build:plugin:slack` from repo root.
  */
 
-import { runSlackOAuthFlow } from "./auth";
+import {
+	DEFAULT_REDIRECT_URI,
+	OAUTH_USER_SCOPES,
+	runSlackOAuthFlow,
+} from "./auth";
 import {
 	listConversations,
 	searchConversations,
@@ -402,6 +406,67 @@ async function handleToolsExecute(body: JsonRecord): Promise<never> {
 	}
 }
 
+function handleSetupGuide(): never {
+	emitJson({
+		ok: true,
+		name: "slack",
+		displayName: DISPLAY_NAME,
+		description: DESCRIPTION,
+		steps: [
+			{
+				id: "overview",
+				title: "What Slack can do in Toby",
+				description:
+					"Connect Toby to a Slack workspace so you can post messages, reply in threads, search channels and users, and receive @mention messages in Toby via Socket Mode.",
+			},
+			{
+				id: "provider",
+				title: "Create a Slack app",
+				description:
+					"Open the Slack API site and create a new app from scratch. Choose your workspace, then go to OAuth & Permissions to add the redirect URL and user scopes. Install the app to your workspace before returning to Toby.",
+				links: [
+					{
+						label: "Create Slack app",
+						url: "https://api.slack.com/apps",
+					},
+				],
+				artifacts: [
+					{
+						id: "redirectUri",
+						label: "Redirect URI",
+						value: DEFAULT_REDIRECT_URI,
+						hint: "Add this to OAuth & Permissions → Redirect URLs.",
+					},
+					{
+						id: "scopes",
+						label: "User scopes",
+						value: OAUTH_USER_SCOPES,
+						hint: "Add these under OAuth & Permissions → User Scopes.",
+					},
+				],
+			},
+			{
+				id: "credentials",
+				title: "Add OAuth credentials",
+				description:
+					"Copy the Client ID and Client Secret from the Basic Information page into the fields below. Keep them secret.",
+			},
+			{
+				id: "auth",
+				title: "Authorize Toby",
+				description:
+					"Click Connect. Toby will open your browser to sign in with Slack and return an access token automatically.",
+			},
+			{
+				id: "validate",
+				title: "Validate",
+				description:
+					"Toby will run a health check to confirm the Slack API is reachable and tools are available.",
+			},
+		],
+	});
+}
+
 async function main(): Promise<void> {
 	const [command, subcommand] = process.argv.slice(2);
 
@@ -455,6 +520,10 @@ async function main(): Promise<void> {
 			emitError("Invalid JSON on stdin", "invalid_input", 2);
 		}
 		await handleToolsExecute(body);
+	}
+
+	if (command === "setup" && subcommand === "guide") {
+		handleSetupGuide();
 	}
 
 	emitError(`Unknown command: ${command ?? "(none)"}`, "usage", 2);

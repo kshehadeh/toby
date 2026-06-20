@@ -4,6 +4,7 @@ import type {
 	PluginConfigEnvelope,
 	PluginConfigGetResponse,
 	PluginConfigShapeResponse,
+	PluginSetupGuideResponse,
 	PluginSetupResponse,
 	PluginStatusResponse,
 	PluginToolExecuteRequest,
@@ -340,6 +341,19 @@ export function pluginSetup(
 	return invokePlugin<PluginSetupResponse>(
 		binaryPath,
 		["setup"],
+		serializeEnvelope(envelope),
+		options,
+	);
+}
+
+export function pluginSetupGuide(
+	binaryPath: string,
+	envelope: PluginConfigEnvelope = {},
+	options?: PluginClientOptions,
+): PluginInvokeResult<PluginSetupGuideResponse> {
+	return invokePlugin<PluginSetupGuideResponse>(
+		binaryPath,
+		["setup", "guide"],
 		serializeEnvelope(envelope),
 		options,
 	);

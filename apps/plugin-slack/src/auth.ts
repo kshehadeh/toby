@@ -11,10 +11,10 @@ interface SlackOAuthClientCredentials {
 
 const DEFAULT_REDIRECT_PORT = 9878;
 const DEFAULT_REDIRECT_PATH = "/callback";
-const DEFAULT_REDIRECT_URI = `http://localhost:${DEFAULT_REDIRECT_PORT}${DEFAULT_REDIRECT_PATH}`;
+export const DEFAULT_REDIRECT_URI = `http://localhost:${DEFAULT_REDIRECT_PORT}${DEFAULT_REDIRECT_PATH}`;
 
 /** User scopes for PKCE + localhost (Slack disallows bot scopes on non-web redirects). */
-const OAUTH_USER_SCOPES = [
+export const OAUTH_USER_SCOPES = [
 	"channels:read",
 	"channels:history",
 	"chat:write",

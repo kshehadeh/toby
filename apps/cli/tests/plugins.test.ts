@@ -28,6 +28,7 @@ import {
 	getPluginModules,
 	resetPluginModuleCache,
 } from "@toby/core/integrations/plugins/registry";
+import { buildIntegrationSetupGuide } from "@toby/core/integrations/plugins/setup";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildPluginsReportLines } from "../src/ui/chat/slash-commands/plugins";
 
@@ -194,5 +195,23 @@ describe("plugin protocol", () => {
 	it("getPluginModules returns adapter instances", () => {
 		const modules = getPluginModules();
 		expect(modules.some((m) => m.name === "sample")).toBe(true);
+	});
+
+	it("buildIntegrationSetupGuide returns a guide with provider steps", () => {
+		const binaryPath = path.join(pluginDir, "toby-plugin-sample");
+		const metadata = loadPluginMetadata({
+			binaryPath,
+			binaryName: "toby-plugin-sample",
+		});
+		expect("error" in metadata).toBe(false);
+		if ("error" in metadata) return;
+
+		const module = createPluginIntegrationModule(metadata);
+		const guide = buildIntegrationSetupGuide(module);
+		expect(guide.ok).toBe(true);
+		if (!guide.ok) return;
+		expect(guide.steps.map((s) => s.id)).toContain("overview");
+		expect(guide.steps.map((s) => s.id)).toContain("credentials");
+		expect(guide.steps.map((s) => s.id)).toContain("validate");
 	});
 });

@@ -1,6 +1,7 @@
 import { getIntegrationModule } from "../../integrations/index";
 import { getPluginMetadata } from "../../integrations/plugins/registry";
 import {
+	buildIntegrationSetupGuide,
 	resolveInstalledPluginBinary,
 	runPluginSetup,
 } from "../../integrations/plugins/setup";
@@ -91,6 +92,30 @@ export async function handleIntegrationSetup(name: string): Promise<Response> {
 			return errorResponse(result.error, 500);
 		}
 		return jsonResponse({ ok: true, response: result.response });
+	} catch (e) {
+		return errorResponse(e instanceof Error ? e.message : String(e), 500);
+	}
+}
+
+export async function handleIntegrationSetupGuide(
+	name: string,
+): Promise<Response> {
+	const module = getIntegrationModule(name);
+	if (!module) {
+		return errorResponse("Integration not found", 404);
+	}
+	try {
+		const result = buildIntegrationSetupGuide(module);
+		if (!result.ok) {
+			return errorResponse(result.error, 500);
+		}
+		return jsonResponse({
+			ok: true,
+			name: result.name,
+			displayName: result.displayName,
+			description: result.description,
+			steps: result.steps,
+		});
 	} catch (e) {
 		return errorResponse(e instanceof Error ? e.message : String(e), 500);
 	}

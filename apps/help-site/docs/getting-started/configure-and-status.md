@@ -24,6 +24,10 @@ Open **Integrations**, choose a service, and fill in the fields (API keys, OAuth
 
 Credentials live in `~/.toby/credentials.json`. Connection flags live in `~/.toby/config.json`. You can override the directory with the `TOBY_DIR` environment variable.
 
+:::tip[Native app setup wizard]
+In **Toby.app** on macOS, each integration detail has a **Setup Guide** button. The wizard walks you through provider steps, shows copyable values like redirect URIs and scopes, and lets you fill credentials and connect without leaving the app.
+:::
+
 ## 2. Connect
 
 ```bash

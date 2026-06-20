@@ -243,4 +243,32 @@ describe("web API routes", () => {
 		expect(res.status).toBe(200);
 		expect(await res.json()).toEqual({ ok: true });
 	});
+
+	it("returns setup guide for a discovered integration", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/integrations/gmail/setup-guide"),
+			null,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			ok: boolean;
+			name: string;
+			displayName: string;
+			steps: Array<{ id: string; title: string }>;
+		};
+		expect(body.ok).toBe(true);
+		expect(body.name).toBe("gmail");
+		expect(body.displayName).toBe("Gmail");
+		expect(body.steps.length).toBeGreaterThan(0);
+		expect(body.steps.map((s) => s.id)).toContain("overview");
+		expect(body.steps.map((s) => s.id)).toContain("credentials");
+	});
+
+	it("returns 404 for an unknown integration setup guide", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/integrations/unknown/setup-guide"),
+			null,
+		);
+		expect(res.status).toBe(404);
+	});
 });

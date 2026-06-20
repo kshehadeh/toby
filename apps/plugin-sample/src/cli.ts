@@ -112,6 +112,41 @@ function handleSetup(): never {
 	});
 }
 
+function handleSetupGuide(): never {
+	emitJson({
+		ok: true,
+		name: "sample",
+		displayName: "Sample Plugin",
+		description: "Reference installable plugin for Toby protocol v1",
+		steps: [
+			{
+				id: "overview",
+				title: "What the Sample Plugin does",
+				description:
+					"The Sample Plugin demonstrates Toby protocol v1. It adds a sampleEcho tool for chat.",
+			},
+			{
+				id: "credentials",
+				title: "Add credentials",
+				description: "Enter the API key in the fields below, then connect.",
+				artifacts: [
+					{
+						id: "redirectUri",
+						label: "Demo redirect URI",
+						value: "http://localhost:9999/callback",
+						hint: "Paste this into the provider console if asked.",
+					},
+				],
+			},
+			{
+				id: "validate",
+				title: "Validate",
+				description: "Click Connect to finish the demo setup.",
+			},
+		],
+	});
+}
+
 function handleConnect(config: JsonRecord): never {
 	const apiKey = String(config.apiKey ?? "").trim();
 	if (!apiKey) {
@@ -297,6 +332,10 @@ async function main(): Promise<void> {
 
 	if (command === "setup") {
 		handleSetup();
+	}
+
+	if (command === "setup" && subcommand === "guide") {
+		handleSetupGuide();
 	}
 
 	emitError(`Unknown command: ${command ?? "(none)"}`, "usage", 2);

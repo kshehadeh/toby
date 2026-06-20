@@ -79,6 +79,41 @@ struct IntegrationActionResponse: Decodable {
 	let error: String?
 }
 
+struct IntegrationSetupGuideLink: Decodable, Identifiable {
+	let id = UUID()
+	let label: String
+	let url: String
+
+	private enum CodingKeys: String, CodingKey {
+		case label
+		case url
+	}
+}
+
+struct IntegrationSetupGuideArtifact: Decodable, Identifiable {
+	let id: String
+	let label: String
+	let value: String
+	let hint: String?
+}
+
+struct IntegrationSetupGuideStep: Decodable, Identifiable {
+	let id: String
+	let title: String
+	let description: String?
+	let links: [IntegrationSetupGuideLink]?
+	let artifacts: [IntegrationSetupGuideArtifact]?
+}
+
+struct IntegrationSetupGuide: Decodable {
+	let ok: Bool
+	let name: String
+	let displayName: String?
+	let description: String?
+	let steps: [IntegrationSetupGuideStep]?
+	let error: String?
+}
+
 enum ConfigureConstants {
 	static let redactedSecret = "••••••"
 }

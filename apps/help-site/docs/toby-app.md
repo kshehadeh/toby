@@ -48,6 +48,7 @@ Once the daemon is reachable, Toby.app uses the same API as the web UI for:
 - answering interactive `askUser` prompts
 - persona options
 - configure tree reads and writes
+- integration setup guides / wizards for onboarding new integrations
 
 ## Native API server
 

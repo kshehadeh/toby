@@ -62,6 +62,10 @@ Every integration uses the same workflow:
 
 See [Configure and connect](../getting-started/configure-and-status) for the full walkthrough.
 
+:::tip[Need help with OAuth setup?]
+On macOS, open **Toby.app** and use the **Setup Guide** button on any integration. It shows the exact provider steps, copyable redirect URIs, required scopes, and credential fields, then runs `connect` and `status` for you.
+:::
+
 ## Installable plugins
 
 Gmail, Azure AD, Todoist, Jira, Web Search, Apple Calendar, macOS, and other first-party integrations ship as **plugin binaries** bundled in release archives. Fresh installs (`install-toby.sh`) and `toby upgrade` copy them into `~/.toby/plugins/` automatically—no manual `toby plugins install` step is required for release users. The sample plugin (`toby-plugin-sample`) is also installed for reference and testing.
