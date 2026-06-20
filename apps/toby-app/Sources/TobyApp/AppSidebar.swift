@@ -58,6 +58,7 @@ struct AppSidebar: View {
 								.buttonStyle(.plain)
 								.frame(maxWidth: .infinity, alignment: .leading)
 								.disabled(isLoading)
+								.accessibilityIdentifier("session-\(session.id)")
 								.contextMenu {
 									Button(role: .destructive) {
 										onDeleteSession(session)
@@ -113,6 +114,7 @@ struct AppSidebar: View {
 		.padding(.vertical, 12)
 		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 		.background(AppTheme.sidebarBackground)
+		.accessibilityIdentifier("app-sidebar")
 	}
 }
 
@@ -181,6 +183,7 @@ private struct ServerCard: View {
 						.foregroundStyle(AppTheme.primaryText)
 					Spacer()
 					Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+						.accessibilityLabel(isExpanded ? "Collapse" : "Expand")
 						.font(.caption2)
 						.foregroundStyle(AppTheme.tertiaryText)
 				}
@@ -354,6 +357,7 @@ private struct CollapsiblePluginsList: View {
 						.font(.caption)
 						.foregroundStyle(AppTheme.primaryText)
 					Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+						.accessibilityLabel(isExpanded ? "Collapse" : "Expand")
 						.font(.caption2)
 						.foregroundStyle(AppTheme.tertiaryText)
 				}
@@ -397,6 +401,7 @@ private struct CollapsibleSkillsList: View {
 						.font(.caption)
 						.foregroundStyle(AppTheme.primaryText)
 					Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+						.accessibilityLabel(isExpanded ? "Collapse" : "Expand")
 						.font(.caption2)
 						.foregroundStyle(AppTheme.tertiaryText)
 				}
@@ -435,6 +440,7 @@ private struct SidebarPrimaryActions: View {
 						RecordingPulseIcon()
 					} else {
 						Image(systemName: "record.circle")
+							.accessibilityLabel("Record")
 							.frame(width: 16, height: 16)
 					}
 					Text(isRecording ? "Stop Recording" : "Record Audio")
@@ -534,6 +540,7 @@ private struct SidebarFooter: View {
 				}
 				Spacer(minLength: 0)
 				Image(systemName: "chevron.up.chevron.down")
+					.accessibilityLabel("Switch persona")
 					.font(.caption2.weight(.semibold))
 					.foregroundStyle(AppTheme.tertiaryText)
 			}
@@ -594,6 +601,7 @@ private struct PersonaPickerPopover: View {
 							HStack(spacing: 8) {
 								if persona.name == currentPersona {
 									Image(systemName: "checkmark")
+										.accessibilityLabel("Selected")
 										.frame(width: 14)
 								} else {
 									Color.clear

@@ -15,6 +15,7 @@ struct InputDock: View {
 				.foregroundStyle(AppTheme.primaryText)
 				.lineLimit(2 ... 6)
 				.disabled(isLoading)
+				.accessibilityIdentifier("chat-input")
 				.onKeyPress(.return, phases: .down) { press in
 					if press.modifiers.contains(.shift) {
 						text.append("\n")
@@ -33,6 +34,7 @@ struct InputDock: View {
 				Spacer()
 				Button(action: onSubmit) {
 					Image(systemName: "arrow.up")
+						.accessibilityLabel("Send")
 						.frame(width: 26, height: 26)
 						.background(
 							Circle()
@@ -42,6 +44,7 @@ struct InputDock: View {
 				}
 				.buttonStyle(.plain)
 				.disabled(!canSubmit)
+				.accessibilityIdentifier("chat-send-button")
 			}
 			.font(.caption)
 			.foregroundStyle(AppTheme.secondaryText)

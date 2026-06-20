@@ -10,12 +10,12 @@ let package = Package(
 		.executable(name: "toby-app", targets: ["TobyApp"]),
 	],
 	dependencies: [
+		.package(url: "https://github.com/nalexn/ViewInspector", from: "0.10.0"),
 	],
 	targets: [
 		.executableTarget(
 			name: "TobyApp",
-			dependencies: [
-			],
+			dependencies: [],
 			path: "Sources/TobyApp",
 			exclude: ["Info.plist"],
 			linkerSettings: [
@@ -36,6 +36,14 @@ let package = Package(
 					"Sources/TobyApp/Info.plist",
 				]),
 			],
+		),
+		.testTarget(
+			name: "TobyAppTests",
+			dependencies: [
+				"TobyApp",
+				.product(name: "ViewInspector", package: "ViewInspector"),
+			],
+			path: "Tests/TobyAppTests",
 		),
 	],
 )

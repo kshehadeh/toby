@@ -245,6 +245,7 @@ private struct EmptySuggestionList: View {
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: iconName(for: suggestion))
+                            .accessibilityLabel(Text(suggestion))
                             .foregroundStyle(AppTheme.tertiaryText)
                             .frame(width: 16)
                         Text(suggestion)

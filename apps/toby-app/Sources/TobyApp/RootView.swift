@@ -48,6 +48,7 @@ struct RootView: View {
                     }
                     .help("New Chat")
                     .disabled(store.isLoading)
+                    .accessibilityIdentifier("new-chat-button")
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(action: { isCommandPalettePresented = true }) {
