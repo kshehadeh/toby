@@ -19,6 +19,7 @@ struct AppSidebar: View {
 	let onOpenPersonasSettings: () -> Void
 	let onPersonaSelected: () -> Void
 	let onOpenChangelog: () -> Void
+	@State private var isWorkspaceScrolling = false
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
@@ -43,34 +44,49 @@ struct AppSidebar: View {
 						.padding(.horizontal, 8)
 						.padding(.vertical, 7)
 				} else {
-					ScrollView {
-						VStack(alignment: .leading, spacing: 2) {
-							ForEach(sessions) { session in
-								Button {
-									onSelectSession(session.id)
-								} label: {
-									SidebarRow(
-										title: session.name,
-										systemImage: "message",
-										isSelected: session.id == selectedSessionId,
-									)
-								}
-								.buttonStyle(.plain)
-								.frame(maxWidth: .infinity, alignment: .leading)
-								.disabled(isLoading)
-								.accessibilityIdentifier("session-\(session.id)")
-								.contextMenu {
-									Button(role: .destructive) {
-										onDeleteSession(session)
+					ZStack(alignment: .trailing) {
+						ScrollView(.vertical, showsIndicators: false) {
+							VStack(alignment: .leading, spacing: 2) {
+								ForEach(sessions) { session in
+									Button {
+										onSelectSession(session.id)
 									} label: {
-										Label("Delete Session", systemImage: "trash")
+										SidebarRow(
+											title: session.name,
+											systemImage: "message",
+											isSelected: session.id == selectedSessionId,
+										)
 									}
+									.buttonStyle(.plain)
+									.frame(maxWidth: .infinity, alignment: .leading)
 									.disabled(isLoading)
+									.accessibilityIdentifier("session-\(session.id)")
+									.contextMenu {
+										Button(role: .destructive) {
+											onDeleteSession(session)
+										} label: {
+											Label("Delete Session", systemImage: "trash")
+										}
+										.disabled(isLoading)
+									}
 								}
+								ScrollStateTracker(isScrolling: $isWorkspaceScrolling)
+									.frame(width: 0, height: 0)
 							}
 						}
+						.frame(maxHeight: 220)
+
+						if isWorkspaceScrolling {
+							Rectangle()
+								.fill(AppTheme.tertiaryText.opacity(0.6))
+								.frame(width: 3, height: 40)
+								.cornerRadius(1.5)
+								.padding(.trailing, 2)
+								.transition(.opacity)
+								.allowsHitTesting(false)
+						}
 					}
-					.frame(maxHeight: 220)
+					.animation(.easeInOut(duration: 0.25), value: isWorkspaceScrolling)
 				}
 			}
 			SidebarSection(title: "Toby") {
