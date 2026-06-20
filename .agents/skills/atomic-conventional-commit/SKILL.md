@@ -13,7 +13,7 @@ Turn a working tree into **cohesive, reviewable commits**, using **Conventional 
 
 **Prefer a single commit when:**
 - All changes relate to the same issue, task, or user-facing goal (e.g., one GitHub issue).
-- The changes are naturally coupled: a feature, its tests, and the docs that describe it belong together.
+- The changes are naturally coupled: a feature, its tests, the docs that describe it, and any formatting fixes produced by running the project's linter/formatter on that change belong together.
 - Splitting would create incomplete or misleading intermediate states.
 
 **Prefer multiple commits when:**
@@ -49,14 +49,15 @@ git log -n 10 --oneline
 ```
 
 Identify **separable groups** by intent, not just file type:
-- **feat**: new capability, plus the tests and docs that complete it
-- **fix**: bug fix, plus related regression tests
+- **feat**: new capability, plus the tests, docs, and any formatting fixes that complete it
+- **fix**: bug fix, plus related regression tests and any formatting fixes that complete it
 - **docs**: documentation only
 - **refactor**: internal restructure without behavior change (only split if it’s large and self-contained)
 - **test**: tests only
 - **chore/build/ci**: tooling/config/packaging
+- **style**: standalone formatting or style-only changes that are not a side effect of another feature/fix
 
-If changes are tied to one issue, treat them as one unit of work unless there is a strong reason to separate them.
+If changes are tied to one issue, treat them as one unit of work unless there is a strong reason to separate them. Do not create a separate `style` commit for formatting that is produced by running `lint:fix` or `format` on the same set of changes; include those formatting fixes in the feature or fix commit they support.
 
 ### 2) Stage commits as cohesive units
 
