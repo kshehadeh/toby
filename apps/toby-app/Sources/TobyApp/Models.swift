@@ -428,3 +428,39 @@ struct ChangelogChange: Decodable, Identifiable {
 
 	var id: String { "\(type):\(scope ?? ""):\(description)" }
 }
+
+struct ScheduleRunDetail: Decodable, Identifiable {
+	let id: String
+	let scheduleId: String
+	let scheduleName: String?
+	let personaName: String
+	let prompt: String
+	let output: String?
+	let status: String
+	let error: String?
+	let startedAt: String
+	let completedAt: String?
+	let transcript: [ScheduleRunTranscriptEvent]
+
+	var isRunning: Bool { status == "running" }
+	var displayStatus: String { status.uppercased() }
+	var titleScheduleName: String { scheduleName ?? "Schedule" }
+}
+
+struct ScheduleRunTranscriptEvent: Decodable, Identifiable {
+	let type: String
+	let seq: Int
+	let header: String?
+	let detail: String?
+	let delta: String?
+	let line: String?
+	let text: String?
+	let toolName: String?
+	let integrationLabel: String?
+	let durationMs: Int?
+	let cacheHit: Bool?
+	let interim: Bool?
+	let error: String?
+
+	var id: String { "\(seq)" }
+}

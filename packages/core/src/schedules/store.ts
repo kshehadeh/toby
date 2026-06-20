@@ -33,6 +33,7 @@ function rowToScheduleRun(row: Record<string, unknown>): ScheduleRun {
 		personaName: row.persona_name as string,
 		prompt: row.prompt as string,
 		output: (row.output as string | null) ?? null,
+		transcript: (row.transcript as string | null) ?? null,
 		status: row.status as ScheduleRunStatus,
 		error: (row.error as string | null) ?? null,
 		startedAt: row.started_at as string,
@@ -244,7 +245,7 @@ export function listScheduleRuns(
 	const db = getDb();
 	const rows = db
 		.query(
-			`SELECT id, schedule_id, persona_name, prompt, output, status, error, started_at, completed_at
+			`SELECT id, schedule_id, persona_name, prompt, output, transcript, status, error, started_at, completed_at
        FROM schedule_runs
        WHERE schedule_id = $schedule_id
        ORDER BY started_at DESC
@@ -255,4 +256,32 @@ export function listScheduleRuns(
 			$limit: Math.max(1, Math.min(500, limit)),
 		}) as Array<Record<string, unknown>>;
 	return rows.map(rowToScheduleRun);
+}
+
+export function getScheduleRun(id: string): ScheduleRun | null {
+	const db = getDb();
+	const row = db
+		.query(
+			`SELECT id, schedule_id, persona_name, prompt, output, transcript, status, error, started_at, completed_at
+       FROM schedule_runs
+       WHERE id = $id`,
+		)
+		.get({ $id: id }) as Record<string, unknown> | undefined;
+	if (!row) return null;
+	return rowToScheduleRun(row);
+}
+
+export function updateScheduleRunTranscript(
+	runId: string,
+	transcript: string,
+): void {
+	const db = getDb();
+	db.query(
+		`UPDATE schedule_runs
+     SET transcript = $transcript
+     WHERE id = $id`,
+	).run({
+		$id: runId,
+		$transcript: transcript,
+	});
 }

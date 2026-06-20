@@ -14,10 +14,17 @@ import {
 import { buildSettingsTree } from "../../configure/tree";
 import type { SettingsItem } from "../../configure/types";
 import { getIntegrationModules } from "../../integrations/index";
+import { daemonLog } from "../../logging/daemon-log";
 import { DEFAULT_CHAT_PERSONA } from "../../personas/index";
+import {
+	createScheduleRunForExecution,
+	executeScheduleRun,
+} from "../../schedules/executor";
 import {
 	createSchedule,
 	deleteSchedule,
+	getScheduleRun,
+	listSchedules,
 	updateSchedule,
 } from "../../schedules/store";
 import { deleteSkill, updateSkillFrontmatter } from "../../skills/manage";
@@ -182,7 +189,58 @@ export async function handleConfigureAction(
 			deleteSchedule(scheduleId);
 			return jsonResponse({ ok: true });
 		}
+		case "run-schedule": {
+			const scheduleId = body?.scheduleId?.trim();
+			if (!scheduleId) return errorResponse("scheduleId required");
+			const schedule = listSchedules().find((s) => s.id === scheduleId);
+			if (!schedule) return errorResponse("Schedule not found", 404);
+			if (!schedule.enabled) return errorResponse("Schedule is disabled");
+			// Create the run record synchronously so the UI can open its detail view,
+			// then execute in the background so the HTTP request returns quickly.
+			const runId = createScheduleRunForExecution(schedule);
+			Promise.resolve().then(async () => {
+				try {
+					await executeScheduleRun(runId, schedule);
+				} catch (e) {
+					daemonLog("error", "daemon", "run_schedule_failed", {
+						scheduleId,
+						runId,
+						error: e instanceof Error ? e.message : String(e),
+					});
+				}
+			});
+			return jsonResponse({ ok: true, queued: true, runId });
+		}
 		default:
 			return errorResponse(`Unknown action: ${action}`, 404);
 	}
+}
+
+export function handleScheduleRunDetail(runId: string): Response {
+	const run = getScheduleRun(runId);
+	if (!run) return errorResponse("Schedule run not found", 404);
+	const schedule = listSchedules().find((s) => s.id === run.scheduleId);
+	let transcript: unknown[] = [];
+	if (run.transcript) {
+		try {
+			transcript = JSON.parse(run.transcript) as unknown[];
+		} catch {
+			transcript = [];
+		}
+	}
+	return jsonResponse({
+		run: {
+			id: run.id,
+			scheduleId: run.scheduleId,
+			scheduleName: schedule?.name ?? run.scheduleId,
+			personaName: run.personaName,
+			prompt: run.prompt,
+			output: run.output,
+			status: run.status,
+			error: run.error,
+			startedAt: run.startedAt,
+			completedAt: run.completedAt,
+			transcript,
+		},
+	});
 }

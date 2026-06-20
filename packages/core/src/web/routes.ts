@@ -16,6 +16,7 @@ import {
 	handleConfigureAction,
 	handleConfigurePatch,
 	handleConfigureTree,
+	handleScheduleRunDetail,
 } from "./handlers/configure";
 import {
 	handleDaemonRestart,
@@ -262,6 +263,10 @@ export async function handleWebRequest(
 		const actionMatch = /^\/api\/configure\/actions\/([^/]+)$/.exec(pathname);
 		if (actionMatch && req.method === "POST") {
 			return handleConfigureAction(decodeURIComponent(actionMatch[1]), req);
+		}
+		const scheduleRunMatch = /^\/api\/schedules\/runs\/([^/]+)$/.exec(pathname);
+		if (scheduleRunMatch && req.method === "GET") {
+			return handleScheduleRunDetail(decodeURIComponent(scheduleRunMatch[1]));
 		}
 		const integrationStatusMatch =
 			/^\/api\/integrations\/([^/]+)\/status$/.exec(pathname);

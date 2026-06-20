@@ -18,6 +18,7 @@ export interface ScheduleRun {
 	readonly personaName: string;
 	readonly prompt: string;
 	readonly output: string | null;
+	readonly transcript: string | null;
 	readonly status: ScheduleRunStatus;
 	readonly error: string | null;
 	readonly startedAt: string;

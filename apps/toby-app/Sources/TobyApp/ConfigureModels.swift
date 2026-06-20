@@ -41,6 +41,7 @@ struct ConfigureActionResponse: Decodable {
 	let ok: Bool
 	let personaName: String?
 	let scheduleId: String?
+	let runId: String?
 }
 
 enum IntegrationAction: String, Sendable {
@@ -95,6 +96,7 @@ enum ConfigureTreeHelpers {
 		"listen",
 		"listen._start",
 		"personas._new",
+		"schedules",
 		"schedules._new",
 	]
 

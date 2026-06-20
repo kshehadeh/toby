@@ -15,6 +15,7 @@ struct AppSidebar: View {
 	let onDeleteSession: (SessionSummary) -> Void
 	let onOpenSettings: (String?) -> Void
 	let onOpenRecordings: () -> Void
+	let onOpenSchedules: () -> Void
 	let onOpenPersonasSettings: () -> Void
 	let onPersonaSelected: () -> Void
 	let onOpenChangelog: () -> Void
@@ -80,7 +81,7 @@ struct AppSidebar: View {
 				.buttonStyle(.plain)
 				.frame(maxWidth: .infinity, alignment: .leading)
 				Button {
-					onOpenSettings("schedules")
+					onOpenSchedules()
 				} label: {
 					SidebarRow(title: "Schedules", systemImage: "clock")
 				}

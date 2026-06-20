@@ -1,17 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../src/schedules/store", () => ({
+vi.mock("@toby/core/schedules/store", () => ({
 	createScheduleRun: vi.fn(() => "test-run-id"),
 	completeScheduleRun: vi.fn(),
 	updateScheduleLastRun: vi.fn(),
 }));
 
-import { recordScheduleInvariantFailureAndThrow } from "../src/schedules/invariant-record";
+import { recordScheduleInvariantFailureAndThrow } from "@toby/core/schedules/invariant-record";
 import {
 	completeScheduleRun,
 	createScheduleRun,
 	updateScheduleLastRun,
-} from "../src/schedules/store";
+} from "@toby/core/schedules/store";
 import type { Schedule } from "../src/schedules/types";
 
 describe("recordScheduleInvariantFailureAndThrow", () => {

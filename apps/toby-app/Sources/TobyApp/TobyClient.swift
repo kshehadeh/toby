@@ -364,6 +364,14 @@ struct TobyClient {
 		return try JSONDecoder().decode(IntegrationActionResponse.self, from: data)
 	}
 
+	func fetchScheduleRun(id: String) async throws -> ScheduleRunDetail {
+		let url = baseURL.appendingPathComponent("api/schedules/runs/\(id)")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		struct Payload: Decodable { let run: ScheduleRunDetail }
+		return try JSONDecoder().decode(Payload.self, from: data).run
+	}
+
 	func fetchChangelog(limit: Int = 10) async throws -> ChangelogResponse {
 		var components = URLComponents(
 			url: baseURL.appendingPathComponent("api/releases/changelog"),

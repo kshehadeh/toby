@@ -7,6 +7,7 @@ struct TobyApp: App {
 	@State private var store = ChatStore()
 	@State private var configureStore = ConfigureStore()
 	@State private var recordingsStore = RecordingsStore()
+	@State private var schedulesStore = SchedulesStore()
 	@State private var nativeServer = NativeServer.shared
 
 	var body: some Scene {
@@ -33,6 +34,12 @@ struct TobyApp: App {
 
 		Window("Recordings", id: "recordings") {
 			RecordingsView(store: recordingsStore)
+		}
+		.windowStyle(.automatic)
+		.defaultSize(width: 920, height: 640)
+
+		Window("Schedules", id: "schedules") {
+			SchedulesView(store: schedulesStore)
 		}
 		.windowStyle(.automatic)
 		.defaultSize(width: 920, height: 640)

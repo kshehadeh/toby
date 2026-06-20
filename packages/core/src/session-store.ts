@@ -156,6 +156,7 @@ CREATE TABLE IF NOT EXISTS schedule_runs (
   persona_name TEXT NOT NULL,
   prompt TEXT NOT NULL,
   output TEXT,
+  transcript TEXT,
   status TEXT NOT NULL DEFAULT 'pending',
   error TEXT,
   started_at TEXT NOT NULL,
@@ -187,6 +188,7 @@ CREATE INDEX IF NOT EXISTS idx_chat_external_sessions_session_id
   ON chat_external_sessions(session_id);
 `);
 	migrateChatSessionsSchema(db);
+	migrateScheduleRunsSchema(db);
 }
 
 function migrateChatSessionsSchema(db: SqliteDb): void {
@@ -198,6 +200,15 @@ function migrateChatSessionsSchema(db: SqliteDb): void {
 	}
 	if (!cols.some((c) => c.name === "settings_json")) {
 		db.exec("ALTER TABLE chat_sessions ADD COLUMN settings_json TEXT");
+	}
+}
+
+function migrateScheduleRunsSchema(db: SqliteDb): void {
+	const cols = db.query("PRAGMA table_info(schedule_runs)").all() as Array<{
+		name: string;
+	}>;
+	if (!cols.some((c) => c.name === "transcript")) {
+		db.exec("ALTER TABLE schedule_runs ADD COLUMN transcript TEXT");
 	}
 }
 

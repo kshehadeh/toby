@@ -30,6 +30,7 @@ struct RootView: View {
                 onDeleteSession: { pendingDeleteSession = $0 },
                 onOpenSettings: openSettings,
                 onOpenRecordings: openRecordings,
+                onOpenSchedules: openSchedules,
                 onOpenPersonasSettings: openPersonasSettings,
                 onPersonaSelected: refreshStatus,
                 onOpenChangelog: { isChangelogPresented = true },
@@ -175,6 +176,10 @@ struct RootView: View {
 
     private func openRecordings() {
         openWindow(id: "recordings")
+    }
+
+    private func openSchedules() {
+        openWindow(id: "schedules")
     }
 
     private func openPersonasSettings() {
