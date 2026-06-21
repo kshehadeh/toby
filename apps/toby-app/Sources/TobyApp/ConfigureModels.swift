@@ -147,6 +147,7 @@ enum ConfigureTreeHelpers {
 		"personas._new",
 		"schedules",
 		"schedules._new",
+		"integrations",
 	]
 
 	private static func isSidebarSection(_ item: SettingsItem) -> Bool {

@@ -204,7 +204,7 @@ private struct ConfigureDetailView: View {
 	}
 }
 
-private struct ConfigureSectionDetailView: View {
+struct ConfigureSectionDetailView: View {
 	@Bindable var store: ConfigureStore
 	let section: SettingsItem
 
@@ -315,7 +315,7 @@ private struct ConfigureSectionDetailView: View {
 	}
 }
 
-private struct IntegrationDetailHeader: View {
+struct IntegrationDetailHeader: View {
 	@Bindable var store: ConfigureStore
 	let section: SettingsItem
 	let status: IntegrationStatus?

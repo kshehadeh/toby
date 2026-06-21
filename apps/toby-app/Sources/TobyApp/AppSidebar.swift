@@ -16,6 +16,7 @@ struct AppSidebar: View {
 	let onOpenSettings: (String?) -> Void
 	let onOpenRecordings: () -> Void
 	let onOpenSchedules: () -> Void
+	let onOpenIntegrations: () -> Void
 	let onOpenPersonasSettings: () -> Void
 	let onPersonaSelected: () -> Void
 	let onOpenChangelog: () -> Void
@@ -91,7 +92,7 @@ struct AppSidebar: View {
 			}
 			SidebarSection(title: "Toby") {
 				Button {
-					onOpenSettings("integrations")
+					onOpenIntegrations()
 				} label: {
 					SidebarRow(title: "Integrations", systemImage: "square.grid.2x2")
 				}

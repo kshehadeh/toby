@@ -31,6 +31,7 @@ struct RootView: View {
                 onOpenSettings: openSettings,
                 onOpenRecordings: openRecordings,
                 onOpenSchedules: openSchedules,
+                onOpenIntegrations: openIntegrations,
                 onOpenPersonasSettings: openPersonasSettings,
                 onPersonaSelected: refreshStatus,
                 onOpenChangelog: { isChangelogPresented = true },
@@ -181,6 +182,10 @@ struct RootView: View {
 
     private func openSchedules() {
         openWindow(id: "schedules")
+    }
+
+    private func openIntegrations() {
+        openWindow(id: "integrations")
     }
 
     private func openPersonasSettings() {
