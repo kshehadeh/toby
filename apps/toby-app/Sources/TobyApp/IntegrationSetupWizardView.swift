@@ -255,7 +255,7 @@ struct IntegrationSetupWizardView: View {
 						Task { await store.runIntegrationAction(name: section.key, action: .disconnect) }
 					}
 					.disabled(actionInProgress)
-					SettingsActionButton(title: "Re-authorize") {
+					SettingsActionButton(title: status.reconnectionLabel) {
 						Task { await store.runIntegrationAction(name: section.key, action: .reauthorize) }
 					}
 					.disabled(actionInProgress)

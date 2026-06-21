@@ -31,6 +31,7 @@ export async function handleIntegrationStatus(name: string): Promise<Response> {
 		pluginPath,
 		supportsSetup,
 		setupDescription,
+		authMethods: module.authMethods ?? [],
 		health,
 	});
 }

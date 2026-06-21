@@ -375,7 +375,7 @@ private struct IntegrationDetailHeader: View {
 							onAction(.disconnect)
 						}
 						.disabled(isActionLoading)
-						SettingsActionButton(title: "Re-authorize") {
+						SettingsActionButton(title: status.reconnectionLabel) {
 							onAction(.reauthorize)
 						}
 						.disabled(isActionLoading)

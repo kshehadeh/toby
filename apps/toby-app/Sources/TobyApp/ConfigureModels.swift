@@ -51,6 +51,12 @@ enum IntegrationAction: String, Sendable {
 	case setup
 }
 
+struct IntegrationAuthMethod: Decodable {
+	let id: String
+	let label: String
+	let isDefault: Bool?
+}
+
 struct IntegrationStatus: Decodable {
 	let name: String
 	let displayName: String
@@ -60,6 +66,14 @@ struct IntegrationStatus: Decodable {
 	let supportsSetup: Bool
 	let setupDescription: String?
 	let health: IntegrationHealth?
+	let authMethods: [IntegrationAuthMethod]?
+
+	var reconnectionLabel: String {
+		if let authMethods, !authMethods.isEmpty {
+			return "Re-authorize"
+		}
+		return "Re-connect"
+	}
 }
 
 struct IntegrationHealth: Decodable {
