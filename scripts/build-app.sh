@@ -8,6 +8,7 @@ ARCH="${SWIFT_ARCH:-$(uname -m)}"
 APP_VARIANT="${TOBY_APP_VARIANT:-development}"
 ICON_MASTER="$ROOT/images/512x512.png"
 ICON_SRC="$ROOT/images/app-icon.png"
+ENTITLEMENTS="$PKG/TobyApp.entitlements"
 
 case "${APP_VARIANT}" in
 	development)
@@ -217,14 +218,14 @@ cp "${BIN}" "${APP}/Contents/MacOS/toby-app"
 chmod +x "${APP}/Contents/MacOS/toby-app"
 build_app_icon
 if [[ "${CODE_SIGN_IDENTITY}" == "-" ]]; then
-	if codesign -s "${CODE_SIGN_IDENTITY}" --force --deep "${APP}" >/dev/null 2>&1; then
+	if codesign -s "${CODE_SIGN_IDENTITY}" --force --deep --entitlements "${ENTITLEMENTS}" "${APP}" >/dev/null 2>&1; then
 		echo "Signed ${APP} with ad-hoc identity"
 	else
 		echo "Warning: ad-hoc codesign failed for ${APP}." >&2
 		echo "The app was built, but macOS may ask for permissions again after rebuilds." >&2
 	fi
 else
-	if codesign -s "${CODE_SIGN_IDENTITY}" --force --deep "${APP}" >/dev/null 2>&1; then
+	if codesign -s "${CODE_SIGN_IDENTITY}" --force --deep --entitlements "${ENTITLEMENTS}" "${APP}" >/dev/null 2>&1; then
 		echo "Signed ${APP} with ${CODE_SIGN_IDENTITY}"
 	else
 		echo "Error: codesign failed for identity '${CODE_SIGN_IDENTITY}'." >&2

@@ -111,7 +111,7 @@ jobs:
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-applecalendar
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-macos
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-whisper
-          codesign --force --options runtime --timestamp --deep --sign "$identity" dist/Toby.app
+          codesign --force --options runtime --timestamp --deep --entitlements apps/toby-app/TobyApp.entitlements --sign "$identity" dist/Toby.app
           codesign --verify --strict --verbose=2 dist/Toby.app
           codesign --verify --strict --verbose=2 dist/toby
           codesign --verify --strict --verbose=2 dist/toby-plugin-sample
