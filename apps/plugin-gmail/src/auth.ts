@@ -22,7 +22,7 @@ export async function runOAuthFlow(credentials: {
 
 	const authUrl = oauth2Client.generateAuthUrl({
 		access_type: "offline",
-		scope: SCOPES,
+		scope: GMAIL_SCOPES,
 		prompt: "consent",
 	});
 
