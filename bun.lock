@@ -15,7 +15,7 @@
     },
     "apps/cli": {
       "name": "@toby/cli",
-      "version": "0.49.0",
+      "version": "0.53.3",
       "bin": {
         "toby": "./dist/cli.js",
       },
@@ -84,6 +84,9 @@
       "dependencies": {
         "@slack/bolt": "^4.4.0",
         "open": "^10.1.0",
+      },
+      "devDependencies": {
+        "vitest": "^2.1.0",
       },
     },
     "apps/plugin-todoist": {

@@ -478,6 +478,34 @@ export function loadExternalSession(
 	return parseExternalSessionRow(row);
 }
 
+export function loadExternalSessionBySessionId(
+	sessionId: string,
+): ExternalSessionRecord | null {
+	const db = getDb();
+	const row = db
+		.query(
+			`SELECT integration, external_key as externalKey, session_id as sessionId,
+              display_name as displayName, metadata_json as metadataJson,
+              awaiting_ask_user_json as awaitingAskUserJson,
+              last_processed_message_id as lastProcessedMessageId
+       FROM chat_external_sessions
+       WHERE session_id = $session_id`,
+		)
+		.get({ $session_id: sessionId }) as
+		| {
+				integration: string;
+				externalKey: string;
+				sessionId: string;
+				displayName: string | null;
+				metadataJson: string | null;
+				awaitingAskUserJson: string | null;
+				lastProcessedMessageId: string | null;
+		  }
+		| undefined;
+	if (!row) return null;
+	return parseExternalSessionRow(row);
+}
+
 export function updateExternalSessionMetadata(
 	integration: string,
 	externalKey: string,

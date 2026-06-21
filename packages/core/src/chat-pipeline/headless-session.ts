@@ -9,10 +9,17 @@ import { formatToolStatusLine } from "../format-tool-status";
 import type { IntegrationModule } from "../integrations/types";
 import { daemonLog } from "../logging/daemon-log";
 import { activityLineForChatEvent } from "../pipeline-footer";
-import { getSessionLastPretreatment, loadChatSession } from "../session-store";
+import {
+	appendTranscriptBatch,
+	getSessionLastPretreatment,
+	loadChatSession,
+	renameChatSession,
+} from "../session-store";
 import type { ChatEvent } from "./chat-events";
 import { type TurnContext, runChatTurnPipeline } from "./pipeline";
 import { resolveHeadlessChatModules } from "./resolve-chat-modules";
+import { TranscriptAccumulator } from "./transcript-accumulator";
+import { insertTurnWorkSummary } from "./turn-work-summary";
 
 const INBOUND_PERSONA_APPENDIX_BASE = `
 
@@ -69,11 +76,13 @@ export function headlessProgressLineForChatEvent(
 function createHeadlessEventSink(
 	onProgress: ((event: ChatEvent) => void) | undefined,
 	personaName: string,
+	accumulator: TranscriptAccumulator,
 ): {
 	readonly emit: (event: ChatEvent) => void;
 	readonly onChatEvent: (event: ChatEvent) => void;
 } {
 	const handle = (event: ChatEvent) => {
+		accumulator.applyEvent(event);
 		daemonLog("debug", "turn", "pipeline_event", { type: event.type });
 		if (onProgress && headlessProgressLineForChatEvent(event, personaName)) {
 			onProgress(event);
@@ -131,8 +140,18 @@ export async function runHeadlessChatTurn(params: {
 		conversation,
 	);
 
+	const startIdx = loaded?.transcript.length ?? 0;
+	const userTurnIndex = startIdx;
+	const turnStartedAt = Date.now();
+	const accumulator = new TranscriptAccumulator(loaded?.transcript ?? []);
+	accumulator.addUser(userText);
+
 	let seq = 0;
-	const eventSink = createHeadlessEventSink(onProgress, inboundPersona.name);
+	const eventSink = createHeadlessEventSink(
+		onProgress,
+		inboundPersona.name,
+		accumulator,
+	);
 	const ctx: TurnContext = {
 		persona: inboundPersona,
 		modules,
@@ -170,9 +189,32 @@ export async function runHeadlessChatTurn(params: {
 	}
 
 	const turn = result.turn;
+	const reply = turn.text?.trim() ?? "";
+	if (
+		reply.length > 0 &&
+		!accumulator.hasAssistantBodyInSlice(reply, startIdx)
+	) {
+		accumulator.addAssistantFallback(inboundPersona.name, reply);
+	}
+
+	const suggestedSessionName = turn.spec?.sessionName?.trim();
+	if (suggestedSessionName) {
+		renameChatSession(sessionId, suggestedSessionName);
+	}
+
+	appendTranscriptBatch(
+		sessionId,
+		startIdx,
+		insertTurnWorkSummary(
+			accumulator.snapshot,
+			userTurnIndex,
+			Date.now() - turnStartedAt,
+		).slice(startIdx),
+	);
+
 	return {
 		responseMessages: turn.responseMessages,
-		text: turn.text?.trim() ?? "",
+		text: reply,
 		appliedActions: turn.appliedActions,
 		deliveredViaTools: appliedActionsIndicateReply(turn.appliedActions),
 	};

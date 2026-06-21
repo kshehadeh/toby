@@ -41,6 +41,8 @@ export type SessionDetailResponse = {
 	readonly messageCount: number;
 	readonly settings: ChatSessionSettings;
 	readonly activePlan: PlanSummary | null;
+	readonly integration?: string | null;
+	readonly externalKey?: string | null;
 };
 
 export type PlanSummary = {

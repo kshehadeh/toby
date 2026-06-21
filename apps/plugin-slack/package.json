@@ -11,6 +11,10 @@
 	"scripts": {
 		"dev": "bun src/cli.ts",
 		"lint": "bunx biome check .",
-		"build": "bun build ./src/cli.ts --compile --outfile ../../dist/toby-plugin-slack"
+		"build": "bun build ./src/cli.ts --compile --outfile ../../dist/toby-plugin-slack",
+		"test": "bunx vitest run"
+	},
+	"devDependencies": {
+		"vitest": "^2.1.0"
 	}
 }

@@ -1,5 +1,9 @@
 import { loadPlanBySession } from "../../planning/plan-store";
-import { listChatSessions, loadChatSession } from "../../session-store";
+import {
+	listChatSessions,
+	loadChatSession,
+	loadExternalSessionBySessionId,
+} from "../../session-store";
 import { errorResponse, jsonResponse, parseIntParam } from "../http-utils";
 
 function planSummaryForSession(sessionId: string) {
@@ -28,6 +32,7 @@ export function handleSessionDetail(sessionId: string): Response {
 	if (!session) {
 		return errorResponse("Session not found", 404);
 	}
+	const external = loadExternalSessionBySessionId(sessionId);
 	return jsonResponse({
 		id: session.id,
 		name: session.name,
@@ -35,5 +40,7 @@ export function handleSessionDetail(sessionId: string): Response {
 		messageCount: session.messages.length,
 		settings: session.settings,
 		activePlan: planSummaryForSession(sessionId),
+		integration: external?.integration ?? null,
+		externalKey: external?.externalKey ?? null,
 	});
 }
