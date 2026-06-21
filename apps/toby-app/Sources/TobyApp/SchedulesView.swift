@@ -8,9 +8,11 @@ struct SchedulesView: View {
 		NavigationSplitView {
 			SchedulesSidebarView(store: store, onDelete: confirmDelete)
 				.navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 300)
+				.toolbar(removing: .sidebarToggle)
 		} detail: {
 			SchedulesDetailView(store: store, onDelete: confirmDelete)
 		}
+		.toolbarBackground(.visible)
 		.frame(minWidth: 860, minHeight: 560)
 		.background(SettingsDesign.canvasBackground)
 		.task {

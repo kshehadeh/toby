@@ -10,9 +10,11 @@ struct RecordingsView: View {
 		NavigationSplitView {
 			RecordingsSidebarView(store: store, onDeleteRecording: confirmDelete)
 				.navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 300)
+				.toolbar(removing: .sidebarToggle)
 		} detail: {
 			RecordingsDetailView(store: store, onDeleteRecording: confirmDelete)
 		}
+		.toolbarBackground(.visible)
 		.frame(minWidth: 860, minHeight: 560)
 		.background(SettingsDesign.canvasBackground)
 		.task {

@@ -1,13 +1,8 @@
 import SwiftUI
 
 struct ChangelogView: View {
-	let onDismiss: () -> Void
+	@Bindable var store: ChangelogStore
 
-	@State private var changelog: ChangelogResponse?
-	@State private var isLoading = false
-	@State private var errorMessage: String?
-
-	private let client = TobyClient()
 	private let dateFormatter: DateFormatter = {
 		let formatter = DateFormatter()
 		formatter.dateStyle = .medium
@@ -17,36 +12,15 @@ struct ChangelogView: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			HStack {
-				Text("What’s new in Toby")
-					.font(.title2)
-					.fontWeight(.bold)
-					.foregroundStyle(AppTheme.primaryText)
-				Spacer()
-				Button {
-					onDismiss()
-				} label: {
-					Image(systemName: "xmark")
-						.font(.title3)
-						.foregroundStyle(AppTheme.secondaryText)
-				}
-				.buttonStyle(.plain)
-				.accessibilityLabel("Close")
-			}
-			.padding(.bottom, 16)
-
-			if isLoading && changelog == nil {
-				ProgressView("Loading changelog…")
-					.controlSize(.small)
-					.foregroundStyle(AppTheme.secondaryText)
-					.padding(.top, 20)
-			} else if let errorMessage {
+			if store.isLoading && store.changelog == nil {
+				ChangelogSkeletonView()
+			} else if let errorMessage = store.errorMessage {
 				Text(errorMessage)
 					.font(.callout)
 					.foregroundStyle(.red)
 					.fixedSize(horizontal: false, vertical: true)
 					.padding(.top, 8)
-			} else if let releases = changelog?.releases, !releases.isEmpty {
+			} else if let releases = store.changelog?.releases, !releases.isEmpty {
 				ScrollView {
 					LazyVStack(alignment: .leading, spacing: 20) {
 						ForEach(releases) { release in
@@ -62,7 +36,7 @@ struct ChangelogView: View {
 					}
 					.padding(.bottom, 8)
 				}
-			} else if !isLoading {
+			} else if !store.isLoading {
 				Text("No recent changes available.")
 					.font(.callout)
 					.foregroundStyle(AppTheme.secondaryText)
@@ -72,21 +46,62 @@ struct ChangelogView: View {
 		.padding(24)
 		.frame(minWidth: 480, idealWidth: 520, maxWidth: 560, minHeight: 400, idealHeight: 520, maxHeight: 640)
 		.background(AppTheme.contentBackground)
+		.background(WindowAccessor { window in
+			window.styleMask.remove([.miniaturizable, .resizable])
+		})
+		.toolbar {
+			ToolbarItem(placement: .primaryAction) {
+				Button {
+					Task { await store.load(force: true) }
+				} label: {
+					Image(systemName: "arrow.clockwise")
+				}
+				.help("Refresh changelog")
+				.disabled(store.isLoading)
+				.accessibilityLabel("Refresh changelog")
+			}
+		}
 		.task {
-			await loadChangelog()
+			await store.load()
 		}
 	}
+}
 
-	private func loadChangelog() async {
-		guard !isLoading else { return }
-		isLoading = true
-		defer { isLoading = false }
-		errorMessage = nil
-		do {
-			changelog = try await client.fetchChangelog(limit: 10)
-		} catch {
-			errorMessage = error.localizedDescription
+private struct ChangelogSkeletonView: View {
+	@State private var pulse = false
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 24) {
+			ForEach(0..<4) { index in
+				VStack(alignment: .leading, spacing: 12) {
+					HStack {
+						RoundedRectangle(cornerRadius: 4)
+							.fill(AppTheme.panelBackground)
+							.frame(width: 120, height: 18)
+						Spacer()
+						RoundedRectangle(cornerRadius: 4)
+							.fill(AppTheme.panelBackground)
+							.frame(width: 80, height: 14)
+					}
+					VStack(alignment: .leading, spacing: 8) {
+						RoundedRectangle(cornerRadius: 4)
+							.fill(AppTheme.panelBackground)
+							.frame(height: 14)
+						RoundedRectangle(cornerRadius: 4)
+							.fill(AppTheme.panelBackground)
+							.frame(width: 240, height: 14)
+					}
+				}
+				if index != 3 {
+					Divider()
+						.background(AppTheme.separator)
+				}
+			}
 		}
+		.opacity(pulse ? 0.5 : 1.0)
+		.animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: pulse)
+		.onAppear { pulse = true }
+		.accessibilityIdentifier("changelog-skeleton")
 	}
 }
 

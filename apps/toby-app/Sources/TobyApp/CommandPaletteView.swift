@@ -2,16 +2,26 @@ import SwiftUI
 
 struct CommandPaletteView: View {
 	let sessions: [SessionSummary]
+	let integrations: [SettingsItem]
+	let schedules: [ScheduleViewModel]
+	let recordings: [ListenRecordingSummary]
 	let onSelectSession: (String) -> Void
 	let onNewChat: () -> Void
 	let onOpenSettings: () -> Void
+	let onOpenIntegration: (String) -> Void
+	let onOpenSchedule: (String) -> Void
+	let onOpenRecording: (String) -> Void
 	let onDismiss: () -> Void
 
 	@State private var query = ""
 	@FocusState private var isSearchFocused: Bool
 	@State private var selectedIndex = 0
 
-	private var results: [CommandPaletteResult] {
+	var results: [CommandPaletteResult] {
+		results(for: query)
+	}
+
+	func results(for query: String) -> [CommandPaletteResult] {
 		let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
 		var items: [CommandPaletteResult] = []
 
@@ -61,6 +71,63 @@ struct CommandPaletteView: View {
 				),
 			)
 		}
+
+		let filteredIntegrations = integrations.filter { integration in
+			guard !trimmed.isEmpty else { return true }
+			return integration.label.localizedCaseInsensitiveContains(trimmed)
+		}
+
+		for integration in filteredIntegrations {
+			items.append(
+				CommandPaletteResult(
+					id: "integration-\(integration.navKey ?? integration.key)",
+					title: integration.label,
+					subtitle: "Integration",
+					systemImage: "puzzlepiece.extension",
+					kind: .integration(integration.navKey ?? integration.key),
+				),
+			)
+		}
+
+		let filteredSchedules = schedules.filter { schedule in
+			guard !trimmed.isEmpty else { return true }
+			if schedule.displayName.localizedCaseInsensitiveContains(trimmed) { return true }
+			if schedule.prompt.localizedCaseInsensitiveContains(trimmed) { return true }
+			if schedule.personaName.localizedCaseInsensitiveContains(trimmed) { return true }
+			return false
+		}
+
+		for schedule in filteredSchedules {
+			items.append(
+				CommandPaletteResult(
+					id: "schedule-\(schedule.id)",
+					title: schedule.displayName,
+					subtitle: schedule.subtitle,
+					systemImage: "clock",
+					kind: .schedule(schedule.id),
+				),
+			)
+		}
+
+		let filteredRecordings = recordings.filter { recording in
+			guard !trimmed.isEmpty else { return true }
+			if recording.displayName.localizedCaseInsensitiveContains(trimmed) { return true }
+			if let name = recording.name, name.localizedCaseInsensitiveContains(trimmed) { return true }
+			if let description = recording.description, description.localizedCaseInsensitiveContains(trimmed) { return true }
+			return false
+		}
+
+		for recording in filteredRecordings {
+			items.append(
+				CommandPaletteResult(
+					id: "recording-\(recording.id)",
+					title: recording.displayName,
+					subtitle: recordingSubtitle(recording),
+					systemImage: recording.hasTranscript ? "doc.text" : "waveform",
+					kind: .recording(recording.id),
+				),
+			)
+		}
 		return items
 	}
 
@@ -69,7 +136,7 @@ struct CommandPaletteView: View {
 			HStack(spacing: 10) {
 				Image(systemName: "magnifyingglass")
 					.foregroundStyle(AppTheme.secondaryText)
-				TextField("Search sessions…", text: $query)
+				TextField("Search…", text: $query)
 					.textFieldStyle(.plain)
 					.font(.body)
 					.foregroundStyle(AppTheme.primaryText)
@@ -91,7 +158,7 @@ struct CommandPaletteView: View {
 			Divider().overlay(AppTheme.separator)
 
 			if results.isEmpty {
-				Text("No matching sessions")
+				Text("No matching results")
 					.font(.callout)
 					.foregroundStyle(AppTheme.secondaryText)
 					.frame(maxWidth: .infinity, alignment: .leading)
@@ -178,6 +245,15 @@ struct CommandPaletteView: View {
 		case .session(let id):
 			onDismiss()
 			onSelectSession(id)
+		case .integration(let navKey):
+			onDismiss()
+			onOpenIntegration(navKey)
+		case .schedule(let id):
+			onDismiss()
+			onOpenSchedule(id)
+		case .recording(let id):
+			onDismiss()
+			onOpenRecording(id)
 		default:
 			break
 		}
@@ -189,12 +265,30 @@ struct CommandPaletteView: View {
 		}
 		return session.id
 	}
+
+	private func recordingSubtitle(_ recording: ListenRecordingSummary) -> String {
+		let duration = recordingDurationText(recording.durationMs)
+		let transcript = recording.hasTranscript ? "Transcript" : nil
+		let parts = [duration, transcript].compactMap { $0 }
+		return parts.isEmpty ? "Recording" : parts.joined(separator: " · ")
+	}
+
+	private func recordingDurationText(_ durationMs: Int?) -> String {
+		guard let durationMs else { return "Unknown duration" }
+		let seconds = max(0, durationMs / 1000)
+		let minutes = seconds / 60
+		let remainder = seconds % 60
+		return "\(minutes):\(String(format: "%02d", remainder))"
+	}
 }
 
-private struct CommandPaletteResult: Identifiable {
-	enum Kind {
+struct CommandPaletteResult: Identifiable {
+	enum Kind: Equatable {
 		case action
 		case session(String)
+		case integration(String)
+		case schedule(String)
+		case recording(String)
 	}
 
 	let id: String

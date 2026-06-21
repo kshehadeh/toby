@@ -129,7 +129,7 @@ struct AppSidebar: View {
 		}
 		.padding(.horizontal, 10)
 		.padding(.vertical, 12)
-		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+		.frame(minWidth: AppTheme.minSidebarWidth, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 		.background(AppTheme.sidebarBackground)
 		.accessibilityIdentifier("app-sidebar")
 	}

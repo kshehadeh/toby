@@ -9,11 +9,18 @@ struct TobyApp: App {
 	@State private var recordingsStore = RecordingsStore()
 	@State private var schedulesStore = SchedulesStore()
 	@State private var integrationsStore = ConfigureStore()
+	@State private var changelogStore = ChangelogStore()
 	@State private var nativeServer = NativeServer.shared
 
 	var body: some Scene {
 		WindowGroup {
-			RootView(store: store, configureStore: configureStore)
+			RootView(
+				store: store,
+				configureStore: configureStore,
+				recordingsStore: recordingsStore,
+				schedulesStore: schedulesStore,
+				integrationsStore: integrationsStore
+			)
 				.frame(minWidth: 860, minHeight: 560)
 				.coordinateSpace(name: "TobyWindow")
 				.onAppear {
@@ -56,6 +63,12 @@ struct TobyApp: App {
 		}
 		.windowStyle(.automatic)
 		.defaultSize(width: 620, height: 520)
+
+		Window("What’s New", id: "changelog") {
+			ChangelogView(store: changelogStore)
+		}
+		.windowStyle(.automatic)
+		.defaultSize(width: 520, height: 640)
 
 		.commands {
 			CommandGroup(replacing: .newItem) {

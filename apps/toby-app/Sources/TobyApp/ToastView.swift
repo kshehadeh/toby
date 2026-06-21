@@ -3,6 +3,7 @@ import SwiftUI
 struct ToastView: View {
     let toast: AppToastState
     let onDismiss: () -> Void
+    let onAction: ((AppToastAction) -> Void)?
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -26,6 +27,19 @@ struct ToastView: View {
                         .lineLimit(4)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                if let action = toast.action {
+                    Button {
+                        onAction?(action)
+                        onDismiss()
+                    } label: {
+                        Text(action.label)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.accent)
+                    }
+                    .buttonStyle(.plain)
+                    .focusable(false)
                 }
             }
 

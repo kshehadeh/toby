@@ -25,6 +25,12 @@ final class ChatStore {
 	var turnWorkDurations: [Int: TimeInterval] = [:]
 	var activeAskUserPrompt: ActiveAskUserPrompt?
 	let serverEventLogPath = ServerEventLog.path
+	var integration: String?
+	var externalKey: String?
+
+	var isExternalSession: Bool {
+		integration != nil && externalKey != nil
+	}
 
 	var activeWorkStartDate: Date? {
 		isLoading ? activeTurnStartedAt : nil
@@ -50,6 +56,12 @@ final class ChatStore {
 	private var activeTurnStartedAt: Date?
 	private var activeTurnUserIndex: Int?
 	private var askUserContinuation: CheckedContinuation<(selectedIndex: Int, selectedLabel: String, rawInput: String, error: String?), Never>?
+	@ObservationIgnored
+	nonisolated(unsafe) private var externalSessionRefreshTask: Task<Void, Never>?
+
+	deinit {
+		externalSessionRefreshTask?.cancel()
+	}
 
 	func bootstrap() async {
 		do {
@@ -105,6 +117,36 @@ final class ChatStore {
 		while !Task.isCancelled {
 			await refreshDaemonStatus()
 			try? await Task.sleep(nanoseconds: 5_000_000_000)
+		}
+	}
+
+	private func startExternalSessionRefreshLoop() {
+		stopExternalSessionRefreshLoop()
+		guard isExternalSession else { return }
+		externalSessionRefreshTask = Task { [weak self] in
+			while !Task.isCancelled {
+				try? await Task.sleep(nanoseconds: 2_000_000_000)
+				guard let self, !Task.isCancelled else { return }
+				await self.refreshCurrentSessionIfExternal()
+			}
+		}
+	}
+
+	private func stopExternalSessionRefreshLoop() {
+		externalSessionRefreshTask?.cancel()
+		externalSessionRefreshTask = nil
+	}
+
+	private func refreshCurrentSessionIfExternal() async {
+		guard isExternalSession, let currentSessionId = sessionId, !isLoading else { return }
+		do {
+			let detail = try await client.fetchSession(id: currentSessionId)
+			guard sessionId == detail.id, !isLoading else { return }
+			sessionName = detail.name
+			transcript = detail.transcript
+			activityLine = "Ready"
+		} catch {
+			// Keep existing transcript on refresh failure.
 		}
 	}
 
@@ -174,11 +216,14 @@ final class ChatStore {
 			sessionId = detail.id
 			sessionName = detail.name
 			transcript = detail.transcript
+			integration = detail.integration
+			externalKey = detail.externalKey
 			streamingAssistant = nil
 			turnWorkDurations = [:]
 			promptText = ""
 			errorMessage = nil
 			activityLine = "Ready"
+			startExternalSessionRefreshLoop()
 		} catch {
 			errorMessage = error.localizedDescription
 		}
@@ -195,10 +240,13 @@ final class ChatStore {
 			sessionId = created.id
 			sessionName = created.name
 			transcript = []
+			integration = nil
+			externalKey = nil
 			streamingAssistant = nil
 			turnWorkDurations = [:]
 			errorMessage = nil
 			activityLine = "Ready"
+			stopExternalSessionRefreshLoop()
 			await refreshSessions()
 		} catch {
 			errorMessage = error.localizedDescription
@@ -252,7 +300,7 @@ final class ChatStore {
 					_ = try await client.transcribeRecording(id: id)
 					errorMessage = nil
 					activityLine = "Recording transcribed"
-					showRecordingCompletionToast(errors: result.errors)
+					showRecordingCompletionToast(recordingId: id, errors: result.errors)
 				} catch {
 					showRecordingError("Recording saved, but transcription failed: \(error.localizedDescription)")
 					activityLine = "Recording saved"
@@ -260,7 +308,7 @@ final class ChatStore {
 			} else {
 				errorMessage = nil
 				activityLine = "Recording saved"
-				showRecordingCompletionToast(errors: result.errors)
+				showRecordingCompletionToast(recordingId: result.id, errors: result.errors)
 			}
 		} catch {
 			showRecordingError(error.localizedDescription)
@@ -278,7 +326,7 @@ final class ChatStore {
 		)
 	}
 
-	private func showRecordingCompletionToast(errors: [String]?) {
+	private func showRecordingCompletionToast(recordingId: String?, errors: [String]?) {
 		let message = errors?.first?.trimmingCharacters(in: .whitespacesAndNewlines)
 		if let message, !message.isEmpty {
 			errorMessage = message
@@ -290,10 +338,12 @@ final class ChatStore {
 			return
 		}
 		errorMessage = nil
+		let action: AppToastAction? = recordingId.map { .openRecording(id: $0) }
 		toast = AppToastState(
 			style: .success,
 			title: "Recording transcribed",
 			message: "Your recording is ready.",
+			action: action
 		)
 	}
 

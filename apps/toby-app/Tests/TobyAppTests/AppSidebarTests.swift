@@ -86,4 +86,5 @@ struct AppSidebarTests {
         try sessionButton!.tap()
         #expect(selectedId == "abc")
     }
+
 }

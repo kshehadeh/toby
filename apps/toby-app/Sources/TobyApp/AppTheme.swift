@@ -13,6 +13,8 @@ enum AppTheme {
 	static let selection = Color.white.opacity(0.08)
 
 	static let sidebarWidth: CGFloat = 244
+	static let minSidebarWidth: CGFloat = 220
+	static let maxSidebarWidth: CGFloat = 320
 	static let cornerRadius: CGFloat = 16
 	static let smallCornerRadius: CGFloat = 9
 	static let contentPadding: CGFloat = 24

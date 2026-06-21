@@ -5,11 +5,43 @@ enum AppToastStyle {
 	case error
 }
 
+enum AppToastAction: Identifiable, Equatable {
+	case openRecording(id: String)
+
+	var id: String {
+		switch self {
+		case .openRecording(let id):
+			return "open-recording-\(id)"
+		}
+	}
+
+	var label: String {
+		switch self {
+		case .openRecording:
+			return "Open recording"
+		}
+	}
+}
+
 struct AppToastState: Identifiable {
-	let id = UUID()
+	let id: UUID
 	let style: AppToastStyle
 	let title: String
 	let message: String?
+	let action: AppToastAction?
+
+	init(
+		style: AppToastStyle,
+		title: String,
+		message: String? = nil,
+		action: AppToastAction? = nil
+	) {
+		self.id = UUID()
+		self.style = style
+		self.title = title
+		self.message = message
+		self.action = action
+	}
 }
 
 struct AppStatus: Decodable {
@@ -82,6 +114,12 @@ struct SessionDetail: Decodable {
 	let messageCount: Int
 	let settings: SessionSettings?
 	let activePlan: PlanSummary?
+	let integration: String?
+	let externalKey: String?
+
+	var isExternal: Bool {
+		integration != nil && externalKey != nil
+	}
 }
 
 struct SessionSettings: Decodable {

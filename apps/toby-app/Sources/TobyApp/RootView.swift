@@ -3,10 +3,12 @@ import SwiftUI
 struct RootView: View {
     @Bindable var store: ChatStore
     @Bindable var configureStore: ConfigureStore
+    @Bindable var recordingsStore: RecordingsStore
+    @Bindable var schedulesStore: SchedulesStore
+    @Bindable var integrationsStore: ConfigureStore
     @Environment(\.openWindow) private var openWindow
     @State private var isCommandPalettePresented = false
     @State private var isIssueReportPresented = false
-    @State private var isChangelogPresented = false
     @State private var pendingDeleteSession: SessionSummary?
     @State private var isToastHovered = false
     @State private var toastDismissTask: Task<Void, Never>?
@@ -34,12 +36,12 @@ struct RootView: View {
                 onOpenIntegrations: openIntegrations,
                 onOpenPersonasSettings: openPersonasSettings,
                 onPersonaSelected: refreshStatus,
-                onOpenChangelog: { isChangelogPresented = true },
+                onOpenChangelog: { openWindow(id: "changelog") },
             )
             .navigationSplitViewColumnWidth(
-                min: 220,
+                min: AppTheme.minSidebarWidth,
                 ideal: AppTheme.sidebarWidth,
-                max: 320,
+                max: AppTheme.maxSidebarWidth,
             )
             .toolbar(removing: .sidebarToggle)
             .toolbar {
@@ -64,7 +66,11 @@ struct RootView: View {
         }
         .overlay(alignment: .top) {
             if let toast = store.toast {
-                ToastView(toast: toast, onDismiss: dismissToast)
+                ToastView(
+                    toast: toast,
+                    onDismiss: dismissToast,
+                    onAction: handleToastAction
+                )
                     .frame(maxWidth: 420)
                     .padding(.horizontal, 16)
                     .padding(.top, 16)
@@ -85,7 +91,7 @@ struct RootView: View {
             }
         }
         .animation(.spring(response: 0.28, dampingFraction: 0.82), value: store.toast?.id)
-        .onChange(of: store.toast?.id) { _, id in
+        .onChange(of: store.toast?.id) { (_: UUID?, id: UUID?) in
             isToastHovered = false
             if id == nil {
                 toastDismissTask?.cancel()
@@ -93,6 +99,9 @@ struct RootView: View {
             } else {
                 scheduleToastDismiss()
             }
+        }
+        .onChange(of: sidebarVisibility) { _, newValue in
+            sidebarVisibility = newValue.sidebarVisible
         }
         .onDisappear {
             toastDismissTask?.cancel()
@@ -104,12 +113,24 @@ struct RootView: View {
         .task {
             await store.daemonStatusRefreshLoop()
         }
+        .task {
+            async let recordings: () = recordingsStore.load()
+            async let schedules: () = schedulesStore.load()
+            async let integrations: () = integrationsStore.load()
+            _ = await (recordings, schedules, integrations)
+        }
         .sheet(isPresented: $isCommandPalettePresented) {
             CommandPaletteView(
                 sessions: store.sessions,
+                integrations: integrationsStore.integrationSections,
+                schedules: schedulesStore.schedules,
+                recordings: recordingsStore.recordings,
                 onSelectSession: selectSession,
                 onNewChat: startNewChat,
                 onOpenSettings: { openSettings() },
+                onOpenIntegration: openIntegration,
+                onOpenSchedule: openSchedule,
+                onOpenRecording: openRecording,
                 onDismiss: { isCommandPalettePresented = false },
             )
             .presentationBackground(.clear)
@@ -119,12 +140,6 @@ struct RootView: View {
                 isIssueReportPresented = false
             }
         }
-        .sheet(isPresented: $isChangelogPresented) {
-            ChangelogView {
-                isChangelogPresented = false
-            }
-            .presentationBackground(.clear)
-        }
         .onReceive(NotificationCenter.default.publisher(for: .openCommandPalette)) { _ in
             isCommandPalettePresented = true
         }
@@ -132,7 +147,7 @@ struct RootView: View {
             isIssueReportPresented = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .openChangelog)) { _ in
-            isChangelogPresented = true
+            openWindow(id: "changelog")
         }
         .onReceive(NotificationCenter.default.publisher(for: .startNewChat)) { _ in
             startNewChat()
@@ -188,6 +203,28 @@ struct RootView: View {
         openWindow(id: "integrations")
     }
 
+    private func openIntegration(navKey: String) {
+        integrationsStore.selectedNavKey = navKey
+        openWindow(id: "integrations")
+    }
+
+    private func openSchedule(id: String) {
+        Task { await schedulesStore.selectSchedule(id: id) }
+        openWindow(id: "schedules")
+    }
+
+    private func openRecording(id: String) {
+        Task { await recordingsStore.selectRecording(id: id) }
+        openWindow(id: "recordings")
+    }
+
+    private func handleToastAction(_ action: AppToastAction) {
+        switch action {
+        case .openRecording(let id):
+            openRecording(id: id)
+        }
+    }
+
     private func openPersonasSettings() {
         openSettings(navKey: "personas")
     }
@@ -225,4 +262,10 @@ extension Notification.Name {
     static let openIssueReport = Notification.Name("openIssueReport")
     static let openChangelog = Notification.Name("openChangelog")
     static let startNewChat = Notification.Name("startNewChat")
+}
+
+extension NavigationSplitViewVisibility {
+    var sidebarVisible: NavigationSplitViewVisibility {
+        self == .detailOnly ? .all : self
+    }
 }
