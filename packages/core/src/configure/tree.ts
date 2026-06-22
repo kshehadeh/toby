@@ -1,5 +1,5 @@
 import type { AIProviderInfo } from "../ai/providers";
-import { getDefaultPersonaName, getSkillsDir } from "../config/index";
+import { getDefaultPersonaName } from "../config/index";
 import {
 	getIntegrationModules,
 	getModulesForCategory,
@@ -33,7 +33,6 @@ import {
 export type { ConfigureTreeContext, SettingsItem } from "./types";
 export { ADD_CUSTOM_MODEL_SENTINEL, CONFIGURE_TREE_ACTION_KEYS } from "./types";
 
-const MAX_SKILL_BODY_PREVIEW = 200;
 const MAX_PERSONA_INSTRUCTION_PREVIEW = 120;
 
 function truncateSkillPreview(text: string, max: number): string {
@@ -353,80 +352,6 @@ export function buildSettingsTree(
 				currentValue: values["chatInbound.persona"] ?? "(default)",
 			},
 		],
-	};
-
-	const skillSections: SettingsItem[] = loadLocalSkills().map((skill) => ({
-		label: skill.name,
-		kind: "section" as const,
-		key: `skills.${skill.dirName}`,
-		children: [
-			{
-				label: "Name",
-				kind: "value" as const,
-				key: `skills.${skill.dirName}.name`,
-				currentValue: skill.name,
-			},
-			{
-				label: "Description",
-				kind: "value" as const,
-				key: `skills.${skill.dirName}.description`,
-				currentValue: skill.description,
-				multiline: true,
-			},
-			{
-				label: "Summary",
-				kind: "value" as const,
-				key: `skills.${skill.dirName}.summary`,
-				currentValue: skill.summary,
-				multiline: true,
-			},
-			{
-				label: "Path",
-				kind: "hint" as const,
-				key: `skills.${skill.dirName}._file`,
-				currentValue: `${getSkillsDir()}/${skill.dirName}/SKILL.md`,
-			},
-			...(skill.bodyMarkdown.trim()
-				? [
-						{
-							label: "Excerpt",
-							kind: "hint" as const,
-							key: `skills.${skill.dirName}._preview`,
-							currentValue: truncateSkillPreview(
-								skill.bodyMarkdown,
-								MAX_SKILL_BODY_PREVIEW,
-							),
-							multiline: true,
-						},
-					]
-				: []),
-			{
-				label: "Edit in editor",
-				kind: "action" as const,
-				key: `skills.${skill.dirName}._edit`,
-			},
-			{
-				label: "Delete skill",
-				kind: "delete" as const,
-				key: `skills.${skill.dirName}._delete`,
-			},
-		],
-	}));
-
-	const skillsSection: SettingsItem = {
-		label: "Skills",
-		kind: "section",
-		key: "skills",
-		children:
-			skillSections.length > 0
-				? skillSections
-				: [
-						{
-							label: `No skills found. Add skills to ${getSkillsDir()}`,
-							kind: "hint",
-							key: "skills._empty",
-						},
-					],
 	};
 
 	const recordingSections: SettingsItem[] = ctx.listenRecordings.map(
@@ -834,7 +759,6 @@ export function buildSettingsTree(
 				],
 			},
 			buildProjectsSection(values),
-			skillsSection,
 			listenSection,
 			schedulesSection,
 		],

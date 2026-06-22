@@ -6,6 +6,7 @@ struct RootView: View {
     @Bindable var recordingsStore: RecordingsStore
     @Bindable var schedulesStore: SchedulesStore
     @Bindable var integrationsStore: ConfigureStore
+    @Bindable var skillsStore: SkillsStore
     @Environment(\.openWindow) private var openWindow
     @State private var isCommandPalettePresented = false
     @State private var isIssueReportPresented = false
@@ -34,6 +35,7 @@ struct RootView: View {
                 onOpenRecordings: openRecordings,
                 onOpenSchedules: openSchedules,
                 onOpenIntegrations: openIntegrations,
+                onOpenSkills: openSkills,
                 onOpenPersonasSettings: openPersonasSettings,
                 onPersonaSelected: refreshStatus,
                 onOpenChangelog: { openWindow(id: "changelog") },
@@ -201,6 +203,10 @@ struct RootView: View {
 
     private func openIntegrations() {
         openWindow(id: "integrations")
+    }
+
+    private func openSkills() {
+        openWindow(id: "skills")
     }
 
     private func openIntegration(navKey: String) {

@@ -382,6 +382,22 @@ struct TobyClient {
 		return try JSONDecoder().decode(IntegrationSetupGuide.self, from: data)
 	}
 
+	func listSkills() async throws -> [SkillListItem] {
+		let url = baseURL.appendingPathComponent("api/skills")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		struct Payload: Decodable { let skills: [SkillListItem] }
+		return try JSONDecoder().decode(Payload.self, from: data).skills
+	}
+
+	func fetchSkill(dirName: String) async throws -> SkillDetail {
+		let url = baseURL.appendingPathComponent("api/skills/\(dirName)")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		struct Payload: Decodable { let skill: SkillDetail }
+		return try JSONDecoder().decode(Payload.self, from: data).skill
+	}
+
 	func fetchScheduleRun(id: String) async throws -> ScheduleRunDetail {
 		let url = baseURL.appendingPathComponent("api/schedules/runs/\(id)")
 		let (data, response) = try await URLSession.shared.data(from: url)

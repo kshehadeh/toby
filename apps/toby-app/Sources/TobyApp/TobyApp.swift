@@ -9,6 +9,7 @@ struct TobyApp: App {
 	@State private var recordingsStore = RecordingsStore()
 	@State private var schedulesStore = SchedulesStore()
 	@State private var integrationsStore = ConfigureStore()
+	@State private var skillsStore = SkillsStore()
 	@State private var changelogStore = ChangelogStore()
 	@State private var nativeServer = NativeServer.shared
 
@@ -19,7 +20,8 @@ struct TobyApp: App {
 				configureStore: configureStore,
 				recordingsStore: recordingsStore,
 				schedulesStore: schedulesStore,
-				integrationsStore: integrationsStore
+				integrationsStore: integrationsStore,
+				skillsStore: skillsStore
 			)
 				.frame(minWidth: 860, minHeight: 560)
 				.coordinateSpace(name: "TobyWindow")
@@ -54,6 +56,12 @@ struct TobyApp: App {
 
 		Window("Integrations", id: "integrations") {
 			IntegrationsView(store: integrationsStore)
+		}
+		.windowStyle(.automatic)
+		.defaultSize(width: 920, height: 640)
+
+		Window("Skills", id: "skills") {
+			SkillsView(store: skillsStore)
 		}
 		.windowStyle(.automatic)
 		.defaultSize(width: 920, height: 640)

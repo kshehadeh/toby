@@ -20,6 +20,27 @@ export function openSkillInEditor(dirName: string): void {
 	execSync(`open -t "${skillPath}"`, { stdio: "ignore" });
 }
 
+export function createSkill(skillsRoot?: string): { dirName: string } {
+	const skillsDir = skillsRoot ?? getSkillsDir();
+	fs.mkdirSync(skillsDir, { recursive: true });
+
+	let index = 1;
+	let dirName = "new-skill";
+	while (fs.existsSync(path.join(skillsDir, dirName))) {
+		dirName = `new-skill-${index}`;
+		index += 1;
+	}
+
+	const skillDir = path.join(skillsDir, dirName);
+	fs.mkdirSync(skillDir, { recursive: true });
+	const skillPath = path.join(skillDir, "SKILL.md");
+	const content =
+		"---\nname: New Skill\ndescription: Describe what this skill does.\n---\n\n";
+	fs.writeFileSync(skillPath, content, "utf-8");
+
+	return { dirName };
+}
+
 export interface SkillFrontmatterUpdates {
 	readonly name?: string;
 	readonly description?: string;
@@ -102,5 +123,29 @@ export function updateSkillFrontmatter(
 	}
 
 	const next = `---\n${lines.join("\n")}\n---\n${bodyRaw}`;
+	fs.writeFileSync(skillPath, next, "utf-8");
+}
+
+export function updateSkillBody(
+	dirName: string,
+	bodyMarkdown: string,
+	skillsRoot?: string,
+): void {
+	const skillPath = path.join(
+		skillsRoot ?? getSkillsDir(),
+		dirName,
+		"SKILL.md",
+	);
+	if (!fs.existsSync(skillPath)) {
+		throw new Error(`Skill file not found: ${skillPath}`);
+	}
+
+	const raw = fs.readFileSync(skillPath, "utf-8").replace(/^\uFEFF/, "");
+	const match = /^(---\r?\n[\s\S]*?\r?\n---\r?\n)/.exec(raw);
+	const frontmatterBlock = match?.[1] ?? "";
+	const normalizedBody = bodyMarkdown.replace(/^\uFEFF/, "");
+	const next = frontmatterBlock
+		? `${frontmatterBlock}${normalizedBody}`
+		: `---\nname: ${dirName}\ndescription: ${dirName}\n---\n${normalizedBody}`;
 	fs.writeFileSync(skillPath, next, "utf-8");
 }

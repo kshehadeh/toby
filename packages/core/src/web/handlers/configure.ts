@@ -28,7 +28,12 @@ import {
 	listSchedules,
 	updateSchedule,
 } from "../../schedules/store";
-import { deleteSkill, updateSkillFrontmatter } from "../../skills/manage";
+import {
+	createSkill,
+	deleteSkill,
+	updateSkillBody,
+	updateSkillFrontmatter,
+} from "../../skills/manage";
 import { errorResponse, jsonResponse, readJsonBody } from "../http-utils";
 
 function annotateTreeSecrets(node: SettingsItem): SettingsItem {
@@ -148,6 +153,17 @@ export async function handleConfigureAction(
 			const dirName = body?.dirName?.trim();
 			if (!dirName) return errorResponse("dirName required");
 			deleteSkill(dirName);
+			return jsonResponse({ ok: true });
+		}
+		case "create-skill": {
+			const created = createSkill();
+			return jsonResponse({ ok: true, dirName: created.dirName });
+		}
+		case "update-skill-body": {
+			const dirName = body?.dirName?.trim();
+			const bodyMarkdown = body?.body ?? "";
+			if (!dirName) return errorResponse("dirName required");
+			updateSkillBody(dirName, bodyMarkdown);
 			return jsonResponse({ ok: true });
 		}
 		case "create-schedule": {

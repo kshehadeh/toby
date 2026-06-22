@@ -17,6 +17,7 @@ struct AppSidebar: View {
 	let onOpenRecordings: () -> Void
 	let onOpenSchedules: () -> Void
 	let onOpenIntegrations: () -> Void
+	let onOpenSkills: () -> Void
 	let onOpenPersonasSettings: () -> Void
 	let onPersonaSelected: () -> Void
 	let onOpenChangelog: () -> Void
@@ -95,6 +96,13 @@ struct AppSidebar: View {
 					onOpenIntegrations()
 				} label: {
 					SidebarRow(title: "Integrations", systemImage: "square.grid.2x2")
+				}
+				.buttonStyle(.plain)
+				.frame(maxWidth: .infinity, alignment: .leading)
+				Button {
+					onOpenSkills()
+				} label: {
+					SidebarRow(title: "Skills", systemImage: "wand.and.stars")
 				}
 				.buttonStyle(.plain)
 				.frame(maxWidth: .infinity, alignment: .leading)

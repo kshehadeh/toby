@@ -23,6 +23,7 @@ struct AppSidebarTests {
             onOpenRecordings: {},
             onOpenSchedules: {},
             onOpenIntegrations: {},
+            onOpenSkills: {},
             onOpenPersonasSettings: {},
             onPersonaSelected: {},
             onOpenChangelog: {}
@@ -73,6 +74,7 @@ struct AppSidebarTests {
             onOpenRecordings: {},
             onOpenSchedules: {},
             onOpenIntegrations: {},
+            onOpenSkills: {},
             onOpenPersonasSettings: {},
             onPersonaSelected: {},
             onOpenChangelog: {}

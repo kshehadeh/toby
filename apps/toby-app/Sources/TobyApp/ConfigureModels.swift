@@ -42,6 +42,7 @@ struct ConfigureActionResponse: Decodable {
 	let personaName: String?
 	let scheduleId: String?
 	let runId: String?
+	let dirName: String?
 }
 
 enum IntegrationAction: String, Sendable {

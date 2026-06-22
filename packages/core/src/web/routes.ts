@@ -50,6 +50,7 @@ import {
 import {
 	handleModulesList,
 	handlePersonasList,
+	handleSkillDetail,
 	handleSkillsList,
 } from "./handlers/metadata";
 import { handlePlanCancel, handlePlanSkip } from "./handlers/plan";
@@ -178,6 +179,10 @@ export async function handleWebRequest(
 		}
 		if (pathname === "/api/skills" && req.method === "GET") {
 			return handleSkillsList();
+		}
+		const skillDetailMatch = /^\/api\/skills\/([^/]+)$/.exec(pathname);
+		if (skillDetailMatch && req.method === "GET") {
+			return handleSkillDetail(decodeURIComponent(skillDetailMatch[1]));
 		}
 		if (pathname === "/api/releases/changelog" && req.method === "GET") {
 			return handleChangelog(url);
