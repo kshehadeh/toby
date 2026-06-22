@@ -165,20 +165,22 @@ private struct WorkedForRow: View {
 									.frame(width: 14, height: 14)
 							} else {
 								Image(systemName: "clock")
-									.font(.caption.weight(.semibold))
+									.font(AppTheme.transcriptCaptionFont.weight(.semibold))
 									.foregroundStyle(AppTheme.secondaryText)
 							}
 							Text(summaryLabel(at: context.date))
-								.font(.caption.weight(.medium))
+								.font(AppTheme.transcriptCaptionFont.weight(.medium))
+								.tracking(AppTheme.transcriptTracking)
 								.foregroundStyle(AppTheme.secondaryText)
 							if isExpanded, steps.count > 0 {
 								Text("· \(steps.count) steps")
-									.font(.caption)
+									.font(AppTheme.transcriptCaptionFont)
+									.tracking(AppTheme.transcriptTracking)
 									.foregroundStyle(AppTheme.tertiaryText)
 							}
 							Spacer(minLength: 0)
 							Image(systemName: "chevron.right")
-								.font(.caption.weight(.semibold))
+								.font(AppTheme.transcriptCaptionFont.weight(.semibold))
 								.foregroundStyle(AppTheme.tertiaryText)
 								.rotationEffect(.degrees(isExpanded ? 90 : 0))
 						}
@@ -328,12 +330,14 @@ private struct WorkStepRow: View {
 			VStack(alignment: .leading, spacing: 2) {
 				HStack(alignment: .top, spacing: 8) {
 					Text(step.title)
-						.font(.caption.weight(.semibold))
+						.font(AppTheme.transcriptCaptionFont.weight(.semibold))
+						.tracking(AppTheme.transcriptTracking)
 						.foregroundStyle(AppTheme.secondaryText)
 					Spacer(minLength: 0)
 					if let durationMs = step.durationMs, durationMs > 0 {
 						Text(formatDurationMs(durationMs))
-							.font(.caption)
+							.font(AppTheme.transcriptCaptionFont)
+							.tracking(AppTheme.transcriptTracking)
 							.foregroundStyle(AppTheme.tertiaryText)
 							.monospacedDigit()
 					}
@@ -342,13 +346,15 @@ private struct WorkStepRow: View {
 					if step.isAssistantInterim {
 						MarkdownText(
 							text: step.body,
-							font: .caption,
+							font: AppTheme.transcriptCaptionFont,
 							foregroundStyle: AppTheme.tertiaryText,
 						)
 						.frame(maxWidth: .infinity, alignment: .leading)
 					} else {
 						Text(step.body)
-							.font(.caption)
+							.font(AppTheme.transcriptCaptionFont)
+							.tracking(AppTheme.transcriptTracking)
+							.lineSpacing(AppTheme.transcriptLineSpacing)
 							.foregroundStyle(AppTheme.tertiaryText)
 							.lineLimit(4)
 							.frame(maxWidth: .infinity, alignment: .leading)
@@ -433,7 +439,9 @@ private struct UserMessageRow: View {
 		HStack(alignment: .top, spacing: 0) {
 			Spacer(minLength: 0)
 			Text(text)
-				.font(.body)
+				.font(AppTheme.transcriptBodyFont)
+				.tracking(AppTheme.transcriptTracking)
+				.lineSpacing(AppTheme.transcriptLineSpacing)
 				.foregroundStyle(AppTheme.primaryText)
 				.textSelection(.enabled)
 				.fixedSize(horizontal: false, vertical: true)
@@ -471,11 +479,12 @@ private struct AssistantMessageRow: View {
 			AssistantRailColumn(iconName: iconName)
 			VStack(alignment: .leading, spacing: 6) {
 				Text(header)
-					.font(.caption.weight(.semibold))
+					.font(AppTheme.transcriptCaptionFont.weight(.semibold))
+					.tracking(AppTheme.transcriptTracking)
 					.foregroundStyle(AppTheme.secondaryText)
 				MarkdownText(
 					text: messageBody,
-					font: .body,
+					font: AppTheme.transcriptBodyFont,
 					foregroundStyle: AppTheme.primaryText,
 				)
 				.frame(maxWidth: .infinity, alignment: .leading)
@@ -506,16 +515,22 @@ private struct AskUserQARow: View {
 			AssistantRailColumn(iconName: "questionmark.bubble")
 			VStack(alignment: .leading, spacing: 6) {
 				Text(query)
-					.font(.callout.weight(.semibold))
+					.font(AppTheme.transcriptCalloutFont.weight(.semibold))
+					.tracking(AppTheme.transcriptTracking)
+					.lineSpacing(AppTheme.transcriptLineSpacing)
 					.foregroundStyle(AppTheme.primaryText)
 				if let error {
 					Text(error)
-						.font(.callout)
+						.font(AppTheme.transcriptCalloutFont)
+						.tracking(AppTheme.transcriptTracking)
+						.lineSpacing(AppTheme.transcriptLineSpacing)
 						.foregroundStyle(.red)
 						.textSelection(.enabled)
 				} else {
 					Text(answer)
-						.font(.callout)
+						.font(AppTheme.transcriptCalloutFont)
+						.tracking(AppTheme.transcriptTracking)
+						.lineSpacing(AppTheme.transcriptLineSpacing)
 						.foregroundStyle(AppTheme.secondaryText)
 						.textSelection(.enabled)
 				}
@@ -561,11 +576,11 @@ private struct NoticeRow: View {
 	var body: some View {
 		HStack(alignment: .top, spacing: 8) {
 			Image(systemName: iconName)
-				.font(.caption)
+				.font(AppTheme.transcriptCaptionFont)
 				.foregroundStyle(AppTheme.tertiaryText)
 				.frame(width: 14, alignment: .center)
 				.padding(.top, 2)
-			MarkdownText(text: text, font: .callout, foregroundStyle: color)
+			MarkdownText(text: text, font: AppTheme.transcriptCalloutFont, foregroundStyle: color)
 		}
 		.frame(maxWidth: .infinity, alignment: .leading)
 		.padding(.vertical, 2)

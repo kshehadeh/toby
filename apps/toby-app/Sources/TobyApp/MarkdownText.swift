@@ -24,6 +24,7 @@ struct MarkdownText: View {
 				case .paragraph(let content):
 					InlineMarkdownText(text: content)
 						.font(font)
+						.tracking(AppTheme.transcriptTracking)
 						.foregroundStyle(foregroundStyle)
 				case .bullet(let content):
 					HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -32,6 +33,7 @@ struct MarkdownText: View {
 							.foregroundStyle(foregroundStyle)
 						InlineMarkdownText(text: content)
 							.font(font)
+							.tracking(AppTheme.transcriptTracking)
 							.foregroundStyle(foregroundStyle)
 					}
 				case .code(let content):
@@ -46,6 +48,7 @@ struct MarkdownText: View {
 				}
 			}
 		}
+		.lineSpacing(AppTheme.transcriptLineSpacing)
 		.frame(maxWidth: .infinity, alignment: .leading)
 	}
 
@@ -262,6 +265,7 @@ private struct TableCell: View {
 				.frame(maxWidth: .infinity, maxHeight: .infinity)
 			InlineMarkdownText(text: text)
 				.font(font)
+				.tracking(AppTheme.transcriptTracking)
 				.bold(isHeader)
 				.foregroundStyle(foregroundStyle)
 				.multilineTextAlignment(alignment)
