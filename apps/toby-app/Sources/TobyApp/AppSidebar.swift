@@ -22,6 +22,7 @@ struct AppSidebar: View {
 	let onPersonaSelected: () -> Void
 	let onOpenChangelog: () -> Void
 	@State private var isWorkspaceScrolling = false
+	@State private var workspaceScrollProgress: CGFloat = 0
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
@@ -72,8 +73,11 @@ struct AppSidebar: View {
 										.disabled(isLoading)
 									}
 								}
-								ScrollStateTracker(isScrolling: $isWorkspaceScrolling)
-									.frame(width: 0, height: 0)
+								ScrollStateTracker(
+									isScrolling: $isWorkspaceScrolling,
+									progress: $workspaceScrollProgress
+								)
+								.frame(width: 0, height: 0)
 							}
 						}
 						.frame(maxHeight: 220)
@@ -84,6 +88,7 @@ struct AppSidebar: View {
 								.frame(width: 3, height: 40)
 								.cornerRadius(1.5)
 								.padding(.trailing, 2)
+								.offset(y: (workspaceScrollProgress - 0.5) * (220 - 40))
 								.transition(.opacity)
 								.allowsHitTesting(false)
 						}
