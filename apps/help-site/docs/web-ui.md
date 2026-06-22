@@ -7,9 +7,7 @@ title: Web UI
 
 Toby includes a local **web UI** for browsing your sessions and memories and for viewing and editing your configuration in a browser. It is served by the background **daemon** and runs entirely on your machine.
 
-The web UI is one of Toby's local app surfaces. It calls the same daemon
-localhost API that powers Toby.app, while the CLI can run the core harness
-directly and start the daemon when a server-backed surface is needed.
+The web UI is one of Toby's local app surfaces, alongside the terminal CLI and the native macOS app. It calls the same daemon localhost API that powers Toby.app, while the CLI can run the core harness directly and start the daemon when a server-backed surface is needed.
 
 ## Open it with `/web`
 

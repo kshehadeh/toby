@@ -11,7 +11,7 @@ After you [set up AI](./setup-ai) and [connect at least one integration](./confi
 toby chat
 ```
 
-Bare `toby` (no subcommand) also opens chat.
+Bare `toby` (no subcommand) also opens chat. On macOS, you can also start chatting from the native **Toby.app** once it is installed.
 
 ## Command-line syntax
 

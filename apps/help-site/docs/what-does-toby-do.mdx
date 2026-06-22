@@ -7,7 +7,7 @@ import FeatureHeading from "@site/src/components/FeatureHeading";
 
 # What Does Toby Do?
 
-Toby is a personal AI assistant that connects to the tools and systems you already use. Here is what it can do for you.
+Toby is a personal AI assistant that connects to the tools and systems you already use. Chat from the terminal, the local web UI, or the native macOS app. Here is what it can do for you.
 
 <FeatureHeading icon="bot" tone="ai" title="Context-aware AI support" />
 
@@ -19,7 +19,11 @@ On macOS, Toby can record microphone input and system audio output, then produce
 
 <FeatureHeading icon="message" tone="chat" title="Chat where you already work" />
 
-Toby integrates with chat apps like Slack so you can talk to your assistant in interfaces that feel familiar. Mention Toby in a channel or DM and it responds in thread, using the same personas, skills, and memories as the CLI. See [Slack](./integrations/slack) for setup.
+Toby integrates with chat apps like Slack so you can talk to your assistant in interfaces that feel familiar. Mention Toby in a channel or DM and it responds in thread, using the same personas, skills, and memories as the terminal and the native app. See [Slack](./integrations/slack) for setup.
+
+<FeatureHeading icon="app" tone="macos" title="Native macOS app" />
+
+On macOS, the native **Toby.app** gives you a SwiftUI chat and configuration surface. It starts the daemon when needed, then uses the same localhost API as the web UI for sessions, streaming chat turns, and configuration. It also hosts the native API server for permission-gated work such as Calendar and Accessibility. See [Toby.app](./toby-app).
 
 <FeatureHeading icon="apple" tone="macos" title="Deep macOS integration" />
 
@@ -29,9 +33,9 @@ Toby is built for the Mac. It can control system settings and UI elements on you
 
 You can schedule actions to run at regular intervals. A schedule runs a prompt with a chosen persona on a cron timetable—for example, summarize your email every morning and post the result to Slack or anywhere else Toby can reach. See [Schedules](./schedules).
 
-<FeatureHeading icon="config" tone="config" title="Web and command-line configuration" />
+<FeatureHeading icon="config" tone="config" title="Configuration in the terminal, browser, or native app" />
 
-Configure your assistant from the terminal with `toby config` and related commands, or use the local [web UI](./web-ui) served by the daemon to browse sessions, memories, and settings in a browser. Both surfaces edit the same configuration under `~/.toby/`.
+Configure your assistant from the terminal with `toby config` and related commands, use the local [web UI](./web-ui) served by the daemon to browse sessions, memories, and settings in a browser, or open the [Toby.app](./toby-app) setup guides for each integration on macOS. All surfaces edit the same configuration under `~/.toby/`.
 
 <FeatureHeading icon="persona" tone="persona" title="Personas" />
 

@@ -53,10 +53,7 @@ export default function Home(): React.JSX.Element {
 	const logoUrl = useBaseUrl("/img/256x256.png");
 
 	return (
-		<Layout
-			title="Toby documentation"
-			description="Documentation for Toby CLI."
-		>
+		<Layout title="Toby documentation" description="Documentation for Toby.">
 			<main className={styles.page}>
 				<img
 					src={logoUrl}
@@ -68,8 +65,9 @@ export default function Home(): React.JSX.Element {
 				<span className={styles.eyebrow}>Documentation</span>
 				<h1 className={styles.title}>Toby Documentation</h1>
 				<p className={styles.lead}>
-					Toby is an AI-assisted CLI for organizing and summarizing work across
-					Gmail, Todoist, Slack, Azure AD, and Apple Calendar.
+					Toby is an AI assistant for organizing and summarizing work across
+					Gmail, Todoist, Slack, Azure AD, and Apple Calendar. Chat from the
+					terminal, a local web UI, or the native macOS app.
 				</p>
 				<p className={styles.lead}>
 					New here? Read{" "}

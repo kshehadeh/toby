@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+	AppWindow,
 	Apple,
 	ArrowRight,
 	Bot,
@@ -12,6 +13,7 @@ import {
 import type React from "react";
 
 const icons = {
+	app: AppWindow,
 	bot: Bot,
 	mic: Mic,
 	message: MessageSquare,
