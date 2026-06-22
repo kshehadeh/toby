@@ -1,9 +1,10 @@
+import AppKit
 import AVFoundation
 import SwiftUI
 
 struct RecordingsView: View {
 	@Bindable var store: RecordingsStore
-	@State private var pendingDeleteRecording: ListenRecordingSummary?
+	@State private var pendingDeleteRecordingIds: Set<String> = []
 	@State private var isDeleteAlertPresented = false
 
 	var body: some View {
@@ -12,7 +13,7 @@ struct RecordingsView: View {
 				.navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 300)
 				.toolbar(removing: .sidebarToggle)
 		} detail: {
-			RecordingsDetailView(store: store, onDeleteRecording: confirmDelete)
+			RecordingsDetailView(store: store, onDeleteSelectedRecordings: confirmDeleteSelected)
 		}
 		.toolbarBackground(.visible)
 		.frame(minWidth: 860, minHeight: 560)
@@ -21,24 +22,33 @@ struct RecordingsView: View {
 			await store.load()
 		}
 		.alert(
-			"Delete Recording?",
+			"Delete \(pendingDeleteRecordingIds.count == 1 ? "Recording" : "Recordings")?",
 			isPresented: $isDeleteAlertPresented,
-			presenting: pendingDeleteRecording,
-		) { recording in
+			presenting: pendingDeleteRecordingIds,
+		) { ids in
 			Button("Cancel", role: .cancel) {
-				pendingDeleteRecording = nil
+				pendingDeleteRecordingIds = []
 			}
 			Button("Delete", role: .destructive) {
-				pendingDeleteRecording = nil
-				Task { await store.deleteRecording(id: recording.id) }
+				pendingDeleteRecordingIds = []
+				Task { await store.deleteRecordings(ids: Array(ids)) }
 			}
-		} message: { recording in
-			Text("Are you sure you want to delete \"\(recordingSidebarTitle(recording))\"? This cannot be undone.")
+		} message: { ids in
+			if ids.count == 1, let id = ids.first, let recording = store.recordings.first(where: { $0.id == id }) {
+				Text("Are you sure you want to delete \"\(recordingSidebarTitle(recording))\"? This cannot be undone.")
+			} else {
+				Text("Are you sure you want to delete \(ids.count) recordings? This cannot be undone.")
+			}
 		}
 	}
 
 	private func confirmDelete(_ recording: ListenRecordingSummary) {
-		pendingDeleteRecording = recording
+		pendingDeleteRecordingIds = [recording.id]
+		isDeleteAlertPresented = true
+	}
+
+	private func confirmDeleteSelected() {
+		pendingDeleteRecordingIds = Set(store.selectedRecordings.map(\.id))
 		isDeleteAlertPresented = true
 	}
 }
@@ -63,11 +73,12 @@ private struct RecordingsSidebarView: View {
 				} else {
 					ForEach(store.recordings) { recording in
 						Button {
-							Task { await store.selectRecording(id: recording.id) }
+							let holdingCommand = NSApp.currentEvent?.modifierFlags.contains(.command) ?? false
+							Task { await store.selectRecording(id: recording.id, holdingCommand: holdingCommand) }
 						} label: {
 							RecordingSidebarRow(
 								recording: recording,
-								isSelected: recording.id == store.selectedRecordingId,
+								isSelected: store.selectedRecordingIds.contains(recording.id),
 							)
 						}
 						.buttonStyle(.plain)
@@ -119,16 +130,20 @@ private struct RecordingSidebarRow: View {
 
 private struct RecordingsDetailView: View {
 	@Bindable var store: RecordingsStore
-	let onDeleteRecording: (ListenRecordingSummary) -> Void
+	let onDeleteSelectedRecordings: () -> Void
 
 	var body: some View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 20) {
-				if store.isDetailLoading && store.detail == nil {
+				if store.isDetailLoading && store.selectedRecordings.count == 1 && store.detail == nil {
 					ProgressView("Loading recording...")
 						.frame(maxWidth: .infinity, minHeight: 240)
-				} else if let detail = store.detail {
-					RecordingDetailContent(detail: detail)
+				} else if !store.selectedRecordings.isEmpty {
+					if store.selectedRecordings.count == 1, let detail = store.detail {
+						RecordingDetailContent(detail: detail)
+					} else {
+						SelectedRecordingsDeck(recordings: store.selectedRecordings)
+					}
 				} else if let errorMessage = store.errorMessage {
 					ContentUnavailableView {
 						Label("Recordings unavailable", systemImage: "exclamationmark.triangle")
@@ -140,7 +155,7 @@ private struct RecordingsDetailView: View {
 						.foregroundStyle(SettingsDesign.rowDescription)
 				}
 
-				if let errorMessage = store.errorMessage, store.detail != nil {
+				if let errorMessage = store.errorMessage, !store.selectedRecordings.isEmpty {
 					Text(errorMessage)
 						.font(.caption)
 						.foregroundStyle(.red)
@@ -154,16 +169,24 @@ private struct RecordingsDetailView: View {
 		.background(SettingsDesign.canvasBackground)
 		.toolbar {
 			ToolbarItem(placement: .primaryAction) {
-				if let recording = store.selectedRecording {
-					Button("Delete Recording", systemImage: "trash", role: .destructive) {
-						onDeleteRecording(recording)
+				if !store.selectedRecordings.isEmpty {
+					Button(deleteButtonTitle, systemImage: "trash", role: .destructive) {
+						onDeleteSelectedRecordings()
 					}
 					.buttonStyle(.borderedProminent)
 					.tint(.red)
-					.disabled(store.deletingRecordingId != nil)
+					.disabled(store.isDeletingSelection)
+					.accessibilityIdentifier("delete-recordings-button")
 				}
 			}
 		}
+	}
+
+	private var deleteButtonTitle: String {
+		if store.selectedRecordings.count == 1 {
+			return "Delete Recording"
+		}
+		return "Delete \(store.selectedRecordings.count) Recordings"
 	}
 }
 
@@ -365,6 +388,62 @@ private final class RecordingAudioPlayer {
 		isPlaying = false
 		currentTime = 0
 		duration = 0
+	}
+}
+
+private struct SelectedRecordingsDeck: View {
+	let recordings: [ListenRecordingSummary]
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 16) {
+			Text("\(recordings.count) recordings selected")
+				.font(.title3.weight(.semibold))
+				.foregroundStyle(AppTheme.primaryText)
+
+			if recordings.count <= 5 {
+				ZStack(alignment: .topLeading) {
+					ForEach(Array(recordings.enumerated()), id: \.element.id) { index, recording in
+						RecordingSelectionCard(recording: recording)
+							.offset(x: CGFloat(index) * 16, y: CGFloat(index) * 12)
+							.zIndex(Double(index))
+					}
+				}
+				.frame(minHeight: 160)
+			} else {
+				ScrollView(.horizontal, showsIndicators: false) {
+					HStack(spacing: 12) {
+						ForEach(recordings) { recording in
+							RecordingSelectionCard(recording: recording)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+private struct RecordingSelectionCard: View {
+	let recording: ListenRecordingSummary
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 8) {
+			HStack(spacing: 8) {
+				Image(systemName: recording.hasTranscript ? "doc.text" : "waveform")
+				Text(recordingSidebarTitle(recording))
+					.lineLimit(1)
+			}
+			Text(recordingSummary(recording))
+				.font(.caption)
+				.foregroundStyle(AppTheme.secondaryText)
+		}
+		.padding(12)
+		.frame(width: 240, alignment: .leading)
+		.background(SettingsDesign.cardBackground)
+		.clipShape(RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius))
+		.overlay {
+			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
+				.stroke(SettingsDesign.cardBorder, lineWidth: 1)
+		}
 	}
 }
 

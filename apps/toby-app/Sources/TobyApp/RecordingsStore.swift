@@ -4,17 +4,21 @@ import Observation
 @MainActor
 final class RecordingsStore {
 	var recordings: [ListenRecordingSummary] = []
-	var selectedRecordingId: String?
+	var selectedRecordingIds: Set<String> = []
 	var detail: ListenRecordingDetail?
 	var isLoading = false
 	var isDetailLoading = false
-	var deletingRecordingId: String?
+	var isDeletingSelection = false
 	var errorMessage: String?
 	private let client = TobyClient()
 
 	var selectedRecording: ListenRecordingSummary? {
-		guard let selectedRecordingId else { return nil }
-		return recordings.first { $0.id == selectedRecordingId }
+		guard selectedRecordingIds.count == 1, let id = selectedRecordingIds.first else { return nil }
+		return recordings.first { $0.id == id }
+	}
+
+	var selectedRecordings: [ListenRecordingSummary] {
+		recordings.filter { selectedRecordingIds.contains($0.id) }
 	}
 
 	func load() async {
@@ -23,21 +27,34 @@ final class RecordingsStore {
 		defer { isLoading = false }
 		do {
 			recordings = try await client.listRecordings()
-			if selectedRecordingId == nil || !recordings.contains(where: { $0.id == selectedRecordingId }) {
-				selectedRecordingId = recordings.first?.id
+			selectedRecordingIds = selectedRecordingIds.intersection(Set(recordings.map(\.id)))
+			if selectedRecordingIds.isEmpty {
+				selectedRecordingIds = Set(recordings.prefix(1).map(\.id))
 			}
-			if let selectedRecordingId {
-				await selectRecording(id: selectedRecordingId)
-			} else {
-				detail = nil
-			}
+			await loadDetailIfNeeded()
 		} catch {
 			errorMessage = error.localizedDescription
 		}
 	}
 
-	func selectRecording(id: String) async {
-		selectedRecordingId = id
+	func selectRecording(id: String, holdingCommand: Bool = false) async {
+		if holdingCommand {
+			if selectedRecordingIds.contains(id) {
+				selectedRecordingIds.remove(id)
+			} else {
+				selectedRecordingIds.insert(id)
+			}
+		} else {
+			selectedRecordingIds = [id]
+		}
+		await loadDetailIfNeeded()
+	}
+
+	private func loadDetailIfNeeded() async {
+		guard selectedRecordingIds.count == 1, let id = selectedRecordingIds.first else {
+			detail = nil
+			return
+		}
 		isDetailLoading = true
 		errorMessage = nil
 		defer { isDetailLoading = false }
@@ -49,21 +66,21 @@ final class RecordingsStore {
 	}
 
 	func deleteRecording(id: String) async {
-		guard deletingRecordingId == nil else { return }
-		deletingRecordingId = id
+		await deleteRecordings(ids: [id])
+	}
+
+	func deleteRecordings(ids: [String]) async {
+		guard !ids.isEmpty, !isDeletingSelection else { return }
+		isDeletingSelection = true
 		errorMessage = nil
-		defer { deletingRecordingId = nil }
-
+		defer { isDeletingSelection = false }
 		do {
-			try await client.deleteRecording(id: id)
-			recordings = try await client.listRecordings()
-
-			guard selectedRecordingId == id else { return }
-			selectedRecordingId = recordings.first?.id
-			detail = nil
-			if let selectedRecordingId {
-				await selectRecording(id: selectedRecordingId)
+			for id in ids {
+				try await client.deleteRecording(id: id)
 			}
+			recordings = try await client.listRecordings()
+			selectedRecordingIds = Set(recordings.prefix(1).map(\.id))
+			await loadDetailIfNeeded()
 		} catch {
 			errorMessage = error.localizedDescription
 		}
