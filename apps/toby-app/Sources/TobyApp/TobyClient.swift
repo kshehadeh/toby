@@ -131,6 +131,17 @@ struct TobyClient {
 		try validate(response: response, data: data)
 	}
 
+	func parseCronExpression(input: String) async throws -> String {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/schedules/parse-cron"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = try JSONEncoder().encode(["input": input])
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		struct Payload: Decodable { let cronExpression: String }
+		return try JSONDecoder().decode(Payload.self, from: data).cronExpression
+	}
+
 	func transcribeRecording(id: String) async throws -> ListenRecordingDetail {
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)/transcribe"))
 		request.httpMethod = "POST"

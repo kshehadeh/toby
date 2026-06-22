@@ -59,6 +59,8 @@ final class SchedulesStore {
 	var isSaving = false
 	var deletingScheduleId: String?
 	var runningScheduleId: String?
+	var parsingCronScheduleId: String?
+	var cronValidationErrors: [String: String] = [:]
 	var errorMessage: String?
 	var pendingDelete: PendingDelete?
 
@@ -209,6 +211,45 @@ final class SchedulesStore {
 		let id = pendingDelete.scheduleId
 		self.pendingDelete = nil
 		await deleteSchedule(id: id)
+	}
+
+	func parseCron(for scheduleId: String) async {
+		guard parsingCronScheduleId == nil else { return }
+		let key = key(for: scheduleId, field: .cron)
+		let value = self.value(for: key)
+		guard !value.isEmpty else { return }
+		parsingCronScheduleId = scheduleId
+		errorMessage = nil
+		cronValidationErrors[scheduleId] = nil
+		defer { parsingCronScheduleId = nil }
+		do {
+			let converted = try await client.parseCronExpression(input: value)
+			setDraftValue(key, converted)
+			await save()
+			cronValidationErrors[scheduleId] = nil
+		} catch {
+			cronValidationErrors[scheduleId] = "Could not interpret schedule expression: \(error.localizedDescription)"
+		}
+	}
+
+	func validateCronOnBlur(for scheduleId: String) {
+		let key = key(for: scheduleId, field: .cron)
+		let value = self.value(for: key)
+		guard !value.isEmpty else {
+			cronValidationErrors[scheduleId] = nil
+			return
+		}
+		cronValidationErrors[scheduleId] = Self.isValidCronExpression(value) ? nil : "Not a valid cron expression."
+	}
+
+	func isCronValid(for scheduleId: String) -> Bool {
+		let value = self.value(for: key(for: scheduleId, field: .cron))
+		return !value.isEmpty && Self.isValidCronExpression(value)
+	}
+
+	private static func isValidCronExpression(_ expression: String) -> Bool {
+		let pattern = #"^[\d\*,\-\/\?LW#A-Za-z]+( [\d\*,\-\/\?LW#A-Za-z]+){4}$"#
+		return expression.range(of: pattern, options: .regularExpression) != nil
 	}
 
 	func value(for key: String) -> String {

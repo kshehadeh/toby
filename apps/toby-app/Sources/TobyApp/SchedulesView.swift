@@ -232,6 +232,7 @@ private struct SchedulesDetailView: View {
 private struct ScheduleDetailContent: View {
 	@Bindable var store: SchedulesStore
 	let schedule: ScheduleViewModel
+	@FocusState private var isCronFieldFocused: Bool
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 24) {
@@ -245,8 +246,73 @@ private struct ScheduleDetailContent: View {
 					ScheduleFieldRow(title: "Persona") {
 						personaMenu
 					}
-					ScheduleFieldRow(title: "Schedule") {
-						SettingsInlineField(text: binding(for: .cron), placeholder: "0 9 * * *")
+					ScheduleFieldRow(
+						title: "Schedule",
+						descriptionView: AnyView(
+							VStack(alignment: .leading, spacing: 2) {
+								Text("Accepts a cron expression or a plain-language description like “every weekday at 9am”.")
+								Link("Learn how to write a crontab", destination: URL(string: "https://crontab.guru")!)
+									.foregroundStyle(AppTheme.accent)
+							}
+							.font(.subheadline)
+							.foregroundStyle(SettingsDesign.rowDescription)
+						),
+						error: store.cronValidationErrors[schedule.id]
+					) {
+						let cronBinding = binding(for: .cron)
+						let isParsing = store.parsingCronScheduleId == schedule.id
+						let isCronValid = store.isCronValid(for: schedule.id)
+						HStack(spacing: 8) {
+							SettingsInlineField(text: cronBinding, placeholder: "0 9 * * *")
+								.disabled(isParsing)
+								.focused($isCronFieldFocused)
+							Button {
+								Task { await store.parseCron(for: schedule.id) }
+							} label: {
+								if isParsing {
+									ProgressView()
+										.controlSize(.small)
+										.frame(width: 80, height: 24)
+								} else if isCronValid {
+									HStack(spacing: 4) {
+										Image(systemName: "checkmark.circle.fill")
+										Text("Valid")
+									}
+									.font(.caption.weight(.semibold))
+									.foregroundStyle(.green)
+									.padding(.horizontal, 8)
+									.padding(.vertical, 4)
+									.background(.green.opacity(0.1))
+									.clipShape(Capsule())
+									.overlay(Capsule().stroke(.green, lineWidth: 1))
+								} else {
+									HStack(spacing: 4) {
+										Image(systemName: "sparkles")
+										Text("Convert")
+									}
+									.font(.caption.weight(.semibold))
+									.foregroundStyle(.orange)
+									.padding(.horizontal, 8)
+									.padding(.vertical, 4)
+									.background(.orange.opacity(0.1))
+									.clipShape(Capsule())
+									.overlay(Capsule().stroke(.orange, lineWidth: 1))
+								}
+							}
+							.buttonStyle(.plain)
+							.disabled(isParsing || cronBinding.wrappedValue.isEmpty || isCronValid)
+							.help(
+								cronBinding.wrappedValue.isEmpty
+									? "Enter a schedule expression"
+									: isCronValid ? "Valid crontab" : "Convert to valid crontab"
+							)
+							.accessibilityIdentifier("validate-schedule-button")
+						}
+						.onChange(of: isCronFieldFocused) { _, isFocused in
+							if !isFocused {
+								store.validateCronOnBlur(for: schedule.id)
+							}
+						}
 					}
 				}
 			}
@@ -450,6 +516,8 @@ private struct ScheduleSection<Content: View>: View {
 private struct ScheduleFieldRow<Control: View>: View {
 	let title: String
 	var description: String?
+	var descriptionView: AnyView?
+	var error: String?
 	var showsDivider: Bool = true
 	@ViewBuilder let control: Control
 
@@ -460,10 +528,18 @@ private struct ScheduleFieldRow<Control: View>: View {
 					Text(title)
 						.font(.body)
 						.foregroundStyle(SettingsDesign.rowTitle)
-					if let description, !description.isEmpty {
+					if let descriptionView {
+						descriptionView
+					} else if let description, !description.isEmpty {
 						Text(description)
 							.font(.subheadline)
 							.foregroundStyle(SettingsDesign.rowDescription)
+							.fixedSize(horizontal: false, vertical: true)
+					}
+					if let error, !error.isEmpty {
+						Text(error)
+							.font(.subheadline)
+							.foregroundStyle(.red)
 							.fixedSize(horizontal: false, vertical: true)
 					}
 				}

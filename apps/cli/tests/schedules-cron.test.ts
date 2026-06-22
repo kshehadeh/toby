@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { shouldRun } from "../src/schedules/cron";
+import { humanToCronAsync, shouldRun } from "../src/schedules/cron";
 
 describe("shouldRun", () => {
 	beforeEach(() => {
@@ -48,5 +48,18 @@ describe("shouldRun", () => {
 		expect(shouldRun("not a cron", null, "2026-05-01T00:00:00.000Z")).toBe(
 			false,
 		);
+	});
+});
+
+describe("humanToCronAsync", () => {
+	it("returns valid cron expressions unchanged", async () => {
+		expect(await humanToCronAsync("0 9 * * *")).toBe("0 9 * * *");
+	});
+
+	it("converts common natural language patterns", async () => {
+		expect(await humanToCronAsync("every weekday at 9am")).toBe("0 9 * * 1-5");
+		expect(await humanToCronAsync("every day at 5pm")).toBe("0 17 * * *");
+		expect(await humanToCronAsync("hourly")).toBe("0 * * * *");
+		expect(await humanToCronAsync("daily")).toBe("0 9 * * *");
 	});
 });

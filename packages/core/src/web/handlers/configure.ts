@@ -16,6 +16,7 @@ import type { SettingsItem } from "../../configure/types";
 import { getIntegrationModules } from "../../integrations/index";
 import { daemonLog } from "../../logging/daemon-log";
 import { DEFAULT_CHAT_PERSONA } from "../../personas/index";
+import { humanToCronAsync } from "../../schedules/cron-parser";
 import {
 	createScheduleRunForExecution,
 	executeScheduleRun,
@@ -243,4 +244,18 @@ export function handleScheduleRunDetail(runId: string): Response {
 			transcript,
 		},
 	});
+}
+
+export async function handleParseCron(req: Request): Promise<Response> {
+	const body = await readJsonBody<{ input?: string }>(req);
+	const input = body?.input?.trim();
+	if (!input) {
+		return errorResponse("input is required");
+	}
+	try {
+		const cronExpression = await humanToCronAsync(input);
+		return jsonResponse({ cronExpression });
+	} catch (e) {
+		return errorResponse(e instanceof Error ? e.message : String(e), 400);
+	}
 }

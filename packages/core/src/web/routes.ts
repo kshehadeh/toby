@@ -16,6 +16,7 @@ import {
 	handleConfigureAction,
 	handleConfigurePatch,
 	handleConfigureTree,
+	handleParseCron,
 	handleScheduleRunDetail,
 } from "./handlers/configure";
 import {
@@ -268,6 +269,9 @@ export async function handleWebRequest(
 		const scheduleRunMatch = /^\/api\/schedules\/runs\/([^/]+)$/.exec(pathname);
 		if (scheduleRunMatch && req.method === "GET") {
 			return handleScheduleRunDetail(decodeURIComponent(scheduleRunMatch[1]));
+		}
+		if (pathname === "/api/schedules/parse-cron" && req.method === "POST") {
+			return handleParseCron(req);
 		}
 		const integrationStatusMatch =
 			/^\/api\/integrations\/([^/]+)\/status$/.exec(pathname);
