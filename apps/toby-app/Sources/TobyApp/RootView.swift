@@ -26,9 +26,6 @@ struct RootView: View {
                 daemonStatus: store.daemonStatus,
                 isLoading: store.isLoading,
                 isSessionsLoading: store.isSessionsLoading,
-                isRecording: store.isRecordingActive,
-                isRecordDisabled: store.isRecordButtonDisabled,
-                onToggleRecording: toggleRecording,
                 onSelectSession: selectSession,
                 onDeleteSession: { pendingDeleteSession = $0 },
                 onOpenSettings: openSettings,
@@ -61,6 +58,15 @@ struct RootView: View {
                     }
                     .help("Search")
                     .accessibilityLabel("Search")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(action: toggleRecording) {
+                        Image(systemName: store.isRecordingActive ? "stop.circle" : "record.circle")
+                            .foregroundStyle(store.isRecordingActive ? .red : .primary)
+                    }
+                    .help(store.isRecordingActive ? "Stop Recording" : "Record Audio")
+                    .accessibilityLabel(store.isRecordingActive ? "Stop Recording" : "Record Audio")
+                    .disabled(store.isRecordButtonDisabled)
                 }
             }
         } detail: {

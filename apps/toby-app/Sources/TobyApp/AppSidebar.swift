@@ -8,9 +8,6 @@ struct AppSidebar: View {
 	let daemonStatus: DaemonStatus?
 	let isLoading: Bool
 	let isSessionsLoading: Bool
-	let isRecording: Bool
-	let isRecordDisabled: Bool
-	let onToggleRecording: () -> Void
 	let onSelectSession: (String) -> Void
 	let onDeleteSession: (SessionSummary) -> Void
 	let onOpenSettings: (String?) -> Void
@@ -27,12 +24,6 @@ struct AppSidebar: View {
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
 			SidebarHeader(status: status, daemonStatus: daemonStatus, onOpenChangelog: onOpenChangelog)
-			SidebarPrimaryActions(
-				onToggleRecording: onToggleRecording,
-				isLoading: isLoading,
-				isRecording: isRecording,
-				isRecordDisabled: isRecordDisabled,
-			)
 			SidebarSection(title: "Chats") {
 				if isSessionsLoading && sessions.isEmpty {
 					Text("Loading sessions…")
@@ -452,60 +443,6 @@ private struct CollapsibleSkillsList: View {
 				.padding(.leading, 8)
 				.padding(.top, 2)
 			}
-		}
-	}
-}
-
-private struct SidebarPrimaryActions: View {
-	let onToggleRecording: () -> Void
-	let isLoading: Bool
-	let isRecording: Bool
-	let isRecordDisabled: Bool
-
-	var body: some View {
-		VStack(alignment: .leading, spacing: 4) {
-			Button(action: onToggleRecording) {
-				HStack(spacing: 8) {
-					if isRecording {
-						RecordingPulseIcon()
-					} else {
-						Image(systemName: "record.circle")
-							.accessibilityLabel("Record")
-							.frame(width: 16, height: 16)
-					}
-					Text(isRecording ? "Stop Recording" : "Record Audio")
-					Spacer(minLength: 0)
-				}
-				.frame(maxWidth: .infinity, alignment: .leading)
-				.contentShape(Rectangle())
-			}
-			.buttonStyle(SidebarButtonStyle())
-			.disabled(isRecordDisabled)
-		}
-		.padding(.bottom, 14)
-	}
-}
-
-private struct RecordingPulseIcon: View {
-	@State private var pulse = false
-
-	var body: some View {
-		ZStack {
-			Circle()
-				.fill(Color.red.opacity(pulse ? 0.18 : 0.08))
-				.frame(width: pulse ? 16 : 10, height: pulse ? 16 : 10)
-			Circle()
-				.fill(Color.red)
-				.frame(width: 8, height: 8)
-		}
-		.frame(width: 16, height: 16)
-		.onAppear {
-			withAnimation(.easeInOut(duration: 0.75).repeatForever(autoreverses: true)) {
-				pulse = true
-			}
-		}
-		.onDisappear {
-			pulse = false
 		}
 	}
 }

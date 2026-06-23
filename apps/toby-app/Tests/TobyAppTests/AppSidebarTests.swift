@@ -14,9 +14,6 @@ struct AppSidebarTests {
             daemonStatus: nil,
             isLoading: false,
             isSessionsLoading: false,
-            isRecording: false,
-            isRecordDisabled: false,
-            onToggleRecording: {},
             onSelectSession: { _ in },
             onDeleteSession: { _ in },
             onOpenSettings: { _ in },
@@ -51,7 +48,7 @@ struct AppSidebarTests {
         let view = makeSidebar(sessions: sessions)
         // Sessions are rendered inside a ScrollView > VStack > ForEach
         let buttons = try view.inspect().findAll(ViewType.Button.self)
-        // Buttons: changelog header + record + session×2 + integrations + schedules + recordings + settings + persona
+        // Buttons: changelog header + session×2 + integrations + schedules + recordings + settings + persona
         let sessionButtons = buttons.filter { btn in
             guard let label = try? btn.labelView().find(ViewType.Text.self),
                   let text = try? label.string() else { return false }
@@ -71,9 +68,6 @@ struct AppSidebarTests {
             daemonStatus: nil,
             isLoading: false,
             isSessionsLoading: false,
-            isRecording: false,
-            isRecordDisabled: false,
-            onToggleRecording: {},
             onSelectSession: { selectedId = $0 },
             onDeleteSession: { _ in },
             onOpenSettings: { _ in },
