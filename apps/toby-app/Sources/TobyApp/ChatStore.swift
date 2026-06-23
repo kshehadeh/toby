@@ -248,6 +248,7 @@ final class ChatStore {
 			activityLine = "Ready"
 			stopExternalSessionRefreshLoop()
 			await refreshSessions()
+			focusPrompt()
 		} catch {
 			errorMessage = error.localizedDescription
 		}
