@@ -2,15 +2,16 @@ import SwiftUI
 
 struct ConfigureView: View {
 	@Bindable var store: ConfigureStore
+	@State private var columnVisibility: NavigationSplitViewVisibility = .all
 
 	var body: some View {
-		NavigationSplitView {
+		NavigationSplitView(columnVisibility: $columnVisibility) {
 			ConfigureSidebarView(store: store)
-				.navigationSplitViewColumnWidth(min: 240, ideal: 240, max: 240)
-				.toolbar(removing: .sidebarToggle)
+				.navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 300)
 		} detail: {
 			ConfigureDetailView(store: store)
 		}
+		.toolbarBackground(.visible)
 		.frame(minWidth: 860, minHeight: 560)
 		.background(SettingsDesign.canvasBackground)
 		.task {
@@ -61,7 +62,7 @@ private struct ConfigureSidebarView: View {
 			.frame(maxWidth: .infinity, alignment: .leading)
 			.padding(10)
 		}
-		.background(AppTheme.sidebarBackground)
+		.background(SettingsDesign.canvasBackground)
 	}
 }
 
