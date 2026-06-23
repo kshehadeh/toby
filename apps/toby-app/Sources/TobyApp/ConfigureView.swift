@@ -6,7 +6,8 @@ struct ConfigureView: View {
 	var body: some View {
 		NavigationSplitView {
 			ConfigureSidebarView(store: store)
-				.navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 280)
+				.navigationSplitViewColumnWidth(min: 240, ideal: 240, max: 240)
+				.toolbar(removing: .sidebarToggle)
 		} detail: {
 			ConfigureDetailView(store: store)
 		}

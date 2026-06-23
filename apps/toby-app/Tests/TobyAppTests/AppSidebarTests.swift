@@ -30,6 +30,12 @@ struct AppSidebarTests {
         )
     }
 
+    @Test("renders Chats section header")
+    func rendersChatsHeader() throws {
+        let view = makeSidebar(sessions: [])
+        #expect(throws: Never.self) { try view.inspect().find(text: "Chats") }
+    }
+
     @Test("empty sessions shows placeholder text")
     func emptySessionsShowsPlaceholder() throws {
         let view = makeSidebar(sessions: [])

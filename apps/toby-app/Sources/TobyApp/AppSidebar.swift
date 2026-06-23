@@ -33,7 +33,7 @@ struct AppSidebar: View {
 				isRecording: isRecording,
 				isRecordDisabled: isRecordDisabled,
 			)
-			SidebarSection(title: "Workspace") {
+			SidebarSection(title: "Chats") {
 				if isSessionsLoading && sessions.isEmpty {
 					Text("Loading sessions…")
 						.font(.caption)
