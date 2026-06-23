@@ -45,6 +45,30 @@ struct RecordingsViewTests {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "delete-recordings-button")
 		}
 	}
+
+	@Test("recordings detail shows copy transcript button when transcript is present")
+	func recordingsDetailShowsCopyTranscriptButton() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello world transcript")
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "copy-transcript-button")
+		}
+	}
+
+	@Test("recordings detail hides copy transcript button when transcript is absent")
+	func recordingsDetailHidesCopyTranscriptButtonWhenAbsent() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: nil)
+		let view = RecordingsView(store: store)
+		#expect(throws: Error.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "copy-transcript-button")
+		}
+	}
 }
 
 private func makeRecording(id: String, name: String? = nil) -> ListenRecordingSummary {
@@ -60,5 +84,29 @@ private func makeRecording(id: String, name: String? = nil) -> ListenRecordingSu
 		sources: ListenSourceSelection(mic: true, system: false),
 		hasAudio: true,
 		hasTranscript: false
+	)
+}
+
+private func makeRecordingDetail(id: String, transcript: String?) -> ListenRecordingDetail {
+	ListenRecordingDetail(
+		id: id,
+		dir: "/tmp/\(id)",
+		metadata: ListenRecordingMetadata(
+			id: id,
+			name: nil,
+			description: nil,
+			createdAt: "2026-06-22T10:00:00Z",
+			startedAt: "2026-06-22T10:00:00Z",
+			stoppedAt: nil,
+			durationMs: 60000,
+			sources: ListenSourceSelection(mic: true, system: false),
+			errors: nil
+		),
+		hasAudio: false,
+		audioPath: nil,
+		hasTranscript: transcript != nil,
+		transcript: transcript,
+		transcriptError: nil,
+		warnings: nil
 	)
 }

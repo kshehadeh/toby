@@ -227,6 +227,16 @@ private struct RecordingDetailContent: View {
 					.frame(maxWidth: .infinity, alignment: .leading)
 					.padding(SettingsDesign.rowHorizontalPadding)
 			}
+			.overlay(alignment: .topTrailing) {
+				if let transcript = detail.transcript,
+				   !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+				{
+					CopyButton(text: transcript, label: "Copy transcript")
+						.accessibilityIdentifier("copy-transcript-button")
+						.padding(.top, 6)
+						.padding(.trailing, 8)
+				}
+			}
 
 			if !visibleErrors.isEmpty {
 				SettingsSectionHeader(title: "Errors")

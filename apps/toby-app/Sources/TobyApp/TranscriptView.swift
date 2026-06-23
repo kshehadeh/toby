@@ -550,35 +550,6 @@ private struct AskUserQARow: View {
 	}
 }
 
-private struct CopyButton: View {
-	let text: String
-	let label: String
-	@State private var didCopy = false
-
-	var body: some View {
-		Button {
-			copyToClipboard()
-		} label: {
-			Image(systemName: didCopy ? "checkmark" : "square.on.square")
-				.font(.caption)
-		}
-		.buttonStyle(.plain)
-		.foregroundStyle(didCopy ? AppTheme.accent : AppTheme.tertiaryText)
-		.help(didCopy ? "Copied" : label)
-		.accessibilityLabel(didCopy ? "Copied" : label)
-	}
-
-	private func copyToClipboard() {
-		let pasteboard = NSPasteboard.general
-		pasteboard.clearContents()
-		pasteboard.setString(text, forType: .string)
-		didCopy = true
-		DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-			didCopy = false
-		}
-	}
-}
-
 private struct NoticeRow: View {
 	let text: String
 	let tone: String?
