@@ -17,13 +17,21 @@ You are a SwiftUI macOS sidebar design specialist dedicated to the Toby native a
 - Action buttons, including a show/hide toggle when present, sit in the titlebar/toolbar at the same vertical level as the stoplights.
 - Canonical visual reference: macOS Shortcuts app sidebar, where the sidebar material extends behind the stoplights and the toolbar buttons on the right.
 
-## Behavior
+## Behavior — the Toby standard (apply to EVERY sidebar window)
 
-- **Resizable:** The sidebar width must be user-resizable with a sensible minimum width (`navigationSplitViewColumnWidth(min:ideal:max:)`) so content remains readable and the sidebar does not collapse to an unusable sliver.
-- **Hideable mode (preferred for Toby settings-style windows):** The sidebar can be fully hidden. Keep the system `.sidebarToggle` (do **not** remove it) so the toggle stays visible in the toolbar and the user can always restore the sidebar after hiding it. When hidden, the main content expands to fill the window.
-- **Non-hideable mode:** The sidebar is always visible. The toggle is removed.
+All Toby sidebar windows must use the **same** configuration so they behave identically:
 
-> **Do NOT fake non-hideable by forcing visibility back to `.all`.** Binding `columnVisibility` and reverting `.detailOnly` → `.all` in `.onChange` produces janky, "strange" drag behavior. If the sidebar must never disappear, prefer leaving the toggle in place (hideable) or, for a true always-on sidebar, remove the toggle and rely on the minimum column width.
+1. **Hideable via the system toggle.** Keep the system `.sidebarToggle` (do **not** call `.toolbar(removing: .sidebarToggle)`). The toggle stays visible so the user can always hide and restore the sidebar. Keeping the toggle also extends the sidebar material behind the stoplights, so a separate invisible toolbar item is NOT needed.
+2. **`columnVisibility` binding starting at `.all`.** Drive the split view with `@State private var columnVisibility: NavigationSplitViewVisibility = .all` so it opens expanded.
+3. **Fixed column width** via `.navigationSplitViewColumnWidth(AppTheme.sidebarWidth)` (a single value), NOT a `min/ideal/max` range.
+
+> **Why fixed width (no resize):** With a `min/ideal/max` range, `NavigationSplitView`'s reopen animation slides the sidebar to an internal default width and then snaps to your `min` at the very end of the animation (a visible "late jump", most noticeable when the `min` is larger than the default). A single fixed width has no range to reconcile, so the reveal animates smoothly straight to the target. The tradeoff is that the sidebar is no longer drag-resizable; this is the accepted Toby default. Achieving smooth animation **and** drag-resize would require a custom state-driven width with our own divider handle.
+
+> **Do NOT fake non-hideable by forcing visibility back to `.all`.** Binding `columnVisibility` and reverting `.detailOnly` → `.all` in `.onChange` produces janky, "strange" drag behavior. Rely on the visible toggle to restore the sidebar instead.
+
+### Canonical windows using this config
+
+`RootView` (main), `ConfigureView` (Settings), `IntegrationsView`, `SkillsView`, `SchedulesView`, `RecordingsView` — all use the three rules above.
 
 ## Reference
 
@@ -32,8 +40,8 @@ You are a SwiftUI macOS sidebar design specialist dedicated to the Toby native a
 
 ## Implementation notes
 
-- In SwiftUI, use `NavigationSplitView` with `navigationSplitViewColumnWidth(min:ideal:max:)` on the sidebar view and the appropriate window scene / toolbar configuration.
-- Place the show/hide toggle as a toolbar item at the same level as the window's leading and trailing controls.
+- In SwiftUI, use `NavigationSplitView(columnVisibility:)` with a **fixed** `navigationSplitViewColumnWidth(AppTheme.sidebarWidth)` on the sidebar view and the appropriate window scene / toolbar configuration.
+- Keep the system show/hide toggle; do not remove it.
 - Ensure the sidebar background renders behind the title bar, not below it (see "Extending the sidebar behind the stoplights").
 - Respect existing Toby conventions: AppTheme colors, `bun run test:swift` for validation, and tests in `apps/toby-app/Tests/TobyAppTests/`.
 
@@ -122,12 +130,11 @@ private struct ConfigureSidebarView: View {
 When implementing or reviewing a Toby sidebar window, confirm all of the following:
 
 1. **Material extends behind stoplights** — the sidebar fill reaches the top of the window, behind the traffic-light buttons (not below a title bar).
-2. **Correct toolbar setup for the chosen mode:**
-   - Hideable: `.sidebarToggle` is present (not removed); NO invisible toolbar item.
-   - Non-hideable: `.sidebarToggle` removed; exactly one invisible/disabled toolbar item added to the sidebar.
+2. **System `.sidebarToggle` is present** (not removed) and NO invisible toolbar item is added.
 3. **No stray empty button** in the toolbar (symptom of adding the invisible item while the toggle is also present).
-4. **Sidebar can always be restored** when hideable (toggle remains visible after hiding).
-5. **No forced `.onChange` visibility reverts** (`.detailOnly` → `.all`) — this causes janky drag behavior.
-6. **Resizable with a sensible minimum** via `navigationSplitViewColumnWidth(min:ideal:max:)`.
-7. **Backgrounds match** — sidebar `.background(...)` uses the same color constant as the detail view.
-8. **Tests pass** — run `bun run test:swift`; existing `ConfigureViewTests` / `IntegrationsView` tests should still verify the `NavigationSplitView` sidebar + detail structure.
+4. **`columnVisibility` binding** is wired and starts at `.all`.
+5. **Sidebar can always be restored** (toggle remains visible after hiding).
+6. **No forced `.onChange` visibility reverts** (`.detailOnly` → `.all`) — this causes janky drag behavior.
+7. **Fixed column width** via `.navigationSplitViewColumnWidth(AppTheme.sidebarWidth)` — NOT a `min/ideal/max` range (the range causes a late-jump snap on reopen).
+8. **Backgrounds match** — sidebar `.background(...)` uses the same color constant as the detail view.
+9. **Tests pass** — run `bun run test:swift`; existing `ConfigureViewTests` / `IntegrationsView` tests should still verify the `NavigationSplitView` sidebar + detail structure.
