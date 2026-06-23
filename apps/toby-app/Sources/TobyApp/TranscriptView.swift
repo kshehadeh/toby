@@ -434,36 +434,45 @@ private struct TranscriptRow: View {
 
 private struct UserMessageRow: View {
 	let text: String
+	private var isCopyable: Bool {
+		!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+	}
 
 	var body: some View {
 		HStack(alignment: .top, spacing: 0) {
 			Spacer(minLength: 0)
-			Text(text)
-				.font(AppTheme.transcriptBodyFont)
-				.tracking(AppTheme.transcriptTracking)
-				.lineSpacing(AppTheme.transcriptLineSpacing)
-				.foregroundStyle(AppTheme.primaryText)
-				.textSelection(.enabled)
-				.fixedSize(horizontal: false, vertical: true)
-				.padding(.horizontal, 16)
-				.padding(.vertical, 12)
-				.background(
-					RoundedRectangle(cornerRadius: 14, style: .continuous)
-						.fill(AppTheme.elevatedBackground.opacity(0.92))
-				)
-				.overlay(
-					RoundedRectangle(cornerRadius: 14, style: .continuous)
-						.stroke(AppTheme.separator)
-				)
-				.overlay(alignment: .leading) {
-					RoundedRectangle(cornerRadius: 14, style: .continuous)
-						.fill(AppTheme.accent)
-						.mask(alignment: .leading) {
-							Rectangle()
-								.frame(width: 4)
-						}
+			VStack(alignment: .trailing, spacing: 6) {
+				Text(text)
+					.font(AppTheme.transcriptBodyFont)
+					.tracking(AppTheme.transcriptTracking)
+					.lineSpacing(AppTheme.transcriptLineSpacing)
+					.foregroundStyle(AppTheme.primaryText)
+					.textSelection(.enabled)
+					.fixedSize(horizontal: false, vertical: true)
+					.padding(.horizontal, 16)
+					.padding(.vertical, 12)
+					.background(
+						RoundedRectangle(cornerRadius: 14, style: .continuous)
+							.fill(AppTheme.elevatedBackground.opacity(0.92))
+					)
+					.overlay(
+						RoundedRectangle(cornerRadius: 14, style: .continuous)
+							.stroke(AppTheme.separator)
+					)
+					.overlay(alignment: .leading) {
+						RoundedRectangle(cornerRadius: 14, style: .continuous)
+							.fill(AppTheme.accent)
+							.mask(alignment: .leading) {
+								Rectangle()
+									.frame(width: 4)
+							}
+					}
+					.frame(maxWidth: 520, alignment: .trailing)
+				if isCopyable {
+					CopyButton(text: text, label: "Copy prompt")
+						.padding(.top, 2)
 				}
-				.frame(maxWidth: 520, alignment: .trailing)
+			}
 		}
 	}
 }
@@ -493,7 +502,7 @@ private struct AssistantMessageRow: View {
 						.controlSize(.small)
 				} else if !messageBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
 					HStack {
-						CopyResponseButton(text: messageBody)
+						CopyButton(text: messageBody, label: "Copy response")
 						Spacer(minLength: 0)
 					}
 					.padding(.top, 2)
@@ -541,8 +550,9 @@ private struct AskUserQARow: View {
 	}
 }
 
-private struct CopyResponseButton: View {
+private struct CopyButton: View {
 	let text: String
+	let label: String
 	@State private var didCopy = false
 
 	var body: some View {
@@ -554,8 +564,8 @@ private struct CopyResponseButton: View {
 		}
 		.buttonStyle(.plain)
 		.foregroundStyle(didCopy ? AppTheme.accent : AppTheme.tertiaryText)
-		.help(didCopy ? "Copied" : "Copy response")
-		.accessibilityLabel(didCopy ? "Copied" : "Copy response")
+		.help(didCopy ? "Copied" : label)
+		.accessibilityLabel(didCopy ? "Copied" : label)
 	}
 
 	private func copyToClipboard() {
