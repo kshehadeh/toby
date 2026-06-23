@@ -3,12 +3,12 @@ import SwiftUI
 struct SkillsView: View {
 	@Bindable var store: SkillsStore
 	@State private var isDeleteAlertPresented = false
+	@State private var columnVisibility: NavigationSplitViewVisibility = .all
 
 	var body: some View {
-		NavigationSplitView {
+		NavigationSplitView(columnVisibility: $columnVisibility) {
 			SkillsSidebarView(store: store, onDelete: confirmDelete)
-				.navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 300)
-				.toolbar(removing: .sidebarToggle)
+				.navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
 		} detail: {
 			SkillsDetailView(store: store, onDelete: confirmDeleteSelected)
 		}

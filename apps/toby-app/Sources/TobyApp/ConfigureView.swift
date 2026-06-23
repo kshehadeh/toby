@@ -7,7 +7,7 @@ struct ConfigureView: View {
 	var body: some View {
 		NavigationSplitView(columnVisibility: $columnVisibility) {
 			ConfigureSidebarView(store: store)
-				.navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 300)
+				.navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
 		} detail: {
 			ConfigureDetailView(store: store)
 		}

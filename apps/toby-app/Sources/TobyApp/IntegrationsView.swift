@@ -2,12 +2,12 @@ import SwiftUI
 
 struct IntegrationsView: View {
 	@Bindable var store: ConfigureStore
+	@State private var columnVisibility: NavigationSplitViewVisibility = .all
 
 	var body: some View {
-		NavigationSplitView {
+		NavigationSplitView(columnVisibility: $columnVisibility) {
 			IntegrationsSidebarView(store: store)
-				.navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 300)
-				.toolbar(removing: .sidebarToggle)
+				.navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
 		} detail: {
 			IntegrationsDetailView(store: store)
 		}
@@ -100,18 +100,6 @@ private struct IntegrationsSidebarView: View {
 				.padding(10)
 			}
 			.background(AppTheme.sidebarBackground)
-		}
-		.toolbar {
-			// An invisible toolbar item is required so the sidebar extends into the
-			// title bar area and the stoplight appears as part of the sidebar.
-			ToolbarItem(placement: .confirmationAction) {
-				Button {} label: {
-					Color.clear
-						.frame(width: 28, height: 28)
-				}
-				.disabled(true)
-				.accessibilityHidden(true)
-			}
 		}
 	}
 }

@@ -37,40 +37,35 @@ struct RootView: View {
                 onPersonaSelected: refreshStatus,
                 onOpenChangelog: { openWindow(id: "changelog") },
             )
-            .navigationSplitViewColumnWidth(
-                min: AppTheme.minSidebarWidth,
-                ideal: AppTheme.sidebarWidth,
-                max: AppTheme.maxSidebarWidth,
-            )
-            .toolbar(removing: .sidebarToggle)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(action: startNewChat) {
-                        Image(systemName: "plus")
-                    }
-                    .help("New Chat")
-                    .disabled(store.isLoading)
-                    .accessibilityIdentifier("new-chat-button")
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(action: { isCommandPalettePresented = true }) {
-                        Image(systemName: "magnifyingglass")
-                    }
-                    .help("Search")
-                    .accessibilityLabel("Search")
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(action: toggleRecording) {
-                        Image(systemName: store.isRecordingActive ? "stop.circle" : "record.circle")
-                            .foregroundStyle(store.isRecordingActive ? .red : .primary)
-                    }
-                    .help(store.isRecordingActive ? "Stop Recording" : "Record Audio")
-                    .accessibilityLabel(store.isRecordingActive ? "Stop Recording" : "Record Audio")
-                    .disabled(store.isRecordButtonDisabled)
-                }
-            }
+            .navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
         } detail: {
             ChatWorkspaceView(store: store)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(action: startNewChat) {
+                            Image(systemName: "plus")
+                        }
+                        .help("New Chat")
+                        .disabled(store.isLoading)
+                        .accessibilityIdentifier("new-chat-button")
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(action: { isCommandPalettePresented = true }) {
+                            Image(systemName: "magnifyingglass")
+                        }
+                        .help("Search")
+                        .accessibilityLabel("Search")
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(action: toggleRecording) {
+                            Image(systemName: store.isRecordingActive ? "stop.circle" : "record.circle")
+                                .foregroundStyle(store.isRecordingActive ? .red : .primary)
+                        }
+                        .help(store.isRecordingActive ? "Stop Recording" : "Record Audio")
+                        .accessibilityLabel(store.isRecordingActive ? "Stop Recording" : "Record Audio")
+                        .disabled(store.isRecordButtonDisabled)
+                    }
+                }
         }
         .overlay(alignment: .top) {
             if let toast = store.toast {
@@ -107,9 +102,6 @@ struct RootView: View {
             } else {
                 scheduleToastDismiss()
             }
-        }
-        .onChange(of: sidebarVisibility) { _, newValue in
-            sidebarVisibility = newValue.sidebarVisible
         }
         .onDisappear {
             toastDismissTask?.cancel()
@@ -274,10 +266,4 @@ extension Notification.Name {
     static let openIssueReport = Notification.Name("openIssueReport")
     static let openChangelog = Notification.Name("openChangelog")
     static let startNewChat = Notification.Name("startNewChat")
-}
-
-extension NavigationSplitViewVisibility {
-    var sidebarVisible: NavigationSplitViewVisibility {
-        self == .detailOnly ? .all : self
-    }
 }

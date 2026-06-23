@@ -10,16 +10,10 @@ private struct OverlayHeightPreferenceKey: PreferenceKey {
 struct ChatWorkspaceView: View {
     @Bindable var store: ChatStore
     @FocusState private var isPromptFocused: Bool
-    @State private var isSidebarCollapsed = false
 
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
-                ChatTopBar(
-                    sessionName: store.sessionName,
-                    activityLine: store.activityLine,
-                    isSidebarCollapsed: isSidebarCollapsed,
-                )
                 if store.transcript.isEmpty && store.streamingAssistant == nil {
                     EmptyChatWorkspace(store: store, promptFocus: $isPromptFocused)
                 } else {
@@ -27,19 +21,6 @@ struct ChatWorkspaceView: View {
                 }
             }
             .background(AppTheme.contentBackground)
-            .background(
-                GeometryReader { proxy in
-                    Color.clear
-                        .onAppear {
-                            // The detail view starts at the window edge when the sidebar is collapsed.
-                            isSidebarCollapsed = proxy.frame(in: .named("TobyWindow")).minX < 60
-                        }
-                        .onChange(of: proxy.frame(in: .named("TobyWindow")).minX) { _, minX in
-                            isSidebarCollapsed = minX < 60
-                        }
-                }
-            )
-            .ignoresSafeArea(.container, edges: .top)
             .onChange(of: store.promptFocusRequestId) { _, _ in
                 isPromptFocused = true
             }
@@ -48,32 +29,11 @@ struct ChatWorkspaceView: View {
                 AskUserPromptView(store: store)
             }
         }
-    }
-}
-
-private struct ChatTopBar: View {
-    let sessionName: String
-    let activityLine: String
-    let isSidebarCollapsed: Bool
-
-    /// Extra leading space needed to clear the macOS traffic-light buttons and the
-    /// NavigationSplitView sidebar toggle button when the sidebar is collapsed.
-    private var leadingPadding: CGFloat {
-        isSidebarCollapsed ? 180 : AppTheme.contentPadding
-    }
-
-    var body: some View {
-        HStack(spacing: 12) {
-            SessionTitleBadge(title: sessionName, activityLine: activityLine)
-            Spacer()
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                SessionTitleBadge(title: store.sessionName, activityLine: store.activityLine)
+            }
         }
-        .padding(.leading, leadingPadding)
-        .padding(.trailing, AppTheme.contentPadding)
-        .padding(.top, 8)
-        .padding(.bottom, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(AppTheme.contentBackground)
-        .zIndex(1)
     }
 }
 
@@ -129,7 +89,6 @@ private struct EmptyChatWorkspace: View {
                 isLoading: store.isLoading,
                 onSubmit: submit,
             )
-            .frame(maxWidth: 620)
             EmptySuggestionList { suggestion in
                 store.promptText = suggestion
             }
@@ -270,7 +229,6 @@ private struct EmptySuggestionList: View {
                 }
             }
         }
-        .frame(maxWidth: 620)
     }
 
     private func iconName(for suggestion: String) -> String {

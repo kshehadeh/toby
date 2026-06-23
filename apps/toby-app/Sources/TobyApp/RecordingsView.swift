@@ -6,12 +6,12 @@ struct RecordingsView: View {
 	@Bindable var store: RecordingsStore
 	@State private var pendingDeleteRecordingIds: Set<String> = []
 	@State private var isDeleteAlertPresented = false
+	@State private var columnVisibility: NavigationSplitViewVisibility = .all
 
 	var body: some View {
-		NavigationSplitView {
+		NavigationSplitView(columnVisibility: $columnVisibility) {
 			RecordingsSidebarView(store: store, onDeleteRecording: confirmDelete)
-				.navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 300)
-				.toolbar(removing: .sidebarToggle)
+				.navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
 		} detail: {
 			RecordingsDetailView(store: store, onDeleteSelectedRecordings: confirmDeleteSelected)
 		}
