@@ -3,6 +3,88 @@ import Foundation
 enum AppToastStyle {
 	case success
 	case error
+	case progress
+}
+
+enum RecordingProcessingStage: Equatable {
+	case generatingAudio
+	case preparingTranscription
+	case transcribing
+	case finalizing
+	case complete
+	case failed
+
+	var label: String {
+		switch self {
+		case .generatingAudio: "Generating final audio…"
+		case .preparingTranscription: "Preparing transcription…"
+		case .transcribing: "Transcribing…"
+		case .finalizing: "Finalizing…"
+		case .complete: "Complete"
+		case .failed: "Failed"
+		}
+	}
+}
+
+struct RecordingProcessingState: Identifiable, Equatable {
+	let id: UUID
+	var recordingId: String?
+	var stage: RecordingProcessingStage
+	var message: String?
+
+	init(
+		recordingId: String? = nil,
+		stage: RecordingProcessingStage,
+		message: String? = nil
+	) {
+		self.id = UUID()
+		self.recordingId = recordingId
+		self.stage = stage
+		self.message = message ?? stage.label
+	}
+
+	var isActive: Bool {
+		switch stage {
+		case .generatingAudio, .preparingTranscription, .transcribing, .finalizing:
+			true
+		case .complete, .failed:
+			false
+		}
+	}
+
+	var toastTitle: String {
+		switch stage {
+		case .complete: "Recording transcribed"
+		case .failed: "Recording issue"
+		default: "Processing recording"
+		}
+	}
+
+	var toastStyle: AppToastStyle {
+		switch stage {
+		case .failed: .error
+		case .complete: .success
+		default: .progress
+		}
+	}
+
+	var toastAction: AppToastAction? {
+		switch stage {
+		case .complete:
+			return recordingId.map { .openRecording(id: $0) }
+		default:
+			return nil
+		}
+	}
+
+	func toastState() -> AppToastState {
+		AppToastState(
+			style: toastStyle,
+			title: toastTitle,
+			message: message,
+			action: toastAction
+		)
+	}
 }
 
 enum AppToastAction: Identifiable, Equatable {

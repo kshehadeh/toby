@@ -67,7 +67,7 @@ struct RootView: View {
                     }
                 }
         }
-        .overlay(alignment: .top) {
+        .overlay(alignment: .bottomTrailing) {
             if let toast = store.toast {
                 ToastView(
                     toast: toast,
@@ -76,7 +76,7 @@ struct RootView: View {
                 )
                     .frame(maxWidth: 420)
                     .padding(.horizontal, 16)
-                    .padding(.top, 16)
+                    .padding(.bottom, 16)
                     .contentShape(Rectangle())
                     .onHover { hovering in
                         isToastHovered = hovering
@@ -88,9 +88,11 @@ struct RootView: View {
                         }
                     }
                     .onTapGesture {
-                        dismissToast()
+                        if !isProcessingToast {
+                            dismissToast()
+                        }
                     }
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .animation(.spring(response: 0.28, dampingFraction: 0.82), value: store.toast?.id)
@@ -148,6 +150,11 @@ struct RootView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .openChangelog)) { _ in
             openWindow(id: "changelog")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openRecordingFromToast)) { notification in
+            if let id = notification.object as? String {
+                openRecording(id: id)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .startNewChat)) { _ in
             startNewChat()
@@ -225,7 +232,7 @@ struct RootView: View {
     private func handleToastAction(_ action: AppToastAction) {
         switch action {
         case .openRecording(let id):
-            openRecording(id: id)
+            NotificationCenter.default.post(name: .openRecordingFromToast, object: id)
         }
     }
 
@@ -239,12 +246,12 @@ struct RootView: View {
 
     private func scheduleToastDismiss() {
         toastDismissTask?.cancel()
-        guard store.toast != nil, !isToastHovered else { return }
+        guard store.toast != nil, !isToastHovered, !isProcessingToast else { return }
         toastDismissTask = Task {
             try? await Task.sleep(nanoseconds: toastDuration)
             guard !Task.isCancelled else { return }
             await MainActor.run {
-                if !isToastHovered {
+                if !isToastHovered && !isProcessingToast {
                     store.toast = nil
                     toastDismissTask = nil
                 }
@@ -252,10 +259,15 @@ struct RootView: View {
         }
     }
 
+    private var isProcessingToast: Bool {
+        store.recordingProcessing?.isActive == true
+    }
+
     private func dismissToast() {
         toastDismissTask?.cancel()
         toastDismissTask = nil
         store.toast = nil
+        store.recordingProcessing = nil
         isToastHovered = false
     }
 
@@ -265,5 +277,6 @@ extension Notification.Name {
     static let openCommandPalette = Notification.Name("openCommandPalette")
     static let openIssueReport = Notification.Name("openIssueReport")
     static let openChangelog = Notification.Name("openChangelog")
+    static let openRecordingFromToast = Notification.Name("openRecordingFromToast")
     static let startNewChat = Notification.Name("startNewChat")
 }

@@ -43,7 +43,7 @@ struct TobyApp: App {
 		.defaultSize(width: 920, height: 640)
 
 		Window("Recordings", id: "recordings") {
-			RecordingsView(store: recordingsStore)
+			RecordingsView(store: recordingsStore, processingState: store.recordingProcessing)
 		}
 		.windowStyle(.automatic)
 		.defaultSize(width: 920, height: 640)

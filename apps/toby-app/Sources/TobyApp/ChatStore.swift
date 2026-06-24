@@ -22,6 +22,7 @@ final class ChatStore {
 	var isListenRequestInFlight = false
 	var errorMessage: String?
 	var toast: AppToastState?
+	var recordingProcessing: RecordingProcessingState?
 	var turnWorkDurations: [Int: TimeInterval] = [:]
 	var activeAskUserPrompt: ActiveAskUserPrompt?
 	let serverEventLogPath = ServerEventLog.path
@@ -293,28 +294,74 @@ final class ChatStore {
 	private func stopRecording() async {
 		isListenRequestInFlight = true
 		defer { isListenRequestInFlight = false }
+		recordingProcessing = RecordingProcessingState(stage: .generatingAudio)
+		toast = recordingProcessing?.toastState()
+		activityLine = "Generating final audio…"
+
 		do {
 			let result = try await nativeAudioClient.stop()
 			listenStatus = result.asStatus
-			if let id = result.id {
-				do {
-					_ = try await client.transcribeRecording(id: id)
-					errorMessage = nil
-					activityLine = "Recording transcribed"
-					showRecordingCompletionToast(recordingId: id, errors: result.errors)
-				} catch {
-					showRecordingError("Recording saved, but transcription failed: \(error.localizedDescription)")
-					activityLine = "Recording saved"
-				}
-			} else {
+			guard let id = result.id else {
 				errorMessage = nil
 				activityLine = "Recording saved"
 				showRecordingCompletionToast(recordingId: result.id, errors: result.errors)
+				recordingProcessing = nil
+				return
+			}
+
+			if let errors = result.errors, let firstError = errors.first?.trimmingCharacters(in: .whitespacesAndNewlines), !firstError.isEmpty {
+				recordingProcessing = RecordingProcessingState(
+					recordingId: id,
+					stage: .failed,
+					message: firstError,
+				)
+				toast = recordingProcessing?.toastState()
+				errorMessage = firstError
+				activityLine = "Recording saved"
+				return
+			}
+
+			recordingProcessing = RecordingProcessingState(
+				recordingId: id,
+				stage: .preparingTranscription,
+			)
+			toast = recordingProcessing?.toastState()
+			activityLine = "Transcribing recording…"
+
+			do {
+				_ = try await client.streamTranscribeRecording(id: id) { message in
+					Task { @MainActor in
+						guard self.recordingProcessing?.recordingId == id,
+							self.recordingProcessing?.isActive == true else { return }
+						self.recordingProcessing?.stage = .transcribing
+						self.recordingProcessing?.message = message
+						self.toast = self.recordingProcessing?.toastState()
+						self.activityLine = message
+					}
+				}
+				recordingProcessing = RecordingProcessingState(
+					recordingId: id,
+					stage: .complete,
+					message: "Your recording is ready.",
+				)
+				toast = recordingProcessing?.toastState()
+				errorMessage = nil
+				activityLine = "Recording transcribed"
+			} catch {
+				recordingProcessing = RecordingProcessingState(
+					recordingId: id,
+					stage: .failed,
+					message: "Recording saved, but transcription failed: \(error.localizedDescription)",
+				)
+				toast = recordingProcessing?.toastState()
+				errorMessage = recordingProcessing?.message
+				activityLine = "Recording saved"
 			}
 		} catch {
 			showRecordingError(error.localizedDescription)
 			activityLine = "Error"
 			listenStatus = try? await nativeAudioClient.status()
+			recordingProcessing = nil
 		}
 	}
 

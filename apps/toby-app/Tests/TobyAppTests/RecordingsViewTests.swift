@@ -69,6 +69,69 @@ struct RecordingsViewTests {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "copy-transcript-button")
 		}
 	}
+
+	@Test("sidebar row shows processing stage text when recording is processing")
+	func sidebarRowShowsProcessingStage() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: nil)
+		let processing = RecordingProcessingState(
+			recordingId: "r1",
+			stage: .transcribing,
+			message: "Transcribing audio…"
+		)
+		let view = RecordingsView(store: store, processingState: processing)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Transcribing audio…")
+		}
+	}
+
+	@Test("sidebar row does not show processing stage when recording is not processing")
+	func sidebarRowHidesProcessingStageWhenNotProcessing() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: nil)
+		let processing = RecordingProcessingState(
+			recordingId: "r2",
+			stage: .transcribing,
+			message: "Transcribing audio…"
+		)
+		let view = RecordingsView(store: store, processingState: processing)
+		#expect(throws: Error.self) {
+			try view.inspect().find(text: "Transcribing audio…")
+		}
+	}
+
+	@Test("detail view shows processing card when selected recording is processing")
+	func detailViewShowsProcessingCard() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: nil)
+		let processing = RecordingProcessingState(
+			recordingId: "r1",
+			stage: .transcribing,
+			message: "Transcribing audio…"
+		)
+		let view = RecordingsView(store: store, processingState: processing)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Processing recording")
+		}
+	}
+
+	@Test("detail view does not show processing card when no processing state")
+	func detailViewHidesProcessingCardWhenIdle() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: nil)
+		let view = RecordingsView(store: store)
+		#expect(throws: Error.self) {
+			try view.inspect().find(text: "Processing recording")
+		}
+	}
 }
 
 private func makeRecording(id: String, name: String? = nil) -> ListenRecordingSummary {

@@ -4,22 +4,33 @@ import SwiftUI
 
 struct RecordingsView: View {
 	@Bindable var store: RecordingsStore
+	var processingState: RecordingProcessingState? = nil
 	@State private var pendingDeleteRecordingIds: Set<String> = []
 	@State private var isDeleteAlertPresented = false
 	@State private var columnVisibility: NavigationSplitViewVisibility = .all
 
 	var body: some View {
 		NavigationSplitView(columnVisibility: $columnVisibility) {
-			RecordingsSidebarView(store: store, onDeleteRecording: confirmDelete)
+			RecordingsSidebarView(store: store, processingState: processingState, onDeleteRecording: confirmDelete)
 				.navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
 		} detail: {
-			RecordingsDetailView(store: store, onDeleteSelectedRecordings: confirmDeleteSelected)
+			RecordingsDetailView(store: store, processingState: processingState, onDeleteSelectedRecordings: confirmDeleteSelected)
 		}
 		.toolbarBackground(.visible)
 		.frame(minWidth: 860, minHeight: 560)
 		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.load()
+		}
+		.onChange(of: processingState?.stage) { _, newStage in
+			if newStage == .complete || newStage == .failed {
+				Task {
+					await store.load()
+					if let id = processingState?.recordingId {
+						await store.selectRecording(id: id)
+					}
+				}
+			}
 		}
 		.alert(
 			"Delete \(pendingDeleteRecordingIds.count == 1 ? "Recording" : "Recordings")?",
@@ -55,6 +66,7 @@ struct RecordingsView: View {
 
 private struct RecordingsSidebarView: View {
 	@Bindable var store: RecordingsStore
+	var processingState: RecordingProcessingState? = nil
 	let onDeleteRecording: (ListenRecordingSummary) -> Void
 
 	var body: some View {
@@ -79,6 +91,8 @@ private struct RecordingsSidebarView: View {
 							RecordingSidebarRow(
 								recording: recording,
 								isSelected: store.selectedRecordingIds.contains(recording.id),
+								isProcessing: processingState?.recordingId == recording.id && processingState?.isActive == true,
+								processingStage: processingState?.recordingId == recording.id ? processingState?.stage : nil,
 							)
 						}
 						.buttonStyle(.plain)
@@ -100,18 +114,26 @@ private struct RecordingsSidebarView: View {
 private struct RecordingSidebarRow: View {
 	let recording: ListenRecordingSummary
 	let isSelected: Bool
+	var isProcessing: Bool = false
+	var processingStage: RecordingProcessingStage? = nil
 
 	var body: some View {
 		HStack(spacing: 8) {
-			Image(systemName: recording.hasTranscript ? "doc.text" : "waveform")
-				.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.tertiaryText)
-				.frame(width: 18)
+			if isProcessing {
+				ProgressView()
+					.scaleEffect(0.55)
+					.frame(width: 18, height: 18)
+			} else {
+				Image(systemName: recording.hasTranscript ? "doc.text" : "waveform")
+					.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.tertiaryText)
+					.frame(width: 18)
+			}
 			VStack(alignment: .leading, spacing: 3) {
 				Text(recordingSidebarTitle(recording))
 					.font(.callout)
 					.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.secondaryText)
 					.lineLimit(1)
-				Text(recordingSummary(recording))
+				Text(isProcessing ? (processingStage?.label ?? "Processing…") : recordingSummary(recording))
 					.font(.caption)
 					.foregroundStyle(AppTheme.tertiaryText)
 					.lineLimit(1)
@@ -130,6 +152,7 @@ private struct RecordingSidebarRow: View {
 
 private struct RecordingsDetailView: View {
 	@Bindable var store: RecordingsStore
+	var processingState: RecordingProcessingState? = nil
 	let onDeleteSelectedRecordings: () -> Void
 
 	var body: some View {
@@ -140,6 +163,9 @@ private struct RecordingsDetailView: View {
 						.frame(maxWidth: .infinity, minHeight: 240)
 				} else if !store.selectedRecordings.isEmpty {
 					if store.selectedRecordings.count == 1, let detail = store.detail {
+						if isProcessingSelected {
+							RecordingProcessingCard(processingState: processingState)
+						}
 						RecordingDetailContent(detail: detail)
 					} else {
 						SelectedRecordingsDeck(recordings: store.selectedRecordings)
@@ -187,6 +213,38 @@ private struct RecordingsDetailView: View {
 			return "Delete Recording"
 		}
 		return "Delete \(store.selectedRecordings.count) Recordings"
+	}
+
+	private var isProcessingSelected: Bool {
+		guard let id = processingState?.recordingId,
+			processingState?.isActive == true else { return false }
+		return store.selectedRecordingIds.contains(id)
+	}
+}
+
+private struct RecordingProcessingCard: View {
+	let processingState: RecordingProcessingState?
+
+	var body: some View {
+		if let state = processingState, state.isActive {
+			SettingsCard {
+				HStack(spacing: 12) {
+					ProgressView()
+						.scaleEffect(0.8)
+					VStack(alignment: .leading, spacing: 2) {
+						Text("Processing recording")
+							.font(.subheadline.weight(.semibold))
+							.foregroundStyle(SettingsDesign.rowTitle)
+						Text(state.message ?? state.stage.label)
+							.font(.caption)
+							.foregroundStyle(SettingsDesign.rowDescription)
+					}
+					Spacer(minLength: 0)
+				}
+				.padding(.horizontal, SettingsDesign.rowHorizontalPadding)
+				.padding(.vertical, SettingsDesign.rowVerticalPadding)
+			}
+		}
 	}
 }
 

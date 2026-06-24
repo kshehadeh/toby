@@ -152,6 +152,99 @@ struct TobyClient {
 		return try JSONDecoder().decode(ListenRecordingDetail.self, from: data)
 	}
 
+	func streamTranscribeRecording(
+		id: String,
+		onStatus: @escaping (String) -> Void,
+	) async throws -> ListenRecordingDetail {
+		let url = baseURL.appendingPathComponent("api/listen/recordings/\(id)/transcribe")
+		var request = URLRequest(url: url)
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+		request.httpBody = Data("{}".utf8)
+
+		let (bytes, response) = try await URLSession.shared.bytes(for: request)
+		guard let http = response as? HTTPURLResponse else {
+			throw TobyClientError.invalidResponse
+		}
+		if http.statusCode >= 400 {
+			var data = Data()
+			for try await byte in bytes {
+				data.append(byte)
+			}
+			if
+				let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+				let error = json["error"] as? String
+			{
+				throw TobyClientError.serverError(error)
+			}
+			throw TobyClientError.serverError("HTTP \(http.statusCode)")
+		}
+
+		var pendingEvent: String?
+		for try await line in bytes.lines {
+			if line.hasPrefix("event: ") {
+				pendingEvent = String(line.dropFirst(7))
+					.trimmingCharacters(in: .whitespacesAndNewlines)
+				continue
+			}
+			guard line.hasPrefix("data: ") else { continue }
+			let payload = String(line.dropFirst(6))
+			if payload.isEmpty { continue }
+
+			if pendingEvent == "status" {
+				pendingEvent = nil
+				if let data = payload.data(using: .utf8),
+					let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+					let message = json["message"] as? String
+				{
+					onStatus(message)
+				}
+				continue
+			}
+
+			if pendingEvent == "done" {
+				pendingEvent = nil
+				if let data = payload.data(using: .utf8) {
+					if let detail = try? JSONDecoder().decode(ListenRecordingDetail.self, from: data) {
+						return detail
+					}
+				}
+				throw TobyClientError.streamError("Transcription completed but response was invalid.")
+			}
+
+			if pendingEvent == "error" {
+				pendingEvent = nil
+				if
+					let data = payload.data(using: .utf8),
+					let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+					let error = json["error"] as? String
+				{
+					throw TobyClientError.streamError(error)
+				}
+				throw TobyClientError.streamError("Transcription failed.")
+			}
+
+			pendingEvent = nil
+		}
+
+		// Stream ended without an explicit done event. The transcription may
+		// have completed on the backend despite the stream closing early.
+		// Fall back to fetching the recording detail directly.
+		return try await fetchRecordingDetailFallback(id: id)
+	}
+
+	/// Fallback: fetch the recording detail after the SSE stream completes
+	/// without an explicit done event. The transcription may have succeeded
+	/// on the backend even if the stream closed before the final event was
+	/// read by `URLSession.bytes.lines`.
+	private func fetchRecordingDetailFallback(id: String) async throws -> ListenRecordingDetail {
+		let url = baseURL.appendingPathComponent("api/listen/recordings/\(id)")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ListenRecordingDetail.self, from: data)
+	}
+
 	func streamTurn(
 		sessionId: String,
 		text: String,

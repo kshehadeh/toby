@@ -7,10 +7,16 @@ struct ToastView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: iconName)
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(iconColor)
-                .frame(width: 24, height: 24)
+            if toast.style == .progress {
+                ProgressView()
+                    .scaleEffect(0.8)
+                    .frame(width: 24, height: 24)
+            } else {
+                Image(systemName: iconName)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(iconColor)
+                    .frame(width: 24, height: 24)
+            }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(toast.title)
@@ -43,15 +49,17 @@ struct ToastView: View {
                 }
             }
 
-            Button(action: onDismiss) {
-                Image(systemName: "xmark")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(AppTheme.tertiaryText)
-                    .frame(width: 22, height: 22)
-                    .contentShape(Circle())
+            if toast.style != .progress {
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(AppTheme.tertiaryText)
+                        .frame(width: 22, height: 22)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help("Dismiss")
             }
-            .buttonStyle(.plain)
-            .help("Dismiss")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -71,6 +79,7 @@ struct ToastView: View {
         switch toast.style {
         case .success: "checkmark.circle.fill"
         case .error: "exclamationmark.circle.fill"
+        case .progress: ""
         }
     }
 
@@ -78,6 +87,7 @@ struct ToastView: View {
         switch toast.style {
         case .success: .green
         case .error: .red
+        case .progress: AppTheme.accent
         }
     }
 

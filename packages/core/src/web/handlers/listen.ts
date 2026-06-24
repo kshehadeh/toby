@@ -11,7 +11,10 @@ import {
 	resolveListenRecordingAudioPath,
 } from "../../listen/recordings";
 import { transcribeWithPlugin } from "../../listen/transcription-plugin";
-import type { ListenRecordingMetadata } from "../../listen/types";
+import type {
+	ListenRecordingFiles,
+	ListenRecordingMetadata,
+} from "../../listen/types";
 import { errorResponse, jsonResponse, readJsonBody } from "../http-utils";
 
 export function handleListenStatus(): Response {
@@ -99,6 +102,17 @@ export async function handleListenRecordingTranscribe(
 	recordingId: string,
 	req: Request,
 ): Promise<Response> {
+	const acceptsSse = req.headers.get("accept")?.includes("text/event-stream");
+	if (acceptsSse) {
+		return handleListenRecordingTranscribeStream(recordingId, req);
+	}
+	return handleListenRecordingTranscribeJson(recordingId, req);
+}
+
+async function handleListenRecordingTranscribeJson(
+	recordingId: string,
+	req: Request,
+): Promise<Response> {
 	const body = await readJsonBody<Record<string, unknown>>(req);
 	const recordingsDir =
 		typeof body?.recordingsDir === "string" ? body.recordingsDir : undefined;
@@ -118,36 +132,114 @@ export async function handleListenRecordingTranscribe(
 			input,
 			outDir: recording.dir,
 		});
-		const nextMetadata: ListenRecordingMetadata = {
-			...recording.metadata,
-			files: {
-				...recording.metadata.files,
-				...transcriptFiles,
-			},
-		};
-		fs.writeFileSync(
-			metadataPath(recording.dir),
-			`${JSON.stringify(nextMetadata, null, 2)}\n`,
-		);
-		const transcript = readListenTranscript(recording.dir, {
-			includeSegments: true,
-		});
-		return jsonResponse({
-			id: recording.id,
-			dir: recording.dir,
-			metadata: nextMetadata,
-			hasAudio: recordingHasAudio({ ...recording, metadata: nextMetadata }),
-			hasTranscript: transcript.ok,
-			transcript: transcript.ok ? transcript.text : undefined,
-			transcriptError: transcript.ok ? undefined : transcript.error,
-			segments: transcript.ok ? transcript.segments : undefined,
-			warnings: transcript.ok ? transcript.warnings : undefined,
-		});
+		return jsonResponse(finalizeTranscription(recording, transcriptFiles));
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		writeRecordingError(recording.metadata, recording.dir, message);
 		return errorResponse(message, 500);
 	}
+}
+
+async function handleListenRecordingTranscribeStream(
+	recordingId: string,
+	req: Request,
+): Promise<Response> {
+	const body = await readJsonBody<Record<string, unknown>>(req);
+	const recordingsDir =
+		typeof body?.recordingsDir === "string" ? body.recordingsDir : undefined;
+	const recording = findListenRecordingById(recordingId, recordingsDir);
+	const sseHeaders: HeadersInit = {
+		"Content-Type": "text/event-stream; charset=utf-8",
+		"Cache-Control": "no-cache",
+		Connection: "keep-alive",
+	};
+	const encode = (event: string, data: unknown): Uint8Array =>
+		new TextEncoder().encode(
+			`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
+		);
+
+	if (!recording) {
+		return errorResponse("Recording not found", 404);
+	}
+	const input = resolveListenRecordingAudioPath(recording);
+	if (!input) {
+		const message =
+			"Recording has no readable audio file. Expected combined.m4a, mic.wav, or system.wav.";
+		writeRecordingError(recording.metadata, recording.dir, message);
+		return errorResponse(message, 400);
+	}
+
+	const stream = new ReadableStream<Uint8Array>({
+		async start(controller) {
+			const heartbeat = setInterval(() => {
+				try {
+					controller.enqueue(new TextEncoder().encode(": keep-alive\n\n"));
+				} catch {
+					clearInterval(heartbeat);
+				}
+			}, 5000);
+
+			try {
+				const transcriptFiles = await transcribeWithPlugin({
+					input,
+					outDir: recording.dir,
+					onStatus: (message) => {
+						controller.enqueue(encode("status", { message }));
+					},
+				});
+				const detail = finalizeTranscription(recording, transcriptFiles);
+				controller.enqueue(encode("done", detail));
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				writeRecordingError(recording.metadata, recording.dir, message);
+				controller.enqueue(encode("error", { error: message }));
+			} finally {
+				clearInterval(heartbeat);
+				controller.close();
+			}
+		},
+	});
+
+	return new Response(stream, { headers: sseHeaders });
+}
+
+function finalizeTranscription(
+	recording: ReturnType<typeof findListenRecordingById>,
+	transcriptFiles: ListenRecordingFiles,
+) {
+	if (!recording) {
+		throw new Error("Recording not found");
+	}
+	const nextMetadata: ListenRecordingMetadata = {
+		...recording.metadata,
+		files: {
+			...recording.metadata.files,
+			...transcriptFiles,
+		},
+	};
+	fs.writeFileSync(
+		metadataPath(recording.dir),
+		`${JSON.stringify(nextMetadata, null, 2)}\n`,
+	);
+	const transcript = readListenTranscript(recording.dir, {
+		includeSegments: true,
+	});
+	const audioPath = resolveListenRecordingAudioPath({
+		...recording,
+		metadata: nextMetadata,
+	});
+	return {
+		id: recording.id,
+		dir: recording.dir,
+		metadata: nextMetadata,
+		hasAudio: audioPath !== undefined,
+		audioPath,
+		hasTranscript: transcript.ok,
+		transcript: transcript.ok ? transcript.text : undefined,
+		transcriptError: transcript.ok ? undefined : transcript.error,
+		segments: transcript.ok ? transcript.segments : undefined,
+		warnings: transcript.ok ? transcript.warnings : undefined,
+	};
 }
 
 function writeRecordingError(
