@@ -2,6 +2,12 @@ import AppKit
 import Foundation
 import Observation
 
+func makeRecordingChatPrompt(name: String, dateText: String, hourText: String) -> String {
+	let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+	let resolvedName = trimmedName.isEmpty ? "Recording" : trimmedName
+	return "Summarize the transcript of the recording named \"\(resolvedName)\" on \"\(dateText)\" at \"\(hourText)\" oclock."
+}
+
 @Observable
 @MainActor
 final class ChatStore {
@@ -253,6 +259,14 @@ final class ChatStore {
 		} catch {
 			errorMessage = error.localizedDescription
 		}
+	}
+
+	func startChatAboutRecording(name: String, dateText: String, hourText: String) async {
+		guard !isLoading else { return }
+		await startNewSession()
+		guard sessionId != nil else { return }
+		promptText = makeRecordingChatPrompt(name: name, dateText: dateText, hourText: hourText)
+		await submitPrompt()
 	}
 
 	func focusPrompt() {

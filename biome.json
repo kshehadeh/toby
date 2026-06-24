@@ -7,7 +7,9 @@
 			"apps/help-site/build/**",
 			"apps/help-site/.docusaurus/**",
 			"apps/plugin-macos/.build/**",
-			".turbo/**"
+			"apps/toby-app/**",
+			".turbo/**",
+			"package.json"
 		]
 	},
 	"organizeImports": { "enabled": true },

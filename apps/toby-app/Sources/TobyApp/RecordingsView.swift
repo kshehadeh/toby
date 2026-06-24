@@ -268,6 +268,18 @@ private struct RecordingDetailContent: View {
 		return "Saved"
 	}
 
+	private func startChatAboutRecording() {
+		let (dateText, hourText) = recordingChatDateAndHour(detail)
+		NotificationCenter.default.post(
+			name: .startChatAboutRecording,
+			object: StartChatAboutRecordingRequest(
+				name: detail.metadata.name ?? "Recording",
+				dateText: dateText,
+				hourText: hourText,
+			),
+		)
+	}
+
 	var body: some View {
 		VStack(alignment: .leading, spacing: 28) {
 			if isEditingName {
@@ -305,6 +317,14 @@ private struct RecordingDetailContent: View {
 						.accessibilityIdentifier("rename-recording-button")
 
 						Spacer()
+
+						Button {
+							startChatAboutRecording()
+						} label: {
+							Label("Start Chat", systemImage: "bubble.left.and.bubble.right")
+						}
+						.buttonStyle(.borderedProminent)
+						.accessibilityIdentifier("start-chat-button")
 					}
 
 					HStack(spacing: 6) {
@@ -739,6 +759,30 @@ private enum RecordingDateFormatters {
 		formatter.timeStyle = .short
 		return formatter
 	}()
+}
+
+enum RecordingChatFormatters {
+	static let date: DateFormatter = {
+		let formatter = DateFormatter()
+		formatter.dateStyle = .long
+		formatter.timeStyle = .none
+		return formatter
+	}()
+
+	static let hour: DateFormatter = {
+		let formatter = DateFormatter()
+		formatter.setLocalizedDateFormatFromTemplate("ha")
+		return formatter
+	}()
+}
+
+func recordingChatDateAndHour(_ detail: ListenRecordingDetail) -> (date: String, hour: String) {
+	let value = detail.metadata.startedAt
+	let fallback = detail.metadata.createdAt
+	guard let date = isoRecordingDate(value) ?? isoRecordingDate(fallback) else {
+		return (value.isEmpty ? fallback : value, "")
+	}
+	return (RecordingChatFormatters.date.string(from: date), RecordingChatFormatters.hour.string(from: date))
 }
 
 private func sourceText(_ sources: ListenSourceSelection) -> String {
