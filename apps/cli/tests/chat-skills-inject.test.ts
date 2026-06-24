@@ -98,28 +98,41 @@ describe("stripSkillInstructionsAppendix", () => {
 });
 
 describe("injectCurrentDateTimeIntoFirstSystemMessage", () => {
-	it("adds current datetime block to first system message", () => {
+	it("adds current datetime as a separate system message after the first", () => {
 		const messages: CoreMessage[] = [
 			{ role: "system", content: "Base system." },
 			{ role: "user", content: "Hi" },
 		];
 		const out = injectCurrentDateTimeIntoFirstSystemMessage(messages);
-		const content = out[0]?.content as string;
-		expect(content).toContain("## Current date and time");
-		expect(content).toContain("Local datetime:");
-		expect(content).toContain("Timezone:");
-		expect(content).toContain("UTC datetime:");
-		expect(content).toContain("Unix ms:");
+		// First system message should not contain datetime anymore.
+		expect(out[0]?.role).toBe("system");
+		expect(out[0]?.content as string).toBe("Base system.");
+		// Second message should be the datetime system message.
+		expect(out[1]?.role).toBe("system");
+		const datetimeContent = out[1]?.content as string;
+		expect(datetimeContent).toContain("## Current date and time");
+		expect(datetimeContent).toContain("Local datetime:");
+		expect(datetimeContent).toContain("Timezone:");
+		expect(datetimeContent).toContain("UTC datetime:");
+		expect(datetimeContent).toContain("Unix ms:");
+		// Third message should be the user message.
+		expect(out[2]?.role).toBe("user");
 	});
 
-	it("replaces prior datetime block instead of duplicating it", () => {
+	it("replaces prior datetime system message instead of duplicating it", () => {
 		const messages: CoreMessage[] = [
 			{ role: "system", content: "Base system." },
 			{ role: "user", content: "Hi" },
 		];
 		const first = injectCurrentDateTimeIntoFirstSystemMessage(messages);
 		const second = injectCurrentDateTimeIntoFirstSystemMessage(first);
-		const content = second[0]?.content as string;
-		expect((content.match(/## Current date and time/g) ?? []).length).toBe(1);
+		// Count datetime system messages (should be exactly 1).
+		const datetimeCount = second.filter(
+			(m) =>
+				m.role === "system" &&
+				typeof m.content === "string" &&
+				m.content.includes("## Current date and time"),
+		).length;
+		expect(datetimeCount).toBe(1);
 	});
 });

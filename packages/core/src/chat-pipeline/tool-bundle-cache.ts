@@ -19,30 +19,44 @@ export function buildToolBundleCacheKey(
 	return `${params.dryRun ? "dry" : "live"}:${names}`;
 }
 
-let cached: {
+const LRU_MAX_ENTRIES = 4;
+
+const lruEntries: Array<{
 	readonly key: string;
 	readonly bundle: IntegrationToolBundle;
-} | null = null;
+}> = [];
 
 export function getCachedIntegrationToolBundle(
 	key: string,
 ): IntegrationToolBundle | null {
-	if (cached?.key === key) {
-		return cached.bundle;
+	const idx = lruEntries.findIndex((e) => e.key === key);
+	if (idx === -1) return null;
+	// Move-to-end for LRU
+	if (idx < lruEntries.length - 1) {
+		const [entry] = lruEntries.splice(idx, 1);
+		if (entry) lruEntries.push(entry);
 	}
-	return null;
+	const last = lruEntries[lruEntries.length - 1];
+	return last ? last.bundle : null;
 }
 
 export function setCachedIntegrationToolBundle(
 	key: string,
 	bundle: IntegrationToolBundle,
 ): void {
-	cached = { key, bundle };
+	const idx = lruEntries.findIndex((e) => e.key === key);
+	if (idx !== -1) {
+		lruEntries.splice(idx, 1);
+	}
+	lruEntries.push({ key, bundle });
+	while (lruEntries.length > LRU_MAX_ENTRIES) {
+		lruEntries.shift();
+	}
 }
 
 /** Drop cached integration tools (scope change, connect/disconnect, tests). */
 export function clearSessionToolBundleCache(): void {
-	cached = null;
+	lruEntries.length = 0;
 }
 
 export async function loadIntegrationToolBundle(

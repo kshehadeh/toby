@@ -8,7 +8,7 @@ import { createGlobalChatTools } from "../ai/global-chat-tools";
 import type { Persona } from "../config/index";
 import { getIntegrationModule } from "../integrations/index";
 import type { IntegrationModule } from "../integrations/types";
-import { log } from "../logging/chat-log";
+import { log, logWithSession } from "../logging/chat-log";
 import { createMemoryTools } from "../memory/tools";
 import { injectCurrentDateTimeIntoFirstSystemMessage } from "../prepare-messages";
 import type { Project } from "../projects/index";
@@ -18,31 +18,77 @@ import { loadIntegrationToolBundle } from "./tool-bundle-cache";
 export { clearSessionToolBundleCache } from "./tool-bundle-cache";
 
 /**
+ * Measure the character length of a CoreMessage's content.
+ */
+function messageContentChars(msg: CoreMessage): number {
+	const content = msg.content;
+	if (typeof content === "string") return content.length;
+	if (Array.isArray(content)) {
+		return (content as readonly unknown[]).reduce<number>((sum, part) => {
+			if (typeof part === "string") return sum + part.length;
+			if (part && typeof part === "object" && "text" in part) {
+				return sum + String((part as { text: string }).text).length;
+			}
+			return sum;
+		}, 0);
+	}
+	return 0;
+}
+
+/**
+ * Compute prompt size metrics for logging.
+ */
+function computePromptSizeMetrics(messages: readonly CoreMessage[]) {
+	let systemChars = 0;
+	let userChars = 0;
+	let assistantChars = 0;
+	let toolChars = 0;
+	let totalChars = 0;
+
+	for (const msg of messages) {
+		const chars = messageContentChars(msg);
+		totalChars += chars;
+		switch (msg.role) {
+			case "system":
+				systemChars += chars;
+				break;
+			case "user":
+				userChars += chars;
+				break;
+			case "assistant":
+				assistantChars += chars;
+				break;
+			case "tool":
+				toolChars += chars;
+				break;
+		}
+	}
+
+	return {
+		messageCount: messages.length,
+		systemChars,
+		userChars,
+		assistantChars,
+		toolChars,
+		totalChars,
+		estimatedTokens: Math.ceil(totalChars / 4),
+	};
+}
+
+/**
  * Tools that are always included regardless of pretreatment tool selection.
- * These are essential for the chat flow (askUser, time, skill loading)
- * or always-useful (memory tools).
+ * Only truly essential tools for the chat flow itself are here; memory, web,
+ * listen, and reflection tools are routed by pretreatment/semantic routing
+ * to reduce tool-schema bloat and improve first-token latency.
  */
 const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"askUser",
 	"getCurrentDateTime",
 	"loadLocalSkillInstructions",
 	"writeTextFile",
-	"memorySearch",
-	"memoryPropose",
-	"memorySave",
-	"memoryForget",
-	"memoryExplain",
-	"memoryRetrieveForTask",
 	"tobyListIntegrations",
-	"tobyGetIntegrationSetup",
-	"tobyListDefaults",
 	"tobyListTools",
 	"tobyListSkills",
-	"tobyInstanceInfo",
-	"fetchWebContent",
-	"webSearch",
-	"listListenRecordings",
-	"readTranscript",
 ]);
 
 export { ALWAYS_INCLUDED_TOOLS };
@@ -74,6 +120,8 @@ type ChatTurnOptions = {
 	 * definitions so `createChatTools` is not invoked again for the model call.
 	 */
 	readonly prebuiltToolCatalog?: PrebuiltToolCatalog;
+	/** Session ID for log attribution. */
+	readonly sessionId?: string;
 };
 
 export type PrebuiltToolCatalog = {
@@ -375,15 +423,7 @@ export async function runSharedChatTurn(
 	const tools = withAskUserTool(filteredMergedTools, options.askUser);
 	const model = createModelForPersona(options.persona);
 	const turnStartMs = Date.now();
-	log("info", "turn", "turn_start", {
-		modules: moduleNames,
-		messageCount: messages.length,
-		toolCount: Object.keys(tools).length,
-		totalToolsAvailable: Object.keys(mergedTools).length,
-		relevantTools: options.relevantTools ?? [],
-		selectedToolNames: Object.keys(tools),
-		model: options.persona.ai.model,
-	});
+	const sid = options.sessionId ?? null;
 	const cacheContext = {
 		persona: options.persona,
 		moduleNames,
@@ -394,6 +434,22 @@ export async function runSharedChatTurn(
 		messagesWithDateTime,
 		cacheContext,
 	);
+	const promptMetrics = computePromptSizeMetrics(messagesForModel);
+	logWithSession(sid, undefined, "info", "turn", "turn_start", {
+		modules: moduleNames,
+		messageCount: promptMetrics.messageCount,
+		toolCount: Object.keys(tools).length,
+		totalToolsAvailable: Object.keys(mergedTools).length,
+		relevantTools: options.relevantTools ?? [],
+		selectedToolNames: Object.keys(tools),
+		model: options.persona.ai.model,
+		systemChars: promptMetrics.systemChars,
+		userChars: promptMetrics.userChars,
+		assistantChars: promptMetrics.assistantChars,
+		toolChars: promptMetrics.toolChars,
+		totalChars: promptMetrics.totalChars,
+		estimatedPromptTokens: promptMetrics.estimatedTokens,
+	});
 	const chatWithToolsOptions =
 		applyChatPromptCaching(options.chatWithToolsOptions, cacheContext) ?? {};
 	const onChatEvent = chatWithToolsOptions.onChatEvent;
@@ -432,7 +488,7 @@ export async function runSharedChatTurn(
 		enrichedChatWithToolsOptions,
 	);
 
-	log("info", "turn", "turn_end", {
+	logWithSession(sid, undefined, "info", "turn", "turn_end", {
 		durationMs: Date.now() - turnStartMs,
 		toolCallCount: result.toolCalls.length,
 		toolsUsed: result.toolCalls.map((tc) => tc.name),

@@ -213,6 +213,7 @@ export async function bootstrapChatSession(params: {
 			return seq;
 		},
 		emitPersistLifecycle: false,
+		turnStartMs: Date.now(),
 	};
 
 	const result = await runChatTurnPipeline(
@@ -334,6 +335,7 @@ export async function runApiChatTurn(params: {
 			sessionId: params.sessionId,
 			startIdx: priorMessages.length,
 		},
+		turnStartMs: Date.now(),
 	};
 
 	try {

@@ -11,6 +11,9 @@ export const RECORDING_FORMAT_VERSION = 1;
 const DATETIME_BLOCK_RE =
 	/\n\n<!-- TOBY_DATETIME_START -->[\s\S]*?<!-- TOBY_DATETIME_END -->/g;
 
+const DATETIME_STANDALONE_RE =
+	/^<!-- TOBY_DATETIME_START -->[\s\S]*?<!-- TOBY_DATETIME_END -->$/;
+
 export type RecordedGenerateResult = Pick<
 	LanguageModelV3GenerateResult,
 	"content" | "finishReason" | "usage" | "warnings" | "providerMetadata"
@@ -112,16 +115,28 @@ export function normalizeCallParams(
 	params: LanguageModelV3CallOptions,
 ): Record<string, unknown> {
 	return {
-		prompt: params.prompt.map((message) => ({
-			role: message.role,
-			content:
-				message.role === "system"
-					? normalizePromptContent(message.content)
-					: message.content,
-			...(message.providerOptions
-				? { providerOptions: message.providerOptions }
-				: {}),
-		})),
+		prompt: params.prompt
+			.filter((message) => {
+				// Drop standalone datetime system messages for digest stability.
+				if (
+					message.role === "system" &&
+					typeof message.content === "string" &&
+					DATETIME_STANDALONE_RE.test(message.content.trim())
+				) {
+					return false;
+				}
+				return true;
+			})
+			.map((message) => ({
+				role: message.role,
+				content:
+					message.role === "system"
+						? normalizePromptContent(message.content)
+						: message.content,
+				...(message.providerOptions
+					? { providerOptions: message.providerOptions }
+					: {}),
+			})),
 		maxOutputTokens: params.maxOutputTokens,
 		temperature: params.temperature,
 		stopSequences: params.stopSequences,

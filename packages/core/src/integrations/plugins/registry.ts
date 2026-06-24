@@ -6,10 +6,12 @@ import {
 	loadPluginMetadata,
 	rememberPluginMetadata,
 } from "./adapter";
+import { pluginToolsList } from "./client";
 import { discoverPluginBinaries, findPluginBinary } from "./discovery";
 import { readDisabledPluginNames } from "./list-status";
 import { migrateLegacyPluginCredentials } from "./migrate";
 import type { DiscoveredPlugin } from "./protocol";
+import { setCachedPluginToolDefinitions } from "./tool-def-cache";
 
 let cachedPluginModules: IntegrationModule[] | null = null;
 
@@ -94,3 +96,29 @@ export {
 	pluginStatus,
 	pluginToolsList,
 } from "./client";
+export { clearPluginToolDefinitionCache } from "./tool-def-cache";
+
+/**
+ * Pre-populate plugin tool-definition cache for all discovered, enabled plugins.
+ * Call at daemon/session ready to avoid spawning `tools list` on the first turn.
+ * Errors are swallowed (best-effort warmup).
+ */
+export function warmupPluginToolDefinitions(): void {
+	const disabled = readDisabledPluginNames();
+	for (const discovered of discoverPluginBinaries()) {
+		const parsedName = discovered.binaryName.replace(/^toby-plugin-/, "");
+		if (disabled.has(parsedName)) continue;
+		const loaded = loadPluginMetadata(discovered);
+		if ("error" in loaded) continue;
+		rememberPluginMetadata(loaded);
+		const result = pluginToolsList(discovered.binaryPath);
+		if (result.ok && result.data.ok && result.data.tools) {
+			setCachedPluginToolDefinitions({
+				binaryPath: discovered.binaryPath,
+				version: loaded.version,
+				protocolVersion: loaded.protocolVersion,
+				tools: result.data.tools,
+			});
+		}
+	}
+}

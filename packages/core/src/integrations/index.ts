@@ -56,4 +56,7 @@ export function isBuiltinIntegration(name: string): boolean {
 	return BUILTIN_MODULES.some((module) => module.name === name);
 }
 
-export { getPluginModules } from "./plugins/registry";
+export {
+	getPluginModules,
+	warmupPluginToolDefinitions,
+} from "./plugins/registry";

@@ -50,24 +50,69 @@ function stripCurrentDatetimeAppendix(systemContent: string): string {
 	return systemContent.replace(pattern, "");
 }
 
-export function injectCurrentDateTimeIntoFirstSystemMessage(
+/**
+ * Removes any inline datetime appendix from the first system message so it
+ * stays stable for prompt caching. Datetime is injected as a separate short
+ * system message after the first one (see {@link injectCurrentDateTimeAsSeparateMessage}).
+ */
+export function stripCurrentDateTimeFromFirstSystemMessage(
 	messages: readonly CoreMessage[],
 ): CoreMessage[] {
-	if (messages.length === 0) {
-		return [...messages];
-	}
+	if (messages.length === 0) return [...messages];
 	const first = messages[0];
 	if (!first || first.role !== "system" || typeof first.content !== "string") {
 		return [...messages];
 	}
-	const withoutCurrentTime = stripCurrentDatetimeAppendix(first.content);
-	const nextSystem = `${withoutCurrentTime}${buildCurrentDatetimeAppendix()}`;
-	if (nextSystem === first.content) {
+	const cleaned = stripCurrentDatetimeAppendix(first.content);
+	if (cleaned === first.content) return [...messages];
+	const next = [...messages];
+	next[0] = { ...first, content: cleaned };
+	return next;
+}
+
+/**
+ * Inject current date/time as a separate short system message after the first
+ * system message. This keeps the first system message stable across turns for
+ * provider prompt caching, while still giving the model time context.
+ */
+export function injectCurrentDateTimeAsSeparateMessage(
+	messages: readonly CoreMessage[],
+): CoreMessage[] {
+	if (messages.length === 0) return [...messages];
+	// Ensure no inline datetime in the first system message.
+	const cleaned = stripCurrentDateTimeFromFirstSystemMessage(messages);
+	const first = cleaned[0];
+	if (!first || first.role !== "system") {
 		return [...messages];
 	}
-	const next = [...messages];
-	next[0] = { ...first, content: nextSystem };
-	return next;
+	const datetimeContent = buildCurrentDatetimeAppendix().trim();
+	// Check if a datetime system message already exists right after the first.
+	if (
+		cleaned.length >= 2 &&
+		cleaned[1]?.role === "system" &&
+		typeof cleaned[1]?.content === "string" &&
+		cleaned[1]?.content.includes(CURRENT_DATETIME_START)
+	) {
+		const next = [...cleaned];
+		next[1] = { role: "system", content: datetimeContent };
+		return next;
+	}
+	// Insert datetime system message after the first system message.
+	return [
+		first,
+		{ role: "system", content: datetimeContent },
+		...cleaned.slice(1),
+	];
+}
+
+/**
+ * Legacy: inject datetime into the first system message. Kept for backward
+ * compatibility but prefer {@link injectCurrentDateTimeAsSeparateMessage}.
+ */
+export function injectCurrentDateTimeIntoFirstSystemMessage(
+	messages: readonly CoreMessage[],
+): CoreMessage[] {
+	return injectCurrentDateTimeAsSeparateMessage(messages);
 }
 
 export function stripSkillInstructionsAppendix(systemContent: string): string {

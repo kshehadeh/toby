@@ -2,6 +2,7 @@ import type { LanguageModelUsage, ProviderMetadata } from "ai";
 import type { AskUserHandler } from "../ai/ask-user-tool";
 import type { ChatWithToolsOptions, CoreMessage } from "../ai/chat";
 import type { PriorPretreatment, UserIntentSpec } from "../ai/pretreatment";
+import { log, logWithSession } from "../logging/chat-log";
 
 export type { PriorPretreatment };
 import type { Persona } from "../config/index";
@@ -82,6 +83,8 @@ export type TurnContext = {
 		readonly startIdx: number;
 	};
 	readonly emitPersistLifecycle: boolean;
+	/** Wall-clock timestamp (ms) when the turn was submitted. Used for latency logging. */
+	readonly turnStartMs?: number;
 };
 
 export type PipelineStage = "init" | "expand" | "assemble" | "run" | "persist";
@@ -124,6 +127,8 @@ export async function runChatTurnPipeline(
 ): Promise<PipelineResult> {
 	const stopAfter = options?.stopAfter ?? "persist";
 	const stopIdx = stageIndex(stopAfter);
+	const turnStartMs = ctx.turnStartMs ?? Date.now();
+	const sid = ctx.persist?.sessionId ?? null;
 
 	if (options?.assembled) {
 		const ran = await runModelTurnNode.run(options.assembled, ctx);
@@ -134,27 +139,61 @@ export async function runChatTurnPipeline(
 		return { stage: "persist", turn: committed };
 	}
 
+	const initStart = Date.now();
 	const inited = await turnInitNode.run(request, ctx);
+	const initEnd = Date.now();
+	logWithSession(sid, undefined, "info", "turn", "stage_timing", {
+		stage: "init",
+		durationMs: initEnd - initStart,
+		elapsedMs: initEnd - turnStartMs,
+	});
 	if (stopIdx <= stageIndex("init")) {
 		return { stage: "init", turn: inited };
 	}
 
+	const expandStart = Date.now();
 	const expanded = await expandPromptNode.run(inited, ctx);
+	const expandEnd = Date.now();
+	logWithSession(sid, undefined, "info", "turn", "stage_timing", {
+		stage: "expand",
+		durationMs: expandEnd - expandStart,
+		elapsedMs: expandEnd - turnStartMs,
+	});
 	if (stopIdx <= stageIndex("expand")) {
 		return { stage: "expand", turn: expanded };
 	}
 
+	const assembleStart = Date.now();
 	const assembled = await assembleMessagesNode.run(expanded, ctx);
+	const assembleEnd = Date.now();
+	logWithSession(sid, undefined, "info", "turn", "stage_timing", {
+		stage: "assemble",
+		durationMs: assembleEnd - assembleStart,
+		elapsedMs: assembleEnd - turnStartMs,
+	});
 	if (stopIdx <= stageIndex("assemble")) {
 		return { stage: "assemble", turn: assembled };
 	}
 
+	const runStart = Date.now();
 	const ran = await runModelTurnNode.run(assembled, ctx);
+	const runEnd = Date.now();
+	logWithSession(sid, undefined, "info", "turn", "stage_timing", {
+		stage: "run",
+		durationMs: runEnd - runStart,
+		elapsedMs: runEnd - turnStartMs,
+	});
 	if (stopIdx <= stageIndex("run")) {
 		return { stage: "run", turn: ran };
 	}
 
 	const committed = await persistTurnNode.run(ran, ctx);
+	const persistEnd = Date.now();
+	logWithSession(sid, undefined, "info", "turn", "stage_timing", {
+		stage: "persist",
+		durationMs: persistEnd - runEnd,
+		elapsedMs: persistEnd - turnStartMs,
+	});
 	return { stage: "persist", turn: committed };
 }
 

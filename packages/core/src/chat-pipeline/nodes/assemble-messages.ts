@@ -5,7 +5,6 @@ import {
 	injectSkillBodiesIntoFirstSystemMessage,
 	prepareChatSessionMessages,
 } from "../../prepare-messages";
-import { loadProjectSkills } from "../../projects/index";
 import type { AssembledTurn, ExpandedTurn, PipelineNode } from "../pipeline";
 
 export const assembleMessagesNode: PipelineNode<ExpandedTurn, AssembledTurn> = {
@@ -44,25 +43,20 @@ export const assembleMessagesNode: PipelineNode<ExpandedTurn, AssembledTurn> = {
 			});
 		}
 
+		// Only attach skills that pretreatment/routing selected.
+		// Project skills are included in the routing catalog (turn-init) and
+		// are selected the same way as global skills — no auto-attach.
 		const attachedSkills = input.spec?.relevantSkills ?? [];
 
-		// Auto-attach project-local skills as if they were built-in.
-		const projectSkillNames = ctx.project
-			? loadProjectSkills(ctx.project).map((s) => s.name)
-			: [];
-		const allAttachedSkills = [
-			...new Set([...projectSkillNames, ...attachedSkills]),
-		];
-
-		if (allAttachedSkills.length > 0 && ctx.onStatusLine) {
+		if (attachedSkills.length > 0 && ctx.onStatusLine) {
 			await ctx.onStatusLine(
-				`Attaching skill instructions: ${allAttachedSkills.join(", ")}.`,
+				`Attaching skill instructions: ${attachedSkills.join(", ")}.`,
 			);
 		}
 
 		messages = injectSkillBodiesIntoFirstSystemMessage(
 			messages,
-			allAttachedSkills,
+			attachedSkills,
 			[...input.localSkills],
 		);
 

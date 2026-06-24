@@ -38,11 +38,16 @@ import type {
 	PluginChatModelPrep,
 	PluginConfigEnvelope,
 	PluginInboundPrep,
+	PluginToolsListResponse,
 } from "./protocol";
 import {
 	isSupportedProtocolVersion,
 	parsePluginNameFromBinary,
 } from "./protocol";
+import {
+	getCachedPluginToolDefinitions,
+	setCachedPluginToolDefinitions,
+} from "./tool-def-cache";
 
 export type PluginMetadata = {
 	readonly binaryPath: string;
@@ -282,19 +287,44 @@ export function loadPluginMetadata(
 		resources: status.resources,
 		authMethods: status.authMethods,
 		chatModelPrep: status.chatModelPrep,
-		readOnlyTools: loadReadOnlyToolNames(discovered.binaryPath),
+		readOnlyTools: loadReadOnlyToolNames(discovered.binaryPath, {
+			version: status.version ?? "0.0.0",
+			protocolVersion: status.protocolVersion,
+		}),
 		setupAvailable: status.setupAvailable,
 		setupDescription: status.setupDescription,
 		inboundPrep: status.inboundPrep,
 	};
 }
 
-function loadReadOnlyToolNames(binaryPath: string): string[] {
-	const toolsResult = pluginToolsList(binaryPath);
-	if (!toolsResult.ok || !toolsResult.data.ok || !toolsResult.data.tools) {
-		return [];
+function loadReadOnlyToolNames(
+	binaryPath: string,
+	metadata?: { readonly version: string; readonly protocolVersion: string },
+): string[] {
+	let tools: NonNullable<PluginToolsListResponse["tools"]> | null = null;
+	if (metadata) {
+		tools = getCachedPluginToolDefinitions({
+			binaryPath,
+			version: metadata.version,
+			protocolVersion: metadata.protocolVersion,
+		});
 	}
-	return toolsResult.data.tools.filter((t) => t.readOnly).map((t) => t.name);
+	if (!tools) {
+		const toolsResult = pluginToolsList(binaryPath);
+		if (!toolsResult.ok || !toolsResult.data.ok || !toolsResult.data.tools) {
+			return [];
+		}
+		tools = toolsResult.data.tools;
+		if (metadata) {
+			setCachedPluginToolDefinitions({
+				binaryPath,
+				version: metadata.version,
+				protocolVersion: metadata.protocolVersion,
+				tools,
+			});
+		}
+	}
+	return tools.filter((t) => t.readOnly).map((t) => t.name);
 }
 
 async function resolvePluginChatReadiness(
@@ -587,13 +617,30 @@ export function createPluginIntegrationModule(
 		readonly maxResults?: number;
 	}) {
 		const appliedActions: string[] = [];
-		const toolsResult = pluginToolsList(binaryPath);
-		if (!toolsResult.ok || !toolsResult.data.ok || !toolsResult.data.tools) {
-			return { tools: {}, appliedActions };
+		const cachedTools = getCachedPluginToolDefinitions({
+			binaryPath,
+			version: metadata.version,
+			protocolVersion: metadata.protocolVersion,
+		});
+		let toolDefs: NonNullable<PluginToolsListResponse["tools"]>;
+		if (cachedTools) {
+			toolDefs = cachedTools;
+		} else {
+			const toolsResult = pluginToolsList(binaryPath);
+			if (!toolsResult.ok || !toolsResult.data.ok || !toolsResult.data.tools) {
+				return { tools: {}, appliedActions };
+			}
+			toolDefs = toolsResult.data.tools;
+			setCachedPluginToolDefinitions({
+				binaryPath,
+				version: metadata.version,
+				protocolVersion: metadata.protocolVersion,
+				tools: toolDefs,
+			});
 		}
 
 		const tools: Record<string, Tool> = {};
-		for (const definition of toolsResult.data.tools) {
+		for (const definition of toolDefs) {
 			const inputSchema = jsonSchemaToZod(definition.inputSchema);
 			tools[definition.name] = tool({
 				description: definition.description,

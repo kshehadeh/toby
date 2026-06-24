@@ -170,6 +170,7 @@ export async function runHeadlessChatTurn(params: {
 			sessionId,
 			startIdx: priorMessages.length,
 		},
+		turnStartMs: turnStartedAt,
 	};
 
 	const result = await runChatTurnPipeline(

@@ -72,7 +72,7 @@ describe("tool selection notes", () => {
 		logToolSelectionNotes(null, {
 			allToolNames: Object.keys(labels),
 			toolIntegrationLabels: labels,
-			relevantTools: ["fetchOpenTasks"],
+			relevantTools: ["fetchOpenTasks", "memorySearch"],
 			pretreatmentRan: true,
 		});
 		expect(logSessionNote).toHaveBeenCalledWith(
@@ -148,12 +148,17 @@ describe("buildSelectionTranscriptEntries", () => {
 				memorySearch: "Toby",
 				askUser: "Toby",
 			},
-			relevantTools: ["fetchOpenTasks", "listProjectNames", "sendEmail"],
+			relevantTools: [
+				"fetchOpenTasks",
+				"listProjectNames",
+				"sendEmail",
+				"memorySearch",
+			],
 			pretreatmentRan: true,
 		});
 		expect(entries).toHaveLength(1);
 		expect(entries[0].kind).toBe("notice");
-		// 3 non-global (fetchOpenTasks, listProjectNames, sendEmail) + 2 global (memorySearch, askUser)
+		// 4 non-global (fetchOpenTasks, listProjectNames, sendEmail, memorySearch) + 1 always-included (askUser)
 		expect((entries[0] as { text: string }).text).toMatch(/^5 tools:/);
 		expect((entries[0] as { text: string }).text).toContain("fetchOpenTasks");
 	});
@@ -161,13 +166,13 @@ describe("buildSelectionTranscriptEntries", () => {
 	it("shows only core tools label when all tools are global", () => {
 		const entries = buildSelectionTranscriptEntries({
 			relevantSkills: [],
-			allToolNames: ["memorySearch", "askUser"],
-			toolIntegrationLabels: { memorySearch: "Toby", askUser: "Toby" },
+			allToolNames: ["askUser"],
+			toolIntegrationLabels: { askUser: "Toby" },
 			relevantTools: [],
 			pretreatmentRan: true,
 		});
 		expect(entries).toHaveLength(1);
-		expect((entries[0] as { text: string }).text).toBe("2 core tools");
+		expect((entries[0] as { text: string }).text).toBe("1 core tools");
 	});
 
 	it("shows both skills and tools", () => {
@@ -179,7 +184,7 @@ describe("buildSelectionTranscriptEntries", () => {
 				memorySearch: "Toby",
 				askUser: "Toby",
 			},
-			relevantTools: ["fetchOpenTasks"],
+			relevantTools: ["fetchOpenTasks", "memorySearch"],
 			pretreatmentRan: true,
 		});
 		expect(entries).toHaveLength(2);
@@ -188,23 +193,16 @@ describe("buildSelectionTranscriptEntries", () => {
 	});
 
 	it("truncates non-global tool names after 3", () => {
-		const allNames = [
-			"tool1",
-			"tool2",
-			"tool3",
-			"tool4",
-			"tool5",
-			"memorySearch",
-		];
+		const allNames = ["tool1", "tool2", "tool3", "tool4", "tool5", "askUser"];
 		const labels: Record<string, string> = {};
 		for (const n of allNames) labels[n] = "Plugin";
-		labels.memorySearch = "Toby";
+		labels.askUser = "Toby";
 
 		const entries = buildSelectionTranscriptEntries({
 			relevantSkills: [],
 			allToolNames: allNames,
 			toolIntegrationLabels: labels,
-			relevantTools: allNames.filter((n) => n !== "memorySearch"),
+			relevantTools: allNames.filter((n) => n !== "askUser"),
 			pretreatmentRan: true,
 		});
 		expect(entries).toHaveLength(1);

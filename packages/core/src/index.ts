@@ -41,6 +41,7 @@ export {
 	getIntegrationModules,
 	getModulesForCategory,
 	getModulesWithCapability,
+	warmupPluginToolDefinitions,
 } from "./integrations/index";
 export type {
 	IntegrationModule,

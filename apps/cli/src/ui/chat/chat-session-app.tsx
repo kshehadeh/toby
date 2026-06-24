@@ -815,7 +815,9 @@ export function ChatSessionApp({
 				if (!bridge) {
 					throw new Error("Daemon API not ready");
 				}
-				const created = await bridge.createSession({ bootstrap: true });
+				const created = await bridge.createSession({
+					bootstrap: !sessionPrompt.trim(),
+				});
 				if (cancelled) return;
 				setSessionId(created.id);
 				sessionIdRef.current = created.id;
@@ -833,7 +835,13 @@ export function ChatSessionApp({
 		return () => {
 			cancelled = true;
 		};
-	}, [daemonReady, sessionBootMode, messages, activePersona.name]);
+	}, [
+		daemonReady,
+		sessionBootMode,
+		messages,
+		activePersona.name,
+		sessionPrompt,
+	]);
 
 	// Daemon persists messages/transcript; skip local SQLite incremental writes.
 	useEffect(() => {
@@ -918,10 +926,12 @@ export function ChatSessionApp({
 		if (!sid) {
 			const bridge = daemonBridgeRef.current;
 			if (!bridge) return;
-			void bridge.createSession({ bootstrap: true }).then((created) => {
-				setSessionId(created.id);
-				setSessionName(created.name);
-			});
+			void bridge
+				.createSession({ bootstrap: !sessionPrompt.trim() })
+				.then((created) => {
+					setSessionId(created.id);
+					setSessionName(created.name);
+				});
 			return;
 		}
 		const sidFinal = sid;

@@ -8,6 +8,7 @@ import {
 	getDaemonLogPath,
 	getWebConfig,
 } from "@toby/core/config/index";
+import { warmupPluginToolDefinitions } from "@toby/core/integrations/index";
 import { daemonLog, flushDaemonLogSync } from "@toby/core/logging/daemon-log";
 import {
 	buildTobySpawnArgs,
@@ -113,6 +114,14 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 	const intervalMs = intervalSeconds * 1000;
 	const inboundCfg = readChatInboundConfig();
 	const webCfg = getWebConfig();
+
+	// Warm plugin tool-definition cache so first turn avoids plugin process spawns.
+	try {
+		warmupPluginToolDefinitions();
+	} catch {
+		// best-effort; errors are non-fatal
+	}
+
 	daemonLog("info", "daemon", "daemon_started", {
 		pid: process.pid,
 		intervalSeconds,
