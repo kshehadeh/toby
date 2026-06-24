@@ -22,6 +22,54 @@ Toby.app currently has two roles:
 The app does **not** import `@toby/core` directly. It talks to Toby through HTTP
 so the CLI, web UI, daemon, and native app stay on the same behavior path.
 
+## Surfaces
+
+Toby.app provides six main windows, all accessible from the sidebar.
+
+### Chat
+
+The main window is where you interact with Toby. It shows your conversation
+history, streaming responses, and a prompt input at the bottom.
+
+![Toby.app main chat window](/img/toby-app-main.png)
+
+### Recordings
+
+The Recordings window lists your past recordings with metadata such as start
+time, duration, and transcription status. You can view transcripts and start a
+chat about any recording.
+
+![Toby.app Recordings window](/img/toby-app-recordings.png)
+
+### Integrations
+
+The Integrations window shows all available integrations and their connection
+status. Click an integration to view setup instructions or manage its
+configuration.
+
+![Toby.app Integrations window](/img/toby-app-integrations.png)
+
+### Skills
+
+The Skills window lists your installed skills with descriptions. You can add
+new skills, delete existing ones, and run a skill directly from the toolbar.
+
+![Toby.app Skills window](/img/toby-app-skills.png)
+
+### Schedules
+
+The Schedules window shows your configured scheduled tasks with their cron
+expressions. You can add new schedules, run them on demand, or delete them.
+
+![Toby.app Schedules window](/img/toby-app-schedules.png)
+
+### Settings
+
+The Settings window lets you configure chat defaults, AI providers, personas,
+projects, and other preferences through a familiar preferences-style interface.
+
+![Toby.app Settings window](/img/toby-app-settings.png)
+
 ## Relationship to the daemon
 
 When Toby.app opens, it checks the daemon API at:
