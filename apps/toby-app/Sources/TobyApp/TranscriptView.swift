@@ -434,15 +434,28 @@ private struct TranscriptRow: View {
 
 private struct UserMessageRow: View {
 	let text: String
+	private static let collapsedLineLimit = 12
 	private var isCopyable: Bool {
 		!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+	}
+
+	@State private var isExpanded = false
+
+	private var isLargePrompt: Bool {
+		text.components(separatedBy: "\n").count > Self.collapsedLineLimit
+	}
+
+	private var displayedText: String {
+		guard isLargePrompt, !isExpanded else { return text }
+		let lines = text.components(separatedBy: "\n")
+		return lines.prefix(Self.collapsedLineLimit).joined(separator: "\n").trimmingCharacters(in: .newlines) + "…"
 	}
 
 	var body: some View {
 		HStack(alignment: .top, spacing: 0) {
 			Spacer(minLength: 0)
 			VStack(alignment: .trailing, spacing: 6) {
-				Text(text)
+				Text(displayedText)
 					.font(AppTheme.transcriptBodyFont)
 					.tracking(AppTheme.transcriptTracking)
 					.lineSpacing(AppTheme.transcriptLineSpacing)
@@ -468,6 +481,20 @@ private struct UserMessageRow: View {
 							}
 					}
 					.frame(maxWidth: 520, alignment: .trailing)
+				if isLargePrompt {
+					Button(action: {
+						withAnimation(.easeOut(duration: 0.2)) {
+							isExpanded.toggle()
+						}
+					}) {
+						Text(isExpanded ? "Show less" : "Show more")
+							.font(AppTheme.transcriptCaptionFont)
+							.tracking(AppTheme.transcriptTracking)
+							.foregroundStyle(AppTheme.accent)
+					}
+					.buttonStyle(.plain)
+					.padding(.top, 2)
+				}
 				if isCopyable {
 					CopyButton(text: text, label: "Copy prompt")
 						.padding(.top, 2)
