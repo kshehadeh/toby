@@ -53,6 +53,7 @@ struct TranscriptView: View {
 	}
 
 	private func isWorkGroupExpanded(_ group: TranscriptWorkGroup) -> Bool {
+		if workSteps(from: group).isEmpty { return false }
 		if group.isActive {
 			return !collapsedWhileActive.contains(group.id)
 		}
@@ -132,6 +133,7 @@ struct TranscriptView: View {
 	}
 
 	private func toggleWorkGroup(_ group: TranscriptWorkGroup) {
+		if workSteps(from: group).isEmpty { return }
 		if group.isActive {
 			if collapsedWhileActive.contains(group.id) {
 				collapsedWhileActive.remove(group.id)
@@ -214,10 +216,12 @@ private struct WorkedForRow: View {
 									.foregroundStyle(AppTheme.tertiaryText)
 							}
 							Spacer(minLength: 0)
-							Image(systemName: "chevron.right")
-								.font(AppTheme.transcriptCaptionFont.weight(.semibold))
-								.foregroundStyle(AppTheme.tertiaryText)
-								.rotationEffect(.degrees(isExpanded ? 90 : 0))
+							if steps.count > 0 {
+								Image(systemName: "chevron.right")
+									.font(AppTheme.transcriptCaptionFont.weight(.semibold))
+									.foregroundStyle(AppTheme.tertiaryText)
+									.rotationEffect(.degrees(isExpanded ? 90 : 0))
+							}
 						}
 						.padding(.vertical, 10)
 						.padding(.horizontal, 12)
