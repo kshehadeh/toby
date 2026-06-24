@@ -36,6 +36,7 @@ import { handleCreateIssue } from "./handlers/issues";
 import {
 	handleListenRecordingDelete,
 	handleListenRecordingDetail,
+	handleListenRecordingPatch,
 	handleListenRecordingTranscribe,
 	handleListenRecordingsList,
 	handleListenStart,
@@ -141,6 +142,12 @@ export async function handleWebRequest(
 		if (listenRecordingMatch && req.method === "GET") {
 			return handleListenRecordingDetail(
 				decodeURIComponent(listenRecordingMatch[1]),
+			);
+		}
+		if (listenRecordingMatch && req.method === "PATCH") {
+			return handleListenRecordingPatch(
+				decodeURIComponent(listenRecordingMatch[1]),
+				req,
 			);
 		}
 		if (listenRecordingMatch && req.method === "DELETE") {

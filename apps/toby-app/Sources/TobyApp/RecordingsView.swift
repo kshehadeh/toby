@@ -161,13 +161,13 @@ private struct RecordingsDetailView: View {
 				if store.isDetailLoading && store.selectedRecordings.count == 1 && store.detail == nil {
 					ProgressView("Loading recording...")
 						.frame(maxWidth: .infinity, minHeight: 240)
-				} else if !store.selectedRecordings.isEmpty {
-					if store.selectedRecordings.count == 1, let detail = store.detail {
-						if isProcessingSelected {
-							RecordingProcessingCard(processingState: processingState)
-						}
-						RecordingDetailContent(detail: detail)
-					} else {
+			} else if !store.selectedRecordings.isEmpty {
+				if store.selectedRecordings.count == 1, store.detail != nil {
+					if isProcessingSelected {
+						RecordingProcessingCard(processingState: processingState)
+					}
+					RecordingDetailContent(store: store, recordingId: store.selectedRecording?.id)
+				} else {
 						SelectedRecordingsDeck(recordings: store.selectedRecordings)
 					}
 				} else if let errorMessage = store.errorMessage {
@@ -249,64 +249,215 @@ private struct RecordingProcessingCard: View {
 }
 
 private struct RecordingDetailContent: View {
-	let detail: ListenRecordingDetail
+	@Bindable var store: RecordingsStore
+	var recordingId: String?
+
+	@State private var isEditingName = false
+	@State private var nameDraft = ""
+	@FocusState private var nameFieldFocused: Bool
+
+	private var detail: ListenRecordingDetail { store.detail! }
 
 	private var visibleErrors: [String] {
 		(detail.metadata.errors ?? []).filter { !isNonFatalScreenCaptureDecline($0) }
 	}
 
+	private var recordingStatusText: String {
+		if detail.hasTranscript { return "Transcribed" }
+		if detail.hasAudio { return "Recorded" }
+		return "Saved"
+	}
+
 	var body: some View {
-		VStack(alignment: .leading, spacing: 20) {
-			SettingsSectionHeader(title: detail.metadata.name ?? "Recording")
-			SettingsCard {
-				SettingsRow(title: "Started", description: detail.metadata.startedAt) {
-					EmptyView()
-				}
-				SettingsRow(title: "Duration", description: durationText(detail.metadata.durationMs)) {
-					EmptyView()
-				}
-				SettingsRow(title: "Sources", description: sourceText(detail.metadata.sources)) {
-					EmptyView()
-				}
-				SettingsRow(title: "Location", description: detail.dir, showsDivider: false) {
-					EmptyView()
+		VStack(alignment: .leading, spacing: 28) {
+			if isEditingName {
+				RecordingNameEditor(
+					draft: $nameDraft,
+					isFocused: $nameFieldFocused,
+					onSave: {
+						guard let id = recordingId else { return }
+						let newName = nameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+						isEditingName = false
+						Task { await store.renameRecording(id: id, name: newName) }
+					},
+					onCancel: {
+						isEditingName = false
+						nameDraft = detail.metadata.name ?? ""
+					},
+				)
+			} else {
+				VStack(alignment: .leading, spacing: 8) {
+					HStack(spacing: 12) {
+						Text(detail.metadata.name ?? "Recording")
+							.font(.title2.weight(.semibold))
+							.foregroundStyle(AppTheme.primaryText)
+
+						Button {
+							nameDraft = detail.metadata.name ?? ""
+							isEditingName = true
+							nameFieldFocused = true
+						} label: {
+							Image(systemName: "pencil")
+								.font(.body)
+								.foregroundStyle(AppTheme.secondaryText)
+						}
+						.buttonStyle(.plain)
+						.accessibilityIdentifier("rename-recording-button")
+
+						Spacer()
+					}
+
+					HStack(spacing: 6) {
+						Text(friendlyRecordingDate(detail.metadata.startedAt, fallback: detail.metadata.createdAt))
+							.font(.subheadline)
+							.foregroundStyle(AppTheme.secondaryText)
+
+						if detail.hasTranscript {
+							HStack(spacing: 4) {
+								Circle()
+									.fill(Color.orange)
+									.frame(width: 6, height: 6)
+								Text("Transcribed")
+									.font(.caption.weight(.medium))
+									.foregroundStyle(Color.orange)
+							}
+							.padding(.horizontal, 8)
+							.padding(.vertical, 3)
+							.background(Color.orange.opacity(0.12))
+							.clipShape(Capsule())
+						}
+					}
 				}
 			}
 
-			SettingsSectionHeader(title: "Audio")
-			RecordingAudioPlayerView(detail: detail)
+			VStack(alignment: .leading, spacing: 10) {
+				Text("Recording")
+					.font(.subheadline.weight(.medium))
+					.foregroundStyle(SettingsDesign.sectionHeader)
 
-			SettingsSectionHeader(title: "Transcript")
-			SettingsCard {
-				Text(detail.transcript ?? detail.transcriptError ?? "Transcript not available.")
-					.font(.body.monospaced())
-					.foregroundStyle(detail.transcript == nil ? SettingsDesign.rowDescription : SettingsDesign.rowTitle)
-					.textSelection(.enabled)
-					.frame(maxWidth: .infinity, alignment: .leading)
-					.padding(SettingsDesign.rowHorizontalPadding)
+				let columns = [GridItem(.flexible()), GridItem(.flexible())]
+				LazyVGrid(columns: columns, spacing: 10) {
+					RecordingInfoCard(
+						label: "Started",
+						value: friendlyRecordingDate(detail.metadata.startedAt, fallback: detail.metadata.createdAt),
+					)
+					RecordingInfoCard(label: "Duration", value: durationText(detail.metadata.durationMs))
+					RecordingInfoCard(label: "Sources", value: sourceText(detail.metadata.sources))
+					RecordingInfoCard(label: "Status", value: recordingStatusText)
+				}
+
+				RecordingInfoCard(label: "Location", value: detail.dir)
 			}
-			.overlay(alignment: .topTrailing) {
-				if let transcript = detail.transcript,
-				   !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-				{
-					CopyButton(text: transcript, label: "Copy transcript")
-						.accessibilityIdentifier("copy-transcript-button")
-						.padding(.top, 6)
-						.padding(.trailing, 8)
+
+			VStack(alignment: .leading, spacing: 10) {
+				Text("Audio")
+					.font(.subheadline.weight(.medium))
+					.foregroundStyle(SettingsDesign.sectionHeader)
+
+				SettingsCard {
+					RecordingAudioPlayerView(detail: detail)
+				}
+			}
+
+			VStack(alignment: .leading, spacing: 10) {
+				Text("Transcript")
+					.font(.subheadline.weight(.medium))
+					.foregroundStyle(SettingsDesign.sectionHeader)
+
+				SettingsCard {
+					Text(detail.transcript ?? detail.transcriptError ?? "Transcript not available.")
+						.font(.body.monospaced())
+						.foregroundStyle(detail.transcript == nil ? SettingsDesign.rowDescription : SettingsDesign.rowTitle)
+						.textSelection(.enabled)
+						.frame(maxWidth: .infinity, alignment: .leading)
+						.padding(SettingsDesign.rowHorizontalPadding)
+						.padding(.vertical, SettingsDesign.rowVerticalPadding)
+				}
+				.overlay(alignment: .topTrailing) {
+					if let transcript = detail.transcript,
+					   !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+					{
+						CopyButton(text: transcript, label: "Copy transcript")
+							.accessibilityIdentifier("copy-transcript-button")
+							.padding(.top, 6)
+							.padding(.trailing, 8)
+					}
 				}
 			}
 
 			if !visibleErrors.isEmpty {
-				SettingsSectionHeader(title: "Errors")
-				SettingsCard {
-					Text(visibleErrors.joined(separator: "\n"))
-						.font(.subheadline)
-						.foregroundStyle(.red.opacity(0.85))
-						.textSelection(.enabled)
-						.frame(maxWidth: .infinity, alignment: .leading)
-						.padding(SettingsDesign.rowHorizontalPadding)
+				VStack(alignment: .leading, spacing: 10) {
+					Text("Errors")
+						.font(.subheadline.weight(.medium))
+						.foregroundStyle(SettingsDesign.sectionHeader)
+
+					SettingsCard {
+						Text(visibleErrors.joined(separator: "\n"))
+							.font(.subheadline)
+							.foregroundStyle(.red.opacity(0.85))
+							.textSelection(.enabled)
+							.frame(maxWidth: .infinity, alignment: .leading)
+							.padding(SettingsDesign.rowHorizontalPadding)
+							.padding(.vertical, SettingsDesign.rowVerticalPadding)
+					}
 				}
 			}
+		}
+	}
+}
+
+private struct RecordingInfoCard: View {
+	let label: String
+	let value: String
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 6) {
+			Text(label)
+				.font(.caption.weight(.medium))
+				.foregroundStyle(AppTheme.secondaryText)
+			Text(value)
+				.font(.subheadline)
+				.foregroundStyle(AppTheme.primaryText)
+				.lineLimit(2)
+				.textSelection(.enabled)
+		}
+		.frame(maxWidth: .infinity, alignment: .leading)
+		.padding(.horizontal, 14)
+		.padding(.vertical, 12)
+		.background(SettingsDesign.cardBackground)
+		.clipShape(RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius))
+		.overlay {
+			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
+				.stroke(SettingsDesign.cardBorder, lineWidth: 1)
+		}
+	}
+}
+
+private struct RecordingNameEditor: View {
+	@Binding var draft: String
+	var isFocused: FocusState<Bool>.Binding
+	let onSave: () -> Void
+	let onCancel: () -> Void
+
+	var body: some View {
+		HStack(spacing: 8) {
+			TextField("Recording name", text: $draft)
+				.textFieldStyle(.roundedBorder)
+				.focused(isFocused)
+				.onSubmit(onSave)
+				.accessibilityIdentifier("recording-name-field")
+
+			Button("Save", systemImage: "checkmark") {
+				onSave()
+			}
+			.buttonStyle(.borderedProminent)
+			.accessibilityIdentifier("save-recording-name-button")
+
+			Button("Cancel", systemImage: "xmark") {
+				onCancel()
+			}
+			.buttonStyle(.bordered)
+			.accessibilityIdentifier("cancel-recording-name-button")
 		}
 	}
 }

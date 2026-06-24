@@ -132,6 +132,66 @@ struct RecordingsViewTests {
 			try view.inspect().find(text: "Processing recording")
 		}
 	}
+
+	@Test("detail view shows rename button when a single recording is selected")
+	func detailViewShowsRenameButton() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: nil)
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "rename-recording-button")
+		}
+	}
+
+	@Test("detail view shows recording name in header")
+	func detailViewShowsRecordingName() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "My Standup")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: nil, name: "My Standup")
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "My Standup")
+		}
+	}
+
+	@Test("detail view shows fallback title when recording has no name")
+	func detailViewShowsFallbackTitle() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: nil)]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: nil)
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Recording")
+		}
+	}
+
+	@Test("detail view updates title after rename")
+	func detailViewUpdatesTitleAfterRename() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: nil)]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: nil, name: nil)
+		let view = RecordingsView(store: store)
+
+		// Before rename, the detail header shows the fallback "Recording"
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Recording")
+		}
+
+		// Simulate what renameRecording does after a successful server call:
+		// update both detail and recordings with the new name
+		store.detail = makeRecordingDetail(id: "r1", transcript: nil, name: "Team Sync")
+		store.recordings = [makeRecording(id: "r1", name: "Team Sync")]
+
+		// After rename, the detail header should show "Team Sync"
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Team Sync")
+		}
+	}
 }
 
 private func makeRecording(id: String, name: String? = nil) -> ListenRecordingSummary {
@@ -150,13 +210,17 @@ private func makeRecording(id: String, name: String? = nil) -> ListenRecordingSu
 	)
 }
 
-private func makeRecordingDetail(id: String, transcript: String?) -> ListenRecordingDetail {
+private func makeRecordingDetail(
+	id: String,
+	transcript: String?,
+	name: String? = nil
+) -> ListenRecordingDetail {
 	ListenRecordingDetail(
 		id: id,
 		dir: "/tmp/\(id)",
 		metadata: ListenRecordingMetadata(
 			id: id,
-			name: nil,
+			name: name,
 			description: nil,
 			createdAt: "2026-06-22T10:00:00Z",
 			startedAt: "2026-06-22T10:00:00Z",

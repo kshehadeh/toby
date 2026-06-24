@@ -10,6 +10,7 @@ import {
 	recordingHasTranscript,
 	resolveListenRecordingAudioPath,
 } from "../../listen/recordings";
+import { updateListenRecordingMetadata } from "../../listen/session-controller";
 import { transcribeWithPlugin } from "../../listen/transcription-plugin";
 import type {
 	ListenRecordingFiles,
@@ -84,6 +85,58 @@ export function handleListenRecordingDetail(recordingId: string): Response {
 		segments: transcript.ok ? transcript.segments : undefined,
 		warnings: transcript.ok ? transcript.warnings : undefined,
 	});
+}
+
+export async function handleListenRecordingPatch(
+	recordingId: string,
+	req: Request,
+): Promise<Response> {
+	const recording = findListenRecordingById(recordingId);
+	if (!recording) {
+		return errorResponse("Recording not found", 404);
+	}
+	const body = await readJsonBody<{
+		readonly name?: string;
+		readonly description?: string;
+	}>(req);
+	if (body === null) {
+		return errorResponse("Invalid JSON body", 400);
+	}
+	const patch: { name?: string; description?: string } = {};
+	if (typeof body.name === "string") {
+		patch.name = body.name.trim();
+	}
+	if (typeof body.description === "string") {
+		patch.description = body.description.trim();
+	}
+	if (patch.name === undefined && patch.description === undefined) {
+		return errorResponse(
+			"Body must include 'name' or 'description' string field",
+			400,
+		);
+	}
+	try {
+		const updated = updateListenRecordingMetadata(recording, patch);
+		const transcript = readListenTranscript(updated.dir, {
+			includeSegments: true,
+		});
+		const audioPath = resolveListenRecordingAudioPath(updated);
+		return jsonResponse({
+			id: updated.id,
+			dir: updated.dir,
+			metadata: updated.metadata,
+			hasAudio: audioPath !== undefined,
+			audioPath,
+			hasTranscript: transcript.ok,
+			transcript: transcript.ok ? transcript.text : undefined,
+			transcriptError: transcript.ok ? undefined : transcript.error,
+			segments: transcript.ok ? transcript.segments : undefined,
+			warnings: transcript.ok ? transcript.warnings : undefined,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return errorResponse(message, 500);
+	}
 }
 
 export function handleListenRecordingDelete(recordingId: string): Response {

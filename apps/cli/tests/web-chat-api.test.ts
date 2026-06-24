@@ -336,6 +336,75 @@ describe("web chat API routes", () => {
 		});
 	});
 
+	it("patches listen recording name via PATCH route", async () => {
+		await withTempTobyDir(async () => {
+			const recordingsDir = path.join(
+				process.env.TOBY_DIR ?? "",
+				"listen",
+				"recordings",
+			);
+			const session = prepareListenSession({
+				recordingsDir,
+				id: "patch-route-recording",
+				now: new Date("2026-06-17T10:00:00Z"),
+				sources: { mic: true, system: true },
+			});
+			saveListenSession(
+				session,
+				buildListenMetadata({
+					session,
+					stoppedAt: new Date("2026-06-17T10:00:05Z"),
+					files: {},
+				}),
+			);
+
+			const patched = await handleWebRequest(
+				new Request(
+					"http://127.0.0.1/api/listen/recordings/patch-route-recording",
+					{
+						method: "PATCH",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ name: "Standup" }),
+					},
+				),
+				null,
+			);
+			expect(patched.status).toBe(200);
+			const body = (await patched.json()) as {
+				metadata: { name?: string };
+			};
+			expect(body.metadata.name).toBe("Standup");
+
+			const detail = await handleWebRequest(
+				new Request(
+					"http://127.0.0.1/api/listen/recordings/patch-route-recording",
+				),
+				null,
+			);
+			const detailBody = (await detail.json()) as {
+				metadata: { name?: string };
+			};
+			expect(detailBody.metadata.name).toBe("Standup");
+		});
+	});
+
+	it("returns 404 when patching a missing recording", async () => {
+		await withTempTobyDir(async () => {
+			const res = await handleWebRequest(
+				new Request(
+					"http://127.0.0.1/api/listen/recordings/no-such-recording",
+					{
+						method: "PATCH",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ name: "Ghost" }),
+					},
+				),
+				null,
+			);
+			expect(res.status).toBe(404);
+		});
+	});
+
 	it("deletes listen recordings", async () => {
 		await withTempTobyDir(async () => {
 			const recordingsDir = path.join(

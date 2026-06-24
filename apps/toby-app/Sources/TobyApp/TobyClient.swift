@@ -124,6 +124,18 @@ struct TobyClient {
 		return try JSONDecoder().decode(ListenRecordingDetail.self, from: data)
 	}
 
+	func updateRecording(id: String, name: String?) async throws -> ListenRecordingDetail {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)"))
+		request.httpMethod = "PATCH"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		var body: [String: Any] = [:]
+		if let name { body["name"] = name }
+		request.httpBody = try JSONSerialization.data(withJSONObject: body)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ListenRecordingDetail.self, from: data)
+	}
+
 	func deleteRecording(id: String) async throws {
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)"))
 		request.httpMethod = "DELETE"
