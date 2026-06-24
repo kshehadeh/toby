@@ -20,6 +20,7 @@ struct AppSidebar: View {
 	let onOpenChangelog: () -> Void
 	@State private var isWorkspaceScrolling = false
 	@State private var workspaceScrollProgress: CGFloat = 0
+	@State private var chatsHeight: CGFloat = 220
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
@@ -71,7 +72,6 @@ struct AppSidebar: View {
 								.frame(width: 0, height: 0)
 							}
 						}
-						.frame(maxHeight: 220)
 
 						if isWorkspaceScrolling {
 							Rectangle()
@@ -79,14 +79,25 @@ struct AppSidebar: View {
 								.frame(width: 3, height: 40)
 								.cornerRadius(1.5)
 								.padding(.trailing, 2)
-								.offset(y: (workspaceScrollProgress - 0.5) * (220 - 40))
+								.offset(y: (workspaceScrollProgress - 0.5) * (chatsHeight - 40))
 								.transition(.opacity)
 								.allowsHitTesting(false)
 						}
 					}
+					.frame(maxHeight: .infinity)
+					.background(
+						GeometryReader { proxy in
+							Color.clear
+								.onAppear { chatsHeight = proxy.size.height }
+								.onChange(of: proxy.size.height) { _, newValue in
+									chatsHeight = newValue
+								}
+						}
+					)
 					.animation(.easeInOut(duration: 0.25), value: isWorkspaceScrolling)
 				}
 			}
+			.frame(maxHeight: .infinity)
 			SidebarSection(title: "Toby") {
 				Button {
 					onOpenIntegrations()
@@ -124,7 +135,6 @@ struct AppSidebar: View {
 				.buttonStyle(.plain)
 				.frame(maxWidth: .infinity, alignment: .leading)
 			}
-			Spacer(minLength: AppTheme.contentPadding)
 			SidebarFooter(
 				status: status,
 				onOpenPersonasSettings: onOpenPersonasSettings,
