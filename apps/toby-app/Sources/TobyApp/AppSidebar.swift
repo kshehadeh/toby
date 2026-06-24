@@ -46,9 +46,9 @@ struct AppSidebar: View {
 									Button {
 										onSelectSession(session.id)
 									} label: {
-										SidebarRow(
+										SidebarSessionRow(
 											title: session.name,
-											systemImage: "message",
+											subtitle: sidebarSessionDate(session),
 											isSelected: session.id == selectedSessionId,
 										)
 									}
@@ -98,6 +98,7 @@ struct AppSidebar: View {
 				}
 			}
 			.frame(maxHeight: .infinity)
+			.padding(.bottom, 16)
 			SidebarSection(title: "Toby") {
 				Button {
 					onOpenIntegrations()
@@ -471,6 +472,60 @@ private struct SidebarSection<Content: View>: View {
 			content
 		}
 	}
+}
+
+private struct SidebarSessionRow: View {
+	let title: String
+	let subtitle: String?
+	var isSelected = false
+
+	var body: some View {
+		HStack(spacing: 8) {
+			Image(systemName: "message")
+				.font(.callout)
+				.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.secondaryText)
+			VStack(alignment: .leading, spacing: 1) {
+				Text(title)
+					.font(.callout)
+					.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.secondaryText)
+					.lineLimit(1)
+				if let subtitle {
+					Text(subtitle)
+						.font(.caption2)
+						.foregroundStyle(AppTheme.tertiaryText)
+						.lineLimit(1)
+				}
+			}
+			Spacer(minLength: 0)
+		}
+		.frame(maxWidth: .infinity, alignment: .leading)
+		.padding(.horizontal, 8)
+		.padding(.vertical, 7)
+		.contentShape(Rectangle())
+		.background(
+			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
+				.fill(isSelected ? AppTheme.selection : Color.clear)
+		)
+	}
+}
+
+private func sidebarSessionDate(_ session: SessionSummary) -> String? {
+	let raw = session.updatedAt ?? session.createdAt
+	guard let raw, !raw.isEmpty else { return nil }
+	let fractional = ISO8601DateFormatter()
+	fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+	let date = fractional.date(from: raw) ?? ISO8601DateFormatter().date(from: raw)
+	guard let date else { return nil }
+	return SidebarDateFormatter.friendly.string(from: date)
+}
+
+private enum SidebarDateFormatter {
+	static let friendly: DateFormatter = {
+		let formatter = DateFormatter()
+		formatter.dateStyle = .medium
+		formatter.timeStyle = .short
+		return formatter
+	}()
 }
 
 private struct SidebarRow: View {

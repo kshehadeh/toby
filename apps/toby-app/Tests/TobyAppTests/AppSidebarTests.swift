@@ -98,4 +98,38 @@ struct AppSidebarTests {
         #expect(clampedScrollProgress(contentHeight: 200, visibleHeight: 220, offset: 0) == 0)
     }
 
+    @Test("session with createdAt shows formatted date subtitle")
+    func sessionShowsDateSubtitle() throws {
+        let sessions = [
+            SessionSummary(id: "1", name: "Dated Session", createdAt: "2026-06-22T10:00:00Z", updatedAt: nil),
+        ]
+        let view = makeSidebar(sessions: sessions)
+        let buttons = try view.inspect().findAll(ViewType.Button.self)
+        let sessionButton = try buttons.first { btn in
+            (try? btn.find(text: "Dated Session")) != nil
+        }
+        try #require(sessionButton != nil, "Session button not found")
+        // The subtitle should contain "Jun" and "2026" from the medium date style
+        let texts = try sessionButton!.findAll(ViewType.Text.self)
+        let subtitleTexts = texts.compactMap { try? $0.string() }.filter { $0.contains("Jun") }
+        #expect(subtitleTexts.count == 1)
+        #expect(subtitleTexts[0].contains("2026"))
+    }
+
+    @Test("session with nil dates shows no subtitle text")
+    func sessionWithNilDatesNoSubtitle() throws {
+        let sessions = [
+            SessionSummary(id: "1", name: "No Date Session", createdAt: nil, updatedAt: nil),
+        ]
+        let view = makeSidebar(sessions: sessions)
+        let buttons = try view.inspect().findAll(ViewType.Button.self)
+        let sessionButton = try buttons.first { btn in
+            (try? btn.find(text: "No Date Session")) != nil
+        }
+        try #require(sessionButton != nil, "Session button not found")
+        // Only the title text should be present (no date subtitle)
+        let texts = try sessionButton!.findAll(ViewType.Text.self)
+        #expect(texts.count == 1)
+    }
+
 }
