@@ -140,7 +140,7 @@ Before the main model turn, **ExpandPromptNode** runs **prompt preparation** tha
 By default, Toby uses **embedding-based routing** ([`packages/core/src/routing/`](../packages/core/src/routing/)) instead of an auxiliary LLM on the hot path:
 
 1. **Turn-init** builds the tool catalog and **warms** a static index: tool/skill descriptions are embedded once per catalog signature and stored in SQLite (`routing_embeddings` in [`session-store.ts`](../packages/core/src/session-store.ts)).
-2. **Expand-prompt** embeds the user message, runs cosine search, and selects up to **`TOBY_ROUTING_TOP_K`** integration-specific tools (default **8**) plus up to **2** skills above **`TOBY_ROUTING_MIN_SCORE`** (default **0.2**).
+2. **Expand-prompt** embeds the user message, runs cosine search, and selects up to **`TOBY_ROUTING_TOP_K`** integration-specific tools (default **8**) plus up to **2** skills above **`TOBY_ROUTING_MIN_SCORE`** (default **0.2** for tools; **`TOBY_ROUTING_SKILL_MIN_SCORE`** default **0.35** for skills — skills require a stronger match to avoid false-positive activation).
 3. **Finalize** still applies the token-overlap skill heuristic and unions tools declared in selected skill frontmatter.
 
 **Always-included tools** (~16: `askUser`, memory tools, `loadLocalSkillInstructions`, `tobyList*`, `webSearch`, etc.) are **not** part of the top-K count; they are always passed to the main model regardless of routing. So “top 8” means eight *additional* integration tools, not eight tools total.
@@ -150,7 +150,8 @@ By default, Toby uses **embedding-based routing** ([`packages/core/src/routing/`
 | `TOBY_DISABLE_PRETREATMENT=1` | Skip preparation entirely; all tools are exposed to the main model. |
 | `TOBY_SEMANTIC_ROUTING=0` | Opt into **legacy LLM pretreatment** (see below). |
 | `TOBY_ROUTING_TOP_K` | Max integration-specific tools from semantic search (default `8`). |
-| `TOBY_ROUTING_MIN_SCORE` | Minimum cosine similarity (default `0.2`). |
+| `TOBY_ROUTING_MIN_SCORE` | Minimum cosine similarity for tools (default `0.2`). |
+| `TOBY_ROUTING_SKILL_MIN_SCORE` | Minimum cosine similarity for skills (default `0.35` — higher than tools to avoid false-positive skill activation). |
 | `TOBY_ROUTING_EMBED_MODEL` | Embedding model (`text-embedding-3-small` or gateway `openai/text-embedding-3-small`). |
 
 Embedding calls use the active persona’s AI provider (OpenAI or Vercel AI Gateway), same credentials as chat.

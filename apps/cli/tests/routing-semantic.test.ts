@@ -1,7 +1,7 @@
 import { wrapUserPromptWithPretreatment } from "@toby/core/ai/pretreatment";
 import { parseCatalogLines } from "@toby/core/routing/catalog-parse";
 import type { RoutingIndex } from "@toby/core/routing/index";
-import { routeToolsAndSkills } from "@toby/core/routing/index";
+import { getRoutingSkillMinScore, routeToolsAndSkills } from "@toby/core/routing/index";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { embedTextsMock } = vi.hoisted(() => ({
@@ -74,6 +74,66 @@ describe("routeToolsAndSkills", () => {
 		expect(result.relevantTools).toEqual(["gmailSearch"]);
 		expect(result.relevantSkills).toEqual(["inbox-triage"]);
 		expect(result.relevantIntegrations).toEqual(["Gmail"]);
+	});
+
+	it("uses a higher threshold for skills than tools — weak skill match is dropped", async () => {
+		// Query [1,0,0] vs candidate [0.32, 0.947, 0] → cosine ≈ 0.32.
+		// 0.32 > tool min score (0.3 in beforeEach) but < skill min score (0.35 default).
+		// The tool at the same similarity should still be selected.
+		embedTextsMock.mockResolvedValueOnce([[1, 0, 0]]);
+
+		const index: RoutingIndex = {
+			catalogSignature: "test",
+			model: "text-embedding-3-small",
+			tools: [
+				{
+					entityType: "tool",
+					id: "weakTool",
+					text: "weakTool: A tool that loosely matches",
+					vector: [0.32, 0.947, 0],
+				},
+			],
+			skills: [
+				{
+					entityType: "skill",
+					id: "weak-skill",
+					text: "weak-skill: A skill that loosely matches",
+					vector: [0.32, 0.947, 0],
+				},
+			],
+		};
+
+		const result = await routeToolsAndSkills({
+			persona: {
+				name: "Default",
+				ai: { provider: "openai", model: "gpt-4.1" },
+			},
+			userText: "plan my day",
+			toolIntegrationLabels: { weakTool: "Test" },
+			allowedToolNamesLower: new Set(["weaktool"]),
+			allowedSkillNamesLower: new Set(["weak-skill"]),
+			index,
+		});
+
+		expect(result.relevantTools).toEqual(["weakTool"]);
+		expect(result.relevantSkills).toEqual([]);
+	});
+
+	it("getRoutingSkillMinScore defaults to 0.35 and respects env override", () => {
+		const prev = process.env.TOBY_ROUTING_SKILL_MIN_SCORE;
+		try {
+			delete process.env.TOBY_ROUTING_SKILL_MIN_SCORE;
+			expect(getRoutingSkillMinScore()).toBe(0.35);
+
+			process.env.TOBY_ROUTING_SKILL_MIN_SCORE = "0.5";
+			expect(getRoutingSkillMinScore()).toBe(0.5);
+		} finally {
+			if (prev === undefined) {
+				delete process.env.TOBY_ROUTING_SKILL_MIN_SCORE;
+			} else {
+				process.env.TOBY_ROUTING_SKILL_MIN_SCORE = prev;
+			}
+		}
 	});
 });
 

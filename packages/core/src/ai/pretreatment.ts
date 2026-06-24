@@ -14,6 +14,7 @@ import {
 	type RoutingIndex,
 	getActiveRoutingIndex,
 	getRoutingMinScore,
+	getRoutingSkillMinScore,
 	getRoutingTopK,
 	isSemanticRoutingEnabled,
 	resolveRoutingEmbedModelId,
@@ -179,7 +180,7 @@ function getPretreatmentModelId(persona?: Persona): string {
 function getPretreatmentCacheModelId(persona?: Persona): string {
 	const p = persona ?? resolveDefaultPersona();
 	if (isSemanticRoutingEnabled()) {
-		return `${resolveRoutingEmbedModelId(p)}:k${getRoutingTopK()}:m${getRoutingMinScore()}`;
+		return `${resolveRoutingEmbedModelId(p)}:k${getRoutingTopK()}:m${getRoutingMinScore()}:sm${getRoutingSkillMinScore()}`;
 	}
 	return getPretreatmentModelId(p);
 }

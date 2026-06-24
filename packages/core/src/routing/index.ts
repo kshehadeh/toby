@@ -95,6 +95,21 @@ export function getRoutingMinScore(): number {
 	return Number.isFinite(n) && n >= 0 && n <= 1 ? n : 0.2;
 }
 
+/**
+ * Minimum cosine similarity for **skill** routing. Skills should only activate
+ * on a strong semantic match — a loose match (e.g. "plan my day" vs. "weekly
+ * work summary") should not pull in a skill. Default is higher than the tool
+ * min score (`0.35` vs `0.2`) to avoid false-positive skill activation.
+ */
+export function getRoutingSkillMinScore(): number {
+	const raw = process.env.TOBY_ROUTING_SKILL_MIN_SCORE?.trim();
+	if (!raw) {
+		return 0.35;
+	}
+	const n = Number.parseFloat(raw);
+	return Number.isFinite(n) && n >= 0 && n <= 1 ? n : 0.35;
+}
+
 export type WarmRoutingIndexParams = {
 	readonly persona: Persona;
 	readonly toolsCatalogText: string;
@@ -372,7 +387,8 @@ export async function routeToolsAndSkills(
 	}
 
 	const topK = getRoutingTopK();
-	const minScore = getRoutingMinScore();
+	const toolMinScore = getRoutingMinScore();
+	const skillMinScore = getRoutingSkillMinScore();
 
 	const toolIds = searchTopKByCosine({
 		query: queryVector,
@@ -381,7 +397,7 @@ export async function routeToolsAndSkills(
 			vector: t.vector,
 		})),
 		topK,
-		minScore,
+		minScore: toolMinScore,
 	});
 
 	const skillIds = searchTopKByCosine({
@@ -391,7 +407,7 @@ export async function routeToolsAndSkills(
 			vector: s.vector,
 		})),
 		topK: SKILL_TOP_K,
-		minScore,
+		minScore: skillMinScore,
 	});
 
 	const relevantTools: string[] = [];
