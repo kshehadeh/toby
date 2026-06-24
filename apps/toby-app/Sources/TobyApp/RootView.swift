@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct RootView: View {
@@ -14,6 +15,7 @@ struct RootView: View {
     @State private var isToastHovered = false
     @State private var toastDismissTask: Task<Void, Never>?
     @State private var sidebarVisibility: NavigationSplitViewVisibility = .all
+    @State private var mainWindow: NSWindow?
 
     private let toastDuration: UInt64 = 4_000_000_000
 
@@ -159,6 +161,20 @@ struct RootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .startNewChat)) { _ in
             startNewChat()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .startChatAboutRecording)) { notification in
+            guard let request = notification.object as? StartChatAboutRecordingRequest else { return }
+            bringMainWindowToFront()
+            Task {
+                await store.startChatAboutRecording(
+                    name: request.name,
+                    dateText: request.dateText,
+                    hourText: request.hourText
+                )
+            }
+        }
+        .background(WindowAccessor { window in
+            mainWindow = window
+        })
         .alert(
             "Delete Session?",
             isPresented: Binding(
@@ -181,6 +197,11 @@ struct RootView: View {
 
     private func startNewChat() {
         Task { await store.startNewSession() }
+    }
+
+    private func bringMainWindowToFront() {
+        NSApp.activate(ignoringOtherApps: true)
+        mainWindow?.makeKeyAndOrderFront(nil)
     }
 
     private func selectSession(_ id: String) {
@@ -279,4 +300,11 @@ extension Notification.Name {
     static let openChangelog = Notification.Name("openChangelog")
     static let openRecordingFromToast = Notification.Name("openRecordingFromToast")
     static let startNewChat = Notification.Name("startNewChat")
+    static let startChatAboutRecording = Notification.Name("startChatAboutRecording")
+}
+
+struct StartChatAboutRecordingRequest {
+    let name: String
+    let dateText: String
+    let hourText: String
 }

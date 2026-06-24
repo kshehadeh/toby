@@ -145,6 +145,26 @@ struct RecordingsViewTests {
 		}
 	}
 
+	@Test("detail view shows start chat button when a single recording is selected")
+	func detailViewShowsStartChatButton() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello world transcript")
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "start-chat-button")
+		}
+	}
+
+	@Test("recording chat date and hour are derived from started timestamp")
+	func recordingChatDateAndHourDerivesValues() {
+		let detail = makeRecordingDetail(id: "r1", transcript: nil, name: "One")
+		let (date, hour) = recordingChatDateAndHour(detail)
+		#expect(!date.isEmpty)
+		#expect(!hour.isEmpty)
+	}
+
 	@Test("detail view shows recording name in header")
 	func detailViewShowsRecordingName() throws {
 		let store = RecordingsStore()

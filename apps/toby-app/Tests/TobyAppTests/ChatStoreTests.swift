@@ -5,6 +5,24 @@ import Testing
 @Suite("ChatStore")
 struct ChatStoreTests {
 
+    @Test("recording chat prompt includes name, date, and hour")
+    func recordingChatPromptIncludesDetails() {
+        let prompt = makeRecordingChatPrompt(
+            name: "My Standup",
+            dateText: "June 22, 2026",
+            hourText: "10 AM"
+        )
+        #expect(
+            prompt == "Summarize the transcript of the recording named \"My Standup\" on \"June 22, 2026\" at \"10 AM\" oclock."
+        )
+    }
+
+    @Test("recording chat prompt falls back to Recording when name is blank")
+    func recordingChatPromptFallsBackForBlankName() {
+        let prompt = makeRecordingChatPrompt(name: "   ", dateText: "June 22, 2026", hourText: "10 AM")
+        #expect(prompt.contains("named \"Recording\""))
+    }
+
     @Test("focusPrompt generates a new focus request ID")
     func focusPromptChangesRequestId() {
         let store = ChatStore()
