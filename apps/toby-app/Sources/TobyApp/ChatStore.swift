@@ -551,23 +551,58 @@ final class ChatStore {
 		case "tool_call_start":
 			sawToolCallThisTurn = true
 			if let toolName = event.toolName {
+				let args = event.args?.value as? [String: Any]
+				let header = ToolDisplayLabels.formatToolCallHeader(
+					toolName: toolName,
+					args: args,
+					integrationLabel: event.integrationLabel,
+				)
 				appendToolRow(
 					id: event.blockKey ?? event.id ?? UUID().uuidString,
-					header: event.integrationLabel.map { "\($0): \(toolName)" } ?? toolName,
+					header: header,
 					body: "Running…",
 					toolName: toolName,
 					integrationLabel: event.integrationLabel,
 					cacheHit: nil,
 					durationMs: nil,
 				)
-				activityLine = "Running \(toolName)…"
+				activityLine = "Running \(ToolDisplayLabels.displayLabel(toolName))…"
 			}
 		case "tool_call_complete":
 			if let toolName = event.toolName {
+				let args = event.args?.value as? [String: Any]
+				let errorString: String?
+				if let error = event.error?.value {
+					if error is NSNull {
+						errorString = nil
+					} else if let str = error as? String {
+						errorString = str
+					} else {
+						errorString = String(describing: error)
+					}
+				} else {
+					errorString = nil
+				}
+				let body: String
+				if event.cacheHit == true {
+					body = "Done. Cached result."
+				} else {
+					body = ToolDisplayLabels.formatToolOutput(
+						toolName: toolName,
+						args: args,
+						result: event.result?.value,
+						error: errorString,
+					)
+				}
+				let header = ToolDisplayLabels.formatToolCallHeader(
+					toolName: toolName,
+					args: args,
+					integrationLabel: event.integrationLabel,
+				)
 				upsertToolRow(
 					id: event.blockKey ?? event.id ?? UUID().uuidString,
-					header: event.integrationLabel.map { "\($0): \(toolName)" } ?? toolName,
-					body: event.cacheHit == true ? "Done. Cached result." : "Done.",
+					header: header,
+					body: body,
 					toolName: toolName,
 					integrationLabel: event.integrationLabel,
 					cacheHit: event.cacheHit,

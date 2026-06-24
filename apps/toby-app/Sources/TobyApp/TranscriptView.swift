@@ -1,6 +1,41 @@
 import AppKit
 import SwiftUI
 
+enum WorkDurationFormatter {
+	static func format(_ interval: TimeInterval) -> String {
+		let totalSeconds = max(1, Int(interval.rounded()))
+		let hours = totalSeconds / 3600
+		let minutes = (totalSeconds % 3600) / 60
+		let seconds = totalSeconds % 60
+
+		if hours > 0 {
+			var parts: [String] = []
+			parts.append(hours == 1 ? "1 hour" : "\(hours) hours")
+			if minutes > 0 {
+				parts.append(minutes == 1 ? "1 minute" : "\(minutes) minutes")
+			}
+			if seconds > 0 {
+				parts.append(seconds == 1 ? "1 second" : "\(seconds) seconds")
+			}
+			if parts.count > 2 {
+				return parts.dropLast().joined(separator: " ") + " and " + parts.last!
+			}
+			return parts.joined(separator: " ")
+		}
+
+		if minutes > 0 {
+			var parts: [String] = []
+			parts.append(minutes == 1 ? "1 minute" : "\(minutes) minutes")
+			if seconds > 0 {
+				parts.append(seconds == 1 ? "1 second" : "\(seconds) seconds")
+			}
+			return parts.joined(separator: " and ")
+		}
+
+		return seconds == 1 ? "1s" : "\(seconds)s"
+	}
+}
+
 struct TranscriptView: View {
 	let entries: [TranscriptEntry]
 	let streamingAssistant: StreamingAssistantState?
@@ -189,13 +224,27 @@ private struct WorkedForRow: View {
 						.contentShape(Rectangle())
 					}
 					.buttonStyle(.plain)
+					.background(
+						RoundedRectangle(cornerRadius: 12, style: .continuous)
+							.fill(Color.white.opacity(0.03))
+					)
 
 					if isExpanded {
 						VStack(alignment: .leading, spacing: 0) {
-							ForEach(steps) { step in
+							ForEach(Array(steps.enumerated()), id: \.element.id) { index, step in
+								if index > 0 {
+									Rectangle()
+										.fill(AppTheme.separator)
+										.frame(height: 1)
+										.padding(.horizontal, 4)
+								}
 								WorkStepRow(step: step)
 							}
 							if let streamingAssistant {
+								Rectangle()
+									.fill(AppTheme.separator)
+									.frame(height: 1)
+									.padding(.horizontal, 4)
 								AssistantMessageRow(
 									iconName: "sparkle",
 									header: streamingAssistant.header,
@@ -210,15 +259,11 @@ private struct WorkedForRow: View {
 					}
 				}
 				.frame(maxWidth: 640, alignment: .leading)
-				.background(
-					RoundedRectangle(cornerRadius: 12, style: .continuous)
-						.fill(AppTheme.panelBackground)
-				)
 				.overlay(
 					RoundedRectangle(cornerRadius: 12, style: .continuous)
 						.stroke(AppTheme.separator)
 				)
-				.clipped()
+				.clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 				Spacer(minLength: 0)
 			}
 			.animation(.easeOut(duration: 0.2), value: isExpanded)
@@ -250,19 +295,29 @@ private struct WorkedForRow: View {
 	}
 
 	private func formatSeconds(_ interval: TimeInterval) -> String {
-		let seconds = max(1, Int(interval.rounded()))
-		return seconds == 1 ? "1s" : "\(seconds)s"
+		WorkDurationFormatter.format(interval)
 	}
+}
+
+enum WorkStepType: Equatable {
+	case tool
+	case lifecycle
+	case assistantInterim
+	case plan
+	case meta
+	case toolOutput
+	case toolCall
 }
 
 private struct WorkStep: Identifiable {
 	let id: String
+	let type: WorkStepType
 	let title: String
 	let body: String
 	let durationMs: Int?
 	let isActive: Bool
 	let cacheHit: Bool?
-	let isAssistantInterim: Bool
+	let toolName: String?
 }
 
 private func workSteps(from group: TranscriptWorkGroup) -> [WorkStep] {
@@ -275,45 +330,57 @@ private func workSteps(from group: TranscriptWorkGroup) -> [WorkStep] {
 			}
 			let isActive = group.isActive && index == entries.count - 1 && payload.durationMs == nil
 			let title = payload.toolName ?? payload.header
+			let stepType: WorkStepType
+			switch payload.variant {
+			case "tool": stepType = .tool
+			case "lifecycle": stepType = .lifecycle
+			case "assistant_interim": stepType = .assistantInterim
+			case "plan": stepType = .plan
+			default: stepType = .lifecycle
+			}
 			return WorkStep(
 				id: "\(payload.id)-\(payload.seq)",
+				type: stepType,
 				title: title,
 				body: payload.body,
 				durationMs: payload.durationMs,
 				isActive: isActive,
 				cacheHit: payload.cacheHit,
-				isAssistantInterim: payload.variant == "assistant_interim"
+				toolName: payload.toolName
 			)
 		case .toolCall(let blockKey, let title):
 			let isActive = group.isActive && index == entries.count - 1
 			return WorkStep(
 				id: "tool-call-\(blockKey)",
+				type: .toolCall,
 				title: title,
 				body: "",
 				durationMs: nil,
 				isActive: isActive,
 				cacheHit: nil,
-				isAssistantInterim: false
+				toolName: nil
 			)
 		case .toolOutput(let blockKey, let detail):
 			return WorkStep(
 				id: "tool-output-\(blockKey)",
+				type: .toolOutput,
 				title: "Result",
 				body: detail,
 				durationMs: nil,
 				isActive: false,
 				cacheHit: nil,
-				isAssistantInterim: false
+				toolName: nil
 			)
 		case .meta(let text):
 			return WorkStep(
 				id: "meta-\(text.hashValue)",
+				type: .meta,
 				title: "Info",
 				body: text,
 				durationMs: nil,
 				isActive: false,
 				cacheHit: nil,
-				isAssistantInterim: false
+				toolName: nil
 			)
 		default:
 			return nil
@@ -325,8 +392,80 @@ private struct WorkStepRow: View {
 	let step: WorkStep
 
 	var body: some View {
+		switch step.type {
+		case .tool:
+			ToolStepRow(step: step)
+		case .lifecycle:
+			LifecycleStepRow(step: step)
+		case .assistantInterim:
+			AssistantInterimStepRow(step: step)
+		case .plan:
+			PlanStepRow(step: step)
+		case .meta:
+			MetaStepRow(step: step)
+		case .toolCall:
+			ToolStepRow(step: step)
+		case .toolOutput:
+			ToolOutputStepRow(step: step)
+		}
+	}
+}
+
+// MARK: - Shared work step components
+
+private struct WorkStepStatusIndicator: View {
+	let isActive: Bool
+	let cacheHit: Bool?
+	var iconName: String? = nil
+
+	var body: some View {
+		Group {
+			if isActive {
+				ProgressView()
+					.controlSize(.small)
+			} else if cacheHit == true {
+				Image(systemName: "checkmark.circle.fill")
+					.font(.system(size: 11))
+					.foregroundStyle(AppTheme.accent)
+			} else if let iconName {
+				Image(systemName: iconName)
+					.font(.system(size: 10, weight: .medium))
+					.foregroundStyle(AppTheme.accent)
+			} else {
+				Circle()
+					.fill(AppTheme.accent)
+					.frame(width: 7, height: 7)
+			}
+		}
+		.frame(width: 16, height: 16)
+		.frame(maxHeight: .infinity, alignment: .center)
+	}
+}
+
+private func formatDurationMs(_ ms: Int) -> String {
+	let seconds = Double(ms) / 1000.0
+	if seconds < 0.1 {
+		return "0.1s"
+	}
+	if seconds < 100 {
+		return String(format: "%.1fs", seconds)
+	}
+	return String(format: "%.0fs", seconds)
+}
+
+// MARK: - Tool step row
+
+private struct ToolStepRow: View {
+	let step: WorkStep
+
+	private var icon: String? {
+		guard let toolName = step.toolName else { return nil }
+		return ToolDisplayLabels.iconForTool(toolName)
+	}
+
+	var body: some View {
 		HStack(alignment: .top, spacing: 10) {
-			statusIndicator
+			WorkStepStatusIndicator(isActive: step.isActive, cacheHit: step.cacheHit, iconName: icon)
 			VStack(alignment: .leading, spacing: 2) {
 				HStack(alignment: .top, spacing: 8) {
 					Text(step.title)
@@ -343,55 +482,154 @@ private struct WorkStepRow: View {
 					}
 				}
 				if !step.body.isEmpty {
-					if step.isAssistantInterim {
-						MarkdownText(
-							text: step.body,
-							font: AppTheme.transcriptCaptionFont,
-							foregroundStyle: AppTheme.tertiaryText,
-						)
+					Text(step.body)
+						.font(AppTheme.transcriptCaptionFont)
+						.tracking(AppTheme.transcriptTracking)
+						.lineSpacing(AppTheme.transcriptLineSpacing)
+						.foregroundStyle(AppTheme.tertiaryText)
+						.lineLimit(4)
 						.frame(maxWidth: .infinity, alignment: .leading)
-					} else {
-						Text(step.body)
-							.font(AppTheme.transcriptCaptionFont)
-							.tracking(AppTheme.transcriptTracking)
-							.lineSpacing(AppTheme.transcriptLineSpacing)
-							.foregroundStyle(AppTheme.tertiaryText)
-							.lineLimit(4)
-							.frame(maxWidth: .infinity, alignment: .leading)
-					}
 				}
 			}
 			Spacer(minLength: 0)
 		}
 		.padding(.vertical, 6)
 	}
+}
 
-	@ViewBuilder
-	private var statusIndicator: some View {
-		if step.isActive {
-			ProgressView()
-				.controlSize(.small)
-				.frame(width: 8, height: 8)
-		} else if step.cacheHit == true {
-			Image(systemName: "checkmark.circle.fill")
-				.font(.system(size: 8))
-				.foregroundStyle(AppTheme.accent)
-		} else {
-			Circle()
-				.fill(AppTheme.accent)
-				.frame(width: 8, height: 8)
+// MARK: - Tool output step row
+
+private struct ToolOutputStepRow: View {
+	let step: WorkStep
+
+	var body: some View {
+		HStack(alignment: .top, spacing: 10) {
+			WorkStepStatusIndicator(isActive: false, cacheHit: nil, iconName: nil)
+			VStack(alignment: .leading, spacing: 2) {
+				Text(step.title)
+					.font(AppTheme.transcriptCaptionFont.weight(.semibold))
+					.tracking(AppTheme.transcriptTracking)
+					.foregroundStyle(AppTheme.secondaryText)
+				if !step.body.isEmpty {
+					Text(step.body)
+						.font(AppTheme.transcriptCaptionFont)
+						.tracking(AppTheme.transcriptTracking)
+						.lineSpacing(AppTheme.transcriptLineSpacing)
+						.foregroundStyle(AppTheme.tertiaryText)
+						.lineLimit(4)
+						.frame(maxWidth: .infinity, alignment: .leading)
+				}
+			}
+			Spacer(minLength: 0)
 		}
+		.padding(.vertical, 6)
 	}
+}
 
-	private func formatDurationMs(_ ms: Int) -> String {
-		let seconds = Double(ms) / 1000.0
-		if seconds < 0.1 {
-			return "0.1s"
+// MARK: - Lifecycle step row
+
+private struct LifecycleStepRow: View {
+	let step: WorkStep
+
+	var body: some View {
+		HStack(alignment: .top, spacing: 10) {
+			WorkStepStatusIndicator(isActive: step.isActive, cacheHit: step.cacheHit)
+			VStack(alignment: .leading, spacing: 2) {
+				Text(step.title)
+					.font(AppTheme.transcriptCaptionFont.weight(.semibold))
+					.tracking(AppTheme.transcriptTracking)
+					.foregroundStyle(AppTheme.secondaryText)
+				if !step.body.isEmpty {
+					Text(step.body)
+						.font(AppTheme.transcriptCaptionFont)
+						.tracking(AppTheme.transcriptTracking)
+						.lineSpacing(AppTheme.transcriptLineSpacing)
+						.foregroundStyle(AppTheme.tertiaryText)
+						.lineLimit(4)
+						.frame(maxWidth: .infinity, alignment: .leading)
+				}
+			}
+			Spacer(minLength: 0)
 		}
-		if seconds < 100 {
-			return String(format: "%.1fs", seconds)
+		.padding(.vertical, 6)
+	}
+}
+
+// MARK: - Assistant interim step row
+
+private struct AssistantInterimStepRow: View {
+	let step: WorkStep
+
+	var body: some View {
+		HStack(alignment: .top, spacing: 10) {
+			WorkStepStatusIndicator(isActive: step.isActive, cacheHit: step.cacheHit)
+			VStack(alignment: .leading, spacing: 2) {
+				Text(step.title)
+					.font(AppTheme.transcriptCaptionFont.weight(.semibold))
+					.tracking(AppTheme.transcriptTracking)
+					.foregroundStyle(AppTheme.secondaryText)
+				if !step.body.isEmpty {
+					MarkdownText(
+						text: step.body,
+						font: AppTheme.transcriptCaptionFont,
+						foregroundStyle: AppTheme.tertiaryText,
+					)
+					.frame(maxWidth: .infinity, alignment: .leading)
+				}
+			}
+			Spacer(minLength: 0)
 		}
-		return String(format: "%.0fs", seconds)
+		.padding(.vertical, 6)
+	}
+}
+
+// MARK: - Plan step row
+
+private struct PlanStepRow: View {
+	let step: WorkStep
+
+	var body: some View {
+		HStack(alignment: .top, spacing: 10) {
+			WorkStepStatusIndicator(isActive: step.isActive, cacheHit: nil, iconName: "list.bullet")
+			VStack(alignment: .leading, spacing: 2) {
+				Text(step.title)
+					.font(AppTheme.transcriptCaptionFont.weight(.semibold))
+					.tracking(AppTheme.transcriptTracking)
+					.foregroundStyle(AppTheme.secondaryText)
+				if !step.body.isEmpty {
+					Text(step.body)
+						.font(AppTheme.transcriptCaptionFont)
+						.tracking(AppTheme.transcriptTracking)
+						.lineSpacing(AppTheme.transcriptLineSpacing)
+						.foregroundStyle(AppTheme.tertiaryText)
+						.lineLimit(6)
+						.frame(maxWidth: .infinity, alignment: .leading)
+				}
+			}
+			Spacer(minLength: 0)
+		}
+		.padding(.vertical, 6)
+	}
+}
+
+// MARK: - Meta step row
+
+private struct MetaStepRow: View {
+	let step: WorkStep
+
+	var body: some View {
+		HStack(alignment: .top, spacing: 10) {
+			WorkStepStatusIndicator(isActive: false, cacheHit: nil, iconName: "info.circle")
+			Text(step.body.isEmpty ? step.title : "\(step.title): \(step.body)")
+				.font(AppTheme.transcriptCaptionFont)
+				.tracking(AppTheme.transcriptTracking)
+				.lineSpacing(AppTheme.transcriptLineSpacing)
+				.foregroundStyle(AppTheme.tertiaryText)
+				.lineLimit(4)
+				.frame(maxWidth: .infinity, alignment: .leading)
+			Spacer(minLength: 0)
+		}
+		.padding(.vertical, 6)
 	}
 }
 
