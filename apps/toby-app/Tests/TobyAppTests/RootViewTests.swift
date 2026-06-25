@@ -13,7 +13,8 @@ struct RootViewTests {
 			recordingsStore: RecordingsStore(),
 			schedulesStore: SchedulesStore(),
 			integrationsStore: ConfigureStore(),
-			skillsStore: SkillsStore()
+			skillsStore: SkillsStore(),
+			personaEditorCoordinator: PersonaEditorCoordinator()
 		)
 	}
 

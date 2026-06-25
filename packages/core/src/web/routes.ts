@@ -53,7 +53,9 @@ import {
 	handleMemoryExplain,
 } from "./handlers/memories";
 import {
+	handleAIProviders,
 	handleModulesList,
+	handlePersonaDetail,
 	handlePersonasList,
 	handleSkillDetail,
 	handleSkillsList,
@@ -184,6 +186,13 @@ export async function handleWebRequest(
 		}
 		if (pathname === "/api/personas" && req.method === "GET") {
 			return handlePersonasList();
+		}
+		if (pathname === "/api/ai/providers" && req.method === "GET") {
+			return handleAIProviders();
+		}
+		const personaDetailMatch = /^\/api\/personas\/([^/]+)$/.exec(pathname);
+		if (personaDetailMatch && req.method === "GET") {
+			return handlePersonaDetail(decodeURIComponent(personaDetailMatch[1]));
 		}
 		const personaImageMatch = /^\/api\/personas\/image\/([^/]+)$/.exec(
 			pathname,

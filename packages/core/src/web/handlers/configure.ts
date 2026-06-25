@@ -107,15 +107,69 @@ export async function handleConfigureAction(
 	switch (action) {
 		case "create-persona": {
 			const cfg = readConfig();
-			const name = `Persona ${cfg.personas.length + 1}`;
+			const requestedName = body?.name?.trim();
+			const name = requestedName || `Persona ${cfg.personas.length + 1}`;
+			if (name === DEFAULT_CHAT_PERSONA.name) {
+				return errorResponse(`"${name}" is a reserved persona name`);
+			}
+			if (cfg.personas.some((p) => p.name === name)) {
+				return errorResponse(`Persona "${name}" already exists`);
+			}
+			const provider =
+				body?.provider?.trim() || DEFAULT_CHAT_PERSONA.ai.provider;
+			const model = body?.model?.trim() || DEFAULT_CHAT_PERSONA.ai.model;
+			const promptMode =
+				body?.promptMode?.trim() === "replace" ? "replace" : "add";
+			const instructions =
+				body?.instructions ?? DEFAULT_CHAT_PERSONA.instructions;
 			cfg.personas.push({
 				name,
-				instructions: DEFAULT_CHAT_PERSONA.instructions,
-				promptMode: DEFAULT_CHAT_PERSONA.promptMode,
-				ai: { ...DEFAULT_CHAT_PERSONA.ai },
+				instructions,
+				promptMode,
+				ai: { provider, model },
 			});
 			writeConfig(cfg);
 			return jsonResponse({ ok: true, personaName: name });
+		}
+		case "update-persona": {
+			const originalName = body?.originalName?.trim();
+			if (!originalName) return errorResponse("originalName required");
+			if (originalName === DEFAULT_CHAT_PERSONA.name) {
+				return errorResponse("The built-in default persona cannot be edited");
+			}
+			const cfg = readConfig();
+			const persona = cfg.personas.find((p) => p.name === originalName);
+			if (!persona) {
+				return errorResponse(`Persona "${originalName}" not found`);
+			}
+			const newName = body?.name?.trim();
+			if (newName && newName !== originalName) {
+				if (newName === DEFAULT_CHAT_PERSONA.name) {
+					return errorResponse(`"${newName}" is a reserved persona name`);
+				}
+				if (cfg.personas.some((p) => p.name === newName)) {
+					return errorResponse(`Persona "${newName}" already exists`);
+				}
+				persona.name = newName;
+				if (cfg.defaultPersona === originalName) {
+					cfg.defaultPersona = newName;
+				}
+			}
+			if (body?.instructions !== undefined) {
+				persona.instructions = body.instructions;
+			}
+			if (body?.promptMode !== undefined) {
+				persona.promptMode =
+					body.promptMode.trim() === "replace" ? "replace" : "add";
+			}
+			if (body?.provider !== undefined) {
+				persona.ai.provider = body.provider.trim() || persona.ai.provider;
+			}
+			if (body?.model !== undefined) {
+				persona.ai.model = body.model.trim() || persona.ai.model;
+			}
+			writeConfig(cfg);
+			return jsonResponse({ ok: true, personaName: persona.name });
 		}
 		case "delete-persona": {
 			const personaName = body?.personaName?.trim();

@@ -21,7 +21,8 @@ struct AppSidebarTests {
             onOpenSchedules: {},
             onOpenIntegrations: {},
             onOpenSkills: {},
-            onOpenPersonasSettings: {},
+            onCreatePersona: {},
+            onEditPersona: { _ in },
             onPersonaSelected: {},
             onOpenChangelog: {}
         )
@@ -75,7 +76,8 @@ struct AppSidebarTests {
             onOpenSchedules: {},
             onOpenIntegrations: {},
             onOpenSkills: {},
-            onOpenPersonasSettings: {},
+            onCreatePersona: {},
+            onEditPersona: { _ in },
             onPersonaSelected: {},
             onOpenChangelog: {}
         )

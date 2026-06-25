@@ -10,7 +10,7 @@ import {
 	seedConfigureValues,
 } from "@toby/core/configure/persistence";
 import { handleWebRequest } from "@toby/core/web/routes";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 function withTempTobyDir(run: () => void): void {
 	const previous = process.env.TOBY_DIR;
@@ -270,5 +270,227 @@ describe("web API routes", () => {
 			null,
 		);
 		expect(res.status).toBe(404);
+	});
+});
+
+describe("persona API", () => {
+	let tempDir: string;
+	let previousTobyDir: string | undefined;
+
+	beforeEach(() => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-persona-api-"));
+		previousTobyDir = process.env.TOBY_DIR;
+		process.env.TOBY_DIR = tempDir;
+	});
+
+	afterEach(() => {
+		if (previousTobyDir === undefined) {
+			Reflect.deleteProperty(process.env, "TOBY_DIR");
+		} else {
+			process.env.TOBY_DIR = previousTobyDir;
+		}
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	it("GET /api/ai/providers returns provider list", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/ai/providers"),
+			null,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			providers: Array<{
+				id: string;
+				displayName: string;
+				models: string[];
+				allowCustomModel: boolean;
+			}>;
+		};
+		expect(body.providers.length).toBeGreaterThan(0);
+		const openai = body.providers.find((p) => p.id === "openai");
+		expect(openai).toBeDefined();
+		expect(openai?.displayName).toBe("OpenAI");
+		expect(openai?.models.length).toBeGreaterThan(0);
+	});
+
+	it("GET /api/personas returns list with isDefault and isBuiltIn flags", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/personas"),
+			null,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			personas: Array<{
+				name: string;
+				isDefault: boolean;
+				isBuiltIn: boolean;
+			}>;
+		};
+		expect(body.personas.length).toBeGreaterThan(0);
+		const toby = body.personas.find((p) => p.name === "Toby");
+		expect(toby).toBeDefined();
+		expect(toby?.isBuiltIn).toBe(true);
+	});
+
+	it("GET /api/personas/:name returns full persona detail", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/personas/Toby"),
+			null,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			persona: {
+				name: string;
+				instructions: string;
+				promptMode: string;
+				provider: string;
+				model: string;
+				isBuiltIn: boolean;
+			};
+		};
+		expect(body.persona.name).toBe("Toby");
+		expect(body.persona.isBuiltIn).toBe(true);
+		expect(typeof body.persona.instructions).toBe("string");
+		expect(body.persona.instructions.length).toBeGreaterThan(0);
+		expect(body.persona.promptMode).toMatch(/^(add|replace)$/);
+	});
+
+	it("GET /api/personas/:name returns 404 for unknown persona", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/personas/Nonexistent"),
+			null,
+		);
+		expect(res.status).toBe(404);
+	});
+
+	it("create-persona accepts explicit fields", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/configure/actions/create-persona", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					name: "TestPersona",
+					instructions: "Be concise.",
+					provider: "openai",
+					model: "gpt-5-mini",
+					promptMode: "add",
+				}),
+			}),
+			null,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { ok: boolean; personaName: string };
+		expect(body.ok).toBe(true);
+		expect(body.personaName).toBe("TestPersona");
+	});
+
+	it("create-persona rejects reserved name", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/configure/actions/create-persona", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ name: "Toby" }),
+			}),
+			null,
+		);
+		expect(res.status).toBe(400);
+	});
+
+	it("update-persona modifies an existing persona", async () => {
+		// First create a persona
+		const createRes = await handleWebRequest(
+			new Request("http://127.0.0.1/api/configure/actions/create-persona", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					name: "UpdateTest",
+					instructions: "Original",
+					provider: "openai",
+					model: "gpt-5-mini",
+					promptMode: "add",
+				}),
+			}),
+			null,
+		);
+		expect(createRes.status).toBe(200);
+
+		// Now update it
+		const updateRes = await handleWebRequest(
+			new Request("http://127.0.0.1/api/configure/actions/update-persona", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					originalName: "UpdateTest",
+					instructions: "Updated instructions",
+					model: "gpt-5",
+				}),
+			}),
+			null,
+		);
+		expect(updateRes.status).toBe(200);
+		const updateBody = (await updateRes.json()) as {
+			ok: boolean;
+			personaName: string;
+		};
+		expect(updateBody.ok).toBe(true);
+		expect(updateBody.personaName).toBe("UpdateTest");
+	});
+
+	it("update-persona supports rename", async () => {
+		// Create
+		await handleWebRequest(
+			new Request("http://127.0.0.1/api/configure/actions/create-persona", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ name: "RenameMe" }),
+			}),
+			null,
+		);
+
+		// Rename
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/configure/actions/update-persona", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					originalName: "RenameMe",
+					name: "Renamed",
+				}),
+			}),
+			null,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { ok: boolean; personaName: string };
+		expect(body.personaName).toBe("Renamed");
+	});
+
+	it("update-persona rejects editing built-in persona", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/configure/actions/update-persona", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					originalName: "Toby",
+					instructions: "Hacked",
+				}),
+			}),
+			null,
+		);
+		expect(res.status).toBe(400);
+	});
+
+	it("update-persona returns error for unknown persona", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/configure/actions/update-persona", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					originalName: "Ghost",
+					instructions: "Boo",
+				}),
+			}),
+			null,
+		);
+		expect(res.status).toBe(400);
 	});
 });

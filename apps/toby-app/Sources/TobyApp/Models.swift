@@ -183,6 +183,45 @@ struct PersonaOption: Decodable, Identifiable {
 	let label: String
 	let imagePath: String?
 	let imageUrl: String?
+	let isDefault: Bool?
+	let isBuiltIn: Bool?
+}
+
+struct PersonaDetail: Decodable, Identifiable {
+	var id: String { name }
+	let name: String
+	let label: String
+	let instructions: String
+	let promptMode: String
+	let provider: String
+	let model: String
+	let imagePath: String?
+	let imageUrl: String?
+	let isBuiltIn: Bool
+	let isDefault: Bool
+}
+
+struct AIProviderInfo: Decodable, Identifiable {
+	var id: String { providerId }
+	let providerId: String
+	let displayName: String
+	let models: [String]
+	let allowCustomModel: Bool
+
+	enum CodingKeys: String, CodingKey {
+		case providerId = "id"
+		case displayName
+		case models
+		case allowCustomModel
+	}
+}
+
+struct AIProvidersResponse: Decodable {
+	let providers: [AIProviderInfo]
+}
+
+struct PersonaDetailResponse: Decodable {
+	let persona: PersonaDetail
 }
 
 struct SessionSummary: Decodable, Identifiable {

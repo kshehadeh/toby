@@ -8,6 +8,7 @@ struct RootView: View {
     @Bindable var schedulesStore: SchedulesStore
     @Bindable var integrationsStore: ConfigureStore
     @Bindable var skillsStore: SkillsStore
+    let personaEditorCoordinator: PersonaEditorCoordinator
     @Environment(\.openWindow) private var openWindow
     @State private var isCommandPalettePresented = false
     @State private var isIssueReportPresented = false
@@ -35,7 +36,8 @@ struct RootView: View {
                 onOpenSchedules: openSchedules,
                 onOpenIntegrations: openIntegrations,
                 onOpenSkills: openSkills,
-                onOpenPersonasSettings: openPersonasSettings,
+                onCreatePersona: { openPersonaEditor(.create) },
+                onEditPersona: { openPersonaEditor(.edit(name: $0)) },
                 onPersonaSelected: refreshStatus,
                 onOpenChangelog: { openWindow(id: "changelog") },
             )
@@ -264,8 +266,9 @@ struct RootView: View {
         }
     }
 
-    private func openPersonasSettings() {
-        openSettings(navKey: "personas")
+    private func openPersonaEditor(_ mode: PersonaEditorStore.Mode) {
+        personaEditorCoordinator.store = PersonaEditorStore(mode: mode)
+        openWindow(id: "persona-editor")
     }
 
     private func refreshStatus() {

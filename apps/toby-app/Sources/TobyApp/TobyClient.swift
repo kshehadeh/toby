@@ -59,6 +59,59 @@ struct TobyClient {
 		return try JSONDecoder().decode(Payload.self, from: data).personas
 	}
 
+	func fetchPersonaDetail(name: String) async throws -> PersonaDetail {
+		let encoded = name.addingPercentEncoding(
+			withAllowedCharacters: .urlPathAllowed,
+		) ?? name
+		let url = baseURL.appendingPathComponent("api/personas/\(encoded)")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(PersonaDetailResponse.self, from: data).persona
+	}
+
+	func fetchAIProviders() async throws -> [AIProviderInfo] {
+		let url = baseURL.appendingPathComponent("api/ai/providers")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(AIProvidersResponse.self, from: data).providers
+	}
+
+	func createPersona(
+		name: String,
+		instructions: String,
+		provider: String,
+		model: String,
+		promptMode: String,
+	) async throws -> ConfigureActionResponse {
+		try await runConfigureAction(
+			"create-persona",
+			body: [
+				"name": name,
+				"instructions": instructions,
+				"provider": provider,
+				"model": model,
+				"promptMode": promptMode,
+			],
+		)
+	}
+
+	func updatePersona(
+		originalName: String,
+		name: String?,
+		instructions: String?,
+		provider: String?,
+		model: String?,
+		promptMode: String?,
+	) async throws -> ConfigureActionResponse {
+		var body: [String: String] = ["originalName": originalName]
+		if let name { body["name"] = name }
+		if let instructions { body["instructions"] = instructions }
+		if let provider { body["provider"] = provider }
+		if let model { body["model"] = model }
+		if let promptMode { body["promptMode"] = promptMode }
+		return try await runConfigureAction("update-persona", body: body)
+	}
+
 	func fetchSession(id: String) async throws -> SessionDetail {
 		let url = baseURL.appendingPathComponent("api/sessions/\(id)")
 		let (data, response) = try await URLSession.shared.data(from: url)

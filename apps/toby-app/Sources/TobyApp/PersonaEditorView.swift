@@ -1,0 +1,278 @@
+import AppKit
+import SwiftUI
+import UniformTypeIdentifiers
+
+struct PersonaEditorView: View {
+	@Bindable var store: PersonaEditorStore
+	let onSaved: () -> Void
+	let onCancel: () -> Void
+
+	@Environment(\.dismissWindow) private var dismissWindow
+	@State private var isImagePickerPresented = false
+	@State private var showResetImageConfirm = false
+
+	var body: some View {
+		VStack(spacing: 0) {
+			header
+			content
+			footer
+		}
+		.background(SettingsDesign.canvasBackground)
+		.frame(minWidth: 520, minHeight: 520)
+		.background(WindowAccessor { window in
+			window.styleMask.remove([.miniaturizable, .resizable])
+		})
+		.task {
+			await store.load()
+		}
+	}
+
+	private var header: some View {
+		HStack {
+			Text(store.mode.isCreate ? "New Persona" : "Edit Persona")
+				.font(.title3.weight(.semibold))
+				.foregroundStyle(AppTheme.primaryText)
+			Spacer()
+		}
+		.padding(.horizontal, 20)
+		.padding(.top, 20)
+		.padding(.bottom, 16)
+	}
+
+	@ViewBuilder
+	private var content: some View {
+		if store.isLoading && store.providers.isEmpty {
+			ProgressView("Loading…")
+				.frame(maxWidth: .infinity, maxHeight: .infinity)
+		} else {
+			ScrollView {
+				VStack(alignment: .leading, spacing: 20) {
+					if store.mode.isEdit {
+						imageSection
+					}
+					nameField
+					instructionsEditor
+					providerModelRow
+					promptModeRow
+				}
+				.padding(.horizontal, 20)
+				.padding(.bottom, 20)
+			}
+		}
+	}
+
+	private var imageSection: some View {
+		VStack(alignment: .leading, spacing: 6) {
+			Text("Icon")
+				.font(.subheadline.weight(.medium))
+				.foregroundStyle(SettingsDesign.sectionHeader)
+			HStack(spacing: 16) {
+				PersonaImageView(url: store.displayImageURL, size: 56)
+				VStack(alignment: .leading, spacing: 8) {
+					Text(store.hasCustomImage ? "Custom image" : "Default image")
+						.font(.subheadline)
+						.foregroundStyle(SettingsDesign.rowDescription)
+					HStack(spacing: 10) {
+						SettingsActionButton(title: "Choose Image…", showsExternalIcon: false) {
+							isImagePickerPresented = true
+						}
+						.disabled(store.isSavingImage)
+						if store.hasCustomImage {
+							SettingsActionButton(title: "Reset to Default", showsExternalIcon: false) {
+								showResetImageConfirm = true
+							}
+							.disabled(store.isSavingImage)
+						}
+					}
+				}
+				Spacer(minLength: 0)
+			}
+		}
+		.fileImporter(
+			isPresented: $isImagePickerPresented,
+			allowedContentTypes: [.png, .jpeg, .image],
+			allowsMultipleSelection: false,
+		) { result in
+			handleImagePickerResult(result)
+		}
+		.alert("Reset Image?", isPresented: $showResetImageConfirm) {
+			Button("Cancel", role: .cancel) {}
+			Button("Reset", role: .destructive) {
+				Task { await store.resetImage() }
+			}
+		} message: {
+			Text("This will remove the custom image and use the default persona image.")
+		}
+	}
+
+	private func handleImagePickerResult(_ result: Result<[URL], Error>) {
+		switch result {
+		case .success(let urls):
+			guard let url = urls.first else { return }
+			Task {
+				do {
+					let accessed = url.startAccessingSecurityScopedResource()
+					defer {
+						if accessed { url.stopAccessingSecurityScopedResource() }
+					}
+					let data = try Data(contentsOf: url)
+					await store.uploadImage(fileData: data, filename: url.lastPathComponent)
+				} catch {
+					store.errorMessage = error.localizedDescription
+				}
+			}
+		case .failure(let error):
+			store.errorMessage = error.localizedDescription
+		}
+	}
+
+	private var nameField: some View {
+		VStack(alignment: .leading, spacing: 6) {
+			Text("Name")
+				.font(.subheadline.weight(.medium))
+				.foregroundStyle(SettingsDesign.sectionHeader)
+			TextField("Persona name", text: $store.name)
+				.textFieldStyle(.plain)
+				.font(.body)
+				.foregroundStyle(SettingsDesign.rowTitle)
+				.padding(.horizontal, 12)
+				.padding(.vertical, 9)
+				.background(
+					RoundedRectangle(cornerRadius: SettingsDesign.controlCornerRadius)
+						.fill(SettingsDesign.cardBackground)
+				)
+				.overlay {
+					RoundedRectangle(cornerRadius: SettingsDesign.controlCornerRadius)
+						.stroke(SettingsDesign.controlBorder, lineWidth: 1)
+				}
+				.disabled(!store.isNameEditable)
+		}
+	}
+
+	private var instructionsEditor: some View {
+		VStack(alignment: .leading, spacing: 6) {
+			Text("Instructions")
+				.font(.subheadline.weight(.medium))
+				.foregroundStyle(SettingsDesign.sectionHeader)
+			MarkdownEditor(text: $store.instructions)
+				.frame(minHeight: 180, maxHeight: .infinity)
+		}
+	}
+
+	private var providerModelRow: some View {
+		HStack(spacing: 16) {
+			VStack(alignment: .leading, spacing: 6) {
+				Text("Provider")
+					.font(.subheadline.weight(.medium))
+					.foregroundStyle(SettingsDesign.sectionHeader)
+				providerMenu
+			}
+			VStack(alignment: .leading, spacing: 6) {
+				Text("Model")
+					.font(.subheadline.weight(.medium))
+					.foregroundStyle(SettingsDesign.sectionHeader)
+				modelMenu
+			}
+		}
+	}
+
+	private var providerMenu: some View {
+		Menu {
+			ForEach(store.providers, id: \.providerId) { p in
+				Button(p.displayName) {
+					store.provider = p.providerId
+					if let firstModel = p.models.first {
+						store.model = firstModel
+					}
+				}
+			}
+		} label: {
+			SettingsDropdownLabel(
+				title: store.providers.first(where: { $0.providerId == store.provider })?.displayName ?? store.provider
+			)
+		}
+		.menuStyle(.borderlessButton)
+		.fixedSize()
+	}
+
+	private var modelMenu: some View {
+		Menu {
+			ForEach(store.availableModels, id: \.self) { m in
+				Button(m) {
+					store.model = m
+				}
+			}
+		} label: {
+			SettingsDropdownLabel(title: store.model)
+		}
+		.menuStyle(.borderlessButton)
+		.fixedSize()
+	}
+
+	private var promptModeRow: some View {
+		VStack(alignment: .leading, spacing: 6) {
+			Text("Prompt Mode")
+				.font(.subheadline.weight(.medium))
+				.foregroundStyle(SettingsDesign.sectionHeader)
+			Picker("Prompt Mode", selection: $store.promptMode) {
+				Text("Add").tag("add")
+				Text("Replace").tag("replace")
+			}
+			.pickerStyle(.segmented)
+			.labelsHidden()
+			.frame(width: 200)
+		}
+	}
+
+	private var footer: some View {
+		HStack(spacing: 12) {
+			if let errorMessage = store.errorMessage {
+				Text(errorMessage)
+					.font(.caption)
+					.foregroundStyle(.red)
+					.lineLimit(2)
+					.frame(maxWidth: .infinity, alignment: .leading)
+			} else {
+				Spacer()
+			}
+			Button("Cancel") {
+				onCancel()
+				dismissWindow()
+			}
+			.buttonStyle(.plain)
+			.foregroundStyle(SettingsDesign.rowDescription)
+			.disabled(store.saveState == .saving)
+
+			Button(store.mode.isCreate ? "Create" : "Save") {
+				Task {
+					await store.save()
+					if case .saved = store.saveState {
+						onSaved()
+						dismissWindow()
+					}
+				}
+			}
+			.disabled(!store.canSave)
+			.buttonStyle(.borderedProminent)
+		}
+		.padding(.horizontal, 20)
+		.padding(.vertical, 16)
+		.overlay(alignment: .top) {
+			Rectangle()
+				.fill(SettingsDesign.cardBorder)
+				.frame(height: 1)
+		}
+	}
+}
+
+extension PersonaEditorStore.Mode {
+	var isCreate: Bool {
+		if case .create = self { return true }
+		return false
+	}
+
+	var isEdit: Bool {
+		if case .edit = self { return true }
+		return false
+	}
+}

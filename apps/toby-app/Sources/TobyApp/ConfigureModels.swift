@@ -146,6 +146,7 @@ enum ConfigureTreeHelpers {
 	private static let sidebarExcludedKeys: Set<String> = [
 		"listen",
 		"listen._start",
+		"personas",
 		"personas._new",
 		"schedules",
 		"schedules._new",

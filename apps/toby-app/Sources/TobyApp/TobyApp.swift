@@ -11,6 +11,7 @@ struct TobyApp: App {
 	@State private var integrationsStore = ConfigureStore()
 	@State private var skillsStore = SkillsStore()
 	@State private var changelogStore = ChangelogStore()
+	@State private var personaEditorCoordinator = PersonaEditorCoordinator()
 	@State private var nativeServer = NativeServer.shared
 	@State private var menuBarController: MenuBarController?
 
@@ -22,7 +23,8 @@ struct TobyApp: App {
 				recordingsStore: recordingsStore,
 				schedulesStore: schedulesStore,
 				integrationsStore: integrationsStore,
-				skillsStore: skillsStore
+				skillsStore: skillsStore,
+				personaEditorCoordinator: personaEditorCoordinator
 			)
 				.frame(minWidth: 860, minHeight: 560)
 				.coordinateSpace(name: "TobyWindow")
@@ -82,7 +84,27 @@ struct TobyApp: App {
 		.windowStyle(.automatic)
 		.defaultSize(width: 520, height: 640)
 
-		.commands {
+		Window("Persona Editor", id: "persona-editor") {
+			if let editorStore = personaEditorCoordinator.store {
+				PersonaEditorView(
+					store: editorStore,
+					onSaved: {
+						Task { await store.refreshStatus() }
+					},
+					onCancel: {
+						personaEditorCoordinator.store = nil
+					}
+				)
+			} else {
+				Text("No persona selected")
+					.frame(maxWidth: .infinity, maxHeight: .infinity)
+					.background(SettingsDesign.canvasBackground)
+			}
+		}
+		.windowStyle(.automatic)
+		.defaultSize(width: 560, height: 580)
+
+	.commands {
 			CommandGroup(replacing: .newItem) {
 				Button("New Chat") {
 					NotificationCenter.default.post(name: .startNewChat, object: nil)

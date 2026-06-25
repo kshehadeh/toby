@@ -15,7 +15,8 @@ struct AppSidebar: View {
 	let onOpenSchedules: () -> Void
 	let onOpenIntegrations: () -> Void
 	let onOpenSkills: () -> Void
-	let onOpenPersonasSettings: () -> Void
+	let onCreatePersona: () -> Void
+	let onEditPersona: (String) -> Void
 	let onPersonaSelected: () -> Void
 	let onOpenChangelog: () -> Void
 	@State private var isWorkspaceScrolling = false
@@ -138,7 +139,8 @@ struct AppSidebar: View {
 			}
 			SidebarFooter(
 				status: status,
-				onOpenPersonasSettings: onOpenPersonasSettings,
+				onCreatePersona: onCreatePersona,
+				onEditPersona: onEditPersona,
 				onPersonaSelected: onPersonaSelected,
 			)
 		}
@@ -551,7 +553,8 @@ private struct SidebarRow: View {
 
 private struct SidebarFooter: View {
 	let status: AppStatus?
-	let onOpenPersonasSettings: () -> Void
+	let onCreatePersona: () -> Void
+	let onEditPersona: (String) -> Void
 	let onPersonaSelected: () -> Void
 
 	@State private var isPersonaPickerPresented = false
@@ -595,9 +598,13 @@ private struct SidebarFooter: View {
 		.popover(isPresented: $isPersonaPickerPresented, arrowEdge: .bottom) {
 			PersonaPickerPopover(
 				currentPersona: status?.persona,
-				onOpenPersonasSettings: {
+				onCreatePersona: {
 					isPersonaPickerPresented = false
-					onOpenPersonasSettings()
+					onCreatePersona()
+				},
+				onEditPersona: { name in
+					isPersonaPickerPresented = false
+					onEditPersona(name)
 				},
 				onPersonaSelected: {
 					isPersonaPickerPresented = false
@@ -612,13 +619,15 @@ private struct SidebarFooter: View {
 
 private struct PersonaPickerPopover: View {
 	let currentPersona: String?
-	let onOpenPersonasSettings: () -> Void
+	let onCreatePersona: () -> Void
+	let onEditPersona: (String) -> Void
 	let onPersonaSelected: () -> Void
 
 	@State private var personas: [PersonaOption] = []
 	@State private var isLoading = false
 	@State private var isSaving = false
 	@State private var errorMessage: String?
+	@State private var hoveredPersonaId: String?
 
 	private let client = TobyClient()
 
@@ -634,33 +643,21 @@ private struct PersonaPickerPopover: View {
 			} else {
 				VStack(alignment: .leading, spacing: 2) {
 					ForEach(personas) { persona in
-						Button {
-							selectPersona(persona)
-						} label: {
-							HStack(spacing: 8) {
-								if let imageUrlString = persona.imageUrl,
-									let imageUrl = URL(string: ConfigReader.baseURL().absoluteString + imageUrlString)
-								{
-									PersonaImageView(url: imageUrl, size: 22)
-								} else {
-									PersonaImageView(url: ConfigReader.baseURL().appendingPathComponent("api/personas/image/default.png"), size: 22)
+						PersonaPickerRow(
+							persona: persona,
+							isCurrent: persona.name == currentPersona,
+							isSaving: isSaving,
+							isHovered: hoveredPersonaId == persona.id,
+							onHoverChange: { isHovered in
+								if isHovered {
+									hoveredPersonaId = persona.id
+								} else if hoveredPersonaId == persona.id {
+									hoveredPersonaId = nil
 								}
-								Text(persona.label)
-									.lineLimit(1)
-								Spacer(minLength: 0)
-								if persona.name == currentPersona {
-									Image(systemName: "checkmark")
-										.accessibilityLabel("Selected")
-										.foregroundStyle(AppTheme.accent)
-								}
-							}
-							.frame(maxWidth: .infinity, alignment: .leading)
-							.contentShape(Rectangle())
-						}
-						.buttonStyle(.plain)
-						.padding(.horizontal, 6)
-						.padding(.vertical, 5)
-						.disabled(isSaving)
+							},
+							onSelect: { selectPersona(persona) },
+							onEdit: { onEditPersona(persona.name) },
+						)
 					}
 				}
 			}
@@ -668,9 +665,9 @@ private struct PersonaPickerPopover: View {
 			Divider()
 
 			Button {
-				onOpenPersonasSettings()
+				onCreatePersona()
 			} label: {
-				Label("Configure Personas...", systemImage: "gearshape")
+				Label("Add New Persona…", systemImage: "plus.circle")
 					.frame(maxWidth: .infinity, alignment: .leading)
 					.contentShape(Rectangle())
 			}
@@ -686,7 +683,7 @@ private struct PersonaPickerPopover: View {
 			}
 		}
 		.padding(12)
-		.frame(width: 240)
+		.frame(width: 260)
 		.task {
 			await loadPersonas()
 		}
@@ -720,6 +717,73 @@ private struct PersonaPickerPopover: View {
 				errorMessage = error.localizedDescription
 			}
 		}
+	}
+}
+
+private struct PersonaPickerRow: View {
+	let persona: PersonaOption
+	let isCurrent: Bool
+	let isSaving: Bool
+	let isHovered: Bool
+	let onHoverChange: (Bool) -> Void
+	let onSelect: () -> Void
+	let onEdit: () -> Void
+
+	var body: some View {
+		HStack(spacing: 4) {
+			Button {
+				onSelect()
+			} label: {
+				HStack(spacing: 8) {
+					if let imageUrlString = persona.imageUrl,
+						let imageUrl = URL(string: ConfigReader.baseURL().absoluteString + imageUrlString)
+					{
+						PersonaImageView(url: imageUrl, size: 22)
+					} else {
+						PersonaImageView(url: ConfigReader.baseURL().appendingPathComponent("api/personas/image/default.png"), size: 22)
+					}
+					Text(persona.label)
+						.lineLimit(1)
+					Spacer(minLength: 0)
+					if isCurrent {
+						Image(systemName: "checkmark")
+							.accessibilityLabel("Selected")
+							.foregroundStyle(AppTheme.accent)
+					}
+				}
+				.frame(maxWidth: .infinity, alignment: .leading)
+				.contentShape(Rectangle())
+			}
+			.buttonStyle(.plain)
+			.disabled(isSaving)
+
+			if persona.isBuiltIn != true {
+				Button {
+					onEdit()
+				} label: {
+					Image(systemName: "pencil")
+						.font(.caption.weight(.semibold))
+						.foregroundStyle(isHovered ? AppTheme.primaryText : AppTheme.tertiaryText)
+						.frame(width: 22, height: 22)
+						.background(
+							RoundedRectangle(cornerRadius: 5)
+								.fill(isHovered ? AppTheme.selection : Color.clear)
+						)
+						.overlay {
+							RoundedRectangle(cornerRadius: 5)
+								.stroke(isHovered ? SettingsDesign.controlBorder : Color.clear, lineWidth: 1)
+						}
+				}
+				.buttonStyle(.plain)
+				.accessibilityLabel("Edit \(persona.label)")
+				.disabled(isSaving)
+				.opacity(isHovered ? 1 : 0)
+				.animation(.easeInOut(duration: 0.15), value: isHovered)
+			}
+		}
+		.padding(.horizontal, 6)
+		.padding(.vertical, 5)
+		.onHover { onHoverChange($0) }
 	}
 }
 

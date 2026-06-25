@@ -63,4 +63,55 @@ struct ConfigureViewTests {
 			try view.inspect().find(text: "Gmail")
 		}
 	}
+
+	@Test("personas section is excluded from settings sidebar tree")
+	func personasExcludedFromSidebar() throws {
+		let store = ConfigureStore()
+		store.tree = SettingsItem(
+			label: "Root",
+			kind: .section,
+			key: "root",
+			navKey: nil,
+			children: [
+				SettingsItem(
+					label: "Personas",
+					kind: .section,
+					key: "personas",
+					navKey: nil,
+					children: [],
+					masked: nil,
+					multiline: nil,
+					options: nil,
+					selectChoices: nil,
+					currentValue: nil,
+					selectedValues: nil,
+					readOnly: nil
+				),
+				SettingsItem(
+					label: "AI",
+					kind: .section,
+					key: "ai",
+					navKey: nil,
+					children: [],
+					masked: nil,
+					multiline: nil,
+					options: nil,
+					selectChoices: nil,
+					currentValue: nil,
+					selectedValues: nil,
+					readOnly: nil
+				),
+			],
+			masked: nil,
+			multiline: nil,
+			options: nil,
+			selectChoices: nil,
+			currentValue: nil,
+			selectedValues: nil,
+			readOnly: nil
+		)
+		let sidebarTree = store.sidebarTree
+		#expect(!sidebarTree.contains(where: { $0.item.key == "personas" }))
+		#expect(sidebarTree.contains(where: { $0.item.key == "ai" }))
+	}
 }
