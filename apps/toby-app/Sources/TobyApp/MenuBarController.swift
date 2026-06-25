@@ -18,7 +18,7 @@ final class MenuBarController: NSObject {
 
 	private func setupStatusItem() {
 		let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-		if let logoURL = Bundle.module.url(forResource: "toby-128", withExtension: "png"),
+		if let logoURL = Bundle.tobyResources.url(forResource: "toby-128", withExtension: "png"),
 			let logo = NSImage(contentsOf: logoURL)
 		{
 			let size = NSSize(width: 18, height: 18)

@@ -151,9 +151,11 @@ fi
 
 echo "Building toby-app (swift ${ARCH})..."
 swift build -c release --arch "${ARCH}" --package-path "${PKG}"
-BIN="$(
+BUILD_DIR="$(
 	swift build --show-bin-path -c release --arch "${ARCH}" --package-path "${PKG}"
-)/toby-app"
+)"
+BIN="${BUILD_DIR}/toby-app"
+RESOURCE_BUNDLE="${BUILD_DIR}/TobyApp_TobyApp.bundle"
 
 rm -rf "$DIST"/*.app
 mkdir -p "${APP}/Contents/MacOS" "${APP}/Contents/Resources"
@@ -216,6 +218,11 @@ PY
 
 cp "${BIN}" "${APP}/Contents/MacOS/toby-app"
 chmod +x "${APP}/Contents/MacOS/toby-app"
+if [[ -d "${RESOURCE_BUNDLE}" ]]; then
+	cp -R "${RESOURCE_BUNDLE}" "${APP}/Contents/Resources/"
+else
+	echo "Warning: SPM resource bundle not found at ${RESOURCE_BUNDLE}" >&2
+fi
 build_app_icon
 if [[ "${CODE_SIGN_IDENTITY}" == "-" ]]; then
 	if codesign -s "${CODE_SIGN_IDENTITY}" --force --deep --entitlements "${ENTITLEMENTS}" "${APP}" >/dev/null 2>&1; then

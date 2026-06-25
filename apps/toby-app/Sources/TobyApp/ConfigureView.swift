@@ -839,7 +839,7 @@ struct PersonaImageView: View {
 	}
 
 	private var defaultPersonaImage: some View {
-		if let bundled = Bundle.module.url(forResource: "default-persona", withExtension: "png"),
+		if let bundled = Bundle.tobyResources.url(forResource: "default-persona", withExtension: "png"),
 			let data = try? Data(contentsOf: bundled),
 			let downsampled = PersonaImageView.downsample(data: data, maxPixelSize: maxPixelSize)
 		{
