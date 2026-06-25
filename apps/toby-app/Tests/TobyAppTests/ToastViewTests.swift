@@ -124,4 +124,49 @@ struct ToastViewTests {
 			}
 		}
 	}
+
+	@Test("openURL action renders view issue button")
+	func openURLActionRendersButton() throws {
+		let toast = AppToastState(
+			style: .success,
+			title: "Issue created",
+			message: "View the issue on GitHub.",
+			action: .openURL(url: "https://github.com/example/repo/issues/42")
+		)
+		let view = ToastView(
+			toast: toast,
+			onDismiss: {},
+			onAction: { _ in }
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(ViewType.Button.self) { button in
+				let text = try? button.labelView().find(ViewType.Text.self).string()
+				return text == "View issue"
+			}
+		}
+	}
+
+	@Test("tapping openURL action invokes onAction and dismisses")
+	func openURLActionTaps() throws {
+		var capturedAction: AppToastAction?
+		var dismissed = false
+		let toast = AppToastState(
+			style: .success,
+			title: "Issue created",
+			message: "View the issue on GitHub.",
+			action: .openURL(url: "https://github.com/example/repo/issues/55")
+		)
+		let view = ToastView(
+			toast: toast,
+			onDismiss: { dismissed = true },
+			onAction: { capturedAction = $0 }
+		)
+		let button = try view.inspect().find(ViewType.Button.self) { button in
+			let text = try? button.labelView().find(ViewType.Text.self).string()
+			return text == "View issue"
+		}
+		try button.tap()
+		#expect(capturedAction == .openURL(url: "https://github.com/example/repo/issues/55"))
+		#expect(dismissed == true)
+	}
 }

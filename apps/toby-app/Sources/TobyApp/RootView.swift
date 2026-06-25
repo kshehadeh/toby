@@ -263,6 +263,10 @@ struct RootView: View {
         switch action {
         case .openRecording(let id):
             NotificationCenter.default.post(name: .openRecordingFromToast, object: id)
+        case .openURL(let urlString):
+            if let url = URL(string: urlString) {
+                NSWorkspace.shared.open(url)
+            }
         }
     }
 

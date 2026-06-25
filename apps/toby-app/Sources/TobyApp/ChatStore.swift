@@ -180,7 +180,8 @@ final class ChatStore {
 				toast = AppToastState(
 					style: .success,
 					title: "Issue created",
-					message: url,
+					message: "View the issue on GitHub.",
+					action: .openURL(url: url)
 				)
 				return
 			}
