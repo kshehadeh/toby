@@ -137,6 +137,11 @@ struct AppSidebar: View {
 				.buttonStyle(.plain)
 				.frame(maxWidth: .infinity, alignment: .leading)
 			}
+			.padding(.bottom, 8)
+			Divider()
+				.background(AppTheme.separator)
+				.opacity(0.5)
+				.padding(.vertical, 2)
 			SidebarFooter(
 				status: status,
 				onCreatePersona: onCreatePersona,
