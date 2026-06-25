@@ -452,5 +452,6 @@ export function listPersonaOptions() {
 	return listPersonas().map((p) => ({
 		name: p.name,
 		label: p.name,
+		imagePath: p.imagePath,
 	}));
 }

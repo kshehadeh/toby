@@ -177,6 +177,8 @@ export type ListenRecordingsListResponse = {
 export type PersonaListItem = {
 	readonly name: string;
 	readonly label: string;
+	readonly imagePath?: string;
+	readonly imageUrl?: string;
 };
 
 export type ModuleListItem = {

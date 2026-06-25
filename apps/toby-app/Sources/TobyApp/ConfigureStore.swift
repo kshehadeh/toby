@@ -201,6 +201,43 @@ final class ConfigureStore {
 		}
 	}
 
+	func uploadPersonaImage(personaName: String, fileData: Data, filename: String) async {
+		isSaving = true
+		errorMessage = nil
+		defer { isSaving = false }
+		do {
+			let base64 = fileData.base64EncodedString()
+			_ = try await client.runConfigureAction(
+				"upload-persona-image",
+				body: [
+					"personaName": personaName,
+					"imageBase64": base64,
+					"filename": filename,
+				],
+			)
+			let response = try await client.fetchConfigureTree()
+			apply(response: response, resetDraft: false)
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	func resetPersonaImage(personaName: String) async {
+		isSaving = true
+		errorMessage = nil
+		defer { isSaving = false }
+		do {
+			_ = try await client.runConfigureAction(
+				"reset-persona-image",
+				body: ["personaName": personaName],
+			)
+			let response = try await client.fetchConfigureTree()
+			apply(response: response, resetDraft: false)
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
 	func requestDelete(for field: SettingsItem, sectionLabel: String) {
 		guard let action = ConfigureTreeHelpers.actionForKey(field.key) else { return }
 		pendingDelete = PendingDelete(

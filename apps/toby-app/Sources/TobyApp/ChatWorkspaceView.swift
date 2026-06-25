@@ -107,6 +107,17 @@ private struct ActiveChatWorkspace: View {
     let promptFocus: FocusState<Bool>.Binding
     @State private var overlayHeight: CGFloat = 126
 
+    private var personaImageUrl: URL? {
+        // Prefer the session-specific persona image URL (resolved from the
+        // session's persona setting), falling back to the current default
+        // persona, then to the default image endpoint.
+        let urlString = store.sessionPersonaImageUrl ?? store.status?.personaImageUrl
+        if let urlString {
+            return URL(string: ConfigReader.baseURL().absoluteString + urlString)
+        }
+        return ConfigReader.baseURL().appendingPathComponent("api/personas/image/default.png")
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             TranscriptView(
@@ -116,6 +127,7 @@ private struct ActiveChatWorkspace: View {
                 turnWorkDurations: store.turnWorkDurations,
                 activeWorkStartDate: store.activeWorkStartDate,
                 bottomContentPadding: overlayHeight,
+                personaImageUrl: personaImageUrl,
             )
             VStack(spacing: 8) {
                 if let errorMessage = store.errorMessage {

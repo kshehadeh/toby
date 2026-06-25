@@ -1,7 +1,10 @@
 import { wrapUserPromptWithPretreatment } from "@toby/core/ai/pretreatment";
 import { parseCatalogLines } from "@toby/core/routing/catalog-parse";
 import type { RoutingIndex } from "@toby/core/routing/index";
-import { getRoutingSkillMinScore, routeToolsAndSkills } from "@toby/core/routing/index";
+import {
+	getRoutingSkillMinScore,
+	routeToolsAndSkills,
+} from "@toby/core/routing/index";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { embedTextsMock } = vi.hoisted(() => ({

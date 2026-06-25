@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import type { AskUserToolResult } from "../../ai/ask-user-tool";
 import { formatPersonaAiLabel } from "../../ai/model-factory";
 import type {
@@ -13,6 +14,7 @@ import {
 	runApiChatTurnWithPersistence,
 	submitAskUserAnswer,
 } from "../../chat-pipeline/turn-runtime";
+import { getDefaultPersonaImagePath } from "../../config/index";
 import { resolveDefaultPersona } from "../../personas/index";
 import { loadPlanBySession } from "../../planning/plan-store";
 import {
@@ -67,10 +69,17 @@ export async function handleChatStatusDetail(): Promise<Response> {
 	const persona = resolveDefaultPersona();
 	const modules = await listUsableChatModules();
 	const skills = loadLocalSkills();
+	const hasDefaultImage = fs.existsSync(getDefaultPersonaImagePath());
+	const personaImageUrl = persona.imagePath
+		? `/api/personas/image/${encodeURIComponent(persona.imagePath)}`
+		: hasDefaultImage
+			? "/api/personas/image/default.png"
+			: undefined;
 	return jsonResponse({
 		version: getTobyVersion(),
 		persona: persona.name,
 		model: formatPersonaAiLabel(persona),
+		personaImageUrl,
 		connectedIntegrations: modules.map((m) => m.displayName),
 		skillCount: skills.length,
 		skills: skills.map((s) => ({ name: s.name, description: s.description })),

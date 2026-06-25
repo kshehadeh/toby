@@ -8,6 +8,7 @@ enum SettingsItemKind: String, Decodable {
 	case multiSelect
 	case delete
 	case hint
+	case image
 }
 
 struct SettingsSelectChoice: Decodable, Equatable {

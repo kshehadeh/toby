@@ -1,5 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
+import {
+	getDefaultPersonaImagePath,
+	resolvePersonaImagePath,
+} from "../config/index";
 import { handleChangelog } from "./handlers/changelog";
 import {
 	handleAskUserAnswer,
@@ -180,6 +184,23 @@ export async function handleWebRequest(
 		}
 		if (pathname === "/api/personas" && req.method === "GET") {
 			return handlePersonasList();
+		}
+		const personaImageMatch = /^\/api\/personas\/image\/([^/]+)$/.exec(
+			pathname,
+		);
+		if (personaImageMatch && req.method === "GET") {
+			const filename = decodeURIComponent(personaImageMatch[1]);
+			const filePath =
+				filename === "default.png"
+					? getDefaultPersonaImagePath()
+					: resolvePersonaImagePath(filename);
+			if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+				const body = fs.readFileSync(filePath);
+				return new Response(body, {
+					headers: { "Content-Type": contentTypeForPath(filePath) },
+				});
+			}
+			return errorResponse("Image not found", 404);
 		}
 		if (pathname === "/api/modules" && req.method === "GET") {
 			return handleModulesList();

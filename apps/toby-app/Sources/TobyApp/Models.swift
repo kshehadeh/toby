@@ -130,6 +130,7 @@ struct AppStatus: Decodable {
 	let version: String
 	let persona: String
 	let model: String
+	let personaImageUrl: String?
 	let connectedIntegrations: [String]?
 	let skillCount: Int?
 	let skills: [SkillSummary]?
@@ -180,6 +181,8 @@ struct PersonaOption: Decodable, Identifiable {
 	var id: String { name }
 	let name: String
 	let label: String
+	let imagePath: String?
+	let imageUrl: String?
 }
 
 struct SessionSummary: Decodable, Identifiable {
@@ -195,6 +198,7 @@ struct SessionDetail: Decodable {
 	let transcript: [TranscriptEntry]
 	let messageCount: Int
 	let settings: SessionSettings?
+	let personaImageUrl: String?
 	let activePlan: PlanSummary?
 	let integration: String?
 	let externalKey: String?

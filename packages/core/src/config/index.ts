@@ -46,7 +46,41 @@ export function getUpgradeLogPath(): string {
 	return path.join(resolveTobyDir(), "upgrade.log");
 }
 
-/** Local agent-style skills: `~/.toby/skills/<skill-name>/SKILL.md`. */
+/** Persona images: `~/.toby/persona/images/<filename>`. */
+export function getPersonaImagesDir(): string {
+	return path.join(resolveTobyDir(), "persona", "images");
+}
+
+/** Ensure the persona images directory exists. */
+export function ensurePersonaImagesDir(): void {
+	const dir = getPersonaImagesDir();
+	if (!fs.existsSync(dir)) {
+		fs.mkdirSync(dir, { recursive: true });
+	}
+}
+
+/** Resolve the absolute path for a persona image stored by relative filename. */
+export function resolvePersonaImagePath(imagePath: string): string {
+	return path.join(getPersonaImagesDir(), imagePath);
+}
+
+/** Path to the bundled default persona image. */
+export function getDefaultPersonaImagePath(): string {
+	return path.join(getPersonaImagesDir(), "default.png");
+}
+
+/**
+ * Ensure the default persona image exists in `~/.toby/persona/images/default.png`.
+ * Copies from the app's bundled assets if missing.
+ */
+export function ensureDefaultPersonaImage(bundledAssetPath: string): void {
+	ensurePersonaImagesDir();
+	const dest = getDefaultPersonaImagePath();
+	if (!fs.existsSync(dest) && fs.existsSync(bundledAssetPath)) {
+		fs.copyFileSync(bundledAssetPath, dest);
+	}
+}
+
 export function getSkillsDir(): string {
 	return path.join(resolveTobyDir(), "skills");
 }
@@ -97,6 +131,8 @@ export interface Persona {
 	instructions: string;
 	promptMode: PersonaPromptMode;
 	ai: AIProvider;
+	/** Relative filename of a custom persona image stored in `~/.toby/persona/images/`. */
+	imagePath?: string;
 }
 
 import type { ProviderCategory } from "../integrations/types";

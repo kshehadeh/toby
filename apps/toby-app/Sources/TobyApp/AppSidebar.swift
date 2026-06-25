@@ -561,6 +561,13 @@ private struct SidebarFooter: View {
 			isPersonaPickerPresented = true
 		} label: {
 			HStack(alignment: .center, spacing: 8) {
+				if let imageUrlString = status?.personaImageUrl,
+					let imageUrl = URL(string: ConfigReader.baseURL().absoluteString + imageUrlString)
+				{
+					PersonaImageView(url: imageUrl, size: 32)
+				} else {
+					PersonaImageView(url: ConfigReader.baseURL().appendingPathComponent("api/personas/image/default.png"), size: 32)
+				}
 				VStack(alignment: .leading, spacing: 4) {
 					Text(status?.persona ?? "Connecting")
 						.font(.callout)
@@ -631,17 +638,21 @@ private struct PersonaPickerPopover: View {
 							selectPersona(persona)
 						} label: {
 							HStack(spacing: 8) {
-								if persona.name == currentPersona {
-									Image(systemName: "checkmark")
-										.accessibilityLabel("Selected")
-										.frame(width: 14)
+								if let imageUrlString = persona.imageUrl,
+									let imageUrl = URL(string: ConfigReader.baseURL().absoluteString + imageUrlString)
+								{
+									PersonaImageView(url: imageUrl, size: 22)
 								} else {
-									Color.clear
-										.frame(width: 14, height: 1)
+									PersonaImageView(url: ConfigReader.baseURL().appendingPathComponent("api/personas/image/default.png"), size: 22)
 								}
 								Text(persona.label)
 									.lineLimit(1)
 								Spacer(minLength: 0)
+								if persona.name == currentPersona {
+									Image(systemName: "checkmark")
+										.accessibilityLabel("Selected")
+										.foregroundStyle(AppTheme.accent)
+								}
 							}
 							.frame(maxWidth: .infinity, alignment: .leading)
 							.contentShape(Rectangle())

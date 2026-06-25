@@ -1,4 +1,6 @@
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ConfigureView: View {
 	@Bindable var store: ConfigureStore
@@ -226,6 +228,7 @@ struct ConfigureSectionDetailView: View {
 		mainFields.filter { field in
 			field.multiline == true
 				|| field.kind == .hint
+				|| field.kind == .image
 				|| (field.readOnly == true && field.kind != .action)
 		}
 	}
@@ -679,6 +682,8 @@ struct ConfigureBlockFieldView: View {
 					Text(store.value(for: field.key).isEmpty ? "Not set" : "Configured")
 						.font(.subheadline)
 						.foregroundStyle(SettingsDesign.rowDescription)
+				} else if field.kind == .image {
+					PersonaImageFieldView(store: store, field: field)
 				}
 			}
 			.padding(SettingsDesign.rowHorizontalPadding)
@@ -691,5 +696,210 @@ struct ConfigureBlockFieldView: View {
 			get: { store.value(for: field.key) },
 			set: { store.setDraftValue(field.key, $0) },
 		)
+	}
+}
+
+// MARK: - Persona Image Field
+
+private struct PersonaImageFieldView: View {
+	@Bindable var store: ConfigureStore
+	let field: SettingsItem
+
+	@State private var isPickerPresented = false
+	@State private var showResetConfirm = false
+
+	private var personaName: String? {
+		let key = field.key
+		guard key.hasPrefix("personas.") && key.hasSuffix(".imagePath") else {
+			return nil
+		}
+		let middle = String(key.dropFirst("personas.".count).dropLast(".imagePath".count))
+		return middle.isEmpty ? nil : middle
+	}
+
+	private var imageFilename: String {
+		let value = field.currentValue ?? store.value(for: field.key)
+		return value.isEmpty ? "default.png" : value
+	}
+
+	private var imageURL: URL {
+		ConfigReader.baseURL()
+			.appendingPathComponent("api/personas/image/\(imageFilename)")
+	}
+
+	var body: some View {
+		HStack(spacing: 16) {
+			PersonaImageView(url: imageURL, size: 56)
+
+			VStack(alignment: .leading, spacing: 8) {
+				Text(field.currentValue?.isEmpty ?? true ? "Default image" : "Custom image")
+					.font(.subheadline)
+					.foregroundStyle(SettingsDesign.rowDescription)
+
+				HStack(spacing: 10) {
+					SettingsActionButton(title: "Choose Image…", showsExternalIcon: false) {
+						isPickerPresented = true
+					}
+					.disabled(store.isSaving || personaName == nil)
+
+					if field.currentValue?.isEmpty == false {
+						SettingsActionButton(title: "Reset to Default", showsExternalIcon: false) {
+							showResetConfirm = true
+						}
+						.disabled(store.isSaving)
+					}
+				}
+			}
+
+			Spacer(minLength: 0)
+		}
+		.fileImporter(
+			isPresented: $isPickerPresented,
+			allowedContentTypes: [.png, .jpeg, .image],
+			allowsMultipleSelection: false,
+		) { result in
+			handleFilePickerResult(result)
+		}
+		.alert("Reset Image?", isPresented: $showResetConfirm) {
+			Button("Cancel", role: .cancel) {}
+			Button("Reset", role: .destructive) {
+				if let personaName {
+					Task { await store.resetPersonaImage(personaName: personaName) }
+				}
+			}
+		} message: {
+			Text("This will remove the custom image and use the default persona image.")
+		}
+	}
+
+	private func handleFilePickerResult(_ result: Result<[URL], Error>) {
+		switch result {
+		case .success(let urls):
+			guard let url = urls.first, let personaName else { return }
+			Task {
+				do {
+					let accessed = url.startAccessingSecurityScopedResource()
+					defer {
+						if accessed { url.stopAccessingSecurityScopedResource() }
+					}
+					let data = try Data(contentsOf: url)
+					await store.uploadPersonaImage(
+						personaName: personaName,
+						fileData: data,
+						filename: url.lastPathComponent,
+					)
+				} catch {
+					store.errorMessage = error.localizedDescription
+				}
+			}
+		case .failure(let error):
+			store.errorMessage = error.localizedDescription
+		}
+	}
+}
+
+// MARK: - Persona Image View
+
+struct PersonaImageView: View {
+	let url: URL
+	var size: CGFloat = 28
+
+	@State private var image: NSImage?
+	@State private var loadFailed = false
+
+	private var maxPixelSize: CGFloat {
+		size * (NSScreen.main?.backingScaleFactor ?? 2)
+	}
+
+	var body: some View {
+		Group {
+			if let image {
+				Image(nsImage: image)
+					.resizable()
+					.interpolation(.high)
+					.scaledToFill()
+					.frame(width: size, height: size)
+					.clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+			} else if loadFailed {
+				defaultPersonaImage
+			} else {
+				RoundedRectangle(cornerRadius: 4, style: .continuous)
+					.fill(AppTheme.panelBackground)
+					.frame(width: size, height: size)
+					.overlay {
+						ProgressView()
+							.controlSize(.small)
+					}
+			}
+		}
+		.frame(width: size, height: size)
+		.task(id: url) {
+			await loadImage()
+		}
+	}
+
+	private var defaultPersonaImage: some View {
+		if let bundled = Bundle.module.url(forResource: "default-persona", withExtension: "png"),
+			let data = try? Data(contentsOf: bundled),
+			let downsampled = PersonaImageView.downsample(data: data, maxPixelSize: maxPixelSize)
+		{
+			return AnyView(
+				Image(nsImage: downsampled)
+					.resizable()
+					.interpolation(.high)
+					.scaledToFill()
+					.frame(width: size, height: size)
+					.clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+			)
+		}
+		return AnyView(
+			RoundedRectangle(cornerRadius: 4, style: .continuous)
+				.fill(AppTheme.panelBackground)
+				.frame(width: size, height: size)
+				.overlay {
+					Image(systemName: "person.crop.circle")
+						.font(.system(size: size * 0.6))
+						.foregroundStyle(AppTheme.tertiaryText)
+				}
+		)
+	}
+
+	private func loadImage() async {
+		image = nil
+		loadFailed = false
+		do {
+			let (data, response) = try await URLSession.shared.data(from: url)
+			if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+				loadFailed = true
+				return
+			}
+			if let downsampled = PersonaImageView.downsample(data: data, maxPixelSize: maxPixelSize) {
+				image = downsampled
+			} else {
+				loadFailed = true
+			}
+		} catch {
+			loadFailed = true
+		}
+	}
+
+	/// Downsample image data to a target max pixel dimension using CGImageSource thumbnails.
+	/// Produces sharper results than `.resizable()` scaling alone and avoids loading full-res bitmaps.
+	static func downsample(data: Data, maxPixelSize: CGFloat) -> NSImage? {
+		guard let source = CGImageSourceCreateWithData(data as CFData, [
+			kCGImageSourceShouldCache: false,
+		] as CFDictionary) else {
+			return nil
+		}
+		let options: [CFString: Any] = [
+			kCGImageSourceCreateThumbnailFromImageAlways: true,
+			kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+			kCGImageSourceCreateThumbnailWithTransform: true,
+			kCGImageSourceShouldCacheImmediately: true,
+		]
+		guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+			return nil
+		}
+		return NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
 	}
 }

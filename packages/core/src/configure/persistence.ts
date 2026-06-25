@@ -128,6 +128,7 @@ export function seedConfigureValues(
 		values[`personas.${p.name}.promptMode`] = p.promptMode;
 		values[`personas.${p.name}.ai.provider`] = p.ai.provider;
 		values[`personas.${p.name}.ai.model`] = p.ai.model;
+		values[`personas.${p.name}.imagePath`] = p.imagePath ?? "";
 	}
 	for (const skill of loadLocalSkills()) {
 		values[`skills.${skill.dirName}.name`] = skill.name;
@@ -284,6 +285,10 @@ export function rebuildPersonas(
 					existingPersona?.ai.model ??
 					"gpt-5-mini",
 			},
+			imagePath:
+				values[`personas.${name}.imagePath`] ||
+				existingPersona?.imagePath ||
+				undefined,
 		};
 	});
 }

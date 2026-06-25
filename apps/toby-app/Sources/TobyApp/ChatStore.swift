@@ -34,6 +34,7 @@ final class ChatStore {
 	let serverEventLogPath = ServerEventLog.path
 	var integration: String?
 	var externalKey: String?
+	var sessionPersonaImageUrl: String?
 
 	var isExternalSession: Bool {
 		integration != nil && externalKey != nil
@@ -225,6 +226,7 @@ final class ChatStore {
 			transcript = detail.transcript
 			integration = detail.integration
 			externalKey = detail.externalKey
+			sessionPersonaImageUrl = detail.personaImageUrl
 			streamingAssistant = nil
 			turnWorkDurations = [:]
 			promptText = ""
@@ -249,6 +251,7 @@ final class ChatStore {
 			transcript = []
 			integration = nil
 			externalKey = nil
+			sessionPersonaImageUrl = nil
 			streamingAssistant = nil
 			turnWorkDurations = [:]
 			errorMessage = nil
@@ -512,6 +515,7 @@ final class ChatStore {
 		do {
 			let detail = try await client.fetchSession(id: sessionId)
 			transcript = detail.transcript
+			sessionPersonaImageUrl = detail.personaImageUrl
 			if let userIndex {
 				turnWorkDurations.removeValue(forKey: userIndex)
 			}

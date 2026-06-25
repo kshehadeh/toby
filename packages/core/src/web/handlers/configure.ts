@@ -1,8 +1,12 @@
+import fs from "node:fs";
+import path from "node:path";
 import { AI_PROVIDERS } from "../../ai/providers";
 import {
 	clearDefaultPersona,
+	ensurePersonaImagesDir,
 	getDefaultPersonaName,
 	readConfig,
+	resolvePersonaImagePath,
 	setDefaultPersona,
 	writeConfig,
 } from "../../config/index";
@@ -134,6 +138,65 @@ export async function handleConfigureAction(
 		}
 		case "clear-default-persona": {
 			clearDefaultPersona();
+			return jsonResponse({ ok: true });
+		}
+		case "upload-persona-image": {
+			const personaName = body?.personaName?.trim();
+			const imageBase64 = body?.imageBase64?.trim();
+			const filename = body?.filename?.trim();
+			if (!personaName) return errorResponse("personaName required");
+			if (!imageBase64) return errorResponse("imageBase64 required");
+
+			const cfg = readConfig();
+			const persona = cfg.personas.find((p) => p.name === personaName);
+			if (!persona) return errorResponse(`Persona "${personaName}" not found`);
+
+			ensurePersonaImagesDir();
+			const ext = filename
+				? path.extname(filename).toLowerCase() || ".png"
+				: ".png";
+			const safeName = personaName.replace(/[^a-zA-Z0-9_-]/g, "_");
+			const imageFilename = `${safeName}-${Date.now()}${ext}`;
+			const destPath = resolvePersonaImagePath(imageFilename);
+			const buffer = Buffer.from(imageBase64, "base64");
+			fs.writeFileSync(destPath, buffer);
+
+			// Remove old image if it existed
+			if (persona.imagePath) {
+				const oldPath = resolvePersonaImagePath(persona.imagePath);
+				if (fs.existsSync(oldPath)) {
+					try {
+						fs.unlinkSync(oldPath);
+					} catch {
+						// ignore cleanup errors
+					}
+				}
+			}
+
+			persona.imagePath = imageFilename;
+			writeConfig(cfg);
+			return jsonResponse({ ok: true, imagePath: imageFilename });
+		}
+		case "reset-persona-image": {
+			const personaName = body?.personaName?.trim();
+			if (!personaName) return errorResponse("personaName required");
+
+			const cfg = readConfig();
+			const persona = cfg.personas.find((p) => p.name === personaName);
+			if (!persona) return errorResponse(`Persona "${personaName}" not found`);
+
+			if (persona.imagePath) {
+				const oldPath = resolvePersonaImagePath(persona.imagePath);
+				if (fs.existsSync(oldPath)) {
+					try {
+						fs.unlinkSync(oldPath);
+					} catch {
+						// ignore cleanup errors
+					}
+				}
+				persona.imagePath = undefined;
+				writeConfig(cfg);
+			}
 			return jsonResponse({ ok: true });
 		}
 		case "update-skill-field": {

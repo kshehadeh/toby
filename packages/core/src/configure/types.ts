@@ -5,7 +5,8 @@ export type ItemKind =
 	| "select"
 	| "multiSelect"
 	| "delete"
-	| "hint";
+	| "hint"
+	| "image";
 
 /** Action items shown in the configure left tree when their parent section is expanded. */
 export const CONFIGURE_TREE_ACTION_KEYS = new Set([

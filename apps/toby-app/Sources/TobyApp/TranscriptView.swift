@@ -43,6 +43,7 @@ struct TranscriptView: View {
 	var turnWorkDurations: [Int: TimeInterval] = [:]
 	var activeWorkStartDate: Date?
 	var bottomContentPadding: CGFloat = 18
+	var personaImageUrl: URL?
 	private let bottomAnchorID = "transcript-bottom-anchor"
 
 	@State private var expandedWorkGroups: Set<String> = []
@@ -67,7 +68,7 @@ struct TranscriptView: View {
 					ForEach(displayItems) { item in
 						switch item {
 						case .entry(let entry, _):
-							TranscriptRow(entry: entry)
+							TranscriptRow(entry: entry, personaImage: personaImageUrl)
 						case .workGroup(let group):
 							WorkedForRow(
 								group: group,
@@ -78,6 +79,7 @@ struct TranscriptView: View {
 								streamingAssistant: group.isActive && streamingAssistant?.inWorkArea == true
 									? streamingAssistant
 									: nil,
+								personaImage: personaImageUrl,
 							)
 							.id(group.id)
 						}
@@ -88,6 +90,7 @@ struct TranscriptView: View {
 							header: streamingAssistant.header,
 							messageBody: streamingAssistant.text,
 							isStreaming: true,
+							personaImage: personaImageUrl,
 						)
 						.id("streaming")
 					}
@@ -159,15 +162,21 @@ struct TranscriptView: View {
 private struct AssistantRailColumn: View {
 	let iconName: String
 	var iconColor: Color? = nil
+	var personaImage: URL? = nil
 
 	var body: some View {
 		VStack(spacing: 0) {
-			Image(systemName: iconName)
-				.font(.system(size: 10, weight: .semibold))
-				.foregroundStyle(iconColor ?? AppTheme.accent)
-				.frame(width: 26, height: 26)
-				.background(Circle().fill(AppTheme.panelBackground))
-				.overlay(Circle().stroke(AppTheme.accent.opacity(0.4), lineWidth: 1))
+			if let personaImage {
+				PersonaImageView(url: personaImage, size: 26)
+					.overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(AppTheme.accent.opacity(0.4), lineWidth: 1))
+			} else {
+				Image(systemName: iconName)
+					.font(.system(size: 10, weight: .semibold))
+					.foregroundStyle(iconColor ?? AppTheme.accent)
+					.frame(width: 26, height: 26)
+					.background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(AppTheme.panelBackground))
+					.overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(AppTheme.accent.opacity(0.4), lineWidth: 1))
+			}
 			Rectangle()
 				.fill(AppTheme.accent.opacity(0.35))
 				.frame(width: 1.5)
@@ -185,6 +194,7 @@ private struct WorkedForRow: View {
 	let isExpanded: Bool
 	let onToggle: () -> Void
 	var streamingAssistant: StreamingAssistantState?
+	var personaImage: URL?
 
 	private var steps: [WorkStep] {
 		workSteps(from: group)
@@ -254,6 +264,7 @@ private struct WorkedForRow: View {
 									header: streamingAssistant.header,
 									messageBody: streamingAssistant.text,
 									isStreaming: true,
+									personaImage: personaImage,
 								)
 							}
 						}
@@ -639,6 +650,7 @@ private struct MetaStepRow: View {
 
 private struct TranscriptRow: View {
 	let entry: TranscriptEntry
+	var personaImage: URL?
 
 	var body: some View {
 		switch entry {
@@ -650,6 +662,7 @@ private struct TranscriptRow: View {
 				header: "Assistant",
 				messageBody: text,
 				isStreaming: false,
+				personaImage: personaImage,
 			)
 		case .notice(let text, let tone):
 			NoticeRow(text: text, tone: tone)
@@ -662,6 +675,7 @@ private struct TranscriptRow: View {
 					header: payload.header,
 					messageBody: payload.body,
 					isStreaming: false,
+					personaImage: personaImage,
 				)
 			} else {
 				EmptyView()
@@ -751,10 +765,11 @@ private struct AssistantMessageRow: View {
 	let header: String
 	let messageBody: String
 	let isStreaming: Bool
+	var personaImage: URL? = nil
 
 	var body: some View {
 		HStack(alignment: .top, spacing: 10) {
-			AssistantRailColumn(iconName: iconName)
+			AssistantRailColumn(iconName: iconName, personaImage: personaImage)
 			VStack(alignment: .leading, spacing: 6) {
 				Text(header)
 					.font(AppTheme.transcriptCaptionFont.weight(.semibold))

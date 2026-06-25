@@ -18,6 +18,9 @@ let package = Package(
 			dependencies: [],
 			path: "Sources/TobyApp",
 			exclude: ["Info.plist"],
+			resources: [
+				.copy("Resources"),
+			],
 			linkerSettings: [
 				.linkedFramework("EventKit"),
 				.linkedFramework("Network"),

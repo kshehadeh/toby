@@ -1,10 +1,25 @@
+import fs from "node:fs";
 import { listUsableChatModules } from "../../chat-pipeline/resolve-chat-modules";
 import { listPersonaOptions } from "../../chat-pipeline/turn-runtime";
+import {
+	getDefaultPersonaImagePath,
+	resolvePersonaImagePath,
+} from "../../config/index";
 import { loadLocalSkills } from "../../skills/index";
 import { jsonResponse } from "../http-utils";
 
 export async function handlePersonasList(): Promise<Response> {
-	return jsonResponse({ personas: listPersonaOptions() });
+	const options = listPersonaOptions();
+	const hasDefault = fs.existsSync(getDefaultPersonaImagePath());
+	const personas = options.map((p) => ({
+		...p,
+		imageUrl: p.imagePath
+			? `/api/personas/image/${encodeURIComponent(p.imagePath)}`
+			: hasDefault
+				? "/api/personas/image/default.png"
+				: undefined,
+	}));
+	return jsonResponse({ personas });
 }
 
 export async function handleModulesList(): Promise<Response> {

@@ -1,9 +1,11 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
+import path from "node:path";
 import { startChatInboundListeners } from "@toby/core/chat-inbound/listeners";
 import { getChatInboundStatus } from "@toby/core/chat-inbound/status";
 import { readChatInboundConfig } from "@toby/core/config/chat-inbound";
 import {
+	ensureDefaultPersonaImage,
 	ensureTobyDir,
 	getDaemonLogPath,
 	getWebConfig,
@@ -120,6 +122,22 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 		warmupPluginToolDefinitions();
 	} catch {
 		// best-effort; errors are non-fatal
+	}
+
+	// Seed default persona image if available
+	try {
+		const possiblePaths = [
+			path.join(process.cwd(), "images", "toby.png"),
+			path.join(path.dirname(getTobyExecPath()), "images", "toby.png"),
+		];
+		for (const p of possiblePaths) {
+			if (fs.existsSync(p)) {
+				ensureDefaultPersonaImage(p);
+				break;
+			}
+		}
+	} catch {
+		// best-effort; default image seeding is non-fatal
 	}
 
 	daemonLog("info", "daemon", "daemon_started", {

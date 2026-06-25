@@ -45,6 +45,7 @@ export function buildSettingsTree(
 		ai: { provider: string; model: string };
 		instructions: string;
 		promptMode: "add" | "replace";
+		imagePath?: string;
 	}[],
 	availableProviders: AIProviderInfo[],
 	values: Record<string, string> = {},
@@ -234,6 +235,12 @@ export function buildSettingsTree(
 			kind: "section" as const,
 			key: `personas.${p.name}`,
 			children: [
+				{
+					label: "Persona Image",
+					kind: "image" as const,
+					key: `personas.${p.name}.imagePath`,
+					currentValue: p.imagePath ?? "",
+				},
 				{
 					label: "Name",
 					kind: isBuiltIn ? ("hint" as const) : ("value" as const),
