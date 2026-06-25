@@ -112,6 +112,7 @@ struct RootView: View {
             toastDismissTask = nil
         }
         .task {
+            OpenWindowBridge.shared.openWindow = { id in openWindow(id: id) }
             await store.bootstrap()
         }
         .task {
@@ -160,6 +161,12 @@ struct RootView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .startNewChat)) { _ in
             startNewChat()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .menuBarToggleRecording)) { _ in
+            toggleRecording()
+        }
+        .onChange(of: store.isRecordingActive) { _, active in
+            NotificationCenter.default.post(name: MenuBarController.recordingStateChanged, object: active)
         }
         .onReceive(NotificationCenter.default.publisher(for: .startChatAboutRecording)) { notification in
             guard let request = notification.object as? StartChatAboutRecordingRequest else { return }
@@ -301,6 +308,7 @@ extension Notification.Name {
     static let openRecordingFromToast = Notification.Name("openRecordingFromToast")
     static let startNewChat = Notification.Name("startNewChat")
     static let startChatAboutRecording = Notification.Name("startChatAboutRecording")
+    static let menuBarToggleRecording = Notification.Name("menuBarToggleRecording")
 }
 
 struct StartChatAboutRecordingRequest {

@@ -12,6 +12,7 @@ struct TobyApp: App {
 	@State private var skillsStore = SkillsStore()
 	@State private var changelogStore = ChangelogStore()
 	@State private var nativeServer = NativeServer.shared
+	@State private var menuBarController: MenuBarController?
 
 	var body: some Scene {
 		WindowGroup {
@@ -28,6 +29,9 @@ struct TobyApp: App {
 				.onAppear {
 					nativeServer.start()
 					requestNativePermissions()
+					if menuBarController == nil {
+						menuBarController = MenuBarController()
+					}
 				}
 				.onDisappear {
 					nativeServer.stop()
