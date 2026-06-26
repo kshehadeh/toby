@@ -52,7 +52,12 @@ struct SchedulesSidebarView: View {
 	let onDelete: (ScheduleViewModel) -> Void
 
 	var body: some View {
-		VStack(spacing: 0) {
+		VStack(alignment: .leading, spacing: 0) {
+			Text("Schedules")
+				.font(.caption)
+				.foregroundStyle(AppTheme.tertiaryText)
+				.padding(.horizontal, 8)
+				.padding(.top, 10)
 			ScrollView {
 				VStack(alignment: .leading, spacing: 2) {
 					if store.isLoading && store.schedules.isEmpty {

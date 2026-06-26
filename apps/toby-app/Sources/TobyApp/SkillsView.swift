@@ -42,7 +42,12 @@ struct SkillsSidebarView: View {
 	let onDelete: (SkillListItem) -> Void
 
 	var body: some View {
-		VStack(spacing: 0) {
+		VStack(alignment: .leading, spacing: 0) {
+			Text("Skills")
+				.font(.caption)
+				.foregroundStyle(AppTheme.tertiaryText)
+				.padding(.horizontal, 8)
+				.padding(.top, 10)
 			ScrollView {
 				VStack(alignment: .leading, spacing: 2) {
 					if store.isListLoading && store.skills.isEmpty {

@@ -56,9 +56,15 @@ struct RecordingsSidebarView: View {
 	let onDeleteRecording: (ListenRecordingSummary) -> Void
 
 	var body: some View {
-		ScrollView {
-			VStack(alignment: .leading, spacing: 2) {
-				if store.isLoading && store.recordings.isEmpty {
+		VStack(alignment: .leading, spacing: 0) {
+			Text("Recordings")
+				.font(.caption)
+				.foregroundStyle(AppTheme.tertiaryText)
+				.padding(.horizontal, 8)
+				.padding(.top, 10)
+			ScrollView {
+				VStack(alignment: .leading, spacing: 2) {
+					if store.isLoading && store.recordings.isEmpty {
 					Text("Loading recordings...")
 						.font(.caption)
 						.foregroundStyle(AppTheme.tertiaryText)
@@ -95,6 +101,7 @@ struct RecordingsSidebarView: View {
 		}
 		.background(AppTheme.sidebarBackground)
 	}
+}
 }
 
 private struct RecordingSidebarRow: View {

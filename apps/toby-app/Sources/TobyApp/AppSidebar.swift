@@ -18,7 +18,11 @@ struct AppSidebar<Content: View>: View {
 			sidebarContent()
 				.frame(maxHeight: .infinity)
 				.padding(.bottom, 16)
-			SidebarSection(title: "Toby") {
+			Divider()
+				.background(AppTheme.separator)
+				.opacity(0.5)
+				.padding(.vertical, 2)
+			VStack(alignment: .leading, spacing: 4) {
 				Button {
 					onSelectRoute(.chat)
 				} label: {
@@ -62,6 +66,7 @@ struct AppSidebar<Content: View>: View {
 				.buttonStyle(.plain)
 				.frame(maxWidth: .infinity, alignment: .leading)
 			}
+			.padding(.top, 6)
 			.padding(.bottom, 8)
 			Divider()
 				.background(AppTheme.separator)

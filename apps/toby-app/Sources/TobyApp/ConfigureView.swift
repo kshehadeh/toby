@@ -48,9 +48,15 @@ struct ConfigureSidebarView: View {
 	@Bindable var store: ConfigureStore
 
 	var body: some View {
-		ScrollView {
-			VStack(alignment: .leading, spacing: 2) {
-				if store.isLoading && store.sidebarTree.isEmpty {
+		VStack(alignment: .leading, spacing: 0) {
+			Text("Settings")
+				.font(.caption)
+				.foregroundStyle(AppTheme.tertiaryText)
+				.padding(.horizontal, 8)
+				.padding(.top, 10)
+			ScrollView {
+				VStack(alignment: .leading, spacing: 2) {
+					if store.isLoading && store.sidebarTree.isEmpty {
 					Text("Loading settings…")
 						.font(.caption)
 						.foregroundStyle(AppTheme.tertiaryText)
@@ -66,6 +72,7 @@ struct ConfigureSidebarView: View {
 		}
 		.background(AppTheme.sidebarBackground)
 	}
+}
 }
 
 private struct ConfigureSidebarNodeView: View {
