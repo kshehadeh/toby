@@ -4,17 +4,10 @@ import UniformTypeIdentifiers
 
 struct ConfigureView: View {
 	@Bindable var store: ConfigureStore
-	@State private var columnVisibility: NavigationSplitViewVisibility = .all
 
 	var body: some View {
-		NavigationSplitView(columnVisibility: $columnVisibility) {
-			ConfigureSidebarView(store: store)
-				.navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
-		} detail: {
-			ConfigureDetailView(store: store)
-		}
+		ConfigureDetailView(store: store)
 		.toolbarBackground(.visible)
-		.frame(minWidth: 860, minHeight: 560)
 		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.load()
@@ -51,7 +44,7 @@ struct ConfigureView: View {
 	}
 }
 
-private struct ConfigureSidebarView: View {
+struct ConfigureSidebarView: View {
 	@Bindable var store: ConfigureStore
 
 	var body: some View {
@@ -171,7 +164,7 @@ private enum SettingsSidebarIcon {
 	}
 }
 
-private struct ConfigureDetailView: View {
+struct ConfigureDetailView: View {
 	@Bindable var store: ConfigureStore
 
 	var body: some View {

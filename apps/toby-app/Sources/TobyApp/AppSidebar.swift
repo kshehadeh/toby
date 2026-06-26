@@ -1,138 +1,63 @@
 import AppKit
 import SwiftUI
 
-struct AppSidebar: View {
-	let sessions: [SessionSummary]
-	let selectedSessionId: String?
+struct AppSidebar<Content: View>: View {
+	let currentRoute: DetailRoute
 	let status: AppStatus?
 	let daemonStatus: DaemonStatus?
-	let isLoading: Bool
-	let isSessionsLoading: Bool
-	let onSelectSession: (String) -> Void
-	let onDeleteSession: (SessionSummary) -> Void
-	let onOpenSettings: (String?) -> Void
-	let onOpenRecordings: () -> Void
-	let onOpenSchedules: () -> Void
-	let onOpenIntegrations: () -> Void
-	let onOpenSkills: () -> Void
+	let onSelectRoute: (DetailRoute) -> Void
 	let onCreatePersona: () -> Void
 	let onEditPersona: (String) -> Void
 	let onPersonaSelected: () -> Void
 	let onOpenChangelog: () -> Void
-	@State private var isWorkspaceScrolling = false
-	@State private var workspaceScrollProgress: CGFloat = 0
-	@State private var chatsHeight: CGFloat = 220
+	@ViewBuilder let sidebarContent: () -> Content
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
 			SidebarHeader(status: status, daemonStatus: daemonStatus, onOpenChangelog: onOpenChangelog)
-			SidebarSection(title: "Chats") {
-				if isSessionsLoading && sessions.isEmpty {
-					Text("Loading sessions…")
-						.font(.caption)
-						.foregroundStyle(AppTheme.tertiaryText)
-						.padding(.horizontal, 8)
-						.padding(.vertical, 7)
-				} else if sessions.isEmpty {
-					Text("No past sessions")
-						.font(.caption)
-						.foregroundStyle(AppTheme.tertiaryText)
-						.padding(.horizontal, 8)
-						.padding(.vertical, 7)
-				} else {
-					ZStack(alignment: .trailing) {
-						ScrollView(.vertical, showsIndicators: false) {
-							VStack(alignment: .leading, spacing: 2) {
-								ForEach(sessions) { session in
-									Button {
-										onSelectSession(session.id)
-									} label: {
-										SidebarSessionRow(
-											title: session.name,
-											subtitle: sidebarSessionDate(session),
-											isSelected: session.id == selectedSessionId,
-										)
-									}
-									.buttonStyle(.plain)
-									.frame(maxWidth: .infinity, alignment: .leading)
-									.disabled(isLoading)
-									.accessibilityIdentifier("session-\(session.id)")
-									.contextMenu {
-										Button(role: .destructive) {
-											onDeleteSession(session)
-										} label: {
-											Label("Delete Session", systemImage: "trash")
-										}
-										.disabled(isLoading)
-									}
-								}
-								ScrollStateTracker(
-									isScrolling: $isWorkspaceScrolling,
-									progress: $workspaceScrollProgress
-								)
-								.frame(width: 0, height: 0)
-							}
-						}
-
-						if isWorkspaceScrolling {
-							Rectangle()
-								.fill(AppTheme.tertiaryText.opacity(0.6))
-								.frame(width: 3, height: 40)
-								.cornerRadius(1.5)
-								.padding(.trailing, 2)
-								.offset(y: (workspaceScrollProgress - 0.5) * (chatsHeight - 40))
-								.transition(.opacity)
-								.allowsHitTesting(false)
-						}
-					}
-					.frame(maxHeight: .infinity)
-					.background(
-						GeometryReader { proxy in
-							Color.clear
-								.onAppear { chatsHeight = proxy.size.height }
-								.onChange(of: proxy.size.height) { _, newValue in
-									chatsHeight = newValue
-								}
-						}
-					)
-					.animation(.easeInOut(duration: 0.25), value: isWorkspaceScrolling)
-				}
-			}
-			.frame(maxHeight: .infinity)
-			.padding(.bottom, 16)
+			sidebarContent()
+				.frame(maxHeight: .infinity)
+				.padding(.bottom, 16)
 			SidebarSection(title: "Toby") {
 				Button {
-					onOpenIntegrations()
+					onSelectRoute(.chat)
 				} label: {
-					SidebarRow(title: "Integrations", systemImage: "square.grid.2x2")
+					SidebarRow(title: "Chats", systemImage: "message", isSelected: currentRoute == .chat)
 				}
 				.buttonStyle(.plain)
 				.frame(maxWidth: .infinity, alignment: .leading)
 				Button {
-					onOpenSkills()
+					onSelectRoute(.integrations)
 				} label: {
-					SidebarRow(title: "Skills", systemImage: "wand.and.stars")
+					SidebarRow(title: "Integrations", systemImage: "square.grid.2x2", isSelected: currentRoute == .integrations)
 				}
 				.buttonStyle(.plain)
 				.frame(maxWidth: .infinity, alignment: .leading)
 				Button {
-					onOpenSchedules()
+					onSelectRoute(.skills)
 				} label: {
-					SidebarRow(title: "Schedules", systemImage: "clock")
+					SidebarRow(title: "Skills", systemImage: "wand.and.stars", isSelected: currentRoute == .skills)
 				}
 				.buttonStyle(.plain)
 				.frame(maxWidth: .infinity, alignment: .leading)
 				Button {
-					onOpenRecordings()
+					onSelectRoute(.schedules)
 				} label: {
-					SidebarRow(title: "Recordings", systemImage: "waveform")
+					SidebarRow(title: "Schedules", systemImage: "clock", isSelected: currentRoute == .schedules)
 				}
 				.buttonStyle(.plain)
 				.frame(maxWidth: .infinity, alignment: .leading)
 				Button {
-					onOpenSettings(nil)
+					onSelectRoute(.recordings)
 				} label: {
-					SidebarRow(title: "Settings", systemImage: "gearshape")
+					SidebarRow(title: "Recordings", systemImage: "waveform", isSelected: currentRoute == .recordings)
+				}
+				.buttonStyle(.plain)
+				.frame(maxWidth: .infinity, alignment: .leading)
+				Button {
+					onSelectRoute(.settings)
+				} label: {
+					SidebarRow(title: "Settings", systemImage: "gearshape", isSelected: currentRoute == .settings)
 				}
 				.buttonStyle(.plain)
 				.frame(maxWidth: .infinity, alignment: .leading)
@@ -154,6 +79,93 @@ struct AppSidebar: View {
 		.frame(minWidth: AppTheme.minSidebarWidth, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 		.background(AppTheme.sidebarBackground)
 		.accessibilityIdentifier("app-sidebar")
+	}
+}
+
+struct ChatSessionsSidebar: View {
+	let sessions: [SessionSummary]
+	let selectedSessionId: String?
+	let isLoading: Bool
+	let isSessionsLoading: Bool
+	let onSelectSession: (String) -> Void
+	let onDeleteSession: (SessionSummary) -> Void
+	@State private var isWorkspaceScrolling = false
+	@State private var workspaceScrollProgress: CGFloat = 0
+	@State private var chatsHeight: CGFloat = 220
+
+	var body: some View {
+		SidebarSection(title: "Chats") {
+			if isSessionsLoading && sessions.isEmpty {
+				Text("Loading sessions…")
+					.font(.caption)
+					.foregroundStyle(AppTheme.tertiaryText)
+					.padding(.horizontal, 8)
+					.padding(.vertical, 7)
+			} else if sessions.isEmpty {
+				Text("No past sessions")
+					.font(.caption)
+					.foregroundStyle(AppTheme.tertiaryText)
+					.padding(.horizontal, 8)
+					.padding(.vertical, 7)
+			} else {
+				ZStack(alignment: .trailing) {
+					ScrollView(.vertical, showsIndicators: false) {
+						VStack(alignment: .leading, spacing: 2) {
+							ForEach(sessions) { session in
+								Button {
+									onSelectSession(session.id)
+								} label: {
+									SidebarSessionRow(
+										title: session.name,
+										subtitle: sidebarSessionDate(session),
+										isSelected: session.id == selectedSessionId,
+									)
+								}
+								.buttonStyle(.plain)
+								.frame(maxWidth: .infinity, alignment: .leading)
+								.disabled(isLoading)
+								.accessibilityIdentifier("session-\(session.id)")
+								.contextMenu {
+									Button(role: .destructive) {
+										onDeleteSession(session)
+									} label: {
+										Label("Delete Session", systemImage: "trash")
+									}
+									.disabled(isLoading)
+								}
+							}
+							ScrollStateTracker(
+								isScrolling: $isWorkspaceScrolling,
+								progress: $workspaceScrollProgress
+							)
+							.frame(width: 0, height: 0)
+						}
+					}
+
+					if isWorkspaceScrolling {
+						Rectangle()
+							.fill(AppTheme.tertiaryText.opacity(0.6))
+							.frame(width: 3, height: 40)
+							.cornerRadius(1.5)
+							.padding(.trailing, 2)
+							.offset(y: (workspaceScrollProgress - 0.5) * (chatsHeight - 40))
+							.transition(.opacity)
+							.allowsHitTesting(false)
+					}
+				}
+				.frame(maxHeight: .infinity)
+				.background(
+					GeometryReader { proxy in
+						Color.clear
+							.onAppear { chatsHeight = proxy.size.height }
+							.onChange(of: proxy.size.height) { _, newValue in
+								chatsHeight = newValue
+							}
+					}
+				)
+				.animation(.easeInOut(duration: 0.25), value: isWorkspaceScrolling)
+			}
+		}
 	}
 }
 

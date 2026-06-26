@@ -99,13 +99,11 @@ struct IntegrationsViewTests {
 		#expect(sections.map(\.label).sorted() == ["Gmail", "Todoist"])
 	}
 
-	@Test("integrations view uses navigation split view with sidebar")
-	func integrationsViewUsesNavigationSplitView() throws {
+	@Test("integrations view renders detail content")
+	func integrationsViewRendersDetailContent() throws {
 		let store = ConfigureStore()
 		store.tree = makeTree()
 		let view = IntegrationsView(store: store)
-		let splitView = try view.inspect().navigationSplitView()
-		#expect(throws: Never.self) { try splitView.sidebarView() }
-		#expect(throws: Never.self) { try splitView.detailView() }
+		#expect(throws: Never.self) { try view.inspect().find(IntegrationsDetailView.self) }
 	}
 }

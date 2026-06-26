@@ -2,18 +2,12 @@ import SwiftUI
 
 struct SchedulesView: View {
 	@Bindable var store: SchedulesStore
-	@State private var isDeleteAlertPresented = false
-	@State private var columnVisibility: NavigationSplitViewVisibility = .all
 
 	var body: some View {
-		NavigationSplitView(columnVisibility: $columnVisibility) {
-			SchedulesSidebarView(store: store, onDelete: confirmDelete)
-				.navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
-		} detail: {
-			SchedulesDetailView(store: store, onDelete: confirmDelete)
-		}
+		SchedulesDetailView(store: store, onDelete: { schedule in
+			store.pendingDelete = SchedulesStore.PendingDelete(scheduleId: schedule.id, title: schedule.displayName)
+		})
 		.toolbarBackground(.visible)
-		.frame(minWidth: 860, minHeight: 560)
 		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.load()
@@ -34,7 +28,10 @@ struct SchedulesView: View {
 		}
 		.alert(
 			"Delete Schedule?",
-			isPresented: $isDeleteAlertPresented,
+			isPresented: Binding(
+				get: { store.pendingDelete != nil },
+				set: { if !$0 { store.pendingDelete = nil } },
+			),
 			presenting: store.pendingDelete,
 		) { pending in
 			Button("Cancel", role: .cancel) {
@@ -48,14 +45,9 @@ struct SchedulesView: View {
 			Text("Are you sure you want to delete \"\(pending.title)\"? This cannot be undone.")
 		}
 	}
-
-	private func confirmDelete(_ schedule: ScheduleViewModel) {
-		store.pendingDelete = SchedulesStore.PendingDelete(scheduleId: schedule.id, title: schedule.displayName)
-		isDeleteAlertPresented = true
-	}
 }
 
-private struct SchedulesSidebarView: View {
+struct SchedulesSidebarView: View {
 	@Bindable var store: SchedulesStore
 	let onDelete: (ScheduleViewModel) -> Void
 
@@ -167,7 +159,7 @@ private struct ScheduleSidebarRow: View {
 	}
 }
 
-private struct SchedulesDetailView: View {
+struct SchedulesDetailView: View {
 	@Bindable var store: SchedulesStore
 	let onDelete: (ScheduleViewModel) -> Void
 

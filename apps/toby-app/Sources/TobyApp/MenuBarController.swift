@@ -143,19 +143,19 @@ final class MenuBarController: NSObject {
 	}
 
 	@objc private func openRecordings() {
-		OpenWindowBridge.shared.openWindow?("recordings")
+		NotificationCenter.default.post(name: .navigateToRoute, object: DetailRoute.recordings.rawValue)
 	}
 
 	@objc private func openSchedules() {
-		OpenWindowBridge.shared.openWindow?("schedules")
+		NotificationCenter.default.post(name: .navigateToRoute, object: DetailRoute.schedules.rawValue)
 	}
 
 	@objc private func openIntegrations() {
-		OpenWindowBridge.shared.openWindow?("integrations")
+		NotificationCenter.default.post(name: .navigateToRoute, object: DetailRoute.integrations.rawValue)
 	}
 
 	@objc private func openSettings() {
-		OpenWindowBridge.shared.openWindow?("settings")
+		NotificationCenter.default.post(name: .navigateToRoute, object: DetailRoute.settings.rawValue)
 	}
 
 	@objc private func quitApp() {

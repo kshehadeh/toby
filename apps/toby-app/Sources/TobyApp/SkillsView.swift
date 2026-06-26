@@ -2,18 +2,13 @@ import SwiftUI
 
 struct SkillsView: View {
 	@Bindable var store: SkillsStore
-	@State private var isDeleteAlertPresented = false
-	@State private var columnVisibility: NavigationSplitViewVisibility = .all
 
 	var body: some View {
-		NavigationSplitView(columnVisibility: $columnVisibility) {
-			SkillsSidebarView(store: store, onDelete: confirmDelete)
-				.navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
-		} detail: {
-			SkillsDetailView(store: store, onDelete: confirmDeleteSelected)
-		}
+		SkillsDetailView(store: store, onDelete: {
+			guard let skill = store.selectedSkill else { return }
+			store.pendingDelete = SkillsStore.PendingDelete(dirName: skill.dirName, name: skill.name)
+		})
 		.toolbarBackground(.visible)
-		.frame(minWidth: 860, minHeight: 560)
 		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.load()
@@ -23,7 +18,10 @@ struct SkillsView: View {
 		}
 		.alert(
 			"Delete Skill?",
-			isPresented: $isDeleteAlertPresented,
+			isPresented: Binding(
+				get: { store.pendingDelete != nil },
+				set: { if !$0 { store.pendingDelete = nil } },
+			),
 			presenting: store.pendingDelete,
 		) { pending in
 			Button("Cancel", role: .cancel) {
@@ -37,20 +35,9 @@ struct SkillsView: View {
 			Text("Are you sure you want to delete \"\(pending.name)\"? This cannot be undone.")
 		}
 	}
-
-	private func confirmDelete(_ item: SkillListItem) {
-		store.pendingDelete = SkillsStore.PendingDelete(dirName: item.dirName, name: item.name)
-		isDeleteAlertPresented = true
-	}
-
-	private func confirmDeleteSelected() {
-		guard let skill = store.selectedSkill else { return }
-		store.pendingDelete = SkillsStore.PendingDelete(dirName: skill.dirName, name: skill.name)
-		isDeleteAlertPresented = true
-	}
 }
 
-private struct SkillsSidebarView: View {
+struct SkillsSidebarView: View {
 	@Bindable var store: SkillsStore
 	let onDelete: (SkillListItem) -> Void
 
@@ -140,7 +127,7 @@ private struct SkillSidebarRow: View {
 	}
 }
 
-private struct SkillsDetailView: View {
+struct SkillsDetailView: View {
 	@Bindable var store: SkillsStore
 	let onDelete: () -> Void
 

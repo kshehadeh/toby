@@ -2,17 +2,10 @@ import SwiftUI
 
 struct IntegrationsView: View {
 	@Bindable var store: ConfigureStore
-	@State private var columnVisibility: NavigationSplitViewVisibility = .all
 
 	var body: some View {
-		NavigationSplitView(columnVisibility: $columnVisibility) {
-			IntegrationsSidebarView(store: store)
-				.navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
-		} detail: {
-			IntegrationsDetailView(store: store)
-		}
+		IntegrationsDetailView(store: store)
 		.toolbarBackground(.visible)
-		.frame(minWidth: 860, minHeight: 560)
 		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.load()
@@ -65,7 +58,7 @@ extension ConfigureStore {
 	}
 }
 
-private struct IntegrationsSidebarView: View {
+struct IntegrationsSidebarView: View {
 	@Bindable var store: ConfigureStore
 
 	var body: some View {
@@ -130,7 +123,7 @@ private struct IntegrationSidebarRow: View {
 	}
 }
 
-private struct IntegrationsDetailView: View {
+struct IntegrationsDetailView: View {
 	@Bindable var store: ConfigureStore
 
 	var body: some View {

@@ -6,12 +6,10 @@ import ViewInspector
 @MainActor
 @Suite("SkillsView")
 struct SkillsViewTests {
-	@Test("skills view uses navigation split view with sidebar and detail")
-	func skillsViewUsesNavigationSplitView() throws {
+	@Test("skills view renders detail content")
+	func skillsViewRendersDetailContent() throws {
 		let view = SkillsView(store: SkillsStore())
-		let splitView = try view.inspect().navigationSplitView()
-		#expect(throws: Never.self) { try splitView.sidebarView() }
-		#expect(throws: Never.self) { try splitView.detailView() }
+		#expect(throws: Never.self) { try view.inspect().find(SkillsDetailView.self) }
 	}
 
 	@Test("skills sidebar shows skill names")
@@ -21,7 +19,7 @@ struct SkillsViewTests {
 			SkillListItem(dirName: "skill-1", name: "Research", description: "Research assistant"),
 			SkillListItem(dirName: "skill-2", name: "Planner", description: "Planning helper"),
 		]
-		let view = SkillsView(store: store)
+		let view = SkillsSidebarView(store: store, onDelete: { _ in })
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Research")
 		}

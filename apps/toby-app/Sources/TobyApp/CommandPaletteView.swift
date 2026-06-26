@@ -8,6 +8,7 @@ struct CommandPaletteView: View {
 	let onSelectSession: (String) -> Void
 	let onNewChat: () -> Void
 	let onOpenSettings: () -> Void
+	let onNavigateToRoute: (DetailRoute) -> Void
 	let onOpenIntegration: (String) -> Void
 	let onOpenSchedule: (String) -> Void
 	let onOpenRecording: (String) -> Void
@@ -48,6 +49,46 @@ struct CommandPaletteView: View {
 					kind: .action,
 				),
 			)
+		}
+
+		if trimmed.isEmpty || "integrations".localizedCaseInsensitiveContains(trimmed) {
+			items.append(CommandPaletteResult(
+				id: "action-integrations",
+				title: "Open Integrations",
+				subtitle: "Manage connected apps",
+				systemImage: "square.grid.2x2",
+				kind: .route(.integrations),
+			))
+		}
+
+		if trimmed.isEmpty || "skills".localizedCaseInsensitiveContains(trimmed) {
+			items.append(CommandPaletteResult(
+				id: "action-skills",
+				title: "Open Skills",
+				subtitle: "Manage installed skills",
+				systemImage: "wand.and.stars",
+				kind: .route(.skills),
+			))
+		}
+
+		if trimmed.isEmpty || "schedules".localizedCaseInsensitiveContains(trimmed) {
+			items.append(CommandPaletteResult(
+				id: "action-schedules",
+				title: "Open Schedules",
+				subtitle: "Manage scheduled tasks",
+				systemImage: "clock",
+				kind: .route(.schedules),
+			))
+		}
+
+		if trimmed.isEmpty || "recordings".localizedCaseInsensitiveContains(trimmed) {
+			items.append(CommandPaletteResult(
+				id: "action-recordings",
+				title: "Open Recordings",
+				subtitle: "Browse audio recordings",
+				systemImage: "waveform",
+				kind: .route(.recordings),
+			))
 		}
 
 		let filteredSessions = sessions.filter { session in
@@ -242,6 +283,9 @@ struct CommandPaletteView: View {
 		case .action where result.id == "action-settings":
 			onDismiss()
 			onOpenSettings()
+		case .route(let route):
+			onDismiss()
+			onNavigateToRoute(route)
 		case .session(let id):
 			onDismiss()
 			onSelectSession(id)
@@ -285,6 +329,7 @@ struct CommandPaletteView: View {
 struct CommandPaletteResult: Identifiable {
 	enum Kind: Equatable {
 		case action
+		case route(DetailRoute)
 		case session(String)
 		case integration(String)
 		case schedule(String)

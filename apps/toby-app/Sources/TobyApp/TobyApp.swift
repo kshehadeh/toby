@@ -42,41 +42,6 @@ struct TobyApp: App {
 		.windowStyle(.hiddenTitleBar)
 		.defaultSize(width: 1024, height: 720)
 
-		Window("Settings", id: "settings") {
-			ConfigureView(store: configureStore)
-				.onDisappear { NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil) }
-		}
-		.windowStyle(.automatic)
-		.defaultSize(width: 920, height: 640)
-
-		Window("Recordings", id: "recordings") {
-			RecordingsView(store: recordingsStore, processingState: store.recordingProcessing)
-				.onDisappear { NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil) }
-		}
-		.windowStyle(.automatic)
-		.defaultSize(width: 920, height: 640)
-
-		Window("Schedules", id: "schedules") {
-			SchedulesView(store: schedulesStore)
-				.onDisappear { NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil) }
-		}
-		.windowStyle(.automatic)
-		.defaultSize(width: 920, height: 640)
-
-		Window("Integrations", id: "integrations") {
-			IntegrationsView(store: integrationsStore)
-				.onDisappear { NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil) }
-		}
-		.windowStyle(.automatic)
-		.defaultSize(width: 920, height: 640)
-
-		Window("Skills", id: "skills") {
-			SkillsView(store: skillsStore)
-				.onDisappear { NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil) }
-		}
-		.windowStyle(.automatic)
-		.defaultSize(width: 920, height: 640)
-
 		Window("Permissions", id: "permissions") {
 			PermissionsView()
 				.onDisappear { NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil) }
@@ -124,6 +89,13 @@ struct TobyApp: App {
 
 			CommandGroup(after: .newItem) {
 				OpenPermissionsMenuItem()
+			}
+
+			CommandGroup(replacing: .appSettings) {
+				Button("Settings…") {
+					NotificationCenter.default.post(name: .navigateToRoute, object: DetailRoute.settings.rawValue)
+				}
+				.keyboardShortcut(",", modifiers: .command)
 			}
 
 			CommandGroup(after: .sidebar) {

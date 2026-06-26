@@ -5,6 +5,7 @@ import Observation
 final class RecordingsStore {
 	var recordings: [ListenRecordingSummary] = []
 	var selectedRecordingIds: Set<String> = []
+	var pendingDeleteRecordingIds: Set<String> = []
 	var detail: ListenRecordingDetail?
 	var isLoading = false
 	var isDetailLoading = false

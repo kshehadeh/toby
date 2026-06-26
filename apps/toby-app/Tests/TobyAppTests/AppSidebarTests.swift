@@ -6,25 +6,40 @@ import ViewInspector
 @MainActor
 @Suite("AppSidebar")
 struct AppSidebarTests {
-    private func makeSidebar(sessions: [SessionSummary] = [], selectedId: String? = nil) -> AppSidebar {
+    private func makeSidebar(sessions: [SessionSummary] = [], selectedId: String? = nil, currentRoute: DetailRoute = .chat) -> AppSidebar<ChatSessionsSidebar> {
         AppSidebar(
-            sessions: sessions,
-            selectedSessionId: selectedId,
+            currentRoute: currentRoute,
             status: nil,
             daemonStatus: nil,
-            isLoading: false,
-            isSessionsLoading: false,
-            onSelectSession: { _ in },
-            onDeleteSession: { _ in },
-            onOpenSettings: { _ in },
-            onOpenRecordings: {},
-            onOpenSchedules: {},
-            onOpenIntegrations: {},
-            onOpenSkills: {},
+            onSelectRoute: { _ in },
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
-            onOpenChangelog: {}
+            onOpenChangelog: {},
+            sidebarContent: {
+                ChatSessionsSidebar(
+                    sessions: sessions,
+                    selectedSessionId: selectedId,
+                    isLoading: false,
+                    isSessionsLoading: false,
+                    onSelectSession: { _ in },
+                    onDeleteSession: { _ in }
+                )
+            }
+        )
+    }
+
+    private func makeSidebarWithRoute(currentRoute: DetailRoute, onSelectRoute: @escaping (DetailRoute) -> Void) -> AppSidebar<EmptyView> {
+        AppSidebar(
+            currentRoute: currentRoute,
+            status: nil,
+            daemonStatus: nil,
+            onSelectRoute: onSelectRoute,
+            onCreatePersona: {},
+            onEditPersona: { _ in },
+            onPersonaSelected: {},
+            onOpenChangelog: {},
+            sidebarContent: { EmptyView() }
         )
     }
 
@@ -49,7 +64,7 @@ struct AppSidebarTests {
         let view = makeSidebar(sessions: sessions)
         // Sessions are rendered inside a ScrollView > VStack > ForEach
         let buttons = try view.inspect().findAll(ViewType.Button.self)
-        // Buttons: changelog header + session×2 + integrations + schedules + recordings + settings + persona
+        // Buttons: changelog header + session×2 + chats + integrations + skills + schedules + recordings + settings + persona
         let sessionButtons = buttons.filter { btn in
             guard let label = try? btn.labelView().find(ViewType.Text.self),
                   let text = try? label.string() else { return false }
@@ -63,23 +78,24 @@ struct AppSidebarTests {
         var selectedId: String?
         let session = SessionSummary(id: "abc", name: "My Session", createdAt: nil, updatedAt: nil)
         let sidebar = AppSidebar(
-            sessions: [session],
-            selectedSessionId: nil,
+            currentRoute: .chat,
             status: nil,
             daemonStatus: nil,
-            isLoading: false,
-            isSessionsLoading: false,
-            onSelectSession: { selectedId = $0 },
-            onDeleteSession: { _ in },
-            onOpenSettings: { _ in },
-            onOpenRecordings: {},
-            onOpenSchedules: {},
-            onOpenIntegrations: {},
-            onOpenSkills: {},
+            onSelectRoute: { _ in },
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
-            onOpenChangelog: {}
+            onOpenChangelog: {},
+            sidebarContent: {
+                ChatSessionsSidebar(
+                    sessions: [session],
+                    selectedSessionId: nil,
+                    isLoading: false,
+                    isSessionsLoading: false,
+                    onSelectSession: { selectedId = $0 },
+                    onDeleteSession: { _ in }
+                )
+            }
         )
         // Find the button whose label text matches the session name
         let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
@@ -89,6 +105,33 @@ struct AppSidebarTests {
         try #require(sessionButton != nil, "Session button not found")
         try sessionButton!.tap()
         #expect(selectedId == "abc")
+    }
+
+    @Test("Toby section buttons emit correct routes")
+    func tobySectionButtonsEmitRoutes() throws {
+        var selectedRoutes: [DetailRoute] = []
+        let sidebar = makeSidebarWithRoute(currentRoute: .chat) { selectedRoutes.append($0) }
+        let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
+        // Find and tap the Integrations button
+        let integrationsButton = buttons.first { (try? $0.find(text: "Integrations")) != nil }
+        try #require(integrationsButton != nil, "Integrations button not found")
+        try integrationsButton!.tap()
+        // Find and tap the Schedules button
+        let schedulesButton = buttons.first { (try? $0.find(text: "Schedules")) != nil }
+        try #require(schedulesButton != nil, "Schedules button not found")
+        try schedulesButton!.tap()
+        #expect(selectedRoutes == [.integrations, .schedules])
+    }
+
+    @Test("Chats button emits chat route")
+    func chatsButtonEmitsChatRoute() throws {
+        var selectedRoute: DetailRoute?
+        let sidebar = makeSidebarWithRoute(currentRoute: .integrations) { selectedRoute = $0 }
+        let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
+        let chatsButton = buttons.first { (try? $0.find(text: "Chats")) != nil }
+        try #require(chatsButton != nil, "Chats button not found")
+        try chatsButton!.tap()
+        #expect(selectedRoute == .chat)
     }
 
     @Test("scroll progress clamped to 0...1")

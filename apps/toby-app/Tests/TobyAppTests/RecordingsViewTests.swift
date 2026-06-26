@@ -6,12 +6,10 @@ import ViewInspector
 @MainActor
 @Suite("RecordingsView")
 struct RecordingsViewTests {
-	@Test("recordings view uses navigation split view with sidebar")
-	func recordingsViewUsesNavigationSplitView() throws {
+	@Test("recordings view renders detail content")
+	func recordingsViewRendersDetailContent() throws {
 		let view = RecordingsView(store: RecordingsStore())
-		let splitView = try view.inspect().navigationSplitView()
-		#expect(throws: Never.self) { try splitView.sidebarView() }
-		#expect(throws: Never.self) { try splitView.detailView() }
+		#expect(throws: Never.self) { try view.inspect().find(RecordingsDetailView.self) }
 	}
 
 	@Test("recordings store tracks multiple selected recordings")

@@ -10,6 +10,7 @@ struct RootView: View {
     @Bindable var skillsStore: SkillsStore
     let personaEditorCoordinator: PersonaEditorCoordinator
     @Environment(\.openWindow) private var openWindow
+    @State private var history = NavigationHistory()
     @State private var isCommandPalettePresented = false
     @State private var isIssueReportPresented = false
     @State private var pendingDeleteSession: SessionSummary?
@@ -21,189 +22,294 @@ struct RootView: View {
     private let toastDuration: UInt64 = 4_000_000_000
 
     var body: some View {
+        contentWithAlerts
+    }
+
+    private var contentWithAlerts: some View {
+        contentWithBackground
+            .alert(
+                "Delete Session?",
+                isPresented: Binding(
+                    get: { pendingDeleteSession != nil },
+                    set: { if !$0 { pendingDeleteSession = nil } },
+                ),
+                presenting: pendingDeleteSession,
+            ) { session in
+                Button("Cancel", role: .cancel) {
+                    pendingDeleteSession = nil
+                }
+                Button("Delete", role: .destructive) {
+                    pendingDeleteSession = nil
+                    Task { await store.deleteSession(id: session.id) }
+                }
+            } message: { session in
+                Text("Are you sure you want to delete \"\(session.name)\"? This cannot be undone.")
+            }
+    }
+
+    private var contentWithBackground: some View {
+        contentWithNotifications
+            .background(WindowAccessor { window in
+                mainWindow = window
+            })
+    }
+
+    private var contentWithNotifications: some View {
+        contentWithSheets
+            .onReceive(NotificationCenter.default.publisher(for: .openCommandPalette)) { _ in
+                isCommandPalettePresented = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openIssueReport)) { _ in
+                isIssueReportPresented = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openChangelog)) { _ in
+                openWindow(id: "changelog")
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openRecordingFromToast)) { notification in
+                if let id = notification.object as? String {
+                    openRecording(id: id)
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .startNewChat)) { _ in
+                startNewChat()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .menuBarToggleRecording)) { _ in
+                toggleRecording()
+            }
+            .onChange(of: store.isRecordingActive) { _, active in
+                NotificationCenter.default.post(name: MenuBarController.recordingStateChanged, object: active)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .secondaryWindowClosed)) { _ in
+                bringMainWindowToFront()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .startChatAboutRecording)) { notification in
+                guard let request = notification.object as? StartChatAboutRecordingRequest else { return }
+                bringMainWindowToFront()
+                Task {
+                    await store.startChatAboutRecording(
+                        name: request.name,
+                        dateText: request.dateText,
+                        hourText: request.hourText
+                    )
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .navigateToRoute)) { notification in
+                if let raw = notification.object as? String,
+                   let route = DetailRoute(rawValue: raw)
+                {
+                    navigateToRoute(route)
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var contentWithSheets: some View {
+        contentWithTasks
+            .sheet(isPresented: $isCommandPalettePresented) {
+                CommandPaletteView(
+                    sessions: store.sessions,
+                    integrations: integrationsStore.integrationSections,
+                    schedules: schedulesStore.schedules,
+                    recordings: recordingsStore.recordings,
+                    onSelectSession: selectSession,
+                    onNewChat: startNewChat,
+                    onOpenSettings: { navigateToRoute(.settings) },
+                    onNavigateToRoute: navigateToRoute,
+                    onOpenIntegration: openIntegration,
+                    onOpenSchedule: openSchedule,
+                    onOpenRecording: openRecording,
+                    onDismiss: { isCommandPalettePresented = false },
+                )
+                .presentationBackground(.clear)
+            }
+            .sheet(isPresented: $isIssueReportPresented) {
+                IssueReportView(store: store) {
+                    isIssueReportPresented = false
+                }
+            }
+    }
+
+    private var contentWithTasks: some View {
+        contentWithOverlay
+            .task {
+                OpenWindowBridge.shared.openWindow = { id in openWindow(id: id) }
+                await store.bootstrap()
+            }
+            .task {
+                await store.daemonStatusRefreshLoop()
+            }
+            .task {
+                async let recordings: () = recordingsStore.load()
+                async let schedules: () = schedulesStore.load()
+                async let integrations: () = integrationsStore.load()
+                _ = await (recordings, schedules, integrations)
+            }
+    }
+
+    private var contentWithOverlay: some View {
+        routeContent
+            .overlay(alignment: .bottomTrailing) { toastOverlay }
+            .animation(.spring(response: 0.28, dampingFraction: 0.82), value: store.toast?.id)
+            .onChange(of: store.toast?.id) { (_: UUID?, id: UUID?) in
+                isToastHovered = false
+                if id == nil {
+                    toastDismissTask?.cancel()
+                    toastDismissTask = nil
+                } else {
+                    scheduleToastDismiss()
+                }
+            }
+            .onDisappear {
+                toastDismissTask?.cancel()
+                toastDismissTask = nil
+            }
+    }
+
+    @ViewBuilder
+    private var routeContent: some View {
         NavigationSplitView(columnVisibility: $sidebarVisibility) {
             AppSidebar(
-                sessions: store.sessions,
-                selectedSessionId: store.sessionId,
+                currentRoute: history.current,
                 status: store.status,
                 daemonStatus: store.daemonStatus,
-                isLoading: store.isLoading,
-                isSessionsLoading: store.isSessionsLoading,
-                onSelectSession: selectSession,
-                onDeleteSession: { pendingDeleteSession = $0 },
-                onOpenSettings: openSettings,
-                onOpenRecordings: openRecordings,
-                onOpenSchedules: openSchedules,
-                onOpenIntegrations: openIntegrations,
-                onOpenSkills: openSkills,
+                onSelectRoute: navigateToRoute,
                 onCreatePersona: { openPersonaEditor(.create) },
                 onEditPersona: { openPersonaEditor(.edit(name: $0)) },
                 onPersonaSelected: refreshStatus,
                 onOpenChangelog: { openWindow(id: "changelog") },
+                sidebarContent: {
+                    switch history.current {
+                    case .chat:
+                        ChatSessionsSidebar(
+                            sessions: store.sessions,
+                            selectedSessionId: store.sessionId,
+                            isLoading: store.isLoading,
+                            isSessionsLoading: store.isSessionsLoading,
+                            onSelectSession: { id in
+                                selectSession(id)
+                            },
+                            onDeleteSession: { pendingDeleteSession = $0 },
+                        )
+                    case .integrations:
+                        IntegrationsSidebarView(store: integrationsStore)
+                    case .schedules:
+                        SchedulesSidebarView(store: schedulesStore, onDelete: { schedule in
+                            schedulesStore.pendingDelete = SchedulesStore.PendingDelete(
+                                scheduleId: schedule.id, title: schedule.displayName
+                            )
+                        })
+                    case .recordings:
+                        RecordingsSidebarView(
+                            store: recordingsStore,
+                            processingState: store.recordingProcessing,
+                            onDeleteRecording: { recording in
+                                recordingsStore.pendingDeleteRecordingIds = [recording.id]
+                            }
+                        )
+                    case .skills:
+                        SkillsSidebarView(store: skillsStore, onDelete: { item in
+                            skillsStore.pendingDelete = SkillsStore.PendingDelete(
+                                dirName: item.dirName, name: item.name
+                            )
+                        })
+                    case .settings:
+                        ConfigureSidebarView(store: configureStore)
+                    }
+                }
             )
             .navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
         } detail: {
-            ChatWorkspaceView(store: store)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(action: startNewChat) {
-                            Image(systemName: "plus")
+            switch history.current {
+            case .chat:
+                ChatWorkspaceView(store: store)
+                    .toolbar {
+                        ToolbarItem(placement: .navigation) {
+                            Button(action: { _ = history.goBack() }) {
+                                Image(systemName: "chevron.backward")
+                            }
+                            .disabled(!history.canGoBack)
+                            .help("Back")
+                            .accessibilityIdentifier("nav-back-button")
                         }
-                        .help("New Chat")
-                        .disabled(store.isLoading)
-                        .accessibilityIdentifier("new-chat-button")
+                        ToolbarItem(placement: .navigation) {
+                            Button(action: { _ = history.goForward() }) {
+                                Image(systemName: "chevron.forward")
+                            }
+                            .disabled(!history.canGoForward)
+                            .help("Forward")
+                            .accessibilityIdentifier("nav-forward-button")
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(action: startNewChat) {
+                                Image(systemName: "plus")
+                            }
+                            .help("New Chat")
+                            .disabled(store.isLoading)
+                            .accessibilityIdentifier("new-chat-button")
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(action: { isCommandPalettePresented = true }) {
+                                Image(systemName: "magnifyingglass")
+                            }
+                            .help("Search")
+                            .accessibilityLabel("Search")
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(action: toggleRecording) {
+                                Image(systemName: store.isRecordingActive ? "stop.circle" : "record.circle")
+                                    .foregroundStyle(store.isRecordingActive ? .red : .primary)
+                            }
+                            .help(store.isRecordingActive ? "Stop Recording" : "Record Audio")
+                            .accessibilityLabel(store.isRecordingActive ? "Stop Recording" : "Record Audio")
+                            .disabled(store.isRecordButtonDisabled)
+                        }
                     }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(action: { isCommandPalettePresented = true }) {
-                            Image(systemName: "magnifyingglass")
-                        }
-                        .help("Search")
-                        .accessibilityLabel("Search")
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(action: toggleRecording) {
-                            Image(systemName: store.isRecordingActive ? "stop.circle" : "record.circle")
-                                .foregroundStyle(store.isRecordingActive ? .red : .primary)
-                        }
-                        .help(store.isRecordingActive ? "Stop Recording" : "Record Audio")
-                        .accessibilityLabel(store.isRecordingActive ? "Stop Recording" : "Record Audio")
-                        .disabled(store.isRecordButtonDisabled)
+            case .integrations:
+                IntegrationsView(store: integrationsStore)
+                    .modifier(NavigationHistoryToolbar(history: history))
+            case .schedules:
+                SchedulesView(store: schedulesStore)
+                    .modifier(NavigationHistoryToolbar(history: history))
+            case .recordings:
+                RecordingsView(store: recordingsStore, processingState: store.recordingProcessing)
+                    .modifier(NavigationHistoryToolbar(history: history))
+            case .skills:
+                SkillsView(store: skillsStore)
+                    .modifier(NavigationHistoryToolbar(history: history))
+            case .settings:
+                ConfigureView(store: configureStore)
+                    .modifier(NavigationHistoryToolbar(history: history))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var toastOverlay: some View {
+        if let toast = store.toast {
+            ToastView(
+                toast: toast,
+                onDismiss: dismissToast,
+                onAction: handleToastAction
+            )
+                .frame(maxWidth: 420)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+                .contentShape(Rectangle())
+                .onHover { hovering in
+                    isToastHovered = hovering
+                    if hovering {
+                        toastDismissTask?.cancel()
+                        toastDismissTask = nil
+                    } else {
+                        scheduleToastDismiss()
                     }
                 }
-        }
-        .overlay(alignment: .bottomTrailing) {
-            if let toast = store.toast {
-                ToastView(
-                    toast: toast,
-                    onDismiss: dismissToast,
-                    onAction: handleToastAction
-                )
-                    .frame(maxWidth: 420)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 16)
-                    .contentShape(Rectangle())
-                    .onHover { hovering in
-                        isToastHovered = hovering
-                        if hovering {
-                            toastDismissTask?.cancel()
-                            toastDismissTask = nil
-                        } else {
-                            scheduleToastDismiss()
-                        }
+                .onTapGesture {
+                    if !isProcessingToast {
+                        dismissToast()
                     }
-                    .onTapGesture {
-                        if !isProcessingToast {
-                            dismissToast()
-                        }
-                    }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
-        .animation(.spring(response: 0.28, dampingFraction: 0.82), value: store.toast?.id)
-        .onChange(of: store.toast?.id) { (_: UUID?, id: UUID?) in
-            isToastHovered = false
-            if id == nil {
-                toastDismissTask?.cancel()
-                toastDismissTask = nil
-            } else {
-                scheduleToastDismiss()
-            }
-        }
-        .onDisappear {
-            toastDismissTask?.cancel()
-            toastDismissTask = nil
-        }
-        .task {
-            OpenWindowBridge.shared.openWindow = { id in openWindow(id: id) }
-            await store.bootstrap()
-        }
-        .task {
-            await store.daemonStatusRefreshLoop()
-        }
-        .task {
-            async let recordings: () = recordingsStore.load()
-            async let schedules: () = schedulesStore.load()
-            async let integrations: () = integrationsStore.load()
-            _ = await (recordings, schedules, integrations)
-        }
-        .sheet(isPresented: $isCommandPalettePresented) {
-            CommandPaletteView(
-                sessions: store.sessions,
-                integrations: integrationsStore.integrationSections,
-                schedules: schedulesStore.schedules,
-                recordings: recordingsStore.recordings,
-                onSelectSession: selectSession,
-                onNewChat: startNewChat,
-                onOpenSettings: { openSettings() },
-                onOpenIntegration: openIntegration,
-                onOpenSchedule: openSchedule,
-                onOpenRecording: openRecording,
-                onDismiss: { isCommandPalettePresented = false },
-            )
-            .presentationBackground(.clear)
-        }
-        .sheet(isPresented: $isIssueReportPresented) {
-            IssueReportView(store: store) {
-                isIssueReportPresented = false
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .openCommandPalette)) { _ in
-            isCommandPalettePresented = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .openIssueReport)) { _ in
-            isIssueReportPresented = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .openChangelog)) { _ in
-            openWindow(id: "changelog")
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .openRecordingFromToast)) { notification in
-            if let id = notification.object as? String {
-                openRecording(id: id)
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .startNewChat)) { _ in
-            startNewChat()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .menuBarToggleRecording)) { _ in
-            toggleRecording()
-        }
-        .onChange(of: store.isRecordingActive) { _, active in
-            NotificationCenter.default.post(name: MenuBarController.recordingStateChanged, object: active)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .secondaryWindowClosed)) { _ in
-            bringMainWindowToFront()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .startChatAboutRecording)) { notification in
-            guard let request = notification.object as? StartChatAboutRecordingRequest else { return }
-            bringMainWindowToFront()
-            Task {
-                await store.startChatAboutRecording(
-                    name: request.name,
-                    dateText: request.dateText,
-                    hourText: request.hourText
-                )
-            }
-        }
-        .background(WindowAccessor { window in
-            mainWindow = window
-        })
-        .alert(
-            "Delete Session?",
-            isPresented: Binding(
-                get: { pendingDeleteSession != nil },
-                set: { if !$0 { pendingDeleteSession = nil } },
-            ),
-            presenting: pendingDeleteSession,
-        ) { session in
-            Button("Cancel", role: .cancel) {
-                pendingDeleteSession = nil
-            }
-            Button("Delete", role: .destructive) {
-                pendingDeleteSession = nil
-                Task { await store.deleteSession(id: session.id) }
-            }
-        } message: { session in
-            Text("Are you sure you want to delete \"\(session.name)\"? This cannot be undone.")
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
         }
     }
 
@@ -224,42 +330,30 @@ struct RootView: View {
         Task { await store.toggleRecording() }
     }
 
+    private func navigateToRoute(_ route: DetailRoute) {
+        history.navigate(to: route)
+    }
+
     private func openSettings(navKey: String? = nil) {
         if let navKey {
             configureStore.selectedNavKey = navKey
         }
-        openWindow(id: "settings")
-    }
-
-    private func openRecordings() {
-        openWindow(id: "recordings")
-    }
-
-    private func openSchedules() {
-        openWindow(id: "schedules")
-    }
-
-    private func openIntegrations() {
-        openWindow(id: "integrations")
-    }
-
-    private func openSkills() {
-        openWindow(id: "skills")
+        navigateToRoute(.settings)
     }
 
     private func openIntegration(navKey: String) {
         integrationsStore.selectedNavKey = navKey
-        openWindow(id: "integrations")
+        navigateToRoute(.integrations)
     }
 
     private func openSchedule(id: String) {
         Task { await schedulesStore.selectSchedule(id: id) }
-        openWindow(id: "schedules")
+        navigateToRoute(.schedules)
     }
 
     private func openRecording(id: String) {
         Task { await recordingsStore.selectRecording(id: id) }
-        openWindow(id: "recordings")
+        navigateToRoute(.recordings)
     }
 
     private func handleToastAction(_ action: AppToastAction) {
@@ -320,6 +414,7 @@ extension Notification.Name {
     static let startChatAboutRecording = Notification.Name("startChatAboutRecording")
     static let secondaryWindowClosed = Notification.Name("secondaryWindowClosed")
     static let menuBarToggleRecording = Notification.Name("menuBarToggleRecording")
+    static let navigateToRoute = Notification.Name("navigateToRoute")
 }
 
 struct StartChatAboutRecordingRequest {

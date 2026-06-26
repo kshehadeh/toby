@@ -6,13 +6,11 @@ import ViewInspector
 @MainActor
 @Suite("ConfigureView")
 struct ConfigureViewTests {
-	@Test("configure view uses navigation split view with sidebar and detail")
-	func configureViewUsesNavigationSplitView() throws {
+	@Test("configure view renders detail content")
+	func configureViewRendersDetailContent() throws {
 		let store = ConfigureStore()
 		let view = ConfigureView(store: store)
-		let splitView = try view.inspect().navigationSplitView()
-		#expect(throws: Never.self) { try splitView.sidebarView() }
-		#expect(throws: Never.self) { try splitView.detailView() }
+		#expect(throws: Never.self) { try view.inspect().find(ConfigureDetailView.self) }
 	}
 
 	@Test("configure detail shows placeholder when no section selected")

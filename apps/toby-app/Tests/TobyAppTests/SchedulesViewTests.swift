@@ -6,12 +6,10 @@ import ViewInspector
 @MainActor
 @Suite("SchedulesView")
 struct SchedulesViewTests {
-	@Test("schedules view uses navigation split view with sidebar")
-	func schedulesViewUsesNavigationSplitView() throws {
+	@Test("schedules view renders detail content")
+	func schedulesViewRendersDetailContent() throws {
 		let view = SchedulesView(store: SchedulesStore())
-		let splitView = try view.inspect().navigationSplitView()
-		#expect(throws: Never.self) { try splitView.sidebarView() }
-		#expect(throws: Never.self) { try splitView.detailView() }
+		#expect(throws: Never.self) { try view.inspect().find(SchedulesDetailView.self) }
 	}
 
 	@Test("schedule detail shows frequency hint and crontab link")

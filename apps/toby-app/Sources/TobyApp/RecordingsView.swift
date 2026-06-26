@@ -5,19 +5,12 @@ import SwiftUI
 struct RecordingsView: View {
 	@Bindable var store: RecordingsStore
 	var processingState: RecordingProcessingState? = nil
-	@State private var pendingDeleteRecordingIds: Set<String> = []
-	@State private var isDeleteAlertPresented = false
-	@State private var columnVisibility: NavigationSplitViewVisibility = .all
 
 	var body: some View {
-		NavigationSplitView(columnVisibility: $columnVisibility) {
-			RecordingsSidebarView(store: store, processingState: processingState, onDeleteRecording: confirmDelete)
-				.navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
-		} detail: {
-			RecordingsDetailView(store: store, processingState: processingState, onDeleteSelectedRecordings: confirmDeleteSelected)
-		}
+		RecordingsDetailView(store: store, processingState: processingState, onDeleteSelectedRecordings: {
+			store.pendingDeleteRecordingIds = Set(store.selectedRecordings.map(\.id))
+		})
 		.toolbarBackground(.visible)
-		.frame(minWidth: 860, minHeight: 560)
 		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.load()
@@ -33,15 +26,18 @@ struct RecordingsView: View {
 			}
 		}
 		.alert(
-			"Delete \(pendingDeleteRecordingIds.count == 1 ? "Recording" : "Recordings")?",
-			isPresented: $isDeleteAlertPresented,
-			presenting: pendingDeleteRecordingIds,
+			"Delete \(store.pendingDeleteRecordingIds.count == 1 ? "Recording" : "Recordings")?",
+			isPresented: Binding(
+				get: { !store.pendingDeleteRecordingIds.isEmpty },
+				set: { if !$0 { store.pendingDeleteRecordingIds = [] } },
+			),
+			presenting: store.pendingDeleteRecordingIds,
 		) { ids in
 			Button("Cancel", role: .cancel) {
-				pendingDeleteRecordingIds = []
+				store.pendingDeleteRecordingIds = []
 			}
 			Button("Delete", role: .destructive) {
-				pendingDeleteRecordingIds = []
+				store.pendingDeleteRecordingIds = []
 				Task { await store.deleteRecordings(ids: Array(ids)) }
 			}
 		} message: { ids in
@@ -52,19 +48,9 @@ struct RecordingsView: View {
 			}
 		}
 	}
-
-	private func confirmDelete(_ recording: ListenRecordingSummary) {
-		pendingDeleteRecordingIds = [recording.id]
-		isDeleteAlertPresented = true
-	}
-
-	private func confirmDeleteSelected() {
-		pendingDeleteRecordingIds = Set(store.selectedRecordings.map(\.id))
-		isDeleteAlertPresented = true
-	}
 }
 
-private struct RecordingsSidebarView: View {
+struct RecordingsSidebarView: View {
 	@Bindable var store: RecordingsStore
 	var processingState: RecordingProcessingState? = nil
 	let onDeleteRecording: (ListenRecordingSummary) -> Void
@@ -150,7 +136,7 @@ private struct RecordingSidebarRow: View {
 	}
 }
 
-private struct RecordingsDetailView: View {
+struct RecordingsDetailView: View {
 	@Bindable var store: RecordingsStore
 	var processingState: RecordingProcessingState? = nil
 	let onDeleteSelectedRecordings: () -> Void
