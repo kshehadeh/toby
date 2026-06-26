@@ -5,11 +5,119 @@ title: Creating a plugin
 
 # Creating a Toby plugin
 
-Toby integrations can ship as **installable plugins**: standalone executables that Toby discovers, runs as subprocesses, and treats like built-in integrations. A plugin can be written in **any language** (TypeScript compiled with Bun, Swift, Go, Rust, Python, and so on) as long as it implements the **protocol v1** contract below.
+Toby integrations can ship as **installable plugins**. There are two plugin formats:
 
-Toby remains the source of truth for configuration. Plugins receive credentials and session state on **stdin** and return **JSON on stdout**. They must **not** read or write `~/.toby/` directly.
+- **TypeScript package plugins** (recommended for most integrations) — a directory with a `manifest.json` and TypeScript entrypoint, executed via Toby's bundled Bun runtime. No compilation step required.
+- **Binary plugins** (recommended for deep macOS integrations) — standalone compiled executables that Toby spawns directly. Language-agnostic, no runtime dependency on the host.
 
-## How it works
+Both formats implement the same **protocol v1** contract: Toby passes credentials and session state on **stdin** and reads **JSON on stdout**. Plugins must **not** read or write `~/.toby/` directly.
+
+## Choosing a plugin type
+
+| | TypeScript package plugin | Binary plugin |
+|--| ------------------------ | -------------- |
+| **Format** | Directory with `manifest.json` + `.ts` entrypoint | Single compiled executable file |
+| **Runtime** | Toby's bundled Bun runtime | None — the binary is self-contained |
+| **Build step** | None (install the directory directly) | Compile with `bun build --compile`, SwiftPM, etc. |
+| **Dependencies** | `package.json` + `node_modules/` (vendored or installed at install time) | Linked at compile time |
+| **Best for** | API integrations, web services, most third-party plugins | Deep macOS integrations (EventKit, Shortcuts, whisper.cpp, system APIs) |
+| **Reference** | `toby-plugin-sample-ts` | `toby-plugin-sample`, `toby-plugin-macos`, `toby-plugin-whisper` |
+
+**Rule of thumb:** Use a TypeScript package plugin unless your integration needs direct access to macOS frameworks (Calendar, Contacts, Shortcuts, audio capture, etc.). Swift-based binary plugins are the right choice when you need EventKit, Foundation, or other native APIs that require a compiled binary.
+
+## TypeScript package plugins (bun-package)
+
+A TypeScript package plugin is a directory containing a `manifest.json`, a `package.json`, and a TypeScript entrypoint. Toby discovers the directory, reads the manifest, and invokes the entrypoint via `bun run <entry> <args>` with `cwd` set to the plugin directory.
+
+### Directory layout
+
+```text
+my-plugin/
+  manifest.json       # required — plugin metadata and runtime config
+  package.json        # recommended — dependency declarations
+  src/index.ts        # entrypoint declared in manifest
+  node_modules/       # optional — vendored dependencies
+```
+
+The plugin name comes from the `name` field in `manifest.json` (not the directory name). Toby installs the directory as `~/.toby/plugins/toby-plugin-<name>/`.
+
+### Manifest format (`manifest.json`)
+
+```json
+{
+  "name": "myapp",
+  "displayName": "My App",
+  "description": "Short description for status and configure",
+  "version": "1.0.0",
+  "protocolVersion": "1",
+  "runtime": {
+    "type": "bun",
+    "entry": "src/index.ts"
+  },
+  "capabilities": ["chat"],
+  "providerCategories": ["tasks"]
+}
+```
+
+| Field | Required | Meaning |
+| ----- | -------- | ------- |
+| `name` | yes | Integration CLI name (must match `^[a-z0-9_-]+$`) |
+| `displayName` | yes | Human label in UI and status |
+| `description` | yes | One-line summary |
+| `version` | yes | Plugin release version |
+| `protocolVersion` | yes | Must be `"1"` for this spec |
+| `runtime.type` | yes | Must be `"bun"` |
+| `runtime.entry` | yes | Path to the TypeScript entrypoint, relative to the plugin directory |
+| `capabilities` | no | Used for fast discovery filtering; `status` is the runtime source of truth. Default `["chat"]` |
+| `providerCategories` | no | e.g. `email`, `calendar`, `tasks`, `contacts`, `chat`, `search`, `work_tracker` |
+
+### Bun runtime resolution
+
+Toby resolves the Bun runtime in the following order:
+
+1. `TOBY_BUN_PATH` environment variable (explicit override)
+2. `~/.toby/helpers/bun` (bundled in release installs)
+3. `bun` on `PATH` (development mode)
+
+Release builds bundle a Bun binary so TypeScript plugins work without a user-installed global `bun`.
+
+### Install and dependencies
+
+```bash
+# Install the directory directly — no build step needed
+toby plugins install ./my-plugin
+
+# Or symlink for local development
+toby plugins install ./my-plugin --link --force
+```
+
+If `node_modules/` is not present in the plugin directory, Toby runs `bun install` automatically at install time (best-effort, requires a Bun runtime). For production plugins, vendor `node_modules/` to avoid network dependency at install time.
+
+### Invocation
+
+Toby invokes the entrypoint with the same argv matrix as binary plugins:
+
+```bash
+<bun-path> run ./src/index.ts status
+<bun-path> run ./src/index.ts tools list
+<bun-path> run ./src/index.ts tools execute
+```
+
+The JSON protocol (stdin/stdout/stderr, exit codes, subcommands) is identical to binary plugins. See the [protocol subcommands](#protocol-subcommands) section below for the full contract.
+
+## Binary plugins
+
+Binary plugins are standalone executables that Toby spawns directly. They are language-agnostic — any compiled binary works as long as it implements the protocol.
+
+:::note[When to use a binary]
+
+Binary plugins are recommended when your integration needs **deep macOS integration** — direct access to system frameworks like EventKit (Calendar), Contacts, Shortcuts, AudioToolbox, or whisper.cpp. Swift-based binary plugins can use these frameworks natively.
+
+For API-based integrations (REST APIs, OAuth flows, web services), prefer TypeScript package plugins instead — they're simpler to author and don't require a compilation step.
+
+:::
+
+Toby uses ordinary process spawn on the binary path. Your plugin does not need Bun, Node, or any particular runtime on the user's machine—only your compiled executable (or script with a shebang).
 
 For each operation (connect, list tools, run a tool, …), Toby spawns your binary once, passes optional JSON on stdin, reads one JSON object from stdout, and checks the exit code:
 
@@ -29,22 +137,24 @@ Examples:
 
 After the response is parsed, the subprocess exits. Chat tools and connect flows all use this same one-shot pattern.
 
-:::note[Language-agnostic]
+## Plugin naming and discovery
 
-Toby uses ordinary process spawn on the binary path. Your plugin does not need Bun, Node, or any particular runtime on the user's machine—only your compiled executable (or script with a shebang).
-
-:::
-
-## Binary naming and discovery
+Both plugin formats use the same naming convention and discovery locations.
 
 | Rule | Detail |
 | ---- | ------ |
-| **Name** | `toby-plugin-<name>` where `<name>` matches `^[a-z0-9_-]+$` (this becomes the CLI integration name) |
+| **Name** | `toby-plugin-<name>` where `<name>` matches `^[a-z0-9_-]+$` (this becomes the CLI integration name). For TypeScript plugins, `<name>` comes from `manifest.json`. For binary plugins, it's the filename. |
 | **Location** | `~/.toby/plugins/` (or `$TOBY_DIR/plugins/` when `TOBY_DIR` is set) |
-| **Permissions** | The file must be executable (`chmod +x`) |
+| **Binary permissions** | Binary plugins must be executable (`chmod +x`) |
 | **Collisions** | The name must not match an existing built-in integration |
 
-Install with `toby plugins install <path>`, or copy the binary into the plugins directory manually. Run `toby plugins list` to confirm discovery.
+Toby discovers plugins from these locations, in precedence order:
+
+1. The directory containing the running `toby` binary (for development)
+2. The repository's `dist/` directory (for local development)
+3. `~/.toby/plugins/` (for installed plugins)
+
+Install with `toby plugins install <path>` (accepts a binary file, a directory with a binary, or a TypeScript plugin directory with `manifest.json`). Run `toby plugins list` to confirm discovery.
 
 ## Streams, exit codes, and limits
 
@@ -566,39 +676,59 @@ toby chat --integration myapp "try my tools"
 
 ## Authoring checklist
 
-1. Name the binary `toby-plugin-<name>` and make it executable.
-2. Implement all core subcommands with single-object JSON on stdout and stable exit codes.
-3. Accept config via stdin; never read `~/.toby/` from the plugin process.
-4. Declare at least one chat tool in `tools list` when `capabilities` includes `"chat"`.
-5. Return `chatModelPrep` on `status` for chat-capable plugins.
-6. Honor `dryRun` in `tools execute` for mutating tools.
-7. Return `appliedActions` strings when tools change remote state.
-8. Install with `toby plugins install`, then run `toby plugins doctor`.
-9. Optional: implement `setup` and set `setupAvailable` on `status`.
-10. Optional: implement `setup guide` for a native-app onboarding wizard.
-11. Optional: implement `inbound run` when the integration should respond to daemon @mentions.
+### For all plugins
+
+1. Implement all core subcommands with single-object JSON on stdout and stable exit codes.
+2. Accept config via stdin; never read `~/.toby/` from the plugin process.
+3. Declare at least one chat tool in `tools list` when `capabilities` includes `"chat"`.
+4. Return `chatModelPrep` on `status` for chat-capable plugins.
+5. Honor `dryRun` in `tools execute` for mutating tools.
+6. Return `appliedActions` strings when tools change remote state.
+7. Install with `toby plugins install`, then run `toby plugins doctor`.
+8. Optional: implement `setup` and set `setupAvailable` on `status`.
+9. Optional: implement `setup guide` for a native-app onboarding wizard.
+10. Optional: implement `inbound run` when the integration should respond to daemon @mentions.
+
+### Additional steps for TypeScript package plugins
+
+1. Create a `manifest.json` with `name`, `displayName`, `description`, `version`, `protocolVersion`, and `runtime.type: "bun"` / `runtime.entry`.
+2. Ensure the `name` field matches the desired integration CLI name (`^[a-z0-9_-]+$`).
+3. Include a `package.json` for dependency management.
+4. Vendor `node_modules/` or let Toby run `bun install` at install time.
+
+### Additional steps for binary plugins
+
+1. Name the binary `toby-plugin-<name>` and make it executable (`chmod +x`).
+2. Compile with `bun build --compile` (TypeScript) or SwiftPM (Swift) — the output must be a standalone executable.
 
 ## Reference implementations
 
 The Toby repository includes working plugins you can copy from:
 
-| Plugin | Language | Notes |
-| ------ | -------- | ----- |
-| `toby-plugin-sample` | TypeScript (Bun `--compile`) | Minimal protocol surface—start here |
-| `toby-plugin-gmail` | TypeScript | OAuth, auth methods, token writeback |
-| `toby-plugin-todoist` | TypeScript | API key auth, task tools |
-| `toby-plugin-azuread` | TypeScript | Full parity migration example |
-| `toby-plugin-jira` | Swift | macOS-only, no embedded JS runtime |
-| `toby-plugin-websearch` | Swift | API-key search; global `webSearch` bridge in Toby core |
-| `toby-plugin-applecalendar` | Swift | EventKit + Calendar.app |
-| `toby-plugin-macos` | Swift | System controls; optional `setup` for Shortcuts |
-| `toby-plugin-slack` | TypeScript | Chat tools + `inbound run` (Socket Mode) |
+| Plugin | Format | Language | Notes |
+| ------ | ------ | -------- | ----- |
+| `toby-plugin-sample-ts` | TypeScript package | TypeScript (Bun runtime) | Minimal bun-package plugin—start here for API integrations |
+| `toby-plugin-sample` | Binary | TypeScript (Bun `--compile`) | Minimal compiled binary plugin |
+| `toby-plugin-gmail` | Binary | TypeScript | OAuth, auth methods, token writeback |
+| `toby-plugin-todoist` | Binary | TypeScript | API key auth, task tools |
+| `toby-plugin-azuread` | Binary | TypeScript | Full parity migration example |
+| `toby-plugin-slack` | Binary | TypeScript | Chat tools + `inbound run` (Socket Mode) |
+| `toby-plugin-jira` | Binary | Swift | macOS-only, no embedded JS runtime |
+| `toby-plugin-websearch` | Binary | Swift | API-key search; global `webSearch` bridge in Toby core |
+| `toby-plugin-applecalendar` | Binary | Swift | EventKit + Calendar.app |
+| `toby-plugin-macos` | Binary | Swift | System controls; optional `setup` for Shortcuts |
+| `toby-plugin-whisper` | Binary | Swift | Local whisper.cpp transcription |
 
-Build examples from a git clone:
+Build and install examples from a git clone:
 
 ```bash
+# TypeScript package plugin (no build step needed)
+toby plugins install ./apps/plugin-sample-ts --link --force
+
+# Binary plugin (requires build step)
 bun run build:plugin:sample
 toby plugins install ./dist/toby-plugin-sample --link --force
+
 toby plugins doctor
 ```
 

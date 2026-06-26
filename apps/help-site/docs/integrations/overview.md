@@ -68,9 +68,14 @@ On macOS, open **Toby.app** and use the **Setup Guide** button on any integratio
 
 ## Installable plugins
 
-Gmail, Azure AD, Todoist, Jira, Web Search, Apple Calendar, macOS, and other first-party integrations ship as **plugin binaries** bundled in release archives. Fresh installs (`install-toby.sh`) and `toby upgrade` copy them into `~/.toby/plugins/` automatically—no manual `toby plugins install` step is required for release users. The sample plugin (`toby-plugin-sample`) is also installed for reference and testing.
+Gmail, Azure AD, Todoist, Jira, Web Search, Apple Calendar, macOS, and other first-party integrations ship as **plugins** bundled in release archives. Fresh installs (`install-toby.sh`) and `toby upgrade` copy them into `~/.toby/plugins/` automatically—no manual `toby plugins install` step is required for release users. The sample plugin (`toby-plugin-sample`) is also installed for reference and testing.
 
-Want to build your own? See **[Creating a plugin](../plugins/creating-a-plugin)** for the full protocol contract (any language), subcommand inputs/outputs, and `toby plugins` commands.
+Plugins come in two formats:
+
+- **TypeScript package plugins** (recommended for most integrations) — a directory with a `manifest.json` and TypeScript entrypoint, executed via Toby's bundled Bun runtime. No compilation step required. Best for API-based integrations.
+- **Binary plugins** (recommended for deep macOS integrations) — standalone compiled executables. Best when you need direct access to macOS frameworks like EventKit, Contacts, or Shortcuts.
+
+Want to build your own? See **[Creating a plugin](../plugins/creating-a-plugin)** for the full protocol contract, both plugin formats, subcommand inputs/outputs, and `toby plugins` commands.
 
 When developing from a git clone, build and link plugins yourself:
 
