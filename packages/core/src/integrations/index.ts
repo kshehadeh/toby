@@ -58,5 +58,6 @@ export function isBuiltinIntegration(name: string): boolean {
 
 export {
 	getPluginModules,
+	resetPluginModuleCache,
 	warmupPluginToolDefinitions,
 } from "./plugins/registry";

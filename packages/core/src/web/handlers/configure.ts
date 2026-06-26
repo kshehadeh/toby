@@ -17,7 +17,10 @@ import {
 } from "../../configure/persistence";
 import { buildSettingsTree } from "../../configure/tree";
 import type { SettingsItem } from "../../configure/types";
-import { getIntegrationModules } from "../../integrations/index";
+import {
+	getIntegrationModules,
+	resetPluginModuleCache,
+} from "../../integrations/index";
 import { daemonLog } from "../../logging/daemon-log";
 import { DEFAULT_CHAT_PERSONA } from "../../personas/index";
 import { humanToCronAsync } from "../../schedules/cron-parser";
@@ -63,6 +66,9 @@ function buildIntegrationLabels(): Record<string, string> {
 }
 
 export function handleConfigureTree(): Response {
+	// Reset the plugin module cache so newly installed/removed plugins are
+	// reflected without requiring a daemon restart.
+	resetPluginModuleCache();
 	const values = seedConfigureValues();
 	const redacted = redactConfigureValues(values);
 	const config = readConfig();
