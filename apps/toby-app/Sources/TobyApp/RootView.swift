@@ -170,6 +170,9 @@ struct RootView: View {
         .onChange(of: store.isRecordingActive) { _, active in
             NotificationCenter.default.post(name: MenuBarController.recordingStateChanged, object: active)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .secondaryWindowClosed)) { _ in
+            bringMainWindowToFront()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .startChatAboutRecording)) { notification in
             guard let request = notification.object as? StartChatAboutRecordingRequest else { return }
             bringMainWindowToFront()
@@ -315,6 +318,7 @@ extension Notification.Name {
     static let openRecordingFromToast = Notification.Name("openRecordingFromToast")
     static let startNewChat = Notification.Name("startNewChat")
     static let startChatAboutRecording = Notification.Name("startChatAboutRecording")
+    static let secondaryWindowClosed = Notification.Name("secondaryWindowClosed")
     static let menuBarToggleRecording = Notification.Name("menuBarToggleRecording")
 }
 

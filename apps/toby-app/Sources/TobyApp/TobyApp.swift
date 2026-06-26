@@ -44,62 +44,72 @@ struct TobyApp: App {
 
 		Window("Settings", id: "settings") {
 			ConfigureView(store: configureStore)
+				.onDisappear { NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil) }
 		}
 		.windowStyle(.automatic)
 		.defaultSize(width: 920, height: 640)
 
 		Window("Recordings", id: "recordings") {
 			RecordingsView(store: recordingsStore, processingState: store.recordingProcessing)
+				.onDisappear { NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil) }
 		}
 		.windowStyle(.automatic)
 		.defaultSize(width: 920, height: 640)
 
 		Window("Schedules", id: "schedules") {
 			SchedulesView(store: schedulesStore)
+				.onDisappear { NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil) }
 		}
 		.windowStyle(.automatic)
 		.defaultSize(width: 920, height: 640)
 
 		Window("Integrations", id: "integrations") {
 			IntegrationsView(store: integrationsStore)
+				.onDisappear { NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil) }
 		}
 		.windowStyle(.automatic)
 		.defaultSize(width: 920, height: 640)
 
 		Window("Skills", id: "skills") {
 			SkillsView(store: skillsStore)
+				.onDisappear { NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil) }
 		}
 		.windowStyle(.automatic)
 		.defaultSize(width: 920, height: 640)
 
 		Window("Permissions", id: "permissions") {
 			PermissionsView()
+				.onDisappear { NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil) }
 		}
 		.windowStyle(.automatic)
 		.defaultSize(width: 620, height: 520)
 
 		Window("What’s New", id: "changelog") {
 			ChangelogView(store: changelogStore)
+				.onDisappear { NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil) }
 		}
 		.windowStyle(.automatic)
 		.defaultSize(width: 520, height: 640)
 
 		Window("Persona Editor", id: "persona-editor") {
-			if let editorStore = personaEditorCoordinator.store {
-				PersonaEditorView(
-					store: editorStore,
-					onSaved: {
-						Task { await store.refreshStatus() }
-					},
-					onCancel: {
-						personaEditorCoordinator.store = nil
-					}
-				)
-			} else {
-				Text("No persona selected")
-					.frame(maxWidth: .infinity, maxHeight: .infinity)
-					.background(SettingsDesign.canvasBackground)
+			Group {
+				if let editorStore = personaEditorCoordinator.store {
+					PersonaEditorView(
+						store: editorStore,
+						onSaved: {
+							Task { await store.refreshStatus() }
+						},
+						onCancel: {
+							personaEditorCoordinator.store = nil
+						}
+					)
+				} else {
+					Text("No persona selected")
+						.frame(maxWidth: .infinity, maxHeight: .infinity)
+						.background(SettingsDesign.canvasBackground)
+				}
 			}
+			.onDisappear { NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil) }
 		}
 		.windowStyle(.automatic)
 		.defaultSize(width: 560, height: 580)
