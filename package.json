@@ -17,6 +17,7 @@
 		"postinstall": "bunx patch-package && bun ./scripts/install-git-hooks.mjs",
 		"build": "turbo run build",
 		"build:plugin:sample": "bun run --cwd apps/plugin-sample build",
+		"build:plugin:sample-ts": "bun run --cwd apps/plugin-sample-ts build",
 		"build:plugin:azuread": "bun run --cwd apps/plugin-azuread build",
 		"build:plugin:gmail": "bun run --cwd apps/plugin-gmail build",
 		"build:plugin:todoist": "bun run --cwd apps/plugin-todoist build",

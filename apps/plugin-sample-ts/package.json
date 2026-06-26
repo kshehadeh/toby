@@ -1,0 +1,12 @@
+{
+	"name": "@toby/plugin-sample-ts",
+	"version": "1.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Reference installable TypeScript (bun-package) Toby integration plugin (protocol v1)",
+	"scripts": {
+		"dev": "bun src/index.ts status",
+		"lint": "bunx biome check .",
+		"build": "echo 'bun-package plugin: no compilation needed'"
+	}
+}

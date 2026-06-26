@@ -15,7 +15,7 @@
     },
     "apps/cli": {
       "name": "@toby/cli",
-      "version": "0.54.1",
+      "version": "0.61.0",
       "bin": {
         "toby": "./dist/cli.js",
       },
@@ -76,6 +76,10 @@
     },
     "apps/plugin-sample": {
       "name": "@toby/plugin-sample",
+      "version": "1.0.0",
+    },
+    "apps/plugin-sample-ts": {
+      "name": "@toby/plugin-sample-ts",
       "version": "1.0.0",
     },
     "apps/plugin-slack": {
@@ -1251,6 +1255,8 @@
     "@toby/plugin-gmail": ["@toby/plugin-gmail@workspace:apps/plugin-gmail"],
 
     "@toby/plugin-sample": ["@toby/plugin-sample@workspace:apps/plugin-sample"],
+
+    "@toby/plugin-sample-ts": ["@toby/plugin-sample-ts@workspace:apps/plugin-sample-ts"],
 
     "@toby/plugin-slack": ["@toby/plugin-slack@workspace:apps/plugin-slack"],
 

@@ -1,0 +1,13 @@
+{
+	"name": "sample-ts",
+	"displayName": "Sample TypeScript Plugin",
+	"description": "Reference installable TypeScript (bun-package) plugin for Toby protocol v1",
+	"version": "1.0.0",
+	"protocolVersion": "1",
+	"runtime": {
+		"type": "bun",
+		"entry": "src/index.ts"
+	},
+	"capabilities": ["chat"],
+	"providerCategories": ["search"]
+}
