@@ -70,13 +70,10 @@ export function resolvePluginSourcePath(input: string): DiscoveredPlugin {
 		);
 	}
 
-	// Check if the directory itself is a bun-package plugin (named toby-plugin-<name> with manifest.json)
-	const dirName = path.basename(resolved);
-	if (
-		dirName.startsWith(PLUGIN_BINARY_PREFIX) &&
-		parsePluginNameFromBinary(dirName) &&
-		fs.existsSync(path.join(resolved, "manifest.json"))
-	) {
+	// Check if the directory itself is a bun-package plugin (has manifest.json)
+	// The directory may or may not be named toby-plugin-<name> — the manifest's
+	// name field is the source of truth for the plugin name.
+	if (fs.existsSync(path.join(resolved, "manifest.json"))) {
 		return toDiscoveredBunPackagePlugin(resolved);
 	}
 
@@ -407,20 +404,17 @@ function toDiscoveredBinaryPlugin(binaryPath: string): DiscoveredPlugin {
 }
 
 function toDiscoveredBunPackagePlugin(directoryPath: string): DiscoveredPlugin {
-	const binaryName = path.basename(directoryPath);
-	const parsedName = parsePluginNameFromBinary(binaryName);
-	if (!parsedName) {
-		throw new PluginInstallException(
-			`Plugin directory must be named ${PLUGIN_BINARY_PREFIX}<name>; got "${binaryName}"`,
-			"invalid_name",
-		);
-	}
+	const dirName = path.basename(directoryPath);
 
 	const manifestPath = path.join(directoryPath, "manifest.json");
 	const manifestResult = parseManifest(directoryPath);
 	if (!manifestResult.ok) {
 		throw new PluginInstallException(manifestResult.error, manifestResult.code);
 	}
+
+	// The binaryName is always toby-plugin-<name>, derived from the manifest's
+	// name field (not the directory name, which may differ in monorepo layouts).
+	const binaryName = `${PLUGIN_BINARY_PREFIX}${manifestResult.manifest.name}`;
 
 	const entryPath = path.resolve(
 		directoryPath,
