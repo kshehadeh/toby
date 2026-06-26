@@ -17,19 +17,35 @@ import {
 	pluginStatus,
 	pluginToolsList,
 } from "@toby/core/integrations/plugins/client";
+import { discoverPluginBinaries } from "@toby/core/integrations/plugins/discovery";
 import { migrateLegacyPluginCredentials } from "@toby/core/integrations/plugins/migrate";
+import {
+	type DiscoveredPlugin,
+	pluginDisplayPath,
+} from "@toby/core/integrations/plugins/protocol";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
+import { resolvePluginTarget } from "@toby/core/integrations/plugins/runtime";
+import { validatePluginBinary } from "@toby/core/integrations/plugins/validate";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
-const todoistCli = path.join(repoRoot, "../plugin-todoist/src/cli.ts");
+const pluginSourceDir = path.join(repoRoot, "../plugin-todoist");
 
-function writeTodoistPluginWrapper(pluginDir: string): string {
+function copyTodoistPlugin(pluginDir: string): void {
 	fs.mkdirSync(pluginDir, { recursive: true });
-	const wrapperPath = path.join(pluginDir, "toby-plugin-todoist");
-	const script = `#!/usr/bin/env bash\nexec bun ${JSON.stringify(todoistCli)} "$@"\n`;
-	fs.writeFileSync(wrapperPath, script, { mode: 0o755 });
-	return wrapperPath;
+	const dest = path.join(pluginDir, "toby-plugin-todoist");
+	fs.cpSync(pluginSourceDir, dest, {
+		recursive: true,
+		filter: (src) => !src.includes(".turbo") && !src.includes(".build"),
+	});
+}
+
+function findTodoistPlugin(pluginDir: string): DiscoveredPlugin {
+	const discovered = discoverPluginBinaries();
+	const found = discovered.find((d) => d.binaryName === "toby-plugin-todoist");
+	expect(found).toBeDefined();
+	if (!found) throw new Error("toby-plugin-todoist not discovered");
+	return found;
 }
 
 describe("todoist plugin", () => {
@@ -43,7 +59,7 @@ describe("todoist plugin", () => {
 		previousTobyDir = process.env.TOBY_DIR;
 		process.env.TOBY_DIR = path.join(tempDir, "toby-home");
 		resetPluginModuleCache();
-		writeTodoistPluginWrapper(pluginDir);
+		copyTodoistPlugin(pluginDir);
 	});
 
 	afterEach(() => {
@@ -60,9 +76,15 @@ describe("todoist plugin", () => {
 		expect(isBuiltinIntegration("todoist")).toBe(false);
 	});
 
+	it("is discovered as a bun-package plugin", () => {
+		const found = findTodoistPlugin(pluginDir);
+		expect(found.kind).toBe("bun-package");
+	});
+
 	it("returns todoist identity and chatModelPrep from status", () => {
-		const binaryPath = path.join(pluginDir, "toby-plugin-todoist");
-		const status = pluginStatus(binaryPath, {
+		const found = findTodoistPlugin(pluginDir);
+		const target = resolvePluginTarget(found);
+		const status = pluginStatus(target, {
 			config: { apiKey: "test-key" },
 		});
 		expect(status.ok).toBe(true);
@@ -75,8 +97,9 @@ describe("todoist plugin", () => {
 	});
 
 	it("reports chatReadiness hint when api key is missing", () => {
-		const binaryPath = path.join(pluginDir, "toby-plugin-todoist");
-		const status = pluginStatus(binaryPath);
+		const found = findTodoistPlugin(pluginDir);
+		const target = resolvePluginTarget(found);
+		const status = pluginStatus(target);
 		expect(status.ok).toBe(true);
 		if (!status.ok) return;
 		expect(status.data.chatReadiness?.ok).toBe(false);
@@ -84,8 +107,9 @@ describe("todoist plugin", () => {
 	});
 
 	it("uses local apiKey in config shape", () => {
-		const binaryPath = path.join(pluginDir, "toby-plugin-todoist");
-		const shape = pluginConfigShape(binaryPath);
+		const found = findTodoistPlugin(pluginDir);
+		const target = resolvePluginTarget(found);
+		const shape = pluginConfigShape(target);
 		expect(shape.ok).toBe(true);
 		if (!shape.ok || !shape.data.fields) return;
 
@@ -105,8 +129,9 @@ describe("todoist plugin", () => {
 	});
 
 	it("lists seven todoist chat tools", () => {
-		const binaryPath = path.join(pluginDir, "toby-plugin-todoist");
-		const list = pluginToolsList(binaryPath);
+		const found = findTodoistPlugin(pluginDir);
+		const target = resolvePluginTarget(found);
+		const list = pluginToolsList(target);
 		expect(list.ok).toBe(true);
 		if (!list.ok || !list.data.tools) return;
 		expect(list.data.tools.map((t) => t.name)).toEqual([
@@ -121,8 +146,9 @@ describe("todoist plugin", () => {
 	});
 
 	it("connect fails without api key", () => {
-		const binaryPath = path.join(pluginDir, "toby-plugin-todoist");
-		const result = pluginConnect(binaryPath, { config: {} });
+		const found = findTodoistPlugin(pluginDir);
+		const target = resolvePluginTarget(found);
+		const result = pluginConnect(target, { config: {} });
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 		expect(result.data.ok).toBe(false);
@@ -130,11 +156,8 @@ describe("todoist plugin", () => {
 	});
 
 	it("registers plugin-backed todoist module with chatModelPrep", () => {
-		const metadata = loadPluginMetadata({
-			kind: "binary",
-			binaryPath: path.join(pluginDir, "toby-plugin-todoist"),
-			binaryName: "toby-plugin-todoist",
-		});
+		const found = findTodoistPlugin(pluginDir);
+		const metadata = loadPluginMetadata(found);
 		expect("error" in metadata).toBe(false);
 		if ("error" in metadata) return;
 
@@ -142,6 +165,32 @@ describe("todoist plugin", () => {
 		expect(module.name).toBe("todoist");
 		expect(module.chatModelPrep?.systemPromptSection).toContain("Todoist");
 		expect(module.providerCategories).toEqual(["tasks"]);
+	});
+
+	it("maps credential descriptors to todoist.<field> configure keys", () => {
+		const found = findTodoistPlugin(pluginDir);
+		const metadata = loadPluginMetadata(found);
+		expect("error" in metadata).toBe(false);
+		if ("error" in metadata) return;
+
+		const module = createPluginIntegrationModule(metadata);
+		const keys = module.getCredentialDescriptors().map((d) => d.key);
+		expect(keys).toEqual(["todoist.apiKey"]);
+	});
+
+	it("validates with plugin doctor", () => {
+		const found = findTodoistPlugin(pluginDir);
+		const result = validatePluginBinary(found);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.metadata.name).toBe("todoist");
+	});
+
+	it("pluginDisplayPath returns directory path", () => {
+		const found = findTodoistPlugin(pluginDir);
+		expect(pluginDisplayPath(found)).toBe(
+			path.join(pluginDir, "toby-plugin-todoist"),
+		);
 	});
 
 	it("migrates legacy top-level todoist credentials", () => {

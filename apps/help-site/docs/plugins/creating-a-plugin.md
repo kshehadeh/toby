@@ -710,7 +710,7 @@ The Toby repository includes working plugins you can copy from:
 | `toby-plugin-sample-ts` | TypeScript package | TypeScript (Bun runtime) | Minimal bun-package plugin—start here for API integrations |
 | `toby-plugin-sample` | Binary | TypeScript (Bun `--compile`) | Minimal compiled binary plugin |
 | `toby-plugin-gmail` | Binary | TypeScript | OAuth, auth methods, token writeback |
-| `toby-plugin-todoist` | Binary | TypeScript | API key auth, task tools |
+| `toby-plugin-todoist` | Bun-package | TypeScript | API key auth, task tools; vendored `@doist/todoist-sdk` |
 | `toby-plugin-azuread` | Binary | TypeScript | Full parity migration example |
 | `toby-plugin-slack` | Binary | TypeScript | Chat tools + `inbound run` (Socket Mode) |
 | `toby-plugin-jira` | Bun-package | TypeScript | Read-only Jira REST API integration |

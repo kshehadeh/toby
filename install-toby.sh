@@ -110,7 +110,7 @@ if [[ -f "${tmpdir}/toby-plugin-gmail" ]]; then
 fi
 
 has_todoist_plugin=false
-if [[ -f "${tmpdir}/toby-plugin-todoist" ]]; then
+if [[ -d "${tmpdir}/toby-plugin-todoist" ]]; then
 	has_todoist_plugin=true
 fi
 
@@ -210,9 +210,9 @@ if $has_gmail_plugin; then
 fi
 
 if $has_todoist_plugin; then
-	chmod +x "${tmpdir}/toby-plugin-todoist"
 	mkdir -p "$toby_plugins_dir"
-	mv "${tmpdir}/toby-plugin-todoist" "${toby_plugins_dir}/toby-plugin-todoist"
+	rm -rf "${toby_plugins_dir}/toby-plugin-todoist"
+	cp -R "${tmpdir}/toby-plugin-todoist" "${toby_plugins_dir}/toby-plugin-todoist"
 	echo "Installed: ${toby_plugins_dir}/toby-plugin-todoist"
 fi
 

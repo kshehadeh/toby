@@ -246,7 +246,9 @@ export async function downloadRelease(
 		await rm(pluginSamplePath, { force: true }).catch(() => undefined);
 		await rm(pluginAzureadPath, { force: true }).catch(() => undefined);
 		await rm(pluginGmailPath, { force: true }).catch(() => undefined);
-		await rm(pluginTodoistPath, { force: true }).catch(() => undefined);
+		await rm(pluginTodoistPath, { recursive: true, force: true }).catch(
+			() => undefined,
+		);
 		await rm(pluginSlackPath, { force: true }).catch(() => undefined);
 		await rm(pluginJiraPath, { recursive: true, force: true }).catch(
 			() => undefined,
@@ -454,7 +456,7 @@ export async function applyStagedRelease(
 	await installStagedPluginBinary(pluginSamplePath, "toby-plugin-sample");
 	await installStagedPluginBinary(pluginAzureadPath, "toby-plugin-azuread");
 	await installStagedPluginBinary(pluginGmailPath, "toby-plugin-gmail");
-	await installStagedPluginBinary(pluginTodoistPath, "toby-plugin-todoist");
+	await installStagedPluginDirectory(pluginTodoistPath, "toby-plugin-todoist");
 	await installStagedPluginBinary(pluginSlackPath, "toby-plugin-slack");
 	await installStagedPluginDirectory(pluginJiraPath, "toby-plugin-jira");
 	await installStagedPluginBinary(pluginWebsearchPath, "toby-plugin-websearch");

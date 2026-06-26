@@ -104,7 +104,6 @@ jobs:
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-sample
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-azuread
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-gmail
-          codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-todoist
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-slack
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-websearch
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-applecalendar
@@ -116,7 +115,6 @@ jobs:
           codesign --verify --strict --verbose=2 dist/toby-plugin-sample
           codesign --verify --strict --verbose=2 dist/toby-plugin-azuread
           codesign --verify --strict --verbose=2 dist/toby-plugin-gmail
-          codesign --verify --strict --verbose=2 dist/toby-plugin-todoist
           codesign --verify --strict --verbose=2 dist/toby-plugin-slack
           codesign --verify --strict --verbose=2 dist/toby-plugin-websearch
           codesign --verify --strict --verbose=2 dist/toby-plugin-applecalendar
@@ -147,8 +145,9 @@ jobs:
         run: |
           rm -rf release-payload
           mkdir release-payload
-          cp dist/toby dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-todoist dist/toby-plugin-slack dist/toby-plugin-websearch dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/toby-plugin-whisper dist/toby-listener release-payload/
+          cp dist/toby dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-slack dist/toby-plugin-websearch dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/toby-plugin-whisper dist/toby-listener release-payload/
           cp -R dist/toby-plugin-jira release-payload/toby-plugin-jira
+          cp -R dist/toby-plugin-todoist release-payload/toby-plugin-todoist
           cp -R dist/TobyPluginMacOS_TobyPluginMacOSLib.bundle release-payload/
           cp -R dist/web release-payload/web
           cp -R dist/Toby.app release-payload/Toby.app

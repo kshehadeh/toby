@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const azureadCli = path.join(repoRoot, "../plugin-azuread/src/cli.ts");
 const gmailCli = path.join(repoRoot, "../plugin-gmail/src/cli.ts");
-const todoistCli = path.join(repoRoot, "../plugin-todoist/src/cli.ts");
+const todoistPluginDir = path.join(repoRoot, "../plugin-todoist");
 const macosPluginPackageDir = path.join(repoRoot, "../plugin-macos");
 
 function writePluginWrapper(
@@ -21,6 +21,15 @@ function writePluginWrapper(
 	const wrapperPath = path.join(pluginDir, binaryName);
 	const script = `#!/usr/bin/env bash\nexec bun ${JSON.stringify(cliPath)} "$@"\n`;
 	fs.writeFileSync(wrapperPath, script, { mode: 0o755 });
+}
+
+function copyTodoistPluginDir(pluginDir: string): void {
+	fs.mkdirSync(pluginDir, { recursive: true });
+	const dest = path.join(pluginDir, "toby-plugin-todoist");
+	fs.cpSync(todoistPluginDir, dest, {
+		recursive: true,
+		filter: (src) => !src.includes(".turbo") && !src.includes(".build"),
+	});
 }
 
 function resolveBuiltMacOSPluginBinary(): string {
@@ -58,7 +67,7 @@ describe("parseChatCliInput", () => {
 		const pluginsDir = path.join(tempDir, "toby-home", "plugins");
 		writePluginWrapper(pluginsDir, "toby-plugin-azuread", azureadCli);
 		writePluginWrapper(pluginsDir, "toby-plugin-gmail", gmailCli);
-		writePluginWrapper(pluginsDir, "toby-plugin-todoist", todoistCli);
+		copyTodoistPluginDir(pluginsDir);
 		installMacOSPlugin(pluginsDir);
 	});
 

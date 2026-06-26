@@ -4,24 +4,18 @@ Installable integration plugin for [Todoist](https://todoist.com) task managemen
 
 ## Build
 
-From the repo root:
+This is a bun-package plugin — no compilation step is needed. From the repo root:
 
 ```bash
 bun run build:plugin:todoist
 ```
 
-Or from this directory:
-
-```bash
-bun run build
-```
-
-Output: `dist/toby-plugin-todoist`
+This stages the directory (including `node_modules`) into `dist/toby-plugin-todoist/`.
 
 ## Install (development)
 
 ```bash
-toby plugins install ./dist/toby-plugin-todoist --link --force
+toby plugins install ./apps/plugin-todoist --link --force
 toby plugins doctor
 ```
 

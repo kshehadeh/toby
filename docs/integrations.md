@@ -56,7 +56,7 @@ Each integration typically owns:
 - **`prompts/`** — System/user message builders for summarize, organize, etc.
 - **`cli.ts`** (optional) — Commander registration kept out of `apps/cli/src/commands/`.
 
-**Gmail** and **Todoist** are shipped as installable Bun plugins (`toby-plugin-gmail`, `toby-plugin-todoist`); see [`apps/plugin-gmail/`](../apps/plugin-gmail/) and [`apps/plugin-todoist/`](../apps/plugin-todoist/).
+**Gmail** and **Todoist** are shipped as installable plugins (`toby-plugin-gmail`, `toby-plugin-todoist`); Gmail is a compiled Bun binary, Todoist is a TypeScript bun-package plugin. See [`apps/plugin-gmail/`](../apps/plugin-gmail/) and [`apps/plugin-todoist/`](../apps/plugin-todoist/).
 
 **Slack** ([`packages/core/src/integrations/slack/`](../packages/core/src/integrations/slack/)) is a representative built-in chat integration: OAuth (PKCE + user scopes on localhost) or manual bot token auth, with chat tools to search channels/users, post messages, reply in threads, and search message history. **Daemon inbound** (@mentions via Socket Mode) always requires a **bot token** (`xoxb-…`) and **app token** (`xapp-…`) in addition to OAuth user credentials—see [help-site Slack credentials](../apps/help-site/docs/integrations/slack.md#credentials-and-auth-reference).
 

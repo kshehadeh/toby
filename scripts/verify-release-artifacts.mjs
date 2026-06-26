@@ -13,7 +13,6 @@ const required = [
 	"toby-plugin-sample",
 	"toby-plugin-azuread",
 	"toby-plugin-gmail",
-	"toby-plugin-todoist",
 	"toby-plugin-slack",
 	"toby-plugin-websearch",
 	"toby-plugin-applecalendar",
@@ -21,7 +20,7 @@ const required = [
 	"toby-plugin-whisper",
 ];
 
-const requiredDirs = ["toby-plugin-jira"];
+const requiredDirs = ["toby-plugin-jira", "toby-plugin-todoist"];
 
 const missing = [];
 for (const name of required) {

@@ -224,7 +224,7 @@ into `credentials.json` / `config.json`.
 | ------ | -------- | ----- | ----- |
 | [`apps/plugin-sample/`](../apps/plugin-sample/) | TypeScript → Bun `--compile` | `bun run build:plugin:sample` | Minimal protocol surface |
 | [`apps/plugin-gmail/`](../apps/plugin-gmail/) | TypeScript → Bun `--compile` | `bun run build:plugin:gmail` | OAuth, auth methods, token writeback |
-| [`apps/plugin-todoist/`](../apps/plugin-todoist/) | TypeScript → Bun `--compile` | `bun run build:plugin:todoist` | API key auth, task tools |
+| [`apps/plugin-todoist/`](../apps/plugin-todoist/) | TypeScript (bun-package) | `bun run build:plugin:todoist` | API key auth, task tools; vendored `@doist/todoist-sdk` |
 | [`apps/plugin-azuread/`](../apps/plugin-azuread/) | TypeScript → Bun `--compile` | `bun run build:plugin:azuread` | Full parity migration |
 | [`apps/plugin-jira/`](../apps/plugin-jira/) | TypeScript (bun-package) | `bun run build:plugin:jira` | No compilation needed; runs via Bun |
 | [`apps/plugin-websearch/`](../apps/plugin-websearch/) | Swift (SwiftPM) | `bun run build:plugin:websearch` | API-key auth; global `webSearch` tool via core bridge |

@@ -12,7 +12,7 @@ import { createConfigureSession } from "../src/ui/configure/session";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const slackCli = path.join(repoRoot, "../plugin-slack/src/cli.ts");
-const todoistCli = path.join(repoRoot, "../plugin-todoist/src/cli.ts");
+const todoistPluginDir = path.join(repoRoot, "../plugin-todoist");
 
 function writePluginWrapper(
 	pluginDir: string,
@@ -30,7 +30,12 @@ function writeSlackPluginWrapper(pluginDir: string): void {
 }
 
 function writeTodoistPluginWrapper(pluginDir: string): void {
-	writePluginWrapper(pluginDir, "toby-plugin-todoist", todoistCli);
+	fs.mkdirSync(pluginDir, { recursive: true });
+	const dest = path.join(pluginDir, "toby-plugin-todoist");
+	fs.cpSync(todoistPluginDir, dest, {
+		recursive: true,
+		filter: (src) => !src.includes(".turbo") && !src.includes(".build"),
+	});
 }
 
 function makeTempDir(): string {
