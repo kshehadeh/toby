@@ -15,12 +15,13 @@ const required = [
 	"toby-plugin-gmail",
 	"toby-plugin-todoist",
 	"toby-plugin-slack",
-	"toby-plugin-jira",
 	"toby-plugin-websearch",
 	"toby-plugin-applecalendar",
 	"toby-plugin-macos",
 	"toby-plugin-whisper",
 ];
+
+const requiredDirs = ["toby-plugin-jira"];
 
 const missing = [];
 for (const name of required) {
@@ -33,6 +34,18 @@ for (const name of required) {
 		fs.accessSync(filePath, fs.constants.X_OK);
 	} catch {
 		missing.push(`${name} (not executable)`);
+	}
+}
+
+for (const name of requiredDirs) {
+	const dirPath = path.join(directory, name);
+	if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
+		missing.push(`${name} (directory)`);
+		continue;
+	}
+	const manifestPath = path.join(dirPath, "manifest.json");
+	if (!fs.existsSync(manifestPath)) {
+		missing.push(`${name}/manifest.json`);
 	}
 }
 

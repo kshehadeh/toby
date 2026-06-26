@@ -248,7 +248,9 @@ export async function downloadRelease(
 		await rm(pluginGmailPath, { force: true }).catch(() => undefined);
 		await rm(pluginTodoistPath, { force: true }).catch(() => undefined);
 		await rm(pluginSlackPath, { force: true }).catch(() => undefined);
-		await rm(pluginJiraPath, { force: true }).catch(() => undefined);
+		await rm(pluginJiraPath, { recursive: true, force: true }).catch(
+			() => undefined,
+		);
 		await rm(pluginWebsearchPath, { force: true }).catch(() => undefined);
 		await rm(pluginApplecalendarPath, { force: true }).catch(() => undefined);
 		await rm(pluginMacosPath, { force: true }).catch(() => undefined);
@@ -454,7 +456,7 @@ export async function applyStagedRelease(
 	await installStagedPluginBinary(pluginGmailPath, "toby-plugin-gmail");
 	await installStagedPluginBinary(pluginTodoistPath, "toby-plugin-todoist");
 	await installStagedPluginBinary(pluginSlackPath, "toby-plugin-slack");
-	await installStagedPluginBinary(pluginJiraPath, "toby-plugin-jira");
+	await installStagedPluginDirectory(pluginJiraPath, "toby-plugin-jira");
 	await installStagedPluginBinary(pluginWebsearchPath, "toby-plugin-websearch");
 	await installStagedPluginBinary(
 		pluginApplecalendarPath,
@@ -539,6 +541,25 @@ async function installStagedPluginBinary(
 	await rename(stagingPath, tempDestination);
 	await chmodExecutable(tempDestination);
 	await rename(tempDestination, installTarget);
+}
+
+async function installStagedPluginDirectory(
+	stagingPath: string,
+	dirName: string,
+): Promise<void> {
+	if (!fs.existsSync(stagingPath)) {
+		return;
+	}
+	const pluginsDir = getPluginsDir();
+	await mkdir(pluginsDir, { recursive: true });
+	const installTarget = path.join(pluginsDir, dirName);
+	await rm(installTarget, { recursive: true, force: true }).catch(
+		() => undefined,
+	);
+	await cp(stagingPath, installTarget, { recursive: true });
+	await rm(stagingPath, { recursive: true, force: true }).catch(
+		() => undefined,
+	);
 }
 
 const REMOVED_PLUGIN_BINARIES = ["toby-plugin-applemail"] as const;

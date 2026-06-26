@@ -18,7 +18,7 @@ into `IntegrationModule` by `@toby/core`. Two paths:
 | Path | When | Reference |
 | ---- | ---- | --------- |
 | **New plugin** | Greenfield integration, no built-in module | [`apps/plugin-sample/`](../../../apps/plugin-sample/) |
-| **Migration** | Replace built-in in `BUILTIN_MODULES` with plugin | [`apps/plugin-azuread/`](../../../apps/plugin-azuread/), [`apps/plugin-gmail/`](../../../apps/plugin-gmail/), [`apps/plugin-jira/`](../../../apps/plugin-jira/) (Swift), [`apps/plugin-websearch/`](../../../apps/plugin-websearch/) (Swift; global tool bridge in core), [`apps/plugin-applecalendar/`](../../../apps/plugin-applecalendar/) (Swift/EventKit) |
+| **Migration** | Replace built-in in `BUILTIN_MODULES` with plugin | [`apps/plugin-azuread/`](../../../apps/plugin-azuread/), [`apps/plugin-gmail/`](../../../apps/plugin-gmail/), [`apps/plugin-jira/`](../../../apps/plugin-jira/) (TypeScript), [`apps/plugin-websearch/`](../../../apps/plugin-websearch/) (Swift; global tool bridge in core), [`apps/plugin-applecalendar/`](../../../apps/plugin-applecalendar/) (Swift/EventKit) |
 
 Read first: [`docs/plugin-protocol.md`](../../../docs/plugin-protocol.md),
 [`docs/create-integration.md`](../../../docs/create-integration.md) (migration section).
@@ -220,4 +220,4 @@ migration template changes.
 
 - Full parity table: [parity-checklist.md](parity-checklist.md)
 - Minimal example: [`apps/plugin-sample/`](../../../apps/plugin-sample/)
-- Full migration examples: [`apps/plugin-azuread/`](../../../apps/plugin-azuread/), [`apps/plugin-gmail/`](../../../apps/plugin-gmail/), [`apps/plugin-jira/`](../../../apps/plugin-jira/) (Swift/macOS), [`apps/plugin-websearch/`](../../../apps/plugin-websearch/) (Swift; `bravesearch` → `websearch`)
+- Full migration examples: [`apps/plugin-azuread/`](../../../apps/plugin-azuread/), [`apps/plugin-gmail/`](../../../apps/plugin-gmail/), [`apps/plugin-jira/`](../../../apps/plugin-jira/) (TypeScript bun-package), [`apps/plugin-websearch/`](../../../apps/plugin-websearch/) (Swift; `bravesearch` → `websearch`)

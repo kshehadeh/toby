@@ -66,7 +66,7 @@ Each integration typically owns:
 
 **Web Search** ([`apps/plugin-websearch/`](../apps/plugin-websearch/), [`web-search.md`](web-search.md)) is the **Search** provider category integration (Swift plugin, Brave Search API backend): API-key auth, with a `webSearch` chat tool for web search (query, count, freshness filter). The `webSearch` tool is also wired as a **conditional global tool** — when the plugin is installed and a Brave Search API key is present in credentials, the tool is available in every chat session without needing to explicitly select the integration. Migrated from the former built-in `bravesearch` integration.
 
-**Jira** is shipped as a Swift installable plugin (`toby-plugin-jira`); see [`apps/plugin-jira/`](../apps/plugin-jira/). It is the **Work Tracker** provider category integration: Atlassian domain + email + API-token auth, with read-only chat tools to search Jira issues with JQL (`searchJiraIssues`), fetch full issue details (`getJiraIssue`), read issue comments (`getJiraIssueComments`), and list accessible projects (`listJiraProjects`).
+**Jira** is shipped as a TypeScript (bun-package) installable plugin (`toby-plugin-jira`); see [`apps/plugin-jira/`](../apps/plugin-jira/). It is the **Work Tracker** provider category integration: Atlassian domain + email + API-token auth, with read-only chat tools to search Jira issues with JQL (`searchJiraIssues`), fetch full issue details (`getJiraIssue`), read issue comments (`getJiraIssueComments`), and list accessible projects (`listJiraProjects`).
 
 ### Web content fetching
 

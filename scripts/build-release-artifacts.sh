@@ -38,12 +38,10 @@ bun build ./apps/plugin-todoist/src/cli.ts --compile --target="${bun_target}" --
 echo "Building toby-plugin-slack (${bun_target})..."
 bun build ./apps/plugin-slack/src/cli.ts --compile --target="${bun_target}" --outfile dist/toby-plugin-slack
 
-echo "Building toby-plugin-jira (swift ${swift_arch})..."
-swift build -c release --arch "${swift_arch}" --package-path apps/plugin-jira
-jira_bin="$(
-	swift build --show-bin-path -c release --arch "${swift_arch}" --package-path apps/plugin-jira
-)/toby-plugin-jira"
-cp "${jira_bin}" dist/toby-plugin-jira
+echo "Building toby-plugin-jira (bun-package)..."
+rm -rf dist/toby-plugin-jira
+cp -R apps/plugin-jira dist/toby-plugin-jira
+rm -rf dist/toby-plugin-jira/node_modules dist/toby-plugin-jira/.turbo dist/toby-plugin-jira/.build
 
 echo "Building toby-plugin-websearch (swift ${swift_arch})..."
 swift build -c release --arch "${swift_arch}" --package-path apps/plugin-websearch
@@ -72,7 +70,7 @@ echo "Building toby-plugin-whisper with embedded whisper.cpp (${swift_arch})..."
 chmod +x scripts/build-plugin-whisper.sh
 SWIFT_ARCH="${swift_arch}" ./scripts/build-plugin-whisper.sh
 
-chmod +x dist/toby dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-todoist dist/toby-plugin-slack dist/toby-plugin-jira dist/toby-plugin-websearch dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/toby-plugin-whisper
+chmod +x dist/toby dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-todoist dist/toby-plugin-slack dist/toby-plugin-websearch dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/toby-plugin-whisper
 
 # Create a legacy toby-listener placeholder so releases remain compatible with
 # v0.49.0 and earlier self-upgraders, which validate that the archive contains

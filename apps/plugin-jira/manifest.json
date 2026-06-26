@@ -1,0 +1,14 @@
+{
+	"name": "jira",
+	"displayName": "Jira",
+	"description": "Atlassian Jira issue tracking",
+	"version": "1.0.0",
+	"protocolVersion": "1",
+	"runtime": {
+		"type": "bun",
+		"entry": "src/index.ts"
+	},
+	"capabilities": ["chat"],
+	"providerCategories": ["work_tracker"],
+	"resources": ["issues", "projects"]
+}

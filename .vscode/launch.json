@@ -24,26 +24,6 @@
 			"type": "swift",
 			"request": "launch",
 			"args": [],
-			"cwd": "${workspaceFolder:toby}/apps/plugin-jira",
-			"name": "Debug toby-plugin-jira (apps/plugin-jira)",
-			"target": "toby-plugin-jira",
-			"configuration": "debug",
-			"preLaunchTask": "swift: Build Debug toby-plugin-jira (apps/plugin-jira)"
-		},
-		{
-			"type": "swift",
-			"request": "launch",
-			"args": [],
-			"cwd": "${workspaceFolder:toby}/apps/plugin-jira",
-			"name": "Release toby-plugin-jira (apps/plugin-jira)",
-			"target": "toby-plugin-jira",
-			"configuration": "release",
-			"preLaunchTask": "swift: Build Release toby-plugin-jira (apps/plugin-jira)"
-		},
-		{
-			"type": "swift",
-			"request": "launch",
-			"args": [],
 			"cwd": "${workspaceFolder:toby}/apps/plugin-websearch",
 			"name": "Debug toby-plugin-websearch (apps/plugin-websearch)",
 			"target": "toby-plugin-websearch",

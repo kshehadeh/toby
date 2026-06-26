@@ -226,7 +226,7 @@ into `credentials.json` / `config.json`.
 | [`apps/plugin-gmail/`](../apps/plugin-gmail/) | TypeScript → Bun `--compile` | `bun run build:plugin:gmail` | OAuth, auth methods, token writeback |
 | [`apps/plugin-todoist/`](../apps/plugin-todoist/) | TypeScript → Bun `--compile` | `bun run build:plugin:todoist` | API key auth, task tools |
 | [`apps/plugin-azuread/`](../apps/plugin-azuread/) | TypeScript → Bun `--compile` | `bun run build:plugin:azuread` | Full parity migration |
-| [`apps/plugin-jira/`](../apps/plugin-jira/) | Swift (SwiftPM) | `bun run build:plugin:jira` | macOS-only; no embedded JS runtime |
+| [`apps/plugin-jira/`](../apps/plugin-jira/) | TypeScript (bun-package) | `bun run build:plugin:jira` | No compilation needed; runs via Bun |
 | [`apps/plugin-websearch/`](../apps/plugin-websearch/) | Swift (SwiftPM) | `bun run build:plugin:websearch` | API-key auth; global `webSearch` tool via core bridge |
 | [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) | Swift (SwiftPM) | `bun run build:plugin:applecalendar` | EventKit + Calendar.app AppleScript |
 | [`apps/plugin-macos/`](../apps/plugin-macos/) | Swift (SwiftPM) | `bun run build:plugin:macos` | Native macOS APIs; optional `setup` subcommand |
@@ -517,7 +517,7 @@ When `status` receives a config envelope, return readiness for the chat picker:
 ```
 
 Reference: [`apps/plugin-azuread/`](../apps/plugin-azuread/), [`apps/plugin-gmail/`](../apps/plugin-gmail/),
-[`apps/plugin-jira/`](../apps/plugin-jira/) (Swift), [`apps/plugin-slack/`](../apps/plugin-slack/) (chat + inbound sidecar), and [`apps/plugin-websearch/`](../apps/plugin-websearch/) (Swift API-key migration). See
+[`apps/plugin-jira/`](../apps/plugin-jira/) (TypeScript bun-package), [`apps/plugin-slack/`](../apps/plugin-slack/) (chat + inbound sidecar), and [`apps/plugin-websearch/`](../apps/plugin-websearch/) (Swift API-key migration). See
 [Migrating a built-in to a plugin](create-integration.md#migrating-a-built-in-to-a-plugin).
 
 ### Plugin setup

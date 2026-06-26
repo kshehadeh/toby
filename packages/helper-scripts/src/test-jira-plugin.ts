@@ -1,5 +1,5 @@
 /**
- * Diagnostic script for the toby-plugin-jira binary.
+ * Diagnostic script for the toby-plugin-jira plugin (bun-package).
  *
  * Reads Jira credentials from the user's Toby data directory
  * (default: ~/.toby/credentials.json, integrations.jira).
@@ -9,7 +9,7 @@
  *
  * Options:
  *   --toby-dir <path> Override Toby data dir (default: ~/.toby)
- *   --binary <path>   Override plugin binary path
+ *   --plugin <path>   Override plugin directory path
  *   --dry-run         Execute tools in dry-run mode only
  *   --skip-connect    Skip the connect handshake test
  *   --jql <query>     JQL for searchJiraIssues (default: assignee = currentUser() ORDER BY updated DESC)
@@ -37,6 +37,8 @@ import {
 } from "@toby/core/integrations/plugins/client";
 import { findPluginBinary } from "@toby/core/integrations/plugins/discovery";
 import { migrateLegacyPluginCredentials } from "@toby/core/integrations/plugins/migrate";
+import type { PluginInvocationTarget } from "@toby/core/integrations/plugins/protocol";
+import { resolvePluginTarget } from "@toby/core/integrations/plugins/runtime";
 
 function resolveTobyDirFromArgv(argv: string[]): string {
 	const idx = argv.indexOf("--toby-dir");
@@ -53,7 +55,7 @@ migrateLegacyPluginCredentials();
 
 type CliOptions = {
 	tobyDir: string;
-	binary?: string;
+	pluginDir?: string;
 	dryRun: boolean;
 	skipConnect: boolean;
 	jql: string;
@@ -75,7 +77,7 @@ Reads credentials from <toby-dir>/credentials.json (default: ~/.toby).
 
 Options:
   --toby-dir <path> Override Toby data dir (default: ~/.toby)
-  --binary <path>   Override plugin binary path
+  --plugin <path>   Override plugin directory path
   --dry-run         Execute tools in dry-run mode only
   --skip-connect    Skip the connect handshake test
   --jql <query>     JQL for searchJiraIssues
@@ -103,8 +105,8 @@ function parseArgs(argv: string[]): CliOptions {
 			case "--toby-dir":
 				i++;
 				break;
-			case "--binary":
-				options.binary = argv[++i];
+			case "--plugin":
+				options.pluginDir = argv[++i];
 				break;
 			case "--dry-run":
 				options.dryRun = true;
@@ -142,37 +144,61 @@ function buildJiraHost(domain: string): string {
 	return `https://${normalized}.atlassian.net`;
 }
 
-function resolveJiraPluginBinary(explicit?: string): string {
+function resolveJiraPluginTarget(explicit?: string): PluginInvocationTarget {
 	if (explicit) {
 		if (!fs.existsSync(explicit)) {
-			throw new Error(`Plugin binary not found: ${explicit}`);
+			throw new Error(`Plugin directory not found: ${explicit}`);
 		}
-		return explicit;
+		if (!fs.existsSync(path.join(explicit, "manifest.json"))) {
+			throw new Error(`No manifest.json in: ${explicit}`);
+		}
+		return resolvePluginTarget({
+			kind: "bun-package",
+			binaryName: "toby-plugin-jira",
+			directoryPath: explicit,
+			manifestPath: path.join(explicit, "manifest.json"),
+			entryPath: path.join(explicit, "src/index.ts"),
+		});
 	}
 
-	const fromEnv = process.env.TOBY_PLUGIN_JIRA_BIN?.trim();
+	const fromEnv = process.env.TOBY_PLUGIN_JIRA_DIR?.trim();
 	if (fromEnv && fs.existsSync(fromEnv)) {
-		return fromEnv;
+		return resolvePluginTarget({
+			kind: "bun-package",
+			binaryName: "toby-plugin-jira",
+			directoryPath: fromEnv,
+			manifestPath: path.join(fromEnv, "manifest.json"),
+			entryPath: path.join(fromEnv, "src/index.ts"),
+		});
 	}
 
 	const discovered = findPluginBinary("jira");
 	if (discovered) {
-		return discovered.binaryPath;
+		return resolvePluginTarget(discovered);
 	}
 
 	const repoRoot = path.resolve(import.meta.dirname, "../../..");
 	const candidates = [
 		path.join(repoRoot, "dist/toby-plugin-jira"),
-		path.join(repoRoot, "apps/plugin-jira/.build/release/toby-plugin-jira"),
+		path.join(repoRoot, "apps/plugin-jira"),
 	];
 	for (const candidate of candidates) {
-		if (fs.existsSync(candidate)) {
-			return candidate;
+		if (
+			fs.existsSync(candidate) &&
+			fs.existsSync(path.join(candidate, "manifest.json"))
+		) {
+			return resolvePluginTarget({
+				kind: "bun-package",
+				binaryName: "toby-plugin-jira",
+				directoryPath: candidate,
+				manifestPath: path.join(candidate, "manifest.json"),
+				entryPath: path.join(candidate, "src/index.ts"),
+			});
 		}
 	}
 
 	throw new Error(
-		"toby-plugin-jira not found. Install to ~/.toby/plugins, set TOBY_PLUGIN_JIRA_BIN, or run: bun run build:plugin:jira",
+		"toby-plugin-jira not found. Install to ~/.toby/plugins, set TOBY_PLUGIN_JIRA_DIR, or run: bun run build:plugin:jira",
 	);
 }
 
@@ -191,7 +217,8 @@ function loadJiraPluginConfig(
 		return { ...fromIntegrations };
 	}
 
-	const legacy = creds.jira;
+	const legacy = (creds as Record<string, Record<string, string> | undefined>)
+		.jira;
 	if (legacy && typeof legacy === "object") {
 		return { ...(legacy as Record<string, string>) };
 	}
@@ -317,7 +344,7 @@ function credentialFieldsMatch(
 
 function verifyCredentialPipeline(
 	credentialsPath: string,
-	binaryPath: string,
+	target: PluginInvocationTarget,
 	envelope: { config: Record<string, unknown>; state: Record<string, unknown> },
 	verbose: boolean,
 ): TestResult {
@@ -334,7 +361,7 @@ function verifyCredentialPipeline(
 		}),
 	).config as Record<string, unknown>;
 
-	const pluginEcho = pluginConfigGet(binaryPath, envelope);
+	const pluginEcho = pluginConfigGet(target, envelope);
 	const pluginConfig =
 		pluginEcho.ok && pluginEcho.data.ok && pluginEcho.data.config
 			? (pluginEcho.data.config as Record<string, unknown>)
@@ -576,7 +603,7 @@ async function runConnectAuthProbe(
 async function main() {
 	const options = parseArgs(process.argv.slice(2));
 	const credentialsPath = getCredentialsPath();
-	const binaryPath = resolveJiraPluginBinary(options.binary);
+	const target = resolveJiraPluginTarget(options.pluginDir);
 	const creds = readCredentials();
 	const config = loadJiraPluginConfig(credentialsPath);
 	const state = loadJiraPluginState();
@@ -594,7 +621,9 @@ async function main() {
 	console.log("=== Jira Plugin Diagnostic ===");
 	console.log(`Toby dir:       ${options.tobyDir}`);
 	console.log(`Credentials:    ${credentialsPath}`);
-	console.log(`Binary:         ${binaryPath}`);
+	console.log(
+		`Plugin:         ${target.kind === "bun-package" ? target.cwd : target.executablePath}`,
+	);
 	console.log(`Domain:  ${domain}`);
 	console.log(`Email:   ${email}`);
 	console.log(
@@ -611,7 +640,7 @@ async function main() {
 	results.push(
 		verifyCredentialPipeline(
 			credentialsPath,
-			binaryPath,
+			target,
 			envelope,
 			options.verbose,
 		),
@@ -626,7 +655,7 @@ async function main() {
 	results.push(
 		printPluginResponse(
 			"status",
-			pluginStatus(binaryPath, envelope),
+			pluginStatus(target, envelope),
 			options.verbose,
 		),
 	);
@@ -635,13 +664,13 @@ async function main() {
 		results.push(
 			printPluginResponse(
 				"connect (plugin)",
-				pluginConnect(binaryPath, envelope),
+				pluginConnect(target, envelope),
 				options.verbose,
 			),
 		);
 	}
 
-	const toolsList = pluginToolsList(binaryPath);
+	const toolsList = pluginToolsList(target);
 	if (!toolsList.ok) {
 		printInvokeFailure("tools list", toolsList);
 		results.push({ name: "tools list", ok: false, detail: toolsList.error });
@@ -664,7 +693,7 @@ async function main() {
 		input: Record<string, unknown>,
 		label = tool,
 	): TestResult => {
-		const result = pluginToolsExecute(binaryPath, {
+		const result = pluginToolsExecute(target, {
 			tool,
 			input,
 			config,

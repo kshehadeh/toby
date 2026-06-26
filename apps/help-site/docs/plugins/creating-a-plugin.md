@@ -713,7 +713,7 @@ The Toby repository includes working plugins you can copy from:
 | `toby-plugin-todoist` | Binary | TypeScript | API key auth, task tools |
 | `toby-plugin-azuread` | Binary | TypeScript | Full parity migration example |
 | `toby-plugin-slack` | Binary | TypeScript | Chat tools + `inbound run` (Socket Mode) |
-| `toby-plugin-jira` | Binary | Swift | macOS-only, no embedded JS runtime |
+| `toby-plugin-jira` | Bun-package | TypeScript | Read-only Jira REST API integration |
 | `toby-plugin-websearch` | Binary | Swift | API-key search; global `webSearch` bridge in Toby core |
 | `toby-plugin-applecalendar` | Binary | Swift | EventKit + Calendar.app |
 | `toby-plugin-macos` | Binary | Swift | System controls; optional `setup` for Shortcuts |

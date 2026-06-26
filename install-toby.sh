@@ -120,7 +120,7 @@ if [[ -f "${tmpdir}/toby-plugin-slack" ]]; then
 fi
 
 has_jira_plugin=false
-if [[ -f "${tmpdir}/toby-plugin-jira" ]]; then
+if [[ -d "${tmpdir}/toby-plugin-jira" ]]; then
 	has_jira_plugin=true
 fi
 
@@ -224,9 +224,9 @@ if $has_slack_plugin; then
 fi
 
 if $has_jira_plugin; then
-	chmod +x "${tmpdir}/toby-plugin-jira"
 	mkdir -p "$toby_plugins_dir"
-	mv "${tmpdir}/toby-plugin-jira" "${toby_plugins_dir}/toby-plugin-jira"
+	rm -rf "${toby_plugins_dir}/toby-plugin-jira"
+	cp -R "${tmpdir}/toby-plugin-jira" "${toby_plugins_dir}/toby-plugin-jira"
 	echo "Installed: ${toby_plugins_dir}/toby-plugin-jira"
 fi
 

@@ -1,4 +1,3 @@
-import { execSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -19,32 +18,38 @@ import {
 	pluginStatus,
 	pluginToolsList,
 } from "@toby/core/integrations/plugins/client";
+import { discoverPluginBinaries } from "@toby/core/integrations/plugins/discovery";
 import { migrateLegacyPluginCredentials } from "@toby/core/integrations/plugins/migrate";
+import {
+	type DiscoveredPlugin,
+	pluginDisplayPath,
+} from "@toby/core/integrations/plugins/protocol";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
+import { resolvePluginTarget } from "@toby/core/integrations/plugins/runtime";
+import { validatePluginBinary } from "@toby/core/integrations/plugins/validate";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
-const pluginPackageDir = path.join(repoRoot, "../plugin-jira");
+const pluginSourceDir = path.join(repoRoot, "../plugin-jira");
 
-function resolveBuiltPluginBinary(): string {
-	const distBin = path.join(repoRoot, "../../dist/toby-plugin-jira");
-	const releaseBin = path.join(
-		pluginPackageDir,
-		".build/release/toby-plugin-jira",
-	);
-	if (fs.existsSync(distBin)) return distBin;
-	if (fs.existsSync(releaseBin)) return releaseBin;
-	execSync("swift build -c release", { cwd: pluginPackageDir, stdio: "pipe" });
-	return releaseBin;
+function copyJiraPlugin(pluginDir: string): void {
+	fs.mkdirSync(pluginDir, { recursive: true });
+	const dest = path.join(pluginDir, "toby-plugin-jira");
+	fs.cpSync(pluginSourceDir, dest, {
+		recursive: true,
+		filter: (src) =>
+			!src.includes("node_modules") &&
+			!src.includes(".turbo") &&
+			!src.includes(".build"),
+	});
 }
 
-function installJiraPlugin(pluginDir: string): string {
-	fs.mkdirSync(pluginDir, { recursive: true });
-	const source = resolveBuiltPluginBinary();
-	const dest = path.join(pluginDir, "toby-plugin-jira");
-	fs.copyFileSync(source, dest);
-	fs.chmodSync(dest, 0o755);
-	return dest;
+function findJiraPlugin(pluginDir: string): DiscoveredPlugin {
+	const discovered = discoverPluginBinaries();
+	const found = discovered.find((d) => d.binaryName === "toby-plugin-jira");
+	expect(found).toBeDefined();
+	if (!found) throw new Error("toby-plugin-jira not discovered");
+	return found;
 }
 
 describe("jira plugin", () => {
@@ -58,7 +63,7 @@ describe("jira plugin", () => {
 		previousTobyDir = process.env.TOBY_DIR;
 		process.env.TOBY_DIR = path.join(tempDir, "toby-home");
 		resetPluginModuleCache();
-		installJiraPlugin(pluginDir);
+		copyJiraPlugin(pluginDir);
 	});
 
 	afterEach(() => {
@@ -75,9 +80,15 @@ describe("jira plugin", () => {
 		expect(isBuiltinIntegration("jira")).toBe(false);
 	});
 
+	it("is discovered as a bun-package plugin", () => {
+		const found = findJiraPlugin(pluginDir);
+		expect(found.kind).toBe("bun-package");
+	});
+
 	it("returns jira identity and chatModelPrep from status", () => {
-		const binaryPath = path.join(pluginDir, "toby-plugin-jira");
-		const status = pluginStatus(binaryPath, {
+		const found = findJiraPlugin(pluginDir);
+		const target = resolvePluginTarget(found);
+		const status = pluginStatus(target, {
 			config: {
 				domain: "acme",
 				email: "user@example.com",
@@ -95,8 +106,9 @@ describe("jira plugin", () => {
 	});
 
 	it("reports chatReadiness hint when credentials are missing", () => {
-		const binaryPath = path.join(pluginDir, "toby-plugin-jira");
-		const status = pluginStatus(binaryPath);
+		const found = findJiraPlugin(pluginDir);
+		const target = resolvePluginTarget(found);
+		const status = pluginStatus(target);
 		expect(status.ok).toBe(true);
 		if (!status.ok) return;
 		expect(status.data.chatReadiness?.ok).toBe(false);
@@ -104,8 +116,9 @@ describe("jira plugin", () => {
 	});
 
 	it("maps jira credential fields in config shape", () => {
-		const binaryPath = path.join(pluginDir, "toby-plugin-jira");
-		const shape = pluginConfigShape(binaryPath);
+		const found = findJiraPlugin(pluginDir);
+		const target = resolvePluginTarget(found);
+		const shape = pluginConfigShape(target);
 		expect(shape.ok).toBe(true);
 		if (!shape.ok || !shape.data.fields) return;
 
@@ -117,8 +130,9 @@ describe("jira plugin", () => {
 	});
 
 	it("lists four jira chat tools", () => {
-		const binaryPath = path.join(pluginDir, "toby-plugin-jira");
-		const list = pluginToolsList(binaryPath);
+		const found = findJiraPlugin(pluginDir);
+		const target = resolvePluginTarget(found);
+		const list = pluginToolsList(target);
 		expect(list.ok).toBe(true);
 		if (!list.ok || !list.data.tools) return;
 		expect(list.data.tools.map((t) => t.name)).toEqual([
@@ -130,8 +144,9 @@ describe("jira plugin", () => {
 	});
 
 	it("connect fails without credentials", () => {
-		const binaryPath = path.join(pluginDir, "toby-plugin-jira");
-		const result = pluginConnect(binaryPath, { config: {} });
+		const found = findJiraPlugin(pluginDir);
+		const target = resolvePluginTarget(found);
+		const result = pluginConnect(target, { config: {} });
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 		expect(result.data.ok).toBe(false);
@@ -139,11 +154,8 @@ describe("jira plugin", () => {
 	});
 
 	it("registers plugin-backed jira module with chatModelPrep", () => {
-		const metadata = loadPluginMetadata({
-			kind: "binary",
-			binaryPath: path.join(pluginDir, "toby-plugin-jira"),
-			binaryName: "toby-plugin-jira",
-		});
+		const found = findJiraPlugin(pluginDir);
+		const metadata = loadPluginMetadata(found);
 		expect("error" in metadata).toBe(false);
 		if ("error" in metadata) return;
 
@@ -154,17 +166,29 @@ describe("jira plugin", () => {
 	});
 
 	it("maps credential descriptors to jira.<field> configure keys", () => {
-		const metadata = loadPluginMetadata({
-			kind: "binary",
-			binaryPath: path.join(pluginDir, "toby-plugin-jira"),
-			binaryName: "toby-plugin-jira",
-		});
+		const found = findJiraPlugin(pluginDir);
+		const metadata = loadPluginMetadata(found);
 		expect("error" in metadata).toBe(false);
 		if ("error" in metadata) return;
 
 		const module = createPluginIntegrationModule(metadata);
 		const keys = module.getCredentialDescriptors().map((d) => d.key);
 		expect(keys).toEqual(["jira.domain", "jira.email", "jira.apiToken"]);
+	});
+
+	it("validates with plugin doctor", () => {
+		const found = findJiraPlugin(pluginDir);
+		const result = validatePluginBinary(found);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.metadata.name).toBe("jira");
+	});
+
+	it("pluginDisplayPath returns directory path", () => {
+		const found = findJiraPlugin(pluginDir);
+		expect(pluginDisplayPath(found)).toBe(
+			path.join(pluginDir, "toby-plugin-jira"),
+		);
 	});
 
 	it("persists configure values under integrations.jira with local keys", () => {

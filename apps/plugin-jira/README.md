@@ -1,6 +1,6 @@
 # toby-plugin-jira
 
-Swift installable Toby plugin for Atlassian Jira (protocol v1). Provides read-only chat tools for JQL issue search, issue details, comments, and project lists.
+TypeScript (bun-package) installable Toby plugin for Atlassian Jira (protocol v1). Provides read-only chat tools for JQL issue search, issue details, comments, and project lists.
 
 ## Build
 
@@ -10,18 +10,12 @@ From the repo root:
 bun run build:plugin:jira
 ```
 
-Or directly:
-
-```bash
-swift build -c release --package-path apps/plugin-jira
-```
-
-Output: `dist/toby-plugin-jira` (via root script) or `.build/release/toby-plugin-jira`.
+This is a bun-package plugin — no compilation step is needed. The build script stages the directory into `dist/toby-plugin-jira/`.
 
 ## Install (dev)
 
 ```bash
-toby plugins install ./dist/toby-plugin-jira --link --force
+toby plugins install ./apps/plugin-jira --link --force
 toby plugins doctor
 toby connect jira
 ```

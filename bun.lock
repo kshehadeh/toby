@@ -74,6 +74,10 @@
         "open": "^10.1.0",
       },
     },
+    "apps/plugin-jira": {
+      "name": "@toby/plugin-jira",
+      "version": "1.0.0",
+    },
     "apps/plugin-sample": {
       "name": "@toby/plugin-sample",
       "version": "1.0.0",
@@ -1253,6 +1257,8 @@
     "@toby/plugin-azuread": ["@toby/plugin-azuread@workspace:apps/plugin-azuread"],
 
     "@toby/plugin-gmail": ["@toby/plugin-gmail@workspace:apps/plugin-gmail"],
+
+    "@toby/plugin-jira": ["@toby/plugin-jira@workspace:apps/plugin-jira"],
 
     "@toby/plugin-sample": ["@toby/plugin-sample@workspace:apps/plugin-sample"],
 
