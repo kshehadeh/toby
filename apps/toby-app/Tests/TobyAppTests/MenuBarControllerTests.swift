@@ -39,6 +39,27 @@ struct MenuBarControllerTests {
 		RunLoop.current.run(until: Date().addingTimeInterval(0.1))
 		#expect(controller.menuItemTitles.contains("Stop Recording"))
 	}
+
+	@Test("menu bar icon gains recording indicator when active")
+	func menuBarIconMarkedWhenRecording() throws {
+		let controller = MenuBarController()
+		// Initially not marked
+		#expect(controller.menuBarImageIsMarked == false)
+		// After activating -> marked
+		controller.setRecordingActive(true)
+		#expect(controller.menuBarImageIsMarked == true)
+		// After deactivating -> unmarked
+		controller.setRecordingActive(false)
+		#expect(controller.menuBarImageIsMarked == false)
+	}
+
+	@Test("recording state change notification updates menu bar icon")
+	func recordingStateNotificationUpdatesIcon() throws {
+		let controller = MenuBarController()
+		NotificationCenter.default.post(name: MenuBarController.recordingStateChanged, object: true)
+		RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+		#expect(controller.menuBarImageIsMarked == true)
+	}
 }
 
 @MainActor

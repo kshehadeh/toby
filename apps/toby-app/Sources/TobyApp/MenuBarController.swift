@@ -7,6 +7,8 @@ import SwiftUI
 final class MenuBarController: NSObject {
 	private var statusItem: NSStatusItem?
 	private var isRecordingActive = false
+	private var baseMenuImage: NSImage?
+	private var originalDockImage: NSImage?
 
 	static let recordingStateChanged = Notification.Name("menuBarRecordingStateChanged")
 
@@ -23,13 +25,16 @@ final class MenuBarController: NSObject {
 		{
 			let size = NSSize(width: 18, height: 18)
 			logo.size = size
+			baseMenuImage = logo
 			item.button?.image = logo
 		} else {
-			item.button?.image = NSImage(
+			let fallback = NSImage(
 				systemSymbolName: "brain.head.profile",
 				accessibilityDescription: "Toby"
 			)
-			item.button?.image?.isTemplate = true
+			fallback?.isTemplate = true
+			baseMenuImage = fallback
+			item.button?.image = fallback
 		}
 		item.menu = buildMenu()
 		statusItem = item
@@ -176,7 +181,58 @@ final class MenuBarController: NSObject {
 		if let active = notification.object as? Bool {
 			isRecordingActive = active
 		}
+		updateRecordingUI()
+	}
+
+	private func updateRecordingUI() {
 		updateRecordingItem()
+		updateMenuBarIcon()
+		updateDockIcon()
+	}
+
+	private func updateMenuBarIcon() {
+		guard let base = baseMenuImage else { return }
+		let image = isRecordingActive
+			? Self.imageWithRecordingIndicator(base)
+			: base
+		image.size = NSSize(width: 18, height: 18)
+		statusItem?.button?.image = image
+	}
+
+	private func updateDockIcon() {
+		if isRecordingActive {
+			if originalDockImage == nil {
+				originalDockImage = NSApp.applicationIconImage
+			}
+			let base = originalDockImage ?? baseMenuImage ?? NSImage()
+			NSApp.applicationIconImage = Self.imageWithRecordingIndicator(base, dotFraction: 0.28)
+		} else {
+			// Setting to nil restores the bundle's AppIcon.icns
+			NSApp.applicationIconImage = originalDockImage
+			originalDockImage = nil
+		}
+	}
+
+	/// Composites a small red circle indicator at the bottom-right of `image`.
+	private static func imageWithRecordingIndicator(_ image: NSImage, dotFraction: CGFloat = 0.3) -> NSImage {
+		let result = image.copy() as! NSImage
+		result.lockFocus()
+		let size = result.size
+		let radius = min(size.width, size.height) * dotFraction * 0.5
+		let dotRect = NSRect(
+			x: size.width - radius * 1.6,
+			y: size.height - radius * 1.6,
+			width: radius * 1.2,
+			height: radius * 1.2
+		)
+		NSColor.systemRed.setFill()
+		NSBezierPath(ovalIn: dotRect).fill()
+		NSColor.white.withAlphaComponent(0.9).setStroke()
+		let border = NSBezierPath(ovalIn: dotRect.insetBy(dx: -1, dy: -1))
+		border.lineWidth = 1
+		border.stroke()
+		result.unlockFocus()
+		return result
 	}
 
 	private func updateRecordingItem() {
@@ -198,6 +254,14 @@ final class MenuBarController: NSObject {
 	/// Updates recording state (for testing).
 	func setRecordingActive(_ active: Bool) {
 		isRecordingActive = active
-		updateRecordingItem()
+		updateRecordingUI()
+	}
+
+	/// Whether the current menu bar status item image has the recording indicator
+	/// overlay applied. Returns `nil` if no image is set. (for testing)
+	var menuBarImageIsMarked: Bool? {
+		guard let current = statusItem?.button?.image, let base = baseMenuImage else { return nil }
+		// The indicator image is a different instance than the base
+		return current !== base
 	}
 }
