@@ -111,6 +111,7 @@ project's conventions:
 - Commit using Conventional Commit format (see the `atomic-conventional-commit`
   skill).
 - Reference the issue number in the commit message (e.g., `Closes #42`).
+- Use gh to mark the issue as closed
 
 ## Common mistakes
 
