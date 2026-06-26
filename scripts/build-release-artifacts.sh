@@ -37,27 +37,27 @@ chmod +x dist/bun
 echo "Building toby-plugin-sample-ts (bun-package)..."
 rm -rf dist/toby-plugin-sample-ts
 cp -R apps/plugin-sample-ts dist/toby-plugin-sample-ts
-rm -rf dist/toby-plugin-sample-ts/.turbo dist/toby-plugin-sample-ts/.build
+rm -rf dist/toby-plugin-sample-ts/node_modules dist/toby-plugin-sample-ts/.turbo dist/toby-plugin-sample-ts/.build
 
 echo "Building toby-plugin-azuread (bun-package)..."
 rm -rf dist/toby-plugin-azuread
 cp -R apps/plugin-azuread dist/toby-plugin-azuread
-rm -rf dist/toby-plugin-azuread/.turbo dist/toby-plugin-azuread/.build
+rm -rf dist/toby-plugin-azuread/node_modules dist/toby-plugin-azuread/.turbo dist/toby-plugin-azuread/.build
 
 echo "Building toby-plugin-gmail (bun-package)..."
 rm -rf dist/toby-plugin-gmail
 cp -R apps/plugin-gmail dist/toby-plugin-gmail
-rm -rf dist/toby-plugin-gmail/.turbo dist/toby-plugin-gmail/.build
+rm -rf dist/toby-plugin-gmail/node_modules dist/toby-plugin-gmail/.turbo dist/toby-plugin-gmail/.build
 
 echo "Building toby-plugin-todoist (bun-package)..."
 rm -rf dist/toby-plugin-todoist
 cp -R apps/plugin-todoist dist/toby-plugin-todoist
-rm -rf dist/toby-plugin-todoist/.turbo dist/toby-plugin-todoist/.build
+rm -rf dist/toby-plugin-todoist/node_modules dist/toby-plugin-todoist/.turbo dist/toby-plugin-todoist/.build
 
 echo "Building toby-plugin-slack (bun-package)..."
 rm -rf dist/toby-plugin-slack
 cp -R apps/plugin-slack dist/toby-plugin-slack
-rm -rf dist/toby-plugin-slack/.turbo dist/toby-plugin-slack/.build
+rm -rf dist/toby-plugin-slack/node_modules dist/toby-plugin-slack/.turbo dist/toby-plugin-slack/.build
 
 echo "Building toby-plugin-jira (bun-package)..."
 rm -rf dist/toby-plugin-jira

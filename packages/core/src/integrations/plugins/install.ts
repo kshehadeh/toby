@@ -306,9 +306,13 @@ function installBunPackagePlugin(
 		fs.renameSync(tempDestination, installPath);
 	}
 
-	// Install dependencies if node_modules is not present
+	// Install dependencies. Remove any node_modules that may contain broken
+	// symlinks from the monorepo's hoisted dependencies before running bun install.
 	const nodeModulesPath = path.join(installPath, "node_modules");
-	if (!fs.existsSync(nodeModulesPath)) {
+	if (fs.existsSync(nodeModulesPath)) {
+		fs.rmSync(nodeModulesPath, { force: true, recursive: true });
+	}
+	{
 		const runtime = resolveBunRuntime();
 		if (runtime.ok) {
 			try {

@@ -108,7 +108,8 @@ apps/plugin-<name>/
 ```
 
 If the plugin has npm dependencies, add them to `dependencies`. The release
-build will include `node_modules` in the archive.
+build **must strip `node_modules`** from the dist copy (see Dependencies
+below) so the installer can run a clean `bun install` at install time.
 
 ### 2. Implement protocol subcommands
 
@@ -149,11 +150,15 @@ main().catch((error) => {
 
 Add to scripts:
 ```json
-"build:plugin:<name>": "rm -rf ./dist/toby-plugin-<name> && mkdir -p ./dist && cp -R ./apps/plugin-<name> ./dist/toby-plugin-<name> && rm -rf ./dist/toby-plugin-<name>/.turbo ./dist/toby-plugin-<name>/.build"
+"build:plugin:<name>": "rm -rf ./dist/toby-plugin-<name> && mkdir -p ./dist && cp -R ./apps/plugin-<name> ./dist/toby-plugin-<name> && rm -rf ./dist/toby-plugin-<name>/node_modules ./dist/toby-plugin-<name>/.turbo ./dist/toby-plugin-<name>/.build"
 ```
 
-> **If the plugin has no npm dependencies**, also exclude `node_modules`:
-> `&& rm -rf ./dist/toby-plugin-<name>/node_modules`
+> **Always exclude `node_modules`** from the dist copy. In the monorepo,
+> `node_modules` contains symlinks to `../../../node_modules/.bun/...` (hoisted
+> workspace deps). These symlinks break when the plugin directory is copied to
+> `~/.toby/plugins/`, causing the plugin to fail at runtime with `ENOENT`
+> errors. The installer runs `bun install` after copying to create fresh,
+> self-contained `node_modules`.
 
 Add to `build:plugins` string.
 
@@ -163,7 +168,7 @@ Add to `build:plugins` string.
 echo "Building toby-plugin-<name> (bun-package)..."
 rm -rf dist/toby-plugin-<name>
 cp -R apps/plugin-<name> dist/toby-plugin-<name>
-rm -rf dist/toby-plugin-<name>/.turbo dist/toby-plugin-<name>/.build
+rm -rf dist/toby-plugin-<name>/node_modules dist/toby-plugin-<name>/.turbo dist/toby-plugin-<name>/.build
 ```
 
 Remove the plugin name from the `chmod +x` line (it is a directory, not an
@@ -272,8 +277,8 @@ Apply all 6 release wiring changes from Workflow A step 3. Specifically:
 
 | File | Change |
 | ---- | ------ |
-| `package.json` (root) | `build:plugin:<name>` → directory copy |
-| `scripts/build-release-artifacts.sh` | `bun build --compile` → `cp -R`; remove from `chmod +x` |
+| `package.json` (root) | `build:plugin:<name>` → directory copy; **must `rm -rf node_modules`** |
+| `scripts/build-release-artifacts.sh` | `bun build --compile` → `cp -R`; **must `rm -rf node_modules`**; remove from `chmod +x` |
 | `.github/workflows/release.yml` | Remove codesign/verify; `cp -R` in payload |
 | `scripts/verify-release-artifacts.mjs` | Move from `required` to `requiredDirs` |
 | `install-toby.sh` | `-f` → `-d`; `chmod + mv` → `rm -rf + cp -R` |
@@ -330,10 +335,28 @@ bun run test
 
 ## Dependencies
 
+### Critical: always strip `node_modules` from the dist copy
+
+In the Toby monorepo, Bun creates `node_modules` entries as **symlinks** into
+the hoisted workspace store (`../../../node_modules/.bun/<pkg>@<ver>/...`).
+These symlinks are valid inside the repo but **break** when the plugin
+directory is copied to `~/.toby/plugins/` during install or upgrade, because
+the workspace `node_modules` is not present at the destination. The plugin
+then fails at runtime with `ENOENT` errors and is silently skipped by plugin
+discovery (which swallows status-call errors).
+
+**Always exclude `node_modules` from the dist copy**, regardless of whether
+the plugin has dependencies. The installer (`installBunPackagePlugin` in
+[`install.ts`](../../../packages/core/src/integrations/plugins/install.ts)
+and `installStagedPluginDirectory` in
+[`apps/cli/src/upgrade/index.ts`](../../../apps/cli/src/upgrade/index.ts))
+will run `bun install` after copying to create fresh, self-contained
+`node_modules` at the install location.
+
 ### No dependencies (e.g., Jira)
 
-The plugin only uses Node.js built-in APIs (`fetch`, `Buffer`, etc.). Exclude
-`node_modules` from the build:
+The plugin only uses Node.js built-in APIs (`fetch`, `Buffer`, etc.). Strip
+`node_modules` (harmless even if empty):
 
 ```bash
 rm -rf ./dist/toby-plugin-<name> && mkdir -p ./dist && cp -R ./apps/plugin-<name> ./dist/toby-plugin-<name> && rm -rf ./dist/toby-plugin-<name>/node_modules ./dist/toby-plugin-<name>/.turbo ./dist/toby-plugin-<name>/.build
@@ -341,26 +364,26 @@ rm -rf ./dist/toby-plugin-<name> && mkdir -p ./dist && cp -R ./apps/plugin-<name
 
 ### With dependencies (e.g., Todoist with `@doist/todoist-sdk`)
 
-The release archive must include `node_modules` so the plugin works without
-`bun install` at install time. The build script copies the directory including
-`node_modules` (only exclude `.turbo` and `.build`):
+Strip `node_modules` from the dist copy — the installer will run
+`bun install` to restore dependencies at the install location:
 
 ```bash
-rm -rf ./dist/toby-plugin-<name> && mkdir -p ./dist && cp -R ./apps/plugin-<name> ./dist/toby-plugin-<name> && rm -rf ./dist/toby-plugin-<name>/.turbo ./dist/toby-plugin-<name>/.build
+rm -rf ./dist/toby-plugin-<name> && mkdir -p ./dist && cp -R ./apps/plugin-<name> ./dist/toby-plugin-<name> && rm -rf ./dist/toby-plugin-<name>/node_modules ./dist/toby-plugin-<name>/.turbo ./dist/toby-plugin-<name>/.build
 ```
 
-The `installBunPackagePlugin` function in
-[`install.ts`](../../../packages/core/src/integrations/plugins/install.ts)
-also runs `bun install` as a fallback when `node_modules` is not present after
-copying. For release users, vendoring is the reliable path.
+The `package.json` `dependencies` field and `bun.lock`/`bunfig.toml` (if
+present) are included in the archive, so `bun install` can resolve the
+correct versions at install time.
 
 ---
 
 ## Common mistakes
 
 - Forgetting `manifest.json` — discovery will not find the plugin without it.
-- Excluding `node_modules` when the plugin has npm dependencies — plugin will
-  fail at runtime with missing module errors.
+- **Shipping `node_modules` in the release archive** — monorepo `node_modules`
+  contains symlinks to `../../../node_modules/.bun/...` that break outside the
+  repo. The plugin will fail with `ENOENT` and be silently skipped. Always
+  `rm -rf dist/toby-plugin-<name>/node_modules` in the build script.
 - Using `installStagedPluginBinary` instead of `installStagedPluginDirectory`
   in the upgrade path — `rename` of a directory over an existing file fails
   with `ENOTDIR` on macOS.

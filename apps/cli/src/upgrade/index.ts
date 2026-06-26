@@ -579,6 +579,32 @@ async function installStagedPluginDirectory(
 	await rm(stagingPath, { recursive: true, force: true }).catch(
 		() => undefined,
 	);
+
+	// Remove any node_modules that may contain broken symlinks from the
+	// monorepo's hoisted dependencies, then run `bun install` to create
+	// fresh, self-contained node_modules in the install location.
+	const nodeModulesPath = path.join(installTarget, "node_modules");
+	await rm(nodeModulesPath, { recursive: true, force: true }).catch(
+		() => undefined,
+	);
+	const bunRuntime = path.join(getHelpersDir(), "bun");
+	if (fs.existsSync(bunRuntime)) {
+		try {
+			const result = spawnSync(bunRuntime, ["install"], {
+				cwd: installTarget,
+				encoding: "utf8",
+				timeout: 60_000,
+				stdio: "pipe",
+			});
+			if (result.status !== 0) {
+				process.stderr.write(
+					`Warning: bun install failed for ${dirName}: ${result.stderr?.trim() || "unknown error"}\n`,
+				);
+			}
+		} catch {
+			// Best-effort: plugin may work without external dependencies
+		}
+	}
 }
 
 async function installStagedBunRuntime(stagingPath: string): Promise<void> {
