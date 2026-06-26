@@ -157,7 +157,7 @@ Every call is a **single subprocess** that runs one subcommand and exits:
 Examples:
 
 ```bash
-~/.toby/plugins/toby-plugin-sample status
+~/.toby/plugins/toby-plugin-sample-ts status
 ~/.toby/plugins/toby-plugin-gmail connect          # stdin: config envelope
 ~/.toby/plugins/toby-plugin-gmail config shape
 ~/.toby/plugins/toby-plugin-gmail tools list
@@ -222,11 +222,12 @@ into `credentials.json` / `config.json`.
 
 | Plugin | Language | Build | Notes |
 | ------ | -------- | ----- | ----- |
-| [`apps/plugin-sample/`](../apps/plugin-sample/) | TypeScript → Bun `--compile` | `bun run build:plugin:sample` | Minimal protocol surface |
-| [`apps/plugin-gmail/`](../apps/plugin-gmail/) | TypeScript → Bun `--compile` | `bun run build:plugin:gmail` | OAuth, auth methods, token writeback |
+| [`apps/plugin-sample-ts/`](../apps/plugin-sample-ts/) | TypeScript (bun-package) | `bun run build:plugin:sample-ts` | Minimal protocol surface |
+| [`apps/plugin-gmail/`](../apps/plugin-gmail/) | TypeScript (bun-package) | `bun run build:plugin:gmail` | OAuth, auth methods, token writeback |
+| [`apps/plugin-azuread/`](../apps/plugin-azuread/) | TypeScript (bun-package) | `bun run build:plugin:azuread` | Full parity migration |
 | [`apps/plugin-todoist/`](../apps/plugin-todoist/) | TypeScript (bun-package) | `bun run build:plugin:todoist` | API key auth, task tools; vendored `@doist/todoist-sdk` |
-| [`apps/plugin-azuread/`](../apps/plugin-azuread/) | TypeScript → Bun `--compile` | `bun run build:plugin:azuread` | Full parity migration |
 | [`apps/plugin-jira/`](../apps/plugin-jira/) | TypeScript (bun-package) | `bun run build:plugin:jira` | No compilation needed; runs via Bun |
+| [`apps/plugin-slack/`](../apps/plugin-slack/) | TypeScript (bun-package) | `bun run build:plugin:slack` | Chat + inbound sidecar; OAuth; `@slack/bolt` |
 | [`apps/plugin-websearch/`](../apps/plugin-websearch/) | Swift (SwiftPM) | `bun run build:plugin:websearch` | API-key auth; global `webSearch` tool via core bridge |
 | [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) | Swift (SwiftPM) | `bun run build:plugin:applecalendar` | EventKit + Calendar.app AppleScript |
 | [`apps/plugin-macos/`](../apps/plugin-macos/) | Swift (SwiftPM) | `bun run build:plugin:macos` | Native macOS APIs; optional `setup` subcommand |
@@ -741,7 +742,7 @@ an unsupported protocol version.
 
 See the [reference implementations](#reference-implementations) table above.
 Release archives include the sample plugin plus first-party integrations
-(`toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-websearch`, `toby-plugin-applecalendar`, `toby-plugin-macos`);
+(`toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-websearch`, `toby-plugin-applecalendar`, `toby-plugin-macos`);
 `install-toby.sh` and `toby upgrade` install them into `~/.toby/plugins/`.
 
 ## Installing plugins
@@ -750,7 +751,7 @@ Release archives include the sample plugin plus first-party integrations
 
 ```bash
 toby plugins install /path/to/toby-plugin-myintegration
-toby plugins install ./dist/toby-plugin-sample
+toby plugins install ./dist/toby-plugin-sample-ts
 toby plugins doctor
 toby connect myintegration
 ```

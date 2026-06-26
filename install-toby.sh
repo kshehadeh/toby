@@ -3,10 +3,11 @@
 #
 # Installs:
 #   - toby → $TOBY_INSTALL_DIR (default ~/.local/bin)
+#   - bun runtime → ~/.toby/helpers/bun (for bun-package plugins)
 #   - web UI → sibling web/ directory
 #   - Toby.app → /Applications (or ~/Applications when /Applications is not writable)
 #   - toby-plugin-whisper → ~/.toby/plugins/
-#   - toby-plugin-sample, toby-plugin-azuread, toby-plugin-gmail, toby-plugin-todoist, toby-plugin-jira, toby-plugin-websearch, toby-plugin-applecalendar, toby-plugin-macos → ~/.toby/plugins/
+#   - toby-plugin-sample-ts, toby-plugin-azuread, toby-plugin-gmail, toby-plugin-todoist, toby-plugin-slack, toby-plugin-jira, toby-plugin-websearch, toby-plugin-applecalendar, toby-plugin-macos → ~/.toby/plugins/
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/OWNER/toby/main/install-toby.sh | bash
@@ -94,18 +95,18 @@ if [[ ! -f "${tmpdir}/web/index.html" ]]; then
 	exit 1
 fi
 
-has_sample_plugin=false
-if [[ -f "${tmpdir}/toby-plugin-sample" ]]; then
-	has_sample_plugin=true
+has_sample_ts_plugin=false
+if [[ -d "${tmpdir}/toby-plugin-sample-ts" ]]; then
+	has_sample_ts_plugin=true
 fi
 
 has_azuread_plugin=false
-if [[ -f "${tmpdir}/toby-plugin-azuread" ]]; then
+if [[ -d "${tmpdir}/toby-plugin-azuread" ]]; then
 	has_azuread_plugin=true
 fi
 
 has_gmail_plugin=false
-if [[ -f "${tmpdir}/toby-plugin-gmail" ]]; then
+if [[ -d "${tmpdir}/toby-plugin-gmail" ]]; then
 	has_gmail_plugin=true
 fi
 
@@ -115,7 +116,7 @@ if [[ -d "${tmpdir}/toby-plugin-todoist" ]]; then
 fi
 
 has_slack_plugin=false
-if [[ -f "${tmpdir}/toby-plugin-slack" ]]; then
+if [[ -d "${tmpdir}/toby-plugin-slack" ]]; then
 	has_slack_plugin=true
 fi
 
@@ -181,6 +182,13 @@ if [[ -d "${tmpdir}/Toby.app" ]]; then
 	fi
 fi
 
+if [[ -f "${tmpdir}/bun" ]]; then
+	chmod +x "${tmpdir}/bun"
+	mkdir -p "$toby_helpers_dir"
+	mv "${tmpdir}/bun" "${toby_helpers_dir}/bun"
+	echo "Installed: ${toby_helpers_dir}/bun"
+fi
+
 if $has_whisper_plugin; then
 	chmod +x "${tmpdir}/toby-plugin-whisper"
 	mkdir -p "$toby_plugins_dir"
@@ -188,24 +196,24 @@ if $has_whisper_plugin; then
 	echo "Installed: ${toby_plugins_dir}/toby-plugin-whisper"
 fi
 
-if $has_sample_plugin; then
-	chmod +x "${tmpdir}/toby-plugin-sample"
+if $has_sample_ts_plugin; then
 	mkdir -p "$toby_plugins_dir"
-	mv "${tmpdir}/toby-plugin-sample" "${toby_plugins_dir}/toby-plugin-sample"
-	echo "Installed: ${toby_plugins_dir}/toby-plugin-sample"
+	rm -rf "${toby_plugins_dir}/toby-plugin-sample-ts"
+	cp -R "${tmpdir}/toby-plugin-sample-ts" "${toby_plugins_dir}/toby-plugin-sample-ts"
+	echo "Installed: ${toby_plugins_dir}/toby-plugin-sample-ts"
 fi
 
 if $has_azuread_plugin; then
-	chmod +x "${tmpdir}/toby-plugin-azuread"
 	mkdir -p "$toby_plugins_dir"
-	mv "${tmpdir}/toby-plugin-azuread" "${toby_plugins_dir}/toby-plugin-azuread"
+	rm -rf "${toby_plugins_dir}/toby-plugin-azuread"
+	cp -R "${tmpdir}/toby-plugin-azuread" "${toby_plugins_dir}/toby-plugin-azuread"
 	echo "Installed: ${toby_plugins_dir}/toby-plugin-azuread"
 fi
 
 if $has_gmail_plugin; then
-	chmod +x "${tmpdir}/toby-plugin-gmail"
 	mkdir -p "$toby_plugins_dir"
-	mv "${tmpdir}/toby-plugin-gmail" "${toby_plugins_dir}/toby-plugin-gmail"
+	rm -rf "${toby_plugins_dir}/toby-plugin-gmail"
+	cp -R "${tmpdir}/toby-plugin-gmail" "${toby_plugins_dir}/toby-plugin-gmail"
 	echo "Installed: ${toby_plugins_dir}/toby-plugin-gmail"
 fi
 
@@ -217,9 +225,9 @@ if $has_todoist_plugin; then
 fi
 
 if $has_slack_plugin; then
-	chmod +x "${tmpdir}/toby-plugin-slack"
 	mkdir -p "$toby_plugins_dir"
-	mv "${tmpdir}/toby-plugin-slack" "${toby_plugins_dir}/toby-plugin-slack"
+	rm -rf "${toby_plugins_dir}/toby-plugin-slack"
+	cp -R "${tmpdir}/toby-plugin-slack" "${toby_plugins_dir}/toby-plugin-slack"
 	echo "Installed: ${toby_plugins_dir}/toby-plugin-slack"
 fi
 

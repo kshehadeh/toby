@@ -9,9 +9,9 @@
 		"open": "^10.1.0"
 	},
 	"scripts": {
-		"dev": "bun src/cli.ts",
+		"dev": "bun src/cli.ts status",
 		"lint": "bunx biome check .",
-		"build": "bun build ./src/cli.ts --compile --outfile ../../dist/toby-plugin-slack",
+		"build": "echo 'bun-package plugin: no compilation needed'",
 		"test": "bunx vitest run"
 	},
 	"devDependencies": {

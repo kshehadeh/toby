@@ -94,7 +94,7 @@ To ship an integration **outside** the main Toby binary:
 2. Install the binary with `toby plugins install <path>` or copy it into `~/.toby/plugins/`.
 3. Run `toby plugins doctor` to validate protocol compatibility.
 
-See [`apps/plugin-sample/`](../apps/plugin-sample/) for a minimal reference plugin and build script (`bun run build:plugin:sample`).
+See [`apps/plugin-sample-ts/`](../apps/plugin-sample-ts/) for a minimal reference plugin and build script (`bun run build:plugin:sample-ts`).
 
 No changes to `MODULES` are required — discovery registers plugin-backed modules automatically.
 
@@ -123,7 +123,7 @@ Use this checklist when moving an existing first-party integration out of
 
 Reference implementations:
 
-- Minimal plugin: [`apps/plugin-sample/`](../apps/plugin-sample/)
+- Minimal plugin: [`apps/plugin-sample-ts/`](../apps/plugin-sample-ts/)
 - Full parity migrations: [`apps/plugin-azuread/`](../apps/plugin-azuread/), [`apps/plugin-gmail/`](../apps/plugin-gmail/)
-- TypeScript bun-package plugin migrations: [`apps/plugin-jira/`](../apps/plugin-jira/), [`apps/plugin-gmail/`](../apps/plugin-gmail/)
+- TypeScript bun-package plugin migrations: [`apps/plugin-jira/`](../apps/plugin-jira/), [`apps/plugin-gmail/`](../apps/plugin-gmail/), [`apps/plugin-azuread/`](../apps/plugin-azuread/), [`apps/plugin-slack/`](../apps/plugin-slack/)
 - Swift plugin migrations: [`apps/plugin-websearch/`](../apps/plugin-websearch/) (built-in `bravesearch` → plugin; global tool bridge in core)

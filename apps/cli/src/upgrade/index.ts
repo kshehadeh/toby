@@ -109,7 +109,8 @@ export function resolveAppInstallTarget(installDir?: string): string {
 export function getStagingPaths(): {
 	readonly stagingDir: string;
 	readonly binaryPath: string;
-	readonly pluginSamplePath: string;
+	readonly bunRuntimePath: string;
+	readonly pluginSampleTsPath: string;
 	readonly pluginAzureadPath: string;
 	readonly pluginGmailPath: string;
 	readonly pluginTodoistPath: string;
@@ -129,7 +130,8 @@ export function getStagingPaths(): {
 	return {
 		stagingDir,
 		binaryPath: path.join(stagingDir, "toby"),
-		pluginSamplePath: path.join(stagingDir, "toby-plugin-sample"),
+		bunRuntimePath: path.join(stagingDir, "bun"),
+		pluginSampleTsPath: path.join(stagingDir, "toby-plugin-sample-ts"),
 		pluginAzureadPath: path.join(stagingDir, "toby-plugin-azuread"),
 		pluginGmailPath: path.join(stagingDir, "toby-plugin-gmail"),
 		pluginTodoistPath: path.join(stagingDir, "toby-plugin-todoist"),
@@ -222,7 +224,8 @@ export async function downloadRelease(
 	const {
 		stagingDir,
 		binaryPath,
-		pluginSamplePath,
+		bunRuntimePath,
+		pluginSampleTsPath,
 		pluginAzureadPath,
 		pluginGmailPath,
 		pluginTodoistPath,
@@ -243,13 +246,22 @@ export async function downloadRelease(
 	try {
 		await mkdir(stagingDir, { recursive: true });
 		await rm(binaryPath, { force: true }).catch(() => undefined);
-		await rm(pluginSamplePath, { force: true }).catch(() => undefined);
-		await rm(pluginAzureadPath, { force: true }).catch(() => undefined);
-		await rm(pluginGmailPath, { force: true }).catch(() => undefined);
+		await rm(bunRuntimePath, { force: true }).catch(() => undefined);
+		await rm(pluginSampleTsPath, { recursive: true, force: true }).catch(
+			() => undefined,
+		);
+		await rm(pluginAzureadPath, { recursive: true, force: true }).catch(
+			() => undefined,
+		);
+		await rm(pluginGmailPath, { recursive: true, force: true }).catch(
+			() => undefined,
+		);
 		await rm(pluginTodoistPath, { recursive: true, force: true }).catch(
 			() => undefined,
 		);
-		await rm(pluginSlackPath, { force: true }).catch(() => undefined);
+		await rm(pluginSlackPath, { recursive: true, force: true }).catch(
+			() => undefined,
+		);
 		await rm(pluginJiraPath, { recursive: true, force: true }).catch(
 			() => undefined,
 		);
@@ -440,7 +452,8 @@ export async function applyStagedRelease(
 	}
 
 	const {
-		pluginSamplePath,
+		bunRuntimePath,
+		pluginSampleTsPath,
 		pluginAzureadPath,
 		pluginGmailPath,
 		pluginTodoistPath,
@@ -453,11 +466,15 @@ export async function applyStagedRelease(
 	} = getStagingPaths();
 	options?.onProgress?.({ phase: "installing", detail: "plugins" });
 	await yieldToEventLoop();
-	await installStagedPluginBinary(pluginSamplePath, "toby-plugin-sample");
-	await installStagedPluginBinary(pluginAzureadPath, "toby-plugin-azuread");
-	await installStagedPluginBinary(pluginGmailPath, "toby-plugin-gmail");
+	await installStagedBunRuntime(bunRuntimePath);
+	await installStagedPluginDirectory(
+		pluginSampleTsPath,
+		"toby-plugin-sample-ts",
+	);
+	await installStagedPluginDirectory(pluginAzureadPath, "toby-plugin-azuread");
+	await installStagedPluginDirectory(pluginGmailPath, "toby-plugin-gmail");
 	await installStagedPluginDirectory(pluginTodoistPath, "toby-plugin-todoist");
-	await installStagedPluginBinary(pluginSlackPath, "toby-plugin-slack");
+	await installStagedPluginDirectory(pluginSlackPath, "toby-plugin-slack");
 	await installStagedPluginDirectory(pluginJiraPath, "toby-plugin-jira");
 	await installStagedPluginBinary(pluginWebsearchPath, "toby-plugin-websearch");
 	await installStagedPluginBinary(
@@ -564,7 +581,27 @@ async function installStagedPluginDirectory(
 	);
 }
 
-const REMOVED_PLUGIN_BINARIES = ["toby-plugin-applemail"] as const;
+async function installStagedBunRuntime(stagingPath: string): Promise<void> {
+	if (!fs.existsSync(stagingPath)) {
+		return;
+	}
+	const helpersDir = getHelpersDir();
+	await mkdir(helpersDir, { recursive: true });
+	const installTarget = path.join(helpersDir, "bun");
+	const tempDestination = path.join(
+		helpersDir,
+		`.bun-upgrade-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+	);
+	await rm(tempDestination, { force: true }).catch(() => undefined);
+	await rename(stagingPath, tempDestination);
+	await chmodExecutable(tempDestination);
+	await rename(tempDestination, installTarget);
+}
+
+const REMOVED_PLUGIN_BINARIES = [
+	"toby-plugin-applemail",
+	"toby-plugin-sample",
+] as const;
 
 /** Remove plugin binaries retired from release bundles (best-effort). */
 export async function removeDeprecatedPluginBinaries(): Promise<void> {

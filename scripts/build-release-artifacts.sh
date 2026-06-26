@@ -23,22 +23,38 @@ echo "Building toby (${bun_target})..."
 	bun build ./src/cli.ts --compile --target="${bun_target}" --outfile ../../dist/toby
 )
 
-echo "Building toby-plugin-sample (${bun_target})..."
-bun build ./apps/plugin-sample/src/cli.ts --compile --target="${bun_target}" --outfile dist/toby-plugin-sample
+echo "Bundling bun runtime for bun-package plugins (${bun_target})..."
+bun_version="$(bun --version)"
+curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${bun_version}/${bun_target}.zip" -o dist/.bun-runtime.zip
+unzip -o -q dist/.bun-runtime.zip -d dist/.bun-runtime-tmp
+cp "dist/.bun-runtime-tmp/${bun_target}/bun" dist/bun
+rm -rf dist/.bun-runtime.zip dist/.bun-runtime-tmp
+chmod +x dist/bun
 
-echo "Building toby-plugin-azuread (${bun_target})..."
-bun build ./apps/plugin-azuread/src/cli.ts --compile --target="${bun_target}" --outfile dist/toby-plugin-azuread
+echo "Building toby-plugin-sample-ts (bun-package)..."
+rm -rf dist/toby-plugin-sample-ts
+cp -R apps/plugin-sample-ts dist/toby-plugin-sample-ts
+rm -rf dist/toby-plugin-sample-ts/.turbo dist/toby-plugin-sample-ts/.build
 
-echo "Building toby-plugin-gmail (${bun_target})..."
-bun build ./apps/plugin-gmail/src/cli.ts --compile --target="${bun_target}" --outfile dist/toby-plugin-gmail
+echo "Building toby-plugin-azuread (bun-package)..."
+rm -rf dist/toby-plugin-azuread
+cp -R apps/plugin-azuread dist/toby-plugin-azuread
+rm -rf dist/toby-plugin-azuread/.turbo dist/toby-plugin-azuread/.build
+
+echo "Building toby-plugin-gmail (bun-package)..."
+rm -rf dist/toby-plugin-gmail
+cp -R apps/plugin-gmail dist/toby-plugin-gmail
+rm -rf dist/toby-plugin-gmail/.turbo dist/toby-plugin-gmail/.build
 
 echo "Building toby-plugin-todoist (bun-package)..."
 rm -rf dist/toby-plugin-todoist
 cp -R apps/plugin-todoist dist/toby-plugin-todoist
 rm -rf dist/toby-plugin-todoist/.turbo dist/toby-plugin-todoist/.build
 
-echo "Building toby-plugin-slack (${bun_target})..."
-bun build ./apps/plugin-slack/src/cli.ts --compile --target="${bun_target}" --outfile dist/toby-plugin-slack
+echo "Building toby-plugin-slack (bun-package)..."
+rm -rf dist/toby-plugin-slack
+cp -R apps/plugin-slack dist/toby-plugin-slack
+rm -rf dist/toby-plugin-slack/.turbo dist/toby-plugin-slack/.build
 
 echo "Building toby-plugin-jira (bun-package)..."
 rm -rf dist/toby-plugin-jira
@@ -72,7 +88,7 @@ echo "Building toby-plugin-whisper with embedded whisper.cpp (${swift_arch})..."
 chmod +x scripts/build-plugin-whisper.sh
 SWIFT_ARCH="${swift_arch}" ./scripts/build-plugin-whisper.sh
 
-chmod +x dist/toby dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-slack dist/toby-plugin-websearch dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/toby-plugin-whisper
+chmod +x dist/toby dist/bun dist/toby-plugin-websearch dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/toby-plugin-whisper
 
 # Create a legacy toby-listener placeholder so releases remain compatible with
 # v0.49.0 and earlier self-upgraders, which validate that the archive contains

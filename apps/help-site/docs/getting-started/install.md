@@ -9,7 +9,7 @@ You can install Toby with the install script, from a release binary, or from sou
 
 ## Option 1: Install script (recommended)
 
-The [install script](https://github.com/kshehadeh/toby/blob/main/install-toby.sh) downloads the latest macOS release archive and installs the `toby` binary to `~/.local/bin`. The bundled `whisper-cli` helper goes to `~/.toby/helpers/` and first-party plugins (`toby-plugin-sample`, `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-websearch`, `toby-plugin-applecalendar`, `toby-plugin-macos`) to `~/.toby/plugins/`, so only `toby` is added to your `PATH`. The native `Toby.app` is installed to `/Applications` (or `~/Applications`). It does not require `sudo`.
+The [install script](https://github.com/kshehadeh/toby/blob/main/install-toby.sh) downloads the latest macOS release archive and installs the `toby` binary to `~/.local/bin`. The bundled `bun` runtime goes to `~/.toby/helpers/bun` (for TypeScript bun-package plugins) and first-party plugins (`toby-plugin-sample-ts`, `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-websearch`, `toby-plugin-applecalendar`, `toby-plugin-macos`) to `~/.toby/plugins/`, so only `toby` is added to your `PATH`. The native `Toby.app` is installed to `/Applications` (or `~/Applications`). It does not require `sudo`.
 
 After installing binaries, the script runs `toby whisper setup` to download the default local transcription model (`ggml-base.en.bin`) into `~/.toby/models/`. If that step fails (for example offline install), run `toby whisper setup` later.
 

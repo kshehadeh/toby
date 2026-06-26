@@ -1,0 +1,14 @@
+{
+	"name": "gmail",
+	"displayName": "Gmail",
+	"description": "Connect to your Gmail account to read and organize email",
+	"version": "1.0.0",
+	"protocolVersion": "1",
+	"runtime": {
+		"type": "bun",
+		"entry": "src/cli.ts"
+	},
+	"capabilities": ["chat"],
+	"providerCategories": ["email"],
+	"resources": ["inbox", "labels", "messages"]
+}

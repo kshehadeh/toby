@@ -10,17 +10,21 @@ import path from "node:path";
 const directory = path.resolve(process.argv[2] ?? "release-payload");
 const required = [
 	"toby",
-	"toby-plugin-sample",
-	"toby-plugin-azuread",
-	"toby-plugin-gmail",
-	"toby-plugin-slack",
+	"bun",
 	"toby-plugin-websearch",
 	"toby-plugin-applecalendar",
 	"toby-plugin-macos",
 	"toby-plugin-whisper",
 ];
 
-const requiredDirs = ["toby-plugin-jira", "toby-plugin-todoist"];
+const requiredDirs = [
+	"toby-plugin-sample-ts",
+	"toby-plugin-azuread",
+	"toby-plugin-gmail",
+	"toby-plugin-slack",
+	"toby-plugin-jira",
+	"toby-plugin-todoist",
+];
 
 const missing = [];
 for (const name of required) {

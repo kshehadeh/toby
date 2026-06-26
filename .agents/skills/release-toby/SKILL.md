@@ -41,13 +41,15 @@ Expected assets:
 Each archive must contain:
 
 - `toby`
+- `bun` (Bun runtime for bun-package plugins)
 - `Toby.app`
-- `whisper-cli`
-- `toby-plugin-sample`
-- `toby-plugin-azuread`
-- `toby-plugin-gmail`
-- `toby-plugin-todoist`
-- `toby-plugin-jira`
+- `toby-plugin-whisper`
+- `toby-plugin-sample-ts` (directory)
+- `toby-plugin-azuread` (directory)
+- `toby-plugin-gmail` (directory)
+- `toby-plugin-todoist` (directory)
+- `toby-plugin-jira` (directory)
+- `toby-plugin-slack` (directory)
 - `toby-plugin-websearch`
 - `toby-plugin-applecalendar`
 - `toby-plugin-macos`

@@ -21,7 +21,7 @@ Both formats implement the same **protocol v1** contract: Toby passes credential
 | **Build step** | None (install the directory directly) | Compile with `bun build --compile`, SwiftPM, etc. |
 | **Dependencies** | `package.json` + `node_modules/` (vendored or installed at install time) | Linked at compile time |
 | **Best for** | API integrations, web services, most third-party plugins | Deep macOS integrations (EventKit, Shortcuts, whisper.cpp, system APIs) |
-| **Reference** | `toby-plugin-sample-ts` | `toby-plugin-sample`, `toby-plugin-macos`, `toby-plugin-whisper` |
+| **Reference** | `toby-plugin-sample-ts` | `toby-plugin-macos`, `toby-plugin-whisper` |
 
 **Rule of thumb:** Use a TypeScript package plugin unless your integration needs direct access to macOS frameworks (Calendar, Contacts, Shortcuts, audio capture, etc.). Swift-based binary plugins are the right choice when you need EventKit, Foundation, or other native APIs that require a compiled binary.
 
@@ -708,11 +708,10 @@ The Toby repository includes working plugins you can copy from:
 | Plugin | Format | Language | Notes |
 | ------ | ------ | -------- | ----- |
 | `toby-plugin-sample-ts` | TypeScript package | TypeScript (Bun runtime) | Minimal bun-package plugin—start here for API integrations |
-| `toby-plugin-sample` | Binary | TypeScript (Bun `--compile`) | Minimal compiled binary plugin |
-| `toby-plugin-gmail` | Binary | TypeScript | OAuth, auth methods, token writeback |
+| `toby-plugin-gmail` | TypeScript package | TypeScript | OAuth, auth methods, token writeback |
 | `toby-plugin-todoist` | Bun-package | TypeScript | API key auth, task tools; vendored `@doist/todoist-sdk` |
-| `toby-plugin-azuread` | Binary | TypeScript | Full parity migration example |
-| `toby-plugin-slack` | Binary | TypeScript | Chat tools + `inbound run` (Socket Mode) |
+| `toby-plugin-azuread` | TypeScript package | TypeScript | Full parity migration example |
+| `toby-plugin-slack` | TypeScript package | TypeScript | Chat tools + `inbound run` (Socket Mode); `@slack/bolt` |
 | `toby-plugin-jira` | Bun-package | TypeScript | Read-only Jira REST API integration |
 | `toby-plugin-websearch` | Binary | Swift | API-key search; global `webSearch` bridge in Toby core |
 | `toby-plugin-applecalendar` | Binary | Swift | EventKit + Calendar.app |
@@ -726,8 +725,8 @@ Build and install examples from a git clone:
 toby plugins install ./apps/plugin-sample-ts --link --force
 
 # Binary plugin (requires build step)
-bun run build:plugin:sample
-toby plugins install ./dist/toby-plugin-sample --link --force
+bun run build:plugin:websearch
+toby plugins install ./dist/toby-plugin-websearch --link --force
 
 toby plugins doctor
 ```

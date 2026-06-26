@@ -101,10 +101,7 @@ jobs:
             exit 1
           fi
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby
-          codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-sample
-          codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-azuread
-          codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-gmail
-          codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-slack
+          codesign --force --options runtime --timestamp --sign "$identity" dist/bun
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-websearch
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-applecalendar
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-macos
@@ -112,10 +109,7 @@ jobs:
           codesign --force --options runtime --timestamp --deep --entitlements apps/toby-app/TobyApp.entitlements --sign "$identity" dist/Toby.app
           codesign --verify --strict --verbose=2 dist/Toby.app
           codesign --verify --strict --verbose=2 dist/toby
-          codesign --verify --strict --verbose=2 dist/toby-plugin-sample
-          codesign --verify --strict --verbose=2 dist/toby-plugin-azuread
-          codesign --verify --strict --verbose=2 dist/toby-plugin-gmail
-          codesign --verify --strict --verbose=2 dist/toby-plugin-slack
+          codesign --verify --strict --verbose=2 dist/bun
           codesign --verify --strict --verbose=2 dist/toby-plugin-websearch
           codesign --verify --strict --verbose=2 dist/toby-plugin-applecalendar
           codesign --verify --strict --verbose=2 dist/toby-plugin-macos
@@ -145,7 +139,11 @@ jobs:
         run: |
           rm -rf release-payload
           mkdir release-payload
-          cp dist/toby dist/toby-plugin-sample dist/toby-plugin-azuread dist/toby-plugin-gmail dist/toby-plugin-slack dist/toby-plugin-websearch dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/toby-plugin-whisper dist/toby-listener release-payload/
+          cp dist/toby dist/bun dist/toby-plugin-websearch dist/toby-plugin-applecalendar dist/toby-plugin-macos dist/toby-plugin-whisper dist/toby-listener release-payload/
+          cp -R dist/toby-plugin-sample-ts release-payload/toby-plugin-sample-ts
+          cp -R dist/toby-plugin-azuread release-payload/toby-plugin-azuread
+          cp -R dist/toby-plugin-gmail release-payload/toby-plugin-gmail
+          cp -R dist/toby-plugin-slack release-payload/toby-plugin-slack
           cp -R dist/toby-plugin-jira release-payload/toby-plugin-jira
           cp -R dist/toby-plugin-todoist release-payload/toby-plugin-todoist
           cp -R dist/TobyPluginMacOS_TobyPluginMacOSLib.bundle release-payload/

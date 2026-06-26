@@ -46,8 +46,9 @@ describe("upgrade staging paths", () => {
 		const paths = getStagingPaths();
 		expect(paths.stagingDir).toBe(path.join(tempDir, "staging"));
 		expect(paths.binaryPath).toBe(path.join(tempDir, "staging", "toby"));
-		expect(paths.pluginSamplePath).toBe(
-			path.join(tempDir, "staging", "toby-plugin-sample"),
+		expect(paths.bunRuntimePath).toBe(path.join(tempDir, "staging", "bun"));
+		expect(paths.pluginSampleTsPath).toBe(
+			path.join(tempDir, "staging", "toby-plugin-sample-ts"),
 		);
 		expect(paths.pluginAzureadPath).toBe(
 			path.join(tempDir, "staging", "toby-plugin-azuread"),
@@ -260,7 +261,7 @@ describe("applyStagedRelease", () => {
 		fs.rmSync(tempDir, { recursive: true, force: true });
 	});
 
-	it("installs staged plugin binaries into ~/.toby/plugins", async () => {
+	it("installs staged plugin directories into ~/.toby/plugins", async () => {
 		const binDir = path.join(tempDir, "bin");
 		const installTarget = path.join(binDir, "toby");
 		const paths = getStagingPaths();
@@ -269,9 +270,18 @@ describe("applyStagedRelease", () => {
 
 		const versionScript = `#!/bin/sh\nif [ "$1" = "--version" ]; then echo "9.9.9"; exit 0; fi\nexit 1\n`;
 		fs.writeFileSync(paths.binaryPath, versionScript, { mode: 0o755 });
-		fs.writeFileSync(paths.pluginSamplePath, "#!/bin/sh\necho sample\n", {
-			mode: 0o755,
-		});
+		fs.mkdirSync(paths.pluginSampleTsPath, { recursive: true });
+		fs.writeFileSync(
+			path.join(paths.pluginSampleTsPath, "manifest.json"),
+			JSON.stringify({
+				name: "sample-ts",
+				displayName: "Sample TS",
+				description: "test",
+				version: "1.0.0",
+				protocolVersion: "1",
+				runtime: { type: "bun", entry: "src/index.ts" },
+			}),
+		);
 
 		const manifest = {
 			tag: "v9.9.9",
@@ -286,7 +296,7 @@ describe("applyStagedRelease", () => {
 		const result = await applyStagedRelease(installTarget);
 		expect(result.version).toBe("9.9.9");
 		expect(
-			fs.existsSync(path.join(getPluginsDir(), "toby-plugin-sample")),
+			fs.existsSync(path.join(getPluginsDir(), "toby-plugin-sample-ts")),
 		).toBe(true);
 	});
 
@@ -358,9 +368,18 @@ describe("applyStagedReleaseDelegated", () => {
 		fs.mkdirSync(paths.stagingDir, { recursive: true });
 		fs.mkdirSync(binDir, { recursive: true });
 
-		fs.writeFileSync(paths.pluginSamplePath, "#!/bin/sh\necho sample\n", {
-			mode: 0o755,
-		});
+		fs.mkdirSync(paths.pluginSampleTsPath, { recursive: true });
+		fs.writeFileSync(
+			path.join(paths.pluginSampleTsPath, "manifest.json"),
+			JSON.stringify({
+				name: "sample-ts",
+				displayName: "Sample TS",
+				description: "test",
+				version: "1.0.0",
+				protocolVersion: "1",
+				runtime: { type: "bun", entry: "src/index.ts" },
+			}),
+		);
 
 		const manifest = {
 			tag: "v9.9.9",
@@ -379,7 +398,7 @@ describe("applyStagedReleaseDelegated", () => {
 			const result = await applyStagedReleaseDelegated(installTarget);
 			expect(result.version).toBe("9.9.9");
 			expect(
-				fs.existsSync(path.join(getPluginsDir(), "toby-plugin-sample")),
+				fs.existsSync(path.join(getPluginsDir(), "toby-plugin-sample-ts")),
 			).toBe(true);
 		} finally {
 			compiledSpy.mockRestore();

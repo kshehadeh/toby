@@ -68,7 +68,7 @@ On macOS, open **Toby.app** and use the **Setup Guide** button on any integratio
 
 ## Installable plugins
 
-Gmail, Azure AD, Todoist, Jira, Web Search, Apple Calendar, macOS, and other first-party integrations ship as **plugins** bundled in release archives. Fresh installs (`install-toby.sh`) and `toby upgrade` copy them into `~/.toby/plugins/` automatically—no manual `toby plugins install` step is required for release users. The sample plugin (`toby-plugin-sample`) is also installed for reference and testing.
+Gmail, Azure AD, Todoist, Jira, Slack, Web Search, Apple Calendar, macOS, and other first-party integrations ship as **plugins** bundled in release archives. Fresh installs (`install-toby.sh`) and `toby upgrade` copy them into `~/.toby/plugins/` automatically—no manual `toby plugins install` step is required for release users. The sample plugin (`toby-plugin-sample-ts`) is also installed for reference and testing.
 
 Plugins come in two formats:
 

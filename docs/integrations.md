@@ -122,7 +122,7 @@ the subprocess protocol in [`plugin-protocol.md`](plugin-protocol.md).
 | `toby plugins doctor` | Validate protocol compatibility |
 
 Runtime code lives under [`packages/core/src/integrations/plugins/`](../packages/core/src/integrations/plugins/).
-Reference plugins: [`apps/plugin-sample/`](../apps/plugin-sample/) (minimal),
+Reference plugins: [`apps/plugin-sample-ts/`](../apps/plugin-sample-ts/) (minimal),
 [`apps/plugin-azuread/`](../apps/plugin-azuread/) and
 [`apps/plugin-gmail/`](../apps/plugin-gmail/) (full parity; shipped in release
 archives as `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-websearch`,

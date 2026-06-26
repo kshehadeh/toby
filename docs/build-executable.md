@@ -8,8 +8,8 @@ bun run build:executable
 ```
 
 The main executable output is **`dist/toby`**.
-Installable plugins are built to **`dist/toby-plugin-sample`**,
-**`dist/toby-plugin-azuread`**, **`dist/toby-plugin-gmail`**, and other first-party plugin binaries. Release installs
+Installable plugins are built to **`dist/toby-plugin-sample-ts`**,
+**`dist/toby-plugin-azuread`**, **`dist/toby-plugin-gmail`**, and other first-party plugin directories. Release installs
 and upgrades copy first-party plugins into `~/.toby/plugins/` automatically; when
 building from source, install with `toby plugins install ./dist/...` (see
 [`docs/plugin-protocol.md`](plugin-protocol.md)).
@@ -79,7 +79,7 @@ Release build steps:
 
 1. Matrix builds **two** signed and notarized macOS archives:
    `toby-darwin-arm64.zip` and `toby-darwin-x64.zip`.
-2. Each archive contains `toby`, `Toby.app`, `toby-plugin-sample`, `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-websearch`, `toby-plugin-applecalendar`, `toby-plugin-macos`, and `whisper-cli`.
+2. Each archive contains `toby`, `bun` (runtime for bun-package plugins), `Toby.app`, `toby-plugin-sample-ts`, `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-websearch`, `toby-plugin-applecalendar`, `toby-plugin-macos`, and `toby-plugin-whisper`.
 3. Creates a **GitHub Release** for that tag and uploads those files as release assets (via `softprops/action-gh-release`).
 
 The release workflow uses the same Apple Developer secrets as DevDash:
@@ -105,8 +105,8 @@ are missing, the workflow skips signing and notarization and uploads an unsigned
 archive with a warning. Invalid non-empty credentials fail the release instead
 of silently publishing an unexpectedly unsigned build.
 
-Local `bun run build:release` builds `dist/toby`, `dist/Toby.app`,
-`dist/toby-plugin-sample`, `dist/toby-plugin-azuread`, `dist/toby-plugin-gmail`, `dist/toby-plugin-todoist`, `dist/toby-plugin-jira`, `dist/toby-plugin-websearch`, `dist/toby-plugin-applecalendar`, `dist/toby-plugin-macos`, `dist/whisper-cli`, and `dist/web/`
+Local `bun run build:release` builds `dist/toby`, `dist/bun`, `dist/Toby.app`,
+`dist/toby-plugin-sample-ts`, `dist/toby-plugin-azuread`, `dist/toby-plugin-gmail`, `dist/toby-plugin-todoist`, `dist/toby-plugin-jira`, `dist/toby-plugin-slack`, `dist/toby-plugin-websearch`, `dist/toby-plugin-applecalendar`, `dist/toby-plugin-macos`, `dist/toby-plugin-whisper`, and `dist/web/`
 (the built React UI). Verify staged artifacts with
 `node scripts/verify-release-artifacts.mjs release-payload`.
 Use the GitHub release workflow for signed and notarized distribution artifacts.
@@ -138,8 +138,8 @@ From the repo root, [`install-toby.sh`](../install-toby.sh) downloads the
 **latest matching macOS release archive** and installs the `toby` binary into
 **`~/.local/bin/toby`** (override with `TOBY_INSTALL_DIR`). The web UI static
 files are installed as **`~/.local/bin/web/`** (sibling of the `toby` binary).
-The bundled `whisper-cli` helper is placed under **`~/.toby/helpers/`**, and first-party plugins (`toby-plugin-sample`, `toby-plugin-azuread`,
-`toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-websearch`, `toby-plugin-applecalendar`, `toby-plugin-macos`) under **`~/.toby/plugins/`**, so only `toby` lands on your
+The bundled `bun` runtime is placed under **`~/.toby/helpers/`**, and first-party plugins (`toby-plugin-sample-ts`, `toby-plugin-azuread`,
+`toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-websearch`, `toby-plugin-applecalendar`, `toby-plugin-macos`) under **`~/.toby/plugins/`**, so only `toby` lands on your
 `PATH`. It does not use `sudo`. The script then runs **`toby whisper setup`** to
 download the default transcription model into **`~/.toby/models/`**. If the install directory is not on `PATH`, the
 script prints how to add it for zsh, bash, or fish.

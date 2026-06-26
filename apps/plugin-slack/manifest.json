@@ -1,0 +1,14 @@
+{
+	"name": "slack",
+	"displayName": "Slack",
+	"description": "Connect to Slack to post messages, reply in threads, and search channels",
+	"version": "1.0.0",
+	"protocolVersion": "1",
+	"runtime": {
+		"type": "bun",
+		"entry": "src/cli.ts"
+	},
+	"capabilities": ["chat", "inbound"],
+	"providerCategories": ["chat"],
+	"resources": ["channels", "messages", "users"]
+}

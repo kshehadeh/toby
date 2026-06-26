@@ -17,8 +17,8 @@ into `IntegrationModule` by `@toby/core`. Two paths:
 
 | Path | When | Reference |
 | ---- | ---- | --------- |
-| **New plugin** | Greenfield integration, no built-in module | [`apps/plugin-sample/`](../../../apps/plugin-sample/) |
-| **Migration** | Replace built-in in `BUILTIN_MODULES` with plugin | [`apps/plugin-azuread/`](../../../apps/plugin-azuread/), [`apps/plugin-gmail/`](../../../apps/plugin-gmail/), [`apps/plugin-jira/`](../../../apps/plugin-jira/) (TypeScript bun-package), [`apps/plugin-todoist/`](../../../apps/plugin-todoist/) (TypeScript bun-package), [`apps/plugin-websearch/`](../../../apps/plugin-websearch/) (Swift; global tool bridge in core), [`apps/plugin-applecalendar/`](../../../apps/plugin-applecalendar/) (Swift/EventKit) |
+| **New plugin** | Greenfield integration, no built-in module | [`apps/plugin-sample-ts/`](../../../apps/plugin-sample-ts/) |
+| **Migration** | Replace built-in in `BUILTIN_MODULES` with plugin | [`apps/plugin-azuread/`](../../../apps/plugin-azuread/), [`apps/plugin-gmail/`](../../../apps/plugin-gmail/), [`apps/plugin-jira/`](../../../apps/plugin-jira/) (TypeScript bun-package), [`apps/plugin-todoist/`](../../../apps/plugin-todoist/) (TypeScript bun-package), [`apps/plugin-slack/`](../../../apps/plugin-slack/) (TypeScript bun-package; inbound), [`apps/plugin-websearch/`](../../../apps/plugin-websearch/) (Swift; global tool bridge in core), [`apps/plugin-applecalendar/`](../../../apps/plugin-applecalendar/) (Swift/EventKit) |
 
 Read first: [`docs/plugin-protocol.md`](../../../docs/plugin-protocol.md),
 [`docs/create-integration.md`](../../../docs/create-integration.md) (migration section).
@@ -68,7 +68,7 @@ Task progress:
 
 ### 1. Scaffold
 
-Mirror [`apps/plugin-sample/package.json`](../../../apps/plugin-sample/package.json):
+Mirror [`apps/plugin-sample-ts/package.json`](../../../apps/plugin-sample-ts/package.json):
 
 ```
 apps/plugin-<name>/
@@ -219,6 +219,6 @@ migration template changes.
 ## Additional resources
 
 - Full parity table: [parity-checklist.md](parity-checklist.md)
-- Minimal example: [`apps/plugin-sample/`](../../../apps/plugin-sample/)
+- Minimal example: [`apps/plugin-sample-ts/`](../../../apps/plugin-sample-ts/)
 - Full migration examples: [`apps/plugin-azuread/`](../../../apps/plugin-azuread/), [`apps/plugin-gmail/`](../../../apps/plugin-gmail/), [`apps/plugin-jira/`](../../../apps/plugin-jira/) (TypeScript bun-package), [`apps/plugin-todoist/`](../../../apps/plugin-todoist/) (TypeScript bun-package), [`apps/plugin-websearch/`](../../../apps/plugin-websearch/) (Swift; `bravesearch` → `websearch`)
 - TypeScript bun-package plugin guide: [`.agents/skills/toby-ts-plugin/SKILL.md`](../toby-ts-plugin/SKILL.md) — manifest, directory-based build, release wiring for bun-package plugins
