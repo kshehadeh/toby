@@ -182,11 +182,11 @@ private struct SidebarHeader: View {
 	}
 
 	var body: some View {
-		VStack(alignment: .leading, spacing: 10) {
+		HStack(spacing: 10) {
 			Button {
 				onOpenChangelog()
 			} label: {
-				HStack(spacing: 10) {
+				HStack(spacing: 6) {
 					appIcon
 						.resizable()
 						.aspectRatio(contentMode: .fit)
@@ -194,7 +194,6 @@ private struct SidebarHeader: View {
 					Text("Toby")
 						.font(.headline)
 						.foregroundStyle(AppTheme.primaryText)
-					Spacer()
 					if let version = status?.version {
 						Text("v\(version)")
 							.font(.caption)
@@ -206,73 +205,108 @@ private struct SidebarHeader: View {
 			.buttonStyle(.plain)
 			.accessibilityLabel("Toby version \(status?.version ?? "")")
 			.accessibilityHint("Open changelog")
-			ServerCard(status: status, daemonStatus: daemonStatus)
+			Spacer(minLength: 0)
+			ServerStatusButton(status: status, daemonStatus: daemonStatus)
 		}
 		.padding(.horizontal, 8)
 		.padding(.bottom, 14)
 	}
 }
 
-private struct ServerCard: View {
-	let status: AppStatus?
-	let daemonStatus: DaemonStatus?
-	@State private var isExpanded = false
+private enum ServerHealth: String {
+	case connected
+	case starting
+	case offline
 
-	var body: some View {
-		VStack(alignment: .leading, spacing: 0) {
-			Button {
-				withAnimation(.easeInOut(duration: 0.2)) {
-					isExpanded.toggle()
-				}
-			} label: {
-				HStack(spacing: 6) {
-					Circle()
-						.fill(isServerConnected ? Color.green : AppTheme.tertiaryText)
-						.frame(width: 8, height: 8)
-					Text(isServerConnected ? "Server connected" : "Server offline")
-						.font(.callout.weight(.medium))
-						.foregroundStyle(AppTheme.primaryText)
-					Spacer()
-					Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-						.accessibilityLabel(isExpanded ? "Collapse" : "Expand")
-						.font(.caption2)
-						.foregroundStyle(AppTheme.tertiaryText)
-				}
-				.contentShape(Rectangle())
-			}
-			.buttonStyle(.plain)
-			.accessibilityLabel(isServerConnected ? "Server connected" : "Server offline")
-			if isExpanded {
-				VStack(alignment: .leading, spacing: 6) {
-					Text(uptimeText)
-						.font(.caption)
-						.foregroundStyle(AppTheme.tertiaryText)
-						.padding(.top, 8)
-					Divider()
-						.background(AppTheme.separator)
-					SlackStatusRow(status: status, daemonStatus: daemonStatus)
-					ActiveChatRow(daemonStatus: daemonStatus)
-					Divider()
-						.background(AppTheme.separator)
-					CollapsiblePluginsList(plugins: status?.connectedIntegrations ?? [])
-					CollapsibleSkillsList(skills: status?.skills ?? [])
-				}
-			}
+	var color: Color {
+		switch self {
+		case .connected: .green
+		case .starting: .yellow
+		case .offline: .red
 		}
-		.padding(10)
-		.frame(maxWidth: .infinity, alignment: .leading)
-		.background(
-			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
-				.fill(AppTheme.panelBackground)
-		)
-		.overlay(
-			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
-				.stroke(AppTheme.separator, lineWidth: 1)
-		)
 	}
 
-	private var isServerConnected: Bool {
-		status != nil
+	var label: String {
+		switch self {
+		case .connected: "Server connected"
+		case .starting: "Server starting"
+		case .offline: "Server offline"
+		}
+	}
+}
+
+private struct ServerStatusButton: View {
+	let status: AppStatus?
+	let daemonStatus: DaemonStatus?
+	@State private var isPresented = false
+	@State private var isHovered = false
+
+	private var health: ServerHealth {
+		if status != nil { return .connected }
+		if daemonStatus?.process != nil { return .starting }
+		return .offline
+	}
+
+	var body: some View {
+		Button {
+			isPresented.toggle()
+		} label: {
+			Circle()
+				.fill(health.color)
+				.frame(width: 10, height: 10)
+				.overlay(
+					Circle()
+						.stroke(health.color.opacity(isHovered ? 0.35 : 0), lineWidth: 4)
+						.scaleEffect(isHovered ? 1.8 : 1)
+				)
+				.padding(8)
+				.background(
+					Circle()
+						.fill(AppTheme.primaryText.opacity(isHovered ? 0.1 : 0))
+				)
+				.contentShape(Circle())
+				.animation(.easeInOut(duration: 0.15), value: isHovered)
+		}
+		.buttonStyle(.plain)
+		.onHover { isHovered = $0 }
+		.accessibilityLabel(health.label)
+		.accessibilityHint("Show server details")
+		.popover(isPresented: $isPresented, arrowEdge: .top) {
+			ServerStatusDetails(
+				status: status,
+				daemonStatus: daemonStatus,
+				health: health
+			)
+			.frame(width: 260)
+		}
+	}
+}
+
+private struct ServerStatusDetails: View {
+	let status: AppStatus?
+	let daemonStatus: DaemonStatus?
+	let health: ServerHealth
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 6) {
+			HStack(spacing: 6) {
+				Circle()
+					.fill(health.color)
+					.frame(width: 8, height: 8)
+				Text(health.label)
+					.font(.callout.weight(.medium))
+					.foregroundStyle(AppTheme.primaryText)
+				Spacer()
+			}
+			Text(uptimeText)
+				.font(.caption)
+				.foregroundStyle(AppTheme.tertiaryText)
+			Divider()
+				.background(AppTheme.separator)
+			SlackStatusRow(status: status, daemonStatus: daemonStatus)
+			ActiveChatRow(daemonStatus: daemonStatus)
+		}
+		.padding(12)
 	}
 
 	private var uptimeText: String {

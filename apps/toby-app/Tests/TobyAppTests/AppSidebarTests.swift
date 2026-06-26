@@ -177,4 +177,101 @@ struct AppSidebarTests {
         #expect(texts.count == 1)
     }
 
+    @Test("header renders Toby and version inline")
+    func headerRendersTobyAndVersion() throws {
+        let status = AppStatus(
+            version: "1.2.3",
+            persona: "default",
+            model: "gpt",
+            personaImageUrl: nil,
+            connectedIntegrations: nil,
+            skillCount: nil,
+            skills: nil
+        )
+        let sidebar = AppSidebar(
+            currentRoute: .chat,
+            status: status,
+            daemonStatus: nil,
+            onSelectRoute: { _ in },
+            onCreatePersona: {},
+            onEditPersona: { _ in },
+            onPersonaSelected: {},
+            onOpenChangelog: {},
+            sidebarContent: { EmptyView() }
+        )
+        let view = try sidebar.inspect()
+        #expect(throws: Never.self) { try view.find(text: "Toby") }
+        #expect(throws: Never.self) { try view.find(text: "v1.2.3") }
+    }
+
+    @Test("server status button shows offline when status is nil")
+    func serverStatusButtonOfflineWhenNil() throws {
+        let sidebar = makeSidebarWithRoute(currentRoute: .chat) { _ in }
+        let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
+        let serverButton = buttons.first { btn in
+            (try? btn.find(text: "Server offline")) != nil
+        }
+        // The server status button uses an accessibilityLabel, not visible text.
+        let labeled = buttons.filter { btn in
+            (try? btn.accessibilityLabel().string()) == "Server offline"
+        }
+        #expect(!labeled.isEmpty, "Server offline button not found")
+    }
+
+    @Test("server status button shows connected when status present")
+    func serverStatusButtonConnectedWhenPresent() throws {
+        let status = AppStatus(
+            version: "1.0.0",
+            persona: "default",
+            model: "gpt",
+            personaImageUrl: nil,
+            connectedIntegrations: nil,
+            skillCount: nil,
+            skills: nil
+        )
+        let sidebar = AppSidebar(
+            currentRoute: .chat,
+            status: status,
+            daemonStatus: nil,
+            onSelectRoute: { _ in },
+            onCreatePersona: {},
+            onEditPersona: { _ in },
+            onPersonaSelected: {},
+            onOpenChangelog: {},
+            sidebarContent: { EmptyView() }
+        )
+        let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
+        let labeled = buttons.filter { btn in
+            (try? btn.accessibilityLabel().string()) == "Server connected"
+        }
+        #expect(!labeled.isEmpty, "Server connected button not found")
+    }
+
+    @Test("server status button shows starting when daemon running but no status")
+    func serverStatusButtonStartingWhenDaemonOnly() throws {
+        let daemon = DaemonStatus(
+            process: DaemonProcessInfo(
+                pid: 1, uptimeSeconds: 5, startedAt: nil,
+                intervalSeconds: nil, logPath: nil, webPort: nil
+            ),
+            chatInbound: nil
+        )
+        let sidebar = AppSidebar(
+            currentRoute: .chat,
+            status: nil,
+            daemonStatus: daemon,
+            onSelectRoute: { _ in },
+            onCreatePersona: {},
+            onEditPersona: { _ in },
+            onPersonaSelected: {},
+            onOpenChangelog: {},
+            sidebarContent: { EmptyView() }
+        )
+        let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
+        let labeled = buttons.filter { btn in
+            (try? btn.accessibilityLabel().string()) == "Server starting"
+        }
+        #expect(!labeled.isEmpty, "Server starting button not found")
+    }
+
 }
