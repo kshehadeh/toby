@@ -23,7 +23,7 @@ final class MenuBarController: NSObject {
 		if let logoURL = Bundle.tobyResources.url(forResource: "toby-128", withExtension: "png"),
 			let logo = NSImage(contentsOf: logoURL)
 		{
-			let size = NSSize(width: 18, height: 18)
+			let size = NSSize(width: 22, height: 22)
 			logo.size = size
 			baseMenuImage = logo
 			item.button?.image = logo
@@ -195,7 +195,7 @@ final class MenuBarController: NSObject {
 		let image = isRecordingActive
 			? Self.imageWithRecordingIndicator(base)
 			: base
-		image.size = NSSize(width: 18, height: 18)
+		image.size = NSSize(width: 22, height: 22)
 		statusItem?.button?.image = image
 	}
 
