@@ -25,9 +25,12 @@ echo "Building toby (${bun_target})..."
 
 echo "Bundling bun runtime for bun-package plugins (${bun_target})..."
 bun_version="$(bun --version)"
-curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${bun_version}/${bun_target}.zip" -o dist/.bun-runtime.zip
+# BUN_TARGET uses "arm64" but Bun release assets use "aarch64"
+bun_asset="$(echo "${bun_target}" | sed 's/darwin-arm64/darwin-aarch64/')"
+curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${bun_version}/${bun_asset}.zip" -o dist/.bun-runtime.zip
 unzip -o -q dist/.bun-runtime.zip -d dist/.bun-runtime-tmp
-cp "dist/.bun-runtime-tmp/${bun_target}/bun" dist/bun
+bun_bin="$(find dist/.bun-runtime-tmp -name bun -type f | head -1)"
+cp "${bun_bin}" dist/bun
 rm -rf dist/.bun-runtime.zip dist/.bun-runtime-tmp
 chmod +x dist/bun
 
