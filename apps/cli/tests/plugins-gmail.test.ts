@@ -130,6 +130,7 @@ describe("gmail plugin", () => {
 
 	it("registers plugin-backed gmail module with chatModelPrep", () => {
 		const metadata = loadPluginMetadata({
+			kind: "binary",
 			binaryPath: path.join(pluginDir, "toby-plugin-gmail"),
 			binaryName: "toby-plugin-gmail",
 		});

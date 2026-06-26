@@ -140,6 +140,7 @@ describe("jira plugin", () => {
 
 	it("registers plugin-backed jira module with chatModelPrep", () => {
 		const metadata = loadPluginMetadata({
+			kind: "binary",
 			binaryPath: path.join(pluginDir, "toby-plugin-jira"),
 			binaryName: "toby-plugin-jira",
 		});
@@ -154,6 +155,7 @@ describe("jira plugin", () => {
 
 	it("maps credential descriptors to jira.<field> configure keys", () => {
 		const metadata = loadPluginMetadata({
+			kind: "binary",
 			binaryPath: path.join(pluginDir, "toby-plugin-jira"),
 			binaryName: "toby-plugin-jira",
 		});

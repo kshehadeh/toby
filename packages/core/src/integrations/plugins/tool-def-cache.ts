@@ -1,8 +1,11 @@
 import fs from "node:fs";
-import type { PluginToolsListResponse } from "./protocol";
+import type {
+	PluginInvocationTarget,
+	PluginToolsListResponse,
+} from "./protocol";
 
 type CachedToolDefinitions = {
-	readonly binaryPath: string;
+	readonly cacheKey: string;
 	readonly mtimeMs: number;
 	readonly version: string;
 	readonly protocolVersion: string;
@@ -11,33 +14,50 @@ type CachedToolDefinitions = {
 
 const cache = new Map<string, CachedToolDefinitions>();
 
-function statBinary(binaryPath: string): { mtimeMs: number } | null {
+/**
+ * Build a stable cache key from an invocation target.
+ * For binary plugins: the executable path.
+ * For bun-package plugins: the entry path within the plugin directory.
+ */
+function targetCacheKey(target: PluginInvocationTarget): string {
+	if (target.kind === "binary") {
+		return target.executablePath;
+	}
+	return `${target.cwd}:${target.entryPath}`;
+}
+
+/**
+ * Stat the relevant file for cache invalidation.
+ * For binary plugins: the executable itself.
+ * For bun-package plugins: the entry file (changes when plugin code changes).
+ */
+function statTarget(
+	target: PluginInvocationTarget,
+): { mtimeMs: number } | null {
+	const statPath =
+		target.kind === "binary" ? target.executablePath : target.entryPath;
 	try {
-		const stat = fs.statSync(binaryPath);
+		const stat = fs.statSync(statPath);
 		return { mtimeMs: stat.mtimeMs };
 	} catch {
 		return null;
 	}
 }
 
-function cacheKey(binaryPath: string): string {
-	return binaryPath;
-}
-
 /**
- * Returns cached plugin tool definitions when the binary path, mtime, version,
+ * Returns cached plugin tool definitions when the target, mtime, version,
  * and protocol version all match. Avoids spawning `tools list` on every turn
  * for unchanged plugins.
  */
 export function getCachedPluginToolDefinitions(params: {
-	readonly binaryPath: string;
+	readonly target: PluginInvocationTarget;
 	readonly version: string;
 	readonly protocolVersion: string;
 }): NonNullable<PluginToolsListResponse["tools"]> | null {
-	const key = cacheKey(params.binaryPath);
+	const key = targetCacheKey(params.target);
 	const entry = cache.get(key);
 	if (!entry) return null;
-	const stat = statBinary(params.binaryPath);
+	const stat = statTarget(params.target);
 	if (!stat || stat.mtimeMs !== entry.mtimeMs) {
 		cache.delete(key);
 		return null;
@@ -53,15 +73,15 @@ export function getCachedPluginToolDefinitions(params: {
 }
 
 export function setCachedPluginToolDefinitions(params: {
-	readonly binaryPath: string;
+	readonly target: PluginInvocationTarget;
 	readonly version: string;
 	readonly protocolVersion: string;
 	readonly tools: NonNullable<PluginToolsListResponse["tools"]>;
 }): void {
-	const stat = statBinary(params.binaryPath);
+	const stat = statTarget(params.target);
 	if (!stat) return;
-	cache.set(cacheKey(params.binaryPath), {
-		binaryPath: params.binaryPath,
+	cache.set(targetCacheKey(params.target), {
+		cacheKey: targetCacheKey(params.target),
 		mtimeMs: stat.mtimeMs,
 		version: params.version,
 		protocolVersion: params.protocolVersion,

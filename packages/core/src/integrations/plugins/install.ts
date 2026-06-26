@@ -1,8 +1,10 @@
+import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { ensureTobyDir, getPluginsDir } from "../../config/index";
 import { isBuiltinIntegration } from "../index";
 import { pluginStatus } from "./client";
+import { parseManifest, validateManifest } from "./manifest";
 import {
 	type DiscoveredPlugin,
 	PLUGIN_BINARY_PREFIX,
@@ -15,6 +17,7 @@ import {
 	purgePluginArtifacts,
 } from "./purge";
 import { resetPluginModuleCache } from "./registry";
+import { resolveBunRuntime, resolvePluginTarget } from "./runtime";
 import { validatePluginBinary } from "./validate";
 
 export type PluginInstallError = {
@@ -57,7 +60,7 @@ export function resolvePluginSourcePath(input: string): DiscoveredPlugin {
 
 	const stat = fs.statSync(resolved);
 	if (stat.isFile()) {
-		return toDiscoveredPlugin(resolved);
+		return toDiscoveredBinaryPlugin(resolved);
 	}
 
 	if (!stat.isDirectory()) {
@@ -67,6 +70,17 @@ export function resolvePluginSourcePath(input: string): DiscoveredPlugin {
 		);
 	}
 
+	// Check if the directory itself is a bun-package plugin (named toby-plugin-<name> with manifest.json)
+	const dirName = path.basename(resolved);
+	if (
+		dirName.startsWith(PLUGIN_BINARY_PREFIX) &&
+		parsePluginNameFromBinary(dirName) &&
+		fs.existsSync(path.join(resolved, "manifest.json"))
+	) {
+		return toDiscoveredBunPackagePlugin(resolved);
+	}
+
+	// Existing behavior: look for plugin binaries inside the directory
 	const candidates = fs
 		.readdirSync(resolved, { withFileTypes: true })
 		.filter(
@@ -92,7 +106,7 @@ export function resolvePluginSourcePath(input: string): DiscoveredPlugin {
 		);
 	}
 
-	return toDiscoveredPlugin(candidates[0] as string);
+	return toDiscoveredBinaryPlugin(candidates[0] as string);
 }
 
 export function validatePluginForInstall(
@@ -101,11 +115,22 @@ export function validatePluginForInstall(
 	const parsedName = parsePluginNameFromBinary(discovered.binaryName);
 	if (!parsedName) {
 		return {
-			error: `Binary must be named ${PLUGIN_BINARY_PREFIX}<name>; got "${discovered.binaryName}"`,
+			error: `Plugin must be named ${PLUGIN_BINARY_PREFIX}<name>; got "${discovered.binaryName}"`,
 			code: "invalid_name",
 		};
 	}
 
+	if (discovered.kind === "bun-package") {
+		return validateBunPackageForInstall(discovered, parsedName);
+	}
+
+	return validateBinaryForInstall(discovered, parsedName);
+}
+
+function validateBinaryForInstall(
+	discovered: Extract<DiscoveredPlugin, { kind: "binary" }>,
+	parsedName: string,
+): PluginInstallResult | PluginInstallError {
 	if (!isExecutable(discovered.binaryPath)) {
 		return {
 			error: `Plugin binary is not executable: ${discovered.binaryPath}`,
@@ -136,6 +161,42 @@ export function validatePluginForInstall(
 	};
 }
 
+function validateBunPackageForInstall(
+	discovered: Extract<DiscoveredPlugin, { kind: "bun-package" }>,
+	parsedName: string,
+): PluginInstallResult | PluginInstallError {
+	const manifestResult = parseManifest(discovered.directoryPath);
+	if (!manifestResult.ok) {
+		return { error: manifestResult.error, code: manifestResult.code };
+	}
+
+	const manifest = manifestResult.manifest;
+	const validation = validateManifest(
+		manifest,
+		discovered.directoryPath,
+		discovered.binaryName,
+	);
+	if (!validation.ok) {
+		return { error: validation.error, code: validation.code };
+	}
+
+	if (isBuiltinIntegration(manifest.name)) {
+		return {
+			error: `Plugin name "${manifest.name}" conflicts with a built-in integration`,
+			code: "builtin_collision",
+		};
+	}
+
+	return {
+		name: manifest.name,
+		displayName: manifest.displayName,
+		version: manifest.version,
+		installPath: resolvePluginInstallTarget(manifest.name),
+		linked: false,
+		setupAvailable: false,
+	};
+}
+
 export function installPlugin(
 	sourceInput: string,
 	options: { force?: boolean; link?: boolean } = {},
@@ -158,23 +219,40 @@ export function installPlugin(
 	fs.mkdirSync(getPluginsDir(), { recursive: true });
 
 	if (fs.existsSync(installPath)) {
-		fs.rmSync(installPath, { force: true });
+		fs.rmSync(installPath, { force: true, recursive: true });
 	}
 
-	const sourcePath = path.resolve(discovered.binaryPath);
-	if (options.link) {
-		fs.symlinkSync(sourcePath, installPath);
-		copyAdjacentPluginResourceBundles(sourcePath, getPluginsDir(), {
-			link: true,
-		});
+	if (discovered.kind === "bun-package") {
+		installBunPackagePlugin(discovered, installPath, options);
 	} else {
-		copyBinaryAtomic(sourcePath, installPath);
-		copyAdjacentPluginResourceBundles(sourcePath, getPluginsDir());
+		installBinaryPlugin(discovered, installPath, options);
 	}
 
 	resetPluginModuleCache();
 
-	const statusResult = pluginStatus(installPath);
+	// Verify installation by running status
+	const target = resolvePluginTarget(
+		discovered.kind === "bun-package"
+			? {
+					kind: "bun-package",
+					binaryName: discovered.binaryName,
+					directoryPath: installPath,
+					manifestPath: path.join(installPath, "manifest.json"),
+					entryPath: path.join(
+						installPath,
+						discovered.entryPath
+							.replace(discovered.directoryPath, "")
+							.replace(/^\//, ""),
+					),
+				}
+			: {
+					kind: "binary",
+					binaryName: discovered.binaryName,
+					binaryPath: installPath,
+				},
+	);
+
+	const statusResult = pluginStatus(target);
 	const setupAvailable =
 		statusResult.ok &&
 		statusResult.data.ok &&
@@ -195,6 +273,60 @@ export function installPlugin(
 	};
 }
 
+function installBinaryPlugin(
+	discovered: Extract<DiscoveredPlugin, { kind: "binary" }>,
+	installPath: string,
+	options: { force?: boolean; link?: boolean },
+): void {
+	const sourcePath = path.resolve(discovered.binaryPath);
+	if (options.link) {
+		fs.symlinkSync(sourcePath, installPath);
+		copyAdjacentPluginResourceBundles(sourcePath, getPluginsDir(), {
+			link: true,
+		});
+	} else {
+		copyBinaryAtomic(sourcePath, installPath);
+		copyAdjacentPluginResourceBundles(sourcePath, getPluginsDir());
+	}
+}
+
+function installBunPackagePlugin(
+	discovered: Extract<DiscoveredPlugin, { kind: "bun-package" }>,
+	installPath: string,
+	options: { force?: boolean; link?: boolean },
+): void {
+	const sourcePath = path.resolve(discovered.directoryPath);
+
+	if (options.link) {
+		fs.symlinkSync(sourcePath, installPath);
+	} else {
+		// Copy the directory atomically
+		const tempDestination = path.join(
+			path.dirname(installPath),
+			`.toby-plugin-dir-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+		);
+		fs.cpSync(sourcePath, tempDestination, { recursive: true });
+		fs.renameSync(tempDestination, installPath);
+	}
+
+	// Install dependencies if node_modules is not present
+	const nodeModulesPath = path.join(installPath, "node_modules");
+	if (!fs.existsSync(nodeModulesPath)) {
+		const runtime = resolveBunRuntime();
+		if (runtime.ok) {
+			try {
+				execSync(`${JSON.stringify(runtime.bunPath)} install`, {
+					cwd: installPath,
+					stdio: "pipe",
+					timeout: 60_000,
+				});
+			} catch {
+				// Best-effort: plugin may work without dependencies or with vendored ones
+			}
+		}
+	}
+}
+
 export function uninstallPlugin(name: string): PluginUninstallResult {
 	const normalized = name.trim();
 	if (!normalized) {
@@ -209,13 +341,46 @@ export function uninstallPlugin(name: string): PluginUninstallResult {
 		);
 	}
 
-	const toolNames = listPluginToolNames(installPath);
-	notifyPluginDisconnect(installPath, normalized);
-	const purged = purgePluginArtifacts(normalized, { toolNames });
+	// Resolve target for disconnect/tool-list calls
+	const stat = fs.statSync(installPath);
+	let target:
+		| { kind: "binary"; executablePath: string }
+		| { kind: "bun-package"; bunPath: string; cwd: string; entryPath: string }
+		| null = null;
 
-	fs.rmSync(installPath, { force: true });
+	if (stat.isFile()) {
+		target = { kind: "binary", executablePath: installPath };
+	} else if (stat.isDirectory()) {
+		const manifestResult = parseManifest(installPath);
+		if (manifestResult.ok) {
+			const runtime = resolveBunRuntime();
+			if (runtime.ok) {
+				target = {
+					kind: "bun-package",
+					bunPath: runtime.bunPath,
+					cwd: installPath,
+					entryPath: path.resolve(
+						installPath,
+						manifestResult.manifest.runtime.entry,
+					),
+				};
+			}
+		}
+	}
+
+	if (target) {
+		const toolNames = listPluginToolNames(target);
+		notifyPluginDisconnect(target, normalized);
+		const purged = purgePluginArtifacts(normalized, { toolNames });
+		fs.rmSync(installPath, { force: true, recursive: stat.isDirectory() });
+		resetPluginModuleCache();
+		return { name: normalized, removedPath: installPath, purged };
+	}
+
+	// Fallback: just remove and purge without plugin calls
+	const purged = purgePluginArtifacts(normalized);
+	fs.rmSync(installPath, { force: true, recursive: stat.isDirectory() });
 	resetPluginModuleCache();
-
 	return { name: normalized, removedPath: installPath, purged };
 }
 
@@ -229,7 +394,7 @@ export class PluginInstallException extends Error {
 	}
 }
 
-function toDiscoveredPlugin(binaryPath: string): DiscoveredPlugin {
+function toDiscoveredBinaryPlugin(binaryPath: string): DiscoveredPlugin {
 	const binaryName = path.basename(binaryPath);
 	const parsedName = parsePluginNameFromBinary(binaryName);
 	if (!parsedName) {
@@ -238,7 +403,37 @@ function toDiscoveredPlugin(binaryPath: string): DiscoveredPlugin {
 			"invalid_name",
 		);
 	}
-	return { binaryPath, binaryName };
+	return { kind: "binary", binaryName, binaryPath };
+}
+
+function toDiscoveredBunPackagePlugin(directoryPath: string): DiscoveredPlugin {
+	const binaryName = path.basename(directoryPath);
+	const parsedName = parsePluginNameFromBinary(binaryName);
+	if (!parsedName) {
+		throw new PluginInstallException(
+			`Plugin directory must be named ${PLUGIN_BINARY_PREFIX}<name>; got "${binaryName}"`,
+			"invalid_name",
+		);
+	}
+
+	const manifestPath = path.join(directoryPath, "manifest.json");
+	const manifestResult = parseManifest(directoryPath);
+	if (!manifestResult.ok) {
+		throw new PluginInstallException(manifestResult.error, manifestResult.code);
+	}
+
+	const entryPath = path.resolve(
+		directoryPath,
+		manifestResult.manifest.runtime.entry,
+	);
+
+	return {
+		kind: "bun-package",
+		binaryName,
+		directoryPath,
+		manifestPath,
+		entryPath,
+	};
 }
 
 function isExecutable(filePath: string): boolean {

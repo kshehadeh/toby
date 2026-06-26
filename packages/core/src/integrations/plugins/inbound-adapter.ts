@@ -15,6 +15,7 @@ import type {
 	PluginInboundChatEvent,
 	PluginInboundFromCoreMessage,
 	PluginInboundToCoreMessage,
+	PluginInvocationTarget,
 } from "./protocol";
 
 const INBOUND_START_TIMEOUT_MS = 60_000;
@@ -182,7 +183,7 @@ function createPluginStatusReporter(
 }
 
 export function createPluginChatInboundProvider(params: {
-	readonly binaryPath: string;
+	readonly target: PluginInvocationTarget;
 	readonly integrationName: string;
 	readonly buildEnvelope: () => {
 		readonly config: Record<string, unknown>;
@@ -196,8 +197,22 @@ export function createPluginChatInboundProvider(params: {
 
 	return {
 		async start(ctx) {
-			child = spawn(params.binaryPath, ["inbound", "run"], {
+			const spawnCommand =
+				params.target.kind === "binary"
+					? {
+							command: params.target.executablePath,
+							args: ["inbound", "run"],
+							cwd: undefined as string | undefined,
+						}
+					: {
+							command: params.target.bunPath,
+							args: ["run", params.target.entryPath, "inbound", "run"],
+							cwd: params.target.cwd,
+						};
+
+			child = spawn(spawnCommand.command, spawnCommand.args, {
 				stdio: ["pipe", "pipe", "pipe"],
+				...(spawnCommand.cwd ? { cwd: spawnCommand.cwd } : {}),
 			});
 
 			child.stderr.on("data", (chunk: Buffer) => {

@@ -142,6 +142,7 @@ describe("plugin protocol", () => {
 		expect(shape.data.fields.some((f) => f.key === "apiKey")).toBe(true);
 
 		const metadata = loadPluginMetadata({
+			kind: "binary",
 			binaryPath,
 			binaryName: "toby-plugin-sample",
 		});
@@ -168,6 +169,7 @@ describe("plugin protocol", () => {
 
 	it("inspectPluginBinary surfaces load failures", () => {
 		const inspected = inspectPluginBinary({
+			kind: "binary",
 			binaryPath: path.join(pluginDir, "missing-plugin"),
 			binaryName: "toby-plugin-missing",
 		});
@@ -200,6 +202,7 @@ describe("plugin protocol", () => {
 	it("buildIntegrationSetupGuide returns a guide with provider steps", () => {
 		const binaryPath = path.join(pluginDir, "toby-plugin-sample");
 		const metadata = loadPluginMetadata({
+			kind: "binary",
 			binaryPath,
 			binaryName: "toby-plugin-sample",
 		});

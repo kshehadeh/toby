@@ -7,7 +7,7 @@ import {
 	writeCredentials,
 } from "../../config/index";
 import { pluginDisconnect, pluginToolsList } from "./client";
-import type { PluginConfigEnvelope } from "./protocol";
+import type { PluginConfigEnvelope, PluginInvocationTarget } from "./protocol";
 
 export type PluginPurgeResult = {
 	readonly credentials: boolean;
@@ -116,7 +116,10 @@ function purgePluginConfigReferences(
 	};
 }
 
-export function notifyPluginDisconnect(binaryPath: string, name: string): void {
+export function notifyPluginDisconnect(
+	target: PluginInvocationTarget,
+	name: string,
+): void {
 	const creds = readCredentials();
 	const configPath = getConfigPath();
 	let state: Record<string, unknown> = {};
@@ -138,14 +141,14 @@ export function notifyPluginDisconnect(binaryPath: string, name: string): void {
 		config: { ...(creds.integrations?.[name] ?? {}) },
 		state,
 	};
-	const result = pluginDisconnect(binaryPath, envelope);
+	const result = pluginDisconnect(target, envelope);
 	if (!result.ok || !result.data.ok) {
 		return;
 	}
 }
 
-export function listPluginToolNames(binaryPath: string): string[] {
-	const tools = pluginToolsList(binaryPath);
+export function listPluginToolNames(target: PluginInvocationTarget): string[] {
+	const tools = pluginToolsList(target);
 	if (!tools.ok || !tools.data.ok || !tools.data.tools) {
 		return [];
 	}

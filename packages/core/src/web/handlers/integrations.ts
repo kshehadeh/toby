@@ -1,8 +1,9 @@
 import { getIntegrationModule } from "../../integrations/index";
+import { targetDisplayPath } from "../../integrations/plugins/protocol";
 import { getPluginMetadata } from "../../integrations/plugins/registry";
 import {
 	buildIntegrationSetupGuide,
-	resolveInstalledPluginBinary,
+	resolveInstalledPluginTarget,
 	runPluginSetup,
 } from "../../integrations/plugins/setup";
 import { errorResponse, jsonResponse } from "../http-utils";
@@ -13,11 +14,13 @@ export async function handleIntegrationStatus(name: string): Promise<Response> {
 		return errorResponse("Integration not found", 404);
 	}
 
-	const [connected, pluginPath, health] = await Promise.all([
+	const [connected, pluginTarget, health] = await Promise.all([
 		module.isConnected(),
-		Promise.resolve(resolveInstalledPluginBinary(name)),
+		Promise.resolve(resolveInstalledPluginTarget(name)),
 		module.testConnection({ validateTools: true }),
 	]);
+
+	const pluginPath = pluginTarget ? targetDisplayPath(pluginTarget) : null;
 
 	const metadata = getPluginMetadata(name);
 	const supportsSetup = metadata?.setupAvailable ?? false;

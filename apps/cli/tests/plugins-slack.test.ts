@@ -97,6 +97,7 @@ describe("slack plugin", () => {
 	it("registers as IntegrationModule with chatInbound when inbound capability present", () => {
 		const binaryPath = path.join(pluginDir, "toby-plugin-slack");
 		const metadata = loadPluginMetadata({
+			kind: "binary",
 			binaryPath,
 			binaryName: "toby-plugin-slack",
 		});

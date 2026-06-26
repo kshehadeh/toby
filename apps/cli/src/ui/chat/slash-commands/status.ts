@@ -9,6 +9,7 @@ import {
 	getWebConfig,
 	resolveTobyDir,
 } from "@toby/core/config/index";
+import { pluginDisplayPath } from "@toby/core/integrations/plugins/protocol";
 import {
 	collectPluginListEntries,
 	resolvePluginSearchDirectories,
@@ -21,7 +22,7 @@ import type { SlashCommand } from "./types";
 
 function formatPluginEntryLine(entry: {
 	readonly name: string;
-	readonly binaryPath: string;
+	readonly pluginPath: string;
 	readonly state: string;
 	readonly connected?: boolean;
 }): string {
@@ -31,7 +32,7 @@ function formatPluginEntryLine(entry: {
 				? "connected"
 				: "disconnected"
 			: entry.state;
-	return `  **${entry.name}** · ${status}\n    ${entry.binaryPath}`;
+	return `  **${entry.name}** · ${status}\n    ${entry.pluginPath}`;
 }
 
 export function buildStatusReportLines(): string[] {
@@ -91,7 +92,7 @@ export function buildStatusReportLines(): string[] {
 			lines.push(
 				formatPluginEntryLine({
 					name: entry.name,
-					binaryPath: entry.discovered.binaryPath,
+					pluginPath: pluginDisplayPath(entry.discovered),
 					state: entry.state,
 					connected: entry.connected,
 				}),

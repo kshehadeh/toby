@@ -1,12 +1,12 @@
 import fs from "node:fs";
 import { getDefaultPersonaImagePath } from "../../config/index";
+import { resolveDefaultPersona, resolvePersona } from "../../personas/index";
 import { loadPlanBySession } from "../../planning/plan-store";
 import {
 	listChatSessions,
 	loadChatSession,
 	loadExternalSessionBySessionId,
 } from "../../session-store";
-import { resolveDefaultPersona, resolvePersona } from "../../personas/index";
 import { errorResponse, jsonResponse, parseIntParam } from "../http-utils";
 
 function planSummaryForSession(sessionId: string) {

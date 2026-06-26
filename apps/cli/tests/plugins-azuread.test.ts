@@ -125,6 +125,7 @@ describe("azuread plugin", () => {
 
 	it("registers plugin-backed azuread module with chatModelPrep", () => {
 		const metadata = loadPluginMetadata({
+			kind: "binary",
 			binaryPath: path.join(pluginDir, "toby-plugin-azuread"),
 			binaryName: "toby-plugin-azuread",
 		});

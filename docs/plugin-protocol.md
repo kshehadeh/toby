@@ -1,9 +1,9 @@
 # Toby plugin protocol (v1)
 
-Installable plugins are standalone executables that implement a fixed subcommand
-contract. Toby discovers them, invokes them as subprocesses, and adapts their
-responses into the same `IntegrationModule` surface used by first-party
-integrations.
+Installable plugins are standalone executables or TypeScript directory packages
+that implement a fixed subcommand contract. Toby discovers them, invokes them as
+subprocesses, and adapts their responses into the same `IntegrationModule` surface
+used by first-party integrations.
 
 Toby remains the **source of truth** for configuration and connection state.
 Plugins receive the current config on each invocation and return JSON on stdout.
@@ -45,6 +45,106 @@ data directory manually.
 The binary must be **executable** (`chmod +x`). `toby plugins doctor` and
 `toby plugins install` validate naming, `status`, protocol version, and
 `tools list`.
+
+### TypeScript package plugins (bun-package)
+
+In addition to standalone executables, Toby supports **directory-based TypeScript
+plugins** that are executed via a Bun runtime. This lets plugin authors ship
+pure TypeScript packages without compiling native binaries.
+
+#### Directory layout
+
+A directory plugin is a folder named `toby-plugin-<name>/` containing a
+`manifest.json` and a TypeScript entrypoint:
+
+```text
+~/.toby/plugins/
+  toby-plugin-example/
+    manifest.json       # required — plugin metadata
+    package.json        # recommended — dependency declarations
+    src/index.ts        # entrypoint declared in manifest
+    node_modules/       # optional — vendored dependencies
+```
+
+The directory name follows the same `/^[a-z0-9_-]+$/` rule as binary plugins.
+
+#### Manifest format (`manifest.json`)
+
+```json
+{
+  "name": "example",
+  "displayName": "Example Plugin",
+  "description": "Example TypeScript package plugin",
+  "version": "1.0.0",
+  "protocolVersion": "1",
+  "runtime": {
+    "type": "bun",
+    "entry": "src/index.ts"
+  },
+  "capabilities": ["chat"],
+  "providerCategories": ["search"]
+}
+```
+
+Required fields: `name`, `displayName`, `description`, `version`,
+`protocolVersion`, `runtime.type` (must be `"bun"`), `runtime.entry`.
+
+Optional: `capabilities` (used for fast discovery filtering; `status` is the
+runtime source of truth), `providerCategories`.
+
+The `name` field must match the directory name suffix (e.g. `example` for
+`toby-plugin-example/`).
+
+#### Bun runtime resolution
+
+Toby resolves the Bun runtime in the following order:
+
+1. `TOBY_BUN_PATH` environment variable (explicit override)
+2. `~/.toby/helpers/bun` (bundled in release installs)
+3. `bun` on `PATH` (development mode)
+
+Release builds should include a Bun binary at `~/.toby/helpers/bun` so that
+directory plugins work without a user-installed global `bun`.
+
+#### Invocation
+
+Directory plugins are invoked via `bun run <entry> <args>` with `cwd` set to
+the plugin directory:
+
+```bash
+<bun-path> run ./src/index.ts status
+<bun-path> run ./src/index.ts tools list
+<bun-path> run ./src/index.ts tools execute
+```
+
+The JSON protocol (stdin/stdout/stderr, exit codes, subcommand matrix) is
+identical to binary plugins.
+
+#### Install behavior
+
+`toby plugins install <path>` accepts:
+
+- A directory named `toby-plugin-<name>/` with a `manifest.json` (bun-package)
+- An executable file (binary plugin, existing behavior)
+- A directory containing executable plugin binaries (existing behavior)
+
+For directory installs:
+
+- **Default**: copies the entire directory atomically to `~/.toby/plugins/`.
+- **`--link`**: symlinks the source directory into `~/.toby/plugins/`.
+- **`--force`**: overwrites an existing install with the same name.
+- If `node_modules/` is not present, Toby runs `bun install` in the installed
+  directory (best-effort, requires a Bun runtime).
+
+`uninstall` removes the directory and purges plugin artifacts (credentials,
+config, cached tool results) just like binary plugins.
+
+#### Discovery precedence
+
+Directory plugins are discovered alongside binary plugins from the same search
+locations. If both `toby-plugin-foo` (file) and `toby-plugin-foo/` (directory)
+exist in the same search directory, the first one found wins (files and
+directories are scanned in a single pass per directory).
 
 ### Invocation shape
 

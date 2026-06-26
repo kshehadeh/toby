@@ -11,6 +11,7 @@ import { discoverPluginBinaries, findPluginBinary } from "./discovery";
 import { readDisabledPluginNames } from "./list-status";
 import { migrateLegacyPluginCredentials } from "./migrate";
 import type { DiscoveredPlugin } from "./protocol";
+import { resolvePluginTarget } from "./runtime";
 import { setCachedPluginToolDefinitions } from "./tool-def-cache";
 
 let cachedPluginModules: IntegrationModule[] | null = null;
@@ -111,10 +112,10 @@ export function warmupPluginToolDefinitions(): void {
 		const loaded = loadPluginMetadata(discovered);
 		if ("error" in loaded) continue;
 		rememberPluginMetadata(loaded);
-		const result = pluginToolsList(discovered.binaryPath);
+		const result = pluginToolsList(loaded.target);
 		if (result.ok && result.data.ok && result.data.tools) {
 			setCachedPluginToolDefinitions({
-				binaryPath: discovered.binaryPath,
+				target: loaded.target,
 				version: loaded.version,
 				protocolVersion: loaded.protocolVersion,
 				tools: result.data.tools,

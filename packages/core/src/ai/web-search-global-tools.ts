@@ -8,6 +8,7 @@ import {
 import { mergePluginConfigPatch } from "../integrations/plugins/adapter";
 import { pluginToolsExecute } from "../integrations/plugins/client";
 import { findDiscoveredPlugin } from "../integrations/plugins/registry";
+import { resolvePluginTarget } from "../integrations/plugins/runtime";
 
 const PLUGIN_NAME = "websearch";
 
@@ -78,7 +79,7 @@ export function createWebSearchGlobalTools(
 			}),
 			execute: async ({ query, count, freshness }) => {
 				const envelope = buildPluginEnvelope();
-				const execResult = pluginToolsExecute(discovered.binaryPath, {
+				const execResult = pluginToolsExecute(resolvePluginTarget(discovered), {
 					tool: "webSearch",
 					input: {
 						query,

@@ -137,6 +137,7 @@ describe("macos plugin", () => {
 
 	it("registers plugin-backed macos module with chatModelPrep", () => {
 		const metadata = loadPluginMetadata({
+			kind: "binary",
 			binaryPath: path.join(pluginDir, "toby-plugin-macos"),
 			binaryName: "toby-plugin-macos",
 		});

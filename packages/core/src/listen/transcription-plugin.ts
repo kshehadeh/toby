@@ -20,6 +20,7 @@ import {
 	findDiscoveredPlugin,
 	inspectPluginBinary,
 } from "../integrations/plugins/registry";
+import { resolvePluginTarget } from "../integrations/plugins/runtime";
 import type { ListenRecordingFiles } from "./types";
 import {
 	DEFAULT_TRANSCRIPTION_TIMEOUT_MS,
@@ -305,7 +306,7 @@ export async function transcribeWithPlugin(options: {
 		options.onStatus?.("Transcribing recording…");
 		const envelope = buildPluginEnvelope(pluginName);
 		const execResult = await pluginToolsExecuteAsync(
-			discovered.binaryPath,
+			resolvePluginTarget(discovered),
 			{
 				tool: TRANSCRIPTION_TOOL_NAME,
 				input: { audioFilePath: preparedInput.inputPath },
@@ -391,7 +392,7 @@ export function ensureWhisperPluginSetup(
 		);
 	}
 	const setupResult = pluginSetup(
-		discovered.binaryPath,
+		resolvePluginTarget(discovered),
 		{
 			config: {
 				modelInstallTarget: resolveDefaultWhisperModelPath(),

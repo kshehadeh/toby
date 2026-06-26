@@ -4,6 +4,7 @@ import type {
 	PluginConfigEnvelope,
 	PluginConfigGetResponse,
 	PluginConfigShapeResponse,
+	PluginInvocationTarget,
 	PluginSetupGuideResponse,
 	PluginSetupResponse,
 	PluginStatusResponse,
@@ -16,6 +17,19 @@ export type PluginClientOptions = {
 	readonly timeoutMs?: number;
 	readonly maxBufferBytes?: number;
 };
+
+/**
+ * Accepts either a proper `PluginInvocationTarget` or a plain string path
+ * (treated as a binary executable path, for backward compatibility).
+ */
+export type PluginTargetParam = PluginInvocationTarget | string;
+
+function normalizeTarget(target: PluginTargetParam): PluginInvocationTarget {
+	if (typeof target === "string") {
+		return { kind: "binary", executablePath: target };
+	}
+	return target;
+}
 
 export type PluginInvokeResult<T> =
 	| { readonly ok: true; readonly data: T; readonly stderr: string }
@@ -39,6 +53,24 @@ function serializeEnvelope(envelope: PluginConfigEnvelope = {}): string {
 		payload.validateTools = true;
 	}
 	return JSON.stringify(payload);
+}
+
+/**
+ * Convert a `PluginInvocationTarget` into the command/args/cwd needed for
+ * `spawnSync` or `spawn`.
+ */
+function resolveSpawnCommand(
+	target: PluginInvocationTarget,
+	pluginArgs: string[],
+): { command: string; args: string[]; cwd?: string } {
+	if (target.kind === "binary") {
+		return { command: target.executablePath, args: pluginArgs };
+	}
+	return {
+		command: target.bunPath,
+		args: ["run", target.entryPath, ...pluginArgs],
+		cwd: target.cwd,
+	};
 }
 
 function interpretPluginOutput<T>(
@@ -87,7 +119,7 @@ function interpretPluginOutput<T>(
 }
 
 function invokePlugin<T>(
-	binaryPath: string,
+	target: PluginTargetParam,
 	args: string[],
 	input?: string,
 	options: PluginClientOptions = {},
@@ -95,11 +127,18 @@ function invokePlugin<T>(
 	const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 	const maxBuffer = options.maxBufferBytes ?? DEFAULT_MAX_BUFFER;
 
-	const result = spawnSync(binaryPath, args, {
+	const {
+		command,
+		args: spawnArgs,
+		cwd,
+	} = resolveSpawnCommand(normalizeTarget(target), args);
+
+	const result = spawnSync(command, spawnArgs, {
 		encoding: "utf8",
 		timeout: timeoutMs,
 		maxBuffer,
 		input,
+		...(cwd ? { cwd } : {}),
 	});
 
 	const stderr = typeof result.stderr === "string" ? result.stderr : "";
@@ -119,7 +158,7 @@ function invokePlugin<T>(
 }
 
 function invokePluginAsync<T>(
-	binaryPath: string,
+	target: PluginTargetParam,
 	args: string[],
 	input?: string,
 	options: PluginClientOptions = {},
@@ -127,8 +166,17 @@ function invokePluginAsync<T>(
 	const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 	const maxBuffer = options.maxBufferBytes ?? DEFAULT_MAX_BUFFER;
 
+	const {
+		command,
+		args: spawnArgs,
+		cwd,
+	} = resolveSpawnCommand(normalizeTarget(target), args);
+
 	return new Promise((resolve) => {
-		const child = spawn(binaryPath, args, { stdio: ["pipe", "pipe", "pipe"] });
+		const child = spawn(command, spawnArgs, {
+			stdio: ["pipe", "pipe", "pipe"],
+			...(cwd ? { cwd } : {}),
+		});
 		let stdout = "";
 		let stderr = "";
 		let settled = false;
@@ -194,12 +242,12 @@ function invokePluginAsync<T>(
 }
 
 export function pluginStatus(
-	binaryPath: string,
+	target: PluginTargetParam,
 	envelope: PluginConfigEnvelope = {},
 	options?: PluginClientOptions,
 ): PluginInvokeResult<PluginStatusResponse> {
 	return invokePlugin<PluginStatusResponse>(
-		binaryPath,
+		target,
 		["status"],
 		serializeEnvelope(envelope),
 		options,
@@ -207,12 +255,12 @@ export function pluginStatus(
 }
 
 export function pluginStatusAsync(
-	binaryPath: string,
+	target: PluginTargetParam,
 	envelope: PluginConfigEnvelope = {},
 	options?: PluginClientOptions,
 ): Promise<PluginInvokeResult<PluginStatusResponse>> {
 	return invokePluginAsync<PluginStatusResponse>(
-		binaryPath,
+		target,
 		["status"],
 		serializeEnvelope(envelope),
 		options,
@@ -220,12 +268,12 @@ export function pluginStatusAsync(
 }
 
 export function pluginConnect(
-	binaryPath: string,
+	target: PluginTargetParam,
 	envelope: PluginConfigEnvelope,
 	options?: PluginClientOptions,
 ): PluginInvokeResult<PluginActionResponse> {
 	return invokePlugin<PluginActionResponse>(
-		binaryPath,
+		target,
 		["connect"],
 		serializeEnvelope(envelope),
 		options,
@@ -233,12 +281,12 @@ export function pluginConnect(
 }
 
 export function pluginDisconnect(
-	binaryPath: string,
+	target: PluginTargetParam,
 	envelope: PluginConfigEnvelope = {},
 	options?: PluginClientOptions,
 ): PluginInvokeResult<PluginActionResponse> {
 	return invokePlugin<PluginActionResponse>(
-		binaryPath,
+		target,
 		["disconnect"],
 		serializeEnvelope(envelope),
 		options,
@@ -246,11 +294,11 @@ export function pluginDisconnect(
 }
 
 export function pluginConfigShape(
-	binaryPath: string,
+	target: PluginTargetParam,
 	options?: PluginClientOptions,
 ): PluginInvokeResult<PluginConfigShapeResponse> {
 	return invokePlugin<PluginConfigShapeResponse>(
-		binaryPath,
+		target,
 		["config", "shape"],
 		undefined,
 		options,
@@ -258,12 +306,12 @@ export function pluginConfigShape(
 }
 
 export function pluginConfigGet(
-	binaryPath: string,
+	target: PluginTargetParam,
 	envelope: PluginConfigEnvelope,
 	options?: PluginClientOptions,
 ): PluginInvokeResult<PluginConfigGetResponse> {
 	return invokePlugin<PluginConfigGetResponse>(
-		binaryPath,
+		target,
 		["config", "get"],
 		serializeEnvelope(envelope),
 		options,
@@ -271,12 +319,12 @@ export function pluginConfigGet(
 }
 
 export function pluginConfigSet(
-	binaryPath: string,
+	target: PluginTargetParam,
 	envelope: PluginConfigEnvelope,
 	options?: PluginClientOptions,
 ): PluginInvokeResult<PluginActionResponse> {
 	return invokePlugin<PluginActionResponse>(
-		binaryPath,
+		target,
 		["config", "set"],
 		serializeEnvelope(envelope),
 		options,
@@ -284,11 +332,11 @@ export function pluginConfigSet(
 }
 
 export function pluginToolsList(
-	binaryPath: string,
+	target: PluginTargetParam,
 	options?: PluginClientOptions,
 ): PluginInvokeResult<PluginToolsListResponse> {
 	return invokePlugin<PluginToolsListResponse>(
-		binaryPath,
+		target,
 		["tools", "list"],
 		undefined,
 		options,
@@ -308,12 +356,12 @@ function serializeToolExecuteRequest(
 }
 
 export function pluginToolsExecute(
-	binaryPath: string,
+	target: PluginTargetParam,
 	request: PluginToolExecuteRequest,
 	options?: PluginClientOptions,
 ): PluginInvokeResult<PluginToolExecuteResponse> {
 	return invokePlugin<PluginToolExecuteResponse>(
-		binaryPath,
+		target,
 		["tools", "execute"],
 		serializeToolExecuteRequest(request),
 		options,
@@ -321,12 +369,12 @@ export function pluginToolsExecute(
 }
 
 export function pluginToolsExecuteAsync(
-	binaryPath: string,
+	target: PluginTargetParam,
 	request: PluginToolExecuteRequest,
 	options?: PluginClientOptions,
 ): Promise<PluginInvokeResult<PluginToolExecuteResponse>> {
 	return invokePluginAsync<PluginToolExecuteResponse>(
-		binaryPath,
+		target,
 		["tools", "execute"],
 		serializeToolExecuteRequest(request),
 		options,
@@ -334,12 +382,12 @@ export function pluginToolsExecuteAsync(
 }
 
 export function pluginSetup(
-	binaryPath: string,
+	target: PluginTargetParam,
 	envelope: PluginConfigEnvelope = {},
 	options?: PluginClientOptions,
 ): PluginInvokeResult<PluginSetupResponse> {
 	return invokePlugin<PluginSetupResponse>(
-		binaryPath,
+		target,
 		["setup"],
 		serializeEnvelope(envelope),
 		options,
@@ -347,12 +395,12 @@ export function pluginSetup(
 }
 
 export function pluginSetupGuide(
-	binaryPath: string,
+	target: PluginTargetParam,
 	envelope: PluginConfigEnvelope = {},
 	options?: PluginClientOptions,
 ): PluginInvokeResult<PluginSetupGuideResponse> {
 	return invokePlugin<PluginSetupGuideResponse>(
-		binaryPath,
+		target,
 		["setup", "guide"],
 		serializeEnvelope(envelope),
 		options,

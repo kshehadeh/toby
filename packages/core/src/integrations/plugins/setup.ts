@@ -5,18 +5,19 @@ import { discoverPluginBinaries } from "./discovery";
 import { resolvePluginInstallTarget } from "./install";
 import type {
 	PluginConfigField,
+	PluginInvocationTarget,
 	PluginSetupActionResult,
-	PluginSetupGuideArtifact,
 	PluginSetupGuideResponse,
 	PluginSetupGuideStep,
 	PluginSetupResponse,
 } from "./protocol";
+import { resolvePluginTarget } from "./runtime";
 
 export type PluginSetupRunResult =
 	| {
 			readonly ok: true;
 			readonly name: string;
-			readonly binaryPath: string;
+			readonly target: PluginInvocationTarget;
 			readonly response: PluginSetupResponse;
 	  }
 	| {
@@ -45,16 +46,24 @@ export function formatPluginSetupActionLines(
 	});
 }
 
-export function resolveInstalledPluginBinary(name: string): string | null {
+export function resolveInstalledPluginTarget(
+	name: string,
+): PluginInvocationTarget | null {
 	const normalized = name.trim();
 	const discovered = discoverPluginBinaries().find(
 		(entry) => entry.binaryName === `toby-plugin-${normalized}`,
 	);
 	if (discovered) {
-		return discovered.binaryPath;
+		try {
+			return resolvePluginTarget(discovered);
+		} catch {
+			return null;
+		}
 	}
 	const installPath = resolvePluginInstallTarget(normalized);
-	return fs.existsSync(installPath) ? installPath : null;
+	return fs.existsSync(installPath)
+		? { kind: "binary", executablePath: installPath }
+		: null;
 }
 
 export function runPluginSetup(name: string): PluginSetupRunResult {
@@ -68,8 +77,8 @@ export function runPluginSetup(name: string): PluginSetupRunResult {
 		};
 	}
 
-	const binaryPath = resolveInstalledPluginBinary(normalized);
-	if (!binaryPath) {
+	const target = resolveInstalledPluginTarget(normalized);
+	if (!target) {
 		return {
 			ok: false,
 			name: normalized,
@@ -78,7 +87,7 @@ export function runPluginSetup(name: string): PluginSetupRunResult {
 		};
 	}
 
-	const result = pluginSetup(binaryPath);
+	const result = pluginSetup(target);
 	if (!result.ok) {
 		return {
 			ok: false,
@@ -100,7 +109,7 @@ export function runPluginSetup(name: string): PluginSetupRunResult {
 	return {
 		ok: true,
 		name: normalized,
-		binaryPath,
+		target,
 		response: result.data,
 	};
 }
@@ -200,10 +209,10 @@ export function buildIntegrationSetupGuide(
 ): IntegrationSetupGuideResult {
 	const name = module.name;
 	const displayName = module.displayName;
-	const binaryPath = resolveInstalledPluginBinary(name);
+	const target = resolveInstalledPluginTarget(name);
 
-	if (binaryPath) {
-		const result = pluginSetupGuide(binaryPath);
+	if (target) {
+		const result = pluginSetupGuide(target);
 		if (
 			result.ok &&
 			result.data.ok &&
@@ -220,7 +229,7 @@ export function buildIntegrationSetupGuide(
 		}
 	}
 
-	const shapeResult = binaryPath ? pluginConfigShape(binaryPath) : null;
+	const shapeResult = target ? pluginConfigShape(target) : null;
 	const fields =
 		shapeResult?.ok && shapeResult.data.ok && shapeResult.data.fields
 			? shapeResult.data.fields

@@ -165,6 +165,7 @@ describe("websearch plugin", () => {
 
 	it("registers plugin-backed websearch module with chatModelPrep", () => {
 		const metadata = loadPluginMetadata({
+			kind: "binary",
 			binaryPath: path.join(pluginDir, "toby-plugin-websearch"),
 			binaryName: "toby-plugin-websearch",
 		});

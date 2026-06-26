@@ -131,6 +131,7 @@ describe("todoist plugin", () => {
 
 	it("registers plugin-backed todoist module with chatModelPrep", () => {
 		const metadata = loadPluginMetadata({
+			kind: "binary",
 			binaryPath: path.join(pluginDir, "toby-plugin-todoist"),
 			binaryName: "toby-plugin-todoist",
 		});

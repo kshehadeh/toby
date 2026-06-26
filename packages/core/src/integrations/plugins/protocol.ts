@@ -248,9 +248,49 @@ export interface PluginToolExecuteResponse {
 	readonly code?: string;
 }
 
-export interface DiscoveredPlugin {
-	readonly binaryPath: string;
-	readonly binaryName: string;
+/**
+ * A discovered plugin. `binaryName` is always `toby-plugin-<name>` and is
+ * common to both kinds so callers that only need the name don't need to
+ * narrow on `kind`.
+ */
+export type DiscoveredPlugin =
+	| {
+			readonly kind: "binary";
+			readonly binaryName: string;
+			readonly binaryPath: string;
+	  }
+	| {
+			readonly kind: "bun-package";
+			readonly binaryName: string;
+			readonly directoryPath: string;
+			readonly manifestPath: string;
+			readonly entryPath: string;
+	  };
+
+/**
+ * Invocation target for the plugin client. Binary plugins are spawned
+ * directly; bun-package plugins are executed via `bun run <entry>` with
+ * `cwd` set to the plugin directory.
+ */
+export type PluginInvocationTarget =
+	| { readonly kind: "binary"; readonly executablePath: string }
+	| {
+			readonly kind: "bun-package";
+			readonly bunPath: string;
+			readonly cwd: string;
+			readonly entryPath: string;
+	  };
+
+/** Manifest for a bun-package (TypeScript directory) plugin. */
+export interface PluginManifest {
+	readonly name: string;
+	readonly displayName: string;
+	readonly description: string;
+	readonly version: string;
+	readonly protocolVersion: string;
+	readonly runtime: { readonly type: "bun"; readonly entry: string };
+	readonly capabilities?: readonly IntegrationCapability[];
+	readonly providerCategories?: readonly ProviderCategory[];
 }
 
 export function parsePluginNameFromBinary(binaryName: string): string | null {
@@ -266,4 +306,14 @@ export function parsePluginNameFromBinary(binaryName: string): string | null {
 
 export function isSupportedProtocolVersion(version: string): boolean {
 	return (SUPPORTED_PROTOCOL_VERSIONS as readonly string[]).includes(version);
+}
+
+/** Display path for a discovered plugin (binary path or directory path). */
+export function pluginDisplayPath(d: DiscoveredPlugin): string {
+	return d.kind === "binary" ? d.binaryPath : d.directoryPath;
+}
+
+/** Display path for an invocation target (executable or plugin directory). */
+export function targetDisplayPath(t: PluginInvocationTarget): string {
+	return t.kind === "binary" ? t.executablePath : t.cwd;
 }

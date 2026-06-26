@@ -19,7 +19,10 @@ import {
 	uninstallPlugin,
 	validatePluginForInstall,
 } from "@toby/core/integrations/plugins/install";
-import { parsePluginNameFromBinary } from "@toby/core/integrations/plugins/protocol";
+import {
+	parsePluginNameFromBinary,
+	pluginDisplayPath,
+} from "@toby/core/integrations/plugins/protocol";
 import {
 	getPluginModules,
 	resetPluginModuleCache,
@@ -133,7 +136,7 @@ describe("plugin install", () => {
 			discovered.some(
 				(p) =>
 					p.binaryName === "toby-plugin-discovery-test" &&
-					p.binaryPath === resolvePluginInstallTarget("discovery-test"),
+					pluginDisplayPath(p) === resolvePluginInstallTarget("discovery-test"),
 			),
 		).toBe(true);
 	});
@@ -253,7 +256,7 @@ describe("plugin install", () => {
 			path.join(sourceDir, "toby-plugin-sample"),
 		);
 		const discovered = resolvePluginSourcePath(sourceDir);
-		expect(discovered.binaryPath).toBe(sourcePath);
+		expect(pluginDisplayPath(discovered)).toBe(sourcePath);
 		expect(parsePluginNameFromBinary(discovered.binaryName)).toBe("sample");
 	});
 

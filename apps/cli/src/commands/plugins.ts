@@ -5,13 +5,18 @@ import {
 	installPlugin,
 	uninstallPlugin,
 } from "@toby/core/integrations/plugins/install";
-import { CURRENT_PROTOCOL_VERSION } from "@toby/core/integrations/plugins/protocol";
+import {
+	CURRENT_PROTOCOL_VERSION,
+	pluginDisplayPath,
+	targetDisplayPath,
+} from "@toby/core/integrations/plugins/protocol";
 import {
 	discoverPluginBinaries,
 	getPluginMetadata,
 	inspectPluginBinary,
 	resolvePluginSearchDirectories,
 } from "@toby/core/integrations/plugins/registry";
+import { resolvePluginTarget } from "@toby/core/integrations/plugins/runtime";
 import {
 	formatPluginSetupActionLines,
 	pluginSetupHasFailures,
@@ -119,7 +124,7 @@ async function listPlugins(): Promise<void> {
 		const inspected = inspectPluginBinary(entry);
 		if ("error" in inspected) {
 			console.log(
-				`  ${chalk.red("✗")} ${chalk.bold(entry.binaryName)} ${chalk.dim(entry.binaryPath)}`,
+				`  ${chalk.red("✗")} ${chalk.bold(entry.binaryName)} ${chalk.dim(pluginDisplayPath(entry))}`,
 			);
 			console.log(`    ${chalk.red(inspected.error)} (${inspected.code})`);
 			continue;
@@ -131,7 +136,7 @@ async function listPlugins(): Promise<void> {
 		);
 		console.log(`    ${chalk.dim(metadata.description)}`);
 		console.log(
-			`    ${chalk.dim(`v${metadata.version} · protocol ${metadata.protocolVersion} · ${entry.binaryPath}`)}`,
+			`    ${chalk.dim(`v${metadata.version} · protocol ${metadata.protocolVersion} · ${pluginDisplayPath(entry)}`)}`,
 		);
 	}
 	console.log();
@@ -353,7 +358,7 @@ async function inspectPlugin(name: string): Promise<void> {
 	if ("error" in inspected) {
 		console.log(chalk.red(`Failed to inspect plugin: ${inspected.error}`));
 		console.log(chalk.dim(`Code: ${inspected.code}`));
-		console.log(chalk.dim(`Path: ${inspected.binaryPath}`));
+		console.log(chalk.dim(`Name: ${inspected.binaryName}`));
 		return;
 	}
 
@@ -361,7 +366,7 @@ async function inspectPlugin(name: string): Promise<void> {
 	console.log(`  Name:       ${inspected.name}`);
 	console.log(`  Version:    ${inspected.version}`);
 	console.log(`  Protocol:   ${inspected.protocolVersion}`);
-	console.log(`  Binary:     ${discovered.binaryPath}`);
+	console.log(`  Path:       ${targetDisplayPath(inspected.target)}`);
 	console.log(
 		`  Capabilities: ${(inspected.capabilities ?? []).join(", ") || "(none)"}`,
 	);
@@ -376,8 +381,13 @@ async function inspectPlugin(name: string): Promise<void> {
 		console.log(`  Setup:      available${setupDetail}`);
 	}
 
-	const tools = pluginToolsList(discovered.binaryPath);
-	if (tools.ok && tools.data.ok && tools.data.tools?.length) {
+	let tools: ReturnType<typeof pluginToolsList> | null;
+	try {
+		tools = pluginToolsList(resolvePluginTarget(discovered));
+	} catch {
+		tools = null;
+	}
+	if (tools?.ok && tools.data.ok && tools.data.tools?.length) {
 		console.log(chalk.bold("\nTools:\n"));
 		for (const tool of tools.data.tools) {
 			const mode = tool.readOnly

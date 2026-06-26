@@ -38,19 +38,21 @@ import type {
 	PluginChatModelPrep,
 	PluginConfigEnvelope,
 	PluginInboundPrep,
+	PluginInvocationTarget,
 	PluginToolsListResponse,
 } from "./protocol";
 import {
 	isSupportedProtocolVersion,
 	parsePluginNameFromBinary,
 } from "./protocol";
+import { resolvePluginTarget } from "./runtime";
 import {
 	getCachedPluginToolDefinitions,
 	setCachedPluginToolDefinitions,
 } from "./tool-def-cache";
 
 export type PluginMetadata = {
-	readonly binaryPath: string;
+	readonly target: PluginInvocationTarget;
 	readonly name: string;
 	readonly displayName: string;
 	readonly description: string;
@@ -212,7 +214,17 @@ export function loadPluginMetadata(
 		};
 	}
 
-	const statusResult = pluginStatus(discovered.binaryPath);
+	let target: PluginInvocationTarget;
+	try {
+		target = resolvePluginTarget(discovered);
+	} catch (err) {
+		return {
+			error: (err as Error).message,
+			code: "runtime_not_found",
+		};
+	}
+
+	const statusResult = pluginStatus(target);
 	if (!statusResult.ok) {
 		return {
 			error: statusResult.error,
@@ -262,7 +274,7 @@ export function loadPluginMetadata(
 	}
 
 	if (capabilities.includes("transcription")) {
-		const toolsResult = pluginToolsList(discovered.binaryPath);
+		const toolsResult = pluginToolsList(target);
 		const toolNames =
 			toolsResult.ok && toolsResult.data.ok && toolsResult.data.tools
 				? toolsResult.data.tools.map((tool) => tool.name)
@@ -276,7 +288,7 @@ export function loadPluginMetadata(
 	}
 
 	return {
-		binaryPath: discovered.binaryPath,
+		target,
 		name: status.name,
 		displayName: status.displayName,
 		description: status.description,
@@ -287,7 +299,7 @@ export function loadPluginMetadata(
 		resources: status.resources,
 		authMethods: status.authMethods,
 		chatModelPrep: status.chatModelPrep,
-		readOnlyTools: loadReadOnlyToolNames(discovered.binaryPath, {
+		readOnlyTools: loadReadOnlyToolNames(target, {
 			version: status.version ?? "0.0.0",
 			protocolVersion: status.protocolVersion,
 		}),
@@ -298,26 +310,26 @@ export function loadPluginMetadata(
 }
 
 function loadReadOnlyToolNames(
-	binaryPath: string,
+	target: PluginInvocationTarget,
 	metadata?: { readonly version: string; readonly protocolVersion: string },
 ): string[] {
 	let tools: NonNullable<PluginToolsListResponse["tools"]> | null = null;
 	if (metadata) {
 		tools = getCachedPluginToolDefinitions({
-			binaryPath,
+			target,
 			version: metadata.version,
 			protocolVersion: metadata.protocolVersion,
 		});
 	}
 	if (!tools) {
-		const toolsResult = pluginToolsList(binaryPath);
+		const toolsResult = pluginToolsList(target);
 		if (!toolsResult.ok || !toolsResult.data.ok || !toolsResult.data.tools) {
 			return [];
 		}
 		tools = toolsResult.data.tools;
 		if (metadata) {
 			setCachedPluginToolDefinitions({
-				binaryPath,
+				target,
 				version: metadata.version,
 				protocolVersion: metadata.protocolVersion,
 				tools,
@@ -328,7 +340,7 @@ function loadReadOnlyToolNames(
 }
 
 async function resolvePluginChatReadiness(
-	binaryPath: string,
+	target: PluginInvocationTarget,
 	name: string,
 	creds: CredentialsFile,
 ): Promise<{ ok: boolean; hint?: string }> {
@@ -336,7 +348,7 @@ async function resolvePluginChatReadiness(
 		config: readPluginConfig(creds, name),
 		state: readPluginState(name),
 	};
-	const statusResult = pluginStatus(binaryPath, envelope);
+	const statusResult = pluginStatus(target, envelope);
 	if (!statusResult.ok || !statusResult.data.ok) {
 		const configBlock = creds.integrations?.[name];
 		const hasConfig = Boolean(
@@ -363,7 +375,7 @@ async function resolvePluginChatReadiness(
 export function createPluginIntegrationModule(
 	metadata: PluginMetadata,
 ): IntegrationModule {
-	const { name, binaryPath } = metadata;
+	const { name, target } = metadata;
 	const chatModelPrep = metadata.capabilities.includes("chat")
 		? buildPluginChatModelPrep(metadata)
 		: undefined;
@@ -385,7 +397,7 @@ export function createPluginIntegrationModule(
 				return;
 			}
 
-			const result = pluginConnect(binaryPath, envelope);
+			const result = pluginConnect(target, envelope);
 			if (!result.ok) {
 				throw new Error(result.error);
 			}
@@ -405,7 +417,7 @@ export function createPluginIntegrationModule(
 			writeConfig(config);
 
 			const syncEnvelope = buildEnvelope(name);
-			const sync = pluginConfigSet(binaryPath, syncEnvelope);
+			const sync = pluginConfigSet(target, syncEnvelope);
 			if (!sync.ok) {
 				console.log(
 					chalk.yellow(`Warning: plugin config sync failed: ${sync.error}`),
@@ -444,7 +456,7 @@ export function createPluginIntegrationModule(
 				...buildEnvelope(name),
 				validateTools: options?.validateTools,
 			};
-			const statusResult = await pluginStatusAsync(binaryPath, envelope);
+			const statusResult = await pluginStatusAsync(target, envelope);
 			if (!statusResult.ok) {
 				return {
 					ok: false,
@@ -476,7 +488,7 @@ export function createPluginIntegrationModule(
 			}));
 
 			if (toolChecks.length === 0) {
-				const toolsResult = pluginToolsList(binaryPath);
+				const toolsResult = pluginToolsList(target);
 				if (!toolsResult.ok) {
 					return {
 						ok: true,
@@ -524,7 +536,7 @@ export function createPluginIntegrationModule(
 			}
 
 			const envelope = buildEnvelope(name);
-			const result = pluginDisconnect(binaryPath, envelope);
+			const result = pluginDisconnect(target, envelope);
 			if (!result.ok) {
 				throw new Error(result.error);
 			}
@@ -544,7 +556,7 @@ export function createPluginIntegrationModule(
 	};
 
 	function getCredentialDescriptors(): CredentialFieldDescriptor[] {
-		const shapeResult = pluginConfigShape(binaryPath);
+		const shapeResult = pluginConfigShape(target);
 		if (!shapeResult.ok || !shapeResult.data.ok || !shapeResult.data.fields) {
 			return [];
 		}
@@ -618,7 +630,7 @@ export function createPluginIntegrationModule(
 	}) {
 		const appliedActions: string[] = [];
 		const cachedTools = getCachedPluginToolDefinitions({
-			binaryPath,
+			target,
 			version: metadata.version,
 			protocolVersion: metadata.protocolVersion,
 		});
@@ -626,13 +638,13 @@ export function createPluginIntegrationModule(
 		if (cachedTools) {
 			toolDefs = cachedTools;
 		} else {
-			const toolsResult = pluginToolsList(binaryPath);
+			const toolsResult = pluginToolsList(target);
 			if (!toolsResult.ok || !toolsResult.data.ok || !toolsResult.data.tools) {
 				return { tools: {}, appliedActions };
 			}
 			toolDefs = toolsResult.data.tools;
 			setCachedPluginToolDefinitions({
-				binaryPath,
+				target,
 				version: metadata.version,
 				protocolVersion: metadata.protocolVersion,
 				tools: toolDefs,
@@ -647,7 +659,7 @@ export function createPluginIntegrationModule(
 				inputSchema,
 				execute: async (input) => {
 					const envelope = buildEnvelope(name);
-					const execResult = pluginToolsExecute(binaryPath, {
+					const execResult = pluginToolsExecute(target, {
 						tool: definition.name,
 						input: input as Record<string, unknown>,
 						config: envelope.config,
@@ -732,13 +744,13 @@ export function createPluginIntegrationModule(
 		chat,
 		chatReadiness: async (creds: CredentialsFile) => {
 			if (await lifecycle.isConnected()) return { ok: true };
-			return resolvePluginChatReadiness(binaryPath, name, creds);
+			return resolvePluginChatReadiness(target, name, creds);
 		},
 		...(chatModelPrep ? { chatModelPrep } : {}),
 		...(metadata.capabilities.includes("inbound")
 			? {
 					chatInbound: createPluginChatInboundProvider({
-						binaryPath,
+						target,
 						integrationName: name,
 						buildEnvelope: () => {
 							const envelope = buildEnvelope(name);
@@ -770,13 +782,13 @@ export function rememberPluginMetadata(metadata: PluginMetadata): void {
 
 const pluginMetadataCache = new Map<string, PluginMetadata>();
 
-/** Lookup a plugin binary metadata entry (includes load errors via doctor command). */
+/** Lookup a plugin metadata entry (includes load errors via doctor command). */
 export function inspectPluginBinary(
 	discovered: DiscoveredPlugin,
-): PluginMetadata | { error: string; code: string; binaryPath: string } {
+): PluginMetadata | { error: string; code: string; binaryName: string } {
 	const loaded = loadPluginMetadata(discovered);
 	if ("error" in loaded) {
-		return { ...loaded, binaryPath: discovered.binaryPath };
+		return { ...loaded, binaryName: discovered.binaryName };
 	}
 	rememberPluginMetadata(loaded);
 	return loaded;

@@ -74,6 +74,7 @@ describe("transcription plugin bridge", () => {
 		);
 
 		findDiscoveredPlugin.mockReturnValue({
+			kind: "binary",
 			binaryPath: "/fake/toby-plugin-whisper",
 			binaryName: "toby-plugin-whisper",
 		});
@@ -95,7 +96,10 @@ describe("transcription plugin bridge", () => {
 
 		const files = await transcribeWithPlugin({ input, outDir });
 		expect(pluginToolsExecuteAsync).toHaveBeenCalledWith(
-			"/fake/toby-plugin-whisper",
+			expect.objectContaining({
+				kind: "binary",
+				executablePath: "/fake/toby-plugin-whisper",
+			}),
 			expect.objectContaining({
 				tool: "doTranscription",
 				input: { audioFilePath: input },

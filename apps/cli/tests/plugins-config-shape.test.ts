@@ -77,6 +77,7 @@ describe("plugin credential persistence", () => {
 	it("round-trips sample plugin credentials through configure persistence", () => {
 		const binaryPath = path.join(pluginDir, "toby-plugin-sample");
 		const metadata = loadPluginMetadata({
+			kind: "binary",
 			binaryPath,
 			binaryName: "toby-plugin-sample",
 		});
@@ -111,6 +112,7 @@ describe("plugin credential persistence", () => {
 		);
 
 		const validated = validatePluginBinary({
+			kind: "binary",
 			binaryPath,
 			binaryName: "toby-plugin-sample",
 		});
