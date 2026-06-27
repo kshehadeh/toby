@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { routePromptSubmit } from "../src/ui/chat/prompt-submit";
 import { pluginsSlashCommand } from "../src/ui/chat/slash-commands/plugins";
 

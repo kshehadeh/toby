@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { getSkillDebugTextLines } from "../src/ui/chat/skill-debug";
 
 describe("getSkillDebugTextLines", () => {

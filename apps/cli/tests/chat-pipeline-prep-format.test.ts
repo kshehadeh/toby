@@ -2,7 +2,7 @@ import {
 	createPrepId,
 	formatPrepEndDetail,
 } from "@toby/core/chat-pipeline/prep-format";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 
 describe("formatPrepEndDetail", () => {
 	it("returns Request prepared when content is unchanged", () => {

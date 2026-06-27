@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { parseChatCliInput } from "@toby/core/chat-integrations";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const azureadCli = path.join(repoRoot, "../plugin-azuread/src/cli.ts");

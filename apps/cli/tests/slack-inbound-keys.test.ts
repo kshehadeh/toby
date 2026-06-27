@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { resolveSlackPostToken } from "../../plugin-slack/src/client";
 import {
 	buildSlackExternalKey,

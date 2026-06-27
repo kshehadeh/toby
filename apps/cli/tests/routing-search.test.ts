@@ -2,7 +2,7 @@ import {
 	cosineSimilarity,
 	searchTopKByCosine,
 } from "@toby/core/routing/search";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 
 describe("cosineSimilarity", () => {
 	it("returns 1 for identical vectors", () => {

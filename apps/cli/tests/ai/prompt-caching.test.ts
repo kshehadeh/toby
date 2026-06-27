@@ -8,7 +8,7 @@ import {
 import type { CoreMessage } from "@toby/core/ai/chat";
 import type { Persona } from "@toby/core/config/index";
 import type { LanguageModelUsage } from "ai";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 
 function testPersona(ai: { provider: string; model: string }): Persona {
 	return {

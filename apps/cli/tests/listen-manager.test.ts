@@ -6,7 +6,11 @@ import path from "node:path";
 import { ListenManager } from "@toby/core/listen/manager";
 import { listListenRecordings } from "@toby/core/listen/recordings";
 import { closeChatDbForTests } from "@toby/core/session-store";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, jest, mock, spyOn } from "bun:test";
+
+afterEach(() => {
+	jest.restoreAllMocks();
+});
 
 const tempDirs: string[] = [];
 
@@ -20,11 +24,11 @@ function fakeChild(): ChildProcessWithoutNullStreams {
 	const child = new EventEmitter() as EventEmitter & {
 		exitCode: number | null;
 		killed: boolean;
-		kill: ReturnType<typeof vi.fn>;
+		kill: ReturnType<typeof mock>;
 	};
 	child.exitCode = null;
 	child.killed = false;
-	child.kill = vi.fn(() => {
+	child.kill = mock(() => {
 		child.killed = true;
 		child.emit("exit", 0);
 		return true;
@@ -68,8 +72,8 @@ describe("ListenManager", () => {
 				return {
 					helperPath: "/tmp/fake-helper",
 					child: fakeChild(),
-					stop: vi.fn(async () => {}),
-					dispose: vi.fn(),
+					stop: mock(async () => {}),
+					dispose: mock(),
 				};
 			},
 		});
@@ -93,12 +97,12 @@ describe("ListenManager", () => {
 				return {
 					helperPath: "/tmp/fake-helper",
 					child: fakeChild(),
-					stop: vi.fn(async () => {}),
-					dispose: vi.fn(),
+					stop: mock(async () => {}),
+					dispose: mock(),
 				};
 			},
-			waitForExit: vi.fn(async () => {}),
-			transcribe: vi.fn(async ({ outDir }) => {
+			waitForExit: mock(async () => {}),
+			transcribe: mock(async ({ outDir }) => {
 				const transcript = path.join(outDir, "transcript.txt");
 				fs.writeFileSync(transcript, "hello from recording\n");
 				return { transcript };
@@ -129,12 +133,12 @@ describe("ListenManager", () => {
 					return {
 						helperPath: "/tmp/fake-helper",
 						child: fakeChild(),
-						stop: vi.fn(async () => {}),
-						dispose: vi.fn(),
+						stop: mock(async () => {}),
+						dispose: mock(),
 					};
 				},
-				waitForExit: vi.fn(async () => {}),
-				transcribe: vi.fn(async ({ outDir }) => {
+				waitForExit: mock(async () => {}),
+				transcribe: mock(async ({ outDir }) => {
 					const transcript = path.join(outDir, "transcript.txt");
 					fs.writeFileSync(transcript, "native transcript\n");
 					return { transcript };
@@ -162,12 +166,12 @@ describe("ListenManager", () => {
 				return {
 					helperPath: "/tmp/fake-helper",
 					child: fakeChild(),
-					stop: vi.fn(async () => {}),
-					dispose: vi.fn(),
+					stop: mock(async () => {}),
+					dispose: mock(),
 				};
 			},
-			waitForExit: vi.fn(async () => {}),
-			transcribe: vi.fn(async () => {
+			waitForExit: mock(async () => {}),
+			transcribe: mock(async () => {
 				throw new Error("transcription unavailable");
 			}),
 		});

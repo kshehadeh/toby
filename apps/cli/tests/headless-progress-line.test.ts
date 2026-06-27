@@ -1,5 +1,5 @@
 import { headlessProgressLineForChatEvent } from "@toby/core/chat-pipeline/headless-session";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 
 describe("headlessProgressLineForChatEvent", () => {
 	it("maps prep events to CLI footer lines", () => {

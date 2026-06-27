@@ -18,7 +18,7 @@ import {
 } from "@toby/core/integrations/plugins/client";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
 import { runPluginSetup } from "@toby/core/integrations/plugins/setup";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const pluginPackageDir = path.join(repoRoot, "../plugin-macos");

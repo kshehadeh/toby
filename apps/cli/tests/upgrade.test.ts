@@ -4,7 +4,11 @@ import os from "node:os";
 import path from "node:path";
 import { getPluginsDir } from "@toby/core/config/index";
 import * as tobySpawn from "@toby/core/toby-spawn";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, jest, spyOn } from "bun:test";
+
+afterEach(() => {
+	jest.restoreAllMocks();
+});
 import { waitForProcessExit } from "../src/commands/internal-handoff";
 import { resolveUpgradeHandoffSpawn } from "../src/upgrade/handoff-spawn";
 import {
@@ -274,8 +278,7 @@ describe("shouldDelegateApplyToStagedBinary", () => {
 	});
 
 	it("returns true for compiled runs when staged binary differs", () => {
-		const compiledSpy = vi
-			.spyOn(tobySpawn, "isRunningAsCompiledBinary")
+		const compiledSpy = spyOn(tobySpawn, "isRunningAsCompiledBinary")
 			.mockReturnValue(true);
 		const stagedPath = resolveStagedBinaryPath();
 		fs.mkdirSync(path.dirname(stagedPath), { recursive: true });
@@ -393,8 +396,7 @@ describe("applyStagedRelease", () => {
 	});
 
 	it("skips individual binary install and replaces Toby.app for app-bundle upgrades", async () => {
-		const compiledSpy = vi
-			.spyOn(tobySpawn, "isRunningAsCompiledBinary")
+		const compiledSpy = spyOn(tobySpawn, "isRunningAsCompiledBinary")
 			.mockReturnValue(true);
 		const originalExecPath = process.execPath;
 
@@ -517,8 +519,7 @@ describe("applyStagedReleaseDelegated", () => {
 	});
 
 	it("delegates apply-staged to the staged binary wrapper", async () => {
-		const compiledSpy = vi
-			.spyOn(tobySpawn, "isRunningAsCompiledBinary")
+		const compiledSpy = spyOn(tobySpawn, "isRunningAsCompiledBinary")
 			.mockReturnValue(true);
 		const binDir = path.join(tempDir, "bin");
 		const installTarget = path.join(binDir, "toby");

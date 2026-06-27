@@ -3,7 +3,7 @@ import {
 	isVersionNewer,
 	normalizeReleaseVersion,
 } from "@toby/core/version";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 
 describe("version", () => {
 	it("normalizes release tags", () => {

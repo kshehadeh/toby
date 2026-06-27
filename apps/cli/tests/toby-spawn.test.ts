@@ -6,7 +6,7 @@ import {
 	getDetachedDaemonSpawnStdio,
 	getTobyEntryScriptArgv,
 } from "@toby/core/toby-spawn";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "bun:test";
 
 describe("toby-spawn", () => {
 	const originalArgv = process.argv;

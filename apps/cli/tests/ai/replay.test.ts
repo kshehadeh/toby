@@ -15,7 +15,11 @@ import {
 import type { Persona } from "@toby/core/config/index";
 import { generateText, streamText, wrapLanguageModel } from "ai";
 import { MockLanguageModelV3 } from "ai/test";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, jest, spyOn } from "bun:test";
+
+afterEach(() => {
+	jest.restoreAllMocks();
+});
 
 let tempDir: string;
 let previousTobyDir: string | undefined;
@@ -166,7 +170,7 @@ describe("chat replay recording", () => {
 
 		beginReplay(recordingPath);
 		const replayModel = createReplayModel(testPersona());
-		const replayProviderSpy = vi.spyOn(replayModel, "doGenerate");
+		const replayProviderSpy = spyOn(replayModel, "doGenerate");
 
 		const generate = await generateText({
 			model: replayModel,

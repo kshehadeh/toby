@@ -26,7 +26,7 @@ import {
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
 import { resolvePluginTarget } from "@toby/core/integrations/plugins/runtime";
 import { validatePluginBinary } from "@toby/core/integrations/plugins/validate";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const pluginSourceDir = path.join(repoRoot, "../plugin-todoist");

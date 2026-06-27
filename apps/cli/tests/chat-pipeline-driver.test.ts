@@ -11,7 +11,11 @@ import {
 	runChatTurnPipeline,
 	withAssembledMessages,
 } from "@toby/core/chat-pipeline/pipeline";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, jest, mock, spyOn } from "bun:test";
+
+afterEach(() => {
+	jest.restoreAllMocks();
+});
 
 const request: TurnRequest = {
 	rawUserText: "hello",
@@ -60,17 +64,17 @@ const ctx: TurnContext = {
 	},
 	modules: [],
 	dryRun: true,
-	emit: vi.fn(),
+	emit: mock(),
 	nextSeq: () => 1,
 	emitPersistLifecycle: false,
 };
 
 describe("runChatTurnPipeline", () => {
 	it("stops after assemble when requested", async () => {
-		vi.spyOn(turnInitNode, "run").mockResolvedValue(inited);
-		vi.spyOn(expandPromptNode, "run").mockResolvedValue(expanded);
-		vi.spyOn(assembleMessagesNode, "run").mockResolvedValue(assembled);
-		const runSpy = vi.spyOn(runModelTurnNode, "run");
+		spyOn(turnInitNode, "run").mockResolvedValue(inited);
+		spyOn(expandPromptNode, "run").mockResolvedValue(expanded);
+		spyOn(assembleMessagesNode, "run").mockResolvedValue(assembled);
+		const runSpy = spyOn(runModelTurnNode, "run");
 
 		const result = await runChatTurnPipeline(request, ctx, {
 			stopAfter: "assemble",
@@ -84,12 +88,12 @@ describe("runChatTurnPipeline", () => {
 	});
 
 	it("runs from an assembled turn through persist", async () => {
-		vi.spyOn(runModelTurnNode, "run").mockResolvedValue(ran);
-		vi.spyOn(persistTurnNode, "run").mockResolvedValue({
+		spyOn(runModelTurnNode, "run").mockResolvedValue(ran);
+		spyOn(persistTurnNode, "run").mockResolvedValue({
 			...ran,
 			messagesAfterTurn: [...assembled.messages, ...ran.responseMessages],
 		});
-		const initSpy = vi.spyOn(turnInitNode, "run");
+		const initSpy = spyOn(turnInitNode, "run");
 
 		const result = await runChatTurnPipeline(request, ctx, { assembled });
 

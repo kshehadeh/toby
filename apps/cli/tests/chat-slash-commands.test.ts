@@ -3,7 +3,11 @@ import {
 	setCachedToolResult,
 } from "@toby/core/chat-pipeline/tool-result-cache";
 import * as openUi from "@toby/core/web/open-ui";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, jest, mock, spyOn } from "bun:test";
+
+afterEach(() => {
+	jest.restoreAllMocks();
+});
 import * as daemonStatus from "../src/schedules/daemon-status";
 import { captureLaunchContext } from "../src/toby-launch-context";
 import {
@@ -26,35 +30,35 @@ import * as upgradeModule from "../src/upgrade/index";
 
 function mockRuntime(overrides: Record<string, unknown> = {}) {
 	return {
-		exit: vi.fn(),
-		openHelp: vi.fn(),
-		openUsageViewer: vi.fn(),
-		openLogViewer: vi.fn(),
-		openTerminalViewer: vi.fn(),
-		openTextViewer: vi.fn(),
-		openIntegrationPicker: vi.fn(),
-		openConfig: vi.fn(),
-		openSkills: vi.fn(),
-		openSchedules: vi.fn(),
-		openPersonaPicker: vi.fn(),
-		openPersonaConfigure: vi.fn(),
-		openProjectPicker: vi.fn(),
-		openProjectConfigure: vi.fn(),
-		startNewSession: vi.fn(),
-		openSessionsPicker: vi.fn(),
+		exit: mock(),
+		openHelp: mock(),
+		openUsageViewer: mock(),
+		openLogViewer: mock(),
+		openTerminalViewer: mock(),
+		openTextViewer: mock(),
+		openIntegrationPicker: mock(),
+		openConfig: mock(),
+		openSkills: mock(),
+		openSchedules: mock(),
+		openPersonaPicker: mock(),
+		openPersonaConfigure: mock(),
+		openProjectPicker: mock(),
+		openProjectConfigure: mock(),
+		startNewSession: mock(),
+		openSessionsPicker: mock(),
 		chatIntegrationsCount: 0,
 		launchContext: captureLaunchContext(["chat"]),
-		addMetaLine: vi.fn(),
-		addNoticeLine: vi.fn(),
-		updateProgressNotice: vi.fn(async () => {}),
-		addUserContextMessage: vi.fn(),
-		getActivePlan: vi.fn(() => null),
-		skipPlanPhase: vi.fn(),
-		cancelPlan: vi.fn(),
-		restartServer: vi.fn(async () => {}),
-		startListenRecording: vi.fn(),
-		stopListenRecording: vi.fn(async () => null),
-		isListenRecording: vi.fn(() => false),
+		addMetaLine: mock(),
+		addNoticeLine: mock(),
+		updateProgressNotice: mock(async () => {}),
+		addUserContextMessage: mock(),
+		getActivePlan: mock(() => null),
+		skipPlanPhase: mock(),
+		cancelPlan: mock(),
+		restartServer: mock(async () => {}),
+		startListenRecording: mock(),
+		stopListenRecording: mock(async () => null),
+		isListenRecording: mock(() => false),
 		...overrides,
 	};
 }
@@ -69,7 +73,7 @@ describe("slash commands", () => {
 		if (result.kind !== "execute" || !result.command) {
 			throw new Error("expected execute result");
 		}
-		runtime.addNoticeLine = vi.fn();
+		runtime.addNoticeLine = mock();
 		result.command.run(runtime);
 		expect(runtime.addNoticeLine).toHaveBeenCalledWith(
 			"Cleared tool cache (1 entry).",
@@ -99,22 +103,20 @@ describe("slash commands", () => {
 	});
 
 	it("delegates /restart-server to runtime.restartServer", async () => {
-		const restartServer = vi.fn(async () => {});
+		const restartServer = mock(async () => {});
 		const runtime = mockRuntime({ restartServer });
 		await restartServerSlashCommand.run(runtime);
 		expect(restartServer).toHaveBeenCalledTimes(1);
 	});
 
 	it("opens the web UI after ensuring the daemon is running", async () => {
-		const ensureSpy = vi
-			.spyOn(daemonStatus, "ensureDaemonRunning")
+		const ensureSpy = spyOn(daemonStatus, "ensureDaemonRunning")
 			.mockResolvedValue({
 				wasAlreadyRunning: true,
 				running: true,
 				pid: 4242,
 			});
-		const openSpy = vi
-			.spyOn(openUi, "openWebUiInBrowser")
+		const openSpy = spyOn(openUi, "openWebUiInBrowser")
 			.mockResolvedValue(true);
 		const runtime = mockRuntime();
 
@@ -132,14 +134,14 @@ describe("slash commands", () => {
 	});
 
 	it("opens the help viewer modal for /help", () => {
-		const openHelp = vi.fn();
+		const openHelp = mock();
 		const runtime = mockRuntime({ openHelp });
 		helpSlashCommand.run(runtime);
 		expect(openHelp).toHaveBeenCalledTimes(1);
 	});
 
 	it("opens the usage viewer modal for /usage", () => {
-		const openUsageViewer = vi.fn();
+		const openUsageViewer = mock();
 		const runtime = mockRuntime({ openUsageViewer });
 		usageSlashCommand.run(runtime);
 		expect(openUsageViewer).toHaveBeenCalledTimes(1);
@@ -150,9 +152,9 @@ describe("slash commands", () => {
 	});
 
 	it("opens a connections viewer modal for /connect with no args", async () => {
-		const addMetaLine = vi.fn();
-		const openTextViewer = vi.fn();
-		const updateProgressNotice = vi.fn(async () => {});
+		const addMetaLine = mock();
+		const openTextViewer = mock();
+		const updateProgressNotice = mock(async () => {});
 		const runtime = mockRuntime({
 			addMetaLine,
 			openTextViewer,
@@ -178,8 +180,8 @@ describe("slash commands", () => {
 
 	it("includes /plugins and opens a plugin status viewer", async () => {
 		expect(SLASH_COMMANDS.some((c) => c.command === "/plugins")).toBe(true);
-		const addMetaLine = vi.fn();
-		const openTextViewer = vi.fn();
+		const addMetaLine = mock();
+		const openTextViewer = mock();
 		const runtime = mockRuntime({ addMetaLine, openTextViewer });
 		await pluginsSlashCommand.run(runtime);
 		expect(openTextViewer).toHaveBeenCalledTimes(1);
@@ -194,8 +196,8 @@ describe("slash commands", () => {
 
 	it("includes /status and opens a status viewer", async () => {
 		expect(SLASH_COMMANDS.some((c) => c.command === "/status")).toBe(true);
-		const addMetaLine = vi.fn();
-		const openTextViewer = vi.fn();
+		const addMetaLine = mock();
+		const openTextViewer = mock();
 		const runtime = mockRuntime({ addMetaLine, openTextViewer });
 		await statusSlashCommand.run(runtime);
 		expect(openTextViewer).toHaveBeenCalledTimes(1);
@@ -225,14 +227,14 @@ describe("slash commands", () => {
 	});
 
 	it("opens the log viewer modal for /log", () => {
-		const openLogViewer = vi.fn();
+		const openLogViewer = mock();
 		const runtime = mockRuntime({ openLogViewer });
 		logSlashCommand.run(runtime);
 		expect(openLogViewer).toHaveBeenCalledTimes(1);
 	});
 
 	it("opens the terminal viewer modal for /terminal", () => {
-		const openTerminalViewer = vi.fn();
+		const openTerminalViewer = mock();
 		const runtime = mockRuntime({ openTerminalViewer });
 		terminalSlashCommand.run(runtime);
 		expect(openTerminalViewer).toHaveBeenCalledTimes(1);
@@ -240,7 +242,7 @@ describe("slash commands", () => {
 
 	it("includes /persona and opens the picker", () => {
 		expect(SLASH_COMMANDS.some((c) => c.command === "/persona")).toBe(true);
-		const openPersonaPicker = vi.fn();
+		const openPersonaPicker = mock();
 		const runtime = mockRuntime({ openPersonaPicker });
 		const result = resolveSlashSubmission("/persona", null);
 		expect(result.kind).toBe("execute");
@@ -253,7 +255,7 @@ describe("slash commands", () => {
 
 	it("includes /project and opens the picker", () => {
 		expect(SLASH_COMMANDS.some((c) => c.command === "/project")).toBe(true);
-		const openProjectPicker = vi.fn();
+		const openProjectPicker = mock();
 		const runtime = mockRuntime({ openProjectPicker });
 		const result = resolveSlashSubmission("/project", null);
 		expect(result.kind).toBe("execute");
@@ -265,13 +267,11 @@ describe("slash commands", () => {
 	});
 
 	it("restart exits after spawning handoff", async () => {
-		const spawnSpy = vi
-			.spyOn(handoffSpawn, "spawnUpgradeHandoff")
+		const spawnSpy = spyOn(handoffSpawn, "spawnUpgradeHandoff")
 			.mockImplementation(() => undefined);
-		const manifestSpy = vi
-			.spyOn(upgradeModule, "readStagingManifest")
+		const manifestSpy = spyOn(upgradeModule, "readStagingManifest")
 			.mockResolvedValue(null);
-		const exit = vi.fn();
+		const exit = mock();
 		const runtime = mockRuntime({ exit });
 
 		await restartSlashCommand.run(runtime);

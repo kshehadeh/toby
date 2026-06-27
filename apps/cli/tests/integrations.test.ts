@@ -12,7 +12,7 @@ import {
 } from "@toby/core/integrations/index";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
 import { ALL_PROVIDER_CATEGORIES } from "@toby/core/integrations/types";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const slackCli = path.join(repoRoot, "../plugin-slack/src/cli.ts");

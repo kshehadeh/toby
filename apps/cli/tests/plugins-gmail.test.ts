@@ -25,7 +25,7 @@ import {
 } from "@toby/core/integrations/plugins/client";
 import { migrateLegacyPluginCredentials } from "@toby/core/integrations/plugins/migrate";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const gmailCli = path.join(repoRoot, "../plugin-gmail/src/cli.ts");

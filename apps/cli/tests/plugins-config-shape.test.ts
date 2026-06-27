@@ -12,7 +12,7 @@ import {
 	validatePluginBinary,
 	validatePluginConfigShapeFields,
 } from "@toby/core/integrations/plugins/validate";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const sampleCli = path.join(repoRoot, "../plugin-sample/src/cli.ts");

@@ -3,7 +3,7 @@ import {
 	loadRoutingEmbeddings,
 	upsertRoutingEmbedding,
 } from "@toby/core/session-store";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "bun:test";
 
 const isBun = typeof (globalThis as { Bun?: unknown }).Bun !== "undefined";
 

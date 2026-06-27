@@ -6,7 +6,7 @@ import {
 	updateSkillBody,
 	updateSkillFrontmatter,
 } from "@toby/core/skills/manage";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "bun:test";
 
 describe("updateSkillFrontmatter", () => {
 	let tmp: string | undefined;

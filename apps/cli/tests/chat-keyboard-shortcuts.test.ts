@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { buildChatKeyboardShortcuts } from "../src/ui/chat/chat-keyboard-shortcuts";
 import type { TerminalProfile } from "../src/ui/shared/terminal-profile";
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { UI_HINTS } from "../src/ui/shared/keybindings";
 
 describe("UI_HINTS", () => {

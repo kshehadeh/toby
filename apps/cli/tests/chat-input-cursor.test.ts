@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { reconcileCursorIndex } from "../src/ui/chat/input-cursor";
 
 describe("chat input cursor reconciliation", () => {

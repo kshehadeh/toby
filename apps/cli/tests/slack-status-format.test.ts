@@ -1,5 +1,5 @@
 import { formatSlackInboundStatusMrkdwn } from "@toby/core/integrations/plugins/inbound-slack-status-format";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { buildSlackStatusContextBlocks } from "../../plugin-slack/src/slack-markdown";
 import { slackStatusPlainFallback } from "../../plugin-slack/src/status-format";
 

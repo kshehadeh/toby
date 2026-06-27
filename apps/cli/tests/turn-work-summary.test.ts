@@ -4,7 +4,7 @@ import {
 	deserializeTranscriptRow,
 	serializeTranscriptEntry,
 } from "@toby/core/transcript-persist";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 
 describe("turn_work transcript entry", () => {
 	it("round-trips through SQLite serialization", () => {

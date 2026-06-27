@@ -1,5 +1,5 @@
 import type { ChatEvent } from "@toby/core/chat-pipeline/chat-events";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import {
 	applyPersistedChatEvent,
 	shouldPersistChatEventInTranscript,

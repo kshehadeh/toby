@@ -5,7 +5,7 @@ import {
 	resolveDefaultWhisperModelPath,
 	resolveWhisperCppConfig,
 } from "@toby/core/listen/whisper-config";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 describe("whisper config", () => {
 	let tempDir: string;

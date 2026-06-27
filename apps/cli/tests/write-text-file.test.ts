@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { resolveWriteTextFileTarget } from "@toby/core/ai/global-chat-tools";
 import type { Project } from "@toby/core/projects/index";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 let tempDir: string;
 let previousTobyDir: string | undefined;

@@ -3,7 +3,7 @@ import {
 	isAbortError,
 	throwIfAborted,
 } from "@toby/core/abort";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 
 describe("abort helpers", () => {
 	it("isAbortError detects AbortError by name", () => {

@@ -18,7 +18,7 @@ import {
 } from "@toby/core/integrations/plugins/registry";
 import { resolvePluginTarget } from "@toby/core/integrations/plugins/runtime";
 import { validatePluginBinary } from "@toby/core/integrations/plugins/validate";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 /**
  * Minimal TypeScript plugin entry point that implements protocol v1.

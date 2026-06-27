@@ -1,13 +1,13 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, jest, spyOn } from "bun:test";
 import { resolveSlackBotUserId } from "../../plugin-slack/src/client";
 
 afterEach(() => {
-	vi.restoreAllMocks();
+	jest.restoreAllMocks();
 });
 
 describe("resolveSlackBotUserId", () => {
 	it("prefers auth.test over a configured human user id", async () => {
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+		const fetchMock = spyOn(globalThis, "fetch").mockResolvedValue({
 			ok: true,
 			json: async () => ({
 				ok: true,
@@ -28,7 +28,7 @@ describe("resolveSlackBotUserId", () => {
 	});
 
 	it("falls back to configured hint when auth.test has no user id", async () => {
-		vi.spyOn(globalThis, "fetch").mockResolvedValue({
+		spyOn(globalThis, "fetch").mockResolvedValue({
 			ok: true,
 			json: async () => ({ ok: true }),
 		} as Response);

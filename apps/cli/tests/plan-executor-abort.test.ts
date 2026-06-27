@@ -7,7 +7,7 @@ import {
 	closeChatDbForTests,
 	createChatSession,
 } from "@toby/core/session-store";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "bun:test";
 
 const isBun =
 	typeof (globalThis as unknown as { Bun?: unknown }).Bun !== "undefined";

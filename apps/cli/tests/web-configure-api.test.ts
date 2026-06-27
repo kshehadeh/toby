@@ -10,7 +10,7 @@ import {
 	seedConfigureValues,
 } from "@toby/core/configure/persistence";
 import { handleWebRequest } from "@toby/core/web/routes";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 function withTempTobyDir(run: () => void): void {
 	const previous = process.env.TOBY_DIR;

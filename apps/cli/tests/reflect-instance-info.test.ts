@@ -2,7 +2,7 @@ import os from "node:os";
 import { formatPersonaAiLabel } from "@toby/core/ai/model-factory";
 import { createReflectTools } from "@toby/core/ai/reflect-tools";
 import { DEFAULT_CHAT_PERSONA } from "@toby/core/personas/index";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 
 describe("tobyInstanceInfo", () => {
 	it("returns hostname, pid, persona, and model for the active instance", async () => {

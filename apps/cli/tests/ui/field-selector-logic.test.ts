@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import type { SelectChoice } from "../../src/ui/shared/field-selector";
 import {
 	clampSelectionIndex,

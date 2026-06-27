@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { getIntegrationModule } from "@toby/core/integrations/index";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { createSlackPkceChallenge } from "../../plugin-slack/src/auth";
 import { getSlackAuthMethod } from "../../plugin-slack/src/config";
 import { TOOL_DEFINITIONS } from "../../plugin-slack/src/tools";

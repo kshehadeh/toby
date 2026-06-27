@@ -3,7 +3,7 @@ import {
 	emptySessionTokenTotals,
 	extractTokenUsageReport,
 } from "@toby/core/ai/caching";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { buildUsageSections } from "../src/ui/chat/usage-sections";
 
 describe("session token totals", () => {

@@ -7,7 +7,7 @@ import {
 	writeCredentials,
 } from "@toby/core/config/index";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { createConfigureSession } from "../src/ui/configure/session";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");

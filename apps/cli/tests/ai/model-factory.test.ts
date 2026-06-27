@@ -8,7 +8,7 @@ import {
 	validatePersonaAi,
 } from "@toby/core/ai/model-factory";
 import type { Persona } from "@toby/core/config/index";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 let tempDir: string;
 let previousTobyDir: string | undefined;

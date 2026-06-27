@@ -3,7 +3,7 @@ import {
 	parseReleaseBody,
 	releaseHasChanges,
 } from "@toby/core/releases/changelog";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 
 describe("changelog parser", () => {
 	describe("categorizeChange", () => {

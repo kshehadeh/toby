@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import type { SlackUser } from "../../plugin-slack/src/client";
 
 describe("Slack user search helpers", () => {

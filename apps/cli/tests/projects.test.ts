@@ -20,7 +20,7 @@ import {
 	slugifyProjectName,
 	updateProjectMetadata,
 } from "@toby/core/projects/index";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 let tempDir: string;
 let previousTobyDir: string | undefined;

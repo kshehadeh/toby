@@ -30,7 +30,7 @@ import {
 } from "@toby/core/integrations/plugins/registry";
 import { resolveBunRuntime } from "@toby/core/integrations/plugins/runtime";
 import { buildIntegrationSetupGuide } from "@toby/core/integrations/plugins/setup";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { buildPluginsReportLines } from "../src/ui/chat/slash-commands/plugins";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");

@@ -5,7 +5,7 @@ import {
 	suggestVisibility,
 } from "@toby/core/memory/policy";
 import type { MemoryCandidate, MemoryProposal } from "@toby/core/memory/types";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 
 function makeCandidate(
 	overrides: Partial<MemoryCandidate> = {},

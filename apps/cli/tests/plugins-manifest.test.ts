@@ -5,7 +5,7 @@ import {
 	parseManifest,
 	validateManifest,
 } from "@toby/core/integrations/plugins/manifest";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 const validManifest = {
 	name: "testpkg",

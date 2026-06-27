@@ -1,14 +1,18 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, mock } from "bun:test";
 import { postSlackMessage } from "../../plugin-slack/src/client";
 
 describe("postSlackMessage", () => {
+	let originalFetch: typeof globalThis.fetch;
+
 	afterEach(() => {
-		vi.unstubAllGlobals();
+		if (originalFetch) {
+			globalThis.fetch = originalFetch;
+		}
 	});
 
 	it("converts markdown before using the markdown_text fallback", async () => {
-		const fetchMock = vi
-			.fn()
+		originalFetch = globalThis.fetch;
+		const fetchMock = mock()
 			.mockResolvedValueOnce(
 				new Response(JSON.stringify({ ok: false, error: "invalid_blocks" }), {
 					status: 200,
@@ -19,7 +23,7 @@ describe("postSlackMessage", () => {
 					status: 200,
 				}),
 			);
-		vi.stubGlobal("fetch", fetchMock);
+		globalThis.fetch = fetchMock as typeof globalThis.fetch;
 
 		await postSlackMessage({
 			config: {},

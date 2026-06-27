@@ -9,7 +9,7 @@ import {
 	formatDaemonLogEntry,
 	readDaemonLogTail,
 } from "@toby/core/logging/daemon-log";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "bun:test";
 
 function makeTempDir(): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), "toby-daemon-log-"));

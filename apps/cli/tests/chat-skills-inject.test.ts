@@ -5,7 +5,7 @@ import {
 	injectSkillBodiesIntoFirstSystemMessage,
 	stripSkillInstructionsAppendix,
 } from "@toby/core/prepare-messages";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 
 describe("injectSkillBodiesIntoFirstSystemMessage", () => {
 	it("appends skill bodies to the first system message", () => {

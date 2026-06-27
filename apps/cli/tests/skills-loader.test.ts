@@ -10,7 +10,7 @@ import {
 	parseSkillFrontmatterAndBody,
 	resolveSkillsByNames,
 } from "@toby/core/skills/index";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "bun:test";
 
 describe("parseSkillFrontmatterAndBody", () => {
 	it("parses standard SKILL.md shape", () => {

@@ -8,7 +8,7 @@ import {
 	readCredentials,
 	writeConfig,
 } from "@toby/core/config/index";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 const TOBY_DIR = path.join(os.homedir(), ".toby");
 const CONFIG_PATH = path.join(TOBY_DIR, "config.json");
