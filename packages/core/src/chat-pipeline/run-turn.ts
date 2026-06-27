@@ -152,9 +152,6 @@ export async function runIntegrationChatTurn(
 	options: ChatTurnOptions,
 ): Promise<ChatTurnResult> {
 	const unique = [...new Set(moduleNames)];
-	if (unique.length === 0) {
-		throw new Error("runIntegrationChatTurn: no integrations selected");
-	}
 
 	const modules = unique
 		.map((n) => {
