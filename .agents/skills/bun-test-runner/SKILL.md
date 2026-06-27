@@ -1,73 +1,75 @@
 ---
 name: bun-test-runner
-description: Ensures all JavaScript/TypeScript tests run under Bun's native test runner (bun:test). Use when writing new tests, migrating from vitest, or troubleshooting test failures.
+description: Describes how to write JavaScript/TypeScript tests in the Toby monorepo using Bun's native test runner. Use when creating new test files or reviewing existing ones.
 ---
 
-# Bun Test Runner
+# Writing Tests with Bun
 
-## Goal
+All tests in the Toby monorepo use **Bun's native test runner** (`bun:test`). Tests run under the same runtime as production, so `bun:sqlite` and other Bun-native APIs are available.
 
-All TypeScript/JavaScript tests in the Toby monorepo must use **Bun's native test runner** (`bun:test`), not vitest. This ensures:
+## Basics
 
-- Tests run under the same runtime as production (Bun)
-- `bun:sqlite` and other Bun-native APIs are available in tests
-- No ESM/CJS interop issues between vitest and Bun
-
-## Correct Configuration
-
-### Package.json scripts
-
-```json
-{
-  "scripts": {
-    "test": "bun test",
-    "test:watch": "bun test --watch"
-  }
-}
-```
-
-### Test file imports
-
-All test files must import from `bun:test`:
+### Import test APIs from `bun:test`
 
 ```typescript
-import { describe, expect, it, mock, spyOn, jest } from "bun:test";
+import { describe, expect, it, beforeEach, afterEach } from "bun:test";
 ```
 
-### Mock cleanup
+Use `describe` for grouping and `it` for individual tests. `expect` supports `.toBe`, `.toEqual`, `.toHaveLength`, `.toMatch`, `.toContain`, `.toBeGreaterThan`, `.toBeLessThan`, `.toBeDefined`, `.toBeNull`, `.toBeTruthy`, `.toBeFalsy`, `.toMatchObject`, `.rejects.toMatchObject`, and `.toThrow`.
 
-Unlike vitest, Bun does **not** automatically clear mocks between tests. Add this to files using `spyOn` or `mock`:
+### Basic test structure
 
 ```typescript
-import { afterEach, jest } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
-afterEach(() => {
-  jest.restoreAllMocks();
+describe("feature name", () => {
+  it("does the expected thing", () => {
+    expect(doSomething()).toBe(42);
+  });
 });
 ```
 
-### API mappings from vitest to bun:test
+### Async tests
 
-| vitest | bun:test |
-|--------|----------|
-| `import { ... } from "vitest"` | `import { ... } from "bun:test"` |
-| `vi.fn()` | `mock()` |
-| `vi.spyOn(obj, "method")` | `spyOn(obj, "method")` |
-| `vi.useFakeTimers()` | `jest.useFakeTimers()` |
-| `vi.useRealTimers()` | `jest.useRealTimers()` |
-| `vi.setSystemTime(date)` | `jest.setSystemTime(date)` |
-| `vi.advanceTimersByTime(ms)` | `jest.advanceTimersByTime(ms)` |
-| `vi.stubGlobal("fetch", fn)` | `globalThis.fetch = fn` (manual restore) |
-| `vi.stubEnv("KEY", "val")` | `process.env.KEY = "val"` (manual restore) |
-| `vi.mock("module", () => ...)` | `mock.module("module", () => ...)` |
-| `vi.hoisted(() => ...)` | Not available; restructure mocks |
-| `vi.importOriginal()` | Pre-import module and spread in mock factory |
-| `vi.waitFor(fn)` | Not available; use polling or delays |
-| `vi.runAllTimersAsync()` | Not available; use `jest.runAllTimers()` + `await Promise.resolve()` |
+```typescript
+it("handles async operations", async () => {
+  const result = await fetchData();
+  expect(result).toEqual({ ok: true });
+});
+```
 
-## Module mocking with `mock.module()`
+### Skipping tests conditionally
 
-Bun supports `mock.module()` for replacing module imports:
+```typescript
+function canUseBunSqlite(): boolean {
+  try {
+    require("bun:sqlite");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+it.skipIf(!canUseBunSqlite())("uses SQLite", () => {
+  // test code
+});
+```
+
+## Mocking
+
+### Mocking functions with `mock()`
+
+```typescript
+import { mock, expect } from "bun:test";
+
+const myMock = mock(() => "result");
+expect(myMock()).toBe("result");
+expect(myMock).toHaveBeenCalledTimes(1);
+```
+
+### Mocking modules with `mock.module()`
+
+Use `mock.module()` to replace module imports. The factory must be synchronous.
 
 ```typescript
 import { mock } from "bun:test";
@@ -79,11 +81,72 @@ mock.module("./real-module", () => ({
 }));
 ```
 
-**Limitations:**
-- Factory must be synchronous (no async `importOriginal` equivalent)
-- For partial mocks, pre-import the actual module and spread it
+For modules mocked by many test files, create a shared helper in `tests/helpers/`:
 
-## Timer mocking
+```typescript
+// tests/helpers/setup-ai-mocks.ts
+import { mock } from "bun:test";
+import * as actualAi from "ai";
+
+export const generateTextMock = mock((..._args: unknown[]) =>
+  Promise.resolve({})
+);
+
+mock.module("ai", () => ({
+  ...actualAi,
+  generateText: (...args: unknown[]) => generateTextMock(...args),
+}));
+```
+
+Then import it at the top of each test file that needs it:
+
+```typescript
+import "./helpers/setup-ai-mocks";
+```
+
+### Spying on object methods with `spyOn()`
+
+```typescript
+import { spyOn, afterEach, jest } from "bun:test";
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+it("tracks calls", () => {
+  spyOn(console, "log", () => {});
+  console.log("hello");
+  expect(console.log).toHaveBeenCalledTimes(1);
+});
+```
+
+**Important**: `spyOn` does not auto-clear between tests. Always add `afterEach(() => jest.restoreAllMocks())` when using spies.
+
+### Direct property mutation for class instances
+
+When `spyOn` does not reliably intercept cross-module calls on class instances, mutate the property directly and restore it manually:
+
+```typescript
+it("replaces behavior", () => {
+  const original = instance.method;
+  instance.method = () => ({ status: "mocked" });
+  // ... test ...
+  instance.method = original;
+});
+```
+
+### Global mutation
+
+```typescript
+const originalFetch = globalThis.fetch;
+globalThis.fetch = mock(() => Promise.resolve({ ok: true }));
+// ... test ...
+globalThis.fetch = originalFetch;
+```
+
+## Timers
+
+### Fake timers
 
 ```typescript
 import { beforeEach, afterEach, jest } from "bun:test";
@@ -97,44 +160,103 @@ afterEach(() => {
 });
 ```
 
-## CI Configuration
-
-```yaml
-# .github/workflows/ci.yml
-- name: Setup Bun
-  uses: oven-sh/setup-bun@v1
-  with:
-    bun-version: latest
-
-- name: Run tests
-  run: bun test
-```
-
-## Verification
-
-Add this test to verify the runtime:
+### Advancing timers
 
 ```typescript
-import { describe, it, expect } from "bun:test";
-
-describe("runtime verification", () => {
-  it("runs under Bun", () => {
-    expect(typeof Bun).toBe("object");
-    expect(typeof Bun.version).toBe("string");
-  });
-
-  it("can import bun:sqlite", () => {
-    expect(() => {
-      require("bun:sqlite");
-    }).not.toThrow();
-  });
-});
+jest.advanceTimersByTime(50);
 ```
+
+### Running all timers
+
+```typescript
+jest.runAllTimers();
+await Promise.resolve(); // let microtasks flush
+```
+
+### Waiting for async conditions
+
+Bun:test does not have a `waitFor` helper. Use a simple polling function:
+
+```typescript
+async function waitFor(assertion: () => void, timeoutMs = 500): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  let lastError: Error | undefined;
+  while (Date.now() < deadline) {
+    try {
+      assertion();
+      return;
+    } catch (err) {
+      lastError = err as Error;
+      await new Promise((r) => setTimeout(r, 10));
+    }
+  }
+  throw lastError ?? new Error("waitFor timeout");
+}
+```
+
+## Environment and temp directories
+
+### Temporary directories
+
+```typescript
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-test-"));
+try {
+  // test code
+} finally {
+  fs.rmSync(dir, { recursive: true, force: true });
+}
+```
+
+### Isolating config with `TOBY_DIR`
+
+```typescript
+function withTempTobyDir(run: () => void | Promise<void>): Promise<void> {
+  const previous = process.env.TOBY_DIR;
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-test-"));
+  process.env.TOBY_DIR = dir;
+  return Promise.resolve()
+    .then(run)
+    .finally(() => {
+      if (previous === undefined) {
+        Reflect.deleteProperty(process.env, "TOBY_DIR");
+      } else {
+        process.env.TOBY_DIR = previous;
+      }
+      fs.rmSync(dir, { recursive: true, force: true });
+    });
+}
+```
+
+### Environment variable cleanup
+
+Always restore `process.env` values in a `finally` block:
+
+```typescript
+const prev = process.env.TOBY_SOME_FLAG;
+process.env.TOBY_SOME_FLAG = "1";
+try {
+  expect(isFeatureEnabled()).toBe(true);
+} finally {
+  if (prev === undefined) {
+    process.env.TOBY_SOME_FLAG = undefined;
+  } else {
+    process.env.TOBY_SOME_FLAG = prev;
+  }
+}
+```
+
+## Database-dependent tests
+
+Tests that depend on `bun:sqlite` should conditionally skip when unavailable, or use `withTempTobyDir` to create an isolated database per test.
 
 ## What NOT to do
 
-- **Don't** import from `"vitest"` in new or migrated tests
-- **Don't** use `vi.mock()` - use `mock.module()` instead
-- **Don't** use `vi.hoisted()` - restructure test setup
-- **Don't** use `vi.waitFor()` or `vi.runAllTimersAsync()` - they're vitest-specific
-- **Don't** assume mocks auto-clear between tests - use `jest.restoreAllMocks()`
+- **Don't** import from `"vitest"`
+- **Don't** use `jest.fn()` or `jest.spyOn()` - Bun uses `mock()` and `spyOn()` from `bun:test`
+- **Don't** assume mocks auto-clear between tests - always add cleanup
+- **Don't** use `await jest.runAllTimersAsync()` - use `jest.runAllTimers()` + `await Promise.resolve()` instead
+- **Don't** create `mock.module()` factories that return Promises - they must be synchronous
