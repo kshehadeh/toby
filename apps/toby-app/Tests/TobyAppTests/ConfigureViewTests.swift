@@ -150,4 +150,47 @@ struct ConfigureViewTests {
 		let item = try JSONDecoder().decode(SettingsItem.self, from: json)
 		#expect(item.iconUrl == nil)
 	}
+
+	@Test("configure detail shows skeleton during initial settings load")
+	func configureDetailShowsSkeletonWhenLoading() throws {
+		let store = ConfigureStore()
+		store.isLoading = true
+		store.settingsSections = []
+		let view = ConfigureView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-detail-skeleton")
+		}
+	}
+
+	@Test("configure sidebar shows skeleton during initial settings load")
+	func configureSidebarShowsSkeletonWhenLoading() throws {
+		let store = ConfigureStore()
+		store.isLoading = true
+		store.settingsSections = []
+		let view = ConfigureSidebarView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-sidebar-skeleton")
+		}
+	}
+
+	@Test("configure detail shows skeleton during section detail loading")
+	func configureDetailShowsSkeletonDuringSectionLoad() throws {
+		let store = ConfigureStore()
+		store.isLoading = false
+		store.settingsSections = [
+			SettingsItem(
+				label: "Chat", kind: .section, key: "chatInbound",
+				navKey: nil, children: [],
+				masked: nil, multiline: nil, options: nil, selectChoices: nil,
+				currentValue: nil, selectedValues: nil, readOnly: nil
+			),
+		]
+		store.selectedNavKey = "chatInbound"
+		store.sectionDetailLoading = true
+		store.selectedSectionDetail = nil
+		let view = ConfigureView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-detail-skeleton")
+		}
+	}
 }

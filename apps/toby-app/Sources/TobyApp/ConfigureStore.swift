@@ -158,6 +158,10 @@ final class ConfigureStore {
 			expandedKeys.insert(navKey)
 		}
 		if isSettingsMode && selectedNavKey != nil {
+			if selectedSectionDetail?.navKey != navKey {
+				selectedSectionDetail = nil
+				sectionDetailLoading = true
+			}
 			Task { await loadSectionDetail(navKey) }
 		}
 	}
