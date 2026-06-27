@@ -437,9 +437,7 @@ export async function applyStagedRelease(
 	if (fs.existsSync(path.join(webPath, "index.html"))) {
 		options?.onProgress?.({ phase: "installing", detail: "web UI" });
 		await yieldToEventLoop();
-		const webInstallTarget = resolveWebInstallTarget(
-			path.dirname(installTarget),
-		);
+		const webInstallTarget = path.join(path.dirname(installTarget), "web");
 		await rm(webInstallTarget, { recursive: true, force: true });
 		await cp(webPath, webInstallTarget, { recursive: true });
 	}
@@ -447,9 +445,7 @@ export async function applyStagedRelease(
 	if (fs.existsSync(iconsPath)) {
 		options?.onProgress?.({ phase: "installing", detail: "icons" });
 		await yieldToEventLoop();
-		const iconsInstallTarget = resolveIconsInstallTarget(
-			path.dirname(installTarget),
-		);
+		const iconsInstallTarget = path.join(path.dirname(installTarget), "icons");
 		await rm(iconsInstallTarget, { recursive: true, force: true });
 		await cp(iconsPath, iconsInstallTarget, { recursive: true });
 	}
