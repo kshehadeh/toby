@@ -26,7 +26,10 @@ final class UpdateStore {
 				guard let self else { return }
 				let version = currentVersionProvider()
 				await self.checkForUpdates(currentVersion: version)
-				try? await Task.sleep(nanoseconds: 300_000_000_000)
+				// When the version is not yet available (e.g. status still loading),
+				// retry quickly instead of waiting the full interval.
+				let interval: UInt64 = (version?.isEmpty ?? true) ? 5_000_000_000 : 300_000_000_000
+				try? await Task.sleep(nanoseconds: interval)
 			}
 		}
 	}
@@ -46,7 +49,7 @@ final class UpdateStore {
 		do {
 			let response = try await client.fetchChangelog(limit: 1)
 			guard let latest = response.releases.first else { return }
-			latestVersion = latest.version
+			latestVersion = latest.version.hasPrefix("v") ? String(latest.version.dropFirst()) : latest.version
 			isUpdateAvailable = UpdateStore.isVersionNewer(latest.version, currentVersion)
 		} catch {
 			// Silently ignore update check failures

@@ -90,6 +90,7 @@ struct RecordingProcessingState: Identifiable, Equatable {
 enum AppToastAction: Identifiable, Equatable {
 	case openRecording(id: String)
 	case openURL(url: String)
+	case restartApp
 
 	var id: String {
 		switch self {
@@ -97,6 +98,8 @@ enum AppToastAction: Identifiable, Equatable {
 			return "open-recording-\(id)"
 		case .openURL(let url):
 			return "open-url-\(url)"
+		case .restartApp:
+			return "restart-app"
 		}
 	}
 
@@ -106,6 +109,8 @@ enum AppToastAction: Identifiable, Equatable {
 			return "Open recording"
 		case .openURL:
 			return "View issue"
+		case .restartApp:
+			return "Restart"
 		}
 	}
 }

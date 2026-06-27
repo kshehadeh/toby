@@ -179,17 +179,10 @@ struct AboutTobyView: View {
 
 			if let updateStore, updateStore.isUpdateAvailable, let latest = updateStore.latestVersion {
 				Button {
+					onDismiss?()
 					Task { await updateStore.performUpgrade() }
 				} label: {
-					if updateStore.isUpgrading {
-						HStack(spacing: 6) {
-							ProgressView()
-								.controlSize(.small)
-							Text("Upgrading…")
-						}
-					} else {
-						Text("Upgrade to v\(latest)")
-					}
+					Text("Upgrade to v\(latest)")
 				}
 				.disabled(updateStore.isUpgrading)
 				.accessibilityLabel("Upgrade to version \(latest)")

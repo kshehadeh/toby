@@ -163,6 +163,23 @@ struct RootView: View {
                     store?.status?.version
                 })
             }
+            .onChange(of: updateStore.upgradeComplete) { _, complete in
+                guard complete else { return }
+                store.toast = AppToastState(
+                    style: .success,
+                    title: "Update complete",
+                    message: "Restart Toby to finish installing v\(updateStore.latestVersion ?? "").",
+                    action: .restartApp
+                )
+            }
+            .onChange(of: updateStore.upgradeError) { _, error in
+                guard error != nil else { return }
+                store.toast = AppToastState(
+                    style: .error,
+                    title: "Update failed",
+                    message: updateStore.upgradeError
+                )
+            }
     }
 
     private var contentWithOverlay: some View {
@@ -384,6 +401,8 @@ struct RootView: View {
             if let url = URL(string: urlString) {
                 NSWorkspace.shared.open(url)
             }
+        case .restartApp:
+            updateStore.relaunchApp()
         }
     }
 

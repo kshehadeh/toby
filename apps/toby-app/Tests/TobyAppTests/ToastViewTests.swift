@@ -169,4 +169,25 @@ struct ToastViewTests {
 		#expect(capturedAction == .openURL(url: "https://github.com/example/repo/issues/55"))
 		#expect(dismissed == true)
 	}
+
+	@Test("restartApp action renders restart button")
+	func restartActionRendersButton() throws {
+		let toast = AppToastState(
+			style: .success,
+			title: "Update complete",
+			message: "Restart Toby to finish installing.",
+			action: .restartApp
+		)
+		let view = ToastView(
+			toast: toast,
+			onDismiss: {},
+			onAction: { _ in }
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(ViewType.Button.self) { button in
+				let text = try? button.labelView().find(ViewType.Text.self).string()
+				return text == "Restart"
+			}
+		}
+	}
 }

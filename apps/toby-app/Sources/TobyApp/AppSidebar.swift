@@ -206,12 +206,27 @@ private struct SidebarHeader: View {
 							.font(.caption)
 							.foregroundStyle(AppTheme.tertiaryText)
 					}
-					if updateStore?.isUpdateAvailable == true, let latest = updateStore?.latestVersion {
-						Text("Update available")
+					if updateStore?.isUpgrading == true {
+						Text("Updating")
+							.font(.caption2.weight(.medium))
+							.foregroundStyle(AppTheme.tertiaryText)
+							.padding(.horizontal, 6)
+							.padding(.vertical, 3)
+							.background(
+								Capsule()
+									.fill(AppTheme.tertiaryText.opacity(0.12))
+							)
+							.overlay(
+								Capsule()
+									.stroke(AppTheme.tertiaryText.opacity(0.3), lineWidth: 1)
+							)
+							.accessibilityLabel("Updating Toby")
+					} else if updateStore?.isUpdateAvailable == true, let latest = updateStore?.latestVersion {
+						Text("Update")
 							.font(.caption2.weight(.medium))
 							.foregroundStyle(AppTheme.accent)
 							.padding(.horizontal, 6)
-							.padding(.vertical, 2)
+							.padding(.vertical, 3)
 							.background(
 								Capsule()
 									.fill(AppTheme.accent.opacity(0.18))

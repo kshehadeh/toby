@@ -107,4 +107,43 @@ struct UpdateStoreTests {
 		#expect(store.isUpdateAvailable == false)
 		#expect(store.latestVersion == nil)
 	}
+
+	@Test("checkForUpdates strips v prefix from latestVersion")
+	func checkStripsVPrefix() async {
+		let release = ChangelogRelease(
+			version: "v0.67.0",
+			tagName: "v0.67.0",
+			url: "https://example.com",
+			publishedAt: "2026-06-21T07:33:33Z",
+			features: [],
+			bugs: [],
+			enhancements: []
+		)
+		let (store, _) = makeStore(response: ChangelogResponse(releases: [release]))
+		await store.checkForUpdates(currentVersion: "0.66.0")
+		#expect(store.latestVersion == "0.67.0")
+		#expect(store.isUpdateAvailable == true)
+	}
+
+	@Test("startCheckLoop retries quickly when version is not yet available")
+	func startCheckLoopRetriesQuicklyWhenVersionMissing() async {
+		let response = ChangelogResponse(releases: [makeRelease(version: "0.67.0")])
+		let (store, client) = makeStore(response: response)
+
+		var version: String? = nil
+		store.startCheckLoop(currentVersionProvider: { version })
+		// First check: version is nil, no fetch should happen.
+		try? await Task.sleep(nanoseconds: 100_000_000)
+		#expect(client.fetchCount == 0)
+
+		// Simulate status becoming available.
+		version = "0.66.0"
+		// The loop should retry within a few seconds (not 5 minutes).
+		try? await Task.sleep(nanoseconds: 6_000_000_000)
+		#expect(client.fetchCount >= 1)
+		#expect(store.isUpdateAvailable == true)
+		#expect(store.latestVersion == "0.67.0")
+
+		store.stopCheckLoop()
+	}
 }
