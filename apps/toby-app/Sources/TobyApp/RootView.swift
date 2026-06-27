@@ -10,10 +10,12 @@ struct RootView: View {
     @Bindable var skillsStore: SkillsStore
     let personaEditorCoordinator: PersonaEditorCoordinator
     @Bindable var updateStore: UpdateStore
+    @Bindable var changelogStore: ChangelogStore
     @Environment(\.openWindow) private var openWindow
     @State private var history = NavigationHistory()
     @State private var isCommandPalettePresented = false
     @State private var isIssueReportPresented = false
+    @State private var isChangelogPresented = false
     @State private var pendingDeleteSession: SessionSummary?
     @State private var isToastHovered = false
     @State private var toastDismissTask: Task<Void, Never>?
@@ -64,7 +66,7 @@ struct RootView: View {
                 isIssueReportPresented = true
             }
             .onReceive(NotificationCenter.default.publisher(for: .openChangelog)) { _ in
-                openWindow(id: "changelog")
+                isChangelogPresented = true
             }
             .onReceive(NotificationCenter.default.publisher(for: .openRecordingFromToast)) { notification in
                 if let id = notification.object as? String {
@@ -128,6 +130,11 @@ struct RootView: View {
                     isIssueReportPresented = false
                 }
             }
+            .sheet(isPresented: $isChangelogPresented) {
+                ChangelogView(store: changelogStore, updateStore: updateStore) {
+                    isChangelogPresented = false
+                }
+            }
     }
 
     private var contentWithTasks: some View {
@@ -183,7 +190,7 @@ struct RootView: View {
                 onCreatePersona: { openPersonaEditor(.create) },
                 onEditPersona: { openPersonaEditor(.edit(name: $0)) },
                 onPersonaSelected: refreshStatus,
-                onOpenChangelog: { openWindow(id: "changelog") },
+                onOpenChangelog: { isChangelogPresented = true },
                 sidebarContent: {
                     switch history.current {
                     case .chat:

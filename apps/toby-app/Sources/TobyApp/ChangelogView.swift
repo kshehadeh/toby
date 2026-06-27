@@ -3,6 +3,7 @@ import SwiftUI
 struct ChangelogView: View {
 	@Bindable var store: ChangelogStore
 	var updateStore: UpdateStore?
+	var onDismiss: (() -> Void)? = nil
 
 	private let dateFormatter: DateFormatter = {
 		let formatter = DateFormatter()
@@ -13,6 +14,8 @@ struct ChangelogView: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
+			changelogHeader
+
 			if updateStore?.upgradeComplete == true {
 				UpgradeCompleteBanner(
 					version: updateStore?.latestVersion,
@@ -58,43 +61,48 @@ struct ChangelogView: View {
 		.padding(24)
 		.frame(minWidth: 480, idealWidth: 520, maxWidth: 560, minHeight: 400, idealHeight: 520, maxHeight: 640)
 		.background(AppTheme.contentBackground)
-		.background(WindowAccessor { window in
-			window.styleMask.remove([.miniaturizable, .resizable])
-		})
-		.toolbar {
-			ToolbarItem(placement: .primaryAction) {
-				if let updateStore, updateStore.isUpdateAvailable, let latest = updateStore.latestVersion {
-					Button {
-						Task { await updateStore.performUpgrade() }
-					} label: {
-						if updateStore.isUpgrading {
-							HStack(spacing: 6) {
-								ProgressView()
-									.controlSize(.small)
-								Text("Upgrading…")
-							}
-						} else {
-							Text("Upgrade to v\(latest)")
-						}
-					}
-					.disabled(updateStore.isUpgrading)
-					.accessibilityLabel("Upgrade to version \(latest)")
-				}
-			}
-			ToolbarItem(placement: .primaryAction) {
-				Button {
-					Task { await store.load(force: true) }
-				} label: {
-					Image(systemName: "arrow.clockwise")
-				}
-				.help("Refresh changelog")
-				.disabled(store.isLoading)
-				.accessibilityLabel("Refresh changelog")
-			}
-		}
 		.task {
 			await store.load()
 		}
+	}
+
+	private var changelogHeader: some View {
+		HStack {
+			Button {
+				Task { await store.load(force: true) }
+			} label: {
+				Text("Refresh")
+			}
+			.buttonStyle(.link)
+			.disabled(store.isLoading)
+			.accessibilityLabel("Refresh changelog")
+
+			Spacer()
+
+			if let updateStore, updateStore.isUpdateAvailable, let latest = updateStore.latestVersion {
+				Button {
+					Task { await updateStore.performUpgrade() }
+				} label: {
+					if updateStore.isUpgrading {
+						HStack(spacing: 6) {
+							ProgressView()
+								.controlSize(.small)
+							Text("Upgrading…")
+						}
+					} else {
+						Text("Upgrade to v\(latest)")
+					}
+				}
+				.disabled(updateStore.isUpgrading)
+				.accessibilityLabel("Upgrade to version \(latest)")
+			}
+
+			Button("Done") {
+				onDismiss?()
+			}
+			.accessibilityLabel("Close changelog")
+		}
+		.padding(.bottom, 16)
 	}
 }
 

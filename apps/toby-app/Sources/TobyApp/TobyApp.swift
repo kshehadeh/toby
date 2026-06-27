@@ -26,7 +26,8 @@ struct TobyApp: App {
 				integrationsStore: integrationsStore,
 				skillsStore: skillsStore,
 				personaEditorCoordinator: personaEditorCoordinator,
-				updateStore: updateStore
+				updateStore: updateStore,
+				changelogStore: changelogStore
 			)
 				.frame(minWidth: 860, minHeight: 560)
 				.coordinateSpace(name: "TobyWindow")
@@ -50,13 +51,6 @@ struct TobyApp: App {
 		}
 		.windowStyle(.automatic)
 		.defaultSize(width: 620, height: 520)
-
-		Window("What’s New", id: "changelog") {
-			ChangelogView(store: changelogStore, updateStore: updateStore)
-				.onDisappear { NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil) }
-		}
-		.windowStyle(.automatic)
-		.defaultSize(width: 520, height: 640)
 
 		Window("Persona Editor", id: "persona-editor") {
 			Group {

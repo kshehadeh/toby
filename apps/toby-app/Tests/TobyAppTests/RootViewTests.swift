@@ -15,7 +15,8 @@ struct RootViewTests {
 			integrationsStore: ConfigureStore(),
 			skillsStore: SkillsStore(),
 			personaEditorCoordinator: PersonaEditorCoordinator(),
-			updateStore: UpdateStore()
+			updateStore: UpdateStore(),
+			changelogStore: ChangelogStore()
 		)
 	}
 
