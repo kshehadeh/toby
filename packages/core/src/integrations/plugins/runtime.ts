@@ -13,13 +13,20 @@ export type BunRuntimeResult =
  *
  * Search order:
  * 1. `TOBY_BUN_PATH` env var (explicit override, dev/diagnostics)
- * 2. `~/.toby/helpers/bun` (bundled in release installs)
- * 3. `bun` on PATH (development mode)
+ * 2. `bun` next to the compiled CLI executable (self-contained app bundle)
+ * 3. `~/.toby/helpers/bun` (bundled in release installs)
+ * 4. `bun` on PATH (development mode)
  */
 export function resolveBunRuntime(): BunRuntimeResult {
 	const envPath = process.env.TOBY_BUN_PATH?.trim();
 	if (envPath && fs.existsSync(envPath)) {
 		return { ok: true, bunPath: envPath };
+	}
+
+	// Check for bun next to the running executable (self-contained app bundle)
+	const siblingBun = path.join(path.dirname(process.execPath), "bun");
+	if (fs.existsSync(siblingBun)) {
+		return { ok: true, bunPath: siblingBun };
 	}
 
 	const helpersBun = path.join(getHelpersDir(), "bun");

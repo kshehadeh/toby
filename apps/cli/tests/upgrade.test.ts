@@ -11,6 +11,7 @@ import {
 	applyStagedRelease,
 	applyStagedReleaseDelegated,
 	getStagingPaths,
+	isRunningFromAppBundle,
 	readStagingManifest,
 	removeLegacySiblingHelpers,
 	removeOrphanedLegacyMacOSHelper,
@@ -73,7 +74,7 @@ describe("upgrade staging paths", () => {
 		expect(paths.webPath).toBe(path.join(tempDir, "staging", "web"));
 		expect(paths.iconsPath).toBe(path.join(tempDir, "staging", "icons"));
 		expect(paths.archivePath).toBe(
-			path.join(tempDir, "staging", "toby-release.zip"),
+			path.join(tempDir, "staging", "toby-release.dmg"),
 		);
 		expect(paths.manifestPath).toBe(
 			path.join(tempDir, "staging", "manifest.json"),
@@ -192,6 +193,42 @@ describe("resolveInstallTarget compiled", () => {
 	});
 });
 
+describe("isRunningFromAppBundle", () => {
+	const originalArgv = process.argv;
+	const originalExecPath = process.execPath;
+
+	afterEach(() => {
+		process.argv = originalArgv;
+		Object.defineProperty(process, "execPath", {
+			value: originalExecPath,
+		});
+	});
+
+	it("returns false for non-compiled runs", () => {
+		process.argv = ["/usr/local/bin/bun", "/path/to/cli.ts", "chat"];
+		Object.defineProperty(process, "execPath", {
+			value: "/Applications/Toby.app/Contents/Resources/toby",
+		});
+		expect(isRunningFromAppBundle()).toBe(false);
+	});
+
+	it("returns true when execPath is inside an app bundle", () => {
+		process.argv = ["/Applications/Toby.app/Contents/Resources/toby", "chat"];
+		Object.defineProperty(process, "execPath", {
+			value: "/Applications/Toby.app/Contents/Resources/toby",
+		});
+		expect(isRunningFromAppBundle()).toBe(true);
+	});
+
+	it("returns false when execPath is a standalone binary", () => {
+		process.argv = ["/usr/local/bin/toby", "chat"];
+		Object.defineProperty(process, "execPath", {
+			value: "/usr/local/bin/toby",
+		});
+		expect(isRunningFromAppBundle()).toBe(false);
+	});
+});
+
 describe("shouldDelegateApplyToStagedBinary", () => {
 	let tempDir: string;
 	let previousTobyDir: string | undefined;
@@ -299,7 +336,7 @@ describe("applyStagedRelease", () => {
 		const manifest = {
 			tag: "v9.9.9",
 			version: "9.9.9",
-			asset: "toby-darwin-arm64.zip",
+			asset: "Toby-arm64.dmg",
 			repo: "kshehadeh/toby",
 			installTarget,
 			completedAt: new Date().toISOString(),
@@ -341,7 +378,7 @@ describe("applyStagedRelease", () => {
 			JSON.stringify({
 				tag: "v9.9.9",
 				version: "9.9.9",
-				asset: "toby-darwin-arm64.zip",
+				asset: "Toby-arm64.dmg",
 				repo: "kshehadeh/toby",
 				installTarget,
 				completedAt: new Date().toISOString(),
@@ -353,6 +390,110 @@ describe("applyStagedRelease", () => {
 		expect(
 			fs.readFileSync(path.join(installedBundle, "resource.txt"), "utf8"),
 		).toBe("new");
+	});
+
+	it("skips individual binary install and replaces Toby.app for app-bundle upgrades", async () => {
+		const compiledSpy = vi
+			.spyOn(tobySpawn, "isRunningAsCompiledBinary")
+			.mockReturnValue(true);
+		const originalExecPath = process.execPath;
+
+		// Simulate running from inside a Toby.app bundle
+		const appBundlePath = path.join(tempDir, "Toby.app");
+		const appResources = path.join(appBundlePath, "Contents", "Resources");
+		fs.mkdirSync(appResources, { recursive: true });
+		const appCliPath = path.join(appResources, "toby");
+		fs.writeFileSync(appCliPath, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+		Object.defineProperty(process, "execPath", { value: appCliPath });
+
+		const paths = getStagingPaths();
+		fs.mkdirSync(paths.stagingDir, { recursive: true });
+
+		// Create staged Toby.app with a version-reporting CLI inside
+		const versionScript = `#!/bin/sh\nif [ "$1" = "--version" ]; then echo "9.9.9"; exit 0; fi\nexit 1\n`;
+		fs.writeFileSync(paths.binaryPath, versionScript, { mode: 0o755 });
+
+		const stagedAppPath = paths.appPath;
+		const stagedAppResources = path.join(
+			stagedAppPath,
+			"Contents",
+			"Resources",
+		);
+		const stagedAppMacOS = path.join(stagedAppPath, "Contents", "MacOS");
+		fs.mkdirSync(stagedAppMacOS, { recursive: true });
+		fs.mkdirSync(stagedAppResources, { recursive: true });
+		fs.writeFileSync(
+			path.join(stagedAppMacOS, "toby-app"),
+			"#!/bin/sh\nexit 0\n",
+			{ mode: 0o755 },
+		);
+		// The app's bundled CLI must report the new version
+		fs.writeFileSync(path.join(stagedAppResources, "toby"), versionScript, {
+			mode: 0o755,
+		});
+
+		// Create a staged plugin directory
+		fs.mkdirSync(paths.pluginSampleTsPath, { recursive: true });
+		fs.writeFileSync(
+			path.join(paths.pluginSampleTsPath, "manifest.json"),
+			JSON.stringify({
+				name: "sample-ts",
+				displayName: "Sample TS",
+				description: "test",
+				version: "1.0.0",
+				protocolVersion: "1",
+				runtime: { type: "bun", entry: "src/index.ts" },
+			}),
+		);
+
+		// Create a staged web dir (should NOT be installed next to the old CLI)
+		fs.mkdirSync(paths.webPath, { recursive: true });
+		fs.writeFileSync(path.join(paths.webPath, "index.html"), "<html></html>");
+
+		const manifest = {
+			tag: "v9.9.9",
+			version: "9.9.9",
+			asset: "Toby-arm64.dmg",
+			repo: "kshehadeh/toby",
+			installTarget: appCliPath,
+			completedAt: new Date().toISOString(),
+		};
+		fs.writeFileSync(paths.manifestPath, JSON.stringify(manifest, null, 2));
+
+		try {
+			const result = await applyStagedRelease(appCliPath);
+			expect(result.version).toBe("9.9.9");
+
+			// Toby.app should be installed to ~/Applications or /Applications
+			const homeApps = path.join(os.homedir(), "Applications", "Toby.app");
+			const sysApps = path.join("/Applications", "Toby.app");
+			expect(fs.existsSync(homeApps) || fs.existsSync(sysApps)).toBe(true);
+
+			// Plugins should still be installed to ~/.toby/plugins/
+			expect(
+				fs.existsSync(path.join(getPluginsDir(), "toby-plugin-sample-ts")),
+			).toBe(true);
+
+			// The old CLI's sibling directory should NOT have web installed
+			// (it's inside the old app bundle which was not modified)
+			expect(fs.existsSync(path.join(appResources, "web", "index.html"))).toBe(
+				false,
+			);
+		} finally {
+			compiledSpy.mockRestore();
+			Object.defineProperty(process, "execPath", {
+				value: originalExecPath,
+			});
+			// Clean up any app installed to ~/Applications
+			try {
+				fs.rmSync(path.join(os.homedir(), "Applications", "Toby.app"), {
+					recursive: true,
+					force: true,
+				});
+			} catch {
+				// ignore
+			}
+		}
 	});
 });
 
@@ -401,7 +542,7 @@ describe("applyStagedReleaseDelegated", () => {
 		const manifest = {
 			tag: "v9.9.9",
 			version: "9.9.9",
-			asset: "toby-darwin-arm64.zip",
+			asset: "Toby-arm64.dmg",
 			repo: "kshehadeh/toby",
 			installTarget,
 			completedAt: new Date().toISOString(),

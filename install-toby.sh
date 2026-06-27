@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 # Install the latest Toby release from GitHub (no sudo).
 #
-# Installs:
+# Downloads the Toby DMG, mounts it, and installs:
+#   - Toby.app → /Applications (or ~/Applications when /Applications is not writable)
 #   - toby → $TOBY_INSTALL_DIR (default ~/.local/bin)
 #   - bun runtime → ~/.toby/helpers/bun (for bun-package plugins)
 #   - web UI → sibling web/ directory
 #   - icon assets → sibling icons/ directory
-#   - Toby.app → /Applications (or ~/Applications when /Applications is not writable)
-#   - toby-plugin-whisper → ~/.toby/plugins/
-#   - toby-plugin-sample-ts, toby-plugin-azuread, toby-plugin-gmail, toby-plugin-todoist, toby-plugin-slack, toby-plugin-jira, toby-plugin-websearch, toby-plugin-applecalendar, toby-plugin-macos → ~/.toby/plugins/
+#   - toby-plugin-* → ~/.toby/plugins/
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/OWNER/toby/main/install-toby.sh | bash
@@ -16,7 +15,7 @@
 #
 # Environment:
 #   TOBY_REPO         GitHub repo as owner/name (default: kshehadeh/toby)
-#   TOBY_INSTALL_DIR  Directory for the binaries (default: $HOME/.local/bin)
+#   TOBY_INSTALL_DIR  Directory for the CLI binary (default $HOME/.local/bin)
 #   TOBY_VERSION      Exact tag to install, e.g. v0.2.0 (default: latest GitHub release)
 #   GITHUB_TOKEN      Optional; raises API rate limits when set
 
@@ -33,10 +32,9 @@ arch="$(uname -m)"
 case "$os" in
 Darwin)
 	case "$arch" in
-	arm64) asset="toby-darwin-arm64" ;;
-	x86_64) asset="toby-darwin-x64" ;;
+	arm64) asset="Toby-arm64.dmg" ;;
 	*)
-		echo "Unsupported macOS architecture: $arch (need arm64 or x86_64)." >&2
+		echo "Unsupported macOS architecture: $arch (Toby releases are Apple Silicon only)." >&2
 		exit 1
 		;;
 	esac
@@ -50,8 +48,6 @@ Linux)
 	exit 1
 	;;
 esac
-
-asset="${asset}.zip"
 
 api_latest="https://api.github.com/repos/${repo}/releases/latest"
 curl_common=(-fsSL)
@@ -77,203 +73,119 @@ fi
 
 download_url="https://github.com/${repo}/releases/download/${tag}/${asset}"
 tmpdir="$(mktemp -d)"
-cleanup() { rm -rf "$tmpdir"; }
+cleanup() {
+	[[ -n "${mount_point:-}" ]] && hdiutil detach "${mount_point}" -force >/dev/null 2>&1 || true
+	rm -rf "$tmpdir"
+}
 trap cleanup EXIT
 
 echo "Installing Toby ${tag} (${asset}) from ${repo}..."
-if ! curl -fsSL -o "${tmpdir}/toby.zip" "$download_url"; then
+if ! curl -fsSL -o "${tmpdir}/Toby.dmg" "$download_url"; then
 	echo "Download failed: ${download_url}" >&2
 	echo "Check that this release exists and includes ${asset}." >&2
 	exit 1
 fi
-unzip -q "${tmpdir}/toby.zip" -d "$tmpdir"
-if [[ ! -f "${tmpdir}/toby" || ! -f "${tmpdir}/toby-plugin-whisper" ]]; then
-	echo "Release archive is missing toby or toby-plugin-whisper." >&2
-	exit 1
-fi
-if [[ ! -f "${tmpdir}/web/index.html" ]]; then
-	echo "Release archive is missing web/index.html." >&2
-	exit 1
-fi
-if [[ ! -f "${tmpdir}/icons/ai/openai.png" ]]; then
-	echo "Release archive is missing icons/ai/openai.png." >&2
+
+echo "Mounting DMG..."
+mount_output="$(hdiutil attach -nobrowse -noautoopen "${tmpdir}/Toby.dmg" 2>&1)"
+mount_point="$(echo "$mount_output" | tail -1 | awk '{print $NF}')"
+
+if [[ -z "$mount_point" || ! -d "$mount_point" ]]; then
+	echo "Failed to mount DMG: $mount_output" >&2
 	exit 1
 fi
 
-has_sample_ts_plugin=false
-if [[ -d "${tmpdir}/toby-plugin-sample-ts" ]]; then
-	has_sample_ts_plugin=true
+app_path="${mount_point}/Toby.app"
+if [[ ! -d "$app_path" ]]; then
+	echo "DMG does not contain Toby.app." >&2
+	exit 1
 fi
 
-has_azuread_plugin=false
-if [[ -d "${tmpdir}/toby-plugin-azuread" ]]; then
-	has_azuread_plugin=true
+resources_dir="${app_path}/Contents/Resources"
+if [[ ! -f "${resources_dir}/toby" ]]; then
+	echo "Toby.app is missing Contents/Resources/toby." >&2
+	exit 1
 fi
 
-has_gmail_plugin=false
-if [[ -d "${tmpdir}/toby-plugin-gmail" ]]; then
-	has_gmail_plugin=true
+# Install Toby.app to Applications
+if [[ -w /Applications ]]; then
+	applications_dir="/Applications"
+else
+	applications_dir="${HOME}/Applications"
 fi
+mkdir -p "$applications_dir"
+rm -rf "${applications_dir}/Toby.app"
+cp -R "$app_path" "${applications_dir}/Toby.app"
+echo "Installed: ${applications_dir}/Toby.app"
 
-has_todoist_plugin=false
-if [[ -d "${tmpdir}/toby-plugin-todoist" ]]; then
-	has_todoist_plugin=true
-fi
-
-has_slack_plugin=false
-if [[ -d "${tmpdir}/toby-plugin-slack" ]]; then
-	has_slack_plugin=true
-fi
-
-has_jira_plugin=false
-if [[ -d "${tmpdir}/toby-plugin-jira" ]]; then
-	has_jira_plugin=true
-fi
-
-has_websearch_plugin=false
-if [[ -f "${tmpdir}/toby-plugin-websearch" ]]; then
-	has_websearch_plugin=true
-fi
-
-has_applecalendar_plugin=false
-if [[ -f "${tmpdir}/toby-plugin-applecalendar" ]]; then
-	has_applecalendar_plugin=true
-fi
-
-has_macos_plugin=false
-if [[ -f "${tmpdir}/toby-plugin-macos" ]]; then
-	has_macos_plugin=true
-fi
-
-has_whisper_plugin=false
-if [[ -f "${tmpdir}/toby-plugin-whisper" ]]; then
-	has_whisper_plugin=true
-fi
-
-# Only the `toby` binary goes on PATH (install_dir). All bundled helper
-# binaries live under ~/.toby/helpers, and installable plugins under
-# ~/.toby/plugins, so they don't clutter the user's bin directory.
+# Install CLI binary to install_dir
 toby_dir="${TOBY_DIR:-$HOME/.toby}"
 toby_helpers_dir="${toby_dir}/helpers"
 toby_plugins_dir="${toby_dir}/plugins"
 
-chmod +x "${tmpdir}/toby"
+chmod +x "${resources_dir}/toby"
 mkdir -p "$install_dir"
-mv "${tmpdir}/toby" "${install_dir}/toby"
+cp "${resources_dir}/toby" "${install_dir}/toby"
 echo "Installed: ${install_dir}/toby"
 
-rm -rf "${install_dir}/web"
-cp -R "${tmpdir}/web" "${install_dir}/web"
-echo "Installed: ${install_dir}/web"
-
-rm -rf "${install_dir}/icons"
-cp -R "${tmpdir}/icons" "${install_dir}/icons"
-echo "Installed: ${install_dir}/icons"
-
-if [[ -d "${tmpdir}/Toby.app" ]]; then
-	# Install the native app into the Applications directory so it is
-	# discoverable in Finder/Spotlight. Prefer /Applications when writable,
-	# otherwise fall back to the per-user ~/Applications directory.
-	if [[ -w /Applications ]]; then
-		applications_dir="/Applications"
-	else
-		applications_dir="${HOME}/Applications"
-	fi
-	mkdir -p "$applications_dir"
-	rm -rf "${applications_dir}/Toby.app"
-	cp -R "${tmpdir}/Toby.app" "${applications_dir}/Toby.app"
-	echo "Installed: ${applications_dir}/Toby.app"
-
-	# Remove any legacy copy left next to the toby binary by older installers.
-	if [[ -d "${install_dir}/Toby.app" ]]; then
-		rm -rf "${install_dir}/Toby.app"
-		echo "Removed legacy app: ${install_dir}/Toby.app"
-	fi
+# Install web UI and icons next to the CLI
+if [[ -d "${resources_dir}/web" ]]; then
+	rm -rf "${install_dir}/web"
+	cp -R "${resources_dir}/web" "${install_dir}/web"
+	echo "Installed: ${install_dir}/web"
 fi
 
-if [[ -f "${tmpdir}/bun" ]]; then
-	chmod +x "${tmpdir}/bun"
+if [[ -d "${resources_dir}/icons" ]]; then
+	rm -rf "${install_dir}/icons"
+	cp -R "${resources_dir}/icons" "${install_dir}/icons"
+	echo "Installed: ${install_dir}/icons"
+fi
+
+# Install Bun runtime
+if [[ -f "${resources_dir}/bun" ]]; then
+	chmod +x "${resources_dir}/bun"
 	mkdir -p "$toby_helpers_dir"
-	mv "${tmpdir}/bun" "${toby_helpers_dir}/bun"
+	cp "${resources_dir}/bun" "${toby_helpers_dir}/bun"
 	echo "Installed: ${toby_helpers_dir}/bun"
 fi
 
-if $has_whisper_plugin; then
-	chmod +x "${tmpdir}/toby-plugin-whisper"
-	mkdir -p "$toby_plugins_dir"
-	mv "${tmpdir}/toby-plugin-whisper" "${toby_plugins_dir}/toby-plugin-whisper"
-	echo "Installed: ${toby_plugins_dir}/toby-plugin-whisper"
-fi
-
-if $has_sample_ts_plugin; then
-	mkdir -p "$toby_plugins_dir"
-	rm -rf "${toby_plugins_dir}/toby-plugin-sample-ts"
-	cp -R "${tmpdir}/toby-plugin-sample-ts" "${toby_plugins_dir}/toby-plugin-sample-ts"
-	echo "Installed: ${toby_plugins_dir}/toby-plugin-sample-ts"
-fi
-
-if $has_azuread_plugin; then
-	mkdir -p "$toby_plugins_dir"
-	rm -rf "${toby_plugins_dir}/toby-plugin-azuread"
-	cp -R "${tmpdir}/toby-plugin-azuread" "${toby_plugins_dir}/toby-plugin-azuread"
-	echo "Installed: ${toby_plugins_dir}/toby-plugin-azuread"
-fi
-
-if $has_gmail_plugin; then
-	mkdir -p "$toby_plugins_dir"
-	rm -rf "${toby_plugins_dir}/toby-plugin-gmail"
-	cp -R "${tmpdir}/toby-plugin-gmail" "${toby_plugins_dir}/toby-plugin-gmail"
-	echo "Installed: ${toby_plugins_dir}/toby-plugin-gmail"
-fi
-
-if $has_todoist_plugin; then
-	mkdir -p "$toby_plugins_dir"
-	rm -rf "${toby_plugins_dir}/toby-plugin-todoist"
-	cp -R "${tmpdir}/toby-plugin-todoist" "${toby_plugins_dir}/toby-plugin-todoist"
-	echo "Installed: ${toby_plugins_dir}/toby-plugin-todoist"
-fi
-
-if $has_slack_plugin; then
-	mkdir -p "$toby_plugins_dir"
-	rm -rf "${toby_plugins_dir}/toby-plugin-slack"
-	cp -R "${tmpdir}/toby-plugin-slack" "${toby_plugins_dir}/toby-plugin-slack"
-	echo "Installed: ${toby_plugins_dir}/toby-plugin-slack"
-fi
-
-if $has_jira_plugin; then
-	mkdir -p "$toby_plugins_dir"
-	rm -rf "${toby_plugins_dir}/toby-plugin-jira"
-	cp -R "${tmpdir}/toby-plugin-jira" "${toby_plugins_dir}/toby-plugin-jira"
-	echo "Installed: ${toby_plugins_dir}/toby-plugin-jira"
-fi
-
-if $has_websearch_plugin; then
-	chmod +x "${tmpdir}/toby-plugin-websearch"
-	mkdir -p "$toby_plugins_dir"
-	mv "${tmpdir}/toby-plugin-websearch" "${toby_plugins_dir}/toby-plugin-websearch"
-	echo "Installed: ${toby_plugins_dir}/toby-plugin-websearch"
-fi
-
-if $has_applecalendar_plugin; then
-	chmod +x "${tmpdir}/toby-plugin-applecalendar"
-	mkdir -p "$toby_plugins_dir"
-	mv "${tmpdir}/toby-plugin-applecalendar" "${toby_plugins_dir}/toby-plugin-applecalendar"
-	echo "Installed: ${toby_plugins_dir}/toby-plugin-applecalendar"
-fi
-
-if $has_macos_plugin; then
-	chmod +x "${tmpdir}/toby-plugin-macos"
-	mkdir -p "$toby_plugins_dir"
-	mv "${tmpdir}/toby-plugin-macos" "${toby_plugins_dir}/toby-plugin-macos"
-	echo "Installed: ${toby_plugins_dir}/toby-plugin-macos"
-	if [[ -d "${tmpdir}/TobyPluginMacOS_TobyPluginMacOSLib.bundle" ]]; then
-		rm -rf "${toby_plugins_dir}/TobyPluginMacOS_TobyPluginMacOSLib.bundle"
-		cp -R "${tmpdir}/TobyPluginMacOS_TobyPluginMacOSLib.bundle" "${toby_plugins_dir}/"
-		echo "Installed: ${toby_plugins_dir}/TobyPluginMacOS_TobyPluginMacOSLib.bundle"
+# Install all bundled plugins
+mkdir -p "$toby_plugins_dir"
+for entry in "${resources_dir}"/toby-plugin-*; do
+	[[ -e "$entry" ]] || continue
+	name="$(basename "$entry")"
+	if [[ -f "$entry" ]]; then
+		chmod +x "$entry"
+		cp "$entry" "${toby_plugins_dir}/${name}"
+	else
+		rm -rf "${toby_plugins_dir}/${name}"
+		cp -R "$entry" "${toby_plugins_dir}/${name}"
 	fi
+	echo "Installed: ${toby_plugins_dir}/${name}"
+done
+
+# Install plugin resource bundles
+for entry in "${resources_dir}"/*.bundle; do
+	[[ -e "$entry" ]] || continue
+	name="$(basename "$entry")"
+	rm -rf "${toby_plugins_dir}/${name}"
+	cp -R "$entry" "${toby_plugins_dir}/"
+	echo "Installed: ${toby_plugins_dir}/${name}"
+done
+
+# Run bun install for bun-package plugins
+bun_runtime="${toby_helpers_dir}/bun"
+if [[ -f "$bun_runtime" ]]; then
+	for plugin_dir in "${toby_plugins_dir}"/toby-plugin-*/; do
+		[[ -d "$plugin_dir" ]] || continue
+		if [[ -f "${plugin_dir}/manifest.json" ]]; then
+			rm -rf "${plugin_dir}node_modules"
+			"$bun_runtime" install --cwd "$plugin_dir" >/dev/null 2>&1 || true
+		fi
+	done
 fi
 
-# Remove legacy standalone helpers if present.
+# Remove legacy standalone helpers if present
 for legacy_helper in "${toby_helpers_dir}/toby-macos" "${toby_helpers_dir}/whisper-cli" "${toby_helpers_dir}/toby-listener"; do
 	if [[ -f "$legacy_helper" ]]; then
 		rm -f "$legacy_helper"

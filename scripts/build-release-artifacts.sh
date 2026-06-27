@@ -2,18 +2,18 @@
 # Build macOS release binaries into dist/ (same layout as .github/workflows/release.yml).
 #
 # Usage:
+#   ./scripts/build-release-artifacts.sh
 #   BUN_TARGET=bun-darwin-arm64 SWIFT_ARCH=arm64 ./scripts/build-release-artifacts.sh
-#   BUN_TARGET=bun-darwin-x64 SWIFT_ARCH=x86_64 ./scripts/build-release-artifacts.sh
 #
-# Requires: bun install (workspace), Swift toolchain, macOS.
+# Requires: bun install (workspace), Swift toolchain, macOS (Apple Silicon).
 
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$repo_root"
 
-bun_target="${BUN_TARGET:?Set BUN_TARGET (e.g. bun-darwin-arm64)}"
-swift_arch="${SWIFT_ARCH:?Set SWIFT_ARCH (e.g. arm64)}"
+bun_target="${BUN_TARGET:-bun-darwin-arm64}"
+swift_arch="${SWIFT_ARCH:-arm64}"
 
 mkdir -p dist
 

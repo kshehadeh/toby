@@ -112,6 +112,14 @@ final class UpdateStore {
 	}
 
 	private func findTobyBinary() -> String? {
+		// Self-contained app: CLI bundled inside Contents/Resources/
+		if let resourceURL = Bundle.main.resourceURL {
+			let bundledPath = resourceURL.appendingPathComponent("toby").path
+			if FileManager.default.isExecutableFile(atPath: bundledPath) {
+				return bundledPath
+			}
+		}
+
 		let home = FileManager.default.homeDirectoryForCurrentUser
 		let candidates = [
 			home.appendingPathComponent(".local/bin/toby").path,

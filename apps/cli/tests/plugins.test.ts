@@ -28,6 +28,7 @@ import {
 	getPluginModules,
 	resetPluginModuleCache,
 } from "@toby/core/integrations/plugins/registry";
+import { resolveBunRuntime } from "@toby/core/integrations/plugins/runtime";
 import { buildIntegrationSetupGuide } from "@toby/core/integrations/plugins/setup";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildPluginsReportLines } from "../src/ui/chat/slash-commands/plugins";
@@ -216,5 +217,70 @@ describe("plugin protocol", () => {
 		expect(guide.steps.map((s) => s.id)).toContain("overview");
 		expect(guide.steps.map((s) => s.id)).toContain("credentials");
 		expect(guide.steps.map((s) => s.id)).toContain("validate");
+	});
+});
+
+describe("resolveBunRuntime sibling resolution", () => {
+	let tempDir: string;
+	let previousTobyDir: string | undefined;
+	const originalExecPath = process.execPath;
+
+	beforeEach(() => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-bun-runtime-"));
+		previousTobyDir = process.env.TOBY_DIR;
+		process.env.TOBY_DIR = tempDir;
+	});
+
+	afterEach(() => {
+		if (previousTobyDir === undefined) {
+			Reflect.deleteProperty(process.env, "TOBY_DIR");
+		} else {
+			process.env.TOBY_DIR = previousTobyDir;
+		}
+		Reflect.deleteProperty(process.env, "TOBY_BUN_PATH");
+		Object.defineProperty(process, "execPath", {
+			value: originalExecPath,
+		});
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	it("finds bun next to the running executable (self-contained app)", () => {
+		const appResources = path.join(
+			tempDir,
+			"Toby.app",
+			"Contents",
+			"Resources",
+		);
+		fs.mkdirSync(appResources, { recursive: true });
+		const tobyPath = path.join(appResources, "toby");
+		const bunPath = path.join(appResources, "bun");
+		fs.writeFileSync(tobyPath, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+		fs.writeFileSync(bunPath, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+
+		Object.defineProperty(process, "execPath", { value: tobyPath });
+		const result = resolveBunRuntime();
+		expect(result.ok).toBe(true);
+		if (result.ok) {
+			expect(result.bunPath).toBe(bunPath);
+		}
+	});
+
+	it("falls back to ~/.toby/helpers/bun when no sibling exists", () => {
+		const binDir = path.join(tempDir, "bin");
+		fs.mkdirSync(binDir, { recursive: true });
+		const tobyPath = path.join(binDir, "toby");
+		fs.writeFileSync(tobyPath, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+
+		const helpersDir = path.join(tempDir, "helpers");
+		fs.mkdirSync(helpersDir, { recursive: true });
+		const helpersBun = path.join(helpersDir, "bun");
+		fs.writeFileSync(helpersBun, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+
+		Object.defineProperty(process, "execPath", { value: tobyPath });
+		const result = resolveBunRuntime();
+		expect(result.ok).toBe(true);
+		if (result.ok) {
+			expect(result.bunPath).toBe(helpersBun);
+		}
 	});
 });

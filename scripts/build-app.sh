@@ -223,6 +223,67 @@ if [[ -d "${RESOURCE_BUNDLE}" ]]; then
 else
 	echo "Warning: SPM resource bundle not found at ${RESOURCE_BUNDLE}" >&2
 fi
+
+# For production builds, bundle all release artifacts (CLI, Bun runtime, web UI,
+# icons, plugins) into Contents/Resources/ so Toby.app is self-contained.
+bundle_production_resources() {
+	local res_dir="${APP}/Contents/Resources"
+
+	if [[ -f "${DIST}/toby" ]]; then
+		cp "${DIST}/toby" "${res_dir}/toby"
+		chmod +x "${res_dir}/toby"
+	else
+		echo "Warning: dist/toby not found; Toby.app will not be self-contained." >&2
+		return 1
+	fi
+
+	if [[ -f "${DIST}/bun" ]]; then
+		cp "${DIST}/bun" "${res_dir}/bun"
+		chmod +x "${res_dir}/bun"
+	fi
+
+	if [[ -d "${DIST}/web" ]]; then
+		rm -rf "${res_dir}/web"
+		cp -R "${DIST}/web" "${res_dir}/web"
+	fi
+
+	if [[ -d "${DIST}/icons" ]]; then
+		rm -rf "${res_dir}/icons"
+		cp -R "${DIST}/icons" "${res_dir}/icons"
+	fi
+
+	# Copy all plugin artifacts (binaries and bun-package directories)
+	local entry
+	for entry in "${DIST}"/toby-plugin-*; do
+		[[ -e "${entry}" ]] || continue
+		local name
+		name="$(basename "${entry}")"
+		rm -rf "${res_dir}/${name}"
+		cp -R "${entry}" "${res_dir}/${name}"
+		if [[ -f "${res_dir}/${name}" ]]; then
+			chmod +x "${res_dir}/${name}"
+		fi
+	done
+
+	# Copy the macOS plugin resource bundle
+	if [[ -d "${DIST}/TobyPluginMacOS_TobyPluginMacOSLib.bundle" ]]; then
+		rm -rf "${res_dir}/TobyPluginMacOS_TobyPluginMacOSLib.bundle"
+		cp -R "${DIST}/TobyPluginMacOS_TobyPluginMacOSLib.bundle" "${res_dir}/"
+	fi
+
+	# Legacy placeholder for backward-compatible self-upgraders
+	if [[ -f "${DIST}/toby-listener" ]]; then
+		cp "${DIST}/toby-listener" "${res_dir}/toby-listener"
+		chmod +x "${res_dir}/toby-listener"
+	fi
+
+	echo "Bundled production resources into ${res_dir}"
+}
+
+if [[ "${APP_VARIANT}" == "production" ]]; then
+	bundle_production_resources
+fi
+
 build_app_icon
 if [[ "${CODE_SIGN_IDENTITY}" == "-" ]]; then
 	if codesign -s "${CODE_SIGN_IDENTITY}" --force --deep --entitlements "${ENTITLEMENTS}" "${APP}" >/dev/null 2>&1; then

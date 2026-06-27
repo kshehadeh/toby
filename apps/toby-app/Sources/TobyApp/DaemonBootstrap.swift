@@ -91,6 +91,12 @@ enum DaemonBootstrap {
 			candidates.append(URL(fileURLWithPath: explicit))
 		}
 
+		// Self-contained app: CLI bundled inside Contents/Resources/
+		if let resourceURL = Bundle.main.resourceURL {
+			candidates.append(resourceURL.appendingPathComponent("toby"))
+		}
+
+		// Legacy: CLI sitting next to the .app bundle
 		if let bundleParent = Bundle.main.bundleURL.deletingLastPathComponentIfAppBundle() {
 			candidates.append(bundleParent.appendingPathComponent("toby"))
 		}

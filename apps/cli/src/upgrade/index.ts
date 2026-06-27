@@ -30,6 +30,17 @@ import { resolveInstallApplicationsDir } from "../ui/chat/toby-app-launcher";
 
 export { isRunningAsCompiledBinary };
 
+/** True when the compiled CLI is running from inside a Toby.app bundle. */
+export function isRunningFromAppBundle(): boolean {
+	if (!isRunningAsCompiledBinary()) return false;
+	return process.execPath.includes(".app/Contents/Resources/");
+}
+
+/** Resolve the CLI path inside a Toby.app installed at the given app URL. */
+function appBundleCliPath(appPath: string): string {
+	return path.join(appPath, "Contents", "Resources", "toby");
+}
+
 export interface StagingManifest {
 	readonly tag: string;
 	readonly version: string;
@@ -149,7 +160,7 @@ export function getStagingPaths(): {
 		appPath: path.join(stagingDir, "Toby.app"),
 		webPath: path.join(stagingDir, "web"),
 		iconsPath: path.join(stagingDir, "icons"),
-		archivePath: path.join(stagingDir, "toby-release.zip"),
+		archivePath: path.join(stagingDir, "toby-release.dmg"),
 		manifestPath: path.join(stagingDir, "manifest.json"),
 		lockPath: path.join(stagingDir, ".lock"),
 	};
@@ -161,10 +172,10 @@ export function resolveReleaseAsset(): string {
 
 	if (platform === "darwin") {
 		if (architecture === "arm64") {
-			return "toby-darwin-arm64";
+			return "Toby-arm64";
 		}
 		if (architecture === "x64") {
-			return "toby-darwin-x64";
+			return "Toby-x64";
 		}
 		throw new Error(
 			`Unsupported macOS architecture: ${architecture} (need arm64 or x64).`,
@@ -217,7 +228,7 @@ export async function downloadRelease(
 ): Promise<DownloadReleaseResult> {
 	const repo = resolveTobyGitHubRepo(options.repo);
 	const installTarget = resolveInstallTarget(options.installDir);
-	const asset = `${resolveReleaseAsset()}.zip`;
+	const asset = `${resolveReleaseAsset()}.dmg`;
 	const tag = options.tag?.trim() || (await fetchLatestReleaseTag(repo));
 	const version = normalizeReleaseVersion(tag);
 	const currentVersion = getTobyVersion();
@@ -245,7 +256,7 @@ export async function downloadRelease(
 	} = getStagingPaths();
 	const tempArchivePath = path.join(
 		stagingDir,
-		`.toby-download-${Date.now()}-${Math.random().toString(16).slice(2)}.zip`,
+		`.toby-download-${Date.now()}-${Math.random().toString(16).slice(2)}.dmg`,
 	);
 
 	const releaseLock = await acquireStagingLock();
@@ -423,31 +434,40 @@ export async function applyStagedRelease(
 	}
 
 	const installTarget = installTargetOverride ?? manifest.installTarget;
+	const fromAppBundle = isRunningFromAppBundle();
 	await mkdir(path.dirname(installTarget), { recursive: true });
 
-	const tempDestination = path.join(
-		path.dirname(installTarget),
-		`.toby-upgrade-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-	);
-	await rm(tempDestination, { force: true }).catch(() => undefined);
-	await rename(binaryPath, tempDestination);
-	await chmodExecutable(tempDestination);
-	await rename(tempDestination, installTarget);
+	// For standalone CLI installs, replace the binary and sibling assets.
+	// For app-bundle installs, the whole Toby.app is replaced below, so
+	// skip individual binary/web/icons installation.
+	if (!fromAppBundle) {
+		const tempDestination = path.join(
+			path.dirname(installTarget),
+			`.toby-upgrade-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+		);
+		await rm(tempDestination, { force: true }).catch(() => undefined);
+		await rename(binaryPath, tempDestination);
+		await chmodExecutable(tempDestination);
+		await rename(tempDestination, installTarget);
 
-	if (fs.existsSync(path.join(webPath, "index.html"))) {
-		options?.onProgress?.({ phase: "installing", detail: "web UI" });
-		await yieldToEventLoop();
-		const webInstallTarget = path.join(path.dirname(installTarget), "web");
-		await rm(webInstallTarget, { recursive: true, force: true });
-		await cp(webPath, webInstallTarget, { recursive: true });
-	}
+		if (fs.existsSync(path.join(webPath, "index.html"))) {
+			options?.onProgress?.({ phase: "installing", detail: "web UI" });
+			await yieldToEventLoop();
+			const webInstallTarget = path.join(path.dirname(installTarget), "web");
+			await rm(webInstallTarget, { recursive: true, force: true });
+			await cp(webPath, webInstallTarget, { recursive: true });
+		}
 
-	if (fs.existsSync(iconsPath)) {
-		options?.onProgress?.({ phase: "installing", detail: "icons" });
-		await yieldToEventLoop();
-		const iconsInstallTarget = path.join(path.dirname(installTarget), "icons");
-		await rm(iconsInstallTarget, { recursive: true, force: true });
-		await cp(iconsPath, iconsInstallTarget, { recursive: true });
+		if (fs.existsSync(iconsPath)) {
+			options?.onProgress?.({ phase: "installing", detail: "icons" });
+			await yieldToEventLoop();
+			const iconsInstallTarget = path.join(
+				path.dirname(installTarget),
+				"icons",
+			);
+			await rm(iconsInstallTarget, { recursive: true, force: true });
+			await cp(iconsPath, iconsInstallTarget, { recursive: true });
+		}
 	}
 
 	if (fs.existsSync(path.join(appPath, "Contents", "MacOS", "toby-app"))) {
@@ -503,15 +523,23 @@ export async function applyStagedRelease(
 	// Migration: older installs placed helper binaries next to `toby` on PATH.
 	// Now that helpers live under ~/.toby/helpers, remove the stale siblings so
 	// only `toby` remains in the bin directory.
-	await removeLegacySiblingHelpers(installTarget, []);
+	// Skip for app-bundle installs: the CLI is inside Contents/Resources/ and
+	// we must not remove bundled files from there.
+	if (!fromAppBundle) {
+		await removeLegacySiblingHelpers(installTarget, []);
+	}
 	await removeOrphanedLegacyMacOSHelper();
 	await removeLegacyWhisperCliHelper();
 	await removeLegacyListenerHelper();
 
-	const installedVersion = readInstalledVersion(installTarget);
+	// For app-bundle upgrades, verify version using the newly installed app's CLI.
+	const versionCheckPath = fromAppBundle
+		? appBundleCliPath(path.join(resolveInstallApplicationsDir(), "Toby.app"))
+		: installTarget;
+	const installedVersion = readInstalledVersion(versionCheckPath);
 	if (!installedVersion) {
 		throw new Error(
-			`Installed binary at ${installTarget} did not return a version for --version.`,
+			`Installed binary at ${versionCheckPath} did not return a version for --version.`,
 		);
 	}
 	if (installedVersion !== manifest.version) {
@@ -520,10 +548,10 @@ export async function applyStagedRelease(
 		);
 	}
 
-	// Restart from the freshly installed binary. process.execPath here is the
-	// staging binary, which we just renamed into installTarget, so spawning it
-	// would fail with ENOENT.
-	const daemonRestart = await restartDaemonIfRunning(60, installTarget);
+	// Restart from the freshly installed binary. For app-bundle upgrades, use
+	// the new app's CLI. For standalone installs, process.execPath here is the
+	// staging binary, which we just renamed into installTarget.
+	const daemonRestart = await restartDaemonIfRunning(60, versionCheckPath);
 
 	try {
 		ensureWhisperPluginSetup();
@@ -771,38 +799,135 @@ async function extractReleaseArchive(
 	archivePath: string,
 	destinationDir: string,
 ): Promise<void> {
-	const result = await runCommand("unzip", [
-		"-o",
-		"-q",
+	// Mount the DMG, copy Toby.app and extract bundled resources to staging.
+	const mountResult = await runCommand("hdiutil", [
+		"attach",
+		"-nobrowse",
+		"-noautoopen",
 		archivePath,
-		"-d",
-		destinationDir,
 	]);
-	if (result.status !== 0) {
+	if (mountResult.status !== 0) {
 		throw new Error(
-			`Failed to extract ${archivePath}: ${result.stderr || "unknown error"}`,
+			`Failed to mount ${archivePath}: ${mountResult.stderr || "unknown error"}`,
 		);
 	}
-	const filePath = path.join(destinationDir, "toby");
-	if (!fs.existsSync(filePath)) {
-		throw new Error("Release archive is missing toby.");
+
+	// Parse mount output: last line contains the mount point path.
+	// hdiutil attach outputs to stdout: /dev/diskNsN  Apple_HFS  /Volumes/Toby
+	const lines = mountResult.stdout
+		.split("\n")
+		.map((l) => l.trim())
+		.filter(Boolean);
+	const mountPoint = lines.length > 0 ? lines[lines.length - 1] : "";
+	if (!mountPoint || !fs.existsSync(mountPoint)) {
+		throw new Error(
+			`Could not determine DMG mount point. hdiutil output: ${mountResult.stdout || mountResult.stderr}`,
+		);
 	}
+
+	try {
+		await extractFromMountedApp(mountPoint, destinationDir);
+	} finally {
+		await detachDmg(mountPoint);
+	}
+}
+
+async function extractFromMountedApp(
+	mountPoint: string,
+	destinationDir: string,
+): Promise<void> {
+	const appPath = path.join(mountPoint, "Toby.app");
+	if (!fs.existsSync(path.join(appPath, "Contents", "MacOS", "toby-app"))) {
+		throw new Error("DMG is missing Toby.app.");
+	}
+
+	// Copy the whole Toby.app to staging
+	const stagedAppPath = path.join(destinationDir, "Toby.app");
+	await rm(stagedAppPath, { recursive: true, force: true }).catch(
+		() => undefined,
+	);
+	await cp(appPath, stagedAppPath, { recursive: true });
+
+	// Extract individual resources from Contents/Resources/ to staging root
+	// so existing staging-path-based install logic works unchanged.
+	const resourcesDir = path.join(stagedAppPath, "Contents", "Resources");
+	const tobyBinary = path.join(resourcesDir, "toby");
+	if (!fs.existsSync(tobyBinary)) {
+		throw new Error("Toby.app/Contents/Resources/toby is missing.");
+	}
+	await cp(tobyBinary, path.join(destinationDir, "toby"));
+
+	const bunBinary = path.join(resourcesDir, "bun");
+	if (fs.existsSync(bunBinary)) {
+		await cp(bunBinary, path.join(destinationDir, "bun"));
+	}
+
+	const webDir = path.join(resourcesDir, "web");
+	if (fs.existsSync(path.join(webDir, "index.html"))) {
+		await rm(path.join(destinationDir, "web"), {
+			recursive: true,
+			force: true,
+		}).catch(() => undefined);
+		await cp(webDir, path.join(destinationDir, "web"), { recursive: true });
+	}
+
+	const iconsDir = path.join(resourcesDir, "icons");
+	if (fs.existsSync(iconsDir)) {
+		await rm(path.join(destinationDir, "icons"), {
+			recursive: true,
+			force: true,
+		}).catch(() => undefined);
+		await cp(iconsDir, path.join(destinationDir, "icons"), { recursive: true });
+	}
+
+	// Copy all plugin artifacts
+	for (const entry of fs.readdirSync(resourcesDir)) {
+		if (!entry.startsWith("toby-plugin-")) continue;
+		const src = path.join(resourcesDir, entry);
+		const dest = path.join(destinationDir, entry);
+		await rm(dest, { recursive: true, force: true }).catch(() => undefined);
+		await cp(src, dest, { recursive: true });
+	}
+
+	// Copy plugin resource bundles
+	for (const entry of fs.readdirSync(resourcesDir)) {
+		if (!entry.endsWith(".bundle")) continue;
+		const src = path.join(resourcesDir, entry);
+		const dest = path.join(destinationDir, entry);
+		await rm(dest, { recursive: true, force: true }).catch(() => undefined);
+		await cp(src, dest, { recursive: true });
+	}
+
+	// Legacy listener placeholder
+	const listenerPath = path.join(resourcesDir, "toby-listener");
+	if (fs.existsSync(listenerPath)) {
+		await cp(listenerPath, path.join(destinationDir, "toby-listener"));
+	}
+}
+
+async function detachDmg(mountPoint: string): Promise<void> {
+	await runCommand("hdiutil", ["detach", mountPoint]).catch(() => undefined);
 }
 
 function runCommand(
 	command: string,
 	args: readonly string[],
-): Promise<{ status: number; stderr: string }> {
+): Promise<{ status: number; stdout: string; stderr: string }> {
 	return new Promise((resolve, reject) => {
 		const child = spawn(command, args);
+		let stdout = "";
 		let stderr = "";
+		child.stdout?.setEncoding("utf8");
+		child.stdout?.on("data", (chunk: string) => {
+			stdout += chunk;
+		});
 		child.stderr?.setEncoding("utf8");
 		child.stderr?.on("data", (chunk: string) => {
 			stderr += chunk;
 		});
 		child.on("error", reject);
 		child.on("close", (status) => {
-			resolve({ status: status ?? 1, stderr });
+			resolve({ status: status ?? 1, stdout, stderr });
 		});
 	});
 }

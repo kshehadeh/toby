@@ -98,6 +98,25 @@ if (!fs.existsSync(tobyAppExecutable)) {
 	process.exit(1);
 }
 
+// Verify self-contained app bundle has resources in Contents/Resources/
+const appResources = path.join(tobyApp, "Contents", "Resources");
+const appResourceChecks = [
+	"toby",
+	"bun",
+	"web/index.html",
+	"icons/ai/openai.png",
+	"toby-plugin-websearch",
+	"toby-plugin-whisper",
+];
+for (const resource of appResourceChecks) {
+	const resourcePath = path.join(appResources, resource);
+	if (!fs.existsSync(resourcePath)) {
+		console.error(`Missing self-contained app resource in ${directory}:`);
+		console.error(`  - Toby.app/Contents/Resources/${resource}`);
+		process.exit(1);
+	}
+}
+
 if (process.platform === "darwin") {
 	const whisperPluginPath = path.join(directory, "toby-plugin-whisper");
 	const otool = spawnSync("otool", ["-L", whisperPluginPath], {
