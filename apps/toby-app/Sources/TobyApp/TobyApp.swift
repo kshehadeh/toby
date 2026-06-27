@@ -11,6 +11,7 @@ struct TobyApp: App {
 	@State private var integrationsStore = ConfigureStore()
 	@State private var skillsStore = SkillsStore()
 	@State private var changelogStore = ChangelogStore()
+	@State private var pluginsStore = PluginsStore()
 	@State private var updateStore = UpdateStore()
 	@State private var personaEditorCoordinator = PersonaEditorCoordinator()
 	@State private var nativeServer = NativeServer.shared
@@ -27,7 +28,8 @@ struct TobyApp: App {
 				skillsStore: skillsStore,
 				personaEditorCoordinator: personaEditorCoordinator,
 				updateStore: updateStore,
-				changelogStore: changelogStore
+				changelogStore: changelogStore,
+				pluginsStore: pluginsStore
 			)
 				.frame(minWidth: 860, minHeight: 560)
 				.coordinateSpace(name: "TobyWindow")
@@ -87,7 +89,13 @@ struct TobyApp: App {
 				OpenPermissionsMenuItem()
 			}
 
-			CommandGroup(replacing: .appSettings) {
+			CommandGroup(replacing: .appInfo) {
+			Button("About Toby") {
+				NotificationCenter.default.post(name: .openChangelog, object: nil)
+			}
+		}
+
+		CommandGroup(replacing: .appSettings) {
 				Button("Settings…") {
 					NotificationCenter.default.post(name: .navigateToRoute, object: DetailRoute.settings.rawValue)
 				}

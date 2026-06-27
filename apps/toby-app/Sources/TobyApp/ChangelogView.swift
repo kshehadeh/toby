@@ -16,47 +16,7 @@ struct ChangelogView: View {
 		VStack(alignment: .leading, spacing: 0) {
 			changelogHeader
 
-			if updateStore?.upgradeComplete == true {
-				UpgradeCompleteBanner(
-					version: updateStore?.latestVersion,
-					onRestart: { updateStore?.relaunchApp() }
-				)
-				.transition(.opacity)
-			} else if let error = updateStore?.upgradeError {
-				UpgradeErrorBanner(message: error)
-				.transition(.opacity)
-			}
-
-			if store.isLoading && store.changelog == nil {
-				ChangelogSkeletonView()
-			} else if let errorMessage = store.errorMessage {
-				Text(errorMessage)
-					.font(.callout)
-					.foregroundStyle(.red)
-					.fixedSize(horizontal: false, vertical: true)
-					.padding(.top, 8)
-			} else if let releases = store.changelog?.releases, !releases.isEmpty {
-				ScrollView {
-					LazyVStack(alignment: .leading, spacing: 20) {
-						ForEach(releases) { release in
-							ReleaseSection(
-								release: release,
-								dateFormatter: dateFormatter,
-							)
-							if release.id != releases.last?.id {
-								Divider()
-									.background(AppTheme.separator)
-							}
-						}
-					}
-					.padding(.bottom, 8)
-				}
-			} else if !store.isLoading {
-				Text("No recent changes available.")
-					.font(.callout)
-					.foregroundStyle(AppTheme.secondaryText)
-					.padding(.top, 20)
-			}
+			ChangelogReleasesView(store: store, updateStore: updateStore, dateFormatter: dateFormatter)
 		}
 		.padding(24)
 		.frame(minWidth: 480, idealWidth: 520, maxWidth: 560, minHeight: 400, idealHeight: 520, maxHeight: 640)
@@ -103,6 +63,58 @@ struct ChangelogView: View {
 			.accessibilityLabel("Close changelog")
 		}
 		.padding(.bottom, 16)
+	}
+}
+
+struct ChangelogReleasesView: View {
+	@Bindable var store: ChangelogStore
+	var updateStore: UpdateStore?
+	let dateFormatter: DateFormatter
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 0) {
+			if updateStore?.upgradeComplete == true {
+				UpgradeCompleteBanner(
+					version: updateStore?.latestVersion,
+					onRestart: { updateStore?.relaunchApp() }
+				)
+				.transition(.opacity)
+			} else if let error = updateStore?.upgradeError {
+				UpgradeErrorBanner(message: error)
+				.transition(.opacity)
+			}
+
+			if store.isLoading && store.changelog == nil {
+				ChangelogSkeletonView()
+			} else if let errorMessage = store.errorMessage {
+				Text(errorMessage)
+					.font(.callout)
+					.foregroundStyle(.red)
+					.fixedSize(horizontal: false, vertical: true)
+					.padding(.top, 8)
+			} else if let releases = store.changelog?.releases, !releases.isEmpty {
+				ScrollView {
+					LazyVStack(alignment: .leading, spacing: 20) {
+						ForEach(releases) { release in
+							ReleaseSection(
+								release: release,
+								dateFormatter: dateFormatter,
+							)
+							if release.id != releases.last?.id {
+								Divider()
+									.background(AppTheme.separator)
+							}
+						}
+					}
+					.padding(.bottom, 8)
+				}
+			} else if !store.isLoading {
+				Text("No recent changes available.")
+					.font(.callout)
+					.foregroundStyle(AppTheme.secondaryText)
+					.padding(.top, 20)
+			}
+		}
 	}
 }
 

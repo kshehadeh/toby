@@ -63,6 +63,7 @@ import {
 	handleSkillsList,
 } from "./handlers/metadata";
 import { handlePlanCancel, handlePlanSkip } from "./handlers/plan";
+import { handlePluginsList } from "./handlers/plugins";
 import { handleSessionDetail, handleSessionsList } from "./handlers/sessions";
 import { errorResponse, jsonResponse } from "./http-utils";
 import { resolveIconStaticDir } from "./static-path";
@@ -226,6 +227,9 @@ export async function handleWebRequest(
 		}
 		if (pathname === "/api/releases/changelog" && req.method === "GET") {
 			return handleChangelog(url);
+		}
+		if (pathname === "/api/plugins" && req.method === "GET") {
+			return handlePluginsList();
 		}
 		const sessionTurnCancelMatch =
 			/^\/api\/sessions\/([^/]+)\/turn\/([^/]+)\/cancel$/.exec(pathname);

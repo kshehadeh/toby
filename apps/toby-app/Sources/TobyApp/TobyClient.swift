@@ -589,4 +589,10 @@ struct TobyClient {
 		try validate(response: response, data: data)
 		return try JSONDecoder().decode(ChangelogResponse.self, from: data)
 	}
+	func fetchPlugins() async throws -> PluginsListResponse {
+		let url = baseURL.appendingPathComponent("api/plugins")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(PluginsListResponse.self, from: data)
+	}
 }

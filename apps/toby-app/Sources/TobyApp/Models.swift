@@ -225,6 +225,32 @@ struct AIProvidersResponse: Decodable {
 	let providers: [AIProviderInfo]
 }
 
+struct PluginsListResponse: Decodable {
+	let plugins: [PluginSummary]
+}
+
+struct PluginSummary: Decodable, Identifiable {
+	let name: String
+	let displayName: String
+	let description: String?
+	let version: String?
+	let protocolVersion: String?
+	let state: String
+	let connected: Bool
+	let error: String?
+	let errorCode: String?
+
+	var id: String { name }
+
+	var statusLabel: String {
+		switch state {
+		case "disabled": return "Disabled"
+		case "invalid": return "Invalid"
+		default: return connected ? "Connected" : "Disconnected"
+		}
+	}
+}
+
 struct PersonaDetailResponse: Decodable {
 	let persona: PersonaDetail
 }

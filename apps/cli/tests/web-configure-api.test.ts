@@ -175,6 +175,30 @@ describe("web API routes", () => {
 		});
 	});
 
+	it("handles GET /api/plugins", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/plugins"),
+			null,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			plugins: Array<{
+				name: string;
+				displayName: string;
+				state: string;
+				connected: boolean;
+				version: string | null;
+			}>;
+		};
+		expect(Array.isArray(body.plugins)).toBe(true);
+		for (const plugin of body.plugins) {
+			expect(plugin.name).toEqual(expect.any(String));
+			expect(plugin.displayName).toEqual(expect.any(String));
+			expect(["valid", "invalid", "disabled"]).toContain(plugin.state);
+			expect(typeof plugin.connected).toBe("boolean");
+		}
+	});
+
 	it("includes integration display names for configure selects", async () => {
 		const res = await handleWebRequest(
 			new Request("http://127.0.0.1/api/configure/tree"),
