@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ChangelogView: View {
 	@Bindable var store: ChangelogStore
+	var updateStore: UpdateStore?
 
 	private let dateFormatter: DateFormatter = {
 		let formatter = DateFormatter()
@@ -12,6 +13,17 @@ struct ChangelogView: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
+			if updateStore?.upgradeComplete == true {
+				UpgradeCompleteBanner(
+					version: updateStore?.latestVersion,
+					onRestart: { updateStore?.relaunchApp() }
+				)
+				.transition(.opacity)
+			} else if let error = updateStore?.upgradeError {
+				UpgradeErrorBanner(message: error)
+				.transition(.opacity)
+			}
+
 			if store.isLoading && store.changelog == nil {
 				ChangelogSkeletonView()
 			} else if let errorMessage = store.errorMessage {
@@ -50,6 +62,25 @@ struct ChangelogView: View {
 			window.styleMask.remove([.miniaturizable, .resizable])
 		})
 		.toolbar {
+			ToolbarItem(placement: .primaryAction) {
+				if let updateStore, updateStore.isUpdateAvailable, let latest = updateStore.latestVersion {
+					Button {
+						Task { await updateStore.performUpgrade() }
+					} label: {
+						if updateStore.isUpgrading {
+							HStack(spacing: 6) {
+								ProgressView()
+									.controlSize(.small)
+								Text("Upgrading…")
+							}
+						} else {
+							Text("Upgrade to v\(latest)")
+						}
+					}
+					.disabled(updateStore.isUpgrading)
+					.accessibilityLabel("Upgrade to version \(latest)")
+				}
+			}
 			ToolbarItem(placement: .primaryAction) {
 				Button {
 					Task { await store.load(force: true) }
@@ -184,5 +215,71 @@ private struct ChangeGroup: View {
 			return "[\(scope)] \(change.description)"
 		}
 		return change.description
+	}
+}
+
+private struct UpgradeCompleteBanner: View {
+	let version: String?
+	let onRestart: () -> Void
+
+	var body: some View {
+		HStack(spacing: 10) {
+			Image(systemName: "checkmark.circle.fill")
+				.foregroundStyle(.green)
+				.font(.title3)
+			VStack(alignment: .leading, spacing: 2) {
+				Text("Upgrade complete")
+					.font(.callout.weight(.semibold))
+					.foregroundStyle(AppTheme.primaryText)
+				Text("Restart Toby to finish installing\(version.map { " v\($0)" } ?? "").")
+					.font(.caption)
+					.foregroundStyle(AppTheme.secondaryText)
+			}
+			Spacer()
+			Button("Restart Now") {
+				onRestart()
+			}
+			.controlSize(.small)
+		}
+		.padding(12)
+		.background(
+			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
+				.fill(Color.green.opacity(0.12))
+		)
+		.overlay(
+			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
+				.stroke(Color.green.opacity(0.3), lineWidth: 1)
+		)
+	}
+}
+
+private struct UpgradeErrorBanner: View {
+	let message: String
+
+	var body: some View {
+		HStack(alignment: .top, spacing: 10) {
+			Image(systemName: "exclamationmark.triangle.fill")
+				.foregroundStyle(.red)
+				.font(.title3)
+			VStack(alignment: .leading, spacing: 2) {
+				Text("Upgrade failed")
+					.font(.callout.weight(.semibold))
+					.foregroundStyle(.red)
+				Text(message)
+					.font(.caption)
+					.foregroundStyle(AppTheme.secondaryText)
+					.fixedSize(horizontal: false, vertical: true)
+			}
+			Spacer()
+		}
+		.padding(12)
+		.background(
+			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
+				.fill(Color.red.opacity(0.1))
+		)
+		.overlay(
+			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
+				.stroke(Color.red.opacity(0.3), lineWidth: 1)
+		)
 	}
 }

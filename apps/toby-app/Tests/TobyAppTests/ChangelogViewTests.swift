@@ -33,7 +33,7 @@ struct ChangelogViewTests {
 	@Test("shows loading skeleton when no changelog is loaded")
 	func showsSkeletonWhenLoading() throws {
 		let store = makeStore(isLoading: true)
-		let view = ChangelogView(store: store)
+		let view = ChangelogView(store: store, updateStore: nil)
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "changelog-skeleton")
 		}
@@ -42,21 +42,21 @@ struct ChangelogViewTests {
 	@Test("shows release version when changelog is loaded")
 	func showsLoadedReleases() throws {
 		let store = makeStore(changelog: ChangelogResponse(releases: [makeRelease()]))
-		let view = ChangelogView(store: store)
+		let view = ChangelogView(store: store, updateStore: nil)
 		#expect(throws: Never.self) { try view.inspect().find(text: "0.53.3") }
 	}
 
 	@Test("shows error message when loading fails")
 	func showsErrorMessage() throws {
 		let store = makeStore(errorMessage: "Network error")
-		let view = ChangelogView(store: store)
+		let view = ChangelogView(store: store, updateStore: nil)
 		#expect(throws: Never.self) { try view.inspect().find(text: "Network error") }
 	}
 
 	@Test("shows empty state when no releases exist")
 	func showsEmptyState() throws {
 		let store = makeStore(changelog: ChangelogResponse(releases: []))
-		let view = ChangelogView(store: store)
+		let view = ChangelogView(store: store, updateStore: nil)
 		#expect(throws: Never.self) { try view.inspect().find(text: "No recent changes available.") }
 	}
 }

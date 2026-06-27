@@ -5,6 +5,7 @@ struct AppSidebar<Content: View>: View {
 	let currentRoute: DetailRoute
 	let status: AppStatus?
 	let daemonStatus: DaemonStatus?
+	let updateStore: UpdateStore?
 	let onSelectRoute: (DetailRoute) -> Void
 	let onCreatePersona: () -> Void
 	let onEditPersona: (String) -> Void
@@ -14,7 +15,7 @@ struct AppSidebar<Content: View>: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			SidebarHeader(status: status, daemonStatus: daemonStatus, onOpenChangelog: onOpenChangelog)
+			SidebarHeader(status: status, daemonStatus: daemonStatus, updateStore: updateStore, onOpenChangelog: onOpenChangelog)
 			sidebarContent()
 				.frame(maxHeight: .infinity)
 				.padding(.bottom, 16)
@@ -177,6 +178,7 @@ struct ChatSessionsSidebar: View {
 private struct SidebarHeader: View {
 	let status: AppStatus?
 	let daemonStatus: DaemonStatus?
+	let updateStore: UpdateStore?
 	let onOpenChangelog: () -> Void
 
 	private var appIcon: Image {
@@ -203,6 +205,22 @@ private struct SidebarHeader: View {
 						Text("v\(version)")
 							.font(.caption)
 							.foregroundStyle(AppTheme.tertiaryText)
+					}
+					if updateStore?.isUpdateAvailable == true, let latest = updateStore?.latestVersion {
+						Text("Update available")
+							.font(.caption2.weight(.medium))
+							.foregroundStyle(AppTheme.accent)
+							.padding(.horizontal, 6)
+							.padding(.vertical, 2)
+							.background(
+								Capsule()
+									.fill(AppTheme.accent.opacity(0.18))
+							)
+							.overlay(
+								Capsule()
+									.stroke(AppTheme.accent.opacity(0.4), lineWidth: 1)
+							)
+							.accessibilityLabel("Update available, version \(latest)")
 					}
 				}
 				.contentShape(Rectangle())

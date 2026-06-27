@@ -9,6 +9,7 @@ struct RootView: View {
     @Bindable var integrationsStore: ConfigureStore
     @Bindable var skillsStore: SkillsStore
     let personaEditorCoordinator: PersonaEditorCoordinator
+    @Bindable var updateStore: UpdateStore
     @Environment(\.openWindow) private var openWindow
     @State private var history = NavigationHistory()
     @State private var isCommandPalettePresented = false
@@ -144,6 +145,11 @@ struct RootView: View {
                 async let integrations: () = integrationsStore.load()
                 _ = await (recordings, schedules, integrations)
             }
+            .task {
+                updateStore.startCheckLoop(currentVersionProvider: { [weak store] in
+                    store?.status?.version
+                })
+            }
     }
 
     private var contentWithOverlay: some View {
@@ -172,6 +178,7 @@ struct RootView: View {
                 currentRoute: history.current,
                 status: store.status,
                 daemonStatus: store.daemonStatus,
+                updateStore: updateStore,
                 onSelectRoute: navigateToRoute,
                 onCreatePersona: { openPersonaEditor(.create) },
                 onEditPersona: { openPersonaEditor(.edit(name: $0)) },
