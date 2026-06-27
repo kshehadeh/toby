@@ -112,17 +112,9 @@ jobs:
             codesign --force --options runtime --timestamp --sign "$identity" "$bin"
           done
 
-          # Sign the macOS plugin resource bundle inside the app
-          if [[ -d "$APP_RESOURCES/TobyPluginMacOS_TobyPluginMacOSLib.bundle" ]]; then
-            codesign --force --options runtime --timestamp --sign "$identity" \
-              "$APP_RESOURCES/TobyPluginMacOS_TobyPluginMacOSLib.bundle"
-          fi
-
-          # Sign the SPM resource bundle inside the app
-          if [[ -d "dist/Toby.app/Contents/Resources/TobyApp_TobyApp.bundle" ]]; then
-            codesign --force --options runtime --timestamp --sign "$identity" \
-              "dist/Toby.app/Contents/Resources/TobyApp_TobyApp.bundle"
-          fi
+          # Resource bundles (.bundle) are SPM resource-only bundles with no
+          # Mach-O code, so codesign cannot sign them and notarization doesn't
+          # require it. Skip them.
 
           # Finally, sign the app bundle itself (without --deep; nested code is already signed)
           codesign --force --options runtime --timestamp \
