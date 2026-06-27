@@ -11,11 +11,14 @@ let package = Package(
 	],
 	dependencies: [
 		.package(url: "https://github.com/nalexn/ViewInspector", from: "0.10.0"),
+		.package(url: "https://github.com/krzyzanowskim/STTextView", from: "2.2.0"),
 	],
 	targets: [
 		.executableTarget(
 			name: "TobyApp",
-			dependencies: [],
+			dependencies: [
+				.product(name: "STTextView", package: "STTextView"),
+			],
 			path: "Sources/TobyApp",
 			exclude: ["Info.plist"],
 			resources: [

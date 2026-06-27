@@ -14,6 +14,7 @@ struct TobyApp: App {
 	@State private var pluginsStore = PluginsStore()
 	@State private var updateStore = UpdateStore()
 	@State private var personaEditorCoordinator = PersonaEditorCoordinator()
+	@State private var logsStore = LogsStore()
 	@State private var nativeServer = NativeServer.shared
 	@State private var menuBarController: MenuBarController?
 
@@ -77,6 +78,16 @@ struct TobyApp: App {
 		.windowStyle(.automatic)
 		.defaultSize(width: 560, height: 580)
 
+		Window("Logs", id: "logs") {
+			LogsView(store: logsStore)
+				.onDisappear {
+					logsStore.stopPolling()
+					NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil)
+				}
+		}
+		.windowStyle(.automatic)
+		.defaultSize(width: 980, height: 680)
+
 	.commands {
 			CommandGroup(replacing: .newItem) {
 				Button("New Chat") {
@@ -118,6 +129,7 @@ struct TobyApp: App {
 					NotificationCenter.default.post(name: .openIssueReport, object: nil)
 				}
 				.keyboardShortcut("i", modifiers: [.command, .shift])
+				OpenLogsMenuItem()
 			}
 		}
 	}
@@ -145,6 +157,16 @@ struct OpenPermissionsMenuItem: View {
 	var body: some View {
 		Button("Permissions…") {
 			openWindow(id: "permissions")
+		}
+	}
+}
+
+struct OpenLogsMenuItem: View {
+	@Environment(\.openWindow) private var openWindow
+
+	var body: some View {
+		Button("Logs…") {
+			openWindow(id: "logs")
 		}
 	}
 }
