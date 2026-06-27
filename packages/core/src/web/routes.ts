@@ -19,6 +19,8 @@ import {
 import {
 	handleConfigureAction,
 	handleConfigurePatch,
+	handleConfigureSectionDetail,
+	handleConfigureSections,
 	handleConfigureTree,
 	handleParseCron,
 	handleScheduleRunDetail,
@@ -301,6 +303,16 @@ export async function handleWebRequest(
 		if (pathname === "/api/configure/tree" && req.method === "GET") {
 			return handleConfigureTree();
 		}
+		if (pathname === "/api/configure/sections" && req.method === "GET") {
+			return handleConfigureSections();
+		}
+		const configureSectionDetailMatch =
+			/^\/api\/configure\/sections\/([^/]+)$/.exec(pathname);
+		if (configureSectionDetailMatch && req.method === "GET") {
+			return handleConfigureSectionDetail(
+				decodeURIComponent(configureSectionDetailMatch[1]),
+			);
+		}
 		if (pathname === "/api/configure/values" && req.method === "PATCH") {
 			return handleConfigurePatch(req);
 		}
@@ -348,6 +360,14 @@ export async function handleWebRequest(
 			}
 		}
 		return errorResponse("Not found", 404);
+	}
+
+	// Serve icon assets from packages/core/assets/icons/
+	if (pathname.startsWith("/icons/") && req.method === "GET") {
+		const iconsDir = path.resolve(import.meta.dir, "../../assets/icons");
+		const iconPath = pathname.slice("/icons".length);
+		const response = serveStatic(iconsDir, iconPath);
+		if (response) return response;
 	}
 
 	if (!staticDir) {

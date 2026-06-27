@@ -488,6 +488,21 @@ struct TobyClient {
 		return try JSONDecoder().decode(ConfigureTreeResponse.self, from: data)
 	}
 
+	func fetchConfigureSections() async throws -> ConfigureSectionsResponse {
+		let url = baseURL.appendingPathComponent("api/configure/sections")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ConfigureSectionsResponse.self, from: data)
+	}
+
+	func fetchConfigureSectionDetail(sectionKey: String) async throws -> ConfigureSectionDetailResponse {
+		let encoded = sectionKey.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? sectionKey
+		let url = baseURL.appendingPathComponent("api/configure/sections/\(encoded)")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ConfigureSectionDetailResponse.self, from: data)
+	}
+
 	func patchConfigure(changes: [String: String]) async throws -> ConfigureTreeResponse {
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/configure/values"))
 		request.httpMethod = "PATCH"

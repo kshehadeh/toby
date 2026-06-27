@@ -16,6 +16,14 @@ struct ConfigureViewTests {
 	@Test("configure detail shows placeholder when no section selected")
 	func configureDetailShowsPlaceholder() throws {
 		let store = ConfigureStore()
+		store.settingsSections = [
+			SettingsItem(
+				label: "Chat", kind: .section, key: "chatInbound",
+				navKey: nil, children: [],
+				masked: nil, multiline: nil, options: nil, selectChoices: nil,
+				currentValue: nil, selectedValues: nil, readOnly: nil
+			),
+		]
 		let view = ConfigureView(store: store)
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Select a section")
@@ -25,91 +33,121 @@ struct ConfigureViewTests {
 	@Test("configure detail renders selected section label")
 	func configureDetailRendersSelectedSection() throws {
 		let store = ConfigureStore()
-		store.tree = SettingsItem(
-			label: "Integrations",
-			kind: .section,
-			key: "integrations",
-			navKey: nil,
-			children: [
-				SettingsItem(
-					label: "Gmail",
-					kind: .section,
-					key: "gmail",
-					navKey: "integrations.gmail",
-					children: [],
-					masked: nil,
-					multiline: nil,
-					options: nil,
-					selectChoices: nil,
-					currentValue: nil,
-					selectedValues: nil,
-					readOnly: nil
-				),
-			],
-			masked: nil,
-			multiline: nil,
-			options: nil,
-			selectChoices: nil,
-			currentValue: nil,
-			selectedValues: nil,
-			readOnly: nil
+		store.settingsSections = [
+			SettingsItem(
+				label: "AI", kind: .section, key: "ai",
+				navKey: nil, children: [
+					SettingsItem(
+						label: "OpenAI", kind: .section, key: "ai.openai",
+						navKey: "ai.openai", children: [],
+						masked: nil, multiline: nil, options: nil, selectChoices: nil,
+						currentValue: nil, selectedValues: nil, readOnly: nil
+					),
+				],
+				masked: nil, multiline: nil, options: nil, selectChoices: nil,
+				currentValue: nil, selectedValues: nil, readOnly: nil
+			),
+		]
+		store.selectedSectionDetail = SettingsItem(
+			label: "OpenAI", kind: .section, key: "ai.openai",
+			navKey: "ai.openai", children: [],
+			masked: nil, multiline: nil, options: nil, selectChoices: nil,
+			currentValue: nil, selectedValues: nil, readOnly: nil
 		)
-		store.selectedNavKey = "integrations.gmail"
+		store.selectedNavKey = "ai.openai"
 
 		let view = ConfigureView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Gmail")
+			try view.inspect().find(text: "OpenAI")
 		}
 	}
 
-	@Test("personas section is excluded from settings sidebar tree")
-	func personasExcludedFromSidebar() throws {
+	@Test("settings sidebar tree is built from settingsSections")
+	func settingsSidebarTreeFromSections() throws {
 		let store = ConfigureStore()
-		store.tree = SettingsItem(
-			label: "Root",
-			kind: .section,
-			key: "root",
-			navKey: nil,
-			children: [
-				SettingsItem(
-					label: "Personas",
-					kind: .section,
-					key: "personas",
-					navKey: nil,
-					children: [],
-					masked: nil,
-					multiline: nil,
-					options: nil,
-					selectChoices: nil,
-					currentValue: nil,
-					selectedValues: nil,
-					readOnly: nil
-				),
-				SettingsItem(
-					label: "AI",
-					kind: .section,
-					key: "ai",
-					navKey: nil,
-					children: [],
-					masked: nil,
-					multiline: nil,
-					options: nil,
-					selectChoices: nil,
-					currentValue: nil,
-					selectedValues: nil,
-					readOnly: nil
-				),
-			],
-			masked: nil,
-			multiline: nil,
-			options: nil,
-			selectChoices: nil,
-			currentValue: nil,
-			selectedValues: nil,
-			readOnly: nil
-		)
-		let sidebarTree = store.sidebarTree
-		#expect(!sidebarTree.contains(where: { $0.item.key == "personas" }))
-		#expect(sidebarTree.contains(where: { $0.item.key == "ai" }))
+		store.settingsSections = [
+			SettingsItem(
+				label: "Chat", kind: .section, key: "chatInbound",
+				navKey: nil, children: [],
+				masked: nil, multiline: nil, options: nil, selectChoices: nil,
+				currentValue: nil, selectedValues: nil, readOnly: nil
+			),
+			SettingsItem(
+				label: "Default Providers", kind: .section, key: "defaults",
+				navKey: nil, children: [],
+				masked: nil, multiline: nil, options: nil, selectChoices: nil,
+				currentValue: nil, selectedValues: nil, readOnly: nil
+			),
+			SettingsItem(
+				label: "AI", kind: .section, key: "ai",
+				navKey: nil, children: [
+					SettingsItem(
+						label: "OpenAI", kind: .section, key: "ai.openai",
+						navKey: "ai.openai", children: [],
+						masked: nil, multiline: nil, options: nil, selectChoices: nil,
+						currentValue: nil, selectedValues: nil, readOnly: nil
+					),
+				],
+				masked: nil, multiline: nil, options: nil, selectChoices: nil,
+				currentValue: nil, selectedValues: nil, readOnly: nil
+			),
+			SettingsItem(
+				label: "Projects", kind: .section, key: "projects",
+				navKey: nil, children: [],
+				masked: nil, multiline: nil, options: nil, selectChoices: nil,
+				currentValue: nil, selectedValues: nil, readOnly: nil
+			),
+		]
+		let tree = store.settingsSidebarTree
+		#expect(tree.count == 4)
+		#expect(tree[0].item.key == "chatInbound")
+		#expect(tree[1].item.key == "defaults")
+		#expect(tree[2].item.key == "ai")
+		#expect(tree[3].item.key == "projects")
+		// AI should have one child section (OpenAI)
+		#expect(tree[2].children.count == 1)
+		#expect(tree[2].children[0].item.key == "ai.openai")
+	}
+
+	@Test("isSettingsMode is true when settingsSections is populated")
+	func isSettingsModeTrueWhenSectionsPopulated() throws {
+		let store = ConfigureStore()
+		#expect(store.isSettingsMode == false)
+		store.settingsSections = [
+			SettingsItem(
+				label: "Chat", kind: .section, key: "chatInbound",
+				navKey: nil, children: [],
+				masked: nil, multiline: nil, options: nil, selectChoices: nil,
+				currentValue: nil, selectedValues: nil, readOnly: nil
+			),
+		]
+		#expect(store.isSettingsMode == true)
+	}
+
+	@Test("SettingsItem decodes iconUrl from JSON")
+	func settingsItemDecodesIconUrl() throws {
+		let json = """
+		{
+			"label": "OpenAI",
+			"kind": "section",
+			"key": "ai.openai",
+			"iconUrl": "/icons/ai/openai.png"
+		}
+		""".data(using: .utf8)!
+		let item = try JSONDecoder().decode(SettingsItem.self, from: json)
+		#expect(item.iconUrl == "/icons/ai/openai.png")
+	}
+
+	@Test("SettingsItem decodes when iconUrl is absent")
+	func settingsItemDecodesWithoutIconUrl() throws {
+		let json = """
+		{
+			"label": "Chat",
+			"kind": "section",
+			"key": "chatInbound"
+		}
+		""".data(using: .utf8)!
+		let item = try JSONDecoder().decode(SettingsItem.self, from: json)
+		#expect(item.iconUrl == nil)
 	}
 }

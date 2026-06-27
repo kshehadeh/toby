@@ -10,7 +10,7 @@ struct ConfigureView: View {
 		.toolbarBackground(.visible)
 		.background(SettingsDesign.canvasBackground)
 		.task {
-			await store.load()
+			await store.loadSettingsSections()
 		}
 		.onDisappear {
 			Task { await store.flushPendingSave() }
@@ -37,7 +37,7 @@ struct ConfigureView: View {
 				set: { if !$0 { store.dismissSetupGuide() } },
 			),
 		) {
-			if let section = store.selectedSection {
+			if let section = store.settingsSelectedSection ?? store.selectedSection {
 				IntegrationSetupWizardView(store: store, section: section)
 			}
 		}
@@ -56,23 +56,23 @@ struct ConfigureSidebarView: View {
 				.padding(.top, 10)
 			ScrollView {
 				VStack(alignment: .leading, spacing: 2) {
-					if store.isLoading && store.sidebarTree.isEmpty {
-					Text("Loading settings…")
-						.font(.caption)
-						.foregroundStyle(AppTheme.tertiaryText)
-						.padding(10)
-				} else {
-					ForEach(store.sidebarTree) { node in
-						ConfigureSidebarNodeView(store: store, node: node)
+					if store.isLoading && store.settingsSections.isEmpty {
+						Text("Loading settings…")
+							.font(.caption)
+							.foregroundStyle(AppTheme.tertiaryText)
+							.padding(10)
+					} else {
+						ForEach(store.settingsSidebarTree) { node in
+							ConfigureSidebarNodeView(store: store, node: node)
+						}
 					}
 				}
+				.frame(maxWidth: .infinity, alignment: .leading)
+				.padding(10)
 			}
-			.frame(maxWidth: .infinity, alignment: .leading)
-			.padding(10)
+			.background(AppTheme.sidebarBackground)
 		}
-		.background(AppTheme.sidebarBackground)
 	}
-}
 }
 
 private struct ConfigureSidebarNodeView: View {
@@ -87,35 +87,43 @@ private struct ConfigureSidebarNodeView: View {
 		SettingsSidebarIcon.systemName(for: node.item)
 	}
 
+	private var iconView: some View {
+		Group {
+			if let iconUrl = node.item.iconUrl,
+				let url = URL(string: ConfigReader.baseURL().absoluteString + iconUrl)
+			{
+				SidebarIconView(url: url, fallbackSystemName: "sparkles", isSelected: isSelected)
+			} else {
+				Image(systemName: iconName)
+					.font(.system(size: 14, weight: .semibold))
+					.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.tertiaryText)
+			}
+		}
+		.frame(width: 20, height: 20)
+		.accessibilityHidden(true)
+	}
+
 	var body: some View {
 		VStack(alignment: .leading, spacing: 2) {
-			Button {
-				store.selectSection(node.navKey)
-			} label: {
-				HStack(spacing: 8) {
-					Color.clear.frame(width: 22)
-					Image(systemName: iconName)
-						.font(.callout)
-						.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.tertiaryText)
-						.frame(width: 18)
-						.accessibilityHidden(true)
-					Text(node.item.label)
-						.font(.callout)
-						.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.secondaryText)
-						.lineLimit(1)
-					Spacer(minLength: 0)
+			HStack(spacing: 8) {
+				Button {
+					store.selectSection(node.navKey)
+				} label: {
+					HStack(spacing: 12) {
+						iconView
+						Text(node.item.label)
+							.font(.callout.weight(.medium))
+							.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.secondaryText)
+							.lineLimit(1)
+						Spacer(minLength: 0)
+					}
+					.frame(maxWidth: .infinity, alignment: .leading)
+					.padding(.vertical, 8)
+					.padding(.horizontal, 8)
+					.contentShape(Rectangle())
 				}
-				.frame(maxWidth: .infinity, alignment: .leading)
-				.padding(.vertical, 6)
-				.padding(.horizontal, 8)
-				.contentShape(Rectangle())
-			}
-			.buttonStyle(.plain)
-			.background(
-				RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
-					.fill(isSelected ? SettingsDesign.sidebarSelection : Color.clear)
-			)
-			.overlay(alignment: .leading) {
+				.buttonStyle(.plain)
+
 				if !node.children.isEmpty {
 					Button {
 						store.toggleExpanded(node.navKey)
@@ -124,14 +132,17 @@ private struct ConfigureSidebarNodeView: View {
 							.font(.caption2.weight(.semibold))
 							.foregroundStyle(AppTheme.tertiaryText)
 							.rotationEffect(.degrees(store.expandedKeys.contains(node.navKey) ? 90 : 0))
-							.frame(width: 22, height: 28)
+							.frame(width: 16, height: 20)
 							.contentShape(Rectangle())
 					}
 					.buttonStyle(.plain)
-					.padding(.leading, 8)
+					.padding(.trailing, 6)
 				}
 			}
-			.frame(maxWidth: .infinity, alignment: .leading)
+			.background(
+				RoundedRectangle(cornerRadius: 8)
+					.fill(isSelected ? Color.white.opacity(0.10) : Color.clear)
+			)
 
 			if store.expandedKeys.contains(node.navKey) {
 				VStack(alignment: .leading, spacing: 2) {
@@ -141,6 +152,46 @@ private struct ConfigureSidebarNodeView: View {
 					}
 				}
 			}
+		}
+	}
+}
+
+private struct SidebarIconView: View {
+	let url: URL
+	let fallbackSystemName: String
+	let isSelected: Bool
+	@State private var image: NSImage?
+
+	var body: some View {
+		Group {
+			if let image {
+				Image(nsImage: image)
+					.resizable()
+					.interpolation(.high)
+					.scaledToFit()
+					.opacity(isSelected ? 1.0 : 0.6)
+			} else {
+				Image(systemName: fallbackSystemName)
+					.font(.system(size: 14, weight: .semibold))
+					.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.tertiaryText)
+			}
+		}
+		.task(id: url) {
+			await loadImage()
+		}
+	}
+
+	private func loadImage() async {
+		do {
+			let (data, response) = try await URLSession.shared.data(from: url)
+			if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+				return
+			}
+			if let nsImage = NSImage(data: data) {
+				await MainActor.run { image = nsImage }
+			}
+		} catch {
+			// Keep showing fallback SF Symbol
 		}
 	}
 }
@@ -184,23 +235,26 @@ struct ConfigureDetailView: View {
 	var body: some View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 20) {
-				if store.isLoading && store.tree == nil {
+				if store.isLoading && store.settingsSections.isEmpty {
 					ProgressView("Loading configuration…")
 						.frame(maxWidth: .infinity, minHeight: 240)
-				} else if let errorMessage = store.errorMessage, store.tree == nil {
+				} else if let errorMessage = store.errorMessage, store.settingsSections.isEmpty {
 					ContentUnavailableView {
 						Label("Configuration unavailable", systemImage: "exclamationmark.triangle")
 					} description: {
 						Text(errorMessage)
 					}
-				} else if let section = store.selectedSection {
+				} else if let section = store.settingsSelectedSection {
 					ConfigureSectionDetailView(store: store, section: section)
+				} else if store.sectionDetailLoading {
+					ProgressView("Loading section…")
+						.frame(maxWidth: .infinity, minHeight: 240)
 				} else {
 					Text("Select a section")
 						.foregroundStyle(SettingsDesign.rowDescription)
 				}
 
-				if let errorMessage = store.errorMessage, store.tree != nil {
+				if let errorMessage = store.errorMessage, !store.settingsSections.isEmpty {
 					Text(errorMessage)
 						.font(.caption)
 						.foregroundStyle(.red)

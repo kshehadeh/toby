@@ -88,6 +88,8 @@ type PlanSummary = {
 | `GET` | `/api/memories/:id` | Fetch one memory item. |
 | `GET` | `/api/memories/:id/explain` | Fetch source/audit explanation for one memory. |
 | `GET` | `/api/configure/tree` | Fetch configure UI schema and current values. |
+| `GET` | `/api/configure/sections` | Fetch lightweight section structure for the native settings sidebar. |
+| `GET` | `/api/configure/sections/:sectionKey` | Fetch full detail (fields + values) for one settings section. |
 | `PATCH` | `/api/configure/values` | Persist configure value changes. |
 | `POST` | `/api/configure/actions/:action` | Run configure actions such as create/delete persona, skill, or schedule. |
 
@@ -735,6 +737,32 @@ type SettingsItem = {
 ```
 
 Secret values are redacted before being sent to clients. A saved secret appears as the placeholder `••••••`.
+
+### `GET /api/configure/sections`
+
+Returns lightweight section structure for the native settings sidebar. Only `kind: "section"` nodes are included (no field details or values). Limited to the four settings sections: `chatInbound`, `defaults`, `ai`, `projects`.
+
+```ts
+type ConfigureSectionsResponse = {
+  sections: SettingsItem[]; // only section-type nodes, recursively stripped
+};
+```
+
+### `GET /api/configure/sections/:sectionKey`
+
+Returns the full section detail (all fields, values, options) for a specific section or sub-section. The `sectionKey` can be a top-level key (`chatInbound`, `defaults`, `ai`, `projects`) or a nested key (`ai.openai`, `projects.my-project`).
+
+```ts
+type ConfigureSectionDetailResponse = {
+  section: SettingsItem;
+  values: Record<string, string>;
+  integrationLabels: Record<string, string>;
+};
+```
+
+Errors:
+
+- `404` when the section key is not found.
 
 ### `PATCH /api/configure/values`
 

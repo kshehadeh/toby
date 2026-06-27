@@ -21,6 +21,10 @@ final class ConfigureStore {
 	var setupGuideLoading: String?
 	var setupGuidePresented: Bool = false
 
+	var settingsSections: [SettingsItem] = []
+	var selectedSectionDetail: SettingsItem?
+	var sectionDetailLoading = false
+
 	private let client = TobyClient()
 	private var fieldByKey: [String: SettingsItem] = [:]
 	@ObservationIgnored private var autosaveTask: Task<Void, Never>?
@@ -42,6 +46,20 @@ final class ConfigureStore {
 	var selectedSection: SettingsItem? {
 		guard let tree, let selectedNavKey else { return nil }
 		return ConfigureTreeHelpers.findSectionByNavKey(tree, navKey: selectedNavKey)
+	}
+
+	var isSettingsMode: Bool {
+		!settingsSections.isEmpty
+	}
+
+	var settingsSidebarTree: [SidebarTreeNode] {
+		settingsSections.compactMap { section in
+			ConfigureTreeHelpers.buildSidebarNode(section, depth: 0)
+		}
+	}
+
+	var settingsSelectedSection: SettingsItem? {
+		selectedSectionDetail
 	}
 
 	var hasPendingChanges: Bool {
@@ -81,17 +99,66 @@ final class ConfigureStore {
 		}
 	}
 
+	func loadSettingsSections() async {
+		isLoading = true
+		errorMessage = nil
+		defer { isLoading = false }
+		do {
+			let response = try await client.fetchConfigureSections()
+			settingsSections = response.sections
+			savedValues = [:]
+			integrationLabels = [:]
+			fieldByKey = [:]
+			draft = [:]
+			if let firstKey = settingsSidebarTree.first?.navKey {
+				if selectedNavKey == nil {
+					selectedNavKey = firstKey
+				}
+				await loadSectionDetail(selectedNavKey!)
+			}
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	func loadSectionDetail(_ navKey: String) async {
+		sectionDetailLoading = true
+		defer { sectionDetailLoading = false }
+		do {
+			let response = try await client.fetchConfigureSectionDetail(sectionKey: navKey)
+			applySectionDetail(response)
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	private func applySectionDetail(_ response: ConfigureSectionDetailResponse) {
+		selectedSectionDetail = response.section
+		savedValues.merge(response.values) { _, new in new }
+		if let labels = response.integrationLabels {
+			integrationLabels.merge(labels) { _, new in new }
+		}
+		for (key, field) in indexFields(in: response.section) {
+			fieldByKey[key] = field
+		}
+		pruneDraft()
+	}
+
 	func selectSection(_ navKey: String) {
 		selectedNavKey = navKey
-		if let ancestors = ConfigureTreeHelpers.findSidebarAncestorKeys(sidebarTree, targetKey: navKey) {
+		let tree = isSettingsMode ? settingsSidebarTree : sidebarTree
+		if let ancestors = ConfigureTreeHelpers.findSidebarAncestorKeys(tree, targetKey: navKey) {
 			for key in ancestors {
 				expandedKeys.insert(key)
 			}
 		}
-		if let selectedNode = ConfigureTreeHelpers.findSidebarNode(sidebarTree, targetKey: navKey),
+		if let selectedNode = ConfigureTreeHelpers.findSidebarNode(tree, targetKey: navKey),
 			!selectedNode.children.isEmpty
 		{
 			expandedKeys.insert(navKey)
+		}
+		if isSettingsMode && selectedNavKey != nil {
+			Task { await loadSectionDetail(navKey) }
 		}
 	}
 
@@ -179,7 +246,11 @@ final class ConfigureStore {
 		defer { isSaving = false }
 		do {
 			let response = try await client.patchConfigure(changes: changes)
-			apply(response: response, resetDraft: false)
+			if isSettingsMode, let navKey = selectedNavKey {
+				await loadSectionDetail(navKey)
+			} else {
+				apply(response: response, resetDraft: false)
+			}
 			if hasPendingChanges {
 				scheduleAutosave()
 			}
@@ -194,8 +265,16 @@ final class ConfigureStore {
 		defer { isSaving = false }
 		do {
 			_ = try await client.runConfigureAction(action, body: body)
-			let response = try await client.fetchConfigureTree()
-			apply(response: response, resetDraft: false)
+			if isSettingsMode {
+				let sectionsResponse = try await client.fetchConfigureSections()
+				settingsSections = sectionsResponse.sections
+				if let navKey = selectedNavKey {
+					await loadSectionDetail(navKey)
+				}
+			} else {
+				let response = try await client.fetchConfigureTree()
+				apply(response: response, resetDraft: false)
+			}
 		} catch {
 			errorMessage = error.localizedDescription
 		}

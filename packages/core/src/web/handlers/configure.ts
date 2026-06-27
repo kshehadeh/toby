@@ -91,6 +91,86 @@ export function handleConfigureTree(): Response {
 	});
 }
 
+const SETTINGS_SECTION_KEYS = ["chatInbound", "defaults", "ai", "projects"];
+
+function stripToSectionNodes(node: SettingsItem): SettingsItem {
+	const sectionChildren = (node.children ?? [])
+		.filter((child) => child.kind === "section")
+		.map(stripToSectionNodes);
+	return {
+		...node,
+		children: sectionChildren,
+	};
+}
+
+function findSectionByKey(
+	node: SettingsItem,
+	key: string,
+): SettingsItem | null {
+	if (node.key === key) return node;
+	for (const child of node.children ?? []) {
+		if (child.kind === "section") {
+			const found = findSectionByKey(child, key);
+			if (found) return found;
+		}
+	}
+	return null;
+}
+
+export function handleConfigureSections(): Response {
+	resetPluginModuleCache();
+	const values = seedConfigureValues();
+	const redacted = redactConfigureValues(values);
+	const config = readConfig();
+	const personas = config.personas.some(
+		(p) => p.name === DEFAULT_CHAT_PERSONA.name,
+	)
+		? config.personas
+		: [DEFAULT_CHAT_PERSONA, ...config.personas];
+	const tree = buildSettingsTree(
+		personas,
+		AI_PROVIDERS,
+		redacted,
+		config.defaultProviders,
+		{ daemonRunning: true },
+	);
+	const sectionMap = new Map(
+		(tree.children ?? []).map((child) => [child.key, child]),
+	);
+	const sections = SETTINGS_SECTION_KEYS.map((key) => sectionMap.get(key))
+		.filter((s): s is SettingsItem => s != null)
+		.map(stripToSectionNodes);
+	return jsonResponse({ sections });
+}
+
+export function handleConfigureSectionDetail(sectionKey: string): Response {
+	resetPluginModuleCache();
+	const values = seedConfigureValues();
+	const redacted = redactConfigureValues(values);
+	const config = readConfig();
+	const personas = config.personas.some(
+		(p) => p.name === DEFAULT_CHAT_PERSONA.name,
+	)
+		? config.personas
+		: [DEFAULT_CHAT_PERSONA, ...config.personas];
+	const tree = buildSettingsTree(
+		personas,
+		AI_PROVIDERS,
+		redacted,
+		config.defaultProviders,
+		{ daemonRunning: true },
+	);
+	const section = findSectionByKey(tree, sectionKey);
+	if (!section) {
+		return errorResponse(`Section "${sectionKey}" not found`, 404);
+	}
+	return jsonResponse({
+		section: annotateTreeSecrets(section),
+		values: redacted,
+		integrationLabels: buildIntegrationLabels(),
+	});
+}
+
 export async function handleConfigurePatch(req: Request): Promise<Response> {
 	const body = await readJsonBody<{ changes?: Record<string, string> }>(req);
 	if (!body?.changes || typeof body.changes !== "object") {

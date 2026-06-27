@@ -708,6 +708,7 @@ export function buildSettingsTree(
 						label: "OpenAI",
 						kind: "section",
 						key: "ai.openai",
+						iconUrl: "/icons/ai/openai.png",
 						children: [
 							{
 								label: "API Token",
@@ -721,6 +722,7 @@ export function buildSettingsTree(
 						label: "Vercel AI Gateway",
 						kind: "section",
 						key: "ai.vercel",
+						iconUrl: "/icons/ai/vercel.png",
 						children: [
 							{
 								label: "API Key",
@@ -734,6 +736,7 @@ export function buildSettingsTree(
 						label: "Ollama",
 						kind: "section",
 						key: "ai.ollama",
+						iconUrl: "/icons/ai/ollama.png",
 						children: [
 							{
 								label: "Base URL",

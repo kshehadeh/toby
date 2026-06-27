@@ -30,10 +30,21 @@ struct SettingsItem: Decodable, Identifiable {
 	let currentValue: String?
 	let selectedValues: [String]?
 	let readOnly: Bool?
+	var iconUrl: String? = nil
 }
 
 struct ConfigureTreeResponse: Decodable {
 	let tree: SettingsItem
+	let values: [String: String]
+	let integrationLabels: [String: String]?
+}
+
+struct ConfigureSectionsResponse: Decodable {
+	let sections: [SettingsItem]
+}
+
+struct ConfigureSectionDetailResponse: Decodable {
+	let section: SettingsItem
 	let values: [String: String]
 	let integrationLabels: [String: String]?
 }
@@ -143,24 +154,13 @@ struct SidebarTreeNode: Identifiable {
 }
 
 enum ConfigureTreeHelpers {
-	private static let sidebarExcludedKeys: Set<String> = [
-		"listen",
-		"listen._start",
-		"personas",
-		"personas._new",
-		"schedules",
-		"schedules._new",
-		"integrations",
-	]
-
 	private static func isSidebarSection(_ item: SettingsItem) -> Bool {
 		guard item.kind == .section else { return false }
-		if sidebarExcludedKeys.contains(item.key) { return false }
 		if item.key.hasSuffix("._hint") || item.key.hasSuffix("._empty") { return false }
 		return true
 	}
 
-	private static func buildSidebarNode(
+	static func buildSidebarNode(
 		_ node: SettingsItem,
 		depth: Int,
 	) -> SidebarTreeNode? {

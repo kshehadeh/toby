@@ -81,13 +81,13 @@ struct IntegrationsViewTests {
 		)
 	}
 
-	@Test("settings sidebar excludes integrations and personas sections")
-	func settingsSidebarExcludesIntegrations() throws {
+	@Test("buildSidebarTree includes all section-type nodes")
+	func buildSidebarTreeIncludesAllSections() throws {
 		let tree = makeTree()
 		let sidebar = ConfigureTreeHelpers.buildSidebarTree(root: tree)
 		let keys = sidebar.map(\.navKey)
-		#expect(!keys.contains("integrations"))
-		#expect(!keys.contains("personas"))
+		#expect(keys.contains("integrations"))
+		#expect(keys.contains("personas"))
 	}
 
 	@Test("integration sections are derived from configure tree")

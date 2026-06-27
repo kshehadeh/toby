@@ -189,6 +189,72 @@ describe("web API routes", () => {
 		expect(body.integrationLabels["(none)"]).toBe("None");
 	});
 
+	it("GET /api/configure/sections returns 4 lightweight section structures", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/configure/sections"),
+			null,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			sections: Array<{
+				label: string;
+				kind: string;
+				key: string;
+				children?: Array<{ kind: string }>;
+			}>;
+		};
+		expect(body.sections).toHaveLength(4);
+		expect(body.sections.map((s) => s.key)).toEqual([
+			"chatInbound",
+			"defaults",
+			"ai",
+			"projects",
+		]);
+		// All sections and their children should be section-type only (no fields)
+		for (const section of body.sections) {
+			expect(section.kind).toBe("section");
+			for (const child of section.children ?? []) {
+				expect(child.kind).toBe("section");
+			}
+		}
+		// AI should have 3 sub-sections
+		const ai = body.sections.find((s) => s.key === "ai");
+		expect(ai?.children).toHaveLength(3);
+		expect(ai?.children?.map((c) => c.key)).toContain("ai.openai");
+	});
+
+	it("GET /api/configure/sections/:sectionKey returns full section detail", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/configure/sections/ai.openai"),
+			null,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			section: {
+				label: string;
+				kind: string;
+				key: string;
+				children: Array<{ label: string; kind: string; key: string }>;
+			};
+			values: Record<string, string>;
+			integrationLabels: Record<string, string>;
+		};
+		expect(body.section.key).toBe("ai.openai");
+		expect(body.section.label).toBe("OpenAI");
+		expect(body.section.children).toHaveLength(1);
+		expect(body.section.children[0].key).toBe("ai.openai.token");
+		expect(body.section.children[0].kind).toBe("value");
+		expect(typeof body.values["ai.openai.token"]).toBe("string");
+	});
+
+	it("GET /api/configure/sections/:sectionKey returns 404 for unknown section", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/configure/sections/nonexistent"),
+			null,
+		);
+		expect(res.status).toBe(404);
+	});
+
 	it("handles POST /api/daemon/restart", async () => {
 		const res = await handleWebRequest(
 			new Request("http://127.0.0.1/api/daemon/restart", { method: "POST" }),

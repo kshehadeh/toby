@@ -43,6 +43,8 @@ export interface SettingsItem {
 	selectedValues?: readonly string[];
 	/** When true, field is read-only in the web UI (credentials). */
 	readOnly?: boolean;
+	/** Relative URL to a custom icon image (e.g. "/icons/ai/openai.svg"). */
+	iconUrl?: string;
 }
 
 export interface ConfigureListenRecording {
