@@ -102,6 +102,10 @@ export function resolveWebInstallTarget(installDir?: string): string {
 	return path.join(path.dirname(resolveInstallTarget(installDir)), "web");
 }
 
+export function resolveIconsInstallTarget(installDir?: string): string {
+	return path.join(path.dirname(resolveInstallTarget(installDir)), "icons");
+}
+
 export function resolveAppInstallTarget(installDir?: string): string {
 	return path.join(path.dirname(resolveInstallTarget(installDir)), "Toby.app");
 }
@@ -122,6 +126,7 @@ export function getStagingPaths(): {
 	readonly pluginWhisperPath: string;
 	readonly appPath: string;
 	readonly webPath: string;
+	readonly iconsPath: string;
 	readonly archivePath: string;
 	readonly manifestPath: string;
 	readonly lockPath: string;
@@ -143,6 +148,7 @@ export function getStagingPaths(): {
 		pluginWhisperPath: path.join(stagingDir, "toby-plugin-whisper"),
 		appPath: path.join(stagingDir, "Toby.app"),
 		webPath: path.join(stagingDir, "web"),
+		iconsPath: path.join(stagingDir, "icons"),
 		archivePath: path.join(stagingDir, "toby-release.zip"),
 		manifestPath: path.join(stagingDir, "manifest.json"),
 		lockPath: path.join(stagingDir, ".lock"),
@@ -410,7 +416,8 @@ export async function applyStagedRelease(
 		);
 	}
 
-	const { binaryPath, webPath, appPath, manifestPath } = getStagingPaths();
+	const { binaryPath, webPath, iconsPath, appPath, manifestPath } =
+		getStagingPaths();
 	if (!fs.existsSync(binaryPath)) {
 		throw new Error(`Staged binary missing at ${binaryPath}.`);
 	}
@@ -430,9 +437,21 @@ export async function applyStagedRelease(
 	if (fs.existsSync(path.join(webPath, "index.html"))) {
 		options?.onProgress?.({ phase: "installing", detail: "web UI" });
 		await yieldToEventLoop();
-		const webInstallTarget = path.join(path.dirname(installTarget), "web");
+		const webInstallTarget = resolveWebInstallTarget(
+			path.dirname(installTarget),
+		);
 		await rm(webInstallTarget, { recursive: true, force: true });
 		await cp(webPath, webInstallTarget, { recursive: true });
+	}
+
+	if (fs.existsSync(iconsPath)) {
+		options?.onProgress?.({ phase: "installing", detail: "icons" });
+		await yieldToEventLoop();
+		const iconsInstallTarget = resolveIconsInstallTarget(
+			path.dirname(installTarget),
+		);
+		await rm(iconsInstallTarget, { recursive: true, force: true });
+		await cp(iconsPath, iconsInstallTarget, { recursive: true });
 	}
 
 	if (fs.existsSync(path.join(appPath, "Contents", "MacOS", "toby-app"))) {

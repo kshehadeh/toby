@@ -67,6 +67,19 @@ if (!fs.existsSync(webIndex)) {
 	process.exit(1);
 }
 
+const iconAssets = [
+	"icons/ai/openai.png",
+	"icons/ai/vercel.png",
+	"icons/ai/ollama.png",
+];
+for (const iconAsset of iconAssets) {
+	if (!fs.existsSync(path.join(directory, iconAsset))) {
+		console.error(`Missing or invalid release artifacts in ${directory}:`);
+		console.error(`  - ${iconAsset}`);
+		process.exit(1);
+	}
+}
+
 const macosPluginBundle = path.join(
 	directory,
 	"TobyPluginMacOS_TobyPluginMacOSLib.bundle",

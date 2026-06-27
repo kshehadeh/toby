@@ -109,6 +109,10 @@ echo "Building web UI..."
 bun run --cwd apps/web build
 cp -R apps/web/dist dist/web
 
+echo "Bundling icon assets..."
+rm -rf dist/icons
+cp -R packages/core/assets/icons dist/icons
+
 echo "Building native Toby.app..."
 chmod +x scripts/build-app.sh
 SWIFT_ARCH="${swift_arch}" TOBY_APP_VARIANT=production ./scripts/build-app.sh

@@ -27,6 +27,28 @@ export function resolveWebStaticDir(): string | null {
 	return null;
 }
 
+/** Resolve directory containing server-served icon assets. */
+export function resolveIconStaticDir(): string | null {
+	if (isRunningAsCompiledBinary()) {
+		const sibling = path.join(path.dirname(process.execPath), "icons");
+		if (fs.existsSync(sibling)) {
+			return sibling;
+		}
+		return null;
+	}
+
+	const candidates = [
+		path.resolve(__dirname, "../../assets/icons"),
+		path.resolve(process.cwd(), "packages/core/assets/icons"),
+	];
+	for (const dir of candidates) {
+		if (fs.existsSync(dir)) {
+			return dir;
+		}
+	}
+	return null;
+}
+
 export function getWebUiUrl(port: number): string {
 	return `http://127.0.0.1:${port}`;
 }

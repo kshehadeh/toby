@@ -65,6 +65,7 @@ import {
 import { handlePlanCancel, handlePlanSkip } from "./handlers/plan";
 import { handleSessionDetail, handleSessionsList } from "./handlers/sessions";
 import { errorResponse, jsonResponse } from "./http-utils";
+import { resolveIconStaticDir } from "./static-path";
 
 function contentTypeForPath(filePath: string): string {
 	const ext = path.extname(filePath).toLowerCase();
@@ -364,10 +365,12 @@ export async function handleWebRequest(
 
 	// Serve icon assets from packages/core/assets/icons/
 	if (pathname.startsWith("/icons/") && req.method === "GET") {
-		const iconsDir = path.resolve(import.meta.dir, "../../assets/icons");
-		const iconPath = pathname.slice("/icons".length);
-		const response = serveStatic(iconsDir, iconPath);
-		if (response) return response;
+		const iconsDir = resolveIconStaticDir();
+		if (iconsDir) {
+			const iconPath = pathname.slice("/icons".length);
+			const response = serveStatic(iconsDir, iconPath);
+			if (response) return response;
+		}
 	}
 
 	if (!staticDir) {

@@ -255,6 +255,16 @@ describe("web API routes", () => {
 		expect(res.status).toBe(404);
 	});
 
+	it("serves AI provider icon assets", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/icons/ai/openai.png"),
+			null,
+		);
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Content-Type")).toBe("image/png");
+		expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(0);
+	});
+
 	it("handles POST /api/daemon/restart", async () => {
 		const res = await handleWebRequest(
 			new Request("http://127.0.0.1/api/daemon/restart", { method: "POST" }),

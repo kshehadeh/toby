@@ -14,9 +14,11 @@ import {
 	readStagingManifest,
 	removeLegacySiblingHelpers,
 	removeOrphanedLegacyMacOSHelper,
+	resolveIconsInstallTarget,
 	resolveInstallDir,
 	resolveInstallTarget,
 	resolveStagedBinaryPath,
+	resolveWebInstallTarget,
 	shouldDelegateApplyToStagedBinary,
 } from "../src/upgrade/index";
 
@@ -69,6 +71,7 @@ describe("upgrade staging paths", () => {
 			path.join(tempDir, "staging", "toby-plugin-applecalendar"),
 		);
 		expect(paths.webPath).toBe(path.join(tempDir, "staging", "web"));
+		expect(paths.iconsPath).toBe(path.join(tempDir, "staging", "icons"));
 		expect(paths.archivePath).toBe(
 			path.join(tempDir, "staging", "toby-release.zip"),
 		);
@@ -85,6 +88,12 @@ describe("upgrade staging paths", () => {
 		expect(resolveInstallDir()).toBe(
 			path.resolve(path.join(os.homedir(), ".local", "bin")),
 		);
+	});
+
+	it("resolves sibling web and icon install targets", () => {
+		const binDir = path.join(tempDir, "bin");
+		expect(resolveWebInstallTarget(binDir)).toBe(path.join(binDir, "web"));
+		expect(resolveIconsInstallTarget(binDir)).toBe(path.join(binDir, "icons"));
 	});
 });
 
@@ -282,6 +291,10 @@ describe("applyStagedRelease", () => {
 				runtime: { type: "bun", entry: "src/index.ts" },
 			}),
 		);
+		fs.mkdirSync(paths.webPath, { recursive: true });
+		fs.writeFileSync(path.join(paths.webPath, "index.html"), "<html></html>");
+		fs.mkdirSync(path.join(paths.iconsPath, "ai"), { recursive: true });
+		fs.writeFileSync(path.join(paths.iconsPath, "ai", "openai.png"), "icon");
 
 		const manifest = {
 			tag: "v9.9.9",
@@ -298,6 +311,10 @@ describe("applyStagedRelease", () => {
 		expect(
 			fs.existsSync(path.join(getPluginsDir(), "toby-plugin-sample-ts")),
 		).toBe(true);
+		expect(fs.existsSync(path.join(binDir, "web", "index.html"))).toBe(true);
+		expect(fs.existsSync(path.join(binDir, "icons", "ai", "openai.png"))).toBe(
+			true,
+		);
 	});
 
 	it("replaces an installed plugin resource bundle from staging", async () => {

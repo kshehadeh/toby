@@ -5,6 +5,7 @@
 #   - toby → $TOBY_INSTALL_DIR (default ~/.local/bin)
 #   - bun runtime → ~/.toby/helpers/bun (for bun-package plugins)
 #   - web UI → sibling web/ directory
+#   - icon assets → sibling icons/ directory
 #   - Toby.app → /Applications (or ~/Applications when /Applications is not writable)
 #   - toby-plugin-whisper → ~/.toby/plugins/
 #   - toby-plugin-sample-ts, toby-plugin-azuread, toby-plugin-gmail, toby-plugin-todoist, toby-plugin-slack, toby-plugin-jira, toby-plugin-websearch, toby-plugin-applecalendar, toby-plugin-macos → ~/.toby/plugins/
@@ -94,6 +95,10 @@ if [[ ! -f "${tmpdir}/web/index.html" ]]; then
 	echo "Release archive is missing web/index.html." >&2
 	exit 1
 fi
+if [[ ! -f "${tmpdir}/icons/ai/openai.png" ]]; then
+	echo "Release archive is missing icons/ai/openai.png." >&2
+	exit 1
+fi
 
 has_sample_ts_plugin=false
 if [[ -d "${tmpdir}/toby-plugin-sample-ts" ]]; then
@@ -160,6 +165,10 @@ echo "Installed: ${install_dir}/toby"
 rm -rf "${install_dir}/web"
 cp -R "${tmpdir}/web" "${install_dir}/web"
 echo "Installed: ${install_dir}/web"
+
+rm -rf "${install_dir}/icons"
+cp -R "${tmpdir}/icons" "${install_dir}/icons"
+echo "Installed: ${install_dir}/icons"
 
 if [[ -d "${tmpdir}/Toby.app" ]]; then
 	# Install the native app into the Applications directory so it is

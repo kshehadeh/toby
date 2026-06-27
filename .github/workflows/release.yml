@@ -148,6 +148,7 @@ jobs:
           cp -R dist/toby-plugin-todoist release-payload/toby-plugin-todoist
           cp -R dist/TobyPluginMacOS_TobyPluginMacOSLib.bundle release-payload/
           cp -R dist/web release-payload/web
+          cp -R dist/icons release-payload/icons
           cp -R dist/Toby.app release-payload/Toby.app
           node scripts/verify-release-artifacts.mjs release-payload
           ditto -c -k --sequesterRsrc release-payload ${{ matrix.asset }}
