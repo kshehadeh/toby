@@ -138,8 +138,8 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           ditto -c -k --keepParent dist/Toby.app dist/Toby.app.notary.zip
-          # Submit and wait; notarytool exits 0 even when notarization is rejected,
-          # so capture the submission ID and check the status explicitly.
+          # Submit and wait; notarytool --wait exits 0 even when notarization
+          # is rejected, so parse the status from the output directly.
           submit_output="$(xcrun notarytool submit dist/Toby.app.notary.zip \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
@@ -147,24 +147,20 @@ jobs:
             --wait 2>&1)"
           echo "$submit_output"
 
-          submission_id="$(echo "$submit_output" | grep 'id:' | awk '{print $2}')"
-          if [[ -z "$submission_id" ]]; then
-            echo "Failed to get notarization submission ID" >&2
-            exit 1
-          fi
-
-          status="$(xcrun notarytool info "$submission_id" \
-            --apple-id "$APPLE_ID" \
-            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" 2>&1 | grep 'status:' | awk '{print $2}')"
+          # Extract the first submission ID (appears multiple times in output)
+          submission_id="$(echo "$submit_output" | grep -m1 'id:' | awk '{print $2}')"
+          # Extract the final status from the output
+          status="$(echo "$submit_output" | grep 'status:' | tail -1 | awk '{print $2}')"
           echo "Notarization status: $status"
 
           if [[ "$status" != "Accepted" ]]; then
             echo "Notarization was NOT accepted. Fetching log..." >&2
-            xcrun notarytool log "$submission_id" \
-              --apple-id "$APPLE_ID" \
-              --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-              --team-id "$APPLE_TEAM_ID" >&2
+            if [[ -n "$submission_id" ]]; then
+              xcrun notarytool log "$submission_id" \
+                --apple-id "$APPLE_ID" \
+                --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+                --team-id "$APPLE_TEAM_ID" >&2
+            fi
             exit 1
           fi
 
@@ -193,24 +189,18 @@ jobs:
             --wait 2>&1)"
           echo "$submit_output"
 
-          submission_id="$(echo "$submit_output" | grep 'id:' | awk '{print $2}')"
-          if [[ -z "$submission_id" ]]; then
-            echo "Failed to get notarization submission ID" >&2
-            exit 1
-          fi
-
-          status="$(xcrun notarytool info "$submission_id" \
-            --apple-id "$APPLE_ID" \
-            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" 2>&1 | grep 'status:' | awk '{print $2}')"
+          submission_id="$(echo "$submit_output" | grep -m1 'id:' | awk '{print $2}')"
+          status="$(echo "$submit_output" | grep 'status:' | tail -1 | awk '{print $2}')"
           echo "DMG notarization status: $status"
 
           if [[ "$status" != "Accepted" ]]; then
             echo "DMG notarization was NOT accepted. Fetching log..." >&2
-            xcrun notarytool log "$submission_id" \
-              --apple-id "$APPLE_ID" \
-              --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-              --team-id "$APPLE_TEAM_ID" >&2
+            if [[ -n "$submission_id" ]]; then
+              xcrun notarytool log "$submission_id" \
+                --apple-id "$APPLE_ID" \
+                --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+                --team-id "$APPLE_TEAM_ID" >&2
+            fi
             exit 1
           fi
 
