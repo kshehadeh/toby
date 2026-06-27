@@ -125,14 +125,14 @@ describe("routeToolsAndSkills", () => {
 	it("getRoutingSkillMinScore defaults to 0.35 and respects env override", () => {
 		const prev = process.env.TOBY_ROUTING_SKILL_MIN_SCORE;
 		try {
-			delete process.env.TOBY_ROUTING_SKILL_MIN_SCORE;
+			process.env.TOBY_ROUTING_SKILL_MIN_SCORE = undefined;
 			expect(getRoutingSkillMinScore()).toBe(0.35);
 
 			process.env.TOBY_ROUTING_SKILL_MIN_SCORE = "0.5";
 			expect(getRoutingSkillMinScore()).toBe(0.5);
 		} finally {
 			if (prev === undefined) {
-				delete process.env.TOBY_ROUTING_SKILL_MIN_SCORE;
+				process.env.TOBY_ROUTING_SKILL_MIN_SCORE = undefined;
 			} else {
 				process.env.TOBY_ROUTING_SKILL_MIN_SCORE = prev;
 			}
