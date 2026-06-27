@@ -1,7 +1,7 @@
 import type { CoreMessage } from "@toby/core/ai/chat";
 import { assembleMessagesNode } from "@toby/core/chat-pipeline/nodes/assemble-messages";
 import type { ExpandedTurn } from "@toby/core/chat-pipeline/pipeline";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, mock } from "bun:test";
 import {
 	isFirstSteeringTurn,
 	lastUserMessageText,

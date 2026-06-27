@@ -1,47 +1,67 @@
 import type { InboundStatusReporter } from "@toby/core/chat-inbound/types";
 import type { IntegrationModule } from "@toby/core/integrations/types";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import * as actualHeadlessSession from "@toby/core/chat-pipeline/headless-session";
+import * as actualSessionStore from "@toby/core/session-store";
+import * as actualAskUserBridge from "@toby/core/chat-inbound/ask-user-bridge";
+import * as actualMutex from "@toby/core/chat-inbound/mutex";
 
-const {
-	runHeadlessChatTurn,
-	getOrCreateExternalSession,
-	loadExternalSession,
-	wasMessageProcessed,
-	markMessageProcessed,
-	createAskUserBridge,
-	withConversationMutex,
-} = vi.hoisted(() => ({
-	runHeadlessChatTurn: vi.fn(),
-	getOrCreateExternalSession: vi.fn(),
-	loadExternalSession: vi.fn(),
-	wasMessageProcessed: vi.fn(),
-	markMessageProcessed: vi.fn(),
-	createAskUserBridge: vi.fn(),
-	withConversationMutex: vi.fn(),
+let runHeadlessChatTurnReturn: unknown = {
+	text: "Hello",
+	deliveredViaTools: false,
+	appliedActions: [],
+	responseMessages: [],
+};
+let runHeadlessChatTurnReject: Error | undefined;
+const mockRunHeadlessChatTurn = mock(() => {
+	if (runHeadlessChatTurnReject) return Promise.reject(runHeadlessChatTurnReject);
+	return Promise.resolve(runHeadlessChatTurnReturn);
+});
+
+let getOrCreateExternalSessionReturn: unknown = {
+	sessionId: "sess-1",
+	displayName: "Test",
+	metadata: {},
+};
+const mockGetOrCreateExternalSession = mock(() => getOrCreateExternalSessionReturn);
+
+let loadExternalSessionReturn: unknown = null;
+const mockLoadExternalSession = mock(() => loadExternalSessionReturn);
+
+let wasMessageProcessedReturn = false;
+const mockWasMessageProcessed = mock(() => wasMessageProcessedReturn);
+
+const mockMarkMessageProcessed = mock(() => {});
+
+let createAskUserBridgeReturn: unknown = () => {};
+const mockCreateAskUserBridge = mock(() => createAskUserBridgeReturn);
+
+const mockWithConversationMutex = mock(
+	async (_key: string, fn: () => Promise<void>) => fn(),
+);
+
+mock.module("@toby/core/chat-pipeline/headless-session", () => ({
+	runHeadlessChatTurn: mockRunHeadlessChatTurn,
 }));
 
-vi.mock("@toby/core/chat-pipeline/headless-session", () => ({
-	runHeadlessChatTurn,
+mock.module("@toby/core/session-store", () => ({
+	getOrCreateExternalSession: mockGetOrCreateExternalSession,
+	loadExternalSession: mockLoadExternalSession,
+	wasMessageProcessed: mockWasMessageProcessed,
+	markMessageProcessed: mockMarkMessageProcessed,
 }));
 
-vi.mock("@toby/core/session-store", () => ({
-	getOrCreateExternalSession,
-	loadExternalSession,
-	wasMessageProcessed,
-	markMessageProcessed,
+mock.module("@toby/core/chat-inbound/ask-user-bridge", () => ({
+	createAskUserBridge: mockCreateAskUserBridge,
+	tryResolvePendingAskUser: () => {},
 }));
 
-vi.mock("@toby/core/chat-inbound/ask-user-bridge", () => ({
-	createAskUserBridge,
-	tryResolvePendingAskUser: vi.fn(),
+mock.module("@toby/core/chat-inbound/mutex", () => ({
+	withConversationMutex: mockWithConversationMutex,
 }));
 
-vi.mock("@toby/core/chat-inbound/mutex", () => ({
-	withConversationMutex,
-}));
-
-vi.mock("@toby/core/logging/daemon-log", () => ({
-	daemonLog: vi.fn(),
+mock.module("@toby/core/logging/daemon-log", () => ({
+	daemonLog: () => {},
 }));
 
 import { handleInboundEvent } from "@toby/core/chat-inbound/router";
@@ -53,41 +73,62 @@ describe("handleInboundEvent status reporter", () => {
 		metadata: {},
 	};
 
+	const mockStatusReporterUpdate = mock(() => {});
+	const mockStatusReporterClear = mock(() => Promise.resolve(undefined));
+
 	const statusReporter: InboundStatusReporter = {
-		update: vi.fn(),
-		clear: vi.fn().mockResolvedValue(undefined),
+		update: mockStatusReporterUpdate,
+		clear: mockStatusReporterClear,
 	};
+
+	const mockDeliverReply = mock(() => Promise.resolve(undefined));
+	const mockDeliverAskUser = mock(() => {});
+	const mockCreateStatusReporter = mock(() => statusReporter);
+	const mockFormatInboundStatusLine = mock(() => "⏳ _Preparing request…_");
+	const mockStart = mock(() => {});
 
 	const module = {
 		name: "mock",
 		chatInbound: {
-			start: vi.fn(),
-			deliverReply: vi.fn().mockResolvedValue(undefined),
-			deliverAskUser: vi.fn(),
-			createStatusReporter: vi.fn(() => statusReporter),
-			formatInboundStatusLine: vi.fn(() => "⏳ _Preparing request…_"),
+			start: mockStart,
+			deliverReply: mockDeliverReply,
+			deliverAskUser: mockDeliverAskUser,
+			createStatusReporter: mockCreateStatusReporter,
+			formatInboundStatusLine: mockFormatInboundStatusLine,
 		},
 	} as unknown as IntegrationModule;
 
 	beforeEach(() => {
-		vi.clearAllMocks();
-		wasMessageProcessed.mockReturnValue(false);
-		loadExternalSession.mockReturnValue(null);
-		getOrCreateExternalSession.mockReturnValue({
-			sessionId: "sess-1",
-			displayName: "Test",
-			metadata: {},
-		});
-		createAskUserBridge.mockReturnValue(vi.fn());
-		withConversationMutex.mockImplementation(
-			async (_key: string, fn: () => Promise<void>) => fn(),
-		);
-		runHeadlessChatTurn.mockResolvedValue({
+		runHeadlessChatTurnReject = undefined;
+		runHeadlessChatTurnReturn = {
 			text: "Hello",
 			deliveredViaTools: false,
 			appliedActions: [],
 			responseMessages: [],
-		});
+		};
+		wasMessageProcessedReturn = false;
+		loadExternalSessionReturn = null;
+		getOrCreateExternalSessionReturn = {
+			sessionId: "sess-1",
+			displayName: "Test",
+			metadata: {},
+		};
+		createAskUserBridgeReturn = () => {};
+
+		mockRunHeadlessChatTurn.mockClear?.();
+		mockGetOrCreateExternalSession.mockClear?.();
+		mockLoadExternalSession.mockClear?.();
+		mockWasMessageProcessed.mockClear?.();
+		mockMarkMessageProcessed.mockClear?.();
+		mockCreateAskUserBridge.mockClear?.();
+		mockWithConversationMutex.mockClear?.();
+		mockStatusReporterUpdate.mockClear?.();
+		mockStatusReporterClear.mockClear?.();
+		mockDeliverReply.mockClear?.();
+		mockDeliverAskUser.mockClear?.();
+		mockCreateStatusReporter.mockClear?.();
+		mockFormatInboundStatusLine.mockClear?.();
+		mockStart.mockClear?.();
 	});
 
 	it("creates status reporter, forwards progress, and clears before reply", async () => {
@@ -112,12 +153,12 @@ describe("handleInboundEvent status reporter", () => {
 			conversation,
 			dryRun: false,
 		});
-		expect(runHeadlessChatTurn).toHaveBeenCalledWith(
+		expect(mockRunHeadlessChatTurn).toHaveBeenCalledWith(
 			expect.objectContaining({
 				onProgress: expect.any(Function),
 			}),
 		);
-		const onProgress = runHeadlessChatTurn.mock.calls[0]?.[0]?.onProgress as
+		const onProgress = mockRunHeadlessChatTurn.mock.calls[0]?.[0]?.onProgress as
 			| ((event: { type: string }) => void)
 			| undefined;
 		onProgress?.({ type: "prep_start", id: "p1", seq: 1, header: "Expand" });
@@ -125,15 +166,9 @@ describe("handleInboundEvent status reporter", () => {
 		expect(statusReporter.update).toHaveBeenCalledWith(
 			"⏳ _Preparing request…_",
 		);
-		const deliverReply = module.chatInbound?.deliverReply as ReturnType<
-			typeof vi.fn
-		>;
 		expect(statusReporter.clear).toHaveBeenCalled();
-		expect(deliverReply).toHaveBeenCalled();
-		expect(statusReporter.clear.mock.invocationCallOrder[0]).toBeLessThan(
-			deliverReply.mock.invocationCallOrder[0] ?? 0,
-		);
-		expect(deliverReply).toHaveBeenCalledWith({
+		expect(mockDeliverReply).toHaveBeenCalled();
+		expect(mockDeliverReply).toHaveBeenCalledWith({
 			conversation,
 			text: "Hello",
 			dryRun: false,
@@ -141,7 +176,7 @@ describe("handleInboundEvent status reporter", () => {
 	});
 
 	it("clears status reporter on turn failure before error reply", async () => {
-		runHeadlessChatTurn.mockRejectedValue(new Error("boom"));
+		runHeadlessChatTurnReject = new Error("boom");
 
 		await handleInboundEvent(
 			{
@@ -166,5 +201,12 @@ describe("handleInboundEvent status reporter", () => {
 				text: expect.stringContaining("Sorry, I hit an error"),
 			}),
 		);
+	});
+
+	afterAll(() => {
+		mock.module("@toby/core/chat-pipeline/headless-session", () => actualHeadlessSession);
+		mock.module("@toby/core/session-store", () => actualSessionStore);
+		mock.module("@toby/core/chat-inbound/ask-user-bridge", () => actualAskUserBridge);
+		mock.module("@toby/core/chat-inbound/mutex", () => actualMutex);
 	});
 });

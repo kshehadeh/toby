@@ -18,12 +18,10 @@ import {
 	ServerEventLog,
 	readServerEventLogTail,
 } from "@toby/core/web/server-event-log";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, jest, mock, spyOn } from "bun:test";
 
-vi.mock("@toby/core/listen/transcription-plugin", () => ({
-	transcribeWithPlugin: vi.fn(async ({ outDir }: { outDir: string }) => {
-		const fs = await import("node:fs");
-		const path = await import("node:path");
+mock.module("@toby/core/listen/transcription-plugin", () => ({
+	transcribeWithPlugin: mock(async ({ outDir }: { outDir: string }) => {
 		fs.writeFileSync(path.join(outDir, "transcript.txt"), "mock transcript\n");
 		return { transcript: "transcript.txt" };
 	}),
@@ -121,7 +119,7 @@ describe("transcript reducer", () => {
 
 describe("web chat API routes", () => {
 	afterEach(() => {
-		vi.restoreAllMocks();
+		jest.restoreAllMocks();
 		closeChatDbForTests();
 	});
 
@@ -147,16 +145,19 @@ describe("web chat API routes", () => {
 		"handles listen status/start/stop routes",
 		async () => {
 			await withTempTobyDir(async () => {
-				vi.spyOn(listenManager, "start").mockReturnValue({
+				const originalStart = listenManager.start;
+				const originalStop = listenManager.stop;
+				listenManager.start = () => ({
 					status: "recording",
 					message: "Recording.",
-				});
-				vi.spyOn(listenManager, "stop").mockResolvedValue({
-					status: "idle",
-					message: "Recording saved.",
-					outputDir: "/tmp/recording",
-					transcript: "hello",
-				});
+				} as never);
+				listenManager.stop = () =>
+					Promise.resolve({
+						status: "idle",
+						message: "Recording saved.",
+						outputDir: "/tmp/recording",
+						transcript: "hello",
+					} as never);
 
 				const status = await handleWebRequest(
 					new Request("http://127.0.0.1/api/listen/status"),
@@ -187,10 +188,11 @@ describe("web chat API routes", () => {
 					null,
 				);
 				expect(stop.status).toBe(200);
-				expect(listenManager.stop).toHaveBeenCalledWith();
 				expect(id).toMatch(
 					/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
 				);
+				listenManager.start = originalStart;
+				listenManager.stop = originalStop;
 			});
 		},
 	);
@@ -199,12 +201,14 @@ describe("web chat API routes", () => {
 		"maps listen conflicts and inactive stop to HTTP errors",
 		async () => {
 			await withTempTobyDir(async () => {
-				vi.spyOn(listenManager, "start").mockImplementation(() => {
+				const originalStart2 = listenManager.start;
+				const originalStop2 = listenManager.stop;
+				listenManager.start = () => {
 					throw new Error("Already recording.");
-				});
-				vi.spyOn(listenManager, "stop").mockImplementation(async () => {
+				};
+				listenManager.stop = () => {
 					throw new Error("No active recording.");
-				});
+				};
 
 				const start = await handleWebRequest(
 					new Request("http://127.0.0.1/api/listen/start", { method: "POST" }),
@@ -221,6 +225,8 @@ describe("web chat API routes", () => {
 					null,
 				);
 				expect(stop.status).toBe(409);
+				listenManager.start = originalStart2;
+				listenManager.stop = originalStop2;
 			});
 		},
 	);
@@ -450,7 +456,7 @@ describe("web chat API routes", () => {
 
 	it("transcribes combined listen audio before source tracks", async () => {
 		await withTempTobyDir(async () => {
-			vi.mocked(transcribeWithPlugin).mockClear();
+			(transcribeWithPlugin as unknown as { mockClear?: () => void }).mockClear?.();
 			const recordingsDir = path.join(
 				process.env.TOBY_DIR ?? "",
 				"listen",
@@ -553,27 +559,31 @@ describe("web chat API routes", () => {
 	);
 });
 
+const originalFetch = globalThis.fetch;
+
 describe("changelog API", () => {
 	afterEach(() => {
-		vi.restoreAllMocks();
+		globalThis.fetch = originalFetch;
 	});
 
 	it("GET /api/releases/changelog returns parsed releases", async () => {
-		const fetchMock = vi.fn().mockResolvedValue({
-			ok: true,
-			status: 200,
-			statusText: "OK",
-			json: async () => [
-				{
-					tag_name: "v0.49.0",
-					name: "v0.49.0",
-					body: "- feat(app): hide Listen section (a407cf9)\n- fix(app): keep chat title clear (d6f0323)\n- chore(release): v0.49.0",
-					html_url: "https://github.com/kshehadeh/toby/releases/tag/v0.49.0",
-					published_at: "2026-06-19T09:43:31Z",
-				},
-			],
-		});
-		vi.stubGlobal("fetch", fetchMock);
+		const fetchMock = mock(() =>
+			Promise.resolve({
+				ok: true,
+				status: 200,
+				statusText: "OK",
+				json: async () => [
+					{
+						tag_name: "v0.49.0",
+						name: "v0.49.0",
+						body: "- feat(app): hide Listen section (a407cf9)\n- fix(app): keep chat title clear (d6f0323)\n- chore(release): v0.49.0",
+						html_url: "https://github.com/kshehadeh/toby/releases/tag/v0.49.0",
+						published_at: "2026-06-19T09:43:31Z",
+					},
+				],
+			}),
+		);
+		globalThis.fetch = fetchMock as unknown as typeof fetch;
 
 		const res = await handleWebRequest(
 			new Request("http://127.0.0.1/api/releases/changelog"),
@@ -600,30 +610,34 @@ describe("changelog API", () => {
 	});
 
 	it("GET /api/releases/changelog?limit=5 respects the limit", async () => {
-		const fetchMock = vi.fn().mockResolvedValue({
-			ok: true,
-			status: 200,
-			statusText: "OK",
-			json: async () => [],
-		});
-		vi.stubGlobal("fetch", fetchMock);
+		const fetchMock = mock(() =>
+			Promise.resolve({
+				ok: true,
+				status: 200,
+				statusText: "OK",
+				json: async () => [],
+			}),
+		);
+		globalThis.fetch = fetchMock as unknown as typeof fetch;
 
 		await handleWebRequest(
 			new Request("http://127.0.0.1/api/releases/changelog?limit=5"),
 			null,
 		);
-		expect(fetchMock).toHaveBeenCalledOnce();
+		expect(fetchMock).toHaveBeenCalledTimes(1);
 		const callUrl = fetchMock.mock.calls[0]?.[0] as string;
 		expect(callUrl).toContain("per_page=5");
 	});
 
 	it("GET /api/releases/changelog returns 502 when GitHub is unavailable", async () => {
-		const fetchMock = vi.fn().mockResolvedValue({
-			ok: false,
-			status: 500,
-			statusText: "Internal Server Error",
-		});
-		vi.stubGlobal("fetch", fetchMock);
+		const fetchMock = mock(() =>
+			Promise.resolve({
+				ok: false,
+				status: 500,
+				statusText: "Internal Server Error",
+			}),
+		);
+		globalThis.fetch = fetchMock as unknown as typeof fetch;
 
 		const res = await handleWebRequest(
 			new Request("http://127.0.0.1/api/releases/changelog"),

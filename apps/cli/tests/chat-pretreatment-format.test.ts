@@ -1,3 +1,4 @@
+import "./helpers/setup-mocks";
 import {
 	type UserIntentSpec,
 	formatUserMessageWithPretreatment,

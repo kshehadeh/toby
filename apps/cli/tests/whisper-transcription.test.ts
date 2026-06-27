@@ -1,39 +1,40 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, mock } from "bun:test";
+import * as actualConfig from "@toby/core/config/index";
 
-const pluginToolsExecuteAsync = vi.hoisted(() => vi.fn());
-const findDiscoveredPlugin = vi.hoisted(() => vi.fn());
-const inspectPluginBinary = vi.hoisted(() => vi.fn());
+let findDiscoveredPluginReturn: unknown;
+const mockFindDiscoveredPlugin = mock(() => findDiscoveredPluginReturn);
 
-vi.mock("@toby/core/integrations/plugins/client", () => ({
-	pluginToolsExecuteAsync,
-	pluginSetup: vi.fn(),
+let inspectPluginBinaryReturn: unknown;
+const mockInspectPluginBinary = mock(() => inspectPluginBinaryReturn);
+
+let pluginToolsExecuteAsyncReturn: unknown;
+const mockPluginToolsExecuteAsync = mock(() => pluginToolsExecuteAsyncReturn);
+
+mock.module("@toby/core/integrations/plugins/client", () => ({
+	pluginToolsExecuteAsync: mockPluginToolsExecuteAsync,
+	pluginSetup: () => {},
 }));
 
-vi.mock("@toby/core/integrations/plugins/registry", () => ({
-	findDiscoveredPlugin,
-	inspectPluginBinary,
+mock.module("@toby/core/integrations/plugins/registry", () => ({
+	findDiscoveredPlugin: mockFindDiscoveredPlugin,
+	inspectPluginBinary: mockInspectPluginBinary,
 }));
 
-vi.mock("@toby/core/config/index", async () => {
-	const actual = await vi.importActual<
-		typeof import("@toby/core/config/index")
-	>("@toby/core/config/index");
-	return {
-		...actual,
-		readConfig: () => ({
-			integrations: {},
-			personas: [],
-			listen: { transcriptionPlugin: "whisper" },
-		}),
-		readCredentials: () => ({ integrations: { whisper: {} } }),
-		writeConfig: vi.fn(),
-		writeCredentials: vi.fn(),
-		getDefaultProvider: () => undefined,
-	};
-});
+mock.module("@toby/core/config/index", () => ({
+	...actualConfig,
+	readConfig: () => ({
+		integrations: {},
+		personas: [],
+		listen: { transcriptionPlugin: "whisper" },
+	}),
+	readCredentials: () => ({ integrations: { whisper: {} } }),
+	writeConfig: () => {},
+	writeCredentials: () => {},
+	getDefaultProvider: () => undefined,
+}));
 
 import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
 
@@ -44,7 +45,9 @@ describe("transcription plugin bridge", () => {
 		for (const dir of tempDirs.splice(0)) {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
-		vi.clearAllMocks();
+		mockFindDiscoveredPlugin.mockClear?.();
+		mockInspectPluginBinary.mockClear?.();
+		mockPluginToolsExecuteAsync.mockClear?.();
 	});
 
 	it("copies plugin temp transcript files into the recording folder", async () => {
@@ -73,16 +76,16 @@ describe("transcription plugin bridge", () => {
 			}),
 		);
 
-		findDiscoveredPlugin.mockReturnValue({
+		findDiscoveredPluginReturn = {
 			kind: "binary",
 			binaryPath: "/fake/toby-plugin-whisper",
 			binaryName: "toby-plugin-whisper",
-		});
-		inspectPluginBinary.mockReturnValue({
+		};
+		inspectPluginBinaryReturn = {
 			capabilities: ["transcription"],
 			name: "whisper",
-		});
-		pluginToolsExecuteAsync.mockResolvedValue({
+		};
+		pluginToolsExecuteAsyncReturn = Promise.resolve({
 			ok: true,
 			data: {
 				ok: true,
@@ -95,7 +98,7 @@ describe("transcription plugin bridge", () => {
 		});
 
 		const files = await transcribeWithPlugin({ input, outDir });
-		expect(pluginToolsExecuteAsync).toHaveBeenCalledWith(
+		expect(mockPluginToolsExecuteAsync).toHaveBeenCalledWith(
 			expect.objectContaining({
 				kind: "binary",
 				executablePath: "/fake/toby-plugin-whisper",

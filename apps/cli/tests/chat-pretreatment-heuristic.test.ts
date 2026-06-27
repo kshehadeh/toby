@@ -1,3 +1,4 @@
+import "./helpers/setup-mocks";
 import type { CoreMessage } from "@toby/core/ai/chat";
 import type { UserIntentSpec } from "@toby/core/ai/pretreatment";
 import {
@@ -9,19 +10,12 @@ import {
 	wrapUserPromptWithPretreatment,
 } from "@toby/core/ai/pretreatment";
 import * as sessionStore from "@toby/core/session-store";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-const { generateTextMock } = vi.hoisted(() => ({
-	generateTextMock: vi.fn(),
-}));
-
-vi.mock("ai", async (importOriginal) => {
-	const actual = await importOriginal<typeof import("ai")>();
-	return {
-		...actual,
-		generateText: (...args: unknown[]) => generateTextMock(...args),
-	};
-});
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
+import {
+	clearPretreatmentCache,
+	generateTextMock,
+	generateTextQueue,
+} from "./helpers/setup-mocks";
 
 function minimalSpec(over: Partial<UserIntentSpec> = {}): UserIntentSpec {
 	return {
@@ -142,7 +136,9 @@ describe("wrapUserPromptWithPretreatment", () => {
 	const prevSemantic = process.env.TOBY_SEMANTIC_ROUTING;
 
 	beforeEach(() => {
-		generateTextMock.mockReset();
+		clearPretreatmentCache();
+		generateTextQueue.length = 0;
+		(generateTextMock as unknown as { mockClear?: () => void }).mockClear?.();
 		process.env.TOBY_SEMANTIC_ROUTING = "0";
 	});
 
@@ -173,7 +169,7 @@ describe("wrapUserPromptWithPretreatment", () => {
 	});
 
 	it("uses delta pretreatment when scope is unchanged", async () => {
-		generateTextMock.mockResolvedValueOnce({
+		generateTextQueue.push({
 			output: { reusePriorSelection: true, goal: "Continue listing tasks" },
 		});
 		const prior = {
@@ -193,11 +189,11 @@ describe("wrapUserPromptWithPretreatment", () => {
 	});
 
 	it("runs full pretreatment when delta reports a scope change", async () => {
-		generateTextMock
-			.mockResolvedValueOnce({
+		generateTextQueue.push(
+			{
 				output: { reusePriorSelection: false },
-			})
-			.mockResolvedValueOnce({
+			},
+			{
 				output: {
 					goal: "Search Gmail",
 					mustDo: [],
@@ -209,7 +205,8 @@ describe("wrapUserPromptWithPretreatment", () => {
 					relevantTools: ["gmailSearch"],
 					sessionName: "",
 				},
-			});
+			},
+		);
 		const prior = {
 			rawUserText: "List my open tasks",
 			spec: minimalSpec(),
@@ -263,20 +260,18 @@ describe("wrapUserPromptWithPretreatment", () => {
 			});
 		}
 
-		const getSpy = vi
-			.spyOn(sessionStore, "getPretreatmentCache")
-			.mockReturnValueOnce({
-				goal: "Do a thing",
-				mustDo: [],
-				mustNotDo: [],
-				assumptions: [],
-				openQuestions: [],
-				relevantIntegrations: [],
-				relevantSkills: [],
-				relevantTools: [],
-				sessionName: "",
-			});
-		const setSpy = vi.spyOn(sessionStore, "setPretreatmentCache");
+		const getSpy = spyOn(sessionStore, "getPretreatmentCache").mockReturnValueOnce({
+			goal: "Do a thing",
+			mustDo: [],
+			mustNotDo: [],
+			assumptions: [],
+			openQuestions: [],
+			relevantIntegrations: [],
+			relevantSkills: [],
+			relevantTools: [],
+			sessionName: "",
+		});
+		const setSpy = spyOn(sessionStore, "setPretreatmentCache");
 
 		try {
 			const r = await wrapUserPromptWithPretreatment({
@@ -317,20 +312,18 @@ describe("wrapUserPromptWithPretreatment", () => {
 			});
 		}
 
-		const getSpy = vi
-			.spyOn(sessionStore, "getPretreatmentCache")
-			.mockReturnValueOnce({
-				goal: "Summarize mail",
-				mustDo: [],
-				mustNotDo: [],
-				assumptions: [],
-				openQuestions: [],
-				relevantIntegrations: [],
-				relevantSkills: [],
-				relevantTools: [],
-				sessionName: "",
-			});
-		const setSpy = vi.spyOn(sessionStore, "setPretreatmentCache");
+		const getSpy = spyOn(sessionStore, "getPretreatmentCache").mockReturnValueOnce({
+			goal: "Summarize mail",
+			mustDo: [],
+			mustNotDo: [],
+			assumptions: [],
+			openQuestions: [],
+			relevantIntegrations: [],
+			relevantSkills: [],
+			relevantTools: [],
+			sessionName: "",
+		});
+		const setSpy = spyOn(sessionStore, "setPretreatmentCache");
 
 		try {
 			const r = await wrapUserPromptWithPretreatment({

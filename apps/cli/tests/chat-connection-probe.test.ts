@@ -1,5 +1,5 @@
 import type { IntegrationModule } from "@toby/core/integrations/types";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, jest, mock } from "bun:test";
 import {
 	type ConnectionProbeProgress,
 	countIntegrationConnectionStatuses,
@@ -32,11 +32,12 @@ function mockModule(
 
 describe("runConnectionProbes", () => {
 	afterEach(() => {
-		vi.useRealTimers();
+		jest.useRealTimers();
+		jest.restoreAllMocks();
 	});
 
 	it("uses isConnected for connection state and testConnection for health", async () => {
-		const testConnection = vi.fn(async (options) => ({
+		const testConnection = mock(async (options: { validateTools?: boolean }) => ({
 			ok: options?.validateTools === false,
 			details: "ok",
 		}));
@@ -90,7 +91,7 @@ describe("runConnectionProbes", () => {
 	});
 
 	it("times out a slow health check without marking the integration disconnected", async () => {
-		vi.useFakeTimers();
+		jest.useFakeTimers();
 		const slow = mockModule("slow", {
 			isConnected: async () => true,
 			testConnection: () => new Promise(() => {}),
@@ -106,7 +107,7 @@ describe("runConnectionProbes", () => {
 				events.push(event);
 			},
 		});
-		await vi.advanceTimersByTimeAsync(50);
+		jest.advanceTimersByTime(50);
 		const results = await run;
 
 		expect(results).toEqual([

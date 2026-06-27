@@ -1,20 +1,27 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 
-vi.mock("@toby/core/logging/daemon-log", () => ({
-	daemonLog: vi.fn(),
+mock.module("@toby/core/logging/daemon-log", () => ({
+	daemonLog: () => {},
 }));
 
-vi.mock("../src/schedules/cron", () => ({
-	shouldRun: vi.fn(() => true),
+let shouldRunReturn = true;
+const mockShouldRun = mock(() => shouldRunReturn);
+mock.module("../src/schedules/cron", () => ({
+	shouldRun: mockShouldRun,
 }));
 
-vi.mock("../src/schedules/executor", () => ({
-	executeSchedule: vi.fn(),
+const mockExecuteSchedule = mock(() => Promise.resolve());
+mock.module("../src/schedules/executor", () => ({
+	executeSchedule: mockExecuteSchedule,
 }));
 
-vi.mock("../src/schedules/store", () => ({
-	claimScheduleRun: vi.fn(),
-	getDueSchedules: vi.fn(),
+let getDueSchedulesReturn: unknown[] = [];
+const mockGetDueSchedules = mock(() => getDueSchedulesReturn);
+let claimScheduleRunReturn = false;
+const mockClaimScheduleRun = mock(() => claimScheduleRunReturn);
+mock.module("../src/schedules/store", () => ({
+	claimScheduleRun: mockClaimScheduleRun,
+	getDueSchedules: mockGetDueSchedules,
 }));
 
 import { executeSchedule } from "../src/schedules/executor";
@@ -36,12 +43,16 @@ const schedule: Schedule = {
 
 describe("runSchedulerLoop", () => {
 	beforeEach(() => {
-		vi.clearAllMocks();
-		vi.mocked(getDueSchedules).mockReturnValue([schedule]);
+		mockShouldRun.mockClear?.();
+		mockExecuteSchedule.mockClear?.();
+		mockGetDueSchedules.mockClear?.();
+		mockClaimScheduleRun.mockClear?.();
+		getDueSchedulesReturn = [schedule];
+		claimScheduleRunReturn = false;
 	});
 
 	it("executes a due schedule only after claiming it", async () => {
-		vi.mocked(claimScheduleRun).mockReturnValue(true);
+		claimScheduleRunReturn = true;
 
 		await runSchedulerLoop({ intervalMs: 1, maxCycles: 1 });
 
@@ -54,7 +65,7 @@ describe("runSchedulerLoop", () => {
 	});
 
 	it("skips execution when another scheduler already claimed the schedule", async () => {
-		vi.mocked(claimScheduleRun).mockReturnValue(false);
+		claimScheduleRunReturn = false;
 
 		await runSchedulerLoop({ intervalMs: 1, maxCycles: 1 });
 

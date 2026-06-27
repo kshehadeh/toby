@@ -1,3 +1,4 @@
+import "./helpers/setup-mocks";
 import { createChatTurnAbortError } from "@toby/core/abort";
 import { wrapUserPromptWithPretreatment } from "@toby/core/ai/pretreatment";
 import { expandPromptNode } from "@toby/core/chat-pipeline/nodes/expand-prompt";
@@ -5,24 +6,14 @@ import type {
 	InitedTurn,
 	TurnContext,
 } from "@toby/core/chat-pipeline/pipeline";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-const { generateTextMock } = vi.hoisted(() => ({
-	generateTextMock: vi.fn(),
-}));
-
-vi.mock("ai", async (importOriginal) => {
-	const actual = await importOriginal<typeof import("ai")>();
-	return {
-		...actual,
-		generateText: (...args: unknown[]) => generateTextMock(...args),
-	};
-});
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { generateTextMock, generateTextQueue } from "./helpers/setup-mocks";
 
 const prevSemantic = process.env.TOBY_SEMANTIC_ROUTING;
 
 beforeEach(() => {
-	generateTextMock.mockReset();
+	generateTextQueue.length = 0;
+	(generateTextMock as unknown as { mockClear?: () => void }).mockClear?.();
 	process.env.TOBY_SEMANTIC_ROUTING = "0";
 	process.env.TOBY_DISABLE_PRETREATMENT = undefined;
 });
@@ -52,7 +43,7 @@ describe("pretreatment abort propagation", () => {
 	});
 
 	it("wrapUserPromptWithPretreatment rethrows abort from generateText", async () => {
-		generateTextMock.mockRejectedValueOnce(createChatTurnAbortError());
+		generateTextQueue.push(Promise.reject(createChatTurnAbortError()));
 		const ac = new AbortController();
 		await expect(
 			wrapUserPromptWithPretreatment({

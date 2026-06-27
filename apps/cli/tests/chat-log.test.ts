@@ -1,21 +1,20 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 // Override the log path before importing the module
 const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "toby-log-test-"));
 const LOG_PATH = path.join(TMP_DIR, "toby.log");
 
-vi.mock("@toby/core/config/index", () => ({
+mock.module("@toby/core/config/index", () => ({
 	ensureTobyDir: () => {
 		if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
 	},
 	getLogPath: () => LOG_PATH,
 }));
 
-// Import after mock is set up
-const {
+import {
 	clearLog,
 	flush,
 	formatLogEntry,
@@ -23,7 +22,7 @@ const {
 	logSessionNote,
 	logTurnSummary,
 	readLogTail,
-} = await import("@toby/core/logging/chat-log");
+} from "@toby/core/logging/chat-log";
 
 beforeEach(() => {
 	clearLog();

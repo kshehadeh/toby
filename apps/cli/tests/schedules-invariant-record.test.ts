@@ -1,9 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, mock } from "bun:test";
 
-vi.mock("@toby/core/schedules/store", () => ({
-	createScheduleRun: vi.fn(() => "test-run-id"),
-	completeScheduleRun: vi.fn(),
-	updateScheduleLastRun: vi.fn(),
+const mockCreateScheduleRun = mock(() => "test-run-id");
+const mockCompleteScheduleRun = mock(() => {});
+const mockUpdateScheduleLastRun = mock(() => {});
+
+mock.module("@toby/core/schedules/store", () => ({
+	createScheduleRun: mockCreateScheduleRun,
+	completeScheduleRun: mockCompleteScheduleRun,
+	updateScheduleLastRun: mockUpdateScheduleLastRun,
 }));
 
 import { recordScheduleInvariantFailureAndThrow } from "@toby/core/schedules/invariant-record";

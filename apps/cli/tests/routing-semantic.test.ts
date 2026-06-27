@@ -1,25 +1,17 @@
-import { wrapUserPromptWithPretreatment } from "@toby/core/ai/pretreatment";
+import "./helpers/setup-mocks";
 import { parseCatalogLines } from "@toby/core/routing/catalog-parse";
 import type { RoutingIndex } from "@toby/core/routing/index";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import {
-	getRoutingSkillMinScore,
-	routeToolsAndSkills,
-} from "@toby/core/routing/index";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+	clearPretreatmentCache,
+	embedTextsMock,
+	embedTextsQueue,
+	generateTextMock,
+	generateTextQueue,
+} from "./helpers/setup-mocks";
 
-const { embedTextsMock } = vi.hoisted(() => ({
-	embedTextsMock: vi.fn(),
-}));
-
-vi.mock("@toby/core/routing/embeddings", async (importOriginal) => {
-	const actual =
-		await importOriginal<typeof import("@toby/core/routing/embeddings")>();
-	return {
-		...actual,
-		embedTexts: (...args: unknown[]) => embedTextsMock(...args),
-		createEmbeddingModelForPersona: () => ({}) as never,
-	};
-});
+const { wrapUserPromptWithPretreatment } = await import("@toby/core/ai/pretreatment");
+const { getRoutingSkillMinScore, routeToolsAndSkills } = await import("@toby/core/routing/index");
 
 function testIndex(): RoutingIndex {
 	return {
@@ -52,12 +44,13 @@ function testIndex(): RoutingIndex {
 
 describe("routeToolsAndSkills", () => {
 	beforeEach(() => {
-		embedTextsMock.mockReset();
+		(embedTextsMock as unknown as { mockClear?: () => void }).mockClear?.();
+		embedTextsQueue.length = 0;
 		process.env.TOBY_ROUTING_MIN_SCORE = "0.3";
 	});
 
 	it("selects tools and skills by query embedding similarity", async () => {
-		embedTextsMock.mockResolvedValueOnce([[0.95, 0.05, 0]]);
+		embedTextsQueue.push([[0.95, 0.05, 0]]);
 
 		const result = await routeToolsAndSkills({
 			persona: {
@@ -83,7 +76,7 @@ describe("routeToolsAndSkills", () => {
 		// Query [1,0,0] vs candidate [0.32, 0.947, 0] → cosine ≈ 0.32.
 		// 0.32 > tool min score (0.3 in beforeEach) but < skill min score (0.35 default).
 		// The tool at the same similarity should still be selected.
-		embedTextsMock.mockResolvedValueOnce([[1, 0, 0]]);
+		embedTextsQueue.push([[1, 0, 0]]);
 
 		const index: RoutingIndex = {
 			catalogSignature: "test",
@@ -151,24 +144,15 @@ describe("parseCatalogLines", () => {
 });
 
 describe("wrapUserPromptWithPretreatment semantic mode", () => {
-	const { generateTextMock } = vi.hoisted(() => ({
-		generateTextMock: vi.fn(),
-	}));
-
-	vi.mock("ai", async (importOriginal) => {
-		const actual = await importOriginal<typeof import("ai")>();
-		return {
-			...actual,
-			generateText: (...args: unknown[]) => generateTextMock(...args),
-		};
-	});
-
 	beforeEach(() => {
-		generateTextMock.mockReset();
-		embedTextsMock.mockReset();
+		clearPretreatmentCache();
+		generateTextQueue.length = 0;
+		(generateTextMock as unknown as { mockClear?: () => void }).mockClear?.();
+		(embedTextsMock as unknown as { mockClear?: () => void }).mockClear?.();
+		embedTextsQueue.length = 0;
+		embedTextsQueue.push([[0.95, 0.05, 0]]);
 		process.env.TOBY_SEMANTIC_ROUTING = "1";
 		process.env.TOBY_ROUTING_MIN_SCORE = "0.3";
-		embedTextsMock.mockResolvedValue([[0.95, 0.05, 0]]);
 	});
 
 	it("does not call generateText and routes tools from the index", async () => {

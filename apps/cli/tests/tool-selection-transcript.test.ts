@@ -1,9 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 
-const logSessionNote = vi.fn();
+const mockLogSessionNote = mock((..._args: unknown[]) => {});
 
-vi.mock("@toby/core/logging/chat-log", () => ({
-	logSessionNote: (...args: unknown[]) => logSessionNote(...args),
+mock.module("@toby/core/logging/chat-log", () => ({
+	logSessionNote: (...args: unknown[]) => mockLogSessionNote(...args),
 }));
 
 import {
@@ -22,7 +22,7 @@ describe("tool selection notes", () => {
 	};
 
 	beforeEach(() => {
-		logSessionNote.mockClear();
+		mockLogSessionNote.mockClear?.();
 	});
 
 	it("logs nothing when pretreatment did not run", () => {
@@ -32,7 +32,7 @@ describe("tool selection notes", () => {
 			relevantTools: ["fetchOpenTasks"],
 			pretreatmentRan: false,
 		});
-		expect(logSessionNote).not.toHaveBeenCalled();
+		expect(mockLogSessionNote).not.toHaveBeenCalled();
 	});
 
 	it("summarizes full catalog when pretreatment ran but did not narrow tools", () => {
@@ -53,16 +53,16 @@ describe("tool selection notes", () => {
 			relevantTools: [],
 			pretreatmentRan: true,
 		});
-		expect(logSessionNote).toHaveBeenCalledTimes(3);
-		expect(logSessionNote).toHaveBeenCalledWith(
+		expect(mockLogSessionNote).toHaveBeenCalledTimes(3);
+		expect(mockLogSessionNote).toHaveBeenCalledWith(
 			"sess-1",
 			"Tools in scope: Gmail (1)",
 		);
-		expect(logSessionNote).toHaveBeenCalledWith(
+		expect(mockLogSessionNote).toHaveBeenCalledWith(
 			"sess-1",
 			"Tools in scope: Toby (2)",
 		);
-		expect(logSessionNote).toHaveBeenCalledWith(
+		expect(mockLogSessionNote).toHaveBeenCalledWith(
 			"sess-1",
 			"Tools in scope: Todoist (2)",
 		);
@@ -75,11 +75,11 @@ describe("tool selection notes", () => {
 			relevantTools: ["fetchOpenTasks", "memorySearch"],
 			pretreatmentRan: true,
 		});
-		expect(logSessionNote).toHaveBeenCalledWith(
+		expect(mockLogSessionNote).toHaveBeenCalledWith(
 			null,
 			"Tools selected: Toby (2)",
 		);
-		expect(logSessionNote).toHaveBeenCalledWith(
+		expect(mockLogSessionNote).toHaveBeenCalledWith(
 			null,
 			"Tools selected: Todoist (1)",
 		);
@@ -96,7 +96,7 @@ describe("tool selection notes", () => {
 			relevantTools: ["sampleEcho"],
 			pretreatmentRan: true,
 		});
-		expect(logSessionNote).toHaveBeenCalledWith(
+		expect(mockLogSessionNote).toHaveBeenCalledWith(
 			"s2",
 			"Tools selected: Sample Plugin (1)",
 		);
