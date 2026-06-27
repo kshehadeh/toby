@@ -87,13 +87,49 @@ jobs:
             echo "Developer ID Application identity not found" >&2
             exit 1
           fi
+
+          # Sign standalone binaries in dist/
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby
           codesign --force --options runtime --timestamp --sign "$identity" dist/bun
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-websearch
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-applecalendar
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-macos
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-whisper
-          codesign --force --options runtime --timestamp --deep --entitlements apps/toby-app/TobyApp.entitlements --sign "$identity" dist/Toby.app
+
+          # Sign executables bundled inside Toby.app/Contents/Resources/
+          # codesign --deep does NOT traverse Contents/Resources/ (non-standard
+          # code location), so each binary must be signed individually.
+          APP_RESOURCES="dist/Toby.app/Contents/Resources"
+          for bin in \
+            "$APP_RESOURCES/toby" \
+            "$APP_RESOURCES/bun" \
+            "$APP_RESOURCES/toby-plugin-websearch" \
+            "$APP_RESOURCES/toby-plugin-applecalendar" \
+            "$APP_RESOURCES/toby-plugin-macos" \
+            "$APP_RESOURCES/toby-plugin-whisper" \
+            "$APP_RESOURCES/toby-listener"; do
+            [[ -f "$bin" ]] || continue
+            codesign --force --options runtime --timestamp --sign "$identity" "$bin"
+          done
+
+          # Sign the macOS plugin resource bundle inside the app
+          if [[ -d "$APP_RESOURCES/TobyPluginMacOS_TobyPluginMacOSLib.bundle" ]]; then
+            codesign --force --options runtime --timestamp --sign "$identity" \
+              "$APP_RESOURCES/TobyPluginMacOS_TobyPluginMacOSLib.bundle"
+          fi
+
+          # Sign the SPM resource bundle inside the app
+          if [[ -d "dist/Toby.app/Contents/Resources/TobyApp_TobyApp.bundle" ]]; then
+            codesign --force --options runtime --timestamp --sign "$identity" \
+              "dist/Toby.app/Contents/Resources/TobyApp_TobyApp.bundle"
+          fi
+
+          # Finally, sign the app bundle itself (without --deep; nested code is already signed)
+          codesign --force --options runtime --timestamp \
+            --entitlements apps/toby-app/TobyApp.entitlements \
+            --sign "$identity" dist/Toby.app
+
+          # Verify all signatures
           codesign --verify --strict --verbose=2 dist/Toby.app
           codesign --verify --strict --verbose=2 dist/toby
           codesign --verify --strict --verbose=2 dist/bun
@@ -110,11 +146,35 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           ditto -c -k --keepParent dist/Toby.app dist/Toby.app.notary.zip
-          xcrun notarytool submit dist/Toby.app.notary.zip \
+          # Submit and wait; notarytool exits 0 even when notarization is rejected,
+          # so capture the submission ID and check the status explicitly.
+          submit_output="$(xcrun notarytool submit dist/Toby.app.notary.zip \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
-            --wait
+            --wait 2>&1)"
+          echo "$submit_output"
+
+          submission_id="$(echo "$submit_output" | grep 'id:' | awk '{print $2}')"
+          if [[ -z "$submission_id" ]]; then
+            echo "Failed to get notarization submission ID" >&2
+            exit 1
+          fi
+
+          status="$(xcrun notarytool info "$submission_id" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" 2>&1 | grep 'status:' | awk '{print $2}')"
+          echo "Notarization status: $status"
+
+          if [[ "$status" != "Accepted" ]]; then
+            echo "Notarization was NOT accepted. Fetching log..." >&2
+            xcrun notarytool log "$submission_id" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" >&2
+            exit 1
+          fi
 
       - name: Staple notarization ticket to Toby.app
         if: steps.signing.outputs.enabled == 'true'
@@ -134,11 +194,34 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          xcrun notarytool submit dist/Toby-arm64.dmg \
+          submit_output="$(xcrun notarytool submit dist/Toby-arm64.dmg \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
-            --wait
+            --wait 2>&1)"
+          echo "$submit_output"
+
+          submission_id="$(echo "$submit_output" | grep 'id:' | awk '{print $2}')"
+          if [[ -z "$submission_id" ]]; then
+            echo "Failed to get notarization submission ID" >&2
+            exit 1
+          fi
+
+          status="$(xcrun notarytool info "$submission_id" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" 2>&1 | grep 'status:' | awk '{print $2}')"
+          echo "DMG notarization status: $status"
+
+          if [[ "$status" != "Accepted" ]]; then
+            echo "DMG notarization was NOT accepted. Fetching log..." >&2
+            xcrun notarytool log "$submission_id" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" >&2
+            exit 1
+          fi
+
           xcrun stapler staple dist/Toby-arm64.dmg
 
       - name: Upload DMG artifact

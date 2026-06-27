@@ -285,21 +285,30 @@ if [[ "${APP_VARIANT}" == "production" ]]; then
 fi
 
 build_app_icon
-if [[ "${CODE_SIGN_IDENTITY}" == "-" ]]; then
-	if codesign -s "${CODE_SIGN_IDENTITY}" --force --deep --entitlements "${ENTITLEMENTS}" "${APP}" >/dev/null 2>&1; then
-		echo "Signed ${APP} with ad-hoc identity"
+
+# For production builds, skip code signing here. The release workflow signs
+# all executables individually (including those in Contents/Resources/) and
+# then signs the app bundle. Signing here with ad-hoc identity would leave
+# stale signatures that --deep cannot overwrite in non-standard code locations.
+if [[ "${APP_VARIANT}" != "production" ]]; then
+	if [[ "${CODE_SIGN_IDENTITY}" == "-" ]]; then
+		if codesign -s "${CODE_SIGN_IDENTITY}" --force --deep --entitlements "${ENTITLEMENTS}" "${APP}" >/dev/null 2>&1; then
+			echo "Signed ${APP} with ad-hoc identity"
+		else
+			echo "Warning: ad-hoc codesign failed for ${APP}." >&2
+			echo "The app was built, but macOS may ask for permissions again after rebuilds." >&2
+		fi
 	else
-		echo "Warning: ad-hoc codesign failed for ${APP}." >&2
-		echo "The app was built, but macOS may ask for permissions again after rebuilds." >&2
+		if codesign -s "${CODE_SIGN_IDENTITY}" --force --deep --entitlements "${ENTITLEMENTS}" "${APP}" >/dev/null 2>&1; then
+			echo "Signed ${APP} with ${CODE_SIGN_IDENTITY}"
+		else
+			echo "Error: codesign failed for identity '${CODE_SIGN_IDENTITY}'." >&2
+			echo "The app was built unsigned." >&2
+			exit 1
+		fi
 	fi
 else
-	if codesign -s "${CODE_SIGN_IDENTITY}" --force --deep --entitlements "${ENTITLEMENTS}" "${APP}" >/dev/null 2>&1; then
-		echo "Signed ${APP} with ${CODE_SIGN_IDENTITY}"
-	else
-		echo "Error: codesign failed for identity '${CODE_SIGN_IDENTITY}'." >&2
-		echo "The app was built unsigned." >&2
-		exit 1
-	fi
+	echo "Skipping code sign for production build (release workflow handles signing)"
 fi
 
 echo "Built ${APP} as ${APP_DISPLAY_NAME} (${APP_VARIANT})"
