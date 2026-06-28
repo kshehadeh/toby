@@ -17,6 +17,11 @@ swift_arch="${SWIFT_ARCH:-arm64}"
 
 mkdir -p dist
 
+# Remove deprecated plugin binaries that are no longer built but may linger
+# from previous builds. The upgrade code also removes these from installed
+# plugins directories (see REMOVED_PLUGIN_BINARIES in upgrade/index.ts).
+rm -f dist/toby-plugin-applemail dist/toby-plugin-sample
+
 echo "Building toby (${bun_target})..."
 (
 	cd apps/cli
@@ -34,35 +39,11 @@ cp "${bun_bin}" dist/bun
 rm -rf dist/.bun-runtime.zip dist/.bun-runtime-tmp
 chmod +x dist/bun
 
-echo "Building toby-plugin-sample-ts (bun-package)..."
-rm -rf dist/toby-plugin-sample-ts
-cp -R apps/plugin-sample-ts dist/toby-plugin-sample-ts
-rm -rf dist/toby-plugin-sample-ts/node_modules dist/toby-plugin-sample-ts/.turbo dist/toby-plugin-sample-ts/.build
-
-echo "Building toby-plugin-azuread (bun-package)..."
-rm -rf dist/toby-plugin-azuread
-cp -R apps/plugin-azuread dist/toby-plugin-azuread
-rm -rf dist/toby-plugin-azuread/node_modules dist/toby-plugin-azuread/.turbo dist/toby-plugin-azuread/.build
-
-echo "Building toby-plugin-gmail (bun-package)..."
-rm -rf dist/toby-plugin-gmail
-cp -R apps/plugin-gmail dist/toby-plugin-gmail
-rm -rf dist/toby-plugin-gmail/node_modules dist/toby-plugin-gmail/.turbo dist/toby-plugin-gmail/.build
-
-echo "Building toby-plugin-todoist (bun-package)..."
-rm -rf dist/toby-plugin-todoist
-cp -R apps/plugin-todoist dist/toby-plugin-todoist
-rm -rf dist/toby-plugin-todoist/node_modules dist/toby-plugin-todoist/.turbo dist/toby-plugin-todoist/.build
-
-echo "Building toby-plugin-slack (bun-package)..."
-rm -rf dist/toby-plugin-slack
-cp -R apps/plugin-slack dist/toby-plugin-slack
-rm -rf dist/toby-plugin-slack/node_modules dist/toby-plugin-slack/.turbo dist/toby-plugin-slack/.build
-
-echo "Building toby-plugin-jira (bun-package)..."
-rm -rf dist/toby-plugin-jira
-cp -R apps/plugin-jira dist/toby-plugin-jira
-rm -rf dist/toby-plugin-jira/node_modules dist/toby-plugin-jira/.turbo dist/toby-plugin-jira/.build
+echo "Building bun-package plugins (sample-ts, azuread, gmail, todoist, slack, jira, email)..."
+for plugin in sample-ts azuread gmail todoist slack jira email; do
+	echo "  -> toby-plugin-${plugin}"
+	(cd "apps/plugin-${plugin}" && bash ../../scripts/copy-bun-plugin-to-dist.sh)
+done
 
 echo "Building toby-plugin-websearch (swift ${swift_arch})..."
 swift build -c release --arch "${swift_arch}" --package-path apps/plugin-websearch

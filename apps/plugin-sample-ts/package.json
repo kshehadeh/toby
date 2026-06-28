@@ -7,6 +7,6 @@
 	"scripts": {
 		"dev": "bun src/index.ts status",
 		"lint": "bunx biome check .",
-		"build": "echo 'bun-package plugin: no compilation needed'"
+		"build": "bash ../../scripts/copy-bun-plugin-to-dist.sh"
 	}
 }
