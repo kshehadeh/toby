@@ -19,6 +19,8 @@ export interface DaemonRuntimeInfo {
 	readonly intervalSeconds: number | null;
 	readonly logPath: string;
 	readonly webPort: number | null;
+	/** Absolute path of the executable running the daemon (process.argv[1] or execPath). */
+	readonly executablePath: string;
 }
 
 export function getDaemonLockPath(): string {
@@ -82,5 +84,6 @@ export function getDaemonRuntimeInfo(): DaemonRuntimeInfo {
 		intervalSeconds: lock?.intervalSeconds ?? null,
 		logPath: getDaemonLogPath(),
 		webPort: webCfg.enabled ? webCfg.port : null,
+		executablePath: process.argv[1] ?? process.execPath,
 	};
 }

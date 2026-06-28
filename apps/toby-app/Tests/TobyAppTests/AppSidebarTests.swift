@@ -259,7 +259,8 @@ struct AppSidebarTests {
         let daemon = DaemonStatus(
             process: DaemonProcessInfo(
                 pid: 1, uptimeSeconds: 5, startedAt: nil,
-                intervalSeconds: nil, logPath: nil, webPort: nil
+                intervalSeconds: nil, logPath: nil, webPort: nil,
+                executablePath: nil
             ),
             chatInbound: nil
         )

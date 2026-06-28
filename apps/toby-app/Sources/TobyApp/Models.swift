@@ -170,6 +170,7 @@ struct DaemonProcessInfo: Decodable {
 	let intervalSeconds: Int?
 	let logPath: String?
 	let webPort: Int?
+	let executablePath: String?
 }
 
 struct ChatInboundStatus: Decodable {
