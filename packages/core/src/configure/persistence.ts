@@ -47,6 +47,23 @@ export function collectSecretConfigureKeys(): Set<string> {
 	return keys;
 }
 
+/**
+ * All credential keys (masked and non-masked) from integration modules.
+ * Used to route values to the credentials file during configure patch.
+ * Unlike {@link collectSecretConfigureKeys}, this includes non-masked
+ * fields (e.g. host, port, username) that still belong in credentials
+ * but should not be redacted in API responses.
+ */
+export function collectCredentialConfigureKeys(): Set<string> {
+	const keys = new Set<string>(SECRET_KEY_PREFIXES);
+	for (const mod of getIntegrationModules()) {
+		for (const d of mod.getCredentialDescriptors()) {
+			keys.add(d.key);
+		}
+	}
+	return keys;
+}
+
 export function seedListenRecordingValues(
 	values: Record<string, string>,
 	recordings: readonly ConfigureListenRecording[],
@@ -488,25 +505,26 @@ export function applyConfigureValuesPatch(
 	patch: Record<string, string>,
 	baseValues?: Record<string, string>,
 ): void {
+	const credentialKeys = collectCredentialConfigureKeys();
 	const secretKeys = collectSecretConfigureKeys();
-	const secretPatch: Record<string, string> = {};
+	const credPatch: Record<string, string> = {};
 	const rest: Record<string, string> = {};
 	for (const [key, value] of Object.entries(patch)) {
-		if (secretKeys.has(key)) {
+		if (credentialKeys.has(key)) {
 			// Never persist the redacted placeholder — it means "unchanged".
-			if (value !== REDACTED) {
-				secretPatch[key] = value;
+			if (!secretKeys.has(key) || value !== REDACTED) {
+				credPatch[key] = value;
 			}
 		} else {
 			rest[key] = value;
 		}
 	}
 
-	if (Object.keys(secretPatch).length > 0) {
+	if (Object.keys(credPatch).length > 0) {
 		const creds = readCredentials();
-		// Seed from disk so untouched secrets are preserved, then overlay the
-		// changed secret(s) before rebuilding the credentials file.
-		const merged = { ...seedConfigureValues(), ...secretPatch };
+		// Seed from disk so untouched credentials are preserved, then overlay the
+		// changed credential(s) before rebuilding the credentials file.
+		const merged = { ...seedConfigureValues(), ...credPatch };
 		writeCredentials(buildCredentialsFromValues(merged, creds));
 	}
 

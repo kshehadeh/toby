@@ -8,58 +8,23 @@ import {
 	parsePluginNameFromBinary,
 } from "./protocol";
 
-function dirContainsPlugin(directory: string): boolean {
-	try {
-		if (!fs.existsSync(directory) || !fs.statSync(directory).isDirectory()) {
-			return false;
-		}
-		const entries = fs.readdirSync(directory, { withFileTypes: true });
-		for (const entry of entries) {
-			if (!entry.isFile() && !entry.isSymbolicLink() && !entry.isDirectory()) {
-				continue;
-			}
-			if (!entry.name.startsWith(PLUGIN_BINARY_PREFIX)) continue;
-			if (!parsePluginNameFromBinary(entry.name)) continue;
-			return true;
-		}
-		return false;
-	} catch {
-		return false;
-	}
-}
-
-function getLocalPluginsDirectoryIfPopulated(): string | null {
-	try {
-		const execPath = process.execPath;
-		if (!execPath) return null;
-		const execDir = path.resolve(path.dirname(execPath));
-		const pluginsDir = path.resolve(getPluginsDir());
-		if (execDir === pluginsDir) return null;
-		return dirContainsPlugin(execDir) ? execDir : null;
-	} catch {
-		return null;
-	}
-}
-
-function getRepoDistPluginsDirectoryIfPopulated(): string | null {
-	try {
-		const distDir = path.resolve(process.cwd(), "dist");
-		const pluginsDir = path.resolve(getPluginsDir());
-		if (distDir === pluginsDir) return null;
-		return dirContainsPlugin(distDir) ? distDir : null;
-	} catch {
-		return null;
-	}
-}
-
+/**
+ * Resolve the list of directories to search for plugins.
+ *
+ * When `TOBY_PLUGINS_DIR` env var is set, only that directory is searched
+ * (development override). Otherwise, `~/.toby/plugins/` is used (the
+ * standard install location for `toby plugins install`).
+ */
 export function resolvePluginSearchDirectories(): string[] {
-	const dirs: string[] = [];
-	const local = getLocalPluginsDirectoryIfPopulated();
-	if (local) dirs.push(local);
-	const repoDist = getRepoDistPluginsDirectoryIfPopulated();
-	if (repoDist) dirs.push(repoDist);
-	dirs.push(getPluginsDir());
-	return Array.from(new Set(dirs));
+	const envDir = process.env.TOBY_PLUGINS_DIR?.trim();
+	if (envDir) {
+		const resolved = path.resolve(envDir);
+		if (fs.existsSync(resolved) && fs.statSync(resolved).isDirectory()) {
+			return [resolved];
+		}
+	}
+
+	return [getPluginsDir()];
 }
 
 function listPluginsInDirectory(directory: string): DiscoveredPlugin[] {

@@ -8,6 +8,8 @@ export type DaemonLogCategory =
 	| "scheduler"
 	| "inbound"
 	| "turn"
+	| "plugin-poller"
+	| "plugin"
 	| "general";
 
 export type DaemonLogEntry = {

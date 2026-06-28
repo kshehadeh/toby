@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { PluginManifest } from "./protocol";
+import type { PluginManifest, PluginManifestEvents } from "./protocol";
 import {
 	isSupportedProtocolVersion,
 	parsePluginNameFromBinary,
@@ -149,6 +149,53 @@ function validateManifestStructure(
 		};
 	}
 
+	let events: PluginManifestEvents | undefined;
+	const eventsRaw = obj.events;
+	if (eventsRaw !== undefined) {
+		if (
+			typeof eventsRaw !== "object" ||
+			eventsRaw === null ||
+			Array.isArray(eventsRaw)
+		) {
+			return {
+				ok: false,
+				error: "manifest.json events must be an object if present",
+				code: "manifest_invalid_events",
+			};
+		}
+		const eventsObj = eventsRaw as Record<string, unknown>;
+		let poll: PluginManifestEvents["poll"];
+		if (eventsObj.poll !== undefined) {
+			if (
+				typeof eventsObj.poll !== "object" ||
+				eventsObj.poll === null ||
+				Array.isArray(eventsObj.poll)
+			) {
+				return {
+					ok: false,
+					error: "manifest.json events.poll must be an object if present",
+					code: "manifest_invalid_events_poll",
+				};
+			}
+			const pollObj = eventsObj.poll as Record<string, unknown>;
+			const intervalSeconds = pollObj.intervalSeconds;
+			if (
+				typeof intervalSeconds !== "number" ||
+				!Number.isFinite(intervalSeconds) ||
+				intervalSeconds < 1
+			) {
+				return {
+					ok: false,
+					error:
+						"manifest.json events.poll.intervalSeconds must be a positive number (>= 1)",
+					code: "manifest_invalid_poll_interval",
+				};
+			}
+			poll = { intervalSeconds: Math.floor(intervalSeconds) };
+		}
+		events = poll ? { poll } : undefined;
+	}
+
 	return {
 		ok: true,
 		manifest: {
@@ -164,6 +211,7 @@ function validateManifestStructure(
 			capabilities: capabilities as PluginManifest["capabilities"],
 			providerCategories:
 				providerCategories as PluginManifest["providerCategories"],
+			events,
 		},
 	};
 }

@@ -4,6 +4,7 @@ import type {
 	PluginConfigEnvelope,
 	PluginConfigGetResponse,
 	PluginConfigShapeResponse,
+	PluginEventsPollResponse,
 	PluginInvocationTarget,
 	PluginSetupGuideResponse,
 	PluginSetupResponse,
@@ -51,6 +52,9 @@ function serializeEnvelope(envelope: PluginConfigEnvelope = {}): string {
 	};
 	if (envelope.validateTools) {
 		payload.validateTools = true;
+	}
+	if (envelope.paths?.dataDir) {
+		payload.paths = { dataDir: envelope.paths.dataDir };
 	}
 	return JSON.stringify(payload);
 }
@@ -346,13 +350,17 @@ export function pluginToolsList(
 function serializeToolExecuteRequest(
 	request: PluginToolExecuteRequest,
 ): string {
-	return JSON.stringify({
+	const payload: Record<string, unknown> = {
 		tool: request.tool,
 		input: request.input ?? {},
 		config: request.config ?? {},
 		state: request.state ?? {},
 		dryRun: request.dryRun ?? false,
-	});
+	};
+	if (request.paths?.dataDir) {
+		payload.paths = { dataDir: request.paths.dataDir };
+	}
+	return JSON.stringify(payload);
 }
 
 export function pluginToolsExecute(
@@ -402,6 +410,32 @@ export function pluginSetupGuide(
 	return invokePlugin<PluginSetupGuideResponse>(
 		target,
 		["setup", "guide"],
+		serializeEnvelope(envelope),
+		options,
+	);
+}
+
+export function pluginEventsPoll(
+	target: PluginTargetParam,
+	envelope: PluginConfigEnvelope = {},
+	options?: PluginClientOptions,
+): PluginInvokeResult<PluginEventsPollResponse> {
+	return invokePlugin<PluginEventsPollResponse>(
+		target,
+		["events", "poll"],
+		serializeEnvelope(envelope),
+		options,
+	);
+}
+
+export function pluginEventsPollAsync(
+	target: PluginTargetParam,
+	envelope: PluginConfigEnvelope = {},
+	options?: PluginClientOptions,
+): Promise<PluginInvokeResult<PluginEventsPollResponse>> {
+	return invokePluginAsync<PluginEventsPollResponse>(
+		target,
+		["events", "poll"],
 		serializeEnvelope(envelope),
 		options,
 	);

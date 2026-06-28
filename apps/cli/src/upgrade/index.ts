@@ -131,6 +131,7 @@ export function getStagingPaths(): {
 	readonly pluginTodoistPath: string;
 	readonly pluginSlackPath: string;
 	readonly pluginJiraPath: string;
+	readonly pluginEmailPath: string;
 	readonly pluginWebsearchPath: string;
 	readonly pluginApplecalendarPath: string;
 	readonly pluginMacosPath: string;
@@ -153,6 +154,7 @@ export function getStagingPaths(): {
 		pluginTodoistPath: path.join(stagingDir, "toby-plugin-todoist"),
 		pluginSlackPath: path.join(stagingDir, "toby-plugin-slack"),
 		pluginJiraPath: path.join(stagingDir, "toby-plugin-jira"),
+		pluginEmailPath: path.join(stagingDir, "toby-plugin-email"),
 		pluginWebsearchPath: path.join(stagingDir, "toby-plugin-websearch"),
 		pluginApplecalendarPath: path.join(stagingDir, "toby-plugin-applecalendar"),
 		pluginMacosPath: path.join(stagingDir, "toby-plugin-macos"),
@@ -248,6 +250,7 @@ export async function downloadRelease(
 		pluginTodoistPath,
 		pluginSlackPath,
 		pluginJiraPath,
+		pluginEmailPath,
 		pluginWebsearchPath,
 		pluginApplecalendarPath,
 		pluginMacosPath,
@@ -280,6 +283,9 @@ export async function downloadRelease(
 			() => undefined,
 		);
 		await rm(pluginJiraPath, { recursive: true, force: true }).catch(
+			() => undefined,
+		);
+		await rm(pluginEmailPath, { recursive: true, force: true }).catch(
 			() => undefined,
 		);
 		await rm(pluginWebsearchPath, { force: true }).catch(() => undefined);
@@ -494,6 +500,7 @@ export async function applyStagedRelease(
 		pluginTodoistPath,
 		pluginSlackPath,
 		pluginJiraPath,
+		pluginEmailPath,
 		pluginWebsearchPath,
 		pluginApplecalendarPath,
 		pluginMacosPath,
@@ -511,6 +518,7 @@ export async function applyStagedRelease(
 	await installStagedPluginDirectory(pluginTodoistPath, "toby-plugin-todoist");
 	await installStagedPluginDirectory(pluginSlackPath, "toby-plugin-slack");
 	await installStagedPluginDirectory(pluginJiraPath, "toby-plugin-jira");
+	await installStagedPluginDirectory(pluginEmailPath, "toby-plugin-email");
 	await installStagedPluginBinary(pluginWebsearchPath, "toby-plugin-websearch");
 	await installStagedPluginBinary(
 		pluginApplecalendarPath,

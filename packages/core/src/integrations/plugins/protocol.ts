@@ -10,6 +10,8 @@ export type PluginConfigEnvelope = {
 	readonly config?: Record<string, unknown>;
 	readonly state?: Record<string, unknown>;
 	readonly validateTools?: boolean;
+	/** Plugin-owned data directory provided by core for local storage. */
+	readonly paths?: { readonly dataDir?: string };
 };
 
 export type PluginConfigFieldType = "string" | "number" | "boolean" | "select";
@@ -248,6 +250,19 @@ export interface PluginToolExecuteResponse {
 	readonly code?: string;
 }
 
+/** Response from the `events poll` subcommand. */
+export interface PluginEventsPollResponse {
+	readonly ok: boolean;
+	/** Human-readable summary of what was synced. */
+	readonly summary?: string;
+	/** Number of new items fetched since the last poll (e.g. new messages). */
+	readonly newCount?: number;
+	/** Arbitrary sync metadata (e.g. last UID, cursor position). */
+	readonly details?: Record<string, unknown>;
+	readonly error?: string;
+	readonly code?: string;
+}
+
 /**
  * A discovered plugin. `binaryName` is always `toby-plugin-<name>` and is
  * common to both kinds so callers that only need the name don't need to
@@ -281,6 +296,17 @@ export type PluginInvocationTarget =
 			readonly entryPath: string;
 	  };
 
+/** Polling configuration for a plugin event. */
+export interface PluginManifestPollConfig {
+	/** Poll interval in seconds. The daemon calls `events poll` at this cadence. */
+	readonly intervalSeconds: number;
+}
+
+/** Declared plugin events that the daemon should drive. */
+export interface PluginManifestEvents {
+	readonly poll?: PluginManifestPollConfig;
+}
+
 /** Manifest for a bun-package (TypeScript directory) plugin. */
 export interface PluginManifest {
 	readonly name: string;
@@ -291,6 +317,7 @@ export interface PluginManifest {
 	readonly runtime: { readonly type: "bun"; readonly entry: string };
 	readonly capabilities?: readonly IntegrationCapability[];
 	readonly providerCategories?: readonly ProviderCategory[];
+	readonly events?: PluginManifestEvents;
 }
 
 export function parsePluginNameFromBinary(binaryName: string): string | null {

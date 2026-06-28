@@ -8,11 +8,13 @@ import {
 } from "../../chat-pipeline/run-turn";
 import type { CredentialsFile, Persona } from "../../config/index";
 import {
+	ensurePluginDataDir,
 	readConfig,
 	readCredentials,
 	writeConfig,
 	writeCredentials,
 } from "../../config/index";
+import { daemonLog } from "../../logging/daemon-log";
 import { composeSystemPromptWithPersona } from "../../personas/prompt";
 import type {
 	ChatRunOptions,
@@ -68,6 +70,42 @@ export type PluginMetadata = {
 	readonly setupDescription?: string;
 	readonly inboundPrep?: PluginInboundPrep;
 };
+
+/**
+ * Forward plugin stderr lines to the daemon log.
+ * Plugins write structured JSON log lines to stderr; each line is parsed
+ * and forwarded to `daemonLog` with category "plugin".
+ */
+export function forwardPluginStderr(pluginName: string, stderr: string): void {
+	const trimmed = stderr.trim();
+	if (!trimmed) return;
+	for (const line of trimmed.split("\n")) {
+		const text = line.trim();
+		if (!text) continue;
+		try {
+			const entry = JSON.parse(text) as {
+				level?: string;
+				event?: string;
+				data?: Record<string, unknown>;
+			};
+			const level = (entry.level ?? "info") as
+				| "debug"
+				| "info"
+				| "warn"
+				| "error";
+			daemonLog(level, "plugin", entry.event ?? "plugin_log", {
+				plugin: pluginName,
+				...(entry.data ?? {}),
+			});
+		} catch {
+			// Non-JSON stderr — log as debug
+			daemonLog("debug", "plugin", "plugin_stderr", {
+				plugin: pluginName,
+				text: text.slice(0, 200),
+			});
+		}
+	}
+}
 
 function readPluginConfig(
 	creds: CredentialsFile,
@@ -398,6 +436,7 @@ export function createPluginIntegrationModule(
 			}
 
 			const result = pluginConnect(target, envelope);
+			forwardPluginStderr(name, result.stderr);
 			if (!result.ok) {
 				throw new Error(result.error);
 			}
@@ -418,6 +457,7 @@ export function createPluginIntegrationModule(
 
 			const syncEnvelope = buildEnvelope(name);
 			const sync = pluginConfigSet(target, syncEnvelope);
+			forwardPluginStderr(name, sync.stderr);
 			if (!sync.ok) {
 				console.log(
 					chalk.yellow(`Warning: plugin config sync failed: ${sync.error}`),
@@ -457,6 +497,7 @@ export function createPluginIntegrationModule(
 				validateTools: options?.validateTools,
 			};
 			const statusResult = await pluginStatusAsync(target, envelope);
+			forwardPluginStderr(name, statusResult.stderr);
 			if (!statusResult.ok) {
 				return {
 					ok: false,
@@ -537,6 +578,7 @@ export function createPluginIntegrationModule(
 
 			const envelope = buildEnvelope(name);
 			const result = pluginDisconnect(target, envelope);
+			forwardPluginStderr(name, result.stderr);
 			if (!result.ok) {
 				throw new Error(result.error);
 			}
@@ -659,13 +701,17 @@ export function createPluginIntegrationModule(
 				inputSchema,
 				execute: async (input) => {
 					const envelope = buildEnvelope(name);
+					const dataDir = ensurePluginDataDir(name);
 					const execResult = pluginToolsExecute(target, {
 						tool: definition.name,
 						input: input as Record<string, unknown>,
 						config: envelope.config,
 						state: envelope.state,
 						dryRun: params.dryRun,
+						paths: { dataDir },
 					});
+
+					forwardPluginStderr(name, execResult.stderr);
 
 					if (!execResult.ok) {
 						return { error: execResult.error };

@@ -1,0 +1,17 @@
+{
+	"name": "@toby/plugin-email",
+	"version": "1.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Generic IMAP/SMTP email installable Toby plugin (protocol v1) with local SQLite cache",
+	"dependencies": {
+		"imapflow": "^1.0.171",
+		"mailparser": "^3.7.3",
+		"nodemailer": "^6.10.1"
+	},
+	"scripts": {
+		"dev": "bun src/index.ts status",
+		"lint": "bunx biome check .",
+		"build": "bash ../../scripts/copy-bun-plugin-to-dist.sh"
+	}
+}

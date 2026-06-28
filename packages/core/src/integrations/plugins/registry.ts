@@ -98,6 +98,10 @@ export {
 	pluginToolsList,
 } from "./client";
 export { clearPluginToolDefinitionCache } from "./tool-def-cache";
+export {
+	discoverPollablePlugins,
+	startPluginPollingLoop,
+} from "./poller";
 
 /**
  * Pre-populate plugin tool-definition cache for all discovered, enabled plugins.

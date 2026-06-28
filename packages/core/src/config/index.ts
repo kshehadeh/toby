@@ -105,6 +105,20 @@ export function getHelpersDir(): string {
 	return path.join(resolveTobyDir(), "helpers");
 }
 
+/** Plugin-owned local data directory: `~/.toby/plugins-data/<name>/`. */
+export function getPluginDataDir(name: string): string {
+	return path.join(resolveTobyDir(), "plugins-data", name);
+}
+
+/** Ensure a plugin's local data directory exists and return its path. */
+export function ensurePluginDataDir(name: string): string {
+	const dir = getPluginDataDir(name);
+	if (!fs.existsSync(dir)) {
+		fs.mkdirSync(dir, { recursive: true });
+	}
+	return dir;
+}
+
 export type {
 	ListenConfig,
 	ListenWhisperCppConfig,

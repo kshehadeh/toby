@@ -200,3 +200,82 @@ describe("manifest validation", () => {
 		expect(result.code).toBe("entry_not_found");
 	});
 });
+
+describe("manifest events.poll parsing", () => {
+	let tempDir: string;
+
+	beforeEach(() => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-manifest-events-"));
+	});
+
+	afterEach(() => {
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	it("parses events.poll.intervalSeconds", () => {
+		const pluginDir = path.join(tempDir, "toby-plugin-testpkg");
+		writeManifest(pluginDir, {
+			...validManifest,
+			events: { poll: { intervalSeconds: 120 } },
+		});
+		writeEntryFile(pluginDir);
+
+		const result = parseManifest(pluginDir);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.manifest.events?.poll?.intervalSeconds).toBe(120);
+	});
+
+	it("returns undefined events when not present", () => {
+		const pluginDir = path.join(tempDir, "toby-plugin-testpkg");
+		writeManifest(pluginDir, validManifest);
+		writeEntryFile(pluginDir);
+
+		const result = parseManifest(pluginDir);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.manifest.events).toBeUndefined();
+	});
+
+	it("fails when events.poll.intervalSeconds is not a number", () => {
+		const pluginDir = path.join(tempDir, "toby-plugin-testpkg");
+		writeManifest(pluginDir, {
+			...validManifest,
+			events: { poll: { intervalSeconds: "300" } },
+		});
+		writeEntryFile(pluginDir);
+
+		const result = parseManifest(pluginDir);
+		expect(result.ok).toBe(false);
+		if (result.ok) return;
+		expect(result.code).toBe("manifest_invalid_poll_interval");
+	});
+
+	it("fails when events.poll.intervalSeconds is less than 1", () => {
+		const pluginDir = path.join(tempDir, "toby-plugin-testpkg");
+		writeManifest(pluginDir, {
+			...validManifest,
+			events: { poll: { intervalSeconds: 0 } },
+		});
+		writeEntryFile(pluginDir);
+
+		const result = parseManifest(pluginDir);
+		expect(result.ok).toBe(false);
+		if (result.ok) return;
+		expect(result.code).toBe("manifest_invalid_poll_interval");
+	});
+
+	it("fails when events is not an object", () => {
+		const pluginDir = path.join(tempDir, "toby-plugin-testpkg");
+		writeManifest(pluginDir, {
+			...validManifest,
+			events: "invalid",
+		});
+		writeEntryFile(pluginDir);
+
+		const result = parseManifest(pluginDir);
+		expect(result.ok).toBe(false);
+		if (result.ok) return;
+		expect(result.code).toBe("manifest_invalid_events");
+	});
+});

@@ -24,6 +24,7 @@ const requiredDirs = [
 	"toby-plugin-slack",
 	"toby-plugin-jira",
 	"toby-plugin-todoist",
+	"toby-plugin-email",
 ];
 
 const missing = [];

@@ -172,6 +172,7 @@ export function handleConfigureSectionDetail(sectionKey: string): Response {
 }
 
 export async function handleConfigurePatch(req: Request): Promise<Response> {
+	resetPluginModuleCache();
 	const body = await readJsonBody<{ changes?: Record<string, string> }>(req);
 	if (!body?.changes || typeof body.changes !== "object") {
 		return errorResponse("Expected { changes: Record<string, string> }");

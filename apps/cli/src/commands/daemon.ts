@@ -11,6 +11,12 @@ import {
 	getWebConfig,
 } from "@toby/core/config/index";
 import { warmupPluginToolDefinitions } from "@toby/core/integrations/index";
+import { startPluginPollingLoop } from "@toby/core/integrations/plugins/poller";
+import {
+	discoverPluginBinaries,
+	resolvePluginSearchDirectories,
+} from "@toby/core/integrations/plugins/registry";
+import { pluginDisplayPath } from "@toby/core/integrations/plugins/protocol";
 import { daemonLog, flushDaemonLogSync } from "@toby/core/logging/daemon-log";
 import {
 	buildTobySpawnArgs,
@@ -31,6 +37,17 @@ import { runSchedulerLoop } from "../schedules/scheduler";
 function getWebUiUrlFromConfig(): string | null {
 	const { enabled, port } = getWebConfig();
 	return enabled ? getWebUiUrl(port) : null;
+}
+
+function formatPluginList(): string {
+	const plugins = discoverPluginBinaries();
+	if (plugins.length === 0) return "  (none found)";
+	return plugins
+		.map((p) => {
+			const name = p.binaryName.replace(/^toby-plugin-/, "");
+			return `  ${name} (${p.kind}) — ${pluginDisplayPath(p)}`;
+		})
+		.join("\n");
 }
 
 const DEFAULT_INTERVAL_SECONDS = 60;
@@ -144,6 +161,7 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 		pid: process.pid,
 		intervalSeconds,
 		logPath: getDaemonLogPath(),
+		pluginDirs: resolvePluginSearchDirectories(),
 		chatInboundEnabled: inboundCfg.enabled !== false,
 		chatInboundIntegration: inboundCfg.integration ?? null,
 		chatInboundPersona: inboundCfg.persona ?? null,
@@ -156,6 +174,10 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 		),
 	);
 	console.log(chalk.dim(`  Log: ${getDaemonLogPath()}`));
+	const pluginDirs = resolvePluginSearchDirectories();
+	console.log(chalk.dim(`  Plugins dir: ${pluginDirs.join(", ")}`));
+	console.log(chalk.dim("  Discovered plugins:"));
+	console.log(chalk.dim(formatPluginList()));
 	if (webCfg.enabled) {
 		console.log(chalk.dim(`  Web UI: ${getWebUiUrl(webCfg.port)}`));
 	}
@@ -182,6 +204,15 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 				},
 			}),
 			startChatInboundListeners(controller.signal),
+			startPluginPollingLoop({
+				signal: controller.signal,
+				onError: (name, message) => {
+					daemonLog("warn", "daemon", "plugin_poll_error", {
+						plugin: name,
+						message,
+					});
+				},
+			}),
 		];
 		if (webCfg.enabled) {
 			tasks.push(
@@ -274,6 +305,11 @@ export function registerDaemonCommand(program: Command): void {
 			if (result.running) {
 				console.log(chalk.green(`Daemon started (PID ${result.pid}).`));
 				console.log(chalk.dim(`  Log: ${getDaemonLogPath()}`));
+				console.log(
+					chalk.dim(`  Plugins dir: ${resolvePluginSearchDirectories().join(", ")}`),
+				);
+				console.log(chalk.dim("  Discovered plugins:"));
+				console.log(chalk.dim(formatPluginList()));
 			} else {
 				console.error(
 					chalk.red(
@@ -335,6 +371,11 @@ export function registerDaemonCommand(program: Command): void {
 						chalk.dim(`  Schedule poll interval: ${result.intervalSeconds}s`),
 					);
 					console.log(chalk.dim(`  Log: ${getDaemonLogPath()}`));
+					console.log(
+						chalk.dim(`  Plugins dir: ${resolvePluginSearchDirectories().join(", ")}`),
+					);
+					console.log(chalk.dim("  Discovered plugins:"));
+					console.log(chalk.dim(formatPluginList()));
 					const webUrl = getWebUiUrlFromConfig();
 					if (webUrl) {
 						console.log(chalk.dim(`  Web UI: ${webUrl}`));
@@ -380,6 +421,11 @@ export function registerDaemonCommand(program: Command): void {
 				console.log(chalk.dim(`Chat inbound: ${inbound.status}`));
 			}
 			console.log(chalk.dim(`Daemon log: ${getDaemonLogPath()}`));
+			console.log(
+				chalk.dim(`Plugins dir: ${resolvePluginSearchDirectories().join(", ")}`),
+			);
+			console.log(chalk.dim("Discovered plugins:"));
+			console.log(chalk.dim(formatPluginList()));
 			const webUrl = getWebUiUrlFromConfig();
 			if (webUrl && running) {
 				console.log(chalk.dim(`Web UI: ${webUrl}`));

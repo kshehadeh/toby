@@ -1,9 +1,12 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
 	inferProviderCategoriesFromPrompt,
 	resolveChatModulesForPrompt,
 } from "@toby/core/chat-pipeline/resolve-chat-modules";
 import type { IntegrationModule } from "@toby/core/integrations/types";
-import { describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 function mockModule(
 	name: string,
@@ -23,6 +26,24 @@ function mockModule(
 }
 
 describe("resolveChatModulesForPrompt", () => {
+	let tempDir: string;
+	let previousTobyDir: string | undefined;
+
+	beforeEach(() => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-resolve-modules-"));
+		previousTobyDir = process.env.TOBY_DIR;
+		process.env.TOBY_DIR = tempDir;
+	});
+
+	afterEach(() => {
+		if (previousTobyDir === undefined) {
+			Reflect.deleteProperty(process.env, "TOBY_DIR");
+		} else {
+			process.env.TOBY_DIR = previousTobyDir;
+		}
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
 	it("infers email from unread emails phrasing", () => {
 		expect(
 			inferProviderCategoriesFromPrompt("check my unread emails"),

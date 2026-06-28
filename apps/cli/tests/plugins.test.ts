@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -30,7 +31,6 @@ import {
 } from "@toby/core/integrations/plugins/registry";
 import { resolveBunRuntime } from "@toby/core/integrations/plugins/runtime";
 import { buildIntegrationSetupGuide } from "@toby/core/integrations/plugins/setup";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { buildPluginsReportLines } from "../src/ui/chat/slash-commands/plugins";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
@@ -180,6 +180,25 @@ describe("plugin protocol", () => {
 	it("resolvePluginSearchDirectories uses the Toby plugins directory", () => {
 		const dirs = resolvePluginSearchDirectories();
 		expect(dirs).toEqual([path.resolve(pluginDir)]);
+	});
+
+	it("resolvePluginSearchDirectories uses TOBY_PLUGINS_DIR exclusively when set", () => {
+		const extraDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), "toby-plugins-env-test-"),
+		);
+		const previous = process.env.TOBY_PLUGINS_DIR;
+		try {
+			process.env.TOBY_PLUGINS_DIR = extraDir;
+			const dirs = resolvePluginSearchDirectories();
+			expect(dirs).toEqual([extraDir]);
+		} finally {
+			if (previous === undefined) {
+				Reflect.deleteProperty(process.env, "TOBY_PLUGINS_DIR");
+			} else {
+				process.env.TOBY_PLUGINS_DIR = previous;
+			}
+			fs.rmSync(extraDir, { recursive: true, force: true });
+		}
 	});
 
 	it("converts plugin JSON schema properties to zod", () => {
