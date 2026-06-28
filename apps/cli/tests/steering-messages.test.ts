@@ -81,7 +81,7 @@ describe("steering assembled messages", () => {
 			},
 			modules: [],
 			dryRun: true,
-			emit: vi.fn(),
+			emit: mock(() => {}),
 			nextSeq: () => 1,
 			emitPersistLifecycle: false,
 		});

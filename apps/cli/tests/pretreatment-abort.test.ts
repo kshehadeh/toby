@@ -1,17 +1,28 @@
 import "./helpers/setup-mocks";
 import { createChatTurnAbortError } from "@toby/core/abort";
-import { wrapUserPromptWithPretreatment } from "@toby/core/ai/pretreatment";
-import { expandPromptNode } from "@toby/core/chat-pipeline/nodes/expand-prompt";
 import type {
 	InitedTurn,
 	TurnContext,
 } from "@toby/core/chat-pipeline/pipeline";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { generateTextMock, generateTextQueue } from "./helpers/setup-mocks";
+import { closeChatDbForTests } from "@toby/core/session-store";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+} from "bun:test";
+import {
+	clearPretreatmentCache,
+	generateTextMock,
+	generateTextQueue,
+} from "./helpers/setup-mocks";
 
 const prevSemantic = process.env.TOBY_SEMANTIC_ROUTING;
 
 beforeEach(() => {
+	closeChatDbForTests();
+	clearPretreatmentCache();
 	generateTextQueue.length = 0;
 	(generateTextMock as unknown as { mockClear?: () => void }).mockClear?.();
 	process.env.TOBY_SEMANTIC_ROUTING = "0";
@@ -19,12 +30,17 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+	closeChatDbForTests();
+	clearPretreatmentCache();
 	if (prevSemantic === undefined) {
 		process.env.TOBY_SEMANTIC_ROUTING = undefined;
 	} else {
 		process.env.TOBY_SEMANTIC_ROUTING = prevSemantic;
 	}
 });
+
+const { wrapUserPromptWithPretreatment } = await import("@toby/core/ai/pretreatment");
+const { expandPromptNode } = await import("@toby/core/chat-pipeline/nodes/expand-prompt");
 
 describe("pretreatment abort propagation", () => {
 	it("wrapUserPromptWithPretreatment throws when abortSignal is already aborted", async () => {

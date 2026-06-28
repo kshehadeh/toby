@@ -1,21 +1,34 @@
 import "./helpers/setup-mocks";
 import type { CoreMessage } from "@toby/core/ai/chat";
 import type { UserIntentSpec } from "@toby/core/ai/pretreatment";
-import {
-	isDeltaPretreatmentEnabled,
-	isFirstTurnPretreatmentEnabled,
-	isPretreatmentDisabled,
-	isTrivialFollowUp,
-	shouldPretreat,
-	wrapUserPromptWithPretreatment,
-} from "@toby/core/ai/pretreatment";
 import * as sessionStore from "@toby/core/session-store";
-import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	spyOn,
+} from "bun:test";
 import {
 	clearPretreatmentCache,
 	generateTextMock,
 	generateTextQueue,
 } from "./helpers/setup-mocks";
+
+afterEach(() => {
+	clearPretreatmentCache();
+});
+
+const {
+	isDeltaPretreatmentEnabled,
+	isFirstTurnPretreatmentEnabled,
+	isPretreatmentDisabled,
+	isSemanticRoutingEnabled,
+	isTrivialFollowUp,
+	shouldPretreat,
+	wrapUserPromptWithPretreatment,
+} = await import("@toby/core/ai/pretreatment");
 
 function minimalSpec(over: Partial<UserIntentSpec> = {}): UserIntentSpec {
 	return {
@@ -132,11 +145,10 @@ describe("shouldPretreat", () => {
 	});
 });
 
-describe("wrapUserPromptWithPretreatment", () => {
-	const prevSemantic = process.env.TOBY_SEMANTIC_ROUTING;
+const prevSemantic = process.env.TOBY_SEMANTIC_ROUTING;
 
+describe("wrapUserPromptWithPretreatment", () => {
 	beforeEach(() => {
-		clearPretreatmentCache();
 		generateTextQueue.length = 0;
 		(generateTextMock as unknown as { mockClear?: () => void }).mockClear?.();
 		process.env.TOBY_SEMANTIC_ROUTING = "0";

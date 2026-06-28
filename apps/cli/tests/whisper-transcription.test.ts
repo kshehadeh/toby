@@ -1,8 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it, mock } from "bun:test";
-import * as actualConfig from "@toby/core/config/index";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
 let findDiscoveredPluginReturn: unknown;
 const mockFindDiscoveredPlugin = mock(() => findDiscoveredPluginReturn);
@@ -23,23 +22,33 @@ mock.module("@toby/core/integrations/plugins/registry", () => ({
 	inspectPluginBinary: mockInspectPluginBinary,
 }));
 
-mock.module("@toby/core/config/index", () => ({
-	...actualConfig,
-	readConfig: () => ({
-		integrations: {},
-		personas: [],
-		listen: { transcriptionPlugin: "whisper" },
-	}),
-	readCredentials: () => ({ integrations: { whisper: {} } }),
-	writeConfig: () => {},
-	writeCredentials: () => {},
-	getDefaultProvider: () => undefined,
-}));
-
 import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
 
 describe("transcription plugin bridge", () => {
 	const tempDirs: string[] = [];
+	let originalTobyDir: string | undefined;
+
+	beforeEach(() => {
+		originalTobyDir = process.env.TOBY_DIR;
+		const dir = fs.mkdtempSync(
+			path.join(os.tmpdir(), "toby-whisper-transcription-test-"),
+		);
+		tempDirs.push(dir);
+		process.env.TOBY_DIR = dir;
+		fs.mkdirSync(path.join(dir, "listen", "recordings"), { recursive: true });
+		fs.writeFileSync(
+			path.join(dir, "config.json"),
+			JSON.stringify({
+				integrations: {},
+				personas: [],
+				listen: { transcriptionPlugin: "whisper" },
+			}),
+		);
+		fs.writeFileSync(
+			path.join(dir, "credentials.json"),
+			JSON.stringify({ integrations: { whisper: {} } }),
+		);
+	});
 
 	afterEach(() => {
 		for (const dir of tempDirs.splice(0)) {
@@ -48,6 +57,11 @@ describe("transcription plugin bridge", () => {
 		mockFindDiscoveredPlugin.mockClear?.();
 		mockInspectPluginBinary.mockClear?.();
 		mockPluginToolsExecuteAsync.mockClear?.();
+		if (originalTobyDir === undefined) {
+			Reflect.deleteProperty(process.env, "TOBY_DIR");
+		} else {
+			process.env.TOBY_DIR = originalTobyDir;
+		}
 	});
 
 	it("copies plugin temp transcript files into the recording folder", async () => {

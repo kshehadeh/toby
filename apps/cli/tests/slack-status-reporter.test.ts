@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, jest, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { createSlackStatusReporter } from "../../plugin-slack/src/status-reporter";
 
 async function waitFor(assertion: () => void, timeoutMs = 500): Promise<void> {
@@ -17,10 +17,6 @@ async function waitFor(assertion: () => void, timeoutMs = 500): Promise<void> {
 }
 
 describe("createSlackStatusReporter", () => {
-	afterEach(() => {
-		jest.useRealTimers();
-		jest.restoreAllMocks();
-	});
 
 	it("lazy-posts on first update and updates in place", async () => {
 		const post = mock(() => Promise.resolve({ channel: "C1", ts: "1.0" }));
@@ -68,11 +64,33 @@ describe("createSlackStatusReporter", () => {
 	});
 
 	it("throttles rapid updates and flushes the latest line", async () => {
-		jest.useFakeTimers();
 		const post = mock(() => Promise.resolve({ channel: "C1", ts: "1.0" }));
 		const update = mock(() => Promise.resolve(undefined));
 		const del = mock(() => Promise.resolve(undefined));
 		let nowMs = 0;
+
+		// Manual timer controller to avoid process-level fake timers.
+		const timers = new Map<
+			number,
+			{ readonly fn: () => void; readonly at: number }
+		>();
+		let nextTimerId = 1;
+		const mockSetTimeout = (fn: () => void, ms: number) => {
+			const id = nextTimerId++;
+			timers.set(id, { fn, at: nowMs + ms });
+			return id as unknown as ReturnType<typeof setTimeout>;
+		};
+		const mockClearTimeout = (id: ReturnType<typeof setTimeout>) => {
+			timers.delete(id as unknown as number);
+		};
+		const advanceTimers = (targetMs: number) => {
+			for (const [id, t] of [...timers]) {
+				if (t.at <= targetMs) {
+					timers.delete(id);
+					t.fn();
+				}
+			}
+		};
 
 		const reporter = createSlackStatusReporter({
 			config: {},
@@ -80,14 +98,13 @@ describe("createSlackStatusReporter", () => {
 			token: "xoxb-test",
 			api: { post, update, delete: del },
 			now: () => nowMs,
-			setTimeoutFn: (fn: () => void, ms: number) => setTimeout(fn, ms),
-			clearTimeoutFn: clearTimeout,
+			setTimeoutFn: mockSetTimeout,
+			clearTimeoutFn: mockClearTimeout,
 		});
 
 		reporter.update("⏳ _Line A_");
-		jest.runAllTimers();
-		await Promise.resolve();
-		expect(post).toHaveBeenCalledTimes(1);
+		// First post is immediate (no timer); wait for the async post.
+		await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
 
 		nowMs = 100;
 		reporter.update("⚙️ _Line B_");
@@ -95,9 +112,9 @@ describe("createSlackStatusReporter", () => {
 		expect(update).not.toHaveBeenCalled();
 
 		nowMs = 1100;
-		jest.runAllTimers();
-		await Promise.resolve();
-		expect(update).toHaveBeenCalledTimes(1);
+		advanceTimers(nowMs);
+		// After timer fires, the pending update is enqueued; wait for it.
+		await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
 		expect(update).toHaveBeenLastCalledWith(
 			expect.objectContaining({ mrkdwnLine: "📧 _Line C_" }),
 		);

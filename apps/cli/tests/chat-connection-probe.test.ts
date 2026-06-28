@@ -91,7 +91,6 @@ describe("runConnectionProbes", () => {
 	});
 
 	it("times out a slow health check without marking the integration disconnected", async () => {
-		jest.useFakeTimers();
 		const slow = mockModule("slow", {
 			isConnected: async () => true,
 			testConnection: () => new Promise(() => {}),
@@ -101,14 +100,12 @@ describe("runConnectionProbes", () => {
 		});
 		const events: ConnectionProbeProgress[] = [];
 
-		const run = runConnectionProbes([slow, fast], {
+		const results = await runConnectionProbes([slow, fast], {
 			timeoutMs: 50,
 			onProgress: (event) => {
 				events.push(event);
 			},
 		});
-		jest.advanceTimersByTime(50);
-		const results = await run;
 
 		expect(results).toEqual([
 			{

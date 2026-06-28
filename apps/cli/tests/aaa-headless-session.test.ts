@@ -1,6 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import * as actualSessionStore from "@toby/core/session-store";
 import * as actualPipeline from "@toby/core/chat-pipeline/pipeline";
+import * as actualResolveChatModules from "@toby/core/chat-pipeline/resolve-chat-modules";
+import * as actualTranscriptAccumulator from "@toby/core/chat-pipeline/transcript-accumulator";
+import * as actualTurnWorkSummary from "@toby/core/chat-pipeline/turn-work-summary";
 
 let loadChatSessionReturn: unknown = {
 	id: "sess-1",
@@ -58,31 +61,6 @@ const MockTranscriptAccumulator = mock(() => ({
 	},
 }));
 
-mock.module("@toby/core/session-store", () => ({
-	...actualSessionStore,
-	appendTranscriptBatch: mock(() => {}),
-	renameChatSession: mock(() => {}),
-	loadChatSession: mockLoadChatSession,
-	getSessionLastPretreatment: mockGetSessionLastPretreatment,
-}));
-
-mock.module("@toby/core/chat-pipeline/pipeline", () => ({
-	...actualPipeline,
-	runChatTurnPipeline: mockRunChatTurnPipeline,
-}));
-
-mock.module("@toby/core/chat-pipeline/resolve-chat-modules", () => ({
-	resolveHeadlessChatModules: mockResolveHeadlessChatModules,
-}));
-
-mock.module("@toby/core/chat-pipeline/transcript-accumulator", () => ({
-	TranscriptAccumulator: MockTranscriptAccumulator,
-}));
-
-mock.module("@toby/core/chat-pipeline/turn-work-summary", () => ({
-	insertTurnWorkSummary: mockInsertTurnWorkSummary,
-}));
-
 import { runHeadlessChatTurn } from "@toby/core/chat-pipeline/headless-session";
 
 const basePersona = {
@@ -92,6 +70,17 @@ const basePersona = {
 };
 
 describe("runHeadlessChatTurn", () => {
+	beforeAll(() => {
+		spyOn(actualSessionStore, "loadChatSession").mockImplementation(mockLoadChatSession as any);
+		spyOn(actualSessionStore, "appendTranscriptBatch").mockImplementation(() => {});
+		spyOn(actualSessionStore, "renameChatSession").mockImplementation(() => {});
+		spyOn(actualSessionStore, "getSessionLastPretreatment").mockImplementation(mockGetSessionLastPretreatment as any);
+		spyOn(actualPipeline, "runChatTurnPipeline").mockImplementation(mockRunChatTurnPipeline as any);
+		spyOn(actualResolveChatModules, "resolveHeadlessChatModules").mockImplementation(mockResolveHeadlessChatModules as any);
+		spyOn(actualTranscriptAccumulator, "TranscriptAccumulator" as any).mockImplementation(MockTranscriptAccumulator as any);
+		spyOn(actualTurnWorkSummary, "insertTurnWorkSummary").mockImplementation(mockInsertTurnWorkSummary as any);
+	});
+
 	beforeEach(() => {
 		loadChatSessionReturn = {
 			id: "sess-1",
@@ -137,6 +126,17 @@ describe("runHeadlessChatTurn", () => {
 		MockTranscriptAccumulator.mockClear?.();
 	});
 
+	afterAll(() => {
+		(actualSessionStore.loadChatSession as any).mockRestore?.();
+		(actualSessionStore.appendTranscriptBatch as any).mockRestore?.();
+		(actualSessionStore.renameChatSession as any).mockRestore?.();
+		(actualSessionStore.getSessionLastPretreatment as any).mockRestore?.();
+		(actualPipeline.runChatTurnPipeline as any).mockRestore?.();
+		(actualResolveChatModules.resolveHeadlessChatModules as any).mockRestore?.();
+		(actualTranscriptAccumulator.TranscriptAccumulator as any).mockRestore?.();
+		(actualTurnWorkSummary.insertTurnWorkSummary as any).mockRestore?.();
+	});
+
 	it("persists the transcript and renames the session on success", async () => {
 		const result = await runHeadlessChatTurn({
 			inboundModule: {
@@ -152,7 +152,6 @@ describe("runHeadlessChatTurn", () => {
 
 		expect(result.text).toBe("hi");
 		expect(mockAddUser).toHaveBeenCalledWith("hello");
-		// renameChatSession is mocked at module level, assertions via mock module proxy
 		expect(mockRunChatTurnPipeline).toHaveBeenCalled();
 	});
 

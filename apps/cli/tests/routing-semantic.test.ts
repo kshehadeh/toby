@@ -1,7 +1,14 @@
 import "./helpers/setup-mocks";
+import { closeChatDbForTests } from "@toby/core/session-store";
 import { parseCatalogLines } from "@toby/core/routing/catalog-parse";
 import type { RoutingIndex } from "@toby/core/routing/index";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+} from "bun:test";
 import {
 	clearPretreatmentCache,
 	embedTextsMock,
@@ -9,6 +16,11 @@ import {
 	generateTextMock,
 	generateTextQueue,
 } from "./helpers/setup-mocks";
+
+afterEach(() => {
+	closeChatDbForTests();
+	clearPretreatmentCache();
+});
 
 const { wrapUserPromptWithPretreatment } = await import("@toby/core/ai/pretreatment");
 const { getRoutingSkillMinScore, routeToolsAndSkills } = await import("@toby/core/routing/index");
@@ -145,7 +157,6 @@ describe("parseCatalogLines", () => {
 
 describe("wrapUserPromptWithPretreatment semantic mode", () => {
 	beforeEach(() => {
-		clearPretreatmentCache();
 		generateTextQueue.length = 0;
 		(generateTextMock as unknown as { mockClear?: () => void }).mockClear?.();
 		(embedTextsMock as unknown as { mockClear?: () => void }).mockClear?.();

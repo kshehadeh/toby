@@ -1,18 +1,27 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import * as config from "@toby/core/config/index";
 
-// Override the log path before importing the module
 const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "toby-log-test-"));
 const LOG_PATH = path.join(TMP_DIR, "toby.log");
 
-mock.module("@toby/core/config/index", () => ({
-	ensureTobyDir: () => {
+let getLogPathSpy: ReturnType<typeof spyOn<typeof config, "getLogPath">>;
+let ensureTobyDirSpy: ReturnType<typeof spyOn<typeof config, "ensureTobyDir">>;
+
+beforeAll(() => {
+	getLogPathSpy = spyOn(config, "getLogPath").mockImplementation(() => LOG_PATH);
+	ensureTobyDirSpy = spyOn(config, "ensureTobyDir").mockImplementation(() => {
 		if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
-	},
-	getLogPath: () => LOG_PATH,
-}));
+	});
+});
+
+afterAll(() => {
+	getLogPathSpy.mockRestore();
+	ensureTobyDirSpy.mockRestore();
+	fs.rmSync(TMP_DIR, { recursive: true, force: true });
+});
 
 import {
 	clearLog,
@@ -31,10 +40,6 @@ beforeEach(() => {
 afterEach(() => {
 	flush();
 	if (fs.existsSync(LOG_PATH)) fs.unlinkSync(LOG_PATH);
-});
-
-afterAll(() => {
-	fs.rmSync(TMP_DIR, { recursive: true, force: true });
 });
 
 describe("chat-log", () => {

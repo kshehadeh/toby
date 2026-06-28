@@ -1,10 +1,20 @@
-import type { InboundStatusReporter } from "@toby/core/chat-inbound/types";
-import type { IntegrationModule } from "@toby/core/integrations/types";
-import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
-import * as actualHeadlessSession from "@toby/core/chat-pipeline/headless-session";
-import * as actualSessionStore from "@toby/core/session-store";
+import {
+	afterAll,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	mock,
+	spyOn,
+} from "bun:test";
 import * as actualAskUserBridge from "@toby/core/chat-inbound/ask-user-bridge";
 import * as actualMutex from "@toby/core/chat-inbound/mutex";
+import type { InboundStatusReporter } from "@toby/core/chat-inbound/types";
+import * as actualHeadlessSession from "@toby/core/chat-pipeline/headless-session";
+import type { IntegrationModule } from "@toby/core/integrations/types";
+import * as actualDaemonLog from "@toby/core/logging/daemon-log";
+import * as actualSessionStore from "@toby/core/session-store";
 
 let runHeadlessChatTurnReturn: unknown = {
 	text: "Hello",
@@ -14,7 +24,8 @@ let runHeadlessChatTurnReturn: unknown = {
 };
 let runHeadlessChatTurnReject: Error | undefined;
 const mockRunHeadlessChatTurn = mock(() => {
-	if (runHeadlessChatTurnReject) return Promise.reject(runHeadlessChatTurnReject);
+	if (runHeadlessChatTurnReject)
+		return Promise.reject(runHeadlessChatTurnReject);
 	return Promise.resolve(runHeadlessChatTurnReturn);
 });
 
@@ -23,7 +34,9 @@ let getOrCreateExternalSessionReturn: unknown = {
 	displayName: "Test",
 	metadata: {},
 };
-const mockGetOrCreateExternalSession = mock(() => getOrCreateExternalSessionReturn);
+const mockGetOrCreateExternalSession = mock(
+	() => getOrCreateExternalSessionReturn,
+);
 
 let loadExternalSessionReturn: unknown = null;
 const mockLoadExternalSession = mock(() => loadExternalSessionReturn);
@@ -39,30 +52,6 @@ const mockCreateAskUserBridge = mock(() => createAskUserBridgeReturn);
 const mockWithConversationMutex = mock(
 	async (_key: string, fn: () => Promise<void>) => fn(),
 );
-
-mock.module("@toby/core/chat-pipeline/headless-session", () => ({
-	runHeadlessChatTurn: mockRunHeadlessChatTurn,
-}));
-
-mock.module("@toby/core/session-store", () => ({
-	getOrCreateExternalSession: mockGetOrCreateExternalSession,
-	loadExternalSession: mockLoadExternalSession,
-	wasMessageProcessed: mockWasMessageProcessed,
-	markMessageProcessed: mockMarkMessageProcessed,
-}));
-
-mock.module("@toby/core/chat-inbound/ask-user-bridge", () => ({
-	createAskUserBridge: mockCreateAskUserBridge,
-	tryResolvePendingAskUser: () => {},
-}));
-
-mock.module("@toby/core/chat-inbound/mutex", () => ({
-	withConversationMutex: mockWithConversationMutex,
-}));
-
-mock.module("@toby/core/logging/daemon-log", () => ({
-	daemonLog: () => {},
-}));
 
 import { handleInboundEvent } from "@toby/core/chat-inbound/router";
 
@@ -97,6 +86,31 @@ describe("handleInboundEvent status reporter", () => {
 			formatInboundStatusLine: mockFormatInboundStatusLine,
 		},
 	} as unknown as IntegrationModule;
+
+	beforeAll(() => {
+		spyOn(actualHeadlessSession, "runHeadlessChatTurn").mockImplementation(
+			mockRunHeadlessChatTurn as any,
+		);
+		spyOn(actualSessionStore, "getOrCreateExternalSession").mockImplementation(
+			mockGetOrCreateExternalSession as any,
+		);
+		spyOn(actualSessionStore, "loadExternalSession").mockImplementation(
+			mockLoadExternalSession as any,
+		);
+		spyOn(actualSessionStore, "wasMessageProcessed").mockImplementation(
+			mockWasMessageProcessed as any,
+		);
+		spyOn(actualSessionStore, "markMessageProcessed").mockImplementation(
+			mockMarkMessageProcessed as any,
+		);
+		spyOn(actualAskUserBridge, "createAskUserBridge").mockImplementation(
+			mockCreateAskUserBridge as any,
+		);
+		spyOn(actualMutex, "withConversationMutex").mockImplementation(
+			mockWithConversationMutex as any,
+		);
+		spyOn(actualDaemonLog, "daemonLog").mockImplementation(() => {});
+	});
 
 	beforeEach(() => {
 		runHeadlessChatTurnReject = undefined;
@@ -204,9 +218,13 @@ describe("handleInboundEvent status reporter", () => {
 	});
 
 	afterAll(() => {
-		mock.module("@toby/core/chat-pipeline/headless-session", () => actualHeadlessSession);
-		mock.module("@toby/core/session-store", () => actualSessionStore);
-		mock.module("@toby/core/chat-inbound/ask-user-bridge", () => actualAskUserBridge);
-		mock.module("@toby/core/chat-inbound/mutex", () => actualMutex);
+		(actualHeadlessSession.runHeadlessChatTurn as any).mockRestore?.();
+		(actualSessionStore.getOrCreateExternalSession as any).mockRestore?.();
+		(actualSessionStore.loadExternalSession as any).mockRestore?.();
+		(actualSessionStore.wasMessageProcessed as any).mockRestore?.();
+		(actualSessionStore.markMessageProcessed as any).mockRestore?.();
+		(actualAskUserBridge.createAskUserBridge as any).mockRestore?.();
+		(actualMutex.withConversationMutex as any).mockRestore?.();
+		(actualDaemonLog.daemonLog as any).mockRestore?.();
 	});
 });
