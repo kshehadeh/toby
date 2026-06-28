@@ -21,8 +21,8 @@ runtime.
 
 | Format | When | Examples |
 | ------ | ---- | -------- |
-| **Bun-package** (this skill) | API-based integrations, no macOS frameworks needed | `plugin-sample-ts`, `plugin-jira`, `plugin-todoist` |
-| **Binary** (`bun build --compile` or Swift) | Deep macOS integration (EventKit, Contacts, Shortcuts, whisper.cpp) | `plugin-websearch` (Swift), `plugin-applecalendar` (Swift), `plugin-macos` (Swift) |
+| **Bun-package** (this skill) | API-based integrations, or macOS system controls routed through Toby.app's native API server | `plugin-sample-ts`, `plugin-jira`, `plugin-todoist`, `plugin-macos` (delegates to Toby.app) |
+| **Binary** (`bun build --compile` or Swift) | Deep macOS integration requiring direct framework access (EventKit, Contacts, whisper.cpp) | `plugin-websearch` (Swift), `plugin-applecalendar` (Swift), `plugin-whisper` (Swift) |
 
 Prefer bun-package unless the plugin needs direct access to macOS frameworks.
 
@@ -43,6 +43,7 @@ manifest, build, release wiring, dependencies, and tests.
 | [`apps/plugin-sample-ts/`](../../../apps/plugin-sample-ts/) | Minimal bun-package plugin (no dependencies) |
 | [`apps/plugin-jira/`](../../../apps/plugin-jira/) | Converted from Swift; REST API client, gateway retry, no dependencies |
 | [`apps/plugin-todoist/`](../../../apps/plugin-todoist/) | Converted from compiled binary; has vendored `@doist/todoist-sdk` dependency |
+| [`apps/plugin-macos/`](../../../apps/plugin-macos/) | Converted from Swift; delegates all macOS ops to Toby.app native API server; bundled shortcut setup |
 
 ---
 

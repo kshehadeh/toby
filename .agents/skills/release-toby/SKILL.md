@@ -52,8 +52,7 @@ Each archive must contain:
 - `toby-plugin-slack` (directory)
 - `toby-plugin-websearch`
 - `toby-plugin-applecalendar`
-- `toby-plugin-macos`
-- `TobyPluginMacOS_TobyPluginMacOSLib.bundle`
+- `toby-plugin-macos` (directory)
 - `web/` (built web UI)
 
 Do not add Linux release assets; this project is macOS-focused.

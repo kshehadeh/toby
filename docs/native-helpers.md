@@ -17,9 +17,9 @@ Toby.app's stable bundle identity.
 cannot perform as raw CLI binaries (EventKit, Accessibility, microphone, and
 system audio). See the Toby.app native API section below.
 
-macOS system control (`macos` integration) is an **installable plugin**
-(`toby-plugin-macos`) that calls native APIs in-process — see
-[`macos-integration.md`](macos-integration.md).
+macOS system control (`macos` integration) is an **installable TypeScript plugin**
+(`toby-plugin-macos`) that delegates all native operations to Toby.app's native
+API server — see [`macos-integration.md`](macos-integration.md).
 
 Use this document as the reference pattern when adding future helpers for native
 system interaction.
@@ -63,7 +63,7 @@ A long-running helper can use a **line-delimited JSON streaming** protocol:
 Choose the streaming pattern when a helper manages a long-lived session with
 progress events. For discrete system-control tools exposed to chat, prefer an
 installable plugin that implements [`plugin-protocol.md`](plugin-protocol.md)
-and calls native code in-process (see `toby-plugin-macos`).
+and delegates to Toby.app's native API server (see `toby-plugin-macos`).
 
 ## Process boundary
 
@@ -220,7 +220,7 @@ For web search (Brave Search API), see [web-search.md](web-search.md) (`toby-plu
 
 ## Toby.app native API server
 
-Toby.app (`apps/toby-app/`) is a SwiftUI macOS app with a proper bundle identity and `Info.plist`. When running, it starts a local HTTP server for native operations that require TCC permissions (EventKit, Accessibility, microphone, and system audio). CLI plugins discover this server via `~/.toby/native-port` and route privileged calls through it, falling back to in-process or AppleScript when Toby.app is not running.
+Toby.app (`apps/toby-app/`) is a SwiftUI macOS app with a proper bundle identity and `Info.plist`. When running, it starts a local HTTP server for native operations that require TCC permissions (EventKit, Accessibility, microphone, system audio, and all macOS system controls). Plugins discover this server via `~/.toby/native-port` and route native calls through it. The macOS plugin (`toby-plugin-macos`) delegates all operations to this server and auto-launches Toby.app when it is not running; Apple Calendar falls back to in-process EventKit/AppleScript when the app is unavailable.
 
 The same server also exposes audio endpoints used internally by Toby.app. Audio
 is not a plugin fallback path: the native app calls its own loopback server so
@@ -263,7 +263,7 @@ Plugins use a `NativeHelperClient` that:
 1. Reads `~/.toby/native-port` for the port number
 2. Calls `/api/native/health` to confirm Toby.app is responsive
 3. Routes the operation to Toby.app if available
-4. Falls back to current behavior (EventKit + AppleScript for calendar; in-process with permission error for macOS)
+4. Falls back to current behavior: Apple Calendar falls back to in-process EventKit + AppleScript; the macOS plugin auto-launches Toby.app in the background and waits for the server to become available
 
 ### Source
 
@@ -273,6 +273,6 @@ Plugins use a `NativeHelperClient` that:
 
 - `apps/toby-app/Sources/TobyApp/NativeServer.swift` — HTTP server using Network.framework
 - `apps/toby-app/Sources/TobyApp/NativeCalendarHandler.swift` — EventKit operations
-- `apps/toby-app/Sources/TobyApp/NativeMacOSHandler.swift` — Accessibility-gated operations
+- `apps/toby-app/Sources/TobyApp/NativeMacOSHandler.swift` — macOS system controls and Accessibility-gated operations (Wi-Fi, Bluetooth, audio, battery, display, clipboard, windows, shortcuts)
 - `apps/plugin-applecalendar/Sources/TobyPluginAppleCalendarLib/NativeHelperClient.swift` — calendar plugin client
-- `apps/plugin-macos/Sources/TobyPluginMacOSLib/System/NativeHelperClient.swift` — macOS plugin client
+- `apps/plugin-macos/src/native-client.ts` — macOS plugin TypeScript client that forwards to Toby.app's native API

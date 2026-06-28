@@ -31,6 +31,10 @@ let package = Package(
 				.linkedFramework("AVFoundation"),
 				.linkedFramework("CoreMedia"),
 				.linkedFramework("ScreenCaptureKit"),
+				.linkedFramework("CoreWLAN"),
+				.linkedFramework("IOBluetooth"),
+				.linkedFramework("CoreAudio"),
+				.linkedFramework("CoreGraphics"),
 				.unsafeFlags([
 					"-Xlinker",
 					"-sectcreate",

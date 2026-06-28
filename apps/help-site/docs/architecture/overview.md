@@ -47,11 +47,12 @@ See [Web UI](../web-ui) for how to start and use it.
 and configuration: it bootstraps the daemon when needed, then calls the same
 localhost API used by the web UI.
 
-Toby.app also hosts a separate native API server for macOS permission-gated work
-that raw plugin binaries cannot reliably perform themselves. The
-Apple Calendar and macOS plugins discover that server through
-`~/.toby/native-port` and route EventKit or Accessibility calls through the app
-when it is available.
+Toby.app also hosts a separate native API server for macOS system operations
+that require TCC permissions or native framework access. The
+Apple Calendar plugin routes EventKit calls through the app, and the
+macOS plugin (`toby-plugin-macos`, a TypeScript bun-package) delegates **all**
+native operations — Wi-Fi, Bluetooth, audio, battery, display, clipboard,
+windows, shortcuts — to the app's native API server via `~/.toby/native-port`.
 
 See [Toby.app](../toby-app) for the user-facing app documentation and the source
 [native helper notes](https://github.com/kshehadeh/toby/blob/main/docs/native-helpers.md)
@@ -98,10 +99,10 @@ other language that can ship an executable. Toby remains the source of truth for
 credentials and connection state; plugins should not read or write `~/.toby/`
 directly.
 
-Most plugins call external systems directly. Some macOS plugins have a second
-local path: when privileged native access is needed, they call Toby.app's native
-API server over localhost instead of asking the raw plugin binary to own the
-permission prompt.
+Most plugins call external systems directly. The macOS plugin (`toby-plugin-macos`)
+is a TypeScript bun-package that delegates all native operations to Toby.app's
+native API server over localhost — the app holds the TCC permissions and calls
+CoreWLAN, CoreAudio, IOBluetooth, IOKit, and AppKit directly.
 
 See [Creating a plugin](../plugins/creating-a-plugin) for the help-site guide
 and the source [plugin protocol](https://github.com/kshehadeh/toby/blob/main/docs/plugin-protocol.md)

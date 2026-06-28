@@ -1,10 +1,13 @@
 # toby-plugin-macos
 
-Swift installable Toby plugin for local **macOS system control**. Implements
-[plugin protocol v1](../../docs/plugin-protocol.md).
+TypeScript (bun-package) installable Toby plugin for local **macOS system
+control**. Implements [plugin protocol v1](../../docs/plugin-protocol.md).
 
-Native APIs (CoreWLAN, CoreAudio, IOBluetooth, IOKit, AppKit) run in-process —
-no separate `toby-macos` helper binary.
+The plugin is a thin TypeScript adapter that delegates all macOS-native
+operations to **Toby.app's native API server** (localhost). Toby.app owns the
+CoreWLAN, CoreAudio, IOBluetooth, IOKit, and AppKit calls and holds the TCC
+permissions. The plugin itself does not need direct macOS framework access or
+permission grants.
 
 ## Build
 
@@ -14,11 +17,12 @@ From repo root:
 bun run build:plugin:macos
 ```
 
-This runs `scripts/build-bundled-shortcuts.sh` (generate + sign Focus On/Off
-shortcuts into `Sources/TobyPluginMacOSLib/BundledShortcuts/`), then compiles
-the plugin with those resources embedded.
+This copies the plugin directory to `dist/toby-plugin-macos` (a bun-package
+directory, not a compiled binary). The bundled Focus shortcut files in
+`BundledShortcuts/` are included in the copy.
 
-Output: `dist/toby-plugin-macos`.
+Output: `dist/toby-plugin-macos/` (directory with `manifest.json`, `src/`,
+`BundledShortcuts/`).
 
 ## Install (development)
 
@@ -29,10 +33,16 @@ toby plugins setup macos   # optional: import bundled Focus shortcuts
 toby connect macos
 ```
 
+Toby.app must be running for macOS system tools to function. The plugin
+auto-launches Toby.app in the background if it is not already running when a
+tool is invoked.
+
 ## Notes
 
 - macOS-only.
 - No credentials — connect stores session state in `config.json` only.
-- First-party Swift plugin (no Bun runtime embedded).
-- `setup` advertises via `status.setupAvailable` and opens signed `.shortcut`
-  files for user confirmation in Shortcuts.app.
+- TypeScript bun-package plugin (requires Bun runtime, no compilation).
+- `setup` advertises via `status.setupAvailable` (when Toby.app is running) and
+  opens signed `.shortcut` files for user confirmation in Shortcuts.app.
+- Accessibility permission is granted to **Toby.app**, not the plugin, because
+  all privileged operations route through the app's native API server.

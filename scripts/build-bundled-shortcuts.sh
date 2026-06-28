@@ -3,7 +3,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-out_dir="${repo_root}/apps/plugin-macos/Sources/TobyPluginMacOSLib/BundledShortcuts"
+out_dir="${repo_root}/apps/plugin-macos/BundledShortcuts"
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 

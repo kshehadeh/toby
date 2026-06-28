@@ -13,7 +13,6 @@ const required = [
 	"bun",
 	"toby-plugin-websearch",
 	"toby-plugin-applecalendar",
-	"toby-plugin-macos",
 	"toby-plugin-whisper",
 ];
 
@@ -23,6 +22,7 @@ const requiredDirs = [
 	"toby-plugin-jira",
 	"toby-plugin-todoist",
 	"toby-plugin-email",
+	"toby-plugin-macos",
 ];
 
 const missing = [];
@@ -77,16 +77,6 @@ for (const iconAsset of iconAssets) {
 		console.error(`  - ${iconAsset}`);
 		process.exit(1);
 	}
-}
-
-const macosPluginBundle = path.join(
-	directory,
-	"TobyPluginMacOS_TobyPluginMacOSLib.bundle",
-);
-if (!fs.existsSync(macosPluginBundle)) {
-	console.error(`Missing or invalid release artifacts in ${directory}:`);
-	console.error("  - TobyPluginMacOS_TobyPluginMacOSLib.bundle");
-	process.exit(1);
 }
 
 const tobyApp = path.join(directory, "Toby.app");

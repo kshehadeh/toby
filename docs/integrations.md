@@ -60,7 +60,7 @@ Each integration typically owns:
 
 **Slack** ([`packages/core/src/integrations/slack/`](../packages/core/src/integrations/slack/)) is a representative built-in chat integration: OAuth (PKCE + user scopes on localhost) or manual bot token auth, with chat tools to search channels/users, post messages, reply in threads, and search message history. **Daemon inbound** (@mentions via Socket Mode) always requires a **bot token** (`xoxb-…`) and **app token** (`xapp-…`) in addition to OAuth user credentials—see [help-site Slack credentials](../apps/help-site/docs/integrations/slack.md#credentials-and-auth-reference).
 
-**macOS** is shipped as a Swift installable plugin (`toby-plugin-macos`); see [`apps/plugin-macos/`](../apps/plugin-macos/) and [`macos-integration.md`](macos-integration.md). It is **macOS-only** and controls local system settings (Wi‑Fi, Bluetooth, battery, audio, display, clipboard, shortcuts) via native frameworks in-process.
+**macOS** is shipped as a TypeScript (bun-package) installable plugin (`toby-plugin-macos`); see [`apps/plugin-macos/`](../apps/plugin-macos/) and [`macos-integration.md`](macos-integration.md). It is **macOS-only** and controls local system settings (Wi‑Fi, Bluetooth, battery, audio, display, clipboard, shortcuts) by delegating all native operations to **Toby.app's native API server**, which holds the TCC permissions.
 
 **Apple Calendar** is shipped as a Swift installable plugin (`toby-plugin-applecalendar`); see [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) and [`apple-calendar.md`](apple-calendar.md). It is **macOS-only** and uses native **EventKit** for search and CRUD, with Calendar.app AppleScript fallbacks when needed.
 

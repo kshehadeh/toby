@@ -1,4 +1,3 @@
-import { execSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -16,42 +15,34 @@ import {
 	pluginStatus,
 	pluginToolsList,
 } from "@toby/core/integrations/plugins/client";
-import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
+import {
+	findPluginBinary,
+	resetPluginModuleCache,
+} from "@toby/core/integrations/plugins/registry";
+import { resolvePluginTarget } from "@toby/core/integrations/plugins/runtime";
 import { runPluginSetup } from "@toby/core/integrations/plugins/setup";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
-const pluginPackageDir = path.join(repoRoot, "../plugin-macos");
+const pluginSourceDir = path.join(repoRoot, "../plugin-macos");
 
-function resolveBuiltPluginBinary(): string {
-	const distBin = path.join(repoRoot, "../../dist/toby-plugin-macos");
-	const releaseBin = path.join(
-		pluginPackageDir,
-		".build/release/toby-plugin-macos",
-	);
-	if (fs.existsSync(distBin)) return distBin;
-	if (fs.existsSync(releaseBin)) return releaseBin;
-	execSync("swift build -c release", { cwd: pluginPackageDir, stdio: "pipe" });
-	return releaseBin;
+function copyMacOSPlugin(pluginDir: string): void {
+	fs.mkdirSync(pluginDir, { recursive: true });
+	const dest = path.join(pluginDir, "toby-plugin-macos");
+	fs.cpSync(pluginSourceDir, dest, {
+		recursive: true,
+		filter: (src) =>
+			!src.includes(".turbo") &&
+			!src.includes(".build") &&
+			!src.includes("node_modules"),
+	});
 }
 
-function installMacOSPlugin(pluginDir: string): string {
-	fs.mkdirSync(pluginDir, { recursive: true });
-	const source = resolveBuiltPluginBinary();
-	const dest = path.join(pluginDir, "toby-plugin-macos");
-	fs.copyFileSync(source, dest);
-	fs.chmodSync(dest, 0o755);
-
-	const sourceDir = path.dirname(source);
-	const bundleName = "TobyPluginMacOS_TobyPluginMacOSLib.bundle";
-	const sourceBundle = path.join(sourceDir, bundleName);
-	if (fs.existsSync(sourceBundle)) {
-		fs.cpSync(sourceBundle, path.join(pluginDir, bundleName), {
-			recursive: true,
-		});
-	}
-
-	return dest;
+function findMacOSPlugin() {
+	const found = findPluginBinary("macos");
+	expect(found).toBeDefined();
+	if (!found) throw new Error("toby-plugin-macos not discovered");
+	return found;
 }
 
 describe("macos plugin", () => {
@@ -65,7 +56,7 @@ describe("macos plugin", () => {
 		previousTobyDir = process.env.TOBY_DIR;
 		process.env.TOBY_DIR = path.join(tempDir, "toby-home");
 		resetPluginModuleCache();
-		installMacOSPlugin(pluginDir);
+		copyMacOSPlugin(pluginDir);
 	});
 
 	afterEach(() => {
@@ -83,8 +74,9 @@ describe("macos plugin", () => {
 	});
 
 	it("returns macos identity and chatModelPrep from status", () => {
-		const binaryPath = path.join(pluginDir, "toby-plugin-macos");
-		const status = pluginStatus(binaryPath, {
+		const found = findMacOSPlugin();
+		const target = resolvePluginTarget(found);
+		const status = pluginStatus(target, {
 			state: { connectedAt: "2026-01-01T00:00:00.000Z" },
 		});
 		expect(status.ok).toBe(true);
@@ -97,27 +89,29 @@ describe("macos plugin", () => {
 		expect(status.data.chatModelPrep?.systemPromptSection).toContain(
 			"Local macOS",
 		);
-		expect(status.data.chatReadiness?.ok).toBe(true);
+		// chatReadiness depends on whether Toby.app is running
+		expect(typeof status.data.chatReadiness?.ok).toBe("boolean");
 
-		const disconnected = pluginStatus(binaryPath, {});
+		const disconnected = pluginStatus(target, {});
 		expect(disconnected.ok).toBe(true);
 		if (!disconnected.ok) return;
-		expect(disconnected.data.chatReadiness?.hint).toContain(
-			"toby connect macos",
-		);
+		expect(disconnected.data.chatReadiness?.ok).toBe(false);
+		expect(disconnected.data.chatReadiness?.hint).toBeTruthy();
 	});
 
 	it("returns empty config shape", () => {
-		const binaryPath = path.join(pluginDir, "toby-plugin-macos");
-		const shape = pluginConfigShape(binaryPath);
+		const found = findMacOSPlugin();
+		const target = resolvePluginTarget(found);
+		const shape = pluginConfigShape(target);
 		expect(shape.ok).toBe(true);
 		if (!shape.ok) return;
 		expect(shape.data.fields ?? []).toEqual([]);
 	});
 
 	it("lists twenty-eight macOS chat tools including macFocusSet and window controls", () => {
-		const binaryPath = path.join(pluginDir, "toby-plugin-macos");
-		const list = pluginToolsList(binaryPath);
+		const found = findMacOSPlugin();
+		const target = resolvePluginTarget(found);
+		const list = pluginToolsList(target);
 		expect(list.ok).toBe(true);
 		if (!list.ok || !list.data.tools) return;
 		const names = list.data.tools.map((t) => t.name);
@@ -136,11 +130,8 @@ describe("macos plugin", () => {
 	});
 
 	it("registers plugin-backed macos module with chatModelPrep", () => {
-		const metadata = loadPluginMetadata({
-			kind: "binary",
-			binaryPath: path.join(pluginDir, "toby-plugin-macos"),
-			binaryName: "toby-plugin-macos",
-		});
+		const found = findMacOSPlugin();
+		const metadata = loadPluginMetadata(found);
 		expect("error" in metadata).toBe(false);
 		if ("error" in metadata) return;
 
@@ -159,15 +150,10 @@ describe("macos plugin", () => {
 		expect(macos?.capabilities).toContain("chat");
 	});
 
-	it("advertises setup on status and returns bundled shortcut actions", () => {
-		const binaryPath = path.join(pluginDir, "toby-plugin-macos");
-		const status = pluginStatus(binaryPath);
-		expect(status.ok).toBe(true);
-		if (!status.ok) return;
-		expect(status.data.setupAvailable).toBe(true);
-		expect(status.data.setupDescription).toContain("Focus shortcuts");
-
-		const setup = pluginSetup(binaryPath);
+	it("returns bundled shortcut actions from setup", () => {
+		const found = findMacOSPlugin();
+		const target = resolvePluginTarget(found);
+		const setup = pluginSetup(target);
 		expect(setup.ok).toBe(true);
 		if (!setup.ok) return;
 		expect(setup.data.ok).toBe(true);

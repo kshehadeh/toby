@@ -278,7 +278,7 @@ export async function downloadRelease(
 		);
 		await rm(pluginWebsearchPath, { force: true }).catch(() => undefined);
 		await rm(pluginApplecalendarPath, { force: true }).catch(() => undefined);
-		await rm(pluginMacosPath, { force: true }).catch(() => undefined);
+		await rm(pluginMacosPath, { recursive: true, force: true }).catch(() => undefined);
 		await rm(archivePath, { force: true }).catch(() => undefined);
 		await rm(manifestPath, { force: true }).catch(() => undefined);
 
@@ -508,7 +508,7 @@ export async function applyStagedRelease(
 		pluginApplecalendarPath,
 		"toby-plugin-applecalendar",
 	);
-	await installStagedPluginBinary(pluginMacosPath, "toby-plugin-macos");
+	await installStagedPluginDirectory(pluginMacosPath, "toby-plugin-macos");
 	await installStagedPluginBinary(pluginWhisperPath, "toby-plugin-whisper");
 	await removeDeprecatedPluginBinaries();
 
@@ -662,6 +662,7 @@ async function installStagedBunRuntime(stagingPath: string): Promise<void> {
 const REMOVED_PLUGIN_BINARIES = [
 	"toby-plugin-applemail",
 	"toby-plugin-sample",
+	"TobyPluginMacOS_TobyPluginMacOSLib.bundle",
 ] as const;
 
 /** Remove plugin binaries retired from release bundles (best-effort). */
@@ -672,7 +673,9 @@ export async function removeDeprecatedPluginBinaries(): Promise<void> {
 		if (!fs.existsSync(pluginPath)) {
 			continue;
 		}
-		await rm(pluginPath, { force: true }).catch(() => undefined);
+		await rm(pluginPath, { recursive: true, force: true }).catch(
+			() => undefined,
+		);
 	}
 }
 

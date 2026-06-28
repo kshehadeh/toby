@@ -265,12 +265,6 @@ bundle_production_resources() {
 		fi
 	done
 
-	# Copy the macOS plugin resource bundle
-	if [[ -d "${DIST}/TobyPluginMacOS_TobyPluginMacOSLib.bundle" ]]; then
-		rm -rf "${res_dir}/TobyPluginMacOS_TobyPluginMacOSLib.bundle"
-		cp -R "${DIST}/TobyPluginMacOS_TobyPluginMacOSLib.bundle" "${res_dir}/"
-	fi
-
 	# Legacy placeholder for backward-compatible self-upgraders
 	if [[ -f "${DIST}/toby-listener" ]]; then
 		cp "${DIST}/toby-listener" "${res_dir}/toby-listener"

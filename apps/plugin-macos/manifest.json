@@ -1,0 +1,14 @@
+{
+	"name": "macos",
+	"displayName": "macOS",
+	"description": "Control this Mac locally — Wi‑Fi, Bluetooth, battery info, audio outputs, display brightness, volume, clipboard, low power probes",
+	"version": "1.1.0",
+	"protocolVersion": "1",
+	"runtime": {
+		"type": "bun",
+		"entry": "src/index.ts"
+	},
+	"capabilities": ["chat"],
+	"providerCategories": ["system"],
+	"resources": ["wifi", "bluetooth", "battery", "audio", "powermode", "display", "clipboard", "focus"]
+}

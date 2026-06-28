@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { execSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -9,7 +8,7 @@ import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const slackCli = path.join(repoRoot, "../plugin-slack/src/cli.ts");
 const todoistPluginDir = path.join(repoRoot, "../plugin-todoist");
-const macosPluginPackageDir = path.join(repoRoot, "../plugin-macos");
+const macosPluginSourceDir = path.join(repoRoot, "../plugin-macos");
 
 function writePluginWrapper(
 	pluginDir: string,
@@ -31,27 +30,16 @@ function copyTodoistPluginDir(pluginDir: string): void {
 	});
 }
 
-function resolveBuiltMacOSPluginBinary(): string {
-	const distBin = path.join(repoRoot, "../../dist/toby-plugin-macos");
-	const releaseBin = path.join(
-		macosPluginPackageDir,
-		".build/release/toby-plugin-macos",
-	);
-	if (fs.existsSync(distBin)) return distBin;
-	if (fs.existsSync(releaseBin)) return releaseBin;
-	execSync("swift build -c release", {
-		cwd: macosPluginPackageDir,
-		stdio: "pipe",
-	});
-	return releaseBin;
-}
-
-function installMacOSPlugin(pluginDir: string): void {
+function copyMacOSPluginDir(pluginDir: string): void {
 	fs.mkdirSync(pluginDir, { recursive: true });
-	const source = resolveBuiltMacOSPluginBinary();
 	const dest = path.join(pluginDir, "toby-plugin-macos");
-	fs.copyFileSync(source, dest);
-	fs.chmodSync(dest, 0o755);
+	fs.cpSync(macosPluginSourceDir, dest, {
+		recursive: true,
+		filter: (src) =>
+			!src.includes(".turbo") &&
+			!src.includes(".build") &&
+			!src.includes("node_modules"),
+	});
 }
 
 describe("parseChatCliInput", () => {
@@ -66,7 +54,7 @@ describe("parseChatCliInput", () => {
 		const pluginsDir = path.join(tempDir, "toby-home", "plugins");
 		writePluginWrapper(pluginsDir, "toby-plugin-slack", slackCli);
 		copyTodoistPluginDir(pluginsDir);
-		installMacOSPlugin(pluginsDir);
+		copyMacOSPluginDir(pluginsDir);
 	});
 
 	afterEach(() => {

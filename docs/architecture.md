@@ -14,7 +14,7 @@ Toby.app).
 | ------- | ---- | ---- |
 | **`@toby/core`** | [`packages/core/src/`](../packages/core/src/) | Harness: chat pipeline, AI, integrations, config, personas, skills, memory, planning, chat-inbound, logging, session store, message prep. Consumable from scripts, daemons, or other apps via `@toby/core/...` imports. |
 | **`@toby/cli`** | [`apps/cli/src/`](../apps/cli/src/) | CLI app: Commander entry, generic commands, Ink TUIs (`ui/`), schedules/upgrade UI and glue. Depends on `@toby/core`; must not be imported by core. |
-| **`Toby.app`** | [`apps/toby-app/`](../apps/toby-app/) | Native macOS app (SwiftUI) with a real bundle identity. Uses the daemon localhost API for chat/configuration/recordings and runs a separate **native API server** for TCC-gated operations (EventKit, Accessibility, microphone, and system audio). macOS plugins route privileged calls through it; it does not import core. See [`native-helpers.md`](native-helpers.md). |
+| **`Toby.app`** | [`apps/toby-app/`](../apps/toby-app/) | Native macOS app (SwiftUI) with a real bundle identity. Uses the daemon localhost API for chat/configuration/recordings and runs a separate **native API server** for TCC-gated operations (EventKit, Accessibility, microphone, system audio, and all macOS system controls via the `toby-plugin-macos` TypeScript plugin). It does not import core. See [`native-helpers.md`](native-helpers.md). |
 
 ```mermaid
 flowchart TB
@@ -150,8 +150,8 @@ permission bridge:
   identity.
 
 - **Discovery:** Toby.app writes its random port to `~/.toby/native-port`; clients confirm liveness via `GET /api/native/health`.
-- **Routing:** the macOS-facing plugins (`toby-plugin-applecalendar`, `toby-plugin-macos`) use a `NativeHelperClient` that routes privileged calls to Toby.app when available, and **auto-launches** it on demand when it is not running.
-- **Fallback:** when Toby.app is unavailable, plugins fall back to in-process EventKit/AppleScript (calendar) or return a permission error (macOS window control).
+- **Routing:** the macOS-facing plugins (`toby-plugin-applecalendar`, `toby-plugin-macos`) use a native helper client that routes calls to Toby.app. The macOS plugin (`toby-plugin-macos`, a TypeScript bun-package) delegates **all** operations to Toby.app and **auto-launches** it on demand when it is not running. Apple Calendar routes EventKit calls through the app when available.
+- **Fallback:** when Toby.app is unavailable, Apple Calendar falls back to in-process EventKit/AppleScript. The macOS plugin auto-launches Toby.app and waits for the server to become available.
 - **Relationship to core:** Toby.app does **not** import `@toby/core`. It uses
   the daemon API for product behavior and is reached by plugins over its native
   API only for permission-gated macOS calls, so the harness and the plugin

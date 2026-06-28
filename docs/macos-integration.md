@@ -22,12 +22,12 @@ The plugin ships signed **Toby Focus On** and **Toby Focus Off** shortcuts for
 Focus / Do Not Disturb control via `macShortcutRun`. Apple requires a one-click
 confirmation in Shortcuts.app to import them — Toby cannot install silently.
 
-Setup also requests **Accessibility permission** for the plugin binary so the
+Setup also requests **Accessibility permission** for Toby.app so the
 window-minimize and window-unminimize tools (`macWindowsMinimizeAll`,
 `macWindowsUnminimizeAll`, `macWindowMinimizeApp`, `macWindowUnminimizeApp`)
-can work. Because macOS TCC is keyed to the calling executable, the binary that
-needs the grant is `~/.toby/plugins/toby-plugin-macos` itself, not the host
-terminal or the Toby daemon.
+can work. Because all privileged operations route through Toby.app's native
+API server, the app that needs the grant is **Toby.app** itself, not the
+plugin or the host terminal.
 
 After install, Toby may prompt to run setup, or run it manually:
 
@@ -38,15 +38,23 @@ toby plugins setup macos
 Setup is idempotent:
 
 - Shortcuts already listed by `shortcuts list` are skipped (matching is case‑insensitive and whitespace‑normalized, and a local state file tracks which imports have already been opened so the UI never reappears).
-- The Accessibility step is skipped when the plugin is already trusted; otherwise it triggers the macOS "would like to control your computer" prompt that surfaces toby-plugin-macos in System Settings → Privacy & Security → Accessibility with a single toggle.
+- The Accessibility step is skipped when Toby.app is already trusted; otherwise it triggers the macOS "would like to control your computer" prompt that surfaces Toby.app in System Settings → Privacy & Security → Accessibility with a single toggle.
 
 Re-run setup anytime to finish steps you have not completed yet. If `shortcuts list` does not reliably detect a shortcut (for example, due to iCloud sync delays), the state file at `~/.toby/plugin-macos-setup-state.json` prevents the import UI from being opened again.
 
-Build regenerates signed shortcuts via [`scripts/build-bundled-shortcuts.sh`](../scripts/build-bundled-shortcuts.sh) before `swift build`. On recent macOS, `shortcuts sign` may print harmless `debugDescription` stderr noise; CI reuses the committed signed shortcuts because GitHub runners are not signed into iCloud.
+Build regenerates signed shortcuts via [`scripts/build-bundled-shortcuts.sh`](../scripts/build-bundled-shortcuts.sh) into `apps/plugin-macos/BundledShortcuts/`. On recent macOS, `shortcuts sign` may print harmless `debugDescription` stderr noise; CI reuses the committed signed shortcuts because GitHub runners are not signed into iCloud.
 
 ## Implementation
 
-All macOS system operations run **in-process** inside the Swift plugin — CoreWLAN, CoreAudio, IOBluetooth, IOKit, and AppKit. No separate helper binary or Homebrew packages are required.
+The macOS plugin is a **TypeScript bun-package** that delegates all
+macOS-native operations to **Toby.app's native API server** (localhost). The
+plugin is a thin protocol adapter — it receives tool execution requests from
+the Toby CLI and forwards them as HTTP POST calls to Toby.app's
+`/api/native/macos/*` endpoints. Toby.app owns the CoreWLAN, CoreAudio,
+IOBluetooth, IOKit, and AppKit calls and holds all TCC permissions.
+
+If Toby.app is not running when a tool is invoked, the plugin auto-launches it
+in the background and waits for the native server to become available.
 
 Source: [`apps/plugin-macos/`](../apps/plugin-macos/).
 
@@ -110,19 +118,17 @@ Depending on OS version and invoking app (Terminal, Cursor agent, daemon):
 | Bluetooth | Plugin Info.plist declares `NSBluetoothAlwaysUsageDescription`. |
 | Shortcuts | macOS may prompt for Automation permissions when Shortcuts access other apps. |
 | `pmset` | Low Power Mode writes may require admin privileges. Use a Shortcut or manual `sudo` per Apple guidance. |
-| Window minimize / unminimize | `macWindowsMinimizeAll`, `macWindowsUnminimizeAll`, `macWindowMinimizeApp`, and `macWindowUnminimizeApp` first try Toby.app's native API server (which has a proper app bundle identity for Accessibility). If Toby.app is not running, they fall back to in-process `AXUIElement` calls, which require Accessibility permission for the **plugin binary itself** (`~/.toby/plugins/toby-plugin-macos`) under System Settings → Privacy & Security → Accessibility. Run `toby plugins setup macos` to trigger the prompt. When using Toby.app, the user grants Accessibility to "Toby" instead of the plugin binary. Hide/show work without extra permission. |
+| Window minimize / unminimize | `macWindowsMinimizeAll`, `macWindowsUnminimizeAll`, `macWindowMinimizeApp`, and `macWindowUnminimizeApp` route through Toby.app's native API server, which has a proper app bundle identity for Accessibility. Grant Accessibility to **Toby.app** under System Settings → Privacy & Security → Accessibility. Run `toby plugins setup macos` to trigger the prompt. Hide/show work without extra permission. |
 
 Toby never runs **`sudo`** for you.
 
 ## Logs
 
-The plugin writes a structured JSON-line log to **`~/.toby/plugin-macos.log`** (same schema as `daemon.log`: `{ ts, level, category, type, data }`, with `category: "plugin-macos"`). Errors from Accessibility/AX calls, tool failures, and setup actions are recorded along with a process fingerprint (`pid`, `ppid`, `executable`, `parentExecutable`, `accessibilityTrusted`). Tail it while reproducing an issue:
+The TypeScript plugin forwards stderr to the daemon log (category `plugin-macos`). macOS-native operation errors are logged by Toby.app's native server. Tail the daemon log while reproducing an issue:
 
 ```bash
-tail -f ~/.toby/plugin-macos.log
+tail -f ~/.toby/daemon.log
 ```
-
-The `executable` and `parentExecutable` fields are particularly useful for figuring out which binary macOS attributes Accessibility calls to. The file rotates automatically once it exceeds ~512 KB.
 
 ## Limitations
 

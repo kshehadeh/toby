@@ -5,7 +5,7 @@ title: macOS
 
 # macOS
 
-Connect Toby to local macOS system controls. Toby ships **`toby-plugin-macos`**, a Swift plugin that calls CoreWLAN, CoreAudio, IOBluetooth, IOKit, and AppKit directly in-process — no third-party CLIs or Homebrew packages are required.
+Connect Toby to local macOS system controls. Toby ships **`toby-plugin-macos`**, a TypeScript plugin that delegates all macOS-native operations to **Toby.app's native API server** — CoreWLAN, CoreAudio, IOBluetooth, IOKit, and AppKit run inside Toby.app, which holds the TCC permissions. No third-party CLIs or Homebrew packages are required.
 
 **CLI name:** `macos`
 
@@ -19,7 +19,7 @@ Connect Toby to local macOS system controls. Toby ships **`toby-plugin-macos`**,
 
 - macOS 14+ (Sonoma or later) with Toby running locally on the Mac you want to control
 - `toby-plugin-macos` installed to `~/.toby/plugins/` by the install/upgrade flow
-- Toby.app running for Accessibility-gated window operations such as minimize and restore
+- Toby.app running for macOS system tools (the plugin auto-launches Toby.app in the background if needed)
 
 ## Connect
 
@@ -104,7 +104,7 @@ Mutating calls respect **dry run** modes from `toby chat` when enabled.
 | ---- | ----- |
 | Wi‑Fi scan | CoreWLAN may require Location Services authorization on first use. |
 | Bluetooth | Plugin Info.plist declares `NSBluetoothAlwaysUsageDescription`. |
-| Window control | Minimize and restore tools route through Toby.app's native API server when available, so grant Accessibility to Toby.app in System Settings. |
+| Window control | Minimize and restore tools route through Toby.app's native API server. Grant Accessibility to Toby.app in System Settings. |
 | Shortcuts | macOS may prompt for Automation permissions when Shortcuts access other apps. |
 | Low Power Mode | `pmset` writes may require admin privileges. Use a Shortcut or run `sudo pmset` manually. |
 

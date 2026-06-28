@@ -200,6 +200,46 @@ final class NativeServer {
 			return wrapHandlerData(await NativeCalendarHandler.updateEvent(body: request.body))
 		case "/api/native/calendar/delete":
 			return wrapHandlerData(await NativeCalendarHandler.deleteEvent(body: request.body))
+		case "/api/native/macos/accessibility-status":
+			return wrapHandlerData(NativeMacOSHandler.accessibilityStatus())
+		case "/api/native/macos/wifi-status":
+			return wrapHandlerData(NativeMacOSHandler.wifiStatus())
+		case "/api/native/macos/wifi-scan":
+			return wrapHandlerData(NativeMacOSHandler.wifiScan())
+		case "/api/native/macos/wifi-set-power":
+			return wrapHandlerData(NativeMacOSHandler.wifiSetPower(body: request.body))
+		case "/api/native/macos/battery-status":
+			return wrapHandlerData(NativeMacOSHandler.batteryStatus())
+		case "/api/native/macos/audio-list-outputs":
+			return wrapHandlerData(NativeMacOSHandler.audioListOutputs())
+		case "/api/native/macos/audio-switch-output":
+			return wrapHandlerData(NativeMacOSHandler.audioSwitchOutput(body: request.body))
+		case "/api/native/macos/audio-volume":
+			return wrapHandlerData(NativeMacOSHandler.audioVolume())
+		case "/api/native/macos/audio-set-volume":
+			return wrapHandlerData(NativeMacOSHandler.audioSetVolume(body: request.body))
+		case "/api/native/macos/audio-set-mute":
+			return wrapHandlerData(NativeMacOSHandler.audioSetMute(body: request.body))
+		case "/api/native/macos/bluetooth-status":
+			return wrapHandlerData(NativeMacOSHandler.bluetoothStatus())
+		case "/api/native/macos/bluetooth-set-power":
+			return wrapHandlerData(NativeMacOSHandler.bluetoothSetPower(body: request.body))
+		case "/api/native/macos/low-power-status":
+			return wrapHandlerData(NativeMacOSHandler.lowPowerStatus())
+		case "/api/native/macos/low-power-set":
+			return wrapHandlerData(NativeMacOSHandler.lowPowerSet(body: request.body))
+		case "/api/native/macos/shortcuts-run":
+			return wrapHandlerData(NativeMacOSHandler.shortcutsRun(body: request.body))
+		case "/api/native/macos/display-brightness":
+			return wrapHandlerData(NativeMacOSHandler.displayBrightness())
+		case "/api/native/macos/display-set-brightness":
+			return wrapHandlerData(NativeMacOSHandler.displaySetBrightness(body: request.body))
+		case "/api/native/macos/clipboard-read":
+			return wrapHandlerData(NativeMacOSHandler.clipboardRead())
+		case "/api/native/macos/clipboard-write":
+			return wrapHandlerData(NativeMacOSHandler.clipboardWrite(body: request.body))
+		case "/api/native/macos/system-info":
+			return wrapHandlerData(NativeMacOSHandler.systemInfo())
 		case "/api/native/macos/minimize-all":
 			return wrapHandlerData(NativeMacOSHandler.minimizeAll())
 		case "/api/native/macos/unminimize-all":
@@ -208,8 +248,12 @@ final class NativeServer {
 			return wrapHandlerData(NativeMacOSHandler.minimizeApp(body: request.body))
 		case "/api/native/macos/unminimize-app":
 			return wrapHandlerData(NativeMacOSHandler.unminimizeApp(body: request.body))
-		case "/api/native/macos/accessibility-status":
-			return wrapHandlerData(NativeMacOSHandler.accessibilityStatus())
+		case "/api/native/macos/windows-hide-all":
+			return wrapHandlerData(NativeMacOSHandler.windowsHideAll())
+		case "/api/native/macos/windows-show-all":
+			return wrapHandlerData(NativeMacOSHandler.windowsShowAll())
+		case "/api/native/macos/window-hide-app":
+			return wrapHandlerData(NativeMacOSHandler.windowHideApp(body: request.body))
 		case "/api/native/audio/status":
 			return wrapHandlerData(NativeAudioHandler.shared.status())
 		case "/api/native/audio/start":

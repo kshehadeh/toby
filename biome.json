@@ -6,7 +6,6 @@
 			"dist/**",
 			"apps/help-site/build/**",
 			"apps/help-site/.docusaurus/**",
-			"apps/plugin-macos/.build/**",
 			"apps/toby-app/**",
 			".turbo/**",
 			"package.json"
