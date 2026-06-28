@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -9,8 +10,23 @@ import {
 	redactConfigureValues,
 	seedConfigureValues,
 } from "@toby/core/configure/persistence";
+import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
 import { handleWebRequest } from "@toby/core/web/routes";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+
+const repoRoot = path.resolve(import.meta.dirname, "..");
+const gmailCli = path.join(repoRoot, "../plugin-gmail/src/cli.ts");
+const slackCli = path.join(repoRoot, "../plugin-slack/src/cli.ts");
+
+function writePluginWrapper(
+	pluginDir: string,
+	name: string,
+	cliPath: string,
+): void {
+	fs.mkdirSync(pluginDir, { recursive: true });
+	const wrapperPath = path.join(pluginDir, `toby-plugin-${name}`);
+	const script = `#!/usr/bin/env bash\nexec bun ${JSON.stringify(cliPath)} "$@"\n`;
+	fs.writeFileSync(wrapperPath, script, { mode: 0o755 });
+}
 
 function withTempTobyDir(run: () => void): void {
 	const previous = process.env.TOBY_DIR;
@@ -154,6 +170,34 @@ describe("rebuildCustomModels", () => {
 });
 
 describe("web API routes", () => {
+	let tempDir: string;
+	let previousTobyDir: string | undefined;
+
+	beforeEach(() => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-web-api-"));
+		previousTobyDir = process.env.TOBY_DIR;
+		process.env.TOBY_DIR = path.join(tempDir, "toby-home");
+		resetPluginModuleCache();
+		const pluginDir = path.join(tempDir, "toby-home", "plugins");
+		writePluginWrapper(pluginDir, "gmail", gmailCli);
+		writePluginWrapper(pluginDir, "slack", slackCli);
+		fs.mkdirSync(path.join(tempDir, "toby-home"), { recursive: true });
+		fs.writeFileSync(
+			path.join(tempDir, "toby-home", "credentials.json"),
+			JSON.stringify({ ai: { openai: { token: "sk-test-token" } } }),
+		);
+	});
+
+	afterEach(() => {
+		if (previousTobyDir === undefined) {
+			Reflect.deleteProperty(process.env, "TOBY_DIR");
+		} else {
+			process.env.TOBY_DIR = previousTobyDir;
+		}
+		resetPluginModuleCache();
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
 	it("handles GET /api/daemon/status", async () => {
 		const res = await handleWebRequest(
 			new Request("http://127.0.0.1/api/daemon/status"),
@@ -362,7 +406,7 @@ describe("web API routes", () => {
 		expect(body.steps.length).toBeGreaterThan(0);
 		expect(body.steps.map((s) => s.id)).toContain("overview");
 		expect(body.steps.map((s) => s.id)).toContain("credentials");
-	});
+	}, 30000);
 
 	it("returns 404 for an unknown integration setup guide", async () => {
 		const res = await handleWebRequest(
