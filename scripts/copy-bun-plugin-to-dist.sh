@@ -18,9 +18,12 @@ mkdir -p "${dist_dir}"
 cp -R . "${dist_dir}/${dist_name}"
 rm -rf \
 	"${dist_dir}/${dist_name}/.turbo" \
-	"${dist_dir}/${dist_name}/.build"
+	"${dist_dir}/${dist_name}/.build" \
+	"${dist_dir}/${dist_name}/node_modules"
 
-# Install production dependencies so the plugin is self-contained in dist/
+# Install production dependencies so the plugin is self-contained in dist/.
+# Strip any workspace node_modules (which contains symlinks to the hoisted
+# store) before installing fresh to avoid broken symlinks.
 bun install --production --cwd "${dist_dir}/${dist_name}"
 
 echo "Copied ${dist_name} to dist/ (with node_modules)"

@@ -44,8 +44,7 @@ Each archive must contain:
 - `bun` (Bun runtime for bun-package plugins)
 - `Toby.app`
 - `toby-plugin-sample-ts` (directory)
-- `toby-plugin-azuread` (directory)
-- `toby-plugin-gmail` (directory)
+- `toby-plugin-email` (directory)
 - `toby-plugin-todoist` (directory)
 - `toby-plugin-jira` (directory)
 - `toby-plugin-slack` (directory)

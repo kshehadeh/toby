@@ -253,15 +253,33 @@ bundle_production_resources() {
 	fi
 
 	# Copy all plugin artifacts (binaries and bun-package directories)
+	# For bun-package plugins, strip node_modules and re-install fresh
+	# inside the app bundle. The dist copy's node_modules may contain
+	# symlinks (from Bun's workspace install) that break when copied
+	# into the app bundle, causing codesign to fail with "No such file
+	# or directory" when it scans the bundle to create CodeResources.
 	local entry
 	for entry in "${DIST}"/toby-plugin-*; do
 		[[ -e "${entry}" ]] || continue
 		local name
 		name="$(basename "${entry}")"
 		rm -rf "${res_dir}/${name}"
-		cp -R "${entry}" "${res_dir}/${name}"
-		if [[ -f "${res_dir}/${name}" ]]; then
+		if [[ -f "${entry}" ]]; then
+			# Legacy binary plugin
+			cp "${entry}" "${res_dir}/${name}"
 			chmod +x "${res_dir}/${name}"
+		elif [[ -f "${entry}/manifest.json" ]]; then
+			# Bun-package plugin: copy without node_modules, then install fresh
+			cp -R "${entry}" "${res_dir}/${name}"
+			rm -rf "${res_dir}/${name}/node_modules"
+			if [[ -f "${res_dir}/${name}/package.json" ]]; then
+				echo "  Installing dependencies for ${name} in app bundle..."
+				bun install --production --cwd "${res_dir}/${name}" || \
+					echo "  Warning: bun install failed for ${name}; plugin may not work" >&2
+			fi
+		else
+			# Unknown format, copy as-is
+			cp -R "${entry}" "${res_dir}/${name}"
 		fi
 	done
 
