@@ -3,10 +3,7 @@ import {
 	sortModulesByName,
 } from "../chat-integrations";
 import { getDefaultProvider } from "../config/index";
-import {
-	getModulesForCategory,
-	getModulesWithCapability,
-} from "../integrations/index";
+import { getModulesWithCapability } from "../integrations/index";
 import {
 	type IntegrationModule,
 	PROVIDER_CATEGORY_LABELS,
@@ -142,8 +139,8 @@ export function resolveChatModulesForPrompt(
 				);
 			}
 		} else {
-			const catModules = getModulesForCategory(cat).filter((m) =>
-				chatModules.some((cm) => cm.name === m.name),
+			const catModules = chatModules.filter((m) =>
+				m.providerCategories?.includes(cat),
 			);
 			if (catModules.length === 0) {
 				warnings.push(
