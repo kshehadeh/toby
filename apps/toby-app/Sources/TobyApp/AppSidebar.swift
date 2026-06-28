@@ -340,11 +340,7 @@ private struct ServerStatusDetails: View {
 				.font(.caption)
 				.foregroundStyle(AppTheme.tertiaryText)
 			if let execPath = daemonStatus?.process?.executablePath, !execPath.isEmpty {
-				Text(execPath)
-					.font(.caption2)
-					.foregroundStyle(AppTheme.tertiaryText)
-					.lineLimit(2)
-					.truncationMode(.middle)
+				RevealPathButton(path: execPath, label: "Server")
 			}
 			Divider()
 				.background(AppTheme.separator)

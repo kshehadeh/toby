@@ -1,9 +1,12 @@
+import { resolvePluginSearchDirectories } from "../../integrations/plugins/discovery";
 import { collectPluginListEntries } from "../../integrations/plugins/list-status";
 import { jsonResponse } from "../http-utils";
 
 export async function handlePluginsList(): Promise<Response> {
 	const entries = collectPluginListEntries();
+	const directories = resolvePluginSearchDirectories();
 	return jsonResponse({
+		directory: directories[0] ?? null,
 		plugins: entries.map((entry) => ({
 			name: entry.name,
 			displayName: entry.displayName ?? entry.name,

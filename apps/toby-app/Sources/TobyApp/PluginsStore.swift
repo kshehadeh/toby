@@ -12,6 +12,7 @@ extension TobyClient: PluginsFetchable {}
 @MainActor
 final class PluginsStore {
 	var plugins: [PluginSummary] = []
+	var pluginsDirectory: String?
 	var isLoading = false
 	var errorMessage: String?
 
@@ -29,6 +30,7 @@ final class PluginsStore {
 
 		do {
 			let response = try await client.fetchPlugins()
+			pluginsDirectory = response.directory
 			plugins = response.plugins.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
 		} catch {
 			errorMessage = error.localizedDescription

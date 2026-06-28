@@ -24,6 +24,7 @@ struct AboutTobyViewTests {
 
 	private func makePluginsStore() -> PluginsStore {
 		let store = PluginsStore(client: MockPluginsClient())
+		store.pluginsDirectory = "/Users/example/.toby/plugins"
 		store.plugins = [
 			PluginSummary(
 				name: "slack",
@@ -62,6 +63,25 @@ struct AboutTobyViewTests {
 		)
 		#expect(throws: Never.self) { try view.inspect().find(text: "Plugins") }
 		#expect(throws: Never.self) { try view.inspect().find(text: "Slack") }
+	}
+
+	@Test("shows plugin directory as reveal-in-finder button")
+	func showsPluginDirectory() throws {
+		let view = AboutTobyView(
+			changelogStore: makeChangelogStore(),
+			updateStore: nil,
+			pluginsStore: makePluginsStore(),
+			appVersion: "0.66.0"
+		)
+		#expect(throws: Never.self) { try view.inspect().find(text: "Plugin directory") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "/Users/example/.toby/plugins") }
+		// The path itself is the clickable button with a "Reveal in Finder" accessibility label.
+		let buttons = try view.inspect().findAll(ViewType.Button.self)
+		let revealButtons = buttons.filter { btn in
+			(try? btn.accessibilityLabel().string()) == "Reveal in Finder"
+		}
+		#expect(revealButtons.count == 1)
+		#expect((try? revealButtons.first?.accessibilityValue().string()) == "/Users/example/.toby/plugins")
 	}
 
 	@Test("shows open source libraries section")

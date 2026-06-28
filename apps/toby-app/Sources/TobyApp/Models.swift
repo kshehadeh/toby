@@ -243,6 +243,7 @@ struct AIProvidersResponse: Decodable {
 }
 
 struct PluginsListResponse: Decodable {
+	let directory: String?
 	let plugins: [PluginSummary]
 }
 

@@ -43,15 +43,19 @@ struct PluginsStoreTests {
 
 	@Test("load fetches and sorts plugins by display name")
 	func loadFetchesAndSorts() async throws {
-		let response = PluginsListResponse(plugins: [
-			makePlugin(name: "slack", displayName: "Slack"),
-			makePlugin(name: "gmail", displayName: "Gmail"),
-		])
+		let response = PluginsListResponse(
+			directory: "/Users/example/.toby/plugins",
+			plugins: [
+				makePlugin(name: "slack", displayName: "Slack"),
+				makePlugin(name: "gmail", displayName: "Gmail"),
+			]
+		)
 		let (store, client) = makeStore(response: response)
 		await store.load()
 		#expect(client.fetchCount == 1)
 		#expect(store.plugins.count == 2)
 		#expect(store.plugins.first?.name == "gmail")
+		#expect(store.pluginsDirectory == "/Users/example/.toby/plugins")
 		#expect(store.errorMessage == nil)
 	}
 

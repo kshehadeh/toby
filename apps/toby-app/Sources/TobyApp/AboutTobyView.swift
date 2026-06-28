@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct AboutTobyView: View {
@@ -89,6 +90,9 @@ struct AboutTobyView: View {
 			Text("Plugins")
 				.font(.headline)
 				.foregroundStyle(AppTheme.primaryText)
+			if let dir = pluginsStore.pluginsDirectory, !dir.isEmpty {
+				RevealPathButton(path: dir, label: "Plugin directory")
+			}
 			if pluginsStore.isLoading && pluginsStore.plugins.isEmpty {
 				Text("Loading plugins…")
 					.font(.callout)
@@ -221,7 +225,7 @@ private struct PluginRow: View {
 
 	var body: some View {
 		HStack(alignment: .firstTextBaseline, spacing: 6) {
-			VStack(alignment: .leading, spacing: 1) {
+			HStack(alignment: .firstTextBaseline, spacing: 4) {
 				Text(plugin.displayName)
 					.font(.callout)
 					.foregroundStyle(AppTheme.primaryText)
@@ -229,12 +233,13 @@ private struct PluginRow: View {
 					Text("v\(version)")
 						.font(.caption)
 						.foregroundStyle(AppTheme.tertiaryText)
-				} else if plugin.state == "invalid", let error = plugin.error {
-					Text(error)
-						.font(.caption)
-						.foregroundStyle(.red)
-						.lineLimit(1)
 				}
+			}
+			if plugin.state == "invalid", let error = plugin.error {
+				Text(error)
+					.font(.caption)
+					.foregroundStyle(.red)
+					.lineLimit(1)
 			}
 			Spacer(minLength: 0)
 			Text(plugin.statusLabel)
