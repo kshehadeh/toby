@@ -659,13 +659,19 @@ struct ConfigureFieldRowView: View {
 	}
 
 	private var booleanBinding: Binding<Bool> {
-		Binding(
+		let options = Set(field.options?.map { $0.lowercased() } ?? [])
+		let trueFalse = options == ["true", "false"]
+		return Binding(
 			get: {
 				let value = store.value(for: field.key).lowercased()
 				return value == "yes" || value == "true"
 			},
 			set: { enabled in
-				store.setDraftValue(field.key, enabled ? "Yes" : "No", autosaveImmediately: true)
+				if trueFalse {
+					store.setDraftValue(field.key, enabled ? "true" : "false", autosaveImmediately: true)
+				} else {
+					store.setDraftValue(field.key, enabled ? "Yes" : "No", autosaveImmediately: true)
+				}
 			},
 		)
 	}
