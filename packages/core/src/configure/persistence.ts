@@ -3,21 +3,17 @@ import type { AISettings, ChatInboundConfig } from "../config/index";
 import {
 	type CredentialsFile,
 	type Persona,
+	type TranscriptionConfig,
 	readConfig,
 	readCredentials,
 	writeConfig,
 	writeCredentials,
 } from "../config/index";
-import {
-	getIntegrationModules,
-	getModulesWithCapability,
-} from "../integrations/index";
+import { getIntegrationModules } from "../integrations/index";
 import {
 	ALL_PROVIDER_CATEGORIES,
 	type ProviderCategory,
 } from "../integrations/types";
-import { migrateListenWhisperConfig } from "../listen/transcription-plugin";
-import type { ListenConfig } from "../listen/whisper-config";
 import {
 	type ProjectMetadataUpdate,
 	listProjects,
@@ -32,6 +28,8 @@ const SECRET_KEY_PREFIXES = [
 	"ai.openai.token",
 	"ai.vercel.apiKey",
 	"ai.ollama.apiKey",
+	"transcription.openai.apiKey",
+	"transcription.groq.apiKey",
 ] as const;
 
 /** Keys that must never be written via the web API. */
@@ -112,7 +110,6 @@ export interface SeedConfigureValuesOptions {
 export function seedConfigureValues(
 	options: SeedConfigureValuesOptions = {},
 ): Record<string, string> {
-	migrateListenWhisperConfig();
 	const creds = readCredentials();
 	const config = readConfig();
 	const values: Record<string, string> = {};
@@ -171,15 +168,17 @@ export function seedConfigureValues(
 		config.chatInbound?.integration?.trim() || "(none)";
 	values["chatInbound.persona"] =
 		config.chatInbound?.persona?.trim() || "(default)";
-	const transcriptionPlugins = getModulesWithCapability("transcription");
-	const transcriptionPlugin =
-		config.listen?.transcriptionPlugin?.trim() ||
-		config.defaultProviders?.transcription ||
-		(transcriptionPlugins.length === 1
-			? transcriptionPlugins[0]?.name
-			: undefined) ||
-		"(none)";
-	values["listen.transcriptionPlugin"] = transcriptionPlugin;
+	if (config.transcription) {
+		values["transcription.provider"] = config.transcription.provider;
+		values["transcription.model"] = config.transcription.model;
+	}
+	if (creds.transcription) {
+		for (const [providerId, entry] of Object.entries(creds.transcription)) {
+			if (entry?.apiKey) {
+				values[`transcription.${providerId}.apiKey`] = entry.apiKey;
+			}
+		}
+	}
 
 	for (const mod of getIntegrationModules()) {
 		if (!mod.chatInbound) continue;
@@ -209,17 +208,13 @@ export function redactConfigureValues(
 	return out;
 }
 
-export function rebuildListenConfig(
+export function rebuildTranscriptionConfig(
 	values: Record<string, string>,
-): ListenConfig {
-	const transcriptionPluginRaw = values["listen.transcriptionPlugin"]?.trim();
-	const transcriptionPlugin =
-		transcriptionPluginRaw && transcriptionPluginRaw !== "(none)"
-			? transcriptionPluginRaw
-			: undefined;
-	return {
-		...(transcriptionPlugin ? { transcriptionPlugin } : {}),
-	};
+): TranscriptionConfig | undefined {
+	const provider = values["transcription.provider"]?.trim();
+	const model = values["transcription.model"]?.trim();
+	if (!provider || !model) return undefined;
+	return { provider, model };
 }
 
 export function rebuildChatInbound(
@@ -355,6 +350,19 @@ export function buildCredentialsFromValues(
 			ollama: { apiKey: ollamaApiKey },
 		},
 	});
+
+	const transcriptionBlock: Record<string, { apiKey: string }> = {};
+	for (const [key, value] of Object.entries(values)) {
+		const match = /^transcription\.([^.]+)\.apiKey$/.exec(key);
+		if (!match) continue;
+		const providerId = match[1];
+		const trimmed = value.trim();
+		if (!trimmed || value === REDACTED) continue;
+		transcriptionBlock[providerId] = { apiKey: trimmed };
+	}
+	if (Object.keys(transcriptionBlock).length > 0) {
+		next = mergeCredentials(next, { transcription: transcriptionBlock });
+	}
 	return next;
 }
 
@@ -406,7 +414,7 @@ function applyConfigFromValues(values: Record<string, string>): void {
 	cfg.personas = rebuildPersonas(values, cfg.personas);
 	cfg.defaultProviders = rebuildDefaultProviders(values);
 	cfg.chatInbound = rebuildChatInbound(values);
-	cfg.listen = rebuildListenConfig(values);
+	cfg.transcription = rebuildTranscriptionConfig(values);
 	cfg.ai = rebuildAISettings(values);
 	applyIntegrationInboundFlags(cfg, values);
 	writeConfig(cfg);

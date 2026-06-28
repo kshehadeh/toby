@@ -43,7 +43,6 @@ Each archive must contain:
 - `toby`
 - `bun` (Bun runtime for bun-package plugins)
 - `Toby.app`
-- `toby-plugin-whisper`
 - `toby-plugin-sample-ts` (directory)
 - `toby-plugin-azuread` (directory)
 - `toby-plugin-gmail` (directory)

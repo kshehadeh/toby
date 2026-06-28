@@ -91,6 +91,7 @@ enum AppToastAction: Identifiable, Equatable {
 	case openRecording(id: String)
 	case openURL(url: String)
 	case restartApp
+	case openSettings(navKey: String)
 
 	var id: String {
 		switch self {
@@ -100,6 +101,8 @@ enum AppToastAction: Identifiable, Equatable {
 			return "open-url-\(url)"
 		case .restartApp:
 			return "restart-app"
+		case .openSettings(let navKey):
+			return "open-settings-\(navKey)"
 		}
 	}
 
@@ -111,6 +114,8 @@ enum AppToastAction: Identifiable, Equatable {
 			return "View issue"
 		case .restartApp:
 			return "Restart"
+		case .openSettings:
+			return "Open settings"
 		}
 	}
 }
@@ -144,6 +149,12 @@ struct AppStatus: Decodable {
 	let connectedIntegrations: [String]?
 	let skillCount: Int?
 	let skills: [SkillSummary]?
+	let transcription: TranscriptionStatus?
+}
+
+struct TranscriptionStatus: Decodable, Equatable {
+	let configured: Bool
+	let settingsNavKey: String?
 }
 
 struct SkillSummary: Decodable, Identifiable {

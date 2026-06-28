@@ -61,17 +61,15 @@ If you prefer to download the binary yourself:
 
 1. Open the [Toby releases page](https://github.com/kshehadeh/toby/releases).
 2. Download the archive for your platform (see the table above).
-3. Extract it, then put `toby` on your PATH, the `whisper-cli` helper under `~/.toby/helpers/`, plugins under `~/.toby/plugins/`, and `Toby.app` in `/Applications` (or `~/Applications`):
+3. Extract it, then put `toby` on your PATH, plugins under `~/.toby/plugins/`, and `Toby.app` in `/Applications` (or `~/Applications`):
 
 ```bash
 unzip toby-darwin-arm64.zip
-chmod +x toby whisper-cli toby-plugin-*
-mkdir -p ~/.toby/helpers ~/.toby/plugins
-mv whisper-cli ~/.toby/helpers/
+chmod +x toby toby-plugin-*
+mkdir -p ~/.toby/plugins
 mv toby-plugin-* ~/.toby/plugins/
 sudo mv toby /usr/local/bin/
 sudo mv Toby.app /Applications/
-toby whisper setup
 ```
 
 4. Verify the install:

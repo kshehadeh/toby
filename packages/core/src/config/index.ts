@@ -100,7 +100,7 @@ export function getGeneratedFilesDir(): string {
 	return path.join(resolveTobyDir(), "generated-files");
 }
 
-/** Directory for bundled native helper binaries (e.g. whisper-cli). */
+/** Directory for bundled native helper binaries. */
 export function getHelpersDir(): string {
 	return path.join(resolveTobyDir(), "helpers");
 }
@@ -118,20 +118,6 @@ export function ensurePluginDataDir(name: string): string {
 	}
 	return dir;
 }
-
-export type {
-	ListenConfig,
-	ListenWhisperCppConfig,
-} from "../listen/whisper-config";
-export {
-	getWhisperModelsDir,
-	resolveDefaultWhisperModelPath,
-	resolveWhisperCppConfig,
-} from "../listen/whisper-config";
-export {
-	ensureWhisperTranscriptionAssets,
-	getWhisperAssetStatus,
-} from "../listen/whisper-assets";
 
 interface AIProvider {
 	provider: string;
@@ -157,7 +143,10 @@ export interface ChatInboundConfig {
 	readonly persona?: string;
 }
 
-import type { ListenConfig } from "../listen/whisper-config";
+export interface TranscriptionConfig {
+	readonly provider: string;
+	readonly model: string;
+}
 
 export interface WebConfig {
 	readonly enabled?: boolean;
@@ -177,7 +166,7 @@ interface TobyConfig {
 	defaultPersona?: string;
 	defaultProviders?: Partial<Record<ProviderCategory, string>>;
 	chatInbound?: ChatInboundConfig;
-	listen?: ListenConfig;
+	transcription?: TranscriptionConfig;
 	web?: WebConfig;
 	ai?: AISettings;
 	/** Slug of the currently active project (see `~/.toby/projects/<slug>/`). */
@@ -219,6 +208,8 @@ export interface CredentialsFile {
 	todoist?: Record<string, string>;
 	slack?: SlackCredentials;
 	ai?: AICredentials;
+	/** Per-provider API keys for built-in transcription (e.g. { groq: { apiKey } }). */
+	transcription?: Record<string, { apiKey: string }>;
 }
 
 export function getIntegrationCredential(
@@ -265,7 +256,7 @@ export function readConfig(): TobyConfig {
 		defaultPersona: parsed.defaultPersona,
 		defaultProviders: parsed.defaultProviders,
 		chatInbound: parsed.chatInbound,
-		listen: parsed.listen,
+		transcription: parsed.transcription,
 		web: parsed.web,
 		ai: parsed.ai,
 		activeProject: parsed.activeProject,

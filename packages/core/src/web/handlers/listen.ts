@@ -11,7 +11,9 @@ import {
 	resolveListenRecordingAudioPath,
 } from "../../listen/recordings";
 import { updateListenRecordingMetadata } from "../../listen/session-controller";
-import { transcribeWithPlugin } from "../../listen/transcription-plugin";
+import { ListenTranscriptionError } from "../../listen/transcription-errors";
+import { transcribeWithModel } from "../../listen/transcription-model";
+import { TRANSCRIPTION_NOT_CONFIGURED_CODE } from "../../listen/transcription-model";
 import type {
 	ListenRecordingFiles,
 	ListenRecordingMetadata,
@@ -181,13 +183,23 @@ async function handleListenRecordingTranscribeJson(
 		return errorResponse(message, 400);
 	}
 	try {
-		const transcriptFiles = await transcribeWithPlugin({
+		const transcriptFiles = await transcribeWithModel({
 			input,
 			outDir: recording.dir,
 		});
 		return jsonResponse(finalizeTranscription(recording, transcriptFiles));
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
+		if (
+			error instanceof ListenTranscriptionError &&
+			error.code === TRANSCRIPTION_NOT_CONFIGURED_CODE
+		) {
+			writeRecordingError(recording.metadata, recording.dir, message);
+			return jsonResponse(
+				{ ok: false, notConfigured: true, error: message },
+				200,
+			);
+		}
 		writeRecordingError(recording.metadata, recording.dir, message);
 		return errorResponse(message, 500);
 	}
@@ -233,7 +245,7 @@ async function handleListenRecordingTranscribeStream(
 			}, 5000);
 
 			try {
-				const transcriptFiles = await transcribeWithPlugin({
+				const transcriptFiles = await transcribeWithModel({
 					input,
 					outDir: recording.dir,
 					onStatus: (message) => {
@@ -245,7 +257,16 @@ async function handleListenRecordingTranscribeStream(
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
 				writeRecordingError(recording.metadata, recording.dir, message);
-				controller.enqueue(encode("error", { error: message }));
+				if (
+					error instanceof ListenTranscriptionError &&
+					error.code === TRANSCRIPTION_NOT_CONFIGURED_CODE
+				) {
+					controller.enqueue(
+						encode("error", { error: message, notConfigured: true }),
+					);
+				} else {
+					controller.enqueue(encode("error", { error: message }));
+				}
 			} finally {
 				clearInterval(heartbeat);
 				controller.close();

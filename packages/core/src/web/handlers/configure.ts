@@ -91,7 +91,13 @@ export function handleConfigureTree(): Response {
 	});
 }
 
-const SETTINGS_SECTION_KEYS = ["chatInbound", "defaults", "ai", "projects"];
+const SETTINGS_SECTION_KEYS = [
+	"chatInbound",
+	"defaults",
+	"ai",
+	"transcription",
+	"projects",
+];
 
 function stripToSectionNodes(node: SettingsItem): SettingsItem {
 	const sectionChildren = (node.children ?? [])

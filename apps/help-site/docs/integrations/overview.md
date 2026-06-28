@@ -73,7 +73,7 @@ Gmail, Azure AD, Todoist, Jira, Slack, Web Search, Apple Calendar, macOS, and ot
 Plugins come in two formats:
 
 - **TypeScript package plugins** (recommended for most integrations) — a directory with a `manifest.json` and TypeScript entrypoint, executed via Toby's bundled Bun runtime. No compilation step required. Best for API-based integrations.
-- **Binary plugins** (for deep macOS integrations) — standalone compiled executables. Best when you need direct access to macOS frameworks like EventKit or whisper.cpp. For macOS system controls that need TCC permissions, a TypeScript plugin can delegate to Toby.app's native API server instead (as `toby-plugin-macos` does).
+- **Binary plugins** (for deep macOS integrations) — standalone compiled executables. Best when you need direct access to macOS frameworks like EventKit. For macOS system controls that need TCC permissions, a TypeScript plugin can delegate to Toby.app's native API server instead (as `toby-plugin-macos` does).
 
 Want to build your own? See **[Creating a plugin](../plugins/creating-a-plugin)** for the full protocol contract, both plugin formats, subcommand inputs/outputs, and `toby plugins` commands.
 

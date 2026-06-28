@@ -190,4 +190,55 @@ struct ToastViewTests {
 			}
 		}
 	}
+
+	@Test("openSettings action renders open settings button")
+	func openSettingsActionRendersButton() throws {
+		let toast = AppToastState(
+			style: .error,
+			title: "No transcription model configured",
+			message: "Audio will be saved without a transcript.",
+			action: .openSettings(navKey: "transcription")
+		)
+		let view = ToastView(
+			toast: toast,
+			onDismiss: {},
+			onAction: { _ in }
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(ViewType.Button.self) { button in
+				let text = try? button.labelView().find(ViewType.Text.self).string()
+				return text == "Open settings"
+			}
+		}
+	}
+
+	@Test("tapping openSettings action invokes onAction and dismisses")
+	func openSettingsActionTaps() throws {
+		var capturedAction: AppToastAction?
+		var dismissed = false
+		let toast = AppToastState(
+			style: .error,
+			title: "No transcription model configured",
+			message: "Choose a transcription provider to enable transcripts.",
+			action: .openSettings(navKey: "transcription")
+		)
+		let view = ToastView(
+			toast: toast,
+			onDismiss: { dismissed = true },
+			onAction: { capturedAction = $0 }
+		)
+		let button = try view.inspect().find(ViewType.Button.self) { button in
+			let text = try? button.labelView().find(ViewType.Text.self).string()
+			return text == "Open settings"
+		}
+		try button.tap()
+		#expect(capturedAction == .openSettings(navKey: "transcription"))
+		#expect(dismissed == true)
+	}
+
+	@Test("openSettings action id is stable per nav key")
+	func openSettingsActionId() {
+		#expect(AppToastAction.openSettings(navKey: "transcription").id == "open-settings-transcription")
+		#expect(AppToastAction.openSettings(navKey: "transcription").label == "Open settings")
+	}
 }

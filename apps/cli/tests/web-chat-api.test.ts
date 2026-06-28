@@ -1,3 +1,4 @@
+import { afterEach, describe, expect, it, jest, mock, spyOn } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -11,17 +12,16 @@ import {
 	prepareListenSession,
 	saveListenSession,
 } from "@toby/core/listen/session-controller";
-import { transcribeWithPlugin } from "@toby/core/listen/transcription-plugin";
+import { transcribeWithModel } from "@toby/core/listen/transcription-model";
 import { closeChatDbForTests } from "@toby/core/session-store";
 import { handleWebRequest } from "@toby/core/web/routes";
 import {
 	ServerEventLog,
 	readServerEventLogTail,
 } from "@toby/core/web/server-event-log";
-import { afterEach, describe, expect, it, jest, mock, spyOn } from "bun:test";
 
-mock.module("@toby/core/listen/transcription-plugin", () => ({
-	transcribeWithPlugin: mock(async ({ outDir }: { outDir: string }) => {
+mock.module("@toby/core/listen/transcription-model", () => ({
+	transcribeWithModel: mock(async ({ outDir }: { outDir: string }) => {
 		fs.writeFileSync(path.join(outDir, "transcript.txt"), "mock transcript\n");
 		return { transcript: "transcript.txt" };
 	}),
@@ -147,10 +147,11 @@ describe("web chat API routes", () => {
 			await withTempTobyDir(async () => {
 				const originalStart = listenManager.start;
 				const originalStop = listenManager.stop;
-				listenManager.start = () => ({
-					status: "recording",
-					message: "Recording.",
-				} as never);
+				listenManager.start = () =>
+					({
+						status: "recording",
+						message: "Recording.",
+					}) as never;
 				listenManager.stop = () =>
 					Promise.resolve({
 						status: "idle",
@@ -456,7 +457,9 @@ describe("web chat API routes", () => {
 
 	it("transcribes combined listen audio before source tracks", async () => {
 		await withTempTobyDir(async () => {
-			(transcribeWithPlugin as unknown as { mockClear?: () => void }).mockClear?.();
+			(
+				transcribeWithModel as unknown as { mockClear?: () => void }
+			).mockClear?.();
 			const recordingsDir = path.join(
 				process.env.TOBY_DIR ?? "",
 				"listen",
@@ -493,7 +496,7 @@ describe("web chat API routes", () => {
 			);
 
 			expect(response.status).toBe(200);
-			expect(transcribeWithPlugin).toHaveBeenCalledWith(
+			expect(transcribeWithModel).toHaveBeenCalledWith(
 				expect.objectContaining({
 					input: path.join(outputDir, "combined.m4a"),
 					outDir: outputDir,

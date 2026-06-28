@@ -1,4 +1,4 @@
 export {
 	ListenTranscriptionError,
-	transcribeWithPlugin,
-} from "@toby/core/listen/transcription-plugin";
+	transcribeWithModel,
+} from "@toby/core/listen/transcription-model";

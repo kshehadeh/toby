@@ -22,7 +22,7 @@ runtime.
 | Format | When | Examples |
 | ------ | ---- | -------- |
 | **Bun-package** (this skill) | API-based integrations, or macOS system controls and Calendar/EventKit routed through Toby.app's native API server | `plugin-sample-ts`, `plugin-jira`, `plugin-todoist`, `plugin-macos`, `plugin-applecalendar` (delegates EventKit to Toby.app) |
-| **Binary** (`bun build --compile` or Swift) | Deep macOS integration requiring direct framework access that cannot be routed through Toby.app (e.g. whisper.cpp) | `plugin-websearch` (Swift), `plugin-whisper` (Swift) |
+| **Binary** (`bun build --compile` or Swift) | Deep macOS integration requiring direct framework access that cannot be routed through Toby.app | `plugin-websearch` (Swift) |
 
 Prefer bun-package unless the plugin needs direct access to macOS frameworks.
 

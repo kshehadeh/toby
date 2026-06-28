@@ -189,7 +189,8 @@ struct AppSidebarTests {
             personaImageUrl: nil,
             connectedIntegrations: nil,
             skillCount: nil,
-            skills: nil
+            skills: nil,
+            transcription: nil
         )
         let sidebar = AppSidebar(
             currentRoute: .chat,
@@ -231,7 +232,8 @@ struct AppSidebarTests {
             personaImageUrl: nil,
             connectedIntegrations: nil,
             skillCount: nil,
-            skills: nil
+            skills: nil,
+            transcription: nil
         )
         let sidebar = AppSidebar(
             currentRoute: .chat,

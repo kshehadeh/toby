@@ -12,7 +12,7 @@ import {
 	saveListenSession,
 	writeListenMetadata,
 } from "./session-controller";
-import { transcribeWithPlugin } from "./transcription-plugin";
+import { transcribeWithModel } from "./transcription-model";
 import {
 	DEFAULT_LISTEN_SOURCES,
 	type ListenRecordingFiles,
@@ -104,7 +104,7 @@ export class ListenManager {
 
 	constructor(deps: ListenManagerDeps = {}) {
 		this.startCapture = deps.startCapture ?? startMacOSAudioCapture;
-		this.transcribe = deps.transcribe ?? transcribeWithPlugin;
+		this.transcribe = deps.transcribe ?? transcribeWithModel;
 	}
 
 	status(): ListenManagerState {

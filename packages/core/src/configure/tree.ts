@@ -3,13 +3,16 @@ import { getDefaultPersonaName } from "../config/index";
 import {
 	getIntegrationModules,
 	getModulesForCategory,
-	getModulesWithCapability,
 } from "../integrations/index";
 import {
 	ALL_PROVIDER_CATEGORIES,
 	PROVIDER_CATEGORY_LABELS,
 	type ProviderCategory,
 } from "../integrations/types";
+import {
+	TRANSCRIPTION_PROVIDERS,
+	getTranscriptionProvider,
+} from "../listen/transcription-providers";
 import { DEFAULT_CHAT_PERSONA } from "../personas/index";
 import {
 	type Project,
@@ -426,37 +429,75 @@ export function buildSettingsTree(
 		}),
 	);
 
-	const transcriptionPlugins = getModulesWithCapability("transcription");
-	const transcriptionPluginChoices = [
-		{ value: "(none)", label: "None" },
-		...transcriptionPlugins.map((mod) => ({
-			value: mod.name,
-			label: mod.displayName,
-		})),
+	const transcriptionProviderId =
+		values["transcription.provider"] ??
+		TRANSCRIPTION_PROVIDERS[0]?.id ??
+		"openai";
+	const transcriptionProviderInfo = getTranscriptionProvider(
+		transcriptionProviderId,
+	);
+	const transcriptionModelValue =
+		values["transcription.model"] ?? transcriptionProviderInfo?.models[0] ?? "";
+	const transcriptionModelOptions = [
+		...(transcriptionProviderInfo?.models ?? []),
+		...(transcriptionModelValue &&
+		!transcriptionProviderInfo?.models.includes(transcriptionModelValue)
+			? [transcriptionModelValue]
+			: []),
 	];
+	const transcriptionSection: SettingsItem = {
+		label: "Transcription",
+		kind: "section",
+		key: "transcription",
+		children: [
+			{
+				label: "Provider",
+				kind: "select" as const,
+				key: "transcription.provider",
+				navKey: "transcription.provider",
+				options: TRANSCRIPTION_PROVIDERS.map((p) => p.id),
+				selectChoices: TRANSCRIPTION_PROVIDERS.map((p) => ({
+					value: p.id,
+					label: p.displayName,
+				})),
+				currentValue: transcriptionProviderId,
+			},
+			{
+				label: "Model",
+				kind: "select" as const,
+				key: "transcription.model",
+				navKey: "transcription.model.select",
+				options: transcriptionModelOptions,
+				selectChoices: transcriptionModelOptions.map((m) => ({
+					value: m,
+					label: m,
+				})),
+				currentValue: transcriptionModelValue,
+			},
+			{
+				label: "API Key",
+				kind: "value" as const,
+				key: `transcription.${transcriptionProviderId}.apiKey`,
+				masked: true,
+			},
+			...(transcriptionProviderInfo?.reusesOpenAiToken
+				? [
+						{
+							label:
+								"OpenAI reuses your AI → OpenAI API token when no key is set here.",
+							kind: "hint" as const,
+							key: "transcription._openaiHint",
+						},
+					]
+				: []),
+		],
+	};
+
 	const listenSection: SettingsItem = {
 		label: "Listen",
 		kind: "section",
 		key: "listen",
 		children: [
-			{
-				label: "Transcription provider",
-				kind: "select",
-				key: "listen.transcriptionPlugin",
-				options: ["(none)", ...transcriptionPlugins.map((mod) => mod.name)],
-				selectChoices: transcriptionPluginChoices,
-				currentValue: values["listen.transcriptionPlugin"] ?? "(none)",
-			},
-			...(values["listen.transcriptionPlugin"] === "whisper"
-				? [
-						{
-							label:
-								"Configure whisper paths under Plugins → whisper in the category tree.",
-							kind: "hint" as const,
-							key: "listen._whisperHint",
-						},
-					]
-				: []),
 			{
 				label: "Start new recording",
 				kind: "action",
@@ -768,6 +809,7 @@ export function buildSettingsTree(
 					...personaItems,
 				],
 			},
+			transcriptionSection,
 			buildProjectsSection(values),
 			listenSection,
 			schedulesSection,

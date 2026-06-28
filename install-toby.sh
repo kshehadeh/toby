@@ -197,12 +197,6 @@ if "${install_dir}/toby" --version >/dev/null 2>&1; then
 	echo "Verified: $("${install_dir}/toby" --version)"
 fi
 
-if "${install_dir}/toby" whisper setup --quiet; then
-	echo "Installed whisper transcription model."
-else
-	echo "Note: Could not download whisper model. Run: toby whisper setup" >&2
-fi
-
 install_dir_abs="$(cd "$install_dir" && pwd -P 2>/dev/null || printf '%s' "$install_dir")"
 path_entry=":${PATH}:"
 if [[ "$path_entry" == *":${install_dir_abs}:"* ]]; then

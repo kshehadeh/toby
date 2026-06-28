@@ -11,7 +11,6 @@ import {
 	resolveTobyDir,
 } from "@toby/core/config/index";
 import { copyPluginResourceBundlesFromSource } from "@toby/core/integrations/plugins/install";
-import { ensureWhisperPluginSetup } from "@toby/core/listen/transcription-plugin";
 import {
 	getTobyEntryScriptArgv,
 	isRunningAsCompiledBinary,
@@ -133,7 +132,6 @@ export function getStagingPaths(): {
 	readonly pluginWebsearchPath: string;
 	readonly pluginApplecalendarPath: string;
 	readonly pluginMacosPath: string;
-	readonly pluginWhisperPath: string;
 	readonly appPath: string;
 	readonly webPath: string;
 	readonly iconsPath: string;
@@ -154,7 +152,6 @@ export function getStagingPaths(): {
 		pluginWebsearchPath: path.join(stagingDir, "toby-plugin-websearch"),
 		pluginApplecalendarPath: path.join(stagingDir, "toby-plugin-applecalendar"),
 		pluginMacosPath: path.join(stagingDir, "toby-plugin-macos"),
-		pluginWhisperPath: path.join(stagingDir, "toby-plugin-whisper"),
 		appPath: path.join(stagingDir, "Toby.app"),
 		webPath: path.join(stagingDir, "web"),
 		iconsPath: path.join(stagingDir, "icons"),
@@ -490,7 +487,6 @@ export async function applyStagedRelease(
 		pluginWebsearchPath,
 		pluginApplecalendarPath,
 		pluginMacosPath,
-		pluginWhisperPath,
 	} = getStagingPaths();
 	options?.onProgress?.({ phase: "installing", detail: "plugins" });
 	await yieldToEventLoop();
@@ -509,7 +505,6 @@ export async function applyStagedRelease(
 		"toby-plugin-applecalendar",
 	);
 	await installStagedPluginDirectory(pluginMacosPath, "toby-plugin-macos");
-	await installStagedPluginBinary(pluginWhisperPath, "toby-plugin-whisper");
 	await removeDeprecatedPluginBinaries();
 
 	// Migration: older installs placed helper binaries next to `toby` on PATH.
@@ -521,7 +516,6 @@ export async function applyStagedRelease(
 		await removeLegacySiblingHelpers(installTarget, []);
 	}
 	await removeOrphanedLegacyMacOSHelper();
-	await removeLegacyWhisperCliHelper();
 	await removeLegacyListenerHelper();
 
 	// For app-bundle upgrades, verify version using the newly installed app's CLI.
@@ -544,15 +538,6 @@ export async function applyStagedRelease(
 	// the new app's CLI. For standalone installs, process.execPath here is the
 	// staging binary, which we just renamed into installTarget.
 	const daemonRestart = await restartDaemonIfRunning(60, versionCheckPath);
-
-	try {
-		ensureWhisperPluginSetup();
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		process.stderr.write(
-			`Note: whisper setup incomplete after upgrade: ${message}\nRun: toby plugins setup whisper\n`,
-		);
-	}
 
 	await rm(manifestPath, { force: true }).catch(() => undefined);
 
@@ -681,15 +666,6 @@ export async function removeDeprecatedPluginBinaries(): Promise<void> {
 }
 
 const LEGACY_SIBLING_HELPER_NAMES = ["toby-listener", "toby-macos"] as const;
-
-/** Remove the standalone whisper-cli helper superseded by embedded whisper.cpp. */
-export async function removeLegacyWhisperCliHelper(): Promise<void> {
-	const legacyPath = path.join(getHelpersDir(), "whisper-cli");
-	if (!fs.existsSync(legacyPath)) {
-		return;
-	}
-	await rm(legacyPath, { force: true }).catch(() => undefined);
-}
 
 /** Remove the deprecated standalone toby-listener helper superseded by Toby.app. */
 export async function removeLegacyListenerHelper(): Promise<void> {

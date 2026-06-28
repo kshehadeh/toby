@@ -311,20 +311,6 @@ export function loadPluginMetadata(
 		};
 	}
 
-	if (capabilities.includes("transcription")) {
-		const toolsResult = pluginToolsList(target);
-		const toolNames =
-			toolsResult.ok && toolsResult.data.ok && toolsResult.data.tools
-				? toolsResult.data.tools.map((tool) => tool.name)
-				: [];
-		if (!toolNames.includes("doTranscription")) {
-			return {
-				error: `Plugin "${status.name}" declares transcription capability but tools list is missing doTranscription`,
-				code: "missing_do_transcription",
-			};
-		}
-	}
-
 	return {
 		target,
 		name: status.name,

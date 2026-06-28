@@ -3,7 +3,6 @@
  * Verify release payload contains expected Toby artifacts.
  * Usage: node scripts/verify-release-artifacts.mjs [directory]
  */
-import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -12,7 +11,6 @@ const required = [
 	"toby",
 	"bun",
 	"toby-plugin-websearch",
-	"toby-plugin-whisper",
 ];
 
 const requiredDirs = [
@@ -95,32 +93,12 @@ const appResourceChecks = [
 	"web/index.html",
 	"icons/ai/openai.png",
 	"toby-plugin-websearch",
-	"toby-plugin-whisper",
 ];
 for (const resource of appResourceChecks) {
 	const resourcePath = path.join(appResources, resource);
 	if (!fs.existsSync(resourcePath)) {
 		console.error(`Missing self-contained app resource in ${directory}:`);
 		console.error(`  - Toby.app/Contents/Resources/${resource}`);
-		process.exit(1);
-	}
-}
-
-if (process.platform === "darwin") {
-	const whisperPluginPath = path.join(directory, "toby-plugin-whisper");
-	const otool = spawnSync("otool", ["-L", whisperPluginPath], {
-		encoding: "utf8",
-	});
-	if (otool.status !== 0) {
-		console.error(
-			`Failed to inspect toby-plugin-whisper linkage: ${otool.stderr}`,
-		);
-		process.exit(1);
-	}
-	if (otool.stdout.includes("@rpath/libwhisper")) {
-		console.error(
-			"toby-plugin-whisper links shared @rpath/libwhisper libraries; expected embedded static whisper.cpp.",
-		);
 		process.exit(1);
 	}
 }

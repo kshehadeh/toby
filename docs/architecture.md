@@ -178,11 +178,11 @@ flowchart LR
   end
 
   nativeHandler --> artifacts["~/.toby/listen/recordings/<id>"]
-  manager --> transcribe["core transcription adapter"]
+  manager --> transcribe["core transcription model"]
   appRecord -->|"POST /api/listen/recordings/:id/transcribe"| daemonApi["daemon API"]
   daemonApi --> transcribe
-  transcribe --> whisper["transcription plugin, normally whisper"]
-  whisper --> artifacts
+  transcribe --> model["AI SDK transcribe (OpenAI/Groq)"]
+  model --> artifacts
 
   recordingsWindow["Toby.app Recordings window"] -->|"GET / DELETE /api/listen/recordings/*"| daemonApi
   daemonApi --> artifacts
@@ -193,8 +193,11 @@ flowchart LR
 - Both paths write `metadata.json`, source tracks, and preferably
   `combined.m4a` under the same recording directory layout.
 - Transcription is harness behavior. The daemon resolves combined audio first,
-  then microphone or system WAV fallbacks, and invokes the configured
-  transcription plugin. WAV input bypasses unnecessary `afconvert` conversion.
+  then microphone or system WAV fallbacks, and calls the AI SDK's `transcribe`
+  with the provider/model configured under **Settings → Transcription**
+  (OpenAI or Groq). WAV input bypasses unnecessary `afconvert` conversion.
+  When no model is configured, audio is saved with a metadata note and no
+  transcript.
 - The native Recordings window never parses or deletes recording directories
   itself. `RecordingsStore` uses `TobyClient`, and the daemon owns list, detail,
   transcription, and deletion operations.

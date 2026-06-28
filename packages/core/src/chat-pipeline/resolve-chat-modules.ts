@@ -85,15 +85,6 @@ const CATEGORY_KEYWORDS: Record<ProviderCategory, string[]> = {
 		"work tracker",
 		"project management",
 	],
-	transcription: [
-		"transcribe",
-		"transcription",
-		"transcript",
-		"whisper",
-		"speech",
-		"dictation",
-		"listen",
-	],
 };
 
 export function inferProviderCategoriesFromPrompt(

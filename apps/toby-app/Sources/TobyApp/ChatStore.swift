@@ -298,6 +298,14 @@ final class ChatStore {
 	private func startRecording() async {
 		isListenRequestInFlight = true
 		defer { isListenRequestInFlight = false }
+		if status?.transcription?.configured != true {
+			toast = AppToastState(
+				style: .error,
+				title: "No transcription model configured",
+				message: "Audio will be saved without a transcript. Choose a transcription provider to enable transcripts.",
+				action: .openSettings(navKey: "transcription")
+			)
+		}
 		do {
 			listenStatus = try await nativeAudioClient.start()
 			activityLine = "Recording audio"

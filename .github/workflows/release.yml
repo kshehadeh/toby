@@ -92,7 +92,6 @@ jobs:
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby
           codesign --force --options runtime --timestamp --sign "$identity" dist/bun
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-websearch
-          codesign --force --options runtime --timestamp --sign "$identity" dist/toby-plugin-whisper
 
           # Sign executables bundled inside Toby.app/Contents/Resources/
           # codesign --deep does NOT traverse Contents/Resources/ (non-standard
@@ -102,7 +101,6 @@ jobs:
             "$APP_RESOURCES/toby" \
             "$APP_RESOURCES/bun" \
             "$APP_RESOURCES/toby-plugin-websearch" \
-            "$APP_RESOURCES/toby-plugin-whisper" \
             "$APP_RESOURCES/toby-listener"; do
             [[ -f "$bin" ]] || continue
             codesign --force --options runtime --timestamp --sign "$identity" "$bin"
@@ -122,7 +120,6 @@ jobs:
           codesign --verify --strict --verbose=2 dist/toby
           codesign --verify --strict --verbose=2 dist/bun
           codesign --verify --strict --verbose=2 dist/toby-plugin-websearch
-          codesign --verify --strict --verbose=2 dist/toby-plugin-whisper
 
       - name: Notarize Toby.app
         if: steps.signing.outputs.enabled == 'true'

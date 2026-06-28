@@ -16,7 +16,6 @@ import { registerSessionsCommand } from "./commands/sessions";
 import { registerSkillsCommand } from "./commands/skills";
 import { registerStatusCommand } from "./commands/status";
 import { registerUpgradeCommand } from "./commands/upgrade";
-import { registerWhisperCommand } from "./commands/whisper";
 
 const program = new Command();
 const cliVersion = getTobyVersion();
@@ -40,7 +39,6 @@ registerSessionsCommand(program);
 registerSkillsCommand(program);
 registerStatusCommand(program);
 registerUpgradeCommand(program);
-registerWhisperCommand(program);
 registerListenCommand(program);
 registerPluginsCommand(program);
 registerInternalCommands(program);

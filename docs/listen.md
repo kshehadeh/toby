@@ -12,9 +12,9 @@ recording control and a separate Recordings window.
 - Record microphone, system audio, or both.
 - Save source tracks separately as PCM `wav` files.
 - Generate `combined.m4a` after listening stops for playback/transcription.
-- Generate `transcript.txt` and `transcript.json` via an installed
-  **transcription plugin** (default: `toby-plugin-whisper` / whisper.cpp) when
-  saving succeeds.
+- Generate `transcript.txt` and `transcript.json` via the built-in
+  **transcription model** (configured under **Settings → Transcription**)
+  when a provider and model are configured.
 - Write `metadata.json` next to each recording.
 
 Recordings are stored under `~/.toby/listen/recordings/<recording-id>/` by
@@ -113,7 +113,8 @@ app and CLI perspectives. The actors are:
 - **CLI / Ink** — the terminal configure UI or chat slash commands.
 - **Daemon** — the background `toby` server that runs transcription for saved
   recordings and serves the recordings API.
-- **Transcription plugin** — normally `toby-plugin-whisper` / whisper.cpp.
+- **Transcription model** — an AI-SDK transcription model (OpenAI or Groq)
+  configured under **Settings → Transcription**.
 - **Files** — the recording directory under `~/.toby/listen/recordings/<id>/`.
 
 ### App recording flow
@@ -123,7 +124,7 @@ sequenceDiagram
     actor User
     participant App as Toby.app
     participant Daemon as Daemon server
-    participant Plugin as Transcription plugin
+    participant Model as Transcription model
     participant Files as Recording files
 
     User->>App: Click "Record Audio"
@@ -139,9 +140,9 @@ sequenceDiagram
 
     App->>Daemon: POST /api/listen/recordings/:id/transcribe
     Daemon->>Files: Read combined.m4a
-    Daemon->>Plugin: doTranscription
-    Plugin->>Files: Write transcript.txt / transcript.json
-    Plugin-->>Daemon: transcript paths
+    Daemon->>Model: experimental_transcribe(model, audio)
+    Model-->>Daemon: text + segments
+    Daemon->>Files: Write transcript.txt / transcript.json
     Daemon->>Files: Update metadata.json
     Daemon-->>App: Transcription result
     App-->>User: Show success / error toast
@@ -155,7 +156,7 @@ sequenceDiagram
     participant Ink as CLI / Ink UI
     participant App as Toby.app
     participant Daemon as Daemon server
-    participant Plugin as Transcription plugin
+    participant Model as Transcription model
     participant Files as Recording files
 
     User->>Ink: toby listen (or /listen)
@@ -175,9 +176,9 @@ sequenceDiagram
 
     Ink->>Daemon: POST /api/listen/recordings/:id/transcribe
     Daemon->>Files: Read combined.m4a
-    Daemon->>Plugin: doTranscription
-    Plugin->>Files: Write transcript.txt / transcript.json
-    Plugin-->>Daemon: transcript paths
+    Daemon->>Model: experimental_transcribe(model, audio)
+    Model-->>Daemon: text + segments
+    Daemon->>Files: Write transcript.txt / transcript.json
     Daemon->>Files: Update metadata.json
     Daemon-->>Ink: Transcription result
     Ink-->>User: Show result / path
@@ -194,9 +195,7 @@ Toby.app if it is not already running, and calls the `/api/native/audio/*`
 endpoints. Audio capture, permission handling, and source-track combination
 all happen inside Toby.app's `NativeAudioHandler`.
 
-Build and release details for `whisper-cli` are documented in
-[listen-binaries.md](listen-binaries.md). For local development, build Toby.app
-from the repo root:
+For local development, build Toby.app from the repo root:
 
 ```bash
 bun run build:app
@@ -229,35 +228,36 @@ The native audio endpoints are:
 
 ## Transcription
 
-After the Swift helper combines audio into `combined.m4a`, Toby invokes the
-configured **transcription plugin** (`doTranscription` tool) through the
-daemon's saved-recording endpoint. The default plugin is
-**`toby-plugin-whisper`**, which uses whisper.cpp locally.
+After the native audio handler combines audio into `combined.m4a`, Toby
+transcribes it directly in the daemon using the AI SDK's `transcribe` with the
+provider and model configured under **Settings → Transcription**.
+
+Supported providers:
+
+- **OpenAI** — `whisper-1`, `gpt-4o-transcribe`, `gpt-4o-mini-transcribe`
+  (reuses your **AI → OpenAI** API token when no transcription-specific key
+  is set).
+- **Groq** — `whisper-large-v3-turbo`, `whisper-large-v3` (requires a Groq
+  API key entered in the Transcription section).
 
 The daemon endpoint prefers combined audio, then falls back to microphone or
 system WAV files when necessary. Input already stored as WAV is passed directly
-to the plugin; other formats are converted to whisper-compatible mono 16 kHz
-WAV on macOS before invocation.
+to the model; other formats are converted to mono 16 kHz WAV on macOS before
+invocation.
 
-The plugin writes temp transcript files; Toby copies them into the recording
-folder as:
+The daemon writes transcript artifacts into the recording folder as:
 
 - `transcript.txt` — readable transcript text.
-- `transcript.json` — optional structured payload with text, segment timing,
-  source audio path, timestamp, and locale.
+- `transcript.json` — structured payload with text, segment timing, source
+  audio path, timestamp, and locale.
 
-### Setup
+### No model configured
 
-Release installs place `toby-plugin-whisper` under `~/.toby/plugins/` and run
-plugin setup (whisper-cli + default model). Manual recovery:
-
-```bash
-toby plugins setup whisper
-```
-
-Choose the active provider under **Configuration → Listen → Transcription
-provider**, or **Configuration → Settings → Transcription Provider**. Configure
-whisper paths under **Configuration → Plugins → whisper**.
+If no transcription provider/model is configured, pressing **Record** shows a
+toast (with an **Open settings** CTA that jumps to **Settings → Transcription**)
+and the recording continues. When the recording is saved, the audio is kept and
+a note is recorded in `metadata.json`; no transcript is produced. Retry later
+with `toby listen transcribe <recording-folder>` after configuring a model.
 
 If transcription fails, Toby still saves the audio recording and records the
 error in metadata. Retry with `toby listen transcribe <recording-folder>`.

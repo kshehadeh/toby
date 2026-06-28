@@ -79,7 +79,7 @@ Release build steps:
 
 1. Matrix builds **two** signed and notarized macOS archives:
    `toby-darwin-arm64.zip` and `toby-darwin-x64.zip`.
-2. Each archive contains `toby`, `bun` (runtime for bun-package plugins), `Toby.app`, `toby-plugin-sample-ts`, `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-websearch`, `toby-plugin-applecalendar`, `toby-plugin-macos`, and `toby-plugin-whisper`.
+2. Each archive contains `toby`, `bun` (runtime for bun-package plugins), `Toby.app`, `toby-plugin-sample-ts`, `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-websearch`, `toby-plugin-applecalendar`, and `toby-plugin-macos`.
 3. Creates a **GitHub Release** for that tag and uploads those files as release assets (via `softprops/action-gh-release`).
 
 The release workflow uses the same Apple Developer secrets as DevDash:
@@ -106,15 +106,12 @@ archive with a warning. Invalid non-empty credentials fail the release instead
 of silently publishing an unexpectedly unsigned build.
 
 Local `bun run build:release` builds `dist/toby`, `dist/bun`, `dist/Toby.app`,
-`dist/toby-plugin-sample-ts`, `dist/toby-plugin-azuread`, `dist/toby-plugin-gmail`, `dist/toby-plugin-todoist`, `dist/toby-plugin-jira`, `dist/toby-plugin-slack`, `dist/toby-plugin-websearch`, `dist/toby-plugin-applecalendar`, `dist/toby-plugin-macos`, `dist/toby-plugin-whisper`, and `dist/web/`
+`dist/toby-plugin-sample-ts`, `dist/toby-plugin-azuread`, `dist/toby-plugin-gmail`, `dist/toby-plugin-todoist`, `dist/toby-plugin-jira`, `dist/toby-plugin-slack`, `dist/toby-plugin-websearch`, `dist/toby-plugin-applecalendar`, `dist/toby-plugin-macos`, and `dist/web/`
 (the built React UI). Verify staged artifacts with
 `node scripts/verify-release-artifacts.mjs release-payload`.
 Use the GitHub release workflow for signed and notarized distribution artifacts.
 
-For how the transcriber binary is built, cross-compiled in CI, and installed
-under `~/.toby/helpers/`, see [listen-binaries.md](listen-binaries.md).
-Note that `bun run build:executable` is a lighter dev build and does not include
-`whisper-cli`. It does run `build:plugins` (all first-party plugins including Web Search).
+Note that `bun run build:executable` is a lighter dev build. It does run `build:plugins` (all first-party plugins including Web Search).
 
 Ensure **Actions** permissions allow the default `GITHUB_TOKEN` to create releases for tag pushes (Repository → Settings → Actions → General → Workflow permissions → read and write).
 

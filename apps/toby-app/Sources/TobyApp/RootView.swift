@@ -403,6 +403,8 @@ struct RootView: View {
             }
         case .restartApp:
             updateStore.relaunchApp()
+        case .openSettings(let navKey):
+            openSettings(navKey: navKey)
         }
     }
 

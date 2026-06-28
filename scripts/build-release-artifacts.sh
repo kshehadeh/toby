@@ -52,11 +52,7 @@ websearch_bin="$(
 )/toby-plugin-websearch"
 cp "${websearch_bin}" dist/toby-plugin-websearch
 
-echo "Building toby-plugin-whisper with embedded whisper.cpp (${swift_arch})..."
-chmod +x scripts/build-plugin-whisper.sh
-SWIFT_ARCH="${swift_arch}" ./scripts/build-plugin-whisper.sh
-
-chmod +x dist/toby dist/bun dist/toby-plugin-websearch dist/toby-plugin-whisper
+chmod +x dist/toby dist/bun dist/toby-plugin-websearch
 
 # Create a legacy toby-listener placeholder so releases remain compatible with
 # v0.49.0 and earlier self-upgraders, which validate that the archive contains
