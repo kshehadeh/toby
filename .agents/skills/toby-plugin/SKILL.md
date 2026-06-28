@@ -18,7 +18,7 @@ into `IntegrationModule` by `@toby/core`. Two paths:
 | Path | When | Reference |
 | ---- | ---- | --------- |
 | **New plugin** | Greenfield integration, no built-in module | [`apps/plugin-sample-ts/`](../../../apps/plugin-sample-ts/) |
-| **Migration** | Replace built-in in `BUILTIN_MODULES` with plugin | [`apps/plugin-azuread/`](../../../apps/plugin-azuread/), [`apps/plugin-gmail/`](../../../apps/plugin-gmail/), [`apps/plugin-jira/`](../../../apps/plugin-jira/) (TypeScript bun-package), [`apps/plugin-todoist/`](../../../apps/plugin-todoist/) (TypeScript bun-package), [`apps/plugin-slack/`](../../../apps/plugin-slack/) (TypeScript bun-package; inbound), [`apps/plugin-websearch/`](../../../apps/plugin-websearch/) (Swift; global tool bridge in core), [`apps/plugin-applecalendar/`](../../../apps/plugin-applecalendar/) (Swift/EventKit) |
+| **Migration** | Replace built-in in `BUILTIN_MODULES` with plugin | [`apps/plugin-azuread/`](../../../apps/plugin-azuread/), [`apps/plugin-gmail/`](../../../apps/plugin-gmail/), [`apps/plugin-jira/`](../../../apps/plugin-jira/) (TypeScript bun-package), [`apps/plugin-todoist/`](../../../apps/plugin-todoist/) (TypeScript bun-package), [`apps/plugin-slack/`](../../../apps/plugin-slack/) (TypeScript bun-package; inbound), [`apps/plugin-websearch/`](../../../apps/plugin-websearch/) (Swift; global tool bridge in core), [`apps/plugin-applecalendar/`](../../../apps/plugin-applecalendar/) (TypeScript bun-package; delegates EventKit to Toby.app), [`apps/plugin-macos/`](../../../apps/plugin-macos/) (TypeScript bun-package; delegates macOS ops to Toby.app) |
 
 Read first: [`docs/plugin-protocol.md`](../../../docs/plugin-protocol.md),
 [`docs/create-integration.md`](../../../docs/create-integration.md) (migration section).

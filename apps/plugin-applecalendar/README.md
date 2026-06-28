@@ -1,6 +1,6 @@
 # Toby Apple Calendar plugin
 
-Installable integration plugin for local **Calendar.app** on macOS. Implements [plugin protocol v1](../../../docs/plugin-protocol.md).
+Installable integration plugin for local **Calendar.app** on macOS. Implements [plugin protocol v1](../../../docs/plugin-protocol.md) as a TypeScript bun-package that delegates all calendar operations to Toby.app's native API server.
 
 ## Build
 
@@ -10,13 +10,7 @@ From the repo root:
 bun run build:plugin:applecalendar
 ```
 
-Or from this directory:
-
-```bash
-swift build -c release
-```
-
-The binary is written to `../../dist/toby-plugin-applecalendar`.
+The plugin directory is copied to `../../dist/toby-plugin-applecalendar` with production dependencies.
 
 ## Install (development)
 
@@ -28,8 +22,9 @@ toby connect applecalendar
 
 ## Implementation
 
-- **Search / list / CRUD**: native **EventKit** (`EKEventStore`) where possible
-- **Fallback**: Calendar.app AppleScript for operations EventKit cannot complete (see `CalendarClient.swift`)
+- **Architecture**: TypeScript bun-package plugin that forwards all tool executions to Toby.app's native API server via HTTP
+- **Native operations**: Toby.app uses **EventKit** (`EKEventStore`) for calendar access, search, and CRUD
+- **Auto-launch**: When Toby.app is not running, the plugin auto-launches it in the background and waits for the native server to become available
 
 ## Tools
 

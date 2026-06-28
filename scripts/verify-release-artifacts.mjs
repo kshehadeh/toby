@@ -12,7 +12,6 @@ const required = [
 	"toby",
 	"bun",
 	"toby-plugin-websearch",
-	"toby-plugin-applecalendar",
 	"toby-plugin-whisper",
 ];
 
@@ -23,6 +22,7 @@ const requiredDirs = [
 	"toby-plugin-todoist",
 	"toby-plugin-email",
 	"toby-plugin-macos",
+	"toby-plugin-applecalendar",
 ];
 
 const missing = [];

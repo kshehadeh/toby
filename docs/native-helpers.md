@@ -220,7 +220,7 @@ For web search (Brave Search API), see [web-search.md](web-search.md) (`toby-plu
 
 ## Toby.app native API server
 
-Toby.app (`apps/toby-app/`) is a SwiftUI macOS app with a proper bundle identity and `Info.plist`. When running, it starts a local HTTP server for native operations that require TCC permissions (EventKit, Accessibility, microphone, system audio, and all macOS system controls). Plugins discover this server via `~/.toby/native-port` and route native calls through it. The macOS plugin (`toby-plugin-macos`) delegates all operations to this server and auto-launches Toby.app when it is not running; Apple Calendar falls back to in-process EventKit/AppleScript when the app is unavailable.
+Toby.app (`apps/toby-app/`) is a SwiftUI macOS app with a proper bundle identity and `Info.plist`. When running, it starts a local HTTP server for native operations that require TCC permissions (EventKit, Accessibility, microphone, system audio, and all macOS system controls). Plugins discover this server via `~/.toby/native-port` and route native calls through it. Both the macOS plugin (`toby-plugin-macos`) and the Apple Calendar plugin (`toby-plugin-applecalendar`) are TypeScript bun-package plugins that delegate all operations to this server and auto-launch Toby.app when it is not running.
 
 The same server also exposes audio endpoints used internally by Toby.app. Audio
 is not a plugin fallback path: the native app calls its own loopback server so
@@ -263,7 +263,7 @@ Plugins use a `NativeHelperClient` that:
 1. Reads `~/.toby/native-port` for the port number
 2. Calls `/api/native/health` to confirm Toby.app is responsive
 3. Routes the operation to Toby.app if available
-4. Falls back to current behavior: Apple Calendar falls back to in-process EventKit + AppleScript; the macOS plugin auto-launches Toby.app in the background and waits for the server to become available
+4. Both plugins auto-launch Toby.app in the background and wait for the server to become available
 
 ### Source
 
@@ -274,5 +274,5 @@ Plugins use a `NativeHelperClient` that:
 - `apps/toby-app/Sources/TobyApp/NativeServer.swift` — HTTP server using Network.framework
 - `apps/toby-app/Sources/TobyApp/NativeCalendarHandler.swift` — EventKit operations
 - `apps/toby-app/Sources/TobyApp/NativeMacOSHandler.swift` — macOS system controls and Accessibility-gated operations (Wi-Fi, Bluetooth, audio, battery, display, clipboard, windows, shortcuts)
-- `apps/plugin-applecalendar/Sources/TobyPluginAppleCalendarLib/NativeHelperClient.swift` — calendar plugin client
+- `apps/plugin-applecalendar/src/native-client.ts` — Apple Calendar plugin TypeScript client that forwards to Toby.app's native API
 - `apps/plugin-macos/src/native-client.ts` — macOS plugin TypeScript client that forwards to Toby.app's native API

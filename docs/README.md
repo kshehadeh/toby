@@ -10,7 +10,7 @@ Human- and agent-oriented docs for this repository.
 | [projects.md](projects.md) | Projects: scoped artifact collection with reference context, pinned skills, and recurring workflow support. |
 | [integrations.md](integrations.md) | `IntegrationModule`, registry API, per-integration layout. |
 | [plugin-protocol.md](plugin-protocol.md) | Installable plugin CLI contract (v1): argv subcommands, stdin/stdout, exit codes, JSON payloads, discovery. |
-| [apple-calendar.md](apple-calendar.md) | macOS Apple Calendar integration (Calendar.app, EventKit search, AppleScript CRUD). |
+| [apple-calendar.md](apple-calendar.md) | macOS Apple Calendar integration (Calendar.app, EventKit via Toby.app native API). |
 | [web-search.md](web-search.md) | Web Search plugin (`toby-plugin-websearch`): Brave Search API, global `webSearch` tool. |
 | [macos-integration.md](macos-integration.md) | Local macOS system tools via installable `toby-plugin-macos`: Wi‑Fi, Bluetooth, battery, audio, display brightness, clipboard, shortcuts. |
 | [listen.md](listen.md) | Foreground audio recording mode, macOS helper protocol, and transcription notes. |

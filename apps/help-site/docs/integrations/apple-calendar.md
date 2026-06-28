@@ -25,7 +25,8 @@ toby plugins install ./dist/toby-plugin-applecalendar --link --force
 ## Prerequisites
 
 - macOS with **Calendar.app** and at least one calendar (iCloud, Exchange, Google via CalDAV, etc.)
-- Calendar permission for **Toby.app** when the native app is available, or permission for your terminal/plugin fallback when it is not
+- **Toby.app** installed and launched (the plugin auto-launches it when not running)
+- Calendar permission granted to **Toby.app** in System Settings → Privacy & Security → Calendars
 
 ## Configure
 
@@ -43,10 +44,10 @@ toby connect applecalendar
 
 Toby runs a Calendar.app health check and stores a connected flag.
 
-When Toby.app is running, the plugin routes Calendar/EventKit calls through the
-app's native API server so macOS permission is granted to a stable app bundle.
-When Toby.app is unavailable, the plugin falls back to its command-line native
-path and may ask for terminal or automation permissions.
+The plugin delegates all calendar operations to Toby.app's native API server,
+which uses EventKit to access Calendar.app. When Toby.app is not running, the
+plugin auto-launches it in the background. Calendar permission is granted to
+Toby.app, not the plugin itself.
 
 ## Verify
 
@@ -69,7 +70,6 @@ toby disconnect applecalendar
 
 - Use exact calendar names from `listCalendars` when filtering.
 - Event UIDs are Calendar.app string identifiers returned by search or create tools.
-- Keep Toby.app running if you want Calendar permission prompts and operations to be associated with the Toby app bundle.
 
 ## Related
 

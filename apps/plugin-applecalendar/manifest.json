@@ -1,0 +1,14 @@
+{
+	"name": "applecalendar",
+	"displayName": "Apple Calendar",
+	"description": "Manage local Calendar.app on macOS — search, create, update, and delete events",
+	"version": "1.1.0",
+	"protocolVersion": "1",
+	"runtime": {
+		"type": "bun",
+		"entry": "src/index.ts"
+	},
+	"capabilities": ["chat"],
+	"providerCategories": ["calendar"],
+	"resources": ["calendars", "events"]
+}

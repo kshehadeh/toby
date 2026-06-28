@@ -21,9 +21,9 @@ Both formats implement the same **protocol v1** contract: Toby passes credential
 | **Build step** | None (install the directory directly) | Compile with `bun build --compile`, SwiftPM, etc. |
 | **Dependencies** | `package.json` + `node_modules/` (vendored or installed at install time) | Linked at compile time |
 | **Best for** | API integrations, web services, most third-party plugins | Deep macOS integrations (EventKit, Shortcuts, whisper.cpp, system APIs) |
-| **Reference** | `toby-plugin-sample-ts`, `toby-plugin-macos` | `toby-plugin-whisper`, `toby-plugin-applecalendar` |
+| **Reference** | `toby-plugin-sample-ts`, `toby-plugin-macos`, `toby-plugin-applecalendar` | `toby-plugin-whisper` |
 
-**Rule of thumb:** Use a TypeScript package plugin unless your integration needs direct access to macOS frameworks (Calendar, Contacts, Shortcuts, audio capture, etc.). Swift-based binary plugins are the right choice when you need EventKit, Foundation, or other native APIs that require a compiled binary. For macOS system controls that need TCC permissions, consider routing through Toby.app's native API server from a TypeScript plugin (as `toby-plugin-macos` does) rather than building a Swift binary.
+**Rule of thumb:** Use a TypeScript package plugin unless your integration needs direct access to macOS frameworks that cannot be routed through Toby.app's native API server (e.g. whisper.cpp audio processing). For macOS system controls and Calendar/EventKit access, route through Toby.app's native API server from a TypeScript plugin (as `toby-plugin-macos` and `toby-plugin-applecalendar` do) rather than building a Swift binary.
 
 ## TypeScript package plugins (bun-package)
 
@@ -714,7 +714,7 @@ The Toby repository includes working plugins you can copy from:
 | `toby-plugin-slack` | TypeScript package | TypeScript | Chat tools + `inbound run` (Socket Mode); `@slack/bolt` |
 | `toby-plugin-jira` | Bun-package | TypeScript | Read-only Jira REST API integration |
 | `toby-plugin-websearch` | Binary | Swift | API-key search; global `webSearch` bridge in Toby core |
-| `toby-plugin-applecalendar` | Binary | Swift | EventKit + Calendar.app |
+| `toby-plugin-applecalendar` | Bun-package | TypeScript | EventKit calendar operations via Toby.app native API |
 | `toby-plugin-macos` | Bun-package | TypeScript | macOS system controls via Toby.app native API; optional `setup` for Shortcuts |
 | `toby-plugin-whisper` | Binary | Swift | Local whisper.cpp transcription |
 

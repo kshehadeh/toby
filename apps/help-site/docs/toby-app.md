@@ -17,7 +17,7 @@ Toby.app currently has two roles:
 | Role | How it works |
 | ---- | ------------ |
 | Native user surface | Starts the daemon when needed, then calls the daemon's localhost API for status, sessions, streaming chat turns, personas, and configuration. |
-| Native permission bridge | Hosts a separate localhost native API server for macOS operations that need a stable app identity or native framework access. The macOS plugin (`toby-plugin-macos`) delegates all system control operations to this server; Apple Calendar routes EventKit through it. |
+| Native permission bridge | Hosts a separate localhost native API server for macOS operations that need a stable app identity or native framework access. Both the macOS plugin (`toby-plugin-macos`) and the Apple Calendar plugin (`toby-plugin-applecalendar`) are TypeScript bun-package plugins that delegate all operations to this server. |
 
 The app does **not** import `@toby/core` directly. It talks to Toby through HTTP
 so the CLI, web UI, daemon, and native app stay on the same behavior path.
@@ -119,9 +119,7 @@ Current native API areas:
 | Wi-Fi, Bluetooth, audio, battery, display, clipboard, shortcuts, system info | macOS plugin | Various (CoreWLAN, CoreAudio, IOBluetooth, IOKit, AppKit) |
 | Window minimize and restore | macOS plugin | Accessibility |
 
-If Toby.app is not running, the macOS plugin auto-launches it in the background.
-Apple Calendar can fall back to in-process EventKit and AppleScript when the
-app is not available.
+If Toby.app is not running, both plugins auto-launch it in the background.
 
 ## Related
 

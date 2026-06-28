@@ -504,7 +504,7 @@ export async function applyStagedRelease(
 	await installStagedPluginDirectory(pluginJiraPath, "toby-plugin-jira");
 	await installStagedPluginDirectory(pluginEmailPath, "toby-plugin-email");
 	await installStagedPluginBinary(pluginWebsearchPath, "toby-plugin-websearch");
-	await installStagedPluginBinary(
+	await installStagedPluginDirectory(
 		pluginApplecalendarPath,
 		"toby-plugin-applecalendar",
 	);
@@ -662,6 +662,7 @@ async function installStagedBunRuntime(stagingPath: string): Promise<void> {
 const REMOVED_PLUGIN_BINARIES = [
 	"toby-plugin-applemail",
 	"toby-plugin-sample",
+	"toby-plugin-applecalendar",
 	"TobyPluginMacOS_TobyPluginMacOSLib.bundle",
 ] as const;
 

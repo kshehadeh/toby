@@ -39,8 +39,8 @@ cp "${bun_bin}" dist/bun
 rm -rf dist/.bun-runtime.zip dist/.bun-runtime-tmp
 chmod +x dist/bun
 
-echo "Building bun-package plugins (sample-ts, todoist, slack, jira, email, macos)..."
-for plugin in sample-ts todoist slack jira email macos; do
+echo "Building bun-package plugins (sample-ts, todoist, slack, jira, email, macos, applecalendar)..."
+for plugin in sample-ts todoist slack jira email macos applecalendar; do
 	echo "  -> toby-plugin-${plugin}"
 	(cd "apps/plugin-${plugin}" && bash ../../scripts/copy-bun-plugin-to-dist.sh)
 done
@@ -52,18 +52,11 @@ websearch_bin="$(
 )/toby-plugin-websearch"
 cp "${websearch_bin}" dist/toby-plugin-websearch
 
-echo "Building toby-plugin-applecalendar (swift ${swift_arch})..."
-swift build -c release --arch "${swift_arch}" --package-path apps/plugin-applecalendar
-applecalendar_bin="$(
-	swift build --show-bin-path -c release --arch "${swift_arch}" --package-path apps/plugin-applecalendar
-)/toby-plugin-applecalendar"
-cp "${applecalendar_bin}" dist/toby-plugin-applecalendar
-
 echo "Building toby-plugin-whisper with embedded whisper.cpp (${swift_arch})..."
 chmod +x scripts/build-plugin-whisper.sh
 SWIFT_ARCH="${swift_arch}" ./scripts/build-plugin-whisper.sh
 
-chmod +x dist/toby dist/bun dist/toby-plugin-websearch dist/toby-plugin-applecalendar dist/toby-plugin-whisper
+chmod +x dist/toby dist/bun dist/toby-plugin-websearch dist/toby-plugin-whisper
 
 # Create a legacy toby-listener placeholder so releases remain compatible with
 # v0.49.0 and earlier self-upgraders, which validate that the archive contains

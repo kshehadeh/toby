@@ -48,11 +48,13 @@ and configuration: it bootstraps the daemon when needed, then calls the same
 localhost API used by the web UI.
 
 Toby.app also hosts a separate native API server for macOS system operations
-that require TCC permissions or native framework access. The
-Apple Calendar plugin routes EventKit calls through the app, and the
-macOS plugin (`toby-plugin-macos`, a TypeScript bun-package) delegates **all**
-native operations — Wi-Fi, Bluetooth, audio, battery, display, clipboard,
-windows, shortcuts — to the app's native API server via `~/.toby/native-port`.
+that require TCC permissions or native framework access. Both the
+Apple Calendar plugin (`toby-plugin-applecalendar`) and the
+macOS plugin (`toby-plugin-macos`) are TypeScript bun-package plugins that
+delegate **all** native operations to the app's native API server via
+`~/.toby/native-port`. The Apple Calendar plugin routes EventKit calls through
+the app; the macOS plugin handles Wi-Fi, Bluetooth, audio, battery, display,
+clipboard, windows, and shortcuts.
 
 See [Toby.app](../toby-app) for the user-facing app documentation and the source
 [native helper notes](https://github.com/kshehadeh/toby/blob/main/docs/native-helpers.md)

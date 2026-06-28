@@ -229,7 +229,7 @@ into `credentials.json` / `config.json`.
 | [`apps/plugin-jira/`](../apps/plugin-jira/) | TypeScript (bun-package) | `bun run build:plugin:jira` | No compilation needed; runs via Bun |
 | [`apps/plugin-slack/`](../apps/plugin-slack/) | TypeScript (bun-package) | `bun run build:plugin:slack` | Chat + inbound sidecar; OAuth; `@slack/bolt` |
 | [`apps/plugin-websearch/`](../apps/plugin-websearch/) | Swift (SwiftPM) | `bun run build:plugin:websearch` | API-key auth; global `webSearch` tool via core bridge |
-| [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) | Swift (SwiftPM) | `bun run build:plugin:applecalendar` | EventKit + Calendar.app AppleScript |
+| [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) | TypeScript (bun-package) | `bun run build:plugin:applecalendar` | Delegates EventKit calendar operations to Toby.app native API |
 | [`apps/plugin-macos/`](../apps/plugin-macos/) | TypeScript (bun-package) | `bun run build:plugin:macos` | Delegates macOS system ops to Toby.app native API; optional `setup` subcommand |
 | [`apps/plugin-whisper/`](../apps/plugin-whisper/) | Swift (SwiftPM) | `bun run build:plugin:whisper` | Local whisper.cpp transcription; `transcription` capability |
 

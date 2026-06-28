@@ -62,7 +62,7 @@ Each integration typically owns:
 
 **macOS** is shipped as a TypeScript (bun-package) installable plugin (`toby-plugin-macos`); see [`apps/plugin-macos/`](../apps/plugin-macos/) and [`macos-integration.md`](macos-integration.md). It is **macOS-only** and controls local system settings (Wi‑Fi, Bluetooth, battery, audio, display, clipboard, shortcuts) by delegating all native operations to **Toby.app's native API server**, which holds the TCC permissions.
 
-**Apple Calendar** is shipped as a Swift installable plugin (`toby-plugin-applecalendar`); see [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) and [`apple-calendar.md`](apple-calendar.md). It is **macOS-only** and uses native **EventKit** for search and CRUD, with Calendar.app AppleScript fallbacks when needed.
+**Apple Calendar** is shipped as a TypeScript bun-package plugin (`toby-plugin-applecalendar`); see [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) and [`apple-calendar.md`](apple-calendar.md). It is **macOS-only** and delegates all calendar operations to Toby.app's native API server, which uses **EventKit** for search and CRUD.
 
 **Web Search** ([`apps/plugin-websearch/`](../apps/plugin-websearch/), [`web-search.md`](web-search.md)) is the **Search** provider category integration (Swift plugin, Brave Search API backend): API-key auth, with a `webSearch` chat tool for web search (query, count, freshness filter). The `webSearch` tool is also wired as a **conditional global tool** — when the plugin is installed and a Brave Search API key is present in credentials, the tool is available in every chat session without needing to explicitly select the integration. Migrated from the former built-in `bravesearch` integration.
 
