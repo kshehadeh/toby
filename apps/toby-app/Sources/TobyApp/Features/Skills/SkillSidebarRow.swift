@@ -1,0 +1,35 @@
+import SwiftUI
+
+struct SkillSidebarRow: View {
+	let skill: SkillListItem
+	let isSelected: Bool
+
+	var body: some View {
+		HStack(spacing: 12) {
+			Image(systemName: "wand.and.stars")
+				.font(.system(size: 14, weight: .semibold))
+				.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.tertiaryText)
+				.frame(width: 20, height: 20)
+			VStack(alignment: .leading, spacing: 2) {
+				Text(skill.name)
+					.font(.callout.weight(.medium))
+					.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.secondaryText)
+					.lineLimit(1)
+				if let description = skill.description, !description.isEmpty {
+					Text(description)
+						.font(.caption)
+						.foregroundStyle(AppTheme.tertiaryText)
+						.lineLimit(1)
+				}
+			}
+			Spacer(minLength: 0)
+		}
+		.padding(.vertical, 8)
+		.padding(.horizontal, 10)
+		.contentShape(Rectangle())
+		.background(
+			RoundedRectangle(cornerRadius: 8)
+				.fill(isSelected ? Color.white.opacity(0.10) : Color.clear)
+		)
+	}
+}
