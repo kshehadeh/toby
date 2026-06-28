@@ -1,9 +1,16 @@
 # Toby plugin protocol (v1)
 
-Installable plugins are standalone executables or TypeScript directory packages
-that implement a fixed subcommand contract. Toby discovers them, invokes them as
-subprocesses, and adapts their responses into the same `IntegrationModule` surface
-used by first-party integrations.
+Installable plugins are TypeScript directory packages (bun-package format) or
+legacy standalone executables that implement a fixed subcommand contract. Toby
+discovers them, invokes them as subprocesses, and adapts their responses into
+the same `IntegrationModule` surface used by first-party integrations.
+
+**All new plugins must be TypeScript bun-package plugins.** Do not create
+compiled binary or Swift plugins. The only native macOS code in this repository
+is the Toby.app itself (`apps/toby-app/`). When a plugin needs macOS framework
+access (EventKit, Shortcuts, system APIs, TCC-protected resources), the
+TypeScript plugin delegates those operations to Toby.app's native API server.
+See `toby-plugin-macos` and `toby-plugin-applecalendar` for reference.
 
 Toby remains the **source of truth** for configuration and connection state.
 Plugins receive the current config on each invocation and return JSON on stdout.

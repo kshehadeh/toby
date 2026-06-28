@@ -56,7 +56,7 @@ Each integration typically owns:
 - **`prompts/`** — System/user message builders for summarize, organize, etc.
 - **`cli.ts`** (optional) — Commander registration kept out of `apps/cli/src/commands/`.
 
-**Gmail** and **Todoist** are shipped as installable plugins (`toby-plugin-gmail`, `toby-plugin-todoist`); Gmail is a compiled Bun binary, Todoist is a TypeScript bun-package plugin. See [`apps/plugin-gmail/`](../apps/plugin-gmail/) and [`apps/plugin-todoist/`](../apps/plugin-todoist/).
+**Gmail** and **Todoist** are shipped as installable plugins (`toby-plugin-email`, `toby-plugin-todoist`); both are TypeScript bun-package plugins. See [`apps/plugin-email/`](../apps/plugin-email/) and [`apps/plugin-todoist/`](../apps/plugin-todoist/).
 
 **Slack** ([`packages/core/src/integrations/slack/`](../packages/core/src/integrations/slack/)) is a representative built-in chat integration: OAuth (PKCE + user scopes on localhost) or manual bot token auth, with chat tools to search channels/users, post messages, reply in threads, and search message history. **Daemon inbound** (@mentions via Socket Mode) always requires a **bot token** (`xoxb-…`) and **app token** (`xapp-…`) in addition to OAuth user credentials—see [help-site Slack credentials](../apps/help-site/docs/integrations/slack.md#credentials-and-auth-reference).
 
@@ -108,14 +108,18 @@ For the plugin contract, see [`plugin-protocol.md`](plugin-protocol.md#setup-gui
 
 ## Installable plugins
 
-Third-party (or independently built) integrations can ship as executables named
-`toby-plugin-<name>`. Toby discovers them under `~/.toby/plugins/` (or
-`$TOBY_DIR/plugins/`), then adapts them into `IntegrationModule` instances using
-the subprocess protocol in [`plugin-protocol.md`](plugin-protocol.md).
+Third-party (or independently built) integrations ship as TypeScript bun-package
+plugins (directories named `toby-plugin-<name>/` with a `manifest.json`).
+Toby discovers them under `~/.toby/plugins/` (or `$TOBY_DIR/plugins/`), then
+adapts them into `IntegrationModule` instances using the subprocess protocol in
+[`plugin-protocol.md`](plugin-protocol.md). **All new plugins must be TypeScript
+bun-package plugins** — do not create compiled binary or Swift plugins. When
+macOS framework access is needed, delegate to Toby.app's native API server from
+the TypeScript plugin.
 
 | Command | Purpose |
 | ------- | ------- |
-| `toby plugins list` | Show discovered plugin binaries and metadata |
+| `toby plugins list` | Show discovered plugin directories and metadata |
 | `toby plugins install <path>` | Validate and copy a plugin into `~/.toby/plugins/` |
 | `toby plugins uninstall <name>` | Remove a managed plugin and purge its stored configuration |
 | `toby plugins inspect <name>` | Show plugin details and tool catalog |
@@ -123,10 +127,9 @@ the subprocess protocol in [`plugin-protocol.md`](plugin-protocol.md).
 
 Runtime code lives under [`packages/core/src/integrations/plugins/`](../packages/core/src/integrations/plugins/).
 Reference plugins: [`apps/plugin-sample-ts/`](../apps/plugin-sample-ts/) (minimal),
-[`apps/plugin-azuread/`](../apps/plugin-azuread/) and
-[`apps/plugin-gmail/`](../apps/plugin-gmail/) (full parity; shipped in release
-archives as `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`,
-`toby-plugin-applecalendar`, and `toby-plugin-macos`).
+[`apps/plugin-email/`](../apps/plugin-email/) (full parity; OAuth, auth methods),
+[`apps/plugin-slack/`](../apps/plugin-slack/) (chat + inbound sidecar). All
+first-party plugins ship in release archives as `toby-plugin-<name>` directories.
 
 Built-in modules in `MODULES` take precedence when names collide. Toby remains
 the source of truth for credentials (`credentials.json`) and connection state

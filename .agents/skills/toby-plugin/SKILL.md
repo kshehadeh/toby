@@ -2,10 +2,11 @@
 name: toby-plugin
 description: >-
   Create a new Toby installable integration plugin or migrate a built-in
-  integration from packages/core to toby-plugin-<name>. Use when the user asks
-  to build a plugin, convert an integration to a plugin, implement plugin
-  protocol v1, port azuread/gmail/slack-style modules externally, or wire
-  release/install for toby-plugin binaries.
+  integration from packages/core to toby-plugin-<name>. All new plugins must
+  be TypeScript bun-package plugins (directory with manifest.json). Use when
+  the user asks to build a plugin, convert an integration to a plugin,
+  implement plugin protocol v1, port azuread/gmail/slack-style modules
+  externally, or wire release/install for toby-plugin directories.
 ---
 
 # Toby integration plugin
@@ -18,21 +19,28 @@ into `IntegrationModule` by `@toby/core`. Two paths:
 | Path | When | Reference |
 | ---- | ---- | --------- |
 | **New plugin** | Greenfield integration, no built-in module | [`apps/plugin-sample-ts/`](../../../apps/plugin-sample-ts/) |
-| **Migration** | Replace built-in in `BUILTIN_MODULES` with plugin | [`apps/plugin-azuread/`](../../../apps/plugin-azuread/), [`apps/plugin-gmail/`](../../../apps/plugin-gmail/), [`apps/plugin-jira/`](../../../apps/plugin-jira/) (TypeScript bun-package), [`apps/plugin-todoist/`](../../../apps/plugin-todoist/) (TypeScript bun-package), [`apps/plugin-slack/`](../../../apps/plugin-slack/) (TypeScript bun-package; inbound), [`apps/plugin-applecalendar/`](../../../apps/plugin-applecalendar/) (TypeScript bun-package; delegates EventKit to Toby.app), [`apps/plugin-macos/`](../../../apps/plugin-macos/) (TypeScript bun-package; delegates macOS ops to Toby.app) |
+| **Migration** | Replace built-in in `BUILTIN_MODULES` with plugin | [`apps/plugin-email/`](../../../apps/plugin-email/), [`apps/plugin-jira/`](../../../apps/plugin-jira/) (TypeScript bun-package), [`apps/plugin-todoist/`](../../../apps/plugin-todoist/) (TypeScript bun-package), [`apps/plugin-slack/`](../../../apps/plugin-slack/) (TypeScript bun-package; inbound), [`apps/plugin-applecalendar/`](../../../apps/plugin-applecalendar/) (TypeScript bun-package; delegates EventKit to Toby.app), [`apps/plugin-macos/`](../../../apps/plugin-macos/) (TypeScript bun-package; delegates macOS ops to Toby.app) |
 
 Read first: [`docs/plugin-protocol.md`](../../../docs/plugin-protocol.md),
 [`docs/create-integration.md`](../../../docs/create-integration.md) (migration section).
 
 ## Hard rules
 
-1. Binary name: `toby-plugin-<name>` where `<name>` matches `/^[a-z0-9_-]+$/`.
-2. **Never** read or write `~/.toby/` from the plugin — config arrives on stdin;
+1. **All new plugins must be TypeScript bun-package plugins.** Do not create
+   compiled binary or Swift plugins. The only native macOS code in this
+   repository is the Toby.app itself (`apps/toby-app/`). When a plugin needs
+   macOS framework access (EventKit, Shortcuts, system APIs, TCC-protected
+   resources), the TypeScript plugin delegates those operations to Toby.app's
+   native API server. See [`toby-plugin-macos`](../../../apps/plugin-macos/)
+   and [`toby-plugin-applecalendar`](../../../apps/plugin-applecalendar/).
+2. Plugin name: `toby-plugin-<name>` where `<name>` matches `/^[a-z0-9_-]+$/`.
+3. **Never** read or write `~/.toby/` from the plugin — config arrives on stdin;
    Toby merges optional `config` writeback from responses.
-3. **stdout** = one JSON object only; stderr for human diagnostics.
-4. Exit codes: `0` success, `1` business failure, `2` contract error.
-5. Plugins cannot collide with names still in `BUILTIN_MODULES` — remove built-in
+4. **stdout** = one JSON object only; stderr for human diagnostics.
+5. Exit codes: `0` success, `1` business failure, `2` contract error.
+6. Plugins cannot collide with names still in `BUILTIN_MODULES` — remove built-in
    before installing a plugin with the same name.
-6. Chat-capable plugins **must** return `status.chatModelPrep` when
+7. Chat-capable plugins **must** return `status.chatModelPrep` when
    `capabilities` includes `"chat"`.
 
 ## Decide complexity
@@ -209,6 +217,9 @@ migration template changes.
 
 ## Common mistakes
 
+- **Creating a compiled binary or Swift plugin** — all new plugins must be
+  TypeScript bun-package plugins. If macOS framework access is needed, delegate
+  to Toby.app's native API server from a TypeScript plugin.
 - Forgetting `chatModelPrep` on chat plugins → `loadPluginMetadata` fails.
 - Reading `~/.toby/credentials.json` inside plugin → breaks protocol contract.
 - Leaving built-in in `BUILTIN_MODULES` → `builtin_collision` on install.
@@ -220,5 +231,5 @@ migration template changes.
 
 - Full parity table: [parity-checklist.md](parity-checklist.md)
 - Minimal example: [`apps/plugin-sample-ts/`](../../../apps/plugin-sample-ts/)
-- Full migration examples: [`apps/plugin-azuread/`](../../../apps/plugin-azuread/), [`apps/plugin-gmail/`](../../../apps/plugin-gmail/), [`apps/plugin-jira/`](../../../apps/plugin-jira/) (TypeScript bun-package), [`apps/plugin-todoist/`](../../../apps/plugin-todoist/) (TypeScript bun-package)
+- Full migration examples: [`apps/plugin-email/`](../../../apps/plugin-email/), [`apps/plugin-jira/`](../../../apps/plugin-jira/) (TypeScript bun-package), [`apps/plugin-todoist/`](../../../apps/plugin-todoist/) (TypeScript bun-package)
 - TypeScript bun-package plugin guide: [`.agents/skills/toby-ts-plugin/SKILL.md`](../toby-ts-plugin/SKILL.md) — manifest, directory-based build, release wiring for bun-package plugins

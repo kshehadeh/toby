@@ -5,25 +5,35 @@ title: Creating a plugin
 
 # Creating a Toby plugin
 
-Toby integrations can ship as **installable plugins**. There are two plugin formats:
+Toby integrations ship as **installable plugins**. All new plugins **must** be
+**TypeScript package plugins** (bun-package format) — a directory with a
+`manifest.json` and TypeScript entrypoint, executed via Toby's bundled Bun
+runtime. No compilation step required.
 
-- **TypeScript package plugins** (recommended for most integrations) — a directory with a `manifest.json` and TypeScript entrypoint, executed via Toby's bundled Bun runtime. No compilation step required.
-- **Binary plugins** (recommended for deep macOS integrations) — standalone compiled executables that Toby spawns directly. Language-agnostic, no runtime dependency on the host.
+The only native macOS code in the Toby repository is the Toby.app itself
+(`apps/toby-app/`). When a plugin needs macOS framework access (EventKit,
+Shortcuts, system APIs, TCC-protected resources), the TypeScript plugin
+delegates those operations to Toby.app's native API server rather than
+compiling its own native binary. See `toby-plugin-macos` and
+`toby-plugin-applecalendar` for reference.
 
 Both formats implement the same **protocol v1** contract: Toby passes credentials and session state on **stdin** and reads **JSON on stdout**. Plugins must **not** read or write `~/.toby/` directly.
 
 ## Choosing a plugin type
 
-| | TypeScript package plugin | Binary plugin |
-|--| ------------------------ | -------------- |
+| | TypeScript package plugin | Binary plugin (legacy) |
+|--| ------------------------ | ---------------------- |
 | **Format** | Directory with `manifest.json` + `.ts` entrypoint | Single compiled executable file |
 | **Runtime** | Toby's bundled Bun runtime | None — the binary is self-contained |
 | **Build step** | None (install the directory directly) | Compile with `bun build --compile`, SwiftPM, etc. |
 | **Dependencies** | `package.json` + `node_modules/` (vendored or installed at install time) | Linked at compile time |
-| **Best for** | API integrations, web services, most third-party plugins | Deep macOS integrations (EventKit, Shortcuts, system APIs) |
-| **Reference** | `toby-plugin-sample-ts`, `toby-plugin-macos`, `toby-plugin-applecalendar` | `toby-plugin-macos` (native API delegation) |
+| **Best for** | All new plugins — API integrations, web services, and macOS system controls routed through Toby.app | Existing compiled binaries only — do not create new ones |
+| **Reference** | `toby-plugin-sample-ts`, `toby-plugin-macos`, `toby-plugin-applecalendar` | (none — all migrated to bun-package) |
 
-**Rule of thumb:** Use a TypeScript package plugin unless your integration needs direct access to macOS frameworks that cannot be routed through Toby.app's native API server. For macOS system controls and Calendar/EventKit access, route through Toby.app's native API server from a TypeScript plugin (as `toby-plugin-macos` and `toby-plugin-applecalendar` do) rather than building a Swift binary.
+**Rule of thumb:** Always use a TypeScript package plugin. For macOS system
+controls and Calendar/EventKit access, route through Toby.app's native API
+server from a TypeScript plugin (as `toby-plugin-macos` and
+`toby-plugin-applecalendar` do) rather than building a native binary.
 
 ## TypeScript package plugins (bun-package)
 
@@ -105,15 +115,19 @@ Toby invokes the entrypoint with the same argv matrix as binary plugins:
 
 The JSON protocol (stdin/stdout/stderr, exit codes, subcommands) is identical to binary plugins. See the [protocol subcommands](#protocol-subcommands) section below for the full contract.
 
-## Binary plugins
+## Binary plugins (legacy)
 
-Binary plugins are standalone executables that Toby spawns directly. They are language-agnostic — any compiled binary works as long as it implements the protocol.
+Binary plugins are standalone executables that Toby spawns directly. They are
+language-agnostic — any compiled binary works as long as it implements the
+protocol. **Do not create new binary plugins.** All new plugins must be
+TypeScript package plugins. Existing binary plugins should be migrated to
+bun-package format (see the `toby-ts-plugin` skill).
 
-:::note[When to use a binary]
+:::note[Legacy format]
 
-Binary plugins are recommended when your integration needs **deep macOS integration** — direct access to system frameworks like EventKit (Calendar), Contacts, Shortcuts, or AudioToolbox. Swift-based binary plugins can use these frameworks natively.
-
-For API-based integrations (REST APIs, OAuth flows, web services), prefer TypeScript package plugins instead — they're simpler to author and don't require a compilation step.
+Binary plugins exist for historical reasons. All first-party plugins have been
+migrated to TypeScript bun-package format. For macOS framework access, use a
+TypeScript plugin that delegates to Toby.app's native API server.
 
 :::
 
@@ -696,7 +710,10 @@ toby chat --integration myapp "try my tools"
 3. Include a `package.json` for dependency management.
 4. Vendor `node_modules/` or let Toby run `bun install` at install time.
 
-### Additional steps for binary plugins
+### Additional steps for binary plugins (legacy only)
+
+**Do not create new binary plugins.** These steps apply only to maintaining
+existing compiled binaries until they are migrated to bun-package format.
 
 1. Name the binary `toby-plugin-<name>` and make it executable (`chmod +x`).
 2. Compile with `bun build --compile` (TypeScript) or SwiftPM (Swift) — the output must be a standalone executable.

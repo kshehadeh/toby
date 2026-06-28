@@ -75,7 +75,7 @@ Web Search is a **built-in feature** (not a plugin) that uses the Vercel AI Gate
 Plugins come in two formats:
 
 - **TypeScript package plugins** (recommended for most integrations) — a directory with a `manifest.json` and TypeScript entrypoint, executed via Toby's bundled Bun runtime. No compilation step required. Best for API-based integrations.
-- **Binary plugins** (for deep macOS integrations) — standalone compiled executables. Best when you need direct access to macOS frameworks like EventKit. For macOS system controls that need TCC permissions, a TypeScript plugin can delegate to Toby.app's native API server instead (as `toby-plugin-macos` does).
+- **Binary plugins** (legacy, do not create new ones) — standalone compiled executables. All new plugins must be TypeScript bun-package plugins. For macOS system controls that need TCC permissions, a TypeScript plugin delegates to Toby.app's native API server (as `toby-plugin-macos` does).
 
 Want to build your own? See **[Creating a plugin](../plugins/creating-a-plugin)** for the full protocol contract, both plugin formats, subcommand inputs/outputs, and `toby plugins` commands.
 

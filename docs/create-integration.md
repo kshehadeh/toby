@@ -90,8 +90,12 @@ Core routing, session mapping, and headless turns live in [`packages/core/src/ch
 
 To ship an integration **outside** the main Toby binary:
 
-1. Implement a standalone CLI named `toby-plugin-<name>` following [`docs/plugin-protocol.md`](plugin-protocol.md).
-2. Install the binary with `toby plugins install <path>` or copy it into `~/.toby/plugins/`.
+1. Implement a TypeScript bun-package plugin named `toby-plugin-<name>` following
+   [`docs/plugin-protocol.md`](plugin-protocol.md). All new plugins must be
+   TypeScript bun-package plugins — do not create compiled binary or Swift
+   plugins. When macOS framework access is needed, delegate to Toby.app's
+   native API server from the TypeScript plugin.
+2. Install the directory with `toby plugins install <path>` or copy it into `~/.toby/plugins/`.
 3. Run `toby plugins doctor` to validate protocol compatibility.
 
 See [`apps/plugin-sample-ts/`](../apps/plugin-sample-ts/) for a minimal reference plugin and build script (`bun run build:plugin:sample-ts`).
@@ -101,7 +105,7 @@ No changes to `MODULES` are required — discovery registers plugin-backed modul
 ## Migrating a built-in to a plugin
 
 Use this checklist when moving an existing first-party integration out of
-`packages/core/src/integrations/<name>/` (Azure AD and Gmail are reference migrations):
+`packages/core/src/integrations/<name>/` (the Email plugin is a reference migration):
 
 1. **Audit** the built-in `IntegrationModule` — lifecycle, credentials, tools,
    `chatModelPrep`, `chatReadiness`, and `testConnection({ validateTools })`.
@@ -124,5 +128,5 @@ Use this checklist when moving an existing first-party integration out of
 Reference implementations:
 
 - Minimal plugin: [`apps/plugin-sample-ts/`](../apps/plugin-sample-ts/)
-- Full parity migrations: [`apps/plugin-azuread/`](../apps/plugin-azuread/), [`apps/plugin-gmail/`](../apps/plugin-gmail/)
-- TypeScript bun-package plugin migrations: [`apps/plugin-jira/`](../apps/plugin-jira/), [`apps/plugin-gmail/`](../apps/plugin-gmail/), [`apps/plugin-azuread/`](../apps/plugin-azuread/), [`apps/plugin-slack/`](../apps/plugin-slack/)
+- Full parity migrations: [`apps/plugin-email/`](../apps/plugin-email/)
+- TypeScript bun-package plugin migrations: [`apps/plugin-jira/`](../apps/plugin-jira/), [`apps/plugin-email/`](../apps/plugin-email/), [`apps/plugin-slack/`](../apps/plugin-slack/)

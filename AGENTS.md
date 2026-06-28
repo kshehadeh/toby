@@ -50,6 +50,7 @@ When unsure: if the daemon or a headless script could call it without a terminal
 
 ## Conventions for agents
 
+- **All new plugins must be TypeScript bun-package plugins** (directory with `manifest.json` + TypeScript entrypoint, executed via Toby's bundled Bun runtime). Do not create compiled binary or Swift plugins. The only native macOS code in this repository is the Toby.app itself (`apps/toby-app/`). When a plugin needs macOS framework access (EventKit, Shortcuts, system APIs, TCC-protected resources), the TypeScript plugin delegates those operations to Toby.app's native API server rather than compiling its own native binary. See [`toby-plugin-macos`](apps/plugin-macos/) and [`toby-plugin-applecalendar`](apps/plugin-applecalendar/) for reference.
 - Prefer **integration-local** code under `packages/core/src/integrations/<name>/` (client, prompts, tools; optional `cli.ts` for integration subcommands) over new cross-cutting branches in `apps/cli/src/commands/` when the behavior belongs to one integration.
 - **Register** new integrations in [`packages/core/src/integrations/index.ts`](packages/core/src/integrations/index.ts) (`MODULES` array).
 - **Shared** commands (`connect`, `disconnect`, `status`, `summarize`, `organize`, `chat`, `configure`) live in [`apps/cli/src/commands/`](apps/cli/src/commands/) and should stay generic; they resolve behavior through the core registry and module hooks.

@@ -17,14 +17,22 @@ plugin instead of a compiled binary. The plugin ships as a directory containing
 directory, reads the manifest, and invokes the entry point via the bundled Bun
 runtime.
 
-## When to use bun-package vs binary
+## When to use bun-package
+
+**All new plugins must be TypeScript bun-package plugins.** Do not create
+compiled binary or Swift plugins. The only native macOS code in this repository
+is the Toby.app itself (`apps/toby-app/`).
+
+When a plugin needs macOS framework access (EventKit, Shortcuts, system APIs,
+TCC-protected resources), the TypeScript plugin delegates those operations to
+Toby.app's native API server rather than compiling its own native binary.
+`toby-plugin-macos` and `toby-plugin-applecalendar` are the reference
+implementations for this pattern.
 
 | Format | When | Examples |
 | ------ | ---- | -------- |
-| **Bun-package** (this skill) | API-based integrations, or macOS system controls and Calendar/EventKit routed through Toby.app's native API server | `plugin-sample-ts`, `plugin-jira`, `plugin-todoist`, `plugin-macos`, `plugin-applecalendar` (delegates EventKit to Toby.app) |
-| **Binary** (`bun build --compile` or Swift) | Deep macOS integration requiring direct framework access that cannot be routed through Toby.app | (none currently) |
-
-Prefer bun-package unless the plugin needs direct access to macOS frameworks.
+| **Bun-package** (this skill) | All new plugins — API integrations, web services, and macOS system controls routed through Toby.app's native API server | `plugin-sample-ts`, `plugin-jira`, `plugin-todoist`, `plugin-macos`, `plugin-applecalendar` |
+| **Binary** (legacy) | Existing compiled binaries only — do not create new binary plugins | (none — all migrated to bun-package) |
 
 ## Prerequisites
 

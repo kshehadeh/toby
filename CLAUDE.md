@@ -8,11 +8,24 @@ Monorepo managed with Bun workspaces and Turbo.
 apps/
   cli/          TypeScript CLI (Commander + Ink TUI) — primary harness
   web/          Vite + React settings/session UI
-  toby-app/     Native macOS app (Swift 6 / SwiftUI, macOS 14+)
-  plugin-*/     First-party plugins (TypeScript or Swift)
+  toby-app/     Native macOS app (Swift 6 / SwiftUI, macOS 14+) — only native code in the repo
+  plugin-*/     First-party plugins (all TypeScript bun-package format)
 packages/
   core/         Shared harness types and utilities
 ```
+
+## Plugin convention
+
+All new plugins **must** be TypeScript bun-package plugins (directory with
+`manifest.json` + TypeScript entrypoint, executed via Toby's bundled Bun
+runtime). Do not create compiled binary or Swift plugins. The only native
+macOS code in this repository is the Toby.app itself (`apps/toby-app/`).
+
+When a plugin needs macOS framework access (EventKit, Shortcuts, system APIs,
+TCC-protected resources), the TypeScript plugin delegates those operations to
+Toby.app's native API server rather than compiling its own native binary. See
+[`toby-plugin-macos`](apps/plugin-macos/) and
+[`toby-plugin-applecalendar`](apps/plugin-applecalendar/) for reference.
 
 ## Running the app
 
