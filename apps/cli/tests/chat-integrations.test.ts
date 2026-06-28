@@ -7,7 +7,6 @@ import { parseChatCliInput } from "@toby/core/chat-integrations";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
-const azureadCli = path.join(repoRoot, "../plugin-azuread/src/cli.ts");
 const slackCli = path.join(repoRoot, "../plugin-slack/src/cli.ts");
 const todoistPluginDir = path.join(repoRoot, "../plugin-todoist");
 const macosPluginPackageDir = path.join(repoRoot, "../plugin-macos");
@@ -65,7 +64,6 @@ describe("parseChatCliInput", () => {
 		process.env.TOBY_DIR = path.join(tempDir, "toby-home");
 		resetPluginModuleCache();
 		const pluginsDir = path.join(tempDir, "toby-home", "plugins");
-		writePluginWrapper(pluginsDir, "toby-plugin-azuread", azureadCli);
 		writePluginWrapper(pluginsDir, "toby-plugin-slack", slackCli);
 		copyTodoistPluginDir(pluginsDir);
 		installMacOSPlugin(pluginsDir);
@@ -106,13 +104,6 @@ describe("parseChatCliInput", () => {
 		expect(parseChatCliInput(["todoist"], [])).toEqual({
 			explicitNames: ["todoist"],
 			prompt: "",
-		});
-	});
-
-	it("peels azuread as integration", () => {
-		expect(parseChatCliInput(["azuread", "find", "alice"], [])).toEqual({
-			explicitNames: ["azuread"],
-			prompt: "find alice",
 		});
 	});
 

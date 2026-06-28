@@ -126,7 +126,6 @@ export function getStagingPaths(): {
 	readonly binaryPath: string;
 	readonly bunRuntimePath: string;
 	readonly pluginSampleTsPath: string;
-	readonly pluginAzureadPath: string;
 	readonly pluginTodoistPath: string;
 	readonly pluginSlackPath: string;
 	readonly pluginJiraPath: string;
@@ -148,7 +147,6 @@ export function getStagingPaths(): {
 		binaryPath: path.join(stagingDir, "toby"),
 		bunRuntimePath: path.join(stagingDir, "bun"),
 		pluginSampleTsPath: path.join(stagingDir, "toby-plugin-sample-ts"),
-		pluginAzureadPath: path.join(stagingDir, "toby-plugin-azuread"),
 		pluginTodoistPath: path.join(stagingDir, "toby-plugin-todoist"),
 		pluginSlackPath: path.join(stagingDir, "toby-plugin-slack"),
 		pluginJiraPath: path.join(stagingDir, "toby-plugin-jira"),
@@ -243,7 +241,6 @@ export async function downloadRelease(
 		binaryPath,
 		bunRuntimePath,
 		pluginSampleTsPath,
-		pluginAzureadPath,
 		pluginTodoistPath,
 		pluginSlackPath,
 		pluginJiraPath,
@@ -265,9 +262,6 @@ export async function downloadRelease(
 		await rm(binaryPath, { force: true }).catch(() => undefined);
 		await rm(bunRuntimePath, { force: true }).catch(() => undefined);
 		await rm(pluginSampleTsPath, { recursive: true, force: true }).catch(
-			() => undefined,
-		);
-		await rm(pluginAzureadPath, { recursive: true, force: true }).catch(
 			() => undefined,
 		);
 		await rm(pluginTodoistPath, { recursive: true, force: true }).catch(
@@ -489,7 +483,6 @@ export async function applyStagedRelease(
 	const {
 		bunRuntimePath,
 		pluginSampleTsPath,
-		pluginAzureadPath,
 		pluginTodoistPath,
 		pluginSlackPath,
 		pluginJiraPath,
@@ -506,7 +499,6 @@ export async function applyStagedRelease(
 		pluginSampleTsPath,
 		"toby-plugin-sample-ts",
 	);
-	await installStagedPluginDirectory(pluginAzureadPath, "toby-plugin-azuread");
 	await installStagedPluginDirectory(pluginTodoistPath, "toby-plugin-todoist");
 	await installStagedPluginDirectory(pluginSlackPath, "toby-plugin-slack");
 	await installStagedPluginDirectory(pluginJiraPath, "toby-plugin-jira");

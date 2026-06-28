@@ -217,8 +217,6 @@ export interface CredentialsFile {
 	integrations?: Record<string, Record<string, string>>;
 	/** Legacy Todoist block; migrated to integrations.todoist on plugin load. */
 	todoist?: Record<string, string>;
-	/** Legacy Azure AD block; migrated to integrations.azuread on plugin load. */
-	azuread?: Record<string, string>;
 	slack?: SlackCredentials;
 	ai?: AICredentials;
 }

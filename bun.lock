@@ -59,13 +59,6 @@
         "typescript": "~5.6.2",
       },
     },
-    "apps/plugin-azuread": {
-      "name": "@toby/plugin-azuread",
-      "version": "1.0.0",
-      "dependencies": {
-        "open": "^10.1.0",
-      },
-    },
     "apps/plugin-email": {
       "name": "@toby/plugin-email",
       "version": "1.0.0",
@@ -1258,8 +1251,6 @@
     "@toby/help-site": ["@toby/help-site@workspace:apps/help-site"],
 
     "@toby/helper-scripts": ["@toby/helper-scripts@workspace:packages/helper-scripts"],
-
-    "@toby/plugin-azuread": ["@toby/plugin-azuread@workspace:apps/plugin-azuread"],
 
     "@toby/plugin-email": ["@toby/plugin-email@workspace:apps/plugin-email"],
 

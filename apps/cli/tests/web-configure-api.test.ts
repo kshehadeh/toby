@@ -14,7 +14,6 @@ import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry
 import { handleWebRequest } from "@toby/core/web/routes";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
-const azureadCli = path.join(repoRoot, "../plugin-azuread/src/cli.ts");
 const slackCli = path.join(repoRoot, "../plugin-slack/src/cli.ts");
 
 function writePluginWrapper(
@@ -179,7 +178,6 @@ describe("web API routes", () => {
 		process.env.TOBY_DIR = path.join(tempDir, "toby-home");
 		resetPluginModuleCache();
 		const pluginDir = path.join(tempDir, "toby-home", "plugins");
-		writePluginWrapper(pluginDir, "azuread", azureadCli);
 		writePluginWrapper(pluginDir, "slack", slackCli);
 		fs.mkdirSync(path.join(tempDir, "toby-home"), { recursive: true });
 		fs.writeFileSync(
@@ -252,7 +250,6 @@ describe("web API routes", () => {
 		const body = (await res.json()) as {
 			integrationLabels: Record<string, string>;
 		};
-		expect(body.integrationLabels.azuread).toBe("Azure AD");
 		expect(body.integrationLabels.slack).toBe("Slack");
 		expect(body.integrationLabels["(none)"]).toBe("None");
 	});
@@ -344,7 +341,7 @@ describe("web API routes", () => {
 
 	it("returns integration status for a discovered integration", async () => {
 		const res = await handleWebRequest(
-			new Request("http://127.0.0.1/api/integrations/azuread/status"),
+			new Request("http://127.0.0.1/api/integrations/slack/status"),
 			null,
 		);
 		expect(res.status).toBe(200);
@@ -356,8 +353,8 @@ describe("web API routes", () => {
 			supportsSetup: boolean;
 			health: { ok: boolean; details: string };
 		};
-		expect(body.name).toBe("azuread");
-		expect(body.displayName).toBe("Azure AD");
+		expect(body.name).toBe("slack");
+		expect(body.displayName).toBe("Slack");
 		expect(typeof body.connected).toBe("boolean");
 		expect(
 			body.pluginPath === null || typeof body.pluginPath === "string",
@@ -379,7 +376,7 @@ describe("web API routes", () => {
 
 	it("handles disconnect for a non-connected integration", async () => {
 		const res = await handleWebRequest(
-			new Request("http://127.0.0.1/api/integrations/azuread/disconnect", {
+			new Request("http://127.0.0.1/api/integrations/slack/disconnect", {
 				method: "POST",
 			}),
 			null,
@@ -390,7 +387,7 @@ describe("web API routes", () => {
 
 	it("returns setup guide for a discovered integration", async () => {
 		const res = await handleWebRequest(
-			new Request("http://127.0.0.1/api/integrations/azuread/setup-guide"),
+			new Request("http://127.0.0.1/api/integrations/slack/setup-guide"),
 			null,
 		);
 		expect(res.status).toBe(200);
@@ -401,8 +398,8 @@ describe("web API routes", () => {
 			steps: Array<{ id: string; title: string }>;
 		};
 		expect(body.ok).toBe(true);
-		expect(body.name).toBe("azuread");
-		expect(body.displayName).toBe("Azure AD");
+		expect(body.name).toBe("slack");
+		expect(body.displayName).toBe("Slack");
 		expect(body.steps.length).toBeGreaterThan(0);
 		expect(body.steps.map((s) => s.id)).toContain("overview");
 		expect(body.steps.map((s) => s.id)).toContain("credentials");

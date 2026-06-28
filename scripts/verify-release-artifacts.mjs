@@ -19,7 +19,6 @@ const required = [
 
 const requiredDirs = [
 	"toby-plugin-sample-ts",
-	"toby-plugin-azuread",
 	"toby-plugin-slack",
 	"toby-plugin-jira",
 	"toby-plugin-todoist",
