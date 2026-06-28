@@ -152,7 +152,7 @@ gmail summarize unread messages from this week
 Toby includes two tools for accessing web content in chat—no explicit integration selection needed:
 
 - **`fetchWebContent`** — Always available. Fetches a URL and extracts the main readable article content (strips ads, navigation, footers). Use when you share a URL or ask Toby to read a page.
-- **`webSearch`** — Available when Web Search is enabled in Settings and the persona uses the Vercel AI Gateway. Searches the web via Perplexity and returns titles, URLs, and snippets. Use when you ask Toby to look something up, research a topic, or find current information.
+- **`webSearch`** — Available when Web Search is enabled in Settings and a Vercel AI Gateway API key is configured. Searches the web via Perplexity and returns titles, URLs, and snippets. Works with any persona AI provider. Use when you ask Toby to look something up, research a topic, or find current information.
 
 Toby automatically routes to the right tool based on your request. If you ask to "search the web for …" it uses `webSearch`; if you share a URL it uses `fetchWebContent`. You can combine both: search first, then read a result.
 

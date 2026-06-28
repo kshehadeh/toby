@@ -9,22 +9,20 @@ Search the web from chat using **Perplexity** through the **Vercel AI Gateway**.
 
 ## How it works
 
-Web search uses the AI Gateway's built-in Perplexity search tool. The gateway executes the search server-side during model generation and returns titles, URLs, snippets, and optional dates. No separate API key is needed — web search reuses your existing Vercel AI Gateway API key.
+Web search uses the AI Gateway's built-in Perplexity search tool. When the model calls `webSearch`, Toby makes a separate lightweight call to the Vercel AI Gateway using `openai/gpt-4.1-mini` with the Perplexity search tool, then returns titles, URLs, snippets, and optional dates to your chat. No separate API key is needed — web search reuses your existing Vercel AI Gateway API key.
 
-**Important:** Web search is only active when your persona's **AI Provider** is set to **Vercel AI Gateway** (model slug like `openai/gpt-4.1-mini`). When using OpenAI or Ollama directly, the gateway cannot execute the search tool.
+Because the search runs in its own gateway call (not in your persona's model turn), **web search works with any persona AI provider** — OpenAI, Ollama, or the Vercel AI Gateway. Your persona's AI provider does not need to be the gateway.
 
 ## Prerequisites
 
 - A **Vercel AI Gateway API key** (see [AI settings](../getting-started/configure-and-status))
-- Persona AI provider set to **Vercel AI Gateway**
 
 ## Configure
 
 1. Open **Settings → AI → Vercel AI Gateway** and enter your API key.
-2. Set your persona's **AI Provider** to **Vercel AI Gateway**.
-3. Open **Settings → Web Search** and set **Enabled** to **On**.
+2. Open **Settings → Web Search** and set **Enabled** to **On**.
 
-No separate web search API key is required.
+No separate web search API key is required. Your persona's AI provider can be anything.
 
 ## Using web search in chat
 
