@@ -64,7 +64,7 @@ Each integration typically owns:
 
 **Apple Calendar** is shipped as a TypeScript bun-package plugin (`toby-plugin-applecalendar`); see [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) and [`apple-calendar.md`](apple-calendar.md). It is **macOS-only** and delegates all calendar operations to Toby.app's native API server, which uses **EventKit** for search and CRUD.
 
-**Web Search** ([`apps/plugin-websearch/`](../apps/plugin-websearch/), [`web-search.md`](web-search.md)) is the **Search** provider category integration (Swift plugin, Brave Search API backend): API-key auth, with a `webSearch` chat tool for web search (query, count, freshness filter). The `webSearch` tool is also wired as a **conditional global tool** — when the plugin is installed and a Brave Search API key is present in credentials, the tool is available in every chat session without needing to explicitly select the integration. Migrated from the former built-in `bravesearch` integration.
+**Web Search** ([`web-search.md`](web-search.md)) is a built-in (non-plugin) feature that uses the Vercel AI Gateway's Perplexity search: `webSearch` chat tool for web search. The `webSearch` tool is a **conditional global tool** — when enabled in Settings → Web Search and the persona uses the Vercel AI Gateway, the tool is available in every chat session. No separate API key needed; reuses the AI Gateway key.
 
 **Jira** is shipped as a TypeScript (bun-package) installable plugin (`toby-plugin-jira`); see [`apps/plugin-jira/`](../apps/plugin-jira/). It is the **Work Tracker** provider category integration: Atlassian domain + email + API-token auth, with read-only chat tools to search Jira issues with JQL (`searchJiraIssues`), fetch full issue details (`getJiraIssue`), read issue comments (`getJiraIssueComments`), and list accessible projects (`listJiraProjects`).
 
@@ -125,7 +125,7 @@ Runtime code lives under [`packages/core/src/integrations/plugins/`](../packages
 Reference plugins: [`apps/plugin-sample-ts/`](../apps/plugin-sample-ts/) (minimal),
 [`apps/plugin-azuread/`](../apps/plugin-azuread/) and
 [`apps/plugin-gmail/`](../apps/plugin-gmail/) (full parity; shipped in release
-archives as `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-websearch`,
+archives as `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`,
 `toby-plugin-applecalendar`, and `toby-plugin-macos`).
 
 Built-in modules in `MODULES` take precedence when names collide. Toby remains

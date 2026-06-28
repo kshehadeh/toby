@@ -21,7 +21,7 @@ Both formats implement the same **protocol v1** contract: Toby passes credential
 | **Build step** | None (install the directory directly) | Compile with `bun build --compile`, SwiftPM, etc. |
 | **Dependencies** | `package.json` + `node_modules/` (vendored or installed at install time) | Linked at compile time |
 | **Best for** | API integrations, web services, most third-party plugins | Deep macOS integrations (EventKit, Shortcuts, system APIs) |
-| **Reference** | `toby-plugin-sample-ts`, `toby-plugin-macos`, `toby-plugin-applecalendar` | `toby-plugin-websearch` |
+| **Reference** | `toby-plugin-sample-ts`, `toby-plugin-macos`, `toby-plugin-applecalendar` | `toby-plugin-macos` (native API delegation) |
 
 **Rule of thumb:** Use a TypeScript package plugin unless your integration needs direct access to macOS frameworks that cannot be routed through Toby.app's native API server. For macOS system controls and Calendar/EventKit access, route through Toby.app's native API server from a TypeScript plugin (as `toby-plugin-macos` and `toby-plugin-applecalendar` do) rather than building a Swift binary.
 
@@ -713,7 +713,6 @@ The Toby repository includes working plugins you can copy from:
 | `toby-plugin-azuread` | TypeScript package | TypeScript | Full parity migration example |
 | `toby-plugin-slack` | TypeScript package | TypeScript | Chat tools + `inbound run` (Socket Mode); `@slack/bolt` |
 | `toby-plugin-jira` | Bun-package | TypeScript | Read-only Jira REST API integration |
-| `toby-plugin-websearch` | Binary | Swift | API-key search; global `webSearch` bridge in Toby core |
 | `toby-plugin-applecalendar` | Bun-package | TypeScript | EventKit calendar operations via Toby.app native API |
 | `toby-plugin-macos` | Bun-package | TypeScript | macOS system controls via Toby.app native API; optional `setup` for Shortcuts |
 
@@ -722,10 +721,6 @@ Build and install examples from a git clone:
 ```bash
 # TypeScript package plugin (no build step needed)
 toby plugins install ./apps/plugin-sample-ts --link --force
-
-# Binary plugin (requires build step)
-bun run build:plugin:websearch
-toby plugins install ./dist/toby-plugin-websearch --link --force
 
 toby plugins doctor
 ```

@@ -22,7 +22,7 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | [`docs/ai-caching.md`](docs/ai-caching.md) | Provider prompt caching adapters, stable cache keys, and token telemetry. |
 | [`docs/ui.md`](docs/ui.md) | Shared Ink UI components, visual conventions, and shortcut conventions. |
 | [`docs/macos-integration.md`](docs/macos-integration.md) | Local macOS system control: Wi‑Fi, battery/audio, shortcuts, optional Homebrew helpers. |
-| [`docs/web-search.md`](docs/web-search.md) | Web Search plugin (`toby-plugin-websearch`): Brave Search API backend, global `webSearch` tool. |
+| [`docs/web-search.md`](docs/web-search.md) | Web Search via AI Gateway Perplexity: built-in global `webSearch` tool, config. |
 | [`docs/listen.md`](docs/listen.md) | Foreground audio recording mode and macOS audio helper protocol. |
 | [`docs/native-helpers.md`](docs/native-helpers.md) | Pattern for adding native helper executables that bridge Toby to platform APIs. |
 | [`docs/build-executable.md`](docs/build-executable.md) | Optional **Bun** single-file `dist/toby` binary (`bun run build:executable`). |

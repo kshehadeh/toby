@@ -216,7 +216,7 @@ See [listen.md](listen.md) for the command-specific recording behavior.
 
 For macOS system tools, see [macos-integration.md](macos-integration.md) (`toby-plugin-macos`).
 
-For web search (Brave Search API), see [web-search.md](web-search.md) (`toby-plugin-websearch`).
+For web search (AI Gateway Perplexity), see [web-search.md](web-search.md).
 
 ## Toby.app native API server
 

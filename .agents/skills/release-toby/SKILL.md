@@ -49,7 +49,6 @@ Each archive must contain:
 - `toby-plugin-todoist` (directory)
 - `toby-plugin-jira` (directory)
 - `toby-plugin-slack` (directory)
-- `toby-plugin-websearch`
 - `toby-plugin-applecalendar` (directory)
 - `toby-plugin-macos` (directory)
 - `web/` (built web UI)

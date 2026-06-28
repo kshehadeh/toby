@@ -96,6 +96,7 @@ const SETTINGS_SECTION_KEYS = [
 	"defaults",
 	"ai",
 	"transcription",
+	"webSearch",
 	"projects",
 ];
 

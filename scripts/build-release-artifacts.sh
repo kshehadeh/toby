@@ -45,14 +45,7 @@ for plugin in sample-ts todoist slack jira email macos applecalendar; do
 	(cd "apps/plugin-${plugin}" && bash ../../scripts/copy-bun-plugin-to-dist.sh)
 done
 
-echo "Building toby-plugin-websearch (swift ${swift_arch})..."
-swift build -c release --arch "${swift_arch}" --package-path apps/plugin-websearch
-websearch_bin="$(
-	swift build --show-bin-path -c release --arch "${swift_arch}" --package-path apps/plugin-websearch
-)/toby-plugin-websearch"
-cp "${websearch_bin}" dist/toby-plugin-websearch
-
-chmod +x dist/toby dist/bun dist/toby-plugin-websearch
+chmod +x dist/toby dist/bun
 
 # Create a legacy toby-listener placeholder so releases remain compatible with
 # v0.49.0 and earlier self-upgraders, which validate that the archive contains

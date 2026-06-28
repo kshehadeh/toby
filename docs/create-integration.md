@@ -126,4 +126,3 @@ Reference implementations:
 - Minimal plugin: [`apps/plugin-sample-ts/`](../apps/plugin-sample-ts/)
 - Full parity migrations: [`apps/plugin-azuread/`](../apps/plugin-azuread/), [`apps/plugin-gmail/`](../apps/plugin-gmail/)
 - TypeScript bun-package plugin migrations: [`apps/plugin-jira/`](../apps/plugin-jira/), [`apps/plugin-gmail/`](../apps/plugin-gmail/), [`apps/plugin-azuread/`](../apps/plugin-azuread/), [`apps/plugin-slack/`](../apps/plugin-slack/)
-- Swift plugin migrations: [`apps/plugin-websearch/`](../apps/plugin-websearch/) (built-in `bravesearch` → plugin; global tool bridge in core)

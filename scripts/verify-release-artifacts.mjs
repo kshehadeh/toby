@@ -10,7 +10,6 @@ const directory = path.resolve(process.argv[2] ?? "release-payload");
 const required = [
 	"toby",
 	"bun",
-	"toby-plugin-websearch",
 ];
 
 const requiredDirs = [
@@ -92,7 +91,6 @@ const appResourceChecks = [
 	"bun",
 	"web/index.html",
 	"icons/ai/openai.png",
-	"toby-plugin-websearch",
 ];
 for (const resource of appResourceChecks) {
 	const resourcePath = path.join(appResources, resource);

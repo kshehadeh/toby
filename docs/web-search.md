@@ -1,55 +1,44 @@
-# Web Search integration
+# Web Search
 
-First-party integration id: **`websearch`**, shipped as the Swift installable plugin **`toby-plugin-websearch`** ([`apps/plugin-websearch/`](../apps/plugin-websearch/)). Release archives and `install-toby.sh` install it under `~/.toby/plugins/`.
+Built-in web search via the **Vercel AI Gateway's Perplexity search**. No plugin required.
 
-## Backend
+## How it works
 
-Web search uses the [Brave Search API](https://brave.com/search/api/). Toby sends your API key as the `X-Subscription-Token` header. The integration is named **Web Search** in the UI; Brave is the search provider, not the integration name.
+Web search uses `gateway.tools.perplexitySearch()` from the AI SDK — a provider-executed tool that the Vercel AI Gateway runs server-side during model generation. The gateway sends the search query to Perplexity and returns titles, URLs, snippets, and optional dates.
+
+Because the tool is provider-executed, **web search is only active when the persona's AI provider is set to Vercel AI Gateway**. When the persona uses OpenAI or Ollama directly, the gateway cannot execute the tool and web search is unavailable.
 
 ## Setup
 
-1. Get a Brave Search API key from the [Brave Search API dashboard](https://api.search.brave.com/app/dashboard).
-2. Run **`toby configure`** → **Integrations → Web Search** → enter **Brave Search API Key**.
-3. Run **`toby connect websearch`** to validate the key and mark the integration connected.
+1. Configure a **Vercel AI Gateway API key** under **Settings → AI → Vercel AI Gateway**.
+2. Set the persona's **AI Provider** to **Vercel AI Gateway** (model slug like `openai/gpt-4.1-mini`).
+3. Enable **Settings → Web Search → Enabled**.
 
-From source:
+No separate API key is needed — web search reuses the existing Vercel AI Gateway key.
 
-```bash
-bun run build:plugin:websearch
-toby plugins install ./dist/toby-plugin-websearch --link --force
-toby plugins doctor
-```
+## Configuration
+
+| Setting | Key | Description |
+| ------- | --- | ----------- |
+| Provider | `webSearch.provider` | Search provider (currently `ai-gateway` only). |
+| Enabled | `webSearch.enabled` | Toggle web search on/off. |
 
 ## Chat tool
 
 | Tool | Purpose |
 | ---- | ------- |
-| `webSearch` | Search the web. Returns titles, URLs, descriptions, and optional page age. Supports `count` (1–20) and `freshness` (`pd`, `pw`, `pm`, `py`). |
+| `webSearch` | Search the web via Perplexity through the AI Gateway. Returns titles, URLs, snippets, and optional dates. The model generates inputs matching the Perplexity search schema (`query`, `max_results`, `search_recency_filter`, `country`, etc.). |
 
-`webSearch` is a **conditional global tool**: when the plugin is installed and an API key is configured, it is available in **every** chat session without selecting `--integration websearch`. Global wiring lives in [`packages/core/src/ai/web-search-global-tools.ts`](../packages/core/src/ai/web-search-global-tools.ts).
+`webSearch` is a **conditional global tool**: when enabled and the persona uses the Vercel AI Gateway, it is available in every chat session. Global wiring lives in [`packages/core/src/ai/web-search-global-tools.ts`](../packages/core/src/ai/web-search-global-tools.ts).
 
 Combine with the always-available **`fetchWebContent`** tool to read full articles from result URLs.
-
-## Provider category
-
-`websearch` declares `providerCategories: ["search"]`. Use **`toby configure`** to set a default search provider when multiple search integrations exist.
-
-## Migration from `bravesearch`
-
-The built-in `bravesearch` integration was removed in favor of this plugin. On startup, Toby migrates:
-
-- `credentials.integrations.bravesearch` → `credentials.integrations.websearch`
-- `config.integrations.bravesearch` connected state → `config.integrations.websearch`
-
-CLI commands are now `toby connect websearch`, `toby status integration -i websearch`, and `toby disconnect websearch`.
 
 ## Architecture
 
 | Layer | Location |
 | ----- | -------- |
-| Swift plugin (API client, tools, protocol) | [`apps/plugin-websearch/`](../apps/plugin-websearch/) |
-| Plugin adapter (discovery, configure, chat) | [`packages/core/src/integrations/plugins/`](../packages/core/src/integrations/plugins/) |
-| Global `webSearch` tool bridge | [`packages/core/src/ai/web-search-global-tools.ts`](../packages/core/src/ai/web-search-global-tools.ts) |
-| Legacy credential migration | [`packages/core/src/integrations/plugins/migrate.ts`](../packages/core/src/integrations/plugins/migrate.ts) |
-
-User-facing setup: [help-site Web Search](../apps/help-site/docs/integrations/web-search.md).
+| Provider registry | [`packages/core/src/ai/web-search-providers.ts`](../packages/core/src/ai/web-search-providers.ts) |
+| Global `webSearch` tool (gateway provider tool) | [`packages/core/src/ai/web-search-global-tools.ts`](../packages/core/src/ai/web-search-global-tools.ts) |
+| Config schema (`WebSearchConfig`) | [`packages/core/src/config/index.ts`](../packages/core/src/config/index.ts) |
+| Configure tree (Web Search section) | [`packages/core/src/configure/tree.ts`](../packages/core/src/configure/tree.ts) |
+| Configure persistence | [`packages/core/src/configure/persistence.ts`](../packages/core/src/configure/persistence.ts) |

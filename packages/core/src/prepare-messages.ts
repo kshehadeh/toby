@@ -223,6 +223,7 @@ ${lines.join("\n")}`;
 function buildCombinedChatBasePrompt(
 	modules: readonly IntegrationModule[],
 	project?: Project | null,
+	persona?: Persona | null,
 ): string {
 	const labels = modules.map((m) => m.displayName).join(", ");
 	const integrationBlocks = modules
@@ -231,10 +232,10 @@ function buildCombinedChatBasePrompt(
 		.join("\n\n");
 	const defaultsSection = buildDefaultProvidersSection();
 
-	const hasSearch = isWebSearchAvailable();
+	const hasSearch = isWebSearchAvailable(persona);
 	const searchToolsList = hasSearch ? ", **webSearch**" : "";
 	const searchRule = hasSearch
-		? "\n- **Web search**: When the user asks about current events, facts, research, or anything requiring up-to-date information, use **webSearch** to find results. When the user shares a URL or asks to read a page, use **fetchWebContent** to extract the article content. Never claim knowledge about current events without searching first."
+		? "\n- **Web search**: When the user asks about current events, facts, research, or anything requiring up-to-date information, use **webSearch** (Perplexity via AI Gateway) to find results. When the user shares a URL or asks to read a page, use **fetchWebContent** to extract the article content. Never claim knowledge about current events without searching first."
 		: "";
 	return `You are Toby, a personal assistant with access to: **${labels}**.
 
@@ -246,7 +247,7 @@ Shared rules:
 - When listing emails, tasks, or options in assistant text, prefer markdown list items (\`- item\`) with one item per line.${searchRule}
 ${defaultsSection ? `\n${defaultsSection}\n` : ""}
 ${integrationBlocks}
-${globalChatToolsPromptSection(project)}
+${globalChatToolsPromptSection(project, persona)}
 `;
 }
 
@@ -355,7 +356,7 @@ export async function prepareChatSessionMessages(
 
 	await report("Assembling combined session prompt…");
 	const systemContent = composeSystemPromptWithPersona(
-		buildCombinedChatBasePrompt(modules, project),
+		buildCombinedChatBasePrompt(modules, project, persona),
 		persona,
 	);
 
@@ -440,7 +441,7 @@ export async function replaceSessionSystemMessageForPersona(
 	}
 
 	const systemContent = composeSystemPromptWithPersona(
-		buildCombinedChatBasePrompt(modules, project),
+		buildCombinedChatBasePrompt(modules, project, persona),
 		persona,
 	);
 

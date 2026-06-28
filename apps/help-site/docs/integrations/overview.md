@@ -41,9 +41,9 @@ Integrations connect Toby to your email, tasks, chat, contacts, and calendar. On
 		<span className="integrationIconMeta">System controls · <code>macos</code></span>
 	</a>
 	<a className="integrationIconCard" href="./web-search">
-		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/brave/FB542B" alt="" /></span>
+		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/perplexity/20808D" alt="" /></span>
 		<span className="integrationIconName">Web Search</span>
-		<span className="integrationIconMeta">Search · <code>websearch</code></span>
+		<span className="integrationIconMeta">Search · AI Gateway</span>
 	</a>
 	<a className="integrationIconCard" href="./jira">
 		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/jira/0052CC" alt="" /></span>
@@ -68,7 +68,9 @@ On macOS, open **Toby.app** and use the **Setup Guide** button on any integratio
 
 ## Installable plugins
 
-Gmail, Azure AD, Todoist, Jira, Slack, Web Search, Apple Calendar, macOS, and other first-party integrations ship as **plugins** bundled in release archives. Fresh installs (`install-toby.sh`) and `toby upgrade` copy them into `~/.toby/plugins/` automatically—no manual `toby plugins install` step is required for release users. The sample plugin (`toby-plugin-sample-ts`) is also installed for reference and testing.
+Gmail, Azure AD, Todoist, Jira, Slack, Apple Calendar, macOS, and other first-party integrations ship as **plugins** bundled in release archives. Fresh installs (`install-toby.sh`) and `toby upgrade` copy them into `~/.toby/plugins/` automatically—no manual `toby plugins install` step is required for release users. The sample plugin (`toby-plugin-sample-ts`) is also installed for reference and testing.
+
+Web Search is a **built-in feature** (not a plugin) that uses the Vercel AI Gateway's Perplexity search. See [Web Search](./web-search) for setup.
 
 Plugins come in two formats:
 
@@ -108,7 +110,6 @@ Each integration declares one or more **provider categories**. A category descri
 | Todoist | `todoist` | `tasks` |
 | Azure AD | `azuread` | `contacts` |
 | Slack | `slack` | `chat` |
-| Web Search | `websearch` | `search` |
 | Jira | `jira` | `work_tracker` |
 
 Only **email** currently has one first-party integration in that category (Gmail). Defaults become important when you connect multiple integrations in the same category or when you want schedules to target a specific provider.
@@ -151,7 +152,7 @@ gmail summarize unread messages from this week
 Toby includes two tools for accessing web content in chat—no explicit integration selection needed:
 
 - **`fetchWebContent`** — Always available. Fetches a URL and extracts the main readable article content (strips ads, navigation, footers). Use when you share a URL or ask Toby to read a page.
-- **`webSearch`** — Available when Web Search is configured (Brave Search API key). Searches the web and returns titles, URLs, and descriptions. Use when you ask Toby to look something up, research a topic, or find current information.
+- **`webSearch`** — Available when Web Search is enabled in Settings and the persona uses the Vercel AI Gateway. Searches the web via Perplexity and returns titles, URLs, and snippets. Use when you ask Toby to look something up, research a topic, or find current information.
 
 Toby automatically routes to the right tool based on your request. If you ask to "search the web for …" it uses `webSearch`; if you share a URL it uses `fetchWebContent`. You can combine both: search first, then read a result.
 

@@ -228,7 +228,6 @@ into `credentials.json` / `config.json`.
 | [`apps/plugin-todoist/`](../apps/plugin-todoist/) | TypeScript (bun-package) | `bun run build:plugin:todoist` | API key auth, task tools; vendored `@doist/todoist-sdk` |
 | [`apps/plugin-jira/`](../apps/plugin-jira/) | TypeScript (bun-package) | `bun run build:plugin:jira` | No compilation needed; runs via Bun |
 | [`apps/plugin-slack/`](../apps/plugin-slack/) | TypeScript (bun-package) | `bun run build:plugin:slack` | Chat + inbound sidecar; OAuth; `@slack/bolt` |
-| [`apps/plugin-websearch/`](../apps/plugin-websearch/) | Swift (SwiftPM) | `bun run build:plugin:websearch` | API-key auth; global `webSearch` tool via core bridge |
 | [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) | TypeScript (bun-package) | `bun run build:plugin:applecalendar` | Delegates EventKit calendar operations to Toby.app native API |
 | [`apps/plugin-macos/`](../apps/plugin-macos/) | TypeScript (bun-package) | `bun run build:plugin:macos` | Delegates macOS system ops to Toby.app native API; optional `setup` subcommand |
 
@@ -517,7 +516,7 @@ When `status` receives a config envelope, return readiness for the chat picker:
 ```
 
 Reference: [`apps/plugin-azuread/`](../apps/plugin-azuread/), [`apps/plugin-gmail/`](../apps/plugin-gmail/),
-[`apps/plugin-jira/`](../apps/plugin-jira/) (TypeScript bun-package), [`apps/plugin-slack/`](../apps/plugin-slack/) (chat + inbound sidecar), and [`apps/plugin-websearch/`](../apps/plugin-websearch/) (Swift API-key migration). See
+[`apps/plugin-jira/`](../apps/plugin-jira/) (TypeScript bun-package), [`apps/plugin-slack/`](../apps/plugin-slack/) (chat + inbound sidecar). See
 [Migrating a built-in to a plugin](create-integration.md#migrating-a-built-in-to-a-plugin).
 
 ### Plugin setup
@@ -715,7 +714,7 @@ an unsupported protocol version.
 
 See the [reference implementations](#reference-implementations) table above.
 Release archives include the sample plugin plus first-party integrations
-(`toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-websearch`, `toby-plugin-applecalendar`, `toby-plugin-macos`);
+(`toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-applecalendar`, `toby-plugin-macos`);
 `install-toby.sh` and `toby upgrade` install them into `~/.toby/plugins/`.
 
 ## Installing plugins

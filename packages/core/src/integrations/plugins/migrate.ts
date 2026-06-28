@@ -47,7 +47,6 @@ export function migrateLegacyPluginCredentials(): void {
 	}
 
 	migratePrefixedIntegrationCredentialKeys();
-	migrateBraveSearchToWebSearch();
 	migrateRetiredIntegrations();
 }
 
@@ -91,60 +90,28 @@ function migratePrefixedIntegrationCredentialKeys(): void {
 	}
 }
 
-/** Rename legacy bravesearch credentials/config to websearch. */
-function migrateBraveSearchToWebSearch(): void {
-	const creds = readCredentials();
-	const integrations = { ...(creds.integrations ?? {}) };
-	let credsChanged = false;
-
-	const legacyBrave = integrations.bravesearch;
-	const existingWeb = integrations.websearch;
-	if (
-		legacyBrave &&
-		Object.keys(legacyBrave).length > 0 &&
-		(!existingWeb || Object.keys(existingWeb).length === 0)
-	) {
-		integrations.websearch = { ...legacyBrave };
-		Reflect.deleteProperty(integrations, "bravesearch");
-		credsChanged = true;
-	}
-
-	if (credsChanged) {
-		writeCredentials({
-			...creds,
-			integrations,
-		});
-	}
-
-	const config = readConfig();
-	const configIntegrations = config.integrations;
-	if (!configIntegrations?.bravesearch) {
-		return;
-	}
-
-	const nextIntegrations = { ...configIntegrations };
-	if (!nextIntegrations.websearch) {
-		nextIntegrations.websearch = { ...configIntegrations.bravesearch };
-	}
-	Reflect.deleteProperty(nextIntegrations, "bravesearch");
-	writeConfig({
-		...config,
-		integrations: nextIntegrations,
-	});
-}
-
 /** Drop config entries for integrations removed from the product. */
 function migrateRetiredIntegrations(): void {
 	const config = readConfig();
 	const integrations = config.integrations;
-	if (!integrations?.applemail) {
+	if (!integrations?.applemail && !integrations?.websearch && !integrations?.bravesearch) {
 		return;
 	}
 
 	const nextIntegrations = { ...integrations };
 	Reflect.deleteProperty(nextIntegrations, "applemail");
+	Reflect.deleteProperty(nextIntegrations, "websearch");
+	Reflect.deleteProperty(nextIntegrations, "bravesearch");
 	writeConfig({
 		...config,
 		integrations: nextIntegrations,
 	});
+
+	const creds = readCredentials();
+	const credIntegrations = creds.integrations;
+	if (!credIntegrations?.websearch && !credIntegrations?.bravesearch) return;
+	const nextCredIntegrations = { ...credIntegrations };
+	Reflect.deleteProperty(nextCredIntegrations, "websearch");
+	Reflect.deleteProperty(nextCredIntegrations, "bravesearch");
+	writeCredentials({ ...creds, integrations: nextCredIntegrations });
 }

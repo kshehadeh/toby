@@ -4,6 +4,7 @@ import {
 	type CredentialsFile,
 	type Persona,
 	type TranscriptionConfig,
+	type WebSearchConfig,
 	readConfig,
 	readCredentials,
 	writeConfig,
@@ -179,6 +180,12 @@ export function seedConfigureValues(
 			}
 		}
 	}
+	if (config.webSearch) {
+		values["webSearch.provider"] = config.webSearch.provider;
+		values["webSearch.enabled"] = config.webSearch.enabled
+			? "true"
+			: "false";
+	}
 
 	for (const mod of getIntegrationModules()) {
 		if (!mod.chatInbound) continue;
@@ -215,6 +222,15 @@ export function rebuildTranscriptionConfig(
 	const model = values["transcription.model"]?.trim();
 	if (!provider || !model) return undefined;
 	return { provider, model };
+}
+
+export function rebuildWebSearchConfig(
+	values: Record<string, string>,
+): WebSearchConfig | undefined {
+	const provider = values["webSearch.provider"]?.trim();
+	if (!provider) return undefined;
+	const enabled = values["webSearch.enabled"] === "true";
+	return { provider, enabled };
 }
 
 export function rebuildChatInbound(
@@ -415,6 +431,7 @@ function applyConfigFromValues(values: Record<string, string>): void {
 	cfg.defaultProviders = rebuildDefaultProviders(values);
 	cfg.chatInbound = rebuildChatInbound(values);
 	cfg.transcription = rebuildTranscriptionConfig(values);
+	cfg.webSearch = rebuildWebSearchConfig(values);
 	cfg.ai = rebuildAISettings(values);
 	applyIntegrationInboundFlags(cfg, values);
 	writeConfig(cfg);

@@ -206,7 +206,7 @@ function buildPluginChatModelPrep(
 	return {
 		systemPromptSection: prep.systemPromptSection,
 		async buildSingleSessionMessages(persona: Persona, userPrompt: string) {
-			const base = `${prep.singleSessionRules.trim()}\n${globalChatToolsPromptSection()}`;
+			const base = `${prep.singleSessionRules.trim()}\n${globalChatToolsPromptSection(undefined, persona)}`;
 			const systemContent = composeSystemPromptWithPersona(base, persona);
 			const messages: Array<{ role: "system" | "user"; content: string }> = [
 				{ role: "system", content: systemContent },

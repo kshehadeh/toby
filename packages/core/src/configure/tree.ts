@@ -13,6 +13,10 @@ import {
 	TRANSCRIPTION_PROVIDERS,
 	getTranscriptionProvider,
 } from "../listen/transcription-providers";
+import {
+	WEB_SEARCH_PROVIDERS,
+	getWebSearchProvider,
+} from "../ai/web-search-providers";
 import { DEFAULT_CHAT_PERSONA } from "../personas/index";
 import {
 	type Project,
@@ -493,6 +497,52 @@ export function buildSettingsTree(
 		],
 	};
 
+	const webSearchProviderId =
+		values["webSearch.provider"] ??
+		WEB_SEARCH_PROVIDERS[0]?.id ??
+		"ai-gateway";
+	const webSearchProviderInfo = getWebSearchProvider(webSearchProviderId);
+	const webSearchEnabled = values["webSearch.enabled"] === "true";
+	const webSearchSection: SettingsItem = {
+		label: "Web Search",
+		kind: "section",
+		key: "webSearch",
+		children: [
+			{
+				label: "Provider",
+				kind: "select" as const,
+				key: "webSearch.provider",
+				navKey: "webSearch.provider",
+				options: WEB_SEARCH_PROVIDERS.map((p) => p.id),
+				selectChoices: WEB_SEARCH_PROVIDERS.map((p) => ({
+					value: p.id,
+					label: p.displayName,
+				})),
+				currentValue: webSearchProviderId,
+			},
+			{
+				label: "Enabled",
+				kind: "select" as const,
+				key: "webSearch.enabled",
+				options: ["false", "true"],
+				selectChoices: [
+					{ value: "false", label: "Off" },
+					{ value: "true", label: "On" },
+				],
+				currentValue: webSearchEnabled ? "true" : "false",
+			},
+			...(webSearchProviderInfo
+				? [
+						{
+							label: webSearchProviderInfo.description,
+							kind: "hint" as const,
+							key: "webSearch._providerHint",
+						},
+					]
+				: []),
+		],
+	};
+
 	const listenSection: SettingsItem = {
 		label: "Listen",
 		kind: "section",
@@ -810,6 +860,7 @@ export function buildSettingsTree(
 				],
 			},
 			transcriptionSection,
+			webSearchSection,
 			buildProjectsSection(values),
 			listenSection,
 			schedulesSection,

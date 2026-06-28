@@ -24,26 +24,6 @@
 			"type": "swift",
 			"request": "launch",
 			"args": [],
-			"cwd": "${workspaceFolder:toby}/apps/plugin-websearch",
-			"name": "Debug toby-plugin-websearch (apps/plugin-websearch)",
-			"target": "toby-plugin-websearch",
-			"configuration": "debug",
-			"preLaunchTask": "swift: Build Debug toby-plugin-websearch (apps/plugin-websearch)"
-		},
-		{
-			"type": "swift",
-			"request": "launch",
-			"args": [],
-			"cwd": "${workspaceFolder:toby}/apps/plugin-websearch",
-			"name": "Release toby-plugin-websearch (apps/plugin-websearch)",
-			"target": "toby-plugin-websearch",
-			"configuration": "release",
-			"preLaunchTask": "swift: Build Release toby-plugin-websearch (apps/plugin-websearch)"
-		},
-		{
-			"type": "swift",
-			"request": "launch",
-			"args": [],
 			"cwd": "${workspaceFolder:toby}/apps/toby-app",
 			"name": "Debug toby-app (apps/toby-app)",
 			"target": "toby-app",

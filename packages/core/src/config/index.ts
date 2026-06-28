@@ -148,6 +148,11 @@ export interface TranscriptionConfig {
 	readonly model: string;
 }
 
+export interface WebSearchConfig {
+	readonly provider: string;
+	readonly enabled: boolean;
+}
+
 export interface WebConfig {
 	readonly enabled?: boolean;
 	readonly port?: number;
@@ -167,6 +172,7 @@ interface TobyConfig {
 	defaultProviders?: Partial<Record<ProviderCategory, string>>;
 	chatInbound?: ChatInboundConfig;
 	transcription?: TranscriptionConfig;
+	webSearch?: WebSearchConfig;
 	web?: WebConfig;
 	ai?: AISettings;
 	/** Slug of the currently active project (see `~/.toby/projects/<slug>/`). */
@@ -257,6 +263,7 @@ export function readConfig(): TobyConfig {
 		defaultProviders: parsed.defaultProviders,
 		chatInbound: parsed.chatInbound,
 		transcription: parsed.transcription,
+		webSearch: parsed.webSearch,
 		web: parsed.web,
 		ai: parsed.ai,
 		activeProject: parsed.activeProject,

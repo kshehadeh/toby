@@ -16,6 +16,7 @@ import {
 } from "../../chat-pipeline/turn-runtime";
 import { getDefaultPersonaImagePath } from "../../config/index";
 import { isTranscriptionConfigured } from "../../listen/transcription-providers";
+import { isWebSearchAvailable } from "../../ai/web-search-global-tools";
 import { resolveDefaultPersona } from "../../personas/index";
 import { loadPlanBySession } from "../../planning/plan-store";
 import {
@@ -87,6 +88,10 @@ export async function handleChatStatusDetail(): Promise<Response> {
 		transcription: {
 			configured: isTranscriptionConfigured(),
 			settingsNavKey: "transcription",
+		},
+		webSearch: {
+			configured: isWebSearchAvailable(persona),
+			settingsNavKey: "webSearch",
 		},
 	});
 }

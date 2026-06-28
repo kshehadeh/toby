@@ -5,71 +5,30 @@ title: Web Search
 
 # Web Search
 
-Connect Toby to web search (powered by Brave Search) to search the web from chat. When configured, the `webSearch` tool is available in **every** chat session automatically—you don't need to select the integration explicitly.
+Search the web from chat using **Perplexity** through the **Vercel AI Gateway**. When enabled, the `webSearch` tool is available in **every** chat session automatically — you don't need to select an integration explicitly.
 
-**CLI name:** `websearch`
+## How it works
 
-Shipped as **`toby-plugin-websearch`** (Swift). Release installs place it in `~/.toby/plugins/`; from source run `bun run build:plugin:websearch` then `toby plugins install ./dist/toby-plugin-websearch`.
+Web search uses the AI Gateway's built-in Perplexity search tool. The gateway executes the search server-side during model generation and returns titles, URLs, snippets, and optional dates. No separate API key is needed — web search reuses your existing Vercel AI Gateway API key.
+
+**Important:** Web search is only active when your persona's **AI Provider** is set to **Vercel AI Gateway** (model slug like `openai/gpt-4.1-mini`). When using OpenAI or Ollama directly, the gateway cannot execute the search tool.
 
 ## Prerequisites
 
-- A [Brave Search](https://brave.com/search/api/) account
-- A **Brave Search API key** (see below)
-
-## Get your API key
-
-Brave Search offers a free tier (up to 2,000 queries/month) and paid plans for higher volume.
-
-### 1. Sign up for Brave Search API
-
-1. Go to [Brave Search API](https://brave.com/search/api/).
-2. Click **Get Started** and create an account.
-3. Choose a plan (Free is sufficient for personal use).
-
-### 2. Copy your API key
-
-1. Open the [Brave Search API dashboard](https://api.search.brave.com/app/dashboard).
-2. Under **API Keys**, copy your subscription token.
-
-Toby sends this token as the `X-Subscription-Token` header on each request.
+- A **Vercel AI Gateway API key** (see [AI settings](../getting-started/configure-and-status))
+- Persona AI provider set to **Vercel AI Gateway**
 
 ## Configure
 
-```bash
-toby config
-```
+1. Open **Settings → AI → Vercel AI Gateway** and enter your API key.
+2. Set your persona's **AI Provider** to **Vercel AI Gateway**.
+3. Open **Settings → Web Search** and set **Enabled** to **On**.
 
-Go to **Integrations → Web Search** and enter:
-
-| Field | Description |
-| ----- | ----------- |
-| Brave Search API Key | Your Brave Search API subscription token |
-
-Save the configuration.
-
-## Connect
-
-```bash
-toby connect websearch
-```
-
-Toby validates the API key and marks Web Search as connected.
-
-## Verify
-
-```bash
-toby status integration -i websearch
-```
-
-## Disconnect
-
-```bash
-toby disconnect websearch
-```
+No separate web search API key is required.
 
 ## Using web search in chat
 
-Once the API key is configured, `webSearch` is available in all chat sessions as a global tool. You don't need to specify `--integration websearch`—Toby includes it automatically when the plugin is installed and the API key is present.
+Once enabled, `webSearch` is available in all chat sessions as a global tool. The model can search the web and cite source URLs from the results.
 
 ### Example chat prompts
 
@@ -85,22 +44,7 @@ You can combine `webSearch` with `fetchWebContent` (always available) to read fu
 1. Ask Toby to search for something: *"Search for recent articles about TypeScript 5.5"*
 2. Then ask it to read a result: *"Read the content from the first result"*
 
-Toby will use `webSearch` to find results, then `fetchWebContent` to extract the clean article text from a chosen URL—stripping ads, navigation, and footers.
-
-## Search options
-
-The `webSearch` tool supports optional parameters that Toby can use automatically based on your request:
-
-| Parameter | Values | Description |
-| --------- | ------ | ----------- |
-| `count` | 1–20 | Number of results to return (default 10) |
-| `freshness` | `pd`, `pw`, `pm`, `py` | Time filter: past day, past week, past month, past year |
-
-For example, asking *"What happened in tech news today?"* will automatically use `freshness: pd` (past day).
-
-## Migration from Brave Search
-
-If you previously used the built-in `bravesearch` integration, Toby migrates your API key and connected state to `websearch` automatically on startup.
+Toby will use `webSearch` to find results, then `fetchWebContent` to extract the clean article text from a chosen URL — stripping ads, navigation, and footers.
 
 ## Related
 

@@ -175,14 +175,17 @@ export function resolveWriteTextFileTarget(params: {
 }
 
 /** Explains global tools for integration system prompts. */
-export function globalChatToolsPromptSection(project?: Project | null): string {
+export function globalChatToolsPromptSection(
+	project?: Project | null,
+	persona?: Persona | null,
+): string {
 	const globalSkills = loadLocalSkills();
 	const projectSkills = project ? loadProjectSkills(project) : [];
 	const allSkills = [...globalSkills, ...projectSkills];
 	const skillsCatalog = formatSkillsCatalogForPrompt(allSkills);
-	const hasSearch = isWebSearchAvailable();
+	const hasSearch = isWebSearchAvailable(persona);
 	const searchToolLine = hasSearch
-		? "\n- **webSearch**: Search the web (Brave Search). Returns titles, URLs, descriptions, and optional page age. Use when the user asks about current events, facts, research, or anything requiring up-to-date information from the web. Always cite source URLs from search results."
+		? "\n- **webSearch**: Search the web via Perplexity through the AI Gateway. Returns titles, URLs, snippets, and optional dates. Use when the user asks about current events, facts, research, or anything requiring up-to-date information from the web. Always cite source URLs from search results."
 		: "";
 	const searchRules = hasSearch
 		? `
@@ -323,6 +326,7 @@ export function createGlobalChatTools(
 		...createListenChatTools(),
 		...createWebFetchTools(),
 		...createWebSearchGlobalTools({
+			persona: ctx.persona,
 			dryRun: ctx.dryRun,
 			appliedActions: ctx.appliedActions,
 		}),

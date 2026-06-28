@@ -254,7 +254,7 @@ describe("web API routes", () => {
 		expect(body.integrationLabels["(none)"]).toBe("None");
 	});
 
-	it("GET /api/configure/sections returns 5 lightweight section structures", async () => {
+	it("GET /api/configure/sections returns 6 lightweight section structures", async () => {
 		const res = await handleWebRequest(
 			new Request("http://127.0.0.1/api/configure/sections"),
 			null,
@@ -268,12 +268,13 @@ describe("web API routes", () => {
 				children?: Array<{ kind: string }>;
 			}>;
 		};
-		expect(body.sections).toHaveLength(5);
+		expect(body.sections).toHaveLength(6);
 		expect(body.sections.map((s) => s.key)).toEqual([
 			"chatInbound",
 			"defaults",
 			"ai",
 			"transcription",
+			"webSearch",
 			"projects",
 		]);
 		// All sections and their children should be section-type only (no fields)
