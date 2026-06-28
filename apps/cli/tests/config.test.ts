@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -8,7 +9,6 @@ import {
 	readCredentials,
 	writeConfig,
 } from "@toby/core/config/index";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 const TOBY_DIR = path.join(os.homedir(), ".toby");
 const CONFIG_PATH = path.join(TOBY_DIR, "config.json");
@@ -49,12 +49,12 @@ describe("readConfig", () => {
 	it("reads existing config", () => {
 		const data = {
 			integrations: {
-				gmail: { accessToken: "x", refreshToken: "y", expiresAt: 1 },
+				todoist: { apiKey: "x", mode: "y" },
 			},
 		};
 		fs.writeFileSync(CONFIG_PATH, JSON.stringify(data));
 		const config = readConfig();
-		expect(config.integrations.gmail.accessToken).toBe("x");
+		expect(config.integrations.todoist.apiKey).toBe("x");
 	});
 });
 
@@ -62,7 +62,7 @@ describe("writeConfig", () => {
 	it("writes config to disk", () => {
 		const data = {
 			integrations: {
-				gmail: { accessToken: "a", refreshToken: "b", expiresAt: 2 },
+				todoist: { apiKey: "a", mode: "b" },
 			},
 		};
 		writeConfig(data);
@@ -79,10 +79,10 @@ describe("readCredentials", () => {
 	});
 
 	it("reads existing credentials", () => {
-		const data = { gmail: { clientId: "abc", clientSecret: "def" } };
+		const data = { todoist: { apiKey: "abc", mode: "def" } };
 		fs.writeFileSync(CREDENTIALS_PATH, JSON.stringify(data));
 		const creds = readCredentials();
-		expect(creds.gmail?.clientId).toBe("abc");
+		expect(creds.todoist?.apiKey).toBe("abc");
 	});
 });
 

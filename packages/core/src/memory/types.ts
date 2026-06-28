@@ -14,7 +14,7 @@ export type MemoryVisibility =
 	| "private";
 
 export type MemorySourceSystem =
-	| "gmail"
+	| "email"
 	| "calendar"
 	| "drive"
 	| "chat"

@@ -75,7 +75,7 @@ export function createReflectTools(
 					.string()
 					.min(1)
 					.describe(
-						"Integration module name (e.g. 'gmail', 'todoist', 'slack')",
+						"Integration module name (e.g. 'email', 'todoist', 'slack')",
 					),
 			}),
 			execute: async ({ integration }) => {

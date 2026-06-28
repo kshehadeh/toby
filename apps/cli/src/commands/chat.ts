@@ -53,7 +53,7 @@ export function registerChatCommand(program: Command): void {
 		)
 		.argument(
 			"[words...]",
-			'Optional with `toby chat`: first word may be an integration name (gmail, todoist, slack, azuread, jira); remaining words are the prompt. If the first word is not an integration, the full text is the prompt and all connected chat integrations are used. Prefer `toby -p "…"` or `--prompt` for an initial message when omitting the `chat` subcommand.',
+			'Optional with `toby chat`: first word may be an integration name (email, todoist, slack, azuread, jira); remaining words are the prompt. If the first word is not an integration, the full text is the prompt and all connected chat integrations are used. Prefer `toby -p "…"` or `--prompt` for an initial message when omitting the `chat` subcommand.',
 		)
 		.option("-p, --persona <name>", "Optional persona to shape behavior")
 		.option(
@@ -149,7 +149,7 @@ export function registerChatCommand(program: Command): void {
 							if (!prompt) {
 								console.error(
 									chalk.red(
-										'With --no-tui, pass a prompt with --prompt or positional words (e.g. toby chat --no-tui --prompt "summarize unread" or toby chat gmail --no-tui "archive promos").',
+										'With --no-tui, pass a prompt with --prompt or positional words (e.g. toby chat --no-tui --prompt "summarize unread" or toby chat email --no-tui "archive promos").',
 									),
 								);
 								process.exitCode = 1;

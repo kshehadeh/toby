@@ -153,7 +153,7 @@ export const connectSlashCommand: SlashCommand = {
 	command: "/connect",
 	description: "Connect an integration, or list all supported integrations.",
 	helpText:
-		"Connect an integration by name (e.g. /connect gmail). Run without arguments to open the connections viewer.",
+		"Connect an integration by name (e.g. /connect email). Run without arguments to open the connections viewer.",
 	async run(runtime, rawArgs) {
 		const name = rawArgs?.trim();
 

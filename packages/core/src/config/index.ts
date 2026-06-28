@@ -184,11 +184,6 @@ interface TobyConfig {
 	activeProject?: string;
 }
 
-export interface GmailCredentials {
-	clientId: string;
-	clientSecret: string;
-}
-
 interface AICredentials {
 	openai?: { token: string };
 	vercel?: { apiKey: string };
@@ -220,8 +215,6 @@ export interface CredentialsFile {
 	 * `integrations[<moduleName>]` to avoid hardcoding top-level keys.
 	 */
 	integrations?: Record<string, Record<string, string>>;
-	/** Legacy Gmail block; migrated to integrations.gmail on plugin load. */
-	gmail?: GmailCredentials;
 	/** Legacy Todoist block; migrated to integrations.todoist on plugin load. */
 	todoist?: Record<string, string>;
 	/** Legacy Azure AD block; migrated to integrations.azuread on plugin load. */

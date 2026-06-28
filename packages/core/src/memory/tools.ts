@@ -19,7 +19,7 @@ const MEMORY_TYPE_VALUES: [MemoryType, ...MemoryType[]] = [
 ];
 
 const SOURCE_SYSTEM_VALUES: [MemorySourceSystem, ...MemorySourceSystem[]] = [
-	"gmail",
+	"email",
 	"calendar",
 	"drive",
 	"chat",
@@ -82,7 +82,7 @@ export function createMemoryTools(
 				sourceSystem: z
 					.enum(SOURCE_SYSTEM_VALUES)
 					.describe(
-						"Where this memory was observed (gmail, calendar, drive, chat, manual, other)",
+						"Where this memory was observed (email, calendar, drive, chat, manual, other)",
 					),
 				sourceId: z
 					.string()

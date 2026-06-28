@@ -1,8 +1,8 @@
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 const isBun =
 	typeof (globalThis as unknown as { Bun?: unknown }).Bun !== "undefined";
@@ -199,7 +199,7 @@ describe.skipIf(!isBun)("memory-store", () => {
 		it("inserts and retrieves a source", () => {
 			const source = insertSource(
 				"user1",
-				"gmail",
+				"email",
 				"msg-123",
 				"https://mail.google.com/msg-123",
 				"2025-01-01T00:00:00Z",
@@ -207,7 +207,7 @@ describe.skipIf(!isBun)("memory-store", () => {
 				{ label: "work" },
 			);
 			expect(source.id).toBeTruthy();
-			expect(source.system).toBe("gmail");
+			expect(source.system).toBe("email");
 
 			const loaded = getSource(source.id);
 			expect(loaded).not.toBeNull();
@@ -248,7 +248,7 @@ describe.skipIf(!isBun)("memory-store", () => {
 		it("inserts and retrieves a proposal", () => {
 			const source = insertSource(
 				"user1",
-				"gmail",
+				"email",
 				undefined,
 				undefined,
 				"2025-01-01T00:00:00Z",

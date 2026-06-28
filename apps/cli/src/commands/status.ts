@@ -15,7 +15,7 @@ export function registerStatusCommand(program: Command): void {
 		.description("Test an integration connection and permissions")
 		.option(
 			"-i, --integration <name>",
-			"Integration name to test (e.g. gmail). If omitted, all integrations are tested.",
+			"Integration name to test (e.g. email). If omitted, all integrations are tested.",
 		)
 		.action(async (options: IntegrationStatusOptions) => {
 			if (options.integration) {

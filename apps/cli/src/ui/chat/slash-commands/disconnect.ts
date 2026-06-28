@@ -5,7 +5,7 @@ export const disconnectSlashCommand: SlashCommand = {
 	command: "/disconnect",
 	description: "Disconnect an integration, or list all connected integrations.",
 	helpText:
-		"Disconnect an integration by name (e.g. /disconnect gmail). Run without arguments to list connected integrations.",
+		"Disconnect an integration by name (e.g. /disconnect email). Run without arguments to list connected integrations.",
 	async run(runtime, rawArgs) {
 		const name = rawArgs?.trim();
 

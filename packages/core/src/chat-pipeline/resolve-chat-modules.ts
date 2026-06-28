@@ -21,7 +21,6 @@ const CATEGORY_KEYWORDS: Record<ProviderCategory, string[]> = {
 		"draft",
 		"reply",
 		"forward",
-		"gmail",
 		"outlook",
 	],
 	calendar: [

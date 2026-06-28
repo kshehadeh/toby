@@ -127,7 +127,6 @@ export function getStagingPaths(): {
 	readonly bunRuntimePath: string;
 	readonly pluginSampleTsPath: string;
 	readonly pluginAzureadPath: string;
-	readonly pluginGmailPath: string;
 	readonly pluginTodoistPath: string;
 	readonly pluginSlackPath: string;
 	readonly pluginJiraPath: string;
@@ -150,7 +149,6 @@ export function getStagingPaths(): {
 		bunRuntimePath: path.join(stagingDir, "bun"),
 		pluginSampleTsPath: path.join(stagingDir, "toby-plugin-sample-ts"),
 		pluginAzureadPath: path.join(stagingDir, "toby-plugin-azuread"),
-		pluginGmailPath: path.join(stagingDir, "toby-plugin-gmail"),
 		pluginTodoistPath: path.join(stagingDir, "toby-plugin-todoist"),
 		pluginSlackPath: path.join(stagingDir, "toby-plugin-slack"),
 		pluginJiraPath: path.join(stagingDir, "toby-plugin-jira"),
@@ -246,7 +244,6 @@ export async function downloadRelease(
 		bunRuntimePath,
 		pluginSampleTsPath,
 		pluginAzureadPath,
-		pluginGmailPath,
 		pluginTodoistPath,
 		pluginSlackPath,
 		pluginJiraPath,
@@ -271,9 +268,6 @@ export async function downloadRelease(
 			() => undefined,
 		);
 		await rm(pluginAzureadPath, { recursive: true, force: true }).catch(
-			() => undefined,
-		);
-		await rm(pluginGmailPath, { recursive: true, force: true }).catch(
 			() => undefined,
 		);
 		await rm(pluginTodoistPath, { recursive: true, force: true }).catch(
@@ -496,7 +490,6 @@ export async function applyStagedRelease(
 		bunRuntimePath,
 		pluginSampleTsPath,
 		pluginAzureadPath,
-		pluginGmailPath,
 		pluginTodoistPath,
 		pluginSlackPath,
 		pluginJiraPath,
@@ -514,7 +507,6 @@ export async function applyStagedRelease(
 		"toby-plugin-sample-ts",
 	);
 	await installStagedPluginDirectory(pluginAzureadPath, "toby-plugin-azuread");
-	await installStagedPluginDirectory(pluginGmailPath, "toby-plugin-gmail");
 	await installStagedPluginDirectory(pluginTodoistPath, "toby-plugin-todoist");
 	await installStagedPluginDirectory(pluginSlackPath, "toby-plugin-slack");
 	await installStagedPluginDirectory(pluginJiraPath, "toby-plugin-jira");

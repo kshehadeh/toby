@@ -75,14 +75,6 @@
         "nodemailer": "^6.10.1",
       },
     },
-    "apps/plugin-gmail": {
-      "name": "@toby/plugin-gmail",
-      "version": "1.0.0",
-      "dependencies": {
-        "googleapis": "^140.0.0",
-        "open": "^10.1.0",
-      },
-    },
     "apps/plugin-jira": {
       "name": "@toby/plugin-jira",
       "version": "1.0.0",
@@ -1270,8 +1262,6 @@
     "@toby/plugin-azuread": ["@toby/plugin-azuread@workspace:apps/plugin-azuread"],
 
     "@toby/plugin-email": ["@toby/plugin-email@workspace:apps/plugin-email"],
-
-    "@toby/plugin-gmail": ["@toby/plugin-gmail@workspace:apps/plugin-gmail"],
 
     "@toby/plugin-jira": ["@toby/plugin-jira@workspace:apps/plugin-jira"],
 
