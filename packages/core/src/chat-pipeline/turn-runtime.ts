@@ -311,7 +311,10 @@ export async function runApiChatTurn(params: {
 
 	let seq = 0;
 	const emit: ChatEventSink = (event) => {
-		daemonLog("debug", "turn", "api_pipeline_event", { type: event.type });
+		// Skip high-frequency streaming deltas to avoid log pollution
+		if (event.type !== "assistant_text_delta") {
+			daemonLog("debug", "turn", "api_pipeline_event", { type: event.type });
+		}
 		params.onEvent(event);
 	};
 
