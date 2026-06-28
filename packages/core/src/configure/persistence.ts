@@ -180,12 +180,11 @@ export function seedConfigureValues(
 			}
 		}
 	}
-	if (config.webSearch) {
-		values["webSearch.provider"] = config.webSearch.provider;
-		values["webSearch.enabled"] = config.webSearch.enabled
-			? "true"
-			: "false";
-	}
+	values["webSearch.provider"] =
+		config.webSearch?.provider ?? "ai-gateway";
+	values["webSearch.enabled"] = config.webSearch?.enabled
+		? "true"
+		: "false";
 
 	for (const mod of getIntegrationModules()) {
 		if (!mod.chatInbound) continue;
@@ -229,7 +228,8 @@ export function rebuildWebSearchConfig(
 ): WebSearchConfig | undefined {
 	const provider = values["webSearch.provider"]?.trim();
 	if (!provider) return undefined;
-	const enabled = values["webSearch.enabled"] === "true";
+	const enabledValue = values["webSearch.enabled"]?.toLowerCase().trim();
+	const enabled = enabledValue === "true" || enabledValue === "yes";
 	return { provider, enabled };
 }
 

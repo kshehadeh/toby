@@ -173,7 +173,7 @@ function createVercelGatewayProvider() {
 	});
 }
 
-function createVercelGatewayModel(modelId: string): LanguageModel {
+export function createVercelGatewayModel(modelId: string): LanguageModel {
 	return createVercelGatewayProvider()(modelId);
 }
 
