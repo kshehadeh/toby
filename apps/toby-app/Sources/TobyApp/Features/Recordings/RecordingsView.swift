@@ -5,9 +5,7 @@ struct RecordingsView: View {
 	var processingState: RecordingProcessingState? = nil
 
 	var body: some View {
-		RecordingsDetailView(store: store, processingState: processingState, onDeleteSelectedRecordings: {
-			store.pendingDeleteRecordingIds = Set(store.selectedRecordings.map(\.id))
-		})
+		RecordingsDetailView(store: store, processingState: processingState)
 		.toolbarBackground(.visible)
 		.background(SettingsDesign.canvasBackground)
 		.task {

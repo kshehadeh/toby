@@ -4,9 +4,7 @@ struct SchedulesView: View {
 	@Bindable var store: SchedulesStore
 
 	var body: some View {
-		SchedulesDetailView(store: store, onDelete: { schedule in
-			store.pendingDelete = SchedulesStore.PendingDelete(scheduleId: schedule.id, title: schedule.displayName)
-		})
+		SchedulesDetailView(store: store)
 		.toolbarBackground(.visible)
 		.background(SettingsDesign.canvasBackground)
 		.task {

@@ -2,7 +2,6 @@ import SwiftUI
 
 struct SchedulesDetailView: View {
 	@Bindable var store: SchedulesStore
-	let onDelete: (ScheduleViewModel) -> Void
 
 	var body: some View {
 		ScrollView {
@@ -35,29 +34,5 @@ struct SchedulesDetailView: View {
 			.padding(.vertical, 28)
 		}
 		.background(SettingsDesign.canvasBackground)
-		.toolbar {
-			ToolbarItem(placement: .primaryAction) {
-				if let schedule = store.selectedSchedule {
-					Button {
-						Task { await store.runSchedule(id: schedule.id) }
-					} label: {
-						Label("Run now", systemImage: "play.fill")
-					}
-					.disabled(store.runningScheduleId != nil || store.isSaving)
-				}
-			}
-			ToolbarItem(placement: .primaryAction) {
-				if let schedule = store.selectedSchedule {
-					Button {
-						onDelete(schedule)
-					} label: {
-						Image(systemName: "trash")
-					}
-					.buttonStyle(.borderedProminent)
-					.tint(.red)
-					.disabled(store.deletingScheduleId != nil || store.isSaving)
-				}
-			}
-		}
 	}
 }

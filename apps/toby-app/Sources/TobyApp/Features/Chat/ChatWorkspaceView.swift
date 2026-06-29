@@ -22,10 +22,5 @@ struct ChatWorkspaceView: View {
                 AskUserPromptView(store: store)
             }
         }
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                SessionTitleBadge(title: store.sessionName, activityLine: store.activityLine)
-            }
-        }
     }
 }

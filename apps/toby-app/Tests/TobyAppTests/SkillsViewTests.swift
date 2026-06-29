@@ -75,24 +75,6 @@ struct SkillsViewTests {
 		}
 	}
 
-	@Test("delete button is accessible when a skill is selected")
-	func deleteButtonVisibleWhenSkillSelected() throws {
-		let store = SkillsStore()
-		store.selectedSkill = SkillDetail(
-			dirName: "skill-1",
-			name: "Research",
-			description: "Research assistant",
-			summary: "",
-			bodyMarkdown: "",
-			tools: nil,
-			integrations: nil
-		)
-		let view = SkillsView(store: store)
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "delete-skill-button")
-		}
-	}
-
 	@Test("store key helper builds field keys")
 	func storeKeyHelperBuildsFieldKeys() {
 		let store = SkillsStore()

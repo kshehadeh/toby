@@ -3,7 +3,6 @@ import SwiftUI
 struct RecordingsDetailView: View {
 	@Bindable var store: RecordingsStore
 	var processingState: RecordingProcessingState? = nil
-	let onDeleteSelectedRecordings: () -> Void
 
 	var body: some View {
 		ScrollView {
@@ -43,26 +42,6 @@ struct RecordingsDetailView: View {
 			.padding(.vertical, 28)
 		}
 		.background(SettingsDesign.canvasBackground)
-		.toolbar {
-			ToolbarItem(placement: .primaryAction) {
-				if !store.selectedRecordings.isEmpty {
-					Button(deleteButtonTitle, systemImage: "trash", role: .destructive) {
-						onDeleteSelectedRecordings()
-					}
-					.buttonStyle(.borderedProminent)
-					.tint(.red)
-					.disabled(store.isDeletingSelection)
-					.accessibilityIdentifier("delete-recordings-button")
-				}
-			}
-		}
-	}
-
-	private var deleteButtonTitle: String {
-		if store.selectedRecordings.count == 1 {
-			return "Delete Recording"
-		}
-		return "Delete \(store.selectedRecordings.count) Recordings"
 	}
 
 	private var isProcessingSelected: Bool {

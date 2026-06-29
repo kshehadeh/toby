@@ -4,10 +4,7 @@ struct SkillsView: View {
 	@Bindable var store: SkillsStore
 
 	var body: some View {
-		SkillsDetailView(store: store, onDelete: {
-			guard let skill = store.selectedSkill else { return }
-			store.pendingDelete = SkillsStore.PendingDelete(dirName: skill.dirName, name: skill.name)
-		})
+		SkillsDetailView(store: store)
 		.toolbarBackground(.visible)
 		.background(SettingsDesign.canvasBackground)
 		.task {

@@ -40,27 +40,32 @@ final class NavigationHistory {
 	}
 }
 
-struct NavigationHistoryToolbar: ViewModifier {
-	let history: NavigationHistory
+struct SearchToolbarButton: View {
+	let onSearch: () -> Void
 
-	func body(content: Content) -> some View {
-		content.toolbar {
-			ToolbarItem(placement: .navigation) {
-				Button(action: { _ = history.goBack() }) {
-					Image(systemName: "chevron.backward")
-				}
-				.disabled(!history.canGoBack)
-				.help("Back")
-				.accessibilityIdentifier("nav-back-button")
-			}
-			ToolbarItem(placement: .navigation) {
-				Button(action: { _ = history.goForward() }) {
-					Image(systemName: "chevron.forward")
-				}
-				.disabled(!history.canGoForward)
-				.help("Forward")
-				.accessibilityIdentifier("nav-forward-button")
-			}
+	var body: some View {
+		Button(action: onSearch) {
+			Image(systemName: "magnifyingglass")
 		}
+		.help("Search")
+		.accessibilityLabel("Search")
+		.accessibilityIdentifier("toolbar-search-button")
+	}
+}
+
+struct RecordingToolbarButton: View {
+	let isRecordingActive: Bool
+	let isRecordButtonDisabled: Bool
+	let onToggleRecording: () -> Void
+
+	var body: some View {
+		Button(action: onToggleRecording) {
+			Image(systemName: isRecordingActive ? "stop.circle" : "record.circle")
+				.foregroundStyle(isRecordingActive ? .red : .primary)
+		}
+		.help(isRecordingActive ? "Stop Recording" : "Record Audio")
+		.accessibilityLabel(isRecordingActive ? "Stop Recording" : "Record Audio")
+		.accessibilityIdentifier("toolbar-record-button")
+		.disabled(isRecordButtonDisabled)
 	}
 }

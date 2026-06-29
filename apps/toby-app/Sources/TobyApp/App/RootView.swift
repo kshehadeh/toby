@@ -267,21 +267,9 @@ struct RootView: View {
             case .chat:
                 ChatWorkspaceView(store: store)
                     .toolbar {
-                        ToolbarItem(placement: .navigation) {
-                            Button(action: { _ = history.goBack() }) {
-                                Image(systemName: "chevron.backward")
-                            }
-                            .disabled(!history.canGoBack)
-                            .help("Back")
-                            .accessibilityIdentifier("nav-back-button")
-                        }
-                        ToolbarItem(placement: .navigation) {
-                            Button(action: { _ = history.goForward() }) {
-                                Image(systemName: "chevron.forward")
-                            }
-                            .disabled(!history.canGoForward)
-                            .help("Forward")
-                            .accessibilityIdentifier("nav-forward-button")
+                        commonToolbarItems()
+                        ToolbarItem(placement: .principal) {
+                            SessionTitleBadge(title: store.sessionName, activityLine: store.activityLine)
                         }
                         ToolbarItem(placement: .confirmationAction) {
                             Button(action: startNewChat) {
@@ -291,40 +279,134 @@ struct RootView: View {
                             .disabled(store.isLoading)
                             .accessibilityIdentifier("new-chat-button")
                         }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button(action: { isCommandPalettePresented = true }) {
-                                Image(systemName: "magnifyingglass")
-                            }
-                            .help("Search")
-                            .accessibilityLabel("Search")
-                        }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button(action: toggleRecording) {
-                                Image(systemName: store.isRecordingActive ? "stop.circle" : "record.circle")
-                                    .foregroundStyle(store.isRecordingActive ? .red : .primary)
-                            }
-                            .help(store.isRecordingActive ? "Stop Recording" : "Record Audio")
-                            .accessibilityLabel(store.isRecordingActive ? "Stop Recording" : "Record Audio")
-                            .disabled(store.isRecordButtonDisabled)
-                        }
                     }
             case .integrations:
                 IntegrationsView(store: integrationsStore)
-                    .modifier(NavigationHistoryToolbar(history: history))
+                    .toolbar {
+                        commonToolbarItems()
+                        ToolbarItem(placement: .principal) { Spacer() }
+                    }
             case .schedules:
                 SchedulesView(store: schedulesStore)
-                    .modifier(NavigationHistoryToolbar(history: history))
+                    .toolbar {
+                        commonToolbarItems()
+                        ToolbarItem(placement: .principal) { Spacer() }
+                        ToolbarItem(placement: .confirmationAction) {
+                            if let schedule = schedulesStore.selectedSchedule {
+                                Button {
+                                    Task { await schedulesStore.runSchedule(id: schedule.id) }
+                                } label: {
+                                    Image(systemName: "play.fill")
+                                }
+                                .help("Run Now")
+                                .disabled(schedulesStore.runningScheduleId != nil || schedulesStore.isSaving)
+                                .accessibilityIdentifier("run-schedule-button")
+                            }
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            if let schedule = schedulesStore.selectedSchedule {
+                                Button(role: .destructive) {
+                                    schedulesStore.pendingDelete = SchedulesStore.PendingDelete(
+                                        scheduleId: schedule.id,
+                                        title: schedule.displayName
+                                    )
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
+                                .help("Delete Schedule")
+                                .disabled(schedulesStore.deletingScheduleId != nil || schedulesStore.isSaving)
+                                .accessibilityIdentifier("delete-schedule-button")
+                            }
+                        }
+                    }
             case .recordings:
                 RecordingsView(store: recordingsStore, processingState: store.recordingProcessing)
-                    .modifier(NavigationHistoryToolbar(history: history))
+                    .toolbar {
+                        commonToolbarItems()
+                        ToolbarItem(placement: .principal) { Spacer() }
+                        ToolbarItem(placement: .confirmationAction) {
+                            if !recordingsStore.selectedRecordings.isEmpty {
+                                Button(role: .destructive) {
+                                    recordingsStore.pendingDeleteRecordingIds = Set(recordingsStore.selectedRecordings.map(\.id))
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
+                                .help(recordingsDeleteButtonTitle)
+                                .disabled(recordingsStore.isDeletingSelection)
+                                .accessibilityIdentifier("delete-recordings-button")
+                            }
+                        }
+                    }
             case .skills:
                 SkillsView(store: skillsStore)
-                    .modifier(NavigationHistoryToolbar(history: history))
+                    .toolbar {
+                        commonToolbarItems()
+                        ToolbarItem(placement: .principal) { Spacer() }
+                        ToolbarItem(placement: .confirmationAction) {
+                            if let skill = skillsStore.selectedSkill {
+                                Button(role: .destructive) {
+                                    skillsStore.pendingDelete = SkillsStore.PendingDelete(
+                                        dirName: skill.dirName,
+                                        name: skill.name
+                                    )
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
+                                .help("Delete Skill")
+                                .disabled(skillsStore.isSaving)
+                                .accessibilityIdentifier("delete-skill-button")
+                            }
+                        }
+                    }
             case .settings:
                 ConfigureView(store: configureStore)
-                    .modifier(NavigationHistoryToolbar(history: history))
+                    .toolbar {
+                        commonToolbarItems()
+                        ToolbarItem(placement: .principal) { Spacer() }
+                    }
             }
         }
+    }
+
+    @ToolbarContentBuilder
+    private func commonToolbarItems() -> some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            RecordingToolbarButton(
+                isRecordingActive: store.isRecordingActive,
+                isRecordButtonDisabled: store.isRecordButtonDisabled,
+                onToggleRecording: toggleRecording
+            )
+        }
+        ToolbarItem(placement: .navigation) {
+            SearchToolbarButton(onSearch: openCommandPalette)
+        }
+        ToolbarItem(placement: .navigation) {
+            Button(action: { _ = history.goBack() }) {
+                Image(systemName: "chevron.backward")
+            }
+            .disabled(!history.canGoBack)
+            .help("Back")
+            .accessibilityIdentifier("nav-back-button")
+        }
+        ToolbarItem(placement: .navigation) {
+            Button(action: { _ = history.goForward() }) {
+                Image(systemName: "chevron.forward")
+            }
+            .disabled(!history.canGoForward)
+            .help("Forward")
+            .accessibilityIdentifier("nav-forward-button")
+        }
+    }
+
+    private func openCommandPalette() {
+        isCommandPalettePresented = true
+    }
+
+    private var recordingsDeleteButtonTitle: String {
+        if recordingsStore.selectedRecordings.count == 1 {
+            return "Delete Recording"
+        }
+        return "Delete \(recordingsStore.selectedRecordings.count) Recordings"
     }
 
     @ViewBuilder

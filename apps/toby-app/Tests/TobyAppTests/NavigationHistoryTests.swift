@@ -1,5 +1,7 @@
 import Testing
+import SwiftUI
 @testable import TobyApp
+import ViewInspector
 
 @Suite("NavigationHistory")
 struct NavigationHistoryTests {
@@ -109,5 +111,46 @@ struct NavigationHistoryTests {
 		_ = history.goForward()
 		#expect(history.current == .recordings)
 		#expect(!history.canGoForward)
+	}
+
+	@Test("recording toolbar button calls callback")
+	@MainActor
+	func recordingToolbarButtonCallsCallback() throws {
+		var toggleCount = 0
+		let button = RecordingToolbarButton(
+			isRecordingActive: false,
+			isRecordButtonDisabled: false,
+			onToggleRecording: { toggleCount += 1 }
+		)
+		let inspected = try button.inspect().button()
+		#expect(try inspected.accessibilityLabel().string() == "Record Audio")
+		try inspected.tap()
+		#expect(toggleCount == 1)
+	}
+
+	@Test("recording toolbar button reflects active and disabled states")
+	@MainActor
+	func recordingToolbarButtonReflectsState() throws {
+		let button = RecordingToolbarButton(
+			isRecordingActive: true,
+			isRecordButtonDisabled: true,
+			onToggleRecording: {}
+		)
+		let inspected = try button.inspect().button()
+		#expect(try inspected.accessibilityLabel().string() == "Stop Recording")
+		#expect(inspected.isDisabled())
+	}
+
+	@Test("search toolbar button calls callback")
+	@MainActor
+	func searchToolbarButtonCallsCallback() throws {
+		var searchCount = 0
+		let button = SearchToolbarButton {
+			searchCount += 1
+		}
+		let inspected = try button.inspect().button()
+		#expect(try inspected.accessibilityLabel().string() == "Search")
+		try inspected.tap()
+		#expect(searchCount == 1)
 	}
 }

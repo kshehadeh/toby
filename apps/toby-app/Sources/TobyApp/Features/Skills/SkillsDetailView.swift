@@ -2,7 +2,6 @@ import SwiftUI
 
 struct SkillsDetailView: View {
 	@Bindable var store: SkillsStore
-	let onDelete: () -> Void
 
 	var body: some View {
 		GeometryReader { geo in
@@ -37,20 +36,5 @@ struct SkillsDetailView: View {
 			}
 		}
 		.background(SettingsDesign.canvasBackground)
-		.toolbar {
-			ToolbarItem(placement: .primaryAction) {
-				if store.selectedSkill != nil {
-					Button {
-						onDelete()
-					} label: {
-						Image(systemName: "trash")
-					}
-					.buttonStyle(.borderedProminent)
-					.tint(.red)
-					.disabled(store.isSaving)
-					.accessibilityIdentifier("delete-skill-button")
-				}
-			}
-		}
 	}
 }

@@ -39,9 +39,6 @@ struct RecordingsViewTests {
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "3 recordings selected")
 		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "delete-recordings-button")
-		}
 	}
 
 	@Test("recordings detail shows copy transcript button when transcript is present")
