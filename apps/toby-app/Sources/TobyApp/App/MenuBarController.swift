@@ -6,17 +6,23 @@ import SwiftUI
 @MainActor
 final class MenuBarController: NSObject {
 	private var statusItem: NSStatusItem?
+	private var menu: NSMenu?
 	private var isRecordingActive = false
 	private var baseMenuImage: NSImage?
 	private var originalDockImage: NSImage?
 	private var appliedDockIndicatorImage: NSImage?
+	private var testMenuBarImageIsMarked = false
 
 	static let recordingStateChanged = Notification.Name("menuBarRecordingStateChanged")
 	private static let recordingDockImageName = NSImage.Name("TobyRecordingDockIndicator")
 
-	override init() {
+	init(registerStatusItem: Bool = true) {
 		super.init()
-		setupStatusItem()
+		if registerStatusItem {
+			setupStatusItem()
+		} else {
+			menu = buildMenu()
+		}
 		observeRecordingState()
 	}
 
@@ -38,7 +44,9 @@ final class MenuBarController: NSObject {
 			baseMenuImage = fallback
 			item.button?.image = fallback
 		}
-		item.menu = buildMenu()
+		let menu = buildMenu()
+		item.menu = menu
+		self.menu = menu
 		statusItem = item
 	}
 
@@ -193,6 +201,10 @@ final class MenuBarController: NSObject {
 	}
 
 	private func updateMenuBarIcon() {
+		guard statusItem != nil else {
+			testMenuBarImageIsMarked = isRecordingActive
+			return
+		}
 		guard let base = baseMenuImage else { return }
 		let image = isRecordingActive
 			? Self.imageWithRecordingIndicator(base)
@@ -202,6 +214,7 @@ final class MenuBarController: NSObject {
 	}
 
 	private func updateDockIcon() {
+		guard statusItem != nil else { return }
 		if isRecordingActive {
 			if originalDockImage == nil {
 				let current = NSApp.applicationIconImage
@@ -269,7 +282,7 @@ final class MenuBarController: NSObject {
 	}
 
 	private func updateRecordingItem() {
-		guard let menu = statusItem?.menu else { return }
+		guard let menu else { return }
 		guard let item = menu.item(withTag: Self.recordingItemTag) else { return }
 		item.title = recordingItemTitle
 	}
@@ -280,7 +293,7 @@ final class MenuBarController: NSObject {
 
 	/// Returns the current menu item titles in order (for testing).
 	var menuItemTitles: [String] {
-		guard let menu = statusItem?.menu else { return [] }
+		guard let menu else { return [] }
 		return menu.items.map(\.title)
 	}
 
@@ -293,6 +306,7 @@ final class MenuBarController: NSObject {
 	/// Whether the current menu bar status item image has the recording indicator
 	/// overlay applied. Returns `nil` if no image is set. (for testing)
 	var menuBarImageIsMarked: Bool? {
+		guard statusItem != nil else { return testMenuBarImageIsMarked }
 		guard let current = statusItem?.button?.image, let base = baseMenuImage else { return nil }
 		// The indicator image is a different instance than the base
 		return current !== base

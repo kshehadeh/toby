@@ -26,7 +26,7 @@ struct AppSidebar<Content: View>: View {
 				onRestartServer: onRestartServer
 			)
 			sidebarContent()
-				.frame(maxHeight: .infinity)
+				.frame(maxHeight: .infinity, alignment: .topLeading)
 				.padding(.bottom, 16)
 			Divider()
 				.background(AppTheme.separator)
