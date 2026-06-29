@@ -10,6 +10,7 @@ import {
 
 type ToolDefinition = {
 	name: string;
+	displayName: string;
 	description: string;
 	readOnly?: boolean;
 	inputSchema: JsonRecord;
@@ -18,6 +19,7 @@ type ToolDefinition = {
 const TOOL_DEFINITIONS: ToolDefinition[] = [
 	{
 		name: "searchJiraIssues",
+		displayName: "Search Jira issues",
 		description:
 			"Search Jira issues using JQL (Jira Query Language). Returns matching issues with key, summary, status, assignee, and priority. Use JQL syntax like: assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
 		readOnly: true,
@@ -44,6 +46,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "getJiraIssue",
+		displayName: "Get Jira issue",
 		description:
 			"Get full details of a Jira issue by its key (e.g. PROJ-123). Returns summary, description, status, assignee, priority, labels, and more.",
 		readOnly: true,
@@ -60,6 +63,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "getJiraIssueComments",
+		displayName: "Get Jira issue comments",
 		description:
 			"Get comments for a Jira issue by its key. Returns paginated comments with author, body, and timestamps.",
 		readOnly: true,
@@ -84,6 +88,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "listJiraProjects",
+		displayName: "List Jira projects",
 		description:
 			"List Jira projects accessible to the authenticated user. Returns project key, name, and type.",
 		readOnly: true,

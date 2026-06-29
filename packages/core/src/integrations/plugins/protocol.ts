@@ -44,6 +44,8 @@ export interface PluginToolDefinition {
 	readonly description: string;
 	readonly readOnly?: boolean;
 	readonly inputSchema: Record<string, unknown>;
+	/** Human-readable label for UI display (e.g. "Fetch inbox overview"). */
+	readonly displayName?: string;
 }
 
 export interface PluginToolHealth {
@@ -150,6 +152,10 @@ export interface PluginStatusResponse {
 	readonly chatModelPrep?: PluginChatModelPrep;
 	readonly chatReadiness?: PluginChatReadiness;
 	readonly inboundPrep?: PluginInboundPrep;
+	/** Emoji or icon identifier for UI display (e.g. "📧"). */
+	readonly icon?: string;
+	/** Inbound transport type for logging (e.g. "socket_mode", "webhook"). */
+	readonly inboundTransport?: string;
 	readonly tools?: readonly PluginToolHealth[];
 	readonly details?: string;
 	readonly setupAvailable?: boolean;
@@ -318,6 +324,10 @@ export interface PluginManifest {
 	readonly capabilities?: readonly IntegrationCapability[];
 	readonly providerCategories?: readonly ProviderCategory[];
 	readonly events?: PluginManifestEvents;
+	/** Emoji or icon identifier for UI display (e.g. "📧"). */
+	readonly icon?: string;
+	/** Inbound transport type for logging (e.g. "socket_mode", "webhook"). */
+	readonly inboundTransport?: string;
 }
 
 export function parsePluginNameFromBinary(binaryName: string): string | null {

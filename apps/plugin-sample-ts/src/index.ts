@@ -210,6 +210,7 @@ function handleToolsList(): never {
 		tools: [
 			{
 				name: "sampleTsEcho",
+				displayName: "Echo",
 				description: "Echo a message using the configured greeting prefix",
 				readOnly: true,
 				inputSchema: {
@@ -225,6 +226,7 @@ function handleToolsList(): never {
 			},
 			{
 				name: "sampleTsMutate",
+				displayName: "Record mutation",
 				description: "Record a demo mutation (respects dryRun)",
 				readOnly: false,
 				inputSchema: {

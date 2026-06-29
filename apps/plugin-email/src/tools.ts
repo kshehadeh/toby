@@ -40,6 +40,7 @@ function messageSummary(m: CachedMessage): JsonRecord {
 export const TOOL_DEFINITIONS = [
 	{
 		name: "getInboxOverview",
+		displayName: "Fetch inbox overview",
 		description:
 			"List cached messages from a mailbox (default INBOX). Returns uid, from, subject, date, snippet for each message. Data comes from the local SQLite cache; use syncMailbox to refresh.",
 		readOnly: true,
@@ -63,6 +64,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "getEmailMetadata",
+		displayName: "Fetch email metadata",
 		description:
 			"Get cached metadata (from, to, cc, subject, date, snippet, flags) for specific message UIDs in a mailbox.",
 		readOnly: true,
@@ -85,6 +87,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "getEmailBody",
+		displayName: "Fetch email body",
 		description:
 			"Get the full text and HTML body of a message. If the body is not cached locally, it will be fetched from the IMAP server.",
 		readOnly: true,
@@ -102,6 +105,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "searchEmails",
+		displayName: "Search emails",
 		description:
 			"Search cached messages by keyword in subject, from, to, or snippet fields.",
 		readOnly: true,
@@ -127,6 +131,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "syncMailbox",
+		displayName: "Sync mailbox",
 		description:
 			"Trigger a manual IMAP sync to fetch new messages into the local cache. Use this when the cache may be stale.",
 		inputSchema: {
@@ -141,6 +146,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "listMailboxes",
+		displayName: "List mailboxes",
 		description:
 			"List all available IMAP mailboxes (folders) on the server. Use this to find mailbox names for move operations and to see special-use folders like Trash, Sent, Drafts.",
 		readOnly: true,
@@ -151,6 +157,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "markAsRead",
+		displayName: "Mark emails as read",
 		description:
 			"Mark one or more messages as read by setting the \\Seen IMAP flag. Also updates the local cache.",
 		inputSchema: {
@@ -172,6 +179,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "markAsUnread",
+		displayName: "Mark emails as unread",
 		description:
 			"Mark one or more messages as unread by removing the \\Seen IMAP flag. Also updates the local cache.",
 		inputSchema: {
@@ -193,6 +201,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "setEmailFlags",
+		displayName: "Set email flags",
 		description:
 			"Add or remove arbitrary IMAP flags on messages. Common flags: \\Seen (read), \\Flagged (starred), \\Answered (replied), \\Draft (draft). Custom labels (e.g. Gmail labels) may also be set this way.",
 		inputSchema: {
@@ -224,6 +233,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "moveToMailbox",
+		displayName: "Move to mailbox",
 		description:
 			"Move one or more messages to a different IMAP mailbox. Use listMailboxes to find available mailbox names. Removes the messages from the source mailbox.",
 		inputSchema: {
@@ -250,6 +260,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "deleteEmail",
+		displayName: "Delete email",
 		description:
 			"Delete one or more messages. If the server has a Trash mailbox, messages are moved there. Otherwise the \\Deleted flag is set and the mailbox is expunged. Also removes the messages from the local cache.",
 		inputSchema: {
@@ -271,6 +282,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "archiveEmail",
+		displayName: "Archive email",
 		description:
 			"Archive one or more messages by moving them to the server's archive mailbox (auto-detected via the \\All special-use flag or common names like 'All Mail' or 'Archive'). Also removes the messages from the local cache.",
 		inputSchema: {
@@ -292,6 +304,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "createDraft",
+		displayName: "Create draft",
 		description:
 			"Create a new email draft stored locally in the SQLite database. Drafts can be reviewed and sent via sendDraft.",
 		inputSchema: {
@@ -312,6 +325,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "updateDraft",
+		displayName: "Update draft",
 		description: "Update an existing draft by ID.",
 		inputSchema: {
 			type: "object",
@@ -328,6 +342,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "listDrafts",
+		displayName: "List drafts",
 		description: "List all stored email drafts.",
 		readOnly: true,
 		inputSchema: {
@@ -342,6 +357,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "deleteDraft",
+		displayName: "Delete draft",
 		description: "Delete a stored draft by ID.",
 		inputSchema: {
 			type: "object",
@@ -353,6 +369,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "sendEmail",
+		displayName: "Send email",
 		description:
 			"Send an email immediately via SMTP. Respects dryRun: when dryRun is true, returns what would be sent without actually sending.",
 		inputSchema: {
@@ -373,6 +390,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "sendDraft",
+		displayName: "Send draft",
 		description:
 			"Send a stored draft via SMTP by draft ID. The draft is deleted after successful sending. Respects dryRun.",
 		inputSchema: {

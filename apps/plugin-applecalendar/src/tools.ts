@@ -4,6 +4,7 @@ type JsonRecord = Record<string, unknown>;
 
 export type ToolDefinition = {
 	name: string;
+	displayName: string;
 	description: string;
 	readOnly?: boolean;
 	inputSchema: {
@@ -23,6 +24,7 @@ function prop(
 export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	{
 		name: "listCalendars",
+		displayName: "List calendars",
 		description:
 			"List Calendar.app calendar names and colors. Use exact calendar names when passing the `calendar` parameter to searchCalendarEvents, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, or getCalendarEvent.",
 		readOnly: true,
@@ -30,6 +32,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "searchCalendarEvents",
+		displayName: "Search calendar events",
 		description:
 			"Search Apple Calendar locally via Calendar.app. Returns event uid, summary, start/end dates, allDay, location, description, and calendar name. Use uid values for getCalendarEvent, updateCalendarEvent, and deleteCalendarEvent.",
 		readOnly: true,
@@ -55,6 +58,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "getCalendarEvent",
+		displayName: "Get calendar event",
 		description:
 			"Get full details of a single Calendar.app event by uid, including attendee names. Use uid from searchCalendarEvents or createCalendarEvent.",
 		readOnly: true,
@@ -72,6 +76,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "createCalendarEvent",
+		displayName: "Create calendar event",
 		description:
 			"Create a new event in Calendar.app. Returns uid for later updateCalendarEvent or deleteCalendarEvent. Dates should be ISO 8601 (e.g. 2026-01-15T09:00:00).",
 		inputSchema: {
@@ -96,6 +101,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "updateCalendarEvent",
+		displayName: "Update calendar event",
 		description:
 			"Update an existing Calendar.app event by uid (from searchCalendarEvents or createCalendarEvent). Only provided fields are changed.",
 		inputSchema: {
@@ -118,6 +124,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "deleteCalendarEvent",
+		displayName: "Delete calendar event",
 		description:
 			"Delete a Calendar.app event by uid (from searchCalendarEvents or createCalendarEvent). This cannot be undone.",
 		inputSchema: {

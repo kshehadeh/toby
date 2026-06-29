@@ -4,6 +4,7 @@
 	"description": "Atlassian Jira issue tracking",
 	"version": "1.0.0",
 	"protocolVersion": "1",
+	"icon": "🎫",
 	"runtime": {
 		"type": "bun",
 		"entry": "src/index.ts"

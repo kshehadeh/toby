@@ -4,6 +4,7 @@ type JsonRecord = Record<string, unknown>;
 
 export type ToolDefinition = {
 	name: string;
+	displayName: string;
 	description: string;
 	readOnly?: boolean;
 	inputSchema: {
@@ -23,6 +24,7 @@ function prop(
 export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	{
 		name: "macBatteryStatus",
+		displayName: "Battery status",
 		description:
 			"macOS only. Read battery / power snapshot: condition, charge percent, cycle count, charging state, and power source. Uses native IOKit APIs.",
 		readOnly: true,
@@ -30,6 +32,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macWifiStatus",
+		displayName: "Wi-Fi status",
 		description:
 			"macOS only. Show Wi‑Fi power state, current SSID, BSSID, and RSSI using native CoreWLAN APIs.",
 		readOnly: true,
@@ -37,6 +40,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macWifiScanNearby",
+		displayName: "Scan nearby Wi-Fi",
 		description:
 			"macOS only. Scan nearby Wi‑Fi networks using native CoreWLAN. Returns SSIDs, BSSIDs, and RSSI values. Wi‑Fi should be ON. May require Location Services permission.",
 		readOnly: true,
@@ -44,6 +48,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macWifiSetPower",
+		displayName: "Set Wi-Fi power",
 		description: "macOS only. Turn Wi‑Fi radio on/off using native CoreWLAN.",
 		inputSchema: {
 			type: "object",
@@ -53,6 +58,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macAudioListOutputs",
+		displayName: "List audio outputs",
 		description:
 			"macOS only. List audio output and input device names using native CoreAudio APIs. Shows device names, UIDs, and default status.",
 		readOnly: true,
@@ -60,6 +66,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macAudioSwitchOutput",
+		displayName: "Switch audio output",
 		description:
 			"macOS only. Set default output audio device using native CoreAudio. Use this whenever the user asks to switch/change/set audio output. If the device name is not known, call macAudioListOutputs first.",
 		inputSchema: {
@@ -75,6 +82,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macAudioVolume",
+		displayName: "Get audio volume",
 		description:
 			"macOS only. Get the current system output volume (0-100) and mute state using native CoreAudio.",
 		readOnly: true,
@@ -82,6 +90,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macAudioSetVolume",
+		displayName: "Set audio volume",
 		description:
 			"macOS only. Set system output volume (0-100) using native CoreAudio. Automatically unmutes if level > 0.",
 		inputSchema: {
@@ -92,6 +101,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macAudioSetMute",
+		displayName: "Set audio mute",
 		description:
 			"macOS only. Mute or unmute the system audio output using native CoreAudio.",
 		inputSchema: {
@@ -102,6 +112,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macBluetoothStatus",
+		displayName: "Bluetooth status",
 		description:
 			"macOS only. Read Bluetooth power state and paired/connected devices using native IOBluetooth APIs.",
 		readOnly: true,
@@ -109,6 +120,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macBluetoothSetPower",
+		displayName: "Set Bluetooth power",
 		description:
 			"macOS only. Enable/disable Bluetooth using native IOBluetooth APIs. No third-party tools required.",
 		inputSchema: {
@@ -119,6 +131,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macLowPowerModeStatus",
+		displayName: "Low power mode status",
 		description:
 			"macOS only. Read low power mode state (may not be available on desktops).",
 		readOnly: true,
@@ -126,6 +139,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macLowPowerModeSet",
+		displayName: "Set low power mode",
 		description:
 			"macOS only. Set low power mode on/off. May fail without admin privileges.",
 		inputSchema: {
@@ -136,6 +150,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macFocusSet",
+		displayName: "Set Focus / Do Not Disturb",
 		description:
 			'macOS only. Turn Do Not Disturb / Focus mode on or off on this Mac. Uses bundled Shortcuts "TobyFocusOn" and "TobyFocusOff" (install via `toby plugins setup macos` if missing). Prefer this over macShortcutRun for Focus/DND requests.',
 		inputSchema: {
@@ -151,6 +166,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macShortcutRun",
+		displayName: "Run shortcut",
 		description:
 			'macOS only. Run any Shortcuts.app shortcut by exact name. For Do Not Disturb / Focus, prefer macFocusSet; bundled shortcuts are "TobyFocusOn" and "TobyFocusOff".',
 		inputSchema: {
@@ -163,6 +179,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macDisplayBrightness",
+		displayName: "Display brightness",
 		description:
 			"macOS only. Get the current display brightness level (0-100). May not be supported on all hardware configurations (e.g. some Apple Silicon Macs).",
 		readOnly: true,
@@ -170,6 +187,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macDisplaySetBrightness",
+		displayName: "Set display brightness",
 		description:
 			"macOS only. Set display brightness level (0-100). May not be supported on all hardware configurations.",
 		inputSchema: {
@@ -180,6 +198,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macClipboardRead",
+		displayName: "Read clipboard",
 		description:
 			"macOS only. Read the current text content of the system clipboard.",
 		readOnly: true,
@@ -187,6 +206,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macClipboardWrite",
+		displayName: "Write clipboard",
 		description:
 			"macOS only. Write text to the system clipboard, replacing any current content.",
 		inputSchema: {
@@ -197,6 +217,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macSystemInfo",
+		displayName: "System info",
 		description:
 			"macOS only. Get system information: OS version, hardware model, hostname, uptime, processor count, physical memory, and Apple Silicon status.",
 		readOnly: true,
@@ -204,6 +225,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macNotificationsPeek",
+		displayName: "Peek notifications",
 		description:
 			"macOS only. Read Notification Center items — not supported (no stable API). Does not toggle Do Not Disturb / Focus; use macFocusSet for that.",
 		readOnly: true,
@@ -211,30 +233,35 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macWindowsHideAll",
+		displayName: "Hide all other windows",
 		description:
 			'macOS only. Hide all other application windows (like the macOS "Hide Others" command). Uses native AppKit; no extra permission required.',
 		inputSchema: { type: "object", properties: {} },
 	},
 	{
 		name: "macWindowsShowAll",
+		displayName: "Show all windows",
 		description:
 			"macOS only. Show/unhide all currently hidden application windows. Uses native AppKit; no extra permission required.",
 		inputSchema: { type: "object", properties: {} },
 	},
 	{
 		name: "macWindowsMinimizeAll",
+		displayName: "Minimize all windows",
 		description:
 			"macOS only. Minimize all windows of all open applications via the native Accessibility API. Requires Accessibility permission for the app running Toby (System Settings → Privacy & Security → Accessibility).",
 		inputSchema: { type: "object", properties: {} },
 	},
 	{
 		name: "macWindowsUnminimizeAll",
+		displayName: "Unminimize all windows",
 		description:
 			"macOS only. Unminimize all minimized windows of all open applications via the native Accessibility API. Requires Accessibility permission.",
 		inputSchema: { type: "object", properties: {} },
 	},
 	{
 		name: "macWindowHideApp",
+		displayName: "Hide app windows",
 		description:
 			"macOS only. Hide a specific running application's windows by name. Matches localized app name or bundle id substring (case-insensitive). Uses native AppKit.",
 		inputSchema: {
@@ -250,6 +277,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macWindowMinimizeApp",
+		displayName: "Minimize app windows",
 		description:
 			"macOS only. Minimize all windows of a specific running application via the native Accessibility API. Requires Accessibility permission.",
 		inputSchema: {
@@ -265,6 +293,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: "macWindowUnminimizeApp",
+		displayName: "Unminimize app windows",
 		description:
 			"macOS only. Unminimize all minimized windows of a specific running application via the native Accessibility API. Requires Accessibility permission.",
 		inputSchema: {

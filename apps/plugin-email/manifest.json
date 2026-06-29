@@ -4,6 +4,7 @@
 	"description": "Generic email integration using IMAP for reading and SMTP for sending, with a local SQLite cache",
 	"version": "1.0.0",
 	"protocolVersion": "1",
+	"icon": "📧",
 	"runtime": {
 		"type": "bun",
 		"entry": "src/index.ts"

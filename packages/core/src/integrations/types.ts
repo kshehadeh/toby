@@ -84,7 +84,7 @@ interface IntegrationAuthMethodDescriptor {
 /** Options for the `chat` command: freeform instruction + AI persona context. */
 export interface ChatRunOptions {
 	readonly prompt: string;
-	/** When set, caps bootstrap fetches and Gmail list page size. Omitted = no artificial cap (provider / pagination limits still apply). */
+	/** When set, caps bootstrap fetches and list page size. Omitted = no artificial cap (provider / pagination limits still apply). */
 	readonly maxResults?: number;
 	readonly dryRun: boolean;
 	readonly personaForModel: Persona;
@@ -121,6 +121,10 @@ export interface Integration {
 	readonly name: string;
 	readonly displayName: string;
 	readonly description: string;
+	/** Emoji or icon identifier for UI display (e.g. "📧"). */
+	readonly icon?: string;
+	/** Inbound transport type for daemon logging (e.g. "socket_mode"). */
+	readonly inboundTransport?: string;
 	connect(): Promise<void>;
 	isConnected(): Promise<boolean>;
 	testConnection(options?: TestConnectionOptions): Promise<IntegrationHealth>;

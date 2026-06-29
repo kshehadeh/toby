@@ -4,6 +4,8 @@
 	"description": "Connect to Slack to post messages, reply in threads, and search channels",
 	"version": "1.0.0",
 	"protocolVersion": "1",
+	"icon": "💬",
+	"inboundTransport": "socket_mode",
 	"runtime": {
 		"type": "bun",
 		"entry": "src/cli.ts"

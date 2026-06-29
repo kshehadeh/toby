@@ -182,6 +182,8 @@ async function handleStatus(
 		description: DESCRIPTION,
 		version: PLUGIN_VERSION,
 		protocolVersion: PROTOCOL_VERSION,
+		icon: "💬",
+		inboundTransport: "socket_mode",
 		connected,
 		capabilities: ["chat", "inbound"],
 		providerCategories: ["chat"],

@@ -11,6 +11,7 @@ type JsonRecord = Record<string, unknown>;
 export const TOOL_DEFINITIONS = [
 	{
 		name: "postToChannel",
+		displayName: "Post to channel",
 		description:
 			"Post a new message to a Slack channel, private channel, or DM. Pass channel name (e.g. general), #channel, channel ID, or a username for DMs.",
 		readOnly: false,
@@ -31,6 +32,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "replyToPost",
+		displayName: "Reply to post",
 		description:
 			"Reply in a Slack thread. Requires the parent message timestamp (thread_ts) from the original post.",
 		readOnly: false,
@@ -55,6 +57,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "searchUsers",
+		displayName: "Search users",
 		description:
 			"Search workspace members by display name, username, or email. Email lookup uses users.lookupByEmail (requires users:read.email).",
 		readOnly: true,
@@ -76,6 +79,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "searchChannels",
+		displayName: "Search channels",
 		description:
 			"Search Slack channels (public, private the bot is in). For people, prefer searchUsers.",
 		readOnly: true,
@@ -97,6 +101,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "searchMessages",
+		displayName: "Search messages",
 		description:
 			"Search Slack message history across the workspace. Requires search scope on the connected token.",
 		readOnly: true,

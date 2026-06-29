@@ -4,6 +4,7 @@
 	"description": "Connect to Todoist to manage and summarize your tasks",
 	"version": "1.0.0",
 	"protocolVersion": "1",
+	"icon": "✅",
 	"runtime": {
 		"type": "bun",
 		"entry": "src/cli.ts"

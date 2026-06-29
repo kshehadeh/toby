@@ -142,6 +142,7 @@ async function handleStatus(
 		description: DESCRIPTION,
 		version: PLUGIN_VERSION,
 		protocolVersion: PROTOCOL_VERSION,
+		icon: "✅",
 		connected,
 		capabilities: ["chat"],
 		providerCategories: ["tasks"],

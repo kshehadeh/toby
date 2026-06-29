@@ -212,6 +212,11 @@ function validateManifestStructure(
 			providerCategories:
 				providerCategories as PluginManifest["providerCategories"],
 			events,
+			icon: typeof obj.icon === "string" ? obj.icon : undefined,
+			inboundTransport:
+				typeof obj.inboundTransport === "string"
+					? obj.inboundTransport
+					: undefined,
 		},
 	};
 }

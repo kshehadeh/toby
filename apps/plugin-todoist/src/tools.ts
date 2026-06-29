@@ -15,6 +15,7 @@ type JsonRecord = Record<string, unknown>;
 export const TOOL_DEFINITIONS = [
 	{
 		name: "fetchOpenTasks",
+		displayName: "Fetch open tasks",
 		description:
 			"Fetch active (incomplete) Todoist tasks via the tasks list API — not completed archive",
 		readOnly: true,
@@ -30,6 +31,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "fetchCompletedTasks",
+		displayName: "Fetch completed tasks",
 		description: "Fetch recently completed Todoist tasks",
 		readOnly: true,
 		inputSchema: {
@@ -44,6 +46,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "listProjectNames",
+		displayName: "List project names",
 		description:
 			"List Todoist project names (includes project id so you can map task.projectId values).",
 		readOnly: true,
@@ -54,6 +57,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "getProjectNameById",
+		displayName: "Resolve project name",
 		description:
 			"Convert a Todoist project id to a project name. Use this when context includes only projectId values.",
 		readOnly: true,
@@ -70,6 +74,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "completeTask",
+		displayName: "Complete task",
 		description: "Mark a Todoist task as completed",
 		readOnly: false,
 		inputSchema: {
@@ -85,6 +90,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "createTask",
+		displayName: "Create task",
 		description:
 			"Create a new Todoist task in the inbox unless projectId or sectionId is set. Use projectId/sectionId from fetchOpenTasks context when the user wants a task in a specific project.",
 		readOnly: false,
@@ -131,6 +137,7 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "updateTask",
+		displayName: "Update task",
 		description:
 			"Update an existing Todoist task by id. Change the list title (`content` or `title`), notes (`description`), due date (`dueDate` YYYY-MM-DD, `dueString` natural language, or `dueDatetime` ISO 8601), `priority` (1–4, 4 = most urgent in API), and/or `labels`. Pass at least one field besides taskId.",
 		readOnly: false,
