@@ -9,8 +9,10 @@ final class MenuBarController: NSObject {
 	private var isRecordingActive = false
 	private var baseMenuImage: NSImage?
 	private var originalDockImage: NSImage?
+	private var appliedDockIndicatorImage: NSImage?
 
 	static let recordingStateChanged = Notification.Name("menuBarRecordingStateChanged")
+	private static let recordingDockImageName = NSImage.Name("TobyRecordingDockIndicator")
 
 	override init() {
 		super.init()
@@ -202,15 +204,46 @@ final class MenuBarController: NSObject {
 	private func updateDockIcon() {
 		if isRecordingActive {
 			if originalDockImage == nil {
-				originalDockImage = NSApp.applicationIconImage
+				let current = NSApp.applicationIconImage
+				if current?.name() != Self.recordingDockImageName {
+					originalDockImage = current
+				}
 			}
-			let base = originalDockImage ?? baseMenuImage ?? NSImage()
-			NSApp.applicationIconImage = Self.imageWithRecordingIndicator(base, dotFraction: 0.28)
+			let base = originalDockImage ?? Self.cleanDockFallbackImage() ?? baseMenuImage ?? NSImage()
+			let image = Self.imageWithRecordingIndicator(base, dotFraction: 0.28)
+			image.setName(Self.recordingDockImageName)
+			appliedDockIndicatorImage = image
+			NSApp.applicationIconImage = image
 		} else {
-			// Setting to nil restores the bundle's AppIcon.icns
-			NSApp.applicationIconImage = originalDockImage
-			originalDockImage = nil
+			restoreDockIcon()
 		}
+	}
+
+	private func restoreDockIcon() {
+		// Clear the marker name before restoring so later state checks do not
+		// treat the clean base image as an active recording indicator.
+		if let originalDockImage {
+			let restored = originalDockImage.copy() as? NSImage
+			restored?.setName(nil)
+			NSApp.applicationIconImage = restored
+		} else if let fallback = Self.cleanDockFallbackImage() {
+			NSApp.applicationIconImage = fallback
+		} else {
+			// Setting to nil restores the bundle's AppIcon.icns.
+			NSApp.applicationIconImage = nil
+		}
+		originalDockImage = nil
+		appliedDockIndicatorImage = nil
+	}
+
+	private static func cleanDockFallbackImage() -> NSImage? {
+		guard let logoURL = Bundle.tobyResources.url(forResource: "toby-128", withExtension: "png"),
+			let image = NSImage(contentsOf: logoURL)
+		else {
+			return nil
+		}
+		image.setName(nil)
+		return image
 	}
 
 	/// Composites a small red circle indicator at the bottom-right of `image`.
@@ -263,5 +296,11 @@ final class MenuBarController: NSObject {
 		guard let current = statusItem?.button?.image, let base = baseMenuImage else { return nil }
 		// The indicator image is a different instance than the base
 		return current !== base
+	}
+
+	/// Whether the current Dock icon image has the recording indicator overlay
+	/// applied. (for testing)
+	var dockImageIsMarked: Bool {
+		appliedDockIndicatorImage != nil
 	}
 }
