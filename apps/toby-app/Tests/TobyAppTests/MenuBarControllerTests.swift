@@ -3,7 +3,7 @@ import SwiftUI
 @testable import TobyApp
 
 @MainActor
-@Suite("MenuBarController")
+@Suite("MenuBarController", .serialized)
 struct MenuBarControllerTests {
 	@Test("menu contains expected items in order")
 	func menuItemsPresent() throws {
@@ -38,6 +38,7 @@ struct MenuBarControllerTests {
 		// Allow notification to be processed on the main run loop
 		RunLoop.current.run(until: Date().addingTimeInterval(0.1))
 		#expect(controller.menuItemTitles.contains("Stop Recording"))
+		controller.setRecordingActive(false)
 	}
 
 	@Test("menu bar icon gains recording indicator when active")
@@ -59,6 +60,28 @@ struct MenuBarControllerTests {
 		NotificationCenter.default.post(name: MenuBarController.recordingStateChanged, object: true)
 		RunLoop.current.run(until: Date().addingTimeInterval(0.1))
 		#expect(controller.menuBarImageIsMarked == true)
+		controller.setRecordingActive(false)
+	}
+
+	@Test("dock icon recording indicator clears when recording stops")
+	func dockIconIndicatorClearsWhenRecordingStops() throws {
+		let controller = MenuBarController()
+		controller.setRecordingActive(true)
+		#expect(controller.dockImageIsMarked)
+
+		controller.setRecordingActive(false)
+		#expect(!controller.dockImageIsMarked)
+	}
+
+	@Test("recording state change notification clears dock icon")
+	func recordingStateNotificationClearsDockIcon() throws {
+		let controller = MenuBarController()
+		controller.setRecordingActive(true)
+		#expect(controller.dockImageIsMarked)
+
+		NotificationCenter.default.post(name: MenuBarController.recordingStateChanged, object: false)
+		RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+		#expect(!controller.dockImageIsMarked)
 	}
 }
 
