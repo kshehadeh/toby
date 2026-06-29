@@ -7,7 +7,7 @@ import SwiftUI
 struct MenuBarControllerTests {
 	@Test("menu contains expected items in order")
 	func menuItemsPresent() throws {
-		let controller = MenuBarController()
+		let controller = MenuBarController(registerStatusItem: false)
 		let titles = controller.menuItemTitles
 		#expect(titles.contains("New Chat"))
 		#expect(titles.contains("Recordings"))
@@ -19,7 +19,7 @@ struct MenuBarControllerTests {
 
 	@Test("recording item title toggles with state")
 	func recordingItemTitleToggles() throws {
-		let controller = MenuBarController()
+		let controller = MenuBarController(registerStatusItem: false)
 		// Initially "Start Recording"
 		#expect(controller.menuItemTitles.contains("Start Recording"))
 		// After activating recording -> "Stop Recording"
@@ -33,7 +33,7 @@ struct MenuBarControllerTests {
 
 	@Test("recording state change notification updates title")
 	func recordingStateNotificationUpdatesTitle() throws {
-		let controller = MenuBarController()
+		let controller = MenuBarController(registerStatusItem: false)
 		NotificationCenter.default.post(name: MenuBarController.recordingStateChanged, object: true)
 		// Allow notification to be processed on the main run loop
 		RunLoop.current.run(until: Date().addingTimeInterval(0.1))
@@ -43,7 +43,7 @@ struct MenuBarControllerTests {
 
 	@Test("menu bar icon gains recording indicator when active")
 	func menuBarIconMarkedWhenRecording() throws {
-		let controller = MenuBarController()
+		let controller = MenuBarController(registerStatusItem: false)
 		// Initially not marked
 		#expect(controller.menuBarImageIsMarked == false)
 		// After activating -> marked
@@ -56,7 +56,7 @@ struct MenuBarControllerTests {
 
 	@Test("recording state change notification updates menu bar icon")
 	func recordingStateNotificationUpdatesIcon() throws {
-		let controller = MenuBarController()
+		let controller = MenuBarController(registerStatusItem: false)
 		NotificationCenter.default.post(name: MenuBarController.recordingStateChanged, object: true)
 		RunLoop.current.run(until: Date().addingTimeInterval(0.1))
 		#expect(controller.menuBarImageIsMarked == true)

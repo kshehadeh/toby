@@ -61,6 +61,34 @@ struct AppSidebarTests {
         #expect(throws: Never.self) { try view.inspect().find(text: "No past sessions") }
     }
 
+    @Test("loading sessions shows loading text")
+    func loadingSessionsShowsLoadingText() throws {
+        let sidebar = AppSidebar(
+            currentRoute: .chat,
+            status: nil,
+            daemonStatus: nil,
+            isServerRestarting: false,
+            updateStore: nil,
+            onSelectRoute: { _ in },
+            onCreatePersona: {},
+            onEditPersona: { _ in },
+            onPersonaSelected: {},
+            onOpenChangelog: {},
+            onRestartServer: {},
+            sidebarContent: {
+                ChatSessionsSidebar(
+                    sessions: [],
+                    selectedSessionId: nil,
+                    isLoading: false,
+                    isSessionsLoading: true,
+                    onSelectSession: { _ in },
+                    onDeleteSession: { _ in }
+                )
+            }
+        )
+        #expect(throws: Never.self) { try sidebar.inspect().find(text: "Loading sessions…") }
+    }
+
     @Test("session count matches provided data")
     func sessionCountMatchesData() throws {
         let sessions = [
