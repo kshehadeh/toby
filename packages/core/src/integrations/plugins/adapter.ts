@@ -6,7 +6,6 @@ import {
 	clearSessionToolBundleCache,
 	runSharedChatTurn,
 } from "../../chat-pipeline/run-turn";
-import { registerPluginToolLabels } from "../../tool-labels";
 import type { CredentialsFile, Persona } from "../../config/index";
 import {
 	ensurePluginDataDir,
@@ -17,6 +16,7 @@ import {
 } from "../../config/index";
 import { daemonLog } from "../../logging/daemon-log";
 import { composeSystemPromptWithPersona } from "../../personas/prompt";
+import { registerPluginToolLabels } from "../../tool-labels";
 import type {
 	ChatRunOptions,
 	CredentialFieldDescriptor,
@@ -136,6 +136,41 @@ function buildEnvelope(name: string): PluginConfigEnvelope {
 		config: readPluginConfig(creds, name),
 		state: readPluginState(name),
 	};
+}
+
+function pluginStatusReportsConnected(data: {
+	readonly ok: boolean;
+	readonly connected?: boolean;
+}): boolean {
+	return data.ok && data.connected === true;
+}
+
+export function isPluginConnectedFromStatus(
+	name: string,
+	target: PluginInvocationTarget,
+): boolean {
+	const config = readConfig();
+	if (config.integrations[name]?.connectedAt) {
+		return true;
+	}
+
+	const result = pluginStatus(target, buildEnvelope(name));
+	forwardPluginStderr(name, result.stderr);
+	return result.ok && pluginStatusReportsConnected(result.data);
+}
+
+async function isPluginConnectedFromStatusAsync(
+	name: string,
+	target: PluginInvocationTarget,
+): Promise<boolean> {
+	const config = readConfig();
+	if (config.integrations[name]?.connectedAt) {
+		return true;
+	}
+
+	const result = await pluginStatusAsync(target, buildEnvelope(name));
+	forwardPluginStderr(name, result.stderr);
+	return result.ok && pluginStatusReportsConnected(result.data);
 }
 
 export function mergePluginConfigPatch(
@@ -473,8 +508,7 @@ export function createPluginIntegrationModule(
 		},
 
 		async isConnected(): Promise<boolean> {
-			const config = readConfig();
-			return Boolean(config.integrations[name]?.connectedAt);
+			return isPluginConnectedFromStatusAsync(name, target);
 		},
 
 		async testConnection(options?: TestConnectionOptions) {

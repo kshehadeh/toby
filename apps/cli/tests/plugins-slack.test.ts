@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -21,9 +22,9 @@ import {
 	pluginStatus,
 	pluginToolsList,
 } from "@toby/core/integrations/plugins/client";
+import { collectPluginListEntries } from "@toby/core/integrations/plugins/list-status";
 import { migrateLegacyPluginCredentials } from "@toby/core/integrations/plugins/migrate";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const slackCli = path.join(repoRoot, "../plugin-slack/src/cli.ts");
@@ -116,6 +117,28 @@ describe("slack plugin", () => {
 			"oauth",
 			"bot_token",
 		]);
+	});
+
+	it("treats configured Slack tokens as connected without connectedAt state", async () => {
+		writeConfig({ integrations: { slack: { inboundEnabled: true } } });
+		writeCredentials({
+			integrations: {
+				slack: {
+					authMethod: "bot_token",
+					botToken: "xoxb-test-token",
+					appToken: "xapp-test-token",
+				},
+			},
+		});
+
+		resetPluginModuleCache();
+		const slack = getIntegrationModule("slack");
+		expect(slack).toBeDefined();
+		expect(await slack?.isConnected()).toBe(true);
+
+		const entries = collectPluginListEntries();
+		const slackEntry = entries.find((entry) => entry.name === "slack");
+		expect(slackEntry?.connected).toBe(true);
 	});
 
 	it("config shape includes inbound credential fields", () => {

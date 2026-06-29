@@ -1,6 +1,6 @@
 import { readConfig } from "../../config/index";
 import type { IntegrationCapability } from "../types";
-import { inspectPluginBinary } from "./adapter";
+import { inspectPluginBinary, isPluginConnectedFromStatus } from "./adapter";
 import { discoverPluginBinaries } from "./discovery";
 import type { DiscoveredPlugin } from "./protocol";
 
@@ -38,7 +38,6 @@ function pluginNameFromBinary(binaryName: string): string {
 export function collectPluginListEntries(): PluginListEntry[] {
 	const discovered = discoverPluginBinaries();
 	const disabled = readDisabledPluginNames();
-	const config = readConfig();
 
 	return discovered.map((entry) => {
 		const name = pluginNameFromBinary(entry.binaryName);
@@ -73,7 +72,7 @@ export function collectPluginListEntries(): PluginListEntry[] {
 			protocolVersion: inspected.protocolVersion,
 			capabilities: inspected.capabilities,
 			state: "valid",
-			connected: Boolean(config.integrations?.[inspected.name]?.connectedAt),
+			connected: isPluginConnectedFromStatus(inspected.name, inspected.target),
 		};
 	});
 }
