@@ -16,7 +16,7 @@ Toby combines:
 - **Personas, skills, and memories** for durable assistant context
 - **Schedules and daemon flows** for recurring prompts and inbound chat
 - **Listen mode** for local audio recording and transcription on macOS
-- **A local web UI** for sessions, memories, and configuration
+- **A native macOS app** for chat and configuration in a SwiftUI surface
 
 ## Install
 
@@ -70,13 +70,12 @@ toby plugins doctor
 | Module | Role |
 | ------ | ---- |
 | `@toby/cli` | Commander entrypoint, Ink chat/configure UI, CLI-only presentation and orchestration. |
-| `@toby/web` | Local browser UI for sessions, memories, and configuration. |
 | `@toby/core` | Shared harness: chat pipeline, AI runtime, tools, integration registry, config, memory, sessions, logging, daemon-safe workflows. |
 | `@toby/plugin-*` | Installable CLI binaries with strict JSON stdin/stdout contracts. |
 | External systems | Email, tasks, chat, work tracking, search, calendars, and local macOS APIs. |
 
 Core is intentionally UI-agnostic. Put behavior in `@toby/core` when it should
-work from the CLI, web UI, daemon, headless scripts, or tests without importing
+work from the CLI, daemon, headless scripts, or tests without importing
 Ink, React, or Commander.
 
 See [docs/architecture.md](docs/architecture.md) and the help-site
@@ -138,7 +137,6 @@ guide for usage details.
 - Integrations: [docs/integrations.md](docs/integrations.md)
 - Plugin protocol: [docs/plugin-protocol.md](docs/plugin-protocol.md)
 - Daemon and schedules: [docs/daemon.md](docs/daemon.md)
-- Web UI: [docs/web-ui.md](docs/web-ui.md)
 - Agent/contributor guide: [AGENTS.md](AGENTS.md)
 
 The Docusaurus help site lives in `apps/help-site/`:
@@ -164,7 +162,6 @@ Useful development commands:
 
 ```bash
 bun run dev -- chat
-bun run dev:web
 bun run build:plugins
 bun run build:executable
 ```

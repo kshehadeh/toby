@@ -34,7 +34,7 @@ export const appSlashCommand: SlashCommand = {
 			const resolved = resolveTobyAppPath();
 			if (!resolved) {
 				runtime.addNoticeLine(
-					"Toby app not found. Run `/install-app` or reinstall from the latest release. Use `/web` for the browser UI.",
+					"Toby app not found. Run `/install-app` or reinstall from the latest release.",
 					"error",
 				);
 				return;

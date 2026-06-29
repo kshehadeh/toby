@@ -12,11 +12,11 @@ import {
 } from "@toby/core/config/index";
 import { warmupPluginToolDefinitions } from "@toby/core/integrations/index";
 import { startPluginPollingLoop } from "@toby/core/integrations/plugins/poller";
+import { pluginDisplayPath } from "@toby/core/integrations/plugins/protocol";
 import {
 	discoverPluginBinaries,
 	resolvePluginSearchDirectories,
 } from "@toby/core/integrations/plugins/registry";
-import { pluginDisplayPath } from "@toby/core/integrations/plugins/protocol";
 import { daemonLog, flushDaemonLogSync } from "@toby/core/logging/daemon-log";
 import {
 	buildTobySpawnArgs,
@@ -179,7 +179,7 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 	console.log(chalk.dim("  Discovered plugins:"));
 	console.log(chalk.dim(formatPluginList()));
 	if (webCfg.enabled) {
-		console.log(chalk.dim(`  Web UI: ${getWebUiUrl(webCfg.port)}`));
+		console.log(chalk.dim(`  API: ${getWebUiUrl(webCfg.port)}`));
 	}
 	console.log(chalk.dim("  Press Ctrl+C to stop."));
 	console.log();
@@ -306,7 +306,9 @@ export function registerDaemonCommand(program: Command): void {
 				console.log(chalk.green(`Daemon started (PID ${result.pid}).`));
 				console.log(chalk.dim(`  Log: ${getDaemonLogPath()}`));
 				console.log(
-					chalk.dim(`  Plugins dir: ${resolvePluginSearchDirectories().join(", ")}`),
+					chalk.dim(
+						`  Plugins dir: ${resolvePluginSearchDirectories().join(", ")}`,
+					),
 				);
 				console.log(chalk.dim("  Discovered plugins:"));
 				console.log(chalk.dim(formatPluginList()));
@@ -372,13 +374,15 @@ export function registerDaemonCommand(program: Command): void {
 					);
 					console.log(chalk.dim(`  Log: ${getDaemonLogPath()}`));
 					console.log(
-						chalk.dim(`  Plugins dir: ${resolvePluginSearchDirectories().join(", ")}`),
+						chalk.dim(
+							`  Plugins dir: ${resolvePluginSearchDirectories().join(", ")}`,
+						),
 					);
 					console.log(chalk.dim("  Discovered plugins:"));
 					console.log(chalk.dim(formatPluginList()));
 					const webUrl = getWebUiUrlFromConfig();
 					if (webUrl) {
-						console.log(chalk.dim(`  Web UI: ${webUrl}`));
+						console.log(chalk.dim(`  API: ${webUrl}`));
 					}
 				} else {
 					console.error(
@@ -422,13 +426,15 @@ export function registerDaemonCommand(program: Command): void {
 			}
 			console.log(chalk.dim(`Daemon log: ${getDaemonLogPath()}`));
 			console.log(
-				chalk.dim(`Plugins dir: ${resolvePluginSearchDirectories().join(", ")}`),
+				chalk.dim(
+					`Plugins dir: ${resolvePluginSearchDirectories().join(", ")}`,
+				),
 			);
 			console.log(chalk.dim("Discovered plugins:"));
 			console.log(chalk.dim(formatPluginList()));
 			const webUrl = getWebUiUrlFromConfig();
 			if (webUrl && running) {
-				console.log(chalk.dim(`Web UI: ${webUrl}`));
+				console.log(chalk.dim(`API: ${webUrl}`));
 			}
 		});
 

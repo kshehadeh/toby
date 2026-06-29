@@ -26,7 +26,6 @@ import { terminalSlashCommand } from "./terminal";
 import type { SlashCommand } from "./types";
 import { upgradeSlashCommand } from "./upgrade";
 import { usageSlashCommand } from "./usage";
-import { webSlashCommand } from "./web";
 
 interface SlashCommandResolution {
 	readonly kind: "none" | "execute" | "unknown";
@@ -62,7 +61,6 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
 	upgradeSlashCommand,
 	usageSlashCommand,
 	appSlashCommand,
-	webSlashCommand,
 	exitSlashCommand,
 ];
 

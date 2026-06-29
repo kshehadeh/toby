@@ -108,10 +108,6 @@ export function resolveInstallTarget(installDir?: string): string {
 	return path.join(resolveInstallDir(installDir), "toby");
 }
 
-export function resolveWebInstallTarget(installDir?: string): string {
-	return path.join(path.dirname(resolveInstallTarget(installDir)), "web");
-}
-
 export function resolveIconsInstallTarget(installDir?: string): string {
 	return path.join(path.dirname(resolveInstallTarget(installDir)), "icons");
 }
@@ -132,7 +128,6 @@ export function getStagingPaths(): {
 	readonly pluginApplecalendarPath: string;
 	readonly pluginMacosPath: string;
 	readonly appPath: string;
-	readonly webPath: string;
 	readonly iconsPath: string;
 	readonly archivePath: string;
 	readonly manifestPath: string;
@@ -151,7 +146,6 @@ export function getStagingPaths(): {
 		pluginApplecalendarPath: path.join(stagingDir, "toby-plugin-applecalendar"),
 		pluginMacosPath: path.join(stagingDir, "toby-plugin-macos"),
 		appPath: path.join(stagingDir, "Toby.app"),
-		webPath: path.join(stagingDir, "web"),
 		iconsPath: path.join(stagingDir, "icons"),
 		archivePath: path.join(stagingDir, "toby-release.dmg"),
 		manifestPath: path.join(stagingDir, "manifest.json"),
@@ -271,7 +265,9 @@ export async function downloadRelease(
 			() => undefined,
 		);
 		await rm(pluginApplecalendarPath, { force: true }).catch(() => undefined);
-		await rm(pluginMacosPath, { recursive: true, force: true }).catch(() => undefined);
+		await rm(pluginMacosPath, { recursive: true, force: true }).catch(
+			() => undefined,
+		);
 		await rm(archivePath, { force: true }).catch(() => undefined);
 		await rm(manifestPath, { force: true }).catch(() => undefined);
 
@@ -414,8 +410,7 @@ export async function applyStagedRelease(
 		);
 	}
 
-	const { binaryPath, webPath, iconsPath, appPath, manifestPath } =
-		getStagingPaths();
+	const { binaryPath, iconsPath, appPath, manifestPath } = getStagingPaths();
 	if (!fs.existsSync(binaryPath)) {
 		throw new Error(`Staged binary missing at ${binaryPath}.`);
 	}
@@ -426,7 +421,7 @@ export async function applyStagedRelease(
 
 	// For standalone CLI installs, replace the binary and sibling assets.
 	// For app-bundle installs, the whole Toby.app is replaced below, so
-	// skip individual binary/web/icons installation.
+	// skip individual binary/icons installation.
 	if (!fromAppBundle) {
 		const tempDestination = path.join(
 			path.dirname(installTarget),
@@ -436,14 +431,6 @@ export async function applyStagedRelease(
 		await rename(binaryPath, tempDestination);
 		await chmodExecutable(tempDestination);
 		await rename(tempDestination, installTarget);
-
-		if (fs.existsSync(path.join(webPath, "index.html"))) {
-			options?.onProgress?.({ phase: "installing", detail: "web UI" });
-			await yieldToEventLoop();
-			const webInstallTarget = path.join(path.dirname(installTarget), "web");
-			await rm(webInstallTarget, { recursive: true, force: true });
-			await cp(webPath, webInstallTarget, { recursive: true });
-		}
 
 		if (fs.existsSync(iconsPath)) {
 			options?.onProgress?.({ phase: "installing", detail: "icons" });
@@ -826,15 +813,6 @@ async function extractFromMountedApp(
 	const bunBinary = path.join(resourcesDir, "bun");
 	if (fs.existsSync(bunBinary)) {
 		await cp(bunBinary, path.join(destinationDir, "bun"));
-	}
-
-	const webDir = path.join(resourcesDir, "web");
-	if (fs.existsSync(path.join(webDir, "index.html"))) {
-		await rm(path.join(destinationDir, "web"), {
-			recursive: true,
-			force: true,
-		}).catch(() => undefined);
-		await cp(webDir, path.join(destinationDir, "web"), { recursive: true });
 	}
 
 	const iconsDir = path.join(resourcesDir, "icons");

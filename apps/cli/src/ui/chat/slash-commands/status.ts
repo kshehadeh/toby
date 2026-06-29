@@ -67,7 +67,7 @@ export function buildStatusReportLines(): string[] {
 	}
 	lines.push("");
 
-	lines.push("## Web UI");
+	lines.push("## HTTP API");
 	const web = getWebConfig();
 	lines.push(`  ${web.enabled ? "Enabled" : "Disabled"} · port ${web.port}`);
 	lines.push("");

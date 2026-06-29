@@ -7,7 +7,6 @@ Monorepo managed with Bun workspaces and Turbo.
 ```
 apps/
   cli/          TypeScript CLI (Commander + Ink TUI) — primary harness
-  web/          Vite + React settings/session UI
   toby-app/     Native macOS app (Swift 6 / SwiftUI, macOS 14+) — only native code in the repo
   plugin-*/     First-party plugins (all TypeScript bun-package format)
 packages/
@@ -32,7 +31,6 @@ Toby.app's native API server rather than compiling its own native binary. See
 ```sh
 bun run app          # build dev macOS app and open it
 bun run dev          # run CLI in dev/watch mode
-bun run dev:web      # run web UI dev server
 ```
 
 ## Tests

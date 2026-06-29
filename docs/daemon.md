@@ -8,7 +8,7 @@ Today the daemon has three responsibilities that run **in parallel** inside that
 
 1. **Schedules** — cron-based prompts (summaries, inbox triage, etc.).
 2. **Chat inbound** — listen on an external chat provider (Slack via Socket Mode today) and run chat turns when users @mention the bot.
-3. **Web UI** — localhost HTTP server for browsing sessions, memories, and configuration. See [`web-ui.md`](web-ui.md).
+3. **HTTP API server** — localhost API for the native macOS app and CLI.
 
 Start it with `toby daemon start` (detached background) or `toby daemon run` (foreground, useful for debugging). Structured activity is appended to **`~/.toby/daemon.log`** (JSON lines, same buffering and rotation model as [`toby.log`](architecture.md#local-data)).
 
@@ -52,7 +52,7 @@ Implementation entrypoints:
 | `toby daemon restart` | Stop the daemon if running, then start it again (preserves poll interval unless `-i` is set) |
 | `toby daemon status` | Show PID, inbound connection state, log path |
 
-From chat you can also use **`/restart-server`** and **`/web`** (see [slash-commands.md](slash-commands.md)).
+From chat you can also use **`/restart-server`** (see [slash-commands.md](slash-commands.md)).
 
 `start` accepts `-i, --interval <seconds>` to change the schedule poll interval. `restart` accepts the same option; when omitted, it reuses the interval from the running daemon's lock file, or 60s if the daemon was not running.
 

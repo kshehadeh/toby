@@ -149,7 +149,7 @@ export function buildTobyAppIfNeeded(): {
 		return {
 			ok: false,
 			message: isRunningAsCompiledBinary()
-				? "Cannot build Toby.app from an installed release. Re-run the installer after upgrading, or use `/web` for the browser UI."
+				? "Cannot build Toby.app from an installed release. Re-run the installer after upgrading."
 				: "Cannot build Toby.app: scripts/build-app.sh not found.",
 		};
 	}

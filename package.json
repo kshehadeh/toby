@@ -30,7 +30,6 @@
 		"build:release": "./scripts/build-release-artifacts.sh",
 		"build:dmg": "bun run build:release && ./scripts/build-dmg.sh",
 		"dev": "bun run --cwd apps/cli dev",
-		"dev:web": "bun run --cwd apps/web dev",
 		"restart:server": "TOBY_PLUGINS_DIR=$PWD/dist bun run --cwd apps/cli dev daemon restart",
 		"dev:turbo": "turbo run dev --filter @toby/cli --log-prefix=none --ui=stream",
 		"typecheck": "turbo run typecheck",

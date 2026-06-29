@@ -28,7 +28,6 @@ export type HelpSections = {
 const COMMON_COMMAND_NAMES = [
 	"/help",
 	"/config",
-	"/web",
 	"/persona",
 	"/sessions",
 	"/connect",

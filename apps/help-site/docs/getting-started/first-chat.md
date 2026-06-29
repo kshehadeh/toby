@@ -67,7 +67,6 @@ If you configure [Web Search](../integrations/web-search), Toby can also search 
 | `/skills` | Open the skills manager |
 | `/schedules` | Open the schedules manager |
 | `/restart-server` | Restart the background server |
-| `/web` | Open the local web UI in your browser |
 | `/upgrade` | Stage the latest release |
 | `/restart` | Restart Toby, applying a staged upgrade when available |
 | `/new` | Start a new chat session |

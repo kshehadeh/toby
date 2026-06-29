@@ -119,7 +119,7 @@ function serveStatic(staticDir: string, urlPath: string): Response | null {
 
 export async function handleWebRequest(
 	req: Request,
-	staticDir: string | null,
+	staticDir?: string | null,
 ): Promise<Response> {
 	const url = new URL(req.url);
 	const { pathname } = url;
@@ -377,13 +377,6 @@ export async function handleWebRequest(
 		}
 	}
 
-	if (!staticDir) {
-		return errorResponse(
-			"Web UI not built. Run `bun run --cwd apps/web build`.",
-			503,
-		);
-	}
-
-	const staticResponse = serveStatic(staticDir, pathname);
-	return staticResponse ?? errorResponse("Not found", 404);
+	// No static web UI to serve; return 404 for non-API routes.
+	return errorResponse("Not found", 404);
 }

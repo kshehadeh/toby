@@ -106,8 +106,7 @@ archive with a warning. Invalid non-empty credentials fail the release instead
 of silently publishing an unexpectedly unsigned build.
 
 Local `bun run build:release` builds `dist/toby`, `dist/bun`, `dist/Toby.app`,
-`dist/toby-plugin-sample-ts`, `dist/toby-plugin-azuread`, `dist/toby-plugin-gmail`, `dist/toby-plugin-todoist`, `dist/toby-plugin-jira`, `dist/toby-plugin-slack`, `dist/toby-plugin-applecalendar`, `dist/toby-plugin-macos`, and `dist/web/`
-(the built React UI). Verify staged artifacts with
+`dist/toby-plugin-sample-ts`, `dist/toby-plugin-azuread`, `dist/toby-plugin-gmail`, `dist/toby-plugin-todoist`, `dist/toby-plugin-jira`, `dist/toby-plugin-slack`, `dist/toby-plugin-applecalendar`, and `dist/toby-plugin-macos`. Verify staged artifacts with
 `node scripts/verify-release-artifacts.mjs release-payload`.
 Use the GitHub release workflow for signed and notarized distribution artifacts.
 
@@ -133,9 +132,7 @@ Configuration is in [`.release-it.json`](../.release-it.json): publishing to the
 
 From the repo root, [`install-toby.sh`](../install-toby.sh) downloads the
 **latest matching macOS release archive** and installs the `toby` binary into
-**`~/.local/bin/toby`** (override with `TOBY_INSTALL_DIR`). The web UI static
-files are installed as **`~/.local/bin/web/`** (sibling of the `toby` binary).
-The bundled `bun` runtime is placed under **`~/.toby/helpers/`**, and first-party plugins (`toby-plugin-sample-ts`, `toby-plugin-azuread`,
+**`~/.local/bin/toby`** (override with `TOBY_INSTALL_DIR`). The bundled `bun` runtime is placed under **`~/.toby/helpers/`**, and first-party plugins (`toby-plugin-sample-ts`, `toby-plugin-azuread`,
 `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-applecalendar`, `toby-plugin-macos`) under **`~/.toby/plugins/`**, so only `toby` lands on your
 `PATH`. It does not use `sudo`. The script then runs **`toby whisper setup`** to
 download the default transcription model into **`~/.toby/models/`**. If the install directory is not on `PATH`, the

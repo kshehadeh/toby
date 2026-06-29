@@ -3,7 +3,7 @@
 Toby is a **Commander.js** CLI (`@toby/cli`) built on a shared harness package (`@toby/core`). The harness holds everything needed to run chat turns, integrations, and headless/daemon flows **without** Ink or React. The CLI app adds terminal UI, command registration, and macOS-specific app wiring.
 
 See also: [Core vs apps](#core-vs-apps) (where new code should live) and
-[`server-api.md`](server-api.md) (the localhost API used by the web UI and
+[`server-api.md`](server-api.md) (the localhost API used by
 Toby.app).
 
 ![Toby high-level architecture](assets/toby-architecture.svg)
@@ -35,13 +35,11 @@ flowchart TB
     nativeApi["localhost HTTP on ~/.toby/native-port"]
   end
   subgraph surfaces ["local app surfaces"]
-    web["@toby/web"]
     app["Toby.app"]
   end
   plugins["macOS plugins"]
   cli --> core
   cli -. starts/manages .-> daemon
-  web --> api
   app --> api
   app --> nativeApi
   plugins --> nativeApi
@@ -124,7 +122,6 @@ Backup and restore behavior is documented in [`commands.md`](commands.md).
 
 The daemon exposes a local HTTP API for non-terminal surfaces:
 
-- **`@toby/web`** is served by the daemon and calls `/api/*` from the browser.
 - **`Toby.app`** checks `/api/status`, starts `toby daemon start` when needed,
   then calls the same session, chat, persona, and configure endpoints.
 - Interactive chat turns stream `ChatEvent` payloads over SSE from

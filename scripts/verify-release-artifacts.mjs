@@ -56,13 +56,6 @@ if (missing.length > 0) {
 	process.exit(1);
 }
 
-const webIndex = path.join(directory, "web", "index.html");
-if (!fs.existsSync(webIndex)) {
-	console.error(`Missing or invalid release artifacts in ${directory}:`);
-	console.error("  - web/index.html");
-	process.exit(1);
-}
-
 const iconAssets = [
 	"icons/ai/openai.png",
 	"icons/ai/vercel.png",
@@ -89,7 +82,6 @@ const appResources = path.join(tobyApp, "Contents", "Resources");
 const appResourceChecks = [
 	"toby",
 	"bun",
-	"web/index.html",
 	"icons/ai/openai.png",
 ];
 for (const resource of appResourceChecks) {

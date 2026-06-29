@@ -22,30 +22,18 @@ presentation-specific behavior.
 
 It depends on `@toby/core` for chat turns, integrations, configuration, and
 session state. It can also start and manage the daemon for flows such as
-`/web`, schedules, inbound chat, and local HTTP API access. Core code should not
+schedules, inbound chat, and local HTTP API access. Core code should not
 import from the CLI app.
 
 See [Your first chat](../getting-started/first-chat) for CLI usage and
 [Configure and connect](../getting-started/configure-and-status) for the
 configuration flow.
 
-## `@toby/web`
-
-`@toby/web` is the local browser interface served by the daemon. It gives a
-browser-based view into sessions, memories, and configuration by calling the
-daemon's localhost API.
-
-The web surface is deliberately thin: browser UI state lives in the web app, the
-HTTP routes live in the daemon, and durable data plus assistant behavior remain
-in `@toby/core`.
-
-See [Web UI](../web-ui) for how to start and use it.
-
 ## Toby.app
 
 `Toby.app` is the native macOS SwiftUI app. It is a peer user surface for chat
 and configuration: it bootstraps the daemon when needed, then calls the same
-localhost API used by the web UI.
+localhost API used by the CLI.
 
 Toby.app also hosts a separate native API server for macOS system operations
 that require TCC permissions or native framework access. Both the
@@ -62,8 +50,8 @@ for implementation details.
 
 ## Daemon server API
 
-The daemon serves the local HTTP API at `http://127.0.0.1:7847` by default. The
-web UI and Toby.app use it for sessions, streaming chat turns, memories,
+The daemon serves the local HTTP API at `http://127.0.0.1:7847` by default.
+Toby.app uses it for sessions, streaming chat turns, memories,
 configuration, daemon status, and configure actions.
 
 The server is local-only and uses the same core harness as the terminal
@@ -71,7 +59,7 @@ experience. Interactive chat turns stream `ChatEvent` payloads over SSE, so UI
 surfaces can render the same turn lifecycle without reimplementing the
 pipeline.
 
-See [Web UI](../web-ui) and the source
+See the source
 [server API reference](https://github.com/kshehadeh/toby/blob/main/docs/server-api.md).
 
 ## `@toby/core`
@@ -81,7 +69,7 @@ runtime, tool wiring, integration registry, configuration helpers, memory,
 session storage, logging, and daemon-safe workflows.
 
 Put behavior here when it can run without Ink, React, Commander, or a browser.
-That keeps the CLI, web UI, scheduled jobs, and headless flows on the same
+That keeps the CLI, scheduled jobs, and headless flows on the same
 behavioral path.
 
 For implementation details, see the source docs:

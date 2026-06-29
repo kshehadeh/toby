@@ -59,10 +59,6 @@ exit 1
 EOF
 chmod +x dist/toby-listener
 
-echo "Building web UI..."
-bun run --cwd apps/web build
-cp -R apps/web/dist dist/web
-
 echo "Bundling icon assets..."
 rm -rf dist/icons
 cp -R packages/core/assets/icons dist/icons

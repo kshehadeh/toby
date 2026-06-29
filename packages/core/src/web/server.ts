@@ -1,17 +1,14 @@
 import { daemonLog } from "../logging/daemon-log";
 import { handleWebRequest } from "./routes";
-import { getWebUiUrl, resolveWebStaticDir } from "./static-path";
+import { getWebUiUrl } from "./static-path";
 
 export interface WebServerOptions {
 	readonly port: number;
 	readonly signal: AbortSignal;
-	readonly staticDir?: string | null;
 }
 
 export function startWebServer(options: WebServerOptions): Promise<void> {
 	const { port, signal } = options;
-	const staticDir =
-		options.staticDir === undefined ? resolveWebStaticDir() : options.staticDir;
 
 	return new Promise((resolve, reject) => {
 		let server: ReturnType<typeof Bun.serve> | undefined;
@@ -36,7 +33,7 @@ export function startWebServer(options: WebServerOptions): Promise<void> {
 				idleTimeout: 255,
 				async fetch(req: Request) {
 					try {
-						return await handleWebRequest(req, staticDir);
+						return await handleWebRequest(req);
 					} catch (e) {
 						const message = e instanceof Error ? e.message : String(e);
 						daemonLog("error", "daemon", "web_request_error", { message });
@@ -51,7 +48,6 @@ export function startWebServer(options: WebServerOptions): Promise<void> {
 			daemonLog("info", "daemon", "web_server_started", {
 				port,
 				url: getWebUiUrl(port),
-				staticDir: staticDir ?? null,
 			});
 		} catch (e) {
 			signal.removeEventListener("abort", onAbort);
@@ -60,4 +56,4 @@ export function startWebServer(options: WebServerOptions): Promise<void> {
 	});
 }
 
-export { getWebUiUrl, resolveWebStaticDir };
+export { getWebUiUrl };

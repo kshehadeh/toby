@@ -1,6 +1,6 @@
 # Toby Server API
 
-The Toby daemon serves a localhost HTTP API for the React web UI, the SwiftUI app, and the shared daemon client used by CLI chat flows. The router lives in [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts). Shared chat request and response types live in [`packages/core/src/api/chat-api.ts`](../packages/core/src/api/chat-api.ts), and the typed daemon client lives in [`packages/core/src/web/client.ts`](../packages/core/src/web/client.ts).
+The Toby daemon serves a localhost HTTP API for the SwiftUI app and the shared daemon client used by CLI chat flows. The router lives in [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts). Shared chat request and response types live in [`packages/core/src/api/chat-api.ts`](../packages/core/src/api/chat-api.ts), and the typed daemon client lives in [`packages/core/src/web/client.ts`](../packages/core/src/web/client.ts).
 
 ## Access Model
 
@@ -153,7 +153,7 @@ Schedules a detached daemon restart after the response is flushed.
 
 ### `POST /api/daemon/stop`
 
-Schedules `SIGTERM` for the current daemon process after the response is flushed. The web UI will go offline once the process exits.
+Schedules `SIGTERM` for the current daemon process after the response is flushed. The API will go offline once the process exits.
 
 ```json
 { "ok": true, "stopping": true }
@@ -816,14 +816,4 @@ Errors:
 - `400` for missing or invalid fields.
 - `404` for unknown actions.
 
-## Static Web Assets
 
-Requests outside `/api/*` serve files from the built web UI directory when available. If the web UI bundle is missing, the server returns:
-
-```json
-{
-  "error": "Web UI not built. Run `bun run --cwd apps/web build`."
-}
-```
-
-with HTTP status `503`.

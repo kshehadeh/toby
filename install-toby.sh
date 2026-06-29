@@ -5,7 +5,6 @@
 #   - Toby.app → /Applications (or ~/Applications when /Applications is not writable)
 #   - toby → $TOBY_INSTALL_DIR (default ~/.local/bin)
 #   - bun runtime → ~/.toby/helpers/bun (for bun-package plugins)
-#   - web UI → sibling web/ directory
 #   - icon assets → sibling icons/ directory
 #   - toby-plugin-* → ~/.toby/plugins/
 #
@@ -128,13 +127,7 @@ mkdir -p "$install_dir"
 cp "${resources_dir}/toby" "${install_dir}/toby"
 echo "Installed: ${install_dir}/toby"
 
-# Install web UI and icons next to the CLI
-if [[ -d "${resources_dir}/web" ]]; then
-	rm -rf "${install_dir}/web"
-	cp -R "${resources_dir}/web" "${install_dir}/web"
-	echo "Installed: ${install_dir}/web"
-fi
-
+# Install icons next to the CLI
 if [[ -d "${resources_dir}/icons" ]]; then
 	rm -rf "${install_dir}/icons"
 	cp -R "${resources_dir}/icons" "${install_dir}/icons"
