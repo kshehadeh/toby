@@ -7,14 +7,14 @@ title: Examples
 
 These workflows combine integrations, personas, skills, memories, and schedules the way Toby is designed to be used.
 
-## Morning email triage (Gmail)
+## Morning email triage (Email)
 
-**Setup:** [Gmail connected](./integrations/gmail), [AI configured](./getting-started/setup-ai), default **Toby** persona.
+**Setup:** [Email connected](./integrations/email), [AI configured](./getting-started/setup-ai), default **Toby** persona.
 
 **Chat:**
 
 ```text
-Summarize my unread Gmail from the last 24 hours. List anything that needs a reply today and suggest archive or label actions.
+Summarize my unread email from the last 24 hours. List anything that needs a reply today and suggest archive or label actions.
 ```
 
 **Outcome:** One pass over the inbox with actionable next steps.
@@ -123,12 +123,12 @@ What do you know about my meeting preferences?
 
 ## Daily automated brief
 
-**Setup:** Gmail connected, [daemon running](./schedules), schedule created in `toby schedules`.
+**Setup:** Email connected, [daemon running](./schedules), schedule created in `toby schedules`.
 
 | Field | Value |
 | ----- | ----- |
 | Name | Daily brief |
-| Prompt | Summarize unread Gmail; list replies needed today. |
+| Prompt | Summarize unread email; list replies needed today. |
 | Persona | Toby |
 | Cron | `0 9 * * *` |
 
@@ -138,7 +138,7 @@ What do you know about my meeting preferences?
 
 ## Recurring weekly overview (Projects)
 
-**Setup:** [Gmail](./integrations/gmail) or [Todoist](./integrations/todoist) connected, a [project](./projects) created.
+**Setup:** [Email](./integrations/email) or [Todoist](./integrations/todoist) connected, a [project](./projects) created.
 
 **Create the project:**
 

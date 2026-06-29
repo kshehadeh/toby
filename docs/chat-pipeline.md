@@ -126,7 +126,7 @@ Why:
 
 Where this is implemented:
 
-- Gmail system prompt is static policy + tool strategy in `apps/plugin-gmail/src/prompts.ts` (`GMAIL_SINGLE_SESSION_RULES`; adapter wraps persona and global tools).
+- Email system prompt is static policy + tool strategy in `apps/plugin-email/src/prompts.ts` (`EMAIL_SINGLE_SESSION_RULES`; adapter wraps persona and global tools).
 - Todoist system prompt is static policy + tool rules in `apps/plugin-todoist/src/prompts.ts` (returned from plugin `status.chatModelPrep`).
 - Multi-integration system prompt is assembled in `packages/core/src/prepare-messages.ts` and does **not** embed the user request.
 - The actual user request (and dynamic context like task snapshots) is always provided via `role: "user"` messages.
@@ -274,10 +274,10 @@ Examples:
 
 ```bash
 # Record a session
-toby chat gmail --record inbox-triage.json
+toby chat email --record inbox-triage.json
 
 # Replay it (tools still run live against real integrations)
-toby chat gmail --replay inbox-triage.json
+toby chat email --replay inbox-triage.json
 
 # One-shot replay
 toby chat --no-tui --replay inbox-triage.json "same prompt as recording"

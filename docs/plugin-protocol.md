@@ -165,10 +165,10 @@ Examples:
 
 ```bash
 ~/.toby/plugins/toby-plugin-sample-ts status
-~/.toby/plugins/toby-plugin-gmail connect          # stdin: config envelope
-~/.toby/plugins/toby-plugin-gmail config shape
-~/.toby/plugins/toby-plugin-gmail tools list
-~/.toby/plugins/toby-plugin-gmail tools execute    # stdin: tool request JSON
+~/.toby/plugins/toby-plugin-email connect          # stdin: config envelope
+~/.toby/plugins/toby-plugin-email config shape
+~/.toby/plugins/toby-plugin-email tools list
+~/.toby/plugins/toby-plugin-email tools execute    # stdin: tool request JSON
 ```
 
 **Subcommand matrix** (what Toby actually runs):
@@ -230,7 +230,7 @@ into `credentials.json` / `config.json`.
 | Plugin | Language | Build | Notes |
 | ------ | -------- | ----- | ----- |
 | [`apps/plugin-sample-ts/`](../apps/plugin-sample-ts/) | TypeScript (bun-package) | `bun run build:plugin:sample-ts` | Minimal protocol surface |
-| [`apps/plugin-gmail/`](../apps/plugin-gmail/) | TypeScript (bun-package) | `bun run build:plugin:gmail` | OAuth, auth methods, token writeback |
+| [`apps/plugin-email/`](../apps/plugin-email/) | TypeScript (bun-package) | `bun run build:plugin:email` | IMAP/SMTP email, auth methods, config writeback |
 | [`apps/plugin-azuread/`](../apps/plugin-azuread/) | TypeScript (bun-package) | `bun run build:plugin:azuread` | Full parity migration |
 | [`apps/plugin-todoist/`](../apps/plugin-todoist/) | TypeScript (bun-package) | `bun run build:plugin:todoist` | API key auth, task tools; vendored `@doist/todoist-sdk` |
 | [`apps/plugin-jira/`](../apps/plugin-jira/) | TypeScript (bun-package) | `bun run build:plugin:jira` | No compilation needed; runs via Bun |
@@ -522,7 +522,7 @@ When `status` receives a config envelope, return readiness for the chat picker:
 "chatReadiness": { "ok": false, "hint": "Run `toby connect myintegration` after configuring credentials." }
 ```
 
-Reference: [`apps/plugin-azuread/`](../apps/plugin-azuread/), [`apps/plugin-gmail/`](../apps/plugin-gmail/),
+Reference: [`apps/plugin-azuread/`](../apps/plugin-azuread/), [`apps/plugin-email/`](../apps/plugin-email/),
 [`apps/plugin-jira/`](../apps/plugin-jira/) (TypeScript bun-package), [`apps/plugin-slack/`](../apps/plugin-slack/) (chat + inbound sidecar). See
 [Migrating a built-in to a plugin](create-integration.md#migrating-a-built-in-to-a-plugin).
 
@@ -594,51 +594,49 @@ Plugins can provide a guided onboarding experience for the native **Toby.app** b
 ```json
 {
   "ok": true,
-  "name": "gmail",
-  "displayName": "Gmail",
-  "description": "Connect to your Gmail account to read and organize email",
+  "name": "email",
+  "displayName": "Email",
+  "description": "Connect to your email account via IMAP/SMTP to read and organize mail",
   "steps": [
     {
       "id": "overview",
-      "title": "What Gmail can do in Toby",
-      "description": "Connect Toby to your Gmail account so you can read unread messages, apply labels, and create drafts from chat."
+      "title": "What Email can do in Toby",
+      "description": "Connect Toby to your email account via IMAP/SMTP so you can read unread messages, search your mailbox, and organize mail from chat."
     },
     {
       "id": "provider",
-      "title": "Set up Google Cloud OAuth",
-      "description": "Open Google Cloud Console, create or select a project, enable the Gmail API, and create an OAuth 2.0 Desktop app credential.",
-      "links": [
-        { "label": "Google Cloud Console", "url": "https://console.cloud.google.com/" }
-      ],
+      "title": "Gather your IMAP and SMTP credentials",
+      "description": "Find your email provider's IMAP and SMTP server settings (host, port, username, password). You may need an App Password if your provider requires one.",
+      "links": [],
       "artifacts": [
         {
-          "id": "redirectUri",
-          "label": "Authorized redirect URI",
-          "value": "http://localhost:9876/callback",
-          "hint": "Add this to the OAuth credential's Authorized redirect URIs."
+          "id": "imapPort",
+          "label": "IMAP port",
+          "value": "993",
+          "hint": "Use port 993 with SSL/TLS (recommended) or port 143 with STARTTLS."
         },
         {
-          "id": "scopes",
-          "label": "Gmail scopes",
-          "value": "https://www.googleapis.com/auth/gmail.readonly\nhttps://www.googleapis.com/auth/gmail.modify",
-          "hint": "Add these on the OAuth consent screen under Scopes."
+          "id": "smtpPort",
+          "label": "SMTP port",
+          "value": "465",
+          "hint": "Use port 465 with SSL/TLS or port 587 with STARTTLS."
         }
       ]
     },
     {
       "id": "credentials",
-      "title": "Add OAuth credentials",
-      "description": "Copy the Client ID and Client Secret from Google Cloud Console into the fields below. Keep them secret."
+      "title": "Add IMAP and SMTP credentials",
+      "description": "Enter your IMAP and SMTP host, port, username, and password into the fields below. Use an App Password if your provider requires one."
     },
     {
       "id": "auth",
-      "title": "Authorize Toby",
-      "description": "Click Connect. Toby will open your browser to sign in with Google and return an access token automatically."
+      "title": "Connect",
+      "description": "Click Connect. Toby will validate your IMAP and SMTP credentials and mark the integration connected."
     },
     {
       "id": "validate",
       "title": "Validate",
-      "description": "Toby will run a health check to confirm Gmail is reachable and token scopes are sufficient."
+      "description": "Toby will run a health check to confirm your email account is reachable."
     }
   ]
 }
@@ -721,7 +719,7 @@ an unsupported protocol version.
 
 See the [reference implementations](#reference-implementations) table above.
 Release archives include the sample plugin plus first-party integrations
-(`toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-applecalendar`, `toby-plugin-macos`);
+(`toby-plugin-azuread`, `toby-plugin-email`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-applecalendar`, `toby-plugin-macos`);
 `install-toby.sh` and `toby upgrade` install them into `~/.toby/plugins/`.
 
 ## Installing plugins

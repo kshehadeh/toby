@@ -10,10 +10,10 @@ Integrations connect Toby to your email, tasks, chat, contacts, and calendar. On
 ## Available integrations
 
 <div className="integrationIconGrid">
-	<a className="integrationIconCard" href="./gmail">
+	<a className="integrationIconCard" href="./email">
 		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/gmail/EA4335" alt="" /></span>
-		<span className="integrationIconName">Gmail</span>
-		<span className="integrationIconMeta">Email · <code>gmail</code></span>
+		<span className="integrationIconName">Email</span>
+		<span className="integrationIconMeta">Email · <code>email</code></span>
 	</a>
 	<a className="integrationIconCard" href="./todoist">
 		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/todoist/E44332" alt="" /></span>
@@ -24,11 +24,6 @@ Integrations connect Toby to your email, tasks, chat, contacts, and calendar. On
 		<span className="integrationIconBadge integrationIconBadgeSlack"><span className="integrationIconGlyph">#</span></span>
 		<span className="integrationIconName">Slack</span>
 		<span className="integrationIconMeta">Chat · <code>slack</code></span>
-	</a>
-	<a className="integrationIconCard" href="./azuread">
-		<span className="integrationIconBadge integrationIconBadgeAzure"><span className="integrationIconGlyph">AD</span></span>
-		<span className="integrationIconName">Azure AD</span>
-		<span className="integrationIconMeta">Contacts · <code>azuread</code></span>
 	</a>
 	<a className="integrationIconCard" href="./apple-calendar">
 		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/apple/A2AAAD" alt="" /></span>
@@ -68,7 +63,7 @@ On macOS, open **Toby.app** and use the **Setup Guide** button on any integratio
 
 ## Installable plugins
 
-Gmail, Azure AD, Todoist, Jira, Slack, Apple Calendar, macOS, and other first-party integrations ship as **plugins** bundled in release archives. Fresh installs (`install-toby.sh`) and `toby upgrade` copy them into `~/.toby/plugins/` automatically—no manual `toby plugins install` step is required for release users. The sample plugin (`toby-plugin-sample-ts`) is also installed for reference and testing.
+Email, Todoist, Jira, Slack, Apple Calendar, macOS, and other first-party integrations ship as **plugins** bundled in release archives. Fresh installs (`install-toby.sh`) and `toby upgrade` copy them into `~/.toby/plugins/` automatically—no manual `toby plugins install` step is required for release users. The sample plugin (`toby-plugin-sample-ts`) is also installed for reference and testing.
 
 Web Search is a **built-in feature** (not a plugin) that uses the Vercel AI Gateway's Perplexity search. See [Web Search](./web-search) for setup.
 
@@ -82,8 +77,8 @@ Want to build your own? See **[Creating a plugin](../plugins/creating-a-plugin)*
 When developing from a git clone, build and link plugins yourself:
 
 ```bash
-bun run build:plugin:gmail
-toby plugins install ./dist/toby-plugin-gmail --link --force
+bun run build:plugin:email
+toby plugins install ./dist/toby-plugin-email --link --force
 toby plugins doctor
 ```
 
@@ -105,25 +100,24 @@ Each integration declares one or more **provider categories**. A category descri
 
 | Integration | CLI name | Category |
 | ----------- | -------- | -------- |
-| Gmail | `gmail` | `email` |
+| Email | `email` | `email` |
 | Apple Calendar | `applecalendar` | `calendar` |
 | Todoist | `todoist` | `tasks` |
-| Azure AD | `azuread` | `contacts` |
 | Slack | `slack` | `chat` |
 | Jira | `jira` | `work_tracker` |
 
-Only **email** currently has one first-party integration in that category (Gmail). Defaults become important when you connect multiple integrations in the same category or when you want schedules to target a specific provider.
+Only **email** currently has one first-party integration in that category (Email). Defaults become important when you connect multiple integrations in the same category or when you want schedules to target a specific provider.
 
 ### Why categories exist
 
 Categories let Toby reason about *roles* instead of a flat list of app names:
 
-1. **Default providers** — In `toby config` → **Default Providers**, you pick which connected integration Toby should prefer per category (for example Gmail for email). Those choices are stored in your config and surfaced to the assistant during chat and pretreatment.
+1. **Default providers** — In `toby config` → **Default Providers**, you pick which connected integration Toby should prefer per category (for example Email for email). Those choices are stored in your config and surfaced to the assistant during chat and pretreatment.
 2. **Scheduled runs** — The daemon inspects schedule prompts for category-related keywords (such as “inbox”, “calendar”, “todoist”, “slack”). When a category is detected, Toby includes the default provider for that category if you set one; otherwise it uses heuristics (a single connected integration in that category, or all connected integrations in that category with a warning). This avoids loading every integration’s tools on every cron job when the prompt is clearly about email or tasks alone.
 3. **Multi-integration chat** — When several integrations are active in one session, the combined system prompt lists your default providers so the model reaches for the right tools (for example your chosen email provider when you ask to triage mail).
 4. **New integrations** — Module authors assign `providerCategories` in code so Toby can register the integration in the right bucket for configure, schedules, and routing—without hard-coding vendor names across the codebase.
 
-Categories do **not** replace explicit scoping. You can still run `toby chat --integration gmail`, start a message with `gmail …`, or use **`/integration`** in the TUI to choose exactly which integrations are in scope.
+Categories do **not** replace explicit scoping. You can still run `toby chat --integration email`, start a message with `email …`, or use **`/integration`** in the TUI to choose exactly which integrations are in scope.
 
 ### Set your defaults
 
@@ -142,10 +136,10 @@ If you only connect one integration per category, defaults are optional—Toby c
 **Scope to one integration** — Put the integration name first:
 
 ```text
-gmail summarize unread messages from this week
+email summarize unread messages from this week
 ```
 
-**Pick explicitly** — `toby chat --integration gmail --integration todoist "..."` or **`/integration`** in the TUI.
+**Pick explicitly** — `toby chat --integration email --integration todoist "..."` or **`/integration`** in the TUI.
 
 ## Web content tools
 
@@ -165,7 +159,7 @@ Jira is the first **Work Tracker** integration. It adds read-only chat tools for
 Some integrations also support shared CLI commands:
 
 ```bash
-toby summarize gmail
+toby summarize email
 toby organize todoist --dry-run
 ```
 

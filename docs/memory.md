@@ -5,7 +5,7 @@ Toby's memory subsystem stores durable, user-relevant personal context for futur
 ## Core principles
 
 1. **Tool-call cache and user memory are separate concerns.** Memory uses `memory.sqlite`, not `chat.sqlite`.
-2. **Raw integration data remains the source of truth.** Memory is derived context, not a replacement for Gmail, Calendar, etc.
+2. **Raw integration data remains the source of truth.** Memory is derived context, not a replacement for Email, Calendar, etc.
 3. **Downstream AIs must not write directly to memory.** All writes go through `memory.propose()`, which enforces the proposal flow.
 4. **Every memory item has provenance.** Each item links to one or more `memory_sources` and is tracked in the `memory_audit_log`.
 5. **Users can search, inspect, update, and forget memory.** All items are accessible and deletable.
@@ -31,7 +31,7 @@ Toby's memory subsystem stores durable, user-relevant personal context for futur
 
 ### memory_sources
 
-Provenance record for where a memory came from (gmail, calendar, drive, chat, manual, other). Each source can link to the original item via `source_id` / `source_url` and include an `excerpt` and `metadata`.
+Provenance record for where a memory came from (email, calendar, drive, chat, manual, other). Each source can link to the original item via `source_id` / `source_url` and include an `excerpt` and `metadata`.
 
 ### memory_proposals
 

@@ -31,7 +31,7 @@ In **Toby.app** on macOS, each integration detail has a **Setup Guide** button. 
 ## 2. Connect
 
 ```bash
-toby connect gmail
+toby connect email
 toby connect todoist
 toby connect jira
 ```
@@ -42,13 +42,13 @@ List all integrations and whether they are connected:
 toby connect
 ```
 
-OAuth integrations (Gmail, Slack, Azure AD) open a browser or local callback during `connect`. Gmail, Todoist, Jira, Web Search, and other integrations are installable plugins bundled in release archives (installed to `~/.toby/plugins/`). API-key integrations validate credentials and mark the integration connected.
+OAuth integrations (Slack, Azure AD) open a browser or local callback during `connect`. Email, Todoist, Jira, Web Search, and other integrations are installable plugins bundled in release archives (installed to `~/.toby/plugins/`). API-key integrations validate credentials and mark the integration connected.
 
 ## 3. Check status
 
 ```bash
 toby status
-toby status integration -i gmail
+toby status integration -i email
 ```
 
 Status shows connection health and, for some integrations, per-tool checks.
@@ -56,7 +56,7 @@ Status shows connection health and, for some integrations, per-tool checks.
 ## Disconnect
 
 ```bash
-toby disconnect gmail
+toby disconnect email
 ```
 
 This clears Toby’s connection flag. It does not delete your mail, tasks, or calendar data at the provider.
@@ -65,7 +65,7 @@ This clears Toby’s connection flag. It does not delete your mail, tasks, or ca
 
 | Integration | Guide |
 | ----------- | ----- |
-| Gmail | [Gmail](../integrations/gmail) |
+| Email | [Email](../integrations/email) |
 | Todoist | [Todoist](../integrations/todoist) |
 | Slack | [Slack](../integrations/slack) |
 | Azure AD | [Azure AD](../integrations/azuread) |

@@ -25,7 +25,7 @@ Example:
 ```markdown
 ---
 name: organize-email-by-project
-description: Steps to triage Gmail into project labels and archive noise.
+description: Steps to triage email into project labels and archive noise.
 ---
 
 # Organize email by project

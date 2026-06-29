@@ -30,7 +30,7 @@ In the same configure UI, open **Default Providers** to pick which connected int
 
 | Category | Example integrations |
 | -------- | -------------------- |
-| Email | Gmail |
+| Email | Email |
 | Calendar | Apple Calendar |
 | Tasks | Todoist |
 | Chat | Slack |

@@ -7,7 +7,7 @@ title: Memories
 
 **Memories** are durable facts Toby keeps about you—preferences, projects, relationships, and other context—so future chats do not start from zero.
 
-Memories are stored separately from chat history in `~/.toby/memory.sqlite`. They are not a copy of your Gmail or calendar; integrations remain the source of truth for live data.
+Memories are stored separately from chat history in `~/.toby/memory.sqlite`. They are not a copy of your email or calendar; integrations remain the source of truth for live data.
 
 ## How memories help
 

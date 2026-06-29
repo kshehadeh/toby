@@ -19,7 +19,7 @@ Bare `toby` (no subcommand) also opens chat. On macOS, you can also start chatti
 | ------------- | ------- |
 | Open chat and type your first message in the TUI | `toby` or `toby chat` |
 | Open chat with an initial message | `toby -p "summarize my unread email"` or `toby --prompt "…"` |
-| Scope to one integration from the shell | `toby chat gmail "summarize unread from today"` |
+| Scope to one integration from the shell | `toby chat email "summarize unread from today"` |
 | One-shot answer in the terminal | `toby chat --no-tui --prompt "quick question about my inbox"` |
 
 **Mistyped commands** — Unknown root commands (for example `toby staatus` or `toby "summarize unread"`) are reported as errors. They do **not** launch chat with your text as a prompt. Use `toby -p "…"` or `toby chat …` when you mean to pass a prompt from the shell.
@@ -28,18 +28,18 @@ Root chat flags such as `--debug`, `--no-tui`, and `--persona` still work withou
 
 ## How chat uses integrations
 
-**All connected integrations (default)** — Type your message normally. Toby merges tools from every connected chat integration (Gmail, Todoist, Slack, Jira, and so on).
+**All connected integrations (default)** — Type your message normally. Toby merges tools from every connected chat integration (Email, Todoist, Slack, Jira, and so on).
 
 **One integration** — Start your message with the integration name in the TUI, or pass it on the command line:
 
 ```bash
-toby chat gmail summarize my unread email from today
+toby chat email summarize my unread email from today
 ```
 
 **Explicit set** — Use `--integration` one or more times; remaining words are only the prompt:
 
 ```bash
-toby chat --integration gmail --integration todoist "What should I focus on today?"
+toby chat --integration email --integration todoist "What should I focus on today?"
 ```
 
 Inside the chat UI, type **`/integration`** to open a multi-select picker (Space toggles, Enter applies).

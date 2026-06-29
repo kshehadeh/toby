@@ -725,7 +725,7 @@ The Toby repository includes working plugins you can copy from:
 | Plugin | Format | Language | Notes |
 | ------ | ------ | -------- | ----- |
 | `toby-plugin-sample-ts` | TypeScript package | TypeScript (Bun runtime) | Minimal bun-package plugin—start here for API integrations |
-| `toby-plugin-gmail` | TypeScript package | TypeScript | OAuth, auth methods, token writeback |
+| `toby-plugin-email` | TypeScript package | TypeScript | IMAP/SMTP email, auth methods, config writeback |
 | `toby-plugin-todoist` | Bun-package | TypeScript | API key auth, task tools; vendored `@doist/todoist-sdk` |
 | `toby-plugin-azuread` | TypeScript package | TypeScript | Full parity migration example |
 | `toby-plugin-slack` | TypeScript package | TypeScript | Chat tools + `inbound run` (Socket Mode); `@slack/bolt` |

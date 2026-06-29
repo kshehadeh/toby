@@ -29,7 +29,7 @@ Extends `Integration` with optional **capabilities** and **hooks**:
 | `summarize?(options)` | Build `CoreMessage[]` (or return `empty`) for the shared `summarize` command. |
 | `chat?(options)` | Run the shared `chat` command: tool-calling AI for a user-supplied instruction (`ChatRunOptions`). |
 | `createChatTools?(params)` | Provide tools + action accumulator for **RunModelTurnNode** (`runSharedChatTurn` in `packages/core/src/chat-pipeline/run-turn.ts`). |
-| `registerCommands?(program)` | Attach Commander subcommands (e.g. Gmail’s `gmail fetch`, `gmail organize`). |
+| `registerCommands?(program)` | Attach Commander subcommands (e.g. Email's `email fetch`, `email organize`). |
 | `chatInbound?` | Long-lived inbound listener for the daemon (`ChatInboundProvider`); maps external channel+thread to chat sessions. See [`chat-inbound.md`](chat-inbound.md). |
 
 Types such as `IntegrationModule` and `IntegrationCapability` are exported from [`types.ts`](../packages/core/src/integrations/types.ts). Import them from there when you need them in implementation code; the barrel [`index.ts`](../packages/core/src/integrations/index.ts) exposes runtime registry functions.
@@ -41,7 +41,7 @@ Types such as `IntegrationModule` and `IntegrationCapability` are exported from 
 | Function | Use |
 | -------- | --- |
 | `getIntegrationModules()` | All modules (full `IntegrationModule`). |
-| `getIntegrationModule(name)` | Lookup by CLI name (`gmail`, `todoist`). |
+| `getIntegrationModule(name)` | Lookup by CLI name (`email`, `todoist`). |
 | `getModulesWithCapability(cap)` | Filter by capability (e.g. all that support `summarize`). |
 | `getIntegrations()` / `getIntegration(name)` | Same instances typed as `Integration` for lifecycle-only call sites. |
 
@@ -56,7 +56,7 @@ Each integration typically owns:
 - **`prompts/`** — System/user message builders for summarize, organize, etc.
 - **`cli.ts`** (optional) — Commander registration kept out of `apps/cli/src/commands/`.
 
-**Gmail** and **Todoist** are shipped as installable plugins (`toby-plugin-email`, `toby-plugin-todoist`); both are TypeScript bun-package plugins. See [`apps/plugin-email/`](../apps/plugin-email/) and [`apps/plugin-todoist/`](../apps/plugin-todoist/).
+**Email** and **Todoist** are shipped as installable plugins (`toby-plugin-email`, `toby-plugin-todoist`); both are TypeScript bun-package plugins. See [`apps/plugin-email/`](../apps/plugin-email/) and [`apps/plugin-todoist/`](../apps/plugin-todoist/).
 
 **Slack** ([`packages/core/src/integrations/slack/`](../packages/core/src/integrations/slack/)) is a representative built-in chat integration: OAuth (PKCE + user scopes on localhost) or manual bot token auth, with chat tools to search channels/users, post messages, reply in threads, and search message history. **Daemon inbound** (@mentions via Socket Mode) always requires a **bot token** (`xoxb-…`) and **app token** (`xapp-…`) in addition to OAuth user credentials—see [help-site Slack credentials](../apps/help-site/docs/integrations/slack.md#credentials-and-auth-reference).
 
@@ -78,7 +78,7 @@ The global `fetchWebContent` tool ([`packages/core/src/ai/web-fetch-tool.ts`](..
 - **`status integration`** — `testConnection()`; modules return structured tool checks where applicable.
 - **`summarize <integration>`** — `getIntegrationModule`, require `summarize` in `capabilities` and a defined `summarize` function, then AI generation on returned messages.
 - **`organize <integration>`** — `getIntegrationModule`, require `organize` in `capabilities` and a defined `organize` function. Pass `--dry-run` to preview changes. Pass `--watch "<interval>"` to run immediately and then repeat periodically (e.g. `--watch "every hour"` or `--watch "30m"`); stop with Ctrl+C.
-- **`chat [words...]`** — Optional first word may be a chat integration name (`gmail`, `todoist`, `slack`, `azuread`); remaining words are the prompt. If the first word is not an integration, the whole line is treated as the prompt and **all connected** chat integrations are used together (merged tools + combined system prompt). Repeat **`--integration <name>`** to choose an explicit set; when that flag is used, positional words are **only** the prompt. Use **`--prompt <text>`** (or bare **`toby -p "…"`**, which maps to `chat --prompt`) for an initial message when opening chat without typing in the TUI. At the root command, unknown positional tokens (for example a mistyped subcommand) are **not** treated as prompts. By default an **Ink** session keeps the full `CoreMessage[]` history; `askUser` is routed through the TUI. If there is no initial prompt, type the first message in the TUI. Pass **`--no-tui`** for a single console turn (one integration still uses `module.chat`; multiple integrations use one combined tool-calling turn, readline `askUser` only). In the TUI, **`/integration`** opens a multi-select picker (Space toggles, Enter applies).
+- **`chat [words...]`** — Optional first word may be a chat integration name (`email`, `todoist`, `slack`, `azuread`); remaining words are the prompt. If the first word is not an integration, the whole line is treated as the prompt and **all connected** chat integrations are used together (merged tools + combined system prompt). Repeat **`--integration <name>`** to choose an explicit set; when that flag is used, positional words are **only** the prompt. Use **`--prompt <text>`** (or bare **`toby -p "…"`**, which maps to `chat --prompt`) for an initial message when opening chat without typing in the TUI. At the root command, unknown positional tokens (for example a mistyped subcommand) are **not** treated as prompts. By default an **Ink** session keeps the full `CoreMessage[]` history; `askUser` is routed through the TUI. If there is no initial prompt, type the first message in the TUI. Pass **`--no-tui`** for a single console turn (one integration still uses `module.chat`; multiple integrations use one combined tool-calling turn, readline `askUser` only). In the TUI, **`/integration`** opens a multi-select picker (Space toggles, Enter applies).
 - **Chat tool feedback (Ink TUI)** — After each tool runs, a compact result line is shown in the transcript. Per-tool copy is customizable via `registerToolFeedbackFormatter` in [`apps/cli/src/ui/chat/tool-feedback-registry.ts`](../apps/cli/src/ui/chat/tool-feedback-registry.ts) (call from a side-effect import or bootstrap code; avoid import cycles with `tools.ts`).
 - **`configure`** — builds credential UI from `getCredentialDescriptors` across `getIntegrationModules()`, saves via each `mergeCredentialsPatch`.
   - When `authMethods` are provided, configure shows an auth-method selector and only method-relevant credential fields.

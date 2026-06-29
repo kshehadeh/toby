@@ -5,7 +5,7 @@
 # Toby
 
 Toby is an AI-assisted CLI for personal productivity workflows. It connects to
-services such as Gmail, Todoist, Slack, Jira, Web Search, Apple Calendar, and
+services such as Email, Todoist, Slack, Jira, Web Search, Apple Calendar, and
 local macOS controls so you can search, summarize, organize, and act on work
 from chat.
 
@@ -41,7 +41,7 @@ After installing:
 ```bash
 toby --help
 toby config
-toby connect gmail
+toby connect email
 toby -p "summarize my unread email"
 ```
 
@@ -89,7 +89,7 @@ archives. Fresh installs and upgrades copy them into `~/.toby/plugins/`.
 
 Current first-party plugin integrations include:
 
-- Gmail
+- Email
 - Todoist
 - Slack
 - Jira

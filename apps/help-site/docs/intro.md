@@ -10,7 +10,7 @@ title: Introduction
 
 # Welcome to Toby
 
-Toby is an AI assistant for organizing and summarizing work across integrations like Gmail, Todoist, Slack, Azure AD, and Apple Calendar. It runs as a terminal CLI and a native macOS app, all backed by the same daemon and core harness.
+Toby is an AI assistant for organizing and summarizing work across integrations like Email, Todoist, Slack, Jira, and Apple Calendar. It runs as a terminal CLI and a native macOS app, all backed by the same daemon and core harness.
 
 It combines:
 
@@ -27,7 +27,7 @@ It combines:
 | ----- | ---------- |
 | What Toby can do | [What Does Toby Do?](./what-does-toby-do) |
 | Install Toby and set up AI | [Install](./getting-started/install) → [Set up AI](./getting-started/setup-ai) → [AI providers](./ai-providers/overview) |
-| Connect Gmail, Todoist, and more | [Configure & connect](./getting-started/configure-and-status) → [Integrations](./integrations/overview) |
+| Connect Email, Todoist, and more | [Configure & connect](./getting-started/configure-and-status) → [Integrations](./integrations/overview) |
 | Start chatting | [Your first chat](./getting-started/first-chat) (terminal and `toby` CLI syntax) · [Toby.app](./toby-app) |
 | Use the local app surfaces | [Toby.app](./toby-app) |
 | Personas, skills, memories, schedules | [Personas](./personas) · [Skills](./skills) · [Memories](./memories) · [Schedules](./schedules) |

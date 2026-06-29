@@ -67,16 +67,16 @@ In `toby schedules`, select a schedule and choose **Run now** to execute immedia
 ## Example schedule
 
 **Name:** Morning inbox brief  
-**Prompt:** Summarize unread Gmail from the last 24 hours and list items needing a reply today.  
+**Prompt:** Summarize unread email from the last 24 hours and list items needing a reply today.  
 **Persona:** Toby  
 **Cron:** `0 9 * * *`  
 **Enabled:** Yes  
 
-After connecting Gmail and starting the daemon, you get a daily brief at 9am.
+After connecting Email and starting the daemon, you get a daily brief at 9am.
 
 ## Tips
 
-- Connect the integrations your prompt needs (Gmail, Todoist, etc.) before relying on a schedule.
+- Connect the integrations your prompt needs (Email, Todoist, etc.) before relying on a schedule.
 - Use a persona whose instructions match the job (brief vs detailed).
 - Test with **Run now** before enabling a aggressive cron.
 

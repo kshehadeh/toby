@@ -21,7 +21,7 @@ One **external conversation** (e.g. Slack channel + thread root) maps to one Tob
 - Metadata: JSON blob per provider (`channelId`, `threadRootTs`, etc.).
 - Message history: same `chat_session_messages` table as the Ink TUI.
 
-Each turn resolves **chat-capable integrations** from the user message (keyword + default-provider rules, same as scheduled runs) and always includes the inbound transport (e.g. Slack). A request like “check my unread emails” loads Gmail (or your default email provider), not Slack alone.
+Each turn resolves **chat-capable integrations** from the user message (keyword + default-provider rules, same as scheduled runs) and always includes the inbound transport (e.g. Slack). A request like “check my unread emails” loads the email integration (or your default email provider), not Slack alone.
 
 ## Configuration
 

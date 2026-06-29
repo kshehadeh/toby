@@ -9,7 +9,7 @@ You can install Toby with the install script, from a release binary, or from sou
 
 ## Option 1: Install script (recommended)
 
-The [install script](https://github.com/kshehadeh/toby/blob/main/install-toby.sh) downloads the latest macOS release archive and installs the `toby` binary to `~/.local/bin`. The bundled `bun` runtime goes to `~/.toby/helpers/bun` (for TypeScript bun-package plugins) and first-party plugins (`toby-plugin-sample-ts`, `toby-plugin-azuread`, `toby-plugin-gmail`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-applecalendar`, `toby-plugin-macos`) to `~/.toby/plugins/`, so only `toby` is added to your `PATH`. The native `Toby.app` is installed to `/Applications` (or `~/Applications`). It does not require `sudo`.
+The [install script](https://github.com/kshehadeh/toby/blob/main/install-toby.sh) downloads the latest macOS release archive and installs the `toby` binary to `~/.local/bin`. The bundled `bun` runtime goes to `~/.toby/helpers/bun` (for TypeScript bun-package plugins) and first-party plugins (`toby-plugin-sample-ts`, `toby-plugin-azuread`, `toby-plugin-email`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-applecalendar`, `toby-plugin-macos`) to `~/.toby/plugins/`, so only `toby` is added to your `PATH`. The native `Toby.app` is installed to `/Applications` (or `~/Applications`). It does not require `sudo`.
 
 After installing binaries, the script runs `toby whisper setup` to download the default local transcription model (`ggml-base.en.bin`) into `~/.toby/models/`. If that step fails (for example offline install), run `toby whisper setup` later.
 
@@ -100,7 +100,7 @@ bun run build
 bun run dev -- --help
 ```
 
-When developing from source, prefix commands with `bun run dev --` (for example, `bun run dev -- chat`). Build and install first-party plugins before using Gmail, Azure AD, Web Search, or other plugin integrations:
+When developing from source, prefix commands with `bun run dev --` (for example, `bun run dev -- chat`). Build and install first-party plugins before using Email, Azure AD, Web Search, or other plugin integrations:
 
 ```bash
 bun run build:plugins
@@ -110,7 +110,7 @@ toby plugins doctor
 To link individual plugins during development:
 
 ```bash
-toby plugins install ./dist/toby-plugin-gmail --link --force
+toby plugins install ./dist/toby-plugin-email --link --force
 toby plugins install ./dist/toby-plugin-azuread --link --force
 ```
 

@@ -1,6 +1,6 @@
 # Agent and contributor guide
 
-This repository is **Toby**, a CLI for personal productivity (integrations such as Gmail and Todoist, AI-assisted flows, and an Ink-based configure UI). The repo is a **Bun monorepo**: shared harness code lives in **`@toby/core`**, and the Ink/Commander front-end lives in **`@toby/cli`**. Use **Bun** for installs and scripts (`bun install`, `bun run …`).
+This repository is **Toby**, a CLI for personal productivity (integrations such as Email and Todoist, AI-assisted flows, and an Ink-based configure UI). The repo is a **Bun monorepo**: shared harness code lives in **`@toby/core`**, and the Ink/Commander front-end lives in **`@toby/cli`**. Use **Bun** for installs and scripts (`bun install`, `bun run …`).
 
 Use this file as the **entry point** for orientation. Detailed design lives under [`docs/`](docs/), especially [`docs/architecture.md`](docs/architecture.md) for the core vs app split.
 

@@ -19,7 +19,7 @@ const sections = [
 	},
 	{
 		title: "Integrations",
-		description: "Gmail, Todoist, Slack, Azure AD, and Apple Calendar.",
+		description: "Email, Todoist, Slack, Jira, and Apple Calendar.",
 		to: "/docs/integrations/overview",
 	},
 	{
@@ -66,7 +66,7 @@ export default function Home(): React.JSX.Element {
 				<h1 className={styles.title}>Toby Documentation</h1>
 				<p className={styles.lead}>
 					Toby is an AI assistant for organizing and summarizing work across
-					Gmail, Todoist, Slack, Azure AD, and Apple Calendar. Chat from the
+					Email, Todoist, Slack, Jira, and Apple Calendar. Chat from the
 					terminal, a local web UI, or the native macOS app.
 				</p>
 				<p className={styles.lead}>
