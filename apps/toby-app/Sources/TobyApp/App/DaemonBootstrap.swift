@@ -4,6 +4,7 @@ enum DaemonBootstrapError: LocalizedError {
 	case tobyExecutableNotFound
 	case startFailed(String)
 	case serverUnavailable
+	case restartUnavailable
 
 	var errorDescription: String? {
 		switch self {
@@ -13,6 +14,8 @@ enum DaemonBootstrapError: LocalizedError {
 			return "Failed to start Toby server: \(message)"
 		case .serverUnavailable:
 			return "Toby server did not become available after starting."
+		case .restartUnavailable:
+			return "Toby server did not become available after restarting."
 		}
 	}
 }
@@ -26,7 +29,15 @@ enum DaemonBootstrap {
 		let executable = try resolveTobyExecutable()
 		try await runDaemonStart(executable: executable)
 
-		let deadline = Date().addingTimeInterval(6)
+		try await waitForServerAvailable(baseURL: baseURL, timeout: 6, error: .serverUnavailable)
+	}
+
+	static func waitForServerAvailable(
+		baseURL: URL,
+		timeout: TimeInterval,
+		error: DaemonBootstrapError,
+	) async throws {
+		let deadline = Date().addingTimeInterval(timeout)
 		while Date() < deadline {
 			if await isServerAvailable(baseURL: baseURL) {
 				return
@@ -34,7 +45,7 @@ enum DaemonBootstrap {
 			try await Task.sleep(nanoseconds: 300_000_000)
 		}
 
-		throw DaemonBootstrapError.serverUnavailable
+		throw error
 	}
 
 	private static func isServerAvailable(baseURL: URL) async -> Bool {

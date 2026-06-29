@@ -11,12 +11,14 @@ struct AppSidebarTests {
             currentRoute: currentRoute,
             status: nil,
             daemonStatus: nil,
+            isServerRestarting: false,
             updateStore: nil,
             onSelectRoute: { _ in },
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
             onOpenChangelog: {},
+            onRestartServer: {},
             sidebarContent: {
                 ChatSessionsSidebar(
                     sessions: sessions,
@@ -35,12 +37,14 @@ struct AppSidebarTests {
             currentRoute: currentRoute,
             status: nil,
             daemonStatus: nil,
+            isServerRestarting: false,
             updateStore: nil,
             onSelectRoute: onSelectRoute,
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
             onOpenChangelog: {},
+            onRestartServer: {},
             sidebarContent: { EmptyView() }
         )
     }
@@ -83,12 +87,14 @@ struct AppSidebarTests {
             currentRoute: .chat,
             status: nil,
             daemonStatus: nil,
+            isServerRestarting: false,
             updateStore: nil,
             onSelectRoute: { _ in },
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
             onOpenChangelog: {},
+            onRestartServer: {},
             sidebarContent: {
                 ChatSessionsSidebar(
                     sessions: [session],
@@ -196,12 +202,14 @@ struct AppSidebarTests {
             currentRoute: .chat,
             status: status,
             daemonStatus: nil,
+            isServerRestarting: false,
             updateStore: nil,
             onSelectRoute: { _ in },
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
             onOpenChangelog: {},
+            onRestartServer: {},
             sidebarContent: { EmptyView() }
         )
         let view = try sidebar.inspect()
@@ -239,12 +247,14 @@ struct AppSidebarTests {
             currentRoute: .chat,
             status: status,
             daemonStatus: nil,
+            isServerRestarting: false,
             updateStore: nil,
             onSelectRoute: { _ in },
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
             onOpenChangelog: {},
+            onRestartServer: {},
             sidebarContent: { EmptyView() }
         )
         let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
@@ -268,12 +278,14 @@ struct AppSidebarTests {
             currentRoute: .chat,
             status: nil,
             daemonStatus: daemon,
+            isServerRestarting: false,
             updateStore: nil,
             onSelectRoute: { _ in },
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
             onOpenChangelog: {},
+            onRestartServer: {},
             sidebarContent: { EmptyView() }
         )
         let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
@@ -281,6 +293,47 @@ struct AppSidebarTests {
             (try? btn.accessibilityLabel().string()) == "Server starting"
         }
         #expect(!labeled.isEmpty, "Server starting button not found")
+    }
+
+    @Test("server status button shows starting while restart is in progress")
+    func serverStatusButtonStartingWhenRestarting() throws {
+        let sidebar = AppSidebar(
+            currentRoute: .chat,
+            status: nil,
+            daemonStatus: nil,
+            isServerRestarting: true,
+            updateStore: nil,
+            onSelectRoute: { _ in },
+            onCreatePersona: {},
+            onEditPersona: { _ in },
+            onPersonaSelected: {},
+            onOpenChangelog: {},
+            onRestartServer: {},
+            sidebarContent: { EmptyView() }
+        )
+        let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
+        let labeled = buttons.filter { btn in
+            (try? btn.accessibilityLabel().string()) == "Server starting"
+        }
+        #expect(!labeled.isEmpty, "Server starting button not found")
+    }
+
+    @Test("server status details restart button calls callback")
+    func serverStatusDetailsRestartButtonCallsCallback() throws {
+        var restartCount = 0
+        let view = ServerStatusDetails(
+            status: nil,
+            daemonStatus: nil,
+            health: .offline,
+            isRestarting: false,
+            onRestart: { restartCount += 1 }
+        )
+        let button = try view.inspect().findAll(ViewType.Button.self).first { btn in
+            (try? btn.find(text: "Restart server")) != nil
+        }
+        try #require(button != nil, "Restart button not found")
+        try button!.tap()
+        #expect(restartCount == 1)
     }
 
 }

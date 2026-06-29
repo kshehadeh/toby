@@ -25,10 +25,13 @@ enum ServerHealth: String {
 struct ServerStatusButton: View {
 	let status: AppStatus?
 	let daemonStatus: DaemonStatus?
+	let isRestarting: Bool
+	let onRestart: () -> Void
 	@State private var isPresented = false
 	@State private var isHovered = false
 
 	private var health: ServerHealth {
+		if isRestarting { return .starting }
 		if status != nil { return .connected }
 		if daemonStatus?.process != nil { return .starting }
 		return .offline
@@ -62,9 +65,11 @@ struct ServerStatusButton: View {
 			ServerStatusDetails(
 				status: status,
 				daemonStatus: daemonStatus,
-				health: health
+				health: health,
+				isRestarting: isRestarting,
+				onRestart: onRestart
 			)
-			.frame(width: 260)
+			.frame(width: 280)
 		}
 	}
 }

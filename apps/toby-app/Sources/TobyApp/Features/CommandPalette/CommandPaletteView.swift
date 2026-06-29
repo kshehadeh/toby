@@ -12,6 +12,7 @@ struct CommandPaletteView: View {
 	let onOpenIntegration: (String) -> Void
 	let onOpenSchedule: (String) -> Void
 	let onOpenRecording: (String) -> Void
+	let onRestartServer: () -> Void
 	let onDismiss: () -> Void
 
 	@State private var query = ""
@@ -46,6 +47,19 @@ struct CommandPaletteView: View {
 					title: "Open settings",
 					subtitle: "Configure Toby",
 					systemImage: "gearshape",
+					kind: .action,
+				),
+			)
+		}
+		if trimmed.isEmpty || "restart server".localizedCaseInsensitiveContains(trimmed)
+			|| "server".localizedCaseInsensitiveContains(trimmed)
+		{
+			items.append(
+				CommandPaletteResult(
+					id: "action-restart-server",
+					title: "Restart server",
+					subtitle: "Stop and start the background server",
+					systemImage: "arrow.clockwise",
 					kind: .action,
 				),
 			)
@@ -283,6 +297,9 @@ struct CommandPaletteView: View {
 		case .action where result.id == "action-settings":
 			onDismiss()
 			onOpenSettings()
+		case .action where result.id == "action-restart-server":
+			onDismiss()
+			onRestartServer()
 		case .route(let route):
 			onDismiss()
 			onNavigateToRoute(route)

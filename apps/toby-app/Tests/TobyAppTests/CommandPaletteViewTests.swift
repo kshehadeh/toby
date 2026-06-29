@@ -18,6 +18,7 @@ struct CommandPaletteViewTests {
         onOpenIntegration: @escaping (String) -> Void = { _ in },
         onOpenSchedule: @escaping (String) -> Void = { _ in },
         onOpenRecording: @escaping (String) -> Void = { _ in },
+        onRestartServer: @escaping () -> Void = {},
         onDismiss: @escaping () -> Void = {}
     ) -> CommandPaletteView {
         CommandPaletteView(
@@ -32,6 +33,7 @@ struct CommandPaletteViewTests {
             onOpenIntegration: onOpenIntegration,
             onOpenSchedule: onOpenSchedule,
             onOpenRecording: onOpenRecording,
+            onRestartServer: onRestartServer,
             onDismiss: onDismiss
         )
     }
@@ -96,6 +98,7 @@ struct CommandPaletteViewTests {
         let titles = buttons.compactMap { try? $0.find(ViewType.Text.self).string() }
         #expect(titles.contains("New chat"))
         #expect(titles.contains("Open settings"))
+        #expect(titles.contains("Restart server"))
         #expect(titles.contains("Session One"))
         #expect(titles.contains("Gmail"))
         #expect(titles.contains("Daily Review"))
@@ -169,6 +172,8 @@ struct CommandPaletteViewTests {
         let results = view.results(for: "")
         let action = results.first { $0.id == "action-new-chat" }
         #expect(action?.kind == .action)
+        let restart = results.first { $0.id == "action-restart-server" }
+        #expect(restart?.kind == .action)
         let session = results.first { $0.id == "session-s1" }
         #expect(session?.kind == .session("s1"))
         let integration = results.first { $0.id == "integration-gmail" }
@@ -245,5 +250,30 @@ struct CommandPaletteViewTests {
         try #require(sessionButton != nil, "Session button not found")
         try sessionButton!.tap()
         #expect(selectedId == "s1")
+    }
+
+    @Test("search finds restart server action")
+    func searchFindsRestartServerAction() throws {
+        let view = makeView()
+        let results = view.results(for: "server")
+        #expect(results.contains { $0.id == "action-restart-server" })
+    }
+
+    @Test("selecting restart server action calls callback")
+    func selectRestartServerCallback() throws {
+        var didRestart = false
+        var didDismiss = false
+        let view = makeView(
+            onRestartServer: { didRestart = true },
+            onDismiss: { didDismiss = true }
+        )
+        let buttons = try view.inspect().findAll(ViewType.Button.self)
+        let restartButton = buttons.first { btn in
+            (try? btn.find(text: "Restart server")) != nil
+        }
+        try #require(restartButton != nil, "Restart server button not found")
+        try restartButton!.tap()
+        #expect(didRestart)
+        #expect(didDismiss)
     }
 }

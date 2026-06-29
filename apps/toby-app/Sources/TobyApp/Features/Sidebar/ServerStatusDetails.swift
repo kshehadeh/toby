@@ -4,6 +4,8 @@ struct ServerStatusDetails: View {
 	let status: AppStatus?
 	let daemonStatus: DaemonStatus?
 	let health: ServerHealth
+	let isRestarting: Bool
+	let onRestart: () -> Void
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 6) {
@@ -21,6 +23,26 @@ struct ServerStatusDetails: View {
 				.foregroundStyle(AppTheme.tertiaryText)
 			if let execPath = daemonStatus?.process?.executablePath, !execPath.isEmpty {
 				RevealPathButton(path: execPath, label: "Server")
+			}
+			HStack {
+				Spacer(minLength: 0)
+				Button {
+					onRestart()
+				} label: {
+					Label {
+						Text(isRestarting ? "Restarting server…" : "Restart server")
+					} icon: {
+						if isRestarting {
+							ProgressView()
+								.controlSize(.small)
+						} else {
+							Image(systemName: "arrow.clockwise")
+						}
+					}
+				}
+				.buttonStyle(.bordered)
+				.disabled(isRestarting)
+				.accessibilityLabel(isRestarting ? "Restarting server" : "Restart server")
 			}
 			Divider()
 				.background(AppTheme.separator)

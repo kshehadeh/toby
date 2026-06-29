@@ -24,6 +24,7 @@ final class ChatStore {
 	var promptFocusRequestId = UUID()
 	var isLoading = false
 	var isSelectingSession = false
+	var isServerRestarting = false
 	var listenStatus: ListenStatusResponse?
 	var isListenRequestInFlight = false
 	var errorMessage: String?
@@ -114,10 +115,53 @@ final class ChatStore {
 	}
 
 	func refreshDaemonStatus() async {
+		guard !isServerRestarting else { return }
 		do {
 			daemonStatus = try await client.fetchDaemonStatus()
 		} catch {
 			daemonStatus = nil
+		}
+	}
+
+	func restartServer() async {
+		guard !isServerRestarting else { return }
+		isServerRestarting = true
+		status = nil
+		daemonStatus = nil
+		activityLine = "Restarting server…"
+		do {
+			try await client.restartDaemon()
+			toast = AppToastState(
+				style: .progress,
+				title: "Restarting server",
+				message: "Toby will reconnect when the server is ready.",
+			)
+			try? await Task.sleep(nanoseconds: 2_000_000_000)
+			try await DaemonBootstrap.waitForServerAvailable(
+				baseURL: client.baseURL,
+				timeout: 10,
+				error: .restartUnavailable,
+			)
+			status = try await client.fetchStatus()
+			listenStatus = try? await nativeAudioClient.status()
+			isServerRestarting = false
+			await refreshDaemonStatus()
+			activityLine = "Ready"
+			toast = AppToastState(
+				style: .success,
+				title: "Server restarted",
+				message: "Toby is connected again.",
+			)
+		} catch {
+			isServerRestarting = false
+			activityLine = "Daemon unavailable"
+			errorMessage = error.localizedDescription
+			toast = AppToastState(
+				style: .error,
+				title: "Server restart failed",
+				message: error.localizedDescription,
+			)
+			await refreshDaemonStatus()
 		}
 	}
 

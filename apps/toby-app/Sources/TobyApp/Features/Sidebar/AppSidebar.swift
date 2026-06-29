@@ -5,17 +5,26 @@ struct AppSidebar<Content: View>: View {
 	let currentRoute: DetailRoute
 	let status: AppStatus?
 	let daemonStatus: DaemonStatus?
+	let isServerRestarting: Bool
 	let updateStore: UpdateStore?
 	let onSelectRoute: (DetailRoute) -> Void
 	let onCreatePersona: () -> Void
 	let onEditPersona: (String) -> Void
 	let onPersonaSelected: () -> Void
 	let onOpenChangelog: () -> Void
+	let onRestartServer: () -> Void
 	@ViewBuilder let sidebarContent: () -> Content
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			SidebarHeader(status: status, daemonStatus: daemonStatus, updateStore: updateStore, onOpenChangelog: onOpenChangelog)
+			SidebarHeader(
+				status: status,
+				daemonStatus: daemonStatus,
+				isServerRestarting: isServerRestarting,
+				updateStore: updateStore,
+				onOpenChangelog: onOpenChangelog,
+				onRestartServer: onRestartServer
+			)
 			sidebarContent()
 				.frame(maxHeight: .infinity)
 				.padding(.bottom, 16)

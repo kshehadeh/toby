@@ -4,8 +4,10 @@ import SwiftUI
 struct SidebarHeader: View {
 	let status: AppStatus?
 	let daemonStatus: DaemonStatus?
+	let isServerRestarting: Bool
 	let updateStore: UpdateStore?
 	let onOpenChangelog: () -> Void
+	let onRestartServer: () -> Void
 
 	private var appIcon: Image {
 		if let nsImage = NSImage(named: NSImage.applicationIconName) {
@@ -70,7 +72,12 @@ struct SidebarHeader: View {
 			.accessibilityLabel("Toby version \(status?.version ?? "")")
 			.accessibilityHint("Open changelog")
 			Spacer(minLength: 0)
-			ServerStatusButton(status: status, daemonStatus: daemonStatus)
+			ServerStatusButton(
+				status: status,
+				daemonStatus: daemonStatus,
+				isRestarting: isServerRestarting,
+				onRestart: onRestartServer
+			)
 		}
 		.padding(.horizontal, 8)
 		.padding(.bottom, 14)

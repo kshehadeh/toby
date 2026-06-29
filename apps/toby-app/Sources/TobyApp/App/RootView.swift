@@ -122,6 +122,9 @@ struct RootView: View {
                     onOpenIntegration: openIntegration,
                     onOpenSchedule: openSchedule,
                     onOpenRecording: openRecording,
+                    onRestartServer: {
+                        Task { await store.restartServer() }
+                    },
                     onDismiss: { isCommandPalettePresented = false },
                 )
                 .presentationBackground(.clear)
@@ -208,12 +211,16 @@ struct RootView: View {
                 currentRoute: history.current,
                 status: store.status,
                 daemonStatus: store.daemonStatus,
+                isServerRestarting: store.isServerRestarting,
                 updateStore: updateStore,
                 onSelectRoute: navigateToRoute,
                 onCreatePersona: { openPersonaEditor(.create) },
                 onEditPersona: { openPersonaEditor(.edit(name: $0)) },
                 onPersonaSelected: refreshStatus,
                 onOpenChangelog: { isAboutPresented = true },
+                onRestartServer: {
+                    Task { await store.restartServer() }
+                },
                 sidebarContent: {
                     switch history.current {
                     case .chat:
