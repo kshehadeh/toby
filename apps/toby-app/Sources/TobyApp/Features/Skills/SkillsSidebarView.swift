@@ -6,11 +6,24 @@ struct SkillsSidebarView: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			Text("Skills")
-				.font(.caption)
-				.foregroundStyle(AppTheme.tertiaryText)
-				.padding(.horizontal, 8)
-				.padding(.top, 10)
+			Button {
+				Task { await store.createSkill() }
+			} label: {
+				HStack(spacing: 6) {
+					Image(systemName: "plus")
+					Text("Add Skill")
+						.font(.caption)
+				}
+				.foregroundStyle(AppTheme.secondaryText)
+				.frame(maxWidth: .infinity, alignment: .leading)
+				.padding(.horizontal, 10)
+				.padding(.vertical, 8)
+				.contentShape(Rectangle())
+			}
+			.buttonStyle(.plain)
+			.disabled(store.isListLoading || store.isSaving)
+			.accessibilityIdentifier("create-skill-button")
+			.padding(.top, 10)
 			ScrollView {
 				VStack(alignment: .leading, spacing: 2) {
 					if store.isListLoading && store.skills.isEmpty {
@@ -46,17 +59,6 @@ struct SkillsSidebarView: View {
 				.padding(10)
 			}
 			.background(AppTheme.sidebarBackground)
-		}
-		.toolbar {
-			ToolbarItem(placement: .confirmationAction) {
-				Button {
-					Task { await store.createSkill() }
-				} label: {
-					Image(systemName: "plus")
-				}
-				.help("Create Skill")
-				.disabled(store.isListLoading || store.isSaving)
-			}
 		}
 	}
 }

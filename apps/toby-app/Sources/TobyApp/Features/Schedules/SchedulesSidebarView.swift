@@ -6,11 +6,24 @@ struct SchedulesSidebarView: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			Text("Schedules")
-				.font(.caption)
-				.foregroundStyle(AppTheme.tertiaryText)
-				.padding(.horizontal, 8)
-				.padding(.top, 10)
+			Button {
+				Task { await store.createSchedule() }
+			} label: {
+				HStack(spacing: 6) {
+					Image(systemName: "plus")
+					Text("Add Schedule")
+						.font(.caption)
+				}
+				.foregroundStyle(AppTheme.secondaryText)
+				.frame(maxWidth: .infinity, alignment: .leading)
+				.padding(.horizontal, 10)
+				.padding(.vertical, 8)
+				.contentShape(Rectangle())
+			}
+			.buttonStyle(.plain)
+			.disabled(store.isLoading || store.isSaving)
+			.accessibilityIdentifier("create-schedule-button")
+			.padding(.top, 10)
 			ScrollView {
 				VStack(alignment: .leading, spacing: 2) {
 					if store.isLoading && store.schedules.isEmpty {
@@ -66,17 +79,6 @@ struct SchedulesSidebarView: View {
 						.fill(AppTheme.separator)
 						.frame(height: 1)
 				}
-			}
-		}
-		.toolbar {
-			ToolbarItem(placement: .confirmationAction) {
-				Button {
-					Task { await store.createSchedule() }
-				} label: {
-					Image(systemName: "plus")
-				}
-				.help("Create Schedule")
-				.disabled(store.isLoading || store.isSaving)
 			}
 		}
 	}
