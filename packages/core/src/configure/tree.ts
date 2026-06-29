@@ -1,4 +1,8 @@
 import type { AIProviderInfo } from "../ai/providers";
+import {
+	WEB_SEARCH_PROVIDERS,
+	getWebSearchProvider,
+} from "../ai/web-search-providers";
 import { getDefaultPersonaName } from "../config/index";
 import {
 	getIntegrationModules,
@@ -13,10 +17,6 @@ import {
 	TRANSCRIPTION_PROVIDERS,
 	getTranscriptionProvider,
 } from "../listen/transcription-providers";
-import {
-	WEB_SEARCH_PROVIDERS,
-	getWebSearchProvider,
-} from "../ai/web-search-providers";
 import { DEFAULT_CHAT_PERSONA } from "../personas/index";
 import {
 	type Project,
@@ -217,24 +217,6 @@ export function buildSettingsTree(
 			},
 		];
 
-		const readOnlyAiItems: SettingsItem[] = [
-			{
-				label: "AI Provider",
-				kind: "hint" as const,
-				key: `personas.${p.name}.ai.provider`,
-				currentValue:
-					providerInfo?.displayName ??
-					availableProviders.find((pr) => pr.id === providerId)?.displayName ??
-					providerId,
-			},
-			{
-				label: "AI Model",
-				kind: "hint" as const,
-				key: `personas.${p.name}.ai.model`,
-				currentValue: modelValue,
-			},
-		];
-
 		const labelPrefix = currentDefault === p.name ? "★ " : "";
 
 		return {
@@ -273,7 +255,7 @@ export function buildSettingsTree(
 					options: ["add", "replace"],
 					currentValue: p.promptMode,
 				},
-				...(isBuiltIn ? readOnlyAiItems : aiModelItems),
+				...aiModelItems,
 				...(currentDefault !== p.name
 					? [
 							{
@@ -498,9 +480,7 @@ export function buildSettingsTree(
 	};
 
 	const webSearchProviderId =
-		values["webSearch.provider"] ??
-		WEB_SEARCH_PROVIDERS[0]?.id ??
-		"ai-gateway";
+		values["webSearch.provider"] ?? WEB_SEARCH_PROVIDERS[0]?.id ?? "ai-gateway";
 	const webSearchProviderInfo = getWebSearchProvider(webSearchProviderId);
 	const webSearchEnabled = values["webSearch.enabled"] === "true";
 	const webSearchSection: SettingsItem = {

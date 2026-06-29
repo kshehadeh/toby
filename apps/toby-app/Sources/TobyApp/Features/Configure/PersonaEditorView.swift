@@ -47,7 +47,7 @@ struct PersonaEditorView: View {
 		} else {
 			ScrollView {
 				VStack(alignment: .leading, spacing: 20) {
-					if store.mode.isEdit {
+					if store.canEditImage {
 						imageSection
 					}
 					nameField
@@ -156,6 +156,7 @@ struct PersonaEditorView: View {
 				.foregroundStyle(SettingsDesign.sectionHeader)
 			MarkdownEditor(text: $store.instructions)
 				.frame(minHeight: 180, maxHeight: .infinity)
+				.disabled(!store.canEditPersonaDefinition)
 		}
 	}
 
@@ -221,6 +222,7 @@ struct PersonaEditorView: View {
 			.pickerStyle(.segmented)
 			.labelsHidden()
 			.frame(width: 200)
+			.disabled(!store.canEditPersonaDefinition)
 		}
 	}
 

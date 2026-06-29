@@ -135,11 +135,22 @@ struct PersonaEditorTests {
 		#expect(!store.isNameEditable)
 	}
 
+	@Test("built-in persona only allows provider and model fields")
+	func builtInPersonaEditability() throws {
+		let store = PersonaEditorStore(mode: .edit(name: "Toby"))
+		store.isBuiltIn = true
+		#expect(!store.isNameEditable)
+		#expect(!store.canEditPersonaDefinition)
+		#expect(!store.canEditImage)
+	}
+
 	@Test("isNameEditable is true for custom persona in edit mode")
 	func isNameEditableForCustom() throws {
 		let store = PersonaEditorStore(mode: .edit(name: "MyPersona"))
 		store.isBuiltIn = false
 		#expect(store.isNameEditable)
+		#expect(store.canEditPersonaDefinition)
+		#expect(store.canEditImage)
 	}
 
 	@Test("hasCustomImage is false when imagePath is nil or empty")

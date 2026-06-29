@@ -48,6 +48,14 @@ final class PersonaEditorStore {
 		return !isBuiltIn
 	}
 
+	var canEditPersonaDefinition: Bool {
+		!isBuiltIn
+	}
+
+	var canEditImage: Bool {
+		mode.isEdit && !isBuiltIn
+	}
+
 	var hasCustomImage: Bool {
 		guard let imagePath, !imagePath.isEmpty else { return false }
 		return true
@@ -124,11 +132,11 @@ final class PersonaEditorStore {
 			case .edit(let originalName):
 				_ = try await client.updatePersona(
 					originalName: originalName,
-					name: name != originalName ? name : nil,
-					instructions: instructions,
+					name: isBuiltIn ? nil : (name != originalName ? name : nil),
+					instructions: isBuiltIn ? nil : instructions,
 					provider: provider,
 					model: model,
-					promptMode: promptMode,
+					promptMode: isBuiltIn ? nil : promptMode,
 				)
 			}
 			saveState = .saved
@@ -139,7 +147,7 @@ final class PersonaEditorStore {
 	}
 
 	func uploadImage(fileData: Data, filename: String) async {
-		guard case .edit = mode else { return }
+		guard canEditImage else { return }
 		isSavingImage = true
 		errorMessage = nil
 		defer { isSavingImage = false }
@@ -162,7 +170,7 @@ final class PersonaEditorStore {
 	}
 
 	func resetImage() async {
-		guard case .edit = mode else { return }
+		guard canEditImage else { return }
 		isSavingImage = true
 		errorMessage = nil
 		defer { isSavingImage = false }

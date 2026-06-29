@@ -171,6 +171,33 @@ struct AppSidebarTests {
         #expect(selectedRoute == .chat)
     }
 
+    @Test("built-in persona row exposes edit action")
+    func builtInPersonaRowExposesEditAction() throws {
+        var didEdit = false
+        let row = PersonaPickerRow(
+            persona: PersonaOption(
+                name: "Toby",
+                label: "Toby",
+                imagePath: nil,
+                imageUrl: nil,
+                isDefault: true,
+                isBuiltIn: true
+            ),
+            isCurrent: true,
+            isSaving: false,
+            isHovered: true,
+            onHoverChange: { _ in },
+            onSelect: {},
+            onEdit: { didEdit = true }
+        )
+        let editButton = try row.inspect().findAll(ViewType.Button.self).first { btn in
+            (try? btn.accessibilityLabel().string()) == "Edit Toby"
+        }
+        try #require(editButton != nil, "Edit button not found")
+        try editButton!.tap()
+        #expect(didEdit)
+    }
+
     @Test("scroll progress clamped to 0...1")
     func scrollProgressClamped() {
         #expect(clampedScrollProgress(contentHeight: 400, visibleHeight: 220, offset: 0) == 0)

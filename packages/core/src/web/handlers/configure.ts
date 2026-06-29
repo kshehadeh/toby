@@ -228,10 +228,34 @@ export async function handleConfigureAction(
 		case "update-persona": {
 			const originalName = body?.originalName?.trim();
 			if (!originalName) return errorResponse("originalName required");
-			if (originalName === DEFAULT_CHAT_PERSONA.name) {
-				return errorResponse("The built-in default persona cannot be edited");
-			}
 			const cfg = readConfig();
+			if (originalName === DEFAULT_CHAT_PERSONA.name) {
+				const attemptedLockedEdit =
+					body?.name !== undefined ||
+					body?.instructions !== undefined ||
+					body?.promptMode !== undefined;
+				if (attemptedLockedEdit) {
+					return errorResponse(
+						"The built-in default persona only supports provider and model edits",
+					);
+				}
+				let persona = cfg.personas.find((p) => p.name === originalName);
+				if (!persona) {
+					persona = {
+						...DEFAULT_CHAT_PERSONA,
+						ai: { ...DEFAULT_CHAT_PERSONA.ai },
+					};
+					cfg.personas.unshift(persona);
+				}
+				if (body?.provider !== undefined) {
+					persona.ai.provider = body.provider.trim() || persona.ai.provider;
+				}
+				if (body?.model !== undefined) {
+					persona.ai.model = body.model.trim() || persona.ai.model;
+				}
+				writeConfig(cfg);
+				return jsonResponse({ ok: true, personaName: persona.name });
+			}
 			const persona = cfg.personas.find((p) => p.name === originalName);
 			if (!persona) {
 				return errorResponse(`Persona "${originalName}" not found`);

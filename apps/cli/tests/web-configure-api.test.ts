@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { readCredentials } from "@toby/core/config/index";
+import { readConfig, readCredentials } from "@toby/core/config/index";
 import {
 	applyConfigureValuesPatch,
 	collectSecretConfigureKeys,
@@ -123,6 +123,24 @@ describe("configure persistence", () => {
 				.split("\n")
 				.filter(Boolean);
 			expect(models).toContain("phi3-mini");
+		});
+	});
+
+	it("persists built-in persona provider and model without full persona fields", () => {
+		withTempTobyDir(() => {
+			applyConfigureValuesPatch({
+				"personas.Toby.ai.provider": "ollama",
+				"personas.Toby.ai.model": "llama3.2",
+			});
+
+			const config = readConfig();
+			expect(config.personas).toHaveLength(1);
+			expect(config.personas[0]).toMatchObject({
+				name: "Toby",
+				ai: { provider: "ollama", model: "llama3.2" },
+			});
+			expect(config.personas[0]?.instructions.length).toBeGreaterThan(0);
+			expect(config.personas[0]?.promptMode).toBe("add");
 		});
 	});
 
@@ -607,7 +625,27 @@ describe("persona API", () => {
 		expect(body.personaName).toBe("Renamed");
 	});
 
-	it("update-persona rejects editing built-in persona", async () => {
+	it("update-persona updates provider and model for the built-in persona", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/configure/actions/update-persona", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					originalName: "Toby",
+					provider: "ollama",
+					model: "llama3.2",
+				}),
+			}),
+			null,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { ok: boolean; personaName: string };
+		expect(body).toEqual({ ok: true, personaName: "Toby" });
+		const persona = readConfig().personas.find((p) => p.name === "Toby");
+		expect(persona?.ai).toEqual({ provider: "ollama", model: "llama3.2" });
+	});
+
+	it("update-persona rejects locked built-in persona fields", async () => {
 		const res = await handleWebRequest(
 			new Request("http://127.0.0.1/api/configure/actions/update-persona", {
 				method: "POST",

@@ -37,29 +37,27 @@ struct PersonaPickerRow: View {
 			.buttonStyle(.plain)
 			.disabled(isSaving)
 
-			if persona.isBuiltIn != true {
-				Button {
-					onEdit()
-				} label: {
-					Image(systemName: "pencil")
-						.font(.caption.weight(.semibold))
-						.foregroundStyle(isHovered ? AppTheme.primaryText : AppTheme.tertiaryText)
-						.frame(width: 22, height: 22)
-						.background(
-							RoundedRectangle(cornerRadius: 5)
-								.fill(isHovered ? AppTheme.selection : Color.clear)
-						)
-						.overlay {
-							RoundedRectangle(cornerRadius: 5)
-								.stroke(isHovered ? SettingsDesign.controlBorder : Color.clear, lineWidth: 1)
-						}
-				}
-				.buttonStyle(.plain)
-				.accessibilityLabel("Edit \(persona.label)")
-				.disabled(isSaving)
-				.opacity(isHovered ? 1 : 0)
-				.animation(.easeInOut(duration: 0.15), value: isHovered)
+			Button {
+				onEdit()
+			} label: {
+				Image(systemName: "pencil")
+					.font(.caption.weight(.semibold))
+					.foregroundStyle(isHovered ? AppTheme.primaryText : AppTheme.tertiaryText)
+					.frame(width: 22, height: 22)
+					.background(
+						RoundedRectangle(cornerRadius: 5)
+							.fill(isHovered ? AppTheme.selection : Color.clear)
+					)
+					.overlay {
+						RoundedRectangle(cornerRadius: 5)
+							.stroke(isHovered ? SettingsDesign.controlBorder : Color.clear, lineWidth: 1)
+					}
 			}
+			.buttonStyle(.plain)
+			.accessibilityLabel("Edit \(persona.label)")
+			.disabled(isSaving)
+			.opacity(isHovered ? 1 : 0)
+			.animation(.easeInOut(duration: 0.15), value: isHovered)
 		}
 		.padding(.horizontal, 6)
 		.padding(.vertical, 5)

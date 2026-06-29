@@ -15,6 +15,7 @@ import {
 	ALL_PROVIDER_CATEGORIES,
 	type ProviderCategory,
 } from "../integrations/types";
+import { DEFAULT_CHAT_PERSONA } from "../personas/index";
 import {
 	type ProjectMetadataUpdate,
 	listProjects,
@@ -180,11 +181,8 @@ export function seedConfigureValues(
 			}
 		}
 	}
-	values["webSearch.provider"] =
-		config.webSearch?.provider ?? "ai-gateway";
-	values["webSearch.enabled"] = config.webSearch?.enabled
-		? "true"
-		: "false";
+	values["webSearch.provider"] = config.webSearch?.provider ?? "ai-gateway";
+	values["webSearch.enabled"] = config.webSearch?.enabled ? "true" : "false";
 
 	for (const mod of getIntegrationModules()) {
 		if (!mod.chatInbound) continue;
@@ -285,24 +283,47 @@ export function rebuildPersonas(
 	const names = new Set<string>();
 	for (const key of Object.keys(values)) {
 		if (key.startsWith("personas.") && key.endsWith(".name")) {
-			names.add(values[key]);
+			const name = values[key].trim();
+			if (name) names.add(name);
+			continue;
+		}
+		const aiMatch = /^personas\.([^.]+)\.ai\.(provider|model)$/.exec(key);
+		if (aiMatch) {
+			names.add(aiMatch[1]);
 		}
 	}
 
 	return [...names].map((name) => {
-		const existingPersona = existing.find((p) => p.name === name);
+		const existingPersona =
+			existing.find((p) => p.name === name) ??
+			(name === DEFAULT_CHAT_PERSONA.name ? DEFAULT_CHAT_PERSONA : undefined);
+		const lockedBuiltInFields =
+			name === DEFAULT_CHAT_PERSONA.name
+				? {
+						name: DEFAULT_CHAT_PERSONA.name,
+						instructions:
+							existing.find((p) => p.name === name)?.instructions ??
+							DEFAULT_CHAT_PERSONA.instructions,
+						promptMode:
+							existing.find((p) => p.name === name)?.promptMode ??
+							DEFAULT_CHAT_PERSONA.promptMode,
+					}
+				: null;
 		return {
-			name: values[`personas.${name}.name`] ?? name,
+			name:
+				lockedBuiltInFields?.name ?? values[`personas.${name}.name`] ?? name,
 			instructions:
+				lockedBuiltInFields?.instructions ??
 				values[`personas.${name}.instructions`] ??
 				existingPersona?.instructions ??
 				"",
 			promptMode:
-				values[`personas.${name}.promptMode`] === "replace"
+				lockedBuiltInFields?.promptMode ??
+				(values[`personas.${name}.promptMode`] === "replace"
 					? "replace"
 					: existingPersona?.promptMode === "replace"
 						? "replace"
-						: "add",
+						: "add"),
 			ai: {
 				provider:
 					values[`personas.${name}.ai.provider`] ??
