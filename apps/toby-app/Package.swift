@@ -10,6 +10,7 @@ let package = Package(
 		.executable(name: "toby-app", targets: ["TobyApp"]),
 	],
 	dependencies: [
+		.package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.3"),
 		.package(url: "https://github.com/nalexn/ViewInspector", from: "0.10.0"),
 		.package(url: "https://github.com/krzyzanowskim/STTextView", from: "2.2.0"),
 	],
@@ -17,6 +18,7 @@ let package = Package(
 		.executableTarget(
 			name: "TobyApp",
 			dependencies: [
+				.product(name: "Sparkle", package: "Sparkle"),
 				.product(name: "STTextView", package: "STTextView"),
 			],
 			path: "Sources/TobyApp",
@@ -36,6 +38,10 @@ let package = Package(
 				.linkedFramework("CoreAudio"),
 				.linkedFramework("CoreGraphics"),
 				.unsafeFlags([
+					"-Xlinker",
+					"-rpath",
+					"-Xlinker",
+					"@executable_path/../Frameworks",
 					"-Xlinker",
 					"-sectcreate",
 					"-Xlinker",

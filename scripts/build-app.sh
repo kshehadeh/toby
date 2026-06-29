@@ -9,15 +9,21 @@ APP_VARIANT="${TOBY_APP_VARIANT:-development}"
 ICON_MASTER="$ROOT/images/512x512.png"
 ICON_SRC="$ROOT/images/app-icon.png"
 ENTITLEMENTS="$PKG/TobyApp.entitlements"
+APP_VERSION="${TOBY_APP_VERSION:-$(node -p "require('./package.json').version")}"
+APP_BUILD_NUMBER="${TOBY_APP_BUILD_NUMBER:-${GITHUB_RUN_NUMBER:-1}}"
 
 case "${APP_VARIANT}" in
 	development)
 		APP_DISPLAY_NAME="Toby (Dev)"
 		APP_BUNDLE_ID="${TOBY_APP_BUNDLE_ID:-dev.karim.toby.app.dev}"
+		SPARKLE_FEED_URL="${TOBY_SPARKLE_FEED_URL:-}"
+		SPARKLE_PUBLIC_KEY="${TOBY_SPARKLE_PUBLIC_KEY:-}"
 		;;
 	production)
 		APP_DISPLAY_NAME="Toby"
 		APP_BUNDLE_ID="${TOBY_APP_BUNDLE_ID:-dev.karim.toby.app}"
+		SPARKLE_FEED_URL="${TOBY_SPARKLE_FEED_URL:-https://kshehadeh.github.io/toby/appcast.xml}"
+		SPARKLE_PUBLIC_KEY="${TOBY_SPARKLE_PUBLIC_KEY:-}"
 		;;
 	*)
 		echo "Invalid TOBY_APP_VARIANT '${APP_VARIANT}'; expected development or production." >&2
@@ -158,7 +164,7 @@ BIN="${BUILD_DIR}/toby-app"
 RESOURCE_BUNDLE="${BUILD_DIR}/TobyApp_TobyApp.bundle"
 
 rm -rf "$DIST"/*.app
-mkdir -p "${APP}/Contents/MacOS" "${APP}/Contents/Resources"
+mkdir -p "${APP}/Contents/MacOS" "${APP}/Contents/Resources" "${APP}/Contents/Frameworks"
 
 cat >"${APP}/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -182,11 +188,19 @@ cat >"${APP}/Contents/Info.plist" <<'PLIST'
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>__TOBY_APP_VERSION__</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>__TOBY_APP_BUILD_NUMBER__</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUEnableInstallerLauncherService</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>__TOBY_SPARKLE_FEED_URL__</string>
+	<key>SUPublicEDKey</key>
+	<string>__TOBY_SPARKLE_PUBLIC_KEY__</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSCalendarsUsageDescription</key>
@@ -200,7 +214,7 @@ cat >"${APP}/Contents/Info.plist" <<'PLIST'
 </dict>
 </plist>
 PLIST
-python3 - "$APP/Contents/Info.plist" "$APP_BUNDLE_ID" "$APP_DISPLAY_NAME" <<'PY'
+python3 - "$APP/Contents/Info.plist" "$APP_BUNDLE_ID" "$APP_DISPLAY_NAME" "$APP_VERSION" "$APP_BUILD_NUMBER" "$SPARKLE_FEED_URL" "$SPARKLE_PUBLIC_KEY" <<'PY'
 import pathlib
 import sys
 from xml.sax.saxutils import escape
@@ -208,10 +222,18 @@ from xml.sax.saxutils import escape
 path = pathlib.Path(sys.argv[1])
 bundle_id = sys.argv[2]
 display_name = sys.argv[3]
+app_version = sys.argv[4]
+app_build_number = sys.argv[5]
+sparkle_feed_url = sys.argv[6]
+sparkle_public_key = sys.argv[7]
 path.write_text(
 	path.read_text()
 	.replace("__TOBY_APP_BUNDLE_ID__", escape(bundle_id))
-	.replace("__TOBY_APP_DISPLAY_NAME__", escape(display_name)),
+	.replace("__TOBY_APP_DISPLAY_NAME__", escape(display_name))
+	.replace("__TOBY_APP_VERSION__", escape(app_version))
+	.replace("__TOBY_APP_BUILD_NUMBER__", escape(app_build_number))
+	.replace("__TOBY_SPARKLE_FEED_URL__", escape(sparkle_feed_url))
+	.replace("__TOBY_SPARKLE_PUBLIC_KEY__", escape(sparkle_public_key)),
 	encoding="utf-8",
 )
 PY
@@ -223,6 +245,23 @@ if [[ -d "${RESOURCE_BUNDLE}" ]]; then
 else
 	echo "Warning: SPM resource bundle not found at ${RESOURCE_BUNDLE}" >&2
 fi
+
+copy_sparkle_framework() {
+	local framework
+	framework="$(find "${PKG}/.build/artifacts" -path "*/Sparkle.framework" -type d 2>/dev/null | head -1 || true)"
+	if [[ -z "${framework}" ]]; then
+		framework="$(find "${PKG}/.build" -path "*/Sparkle.framework" -type d 2>/dev/null | head -1 || true)"
+	fi
+	if [[ -z "${framework}" ]]; then
+		echo "Error: Sparkle.framework was not found in SwiftPM build artifacts." >&2
+		exit 1
+	fi
+
+	rm -rf "${APP}/Contents/Frameworks/Sparkle.framework"
+	ditto "${framework}" "${APP}/Contents/Frameworks/Sparkle.framework"
+}
+
+copy_sparkle_framework
 
 # For production builds, bundle all release artifacts (CLI, Bun runtime, web UI,
 # icons, plugins) into Contents/Resources/ so Toby.app is self-contained.

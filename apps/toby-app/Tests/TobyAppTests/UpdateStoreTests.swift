@@ -17,6 +17,19 @@ final class MockUpdateCheckClient: ChangelogFetchable {
 }
 
 @MainActor
+final class MockNativeAppUpdater: NativeAppUpdating {
+	var checkCount = 0
+	var error: Error?
+
+	func checkForUpdates() throws {
+		checkCount += 1
+		if let error {
+			throw error
+		}
+	}
+}
+
+@MainActor
 @Suite("UpdateStore")
 struct UpdateStoreTests {
 	private func makeRelease(version: String) -> ChangelogRelease {
@@ -33,12 +46,13 @@ struct UpdateStoreTests {
 
 	private func makeStore(
 		response: ChangelogResponse? = nil,
-		error: Error? = nil
+		error: Error? = nil,
+		nativeUpdater: NativeAppUpdating = MockNativeAppUpdater()
 	) -> (UpdateStore, MockUpdateCheckClient) {
 		let client = MockUpdateCheckClient()
 		client.response = response
 		client.error = error
-		let store = UpdateStore(client: client)
+		let store = UpdateStore(client: client, nativeUpdater: nativeUpdater)
 		return (store, client)
 	}
 
@@ -123,6 +137,33 @@ struct UpdateStoreTests {
 		await store.checkForUpdates(currentVersion: "0.66.0")
 		#expect(store.latestVersion == "0.67.0")
 		#expect(store.isUpdateAvailable == true)
+	}
+
+	@Test("performUpgrade delegates to native app updater")
+	func performUpgradeDelegatesToNativeUpdater() async {
+		let updater = MockNativeAppUpdater()
+		let (store, _) = makeStore(nativeUpdater: updater)
+		store.isUpdateAvailable = true
+
+		await store.performUpgrade()
+
+		#expect(updater.checkCount == 1)
+		#expect(store.upgradeError == nil)
+		#expect(store.isUpgrading == false)
+	}
+
+	@Test("performUpgrade reports native updater errors")
+	func performUpgradeReportsNativeUpdaterError() async {
+		let updater = MockNativeAppUpdater()
+		updater.error = NativeAppUpdateError.missingSparkleConfiguration
+		let (store, _) = makeStore(nativeUpdater: updater)
+		store.isUpdateAvailable = true
+
+		await store.performUpgrade()
+
+		#expect(updater.checkCount == 1)
+		#expect(store.upgradeError == NativeAppUpdateError.missingSparkleConfiguration.localizedDescription)
+		#expect(store.isUpgrading == false)
 	}
 
 	@Test("startCheckLoop retries quickly when version is not yet available")

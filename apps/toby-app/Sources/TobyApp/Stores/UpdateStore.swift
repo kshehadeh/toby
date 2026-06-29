@@ -1,6 +1,63 @@
 import AppKit
 import Foundation
 import Observation
+import Sparkle
+
+@MainActor
+protocol NativeAppUpdating {
+	func checkForUpdates() throws
+}
+
+enum NativeAppUpdateError: LocalizedError {
+	case missingSparkleConfiguration
+	case cannotCheckForUpdates
+
+	var errorDescription: String? {
+		switch self {
+		case .missingSparkleConfiguration:
+			"Native app updates are not configured for this build."
+		case .cannotCheckForUpdates:
+			"Toby cannot check for native app updates right now."
+		}
+	}
+}
+
+@MainActor
+final class SparkleNativeAppUpdater: NativeAppUpdating {
+	private var controller: SPUStandardUpdaterController?
+
+	func checkForUpdates() throws {
+		guard isConfigured else {
+			throw NativeAppUpdateError.missingSparkleConfiguration
+		}
+
+		let controller = updaterController()
+		guard controller.updater.canCheckForUpdates else {
+			throw NativeAppUpdateError.cannotCheckForUpdates
+		}
+		controller.checkForUpdates(nil)
+	}
+
+	private var isConfigured: Bool {
+		guard let info = Bundle.main.infoDictionary else { return false }
+		let feedURL = (info["SUFeedURL"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+		let publicKey = (info["SUPublicEDKey"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+		return !feedURL.isEmpty && !publicKey.isEmpty
+	}
+
+	private func updaterController() -> SPUStandardUpdaterController {
+		if let controller {
+			return controller
+		}
+		let controller = SPUStandardUpdaterController(
+			startingUpdater: true,
+			updaterDelegate: nil,
+			userDriverDelegate: nil
+		)
+		self.controller = controller
+		return controller
+	}
+}
 
 @Observable
 @MainActor
@@ -12,11 +69,16 @@ final class UpdateStore {
 	var upgradeComplete = false
 
 	private let client: ChangelogFetchable
+	private let nativeUpdater: NativeAppUpdating
 	private var checkTask: Task<Void, Never>?
 	private var lastCheckAt: Date?
 
-	init(client: ChangelogFetchable = TobyClient()) {
+	init(
+		client: ChangelogFetchable = TobyClient(),
+		nativeUpdater: NativeAppUpdating = SparkleNativeAppUpdater()
+	) {
 		self.client = client
+		self.nativeUpdater = nativeUpdater
 	}
 
 	func startCheckLoop(currentVersionProvider: @escaping () -> String?) {
@@ -58,47 +120,20 @@ final class UpdateStore {
 
 	func performUpgrade() async {
 		guard isUpdateAvailable, !isUpgrading else { return }
+		await checkNativeAppForUpdates()
+	}
+
+	func checkNativeAppForUpdates() async {
+		guard !isUpgrading else { return }
 		isUpgrading = true
 		upgradeError = nil
 		upgradeComplete = false
 		defer { isUpgrading = false }
 
-		guard let tobyBin = findTobyBinary() else {
-			upgradeError = "Could not find the toby binary. Make sure Toby is installed properly."
-			return
-		}
-
-		let result: (Int32, String) = await withCheckedContinuation { continuation in
-			DispatchQueue.global().async {
-				let process = Process()
-				process.executableURL = URL(fileURLWithPath: tobyBin)
-				process.arguments = ["upgrade"]
-				let pipe = Pipe()
-				process.standardOutput = pipe
-				process.standardError = pipe
-				do {
-					try process.run()
-					process.waitUntilExit()
-					let data = pipe.fileHandleForReading.readDataToEndOfFile()
-					let output = String(data: data, encoding: .utf8) ?? ""
-					continuation.resume(returning: (process.terminationStatus, output))
-				} catch {
-					continuation.resume(returning: (-1, error.localizedDescription))
-				}
-			}
-		}
-
-		if result.0 == 0 {
-			upgradeComplete = true
-			isUpdateAvailable = false
-		} else {
-			let cleaned = result.1
-				.replacingOccurrences(of: "\u{1B}", with: "")
-				.replacingOccurrences(of: "\r", with: "\n")
-				.components(separatedBy: "\n")
-				.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-				.joined(separator: "\n")
-			upgradeError = cleaned.isEmpty ? "Upgrade failed with exit code \(result.0)." : cleaned
+		do {
+			try nativeUpdater.checkForUpdates()
+		} catch {
+			upgradeError = error.localizedDescription
 		}
 	}
 
@@ -109,46 +144,6 @@ final class UpdateStore {
 		process.arguments = ["-c", "sleep 1; open \"\(bundleURL.path)\""]
 		try? process.run()
 		NSApp.terminate(nil)
-	}
-
-	private func findTobyBinary() -> String? {
-		// Self-contained app: CLI bundled inside Contents/Resources/
-		if let resourceURL = Bundle.main.resourceURL {
-			let bundledPath = resourceURL.appendingPathComponent("toby").path
-			if FileManager.default.isExecutableFile(atPath: bundledPath) {
-				return bundledPath
-			}
-		}
-
-		let home = FileManager.default.homeDirectoryForCurrentUser
-		let candidates = [
-			home.appendingPathComponent(".local/bin/toby").path,
-			"/usr/local/bin/toby",
-			"/opt/homebrew/bin/toby",
-		]
-		for candidate in candidates where FileManager.default.isExecutableFile(atPath: candidate) {
-			return candidate
-		}
-		// Fallback: use `which toby`
-		let whichProcess = Process()
-		whichProcess.executableURL = URL(fileURLWithPath: "/usr/bin/which")
-		whichProcess.arguments = ["toby"]
-		let pipe = Pipe()
-		whichProcess.standardOutput = pipe
-		whichProcess.standardError = Pipe()
-		do {
-			try whichProcess.run()
-			whichProcess.waitUntilExit()
-			let data = pipe.fileHandleForReading.readDataToEndOfFile()
-			let path = String(data: data, encoding: .utf8)?
-				.trimmingCharacters(in: .whitespacesAndNewlines)
-			if let path, !path.isEmpty, FileManager.default.isExecutableFile(atPath: path) {
-				return path
-			}
-		} catch {
-			// ignore
-		}
-		return nil
 	}
 
 	static func isVersionNewer(_ latest: String, _ current: String) -> Bool {

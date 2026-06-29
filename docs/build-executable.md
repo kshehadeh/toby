@@ -77,10 +77,18 @@ Pushing a **version tag** matching `v*` runs [`.github/workflows/release.yml`](.
 
 Release build steps:
 
-1. Matrix builds **two** signed and notarized macOS archives:
-   `toby-darwin-arm64.zip` and `toby-darwin-x64.zip`.
-2. Each archive contains `toby`, `bun` (runtime for bun-package plugins), `Toby.app`, `toby-plugin-sample-ts`, `toby-plugin-azuread`, `toby-plugin-email`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-applecalendar`, and `toby-plugin-macos`.
-3. Creates a **GitHub Release** for that tag and uploads those files as release assets (via `softprops/action-gh-release`).
+1. Builds the signed and notarized macOS DMG, currently `Toby-arm64.dmg`.
+2. The DMG contains `Toby.app`; the app bundle contains `toby`, `bun`
+   (runtime for bun-package plugins), the web UI, icons, and first-party
+   plugins including `toby-plugin-sample-ts`, `toby-plugin-email`,
+   `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`,
+   `toby-plugin-applecalendar`, and `toby-plugin-macos`.
+3. The workflow signs and notarizes `Toby.app`, then builds, notarizes, and
+   staples the DMG.
+4. Sparkle generates a signed `appcast.xml` from the notarized DMG and publishes
+   it to the `gh-pages` branch at `/appcast.xml`.
+5. Creates a **GitHub Release** for that tag and uploads the DMG plus appcast as
+   release assets (via `softprops/action-gh-release`).
 
 The release workflow uses the same Apple Developer secrets as DevDash:
 
@@ -89,6 +97,10 @@ The release workflow uses the same Apple Developer secrets as DevDash:
 - `APPLE_ID` — Apple Developer account email
 - `APPLE_APP_SPECIFIC_PASSWORD` — app-specific password for notarization
 - `APPLE_TEAM_ID` — Apple Developer Team ID
+- `SPARKLE_PUBLIC_KEY` — public EdDSA key embedded into `Toby.app` as
+  `SUPublicEDKey`
+- `SPARKLE_PRIVATE_KEY` — private EdDSA key used only in CI to sign the
+  Sparkle appcast entry
 
 Create `CSC_LINK` by base64-encoding the Developer ID Application `.p12`:
 
@@ -100,15 +112,32 @@ base64 -i /path/to/developer-id-application.p12 | tr -d '\n' | pbcopy
 Keychain Access.
 
 Signing is optional for CI mechanics but required for browser-downloaded
-executables to pass Gatekeeper. If any of the five signing/notarization secrets
+executables to pass Gatekeeper. If any Apple signing or notarization secrets
 are missing, the workflow skips signing and notarization and uploads an unsigned
-archive with a warning. Invalid non-empty credentials fail the release instead
-of silently publishing an unexpectedly unsigned build.
+archive with a warning. If Sparkle keys are missing, the workflow still builds
+the release but skips `appcast.xml` generation. Invalid non-empty Apple
+credentials fail the release instead of silently publishing an unexpectedly
+unsigned build.
+
+Generate Sparkle keys once on a trusted Mac with Sparkle's release tools:
+
+```bash
+generate_keys
+```
+
+Store the public key in `SPARKLE_PUBLIC_KEY` and the private key in
+`SPARKLE_PRIVATE_KEY`. Do not reuse Apple Developer ID certificates for Sparkle;
+Sparkle's EdDSA update signature is separate from code signing and
+notarization.
 
 Local `bun run build:release` builds `dist/toby`, `dist/bun`, `dist/Toby.app`,
 `dist/toby-plugin-sample-ts`, `dist/toby-plugin-azuread`, `dist/toby-plugin-email`, `dist/toby-plugin-todoist`, `dist/toby-plugin-jira`, `dist/toby-plugin-slack`, `dist/toby-plugin-applecalendar`, and `dist/toby-plugin-macos`. Verify staged artifacts with
 `node scripts/verify-release-artifacts.mjs release-payload`.
 Use the GitHub release workflow for signed and notarized distribution artifacts.
+
+`scripts/build-app.sh` stamps `CFBundleShortVersionString` from `package.json`
+by default and `CFBundleVersion` from `TOBY_APP_BUILD_NUMBER` or
+`GITHUB_RUN_NUMBER`. Sparkle update ordering depends on these bundle values.
 
 Note that `bun run build:executable` is a lighter dev build. It does run `build:plugins` (all first-party plugins including Web Search).
 

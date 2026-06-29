@@ -37,6 +37,8 @@ jobs:
         env:
           BUN_TARGET: bun-darwin-arm64
           SWIFT_ARCH: arm64
+          TOBY_APP_BUILD_NUMBER: ${{ github.run_number }}
+          TOBY_SPARKLE_PUBLIC_KEY: ${{ secrets.SPARKLE_PUBLIC_KEY }}
         run: chmod +x scripts/build-release-artifacts.sh && ./scripts/build-release-artifacts.sh
 
       - name: Check signing configuration
@@ -60,6 +62,23 @@ jobs:
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             echo "::warning::Skipping signing and notarization. Missing secrets: ${missing[*]}"
+          fi
+
+      - name: Check Sparkle configuration
+        id: sparkle
+        env:
+          SPARKLE_PUBLIC_KEY: ${{ secrets.SPARKLE_PUBLIC_KEY }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          missing=()
+          [ -n "$SPARKLE_PUBLIC_KEY" ] || missing+=("SPARKLE_PUBLIC_KEY")
+          [ -n "$SPARKLE_PRIVATE_KEY" ] || missing+=("SPARKLE_PRIVATE_KEY")
+          if [ "${#missing[@]}" -eq 0 ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Sparkle appcast generation is enabled."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Skipping Sparkle appcast generation. Missing secrets: ${missing[*]}"
           fi
 
       - name: Import Developer ID certificate
@@ -103,6 +122,22 @@ jobs:
             [[ -f "$bin" ]] || continue
             codesign --force --options runtime --timestamp --sign "$identity" "$bin"
           done
+
+          # Sparkle is copied manually by scripts/build-app.sh. Sign nested
+          # executables before signing the framework and app bundle.
+          SPARKLE_FRAMEWORK="dist/Toby.app/Contents/Frameworks/Sparkle.framework"
+          if [[ -d "$SPARKLE_FRAMEWORK" ]]; then
+            SPARKLE_VERSION_DIR="$SPARKLE_FRAMEWORK/Versions/B"
+            for sparkle_bin in \
+              "$SPARKLE_VERSION_DIR/Autoupdate" \
+              "$SPARKLE_VERSION_DIR/Updater.app" \
+              "$SPARKLE_VERSION_DIR/XPCServices/Downloader.xpc" \
+              "$SPARKLE_VERSION_DIR/XPCServices/Installer.xpc"; do
+              [[ -e "$sparkle_bin" ]] || continue
+              codesign --force --options runtime --timestamp --sign "$identity" "$sparkle_bin"
+            done
+            codesign --force --options runtime --timestamp --sign "$identity" "$SPARKLE_FRAMEWORK"
+          fi
 
           # Resource bundles (.bundle) are SPM resource-only bundles with no
           # Mach-O code, so codesign cannot sign them and notarization doesn't
@@ -194,6 +229,36 @@ jobs:
 
           xcrun stapler staple dist/Toby-arm64.dmg
 
+      - name: Generate Sparkle appcast
+        if: steps.signing.outputs.enabled == 'true' && steps.sparkle.outputs.enabled == 'true'
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          sparkle_dir="$RUNNER_TEMP/sparkle"
+          sparkle_zip="$RUNNER_TEMP/sparkle.zip"
+          curl -fsSL https://github.com/sparkle-project/Sparkle/releases/download/2.9.3/Sparkle-for-Swift-Package-Manager.zip -o "$sparkle_zip"
+          unzip -q "$sparkle_zip" -d "$sparkle_dir"
+
+          appcast_input="$RUNNER_TEMP/toby-appcast"
+          mkdir -p "$appcast_input"
+          cp dist/Toby-arm64.dmg "$appcast_input/Toby-arm64.dmg"
+
+          download_prefix="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/"
+          printf '%s' "$SPARKLE_PRIVATE_KEY" | \
+            "$sparkle_dir/bin/generate_appcast" \
+              --ed-key-file - \
+              --download-url-prefix "$download_prefix" \
+              --maximum-versions 1 \
+              -o dist/appcast.xml \
+              "$appcast_input"
+
+      - name: Upload appcast artifact
+        if: steps.signing.outputs.enabled == 'true' && steps.sparkle.outputs.enabled == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: appcast.xml
+          path: dist/appcast.xml
+
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
@@ -214,6 +279,13 @@ jobs:
         with:
           path: release-assets
           name: Toby-arm64.dmg
+
+      - name: Download appcast
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          name: appcast.xml
+        continue-on-error: true
 
       - name: List release files
         run: ls -la release-assets/
@@ -257,9 +329,47 @@ jobs:
               f.write(body)
           PY
 
+      - name: Collect release files
+        id: release_files
+        run: |
+          files="release-assets/Toby-arm64.dmg"
+          if [[ -f release-assets/appcast.xml ]]; then
+            files="${files}"$'\n'"release-assets/appcast.xml"
+          fi
+          {
+            echo "files<<EOF"
+            printf '%s\n' "$files"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           body_path: release-notes.md
           generate_release_notes: true
-          files: release-assets/Toby-arm64.dmg
+          files: ${{ steps.release_files.outputs.files }}
+
+      - name: Publish Sparkle appcast to GitHub Pages
+        if: hashFiles('release-assets/appcast.xml') != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin gh-pages || true
+          if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
+            git worktree add gh-pages origin/gh-pages
+          else
+            mkdir gh-pages
+            git -C gh-pages init
+            git -C gh-pages remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+            git -C gh-pages checkout -b gh-pages
+          fi
+
+          cp release-assets/appcast.xml gh-pages/appcast.xml
+          touch gh-pages/.nojekyll
+          git -C gh-pages add appcast.xml .nojekyll
+          if git -C gh-pages commit -m "chore: update appcast for ${GITHUB_REF_NAME}"; then
+            git -C gh-pages push origin HEAD:gh-pages
+          else
+            echo "Appcast unchanged."
+          fi

@@ -101,12 +101,17 @@ struct TobyApp: App {
 			}
 
 			CommandGroup(replacing: .appInfo) {
-			Button("About Toby") {
-				NotificationCenter.default.post(name: .openChangelog, object: nil)
-			}
-		}
+				Button("About Toby") {
+					NotificationCenter.default.post(name: .openChangelog, object: nil)
+				}
 
-		CommandGroup(replacing: .appSettings) {
+				Button("Check for Updates…") {
+					Task { await updateStore.checkNativeAppForUpdates() }
+				}
+				.disabled(updateStore.isUpgrading)
+			}
+
+			CommandGroup(replacing: .appSettings) {
 				Button("Settings…") {
 					NotificationCenter.default.post(name: .navigateToRoute, object: DetailRoute.settings.rawValue)
 				}

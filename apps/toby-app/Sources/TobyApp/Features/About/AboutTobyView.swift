@@ -208,8 +208,8 @@ struct AboutTobyView: View {
 		OpenSourceLibrary(name: "SwiftUI, AppKit", detail: "Apple Inc. — UI framework"),
 		OpenSourceLibrary(name: "EventKit, Network, AVFoundation", detail: "Apple Inc. — system frameworks"),
 		OpenSourceLibrary(name: "CoreMedia, ScreenCaptureKit, ApplicationServices", detail: "Apple Inc. — system frameworks"),
+		OpenSourceLibrary(name: "Sparkle", detail: "sparkle-project.org — app updates"),
 		OpenSourceLibrary(name: "ViewInspector", detail: "Aleksei Nadezhin — UI testing (test-only)"),
 	]
 }
-
 
