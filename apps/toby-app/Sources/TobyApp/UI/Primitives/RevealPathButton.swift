@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A path rendered as a clickable button that reveals the item in Finder.
-/// Shows a button outline on hover and a "Reveal in Finder" tooltip.
+/// Shows a button outline on hover and the full path in the tooltip.
 struct RevealPathButton: View {
 	let path: String
 	var label: String? = nil
@@ -24,8 +24,8 @@ struct RevealPathButton: View {
 					Text(path)
 						.font(.caption2)
 						.foregroundStyle(AppTheme.tertiaryText)
-						.lineLimit(2)
-						.truncationMode(.middle)
+						.lineLimit(1)
+						.truncationMode(.head)
 				}
 				Spacer(minLength: 0)
 			}
@@ -44,7 +44,7 @@ struct RevealPathButton: View {
 		}
 		.buttonStyle(.plain)
 		.onHover { isHovered = $0 }
-		.help("Reveal in Finder")
+		.help(path)
 		.accessibilityLabel("Reveal in Finder")
 		.accessibilityValue(path)
 	}
