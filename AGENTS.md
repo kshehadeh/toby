@@ -54,6 +54,7 @@ When unsure: if the daemon or a headless script could call it without a terminal
 - **Register** new integrations in [`packages/core/src/integrations/index.ts`](packages/core/src/integrations/index.ts) (`MODULES` array).
 - **Shared** commands (`connect`, `disconnect`, `status`, `summarize`, `organize`, `chat`, `configure`) live in [`apps/cli/src/commands/`](apps/cli/src/commands/) and should stay generic; they resolve behavior through the core registry and module hooks.
 - After substantive changes, run `bun run lint`, `bun run typecheck`, and `bun run test`.
+- When committing changes, use the `atomic-conventional-commit` skill so commits are cohesive, reviewable, and follow Conventional Commit messages.
 - Use `bun run dev` for the Ink chat TUI (runs the CLI directly; do not use `dev:turbo` — Turborepo log prefixes break the TUI).
 - Use shared UI primitives from `apps/cli/src/ui/shared/` (`ViewFrame`, `ViewModal`, `ConfirmDialog`, `FieldNavigator`, `FieldEditor`, `FieldSelector`, `UI_GLYPHS`, row components, key predicates) when building Ink views. Do not create local frame/dialog/key/glyph duplicates. See [`docs/ui.md`](docs/ui.md).
 
