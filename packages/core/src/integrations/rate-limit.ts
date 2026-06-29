@@ -147,7 +147,7 @@ export async function withRetry<T>(
 }
 
 /**
- * Detect Gmail/Todoist rate-limit errors that are safe to retry.
+ * Detect integration rate-limit errors that are safe to retry.
  */
 function isRetryableError(err: unknown): boolean {
 	if (!(err instanceof Error)) {

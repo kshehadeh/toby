@@ -81,7 +81,7 @@ export async function startChatInboundListeners(
 			integration: active.module.name,
 			persona: active.persona.name,
 			transport:
-				active.module.name === "slack" ? "socket_mode" : active.module.name,
+				active.module.inboundTransport ?? active.module.name,
 		});
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);

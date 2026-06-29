@@ -239,7 +239,7 @@ function buildCombinedChatBasePrompt(
 		: "";
 	return `You are Toby, a personal assistant with access to: **${labels}**.
 
-Use the integration tools below for Gmail/Todoist/Slack/Azure AD work, plus the global Toby tools (**askUser**, **fetchWebContent**${searchToolsList}). Pick the right integration based on the user's request. Use **createLocalSkill** only when the user explicitly asks to create or update a ~/.toby/skills skill file.
+Use the integration tools below for your connected integrations, plus the global Toby tools (**askUser**, **fetchWebContent**${searchToolsList}). Pick the right integration based on the user's request. Use **createLocalSkill** only when the user explicitly asks to create or update a ~/.toby/skills skill file.
 
 Shared rules:
 - Use **askUser** whenever you need a multiple-choice decision from the user. The terminal does not respond to questions written only in plain assistant text.
@@ -256,7 +256,7 @@ function formatIntegrationPrepError(
 	error: unknown,
 ): string {
 	const message = error instanceof Error ? error.message : String(error);
-	return `## ${module.displayName}\n\nConnection context unavailable (${message}). Slack/Gmail tools may still work once the connection recovers.`;
+	return `## ${module.displayName}\n\nConnection context unavailable (${message}). Integration tools may still work once the connection recovers.`;
 }
 
 async function buildSingleModuleSessionMessages(

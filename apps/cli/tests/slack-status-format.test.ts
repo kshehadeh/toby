@@ -24,7 +24,7 @@ describe("formatSlackInboundStatusMrkdwn", () => {
 				toolName: "getRecentEmails",
 				args: {},
 			}),
-		).toBe("📧 _Calling fetch recent unread emails…_");
+		).toBe("📧 _Calling get recent emails…_");
 	});
 
 	it("uses askUser emoji", () => {

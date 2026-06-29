@@ -100,7 +100,7 @@ export function buildHelpSections(
 			},
 			{
 				title: "Configure integrations",
-				body: "Run /config to connect Gmail, Todoist, calendars, and other tools.",
+				body: "Run /config to connect email, tasks, calendars, and other tools.",
 			},
 			{
 				title: "Switch personas",

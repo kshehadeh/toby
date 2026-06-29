@@ -1,28 +1,10 @@
-const TOOL_LABEL_OVERRIDES: Record<string, string> = {
+/**
+ * Core/global tool display labels. Plugin-specific tool labels are provided
+ * by plugins themselves via the `displayName` field on tool definitions
+ * (see {@link registerPluginToolLabels}) and looked up at runtime.
+ */
+const CORE_TOOL_LABELS: Record<string, string> = {
 	askUser: "Ask you to choose",
-	getInboxUnreadOverview: "Fetch inbox overview",
-	getUnreadEmailMetadataBatch: "Fetch email metadata",
-	archiveEmailById: "Archive email by ID",
-	markAsReadById: "Mark email as read",
-	applyMultipleLabelsByMessageId: "Apply labels to email by ID",
-	listLabels: "List Gmail labels",
-	createAndApplyLabel: "Create and apply label",
-	applyMultipleLabels: "Apply multiple labels",
-	markAsRead: "Mark current email as read",
-	archiveEmail: "Archive current email",
-	getRecentEmails: "Fetch recent unread emails",
-	fetchOpenTasks: "Fetch open Todoist tasks",
-	fetchCompletedTasks: "Fetch completed Todoist tasks",
-	listProjectNames: "List Todoist project names",
-	getProjectNameById: "Resolve Todoist project name",
-	completeTask: "Complete Todoist task",
-	createTask: "Create Todoist task",
-	updateTask: "Update Todoist task",
-	listUsers: "List Azure AD users",
-	searchUsers: "Search Azure AD users",
-	getUser: "Get Azure AD user",
-	getUserManager: "Get user manager",
-	getUserDirectReports: "Get direct reports",
 	createLocalSkill: "Create local Toby skill",
 	memorySearch: "Search memory",
 	memoryPropose: "Propose memory",
@@ -33,6 +15,31 @@ const TOOL_LABEL_OVERRIDES: Record<string, string> = {
 	listListenRecordings: "List listen recordings",
 	readTranscript: "Read listen transcript",
 };
+
+/**
+ * Registry of plugin-provided tool labels, populated when plugin tool
+ * definitions are loaded. Maps tool name → human-readable display label.
+ */
+const pluginToolLabels = new Map<string, string>();
+
+/**
+ * Register tool display labels from a plugin's `tools list` response.
+ * Called by the plugin adapter when tool definitions are loaded.
+ */
+export function registerPluginToolLabels(
+	tools: ReadonlyArray<{ readonly name: string; readonly displayName?: string }>,
+): void {
+	for (const t of tools) {
+		if (t.displayName) {
+			pluginToolLabels.set(t.name, t.displayName);
+		}
+	}
+}
+
+/** Clear all registered plugin tool labels (used in tests). */
+export function clearPluginToolLabels(): void {
+	pluginToolLabels.clear();
+}
 
 function humanizeToolName(toolName: string): string {
 	const tokenized = toolName
@@ -61,7 +68,11 @@ function humanizeToolName(toolName: string): string {
 }
 
 export function getToolDisplayLabel(toolName: string): string {
-	return TOOL_LABEL_OVERRIDES[toolName] ?? humanizeToolName(toolName);
+	return (
+		pluginToolLabels.get(toolName) ??
+		CORE_TOOL_LABELS[toolName] ??
+		humanizeToolName(toolName)
+	);
 }
 
 export function getToolStatusLabel(toolName: string): string {

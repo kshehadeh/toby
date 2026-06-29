@@ -1100,7 +1100,7 @@ export function ChatSessionApp({
 		if (usable.length === 0) {
 			recordSessionNote(
 				sessionIdRef.current,
-				"No chat integrations ready to choose from (connect Gmail, add a Todoist API key, configure Slack, or configure Azure AD credentials).",
+				"No chat integrations ready to choose from (connect an email, task, or chat integration in the configuration view).",
 			);
 			setActivityLine(
 				"No integrations ready — connect an integration in configure.",

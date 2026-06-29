@@ -26,37 +26,39 @@ function toolStatusEmoji(toolName: string): string {
 	if (
 		lower.includes("email") ||
 		lower.includes("mail") ||
-		lower.includes("inbox") ||
-		lower.includes("gmail")
+		lower.includes("inbox")
 	) {
 		return "📧";
 	}
 	if (lower.includes("calendar") || lower.includes("event")) return "📅";
-	if (lower.includes("todoist") || lower.includes("task")) return "✅";
+	if (lower.includes("task") || lower.includes("todo")) return "✅";
 	if (lower.includes("memory")) return "🧠";
 	if (
-		lower.includes("slack") ||
+		lower.includes("chat") ||
 		lower.includes("post") ||
-		lower.includes("reply")
+		lower.includes("reply") ||
+		lower.includes("channel")
 	) {
 		return "💬";
 	}
 	if (lower.includes("plan")) return "📋";
 	if (lower.includes("search") || lower.includes("find")) return "🔍";
-	if (lower.includes("user") || lower.includes("azure")) return "👤";
+	if (lower.includes("user") || lower.includes("people")) return "👤";
 	if (lower.includes("wifi") || lower.includes("network")) return "📶";
 	if (lower.includes("skill")) return "📚";
+	if (lower.includes("issue") || lower.includes("ticket")) return "🎫";
 	return "🔧";
 }
 
-function integrationLabelEmoji(label: string): string | null {
+function integrationLabelEmoji(label: string, pluginIcon?: string): string | null {
+	if (pluginIcon) return pluginIcon;
 	const lower = label.toLowerCase();
-	if (lower.includes("gmail") || lower.includes("mail")) return "📧";
-	if (lower.includes("todoist")) return "✅";
-	if (lower.includes("slack")) return "💬";
+	if (lower.includes("email") || lower.includes("mail")) return "📧";
 	if (lower.includes("calendar")) return "📅";
+	if (lower.includes("task") || lower.includes("todo")) return "✅";
+	if (lower.includes("chat") || lower.includes("slack")) return "💬";
 	if (lower.includes("memory")) return "🧠";
-	if (lower.includes("azure")) return "👤";
+	if (lower.includes("issue") || lower.includes("ticket")) return "🎫";
 	return null;
 }
 

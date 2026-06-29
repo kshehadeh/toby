@@ -3,29 +3,6 @@ import Foundation
 enum ToolDisplayLabels {
 	private static let overrides: [String: String] = [
 		"askUser": "Ask you to choose",
-		"getInboxUnreadOverview": "Fetch inbox overview",
-		"getUnreadEmailMetadataBatch": "Fetch email metadata",
-		"archiveEmailById": "Archive email by ID",
-		"markAsReadById": "Mark email as read",
-		"applyMultipleLabelsByMessageId": "Apply labels to email by ID",
-		"listLabels": "List Gmail labels",
-		"createAndApplyLabel": "Create and apply label",
-		"applyMultipleLabels": "Apply multiple labels",
-		"markAsRead": "Mark current email as read",
-		"archiveEmail": "Archive current email",
-		"getRecentEmails": "Fetch recent unread emails",
-		"fetchOpenTasks": "Fetch open Todoist tasks",
-		"fetchCompletedTasks": "Fetch completed Todoist tasks",
-		"listProjectNames": "List Todoist project names",
-		"getProjectNameById": "Resolve Todoist project name",
-		"completeTask": "Complete Todoist task",
-		"createTask": "Create Todoist task",
-		"updateTask": "Update Todoist task",
-		"listUsers": "List Azure AD users",
-		"searchUsers": "Search Azure AD users",
-		"getUser": "Get Azure AD user",
-		"getUserManager": "Get user manager",
-		"getUserDirectReports": "Get direct reports",
 		"createLocalSkill": "Create local Toby skill",
 		"memorySearch": "Search memory",
 		"memoryPropose": "Propose memory",
@@ -192,10 +169,10 @@ enum ToolDisplayLabels {
 		if lower.contains("email") || lower.contains("inbox") || lower.contains("mail") {
 			return "envelope"
 		}
-		if lower.contains("task") || lower.contains("todoist") || lower.contains("project") {
+		if lower.contains("task") || lower.contains("todo") || lower.contains("project") {
 			return "checklist"
 		}
-		if lower.contains("slack") || lower.contains("channel") || lower.contains("post") {
+		if lower.contains("chat") || lower.contains("channel") || lower.contains("post") || lower.contains("reply") {
 			return "bubble.left"
 		}
 		if lower.contains("user") || lower.contains("people") || lower.contains("directory") {
@@ -240,16 +217,6 @@ enum ToolDisplayLabels {
 		"writeTextFile": "doc",
 		"createLocalSkill": "wand.and.stars",
 		"loadLocalSkillInstructions": "book",
-		"createDraft": "envelope",
-		"listLabels": "tag",
-		"createAndApplyLabel": "tag",
-		"applyMultipleLabels": "tag",
-		"applyMultipleLabelsByMessageId": "tag",
-		"batchModifyMessages": "envelope",
-		"postToChannel": "bubble.left",
-		"replyToPost": "bubble.left",
-		"searchChannels": "bubble.left",
-		"searchMessages": "bubble.left",
 		"tobyListIntegrations": "puzzlepiece",
 		"tobyGetIntegrationSetup": "puzzlepiece",
 		"tobyListDefaults": "sparkles",

@@ -231,7 +231,7 @@ describe("formatToolCallHeader", () => {
 
 	it("prefixes the integration label when provided", () => {
 		const h = formatToolCallHeader("listLabels", {}, "Gmail");
-		expect(h).toBe("Gmail: List Gmail labels");
+		expect(h).toBe("Gmail: List labels");
 	});
 });
 

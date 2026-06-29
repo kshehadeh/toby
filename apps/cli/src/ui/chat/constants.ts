@@ -19,7 +19,7 @@ export const TIP_LABEL = "Tip: ";
 export const TIPS = [
 	'Type "/" to see a list of commands you can run.',
 	'Type "/config" to open the configuration settings.',
-	'Set default providers per category (e.g. Gmail for Email, Apple Calendar for Calendar) under "Default Providers" in the configuration view.',
+	'Set default providers per category (e.g. Email, Calendar) under "Default Providers" in the configuration view.',
 	'Type "/help" or press "?" with an empty prompt for slash commands and shortcuts.',
 	"Use Tab to auto-complete slash commands.",
 	"Press Shift+Tab to cycle through personas.",

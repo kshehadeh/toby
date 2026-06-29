@@ -20,7 +20,7 @@ const planPhaseSchema = z.object({
 	toolsRequired: z
 		.array(z.string())
 		.describe(
-			"Tool categories or integration tools likely needed for this stage, such as Gmail search/list tools, Todoist task tools, or none for reasoning-only stages",
+			"Tool categories or integration tools likely needed for this stage, or none for reasoning-only stages",
 		),
 });
 

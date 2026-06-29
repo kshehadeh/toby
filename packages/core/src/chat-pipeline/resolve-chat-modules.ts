@@ -21,7 +21,6 @@ const CATEGORY_KEYWORDS: Record<ProviderCategory, string[]> = {
 		"draft",
 		"reply",
 		"forward",
-		"outlook",
 	],
 	calendar: [
 		"calendar",
@@ -37,7 +36,6 @@ const CATEGORY_KEYWORDS: Record<ProviderCategory, string[]> = {
 		"todo",
 		"to-do",
 		"to do",
-		"todoist",
 		"checklist",
 		"assignment",
 	],
@@ -50,7 +48,6 @@ const CATEGORY_KEYWORDS: Record<ProviderCategory, string[]> = {
 		"coworker",
 	],
 	chat: [
-		"slack",
 		"channel",
 		"channels",
 		"dm",
@@ -67,13 +64,10 @@ const CATEGORY_KEYWORDS: Record<ProviderCategory, string[]> = {
 		"find",
 		"look up",
 		"lookup",
-		"google",
-		"brave",
 		"web search",
 		"research",
 	],
 	work_tracker: [
-		"jira",
 		"issue",
 		"ticket",
 		"bug",

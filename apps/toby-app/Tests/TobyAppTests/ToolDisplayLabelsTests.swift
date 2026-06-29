@@ -10,9 +10,8 @@ struct ToolDisplayLabelsTests {
 	@Test("returns override label for known tool names")
 	func returnsOverrideForKnownTools() {
 		#expect(ToolDisplayLabels.displayLabel("askUser") == "Ask you to choose")
-		#expect(ToolDisplayLabels.displayLabel("getRecentEmails") == "Fetch recent unread emails")
 		#expect(ToolDisplayLabels.displayLabel("memorySearch") == "Search memory")
-		#expect(ToolDisplayLabels.displayLabel("listUsers") == "List Azure AD users")
+		#expect(ToolDisplayLabels.displayLabel("createLocalSkill") == "Create local Toby skill")
 	}
 
 	@Test("humanizes unknown camelCase tool names")
@@ -122,21 +121,21 @@ struct ToolDisplayLabelsTests {
 	@Test("formats header with integration label prefix")
 	func headerWithIntegrationLabel() {
 		let header = ToolDisplayLabels.formatToolCallHeader(toolName: "listUsers", args: nil, integrationLabel: "Azure AD")
-		#expect(header == "Azure AD: List Azure AD users")
+		#expect(header == "Azure AD: List users")
 	}
 
 	@Test("formats header with query argument summary")
 	func headerWithQueryArg() {
 		let args: [String: Any] = ["query": "open tasks"]
 		let header = ToolDisplayLabels.formatToolCallHeader(toolName: "searchUsers", args: args, integrationLabel: nil)
-		#expect(header == "Search Azure AD users · \u{201C}open tasks\u{201D}")
+		#expect(header == "Search users · \u{201C}open tasks\u{201D}")
 	}
 
 	@Test("formats header with ID argument summary")
 	func headerWithIdArg() {
 		let args: [String: Any] = ["id": "abc123"]
 		let header = ToolDisplayLabels.formatToolCallHeader(toolName: "getUser", args: args, integrationLabel: nil)
-		#expect(header == "Get Azure AD user · abc123")
+		#expect(header == "Get user · abc123")
 	}
 
 	@Test("omits args summary for askUser tool")
@@ -159,8 +158,8 @@ struct ToolDisplayLabelsTests {
 	func emailIcon() {
 		#expect(ToolDisplayLabels.iconForTool("getRecentEmails") == "envelope")
 		#expect(ToolDisplayLabels.iconForTool("getInboxUnreadOverview") == "envelope")
-		#expect(ToolDisplayLabels.iconForTool("createDraft") == "envelope")
 		#expect(ToolDisplayLabels.iconForTool("archiveEmailById") == "envelope")
+		#expect(ToolDisplayLabels.iconForTool("sendEmail") == "envelope")
 	}
 
 	@Test("returns checklist icon for task-related tools")
@@ -209,11 +208,11 @@ struct ToolDisplayLabelsTests {
 		#expect(ToolDisplayLabels.iconForTool("searchChannels") == "bubble.left")
 	}
 
-	@Test("returns tag icon for label tools")
-	func labelIcon() {
-		#expect(ToolDisplayLabels.iconForTool("listLabels") == "tag")
-		#expect(ToolDisplayLabels.iconForTool("createAndApplyLabel") == "tag")
-		#expect(ToolDisplayLabels.iconForTool("applyMultipleLabels") == "tag")
+	@Test("returns wrench fallback for tools without matching patterns")
+	func fallbackIconForPluginTools() {
+		#expect(ToolDisplayLabels.iconForTool("listLabels") == "wrench.and.screwdriver")
+		#expect(ToolDisplayLabels.iconForTool("createDraft") == "wrench.and.screwdriver")
+		#expect(ToolDisplayLabels.iconForTool("applyMultipleLabels") == "wrench.and.screwdriver")
 	}
 
 	@Test("returns puzzlepiece for integration tools")

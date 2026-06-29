@@ -6,6 +6,7 @@ import {
 	clearSessionToolBundleCache,
 	runSharedChatTurn,
 } from "../../chat-pipeline/run-turn";
+import { registerPluginToolLabels } from "../../tool-labels";
 import type { CredentialsFile, Persona } from "../../config/index";
 import {
 	ensurePluginDataDir,
@@ -69,6 +70,8 @@ export type PluginMetadata = {
 	readonly setupAvailable?: boolean;
 	readonly setupDescription?: string;
 	readonly inboundPrep?: PluginInboundPrep;
+	readonly icon?: string;
+	readonly inboundTransport?: string;
 };
 
 /**
@@ -330,6 +333,8 @@ export function loadPluginMetadata(
 		setupAvailable: status.setupAvailable,
 		setupDescription: status.setupDescription,
 		inboundPrep: status.inboundPrep,
+		icon: status.icon,
+		inboundTransport: status.inboundTransport,
 	};
 }
 
@@ -360,6 +365,7 @@ function loadReadOnlyToolNames(
 			});
 		}
 	}
+	registerPluginToolLabels(tools);
 	return tools.filter((t) => t.readOnly).map((t) => t.name);
 }
 
@@ -408,6 +414,8 @@ export function createPluginIntegrationModule(
 		name,
 		displayName: metadata.displayName,
 		description: metadata.description,
+		icon: metadata.icon,
+		inboundTransport: metadata.inboundTransport,
 
 		async connect(): Promise<void> {
 			const envelope = buildEnvelope(name);
@@ -678,6 +686,8 @@ export function createPluginIntegrationModule(
 				tools: toolDefs,
 			});
 		}
+
+		registerPluginToolLabels(toolDefs);
 
 		const tools: Record<string, Tool> = {};
 		for (const definition of toolDefs) {
