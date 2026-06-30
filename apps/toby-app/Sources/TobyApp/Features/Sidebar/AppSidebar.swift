@@ -11,7 +11,7 @@ struct AppSidebar<Content: View>: View {
 	let onCreatePersona: () -> Void
 	let onEditPersona: (String) -> Void
 	let onPersonaSelected: () -> Void
-	let onOpenChangelog: () -> Void
+	let onCheckForUpdates: () -> Void
 	let onRestartServer: () -> Void
 	@ViewBuilder let sidebarContent: () -> Content
 
@@ -22,7 +22,7 @@ struct AppSidebar<Content: View>: View {
 				daemonStatus: daemonStatus,
 				isServerRestarting: isServerRestarting,
 				updateStore: updateStore,
-				onOpenChangelog: onOpenChangelog,
+				onCheckForUpdates: onCheckForUpdates,
 				onRestartServer: onRestartServer
 			)
 			sidebarContent()

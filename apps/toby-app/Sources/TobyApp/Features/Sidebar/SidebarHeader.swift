@@ -6,7 +6,7 @@ struct SidebarHeader: View {
 	let daemonStatus: DaemonStatus?
 	let isServerRestarting: Bool
 	let updateStore: UpdateStore?
-	let onOpenChangelog: () -> Void
+	let onCheckForUpdates: () -> Void
 	let onRestartServer: () -> Void
 
 	private var appIcon: Image {
@@ -19,7 +19,7 @@ struct SidebarHeader: View {
 	var body: some View {
 		HStack(spacing: 10) {
 			Button {
-				onOpenChangelog()
+				onCheckForUpdates()
 			} label: {
 				HStack(spacing: 6) {
 					appIcon
@@ -69,8 +69,9 @@ struct SidebarHeader: View {
 				.contentShape(Rectangle())
 			}
 			.buttonStyle(.plain)
+			.disabled(updateStore?.isUpgrading == true)
 			.accessibilityLabel("Toby version \(status?.version ?? "")")
-			.accessibilityHint("Open changelog")
+			.accessibilityHint("Check for updates")
 			Spacer(minLength: 0)
 			ServerStatusButton(
 				status: status,

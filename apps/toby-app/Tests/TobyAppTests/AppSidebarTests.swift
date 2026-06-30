@@ -17,7 +17,7 @@ struct AppSidebarTests {
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
-            onOpenChangelog: {},
+            onCheckForUpdates: {},
             onRestartServer: {},
             sidebarContent: {
                 ChatSessionsSidebar(
@@ -43,7 +43,7 @@ struct AppSidebarTests {
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
-            onOpenChangelog: {},
+            onCheckForUpdates: {},
             onRestartServer: {},
             sidebarContent: { EmptyView() }
         )
@@ -73,7 +73,7 @@ struct AppSidebarTests {
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
-            onOpenChangelog: {},
+            onCheckForUpdates: {},
             onRestartServer: {},
             sidebarContent: {
                 ChatSessionsSidebar(
@@ -98,7 +98,7 @@ struct AppSidebarTests {
         let view = makeSidebar(sessions: sessions)
         // Sessions are rendered inside a ScrollView > VStack > ForEach
         let buttons = try view.inspect().findAll(ViewType.Button.self)
-        // Buttons: changelog header + session×2 + chats + integrations + skills + schedules + recordings + settings + persona
+        // Buttons: app header + session×2 + chats + integrations + skills + schedules + recordings + settings + persona
         let sessionButtons = buttons.filter { btn in
             guard let label = try? btn.labelView().find(ViewType.Text.self),
                   let text = try? label.string() else { return false }
@@ -121,7 +121,7 @@ struct AppSidebarTests {
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
-            onOpenChangelog: {},
+            onCheckForUpdates: {},
             onRestartServer: {},
             sidebarContent: {
                 ChatSessionsSidebar(
@@ -263,13 +263,39 @@ struct AppSidebarTests {
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
-            onOpenChangelog: {},
+            onCheckForUpdates: {},
             onRestartServer: {},
             sidebarContent: { EmptyView() }
         )
         let view = try sidebar.inspect()
         #expect(throws: Never.self) { try view.find(text: "Toby") }
         #expect(throws: Never.self) { try view.find(text: "v1.2.3") }
+    }
+
+    @Test("header button checks for updates")
+    func headerButtonChecksForUpdates() throws {
+        var checkCount = 0
+        let sidebar = AppSidebar(
+            currentRoute: .chat,
+            status: nil,
+            daemonStatus: nil,
+            isServerRestarting: false,
+            updateStore: nil,
+            onSelectRoute: { _ in },
+            onCreatePersona: {},
+            onEditPersona: { _ in },
+            onPersonaSelected: {},
+            onCheckForUpdates: { checkCount += 1 },
+            onRestartServer: {},
+            sidebarContent: { EmptyView() }
+        )
+        let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
+        let headerButton = buttons.first { btn in
+            (try? btn.find(text: "Toby")) != nil
+        }
+        try #require(headerButton != nil, "Header button not found")
+        try headerButton!.tap()
+        #expect(checkCount == 1)
     }
 
     @Test("server status button shows offline when status is nil")
@@ -308,7 +334,7 @@ struct AppSidebarTests {
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
-            onOpenChangelog: {},
+            onCheckForUpdates: {},
             onRestartServer: {},
             sidebarContent: { EmptyView() }
         )
@@ -339,7 +365,7 @@ struct AppSidebarTests {
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
-            onOpenChangelog: {},
+            onCheckForUpdates: {},
             onRestartServer: {},
             sidebarContent: { EmptyView() }
         )
@@ -362,7 +388,7 @@ struct AppSidebarTests {
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
-            onOpenChangelog: {},
+            onCheckForUpdates: {},
             onRestartServer: {},
             sidebarContent: { EmptyView() }
         )

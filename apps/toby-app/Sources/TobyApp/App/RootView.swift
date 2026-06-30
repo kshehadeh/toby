@@ -217,7 +217,9 @@ struct RootView: View {
                 onCreatePersona: { openPersonaEditor(.create) },
                 onEditPersona: { openPersonaEditor(.edit(name: $0)) },
                 onPersonaSelected: refreshStatus,
-                onOpenChangelog: { isAboutPresented = true },
+                onCheckForUpdates: {
+                    Task { await updateStore.checkNativeAppForUpdates() }
+                },
                 onRestartServer: {
                     Task { await store.restartServer() }
                 },
