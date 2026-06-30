@@ -54,7 +54,9 @@ export function buildTranscriptNodes(
 		if (r.kind === "boxed_block") {
 			const bb = r;
 			const isThinking = bb.variant === "thinking";
-			const bodyDim = bb.variant !== "assistant";
+			const isAssistantText =
+				bb.variant === "assistant" || bb.variant === "assistant_interim";
+			const bodyDim = !isAssistantText;
 			const glyphColor =
 				bb.variant === "plan"
 					? "magenta"
@@ -98,7 +100,7 @@ export function buildTranscriptNodes(
 							marginTop={0}
 							flexDirection="column"
 						>
-							{bb.variant === "assistant"
+							{isAssistantText
 								? renderMarkdownBodyLines(
 										bb.bodyLines,
 										Math.max(12, termCols - 2 - BOXED_STEP_BODY_MARGIN_LEFT),

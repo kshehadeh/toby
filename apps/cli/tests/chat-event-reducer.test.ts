@@ -1,9 +1,9 @@
+import { describe, expect, it } from "bun:test";
 import type { ChatEvent } from "@toby/core/chat-pipeline/chat-events";
 import {
 	deserializeTranscriptRow,
 	serializeTranscriptEntry,
 } from "@toby/core/transcript-persist";
-import { describe, expect, it } from "bun:test";
 import {
 	applyChatEvent,
 	formatToolCallHeader,
@@ -897,6 +897,28 @@ describe("flattenTranscript hidden lifecycle headers", () => {
 		const rows = flattenTranscript(entries, "", "", false, 80, "Toby", false);
 		const boxed = rows.filter((r) => r.kind === "boxed_block");
 		expect(boxed).toHaveLength(1);
+	});
+
+	it("shows interim assistant text when debug is off", () => {
+		const entries: TranscriptEntry[] = [
+			{
+				kind: "boxed_step",
+				id: "asst-interim",
+				seq: 1,
+				variant: "assistant_interim",
+				header: "Toby",
+				body: "I will check the files first.",
+			},
+		];
+		const rows = flattenTranscript(entries, "", "", false, 80, "Toby", false);
+		const boxed = rows.filter((r) => r.kind === "boxed_block");
+		expect(boxed).toHaveLength(1);
+		expect(boxed[0]?.kind === "boxed_block" && boxed[0].variant).toBe(
+			"assistant_interim",
+		);
+		expect(boxed[0]?.kind === "boxed_block" && boxed[0].bodyLines).toEqual([
+			"I will check the files first.",
+		]);
 	});
 
 	it("hides Preparing Session lifecycle when debug is off", () => {

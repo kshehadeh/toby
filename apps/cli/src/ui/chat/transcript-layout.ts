@@ -263,7 +263,7 @@ function capBodyLines(
 	if (variant === "lifecycle" || variant === "prep" || variant === "meta") {
 		return lines;
 	}
-	if (variant === "thinking" || variant === "assistant_interim") {
+	if (variant === "thinking") {
 		if (lines.length <= THINKING_MAX_VISIBLE_LINES) {
 			return lines;
 		}
@@ -271,7 +271,11 @@ function capBodyLines(
 		const capped = lines.slice(-THINKING_MAX_VISIBLE_LINES);
 		return [`↑ ${hiddenCount} line(s) hidden`, ...capped];
 	}
-	if (variant === "assistant" || lines.length <= 3) {
+	if (
+		variant === "assistant" ||
+		variant === "assistant_interim" ||
+		lines.length <= 3
+	) {
 		return lines;
 	}
 	const capped = lines.slice(-3);
@@ -304,13 +308,6 @@ export function flattenTranscript(
 			continue;
 		}
 		if (!debug && e.kind === "boxed_step" && e.variant === "prep") {
-			continue;
-		}
-		if (
-			!debug &&
-			e.kind === "boxed_step" &&
-			e.variant === "assistant_interim"
-		) {
 			continue;
 		}
 		if (!debug && e.kind === "meta") {

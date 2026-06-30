@@ -12,15 +12,15 @@ export function isTranscriptWorkEntry(entry: TranscriptEntry): boolean {
 		entry.variant === "prep" ||
 		entry.variant === "tool" ||
 		entry.variant === "plan" ||
-		entry.variant === "thinking" ||
-		entry.variant === "assistant_interim"
+		entry.variant === "thinking"
 	);
 }
 
 function isAssistantTranscriptEntry(entry: TranscriptEntry): boolean {
 	return (
 		entry.kind === "assistant" ||
-		(entry.kind === "boxed_step" && entry.variant === "assistant")
+		(entry.kind === "boxed_step" &&
+			(entry.variant === "assistant" || entry.variant === "assistant_interim"))
 	);
 }
 
