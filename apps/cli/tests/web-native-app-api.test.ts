@@ -1,9 +1,9 @@
+import { afterEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { closeChatDbForTests } from "@toby/core/session-store";
 import { handleWebRequest } from "@toby/core/web/routes";
-import { afterEach, describe, expect, it } from "bun:test";
 
 function canUseBunSqlite(): boolean {
 	try {
@@ -17,8 +17,14 @@ function canUseBunSqlite(): boolean {
 
 function withTempTobyDir(run: () => void | Promise<void>): Promise<void> {
 	const previous = process.env.TOBY_DIR;
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-native-app-api-test-"));
+	const previousPlugins = process.env.TOBY_PLUGINS_DIR;
+	const dir = fs.mkdtempSync(
+		path.join(os.tmpdir(), "toby-native-app-api-test-"),
+	);
+	const pluginsDir = path.join(dir, "plugins");
+	fs.mkdirSync(pluginsDir, { recursive: true });
 	process.env.TOBY_DIR = dir;
+	process.env.TOBY_PLUGINS_DIR = pluginsDir;
 	return Promise.resolve()
 		.then(run)
 		.finally(() => {
@@ -27,6 +33,11 @@ function withTempTobyDir(run: () => void | Promise<void>): Promise<void> {
 				Reflect.deleteProperty(process.env, "TOBY_DIR");
 			} else {
 				process.env.TOBY_DIR = previous;
+			}
+			if (previousPlugins === undefined) {
+				Reflect.deleteProperty(process.env, "TOBY_PLUGINS_DIR");
+			} else {
+				process.env.TOBY_PLUGINS_DIR = previousPlugins;
 			}
 			fs.rmSync(dir, { recursive: true, force: true });
 		});
@@ -302,20 +313,17 @@ describe("native app API fresh state", () => {
 	it("POST /api/configure/actions/create-persona works in fresh state", async () => {
 		await withTempTobyDir(async () => {
 			const res = await handleWebRequest(
-				new Request(
-					"http://127.0.0.1/api/configure/actions/create-persona",
-					{
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({
-							name: "FreshTest",
-							instructions: "Be helpful.",
-							provider: "openai",
-							model: "gpt-4.1",
-							promptMode: "add",
-						}),
-					},
-				),
+				new Request("http://127.0.0.1/api/configure/actions/create-persona", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						name: "FreshTest",
+						instructions: "Be helpful.",
+						provider: "openai",
+						model: "gpt-4.1",
+						promptMode: "add",
+					}),
+				}),
 				null,
 			);
 			expect(res.status).toBe(200);

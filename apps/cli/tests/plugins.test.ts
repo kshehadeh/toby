@@ -20,6 +20,7 @@ import {
 } from "@toby/core/integrations/plugins/client";
 import {
 	discoverPluginBinaries,
+	resolveActivePluginDirectory,
 	resolvePluginSearchDirectories,
 } from "@toby/core/integrations/plugins/discovery";
 import { jsonSchemaToZod } from "@toby/core/integrations/plugins/json-schema";
@@ -48,12 +49,15 @@ describe("plugin protocol", () => {
 	let tempDir: string;
 	let pluginDir: string;
 	let previousTobyDir: string | undefined;
+	let previousTobyPluginsDir: string | undefined;
 
 	beforeEach(() => {
 		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-plugin-test-"));
 		pluginDir = path.join(tempDir, "toby-home", "plugins");
 		previousTobyDir = process.env.TOBY_DIR;
+		previousTobyPluginsDir = process.env.TOBY_PLUGINS_DIR;
 		process.env.TOBY_DIR = path.join(tempDir, "toby-home");
+		process.env.TOBY_PLUGINS_DIR = pluginDir;
 		resetPluginModuleCache();
 		writeSamplePluginWrapper(pluginDir);
 	});
@@ -63,6 +67,11 @@ describe("plugin protocol", () => {
 			Reflect.deleteProperty(process.env, "TOBY_DIR");
 		} else {
 			process.env.TOBY_DIR = previousTobyDir;
+		}
+		if (previousTobyPluginsDir === undefined) {
+			Reflect.deleteProperty(process.env, "TOBY_PLUGINS_DIR");
+		} else {
+			process.env.TOBY_PLUGINS_DIR = previousTobyPluginsDir;
 		}
 		resetPluginModuleCache();
 		fs.rmSync(tempDir, { recursive: true, force: true });
@@ -177,9 +186,11 @@ describe("plugin protocol", () => {
 		expect("error" in inspected).toBe(true);
 	});
 
-	it("resolvePluginSearchDirectories uses the Toby plugins directory", () => {
+	it("resolvePluginSearchDirectories includes the Toby plugins directory", () => {
+		Reflect.deleteProperty(process.env, "TOBY_PLUGINS_DIR");
 		const dirs = resolvePluginSearchDirectories();
-		expect(dirs).toEqual([path.resolve(pluginDir)]);
+		expect(dirs).toContain(path.resolve(pluginDir));
+		expect(dirs.at(-1)).toBe(path.resolve(pluginDir));
 	});
 
 	it("resolvePluginSearchDirectories uses TOBY_PLUGINS_DIR exclusively when set", () => {
@@ -198,6 +209,29 @@ describe("plugin protocol", () => {
 				process.env.TOBY_PLUGINS_DIR = previous;
 			}
 			fs.rmSync(extraDir, { recursive: true, force: true });
+		}
+	});
+
+	it("resolvePluginSearchDirectories prefers plugins next to the running executable", () => {
+		Reflect.deleteProperty(process.env, "TOBY_PLUGINS_DIR");
+		const executableDir = path.join(tempDir, "bundle", "Contents", "Resources");
+		fs.mkdirSync(executableDir, { recursive: true });
+		writeSamplePluginWrapper(executableDir);
+
+		const descriptor = Object.getOwnPropertyDescriptor(process, "execPath");
+		Object.defineProperty(process, "execPath", {
+			configurable: true,
+			value: path.join(executableDir, "toby"),
+		});
+
+		try {
+			const dirs = resolvePluginSearchDirectories();
+			expect(dirs[0]).toBe(executableDir);
+			expect(resolveActivePluginDirectory()).toBe(executableDir);
+		} finally {
+			if (descriptor) {
+				Object.defineProperty(process, "execPath", descriptor);
+			}
 		}
 	});
 

@@ -8,12 +8,40 @@ import {
 	parsePluginNameFromBinary,
 } from "./protocol";
 
+function directoryContainsPluginArtifacts(directory: string): boolean {
+	if (!fs.existsSync(directory) || !fs.statSync(directory).isDirectory()) {
+		return false;
+	}
+	return fs
+		.readdirSync(directory, { withFileTypes: true })
+		.some((entry) => entry.name.startsWith(PLUGIN_BINARY_PREFIX));
+}
+
+function addPluginDirectory(
+	directories: string[],
+	seen: Set<string>,
+	directory: string,
+	options: { requireArtifacts?: boolean } = {},
+): void {
+	const resolved = path.resolve(directory);
+	if (seen.has(resolved)) return;
+	if (options.requireArtifacts && !directoryContainsPluginArtifacts(resolved)) {
+		return;
+	}
+	seen.add(resolved);
+	directories.push(resolved);
+}
+
+function resolveRepoDistDirectory(): string {
+	return path.resolve(import.meta.dirname, "../../../../../dist");
+}
+
 /**
  * Resolve the list of directories to search for plugins.
  *
  * When `TOBY_PLUGINS_DIR` env var is set, only that directory is searched
- * (development override). Otherwise, `~/.toby/plugins/` is used (the
- * standard install location for `toby plugins install`).
+ * (development override). Otherwise, search app-bundled/compiled-adjacent
+ * plugins, then repo `dist/`, then `~/.toby/plugins/` for installed plugins.
  */
 export function resolvePluginSearchDirectories(): string[] {
 	const envDir = process.env.TOBY_PLUGINS_DIR?.trim();
@@ -24,7 +52,18 @@ export function resolvePluginSearchDirectories(): string[] {
 		}
 	}
 
-	return [getPluginsDir()];
+	const directories: string[] = [];
+	const seen = new Set<string>();
+
+	addPluginDirectory(directories, seen, path.dirname(process.execPath), {
+		requireArtifacts: true,
+	});
+	addPluginDirectory(directories, seen, resolveRepoDistDirectory(), {
+		requireArtifacts: true,
+	});
+	addPluginDirectory(directories, seen, getPluginsDir());
+
+	return directories;
 }
 
 function listPluginsInDirectory(directory: string): DiscoveredPlugin[] {
@@ -103,4 +142,13 @@ export function discoverPluginBinaries(): DiscoveredPlugin[] {
 export function findPluginBinary(name: string): DiscoveredPlugin | undefined {
 	const expectedName = `${PLUGIN_BINARY_PREFIX}${name}`;
 	return discoverPluginBinaries().find((p) => p.binaryName === expectedName);
+}
+
+export function resolveActivePluginDirectory(): string | null {
+	for (const dir of resolvePluginSearchDirectories()) {
+		if (listPluginsInDirectory(dir).length > 0) {
+			return dir;
+		}
+	}
+	return resolvePluginSearchDirectories()[0] ?? null;
 }
