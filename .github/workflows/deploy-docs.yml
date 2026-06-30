@@ -32,6 +32,14 @@ jobs:
       - name: Build site
         run: bunx turbo run build --filter @toby/help-site
 
+      - name: Preserve Sparkle appcast
+        run: |
+          if curl -fsSL https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/appcast.xml -o apps/help-site/build/appcast.xml; then
+            echo "Copied latest Sparkle appcast into Pages artifact."
+          else
+            echo "::warning::No latest Sparkle appcast found; deploying help site without appcast.xml."
+          fi
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
