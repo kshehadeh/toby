@@ -132,19 +132,8 @@ struct PersonaEditorView: View {
 				.font(.subheadline.weight(.medium))
 				.foregroundStyle(SettingsDesign.sectionHeader)
 			TextField("Persona name", text: $store.name)
-				.textFieldStyle(.plain)
-				.font(.body)
-				.foregroundStyle(SettingsDesign.rowTitle)
-				.padding(.horizontal, 12)
-				.padding(.vertical, 9)
-				.background(
-					RoundedRectangle(cornerRadius: SettingsDesign.controlCornerRadius)
-						.fill(SettingsDesign.cardBackground)
-				)
-				.overlay {
-					RoundedRectangle(cornerRadius: SettingsDesign.controlCornerRadius)
-						.stroke(SettingsDesign.controlBorder, lineWidth: 1)
-				}
+				.textFieldStyle(.roundedBorder)
+				.controlSize(.regular)
 				.disabled(!store.isNameEditable)
 		}
 	}
@@ -178,36 +167,39 @@ struct PersonaEditorView: View {
 	}
 
 	private var providerMenu: some View {
-		Menu {
-			ForEach(store.providers, id: \.providerId) { p in
-				Button(p.displayName) {
-					store.provider = p.providerId
-					if let firstModel = p.models.first {
-						store.model = firstModel
-					}
-				}
-			}
-		} label: {
-			SettingsDropdownLabel(
-				title: store.providers.first(where: { $0.providerId == store.provider })?.displayName ?? store.provider
-			)
-		}
-		.menuStyle(.borderlessButton)
+		SettingsSelectChoiceField(
+			title: "Provider",
+			choices: store.providers.map {
+				SettingsSelectChoice(value: $0.providerId, label: $0.displayName)
+			},
+			selection: providerBinding,
+		)
 		.fixedSize()
 	}
 
 	private var modelMenu: some View {
-		Menu {
-			ForEach(store.availableModels, id: \.self) { m in
-				Button(m) {
-					store.model = m
-				}
-			}
-		} label: {
-			SettingsDropdownLabel(title: store.model)
-		}
-		.menuStyle(.borderlessButton)
+		SettingsSelectChoiceField(
+			title: "Model",
+			choices: store.availableModels.map {
+				SettingsSelectChoice(value: $0, label: $0)
+			},
+			selection: $store.model,
+		)
 		.fixedSize()
+	}
+
+	private var providerBinding: Binding<String> {
+		Binding(
+			get: { store.provider },
+			set: { providerId in
+				store.provider = providerId
+				if let provider = store.providers.first(where: { $0.providerId == providerId }),
+					let firstModel = provider.models.first
+				{
+					store.model = firstModel
+				}
+			},
+		)
 	}
 
 	private var promptModeRow: some View {

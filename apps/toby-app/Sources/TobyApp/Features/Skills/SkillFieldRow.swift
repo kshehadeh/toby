@@ -9,7 +9,7 @@ struct SkillFieldRow<Control: View>: View {
 		VStack(spacing: 0) {
 			HStack(alignment: .center, spacing: 16) {
 				Text(title)
-					.font(.body)
+					.font(.system(size: 13, weight: .semibold))
 					.foregroundStyle(SettingsDesign.rowTitle)
 					.frame(maxWidth: .infinity, alignment: .leading)
 
@@ -18,6 +18,7 @@ struct SkillFieldRow<Control: View>: View {
 			}
 			.padding(.horizontal, SettingsDesign.rowHorizontalPadding)
 			.padding(.vertical, SettingsDesign.rowVerticalPadding)
+			.frame(minHeight: SettingsDesign.formRowHeight)
 
 			if showsDivider {
 				Rectangle()

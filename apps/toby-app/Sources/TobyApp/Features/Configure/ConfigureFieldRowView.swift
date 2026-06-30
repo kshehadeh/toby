@@ -31,7 +31,7 @@ struct ConfigureFieldRowView: View {
 				if ConfigureTreeHelpers.isBooleanSelectField(field) {
 					SettingsToggle(isOn: booleanBinding)
 				} else {
-					selectMenu(options: options)
+					selectField(options: options)
 				}
 			}
 		case .multiSelect:
@@ -89,17 +89,12 @@ struct ConfigureFieldRowView: View {
 		return "Enter value"
 	}
 
-	private func selectMenu(options: [String]) -> some View {
-		Menu {
-			ForEach(selectOptions(options), id: \.value) { option in
-				Button(option.label) {
-					store.setDraftValue(field.key, option.value, autosaveImmediately: true)
-				}
-			}
-		} label: {
-			SettingsDropdownLabel(title: currentSelectLabel(options: options))
-		}
-		.menuStyle(.borderlessButton)
+	private func selectField(options: [String]) -> some View {
+		SettingsSelectChoiceField(
+			title: field.label,
+			choices: selectOptions(options),
+			selection: selectBinding,
+		)
 		.fixedSize()
 	}
 
@@ -120,9 +115,8 @@ struct ConfigureFieldRowView: View {
 				}
 			}
 		} label: {
-			SettingsDropdownLabel(title: multiSelectSummary(from: choices))
+			Text(multiSelectSummary(from: choices))
 		}
-		.menuStyle(.borderlessButton)
 		.fixedSize()
 	}
 
@@ -179,6 +173,13 @@ struct ConfigureFieldRowView: View {
 		Binding(
 			get: { store.value(for: field.key) },
 			set: { store.setDraftValue(field.key, $0) },
+		)
+	}
+
+	private var selectBinding: Binding<String> {
+		Binding(
+			get: { store.value(for: field.key) },
+			set: { store.setDraftValue(field.key, $0, autosaveImmediately: true) },
 		)
 	}
 

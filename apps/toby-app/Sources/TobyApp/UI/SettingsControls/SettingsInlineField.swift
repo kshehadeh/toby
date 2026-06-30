@@ -4,6 +4,8 @@ struct SettingsInlineField: View {
 	@Binding var text: String
 	var isSecure = false
 	var placeholder = ""
+	var minWidth: CGFloat = 120
+	var maxWidth: CGFloat = 220
 
 	var body: some View {
 		Group {
@@ -13,20 +15,9 @@ struct SettingsInlineField: View {
 				TextField(placeholder, text: $text)
 			}
 		}
-		.textFieldStyle(.plain)
-		.font(.body)
-		.foregroundStyle(SettingsDesign.rowTitle)
+		.textFieldStyle(.roundedBorder)
 		.multilineTextAlignment(.trailing)
-		.frame(minWidth: 140, maxWidth: 220)
-		.padding(.horizontal, 12)
-		.padding(.vertical, 7)
-		.background(
-			RoundedRectangle(cornerRadius: SettingsDesign.controlCornerRadius)
-				.fill(SettingsDesign.cardBackground)
-		)
-		.overlay {
-			RoundedRectangle(cornerRadius: SettingsDesign.controlCornerRadius)
-				.stroke(SettingsDesign.controlBorder, lineWidth: 1)
-		}
+		.frame(minWidth: minWidth, maxWidth: maxWidth)
+		.controlSize(.regular)
 	}
 }

@@ -43,34 +43,15 @@ struct ScheduleDetailContent: View {
 								if isParsing {
 									ProgressView()
 										.controlSize(.small)
-										.frame(width: 80, height: 24)
 								} else if isCronValid {
-									HStack(spacing: 4) {
-										Image(systemName: "checkmark.circle.fill")
-										Text("Valid")
-									}
-									.font(.caption.weight(.semibold))
-									.foregroundStyle(.green)
-									.padding(.horizontal, 8)
-									.padding(.vertical, 4)
-									.background(.green.opacity(0.1))
-									.clipShape(Capsule())
-									.overlay(Capsule().stroke(.green, lineWidth: 1))
+									Label("Valid", systemImage: "checkmark.circle.fill")
 								} else {
-									HStack(spacing: 4) {
-										Image(systemName: "sparkles")
-										Text("Convert")
-									}
-									.font(.caption.weight(.semibold))
-									.foregroundStyle(.orange)
-									.padding(.horizontal, 8)
-									.padding(.vertical, 4)
-									.background(.orange.opacity(0.1))
-									.clipShape(Capsule())
-									.overlay(Capsule().stroke(.orange, lineWidth: 1))
+									Label("Convert", systemImage: "sparkles")
 								}
 							}
-							.buttonStyle(.plain)
+							.buttonStyle(.bordered)
+							.controlSize(.regular)
+							.frame(width: 96)
 							.disabled(isParsing || cronBinding.wrappedValue.isEmpty || isCronValid)
 							.help(
 								cronBinding.wrappedValue.isEmpty
@@ -101,17 +82,7 @@ struct ScheduleDetailContent: View {
 					TextEditor(text: binding(for: .prompt))
 						.font(.body.monospaced())
 						.foregroundStyle(SettingsDesign.rowTitle)
-						.scrollContentBackground(.hidden)
 						.frame(minHeight: 160)
-						.padding(10)
-						.background(
-							RoundedRectangle(cornerRadius: SettingsDesign.controlCornerRadius)
-								.fill(SettingsDesign.canvasBackground.opacity(0.55))
-						)
-						.overlay {
-							RoundedRectangle(cornerRadius: SettingsDesign.controlCornerRadius)
-								.stroke(SettingsDesign.controlBorder, lineWidth: 1)
-						}
 				}
 				.padding(SettingsDesign.rowHorizontalPadding)
 				.padding(.vertical, SettingsDesign.rowVerticalPadding)
@@ -167,20 +138,13 @@ struct ScheduleDetailContent: View {
 	}
 
 	private var personaMenu: some View {
-		Menu {
-			ForEach(store.personaOptions) { persona in
-				Button(persona.label) {
-					store.setDraftValue(
-						store.key(for: schedule.id, field: .persona),
-						persona.name,
-						autosaveImmediately: true,
-					)
-				}
-			}
-		} label: {
-			SettingsDropdownLabel(title: currentPersonaLabel)
-		}
-		.menuStyle(.borderlessButton)
+		SettingsSelectChoiceField(
+			title: "Persona",
+			choices: store.personaOptions.map {
+				SettingsSelectChoice(value: $0.name, label: $0.label)
+			},
+			selection: personaBinding,
+		)
 		.fixedSize()
 	}
 
@@ -191,6 +155,19 @@ struct ScheduleDetailContent: View {
 
 	private var enabledDescription: String {
 		enabledBinding.wrappedValue ? "This schedule is currently enabled." : "This schedule is currently disabled."
+	}
+
+	private var personaBinding: Binding<String> {
+		Binding(
+			get: { store.value(for: store.key(for: schedule.id, field: .persona)) },
+			set: {
+				store.setDraftValue(
+					store.key(for: schedule.id, field: .persona),
+					$0,
+					autosaveImmediately: true,
+				)
+			},
+		)
 	}
 
 	private func binding(for field: ScheduleField) -> Binding<String> {

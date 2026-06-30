@@ -11,7 +11,7 @@ struct SettingsRow<Control: View>: View {
 			HStack(alignment: .center, spacing: 16) {
 				VStack(alignment: .leading, spacing: 4) {
 					Text(title)
-						.font(.body)
+						.font(.system(size: 13, weight: .semibold))
 						.foregroundStyle(SettingsDesign.rowTitle)
 					if let description, !description.isEmpty {
 						Text(description)
@@ -27,6 +27,7 @@ struct SettingsRow<Control: View>: View {
 			}
 			.padding(.horizontal, SettingsDesign.rowHorizontalPadding)
 			.padding(.vertical, SettingsDesign.rowVerticalPadding)
+			.frame(minHeight: SettingsDesign.formRowHeight)
 
 			if showsDivider {
 				Rectangle()

@@ -22,17 +22,7 @@ struct ConfigureBlockFieldView: View {
 					TextEditor(text: draftBinding)
 						.font(.body.monospaced())
 						.foregroundStyle(SettingsDesign.rowTitle)
-						.scrollContentBackground(.hidden)
 						.frame(minHeight: 140)
-						.padding(10)
-						.background(
-							RoundedRectangle(cornerRadius: SettingsDesign.controlCornerRadius)
-								.fill(SettingsDesign.canvasBackground.opacity(0.55))
-						)
-						.overlay {
-							RoundedRectangle(cornerRadius: SettingsDesign.controlCornerRadius)
-								.stroke(SettingsDesign.controlBorder, lineWidth: 1)
-						}
 				} else if field.readOnly == true {
 					Text(store.value(for: field.key).isEmpty ? "Not set" : "Configured")
 						.font(.subheadline)

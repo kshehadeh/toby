@@ -12,8 +12,10 @@ enum SettingsDesign {
 	static let sidebarSelection = Color.white.opacity(0.10)
 
 	static let cardCornerRadius: CGFloat = 10
-	static let controlCornerRadius: CGFloat = 7
+	static let controlCornerRadius: CGFloat = 6
+	static let formRowHeight: CGFloat = 42
+	static let formControlHeight: CGFloat = 24
 	static let contentMaxWidth: CGFloat = 640
-	static let rowVerticalPadding: CGFloat = 14
-	static let rowHorizontalPadding: CGFloat = 16
+	static let rowVerticalPadding: CGFloat = 8
+	static let rowHorizontalPadding: CGFloat = 10
 }
