@@ -93,6 +93,14 @@ struct AboutTobyViewTests {
 			appVersion: "0.66.0"
 		)
 		#expect(throws: Never.self) { try view.inspect().find(text: "Open Source Libraries") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "Bun") }
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "AI SDK, @ai-sdk/gateway, @ai-sdk/openai, @ai-sdk/groq, @ai-sdk/openai-compatible")
+		}
+		#expect(throws: Never.self) { try view.inspect().find(text: "React, Ink, ink-link, react-ink-textarea") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "@slack/bolt") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "ImapFlow, mailparser, Nodemailer") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "Docusaurus, MDX, Prism React Renderer, lucide-react") }
 	}
 
 	@Test("shows changelog column header and release version")
