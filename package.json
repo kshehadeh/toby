@@ -1,6 +1,6 @@
 {
 	"name": "toby",
-	"version": "0.72.0",
+	"version": "0.72.1",
 	"private": true,
 	"description": "Toby monorepo — personal productivity CLI",
 	"type": "module",
