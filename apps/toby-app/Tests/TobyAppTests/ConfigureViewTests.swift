@@ -151,6 +151,40 @@ struct ConfigureViewTests {
 		#expect(item.iconUrl == nil)
 	}
 
+	@Test("settings sidebar uses domain icons for built-in sections")
+	func settingsSidebarUsesDomainIconsForBuiltInSections() throws {
+		#expect(
+			SettingsSidebarIcon.systemName(
+				for: SettingsItem(
+					label: "Chat", kind: .section, key: "chatInbound",
+					navKey: nil, children: nil,
+					masked: nil, multiline: nil, options: nil, selectChoices: nil,
+					currentValue: nil, selectedValues: nil, readOnly: nil
+				)
+			) == "bubble.left"
+		)
+		#expect(
+			SettingsSidebarIcon.systemName(
+				for: SettingsItem(
+					label: "Transcription", kind: .section, key: "transcription",
+					navKey: nil, children: nil,
+					masked: nil, multiline: nil, options: nil, selectChoices: nil,
+					currentValue: nil, selectedValues: nil, readOnly: nil
+				)
+			) == "pencil.and.scribble"
+		)
+		#expect(
+			SettingsSidebarIcon.systemName(
+				for: SettingsItem(
+					label: "Web Search", kind: .section, key: "webSearch",
+					navKey: nil, children: nil,
+					masked: nil, multiline: nil, options: nil, selectChoices: nil,
+					currentValue: nil, selectedValues: nil, readOnly: nil
+				)
+			) == "magnifyingglass"
+		)
+	}
+
 	@Test("configure detail shows skeleton during initial settings load")
 	func configureDetailShowsSkeletonWhenLoading() throws {
 		let store = ConfigureStore()

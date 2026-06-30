@@ -18,6 +18,15 @@ enum SettingsSidebarIcon {
 		if key == "listen" || key.hasPrefix("listen.") {
 			return "mic"
 		}
+		if key == "transcription" || key.hasPrefix("transcription.") {
+			return "pencil.and.scribble"
+		}
+		if key == "websearch" || key.hasPrefix("websearch.") {
+			return "magnifyingglass"
+		}
+		if key == "chatinbound" || key.hasPrefix("chatinbound.") {
+			return "bubble.left"
+		}
 		if key.contains(".ai.") || label.contains("model") || label.contains("provider") {
 			return "cpu"
 		}
