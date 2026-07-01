@@ -131,11 +131,13 @@ struct ConfigureViewTests {
 			"label": "OpenAI",
 			"kind": "section",
 			"key": "ai.openai",
+			"icon": "✨",
 			"iconUrl": "/icons/ai/openai.png"
 		}
 		""".data(using: .utf8)!
 		let item = try JSONDecoder().decode(SettingsItem.self, from: json)
 		#expect(item.iconUrl == "/icons/ai/openai.png")
+		#expect(item.icon == "✨")
 	}
 
 	@Test("SettingsItem decodes when iconUrl is absent")
@@ -149,6 +151,56 @@ struct ConfigureViewTests {
 		""".data(using: .utf8)!
 		let item = try JSONDecoder().decode(SettingsItem.self, from: json)
 		#expect(item.iconUrl == nil)
+		#expect(item.icon == nil)
+	}
+
+	@Test("integration detail header renders image icon URL")
+	func integrationDetailHeaderRendersImageIconUrl() throws {
+		let store = ConfigureStore()
+		let section = SettingsItem(
+			label: "Apple Calendar", kind: .section, key: "applecalendar",
+			navKey: nil, children: [],
+			masked: nil, multiline: nil, options: nil, selectChoices: nil,
+			currentValue: nil, selectedValues: nil, readOnly: nil,
+			iconUrl: "/api/plugins/applecalendar/icon"
+		)
+		let view = IntegrationDetailHeader(
+			store: store,
+			section: section,
+			status: nil,
+			isLoading: false,
+			isActionLoading: false,
+			onAction: { _ in }
+		)
+
+		#expect(throws: Never.self) {
+			try view.inspect().find(SidebarIconView.self)
+		}
+	}
+
+	@Test("integration detail header renders emoji fallback")
+	func integrationDetailHeaderRendersEmojiFallback() throws {
+		let store = ConfigureStore()
+		let section = SettingsItem(
+			label: "Apple Calendar", kind: .section, key: "applecalendar",
+			navKey: nil, children: [],
+			masked: nil, multiline: nil, options: nil, selectChoices: nil,
+			currentValue: nil, selectedValues: nil, readOnly: nil,
+			iconUrl: nil,
+			icon: "📅"
+		)
+		let view = IntegrationDetailHeader(
+			store: store,
+			section: section,
+			status: nil,
+			isLoading: false,
+			isActionLoading: false,
+			onAction: { _ in }
+		)
+
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "📅")
+		}
 	}
 
 	@Test("settings sidebar uses domain icons for built-in sections")

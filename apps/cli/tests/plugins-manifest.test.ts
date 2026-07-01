@@ -1,11 +1,12 @@
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { resolvePluginIconAssetPath } from "@toby/core/integrations/plugins/icons";
 import {
 	parseManifest,
 	validateManifest,
 } from "@toby/core/integrations/plugins/manifest";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 const validManifest = {
 	name: "testpkg",
@@ -53,6 +54,39 @@ describe("manifest parsing", () => {
 		expect(result.manifest.name).toBe("testpkg");
 		expect(result.manifest.runtime.type).toBe("bun");
 		expect(result.manifest.runtime.entry).toBe("src/index.ts");
+	});
+
+	it("parses an optional icon asset", () => {
+		const pluginDir = path.join(tempDir, "toby-plugin-testpkg");
+		writeManifest(pluginDir, {
+			...validManifest,
+			icon: "📅",
+			iconAsset: { path: "assets/icon-256.png", mimeType: "image/png" },
+		});
+		writeEntryFile(pluginDir);
+
+		const result = parseManifest(pluginDir);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.manifest.icon).toBe("📅");
+		expect(result.manifest.iconAsset).toEqual({
+			path: "assets/icon-256.png",
+			mimeType: "image/png",
+		});
+	});
+
+	it("fails when icon asset mime type is unsupported", () => {
+		const pluginDir = path.join(tempDir, "toby-plugin-testpkg");
+		writeManifest(pluginDir, {
+			...validManifest,
+			iconAsset: { path: "assets/icon.svg", mimeType: "image/svg+xml" },
+		});
+		writeEntryFile(pluginDir);
+
+		const result = parseManifest(pluginDir);
+		expect(result.ok).toBe(false);
+		if (result.ok) return;
+		expect(result.code).toBe("manifest_invalid_icon_asset_mime_type");
 	});
 
 	it("fails when manifest.json is missing", () => {
@@ -198,6 +232,37 @@ describe("manifest validation", () => {
 		expect(result.ok).toBe(false);
 		if (result.ok) return;
 		expect(result.code).toBe("entry_not_found");
+	});
+});
+
+describe("plugin icon asset paths", () => {
+	let tempDir: string;
+
+	beforeEach(() => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-icon-path-test-"));
+	});
+
+	afterEach(() => {
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	it("rejects absolute and traversal icon paths", () => {
+		const target = {
+			kind: "bun-package" as const,
+			bunPath: "bun",
+			cwd: tempDir,
+			entryPath: "src/index.ts",
+		};
+
+		expect(
+			resolvePluginIconAssetPath(target, { path: "../icon.png" }),
+		).toBeNull();
+		expect(
+			resolvePluginIconAssetPath(target, { path: "/tmp/icon.png" }),
+		).toBeNull();
+		expect(
+			resolvePluginIconAssetPath(target, { path: "assets/icon.png" }),
+		).toBe(path.join(tempDir, "assets", "icon.png"));
 	});
 });
 

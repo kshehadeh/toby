@@ -106,4 +106,47 @@ struct IntegrationsViewTests {
 		let view = IntegrationsView(store: store)
 		#expect(throws: Never.self) { try view.inspect().find(IntegrationsDetailView.self) }
 	}
+
+	@Test("integration sidebar row renders image icon URL")
+	func integrationSidebarRowRendersImageIconUrl() throws {
+		let section = SettingsItem(
+			label: "Slack",
+			kind: .section,
+			key: "slack",
+			navKey: "slack",
+			children: [],
+			masked: nil,
+			multiline: nil,
+			options: nil,
+			selectChoices: nil,
+			currentValue: nil,
+			selectedValues: nil,
+			readOnly: nil,
+			iconUrl: "/api/plugins/slack/icon"
+		)
+		let view = IntegrationSidebarRow(section: section, isSelected: true)
+		#expect(throws: Never.self) { try view.inspect().find(SidebarIconView.self) }
+	}
+
+	@Test("integration sidebar row renders emoji fallback")
+	func integrationSidebarRowRendersEmojiFallback() throws {
+		let section = SettingsItem(
+			label: "Slack",
+			kind: .section,
+			key: "slack",
+			navKey: "slack",
+			children: [],
+			masked: nil,
+			multiline: nil,
+			options: nil,
+			selectChoices: nil,
+			currentValue: nil,
+			selectedValues: nil,
+			readOnly: nil,
+			iconUrl: nil,
+			icon: "💬"
+		)
+		let view = IntegrationSidebarRow(section: section, isSelected: false)
+		#expect(throws: Never.self) { try view.inspect().find(text: "💬") }
+	}
 }

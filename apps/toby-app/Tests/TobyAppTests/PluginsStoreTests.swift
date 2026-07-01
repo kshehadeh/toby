@@ -26,6 +26,8 @@ struct PluginsStoreTests {
 			description: nil,
 			version: version,
 			protocolVersion: "1",
+			icon: nil,
+			iconUrl: nil,
 			state: state,
 			connected: connected,
 			error: nil,

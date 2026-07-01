@@ -253,6 +253,8 @@ struct PluginSummary: Decodable, Identifiable {
 	let description: String?
 	let version: String?
 	let protocolVersion: String?
+	let icon: String?
+	let iconUrl: String?
 	let state: String
 	let connected: Bool
 	let error: String?

@@ -62,6 +62,10 @@ async function handleStatus(
 		version: PLUGIN_VERSION,
 		protocolVersion: PROTOCOL_VERSION,
 		icon: "🎫",
+		iconAsset: {
+			path: "assets/icon-48.png",
+			mimeType: "image/png",
+		},
 		connected,
 		capabilities: ["chat"],
 		providerCategories: ["work_tracker"],

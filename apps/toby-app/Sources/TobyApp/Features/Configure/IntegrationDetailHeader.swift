@@ -8,6 +8,11 @@ struct IntegrationDetailHeader: View {
 	let isActionLoading: Bool
 	let onAction: (IntegrationAction) -> Void
 
+	private var iconUrl: URL? {
+		guard let iconUrl = section.iconUrl else { return nil }
+		return URL(string: ConfigReader.baseURL().absoluteString + iconUrl)
+	}
+
 	var body: some View {
 		VStack(alignment: .leading, spacing: 14) {
 			HStack(spacing: 14) {
@@ -15,9 +20,7 @@ struct IntegrationDetailHeader: View {
 					.fill(AppTheme.accent.opacity(0.18))
 					.frame(width: 48, height: 48)
 					.overlay {
-						Image(systemName: "puzzlepiece.extension")
-							.font(.system(size: 22, weight: .medium))
-							.foregroundStyle(AppTheme.accent)
+						titleIcon
 					}
 				VStack(alignment: .leading, spacing: 4) {
 					Text(section.label)
@@ -74,6 +77,21 @@ struct IntegrationDetailHeader: View {
 				}
 				.padding(.top, 4)
 			}
+		}
+	}
+
+	@ViewBuilder
+	private var titleIcon: some View {
+		if let iconUrl {
+			SidebarIconView(url: iconUrl, fallbackSystemName: "puzzlepiece.extension", isSelected: true)
+				.frame(width: 34, height: 34)
+		} else if let icon = section.icon, !icon.isEmpty {
+			Text(icon)
+				.font(.system(size: 26))
+		} else {
+			Image(systemName: "puzzlepiece.extension")
+				.font(.system(size: 22, weight: .medium))
+				.foregroundStyle(AppTheme.accent)
 		}
 	}
 

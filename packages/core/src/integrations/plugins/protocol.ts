@@ -72,6 +72,11 @@ export interface PluginInboundPrep {
 	readonly transportLabel?: string;
 }
 
+export interface PluginIconAsset {
+	readonly path: string;
+	readonly mimeType?: "image/png" | "image/jpeg" | "image/webp";
+}
+
 /** Plugin → core messages on stdout during `inbound run` (one JSON object per line). */
 export type PluginInboundToCoreMessage =
 	| { readonly type: "ready" }
@@ -154,6 +159,8 @@ export interface PluginStatusResponse {
 	readonly inboundPrep?: PluginInboundPrep;
 	/** Emoji or icon identifier for UI display (e.g. "📧"). */
 	readonly icon?: string;
+	/** Optional bundled image asset served by Toby's local HTTP API. */
+	readonly iconAsset?: PluginIconAsset;
 	/** Inbound transport type for logging (e.g. "socket_mode", "webhook"). */
 	readonly inboundTransport?: string;
 	readonly tools?: readonly PluginToolHealth[];
@@ -326,6 +333,8 @@ export interface PluginManifest {
 	readonly events?: PluginManifestEvents;
 	/** Emoji or icon identifier for UI display (e.g. "📧"). */
 	readonly icon?: string;
+	/** Optional bundled image asset served by Toby's local HTTP API. */
+	readonly iconAsset?: PluginIconAsset;
 	/** Inbound transport type for logging (e.g. "socket_mode", "webhook"). */
 	readonly inboundTransport?: string;
 }

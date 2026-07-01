@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { isAllowedPluginIconMimeType } from "./icons";
 import type { PluginManifest, PluginManifestEvents } from "./protocol";
 import {
 	isSupportedProtocolVersion,
@@ -196,6 +197,46 @@ function validateManifestStructure(
 		events = poll ? { poll } : undefined;
 	}
 
+	let iconAsset: PluginManifest["iconAsset"];
+	const iconAssetRaw = obj.iconAsset;
+	if (iconAssetRaw !== undefined) {
+		if (
+			typeof iconAssetRaw !== "object" ||
+			iconAssetRaw === null ||
+			Array.isArray(iconAssetRaw)
+		) {
+			return {
+				ok: false,
+				error: "manifest.json iconAsset must be an object if present",
+				code: "manifest_invalid_icon_asset",
+			};
+		}
+		const iconAssetObj = iconAssetRaw as Record<string, unknown>;
+		if (typeof iconAssetObj.path !== "string" || !iconAssetObj.path) {
+			return {
+				ok: false,
+				error: "manifest.json iconAsset.path must be a non-empty string",
+				code: "manifest_invalid_icon_asset_path",
+			};
+		}
+		const mimeType = iconAssetObj.mimeType;
+		if (
+			mimeType !== undefined &&
+			(typeof mimeType !== "string" || !isAllowedPluginIconMimeType(mimeType))
+		) {
+			return {
+				ok: false,
+				error:
+					"manifest.json iconAsset.mimeType must be one of image/png, image/jpeg, image/webp",
+				code: "manifest_invalid_icon_asset_mime_type",
+			};
+		}
+		iconAsset = {
+			path: iconAssetObj.path,
+			...(typeof mimeType === "string" ? { mimeType } : {}),
+		};
+	}
+
 	return {
 		ok: true,
 		manifest: {
@@ -213,6 +254,7 @@ function validateManifestStructure(
 				providerCategories as PluginManifest["providerCategories"],
 			events,
 			icon: typeof obj.icon === "string" ? obj.icon : undefined,
+			iconAsset,
 			inboundTransport:
 				typeof obj.inboundTransport === "string"
 					? obj.inboundTransport

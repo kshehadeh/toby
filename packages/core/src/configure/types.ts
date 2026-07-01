@@ -45,6 +45,8 @@ export interface SettingsItem {
 	readOnly?: boolean;
 	/** Relative URL to a custom icon image (e.g. "/icons/ai/openai.svg"). */
 	iconUrl?: string;
+	/** Emoji or icon identifier for UI display when no image URL is available. */
+	icon?: string;
 }
 
 export interface ConfigureListenRecording {

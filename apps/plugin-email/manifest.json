@@ -5,6 +5,10 @@
 	"version": "1.0.0",
 	"protocolVersion": "1",
 	"icon": "📧",
+	"iconAsset": {
+		"path": "assets/icon-48.png",
+		"mimeType": "image/png"
+	},
 	"runtime": {
 		"type": "bun",
 		"entry": "src/index.ts"

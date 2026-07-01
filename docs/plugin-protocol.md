@@ -89,6 +89,11 @@ The directory name follows the same `/^[a-z0-9_-]+$/` rule as binary plugins.
     "type": "bun",
     "entry": "src/index.ts"
   },
+  "icon": "🔎",
+  "iconAsset": {
+    "path": "assets/icon-256.png",
+    "mimeType": "image/png"
+  },
   "capabilities": ["chat"],
   "providerCategories": ["search"]
 }
@@ -98,7 +103,13 @@ Required fields: `name`, `displayName`, `description`, `version`,
 `protocolVersion`, `runtime.type` (must be `"bun"`), `runtime.entry`.
 
 Optional: `capabilities` (used for fast discovery filtering; `status` is the
-runtime source of truth), `providerCategories`.
+runtime source of truth), `providerCategories`, `icon`, `iconAsset`.
+
+`icon` is a lightweight emoji or text icon fallback. `iconAsset` points to a
+bundled raster image inside the plugin directory, usually a 256x256 PNG, JPEG,
+or WebP. The path must be relative and stay inside the plugin directory. Toby
+serves valid image assets through its local API as `/api/plugins/<name>/icon`
+and exposes that relative URL to native/web clients as `iconUrl`.
 
 The `name` field must match the directory name suffix (e.g. `example` for
 `toby-plugin-example/`).

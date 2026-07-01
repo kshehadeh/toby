@@ -123,6 +123,8 @@ export interface Integration {
 	readonly description: string;
 	/** Emoji or icon identifier for UI display (e.g. "📧"). */
 	readonly icon?: string;
+	/** Relative URL to an image icon served by Toby's local HTTP API. */
+	readonly iconUrl?: string;
 	/** Inbound transport type for daemon logging (e.g. "socket_mode"). */
 	readonly inboundTransport?: string;
 	connect(): Promise<void>;

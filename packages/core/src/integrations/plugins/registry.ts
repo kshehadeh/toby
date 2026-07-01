@@ -83,6 +83,7 @@ export {
 	getPluginMetadataRecord,
 	inspectPluginBinary,
 	loadPluginMetadata,
+	rememberPluginMetadata,
 	type PluginMetadata,
 } from "./adapter";
 export {

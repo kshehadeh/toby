@@ -183,6 +183,10 @@ async function handleStatus(
 		version: PLUGIN_VERSION,
 		protocolVersion: PROTOCOL_VERSION,
 		icon: "💬",
+		iconAsset: {
+			path: "assets/icon-48.png",
+			mimeType: "image/png",
+		},
 		inboundTransport: "socket_mode",
 		connected,
 		capabilities: ["chat", "inbound"],

@@ -32,6 +32,8 @@ struct AboutTobyViewTests {
 				description: nil,
 				version: "1.2.0",
 				protocolVersion: "1",
+				icon: nil,
+				iconUrl: nil,
 				state: "valid",
 				connected: true,
 				error: nil,

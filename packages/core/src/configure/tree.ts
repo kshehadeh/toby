@@ -157,6 +157,8 @@ export function buildSettingsTree(
 				label: mod.displayName,
 				kind: "section" as const,
 				key: mod.name,
+				icon: mod.icon,
+				iconUrl: mod.iconUrl,
 				children: configChildren,
 			};
 		},

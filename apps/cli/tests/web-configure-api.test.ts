@@ -15,6 +15,10 @@ import { handleWebRequest } from "@toby/core/web/routes";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const slackCli = path.join(repoRoot, "../plugin-slack/src/cli.ts");
+const onePixelPng = Buffer.from(
+	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+	"base64",
+);
 
 function writePluginWrapper(
 	pluginDir: string,
@@ -25,6 +29,85 @@ function writePluginWrapper(
 	const wrapperPath = path.join(pluginDir, `toby-plugin-${name}`);
 	const script = `#!/usr/bin/env bash\nexec bun ${JSON.stringify(cliPath)} "$@"\n`;
 	fs.writeFileSync(wrapperPath, script, { mode: 0o755 });
+}
+
+function writeIconPlugin(pluginDir: string): void {
+	const dir = path.join(pluginDir, "toby-plugin-iconfixture");
+	fs.mkdirSync(path.join(dir, "src"), { recursive: true });
+	fs.mkdirSync(path.join(dir, "assets"), { recursive: true });
+	fs.writeFileSync(path.join(dir, "assets", "icon.png"), onePixelPng);
+	fs.writeFileSync(
+		path.join(dir, "manifest.json"),
+		JSON.stringify(
+			{
+				name: "iconfixture",
+				displayName: "Icon Fixture",
+				description: "Plugin with a bundled icon asset",
+				version: "1.0.0",
+				protocolVersion: "1",
+				runtime: { type: "bun", entry: "src/index.ts" },
+				capabilities: [],
+				icon: "✨",
+				iconAsset: { path: "assets/icon.png", mimeType: "image/png" },
+			},
+			null,
+			2,
+		),
+	);
+	fs.writeFileSync(
+		path.join(dir, "src", "index.ts"),
+		`
+const payload = {
+	ok: true,
+	name: "iconfixture",
+	displayName: "Icon Fixture",
+	description: "Plugin with a bundled icon asset",
+	version: "1.0.0",
+	protocolVersion: "1",
+	capabilities: [],
+	icon: "✨",
+	iconAsset: { path: "assets/icon.png", mimeType: "image/png" },
+	connected: false,
+};
+console.log(JSON.stringify(payload));
+`,
+	);
+}
+
+function writeNoIconPlugin(pluginDir: string): void {
+	const dir = path.join(pluginDir, "toby-plugin-noiconfixture");
+	fs.mkdirSync(path.join(dir, "src"), { recursive: true });
+	fs.writeFileSync(
+		path.join(dir, "manifest.json"),
+		JSON.stringify(
+			{
+				name: "noiconfixture",
+				displayName: "No Icon Fixture",
+				description: "Plugin without a bundled icon asset",
+				version: "1.0.0",
+				protocolVersion: "1",
+				runtime: { type: "bun", entry: "src/index.ts" },
+				capabilities: [],
+			},
+			null,
+			2,
+		),
+	);
+	fs.writeFileSync(
+		path.join(dir, "src", "index.ts"),
+		`
+console.log(JSON.stringify({
+	ok: true,
+	name: "noiconfixture",
+	displayName: "No Icon Fixture",
+	description: "Plugin without a bundled icon asset",
+	version: "1.0.0",
+	protocolVersion: "1",
+	capabilities: [],
+	connected: false,
+}));
+`,
+	);
 }
 
 function withTempTobyDir(run: () => void): void {
@@ -197,6 +280,8 @@ describe("web API routes", () => {
 		resetPluginModuleCache();
 		const pluginDir = path.join(tempDir, "toby-home", "plugins");
 		writePluginWrapper(pluginDir, "slack", slackCli);
+		writeIconPlugin(pluginDir);
+		writeNoIconPlugin(pluginDir);
 		fs.mkdirSync(path.join(tempDir, "toby-home"), { recursive: true });
 		fs.writeFileSync(
 			path.join(tempDir, "toby-home", "credentials.json"),
@@ -248,6 +333,8 @@ describe("web API routes", () => {
 				state: string;
 				connected: boolean;
 				version: string | null;
+				icon: string | null;
+				iconUrl: string | null;
 			}>;
 		};
 		expect(Array.isArray(body.plugins)).toBe(true);
@@ -257,6 +344,28 @@ describe("web API routes", () => {
 			expect(["valid", "invalid", "disabled"]).toContain(plugin.state);
 			expect(typeof plugin.connected).toBe("boolean");
 		}
+		const iconFixture = body.plugins.find((p) => p.name === "iconfixture");
+		expect(iconFixture?.icon).toBe("✨");
+		expect(iconFixture?.iconUrl).toBe("/api/plugins/iconfixture/icon");
+	});
+
+	it("serves plugin icon assets", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/plugins/iconfixture/icon"),
+			null,
+		);
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Content-Type")).toBe("image/png");
+		expect(res.headers.get("Cache-Control")).toContain("max-age=");
+		expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(0);
+	});
+
+	it("returns 404 when a plugin has no icon asset", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/plugins/noiconfixture/icon"),
+			null,
+		);
+		expect(res.status).toBe(404);
 	});
 
 	it("includes integration display names for configure selects", async () => {
@@ -266,10 +375,23 @@ describe("web API routes", () => {
 		);
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as {
+			tree: {
+				children: Array<{
+					key: string;
+					children?: Array<{ key: string; iconUrl?: string }>;
+				}>;
+			};
 			integrationLabels: Record<string, string>;
 		};
 		expect(body.integrationLabels.slack).toBe("Slack");
 		expect(body.integrationLabels["(none)"]).toBe("None");
+		const integrations = body.tree.children.find(
+			(item) => item.key === "integrations",
+		);
+		const iconFixture = integrations?.children?.find(
+			(item) => item.key === "iconfixture",
+		);
+		expect(iconFixture?.iconUrl).toBe("/api/plugins/iconfixture/icon");
 	});
 
 	it("GET /api/configure/sections returns 6 lightweight section structures", async () => {

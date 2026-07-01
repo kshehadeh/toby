@@ -34,12 +34,14 @@ import {
 	pluginToolsExecuteAsync,
 	pluginToolsList,
 } from "./client";
+import { pluginIconUrl } from "./icons";
 import { createPluginChatInboundProvider } from "./inbound-adapter";
 import { jsonSchemaToZod } from "./json-schema";
 import type {
 	DiscoveredPlugin,
 	PluginChatModelPrep,
 	PluginConfigEnvelope,
+	PluginIconAsset,
 	PluginInboundPrep,
 	PluginInvocationTarget,
 	PluginToolsListResponse,
@@ -71,6 +73,7 @@ export type PluginMetadata = {
 	readonly setupDescription?: string;
 	readonly inboundPrep?: PluginInboundPrep;
 	readonly icon?: string;
+	readonly iconAsset?: PluginIconAsset;
 	readonly inboundTransport?: string;
 };
 
@@ -393,6 +396,7 @@ export function loadPluginMetadata(
 		setupDescription: status.setupDescription,
 		inboundPrep: status.inboundPrep,
 		icon: status.icon,
+		iconAsset: status.iconAsset,
 		inboundTransport: status.inboundTransport,
 	};
 }
@@ -465,6 +469,7 @@ export function createPluginIntegrationModule(
 		displayName: metadata.displayName,
 		description: metadata.description,
 		icon: metadata.icon,
+		...(metadata.iconAsset ? { iconUrl: pluginIconUrl(metadata.name) } : {}),
 		inboundTransport: metadata.inboundTransport,
 
 		async connect(): Promise<void> {

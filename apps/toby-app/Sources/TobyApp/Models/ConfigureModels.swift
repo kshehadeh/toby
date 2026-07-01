@@ -31,6 +31,7 @@ struct SettingsItem: Decodable, Identifiable {
 	let selectedValues: [String]?
 	let readOnly: Bool?
 	var iconUrl: String? = nil
+	var icon: String? = nil
 }
 
 struct ConfigureTreeResponse: Decodable {

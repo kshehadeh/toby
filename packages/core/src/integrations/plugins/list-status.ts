@@ -2,6 +2,7 @@ import { readConfig } from "../../config/index";
 import type { IntegrationCapability } from "../types";
 import { inspectPluginBinary, isPluginConnectedFromStatus } from "./adapter";
 import { discoverPluginBinaries } from "./discovery";
+import { pluginIconUrl } from "./icons";
 import type { DiscoveredPlugin } from "./protocol";
 
 export type PluginListEntryState = "valid" | "invalid" | "disabled";
@@ -14,6 +15,8 @@ export type PluginListEntry = {
 	readonly version?: string;
 	readonly protocolVersion?: string;
 	readonly capabilities?: readonly IntegrationCapability[];
+	readonly icon?: string;
+	readonly iconUrl?: string;
 	readonly state: PluginListEntryState;
 	readonly connected: boolean;
 	readonly error?: string;
@@ -71,6 +74,10 @@ export function collectPluginListEntries(): PluginListEntry[] {
 			version: inspected.version,
 			protocolVersion: inspected.protocolVersion,
 			capabilities: inspected.capabilities,
+			icon: inspected.icon,
+			...(inspected.iconAsset
+				? { iconUrl: pluginIconUrl(inspected.name) }
+				: {}),
 			state: "valid",
 			connected: isPluginConnectedFromStatus(inspected.name, inspected.target),
 		};
