@@ -47,11 +47,15 @@ export type TranscriptEntry =
 			readonly kind: "tool_call";
 			readonly blockKey: string;
 			readonly title: string;
+			/** Raw tool name for display labels and icons. */
+			readonly toolName?: string;
 	  }
 	| {
 			readonly kind: "tool_output";
 			readonly blockKey: string;
 			readonly detail: string;
+			/** Raw tool name for display labels and icons. */
+			readonly toolName?: string;
 	  }
 	| {
 			readonly kind: "ask_user_qa";

@@ -1,7 +1,15 @@
 import type { TranscriptEntry } from "./chat-pipeline/transcript-types";
 
-type ToolCallPayload = { readonly blockKey: string; readonly title: string };
-type ToolOutputPayload = { readonly blockKey: string; readonly detail: string };
+type ToolCallPayload = {
+	readonly blockKey: string;
+	readonly title: string;
+	readonly toolName?: string;
+};
+type ToolOutputPayload = {
+	readonly blockKey: string;
+	readonly detail: string;
+	readonly toolName?: string;
+};
 type AskUserQaPayload = {
 	readonly blockKey: string;
 	readonly query: string;
@@ -68,6 +76,7 @@ export function serializeTranscriptEntry(e: TranscriptEntry): {
 		const payload: ToolCallPayload = {
 			blockKey: e.blockKey,
 			title: e.title,
+			...(e.toolName !== undefined ? { toolName: e.toolName } : {}),
 		};
 		return { kind: "tool_call", text: JSON.stringify(payload) };
 	}
@@ -75,6 +84,7 @@ export function serializeTranscriptEntry(e: TranscriptEntry): {
 		const payload: ToolOutputPayload = {
 			blockKey: e.blockKey,
 			detail: e.detail,
+			...(e.toolName !== undefined ? { toolName: e.toolName } : {}),
 		};
 		return { kind: "tool_output", text: JSON.stringify(payload) };
 	}
@@ -195,7 +205,12 @@ export function deserializeTranscriptRow(row: {
 				p.blockKey.length > 0 &&
 				typeof p.title === "string"
 			) {
-				return { kind: "tool_call", blockKey: p.blockKey, title: p.title };
+				return {
+					kind: "tool_call",
+					blockKey: p.blockKey,
+					title: p.title,
+					...(typeof p.toolName === "string" ? { toolName: p.toolName } : {}),
+				};
 			}
 		} catch {
 			// fall through
@@ -210,7 +225,12 @@ export function deserializeTranscriptRow(row: {
 				p.blockKey.length > 0 &&
 				typeof p.detail === "string"
 			) {
-				return { kind: "tool_output", blockKey: p.blockKey, detail: p.detail };
+				return {
+					kind: "tool_output",
+					blockKey: p.blockKey,
+					detail: p.detail,
+					...(typeof p.toolName === "string" ? { toolName: p.toolName } : {}),
+				};
 			}
 		} catch {
 			// fall through

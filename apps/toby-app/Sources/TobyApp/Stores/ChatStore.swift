@@ -712,6 +712,7 @@ final class ChatStore {
 					integrationLabel: nil,
 					cacheHit: nil,
 					durationMs: nil,
+					toolRuns: nil,
 				),
 			),
 		)
@@ -730,6 +731,7 @@ final class ChatStore {
 				integrationLabel: current.integrationLabel,
 				cacheHit: current.cacheHit,
 				durationMs: current.durationMs,
+				toolRuns: current.toolRuns,
 			)
 		}
 	}
@@ -748,6 +750,7 @@ final class ChatStore {
 				integrationLabel: current.integrationLabel,
 				cacheHit: current.cacheHit,
 				durationMs: current.durationMs,
+				toolRuns: current.toolRuns,
 			)
 		}
 	}
@@ -773,6 +776,7 @@ final class ChatStore {
 					integrationLabel: integrationLabel,
 					cacheHit: cacheHit,
 					durationMs: durationMs,
+					toolRuns: nil,
 				),
 			),
 		)
@@ -798,6 +802,7 @@ final class ChatStore {
 				integrationLabel: integrationLabel,
 				cacheHit: cacheHit,
 				durationMs: durationMs,
+				toolRuns: nil,
 			)
 		}
 		if !replaced {
@@ -848,6 +853,7 @@ final class ChatStore {
 					integrationLabel: nil,
 					cacheHit: nil,
 					durationMs: nil,
+					toolRuns: nil,
 				),
 			),
 		)

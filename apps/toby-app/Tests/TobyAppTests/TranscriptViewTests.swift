@@ -7,7 +7,7 @@ struct TranscriptViewTests {
 
 	@Test("workSteps assigns tool type for boxed_step variant tool")
 	func toolStepType() {
-		let group = TranscriptWorkGroup(
+		_ = TranscriptWorkGroup(
 			id: "work-0",
 			entries: [
 				.boxedStep(BoxedStepPayload(
@@ -20,6 +20,7 @@ struct TranscriptViewTests {
 					integrationLabel: nil,
 					cacheHit: false,
 					durationMs: 1500,
+					toolRuns: nil,
 				)),
 			],
 			userTurnIndex: 0,
@@ -38,6 +39,7 @@ struct TranscriptViewTests {
 			integrationLabel: nil,
 			cacheHit: false,
 			durationMs: 1500,
+			toolRuns: nil,
 		))))
 	}
 
@@ -55,6 +57,7 @@ struct TranscriptViewTests {
 				integrationLabel: nil,
 				cacheHit: false,
 				durationMs: 1200,
+				toolRuns: nil,
 			)),
 			.assistant(text: "You have 5 unread emails."),
 		]
@@ -84,6 +87,7 @@ struct TranscriptViewTests {
 				integrationLabel: nil,
 				cacheHit: nil,
 				durationMs: nil,
+				toolRuns: nil,
 			)),
 		]
 
@@ -107,6 +111,7 @@ struct TranscriptViewTests {
 			integrationLabel: nil,
 			cacheHit: nil,
 			durationMs: nil,
+			toolRuns: nil,
 		)
 		#expect(TranscriptGrouping.isWorkEntry(.boxedStep(payload)))
 	}
@@ -123,6 +128,7 @@ struct TranscriptViewTests {
 			integrationLabel: nil,
 			cacheHit: nil,
 			durationMs: nil,
+			toolRuns: nil,
 		)
 		#expect(TranscriptGrouping.isWorkEntry(.boxedStep(payload)))
 	}
@@ -139,6 +145,7 @@ struct TranscriptViewTests {
 			integrationLabel: nil,
 			cacheHit: nil,
 			durationMs: nil,
+			toolRuns: nil,
 		)
 		#expect(!TranscriptGrouping.isWorkEntry(.boxedStep(payload)))
 	}
@@ -149,5 +156,125 @@ struct TranscriptViewTests {
 		#expect(TranscriptGrouping.isHiddenLifecycleHeader("Saving session…"))
 		#expect(TranscriptGrouping.isHiddenLifecycleHeader("Chatting with Toby"))
 		#expect(!TranscriptGrouping.isHiddenLifecycleHeader("Phase 1/3: Research"))
+	}
+
+	@Test("workSteps uses friendly header for boxed_step tool")
+	func workStepsUsesFriendlyHeader() {
+		let group = TranscriptWorkGroup(
+			id: "work-0",
+			entries: [
+				.boxedStep(BoxedStepPayload(
+					id: "tool-1",
+					seq: 1,
+					variant: "tool",
+					header: "Search memory",
+					body: "Found 3 item(s).",
+					toolName: "memorySearch",
+					integrationLabel: nil,
+					cacheHit: false,
+					durationMs: 1500,
+					toolRuns: nil,
+				)),
+			],
+			userTurnIndex: 0,
+			durationMs: 2000,
+			isActive: false,
+		)
+		let steps = workSteps(from: group)
+		#expect(steps.count == 1)
+		#expect(steps[0].title == "Search memory")
+	}
+
+	@Test("workSteps decodes toolRuns into children")
+	func workStepsDecodesToolRuns() {
+		let group = TranscriptWorkGroup(
+			id: "work-0",
+			entries: [
+				.boxedStep(BoxedStepPayload(
+					id: "tool-1",
+					seq: 1,
+					variant: "tool",
+					header: "Search emails (x2)",
+					body: "",
+					toolName: "searchEmails",
+					integrationLabel: nil,
+					cacheHit: nil,
+					durationMs: nil,
+					toolRuns: [
+						ToolRunEntry(blockKey: "a", header: "Search emails", body: "Found 1.", cacheHit: false, durationMs: 100),
+						ToolRunEntry(blockKey: "b", header: "Search emails", body: "Found 2.", cacheHit: false, durationMs: 200),
+					],
+				)),
+			],
+			userTurnIndex: 0,
+			durationMs: 2000,
+			isActive: false,
+		)
+		let steps = workSteps(from: group)
+		#expect(steps.count == 1)
+		#expect(steps[0].count == 2)
+		#expect(steps[0].children.count == 2)
+		#expect(steps[0].children[0].body == "Found 1.")
+		#expect(steps[0].children[1].body == "Found 2.")
+	}
+
+	@Test("workSteps pairs toolCall with toolOutput")
+	func workStepsPairsToolCallWithToolOutput() {
+		let group = TranscriptWorkGroup(
+			id: "work-0",
+			entries: [
+				.toolCall(blockKey: "a", title: "listReminderLists", toolName: "listReminderLists"),
+				.toolOutput(blockKey: "a", detail: "Done.", toolName: "listReminderLists"),
+			],
+			userTurnIndex: 0,
+			durationMs: 2000,
+			isActive: false,
+		)
+		let steps = workSteps(from: group)
+		#expect(steps.count == 1)
+		#expect(steps[0].type == .toolCall)
+		#expect(steps[0].title == "List reminder lists")
+		#expect(steps[0].body == "Done.")
+	}
+
+	@Test("workSteps aggregates consecutive same-toolName toolCall pairs")
+	func workStepsAggregatesConsecutiveSameToolCallPairs() {
+		let group = TranscriptWorkGroup(
+			id: "work-0",
+			entries: [
+				.toolCall(blockKey: "a", title: "listReminderLists", toolName: "listReminderLists"),
+				.toolOutput(blockKey: "a", detail: "Done 1.", toolName: "listReminderLists"),
+				.toolCall(blockKey: "b", title: "listReminderLists", toolName: "listReminderLists"),
+				.toolOutput(blockKey: "b", detail: "Done 2.", toolName: "listReminderLists"),
+			],
+			userTurnIndex: 0,
+			durationMs: 2000,
+			isActive: false,
+		)
+		let steps = workSteps(from: group)
+		#expect(steps.count == 1)
+		#expect(steps[0].count == 2)
+		#expect(steps[0].title == "List reminder lists")
+		#expect(steps[0].children.count == 2)
+		#expect(steps[0].children[0].body == "Done 1.")
+		#expect(steps[0].children[1].body == "Done 2.")
+	}
+
+	@Test("workSteps does not aggregate different toolName pairs")
+	func workStepsDoesNotAggregateDifferentToolNamePairs() {
+		let group = TranscriptWorkGroup(
+			id: "work-0",
+			entries: [
+				.toolCall(blockKey: "a", title: "listReminderLists", toolName: "listReminderLists"),
+				.toolOutput(blockKey: "a", detail: "Done 1.", toolName: "listReminderLists"),
+				.toolCall(blockKey: "b", title: "searchReminders", toolName: "searchReminders"),
+				.toolOutput(blockKey: "b", detail: "Done 2.", toolName: "searchReminders"),
+			],
+			userTurnIndex: 0,
+			durationMs: 2000,
+			isActive: false,
+		)
+		let steps = workSteps(from: group)
+		#expect(steps.count == 2)
 	}
 }

@@ -20,61 +20,59 @@ struct WorkStep: Identifiable {
 	let isActive: Bool
 	let cacheHit: Bool?
 	let toolName: String?
+	let count: Int
+	let children: [WorkStep]
 }
 
+// MARK: - WorkStep construction
+
 func workSteps(from group: TranscriptWorkGroup) -> [WorkStep] {
+	let raw = rawWorkSteps(from: group)
+	return aggregateConsecutiveToolSteps(raw)
+}
+
+private func rawWorkSteps(from group: TranscriptWorkGroup) -> [WorkStep] {
+	var result: [WorkStep] = []
 	let entries = group.entries
-	return entries.enumerated().compactMap { index, entry in
+	var index = 0
+	while index < entries.count {
+		let entry = entries[index]
 		switch entry {
 		case .boxedStep(let payload):
 			if payload.variant == "lifecycle", TranscriptGrouping.isHiddenLifecycleHeader(payload.header) {
-				return nil
+				index += 1
+				continue
 			}
-			let isActive = group.isActive && index == entries.count - 1 && payload.durationMs == nil
-			let title = payload.toolName ?? payload.header
-			let stepType: WorkStepType
-			switch payload.variant {
-			case "tool": stepType = .tool
-			case "lifecycle": stepType = .lifecycle
-			case "assistant_interim": stepType = .assistantInterim
-			case "plan": stepType = .plan
-			default: stepType = .lifecycle
+			result.append(makeBoxedStepWorkStep(payload: payload, group: group, index: index))
+		case .toolCall(let blockKey, let title, let toolName):
+			var pairBody = ""
+			var pairToolName = toolName
+			if index + 1 < entries.count {
+				if case .toolOutput(let outputBlockKey, let detail, let outputToolName) = entries[index + 1], outputBlockKey == blockKey {
+					pairBody = detail
+					pairToolName = toolName ?? outputToolName
+					index += 1
+				}
 			}
-			return WorkStep(
-				id: "\(payload.id)-\(payload.seq)",
-				type: stepType,
-				title: title,
-				body: payload.body,
-				durationMs: payload.durationMs,
-				isActive: isActive,
-				cacheHit: payload.cacheHit,
-				toolName: payload.toolName
-			)
-		case .toolCall(let blockKey, let title):
 			let isActive = group.isActive && index == entries.count - 1
-			return WorkStep(
+			let displayTitle = friendlyToolTitle(title: title, toolName: pairToolName)
+			result.append(WorkStep(
 				id: "tool-call-\(blockKey)",
 				type: .toolCall,
-				title: title,
-				body: "",
+				title: displayTitle,
+				body: pairBody,
 				durationMs: nil,
 				isActive: isActive,
 				cacheHit: nil,
-				toolName: nil
-			)
-		case .toolOutput(let blockKey, let detail):
-			return WorkStep(
-				id: "tool-output-\(blockKey)",
-				type: .toolOutput,
-				title: "Result",
-				body: detail,
-				durationMs: nil,
-				isActive: false,
-				cacheHit: nil,
-				toolName: nil
-			)
+				toolName: pairToolName,
+				count: 1,
+				children: []
+			))
+		case .toolOutput:
+			// Should have been consumed by a preceding toolCall.
+			break
 		case .meta(let text):
-			return WorkStep(
+			result.append(WorkStep(
 				id: "meta-\(text.hashValue)",
 				type: .meta,
 				title: "Info",
@@ -82,38 +80,311 @@ func workSteps(from group: TranscriptWorkGroup) -> [WorkStep] {
 				durationMs: nil,
 				isActive: false,
 				cacheHit: nil,
-				toolName: nil
-			)
+				toolName: nil,
+				count: 1,
+				children: []
+			))
 		default:
-			return nil
+			break
+		}
+		index += 1
+	}
+	return result
+}
+
+private func makeBoxedStepWorkStep(
+	payload: BoxedStepPayload,
+	group: TranscriptWorkGroup,
+	index: Int
+) -> WorkStep {
+	let isActive = group.isActive && index == group.entries.count - 1 && payload.durationMs == nil
+	let stepType: WorkStepType
+	switch payload.variant {
+	case "tool": stepType = .tool
+	case "lifecycle": stepType = .lifecycle
+	case "assistant_interim": stepType = .assistantInterim
+	case "plan": stepType = .plan
+	default: stepType = .lifecycle
+	}
+
+	let title: String
+	if payload.variant == "tool" {
+		title = payload.header.isEmpty
+			? (payload.toolName.map { ToolDisplayLabels.displayLabel($0) } ?? "")
+			: payload.header
+	} else {
+		title = payload.header
+	}
+
+	let children: [WorkStep]
+	let count: Int
+	if payload.variant == "tool", let runs = payload.toolRuns, !runs.isEmpty {
+		children = runs.map { run in
+			WorkStep(
+				id: "tool-run-\(run.blockKey)",
+				type: .tool,
+				title: run.header,
+				body: run.body,
+				durationMs: run.durationMs,
+				isActive: false,
+				cacheHit: run.cacheHit,
+				toolName: payload.toolName,
+				count: 1,
+				children: []
+			)
+		}
+		count = runs.count
+	} else {
+		children = []
+		count = 1
+	}
+
+	return WorkStep(
+		id: "\(payload.id)-\(payload.seq)",
+		type: stepType,
+		title: title,
+		body: payload.body,
+		durationMs: payload.durationMs,
+		isActive: isActive,
+		cacheHit: payload.cacheHit,
+		toolName: payload.toolName,
+		count: count,
+		children: children
+	)
+}
+
+private func friendlyToolTitle(title: String, toolName: String?) -> String {
+	if let toolName = toolName, !toolName.isEmpty {
+		return ToolDisplayLabels.displayLabel(toolName)
+	}
+	if !title.contains(" ") && title.range(of: "([a-z0-9])([A-Z])", options: .regularExpression) != nil {
+		return ToolDisplayLabels.displayLabel(title)
+	}
+	return title
+}
+
+private func aggregateConsecutiveToolSteps(_ steps: [WorkStep]) -> [WorkStep] {
+	var result: [WorkStep] = []
+	var buffer: [WorkStep] = []
+
+	func flush() {
+		guard !buffer.isEmpty else { return }
+		if buffer.count == 1 {
+			result.append(buffer[0])
+		} else {
+			let first = buffer[0]
+			let children = buffer.map { childWorkStep(from: $0) }
+			let totalDurationMs = buffer.compactMap { $0.durationMs }.reduce(0, +)
+			let isActive = buffer.contains { $0.isActive }
+			result.append(WorkStep(
+				id: first.id,
+				type: first.type,
+				title: first.title,
+				body: "",
+				durationMs: totalDurationMs > 0 ? totalDurationMs : nil,
+				isActive: isActive,
+				cacheHit: nil,
+				toolName: first.toolName,
+				count: buffer.count,
+				children: children
+			))
+		}
+		buffer = []
+	}
+
+	for step in steps {
+		let canAggregate = (step.type == .tool || step.type == .toolCall) && step.children.isEmpty
+		if let last = buffer.last,
+		   canAggregate,
+		   last.type == step.type,
+		   step.toolName != nil,
+		   step.toolName == last.toolName {
+			buffer.append(step)
+		} else {
+			flush()
+			if canAggregate {
+				buffer = [step]
+			} else {
+				result.append(step)
+			}
 		}
 	}
+	flush()
+	return result
 }
+
+private func childWorkStep(from step: WorkStep) -> WorkStep {
+	WorkStep(
+		id: step.id,
+		type: step.type,
+		title: step.title,
+		body: step.body,
+		durationMs: step.durationMs,
+		isActive: step.isActive,
+		cacheHit: step.cacheHit,
+		toolName: step.toolName,
+		count: 1,
+		children: []
+	)
+}
+
+// MARK: - Row views
 
 struct WorkStepRow: View {
 	let step: WorkStep
 
 	var body: some View {
-		switch step.type {
-		case .tool:
-			ToolStepRow(step: step)
-		case .lifecycle:
-			LifecycleStepRow(step: step)
-		case .assistantInterim:
-			AssistantInterimStepRow(step: step)
-		case .plan:
-			PlanStepRow(step: step)
-		case .meta:
-			MetaStepRow(step: step)
-		case .toolCall:
-			ToolStepRow(step: step)
-		case .toolOutput:
-			ToolOutputStepRow(step: step)
+		ExpandableWorkStepRow(step: step)
+	}
+}
+
+struct ExpandableWorkStepRow: View {
+	let step: WorkStep
+	@State private var isExpanded = false
+
+	private var isExpandable: Bool {
+		!step.children.isEmpty || !step.body.isEmpty
+	}
+
+	private var icon: String? {
+		guard let toolName = step.toolName else { return nil }
+		return ToolDisplayLabels.iconForTool(toolName)
+	}
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 0) {
+			if isExpandable {
+				Button {
+					withAnimation(.easeOut(duration: 0.2)) {
+						isExpanded.toggle()
+					}
+				} label: {
+					WorkStepHeader(step: step, isExpanded: isExpanded, icon: icon)
+				}
+				.buttonStyle(.plain)
+			} else {
+				WorkStepHeader(step: step, isExpanded: isExpanded, icon: icon)
+			}
+
+			if isExpanded {
+				WorkStepExpandedBody(step: step)
+					.padding(.leading, 26)
+					.padding(.bottom, 6)
+					.transition(.opacity.combined(with: .move(edge: .top)))
+			}
 		}
 	}
 }
 
-// MARK: - Shared work step components
+struct WorkStepHeader: View {
+	let step: WorkStep
+	let isExpanded: Bool
+	let icon: String?
+
+	private var isExpandable: Bool {
+		!step.children.isEmpty || !step.body.isEmpty
+	}
+
+	var body: some View {
+		HStack(alignment: .top, spacing: 10) {
+			WorkStepStatusIndicator(
+				isActive: step.isActive,
+				cacheHit: step.cacheHit,
+				iconName: step.type == .plan ? "list.bullet" : icon
+			)
+			VStack(alignment: .leading, spacing: 2) {
+				HStack(alignment: .top, spacing: 8) {
+					Text(step.title)
+						.font(AppTheme.transcriptCaptionFont.weight(.semibold))
+						.tracking(AppTheme.transcriptTracking)
+						.foregroundStyle(AppTheme.secondaryText)
+					Spacer(minLength: 0)
+					if step.count > 1 {
+						Text("×\(step.count)")
+							.font(AppTheme.transcriptCaptionFont)
+							.tracking(AppTheme.transcriptTracking)
+							.foregroundStyle(AppTheme.tertiaryText)
+					}
+					if let durationMs = step.durationMs, durationMs > 0 {
+						Text(formatDurationMs(durationMs))
+							.font(AppTheme.transcriptCaptionFont)
+							.tracking(AppTheme.transcriptTracking)
+							.foregroundStyle(AppTheme.tertiaryText)
+							.monospacedDigit()
+					}
+					if isExpandable {
+						Image(systemName: "chevron.right")
+							.font(AppTheme.transcriptCaptionFont.weight(.semibold))
+							.foregroundStyle(AppTheme.tertiaryText)
+							.rotationEffect(.degrees(isExpanded ? 90 : 0))
+							.accessibilityLabel(isExpanded ? "Collapse" : "Expand")
+					}
+				}
+				if !isExpanded && step.count == 1 && !step.body.isEmpty {
+					Text(step.body)
+						.font(AppTheme.transcriptCaptionFont)
+						.tracking(AppTheme.transcriptTracking)
+						.lineSpacing(AppTheme.transcriptLineSpacing)
+						.foregroundStyle(AppTheme.tertiaryText)
+						.lineLimit(4)
+						.frame(maxWidth: .infinity, alignment: .leading)
+				}
+			}
+			Spacer(minLength: 0)
+		}
+		.padding(.vertical, 6)
+		.contentShape(Rectangle())
+	}
+}
+
+struct WorkStepExpandedBody: View {
+	let step: WorkStep
+
+	var body: some View {
+		if step.children.isEmpty {
+			WorkStepBodyText(step: step)
+		} else {
+			VStack(alignment: .leading, spacing: 10) {
+				ForEach(step.children) { child in
+					VStack(alignment: .leading, spacing: 4) {
+						if !child.title.isEmpty && child.title != step.title {
+							Text(child.title)
+								.font(AppTheme.transcriptCaptionFont.weight(.semibold))
+								.tracking(AppTheme.transcriptTracking)
+								.foregroundStyle(AppTheme.secondaryText)
+						}
+						WorkStepBodyText(step: child)
+					}
+					.padding(.vertical, 4)
+				}
+			}
+		}
+	}
+}
+
+struct WorkStepBodyText: View {
+	let step: WorkStep
+
+	var body: some View {
+		if step.type == .assistantInterim {
+			MarkdownText(
+				text: step.body,
+				font: AppTheme.transcriptCaptionFont,
+				foregroundStyle: AppTheme.tertiaryText,
+			)
+			.frame(maxWidth: .infinity, alignment: .leading)
+		} else {
+			Text(step.body)
+				.font(AppTheme.transcriptCaptionFont)
+				.tracking(AppTheme.transcriptTracking)
+				.lineSpacing(AppTheme.transcriptLineSpacing)
+				.foregroundStyle(AppTheme.tertiaryText)
+				.frame(maxWidth: .infinity, alignment: .leading)
+		}
+	}
+}
+
+// MARK: - Shared components
 
 struct WorkStepStatusIndicator: View {
 	let isActive: Bool
@@ -129,10 +400,12 @@ struct WorkStepStatusIndicator: View {
 				Image(systemName: "checkmark.circle.fill")
 					.font(.system(size: 11))
 					.foregroundStyle(AppTheme.accent)
+					.accessibilityLabel("Cache hit")
 			} else if let iconName {
 				Image(systemName: iconName)
 					.font(.system(size: 10, weight: .medium))
 					.foregroundStyle(AppTheme.accent)
+					.accessibilityLabel("Tool icon")
 			} else {
 				Circle()
 					.fill(AppTheme.accent)
@@ -153,184 +426,4 @@ func formatDurationMs(_ ms: Int) -> String {
 		return String(format: "%.1fs", seconds)
 	}
 	return String(format: "%.0fs", seconds)
-}
-
-// MARK: - Tool step row
-
-struct ToolStepRow: View {
-	let step: WorkStep
-
-	private var icon: String? {
-		guard let toolName = step.toolName else { return nil }
-		return ToolDisplayLabels.iconForTool(toolName)
-	}
-
-	var body: some View {
-		HStack(alignment: .top, spacing: 10) {
-			WorkStepStatusIndicator(isActive: step.isActive, cacheHit: step.cacheHit, iconName: icon)
-			VStack(alignment: .leading, spacing: 2) {
-				HStack(alignment: .top, spacing: 8) {
-					Text(step.title)
-						.font(AppTheme.transcriptCaptionFont.weight(.semibold))
-						.tracking(AppTheme.transcriptTracking)
-						.foregroundStyle(AppTheme.secondaryText)
-					Spacer(minLength: 0)
-					if let durationMs = step.durationMs, durationMs > 0 {
-						Text(formatDurationMs(durationMs))
-							.font(AppTheme.transcriptCaptionFont)
-							.tracking(AppTheme.transcriptTracking)
-							.foregroundStyle(AppTheme.tertiaryText)
-							.monospacedDigit()
-					}
-				}
-				if !step.body.isEmpty {
-					Text(step.body)
-						.font(AppTheme.transcriptCaptionFont)
-						.tracking(AppTheme.transcriptTracking)
-						.lineSpacing(AppTheme.transcriptLineSpacing)
-						.foregroundStyle(AppTheme.tertiaryText)
-						.lineLimit(4)
-						.frame(maxWidth: .infinity, alignment: .leading)
-				}
-			}
-			Spacer(minLength: 0)
-		}
-		.padding(.vertical, 6)
-	}
-}
-
-// MARK: - Tool output step row
-
-struct ToolOutputStepRow: View {
-	let step: WorkStep
-
-	var body: some View {
-		HStack(alignment: .top, spacing: 10) {
-			WorkStepStatusIndicator(isActive: false, cacheHit: nil, iconName: nil)
-			VStack(alignment: .leading, spacing: 2) {
-				Text(step.title)
-					.font(AppTheme.transcriptCaptionFont.weight(.semibold))
-					.tracking(AppTheme.transcriptTracking)
-					.foregroundStyle(AppTheme.secondaryText)
-				if !step.body.isEmpty {
-					Text(step.body)
-						.font(AppTheme.transcriptCaptionFont)
-						.tracking(AppTheme.transcriptTracking)
-						.lineSpacing(AppTheme.transcriptLineSpacing)
-						.foregroundStyle(AppTheme.tertiaryText)
-						.lineLimit(4)
-						.frame(maxWidth: .infinity, alignment: .leading)
-				}
-			}
-			Spacer(minLength: 0)
-		}
-		.padding(.vertical, 6)
-	}
-}
-
-// MARK: - Lifecycle step row
-
-struct LifecycleStepRow: View {
-	let step: WorkStep
-
-	var body: some View {
-		HStack(alignment: .top, spacing: 10) {
-			WorkStepStatusIndicator(isActive: step.isActive, cacheHit: step.cacheHit)
-			VStack(alignment: .leading, spacing: 2) {
-				Text(step.title)
-					.font(AppTheme.transcriptCaptionFont.weight(.semibold))
-					.tracking(AppTheme.transcriptTracking)
-					.foregroundStyle(AppTheme.secondaryText)
-				if !step.body.isEmpty {
-					Text(step.body)
-						.font(AppTheme.transcriptCaptionFont)
-						.tracking(AppTheme.transcriptTracking)
-						.lineSpacing(AppTheme.transcriptLineSpacing)
-						.foregroundStyle(AppTheme.tertiaryText)
-						.lineLimit(4)
-						.frame(maxWidth: .infinity, alignment: .leading)
-				}
-			}
-			Spacer(minLength: 0)
-		}
-		.padding(.vertical, 6)
-	}
-}
-
-// MARK: - Assistant interim step row
-
-struct AssistantInterimStepRow: View {
-	let step: WorkStep
-
-	var body: some View {
-		HStack(alignment: .top, spacing: 10) {
-			WorkStepStatusIndicator(isActive: step.isActive, cacheHit: step.cacheHit)
-			VStack(alignment: .leading, spacing: 2) {
-				Text(step.title)
-					.font(AppTheme.transcriptCaptionFont.weight(.semibold))
-					.tracking(AppTheme.transcriptTracking)
-					.foregroundStyle(AppTheme.secondaryText)
-				if !step.body.isEmpty {
-					MarkdownText(
-						text: step.body,
-						font: AppTheme.transcriptCaptionFont,
-						foregroundStyle: AppTheme.tertiaryText,
-					)
-					.frame(maxWidth: .infinity, alignment: .leading)
-				}
-			}
-			Spacer(minLength: 0)
-		}
-		.padding(.vertical, 6)
-	}
-}
-
-// MARK: - Plan step row
-
-struct PlanStepRow: View {
-	let step: WorkStep
-
-	var body: some View {
-		HStack(alignment: .top, spacing: 10) {
-			WorkStepStatusIndicator(isActive: step.isActive, cacheHit: nil, iconName: "list.bullet")
-			VStack(alignment: .leading, spacing: 2) {
-				Text(step.title)
-					.font(AppTheme.transcriptCaptionFont.weight(.semibold))
-					.tracking(AppTheme.transcriptTracking)
-					.foregroundStyle(AppTheme.secondaryText)
-				if !step.body.isEmpty {
-					Text(step.body)
-						.font(AppTheme.transcriptCaptionFont)
-						.tracking(AppTheme.transcriptTracking)
-						.lineSpacing(AppTheme.transcriptLineSpacing)
-						.foregroundStyle(AppTheme.tertiaryText)
-						.lineLimit(6)
-						.frame(maxWidth: .infinity, alignment: .leading)
-				}
-			}
-			Spacer(minLength: 0)
-		}
-		.padding(.vertical, 6)
-	}
-}
-
-// MARK: - Meta step row
-
-struct MetaStepRow: View {
-	let step: WorkStep
-
-	var body: some View {
-		HStack(alignment: .top, spacing: 10) {
-			WorkStepStatusIndicator(isActive: false, cacheHit: nil, iconName: "info.circle")
-			Text(step.body.isEmpty ? step.title : "\(step.title): \(step.body)")
-				.font(AppTheme.transcriptCaptionFont)
-				.tracking(AppTheme.transcriptTracking)
-				.lineSpacing(AppTheme.transcriptLineSpacing)
-				.foregroundStyle(AppTheme.tertiaryText)
-				.lineLimit(4)
-				.frame(maxWidth: .infinity, alignment: .leading)
-			Spacer(minLength: 0)
-		}
-		.padding(.vertical, 6)
-	}
 }

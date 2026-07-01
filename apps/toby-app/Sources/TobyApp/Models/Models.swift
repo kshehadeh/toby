@@ -441,8 +441,8 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 	case notice(text: String, tone: String?)
 	case error(text: String)
 	case boxedStep(BoxedStepPayload)
-	case toolCall(blockKey: String, title: String)
-	case toolOutput(blockKey: String, detail: String)
+	case toolCall(blockKey: String, title: String, toolName: String?)
+	case toolOutput(blockKey: String, detail: String, toolName: String?)
 	case askUserQA(blockKey: String, query: String, answer: String, error: String?)
 	case turnWork(durationMs: Int)
 
@@ -460,9 +460,9 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 			return "error-\(text.hashValue)"
 		case .boxedStep(let payload):
 			return "boxed-\(payload.id)-\(payload.seq)"
-		case .toolCall(let blockKey, _):
+		case .toolCall(let blockKey, _, _):
 			return "tool-call-\(blockKey)"
-		case .toolOutput(let blockKey, _):
+		case .toolOutput(let blockKey, _, _):
 			return "tool-output-\(blockKey)"
 		case .askUserQA(let blockKey, _, _, _):
 			return "ask-user-\(blockKey)"
@@ -484,6 +484,7 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 		case toolName
 		case integrationLabel
 		case cacheHit
+		case toolRuns
 		case blockKey
 		case title
 		case detail
@@ -523,17 +524,20 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 					integrationLabel: try container.decodeIfPresent(String.self, forKey: .integrationLabel),
 					cacheHit: try container.decodeIfPresent(Bool.self, forKey: .cacheHit),
 					durationMs: try container.decodeIfPresent(Int.self, forKey: .durationMs),
+					toolRuns: try container.decodeIfPresent([ToolRunEntry].self, forKey: .toolRuns),
 				),
 			)
 		case "tool_call":
 			self = .toolCall(
 				blockKey: try container.decode(String.self, forKey: .blockKey),
 				title: try container.decode(String.self, forKey: .title),
+				toolName: try container.decodeIfPresent(String.self, forKey: .toolName),
 			)
 		case "tool_output":
 			self = .toolOutput(
 				blockKey: try container.decode(String.self, forKey: .blockKey),
 				detail: try container.decode(String.self, forKey: .detail),
+				toolName: try container.decodeIfPresent(String.self, forKey: .toolName),
 			)
 		case "ask_user_qa":
 			self = .askUserQA(
@@ -550,6 +554,16 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 	}
 }
 
+struct ToolRunEntry: Decodable, Equatable, Identifiable {
+	let blockKey: String
+	let header: String
+	let body: String
+	let cacheHit: Bool?
+	let durationMs: Int?
+
+	var id: String { blockKey }
+}
+
 struct BoxedStepPayload: Equatable {
 	let id: String
 	let seq: Int
@@ -560,6 +574,7 @@ struct BoxedStepPayload: Equatable {
 	let integrationLabel: String?
 	let cacheHit: Bool?
 	let durationMs: Int?
+	let toolRuns: [ToolRunEntry]?
 }
 
 struct ChatEventPayload: Decodable {

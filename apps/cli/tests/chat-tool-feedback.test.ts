@@ -1,8 +1,8 @@
+import { describe, expect, it } from "bun:test";
 import {
 	deserializeTranscriptRow,
 	serializeTranscriptEntry,
 } from "@toby/core/transcript-persist";
-import { describe, expect, it } from "bun:test";
 import {
 	formatToolFeedbackOutput,
 	registerToolFeedbackFormatter,
@@ -137,6 +137,27 @@ describe("transcript persistence for tool rows", () => {
 			kind: "tool_output",
 			blockKey: "bk-1",
 			detail: "Found 2 item(s).",
+		};
+		const callRow = serializeTranscriptEntry(call);
+		const outRow = serializeTranscriptEntry(out);
+		expect(callRow.kind).toBe("tool_call");
+		expect(outRow.kind).toBe("tool_output");
+		expect(deserializeTranscriptRow(callRow)).toEqual(call);
+		expect(deserializeTranscriptRow(outRow)).toEqual(out);
+	});
+
+	it("round-trips tool_call and tool_output with toolName", () => {
+		const call: TranscriptEntry = {
+			kind: "tool_call",
+			blockKey: "bk-1",
+			title: "Fetch tasks",
+			toolName: "fetchTasks",
+		};
+		const out: TranscriptEntry = {
+			kind: "tool_output",
+			blockKey: "bk-1",
+			detail: "Found 2 item(s).",
+			toolName: "fetchTasks",
 		};
 		const callRow = serializeTranscriptEntry(call);
 		const outRow = serializeTranscriptEntry(out);
