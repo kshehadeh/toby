@@ -13,18 +13,35 @@ export type ToolOutputFormatContext = {
 export type ToolOutputFormatter = (ctx: ToolOutputFormatContext) => string;
 
 let toolOutputFormatter: ToolOutputFormatter = defaultToolOutputFormatter;
+let toolOutputFullFormatter: ToolOutputFormatter =
+	defaultToolOutputFullFormatter;
 
 /** Override compact tool output formatting (e.g. Ink registers richer formatters). */
 export function setToolOutputFormatter(formatter: ToolOutputFormatter): void {
 	toolOutputFormatter = formatter;
 }
 
+/** Override full (untruncated) tool output formatting. */
+export function setToolOutputFullFormatter(
+	formatter: ToolOutputFormatter,
+): void {
+	toolOutputFullFormatter = formatter;
+}
+
 export function formatToolOutput(ctx: ToolOutputFormatContext): string {
 	return toolOutputFormatter(ctx);
 }
 
+export function formatToolOutputFull(ctx: ToolOutputFormatContext): string {
+	return toolOutputFullFormatter(ctx);
+}
+
 function sanitizeOneLine(value: string, maxLen = 200): string {
 	return value.replace(/\r?\n/g, " ").trim().slice(0, maxLen);
+}
+
+function sanitizeFull(value: string, maxLen = 10000): string {
+	return value.trim().slice(0, maxLen);
 }
 
 function defaultToolOutputFormatter(ctx: ToolOutputFormatContext): string {
@@ -164,6 +181,143 @@ function defaultToolOutputFormatter(ctx: ToolOutputFormatContext): string {
 	return "Done.";
 }
 
+function defaultToolOutputFullFormatter(ctx: ToolOutputFormatContext): string {
+	if (ctx.error !== undefined) {
+		const msg =
+			ctx.error instanceof Error ? ctx.error.message : String(ctx.error);
+		return sanitizeFull(`Failed: ${msg}`);
+	}
+	const result = ctx.result;
+	if (Array.isArray(result)) {
+		return `Returned ${result.length} item(s).`;
+	}
+	if (typeof result === "string") {
+		return sanitizeFull(result);
+	}
+	if (typeof result === "number") {
+		return String(result);
+	}
+	if (typeof result === "boolean") {
+		return result ? "Done." : "No result.";
+	}
+	if (result && typeof result === "object") {
+		const record = result as Record<string, unknown>;
+		if (typeof record.error === "string" && record.error.trim().length > 0) {
+			return sanitizeFull(`Error: ${record.error}`);
+		}
+		if (Array.isArray(record.events)) {
+			return record.events.length === 0
+				? "No events found."
+				: `Found ${record.events.length} event(s).`;
+		}
+		if (Array.isArray(record.calendars)) {
+			return record.calendars.length === 0
+				? "No calendars found."
+				: `Found ${record.calendars.length} calendar(s).`;
+		}
+		if (Array.isArray(record.items)) {
+			return record.items.length === 0
+				? "No items found."
+				: `Found ${record.items.length} item(s).`;
+		}
+		if (Array.isArray(record.results)) {
+			return record.results.length === 0
+				? "No results found."
+				: `Found ${record.results.length} result(s).`;
+		}
+		if (Array.isArray(record.data)) {
+			return record.data.length === 0
+				? "No data found."
+				: `Found ${record.data.length} item(s).`;
+		}
+		if (Array.isArray(record.tasks)) {
+			return `Found ${record.tasks.length} item(s).`;
+		}
+		if (Array.isArray(record.emails)) {
+			return `Found ${record.emails.length} email(s).`;
+		}
+		if (Array.isArray(record.users)) {
+			return `Found ${record.users.length} user(s).`;
+		}
+		if (Array.isArray(record.labels)) {
+			return `Found ${record.labels.length} label(s).`;
+		}
+		if (Array.isArray(record.files)) {
+			return record.files.length === 0
+				? "No files found."
+				: `Found ${record.files.length} file(s).`;
+		}
+		if (Array.isArray(record.contacts)) {
+			return record.contacts.length === 0
+				? "No contacts found."
+				: `Found ${record.contacts.length} contact(s).`;
+		}
+		if (Array.isArray(record.messages)) {
+			return record.messages.length === 0
+				? "No messages found."
+				: `Found ${record.messages.length} message(s).`;
+		}
+		if (Array.isArray(record.notes)) {
+			return record.notes.length === 0
+				? "No notes found."
+				: `Found ${record.notes.length} note(s).`;
+		}
+		if (Array.isArray(record.records)) {
+			return record.records.length === 0
+				? "No records found."
+				: `Found ${record.records.length} record(s).`;
+		}
+		if (Array.isArray(record.entries)) {
+			return record.entries.length === 0
+				? "No entries found."
+				: `Found ${record.entries.length} entry(s).`;
+		}
+		if (
+			typeof record.message === "string" &&
+			record.message.trim().length > 0
+		) {
+			return sanitizeFull(record.message);
+		}
+		if (
+			typeof record.summary === "string" &&
+			record.summary.trim().length > 0
+		) {
+			return sanitizeFull(record.summary);
+		}
+		if (typeof record.text === "string" && record.text.trim().length > 0) {
+			return sanitizeFull(record.text);
+		}
+		if (
+			typeof record.content === "string" &&
+			record.content.trim().length > 0
+		) {
+			return sanitizeFull(record.content);
+		}
+		if (
+			typeof record.description === "string" &&
+			record.description.trim().length > 0
+		) {
+			return sanitizeFull(record.description);
+		}
+		if (typeof record.name === "string" && record.name.trim().length > 0) {
+			return sanitizeFull(record.name);
+		}
+		if (typeof record.title === "string" && record.title.trim().length > 0) {
+			return sanitizeFull(record.title);
+		}
+		if (
+			typeof record.subject === "string" &&
+			record.subject.trim().length > 0
+		) {
+			return sanitizeFull(record.subject);
+		}
+		if (record.success === true) {
+			return "Done.";
+		}
+	}
+	return "Done.";
+}
+
 function summarizeArgsForHeader(
 	toolName: string,
 	args: Record<string, unknown>,
@@ -269,6 +423,7 @@ function toToolRuns(
 			blockKey: entry.toolBlockKey ?? entry.id,
 			header: entry.header,
 			body: entry.body,
+			...(entry.fullBody !== undefined ? { fullBody: entry.fullBody } : {}),
 			...(entry.cacheHit !== undefined ? { cacheHit: entry.cacheHit } : {}),
 		},
 	];
@@ -538,6 +693,13 @@ export function applyChatEvent(
 			result: event.result,
 			error: event.error,
 		});
+		const fullDetail = formatToolOutputFull({
+			toolName: event.toolName,
+			args: event.args,
+			result: event.result,
+			error: event.error,
+		});
+		const fullBody = fullDetail !== detail ? fullDetail : undefined;
 		if (idx < 0) {
 			return [
 				...entries,
@@ -554,6 +716,7 @@ export function applyChatEvent(
 					body: detail,
 					toolBlockKey: event.blockKey,
 					toolName: event.toolName,
+					...(fullBody !== undefined ? { fullBody } : {}),
 					...(event.integrationLabel !== undefined
 						? { integrationLabel: event.integrationLabel }
 						: {}),
@@ -577,6 +740,7 @@ export function applyChatEvent(
 			nextRuns[runIndex] = {
 				...nextRuns[runIndex],
 				body: detail,
+				...(fullBody !== undefined ? { fullBody } : {}),
 				...(event.cacheHit !== undefined ? { cacheHit: event.cacheHit } : {}),
 				...(event.durationMs !== undefined
 					? { durationMs: event.durationMs }
@@ -613,6 +777,9 @@ export function applyChatEvent(
 							body: nextRuns[0]?.body ?? detail,
 							cacheHit: nextRuns[0]?.cacheHit,
 							durationMs: nextRuns[0]?.durationMs ?? event.durationMs,
+							...((nextRuns[0]?.fullBody ?? fullBody) !== undefined
+								? { fullBody: nextRuns[0]?.fullBody ?? fullBody }
+								: {}),
 						}),
 			});
 		}
@@ -621,6 +788,7 @@ export function applyChatEvent(
 			body: detail,
 			seq: event.seq,
 			toolName: event.toolName,
+			...(fullBody !== undefined ? { fullBody } : {}),
 			...(event.integrationLabel !== undefined
 				? { integrationLabel: event.integrationLabel }
 				: {}),

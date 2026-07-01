@@ -107,6 +107,64 @@ enum ToolDisplayLabels {
 			.trimmingCharacters(in: .whitespacesAndNewlines)
 	}
 
+	private static func sanitizeFull(_ value: String, maxLen: Int = 10000) -> String {
+		String(value.trimmingCharacters(in: .whitespacesAndNewlines).prefix(maxLen))
+	}
+
+	static func formatToolOutputFull(
+		toolName: String,
+		args: [String: Any]?,
+		result: Any?,
+		error: String?
+	) -> String {
+		if let error, !error.isEmpty {
+			return sanitizeFull("Failed: \(error)")
+		}
+
+		guard let result else { return "Done." }
+
+		if let array = result as? [Any] {
+			return "Returned \(array.count) item(s)."
+		}
+
+		if let str = result as? String {
+			return sanitizeFull(str)
+		}
+
+		if let num = result as? Double {
+			if num == num.rounded() && abs(num) < 1e15 {
+				return String(Int(num))
+			}
+			return String(num)
+		}
+
+		if let bool = result as? Bool {
+			return bool ? "Done." : "No result."
+		}
+
+		if let dict = result as? [String: Any] {
+			if let err = dict["error"] as? String, !err.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+				return sanitizeFull("Error: \(err)")
+			}
+			for key in ["events", "calendars", "items", "results", "data", "tasks", "emails", "users", "labels", "files", "contacts", "messages", "notes", "records", "entries"] {
+				if let array = dict[key] as? [Any] {
+					let singular = key.hasSuffix("s") ? String(key.dropLast()) : key
+					return array.isEmpty ? "No \(key) found." : "Found \(array.count) \(singular)(s)."
+				}
+			}
+			for key in ["message", "summary", "text", "content", "description", "name", "title", "subject"] {
+				if let val = dict[key] as? String, !val.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+					return sanitizeFull(val)
+				}
+			}
+			if let success = dict["success"] as? Bool, success {
+				return "Done."
+			}
+		}
+
+		return "Done."
+	}
+
 	static func formatToolCallHeader(
 		toolName: String,
 		args: [String: Any]?,

@@ -21,6 +21,7 @@ struct TranscriptViewTests {
 					cacheHit: false,
 					durationMs: 1500,
 					toolRuns: nil,
+					fullBody: nil,
 				)),
 			],
 			userTurnIndex: 0,
@@ -40,6 +41,7 @@ struct TranscriptViewTests {
 			cacheHit: false,
 			durationMs: 1500,
 			toolRuns: nil,
+			fullBody: nil,
 		))))
 	}
 
@@ -58,6 +60,7 @@ struct TranscriptViewTests {
 				cacheHit: false,
 				durationMs: 1200,
 				toolRuns: nil,
+				fullBody: nil,
 			)),
 			.assistant(text: "You have 5 unread emails."),
 		]
@@ -88,6 +91,7 @@ struct TranscriptViewTests {
 				cacheHit: nil,
 				durationMs: nil,
 				toolRuns: nil,
+				fullBody: nil,
 			)),
 		]
 
@@ -112,6 +116,7 @@ struct TranscriptViewTests {
 			cacheHit: nil,
 			durationMs: nil,
 			toolRuns: nil,
+			fullBody: nil,
 		)
 		#expect(TranscriptGrouping.isWorkEntry(.boxedStep(payload)))
 	}
@@ -129,6 +134,7 @@ struct TranscriptViewTests {
 			cacheHit: nil,
 			durationMs: nil,
 			toolRuns: nil,
+			fullBody: nil,
 		)
 		#expect(TranscriptGrouping.isWorkEntry(.boxedStep(payload)))
 	}
@@ -146,6 +152,7 @@ struct TranscriptViewTests {
 			cacheHit: nil,
 			durationMs: nil,
 			toolRuns: nil,
+			fullBody: nil,
 		)
 		#expect(!TranscriptGrouping.isWorkEntry(.boxedStep(payload)))
 	}
@@ -174,6 +181,7 @@ struct TranscriptViewTests {
 					cacheHit: false,
 					durationMs: 1500,
 					toolRuns: nil,
+					fullBody: nil,
 				)),
 			],
 			userTurnIndex: 0,
@@ -201,9 +209,10 @@ struct TranscriptViewTests {
 					cacheHit: nil,
 					durationMs: nil,
 					toolRuns: [
-						ToolRunEntry(blockKey: "a", header: "Search emails", body: "Found 1.", cacheHit: false, durationMs: 100),
-						ToolRunEntry(blockKey: "b", header: "Search emails", body: "Found 2.", cacheHit: false, durationMs: 200),
+						ToolRunEntry(blockKey: "a", header: "Search emails", body: "Found 1.", cacheHit: false, durationMs: 100, fullBody: nil),
+						ToolRunEntry(blockKey: "b", header: "Search emails", body: "Found 2.", cacheHit: false, durationMs: 200, fullBody: nil),
 					],
+					fullBody: nil,
 				)),
 			],
 			userTurnIndex: 0,

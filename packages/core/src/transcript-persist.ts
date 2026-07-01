@@ -46,7 +46,9 @@ type BoxedStepPayload = {
 		readonly body: string;
 		readonly cacheHit?: boolean;
 		readonly durationMs?: number;
+		readonly fullBody?: string;
 	}[];
+	readonly fullBody?: string;
 };
 
 /** Serialize a transcript entry for SQLite (`kind` + `text` columns). */
@@ -69,6 +71,7 @@ export function serializeTranscriptEntry(e: TranscriptEntry): {
 			...(e.cacheHit !== undefined ? { cacheHit: e.cacheHit } : {}),
 			...(e.durationMs !== undefined ? { durationMs: e.durationMs } : {}),
 			...(e.toolRuns !== undefined ? { toolRuns: e.toolRuns } : {}),
+			...(e.fullBody !== undefined ? { fullBody: e.fullBody } : {}),
 		};
 		return { kind: "boxed_step", text: JSON.stringify(payload) };
 	}
@@ -153,6 +156,7 @@ export function deserializeTranscriptRow(row: {
 					...(typeof p.durationMs === "number" && Number.isFinite(p.durationMs)
 						? { durationMs: Math.max(0, p.durationMs) }
 						: {}),
+					...(typeof p.fullBody === "string" ? { fullBody: p.fullBody } : {}),
 					...(Array.isArray(p.toolRuns)
 						? {
 								toolRuns: p.toolRuns
@@ -165,6 +169,7 @@ export function deserializeTranscriptRow(row: {
 											body: string;
 											cacheHit?: boolean;
 											durationMs?: number;
+											fullBody?: string;
 										} =>
 											typeof run?.blockKey === "string" &&
 											run.blockKey.length > 0 &&
@@ -174,7 +179,9 @@ export function deserializeTranscriptRow(row: {
 												typeof run.cacheHit === "boolean") &&
 											(run.durationMs === undefined ||
 												(typeof run.durationMs === "number" &&
-													Number.isFinite(run.durationMs))),
+													Number.isFinite(run.durationMs))) &&
+											(run.fullBody === undefined ||
+												typeof run.fullBody === "string"),
 									)
 									.map((run) => ({
 										blockKey: run.blockKey,
@@ -186,6 +193,9 @@ export function deserializeTranscriptRow(row: {
 										...(typeof run.durationMs === "number" &&
 										Number.isFinite(run.durationMs)
 											? { durationMs: Math.max(0, run.durationMs) }
+											: {}),
+										...(typeof run.fullBody === "string"
+											? { fullBody: run.fullBody }
 											: {}),
 									})),
 							}

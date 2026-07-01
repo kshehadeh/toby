@@ -21,6 +21,10 @@ function sanitizeOneLine(s: string, maxLen = 200): string {
 	return s.replace(/\r?\n/g, " ").trim().slice(0, maxLen);
 }
 
+function sanitizeFull(s: string, maxLen = 10000): string {
+	return s.trim().slice(0, maxLen);
+}
+
 function defaultToolFeedbackOutput(ctx: ToolFeedbackFormatContext): string {
 	if (ctx.error !== undefined) {
 		const msg =
@@ -176,6 +180,163 @@ export function formatToolFeedbackOutput(
 		}
 	}
 	return defaultToolFeedbackOutput(ctx);
+}
+
+function defaultToolFeedbackOutputFull(ctx: ToolFeedbackFormatContext): string {
+	if (ctx.error !== undefined) {
+		const msg =
+			ctx.error instanceof Error ? ctx.error.message : String(ctx.error);
+		return sanitizeFull(`Failed: ${msg}`);
+	}
+	const r = ctx.result;
+	if (Array.isArray(r)) {
+		return `Returned ${r.length} item(s).`;
+	}
+	if (typeof r === "string") {
+		return sanitizeFull(r);
+	}
+	if (typeof r === "number") {
+		return String(r);
+	}
+	if (typeof r === "boolean") {
+		return r ? "Done." : "No result.";
+	}
+	if (r && typeof r === "object") {
+		const o = r as Record<string, unknown>;
+		if (typeof o.error === "string" && o.error.trim().length > 0) {
+			return sanitizeFull(`Error: ${o.error}`);
+		}
+		if (Array.isArray(o.tasks)) {
+			return `Found ${o.tasks.length} item(s).`;
+		}
+		if (Array.isArray(o.emails)) {
+			return `Found ${o.emails.length} email(s).`;
+		}
+		if (Array.isArray(o.users)) {
+			return `Found ${o.users.length} user(s).`;
+		}
+		if (Array.isArray(o.messageSummaries)) {
+			const n = o.messageSummaries.length;
+			const est = o.resultSizeEstimate;
+			const more = o.hasMorePages === true ? " More pages available." : "";
+			if (typeof est === "number" && est >= 0) {
+				return sanitizeFull(
+					`Inbox: ${n} on this page, ~${est} match(es).${more}`,
+				);
+			}
+			return sanitizeFull(`Inbox: ${n} message(s) on this page.${more}`);
+		}
+		if (Array.isArray(o.labels)) {
+			return `Found ${o.labels.length} label(s).`;
+		}
+		if (Array.isArray(o.events)) {
+			return o.events.length === 0
+				? "No events found."
+				: `Found ${o.events.length} event(s).`;
+		}
+		if (Array.isArray(o.calendars)) {
+			return o.calendars.length === 0
+				? "No calendars found."
+				: `Found ${o.calendars.length} calendar(s).`;
+		}
+		if (Array.isArray(o.items)) {
+			return o.items.length === 0
+				? "No items found."
+				: `Found ${o.items.length} item(s).`;
+		}
+		if (Array.isArray(o.results)) {
+			return o.results.length === 0
+				? "No results found."
+				: `Found ${o.results.length} result(s).`;
+		}
+		if (Array.isArray(o.data)) {
+			return o.data.length === 0
+				? "No data found."
+				: `Found ${o.data.length} item(s).`;
+		}
+		if (Array.isArray(o.files)) {
+			return o.files.length === 0
+				? "No files found."
+				: `Found ${o.files.length} file(s).`;
+		}
+		if (Array.isArray(o.contacts)) {
+			return o.contacts.length === 0
+				? "No contacts found."
+				: `Found ${o.contacts.length} contact(s).`;
+		}
+		if (Array.isArray(o.messages)) {
+			return o.messages.length === 0
+				? "No messages found."
+				: `Found ${o.messages.length} message(s).`;
+		}
+		if (Array.isArray(o.notes)) {
+			return o.notes.length === 0
+				? "No notes found."
+				: `Found ${o.notes.length} note(s).`;
+		}
+		if (Array.isArray(o.records)) {
+			return o.records.length === 0
+				? "No records found."
+				: `Found ${o.records.length} record(s).`;
+		}
+		if (Array.isArray(o.entries)) {
+			return o.entries.length === 0
+				? "No entries found."
+				: `Found ${o.entries.length} entry(s).`;
+		}
+		if (typeof o.message === "string" && o.message.trim().length > 0) {
+			return sanitizeFull(o.message);
+		}
+		if (typeof o.summary === "string" && o.summary.trim().length > 0) {
+			return sanitizeFull(o.summary);
+		}
+		if (typeof o.text === "string" && o.text.trim().length > 0) {
+			return sanitizeFull(o.text);
+		}
+		if (typeof o.content === "string" && o.content.trim().length > 0) {
+			return sanitizeFull(o.content);
+		}
+		if (typeof o.description === "string" && o.description.trim().length > 0) {
+			return sanitizeFull(o.description);
+		}
+		if (typeof o.name === "string" && o.name.trim().length > 0) {
+			return sanitizeFull(o.name);
+		}
+		if (typeof o.title === "string" && o.title.trim().length > 0) {
+			return sanitizeFull(o.title);
+		}
+		if (typeof o.subject === "string" && o.subject.trim().length > 0) {
+			return sanitizeFull(o.subject);
+		}
+		if (o.success === true) {
+			return "Done.";
+		}
+		if (o.dryRun === true && typeof o.message === "string") {
+			return sanitizeFull(o.message);
+		}
+	}
+	if (r === undefined || r === null) {
+		return "Done.";
+	}
+	return "Done.";
+}
+
+/** Full (untruncated) transcript line for tool output. */
+export function formatToolFeedbackOutputFull(
+	ctx: ToolFeedbackFormatContext,
+): string {
+	const fn = registry.get(ctx.toolName);
+	if (fn) {
+		try {
+			const out = fn(ctx);
+			if (typeof out === "string" && out.trim().length > 0) {
+				return sanitizeFull(out);
+			}
+		} catch {
+			// fall through to default
+		}
+	}
+	return defaultToolFeedbackOutputFull(ctx);
 }
 
 function registerBuiltInToolFeedbackFormatters(): void {

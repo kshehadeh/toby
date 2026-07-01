@@ -16,6 +16,7 @@ struct WorkStep: Identifiable {
 	let type: WorkStepType
 	let title: String
 	let body: String
+	let fullBody: String?
 	let durationMs: Int?
 	let isActive: Bool
 	let cacheHit: Bool?
@@ -61,6 +62,7 @@ private func rawWorkSteps(from group: TranscriptWorkGroup) -> [WorkStep] {
 				type: .toolCall,
 				title: displayTitle,
 				body: pairBody,
+				fullBody: nil,
 				durationMs: nil,
 				isActive: isActive,
 				cacheHit: nil,
@@ -77,6 +79,7 @@ private func rawWorkSteps(from group: TranscriptWorkGroup) -> [WorkStep] {
 				type: .meta,
 				title: "Info",
 				body: text,
+				fullBody: nil,
 				durationMs: nil,
 				isActive: false,
 				cacheHit: nil,
@@ -125,6 +128,7 @@ private func makeBoxedStepWorkStep(
 				type: .tool,
 				title: run.header,
 				body: run.body,
+				fullBody: run.fullBody,
 				durationMs: run.durationMs,
 				isActive: false,
 				cacheHit: run.cacheHit,
@@ -144,6 +148,7 @@ private func makeBoxedStepWorkStep(
 		type: stepType,
 		title: title,
 		body: payload.body,
+		fullBody: payload.fullBody,
 		durationMs: payload.durationMs,
 		isActive: isActive,
 		cacheHit: payload.cacheHit,
@@ -181,6 +186,7 @@ private func aggregateConsecutiveToolSteps(_ steps: [WorkStep]) -> [WorkStep] {
 				type: first.type,
 				title: first.title,
 				body: "",
+				fullBody: nil,
 				durationMs: totalDurationMs > 0 ? totalDurationMs : nil,
 				isActive: isActive,
 				cacheHit: nil,
@@ -219,6 +225,7 @@ private func childWorkStep(from step: WorkStep) -> WorkStep {
 		type: step.type,
 		title: step.title,
 		body: step.body,
+		fullBody: step.fullBody,
 		durationMs: step.durationMs,
 		isActive: step.isActive,
 		cacheHit: step.cacheHit,
@@ -365,21 +372,26 @@ struct WorkStepExpandedBody: View {
 struct WorkStepBodyText: View {
 	let step: WorkStep
 
+	private var displayText: String {
+		step.fullBody ?? step.body
+	}
+
 	var body: some View {
 		if step.type == .assistantInterim {
 			MarkdownText(
-				text: step.body,
+				text: displayText,
 				font: AppTheme.transcriptCaptionFont,
 				foregroundStyle: AppTheme.tertiaryText,
 			)
 			.frame(maxWidth: .infinity, alignment: .leading)
 		} else {
-			Text(step.body)
+			Text(displayText)
 				.font(AppTheme.transcriptCaptionFont)
 				.tracking(AppTheme.transcriptTracking)
 				.lineSpacing(AppTheme.transcriptLineSpacing)
 				.foregroundStyle(AppTheme.tertiaryText)
 				.frame(maxWidth: .infinity, alignment: .leading)
+				.textSelection(.enabled)
 		}
 	}
 }

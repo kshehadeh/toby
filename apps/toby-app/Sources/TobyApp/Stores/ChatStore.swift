@@ -665,6 +665,18 @@ final class ChatStore {
 						error: errorString,
 					)
 				}
+				let fullBody: String?
+				if event.cacheHit == true {
+					fullBody = nil
+				} else {
+					let full = ToolDisplayLabels.formatToolOutputFull(
+						toolName: toolName,
+						args: args,
+						result: event.result?.value,
+						error: errorString,
+					)
+					fullBody = full != body ? full : nil
+				}
 				let header = ToolDisplayLabels.formatToolCallHeader(
 					toolName: toolName,
 					args: args,
@@ -674,6 +686,7 @@ final class ChatStore {
 					id: event.blockKey ?? event.id ?? UUID().uuidString,
 					header: header,
 					body: body,
+					fullBody: fullBody,
 					toolName: toolName,
 					integrationLabel: event.integrationLabel,
 					cacheHit: event.cacheHit,
@@ -713,6 +726,7 @@ final class ChatStore {
 					cacheHit: nil,
 					durationMs: nil,
 					toolRuns: nil,
+					fullBody: nil,
 				),
 			),
 		)
@@ -732,6 +746,7 @@ final class ChatStore {
 				cacheHit: current.cacheHit,
 				durationMs: current.durationMs,
 				toolRuns: current.toolRuns,
+				fullBody: current.fullBody,
 			)
 		}
 	}
@@ -751,6 +766,7 @@ final class ChatStore {
 				cacheHit: current.cacheHit,
 				durationMs: current.durationMs,
 				toolRuns: current.toolRuns,
+				fullBody: current.fullBody,
 			)
 		}
 	}
@@ -759,6 +775,7 @@ final class ChatStore {
 		id: String,
 		header: String,
 		body: String,
+		fullBody: String? = nil,
 		toolName: String,
 		integrationLabel: String?,
 		cacheHit: Bool?,
@@ -777,6 +794,7 @@ final class ChatStore {
 					cacheHit: cacheHit,
 					durationMs: durationMs,
 					toolRuns: nil,
+					fullBody: fullBody,
 				),
 			),
 		)
@@ -786,6 +804,7 @@ final class ChatStore {
 		id: String,
 		header: String,
 		body: String,
+		fullBody: String? = nil,
 		toolName: String,
 		integrationLabel: String?,
 		cacheHit: Bool?,
@@ -803,6 +822,7 @@ final class ChatStore {
 				cacheHit: cacheHit,
 				durationMs: durationMs,
 				toolRuns: nil,
+				fullBody: fullBody,
 			)
 		}
 		if !replaced {
@@ -810,6 +830,7 @@ final class ChatStore {
 				id: id,
 				header: header,
 				body: body,
+				fullBody: fullBody,
 				toolName: toolName,
 				integrationLabel: integrationLabel,
 				cacheHit: cacheHit,
@@ -854,6 +875,7 @@ final class ChatStore {
 					cacheHit: nil,
 					durationMs: nil,
 					toolRuns: nil,
+					fullBody: nil,
 				),
 			),
 		)

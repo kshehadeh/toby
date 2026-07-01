@@ -7,6 +7,8 @@ export type ToolRunEntry = {
 	readonly cacheHit?: boolean;
 	/** Elapsed time for this run in milliseconds, when known. */
 	readonly durationMs?: number;
+	/** Full untruncated output, when it differs from `body`. */
+	readonly fullBody?: string;
 };
 
 export type TranscriptEntry =
@@ -42,6 +44,8 @@ export type TranscriptEntry =
 			readonly durationMs?: number;
 			/** Optional grouped runs for consecutive calls to the same tool. */
 			readonly toolRuns?: readonly ToolRunEntry[];
+			/** Full untruncated output, when it differs from `body`. */
+			readonly fullBody?: string;
 	  }
 	| {
 			readonly kind: "tool_call";

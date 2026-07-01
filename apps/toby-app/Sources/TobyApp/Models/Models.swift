@@ -485,6 +485,7 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 		case integrationLabel
 		case cacheHit
 		case toolRuns
+		case fullBody
 		case blockKey
 		case title
 		case detail
@@ -525,6 +526,7 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 					cacheHit: try container.decodeIfPresent(Bool.self, forKey: .cacheHit),
 					durationMs: try container.decodeIfPresent(Int.self, forKey: .durationMs),
 					toolRuns: try container.decodeIfPresent([ToolRunEntry].self, forKey: .toolRuns),
+					fullBody: try container.decodeIfPresent(String.self, forKey: .fullBody),
 				),
 			)
 		case "tool_call":
@@ -560,6 +562,7 @@ struct ToolRunEntry: Decodable, Equatable, Identifiable {
 	let body: String
 	let cacheHit: Bool?
 	let durationMs: Int?
+	let fullBody: String?
 
 	var id: String { blockKey }
 }
@@ -575,6 +578,7 @@ struct BoxedStepPayload: Equatable {
 	let cacheHit: Bool?
 	let durationMs: Int?
 	let toolRuns: [ToolRunEntry]?
+	let fullBody: String?
 }
 
 struct ChatEventPayload: Decodable {
