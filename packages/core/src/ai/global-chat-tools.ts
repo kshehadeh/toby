@@ -18,8 +18,9 @@ import {
 	parseSkillFrontmatterAndBody,
 	resolveSkillsByNames,
 } from "../skills/index";
-import { createModelForPersona } from "./chat";
+import { createModelForPersona, formatChatModelError } from "./chat";
 import { getCurrentDateTimeInfo } from "./current-datetime";
+import { log } from "../logging/chat-log";
 import {
 	createListenChatTools,
 	listenChatToolsPromptSection,
@@ -320,7 +321,12 @@ ${params.description.trim()}${existing}`,
 			maxOutputTokens: 8192,
 		});
 		return result.output ?? null;
-	} catch {
+	} catch (error) {
+		log("warn", "tool", "skill_draft_failed", {
+			persona: params.persona.name,
+			model: `${params.persona.ai.provider}/${params.persona.ai.model}`,
+			error: formatChatModelError(error),
+		});
 		return null;
 	}
 }
