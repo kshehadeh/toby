@@ -59,4 +59,57 @@ struct DaemonBootstrapTests {
 			)
 		)
 	}
+
+	@Test("restart candidates prefer current directory toby")
+	func restartCandidatesPreferCurrentDirectory() {
+		let current = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+			.appendingPathComponent("toby")
+
+		#expect(DaemonBootstrap.executableCandidates(preferCurrentDirectory: true).first == current)
+	}
+
+	@Test("restart candidates include current directory dist toby")
+	func restartCandidatesIncludeCurrentDirectoryDistToby() {
+		let dist = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+			.appendingPathComponent("dist/toby")
+
+		let candidates = DaemonBootstrap.executableCandidates(preferCurrentDirectory: true)
+		#expect(candidates.contains(dist))
+		#expect(candidates.firstIndex(of: dist)! < candidates.firstIndex(of: URL(fileURLWithPath: "/opt/homebrew/bin/toby"))!)
+	}
+
+	@Test("default candidates do not prepend current directory toby")
+	func defaultCandidatesDoNotPrependCurrentDirectory() {
+		let current = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+			.appendingPathComponent("toby")
+
+		#expect(DaemonBootstrap.executableCandidates(preferCurrentDirectory: false).first != current)
+	}
+
+	@Test("dev restart commands prefer bun source cli")
+	func devRestartCommandsPreferBunSourceCli() throws {
+		let commands = DaemonBootstrap.daemonStartCommands(preferDevSource: true)
+		let command = try #require(commands.first)
+
+		#expect(command.arguments.contains("daemon"))
+		#expect(command.arguments.contains("start"))
+		#expect(command.arguments.contains { $0.hasSuffix("apps/cli/src/cli.ts") })
+		#expect(command.currentDirectoryURL?.appendingPathComponent("apps/cli/src/cli.ts").path(percentEncoded: false) == command.arguments.first { $0.hasSuffix("apps/cli/src/cli.ts") })
+	}
+
+	@Test("dev start commands do not use env bun fallback")
+	func devStartCommandsDoNotUseEnvBunFallback() {
+		let commands = DaemonBootstrap.daemonStartCommands(preferDevSource: true)
+
+		#expect(!commands.contains { $0.executableURL.path == "/usr/bin/env" && $0.arguments.first == "bun" })
+	}
+
+	@Test("default restart commands use compiled cli")
+	func defaultRestartCommandsUseCompiledCli() throws {
+		let commands = DaemonBootstrap.daemonStartCommands(preferDevSource: false)
+		let command = try #require(commands.first)
+
+		#expect(command.arguments == ["daemon", "start"])
+		#expect(command.currentDirectoryURL == nil)
+	}
 }

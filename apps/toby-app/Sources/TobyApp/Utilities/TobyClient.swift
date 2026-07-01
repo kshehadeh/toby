@@ -40,12 +40,7 @@ struct TobyClient {
 	}
 
 	func restartDaemon() async throws {
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/daemon/restart"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = Data("{}".utf8)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
+		try await DaemonBootstrap.restartServer(baseURL: baseURL)
 	}
 
 	func listSessions(limit: Int = 20) async throws -> [SessionSummary] {

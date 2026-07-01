@@ -10,7 +10,7 @@ enum DaemonBootstrapError: LocalizedError {
 	var errorDescription: String? {
 		switch self {
 		case .tobyExecutableNotFound:
-			return "Toby server is not running, and the `toby` command could not be found. Install Toby or set TOBY_CLI to the CLI path."
+			return "Toby server is not running, and neither the Toby CLI nor a Bun source CLI could be found. Install Toby or set TOBY_CLI to the CLI path."
 		case .startFailed(let message):
 			return "Failed to start Toby server: \(message)"
 		case .serverUnavailable:
@@ -23,7 +23,21 @@ enum DaemonBootstrapError: LocalizedError {
 	}
 }
 
+struct DaemonStartCommand: Equatable {
+	let executableURL: URL
+	let arguments: [String]
+	let currentDirectoryURL: URL?
+}
+
 enum DaemonBootstrap {
+	static func restartServer(baseURL: URL) async throws {
+		try await requestDaemonStop(baseURL: baseURL)
+		try await waitForServerUnavailable(baseURL: baseURL, timeout: 6)
+		let command = try resolveDaemonStartCommand(preferDevSource: true)
+		try await runDaemonStart(command: command)
+		try await waitForServerAvailable(baseURL: baseURL, timeout: 10, error: .restartUnavailable)
+	}
+
 	static func ensureServerAvailable(baseURL: URL) async throws {
 		if let bundledExecutable = bundledTobyExecutable() {
 			try await ensureBundledServerAvailable(
@@ -37,8 +51,8 @@ enum DaemonBootstrap {
 			return
 		}
 
-		let executable = try resolveTobyExecutable()
-		try await runDaemonStart(executable: executable)
+		let command = try resolveDaemonStartCommand(preferDevSource: true)
+		try await runDaemonStart(command: command)
 
 		try await waitForServerAvailable(baseURL: baseURL, timeout: 6, error: .serverUnavailable)
 	}
@@ -112,7 +126,7 @@ enum DaemonBootstrap {
 		bundledExecutable: URL,
 	) async throws {
 		guard await isServerAvailable(baseURL: baseURL) else {
-			try await runDaemonStart(executable: bundledExecutable)
+			try await runDaemonStart(command: compiledDaemonStartCommand(executable: bundledExecutable))
 			try await waitForServerAvailable(baseURL: baseURL, timeout: 6, error: .serverUnavailable)
 			return
 		}
@@ -129,7 +143,7 @@ enum DaemonBootstrap {
 
 		try await requestDaemonStop(baseURL: baseURL)
 		try await waitForServerUnavailable(baseURL: baseURL, timeout: 6)
-		try await runDaemonStart(executable: bundledExecutable)
+		try await runDaemonStart(command: compiledDaemonStartCommand(executable: bundledExecutable))
 		try await waitForServerAvailable(baseURL: baseURL, timeout: 10, error: .serverUnavailable)
 	}
 
@@ -198,11 +212,12 @@ enum DaemonBootstrap {
 		throw DaemonBootstrapError.stopUnavailable
 	}
 
-	private static func runDaemonStart(executable: URL) async throws {
+	private static func runDaemonStart(command: DaemonStartCommand) async throws {
 		try await Task.detached(priority: .userInitiated) {
 			let process = Process()
-			process.executableURL = executable
-			process.arguments = ["daemon", "start"]
+			process.executableURL = command.executableURL
+			process.arguments = command.arguments
+			process.currentDirectoryURL = command.currentDirectoryURL
 
 			let outputPipe = Pipe()
 			process.standardOutput = outputPipe
@@ -220,28 +235,35 @@ enum DaemonBootstrap {
 		}.value
 	}
 
-	private static func resolveTobyExecutable() throws -> URL {
-		for candidate in executableCandidates() {
-			if FileManager.default.isExecutableFile(atPath: candidate.path) {
-				return candidate
+	static func daemonStartCommands(preferDevSource: Bool = false) -> [DaemonStartCommand] {
+		var commands: [DaemonStartCommand] = []
+
+		if preferDevSource {
+			for repoRoot in devRepoRootCandidates() {
+				commands.append(contentsOf: sourceDaemonStartCommands(repoRoot: repoRoot))
 			}
 		}
-		throw DaemonBootstrapError.tobyExecutableNotFound
+
+		commands.append(
+			contentsOf: executableCandidates(preferCurrentDirectory: preferDevSource)
+				.map(compiledDaemonStartCommand)
+		)
+
+		return commands.uniquedBySignature()
 	}
 
-	private static func bundledTobyExecutable() -> URL? {
-		guard let resourceURL = Bundle.main.resourceURL else { return nil }
-		let candidate = resourceURL.appendingPathComponent("toby")
-		return FileManager.default.isExecutableFile(atPath: candidate.path) ? candidate : nil
-	}
-
-	private static func bundledAppVersion() -> String? {
-		Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-	}
-
-	private static func executableCandidates() -> [URL] {
+	static func executableCandidates(preferCurrentDirectory: Bool = false) -> [URL] {
 		let home = FileManager.default.homeDirectoryForCurrentUser
 		var candidates: [URL] = []
+
+		if preferCurrentDirectory {
+			let currentDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+			candidates.append(currentDirectory.appendingPathComponent("toby"))
+			candidates.append(currentDirectory.appendingPathComponent("dist/toby"))
+			if let devDistCli = devDistTobyExecutable() {
+				candidates.append(devDistCli)
+			}
+		}
 
 		if let explicit = ProcessInfo.processInfo.environment["TOBY_CLI"]?.trimmingCharacters(in: .whitespacesAndNewlines), !explicit.isEmpty {
 			candidates.append(URL(fileURLWithPath: explicit))
@@ -263,6 +285,124 @@ enum DaemonBootstrap {
 
 		return candidates.uniquedByPath()
 	}
+
+	private static func resolveDaemonStartCommand(preferDevSource: Bool) throws -> DaemonStartCommand {
+		for command in daemonStartCommands(preferDevSource: preferDevSource) {
+			if FileManager.default.isExecutableFile(atPath: command.executableURL.path) {
+				return command
+			}
+		}
+		throw DaemonBootstrapError.tobyExecutableNotFound
+	}
+
+	private static func compiledDaemonStartCommand(executable: URL) -> DaemonStartCommand {
+		DaemonStartCommand(
+			executableURL: executable,
+			arguments: ["daemon", "start"],
+			currentDirectoryURL: nil
+		)
+	}
+
+	private static func sourceDaemonStartCommands(repoRoot: URL) -> [DaemonStartCommand] {
+		sourceCliCandidates(repoRoot: repoRoot).flatMap { cliURL in
+			bunExecutableCandidates(repoRoot: repoRoot).map { bunCandidate in
+				var arguments = bunCandidate.argumentPrefix
+				arguments.append(cliURL.path)
+				arguments.append(contentsOf: ["daemon", "start"])
+				return DaemonStartCommand(
+					executableURL: bunCandidate.executableURL,
+					arguments: arguments,
+					currentDirectoryURL: repoRoot
+				)
+			}
+		}
+	}
+
+	private static func sourceCliCandidates(repoRoot: URL) -> [URL] {
+		[
+			repoRoot.appendingPathComponent("apps/cli/cli.ts"),
+			repoRoot.appendingPathComponent("apps/cli/src/cli.ts"),
+		]
+		.filter { FileManager.default.fileExists(atPath: $0.path) }
+	}
+
+	private static func bunExecutableCandidates(repoRoot: URL) -> [BunExecutableCandidate] {
+		let home = FileManager.default.homeDirectoryForCurrentUser
+		var candidates: [BunExecutableCandidate] = []
+
+		if let explicit = ProcessInfo.processInfo.environment["TOBY_BUN_PATH"]?.trimmingCharacters(in: .whitespacesAndNewlines),
+			!explicit.isEmpty
+		{
+			candidates.append(BunExecutableCandidate(executableURL: URL(fileURLWithPath: explicit), argumentPrefix: []))
+		}
+
+		if let resourceURL = Bundle.main.resourceURL {
+			candidates.append(BunExecutableCandidate(executableURL: resourceURL.appendingPathComponent("bun"), argumentPrefix: []))
+		}
+
+		candidates.append(BunExecutableCandidate(executableURL: repoRoot.appendingPathComponent("dist/bun"), argumentPrefix: []))
+		candidates.append(BunExecutableCandidate(executableURL: home.appendingPathComponent(".bun/bin/bun"), argumentPrefix: []))
+		candidates.append(BunExecutableCandidate(executableURL: URL(fileURLWithPath: "/opt/homebrew/bin/bun"), argumentPrefix: []))
+		candidates.append(BunExecutableCandidate(executableURL: URL(fileURLWithPath: "/usr/local/bin/bun"), argumentPrefix: []))
+		candidates.append(contentsOf: pathExecutableCandidates(named: "bun").map {
+			BunExecutableCandidate(executableURL: $0, argumentPrefix: [])
+		})
+
+		return candidates.uniquedBySignature()
+	}
+
+	private static func pathExecutableCandidates(named executableName: String) -> [URL] {
+		let pathValue = ProcessInfo.processInfo.environment["PATH"] ?? ""
+		return pathValue
+			.split(separator: ":")
+			.map { URL(fileURLWithPath: String($0)).appendingPathComponent(executableName) }
+			.filter { FileManager.default.isExecutableFile(atPath: $0.path) }
+	}
+
+	private static func devRepoRootCandidates() -> [URL] {
+		var candidates: [URL] = []
+
+		var current = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+		for _ in 0 ..< 6 {
+			candidates.append(current)
+			let parent = current.deletingLastPathComponent()
+			if parent == current {
+				break
+			}
+			current = parent
+		}
+
+		let bundleParent = Bundle.main.bundleURL.standardizedFileURL.deletingLastPathComponent()
+		if bundleParent.lastPathComponent == "dist" {
+			candidates.append(bundleParent.deletingLastPathComponent())
+		}
+
+		return candidates.uniquedByPath()
+	}
+
+	private static func bundledTobyExecutable() -> URL? {
+		guard let resourceURL = Bundle.main.resourceURL else { return nil }
+		let candidate = resourceURL.appendingPathComponent("toby")
+		return FileManager.default.isExecutableFile(atPath: candidate.path) ? candidate : nil
+	}
+
+	private static func bundledAppVersion() -> String? {
+		Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+	}
+
+	private static func devDistTobyExecutable() -> URL? {
+		let parent = Bundle.main.bundleURL.standardizedFileURL.deletingLastPathComponent()
+		guard parent.lastPathComponent == "dist" else {
+			return nil
+		}
+		return parent.appendingPathComponent("toby")
+	}
+
+}
+
+private struct BunExecutableCandidate: Equatable {
+	let executableURL: URL
+	let argumentPrefix: [String]
 }
 
 private struct RunningServerInfo {
@@ -285,6 +425,30 @@ private extension Array where Element == URL {
 		var seen = Set<String>()
 		return filter { url in
 			seen.insert(url.standardizedFileURL.path).inserted
+		}
+	}
+}
+
+private extension Array where Element == BunExecutableCandidate {
+	func uniquedBySignature() -> [BunExecutableCandidate] {
+		var seen = Set<String>()
+		return filter { candidate in
+			let key = ([candidate.executableURL.standardizedFileURL.path] + candidate.argumentPrefix).joined(separator: "\u{0}")
+			return seen.insert(key).inserted
+		}
+	}
+}
+
+private extension Array where Element == DaemonStartCommand {
+	func uniquedBySignature() -> [DaemonStartCommand] {
+		var seen = Set<String>()
+		return filter { command in
+			let key = (
+				[command.executableURL.standardizedFileURL.path]
+					+ command.arguments
+					+ [command.currentDirectoryURL?.standardizedFileURL.path ?? ""]
+			).joined(separator: "\u{0}")
+			return seen.insert(key).inserted
 		}
 	}
 }
