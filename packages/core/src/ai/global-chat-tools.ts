@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Output, type Tool, generateText, tool, zodSchema } from "ai";
 import { z } from "zod";
+import type { ChatEventSink } from "../chat-pipeline/chat-events";
 import {
 	type Persona,
 	ensureTobyDir,
@@ -24,6 +25,7 @@ import {
 	listenChatToolsPromptSection,
 } from "./listen-chat-tools";
 import { createReflectTools, reflectToolsPromptSection } from "./reflect-tools";
+import { createSubAgentTool, subAgentPromptSection } from "./sub-agent-tool";
 import { createWebFetchTools } from "./web-fetch-tool";
 import {
 	createWebSearchGlobalTools,
@@ -74,6 +76,14 @@ type GlobalChatToolsContext = {
 	readonly appliedActions: string[];
 	/** Active project, used to scope `writeTextFile` into the project context. */
 	readonly project?: Project | null;
+	/** Abort signal from the parent turn, propagated to the sub-agent. */
+	readonly abortSignal?: AbortSignal;
+	/** Event sink for emitting sub-agent tool-call events to the UI. */
+	readonly emit?: ChatEventSink;
+	/** Sequence counter for event emission. */
+	readonly nextSeq?: () => number;
+	/** Session ID for log attribution. */
+	readonly sessionId?: string;
 };
 
 /** Text file extensions `writeTextFile` is allowed to create. */
@@ -240,6 +250,7 @@ ${skillsCatalog}
 
 ${listenChatToolsPromptSection()}
 ${reflectToolsPromptSection()}
+${subAgentPromptSection()}
 `;
 }
 
@@ -328,6 +339,15 @@ export function createGlobalChatTools(
 		...createWebSearchGlobalTools({
 			persona: ctx.persona,
 			dryRun: ctx.dryRun,
+			appliedActions: ctx.appliedActions,
+		}),
+		...createSubAgentTool({
+			persona: ctx.persona,
+			dryRun: ctx.dryRun,
+			abortSignal: ctx.abortSignal,
+			emit: ctx.emit,
+			nextSeq: ctx.nextSeq,
+			sessionId: ctx.sessionId,
 			appliedActions: ctx.appliedActions,
 		}),
 		getCurrentDateTime: tool({

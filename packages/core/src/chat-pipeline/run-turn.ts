@@ -12,7 +12,7 @@ import { log, logWithSession } from "../logging/chat-log";
 import { createMemoryTools } from "../memory/tools";
 import { injectCurrentDateTimeIntoFirstSystemMessage } from "../prepare-messages";
 import type { Project } from "../projects/index";
-import type { ChatEvent } from "./chat-events";
+import type { ChatEvent, ChatEventSink } from "./chat-events";
 import { loadIntegrationToolBundle } from "./tool-bundle-cache";
 
 export { clearSessionToolBundleCache } from "./tool-bundle-cache";
@@ -89,6 +89,7 @@ const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"tobyListIntegrations",
 	"tobyListTools",
 	"tobyListSkills",
+	"delegateToSubAgent",
 ]);
 
 export { ALWAYS_INCLUDED_TOOLS };
@@ -210,6 +211,10 @@ function mergeAuxiliaryChatTools(
 		readonly project?: Project | null;
 		readonly globalAppliedActions?: string[];
 		readonly memoryAppliedActions?: string[];
+		readonly abortSignal?: AbortSignal;
+		readonly emit?: ChatEventSink;
+		readonly nextSeq?: () => number;
+		readonly sessionId?: string;
 	},
 ): {
 	readonly mergedTools: Record<string, Tool>;
@@ -225,6 +230,10 @@ function mergeAuxiliaryChatTools(
 		persona: options.persona,
 		appliedActions: options.globalAppliedActions ?? [],
 		project: options.project ?? null,
+		abortSignal: options.abortSignal,
+		emit: options.emit,
+		nextSeq: options.nextSeq,
+		sessionId: options.sessionId,
 	});
 	Object.assign(mergedTools, globalTools);
 	for (const toolName of Object.keys(globalTools)) {
@@ -359,6 +368,16 @@ export async function runSharedChatTurn(
 	const globalAppliedSink: string[] = [];
 	const memoryAppliedSink: string[] = [];
 
+	// Sequence counter for sub-agent event emission.
+	let subAgentSeq = 0;
+	const subAgentNextSeq = () => {
+		subAgentSeq += 1;
+		return subAgentSeq;
+	};
+
+	const abortSignal = options.chatWithToolsOptions?.abortSignal;
+	const emit = options.chatWithToolsOptions?.onChatEvent;
+
 	let mergedTools: Record<string, Tool>;
 	let toolIntegrationLabels: Record<string, string>;
 
@@ -381,6 +400,10 @@ export async function runSharedChatTurn(
 				project: options.project ?? null,
 				globalAppliedActions: globalAppliedSink,
 				memoryAppliedActions: memoryAppliedSink,
+				abortSignal,
+				emit,
+				nextSeq: subAgentNextSeq,
+				sessionId: options.sessionId,
 			},
 		);
 		mergedTools = auxiliary.mergedTools;
@@ -403,6 +426,10 @@ export async function runSharedChatTurn(
 			project: options.project ?? null,
 			globalAppliedActions: globalAppliedSink,
 			memoryAppliedActions: memoryAppliedSink,
+			abortSignal,
+			emit,
+			nextSeq: subAgentNextSeq,
+			sessionId: options.sessionId,
 		});
 		mergedTools = auxiliary.mergedTools;
 		toolIntegrationLabels = auxiliary.toolIntegrationLabels;
