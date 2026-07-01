@@ -250,7 +250,7 @@ struct ExpandableWorkStepRow: View {
 	@State private var isExpanded = false
 
 	private var isExpandable: Bool {
-		!step.children.isEmpty || !step.body.isEmpty
+		!step.children.isEmpty || hasMoreBodyToShow(step)
 	}
 
 	private var icon: String? {
@@ -289,7 +289,7 @@ struct WorkStepHeader: View {
 	let icon: String?
 
 	private var isExpandable: Bool {
-		!step.children.isEmpty || !step.body.isEmpty
+		!step.children.isEmpty || hasMoreBodyToShow(step)
 	}
 
 	var body: some View {
@@ -438,4 +438,14 @@ func formatDurationMs(_ ms: Int) -> String {
 		return String(format: "%.1fs", seconds)
 	}
 	return String(format: "%.0fs", seconds)
+}
+
+func hasMoreBodyToShow(_ step: WorkStep) -> Bool {
+	if let fullBody = step.fullBody, fullBody != step.body {
+		return true
+	}
+	let body = step.body.trimmingCharacters(in: .whitespacesAndNewlines)
+	guard !body.isEmpty else { return false }
+	let lineCount = body.components(separatedBy: .newlines).count
+	return lineCount > 4 || body.count > 220
 }

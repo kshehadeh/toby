@@ -14,6 +14,14 @@ struct WorkedForRow: View {
 		workSteps(from: group)
 	}
 
+	private var toolStepCount: Int {
+		steps.filter { $0.type != .assistantInterim }.count
+	}
+
+	private var hasExpandableContent: Bool {
+		!steps.isEmpty || streamingAssistant != nil
+	}
+
 	var body: some View {
 		TimelineView(.periodic(from: .now, by: 1.0)) { context in
 			HStack(alignment: .top, spacing: 0) {
@@ -33,14 +41,14 @@ struct WorkedForRow: View {
 								.font(AppTheme.transcriptCaptionFont.weight(.medium))
 								.tracking(AppTheme.transcriptTracking)
 								.foregroundStyle(AppTheme.secondaryText)
-							if isExpanded, steps.count > 0 {
-								Text("· \(steps.count) steps")
+							if isExpanded, toolStepCount > 0 {
+								Text("· \(toolStepCount) step\(toolStepCount == 1 ? "" : "s")")
 									.font(AppTheme.transcriptCaptionFont)
 									.tracking(AppTheme.transcriptTracking)
 									.foregroundStyle(AppTheme.tertiaryText)
 							}
 							Spacer(minLength: 0)
-							if steps.count > 0 {
+							if hasExpandableContent {
 								Image(systemName: "chevron.right")
 									.font(AppTheme.transcriptCaptionFont.weight(.semibold))
 									.foregroundStyle(AppTheme.tertiaryText)
@@ -66,7 +74,11 @@ struct WorkedForRow: View {
 										.frame(height: 1)
 										.padding(.horizontal, 4)
 								}
-								WorkStepRow(step: step)
+								if step.type == .assistantInterim {
+									AssistantWorkMessageRow(step: step, personaImage: personaImage)
+								} else {
+									WorkStepRow(step: step)
+								}
 							}
 							if let streamingAssistant {
 								Rectangle()
@@ -125,5 +137,101 @@ struct WorkedForRow: View {
 
 	private func formatSeconds(_ interval: TimeInterval) -> String {
 		WorkDurationFormatter.format(interval)
+	}
+}
+
+private struct AssistantWorkMessageRow: View {
+	let step: WorkStep
+	var personaImage: URL?
+	@State private var isExpanded = false
+
+	private var messageBody: String {
+		step.fullBody ?? step.body
+	}
+
+	private var isExpandable: Bool {
+		hasMoreBodyToShow(step)
+	}
+
+	var body: some View {
+		Group {
+			if isExpandable {
+				Button {
+					withAnimation(.easeOut(duration: 0.2)) {
+						isExpanded.toggle()
+					}
+				} label: {
+					content
+				}
+				.buttonStyle(.plain)
+				.modifier(PointingHandOnHover())
+				.accessibilityLabel(isExpanded ? "Collapse assistant message" : "Expand assistant message")
+			} else {
+				content
+			}
+		}
+		.padding(.vertical, 8)
+	}
+
+	private var content: some View {
+		HStack(alignment: .top, spacing: 10) {
+			AssistantRailColumn(iconName: "sparkle", personaImage: personaImage)
+			VStack(alignment: .leading, spacing: 6) {
+				Text(step.title)
+					.font(AppTheme.transcriptCaptionFont.weight(.semibold))
+					.tracking(AppTheme.transcriptTracking)
+					.foregroundStyle(AppTheme.secondaryText)
+				MarkdownText(
+					text: messageBody,
+					font: AppTheme.transcriptBodyFont,
+					foregroundStyle: AppTheme.primaryText,
+				)
+				.lineLimit(isExpanded || !isExpandable ? nil : 4)
+				.fixedSize(horizontal: false, vertical: true)
+				.frame(maxWidth: .infinity, alignment: .leading)
+				if isExpandable {
+					HStack(spacing: 4) {
+						Text(isExpanded ? "Show less" : "Show more")
+						Image(systemName: "chevron.right")
+							.rotationEffect(.degrees(isExpanded ? -90 : 90))
+					}
+					.font(AppTheme.transcriptCaptionFont.weight(.medium))
+					.tracking(AppTheme.transcriptTracking)
+					.foregroundStyle(AppTheme.accent)
+					.padding(.top, 2)
+				}
+				if isExpanded || !isExpandable {
+					HStack {
+						CopyButton(text: messageBody, label: "Copy response")
+						Spacer(minLength: 0)
+					}
+					.padding(.top, 2)
+				}
+			}
+			.frame(maxWidth: .infinity, alignment: .leading)
+		}
+		.contentShape(Rectangle())
+	}
+}
+
+private struct PointingHandOnHover: ViewModifier {
+	@State private var isHovering = false
+
+	func body(content: Content) -> some View {
+		content
+			.onHover { hovering in
+				if hovering, !isHovering {
+					NSCursor.pointingHand.push()
+				} else if !hovering, isHovering {
+					NSCursor.pop()
+				}
+				isHovering = hovering
+			}
+			.onDisappear {
+				if isHovering {
+					NSCursor.pop()
+					isHovering = false
+				}
+			}
 	}
 }

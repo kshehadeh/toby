@@ -7,8 +7,34 @@ import ViewInspector
 @Suite("WorkedForRow")
 struct WorkedForRowTests {
 
-	@Test("WorkStepRow is a button when it has a body")
-	func workStepRowWithBodyIsAButton() throws {
+	@Test("WorkStepRow is a button when it has more body text to show")
+	func workStepRowWithLongBodyIsAButton() throws {
+		let step = WorkStep(
+			id: "tool-1",
+			type: .tool,
+			title: "Search memory",
+			body: """
+			Line 1
+			Line 2
+			Line 3
+			Line 4
+			Line 5
+			""",
+			fullBody: nil,
+			durationMs: 1500,
+			isActive: false,
+			cacheHit: false,
+			toolName: "memorySearch",
+			count: 1,
+			children: []
+		)
+		let view = WorkStepRow(step: step)
+		let button = try view.inspect().find(ViewType.Button.self)
+		#expect(try button.find(text: "Search memory").string() == "Search memory")
+	}
+
+	@Test("WorkStepRow is not a button when body fits in collapsed view")
+	func workStepRowWithShortBodyIsNotAButton() throws {
 		let step = WorkStep(
 			id: "tool-1",
 			type: .tool,
@@ -23,8 +49,9 @@ struct WorkedForRowTests {
 			children: []
 		)
 		let view = WorkStepRow(step: step)
-		let button = try view.inspect().find(ViewType.Button.self)
-		#expect(try button.find(text: "Search memory").string() == "Search memory")
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(ViewType.Button.self)
+		}
 	}
 
 	@Test("WorkStepRow is not a button when it has no body and no children")

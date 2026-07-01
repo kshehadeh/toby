@@ -286,4 +286,47 @@ struct TranscriptViewTests {
 		let steps = workSteps(from: group)
 		#expect(steps.count == 2)
 	}
+
+	@Test("workSteps assigns assistantInterim type for assistant_interim variant")
+	func workStepsAssistantInterimType() {
+		let group = TranscriptWorkGroup(
+			id: "work-0",
+			entries: [
+				.boxedStep(BoxedStepPayload(
+					id: "asst-1",
+					seq: 1,
+					variant: "assistant_interim",
+					header: "Toby",
+					body: "I'll search for that now.",
+					toolName: nil,
+					integrationLabel: nil,
+					cacheHit: nil,
+					durationMs: nil,
+					toolRuns: nil,
+					fullBody: nil,
+				)),
+				.boxedStep(BoxedStepPayload(
+					id: "tool-1",
+					seq: 2,
+					variant: "tool",
+					header: "Search memory",
+					body: "Found 3 item(s).",
+					toolName: "memorySearch",
+					integrationLabel: nil,
+					cacheHit: false,
+					durationMs: 1500,
+					toolRuns: nil,
+					fullBody: nil,
+				)),
+			],
+			userTurnIndex: 0,
+			durationMs: 2000,
+			isActive: false,
+		)
+		let steps = workSteps(from: group)
+		#expect(steps.count == 2)
+		#expect(steps[0].type == .assistantInterim)
+		#expect(steps[0].body == "I'll search for that now.")
+		#expect(steps[1].type == .tool)
+	}
 }
