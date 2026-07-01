@@ -10,5 +10,14 @@
 	},
 	"capabilities": ["chat"],
 	"providerCategories": ["system"],
-	"resources": ["wifi", "bluetooth", "battery", "audio", "powermode", "display", "clipboard", "focus"]
+	"resources": [
+		"wifi",
+		"bluetooth",
+		"battery",
+		"audio",
+		"powermode",
+		"display",
+		"clipboard",
+		"focus"
+	]
 }

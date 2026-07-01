@@ -58,8 +58,10 @@ function resolveTobyAppPath(): string | null {
 	const envPath = process.env.TOBY_APP_PATH;
 	if (envPath && fs.existsSync(envPath)) return envPath;
 
-	const devPath = path.join(home, "dev/karim/toby/dist/Toby.app");
-	if (fs.existsSync(devPath)) return devPath;
+	for (const devName of ["Toby (Dev).app", "Toby.app"]) {
+		const devPath = path.join(home, "dev/karim/toby/dist", devName);
+		if (fs.existsSync(devPath)) return devPath;
+	}
 
 	const installDir = path.join(home, ".local/bin/Toby.app");
 	if (fs.existsSync(installDir)) return installDir;

@@ -79,10 +79,12 @@ function resolveTobyAppPath(): string | null {
 	if (env && fs.existsSync(env)) return env;
 	const home = os.homedir();
 	const candidates = [
+		path.join(home, "dev/karim/toby/dist/Toby (Dev).app"),
 		path.join(home, "dev/karim/toby/dist/Toby.app"),
 		path.join(home, ".local/bin/Toby.app"),
 		"/Applications/Toby.app",
 		path.join(home, "Applications/Toby.app"),
+		path.join(process.cwd(), "dist/Toby (Dev).app"),
 		path.join(process.cwd(), "dist/Toby.app"),
 	];
 	for (const candidate of candidates) {

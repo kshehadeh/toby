@@ -34,6 +34,7 @@ function resolveInstallDir(): string {
 export function resolveBundledTobyAppSource(): string | null {
 	const candidates = [
 		path.join(resolveInstallDir(), "Toby.app"),
+		path.join(repoRoot, "dist/Toby (Dev).app"),
 		path.join(repoRoot, "dist/Toby.app"),
 	];
 	for (const candidate of candidates) {
