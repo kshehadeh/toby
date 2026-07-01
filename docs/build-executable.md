@@ -82,7 +82,8 @@ Release build steps:
    (runtime for bun-package plugins), the web UI, icons, and first-party
    plugins including `toby-plugin-sample-ts`, `toby-plugin-email`,
    `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`,
-   `toby-plugin-applecalendar`, and `toby-plugin-macos`.
+   `toby-plugin-applecalendar`, `toby-plugin-applereminders`, and
+   `toby-plugin-macos`.
 3. The workflow signs and notarizes `Toby.app`, then builds, notarizes, and
    staples the DMG.
 4. Sparkle generates a signed `appcast.xml` from the notarized DMG and publishes
@@ -131,7 +132,7 @@ Sparkle's EdDSA update signature is separate from code signing and
 notarization.
 
 Local `bun run build:release` builds `dist/toby`, `dist/bun`, `dist/Toby.app`,
-`dist/toby-plugin-sample-ts`, `dist/toby-plugin-azuread`, `dist/toby-plugin-email`, `dist/toby-plugin-todoist`, `dist/toby-plugin-jira`, `dist/toby-plugin-slack`, `dist/toby-plugin-applecalendar`, and `dist/toby-plugin-macos`. Verify staged artifacts with
+`dist/toby-plugin-sample-ts`, `dist/toby-plugin-azuread`, `dist/toby-plugin-email`, `dist/toby-plugin-todoist`, `dist/toby-plugin-jira`, `dist/toby-plugin-slack`, `dist/toby-plugin-applecalendar`, `dist/toby-plugin-applereminders`, and `dist/toby-plugin-macos`. Verify staged artifacts with
 `node scripts/verify-release-artifacts.mjs release-payload`.
 Use the GitHub release workflow for signed and notarized distribution artifacts.
 
@@ -162,7 +163,7 @@ Configuration is in [`.release-it.json`](../.release-it.json): publishing to the
 From the repo root, [`install-toby.sh`](../install-toby.sh) downloads the
 **latest matching macOS release archive** and installs the `toby` binary into
 **`~/.local/bin/toby`** (override with `TOBY_INSTALL_DIR`). The bundled `bun` runtime is placed under **`~/.toby/helpers/`**, and first-party plugins (`toby-plugin-sample-ts`, `toby-plugin-azuread`,
-`toby-plugin-email`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-applecalendar`, `toby-plugin-macos`) under **`~/.toby/plugins/`**, so only `toby` lands on your
+`toby-plugin-email`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-applecalendar`, `toby-plugin-applereminders`, `toby-plugin-macos`) under **`~/.toby/plugins/`**, so only `toby` lands on your
 `PATH`. It does not use `sudo`. The script then runs **`toby whisper setup`** to
 download the default transcription model into **`~/.toby/models/`**. If the install directory is not on `PATH`, the
 script prints how to add it for zsh, bash, or fish.

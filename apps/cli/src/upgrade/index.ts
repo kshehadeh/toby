@@ -126,6 +126,7 @@ export function getStagingPaths(): {
 	readonly pluginJiraPath: string;
 	readonly pluginEmailPath: string;
 	readonly pluginApplecalendarPath: string;
+	readonly pluginAppleremindersPath: string;
 	readonly pluginMacosPath: string;
 	readonly appPath: string;
 	readonly iconsPath: string;
@@ -144,6 +145,10 @@ export function getStagingPaths(): {
 		pluginJiraPath: path.join(stagingDir, "toby-plugin-jira"),
 		pluginEmailPath: path.join(stagingDir, "toby-plugin-email"),
 		pluginApplecalendarPath: path.join(stagingDir, "toby-plugin-applecalendar"),
+		pluginAppleremindersPath: path.join(
+			stagingDir,
+			"toby-plugin-applereminders",
+		),
 		pluginMacosPath: path.join(stagingDir, "toby-plugin-macos"),
 		appPath: path.join(stagingDir, "Toby.app"),
 		iconsPath: path.join(stagingDir, "icons"),
@@ -235,6 +240,7 @@ export async function downloadRelease(
 		pluginJiraPath,
 		pluginEmailPath,
 		pluginApplecalendarPath,
+		pluginAppleremindersPath,
 		pluginMacosPath,
 		archivePath,
 		manifestPath,
@@ -265,6 +271,9 @@ export async function downloadRelease(
 			() => undefined,
 		);
 		await rm(pluginApplecalendarPath, { force: true }).catch(() => undefined);
+		await rm(pluginAppleremindersPath, { recursive: true, force: true }).catch(
+			() => undefined,
+		);
 		await rm(pluginMacosPath, { recursive: true, force: true }).catch(
 			() => undefined,
 		);
@@ -468,6 +477,7 @@ export async function applyStagedRelease(
 		pluginJiraPath,
 		pluginEmailPath,
 		pluginApplecalendarPath,
+		pluginAppleremindersPath,
 		pluginMacosPath,
 	} = getStagingPaths();
 	options?.onProgress?.({ phase: "installing", detail: "plugins" });
@@ -484,6 +494,10 @@ export async function applyStagedRelease(
 	await installStagedPluginDirectory(
 		pluginApplecalendarPath,
 		"toby-plugin-applecalendar",
+	);
+	await installStagedPluginDirectory(
+		pluginAppleremindersPath,
+		"toby-plugin-applereminders",
 	);
 	await installStagedPluginDirectory(pluginMacosPath, "toby-plugin-macos");
 	await removeDeprecatedPluginBinaries();

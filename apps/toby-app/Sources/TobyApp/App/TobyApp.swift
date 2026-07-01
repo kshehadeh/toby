@@ -143,11 +143,11 @@ struct TobyApp: App {
 		// Only prompt for Calendar access if not already granted
 		if #available(macOS 14.0, *) {
 			if EKEventStore.authorizationStatus(for: .event) != .fullAccess {
-				_ = NativeCalendarHandler.requestAccess()
+				Task { _ = await NativeCalendarHandler.requestAccess() }
 			}
 		} else {
 			if EKEventStore.authorizationStatus(for: .event) != .authorized {
-				_ = NativeCalendarHandler.requestAccess()
+				Task { _ = await NativeCalendarHandler.requestAccess() }
 			}
 		}
 		// Don't prompt for Accessibility on launch - it's not persistent for

@@ -7,10 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const directory = path.resolve(process.argv[2] ?? "release-payload");
-const required = [
-	"toby",
-	"bun",
-];
+const required = ["toby", "bun"];
 
 const requiredDirs = [
 	"toby-plugin-sample-ts",
@@ -20,6 +17,7 @@ const requiredDirs = [
 	"toby-plugin-email",
 	"toby-plugin-macos",
 	"toby-plugin-applecalendar",
+	"toby-plugin-applereminders",
 ];
 
 const missing = [];
@@ -79,11 +77,7 @@ if (!fs.existsSync(tobyAppExecutable)) {
 
 // Verify self-contained app bundle has resources in Contents/Resources/
 const appResources = path.join(tobyApp, "Contents", "Resources");
-const appResourceChecks = [
-	"toby",
-	"bun",
-	"icons/ai/openai.png",
-];
+const appResourceChecks = ["toby", "bun", "icons/ai/openai.png"];
 for (const resource of appResourceChecks) {
 	const resourcePath = path.join(appResources, resource);
 	if (!fs.existsSync(resourcePath)) {

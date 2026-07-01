@@ -10,7 +10,8 @@ compiled binary or Swift plugins. The only native macOS code in this repository
 is the Toby.app itself (`apps/toby-app/`). When a plugin needs macOS framework
 access (EventKit, Shortcuts, system APIs, TCC-protected resources), the
 TypeScript plugin delegates those operations to Toby.app's native API server.
-See `toby-plugin-macos` and `toby-plugin-applecalendar` for reference.
+See `toby-plugin-macos`, `toby-plugin-applecalendar`, and
+`toby-plugin-applereminders` for reference.
 
 Toby remains the **source of truth** for configuration and connection state.
 Plugins receive the current config on each invocation and return JSON on stdout.
@@ -236,6 +237,7 @@ into `credentials.json` / `config.json`.
 | [`apps/plugin-jira/`](../apps/plugin-jira/) | TypeScript (bun-package) | `bun run build:plugin:jira` | No compilation needed; runs via Bun |
 | [`apps/plugin-slack/`](../apps/plugin-slack/) | TypeScript (bun-package) | `bun run build:plugin:slack` | Chat + inbound sidecar; OAuth; `@slack/bolt` |
 | [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) | TypeScript (bun-package) | `bun run build:plugin:applecalendar` | Delegates EventKit calendar operations to Toby.app native API |
+| [`apps/plugin-applereminders/`](../apps/plugin-applereminders/) | TypeScript (bun-package) | `bun run build:plugin:applereminders` | Delegates EventKit reminder operations to Toby.app native API |
 | [`apps/plugin-macos/`](../apps/plugin-macos/) | TypeScript (bun-package) | `bun run build:plugin:macos` | Delegates macOS system ops to Toby.app native API; optional `setup` subcommand |
 
 TypeScript plugins route argv in `src/cli.ts`; Swift plugins mirror the same argv
@@ -719,7 +721,7 @@ an unsupported protocol version.
 
 See the [reference implementations](#reference-implementations) table above.
 Release archives include the sample plugin plus first-party integrations
-(`toby-plugin-azuread`, `toby-plugin-email`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-applecalendar`, `toby-plugin-macos`);
+(`toby-plugin-azuread`, `toby-plugin-email`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-applecalendar`, `toby-plugin-applereminders`, `toby-plugin-macos`);
 `install-toby.sh` and `toby upgrade` install them into `~/.toby/plugins/`.
 
 ## Installing plugins

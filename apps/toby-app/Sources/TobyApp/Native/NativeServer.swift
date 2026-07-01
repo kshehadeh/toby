@@ -187,7 +187,7 @@ final class NativeServer {
 		case "/api/native/health":
 			return httpResponse(json: ["ok": true, "service": "toby-native"])
 		case "/api/native/calendar/request-access":
-			return wrapHandlerData(NativeCalendarHandler.requestAccess())
+			return wrapHandlerData(await NativeCalendarHandler.requestAccess())
 		case "/api/native/calendar/list":
 			return wrapHandlerData(await NativeCalendarHandler.listCalendars())
 		case "/api/native/calendar/search":
@@ -200,6 +200,22 @@ final class NativeServer {
 			return wrapHandlerData(await NativeCalendarHandler.updateEvent(body: request.body))
 		case "/api/native/calendar/delete":
 			return wrapHandlerData(await NativeCalendarHandler.deleteEvent(body: request.body))
+		case "/api/native/reminders/request-access":
+			return wrapHandlerData(await NativeAppleRemindersHandler.requestAccess())
+		case "/api/native/reminders/lists":
+			return wrapHandlerData(await NativeAppleRemindersHandler.listReminderLists())
+		case "/api/native/reminders/search":
+			return wrapHandlerData(await NativeAppleRemindersHandler.searchReminders(body: request.body))
+		case "/api/native/reminders/get":
+			return wrapHandlerData(await NativeAppleRemindersHandler.getReminder(body: request.body))
+		case "/api/native/reminders/create":
+			return wrapHandlerData(await NativeAppleRemindersHandler.createReminder(body: request.body))
+		case "/api/native/reminders/update":
+			return wrapHandlerData(await NativeAppleRemindersHandler.updateReminder(body: request.body))
+		case "/api/native/reminders/complete":
+			return wrapHandlerData(await NativeAppleRemindersHandler.completeReminder(body: request.body))
+		case "/api/native/reminders/delete":
+			return wrapHandlerData(await NativeAppleRemindersHandler.deleteReminder(body: request.body))
 		case "/api/native/macos/accessibility-status":
 			return wrapHandlerData(NativeMacOSHandler.accessibilityStatus())
 		case "/api/native/macos/wifi-status":

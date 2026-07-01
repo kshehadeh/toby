@@ -1,6 +1,6 @@
 # Creating a new integration
 
-This checklist assumes a **first-party** integration in **`@toby/core`** under `packages/core/src/integrations/<id>/`, consistent with Slack. Email, Todoist, Azure AD, Jira, Web Search, Apple Calendar, and macOS ship as installable plugins instead (see [Migrating a built-in to a plugin](#migrating-a-built-in-to-a-plugin)). Ink/configure UX stays in `apps/cli`; harness code stays in core. See [`architecture.md`](architecture.md#core-vs-apps).
+This checklist assumes a **first-party** integration in **`@toby/core`** under `packages/core/src/integrations/<id>/`, consistent with Slack. Email, Todoist, Azure AD, Jira, Web Search, Apple Calendar, Apple Reminders, and macOS ship as installable plugins instead (see [Migrating a built-in to a plugin](#migrating-a-built-in-to-a-plugin)). Ink/configure UX stays in `apps/cli`; harness code stays in core. See [`architecture.md`](architecture.md#core-vs-apps).
 
 ## 1. Scaffold the folder
 

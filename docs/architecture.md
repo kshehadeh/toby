@@ -14,7 +14,7 @@ Toby.app).
 | ------- | ---- | ---- |
 | **`@toby/core`** | [`packages/core/src/`](../packages/core/src/) | Harness: chat pipeline, AI, integrations, config, personas, skills, memory, planning, chat-inbound, logging, session store, message prep. Consumable from scripts, daemons, or other apps via `@toby/core/...` imports. |
 | **`@toby/cli`** | [`apps/cli/src/`](../apps/cli/src/) | CLI app: Commander entry, generic commands, Ink TUIs (`ui/`), schedules/upgrade UI and glue. Depends on `@toby/core`; must not be imported by core. |
-| **`Toby.app`** | [`apps/toby-app/`](../apps/toby-app/) | Native macOS app (SwiftUI) with a real bundle identity. Uses the daemon localhost API for chat/configuration/recordings and runs a separate **native API server** for TCC-gated operations (EventKit calendar, Accessibility, microphone, system audio, and all macOS system controls). Both `toby-plugin-macos` and `toby-plugin-applecalendar` are TypeScript bun-package plugins that delegate to this server. It does not import core. See [`native-helpers.md`](native-helpers.md). |
+| **`Toby.app`** | [`apps/toby-app/`](../apps/toby-app/) | Native macOS app (SwiftUI) with a real bundle identity. Uses the daemon localhost API for chat/configuration/recordings and runs a separate **native API server** for TCC-gated operations (EventKit calendar/reminders, Accessibility, microphone, system audio, and all macOS system controls). `toby-plugin-macos`, `toby-plugin-applecalendar`, and `toby-plugin-applereminders` are TypeScript bun-package plugins that delegate to this server. It does not import core. See [`native-helpers.md`](native-helpers.md). |
 
 ```mermaid
 flowchart TB
@@ -80,6 +80,7 @@ apps/toby-app/             # Toby.app — native macOS app (SwiftUI)
     DaemonBootstrap.swift         # Starts `toby daemon start` when the API is unavailable
     NativeServer.swift            # Localhost HTTP server (Network.framework); port in ~/.toby/native-port
     NativeCalendarHandler.swift   # EventKit calendar operations
+    NativeAppleRemindersHandler.swift # EventKit reminder operations
     NativeMacOSHandler.swift      # Accessibility-gated window operations
     NativeAudioHandler.swift      # In-process microphone/system audio capture
     RecordingsStore.swift         # Daemon-backed recording list/detail/delete state
@@ -147,7 +148,7 @@ permission bridge:
   identity.
 
 - **Discovery:** Toby.app writes its random port to `~/.toby/native-port`; clients confirm liveness via `GET /api/native/health`.
-- **Routing:** the macOS-facing plugins (`toby-plugin-applecalendar`, `toby-plugin-macos`) are TypeScript bun-package plugins that delegate **all** operations to Toby.app's native API server and **auto-launch** it on demand when it is not running.
+- **Routing:** the macOS-facing plugins (`toby-plugin-applecalendar`, `toby-plugin-applereminders`, `toby-plugin-macos`) are TypeScript bun-package plugins that delegate **all** operations to Toby.app's native API server and **auto-launch** it on demand when it is not running.
 - **Fallback:** neither plugin has an in-process fallback. Both auto-launch Toby.app and wait for the native server to become available.
 - **Relationship to core:** Toby.app does **not** import `@toby/core`. It uses
   the daemon API for product behavior and is reached by plugins over its native

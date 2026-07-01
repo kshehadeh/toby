@@ -220,7 +220,7 @@ For web search (AI Gateway Perplexity), see [web-search.md](web-search.md).
 
 ## Toby.app native API server
 
-Toby.app (`apps/toby-app/`) is a SwiftUI macOS app with a proper bundle identity and `Info.plist`. When running, it starts a local HTTP server for native operations that require TCC permissions (EventKit, Accessibility, microphone, system audio, and all macOS system controls). Plugins discover this server via `~/.toby/native-port` and route native calls through it. Both the macOS plugin (`toby-plugin-macos`) and the Apple Calendar plugin (`toby-plugin-applecalendar`) are TypeScript bun-package plugins that delegate all operations to this server and auto-launch Toby.app when it is not running.
+Toby.app (`apps/toby-app/`) is a SwiftUI macOS app with a proper bundle identity and `Info.plist`. When running, it starts a local HTTP server for native operations that require TCC permissions (EventKit, Accessibility, microphone, system audio, and all macOS system controls). Plugins discover this server via `~/.toby/native-port` and route native calls through it. The macOS plugin (`toby-plugin-macos`), Apple Calendar plugin (`toby-plugin-applecalendar`), and Apple Reminders plugin (`toby-plugin-applereminders`) are TypeScript bun-package plugins that delegate operations to this server and auto-launch Toby.app when it is not running.
 
 The same server also exposes audio endpoints used internally by Toby.app. Audio
 is not a plugin fallback path: the native app calls its own loopback server so
@@ -272,7 +272,9 @@ Plugins use a `NativeHelperClient` that:
 - `apps/toby-app/Sources/TobyApp/RecordingsStore.swift` — daemon client state for recording list/detail/delete
 
 - `apps/toby-app/Sources/TobyApp/NativeServer.swift` — HTTP server using Network.framework
-- `apps/toby-app/Sources/TobyApp/NativeCalendarHandler.swift` — EventKit operations
+- `apps/toby-app/Sources/TobyApp/NativeCalendarHandler.swift` — EventKit calendar operations
+- `apps/toby-app/Sources/TobyApp/NativeAppleRemindersHandler.swift` — EventKit reminder operations
 - `apps/toby-app/Sources/TobyApp/NativeMacOSHandler.swift` — macOS system controls and Accessibility-gated operations (Wi-Fi, Bluetooth, audio, battery, display, clipboard, windows, shortcuts)
 - `apps/plugin-applecalendar/src/native-client.ts` — Apple Calendar plugin TypeScript client that forwards to Toby.app's native API
+- `apps/plugin-applereminders/src/native-client.ts` — Apple Reminders plugin TypeScript client that forwards to Toby.app's native API
 - `apps/plugin-macos/src/native-client.ts` — macOS plugin TypeScript client that forwards to Toby.app's native API

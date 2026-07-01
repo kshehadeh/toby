@@ -145,6 +145,30 @@ function pluginStatusReportsConnected(data: {
 	return data.ok && data.connected === true;
 }
 
+function pluginHasCredentialFields(target: PluginInvocationTarget): boolean {
+	const shape = pluginConfigShape(target);
+	if (!shape.ok || !shape.data.ok) {
+		return true;
+	}
+	return (shape.data.fields ?? []).length > 0;
+}
+
+function pluginConnectHint(
+	name: string,
+	target: PluginInvocationTarget,
+	creds: CredentialsFile,
+): string {
+	if (!pluginHasCredentialFields(target)) {
+		return `Run \`toby connect ${name}\` on this Mac.`;
+	}
+
+	const configBlock = creds.integrations?.[name];
+	const hasConfig = Boolean(configBlock && Object.keys(configBlock).length > 0);
+	return hasConfig
+		? `Run \`toby connect ${name}\` after configuring credentials.`
+		: `Configure credentials in \`toby configure\`, then run \`toby connect ${name}\`.`;
+}
+
 export function isPluginConnectedFromStatus(
 	name: string,
 	target: PluginInvocationTarget,
@@ -415,19 +439,10 @@ async function resolvePluginChatReadiness(
 	};
 	const statusResult = pluginStatus(target, envelope);
 	if (!statusResult.ok || !statusResult.data.ok) {
-		const configBlock = creds.integrations?.[name];
-		const hasConfig = Boolean(
-			configBlock && Object.keys(configBlock).length > 0,
-		);
-		return hasConfig
-			? {
-					ok: false,
-					hint: `Run \`toby connect ${name}\` after configuring credentials.`,
-				}
-			: {
-					ok: false,
-					hint: `Configure credentials in \`toby configure\`, then run \`toby connect ${name}\`.`,
-				};
+		return {
+			ok: false,
+			hint: pluginConnectHint(name, target, creds),
+		};
 	}
 
 	if (statusResult.data.chatReadiness) {
@@ -514,9 +529,10 @@ export function createPluginIntegrationModule(
 		async testConnection(options?: TestConnectionOptions) {
 			const connected = await lifecycle.isConnected();
 			if (!connected) {
+				const creds = readCredentials();
 				return {
 					ok: false,
-					details: `${metadata.displayName} is not connected. Run \`toby connect ${name}\` after configuring credentials.`,
+					details: `${metadata.displayName} is not connected. ${pluginConnectHint(name, target, creds)}`,
 				};
 			}
 

@@ -7,14 +7,17 @@ enum NativeCalendarHandler {
 
 	// MARK: - Access
 
-	static func requestAccess() -> Data {
-		Task {
-			let granted = await ensureAccessAsync()
-			// Response is returned by the caller; this just triggers the prompt
-			_ = granted
+	static func requestAccess() async -> Data {
+		let granted = await ensureAccessAsync()
+		if granted {
+			return json(["ok": true, "data": ["prompted": true, "granted": true]])
 		}
-		// Return immediately - the prompt will show and subsequent calls will use the granted access
-		return json(["ok": true, "data": ["prompted": true]])
+		return json([
+			"ok": false,
+			"error": "Calendar access denied.",
+			"needsPermission": true,
+			"data": ["prompted": true, "granted": false],
+		])
 	}
 
 	// MARK: - List calendars

@@ -207,6 +207,10 @@ cat >"${APP}/Contents/Info.plist" <<'PLIST'
 	<string>Toby reads and manages your calendars when you use Apple Calendar integration.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Toby needs full calendar access to search, create, update, and delete events.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>Toby reads and manages your reminders when you use Apple Reminders integration.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Toby needs full reminders access to search, create, update, complete, and delete reminders.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Toby records microphone audio when you use Record Audio.</string>
 	<key>NSScreenCaptureUsageDescription</key>

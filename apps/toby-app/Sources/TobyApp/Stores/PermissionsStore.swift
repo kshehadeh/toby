@@ -12,6 +12,7 @@ enum PermissionKind: String, CaseIterable, Sendable {
 	case microphone = "Microphone Access"
 	case accessibility = "Accessibility"
 	case calendar = "Calendar Access"
+	case reminders = "Reminders Access"
 
 	var title: String { rawValue }
 
@@ -27,6 +28,8 @@ enum PermissionKind: String, CaseIterable, Sendable {
 			return "Required to control windows and run native macOS actions."
 		case .calendar:
 			return "Required to read and manage calendar events."
+		case .reminders:
+			return "Required to read and manage reminders."
 		}
 	}
 
@@ -37,6 +40,7 @@ enum PermissionKind: String, CaseIterable, Sendable {
 		case .microphone: return "mic"
 		case .accessibility: return "accessibility"
 		case .calendar: return "calendar"
+		case .reminders: return "checklist"
 		}
 	}
 
@@ -47,6 +51,7 @@ enum PermissionKind: String, CaseIterable, Sendable {
 		case .microphone: return Color(red: 1.00, green: 0.35, blue: 0.35)
 		case .accessibility: return Color(red: 0.75, green: 0.40, blue: 0.95)
 		case .calendar: return Color(red: 0.25, green: 0.75, blue: 0.45)
+		case .reminders: return Color(red: 0.20, green: 0.55, blue: 0.95)
 		}
 	}
 }
@@ -89,6 +94,17 @@ final class PermissionsStore {
 					}
 				}
 			}
+		case .reminders:
+			let store = EKEventStore()
+			if #available(macOS 14.0, *) {
+				_ = try? await store.requestFullAccessToReminders()
+			} else {
+				_ = await withCheckedContinuation { continuation in
+					store.requestAccess(to: .reminder) { granted, _ in
+						continuation.resume(returning: granted)
+					}
+				}
+			}
 		}
 		// macOS permission dialogs are asynchronous from the OS perspective; give the user a moment
 		// to answer before re-checking, and then re-check once more when the app returns to foreground.
@@ -107,6 +123,8 @@ final class PermissionsStore {
 			pane = "Privacy_Accessibility"
 		case .calendar:
 			pane = "Privacy_Calendars"
+		case .reminders:
+			pane = "Privacy_Reminders"
 		}
 		let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)")!
 		NSWorkspace.shared.open(url)
@@ -125,6 +143,12 @@ final class PermissionsStore {
 				return EKEventStore.authorizationStatus(for: .event) == .fullAccess
 			} else {
 				return EKEventStore.authorizationStatus(for: .event) == .authorized
+			}
+		case .reminders:
+			if #available(macOS 14.0, *) {
+				return EKEventStore.authorizationStatus(for: .reminder) == .fullAccess
+			} else {
+				return EKEventStore.authorizationStatus(for: .reminder) == .authorized
 			}
 		}
 	}

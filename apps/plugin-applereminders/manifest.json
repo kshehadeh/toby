@@ -1,0 +1,15 @@
+{
+	"name": "applereminders",
+	"displayName": "Apple Reminders",
+	"description": "Manage local Reminders.app on macOS — search, create, update, complete, and delete reminders",
+	"version": "1.0.0",
+	"protocolVersion": "1",
+	"icon": "☑️",
+	"runtime": {
+		"type": "bun",
+		"entry": "src/index.ts"
+	},
+	"capabilities": ["chat"],
+	"providerCategories": ["tasks"],
+	"resources": ["lists", "reminders"]
+}
