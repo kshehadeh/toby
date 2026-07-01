@@ -66,6 +66,12 @@ describe("humanToCronAsync", () => {
 	it("converts common natural language patterns", async () => {
 		expect(await humanToCronAsync("every weekday at 9am")).toBe("0 9 * * 1-5");
 		expect(await humanToCronAsync("every day at 5pm")).toBe("0 17 * * *");
+		expect(await humanToCronAsync("every other day in the morning")).toBe(
+			"0 9 */2 * *",
+		);
+		expect(await humanToCronAsync("every other day at 5pm")).toBe(
+			"0 17 */2 * *",
+		);
 		expect(await humanToCronAsync("hourly")).toBe("0 * * * *");
 		expect(await humanToCronAsync("daily")).toBe("0 9 * * *");
 	});

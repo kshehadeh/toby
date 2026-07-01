@@ -1,6 +1,16 @@
 import Foundation
 
 enum CronHelpers {
+	static func isValidExpression(_ expression: String) -> Bool {
+		let parts = expression.split(separator: " ").map(String.init)
+		guard parts.count == 5 else { return false }
+		return parseField(parts[0], min: 0, max: 59) != nil
+			&& parseField(parts[1], min: 0, max: 23) != nil
+			&& parseField(parts[2], min: 1, max: 31) != nil
+			&& parseField(parts[3], min: 1, max: 12) != nil
+			&& parseField(parts[4], min: 0, max: 7) != nil
+	}
+
 	/// Return a human-readable description for common cron expressions, or the raw expression.
 	static func describe(_ expression: String) -> String {
 		let parts = expression.split(separator: " ").map(String.init)
@@ -144,12 +154,15 @@ enum CronHelpers {
 				let rangeParts = trimmed.split(separator: "-")
 				guard rangeParts.count == 2,
 					let lower = Int(rangeParts[0]),
-					let upper = Int(rangeParts[1])
+					let upper = Int(rangeParts[1]),
+					lower >= min,
+					upper <= max,
+					lower <= upper
 				else { return nil }
 				values.formUnion(lower...upper)
 				continue
 			}
-			guard let value = Int(trimmed) else { return nil }
+			guard let value = Int(trimmed), value >= min, value <= max else { return nil }
 			values.insert(value)
 		}
 		return values

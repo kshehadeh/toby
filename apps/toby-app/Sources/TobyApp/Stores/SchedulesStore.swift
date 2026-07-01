@@ -248,8 +248,7 @@ final class SchedulesStore {
 	}
 
 	private static func isValidCronExpression(_ expression: String) -> Bool {
-		let pattern = #"^[\d\*,\-\/\?LW#A-Za-z]+( [\d\*,\-\/\?LW#A-Za-z]+){4}$"#
-		return expression.range(of: pattern, options: .regularExpression) != nil
+		CronHelpers.isValidExpression(expression)
 	}
 
 	func value(for key: String) -> String {

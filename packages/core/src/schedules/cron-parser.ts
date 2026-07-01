@@ -56,6 +56,20 @@ interface HumanReadablePattern {
 
 const PATTERNS: HumanReadablePattern[] = [
 	{
+		pattern: /^every\s+other\s+day(?:\s+(?:in\s+the\s+)?morning)?$/i,
+		toCron: () => "0 9 */2 * *",
+		label: "every other day in the morning",
+	},
+	{
+		pattern: /^every\s+other\s+day\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i,
+		toCron: (m) => {
+			const hour = parseHour(m[1], m[3]);
+			const minute = m[2] ? Number.parseInt(m[2], 10) : 0;
+			return `${minute} ${hour} */2 * *`;
+		},
+		label: "every other day at HH:MM",
+	},
+	{
 		pattern: /^every\s+weekday\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i,
 		toCron: (m) => {
 			const hour = parseHour(m[1], m[3]);

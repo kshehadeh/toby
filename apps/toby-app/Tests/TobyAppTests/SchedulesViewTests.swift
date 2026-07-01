@@ -102,4 +102,23 @@ struct SchedulesViewTests {
 		store.validateCronOnBlur(for: schedule.id)
 		#expect(store.cronValidationErrors[schedule.id] == nil)
 	}
+
+	@Test("cron validity does not treat plain language with numbers as cron")
+	func cronValidityRejectsPlainLanguageWithNumbers() throws {
+		let store = SchedulesStore()
+		let schedule = ScheduleViewModel(
+			id: "schedule-1",
+			name: "Daily Standup",
+			prompt: "Summarize",
+			personaName: "default",
+			cronExpression: "0 9 * * *",
+			cronHumanReadable: "At 09:00 AM",
+			nextRunAt: nil,
+			enabled: true,
+			lastRunAt: nil,
+			recentRuns: []
+		)
+		store.values[store.key(for: schedule.id, field: .cron)] = "every 2 days at 9am"
+		#expect(store.isCronValid(for: schedule.id) == false)
+	}
 }
