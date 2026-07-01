@@ -42,7 +42,7 @@ export type PluginInvokeResult<T> =
 			readonly exitCode: number | null;
 	  };
 
-const DEFAULT_TIMEOUT_MS = 25_000;
+const DEFAULT_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_BUFFER = 4 * 1024 * 1024;
 
 function serializeEnvelope(envelope: PluginConfigEnvelope = {}): string {

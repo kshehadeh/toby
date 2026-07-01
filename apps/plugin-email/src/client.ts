@@ -412,9 +412,7 @@ export async function addFlags(
 	try {
 		const lock = await client.getMailboxLock(mailbox);
 		try {
-			for (const uid of uids) {
-				await client.messageFlagsAdd(uid, flags, { uid: true });
-			}
+			await client.messageFlagsAdd(uids, flags, { uid: true });
 		} finally {
 			lock.release();
 		}
@@ -451,9 +449,7 @@ export async function removeFlags(
 	try {
 		const lock = await client.getMailboxLock(mailbox);
 		try {
-			for (const uid of uids) {
-				await client.messageFlagsRemove(uid, flags, { uid: true });
-			}
+			await client.messageFlagsRemove(uids, flags, { uid: true });
 		} finally {
 			lock.release();
 		}
@@ -490,9 +486,7 @@ export async function moveMessages(
 	try {
 		const lock = await client.getMailboxLock(mailbox);
 		try {
-			for (const uid of uids) {
-				await client.messageMove(uid, destination, { uid: true });
-			}
+			await client.messageMove(uids, destination, { uid: true });
 		} finally {
 			lock.release();
 		}
@@ -539,9 +533,7 @@ export async function deleteMessages(
 		if (trash && trash.path !== mailbox) {
 			const lock = await client.getMailboxLock(mailbox);
 			try {
-				for (const uid of uids) {
-					await client.messageMove(uid, trash.path, { uid: true });
-				}
+				await client.messageMove(uids, trash.path, { uid: true });
 			} finally {
 				lock.release();
 			}
@@ -550,9 +542,7 @@ export async function deleteMessages(
 			// No Trash mailbox — set \Deleted and expunge
 			const lock = await client.getMailboxLock(mailbox);
 			try {
-				for (const uid of uids) {
-					await client.messageFlagsAdd(uid, ["\\Deleted"], { uid: true });
-				}
+				await client.messageFlagsAdd(uids, ["\\Deleted"], { uid: true });
 				await client.expunge();
 			} finally {
 				lock.release();
@@ -615,9 +605,7 @@ export async function archiveMessages(
 
 		const lock = await client.getMailboxLock(mailbox);
 		try {
-			for (const uid of uids) {
-				await client.messageMove(uid, archive.path, { uid: true });
-			}
+			await client.messageMove(uids, archive.path, { uid: true });
 		} finally {
 			lock.release();
 		}

@@ -31,7 +31,7 @@ import {
 	pluginDisconnect,
 	pluginStatus,
 	pluginStatusAsync,
-	pluginToolsExecute,
+	pluginToolsExecuteAsync,
 	pluginToolsList,
 } from "./client";
 import { createPluginChatInboundProvider } from "./inbound-adapter";
@@ -748,7 +748,7 @@ export function createPluginIntegrationModule(
 				execute: async (input) => {
 					const envelope = buildEnvelope(name);
 					const dataDir = ensurePluginDataDir(name);
-					const execResult = pluginToolsExecute(target, {
+					const execResult = await pluginToolsExecuteAsync(target, {
 						tool: definition.name,
 						input: input as Record<string, unknown>,
 						config: envelope.config,
@@ -760,9 +760,20 @@ export function createPluginIntegrationModule(
 					forwardPluginStderr(name, execResult.stderr);
 
 					if (!execResult.ok) {
+						daemonLog("error", "plugin", "plugin_tool_exec_failed", {
+							plugin: name,
+							tool: definition.name,
+							error: execResult.error,
+							code: execResult.code,
+						});
 						return { error: execResult.error };
 					}
 					if (!execResult.data.ok) {
+						daemonLog("error", "plugin", "plugin_tool_exec_error", {
+							plugin: name,
+							tool: definition.name,
+							error: execResult.data.error ?? "Tool execution failed",
+						});
 						return { error: execResult.data.error ?? "Tool execution failed" };
 					}
 
