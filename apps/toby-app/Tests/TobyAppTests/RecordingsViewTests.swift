@@ -128,15 +128,15 @@ struct RecordingsViewTests {
 		}
 	}
 
-	@Test("detail view shows rename button in sidebar when a single recording is selected")
-	func detailViewShowsRenameButton() throws {
+	@Test("detail view shows editable name field in sidebar when a single recording is selected")
+	func detailViewShowsEditableNameField() throws {
 		let store = RecordingsStore()
 		store.recordings = [makeRecording(id: "r1", name: "One")]
 		store.selectedRecordingIds = ["r1"]
 		store.detail = makeRecordingDetail(id: "r1", transcript: nil)
 		let view = RecordingsView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "rename-recording-button")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "recording-name-field")
 		}
 	}
 

@@ -4,8 +4,8 @@ struct RecordingInspectorSidebar: View {
 	@Bindable var store: RecordingsStore
 	let detail: ListenRecordingDetail
 
-	@State private var isEditingName = false
-	@State private var nameDraft = ""
+	@State private var nameText = ""
+	@State private var saveTask: Task<Void, Never>?
 	@FocusState private var nameFieldFocused: Bool
 
 	private var visibleErrors: [String] {
@@ -80,45 +80,50 @@ struct RecordingInspectorSidebar: View {
 
 	@ViewBuilder
 	private var nameSection: some View {
-		if isEditingName {
-			RecordingNameEditor(
-				draft: $nameDraft,
-				isFocused: $nameFieldFocused,
-				onSave: {
-					let newName = nameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-					isEditingName = false
-					Task { await store.renameRecording(id: detail.id, name: newName) }
-				},
-				onCancel: {
-					isEditingName = false
-					nameDraft = detail.metadata.name ?? ""
-				},
-			)
-		} else {
-			VStack(alignment: .leading, spacing: 6) {
-				HStack(spacing: 6) {
-					Text("Name")
-						.font(.system(size: 12, weight: .semibold))
-						.foregroundStyle(SettingsDesign.rowTitle)
-					Spacer(minLength: 0)
-					Button {
-						nameDraft = detail.metadata.name ?? ""
-						isEditingName = true
-						nameFieldFocused = true
-					} label: {
-						Image(systemName: "pencil")
-							.font(.system(size: 11))
-							.foregroundStyle(AppTheme.secondaryText)
-					}
-					.buttonStyle(.plain)
-					.accessibilityIdentifier("rename-recording-button")
+		VStack(alignment: .leading, spacing: 6) {
+			Text("Name")
+				.font(.system(size: 12, weight: .semibold))
+				.foregroundStyle(SettingsDesign.rowTitle)
+			TextField("Recording name", text: $nameText)
+				.textFieldStyle(.roundedBorder)
+				.font(.system(size: 13))
+				.focused($nameFieldFocused)
+				.onChange(of: nameText) { _, _ in scheduleSave() }
+				.onChange(of: nameFieldFocused) { _, focused in
+					if !focused { saveNow() }
 				}
-				Text(detail.metadata.name ?? "Recording")
-					.font(.system(size: 13))
-					.foregroundStyle(SettingsDesign.rowTitle)
-					.lineLimit(2)
-			}
+				.accessibilityIdentifier("recording-name-field")
 		}
+		.onAppear { nameText = detail.metadata.name ?? "" }
+		.onChange(of: detail.id) { _, _ in
+			saveTask?.cancel()
+			nameText = detail.metadata.name ?? ""
+		}
+		.onChange(of: detail.metadata.name) { _, newValue in
+			if !nameFieldFocused { nameText = newValue ?? "" }
+		}
+	}
+
+	private func scheduleSave() {
+		saveTask?.cancel()
+		saveTask = Task {
+			try? await Task.sleep(for: .milliseconds(600))
+			guard !Task.isCancelled else { return }
+			await saveName()
+		}
+	}
+
+	private func saveNow() {
+		saveTask?.cancel()
+		saveTask = nil
+		Task { await saveName() }
+	}
+
+	private func saveName() async {
+		let trimmed = nameText.trimmingCharacters(in: .whitespacesAndNewlines)
+		let current = detail.metadata.name ?? ""
+		guard trimmed != current else { return }
+		await store.renameRecording(id: detail.id, name: trimmed)
 	}
 
 	private var metadataSection: some View {

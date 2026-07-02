@@ -89,6 +89,7 @@ struct RootView: View {
             .onReceive(NotificationCenter.default.publisher(for: .startChatAboutRecording)) { notification in
                 guard let request = notification.object as? StartChatAboutRecordingRequest else { return }
                 bringMainWindowToFront()
+                navigateToRoute(.chat)
                 Task {
                     await store.startChatAboutRecording(
                         name: request.name,
