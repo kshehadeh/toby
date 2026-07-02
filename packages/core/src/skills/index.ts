@@ -7,6 +7,16 @@ export interface LocalSkill {
 	readonly dirName: string;
 	readonly name: string;
 	readonly description: string;
+	/** Optional short line shown in the skill picker (frontmatter `summary`). */
+	readonly summary?: string;
+	/** Whether the skill is active. Missing frontmatter defaults to `true`. */
+	readonly enabled?: boolean;
+	/** Icon filename stored inside the skill directory (frontmatter `icon`). */
+	readonly iconPath?: string;
+	/** ISO timestamp derived from the SKILL.md file birth time. */
+	readonly createdAt?: string;
+	/** ISO timestamp derived from the SKILL.md file modification time. */
+	readonly updatedAt?: string;
 	readonly bodyMarkdown: string;
 	/**
 	 * Tool names this skill needs (from frontmatter `tools`). When the skill is
@@ -119,10 +129,20 @@ export function parseSkillFileContent(
 	if (!name || !description) {
 		return null;
 	}
+	const summary = parsed.frontmatter.summary?.trim() ?? "";
+	const enabledRaw = parsed.frontmatter.enabled?.trim().toLowerCase();
+	const enabled =
+		enabledRaw === undefined
+			? true
+			: !(enabledRaw === "false" || enabledRaw === "no" || enabledRaw === "0");
+	const iconPath = parsed.frontmatter.icon?.trim() || undefined;
 	return {
 		dirName,
 		name,
 		description,
+		summary,
+		enabled,
+		iconPath,
 		bodyMarkdown: parsed.body.trim(),
 		tools: parseListField(parsed.frontmatter.tools),
 		integrations: parseListField(parsed.frontmatter.integrations),
@@ -162,7 +182,16 @@ export function loadLocalSkills(skillsRoot?: string): LocalSkill[] {
 		}
 		const skill = parseSkillFileContent(dirName, raw);
 		if (skill) {
-			skills.push(skill);
+			let createdAt: string | undefined;
+			let updatedAt: string | undefined;
+			try {
+				const stat = fs.statSync(skillPath);
+				createdAt = stat.birthtime.toISOString();
+				updatedAt = stat.mtime.toISOString();
+			} catch {
+				// timestamps are best-effort metadata
+			}
+			skills.push({ ...skill, createdAt, updatedAt });
 		}
 	}
 

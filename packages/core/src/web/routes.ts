@@ -60,6 +60,7 @@ import {
 	handlePersonaDetail,
 	handlePersonasList,
 	handleSkillDetail,
+	handleSkillIcon,
 	handleSkillsList,
 } from "./handlers/metadata";
 import { handlePlanCancel, handlePlanSkip } from "./handlers/plan";
@@ -220,6 +221,10 @@ export async function handleWebRequest(
 		}
 		if (pathname === "/api/skills" && req.method === "GET") {
 			return handleSkillsList();
+		}
+		const skillIconMatch = /^\/api\/skills\/([^/]+)\/icon$/.exec(pathname);
+		if (skillIconMatch && req.method === "GET") {
+			return handleSkillIcon(decodeURIComponent(skillIconMatch[1]));
 		}
 		const skillDetailMatch = /^\/api\/skills\/([^/]+)$/.exec(pathname);
 		if (skillDetailMatch && req.method === "GET") {

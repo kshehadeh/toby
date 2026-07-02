@@ -9,6 +9,7 @@ import {
 	getGeneratedFilesDir,
 	getSkillsDir,
 } from "../config/index";
+import { log } from "../logging/chat-log";
 import type { Project } from "../projects/index";
 import { loadProjectSkills } from "../projects/index";
 import {
@@ -20,7 +21,6 @@ import {
 } from "../skills/index";
 import { createModelForPersona, formatChatModelError } from "./chat";
 import { getCurrentDateTimeInfo } from "./current-datetime";
-import { log } from "../logging/chat-log";
 import {
 	createListenChatTools,
 	listenChatToolsPromptSection,
@@ -189,7 +189,7 @@ export function globalChatToolsPromptSection(
 	project?: Project | null,
 	persona?: Persona | null,
 ): string {
-	const globalSkills = loadLocalSkills();
+	const globalSkills = loadLocalSkills().filter((s) => s.enabled !== false);
 	const projectSkills = project ? loadProjectSkills(project) : [];
 	const allSkills = [...globalSkills, ...projectSkills];
 	const skillsCatalog = formatSkillsCatalogForPrompt(allSkills);
@@ -490,7 +490,9 @@ export function createGlobalChatTools(
 					),
 			}),
 			execute: async ({ names }) => {
-				const globalSkills = loadLocalSkills();
+				const globalSkills = loadLocalSkills().filter(
+					(s) => s.enabled !== false,
+				);
 				const projectSkills = ctx.project ? loadProjectSkills(ctx.project) : [];
 				const all = [...globalSkills, ...projectSkills];
 				const wanted = [...new Set(names.map((n) => n.trim()).filter(Boolean))];

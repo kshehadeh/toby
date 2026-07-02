@@ -73,6 +73,56 @@ struct SkillsViewTests {
 		}
 	}
 
+	@Test("skill detail shows instructions and summary sidebar fields")
+	func skillDetailShowsInstructionsAndSummary() throws {
+		let store = SkillsStore()
+		store.selectedSkill = SkillDetail(
+			dirName: "skill-1",
+			name: "Research",
+			description: "Research assistant",
+			bodyMarkdown: "# Research",
+			tools: nil,
+			integrations: nil
+		)
+		let view = SkillsView(store: store)
+		#expect(throws: Never.self) { try view.inspect().find(text: "Instructions") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "Summary") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "Optional") }
+	}
+
+	@Test("skill detail shows enabled status pill and delete button")
+	func skillDetailShowsEnabledAndDelete() throws {
+		let store = SkillsStore()
+		store.selectedSkill = SkillDetail(
+			dirName: "skill-1",
+			name: "Research",
+			description: "Research assistant",
+			bodyMarkdown: "# Research",
+			tools: nil,
+			integrations: nil
+		)
+		let view = SkillsView(store: store)
+		#expect(throws: Never.self) { try view.inspect().find(text: "Enabled") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "Delete Skill…") }
+	}
+
+	@Test("store exposes summary and enabled field values")
+	func storeExposesSummaryAndEnabled() {
+		let store = SkillsStore()
+		store.selectedSkill = SkillDetail(
+			dirName: "skill-1",
+			name: "Research",
+			description: "Research assistant",
+			summary: "Deep research helper",
+			enabled: false,
+			bodyMarkdown: "# Research",
+			tools: nil,
+			integrations: nil
+		)
+		#expect(store.value(for: "skill-1.summary") == "Deep research helper")
+		#expect(store.value(for: "skill-1.enabled") == "false")
+	}
+
 	@Test("store key helper builds field keys")
 	func storeKeyHelperBuildsFieldKeys() {
 		let store = SkillsStore()

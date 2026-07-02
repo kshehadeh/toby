@@ -44,6 +44,9 @@ export function createSkill(skillsRoot?: string): { dirName: string } {
 export interface SkillFrontmatterUpdates {
 	readonly name?: string;
 	readonly description?: string;
+	readonly summary?: string;
+	readonly enabled?: boolean;
+	readonly icon?: string | null;
 }
 
 function encodeFrontmatterValue(value: string): string {
@@ -90,6 +93,17 @@ export function updateSkillFrontmatter(
 	if (updates.description !== undefined) {
 		frontmatter.description = updates.description.trim();
 	}
+	if (updates.summary !== undefined) {
+		const value = updates.summary.trim();
+		frontmatter.summary = value ? value : undefined;
+	}
+	if (updates.enabled !== undefined) {
+		frontmatter.enabled = updates.enabled ? "true" : "false";
+	}
+	if (updates.icon !== undefined) {
+		const value = updates.icon?.trim();
+		frontmatter.icon = value ? value : undefined;
+	}
 
 	if (!frontmatter.name) {
 		throw new Error("Skill name cannot be empty.");
@@ -99,8 +113,20 @@ export function updateSkillFrontmatter(
 	}
 
 	const lines: string[] = [];
-	const reserved = new Set(["name", "description"]);
-	for (const key of ["name", "description"] as const) {
+	const reserved = new Set([
+		"name",
+		"description",
+		"summary",
+		"enabled",
+		"icon",
+	]);
+	for (const key of [
+		"name",
+		"description",
+		"summary",
+		"enabled",
+		"icon",
+	] as const) {
 		const value = frontmatter[key];
 		if (value !== undefined) {
 			lines.push(`${key}: ${encodeFrontmatterValue(value)}`);
@@ -139,4 +165,70 @@ export function updateSkillBody(
 		? `${frontmatterBlock}${normalizedBody}`
 		: `---\nname: ${dirName}\ndescription: ${dirName}\n---\n${normalizedBody}`;
 	fs.writeFileSync(skillPath, next, "utf-8");
+}
+
+const SKILL_ICON_STEM = "icon";
+const SKILL_ICON_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
+
+/** Resolve the absolute path to an existing custom skill icon, if any. */
+export function resolveSkillIconPath(
+	dirName: string,
+	skillsRoot?: string,
+): string | null {
+	const skillDir = path.join(skillsRoot ?? getSkillsDir(), dirName);
+	for (const ext of SKILL_ICON_EXTENSIONS) {
+		const candidate = path.join(skillDir, `${SKILL_ICON_STEM}${ext}`);
+		if (fs.existsSync(candidate)) {
+			return candidate;
+		}
+	}
+	return null;
+}
+
+/** Store a custom skill icon inside the skill directory and record it in frontmatter. */
+export function updateSkillIcon(
+	dirName: string,
+	buffer: Buffer,
+	extension: string,
+	skillsRoot?: string,
+): { iconFilename: string } {
+	const root = skillsRoot ?? getSkillsDir();
+	const skillDir = path.join(root, dirName);
+	if (!fs.existsSync(skillDir)) {
+		throw new Error(`Skill directory not found: ${skillDir}`);
+	}
+	const normalizedExt = extension.startsWith(".")
+		? extension.toLowerCase()
+		: `.${extension.toLowerCase()}`;
+	const ext = SKILL_ICON_EXTENSIONS.includes(normalizedExt)
+		? normalizedExt
+		: ".png";
+
+	// Remove any prior icon files so only one custom icon exists.
+	for (const existing of SKILL_ICON_EXTENSIONS) {
+		const prior = path.join(skillDir, `${SKILL_ICON_STEM}${existing}`);
+		if (fs.existsSync(prior)) {
+			fs.rmSync(prior, { force: true });
+		}
+	}
+
+	const iconFilename = `${SKILL_ICON_STEM}${ext}`;
+	fs.writeFileSync(path.join(skillDir, iconFilename), buffer);
+	updateSkillFrontmatter(dirName, { icon: iconFilename }, root);
+	return { iconFilename };
+}
+
+/** Remove a custom skill icon and clear the frontmatter reference. */
+export function resetSkillIcon(dirName: string, skillsRoot?: string): void {
+	const root = skillsRoot ?? getSkillsDir();
+	const skillDir = path.join(root, dirName);
+	for (const ext of SKILL_ICON_EXTENSIONS) {
+		const prior = path.join(skillDir, `${SKILL_ICON_STEM}${ext}`);
+		if (fs.existsSync(prior)) {
+			fs.rmSync(prior, { force: true });
+		}
+	}
+	if (fs.existsSync(path.join(skillDir, "SKILL.md"))) {
+		updateSkillFrontmatter(dirName, { icon: null }, root);
+	}
 }

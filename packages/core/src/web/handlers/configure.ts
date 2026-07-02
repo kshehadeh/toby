@@ -38,8 +38,10 @@ import {
 import {
 	createSkill,
 	deleteSkill,
+	resetSkillIcon,
 	updateSkillBody,
 	updateSkillFrontmatter,
+	updateSkillIcon,
 } from "../../skills/manage";
 import { errorResponse, jsonResponse, readJsonBody } from "../http-utils";
 
@@ -376,11 +378,38 @@ export async function handleConfigureAction(
 			const field = body?.field as
 				| "name"
 				| "description"
+				| "summary"
+				| "enabled"
 				| undefined;
 			const value = body?.value ?? "";
 			if (!dirName || !field)
 				return errorResponse("dirName and field required");
-			updateSkillFrontmatter(dirName, { [field]: value });
+			if (field === "enabled") {
+				const normalized = value.trim().toLowerCase();
+				const enabled = normalized === "true" || normalized === "yes";
+				updateSkillFrontmatter(dirName, { enabled });
+			} else {
+				updateSkillFrontmatter(dirName, { [field]: value });
+			}
+			return jsonResponse({ ok: true });
+		}
+		case "upload-skill-icon": {
+			const dirName = body?.dirName?.trim();
+			const imageBase64 = body?.imageBase64?.trim();
+			const filename = body?.filename?.trim() ?? "";
+			if (!dirName) return errorResponse("dirName required");
+			if (!imageBase64) return errorResponse("imageBase64 required");
+			const ext = filename.includes(".")
+				? filename.slice(filename.lastIndexOf("."))
+				: ".png";
+			const buffer = Buffer.from(imageBase64, "base64");
+			updateSkillIcon(dirName, buffer, ext);
+			return jsonResponse({ ok: true });
+		}
+		case "reset-skill-icon": {
+			const dirName = body?.dirName?.trim();
+			if (!dirName) return errorResponse("dirName required");
+			resetSkillIcon(dirName);
 			return jsonResponse({ ok: true });
 		}
 		case "delete-skill": {

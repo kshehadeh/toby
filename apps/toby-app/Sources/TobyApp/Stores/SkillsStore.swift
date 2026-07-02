@@ -5,14 +5,42 @@ struct SkillListItem: Decodable, Identifiable {
 	let dirName: String
 	let name: String
 	let description: String?
+	var summary: String = ""
+	var enabled: Bool = true
+	var iconUrl: String? = nil
+	var createdAt: String? = nil
+	var updatedAt: String? = nil
 
 	var id: String { dirName }
+}
+
+extension SkillListItem {
+	private enum CodingKeys: String, CodingKey {
+		case dirName, name, description, summary, enabled, iconUrl, createdAt, updatedAt
+	}
+
+	init(from decoder: Decoder) throws {
+		let c = try decoder.container(keyedBy: CodingKeys.self)
+		dirName = try c.decode(String.self, forKey: .dirName)
+		name = try c.decode(String.self, forKey: .name)
+		description = try c.decodeIfPresent(String.self, forKey: .description)
+		summary = try c.decodeIfPresent(String.self, forKey: .summary) ?? ""
+		enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+		iconUrl = try c.decodeIfPresent(String.self, forKey: .iconUrl)
+		createdAt = try c.decodeIfPresent(String.self, forKey: .createdAt)
+		updatedAt = try c.decodeIfPresent(String.self, forKey: .updatedAt)
+	}
 }
 
 struct SkillDetail: Decodable, Identifiable {
 	let dirName: String
 	let name: String
 	let description: String
+	var summary: String = ""
+	var enabled: Bool = true
+	var iconUrl: String? = nil
+	var createdAt: String? = nil
+	var updatedAt: String? = nil
 	let bodyMarkdown: String
 	let tools: [String]?
 	let integrations: [String]?
@@ -20,9 +48,33 @@ struct SkillDetail: Decodable, Identifiable {
 	var id: String { dirName }
 }
 
+extension SkillDetail {
+	private enum CodingKeys: String, CodingKey {
+		case dirName, name, description, summary, enabled, iconUrl
+		case createdAt, updatedAt, bodyMarkdown, tools, integrations
+	}
+
+	init(from decoder: Decoder) throws {
+		let c = try decoder.container(keyedBy: CodingKeys.self)
+		dirName = try c.decode(String.self, forKey: .dirName)
+		name = try c.decode(String.self, forKey: .name)
+		description = try c.decode(String.self, forKey: .description)
+		summary = try c.decodeIfPresent(String.self, forKey: .summary) ?? ""
+		enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+		iconUrl = try c.decodeIfPresent(String.self, forKey: .iconUrl)
+		createdAt = try c.decodeIfPresent(String.self, forKey: .createdAt)
+		updatedAt = try c.decodeIfPresent(String.self, forKey: .updatedAt)
+		bodyMarkdown = try c.decode(String.self, forKey: .bodyMarkdown)
+		tools = try c.decodeIfPresent([String].self, forKey: .tools)
+		integrations = try c.decodeIfPresent([String].self, forKey: .integrations)
+	}
+}
+
 enum SkillField: String {
 	case name = "name"
 	case description = "description"
+	case summary = "summary"
+	case enabled = "enabled"
 	case body = "body"
 }
 
@@ -126,19 +178,27 @@ final class SkillsStore {
 		switch SkillField(rawValue: field) {
 		case .name: return skill.name
 		case .description: return skill.description
+		case .summary: return skill.summary
+		case .enabled: return skill.enabled ? "true" : "false"
 		case .body: return skill.bodyMarkdown
 		default: return ""
 		}
 	}
 
-	func setDraftValue(_ key: String, _ value: String) {
+	func setDraftValue(_ key: String, _ value: String, autosaveImmediately: Bool = false) {
 		let saved = self.value(forSavedKey: key)
 		if value == saved {
 			draft.removeValue(forKey: key)
 		} else {
 			draft[key] = value
 		}
-		scheduleAutosave()
+		if autosaveImmediately {
+			autosaveTask?.cancel()
+			autosaveTask = nil
+			Task { await savePendingChanges() }
+		} else {
+			scheduleAutosave()
+		}
 	}
 
 	func flushPendingSave() async {
@@ -181,6 +241,8 @@ final class SkillsStore {
 		switch SkillField(rawValue: field) {
 		case .name: return target.name
 		case .description: return target.description
+		case .summary: return target.summary
+		case .enabled: return target.enabled ? "true" : "false"
 		case .body: return target.bodyMarkdown
 		default: return ""
 		}
@@ -233,7 +295,7 @@ final class SkillsStore {
 		errorMessage = nil
 		defer { isSaving = false }
 		do {
-			var nameChanged = false
+			var listChanged = false
 			for (key, value) in changes {
 				let parts = key.split(separator: ".", maxSplits: 1)
 				guard parts.count == 2 else { continue }
@@ -249,17 +311,57 @@ final class SkillsStore {
 						"update-skill-field",
 						body: ["dirName": dirName, "field": field, "value": value],
 					)
-					if field == SkillField.name.rawValue {
-						nameChanged = true
+					if field == SkillField.name.rawValue
+						|| field == SkillField.enabled.rawValue
+						|| field == SkillField.description.rawValue
+					{
+						listChanged = true
 					}
 				}
 			}
-			if nameChanged, let selectedSkillId {
+			if listChanged {
 				skills = try await client.listSkills()
-				await loadDetail(id: selectedSkillId)
-			} else if let selectedSkillId {
+			}
+			if let selectedSkillId {
 				await loadDetail(id: selectedSkillId)
 			}
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	func uploadIcon(fileData: Data, filename: String) async {
+		guard let dirName = selectedSkillId else { return }
+		await flushPendingSave()
+		isSaving = true
+		errorMessage = nil
+		defer { isSaving = false }
+		do {
+			let base64 = fileData.base64EncodedString()
+			_ = try await client.runConfigureAction(
+				"upload-skill-icon",
+				body: ["dirName": dirName, "imageBase64": base64, "filename": filename],
+			)
+			skills = try await client.listSkills()
+			await loadDetail(id: dirName)
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	func resetIcon() async {
+		guard let dirName = selectedSkillId else { return }
+		await flushPendingSave()
+		isSaving = true
+		errorMessage = nil
+		defer { isSaving = false }
+		do {
+			_ = try await client.runConfigureAction(
+				"reset-skill-icon",
+				body: ["dirName": dirName],
+			)
+			skills = try await client.listSkills()
+			await loadDetail(id: dirName)
 		} catch {
 			errorMessage = error.localizedDescription
 		}

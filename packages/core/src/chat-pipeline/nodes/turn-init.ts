@@ -39,7 +39,7 @@ export const turnInitNode: PipelineNode<TurnRequest, InitedTurn> = {
 			await onStatus("Loading local skills catalog…");
 		}
 
-		const localSkills = loadLocalSkills();
+		const localSkills = loadLocalSkills().filter((s) => s.enabled !== false);
 		const projectSkills = ctx.project ? loadProjectSkills(ctx.project) : [];
 		const allSkills = [...localSkills, ...projectSkills];
 

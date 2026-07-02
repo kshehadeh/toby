@@ -1,3 +1,4 @@
+import { afterEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -10,7 +11,6 @@ import {
 	parseSkillFrontmatterAndBody,
 	resolveSkillsByNames,
 } from "@toby/core/skills/index";
-import { afterEach, describe, expect, it } from "bun:test";
 
 describe("parseSkillFrontmatterAndBody", () => {
 	it("parses standard SKILL.md shape", () => {
@@ -47,7 +47,7 @@ name: only-name
 		).toBeNull();
 	});
 
-	it("ignores legacy summary frontmatter", () => {
+	it("parses summary frontmatter", () => {
 		const raw = `---
 name: demo-skill
 description: One line description.
@@ -60,7 +60,33 @@ Body here.
 `;
 		const skill = parseSkillFileContent("demo-skill", raw);
 		expect(skill).not.toBeNull();
-		expect("summary" in (skill ?? {})).toBe(false);
+		expect(skill?.summary).toBe("Concise summary of key instructions.");
+	});
+
+	it("defaults enabled to true and summary to empty when absent", () => {
+		const raw = `---
+name: demo-skill
+description: One line description.
+---
+
+Body.
+`;
+		const skill = parseSkillFileContent("demo-skill", raw);
+		expect(skill?.enabled).toBe(true);
+		expect(skill?.summary).toBe("");
+	});
+
+	it("parses enabled false frontmatter", () => {
+		const raw = `---
+name: demo-skill
+description: One line description.
+enabled: false
+---
+
+Body.
+`;
+		const skill = parseSkillFileContent("demo-skill", raw);
+		expect(skill?.enabled).toBe(false);
 	});
 
 	it("parses comma-separated tools and integrations frontmatter", () => {

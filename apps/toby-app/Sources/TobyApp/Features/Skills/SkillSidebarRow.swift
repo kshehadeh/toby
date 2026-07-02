@@ -6,10 +6,7 @@ struct SkillSidebarRow: View {
 
 	var body: some View {
 		HStack(spacing: 12) {
-			Image(systemName: "wand.and.stars")
-				.font(.system(size: 14, weight: .semibold))
-				.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.tertiaryText)
-				.frame(width: 20, height: 20)
+			SkillIconView(iconURL: skill.resolvedIconURL, size: 28, cornerRadius: 7)
 			VStack(alignment: .leading, spacing: 2) {
 				Text(skill.name)
 					.font(.callout.weight(.medium))
@@ -31,5 +28,19 @@ struct SkillSidebarRow: View {
 			RoundedRectangle(cornerRadius: 8)
 				.fill(isSelected ? Color.white.opacity(0.10) : Color.clear)
 		)
+	}
+}
+
+extension SkillListItem {
+	var resolvedIconURL: URL? {
+		guard let iconUrl, !iconUrl.isEmpty else { return nil }
+		let base = ConfigReader.baseURL().absoluteString
+		let token = (updatedAt ?? "")
+			.unicodeScalars
+			.filter { CharacterSet.alphanumerics.contains($0) }
+			.map(String.init)
+			.joined()
+		let suffix = token.isEmpty ? "" : "?v=\(token)"
+		return URL(string: base + iconUrl + suffix)
 	}
 }
