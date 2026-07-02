@@ -3,6 +3,7 @@ import SwiftUI
 struct RecordingInspectorSidebar: View {
 	@Bindable var store: RecordingsStore
 	let detail: ListenRecordingDetail
+	var processingState: RecordingProcessingState? = nil
 
 	@State private var nameText = ""
 	@State private var saveTask: Task<Void, Never>?
@@ -16,6 +17,15 @@ struct RecordingInspectorSidebar: View {
 		if detail.hasTranscript { return "Transcribed" }
 		if detail.hasAudio { return "Recorded" }
 		return "Saved"
+	}
+
+	/// True when the selected recording is actively being transcribed (either
+	/// via the manual Transcribe/Re-Transcribe button or the post-recording flow).
+	private var isTranscribing: Bool {
+		guard let state = processingState,
+			state.recordingId == detail.id,
+			state.isActive else { return false }
+		return true
 	}
 
 	private func startChatAboutRecording() {
@@ -39,6 +49,8 @@ struct RecordingInspectorSidebar: View {
 					metadataSection
 					Divider().overlay(SettingsDesign.cardBorder)
 					audioSection
+					Divider().overlay(SettingsDesign.cardBorder)
+					transcriptionSection
 					if !visibleErrors.isEmpty {
 						Divider().overlay(SettingsDesign.cardBorder)
 						errorsSection
@@ -148,6 +160,47 @@ struct RecordingInspectorSidebar: View {
 					.font(.system(size: 11))
 					.foregroundStyle(SettingsDesign.rowDescription)
 			}
+		}
+	}
+
+	@ViewBuilder
+	private var transcriptionSection: some View {
+		VStack(alignment: .leading, spacing: 10) {
+			Text("Transcription")
+				.font(.system(size: 12, weight: .semibold))
+				.foregroundStyle(SettingsDesign.rowTitle)
+
+			if isTranscribing {
+				HStack(spacing: 8) {
+					ProgressView()
+						.scaleEffect(0.7)
+					Text(processingState?.message ?? "Transcribing…")
+						.font(.system(size: 11))
+						.foregroundStyle(SettingsDesign.rowDescription)
+				}
+			} else if detail.hasTranscript {
+				Text("Transcript available")
+					.font(.system(size: 11))
+					.foregroundStyle(SettingsDesign.rowDescription)
+			} else {
+				Text("No transcript yet")
+					.font(.system(size: 11))
+					.foregroundStyle(SettingsDesign.rowDescription)
+			}
+
+			Button {
+				Task { await store.transcribeRecording(id: detail.id) }
+			} label: {
+				Label(
+					detail.hasTranscript ? "Re-Transcribe" : "Transcribe",
+					systemImage: "waveform.badge.magnifyingglass"
+				)
+				.frame(maxWidth: .infinity)
+			}
+			.buttonStyle(.bordered)
+			.controlSize(.small)
+			.disabled(isTranscribing || !detail.hasAudio)
+			.accessibilityIdentifier("sidebar-transcribe-button")
 		}
 	}
 

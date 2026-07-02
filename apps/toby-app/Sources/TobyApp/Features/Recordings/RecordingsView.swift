@@ -4,8 +4,17 @@ struct RecordingsView: View {
 	@Bindable var store: RecordingsStore
 	var processingState: RecordingProcessingState? = nil
 
+	/// Effective processing state: prefer the store's manual transcription
+	/// state when active, otherwise fall back to the post-recording state.
+	private var effectiveProcessingState: RecordingProcessingState? {
+		if let manual = store.transcriptionProcessing, manual.isActive {
+			return manual
+		}
+		return processingState
+	}
+
 	var body: some View {
-		RecordingsDetailView(store: store, processingState: processingState)
+		RecordingsDetailView(store: store, processingState: effectiveProcessingState)
 		.toolbarBackground(.visible)
 		.background(SettingsDesign.canvasBackground)
 		.task {
@@ -17,6 +26,18 @@ struct RecordingsView: View {
 					await store.load()
 					if let id = processingState?.recordingId {
 						await store.selectRecording(id: id)
+					}
+				}
+			}
+		}
+		.onChange(of: store.transcriptionProcessing?.stage) { _, newStage in
+			if newStage == .complete || newStage == .failed {
+				// Clear the manual processing state after a short delay so the
+				// processing card disappears once the reload completes.
+				Task {
+					try? await Task.sleep(for: .milliseconds(500))
+					if store.transcriptionProcessing?.isActive == false {
+						store.transcriptionProcessing = nil
 					}
 				}
 			}

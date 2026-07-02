@@ -3,6 +3,7 @@ import SwiftUI
 struct RecordingDetailContent: View {
 	@Bindable var store: RecordingsStore
 	var recordingId: String?
+	var processingState: RecordingProcessingState? = nil
 
 	private var detail: ListenRecordingDetail { store.detail! }
 
@@ -17,7 +18,7 @@ struct RecordingDetailContent: View {
 			HStack(spacing: 0) {
 				transcriptColumn
 				Divider().overlay(SettingsDesign.cardBorder)
-				RecordingInspectorSidebar(store: store, detail: detail)
+				RecordingInspectorSidebar(store: store, detail: detail, processingState: processingState)
 			}
 			.frame(maxWidth: .infinity, maxHeight: .infinity)
 		}

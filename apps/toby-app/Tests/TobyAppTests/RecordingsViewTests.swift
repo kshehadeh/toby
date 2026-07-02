@@ -231,6 +231,86 @@ struct RecordingsViewTests {
 			try view.inspect().find(text: "Team Sync")
 		}
 	}
+
+	@Test("detail view shows transcription section header in sidebar")
+	func detailViewShowsTranscriptionSectionHeader() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: nil, hasAudio: true)
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Transcription")
+		}
+	}
+
+	@Test("detail view shows Transcribe button when no transcript")
+	func detailViewShowsTranscribeButtonWhenNoTranscript() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: nil, hasAudio: true)
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-transcribe-button")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Transcribe")
+		}
+	}
+
+	@Test("detail view shows Re-Transcribe button when transcript exists")
+	func detailViewShowsReTranscribeButtonWhenTranscriptExists() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello world", hasAudio: true)
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Re-Transcribe")
+		}
+	}
+
+	@Test("detail view shows transcript available status when transcript exists")
+	func detailViewShowsTranscriptAvailableStatus() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello world", hasAudio: true)
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Transcript available")
+		}
+	}
+
+	@Test("detail view shows no transcript yet status when transcript is absent")
+	func detailViewShowsNoTranscriptYetStatus() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: nil, hasAudio: true)
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "No transcript yet")
+		}
+	}
+
+	@Test("detail view shows processing message when transcription is in progress")
+	func detailViewShowsTranscriptionProcessingMessage() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: nil, hasAudio: true)
+		store.transcriptionProcessing = RecordingProcessingState(
+			recordingId: "r1",
+			stage: .transcribing,
+			message: "Transcribing chunk 2/5…"
+		)
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Transcribing chunk 2/5…")
+		}
+	}
 }
 
 private func makeRecording(id: String, name: String? = nil) -> ListenRecordingSummary {
@@ -252,7 +332,8 @@ private func makeRecording(id: String, name: String? = nil) -> ListenRecordingSu
 private func makeRecordingDetail(
 	id: String,
 	transcript: String?,
-	name: String? = nil
+	name: String? = nil,
+	hasAudio: Bool = false
 ) -> ListenRecordingDetail {
 	ListenRecordingDetail(
 		id: id,
@@ -268,8 +349,8 @@ private func makeRecordingDetail(
 			sources: ListenSourceSelection(mic: true, system: false),
 			errors: nil
 		),
-		hasAudio: false,
-		audioPath: nil,
+		hasAudio: hasAudio,
+		audioPath: hasAudio ? "/tmp/\(id)/combined.m4a" : nil,
 		hasTranscript: transcript != nil,
 		transcript: transcript,
 		transcriptError: nil,

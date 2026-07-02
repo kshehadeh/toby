@@ -11,6 +11,12 @@ final class RecordingsStore {
 	var isDetailLoading = false
 	var isDeletingSelection = false
 	var errorMessage: String?
+
+	/// Manual transcription processing state (from the Transcribe / Re-Transcribe
+	/// button in the recording detail sidebar). Distinct from the post-recording
+	/// processing state owned by `ChatStore`.
+	var transcriptionProcessing: RecordingProcessingState?
+
 	private let client = TobyClient()
 
 	var selectedRecording: ListenRecordingSummary? {
@@ -139,6 +145,47 @@ final class RecordingsStore {
 			await loadDetailIfNeeded()
 		} catch {
 			errorMessage = error.localizedDescription
+		}
+	}
+
+	/// Run (or re-run) transcription for a recording via the SSE streaming
+	/// endpoint. Updates `transcriptionProcessing` through the same stages used
+	/// after a live recording stops.
+	func transcribeRecording(id: String) async {
+		guard transcriptionProcessing?.isActive != true else { return }
+		transcriptionProcessing = RecordingProcessingState(
+			recordingId: id,
+			stage: .preparingTranscription,
+		)
+
+		do {
+			_ = try await client.streamTranscribeRecording(id: id) { message in
+				Task { @MainActor in
+					guard self.transcriptionProcessing?.recordingId == id,
+						self.transcriptionProcessing?.isActive == true else { return }
+					self.transcriptionProcessing?.stage = .transcribing
+					self.transcriptionProcessing?.message = message
+				}
+			}
+			transcriptionProcessing = RecordingProcessingState(
+				recordingId: id,
+				stage: .complete,
+				message: "Transcription complete.",
+			)
+		} catch {
+			transcriptionProcessing = RecordingProcessingState(
+				recordingId: id,
+				stage: .failed,
+				message: error.localizedDescription,
+			)
+			errorMessage = error.localizedDescription
+		}
+
+		// Reload the recordings list and selected detail so the UI reflects the
+		// new transcript (or error) without a manual refresh.
+		await load()
+		if selectedRecordingIds.contains(id) {
+			await selectRecording(id: id)
 		}
 	}
 }

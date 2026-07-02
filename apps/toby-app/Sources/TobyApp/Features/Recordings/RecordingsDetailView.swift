@@ -16,7 +16,7 @@ struct RecordingsDetailView: View {
 							.padding(.horizontal, 24)
 							.padding(.top, 12)
 					}
-					RecordingDetailContent(store: store, recordingId: store.selectedRecording?.id)
+					RecordingDetailContent(store: store, recordingId: store.selectedRecording?.id, processingState: processingState)
 				} else {
 					SelectedRecordingsDeck(recordings: store.selectedRecordings)
 				}
