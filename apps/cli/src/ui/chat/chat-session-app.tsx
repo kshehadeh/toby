@@ -14,6 +14,7 @@ import {
 } from "@toby/core/ai/caching";
 import type { CoreMessage } from "@toby/core/ai/chat";
 import { formatChatModelError } from "@toby/core/ai/chat-errors";
+import type { AIContextWindowInfo } from "@toby/core/ai/context-window";
 import { formatPersonaAiLabel } from "@toby/core/ai/model-factory";
 import {
 	type AIProviderPlanUsage,
@@ -332,6 +333,8 @@ export function ChatSessionApp({
 		persona.name,
 	);
 	const [lastUsage, setLastUsage] = useState<LanguageModelUsage | null>(null);
+	const [contextWindow, setContextWindow] =
+		useState<AIContextWindowInfo | null>(null);
 	const [sessionTokenTotals, setSessionTokenTotals] =
 		useState<SessionTokenTotals>(() => emptySessionTokenTotals());
 	const [usageOpen, setUsageOpen] = useState(false);
@@ -665,6 +668,7 @@ export function ChatSessionApp({
 			setActivePlan(null);
 			setTranscript([]);
 			setLastUsage(null);
+			setContextWindow(null);
 			setSessionTokenTotals(emptySessionTokenTotals());
 			if (params?.note?.trim()) {
 				recordSessionNote(null, params.note.trim());
@@ -721,6 +725,7 @@ export function ChatSessionApp({
 				setTranscript(updater);
 			},
 			onUsage: setLastUsage,
+			onContextWindow: setContextWindow,
 			onSessionTokenTotals: setSessionTokenTotals,
 			onSessionName: (name: string) => setSessionName(name),
 			askUserHandler,
@@ -1259,6 +1264,7 @@ export function ChatSessionApp({
 		setMessages(loaded.messages);
 		setTranscript([...loaded.transcript, ...tail]);
 		setLastUsage(null);
+		setContextWindow(null);
 		setSessionTokenTotals(aggregateSessionTokenTotalsFromLog(loaded.id));
 		let maxSeq = 0;
 		for (const e of loaded.transcript) {
@@ -1463,6 +1469,7 @@ export function ChatSessionApp({
 				sessionName,
 				sessionTokenTotals,
 				lastUsage,
+				contextWindow,
 				planUsage: usagePlanUsage,
 				planUsageLoading: usagePlanLoading,
 			}),
@@ -1471,6 +1478,7 @@ export function ChatSessionApp({
 			sessionName,
 			sessionTokenTotals,
 			lastUsage,
+			contextWindow,
 			usagePlanUsage,
 			usagePlanLoading,
 		],
@@ -2637,6 +2645,7 @@ export function ChatSessionApp({
 				modelLabel={modelLabel}
 				dryRun={dryRun}
 				lastUsage={lastUsage}
+				contextWindow={contextWindow}
 				placeholder={suggestedPlaceholder}
 				showPlaceholderWhenEmpty={!hasUserPromptInSession}
 				daemonRunning={daemonRunning}

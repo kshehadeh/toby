@@ -13,7 +13,10 @@ import {
 	saveListenSession,
 } from "@toby/core/listen/session-controller";
 import { transcribeWithModel } from "@toby/core/listen/transcription-model";
-import { closeChatDbForTests } from "@toby/core/session-store";
+import {
+	closeChatDbForTests,
+	setSessionContextWindow,
+} from "@toby/core/session-store";
 import { handleWebRequest } from "@toby/core/web/routes";
 import {
 	ServerEventLog,
@@ -272,6 +275,11 @@ describe("web chat API routes", () => {
 					/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
 				);
 				expect(body.settings.persona).toBe("default");
+				setSessionContextWindow(body.id, {
+					supported: true,
+					contextWindowTokens: 128_000,
+					fillPercentage: 42,
+				});
 
 				const detail = await handleWebRequest(
 					new Request(`http://127.0.0.1/api/sessions/${body.id}`),
@@ -281,8 +289,18 @@ describe("web chat API routes", () => {
 				const detailBody = (await detail.json()) as {
 					settings: { persona?: string };
 					messageCount: number;
+					contextWindow?: {
+						supported: boolean;
+						contextWindowTokens?: number;
+						fillPercentage?: number;
+					};
 				};
 				expect(detailBody.settings.persona).toBe("default");
+				expect(detailBody.contextWindow).toEqual({
+					supported: true,
+					contextWindowTokens: 128_000,
+					fillPercentage: 42,
+				});
 			});
 		},
 	);

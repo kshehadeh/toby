@@ -55,6 +55,7 @@ export function handleSessionDetail(sessionId: string): Response {
 		transcript: session.transcript,
 		messageCount: session.messages.length,
 		settings: session.settings,
+		...(session.contextWindow ? { contextWindow: session.contextWindow } : {}),
 		personaImageUrl,
 		activePlan: planSummaryForSession(sessionId),
 		integration: external?.integration ?? null,

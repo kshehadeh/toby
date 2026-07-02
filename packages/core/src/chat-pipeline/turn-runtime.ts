@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { isAbortError } from "../abort";
 import type { AskUserHandler, AskUserToolResult } from "../ai/ask-user-tool";
+import {
+	type AIContextWindowInfo,
+	resolveContextWindowInfo,
+} from "../ai/context-window";
 import type { ChatSessionSettings } from "../api/chat-api";
 import { resolveChatIntegrationModules } from "../chat-integrations";
 import type { IntegrationModule } from "../integrations/types";
@@ -16,6 +20,7 @@ import {
 	getSessionLastPretreatment,
 	loadChatSession,
 	renameChatSession,
+	setSessionContextWindow,
 	setSessionLastPretreatment,
 } from "../session-store";
 import type { ChatEvent, ChatEventSink } from "./chat-events";
@@ -30,6 +35,7 @@ export type ApiChatTurnResult = {
 	readonly appliedActions: readonly string[];
 	readonly sessionName?: string;
 	readonly usage?: import("ai").LanguageModelUsage;
+	readonly contextWindow?: AIContextWindowInfo;
 	readonly warnings: readonly string[];
 };
 
@@ -373,12 +379,20 @@ export async function runApiChatTurn(params: {
 			});
 		}
 
+		const contextWindow = await resolveContextWindowInfo({
+			providerId: persona.ai.provider,
+			model: persona.ai.model,
+			usage: turn.usage,
+		});
+		setSessionContextWindow(params.sessionId, contextWindow);
+
 		return {
 			turnId,
 			text: turn.text?.trim() ?? "",
 			appliedActions: turn.appliedActions,
 			...(sessionName ? { sessionName } : {}),
 			usage: turn.usage,
+			...(contextWindow ? { contextWindow } : {}),
 			warnings,
 		};
 	} catch (error) {

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { CoreMessage } from "./ai/chat";
+import type { AIContextWindowInfo } from "./ai/context-window";
 import type { UserIntentSpec } from "./ai/pretreatment";
 import type { ChatSessionSettings } from "./api/chat-api";
 import type { TranscriptEntry } from "./chat-pipeline/transcript-types";
@@ -22,6 +23,7 @@ type LoadedChatSession = {
 	readonly messages: CoreMessage[];
 	readonly transcript: TranscriptEntry[];
 	readonly settings: ChatSessionSettings;
+	readonly contextWindow?: AIContextWindowInfo;
 };
 
 type SqliteDb = {
@@ -201,6 +203,18 @@ function migrateChatSessionsSchema(db: SqliteDb): void {
 	if (!cols.some((c) => c.name === "settings_json")) {
 		db.exec("ALTER TABLE chat_sessions ADD COLUMN settings_json TEXT");
 	}
+	if (!cols.some((c) => c.name === "context_window_json")) {
+		db.exec("ALTER TABLE chat_sessions ADD COLUMN context_window_json TEXT");
+	}
+}
+
+function ensureChatSessionContextWindowColumn(db: SqliteDb): void {
+	const cols = db.query("PRAGMA table_info(chat_sessions)").all() as Array<{
+		name: string;
+	}>;
+	if (!cols.some((c) => c.name === "context_window_json")) {
+		db.exec("ALTER TABLE chat_sessions ADD COLUMN context_window_json TEXT");
+	}
 }
 
 function migrateScheduleRunsSchema(db: SqliteDb): void {
@@ -352,6 +366,84 @@ export function setSessionLastPretreatment(
 		$id: id,
 		$json: JSON.stringify(record),
 		$updated_at: nowIso(),
+	});
+}
+
+function parseContextWindowJson(
+	raw: string | null | undefined,
+): AIContextWindowInfo | undefined {
+	if (!raw?.trim()) {
+		return undefined;
+	}
+	try {
+		const parsed = JSON.parse(raw) as Record<string, unknown>;
+		if (parsed.supported === true) {
+			const contextWindowTokens = Number(parsed.contextWindowTokens);
+			if (!Number.isFinite(contextWindowTokens) || contextWindowTokens <= 0) {
+				return undefined;
+			}
+			const fillPercentage =
+				typeof parsed.fillPercentage === "number" &&
+				Number.isFinite(parsed.fillPercentage)
+					? Math.max(0, Math.min(100, Math.round(parsed.fillPercentage)))
+					: undefined;
+			return {
+				supported: true,
+				contextWindowTokens,
+				...(fillPercentage !== undefined ? { fillPercentage } : {}),
+			};
+		}
+		if (parsed.supported === false) {
+			return {
+				supported: false,
+				unavailableReason:
+					typeof parsed.unavailableReason === "string" &&
+					parsed.unavailableReason.trim()
+						? parsed.unavailableReason
+						: "Provider doesn't support context window information.",
+			};
+		}
+		return undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+export function setSessionContextWindow(
+	sessionId: string,
+	contextWindow: AIContextWindowInfo | undefined,
+): void {
+	const id = sessionId.trim();
+	if (!id) return;
+	if (!contextWindow) return;
+	const db = getDb();
+	ensureChatSessionContextWindowColumn(db);
+	const existing = db
+		.query(
+			"SELECT context_window_json as contextWindowJson FROM chat_sessions WHERE id = $id",
+		)
+		.get({ $id: id }) as { contextWindowJson: string | null } | undefined;
+	const existingContextWindow = parseContextWindowJson(
+		existing?.contextWindowJson,
+	);
+	const nextContextWindow =
+		contextWindow.supported &&
+		contextWindow.fillPercentage === undefined &&
+		existingContextWindow?.supported === true &&
+		existingContextWindow.fillPercentage !== undefined
+			? {
+					supported: true as const,
+					contextWindowTokens: contextWindow.contextWindowTokens,
+					fillPercentage: existingContextWindow.fillPercentage,
+				}
+			: contextWindow;
+	db.query(
+		`UPDATE chat_sessions
+     SET context_window_json = $json
+     WHERE id = $id`,
+	).run({
+		$id: id,
+		$json: JSON.stringify(nextContextWindow),
 	});
 }
 
@@ -658,12 +750,20 @@ export function listChatSessions(limit = 50): ChatSessionSummary[] {
 
 export function loadChatSession(sessionId: string): LoadedChatSession | null {
 	const db = getDb();
+	ensureChatSessionContextWindowColumn(db);
 	const sess = db
 		.query(
-			"SELECT id, name, settings_json as settingsJson FROM chat_sessions WHERE id = $id",
+			`SELECT id, name, settings_json as settingsJson,
+              context_window_json as contextWindowJson
+       FROM chat_sessions WHERE id = $id`,
 		)
 		.get({ $id: sessionId }) as
-		| { id: string; name: string; settingsJson: string | null }
+		| {
+				id: string;
+				name: string;
+				settingsJson: string | null;
+				contextWindowJson: string | null;
+		  }
 		| undefined;
 	if (!sess) return null;
 
@@ -700,6 +800,7 @@ export function loadChatSession(sessionId: string): LoadedChatSession | null {
 	const transcript: TranscriptEntry[] = transcriptRows.map((r) =>
 		deserializeTranscriptRow({ kind: r.kind as string, text: r.text }),
 	);
+	const contextWindow = parseContextWindowJson(sess.contextWindowJson);
 
 	return {
 		id: sess.id,
@@ -707,6 +808,7 @@ export function loadChatSession(sessionId: string): LoadedChatSession | null {
 		messages,
 		transcript,
 		settings: parseSessionSettingsJson(sess.settingsJson),
+		...(contextWindow ? { contextWindow } : {}),
 	};
 }
 

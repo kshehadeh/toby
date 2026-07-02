@@ -1,3 +1,4 @@
+import type { AIContextWindowInfo } from "@toby/core/ai/context-window";
 import type { Persona } from "@toby/core/config/index";
 import type { LanguageModelUsage } from "ai";
 import React, {
@@ -34,6 +35,7 @@ export type ChatInputPanelProps = {
 	readonly modelLabel: string;
 	readonly dryRun: boolean;
 	readonly lastUsage: LanguageModelUsage | null;
+	readonly contextWindow: AIContextWindowInfo | null;
 	readonly placeholder?: string | null;
 	readonly showPlaceholderWhenEmpty?: boolean;
 	readonly daemonRunning: boolean;
@@ -59,6 +61,7 @@ export const ChatInputPanel = forwardRef<
 		modelLabel,
 		dryRun,
 		lastUsage,
+		contextWindow,
 		placeholder,
 		showPlaceholderWhenEmpty,
 		daemonRunning,
@@ -136,6 +139,7 @@ export const ChatInputPanel = forwardRef<
 			modelLabel={modelLabel}
 			dryRun={dryRun}
 			lastUsage={lastUsage}
+			contextWindow={contextWindow}
 			placeholder={placeholder}
 			showPlaceholderWhenEmpty={showPlaceholderWhenEmpty}
 			slashSuggestions={slashSuggestions}

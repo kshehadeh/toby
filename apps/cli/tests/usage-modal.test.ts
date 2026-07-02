@@ -1,9 +1,9 @@
+import { describe, expect, it } from "bun:test";
 import {
 	addTurnToSessionTokenTotals,
 	emptySessionTokenTotals,
 	extractTokenUsageReport,
 } from "@toby/core/ai/caching";
-import { describe, expect, it } from "bun:test";
 import { buildUsageSections } from "../src/ui/chat/usage-sections";
 
 describe("session token totals", () => {
@@ -59,6 +59,11 @@ describe("buildUsageSections", () => {
 				outputTokens: 60,
 				totalTokens: 310,
 			},
+			contextWindow: {
+				supported: true,
+				contextWindowTokens: 1_000_000,
+				fillPercentage: 1,
+			},
 			planUsage: {
 				providerId: "vercel",
 				supported: true,
@@ -86,6 +91,7 @@ describe("buildUsageSections", () => {
 			sessionName: "New chat",
 			sessionTokenTotals: emptySessionTokenTotals(),
 			lastUsage: null,
+			contextWindow: null,
 			planUsage: null,
 			planUsageLoading: true,
 		});

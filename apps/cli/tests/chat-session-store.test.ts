@@ -1,9 +1,10 @@
+import { afterEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "bun:test";
 
 import type { CoreMessage } from "@toby/core/ai/chat";
+import { getChatDbPath } from "@toby/core/config/index";
 import {
 	appendMessageBatch,
 	appendTranscriptBatch,
@@ -14,6 +15,7 @@ import {
 	loadChatSession,
 	renameChatSession,
 	setPretreatmentCache,
+	setSessionContextWindow,
 } from "@toby/core/session-store";
 
 const isBun =
@@ -23,6 +25,34 @@ import type { TranscriptEntry } from "../src/ui/chat/types";
 function makeTempDir(): string {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-test-"));
 	return dir;
+}
+
+function createLegacyChatDbWithoutContextWindow(): string {
+	const dir = makeTempDir();
+	process.env.TOBY_DIR = dir;
+	fs.mkdirSync(dir, { recursive: true });
+	// biome-ignore lint/suspicious/noExplicitAny: Bun-only sqlite fixture setup
+	const { Database } = require("bun:sqlite" as any) as {
+		Database: new (
+			path: string,
+		) => {
+			exec: (sql: string) => void;
+			close: () => void;
+		};
+	};
+	const db = new Database(getChatDbPath());
+	db.exec(`
+CREATE TABLE chat_sessions (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+INSERT INTO chat_sessions (id, name, created_at, updated_at)
+VALUES ('legacy-context-session', 'Legacy', '2026-07-02T00:00:00.000Z', '2026-07-02T00:00:00.000Z');
+`);
+	db.close();
+	return "legacy-context-session";
 }
 
 afterEach(() => {
@@ -77,6 +107,62 @@ describe.skipIf(!isBun)("chat session store", () => {
 		renameChatSession(s.id, "New name");
 		const loaded = loadChatSession(s.id);
 		expect(loaded?.name).toBe("New name");
+	});
+
+	it("stores and loads latest context window state", () => {
+		process.env.TOBY_DIR = makeTempDir();
+		const s = createChatSession({ name: "Context" });
+
+		setSessionContextWindow(s.id, {
+			supported: true,
+			contextWindowTokens: 128_000,
+			fillPercentage: 42,
+		});
+
+		const loaded = loadChatSession(s.id);
+		expect(loaded?.contextWindow).toEqual({
+			supported: true,
+			contextWindowTokens: 128_000,
+			fillPercentage: 42,
+		});
+	});
+
+	it("does not downgrade stored context window fill with incomplete updates", () => {
+		process.env.TOBY_DIR = makeTempDir();
+		const s = createChatSession({ name: "Context" });
+
+		setSessionContextWindow(s.id, {
+			supported: true,
+			contextWindowTokens: 128_000,
+			fillPercentage: 42,
+		});
+		setSessionContextWindow(s.id, {
+			supported: true,
+			contextWindowTokens: 128_000,
+		});
+		setSessionContextWindow(s.id, undefined);
+
+		expect(loadChatSession(s.id)?.contextWindow).toEqual({
+			supported: true,
+			contextWindowTokens: 128_000,
+			fillPercentage: 42,
+		});
+	});
+
+	it("adds context window column when writing to an existing legacy database", () => {
+		const sessionId = createLegacyChatDbWithoutContextWindow();
+
+		setSessionContextWindow(sessionId, {
+			supported: true,
+			contextWindowTokens: 128_000,
+			fillPercentage: 42,
+		});
+
+		expect(loadChatSession(sessionId)?.contextWindow).toEqual({
+			supported: true,
+			contextWindowTokens: 128_000,
+			fillPercentage: 42,
+		});
 	});
 
 	it("stores and loads pretreatment cache entries", () => {

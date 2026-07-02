@@ -7,6 +7,7 @@ import {
 	extractTokenUsageReport,
 } from "@toby/core/ai/caching";
 import { formatChatModelError } from "@toby/core/ai/chat-errors";
+import type { AIContextWindowInfo } from "@toby/core/ai/context-window";
 import type { ChatEvent } from "@toby/core/chat-pipeline/chat-events";
 import type { Persona } from "@toby/core/config/index";
 import {
@@ -33,6 +34,7 @@ export type DaemonTurnCallbacks = {
 		updater: (entries: readonly TranscriptEntry[]) => TranscriptEntry[],
 	) => void;
 	readonly onUsage: (usage: LanguageModelUsage | null) => void;
+	readonly onContextWindow: (contextWindow: AIContextWindowInfo | null) => void;
 	readonly onSessionTokenTotals: (
 		updater: (prev: SessionTokenTotals) => SessionTokenTotals,
 	) => void;
@@ -164,6 +166,7 @@ export async function runDaemonChatTurn(params: {
 				addTurnToSessionTokenTotals(totals, tokenReport),
 			);
 		}
+		callbacks.onContextWindow(done.contextWindow ?? null);
 
 		if (done.sessionName?.trim()) {
 			callbacks.onSessionName?.(done.sessionName.trim());

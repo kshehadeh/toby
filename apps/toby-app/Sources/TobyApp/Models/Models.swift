@@ -145,6 +145,7 @@ struct AppStatus: Decodable {
 	let version: String
 	let persona: String
 	let model: String
+	let contextWindow: ContextWindowPayload?
 	let personaImageUrl: String?
 	let connectedIntegrations: [String]?
 	let skillCount: Int?
@@ -288,6 +289,7 @@ struct SessionDetail: Decodable {
 	let transcript: [TranscriptEntry]
 	let messageCount: Int
 	let settings: SessionSettings?
+	let contextWindow: ContextWindowPayload?
 	let personaImageUrl: String?
 	let activePlan: PlanSummary?
 	let integration: String?
@@ -644,11 +646,28 @@ struct CreateIssueResponse: Decodable {
 	let reason: String?
 }
 
+struct UsagePayload: Decodable, Equatable {
+	let inputTokens: Int?
+	let outputTokens: Int?
+	let totalTokens: Int?
+	let cacheReadTokens: Int?
+	let cacheWriteTokens: Int?
+}
+
+struct ContextWindowPayload: Decodable, Equatable {
+	let supported: Bool
+	let contextWindowTokens: Int?
+	let fillPercentage: Int?
+	let unavailableReason: String?
+}
+
 struct TurnDonePayload: Decodable {
 	let turnId: String?
 	let text: String
 	let appliedActions: [String]?
 	let sessionName: String?
+	let usage: UsagePayload?
+	let contextWindow: ContextWindowPayload?
 }
 
 struct AskUserPromptPayload: Decodable {

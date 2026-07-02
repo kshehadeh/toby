@@ -317,6 +317,7 @@ struct TobyClient {
 	func streamTurn(
 		sessionId: String,
 		text: String,
+		clientTurnId: String? = nil,
 		onEvent: @escaping (ChatEventPayload) -> Void,
 		onAskUser: ((AskUserPromptPayload) async -> (selectedIndex: Int, selectedLabel: String, rawInput: String, error: String?))?,
 	) async throws -> TurnDonePayload {
@@ -329,7 +330,11 @@ struct TobyClient {
 		)
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = try JSONEncoder().encode(["text": text])
+		var bodyDict: [String: String] = ["text": text]
+		if let clientTurnId {
+			bodyDict["clientTurnId"] = clientTurnId
+		}
+		request.httpBody = try JSONEncoder().encode(bodyDict)
 
 		let (bytes, response) = try await URLSession.shared.bytes(for: request)
 		guard let http = response as? HTTPURLResponse else {
@@ -377,7 +382,7 @@ struct TobyClient {
 					}
 				}
 				ServerEventLog.append("sse.done.decodeFailed payload=\(payload)")
-				return TurnDonePayload(turnId: nil, text: "", appliedActions: [], sessionName: nil)
+				return TurnDonePayload(turnId: nil, text: "", appliedActions: [], sessionName: nil, usage: nil, contextWindow: nil)
 			}
 
 			if pendingEvent == "ask_user_prompt" {
@@ -424,7 +429,18 @@ struct TobyClient {
 		}
 
 		ServerEventLog.append("sse.streamEndedWithoutDone")
-		return TurnDonePayload(turnId: nil, text: "", appliedActions: [], sessionName: nil)
+		return TurnDonePayload(turnId: nil, text: "", appliedActions: [], sessionName: nil, usage: nil, contextWindow: nil)
+	}
+
+	func cancelTurn(sessionId: String, turnId: String) async {
+		let url = baseURL.appendingPathComponent(
+			"api/sessions/\(sessionId)/turn/\(turnId)/cancel"
+		)
+		var request = URLRequest(url: url)
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = Data("{}".utf8)
+		_ = try? await URLSession.shared.data(for: request)
 	}
 
 	func answerAskUser(

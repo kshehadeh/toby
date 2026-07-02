@@ -4,6 +4,7 @@ import {
 	formatSessionTokenCount,
 	sessionTokenTotalTokens,
 } from "@toby/core/ai/caching";
+import type { AIContextWindowInfo } from "@toby/core/ai/context-window";
 import type { AIProviderPlanUsage } from "@toby/core/ai/plan-usage";
 import { getAIProviderDisplayName } from "@toby/core/ai/providers";
 import type { Persona } from "@toby/core/config/index";
@@ -22,81 +23,15 @@ function formatUsd(amount: number): string {
 }
 
 function formatContextFill(
-	model: string,
-	usage: LanguageModelUsage | null,
+	contextWindow: AIContextWindowInfo | null,
 ): string | null {
-	const input = usage?.inputTokens;
-	if (typeof input !== "number" || input <= 0) {
+	if (!contextWindow?.supported) {
 		return null;
 	}
-
-	const windowSize = getModelContextWindow(model);
-	if (!windowSize) {
+	if (typeof contextWindow.fillPercentage !== "number") {
 		return null;
 	}
-
-	const pct = Math.max(
-		0,
-		Math.min(100, Math.round((input / windowSize) * 100)),
-	);
-	return `${pct}% of context window`;
-}
-
-function getModelContextWindow(model: string): number | null {
-	const m = model.toLowerCase().trim();
-
-	if (
-		m.startsWith("gpt-4.1") ||
-		m.startsWith("gpt-5") ||
-		m.startsWith("o3") ||
-		m.startsWith("o4")
-	) {
-		return 1_000_000;
-	}
-	if (m.startsWith("gpt-4o") || m.startsWith("gpt-4-turbo")) {
-		return 128_000;
-	}
-	if (m.includes("claude-opus") || m.includes("claude-sonnet")) {
-		return 1_000_000;
-	}
-	if (m.includes("claude-haiku")) {
-		return 200_000;
-	}
-	if (m.startsWith("gemini-3") || m.startsWith("gemini-2.5")) {
-		return 1_000_000;
-	}
-	if (m.startsWith("nova")) {
-		return 300_000;
-	}
-	if (m.includes("llama-4-scout")) {
-		return 10_000_000;
-	}
-	if (m.startsWith("mistral-medium")) {
-		return 131_000;
-	}
-	if (m.startsWith("deepseek")) {
-		return 128_000;
-	}
-	if (m.includes("grok-4")) {
-		return 2_000_000;
-	}
-	if (m.includes("glm-5")) {
-		return 1_000_000;
-	}
-	if (m.includes("glm-4.7-flash")) {
-		return 131_000;
-	}
-	if (m.includes("glm-4.7")) {
-		return 200_000;
-	}
-	if (m.includes("kimi-k2.6")) {
-		return 262_000;
-	}
-	if (m.includes("kimi-k2.5")) {
-		return 128_000;
-	}
-
-	return null;
+	return `${contextWindow.fillPercentage}% of context window`;
 }
 
 function buildProviderPlanRows(
@@ -187,6 +122,7 @@ function buildActiveSessionRows(
 function buildLastTurnRows(
 	persona: Persona,
 	lastUsage: LanguageModelUsage | null,
+	contextWindow: AIContextWindowInfo | null,
 ): HelpKeyRow[] {
 	const report = extractTokenUsageReport(lastUsage, { persona });
 	if (!report?.outputTokens) {
@@ -211,9 +147,16 @@ function buildLastTurnRows(
 		});
 	}
 
-	const contextFill = formatContextFill(persona.ai.model, lastUsage);
+	const contextFill = formatContextFill(contextWindow);
 	if (contextFill) {
 		rows.push({ label: "Context fill", keys: contextFill });
+	} else if (contextWindow?.supported === false) {
+		rows.push({
+			label: "Context fill",
+			keys:
+				contextWindow.unavailableReason ??
+				"Provider doesn't support context window information.",
+		});
 	}
 
 	if (report.cacheReadTokens !== undefined && report.cacheReadTokens > 0) {
@@ -237,6 +180,7 @@ export function buildUsageSections(options: {
 	readonly sessionName: string;
 	readonly sessionTokenTotals: SessionTokenTotals;
 	readonly lastUsage: LanguageModelUsage | null;
+	readonly contextWindow: AIContextWindowInfo | null;
 	readonly planUsage: AIProviderPlanUsage | null;
 	readonly planUsageLoading: boolean;
 }): UsageSections {
@@ -261,7 +205,11 @@ export function buildUsageSections(options: {
 			options.sessionName,
 			options.sessionTokenTotals,
 		),
-		lastTurn: buildLastTurnRows(options.persona, options.lastUsage),
+		lastTurn: buildLastTurnRows(
+			options.persona,
+			options.lastUsage,
+			options.contextWindow,
+		),
 		notes,
 	};
 }

@@ -42,4 +42,118 @@ struct ChatStoreTests {
         await store.startNewSession()
         #expect(store.promptFocusRequestId != originalId)
     }
+
+    @Test("contextFillPercentage is nil when no context window data")
+    func contextFillNilWhenNoContextWindowData() {
+        let store = ChatStore()
+        #expect(store.contextFillPercentage == nil)
+        #expect(store.contextWindowUnavailable == false)
+    }
+
+    @Test("contextFillPercentage comes from API payload")
+    func contextFillComesFromApiPayload() {
+        let store = ChatStore()
+        store.contextWindow = ContextWindowPayload(
+            supported: true,
+            contextWindowTokens: 128_000,
+            fillPercentage: 50,
+            unavailableReason: nil
+        )
+        #expect(store.contextFillPercentage == 50)
+        #expect(store.contextWindowUnavailable == false)
+    }
+
+    @Test("contextFillPercentage shows empty gauge for supported provider without usage")
+    func contextFillShowsEmptyGaugeForSupportedProviderWithoutUsage() {
+        let store = ChatStore()
+        store.contextWindow = ContextWindowPayload(
+            supported: true,
+            contextWindowTokens: 128_000,
+            fillPercentage: nil,
+            unavailableReason: nil
+        )
+        #expect(store.contextFillPercentage == 0)
+        #expect(store.contextWindowUnavailable == false)
+    }
+
+    @Test("context window merge preserves existing fill percentage")
+    func contextWindowMergePreservesExistingFillPercentage() {
+        let current = ContextWindowPayload(
+            supported: true,
+            contextWindowTokens: 128_000,
+            fillPercentage: 42,
+            unavailableReason: nil
+        )
+        let incoming = ContextWindowPayload(
+            supported: true,
+            contextWindowTokens: 128_000,
+            fillPercentage: nil,
+            unavailableReason: nil
+        )
+
+        #expect(mergeContextWindowPayload(current: current, incoming: incoming)?.fillPercentage == 42)
+    }
+
+    @Test("context window merge accepts newer filled payload")
+    func contextWindowMergeAcceptsNewerFilledPayload() {
+        let current = ContextWindowPayload(
+            supported: true,
+            contextWindowTokens: 128_000,
+            fillPercentage: 42,
+            unavailableReason: nil
+        )
+        let incoming = ContextWindowPayload(
+            supported: true,
+            contextWindowTokens: 128_000,
+            fillPercentage: 43,
+            unavailableReason: nil
+        )
+
+        #expect(mergeContextWindowPayload(current: current, incoming: incoming)?.fillPercentage == 43)
+    }
+
+    @Test("contextWindowUnavailable is true for unsupported provider payload")
+    func contextWindowUnavailableForUnsupportedProviderPayload() {
+        let store = ChatStore()
+        store.contextWindow = ContextWindowPayload(
+            supported: false,
+            contextWindowTokens: nil,
+            fillPercentage: nil,
+            unavailableReason: "Provider doesn't support context window information."
+        )
+        #expect(store.contextFillPercentage == nil)
+        #expect(store.contextWindowUnavailable == true)
+    }
+
+    @Test("contextWindowUnavailable falls back to status payload")
+    func contextWindowUnavailableFallsBackToStatusPayload() {
+        let store = ChatStore()
+        store.status = AppStatus(
+            version: "1.0",
+            persona: "Toby",
+            model: "openai/gpt-5-mini",
+            contextWindow: ContextWindowPayload(
+                supported: false,
+                contextWindowTokens: nil,
+                fillPercentage: nil,
+                unavailableReason: "Provider doesn't support context window information."
+            ),
+            personaImageUrl: nil,
+            connectedIntegrations: nil,
+            skillCount: nil,
+            skills: nil,
+            transcription: nil
+        )
+        #expect(store.contextFillPercentage == nil)
+        #expect(store.contextWindowUnavailable == true)
+    }
+
+    @Test("cancelActiveTurn is a no-op when not loading")
+    func cancelActiveTurnNoOpWhenNotLoading() {
+        let store = ChatStore()
+        store.sessionId = "test-session"
+        // Should not crash or change state when not loading
+        store.cancelActiveTurn()
+        #expect(store.isLoading == false)
+    }
 }

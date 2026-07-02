@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import type { AskUserToolResult } from "../../ai/ask-user-tool";
+import { resolveContextWindowInfo } from "../../ai/context-window";
 import { formatPersonaAiLabel } from "../../ai/model-factory";
+import { isWebSearchAvailable } from "../../ai/web-search-global-tools";
 import type {
 	CreateSessionRequest,
 	PatchSessionRequest,
@@ -16,7 +18,6 @@ import {
 } from "../../chat-pipeline/turn-runtime";
 import { getDefaultPersonaImagePath } from "../../config/index";
 import { isTranscriptionConfigured } from "../../listen/transcription-providers";
-import { isWebSearchAvailable } from "../../ai/web-search-global-tools";
 import { resolveDefaultPersona } from "../../personas/index";
 import { loadPlanBySession } from "../../planning/plan-store";
 import {
@@ -81,6 +82,10 @@ export async function handleChatStatusDetail(): Promise<Response> {
 		version: getTobyVersion(),
 		persona: persona.name,
 		model: formatPersonaAiLabel(persona),
+		contextWindow: await resolveContextWindowInfo({
+			providerId: persona.ai.provider,
+			model: persona.ai.model,
+		}),
 		personaImageUrl,
 		connectedIntegrations: modules.map((m) => m.displayName),
 		skillCount: skills.length,
@@ -245,6 +250,9 @@ export async function handleSessionTurn(
 						appliedActions: result.appliedActions,
 						...(result.sessionName ? { sessionName: result.sessionName } : {}),
 						...(result.usage ? { usage: result.usage } : {}),
+						...(result.contextWindow
+							? { contextWindow: result.contextWindow }
+							: {}),
 						...(result.warnings.length > 0
 							? { warnings: result.warnings }
 							: {}),

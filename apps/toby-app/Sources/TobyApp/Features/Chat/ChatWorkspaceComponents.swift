@@ -57,7 +57,10 @@ struct EmptyChatWorkspace: View {
                 text: $store.promptText,
                 focus: promptFocus,
                 isLoading: store.isLoading,
+                contextFillPercentage: store.contextFillPercentage,
+                contextWindowUnavailable: store.contextWindowUnavailable,
                 onSubmit: submit,
+                onCancel: { store.cancelActiveTurn() },
             )
             EmptySuggestionList { suggestion in
                 store.promptText = suggestion
@@ -106,7 +109,10 @@ struct ActiveChatWorkspace: View {
                     text: $store.promptText,
                     focus: promptFocus,
                     isLoading: store.isLoading,
+                    contextFillPercentage: store.contextFillPercentage,
+                    contextWindowUnavailable: store.contextWindowUnavailable,
                     onSubmit: submit,
+                    onCancel: { store.cancelActiveTurn() },
                 )
             }
             .padding(.horizontal, AppTheme.contentPadding)

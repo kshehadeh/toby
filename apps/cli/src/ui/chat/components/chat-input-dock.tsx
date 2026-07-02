@@ -2,6 +2,7 @@ import {
 	extractTokenUsageReport,
 	formatTokenUsageStatus,
 } from "@toby/core/ai/caching";
+import type { AIContextWindowInfo } from "@toby/core/ai/context-window";
 import { getAIProviderDisplayName } from "@toby/core/ai/providers";
 import type { Persona } from "@toby/core/config/index";
 import type { LanguageModelUsage } from "ai";
@@ -55,101 +56,16 @@ function formatUpgradeUiStatusLine(
 	}
 }
 
-function getModelContextWindow(model: string): number | null {
-	const m = model.toLowerCase().trim();
-
-	// OpenAI
-	if (
-		m.startsWith("gpt-4.1") ||
-		m.startsWith("gpt-5") ||
-		m.startsWith("o3") ||
-		m.startsWith("o4")
-	) {
-		return 1_000_000;
-	}
-	if (m.startsWith("gpt-4o") || m.startsWith("gpt-4-turbo")) {
-		return 128_000;
-	}
-
-	// Anthropic
-	if (m.includes("claude-opus") || m.includes("claude-sonnet")) {
-		return 1_000_000;
-	}
-	if (m.includes("claude-haiku")) {
-		return 200_000;
-	}
-
-	// Google Gemini
-	if (m.startsWith("gemini-3") || m.startsWith("gemini-2.5")) {
-		return 1_000_000;
-	}
-
-	// Amazon Nova
-	if (m.startsWith("nova")) {
-		return 300_000;
-	}
-
-	// Meta Llama
-	if (m.includes("llama-4-scout")) {
-		return 10_000_000;
-	}
-
-	// Mistral
-	if (m.startsWith("mistral-medium")) {
-		return 131_000;
-	}
-
-	// DeepSeek
-	if (m.startsWith("deepseek")) {
-		return 128_000;
-	}
-
-	// xAI Grok
-	if (m.includes("grok-4")) {
-		return 2_000_000;
-	}
-
-	// Zhipu GLM
-	if (m.includes("glm-5")) {
-		return 1_000_000;
-	}
-	if (m.includes("glm-4.7-flash")) {
-		return 131_000;
-	}
-	if (m.includes("glm-4.7")) {
-		return 200_000;
-	}
-
-	// Moonshot Kimi
-	if (m.includes("kimi-k2.6")) {
-		return 262_000;
-	}
-	if (m.includes("kimi-k2.5")) {
-		return 128_000;
-	}
-
-	return null;
-}
-
 function formatContextFill(
-	modelLabel: string,
-	usage: LanguageModelUsage | null,
+	contextWindow: AIContextWindowInfo | null,
 ): string | null {
-	const input = usage?.inputTokens;
-	if (typeof input !== "number" || input <= 0) {
+	if (!contextWindow?.supported) {
 		return null;
 	}
-	const [, modelPart] = modelLabel.split("/", 2);
-	const model = modelPart ?? modelLabel;
-	const windowSize = getModelContextWindow(model);
-	if (!windowSize) {
+	if (typeof contextWindow.fillPercentage !== "number") {
 		return null;
 	}
-	const pct = Math.max(
-		0,
-		Math.min(100, Math.round((input / windowSize) * 100)),
-	);
-	return `ctx ${pct}%`;
+	return `ctx ${contextWindow.fillPercentage}%`;
 }
 
 type ChatInputDockProps = {
@@ -164,6 +80,7 @@ type ChatInputDockProps = {
 	readonly modelLabel: string;
 	readonly dryRun: boolean;
 	readonly lastUsage: LanguageModelUsage | null;
+	readonly contextWindow: AIContextWindowInfo | null;
 	readonly placeholder?: string | null;
 	readonly showPlaceholderWhenEmpty?: boolean;
 	readonly slashSuggestions: readonly SlashCommand[];
@@ -191,6 +108,7 @@ export function ChatInputDock(props: ChatInputDockProps) {
 		modelLabel,
 		dryRun,
 		lastUsage,
+		contextWindow,
 		placeholder,
 		showPlaceholderWhenEmpty,
 		slashSuggestions,
@@ -212,7 +130,7 @@ export function ChatInputDock(props: ChatInputDockProps) {
 			: "";
 	const showStaticPlaceholder =
 		input.length === 0 && (loading || (showPlaceholderWhenEmpty ?? false));
-	const contextFill = formatContextFill(modelLabel, lastUsage);
+	const contextFill = formatContextFill(contextWindow);
 	const tokenUsageStatus = useMemo(() => {
 		const report = extractTokenUsageReport(lastUsage, { persona });
 		return formatTokenUsageStatus(report);

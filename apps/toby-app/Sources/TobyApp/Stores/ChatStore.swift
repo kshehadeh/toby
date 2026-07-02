@@ -8,6 +8,27 @@ func makeRecordingChatPrompt(name: String, dateText: String, hourText: String) -
 	return "Summarize the transcript of the recording named \"\(resolvedName)\" on \"\(dateText)\" at \"\(hourText)\" oclock."
 }
 
+func mergeContextWindowPayload(
+	current: ContextWindowPayload?,
+	incoming: ContextWindowPayload?,
+) -> ContextWindowPayload? {
+	guard let incoming else { return current }
+	guard let current else { return incoming }
+	if current.supported,
+		incoming.supported,
+		current.fillPercentage != nil,
+		incoming.fillPercentage == nil
+	{
+		return ContextWindowPayload(
+			supported: true,
+			contextWindowTokens: incoming.contextWindowTokens ?? current.contextWindowTokens,
+			fillPercentage: current.fillPercentage,
+			unavailableReason: nil,
+		)
+	}
+	return incoming
+}
+
 @Observable
 @MainActor
 final class ChatStore {
@@ -36,9 +57,22 @@ final class ChatStore {
 	var integration: String?
 	var externalKey: String?
 	var sessionPersonaImageUrl: String?
+	var contextWindow: ContextWindowPayload?
+	private var activeTurnId: String?
+	private var isCancelling = false
 
 	var isExternalSession: Bool {
 		integration != nil && externalKey != nil
+	}
+
+	var contextFillPercentage: Int? {
+		let info = contextWindow ?? status?.contextWindow
+		guard info?.supported == true else { return nil }
+		return info?.fillPercentage ?? 0
+	}
+
+	var contextWindowUnavailable: Bool {
+		(contextWindow ?? status?.contextWindow)?.supported == false
 	}
 
 	var activeWorkStartDate: Date? {
@@ -274,6 +308,7 @@ final class ChatStore {
 			sessionPersonaImageUrl = detail.personaImageUrl
 			streamingAssistant = nil
 			turnWorkDurations = [:]
+			contextWindow = detail.contextWindow
 			promptText = ""
 			errorMessage = nil
 			activityLine = "Ready"
@@ -299,6 +334,7 @@ final class ChatStore {
 			sessionPersonaImageUrl = nil
 			streamingAssistant = nil
 			turnWorkDurations = [:]
+			contextWindow = nil
 			errorMessage = nil
 			activityLine = "Ready"
 			stopExternalSessionRefreshLoop()
@@ -475,6 +511,7 @@ final class ChatStore {
 		activeTurnStartedAt = Date()
 		activeTurnUserIndex = userTurnStartIndex
 		isLoading = true
+		isCancelling = false
 		activityLine = "Thinking…"
 		streamingAssistant = nil
 		assistantHeader = ""
@@ -482,8 +519,11 @@ final class ChatStore {
 		sawToolCallThisTurn = false
 		errorMessage = nil
 
+		let turnId = UUID().uuidString
+		activeTurnId = turnId
+
 		do {
-			let done = try await client.streamTurn(sessionId: sessionId, text: text, onEvent: { event in
+			let done = try await client.streamTurn(sessionId: sessionId, text: text, clientTurnId: turnId, onEvent: { event in
 				self.apply(event: event)
 			}, onAskUser: { [weak self] prompt in
 				guard let self else { return (-1, "", "", "Prompt dismissed") }
@@ -503,18 +543,37 @@ final class ChatStore {
 			), !nextSessionName.isEmpty {
 				sessionName = nextSessionName
 			}
+			contextWindow = done.contextWindow
 			await reloadTranscriptFromServer(clearTurnDurationForIndex: userTurnStartIndex)
 			streamingAssistant = nil
 			activityLine = "Ready"
 			await refreshSessions()
 		} catch {
-			errorMessage = error.localizedDescription
-			transcript.append(.error(text: error.localizedDescription))
-			activityLine = "Error"
+			if isCancelling {
+				if !assistantBuffer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+					commitAssistantSegment(id: UUID().uuidString, interim: false)
+				}
+				transcript.append(.notice(text: "Turn cancelled.", tone: nil))
+				activityLine = "Ready"
+			} else {
+				errorMessage = error.localizedDescription
+				transcript.append(.error(text: error.localizedDescription))
+				activityLine = "Error"
+			}
 		}
 
 		isLoading = false
+		isCancelling = false
+		activeTurnId = nil
 		recordTurnDuration()
+	}
+
+	func cancelActiveTurn() {
+		guard isLoading, !isCancelling, let sessionId, let turnId = activeTurnId else { return }
+		isCancelling = true
+		Task {
+			await client.cancelTurn(sessionId: sessionId, turnId: turnId)
+		}
 	}
 
 	private func recordTurnDuration() {
@@ -569,6 +628,7 @@ final class ChatStore {
 			let detail = try await client.fetchSession(id: sessionId)
 			transcript = detail.transcript
 			sessionPersonaImageUrl = detail.personaImageUrl
+			contextWindow = mergeContextWindowPayload(current: contextWindow, incoming: detail.contextWindow)
 			if let userIndex {
 				turnWorkDurations.removeValue(forKey: userIndex)
 			}
