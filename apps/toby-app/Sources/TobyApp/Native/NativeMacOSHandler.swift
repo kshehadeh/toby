@@ -148,6 +148,14 @@ enum NativeMacOSHandler {
 		AudioObjectPropertyAddress(mSelector: selector, mScope: scope, mElement: kAudioObjectPropertyElementMain)
 	}
 
+	private static func audioStringProperty(id: AudioObjectID, selector: AudioObjectPropertySelector) -> String? {
+		var address = audioAddr(selector: selector)
+		var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+		var value: Unmanaged<CFString>?
+		guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &value) == noErr, let value else { return nil }
+		return value.takeRetainedValue() as String
+	}
+
 	static func audioListOutputs() -> Data {
 		var address = audioAddr(selector: kAudioHardwarePropertyDevices)
 		var size: UInt32 = 0
@@ -183,17 +191,8 @@ enum NativeMacOSHandler {
 	}
 
 	private static func audioDeviceInfo(id: AudioObjectID, defaultOutputID: AudioObjectID, defaultInputID: AudioObjectID) -> [String: Any]? {
-		var nameSize = UInt32(0)
-		var nameAddr = audioAddr(selector: kAudioDevicePropertyDeviceNameCFString)
-		guard AudioObjectGetPropertyDataSize(id, &nameAddr, 0, nil, &nameSize) == noErr else { return nil }
-		var nameRef: CFString?
-		guard AudioObjectGetPropertyData(id, &nameAddr, 0, nil, &nameSize, &nameRef) == noErr, let name = nameRef as String? else { return nil }
-
-		var uidRef: CFString?
-		var uidAddr = audioAddr(selector: kDeviceUID)
-		var uidSize = UInt32(MemoryLayout<CFString>.size)
-		AudioObjectGetPropertyData(id, &uidAddr, 0, nil, &uidSize, &uidRef)
-		let uid = uidRef as String? ?? ""
+		guard let name = audioStringProperty(id: id, selector: kAudioDevicePropertyDeviceNameCFString) else { return nil }
+		let uid = audioStringProperty(id: id, selector: kDeviceUID) ?? ""
 
 		let isOutput = audioHasStreams(id: id, scope: kAudioObjectPropertyScopeOutput)
 		let isInput = audioHasStreams(id: id, scope: kAudioObjectPropertyScopeInput)
@@ -243,27 +242,17 @@ enum NativeMacOSHandler {
 		var matchedID: AudioObjectID?
 		for id in ids {
 			guard id != 0 else { continue }
-			var uidRef: CFString?
-			var uidAddr = audioAddr(selector: kDeviceUID)
-			var uidSize = UInt32(MemoryLayout<CFString>.size)
-			if AudioObjectGetPropertyData(id, &uidAddr, 0, nil, &uidSize, &uidRef) == noErr,
-				let uid = uidRef as String?,
+			if let uid = audioStringProperty(id: id, selector: kDeviceUID),
 				(uid == nameOrUid || uid.contains(nameOrUid))
 			{
 				matchedID = id
 				break
 			}
-			var nameSize = UInt32(0)
-			var nameAddr = audioAddr(selector: kAudioDevicePropertyDeviceNameCFString)
-			if AudioObjectGetPropertyDataSize(id, &nameAddr, 0, nil, &nameSize) == noErr {
-				var nameRef: CFString?
-				if AudioObjectGetPropertyData(id, &nameAddr, 0, nil, &nameSize, &nameRef) == noErr,
-					let name = nameRef as String?,
-					(name == nameOrUid || name.localizedCaseInsensitiveContains(nameOrUid))
-				{
-					matchedID = id
-					break
-				}
+			if let name = audioStringProperty(id: id, selector: kAudioDevicePropertyDeviceNameCFString),
+				(name == nameOrUid || name.localizedCaseInsensitiveContains(nameOrUid))
+			{
+				matchedID = id
+				break
 			}
 		}
 		guard let targetID = matchedID else {
@@ -274,12 +263,7 @@ enum NativeMacOSHandler {
 		let setSize = UInt32(MemoryLayout<AudioObjectID>.size)
 		status = AudioObjectSetPropertyData(AudioObjectID(kAudioObjectSystemObject), &setAddr, 0, nil, setSize, &newDefault)
 		guard status == noErr else { return json(["ok": false, "error": "Failed to set default output device: \(status)"]) }
-		var nameSize = UInt32(0)
-		var nameAddr = audioAddr(selector: kAudioDevicePropertyDeviceNameCFString)
-		AudioObjectGetPropertyDataSize(targetID, &nameAddr, 0, nil, &nameSize)
-		var nameRef: CFString?
-		AudioObjectGetPropertyData(targetID, &nameAddr, 0, nil, &nameSize, &nameRef)
-		let name = nameRef as String? ?? "unknown"
+		let name = audioStringProperty(id: targetID, selector: kAudioDevicePropertyDeviceNameCFString) ?? "unknown"
 		let data: [String: Any] = ["deviceId": Int(targetID), "name": name]
 		return json(["ok": true, "data": data])
 	}

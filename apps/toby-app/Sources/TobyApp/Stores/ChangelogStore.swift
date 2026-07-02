@@ -25,7 +25,7 @@ final class ChangelogStore {
 	}
 
 	func load(force: Bool = false) async {
-		if !force, let changelog, let lastFetchedAt, Date().timeIntervalSince(lastFetchedAt) < cacheInterval {
+		if !force, changelog != nil, let lastFetchedAt, Date().timeIntervalSince(lastFetchedAt) < cacheInterval {
 			return
 		}
 
