@@ -15,7 +15,7 @@
     },
     "apps/cli": {
       "name": "@toby/cli",
-      "version": "0.70.0",
+      "version": "0.73.0",
       "bin": {
         "toby": "./dist/cli.js",
       },
@@ -62,6 +62,10 @@
     "apps/plugin-applecalendar": {
       "name": "@toby/plugin-applecalendar",
       "version": "1.1.0",
+    },
+    "apps/plugin-applereminders": {
+      "name": "@toby/plugin-applereminders",
+      "version": "1.0.0",
     },
     "apps/plugin-email": {
       "name": "@toby/plugin-email",
@@ -1019,6 +1023,8 @@
     "@toby/helper-scripts": ["@toby/helper-scripts@workspace:packages/helper-scripts"],
 
     "@toby/plugin-applecalendar": ["@toby/plugin-applecalendar@workspace:apps/plugin-applecalendar"],
+
+    "@toby/plugin-applereminders": ["@toby/plugin-applereminders@workspace:apps/plugin-applereminders"],
 
     "@toby/plugin-email": ["@toby/plugin-email@workspace:apps/plugin-email"],
 
