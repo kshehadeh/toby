@@ -3,16 +3,15 @@ import Testing
 @testable import TobyApp
 
 @MainActor
-final class MockUpdateCheckClient: ChangelogFetchable {
-	var response: ChangelogResponse?
+final class MockAppcastFetcher: AppcastFetchable {
+	var latestVersion: String?
 	var error: Error?
 	var fetchCount = 0
 
-	func fetchChangelog(limit: Int) async throws -> ChangelogResponse {
+	func fetchLatestVersion() async throws -> String? {
 		fetchCount += 1
 		if let error { throw error }
-		guard let response else { throw TobyClientError.invalidResponse }
-		return response
+		return latestVersion
 	}
 }
 
@@ -32,28 +31,16 @@ final class MockNativeAppUpdater: NativeAppUpdating {
 @MainActor
 @Suite("UpdateStore")
 struct UpdateStoreTests {
-	private func makeRelease(version: String) -> ChangelogRelease {
-		ChangelogRelease(
-			version: version,
-			tagName: "v\(version)",
-			url: "https://example.com",
-			publishedAt: "2026-06-21T07:33:33Z",
-			features: [],
-			bugs: [],
-			enhancements: []
-		)
-	}
-
 	private func makeStore(
-		response: ChangelogResponse? = nil,
+		latestVersion: String? = nil,
 		error: Error? = nil,
 		nativeUpdater: NativeAppUpdating = MockNativeAppUpdater()
-	) -> (UpdateStore, MockUpdateCheckClient) {
-		let client = MockUpdateCheckClient()
-		client.response = response
-		client.error = error
-		let store = UpdateStore(client: client, nativeUpdater: nativeUpdater)
-		return (store, client)
+	) -> (UpdateStore, MockAppcastFetcher) {
+		let fetcher = MockAppcastFetcher()
+		fetcher.latestVersion = latestVersion
+		fetcher.error = error
+		let store = UpdateStore(appcastFetcher: fetcher, nativeUpdater: nativeUpdater)
+		return (store, fetcher)
 	}
 
 	@Test("isVersionNewer detects newer version")
@@ -77,20 +64,18 @@ struct UpdateStoreTests {
 		#expect(UpdateStore.isVersionNewer("v0.66.0", "v0.65.2") == true)
 	}
 
-	@Test("checkForUpdates sets isUpdateAvailable when newer version exists")
+	@Test("checkForUpdates sets isUpdateAvailable when newer version exists in appcast")
 	func checkDetectsUpdate() async {
-		let response = ChangelogResponse(releases: [makeRelease(version: "0.66.0")])
-		let (store, client) = makeStore(response: response)
+		let (store, fetcher) = makeStore(latestVersion: "0.66.0")
 		await store.checkForUpdates(currentVersion: "0.65.2")
-		#expect(client.fetchCount == 1)
+		#expect(fetcher.fetchCount == 1)
 		#expect(store.latestVersion == "0.66.0")
 		#expect(store.isUpdateAvailable == true)
 	}
 
 	@Test("checkForUpdates sets isUpdateAvailable false when on latest")
 	func checkOnLatest() async {
-		let response = ChangelogResponse(releases: [makeRelease(version: "0.65.2")])
-		let (store, _) = makeStore(response: response)
+		let (store, _) = makeStore(latestVersion: "0.65.2")
 		await store.checkForUpdates(currentVersion: "0.65.2")
 		#expect(store.latestVersion == "0.65.2")
 		#expect(store.isUpdateAvailable == false)
@@ -98,42 +83,32 @@ struct UpdateStoreTests {
 
 	@Test("checkForUpdates does nothing when currentVersion is nil")
 	func checkWithNilVersion() async {
-		let response = ChangelogResponse(releases: [makeRelease(version: "0.66.0")])
-		let (store, client) = makeStore(response: response)
+		let (store, fetcher) = makeStore(latestVersion: "0.66.0")
 		await store.checkForUpdates(currentVersion: nil)
-		#expect(client.fetchCount == 0)
+		#expect(fetcher.fetchCount == 0)
 		#expect(store.isUpdateAvailable == false)
 	}
 
 	@Test("checkForUpdates handles fetch error gracefully")
 	func checkHandlesError() async {
-		let (store, _) = makeStore(error: TobyClientError.invalidResponse)
+		let (store, _) = makeStore(error: URLError(.notConnectedToInternet))
 		await store.checkForUpdates(currentVersion: "0.65.2")
 		#expect(store.isUpdateAvailable == false)
 		#expect(store.latestVersion == nil)
 	}
 
-	@Test("checkForUpdates handles empty releases")
-	func checkEmptyReleases() async {
-		let response = ChangelogResponse(releases: [])
-		let (store, _) = makeStore(response: response)
+	@Test("checkForUpdates handles nil version from appcast")
+	func checkHandlesNilAppcastVersion() async {
+		let (store, fetcher) = makeStore(latestVersion: nil)
 		await store.checkForUpdates(currentVersion: "0.65.2")
+		#expect(fetcher.fetchCount == 1)
 		#expect(store.isUpdateAvailable == false)
 		#expect(store.latestVersion == nil)
 	}
 
 	@Test("checkForUpdates strips v prefix from latestVersion")
 	func checkStripsVPrefix() async {
-		let release = ChangelogRelease(
-			version: "v0.67.0",
-			tagName: "v0.67.0",
-			url: "https://example.com",
-			publishedAt: "2026-06-21T07:33:33Z",
-			features: [],
-			bugs: [],
-			enhancements: []
-		)
-		let (store, _) = makeStore(response: ChangelogResponse(releases: [release]))
+		let (store, _) = makeStore(latestVersion: "v0.67.0")
 		await store.checkForUpdates(currentVersion: "0.66.0")
 		#expect(store.latestVersion == "0.67.0")
 		#expect(store.isUpdateAvailable == true)
@@ -166,22 +141,14 @@ struct UpdateStoreTests {
 		#expect(store.isUpgrading == false)
 	}
 
-	@Test("startCheckLoop retries quickly when version is not yet available")
-	func startCheckLoopRetriesQuicklyWhenVersionMissing() async {
-		let response = ChangelogResponse(releases: [makeRelease(version: "0.67.0")])
-		let (store, client) = makeStore(response: response)
+	@Test("startCheckLoop checks for updates periodically")
+	func startCheckLoopChecksPeriodically() async {
+		let (store, fetcher) = makeStore(latestVersion: "0.67.0")
 
-		var version: String? = nil
-		store.startCheckLoop(currentVersionProvider: { version })
-		// First check: version is nil, no fetch should happen.
+		store.startCheckLoop(currentVersionProvider: { "0.66.0" })
+		// Give the loop time to run at least one check.
 		try? await Task.sleep(nanoseconds: 100_000_000)
-		#expect(client.fetchCount == 0)
-
-		// Simulate status becoming available.
-		version = "0.66.0"
-		// The loop should retry within a few seconds (not 5 minutes).
-		try? await Task.sleep(nanoseconds: 6_000_000_000)
-		#expect(client.fetchCount >= 1)
+		#expect(fetcher.fetchCount >= 1)
 		#expect(store.isUpdateAvailable == true)
 		#expect(store.latestVersion == "0.67.0")
 

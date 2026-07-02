@@ -8,6 +8,12 @@ protocol NativeAppUpdating {
 	func checkForUpdates() throws
 }
 
+@MainActor
+protocol AppcastFetchable {
+	/// Returns the latest short version string from the appcast feed, or nil if unavailable.
+	func fetchLatestVersion() async throws -> String?
+}
+
 enum NativeAppUpdateError: LocalizedError {
 	case missingSparkleConfiguration
 	case cannotCheckForUpdates
@@ -19,6 +25,70 @@ enum NativeAppUpdateError: LocalizedError {
 		case .cannotCheckForUpdates:
 			"Toby cannot check for native app updates right now."
 		}
+	}
+}
+
+/// Fetches and parses the Sparkle appcast.xml feed to extract the latest
+/// `sparkle:shortVersionString`. This mirrors the same source Sparkle uses
+/// for update detection (the SUFeedURL), rather than relying on the
+/// GitHub releases changelog API.
+@MainActor
+final class AppcastFetcher: AppcastFetchable {
+	func fetchLatestVersion() async throws -> String? {
+		guard let feedURLString = Bundle.main.infoDictionary?["SUFeedURL"] as? String,
+			let feedURL = URL(string: feedURLString)
+		else {
+			return nil
+		}
+
+		let (data, _) = try await URLSession.shared.data(from: feedURL)
+		return AppcastVersionParser.parse(data: data)
+	}
+}
+
+/// Simple SAX parser that extracts the first `sparkle:shortVersionString`
+/// from a Sparkle appcast RSS feed. Handles both attribute-on-enclosure
+/// and standalone-element forms.
+private final class AppcastVersionParser: NSObject, XMLParserDelegate {
+	private var shortVersionString: String?
+	private var currentText: String?
+
+	static func parse(data: Data) -> String? {
+		let parser = AppcastVersionParser()
+		let xmlParser = XMLParser(data: data)
+		xmlParser.delegate = parser
+		xmlParser.parse()
+		return parser.shortVersionString
+	}
+
+	func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String: String] = [:]) {
+		currentText = ""
+
+		// sparkle:shortVersionString as attribute on <enclosure>
+		if shortVersionString == nil {
+			for (key, value) in attributeDict {
+				if key.hasSuffix("shortVersionString") {
+					shortVersionString = value
+					break
+				}
+			}
+		}
+	}
+
+	func parser(_ parser: XMLParser, foundCharacters string: String) {
+		currentText? += string
+	}
+
+	func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
+		// sparkle:shortVersionString as standalone element
+		if shortVersionString == nil,
+			let text = currentText?.trimmingCharacters(in: .whitespacesAndNewlines),
+			!text.isEmpty,
+			elementName.hasSuffix("shortVersionString")
+		{
+			shortVersionString = text
+		}
+		currentText = nil
 	}
 }
 
@@ -96,32 +166,33 @@ final class UpdateStore {
 	var upgradeError: String?
 	var upgradeComplete = false
 
-	private let client: ChangelogFetchable
+	private let appcastFetcher: AppcastFetchable
 	private let nativeUpdater: NativeAppUpdating
 	private var checkTask: Task<Void, Never>?
 	private var lastCheckAt: Date?
 
 	init(
-		client: ChangelogFetchable = TobyClient(),
+		appcastFetcher: AppcastFetchable = AppcastFetcher(),
 		nativeUpdater: NativeAppUpdating = SparkleNativeAppUpdater()
 	) {
-		self.client = client
+		self.appcastFetcher = appcastFetcher
 		self.nativeUpdater = nativeUpdater
 	}
 
-	func startCheckLoop(currentVersionProvider: @escaping () -> String?) {
+	func startCheckLoop(currentVersionProvider: @escaping () -> String? = UpdateStore.appBundleVersion) {
 		checkTask?.cancel()
 		checkTask = Task { [weak self] in
 			while !Task.isCancelled {
 				guard let self else { return }
 				let version = currentVersionProvider()
 				await self.checkForUpdates(currentVersion: version)
-				// When the version is not yet available (e.g. status still loading),
-				// retry quickly instead of waiting the full interval.
-				let interval: UInt64 = (version?.isEmpty ?? true) ? 5_000_000_000 : 300_000_000_000
-				try? await Task.sleep(nanoseconds: interval)
+				try? await Task.sleep(nanoseconds: 300_000_000_000)
 			}
 		}
+	}
+
+	static nonisolated func appBundleVersion() -> String? {
+		Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
 	}
 
 	func stopCheckLoop() {
@@ -137,10 +208,9 @@ final class UpdateStore {
 		lastCheckAt = Date()
 
 		do {
-			let response = try await client.fetchChangelog(limit: 1)
-			guard let latest = response.releases.first else { return }
-			latestVersion = latest.version.hasPrefix("v") ? String(latest.version.dropFirst()) : latest.version
-			isUpdateAvailable = UpdateStore.isVersionNewer(latest.version, currentVersion)
+			guard let latest = try await appcastFetcher.fetchLatestVersion() else { return }
+			latestVersion = latest.hasPrefix("v") ? String(latest.dropFirst()) : latest
+			isUpdateAvailable = UpdateStore.isVersionNewer(latestVersion ?? latest, currentVersion)
 		} catch {
 			// Silently ignore update check failures
 		}

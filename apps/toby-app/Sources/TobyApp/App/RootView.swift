@@ -178,9 +178,7 @@ struct RootView: View {
                 _ = await (recordings, schedules, integrations)
             }
             .task {
-                updateStore.startCheckLoop(currentVersionProvider: { [weak store] in
-                    store?.status?.version
-                })
+                updateStore.startCheckLoop()
             }
             .onChange(of: updateStore.upgradeComplete) { _, complete in
                 guard complete else { return }
