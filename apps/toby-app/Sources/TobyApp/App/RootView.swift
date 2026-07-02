@@ -83,6 +83,14 @@ struct RootView: View {
             .onChange(of: store.isRecordingActive) { _, active in
                 NotificationCenter.default.post(name: MenuBarController.recordingStateChanged, object: active)
             }
+            .onChange(of: store.recordingProcessing?.stage) { _, stage in
+                // Fallback: ensure the dock/menu bar overlay is cleared when
+                // recording processing finishes, even if isRecordingActive
+                // already transitioned without the onChange above firing.
+                if (stage == .complete || stage == .failed), !store.isRecordingActive {
+                    NotificationCenter.default.post(name: MenuBarController.recordingStateChanged, object: false)
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .secondaryWindowClosed)) { _ in
                 bringMainWindowToFront()
             }

@@ -223,7 +223,7 @@ final class MenuBarController: NSObject {
 				}
 			}
 			let base = originalDockImage ?? Self.cleanDockFallbackImage() ?? baseMenuImage ?? NSImage()
-			let image = Self.imageWithRecordingIndicator(base, dotFraction: 0.28)
+			let image = Self.imageWithRecordingIndicator(base, dotFraction: 0.4)
 			image.setName(Self.recordingDockImageName)
 			appliedDockIndicatorImage = image
 			NSApp.applicationIconImage = image
@@ -260,7 +260,7 @@ final class MenuBarController: NSObject {
 	}
 
 	/// Composites a small red circle indicator at the bottom-right of `image`.
-	private static func imageWithRecordingIndicator(_ image: NSImage, dotFraction: CGFloat = 0.3) -> NSImage {
+	private static func imageWithRecordingIndicator(_ image: NSImage, dotFraction: CGFloat = 0.45) -> NSImage {
 		let result = image.copy() as! NSImage
 		result.lockFocus()
 		let size = result.size
