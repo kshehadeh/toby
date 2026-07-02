@@ -12,8 +12,8 @@ struct SchedulesViewTests {
 		#expect(throws: Never.self) { try view.inspect().find(SchedulesDetailView.self) }
 	}
 
-	@Test("schedule detail shows frequency hint and crontab link")
-	func scheduleDetailShowsFrequencyHint() throws {
+	@Test("schedule detail shows prompt editor and sidebar fields")
+	func scheduleDetailShowsPromptAndSidebar() throws {
 		let store = SchedulesStore()
 		let schedule = ScheduleViewModel(
 			id: "schedule-1",
@@ -31,10 +31,39 @@ struct SchedulesViewTests {
 		store.selectedScheduleId = schedule.id
 		let view = SchedulesView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Accepts a cron expression or a plain-language description like “every weekday at 9am”.")
+			try view.inspect().find(text: "Prompt")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Learn how to write a crontab")
+			try view.inspect().find(text: "Sent to Toby when this schedule runs")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Enabled")
+		}
+	}
+
+	@Test("schedule detail shows run now and delete buttons in sidebar")
+	func scheduleDetailShowsDeleteButton() throws {
+		let store = SchedulesStore()
+		let schedule = ScheduleViewModel(
+			id: "schedule-1",
+			name: "Daily Standup",
+			prompt: "Summarize",
+			personaName: "default",
+			cronExpression: "0 9 * * *",
+			cronHumanReadable: "At 09:00 AM",
+			nextRunAt: nil,
+			enabled: true,
+			lastRunAt: nil,
+			recentRuns: []
+		)
+		store.schedules = [schedule]
+		store.selectedScheduleId = schedule.id
+		let view = SchedulesView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-run-now-button")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-delete-schedule-button")
 		}
 	}
 
