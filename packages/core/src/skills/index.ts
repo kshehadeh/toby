@@ -7,7 +7,6 @@ export interface LocalSkill {
 	readonly dirName: string;
 	readonly name: string;
 	readonly description: string;
-	readonly summary: string;
 	readonly bodyMarkdown: string;
 	/**
 	 * Tool names this skill needs (from frontmatter `tools`). When the skill is
@@ -120,12 +119,10 @@ export function parseSkillFileContent(
 	if (!name || !description) {
 		return null;
 	}
-	const summary = parsed.frontmatter.summary?.trim() ?? "";
 	return {
 		dirName,
 		name,
 		description,
-		summary,
 		bodyMarkdown: parsed.body.trim(),
 		tools: parseListField(parsed.frontmatter.tools),
 		integrations: parseListField(parsed.frontmatter.integrations),
@@ -173,7 +170,7 @@ export function loadLocalSkills(skillsRoot?: string): LocalSkill[] {
 	return skills;
 }
 
-/** Compact catalog for the pretreatment model (name + description + optional summary). */
+/** Compact catalog for the pretreatment model (name + description). */
 export function formatSkillsCatalogForPrompt(
 	skills: readonly LocalSkill[],
 ): string {
@@ -181,13 +178,7 @@ export function formatSkillsCatalogForPrompt(
 		return "(none)";
 	}
 	return skills
-		.map((s) => {
-			const base = `- ${s.name}: ${normalizeWs(s.description)}`;
-			if (s.summary) {
-				return `${base} — ${normalizeWs(s.summary)}`;
-			}
-			return base;
-		})
+		.map((s) => `- ${s.name}: ${normalizeWs(s.description)}`)
 		.join("\n");
 }
 
@@ -195,7 +186,6 @@ function stableCatalogPayload(skills: readonly LocalSkill[]): string {
 	const rows = skills.map((s) => ({
 		name: s.name,
 		description: normalizeWs(s.description),
-		summary: s.summary ? normalizeWs(s.summary) : "",
 	}));
 	return JSON.stringify(rows);
 }
@@ -475,11 +465,6 @@ function tokenizeForSkillMatch(text: string): Set<string> {
 
 function skillMatchTokenSet(skill: LocalSkill): Set<string> {
 	const out = tokenizeForSkillMatch(skill.description);
-	if (skill.summary) {
-		for (const t of tokenizeForSkillMatch(skill.summary)) {
-			out.add(t);
-		}
-	}
 	for (const part of skill.name.toLowerCase().split("-")) {
 		if (part.length >= 3 && !SKILL_MATCH_STOPWORDS.has(part)) {
 			out.add(part);

@@ -173,7 +173,6 @@ When semantic routing is disabled, **ExpandPromptNode** uses a **small structure
 
 Markdown skills in `~/.toby/skills/<skill-folder>/SKILL.md` use YAML frontmatter with at least `name` and `description`. Optional frontmatter fields:
 
-- `summary` — concise key instructions appended to the catalog entry.
 - `tools` — explicit tool names the skill needs (comma-separated or YAML-ish `- item` bullets).
 - `integrations` — integration display labels (e.g. `Gmail`, `Todoist`); every tool belonging to a listed integration is included.
 
@@ -315,4 +314,3 @@ Wiring in this pipeline:
 
 - `packages/core/src/chat-pipeline/run-turn.ts` → `applyChatPromptCaching(...)` from `packages/core/src/ai/caching`
 - `packages/core/src/ai/chat.ts` → forwards merged `providerOptions` to `streamText` / `generateText`
-

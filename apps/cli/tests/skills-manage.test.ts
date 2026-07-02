@@ -18,7 +18,7 @@ describe("updateSkillFrontmatter", () => {
 		tmp = undefined;
 	});
 
-	it("updates editable fields and keeps body content", () => {
+	it("updates editable fields, preserves other frontmatter, and keeps body content", () => {
 		tmp = fs.mkdtempSync(path.join(os.tmpdir(), "toby-skill-manage-"));
 		const skillDir = path.join(tmp, "demo-skill");
 		fs.mkdirSync(skillDir, { recursive: true });
@@ -43,7 +43,6 @@ Keep this body.
 			{
 				name: "renamed-skill",
 				description: "Updated description.",
-				summary: "New summary.",
 			},
 			tmp,
 		);
@@ -51,33 +50,9 @@ Keep this body.
 		const next = fs.readFileSync(skillPath, "utf-8");
 		expect(next).toContain("name: renamed-skill");
 		expect(next).toContain("description: Updated description.");
-		expect(next).toContain("summary: New summary.");
+		expect(next).toContain("summary: Old summary.");
 		expect(next).toContain("## Body");
 		expect(next).toContain("Keep this body.");
-	});
-
-	it("removes summary line when summary is cleared", () => {
-		tmp = fs.mkdtempSync(path.join(os.tmpdir(), "toby-skill-manage-"));
-		const skillDir = path.join(tmp, "demo-skill");
-		fs.mkdirSync(skillDir, { recursive: true });
-		const skillPath = path.join(skillDir, "SKILL.md");
-		fs.writeFileSync(
-			skillPath,
-			`---
-name: demo-skill
-description: Initial description.
-summary: To remove.
----
-
-Body.
-`,
-			"utf-8",
-		);
-
-		updateSkillFrontmatter("demo-skill", { summary: "   " }, tmp);
-		const next = fs.readFileSync(skillPath, "utf-8");
-		expect(next).not.toContain("summary:");
-		expect(next).toContain("description: Initial description.");
 	});
 });
 

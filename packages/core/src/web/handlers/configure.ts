@@ -376,7 +376,6 @@ export async function handleConfigureAction(
 			const field = body?.field as
 				| "name"
 				| "description"
-				| "summary"
 				| undefined;
 			const value = body?.value ?? "";
 			if (!dirName || !field)

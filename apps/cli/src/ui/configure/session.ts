@@ -66,7 +66,7 @@ interface ConfigureSession {
 		readonly onClearDefaultPersona: () => void;
 		readonly onUpdateSkillField: (
 			dirName: string,
-			field: "name" | "description" | "summary",
+			field: "name" | "description",
 			value: string,
 		) => void;
 		readonly onOpenSkillInEditor: (dirName: string) => void;
@@ -179,7 +179,7 @@ export function createConfigureSession(
 		},
 		onUpdateSkillField: (
 			dirName: string,
-			field: "name" | "description" | "summary",
+			field: "name" | "description",
 			value: string,
 		) => {
 			updateSkillFrontmatter(dirName, { [field]: value });

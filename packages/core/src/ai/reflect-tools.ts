@@ -245,7 +245,6 @@ export function createReflectTools(
 					skills: skills.map((s) => ({
 						name: s.name,
 						description: s.description,
-						summary: s.summary || undefined,
 						folder: s.dirName,
 					})),
 					createSkillHint:

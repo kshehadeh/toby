@@ -47,7 +47,7 @@ name: only-name
 		).toBeNull();
 	});
 
-	it("parses optional summary from frontmatter", () => {
+	it("ignores legacy summary frontmatter", () => {
 		const raw = `---
 name: demo-skill
 description: One line description.
@@ -60,19 +60,7 @@ Body here.
 `;
 		const skill = parseSkillFileContent("demo-skill", raw);
 		expect(skill).not.toBeNull();
-		expect(skill?.summary).toBe("Concise summary of key instructions.");
-	});
-
-	it("defaults summary to empty string when absent", () => {
-		const raw = `---
-name: demo-skill
-description: One line description.
----
-
-Body.
-`;
-		const skill = parseSkillFileContent("demo-skill", raw);
-		expect(skill?.summary).toBe("");
+		expect("summary" in (skill ?? {})).toBe(false);
 	});
 
 	it("parses comma-separated tools and integrations frontmatter", () => {
@@ -125,7 +113,6 @@ describe("collectToolsForSelectedSkills", () => {
 			dirName: "organize",
 			name: "organize-email",
 			description: "Organize the inbox.",
-			summary: "",
 			bodyMarkdown: "",
 			tools: ["searchEmails", "listLabels", "notARealTool"],
 			integrations: ["Todoist"],
@@ -134,7 +121,6 @@ describe("collectToolsForSelectedSkills", () => {
 			dirName: "other",
 			name: "other-skill",
 			description: "Unrelated.",
-			summary: "",
 			bodyMarkdown: "",
 			tools: ["macWifiStatus"],
 			integrations: [],
@@ -231,7 +217,6 @@ describe("computeSkillCatalogSignature", () => {
 			{
 				name: "x",
 				description: "one",
-				summary: "",
 				bodyMarkdown: "",
 				dirName: "x",
 			},
@@ -240,7 +225,6 @@ describe("computeSkillCatalogSignature", () => {
 			{
 				name: "x",
 				description: "two",
-				summary: "",
 				bodyMarkdown: "",
 				dirName: "x",
 			},
@@ -250,21 +234,19 @@ describe("computeSkillCatalogSignature", () => {
 		);
 	});
 
-	it("changes when skill summaries change", () => {
+	it("changes when skill names change", () => {
 		const a = [
 			{
 				name: "x",
 				description: "same",
-				summary: "old",
 				bodyMarkdown: "",
 				dirName: "x",
 			},
 		];
 		const b = [
 			{
-				name: "x",
+				name: "y",
 				description: "same",
-				summary: "new",
 				bodyMarkdown: "",
 				dirName: "x",
 			},
@@ -282,14 +264,12 @@ describe("resolveSkillsByNames", () => {
 				dirName: "a",
 				name: "Alpha",
 				description: "d",
-				summary: "",
 				bodyMarkdown: "ba",
 			},
 			{
 				dirName: "b",
 				name: "Beta",
 				description: "d2",
-				summary: "",
 				bodyMarkdown: "bb",
 			},
 		];
@@ -299,27 +279,12 @@ describe("resolveSkillsByNames", () => {
 });
 
 describe("formatSkillsCatalogForPrompt", () => {
-	it("appends summary when present", () => {
+	it("formats names and descriptions", () => {
 		const skills = [
 			{
 				dirName: "a",
 				name: "my-skill",
 				description: "Does things.",
-				summary: "Short key instructions.",
-				bodyMarkdown: "",
-			},
-		];
-		const catalog = formatSkillsCatalogForPrompt(skills);
-		expect(catalog).toBe("- my-skill: Does things. — Short key instructions.");
-	});
-
-	it("omits summary dash when summary is empty", () => {
-		const skills = [
-			{
-				dirName: "a",
-				name: "my-skill",
-				description: "Does things.",
-				summary: "",
 				bodyMarkdown: "",
 			},
 		];

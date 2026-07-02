@@ -14,11 +14,8 @@ struct SkillDetailContent: View {
 				SkillFieldRow(title: "Name") {
 					SettingsInlineField(text: binding(for: .name), placeholder: "Skill name")
 				}
-				SkillFieldRow(title: "Description") {
+				SkillFieldRow(title: "Description", showsDivider: false) {
 					SettingsInlineField(text: binding(for: .description), placeholder: "Short description")
-				}
-				SkillFieldRow(title: "Summary", showsDivider: false) {
-					SettingsInlineField(text: binding(for: .summary), placeholder: "Optional summary")
 				}
 			}
 

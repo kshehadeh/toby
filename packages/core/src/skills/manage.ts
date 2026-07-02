@@ -44,7 +44,6 @@ export function createSkill(skillsRoot?: string): { dirName: string } {
 export interface SkillFrontmatterUpdates {
 	readonly name?: string;
 	readonly description?: string;
-	readonly summary?: string;
 }
 
 function encodeFrontmatterValue(value: string): string {
@@ -91,14 +90,6 @@ export function updateSkillFrontmatter(
 	if (updates.description !== undefined) {
 		frontmatter.description = updates.description.trim();
 	}
-	if (updates.summary !== undefined) {
-		const summary = updates.summary.trim();
-		if (summary) {
-			frontmatter.summary = summary;
-		} else {
-			frontmatter.summary = undefined;
-		}
-	}
 
 	if (!frontmatter.name) {
 		throw new Error("Skill name cannot be empty.");
@@ -108,8 +99,8 @@ export function updateSkillFrontmatter(
 	}
 
 	const lines: string[] = [];
-	const reserved = new Set(["name", "description", "summary"]);
-	for (const key of ["name", "description", "summary"] as const) {
+	const reserved = new Set(["name", "description"]);
+	for (const key of ["name", "description"] as const) {
 		const value = frontmatter[key];
 		if (value !== undefined) {
 			lines.push(`${key}: ${encodeFrontmatterValue(value)}`);

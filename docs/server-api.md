@@ -801,7 +801,7 @@ Supported actions:
 | `update-schedule-field` | `scheduleId`, `field`, `value` | `{ "ok": true }` |
 | `delete-schedule` | `scheduleId` | `{ "ok": true }` |
 
-`update-skill-field.field` must be one of `name`, `description`, or `summary`.
+`update-skill-field.field` must be one of `name` or `description`.
 
 `update-schedule-field.field` must be one of:
 
@@ -815,5 +815,4 @@ Errors:
 
 - `400` for missing or invalid fields.
 - `404` for unknown actions.
-
 

@@ -37,7 +37,6 @@ struct SkillsViewTests {
 			dirName: "skill-1",
 			name: "Research",
 			description: "Research assistant",
-			summary: "Helps with research",
 			bodyMarkdown: "# Research\n\nUse this skill for deep research.",
 			tools: nil,
 			integrations: nil
@@ -61,7 +60,6 @@ struct SkillsViewTests {
 			dirName: "skill-1",
 			name: "Research",
 			description: "Research assistant",
-			summary: "",
 			bodyMarkdown: "# Research",
 			tools: nil,
 			integrations: nil
@@ -89,14 +87,12 @@ struct SkillsViewTests {
 			dirName: "skill-1",
 			name: "Research",
 			description: "Research assistant",
-			summary: "Helps with research",
 			bodyMarkdown: "# Research",
 			tools: nil,
 			integrations: nil
 		)
 		#expect(store.value(for: "skill-1.name") == "Research")
 		#expect(store.value(for: "skill-1.description") == "Research assistant")
-		#expect(store.value(for: "skill-1.summary") == "Helps with research")
 		#expect(store.value(for: "skill-1.body") == "# Research")
 	}
 }

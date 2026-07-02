@@ -149,7 +149,6 @@ export function seedConfigureValues(
 	for (const skill of loadLocalSkills()) {
 		values[`skills.${skill.dirName}.name`] = skill.name;
 		values[`skills.${skill.dirName}.description`] = skill.description;
-		values[`skills.${skill.dirName}.summary`] = skill.summary;
 	}
 	seedListenRecordingValues(values, options.listenRecordings ?? []);
 	seedScheduleValues(values);
@@ -458,7 +457,7 @@ function applyConfigFromValues(values: Record<string, string>): void {
 	writeConfig(cfg);
 }
 
-const SKILL_FIELD_RE = /^skills\.([^.]+)\.(name|description|summary)$/;
+const SKILL_FIELD_RE = /^skills\.([^.]+)\.(name|description)$/;
 const SCHEDULE_FIELD_RE =
 	/^schedules\.([^.]+)\.(name|prompt|persona|cron|enabled)$/;
 const PROJECT_FIELD_RE = /^projects\.([^.]+)\.(name|skills|integrations)$/;
@@ -467,7 +466,7 @@ function partitionConfigurePatch(patch: Record<string, string>): {
 	config: Record<string, string>;
 	skills: Map<
 		string,
-		{ name?: string; description?: string; summary?: string }
+		{ name?: string; description?: string }
 	>;
 	schedules: Map<
 		string,
@@ -487,7 +486,7 @@ function partitionConfigurePatch(patch: Record<string, string>): {
 	const config: Record<string, string> = {};
 	const skills = new Map<
 		string,
-		{ name?: string; description?: string; summary?: string }
+		{ name?: string; description?: string }
 	>();
 	const schedules = new Map<
 		string,
@@ -510,8 +509,7 @@ function partitionConfigurePatch(patch: Record<string, string>): {
 			const [, dirName, field] = skillMatch;
 			const entry = skills.get(dirName) ?? {};
 			if (field === "name") entry.name = value;
-			else if (field === "description") entry.description = value;
-			else entry.summary = value;
+			else entry.description = value;
 			skills.set(dirName, entry);
 			continue;
 		}

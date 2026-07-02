@@ -50,10 +50,7 @@ function skillDescriptionLines(skills: readonly LocalSkill[]): string[] {
 			s.description.length > MAX_DESC_PREVIEW
 				? `${s.description.slice(0, MAX_DESC_PREVIEW - 1)}…`
 				: s.description;
-		const entry = s.summary
-			? `[debug]   · ${s.name}: ${desc} — ${s.summary.length > MAX_DESC_PREVIEW ? `${s.summary.slice(0, MAX_DESC_PREVIEW - 1)}…` : s.summary}`
-			: `[debug]   · ${s.name}: ${desc}`;
-		lines.push(entry);
+		lines.push(`[debug]   · ${s.name}: ${desc}`);
 	}
 	if (skills.length > MAX_DESCRIPTION_LINES) {
 		lines.push(

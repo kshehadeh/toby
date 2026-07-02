@@ -100,7 +100,6 @@ export function handleSkillDetail(dirName: string): Response {
 			dirName: skill.dirName,
 			name: skill.name,
 			description: skill.description,
-			summary: skill.summary,
 			bodyMarkdown: skill.bodyMarkdown,
 			tools: skill.tools,
 			integrations: skill.integrations,

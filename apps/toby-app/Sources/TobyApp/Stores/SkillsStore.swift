@@ -13,7 +13,6 @@ struct SkillDetail: Decodable, Identifiable {
 	let dirName: String
 	let name: String
 	let description: String
-	let summary: String
 	let bodyMarkdown: String
 	let tools: [String]?
 	let integrations: [String]?
@@ -24,7 +23,6 @@ struct SkillDetail: Decodable, Identifiable {
 enum SkillField: String {
 	case name = "name"
 	case description = "description"
-	case summary = "summary"
 	case body = "body"
 }
 
@@ -128,7 +126,6 @@ final class SkillsStore {
 		switch SkillField(rawValue: field) {
 		case .name: return skill.name
 		case .description: return skill.description
-		case .summary: return skill.summary
 		case .body: return skill.bodyMarkdown
 		default: return ""
 		}
@@ -184,7 +181,6 @@ final class SkillsStore {
 		switch SkillField(rawValue: field) {
 		case .name: return target.name
 		case .description: return target.description
-		case .summary: return target.summary
 		case .body: return target.bodyMarkdown
 		default: return ""
 		}

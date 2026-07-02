@@ -294,10 +294,7 @@ function skillDescriptionLookup(
 	skills: readonly LocalSkill[],
 ): Map<string, string> {
 	return new Map(
-		skills.map((s) => [
-			s.name.toLowerCase(),
-			s.summary ? `${s.description} — ${s.summary}` : s.description,
-		]),
+		skills.map((s) => [s.name.toLowerCase(), s.description]),
 	);
 }
 

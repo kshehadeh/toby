@@ -67,7 +67,7 @@ interface AppCallbacks {
 	onClearDefaultPersona: () => void;
 	onUpdateSkillField: (
 		dirName: string,
-		field: "name" | "description" | "summary",
+		field: "name" | "description",
 		value: string,
 	) => void;
 	onOpenSkillInEditor: (dirName: string) => void;
@@ -941,13 +941,13 @@ export function ConfigureApp({
 				}
 
 				const skillFieldMatch =
-					/^skills\.(.+)\.(name|description|summary)$/.exec(editItem.key);
+					/^skills\.(.+)\.(name|description)$/.exec(editItem.key);
 				if (skillFieldMatch) {
 					const [, dirName, field] = skillFieldMatch;
 					try {
 						callbacks.onUpdateSkillField(
 							dirName,
-							field as "name" | "description" | "summary",
+							field as "name" | "description",
 							newValue,
 						);
 						const newValues = { ...values, [editItem.key]: newValue };
