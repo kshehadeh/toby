@@ -38,6 +38,13 @@ enum DaemonBootstrap {
 		try await waitForServerAvailable(baseURL: baseURL, timeout: 10, error: .restartUnavailable)
 	}
 
+	/// Stops the running daemon server and waits for it to become unavailable.
+	/// Used before app relaunch (e.g. Sparkle update) to ensure a clean shutdown.
+	static func stopDaemon(baseURL: URL) async throws {
+		try await requestDaemonStop(baseURL: baseURL)
+		try await waitForServerUnavailable(baseURL: baseURL, timeout: 6)
+	}
+
 	static func ensureServerAvailable(baseURL: URL) async throws {
 		if let bundledExecutable = bundledTobyExecutable() {
 			try await ensureBundledServerAvailable(

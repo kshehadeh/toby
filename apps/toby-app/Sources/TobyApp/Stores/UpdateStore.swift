@@ -23,7 +23,7 @@ enum NativeAppUpdateError: LocalizedError {
 }
 
 @MainActor
-final class SparkleNativeAppUpdater: NativeAppUpdating {
+final class SparkleNativeAppUpdater: NSObject, NativeAppUpdating {
 	private var controller: SPUStandardUpdaterController?
 
 	func checkForUpdates() throws {
@@ -51,11 +51,39 @@ final class SparkleNativeAppUpdater: NativeAppUpdating {
 		}
 		let controller = SPUStandardUpdaterController(
 			startingUpdater: true,
-			updaterDelegate: nil,
+			updaterDelegate: self,
 			userDriverDelegate: nil
 		)
 		self.controller = controller
 		return controller
+	}
+}
+
+extension SparkleNativeAppUpdater: SPUUpdaterDelegate {
+	/// Called by Sparkle before relaunching the app after an update.
+	/// We postpone the relaunch to stop the daemon server first, ensuring
+	/// a clean shutdown rather than leaving the old server process running.
+	func updater(
+		_ updater: SPUUpdater,
+		shouldPostponeRelaunchForUpdate item: SUAppcastItem,
+		untilInvokingBlock block: @escaping () -> Void
+	) -> Bool {
+		Task { @MainActor in
+			await stopDaemonBeforeRelaunch()
+			block()
+		}
+		return true
+	}
+
+	private func stopDaemonBeforeRelaunch() async {
+		let baseURL = ConfigReader.baseURL()
+		do {
+			try await DaemonBootstrap.stopDaemon(baseURL: baseURL)
+		} catch {
+			// Best-effort: proceed with relaunch even if the daemon
+			// doesn't respond to the stop request. The app will
+			// restart the server on next launch.
+		}
 	}
 }
 
