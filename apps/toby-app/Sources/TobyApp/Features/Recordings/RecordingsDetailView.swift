@@ -5,42 +5,39 @@ struct RecordingsDetailView: View {
 	var processingState: RecordingProcessingState? = nil
 
 	var body: some View {
-		ScrollView {
-			VStack(alignment: .leading, spacing: 20) {
-				if store.isDetailLoading && store.selectedRecordings.count == 1 && store.detail == nil {
-					ProgressView("Loading recording...")
-						.frame(maxWidth: .infinity, minHeight: 240)
+		VStack(alignment: .leading, spacing: 0) {
+			if store.isDetailLoading && store.selectedRecordings.count == 1 && store.detail == nil {
+				ProgressView("Loading recording...")
+					.frame(maxWidth: .infinity, minHeight: 240)
 			} else if !store.selectedRecordings.isEmpty {
 				if store.selectedRecordings.count == 1, store.detail != nil {
 					if isProcessingSelected {
 						RecordingProcessingCard(processingState: processingState)
+							.padding(.horizontal, 24)
+							.padding(.top, 12)
 					}
 					RecordingDetailContent(store: store, recordingId: store.selectedRecording?.id)
 				} else {
-						SelectedRecordingsDeck(recordings: store.selectedRecordings)
-					}
-				} else if let errorMessage = store.errorMessage {
-					ContentUnavailableView {
-						Label("Recordings unavailable", systemImage: "exclamationmark.triangle")
-					} description: {
-						Text(errorMessage)
-					}
-				} else {
-					Text("Select a recording")
-						.foregroundStyle(SettingsDesign.rowDescription)
+					SelectedRecordingsDeck(recordings: store.selectedRecordings)
 				}
-
-				if let errorMessage = store.errorMessage, !store.selectedRecordings.isEmpty {
+			} else if let errorMessage = store.errorMessage {
+				ContentUnavailableView {
+					Label("Recordings unavailable", systemImage: "exclamationmark.triangle")
+				} description: {
 					Text(errorMessage)
-						.font(.caption)
-						.foregroundStyle(.red)
 				}
+			} else {
+				Text("Select a recording")
+					.foregroundStyle(SettingsDesign.rowDescription)
 			}
-			.frame(maxWidth: SettingsDesign.contentMaxWidth)
-			.frame(maxWidth: .infinity)
-			.padding(.horizontal, 32)
-			.padding(.vertical, 28)
+
+			if let errorMessage = store.errorMessage, !store.selectedRecordings.isEmpty {
+				Text(errorMessage)
+					.font(.caption)
+					.foregroundStyle(.red)
+			}
 		}
+		.frame(maxWidth: .infinity, maxHeight: .infinity)
 		.background(SettingsDesign.canvasBackground)
 	}
 

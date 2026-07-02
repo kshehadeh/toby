@@ -128,7 +128,7 @@ struct RecordingsViewTests {
 		}
 	}
 
-	@Test("detail view shows rename button when a single recording is selected")
+	@Test("detail view shows rename button in sidebar when a single recording is selected")
 	func detailViewShowsRenameButton() throws {
 		let store = RecordingsStore()
 		store.recordings = [makeRecording(id: "r1", name: "One")]
@@ -140,7 +140,7 @@ struct RecordingsViewTests {
 		}
 	}
 
-	@Test("detail view shows start chat button when a single recording is selected")
+	@Test("detail view shows start chat button in sidebar when a single recording is selected")
 	func detailViewShowsStartChatButton() throws {
 		let store = RecordingsStore()
 		store.recordings = [makeRecording(id: "r1", name: "One")]
@@ -148,7 +148,31 @@ struct RecordingsViewTests {
 		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello world transcript")
 		let view = RecordingsView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "start-chat-button")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-start-chat-button")
+		}
+	}
+
+	@Test("detail view shows delete button in sidebar when a single recording is selected")
+	func detailViewShowsDeleteButton() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: nil)
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-delete-recording-button")
+		}
+	}
+
+	@Test("detail view shows transcript column header")
+	func detailViewShowsTranscriptHeader() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello world transcript")
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Transcript")
 		}
 	}
 
