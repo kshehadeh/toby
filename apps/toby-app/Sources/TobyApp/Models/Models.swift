@@ -424,6 +424,7 @@ struct ListenRecordingMetadata: Decodable {
 	let durationMs: Int?
 	let sources: ListenSourceSelection
 	let errors: [String]?
+	let chatSessionId: String?
 }
 
 struct ListenRecordingDetail: Decodable {

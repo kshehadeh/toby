@@ -32,6 +32,7 @@ export interface ListenRecordingMetadata {
 		readonly version?: string;
 	};
 	readonly errors?: string[];
+	readonly chatSessionId?: string;
 }
 
 export interface ListenTranscriptionResponse {

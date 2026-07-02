@@ -97,7 +97,8 @@ final class RecordingsStore {
 					stoppedAt: currentDetail.metadata.stoppedAt,
 					durationMs: currentDetail.metadata.durationMs,
 					sources: currentDetail.metadata.sources,
-					errors: currentDetail.metadata.errors
+					errors: currentDetail.metadata.errors,
+					chatSessionId: currentDetail.metadata.chatSessionId
 				),
 				hasAudio: currentDetail.hasAudio,
 				audioPath: currentDetail.audioPath,

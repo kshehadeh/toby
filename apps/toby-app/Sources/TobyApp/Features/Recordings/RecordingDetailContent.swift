@@ -4,6 +4,7 @@ struct RecordingDetailContent: View {
 	@Bindable var store: RecordingsStore
 	var recordingId: String?
 	var processingState: RecordingProcessingState? = nil
+	var validSessionIds: Set<String> = []
 
 	private var detail: ListenRecordingDetail { store.detail! }
 
@@ -18,7 +19,7 @@ struct RecordingDetailContent: View {
 			HStack(spacing: 0) {
 				transcriptColumn
 				Divider().overlay(SettingsDesign.cardBorder)
-				RecordingInspectorSidebar(store: store, detail: detail, processingState: processingState)
+				RecordingInspectorSidebar(store: store, detail: detail, processingState: processingState, validSessionIds: validSessionIds)
 			}
 			.frame(maxWidth: .infinity, maxHeight: .infinity)
 		}

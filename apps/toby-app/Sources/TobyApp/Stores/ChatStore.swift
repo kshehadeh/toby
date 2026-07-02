@@ -345,12 +345,15 @@ final class ChatStore {
 		}
 	}
 
-	func startChatAboutRecording(name: String, dateText: String, hourText: String) async {
+	func startChatAboutRecording(recordingId: String, name: String, dateText: String, hourText: String) async {
 		guard !isLoading else { return }
 		await startNewSession()
-		guard sessionId != nil else { return }
+		guard let newSessionId = sessionId else { return }
 		promptText = makeRecordingChatPrompt(name: name, dateText: dateText, hourText: hourText)
 		await submitPrompt()
+		// Link the recording to the new chat session so the UI can offer
+		// "Show Chat" instead of "Start Chat" on subsequent views.
+		_ = try? await client.updateRecordingChatSession(id: recordingId, chatSessionId: newSessionId)
 	}
 
 	func focusPrompt() {

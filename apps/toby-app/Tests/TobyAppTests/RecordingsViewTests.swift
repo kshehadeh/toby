@@ -311,6 +311,51 @@ struct RecordingsViewTests {
 			try view.inspect().find(text: "Transcribing chunk 2/5…")
 		}
 	}
+
+	@Test("detail view shows Show Chat button when chat session exists")
+	func detailViewShowsShowChatButtonWhenChatSessionExists() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello", hasAudio: true, chatSessionId: "sess-1")
+		let view = RecordingsView(store: store, validSessionIds: ["sess-1"])
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Show Chat")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-show-chat-button")
+		}
+	}
+
+	@Test("detail view shows Start Chat button when chat session ID is nil")
+	func detailViewShowsStartChatWhenNoChatSession() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello", hasAudio: true, chatSessionId: nil)
+		let view = RecordingsView(store: store, validSessionIds: ["sess-1"])
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Start Chat")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-start-chat-button")
+		}
+	}
+
+	@Test("detail view shows Start Chat button when chat session ID is not in valid sessions")
+	func detailViewShowsStartChatWhenChatSessionNotFound() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello", hasAudio: true, chatSessionId: "deleted-session")
+		let view = RecordingsView(store: store, validSessionIds: ["sess-1", "sess-2"])
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Start Chat")
+		}
+		#expect(throws: Error.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-show-chat-button")
+		}
+	}
 }
 
 private func makeRecording(id: String, name: String? = nil) -> ListenRecordingSummary {
@@ -333,7 +378,8 @@ private func makeRecordingDetail(
 	id: String,
 	transcript: String?,
 	name: String? = nil,
-	hasAudio: Bool = false
+	hasAudio: Bool = false,
+	chatSessionId: String? = nil
 ) -> ListenRecordingDetail {
 	ListenRecordingDetail(
 		id: id,
@@ -347,7 +393,8 @@ private func makeRecordingDetail(
 			stoppedAt: nil,
 			durationMs: 60000,
 			sources: ListenSourceSelection(mic: true, system: false),
-			errors: nil
+			errors: nil,
+			chatSessionId: chatSessionId
 		),
 		hasAudio: hasAudio,
 		audioPath: hasAudio ? "/tmp/\(id)/combined.m4a" : nil,

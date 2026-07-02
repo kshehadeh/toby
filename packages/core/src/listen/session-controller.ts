@@ -217,13 +217,23 @@ export function deleteListenRecording(recording: ListenRecordingSummary): void {
 
 export function updateListenRecordingMetadata(
 	recording: ListenRecordingSummary,
-	patch: Pick<Partial<ListenRecordingMetadata>, "name" | "description">,
+	patch: Pick<Partial<ListenRecordingMetadata>, "name" | "description"> & {
+		chatSessionId?: string | null;
+	},
 ): ListenRecordingSummary {
 	const next: ListenRecordingMetadata = {
 		...recording.metadata,
 		...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
 		...(patch.description !== undefined
 			? { description: patch.description.trim() }
+			: {}),
+		...(patch.chatSessionId !== undefined
+			? {
+					chatSessionId:
+						typeof patch.chatSessionId === "string"
+							? patch.chatSessionId
+							: undefined,
+				}
 			: {}),
 	};
 	writeListenMetadata(recording.dir, next);

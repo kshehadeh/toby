@@ -100,20 +100,35 @@ export async function handleListenRecordingPatch(
 	const body = await readJsonBody<{
 		readonly name?: string;
 		readonly description?: string;
+		readonly chatSessionId?: string | null;
 	}>(req);
 	if (body === null) {
 		return errorResponse("Invalid JSON body", 400);
 	}
-	const patch: { name?: string; description?: string } = {};
+	const patch: {
+		name?: string;
+		description?: string;
+		chatSessionId?: string | null;
+	} = {};
 	if (typeof body.name === "string") {
 		patch.name = body.name.trim();
 	}
 	if (typeof body.description === "string") {
 		patch.description = body.description.trim();
 	}
-	if (patch.name === undefined && patch.description === undefined) {
+	if (body.chatSessionId !== undefined) {
+		patch.chatSessionId =
+			typeof body.chatSessionId === "string"
+				? body.chatSessionId.trim() || null
+				: null;
+	}
+	if (
+		patch.name === undefined &&
+		patch.description === undefined &&
+		patch.chatSessionId === undefined
+	) {
 		return errorResponse(
-			"Body must include 'name' or 'description' string field",
+			"Body must include 'name', 'description', or 'chatSessionId' field",
 			400,
 		);
 	}

@@ -3,6 +3,7 @@ import SwiftUI
 struct RecordingsDetailView: View {
 	@Bindable var store: RecordingsStore
 	var processingState: RecordingProcessingState? = nil
+	var validSessionIds: Set<String> = []
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
@@ -16,7 +17,7 @@ struct RecordingsDetailView: View {
 							.padding(.horizontal, 24)
 							.padding(.top, 12)
 					}
-					RecordingDetailContent(store: store, recordingId: store.selectedRecording?.id, processingState: processingState)
+					RecordingDetailContent(store: store, recordingId: store.selectedRecording?.id, processingState: processingState, validSessionIds: validSessionIds)
 				} else {
 					SelectedRecordingsDeck(recordings: store.selectedRecordings)
 				}

@@ -3,6 +3,7 @@ import SwiftUI
 struct RecordingsView: View {
 	@Bindable var store: RecordingsStore
 	var processingState: RecordingProcessingState? = nil
+	var validSessionIds: Set<String> = []
 
 	/// Effective processing state: prefer the store's manual transcription
 	/// state when active, otherwise fall back to the post-recording state.
@@ -14,7 +15,7 @@ struct RecordingsView: View {
 	}
 
 	var body: some View {
-		RecordingsDetailView(store: store, processingState: effectiveProcessingState)
+		RecordingsDetailView(store: store, processingState: effectiveProcessingState, validSessionIds: validSessionIds)
 		.toolbarBackground(.visible)
 		.background(SettingsDesign.canvasBackground)
 		.task {

@@ -100,11 +100,18 @@ struct RootView: View {
                 navigateToRoute(.chat)
                 Task {
                     await store.startChatAboutRecording(
+                        recordingId: request.recordingId,
                         name: request.name,
                         dateText: request.dateText,
                         hourText: request.hourText
                     )
                 }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .showChatSession)) { notification in
+                guard let sessionId = notification.object as? String else { return }
+                bringMainWindowToFront()
+                navigateToRoute(.chat)
+                Task { await store.selectSession(id: sessionId) }
             }
             .onReceive(NotificationCenter.default.publisher(for: .navigateToRoute)) { notification in
                 if let raw = notification.object as? String,
@@ -331,7 +338,7 @@ struct RootView: View {
                         }
                     }
             case .recordings:
-                RecordingsView(store: recordingsStore, processingState: store.recordingProcessing)
+                RecordingsView(store: recordingsStore, processingState: store.recordingProcessing, validSessionIds: Set(store.sessions.map(\.id)))
                     .toolbar {
                         commonToolbarItems()
                         ToolbarItem(placement: .principal) { Spacer() }
@@ -553,12 +560,14 @@ extension Notification.Name {
     static let openRecordingFromToast = Notification.Name("openRecordingFromToast")
     static let startNewChat = Notification.Name("startNewChat")
     static let startChatAboutRecording = Notification.Name("startChatAboutRecording")
+    static let showChatSession = Notification.Name("showChatSession")
     static let secondaryWindowClosed = Notification.Name("secondaryWindowClosed")
     static let menuBarToggleRecording = Notification.Name("menuBarToggleRecording")
     static let navigateToRoute = Notification.Name("navigateToRoute")
 }
 
 struct StartChatAboutRecordingRequest {
+    let recordingId: String
     let name: String
     let dateText: String
     let hourText: String
