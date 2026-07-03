@@ -1,3 +1,14 @@
+import { fetchAccessibleResources } from "./auth";
+import {
+	getConfigField,
+	getJiraAuthMethod,
+	hasCredentials,
+	hasJiraApiTokenCredentials,
+	hasJiraOAuthToken,
+	jiraApiTokenCredentials,
+} from "./config";
+import { isJiraAccessTokenFresh, refreshJiraOAuthAccessToken } from "./tokens";
+
 type JsonRecord = Record<string, unknown>;
 
 const SEARCH_FIELDS = [
@@ -13,7 +24,7 @@ const SEARCH_FIELDS = [
 	"description",
 ];
 
-// Module-level caches (equivalent to Swift's nonisolated(unsafe) statics)
+// Module-level caches
 const cloudIdCache = new Map<string, string>();
 const apiBaseCache = new Map<string, string>();
 
@@ -36,19 +47,7 @@ export function intValue(value: unknown): number | undefined {
 	return undefined;
 }
 
-export function hasCredentials(config: JsonRecord): boolean {
-	return credentials(config) !== null;
-}
-
-export function credentials(
-	config: JsonRecord,
-): { domain: string; email: string; apiToken: string } | null {
-	const domain = stringValue(config.domain)?.trim();
-	const email = stringValue(config.email)?.trim();
-	const apiToken = stringValue(config.apiToken)?.trim();
-	if (!domain || !email || !apiToken) return null;
-	return { domain, email, apiToken };
-}
+export { hasCredentials, hasJiraApiTokenCredentials, hasJiraOAuthToken };
 
 export function buildHost(domain: string): string {
 	let normalized = domain.trim().replace(/^https?:\/\//, "");
@@ -65,7 +64,7 @@ export function buildGatewayHost(cloudId: string): string {
 	return `https://api.atlassian.com/ex/jira/${cloudId.trim()}`;
 }
 
-async function performHTTP(
+async function performApiTokenHTTP(
 	base: string,
 	path: string,
 	method: string,
@@ -81,6 +80,37 @@ async function performHTTP(
 	}
 	const authString = `${creds.email}:${creds.apiToken}`;
 	headers.Authorization = `Basic ${Buffer.from(authString).toString("base64")}`;
+
+	const response = await fetch(url, {
+		method,
+		headers,
+		body: body ? JSON.stringify(body) : undefined,
+	});
+	const data = await response.text();
+	let parsed: unknown = data;
+	try {
+		parsed = JSON.parse(data);
+	} catch {
+		// keep raw text
+	}
+	return { data: parsed, statusCode: response.status };
+}
+
+async function performOAuthHTTP(
+	base: string,
+	path: string,
+	method: string,
+	body: JsonRecord | null,
+	accessToken: string,
+): Promise<{ data: unknown; statusCode: number }> {
+	const url = `${base}${path}`;
+	const headers: Record<string, string> = {
+		Accept: "application/json",
+		Authorization: `Bearer ${accessToken}`,
+	};
+	if (body) {
+		headers["Content-Type"] = "application/json";
+	}
 
 	const response = await fetch(url, {
 		method,
@@ -139,21 +169,107 @@ function authFailureMessage(
 	return `${siteMessage} (site URL). Scoped-token gateway retry also failed: ${gatewayMessage}. Create a new classic API token (without scopes), or a scoped token with Jira read scopes. Confirm the email matches the Atlassian account that owns the token.`;
 }
 
-async function request(
+async function resolveOAuthCloudId(
+	config: JsonRecord,
+	accessToken: string,
+): Promise<string> {
+	const storedCloudId = getConfigField(config, "cloudId");
+	if (storedCloudId) {
+		cloudIdCache.set("oauth", storedCloudId);
+		return storedCloudId;
+	}
+
+	const cached = cloudIdCache.get("oauth");
+	if (cached) return cached;
+
+	const resources = await fetchAccessibleResources(accessToken);
+	if (resources.length === 0) {
+		throw new JiraFailure(
+			"No accessible Jira sites found. Ensure your Atlassian app has Jira permissions.",
+		);
+	}
+	const cloudId = resources[0].id;
+	cloudIdCache.set("oauth", cloudId);
+	return cloudId;
+}
+
+async function resolveOAuthAccessToken(config: JsonRecord): Promise<string> {
+	const accessToken = getConfigField(config, "oauthAccessToken");
+	if (!accessToken) {
+		throw new JiraFailure(
+			"Jira OAuth access token not found. Run `toby connect jira` to authenticate.",
+		);
+	}
+
+	const expiresAt = getConfigField(config, "oauthExpiresAt");
+	if (!isJiraAccessTokenFresh(expiresAt)) {
+		const refreshed = await refreshJiraOAuthAccessToken(config);
+		return refreshed.accessToken;
+	}
+
+	return accessToken;
+}
+
+async function requestOAuth(
 	config: JsonRecord,
 	path: string,
 	method: string,
-	body: JsonRecord | null = null,
+	body: JsonRecord | null,
 ): Promise<JsonRecord> {
-	const creds = credentials(config);
+	let accessToken = await resolveOAuthAccessToken(config);
+	const cloudId = await resolveOAuthCloudId(config, accessToken);
+	const gatewayHost = buildGatewayHost(cloudId);
+
+	let result = await performOAuthHTTP(
+		gatewayHost,
+		path,
+		method,
+		body,
+		accessToken,
+	);
+
+	// Retry once on 401 by refreshing the token
+	if (result.statusCode === 401) {
+		const refreshed = await refreshJiraOAuthAccessToken(config);
+		accessToken = refreshed.accessToken;
+		result = await performOAuthHTTP(
+			gatewayHost,
+			path,
+			method,
+			body,
+			accessToken,
+		);
+	}
+
+	if (result.statusCode < 400) {
+		return result.data as JsonRecord;
+	}
+
+	const message = parseErrorMessage(result.data) ?? `HTTP ${result.statusCode}`;
+	throw new JiraFailure(message);
+}
+
+async function requestApiToken(
+	config: JsonRecord,
+	path: string,
+	method: string,
+	body: JsonRecord | null,
+): Promise<JsonRecord> {
+	const creds = jiraApiTokenCredentials(config);
 	if (!creds) {
-		throw new JiraFailure("Jira credentials not found.");
+		throw new JiraFailure("Jira API token credentials not found.");
 	}
 
 	const siteHost = buildHost(creds.domain);
 	const cachedBase = apiBaseCache.get(siteHost);
 	if (cachedBase) {
-		const result = await performHTTP(cachedBase, path, method, body, creds);
+		const result = await performApiTokenHTTP(
+			cachedBase,
+			path,
+			method,
+			body,
+			creds,
+		);
 		if (result.statusCode < 400) {
 			return result.data as JsonRecord;
 		}
@@ -162,7 +278,13 @@ async function request(
 		throw new JiraFailure(message);
 	}
 
-	const siteResult = await performHTTP(siteHost, path, method, body, creds);
+	const siteResult = await performApiTokenHTTP(
+		siteHost,
+		path,
+		method,
+		body,
+		creds,
+	);
 	if (siteResult.statusCode < 400) {
 		apiBaseCache.set(siteHost, siteHost);
 		return siteResult.data as JsonRecord;
@@ -174,7 +296,7 @@ async function request(
 	) {
 		const cloudId = (await fetchCloudId(siteHost)) as string;
 		const gatewayHost = buildGatewayHost(cloudId);
-		const gatewayResult = await performHTTP(
+		const gatewayResult = await performApiTokenHTTP(
 			gatewayHost,
 			path,
 			method,
@@ -197,6 +319,26 @@ async function request(
 	const message =
 		parseErrorMessage(siteResult.data) ?? `HTTP ${siteResult.statusCode}`;
 	throw new JiraFailure(message);
+}
+
+async function request(
+	config: JsonRecord,
+	path: string,
+	method: string,
+	body: JsonRecord | null = null,
+): Promise<JsonRecord> {
+	const authMethod = getJiraAuthMethod(config);
+
+	if (authMethod === "oauth") {
+		if (!hasJiraOAuthToken(config)) {
+			throw new JiraFailure(
+				"Jira is not authenticated. Run `toby connect jira` to complete OAuth.",
+			);
+		}
+		return requestOAuth(config, path, method, body);
+	}
+
+	return requestApiToken(config, path, method, body);
 }
 
 export async function testConnection(config: JsonRecord): Promise<void> {

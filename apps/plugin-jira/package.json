@@ -4,6 +4,9 @@
 	"private": true,
 	"type": "module",
 	"description": "Atlassian Jira issue tracking installable Toby plugin (protocol v1)",
+	"dependencies": {
+		"open": "^10.1.0"
+	},
 	"scripts": {
 		"dev": "bun src/index.ts status",
 		"lint": "bunx biome check .",

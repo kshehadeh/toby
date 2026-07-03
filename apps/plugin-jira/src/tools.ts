@@ -111,6 +111,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
 export type ExecuteResult = {
 	result: JsonRecord;
 	appliedActions: string[];
+	config?: JsonRecord;
 };
 
 export async function executeTool(

@@ -15,7 +15,7 @@
     },
     "apps/cli": {
       "name": "@toby/cli",
-      "version": "0.73.0",
+      "version": "0.74.3",
       "bin": {
         "toby": "./dist/cli.js",
       },
@@ -79,6 +79,9 @@
     "apps/plugin-jira": {
       "name": "@toby/plugin-jira",
       "version": "1.0.0",
+      "dependencies": {
+        "open": "^10.1.0",
+      },
     },
     "apps/plugin-macos": {
       "name": "@toby/plugin-macos",
