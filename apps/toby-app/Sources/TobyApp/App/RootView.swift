@@ -22,6 +22,7 @@ struct RootView: View {
     @State private var toastDismissTask: Task<Void, Never>?
     @State private var sidebarVisibility: NavigationSplitViewVisibility = .all
     @State private var mainWindow: NSWindow?
+    @State private var sidebarActionHelp: SidebarActionHelpPresentation?
 
     private let toastDuration: UInt64 = 4_000_000_000
 
@@ -211,6 +212,23 @@ struct RootView: View {
 
     private var contentWithOverlay: some View {
         routeContent
+            .coordinateSpace(name: RootContentCoordinateSpace.name)
+            .overlay(alignment: .topLeading) {
+                if let sidebarActionHelp {
+                    SidebarActionHelpPopover(
+                        title: sidebarActionHelp.item.title,
+                        detail: sidebarActionHelp.item.detail
+                    )
+                    .frame(width: 260)
+                    .position(
+                        x: sidebarActionHelp.buttonFrame.maxX + 140,
+                        y: sidebarActionHelp.buttonFrame.midY
+                    )
+                    .allowsHitTesting(false)
+                    .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .leading)))
+                    .zIndex(100)
+                }
+            }
             .overlay(alignment: .bottomTrailing) { toastOverlay }
             .animation(.spring(response: 0.28, dampingFraction: 0.82), value: store.toast?.id)
             .onChange(of: store.toast?.id) { (_: UUID?, id: UUID?) in
@@ -246,6 +264,11 @@ struct RootView: View {
                 },
                 onRestartServer: {
                     Task { await store.restartServer() }
+                },
+                onActionHelpChange: { presentation in
+                    withAnimation(.easeOut(duration: presentation == nil ? 0.08 : 0.12)) {
+                        sidebarActionHelp = presentation
+                    }
                 },
                 sidebarContent: {
                     switch history.current {

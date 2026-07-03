@@ -1,6 +1,26 @@
 import AppKit
 import SwiftUI
 
+enum RootContentCoordinateSpace {
+	static let name = "root-content-coordinate-space"
+}
+
+struct SidebarActionItem: Identifiable, Equatable {
+	let route: DetailRoute
+	let title: String
+	let systemImage: String
+	let hoveredSystemImage: String
+	let accentColor: Color
+	let detail: String
+
+	var id: DetailRoute { route }
+}
+
+struct SidebarActionHelpPresentation: Equatable {
+	let item: SidebarActionItem
+	let buttonFrame: CGRect
+}
+
 struct AppSidebar<Content: View>: View {
 	let currentRoute: DetailRoute
 	let status: AppStatus?
@@ -13,7 +33,59 @@ struct AppSidebar<Content: View>: View {
 	let onPersonaSelected: () -> Void
 	let onCheckForUpdates: () -> Void
 	let onRestartServer: () -> Void
+	var onActionHelpChange: (SidebarActionHelpPresentation?) -> Void = { _ in }
 	@ViewBuilder let sidebarContent: () -> Content
+
+	private let actionItems: [SidebarActionItem] = [
+		SidebarActionItem(
+			route: .chat,
+			title: "Chats",
+			systemImage: "message",
+			hoveredSystemImage: "message.fill",
+			accentColor: Color(red: 0.35, green: 0.68, blue: 1),
+			detail: "Open your chat workspace, continue existing conversations, or start a new session with Toby."
+		),
+		SidebarActionItem(
+			route: .integrations,
+			title: "Integrations",
+			systemImage: "square.grid.2x2",
+			hoveredSystemImage: "square.grid.2x2.fill",
+			accentColor: Color(red: 0.32, green: 0.82, blue: 0.48),
+			detail: "Manage connected services, credentials, setup guides, and integration-specific capabilities."
+		),
+		SidebarActionItem(
+			route: .skills,
+			title: "Skills",
+			systemImage: "wand.and.stars",
+			hoveredSystemImage: "wand.and.stars",
+			accentColor: Color(red: 0.72, green: 0.52, blue: 1),
+			detail: "Browse installed skills, inspect their instructions, edit them, or add new reusable workflows."
+		),
+		SidebarActionItem(
+			route: .schedules,
+			title: "Schedules",
+			systemImage: "clock",
+			hoveredSystemImage: "clock.fill",
+			accentColor: AppTheme.accent,
+			detail: "Create and monitor recurring prompts that run on a schedule through Toby's background daemon."
+		),
+		SidebarActionItem(
+			route: .recordings,
+			title: "Recordings",
+			systemImage: "waveform",
+			hoveredSystemImage: "waveform",
+			accentColor: Color(red: 1, green: 0.36, blue: 0.42),
+			detail: "Review audio recordings, transcripts, and chats created from recorded context."
+		),
+		SidebarActionItem(
+			route: .settings,
+			title: "Settings",
+			systemImage: "gearshape",
+			hoveredSystemImage: "gearshape.fill",
+			accentColor: Color(red: 0.62, green: 0.72, blue: 0.78),
+			detail: "Configure AI providers, personas, app behavior, and local Toby preferences."
+		),
+	]
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
@@ -32,49 +104,23 @@ struct AppSidebar<Content: View>: View {
 				.background(AppTheme.separator)
 				.opacity(0.5)
 				.padding(.vertical, 2)
-			VStack(alignment: .leading, spacing: 4) {
-				Button {
-					onSelectRoute(.chat)
-				} label: {
-					SidebarRow(title: "Chats", systemImage: "message", isSelected: currentRoute == .chat)
+			LazyVGrid(
+				columns: [
+					GridItem(.flexible(), spacing: 8),
+					GridItem(.flexible(), spacing: 8),
+				],
+				spacing: 8
+			) {
+				ForEach(actionItems) { item in
+					SidebarActionGridButton(
+						item: item,
+						isSelected: currentRoute == item.route
+					) {
+						onSelectRoute(item.route)
+					} onHelpChange: { presentation in
+						onActionHelpChange(presentation)
+					}
 				}
-				.buttonStyle(.plain)
-				.frame(maxWidth: .infinity, alignment: .leading)
-				Button {
-					onSelectRoute(.integrations)
-				} label: {
-					SidebarRow(title: "Integrations", systemImage: "square.grid.2x2", isSelected: currentRoute == .integrations)
-				}
-				.buttonStyle(.plain)
-				.frame(maxWidth: .infinity, alignment: .leading)
-				Button {
-					onSelectRoute(.skills)
-				} label: {
-					SidebarRow(title: "Skills", systemImage: "wand.and.stars", isSelected: currentRoute == .skills)
-				}
-				.buttonStyle(.plain)
-				.frame(maxWidth: .infinity, alignment: .leading)
-				Button {
-					onSelectRoute(.schedules)
-				} label: {
-					SidebarRow(title: "Schedules", systemImage: "clock", isSelected: currentRoute == .schedules)
-				}
-				.buttonStyle(.plain)
-				.frame(maxWidth: .infinity, alignment: .leading)
-				Button {
-					onSelectRoute(.recordings)
-				} label: {
-					SidebarRow(title: "Recordings", systemImage: "waveform", isSelected: currentRoute == .recordings)
-				}
-				.buttonStyle(.plain)
-				.frame(maxWidth: .infinity, alignment: .leading)
-				Button {
-					onSelectRoute(.settings)
-				} label: {
-					SidebarRow(title: "Settings", systemImage: "gearshape", isSelected: currentRoute == .settings)
-				}
-				.buttonStyle(.plain)
-				.frame(maxWidth: .infinity, alignment: .leading)
 			}
 			.padding(.top, 6)
 			.padding(.bottom, 8)
@@ -94,5 +140,114 @@ struct AppSidebar<Content: View>: View {
 		.frame(minWidth: AppTheme.minSidebarWidth, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 		.background(AppTheme.sidebarBackground)
 		.accessibilityIdentifier("app-sidebar")
+	}
+}
+
+private struct SidebarActionGridButton: View {
+	let item: SidebarActionItem
+	let isSelected: Bool
+	let action: () -> Void
+	let onHelpChange: (SidebarActionHelpPresentation?) -> Void
+
+	@State private var isHovered = false
+	@State private var isHelpVisible = false
+	@State private var hoverWorkItem: DispatchWorkItem?
+	@State private var buttonFrame = CGRect.zero
+
+	var body: some View {
+		GeometryReader { proxy in
+			Button(action: action) {
+				Image(systemName: isHovered ? item.hoveredSystemImage : item.systemImage)
+					.font(.system(size: 25, weight: .medium))
+					.symbolRenderingMode(isHovered ? .palette : .monochrome)
+					.foregroundStyle(iconPrimaryStyle, iconSecondaryStyle)
+					.frame(maxWidth: .infinity, minHeight: 46)
+					.contentShape(RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius))
+					.background(
+						RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
+							.fill(backgroundFill)
+					)
+			}
+			.buttonStyle(.plain)
+			.onHover(perform: handleHover)
+			.onAppear {
+				buttonFrame = proxy.frame(in: .named(RootContentCoordinateSpace.name))
+			}
+			.onChange(of: proxy.frame(in: .named(RootContentCoordinateSpace.name))) { _, frame in
+				buttonFrame = frame
+				if isHelpVisible {
+					onHelpChange(SidebarActionHelpPresentation(item: item, buttonFrame: frame))
+				}
+			}
+			.accessibilityLabel(item.title)
+			.accessibilityHint(item.detail)
+		}
+		.frame(maxWidth: .infinity, minHeight: 46)
+	}
+
+	private var backgroundFill: Color {
+		if isSelected { return AppTheme.selection }
+		return item.accentColor.opacity(isHovered ? 0.18 : 0)
+	}
+
+	private var iconPrimaryStyle: Color {
+		if isHovered { return item.accentColor }
+		if isSelected { return AppTheme.primaryText }
+		return AppTheme.secondaryText
+	}
+
+	private var iconSecondaryStyle: Color {
+		if isHovered { return AppTheme.primaryText }
+		if isSelected { return AppTheme.primaryText }
+		return AppTheme.secondaryText
+	}
+
+	private func handleHover(_ hovering: Bool) {
+		isHovered = hovering
+		hoverWorkItem?.cancel()
+
+		if hovering {
+			let workItem = DispatchWorkItem {
+				withAnimation(.easeOut(duration: 0.12)) {
+					isHelpVisible = true
+				}
+				onHelpChange(SidebarActionHelpPresentation(item: item, buttonFrame: buttonFrame))
+			}
+			hoverWorkItem = workItem
+			DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: workItem)
+		} else {
+			withAnimation(.easeOut(duration: 0.08)) {
+				isHelpVisible = false
+			}
+			onHelpChange(nil)
+			hoverWorkItem = nil
+		}
+	}
+}
+
+struct SidebarActionHelpPopover: View {
+	let title: String
+	let detail: String
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 8) {
+			Text(title)
+				.font(.headline)
+				.foregroundStyle(AppTheme.primaryText)
+			Text(detail)
+				.font(.callout)
+				.foregroundStyle(AppTheme.secondaryText)
+				.fixedSize(horizontal: false, vertical: true)
+		}
+		.padding(14)
+		.background(
+			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
+				.fill(AppTheme.elevatedBackground)
+				.shadow(color: .black.opacity(0.28), radius: 14, x: 0, y: 8)
+		)
+		.overlay(
+			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
+				.stroke(AppTheme.separator, lineWidth: 1)
+		)
 	}
 }

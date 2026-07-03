@@ -149,12 +149,11 @@ struct AppSidebarTests {
         var selectedRoutes: [DetailRoute] = []
         let sidebar = makeSidebarWithRoute(currentRoute: .chat) { selectedRoutes.append($0) }
         let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
-        // Find and tap the Integrations button
-        let integrationsButton = buttons.first { (try? $0.find(text: "Integrations")) != nil }
+        // The lower sidebar route buttons are icon-only and expose labels for accessibility.
+        let integrationsButton = buttons.first { (try? $0.accessibilityLabel().string()) == "Integrations" }
         try #require(integrationsButton != nil, "Integrations button not found")
         try integrationsButton!.tap()
-        // Find and tap the Schedules button
-        let schedulesButton = buttons.first { (try? $0.find(text: "Schedules")) != nil }
+        let schedulesButton = buttons.first { (try? $0.accessibilityLabel().string()) == "Schedules" }
         try #require(schedulesButton != nil, "Schedules button not found")
         try schedulesButton!.tap()
         #expect(selectedRoutes == [.integrations, .schedules])
@@ -165,7 +164,7 @@ struct AppSidebarTests {
         var selectedRoute: DetailRoute?
         let sidebar = makeSidebarWithRoute(currentRoute: .integrations) { selectedRoute = $0 }
         let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
-        let chatsButton = buttons.first { (try? $0.find(text: "Chats")) != nil }
+        let chatsButton = buttons.first { (try? $0.accessibilityLabel().string()) == "Chats" }
         try #require(chatsButton != nil, "Chats button not found")
         try chatsButton!.tap()
         #expect(selectedRoute == .chat)
