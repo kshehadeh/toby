@@ -10,9 +10,7 @@ on:
       - "v*"
 
 permissions:
-  contents: write
-  id-token: write
-  pages: write
+  contents: read
 
 jobs:
   build:
@@ -270,6 +268,8 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout (full history for tags)
         uses: actions/checkout@v4
@@ -351,6 +351,34 @@ jobs:
           generate_release_notes: true
           files: ${{ steps.release_files.outputs.files }}
 
+  deploy_pages:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pages: write
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download appcast
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          name: appcast.xml
+        continue-on-error: true
+
+      - name: Configure Pages
+        if: hashFiles('release-assets/appcast.xml') != ''
+        uses: actions/configure-pages@v5
+
       - name: Setup Bun for Pages appcast deploy
         if: hashFiles('release-assets/appcast.xml') != ''
         uses: oven-sh/setup-bun@v2
@@ -369,10 +397,11 @@ jobs:
 
       - name: Upload Pages appcast artifact
         if: hashFiles('release-assets/appcast.xml') != ''
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: apps/help-site/build
 
       - name: Deploy Pages appcast artifact
+        id: deployment
         if: hashFiles('release-assets/appcast.xml') != ''
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
