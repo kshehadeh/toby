@@ -37,6 +37,8 @@ export interface PluginConfigField {
 	readonly description?: string;
 	readonly showForAuthMethods?: readonly string[];
 	readonly showForInbound?: boolean;
+	/** Optional group label for visual grouping in the configure UI. */
+	readonly group?: string;
 }
 
 export interface PluginToolDefinition {

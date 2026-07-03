@@ -73,6 +73,8 @@ export interface CredentialFieldDescriptor {
 	readonly showForInbound?: boolean;
 	readonly masked?: boolean;
 	readonly multiline?: boolean;
+	/** Optional group label for visual grouping in the configure UI. */
+	readonly group?: string;
 }
 
 interface IntegrationAuthMethodDescriptor {

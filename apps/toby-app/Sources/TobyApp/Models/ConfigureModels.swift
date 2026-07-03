@@ -32,6 +32,7 @@ struct SettingsItem: Decodable, Identifiable {
 	let readOnly: Bool?
 	var iconUrl: String? = nil
 	var icon: String? = nil
+	var group: String? = nil
 }
 
 struct ConfigureTreeResponse: Decodable {

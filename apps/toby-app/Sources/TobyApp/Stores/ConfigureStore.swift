@@ -347,7 +347,7 @@ final class ConfigureStore {
 			let status = try await client.fetchIntegrationStatus(name: name)
 			integrationStatus[name] = status
 		} catch {
-			errorMessage = error.localizedDescription
+			// Status is informational — the UI handles nil gracefully.
 		}
 	}
 
@@ -372,7 +372,8 @@ final class ConfigureStore {
 			setupGuide = try await client.fetchIntegrationSetupGuide(name: name)
 			setupGuidePresented = true
 		} catch {
-			errorMessage = error.localizedDescription
+			// Setup guide is optional — leave setupGuide as nil so the UI
+			// shows "No setup guide available" instead of an error.
 		}
 	}
 

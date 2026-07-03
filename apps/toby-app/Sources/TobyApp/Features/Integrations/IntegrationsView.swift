@@ -18,16 +18,6 @@ struct IntegrationsView: View {
 		.onDisappear {
 			Task { await store.flushPendingSave() }
 		}
-		.sheet(
-			isPresented: Binding(
-				get: { store.setupGuidePresented },
-				set: { if !$0 { store.dismissSetupGuide() } },
-			),
-		) {
-			if let section = store.selectedSection {
-				IntegrationSetupWizardView(store: store, section: section)
-			}
-		}
 		.alert(
 			store.pendingDelete?.title ?? "",
 			isPresented: Binding(

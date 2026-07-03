@@ -197,6 +197,14 @@ struct RootView: View {
                     message: updateStore.upgradeError
                 )
             }
+            .onChange(of: integrationsStore.errorMessage) { _, error in
+                guard let error, !error.isEmpty, integrationsStore.tree != nil else { return }
+                store.toast = AppToastState(
+                    style: .error,
+                    title: "Integration error",
+                    message: error
+                )
+            }
     }
 
     private var contentWithOverlay: some View {

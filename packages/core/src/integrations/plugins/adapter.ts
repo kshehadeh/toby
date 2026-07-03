@@ -660,6 +660,7 @@ export function createPluginIntegrationModule(
 				multiline: field.multiline,
 				showForAuthMethods: field.showForAuthMethods,
 				showForInbound: field.showForInbound,
+				group: field.group,
 			};
 			if (field.type === "select" && field.options?.length) {
 				return {

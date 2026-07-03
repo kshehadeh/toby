@@ -113,6 +113,7 @@ export function buildSettingsTree(
 					options: d.options ? [...d.options] : undefined,
 					masked: d.masked,
 					multiline: d.multiline,
+					group: d.group,
 				}));
 
 			const globalInboundForMod =

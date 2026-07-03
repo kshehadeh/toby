@@ -47,6 +47,8 @@ export interface SettingsItem {
 	iconUrl?: string;
 	/** Emoji or icon identifier for UI display when no image URL is available. */
 	icon?: string;
+	/** Optional group label for visual grouping of fields in the configure UI. */
+	group?: string;
 }
 
 export interface ConfigureListenRecording {

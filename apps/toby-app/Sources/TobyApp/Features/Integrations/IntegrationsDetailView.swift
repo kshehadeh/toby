@@ -4,35 +4,26 @@ struct IntegrationsDetailView: View {
 	@Bindable var store: ConfigureStore
 
 	var body: some View {
-		ScrollView {
-			VStack(alignment: .leading, spacing: 20) {
-				if store.isLoading && store.tree == nil {
-					ProgressView("Loading integrations…")
-						.frame(maxWidth: .infinity, minHeight: 240)
-				} else if let errorMessage = store.errorMessage, store.tree == nil {
-					ContentUnavailableView {
-						Label("Integrations unavailable", systemImage: "exclamationmark.triangle")
-					} description: {
-						Text(errorMessage)
-					}
-				} else if let section = store.selectedSection {
-					ConfigureSectionDetailView(store: store, section: section)
-				} else {
-					Text("Select an integration")
-						.foregroundStyle(SettingsDesign.rowDescription)
-				}
-
-				if let errorMessage = store.errorMessage, store.tree != nil {
+		VStack(spacing: 0) {
+			if store.isLoading && store.tree == nil {
+				ProgressView("Loading integrations…")
+					.frame(maxWidth: .infinity, maxHeight: .infinity)
+			} else if let errorMessage = store.errorMessage, store.tree == nil {
+				ContentUnavailableView {
+					Label("Integrations unavailable", systemImage: "exclamationmark.triangle")
+				} description: {
 					Text(errorMessage)
-						.font(.caption)
-						.foregroundStyle(.red)
 				}
+				.frame(maxWidth: .infinity, maxHeight: .infinity)
+			} else if let section = store.selectedSection {
+				IntegrationDetailContent(store: store, section: section)
+			} else {
+				Text("Select an integration")
+					.foregroundStyle(SettingsDesign.rowDescription)
+					.frame(maxWidth: .infinity, maxHeight: .infinity)
 			}
-			.frame(maxWidth: SettingsDesign.contentMaxWidth)
-			.frame(maxWidth: .infinity)
-			.padding(.horizontal, 32)
-			.padding(.vertical, 28)
 		}
+		.frame(maxWidth: .infinity, maxHeight: .infinity)
 		.background(SettingsDesign.canvasBackground)
 	}
 }

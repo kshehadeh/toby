@@ -167,6 +167,7 @@ function handleConfigShape(): never {
 				type: "string",
 				required: true,
 				description: "IMAP server hostname (e.g. imap.gmail.com)",
+				group: "IMAP",
 			},
 			{
 				key: "imapPort",
@@ -175,6 +176,7 @@ function handleConfigShape(): never {
 				required: false,
 				default: "993",
 				description: "IMAP server port (993 for TLS, 143 for plaintext)",
+				group: "IMAP",
 			},
 			{
 				key: "imapSecure",
@@ -184,6 +186,7 @@ function handleConfigShape(): never {
 				required: false,
 				default: "true",
 				description: "Use TLS for IMAP connection (recommended for port 993)",
+				group: "IMAP",
 			},
 			{
 				key: "imapUsername",
@@ -191,6 +194,7 @@ function handleConfigShape(): never {
 				type: "string",
 				required: true,
 				description: "IMAP account username/email",
+				group: "IMAP",
 			},
 			{
 				key: "imapPassword",
@@ -199,6 +203,7 @@ function handleConfigShape(): never {
 				required: true,
 				masked: true,
 				description: "IMAP account password or app-specific password",
+				group: "IMAP",
 			},
 			{
 				key: "smtpHost",
@@ -206,6 +211,7 @@ function handleConfigShape(): never {
 				type: "string",
 				required: false,
 				description: "SMTP server hostname (e.g. smtp.gmail.com)",
+				group: "SMTP",
 			},
 			{
 				key: "smtpPort",
@@ -214,6 +220,7 @@ function handleConfigShape(): never {
 				required: false,
 				default: "587",
 				description: "SMTP server port (587 for STARTTLS, 465 for TLS)",
+				group: "SMTP",
 			},
 			{
 				key: "smtpSecure",
@@ -224,6 +231,7 @@ function handleConfigShape(): never {
 				default: "false",
 				description:
 					"Use direct TLS for SMTP (port 465). Leave false for STARTTLS (port 587).",
+				group: "SMTP",
 			},
 			{
 				key: "smtpUsername",
@@ -231,6 +239,7 @@ function handleConfigShape(): never {
 				type: "string",
 				required: false,
 				description: "SMTP account username/email",
+				group: "SMTP",
 			},
 			{
 				key: "smtpPassword",
@@ -239,6 +248,7 @@ function handleConfigShape(): never {
 				required: false,
 				masked: true,
 				description: "SMTP account password or app-specific password",
+				group: "SMTP",
 			},
 			{
 				key: "fromAddress",
@@ -246,6 +256,7 @@ function handleConfigShape(): never {
 				type: "string",
 				required: false,
 				description: "Sender email address for outgoing messages",
+				group: "From Address",
 			},
 			{
 				key: "fromName",
@@ -253,6 +264,7 @@ function handleConfigShape(): never {
 				type: "string",
 				required: false,
 				description: "Sender display name for outgoing messages",
+				group: "From Address",
 			},
 		],
 	});
@@ -443,8 +455,28 @@ async function main(): Promise<void> {
 						"Enter your IMAP host, port, username, and password. Optionally add SMTP credentials for sending. Many providers require an app-specific password instead of your regular password.",
 					links: [
 						{
-							label: "Gmail app passwords",
-							url: "https://support.google.com/accounts/answer/185833",
+							label: "Gmail",
+							url: "https://support.google.com/mail/answer/78892?hl=en&sjid=15691795537353814651-NA",
+						},
+						{
+							label: "Outlook",
+							url: "https://support.microsoft.com/en-us/outlook/pop-imap-and-smtp-settings-for-outlook-com",
+						},
+						{
+							label: "Yahoo",
+							url: "https://help.yahoo.com/kb/SLN4075.html",
+						},
+						{
+							label: "iCloud",
+							url: "https://support.apple.com/en-us/102525",
+						},
+						{
+							label: "ProtonMail",
+							url: "https://proton.me/support/imap-smtp-and-pop3-setup",
+						},
+						{
+							label: "Fastmail",
+							url: "https://www.fastmail.help/hc/en-us/articles/1500000279921-IMAP-POP-and-SMTP",
 						},
 					],
 				},
