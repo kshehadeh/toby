@@ -60,6 +60,13 @@ export function collectCredentialConfigureKeys(): Set<string> {
 		for (const d of mod.getCredentialDescriptors()) {
 			keys.add(d.key);
 		}
+		// The auth method selector (e.g. "jira.authMethod") is dynamically added
+		// by the configure tree, not by getCredentialDescriptors. It must be
+		// treated as a credential key so it is persisted to the credentials file
+		// and correctly round-tripped through applyConfigureValuesPatch.
+		if (mod.authMethods && mod.authMethods.length > 0) {
+			keys.add(`${mod.name}.authMethod`);
+		}
 	}
 	return keys;
 }
