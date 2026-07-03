@@ -56,14 +56,20 @@ struct ConfigureSectionDetailView: View {
 
 			if store.sectionFieldsReloading == section.key {
 				CredentialsSkeletonView()
+			} else if section.key == "defaults" {
+				DefaultProviderCardsView(store: store, section: section)
 			} else if ConfigureTreeHelpers.isContainerSection(section) {
-				SettingsCard {
-					SettingsRow(
-						title: section.label,
-						description: "Select an item in the sidebar to view and edit its settings.",
-						showsDivider: false,
-					) {
-						EmptyView()
+				if section.key == "ai" {
+					AIProviderCardsView(store: store, section: section)
+				} else {
+					SettingsCard {
+						SettingsRow(
+							title: section.label,
+							description: "Select an item in the sidebar to view and edit its settings.",
+							showsDivider: false,
+						) {
+							EmptyView()
+						}
 					}
 				}
 			} else {

@@ -49,6 +49,10 @@ export interface SettingsItem {
 	icon?: string;
 	/** Optional group label for visual grouping of fields in the configure UI. */
 	group?: string;
+	/** Short description shown on parent section cards (e.g. AI provider cards). */
+	description?: string;
+	/** External documentation URL shown as a link on parent section cards. */
+	docUrl?: string;
 }
 
 export interface ConfigureListenRecording {

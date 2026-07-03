@@ -33,6 +33,8 @@ struct SettingsItem: Decodable, Identifiable {
 	var iconUrl: String? = nil
 	var icon: String? = nil
 	var group: String? = nil
+	var description: String? = nil
+	var docUrl: String? = nil
 }
 
 struct ConfigureTreeResponse: Decodable {

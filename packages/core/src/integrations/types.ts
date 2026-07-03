@@ -38,7 +38,6 @@ export type ProviderCategory =
 	| "tasks"
 	| "contacts"
 	| "chat"
-	| "search"
 	| "work_tracker";
 
 export const PROVIDER_CATEGORY_LABELS: Record<ProviderCategory, string> = {
@@ -47,9 +46,21 @@ export const PROVIDER_CATEGORY_LABELS: Record<ProviderCategory, string> = {
 	tasks: "Task List Provider",
 	contacts: "Contact List Provider",
 	chat: "Chat Provider",
-	search: "Search Provider",
 	work_tracker: "Work Tracker",
 };
+
+export const PROVIDER_CATEGORY_DESCRIPTIONS: Record<ProviderCategory, string> =
+	{
+		email:
+			"Choose which integration handles sending, reading, and organizing your email.",
+		calendar:
+			"Choose which integration manages your calendar events and schedules.",
+		tasks: "Choose which integration manages your to-do items and task lists.",
+		contacts: "Choose which integration provides access to your contacts.",
+		chat: "Choose which integration powers your chat conversations.",
+		work_tracker:
+			"Choose which integration tracks your work items and tickets.",
+	};
 
 export const ALL_PROVIDER_CATEGORIES: readonly ProviderCategory[] = [
 	"email",
@@ -57,7 +68,6 @@ export const ALL_PROVIDER_CATEGORIES: readonly ProviderCategory[] = [
 	"tasks",
 	"contacts",
 	"chat",
-	"search",
 	"work_tracker",
 ];
 

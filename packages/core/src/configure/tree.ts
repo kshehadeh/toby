@@ -10,6 +10,7 @@ import {
 } from "../integrations/index";
 import {
 	ALL_PROVIDER_CATEGORIES,
+	PROVIDER_CATEGORY_DESCRIPTIONS,
 	PROVIDER_CATEGORY_LABELS,
 	type ProviderCategory,
 } from "../integrations/types";
@@ -300,6 +301,7 @@ export function buildSettingsTree(
 					})),
 				],
 				currentValue,
+				description: PROVIDER_CATEGORY_DESCRIPTIONS[cat],
 			};
 		},
 	);
@@ -783,6 +785,9 @@ export function buildSettingsTree(
 						kind: "section",
 						key: "ai.openai",
 						iconUrl: "/icons/ai/openai.png",
+						description:
+							"Use OpenAI models like GPT-5, GPT-4o, and o3 directly with your OpenAI API token.",
+						docUrl: "https://openai.com/api/",
 						children: [
 							{
 								label: "API Token",
@@ -797,6 +802,9 @@ export function buildSettingsTree(
 						kind: "section",
 						key: "ai.vercel",
 						iconUrl: "/icons/ai/vercel.png",
+						description:
+							"Access models from OpenAI, Anthropic, Google, xAI, and more through a single Vercel AI Gateway API key.",
+						docUrl: "https://vercel.com/ai-gateway",
 						children: [
 							{
 								label: "API Key",
@@ -811,6 +819,9 @@ export function buildSettingsTree(
 						kind: "section",
 						key: "ai.ollama",
 						iconUrl: "/icons/ai/ollama.png",
+						description:
+							"Run open-source models like Llama, Qwen, and Mistral locally on your machine with Ollama.",
+						docUrl: "https://docs.ollama.com/quickstart",
 						children: [
 							{
 								label: "Base URL",

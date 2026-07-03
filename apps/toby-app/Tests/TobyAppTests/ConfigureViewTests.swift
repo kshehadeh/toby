@@ -124,6 +124,206 @@ struct ConfigureViewTests {
 		#expect(store.isSettingsMode == true)
 	}
 
+	@Test("AI section renders provider cards")
+	func aiSectionRendersProviderCards() throws {
+		let store = ConfigureStore()
+		store.settingsSections = [
+			SettingsItem(
+				label: "AI", kind: .section, key: "ai",
+				navKey: nil, children: [
+					SettingsItem(
+						label: "OpenAI", kind: .section, key: "ai.openai",
+						navKey: "ai.openai", children: [
+							SettingsItem(
+								label: "API Token", kind: .value, key: "ai.openai.token",
+								navKey: nil, children: nil,
+								masked: true, multiline: nil, options: nil, selectChoices: nil,
+								currentValue: nil, selectedValues: nil, readOnly: nil
+							),
+						],
+						masked: nil, multiline: nil, options: nil, selectChoices: nil,
+						currentValue: nil, selectedValues: nil, readOnly: nil,
+						iconUrl: "/icons/ai/openai.png",
+						description: "Use OpenAI models like GPT-5, GPT-4o, and o3 directly.",
+					docUrl: "https://openai.com/api/"
+					),
+					SettingsItem(
+						label: "Ollama", kind: .section, key: "ai.ollama",
+						navKey: "ai.ollama", children: [
+							SettingsItem(
+								label: "Base URL", kind: .value, key: "ai.ollama.baseUrl",
+								navKey: nil, children: nil,
+								masked: nil, multiline: nil, options: nil, selectChoices: nil,
+								currentValue: nil, selectedValues: nil, readOnly: nil
+							),
+						],
+						masked: nil, multiline: nil, options: nil, selectChoices: nil,
+						currentValue: nil, selectedValues: nil, readOnly: nil,
+						iconUrl: "/icons/ai/ollama.png",
+						description: "Run open-source models locally.",
+					docUrl: "https://docs.ollama.com/quickstart"
+					),
+				],
+				masked: nil, multiline: nil, options: nil, selectChoices: nil,
+				currentValue: nil, selectedValues: nil, readOnly: nil
+			),
+		]
+		store.selectedSectionDetail = SettingsItem(
+			label: "AI", kind: .section, key: "ai",
+			navKey: nil, children: [
+				SettingsItem(
+					label: "OpenAI", kind: .section, key: "ai.openai",
+					navKey: "ai.openai", children: [
+						SettingsItem(
+							label: "API Token", kind: .value, key: "ai.openai.token",
+							navKey: nil, children: nil,
+							masked: true, multiline: nil, options: nil, selectChoices: nil,
+							currentValue: nil, selectedValues: nil, readOnly: nil
+						),
+					],
+					masked: nil, multiline: nil, options: nil, selectChoices: nil,
+					currentValue: nil, selectedValues: nil, readOnly: nil,
+					iconUrl: "/icons/ai/openai.png",
+					description: "Use OpenAI models like GPT-5, GPT-4o, and o3 directly.",
+				docUrl: "https://openai.com/api/"
+				),
+				SettingsItem(
+					label: "Ollama", kind: .section, key: "ai.ollama",
+					navKey: "ai.ollama", children: [
+						SettingsItem(
+							label: "Base URL", kind: .value, key: "ai.ollama.baseUrl",
+							navKey: nil, children: nil,
+							masked: nil, multiline: nil, options: nil, selectChoices: nil,
+							currentValue: nil, selectedValues: nil, readOnly: nil
+						),
+					],
+					masked: nil, multiline: nil, options: nil, selectChoices: nil,
+					currentValue: nil, selectedValues: nil, readOnly: nil,
+					iconUrl: "/icons/ai/ollama.png",
+					description: "Run open-source models locally.",
+				docUrl: "https://docs.ollama.com/quickstart"
+				),
+			],
+			masked: nil, multiline: nil, options: nil, selectChoices: nil,
+			currentValue: nil, selectedValues: nil, readOnly: nil
+		)
+		store.selectedNavKey = "ai"
+
+		let view = ConfigureView(store: store)
+		// Provider titles should appear on the cards
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "OpenAI")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Ollama")
+		}
+		// Description text should appear
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Use OpenAI models like GPT-5, GPT-4o, and o3 directly.")
+		}
+		// CTA button should appear
+		#expect(throws: Never.self) {
+			try view.inspect().find(button: "Configure")
+		}
+		// Documentation link should appear
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Documentation")
+		}
+	}
+
+	@Test("Default Providers section renders provider cards with dropdowns")
+	func defaultProvidersRendersCards() throws {
+		let store = ConfigureStore()
+		store.settingsSections = [
+			SettingsItem(
+				label: "Default Providers", kind: .section, key: "defaults",
+				navKey: nil, children: [
+					SettingsItem(
+						label: "Email Provider", kind: .select, key: "defaults.email",
+						navKey: nil, children: nil,
+						masked: nil, multiline: nil,
+						options: ["(none)", "email"], selectChoices: [
+							SettingsSelectChoice(value: "(none)", label: "None"),
+							SettingsSelectChoice(value: "email", label: "Email"),
+						],
+						currentValue: "(none)", selectedValues: nil, readOnly: nil,
+						description: "Choose which integration handles sending, reading, and organizing your email."
+					),
+					SettingsItem(
+						label: "Task List Provider", kind: .select, key: "defaults.tasks",
+						navKey: nil, children: nil,
+						masked: nil, multiline: nil,
+						options: ["(none)", "todoist"], selectChoices: [
+							SettingsSelectChoice(value: "(none)", label: "None"),
+							SettingsSelectChoice(value: "todoist", label: "Todoist"),
+						],
+						currentValue: "todoist", selectedValues: nil, readOnly: nil,
+						description: "Choose which integration manages your to-do items and task lists."
+					),
+				],
+				masked: nil, multiline: nil, options: nil, selectChoices: nil,
+				currentValue: nil, selectedValues: nil, readOnly: nil
+			),
+		]
+		store.selectedSectionDetail = SettingsItem(
+			label: "Default Providers", kind: .section, key: "defaults",
+			navKey: nil, children: [
+				SettingsItem(
+					label: "Email Provider", kind: .select, key: "defaults.email",
+					navKey: nil, children: nil,
+					masked: nil, multiline: nil,
+					options: ["(none)", "email"], selectChoices: [
+						SettingsSelectChoice(value: "(none)", label: "None"),
+						SettingsSelectChoice(value: "email", label: "Email"),
+					],
+					currentValue: "(none)", selectedValues: nil, readOnly: nil,
+					description: "Choose which integration handles sending, reading, and organizing your email."
+				),
+				SettingsItem(
+					label: "Task List Provider", kind: .select, key: "defaults.tasks",
+					navKey: nil, children: nil,
+					masked: nil, multiline: nil,
+					options: ["(none)", "todoist"], selectChoices: [
+						SettingsSelectChoice(value: "(none)", label: "None"),
+						SettingsSelectChoice(value: "todoist", label: "Todoist"),
+					],
+					currentValue: "todoist", selectedValues: nil, readOnly: nil,
+					description: "Choose which integration manages your to-do items and task lists."
+				),
+			],
+			masked: nil, multiline: nil, options: nil, selectChoices: nil,
+			currentValue: nil, selectedValues: nil, readOnly: nil
+		)
+		store.selectedNavKey = "defaults"
+
+		let view = ConfigureView(store: store)
+		// Category titles should appear on the cards
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Email Provider")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Task List Provider")
+		}
+		// Description text should appear
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Choose which integration handles sending, reading, and organizing your email.")
+		}
+		// "Plugin" label should appear next to each dropdown
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Plugin")
+		}
+	}
+
+	@Test("DefaultProviderIcon maps category keys to SF Symbols")
+	func defaultProviderIconMapsKeys() throws {
+		#expect(DefaultProviderIcon.systemName(for: "defaults.email") == "envelope")
+		#expect(DefaultProviderIcon.systemName(for: "defaults.calendar") == "calendar")
+		#expect(DefaultProviderIcon.systemName(for: "defaults.tasks") == "checklist")
+		#expect(DefaultProviderIcon.systemName(for: "defaults.contacts") == "person.crop.circle")
+		#expect(DefaultProviderIcon.systemName(for: "defaults.chat") == "bubble.left.and.bubble.right")
+		#expect(DefaultProviderIcon.systemName(for: "defaults.work_tracker") == "chart.bar")
+	}
+
 	@Test("SettingsItem decodes iconUrl from JSON")
 	func settingsItemDecodesIconUrl() throws {
 		let json = """
