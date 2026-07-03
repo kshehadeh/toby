@@ -51,25 +51,23 @@ If a token was exposed or `toby connect todoist` fails with an auth error:
 
 1. In the same **Developer** tab, click **Issue a new API token**.
 2. Confirm with **Create**.
-3. Copy the new token and update it in `toby config` (old tokens stop working immediately).
+3. Copy the new token and update it in Toby.app (old tokens stop working immediately).
 
-Do not commit your token to git. Toby stores it in `~/.toby/credentials.json` via configure (masked in the UI).
+Do not commit your token to git. Toby stores it in `~/.toby/credentials.json` (masked in the UI).
 
 ## Configure
 
-```bash
-toby config
-```
-
-Go to **Integrations → Todoist** and enter:
+Open **Toby.app → Integrations → Todoist** and enter:
 
 | Field | Description |
 | ----- | ----------- |
 | API Key | Your Todoist personal API token from the Developer tab |
 
-Save the configuration.
+Save the configuration. (You can also run `toby config` in the terminal.)
 
 ## Connect
+
+Click **Connect** in Toby.app, or run:
 
 ```bash
 toby connect todoist

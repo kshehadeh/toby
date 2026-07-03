@@ -7,59 +7,45 @@ title: Configure and connect
 
 Every integration follows the same pattern: **configure credentials → connect → verify status**.
 
-## 1. Configure credentials
+## 1. Open Integrations
 
-```bash
-toby config
-```
+Open **Toby.app** and click **Integrations** in the sidebar. The Integrations window shows all available integrations and their connection status.
 
-The configure UI has two panes:
+![Toby.app Integrations window](/img/toby-app-integrations-overview.png)
 
-- **Left pane** — expandable settings tree for AI, personas, default providers, integrations, daemon settings, and other sections.
-- **Right pane** — details and editable fields for the selected item.
+Click any integration to view its detail page, where you can fill in credentials, run a setup guide, connect, and check status.
 
-Use arrow keys to navigate, `Enter` to select/edit or expand/collapse, `Tab` to switch panes, `Esc` to move back, `s` to save, and `q` to quit. Toby warns before discarding unsaved edits.
+## 2. Configure credentials
 
-Open **Integrations**, choose a service, and fill in the fields (API keys, OAuth client IDs, and so on). Save when done.
+Choose a service in the Integrations window and fill in the fields on its detail page (API keys, OAuth client IDs, and so on). Each integration detail has a **Setup Guide** button that walks you through provider steps, shows copyable values like redirect URIs and scopes, and lets you fill credentials and connect without leaving the app.
 
-Credentials live in `~/.toby/credentials.json`. Connection flags live in `~/.toby/config.json`. You can override the directory with the `TOBY_DIR` environment variable.
+### Example: Email
 
-:::tip[Native app setup wizard]
-In **Toby.app** on macOS, each integration detail has a **Setup Guide** button. The wizard walks you through provider steps, shows copyable values like redirect URIs and scopes, and lets you fill credentials and connect without leaving the app.
-:::
+![Toby.app Email integration detail](/img/toby-app-integrations-email.png)
 
-## 2. Connect
+Enter your IMAP and SMTP host, port, username, and password. Click **Setup Guide** for a step-by-step wizard.
 
-```bash
-toby connect email
-toby connect todoist
-toby connect jira
-```
+### Example: Apple Calendar
 
-List all integrations and whether they are connected:
+![Toby.app Apple Calendar integration detail](/img/toby-app-integrations-calendar.png)
 
-```bash
-toby connect
-```
+Apple Calendar needs no credentials — just click **Connect** and grant Calendar permission to Toby.app in System Settings when prompted.
 
-OAuth integrations (Slack, Azure AD) open a browser or local callback during `connect`. Email, Todoist, Jira, Web Search, and other integrations are installable plugins bundled in release archives (installed to `~/.toby/plugins/`). API-key integrations validate credentials and mark the integration connected.
+Credentials live in `~/.toby/credentials.json`. Connection flags live in `~/.toby/config.json`.
 
-## 3. Check status
+## 3. Connect
 
-```bash
-toby status
-toby status integration -i email
-```
+Click **Connect** on the integration detail page. Toby validates credentials and marks the integration connected.
 
-Status shows connection health and, for some integrations, per-tool checks.
+OAuth integrations (Slack, Azure AD) open a browser or local callback during connect. API-key integrations validate credentials and connect immediately.
+
+## 4. Check status
+
+Return to the Integrations window to see connection status at a glance. Each integration shows whether it is connected and healthy.
 
 ## Disconnect
 
-```bash
-toby disconnect email
-```
-
-This clears Toby’s connection flag. It does not delete your mail, tasks, or calendar data at the provider.
+Open the integration detail page and click **Disconnect**. This clears Toby's connection flag — it does not delete your mail, tasks, or calendar data at the provider.
 
 ## Integration guides
 

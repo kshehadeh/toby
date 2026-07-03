@@ -5,114 +5,19 @@ title: Install Toby
 
 # Install Toby
 
-You can install Toby with the install script, from a release binary, or from source.
+Toby is a native macOS app. Download the DMG, drag **Toby.app** to your Applications folder, and launch it. The app starts the daemon and sets up everything else automatically.
 
-## Option 1: Install script (recommended)
+<a class="button button--primary button--lg margin-vert--md" href="https://github.com/kshehadeh/toby/releases/latest/download/Toby-arm64.dmg">⬇ Download Toby for macOS</a>
 
-The [install script](https://github.com/kshehadeh/toby/blob/main/install-toby.sh) downloads the latest macOS release archive and installs the `toby` binary to `~/.local/bin`. The bundled `bun` runtime goes to `~/.toby/helpers/bun` (for TypeScript bun-package plugins) and first-party plugins (`toby-plugin-sample-ts`, `toby-plugin-azuread`, `toby-plugin-email`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-applecalendar`, `toby-plugin-macos`) to `~/.toby/plugins/`, so only `toby` is added to your `PATH`. The native `Toby.app` is installed to `/Applications` (or `~/Applications`). It does not require `sudo`.
+1. Open the downloaded `.dmg` file.
+2. Drag **Toby.app** into the **Applications** folder shortcut.
+3. Launch **Toby.app** from Applications (or Spotlight).
 
-After installing binaries, the script runs `toby whisper setup` to download the default local transcription model (`ggml-base.en.bin`) into `~/.toby/models/`. If that step fails (for example offline install), run `toby whisper setup` later.
+When you launch Toby.app for the first time, macOS may warn that the app was downloaded from the internet. Click **Open** to proceed. The app starts the Toby daemon automatically and creates the `~/.toby/` configuration directory.
 
-On **macOS**, run:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/kshehadeh/toby/main/install-toby.sh | bash
-```
-
-If you already cloned the repo, you can run the script locally:
-
-```bash
-./install-toby.sh
-```
-
-The script picks the right asset for your system:
-
-| Platform | Architecture | Release asset |
-| -------- | ------------ | ------------- |
-| macOS | Apple Silicon | `toby-darwin-arm64.zip` |
-| macOS | Intel | `toby-darwin-x64.zip` |
-
-After it finishes, verify the install:
-
-```bash
-toby --help
-```
-
-If `toby` is not found, the script prints how to add `~/.local/bin` to your shell `PATH` (zsh, bash, or fish). Open a new terminal or `source` your profile after updating `PATH`.
-
-### Optional settings
-
-| Variable | Purpose |
-| -------- | ------- |
-| `TOBY_INSTALL_DIR` | Install directory (default: `~/.local/bin`) |
-| `TOBY_VERSION` | Install a specific release tag, e.g. `v0.9.2` |
-| `TOBY_REPO` | GitHub repo as `owner/name` (default: `kshehadeh/toby`) |
-| `GITHUB_TOKEN` | Optional token to raise GitHub API rate limits |
-
-Example — install to a custom directory:
-
-```bash
-TOBY_INSTALL_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/kshehadeh/toby/main/install-toby.sh | bash
-```
-
-## Option 2: Release binary (manual)
-
-If you prefer to download the binary yourself:
-
-1. Open the [Toby releases page](https://github.com/kshehadeh/toby/releases).
-2. Download the archive for your platform (see the table above).
-3. Extract it, then put `toby` on your PATH, plugins under `~/.toby/plugins/`, and `Toby.app` in `/Applications` (or `~/Applications`):
-
-```bash
-unzip toby-darwin-arm64.zip
-chmod +x toby toby-plugin-*
-mkdir -p ~/.toby/plugins
-mv toby-plugin-* ~/.toby/plugins/
-sudo mv toby /usr/local/bin/
-sudo mv Toby.app /Applications/
-```
-
-4. Verify the install:
-
-```bash
-toby --help
-```
-
-## Option 3: Install from source
-
-1. Clone the repository:
-
-```bash
-git clone https://github.com/kshehadeh/toby.git
-cd toby
-```
-
-2. Install dependencies and build:
-
-```bash
-bun install
-bun run build
-```
-
-3. Run Toby:
-
-```bash
-bun run dev -- --help
-```
-
-When developing from source, prefix commands with `bun run dev --` (for example, `bun run dev -- chat`). Build and install first-party plugins before using Email, Azure AD, Web Search, or other plugin integrations:
-
-```bash
-bun run build:plugins
-toby plugins doctor
-```
-
-To link individual plugins during development:
-
-```bash
-toby plugins install ./dist/toby-plugin-email --link --force
-toby plugins install ./dist/toby-plugin-azuread --link --force
-```
+:::note[Also need the CLI?]
+The DMG installs the native app only. If you also want the `toby` terminal command, see the [install script](https://github.com/kshehadeh/toby/blob/main/install-toby.sh) or [install from source](https://github.com/kshehadeh/toby) instructions on GitHub.
+:::
 
 ## Next steps
 

@@ -146,7 +146,7 @@ What do you know about my meeting preferences?
 /project  →  Add Project  →  name: "Weekly Overview"
 ```
 
-**Add reference context** (from a terminal):
+**Add reference context** (from a terminal or Finder):
 
 ```bash
 mkdir -p ~/.toby/projects/weekly-overview/context
@@ -161,7 +161,7 @@ Create a skill called weekly-overview-format that formats a weekly status
 update with sections: Accomplishments, Blockers, Priorities Next Week.
 ```
 
-Then pin it via `/config` &rarr; Projects &rarr; Weekly Overview &rarr; Skills.
+Then pin it via **Toby.app → Settings → Projects → Weekly Overview → Skills**.
 
 **Chat each week:**
 

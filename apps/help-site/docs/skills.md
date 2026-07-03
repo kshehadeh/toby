@@ -51,13 +51,11 @@ mkdir -p ~/.toby/skills/organize-email
 # Edit ~/.toby/skills/organize-email/SKILL.md
 ```
 
-### Manage in the UI
+### Manage in the app
 
-```bash
-toby skills
-```
+Open **Toby.app** and click **Skills** in the sidebar. The Skills window lists installed skills with descriptions. You can add new skills, delete existing ones, and run a skill directly from the toolbar.
 
-List, view, edit (opens your editor), and delete skills. In chat, type **`/skills`** to open the same manager.
+In the terminal, run `toby skills` to list, view, edit (opens your editor), and delete skills. In chat, type **`/skills`** to open the same manager.
 
 There is no in-app “new skill wizard”—create the folder and `SKILL.md` file first, then refresh via chat or `toby skills`.
 
@@ -71,7 +69,7 @@ In chat, Toby can use the **createLocalSkill** tool to draft a full `SKILL.md` a
 | --- | ------- | ----- |
 | **Purpose** | Who Toby is being (priorities, tone) | What procedure to follow |
 | **Storage** | `~/.toby/config.json` | `~/.toby/skills/<name>/SKILL.md` |
-| **Selection** | You set default or switch with `/persona` | Toby selects per message from catalog |
+| **Selection** | You set default or switch via the persona picker | Toby selects per message from catalog |
 | **Example** | “Prioritize engineering email” | “How to label and archive by project” |
 
 The same skill with different personas can produce different prioritization—for example, an email-organize skill under a technologist vs project manager persona (see [Examples](./examples)).
@@ -80,7 +78,7 @@ The same skill with different personas can produce different prioritization—fo
 
 A [project](./projects) can declare **pinned skills** — skills that are relevant to that project's recurring workflow. Pinning makes the association explicit so you remember which skills to use, and the project detail view shows them at a glance.
 
-To pin a skill: `/config` → **Projects** → the project → **Skills** field. Enter comma-separated skill names.
+To pin a skill: open **Toby.app → Settings → Projects**, select the project, and enter comma-separated skill names in the **Skills** field.
 
 ## Debug skill selection
 

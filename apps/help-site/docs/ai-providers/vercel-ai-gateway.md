@@ -23,19 +23,15 @@ You can also set **`AI_GATEWAY_API_KEY`** in your environment instead of storing
 
 ## Configure in Toby
 
-```bash
-toby config
-```
+Open **Toby.app → Settings → AI → Vercel AI Gateway → API Key** and paste your key, **or** rely on `AI_GATEWAY_API_KEY` / `VERCEL_OIDC_TOKEN`. (You can also run `toby config` in the terminal.)
 
-1. Go to **AI → Vercel AI Gateway → API Key** and paste your key, **or** rely on `AI_GATEWAY_API_KEY` / `VERCEL_OIDC_TOKEN`.
-2. For a persona, set **AI Provider** to `vercel`.
-3. Pick a model from the list or enter a **Custom model slug** (any slug your gateway account exposes).
+For a persona, set **AI Provider** to `vercel`, then pick a model from the list or enter a **Custom model slug** (any slug your gateway account exposes).
 
 Toby validates slugs as `provider/model` (for example `google/gemini-3-flash`).
 
 ## Recommended models
 
-The configure UI lists slugs Toby tests against regularly. These work well for Toby’s chat, tool use, summarization, and schedules.
+The Settings model picker lists slugs Toby tests against regularly. These work well for Toby's chat, tool use, summarization, and schedules.
 
 ### Everyday chat (recommended defaults)
 
@@ -65,13 +61,25 @@ The configure UI lists slugs Toby tests against regularly. These work well for T
 | `google/gemini-2.5-pro` | Heavier Google model for complex requests. |
 | `mistral/mistral-medium` | Solid European-hosted option when it fits your policy needs. |
 
+### Open-weight models
+
+These models have openly available weights and can be a cost-effective alternative to proprietary models. Availability depends on your gateway configuration.
+
+| Slug | Role |
+| ---- | ---- |
+| `meta/llama-4-scout` | Meta's scout tier — good general-purpose open-weight model for everyday chat and tool use. |
+| `meta/llama-4-maverick` | Larger Llama 4 variant when you need more capability than scout. |
+| `mistral/mistral-large` | Mistral's flagship open-weight model for complex drafting and analysis. |
+| `mistral/mistral-small` | Lightweight Mistral model for fast, cost-effective turns. |
+| `deepseek/deepseek-v3.2` | Cost-effective reasoning-oriented open-weight model. |
+| `qwen/qwen-3-235b` | Alibaba's large open-weight model with strong multilingual support. |
+| `qwen/qwen-3-32b` | Smaller Qwen variant for quicker, cheaper runs. |
+
 ### Reasoning and alternatives
 
 | Slug | Role |
 | ---- | ---- |
-| `deepseek/deepseek-v3.2` | Cost-effective reasoning-oriented model where enabled on your gateway. |
-| `xai/grok-4-fast-reasoning` | xAI reasoning route for experiments or comparison. |
-| `meta/llama-4-scout` | Open-weight style routing when you want Meta’s scout tier. |
+| `xai/grok-4-fast-reasoning` | xAI reasoning route for experiments or comparison. |’s scout tier. |
 
 Start with **`openai/gpt-5-mini`** unless you have a reason to prefer another vendor. Use **Custom model slug** for any model [listed in your gateway](https://vercel.com/docs/ai-gateway/models-and-providers) that Toby does not yet show in the picker.
 

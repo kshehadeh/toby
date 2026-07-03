@@ -21,17 +21,17 @@ If you do not set a custom default, Toby uses the built-in **Toby** persona. It 
 
 ## Create and edit personas
 
-```bash
-toby config
-```
-
-Open **Personas**:
+Open **Toby.app** and click **Settings** in the sidebar, then open **Personas**:
 
 - **New Persona** — add a name, instructions, prompt mode, provider, and model
 - **Set as default** — the persona used when chat starts
 - **Delete** — remove personas you no longer need
 
 Personas are stored in `~/.toby/config.json`.
+
+:::tip[Terminal alternative]
+Run `toby config` to manage personas from the terminal configure UI.
+:::
 
 ### Prompt mode
 
@@ -46,8 +46,8 @@ Most users start with `add` so integration-specific tool guidance stays intact.
 
 | Method | How |
 | ------ | --- |
-| Default | Set default in configure; new sessions use it |
-| Switch in chat | `/persona` or **Shift+Tab** |
+| Default | Set default in Settings; new sessions use it |
+| Switch in chat | Use the persona picker in the chat toolbar |
 | One-shot CLI | `toby chat --persona "Technologist"` (inside `toby chat`, `-p` is persona; at the root, `-p` is an initial **prompt**) |
 
 ## Example personas

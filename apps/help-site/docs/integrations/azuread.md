@@ -95,11 +95,7 @@ Use **Tenant ID**, **Client ID**, and (for client credentials) **Client Secret**
 
 ## Configure
 
-```bash
-toby config
-```
-
-Go to **Integrations → Azure AD** and choose an **Auth Method**:
+Open **Toby.app → Integrations → Azure AD** and choose an **Auth Method**: (You can also run `toby config` in the terminal.)
 
 ### OAuth (PKCE) — default
 
@@ -120,6 +116,8 @@ Go to **Integrations → Azure AD** and choose an **Auth Method**:
 Save the configuration.
 
 ## Connect
+
+Click **Connect** in Toby.app, or run:
 
 ```bash
 toby connect azuread

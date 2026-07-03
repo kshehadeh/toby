@@ -30,11 +30,7 @@ Do not commit the token to git. Toby stores it in `~/.toby/credentials.json` and
 
 ## Configure
 
-```bash
-toby config
-```
-
-Go to **Integrations → Jira** and enter:
+Open **Toby.app → Integrations → Jira** and enter:
 
 | Field | Description |
 | ----- | ----------- |
@@ -42,9 +38,11 @@ Go to **Integrations → Jira** and enter:
 | Email | The Atlassian account email for the API token |
 | API Token | The Atlassian API token |
 
-Save the configuration.
+Save the configuration. (You can also run `toby config` in the terminal.)
 
 ## Connect
+
+Click **Connect** in Toby.app, or run:
 
 ```bash
 toby connect jira

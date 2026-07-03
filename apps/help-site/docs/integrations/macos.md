@@ -23,6 +23,8 @@ Connect Toby to local macOS system controls. Toby ships **`toby-plugin-macos`**,
 
 ## Connect
 
+Click **Connect** in **Toby.app → Integrations → macOS**, or run:
+
 ```bash
 toby connect macos
 ```
@@ -43,11 +45,7 @@ advertises it. Setup is idempotent — shortcuts already on your Mac are skipped
 
 ## Configure
 
-```bash
-toby config
-```
-
-Go to **Integrations → macOS**. There are no credential fields — connect is a one-time session flag on this Mac.
+Open **Toby.app → Integrations → macOS**. There are no credential fields — connect is a one-time session flag on this Mac. (You can also run `toby config` in the terminal.)
 
 ## Verify
 

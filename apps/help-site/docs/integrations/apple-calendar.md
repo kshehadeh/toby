@@ -30,13 +30,11 @@ toby plugins install ./dist/toby-plugin-applecalendar --link --force
 
 ## Configure
 
-```bash
-toby config
-```
-
-Go to **Integrations → Apple Calendar**. Optional **Notes** are for your own reference only. Save.
+Open **Toby.app → Integrations → Apple Calendar**. Optional **Notes** are for your own reference only. Save. (You can also run `toby config` in the terminal.)
 
 ## Connect
+
+Click **Connect** in Toby.app, or run:
 
 ```bash
 toby connect applecalendar

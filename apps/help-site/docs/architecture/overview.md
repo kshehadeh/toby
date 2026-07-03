@@ -16,24 +16,19 @@ Toby to external systems through a JSON protocol.
 
 ## `@toby/cli`
 
-`@toby/cli` is the terminal app. It owns command registration, the Ink chat TUI,
-configuration screens, local orchestration for commands such as `listen`, and
-presentation-specific behavior.
+`@toby/cli` is the terminal app. It provides a command-line interface and an Ink chat TUI for users who prefer the terminal, automation, or scripting. It owns command registration, configuration screens, local orchestration for commands such as `listen`, and presentation-specific behavior.
 
-It depends on `@toby/core` for chat turns, integrations, configuration, and
-session state. It can also start and manage the daemon for flows such as
-schedules, inbound chat, and local HTTP API access. Core code should not
-import from the CLI app.
+It depends on `@toby/core` for chat turns, integrations, configuration, and session state. It can also start and manage the daemon for flows such as schedules, inbound chat, and local HTTP API access. Core code should not import from the CLI app.
 
-See [Your first chat](../getting-started/first-chat) for CLI usage and
+See [Your first chat](../getting-started/first-chat) for usage and
 [Configure and connect](../getting-started/configure-and-status) for the
 configuration flow.
 
 ## Toby.app
 
-`Toby.app` is the native macOS SwiftUI app. It is a peer user surface for chat
-and configuration: it bootstraps the daemon when needed, then calls the same
-localhost API used by the CLI.
+`Toby.app` is the native macOS SwiftUI app and the primary user surface for
+Toby. It bootstraps the daemon when needed, then calls the same localhost API
+for chat, sessions, configuration, and streaming chat turns.
 
 Toby.app also hosts a separate native API server for macOS system operations
 that require TCC permissions or native framework access. Both the
@@ -54,8 +49,8 @@ The daemon serves the local HTTP API at `http://127.0.0.1:7847` by default.
 Toby.app uses it for sessions, streaming chat turns, memories,
 configuration, daemon status, and configure actions.
 
-The server is local-only and uses the same core harness as the terminal
-experience. Interactive chat turns stream `ChatEvent` payloads over SSE, so UI
+The server is local-only and uses the same core harness as the native app and
+terminal experience. Interactive chat turns stream `ChatEvent` payloads over SSE, so UI
 surfaces can render the same turn lifecycle without reimplementing the
 pipeline.
 
@@ -69,7 +64,7 @@ runtime, tool wiring, integration registry, configuration helpers, memory,
 session storage, logging, and daemon-safe workflows.
 
 Put behavior here when it can run without Ink, React, Commander, or a browser.
-That keeps the CLI, scheduled jobs, and headless flows on the same
+That keeps the native app, CLI, scheduled jobs, and headless flows on the same
 behavioral path.
 
 For implementation details, see the source docs:

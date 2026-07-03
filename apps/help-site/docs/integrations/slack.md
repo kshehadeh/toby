@@ -24,7 +24,7 @@ On macOS, open **Toby.app** → **Integrations → Slack** and click **Setup Gui
 
 ## Credentials and auth reference
 
-Everything below is set under **Integrations → Slack** in `toby configure` (stored in `~/.toby/credentials.json`). Toby may mirror some fields under both `integrations.slack` and top-level `slack`; either location works.
+Everything below is set under **Toby.app → Integrations → Slack** (stored in `~/.toby/credentials.json`). You can also run `toby configure` in the terminal. Toby may mirror some fields under both `integrations.slack` and top-level `slack`; either location works.
 
 | Configure field | Stored as | Prefix / form | When you need it | Why |
 | --------------- | --------- | ------------- | ---------------- | --- |
@@ -143,7 +143,7 @@ After the app is created:
 2. Run `toby connect slack` for OAuth chat.
 3. For [daemon inbound](#inbound-mentions-daemon): **Install to Workspace**, create an **App-Level Token** with `connections:write`, and paste **Bot Token** + **App Token** in configure.
 
-If you use a custom redirect URI in `toby config`, edit **OAuth & Permissions → Redirect URLs** to match (must be `http://localhost` or `http://127.0.0.1` with a port and path).
+If you use a custom redirect URI in Toby.app Settings, edit **OAuth & Permissions → Redirect URLs** to match (must be `http://localhost` or `http://127.0.0.1` with a port and path).
 
 ### Configure manually
 
@@ -166,7 +166,7 @@ Use these steps if you prefer not to use a manifest, or need to adjust scopes af
 
 3. Enable **PKCE** (required for Toby’s localhost flow). Slack documents this under [Using PKCE](https://docs.slack.dev/authentication/using-pkce).
 
-If you use a custom redirect URI in `toby config`, register that exact URL instead (must be `http://localhost` or `http://127.0.0.1` with a port and path).
+If you use a custom redirect URI in Toby.app Settings, register that exact URL instead (must be `http://localhost` or `http://127.0.0.1` with a port and path).
 
 #### 3. Add user token scopes
 
@@ -198,7 +198,7 @@ Use these in the [Configure](#configure) section. Do not commit them to git; Tob
 
 #### 5. Connect from Toby
 
-After saving credentials in `toby config`, run `toby connect slack`. Approve the app in the browser when prompted. This stores a **user token** for chat—not a bot token. If you plan to use [daemon inbound](#inbound-mentions-daemon), add **Bot Token** and **App Token** separately (steps in that section).
+After saving credentials in Toby.app (or `toby config`), run `toby connect slack`. Approve the app in the browser when prompted. This stores a **user token** for chat—not a bot token. If you plan to use [daemon inbound](#inbound-mentions-daemon), add **Bot Token** and **App Token** separately (steps in that section).
 
 ## Bot token (alternative)
 
@@ -220,17 +220,13 @@ On **OAuth & Permissions**, under **Scopes → Bot Token Scopes**, add the same 
 ### 4. Copy the Bot User OAuth Token
 
 1. After install, copy **Bot User OAuth Token** (`xoxb-...`) from **OAuth & Permissions**.
-2. In `toby config`, choose **Manual bot token** and paste it into **Bot Token**.
+2. In Toby.app Settings (or `toby config`), choose **Manual bot token** and paste it into **Bot Token**.
 
 Run `toby connect slack` to validate the token.
 
 ## Configure
 
-```bash
-toby config
-```
-
-Go to **Integrations → Slack**. Field visibility depends on **Auth Method** and whether **Daemon / inbound chat** targets Slack (see [credentials reference](#credentials-and-auth-reference)).
+Open **Toby.app → Integrations → Slack**. Field visibility depends on **Auth Method** and whether **Daemon / inbound chat** targets Slack (see [credentials reference](#credentials-and-auth-reference)). You can also run `toby config` in the terminal.
 
 ### OAuth (recommended for chat)
 
@@ -315,7 +311,7 @@ If you used the [app manifest](#create-from-app-manifest-recommended), Socket Mo
 
 ### Toby configure + daemon
 
-1. `toby configure` → **Daemon / inbound chat**: enable, set **Active integration** to `slack`, pick a persona.
+1. Open **Toby.app → Settings → Daemon / inbound chat**: enable, set **Active integration** to `slack`, pick a persona. (Or run `toby configure` in the terminal.)
 2. **Integrations → Slack**: **Bot Token**, **App Token**, optional **Bot User ID** (fields appear when inbound is enabled, even under OAuth).
 3. `toby connect slack` if you use OAuth for chat (marks Slack connected).
 4. `toby daemon start` — check `~/.toby/daemon.log` for `slack_socket_connected`.
