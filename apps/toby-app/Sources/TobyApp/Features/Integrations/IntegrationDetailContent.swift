@@ -263,7 +263,9 @@ struct IntegrationDetailContent: View {
 
     @ViewBuilder
     private var credentialsSection: some View {
-        if !rowFields.isEmpty || !blockFields.isEmpty {
+        if store.sectionFieldsReloading == section.key {
+            CredentialsSkeletonView()
+        } else if !rowFields.isEmpty || !blockFields.isEmpty {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Configuration")
                     .font(.system(size: 13, weight: .semibold))

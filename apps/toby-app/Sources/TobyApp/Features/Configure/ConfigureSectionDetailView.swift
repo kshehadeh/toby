@@ -54,7 +54,9 @@ struct ConfigureSectionDetailView: View {
 				SettingsSectionHeader(title: section.label)
 			}
 
-			if ConfigureTreeHelpers.isContainerSection(section) {
+			if store.sectionFieldsReloading == section.key {
+				CredentialsSkeletonView()
+			} else if ConfigureTreeHelpers.isContainerSection(section) {
 				SettingsCard {
 					SettingsRow(
 						title: section.label,

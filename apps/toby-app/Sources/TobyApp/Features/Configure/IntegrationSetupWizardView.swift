@@ -206,38 +206,42 @@ struct IntegrationSetupWizardView: View {
 
 	@ViewBuilder
 	private var credentialsSection: some View {
-		VStack(alignment: .leading, spacing: 16) {
-			Text("Credentials")
-				.font(.headline)
-				.foregroundStyle(AppTheme.primaryText)
+		if store.sectionFieldsReloading == section.key {
+			CredentialsSkeletonView(title: "Credentials")
+		} else {
+			VStack(alignment: .leading, spacing: 16) {
+				Text("Credentials")
+					.font(.headline)
+					.foregroundStyle(AppTheme.primaryText)
 
-			let fields = store.detailFields(for: section)
-			let rowFields = fields.filter { field in
-				field.kind != .hint && field.multiline != true && field.readOnly != true
-			}
-			let blockFields = fields.filter { field in
-				field.multiline == true || field.kind == .hint || field.readOnly == true
-			}
+				let fields = store.detailFields(for: section)
+				let rowFields = fields.filter { field in
+					field.kind != .hint && field.multiline != true && field.readOnly != true
+				}
+				let blockFields = fields.filter { field in
+					field.multiline == true || field.kind == .hint || field.readOnly == true
+				}
 
-			if !rowFields.isEmpty {
-				SettingsCard {
-					ForEach(Array(rowFields.enumerated()), id: \.element.id) { index, field in
-						ConfigureFieldRowView(
-							store: store,
-							field: field,
-							sectionLabel: section.label,
-							showsDivider: index < rowFields.count - 1,
-						)
+				if !rowFields.isEmpty {
+					SettingsCard {
+						ForEach(Array(rowFields.enumerated()), id: \.element.id) { index, field in
+							ConfigureFieldRowView(
+								store: store,
+								field: field,
+								sectionLabel: section.label,
+								showsDivider: index < rowFields.count - 1,
+							)
+						}
 					}
 				}
-			}
 
-			ForEach(blockFields) { field in
-				ConfigureBlockFieldView(
-					store: store,
-					field: field,
-					sectionLabel: section.label,
-				)
+				ForEach(blockFields) { field in
+					ConfigureBlockFieldView(
+						store: store,
+						field: field,
+						sectionLabel: section.label,
+					)
+				}
 			}
 		}
 	}

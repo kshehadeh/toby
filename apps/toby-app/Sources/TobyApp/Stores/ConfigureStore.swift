@@ -25,6 +25,11 @@ final class ConfigureStore {
 	var selectedSectionDetail: SettingsItem?
 	var sectionDetailLoading = false
 
+	/// Section key whose credential fields are being reloaded after an auth
+	/// method change. While non-nil, the UI shows a skeleton placeholder
+	/// instead of stale fields.
+	var sectionFieldsReloading: String?
+
 	private let client = TobyClient()
 	private var fieldByKey: [String: SettingsItem] = [:]
 	@ObservationIgnored private var autosaveTask: Task<Void, Never>?
@@ -179,6 +184,16 @@ final class ConfigureStore {
 	}
 
 	func setDraftValue(_ key: String, _ value: String, autosaveImmediately: Bool = false) {
+		// Detect auth method changes and mark the section as reloading so the
+		// UI can show a skeleton while the server rebuilds the field set.
+		if key.hasSuffix(".authMethod") {
+			let sectionKey = String(key.dropLast(".authMethod".count))
+			let savedAuthMethod = savedValues[key] ?? ""
+			if value != savedAuthMethod {
+				sectionFieldsReloading = sectionKey
+			}
+		}
+
 		if fieldByKey[key]?.masked == true {
 			let saved = savedValues[key] ?? ""
 			if value.isEmpty, saved == ConfigureConstants.redactedSecret || saved.isEmpty {
@@ -247,6 +262,8 @@ final class ConfigureStore {
 		guard !changes.isEmpty else { return }
 		isSaving = true
 		errorMessage = nil
+		let reloadingSection = sectionFieldsReloading
+		let reloadStart = Date()
 		defer { isSaving = false }
 		do {
 			let response = try await client.patchConfigure(changes: changes)
@@ -255,10 +272,21 @@ final class ConfigureStore {
 			} else {
 				apply(response: response, resetDraft: false)
 			}
+			// Ensure the skeleton is visible long enough to be perceived
+			// even when the localhost server responds instantly.
+			if reloadingSection != nil {
+				let elapsed = Date().timeIntervalSince(reloadStart)
+				let minSkeletonSeconds: TimeInterval = 0.35
+				if elapsed < minSkeletonSeconds {
+					try? await Task.sleep(for: .seconds(minSkeletonSeconds - elapsed))
+				}
+			}
+			sectionFieldsReloading = nil
 			if hasPendingChanges {
 				scheduleAutosave()
 			}
 		} catch {
+			sectionFieldsReloading = nil
 			errorMessage = error.localizedDescription
 		}
 	}
