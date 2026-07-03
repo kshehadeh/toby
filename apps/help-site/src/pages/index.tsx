@@ -65,9 +65,10 @@ export default function Home(): React.JSX.Element {
 				<span className={styles.eyebrow}>Documentation</span>
 				<h1 className={styles.title}>Toby Documentation</h1>
 				<p className={styles.lead}>
-					Toby is an AI assistant for organizing and summarizing work across
-					Email, Todoist, Slack, Jira, and Apple Calendar. Chat from the
-					terminal, a local web UI, or the native macOS app.
+					Toby is a native macOS app that organizes and summarizes work across
+					Email, Todoist, Slack, Jira, and Apple Calendar. Chat with your
+					assistant, configure integrations, and manage schedules from a
+					familiar SwiftUI interface.
 				</p>
 				<p className={styles.lead}>
 					New here? Read{" "}

@@ -5,10 +5,10 @@ title: Toby.app
 
 # Toby.app
 
-Toby.app is the native macOS app for Toby. It gives you a SwiftUI surface for
+Toby.app is the native macOS app for Toby and the primary way to use it. It gives you a SwiftUI surface for
 chat and configuration while keeping the assistant runtime, sessions,
 integrations, and configuration storage in the same Toby daemon and core harness
-used by the CLI and the native macOS app.
+used by the CLI.
 
 ## What it does
 
@@ -20,7 +20,7 @@ Toby.app currently has two roles:
 | Native permission bridge | Hosts a separate localhost native API server for macOS operations that need a stable app identity or native framework access. Both the macOS plugin (`toby-plugin-macos`) and the Apple Calendar plugin (`toby-plugin-applecalendar`) are TypeScript bun-package plugins that delegate all operations to this server. |
 
 The app does **not** import `@toby/core` directly. It talks to Toby through HTTP
-so the CLI, daemon, and native app stay on the same behavior path.
+so the native app, CLI, and daemon stay on the same behavior path.
 
 ## Surfaces
 

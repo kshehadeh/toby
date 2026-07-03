@@ -5,7 +5,7 @@ title: AI providers overview
 
 # AI providers overview
 
-Toby uses a large language model for chat, summarization, organization, and background schedules. You configure **one or more AI providers** in `toby config` (alias `toby configure`), then pick a provider and model per [persona](../personas).
+Toby uses a large language model for chat, summarization, organization, and background schedules. You configure **one or more AI providers** in **Toby.app → Settings → AI** (or `toby config` in the terminal), then pick a provider and model per [persona](../personas).
 
 Toby supports two AI providers today:
 
@@ -18,14 +18,12 @@ You only need **one** provider configured to start chatting. Many people use Ope
 
 ## Quick setup
 
-```bash
-toby config
-```
+Open **Toby.app → Settings** and configure:
 
 1. Open **AI** and enter credentials for at least one provider ([OpenAI](./openai#get-an-api-key) or [Vercel AI Gateway](./vercel-ai-gateway#get-an-api-key)).
 2. Open **Personas**, choose **AI Provider** and **Model** (or use the built-in **Toby** persona, which defaults to OpenAI `gpt-5-mini`).
 
-Credentials are stored in `~/.toby/credentials.json`, not in your shell history.
+Credentials are stored in `~/.toby/credentials.json`, not in your shell history. You can also run `toby config` in the terminal to open the configure UI.
 
 ## Choosing a provider
 
@@ -55,7 +53,7 @@ Override with `TOBY_PRETREAT_MODEL` (bare id for OpenAI, or a full gateway slug 
 
 ## Default integration providers
 
-Separate from AI: in configure, **Default Providers** picks which connected integration Toby prefers per category (email, calendar, tasks, and so on). That is unrelated to which LLM vendor you use. See [Set up your AI](../getting-started/setup-ai#default-providers-optional).
+Separate from AI: in **Toby.app → Settings → Default Providers**, you pick which connected integration Toby prefers per category (email, calendar, tasks, and so on). That is unrelated to which LLM vendor you use. See [Set up your AI](../getting-started/setup-ai#default-providers-optional).
 
 ## Related topics
 

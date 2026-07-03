@@ -29,7 +29,7 @@ This makes projects ideal for recurring workflows like weekly overviews, monthly
 
 In chat, type `/project` and select **Add Project**. Toby prompts you for a name, creates the folder structure, and activates it.
 
-You can also create a project through the **configure UI** (`/config`), under the **Projects** section.
+You can also create a project through **Toby.app → Settings → Projects**.
 
 ## Activate and switch projects
 
@@ -52,11 +52,11 @@ After selecting a project in the picker, the detail modal shows:
 | **Pinned skills** | Local skills relevant to this project |
 | **Context integrations** | Integrations whose data is relevant to the project |
 
-Press **e** to edit the project in the configure UI, or **Esc** to go back.
+Press **e** to edit the project in Settings, or **Esc** to go back.
 
 ## Edit a project
 
-From the detail view press **e**, or navigate to `/config` &rarr; **Projects** &rarr; the project name. Editable fields:
+From the detail view press **e**, or navigate to **Toby.app → Settings → Projects** and select the project name. Editable fields:
 
 | Field | Description |
 | ----- | ----------- |
@@ -94,7 +94,7 @@ When no project is active, `writeTextFile` falls back to `~/.toby/generated-file
 
 Each project can declare **pinned skills** — local skills from `~/.toby/skills/` that are relevant to the project's workflow. For example, a project that generates weekly email digests might pin a skill like `email-triage` that provides formatting and prioritization instructions.
 
-To create a new skill for a project, ask in chat: *"Create a skill for weekly email summaries"* — Toby drafts a `SKILL.md` under `~/.toby/skills/` using the `createLocalSkill` tool. You can then pin it to the project via `/config`.
+To create a new skill for a project, ask in chat: *"Create a skill for weekly email summaries"* — Toby drafts a `SKILL.md` under `~/.toby/skills/` using the `createLocalSkill` tool. You can then pin it to the project via **Toby.app → Settings → Projects**.
 
 See [Skills](./skills) for more on creating and managing skills.
 
@@ -115,7 +115,7 @@ cp team-goals.md ~/.toby/projects/weekly-overview/context/
  Write it in a concise bullet-point style."
 
 # 4. Pin the skill to the project
-/config  →  Projects  →  weekly-overview  →  Skills: weekly-overview-format
+# In Toby.app → Settings → Projects → weekly-overview → Skills: weekly-overview-format
 
 # 5. Generate each week
 "Generate this week's overview based on my recent emails and tasks"

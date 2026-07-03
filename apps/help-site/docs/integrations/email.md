@@ -41,11 +41,7 @@ Many providers (Gmail, Yahoo, iCloud, Fastmail, and others) require an **App Pas
 
 ## Configure
 
-```bash
-toby config
-```
-
-Go to **Integrations → Email** and enter your IMAP and SMTP credentials:
+Open **Toby.app → Integrations → Email** and enter your IMAP and SMTP credentials:
 
 | Field | Description |
 | ----- | ----------- |
@@ -58,9 +54,11 @@ Go to **Integrations → Email** and enter your IMAP and SMTP credentials:
 | SMTP Username | Your email address or SMTP login |
 | SMTP Password | Account password or App Password (stored masked) |
 
-Save the configuration.
+Save the configuration. (You can also run `toby config` in the terminal.)
 
 ## Connect
+
+Click **Connect** in Toby.app, or run:
 
 ```bash
 toby connect email

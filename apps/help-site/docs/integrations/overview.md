@@ -51,9 +51,9 @@ Integrations connect Toby to your email, tasks, chat, contacts, and calendar. On
 
 Every integration uses the same workflow:
 
-1. **Configure** — `toby config` → **Integrations** → enter credentials
-2. **Connect** — `toby connect <name>` (OAuth where required)
-3. **Status** — `toby status` or `toby status integration -i <name>`
+1. **Configure** — Open **Toby.app → Integrations**, select a service, and enter credentials (or use the **Setup Guide** button)
+2. **Connect** — Click **Connect** in Toby.app, or run `toby connect <name>` (OAuth where required)
+3. **Status** — Check the Integrations window in Toby.app, or run `toby status` or `toby status integration -i <name>`
 
 See [Configure and connect](../getting-started/configure-and-status) for the full walkthrough.
 
@@ -112,20 +112,16 @@ Only **email** currently has one first-party integration in that category (Email
 
 Categories let Toby reason about *roles* instead of a flat list of app names:
 
-1. **Default providers** — In `toby config` → **Default Providers**, you pick which connected integration Toby should prefer per category (for example Email for email). Those choices are stored in your config and surfaced to the assistant during chat and pretreatment.
+1. **Default providers** — In **Toby.app → Settings → Default Providers**, you pick which connected integration Toby should prefer per category (for example Email for email). Those choices are stored in your config and surfaced to the assistant during chat and pretreatment.
 2. **Scheduled runs** — The daemon inspects schedule prompts for category-related keywords (such as “inbox”, “calendar”, “todoist”, “slack”). When a category is detected, Toby includes the default provider for that category if you set one; otherwise it uses heuristics (a single connected integration in that category, or all connected integrations in that category with a warning). This avoids loading every integration’s tools on every cron job when the prompt is clearly about email or tasks alone.
 3. **Multi-integration chat** — When several integrations are active in one session, the combined system prompt lists your default providers so the model reaches for the right tools (for example your chosen email provider when you ask to triage mail).
 4. **New integrations** — Module authors assign `providerCategories` in code so Toby can register the integration in the right bucket for configure, schedules, and routing—without hard-coding vendor names across the codebase.
 
-Categories do **not** replace explicit scoping. You can still run `toby chat --integration email`, start a message with `email …`, or use **`/integration`** in the TUI to choose exactly which integrations are in scope.
+Categories do **not** replace explicit scoping. You can still start a message with an integration name, use the integration picker in the chat window, or run `toby chat --integration email` from the terminal to choose exactly which integrations are in scope.
 
 ### Set your defaults
 
-```bash
-toby config
-```
-
-Open **Default Providers** and choose an integration (or **(none)**) for each category. See also [Set up AI](../getting-started/setup-ai#default-providers-optional) for how defaults interact with personas and models.
+Open **Toby.app → Settings → Default Providers** and choose an integration (or **(none)**) for each category. You can also run `toby config` in the terminal. See also [Set up AI](../getting-started/setup-ai#default-providers-optional) for how defaults interact with personas and models.
 
 If you only connect one integration per category, defaults are optional—Toby can infer that integration for schedules and chat. Defaults become important when multiple integrations share a category or when you want schedules to target a specific provider.
 
@@ -139,7 +135,7 @@ If you only connect one integration per category, defaults are optional—Toby c
 email summarize unread messages from this week
 ```
 
-**Pick explicitly** — `toby chat --integration email --integration todoist "..."` or **`/integration`** in the TUI.
+**Pick explicitly** — Use the integration picker in the chat window, or run `toby chat --integration email --integration todoist "..."` from the terminal.
 
 ## Web content tools
 

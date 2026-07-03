@@ -40,17 +40,19 @@ Saved recordings can be renamed, described, opened in Finder, deleted, or retran
 
 ## Recording in chat
 
-Inside `toby chat`, use:
+In Toby.app, use the recording controls in the chat window to start and stop recording. `/stop-listening` saves and transcribes the audio, then adds the transcript as context so you can ask Toby to summarize the conversation or extract action items.
+
+In the terminal chat TUI, use:
 
 ```text
 /listen
 /stop-listening
 ```
 
-`/listen` starts recording in the current chat session. `/stop-listening` saves and transcribes the audio, then adds the transcript as context so you can ask Toby to summarize the conversation or extract action items.
+`/listen` starts recording in the current chat session. `/stop-listening` saves and transcribes the audio, then adds the transcript as context.
 
 ## macOS helper and permissions
 
-Audio capture is currently macOS-only and is handled by the native **Toby.app**. The CLI launches Toby.app and routes recording through its native localhost server (`~/.toby/native-port`).
+Audio capture is currently macOS-only and is handled by the native **Toby.app**. The native app provides recording controls directly, and the CLI launches Toby.app and routes recording through its native localhost server (`~/.toby/native-port`).
 
 Depending on selected sources, macOS may request Microphone, Screen/System Audio Recording, and Speech Recognition permissions.
