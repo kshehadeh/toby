@@ -115,11 +115,7 @@ final class ChatStore {
 			listenStatus = try? await nativeAudioClient.status()
 			await refreshDaemonStatus()
 			await refreshSessions()
-			if let mostRecent = sessions.first {
-				await selectSession(id: mostRecent.id)
-			} else {
-				await startNewSession()
-			}
+			await startNewSession()
 			errorMessage = nil
 		} catch {
 			errorMessage = error.localizedDescription
@@ -320,40 +316,31 @@ final class ChatStore {
 
 	func startNewSession() async {
 		guard !isLoading else { return }
-		if hasCleanCurrentSession {
-			focusPrompt()
-			return
-		}
-		do {
-			let created = try await client.createSession()
-			sessionId = created.id
-			sessionName = created.name
-			transcript = []
-			integration = nil
-			externalKey = nil
-			sessionPersonaImageUrl = nil
-			streamingAssistant = nil
-			turnWorkDurations = [:]
-			contextWindow = nil
-			errorMessage = nil
-			activityLine = "Ready"
-			stopExternalSessionRefreshLoop()
-			await refreshSessions()
-			focusPrompt()
-		} catch {
-			errorMessage = error.localizedDescription
-		}
+		sessionId = nil
+		sessionName = "New chat"
+		transcript = []
+		integration = nil
+		externalKey = nil
+		sessionPersonaImageUrl = nil
+		streamingAssistant = nil
+		turnWorkDurations = [:]
+		contextWindow = nil
+		errorMessage = nil
+		activityLine = "Ready"
+		stopExternalSessionRefreshLoop()
+		focusPrompt()
 	}
 
 	func startChatAboutRecording(recordingId: String, name: String, dateText: String, hourText: String) async {
 		guard !isLoading else { return }
 		await startNewSession()
-		guard let newSessionId = sessionId else { return }
 		promptText = makeRecordingChatPrompt(name: name, dateText: dateText, hourText: hourText)
 		await submitPrompt()
 		// Link the recording to the new chat session so the UI can offer
 		// "Show Chat" instead of "Start Chat" on subsequent views.
-		_ = try? await client.updateRecordingChatSession(id: recordingId, chatSessionId: newSessionId)
+		if let newSessionId = sessionId {
+			_ = try? await client.updateRecordingChatSession(id: recordingId, chatSessionId: newSessionId)
+		}
 	}
 
 	func focusPrompt() {
@@ -366,11 +353,7 @@ final class ChatStore {
 			try await client.deleteSession(id: id)
 			await refreshSessions()
 			if sessionId == id {
-				if let nextSession = sessions.first {
-					await selectSession(id: nextSession.id)
-				} else {
-					await startNewSession()
-				}
+				await startNewSession()
 			}
 			errorMessage = nil
 		} catch {
@@ -504,9 +487,30 @@ final class ChatStore {
 		)
 	}
 
+	private func createSessionAndSubmit(text: String) async {
+		do {
+			let created = try await client.createSession()
+			sessionId = created.id
+			sessionName = created.name
+			stopExternalSessionRefreshLoop()
+			await refreshSessions()
+			await submitPrompt()
+		} catch {
+			errorMessage = error.localizedDescription
+			activityLine = "Error"
+		}
+	}
+
 	func submitPrompt() async {
 		let text = promptText.trimmingCharacters(in: .whitespacesAndNewlines)
-		guard !text.isEmpty, !isLoading, let sessionId else { return }
+		guard !text.isEmpty, !isLoading else { return }
+
+		// Lazily create the server session on first prompt so we never
+		// pollute the session list with empty chats.
+		guard let sessionId else {
+			await createSessionAndSubmit(text: text)
+			return
+		}
 
 		promptText = ""
 		transcript.append(.user(text: text))

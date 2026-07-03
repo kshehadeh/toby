@@ -31,15 +31,30 @@ struct ChatStoreTests {
         #expect(store.promptFocusRequestId != originalId)
     }
 
-    @Test("startNewSession focuses prompt when current session is already clean")
-    func startNewSessionFocusesPromptOnCleanSession() async {
+    @Test("startNewSession resets to draft state without creating a server session")
+    func startNewSessionResetsToDraft() async {
         let store = ChatStore()
-        store.sessionId = "existing-clean-session"
-        store.transcript = []
-        store.streamingAssistant = nil
+        store.sessionId = "existing-session"
+        store.sessionName = "Old chat"
+        store.transcript = [.user(text: "hello")]
 
         let originalId = store.promptFocusRequestId
         await store.startNewSession()
+        #expect(store.sessionId == nil)
+        #expect(store.sessionName == "New chat")
+        #expect(store.transcript.isEmpty)
+        #expect(store.promptFocusRequestId != originalId)
+    }
+
+    @Test("startNewSession on already-clean draft still focuses prompt")
+    func startNewSessionOnDraftFocusesPrompt() async {
+        let store = ChatStore()
+        store.sessionId = nil
+        store.transcript = []
+
+        let originalId = store.promptFocusRequestId
+        await store.startNewSession()
+        #expect(store.sessionId == nil)
         #expect(store.promptFocusRequestId != originalId)
     }
 
