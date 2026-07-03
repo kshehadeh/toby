@@ -8,6 +8,5 @@
 		"type": "bun",
 		"entry": "src/index.ts"
 	},
-	"capabilities": ["chat"],
-	"providerCategories": ["search"]
+	"capabilities": ["chat"]
 }

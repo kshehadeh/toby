@@ -76,7 +76,6 @@ function handleStatus(config: JsonRecord, state: JsonRecord): never {
 		protocolVersion: PROTOCOL_VERSION,
 		connected,
 		capabilities: ["chat"],
-		providerCategories: ["search"],
 		resources: ["demo"],
 		chatModelPrep: {
 			systemPromptSection:

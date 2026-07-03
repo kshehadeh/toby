@@ -59,14 +59,6 @@ const CATEGORY_KEYWORDS: Record<ProviderCategory, string[]> = {
 		"message",
 		"chat",
 	],
-	search: [
-		"search",
-		"find",
-		"look up",
-		"lookup",
-		"web search",
-		"research",
-	],
 	work_tracker: [
 		"issue",
 		"ticket",
