@@ -241,7 +241,7 @@ struct AppSidebarTests {
         #expect(texts.count == 1)
     }
 
-    @Test("header renders Toby and version inline")
+    @Test("header renders TOBY and version inline")
     func headerRendersTobyAndVersion() throws {
         let status = AppStatus(
             version: "1.2.3",
@@ -269,8 +269,43 @@ struct AppSidebarTests {
             sidebarContent: { EmptyView() }
         )
         let view = try sidebar.inspect()
-        #expect(throws: Never.self) { try view.find(text: "Toby") }
+        #expect(throws: Never.self) { try view.find(text: "TOBY") }
         #expect(throws: Never.self) { try view.find(text: "v1.2.3") }
+    }
+
+    @Test("header renders available update instead of current version")
+    func headerRendersAvailableUpdateInsteadOfCurrentVersion() throws {
+        let status = AppStatus(
+            version: "1.2.3",
+            persona: "default",
+            model: "gpt",
+            contextWindow: nil,
+            personaImageUrl: nil,
+            connectedIntegrations: nil,
+            skillCount: nil,
+            skills: nil,
+            transcription: nil
+        )
+        let updateStore = UpdateStore()
+        updateStore.latestVersion = "1.2.4"
+        updateStore.isUpdateAvailable = true
+        let sidebar = AppSidebar(
+            currentRoute: .chat,
+            status: status,
+            daemonStatus: nil,
+            isServerRestarting: false,
+            updateStore: updateStore,
+            onSelectRoute: { _ in },
+            onCreatePersona: {},
+            onEditPersona: { _ in },
+            onPersonaSelected: {},
+            onCheckForUpdates: {},
+            onRestartServer: {},
+            sidebarContent: { EmptyView() }
+        )
+        let view = try sidebar.inspect()
+        #expect(throws: Never.self) { try view.find(text: "v1.2.4 is available now") }
+        #expect(throws: (any Error).self) { try view.find(text: "v1.2.3") }
     }
 
     @Test("header button checks for updates")
@@ -292,7 +327,7 @@ struct AppSidebarTests {
         )
         let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
         let headerButton = buttons.first { btn in
-            (try? btn.find(text: "Toby")) != nil
+            (try? btn.find(text: "TOBY")) != nil
         }
         try #require(headerButton != nil, "Header button not found")
         try headerButton!.tap()

@@ -40,6 +40,7 @@ struct TobyApp: App {
 					if menuBarController == nil {
 						menuBarController = MenuBarController()
 					}
+					activateDebugPreviewWindow()
 				}
 				.onDisappear {
 					nativeServer.stop()
@@ -154,6 +155,22 @@ struct TobyApp: App {
 		// ad-hoc signed binaries. The native API endpoints will prompt on-demand
 		// when an Accessibility operation is actually needed.
 	}
+
+#if DEBUG
+	private func activateDebugPreviewWindow() {
+		let latestVersion = ProcessInfo.processInfo.environment["TOBY_DEBUG_LATEST_VERSION"]?
+			.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard latestVersion?.isEmpty == false else { return }
+
+		NSApp.setActivationPolicy(.regular)
+		DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+			NSApp.activate(ignoringOtherApps: true)
+			NSApp.windows.first?.makeKeyAndOrderFront(nil)
+		}
+	}
+#else
+	private func activateDebugPreviewWindow() {}
+#endif
 }
 
 struct OpenPermissionsMenuItem: View {

@@ -166,7 +166,9 @@ struct RootView: View {
         contentWithOverlay
             .task {
                 OpenWindowBridge.shared.openWindow = { id in openWindow(id: id) }
+                applyDebugUpdateOverride()
                 await store.bootstrap()
+                applyDebugUpdateOverride()
             }
             .task {
                 await store.daemonStatusRefreshLoop()
@@ -556,6 +558,35 @@ struct RootView: View {
         store.recordingProcessing = nil
         isToastHovered = false
     }
+
+#if DEBUG
+    private func applyDebugUpdateOverride() {
+        let environment = ProcessInfo.processInfo.environment
+        let latestVersion = environment["TOBY_DEBUG_LATEST_VERSION"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let latestVersion, !latestVersion.isEmpty else { return }
+
+        let currentVersion = environment["TOBY_DEBUG_CURRENT_VERSION"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        updateStore.latestVersion = latestVersion.hasPrefix("v") ? String(latestVersion.dropFirst()) : latestVersion
+        updateStore.isUpdateAvailable = true
+
+        if let currentVersion, !currentVersion.isEmpty {
+            let currentStatus = store.status
+            store.status = AppStatus(
+                version: currentVersion.hasPrefix("v") ? String(currentVersion.dropFirst()) : currentVersion,
+                persona: currentStatus?.persona ?? "default",
+                model: currentStatus?.model ?? "debug",
+                contextWindow: currentStatus?.contextWindow,
+                personaImageUrl: currentStatus?.personaImageUrl,
+                connectedIntegrations: currentStatus?.connectedIntegrations,
+                skillCount: currentStatus?.skillCount,
+                skills: currentStatus?.skills,
+                transcription: currentStatus?.transcription
+            )
+        }
+    }
+#else
+    private func applyDebugUpdateOverride() {}
+#endif
 
 }
 
