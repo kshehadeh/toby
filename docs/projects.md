@@ -182,6 +182,5 @@ with the same style and informed by the same reference documents.
 - **Config persistence**: [`packages/core/src/config/index.ts`](../packages/core/src/config/index.ts) — `getActiveProjectSlug`, `setActiveProjectSlug`, `clearActiveProjectSlug`.
 - **Pipeline injection**: [`packages/core/src/chat-pipeline/nodes/assemble-messages.ts`](../packages/core/src/chat-pipeline/nodes/assemble-messages.ts) — loads context docs and injects them into the system message when `ctx.project` is set.
 - **Tool scoping**: [`packages/core/src/ai/global-chat-tools.ts`](../packages/core/src/ai/global-chat-tools.ts) — `writeTextFile` resolves paths relative to the active project's `outputs/` or `context/` directory.
-- **Slash command**: [`apps/cli/src/ui/chat/slash-commands/project.ts`](../apps/cli/src/ui/chat/slash-commands/project.ts) — `/project` opens the picker.
-- **UI modal**: [`apps/cli/src/ui/chat/components/project-detail-modal.tsx`](../apps/cli/src/ui/chat/components/project-detail-modal.tsx) — project detail view.
+- **Native UI**: Toby.app exposes project selection and project detail workflows backed by the core project APIs.
 - **Configure UI**: [`packages/core/src/configure/tree.ts`](../packages/core/src/configure/tree.ts) — project fields in the settings tree.

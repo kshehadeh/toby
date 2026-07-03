@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -6,9 +7,11 @@ import {
 	readCredentials,
 	writeCredentials,
 } from "@toby/core/config/index";
+import {
+	saveConfigureValues,
+	seedConfigureValues,
+} from "@toby/core/configure/persistence";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { createConfigureSession } from "../src/ui/configure/session";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const slackCli = path.join(repoRoot, "../plugin-slack/src/cli.ts");
@@ -76,13 +79,12 @@ describe("configure credential save", () => {
 			},
 		});
 
-		const session = createConfigureSession();
 		const values = {
-			...session.initialValues,
+			...seedConfigureValues(),
 			"slack.authMethod": "bot_token",
 			"slack.botToken": "xoxb-new-token",
 		};
-		session.onSave(values);
+		saveConfigureValues(values);
 
 		expect(readCredentials().integrations?.slack?.botToken).toBe(
 			"xoxb-new-token",
@@ -92,15 +94,14 @@ describe("configure credential save", () => {
 
 describe("configure chat inbound", () => {
 	it("persists chatInbound and integration inboundEnabled on save", () => {
-		const session = createConfigureSession();
 		const values = {
-			...session.initialValues,
+			...seedConfigureValues(),
 			"chatInbound.enabled": "true",
 			"chatInbound.integration": "slack",
 			"chatInbound.persona": "(default)",
 			"slack.inboundEnabled": "true",
 		};
-		session.onSave(values);
+		saveConfigureValues(values);
 
 		const cfg = readConfig();
 		expect(cfg.chatInbound?.enabled).toBe(true);

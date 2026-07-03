@@ -1,8 +1,8 @@
+import { afterEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Command } from "commander";
-import { afterEach, describe, expect, it } from "bun:test";
 import {
 	applyTranscriptFilesToMetadata,
 	registerListenCommand,
@@ -35,18 +35,13 @@ afterEach(() => {
 });
 
 describe("listen command", () => {
-	it("registers a root listen command with source options", () => {
+	it("registers a root listen command without terminal UI options", () => {
 		const program = new Command();
 		registerListenCommand(program);
 
 		const listen = program.commands.find((cmd) => cmd.name() === "listen");
 		expect(listen).toBeDefined();
-		expect(listen?.options.map((option) => option.long)).toContain(
-			"--mic-only",
-		);
-		expect(listen?.options.map((option) => option.long)).toContain(
-			"--system-only",
-		);
+		expect(listen?.options.map((option) => option.long)).toEqual([]);
 	});
 
 	it("registers a retry transcription subcommand", () => {

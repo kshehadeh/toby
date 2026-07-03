@@ -32,7 +32,6 @@ import {
 } from "@toby/core/integrations/plugins/registry";
 import { resolveBunRuntime } from "@toby/core/integrations/plugins/runtime";
 import { buildIntegrationSetupGuide } from "@toby/core/integrations/plugins/setup";
-import { buildPluginsReportLines } from "../src/ui/chat/slash-commands/plugins";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const sampleCli = path.join(repoRoot, "../plugin-sample/src/cli.ts");
@@ -83,12 +82,6 @@ describe("plugin protocol", () => {
 			true,
 		);
 		expect(parsePluginNameFromBinary("toby-plugin-sample")).toBe("sample");
-	});
-
-	it("builds markdown plugin report lines", () => {
-		const lines = buildPluginsReportLines();
-		expect(lines.some((line) => line.startsWith("## Plugin"))).toBe(true);
-		expect(lines.some((line) => line.includes("**"))).toBe(true);
 	});
 
 	it("collects plugin list entries with valid sample metadata", () => {

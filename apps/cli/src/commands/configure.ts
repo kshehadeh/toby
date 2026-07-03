@@ -13,8 +13,7 @@ import {
 } from "@toby/core/config/index";
 import chalk from "chalk";
 import type { Command } from "commander";
-import { runConfigureUI } from "../ui/configure/App";
-import { createConfigureSession } from "../ui/configure/session";
+import { runAppLaunchCommand } from "./app";
 import {
 	decryptBackupPayload,
 	encryptBackupPayload,
@@ -39,10 +38,10 @@ interface RestoreCommandOptions {
 export function registerConfigCommand(program: Command): void {
 	const config = program
 		.command("config")
-		.description("Configure Toby settings and manage config backups");
+		.description("Open native app settings and manage config backups");
 
 	config.action(() => {
-		runConfigureSession();
+		runAppLaunchCommand("Settings");
 	});
 
 	config
@@ -87,20 +86,8 @@ export function registerConfigCommand(program: Command): void {
 			console.log(
 				chalk.yellow("`configure` is deprecated. Use `config` instead."),
 			);
-			runConfigureSession();
+			runAppLaunchCommand("Settings");
 		});
-}
-
-function runConfigureSession(): void {
-	const session = createConfigureSession();
-
-	runConfigureUI(
-		session.initialTree,
-		session.initialValues,
-		session.onSave,
-		session.refreshTree,
-		session.callbacks,
-	);
 }
 
 async function backupConfig(outputPath?: string): Promise<void> {

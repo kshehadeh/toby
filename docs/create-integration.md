@@ -1,6 +1,6 @@
 # Creating a new integration
 
-This checklist assumes a **first-party** integration in **`@toby/core`** under `packages/core/src/integrations/<id>/`, consistent with Slack. Email, Todoist, Azure AD, Jira, Web Search, Apple Calendar, Apple Reminders, and macOS ship as installable plugins instead (see [Migrating a built-in to a plugin](#migrating-a-built-in-to-a-plugin)). Ink/configure UX stays in `apps/cli`; harness code stays in core. See [`architecture.md`](architecture.md#core-vs-apps).
+This checklist assumes a **first-party** integration in **`@toby/core`** under `packages/core/src/integrations/<id>/`, consistent with Slack. Email, Todoist, Azure AD, Jira, Web Search, Apple Calendar, Apple Reminders, and macOS ship as installable plugins instead (see [Migrating a built-in to a plugin](#migrating-a-built-in-to-a-plugin)). Interactive configuration is served by core configure APIs and rendered in Toby.app; harness code stays in core. See [`architecture.md`](architecture.md#core-vs-apps).
 
 ## 1. Scaffold the folder
 
@@ -49,7 +49,7 @@ No other registry file exists; this array is the source of truth.
 If `CredentialsFile` gains new fields:
 
 - Update [`packages/core/src/config/index.ts`](../packages/core/src/config/index.ts) types and any helpers.
-- Update credential merge behavior in [`apps/cli/src/ui/configure/session.ts`](../apps/cli/src/ui/configure/session.ts) only if your shape needs custom handling beyond module `mergeCredentialsPatch`; most integrations should rely on the generic module patch merge.
+- Update credential merge behavior in [`packages/core/src/configure/persistence.ts`](../packages/core/src/configure/persistence.ts) only if your shape needs custom handling beyond module `mergeCredentialsPatch`; most integrations should rely on the generic module patch merge.
 
 ## 5. Tests
 

@@ -75,7 +75,7 @@ See [projects.md](projects.md).
   legacy Toby.app copies from old install locations.
 
 See [plugin-protocol.md](plugin-protocol.md),
-[slash-commands.md](slash-commands.md), and [build-executable.md](build-executable.md).
+[build-executable.md](build-executable.md).
 
 ## Chat observability and interaction
 

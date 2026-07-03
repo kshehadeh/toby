@@ -25,7 +25,7 @@ import {
 	resolveTobyGitHubRepo,
 } from "../releases/github";
 import { restartDaemonIfRunning } from "../schedules/daemon-status";
-import { resolveInstallApplicationsDir } from "../ui/chat/toby-app-launcher";
+import { resolveInstallApplicationsDir } from "../toby-app-launcher";
 
 export { isRunningAsCompiledBinary };
 

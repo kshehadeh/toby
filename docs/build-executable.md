@@ -17,26 +17,7 @@ building from source, install with `toby plugins install ./dist/...` (see
 ## Requirements
 
 - **[Bun](https://bun.sh)** installed locally (used only at build time; end users do not need Bun to *run* the binary).
-- Dependencies installed so **`postinstall`** runs **`patch-package`** (see below).
-
-## Why `patch-package` is used (Yoga + Ink)
-
-### 1. `yoga-wasm-web` — WASM path inside `bun --compile`
-
-Ink depends on **`yoga-wasm-web/auto`**, which on Node resolves to code that loads **`yoga.wasm`** from disk. **`bun build --compile`** bundles into a virtual filesystem where that relative path is not available (`Cannot find module './yoga.wasm'`).
-
-We patch **`yoga-wasm-web@0.3.3`** to add **`dist/ink-default.js`**: it imports the **asm** build (pure JS, no WASM file), **calls its default export once** (that default is an initializer function, not the Yoga API object), and re-exports the initialized Yoga instance — the same shape Ink expects from `auto`. A **`./ink-default`** export is also added to `package.json` for completeness.
-
-### 2. `ink` — point Yoga imports at the bridge
-
-**`patches/ink+4.4.1.patch`** replaces `yoga-wasm-web/auto` with a **relative** import to **`../../yoga-wasm-web/dist/ink-default.js`** in Ink’s published `build/*.js` files. Bun’s bundler does not reliably resolve custom subpath exports on patched packages, but it does resolve this filesystem path the same way Node does.
-
-Importing **`yoga-wasm-web/asm` directly in Ink is not enough**: that subpath’s default export is a **function** (`() => Yoga`). Ink does `Yoga.Node.create()` on the default import, so it must receive the **initialized** object. The bridge fixes that for both Node and the compiled binary.
-
-### Upgrading dependencies
-
-- **`ink`**: If a new version still imports `yoga-wasm-web/auto`, re-apply the import swap to `../../yoga-wasm-web/dist/ink-default.js` (from each `build/*.js` file), then `bunx patch-package ink`.
-- **`yoga-wasm-web`**: If the asm entry or package exports change, refresh **`patches/yoga-wasm-web+0.3.3.patch`** (re-add `dist/ink-default.js` and the `./ink-default` export if needed), then `bunx patch-package yoga-wasm-web`.
+- Dependencies installed before building.
 
 ## How the CLI is bundled
 

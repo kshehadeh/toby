@@ -1,12 +1,12 @@
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { readCredentials, writeCredentials } from "@toby/core/config/index";
+import { buildSettingsTree } from "@toby/core/configure/tree";
 import { migrateLegacyPluginCredentials } from "@toby/core/integrations/plugins/migrate";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { getSlackInboundCredentials } from "../../plugin-slack/src/client";
-import { buildSettingsTree } from "../src/ui/configure/items";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const slackCli = path.join(repoRoot, "../plugin-slack/src/cli.ts");
@@ -137,20 +137,32 @@ describe("configure Slack inbound fields", () => {
 	});
 
 	it("shows bot token for OAuth when global inbound targets slack", () => {
-		const root = buildSettingsTree([], [], {
-			"slack.authMethod": "oauth",
-			"chatInbound.enabled": "true",
-			"chatInbound.integration": "slack",
-		});
+		const root = buildSettingsTree(
+			[],
+			[],
+			{
+				"slack.authMethod": "oauth",
+				"chatInbound.enabled": "true",
+				"chatInbound.integration": "slack",
+			},
+			undefined,
+			{ daemonRunning: true },
+		);
 		expect(treeHasKey(root, "slack.botToken")).toBe(true);
 	});
 
 	it("hides bot token for OAuth when inbound is off", () => {
-		const root = buildSettingsTree([], [], {
-			"slack.authMethod": "oauth",
-			"chatInbound.enabled": "false",
-			"chatInbound.integration": "(none)",
-		});
+		const root = buildSettingsTree(
+			[],
+			[],
+			{
+				"slack.authMethod": "oauth",
+				"chatInbound.enabled": "false",
+				"chatInbound.integration": "(none)",
+			},
+			undefined,
+			{ daemonRunning: true },
+		);
 		expect(treeHasKey(root, "slack.botToken")).toBe(false);
 	});
 });

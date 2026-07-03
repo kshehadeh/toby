@@ -1,11 +1,11 @@
+import { afterEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "bun:test";
 import {
 	buildTobyAppIfNeeded,
 	resolveBundledTobyAppSource,
-} from "../src/ui/chat/toby-app-launcher";
+} from "../src/toby-app-launcher";
 
 describe("toby-app-launcher", () => {
 	const tempDirs: string[] = [];

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **daemon** is a single long-running Toby process that runs work in the background without the Ink chat UI. Only one instance may run at a time; it records lock metadata in **`~/.toby/daemon.lock`** (PID and poll interval) so `toby daemon start` can detect duplicates and `toby daemon stop` knows which process to signal.
+The **daemon** is a single long-running Toby process that runs work in the background for Toby.app, schedules, inbound chat, and local HTTP APIs. Only one instance may run at a time; it records lock metadata in **`~/.toby/daemon.lock`** (PID and poll interval) so `toby daemon start` can detect duplicates and `toby daemon stop` knows which process to signal.
 
 Today the daemon has three responsibilities that run **in parallel** inside that process:
 
@@ -52,7 +52,7 @@ Implementation entrypoints:
 | `toby daemon restart` | Stop the daemon if running, then start it again (preserves poll interval unless `-i` is set) |
 | `toby daemon status` | Show PID, inbound connection state, log path |
 
-From chat you can also use **`/restart-server`** (see [slash-commands.md](slash-commands.md)).
+Toby.app can also restart the server from its native controls.
 
 `start` accepts `-i, --interval <seconds>` to change the schedule poll interval. `restart` accepts the same option; when omitted, it reuses the interval from the running daemon's lock file, or 60s if the daemon was not running.
 
@@ -72,7 +72,7 @@ User-facing setup: [help-site schedules doc](../apps/help-site/docs/schedules.md
 
 ## Chat inbound
 
-Chat inbound lets Toby **listen** on a connected chat integration and respond in-thread as if the user had typed into `toby chat`.
+Chat inbound lets Toby **listen** on a connected chat integration and respond in-thread through the same shared chat pipeline used by Toby.app.
 
 ### How it fits in the daemon
 
@@ -128,7 +128,7 @@ Each **external conversation** (Slack: workspace + channel + thread root) maps t
 | ------- | ------- |
 | External key | Provider-defined string, e.g. `slack:{teamId}:{channelId}:{threadRootTs}` |
 | Toby session | `chat_sessions` row linked via `chat_external_sessions` |
-| Message history | Same `chat_session_messages` as the Ink TUI |
+| Message history | Same `chat_session_messages` table used by native/headless chat |
 | Pending askUser | `awaiting_ask_user_json` on the external session row |
 
 Follow-up @mentions in the **same thread** append to the same session and continue the `CoreMessage[]` history.
@@ -163,7 +163,7 @@ Environment overrides:
 
 ### Slack setup (reference provider)
 
-Inbound uses **Socket Mode** with a **bot token** (`xoxb-...`) and **app token** (`xapp-...`). The user token from `toby connect slack` (OAuth) is for `toby chat` only and does not power inbound.
+Inbound uses **Socket Mode** with a **bot token** (`xoxb-...`) and **app token** (`xapp-...`). The user token from `toby connect slack` (OAuth) is for user-scoped Slack tools and does not power inbound.
 
 1. Slack app: **Socket Mode** on; bot scopes including `app_mentions:read`, `chat:write`, and channel/history scopes; events `app_mention` + `message`.
 2. `toby configure`: **Bot Token**, **App Token**, optional **Bot User ID** (visible when daemon inbound targets Slack, even if Auth Method is OAuth).
@@ -234,9 +234,9 @@ Compact one-line format (for scripts): `formatDaemonLogEntry()` in the same modu
 
 ## Unified chat API
 
-The daemon exposes a **shared chat contract** for Web, Native (SwiftUI), and Ink TUI clients. The full HTTP reference is [`server-api.md`](server-api.md). Types live in [`packages/core/src/api/chat-api.ts`](../packages/core/src/api/chat-api.ts); turn execution in [`packages/core/src/chat-pipeline/turn-runtime.ts`](../packages/core/src/chat-pipeline/turn-runtime.ts).
+The daemon exposes a **shared chat contract** for native and web clients. The full HTTP reference is [`server-api.md`](server-api.md). Types live in [`packages/core/src/api/chat-api.ts`](../packages/core/src/api/chat-api.ts); turn execution in [`packages/core/src/chat-pipeline/turn-runtime.ts`](../packages/core/src/chat-pipeline/turn-runtime.ts).
 
-SSE streams emit `ChatEvent` JSON on default `data:` lines. Terminal events use named events: `done`, `error`, `ask_user_prompt`. See [`chat-api-parity.md`](chat-api-parity.md) for TUI feature mapping.
+SSE streams emit `ChatEvent` JSON on default `data:` lines. Terminal events use named events: `done`, `error`, `ask_user_prompt`.
 
 ## Related docs
 

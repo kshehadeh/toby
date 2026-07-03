@@ -55,7 +55,7 @@ Helpers follow one of two protocol patterns depending on the use case:
 
 A long-running helper can use a **line-delimited JSON streaming** protocol:
 
-- The CLI command, Ink UI, state machine, and storage policy live in TypeScript.
+- CLI commands, state machines, and storage policy live in TypeScript; interactive UI lives in Toby.app.
 - The native helper handles platform APIs, permissions, and resource cleanup.
 - The helper reports progress through a line-delimited JSON protocol.
 - Toby sends a small JSON command over stdin when the session should stop.
@@ -206,7 +206,7 @@ prompts or real audio devices.
 `toby listen` routes recording through Toby.app's native API server:
 
 - `apps/cli/src/commands/listen.ts` registers the command and opens configure.
-- `apps/cli/src/ui/configure/` owns the Listen section in the configuration UI (`listen-panes.tsx`, `use-listen-controller.ts`).
+- Toby.app owns recording controls and browsing; core owns listen state, storage, and API handlers.
 - `apps/cli/src/listen/session-controller.ts` owns recording folders and metadata.
 - `apps/cli/src/listen/macos/audio-capture.ts` discovers Toby.app and calls its native audio endpoints.
 - `apps/toby-app/Sources/TobyApp/NativeAudioHandler.swift` performs AVFoundation/ScreenCaptureKit capture and combines source tracks.

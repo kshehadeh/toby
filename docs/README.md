@@ -6,7 +6,7 @@ Human- and agent-oriented docs for this repository.
 | --- | ----------- |
 | [architecture.md](architecture.md) | Monorepo layout: `@toby/core` harness vs `@toby/cli` app, runtime flow, config paths. |
 | [recent-changes-2026-06-12-to-18.md](recent-changes-2026-06-12-to-18.md) | Dated summary of native app, recording, daemon, project, AI, plugin, and chat changes made June 12–18, 2026. |
-| [commands.md](commands.md) | Shared CLI commands, default `chat` behavior, `-p` / `--prompt`, and `config backup` / `config restore`. |
+| [commands.md](commands.md) | Shared CLI commands, native app launch behavior, and `config backup` / `config restore`. |
 | [projects.md](projects.md) | Projects: scoped artifact collection with reference context, pinned skills, and recurring workflow support. |
 | [integrations.md](integrations.md) | `IntegrationModule`, registry API, per-integration layout. |
 | [plugin-protocol.md](plugin-protocol.md) | Installable plugin CLI contract (v1): argv subcommands, stdin/stdout, exit codes, JSON payloads, discovery. |
@@ -22,9 +22,6 @@ Human- and agent-oriented docs for this repository.
 | [server-api.md](server-api.md) | Local daemon HTTP API reference: routes, request/response shapes, SSE chat turns, configure actions. |
 | [chat-inbound.md](chat-inbound.md) | Inbound provider contract, external sessions, extending to new chat platforms. |
 | [ai-caching.md](ai-caching.md) | Provider prompt caching adapters, stable cache keys, and token telemetry. |
-| [slash-commands.md](slash-commands.md) | `toby chat` slash-command registry, current user-facing commands, and how to add new commands. |
-| [ui.md](ui.md) | Shared Ink UI components, visual conventions, and shortcut conventions. |
-| [terminal-input.md](terminal-input.md) | How terminal key events are parsed, encoded, and dispatched — guide for adding new shortcuts. |
 | [build-executable.md](build-executable.md) | Bun `bun build --compile` standalone binary, patches, and tag-triggered GitHub Releases. |
 
 Start from the repo root **[`AGENTS.md`](../AGENTS.md)** for a short guide and links here.

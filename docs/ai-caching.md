@@ -1,6 +1,6 @@
 # AI prompt caching and token telemetry
 
-Toby configures **provider prompt caching** for `toby chat` and normalizes **cache-related token usage** for the Ink UI and turn logs. This is separate from **tool-result caching** (read-only tool outputs); see [chat-pipeline.md](chat-pipeline.md#tool-result-cache).
+Toby configures **provider prompt caching** for chat turns and normalizes **cache-related token usage** for native UI, daemon, and turn logs. This is separate from **tool-result caching** (read-only tool outputs); see [chat-pipeline.md](chat-pipeline.md#tool-result-cache).
 
 ## Module layout
 
@@ -134,7 +134,7 @@ in=21381 out=116 tot=21497 cache=60 cacheW=0
 
 ### Debug transcript
 
-Set `TOBY_DEBUG_CACHE=1` to append a meta line per turn with `cacheRead`, `cacheWrite`, and `noCache` via [`formatCacheDebugMeta`](../packages/core/src/ai/caching/usage.ts) in [`apps/cli/src/ui/chat/chat-session-app.tsx`](../apps/cli/src/ui/chat/chat-session-app.tsx).
+Set `TOBY_DEBUG_CACHE=1` to include cache diagnostics per turn via [`formatCacheDebugMeta`](../packages/core/src/ai/caching/usage.ts).
 
 ### Turn logs
 

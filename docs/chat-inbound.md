@@ -19,7 +19,7 @@ One **external conversation** (e.g. Slack channel + thread root) maps to one Tob
 
 - Key: `(integration, external_key)` — provider defines `external_key` (e.g. `slack:{teamId}:{channelId}:{threadRootTs}`).
 - Metadata: JSON blob per provider (`channelId`, `threadRootTs`, etc.).
-- Message history: same `chat_session_messages` table as the Ink TUI.
+- Message history: same `chat_session_messages` table used by native/headless chat.
 
 Each turn resolves **chat-capable integrations** from the user message (keyword + default-provider rules, same as scheduled runs) and always includes the inbound transport (e.g. Slack). A request like “check my unread emails” loads the email integration (or your default email provider), not Slack alone.
 
@@ -74,7 +74,7 @@ Inbound needs **two tokens** that OAuth connect does not provide:
 | `xoxb-...` | **Bot Token** | Bot API + posting as the app |
 | `xapp-...` | **App Token** | Socket Mode WebSocket (`connections:write`) |
 
-`oauthUserToken` from `toby connect slack` is only for **`toby chat`** (user-scoped tools). You can use OAuth for chat and still paste bot + app tokens for the daemon.
+`oauthUserToken` from `toby connect slack` is only for user-scoped Slack tools. You can use OAuth for chat tools and still paste bot + app tokens for the daemon.
 
 Also set `inboundEnabled` on the Slack integration (and global `chatInbound`). Full field-by-field reference: [help-site Slack credentials](../apps/help-site/docs/integrations/slack.md#credentials-and-auth-reference).
 

@@ -4,7 +4,6 @@ import {
 	getTobyEntryScriptArgv,
 	getTobyExecPath,
 } from "@toby/core/toby-spawn";
-import { normalizeRootCliArgs } from "./cli-args";
 import {
 	isRunningAsCompiledBinary,
 	resolveInstallTarget,
@@ -21,10 +20,9 @@ export interface LaunchContext {
 export function captureLaunchContext(
 	cliArgs: readonly string[] = process.argv.slice(2),
 ): LaunchContext {
-	const normalized = normalizeRootCliArgs(cliArgs);
 	return {
 		execPath: getTobyExecPath(),
-		args: buildTobySpawnArgs(...normalized),
+		args: buildTobySpawnArgs(...cliArgs),
 		compiled: isRunningAsCompiledBinary(),
 		installTarget: resolveInstallTarget(),
 		pid: process.pid,

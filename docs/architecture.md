@@ -1,6 +1,6 @@
 # Architecture
 
-Toby is a **Commander.js** CLI (`@toby/cli`) built on a shared harness package (`@toby/core`). The harness holds everything needed to run chat turns, integrations, and headless/daemon flows **without** Ink or React. The CLI app adds terminal UI, command registration, and macOS-specific app wiring.
+Toby is a native macOS app plus a **Commander.js** maintenance CLI (`@toby/cli`) built on a shared harness package (`@toby/core`). The harness holds everything needed to run chat turns, integrations, and headless/daemon flows without UI dependencies. The CLI app adds command registration and macOS-specific app wiring.
 
 See also: [Core vs apps](#core-vs-apps) (where new code should live) and
 [`server-api.md`](server-api.md) (the localhost API used by
@@ -13,7 +13,7 @@ Toby.app).
 | Package | Path | Role |
 | ------- | ---- | ---- |
 | **`@toby/core`** | [`packages/core/src/`](../packages/core/src/) | Harness: chat pipeline, AI, integrations, config, personas, skills, memory, planning, chat-inbound, logging, session store, message prep. Consumable from scripts, daemons, or other apps via `@toby/core/...` imports. |
-| **`@toby/cli`** | [`apps/cli/src/`](../apps/cli/src/) | CLI app: Commander entry, generic commands, Ink TUIs (`ui/`), schedules/upgrade UI and glue. Depends on `@toby/core`; must not be imported by core. |
+| **`@toby/cli`** | [`apps/cli/src/`](../apps/cli/src/) | CLI app: Commander entry, generic commands, daemon/schedules/upgrade glue, and native app launch. Depends on `@toby/core`; must not be imported by core. |
 | **`Toby.app`** | [`apps/toby-app/`](../apps/toby-app/) | Native macOS app (SwiftUI) with a real bundle identity. Uses the daemon localhost API for chat/configuration/recordings and runs a separate **native API server** for TCC-gated operations (EventKit calendar/reminders, Accessibility, microphone, system audio, and all macOS system controls). `toby-plugin-macos`, `toby-plugin-applecalendar`, and `toby-plugin-applereminders` are TypeScript bun-package plugins that delegate to this server. It does not import core. See [`native-helpers.md`](native-helpers.md). |
 
 ```mermaid
@@ -26,7 +26,7 @@ flowchart TB
   end
   subgraph cli ["@toby/cli"]
     entry[cli.ts + commands]
-    ui[ui/ Ink + React]
+    ui[Native SwiftUI app]
   end
   subgraph daemon ["daemon server API"]
     api[localhost HTTP + SSE]
@@ -48,14 +48,14 @@ flowchart TB
 
 **Put in core** when the behavior is UI-agnostic: model calls, tools, integration APIs, pipeline nodes, SQLite persistence, daemon inbound routing, pretreatment, prompt caching.
 
-**Put in the CLI app** when the behavior is presentation or shell-specific: transcript rows, slash commands, configure/schedules Ink screens, `ViewFrame` / keybindings, upgrade handoff, readline `--no-tui` formatting that is not shared headless logic.
+**Put in the CLI app** when the behavior is shell-specific: Commander wiring, backup/restore prompts, daemon management commands, release upgrade handoff, and native app launch helpers.
 
-Integration **implementations** live in core (`packages/core/src/integrations/<name>/`). Integration **Ink pickers** and **slash commands** stay in the CLI under `apps/cli/src/ui/`.
+Integration **implementations** live in core (`packages/core/src/integrations/<name>/`) or installable plugins. Interactive integration configuration belongs in Toby.app through the core configure API.
 
 ## High-level layout
 
 ```
-packages/core/src/       # @toby/core — harness (no Ink/React)
+packages/core/src/       # @toby/core — UI-agnostic harness
   chat-pipeline/         # Node pipeline (turn init → expand → assemble → run → persist)
   ai/                    # Shared AI helpers (chat, providers, pretreatment, replay)
   integrations/          # Integration modules + registry (see integrations.md)
@@ -68,11 +68,8 @@ packages/core/src/       # @toby/core — harness (no Ink/React)
 
 apps/cli/src/
   cli.ts                 # Program entry: registers commands, loads integration CLI hooks
-  commands/              # Cross-integration Commander commands (connect, chat, daemon, …)
-  ui/configure/          # Ink TUI for `toby configure`
-  ui/chat/               # Ink TUI for `toby chat` (events → transcript; not the pipeline itself)
-  ui/shared/             # Shared Ink primitives (CLI-only)
-  schedules/ listen/ upgrade/ releases/   # App-specific orchestration and UI glue
+  commands/              # Cross-integration Commander commands (connect, daemon, app, …)
+  schedules/ listen/ upgrade/ releases/   # CLI orchestration and maintenance helpers
 
 apps/toby-app/             # Toby.app — native macOS app (SwiftUI)
   Sources/TobyApp/
@@ -96,11 +93,11 @@ apps/toby-app/             # Toby.app — native macOS app (SwiftUI)
 
 ## Runtime flow
 
-1. **`apps/cli/src/cli.ts`** constructs the Commander program, registers built-in commands, then calls `registerCommands` on each loaded `IntegrationModule` (if present). Bare `toby` (no subcommand) defaults to `chat`; root `-p` / `--prompt` supplies an initial message. Unknown positional tokens at the root are rejected instead of being treated as chat prompts.
+1. **`apps/cli/src/cli.ts`** constructs the Commander program, registers built-in commands, then calls `registerCommands` on each loaded `IntegrationModule` (if present). Bare `toby` (no subcommand) opens the native Toby app.
 2. **Connect / disconnect / status** use [`getIntegration`](../packages/core/src/integrations/index.ts) or [`getIntegrations`](../packages/core/src/integrations/index.ts) from core.
 3. **`summarize`** resolves a module by name, checks capabilities, and runs AI with returned messages (core integrations + core AI).
-4. **`chat`** ([`apps/cli/src/commands/chat.ts`](../apps/cli/src/commands/chat.ts)) resolves integrations, then either runs the Ink session ([`ui/chat/`](../apps/cli/src/ui/chat/)) or a console one-shot. Each turn is orchestrated by [`runChatTurnPipeline`](../packages/core/src/chat-pipeline/pipeline.ts) in core. The CLI subscribes to `ChatEvent`s for rendering; it does not reimplement pipeline stages.
-5. **`config`** launches the configure UI (`ui/configure/`), while backup/restore logic stays in CLI commands using core config helpers.
+4. **Chat and configuration** are interactive native-app workflows backed by core web/API handlers.
+5. **`config backup` / `config restore`** stay in CLI commands using core config helpers.
 
 ## Local data
 
@@ -203,13 +200,11 @@ flowchart LR
 See [`listen.md`](listen.md) for user-facing behavior and
 [`server-api.md`](server-api.md#listen-and-recordings) for the HTTP contract.
 
-## UI stack (CLI app only)
+## UI stack
 
-Ink/React lives under **`apps/cli/src/ui/`** only. Shared primitives are in [`apps/cli/src/ui/shared/`](../apps/cli/src/ui/shared/): `ViewFrame`, `ViewModal`, `ConfirmDialog`, row components, key predicates, glyphs. See [`docs/ui.md`](ui.md).
+Interactive UI lives in **`apps/toby-app/`**. The CLI has no terminal UI and should not depend on UI framework packages.
 
-The configure tree is built in [`apps/cli/src/ui/configure/items.ts`](../apps/cli/src/ui/configure/items.ts) using credential descriptors from the **core** integration registry.
-
-Chat slash commands are registered in [`apps/cli/src/ui/chat/slash-commands/`](../apps/cli/src/ui/chat/slash-commands/) (CLI-only; see [`slash-commands.md`](slash-commands.md)).
+The configure tree is built in [`packages/core/src/configure/tree.ts`](../packages/core/src/configure/tree.ts) using credential descriptors from the **core** integration registry and is exposed to Toby.app through the local web API.
 
 ## AI stack (core)
 
@@ -217,7 +212,7 @@ Shared AI and pipeline code lives under **`packages/core/src/ai/`** and **`packa
 
 - [`model-factory.ts`](../packages/core/src/ai/model-factory.ts) — language models from persona config.
 - [`chat.ts`](../packages/core/src/ai/chat.ts) — tool-assisted chat (`streamText` / `generateText`, tool cache, lifecycle hooks).
-- [`ask-user-tool.ts`](../packages/core/src/ai/ask-user-tool.ts) — **Ask User** tool; the CLI supplies an Ink or readline handler when wiring the turn context.
+- [`ask-user-tool.ts`](../packages/core/src/ai/ask-user-tool.ts) — **Ask User** tool; native/headless turn contexts provide the handler when needed.
 - [`providers.ts`](../packages/core/src/ai/providers.ts) — provider/model lists (configure UI reads these via core).
 
 Integration-specific **prompts** and **tool definitions** live under `packages/core/src/integrations/<name>/` so the harness stays integration-agnostic.

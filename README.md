@@ -4,19 +4,19 @@
 
 # Toby
 
-Toby is an AI-assisted CLI for personal productivity workflows. It connects to
+Toby is an AI-assisted native macOS app and CLI for personal productivity workflows. It connects to
 services such as Email, Todoist, Slack, Jira, Web Search, Apple Calendar, and
 local macOS controls so you can search, summarize, organize, and act on work
 from chat.
 
 Toby combines:
 
-- **Chat-first workflows** through an Ink terminal UI and one-shot console mode
+- **Chat-first workflows** through the native macOS app
 - **Installable integrations** shipped as `@toby/plugin-*` binaries
 - **Personas, skills, and memories** for durable assistant context
 - **Schedules and daemon flows** for recurring prompts and inbound chat
 - **Listen mode** for local audio recording and transcription on macOS
-- **A native macOS app** for chat and configuration in a SwiftUI surface
+- **CLI maintenance commands** for automation, setup, backup/restore, and daemon control
 
 ## Install
 
@@ -42,11 +42,11 @@ After installing:
 toby --help
 toby config
 toby connect email
-toby -p "summarize my unread email"
+toby
 ```
 
-Bare `toby` opens chat. Use `toby -p "..."` or `toby chat --prompt "..."`
-for an initial message.
+Bare `toby` opens the native app. Use the app for chat, configuration,
+schedules, skills, and recordings.
 
 From a source checkout:
 
@@ -69,14 +69,14 @@ toby plugins doctor
 
 | Module | Role |
 | ------ | ---- |
-| `@toby/cli` | Commander entrypoint, Ink chat/configure UI, CLI-only presentation and orchestration. |
+| `@toby/cli` | Commander entrypoint for automation, setup, backup/restore, daemon, plugins, and app launch. |
 | `@toby/core` | Shared harness: chat pipeline, AI runtime, tools, integration registry, config, memory, sessions, logging, daemon-safe workflows. |
 | `@toby/plugin-*` | Installable CLI binaries with strict JSON stdin/stdout contracts. |
 | External systems | Email, tasks, chat, work tracking, search, calendars, and local macOS APIs. |
 
 Core is intentionally UI-agnostic. Put behavior in `@toby/core` when it should
 work from the CLI, daemon, headless scripts, or tests without importing
-Ink, React, or Commander.
+React or Commander.
 
 See [docs/architecture.md](docs/architecture.md) and the help-site
 [Architecture](https://toby.iwonderdesigns.com/docs/architecture/overview)
@@ -113,15 +113,14 @@ See:
 
 | Command | Purpose |
 | ------- | ------- |
-| `toby` / `toby chat` | Open the chat UI. |
-| `toby -p "..."` | Start chat with an initial prompt. |
-| `toby config` | Open the interactive configuration UI. |
+| `toby` / `toby app` | Open the native Toby app. |
+| `toby config` | Open the native app settings. |
 | `toby connect <integration>` | Connect an integration account. |
 | `toby disconnect <integration>` | Disconnect an integration account. |
 | `toby status` | Show connection and integration health. |
 | `toby summarize <integration>` | Summarize integration content. |
 | `toby organize <integration>` | Run integration-specific organization flows. |
-| `toby listen` | Record and transcribe microphone/system audio on macOS. |
+| `toby listen` | Open native app recording controls. |
 | `toby sessions clear` | Clear saved chat sessions. |
 | `toby upgrade` | Download and install the latest release. |
 
@@ -161,19 +160,16 @@ bun run test
 Useful development commands:
 
 ```bash
-bun run dev -- chat
+bun run dev
 bun run build:plugins
 bun run build:executable
 ```
 
 Notes:
 
-- Use `bun run dev` for the Ink TUI. Avoid `dev:turbo`; Turborepo log prefixes
-  break the terminal UI.
 - CLI tests live under `apps/cli/tests/` and should import shared harness code
   from `@toby/core/...`.
 - Integration behavior should live in core/plugin modules, not in generic CLI
   command branches.
-- Shared Ink primitives live in `apps/cli/src/ui/shared/`.
 
 Start with [AGENTS.md](AGENTS.md) for repository conventions and quick paths.

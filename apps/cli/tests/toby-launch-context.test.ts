@@ -1,7 +1,7 @@
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { captureLaunchContext } from "../src/toby-launch-context";
 
 describe("captureLaunchContext", () => {
@@ -11,10 +11,10 @@ describe("captureLaunchContext", () => {
 		process.argv = originalArgv;
 	});
 
-	it("maps root -p to chat --prompt for restart args", () => {
+	it("preserves root -p in restart args", () => {
 		process.argv = ["/usr/local/bin/toby", "-p", "summarize inbox"];
 		const ctx = captureLaunchContext(["-p", "summarize inbox"]);
-		expect(ctx.args).toEqual(["chat", "--prompt", "summarize inbox"]);
+		expect(ctx.args).toEqual(["-p", "summarize inbox"]);
 		expect(ctx.compiled).toBe(true);
 	});
 
@@ -24,10 +24,10 @@ describe("captureLaunchContext", () => {
 		expect(ctx.args).toEqual(["summarize", "inbox"]);
 	});
 
-	it("preserves explicit chat subcommand and flags", () => {
-		process.argv = ["/path/bun", "/proj/src/cli.ts", "chat", "--debug"];
-		const ctx = captureLaunchContext(["chat", "--debug"]);
-		expect(ctx.args).toEqual(["/proj/src/cli.ts", "chat", "--debug"]);
+	it("preserves explicit app subcommand and flags", () => {
+		process.argv = ["/path/bun", "/proj/src/cli.ts", "app", "--debug"];
+		const ctx = captureLaunchContext(["app", "--debug"]);
+		expect(ctx.args).toEqual(["/proj/src/cli.ts", "app", "--debug"]);
 		expect(ctx.compiled).toBe(false);
 	});
 
@@ -58,8 +58,8 @@ describe("resolveInstallTarget in script mode", () => {
 	});
 
 	it("uses install dir when running from script", () => {
-		process.argv = ["/path/bun", "/proj/src/cli.ts", "chat"];
-		const ctx = captureLaunchContext(["chat"]);
+		process.argv = ["/path/bun", "/proj/src/cli.ts", "app"];
+		const ctx = captureLaunchContext(["app"]);
 		expect(ctx.installTarget).toContain(
 			`${path.sep}.local${path.sep}bin${path.sep}toby`,
 		);

@@ -106,7 +106,7 @@ The macOS integration has no configurable fields. System control is handled by n
 | `macWindowMinimizeApp` | `AXUIElement` minimize for a specific app |
 | `macWindowUnminimizeApp` | `AXUIElement` unminimize for a specific app |
 
-Mutating calls respect **`dry run`** modes from `toby chat` when enabled.
+Mutating calls respect **dry run** modes from chat turns when enabled.
 
 ## Permissions and prompts
 

@@ -238,7 +238,7 @@ async function runUpgrade(options: UpgradeCommandOptions): Promise<void> {
 		}
 		console.log(
 			chalk.green(
-				`Staged ${result.version} at ~/.toby/staging/toby. Run /restart in chat or toby upgrade --apply-staged to install.`,
+				`Staged ${result.version} at ~/.toby/staging/toby. Run toby upgrade --apply-staged to install.`,
 			),
 		);
 		return;

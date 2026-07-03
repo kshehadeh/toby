@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 
 import type { CoreMessage } from "@toby/core/ai/chat";
+import type { TranscriptEntry } from "@toby/core/chat-pipeline/transcript-types";
 import { getChatDbPath } from "@toby/core/config/index";
 import {
 	appendMessageBatch,
@@ -20,7 +21,6 @@ import {
 
 const isBun =
 	typeof (globalThis as unknown as { Bun?: unknown }).Bun !== "undefined";
-import type { TranscriptEntry } from "../src/ui/chat/types";
 
 function makeTempDir(): string {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-test-"));

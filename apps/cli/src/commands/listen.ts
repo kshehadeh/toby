@@ -8,29 +8,8 @@ import { metadataPath } from "../listen/session-controller";
 import type {
 	ListenRecordingFiles,
 	ListenRecordingMetadata,
-	ListenSourceSelection,
 } from "../listen/types";
-import { runConfigureUI } from "../ui/configure/App";
-import { createConfigureSession } from "../ui/configure/session";
-
-interface ListenCommandOptions {
-	readonly micOnly?: boolean;
-	readonly systemOnly?: boolean;
-	readonly outDir?: string;
-}
-
-function resolveSources(options: ListenCommandOptions): ListenSourceSelection {
-	if (options.micOnly && options.systemOnly) {
-		throw new Error("Use only one of --mic-only or --system-only.");
-	}
-	if (options.micOnly) {
-		return { mic: true, system: false };
-	}
-	if (options.systemOnly) {
-		return { mic: false, system: true };
-	}
-	return { mic: true, system: true };
-}
+import { runAppLaunchCommand } from "./app";
 
 function resolveRecordingPath(
 	recordingDir: string,
@@ -178,32 +157,9 @@ async function transcribeListenRecordingFolder(params: {
 export function registerListenCommand(program: Command): void {
 	const listen = program
 		.command("listen")
-		.description(
-			"Record microphone and/or system audio (opens Configuration → Listen)",
-		)
-		.option("--mic-only", "Record only microphone input")
-		.option("--system-only", "Record only computer/system output audio")
-		.option(
-			"--out-dir <path>",
-			"Directory for recordings (defaults to ~/.toby/listen/recordings)",
-		)
-		.action((options: ListenCommandOptions) => {
-			const listenOptions = {
-				sources: resolveSources(options),
-				recordingsDir: options.outDir,
-			};
-			const session = createConfigureSession({ listenOptions });
-			runConfigureUI(
-				session.initialTree,
-				session.initialValues,
-				session.onSave,
-				session.refreshTree,
-				session.callbacks,
-				{
-					initialPath: ["root", "listen", "listen._start"],
-					listenOptions,
-				},
-			);
+		.description("Open native app recording controls")
+		.action(() => {
+			runAppLaunchCommand("Recordings");
 		});
 
 	listen

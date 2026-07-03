@@ -1,6 +1,6 @@
 # Integrations
 
-Integrations are **first-party plugins** in **`@toby/core`**: each is an object implementing `IntegrationModule`, registered in [`packages/core/src/integrations/index.ts`](../packages/core/src/integrations/index.ts). The CLI app loads the registry and may add Ink-specific UX; integration behavior itself lives in core. See [`architecture.md`](architecture.md#core-vs-apps).
+Integrations are **first-party plugins** in **`@toby/core`**: each is an object implementing `IntegrationModule`, registered in [`packages/core/src/integrations/index.ts`](../packages/core/src/integrations/index.ts). The CLI app loads the registry for maintenance commands; integration behavior itself lives in core or plugin packages. See [`architecture.md`](architecture.md#core-vs-apps).
 
 ## Types (`packages/core/src/integrations/types.ts`)
 
@@ -80,9 +80,8 @@ The global `fetchWebContent` tool ([`packages/core/src/ai/web-fetch-tool.ts`](..
 - **`status integration`** — `testConnection()`; modules return structured tool checks where applicable.
 - **`summarize <integration>`** — `getIntegrationModule`, require `summarize` in `capabilities` and a defined `summarize` function, then AI generation on returned messages.
 - **`organize <integration>`** — `getIntegrationModule`, require `organize` in `capabilities` and a defined `organize` function. Pass `--dry-run` to preview changes. Pass `--watch "<interval>"` to run immediately and then repeat periodically (e.g. `--watch "every hour"` or `--watch "30m"`); stop with Ctrl+C.
-- **`chat [words...]`** — Optional first word may be a chat integration name (`email`, `todoist`, `slack`, `azuread`); remaining words are the prompt. If the first word is not an integration, the whole line is treated as the prompt and **all connected** chat integrations are used together (merged tools + combined system prompt). Repeat **`--integration <name>`** to choose an explicit set; when that flag is used, positional words are **only** the prompt. Use **`--prompt <text>`** (or bare **`toby -p "…"`**, which maps to `chat --prompt`) for an initial message when opening chat without typing in the TUI. At the root command, unknown positional tokens (for example a mistyped subcommand) are **not** treated as prompts. By default an **Ink** session keeps the full `CoreMessage[]` history; `askUser` is routed through the TUI. If there is no initial prompt, type the first message in the TUI. Pass **`--no-tui`** for a single console turn (one integration still uses `module.chat`; multiple integrations use one combined tool-calling turn, readline `askUser` only). In the TUI, **`/integration`** opens a multi-select picker (Space toggles, Enter applies).
-- **Chat tool feedback (Ink TUI)** — After each tool runs, a compact result line is shown in the transcript. Per-tool copy is customizable via `registerToolFeedbackFormatter` in [`apps/cli/src/ui/chat/tool-feedback-registry.ts`](../apps/cli/src/ui/chat/tool-feedback-registry.ts) (call from a side-effect import or bootstrap code; avoid import cycles with `tools.ts`).
-- **`configure`** — builds credential UI from `getCredentialDescriptors` across `getIntegrationModules()`, saves via each `mergeCredentialsPatch`.
+- **Native chat** — Toby.app and daemon inbound chat select chat-capable modules, merge their tools, and run the shared chat pipeline.
+- **`configure` API** — builds credential settings from `getCredentialDescriptors` across `getIntegrationModules()`, saves via each `mergeCredentialsPatch`, and is consumed by Toby.app.
   - When `authMethods` are provided, configure shows an auth-method selector and only method-relevant credential fields.
   - The native **Toby.app** can also open an **Integration Setup Wizard** for a guided onboarding flow: numbered steps, provider links, copyable artifacts (redirect URI, scopes), inline credential fields, and connect/validate actions.
 
@@ -104,7 +103,7 @@ The response contains:
 
 Plugins supply the guide by implementing the **`setup guide`** subcommand (`toby-plugin-<name> setup guide`). If a plugin does not implement it, Toby falls back to a generic guide built from the plugin's `status`, `config shape`, and `authMethods`.
 
-The configure UI still owns credential editing and storage; the wizard reads from and writes through the same configure API so values stay in `~/.toby/credentials.json` and `~/.toby/config.json`. After credentials are filled in, the wizard runs the existing `connect` and `status` integration actions to authorize and validate.
+The native app owns credential editing and storage; the wizard reads from and writes through the same configure API so values stay in `~/.toby/credentials.json` and `~/.toby/config.json`. After credentials are filled in, the wizard runs the existing `connect` and `status` integration actions to authorize and validate.
 
 For the plugin contract, see [`plugin-protocol.md`](plugin-protocol.md#setup-guide).
 
