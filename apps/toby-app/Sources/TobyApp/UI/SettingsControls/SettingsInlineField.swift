@@ -16,7 +16,7 @@ struct SettingsInlineField: View {
 			}
 		}
 		.textFieldStyle(.roundedBorder)
-		.multilineTextAlignment(.trailing)
+		.multilineTextAlignment(.leading)
 		.frame(minWidth: minWidth, maxWidth: maxWidth)
 		.controlSize(.regular)
 	}
