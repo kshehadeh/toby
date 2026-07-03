@@ -4,6 +4,7 @@ struct IntegrationDetailContent: View {
     @Bindable var store: ConfigureStore
     let section: SettingsItem
     @State private var isSetupGuideExpanded = false
+    @State private var isToolsExpanded = false
 
     private var status: IntegrationStatus? {
         store.integrationStatus[section.key]
@@ -88,6 +89,7 @@ struct IntegrationDetailContent: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 descriptionSection
+                toolsSection
                 setupGuideSection
                 credentialsSection
             }
@@ -109,6 +111,13 @@ struct IntegrationDetailContent: View {
                     .foregroundStyle(AppTheme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var toolsSection: some View {
+        if let tools = status?.tools, !tools.isEmpty {
+            IntegrationToolsSection(tools: tools, isExpanded: $isToolsExpanded)
         }
     }
 
@@ -320,5 +329,91 @@ struct IntegrationDetailContent: View {
             result.append(FieldGroup(name: nil, fields: ungrouped))
         }
         return result
+    }
+}
+
+struct IntegrationToolsSection: View {
+    let tools: [IntegrationToolDefinition]
+    @Binding var isExpanded: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Text("Tools")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(SettingsDesign.rowTitle)
+                    Text("\(tools.count)")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppTheme.tertiaryText)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(SettingsDesign.canvasBackground.opacity(0.8))
+                        )
+                    Spacer()
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 10))
+                        .foregroundStyle(AppTheme.tertiaryText)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isExpanded ? "Collapse tools" : "Expand tools")
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(tools.enumerated()), id: \.element.id) { index, tool in
+                        toolRow(tool, showsDivider: index < tools.count - 1)
+                    }
+                }
+                .padding(.top, 12)
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
+                .fill(SettingsDesign.cardBackground)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
+                .stroke(SettingsDesign.cardBorder, lineWidth: 1)
+        }
+    }
+
+    private func toolRow(_ tool: IntegrationToolDefinition, showsDivider: Bool) -> some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: tool.readOnly == true ? "eye" : "wrench.and.screwdriver")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(AppTheme.accent)
+                    .frame(width: 20, height: 20)
+                    .background(Circle().fill(AppTheme.accent.opacity(0.1)))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(tool.displayName)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AppTheme.primaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(tool.description)
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 10)
+
+            if showsDivider {
+                Divider()
+                    .overlay(SettingsDesign.cardBorder)
+                    .padding(.leading, 30)
+            }
+        }
     }
 }

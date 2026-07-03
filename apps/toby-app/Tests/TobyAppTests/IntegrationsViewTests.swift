@@ -161,6 +161,28 @@ struct IntegrationsViewTests {
 		#expect(throws: Never.self) { try view.inspect().find(IntegrationInspectorSidebar.self) }
 	}
 
+	@Test("integration detail expands supported tools")
+	func integrationDetailExpandsSupportedTools() throws {
+		let view = IntegrationToolsSection(
+			tools: [
+				IntegrationToolDefinition(
+					name: "gmailSearch",
+					displayName: "Search Mail",
+					description: "Find messages in the connected Gmail mailbox.",
+					readOnly: true
+				),
+			],
+			isExpanded: .constant(true)
+		)
+
+		let inspected = try view.inspect()
+		#expect(throws: Never.self) { try inspected.find(text: "Tools") }
+		#expect(throws: Never.self) { try inspected.find(text: "Search Mail") }
+		#expect(throws: Never.self) {
+			try inspected.find(text: "Find messages in the connected Gmail mailbox.")
+		}
+	}
+
 	@Test("integration header shows connected status pill")
 	func integrationHeaderShowsConnectedStatusPill() throws {
 		let section = SettingsItem(

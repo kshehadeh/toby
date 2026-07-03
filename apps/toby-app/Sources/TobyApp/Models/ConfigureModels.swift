@@ -84,6 +84,7 @@ struct IntegrationStatus: Decodable {
 	let setupDescription: String?
 	let health: IntegrationHealth?
 	let authMethods: [IntegrationAuthMethod]?
+	var tools: [IntegrationToolDefinition]? = nil
 
 	var reconnectionLabel: String {
 		if let authMethods, !authMethods.isEmpty {
@@ -91,6 +92,14 @@ struct IntegrationStatus: Decodable {
 		}
 		return "Re-connect"
 	}
+}
+
+struct IntegrationToolDefinition: Decodable, Identifiable {
+	var id: String { name }
+	let name: String
+	let displayName: String
+	let description: String
+	let readOnly: Bool?
 }
 
 struct IntegrationHealth: Decodable {
