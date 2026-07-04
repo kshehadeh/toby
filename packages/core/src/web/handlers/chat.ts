@@ -16,7 +16,7 @@ import {
 	runApiChatTurnWithPersistence,
 	submitAskUserAnswer,
 } from "../../chat-pipeline/turn-runtime";
-import { getDefaultPersonaImagePath } from "../../config/index";
+import { getDefaultPersonaImagePath, resolveTobyDir } from "../../config/index";
 import { isTranscriptionConfigured } from "../../listen/transcription-providers";
 import { resolveDefaultPersona } from "../../personas/index";
 import { loadPlanBySession } from "../../planning/plan-store";
@@ -82,6 +82,7 @@ export async function handleChatStatusDetail(): Promise<Response> {
 		version: getTobyVersion(),
 		persona: persona.name,
 		model: formatPersonaAiLabel(persona),
+		tobyDir: resolveTobyDir(),
 		contextWindow: await resolveContextWindowInfo({
 			providerId: persona.ai.provider,
 			model: persona.ai.model,

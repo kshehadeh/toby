@@ -120,6 +120,7 @@ export type ChatStatusResponse = {
 	readonly version: string;
 	readonly persona: string;
 	readonly model: string;
+	readonly tobyDir: string;
 	readonly contextWindow?: AIContextWindowInfo;
 	readonly connectedIntegrations: readonly string[];
 	readonly skillCount: number;

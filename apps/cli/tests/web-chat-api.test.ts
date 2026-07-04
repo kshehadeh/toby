@@ -137,10 +137,12 @@ describe("web chat API routes", () => {
 				version: string;
 				persona: string;
 				model: string;
+				tobyDir: string;
 			};
 			expect(body.version.length).toBeGreaterThan(0);
 			expect(body.persona.length).toBeGreaterThan(0);
 			expect(body.model.length).toBeGreaterThan(0);
+			expect(body.tobyDir).toBe(process.env.TOBY_DIR);
 		});
 	});
 
