@@ -6,12 +6,15 @@ import type { ChatEventSink } from "../chat-pipeline/chat-events";
 import {
 	type Persona,
 	ensureTobyDir,
+	getDefaultPersonaName,
 	getGeneratedFilesDir,
 	getSkillsDir,
 } from "../config/index";
 import { log } from "../logging/chat-log";
 import type { Project } from "../projects/index";
 import { loadProjectSkills } from "../projects/index";
+import { humanToCronAsync } from "../schedules/cron-parser";
+import { createSchedule } from "../schedules/store";
 import {
 	formatSkillsCatalogForPrompt,
 	loadLocalSkills,
@@ -215,6 +218,7 @@ Global Toby tools (always available in addition to integration tools):
 - **memoryRetrieveForTask**: Retrieve memories relevant to the current task.
 - **getCurrentDateTime**: Return the current local/UTC date-time and timezone.
 - **fetchWebContent**: Fetch a web page and extract its main readable content (strips ads, navigation, footers). Returns article title, text content, excerpt, and metadata. Use to read blog posts, articles, documentation, or any page with substantive text.${searchToolLine}
+- **createSchedule**: Create a recurring scheduled chat run. Required: \`intention\` (what the schedule does), \`targetOutput\` (\`slack\` | \`project\` | \`none\`). Optional: \`frequency\` (natural language like "every weekday at 9am" or a cron expression). If the user has not specified a frequency, **omit it** — the tool will return a signal; then call **askUser** to ask the user how often it should run and retry. The schedule runs headlessly via the daemon using the default persona.
 ${searchRules}
 
 Memory rules:
@@ -330,6 +334,37 @@ ${params.description.trim()}${existing}`,
 	}
 }
 
+type ScheduleTargetOutput = "slack" | "project" | "none";
+
+/** Derive a concise kebab-case schedule name from the user's intention. */
+function intentionToScheduleName(intention: string): string {
+	const words = intention
+		.trim()
+		.toLowerCase()
+		.replace(/[^\w\s-]/g, " ")
+		.split(/\s+/)
+		.filter(Boolean)
+		.slice(0, 6);
+	const slug = words.join("-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+	return slug || "schedule";
+}
+
+/** Build the schedule prompt by appending a delivery instruction for the target output. */
+function buildSchedulePrompt(
+	intention: string,
+	targetOutput: ScheduleTargetOutput,
+): string {
+	const base = intention.trim();
+	switch (targetOutput) {
+		case "slack":
+			return `${base}\n\nAfter completing your work, post a concise summary of the results to Slack using your available Slack tools (pick an appropriate channel based on the workspace's channels).`;
+		case "project":
+			return `${base}\n\nAfter completing your work, save the result as a Markdown file in the project outputs using the writeTextFile tool with location='outputs'. Use a descriptive filename.`;
+		default:
+			return base;
+	}
+}
+
 export function createGlobalChatTools(
 	ctx: GlobalChatToolsContext,
 ): Record<string, Tool> {
@@ -361,6 +396,101 @@ export function createGlobalChatTools(
 			inputSchema: z.object({}),
 			execute: async () => {
 				return getCurrentDateTimeInfo();
+			},
+		}),
+		createSchedule: tool({
+			description:
+				"Create a recurring scheduled chat run that executes headlessly via the Toby daemon. Required: 'intention' (what the schedule does), 'targetOutput' (where results go: 'slack' to post a summary to Slack, 'project' to save a file to project outputs, 'none' for actions-only with no external output). Optional: 'frequency' (natural language like 'every weekday at 9am' or a 5-field cron expression). If the user has not specified a frequency, OMIT the frequency field — the tool returns a needsFrequency signal; then call askUser to ask the user how often it should run, and call createSchedule again with the answer.",
+			inputSchema: z.object({
+				intention: z
+					.string()
+					.min(1)
+					.describe(
+						"What the schedule does, e.g. 'Summarize my unread email and send key items'",
+					),
+				targetOutput: z
+					.enum(["slack", "project", "none"])
+					.describe(
+						"'slack' = post a summary to Slack; 'project' = save a Markdown file to project outputs; 'none' = just take actions, no external output",
+					),
+				frequency: z
+					.string()
+					.optional()
+					.describe(
+						"How often it runs, as natural language ('every weekday at 9am', 'every 6 hours') or a 5-field cron expression. Omit if the user hasn't specified a cadence.",
+					),
+			}),
+			execute: async ({ intention, targetOutput, frequency }) => {
+				if (!frequency || !frequency.trim()) {
+					return {
+						ok: false as const,
+						needsFrequency: true as const,
+						error:
+							"Frequency was not provided. Use the askUser tool to ask the user how often this schedule should run (e.g. 'every weekday at 9am', 'daily at noon', 'every Monday'), then call createSchedule again with the frequency.",
+					};
+				}
+
+				let cronExpression: string;
+				try {
+					cronExpression = await humanToCronAsync(frequency.trim());
+				} catch (e) {
+					return {
+						ok: false as const,
+						error:
+							e instanceof Error
+								? `Could not parse frequency "${frequency}": ${e.message}`
+								: `Could not parse frequency "${frequency}".`,
+					};
+				}
+
+				if (ctx.dryRun) {
+					const name = intentionToScheduleName(intention);
+					const prompt = buildSchedulePrompt(intention, targetOutput);
+					const personaName = getDefaultPersonaName() ?? "Toby";
+					const msg = `[dry-run] Would create schedule "${name}" (${cronExpression})`;
+					ctx.appliedActions.push(msg);
+					return {
+						ok: true as const,
+						dryRun: true,
+						name,
+						cronExpression,
+						personaName,
+						prompt,
+						message: msg,
+					};
+				}
+
+				const name = intentionToScheduleName(intention);
+				const prompt = buildSchedulePrompt(intention, targetOutput);
+				const personaName = getDefaultPersonaName() ?? "Toby";
+
+				try {
+					const schedule = createSchedule({
+						name,
+						prompt,
+						personaName,
+						cronExpression,
+						enabled: true,
+					});
+					const msg = `Created schedule "${schedule.name}" (id: ${schedule.id}, cron: ${schedule.cronExpression}). It will run ${frequency.trim()} via the daemon.`;
+					ctx.appliedActions.push(msg);
+					return {
+						ok: true as const,
+						dryRun: false,
+						id: schedule.id,
+						name: schedule.name,
+						cronExpression: schedule.cronExpression,
+						personaName: schedule.personaName,
+						enabled: schedule.enabled,
+						message: msg,
+					};
+				} catch (e) {
+					return {
+						ok: false as const,
+						error:
+							e instanceof Error ? e.message : "Failed to create schedule.",
+					};
+				}
 			},
 		}),
 		writeTextFile: tool({
