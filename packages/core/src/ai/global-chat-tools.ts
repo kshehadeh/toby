@@ -1,6 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
-import { Output, type Tool, generateText, tool, zodSchema } from "ai";
+import {
+	NoOutputGeneratedError,
+	Output,
+	type Tool,
+	generateText,
+	tool,
+	zodSchema,
+} from "ai";
 import { z } from "zod";
 import type { ChatEventSink } from "../chat-pipeline/chat-events";
 import {
@@ -22,12 +29,13 @@ import {
 	parseSkillFrontmatterAndBody,
 	resolveSkillsByNames,
 } from "../skills/index";
-import { createModelForPersona, formatChatModelError } from "./chat";
+import { formatChatModelError } from "./chat";
 import { getCurrentDateTimeInfo } from "./current-datetime";
 import {
 	createListenChatTools,
 	listenChatToolsPromptSection,
 } from "./listen-chat-tools";
+import { createModelForAuxiliary } from "./model-factory";
 import { createReflectTools, reflectToolsPromptSection } from "./reflect-tools";
 import { createSubAgentTool, subAgentPromptSection } from "./sub-agent-tool";
 import { createWebFetchTools } from "./web-fetch-tool";
@@ -290,12 +298,35 @@ function allocateUniqueFolder(skillsRoot: string, base: string): string {
 	return candidate;
 }
 
+type SkillDraftResult = {
+	readonly ok: boolean;
+	readonly draft?: z.infer<typeof skillDraftSchema>;
+	readonly error?: string;
+};
+
+/**
+ * Convert a frontmatter `name` value into a kebab-case folder segment.
+ * Falls back to null if the result is empty.
+ */
+function folderFromName(name: string): string | null {
+	const slug = name
+		.trim()
+		.toLowerCase()
+		.replace(/[^\w\s-]/g, " ")
+		.split(/\s+/)
+		.filter(Boolean)
+		.join("-")
+		.replace(/-+/g, "-")
+		.replace(/^-|-$/g, "");
+	return slug || null;
+}
+
 async function draftSkillMarkdown(params: {
 	readonly persona: Persona;
 	readonly description: string;
 	readonly preferredFolderHint?: string;
 	readonly existingSkillMarkdown?: string;
-}): Promise<z.infer<typeof skillDraftSchema> | null> {
+}): Promise<SkillDraftResult> {
 	const hint =
 		params.preferredFolderHint?.trim() &&
 		params.preferredFolderHint.trim().length > 0
@@ -306,15 +337,20 @@ async function draftSkillMarkdown(params: {
 		params.existingSkillMarkdown.trim().length > 0
 			? `\n\nExisting SKILL.md to revise:\n${params.existingSkillMarkdown.trim()}`
 			: "";
-	try {
-		const model = createModelForPersona(params.persona);
-		const result = await generateText({
-			model,
-			system: `${DRAFT_SYSTEM}${existing ? UPDATE_APPENDIX : ""}`,
-			prompt: `Write a SKILL.md for this skill request:${hint}
+	const modelLabel = `${params.persona.ai.provider}/${params.persona.ai.model}`;
+	const systemPrompt = `${DRAFT_SYSTEM}${existing ? UPDATE_APPENDIX : ""}`;
+	const userPrompt = `Write a SKILL.md for this skill request:${hint}
 
 User description:
-${params.description.trim()}${existing}`,
+${params.description.trim()}${existing}`;
+
+	// --- Attempt 1: structured output via Output.object ---
+	try {
+		const model = createModelForAuxiliary({ persona: params.persona });
+		const result = await generateText({
+			model,
+			system: systemPrompt,
+			prompt: userPrompt,
 			output: Output.object({
 				schema: zodSchema(skillDraftSchema),
 				name: "SkillDraft",
@@ -323,14 +359,148 @@ ${params.description.trim()}${existing}`,
 			temperature: 0.3,
 			maxOutputTokens: 8192,
 		});
-		return result.output ?? null;
+		if (result.output) {
+			return { ok: true, draft: result.output };
+		}
+		// output was null without throwing — fall through to text fallback
+		log("warn", "tool", "skill_draft_empty_output", {
+			persona: params.persona.name,
+			model: modelLabel,
+		});
 	} catch (error) {
+		const errorMsg = formatChatModelError(error);
 		log("warn", "tool", "skill_draft_failed", {
 			persona: params.persona.name,
-			model: `${params.persona.ai.provider}/${params.persona.ai.model}`,
-			error: formatChatModelError(error),
+			model: modelLabel,
+			error: errorMsg,
 		});
-		return null;
+
+		// If structured output parsing failed, retry with plain text generation.
+		// Many models (especially through non-OpenAI providers) produce valid
+		// SKILL.md content but can't conform to the structured-output schema.
+		if (NoOutputGeneratedError.isInstance(error)) {
+			const fallback = await draftSkillMarkdownFromText({
+				persona: params.persona,
+				systemPrompt,
+				userPrompt,
+				preferredFolderHint: params.preferredFolderHint,
+				modelLabel,
+			});
+			if (fallback.ok) return fallback;
+			return {
+				ok: false,
+				error: `Structured output parsing failed (${errorMsg}) and text fallback also failed: ${fallback.error}`,
+			};
+		}
+
+		return { ok: false, error: errorMsg };
+	}
+
+	// --- Attempt 2: plain text fallback (structured output returned null) ---
+	const fallback = await draftSkillMarkdownFromText({
+		persona: params.persona,
+		systemPrompt,
+		userPrompt,
+		preferredFolderHint: params.preferredFolderHint,
+		modelLabel,
+	});
+	if (fallback.ok) return fallback;
+	return {
+		ok: false,
+		error: `Structured output returned no result and text fallback failed: ${fallback.error}`,
+	};
+}
+
+/**
+ * Fallback that asks the model to produce the SKILL.md as plain text (no
+ * structured-output schema) and parses the frontmatter manually. Used when
+ * `Output.object` fails or returns null.
+ */
+async function draftSkillMarkdownFromText(params: {
+	readonly persona: Persona;
+	readonly systemPrompt: string;
+	readonly userPrompt: string;
+	readonly preferredFolderHint?: string;
+	readonly modelLabel: string;
+}): Promise<SkillDraftResult> {
+	const textSystem = `${params.systemPrompt}
+
+IMPORTANT: Respond with ONLY the raw SKILL.md file content. Start with --- on its own line, then YAML frontmatter (name, description), then --- on its own line, then the markdown body. Do not wrap the output in markdown code fences. Do not add any commentary before or after the file content.`;
+
+	try {
+		const model = createModelForAuxiliary({ persona: params.persona });
+		const result = await generateText({
+			model,
+			system: textSystem,
+			prompt: params.userPrompt,
+			temperature: 0.3,
+			maxOutputTokens: 8192,
+		});
+
+		const raw = result.text?.trim();
+		if (!raw) {
+			return { ok: false, error: "Model returned empty text." };
+		}
+
+		// Strip markdown code fences if the model added them despite instructions.
+		const stripped = raw
+			.replace(/^```(?:markdown|md|yaml)?\s*\n?/, "")
+			.replace(/\n?```\s*$/, "");
+
+		const parsed = parseSkillFrontmatterAndBody(stripped);
+		if (!parsed) {
+			return {
+				ok: false,
+				error: "Could not parse YAML frontmatter from model text response.",
+			};
+		}
+
+		const fmName = parsed.frontmatter.name?.trim();
+		const fmDesc = parsed.frontmatter.description?.trim();
+		if (!fmName || !fmDesc) {
+			return {
+				ok: false,
+				error: "Frontmatter is missing non-empty name or description.",
+			};
+		}
+
+		// Derive a folder name from the preferred hint or the frontmatter name.
+		let folder: string | null = null;
+		if (params.preferredFolderHint?.trim()) {
+			folder = sanitizeSkillFolderSegment(params.preferredFolderHint);
+		}
+		if (!folder) {
+			folder = folderFromName(fmName);
+		}
+		if (!folder) {
+			return {
+				ok: false,
+				error:
+					"Could not derive a valid kebab-case folder name from the skill name.",
+			};
+		}
+
+		log("info", "tool", "skill_draft_text_fallback_ok", {
+			persona: params.persona.name,
+			model: params.modelLabel,
+			folder,
+		});
+
+		return {
+			ok: true,
+			draft: {
+				recommendedFolderName: folder,
+				skillMarkdown: stripped,
+			},
+		};
+	} catch (error) {
+		const errorMsg = formatChatModelError(error);
+		log("warn", "tool", "skill_draft_text_fallback_failed", {
+			persona: params.persona.name,
+			model: params.modelLabel,
+			error: errorMsg,
+		});
+		return { ok: false, error: errorMsg };
 	}
 }
 
@@ -747,19 +917,21 @@ export function createGlobalChatTools(
 					}
 				}
 
-				const draft = await draftSkillMarkdown({
+				const draftResult = await draftSkillMarkdown({
 					persona: ctx.persona,
 					description,
 					preferredFolderHint: preferredFolderName,
 					existingSkillMarkdown,
 				});
-				if (!draft) {
+				if (!draftResult.ok || !draftResult.draft) {
 					return {
 						ok: false as const,
 						error:
-							"Could not draft SKILL.md (model error or timeout). Try again with a clearer description.",
+							draftResult.error ??
+							"Could not draft SKILL.md. Try again with a clearer description.",
 					};
 				}
+				const draft = draftResult.draft;
 
 				const parsedFm = parseSkillFrontmatterAndBody(draft.skillMarkdown);
 				if (!parsedFm) {
