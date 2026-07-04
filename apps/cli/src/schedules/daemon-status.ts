@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import { ensureTobyDir, resolveTobyDir } from "@toby/core/config/index";
 import {
@@ -96,6 +96,86 @@ export function stopDaemon(): boolean {
 	} catch {
 		return false;
 	}
+}
+
+/**
+ * Find PIDs of processes whose command line contains `pattern`, excluding the
+ * current process and any grep/ps invocations.
+ */
+function findProcessPids(pattern: string): number[] {
+	try {
+		const output = execSync("ps -eo pid,command", {
+			encoding: "utf-8",
+			timeout: 5000,
+		});
+		const pids: number[] = [];
+		for (const line of output.split("\n")) {
+			if (!line.includes(pattern)) continue;
+			if (line.includes("grep") || line.includes("ps -eo")) continue;
+			const pid = Number.parseInt(line.trim().split(/\s+/)[0] ?? "", 10);
+			if (Number.isFinite(pid) && pid > 1 && pid !== process.pid) {
+				pids.push(pid);
+			}
+		}
+		return pids;
+	} catch {
+		return [];
+	}
+}
+
+/** Send SIGTERM to each PID and wait up to `maxWaitMs` for them to exit. */
+function killPidsAndWait(pids: number[], maxWaitMs = 3000): number {
+	let killed = 0;
+	for (const pid of pids) {
+		try {
+			process.kill(pid, "SIGTERM");
+			killed++;
+		} catch {
+			// already exited
+		}
+	}
+	if (killed === 0) return 0;
+
+	const deadline = Date.now() + maxWaitMs;
+	for (const pid of pids) {
+		while (Date.now() < deadline) {
+			try {
+				process.kill(pid, 0);
+			} catch {
+				break; // process exited
+			}
+			const remaining = deadline - Date.now();
+			if (remaining <= 0) break;
+			// Busy-wait in small increments (sub-second, no deps)
+			const slice = Math.min(100, remaining);
+			const start = Date.now();
+			while (Date.now() - start < slice) {
+				/* spin */
+			}
+		}
+	}
+	return killed;
+}
+
+/**
+ * Kill all stale `daemon run` processes (excluding the current process).
+ * Returns the number of processes that were signalled.
+ */
+export function killStaleDaemonProcesses(): number {
+	const pids = findProcessPids("daemon run");
+	if (pids.length === 0) return 0;
+	return killPidsAndWait(pids);
+}
+
+/**
+ * Kill all stale inbound plugin processes (e.g. orphaned Slack socket-mode
+ * listeners whose parent daemon was killed). Returns the number of processes
+ * that were signalled.
+ */
+export function killStaleInboundProcesses(): number {
+	const pids = findProcessPids("inbound run");
+	if (pids.length === 0) return 0;
+	return killPidsAndWait(pids);
 }
 
 /**

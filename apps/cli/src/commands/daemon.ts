@@ -29,6 +29,8 @@ import type { Command } from "commander";
 import {
 	getDaemonLockPath,
 	isDaemonRunning,
+	killStaleDaemonProcesses,
+	killStaleInboundProcesses,
 	restartDaemon,
 	stopDaemon,
 } from "../schedules/daemon-status";
@@ -91,6 +93,18 @@ function acquireLock(intervalSeconds: number): () => void {
 			}
 		}
 	}
+
+	// Kill orphaned daemon and inbound processes from previous runs that
+	// were not cleaned up properly (crash, SIGKILL, lock file loss, etc.).
+	const killedDaemons = killStaleDaemonProcesses();
+	const killedInbounds = killStaleInboundProcesses();
+	if (killedDaemons > 0 || killedInbounds > 0) {
+		daemonLog("warn", "daemon", "stale_processes_killed", {
+			daemons: killedDaemons,
+			inbounds: killedInbounds,
+		});
+	}
+
 	fs.writeFileSync(
 		lockPath,
 		JSON.stringify({ pid: process.pid, intervalSeconds }),

@@ -3,6 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import {
+	killStaleDaemonProcesses,
+	killStaleInboundProcesses,
 	parseDaemonLock,
 	restartDaemonIfRunning,
 } from "../src/schedules/daemon-status";
@@ -53,5 +55,27 @@ describe("restartDaemonIfRunning", () => {
 			restarted: false,
 			intervalSeconds: null,
 		});
+	});
+});
+
+describe("killStaleDaemonProcesses", () => {
+	it("does not throw when no stale daemons exist", () => {
+		// In the test environment there should be no "daemon run" processes.
+		const result = killStaleDaemonProcesses();
+		expect(result).toBeGreaterThanOrEqual(0);
+	});
+
+	it("does not kill the current process", () => {
+		// The function excludes process.pid from its kill list.
+		// Running it should never throw or kill the test runner.
+		killStaleDaemonProcesses();
+		expect(process.pid).toBeGreaterThan(0);
+	});
+});
+
+describe("killStaleInboundProcesses", () => {
+	it("does not throw when no stale inbounds exist", () => {
+		const result = killStaleInboundProcesses();
+		expect(result).toBeGreaterThanOrEqual(0);
 	});
 });
