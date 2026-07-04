@@ -10,11 +10,16 @@ import {
 	serializeTranscriptEntry,
 } from "./transcript-persist";
 
-type ChatSessionSummary = {
+export type ChatSessionSummary = {
 	readonly id: string;
 	readonly name: string;
 	readonly createdAt: string;
 	readonly updatedAt: string;
+	readonly sourceIntegration?: string | null;
+	readonly sourceDisplayName?: string | null;
+	readonly externalKey?: string | null;
+	readonly lifecycleStatus?: SessionLifecycleStatus | null;
+	readonly lastRemoteMessageAt?: string | null;
 };
 
 type LoadedChatSession = {
@@ -180,6 +185,10 @@ CREATE TABLE IF NOT EXISTS chat_external_sessions (
   metadata_json TEXT,
   awaiting_ask_user_json TEXT,
   last_processed_message_id TEXT,
+  lifecycle_status TEXT NOT NULL DEFAULT 'idle',
+  active_since TEXT,
+  ended_at TEXT,
+  last_remote_message_at TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   PRIMARY KEY (integration, external_key),
@@ -190,6 +199,7 @@ CREATE INDEX IF NOT EXISTS idx_chat_external_sessions_session_id
   ON chat_external_sessions(session_id);
 `);
 	migrateChatSessionsSchema(db);
+	migrateChatExternalSessionsSchema(db);
 	migrateScheduleRunsSchema(db);
 }
 
@@ -214,6 +224,30 @@ function ensureChatSessionContextWindowColumn(db: SqliteDb): void {
 	}>;
 	if (!cols.some((c) => c.name === "context_window_json")) {
 		db.exec("ALTER TABLE chat_sessions ADD COLUMN context_window_json TEXT");
+	}
+}
+
+function migrateChatExternalSessionsSchema(db: SqliteDb): void {
+	const cols = db
+		.query("PRAGMA table_info(chat_external_sessions)")
+		.all() as Array<{
+		name: string;
+	}>;
+	if (!cols.some((c) => c.name === "lifecycle_status")) {
+		db.exec(
+			"ALTER TABLE chat_external_sessions ADD COLUMN lifecycle_status TEXT NOT NULL DEFAULT 'idle'",
+		);
+	}
+	if (!cols.some((c) => c.name === "active_since")) {
+		db.exec("ALTER TABLE chat_external_sessions ADD COLUMN active_since TEXT");
+	}
+	if (!cols.some((c) => c.name === "ended_at")) {
+		db.exec("ALTER TABLE chat_external_sessions ADD COLUMN ended_at TEXT");
+	}
+	if (!cols.some((c) => c.name === "last_remote_message_at")) {
+		db.exec(
+			"ALTER TABLE chat_external_sessions ADD COLUMN last_remote_message_at TEXT",
+		);
 	}
 }
 
@@ -309,6 +343,9 @@ export function deleteChatSession(sessionId: string): boolean {
 			$id: id,
 		});
 		db.query("DELETE FROM chat_plans WHERE session_id = $id").run({ $id: id });
+		db.query("DELETE FROM chat_external_sessions WHERE session_id = $id").run({
+			$id: id,
+		});
 		db.query("DELETE FROM chat_sessions WHERE id = $id").run({ $id: id });
 	});
 	tx();
@@ -447,6 +484,13 @@ export function setSessionContextWindow(
 	});
 }
 
+export type SessionLifecycleStatus =
+	| "idle"
+	| "running"
+	| "awaiting_user"
+	| "ended"
+	| "error";
+
 export type ExternalSessionRecord = {
 	readonly integration: string;
 	readonly externalKey: string;
@@ -455,6 +499,10 @@ export type ExternalSessionRecord = {
 	readonly metadata: Record<string, unknown>;
 	readonly awaitingAskUser: PendingAskUser | null;
 	readonly lastProcessedMessageId: string | null;
+	readonly lifecycleStatus: SessionLifecycleStatus;
+	readonly activeSince: string | null;
+	readonly endedAt: string | null;
+	readonly lastRemoteMessageAt: string | null;
 };
 
 export type PendingAskUser = {
@@ -472,7 +520,47 @@ export function getOrCreateExternalSession(params: {
 	const db = getDb();
 	const existing = loadExternalSession(params.integration, params.externalKey);
 	if (existing) {
-		return existing;
+		// Verify the referenced chat_sessions row still exists. If it was
+		// deleted (e.g. user removed the session from the app), create a new
+		// session row and update the mapping so future messages are visible.
+		const sessionRow = db
+			.query("SELECT id FROM chat_sessions WHERE id = $id")
+			.get({ $id: existing.sessionId }) as { id: string } | undefined;
+		if (sessionRow) {
+			return existing;
+		}
+		const replacement = createChatSession({
+			name: existing.displayName ?? params.displayName,
+		});
+		const ts = nowIso();
+		db.query(
+			`UPDATE chat_external_sessions
+       SET session_id = $session_id, display_name = $display_name,
+           lifecycle_status = 'running', active_since = $active_since,
+           ended_at = NULL, last_remote_message_at = $active_since,
+           updated_at = $updated_at
+     WHERE integration = $integration AND external_key = $external_key`,
+		).run({
+			$integration: params.integration,
+			$external_key: params.externalKey,
+			$session_id: replacement.id,
+			$display_name: params.displayName,
+			$active_since: ts,
+			$updated_at: ts,
+		});
+		return {
+			integration: params.integration,
+			externalKey: params.externalKey,
+			sessionId: replacement.id,
+			displayName: params.displayName,
+			metadata: existing.metadata,
+			awaitingAskUser: existing.awaitingAskUser,
+			lastProcessedMessageId: existing.lastProcessedMessageId,
+			lifecycleStatus: "running",
+			activeSince: ts,
+			endedAt: null,
+			lastRemoteMessageAt: ts,
+		};
 	}
 	const session = createChatSession({ name: params.displayName });
 	const ts = nowIso();
@@ -480,10 +568,14 @@ export function getOrCreateExternalSession(params: {
 	db.query(
 		`INSERT INTO chat_external_sessions (
        integration, external_key, session_id, display_name, metadata_json,
-       awaiting_ask_user_json, last_processed_message_id, created_at, updated_at
+       awaiting_ask_user_json, last_processed_message_id,
+       lifecycle_status, active_since, ended_at, last_remote_message_at,
+       created_at, updated_at
      ) VALUES (
        $integration, $external_key, $session_id, $display_name, $metadata_json,
-       NULL, NULL, $created_at, $updated_at
+       NULL, NULL,
+       'running', $active_since, NULL, $active_since,
+       $created_at, $updated_at
      )`,
 	).run({
 		$integration: params.integration,
@@ -491,6 +583,7 @@ export function getOrCreateExternalSession(params: {
 		$session_id: session.id,
 		$display_name: params.displayName,
 		$metadata_json: metadataJson,
+		$active_since: ts,
 		$created_at: ts,
 		$updated_at: ts,
 	});
@@ -502,6 +595,10 @@ export function getOrCreateExternalSession(params: {
 		metadata: params.metadata,
 		awaitingAskUser: null,
 		lastProcessedMessageId: null,
+		lifecycleStatus: "running",
+		activeSince: ts,
+		endedAt: null,
+		lastRemoteMessageAt: ts,
 	};
 }
 
@@ -513,6 +610,10 @@ function parseExternalSessionRow(row: {
 	metadataJson: string | null;
 	awaitingAskUserJson: string | null;
 	lastProcessedMessageId: string | null;
+	lifecycleStatus: string | null;
+	activeSince: string | null;
+	endedAt: string | null;
+	lastRemoteMessageAt: string | null;
 }): ExternalSessionRecord {
 	let metadata: Record<string, unknown> = {};
 	if (row.metadataJson) {
@@ -530,6 +631,8 @@ function parseExternalSessionRow(row: {
 			awaitingAskUser = null;
 		}
 	}
+	const lifecycleStatus = (row.lifecycleStatus ??
+		"idle") as SessionLifecycleStatus;
 	return {
 		integration: row.integration,
 		externalKey: row.externalKey,
@@ -538,6 +641,10 @@ function parseExternalSessionRow(row: {
 		metadata,
 		awaitingAskUser,
 		lastProcessedMessageId: row.lastProcessedMessageId,
+		lifecycleStatus,
+		activeSince: row.activeSince,
+		endedAt: row.endedAt,
+		lastRemoteMessageAt: row.lastRemoteMessageAt,
 	};
 }
 
@@ -551,7 +658,9 @@ export function loadExternalSession(
 			`SELECT integration, external_key as externalKey, session_id as sessionId,
               display_name as displayName, metadata_json as metadataJson,
               awaiting_ask_user_json as awaitingAskUserJson,
-              last_processed_message_id as lastProcessedMessageId
+              last_processed_message_id as lastProcessedMessageId,
+              lifecycle_status as lifecycleStatus, active_since as activeSince,
+              ended_at as endedAt, last_remote_message_at as lastRemoteMessageAt
        FROM chat_external_sessions
        WHERE integration = $integration AND external_key = $external_key`,
 		)
@@ -564,6 +673,10 @@ export function loadExternalSession(
 				metadataJson: string | null;
 				awaitingAskUserJson: string | null;
 				lastProcessedMessageId: string | null;
+				lifecycleStatus: string | null;
+				activeSince: string | null;
+				endedAt: string | null;
+				lastRemoteMessageAt: string | null;
 		  }
 		| undefined;
 	if (!row) return null;
@@ -579,7 +692,9 @@ export function loadExternalSessionBySessionId(
 			`SELECT integration, external_key as externalKey, session_id as sessionId,
               display_name as displayName, metadata_json as metadataJson,
               awaiting_ask_user_json as awaitingAskUserJson,
-              last_processed_message_id as lastProcessedMessageId
+              last_processed_message_id as lastProcessedMessageId,
+              lifecycle_status as lifecycleStatus, active_since as activeSince,
+              ended_at as endedAt, last_remote_message_at as lastRemoteMessageAt
        FROM chat_external_sessions
        WHERE session_id = $session_id`,
 		)
@@ -592,10 +707,50 @@ export function loadExternalSessionBySessionId(
 				metadataJson: string | null;
 				awaitingAskUserJson: string | null;
 				lastProcessedMessageId: string | null;
+				lifecycleStatus: string | null;
+				activeSince: string | null;
+				endedAt: string | null;
+				lastRemoteMessageAt: string | null;
 		  }
 		| undefined;
 	if (!row) return null;
 	return parseExternalSessionRow(row);
+}
+
+/**
+ * Lists all persisted external session mappings for an integration.
+ * Used to seed plugin inbound providers with known sessions and pending
+ * askUser state so that channel thread follow-ups survive daemon restarts.
+ */
+export function listExternalSessionsForIntegration(
+	integration: string,
+): readonly ExternalSessionRecord[] {
+	const db = getDb();
+	const rows = db
+		.query(
+			`SELECT integration, external_key as externalKey, session_id as sessionId,
+              display_name as displayName, metadata_json as metadataJson,
+              awaiting_ask_user_json as awaitingAskUserJson,
+              last_processed_message_id as lastProcessedMessageId,
+              lifecycle_status as lifecycleStatus, active_since as activeSince,
+              ended_at as endedAt, last_remote_message_at as lastRemoteMessageAt
+       FROM chat_external_sessions
+       WHERE integration = $integration`,
+		)
+		.all({ $integration: integration }) as readonly {
+		integration: string;
+		externalKey: string;
+		sessionId: string;
+		displayName: string | null;
+		metadataJson: string | null;
+		awaitingAskUserJson: string | null;
+		lastProcessedMessageId: string | null;
+		lifecycleStatus: string | null;
+		activeSince: string | null;
+		endedAt: string | null;
+		lastRemoteMessageAt: string | null;
+	}[];
+	return rows.map((row) => parseExternalSessionRow(row));
 }
 
 export function updateExternalSessionMetadata(
@@ -622,15 +777,18 @@ export function setPendingAskUser(
 	pending: PendingAskUser,
 ): void {
 	const db = getDb();
+	const ts = nowIso();
 	db.query(
 		`UPDATE chat_external_sessions
-     SET awaiting_ask_user_json = $json, updated_at = $updated_at
+     SET awaiting_ask_user_json = $json,
+         lifecycle_status = 'awaiting_user',
+         updated_at = $updated_at
      WHERE integration = $integration AND external_key = $external_key`,
 	).run({
 		$integration: integration,
 		$external_key: externalKey,
 		$json: JSON.stringify(pending),
-		$updated_at: nowIso(),
+		$updated_at: ts,
 	});
 }
 
@@ -641,12 +799,47 @@ export function clearPendingAskUser(
 	const db = getDb();
 	db.query(
 		`UPDATE chat_external_sessions
-     SET awaiting_ask_user_json = NULL, updated_at = $updated_at
+     SET awaiting_ask_user_json = NULL,
+         lifecycle_status = 'idle',
+         updated_at = $updated_at
      WHERE integration = $integration AND external_key = $external_key`,
 	).run({
 		$integration: integration,
 		$external_key: externalKey,
 		$updated_at: nowIso(),
+	});
+}
+
+export function setSessionLifecycleStatus(
+	integration: string,
+	externalKey: string,
+	status: SessionLifecycleStatus,
+): void {
+	const db = getDb();
+	const ts = nowIso();
+	const activeSince =
+		status === "running" ? ts : status === "idle" ? null : undefined;
+	const endedAt = status === "ended" || status === "idle" ? ts : undefined;
+	const sets: string[] = [
+		"lifecycle_status = $status",
+		"updated_at = $updated_at",
+	];
+	if (activeSince !== undefined) {
+		sets.push("active_since = $active_since");
+	}
+	if (endedAt !== undefined) {
+		sets.push("ended_at = $ended_at");
+	}
+	db.query(
+		`UPDATE chat_external_sessions SET ${sets.join(", ")}
+     WHERE integration = $integration AND external_key = $external_key`,
+	).run({
+		$integration: integration,
+		$external_key: externalKey,
+		$status: status,
+		$updated_at: ts,
+		...(activeSince !== undefined ? { $active_since: activeSince } : {}),
+		...(endedAt !== undefined ? { $ended_at: endedAt } : {}),
 	});
 }
 
@@ -656,15 +849,19 @@ export function markMessageProcessed(
 	messageId: string,
 ): void {
 	const db = getDb();
+	const ts = nowIso();
 	db.query(
 		`UPDATE chat_external_sessions
-     SET last_processed_message_id = $message_id, updated_at = $updated_at
+     SET last_processed_message_id = $message_id,
+         last_remote_message_at = $ts,
+         updated_at = $updated_at
      WHERE integration = $integration AND external_key = $external_key`,
 	).run({
 		$integration: integration,
 		$external_key: externalKey,
 		$message_id: messageId,
-		$updated_at: nowIso(),
+		$ts: ts,
+		$updated_at: ts,
 	});
 }
 
@@ -729,9 +926,15 @@ export function listChatSessions(limit = 50): ChatSessionSummary[] {
 	const db = getDb();
 	const rows = db
 		.query(
-			`SELECT id, name, created_at as createdAt, updated_at as updatedAt
-       FROM chat_sessions
-       ORDER BY updated_at DESC
+			`SELECT s.id, s.name, s.created_at as createdAt, s.updated_at as updatedAt,
+              es.integration as sourceIntegration,
+              es.display_name as sourceDisplayName,
+              es.external_key as externalKey,
+              es.lifecycle_status as lifecycleStatus,
+              es.last_remote_message_at as lastRemoteMessageAt
+       FROM chat_sessions s
+       LEFT JOIN chat_external_sessions es ON es.session_id = s.id
+       ORDER BY s.updated_at DESC
        LIMIT $limit`,
 		)
 		.all({ $limit: Math.max(1, Math.min(500, limit)) }) as Array<{
@@ -739,12 +942,23 @@ export function listChatSessions(limit = 50): ChatSessionSummary[] {
 		name: string;
 		createdAt: string;
 		updatedAt: string;
+		sourceIntegration: string | null;
+		sourceDisplayName: string | null;
+		externalKey: string | null;
+		lifecycleStatus: string | null;
+		lastRemoteMessageAt: string | null;
 	}>;
 	return rows.map((r) => ({
 		id: r.id,
 		name: r.name,
 		createdAt: r.createdAt,
 		updatedAt: r.updatedAt,
+		sourceIntegration: r.sourceIntegration,
+		sourceDisplayName: r.sourceDisplayName,
+		externalKey: r.externalKey,
+		lifecycleStatus: (r.lifecycleStatus ??
+			null) as SessionLifecycleStatus | null,
+		lastRemoteMessageAt: r.lastRemoteMessageAt,
 	}));
 }
 
@@ -821,6 +1035,7 @@ export function clearChatSessions(): number {
 	const tx = db.transaction(() => {
 		db.query("DELETE FROM chat_session_messages").run();
 		db.query("DELETE FROM chat_session_transcript").run();
+		db.query("DELETE FROM chat_external_sessions").run();
 		db.query("DELETE FROM chat_sessions").run();
 	});
 	tx();

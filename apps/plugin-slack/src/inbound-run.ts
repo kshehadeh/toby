@@ -48,6 +48,18 @@ export type PluginInboundFromCoreMessage =
 			readonly config: Record<string, unknown>;
 			readonly state: Record<string, unknown>;
 			readonly dryRun: boolean;
+			readonly externalSessions?: readonly {
+				readonly externalKey: string;
+				readonly sessionId: string;
+				readonly displayName: string | null;
+				readonly metadata: Record<string, unknown>;
+				readonly awaitingAskUser: {
+					readonly question: string;
+					readonly options: readonly string[];
+					readonly createdAt: string;
+				} | null;
+				readonly lastProcessedMessageId: string | null;
+			}[];
 	  }
 	| { readonly type: "config"; readonly config: Record<string, unknown> }
 	| {
@@ -281,6 +293,17 @@ export async function runInbound(): Promise<void> {
 		if (message.type === "start") {
 			config = { ...message.config };
 			dryRun = message.dryRun;
+			if (message.externalSessions) {
+				for (const session of message.externalSessions) {
+					knownSessions.add(session.externalKey);
+					if (session.awaitingAskUser) {
+						awaitingAskUser.add(session.externalKey);
+					}
+				}
+				logStderr(
+					`Seeded ${message.externalSessions.length} persisted Slack session(s) (${awaitingAskUser.size} awaiting askUser).`,
+				);
+			}
 			try {
 				await startSocketMode();
 			} catch (error) {

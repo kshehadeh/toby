@@ -60,6 +60,7 @@ final class ChatStore {
 	var contextWindow: ContextWindowPayload?
 	private var activeTurnId: String?
 	private var isCancelling = false
+	private var lastInboundUpdatedAt: String?
 
 	var isExternalSession: Bool {
 		integration != nil && externalKey != nil
@@ -150,6 +151,11 @@ final class ChatStore {
 			daemonStatus = try await client.fetchDaemonStatus()
 		} catch {
 			daemonStatus = nil
+		}
+		let inboundUpdatedAt = daemonStatus?.chatInbound?.updatedAt
+		if inboundUpdatedAt != lastInboundUpdatedAt {
+			lastInboundUpdatedAt = inboundUpdatedAt
+			await refreshSessions()
 		}
 	}
 

@@ -45,6 +45,8 @@ let wasMessageProcessedReturn = false;
 const mockWasMessageProcessed = mock(() => wasMessageProcessedReturn);
 
 const mockMarkMessageProcessed = mock(() => {});
+const mockClearPendingAskUser = mock(() => {});
+const mockSetSessionLifecycleStatus = mock(() => {});
 
 let createAskUserBridgeReturn: unknown = () => {};
 const mockCreateAskUserBridge = mock(() => createAskUserBridgeReturn);
@@ -103,6 +105,12 @@ describe("handleInboundEvent status reporter", () => {
 		spyOn(actualSessionStore, "markMessageProcessed").mockImplementation(
 			mockMarkMessageProcessed as any,
 		);
+		spyOn(actualSessionStore, "clearPendingAskUser").mockImplementation(
+			mockClearPendingAskUser as any,
+		);
+		spyOn(actualSessionStore, "setSessionLifecycleStatus").mockImplementation(
+			mockSetSessionLifecycleStatus as any,
+		);
 		spyOn(actualAskUserBridge, "createAskUserBridge").mockImplementation(
 			mockCreateAskUserBridge as any,
 		);
@@ -134,6 +142,8 @@ describe("handleInboundEvent status reporter", () => {
 		mockLoadExternalSession.mockClear?.();
 		mockWasMessageProcessed.mockClear?.();
 		mockMarkMessageProcessed.mockClear?.();
+		mockClearPendingAskUser.mockClear?.();
+		mockSetSessionLifecycleStatus.mockClear?.();
 		mockCreateAskUserBridge.mockClear?.();
 		mockWithConversationMutex.mockClear?.();
 		mockStatusReporterUpdate.mockClear?.();
@@ -223,6 +233,8 @@ describe("handleInboundEvent status reporter", () => {
 		(actualSessionStore.loadExternalSession as any).mockRestore?.();
 		(actualSessionStore.wasMessageProcessed as any).mockRestore?.();
 		(actualSessionStore.markMessageProcessed as any).mockRestore?.();
+		(actualSessionStore.clearPendingAskUser as any).mockRestore?.();
+		(actualSessionStore.setSessionLifecycleStatus as any).mockRestore?.();
 		(actualAskUserBridge.createAskUserBridge as any).mockRestore?.();
 		(actualMutex.withConversationMutex as any).mockRestore?.();
 		(actualDaemonLog.daemonLog as any).mockRestore?.();

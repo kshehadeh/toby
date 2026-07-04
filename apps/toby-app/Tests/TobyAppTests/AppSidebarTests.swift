@@ -456,4 +456,85 @@ struct AppSidebarTests {
         #expect(restartCount == 1)
     }
 
+    @Test("active chat row shows conversation name when Slack turn is active")
+    func activeChatRowShowsConversationName() throws {
+        let inbound = ChatInboundStatus(
+            enabled: true,
+            integration: "slack",
+            integrationLabel: "Slack",
+            status: "connected",
+            detail: nil,
+            disabledReason: nil,
+            updatedAt: "2026-07-04T10:00:00Z",
+            activeConversationName: "Slack #general",
+            activeSince: "2026-07-04T10:00:00Z",
+            activeKind: "turn",
+            awaitingUserSessions: nil
+        )
+        let daemon = DaemonStatus(process: nil, chatInbound: inbound)
+        let row = ActiveChatRow(daemonStatus: daemon)
+        #expect(throws: Never.self) { try row.inspect().find(text: "Slack #general is chatting now") }
+    }
+
+    @Test("active chat row shows placeholder when no active Slack chat")
+    func activeChatRowShowsPlaceholderWhenInactive() throws {
+        let inbound = ChatInboundStatus(
+            enabled: true,
+            integration: "slack",
+            integrationLabel: "Slack",
+            status: "connected",
+            detail: nil,
+            disabledReason: nil,
+            updatedAt: "2026-07-04T10:00:00Z",
+            activeConversationName: nil,
+            activeSince: nil,
+            activeKind: nil,
+            awaitingUserSessions: nil
+        )
+        let daemon = DaemonStatus(process: nil, chatInbound: inbound)
+        let row = ActiveChatRow(daemonStatus: daemon)
+        #expect(throws: Never.self) { try row.inspect().find(text: "No active Slack chat") }
+    }
+
+    @Test("active chat row shows placeholder for non-Slack integration")
+    func activeChatRowShowsPlaceholderForNonSlack() throws {
+        let inbound = ChatInboundStatus(
+            enabled: true,
+            integration: "email",
+            integrationLabel: "Email",
+            status: "connected",
+            detail: nil,
+            disabledReason: nil,
+            updatedAt: "2026-07-04T10:00:00Z",
+            activeConversationName: "Email thread",
+            activeSince: "2026-07-04T10:00:00Z",
+            activeKind: "turn",
+            awaitingUserSessions: nil
+        )
+        let daemon = DaemonStatus(process: nil, chatInbound: inbound)
+        let row = ActiveChatRow(daemonStatus: daemon)
+        #expect(throws: Never.self) { try row.inspect().find(text: "No active Slack chat") }
+    }
+
+    @Test("active chat row shows awaiting user sessions when no active turn")
+    func activeChatRowShowsAwaitingUserSessions() throws {
+        let awaiting = [ChatInboundAwaitingSession(externalKey: "slack:T1:C1:100", displayName: "Slack #general")]
+        let inbound = ChatInboundStatus(
+            enabled: true,
+            integration: "slack",
+            integrationLabel: "Slack",
+            status: "connected",
+            detail: nil,
+            disabledReason: nil,
+            updatedAt: "2026-07-04T10:00:00Z",
+            activeConversationName: nil,
+            activeSince: nil,
+            activeKind: nil,
+            awaitingUserSessions: awaiting
+        )
+        let daemon = DaemonStatus(process: nil, chatInbound: inbound)
+        let row = ActiveChatRow(daemonStatus: daemon)
+        #expect(throws: Never.self) { try row.inspect().find(text: "Slack #general is waiting for your reply") }
+    }
+
 }

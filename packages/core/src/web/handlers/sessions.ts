@@ -60,5 +60,8 @@ export function handleSessionDetail(sessionId: string): Response {
 		activePlan: planSummaryForSession(sessionId),
 		integration: external?.integration ?? null,
 		externalKey: external?.externalKey ?? null,
+		sourceDisplayName: external?.displayName ?? null,
+		lifecycleStatus: external?.lifecycleStatus ?? null,
+		lastRemoteMessageAt: external?.lastRemoteMessageAt ?? null,
 	});
 }

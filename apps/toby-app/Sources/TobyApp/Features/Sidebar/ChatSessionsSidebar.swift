@@ -37,6 +37,8 @@ struct ChatSessionsSidebar: View {
 										title: session.name,
 										subtitle: sidebarSessionDate(session),
 										isSelected: session.id == selectedSessionId,
+										isExternal: session.isExternal,
+										isAwaitingUser: session.isAwaitingUser,
 									)
 								}
 								.buttonStyle(.plain)

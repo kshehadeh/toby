@@ -106,6 +106,24 @@ export interface PluginInboundChatEvent {
 	readonly botUserId?: string;
 }
 
+/**
+ * Persisted external session snapshot supplied by core to a plugin inbound
+ * provider on startup, so that channel thread follow-ups and pending askUser
+ * state survive daemon/plugin restarts.
+ */
+export interface PluginExternalSessionSnapshot {
+	readonly externalKey: string;
+	readonly sessionId: string;
+	readonly displayName: string | null;
+	readonly metadata: Record<string, unknown>;
+	readonly awaitingAskUser: {
+		readonly question: string;
+		readonly options: readonly string[];
+		readonly createdAt: string;
+	} | null;
+	readonly lastProcessedMessageId: string | null;
+}
+
 /** Core → plugin messages on stdin during `inbound run` (one JSON object per line). */
 export type PluginInboundFromCoreMessage =
 	| {
@@ -113,6 +131,7 @@ export type PluginInboundFromCoreMessage =
 			readonly config: Record<string, unknown>;
 			readonly state: Record<string, unknown>;
 			readonly dryRun: boolean;
+			readonly externalSessions?: readonly PluginExternalSessionSnapshot[];
 	  }
 	| { readonly type: "config"; readonly config: Record<string, unknown> }
 	| {

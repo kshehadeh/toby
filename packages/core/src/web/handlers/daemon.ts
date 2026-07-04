@@ -6,6 +6,7 @@ import {
 import { spawnDetachedDaemonRestart } from "../../daemon/spawn-restart";
 import { getDaemonRuntimeInfo } from "../../daemon/status";
 import { getIntegrationModule } from "../../integrations/index";
+import { listExternalSessionsForIntegration } from "../../session-store";
 import { jsonResponse } from "../http-utils";
 
 const RESTART_DEFER_MS = 200;
@@ -18,6 +19,22 @@ export function handleDaemonStatus(): Response {
 	const module = integrationName
 		? getIntegrationModule(integrationName)
 		: undefined;
+
+	// Query durable lifecycle state for the active inbound integration.
+	// This surfaces sessions that are awaiting user reply even when no
+	// turn is actively processing (transient status is clear in that case).
+	let awaitingUserSessions: Array<{
+		externalKey: string;
+		displayName: string | null;
+	}> = [];
+	if (integrationName && config.enabled === true) {
+		awaitingUserSessions = listExternalSessionsForIntegration(integrationName)
+			.filter((s) => s.lifecycleStatus === "awaiting_user")
+			.map((s) => ({
+				externalKey: s.externalKey,
+				displayName: s.displayName,
+			}));
+	}
 
 	return jsonResponse({
 		process: getDaemonRuntimeInfo(),
@@ -32,6 +49,7 @@ export function handleDaemonStatus(): Response {
 			activeConversationName: runtime.activeConversationName,
 			activeSince: runtime.activeSince,
 			activeKind: runtime.activeKind,
+			awaitingUserSessions,
 		},
 	});
 }

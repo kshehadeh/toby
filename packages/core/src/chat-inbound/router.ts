@@ -2,15 +2,14 @@ import { runHeadlessChatTurn } from "../chat-pipeline/headless-session";
 import type { IntegrationModule } from "../integrations/types";
 import { daemonLog } from "../logging/daemon-log";
 import {
+	clearPendingAskUser,
 	getOrCreateExternalSession,
 	loadExternalSession,
 	markMessageProcessed,
+	setSessionLifecycleStatus,
 	wasMessageProcessed,
 } from "../session-store";
-import {
-	createAskUserBridge,
-	tryResolvePendingAskUser,
-} from "./ask-user-bridge";
+import { createAskUserBridge } from "./ask-user-bridge";
 import { withConversationMutex } from "./mutex";
 import { setChatInboundStatus } from "./status";
 import type { ActiveChatInbound, InboundChatEvent } from "./types";
@@ -20,6 +19,112 @@ function matchesDefaultAskUserReply(
 	hasPending: boolean,
 ): boolean {
 	return hasPending && !event.isNewConversationTurn;
+}
+
+async function runInboundTurn(
+	active: ActiveChatInbound,
+	event: InboundChatEvent,
+	record: ReturnType<typeof getOrCreateExternalSession>,
+): Promise<void> {
+	const provider = active.module.chatInbound;
+	if (!provider) return;
+
+	const askUser = createAskUserBridge({
+		integration: event.integration,
+		provider,
+		conversation: {
+			externalKey: event.externalKey,
+			displayName: record.displayName ?? event.conversation.displayName,
+			metadata: record.metadata,
+		},
+		dryRun: active.dryRun,
+	});
+
+	const statusReporter = provider.createStatusReporter?.({
+		conversation: event.conversation,
+		dryRun: active.dryRun,
+	});
+
+	setSessionLifecycleStatus(event.integration, event.externalKey, "running");
+	setChatInboundStatus({
+		activeConversationName: event.conversation.displayName,
+		activeSince: new Date().toISOString(),
+		activeKind: "turn",
+	});
+
+	try {
+		const turn = await runHeadlessChatTurn({
+			inboundModule: active.module,
+			sessionId: record.sessionId,
+			userText: event.text,
+			persona: active.persona,
+			dryRun: active.dryRun,
+			askUser,
+			provider,
+			conversation: event.conversation,
+			onProgress: statusReporter
+				? (ev) => {
+						const line = provider.formatInboundStatusLine?.(ev);
+						if (line) {
+							statusReporter.update(line);
+						}
+					}
+				: undefined,
+		});
+
+		daemonLog("info", "turn", "turn_complete", {
+			integration: event.integration,
+			sessionId: record.sessionId,
+			deliveredViaTools: turn.deliveredViaTools,
+			replyLength: turn.text.length,
+			toolActions: turn.appliedActions.length,
+		});
+
+		await statusReporter?.clear();
+
+		if (turn.text && !turn.deliveredViaTools) {
+			await provider.deliverReply({
+				conversation: event.conversation,
+				text: turn.text,
+				dryRun: active.dryRun,
+			});
+			daemonLog("debug", "inbound", "reply_delivered", {
+				integration: event.integration,
+				externalKey: event.externalKey,
+			});
+		}
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		setSessionLifecycleStatus(event.integration, event.externalKey, "error");
+		setChatInboundStatus({ status: "error", detail: msg });
+		daemonLog("error", "turn", "turn_failed", {
+			integration: event.integration,
+			sessionId: record.sessionId,
+			message: msg,
+		});
+		try {
+			await provider.deliverReply({
+				conversation: event.conversation,
+				text: `Sorry, I hit an error: ${msg}`,
+				dryRun: active.dryRun,
+			});
+		} catch {
+			// best effort
+		}
+	} finally {
+		// Only set idle if not awaiting user (askUser sets awaiting_user
+		// via setPendingAskUser during the turn).
+		const after = loadExternalSession(event.integration, event.externalKey);
+		if (after?.lifecycleStatus !== "awaiting_user") {
+			setSessionLifecycleStatus(event.integration, event.externalKey, "idle");
+		}
+		setChatInboundStatus({
+			activeConversationName: null,
+			activeSince: null,
+			activeKind: null,
+		});
+		await statusReporter?.clear();
+	}
 }
 
 export async function handleInboundEvent(
@@ -53,30 +158,43 @@ export async function handleInboundEvent(
 	const external = loadExternalSession(event.integration, event.externalKey);
 	const hasPending = Boolean(external?.awaitingAskUser);
 
+	// Handle askUser replies: clear pending state and start a continuation
+	// turn with the user's reply text. This works whether or not the daemon
+	// restarted since the pending state is persisted in the database.
 	if (hasPending && external?.awaitingAskUser) {
 		const pending = external.awaitingAskUser;
 		const matches =
 			provider.matchesAskUserReply?.(event, pending) ??
 			matchesDefaultAskUserReply(event, true);
 		if (matches) {
-			const options = pending.options;
-			const resolved = tryResolvePendingAskUser(
+			clearPendingAskUser(event.integration, event.externalKey);
+			markMessageProcessed(
 				event.integration,
 				event.externalKey,
-				event.text,
-				options,
+				event.messageId,
 			);
-			if (resolved) {
-				daemonLog("info", "inbound", "ask_user_resolved", {
+			daemonLog("info", "inbound", "ask_user_resolved", {
+				integration: event.integration,
+				externalKey: event.externalKey,
+			});
+
+			const mutexKey = `${event.integration}:${event.externalKey}`;
+			await withConversationMutex(mutexKey, async () => {
+				const record = getOrCreateExternalSession({
 					integration: event.integration,
 					externalKey: event.externalKey,
+					displayName: event.conversation.displayName,
+					metadata: event.conversation.metadata,
 				});
-				markMessageProcessed(
-					event.integration,
-					event.externalKey,
-					event.messageId,
-				);
-			}
+				daemonLog("info", "turn", "continuation_turn_start", {
+					integration: event.integration,
+					externalKey: event.externalKey,
+					sessionId: record.sessionId,
+					messageId: event.messageId,
+					promptPreview: event.text.slice(0, 120),
+				});
+				await runInboundTurn(active, event, record);
+			});
 			return;
 		}
 	}
@@ -108,98 +226,7 @@ export async function handleInboundEvent(
 			promptPreview: event.text.slice(0, 120),
 		});
 
-		const askUser = createAskUserBridge({
-			integration: event.integration,
-			provider,
-			conversation: {
-				externalKey: event.externalKey,
-				displayName: record.displayName ?? event.conversation.displayName,
-				metadata: record.metadata,
-			},
-			dryRun: active.dryRun,
-		});
-
-		const statusReporter = provider.createStatusReporter?.({
-			conversation: event.conversation,
-			dryRun: active.dryRun,
-		});
-
-		setChatInboundStatus({
-			activeConversationName: event.conversation.displayName,
-			activeSince: new Date().toISOString(),
-			activeKind: "turn",
-		});
-
-		try {
-			const turn = await runHeadlessChatTurn({
-				inboundModule: active.module,
-				sessionId: record.sessionId,
-				userText: event.text,
-				persona: active.persona,
-				dryRun: active.dryRun,
-				askUser,
-				provider,
-				conversation: event.conversation,
-				onProgress: statusReporter
-					? (event) => {
-							const line = provider.formatInboundStatusLine?.(event);
-							if (line) {
-								statusReporter.update(line);
-							}
-						}
-					: undefined,
-			});
-
-			daemonLog("info", "turn", "turn_complete", {
-				integration: event.integration,
-				sessionId: record.sessionId,
-				deliveredViaTools: turn.deliveredViaTools,
-				replyLength: turn.text.length,
-				toolActions: turn.appliedActions.length,
-			});
-
-			await statusReporter?.clear();
-
-			if (turn.text && !turn.deliveredViaTools) {
-				await provider.deliverReply({
-					conversation: event.conversation,
-					text: turn.text,
-					dryRun: active.dryRun,
-				});
-				daemonLog("debug", "inbound", "reply_delivered", {
-					integration: event.integration,
-					externalKey: event.externalKey,
-				});
-			}
-		} catch (error) {
-			const msg = error instanceof Error ? error.message : String(error);
-			setChatInboundStatus({
-				status: "error",
-				detail: msg,
-			});
-			daemonLog("error", "turn", "turn_failed", {
-				integration: event.integration,
-				sessionId: record.sessionId,
-				message: msg,
-			});
-			try {
-				await provider.deliverReply({
-					conversation: event.conversation,
-					text: `Sorry, I hit an error: ${msg}`,
-					dryRun: active.dryRun,
-				});
-			} catch {
-				// best effort
-			}
-		} finally {
-			setChatInboundStatus({
-				activeConversationName: null,
-				activeSince: null,
-				activeKind: null,
-			});
-			await statusReporter?.clear();
-		}
-
+		await runInboundTurn(active, event, record);
 		markMessageProcessed(event.integration, event.externalKey, event.messageId);
 	});
 }

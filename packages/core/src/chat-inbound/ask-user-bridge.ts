@@ -1,21 +1,7 @@
 import type { AskUserHandler, AskUserToolResult } from "../ai/ask-user-tool";
 import { daemonLog } from "../logging/daemon-log";
-import {
-	type PendingAskUser,
-	clearPendingAskUser,
-	setPendingAskUser,
-} from "../session-store";
+import { type PendingAskUser, setPendingAskUser } from "../session-store";
 import type { ChatInboundProvider, InboundConversation } from "./types";
-
-type PendingResolver = {
-	readonly resolve: (result: AskUserToolResult) => void;
-};
-
-const pendingResolvers = new Map<string, PendingResolver>();
-
-function resolverKey(integration: string, externalKey: string): string {
-	return `${integration}:${externalKey}`;
-}
 
 export function resolveAskUserAnswer(
 	raw: string,
@@ -62,23 +48,13 @@ export function resolveAskUserAnswer(
 	};
 }
 
-export function tryResolvePendingAskUser(
-	integration: string,
-	externalKey: string,
-	rawText: string,
-	options: readonly string[],
-): boolean {
-	const key = resolverKey(integration, externalKey);
-	const pending = pendingResolvers.get(key);
-	if (!pending) {
-		return false;
-	}
-	pendingResolvers.delete(key);
-	clearPendingAskUser(integration, externalKey);
-	pending.resolve(resolveAskUserAnswer(rawText, options));
-	return true;
-}
-
+/**
+ * Creates the inbound askUser handler. Uses continuation-turn semantics:
+ * the question is posted to the remote surface and the tool returns immediately
+ * with a "posted, awaiting reply" result. The model turn ends (lifecycle
+ * becomes `awaiting_user`). When the user replies on the remote surface, the
+ * inbound router starts a new continuation turn with the reply text.
+ */
 export function createAskUserBridge(params: {
 	readonly integration: string;
 	readonly provider: ChatInboundProvider;
@@ -104,10 +80,12 @@ export function createAskUserBridge(params: {
 			options,
 			dryRun,
 		});
-		return await new Promise<AskUserToolResult>((resolve) => {
-			pendingResolvers.set(resolverKey(integration, conversation.externalKey), {
-				resolve,
-			});
-		});
+		return {
+			selectedIndex: -1,
+			selectedLabel: "",
+			rawInput: "",
+			error:
+				"Question posted to user. Stop responding and wait for their reply — it will arrive as a new message.",
+		} satisfies AskUserToolResult;
 	};
 }

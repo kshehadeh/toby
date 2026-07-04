@@ -4,10 +4,12 @@ struct SidebarSessionRow: View {
 	let title: String
 	let subtitle: String?
 	var isSelected = false
+	var isExternal = false
+	var isAwaitingUser = false
 
 	var body: some View {
 		HStack(spacing: 8) {
-			Image(systemName: "message")
+			Image(systemName: isExternal ? "arrowshape.turn.up.left" : "message")
 				.font(.callout)
 				.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.secondaryText)
 			VStack(alignment: .leading, spacing: 1) {
@@ -23,6 +25,11 @@ struct SidebarSessionRow: View {
 				}
 			}
 			Spacer(minLength: 0)
+			if isAwaitingUser {
+				Image(systemName: "questionmark.bubble")
+					.font(.caption2)
+					.foregroundStyle(AppTheme.secondaryText)
+			}
 		}
 		.frame(maxWidth: .infinity, alignment: .leading)
 		.padding(.horizontal, 8)

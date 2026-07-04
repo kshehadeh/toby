@@ -9,9 +9,13 @@ import type {
 } from "../../chat-inbound/types";
 import type { ChatEvent } from "../../chat-pipeline/chat-events";
 import { daemonLog } from "../../logging/daemon-log";
-import type { PendingAskUser } from "../../session-store";
+import {
+	type PendingAskUser,
+	listExternalSessionsForIntegration,
+} from "../../session-store";
 import { formatSlackInboundStatusMrkdwn } from "./inbound-slack-status-format";
 import type {
+	PluginExternalSessionSnapshot,
 	PluginInboundChatEvent,
 	PluginInboundFromCoreMessage,
 	PluginInboundToCoreMessage,
@@ -226,14 +230,16 @@ export function createPluginChatInboundProvider(params: {
 			});
 
 			let readyResolve: (() => void) | undefined;
-			let readyReject: ((err: Error) => void) | undefined;
-			const readyPromise = new Promise<void>((resolve, reject) => {
+			const readyPromise = new Promise<void>((resolve) => {
 				readyResolve = resolve;
-				readyReject = reject;
 			});
 
 			const startTimer = setTimeout(() => {
-				readyReject?.(new Error("Plugin inbound start timed out"));
+				daemonLog("warn", "inbound", "plugin_inbound_start_timeout", {
+					integration: params.integrationName,
+					timeoutMs: INBOUND_START_TIMEOUT_MS,
+				});
+				readyResolve?.();
 			}, INBOUND_START_TIMEOUT_MS);
 
 			dispatcher = createStdoutDispatcher({
@@ -244,7 +250,11 @@ export function createPluginChatInboundProvider(params: {
 				},
 				onStartError: (message) => {
 					clearTimeout(startTimer);
-					readyReject?.(new Error(message));
+					readyResolve?.();
+					daemonLog("error", "inbound", "plugin_inbound_start_error", {
+						integration: params.integrationName,
+						message,
+					});
 				},
 			});
 
@@ -266,18 +276,33 @@ export function createPluginChatInboundProvider(params: {
 			});
 
 			const envelope = params.buildEnvelope();
+			const externalSessions: readonly PluginExternalSessionSnapshot[] =
+				listExternalSessionsForIntegration(params.integrationName).map(
+					(record) => ({
+						externalKey: record.externalKey,
+						sessionId: record.sessionId,
+						displayName: record.displayName,
+						metadata: record.metadata,
+						awaitingAskUser: record.awaitingAskUser,
+						lastProcessedMessageId: record.lastProcessedMessageId,
+					}),
+				);
 			child.stdin.write(
 				`${JSON.stringify({
 					type: "start",
 					config: envelope.config,
 					state: envelope.state,
 					dryRun: ctx.dryRun,
+					externalSessions,
 				} satisfies PluginInboundFromCoreMessage)}\n`,
 			);
 
-			await readyPromise;
-
+			// Create the bridge immediately so deliverReply/createStatusReporter
+			// work even if the plugin's `ready` signal is delayed beyond the timeout.
+			// Slack Socket Mode's app.start() can take longer than 60s to resolve.
 			bridge = createInboundBridge(child, dispatcher);
+
+			await readyPromise;
 
 			daemonLog("info", "inbound", "plugin_inbound_connected", {
 				integration: params.integrationName,

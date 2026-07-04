@@ -175,6 +175,12 @@ struct DaemonProcessInfo: Decodable {
 	let executablePath: String?
 }
 
+struct ChatInboundAwaitingSession: Decodable, Identifiable {
+	var id: String { externalKey }
+	let externalKey: String
+	let displayName: String?
+}
+
 struct ChatInboundStatus: Decodable {
 	let enabled: Bool
 	let integration: String?
@@ -186,6 +192,7 @@ struct ChatInboundStatus: Decodable {
 	let activeConversationName: String?
 	let activeSince: String?
 	let activeKind: String?
+	var awaitingUserSessions: [ChatInboundAwaitingSession]? = nil
 
 	var isConnected: Bool {
 		status == "connected"
@@ -193,6 +200,10 @@ struct ChatInboundStatus: Decodable {
 
 	var isActive: Bool {
 		activeKind != nil && activeConversationName != nil
+	}
+
+	var hasAwaitingUserSessions: Bool {
+		!(awaitingUserSessions ?? []).isEmpty
 	}
 }
 
@@ -282,6 +293,19 @@ struct SessionSummary: Decodable, Identifiable {
 	let name: String
 	let createdAt: String?
 	let updatedAt: String?
+	var sourceIntegration: String? = nil
+	var sourceDisplayName: String? = nil
+	var externalKey: String? = nil
+	var lifecycleStatus: String? = nil
+	var lastRemoteMessageAt: String? = nil
+
+	var isExternal: Bool {
+		sourceIntegration != nil && externalKey != nil
+	}
+
+	var isAwaitingUser: Bool {
+		lifecycleStatus == "awaiting_user"
+	}
 }
 
 struct SessionDetail: Decodable {
@@ -295,6 +319,9 @@ struct SessionDetail: Decodable {
 	let activePlan: PlanSummary?
 	let integration: String?
 	let externalKey: String?
+	var sourceDisplayName: String? = nil
+	var lifecycleStatus: String? = nil
+	var lastRemoteMessageAt: String? = nil
 
 	var isExternal: Bool {
 		integration != nil && externalKey != nil
