@@ -147,6 +147,7 @@ struct ChatStoreTests {
             version: "1.0",
             persona: "Toby",
             model: "openai/gpt-5-mini",
+            tobyDir: nil,
             contextWindow: ContextWindowPayload(
                 supported: false,
                 contextWindowTokens: nil,

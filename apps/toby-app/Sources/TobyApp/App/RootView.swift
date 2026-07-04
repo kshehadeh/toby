@@ -68,7 +68,7 @@ struct RootView: View {
                 isIssueReportPresented = true
             }
             .onReceive(NotificationCenter.default.publisher(for: .openChangelog)) { _ in
-                isAboutPresented = true
+                presentAbout()
             }
             .onReceive(NotificationCenter.default.publisher(for: .openRecordingFromToast)) { notification in
                 if let id = notification.object as? String {
@@ -156,7 +156,8 @@ struct RootView: View {
                     changelogStore: changelogStore,
                     updateStore: updateStore,
                     pluginsStore: pluginsStore,
-                    appVersion: store.status?.version
+                    appVersion: store.status?.version,
+                    tobyDirectory: store.status?.tobyDir
                 ) {
                     isAboutPresented = false
                 }
@@ -555,6 +556,13 @@ struct RootView: View {
         Task { await store.refreshStatus() }
     }
 
+    private func presentAbout() {
+        Task {
+            await store.refreshStatus()
+            isAboutPresented = true
+        }
+    }
+
     private func scheduleToastDismiss() {
         toastDismissTask?.cancel()
         guard store.toast != nil, !isToastHovered, !isProcessingToast else { return }
@@ -598,6 +606,7 @@ struct RootView: View {
                 version: currentVersion.hasPrefix("v") ? String(currentVersion.dropFirst()) : currentVersion,
                 persona: currentStatus?.persona ?? "default",
                 model: currentStatus?.model ?? "debug",
+                tobyDir: currentStatus?.tobyDir,
                 contextWindow: currentStatus?.contextWindow,
                 personaImageUrl: currentStatus?.personaImageUrl,
                 connectedIntegrations: currentStatus?.connectedIntegrations,

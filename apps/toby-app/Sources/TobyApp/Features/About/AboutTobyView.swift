@@ -6,6 +6,7 @@ struct AboutTobyView: View {
 	var updateStore: UpdateStore?
 	@Bindable var pluginsStore: PluginsStore
 	var appVersion: String?
+	var tobyDirectory: String?
 	var onDismiss: (() -> Void)? = nil
 
 	private let dateFormatter: DateFormatter = {
@@ -57,6 +58,7 @@ struct AboutTobyView: View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 20) {
 				appIdentity
+				homeDirectorySection
 				pluginsSection
 				openSourceSection
 			}
@@ -81,6 +83,21 @@ struct AboutTobyView: View {
 						.foregroundStyle(AppTheme.secondaryText)
 				}
 				Spacer(minLength: 0)
+			}
+		}
+	}
+
+	private var homeDirectorySection: some View {
+		VStack(alignment: .leading, spacing: 8) {
+			Text("Home Directory")
+				.font(.headline)
+				.foregroundStyle(AppTheme.primaryText)
+			if let tobyDirectory, !tobyDirectory.isEmpty {
+				RevealPathButton(path: tobyDirectory, label: "Toby home directory")
+			} else {
+				Text("Waiting for server…")
+					.font(.callout)
+					.foregroundStyle(AppTheme.tertiaryText)
 			}
 		}
 	}

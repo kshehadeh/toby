@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LogsView: View {
 	@Bindable var store: LogsStore
+	var tobyDirectory: String?
 
 	var body: some View {
 		NavigationSplitView {
@@ -24,13 +25,20 @@ struct LogsView: View {
 		.toolbarBackground(.visible)
 		.frame(minWidth: 860, minHeight: 560)
 		.task {
-			store.refreshAvailableLogs()
-			if let first = store.availableLogs.first {
-				store.selectLog(first)
-			}
+			refreshFromServerDirectory()
+		}
+		.onChange(of: tobyDirectory) { _, _ in
+			refreshFromServerDirectory()
 		}
 		.onDisappear {
 			store.stopPolling()
+		}
+	}
+
+	private func refreshFromServerDirectory() {
+		store.setDirectory(path: tobyDirectory)
+		if store.selectedLog == nil, let first = store.availableLogs.first {
+			store.selectLog(first)
 		}
 	}
 }

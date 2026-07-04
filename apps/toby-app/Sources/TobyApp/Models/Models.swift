@@ -145,6 +145,7 @@ struct AppStatus: Decodable {
 	let version: String
 	let persona: String
 	let model: String
+	let tobyDir: String?
 	let contextWindow: ContextWindowPayload?
 	let personaImageUrl: String?
 	let connectedIntegrations: [String]?

@@ -21,17 +21,10 @@ final class LogsStore {
 	private var lastFileSize: UInt64 = 0
 
 	private let maxTailBytes: UInt64 = 256_000
-	private let directoryURL: URL
+	private var directoryURL: URL?
 
 	init(directoryURL: URL? = nil) {
-		self.directoryURL = directoryURL ?? Self.tobyDir
-	}
-
-	static var tobyDir: URL {
-		if let override = ProcessInfo.processInfo.environment["TOBY_DIR"], !override.isEmpty {
-			return URL(fileURLWithPath: (override as NSString).expandingTildeInPath)
-		}
-		return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".toby")
+		self.directoryURL = directoryURL
 	}
 
 	static let knownLogs: [(name: String, file: String)] = [
@@ -44,11 +37,36 @@ final class LogsStore {
 	]
 
 	func refreshAvailableLogs() {
+		guard let directoryURL else {
+			availableLogs = []
+			selectedLog = nil
+			content = ""
+			return
+		}
 		availableLogs = Self.knownLogs.compactMap { (name, file) in
 			let url = directoryURL.appendingPathComponent(file)
 			guard FileManager.default.fileExists(atPath: url.path) else { return nil }
 			return LogDescriptor(id: file, displayName: name, fileName: file, url: url)
 		}
+	}
+
+	func setDirectory(path: String?) {
+		guard let path, !path.isEmpty else {
+			if directoryURL != nil {
+				directoryURL = nil
+				selectedLog = nil
+				content = ""
+				refreshAvailableLogs()
+			}
+			return
+		}
+
+		let nextURL = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
+		guard directoryURL != nextURL else { return }
+		directoryURL = nextURL
+		selectedLog = nil
+		content = ""
+		refreshAvailableLogs()
 	}
 
 	func selectLog(_ log: LogDescriptor) {

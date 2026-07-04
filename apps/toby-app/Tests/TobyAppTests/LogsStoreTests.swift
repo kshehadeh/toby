@@ -17,11 +17,19 @@ struct LogsStoreTests {
 		return url
 	}
 
+	@Test("refreshAvailableLogs waits for a configured directory")
+	func refreshAvailableLogsWaitsForDirectory() throws {
+		let store = LogsStore()
+		store.refreshAvailableLogs()
+		#expect(store.availableLogs.isEmpty)
+		#expect(store.selectedLog == nil)
+	}
+
 	@Test("refreshAvailableLogs only lists existing files")
 	func refreshAvailableLogsListsExisting() throws {
 		let dir = makeTempDir()
-		writeFile("daemon.log", content: "line1\n", in: dir)
-		writeFile("toby.log", content: "hello\n", in: dir)
+		_ = writeFile("daemon.log", content: "line1\n", in: dir)
+		_ = writeFile("toby.log", content: "hello\n", in: dir)
 
 		let store = LogsStore(directoryURL: dir)
 		store.refreshAvailableLogs()
@@ -43,7 +51,7 @@ struct LogsStoreTests {
 	@Test("selectLog loads initial content")
 	func selectLogLoadsContent() throws {
 		let dir = makeTempDir()
-		writeFile("toby.log", content: "line1\nline2\nline3\n", in: dir)
+		_ = writeFile("toby.log", content: "line1\nline2\nline3\n", in: dir)
 
 		let store = LogsStore(directoryURL: dir)
 		store.refreshAvailableLogs()
@@ -99,7 +107,7 @@ struct LogsStoreTests {
 	@Test("selectLog sets selectedLog")
 	func selectLogSetsSelected() throws {
 		let dir = makeTempDir()
-		writeFile("daemon.log", content: "test\n", in: dir)
+		_ = writeFile("daemon.log", content: "test\n", in: dir)
 
 		let store = LogsStore(directoryURL: dir)
 		store.refreshAvailableLogs()

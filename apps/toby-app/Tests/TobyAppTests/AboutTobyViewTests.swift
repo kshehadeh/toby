@@ -73,8 +73,11 @@ struct AboutTobyViewTests {
 			changelogStore: makeChangelogStore(),
 			updateStore: nil,
 			pluginsStore: makePluginsStore(),
-			appVersion: "0.66.0"
+			appVersion: "0.66.0",
+			tobyDirectory: "/Users/example/.toby"
 		)
+		#expect(throws: Never.self) { try view.inspect().find(text: "Toby home directory") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "/Users/example/.toby") }
 		#expect(throws: Never.self) { try view.inspect().find(text: "Plugin directory") }
 		#expect(throws: Never.self) { try view.inspect().find(text: "/Users/example/.toby/plugins") }
 		// The path itself is the clickable button with a "Reveal in Finder" accessibility label.
@@ -82,8 +85,10 @@ struct AboutTobyViewTests {
 		let revealButtons = buttons.filter { btn in
 			(try? btn.accessibilityLabel().string()) == "Reveal in Finder"
 		}
-		#expect(revealButtons.count == 1)
-		#expect((try? revealButtons.first?.accessibilityValue().string()) == "/Users/example/.toby/plugins")
+		#expect(revealButtons.count == 2)
+		let values = revealButtons.compactMap { try? $0.accessibilityValue().string() }
+		#expect(values.contains("/Users/example/.toby"))
+		#expect(values.contains("/Users/example/.toby/plugins"))
 	}
 
 	@Test("shows open source libraries section")

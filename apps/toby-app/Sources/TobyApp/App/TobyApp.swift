@@ -80,7 +80,7 @@ struct TobyApp: App {
 		.defaultSize(width: 560, height: 580)
 
 		Window("Logs", id: "logs") {
-			LogsView(store: logsStore)
+			LogsView(store: logsStore, tobyDirectory: store.status?.tobyDir)
 				.onDisappear {
 					logsStore.stopPolling()
 					NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil)
