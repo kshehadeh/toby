@@ -12,6 +12,21 @@ struct SkillsViewTests {
 		#expect(throws: Never.self) { try view.inspect().find(SkillsDetailView.self) }
 	}
 
+	@Test("empty skills state shows skill overview and create action")
+	func emptySkillsStateShowsCreateAction() throws {
+		let store = SkillsStore()
+		let view = SkillsDetailView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Skills")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Skills are reusable instructions that teach Toby how to handle specialized work consistently across chats and automations.")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "empty-create-skill-button")
+		}
+	}
+
 	@Test("skills sidebar shows skill names")
 	func skillsSidebarShowsSkillNames() throws {
 		let store = SkillsStore()

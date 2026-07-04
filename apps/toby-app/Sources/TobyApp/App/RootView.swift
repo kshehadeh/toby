@@ -370,7 +370,7 @@ struct RootView: View {
                         }
                     }
             case .recordings:
-                RecordingsView(store: recordingsStore, processingState: store.recordingProcessing, validSessionIds: Set(store.sessions.map(\.id)))
+                RecordingsView(store: recordingsStore, processingState: store.recordingProcessing, validSessionIds: Set(store.sessions.map(\.id)), onStartRecording: toggleRecording)
                     .toolbar {
                         commonToolbarItems()
                         ToolbarItem(placement: .principal) { Spacer() }

@@ -12,6 +12,21 @@ struct SchedulesViewTests {
 		#expect(throws: Never.self) { try view.inspect().find(SchedulesDetailView.self) }
 	}
 
+	@Test("empty schedules state shows schedule overview and create action")
+	func emptySchedulesStateShowsCreateAction() throws {
+		let store = SchedulesStore()
+		let view = SchedulesDetailView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Schedules")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Schedules run recurring prompts through Toby's background daemon so routine work can happen automatically.")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "empty-create-schedule-button")
+		}
+	}
+
 	@Test("schedule detail shows prompt editor and sidebar fields")
 	func scheduleDetailShowsPromptAndSidebar() throws {
 		let store = SchedulesStore()

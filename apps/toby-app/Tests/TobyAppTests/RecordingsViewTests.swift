@@ -356,6 +356,42 @@ struct RecordingsViewTests {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-show-chat-button")
 		}
 	}
+
+	@Test("detail view shows empty state when there are no recordings")
+	func detailViewShowsEmptyStateWhenNoRecordings() throws {
+		let store = RecordingsStore()
+		store.recordings = []
+		store.selectedRecordingIds = []
+		let view = RecordingsView(store: store, onStartRecording: {})
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Recordings")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "empty-start-recording-button")
+		}
+	}
+
+	@Test("empty state Start Recording button is absent when no callback is provided")
+	func emptyStateStartRecordingButtonAbsentWithoutCallback() throws {
+		let store = RecordingsStore()
+		store.recordings = []
+		store.selectedRecordingIds = []
+		let view = RecordingsView(store: store)
+		#expect(throws: Error.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "empty-start-recording-button")
+		}
+	}
+
+	@Test("detail view does not show empty state when recordings exist but none are selected")
+	func detailViewDoesNotShowEmptyStateWhenRecordingsExist() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = []
+		let view = RecordingsView(store: store, onStartRecording: {})
+		#expect(throws: Error.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "empty-start-recording-button")
+		}
+	}
 }
 
 private func makeRecording(id: String, name: String? = nil) -> ListenRecordingSummary {
