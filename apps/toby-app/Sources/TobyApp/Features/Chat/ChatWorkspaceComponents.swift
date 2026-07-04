@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct OverlayHeightPreferenceKey: PreferenceKey {
@@ -41,17 +42,32 @@ struct EmptyChatWorkspace: View {
     @Bindable var store: ChatStore
     let promptFocus: FocusState<Bool>.Binding
 
+    private var appIcon: Image {
+        if let logoURL = Bundle.tobyResources.url(forResource: "toby-128", withExtension: "png"),
+            let nsImage = NSImage(contentsOf: logoURL)
+        {
+            return Image(nsImage: nsImage)
+        }
+        return Image(systemName: "brain.head.profile")
+    }
+
     var body: some View {
         VStack(spacing: 18) {
             Spacer()
-            VStack(spacing: 8) {
-                Text("What should Toby take care of?")
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(AppTheme.primaryText)
-                Text("Use your connected apps, schedules, memory, and Mac controls from one place.")
-                    .font(.callout)
-                    .foregroundStyle(AppTheme.secondaryText)
-                    .multilineTextAlignment(.center)
+            VStack(spacing: 14) {
+                appIcon
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 96, height: 96)
+                VStack(spacing: 8) {
+                    Text("What should Toby take care of?")
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(AppTheme.primaryText)
+                    Text("Use your connected apps, schedules, memory, and Mac controls from one place.")
+                        .font(.callout)
+                        .foregroundStyle(AppTheme.secondaryText)
+                        .multilineTextAlignment(.center)
+                }
             }
             InputDock(
                 text: $store.promptText,
