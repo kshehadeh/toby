@@ -25,20 +25,22 @@ describe("filterToolNamesByRelevance", () => {
 	});
 
 	it("includes createLocalSkill only when pretreatment selected it", () => {
-		// askUser is always-included, createLocalSkill is explicitly selected.
-		// memorySearch and webSearch are no longer always-included, so they are dropped.
+		// askUser and memorySearch are always-included, createLocalSkill is explicitly selected.
+		// webSearch is no longer always-included, so it is dropped.
 		expect(filterToolNamesByRelevance(all, ["createLocalSkill"])).toEqual([
 			"askUser",
 			"createLocalSkill",
+			"memorySearch",
 		]);
 	});
 
 	it("keeps always-included tools when pretreatment narrowed integration tools", () => {
-		// Only askUser (always-included) + fetchOpenTasks (relevant) remain.
-		// memorySearch and webSearch are no longer always-included.
+		// askUser + memorySearch (always-included) + fetchOpenTasks (relevant) remain.
+		// webSearch is no longer always-included.
 		expect(filterToolNamesByRelevance(all, ["fetchOpenTasks"])).toEqual([
 			"askUser",
 			"fetchOpenTasks",
+			"memorySearch",
 		]);
 	});
 

@@ -90,6 +90,9 @@ const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"tobyListTools",
 	"tobyListSkills",
 	"delegateToSubAgent",
+	"memorySearch",
+	"memoryPropose",
+	"memorySave",
 ]);
 
 export { ALWAYS_INCLUDED_TOOLS };
