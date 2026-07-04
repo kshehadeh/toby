@@ -18,9 +18,16 @@ struct ServerStatusDetails: View {
 					.foregroundStyle(AppTheme.primaryText)
 				Spacer()
 			}
-			Text(uptimeText)
-				.font(.caption)
-				.foregroundStyle(AppTheme.tertiaryText)
+			HStack(spacing: 4) {
+				Text(uptimeText)
+					.font(.caption)
+					.foregroundStyle(AppTheme.tertiaryText)
+				if let pid = daemonStatus?.process?.pid {
+					Text(verbatim: "· PID \(pid)")
+						.font(.caption)
+						.foregroundStyle(AppTheme.tertiaryText)
+				}
+			}
 			if let execPath = daemonStatus?.process?.executablePath, !execPath.isEmpty {
 				RevealPathButton(path: execPath, label: "Server")
 			}
