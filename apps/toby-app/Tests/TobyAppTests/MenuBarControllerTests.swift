@@ -13,6 +13,7 @@ struct MenuBarControllerTests {
 		#expect(titles.contains("Recordings"))
 		#expect(titles.contains("Schedules"))
 		#expect(titles.contains("Integrations"))
+		#expect(titles.contains("Memories"))
 		#expect(titles.contains("Settings…"))
 		#expect(titles.contains("Quit Toby"))
 	}

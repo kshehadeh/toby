@@ -228,6 +228,7 @@ export function updateItem(
 		sensitivity?: MemorySensitivity;
 		visibility?: MemoryVisibility;
 		subject?: string;
+		type?: MemoryItem["type"];
 		expiresAt?: string | null;
 	},
 ): MemoryItem | null {
@@ -260,6 +261,10 @@ export function updateItem(
 	if (patch.subject !== undefined) {
 		sets.push("subject = $subject");
 		params.$subject = patch.subject;
+	}
+	if (patch.type !== undefined) {
+		sets.push("type = $type");
+		params.$type = patch.type;
 	}
 	if (patch.expiresAt !== undefined) {
 		sets.push("expires_at = $exp");
@@ -374,6 +379,19 @@ export function listItems(
 		updatedAt: r.updated_at,
 		expiresAt: r.expires_at ?? undefined,
 	}));
+}
+
+export function countItems(userId: string, opts?: { query?: string }): number {
+	const db = getDb();
+	const query = opts?.query?.trim();
+	let sql = "SELECT COUNT(*) as count FROM memory_items WHERE user_id = $uid";
+	const params: Record<string, unknown> = { $uid: userId };
+	if (query) {
+		sql += " AND (value LIKE $pat OR subject LIKE $pat OR type LIKE $pat)";
+		params.$pat = `%${query}%`;
+	}
+	const row = db.query(sql).get(params) as { count: number } | undefined;
+	return Number(row?.count ?? 0);
 }
 
 export function getItemsForRetrieval(

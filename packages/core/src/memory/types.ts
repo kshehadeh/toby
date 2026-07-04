@@ -6,12 +6,33 @@ export type MemoryType =
 	| "fact"
 	| "summary";
 
+export const MemoryTypeValues: readonly MemoryType[] = [
+	"preference",
+	"relationship",
+	"project",
+	"life_event",
+	"fact",
+	"summary",
+];
+
 export type MemorySensitivity = "normal" | "sensitive" | "restricted";
+
+export const MemorySensitivityValues: readonly MemorySensitivity[] = [
+	"normal",
+	"sensitive",
+	"restricted",
+];
 
 export type MemoryVisibility =
 	| "usable_by_ai"
 	| "requires_confirmation"
 	| "private";
+
+export const MemoryVisibilityValues: readonly MemoryVisibility[] = [
+	"usable_by_ai",
+	"requires_confirmation",
+	"private",
+];
 
 export type MemorySourceSystem =
 	| "email"

@@ -10,6 +10,7 @@ struct TobyApp: App {
 	@State private var schedulesStore = SchedulesStore()
 	@State private var integrationsStore = ConfigureStore()
 	@State private var skillsStore = SkillsStore()
+	@State private var memoriesStore = MemoriesStore()
 	@State private var changelogStore = ChangelogStore()
 	@State private var pluginsStore = PluginsStore()
 	@State private var updateStore = UpdateStore()
@@ -27,6 +28,7 @@ struct TobyApp: App {
 				schedulesStore: schedulesStore,
 				integrationsStore: integrationsStore,
 				skillsStore: skillsStore,
+				memoriesStore: memoriesStore,
 				personaEditorCoordinator: personaEditorCoordinator,
 				updateStore: updateStore,
 				changelogStore: changelogStore,
@@ -124,6 +126,11 @@ struct TobyApp: App {
 					NotificationCenter.default.post(name: .openCommandPalette, object: nil)
 				}
 				.keyboardShortcut("k", modifiers: .command)
+
+				Button("Memories") {
+					NotificationCenter.default.post(name: .navigateToRoute, object: DetailRoute.memories.rawValue)
+				}
+				.keyboardShortcut("m", modifiers: [.command, .shift])
 			}
 
 			CommandGroup(after: .help) {

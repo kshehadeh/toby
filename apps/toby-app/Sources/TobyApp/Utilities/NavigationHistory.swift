@@ -6,6 +6,7 @@ enum DetailRoute: String, CaseIterable {
 	case schedules
 	case recordings
 	case skills
+	case memories
 	case settings
 }
 

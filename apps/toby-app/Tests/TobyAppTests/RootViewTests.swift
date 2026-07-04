@@ -14,6 +14,7 @@ struct RootViewTests {
 			schedulesStore: SchedulesStore(),
 			integrationsStore: ConfigureStore(),
 			skillsStore: SkillsStore(),
+			memoriesStore: MemoriesStore(),
 			personaEditorCoordinator: PersonaEditorCoordinator(),
 			updateStore: UpdateStore(),
 			changelogStore: ChangelogStore(),

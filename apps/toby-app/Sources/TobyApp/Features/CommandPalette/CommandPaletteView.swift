@@ -105,6 +105,16 @@ struct CommandPaletteView: View {
 			))
 		}
 
+		if trimmed.isEmpty || "memories".localizedCaseInsensitiveContains(trimmed) {
+			items.append(CommandPaletteResult(
+				id: "action-memories",
+				title: "Open Memories",
+				subtitle: "Browse and manage memories",
+				systemImage: "brain.head.profile",
+				kind: .route(.memories),
+			))
+		}
+
 		let filteredSessions = sessions.filter { session in
 			guard !trimmed.isEmpty else { return true }
 			if session.name.localizedCaseInsensitiveContains(trimmed) { return true }

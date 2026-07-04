@@ -631,4 +631,58 @@ struct TobyClient {
 		try validate(response: response, data: data)
 		return try JSONDecoder().decode(PluginsListResponse.self, from: data)
 	}
+
+	// MARK: - Memories
+
+	func listMemories(limit: Int = 50, offset: Int = 0, query: String? = nil) async throws -> MemoriesListResponse {
+		var components = URLComponents(
+			url: baseURL.appendingPathComponent("api/memories"),
+			resolvingAgainstBaseURL: false,
+		)!
+		var items = [
+			URLQueryItem(name: "limit", value: String(limit)),
+			URLQueryItem(name: "offset", value: String(offset)),
+		]
+		if let query, !query.isEmpty {
+			items.append(URLQueryItem(name: "q", value: query))
+		}
+		components.queryItems = items
+		let (data, response) = try await URLSession.shared.data(from: components.url!)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(MemoriesListResponse.self, from: data)
+	}
+
+	func fetchMemory(id: String) async throws -> MemoryItem {
+		let url = baseURL.appendingPathComponent("api/memories/\(id)")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(MemoryDetailResponse.self, from: data).memory
+	}
+
+	func createMemory(_ request: MemoryCreateRequest) async throws -> MemoryItem {
+		var urlRequest = URLRequest(url: baseURL.appendingPathComponent("api/memories"))
+		urlRequest.httpMethod = "POST"
+		urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		urlRequest.httpBody = try JSONEncoder().encode(request)
+		let (data, response) = try await URLSession.shared.data(for: urlRequest)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(MemoryDetailResponse.self, from: data).memory
+	}
+
+	func patchMemory(id: String, patch: MemoryPatchRequest) async throws -> MemoryItem {
+		var urlRequest = URLRequest(url: baseURL.appendingPathComponent("api/memories/\(id)"))
+		urlRequest.httpMethod = "PATCH"
+		urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		urlRequest.httpBody = try JSONEncoder().encode(patch)
+		let (data, response) = try await URLSession.shared.data(for: urlRequest)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(MemoryDetailResponse.self, from: data).memory
+	}
+
+	func deleteMemory(id: String) async throws {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/memories/\(id)"))
+		request.httpMethod = "DELETE"
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+	}
 }

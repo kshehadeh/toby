@@ -51,8 +51,11 @@ import {
 } from "./handlers/listen";
 import {
 	handleMemoriesList,
+	handleMemoryCreate,
+	handleMemoryDelete,
 	handleMemoryDetail,
 	handleMemoryExplain,
+	handleMemoryPatch,
 } from "./handlers/memories";
 import {
 	handleAIProviders,
@@ -304,6 +307,9 @@ export async function handleWebRequest(
 		if (pathname === "/api/memories" && req.method === "GET") {
 			return handleMemoriesList(url);
 		}
+		if (pathname === "/api/memories" && req.method === "POST") {
+			return handleMemoryCreate(req);
+		}
 		const memoryExplainMatch = /^\/api\/memories\/([^/]+)\/explain$/.exec(
 			pathname,
 		);
@@ -313,6 +319,12 @@ export async function handleWebRequest(
 		const memoryMatch = /^\/api\/memories\/([^/]+)$/.exec(pathname);
 		if (memoryMatch && req.method === "GET") {
 			return handleMemoryDetail(decodeURIComponent(memoryMatch[1]));
+		}
+		if (memoryMatch && req.method === "PATCH") {
+			return handleMemoryPatch(decodeURIComponent(memoryMatch[1]), req);
+		}
+		if (memoryMatch && req.method === "DELETE") {
+			return handleMemoryDelete(decodeURIComponent(memoryMatch[1]));
 		}
 		if (pathname === "/api/configure/tree" && req.method === "GET") {
 			return handleConfigureTree();

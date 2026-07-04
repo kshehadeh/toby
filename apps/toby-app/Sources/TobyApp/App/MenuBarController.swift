@@ -59,6 +59,7 @@ final class MenuBarController: NSObject {
 			recordingsItem(),
 			schedulesItem(),
 			integrationsItem(),
+			memoriesItem(),
 			settingsItem(),
 			.separator(),
 			quitItem(),
@@ -120,6 +121,16 @@ final class MenuBarController: NSObject {
 		return item
 	}
 
+	private func memoriesItem() -> NSMenuItem {
+		let item = NSMenuItem(
+			title: "Memories",
+			action: #selector(openMemories),
+			keyEquivalent: ""
+		)
+		item.target = self
+		return item
+	}
+
 	private func settingsItem() -> NSMenuItem {
 		let item = NSMenuItem(
 			title: "Settings…",
@@ -162,6 +173,10 @@ final class MenuBarController: NSObject {
 
 	@objc private func openIntegrations() {
 		NotificationCenter.default.post(name: .navigateToRoute, object: DetailRoute.integrations.rawValue)
+	}
+
+	@objc private func openMemories() {
+		NotificationCenter.default.post(name: .navigateToRoute, object: DetailRoute.memories.rawValue)
 	}
 
 	@objc private func openSettings() {

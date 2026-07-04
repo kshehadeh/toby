@@ -8,6 +8,7 @@ struct RootView: View {
     @Bindable var schedulesStore: SchedulesStore
     @Bindable var integrationsStore: ConfigureStore
     @Bindable var skillsStore: SkillsStore
+    @Bindable var memoriesStore: MemoriesStore
     let personaEditorCoordinator: PersonaEditorCoordinator
     @Bindable var updateStore: UpdateStore
     @Bindable var changelogStore: ChangelogStore
@@ -179,7 +180,8 @@ struct RootView: View {
                 async let recordings: () = recordingsStore.load()
                 async let schedules: () = schedulesStore.load()
                 async let integrations: () = integrationsStore.load()
-                _ = await (recordings, schedules, integrations)
+                async let memories: () = memoriesStore.load()
+                _ = await (recordings, schedules, integrations, memories)
             }
             .task {
                 updateStore.startCheckLoop()
@@ -306,6 +308,12 @@ struct RootView: View {
                                 dirName: item.dirName, name: item.name
                             )
                         })
+                    case .memories:
+                        MemoriesSidebarView(store: memoriesStore, onDelete: { memory in
+                            memoriesStore.pendingDelete = MemoriesStore.PendingDelete(
+                                id: memory.id, value: memory.value
+                            )
+                        })
                     case .settings:
                         ConfigureSidebarView(store: configureStore)
                     }
@@ -407,6 +415,12 @@ struct RootView: View {
                                 .accessibilityIdentifier("delete-skill-button")
                             }
                         }
+                    }
+            case .memories:
+                MemoriesView(store: memoriesStore)
+                    .toolbar {
+                        commonToolbarItems()
+                        ToolbarItem(placement: .principal) { Spacer() }
                     }
             case .settings:
                 ConfigureView(store: configureStore)

@@ -33,6 +33,66 @@ export function listMemoryItems(
 	return store.listItems(userId, opts);
 }
 
+export function countMemoryItems(
+	userId: string,
+	opts?: { query?: string },
+): number {
+	return store.countItems(userId, opts);
+}
+
+export interface ManualMemoryInput {
+	readonly type?: MemoryItem["type"];
+	readonly subject?: string;
+	readonly value: string;
+	readonly confidence?: number;
+	readonly sensitivity?: MemorySensitivity;
+	readonly visibility?: MemoryVisibility;
+	readonly expiresAt?: string | null;
+}
+
+/** Create a memory directly from manual user input (no proposal flow). */
+export function createManual(
+	userId: string,
+	input: ManualMemoryInput,
+): MemoryItem {
+	const value = input.value.trim();
+	if (!value) {
+		throw new Error("Memory value is required");
+	}
+	const type = input.type ?? "fact";
+	const confidence = input.confidence ?? 1;
+	const sensitivity = input.sensitivity ?? "normal";
+	const visibility = input.visibility ?? "usable_by_ai";
+
+	const source = store.insertSource(
+		userId,
+		"manual",
+		undefined,
+		undefined,
+		new Date().toISOString(),
+		undefined,
+		{ manual: true },
+	);
+
+	const item = store.insertItem(
+		userId,
+		type,
+		input.subject?.trim() || undefined,
+		value,
+		confidence,
+		sensitivity,
+		visibility,
+		input.expiresAt ?? null,
+	);
+	store.linkItemSource(item.id, source.id);
+	store.insertAuditEntry(userId, item.id, "saved", {
+		reason: "Manual creation",
+		autoSaved: false,
+		manual: true,
+	});
+	return item;
+}
+
 export function propose(
 	userId: string,
 	candidate: MemoryCandidate,
@@ -167,6 +227,7 @@ export function update(
 		sensitivity?: MemorySensitivity;
 		visibility?: MemoryVisibility;
 		subject?: string;
+		type?: MemoryItem["type"];
 		expiresAt?: string | null;
 	},
 ): MemoryItem {

@@ -62,6 +62,14 @@ struct AppSidebar<Content: View>: View {
 			detail: "Browse installed skills, inspect their instructions, edit them, or add new reusable workflows."
 		),
 		SidebarActionItem(
+			route: .memories,
+			title: "Memories",
+			systemImage: "brain.head.profile",
+			hoveredSystemImage: "brain.head.profile",
+			accentColor: Color(red: 0.92, green: 0.58, blue: 0.86),
+			detail: "Browse, create, edit, and delete memories Toby remembers across chats and automations."
+		),
+		SidebarActionItem(
 			route: .schedules,
 			title: "Schedules",
 			systemImage: "clock",
