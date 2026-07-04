@@ -1,3 +1,4 @@
+import { afterEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -6,7 +7,6 @@ import {
 	getDetachedDaemonSpawnStdio,
 	getTobyEntryScriptArgv,
 } from "@toby/core/toby-spawn";
-import { afterEach, describe, expect, it } from "bun:test";
 
 describe("toby-spawn", () => {
 	const originalArgv = process.argv;
@@ -43,14 +43,14 @@ describe("toby-spawn", () => {
 		]);
 	});
 
-	it("opens daemon.log fds for detached spawns (not stdio ignore)", () => {
+	it("opens unified log fd for detached spawns (not stdio ignore)", () => {
 		const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-spawn-"));
 		const prev = process.env.TOBY_DIR;
 		process.env.TOBY_DIR = tmpDir;
 		try {
 			const stdio = getDetachedDaemonSpawnStdio();
 			expect(stdio).toEqual(["ignore", expect.any(Number), expect.any(Number)]);
-			expect(fs.existsSync(path.join(tmpDir, "daemon.log"))).toBe(true);
+			expect(fs.existsSync(path.join(tmpDir, "logs", "toby.log"))).toBe(true);
 		} finally {
 			if (prev === undefined) {
 				process.env.TOBY_DIR = undefined;

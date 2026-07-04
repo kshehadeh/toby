@@ -124,10 +124,10 @@ Toby never runs **`sudo`** for you.
 
 ## Logs
 
-The TypeScript plugin forwards stderr to the daemon log (category `plugin-macos`). macOS-native operation errors are logged by Toby.app's native server. Tail the daemon log while reproducing an issue:
+The TypeScript plugin forwards stderr to the unified log (`source: "daemon"`, category `plugin`). macOS-native operation errors are logged by Toby.app's native server (`source: "native-app"`). Tail the unified log while reproducing an issue:
 
 ```bash
-tail -f ~/.toby/daemon.log
+tail -f ~/.toby/logs/toby.log
 ```
 
 ## Limitations

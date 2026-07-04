@@ -314,7 +314,7 @@ If you used the [app manifest](#create-from-app-manifest-recommended), Socket Mo
 1. Open **Toby.app → Settings → Daemon / inbound chat**: enable, set **Active integration** to `slack`, pick a persona. (Or run `toby configure` in the terminal.)
 2. **Integrations → Slack**: **Bot Token**, **App Token**, optional **Bot User ID** (fields appear when inbound is enabled, even under OAuth).
 3. `toby connect slack` if you use OAuth for chat (marks Slack connected).
-4. `toby daemon start` — check `~/.toby/daemon.log` for `slack_socket_connected`.
+4. `toby daemon start` — check `~/.toby/logs/toby.log` for `slack_socket_connected`.
 5. @mention the bot in a channel thread.
 
 Each workspace + channel + thread root is one persisted Toby chat session (`slack:{teamId}:{channelId}:{threadRootTs}`).

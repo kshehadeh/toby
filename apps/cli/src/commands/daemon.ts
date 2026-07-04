@@ -7,7 +7,7 @@ import { readChatInboundConfig } from "@toby/core/config/chat-inbound";
 import {
 	ensureDefaultPersonaImage,
 	ensureTobyDir,
-	getDaemonLogPath,
+	getUnifiedLogPath,
 	getWebConfig,
 } from "@toby/core/config/index";
 import { warmupPluginToolDefinitions } from "@toby/core/integrations/index";
@@ -174,7 +174,7 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 	daemonLog("info", "daemon", "daemon_started", {
 		pid: process.pid,
 		intervalSeconds,
-		logPath: getDaemonLogPath(),
+		logPath: getUnifiedLogPath(),
 		pluginDirs: resolvePluginSearchDirectories(),
 		chatInboundEnabled: inboundCfg.enabled !== false,
 		chatInboundIntegration: inboundCfg.integration ?? null,
@@ -187,7 +187,7 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 			`Toby daemon started (schedules every ${intervalSeconds}s, chat inbound if configured).`,
 		),
 	);
-	console.log(chalk.dim(`  Log: ${getDaemonLogPath()}`));
+	console.log(chalk.dim(`  Log: ${getUnifiedLogPath()}`));
 	const pluginDirs = resolvePluginSearchDirectories();
 	console.log(chalk.dim(`  Plugins dir: ${pluginDirs.join(", ")}`));
 	console.log(chalk.dim("  Discovered plugins:"));
@@ -318,7 +318,7 @@ export function registerDaemonCommand(program: Command): void {
 			const result = await waitForDaemon();
 			if (result.running) {
 				console.log(chalk.green(`Daemon started (PID ${result.pid}).`));
-				console.log(chalk.dim(`  Log: ${getDaemonLogPath()}`));
+				console.log(chalk.dim(`  Log: ${getUnifiedLogPath()}`));
 				console.log(
 					chalk.dim(
 						`  Plugins dir: ${resolvePluginSearchDirectories().join(", ")}`,
@@ -386,7 +386,7 @@ export function registerDaemonCommand(program: Command): void {
 					console.log(
 						chalk.dim(`  Schedule poll interval: ${result.intervalSeconds}s`),
 					);
-					console.log(chalk.dim(`  Log: ${getDaemonLogPath()}`));
+					console.log(chalk.dim(`  Log: ${getUnifiedLogPath()}`));
 					console.log(
 						chalk.dim(
 							`  Plugins dir: ${resolvePluginSearchDirectories().join(", ")}`,
@@ -438,7 +438,7 @@ export function registerDaemonCommand(program: Command): void {
 			} else if (inbound.status !== "disabled") {
 				console.log(chalk.dim(`Chat inbound: ${inbound.status}`));
 			}
-			console.log(chalk.dim(`Daemon log: ${getDaemonLogPath()}`));
+			console.log(chalk.dim(`Log: ${getUnifiedLogPath()}`));
 			console.log(
 				chalk.dim(
 					`Plugins dir: ${resolvePluginSearchDirectories().join(", ")}`,

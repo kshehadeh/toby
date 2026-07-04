@@ -53,7 +53,6 @@ final class ChatStore {
 	var recordingProcessing: RecordingProcessingState?
 	var turnWorkDurations: [Int: TimeInterval] = [:]
 	var activeAskUserPrompt: ActiveAskUserPrompt?
-	let serverEventLogPath = ServerEventLog.path
 	var integration: String?
 	var integrationIconUrl: String?
 	var externalKey: String?

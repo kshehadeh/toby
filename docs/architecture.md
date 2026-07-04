@@ -106,8 +106,7 @@ apps/toby-app/             # Toby.app — native macOS app (SwiftUI)
 | `~/.toby/config.json` | Integration connection flags, personas |
 | `~/.toby/credentials.json` | API keys, OAuth client secrets, OpenAI token |
 | `~/.toby/chat.sqlite` | Chat session storage (sessions, messages, transcript) |
-| `~/.toby/toby.log` | JSON-lines chat session log (turns, tools, prep) |
-| `~/.toby/daemon.log` | JSON-lines daemon log (scheduler, inbound chat, Slack Socket Mode) |
+| `~/.toby/logs/toby.log` | Unified JSON-lines log for all subsystems (chat, daemon, server events, upgrade, native-app, macOS plugin). A `source` field discriminates the emitter; rotation is shared. |
 | `~/.toby/listen/recordings/<id>/` | Saved audio, metadata, and transcript artifacts. |
 | `~/.toby/native-port` | Ephemeral port published by Toby.app's native permission/audio server. |
 | `~/.toby/projects/<slug>/` | Project metadata, reference context, local skills, and generated outputs. |

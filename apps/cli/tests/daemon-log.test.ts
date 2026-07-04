@@ -1,7 +1,8 @@
+import { afterEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { getDaemonLogPath } from "@toby/core/config/index";
+import { getUnifiedLogPath } from "@toby/core/config/index";
 import {
 	clearDaemonLog,
 	daemonLog,
@@ -9,7 +10,6 @@ import {
 	formatDaemonLogEntry,
 	readDaemonLogTail,
 } from "@toby/core/logging/daemon-log";
-import { afterEach, describe, expect, it } from "bun:test";
 
 function makeTempDir(): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), "toby-daemon-log-"));
@@ -24,19 +24,20 @@ afterEach(() => {
 });
 
 describe("daemon log", () => {
-	it("writes JSON lines to daemon.log", () => {
+	it("writes JSON lines to the unified log with source=daemon", () => {
 		process.env.TOBY_DIR = makeTempDir();
 		daemonLog("info", "inbound", "slack_socket_connected", {
 			botUserId: "U123",
 		});
 		flushDaemonLogSync();
 
-		const logPath = getDaemonLogPath();
+		const logPath = getUnifiedLogPath();
 		expect(fs.existsSync(logPath)).toBe(true);
 		const tail = readDaemonLogTail(5);
 		expect(tail.length).toBeGreaterThanOrEqual(1);
 		const entry = tail.at(-1);
 		expect(entry).toBeDefined();
+		expect(entry?.source).toBe("daemon");
 		expect(entry?.type).toBe("slack_socket_connected");
 		expect(entry?.category).toBe("inbound");
 		if (entry) {
@@ -44,7 +45,7 @@ describe("daemon log", () => {
 		}
 	});
 
-	it("clearDaemonLog empties the file", () => {
+	it("clearDaemonLog empties daemon-source entries", () => {
 		process.env.TOBY_DIR = makeTempDir();
 		daemonLog("info", "daemon", "test", {});
 		flushDaemonLogSync();

@@ -73,7 +73,7 @@ describe("server event log", () => {
 			log.endTurn();
 			const tail = readServerEventLogTail(10);
 			expect(tail.some((line) => line.includes("test-line"))).toBe(true);
-			expect(tail.some((line) => line.includes("BEGIN TURN"))).toBe(true);
+			expect(tail.some((line) => line.includes("begin_turn"))).toBe(true);
 		} finally {
 			if (previous === undefined) {
 				Reflect.deleteProperty(process.env, "TOBY_DIR");

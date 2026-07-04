@@ -33,17 +33,26 @@ export function getMemoryDbPath(): string {
 	return path.join(resolveTobyDir(), "memory.sqlite");
 }
 
-export function getLogPath(): string {
-	return path.join(resolveTobyDir(), "toby.log");
+/** Directory holding unified log files: `~/.toby/logs/`. */
+export function getLogsDir(): string {
+	return path.join(resolveTobyDir(), "logs");
 }
 
-/** JSON-lines log for `toby daemon` (schedules, inbound chat, Socket Mode). */
-export function getDaemonLogPath(): string {
-	return path.join(resolveTobyDir(), "daemon.log");
+/** Ensure the `~/.toby/logs/` directory exists. */
+export function ensureLogsDir(): void {
+	const dir = getLogsDir();
+	if (!fs.existsSync(dir)) {
+		fs.mkdirSync(dir, { recursive: true });
+	}
 }
 
-export function getUpgradeLogPath(): string {
-	return path.join(resolveTobyDir(), "upgrade.log");
+/**
+ * Unified JSON-lines log file. All Toby subsystems (chat, daemon, server
+ * events, upgrade, native-app, macOS plugin) append entries with a `source`
+ * discriminator to this single file.
+ */
+export function getUnifiedLogPath(): string {
+	return path.join(getLogsDir(), "toby.log");
 }
 
 /** Persona images: `~/.toby/persona/images/<filename>`. */

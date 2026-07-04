@@ -10,7 +10,7 @@ Today the daemon has three responsibilities that run **in parallel** inside that
 2. **Chat inbound** — listen on an external chat provider (Slack via Socket Mode today) and run chat turns when users @mention the bot.
 3. **HTTP API server** — localhost API for the native macOS app and CLI.
 
-Start it with `toby daemon start` (detached background) or `toby daemon run` (foreground, useful for debugging). Structured activity is appended to **`~/.toby/daemon.log`** (JSON lines, same buffering and rotation model as [`toby.log`](architecture.md#local-data)).
+Start it with `toby daemon start` (detached background) or `toby daemon run` (foreground, useful for debugging). Structured activity is appended to the **unified log** at `~/.toby/logs/toby.log` (JSON lines, `source: "daemon"`, shared buffering and rotation across all subsystems).
 
 ## Process model
 
@@ -32,7 +32,7 @@ flowchart TB
 | File | Role |
 | ---- | ---- |
 | `~/.toby/daemon.lock` | Holds daemon lock metadata (PID + interval); prevents duplicate instances |
-| `~/.toby/daemon.log` | Structured log for schedules, inbound, Slack connection |
+| `~/.toby/logs/toby.log` | Unified structured log; daemon entries use `source: "daemon"` |
 | `~/.toby/chat.sqlite` | Schedules, schedule runs, chat sessions, external session mapping |
 
 Implementation entrypoints:
@@ -40,7 +40,7 @@ Implementation entrypoints:
 - CLI: [`apps/cli/src/commands/daemon.ts`](../apps/cli/src/commands/daemon.ts)
 - Scheduler: [`apps/cli/src/schedules/scheduler.ts`](../apps/cli/src/schedules/scheduler.ts)
 - Inbound: [`packages/core/src/chat-inbound/`](../packages/core/src/chat-inbound/)
-- Log: [`apps/cli/src/logging/daemon-log.ts`](../apps/cli/src/logging/daemon-log.ts)
+- Log: [`packages/core/src/logging/daemon-log.ts`](../packages/core/src/logging/daemon-log.ts) (delegates to [`logger.ts`](../packages/core/src/logging/logger.ts))
 
 ## Commands
 
@@ -66,7 +66,7 @@ When the daemon is running, every poll interval it:
 2. Evaluates cron against `lastRunAt`.
 3. Runs matching schedules through the same tool-calling pipeline as headless chat (non-interactive; no `askUser`).
 
-Schedule execution is logged under category `scheduler` in `daemon.log` (`schedule_run_start`, `schedule_run_complete`, `schedules_fired`, etc.).
+Schedule execution is logged under category `scheduler` in the unified log (`source: "daemon"`, `schedule_run_start`, `schedule_run_complete`, `schedules_fired`, etc.).
 
 User-facing setup: [help-site schedules doc](../apps/help-site/docs/schedules.md).
 
@@ -190,18 +190,18 @@ Deep dive on types and extending: [chat-inbound.md](chat-inbound.md).
 
 ## Daemon log
 
-All daemon subsystems log to **`~/.toby/daemon.log`** via `daemonLog()` in [`apps/cli/src/logging/daemon-log.ts`](../apps/cli/src/logging/daemon-log.ts):
+All daemon subsystems log to the **unified log** at `~/.toby/logs/toby.log` with `source: "daemon"` via `daemonLog()` in [`packages/core/src/logging/daemon-log.ts`](../packages/core/src/logging/daemon-log.ts) (which delegates to the shared [`logger.ts`](../packages/core/src/logging/logger.ts)):
 
 - Buffered append (flush every ~2s or 50 entries)
-- JSON one object per line: `{ ts, level, category, type, data }`
-- Rotation when file exceeds `TOBY_DAEMON_LOG_MAX_KB` (default 512; falls back to `TOBY_LOG_MAX_KB`)
+- JSON one object per line: `{ ts, source, level, category, type, data }`
+- Rotation when file exceeds `TOBY_LOG_MAX_KB` (default 512), shared across all sources
 
-**Categories:** `daemon`, `scheduler`, `inbound`, `turn`, `general`.
+**Categories:** `daemon`, `scheduler`, `inbound`, `turn`, `plugin`, `plugin-poller`, `general`.
 
 ### Tail the log
 
 ```bash
-tail -f ~/.toby/daemon.log
+tail -f ~/.toby/logs/toby.log
 ```
 
 **Useful events when debugging Slack:**
@@ -218,7 +218,7 @@ tail -f ~/.toby/daemon.log
 | `ask_user_posted` / `ask_user_resolved` | Interactive choice in thread |
 | `inbound_stopped` | Daemon shutting down |
 
-Compact one-line format (for scripts): `formatDaemonLogEntry()` in the same module as chat log’s `formatLogEntry`.
+Compact one-line format (for scripts): `formatDaemonLogEntry()` in the daemon-log module, backed by the shared `formatUnifiedLogEntry()` in [`logger.ts`](../packages/core/src/logging/logger.ts).
 
 ## Troubleshooting
 

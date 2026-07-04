@@ -18,7 +18,7 @@ Human- and agent-oriented docs for this repository.
 | [native-helpers.md](native-helpers.md) | Pattern for small native executables that bridge Toby to platform APIs. |
 | [create-integration.md](create-integration.md) | Checklist for adding a new integration. |
 | [chat-pipeline.md](chat-pipeline.md) | Chat turn node pipeline (`TurnInit` → `ExpandPrompt` → `AssembleMessages` → `RunModelTurn` → `PersistTurn`), events, and tool-result caching. |
-| [daemon.md](daemon.md) | Background daemon: schedules, chat inbound (@mentions), `daemon.log`. |
+| [daemon.md](daemon.md) | Background daemon: schedules, chat inbound (@mentions), the unified log (`logs/toby.log`). |
 | [server-api.md](server-api.md) | Local daemon HTTP API reference: routes, request/response shapes, SSE chat turns, configure actions. |
 | [chat-inbound.md](chat-inbound.md) | Inbound provider contract, external sessions, extending to new chat platforms. |
 | [ai-caching.md](ai-caching.md) | Provider prompt caching adapters, stable cache keys, and token telemetry. |

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
-	getDaemonLogPath,
+	getUnifiedLogPath,
 	getWebConfig,
 	resolveTobyDir,
 } from "../config/index";
@@ -82,7 +82,7 @@ export function getDaemonRuntimeInfo(): DaemonRuntimeInfo {
 		uptimeSeconds,
 		startedAt: new Date(Date.now() - uptimeSeconds * 1000).toISOString(),
 		intervalSeconds: lock?.intervalSeconds ?? null,
-		logPath: getDaemonLogPath(),
+		logPath: getUnifiedLogPath(),
 		webPort: webCfg.enabled ? webCfg.port : null,
 		executablePath: process.argv[1] ?? process.execPath,
 	};

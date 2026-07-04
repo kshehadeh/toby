@@ -27,13 +27,8 @@ final class LogsStore {
 		self.directoryURL = directoryURL
 	}
 
-	static let knownLogs: [(name: String, file: String)] = [
-		("App Server Events", "native-app-server-events.log"),
-		("Daemon", "daemon.log"),
-		("Toby", "toby.log"),
-		("TUI Server Events", "tui-server-events.log"),
-		("Upgrade", "upgrade.log"),
-		("macOS Plugin", "plugin-macos.log"),
+	static let knownLogs: [(name: String, relativeComponents: [String])] = [
+		("Toby", ["logs", "toby.log"]),
 	]
 
 	func refreshAvailableLogs() {
@@ -43,10 +38,11 @@ final class LogsStore {
 			content = ""
 			return
 		}
-		availableLogs = Self.knownLogs.compactMap { (name, file) in
-			let url = directoryURL.appendingPathComponent(file)
+		availableLogs = Self.knownLogs.compactMap { (name, components) in
+			let url = components.reduce(directoryURL) { $0.appendingPathComponent($1) }
 			guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-			return LogDescriptor(id: file, displayName: name, fileName: file, url: url)
+			let fileName = components.joined(separator: "/")
+			return LogDescriptor(id: fileName, displayName: name, fileName: fileName, url: url)
 		}
 	}
 

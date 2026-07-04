@@ -1,24 +1,44 @@
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	spyOn,
+	test,
+} from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import * as config from "@toby/core/config/index";
 
 const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "toby-log-test-"));
-const LOG_PATH = path.join(TMP_DIR, "toby.log");
+const LOGS_DIR = path.join(TMP_DIR, "logs");
+const LOG_PATH = path.join(LOGS_DIR, "toby.log");
 
-let getLogPathSpy: ReturnType<typeof spyOn<typeof config, "getLogPath">>;
+let getUnifiedLogPathSpy: ReturnType<
+	typeof spyOn<typeof config, "getUnifiedLogPath">
+>;
+let ensureLogsDirSpy: ReturnType<typeof spyOn<typeof config, "ensureLogsDir">>;
 let ensureTobyDirSpy: ReturnType<typeof spyOn<typeof config, "ensureTobyDir">>;
 
 beforeAll(() => {
-	getLogPathSpy = spyOn(config, "getLogPath").mockImplementation(() => LOG_PATH);
+	fs.mkdirSync(LOGS_DIR, { recursive: true });
+	getUnifiedLogPathSpy = spyOn(config, "getUnifiedLogPath").mockImplementation(
+		() => LOG_PATH,
+	);
+	ensureLogsDirSpy = spyOn(config, "ensureLogsDir").mockImplementation(() => {
+		if (!fs.existsSync(LOGS_DIR)) fs.mkdirSync(LOGS_DIR, { recursive: true });
+	});
 	ensureTobyDirSpy = spyOn(config, "ensureTobyDir").mockImplementation(() => {
 		if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
 	});
 });
 
 afterAll(() => {
-	getLogPathSpy.mockRestore();
+	getUnifiedLogPathSpy.mockRestore();
+	ensureLogsDirSpy.mockRestore();
 	ensureTobyDirSpy.mockRestore();
 	fs.rmSync(TMP_DIR, { recursive: true, force: true });
 });
@@ -116,6 +136,7 @@ describe("chat-log", () => {
 	test("formatLogEntry produces compact single-line output", () => {
 		const entry = {
 			ts: "2026-05-03T12:34:56.789Z",
+			source: "chat" as const,
 			level: "info" as const,
 			category: "session" as const,
 			type: "session_create",
@@ -123,7 +144,7 @@ describe("chat-log", () => {
 		};
 		const formatted = formatLogEntry(entry);
 		expect(formatted).toContain("12:34:56");
-		expect(formatted).toContain("I session:session_create");
+		expect(formatted).toContain("I chat:session:session_create");
 		expect(formatted).toContain("id=");
 	});
 

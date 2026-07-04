@@ -1,23 +1,76 @@
 import Foundation
 
+/// Unified JSON-lines log writer for the native macOS app.
+///
+/// Appends structured entries with `source: "native-app"` to the shared
+/// log file at `~/.toby/logs/toby.log`. Mirrors the TypeScript unified
+/// logger schema (`packages/core/src/logging/logger.ts`).
 enum ServerEventLog {
 	static var url: URL {
 		FileManager.default.homeDirectoryForCurrentUser
-			.appendingPathComponent(".toby/native-app-server-events.log")
+			.appendingPathComponent(".toby/logs/toby.log")
 	}
 
 	static var path: String {
 		url.path
 	}
 
+	/// Append a free-form message as a structured `log` entry.
 	static func append(_ message: String) {
-		let line = "[\(Self.timestamp())] \(message)\n"
-		guard let data = line.data(using: .utf8) else { return }
+		write(type: "log", level: "info", sessionId: nil, data: ["message": message])
+	}
+
+	static func beginTurn(sessionId: String, text: String, url: URL) {
+		write(
+			type: "begin_turn",
+			level: "info",
+			sessionId: sessionId,
+			data: [
+				"url": url.absoluteString,
+				"prompt": text,
+			]
+		)
+	}
+
+	static func endTurn() {
+		write(type: "end_turn", level: "info", sessionId: nil, data: nil)
+	}
+
+	/// Write a single JSON-lines entry to the unified log file.
+	private static func write(
+		type: String,
+		level: String,
+		sessionId: String?,
+		data: [String: Any]?
+	) {
+		var entry: [String: Any] = [
+			"ts": timestamp(),
+			"source": "native-app",
+			"level": level,
+			"category": "server",
+			"type": type,
+		]
+		if let sessionId {
+			entry["sessionId"] = sessionId
+		}
+		if let data {
+			entry["data"] = data
+		}
+
+		guard let jsonData = try? JSONSerialization.data(
+			withJSONObject: entry,
+			options: [.sortedKeys, .withoutEscapingSlashes]
+		),
+		var line = String(data: jsonData, encoding: .utf8)
+		else { return }
+
+		line += "\n"
+
 		do {
 			let directory = url.deletingLastPathComponent()
 			try FileManager.default.createDirectory(
 				at: directory,
-				withIntermediateDirectories: true,
+				withIntermediateDirectories: true
 			)
 			if !FileManager.default.fileExists(atPath: url.path) {
 				FileManager.default.createFile(atPath: url.path, contents: nil)
@@ -25,21 +78,10 @@ enum ServerEventLog {
 			let handle = try FileHandle(forWritingTo: url)
 			defer { try? handle.close() }
 			try handle.seekToEnd()
-			try handle.write(contentsOf: data)
+			try handle.write(contentsOf: line.data(using: .utf8) ?? Data())
 		} catch {
-			print("Failed to write server event log: \(error)")
+			print("Failed to write unified log: \(error)")
 		}
-	}
-
-	static func beginTurn(sessionId: String, text: String, url: URL) {
-		append("----- BEGIN TURN -----")
-		append("request.url=\(url.absoluteString)")
-		append("session.id=\(sessionId)")
-		append("prompt=\(text)")
-	}
-
-	static func endTurn() {
-		append("----- END TURN -----")
 	}
 
 	private static func timestamp() -> String {

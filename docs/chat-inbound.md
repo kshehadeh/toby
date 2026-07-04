@@ -113,4 +113,4 @@ The router already calls `createStatusReporter`, passes `onProgress` into `runHe
 
 ## Related
 
-- [daemon.md](daemon.md) — running the daemon, schedules + inbound, `daemon.log`, troubleshooting
+- [daemon.md](daemon.md) — running the daemon, schedules + inbound, the unified log (`logs/toby.log`), troubleshooting

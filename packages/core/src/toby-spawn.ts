@@ -1,10 +1,6 @@
 import type { StdioOptions } from "node:child_process";
 import fs from "node:fs";
-import {
-	ensureTobyDir,
-	getDaemonLogPath,
-	getUpgradeLogPath,
-} from "./config/index";
+import { ensureLogsDir, getUnifiedLogPath } from "./config/index";
 
 const ENTRY_SCRIPT_EXTENSIONS = [".js", ".ts", ".mjs", ".cjs"] as const;
 
@@ -38,11 +34,11 @@ export function isRunningAsCompiledBinary(): boolean {
 
 /**
  * stdio for detached `toby daemon run` spawns.
- * `stdio: "ignore"` hangs Bun-compiled binaries (`bun build --compile`); append to daemon.log instead.
+ * `stdio: "ignore"` hangs Bun-compiled binaries (`bun build --compile`); append to the unified log instead.
  */
 export function getDetachedDaemonSpawnStdio(): StdioOptions {
-	ensureTobyDir();
-	const logFd = fs.openSync(getDaemonLogPath(), "a");
+	ensureLogsDir();
+	const logFd = fs.openSync(getUnifiedLogPath(), "a");
 	return ["ignore", logFd, logFd];
 }
 
@@ -51,7 +47,7 @@ export function getDetachedDaemonSpawnStdio(): StdioOptions {
  * Same constraint as daemon: compiled Bun binaries hang with stdio "ignore".
  */
 export function getDetachedUpgradeSpawnStdio(): StdioOptions {
-	ensureTobyDir();
-	const logFd = fs.openSync(getUpgradeLogPath(), "a");
+	ensureLogsDir();
+	const logFd = fs.openSync(getUnifiedLogPath(), "a");
 	return ["ignore", logFd, logFd];
 }

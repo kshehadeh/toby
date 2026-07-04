@@ -23,15 +23,16 @@ struct LogsViewTests {
 	@Test("logs sidebar shows available log names")
 	func logsSidebarShowsLogNames() throws {
 		let dir = FileManager.default.temporaryDirectory.appendingPathComponent("logs-view-test-\(UUID().uuidString)")
-		try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+		let logsDir = dir.appendingPathComponent("logs")
+		try? FileManager.default.createDirectory(at: logsDir, withIntermediateDirectories: true)
 		defer { try? FileManager.default.removeItem(at: dir) }
 
-		try? "test\n".write(to: dir.appendingPathComponent("daemon.log"), atomically: true, encoding: .utf8)
+		try? "test\n".write(to: logsDir.appendingPathComponent("toby.log"), atomically: true, encoding: .utf8)
 
 		let store = LogsStore(directoryURL: dir)
 		store.refreshAvailableLogs()
 		let view = LogsSidebarView(store: store)
-		#expect(throws: Never.self) { try view.inspect().find(text: "Daemon") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "Toby") }
 	}
 
 	@Test("logs detail shows empty state when no log selected")
@@ -44,15 +45,16 @@ struct LogsViewTests {
 	@Test("logs detail shows selected log name and path")
 	func logsDetailShowsSelectedLog() throws {
 		let dir = FileManager.default.temporaryDirectory.appendingPathComponent("logs-view-test-\(UUID().uuidString)")
-		try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+		let logsDir = dir.appendingPathComponent("logs")
+		try? FileManager.default.createDirectory(at: logsDir, withIntermediateDirectories: true)
 		defer { try? FileManager.default.removeItem(at: dir) }
 
-		let url = dir.appendingPathComponent("toby.log")
+		let url = logsDir.appendingPathComponent("toby.log")
 		try? "content\n".write(to: url, atomically: true, encoding: .utf8)
 
 		let store = LogsStore(directoryURL: dir)
 		store.refreshAvailableLogs()
-		let log = store.availableLogs.first { $0.fileName == "toby.log" }!
+		let log = store.availableLogs.first { $0.fileName == "logs/toby.log" }!
 		store.selectLog(log)
 
 		let view = LogsDetailView(store: store)

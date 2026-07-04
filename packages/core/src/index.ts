@@ -25,7 +25,7 @@ export {
 export { TobyDaemonClient, resolveDaemonBaseUrl } from "./web/client";
 export {
 	ServerEventLog,
-	getTuiServerEventLogPath,
+	clearServerEventLog,
 	readServerEventLogTail,
 } from "./web/server-event-log";
 export { runHeadlessChatTurn } from "./chat-pipeline/headless-session";

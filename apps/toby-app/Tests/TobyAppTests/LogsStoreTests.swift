@@ -11,8 +11,12 @@ struct LogsStoreTests {
 		return dir
 	}
 
-	private func writeFile(_ name: String, content: String, in dir: URL) -> URL {
-		let url = dir.appendingPathComponent(name)
+	/// Write content into `<dir>/logs/toby.log` (the unified log layout).
+	@discardableResult
+	private func writeUnifiedLog(_ content: String, in dir: URL) -> URL {
+		let logsDir = dir.appendingPathComponent("logs")
+		try? FileManager.default.createDirectory(at: logsDir, withIntermediateDirectories: true)
+		let url = logsDir.appendingPathComponent("toby.log")
 		try? content.write(to: url, atomically: true, encoding: .utf8)
 		return url
 	}
@@ -25,19 +29,16 @@ struct LogsStoreTests {
 		#expect(store.selectedLog == nil)
 	}
 
-	@Test("refreshAvailableLogs only lists existing files")
+	@Test("refreshAvailableLogs lists the unified log when present")
 	func refreshAvailableLogsListsExisting() throws {
 		let dir = makeTempDir()
-		_ = writeFile("daemon.log", content: "line1\n", in: dir)
-		_ = writeFile("toby.log", content: "hello\n", in: dir)
+		writeUnifiedLog("line1\n", in: dir)
 
 		let store = LogsStore(directoryURL: dir)
 		store.refreshAvailableLogs()
 
-		#expect(store.availableLogs.count == 2)
-		#expect(store.availableLogs.contains { $0.fileName == "daemon.log" })
-		#expect(store.availableLogs.contains { $0.fileName == "toby.log" })
-		#expect(!store.availableLogs.contains { $0.fileName == "upgrade.log" })
+		#expect(store.availableLogs.count == 1)
+		#expect(store.availableLogs.contains { $0.fileName == "logs/toby.log" })
 	}
 
 	@Test("refreshAvailableLogs shows empty when no logs exist")
@@ -51,11 +52,11 @@ struct LogsStoreTests {
 	@Test("selectLog loads initial content")
 	func selectLogLoadsContent() throws {
 		let dir = makeTempDir()
-		_ = writeFile("toby.log", content: "line1\nline2\nline3\n", in: dir)
+		writeUnifiedLog("line1\nline2\nline3\n", in: dir)
 
 		let store = LogsStore(directoryURL: dir)
 		store.refreshAvailableLogs()
-		let log = store.availableLogs.first { $0.fileName == "toby.log" }!
+		let log = store.availableLogs.first { $0.fileName == "logs/toby.log" }!
 		store.selectLog(log)
 
 		#expect(store.content.contains("line1"))
@@ -66,11 +67,11 @@ struct LogsStoreTests {
 	@Test("checkForUpdates appends new content")
 	func checkForUpdatesAppends() throws {
 		let dir = makeTempDir()
-		let url = writeFile("toby.log", content: "initial\n", in: dir)
+		let url = writeUnifiedLog("initial\n", in: dir)
 
 		let store = LogsStore(directoryURL: dir)
 		store.refreshAvailableLogs()
-		let log = store.availableLogs.first { $0.fileName == "toby.log" }!
+		let log = store.availableLogs.first { $0.fileName == "logs/toby.log" }!
 		store.selectLog(log)
 		#expect(store.content == "initial\n")
 
@@ -88,11 +89,11 @@ struct LogsStoreTests {
 	@Test("checkForUpdates handles truncation/rotation")
 	func checkForUpdatesHandlesTruncation() throws {
 		let dir = makeTempDir()
-		let url = writeFile("toby.log", content: "old content line1\nold content line2\n", in: dir)
+		let url = writeUnifiedLog("old content line1\nold content line2\n", in: dir)
 
 		let store = LogsStore(directoryURL: dir)
 		store.refreshAvailableLogs()
-		let log = store.availableLogs.first { $0.fileName == "toby.log" }!
+		let log = store.availableLogs.first { $0.fileName == "logs/toby.log" }!
 		store.selectLog(log)
 		#expect(store.content.contains("old content"))
 
@@ -107,7 +108,7 @@ struct LogsStoreTests {
 	@Test("selectLog sets selectedLog")
 	func selectLogSetsSelected() throws {
 		let dir = makeTempDir()
-		_ = writeFile("daemon.log", content: "test\n", in: dir)
+		writeUnifiedLog("test\n", in: dir)
 
 		let store = LogsStore(directoryURL: dir)
 		store.refreshAvailableLogs()

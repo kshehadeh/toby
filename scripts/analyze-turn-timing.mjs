@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Analyze chat turn timing from ~/.toby/toby.log.
+ * Analyze chat turn timing from ~/.toby/logs/toby.log (unified log, source="chat").
  *
  * Parses stage_timing, turn_start, and turn_end log entries and prints
  * a per-turn breakdown of init / expand / assemble / run / persist durations.
@@ -20,7 +20,7 @@ function resolveTobyDir() {
 }
 
 function getLogPath() {
-	return path.join(resolveTobyDir(), "toby.log");
+	return path.join(resolveTobyDir(), "logs", "toby.log");
 }
 
 function parseLogEntries(logPath) {
@@ -36,7 +36,8 @@ function parseLogEntries(logPath) {
 				return null;
 			}
 		})
-		.filter(Boolean);
+		.filter(Boolean)
+		.filter((e) => e.source === "chat");
 }
 
 /**

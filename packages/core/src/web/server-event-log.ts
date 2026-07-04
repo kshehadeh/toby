@@ -1,36 +1,33 @@
 import fs from "node:fs";
-import path from "node:path";
-import { ensureTobyDir, resolveTobyDir } from "../config/index";
+import { ensureLogsDir, getUnifiedLogPath } from "../config/index";
+import {
+	type LogSource,
+	emitLog,
+	flushUnifiedLog,
+	readUnifiedLogEntries,
+} from "../logging/logger";
 
-export const TUI_SERVER_EVENT_LOG_FILENAME = "tui-server-events.log";
+/**
+ * TUI server event log. Delegates to the unified logger with
+ * `source: "server"`. Each high-level event (begin/end turn, request,
+ * response, SSE frame) is emitted as a structured JSON-lines entry.
+ */
 
-export function getTuiServerEventLogPath(): string {
-	return path.join(resolveTobyDir(), TUI_SERVER_EVENT_LOG_FILENAME);
-}
-
-function timestamp(): string {
-	return new Date().toISOString();
-}
+const SOURCE: LogSource = "server";
 
 export class ServerEventLog {
-	private readonly filePath: string;
+	private readonly sourceOverride?: LogSource;
 
-	constructor(filePath: string = getTuiServerEventLogPath()) {
-		this.filePath = filePath;
+	constructor(source?: LogSource) {
+		this.sourceOverride = source;
 	}
 
-	get path(): string {
-		return this.filePath;
+	private get source(): LogSource {
+		return this.sourceOverride ?? SOURCE;
 	}
 
 	append(message: string): void {
-		const line = `[${timestamp()}] ${message}\n`;
-		try {
-			ensureTobyDir();
-			fs.appendFileSync(this.filePath, line, "utf8");
-		} catch {
-			// Best-effort debug log; never break chat flows.
-		}
+		emitLog(this.source, "info", "server", "log", { message });
 	}
 
 	beginTurn(params: {
@@ -38,55 +35,92 @@ export class ServerEventLog {
 		readonly text: string;
 		readonly url: string;
 	}): void {
-		this.append("----- BEGIN TURN -----");
-		this.append(`request.url=${params.url}`);
-		this.append(`session.id=${params.sessionId}`);
-		this.append(`prompt=${params.text}`);
+		emitLog(
+			this.source,
+			"info",
+			"server",
+			"begin_turn",
+			{
+				url: params.url,
+				prompt: params.text,
+			},
+			params.sessionId,
+		);
 	}
 
 	endTurn(): void {
-		this.append("----- END TURN -----");
+		emitLog(this.source, "info", "server", "end_turn");
 	}
 
 	logRequest(method: string, url: string, body?: string): void {
-		this.append(`request.method=${method}`);
-		this.append(`request.url=${url}`);
-		if (body !== undefined && body.length > 0) {
-			this.append(`request.body=${body}`);
-		}
+		emitLog(this.source, "debug", "server", "request", {
+			method,
+			url,
+			body,
+		});
 	}
 
 	logResponseStatus(status: number): void {
-		this.append(`response.status=${status}`);
+		emitLog(this.source, "debug", "server", "response_status", { status });
 	}
 
 	logResponseError(body: string): void {
-		this.append(`response.errorBody=${body}`);
+		emitLog(this.source, "warn", "server", "response_error", { body });
 	}
 
 	logSseRaw(line: string): void {
-		this.append(`sse.raw=${line}`);
+		emitLog(this.source, "debug", "server", "sse_raw", { line });
 	}
 
 	logSseEvent(event: string): void {
-		this.append(`sse.event=${event}`);
+		emitLog(this.source, "debug", "server", "sse_event", { event });
 	}
 
 	logSseData(event: string, payload: string): void {
-		this.append(`sse.data.event=${event} payload=${payload}`);
+		emitLog(this.source, "debug", "server", "sse_data", { event, payload });
 	}
 
 	logMessage(message: string): void {
-		this.append(message);
+		emitLog(this.source, "info", "server", "message", { message });
 	}
 }
 
+/**
+ * Read recent server-source log lines as formatted strings. Returns the
+ * formatted (`formatUnifiedLogEntry`) lines for tailing/debugging.
+ */
 export function readServerEventLogTail(limit = 100): string[] {
-	const filePath = getTuiServerEventLogPath();
-	if (!fs.existsSync(filePath)) {
-		return [];
+	flushUnifiedLog();
+	const entries = readUnifiedLogEntries((e) => e.source === SOURCE);
+	return entries.slice(-Math.max(1, limit)).map((e) => {
+		const ts = e.ts.slice(11, 19);
+		const data = e.data ?? {};
+		const msg = typeof data.message === "string" ? data.message : "";
+		const extra = Object.entries(data)
+			.filter(([k]) => k !== "message")
+			.map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+			.join(" ");
+		return msg
+			? `[${ts}] ${msg}${extra ? ` ${extra}` : ""}`
+			: `[${ts}] ${e.type}${extra ? ` ${extra}` : ""}`;
+	});
+}
+
+/**
+ * Internal helper for tests: clear server-source entries from the unified log.
+ */
+export function clearServerEventLog(): void {
+	const remaining = readUnifiedLogEntries((e) => e.source !== SOURCE);
+	ensureLogsDir();
+	const logPath = getUnifiedLogPath();
+	if (remaining.length === 0) {
+		if (fs.existsSync(logPath)) {
+			fs.writeFileSync(logPath, "");
+		}
+		return;
 	}
-	const raw = fs.readFileSync(filePath, "utf8");
-	const lines = raw.split("\n").filter((line) => line.trim().length > 0);
-	return lines.slice(-Math.max(1, limit));
+	fs.writeFileSync(
+		logPath,
+		`${remaining.map((e) => JSON.stringify(e)).join("\n")}\n`,
+	);
 }
