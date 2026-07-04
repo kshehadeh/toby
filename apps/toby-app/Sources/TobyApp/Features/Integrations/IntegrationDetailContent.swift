@@ -49,12 +49,25 @@ struct IntegrationDetailContent: View {
         }
     }
 
+    private var descriptionText: String? {
+        let text = status?.description ?? guide?.description
+        guard let text, !text.isEmpty else { return nil }
+        return text
+    }
+
+    private var hasConfigurableFields: Bool {
+        mainFields.contains { field in
+            field.kind != .hint && field.kind != .image
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             IntegrationDetailHeaderView(
                 section: section,
                 status: status,
                 isLoading: isStatusLoading,
+                description: descriptionText
             )
             .padding(.horizontal, 24)
             .padding(.vertical, 18)
@@ -88,7 +101,6 @@ struct IntegrationDetailContent: View {
     private var mainColumn: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                descriptionSection
                 toolsSection
                 setupGuideSection
                 credentialsSection
@@ -97,21 +109,6 @@ struct IntegrationDetailContent: View {
             .padding(20)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    @ViewBuilder
-    private var descriptionSection: some View {
-        if let description = status?.description ?? guide?.description, !description.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("About")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(SettingsDesign.rowTitle)
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundStyle(AppTheme.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
     }
 
     @ViewBuilder
@@ -272,9 +269,9 @@ struct IntegrationDetailContent: View {
 
     @ViewBuilder
     private var credentialsSection: some View {
-        if store.sectionFieldsReloading == section.key {
+        if store.sectionFieldsReloading == section.key, hasConfigurableFields {
             CredentialsSkeletonView()
-        } else if !rowFields.isEmpty || !blockFields.isEmpty {
+        } else if hasConfigurableFields, !rowFields.isEmpty || !blockFields.isEmpty {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Configuration")
                     .font(.system(size: 13, weight: .semibold))

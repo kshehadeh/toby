@@ -85,15 +85,6 @@ struct IntegrationInspectorSidebar: View {
 						.font(.system(size: 11, weight: .medium))
 						.foregroundStyle(SettingsDesign.rowTitle)
 				}
-				if status.connected {
-					metadataRow(label: "Authentication", value: healthOk ? "Valid" : "Invalid")
-				}
-				if let description = status.description, !description.isEmpty {
-					Text(description)
-						.font(.system(size: 11))
-						.foregroundStyle(SettingsDesign.rowDescription)
-						.fixedSize(horizontal: false, vertical: true)
-				}
 				if let health = status.health, let details = health.details, !details.isEmpty {
 					Text(details)
 						.font(.system(size: 11))
@@ -142,18 +133,6 @@ struct IntegrationInspectorSidebar: View {
 						.foregroundStyle(SettingsDesign.rowTitle)
 				}
 			}
-		}
-	}
-
-	private func metadataRow(label: String, value: String) -> some View {
-		HStack {
-			Text(label)
-				.font(.system(size: 11))
-				.foregroundStyle(SettingsDesign.rowDescription)
-			Spacer()
-			Text(value)
-				.font(.system(size: 11))
-				.foregroundStyle(SettingsDesign.rowTitle)
 		}
 	}
 }

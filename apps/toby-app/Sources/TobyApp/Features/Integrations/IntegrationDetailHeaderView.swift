@@ -4,6 +4,7 @@ struct IntegrationDetailHeaderView: View {
 	let section: SettingsItem
 	let status: IntegrationStatus?
 	let isLoading: Bool
+	var description: String? = nil
 
 	private var iconUrl: URL? {
 		guard let iconUrl = section.iconUrl else { return nil }
@@ -28,17 +29,6 @@ struct IntegrationDetailHeaderView: View {
 		return healthOk ? .green : .red
 	}
 
-	private var authStatusText: String {
-		guard let status else { return "Status unavailable" }
-		if status.connected {
-			if let health = status.health, !health.ok {
-				return "Connected · Authentication invalid"
-			}
-			return "Connected · Authentication valid"
-		}
-		return "Not connected"
-	}
-
 	var body: some View {
 		HStack(alignment: .center, spacing: 14) {
 			RoundedRectangle(cornerRadius: 13)
@@ -60,10 +50,12 @@ struct IntegrationDetailHeaderView: View {
 							.font(.subheadline)
 							.foregroundStyle(AppTheme.secondaryText)
 					}
-				} else {
-					Text(authStatusText)
+				} else if let description, !description.isEmpty {
+					Text(description)
 						.font(.subheadline)
 						.foregroundStyle(AppTheme.secondaryText)
+						.lineLimit(2)
+						.truncationMode(.tail)
 				}
 			}
 
