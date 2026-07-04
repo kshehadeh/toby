@@ -537,4 +537,46 @@ struct AppSidebarTests {
         #expect(throws: Never.self) { try row.inspect().find(text: "Slack #general is waiting for your reply") }
     }
 
+    @Test("session row with integration icon URL renders SidebarIconView")
+    func sessionRowWithIntegrationIconRendersIconView() throws {
+        let row = SidebarSessionRow(
+            title: "Slack thread",
+            subtitle: nil,
+            isSelected: false,
+            isExternal: true,
+            isAwaitingUser: false,
+            integrationIconUrl: URL(string: "http://127.0.0.1:7847/api/plugins/slack/icon"),
+        )
+        #expect(throws: Never.self) { try row.inspect().find(SidebarIconView.self) }
+    }
+
+    @Test("session row without integration icon uses SF Symbol fallback")
+    func sessionRowWithoutIntegrationIconUsesFallback() throws {
+        let row = SidebarSessionRow(
+            title: "Local chat",
+            subtitle: nil,
+            isSelected: false,
+            isExternal: false,
+            isAwaitingUser: false,
+            integrationIconUrl: nil,
+        )
+        #expect(throws: (any Error).self) { try row.inspect().find(SidebarIconView.self) }
+        #expect(throws: Never.self) { try row.inspect().find(ViewType.Image.self) }
+    }
+
+    @Test("external session row without icon URL falls back to reply arrow")
+    func externalSessionRowWithoutIconUrlFallsBackToArrow() throws {
+        let row = SidebarSessionRow(
+            title: "External chat",
+            subtitle: nil,
+            isSelected: false,
+            isExternal: true,
+            isAwaitingUser: false,
+            integrationIconUrl: nil,
+        )
+        #expect(throws: (any Error).self) { try row.inspect().find(SidebarIconView.self) }
+        // Should still render an image (the fallback SF Symbol)
+        #expect(throws: Never.self) { try row.inspect().find(ViewType.Image.self) }
+    }
+
 }

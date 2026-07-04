@@ -6,10 +6,11 @@ struct SidebarSessionRow: View {
 	var isSelected = false
 	var isExternal = false
 	var isAwaitingUser = false
+	var integrationIconUrl: URL?
 
 	var body: some View {
 		HStack(spacing: 8) {
-			Image(systemName: isExternal ? "arrowshape.turn.up.left" : "message")
+			iconView
 				.font(.callout)
 				.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.secondaryText)
 			VStack(alignment: .leading, spacing: 1) {
@@ -39,5 +40,22 @@ struct SidebarSessionRow: View {
 			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
 				.fill(isSelected ? AppTheme.selection : Color.clear)
 		)
+	}
+
+	@ViewBuilder
+	private var iconView: some View {
+		if let integrationIconUrl {
+			SidebarIconView(
+				url: integrationIconUrl,
+				fallbackSystemName: "arrowshape.turn.up.left",
+				isSelected: isSelected,
+			)
+			.frame(width: 16, height: 16)
+		} else {
+			Image(
+				systemName: isExternal
+					? "arrowshape.turn.up.left" : "message",
+			)
+		}
 	}
 }

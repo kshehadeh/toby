@@ -39,6 +39,7 @@ struct ChatSessionsSidebar: View {
 										isSelected: session.id == selectedSessionId,
 										isExternal: session.isExternal,
 										isAwaitingUser: session.isAwaitingUser,
+										integrationIconUrl: session.integrationIconUrl,
 									)
 								}
 								.buttonStyle(.plain)

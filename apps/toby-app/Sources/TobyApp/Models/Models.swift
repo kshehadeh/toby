@@ -295,6 +295,7 @@ struct SessionSummary: Decodable, Identifiable {
 	let updatedAt: String?
 	var sourceIntegration: String? = nil
 	var sourceDisplayName: String? = nil
+	var sourceIntegrationIconUrl: String? = nil
 	var externalKey: String? = nil
 	var lifecycleStatus: String? = nil
 	var lastRemoteMessageAt: String? = nil
@@ -305,6 +306,11 @@ struct SessionSummary: Decodable, Identifiable {
 
 	var isAwaitingUser: Bool {
 		lifecycleStatus == "awaiting_user"
+	}
+
+	var integrationIconUrl: URL? {
+		guard let sourceIntegrationIconUrl else { return nil }
+		return URL(string: ConfigReader.baseURL().absoluteString + sourceIntegrationIconUrl)
 	}
 }
 
@@ -318,6 +324,7 @@ struct SessionDetail: Decodable {
 	let personaImageUrl: String?
 	let activePlan: PlanSummary?
 	let integration: String?
+	var integrationIconUrl: String? = nil
 	let externalKey: String?
 	var sourceDisplayName: String? = nil
 	var lifecycleStatus: String? = nil
@@ -325,6 +332,11 @@ struct SessionDetail: Decodable {
 
 	var isExternal: Bool {
 		integration != nil && externalKey != nil
+	}
+
+	var resolvedIntegrationIconUrl: URL? {
+		guard let integrationIconUrl else { return nil }
+		return URL(string: ConfigReader.baseURL().absoluteString + integrationIconUrl)
 	}
 }
 

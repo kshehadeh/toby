@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import { getDefaultPersonaImagePath } from "../../config/index";
+import { getIntegrationIconUrl } from "../../integrations/index";
 import { resolveDefaultPersona, resolvePersona } from "../../personas/index";
 import { loadPlanBySession } from "../../planning/plan-store";
 import {
@@ -26,7 +27,12 @@ function planSummaryForSession(sessionId: string) {
 
 export function handleSessionsList(url: URL): Response {
 	const limit = parseIntParam(url.searchParams.get("limit"), 50, 500);
-	const sessions = listChatSessions(limit);
+	const sessions = listChatSessions(limit).map((s) => ({
+		...s,
+		sourceIntegrationIconUrl: s.sourceIntegration
+			? getIntegrationIconUrl(s.sourceIntegration)
+			: undefined,
+	}));
 	return jsonResponse({ sessions });
 }
 
@@ -59,6 +65,9 @@ export function handleSessionDetail(sessionId: string): Response {
 		personaImageUrl,
 		activePlan: planSummaryForSession(sessionId),
 		integration: external?.integration ?? null,
+		integrationIconUrl: external?.integration
+			? getIntegrationIconUrl(external.integration)
+			: undefined,
 		externalKey: external?.externalKey ?? null,
 		sourceDisplayName: external?.displayName ?? null,
 		lifecycleStatus: external?.lifecycleStatus ?? null,

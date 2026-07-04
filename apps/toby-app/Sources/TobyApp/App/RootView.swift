@@ -327,7 +327,45 @@ struct RootView: View {
                     .toolbar {
                         commonToolbarItems()
                         ToolbarItem(placement: .principal) {
-                            SessionTitleBadge(title: store.sessionName, activityLine: store.activityLine)
+                            HStack(spacing: 8) {
+                                if let iconUrl = store.resolvedIntegrationIconUrl {
+                                    AsyncImage(url: iconUrl) { phase in
+                                        switch phase {
+                                        case .success(let image):
+                                            image
+                                                .resizable()
+                                                .scaledToFit()
+                                        case .failure:
+                                            Image(systemName: "arrowshape.turn.up.left")
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundStyle(AppTheme.primaryText)
+                                        case .empty:
+                                            Image(systemName: "arrowshape.turn.up.left")
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundStyle(AppTheme.tertiaryText)
+                                        @unknown default:
+                                            Image(systemName: "arrowshape.turn.up.left")
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundStyle(AppTheme.tertiaryText)
+                                        }
+                                    }
+                                    .frame(width: 18, height: 18)
+                                }
+                                SessionTitleBadge(
+                                    title: store.sessionName,
+                                    activityLine: store.activityLine,
+                                )
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(AppTheme.elevatedBackground.opacity(0.92)),
+                            )
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color.white.opacity(0.12), lineWidth: 1),
+                            )
                         }
                         ToolbarItem(placement: .confirmationAction) {
                             Button(action: startNewChat) {

@@ -25,16 +25,6 @@ struct SessionTitleBadge: View {
                     .lineLimit(1)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(
-            Capsule()
-                .fill(AppTheme.elevatedBackground.opacity(0.92)),
-        )
-        .overlay(
-            Capsule()
-                .stroke(Color.white.opacity(0.12), lineWidth: 1),
-        )
     }
 }
 

@@ -52,6 +52,15 @@ export function getIntegration(name: string): Integration | undefined {
 	return getIntegrationModule(name);
 }
 
+/**
+ * Resolves the relative icon URL for an integration by name (e.g.
+ * `/api/plugins/slack/icon` for plugins, or `/icons/...` for built-ins).
+ * Returns `undefined` when the integration is unknown or has no icon asset.
+ */
+export function getIntegrationIconUrl(name: string): string | undefined {
+	return getIntegrationModule(name)?.iconUrl;
+}
+
 export function isBuiltinIntegration(name: string): boolean {
 	return BUILTIN_MODULES.some((module) => module.name === name);
 }

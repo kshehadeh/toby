@@ -55,6 +55,7 @@ final class ChatStore {
 	var activeAskUserPrompt: ActiveAskUserPrompt?
 	let serverEventLogPath = ServerEventLog.path
 	var integration: String?
+	var integrationIconUrl: String?
 	var externalKey: String?
 	var sessionPersonaImageUrl: String?
 	var contextWindow: ContextWindowPayload?
@@ -64,6 +65,11 @@ final class ChatStore {
 
 	var isExternalSession: Bool {
 		integration != nil && externalKey != nil
+	}
+
+	var resolvedIntegrationIconUrl: URL? {
+		guard let integrationIconUrl else { return nil }
+		return URL(string: ConfigReader.baseURL().absoluteString + integrationIconUrl)
 	}
 
 	var contextFillPercentage: Int? {
@@ -231,6 +237,7 @@ final class ChatStore {
 			let detail = try await client.fetchSession(id: currentSessionId)
 			guard sessionId == detail.id, !isLoading else { return }
 			sessionName = detail.name
+			integrationIconUrl = detail.integrationIconUrl
 			transcript = detail.transcript
 			activityLine = "Ready"
 		} catch {
@@ -306,6 +313,7 @@ final class ChatStore {
 			sessionName = detail.name
 			transcript = detail.transcript
 			integration = detail.integration
+			integrationIconUrl = detail.integrationIconUrl
 			externalKey = detail.externalKey
 			sessionPersonaImageUrl = detail.personaImageUrl
 			streamingAssistant = nil
@@ -326,6 +334,7 @@ final class ChatStore {
 		sessionName = "New chat"
 		transcript = []
 		integration = nil
+		integrationIconUrl = nil
 		externalKey = nil
 		sessionPersonaImageUrl = nil
 		streamingAssistant = nil
