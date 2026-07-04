@@ -1,3 +1,4 @@
+import { invalidateSettingsCache } from "../../configure/settings-cache";
 import { getIntegrationModule } from "../../integrations/index";
 import { pluginToolsList } from "../../integrations/plugins/client";
 import { targetDisplayPath } from "../../integrations/plugins/protocol";
@@ -85,6 +86,7 @@ export async function handleIntegrationConnect(
 	}
 	try {
 		await module.connect();
+		invalidateSettingsCache();
 		return jsonResponse({ ok: true });
 	} catch (e) {
 		return errorResponse(e instanceof Error ? e.message : String(e), 500);
@@ -100,6 +102,7 @@ export async function handleIntegrationDisconnect(
 	}
 	try {
 		await module.disconnect();
+		invalidateSettingsCache();
 		return jsonResponse({ ok: true });
 	} catch (e) {
 		return errorResponse(e instanceof Error ? e.message : String(e), 500);
@@ -116,6 +119,7 @@ export async function handleIntegrationReauthorize(
 	try {
 		await module.disconnect();
 		await module.connect();
+		invalidateSettingsCache();
 		return jsonResponse({ ok: true });
 	} catch (e) {
 		return errorResponse(e instanceof Error ? e.message : String(e), 500);
@@ -132,6 +136,7 @@ export async function handleIntegrationSetup(name: string): Promise<Response> {
 		if (!result.ok) {
 			return errorResponse(result.error, 500);
 		}
+		invalidateSettingsCache();
 		return jsonResponse({ ok: true, response: result.response });
 	} catch (e) {
 		return errorResponse(e instanceof Error ? e.message : String(e), 500);

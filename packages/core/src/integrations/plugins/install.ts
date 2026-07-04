@@ -2,6 +2,7 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { ensureTobyDir, getPluginsDir } from "../../config/index";
+import { refreshPluginsAndSettings } from "../../configure/settings-cache";
 import { isBuiltinIntegration } from "../index";
 import { pluginStatus } from "./client";
 import { parseManifest, validateManifest } from "./manifest";
@@ -16,7 +17,6 @@ import {
 	notifyPluginDisconnect,
 	purgePluginArtifacts,
 } from "./purge";
-import { resetPluginModuleCache } from "./registry";
 import { resolveBunRuntime, resolvePluginTarget } from "./runtime";
 import { validatePluginBinary } from "./validate";
 
@@ -225,7 +225,7 @@ export function installPlugin(
 		installBinaryPlugin(discovered, installPath, options);
 	}
 
-	resetPluginModuleCache();
+	refreshPluginsAndSettings();
 
 	// Verify installation by running status
 	const target = resolvePluginTarget(
@@ -374,14 +374,14 @@ export function uninstallPlugin(name: string): PluginUninstallResult {
 		notifyPluginDisconnect(target, normalized);
 		const purged = purgePluginArtifacts(normalized, { toolNames });
 		fs.rmSync(installPath, { force: true, recursive: stat.isDirectory() });
-		resetPluginModuleCache();
+		refreshPluginsAndSettings();
 		return { name: normalized, removedPath: installPath, purged };
 	}
 
 	// Fallback: just remove and purge without plugin calls
 	const purged = purgePluginArtifacts(normalized);
 	fs.rmSync(installPath, { force: true, recursive: stat.isDirectory() });
-	resetPluginModuleCache();
+	refreshPluginsAndSettings();
 	return { name: normalized, removedPath: installPath, purged };
 }
 

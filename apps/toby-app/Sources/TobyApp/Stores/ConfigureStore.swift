@@ -35,6 +35,14 @@ final class ConfigureStore {
 	@ObservationIgnored private var autosaveTask: Task<Void, Never>?
 	@ObservationIgnored private let autosaveDelay: Duration = .milliseconds(450)
 
+	/// Cache of section detail responses keyed by navKey, so switching back to
+	/// a previously-visited section doesn't require a server round-trip.
+	@ObservationIgnored private var sectionDetailCache: [String: ConfigureSectionDetailResponse] = [:]
+
+	/// Section keys whose cached detail is stale (after a save or action) and
+	/// must be re-fetched before display.
+	@ObservationIgnored private var dirtySectionKeys: Set<String> = []
+
 	struct PendingDelete {
 		let action: String
 		let body: [String: String]
@@ -115,6 +123,8 @@ final class ConfigureStore {
 			integrationLabels = [:]
 			fieldByKey = [:]
 			draft = [:]
+			sectionDetailCache = [:]
+			dirtySectionKeys = []
 			if let firstKey = settingsSidebarTree.first?.navKey {
 				if selectedNavKey == nil {
 					selectedNavKey = firstKey
@@ -131,6 +141,8 @@ final class ConfigureStore {
 		defer { sectionDetailLoading = false }
 		do {
 			let response = try await client.fetchConfigureSectionDetail(sectionKey: navKey)
+			sectionDetailCache[navKey] = response
+			dirtySectionKeys.remove(navKey)
 			applySectionDetail(response)
 		} catch {
 			errorMessage = error.localizedDescription
@@ -163,11 +175,15 @@ final class ConfigureStore {
 			expandedKeys.insert(navKey)
 		}
 		if isSettingsMode && selectedNavKey != nil {
-			if selectedSectionDetail?.navKey != navKey {
-				selectedSectionDetail = nil
-				sectionDetailLoading = true
+			if let cached = sectionDetailCache[navKey], !dirtySectionKeys.contains(navKey) {
+				applySectionDetail(cached)
+			} else {
+				if selectedSectionDetail?.navKey != navKey {
+					selectedSectionDetail = nil
+					sectionDetailLoading = true
+				}
+				Task { await loadSectionDetail(navKey) }
 			}
-			Task { await loadSectionDetail(navKey) }
 		}
 	}
 
@@ -268,6 +284,7 @@ final class ConfigureStore {
 		do {
 			let response = try await client.patchConfigure(changes: changes)
 			if isSettingsMode, let navKey = selectedNavKey {
+				dirtySectionKeys.insert(navKey)
 				await loadSectionDetail(navKey)
 			} else {
 				apply(response: response, resetDraft: false)
@@ -298,9 +315,8 @@ final class ConfigureStore {
 		do {
 			_ = try await client.runConfigureAction(action, body: body)
 			if isSettingsMode {
-				let sectionsResponse = try await client.fetchConfigureSections()
-				settingsSections = sectionsResponse.sections
 				if let navKey = selectedNavKey {
+					dirtySectionKeys.insert(navKey)
 					await loadSectionDetail(navKey)
 				}
 			} else {
@@ -326,8 +342,13 @@ final class ConfigureStore {
 					"filename": filename,
 				],
 			)
-			let response = try await client.fetchConfigureTree()
-			apply(response: response, resetDraft: false)
+			if isSettingsMode, let navKey = selectedNavKey {
+				dirtySectionKeys.insert(navKey)
+				await loadSectionDetail(navKey)
+			} else {
+				let response = try await client.fetchConfigureTree()
+				apply(response: response, resetDraft: false)
+			}
 		} catch {
 			errorMessage = error.localizedDescription
 		}
@@ -342,8 +363,13 @@ final class ConfigureStore {
 				"reset-persona-image",
 				body: ["personaName": personaName],
 			)
-			let response = try await client.fetchConfigureTree()
-			apply(response: response, resetDraft: false)
+			if isSettingsMode, let navKey = selectedNavKey {
+				dirtySectionKeys.insert(navKey)
+				await loadSectionDetail(navKey)
+			} else {
+				let response = try await client.fetchConfigureTree()
+				apply(response: response, resetDraft: false)
+			}
 		} catch {
 			errorMessage = error.localizedDescription
 		}
@@ -386,8 +412,13 @@ final class ConfigureStore {
 		do {
 			_ = try await client.runIntegrationAction(name: name, action: action)
 			await loadIntegrationStatus(for: name)
-			let response = try await client.fetchConfigureTree()
-			apply(response: response, resetDraft: false)
+			if isSettingsMode, let navKey = selectedNavKey {
+				dirtySectionKeys.insert(navKey)
+				await loadSectionDetail(navKey)
+			} else {
+				let response = try await client.fetchConfigureTree()
+				apply(response: response, resetDraft: false)
+			}
 		} catch {
 			errorMessage = error.localizedDescription
 		}

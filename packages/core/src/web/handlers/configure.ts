@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { AI_PROVIDERS } from "../../ai/providers";
 import {
 	clearDefaultPersona,
 	ensurePersonaImagesDir,
@@ -10,17 +9,12 @@ import {
 	setDefaultPersona,
 	writeConfig,
 } from "../../config/index";
+import { applyConfigureValuesPatch } from "../../configure/persistence";
 import {
-	applyConfigureValuesPatch,
-	redactConfigureValues,
-	seedConfigureValues,
-} from "../../configure/persistence";
-import { buildSettingsTree } from "../../configure/tree";
+	getSettingsCache,
+	invalidateSettingsCache,
+} from "../../configure/settings-cache";
 import type { SettingsItem } from "../../configure/types";
-import {
-	getIntegrationModules,
-	resetPluginModuleCache,
-} from "../../integrations/index";
 import { daemonLog } from "../../logging/daemon-log";
 import { DEFAULT_CHAT_PERSONA } from "../../personas/index";
 import { humanToCronAsync } from "../../schedules/cron-parser";
@@ -59,57 +53,13 @@ function annotateTreeSecrets(node: SettingsItem): SettingsItem {
 	};
 }
 
-function buildIntegrationLabels(): Record<string, string> {
-	const labels: Record<string, string> = { "(none)": "None" };
-	for (const mod of getIntegrationModules()) {
-		labels[mod.name] = mod.displayName;
-	}
-	return labels;
-}
-
 export function handleConfigureTree(): Response {
-	// Reset the plugin module cache so newly installed/removed plugins are
-	// reflected without requiring a daemon restart.
-	resetPluginModuleCache();
-	const values = seedConfigureValues();
-	const redacted = redactConfigureValues(values);
-	const config = readConfig();
-	const personas = config.personas.some(
-		(p) => p.name === DEFAULT_CHAT_PERSONA.name,
-	)
-		? config.personas
-		: [DEFAULT_CHAT_PERSONA, ...config.personas];
-	const tree = buildSettingsTree(
-		personas,
-		AI_PROVIDERS,
-		redacted,
-		config.defaultProviders,
-		{ daemonRunning: true },
-	);
+	const cache = getSettingsCache();
 	return jsonResponse({
-		tree: annotateTreeSecrets(tree),
-		values: redacted,
-		integrationLabels: buildIntegrationLabels(),
+		tree: annotateTreeSecrets(cache.tree),
+		values: cache.redactedValues,
+		integrationLabels: cache.integrationLabels,
 	});
-}
-
-const SETTINGS_SECTION_KEYS = [
-	"chatInbound",
-	"defaults",
-	"ai",
-	"transcription",
-	"webSearch",
-	"projects",
-];
-
-function stripToSectionNodes(node: SettingsItem): SettingsItem {
-	const sectionChildren = (node.children ?? [])
-		.filter((child) => child.kind === "section")
-		.map(stripToSectionNodes);
-	return {
-		...node,
-		children: sectionChildren,
-	};
 }
 
 function findSectionByKey(
@@ -127,67 +77,31 @@ function findSectionByKey(
 }
 
 export function handleConfigureSections(): Response {
-	resetPluginModuleCache();
-	const values = seedConfigureValues();
-	const redacted = redactConfigureValues(values);
-	const config = readConfig();
-	const personas = config.personas.some(
-		(p) => p.name === DEFAULT_CHAT_PERSONA.name,
-	)
-		? config.personas
-		: [DEFAULT_CHAT_PERSONA, ...config.personas];
-	const tree = buildSettingsTree(
-		personas,
-		AI_PROVIDERS,
-		redacted,
-		config.defaultProviders,
-		{ daemonRunning: true },
-	);
-	const sectionMap = new Map(
-		(tree.children ?? []).map((child) => [child.key, child]),
-	);
-	const sections = SETTINGS_SECTION_KEYS.map((key) => sectionMap.get(key))
-		.filter((s): s is SettingsItem => s != null)
-		.map(stripToSectionNodes);
-	return jsonResponse({ sections });
+	const cache = getSettingsCache();
+	return jsonResponse({ sections: cache.sectionsTree });
 }
 
 export function handleConfigureSectionDetail(sectionKey: string): Response {
-	resetPluginModuleCache();
-	const values = seedConfigureValues();
-	const redacted = redactConfigureValues(values);
-	const config = readConfig();
-	const personas = config.personas.some(
-		(p) => p.name === DEFAULT_CHAT_PERSONA.name,
-	)
-		? config.personas
-		: [DEFAULT_CHAT_PERSONA, ...config.personas];
-	const tree = buildSettingsTree(
-		personas,
-		AI_PROVIDERS,
-		redacted,
-		config.defaultProviders,
-		{ daemonRunning: true },
-	);
-	const section = findSectionByKey(tree, sectionKey);
+	const cache = getSettingsCache();
+	const section = findSectionByKey(cache.tree, sectionKey);
 	if (!section) {
 		return errorResponse(`Section "${sectionKey}" not found`, 404);
 	}
 	return jsonResponse({
 		section: annotateTreeSecrets(section),
-		values: redacted,
-		integrationLabels: buildIntegrationLabels(),
+		values: cache.redactedValues,
+		integrationLabels: cache.integrationLabels,
 	});
 }
 
 export async function handleConfigurePatch(req: Request): Promise<Response> {
-	resetPluginModuleCache();
 	const body = await readJsonBody<{ changes?: Record<string, string> }>(req);
 	if (!body?.changes || typeof body.changes !== "object") {
 		return errorResponse("Expected { changes: Record<string, string> }");
 	}
 	try {
 		applyConfigureValuesPatch(body.changes);
+		invalidateSettingsCache();
 		return handleConfigureTree();
 	} catch (e) {
 		return errorResponse(e instanceof Error ? e.message : String(e), 403);
@@ -199,6 +113,9 @@ export async function handleConfigureAction(
 	req: Request,
 ): Promise<Response> {
 	const body = await readJsonBody<Record<string, string>>(req);
+	// Any configure action may modify config/credentials, so invalidate the
+	// settings cache to ensure the next read picks up the changes.
+	invalidateSettingsCache();
 
 	switch (action) {
 		case "create-persona": {
