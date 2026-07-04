@@ -61,11 +61,12 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 			coordinator?.applyFormat(format)
 		}
 
-		let scrollView = NSScrollView()
+		let scrollView = SkillMarkdownScrollView()
 		scrollView.documentView = textView
 		scrollView.hasVerticalScroller = true
 		scrollView.autohidesScrollers = true
 		scrollView.drawsBackground = false
+		scrollView.resizeDocumentViewToFillContent()
 		return scrollView
 	}
 
@@ -84,6 +85,7 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 			context.coordinator.isUpdating = false
 			context.coordinator.highlight()
 		}
+		(nsView as? SkillMarkdownScrollView)?.resizeDocumentViewToFillContent()
 	}
 
 	func makeCoordinator() -> Coordinator {
@@ -201,6 +203,36 @@ final class SkillMarkdownNSTextView: NSTextView {
 			window?.selectPreviousKeyView(nil)
 		default:
 			super.doCommand(by: selector)
+		}
+	}
+}
+
+final class SkillMarkdownScrollView: NSScrollView {
+	override func layout() {
+		super.layout()
+		resizeDocumentViewToFillContent()
+	}
+
+	func resizeDocumentViewToFillContent() {
+		guard let textView = documentView as? NSTextView else { return }
+		let visibleSize = contentSize
+		textView.minSize = NSSize(width: 0, height: visibleSize.height)
+		textView.maxSize = NSSize(
+			width: CGFloat.greatestFiniteMagnitude,
+			height: CGFloat.greatestFiniteMagnitude,
+		)
+		textView.textContainer?.containerSize = NSSize(
+			width: visibleSize.width,
+			height: CGFloat.greatestFiniteMagnitude,
+		)
+		textView.textContainer?.widthTracksTextView = true
+
+		var frame = textView.frame
+		let targetWidth = max(frame.width, visibleSize.width)
+		let targetHeight = max(frame.height, visibleSize.height)
+		if frame.width != targetWidth || frame.height != targetHeight {
+			frame.size = NSSize(width: targetWidth, height: targetHeight)
+			textView.frame = frame
 		}
 	}
 }
