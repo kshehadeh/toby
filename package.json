@@ -32,6 +32,8 @@
     "build:dmg": "bun run build:release && ./scripts/build-dmg.sh",
     "dev": "bun run build:app && \"./dist/Toby (Dev).app/Contents/MacOS/toby-app\"",
     "restart:server": "TOBY_PLUGINS_DIR=$PWD/dist bun run --cwd apps/cli dev daemon restart",
+    "stop:server": "TOBY_PLUGINS_DIR=$PWD/dist bun run --cwd apps/cli dev daemon stop",
+    "start:server": "TOBY_PLUGINS_DIR=$PWD/dist bun run --cwd apps/cli dev daemon start",
     "dev:turbo": "turbo run dev --filter @toby/cli --log-prefix=none --ui=stream",
     "typecheck": "turbo run typecheck",
     "lint": "bunx biome check .",
