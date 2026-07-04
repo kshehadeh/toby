@@ -15,7 +15,7 @@ struct IntegrationSidebarRow: View {
 				.frame(width: 20, height: 20)
 			Text(section.label)
 				.font(.callout.weight(.medium))
-				.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.secondaryText)
+				.foregroundStyle(AppTheme.primaryText)
 				.lineLimit(1)
 			Spacer(minLength: 0)
 		}
@@ -31,16 +31,15 @@ struct IntegrationSidebarRow: View {
 	@ViewBuilder
 	private var iconView: some View {
 		if let iconUrl {
-			SidebarIconView(url: iconUrl, fallbackSystemName: "puzzlepiece.extension", isSelected: isSelected)
+			SidebarIconView(url: iconUrl, fallbackSystemName: "puzzlepiece.extension", isSelected: true)
 				.frame(width: 16, height: 16)
 		} else if let icon = section.icon, !icon.isEmpty {
 			Text(icon)
 				.font(.system(size: 14))
-				.opacity(isSelected ? 1.0 : 0.65)
 		} else {
 			Image(systemName: "puzzlepiece.extension")
 				.font(.system(size: 14, weight: .semibold))
-				.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.tertiaryText)
+				.foregroundStyle(AppTheme.primaryText)
 		}
 	}
 }
