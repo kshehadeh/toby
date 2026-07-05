@@ -47,6 +47,7 @@ screenshot file in `apps/help-site/static/img/`:
 | (main chat window) | `toby-app-main.png` | Chat |
 | Recordings | `toby-app-recordings.png` | Recordings |
 | Integrations | `toby-app-integrations.png` | Integrations |
+| Projects | `toby-app-projects.png` | Projects |
 | Skills | `toby-app-skills.png` | Skills |
 | Schedules | `toby-app-schedules.png` | Schedules |
 | Settings | `toby-app-settings.png` | Settings |
@@ -97,7 +98,7 @@ cua-driver get_window_state "{\"pid\":$PID,\"window_id\":$MAIN_WID,\"capture_mod
 
 ### 5. Navigate to each sidebar window
 
-For each sidebar item (Integrations, Skills, Schedules, Recordings, Settings):
+For each sidebar item (Integrations, Projects, Skills, Schedules, Recordings, Settings):
 
 1. **Re-snapshot** the main window to get fresh element indices:
    ```bash
@@ -144,6 +145,7 @@ IMG_DIR="apps/help-site/static/img"
 cp "${RUN_DIR}/main.png"         "${IMG_DIR}/toby-app-main.png"
 cp "${RUN_DIR}/recordings.png"   "${IMG_DIR}/toby-app-recordings.png"
 cp "${RUN_DIR}/integrations.png" "${IMG_DIR}/toby-app-integrations.png"
+cp "${RUN_DIR}/projects.png"     "${IMG_DIR}/toby-app-projects.png"
 cp "${RUN_DIR}/skills.png"       "${IMG_DIR}/toby-app-skills.png"
 cp "${RUN_DIR}/schedules.png"    "${IMG_DIR}/toby-app-schedules.png"
 cp "${RUN_DIR}/settings.png"     "${IMG_DIR}/toby-app-settings.png"

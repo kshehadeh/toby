@@ -24,7 +24,7 @@ so the native app, CLI, and daemon stay on the same behavior path.
 
 ## Surfaces
 
-Toby.app provides six main windows, all accessible from the sidebar.
+Toby.app's primary windows are accessible from the sidebar.
 
 ### Chat
 
@@ -49,6 +49,15 @@ configuration.
 
 ![Toby.app Integrations window](/img/toby-app-integrations.png)
 
+### Projects
+
+The Projects window keeps project chats, project instructions, project-local
+skills, generated outputs, and project settings together. Select a project to
+continue scoped chats, set the project summary or persona, reveal the project
+folder, and inspect the generated file tree.
+
+![Toby.app Projects window](/img/toby-app-projects.png)
+
 ### Skills
 
 The Skills window lists your installed skills with descriptions. You can add
@@ -66,7 +75,7 @@ expressions. You can add new schedules, run them on demand, or delete them.
 ### Settings
 
 The Settings window lets you configure chat defaults, AI providers, personas,
-projects, and other preferences through a familiar preferences-style interface.
+and other preferences through a familiar preferences-style interface.
 
 ![Toby.app Settings window](/img/toby-app-settings.png)
 

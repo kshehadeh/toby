@@ -5,133 +5,125 @@ title: Projects
 
 # Projects
 
-**Projects** collect AI-generated artifacts in one place over time, with their own reference context and pinned skills so outputs stay consistent across sessions.
+**Projects** give Toby a durable workspace for a specific body of work. A project has its own folder, instructions, project chats, generated outputs, optional persona, and project-local skills so related work stays together across sessions.
+
+![Toby.app Projects workspace](/img/toby-app-projects.png)
 
 ## What a project is
 
-A project is a folder under `~/.toby/projects/` that holds reference documents, generated outputs, and metadata:
+A project is a record in Toby's local session database backed by a folder under `~/.toby/projects/`. New projects use a stable project id for the folder name, and Toby.app exposes the exact path from the project inspector.
 
 ```text
-~/.toby/projects/weekly-overview/
-  project.json       # name, pinned skills, pinned integrations
-  context/           # reference documents the AI reads every turn
-  outputs/           # generated artifacts (reports, summaries, etc.)
+~/.toby/projects/<project-id>/
+  AGENTS.md          # project instructions read by project chats
+  .agent/skills/     # project-local skills
+  outputs/           # generated artifacts
 ```
 
-When a project is **active**, two things happen automatically on every chat turn:
+When you work inside a project, Toby uses the project metadata and folder contents to keep the chat grounded:
 
-1. **Context injection** — files in `context/` are loaded into the system prompt so the AI has the same reference material every time.
-2. **Output scoping** — `writeTextFile` writes to the project's `outputs/` folder by default, keeping all generated artifacts together.
+1. **Project guidance** — `AGENTS.md` is included as project-specific instruction.
+2. **Project-local skills** — every `SKILL.md` under `.agent/skills/` is loaded automatically for that project.
+3. **Output scoping** — generated files land in the project's `outputs/` folder by default.
+4. **Project chat grouping** — project chats appear under the project in Toby.app so the conversation history and workspace stay together.
 
 This makes projects ideal for recurring workflows like weekly overviews, monthly reports, or any task where you want the AI to produce consistent output informed by the same reference material each time.
 
 ## Create a project
 
-In chat, type `/project` and select **Add Project**. Toby prompts you for a name, creates the folder structure, and activates it.
+In Toby.app, open **Projects** from the sidebar and click **+**. Toby creates the project folder, selects the project, and shows the project inspector.
 
-You can also create a project through **Toby.app → Settings → Projects**.
+You can also create a project from chat with `/project` and **Add Project**.
 
-## Activate and switch projects
+## Project workspace
 
-Type `/project` in chat to open the project picker:
+The Projects window combines three areas:
 
-- **Select a project** and press **Enter** or **a** to activate it.
-- **Clear** — deactivate the current project (output reverts to `~/.toby/generated-files/`).
-- **Add** — create a new project.
+| Area | What it does |
+| ---- | ------------ |
+| Project sidebar | Lists projects, summaries, and project chats. Select a project or jump between chats. |
+| Chat workspace | Runs chats scoped to the selected project. Click **New Chat** to start another project chat. |
+| Inspector | Edits the project name, summary, persona, folder path, and file tree. |
 
-Activating a project reboots the session so context documents are injected fresh.
+The project persona is optional. When set, new project chats use that persona by default, which is useful when a project always needs a specific voice or role.
 
-## Project detail view
+## Add project instructions
 
-After selecting a project in the picker, the detail modal shows:
+Every project starts with an `AGENTS.md` file:
 
-| Section | What it shows |
-| ------- | ------------- |
-| **Context files** | Reference documents the AI reads every turn |
-| **Output files** | Generated artifacts stored in the project |
-| **Pinned skills** | Local skills relevant to this project |
-| **Context integrations** | Integrations whose data is relevant to the project |
-
-Press **e** to edit the project in Settings, or **Esc** to go back.
-
-## Edit a project
-
-From the detail view press **e**, or navigate to **Toby.app → Settings → Projects** and select the project name. Editable fields:
-
-| Field | Description |
-| ----- | ----------- |
-| **Name** | Display name |
-| **Skills** | Comma-separated local skill names to pin to this project |
-| **Integrations** | Comma-separated integration names to associate with this project |
-| **Delete project** | Removes the project folder and all its contents |
-
-### Add reference context
-
-Place any text file into the project's `context/` directory:
-
-```bash
-cp style-guide.md ~/.toby/projects/weekly-overview/context/
+```text
+~/.toby/projects/<project-id>/AGENTS.md
 ```
 
-Supported extensions: `.md`, `.markdown`, `.txt`, `.text`, `.json`, `.yaml`, `.yml`, `.csv`, `.tsv`, `.log`, `.xml`, `.html`, `.rst`.
+Use this file for durable guidance that should apply to all project chats: goals, conventions, customer context, output formats, or source-of-truth links.
 
-Files larger than 64 KB are skipped. Total context is capped at 256 KB per turn. Subdirectories up to 6 levels deep are supported. Dot-prefixed files and symlinks are ignored.
+## Add project-local skills
 
-## Write files within a project
+Skills placed in the project's `.agent/skills/` directory are loaded automatically whenever that project is active:
 
-When a project is active, the `writeTextFile` tool scopes output to the project:
+```text
+~/.toby/projects/<project-id>/.agent/skills/
+  weekly-update-format/SKILL.md
+```
 
-| Location | Destination |
-| -------- | ----------- |
-| `outputs` (default) | `~/.toby/projects/<slug>/outputs/` |
-| `context` | `~/.toby/projects/<slug>/context/` |
+Ask Toby to create a skill while working in a project, or add a `SKILL.md` manually. Project-local skills are best for instructions that should not apply globally.
 
-Use `context` when you want the AI to read the file in future turns. Use `outputs` (the default) for generated artifacts that do not need to be re-read.
+Global skills under `~/.toby/skills/` still work normally. Use project-local skills when the behavior belongs only to one project.
 
-When no project is active, `writeTextFile` falls back to `~/.toby/generated-files/`.
+## Browse project files
 
-## Pinned skills
+The inspector shows the project file tree. Use it to confirm that generated outputs and skills landed in the right place. The folder row reveals the project folder in Finder, and files in the tree can be opened with their default app.
 
-Each project can declare **pinned skills** — local skills from `~/.toby/skills/` that are relevant to the project's workflow. For example, a project that generates weekly email digests might pin a skill like `email-triage` that provides formatting and prioritization instructions.
+Generated files are written to:
 
-To create a new skill for a project, ask in chat: *"Create a skill for weekly email summaries"* — Toby drafts a `SKILL.md` under `~/.toby/skills/` using the `createLocalSkill` tool. You can then pin it to the project via **Toby.app → Settings → Projects**.
+```text
+~/.toby/projects/<project-id>/outputs/
+```
 
-See [Skills](./skills) for more on creating and managing skills.
+When no project is active, generated files fall back to `~/.toby/generated-files/`.
+
+## Use projects with schedules
+
+Schedules can be associated with a project. When a scheduled prompt runs with a project selected, Toby uses that project's guidance and writes generated artifacts to the project workspace.
+
+This is useful for recurring reports, weekly reviews, customer updates, and other repeated workflows that should keep the same context over time.
+
+## Legacy context folders
+
+Older Toby project folders may contain a `context/` directory or `project.json`. Toby migrates legacy projects into the current project database and keeps the old paths available for compatibility, but new project guidance should go in `AGENTS.md` and project-local skills should go under `.agent/skills/`.
 
 ## Example: weekly overview project
 
 ```text
 # 1. Create the project
-/project  →  Add Project  →  name: "Weekly Overview"
+Toby.app → Projects → + → rename to "Weekly Updates"
 
-# 2. Add reference context
-# (from a terminal)
-cp last-weeks-overview.md ~/.toby/projects/weekly-overview/context/
-cp team-goals.md ~/.toby/projects/weekly-overview/context/
+# 2. Add durable guidance
+Open the project folder from the inspector and edit AGENTS.md.
 
 # 3. Create a skill for consistent formatting
 "Create a skill called weekly-overview-format that formats a weekly status
  update with sections: Accomplishments, Blockers, Priorities Next Week.
  Write it in a concise bullet-point style."
 
-# 4. Pin the skill to the project
-# In Toby.app → Settings → Projects → weekly-overview → Skills: weekly-overview-format
+# 4. Keep the skill project-local
+Save the skill under .agent/skills/weekly-overview-format/SKILL.md.
 
 # 5. Generate each week
 "Generate this week's overview based on my recent emails and tasks"
- → output lands in ~/.toby/projects/weekly-overview/outputs/
+→ output lands in the project's outputs/ folder.
 ```
 
-Over time, the `outputs/` folder accumulates each weekly overview, all produced with the same style and informed by the same reference documents.
+Over time, the `outputs/` folder accumulates each weekly overview, all produced with the same style and project instructions.
 
 ## Projects vs chat history
 
 | | Chat session | Project |
 | --- | ------------ | ------- |
-| **Stores** | Full conversation transcript | Reference context + generated artifacts |
-| **File** | `~/.toby/chat.sqlite` | `~/.toby/projects/<slug>/` |
+| **Stores** | Conversation transcript | Instructions, skills, and generated artifacts |
+| **Primary location** | `~/.toby/chat.sqlite` | `~/.toby/projects/<project-id>/` |
 | **Lifespan** | Per session | Until you delete the project |
-| **AI access** | Prior messages | Context docs injected every turn |
+| **AI access** | Prior messages | Project guidance and project-local skills |
 
 ## Related
 
