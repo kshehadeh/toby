@@ -65,6 +65,14 @@ new skills, delete existing ones, and run a skill directly from the toolbar.
 
 ![Toby.app Skills window](/img/toby-app-skills.png)
 
+### Memories
+
+The Memories window lists the durable facts Toby keeps about you, such as
+preferences, projects, and relationships. Search, add, edit, or delete memories,
+and inspect their type, sensitivity, visibility, and last-updated timestamp.
+
+![Toby.app Memories window](/img/toby-app-memories.png)
+
 ### Schedules
 
 The Schedules window shows your configured scheduled tasks with their cron
