@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum DetailRoute: String, CaseIterable {
+enum DetailRoute: String, CaseIterable, Identifiable {
 	case chat
 	case projects
 	case integrations
@@ -9,6 +9,36 @@ enum DetailRoute: String, CaseIterable {
 	case skills
 	case memories
 	case settings
+
+	var id: String { rawValue }
+
+	/// Display title for menu items (matches sidebar labels).
+	var menuTitle: String {
+		switch self {
+		case .chat: return "Chats"
+		case .integrations: return "Integrations"
+		case .projects: return "Projects"
+		case .skills: return "Skills"
+		case .memories: return "Memories"
+		case .schedules: return "Schedules"
+		case .recordings: return "Recordings"
+		case .settings: return "Settings…"
+		}
+	}
+
+	/// SF Symbol name matching the sidebar icon for this route.
+	var systemImage: String {
+		switch self {
+		case .chat: return "message"
+		case .integrations: return "square.grid.2x2"
+		case .projects: return "folder"
+		case .skills: return "wand.and.stars"
+		case .memories: return "brain.head.profile"
+		case .schedules: return "clock"
+		case .recordings: return "waveform"
+		case .settings: return "gearshape"
+		}
+	}
 }
 
 @Observable

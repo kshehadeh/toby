@@ -129,10 +129,16 @@ struct TobyApp: App {
 				}
 				.keyboardShortcut("k", modifiers: .command)
 
-				Button("Memories") {
-					NotificationCenter.default.post(name: .navigateToRoute, object: DetailRoute.memories.rawValue)
+				Divider()
+
+				ForEach(DetailRoute.allCases) { route in
+					Button {
+						NotificationCenter.default.post(name: .navigateToRoute, object: route.rawValue)
+					} label: {
+						Label(route.menuTitle, systemImage: route.systemImage)
+					}
+					.keyboardShortcut(viewShortcut(for: route))
 				}
-				.keyboardShortcut("m", modifiers: [.command, .shift])
 			}
 
 			CommandGroup(after: .help) {
@@ -146,6 +152,22 @@ struct TobyApp: App {
 				.keyboardShortcut("i", modifiers: [.command, .shift])
 				OpenLogsMenuItem()
 			}
+		}
+	}
+
+	/// Returns a keyboard shortcut for each view route (Cmd+1 through Cmd+7).
+	/// Settings uses Cmd+, from the app settings command group, so it gets no
+	/// duplicate shortcut here.
+	private func viewShortcut(for route: DetailRoute) -> KeyboardShortcut? {
+		switch route {
+		case .chat: return KeyboardShortcut("1", modifiers: .command)
+		case .integrations: return KeyboardShortcut("2", modifiers: .command)
+		case .projects: return KeyboardShortcut("3", modifiers: .command)
+		case .skills: return KeyboardShortcut("4", modifiers: .command)
+		case .memories: return KeyboardShortcut("5", modifiers: .command)
+		case .schedules: return KeyboardShortcut("6", modifiers: .command)
+		case .recordings: return KeyboardShortcut("7", modifiers: .command)
+		case .settings: return nil
 		}
 	}
 

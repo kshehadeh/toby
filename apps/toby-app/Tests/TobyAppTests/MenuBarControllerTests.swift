@@ -10,12 +10,41 @@ struct MenuBarControllerTests {
 		let controller = MenuBarController(registerStatusItem: false)
 		let titles = controller.menuItemTitles
 		#expect(titles.contains("New Chat"))
-		#expect(titles.contains("Recordings"))
-		#expect(titles.contains("Schedules"))
+		#expect(titles.contains("Chats"))
 		#expect(titles.contains("Integrations"))
+		#expect(titles.contains("Projects"))
+		#expect(titles.contains("Skills"))
 		#expect(titles.contains("Memories"))
+		#expect(titles.contains("Schedules"))
+		#expect(titles.contains("Recordings"))
 		#expect(titles.contains("Settings…"))
 		#expect(titles.contains("Quit Toby"))
+	}
+
+	@Test("view menu items have SF Symbol icons matching sidebar")
+	func viewMenuItemsHaveIcons() throws {
+		let controller = MenuBarController(registerStatusItem: false)
+		let menu = try #require(controller.menu)
+		for route in DetailRoute.allCases {
+			let title = route.menuTitle
+			let item = try #require(menu.items.first { $0.title == title }, "Missing menu item for \(title)")
+			let image = try #require(item.image, "Missing icon for \(title)")
+			#expect(image.isTemplate == true, "Icon for \(title) should be template")
+		}
+	}
+
+	@Test("view menu items are in sidebar order")
+	func viewMenuItemsInOrder() throws {
+		let controller = MenuBarController(registerStatusItem: false)
+		let titles = controller.menuItemTitles
+		// After the recording separator, view items should appear in sidebar order.
+		let viewStart = titles.firstIndex(of: "Chats") ?? 0
+		let viewEnd = titles.firstIndex(of: "Settings…") ?? 0
+		let viewTitles = Array(titles[viewStart...viewEnd])
+		#expect(viewTitles == [
+			"Chats", "Integrations", "Projects", "Skills",
+			"Memories", "Schedules", "Recordings", "Settings…",
+		])
 	}
 
 	@Test("recording item title toggles with state")

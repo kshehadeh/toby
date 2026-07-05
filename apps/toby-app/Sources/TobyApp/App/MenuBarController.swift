@@ -6,7 +6,7 @@ import SwiftUI
 @MainActor
 final class MenuBarController: NSObject {
 	private var statusItem: NSStatusItem?
-	private var menu: NSMenu?
+	private(set) var menu: NSMenu?
 	private var isRecordingActive = false
 	private var baseMenuImage: NSImage?
 	private var originalDockImage: NSImage?
@@ -56,10 +56,13 @@ final class MenuBarController: NSObject {
 			newChatItem(),
 			recordingItem(),
 			.separator(),
-			recordingsItem(),
-			schedulesItem(),
+			chatsItem(),
 			integrationsItem(),
+			projectsItem(),
+			skillsItem(),
 			memoriesItem(),
+			schedulesItem(),
+			recordingsItem(),
 			settingsItem(),
 			.separator(),
 			quitItem(),
@@ -77,6 +80,10 @@ final class MenuBarController: NSObject {
 		)
 		item.target = self
 		item.keyEquivalentModifierMask = .command
+		item.image = NSImage(
+			systemSymbolName: "plus.bubble",
+			accessibilityDescription: nil
+		)
 		return item
 	}
 
@@ -88,57 +95,61 @@ final class MenuBarController: NSObject {
 		)
 		item.target = self
 		item.tag = Self.recordingItemTag
+		item.image = NSImage(
+			systemSymbolName: "record.circle",
+			accessibilityDescription: nil
+		)
 		return item
+	}
+
+	private func chatsItem() -> NSMenuItem {
+		viewMenuItem(title: DetailRoute.chat.menuTitle, route: .chat, keyEquivalent: "1")
 	}
 
 	private func recordingsItem() -> NSMenuItem {
-		let item = NSMenuItem(
-			title: "Recordings",
-			action: #selector(openRecordings),
-			keyEquivalent: ""
-		)
-		item.target = self
-		return item
+		viewMenuItem(title: DetailRoute.recordings.menuTitle, route: .recordings, keyEquivalent: "7")
 	}
 
 	private func schedulesItem() -> NSMenuItem {
-		let item = NSMenuItem(
-			title: "Schedules",
-			action: #selector(openSchedules),
-			keyEquivalent: ""
-		)
-		item.target = self
-		return item
+		viewMenuItem(title: DetailRoute.schedules.menuTitle, route: .schedules, keyEquivalent: "6")
 	}
 
 	private func integrationsItem() -> NSMenuItem {
-		let item = NSMenuItem(
-			title: "Integrations",
-			action: #selector(openIntegrations),
-			keyEquivalent: ""
-		)
-		item.target = self
-		return item
+		viewMenuItem(title: DetailRoute.integrations.menuTitle, route: .integrations, keyEquivalent: "2")
+	}
+
+	private func projectsItem() -> NSMenuItem {
+		viewMenuItem(title: DetailRoute.projects.menuTitle, route: .projects, keyEquivalent: "3")
+	}
+
+	private func skillsItem() -> NSMenuItem {
+		viewMenuItem(title: DetailRoute.skills.menuTitle, route: .skills, keyEquivalent: "4")
 	}
 
 	private func memoriesItem() -> NSMenuItem {
-		let item = NSMenuItem(
-			title: "Memories",
-			action: #selector(openMemories),
-			keyEquivalent: ""
-		)
-		item.target = self
-		return item
+		viewMenuItem(title: DetailRoute.memories.menuTitle, route: .memories, keyEquivalent: "5")
 	}
 
 	private func settingsItem() -> NSMenuItem {
+		viewMenuItem(title: DetailRoute.settings.menuTitle, route: .settings, keyEquivalent: ",")
+	}
+
+	/// Builds a menu item for a view route with the matching SF Symbol icon.
+	private func viewMenuItem(title: String, route: DetailRoute, keyEquivalent: String = "") -> NSMenuItem {
 		let item = NSMenuItem(
-			title: "Settings…",
-			action: #selector(openSettings),
-			keyEquivalent: ","
+			title: title,
+			action: #selector(navigateToRoute(_:)),
+			keyEquivalent: keyEquivalent
 		)
 		item.target = self
-		item.keyEquivalentModifierMask = .command
+		item.image = NSImage(
+			systemSymbolName: route.systemImage,
+			accessibilityDescription: nil
+		)
+		item.representedObject = route.rawValue as Any
+		if !keyEquivalent.isEmpty {
+			item.keyEquivalentModifierMask = .command
+		}
 		return item
 	}
 
@@ -150,6 +161,10 @@ final class MenuBarController: NSObject {
 		)
 		item.target = self
 		item.keyEquivalentModifierMask = .command
+		item.image = NSImage(
+			systemSymbolName: "power",
+			accessibilityDescription: nil
+		)
 		return item
 	}
 
@@ -163,24 +178,10 @@ final class MenuBarController: NSObject {
 		NotificationCenter.default.post(name: .menuBarToggleRecording, object: nil)
 	}
 
-	@objc private func openRecordings() {
-		NotificationCenter.default.post(name: .navigateToRoute, object: DetailRoute.recordings.rawValue)
-	}
-
-	@objc private func openSchedules() {
-		NotificationCenter.default.post(name: .navigateToRoute, object: DetailRoute.schedules.rawValue)
-	}
-
-	@objc private func openIntegrations() {
-		NotificationCenter.default.post(name: .navigateToRoute, object: DetailRoute.integrations.rawValue)
-	}
-
-	@objc private func openMemories() {
-		NotificationCenter.default.post(name: .navigateToRoute, object: DetailRoute.memories.rawValue)
-	}
-
-	@objc private func openSettings() {
-		NotificationCenter.default.post(name: .navigateToRoute, object: DetailRoute.settings.rawValue)
+	@objc private func navigateToRoute(_ sender: NSMenuItem) {
+		if let raw = sender.representedObject as? String {
+			NotificationCenter.default.post(name: .navigateToRoute, object: raw)
+		}
 	}
 
 	@objc private func quitApp() {
