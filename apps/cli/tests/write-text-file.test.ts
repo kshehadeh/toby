@@ -1,9 +1,9 @@
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { resolveWriteTextFileTarget } from "@toby/core/ai/global-chat-tools";
 import type { Project } from "@toby/core/projects/index";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 let tempDir: string;
 let previousTobyDir: string | undefined;
@@ -111,7 +111,7 @@ describe("resolveWriteTextFileTarget", () => {
 		expect(result.error).toContain("Unsupported");
 	});
 
-	it("scopes to project context dir when project is provided", () => {
+	it("scopes to project folder when context location is used", () => {
 		const projectDir = path.join(tempDir, "projects", "myproj");
 		const contextDir = path.join(projectDir, "context");
 		fs.mkdirSync(contextDir, { recursive: true });
@@ -130,7 +130,7 @@ describe("resolveWriteTextFileTarget", () => {
 			project,
 		});
 		expect(result.ok).toBe(true);
-		expect(result.absPath).toBe(path.join(contextDir, "notes.md"));
+		expect(result.absPath).toBe(path.join(projectDir, "notes.md"));
 		expect(result.baseLabel).toContain("My Project");
 	});
 

@@ -2,6 +2,7 @@ import SwiftUI
 
 enum DetailRoute: String, CaseIterable {
 	case chat
+	case projects
 	case integrations
 	case schedules
 	case recordings

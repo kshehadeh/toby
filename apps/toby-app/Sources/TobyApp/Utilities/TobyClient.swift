@@ -133,6 +133,77 @@ struct TobyClient {
 		return try JSONDecoder().decode(CreateSessionResponse.self, from: data)
 	}
 
+	func listProjects() async throws -> [ProjectSummary] {
+		let url = baseURL.appendingPathComponent("api/projects")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ProjectsListResponse.self, from: data).projects
+	}
+
+	func fetchProject(id: String) async throws -> ProjectDetailResponse {
+		let url = baseURL.appendingPathComponent("api/projects/\(id)")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ProjectDetailResponse.self, from: data)
+	}
+
+	func createProject(name: String = "New project") async throws -> ProjectSummary {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/projects"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = try JSONSerialization.data(withJSONObject: ["name": name])
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ProjectMutationResponse.self, from: data).project
+	}
+
+	func updateProject(
+		id: String,
+		name: String? = nil,
+		summary: String? = nil,
+		personaName: String? = nil,
+		folderPath: String? = nil,
+	) async throws -> ProjectSummary {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/projects/\(id)"))
+		request.httpMethod = "PATCH"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		var body: [String: Any] = [:]
+		if let name { body["name"] = name }
+		if let summary { body["summary"] = summary }
+		if let personaName {
+			body["personaName"] = personaName.isEmpty ? NSNull() : personaName
+		}
+		if let folderPath { body["folderPath"] = folderPath }
+		request.httpBody = try JSONSerialization.data(withJSONObject: body)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ProjectMutationResponse.self, from: data).project
+	}
+
+	func deleteProject(id: String) async throws {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/projects/\(id)"))
+		request.httpMethod = "DELETE"
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+	}
+
+	func fetchProjectTree(id: String) async throws -> [ProjectTreeEntry] {
+		let url = baseURL.appendingPathComponent("api/projects/\(id)/tree")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ProjectTreeResponse.self, from: data).tree
+	}
+
+	func createProjectSession(projectId: String) async throws -> SessionSummary {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/projects/\(projectId)/sessions"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = Data("{}".utf8)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ProjectSessionResponse.self, from: data).session
+	}
+
 	func deleteSession(id: String) async throws {
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/sessions/\(id)"))
 		request.httpMethod = "DELETE"

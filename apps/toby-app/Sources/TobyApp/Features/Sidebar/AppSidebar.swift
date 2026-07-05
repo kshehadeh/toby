@@ -54,6 +54,14 @@ struct AppSidebar<Content: View>: View {
 			detail: "Manage connected services, credentials, setup guides, and integration-specific capabilities."
 		),
 		SidebarActionItem(
+			route: .projects,
+			title: "Projects",
+			systemImage: "folder",
+			hoveredSystemImage: "folder.fill",
+			accentColor: Color(red: 0.95, green: 0.7, blue: 0.28),
+			detail: "Work inside project folders with scoped chats, local guidance, skills, and generated outputs."
+		),
+		SidebarActionItem(
 			route: .skills,
 			title: "Skills",
 			systemImage: "wand.and.stars",

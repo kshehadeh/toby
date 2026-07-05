@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -6,67 +7,84 @@ import {
 	getProjectsDir,
 	setActiveProjectSlug,
 } from "../config/index";
+import { getDb } from "../session-store";
 import { type LocalSkill, loadLocalSkills } from "../skills/index";
 
 export interface Project {
-	/** Stable folder name under ~/.toby/projects. */
+	/** Stable SQLite id. */
+	readonly id: string;
+	/** Stable folder-friendly identifier. */
 	readonly slug: string;
 	/** Human-friendly display name. */
 	readonly name: string;
-	/** Absolute path to the project directory. */
+	/** Short project description used in project chat system context. */
+	readonly summary: string;
+	/** Optional project-default persona name. */
+	readonly personaName: string | null;
+	/** Absolute path to the project canvas directory. */
+	readonly folderPath: string;
+	/** Absolute path to the project canvas directory. Kept for old callers. */
 	readonly dir: string;
-	/** Absolute path to the project context document directory. */
+	/** Legacy context directory path. New project prompt context does not scan it automatically. */
 	readonly contextDir: string;
-	/** Absolute path to the project outputs directory (for generated artifacts). */
+	/** Absolute path to generated project artifacts. */
 	readonly outputsDir: string;
-	/** Absolute path to the project-local skills directory. */
+	/** Canonical project-local skills directory. */
 	readonly skillsDir: string;
-	/** Global skill names pinned to this project. */
+	/** Legacy project-local skills directory. */
+	readonly legacySkillsDir: string;
+	/** Legacy pinned global skill names. */
 	readonly skills: readonly string[];
-	/** Integration module names used as context sources. */
+	/** Legacy context integration names. */
 	readonly integrations: readonly string[];
+	readonly createdAt: string;
+	readonly updatedAt: string;
 }
 
 export interface ProjectContextDoc {
-	/** Path relative to the project context directory (POSIX separators). */
 	readonly relativePath: string;
 	readonly content: string;
 }
 
-const PROJECT_METADATA_FILENAME = "project.json";
-const CONTEXT_DIRNAME = "context";
+export interface ProjectTreeEntry {
+	readonly name: string;
+	readonly relativePath: string;
+	readonly kind: "file" | "directory";
+	readonly children?: readonly ProjectTreeEntry[];
+}
+
+const LEGACY_PROJECT_METADATA_FILENAME = "project.json";
+const LEGACY_CONTEXT_DIRNAME = "context";
 const OUTPUTS_DIRNAME = "outputs";
+const AGENT_DIRNAME = ".agent";
 const SKILLS_DIRNAME = "skills";
+const AGENTS_FILENAME = "AGENTS.md";
+const MAX_GUIDANCE_FILE_BYTES = 96 * 1024;
+const MAX_TREE_DEPTH = 8;
+const MAX_TREE_ENTRIES = 500;
 
-/** Extensions treated as readable text context. */
-const CONTEXT_TEXT_EXTENSIONS: ReadonlySet<string> = new Set([
-	".md",
-	".markdown",
-	".txt",
-	".text",
-	".json",
-	".yaml",
-	".yml",
-	".csv",
-	".tsv",
-	".log",
-	".xml",
-	".html",
-	".rst",
-]);
+interface ProjectRow {
+	readonly id: string;
+	readonly slug: string;
+	readonly name: string;
+	readonly summary: string | null;
+	readonly folderPath: string;
+	readonly personaName: string | null;
+	readonly createdAt: string;
+	readonly updatedAt: string;
+}
 
-/** Per-file cap when loading context documents (bytes). */
-const MAX_CONTEXT_FILE_BYTES = 64 * 1024;
-/** Aggregate cap across all loaded context documents (bytes). */
-const MAX_CONTEXT_TOTAL_BYTES = 256 * 1024;
-/** Maximum directory recursion depth when scanning context. */
-const MAX_CONTEXT_DEPTH = 6;
-
-interface ProjectMetadataFile {
+interface LegacyProjectMetadataFile {
 	readonly name?: string;
 	readonly slug?: string;
 	readonly skills?: readonly string[];
 	readonly integrations?: readonly string[];
+}
+
+let legacyMigrationAttempted = false;
+
+function nowIso(): string {
+	return new Date().toISOString();
 }
 
 /** Convert an arbitrary string into a safe kebab-case folder segment. */
@@ -99,273 +117,299 @@ export function generateProjectNameFromPrompt(
 		.slice(0, 80);
 }
 
-function readProjectMetadata(dir: string): ProjectMetadataFile | null {
-	const file = path.join(dir, PROJECT_METADATA_FILENAME);
-	if (!fs.existsSync(file)) {
-		return null;
-	}
-	try {
-		const raw = fs.readFileSync(file, "utf-8");
-		return JSON.parse(raw) as ProjectMetadataFile;
-	} catch {
-		return null;
-	}
+function canonicalSkillsDir(folderPath: string): string {
+	return path.join(folderPath, AGENT_DIRNAME, SKILLS_DIRNAME);
 }
 
-function toProject(slug: string, dir: string): Project {
-	const meta = readProjectMetadata(dir);
-	const skills = Array.isArray(meta?.skills)
-		? meta.skills.filter((s): s is string => typeof s === "string")
-		: [];
-	const integrations = Array.isArray(meta?.integrations)
-		? meta.integrations.filter((s): s is string => typeof s === "string")
-		: [];
+function legacySkillsDir(folderPath: string): string {
+	return path.join(folderPath, SKILLS_DIRNAME);
+}
+
+function toProject(row: ProjectRow): Project {
+	const folderPath = path.resolve(row.folderPath);
 	return {
-		slug,
-		name: meta?.name?.trim() || slug,
-		dir,
-		contextDir: path.join(dir, CONTEXT_DIRNAME),
-		outputsDir: path.join(dir, OUTPUTS_DIRNAME),
-		skillsDir: path.join(dir, SKILLS_DIRNAME),
-		skills,
-		integrations,
+		id: row.id,
+		slug: row.slug,
+		name: row.name,
+		summary: row.summary ?? "",
+		personaName: row.personaName ?? null,
+		folderPath,
+		dir: folderPath,
+		contextDir: path.join(folderPath, LEGACY_CONTEXT_DIRNAME),
+		outputsDir: path.join(folderPath, OUTPUTS_DIRNAME),
+		skillsDir: canonicalSkillsDir(folderPath),
+		legacySkillsDir: legacySkillsDir(folderPath),
+		skills: [],
+		integrations: [],
+		createdAt: row.createdAt,
+		updatedAt: row.updatedAt,
 	};
 }
 
-export function listProjects(): Project[] {
-	const root = getProjectsDir();
-	if (!fs.existsSync(root)) {
-		return [];
-	}
-	let entries: fs.Dirent[];
+function projectSelectSql(): string {
+	return `SELECT id, slug, name, summary, folder_path as folderPath,
+            persona_name as personaName, created_at as createdAt, updated_at as updatedAt
+          FROM projects`;
+}
+
+function dbProjectCount(): number {
+	const db = getDb();
+	const row = db.query("SELECT COUNT(*) as count FROM projects").get() as
+		| { count: number }
+		| undefined;
+	return Number(row?.count ?? 0);
+}
+
+function readLegacyMetadata(dir: string): LegacyProjectMetadataFile | null {
+	const file = path.join(dir, LEGACY_PROJECT_METADATA_FILENAME);
+	if (!fs.existsSync(file)) return null;
 	try {
-		entries = fs.readdirSync(root, { withFileTypes: true });
+		return JSON.parse(
+			fs.readFileSync(file, "utf-8"),
+		) as LegacyProjectMetadataFile;
 	} catch {
-		return [];
-	}
-	const projects: Project[] = [];
-	for (const ent of entries) {
-		if (!ent.isDirectory() || ent.name.startsWith(".")) {
-			continue;
-		}
-		projects.push(toProject(ent.name, path.join(root, ent.name)));
-	}
-	projects.sort((a, b) => a.name.localeCompare(b.name));
-	return projects;
-}
-
-export function resolveProject(slug: string): Project | null {
-	const trimmed = slug.trim();
-	if (!trimmed) {
 		return null;
 	}
-	const dir = path.join(getProjectsDir(), trimmed);
-	if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
-		return null;
-	}
-	return toProject(trimmed, dir);
 }
 
-export function resolveActiveProject(): Project | null {
-	const slug = getActiveProjectSlug();
-	if (!slug) {
-		return null;
-	}
-	return resolveProject(slug);
-}
-
-/** Load skills stored in the project-local `skills/` directory. */
-export function loadProjectSkills(project: Project): LocalSkill[] {
-	return loadLocalSkills(project.skillsDir);
-}
-
-function writeProjectMetadata(dir: string, meta: ProjectMetadataFile): void {
-	fs.mkdirSync(dir, { recursive: true });
-	fs.writeFileSync(
-		path.join(dir, PROJECT_METADATA_FILENAME),
-		`${JSON.stringify(meta, null, 2)}\n`,
-		"utf-8",
-	);
-}
-
-function allocateUniqueSlug(root: string, base: string): string {
-	let candidate = base;
+function allocateUniqueSlug(base: string): string {
+	const db = getDb();
+	const fallback = base || "project";
+	let candidate = fallback;
 	let i = 2;
-	while (fs.existsSync(path.join(root, candidate))) {
-		candidate = `${base}-${i}`;
+	while (
+		db
+			.query("SELECT id FROM projects WHERE slug = $slug")
+			.get({ $slug: candidate })
+	) {
+		candidate = `${fallback}-${i}`;
 		i += 1;
 	}
 	return candidate;
 }
 
+function ensureProjectFolders(folderPath: string): void {
+	fs.mkdirSync(folderPath, { recursive: true });
+	fs.mkdirSync(path.join(folderPath, OUTPUTS_DIRNAME), { recursive: true });
+	fs.mkdirSync(canonicalSkillsDir(folderPath), { recursive: true });
+	const agentsPath = path.join(folderPath, AGENTS_FILENAME);
+	if (!fs.existsSync(agentsPath)) {
+		fs.writeFileSync(
+			agentsPath,
+			"# Project Instructions\n\nAdd guidance for Toby project chats here.\n",
+			"utf-8",
+		);
+	}
+}
+
+function migrateLegacyProjectsOnce(): void {
+	if (legacyMigrationAttempted) return;
+	legacyMigrationAttempted = true;
+
+	const root = getProjectsDir();
+	if (!fs.existsSync(root)) return;
+	let entries: fs.Dirent[];
+	try {
+		entries = fs.readdirSync(root, { withFileTypes: true });
+	} catch {
+		return;
+	}
+
+	for (const ent of entries) {
+		if (!ent.isDirectory() || ent.name.startsWith(".")) continue;
+		const dir = path.join(root, ent.name);
+		const meta = readLegacyMetadata(dir);
+		if (!meta) continue;
+		const slug = slugifyProjectName(meta.slug ?? ent.name) || ent.name;
+		const existing = resolveProject(slug);
+		if (existing) continue;
+		const name = meta.name?.trim() || slug;
+		createProject({
+			name,
+			folderPath: dir,
+			slug,
+			initializeFolders: true,
+		});
+	}
+}
+
 export interface CreateProjectParams {
 	readonly name?: string;
 	readonly prompt?: string;
+	readonly summary?: string;
+	readonly folderPath?: string;
+	readonly personaName?: string | null;
+	readonly slug?: string;
 	readonly skills?: readonly string[];
 	readonly integrations?: readonly string[];
+	readonly initializeFolders?: boolean;
 }
 
 export function createProject(params: CreateProjectParams = {}): Project {
-	const root = getProjectsDir();
-	fs.mkdirSync(root, { recursive: true });
-
-	const existingCount = listProjects().length;
+	const existingCount = dbProjectCount();
+	const id = randomUUID();
 	const name =
 		params.name?.trim() ||
 		generateProjectNameFromPrompt(params.prompt ?? "", existingCount + 1);
-	const baseSlug = slugifyProjectName(name) || `project-${existingCount + 1}`;
-	const slug = allocateUniqueSlug(root, baseSlug);
-	const dir = path.join(root, slug);
+	const baseSlug =
+		slugifyProjectName(params.slug ?? name) || `project-${existingCount + 1}`;
+	const slug = allocateUniqueSlug(baseSlug);
+	const folderPath = path.resolve(
+		params.folderPath?.trim() || path.join(getProjectsDir(), id),
+	);
+	ensureProjectFolders(folderPath);
 
-	writeProjectMetadata(dir, {
-		name,
-		slug,
-		skills: params.skills ? [...params.skills] : [],
-		integrations: params.integrations ? [...params.integrations] : [],
+	const db = getDb();
+	const ts = nowIso();
+	db.query(
+		`INSERT INTO projects (
+       id, slug, name, summary, folder_path, persona_name, created_at, updated_at
+     ) VALUES (
+       $id, $slug, $name, $summary, $folder_path, $persona_name, $created_at, $updated_at
+     )`,
+	).run({
+		$id: id,
+		$slug: slug,
+		$name: name,
+		$summary: params.summary?.trim() ?? "",
+		$folder_path: folderPath,
+		$persona_name: params.personaName?.trim() || null,
+		$created_at: ts,
+		$updated_at: ts,
 	});
-	fs.mkdirSync(path.join(dir, CONTEXT_DIRNAME), { recursive: true });
-	fs.mkdirSync(path.join(dir, OUTPUTS_DIRNAME), { recursive: true });
-	fs.mkdirSync(path.join(dir, SKILLS_DIRNAME), { recursive: true });
+	return resolveProject(id) as Project;
+}
 
-	return toProject(slug, dir);
+export function listProjects(): Project[] {
+	migrateLegacyProjectsOnce();
+	const db = getDb();
+	const rows = db
+		.query(`${projectSelectSql()} ORDER BY name COLLATE NOCASE ASC`)
+		.all() as ProjectRow[];
+	return rows.map(toProject);
+}
+
+export function resolveProject(idOrSlug: string): Project | null {
+	migrateLegacyProjectsOnce();
+	const key = idOrSlug.trim();
+	if (!key) return null;
+	const db = getDb();
+	const row = db
+		.query(`${projectSelectSql()} WHERE id = $key OR slug = $key LIMIT 1`)
+		.get({ $key: key }) as ProjectRow | undefined;
+	return row ? toProject(row) : null;
+}
+
+export function resolveActiveProject(): Project | null {
+	const slug = getActiveProjectSlug();
+	if (!slug) return null;
+	return resolveProject(slug);
 }
 
 export interface ProjectMetadataUpdate {
 	readonly name?: string;
+	readonly summary?: string;
+	readonly folderPath?: string;
+	readonly personaName?: string | null;
 	readonly skills?: readonly string[];
 	readonly integrations?: readonly string[];
 }
 
 export function updateProjectMetadata(
-	slug: string,
+	idOrSlug: string,
 	updates: ProjectMetadataUpdate,
 ): Project {
-	const project = resolveProject(slug);
+	const project = resolveProject(idOrSlug);
 	if (!project) {
-		throw new Error(`Project not found: ${slug}`);
+		throw new Error(`Project not found: ${idOrSlug}`);
 	}
-	writeProjectMetadata(project.dir, {
-		name: updates.name?.trim() || project.name,
-		slug: project.slug,
-		skills: updates.skills ? [...updates.skills] : [...project.skills],
-		integrations: updates.integrations
-			? [...updates.integrations]
-			: [...project.integrations],
+	const nextFolder = updates.folderPath?.trim()
+		? path.resolve(updates.folderPath.trim())
+		: project.folderPath;
+	if (updates.folderPath?.trim()) {
+		ensureProjectFolders(nextFolder);
+	}
+	const db = getDb();
+	db.query(
+		`UPDATE projects
+     SET name = $name, summary = $summary, folder_path = $folder_path,
+         persona_name = $persona_name, updated_at = $updated_at
+     WHERE id = $id`,
+	).run({
+		$id: project.id,
+		$name: updates.name?.trim() || project.name,
+		$summary: updates.summary !== undefined ? updates.summary : project.summary,
+		$folder_path: nextFolder,
+		$persona_name:
+			updates.personaName !== undefined
+				? updates.personaName?.trim() || null
+				: project.personaName,
+		$updated_at: nowIso(),
 	});
-	return toProject(slug, project.dir);
+	return resolveProject(project.id) as Project;
 }
 
-export function deleteProject(slug: string): void {
-	const project = resolveProject(slug);
-	if (!project) {
-		return;
-	}
-	fs.rmSync(project.dir, { recursive: true, force: true });
-	if (getActiveProjectSlug() === slug) {
+export function deleteProject(idOrSlug: string): void {
+	const project = resolveProject(idOrSlug);
+	if (!project) return;
+	const db = getDb();
+	db.query(
+		"UPDATE chat_sessions SET project_id = NULL WHERE project_id = $id",
+	).run({ $id: project.id });
+	db.query("UPDATE schedules SET project_id = NULL WHERE project_id = $id").run(
+		{
+			$id: project.id,
+		},
+	);
+	db.query("DELETE FROM projects WHERE id = $id").run({ $id: project.id });
+	if (getActiveProjectSlug() === project.slug) {
 		clearActiveProjectSlug();
 	}
 }
 
-export { getActiveProjectSlug, setActiveProjectSlug, clearActiveProjectSlug };
-
-function collectContextFiles(
-	root: string,
-	dir: string,
-	depth: number,
-	out: string[],
-): void {
-	if (depth > MAX_CONTEXT_DEPTH) {
-		return;
+export function loadProjectSkills(project: Project): LocalSkill[] {
+	const canonical = loadLocalSkills(project.skillsDir);
+	const legacy =
+		project.legacySkillsDir !== project.skillsDir
+			? loadLocalSkills(project.legacySkillsDir)
+			: [];
+	const seen = new Set<string>();
+	const out: LocalSkill[] = [];
+	for (const skill of [...canonical, ...legacy]) {
+		const key = skill.name.trim().toLowerCase();
+		if (seen.has(key)) continue;
+		seen.add(key);
+		out.push(skill);
 	}
-	let entries: fs.Dirent[];
-	try {
-		entries = fs.readdirSync(dir, { withFileTypes: true });
-	} catch {
-		return;
-	}
-	for (const ent of entries) {
-		if (ent.name.startsWith(".")) {
-			continue;
-		}
-		const full = path.join(dir, ent.name);
-		// Skip symlinks to avoid escaping the project directory.
-		if (ent.isSymbolicLink()) {
-			continue;
-		}
-		if (ent.isDirectory()) {
-			collectContextFiles(root, full, depth + 1, out);
-			continue;
-		}
-		if (!ent.isFile()) {
-			continue;
-		}
-		const ext = path.extname(ent.name).toLowerCase();
-		if (!CONTEXT_TEXT_EXTENSIONS.has(ext)) {
-			continue;
-		}
-		out.push(full);
-	}
+	return out;
 }
 
-/** Load text context documents for a project, applying size and type caps. */
 export function loadProjectContextDocuments(
 	project: Project,
 ): ProjectContextDoc[] {
-	if (!fs.existsSync(project.contextDir)) {
+	const agentsPath = path.join(project.folderPath, AGENTS_FILENAME);
+	if (!fs.existsSync(agentsPath)) return [];
+	let stat: fs.Stats;
+	try {
+		stat = fs.statSync(agentsPath);
+	} catch {
 		return [];
 	}
-	const files: string[] = [];
-	collectContextFiles(project.contextDir, project.contextDir, 0, files);
-	files.sort((a, b) => a.localeCompare(b));
-
-	const docs: ProjectContextDoc[] = [];
-	let total = 0;
-	for (const file of files) {
-		if (total >= MAX_CONTEXT_TOTAL_BYTES) {
-			break;
-		}
-		let stat: fs.Stats;
-		try {
-			stat = fs.statSync(file);
-		} catch {
-			continue;
-		}
-		if (stat.size > MAX_CONTEXT_FILE_BYTES) {
-			continue;
-		}
-		let content: string;
-		try {
-			content = fs.readFileSync(file, "utf-8");
-		} catch {
-			continue;
-		}
-		if (content.includes("\u0000")) {
-			// Treat NUL-containing files as binary; skip.
-			continue;
-		}
-		const remaining = MAX_CONTEXT_TOTAL_BYTES - total;
-		const trimmed =
-			content.length > remaining ? content.slice(0, remaining) : content;
-		total += trimmed.length;
-		docs.push({
-			relativePath: path
-				.relative(project.contextDir, file)
-				.split(path.sep)
-				.join("/"),
-			content: trimmed,
-		});
+	if (!stat.isFile() || stat.size > MAX_GUIDANCE_FILE_BYTES) return [];
+	try {
+		const content = fs.readFileSync(agentsPath, "utf-8");
+		if (content.includes("\u0000")) return [];
+		return [{ relativePath: AGENTS_FILENAME, content }];
+	} catch {
+		return [];
 	}
-	return docs;
 }
 
-/** List file paths (relative, POSIX separators) in a project directory. */
 function listFilesInDir(dir: string): string[] {
-	if (!fs.existsSync(dir)) {
-		return [];
-	}
+	if (!fs.existsSync(dir)) return [];
 	const files: string[] = [];
-	function walk(d: string, depth: number) {
-		if (depth > MAX_CONTEXT_DEPTH) return;
+	function walk(d: string, depth: number): void {
+		if (depth > MAX_TREE_DEPTH) return;
 		let entries: fs.Dirent[];
 		try {
 			entries = fs.readdirSync(d, { withFileTypes: true });
@@ -373,7 +417,7 @@ function listFilesInDir(dir: string): string[] {
 			return;
 		}
 		for (const ent of entries) {
-			if (ent.name.startsWith(".")) continue;
+			if (ent.name.startsWith(".") && ent.name !== AGENT_DIRNAME) continue;
 			const full = path.join(d, ent.name);
 			if (ent.isSymbolicLink()) continue;
 			if (ent.isDirectory()) {
@@ -389,30 +433,77 @@ function listFilesInDir(dir: string): string[] {
 	return files;
 }
 
-/** List file paths in the project context directory. */
 export function listProjectContextFiles(project: Project): string[] {
-	return listFilesInDir(project.contextDir);
+	return listFilesInDir(project.folderPath);
 }
 
-/** List file paths in the project outputs directory. */
 export function listProjectOutputFiles(project: Project): string[] {
 	return listFilesInDir(project.outputsDir);
 }
 
-/** Marker bounding the project context appendix in the first system message. */
-export const PROJECT_CONTEXT_APPENDIX_START =
-	"\n\n---\n\n## Project context documents\n\n";
+export function listProjectTree(project: Project): ProjectTreeEntry[] {
+	let count = 0;
+	function walk(dir: string, depth: number): ProjectTreeEntry[] {
+		if (depth > MAX_TREE_DEPTH || count >= MAX_TREE_ENTRIES) return [];
+		let entries: fs.Dirent[];
+		try {
+			entries = fs.readdirSync(dir, { withFileTypes: true });
+		} catch {
+			return [];
+		}
+		return entries
+			.filter((ent) => !ent.name.startsWith(".") || ent.name === AGENT_DIRNAME)
+			.filter((ent) => !ent.isSymbolicLink())
+			.sort((a, b) => {
+				if (a.isDirectory() !== b.isDirectory())
+					return a.isDirectory() ? -1 : 1;
+				return a.name.localeCompare(b.name);
+			})
+			.flatMap((ent): ProjectTreeEntry[] => {
+				if (count >= MAX_TREE_ENTRIES) return [];
+				const full = path.join(dir, ent.name);
+				const relativePath = path
+					.relative(project.folderPath, full)
+					.split(path.sep)
+					.join("/");
+				count += 1;
+				if (ent.isDirectory()) {
+					return [
+						{
+							name: ent.name,
+							relativePath,
+							kind: "directory",
+							children: walk(full, depth + 1),
+						},
+					];
+				}
+				if (!ent.isFile()) return [];
+				return [{ name: ent.name, relativePath, kind: "file" }];
+			});
+	}
+	return walk(project.folderPath, 0);
+}
 
-/** Render loaded project context documents into a prompt appendix string. */
+export const PROJECT_CONTEXT_APPENDIX_START =
+	"\n\n---\n\n## Project guidance\n\n";
+
 export function formatProjectContextForPrompt(
 	project: Project,
 	docs: readonly ProjectContextDoc[],
 ): string {
-	if (docs.length === 0) {
-		return "";
-	}
+	const parts = [
+		`Active project: **${project.name}**.`,
+		`Project folder: \`${project.folderPath}\`.`,
+		project.summary.trim() ? `Project summary: ${project.summary.trim()}` : "",
+		"Generated artifacts should be written to the project's outputs folder using `writeTextFile`.",
+	]
+		.filter(Boolean)
+		.join("\n");
 	const blocks = docs
 		.map((d) => `### ${d.relativePath}\n\n${d.content.trim()}`)
+		.filter(Boolean)
 		.join("\n\n---\n\n");
-	return `${PROJECT_CONTEXT_APPENDIX_START}Active project: **${project.name}**. The following local documents are provided as reference context. Generated artifacts should be written to the project's outputs folder using \`writeTextFile\` (default location) — use \`location='context'\` only for reference documents the AI should read.\n\n${blocks}`;
+	return `${PROJECT_CONTEXT_APPENDIX_START}${parts}${blocks ? `\n\n${blocks}` : ""}`;
 }
+
+export { getActiveProjectSlug, setActiveProjectSlug, clearActiveProjectSlug };

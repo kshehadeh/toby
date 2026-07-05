@@ -1,16 +1,16 @@
 import { mock } from "bun:test";
-import * as actualAi from "ai";
 import * as actualEmbeddings from "@toby/core/routing/embeddings";
 import { getDb } from "@toby/core/session-store";
+import * as actualAi from "ai";
 
-export let generateTextQueue: unknown[] = [];
+export const generateTextQueue: unknown[] = [];
 export const generateTextMock = mock((..._args: unknown[]) => {
 	const value = generateTextQueue.shift();
 	if (value instanceof Promise) return value;
 	return Promise.resolve(value ?? {});
 });
 
-export let embedTextsQueue: unknown[] = [];
+export const embedTextsQueue: unknown[] = [];
 export const embedTextsMock = mock((..._args: unknown[]) => {
 	const value = embedTextsQueue.shift();
 	return Promise.resolve(value ?? []);
@@ -34,7 +34,7 @@ mock.module("@toby/core/routing/embeddings", () => ({
  */
 export function clearPretreatmentCache(): void {
 	try {
-		getDb().run("DELETE FROM chat_pretreatment_cache");
+		getDb().exec("DELETE FROM chat_pretreatment_cache");
 	} catch {
 		// Table may not exist yet; ignore.
 	}

@@ -75,6 +75,16 @@ struct CommandPaletteView: View {
 			))
 		}
 
+		if trimmed.isEmpty || "projects".localizedCaseInsensitiveContains(trimmed) {
+			items.append(CommandPaletteResult(
+				id: "action-projects",
+				title: "Open Projects",
+				subtitle: "Work in scoped project folders",
+				systemImage: "folder",
+				kind: .route(.projects),
+			))
+		}
+
 		if trimmed.isEmpty || "skills".localizedCaseInsensitiveContains(trimmed) {
 			items.append(CommandPaletteResult(
 				id: "action-skills",

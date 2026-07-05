@@ -10,6 +10,7 @@ export type ChatSessionSettings = {
 	readonly modules?: readonly string[];
 	readonly dryRun?: boolean;
 	readonly debug?: boolean;
+	readonly projectId?: string;
 };
 
 export type CreateSessionRequest = {
@@ -18,6 +19,7 @@ export type CreateSessionRequest = {
 	readonly modules?: readonly string[];
 	readonly dryRun?: boolean;
 	readonly debug?: boolean;
+	readonly projectId?: string;
 	/** Run assemble-only pipeline to seed system messages (no model call). */
 	readonly bootstrap?: boolean;
 };
@@ -64,6 +66,7 @@ export type PatchSessionRequest = Partial<{
 	readonly modules: readonly string[];
 	readonly dryRun: boolean;
 	readonly debug: boolean;
+	readonly projectId: string;
 }>;
 
 export type TurnRequestBody = {
@@ -77,6 +80,7 @@ export type TurnRequestBody = {
 	readonly steering?: boolean;
 	/** First-turn plan generation (multi-step prompts). */
 	readonly generatePlan?: boolean;
+	readonly projectId?: string;
 };
 
 export type TurnDonePayload = {

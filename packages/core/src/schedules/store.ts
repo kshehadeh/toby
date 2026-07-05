@@ -19,6 +19,7 @@ function rowToSchedule(row: Record<string, unknown>): Schedule {
 		prompt: row.prompt as string,
 		personaName: row.persona_name as string,
 		cronExpression: row.cron_expression as string,
+		projectId: (row.project_id as string | null) ?? null,
 		enabled: Boolean(row.enabled),
 		lastRunAt: (row.last_run_at as string | null) ?? null,
 		createdAt: row.created_at as string,
@@ -45,7 +46,7 @@ export function listSchedules(): Schedule[] {
 	const db = getDb();
 	const rows = db
 		.query(
-			`SELECT id, name, prompt, persona_name, cron_expression, enabled, last_run_at, created_at, updated_at
+			`SELECT id, name, prompt, persona_name, cron_expression, project_id, enabled, last_run_at, created_at, updated_at
        FROM schedules
        ORDER BY created_at DESC`,
 		)
@@ -57,7 +58,7 @@ function getSchedule(id: string): Schedule | null {
 	const db = getDb();
 	const row = db
 		.query(
-			`SELECT id, name, prompt, persona_name, cron_expression, enabled, last_run_at, created_at, updated_at
+			`SELECT id, name, prompt, persona_name, cron_expression, project_id, enabled, last_run_at, created_at, updated_at
        FROM schedules
        WHERE id = $id`,
 		)
@@ -72,14 +73,15 @@ export function createSchedule(params: CreateScheduleParams): Schedule {
 	const ts = nowIso();
 	const enabled = params.enabled !== false ? 1 : 0;
 	db.query(
-		`INSERT INTO schedules (id, name, prompt, persona_name, cron_expression, enabled, last_run_at, created_at, updated_at)
-     VALUES ($id, $name, $prompt, $persona_name, $cron_expression, $enabled, NULL, $created_at, $updated_at)`,
+		`INSERT INTO schedules (id, name, prompt, persona_name, cron_expression, project_id, enabled, last_run_at, created_at, updated_at)
+     VALUES ($id, $name, $prompt, $persona_name, $cron_expression, $project_id, $enabled, NULL, $created_at, $updated_at)`,
 	).run({
 		$id: id,
 		$name: params.name.trim(),
 		$prompt: params.prompt.trim(),
 		$persona_name: params.personaName.trim(),
 		$cron_expression: params.cronExpression.trim(),
+		$project_id: params.projectId?.trim() || null,
 		$enabled: enabled,
 		$created_at: ts,
 		$updated_at: ts,
@@ -100,6 +102,10 @@ export function updateSchedule(
 	const personaName = params.personaName?.trim() ?? existing.personaName;
 	const cronExpression =
 		params.cronExpression?.trim() ?? existing.cronExpression;
+	const projectId =
+		params.projectId !== undefined
+			? params.projectId?.trim() || null
+			: existing.projectId;
 	const enabled =
 		params.enabled !== undefined
 			? params.enabled
@@ -112,7 +118,8 @@ export function updateSchedule(
 	db.query(
 		`UPDATE schedules
      SET name = $name, prompt = $prompt, persona_name = $persona_name,
-         cron_expression = $cron_expression, enabled = $enabled, updated_at = $updated_at
+         cron_expression = $cron_expression, project_id = $project_id,
+         enabled = $enabled, updated_at = $updated_at
      WHERE id = $id`,
 	).run({
 		$id: id,
@@ -120,6 +127,7 @@ export function updateSchedule(
 		$prompt: prompt,
 		$persona_name: personaName,
 		$cron_expression: cronExpression,
+		$project_id: projectId,
 		$enabled: enabled,
 		$updated_at: nowIso(),
 	});
@@ -141,7 +149,7 @@ export function getDueSchedules(): Schedule[] {
 	const db = getDb();
 	const rows = db
 		.query(
-			`SELECT id, name, prompt, persona_name, cron_expression, enabled, last_run_at, created_at, updated_at
+			`SELECT id, name, prompt, persona_name, cron_expression, project_id, enabled, last_run_at, created_at, updated_at
        FROM schedules
        WHERE enabled = 1`,
 		)

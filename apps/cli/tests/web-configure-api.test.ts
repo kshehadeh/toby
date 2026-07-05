@@ -11,6 +11,7 @@ import {
 	seedConfigureValues,
 } from "@toby/core/configure/persistence";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
+import { closeChatDbForTests } from "@toby/core/session-store";
 import { handleWebRequest } from "@toby/core/web/routes";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
@@ -117,6 +118,7 @@ function withTempTobyDir(run: () => void): void {
 	try {
 		run();
 	} finally {
+		closeChatDbForTests();
 		if (previous === undefined) {
 			Reflect.deleteProperty(process.env, "TOBY_DIR");
 		} else {
@@ -171,8 +173,10 @@ describe("configure persistence", () => {
 	});
 
 	it("seeds configure values without throwing", () => {
-		const values = seedConfigureValues();
-		expect(typeof values["chatInbound.enabled"]).toBe("string");
+		withTempTobyDir(() => {
+			const values = seedConfigureValues();
+			expect(typeof values["chatInbound.enabled"]).toBe("string");
+		});
 	});
 
 	it("persists custom model list for a provider", () => {

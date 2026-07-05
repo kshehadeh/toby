@@ -4,6 +4,7 @@ export interface Schedule {
 	readonly prompt: string;
 	readonly personaName: string;
 	readonly cronExpression: string;
+	readonly projectId: string | null;
 	readonly enabled: boolean;
 	readonly lastRunAt: string | null;
 	readonly createdAt: string;
@@ -30,6 +31,7 @@ export interface CreateScheduleParams {
 	readonly prompt: string;
 	readonly personaName: string;
 	readonly cronExpression: string;
+	readonly projectId?: string | null;
 	readonly enabled?: boolean;
 }
 
@@ -38,5 +40,6 @@ export interface UpdateScheduleParams {
 	readonly prompt?: string;
 	readonly personaName?: string;
 	readonly cronExpression?: string;
+	readonly projectId?: string | null;
 	readonly enabled?: boolean;
 }

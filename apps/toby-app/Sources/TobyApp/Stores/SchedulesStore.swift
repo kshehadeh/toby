@@ -6,12 +6,39 @@ struct ScheduleViewModel: Identifiable {
 	let name: String
 	let prompt: String
 	let personaName: String
+	let projectId: String?
 	let cronExpression: String
 	let cronHumanReadable: String
 	let nextRunAt: Date?
 	let enabled: Bool
 	let lastRunAt: String?
 	let recentRuns: [ScheduleRunViewModel]
+
+	init(
+		id: String,
+		name: String,
+		prompt: String,
+		personaName: String,
+		projectId: String? = nil,
+		cronExpression: String,
+		cronHumanReadable: String,
+		nextRunAt: Date?,
+		enabled: Bool,
+		lastRunAt: String?,
+		recentRuns: [ScheduleRunViewModel]
+	) {
+		self.id = id
+		self.name = name
+		self.prompt = prompt
+		self.personaName = personaName
+		self.projectId = projectId
+		self.cronExpression = cronExpression
+		self.cronHumanReadable = cronHumanReadable
+		self.nextRunAt = nextRunAt
+		self.enabled = enabled
+		self.lastRunAt = lastRunAt
+		self.recentRuns = recentRuns
+	}
 
 	var displayName: String {
 		name.isEmpty ? "Untitled schedule" : name
@@ -42,6 +69,7 @@ enum ScheduleField: String {
 	case name = "name"
 	case prompt = "prompt"
 	case persona = "persona"
+	case project = "project"
 	case cron = "cron"
 	case enabled = "enabled"
 	case lastRun = "_lastRun"
@@ -53,6 +81,7 @@ final class SchedulesStore {
 	var schedules: [ScheduleViewModel] = []
 	var selectedScheduleId: String?
 	var personaOptions: [PersonaOption] = []
+	var projectOptions: [ProjectSummary] = []
 	var values: [String: String] = [:]
 	var draft: [String: String] = [:]
 	var isLoading = false
@@ -92,8 +121,10 @@ final class SchedulesStore {
 		do {
 			async let treeResponse = client.fetchConfigureTree()
 			async let personas = client.listPersonas()
+			async let projects = client.listProjects()
 			let response = try await treeResponse
 			personaOptions = try await personas
+			projectOptions = try await projects
 			apply(response: response, resetDraft: true)
 			if selectedScheduleId == nil || !schedules.contains(where: { $0.id == selectedScheduleId }) {
 				selectedScheduleId = schedules.first?.id
@@ -369,6 +400,7 @@ final class SchedulesStore {
 			let name = values[key(for: id, field: .name)] ?? node.label
 			let prompt = values[key(for: id, field: .prompt)] ?? ""
 			let persona = values[key(for: id, field: .persona)] ?? ""
+			let projectValue = values[key(for: id, field: .project)] ?? "(none)"
 			let cron = values[key(for: id, field: .cron)] ?? ""
 			let cronCurrentValue = findChild(node, key: key(for: id, field: .cron))?.currentValue
 			let cronHumanReadable = cronHumanReadable(from: cron, currentValue: cronCurrentValue)
@@ -381,6 +413,7 @@ final class SchedulesStore {
 				name: name,
 				prompt: prompt,
 				personaName: persona,
+				projectId: projectValue == "(none)" ? nil : projectValue,
 				cronExpression: cron,
 				cronHumanReadable: cronHumanReadable,
 				nextRunAt: nextRunAt,

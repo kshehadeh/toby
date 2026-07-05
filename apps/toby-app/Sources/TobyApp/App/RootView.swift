@@ -6,6 +6,7 @@ struct RootView: View {
     @Bindable var configureStore: ConfigureStore
     @Bindable var recordingsStore: RecordingsStore
     @Bindable var schedulesStore: SchedulesStore
+    @Bindable var projectsStore: ProjectsStore = ProjectsStore()
     @Bindable var integrationsStore: ConfigureStore
     @Bindable var skillsStore: SkillsStore
     @Bindable var memoriesStore: MemoriesStore
@@ -179,9 +180,10 @@ struct RootView: View {
             .task {
                 async let recordings: () = recordingsStore.load()
                 async let schedules: () = schedulesStore.load()
+                async let projects: () = projectsStore.load()
                 async let integrations: () = integrationsStore.load()
                 async let memories: () = memoriesStore.load()
-                _ = await (recordings, schedules, integrations, memories)
+                _ = await (recordings, schedules, projects, integrations, memories)
             }
             .task {
                 updateStore.startCheckLoop()
@@ -288,6 +290,18 @@ struct RootView: View {
                         )
                     case .integrations:
                         IntegrationsSidebarView(store: integrationsStore)
+                    case .projects:
+                        ProjectsSidebarView(
+                            store: projectsStore,
+                            selectedSessionId: store.sessionId,
+                            onCreate: { Task { await projectsStore.createProject(chatStore: store) } },
+                            onSelect: { id in
+                                Task { await projectsStore.selectProject(id: id, chatStore: store) }
+                            },
+                            onSelectSession: { id in
+                                Task { await projectsStore.selectChat(id: id, chatStore: store) }
+                            }
+                        )
                     case .schedules:
                         SchedulesSidebarView(store: schedulesStore, onDelete: { schedule in
                             schedulesStore.pendingDelete = SchedulesStore.PendingDelete(
@@ -366,6 +380,7 @@ struct RootView: View {
                                 Capsule()
                                     .stroke(Color.white.opacity(0.12), lineWidth: 1),
                             )
+                            .fixedSize(horizontal: true, vertical: false)
                         }
                         ToolbarItem(placement: .confirmationAction) {
                             Button(action: startNewChat) {
@@ -381,6 +396,37 @@ struct RootView: View {
                     .toolbar {
                         commonToolbarItems()
                         ToolbarItem(placement: .principal) { Spacer() }
+                    }
+            case .projects:
+                ProjectsView(projectsStore: projectsStore, chatStore: store)
+                    .toolbar {
+                        commonToolbarItems()
+                        ToolbarItem(placement: .principal) {
+                            SessionTitleBadge(
+                                title: projectsStore.selectedProjectName,
+                                activityLine: store.activityLine,
+                            )
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(AppTheme.elevatedBackground.opacity(0.92)),
+                            )
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color.white.opacity(0.12), lineWidth: 1),
+                            )
+                            .fixedSize(horizontal: true, vertical: false)
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button {
+                                Task { await projectsStore.createProject(chatStore: store) }
+                            } label: {
+                                Image(systemName: "plus")
+                            }
+                            .help("New Project")
+                            .disabled(projectsStore.isSaving || store.isLoading)
+                        }
                     }
             case .schedules:
                 SchedulesView(store: schedulesStore)

@@ -1,14 +1,11 @@
 import "./helpers/setup-mocks";
-import { closeChatDbForTests } from "@toby/core/session-store";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { parseCatalogLines } from "@toby/core/routing/catalog-parse";
 import type { RoutingIndex } from "@toby/core/routing/index";
-import {
-	afterEach,
-	beforeEach,
-	describe,
-	expect,
-	it,
-} from "bun:test";
+import { closeChatDbForTests } from "@toby/core/session-store";
 import {
 	clearPretreatmentCache,
 	embedTextsMock,
@@ -18,12 +15,21 @@ import {
 } from "./helpers/setup-mocks";
 
 afterEach(() => {
-	closeChatDbForTests();
 	clearPretreatmentCache();
+	closeChatDbForTests();
+	const dir = process.env.TOBY_DIR;
+	if (dir?.startsWith(os.tmpdir()) && fs.existsSync(dir)) {
+		fs.rmSync(dir, { recursive: true, force: true });
+	}
+	process.env.TOBY_DIR = undefined;
 });
 
-const { wrapUserPromptWithPretreatment } = await import("@toby/core/ai/pretreatment");
-const { getRoutingSkillMinScore, routeToolsAndSkills } = await import("@toby/core/routing/index");
+const { wrapUserPromptWithPretreatment } = await import(
+	"@toby/core/ai/pretreatment"
+);
+const { getRoutingSkillMinScore, routeToolsAndSkills } = await import(
+	"@toby/core/routing/index"
+);
 
 function testIndex(): RoutingIndex {
 	return {
@@ -162,6 +168,9 @@ describe("wrapUserPromptWithPretreatment semantic mode", () => {
 		(embedTextsMock as unknown as { mockClear?: () => void }).mockClear?.();
 		embedTextsQueue.length = 0;
 		embedTextsQueue.push([[0.95, 0.05, 0]]);
+		process.env.TOBY_DIR = fs.mkdtempSync(
+			path.join(os.tmpdir(), "toby-routing-test-"),
+		);
 		process.env.TOBY_SEMANTIC_ROUTING = "1";
 		process.env.TOBY_ROUTING_MIN_SCORE = "0.3";
 	});

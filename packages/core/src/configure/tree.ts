@@ -556,6 +556,14 @@ export function buildSettingsTree(
 	} catch {
 		schedules = [];
 	}
+	const projects = listProjects();
+	const projectSelectChoices = [
+		{ value: "(none)", label: "No project" },
+		...projects.map((project) => ({
+			value: project.id,
+			label: project.name,
+		})),
+	];
 	const daemonRunning = ctx.daemonRunning;
 	const activeScheduleCount = schedules.filter((s) => s.enabled).length;
 	const scheduleSections: SettingsItem[] = schedules.map((schedule) => {
@@ -595,6 +603,14 @@ export function buildSettingsTree(
 					key: `schedules.${schedule.id}.persona`,
 					options: personas.map((p) => p.name),
 					currentValue: schedule.personaName,
+				},
+				{
+					label: "Project",
+					kind: "select" as const,
+					key: `schedules.${schedule.id}.project`,
+					options: projectSelectChoices.map((choice) => choice.value),
+					selectChoices: projectSelectChoices,
+					currentValue: schedule.projectId ?? "(none)",
 				},
 				{
 					label: "Schedule",

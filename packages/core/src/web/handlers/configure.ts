@@ -352,6 +352,7 @@ export async function handleConfigureAction(
 				prompt: "",
 				personaName: getDefaultPersonaName() ?? "Toby",
 				cronExpression: "0 9 * * *",
+				projectId: null,
 				enabled: true,
 			});
 			return jsonResponse({ ok: true, scheduleId: created.id });
@@ -375,6 +376,11 @@ export async function handleConfigureAction(
 				updateSchedule(scheduleId, { personaName: String(value ?? "") });
 			} else if (field === "cron") {
 				updateSchedule(scheduleId, { cronExpression: String(value ?? "") });
+			} else if (field === "project") {
+				const projectId = String(value ?? "").trim();
+				updateSchedule(scheduleId, {
+					projectId: projectId && projectId !== "(none)" ? projectId : null,
+				});
 			} else {
 				return errorResponse(`Unknown schedule field: ${field}`);
 			}

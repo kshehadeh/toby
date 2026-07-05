@@ -109,6 +109,7 @@ export async function handleCreateSession(req: Request): Promise<Response> {
 		...(body.modules ? { modules: body.modules } : {}),
 		...(body.dryRun !== undefined ? { dryRun: body.dryRun } : {}),
 		...(body.debug !== undefined ? { debug: body.debug } : {}),
+		...(body.projectId ? { projectId: body.projectId } : {}),
 	};
 	const session = createChatSession({
 		name: body.name?.trim() || "New chat",
@@ -122,6 +123,7 @@ export async function handleCreateSession(req: Request): Promise<Response> {
 				? { modules: body.modules }
 				: {}),
 			dryRun: body.dryRun,
+			projectId: body.projectId,
 		});
 	}
 	return jsonResponse({ id: session.id, name: session.name, settings }, 201);
@@ -147,6 +149,7 @@ export function handlePatchSession(
 			...(body.modules !== undefined ? { modules: body.modules } : {}),
 			...(body.dryRun !== undefined ? { dryRun: body.dryRun } : {}),
 			...(body.debug !== undefined ? { debug: body.debug } : {}),
+			...(body.projectId !== undefined ? { projectId: body.projectId } : {}),
 		});
 		const refreshed = loadChatSession(sessionId);
 		return jsonResponse({
@@ -180,6 +183,7 @@ export async function handleSessionBootstrap(
 			persona: loaded.settings.persona,
 			modules: loaded.settings.modules,
 			dryRun: loaded.settings.dryRun,
+			projectId: loaded.settings.projectId,
 		});
 		return jsonResponse(result);
 	} catch (error) {
@@ -240,6 +244,7 @@ export async function handleSessionTurn(
 					persona: body.persona,
 					modules: body.modules,
 					dryRun: body.dryRun,
+					projectId: body.projectId,
 					steering: body.steering,
 					clientTurnId: body.clientTurnId,
 					personaNameForFallback: persona.name,

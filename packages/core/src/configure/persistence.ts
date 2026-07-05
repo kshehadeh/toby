@@ -105,6 +105,7 @@ export function seedScheduleValues(values: Record<string, string>): void {
 		values[`schedules.${schedule.id}.prompt`] = schedule.prompt;
 		values[`schedules.${schedule.id}.persona`] = schedule.personaName;
 		values[`schedules.${schedule.id}.cron`] = schedule.cronExpression;
+		values[`schedules.${schedule.id}.project`] = schedule.projectId ?? "(none)";
 		values[`schedules.${schedule.id}.enabled`] = schedule.enabled
 			? "Yes"
 			: "No";
@@ -466,15 +467,12 @@ function applyConfigFromValues(values: Record<string, string>): void {
 
 const SKILL_FIELD_RE = /^skills\.([^.]+)\.(name|description)$/;
 const SCHEDULE_FIELD_RE =
-	/^schedules\.([^.]+)\.(name|prompt|persona|cron|enabled)$/;
+	/^schedules\.([^.]+)\.(name|prompt|persona|cron|project|enabled)$/;
 const PROJECT_FIELD_RE = /^projects\.([^.]+)\.(name|skills|integrations)$/;
 
 function partitionConfigurePatch(patch: Record<string, string>): {
 	config: Record<string, string>;
-	skills: Map<
-		string,
-		{ name?: string; description?: string }
-	>;
+	skills: Map<string, { name?: string; description?: string }>;
 	schedules: Map<
 		string,
 		{
@@ -482,6 +480,7 @@ function partitionConfigurePatch(patch: Record<string, string>): {
 			prompt?: string;
 			personaName?: string;
 			cronExpression?: string;
+			projectId?: string | null;
 			enabled?: boolean;
 		}
 	>;
@@ -491,10 +490,7 @@ function partitionConfigurePatch(patch: Record<string, string>): {
 	>;
 } {
 	const config: Record<string, string> = {};
-	const skills = new Map<
-		string,
-		{ name?: string; description?: string }
-	>();
+	const skills = new Map<string, { name?: string; description?: string }>();
 	const schedules = new Map<
 		string,
 		{
@@ -502,6 +498,7 @@ function partitionConfigurePatch(patch: Record<string, string>): {
 			prompt?: string;
 			personaName?: string;
 			cronExpression?: string;
+			projectId?: string | null;
 			enabled?: boolean;
 		}
 	>();
@@ -529,6 +526,8 @@ function partitionConfigurePatch(patch: Record<string, string>): {
 			else if (field === "prompt") entry.prompt = value;
 			else if (field === "persona") entry.personaName = value;
 			else if (field === "cron") entry.cronExpression = value;
+			else if (field === "project")
+				entry.projectId = value === "(none)" ? null : value;
 			else entry.enabled = value === "Yes" || value === "true";
 			schedules.set(scheduleId, entry);
 			continue;

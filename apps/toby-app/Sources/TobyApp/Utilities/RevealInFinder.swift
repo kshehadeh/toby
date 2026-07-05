@@ -23,4 +23,10 @@ enum RevealInFinder {
 		}
 		NSWorkspace.shared.open(current)
 	}
+
+	/// Open the item at `path` with the default macOS app for its file type.
+	@discardableResult
+	static func openWithDefaultApp(path: String) -> Bool {
+		NSWorkspace.shared.open(URL(fileURLWithPath: path))
+	}
 }

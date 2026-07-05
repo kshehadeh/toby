@@ -3,6 +3,7 @@ import { getDefaultPersonaImagePath } from "../../config/index";
 import { getIntegrationIconUrl } from "../../integrations/index";
 import { resolveDefaultPersona, resolvePersona } from "../../personas/index";
 import { loadPlanBySession } from "../../planning/plan-store";
+import { resolveProject } from "../../projects/index";
 import {
 	listChatSessions,
 	loadChatSession,
@@ -43,8 +44,12 @@ export function handleSessionDetail(sessionId: string): Response {
 	}
 	const external = loadExternalSessionBySessionId(sessionId);
 
-	// Resolve persona image URL for the session's persona (or default).
-	const personaName = session.settings?.persona;
+	// Resolve persona image URL for the session's effective persona:
+	// explicit session override, then project default, then global default.
+	const projectPersonaName = session.settings?.projectId
+		? resolveProject(session.settings.projectId)?.personaName
+		: null;
+	const personaName = session.settings?.persona ?? projectPersonaName;
 	const persona = personaName
 		? resolvePersona(personaName)
 		: resolveDefaultPersona();

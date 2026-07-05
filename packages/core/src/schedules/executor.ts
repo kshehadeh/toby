@@ -15,7 +15,11 @@ import {
 	type ProviderCategory,
 } from "../integrations/types";
 import { resolvePersona } from "../personas/index";
-import { prepareChatSessionMessages } from "../prepare-messages";
+import {
+	injectProjectContextIntoFirstSystemMessage,
+	prepareChatSessionMessages,
+} from "../prepare-messages";
+import { resolveProject } from "../projects/index";
 import { recordScheduleInvariantFailureAndThrow } from "./invariant-record";
 import {
 	completeScheduleRun,
@@ -109,6 +113,9 @@ export async function executeScheduleRun(
 	}
 
 	try {
+		const project = schedule.projectId
+			? resolveProject(schedule.projectId)
+			: null;
 		const warningPrefix =
 			warnings.length > 0
 				? `[Schedule warnings: ${warnings.join(" | ")}]\n\n`
@@ -119,11 +126,16 @@ export async function executeScheduleRun(
 			instructions: persona.instructions + SCHEDULE_SYSTEM_INSTRUCTION_APPENDIX,
 		};
 
-		const messages = await prepareChatSessionMessages(
+		let messages = await prepareChatSessionMessages(
 			chatModules,
 			augmentedPersona,
 			schedule.prompt,
+			undefined,
+			project,
 		);
+		if (project) {
+			messages = injectProjectContextIntoFirstSystemMessage(messages, project);
+		}
 
 		const toolBundles = await Promise.all(
 			chatModules.map(async (m) => {
@@ -147,6 +159,7 @@ export async function executeScheduleRun(
 				dryRun: false,
 				persona: augmentedPersona,
 				appliedActions: globalApplied,
+				project,
 			}),
 		);
 

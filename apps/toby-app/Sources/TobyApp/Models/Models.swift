@@ -293,6 +293,7 @@ struct SessionSummary: Decodable, Identifiable {
 	let name: String
 	let createdAt: String?
 	let updatedAt: String?
+	var projectId: String? = nil
 	var sourceIntegration: String? = nil
 	var sourceDisplayName: String? = nil
 	var sourceIntegrationIconUrl: String? = nil
@@ -345,6 +346,51 @@ struct SessionSettings: Decodable {
 	let modules: [String]?
 	let dryRun: Bool?
 	let debug: Bool?
+	let projectId: String?
+}
+
+struct ProjectSummary: Decodable, Identifiable, Equatable {
+	let id: String
+	let slug: String
+	let name: String
+	let summary: String
+	let folderPath: String
+	let personaName: String?
+	let outputsDir: String?
+	let skillsDir: String?
+	let createdAt: String?
+	let updatedAt: String?
+}
+
+struct ProjectsListResponse: Decodable {
+	let projects: [ProjectSummary]
+}
+
+struct ProjectDetailResponse: Decodable {
+	let project: ProjectSummary
+	let sessions: [SessionSummary]?
+}
+
+struct ProjectMutationResponse: Decodable {
+	let project: ProjectSummary
+}
+
+struct ProjectSessionResponse: Decodable {
+	let session: SessionSummary
+}
+
+struct ProjectTreeResponse: Decodable {
+	let tree: [ProjectTreeEntry]
+}
+
+struct ProjectTreeEntry: Decodable, Identifiable, Equatable {
+	let name: String
+	let relativePath: String
+	let kind: String
+	let children: [ProjectTreeEntry]?
+
+	var id: String { relativePath.isEmpty ? name : relativePath }
+	var isDirectory: Bool { kind == "directory" }
 }
 
 struct PlanSummary: Decodable {

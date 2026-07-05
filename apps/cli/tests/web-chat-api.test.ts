@@ -6,6 +6,7 @@ import {
 	applyChatEvent,
 	shouldPersistChatEventInTranscript,
 } from "@toby/core/chat-pipeline/transcript-reducer";
+import { writeConfig } from "@toby/core/config/index";
 import { listenManager } from "@toby/core/listen/manager";
 import {
 	buildListenMetadata,
@@ -303,6 +304,75 @@ describe("web chat API routes", () => {
 					contextWindowTokens: 128_000,
 					fillPercentage: 42,
 				});
+			});
+		},
+	);
+
+	it.skipIf(!canUseBunSqlite())(
+		"uses project persona image for project-scoped session detail",
+		async () => {
+			await withTempTobyDir(async () => {
+				writeConfig({
+					integrations: {},
+					personas: [
+						{
+							name: "Project Persona",
+							instructions: "Project persona instructions",
+							promptMode: "add",
+							ai: { provider: "openai", model: "gpt-5-mini" },
+							imagePath: "project-persona.png",
+						},
+					],
+				});
+
+				const projectRes = await handleWebRequest(
+					new Request("http://127.0.0.1/api/projects", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							name: "Persona Project",
+							personaName: "Project Persona",
+						}),
+					}),
+					null,
+				);
+				expect(projectRes.status).toBe(201);
+				const projectBody = (await projectRes.json()) as {
+					project: { id: string };
+				};
+
+				const sessionRes = await handleWebRequest(
+					new Request(
+						`http://127.0.0.1/api/projects/${projectBody.project.id}/sessions`,
+						{
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: "{}",
+						},
+					),
+					null,
+				);
+				expect(sessionRes.status).toBe(201);
+				const sessionBody = (await sessionRes.json()) as {
+					session: { id: string };
+				};
+
+				const detail = await handleWebRequest(
+					new Request(
+						`http://127.0.0.1/api/sessions/${sessionBody.session.id}`,
+					),
+					null,
+				);
+				expect(detail.status).toBe(200);
+				const detailBody = (await detail.json()) as {
+					personaImageUrl?: string;
+					settings: { projectId?: string; persona?: string };
+				};
+				expect(detailBody.settings.projectId).toBe(projectBody.project.id);
+				expect(detailBody.settings.persona).toBeUndefined();
+				expect(detailBody.personaImageUrl).toBe(
+					"/api/personas/image/project-persona.png",
+				);
 			});
 		},
 	);

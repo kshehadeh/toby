@@ -15,6 +15,7 @@ export type ChatSessionSummary = {
 	readonly name: string;
 	readonly createdAt: string;
 	readonly updatedAt: string;
+	readonly projectId?: string | null;
 	readonly sourceIntegration?: string | null;
 	readonly sourceDisplayName?: string | null;
 	readonly externalKey?: string | null;
@@ -73,6 +74,18 @@ function ensureSchema(db: SqliteDb): void {
 CREATE TABLE IF NOT EXISTS chat_sessions (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
+  project_id TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS projects (
+  id TEXT PRIMARY KEY,
+  slug TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  summary TEXT NOT NULL DEFAULT '',
+  folder_path TEXT NOT NULL,
+  persona_name TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -151,10 +164,12 @@ CREATE TABLE IF NOT EXISTS schedules (
   prompt TEXT NOT NULL,
   persona_name TEXT NOT NULL,
   cron_expression TEXT NOT NULL,
+  project_id TEXT,
   enabled INTEGER NOT NULL DEFAULT 1,
   last_run_at TEXT,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS schedule_runs (
@@ -201,6 +216,14 @@ CREATE INDEX IF NOT EXISTS idx_chat_external_sessions_session_id
 	migrateChatSessionsSchema(db);
 	migrateChatExternalSessionsSchema(db);
 	migrateScheduleRunsSchema(db);
+	migrateSchedulesSchema(db);
+	db.exec(`
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_project_id
+  ON chat_sessions(project_id);
+
+CREATE INDEX IF NOT EXISTS idx_schedules_project_id
+  ON schedules(project_id);
+`);
 }
 
 function migrateChatSessionsSchema(db: SqliteDb): void {
@@ -215,6 +238,9 @@ function migrateChatSessionsSchema(db: SqliteDb): void {
 	}
 	if (!cols.some((c) => c.name === "context_window_json")) {
 		db.exec("ALTER TABLE chat_sessions ADD COLUMN context_window_json TEXT");
+	}
+	if (!cols.some((c) => c.name === "project_id")) {
+		db.exec("ALTER TABLE chat_sessions ADD COLUMN project_id TEXT");
 	}
 }
 
@@ -260,6 +286,15 @@ function migrateScheduleRunsSchema(db: SqliteDb): void {
 	}
 }
 
+function migrateSchedulesSchema(db: SqliteDb): void {
+	const cols = db.query("PRAGMA table_info(schedules)").all() as Array<{
+		name: string;
+	}>;
+	if (!cols.some((c) => c.name === "project_id")) {
+		db.exec("ALTER TABLE schedules ADD COLUMN project_id TEXT");
+	}
+}
+
 export function parseSessionSettingsJson(
 	raw: string | null | undefined,
 ): ChatSessionSettings {
@@ -277,6 +312,7 @@ export function parseSessionSettingsJson(
 				? { dryRun: Boolean(parsed.dryRun) }
 				: {}),
 			...(parsed.debug !== undefined ? { debug: Boolean(parsed.debug) } : {}),
+			...(parsed.projectId ? { projectId: String(parsed.projectId) } : {}),
 		};
 	} catch {
 		return {};
@@ -289,10 +325,16 @@ export function getSessionSettings(sessionId: string): ChatSessionSettings {
 	const db = getDb();
 	const row = db
 		.query(
-			"SELECT settings_json as settingsJson FROM chat_sessions WHERE id = $id",
+			"SELECT settings_json as settingsJson, project_id as projectId FROM chat_sessions WHERE id = $id",
 		)
-		.get({ $id: id }) as { settingsJson: string | null } | undefined;
-	return parseSessionSettingsJson(row?.settingsJson);
+		.get({ $id: id }) as
+		| { settingsJson: string | null; projectId: string | null }
+		| undefined;
+	const settings = parseSessionSettingsJson(row?.settingsJson);
+	return {
+		...settings,
+		...(row?.projectId ? { projectId: row.projectId } : {}),
+	};
 }
 
 export function setSessionSettings(
@@ -303,10 +345,11 @@ export function setSessionSettings(
 	if (!id) return;
 	const db = getDb();
 	db.query(
-		"UPDATE chat_sessions SET settings_json = $json, updated_at = $updated_at WHERE id = $id",
+		"UPDATE chat_sessions SET settings_json = $json, project_id = $project_id, updated_at = $updated_at WHERE id = $id",
 	).run({
 		$id: id,
 		$json: JSON.stringify(settings),
+		$project_id: settings.projectId?.trim() || null,
 		$updated_at: nowIso(),
 	});
 }
@@ -322,6 +365,7 @@ export function mergeSessionSettings(
 		...(patch.modules !== undefined ? { modules: [...patch.modules] } : {}),
 		...(patch.dryRun !== undefined ? { dryRun: patch.dryRun } : {}),
 		...(patch.debug !== undefined ? { debug: patch.debug } : {}),
+		...(patch.projectId !== undefined ? { projectId: patch.projectId } : {}),
 	};
 	setSessionSettings(sessionId, next);
 	return next;
@@ -890,16 +934,23 @@ export function createChatSession(params?: {
 		? JSON.stringify(params.settings)
 		: null;
 	db.query(
-		`INSERT INTO chat_sessions (id, name, created_at, updated_at, settings_json)
-     VALUES ($id, $name, $created_at, $updated_at, $settings_json)`,
+		`INSERT INTO chat_sessions (id, name, project_id, created_at, updated_at, settings_json)
+     VALUES ($id, $name, $project_id, $created_at, $updated_at, $settings_json)`,
 	).run({
 		$id: id,
 		$name: name,
+		$project_id: params?.settings?.projectId?.trim() || null,
 		$created_at: ts,
 		$updated_at: ts,
 		$settings_json: settingsJson,
 	});
-	return { id, name, createdAt: ts, updatedAt: ts };
+	return {
+		id,
+		name,
+		createdAt: ts,
+		updatedAt: ts,
+		projectId: params?.settings?.projectId ?? null,
+	};
 }
 
 export function renameChatSession(sessionId: string, name: string): void {
@@ -926,7 +977,7 @@ export function listChatSessions(limit = 50): ChatSessionSummary[] {
 	const db = getDb();
 	const rows = db
 		.query(
-			`SELECT s.id, s.name, s.created_at as createdAt, s.updated_at as updatedAt,
+			`SELECT s.id, s.name, s.project_id as projectId, s.created_at as createdAt, s.updated_at as updatedAt,
               es.integration as sourceIntegration,
               es.display_name as sourceDisplayName,
               es.external_key as externalKey,
@@ -934,6 +985,7 @@ export function listChatSessions(limit = 50): ChatSessionSummary[] {
               es.last_remote_message_at as lastRemoteMessageAt
        FROM chat_sessions s
        LEFT JOIN chat_external_sessions es ON es.session_id = s.id
+       WHERE s.project_id IS NULL
        ORDER BY s.updated_at DESC
        LIMIT $limit`,
 		)
@@ -942,6 +994,7 @@ export function listChatSessions(limit = 50): ChatSessionSummary[] {
 		name: string;
 		createdAt: string;
 		updatedAt: string;
+		projectId: string | null;
 		sourceIntegration: string | null;
 		sourceDisplayName: string | null;
 		externalKey: string | null;
@@ -953,6 +1006,7 @@ export function listChatSessions(limit = 50): ChatSessionSummary[] {
 		name: r.name,
 		createdAt: r.createdAt,
 		updatedAt: r.updatedAt,
+		projectId: r.projectId,
 		sourceIntegration: r.sourceIntegration,
 		sourceDisplayName: r.sourceDisplayName,
 		externalKey: r.externalKey,
@@ -962,12 +1016,46 @@ export function listChatSessions(limit = 50): ChatSessionSummary[] {
 	}));
 }
 
+export function listChatSessionsForProject(
+	projectId: string,
+	limit = 20,
+): ChatSessionSummary[] {
+	const trimmed = projectId.trim();
+	if (!trimmed) return [];
+	const db = getDb();
+	const rows = db
+		.query(
+			`SELECT id, name, project_id as projectId, created_at as createdAt, updated_at as updatedAt
+       FROM chat_sessions
+       WHERE project_id = $project_id
+       ORDER BY updated_at DESC
+       LIMIT $limit`,
+		)
+		.all({
+			$project_id: trimmed,
+			$limit: Math.max(1, Math.min(100, limit)),
+		}) as Array<{
+		id: string;
+		name: string;
+		projectId: string | null;
+		createdAt: string;
+		updatedAt: string;
+	}>;
+	return rows.map((r) => ({
+		id: r.id,
+		name: r.name,
+		projectId: r.projectId,
+		createdAt: r.createdAt,
+		updatedAt: r.updatedAt,
+	}));
+}
+
 export function loadChatSession(sessionId: string): LoadedChatSession | null {
 	const db = getDb();
 	ensureChatSessionContextWindowColumn(db);
 	const sess = db
 		.query(
-			`SELECT id, name, settings_json as settingsJson,
+			`SELECT id, name, project_id as projectId, settings_json as settingsJson,
               context_window_json as contextWindowJson
        FROM chat_sessions WHERE id = $id`,
 		)
@@ -975,6 +1063,7 @@ export function loadChatSession(sessionId: string): LoadedChatSession | null {
 		| {
 				id: string;
 				name: string;
+				projectId: string | null;
 				settingsJson: string | null;
 				contextWindowJson: string | null;
 		  }
@@ -1015,13 +1104,17 @@ export function loadChatSession(sessionId: string): LoadedChatSession | null {
 		deserializeTranscriptRow({ kind: r.kind as string, text: r.text }),
 	);
 	const contextWindow = parseContextWindowJson(sess.contextWindowJson);
+	const settings = parseSessionSettingsJson(sess.settingsJson);
 
 	return {
 		id: sess.id,
 		name: sess.name,
 		messages,
 		transcript,
-		settings: parseSessionSettingsJson(sess.settingsJson),
+		settings: {
+			...settings,
+			...(sess.projectId ? { projectId: sess.projectId } : {}),
+		},
 		...(contextWindow ? { contextWindow } : {}),
 	};
 }

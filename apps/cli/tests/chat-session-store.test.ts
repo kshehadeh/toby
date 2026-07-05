@@ -13,6 +13,7 @@ import {
 	createChatSession,
 	getPretreatmentCache,
 	listChatSessions,
+	listChatSessionsForProject,
 	loadChatSession,
 	renameChatSession,
 	setPretreatmentCache,
@@ -99,6 +100,22 @@ describe.skipIf(!isBun)("chat session store", () => {
 		expect(list.length).toBeGreaterThanOrEqual(2);
 		expect(list[0]?.id).toBe(a.id);
 		expect(list.map((s) => s.id)).toContain(b.id);
+	});
+
+	it("excludes project sessions from the main session list", () => {
+		process.env.TOBY_DIR = makeTempDir();
+		const global = createChatSession({ name: "Global" });
+		const project = createChatSession({
+			name: "Project",
+			settings: { projectId: "project-1" },
+		});
+
+		const mainList = listChatSessions(10);
+		expect(mainList.map((s) => s.id)).toContain(global.id);
+		expect(mainList.map((s) => s.id)).not.toContain(project.id);
+
+		const projectList = listChatSessionsForProject("project-1", 10);
+		expect(projectList.map((s) => s.id)).toEqual([project.id]);
 	});
 
 	it("renames a session", () => {

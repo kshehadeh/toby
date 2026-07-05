@@ -8,6 +8,7 @@ struct TobyApp: App {
 	@State private var configureStore = ConfigureStore()
 	@State private var recordingsStore = RecordingsStore()
 	@State private var schedulesStore = SchedulesStore()
+	@State private var projectsStore = ProjectsStore()
 	@State private var integrationsStore = ConfigureStore()
 	@State private var skillsStore = SkillsStore()
 	@State private var memoriesStore = MemoriesStore()
@@ -26,6 +27,7 @@ struct TobyApp: App {
 				configureStore: configureStore,
 				recordingsStore: recordingsStore,
 				schedulesStore: schedulesStore,
+				projectsStore: projectsStore,
 				integrationsStore: integrationsStore,
 				skillsStore: skillsStore,
 				memoriesStore: memoriesStore,

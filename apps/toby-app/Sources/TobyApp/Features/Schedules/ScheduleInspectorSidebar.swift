@@ -11,6 +11,7 @@ struct ScheduleInspectorSidebar: View {
                 VStack(alignment: .leading, spacing: 18) {
                     nameField
                     personaField
+                    projectField
                     cronField
                     enableRow
                     Divider().overlay(SettingsDesign.cardBorder)
@@ -73,6 +74,28 @@ struct ScheduleInspectorSidebar: View {
                 Picker("Persona", selection: personaBinding) {
                     ForEach(store.personaOptions, id: \.name) { option in
                         Text(option.label).tag(option.name)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .controlSize(.regular)
+
+                Spacer(minLength: 0)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var projectField: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Project")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(SettingsDesign.rowTitle)
+            HStack {
+                Picker("Project", selection: binding(for: .project)) {
+                    Text("No project").tag("(none)")
+                    ForEach(store.projectOptions) { project in
+                        Text(project.name).tag(project.id)
                     }
                 }
                 .labelsHidden()

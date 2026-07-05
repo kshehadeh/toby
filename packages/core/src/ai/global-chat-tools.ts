@@ -50,7 +50,7 @@ const skillDraftSchema = z.object({
 	recommendedFolderName: z
 		.string()
 		.describe(
-			"Suggested folder name under ~/.toby/skills (kebab-case, lowercase)",
+			"Suggested folder name under the target skills directory (kebab-case, lowercase)",
 		),
 	skillMarkdown: z
 		.string()
@@ -59,7 +59,7 @@ const skillDraftSchema = z.object({
 		),
 });
 
-const DRAFT_SYSTEM = `You author Toby SKILL.md files. Toby loads skills from ~/.toby/skills/<folder>/SKILL.md.
+const DRAFT_SYSTEM = `You author Toby SKILL.md files. Toby loads global skills from ~/.toby/skills/<folder>/SKILL.md and project skills from <project>/.agent/skills/<folder>/SKILL.md.
 
 Return only structured fields matching the schema.
 
@@ -70,7 +70,7 @@ skillMarkdown requirements:
   - description: when this skill should apply (one or two sentences; used for automatic routing)
 - After the closing ---, write the instructional markdown body (headings, lists, steps as appropriate).
 - Do not wrap the file in markdown code fences.
-- Do not invent user-specific secrets or paths outside ~/.toby/skills.
+- Do not invent user-specific secrets or unrelated filesystem paths.
 
 recommendedFolderName must be a single path segment: lowercase letters, digits, and hyphens only (kebab-case).`;
 
@@ -166,8 +166,10 @@ export function resolveWriteTextFileTarget(params: {
 				baseLabel = `project "${params.project.name}" outputs`;
 				break;
 			default:
-				baseDir = params.project.contextDir;
-				baseLabel = `project "${params.project.name}" context`;
+				baseDir =
+					(params.project as { folderPath?: string }).folderPath ??
+					params.project.dir;
+				baseLabel = `project "${params.project.name}" folder`;
 				break;
 		}
 	} else {
@@ -226,7 +228,7 @@ Global Toby tools (always available in addition to integration tools):
 - **memoryRetrieveForTask**: Retrieve memories relevant to the current task.
 - **getCurrentDateTime**: Return the current local/UTC date-time and timezone.
 - **fetchWebContent**: Fetch a web page and extract its main readable content (strips ads, navigation, footers). Returns article title, text content, excerpt, and metadata. Use to read blog posts, articles, documentation, or any page with substantive text.${searchToolLine}
-- **createSchedule**: Create a recurring scheduled chat run. Required: \`intention\` (what the schedule does), \`targetOutput\` (\`slack\` | \`project\` | \`none\`). Optional: \`frequency\` (natural language like "every weekday at 9am" or a cron expression). If the user has not specified a frequency, **omit it** — the tool will return a signal; then call **askUser** to ask the user how often it should run and retry. The schedule runs headlessly via the daemon using the default persona.
+- **createSchedule**: Create a recurring scheduled chat run. Required: \`intention\` (what the schedule does), \`targetOutput\` (\`slack\` | \`project\` | \`none\`). Optional: \`frequency\` (natural language like "every weekday at 9am" or a cron expression) and \`projectId\`. If the user has not specified a frequency, **omit it** — the tool will return a signal; then call **askUser** to ask the user how often it should run and retry. The schedule runs headlessly via the daemon using the default persona.
 ${searchRules}
 
 Memory rules:
@@ -248,13 +250,14 @@ Local skill routing:
 Create or update a skill (explicit request only):
 - **createLocalSkill** is available only when the user explicitly asks to create, draft, or update a Toby skill (or when pretreatment selected it for that request). Do not use it to capture general conversation, memories, or one-off instructions.
 - It saves to the shared skills folder at \`~/.toby/skills/<folder>/SKILL.md\`.
+- When a project is active, it saves to \`<project>/.agent/skills/<folder>/SKILL.md\`.
 - When the request is to author a skill, **always prefer createLocalSkill over writeTextFile** — do not hand-write a SKILL.md with writeTextFile.
 - Required: \`description\`. Optional: \`preferredFolderName\` (kebab-case). Optional: \`updateExisting\` (boolean, default false).
 
 Write a text file (explicit request only):
 - **writeTextFile** is available only when the user explicitly asks to write, generate, or save a file (Markdown or any text format). Do not use it for general notes or memories.
 - Do not use writeTextFile to author Toby skills (SKILL.md). Use **createLocalSkill** instead.
-- When a project is active, writes go to the project's **outputs** folder by default (for generated artifacts). Use \`location='context'\` for reference documents the AI should read in future turns. When no project is active, writes go to \`~/.toby/generated-files\`.
+- When a project is active, writes go to the project's **outputs** folder by default (for generated artifacts). Use \`location='context'\` only when the user wants to place a reference file in the project folder. When no project is active, writes go to \`~/.toby/generated-files\`.
 - Required: \`path\` (relative) and \`content\`. Optional: \`location\` (\`outputs\` | \`context\`), \`overwrite\` (default false).
 
 Available local skills (name + description):
@@ -570,7 +573,7 @@ export function createGlobalChatTools(
 		}),
 		createSchedule: tool({
 			description:
-				"Create a recurring scheduled chat run that executes headlessly via the Toby daemon. Required: 'intention' (what the schedule does), 'targetOutput' (where results go: 'slack' to post a summary to Slack, 'project' to save a file to project outputs, 'none' for actions-only with no external output). Optional: 'frequency' (natural language like 'every weekday at 9am' or a 5-field cron expression). If the user has not specified a frequency, OMIT the frequency field — the tool returns a needsFrequency signal; then call askUser to ask the user how often it should run, and call createSchedule again with the answer.",
+				"Create a recurring scheduled chat run that executes headlessly via the Toby daemon. Required: 'intention' (what the schedule does), 'targetOutput' (where results go: 'slack' to post a summary to Slack, 'project' to save a file to project outputs, 'none' for actions-only with no external output). Optional: 'frequency' (natural language like 'every weekday at 9am' or a 5-field cron expression) and 'projectId'. If the user has not specified a frequency, OMIT the frequency field — the tool returns a needsFrequency signal; then call askUser to ask the user how often it should run, and call createSchedule again with the answer.",
 			inputSchema: z.object({
 				intention: z
 					.string()
@@ -589,8 +592,14 @@ export function createGlobalChatTools(
 					.describe(
 						"How often it runs, as natural language ('every weekday at 9am', 'every 6 hours') or a 5-field cron expression. Omit if the user hasn't specified a cadence.",
 					),
+				projectId: z
+					.string()
+					.optional()
+					.describe(
+						"Optional project id. When omitted from a project chat and targetOutput='project', the current project is used.",
+					),
 			}),
-			execute: async ({ intention, targetOutput, frequency }) => {
+			execute: async ({ intention, targetOutput, frequency, projectId }) => {
 				if (!frequency || !frequency.trim()) {
 					return {
 						ok: false as const,
@@ -617,6 +626,9 @@ export function createGlobalChatTools(
 					const name = intentionToScheduleName(intention);
 					const prompt = buildSchedulePrompt(intention, targetOutput);
 					const personaName = getDefaultPersonaName() ?? "Toby";
+					const resolvedProjectId =
+						projectId?.trim() ||
+						(targetOutput === "project" ? ctx.project?.id : undefined);
 					const msg = `[dry-run] Would create schedule "${name}" (${cronExpression})`;
 					ctx.appliedActions.push(msg);
 					return {
@@ -625,6 +637,7 @@ export function createGlobalChatTools(
 						name,
 						cronExpression,
 						personaName,
+						projectId: resolvedProjectId ?? null,
 						prompt,
 						message: msg,
 					};
@@ -633,6 +646,9 @@ export function createGlobalChatTools(
 				const name = intentionToScheduleName(intention);
 				const prompt = buildSchedulePrompt(intention, targetOutput);
 				const personaName = getDefaultPersonaName() ?? "Toby";
+				const resolvedProjectId =
+					projectId?.trim() ||
+					(targetOutput === "project" ? ctx.project?.id : undefined);
 
 				try {
 					const schedule = createSchedule({
@@ -640,6 +656,7 @@ export function createGlobalChatTools(
 						prompt,
 						personaName,
 						cronExpression,
+						projectId: resolvedProjectId ?? null,
 						enabled: true,
 					});
 					const msg = `Created schedule "${schedule.name}" (id: ${schedule.id}, cron: ${schedule.cronExpression}). It will run ${frequency.trim()} via the daemon.`;
@@ -665,7 +682,7 @@ export function createGlobalChatTools(
 		}),
 		writeTextFile: tool({
 			description:
-				"Create or update a UTF-8 text file (Markdown or any other text format). Only call when the user explicitly asks to write, generate, or save a file. Do NOT use this to author a Toby skill (a SKILL.md file under ~/.toby/skills) — use createLocalSkill instead, which takes precedence for skill authoring. When a project is active, writes go to the project's outputs folder by default (location='outputs') — use location='context' for reference documents the AI should read in future turns. When no project is active, writes go to ~/.toby/generated-files. Paths must be relative and within the base directory. Set overwrite=true to replace an existing file.",
+				"Create or update a UTF-8 text file (Markdown or any other text format). Only call when the user explicitly asks to write, generate, or save a file. Do NOT use this to author a Toby skill — use createLocalSkill instead, which takes precedence for skill authoring. When a project is active, writes go to the project's outputs folder by default (location='outputs') — use location='context' to place a reference file in the project folder. When no project is active, writes go to ~/.toby/generated-files. Paths must be relative and within the base directory. Set overwrite=true to replace an existing file.",
 			inputSchema: z.object({
 				path: z
 					.string()
@@ -680,7 +697,7 @@ export function createGlobalChatTools(
 					.enum(["context", "outputs"])
 					.optional()
 					.describe(
-						"Where to write within the active project: 'outputs' (default — for generated artifacts), or 'context' (reference documents). Ignored when no project is active.",
+						"Where to write within the active project: 'outputs' (default — for generated artifacts), or 'context' (project folder reference file). Ignored when no project is active.",
 					),
 				overwrite: z
 					.boolean()
@@ -825,7 +842,7 @@ export function createGlobalChatTools(
 		}),
 		createLocalSkill: tool({
 			description:
-				"Create or update a Toby skill: drafts a SKILL.md (frontmatter + body) from a description and saves it under ~/.toby/skills/<folder>/SKILL.md. When a project is active, saves to the project's skills/ directory instead so the skill is automatically included in that project's sessions. Only call when the user explicitly asks to create, draft, or update a local skill — not for general notes, memories, or workflow capture unless they asked for a skill file. Use updateExisting=true to revise an existing skill in place.",
+				"Create or update a Toby skill: drafts a SKILL.md (frontmatter + body) from a description and saves it under ~/.toby/skills/<folder>/SKILL.md. When a project is active, saves to the project's .agent/skills/ directory instead so the skill is automatically included in that project's sessions. Only call when the user explicitly asks to create, draft, or update a local skill — not for general notes, memories, or workflow capture unless they asked for a skill file. Use updateExisting=true to revise an existing skill in place.",
 			inputSchema: z.object({
 				description: z
 					.string()

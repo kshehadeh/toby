@@ -14,6 +14,7 @@ import {
 	resolveDefaultPersona,
 	resolvePersona,
 } from "../personas/index";
+import { resolveProject } from "../projects/index";
 import {
 	appendMessageBatch,
 	appendTranscriptBatch,
@@ -127,6 +128,7 @@ async function resolveModulesForTurn(params: {
 function resolvePersonaForTurn(params: {
 	readonly settings: ChatSessionSettings;
 	readonly personaOverride?: string;
+	readonly projectPersonaName?: string | null;
 }) {
 	if (params.personaOverride?.trim()) {
 		return (
@@ -138,7 +140,22 @@ function resolvePersonaForTurn(params: {
 			resolvePersona(params.settings.persona.trim()) ?? resolveDefaultPersona()
 		);
 	}
+	if (params.projectPersonaName?.trim()) {
+		return (
+			resolvePersona(params.projectPersonaName.trim()) ??
+			resolveDefaultPersona()
+		);
+	}
 	return resolveDefaultPersona();
+}
+
+function resolveProjectForTurn(params: {
+	readonly settings: ChatSessionSettings;
+	readonly projectOverride?: string;
+}) {
+	const id =
+		params.projectOverride?.trim() || params.settings.projectId?.trim();
+	return id ? resolveProject(id) : null;
 }
 
 function registerActiveTurn(active: ActiveTurn): void {
@@ -185,6 +202,7 @@ export async function bootstrapChatSession(params: {
 	readonly modules?: readonly string[];
 	readonly dryRun?: boolean;
 	readonly initialText?: string;
+	readonly projectId?: string;
 }): Promise<{ messageCount: number }> {
 	const loaded = loadChatSession(params.sessionId);
 	if (!loaded) {
@@ -195,9 +213,14 @@ export async function bootstrapChatSession(params: {
 	}
 
 	const settings = loaded.settings;
+	const project = resolveProjectForTurn({
+		settings,
+		projectOverride: params.projectId,
+	});
 	const persona = resolvePersonaForTurn({
 		settings,
 		personaOverride: params.persona,
+		projectPersonaName: project?.personaName ?? null,
 	});
 	const { modules } = await resolveModulesForTurn({
 		userText: params.initialText ?? "",
@@ -213,6 +236,7 @@ export async function bootstrapChatSession(params: {
 		persona,
 		modules,
 		dryRun: params.dryRun ?? settings.dryRun ?? false,
+		project,
 		emit: () => {},
 		nextSeq: () => {
 			seq += 1;
@@ -257,6 +281,7 @@ export async function runApiChatTurn(params: {
 	readonly steering?: boolean;
 	readonly abortSignal?: AbortSignal;
 	readonly clientTurnId?: string;
+	readonly projectId?: string;
 }): Promise<ApiChatTurnResult> {
 	const turnId = params.clientTurnId?.trim() || randomUUID();
 
@@ -269,9 +294,14 @@ export async function runApiChatTurn(params: {
 		throw new Error(`Session not found: ${params.sessionId}`);
 	}
 
+	const project = resolveProjectForTurn({
+		settings: loaded.settings,
+		projectOverride: params.projectId,
+	});
 	const persona = resolvePersonaForTurn({
 		settings: loaded.settings,
 		personaOverride: params.persona,
+		projectPersonaName: project?.personaName ?? null,
 	});
 	const { modules, warnings } = await resolveModulesForTurn({
 		userText: params.userText,
@@ -340,6 +370,7 @@ export async function runApiChatTurn(params: {
 			onChatEvent: emit,
 			abortSignal: abortController.signal,
 		},
+		project,
 		persist: {
 			sessionId: params.sessionId,
 			startIdx: priorMessages.length,
@@ -416,6 +447,7 @@ export async function runApiChatTurnWithPersistence(params: {
 	readonly abortSignal?: AbortSignal;
 	readonly clientTurnId?: string;
 	readonly personaNameForFallback?: string;
+	readonly projectId?: string;
 }): Promise<ApiChatTurnResult> {
 	const loaded = loadChatSession(params.sessionId);
 	if (!loaded) {
@@ -431,6 +463,10 @@ export async function runApiChatTurnWithPersistence(params: {
 	const persona = resolvePersonaForTurn({
 		settings: loaded.settings,
 		personaOverride: params.persona,
+		projectPersonaName: resolveProjectForTurn({
+			settings: loaded.settings,
+			projectOverride: params.projectId,
+		})?.personaName,
 	});
 
 	const result = await runApiChatTurn({

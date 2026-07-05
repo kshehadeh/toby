@@ -68,6 +68,15 @@ import {
 } from "./handlers/metadata";
 import { handlePlanCancel, handlePlanSkip } from "./handlers/plan";
 import { handlePluginIcon, handlePluginsList } from "./handlers/plugins";
+import {
+	handleCreateProject,
+	handleCreateProjectSession,
+	handleDeleteProject,
+	handlePatchProject,
+	handleProjectDetail,
+	handleProjectTree,
+	handleProjectsList,
+} from "./handlers/projects";
 import { handleSessionDetail, handleSessionsList } from "./handlers/sessions";
 import { errorResponse, jsonResponse } from "./http-utils";
 import { resolveIconStaticDir } from "./static-path";
@@ -238,6 +247,35 @@ export async function handleWebRequest(
 		}
 		if (pathname === "/api/plugins" && req.method === "GET") {
 			return handlePluginsList();
+		}
+		if (pathname === "/api/projects" && req.method === "GET") {
+			return handleProjectsList();
+		}
+		if (pathname === "/api/projects" && req.method === "POST") {
+			return handleCreateProject(req);
+		}
+		const projectSessionMatch = /^\/api\/projects\/([^/]+)\/sessions$/.exec(
+			pathname,
+		);
+		if (projectSessionMatch && req.method === "POST") {
+			return handleCreateProjectSession(
+				decodeURIComponent(projectSessionMatch[1]),
+				req,
+			);
+		}
+		const projectTreeMatch = /^\/api\/projects\/([^/]+)\/tree$/.exec(pathname);
+		if (projectTreeMatch && req.method === "GET") {
+			return handleProjectTree(decodeURIComponent(projectTreeMatch[1]));
+		}
+		const projectMatch = /^\/api\/projects\/([^/]+)$/.exec(pathname);
+		if (projectMatch && req.method === "GET") {
+			return handleProjectDetail(decodeURIComponent(projectMatch[1]));
+		}
+		if (projectMatch && req.method === "PATCH") {
+			return handlePatchProject(decodeURIComponent(projectMatch[1]), req);
+		}
+		if (projectMatch && req.method === "DELETE") {
+			return handleDeleteProject(decodeURIComponent(projectMatch[1]));
 		}
 		const pluginIconMatch = /^\/api\/plugins\/([^/]+)\/icon$/.exec(pathname);
 		if (pluginIconMatch && req.method === "GET") {

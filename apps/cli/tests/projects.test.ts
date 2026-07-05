@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -20,7 +21,7 @@ import {
 	slugifyProjectName,
 	updateProjectMetadata,
 } from "@toby/core/projects/index";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { closeChatDbForTests } from "@toby/core/session-store";
 
 let tempDir: string;
 let previousTobyDir: string | undefined;
@@ -32,6 +33,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+	closeChatDbForTests();
 	if (previousTobyDir === undefined) {
 		process.env.TOBY_DIR = undefined;
 	} else {
@@ -80,9 +82,12 @@ describe("project CRUD", () => {
 		const project = createProject();
 		expect(project.name).toBeTruthy();
 		expect(project.slug).toBeTruthy();
-		expect(project.dir).toContain(project.slug);
+		expect(path.basename(project.dir)).toBe(project.id);
 		expect(fs.existsSync(project.dir)).toBe(true);
-		expect(fs.existsSync(project.contextDir)).toBe(true);
+		expect(fs.existsSync(path.join(project.dir, "AGENTS.md"))).toBe(true);
+		expect(fs.existsSync(path.join(project.dir, ".agent", "skills"))).toBe(
+			true,
+		);
 	});
 
 	it("creates a project with given name", () => {
@@ -120,19 +125,17 @@ describe("project CRUD", () => {
 		const created = createProject({ name: "Original" });
 		const updated = updateProjectMetadata(created.slug, {
 			name: "Updated",
-			skills: ["planner"],
-			integrations: ["gmail"],
+			summary: "Updated summary",
 		});
 		expect(updated.name).toBe("Updated");
-		expect(updated.skills).toEqual(["planner"]);
-		expect(updated.integrations).toEqual(["gmail"]);
+		expect(updated.summary).toBe("Updated summary");
 	});
 
 	it("deletes a project", () => {
 		const created = createProject({ name: "ToDelete" });
 		deleteProject(created.slug);
 		expect(resolveProject(created.slug)).toBeNull();
-		expect(fs.existsSync(created.dir)).toBe(false);
+		expect(fs.existsSync(created.dir)).toBe(true);
 	});
 
 	it("clears active project when deleting it", () => {
@@ -173,59 +176,38 @@ describe("active project config", () => {
 });
 
 describe("project context documents", () => {
-	it("loads no docs from empty context dir", () => {
+	it("loads AGENTS.md guidance by default", () => {
 		const project = createProject({ name: "EmptyCtx" });
-		expect(loadProjectContextDocuments(project)).toEqual([]);
+		const docs = loadProjectContextDocuments(project);
+		expect(docs.length).toBe(1);
+		expect(docs[0].relativePath).toBe("AGENTS.md");
 	});
 
-	it("loads markdown files from context dir", () => {
+	it("loads edited AGENTS.md guidance", () => {
 		const project = createProject({ name: "CtxDocs" });
-		fs.writeFileSync(path.join(project.contextDir, "notes.md"), "Hello world");
 		fs.writeFileSync(
-			path.join(project.contextDir, "data.json"),
-			'{"key": "value"}',
+			path.join(project.folderPath, "AGENTS.md"),
+			"Use short weekly summaries.",
 		);
 		const docs = loadProjectContextDocuments(project);
-		expect(docs.length).toBe(2);
-		expect(docs.find((d) => d.relativePath === "notes.md")).toBeDefined();
-		expect(docs.find((d) => d.relativePath === "data.json")).toBeDefined();
+		expect(docs).toEqual([
+			{ relativePath: "AGENTS.md", content: "Use short weekly summaries." },
+		]);
 	});
 
-	it("skips binary files", () => {
+	it("returns no docs when AGENTS.md is missing", () => {
 		const project = createProject({ name: "BinSkip" });
-		fs.writeFileSync(
-			path.join(project.contextDir, "image.png"),
-			Buffer.from([0x89, 0x50, 0x4e, 0x47]),
-		);
+		fs.unlinkSync(path.join(project.folderPath, "AGENTS.md"));
 		expect(loadProjectContextDocuments(project)).toEqual([]);
-	});
-
-	it("skips dotfiles and symlinks", () => {
-		const project = createProject({ name: "DotSkip" });
-		fs.writeFileSync(path.join(project.contextDir, ".hidden.md"), "hidden");
-		const target = path.join(project.contextDir, "real.md");
-		fs.writeFileSync(target, "real");
-		fs.symlinkSync(target, path.join(project.contextDir, "link.md"));
-		const docs = loadProjectContextDocuments(project);
-		expect(docs.length).toBe(1);
-		expect(docs[0].relativePath).toBe("real.md");
-	});
-
-	it("loads from subdirectories", () => {
-		const project = createProject({ name: "SubDir" });
-		const sub = path.join(project.contextDir, "reports");
-		fs.mkdirSync(sub, { recursive: true });
-		fs.writeFileSync(path.join(sub, "summary.md"), "Summary here");
-		const docs = loadProjectContextDocuments(project);
-		expect(docs.length).toBe(1);
-		expect(docs[0].relativePath).toBe("reports/summary.md");
 	});
 });
 
 describe("formatProjectContextForPrompt", () => {
 	it("returns empty string for no docs", () => {
 		const project = createProject({ name: "NoDocs" });
-		expect(formatProjectContextForPrompt(project, [])).toBe("");
+		expect(formatProjectContextForPrompt(project, [])).toContain(
+			"Active project: **NoDocs**",
+		);
 	});
 
 	it("formats docs with headers", () => {

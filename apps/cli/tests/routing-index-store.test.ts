@@ -1,18 +1,30 @@
+import { afterEach, describe, expect, it } from "bun:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
 	closeChatDbForTests,
 	loadRoutingEmbeddings,
 	upsertRoutingEmbedding,
 } from "@toby/core/session-store";
-import { afterEach, describe, expect, it } from "bun:test";
 
 const isBun = typeof (globalThis as { Bun?: unknown }).Bun !== "undefined";
 
 describe.skipIf(!isBun)("routing_embeddings store", () => {
 	afterEach(() => {
 		closeChatDbForTests();
+		const dir = process.env.TOBY_DIR;
+		if (dir && fs.existsSync(dir)) {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+		process.env.TOBY_DIR = undefined;
 	});
 
 	it("persists and loads vectors by catalog signature", () => {
+		process.env.TOBY_DIR = fs.mkdtempSync(
+			path.join(os.tmpdir(), "toby-routing-index-test-"),
+		);
+
 		upsertRoutingEmbedding({
 			entityType: "tool",
 			entityId: "gmailSearch",
