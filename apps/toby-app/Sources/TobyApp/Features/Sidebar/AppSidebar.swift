@@ -203,19 +203,19 @@ private struct SidebarActionGridButton: View {
 	}
 
 	private var backgroundFill: Color {
-		if isSelected { return AppTheme.selection }
+		if isSelected { return item.accentColor.opacity(0.22) }
 		return item.accentColor.opacity(isHovered ? 0.18 : 0)
 	}
 
 	private var iconPrimaryStyle: Color {
 		if isHovered { return item.accentColor }
-		if isSelected { return AppTheme.primaryText }
+		if isSelected { return item.accentColor }
 		return AppTheme.secondaryText
 	}
 
 	private var iconSecondaryStyle: Color {
 		if isHovered { return AppTheme.primaryText }
-		if isSelected { return AppTheme.primaryText }
+		if isSelected { return item.accentColor }
 		return AppTheme.secondaryText
 	}
 
