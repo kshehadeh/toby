@@ -23,6 +23,7 @@ const dashboardSummaryResultSchema = z.object({
 	count: z.number(),
 	groups: z.array(dashboardGroupSchema).optional(),
 	items: z.array(dashboardItemSchema),
+	launchUrl: z.string().optional(),
 	generatedAt: z.string(),
 });
 

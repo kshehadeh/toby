@@ -138,6 +138,8 @@ export interface Integration {
 	readonly icon?: string;
 	/** Relative URL to an image icon served by Toby's local HTTP API. */
 	readonly iconUrl?: string;
+	/** URL/scheme that opens the provider's native app (e.g. "todoist://"). */
+	readonly launchUrl?: string;
 	/** Inbound transport type for daemon logging (e.g. "socket_mode"). */
 	readonly inboundTransport?: string;
 	connect(): Promise<void>;

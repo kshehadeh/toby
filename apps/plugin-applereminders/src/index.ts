@@ -79,6 +79,7 @@ function handleStatus(
 			path: "assets/icon-48.png",
 			mimeType: "image/png",
 		},
+		launchUrl: "x-apple-reminderkit://",
 		connected,
 		capabilities: ["chat"],
 		providerCategories: ["tasks"],

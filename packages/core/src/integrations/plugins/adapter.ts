@@ -77,6 +77,7 @@ export type PluginMetadata = {
 	readonly inboundPrep?: PluginInboundPrep;
 	readonly icon?: string;
 	readonly iconAsset?: PluginIconAsset;
+	readonly launchUrl?: string;
 	readonly inboundTransport?: string;
 };
 
@@ -400,6 +401,7 @@ export function loadPluginMetadata(
 		inboundPrep: status.inboundPrep,
 		icon: status.icon,
 		iconAsset: status.iconAsset,
+		launchUrl: status.launchUrl,
 		inboundTransport: status.inboundTransport,
 	};
 }
@@ -586,6 +588,7 @@ export function createPluginIntegrationModule(
 		description: metadata.description,
 		icon: metadata.icon,
 		...(metadata.iconAsset ? { iconUrl: pluginIconUrl(metadata.name) } : {}),
+		...(metadata.launchUrl ? { launchUrl: metadata.launchUrl } : {}),
 		inboundTransport: metadata.inboundTransport,
 
 		async connect(): Promise<void> {

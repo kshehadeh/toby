@@ -51,6 +51,12 @@ export interface DashboardItem {
 	readonly url?: string;
 	/** Ties back to `groups[].id`. */
 	readonly groupId?: string;
+	/**
+	 * Integration module name of the source provider (e.g. "todoist").
+	 * Set by the aggregator on merged category items so the UI can show a
+	 * per-item source icon; never set by individual plugins.
+	 */
+	readonly providerName?: string;
 }
 
 /**
@@ -74,6 +80,12 @@ export interface DashboardSummaryResult {
 	readonly groups?: readonly DashboardGroup[];
 	/** Individual items, most relevant first, capped at `limit`. */
 	readonly items: readonly DashboardItem[];
+	/**
+	 * Optional URL that opens this provider's native app / web inbox. Set by
+	 * the standard tool when it depends on runtime config (e.g. the account's
+	 * webmail host); takes precedence over the module's static `launchUrl`.
+	 */
+	readonly launchUrl?: string;
 	/** ISO 8601 timestamp — lets the UI show "as of 2 minutes ago". */
 	readonly generatedAt: string;
 }
@@ -88,6 +100,8 @@ export interface DashboardProviderSummary {
 	readonly providerDisplayName: string;
 	/** Optional icon URL served by the local HTTP API. */
 	readonly iconUrl?: string;
+	/** Optional URL/scheme that opens the provider's native app. */
+	readonly launchUrl?: string;
 	/** The provider's summary result. */
 	readonly summary: DashboardSummaryResult;
 }

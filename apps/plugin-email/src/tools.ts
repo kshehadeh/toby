@@ -3,6 +3,7 @@ import {
 	archiveMessages,
 	deleteMessages,
 	fetchMessageBody,
+	fetchUnreadInbox,
 	listMailboxes,
 	moveMessages,
 	parseEmailConfig,
@@ -17,6 +18,42 @@ type JsonRecord = Record<string, unknown>;
 
 const DEFAULT_MAILBOX = "INBOX";
 const SNIPPET_MAX = 200;
+
+/** Map a common IMAP host to its webmail inbox URL, if recognized. */
+function webmailInboxUrl(imapHost: string): string | undefined {
+	const host = imapHost.toLowerCase();
+	if (host.includes("gmail") || host.includes("googlemail")) {
+		return "https://mail.google.com/mail/u/0/#inbox";
+	}
+	if (
+		host.includes("outlook") ||
+		host.includes("office365") ||
+		host.includes("hotmail") ||
+		host.includes("live.com")
+	) {
+		return "https://outlook.office.com/mail/";
+	}
+	if (host.includes("yahoo")) {
+		return "https://mail.yahoo.com/";
+	}
+	if (
+		host.includes("icloud") ||
+		host.includes("me.com") ||
+		host.includes("mac.com")
+	) {
+		return "https://www.icloud.com/mail";
+	}
+	if (host.includes("proton")) {
+		return "https://mail.proton.me/u/0/inbox";
+	}
+	if (host.includes("fastmail")) {
+		return "https://app.fastmail.com/mail/Inbox";
+	}
+	if (host.includes("zoho")) {
+		return "https://mail.zoho.com/";
+	}
+	return undefined;
+}
 
 function truncate(s: string, max: number): string {
 	const t = s.replace(/\r?\n/g, " ").trim();
@@ -475,27 +512,29 @@ async function executeToolInner(
 
 		case "getUnreadSummary": {
 			const summaryLimit = Number(input.limit ?? 20) || 20;
-			const unreadMailbox = DEFAULT_MAILBOX;
-			const messages = db.getUnreadMessages(unreadMailbox, summaryLimit);
-			const unreadCount = db.countUnreadMessages(unreadMailbox);
+			// Read live from the server so the count reflects mail that is
+			// currently unread AND still in the INBOX (messages read or
+			// archived elsewhere are excluded).
+			const unread = await fetchUnreadInbox(config, summaryLimit);
 
-			const items = messages.map((m) => {
+			const items = unread.messages.map((m) => {
 				const isFlagged = m.flags.includes("\\Flagged");
 				return {
-					id: `${m.uid}:${m.mailbox}`,
+					id: `${m.uid}:${DEFAULT_MAILBOX}`,
 					title: m.subject || "(no subject)",
 					subtitle: m.fromAddress,
-					detail: truncate(m.snippet, SNIPPET_MAX),
 					timestamp: m.date,
 					urgency: isFlagged ? ("high" as const) : ("normal" as const),
 					url: undefined,
 				};
 			});
 
+			const launchUrl = webmailInboxUrl(parseEmailConfig(config).imapHost);
 			return {
 				result: {
-					count: unreadCount,
+					count: unread.count,
 					items,
+					...(launchUrl ? { launchUrl } : {}),
 					generatedAt: new Date().toISOString(),
 				},
 			};

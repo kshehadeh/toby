@@ -38,6 +38,14 @@ struct AppSidebar<Content: View>: View {
 
 	private let actionItems: [SidebarActionItem] = [
 		SidebarActionItem(
+			route: .dashboard,
+			title: "Dashboard",
+			systemImage: "rectangle.3.group",
+			hoveredSystemImage: "rectangle.3.group.fill",
+			accentColor: Color(red: 0.96, green: 0.62, blue: 0.12),
+			detail: "See what needs your attention: unread mail, open tasks, and setup steps at a glance."
+		),
+		SidebarActionItem(
 			route: .chat,
 			title: "Chats",
 			systemImage: "message",

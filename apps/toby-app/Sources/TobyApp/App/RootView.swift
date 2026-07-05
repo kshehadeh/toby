@@ -3,6 +3,7 @@ import SwiftUI
 
 struct RootView: View {
     @Bindable var store: ChatStore
+    @Bindable var dashboardStore: DashboardStore
     @Bindable var configureStore: ConfigureStore
     @Bindable var recordingsStore: RecordingsStore
     @Bindable var schedulesStore: SchedulesStore
@@ -15,6 +16,7 @@ struct RootView: View {
     @Bindable var changelogStore: ChangelogStore
     @Bindable var pluginsStore: PluginsStore
     @Environment(\.openWindow) private var openWindow
+    @State private var permissionsStore = PermissionsStore()
     @State private var history = NavigationHistory()
     @State private var isCommandPalettePresented = false
     @State private var isIssueReportPresented = false
@@ -186,6 +188,9 @@ struct RootView: View {
                 _ = await (recordings, schedules, projects, integrations, memories)
             }
             .task {
+                permissionsStore.refresh()
+            }
+            .task {
                 updateStore.startCheckLoop()
             }
             .onChange(of: updateStore.upgradeComplete) { _, complete in
@@ -277,6 +282,8 @@ struct RootView: View {
                 },
                 sidebarContent: {
                     switch history.current {
+                    case .dashboard:
+                        Color.clear
                     case .chat:
                         ChatSessionsSidebar(
                             sessions: store.sessions,
@@ -336,6 +343,50 @@ struct RootView: View {
             .navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
         } detail: {
             switch history.current {
+            case .dashboard:
+                DashboardView(
+                    store: dashboardStore,
+                    userName: DashboardView.defaultUserName(),
+                    onboarding: onboardingChecklist,
+                    onRefresh: { Task { await dashboardStore.load() } },
+                    onSelectRoute: navigateToRoute,
+                    onOpenPermissions: { openWindow(id: "permissions") },
+                    onStartChat: {
+                        navigateToRoute(.chat)
+                        startNewChat()
+                    },
+                    onSummarizeEmail: summarizeUnreadEmailInChat
+                )
+                .toolbar {
+                    commonToolbarItems()
+                    ToolbarItem(placement: .principal) {
+                        SessionTitleBadge(
+                            title: "Dashboard",
+                            activityLine: dashboardUpdatedText,
+                        )
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(AppTheme.elevatedBackground.opacity(0.92)),
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(Color.white.opacity(0.12), lineWidth: 1),
+                        )
+                        .fixedSize(horizontal: true, vertical: false)
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button {
+                            Task { await dashboardStore.load() }
+                        } label: {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        .help("Refresh")
+                        .disabled(dashboardStore.isLoading)
+                        .accessibilityIdentifier("dashboard-refresh-button")
+                    }
+                }
             case .chat:
                 ChatWorkspaceView(store: store)
                     .toolbar {
@@ -591,6 +642,11 @@ struct RootView: View {
         Task { await store.startNewSession() }
     }
 
+    private func summarizeUnreadEmailInChat() {
+        navigateToRoute(.chat)
+        Task { await store.startChatWithPrompt("Show me a summary of all my unread email") }
+    }
+
     private func bringMainWindowToFront() {
         NSApp.activate(ignoringOtherApps: true)
         mainWindow?.makeKeyAndOrderFront(nil)
@@ -606,6 +662,29 @@ struct RootView: View {
 
     private func navigateToRoute(_ route: DetailRoute) {
         history.navigate(to: route)
+    }
+
+    private var onboardingChecklist: OnboardingChecklist {
+        let connected = !(store.status?.connectedIntegrations?.isEmpty ?? true)
+        let modelConfigured = !(store.status?.model.isEmpty ?? true)
+        let granted = Set(
+            permissionsStore.statuses.filter(\.isGranted).map(\.kind)
+        )
+        let requiredPermissions = granted.contains(.microphone) && granted.contains(.screenCapture)
+        return OnboardingChecklist.make(
+            hasConnectedIntegrations: connected,
+            hasModelConfigured: modelConfigured,
+            hasRequiredPermissions: requiredPermissions,
+            hasSchedule: !schedulesStore.schedules.isEmpty,
+            hasSession: !store.sessions.isEmpty
+        )
+    }
+
+    private var dashboardUpdatedText: String {
+        guard let lastLoadedAt = dashboardStore.lastLoadedAt else { return "" }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return "Updated \(formatter.localizedString(for: lastLoadedAt, relativeTo: Date()))"
     }
 
     private func openSettings(navKey: String? = nil) {

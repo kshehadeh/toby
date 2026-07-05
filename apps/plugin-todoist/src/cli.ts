@@ -147,6 +147,7 @@ async function handleStatus(
 			path: "assets/icon-48.png",
 			mimeType: "image/png",
 		},
+		launchUrl: "todoist://",
 		connected,
 		capabilities: ["chat"],
 		providerCategories: ["tasks"],

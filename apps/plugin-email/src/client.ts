@@ -93,6 +93,93 @@ export interface ImapFetchBodyResult {
 	htmlBody: string;
 }
 
+export interface UnreadInboxMessage {
+	uid: number;
+	fromAddress: string;
+	subject: string;
+	date: string;
+	flags: string;
+}
+
+export interface UnreadInboxResult {
+	count: number;
+	messages: UnreadInboxMessage[];
+}
+
+/**
+ * Fetch messages that are currently unread AND still in the INBOX, read live
+ * from the IMAP server. This reflects the true server state (messages read or
+ * archived elsewhere are excluded), unlike the append-only local cache.
+ */
+export async function fetchUnreadInbox(
+	config: JsonRecord,
+	limit: number,
+): Promise<UnreadInboxResult> {
+	const parsed = parseEmailConfig(config);
+	if (!hasImapCredentials(config)) {
+		throw new Error("IMAP credentials not configured.");
+	}
+
+	const { ImapFlow } = await import("imapflow");
+	const client = new ImapFlow({
+		host: parsed.imapHost,
+		port: parsed.imapPort,
+		secure: parsed.imapSecure,
+		auth: {
+			user: parsed.imapUsername,
+			pass: parsed.imapPassword,
+		},
+		logger: false,
+	});
+
+	await client.connect();
+	try {
+		const lock = await client.getMailboxLock("INBOX");
+		try {
+			const status = await client.status("INBOX", { unseen: true });
+			const count = status.unseen ?? 0;
+
+			const uids = await client.search({ seen: false }, { uid: true });
+			if (!uids || uids.length === 0) {
+				return { count, messages: [] };
+			}
+
+			// Search returns ascending UIDs; the highest UIDs are the newest.
+			const recent = uids.slice(-limit);
+			const messages: UnreadInboxMessage[] = [];
+			for await (const msg of client.fetch(
+				recent,
+				{ envelope: true, flags: true, uid: true },
+				{ uid: true },
+			)) {
+				const envelope = msg.envelope;
+				const fromAddr =
+					envelope?.from
+						?.map((a: { address?: string; name?: string }) =>
+							a.name ? `${a.name} <${a.address}>` : a.address,
+						)
+						.join(", ") ?? "";
+				messages.push({
+					uid: msg.uid,
+					fromAddress: fromAddr,
+					subject: envelope?.subject ?? "",
+					date: envelope?.date
+						? new Date(envelope.date).toISOString()
+						: new Date().toISOString(),
+					flags: Array.from(msg.flags ?? []).join(","),
+				});
+			}
+
+			messages.sort((a, b) => (a.date < b.date ? 1 : -1));
+			return { count, messages };
+		} finally {
+			lock.release();
+		}
+	} finally {
+		await client.logout();
+	}
+}
+
 /**
  * Sync new messages from an IMAP mailbox into the local SQLite cache.
  * Uses imapflow to connect and fetch message metadata for UIDs greater

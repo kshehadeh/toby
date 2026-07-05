@@ -5,10 +5,10 @@ import ViewInspector
 
 @Suite("NavigationHistory")
 struct NavigationHistoryTests {
-	@Test("initial state starts at chat route")
-	func initialStateStartsAtChat() {
+	@Test("initial state starts at dashboard route")
+	func initialStateStartsAtDashboard() {
 		let history = NavigationHistory()
-		#expect(history.current == .chat)
+		#expect(history.current == .dashboard)
 		#expect(!history.canGoBack)
 		#expect(!history.canGoForward)
 	}

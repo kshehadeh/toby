@@ -71,10 +71,12 @@ async function aggregateCategory(
 			if (!connected) return null;
 			const summary = await callProviderWithTimeout(m, limit);
 			if (!summary) return null;
+			const launchUrl = summary.launchUrl ?? m.launchUrl;
 			const providerSummary: DashboardProviderSummary = {
 				providerName: m.name,
 				providerDisplayName: m.displayName,
 				...(m.iconUrl ? { iconUrl: m.iconUrl } : {}),
+				...(launchUrl ? { launchUrl } : {}),
 				summary,
 			};
 			return providerSummary;
@@ -93,7 +95,7 @@ async function aggregateCategory(
 	const allItems: DashboardItem[] = [];
 	for (const source of sources) {
 		for (const item of source.summary.items) {
-			allItems.push(item);
+			allItems.push({ ...item, providerName: source.providerName });
 		}
 	}
 	allItems.sort((a, b) => {

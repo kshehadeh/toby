@@ -134,6 +134,10 @@ describe("dashboard aggregator", () => {
 			expect(typeof data.tasks.count).toBe("number");
 			expect(Array.isArray(data.tasks.sources)).toBe(true);
 			expect(Array.isArray(data.tasks.items)).toBe(true);
+			// Merged items are tagged with their source provider name.
+			for (const item of data.tasks.items) {
+				expect(typeof item.providerName).toBe("string");
+			}
 		}
 	});
 

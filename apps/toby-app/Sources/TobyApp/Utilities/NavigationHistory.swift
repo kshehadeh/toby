@@ -1,6 +1,7 @@
 import SwiftUI
 
 enum DetailRoute: String, CaseIterable, Identifiable {
+	case dashboard
 	case chat
 	case projects
 	case integrations
@@ -15,6 +16,7 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 	/// Display title for menu items (matches sidebar labels).
 	var menuTitle: String {
 		switch self {
+		case .dashboard: return "Dashboard"
 		case .chat: return "Chats"
 		case .integrations: return "Integrations"
 		case .projects: return "Projects"
@@ -29,6 +31,7 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 	/// SF Symbol name matching the sidebar icon for this route.
 	var systemImage: String {
 		switch self {
+		case .dashboard: return "rectangle.3.group"
 		case .chat: return "message"
 		case .integrations: return "square.grid.2x2"
 		case .projects: return "folder"
@@ -43,7 +46,7 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 
 @Observable
 final class NavigationHistory {
-	private(set) var stack: [DetailRoute] = [.chat]
+	private(set) var stack: [DetailRoute] = [.dashboard]
 	private(set) var currentIndex: Int = 0
 
 	var current: DetailRoute { stack[currentIndex] }

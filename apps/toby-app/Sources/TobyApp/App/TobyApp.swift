@@ -5,6 +5,7 @@ import SwiftUI
 @main
 struct TobyApp: App {
 	@State private var store = ChatStore()
+	@State private var dashboardStore = DashboardStore()
 	@State private var configureStore = ConfigureStore()
 	@State private var recordingsStore = RecordingsStore()
 	@State private var schedulesStore = SchedulesStore()
@@ -24,6 +25,7 @@ struct TobyApp: App {
 		WindowGroup {
 			RootView(
 				store: store,
+				dashboardStore: dashboardStore,
 				configureStore: configureStore,
 				recordingsStore: recordingsStore,
 				schedulesStore: schedulesStore,
@@ -155,18 +157,19 @@ struct TobyApp: App {
 		}
 	}
 
-	/// Returns a keyboard shortcut for each view route (Cmd+1 through Cmd+7).
+	/// Returns a keyboard shortcut for each view route (Cmd+1 through Cmd+8).
 	/// Settings uses Cmd+, from the app settings command group, so it gets no
 	/// duplicate shortcut here.
 	private func viewShortcut(for route: DetailRoute) -> KeyboardShortcut? {
 		switch route {
-		case .chat: return KeyboardShortcut("1", modifiers: .command)
-		case .integrations: return KeyboardShortcut("2", modifiers: .command)
-		case .projects: return KeyboardShortcut("3", modifiers: .command)
-		case .skills: return KeyboardShortcut("4", modifiers: .command)
-		case .memories: return KeyboardShortcut("5", modifiers: .command)
-		case .schedules: return KeyboardShortcut("6", modifiers: .command)
-		case .recordings: return KeyboardShortcut("7", modifiers: .command)
+		case .dashboard: return KeyboardShortcut("1", modifiers: .command)
+		case .chat: return KeyboardShortcut("2", modifiers: .command)
+		case .integrations: return KeyboardShortcut("3", modifiers: .command)
+		case .projects: return KeyboardShortcut("4", modifiers: .command)
+		case .skills: return KeyboardShortcut("5", modifiers: .command)
+		case .memories: return KeyboardShortcut("6", modifiers: .command)
+		case .schedules: return KeyboardShortcut("7", modifiers: .command)
+		case .recordings: return KeyboardShortcut("8", modifiers: .command)
 		case .settings: return nil
 		}
 	}

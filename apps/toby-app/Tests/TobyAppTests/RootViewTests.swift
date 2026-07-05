@@ -9,6 +9,7 @@ struct RootViewTests {
 	private func makeRootView() -> RootView {
 		RootView(
 			store: ChatStore(),
+			dashboardStore: DashboardStore(),
 			configureStore: ConfigureStore(),
 			recordingsStore: RecordingsStore(),
 			schedulesStore: SchedulesStore(),

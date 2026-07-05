@@ -703,6 +703,15 @@ struct TobyClient {
 		return try JSONDecoder().decode(PluginsListResponse.self, from: data)
 	}
 
+	// MARK: - Dashboard
+
+	func fetchDashboard() async throws -> DashboardData {
+		let url = baseURL.appendingPathComponent("api/dashboard")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(DashboardData.self, from: data)
+	}
+
 	// MARK: - Memories
 
 	func listMemories(limit: Int = 50, offset: Int = 0, query: String? = nil) async throws -> MemoriesListResponse {

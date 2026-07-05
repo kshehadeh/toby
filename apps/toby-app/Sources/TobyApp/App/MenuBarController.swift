@@ -56,6 +56,7 @@ final class MenuBarController: NSObject {
 			newChatItem(),
 			recordingItem(),
 			.separator(),
+			dashboardItem(),
 			chatsItem(),
 			integrationsItem(),
 			projectsItem(),
@@ -102,32 +103,36 @@ final class MenuBarController: NSObject {
 		return item
 	}
 
+	private func dashboardItem() -> NSMenuItem {
+		viewMenuItem(title: DetailRoute.dashboard.menuTitle, route: .dashboard, keyEquivalent: "1")
+	}
+
 	private func chatsItem() -> NSMenuItem {
-		viewMenuItem(title: DetailRoute.chat.menuTitle, route: .chat, keyEquivalent: "1")
+		viewMenuItem(title: DetailRoute.chat.menuTitle, route: .chat, keyEquivalent: "2")
 	}
 
 	private func recordingsItem() -> NSMenuItem {
-		viewMenuItem(title: DetailRoute.recordings.menuTitle, route: .recordings, keyEquivalent: "7")
+		viewMenuItem(title: DetailRoute.recordings.menuTitle, route: .recordings, keyEquivalent: "8")
 	}
 
 	private func schedulesItem() -> NSMenuItem {
-		viewMenuItem(title: DetailRoute.schedules.menuTitle, route: .schedules, keyEquivalent: "6")
+		viewMenuItem(title: DetailRoute.schedules.menuTitle, route: .schedules, keyEquivalent: "7")
 	}
 
 	private func integrationsItem() -> NSMenuItem {
-		viewMenuItem(title: DetailRoute.integrations.menuTitle, route: .integrations, keyEquivalent: "2")
+		viewMenuItem(title: DetailRoute.integrations.menuTitle, route: .integrations, keyEquivalent: "3")
 	}
 
 	private func projectsItem() -> NSMenuItem {
-		viewMenuItem(title: DetailRoute.projects.menuTitle, route: .projects, keyEquivalent: "3")
+		viewMenuItem(title: DetailRoute.projects.menuTitle, route: .projects, keyEquivalent: "4")
 	}
 
 	private func skillsItem() -> NSMenuItem {
-		viewMenuItem(title: DetailRoute.skills.menuTitle, route: .skills, keyEquivalent: "4")
+		viewMenuItem(title: DetailRoute.skills.menuTitle, route: .skills, keyEquivalent: "5")
 	}
 
 	private func memoriesItem() -> NSMenuItem {
-		viewMenuItem(title: DetailRoute.memories.menuTitle, route: .memories, keyEquivalent: "5")
+		viewMenuItem(title: DetailRoute.memories.menuTitle, route: .memories, keyEquivalent: "6")
 	}
 
 	private func settingsItem() -> NSMenuItem {
