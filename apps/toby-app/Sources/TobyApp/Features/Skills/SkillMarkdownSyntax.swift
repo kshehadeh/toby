@@ -26,6 +26,14 @@ enum SkillMarkdownSyntax {
 		return style
 	}()
 
+	static var baseTypingAttributes: [NSAttributedString.Key: Any] {
+		[
+			.font: baseFont,
+			.foregroundColor: primaryColor,
+			.paragraphStyle: paragraphStyle,
+		]
+	}
+
 	private static let headingRegex = try? NSRegularExpression(
 		pattern: "^(#{1,6})(\\s+)(.*)$",
 	)
@@ -48,11 +56,7 @@ enum SkillMarkdownSyntax {
 
 		storage.beginEditing()
 		storage.setAttributes(
-			[
-				.font: baseFont,
-				.foregroundColor: primaryColor,
-				.paragraphStyle: paragraphStyle,
-			],
+			baseTypingAttributes,
 			range: full,
 		)
 

@@ -31,6 +31,8 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 		textView.delegate = context.coordinator
 		textView.backgroundColor = .clear
 		textView.drawsBackground = false
+		textView.isEditable = true
+		textView.isSelectable = true
 		textView.isRichText = false
 		textView.isAutomaticQuoteSubstitutionEnabled = false
 		textView.isAutomaticDashSubstitutionEnabled = false
@@ -41,6 +43,7 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 		textView.font = SkillMarkdownSyntax.baseFont
 		textView.textColor = SkillMarkdownSyntax.primaryColor
 		textView.insertionPointColor = SkillMarkdownSyntax.primaryColor
+		textView.typingAttributes = SkillMarkdownSyntax.baseTypingAttributes
 		textView.isVerticallyResizable = true
 		textView.isHorizontallyResizable = false
 		textView.textContainer?.widthTracksTextView = true
@@ -72,6 +75,10 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 
 	func updateNSView(_ nsView: NSScrollView, context: Context) {
 		guard let textView = nsView.documentView as? NSTextView else { return }
+		context.coordinator.parent = self
+		model.applyFormat = { [weak coordinator = context.coordinator] format in
+			coordinator?.applyFormat(format)
+		}
 		if textView.string != text {
 			context.coordinator.isUpdating = true
 			let selected = textView.selectedRange()
@@ -85,6 +92,9 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 			context.coordinator.isUpdating = false
 			context.coordinator.highlight()
 		}
+		textView.isEditable = true
+		textView.isSelectable = true
+		textView.typingAttributes = SkillMarkdownSyntax.baseTypingAttributes
 		(nsView as? SkillMarkdownScrollView)?.resizeDocumentViewToFillContent()
 	}
 
@@ -94,7 +104,7 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 
 	@MainActor
 	final class Coordinator: NSObject, NSTextViewDelegate {
-		let parent: SkillMarkdownTextView
+		var parent: SkillMarkdownTextView
 		weak var textView: NSTextView?
 		var isUpdating = false
 
@@ -190,11 +200,24 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 		func highlight() {
 			guard let textView, let storage = textView.textStorage else { return }
 			SkillMarkdownSyntax.apply(to: storage)
+			textView.typingAttributes = SkillMarkdownSyntax.baseTypingAttributes
 		}
 	}
 }
 
 final class SkillMarkdownNSTextView: NSTextView {
+	override func setNeedsDisplay(_ rect: NSRect, avoidAdditionalLayout flag: Bool) {
+		super.setNeedsDisplay(insertionPointRect(for: rect), avoidAdditionalLayout: flag)
+	}
+
+	override func drawInsertionPoint(
+		in rect: NSRect,
+		color: NSColor,
+		turnedOn flag: Bool,
+	) {
+		super.drawInsertionPoint(in: insertionPointRect(for: rect), color: color, turnedOn: flag)
+	}
+
 	override func doCommand(by selector: Selector) {
 		switch selector {
 		case #selector(insertTab(_:)):
@@ -204,6 +227,18 @@ final class SkillMarkdownNSTextView: NSTextView {
 		default:
 			super.doCommand(by: selector)
 		}
+	}
+
+	private func insertionPointRect(for rect: NSRect) -> NSRect {
+		let font = typingAttributes[.font] as? NSFont ?? self.font ?? SkillMarkdownSyntax.baseFont
+		let height = ceil(font.ascender - font.descender)
+		guard height > 0, rect.height > height else { return rect }
+		return NSRect(
+			x: rect.origin.x,
+			y: rect.origin.y + floor((rect.height - height) / 2),
+			width: max(rect.width, 1),
+			height: height,
+		)
 	}
 }
 
