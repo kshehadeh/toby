@@ -13,6 +13,12 @@ struct TranscriptView: View {
 
 	@State private var expandedWorkGroups: Set<String> = []
 	@State private var collapsedWhileActive: Set<String> = []
+	@State private var isScrolling = false
+	@State private var scrollProgress: CGFloat = 0
+	@State private var scrollViewHeight: CGFloat = 220
+
+	private let scrollbarWidth: CGFloat = 6
+	private let scrollbarHeight: CGFloat = 86
 
 	private var displayItems: [TranscriptDisplayItem] {
 		TranscriptGrouping.groupedItems(from: entries, isLoading: isLoading)
@@ -28,46 +34,74 @@ struct TranscriptView: View {
 
 	var body: some View {
 		ScrollViewReader { proxy in
-			ScrollView {
-				VStack(alignment: .leading, spacing: 22) {
-					ForEach(displayItems) { item in
-						switch item {
-						case .entry(let entry, _):
-							TranscriptRow(entry: entry, personaImage: personaImageUrl)
-						case .workGroup(let group):
-							WorkedForRow(
-								group: group,
-								duration: duration(for: group),
-								activeWorkStartDate: group.isActive ? activeWorkStartDate : nil,
-								isExpanded: isWorkGroupExpanded(group),
-								onToggle: { toggleWorkGroup(group) },
-								streamingAssistant: group.isActive && streamingAssistant?.inWorkArea == true
-									? streamingAssistant
-									: nil,
+			ZStack(alignment: .trailing) {
+				ScrollView(.vertical, showsIndicators: false) {
+					VStack(alignment: .leading, spacing: 22) {
+						ForEach(displayItems) { item in
+							switch item {
+							case .entry(let entry, _):
+								TranscriptRow(entry: entry, personaImage: personaImageUrl)
+							case .workGroup(let group):
+								WorkedForRow(
+									group: group,
+									duration: duration(for: group),
+									activeWorkStartDate: group.isActive ? activeWorkStartDate : nil,
+									isExpanded: isWorkGroupExpanded(group),
+									onToggle: { toggleWorkGroup(group) },
+									streamingAssistant: group.isActive && streamingAssistant?.inWorkArea == true
+										? streamingAssistant
+										: nil,
+									personaImage: personaImageUrl,
+								)
+								.id(group.id)
+							}
+						}
+						if let streamingAssistant, !streamingAssistant.inWorkArea {
+							AssistantMessageRow(
+								iconName: "sparkle",
+								header: streamingAssistant.header,
+								messageBody: streamingAssistant.text,
+								isStreaming: true,
 								personaImage: personaImageUrl,
 							)
-							.id(group.id)
+							.id("streaming")
 						}
-					}
-					if let streamingAssistant, !streamingAssistant.inWorkArea {
-						AssistantMessageRow(
-							iconName: "sparkle",
-							header: streamingAssistant.header,
-							messageBody: streamingAssistant.text,
-							isStreaming: true,
-							personaImage: personaImageUrl,
+						Color.clear
+							.frame(height: bottomContentPadding)
+							.id(bottomAnchorID)
+						ScrollStateTracker(
+							isScrolling: $isScrolling,
+							progress: $scrollProgress
 						)
-						.id("streaming")
+						.frame(width: 0, height: 0)
 					}
-					Color.clear
-						.frame(height: bottomContentPadding)
-						.id(bottomAnchorID)
+					.frame(maxWidth: .infinity, alignment: .leading)
+					.padding(.horizontal, AppTheme.contentPadding)
+					.padding(.top, 10)
 				}
-				.frame(maxWidth: .infinity, alignment: .leading)
-				.padding(.horizontal, AppTheme.contentPadding)
-				.padding(.top, 10)
+				.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+				.background(
+					GeometryReader { geometry in
+						Color.clear
+							.onAppear { scrollViewHeight = geometry.size.height }
+							.onChange(of: geometry.size.height) { _, newValue in
+								scrollViewHeight = newValue
+							}
+					}
+				)
+
+				if isScrolling {
+					RoundedRectangle(cornerRadius: scrollbarWidth / 2)
+						.fill(AppTheme.tertiaryText.opacity(0.58))
+						.frame(width: scrollbarWidth, height: scrollbarHeight)
+						.padding(.trailing, 4)
+						.offset(y: (scrollProgress - 0.5) * max(scrollViewHeight - scrollbarHeight, 0))
+						.transition(.opacity)
+						.allowsHitTesting(false)
+				}
 			}
 			.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+			.animation(.easeInOut(duration: 0.25), value: isScrolling)
 			.onChange(of: entries.count) { _, _ in
 				scrollToBottom(proxy: proxy)
 			}
