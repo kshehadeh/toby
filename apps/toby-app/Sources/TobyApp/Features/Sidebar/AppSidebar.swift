@@ -122,10 +122,11 @@ struct AppSidebar<Content: View>: View {
 				.padding(.vertical, 2)
 			LazyVGrid(
 				columns: [
-					GridItem(.flexible(), spacing: 8),
-					GridItem(.flexible(), spacing: 8),
+					GridItem(.flexible(), spacing: 6),
+					GridItem(.flexible(), spacing: 6),
+					GridItem(.flexible(), spacing: 6),
 				],
-				spacing: 8
+				spacing: 6
 			) {
 				ForEach(actionItems) { item in
 					SidebarActionGridButton(
@@ -174,10 +175,10 @@ private struct SidebarActionGridButton: View {
 		GeometryReader { proxy in
 			Button(action: action) {
 				Image(systemName: isHovered ? item.hoveredSystemImage : item.systemImage)
-					.font(.system(size: 25, weight: .medium))
+					.font(.system(size: 18, weight: .medium))
 					.symbolRenderingMode(isHovered ? .palette : .monochrome)
 					.foregroundStyle(iconPrimaryStyle, iconSecondaryStyle)
-					.frame(maxWidth: .infinity, minHeight: 46)
+					.frame(maxWidth: .infinity, minHeight: 34)
 					.contentShape(RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius))
 					.background(
 						RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
@@ -198,7 +199,7 @@ private struct SidebarActionGridButton: View {
 			.accessibilityLabel(item.title)
 			.accessibilityHint(item.detail)
 		}
-		.frame(maxWidth: .infinity, minHeight: 46)
+		.frame(maxWidth: .infinity, minHeight: 34)
 	}
 
 	private var backgroundFill: Color {
