@@ -13,6 +13,29 @@ struct ProjectsView: View {
 				.frame(width: 320)
 		}
 		.background(AppTheme.contentBackground)
+		.alert(
+			"Delete Project?",
+			isPresented: Binding(
+				get: { projectsStore.pendingDelete != nil },
+				set: { if !$0 { projectsStore.pendingDelete = nil } },
+			),
+			presenting: projectsStore.pendingDelete,
+		) { pending in
+			Button("Cancel", role: .cancel) {
+				projectsStore.pendingDelete = nil
+			}
+			Button("Delete", role: .destructive) {
+				projectsStore.pendingDelete = nil
+				Task {
+					await projectsStore.deleteProject(
+						id: pending.projectId,
+						chatStore: chatStore,
+					)
+				}
+			}
+		} message: { pending in
+			Text("Are you sure you want to delete \"\(pending.name)\"? This cannot be undone.")
+		}
 	}
 
 	@ViewBuilder
@@ -49,13 +72,6 @@ private struct ProjectInspectorSidebar: View {
 			if let project = store.selectedProject {
 				ScrollView {
 					VStack(alignment: .leading, spacing: 18) {
-						Button {
-							Task { await store.createChat(chatStore: chatStore) }
-						} label: {
-							Label("New Chat", systemImage: "plus.bubble")
-								.frame(maxWidth: .infinity)
-						}
-						.buttonStyle(.borderedProminent)
 						SkillSidebarField(
 							title: "Name",
 							placeholder: "Project name",
@@ -73,6 +89,37 @@ private struct ProjectInspectorSidebar: View {
 					.padding(18)
 					.frame(maxWidth: .infinity, alignment: .leading)
 				}
+
+				Divider().overlay(SettingsDesign.cardBorder)
+
+				HStack(spacing: 10) {
+					Button {
+						Task { await store.createChat(chatStore: chatStore) }
+					} label: {
+						Label("New Chat", systemImage: "plus.bubble")
+							.frame(maxWidth: .infinity)
+					}
+					.buttonStyle(.borderedProminent)
+					.controlSize(.regular)
+					.disabled(store.isSaving)
+					.accessibilityIdentifier("sidebar-new-project-chat-button")
+
+					Button(role: .destructive) {
+						store.pendingDelete = ProjectsStore.PendingDelete(
+							projectId: project.id,
+							name: project.name,
+						)
+					} label: {
+						Label("Delete…", systemImage: "trash")
+							.frame(maxWidth: .infinity)
+					}
+					.buttonStyle(.bordered)
+					.controlSize(.regular)
+					.tint(.red)
+					.disabled(store.isSaving)
+					.accessibilityIdentifier("sidebar-delete-project-button")
+				}
+				.padding(18)
 			} else {
 				ContentUnavailableView(
 					"No Project Selected",

@@ -13,6 +13,12 @@ final class ProjectsStore {
 	var isLoading = false
 	var isSaving = false
 	var errorMessage: String?
+	var pendingDelete: PendingDelete?
+
+	struct PendingDelete {
+		let projectId: String
+		let name: String
+	}
 
 	private let client = TobyClient()
 	@ObservationIgnored
@@ -68,6 +74,32 @@ final class ProjectsStore {
 			projects = try await client.listProjects()
 			await refreshProjectSessions()
 			await selectProject(id: created.id, chatStore: chatStore)
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	func deleteProject(id: String, chatStore: ChatStore? = nil) async {
+		await flushPendingSave()
+		isSaving = true
+		errorMessage = nil
+		defer { isSaving = false }
+		do {
+			try await client.deleteProject(id: id)
+			projects = try await client.listProjects()
+			await refreshProjectSessions()
+			if selectedProjectId == id {
+				selectedProjectId = projects.first?.id
+				selectedProject = nil
+				tree = []
+				folderWatchTask?.cancel()
+				folderWatchTask = nil
+				if let selectedProjectId {
+					await selectProject(id: selectedProjectId, chatStore: chatStore)
+				} else {
+					await chatStore?.startNewSession()
+				}
+			}
 		} catch {
 			errorMessage = error.localizedDescription
 		}
