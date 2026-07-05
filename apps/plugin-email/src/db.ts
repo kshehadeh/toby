@@ -259,6 +259,25 @@ export class EmailDb {
 		return row?.count ?? 0;
 	}
 
+	getUnreadMessages(mailbox: string, limit: number): CachedMessage[] {
+		return this.#db
+			.query<CachedMessage>(
+				`SELECT uid, mailbox, message_id AS messageId, from_address AS fromAddress,
+				to_address AS toAddress, cc_address AS ccAddress, subject, date, snippet, flags, has_body AS hasBody
+				FROM messages WHERE mailbox = ? AND flags NOT LIKE '%\\Seen%' ORDER BY date DESC LIMIT ?`,
+			)
+			.all(mailbox, limit);
+	}
+
+	countUnreadMessages(mailbox: string): number {
+		const row = this.#db
+			.query<{ count: number }>(
+				"SELECT COUNT(*) AS count FROM messages WHERE mailbox = ? AND flags NOT LIKE '%\\Seen%'",
+			)
+			.get(mailbox);
+		return row?.count ?? 0;
+	}
+
 	createDraft(draft: DraftRecord): void {
 		this.#db.run(
 			`INSERT INTO drafts (id, to_address, cc_address, bcc_address, subject, body, created_at, updated_at)

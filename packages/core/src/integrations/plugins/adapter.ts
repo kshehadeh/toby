@@ -14,6 +14,9 @@ import {
 	writeConfig,
 	writeCredentials,
 } from "../../config/index";
+import { validateDashboardSummary } from "../../dashboard/schema";
+import { STANDARD_TOOL_FOR_CATEGORY } from "../../dashboard/types";
+import type { DashboardSummaryResult } from "../../dashboard/types";
 import { daemonLog } from "../../logging/daemon-log";
 import { composeSystemPromptWithPersona } from "../../personas/prompt";
 import { registerPluginToolLabels } from "../../tool-labels";
@@ -456,6 +459,119 @@ async function resolvePluginChatReadiness(
 	return { ok: true };
 }
 
+/**
+ * Resolve which standard tool (if any) this plugin exposes for a given
+ * standard tool ID. Loads tool definitions from cache or via `tools list`.
+ */
+function findStandardToolName(
+	metadata: PluginMetadata,
+	standardToolId: string,
+): string | null {
+	const cachedTools = getCachedPluginToolDefinitions({
+		target: metadata.target,
+		version: metadata.version,
+		protocolVersion: metadata.protocolVersion,
+	});
+	let toolDefs: NonNullable<PluginToolsListResponse["tools"]>;
+	if (cachedTools) {
+		toolDefs = cachedTools;
+	} else {
+		const toolsResult = pluginToolsList(metadata.target);
+		if (!toolsResult.ok || !toolsResult.data.ok || !toolsResult.data.tools) {
+			return null;
+		}
+		toolDefs = toolsResult.data.tools;
+		setCachedPluginToolDefinitions({
+			target: metadata.target,
+			version: metadata.version,
+			protocolVersion: metadata.protocolVersion,
+			tools: toolDefs,
+		});
+	}
+	const match = toolDefs.find((t) => t.standardTool === standardToolId);
+	return match?.name ?? null;
+}
+
+/**
+ * Build a `dashboard.getSummary` hook for an installable plugin by finding
+ * a tool tagged with the matching `standardTool` ID and invoking it through
+ * the existing `tools execute` subprocess dispatch.
+ */
+function buildPluginDashboardHook(
+	metadata: PluginMetadata,
+): IntegrationModule["dashboard"] | undefined {
+	const categories = metadata.providerCategories;
+	if (!categories || categories.length === 0) return undefined;
+
+	const standardToolIds = new Set<string>();
+	for (const cat of categories) {
+		const id = STANDARD_TOOL_FOR_CATEGORY[cat];
+		if (id) standardToolIds.add(id);
+	}
+	if (standardToolIds.size === 0) return undefined;
+
+	const { name, target } = metadata;
+
+	return {
+		async getSummary(params: {
+			readonly limit?: number;
+		}): Promise<DashboardSummaryResult> {
+			// Find the first matching standard tool for this plugin.
+			let toolName: string | null = null;
+			for (const id of standardToolIds) {
+				toolName = findStandardToolName(metadata, id);
+				if (toolName) break;
+			}
+			if (!toolName) {
+				return {
+					count: 0,
+					items: [],
+					generatedAt: new Date().toISOString(),
+				};
+			}
+
+			const envelope = buildEnvelope(name);
+			const dataDir = ensurePluginDataDir(name);
+			const execResult = await pluginToolsExecuteAsync(target, {
+				tool: toolName,
+				input: params.limit !== undefined ? { limit: params.limit } : {},
+				config: envelope.config,
+				state: envelope.state,
+				dryRun: false,
+				paths: { dataDir },
+			});
+
+			forwardPluginStderr(name, execResult.stderr);
+
+			if (!execResult.ok || !execResult.data.ok) {
+				daemonLog("warn", "plugin", "dashboard_tool_exec_failed", {
+					plugin: name,
+					tool: toolName,
+					error: !execResult.ok
+						? execResult.error
+						: (execResult.data.error ?? "Tool execution failed"),
+				});
+				return {
+					count: 0,
+					items: [],
+					generatedAt: new Date().toISOString(),
+				};
+			}
+
+			const result = execResult.data.result;
+			const validated = validateDashboardSummary(result, name);
+			if (!validated) {
+				return {
+					count: 0,
+					items: [],
+					generatedAt: new Date().toISOString(),
+				};
+			}
+			return validated;
+		},
+	};
+}
+
 export function createPluginIntegrationModule(
 	metadata: PluginMetadata,
 ): IntegrationModule {
@@ -840,6 +956,8 @@ export function createPluginIntegrationModule(
 		console.log(chalk.green("Done."));
 	}
 
+	const dashboardHook = buildPluginDashboardHook(metadata);
+
 	return {
 		...lifecycle,
 		capabilities: metadata.capabilities,
@@ -856,6 +974,7 @@ export function createPluginIntegrationModule(
 			return resolvePluginChatReadiness(target, name, creds);
 		},
 		...(chatModelPrep ? { chatModelPrep } : {}),
+		...(dashboardHook ? { dashboard: dashboardHook } : {}),
 		...(metadata.capabilities.includes("inbound")
 			? {
 					chatInbound: createPluginChatInboundProvider({

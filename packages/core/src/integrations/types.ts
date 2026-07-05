@@ -3,6 +3,7 @@ import type { Command } from "commander";
 import type { CoreMessage } from "../ai/chat";
 import type { ChatInboundProvider } from "../chat-inbound/types";
 import type { CredentialsFile, Persona } from "../config/index";
+import type { DashboardSummaryResult } from "../dashboard/types";
 
 export type {
 	ChatInboundProvider,
@@ -184,6 +185,16 @@ export interface IntegrationModule extends Integration {
 	): Partial<CredentialsFile>;
 	/** Run a tool-calling AI flow for a user-supplied instruction (see `toby chat`). */
 	chat?(options: ChatRunOptions): Promise<void>;
+	/**
+	 * Optional dashboard summary hook for non-AI consumers (e.g. the native
+	 * app home screen). Installable plugins get this synthesized automatically
+	 * when a tool tagged with the matching `standardTool` ID is found.
+	 */
+	readonly dashboard?: {
+		getSummary(params: {
+			readonly limit?: number;
+		}): Promise<DashboardSummaryResult>;
+	};
 	/**
 	 * Long-lived inbound listener (daemon): maps external channel+thread to chat sessions.
 	 * Implementation lives under `src/integrations/<name>/inbound.ts`.

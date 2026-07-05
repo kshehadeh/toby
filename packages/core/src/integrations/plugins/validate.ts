@@ -1,9 +1,11 @@
+import { STANDARD_TOOL_FOR_CATEGORY } from "../../dashboard/types";
 import { type PluginMetadata, inspectPluginBinary } from "./adapter";
 import { pluginConfigShape, pluginToolsList } from "./client";
 import type {
 	DiscoveredPlugin,
 	PluginConfigField,
 	PluginInvocationTarget,
+	PluginToolDefinition,
 } from "./protocol";
 import { resolvePluginTarget } from "./runtime";
 
@@ -120,4 +122,33 @@ export function validatePluginBinary(
 	}
 
 	return { ok: true, metadata: inspected };
+}
+
+/**
+ * Check whether a plugin declaring a provider category with a standard tool
+ * contract actually exposes a tool tagged with the matching `standardTool` ID.
+ * Returns a list of advisory warnings (empty if compliant or no categories).
+ */
+export function checkStandardToolCompliance(
+	metadata: PluginMetadata,
+	tools: readonly PluginToolDefinition[],
+): string[] {
+	const warnings: string[] = [];
+	const categories = metadata.providerCategories;
+	if (!categories || categories.length === 0) return warnings;
+
+	for (const category of categories) {
+		const expectedStandardTool = STANDARD_TOOL_FOR_CATEGORY[category];
+		if (!expectedStandardTool) continue;
+		const hasStandardTool = tools.some(
+			(t) => t.standardTool === expectedStandardTool,
+		);
+		if (!hasStandardTool) {
+			warnings.push(
+				`Plugin "${metadata.name}" declares providerCategory "${category}" but no tool is tagged with standardTool "${expectedStandardTool}". Dashboard summaries for this category will not include this plugin.`,
+			);
+		}
+	}
+
+	return warnings;
 }

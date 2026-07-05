@@ -7,6 +7,7 @@ export type ToolDefinition = {
 	displayName: string;
 	description: string;
 	readOnly?: boolean;
+	standardTool?: string;
 	inputSchema: {
 		type: string;
 		properties: Record<string, JsonRecord>;
@@ -62,6 +63,20 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 					"Completion date upper bound. Supplying this searches completed reminders.",
 				),
 				limit: prop("number", "Max results (default 30, max 200)"),
+			},
+		},
+	},
+	{
+		name: "getOpenRemindersSummary",
+		displayName: "Open reminders summary",
+		description:
+			"Dashboard summary of incomplete Apple Reminders. Returns a standardized shape with count, items, groups, and generatedAt. Tagged as tasks.openSummary standard tool.",
+		readOnly: true,
+		standardTool: "tasks.openSummary",
+		inputSchema: {
+			type: "object",
+			properties: {
+				limit: prop("number", "Max items to return (default 20)"),
 			},
 		},
 	},
@@ -272,6 +287,95 @@ export function executeTool(
 				result: {
 					count: data.count ?? 0,
 					reminders: data.reminders ?? [],
+				},
+				appliedActions: [],
+			};
+		}
+
+		case "getOpenRemindersSummary": {
+			if (dryRun) {
+				return {
+					result: {
+						dryRun: true,
+						message: "Would fetch open Apple Reminders summary.",
+					},
+					appliedActions: [],
+				};
+			}
+			const summaryLimit = Math.min(
+				Math.max(1, intValue(input.limit) ?? 20),
+				200,
+			);
+			const r = nativeRequest("reminders/search", {
+				completed: false,
+				limit: summaryLimit,
+			});
+			if (!r.ok) {
+				return {
+					result: {
+						count: 0,
+						items: [],
+						generatedAt: new Date().toISOString(),
+					},
+					appliedActions: [],
+				};
+			}
+			const data = r.data ?? {};
+			const reminders = (data.reminders ?? []) as JsonRecord[];
+			const now = Date.now();
+
+			const groups = new Map<string, { label: string; count: number }>();
+			const items = reminders.map((reminder) => {
+				const id = String(reminder.id ?? "");
+				const title = String(reminder.title ?? "");
+				const list = stringValue(reminder.list);
+				const notes = stringValue(reminder.notes);
+				const dueDate = stringValue(reminder.dueDate);
+				const priority = intValue(reminder.priority) ?? 0;
+				const url = stringValue(reminder.url);
+
+				let urgency: "low" | "normal" | "high" = "normal";
+				if (priority === 1) {
+					urgency = "high";
+				}
+				if (dueDate) {
+					const dueTime = new Date(dueDate).getTime();
+					if (!Number.isNaN(dueTime) && dueTime < now) {
+						urgency = "high";
+					}
+				}
+
+				if (list) {
+					const existing = groups.get(list);
+					if (existing) {
+						existing.count += 1;
+					} else {
+						groups.set(list, { label: list, count: 1 });
+					}
+				}
+
+				return {
+					id,
+					title,
+					subtitle: list,
+					detail: notes,
+					timestamp: dueDate,
+					urgency,
+					url,
+					groupId: list,
+				};
+			});
+
+			return {
+				result: {
+					count: data.count ?? reminders.length,
+					groups: [...groups.entries()].map(([id, g]) => ({
+						id,
+						label: g.label,
+						count: g.count,
+					})),
+					items,
+					generatedAt: new Date().toISOString(),
 				},
 				appliedActions: [],
 			};

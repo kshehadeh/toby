@@ -30,6 +30,7 @@ import {
 	handleDaemonStatus,
 	handleDaemonStop,
 } from "./handlers/daemon";
+import { handleDashboard } from "./handlers/dashboard";
 import {
 	handleIntegrationConnect,
 	handleIntegrationDisconnect,
@@ -140,6 +141,9 @@ export async function handleWebRequest(
 	if (pathname.startsWith("/api/")) {
 		if (pathname === "/api/health") {
 			return jsonResponse({ ok: true, daemon: true });
+		}
+		if (pathname === "/api/dashboard" && req.method === "GET") {
+			return handleDashboard();
 		}
 		if (pathname === "/api/issues" && req.method === "POST") {
 			return handleCreateIssue(req);

@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -6,11 +7,8 @@ import {
 	pluginStatus,
 	pluginToolsList,
 } from "@toby/core/integrations/plugins/client";
-import {
-	discoverPollablePlugins,
-} from "@toby/core/integrations/plugins/poller";
+import { discoverPollablePlugins } from "@toby/core/integrations/plugins/poller";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const emailEntry = path.join(repoRoot, "../plugin-email/src/index.ts");
@@ -124,15 +122,11 @@ describe("email plugin", () => {
 		expect(smtpSecureField?.default).toBe("false");
 
 		// Port fields should use "string" type (configure UI doesn't support "number")
-		const imapPortField = shape.data.fields.find(
-			(f) => f.key === "imapPort",
-		);
+		const imapPortField = shape.data.fields.find((f) => f.key === "imapPort");
 		expect(imapPortField?.type).toBe("string");
 		expect(imapPortField?.default).toBe("993");
 
-		const smtpPortField = shape.data.fields.find(
-			(f) => f.key === "smtpPort",
-		);
+		const smtpPortField = shape.data.fields.find((f) => f.key === "smtpPort");
 		expect(smtpPortField?.type).toBe("string");
 		expect(smtpPortField?.default).toBe("587");
 	});
@@ -154,6 +148,20 @@ describe("email plugin", () => {
 		expect(toolNames).toContain("deleteDraft");
 		expect(toolNames).toContain("sendEmail");
 		expect(toolNames).toContain("sendDraft");
+		expect(toolNames).toContain("getUnreadSummary");
+	});
+
+	it("tags getUnreadSummary with email.unreadSummary standardTool", () => {
+		const binaryPath = path.join(pluginDir, "toby-plugin-email");
+		const list = pluginToolsList(binaryPath);
+		expect(list.ok).toBe(true);
+		if (!list.ok || !list.data.tools) return;
+		const unreadTool = list.data.tools.find(
+			(t) => t.name === "getUnreadSummary",
+		);
+		expect(unreadTool).toBeDefined();
+		expect(unreadTool?.standardTool).toBe("email.unreadSummary");
+		expect(unreadTool?.readOnly).toBe(true);
 	});
 
 	it("status reports not connected when no credentials", () => {
@@ -186,9 +194,7 @@ describe("email plugin manifest polling", () => {
 	let previousTobyDir: string | undefined;
 
 	beforeEach(() => {
-		tempDir = fs.mkdtempSync(
-			path.join(os.tmpdir(), "toby-email-poll-test-"),
-		);
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-email-poll-test-"));
 		pluginDir = path.join(tempDir, "toby-home", "plugins");
 		previousTobyDir = process.env.TOBY_DIR;
 		process.env.TOBY_DIR = path.join(tempDir, "toby-home");

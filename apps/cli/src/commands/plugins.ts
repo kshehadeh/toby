@@ -22,7 +22,10 @@ import {
 	pluginSetupHasFailures,
 	runPluginSetup,
 } from "@toby/core/integrations/plugins/setup";
-import { validatePluginBinary } from "@toby/core/integrations/plugins/validate";
+import {
+	checkStandardToolCompliance,
+	validatePluginBinary,
+} from "@toby/core/integrations/plugins/validate";
 import chalk from "chalk";
 import type { Command } from "commander";
 
@@ -429,6 +432,18 @@ async function doctorPlugins(): Promise<void> {
 		console.log(
 			`\n  ${chalk.green("✓")} ${validated.metadata.displayName} v${validated.metadata.version} — validated`,
 		);
+
+		// Advisory: check standard tool compliance for dashboard categories
+		const toolsResult = pluginToolsList(resolvePluginTarget(entry));
+		if (toolsResult.ok && toolsResult.data.ok && toolsResult.data.tools) {
+			const warnings = checkStandardToolCompliance(
+				validated.metadata,
+				toolsResult.data.tools,
+			);
+			for (const warning of warnings) {
+				console.log(`    ${chalk.yellow("⚠")}  ${warning}`);
+			}
+		}
 	}
 
 	console.log();

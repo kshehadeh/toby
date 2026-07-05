@@ -48,6 +48,12 @@ export interface PluginToolDefinition {
 	readonly inputSchema: Record<string, unknown>;
 	/** Human-readable label for UI display (e.g. "Fetch inbox overview"). */
 	readonly displayName?: string;
+	/**
+	 * Marks this tool as fulfilling a reserved cross-plugin data contract
+	 * (e.g. dashboard summaries). When set, the tool's input and output
+	 * shapes must conform to the contract for that standard tool ID.
+	 */
+	readonly standardTool?: string;
 }
 
 export interface PluginToolHealth {

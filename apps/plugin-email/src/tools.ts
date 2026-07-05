@@ -63,6 +63,23 @@ export const TOOL_DEFINITIONS = [
 		},
 	},
 	{
+		name: "getUnreadSummary",
+		displayName: "Unread inbox summary",
+		description:
+			"Dashboard summary of unread INBOX messages from the local cache. Returns a standardized shape with count, items, and generatedAt. Tagged as email.unreadSummary standard tool.",
+		readOnly: true,
+		standardTool: "email.unreadSummary",
+		inputSchema: {
+			type: "object",
+			properties: {
+				limit: {
+					type: "number",
+					description: "Maximum items to return (default 20)",
+				},
+			},
+		},
+	},
+	{
 		name: "getEmailMetadata",
 		displayName: "Fetch email metadata",
 		description:
@@ -452,6 +469,34 @@ async function executeToolInner(
 					total,
 					pageSize: messages.length,
 					messages: messages.map(messageSummary),
+				},
+			};
+		}
+
+		case "getUnreadSummary": {
+			const summaryLimit = Number(input.limit ?? 20) || 20;
+			const unreadMailbox = DEFAULT_MAILBOX;
+			const messages = db.getUnreadMessages(unreadMailbox, summaryLimit);
+			const unreadCount = db.countUnreadMessages(unreadMailbox);
+
+			const items = messages.map((m) => {
+				const isFlagged = m.flags.includes("\\Flagged");
+				return {
+					id: `${m.uid}:${m.mailbox}`,
+					title: m.subject || "(no subject)",
+					subtitle: m.fromAddress,
+					detail: truncate(m.snippet, SNIPPET_MAX),
+					timestamp: m.date,
+					urgency: isFlagged ? ("high" as const) : ("normal" as const),
+					url: undefined,
+				};
+			});
+
+			return {
+				result: {
+					count: unreadCount,
+					items,
+					generatedAt: new Date().toISOString(),
 				},
 			};
 		}

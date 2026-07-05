@@ -79,12 +79,17 @@ describe("Apple Reminders plugin", () => {
 		expect(result.exitCode).toBe(0);
 		const body = parseJson(result.stdout) as {
 			ok: boolean;
-			tools: Array<{ name: string; readOnly?: boolean }>;
+			tools: Array<{
+				name: string;
+				readOnly?: boolean;
+				standardTool?: string;
+			}>;
 		};
 		expect(body.ok).toBe(true);
 		expect(body.tools.map((tool) => tool.name)).toEqual([
 			"listReminderLists",
 			"searchReminders",
+			"getOpenRemindersSummary",
 			"getReminder",
 			"createReminder",
 			"updateReminder",
@@ -94,6 +99,21 @@ describe("Apple Reminders plugin", () => {
 		expect(
 			body.tools.find((tool) => tool.name === "searchReminders")?.readOnly,
 		).toBe(true);
+	});
+
+	it("tags getOpenRemindersSummary with tasks.openSummary standardTool", () => {
+		const result = runPlugin(["tools", "list"]);
+		expect(result.exitCode).toBe(0);
+		const body = parseJson(result.stdout) as {
+			ok: boolean;
+			tools: Array<{ name: string; standardTool?: string; readOnly?: boolean }>;
+		};
+		const summaryTool = body.tools.find(
+			(t) => t.name === "getOpenRemindersSummary",
+		);
+		expect(summaryTool).toBeDefined();
+		expect(summaryTool?.standardTool).toBe("tasks.openSummary");
+		expect(summaryTool?.readOnly).toBe(true);
 	});
 
 	it("honors dryRun for write tools without calling native endpoints", () => {

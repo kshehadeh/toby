@@ -30,6 +30,23 @@ export const TOOL_DEFINITIONS = [
 		},
 	},
 	{
+		name: "getOpenTasksSummary",
+		displayName: "Open tasks summary",
+		description:
+			"Dashboard summary of open Todoist tasks. Returns a standardized shape with count, items, groups, and generatedAt. Tagged as tasks.openSummary standard tool.",
+		readOnly: true,
+		standardTool: "tasks.openSummary",
+		inputSchema: {
+			type: "object",
+			properties: {
+				limit: {
+					type: "number",
+					description: "Maximum items to return (default 20)",
+				},
+			},
+		},
+	},
+	{
 		name: "fetchCompletedTasks",
 		displayName: "Fetch completed tasks",
 		description: "Fetch recently completed Todoist tasks",
@@ -212,6 +229,72 @@ export async function executeTool(
 			}
 			const tasks = await fetchOpenTasks(config, limit ?? 30);
 			return { result: { tasks } };
+		}
+
+		case "getOpenTasksSummary": {
+			const summaryLimit = typeof input.limit === "number" ? input.limit : 20;
+			if (dryRun) {
+				return {
+					result: {
+						dryRun: true,
+						message: "Would fetch open Todoist tasks summary.",
+					},
+				};
+			}
+			const tasks = await fetchOpenTasks(config, summaryLimit);
+			const projects = await fetchProjects(config);
+			const projectIdToName = new Map(projects.map((p) => [p.id, p.name]));
+
+			const groups = new Map<string, { label: string; count: number }>();
+			for (const task of tasks) {
+				const projectName = projectIdToName.get(task.projectId) ?? "Inbox";
+				const key = task.projectId;
+				const existing = groups.get(key);
+				if (existing) {
+					existing.count += 1;
+				} else {
+					groups.set(key, { label: projectName, count: 1 });
+				}
+			}
+
+			const now = Date.now();
+			const items = tasks.map((task) => {
+				const projectName = projectIdToName.get(task.projectId) ?? "Inbox";
+				const dueDate = task.due?.datetime ?? task.due?.date;
+				let urgency: "low" | "normal" | "high" = "normal";
+				if (task.priority >= 4) {
+					urgency = "high";
+				}
+				if (dueDate) {
+					const dueTime = new Date(dueDate).getTime();
+					if (!Number.isNaN(dueTime) && dueTime < now) {
+						urgency = "high";
+					}
+				}
+				return {
+					id: task.id,
+					title: task.content,
+					subtitle: projectName,
+					detail: task.description || undefined,
+					timestamp: dueDate,
+					urgency,
+					url: task.url || undefined,
+					groupId: task.projectId,
+				};
+			});
+
+			return {
+				result: {
+					count: tasks.length,
+					groups: [...groups.entries()].map(([id, g]) => ({
+						id,
+						label: g.label,
+						count: g.count,
+					})),
+					items,
+					generatedAt: new Date().toISOString(),
+				},
+			};
 		}
 
 		case "fetchCompletedTasks": {
