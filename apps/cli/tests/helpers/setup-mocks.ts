@@ -1,5 +1,6 @@
 import { mock } from "bun:test";
 import * as actualEmbeddings from "@toby/core/routing/embeddings";
+import * as actualModelFactory from "@toby/core/ai/model-factory";
 import { getDb } from "@toby/core/session-store";
 import * as actualAi from "ai";
 
@@ -25,6 +26,11 @@ mock.module("@toby/core/routing/embeddings", () => ({
 	...actualEmbeddings,
 	embedTexts: (...args: unknown[]) => embedTextsMock(...args),
 	createEmbeddingModelForPersona: () => ({}) as never,
+}));
+
+mock.module("@toby/core/ai/model-factory", () => ({
+	...actualModelFactory,
+	createModelForAuxiliary: () => ({}) as never,
 }));
 
 /** Clear the pretreatment cache so tests that call wrapUserPromptWithPretreatment

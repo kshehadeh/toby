@@ -175,7 +175,10 @@ describe("wrapUserPromptWithPretreatment semantic mode", () => {
 		process.env.TOBY_ROUTING_MIN_SCORE = "0.3";
 	});
 
-	it("does not call generateText and routes tools from the index", async () => {
+	it("routes tools from the index and generates a semantic session name on first turn", async () => {
+		generateTextQueue.push({
+			output: { sessionName: "Search Gmail Inbox" },
+		});
 		const r = await wrapUserPromptWithPretreatment({
 			priorMessages: [],
 			rawUserText: "search gmail for invoices",
@@ -190,9 +193,11 @@ describe("wrapUserPromptWithPretreatment semantic mode", () => {
 			routingIndex: testIndex(),
 		});
 
-		expect(generateTextMock).not.toHaveBeenCalled();
+		// One LLM call for the semantic session name; routing is embedding-based.
+		expect(generateTextMock).toHaveBeenCalledTimes(1);
 		expect(embedTextsMock).toHaveBeenCalled();
 		expect(r.spec?.relevantTools).toContain("gmailSearch");
+		expect(r.spec?.sessionName).toBe("Search Gmail Inbox");
 		expect(r.content).toContain("User request (verbatim):");
 	});
 
@@ -230,5 +235,26 @@ describe("wrapUserPromptWithPretreatment semantic mode", () => {
 
 		expect(generateTextMock).not.toHaveBeenCalled();
 		expect(r.spec?.relevantTools).toContain("gmailSearch");
+	});
+
+	it("falls back to heuristic session name when the LLM call fails", async () => {
+		// generateText returns an empty object (no output) — should fall back.
+		generateTextQueue.push({});
+		const r = await wrapUserPromptWithPretreatment({
+			priorMessages: [],
+			rawUserText: "search gmail for invoices",
+			integrationLabels: "Gmail",
+			isFirstTurn: true,
+			toolsCatalogText: "- gmailSearch: Search\n- todoistListTasks: List",
+			allowedToolNamesLower: new Set(["gmailsearch", "todoistlisttasks"]),
+			toolIntegrationLabels: {
+				gmailSearch: "Gmail",
+				todoistListTasks: "Todoist",
+			},
+			routingIndex: testIndex(),
+		});
+
+		expect(generateTextMock).toHaveBeenCalledTimes(1);
+		expect(r.spec?.sessionName).toBe("Search Gmail For Invoices");
 	});
 });

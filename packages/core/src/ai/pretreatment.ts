@@ -195,6 +195,71 @@ function heuristicSessionName(userText: string): string {
 		.join(" ");
 }
 
+const sessionNameSchema = z.object({
+	sessionName: z
+		.string()
+		.describe(
+			"A short descriptive title that semantically summarizes the user's request (3-6 words, title case, no punctuation); e.g. 'Inbox Triage' or 'Schedule Team Meeting'",
+		),
+});
+
+const SESSION_NAME_SYSTEM =
+	"Summarize the user's request as a concise chat session title. Output 3-6 words in title case, no punctuation, no quotes. Capture the semantic intent — do NOT copy the user's words verbatim. Examples: 'Inbox Triage', 'Schedule Team Meeting', 'Debug Auth Flow'.";
+
+/**
+ * Calls a small auxiliary model to produce a semantic session title from the
+ * user's first message. Returns null on failure/timeout so callers can fall
+ * back to the heuristic.
+ */
+async function generateSemanticSessionName(params: {
+	readonly userText: string;
+	readonly persona?: Persona;
+	readonly abortSignal?: AbortSignal;
+}): Promise<string | null> {
+	const text = params.userText.trim();
+	if (!text) {
+		return null;
+	}
+
+	const controller = new AbortController();
+	const onAbort = () => controller.abort();
+	if (params.abortSignal) {
+		throwIfAborted(params.abortSignal);
+		params.abortSignal.addEventListener("abort", onAbort, { once: true });
+	}
+	const timer = setTimeout(() => controller.abort(), 4000);
+
+	try {
+		const model = createModelForAuxiliary({ persona: params.persona });
+		const result = await generateText({
+			model,
+			system: SESSION_NAME_SYSTEM,
+			prompt: text,
+			output: Output.object({
+				schema: zodSchema(sessionNameSchema),
+				name: "SessionName",
+				description: "Short semantic title for the chat session",
+			}),
+			abortSignal: controller.signal,
+			temperature: 0,
+			maxOutputTokens: 64,
+		});
+		const name = result.output?.sessionName?.trim();
+		return name || null;
+	} catch (e) {
+		if (isAbortError(e)) {
+			throw e;
+		}
+		throwIfAborted(params.abortSignal);
+		return null;
+	} finally {
+		clearTimeout(timer);
+		if (params.abortSignal) {
+			params.abortSignal.removeEventListener("abort", onAbort);
+		}
+	}
+}
+
 function buildMinimalIntentSpec(params: {
 	readonly userText: string;
 	readonly isFirstTurn: boolean;
@@ -203,6 +268,7 @@ function buildMinimalIntentSpec(params: {
 		readonly relevantSkills: readonly string[];
 		readonly relevantIntegrations: readonly string[];
 	};
+	readonly sessionName?: string;
 }): UserIntentSpec {
 	return {
 		goal: params.userText.trim() || "Address the user's request.",
@@ -213,9 +279,10 @@ function buildMinimalIntentSpec(params: {
 		relevantIntegrations: [...params.routing.relevantIntegrations],
 		relevantSkills: [...params.routing.relevantSkills],
 		relevantTools: [...params.routing.relevantTools],
-		sessionName: params.isFirstTurn
-			? heuristicSessionName(params.userText)
-			: "",
+		sessionName:
+			params.isFirstTurn
+				? (params.sessionName ?? heuristicSessionName(params.userText))
+				: "",
 	};
 }
 
@@ -231,7 +298,7 @@ async function pretreatWithSemanticRouting(params: {
 }): Promise<UserIntentSpec | null> {
 	const index = params.routingIndex ?? getActiveRoutingIndex() ?? null;
 	const persona = params.persona ?? resolveDefaultPersona();
-	const routing = await routeToolsAndSkills({
+	const routingPromise = routeToolsAndSkills({
 		persona,
 		userText: params.raw,
 		toolIntegrationLabels: params.toolIntegrationLabels,
@@ -240,6 +307,25 @@ async function pretreatWithSemanticRouting(params: {
 		index,
 		abortSignal: params.abortSignal,
 	});
+
+	if (params.isFirstTurn) {
+		const [routing, semanticName] = await Promise.all([
+			routingPromise,
+			generateSemanticSessionName({
+				userText: params.raw,
+				persona,
+				abortSignal: params.abortSignal,
+			}).catch(() => null),
+		]);
+		return buildMinimalIntentSpec({
+			userText: params.raw,
+			isFirstTurn: params.isFirstTurn,
+			routing,
+			sessionName: semanticName ?? undefined,
+		});
+	}
+
+	const routing = await routingPromise;
 	return buildMinimalIntentSpec({
 		userText: params.raw,
 		isFirstTurn: params.isFirstTurn,
