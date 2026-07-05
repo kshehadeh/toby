@@ -1,11 +1,11 @@
 ---
 sidebar_position: 11
-title: Toby.app
+title: Toby Mac App
 ---
 
-# Toby.app
+# Toby Mac App
 
-Toby.app is the native macOS app for Toby and the primary way to use it. It gives you a SwiftUI surface for
+Toby Mac App is the native macOS app for Toby and the primary way to use it. It gives you a SwiftUI surface for
 chat and configuration while keeping the assistant runtime, sessions,
 integrations, and configuration storage in the same Toby daemon and core harness
 used by the CLI.
