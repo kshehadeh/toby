@@ -18,8 +18,9 @@ It combines:
 - **Personas** — shape how the assistant prioritizes and responds
 - **Skills** — reusable task instructions Toby applies when relevant
 - **Memories** — durable context Toby remembers across sessions
+- **Projects** — Scoped chats, skills, and memories for a specific context
+- **Recordings** — audio recordings with transcriptions and chat integration
 - **Schedules** — recurring prompts that run automatically
-- **Native app** — chat and configuration from the Toby.app window
 
 ## Where to go next
 
