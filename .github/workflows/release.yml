@@ -358,6 +358,7 @@ jobs:
       contents: read
       id-token: write
       pages: write
+      actions: write
     concurrency:
       group: github-pages
       cancel-in-progress: false
@@ -395,13 +396,23 @@ jobs:
       # Re-running this job (e.g. "Re-run failed jobs") leaves the previous
       # `github-pages` artifact in place. deploy-pages@v5 fails if it finds
       # more than one artifact named `github-pages`, so delete any stale one
-      # before uploading the fresh artifact.
+      # before uploading the fresh artifact. There is no official
+      # actions/delete-artifact action, so use the REST API via gh.
       - name: Delete stale Pages artifact
         if: hashFiles('release-assets/appcast.xml') != ''
-        uses: actions/delete-artifact@v5
-        with:
-          name: github-pages
-        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          owner_repo="${GITHUB_REPOSITORY}"
+          run_id="${GITHUB_RUN_ID}"
+          ids="$(gh api -X GET \
+            "/repos/${owner_repo}/actions/runs/${run_id}/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.name == "github-pages") | .id')"
+          for id in $ids; do
+            echo "Deleting stale github-pages artifact: ${id}"
+            gh api -X DELETE "/repos/${owner_repo}/actions/artifacts/${id}" || true
+          done
 
       - name: Upload Pages appcast artifact
         if: hashFiles('release-assets/appcast.xml') != ''
