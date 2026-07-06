@@ -17,6 +17,26 @@ export interface EmailConfig {
 	fromName: string;
 }
 
+export interface ImapConnectionOptions {
+	host: string;
+	port: number;
+	secure: boolean;
+	doSTARTTLS?: boolean;
+	auth: {
+		user: string;
+		pass: string;
+	};
+	logger: false;
+	connectionTimeout: number;
+	greetingTimeout: number;
+	socketTimeout: number;
+}
+
+const IMAP_STARTTLS_PORT = 143;
+const IMAP_CONNECTION_TIMEOUT_MS = 15_000;
+const IMAP_GREETING_TIMEOUT_MS = 10_000;
+const IMAP_SOCKET_TIMEOUT_MS = 60_000;
+
 function parseBoolean(raw: unknown, defaultValue: boolean): boolean {
 	if (typeof raw === "boolean") return raw;
 	if (typeof raw === "string") {
@@ -82,6 +102,83 @@ export function normalizeConfig(raw: JsonRecord): JsonRecord {
 	};
 }
 
+export function buildImapConnectionOptions(
+	config: JsonRecord,
+): ImapConnectionOptions {
+	const parsed = parseEmailConfig(config);
+	const useDirectTls =
+		parsed.imapSecure && parsed.imapPort !== IMAP_STARTTLS_PORT;
+	const useRequiredStartTls =
+		parsed.imapSecure && parsed.imapPort === IMAP_STARTTLS_PORT;
+
+	return {
+		host: parsed.imapHost,
+		port: parsed.imapPort,
+		secure: useDirectTls,
+		...(useRequiredStartTls ? { doSTARTTLS: true } : {}),
+		...(!parsed.imapSecure ? { doSTARTTLS: false } : {}),
+		auth: {
+			user: parsed.imapUsername,
+			pass: parsed.imapPassword,
+		},
+		logger: false,
+		connectionTimeout: IMAP_CONNECTION_TIMEOUT_MS,
+		greetingTimeout: IMAP_GREETING_TIMEOUT_MS,
+		socketTimeout: IMAP_SOCKET_TIMEOUT_MS,
+	};
+}
+
+export function sanitizeImapConnectionOptions(
+	options: ImapConnectionOptions,
+): JsonRecord {
+	return {
+		host: options.host,
+		port: options.port,
+		secure: options.secure,
+		doSTARTTLS: options.doSTARTTLS ?? null,
+		username: options.auth.user,
+		passwordConfigured: Boolean(options.auth.pass),
+		logger: options.logger,
+		connectionTimeout: options.connectionTimeout,
+		greetingTimeout: options.greetingTimeout,
+		socketTimeout: options.socketTimeout,
+	};
+}
+
+function toErrorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
+}
+
+async function createConnectedImapClient(
+	config: JsonRecord,
+	operation: string,
+): Promise<import("imapflow").ImapFlow> {
+	if (!hasImapCredentials(config)) {
+		throw new Error("IMAP credentials not configured.");
+	}
+
+	const { ImapFlow } = await import("imapflow");
+	const options = buildImapConnectionOptions(config);
+	const client = new ImapFlow(options);
+	log.info("imap_connection_settings", {
+		operation,
+		...sanitizeImapConnectionOptions(options),
+	});
+
+	try {
+		await client.connect();
+		return client;
+	} catch (error) {
+		const mode = options.secure
+			? "TLS"
+			: options.doSTARTTLS
+				? "STARTTLS"
+				: "plaintext";
+		const message = `IMAP connection failed for ${options.host}:${options.port} (${mode}): ${toErrorMessage(error)}`;
+		throw new Error(message);
+	}
+}
+
 export interface ImapSyncResult {
 	newCount: number;
 	lastUid: number;
@@ -115,24 +212,7 @@ export async function fetchUnreadInbox(
 	config: JsonRecord,
 	limit: number,
 ): Promise<UnreadInboxResult> {
-	const parsed = parseEmailConfig(config);
-	if (!hasImapCredentials(config)) {
-		throw new Error("IMAP credentials not configured.");
-	}
-
-	const { ImapFlow } = await import("imapflow");
-	const client = new ImapFlow({
-		host: parsed.imapHost,
-		port: parsed.imapPort,
-		secure: parsed.imapSecure,
-		auth: {
-			user: parsed.imapUsername,
-			pass: parsed.imapPassword,
-		},
-		logger: false,
-	});
-
-	await client.connect();
+	const client = await createConnectedImapClient(config, "fetchUnreadInbox");
 	try {
 		const lock = await client.getMailboxLock("INBOX");
 		try {
@@ -190,29 +270,10 @@ export async function syncMailbox(
 	mailbox: string,
 	db: import("./db").EmailDb,
 ): Promise<ImapSyncResult> {
-	const parsed = parseEmailConfig(config);
-	if (!hasImapCredentials(config)) {
-		throw new Error("IMAP credentials not configured.");
-	}
-
-	const { ImapFlow } = await import("imapflow");
-	const client = new ImapFlow({
-		host: parsed.imapHost,
-		port: parsed.imapPort,
-		secure: parsed.imapSecure,
-		auth: {
-			user: parsed.imapUsername,
-			pass: parsed.imapPassword,
-		},
-		logger: false,
-	});
-
-	log.debug("imap_connect", {
-		host: parsed.imapHost,
-		port: parsed.imapPort,
-		mailbox,
-	});
-	await client.connect();
+	const client = await createConnectedImapClient(
+		config,
+		`syncMailbox:${mailbox}`,
+	);
 	try {
 		const lock = await client.getMailboxLock(mailbox);
 		try {
@@ -305,27 +366,14 @@ export async function fetchMessageBody(
 	uid: number,
 	db: import("./db").EmailDb,
 ): Promise<ImapFetchBodyResult> {
-	const parsed = parseEmailConfig(config);
 	if (!hasImapCredentials(config)) {
 		throw new Error("IMAP credentials not configured.");
 	}
 
-	const { ImapFlow } = await import("imapflow");
 	const { simpleParser } = await import("mailparser");
 
-	const client = new ImapFlow({
-		host: parsed.imapHost,
-		port: parsed.imapPort,
-		secure: parsed.imapSecure,
-		auth: {
-			user: parsed.imapUsername,
-			pass: parsed.imapPassword,
-		},
-		logger: false,
-	});
-
 	log.debug("imap_fetch_body", { mailbox, uid });
-	await client.connect();
+	const client = await createConnectedImapClient(config, "fetchMessageBody");
 	try {
 		const lock = await client.getMailboxLock(mailbox);
 		try {
@@ -409,28 +457,7 @@ export async function sendEmail(
  * Test IMAP connection by logging in and listing the INBOX status.
  */
 export async function testConnection(config: JsonRecord): Promise<void> {
-	const parsed = parseEmailConfig(config);
-	if (!hasImapCredentials(config)) {
-		throw new Error("IMAP credentials not configured.");
-	}
-
-	const { ImapFlow } = await import("imapflow");
-	const client = new ImapFlow({
-		host: parsed.imapHost,
-		port: parsed.imapPort,
-		secure: parsed.imapSecure,
-		auth: {
-			user: parsed.imapUsername,
-			pass: parsed.imapPassword,
-		},
-		logger: false,
-	});
-
-	log.debug("imap_test_connection", {
-		host: parsed.imapHost,
-		port: parsed.imapPort,
-	});
-	await client.connect();
+	const client = await createConnectedImapClient(config, "testConnection");
 	await client.logout();
 	log.debug("imap_test_connection_ok");
 }
@@ -441,22 +468,7 @@ export async function testConnection(config: JsonRecord): Promise<void> {
 export async function listMailboxes(
 	config: JsonRecord,
 ): Promise<Array<{ path: string; name: string; specialUse?: string }>> {
-	const parsed = parseEmailConfig(config);
-	if (!hasImapCredentials(config)) {
-		throw new Error("IMAP credentials not configured.");
-	}
-
-	const { ImapFlow } = await import("imapflow");
-	const client = new ImapFlow({
-		host: parsed.imapHost,
-		port: parsed.imapPort,
-		secure: parsed.imapSecure,
-		auth: { user: parsed.imapUsername, pass: parsed.imapPassword },
-		logger: false,
-	});
-
-	log.debug("imap_list_mailboxes", { host: parsed.imapHost });
-	await client.connect();
+	const client = await createConnectedImapClient(config, "listMailboxes");
 	try {
 		const mailboxes = await client.list();
 		return mailboxes.map(
@@ -480,22 +492,8 @@ export async function addFlags(
 	uids: number[],
 	flags: string[],
 ): Promise<void> {
-	const parsed = parseEmailConfig(config);
-	if (!hasImapCredentials(config)) {
-		throw new Error("IMAP credentials not configured.");
-	}
-
-	const { ImapFlow } = await import("imapflow");
-	const client = new ImapFlow({
-		host: parsed.imapHost,
-		port: parsed.imapPort,
-		secure: parsed.imapSecure,
-		auth: { user: parsed.imapUsername, pass: parsed.imapPassword },
-		logger: false,
-	});
-
 	log.debug("imap_flags_add", { mailbox, uids: uids.length, flags });
-	await client.connect();
+	const client = await createConnectedImapClient(config, "addFlags");
 	try {
 		const lock = await client.getMailboxLock(mailbox);
 		try {
@@ -517,22 +515,8 @@ export async function removeFlags(
 	uids: number[],
 	flags: string[],
 ): Promise<void> {
-	const parsed = parseEmailConfig(config);
-	if (!hasImapCredentials(config)) {
-		throw new Error("IMAP credentials not configured.");
-	}
-
-	const { ImapFlow } = await import("imapflow");
-	const client = new ImapFlow({
-		host: parsed.imapHost,
-		port: parsed.imapPort,
-		secure: parsed.imapSecure,
-		auth: { user: parsed.imapUsername, pass: parsed.imapPassword },
-		logger: false,
-	});
-
 	log.debug("imap_flags_remove", { mailbox, uids: uids.length, flags });
-	await client.connect();
+	const client = await createConnectedImapClient(config, "removeFlags");
 	try {
 		const lock = await client.getMailboxLock(mailbox);
 		try {
@@ -554,22 +538,8 @@ export async function moveMessages(
 	uids: number[],
 	destination: string,
 ): Promise<void> {
-	const parsed = parseEmailConfig(config);
-	if (!hasImapCredentials(config)) {
-		throw new Error("IMAP credentials not configured.");
-	}
-
-	const { ImapFlow } = await import("imapflow");
-	const client = new ImapFlow({
-		host: parsed.imapHost,
-		port: parsed.imapPort,
-		secure: parsed.imapSecure,
-		auth: { user: parsed.imapUsername, pass: parsed.imapPassword },
-		logger: false,
-	});
-
 	log.debug("imap_move", { mailbox, uids: uids.length, destination });
-	await client.connect();
+	const client = await createConnectedImapClient(config, "moveMessages");
 	try {
 		const lock = await client.getMailboxLock(mailbox);
 		try {
@@ -591,22 +561,8 @@ export async function deleteMessages(
 	mailbox: string,
 	uids: number[],
 ): Promise<void> {
-	const parsed = parseEmailConfig(config);
-	if (!hasImapCredentials(config)) {
-		throw new Error("IMAP credentials not configured.");
-	}
-
-	const { ImapFlow } = await import("imapflow");
-	const client = new ImapFlow({
-		host: parsed.imapHost,
-		port: parsed.imapPort,
-		secure: parsed.imapSecure,
-		auth: { user: parsed.imapUsername, pass: parsed.imapPassword },
-		logger: false,
-	});
-
 	log.debug("imap_delete", { mailbox, uids: uids.length });
-	await client.connect();
+	const client = await createConnectedImapClient(config, "deleteMessages");
 	try {
 		// Try to find a Trash mailbox
 		const mailboxes = await client.list();
@@ -651,22 +607,8 @@ export async function archiveMessages(
 	mailbox: string,
 	uids: number[],
 ): Promise<{ archivePath: string }> {
-	const parsed = parseEmailConfig(config);
-	if (!hasImapCredentials(config)) {
-		throw new Error("IMAP credentials not configured.");
-	}
-
-	const { ImapFlow } = await import("imapflow");
-	const client = new ImapFlow({
-		host: parsed.imapHost,
-		port: parsed.imapPort,
-		secure: parsed.imapSecure,
-		auth: { user: parsed.imapUsername, pass: parsed.imapPassword },
-		logger: false,
-	});
-
 	log.debug("imap_archive", { mailbox, uids: uids.length });
-	await client.connect();
+	const client = await createConnectedImapClient(config, "archiveMessages");
 	try {
 		// Find the archive mailbox
 		const mailboxes = await client.list();
