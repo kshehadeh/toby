@@ -392,6 +392,17 @@ jobs:
           bunx turbo run build --filter @toby/help-site
           cp release-assets/appcast.xml apps/help-site/build/appcast.xml
 
+      # Re-running this job (e.g. "Re-run failed jobs") leaves the previous
+      # `github-pages` artifact in place. deploy-pages@v5 fails if it finds
+      # more than one artifact named `github-pages`, so delete any stale one
+      # before uploading the fresh artifact.
+      - name: Delete stale Pages artifact
+        if: hashFiles('release-assets/appcast.xml') != ''
+        uses: actions/delete-artifact@v5
+        with:
+          name: github-pages
+        continue-on-error: true
+
       - name: Upload Pages appcast artifact
         if: hashFiles('release-assets/appcast.xml') != ''
         uses: actions/upload-pages-artifact@v4
