@@ -383,7 +383,7 @@ struct RootView: View {
                             Image(systemName: "arrow.clockwise")
                         }
                         .help("Refresh")
-                        .disabled(dashboardStore.isLoading)
+                        .disabled(dashboardStore.isRefreshing)
                         .accessibilityIdentifier("dashboard-refresh-button")
                     }
                 }

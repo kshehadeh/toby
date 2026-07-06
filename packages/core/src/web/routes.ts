@@ -30,7 +30,7 @@ import {
 	handleDaemonStatus,
 	handleDaemonStop,
 } from "./handlers/daemon";
-import { handleDashboard } from "./handlers/dashboard";
+import { handleDashboard, handleDashboardCategory } from "./handlers/dashboard";
 import {
 	handleIntegrationConnect,
 	handleIntegrationDisconnect,
@@ -144,6 +144,12 @@ export async function handleWebRequest(
 		}
 		if (pathname === "/api/dashboard" && req.method === "GET") {
 			return handleDashboard();
+		}
+		if (pathname.startsWith("/api/dashboard/") && req.method === "GET") {
+			const category = decodeURIComponent(
+				pathname.slice("/api/dashboard/".length),
+			);
+			return handleDashboardCategory(category);
 		}
 		if (pathname === "/api/issues" && req.method === "POST") {
 			return handleCreateIssue(req);

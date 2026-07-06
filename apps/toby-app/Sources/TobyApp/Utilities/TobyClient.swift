@@ -712,6 +712,16 @@ struct TobyClient {
 		return try JSONDecoder().decode(DashboardData.self, from: data)
 	}
 
+	/// Fetch a single dashboard category independently so a slow provider in
+	/// one category never blocks another. Returns `nil` when the category has
+	/// no connected providers (the endpoint responds with JSON `null`).
+	func fetchDashboardCategory(_ category: String) async throws -> DashboardCategorySummary? {
+		let url = baseURL.appendingPathComponent("api/dashboard/\(category)")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(DashboardCategorySummary?.self, from: data)
+	}
+
 	// MARK: - Memories
 
 	func listMemories(limit: Int = 50, offset: Int = 0, query: String? = nil) async throws -> MemoriesListResponse {

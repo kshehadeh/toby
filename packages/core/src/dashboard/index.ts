@@ -15,12 +15,61 @@ const PER_PROVIDER_TIMEOUT_MS = 25_000;
 const DEFAULT_LIMIT = 20;
 const MAX_ITEMS_PER_CATEGORY = 100;
 
-interface CacheEntry {
-	readonly data: DashboardData;
+interface CategoryCacheEntry {
+	readonly data: DashboardCategorySummary | null;
 	readonly expiresAt: number;
 }
 
-let cache: CacheEntry | null = null;
+const categoryCache = new Map<string, CategoryCacheEntry>();
+
+/**
+ * Get an aggregated dashboard summary for a single category, cached for the
+ * TTL window. Returns `null` if no connected providers contributed data.
+ */
+export async function getDashboardCategory(
+	category: string,
+	params?: { readonly limit?: number },
+): Promise<DashboardCategorySummary | null> {
+	const limit = params?.limit ?? DEFAULT_LIMIT;
+
+	const cached = categoryCache.get(category);
+	if (cached && Date.now() < cached.expiresAt) {
+		return cached.data;
+	}
+
+	const data = await aggregateCategory(category, limit);
+	categoryCache.set(category, {
+		data,
+		expiresAt: Date.now() + CACHE_TTL_MS,
+	});
+	return data;
+}
+
+/**
+ * Get aggregated dashboard data from all connected providers.
+ * Each category is cached independently so a slow provider in one category
+ * never blocks another.
+ */
+export async function getDashboardData(params?: {
+	readonly limit?: number;
+}): Promise<DashboardData> {
+	const limit = params?.limit ?? DEFAULT_LIMIT;
+
+	const [email, tasks] = await Promise.all([
+		getDashboardCategory("email", { limit }),
+		getDashboardCategory("tasks", { limit }),
+	]);
+
+	return { email, tasks };
+}
+
+/**
+ * Clear the in-memory dashboard cache. Useful for testing or when a
+ * provider's connection state changes.
+ */
+export function clearDashboardCache(): void {
+	categoryCache.clear();
+}
 
 /**
  * Call a provider's `dashboard.getSummary` with a timeout. Returns `null` on
@@ -133,38 +182,4 @@ async function aggregateCategory(
 		groups: [...groupMap.values()],
 		generatedAt: latestGeneratedAt,
 	};
-}
-
-/**
- * Get aggregated dashboard data from all connected providers.
- * Results are cached for 60 seconds to avoid re-polling on rapid UI refreshes.
- */
-export async function getDashboardData(params?: {
-	readonly limit?: number;
-}): Promise<DashboardData> {
-	const limit = params?.limit ?? DEFAULT_LIMIT;
-
-	if (cache && Date.now() < cache.expiresAt) {
-		return cache.data;
-	}
-
-	const [email, tasks] = await Promise.all([
-		aggregateCategory("email", limit),
-		aggregateCategory("tasks", limit),
-	]);
-
-	const data: DashboardData = { email, tasks };
-	cache = {
-		data,
-		expiresAt: Date.now() + CACHE_TTL_MS,
-	};
-	return data;
-}
-
-/**
- * Clear the in-memory dashboard cache. Useful for testing or when a
- * provider's connection state changes.
- */
-export function clearDashboardCache(): void {
-	cache = null;
 }

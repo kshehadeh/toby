@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { clearDashboardCache, getDashboardData } from "@toby/core/dashboard";
+import {
+	clearDashboardCache,
+	getDashboardCategory,
+	getDashboardData,
+} from "@toby/core/dashboard";
 import { validateDashboardSummary } from "@toby/core/dashboard/schema";
 import { getIntegrationModules } from "@toby/core/integrations/index";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
@@ -109,7 +113,7 @@ describe("dashboard aggregator", () => {
 		// This test verifies the aggregator returns a valid DashboardData
 		// structure regardless of which plugins are connected in the test
 		// environment. Categories may be null or populated.
-		const data = await getDashboardData();
+		const data = await getDashboardData({ limit: 5 });
 		expect(data).toBeDefined();
 		expect(data).toHaveProperty("email");
 		expect(data).toHaveProperty("tasks");
@@ -139,20 +143,21 @@ describe("dashboard aggregator", () => {
 				expect(typeof item.providerName).toBe("string");
 			}
 		}
-	});
+	}, 30_000);
 
-	it("caches results within TTL window", async () => {
-		const first = await getDashboardData();
-		const second = await getDashboardData();
-		// Same object reference means cache was used
+	it("caches category results within TTL window", async () => {
+		// Use the tasks category (fast, no IMAP dependency) to verify caching.
+		const first = await getDashboardCategory("tasks", { limit: 5 });
+		const second = await getDashboardCategory("tasks", { limit: 5 });
+		// Same reference means the cache was used.
 		expect(second).toBe(first);
-	});
+	}, 15_000);
 
 	it("returns fresh data after cache is cleared", async () => {
-		const first = await getDashboardData();
+		const first = await getDashboardCategory("tasks", { limit: 5 });
 		clearDashboardCache();
-		const second = await getDashboardData();
-		// Different object reference means cache was bypassed
+		const second = await getDashboardCategory("tasks", { limit: 5 });
+		// Different reference means the cache was bypassed.
 		expect(second).not.toBe(first);
-	});
+	}, 15_000);
 });
