@@ -373,6 +373,59 @@ private struct TaskRow: View {
 
 // MARK: - Shared helpers
 
+/// A compact stat tile for the dashboard metrics row (recordings, skills,
+/// schedules, memories). Tapping navigates to the related area.
+struct DashboardMetric: Identifiable {
+	let route: DetailRoute
+	let count: Int
+	let label: String
+	let systemImage: String
+	var id: String { route.rawValue }
+}
+
+struct DashboardMetricTile: View {
+	let metric: DashboardMetric
+	let action: () -> Void
+
+	@State private var isHovered = false
+
+	var body: some View {
+		Button(action: action) {
+			VStack(alignment: .leading, spacing: 8) {
+				Image(systemName: metric.systemImage)
+					.font(.system(size: 15, weight: .semibold))
+					.foregroundStyle(AppTheme.accent)
+				Text("\(metric.count)")
+					.font(.system(size: 22, weight: .bold))
+					.foregroundStyle(AppTheme.primaryText)
+					.lineLimit(1)
+				Text(metric.label)
+					.font(.system(size: 12))
+					.foregroundStyle(AppTheme.secondaryText)
+					.lineLimit(1)
+			}
+			.frame(maxWidth: .infinity, alignment: .topLeading)
+			.padding(14)
+			.background(
+				RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
+					.fill(AppTheme.panelBackground)
+			)
+			.overlay(
+				RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
+					.stroke(AppTheme.separator, lineWidth: 1)
+			)
+			.overlay(
+				RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
+					.fill(AppTheme.accent.opacity(isHovered ? 0.08 : 0))
+			)
+		}
+		.buttonStyle(.plain)
+		.onHover { isHovered = $0 }
+		.accessibilityLabel("\(metric.count) \(metric.label)")
+		.accessibilityHint("Open \(metric.label)")
+	}
+}
+
 struct DashboardEmptyState: View {
 	let message: String
 
