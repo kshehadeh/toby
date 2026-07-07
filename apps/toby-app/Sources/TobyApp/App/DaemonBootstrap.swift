@@ -31,37 +31,50 @@ struct DaemonStartCommand: Equatable {
 
 enum DaemonBootstrap {
 	static func restartServer(baseURL: URL) async throws {
+		log("restart.start baseURL=\(baseURL.absoluteString)")
 		try await requestDaemonStop(baseURL: baseURL)
+		log("restart.stopRequested")
 		try await waitForServerUnavailable(baseURL: baseURL, timeout: 6)
+		log("restart.serverUnavailable")
 		let command = try resolveDaemonStartCommand(preferDevSource: true)
 		try await runDaemonStart(command: command)
+		log("restart.startCommandReturned")
 		try await waitForServerAvailable(baseURL: baseURL, timeout: 10, error: .restartUnavailable)
+		log("restart.available")
 	}
 
 	/// Stops the running daemon server and waits for it to become unavailable.
 	/// Used before app relaunch (e.g. Sparkle update) to ensure a clean shutdown.
 	static func stopDaemon(baseURL: URL) async throws {
+		log("stop.start baseURL=\(baseURL.absoluteString)")
 		try await requestDaemonStop(baseURL: baseURL)
+		log("stop.stopRequested")
 		try await waitForServerUnavailable(baseURL: baseURL, timeout: 6)
+		log("stop.serverUnavailable")
 	}
 
 	static func ensureServerAvailable(baseURL: URL) async throws {
+		log("ensure.start baseURL=\(baseURL.absoluteString)")
 		if let bundledExecutable = bundledTobyExecutable() {
 			try await ensureBundledServerAvailable(
 				baseURL: baseURL,
 				bundledExecutable: bundledExecutable
 			)
+			log("ensure.bundled.done")
 			return
 		}
 
 		if await isServerAvailable(baseURL: baseURL) {
+			log("ensure.available")
 			return
 		}
 
 		let command = try resolveDaemonStartCommand(preferDevSource: true)
 		try await runDaemonStart(command: command)
+		log("ensure.startCommandReturned")
 
 		try await waitForServerAvailable(baseURL: baseURL, timeout: 6, error: .serverUnavailable)
+		log("ensure.availableAfterStart")
 	}
 
 	static func waitForServerAvailable(
@@ -69,14 +82,17 @@ enum DaemonBootstrap {
 		timeout: TimeInterval,
 		error: DaemonBootstrapError,
 	) async throws {
+		log("wait.available.start timeout=\(timeout) baseURL=\(baseURL.absoluteString)")
 		let deadline = Date().addingTimeInterval(timeout)
 		while Date() < deadline {
 			if await isServerAvailable(baseURL: baseURL) {
+				log("wait.available.success")
 				return
 			}
 			try await Task.sleep(nanoseconds: 300_000_000)
 		}
 
+		log("wait.available.timeout")
 		throw error
 	}
 
@@ -132,26 +148,32 @@ enum DaemonBootstrap {
 		baseURL: URL,
 		bundledExecutable: URL,
 	) async throws {
+		log("ensureBundled.start executable=\(bundledExecutable.path)")
 		guard await isServerAvailable(baseURL: baseURL) else {
 			try await runDaemonStart(command: compiledDaemonStartCommand(executable: bundledExecutable))
 			try await waitForServerAvailable(baseURL: baseURL, timeout: 6, error: .serverUnavailable)
+			log("ensureBundled.started")
 			return
 		}
 
 		let runningInfo = await fetchRunningServerInfo(baseURL: baseURL)
+		log("ensureBundled.running executable=\(runningInfo.executablePath ?? "<nil>") version=\(runningInfo.version ?? "<nil>")")
 		guard shouldReplaceServer(
 			runningExecutablePath: runningInfo.executablePath,
 			runningVersion: runningInfo.version,
 			bundledExecutable: bundledExecutable,
 			bundledVersion: bundledAppVersion()
 		) else {
+			log("ensureBundled.keepRunning")
 			return
 		}
 
+		log("ensureBundled.replace")
 		try await requestDaemonStop(baseURL: baseURL)
 		try await waitForServerUnavailable(baseURL: baseURL, timeout: 6)
 		try await runDaemonStart(command: compiledDaemonStartCommand(executable: bundledExecutable))
 		try await waitForServerAvailable(baseURL: baseURL, timeout: 10, error: .serverUnavailable)
+		log("ensureBundled.replaced")
 	}
 
 	private static func fetchRunningServerInfo(baseURL: URL) async -> RunningServerInfo {
@@ -191,6 +213,7 @@ enum DaemonBootstrap {
 	}
 
 	private static func requestDaemonStop(baseURL: URL) async throws {
+		log("requestStop.start")
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/daemon/stop"))
 		request.httpMethod = "POST"
 		request.timeoutInterval = 2
@@ -200,26 +223,33 @@ enum DaemonBootstrap {
 		do {
 			let (_, response) = try await URLSession.shared.data(for: request)
 			guard let http = response as? HTTPURLResponse, (200 ... 299).contains(http.statusCode) else {
+				log("requestStop.invalidResponse")
 				throw DaemonBootstrapError.stopUnavailable
 			}
+			log("requestStop.success")
 		} catch {
+			log("requestStop.failed error=\(error.localizedDescription)")
 			throw DaemonBootstrapError.stopUnavailable
 		}
 	}
 
 	private static func waitForServerUnavailable(baseURL: URL, timeout: TimeInterval) async throws {
+		log("wait.unavailable.start timeout=\(timeout) baseURL=\(baseURL.absoluteString)")
 		let deadline = Date().addingTimeInterval(timeout)
 		while Date() < deadline {
 			if !(await isServerAvailable(baseURL: baseURL)) {
+				log("wait.unavailable.success")
 				return
 			}
 			try await Task.sleep(nanoseconds: 300_000_000)
 		}
 
+		log("wait.unavailable.timeout")
 		throw DaemonBootstrapError.stopUnavailable
 	}
 
 	private static func runDaemonStart(command: DaemonStartCommand) async throws {
+		log("runStart.start command=\(command.logDescription)")
 		try await Task.detached(priority: .userInitiated) {
 			let process = Process()
 			process.executableURL = command.executableURL
@@ -240,6 +270,7 @@ enum DaemonBootstrap {
 				throw DaemonBootstrapError.startFailed(output?.isEmpty == false ? output! : "exit code \(process.terminationStatus)")
 			}
 		}.value
+		log("runStart.success command=\(command.logDescription)")
 	}
 
 	static func daemonStartCommands(preferDevSource: Bool = false) -> [DaemonStartCommand] {
@@ -405,6 +436,10 @@ enum DaemonBootstrap {
 		return parent.appendingPathComponent("toby")
 	}
 
+	private static func log(_ message: String) {
+		ServerEventLog.append("daemonBootstrap.\(message)")
+	}
+
 }
 
 private struct BunExecutableCandidate: Equatable {
@@ -415,6 +450,12 @@ private struct BunExecutableCandidate: Equatable {
 private struct RunningServerInfo {
 	let executablePath: String?
 	let version: String?
+}
+
+private extension DaemonStartCommand {
+	var logDescription: String {
+		([executableURL.path] + arguments).joined(separator: " ")
+	}
 }
 
 private extension URL {
