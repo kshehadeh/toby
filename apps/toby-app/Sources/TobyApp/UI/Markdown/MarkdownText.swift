@@ -1,10 +1,20 @@
 import SwiftUI
 
-struct MarkdownTable {
+struct MarkdownTable: Equatable {
 	let hasHeader: Bool
 	let colCount: Int
 	let cells: [[String]]
 	let alignments: [TextAlignment]
+}
+
+enum MarkdownBlock: Equatable {
+	case heading(level: Int, content: String)
+	case paragraph(String)
+	case bullet(String)
+	case blockquote(String)
+	case horizontalRule
+	case code(String)
+	case table(MarkdownTable)
 }
 
 struct MarkdownText: View {
@@ -36,6 +46,22 @@ struct MarkdownText: View {
 							.tracking(AppTheme.transcriptTracking)
 							.foregroundStyle(foregroundStyle)
 					}
+				case .blockquote(let content):
+					HStack(alignment: .top, spacing: 10) {
+						RoundedRectangle(cornerRadius: 1.5)
+							.fill(AppTheme.separator)
+							.frame(width: 3)
+						InlineMarkdownText(text: content)
+							.font(font)
+							.tracking(AppTheme.transcriptTracking)
+							.foregroundStyle(foregroundStyle.opacity(0.88))
+					}
+					.accessibilityIdentifier("markdown-blockquote")
+				case .horizontalRule:
+					Divider()
+						.overlay(AppTheme.separator)
+						.padding(.vertical, 2)
+						.accessibilityIdentifier("markdown-horizontal-rule")
 				case .code(let content):
 					ScrollView(.horizontal, showsIndicators: false) {
 						Text(content)
@@ -53,10 +79,15 @@ struct MarkdownText: View {
 	}
 
 	private var blocks: [MarkdownBlock] {
+		Self.parseBlocks(text)
+	}
+
+	static func parseBlocks(_ text: String) -> [MarkdownBlock] {
 		var output: [MarkdownBlock] = []
 		var paragraph: [String] = []
 		var code: [String] = []
 		var tableRows: [String] = []
+		var blockquote: [String] = []
 		var inFence = false
 
 		func flushParagraph() {
@@ -81,6 +112,12 @@ struct MarkdownText: View {
 			tableRows.removeAll()
 		}
 
+		func flushBlockquote() {
+			guard !blockquote.isEmpty else { return }
+			output.append(.blockquote(blockquote.joined(separator: "\n")))
+			blockquote.removeAll()
+		}
+
 		for rawLine in text.components(separatedBy: .newlines) {
 			let line = rawLine.trimmingCharacters(in: .whitespaces)
 			if line.hasPrefix("```") {
@@ -90,6 +127,7 @@ struct MarkdownText: View {
 					inFence = false
 				} else {
 					flushParagraph()
+					flushBlockquote()
 					inFence = true
 				}
 				continue
@@ -101,15 +139,31 @@ struct MarkdownText: View {
 			if line.isEmpty {
 				flushTable()
 				flushParagraph()
+				flushBlockquote()
 				continue
 			}
 			if isTableLine(line) {
 				flushParagraph()
 				flushCode()
+				flushBlockquote()
 				tableRows.append(line)
 				continue
 			}
 			flushTable()
+			if isHorizontalRuleLine(line) {
+				flushParagraph()
+				flushBlockquote()
+				output.append(.horizontalRule)
+				continue
+			}
+			if line.hasPrefix(">") {
+				flushParagraph()
+				let content = String(line.dropFirst())
+					.trimmingCharacters(in: .whitespaces)
+				blockquote.append(content)
+				continue
+			}
+			flushBlockquote()
 			if line.hasPrefix("### ") {
 				flushParagraph()
 				output.append(.heading(level: 3, content: String(line.dropFirst(4))))
@@ -135,23 +189,21 @@ struct MarkdownText: View {
 
 		flushTable()
 		flushParagraph()
+		flushBlockquote()
 		flushCode()
 		return output.isEmpty ? [.paragraph(text)] : output
 	}
 
-	private enum MarkdownBlock {
-		case heading(level: Int, content: String)
-		case paragraph(String)
-		case bullet(String)
-		case code(String)
-		case table(MarkdownTable)
-	}
-
-	private func isTableLine(_ line: String) -> Bool {
+	private static func isTableLine(_ line: String) -> Bool {
 		line.hasPrefix("|") && line.hasSuffix("|")
 	}
 
-	private func isTableSeparatorLine(_ line: String) -> Bool {
+	private static func isHorizontalRuleLine(_ line: String) -> Bool {
+		let trimmed = line.trimmingCharacters(in: .whitespaces)
+		return trimmed.count >= 3 && trimmed.allSatisfy { $0 == "-" }
+	}
+
+	private static func isTableSeparatorLine(_ line: String) -> Bool {
 		let cells = parseTableCells(line)
 		let pattern = try? NSRegularExpression(pattern: "^:?-+:?$", options: [])
 		return cells.allSatisfy { cell in
@@ -161,7 +213,7 @@ struct MarkdownText: View {
 		}
 	}
 
-	private func parseTableCells(_ line: String) -> [String] {
+	private static func parseTableCells(_ line: String) -> [String] {
 		line
 			.trimmingCharacters(in: .whitespaces)
 			.trimmingCharacters(in: CharacterSet(charactersIn: "|"))
@@ -169,7 +221,7 @@ struct MarkdownText: View {
 			.map { $0.trimmingCharacters(in: .whitespaces) }
 	}
 
-	private func parseTable(_ lines: [String]) -> MarkdownTable? {
+	private static func parseTable(_ lines: [String]) -> MarkdownTable? {
 		guard !lines.isEmpty else { return nil }
 		let rows = lines.map { parseTableCells($0) }
 		let colCount = rows.map(\.count).max() ?? 0
