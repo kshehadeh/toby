@@ -1,6 +1,6 @@
 # Creating a new integration
 
-This checklist assumes a **first-party** integration in **`@toby/core`** under `packages/core/src/integrations/<id>/`, consistent with Slack. Email, Todoist, Azure AD, Jira, Web Search, Apple Calendar, Apple Reminders, and macOS ship as installable plugins instead (see [Migrating a built-in to a plugin](#migrating-a-built-in-to-a-plugin)). Interactive configuration is served by core configure APIs and rendered in Toby.app; harness code stays in core. See [`architecture.md`](architecture.md#core-vs-apps).
+This checklist assumes a **first-party** integration in **`@toby/core`** under `packages/core/src/integrations/<id>/`, consistent with Slack. Email, Todoist, Azure AD, Jira, Notion, Web Search, Apple Calendar, Apple Reminders, and macOS ship as installable plugins or built-in global tools instead (see [Migrating a built-in to a plugin](#migrating-a-built-in-to-a-plugin)). Interactive configuration is served by core configure APIs and rendered in Toby.app; harness code stays in core. See [`architecture.md`](architecture.md#core-vs-apps).
 
 ## 1. Scaffold the folder
 
@@ -25,10 +25,11 @@ In `index.ts`:
 1. Implement **lifecycle** (`connect`, `disconnect`, `isConnected`, `testConnection`) using [`readConfig` / `writeConfig`](../packages/core/src/config/index.ts) and your client.
 2. Set **`name`** (CLI identifier), **`displayName`**, **`description`**.
 3. Set **`capabilities`** to the subset you support. If you add a **new** capability string, extend `IntegrationCapability` in [`packages/core/src/integrations/types.ts`](../packages/core/src/integrations/types.ts) and teach any core command that should use it (or add a new generic dispatcher there).
-4. Implement **`getCredentialDescriptors`**, **`seedCredentialValues`**, and **`mergeCredentialsPatch`** so `configure` can show and persist secrets. Map into `CredentialsFile` in [`packages/core/src/config/index.ts`](../packages/core/src/config/index.ts) — you may need to extend `CredentialsFile` with a new optional block for your service.
+4. Set **`providerCategories`** when the integration should participate in default-provider selection and schedule routing. Current categories are `email`, `calendar`, `tasks`, `contacts`, `chat`, `documents`, and `work_tracker`. Use `documents` for knowledge-base or document-store providers such as Notion and Confluence.
+5. Implement **`getCredentialDescriptors`**, **`seedCredentialValues`**, and **`mergeCredentialsPatch`** so `configure` can show and persist secrets. Map into `CredentialsFile` in [`packages/core/src/config/index.ts`](../packages/core/src/config/index.ts) — you may need to extend `CredentialsFile` with a new optional block for your service.
    - If your integration supports multiple auth paths, set `authMethods` on the module and use `showForAuthMethods` on descriptors so the configure UI shows only fields relevant to the selected method.
-5. If the integration supports inbox-style summaries, implement **`summarize`** returning `{ status: "ok", messages }` or `{ status: "empty", message }` per [`SummarizeRunResult`](../packages/core/src/integrations/types.ts).
-6. Optionally implement **`registerCommands(program)`** for integration-specific subcommands (see the Slack module for an example).
+6. If the integration supports inbox-style summaries, implement **`summarize`** returning `{ status: "ok", messages }` or `{ status: "empty", message }` per [`SummarizeRunResult`](../packages/core/src/integrations/types.ts).
+7. Optionally implement **`registerCommands(program)`** for integration-specific subcommands (see the Slack module for an example).
 
 ### Note on watch / scheduling
 
@@ -98,7 +99,7 @@ To ship an integration **outside** the main Toby binary:
 2. Install the directory with `toby plugins install <path>` or copy it into `~/.toby/plugins/`.
 3. Run `toby plugins doctor` to validate protocol compatibility.
 
-See [`apps/plugin-sample-ts/`](../apps/plugin-sample-ts/) for a minimal reference plugin and build script (`bun run build:plugin:sample-ts`).
+See [`apps/plugin-sample-ts/`](../apps/plugin-sample-ts/) for a minimal reference plugin and build script (`bun run build:plugin:sample-ts`). For a document-store provider, see [`apps/plugin-notion/`](../apps/plugin-notion/), which declares `providerCategories: ["documents"]` and exposes read/write page tools.
 
 No changes to `MODULES` are required — discovery registers plugin-backed modules automatically.
 

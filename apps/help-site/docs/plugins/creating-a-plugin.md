@@ -79,7 +79,7 @@ The plugin name comes from the `name` field in `manifest.json` (not the director
 | `runtime.type` | yes | Must be `"bun"` |
 | `runtime.entry` | yes | Path to the TypeScript entrypoint, relative to the plugin directory |
 | `capabilities` | no | Used for fast discovery filtering; `status` is the runtime source of truth. Default `["chat"]` |
-| `providerCategories` | no | e.g. `email`, `calendar`, `tasks`, `contacts`, `chat`, `search`, `work_tracker` |
+| `providerCategories` | no | e.g. `email`, `calendar`, `tasks`, `contacts`, `chat`, `documents`, `work_tracker` |
 
 ### Bun runtime resolution
 
@@ -269,7 +269,7 @@ Reports plugin identity, protocol version, connection state, and metadata used b
 | `protocolVersion` | yes | Must be `"1"` for this spec |
 | `connected` | yes | Whether Toby should treat the integration as connected |
 | `capabilities` | no | Default `["chat"]`. May include `"inbound"` for daemon @mention listening |
-| `providerCategories` | no | e.g. `email`, `calendar`, `tasks`, `contacts`, `chat`, `search`, `work_tracker` |
+| `providerCategories` | no | e.g. `email`, `calendar`, `tasks`, `contacts`, `chat`, `documents`, `work_tracker` |
 | `details` | no | Extra status text |
 | `resources` | no | Arbitrary tags for status output |
 | `setupAvailable` | no | `true` when the plugin implements `setup` |

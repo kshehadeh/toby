@@ -20,7 +20,7 @@ Extends `Integration` with optional **capabilities** and **hooks**:
 | Field / method | Purpose |
 | ---------------- | ------- |
 | `capabilities` | Subset of `IntegrationCapability` (currently `"chat"`). |
-| `providerCategories?` | Provider buckets for default-provider selection and schedule routing: `"email"` \| `"calendar"` \| `"tasks"` \| `"contacts"` \| `"chat"` \| `"search"` \| `"work_tracker"`. |
+| `providerCategories?` | Provider buckets for default-provider selection and schedule routing: `"email"` \| `"calendar"` \| `"tasks"` \| `"contacts"` \| `"chat"` \| `"documents"` \| `"work_tracker"`. |
 | `authMethods?` | Optional supported auth options for configure UI (e.g. OAuth vs client credentials) with a default method. |
 | `resources?` | Optional strings describing entities (e.g. inbox, tasks) for discovery or docs. |
 | `getCredentialDescriptors()` | Fields shown under Integrations in configure UI (`CredentialFieldDescriptor`: flat `key`, `label`, `masked`, plus optional auth-method gating via `showForAuthMethods`). |

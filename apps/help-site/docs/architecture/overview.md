@@ -96,9 +96,11 @@ for the lower-level contract.
 ## External systems
 
 External systems are the services Toby reaches through plugins and tools:
-email, tasks, chat, work tracking, search, and calendars. Toby models these by
-provider category so a session can reason about the kind of work being requested
-instead of hard-coding vendor names everywhere.
+email, tasks, chat, documents, work tracking, search, and calendars. Toby models
+integrations by provider category so a session can reason about the kind of work
+being requested instead of hard-coding vendor names everywhere. Web Search is a
+global tool, while document stores such as Notion use the `documents` provider
+category.
 
 See [Integrations overview](../integrations/overview) for available integrations,
 provider categories, and default provider behavior.

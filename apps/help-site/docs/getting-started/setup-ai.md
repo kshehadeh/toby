@@ -70,7 +70,7 @@ In the same Settings window, click **Default Providers** to pick which connected
 | Tasks | Todoist |
 | Chat | Slack |
 | Contacts | Azure AD |
-| Search | Web Search |
+| Documents | Notion |
 | Work Tracker | Jira |
 
 These defaults help schedules and multi-integration chat pick the right tools.

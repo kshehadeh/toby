@@ -89,13 +89,13 @@ The directory name follows the same `/^[a-z0-9_-]+$/` rule as binary plugins.
     "type": "bun",
     "entry": "src/index.ts"
   },
-  "icon": "🔎",
+  "icon": "📄",
   "iconAsset": {
     "path": "assets/icon-256.png",
     "mimeType": "image/png"
   },
   "capabilities": ["chat"],
-  "providerCategories": ["search"]
+  "providerCategories": ["documents"]
 }
 ```
 
@@ -298,7 +298,7 @@ Reports identity, protocol compatibility, and health.
   "protocolVersion": "1",
   "connected": true,
   "capabilities": ["chat"],
-  "providerCategories": ["search"],
+  "providerCategories": ["documents"],
   "details": "API key configured."
 }
 ```

@@ -5,7 +5,7 @@ title: Integrations overview
 
 # Integrations overview
 
-Integrations connect Toby to your email, tasks, chat, contacts, and calendar. Once connected, Toby can search, summarize, organize, and take action through **chat tools**—you describe what you want in natural language.
+Integrations connect Toby to your email, tasks, chat, contacts, calendar, documents, and work trackers. Once connected, Toby can search, summarize, organize, and take action through **chat tools**—you describe what you want in natural language.
 
 ## Available integrations
 
@@ -45,6 +45,11 @@ Integrations connect Toby to your email, tasks, chat, contacts, and calendar. On
 		<span className="integrationIconName">Jira</span>
 		<span className="integrationIconMeta">Work Tracker · <code>jira</code></span>
 	</a>
+	<a className="integrationIconCard" href="./notion">
+		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/notion/FFFFFF" alt="" /></span>
+		<span className="integrationIconName">Notion</span>
+		<span className="integrationIconMeta">Documents · <code>notion</code></span>
+	</a>
 </div>
 
 ## The three-step pattern
@@ -63,7 +68,7 @@ On macOS, open **Toby.app** and use the **Setup Guide** button on any integratio
 
 ## Installable plugins
 
-Email, Todoist, Jira, Slack, Apple Calendar, macOS, and other first-party integrations ship as **plugins** bundled in release archives. Fresh installs (`install-toby.sh`) and `toby upgrade` copy them into `~/.toby/plugins/` automatically—no manual `toby plugins install` step is required for release users. The sample plugin (`toby-plugin-sample-ts`) is also installed for reference and testing.
+Email, Todoist, Jira, Notion, Slack, Apple Calendar, macOS, and other first-party integrations ship as **plugins** bundled in release archives. Fresh installs (`install-toby.sh`) and `toby upgrade` copy them into `~/.toby/plugins/` automatically—no manual `toby plugins install` step is required for release users. The sample plugin (`toby-plugin-sample-ts`) is also installed for reference and testing.
 
 Web Search is a **built-in feature** (not a plugin) that uses the Vercel AI Gateway's Perplexity search. See [Web Search](./web-search) for setup.
 
@@ -93,7 +98,7 @@ Each integration declares one or more **provider categories**. A category descri
 | `tasks` | Task List Provider | Todos, projects, and due dates |
 | `contacts` | Contact List Provider | Directory and people lookup |
 | `chat` | Chat Provider | Channels, DMs, and workspace messages |
-| `search` | Search Provider | Web search and research |
+| `documents` | Documents Provider | Pages, notes, wiki entries, and knowledge-base content |
 | `work_tracker` | Work Tracker | Issues, tickets, bugs, backlogs, and project work |
 
 ### Which integration belongs where
@@ -104,6 +109,7 @@ Each integration declares one or more **provider categories**. A category descri
 | Apple Calendar | `applecalendar` | `calendar` |
 | Todoist | `todoist` | `tasks` |
 | Slack | `slack` | `chat` |
+| Notion | `notion` | `documents` |
 | Jira | `jira` | `work_tracker` |
 
 Only **email** currently has one first-party integration in that category (Email). Defaults become important when you connect multiple integrations in the same category or when you want schedules to target a specific provider.
@@ -113,7 +119,7 @@ Only **email** currently has one first-party integration in that category (Email
 Categories let Toby reason about *roles* instead of a flat list of app names:
 
 1. **Default providers** — In **Toby.app → Settings → Default Providers**, you pick which connected integration Toby should prefer per category (for example Email for email). Those choices are stored in your config and surfaced to the assistant during chat and pretreatment.
-2. **Scheduled runs** — The daemon inspects schedule prompts for category-related keywords (such as “inbox”, “calendar”, “todoist”, “slack”). When a category is detected, Toby includes the default provider for that category if you set one; otherwise it uses heuristics (a single connected integration in that category, or all connected integrations in that category with a warning). This avoids loading every integration’s tools on every cron job when the prompt is clearly about email or tasks alone.
+2. **Scheduled runs** — The daemon inspects schedule prompts for category-related keywords (such as “inbox”, “calendar”, “todoist”, “slack”, “Notion”, or “wiki”). When a category is detected, Toby includes the default provider for that category if you set one; otherwise it uses heuristics (a single connected integration in that category, or all connected integrations in that category with a warning). This avoids loading every integration’s tools on every cron job when the prompt is clearly about one category alone.
 3. **Multi-integration chat** — When several integrations are active in one session, the combined system prompt lists your default providers so the model reaches for the right tools (for example your chosen email provider when you ask to triage mail).
 4. **New integrations** — Module authors assign `providerCategories` in code so Toby can register the integration in the right bucket for configure, schedules, and routing—without hard-coding vendor names across the codebase.
 
@@ -149,6 +155,10 @@ Toby automatically routes to the right tool based on your request. If you ask to
 ## Work tracking
 
 Jira is the first **Work Tracker** integration. It adds read-only chat tools for JQL issue search, full issue lookup, issue comments, and accessible project lists. Use it for prompts about tickets, bugs, epics, sprints, backlogs, or project issue status.
+
+## Documents
+
+Notion is the first **Documents Provider** integration. It adds read tools for searching pages/databases and listing page or block content, plus write tools for creating pages and appending markdown-derived content to existing pages. Use it for prompts about notes, docs, wikis, knowledge-base content, meeting notes, or durable project context.
 
 ## Other commands
 
