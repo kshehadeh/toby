@@ -8,7 +8,7 @@ struct SkillsView: View {
 		.toolbarBackground(.visible)
 		.background(SettingsDesign.canvasBackground)
 		.task {
-			await store.load()
+			await store.ensureLoaded()
 		}
 		.onDisappear {
 			Task { await store.flushPendingSave() }

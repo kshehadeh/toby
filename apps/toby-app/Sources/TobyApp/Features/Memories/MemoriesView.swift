@@ -8,7 +8,7 @@ struct MemoriesView: View {
 			.toolbarBackground(.visible)
 			.background(SettingsDesign.canvasBackground)
 			.task {
-				await store.load()
+				await store.ensureLoaded()
 			}
 			.alert(
 				"Delete Memory?",

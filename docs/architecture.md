@@ -84,6 +84,24 @@ apps/toby-app/             # Toby.app — native macOS app (SwiftUI)
     RecordingsView.swift          # Native recording browser and audio playback
 ```
 
+### Native app shared data
+
+Toby.app owns long-lived SwiftUI stores at the root scene level and preloads
+shared list/index data only after daemon bootstrap succeeds. Dashboard metrics,
+the dashboard sidebar, top-level sidebars, and the command palette all read from
+those shared stores instead of relying on each feature view to hit the daemon
+first.
+
+The shared preload covers chat sessions, schedules, recording summaries,
+memory summaries, skill summaries, project summaries/sessions, and integration
+sections. Feature views still call idempotent `ensureLoaded()` fallbacks, but
+they are not the primary source of global data population.
+
+Keep expensive detail data lazy in feature-specific stores: recording
+transcripts, selected memory detail/explanations, skill bodies, project file
+trees, and schedule run transcripts should be fetched only when the user opens
+the detail surface that needs them.
+
 **Tests:** Vitest suites for the CLI live in [`apps/cli/tests/`](../apps/cli/tests/). Import harness symbols from `@toby/core/...`.
 
 **Build**

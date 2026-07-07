@@ -87,6 +87,8 @@ final class SkillsStore {
 	var isListLoading = false
 	var isDetailLoading = false
 	var isSaving = false
+	var hasLoadedOnce = false
+	var lastLoadedAt: Date?
 	var errorMessage: String?
 	var pendingDelete: PendingDelete?
 
@@ -101,20 +103,45 @@ final class SkillsStore {
 	private var draft: [String: String] = [:]
 
 	func load() async {
+		guard !isListLoading else { return }
 		isListLoading = true
 		errorMessage = nil
 		defer { isListLoading = false }
 		do {
-			skills = try await client.listSkills()
-			if selectedSkillId == nil || !skills.contains(where: { $0.id == selectedSkillId }) {
-				selectedSkillId = skills.first?.id
-			}
+			try await loadListData()
 			if let selectedSkillId {
 				await loadDetail(id: selectedSkillId)
 			}
 		} catch {
 			errorMessage = error.localizedDescription
 		}
+	}
+
+	func loadList() async {
+		guard !isListLoading else { return }
+		isListLoading = true
+		errorMessage = nil
+		defer { isListLoading = false }
+		do {
+			try await loadListData()
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	func ensureLoaded() async {
+		if hasLoadedOnce {
+			if let selectedSkillId, selectedSkill == nil {
+				await loadDetail(id: selectedSkillId)
+			}
+			return
+		}
+		await load()
+	}
+
+	func ensureListLoaded() async {
+		guard !hasLoadedOnce else { return }
+		await loadList()
 	}
 
 	func selectSkill(id: String) async {
@@ -217,6 +244,15 @@ final class SkillsStore {
 		} catch {
 			errorMessage = error.localizedDescription
 		}
+	}
+
+	private func loadListData() async throws {
+		skills = try await client.listSkills()
+		if selectedSkillId == nil || !skills.contains(where: { $0.id == selectedSkillId }) {
+			selectedSkillId = skills.first?.id
+		}
+		hasLoadedOnce = true
+		lastLoadedAt = Date()
 	}
 
 	private func pruneDraft() {

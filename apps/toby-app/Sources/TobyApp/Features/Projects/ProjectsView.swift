@@ -13,6 +13,9 @@ struct ProjectsView: View {
 				.frame(width: 320)
 		}
 		.background(AppTheme.contentBackground)
+		.task {
+			await projectsStore.ensureLoaded(chatStore: chatStore)
+		}
 		.alert(
 			"Delete Project?",
 			isPresented: Binding(

@@ -263,8 +263,22 @@ keyed by the `limit` parameter.
 
 ## SwiftUI consumption guide
 
-The native app dashboard view should call `GET /api/dashboard` on view
-appear and on a refresh timer (recommend 60s to match the cache TTL).
+The native app dashboard has two data paths:
+
+- Integration-backed cards call `GET /api/dashboard` or
+  `GET /api/dashboard/:category` on view appear and refresh. The dashboard
+  cache TTL is 60s, so refresh controls should not expect provider data to
+  change more often unless the cache is explicitly cleared.
+- Local app counts and shortcuts (sessions, schedules, recordings, memories,
+  skills, projects, and integration sections) come from shared root-scoped
+  stores. Toby.app preloads those list/index stores after daemon bootstrap and
+  refreshes them with the dashboard refresh action. Feature views should use
+  idempotent `ensureLoaded()` fallbacks instead of being the only path that
+  populates shared data.
+
+Keep detail payloads lazy. Recording transcripts, memory detail/explanations,
+skill bodies, project file trees, and schedule run transcripts should load only
+when the user opens the corresponding detail surface.
 
 ### Card rendering
 

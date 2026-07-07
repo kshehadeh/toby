@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 @Observable
@@ -10,6 +11,8 @@ final class RecordingsStore {
 	var isLoading = false
 	var isDetailLoading = false
 	var isDeletingSelection = false
+	var hasLoadedOnce = false
+	var lastLoadedAt: Date?
 	var errorMessage: String?
 
 	/// Manual transcription processing state (from the Transcribe / Re-Transcribe
@@ -29,19 +32,41 @@ final class RecordingsStore {
 	}
 
 	func load() async {
+		guard !isLoading else { return }
 		isLoading = true
 		errorMessage = nil
 		defer { isLoading = false }
 		do {
-			recordings = try await client.listRecordings()
-			selectedRecordingIds = selectedRecordingIds.intersection(Set(recordings.map(\.id)))
-			if selectedRecordingIds.isEmpty {
-				selectedRecordingIds = Set(recordings.prefix(1).map(\.id))
-			}
+			try await loadListData()
 			await loadDetailIfNeeded()
 		} catch {
 			errorMessage = error.localizedDescription
 		}
+	}
+
+	func loadList() async {
+		guard !isLoading else { return }
+		isLoading = true
+		errorMessage = nil
+		defer { isLoading = false }
+		do {
+			try await loadListData()
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	func ensureLoaded() async {
+		if hasLoadedOnce {
+			await loadDetailIfNeeded()
+			return
+		}
+		await load()
+	}
+
+	func ensureListLoaded() async {
+		guard !hasLoadedOnce else { return }
+		await loadList()
 	}
 
 	func selectRecording(id: String, holdingCommand: Bool = false) async {
@@ -70,6 +95,16 @@ final class RecordingsStore {
 		} catch {
 			errorMessage = error.localizedDescription
 		}
+	}
+
+	private func loadListData() async throws {
+		recordings = try await client.listRecordings()
+		selectedRecordingIds = selectedRecordingIds.intersection(Set(recordings.map(\.id)))
+		if selectedRecordingIds.isEmpty {
+			selectedRecordingIds = Set(recordings.prefix(1).map(\.id))
+		}
+		hasLoadedOnce = true
+		lastLoadedAt = Date()
 	}
 
 	func deleteRecording(id: String) async {

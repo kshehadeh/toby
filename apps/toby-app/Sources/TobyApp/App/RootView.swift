@@ -175,17 +175,18 @@ struct RootView: View {
                 applyDebugUpdateOverride()
                 await store.bootstrap()
                 applyDebugUpdateOverride()
+                await loadSharedAppDataIfConnected()
             }
             .task {
                 await store.daemonStatusRefreshLoop()
             }
-            .task {
-                async let recordings: () = recordingsStore.load()
-                async let schedules: () = schedulesStore.load()
-                async let projects: () = projectsStore.load()
-                async let integrations: () = integrationsStore.load()
-                async let memories: () = memoriesStore.load()
-                _ = await (recordings, schedules, projects, integrations, memories)
+            .onChange(of: store.status?.version) { _, version in
+                guard version != nil else { return }
+                Task { await loadSharedAppDataIfConnected() }
+            }
+            .onChange(of: store.isServerRestarting) { wasRestarting, isRestarting in
+                guard wasRestarting, !isRestarting, store.status != nil else { return }
+                Task { await refreshSharedAppDataIfConnected() }
             }
             .task {
                 permissionsStore.refresh()
@@ -367,7 +368,7 @@ struct RootView: View {
                     store: dashboardStore,
                     userName: DashboardView.defaultUserName(),
                     onboarding: onboardingChecklist,
-                    onRefresh: { Task { await dashboardStore.load() } },
+                    onRefresh: { Task { await refreshDashboardData() } },
                     onSelectRoute: navigateToRoute,
                     onOpenPermissions: { openWindow(id: "permissions") },
                     onStartChat: {
@@ -398,7 +399,7 @@ struct RootView: View {
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         Button {
-                            Task { await dashboardStore.load() }
+                            Task { await refreshDashboardData() }
                         } label: {
                             Image(systemName: "arrow.clockwise")
                         }
@@ -765,6 +766,41 @@ struct RootView: View {
 
     private func refreshStatus() {
         Task { await store.refreshStatus() }
+    }
+
+    private func loadSharedAppDataIfConnected() async {
+        guard store.status != nil else { return }
+        async let sessions: () = store.refreshSessions()
+        async let schedules: () = schedulesStore.ensureLoaded()
+        async let recordings: () = recordingsStore.ensureListLoaded()
+        async let memories: () = memoriesStore.ensureListLoaded()
+        async let skills: () = skillsStore.ensureListLoaded()
+        async let projects: () = projectsStore.ensureListLoaded()
+        async let integrations: () = loadIntegrationsIfNeeded()
+        _ = await (sessions, schedules, recordings, memories, skills, projects, integrations)
+    }
+
+    private func refreshSharedAppDataIfConnected() async {
+        guard store.status != nil else { return }
+        async let sessions: () = store.refreshSessions()
+        async let schedules: () = schedulesStore.load()
+        async let recordings: () = recordingsStore.loadList()
+        async let memories: () = memoriesStore.loadList()
+        async let skills: () = skillsStore.loadList()
+        async let projects: () = projectsStore.loadList()
+        async let integrations: () = integrationsStore.load()
+        _ = await (sessions, schedules, recordings, memories, skills, projects, integrations)
+    }
+
+    private func refreshDashboardData() async {
+        async let dashboard: () = dashboardStore.load()
+        async let shared: () = refreshSharedAppDataIfConnected()
+        _ = await (dashboard, shared)
+    }
+
+    private func loadIntegrationsIfNeeded() async {
+        guard integrationsStore.tree == nil else { return }
+        await integrationsStore.load()
     }
 
     private func presentAbout() {

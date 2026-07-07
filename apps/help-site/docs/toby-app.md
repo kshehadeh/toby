@@ -115,6 +115,14 @@ Once the daemon is reachable, Toby.app uses the daemon API for:
 - configure tree reads and writes
 - integration setup guides / wizards for onboarding new integrations
 
+Toby.app also preloads shared list data after the daemon is reachable so the
+Dashboard, sidebar, and command palette can show counts and shortcuts without
+waiting for each individual view to be opened first. This shared preload covers
+chat sessions, schedules, recordings, memories, skills, projects, and
+integration sections. Heavy detail payloads stay lazy: recording transcripts,
+memory detail, skill bodies, project file trees, and schedule run transcripts
+are fetched only when their feature views need them.
+
 ## Native API server
 
 Toby.app also starts a separate native API server on a random localhost port and

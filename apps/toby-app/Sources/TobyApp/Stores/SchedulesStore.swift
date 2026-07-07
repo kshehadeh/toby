@@ -90,6 +90,8 @@ final class SchedulesStore {
 	var deletingScheduleId: String?
 	var runningScheduleId: String?
 	var parsingCronScheduleId: String?
+	var hasLoadedOnce = false
+	var lastLoadedAt: Date?
 	var cronValidationErrors: [String: String] = [:]
 	var errorMessage: String?
 	var pendingDelete: PendingDelete?
@@ -116,6 +118,7 @@ final class SchedulesStore {
 	}
 
 	func load() async {
+		guard !isLoading else { return }
 		isLoading = true
 		errorMessage = nil
 		defer { isLoading = false }
@@ -130,9 +133,16 @@ final class SchedulesStore {
 			if selectedScheduleId == nil || !schedules.contains(where: { $0.id == selectedScheduleId }) {
 				selectedScheduleId = schedules.first?.id
 			}
+			hasLoadedOnce = true
+			lastLoadedAt = Date()
 		} catch {
 			errorMessage = error.localizedDescription
 		}
+	}
+
+	func ensureLoaded() async {
+		guard !hasLoadedOnce else { return }
+		await load()
 	}
 
 	func selectSchedule(id: String) async {

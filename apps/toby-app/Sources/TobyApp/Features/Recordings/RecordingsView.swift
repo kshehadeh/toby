@@ -20,7 +20,7 @@ struct RecordingsView: View {
 		.toolbarBackground(.visible)
 		.background(SettingsDesign.canvasBackground)
 		.task {
-			await store.load()
+			await store.ensureLoaded()
 		}
 		.onChange(of: processingState?.stage) { _, newStage in
 			if newStage == .complete || newStage == .failed {

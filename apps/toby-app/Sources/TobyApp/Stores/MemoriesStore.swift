@@ -10,6 +10,8 @@ final class MemoriesStore {
 	var isListLoading = false
 	var isDetailLoading = false
 	var isSaving = false
+	var hasLoadedOnce = false
+	var lastLoadedAt: Date?
 	var errorMessage: String?
 	var pendingDelete: PendingDelete?
 	var searchQuery: String = ""
@@ -26,17 +28,12 @@ final class MemoriesStore {
 	private let pageSize: Int = 50
 
 	func load() async {
+		guard !isListLoading else { return }
 		isListLoading = true
 		errorMessage = nil
 		defer { isListLoading = false }
 		do {
-			let response = try await client.listMemories(limit: pageSize, offset: 0, query: trimmedQuery)
-			memories = response.memories
-			total = response.total ?? memories.count
-			hasMore = response.hasMore ?? false
-			if selectedMemoryId == nil || !memories.contains(where: { $0.id == selectedMemoryId }) {
-				selectedMemoryId = memories.first?.id
-			}
+			try await loadListData()
 			if let selectedMemoryId {
 				await loadDetail(id: selectedMemoryId)
 			} else {
@@ -45,6 +42,33 @@ final class MemoriesStore {
 		} catch {
 			errorMessage = error.localizedDescription
 		}
+	}
+
+	func loadList() async {
+		guard !isListLoading else { return }
+		isListLoading = true
+		errorMessage = nil
+		defer { isListLoading = false }
+		do {
+			try await loadListData()
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	func ensureLoaded() async {
+		if hasLoadedOnce {
+			if let selectedMemoryId, selectedMemory == nil {
+				await loadDetail(id: selectedMemoryId)
+			}
+			return
+		}
+		await load()
+	}
+
+	func ensureListLoaded() async {
+		guard !hasLoadedOnce else { return }
+		await loadList()
 	}
 
 	func search(_ query: String) async {
@@ -157,6 +181,18 @@ final class MemoriesStore {
 		} catch {
 			errorMessage = error.localizedDescription
 		}
+	}
+
+	private func loadListData() async throws {
+		let response = try await client.listMemories(limit: pageSize, offset: 0, query: trimmedQuery)
+		memories = response.memories
+		total = response.total ?? memories.count
+		hasMore = response.hasMore ?? false
+		if selectedMemoryId == nil || !memories.contains(where: { $0.id == selectedMemoryId }) {
+			selectedMemoryId = memories.first?.id
+		}
+		hasLoadedOnce = true
+		lastLoadedAt = Date()
 	}
 
 	private var trimmedQuery: String? {

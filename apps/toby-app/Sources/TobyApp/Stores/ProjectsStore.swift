@@ -12,6 +12,8 @@ final class ProjectsStore {
 	var personaOptions: [PersonaOption] = []
 	var isLoading = false
 	var isSaving = false
+	var hasLoadedOnce = false
+	var lastLoadedAt: Date?
 	var errorMessage: String?
 	var pendingDelete: PendingDelete?
 
@@ -27,6 +29,7 @@ final class ProjectsStore {
 	@ObservationIgnored
 	nonisolated(unsafe)
 	private var folderWatchTask: Task<Void, Never>?
+	private var selectedProjectDetailId: String?
 	private let autosaveDelay: Duration = .milliseconds(500)
 
 	var selectedProjectName: String {
@@ -44,24 +47,45 @@ final class ProjectsStore {
 	}
 
 	func load(chatStore: ChatStore? = nil) async {
+		guard !isLoading else { return }
 		isLoading = true
 		errorMessage = nil
 		defer { isLoading = false }
 		do {
-			async let loadedProjects = client.listProjects()
-			async let personas = client.listPersonas()
-			projects = try await loadedProjects
-			personaOptions = try await personas
-			await refreshProjectSessions()
-			if selectedProjectId == nil || !projects.contains(where: { $0.id == selectedProjectId }) {
-				selectedProjectId = projects.first?.id
-			}
+			try await loadListData()
 			if let selectedProjectId {
 				await selectProject(id: selectedProjectId, chatStore: chatStore)
 			}
 		} catch {
 			errorMessage = error.localizedDescription
 		}
+	}
+
+	func loadList() async {
+		guard !isLoading else { return }
+		isLoading = true
+		errorMessage = nil
+		defer { isLoading = false }
+		do {
+			try await loadListData()
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	func ensureLoaded(chatStore: ChatStore? = nil) async {
+		if hasLoadedOnce {
+			if let selectedProjectId, selectedProjectDetailId != selectedProjectId {
+				await selectProject(id: selectedProjectId, chatStore: chatStore)
+			}
+			return
+		}
+		await load(chatStore: chatStore)
+	}
+
+	func ensureListLoaded() async {
+		guard !hasLoadedOnce else { return }
+		await loadList()
 	}
 
 	func createProject(chatStore: ChatStore) async {
@@ -91,6 +115,7 @@ final class ProjectsStore {
 			if selectedProjectId == id {
 				selectedProjectId = projects.first?.id
 				selectedProject = nil
+				selectedProjectDetailId = nil
 				tree = []
 				folderWatchTask?.cancel()
 				folderWatchTask = nil
@@ -112,6 +137,7 @@ final class ProjectsStore {
 		do {
 			let detail = try await client.fetchProject(id: id)
 			selectedProject = detail.project
+			selectedProjectDetailId = id
 			projectSessions[id] = detail.sessions ?? []
 			tree = try await client.fetchProjectTree(id: id)
 			startFolderWatch(projectId: id)
@@ -263,6 +289,29 @@ final class ProjectsStore {
 			}
 		}
 		projectSessions = next
+	}
+
+	private func loadListData() async throws {
+		async let loadedProjects = client.listProjects()
+		async let personas = client.listPersonas()
+		projects = try await loadedProjects
+		personaOptions = try await personas
+		await refreshProjectSessions()
+		if selectedProjectId == nil || !projects.contains(where: { $0.id == selectedProjectId }) {
+			selectedProjectId = projects.first?.id
+		}
+		if let selectedProjectId {
+			if selectedProjectDetailId != selectedProjectId {
+				tree = []
+			}
+			selectedProject = projects.first { $0.id == selectedProjectId }
+		} else {
+			selectedProject = nil
+			tree = []
+			selectedProjectDetailId = nil
+		}
+		hasLoadedOnce = true
+		lastLoadedAt = Date()
 	}
 
 	private func reloadProjectSessions(projectId: String) async {

@@ -168,6 +168,10 @@ its separate native API because AVFoundation and ScreenCaptureKit permissions
 belong to the app bundle, then returns to this daemon API for transcription and
 browsing.
 
+The native app also uses the recordings list endpoint during its shared
+post-bootstrap preload so dashboard counts, global sidebars, and the command
+palette have recording summaries before the Recordings view is opened.
+
 ### `GET /api/listen/status`
 
 Returns the state of the shared helper-backed `ListenManager`:
@@ -633,6 +637,10 @@ type ModulesResponse = {
 
 Returns local skills.
 
+Toby.app uses this list during shared post-bootstrap preload for dashboard
+counts, the Skills sidebar, and command-palette search. Individual skill bodies
+are fetched separately when a skill is selected.
+
 ```ts
 type SkillsResponse = {
   skills: readonly {
@@ -643,6 +651,11 @@ type SkillsResponse = {
 ```
 
 ## Memories
+
+The native app uses the memories list endpoint during shared post-bootstrap
+preload for dashboard counts, global sidebars, and command-palette search.
+Memory detail and explanation endpoints remain lazy and are fetched when a
+specific memory is selected.
 
 ### `GET /api/memories`
 
@@ -713,6 +726,9 @@ Errors:
 ### `GET /api/configure/tree`
 
 Returns the configure UI tree, redacted current values, and integration display labels.
+Toby.app uses this endpoint for schedule summaries and integration sections in
+the shared post-bootstrap preload; section/detail payloads remain lazy where a
+more focused endpoint exists.
 
 ```ts
 type ConfigureTreeResponse = {
@@ -815,4 +831,3 @@ Errors:
 
 - `400` for missing or invalid fields.
 - `404` for unknown actions.
-
