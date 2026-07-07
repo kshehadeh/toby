@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -6,7 +7,6 @@ import {
 	resolveChatModulesForPrompt,
 } from "@toby/core/chat-pipeline/resolve-chat-modules";
 import type { IntegrationModule } from "@toby/core/integrations/types";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 function mockModule(
 	name: string,
@@ -50,6 +50,12 @@ describe("resolveChatModulesForPrompt", () => {
 		).toContain("email");
 	});
 
+	it("infers documents from wiki and Notion phrasing", () => {
+		expect(
+			inferProviderCategoriesFromPrompt("save this in the Notion wiki docs"),
+		).toContain("documents");
+	});
+
 	it("includes email integration for inbox requests", () => {
 		const modules = [
 			mockModule("gmail", ["email"]),
@@ -60,6 +66,19 @@ describe("resolveChatModulesForPrompt", () => {
 			modules,
 		);
 		expect(selected.map((m) => m.name)).toContain("gmail");
+		expect(selected.map((m) => m.name)).not.toContain("slack");
+	});
+
+	it("includes documents integration for docs requests", () => {
+		const modules = [
+			mockModule("notion", ["documents"]),
+			mockModule("slack", ["chat"]),
+		];
+		const { modules: selected } = resolveChatModulesForPrompt(
+			"find the launch plan document",
+			modules,
+		);
+		expect(selected.map((m) => m.name)).toContain("notion");
 		expect(selected.map((m) => m.name)).not.toContain("slack");
 	});
 

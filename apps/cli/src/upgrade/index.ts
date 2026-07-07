@@ -124,6 +124,7 @@ export function getStagingPaths(): {
 	readonly pluginTodoistPath: string;
 	readonly pluginSlackPath: string;
 	readonly pluginJiraPath: string;
+	readonly pluginNotionPath: string;
 	readonly pluginEmailPath: string;
 	readonly pluginApplecalendarPath: string;
 	readonly pluginAppleremindersPath: string;
@@ -143,6 +144,7 @@ export function getStagingPaths(): {
 		pluginTodoistPath: path.join(stagingDir, "toby-plugin-todoist"),
 		pluginSlackPath: path.join(stagingDir, "toby-plugin-slack"),
 		pluginJiraPath: path.join(stagingDir, "toby-plugin-jira"),
+		pluginNotionPath: path.join(stagingDir, "toby-plugin-notion"),
 		pluginEmailPath: path.join(stagingDir, "toby-plugin-email"),
 		pluginApplecalendarPath: path.join(stagingDir, "toby-plugin-applecalendar"),
 		pluginAppleremindersPath: path.join(
@@ -238,6 +240,7 @@ export async function downloadRelease(
 		pluginTodoistPath,
 		pluginSlackPath,
 		pluginJiraPath,
+		pluginNotionPath,
 		pluginEmailPath,
 		pluginApplecalendarPath,
 		pluginAppleremindersPath,
@@ -475,6 +478,7 @@ export async function applyStagedRelease(
 		pluginTodoistPath,
 		pluginSlackPath,
 		pluginJiraPath,
+		pluginNotionPath,
 		pluginEmailPath,
 		pluginApplecalendarPath,
 		pluginAppleremindersPath,
@@ -490,6 +494,7 @@ export async function applyStagedRelease(
 	await installStagedPluginDirectory(pluginTodoistPath, "toby-plugin-todoist");
 	await installStagedPluginDirectory(pluginSlackPath, "toby-plugin-slack");
 	await installStagedPluginDirectory(pluginJiraPath, "toby-plugin-jira");
+	await installStagedPluginDirectory(pluginNotionPath, "toby-plugin-notion");
 	await installStagedPluginDirectory(pluginEmailPath, "toby-plugin-email");
 	await installStagedPluginDirectory(
 		pluginApplecalendarPath,

@@ -1,0 +1,15 @@
+{
+	"name": "notion",
+	"displayName": "Notion",
+	"description": "Store and retrieve contextual documents in Notion",
+	"version": "1.0.0",
+	"protocolVersion": "1",
+	"icon": "📝",
+	"runtime": {
+		"type": "bun",
+		"entry": "src/index.ts"
+	},
+	"capabilities": ["chat"],
+	"providerCategories": ["documents"],
+	"resources": ["pages", "databases", "blocks"]
+}

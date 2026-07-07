@@ -260,6 +260,17 @@ struct ConfigureViewTests {
 						currentValue: "todoist", selectedValues: nil, readOnly: nil,
 						description: "Choose which integration manages your to-do items and task lists."
 					),
+					SettingsItem(
+						label: "Documents Provider", kind: .select, key: "defaults.documents",
+						navKey: nil, children: nil,
+						masked: nil, multiline: nil,
+						options: ["(none)", "notion"], selectChoices: [
+							SettingsSelectChoice(value: "(none)", label: "None"),
+							SettingsSelectChoice(value: "notion", label: "Notion"),
+						],
+						currentValue: "notion", selectedValues: nil, readOnly: nil,
+						description: "Choose which integration stores and retrieves contextual documents."
+					),
 				],
 				masked: nil, multiline: nil, options: nil, selectChoices: nil,
 				currentValue: nil, selectedValues: nil, readOnly: nil
@@ -290,6 +301,17 @@ struct ConfigureViewTests {
 					currentValue: "todoist", selectedValues: nil, readOnly: nil,
 					description: "Choose which integration manages your to-do items and task lists."
 				),
+				SettingsItem(
+					label: "Documents Provider", kind: .select, key: "defaults.documents",
+					navKey: nil, children: nil,
+					masked: nil, multiline: nil,
+					options: ["(none)", "notion"], selectChoices: [
+						SettingsSelectChoice(value: "(none)", label: "None"),
+						SettingsSelectChoice(value: "notion", label: "Notion"),
+					],
+					currentValue: "notion", selectedValues: nil, readOnly: nil,
+					description: "Choose which integration stores and retrieves contextual documents."
+				),
 			],
 			masked: nil, multiline: nil, options: nil, selectChoices: nil,
 			currentValue: nil, selectedValues: nil, readOnly: nil
@@ -303,6 +325,9 @@ struct ConfigureViewTests {
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Task List Provider")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Documents Provider")
 		}
 		// Description text should appear
 		#expect(throws: Never.self) {
@@ -321,6 +346,7 @@ struct ConfigureViewTests {
 		#expect(DefaultProviderIcon.systemName(for: "defaults.tasks") == "checklist")
 		#expect(DefaultProviderIcon.systemName(for: "defaults.contacts") == "person.crop.circle")
 		#expect(DefaultProviderIcon.systemName(for: "defaults.chat") == "bubble.left.and.bubble.right")
+		#expect(DefaultProviderIcon.systemName(for: "defaults.documents") == "doc.text")
 		#expect(DefaultProviderIcon.systemName(for: "defaults.work_tracker") == "chart.bar")
 	}
 

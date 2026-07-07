@@ -160,7 +160,7 @@ export function createReflectTools(
 
 		tobyListDefaults: tool({
 			description:
-				"List the default provider for each provider category (email, calendar, tasks, contacts, chat) and which integrations are eligible. Use this when the user asks about default integrations or which integration handles a given category.",
+				"List the default provider for each provider category (email, calendar, tasks, contacts, chat, documents, work tracker) and which integrations are eligible. Use this when the user asks about default integrations or which integration handles a given category.",
 			inputSchema: z.object({}),
 			execute: async () => {
 				if (ctx.dryRun) {
@@ -369,7 +369,7 @@ export function reflectToolsPromptSection(): string {
 Toby self-reflection tools (always available):
 - **tobyListIntegrations**: List all registered integrations with live connection status, provider categories, and auth methods.
 - **tobyGetIntegrationSetup**: Get detailed setup info for a specific integration — credential fields, auth methods, health probe, and setup hints. Takes \`integration\` (name string).
-- **tobyListDefaults**: Show the default provider for every provider category (email, calendar, tasks, contacts, chat) and which integrations are eligible.
+- **tobyListDefaults**: Show the default provider for every provider category (email, calendar, tasks, contacts, chat, documents, work tracker) and which integrations are eligible.
 - **tobyListTools**: List all currently available chat tools across integrations, grouped by integration, plus global tools.
 - **tobyListSkills**: List installed local skills from ~/.toby/skills/ with descriptions, and explain how to create or update skills.
 - **tobyInstanceInfo**: Get information about the running Toby instance — hostname, PID, active AI model, active persona, version, OS/platform, compiled-vs-script mode, uptime, and working directory.

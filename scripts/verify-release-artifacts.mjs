@@ -13,6 +13,7 @@ const requiredDirs = [
 	"toby-plugin-sample-ts",
 	"toby-plugin-slack",
 	"toby-plugin-jira",
+	"toby-plugin-notion",
 	"toby-plugin-todoist",
 	"toby-plugin-email",
 	"toby-plugin-macos",

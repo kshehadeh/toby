@@ -121,6 +121,7 @@ enum DefaultProviderIcon {
 		if lower.contains("tasks") { return "checklist" }
 		if lower.contains("contacts") { return "person.crop.circle" }
 		if lower.contains("chat") { return "bubble.left.and.bubble.right" }
+		if lower.contains("documents") { return "doc.text" }
 		if lower.contains("search") { return "magnifyingglass" }
 		if lower.contains("work") || lower.contains("tracker") { return "chart.bar" }
 		return "gearshape"

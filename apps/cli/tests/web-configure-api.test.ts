@@ -176,6 +176,15 @@ describe("configure persistence", () => {
 		withTempTobyDir(() => {
 			const values = seedConfigureValues();
 			expect(typeof values["chatInbound.enabled"]).toBe("string");
+			expect(values["defaults.documents"]).toBe("(none)");
+		});
+	});
+
+	it("persists documents default provider", () => {
+		withTempTobyDir(() => {
+			applyConfigureValuesPatch({ "defaults.documents": "notion" });
+			expect(readConfig().defaultProviders?.documents).toBe("notion");
+			expect(seedConfigureValues()["defaults.documents"]).toBe("notion");
 		});
 	});
 

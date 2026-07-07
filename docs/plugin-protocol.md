@@ -246,6 +246,7 @@ into `credentials.json` / `config.json`.
 | [`apps/plugin-azuread/`](../apps/plugin-azuread/) | TypeScript (bun-package) | `bun run build:plugin:azuread` | Full parity migration |
 | [`apps/plugin-todoist/`](../apps/plugin-todoist/) | TypeScript (bun-package) | `bun run build:plugin:todoist` | API key auth, task tools; vendored `@doist/todoist-sdk` |
 | [`apps/plugin-jira/`](../apps/plugin-jira/) | TypeScript (bun-package) | `bun run build:plugin:jira` | No compilation needed; runs via Bun |
+| [`apps/plugin-notion/`](../apps/plugin-notion/) | TypeScript (bun-package) | `bun run build:plugin:notion` | Token auth, documents provider, Notion SDK |
 | [`apps/plugin-slack/`](../apps/plugin-slack/) | TypeScript (bun-package) | `bun run build:plugin:slack` | Chat + inbound sidecar; OAuth; `@slack/bolt` |
 | [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) | TypeScript (bun-package) | `bun run build:plugin:applecalendar` | Delegates EventKit calendar operations to Toby.app native API |
 | [`apps/plugin-applereminders/`](../apps/plugin-applereminders/) | TypeScript (bun-package) | `bun run build:plugin:applereminders` | Delegates EventKit reminder operations to Toby.app native API |

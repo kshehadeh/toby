@@ -70,6 +70,8 @@ Each integration typically owns:
 
 **Jira** is shipped as a TypeScript (bun-package) installable plugin (`toby-plugin-jira`); see [`apps/plugin-jira/`](../apps/plugin-jira/). It is the **Work Tracker** provider category integration: Atlassian domain + email + API-token auth, with read-only chat tools to search Jira issues with JQL (`searchJiraIssues`), fetch full issue details (`getJiraIssue`), read issue comments (`getJiraIssueComments`), and list accessible projects (`listJiraProjects`).
 
+**Notion** is shipped as a TypeScript (bun-package) installable plugin (`toby-plugin-notion`); see [`apps/plugin-notion/`](../apps/plugin-notion/). It is the first **Documents Provider** category integration: token auth, read tools for searching pages/databases and reading page/block context, and write tools for creating pages or appending markdown-derived content to existing pages.
+
 ### Web content fetching
 
 The global `fetchWebContent` tool ([`packages/core/src/ai/web-fetch-tool.ts`](../packages/core/src/ai/web-fetch-tool.ts)) fetches any URL and extracts clean readable content using `@mozilla/readability` (the same engine Firefox Reader View uses) plus `linkedom` for server-side DOM parsing. It strips ads, navigation, footers, and other boilerplate, returning the article title, text content, excerpt, site name, and byline. This tool is always available in chat sessions (no credentials needed).
