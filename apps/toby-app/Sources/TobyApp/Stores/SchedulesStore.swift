@@ -63,6 +63,7 @@ struct ScheduleRunViewModel: Identifiable {
 	let id: String
 	let label: String
 	let status: String
+	let startedAt: String?
 }
 
 enum ScheduleField: String {
@@ -455,7 +456,7 @@ final class SchedulesStore {
 			guard !runId.isEmpty else { return nil }
 			let label = node.label
 			let status = runStatus(from: label)
-			return ScheduleRunViewModel(id: runId, label: label, status: status)
+			return ScheduleRunViewModel(id: runId, label: label, status: status, startedAt: node.currentValue)
 		}
 	}
 

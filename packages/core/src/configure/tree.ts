@@ -569,7 +569,7 @@ export function buildSettingsTree(
 	const scheduleSections: SettingsItem[] = schedules.map((schedule) => {
 		let runs: ReturnType<typeof listScheduleRuns> = [];
 		try {
-			runs = listScheduleRuns(schedule.id, 3);
+			runs = listScheduleRuns(schedule.id, 5);
 		} catch {
 			runs = [];
 		}
@@ -577,6 +577,7 @@ export function buildSettingsTree(
 			label: `${new Date(run.startedAt).toLocaleString()} · ${run.status.toUpperCase()}`,
 			kind: "action" as const,
 			key: `schedules.${schedule.id}.runs.${run.id}`,
+			currentValue: run.startedAt,
 		}));
 
 		return {

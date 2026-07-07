@@ -283,7 +283,26 @@ struct RootView: View {
                 sidebarContent: {
                     switch history.current {
                     case .dashboard:
-                        Color.clear
+                        DashboardSidebarView(
+                            sessions: store.sessions,
+                            schedules: schedulesStore.schedules,
+                            recordings: recordingsStore.recordings,
+                            memories: memoriesStore.memories,
+                            isSessionsLoading: store.isSessionsLoading,
+                            onOpenSession: { id in
+                                navigateToRoute(.chat)
+                                selectSession(id)
+                            },
+                            onOpenScheduleRun: { item in
+                                Task {
+                                    await schedulesStore.selectSchedule(id: item.schedule.id)
+                                    await schedulesStore.selectRun(id: item.run.id)
+                                }
+                                navigateToRoute(.schedules)
+                            },
+                            onOpenRecording: openRecording,
+                            onOpenMemory: openMemory
+                        )
                     case .chat:
                         ChatSessionsSidebar(
                             sessions: store.sessions,
@@ -717,6 +736,11 @@ struct RootView: View {
     private func openRecording(id: String) {
         Task { await recordingsStore.selectRecording(id: id) }
         navigateToRoute(.recordings)
+    }
+
+    private func openMemory(id: String) {
+        Task { await memoriesStore.selectMemory(id: id) }
+        navigateToRoute(.memories)
     }
 
     private func handleToastAction(_ action: AppToastAction) {
