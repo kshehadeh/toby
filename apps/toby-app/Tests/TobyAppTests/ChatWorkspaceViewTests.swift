@@ -78,28 +78,6 @@ struct ChatWorkspaceViewTests {
         }
     }
 
-    @Test("shows error banner when errorMessage is set")
-    func showsErrorBanner() throws {
-        let store = ChatStore()
-        store.transcript = [.user(text: "Hello")]
-        store.errorMessage = "Something went wrong"
-        let view = ChatWorkspaceView(store: store)
-        #expect(throws: Never.self) {
-            try view.inspect().find(text: "Something went wrong")
-        }
-    }
-
-    @Test("hides error banner when errorMessage is nil")
-    func hidesErrorBannerWhenNoError() throws {
-        let store = ChatStore()
-        store.transcript = [.user(text: "Hello")]
-        store.errorMessage = nil
-        let view = ChatWorkspaceView(store: store)
-        #expect(throws: (any Error).self) {
-            try view.inspect().find(text: "Something went wrong")
-        }
-    }
-
     // MARK: - Prompt text
 
     @Test("prompt text binding reflects store state")

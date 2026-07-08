@@ -51,7 +51,6 @@ final class ChatStore {
 	var isServerRestarting = false
 	var listenStatus: ListenStatusResponse?
 	var isListenRequestInFlight = false
-	var errorMessage: String?
 	var toast: AppToastState?
 	var recordingProcessing: RecordingProcessingState?
 	var turnWorkDurations: [Int: TimeInterval] = [:]
@@ -137,9 +136,8 @@ final class ChatStore {
 			await refreshDaemonStatus()
 			await refreshSessions()
 			await startNewSession()
-			errorMessage = nil
 		} catch {
-			errorMessage = error.localizedDescription
+			showErrorToast(error.localizedDescription)
 			activityLine = "Daemon unavailable"
 		}
 	}
@@ -150,7 +148,7 @@ final class ChatStore {
 		do {
 			sessions = try await client.listSessions(limit: 50)
 		} catch {
-			errorMessage = error.localizedDescription
+			showErrorToast(error.localizedDescription)
 		}
 	}
 
@@ -158,9 +156,8 @@ final class ChatStore {
 		do {
 			status = try await client.fetchStatus()
 			listenStatus = try? await nativeAudioClient.status()
-			errorMessage = nil
 		} catch {
-			errorMessage = error.localizedDescription
+			showErrorToast(error.localizedDescription)
 		}
 		await refreshDaemonStatus()
 	}
@@ -211,7 +208,6 @@ final class ChatStore {
 		} catch {
 			isServerRestarting = false
 			activityLine = "Daemon unavailable"
-			errorMessage = error.localizedDescription
 			toast = AppToastState(
 				style: .error,
 				title: "Server restart failed",
@@ -273,8 +269,10 @@ final class ChatStore {
 		await stopRecording()
 	}
 
-	func dismissError() {
-		errorMessage = nil
+	private func showErrorToast(_ message: String, title: String = "Something went wrong") {
+		let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard !trimmed.isEmpty else { return }
+		toast = AppToastState(style: .error, title: title, message: trimmed)
 	}
 
 	func submitIssue(type: String, details: String) async {
@@ -339,11 +337,10 @@ final class ChatStore {
 			turnWorkDurations = [:]
 			contextWindow = detail.contextWindow
 			promptText = ""
-			errorMessage = nil
 			activityLine = "Ready"
 			startExternalSessionRefreshLoop()
 		} catch {
-			errorMessage = error.localizedDescription
+			showErrorToast(error.localizedDescription)
 		}
 	}
 
@@ -359,7 +356,6 @@ final class ChatStore {
 		streamingAssistant = nil
 		turnWorkDurations = [:]
 		contextWindow = nil
-		errorMessage = nil
 		activityLine = "Ready"
 		stopExternalSessionRefreshLoop()
 		focusPrompt()
@@ -396,9 +392,8 @@ final class ChatStore {
 			if sessionId == id {
 				await startNewSession()
 			}
-			errorMessage = nil
 		} catch {
-			errorMessage = error.localizedDescription
+			showErrorToast(error.localizedDescription)
 		}
 	}
 
@@ -416,7 +411,6 @@ final class ChatStore {
 		do {
 			listenStatus = try await nativeAudioClient.start()
 			activityLine = "Recording audio"
-			errorMessage = nil
 		} catch {
 			showRecordingError(error.localizedDescription)
 			activityLine = "Error"
@@ -435,7 +429,6 @@ final class ChatStore {
 			let result = try await nativeAudioClient.stop()
 			listenStatus = result.asStatus
 			guard let id = result.id else {
-				errorMessage = nil
 				activityLine = "Recording saved"
 				showRecordingCompletionToast(recordingId: result.id, errors: result.errors)
 				recordingProcessing = nil
@@ -449,7 +442,6 @@ final class ChatStore {
 					message: firstError,
 				)
 				toast = recordingProcessing?.toastState()
-				errorMessage = firstError
 				activityLine = "Recording saved"
 				return
 			}
@@ -478,7 +470,6 @@ final class ChatStore {
 					message: "Your recording is ready.",
 				)
 				toast = recordingProcessing?.toastState()
-				errorMessage = nil
 				activityLine = "Recording transcribed"
 			} catch {
 				recordingProcessing = RecordingProcessingState(
@@ -487,7 +478,6 @@ final class ChatStore {
 					message: "Recording saved, but transcription failed: \(error.localizedDescription)",
 				)
 				toast = recordingProcessing?.toastState()
-				errorMessage = recordingProcessing?.message
 				activityLine = "Recording saved"
 			}
 		} catch {
@@ -499,7 +489,6 @@ final class ChatStore {
 	}
 
 	private func showRecordingError(_ message: String) {
-		errorMessage = message
 		toast = AppToastState(
 			style: .error,
 			title: "Recording failed",
@@ -510,7 +499,6 @@ final class ChatStore {
 	private func showRecordingCompletionToast(recordingId: String?, errors: [String]?) {
 		let message = errors?.first?.trimmingCharacters(in: .whitespacesAndNewlines)
 		if let message, !message.isEmpty {
-			errorMessage = message
 			toast = AppToastState(
 				style: .error,
 				title: "Recording issue",
@@ -518,7 +506,6 @@ final class ChatStore {
 			)
 			return
 		}
-		errorMessage = nil
 		let action: AppToastAction? = recordingId.map { .openRecording(id: $0) }
 		toast = AppToastState(
 			style: .success,
@@ -537,7 +524,7 @@ final class ChatStore {
 			await refreshSessions()
 			await submitPrompt()
 		} catch {
-			errorMessage = error.localizedDescription
+			showErrorToast(error.localizedDescription)
 			activityLine = "Error"
 		}
 	}
@@ -571,7 +558,6 @@ final class ChatStore {
 		assistantHeader = ""
 		assistantBuffer = ""
 		sawToolCallThisTurn = false
-		errorMessage = nil
 
 		let turnId = UUID().uuidString
 		activeTurnId = turnId
@@ -612,7 +598,7 @@ final class ChatStore {
 				activityLine = "Ready"
 				clearAttachments()
 			} else {
-				errorMessage = error.localizedDescription
+				showErrorToast(error.localizedDescription)
 				transcript.append(.error(text: error.localizedDescription))
 				activityLine = "Error"
 			}
@@ -626,35 +612,34 @@ final class ChatStore {
 
 	func addAttachmentFiles(_ urls: [URL]) {
 		guard canAttachFiles else {
-			errorMessage = attachmentUnavailableReason
+			showErrorToast(attachmentUnavailableReason, title: "Attachments unavailable")
 			return
 		}
 		let capability = attachmentCapability
 		var next = pendingAttachments
 		for url in urls {
 			if let maxFiles = capability?.maxFiles, next.count >= maxFiles {
-				errorMessage = "Too many attachments. Maximum is \(maxFiles)."
+				showErrorToast("Too many attachments. Maximum is \(maxFiles).", title: "Attachment error")
 				break
 			}
 			do {
 				let attachment = try makeAttachmentDraft(from: url)
 				if let maxBytes = capability?.maxBytesPerFile, attachment.byteSize > maxBytes {
-					errorMessage = "\(attachment.filename) is too large."
+					showErrorToast("\(attachment.filename) is too large.", title: "Attachment error")
 					continue
 				}
 				let totalBytes = next.reduce(0) { $0 + $1.byteSize } + attachment.byteSize
 				if let maxTotal = capability?.maxTotalBytes, totalBytes > maxTotal {
-					errorMessage = "Attachments are too large."
+					showErrorToast("Attachments are too large.", title: "Attachment error")
 					continue
 				}
 				if let accepted = capability?.acceptedMediaTypes, !accepted.isEmpty, !accepted.contains(attachment.mediaType) {
-					errorMessage = "Unsupported attachment type: \(attachment.mediaType)."
+					showErrorToast("Unsupported attachment type: \(attachment.mediaType).", title: "Attachment error")
 					continue
 				}
 				next.append(attachment)
-				errorMessage = nil
 			} catch {
-				errorMessage = error.localizedDescription
+				showErrorToast(error.localizedDescription, title: "Attachment error")
 			}
 		}
 		pendingAttachments = next
