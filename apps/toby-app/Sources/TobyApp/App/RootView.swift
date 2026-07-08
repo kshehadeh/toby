@@ -27,6 +27,7 @@ struct RootView: View {
     @State private var sidebarVisibility: NavigationSplitViewVisibility = .all
     @State private var mainWindow: NSWindow?
     @State private var sidebarActionHelp: SidebarActionHelpPresentation?
+    @State private var longRecordingPromptCoordinator = LongRecordingPromptCoordinator()
 
     private let toastDuration: UInt64 = 4_000_000_000
 
@@ -170,6 +171,22 @@ struct RootView: View {
                     isAboutPresented = false
                 }
             }
+            .sheet(
+                isPresented: Binding(
+                    get: { longRecordingPromptCoordinator.presentedPrompt != nil },
+                    set: { _ in }
+                )
+            ) {
+                if let prompt = longRecordingPromptCoordinator.presentedPrompt {
+                    LongRecordingConfirmationView(
+                        prompt: prompt,
+                        onContinue: continueLongRecording,
+                        onStop: stopLongRecordingFromPrompt
+                    )
+                    .presentationBackground(.clear)
+                    .interactiveDismissDisabled(true)
+                }
+            }
     }
 
     private var contentWithTasks: some View {
@@ -183,6 +200,9 @@ struct RootView: View {
             }
             .task {
                 await store.daemonStatusRefreshLoop()
+            }
+            .task {
+                await longRecordingPromptLoop()
             }
             .onChange(of: store.status?.version) { _, version in
                 guard version != nil else { return }
@@ -685,6 +705,14 @@ struct RootView: View {
         Task { await store.toggleRecording() }
     }
 
+    private func continueLongRecording() {
+        longRecordingPromptCoordinator.continueRecording(now: Date())
+    }
+
+    private func stopLongRecordingFromPrompt() {
+        handleLongRecordingPromptAction(longRecordingPromptCoordinator.stopRecording())
+    }
+
     private func navigateToRoute(_ route: DetailRoute) {
         history.navigate(to: route)
     }
@@ -835,6 +863,33 @@ struct RootView: View {
                     toastDismissTask = nil
                 }
             }
+        }
+    }
+
+    private func longRecordingPromptLoop() async {
+        while !Task.isCancelled {
+            updateLongRecordingPromptState(now: Date())
+            try? await Task.sleep(for: .seconds(1))
+        }
+    }
+
+    private func updateLongRecordingPromptState(now: Date) {
+        longRecordingPromptCoordinator.updateRecordingStatus(
+            isActive: store.isRecordingActive,
+            sessionId: store.listenStatus?.session?.id,
+            startedAt: store.listenStatus?.session?.startedAt
+        )
+        if let action = longRecordingPromptCoordinator.advance(now: now) {
+            handleLongRecordingPromptAction(action)
+        }
+    }
+
+    private func handleLongRecordingPromptAction(_ action: LongRecordingPromptAction) {
+        switch action {
+        case .present:
+            bringMainWindowToFront()
+        case .stop:
+            Task { await store.stopActiveRecording() }
         }
     }
 

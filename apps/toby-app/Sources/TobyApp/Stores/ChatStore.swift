@@ -247,10 +247,15 @@ final class ChatStore {
 	func toggleRecording() async {
 		guard !isListenRequestInFlight else { return }
 		if isRecordingActive {
-			await stopRecording()
+			await stopActiveRecording()
 		} else {
 			await startRecording()
 		}
+	}
+
+	func stopActiveRecording() async {
+		guard !isListenRequestInFlight, isRecordingActive else { return }
+		await stopRecording()
 	}
 
 	func dismissError() {
