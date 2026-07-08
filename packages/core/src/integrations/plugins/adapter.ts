@@ -446,7 +446,8 @@ async function resolvePluginChatReadiness(
 		config: readPluginConfig(creds, name),
 		state: readPluginState(name),
 	};
-	const statusResult = pluginStatus(target, envelope);
+	const statusResult = await pluginStatusAsync(target, envelope);
+	forwardPluginStderr(name, statusResult.stderr);
 	if (!statusResult.ok || !statusResult.data.ok) {
 		return {
 			ok: false,

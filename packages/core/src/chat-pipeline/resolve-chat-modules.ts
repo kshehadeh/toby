@@ -157,12 +157,10 @@ export function resolveChatModulesForPrompt(
 
 export async function listUsableChatModules(): Promise<IntegrationModule[]> {
 	const chatMods = getModulesWithCapability("chat").filter((m) => m.chat);
-	const usable: IntegrationModule[] = [];
-	for (const m of chatMods) {
-		if (await isIntegrationUsableInChat(m)) {
-			usable.push(m);
-		}
-	}
+	const flags = await Promise.all(
+		chatMods.map((m) => isIntegrationUsableInChat(m)),
+	);
+	const usable = chatMods.filter((_, i) => flags[i]);
 	return sortModulesByName(usable);
 }
 
