@@ -217,6 +217,19 @@ cat >"${APP}/Contents/Info.plist" <<'PLIST'
 	<string>Toby records microphone audio when you use Record Audio.</string>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>Toby captures system audio for recordings when you use Record Audio.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>127.0.0.1</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
 </dict>
 </plist>
 PLIST
