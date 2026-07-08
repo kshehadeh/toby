@@ -38,6 +38,7 @@ let package = Package(
 				.linkedFramework("IOBluetooth"),
 				.linkedFramework("CoreAudio"),
 				.linkedFramework("CoreGraphics"),
+				.linkedFramework("UserNotifications"),
 				.unsafeFlags([
 					"-Xlinker",
 					"-rpath",

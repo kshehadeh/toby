@@ -9,15 +9,12 @@ export type ToolDefinition = {
 	readOnly?: boolean;
 	inputSchema: {
 		type: string;
-		properties: Record<string, { type: string; description: string }>;
+		properties: Record<string, JsonRecord>;
 		required?: string[];
 	};
 };
 
-function prop(
-	type: string,
-	description: string,
-): { type: string; description: string } {
+function prop(type: string, description: string): JsonRecord {
 	return { type, description };
 }
 
@@ -232,6 +229,26 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 		inputSchema: { type: "object", properties: {} },
 	},
 	{
+		name: "macNotificationShow",
+		displayName: "Show notification",
+		description:
+			"macOS only. Display a system notification on this Mac with a title, description, and optional CTA button labels. CTA buttons foreground Toby when clicked.",
+		inputSchema: {
+			type: "object",
+			properties: {
+				title: prop("string", "Notification title."),
+				description: prop("string", "Notification body text."),
+				ctas: {
+					type: "array",
+					description:
+						"Optional CTA button labels. macOS may only display the first few actions.",
+					items: { type: "string" },
+				},
+			},
+			required: ["title", "description"],
+		},
+	},
+	{
 		name: "macWindowsHideAll",
 		displayName: "Hide all other windows",
 		description:
@@ -344,6 +361,12 @@ function intValue(input: JsonRecord, key: string): number | undefined {
 	const v = input[key];
 	if (typeof v === "number") return v;
 	return undefined;
+}
+
+function stringArrayValue(input: JsonRecord, key: string): string[] {
+	const v = input[key];
+	if (!Array.isArray(v)) return [];
+	return v.filter((item): item is string => typeof item === "string");
 }
 
 export function executeTool(
@@ -905,6 +928,46 @@ export function executeTool(
 						"Toby cannot list Notification Center items via a stable public API. To turn Do Not Disturb / Focus on or off, use macFocusSet instead.",
 				},
 				appliedActions: [],
+			};
+		}
+
+		case "macNotificationShow": {
+			const title = strValue(input, "title")?.trim();
+			if (!title) throw new ToolFailure("title is required.");
+			const description = strValue(input, "description")?.trim();
+			if (!description) throw new ToolFailure("description is required.");
+			const ctas = stringArrayValue(input, "ctas")
+				.map((cta) => cta.trim())
+				.filter(Boolean);
+			if (dryRun)
+				return {
+					result: {
+						dryRun: true,
+						title,
+						description,
+						ctas,
+						message: "Would display a macOS system notification.",
+					},
+					appliedActions: [`[DRY RUN] Would display notification "${title}".`],
+				};
+			requireNative();
+			const r = nativeRequest("macos/notification-show", {
+				title,
+				description,
+				ctas,
+			});
+			if (!r.ok)
+				return {
+					result: { ok: false, error: r.error ?? "Failed" },
+					appliedActions: [],
+				};
+			return {
+				result: {
+					ok: true,
+					identifier: r.data?.identifier,
+					ctaCount: r.data?.ctaCount ?? ctas.length,
+				},
+				appliedActions: [`Displayed notification "${title}".`],
 			};
 		}
 

@@ -14,13 +14,13 @@ import {
 	PROVIDER_CATEGORY_LABELS,
 	type ProviderCategory,
 } from "../integrations/types";
+import { notifyNativeScheduleCompleted } from "../native-app/notifications";
 import { resolvePersona } from "../personas/index";
 import {
 	injectProjectContextIntoFirstSystemMessage,
 	prepareChatSessionMessages,
 } from "../prepare-messages";
 import { resolveProject } from "../projects/index";
-import { recordScheduleInvariantFailureAndThrow } from "./invariant-record";
 import {
 	completeScheduleRun,
 	createScheduleRun,
@@ -53,18 +53,22 @@ export async function executeScheduleRun(
 ): Promise<void> {
 	const persona = resolvePersona(schedule.personaName);
 	if (!persona) {
-		recordScheduleInvariantFailureAndThrow(
+		await completeScheduleRunWithError(
+			runId,
 			schedule,
 			`Schedule "${schedule.name}": persona "${schedule.personaName}" not found`,
 		);
+		return;
 	}
 
 	const allChatModules = getModulesWithCapability("chat").filter((m) => m.chat);
 	if (allChatModules.length === 0) {
-		recordScheduleInvariantFailureAndThrow(
+		await completeScheduleRunWithError(
+			runId,
 			schedule,
 			`Schedule "${schedule.name}": no chat-capable integrations available`,
 		);
+		return;
 	}
 
 	const { modules: chatModules, warnings } = resolveChatModulesForPrompt(
@@ -104,11 +108,11 @@ export async function executeScheduleRun(
 					`${PROVIDER_CATEGORY_LABELS[cat]}: no default provider configured and no connected integration available. Run \`toby configure\` to set a default ${cat} provider.`,
 			)
 			.join("; ");
-		completeScheduleRun(runId, {
-			status: "error",
-			error: `Cannot execute schedule "${schedule.name}": ${details}`,
-		});
-		updateScheduleLastRun(schedule.id);
+		await completeScheduleRunWithError(
+			runId,
+			schedule,
+			`Cannot execute schedule "${schedule.name}": ${details}`,
+		);
 		return;
 	}
 
@@ -185,10 +189,23 @@ export async function executeScheduleRun(
 		const output = warningPrefix + result.text.trim();
 		completeScheduleRun(runId, { status: "success", output });
 		updateScheduleLastRun(schedule.id);
+		await notifyNativeScheduleCompleted({
+			scheduleId: schedule.id,
+			scheduleName: schedule.name,
+			runId,
+			status: "success",
+		});
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
 		completeScheduleRun(runId, { status: "error", error: msg });
 		updateScheduleLastRun(schedule.id);
+		await notifyNativeScheduleCompleted({
+			scheduleId: schedule.id,
+			scheduleName: schedule.name,
+			runId,
+			status: "error",
+			error: msg,
+		});
 	}
 }
 
@@ -198,6 +215,22 @@ export async function executeSchedule(
 ): Promise<void> {
 	const runId = createScheduleRunForExecution(schedule);
 	await executeScheduleRun(runId, schedule, options);
+}
+
+async function completeScheduleRunWithError(
+	runId: string,
+	schedule: Schedule,
+	error: string,
+): Promise<void> {
+	completeScheduleRun(runId, { status: "error", error });
+	updateScheduleLastRun(schedule.id);
+	await notifyNativeScheduleCompleted({
+		scheduleId: schedule.id,
+		scheduleName: schedule.name,
+		runId,
+		status: "error",
+		error,
+	});
 }
 
 function safeStringify(value: unknown): string {

@@ -25,7 +25,7 @@ const PLUGIN_VERSION = "1.1.0";
 const PROTOCOL_VERSION = "1";
 const DISPLAY_NAME = "macOS";
 const DESCRIPTION =
-	"Control this Mac locally — Wi‑Fi, Bluetooth, battery info, audio outputs, display brightness, volume, clipboard, low power probes";
+	"Control this Mac locally — Wi‑Fi, Bluetooth, battery info, audio outputs, display brightness, volume, clipboard, notifications, low power probes";
 
 const RESOURCES = [
 	"wifi",
@@ -35,6 +35,7 @@ const RESOURCES = [
 	"powermode",
 	"display",
 	"clipboard",
+	"notifications",
 	"focus",
 ];
 

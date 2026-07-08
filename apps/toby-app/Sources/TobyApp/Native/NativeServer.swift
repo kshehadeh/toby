@@ -222,6 +222,8 @@ final class NativeServer {
 			return wrapHandlerData(await NativeAppleRemindersHandler.completeReminder(body: request.body))
 		case "/api/native/reminders/delete":
 			return wrapHandlerData(await NativeAppleRemindersHandler.deleteReminder(body: request.body))
+		case "/api/native/schedules/completion-notification":
+			return wrapHandlerData(await NativeMacOSHandler.scheduleCompletionNotification(body: request.body))
 		case "/api/native/macos/accessibility-status":
 			return wrapHandlerData(NativeMacOSHandler.accessibilityStatus())
 		case "/api/native/macos/wifi-status":
@@ -262,6 +264,8 @@ final class NativeServer {
 			return wrapHandlerData(NativeMacOSHandler.clipboardWrite(body: request.body))
 		case "/api/native/macos/system-info":
 			return wrapHandlerData(NativeMacOSHandler.systemInfo())
+		case "/api/native/macos/notification-show":
+			return wrapHandlerData(await NativeMacOSHandler.notificationShow(body: request.body))
 		case "/api/native/macos/minimize-all":
 			return wrapHandlerData(NativeMacOSHandler.minimizeAll())
 		case "/api/native/macos/unminimize-all":

@@ -7,6 +7,7 @@ import Foundation
 import IOKit
 import IOKit.ps
 import IOBluetooth
+import UserNotifications
 
 @_silgen_name("IOBluetoothPreferenceSetControllerPowerState")
 func IOBluetoothPreferenceSetControllerPowerState(_ state: UInt32)
@@ -16,7 +17,39 @@ func IOBluetoothPreferenceGetControllerPowerState() -> UInt32
 @_silgen_name("IODisplayGetFloatParameter")
 func IODisplayGetFloatParameterFunc(_ service: io_object_t, _ options: UInt32, _ paramName: CFString, _ value: UnsafeMutablePointer<Float32>) -> kern_return_t
 
+private final class NativeNotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable {
+	func userNotificationCenter(
+		_ center: UNUserNotificationCenter,
+		willPresent notification: UNNotification,
+		withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+	) {
+		completionHandler([.banner, .list, .sound])
+	}
+
+	func userNotificationCenter(
+		_ center: UNUserNotificationCenter,
+		didReceive response: UNNotificationResponse,
+		withCompletionHandler completionHandler: @escaping () -> Void
+	) {
+		let userInfo = response.notification.request.content.userInfo
+		if let type = userInfo["type"] as? String,
+			type == "scheduleCompletion",
+			let scheduleId = userInfo["scheduleId"] as? String
+		{
+			DispatchQueue.main.async {
+				NotificationCenter.default.post(
+					name: .openScheduleFromNotification,
+					object: OpenScheduleFromNotificationRequest(scheduleId: scheduleId)
+				)
+			}
+		}
+		completionHandler()
+	}
+}
+
 enum NativeMacOSHandler {
+	private static let notificationDelegate = NativeNotificationDelegate()
+
 	// MARK: - Accessibility status
 
 	static func accessibilityStatus() -> Data {
@@ -597,6 +630,120 @@ enum NativeMacOSHandler {
 		return String(decoding: bytes, as: UTF8.self)
 	}
 
+	// MARK: - Notifications
+
+	static func notificationShow(body: Data?) async -> Data {
+		guard let title = stringValue(body, key: "title")?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty else {
+			return json(["ok": false, "error": "title is required."])
+		}
+		guard let description = stringValue(body, key: "description")?.trimmingCharacters(in: .whitespacesAndNewlines), !description.isEmpty else {
+			return json(["ok": false, "error": "description is required."])
+		}
+
+		let ctas = stringArrayValue(body, key: "ctas")
+			.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+			.filter { !$0.isEmpty }
+
+		return await displayNotification(
+			title: title,
+			description: description,
+			ctas: ctas
+		)
+	}
+
+	private static func displayNotification(
+		title: String,
+		description: String,
+		ctas: [String],
+		userInfo: [String: Any] = [:]
+	) async -> Data {
+		let limitedCTAs = Array(ctas.prefix(4))
+
+		let center = UNUserNotificationCenter.current()
+		center.delegate = notificationDelegate
+		do {
+			let settings = await center.notificationSettings()
+			if settings.authorizationStatus == .notDetermined {
+				let granted = try await center.requestAuthorization(options: [.alert, .sound])
+				guard granted else {
+					return json(["ok": false, "error": "Notification permission was not granted.", "needsPermission": true])
+				}
+			} else if settings.authorizationStatus == .denied {
+				return json(["ok": false, "error": "Notification permission is denied for Toby. Enable it in System Settings > Notifications.", "needsPermission": true])
+			}
+
+			let identifier = "toby.notification.\(UUID().uuidString)"
+			let categoryIdentifier = "toby.notification.actions.\(UUID().uuidString)"
+			if !limitedCTAs.isEmpty {
+				let actions = limitedCTAs.enumerated().map { index, label in
+					UNNotificationAction(
+						identifier: "toby.notification.action.\(index)",
+						title: label,
+						options: [.foreground]
+					)
+				}
+				center.setNotificationCategories([
+					UNNotificationCategory(
+						identifier: categoryIdentifier,
+						actions: actions,
+						intentIdentifiers: [],
+						options: []
+					),
+				])
+			}
+
+			let content = UNMutableNotificationContent()
+			content.title = title
+			content.body = description
+			content.sound = .default
+			content.userInfo = userInfo
+			if !limitedCTAs.isEmpty {
+				content.categoryIdentifier = categoryIdentifier
+			}
+
+			let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
+			try await center.add(request)
+			return json(["ok": true, "data": ["identifier": identifier, "ctaCount": limitedCTAs.count, "presented": true]])
+		} catch {
+			return json(["ok": false, "error": "Failed to display notification: \(error.localizedDescription)"])
+		}
+	}
+
+	@MainActor
+	static func scheduleCompletionNotification(body: Data?) async -> Data {
+		guard let scheduleId = stringValue(body, key: "scheduleId")?.trimmingCharacters(in: .whitespacesAndNewlines), !scheduleId.isEmpty else {
+			return json(["ok": false, "error": "scheduleId is required."])
+		}
+		let scheduleName = stringValue(body, key: "scheduleName")?.trimmingCharacters(in: .whitespacesAndNewlines)
+		let displayName = if let scheduleName, !scheduleName.isEmpty {
+			scheduleName
+		} else {
+			"Untitled schedule"
+		}
+		let runId = stringValue(body, key: "runId")?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+		let status = stringValue(body, key: "status")?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+		let error = stringValue(body, key: "error")?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+		let isSuccess = status == "success"
+		let title = isSuccess ? "Schedule completed" : "Schedule failed"
+		let description = isSuccess
+			? "\(displayName) finished successfully."
+			: "\(displayName) failed: \(error?.isEmpty == false ? error! : "Unknown error")"
+
+		return await displayNotification(
+			title: title,
+			description: description,
+			ctas: ["View schedule"],
+			userInfo: [
+				"type": "scheduleCompletion",
+				"scheduleId": scheduleId,
+				"scheduleName": displayName,
+				"runId": runId,
+				"status": isSuccess ? "success" : "error",
+			]
+		)
+	}
+
 	// MARK: - Window minimize all
 
 	static func minimizeAll() -> Data {
@@ -840,6 +987,14 @@ enum NativeMacOSHandler {
 		if let b = input[key] as? Bool { return b }
 		if let n = input[key] as? NSNumber { return n.boolValue }
 		return nil
+	}
+
+	private static func stringArrayValue(_ body: Data?, key: String) -> [String] {
+		guard let body,
+			let input = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+			let values = input[key] as? [Any]
+		else { return [] }
+		return values.compactMap { $0 as? String }
 	}
 
 	// MARK: - Process runner

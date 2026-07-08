@@ -79,6 +79,10 @@ struct RootView: View {
                     openRecording(id: id)
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .openScheduleFromNotification)) { notification in
+                guard let request = notification.object as? OpenScheduleFromNotificationRequest else { return }
+                openScheduleFromNotification(id: request.scheduleId)
+            }
             .onReceive(NotificationCenter.default.publisher(for: .startNewChat)) { _ in
                 startNewChat()
             }
@@ -734,6 +738,15 @@ struct RootView: View {
         navigateToRoute(.schedules)
     }
 
+    private func openScheduleFromNotification(id: String) {
+        bringMainWindowToFront()
+        navigateToRoute(.schedules)
+        Task {
+            await schedulesStore.load()
+            await schedulesStore.selectSchedule(id: id)
+        }
+    }
+
     private func openRecording(id: String) {
         Task { await recordingsStore.selectRecording(id: id) }
         navigateToRoute(.recordings)
@@ -880,6 +893,7 @@ extension Notification.Name {
     static let secondaryWindowClosed = Notification.Name("secondaryWindowClosed")
     static let menuBarToggleRecording = Notification.Name("menuBarToggleRecording")
     static let navigateToRoute = Notification.Name("navigateToRoute")
+    static let openScheduleFromNotification = Notification.Name("openScheduleFromNotification")
 }
 
 struct StartChatAboutRecordingRequest {
@@ -887,4 +901,8 @@ struct StartChatAboutRecordingRequest {
     let name: String
     let dateText: String
     let hourText: String
+}
+
+struct OpenScheduleFromNotificationRequest {
+    let scheduleId: String
 }
