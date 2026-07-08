@@ -64,6 +64,8 @@ Each integration typically owns:
 
 **Apple Calendar** is shipped as a TypeScript bun-package plugin (`toby-plugin-applecalendar`); see [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) and [`apple-calendar.md`](apple-calendar.md). It is **macOS-only** and delegates all calendar operations to Toby.app's native API server, which uses **EventKit** for search and CRUD.
 
+**Apple Contacts** is shipped as a TypeScript bun-package plugin (`toby-plugin-applecontacts`); see [`apps/plugin-applecontacts/`](../apps/plugin-applecontacts/) and [`apple-contacts.md`](apple-contacts.md). It is **macOS-only**, belongs to the **Contact List Provider** category, and delegates all contact reads to Toby.app's native API server, which uses **Contacts.framework** for search and detail lookup.
+
 **Apple Reminders** is shipped as a TypeScript bun-package plugin (`toby-plugin-applereminders`); see [`apps/plugin-applereminders/`](../apps/plugin-applereminders/) and [`apple-reminders.md`](apple-reminders.md). It is **macOS-only**, belongs to the **Task List Provider** category, and delegates all reminder operations to Toby.app's native API server, which uses **EventKit** for search and CRUD.
 
 **Web Search** ([`web-search.md`](web-search.md)) is a built-in (non-plugin) feature that uses the Vercel AI Gateway's Perplexity search: `webSearch` chat tool for web search. The `webSearch` tool is a **conditional global tool** — when enabled in Settings → Web Search and a Vercel AI Gateway API key is present, the tool is available in every chat session regardless of the persona's AI provider. No separate API key needed; reuses the AI Gateway key.

@@ -9,7 +9,7 @@ APP_VARIANT="${TOBY_APP_VARIANT:-development}"
 ICON_MASTER="$ROOT/images/512x512.png"
 ICON_SRC="$ROOT/images/app-icon.png"
 ENTITLEMENTS="$PKG/TobyApp.entitlements"
-APP_VERSION="${TOBY_APP_VERSION:-$(node -p "require('./package.json').version")}"
+APP_VERSION="${TOBY_APP_VERSION:-$(bun -e "console.log(JSON.parse(await Bun.file('./package.json').text()).version)")}"
 APP_BUILD_NUMBER="${TOBY_APP_BUILD_NUMBER:-${GITHUB_RUN_NUMBER:-1}}"
 
 case "${APP_VARIANT}" in
@@ -203,6 +203,8 @@ cat >"${APP}/Contents/Info.plist" <<'PLIST'
 	<string>__TOBY_SPARKLE_PUBLIC_KEY__</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>NSContactsUsageDescription</key>
+	<string>Toby reads your contacts when you use Apple Contacts integration.</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>Toby reads and manages your calendars when you use Apple Calendar integration.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>

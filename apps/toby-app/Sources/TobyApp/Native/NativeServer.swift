@@ -186,6 +186,12 @@ final class NativeServer {
 		switch path {
 		case "/api/native/health":
 			return httpResponse(json: ["ok": true, "service": "toby-native"])
+		case "/api/native/contacts/request-access":
+			return wrapHandlerData(await NativeContactsHandler.requestAccess())
+		case "/api/native/contacts/search":
+			return wrapHandlerData(await NativeContactsHandler.searchContacts(body: request.body))
+		case "/api/native/contacts/get":
+			return wrapHandlerData(await NativeContactsHandler.getContact(body: request.body))
 		case "/api/native/calendar/request-access":
 			return wrapHandlerData(await NativeCalendarHandler.requestAccess())
 		case "/api/native/calendar/list":

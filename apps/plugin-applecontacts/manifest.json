@@ -1,0 +1,15 @@
+{
+	"name": "applecontacts",
+	"displayName": "Apple Contacts",
+	"description": "Read local Contacts.app information on macOS — search contacts and view details",
+	"version": "1.0.0",
+	"protocolVersion": "1",
+	"icon": "👤",
+	"runtime": {
+		"type": "bun",
+		"entry": "src/index.ts"
+	},
+	"capabilities": ["chat"],
+	"providerCategories": ["contacts"],
+	"resources": ["contacts"]
+}

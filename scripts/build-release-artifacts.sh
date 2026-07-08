@@ -39,8 +39,8 @@ cp "${bun_bin}" dist/bun
 rm -rf dist/.bun-runtime.zip dist/.bun-runtime-tmp
 chmod +x dist/bun
 
-echo "Building bun-package plugins (sample-ts, todoist, slack, jira, notion, email, macos, applecalendar, applereminders)..."
-for plugin in sample-ts todoist slack jira notion email macos applecalendar applereminders; do
+echo "Building bun-package plugins (sample-ts, todoist, slack, jira, notion, email, macos, applecontacts, applecalendar, applereminders)..."
+for plugin in sample-ts todoist slack jira notion email macos applecontacts applecalendar applereminders; do
 	echo "  -> toby-plugin-${plugin}"
 	(cd "apps/plugin-${plugin}" && bash ../../scripts/copy-bun-plugin-to-dist.sh)
 done

@@ -6,6 +6,8 @@
 	<string>dev.karim.toby.app</string>
 	<key>CFBundleName</key>
 	<string>Toby</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Toby reads your contacts when you use Apple Contacts integration.</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>Toby reads and manages your calendars when you use Apple Calendar integration.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>

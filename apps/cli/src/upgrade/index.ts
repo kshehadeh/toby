@@ -126,6 +126,7 @@ export function getStagingPaths(): {
 	readonly pluginJiraPath: string;
 	readonly pluginNotionPath: string;
 	readonly pluginEmailPath: string;
+	readonly pluginApplecontactsPath: string;
 	readonly pluginApplecalendarPath: string;
 	readonly pluginAppleremindersPath: string;
 	readonly pluginMacosPath: string;
@@ -146,6 +147,7 @@ export function getStagingPaths(): {
 		pluginJiraPath: path.join(stagingDir, "toby-plugin-jira"),
 		pluginNotionPath: path.join(stagingDir, "toby-plugin-notion"),
 		pluginEmailPath: path.join(stagingDir, "toby-plugin-email"),
+		pluginApplecontactsPath: path.join(stagingDir, "toby-plugin-applecontacts"),
 		pluginApplecalendarPath: path.join(stagingDir, "toby-plugin-applecalendar"),
 		pluginAppleremindersPath: path.join(
 			stagingDir,
@@ -242,6 +244,7 @@ export async function downloadRelease(
 		pluginJiraPath,
 		pluginNotionPath,
 		pluginEmailPath,
+		pluginApplecontactsPath,
 		pluginApplecalendarPath,
 		pluginAppleremindersPath,
 		pluginMacosPath,
@@ -271,6 +274,9 @@ export async function downloadRelease(
 			() => undefined,
 		);
 		await rm(pluginEmailPath, { recursive: true, force: true }).catch(
+			() => undefined,
+		);
+		await rm(pluginApplecontactsPath, { recursive: true, force: true }).catch(
 			() => undefined,
 		);
 		await rm(pluginApplecalendarPath, { force: true }).catch(() => undefined);
@@ -480,6 +486,7 @@ export async function applyStagedRelease(
 		pluginJiraPath,
 		pluginNotionPath,
 		pluginEmailPath,
+		pluginApplecontactsPath,
 		pluginApplecalendarPath,
 		pluginAppleremindersPath,
 		pluginMacosPath,
@@ -496,6 +503,10 @@ export async function applyStagedRelease(
 	await installStagedPluginDirectory(pluginJiraPath, "toby-plugin-jira");
 	await installStagedPluginDirectory(pluginNotionPath, "toby-plugin-notion");
 	await installStagedPluginDirectory(pluginEmailPath, "toby-plugin-email");
+	await installStagedPluginDirectory(
+		pluginApplecontactsPath,
+		"toby-plugin-applecontacts",
+	);
 	await installStagedPluginDirectory(
 		pluginApplecalendarPath,
 		"toby-plugin-applecalendar",

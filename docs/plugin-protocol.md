@@ -249,6 +249,7 @@ into `credentials.json` / `config.json`.
 | [`apps/plugin-notion/`](../apps/plugin-notion/) | TypeScript (bun-package) | `bun run build:plugin:notion` | Token auth, documents provider, Notion SDK |
 | [`apps/plugin-slack/`](../apps/plugin-slack/) | TypeScript (bun-package) | `bun run build:plugin:slack` | Chat + inbound sidecar; OAuth; `@slack/bolt` |
 | [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) | TypeScript (bun-package) | `bun run build:plugin:applecalendar` | Delegates EventKit calendar operations to Toby.app native API |
+| [`apps/plugin-applecontacts/`](../apps/plugin-applecontacts/) | TypeScript (bun-package) | `bun run build:plugin:applecontacts` | Delegates Contacts.framework contact reads to Toby.app native API |
 | [`apps/plugin-applereminders/`](../apps/plugin-applereminders/) | TypeScript (bun-package) | `bun run build:plugin:applereminders` | Delegates EventKit reminder operations to Toby.app native API |
 | [`apps/plugin-macos/`](../apps/plugin-macos/) | TypeScript (bun-package) | `bun run build:plugin:macos` | Delegates macOS system ops to Toby.app native API; optional `setup` subcommand |
 

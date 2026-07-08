@@ -28,6 +28,7 @@ let package = Package(
 			],
 			linkerSettings: [
 				.linkedFramework("EventKit"),
+				.linkedFramework("Contacts"),
 				.linkedFramework("Network"),
 				.linkedFramework("ApplicationServices"),
 				.linkedFramework("AVFoundation"),

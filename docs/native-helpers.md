@@ -246,6 +246,9 @@ The native server listens on a random localhost port written to `~/.toby/native-
 | `POST` | `/api/native/calendar/create` | Create event |
 | `POST` | `/api/native/calendar/update` | Update event |
 | `POST` | `/api/native/calendar/delete` | Delete event |
+| `POST` | `/api/native/contacts/request-access` | Prompt for Contacts permission |
+| `POST` | `/api/native/contacts/search` | Search contacts |
+| `POST` | `/api/native/contacts/get` | Get contact by identifier |
 | `POST` | `/api/native/macos/minimize-all` | Minimize all windows (Accessibility) |
 | `POST` | `/api/native/macos/unminimize-all` | Unminimize all windows (Accessibility) |
 | `POST` | `/api/native/macos/minimize-app` | Minimize app windows (Accessibility) |
@@ -274,7 +277,9 @@ Plugins use a `NativeHelperClient` that:
 - `apps/toby-app/Sources/TobyApp/NativeServer.swift` — HTTP server using Network.framework
 - `apps/toby-app/Sources/TobyApp/NativeCalendarHandler.swift` — EventKit calendar operations
 - `apps/toby-app/Sources/TobyApp/NativeAppleRemindersHandler.swift` — EventKit reminder operations
+- `apps/toby-app/Sources/TobyApp/NativeContactsHandler.swift` — Contacts.framework contact search/detail operations
 - `apps/toby-app/Sources/TobyApp/NativeMacOSHandler.swift` — macOS system controls and Accessibility-gated operations (Wi-Fi, Bluetooth, audio, battery, display, clipboard, windows, shortcuts)
 - `apps/plugin-applecalendar/src/native-client.ts` — Apple Calendar plugin TypeScript client that forwards to Toby.app's native API
+- `apps/plugin-applecontacts/src/native-client.ts` — Apple Contacts plugin TypeScript client that forwards to Toby.app's native API
 - `apps/plugin-applereminders/src/native-client.ts` — Apple Reminders plugin TypeScript client that forwards to Toby.app's native API
 - `apps/plugin-macos/src/native-client.ts` — macOS plugin TypeScript client that forwards to Toby.app's native API

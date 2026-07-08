@@ -17,6 +17,7 @@ const requiredDirs = [
 	"toby-plugin-todoist",
 	"toby-plugin-email",
 	"toby-plugin-macos",
+	"toby-plugin-applecontacts",
 	"toby-plugin-applecalendar",
 	"toby-plugin-applereminders",
 ];

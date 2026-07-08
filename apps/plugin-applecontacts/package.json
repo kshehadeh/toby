@@ -1,0 +1,12 @@
+{
+	"name": "@toby/plugin-applecontacts",
+	"version": "1.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Apple Contacts installable Toby plugin (protocol v1, bun-package)",
+	"scripts": {
+		"dev": "bun src/index.ts status",
+		"lint": "bunx biome check .",
+		"build": "bash ../../scripts/copy-bun-plugin-to-dist.sh"
+	}
+}
