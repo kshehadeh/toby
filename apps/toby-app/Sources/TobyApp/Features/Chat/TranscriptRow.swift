@@ -7,8 +7,8 @@ struct TranscriptRow: View {
 
 	var body: some View {
 		switch entry {
-		case .user(let text):
-			UserMessageRow(text: text)
+		case .user(let text, let attachments):
+			UserMessageRow(text: text, attachments: attachments)
 		case .assistant(let text):
 			AssistantMessageRow(
 				iconName: "sparkle",

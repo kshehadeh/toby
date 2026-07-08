@@ -69,6 +69,11 @@ struct EmptyChatWorkspace: View {
                 isLoading: store.isLoading,
                 contextFillPercentage: store.contextFillPercentage,
                 contextWindowUnavailable: store.contextWindowUnavailable,
+                attachments: store.pendingAttachments,
+                canAttachFiles: store.canAttachFiles,
+                attachmentDisabledReason: store.attachmentUnavailableReason,
+                onAttachFiles: { store.addAttachmentFiles($0) },
+                onRemoveAttachment: { store.removeAttachment(id: $0) },
                 onSubmit: submit,
                 onCancel: { store.cancelActiveTurn() },
             )
@@ -121,6 +126,11 @@ struct ActiveChatWorkspace: View {
                     isLoading: store.isLoading,
                     contextFillPercentage: store.contextFillPercentage,
                     contextWindowUnavailable: store.contextWindowUnavailable,
+                    attachments: store.pendingAttachments,
+                    canAttachFiles: store.canAttachFiles,
+                    attachmentDisabledReason: store.attachmentUnavailableReason,
+                    onAttachFiles: { store.addAttachmentFiles($0) },
+                    onRemoveAttachment: { store.removeAttachment(id: $0) },
                     onSubmit: submit,
                     onCancel: { store.cancelActiveTurn() },
                 )

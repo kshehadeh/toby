@@ -22,6 +22,16 @@ type NoticePayload = {
 	readonly tone?: "info" | "success" | "error";
 };
 
+type UserPayload = {
+	readonly text: string;
+	readonly attachments?: readonly {
+		readonly filename: string;
+		readonly mediaType: string;
+		readonly dataBase64: string;
+		readonly byteSize: number;
+	}[];
+};
+
 type BoxedStepPayload = {
 	readonly id: string;
 	readonly seq: number;
@@ -56,6 +66,13 @@ export function serializeTranscriptEntry(e: TranscriptEntry): {
 	kind: string;
 	text: string;
 } {
+	if (e.kind === "user" && e.attachments && e.attachments.length > 0) {
+		const payload: UserPayload = {
+			text: e.text,
+			attachments: e.attachments,
+		};
+		return { kind: "user", text: JSON.stringify(payload) };
+	}
 	if (e.kind === "boxed_step") {
 		const payload: BoxedStepPayload = {
 			id: e.id,
@@ -297,12 +314,49 @@ export function deserializeTranscriptRow(row: {
 		}
 		return { kind: "meta", text: row.text };
 	}
-	if (
-		row.kind === "user" ||
-		row.kind === "assistant" ||
-		row.kind === "meta" ||
-		row.kind === "error"
-	) {
+	if (row.kind === "user") {
+		try {
+			const p = JSON.parse(row.text) as Partial<UserPayload>;
+			if (typeof p.text === "string") {
+				const attachments = Array.isArray(p.attachments)
+					? p.attachments
+							.filter(
+								(
+									attachment,
+								): attachment is {
+									filename: string;
+									mediaType: string;
+									dataBase64: string;
+									byteSize: number;
+								} =>
+									typeof attachment?.filename === "string" &&
+									attachment.filename.length > 0 &&
+									typeof attachment.mediaType === "string" &&
+									attachment.mediaType.length > 0 &&
+									typeof attachment.dataBase64 === "string" &&
+									typeof attachment.byteSize === "number" &&
+									Number.isSafeInteger(attachment.byteSize) &&
+									attachment.byteSize > 0,
+							)
+							.map((attachment) => ({
+								filename: attachment.filename,
+								mediaType: attachment.mediaType,
+								dataBase64: attachment.dataBase64,
+								byteSize: attachment.byteSize,
+							}))
+					: [];
+				return {
+					kind: "user",
+					text: p.text,
+					...(attachments.length > 0 ? { attachments } : {}),
+				};
+			}
+		} catch {
+			// fall through — legacy plain-text user rows
+		}
+		return { kind: "user", text: row.text };
+	}
+	if (row.kind === "assistant" || row.kind === "meta" || row.kind === "error") {
 		return { kind: row.kind, text: row.text };
 	}
 	return { kind: "meta", text: row.text };

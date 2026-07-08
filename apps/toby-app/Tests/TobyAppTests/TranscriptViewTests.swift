@@ -4,6 +4,33 @@ import Foundation
 
 @Suite("TranscriptView Work Steps")
 struct TranscriptViewTests {
+	@Test("user transcript entries decode attachment previews")
+	func userTranscriptEntryDecodesAttachmentPreviews() throws {
+		let json = """
+		{
+			"kind": "user",
+			"text": "Describe this",
+			"attachments": [
+				{
+					"filename": "pixel.png",
+					"mediaType": "image/png",
+					"dataBase64": "aGVsbG8=",
+					"byteSize": 5
+				}
+			]
+		}
+		""".data(using: .utf8)!
+
+		let entry = try JSONDecoder().decode(TranscriptEntry.self, from: json)
+		guard case .user(let text, let attachments) = entry else {
+			Issue.record("Expected user transcript entry")
+			return
+		}
+		#expect(text == "Describe this")
+		#expect(attachments.count == 1)
+		#expect(attachments.first?.filename == "pixel.png")
+		#expect(attachments.first?.isImagePreviewable == true)
+	}
 
 	@Test("workSteps assigns tool type for boxed_step variant tool")
 	func toolStepType() {

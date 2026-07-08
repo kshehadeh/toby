@@ -139,13 +139,98 @@ describe("web chat API routes", () => {
 				persona: string;
 				model: string;
 				tobyDir: string;
+				attachmentCapability: { supported: boolean; maxFiles: number };
 			};
 			expect(body.version.length).toBeGreaterThan(0);
 			expect(body.persona.length).toBeGreaterThan(0);
 			expect(body.model.length).toBeGreaterThan(0);
 			expect(body.tobyDir).toBe(process.env.TOBY_DIR);
+			expect(body.attachmentCapability.supported).toBe(true);
+			expect(body.attachmentCapability.maxFiles).toBeGreaterThan(0);
 		});
 	});
+
+	it.skipIf(!canUseBunSqlite())(
+		"rejects invalid chat attachments before streaming",
+		async () => {
+			await withTempTobyDir(async () => {
+				const created = await handleWebRequest(
+					new Request("http://127.0.0.1/api/sessions", { method: "POST" }),
+					null,
+				);
+				const { id } = (await created.json()) as { id: string };
+				const res = await handleWebRequest(
+					new Request(`http://127.0.0.1/api/sessions/${id}/turn`, {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							text: "read this",
+							attachments: [
+								{
+									filename: "archive.zip",
+									mediaType: "application/zip",
+									dataBase64: "aGVsbG8=",
+									byteSize: 5,
+								},
+							],
+						}),
+					}),
+					null,
+				);
+				expect(res.status).toBe(400);
+				expect(((await res.json()) as { error: string }).error).toContain(
+					"Unsupported attachment type",
+				);
+			});
+		},
+	);
+
+	it.skipIf(!canUseBunSqlite())(
+		"rejects unsupported attachment models before streaming",
+		async () => {
+			await withTempTobyDir(async () => {
+				writeConfig({
+					integrations: {},
+					personas: [
+						{
+							name: "Toby",
+							instructions: "",
+							promptMode: "add",
+							ai: { provider: "ollama", model: "llama3.2" },
+						},
+					],
+					defaultPersona: "Toby",
+				});
+				const created = await handleWebRequest(
+					new Request("http://127.0.0.1/api/sessions", { method: "POST" }),
+					null,
+				);
+				const { id } = (await created.json()) as { id: string };
+				const res = await handleWebRequest(
+					new Request(`http://127.0.0.1/api/sessions/${id}/turn`, {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							text: "read this",
+							attachments: [
+								{
+									filename: "notes.txt",
+									mediaType: "text/plain",
+									dataBase64: "aGVsbG8=",
+									byteSize: 5,
+								},
+							],
+						}),
+					}),
+					null,
+				);
+				expect(res.status).toBe(400);
+				expect(((await res.json()) as { error: string }).error).toContain(
+					"Ollama attachment support",
+				);
+			});
+		},
+	);
 
 	it.skipIf(!canUseBunSqlite())(
 		"handles listen status/start/stop routes",

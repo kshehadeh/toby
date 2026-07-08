@@ -1,11 +1,67 @@
 import { randomUUID } from "node:crypto";
+import type { TextPart, UserContent } from "ai";
 import type { CoreMessage } from "../../ai/chat";
 import {
 	injectProjectContextIntoFirstSystemMessage,
 	injectSkillBodiesIntoFirstSystemMessage,
 	prepareChatSessionMessages,
 } from "../../prepare-messages";
+import { chatAttachmentsToFileParts } from "../attachments";
 import type { AssembledTurn, ExpandedTurn, PipelineNode } from "../pipeline";
+
+function withAttachmentParts(
+	text: string,
+	attachments: ExpandedTurn["attachments"],
+): UserContent {
+	const fileParts = chatAttachmentsToFileParts(attachments);
+	if (fileParts.length === 0) {
+		return text;
+	}
+	return [{ type: "text", text } satisfies TextPart, ...fileParts];
+}
+
+function attachFilesToLastUserMessage(
+	messages: readonly CoreMessage[],
+	attachments: ExpandedTurn["attachments"],
+): CoreMessage[] {
+	const fileParts = chatAttachmentsToFileParts(attachments);
+	if (fileParts.length === 0) {
+		return [...messages];
+	}
+	const next = [...messages];
+	for (let i = next.length - 1; i >= 0; i--) {
+		const message = next[i];
+		if (message?.role !== "user") {
+			continue;
+		}
+		const textParts: TextPart[] =
+			typeof message.content === "string"
+				? [{ type: "text", text: message.content }]
+				: Array.isArray(message.content)
+					? message.content
+							.map((part) => {
+								if (
+									part &&
+									typeof part === "object" &&
+									"type" in part &&
+									part.type === "text" &&
+									"text" in part &&
+									typeof part.text === "string"
+								) {
+									return { type: "text" as const, text: part.text };
+								}
+								return null;
+							})
+							.filter((part): part is TextPart => part !== null)
+					: [];
+		next[i] = {
+			role: "user",
+			content: [...textParts, ...fileParts],
+		};
+		return next;
+	}
+	return next;
+}
 
 export const assembleMessagesNode: PipelineNode<ExpandedTurn, AssembledTurn> = {
 	name: "assemble-messages",
@@ -16,12 +72,15 @@ export const assembleMessagesNode: PipelineNode<ExpandedTurn, AssembledTurn> = {
 			if (ctx.onStatusLine) {
 				await ctx.onStatusLine("Fetching integration connection context…");
 			}
-			messages = await prepareChatSessionMessages(
-				ctx.modules,
-				ctx.persona,
-				input.effectiveText,
-				ctx.onStatusLine,
-				ctx.project,
+			messages = attachFilesToLastUserMessage(
+				await prepareChatSessionMessages(
+					ctx.modules,
+					ctx.persona,
+					input.effectiveText,
+					ctx.onStatusLine,
+					ctx.project,
+				),
+				input.attachments,
 			);
 		} else {
 			const mergeLifecycleId = randomUUID();
@@ -33,7 +92,10 @@ export const assembleMessagesNode: PipelineNode<ExpandedTurn, AssembledTurn> = {
 			});
 			messages = [
 				...input.priorMessages,
-				{ role: "user", content: input.effectiveText },
+				{
+					role: "user",
+					content: withAttachmentParts(input.effectiveText, input.attachments),
+				},
 			];
 			ctx.emit({
 				type: "lifecycle_end",

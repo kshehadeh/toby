@@ -6,13 +6,16 @@ import ViewInspector
 @MainActor
 @Suite("InputDock")
 struct InputDockTests {
-    // InputDock body: VStack > [TextField, HStack > [Text, Text, ConditionalContent?, Spacer, ConditionalContent(cancel?), Button(send)]]
     private func sendButton(in view: InputDock) throws -> InspectableView<ViewType.Button> {
-        try view.inspect().vStack().hStack(1).button(5)
+        try view.inspect().find(viewWithAccessibilityIdentifier: "chat-send-button").button()
     }
 
     private func cancelButton(in view: InputDock) throws -> InspectableView<ViewType.Button> {
-        try view.inspect().vStack().hStack(1).button(4)
+        try view.inspect().find(viewWithAccessibilityIdentifier: "chat-cancel-button").button()
+    }
+
+    private func attachButton(in view: InputDock) throws -> InspectableView<ViewType.Button> {
+        try view.inspect().find(viewWithAccessibilityIdentifier: "chat-attach-button").button()
     }
 
     @Test("send button disabled when text is empty")
@@ -26,6 +29,28 @@ struct InputDockTests {
     func sendButtonEnabledWhenTextPresent() throws {
         @FocusState var focused: Bool
         let view = InputDock(text: .constant("Hello Toby"), focus: $focused, isLoading: false, contextFillPercentage: nil, contextWindowUnavailable: false, onSubmit: {}, onCancel: {})
+        #expect(!(try sendButton(in: view).isDisabled()))
+    }
+
+    @Test("send button enabled when attachments are present")
+    func sendButtonEnabledWhenAttachmentsPresent() throws {
+        @FocusState var focused: Bool
+        let attachment = ChatAttachmentDraft(
+            filename: "notes.txt",
+            mediaType: "text/plain",
+            dataBase64: "aGVsbG8=",
+            byteSize: 5
+        )
+        let view = InputDock(
+            text: .constant(""),
+            focus: $focused,
+            isLoading: false,
+            contextFillPercentage: nil,
+            contextWindowUnavailable: false,
+            attachments: [attachment],
+            onSubmit: {},
+            onCancel: {}
+        )
         #expect(!(try sendButton(in: view).isDisabled()))
     }
 
@@ -130,6 +155,32 @@ struct InputDockTests {
         #expect(throws: (any Error).self) {
             try cancelButton(in: view)
         }
+    }
+
+    @Test("attach button reflects model capability")
+    func attachButtonReflectsModelCapability() throws {
+        @FocusState var focused: Bool
+        let enabled = InputDock(
+            text: .constant("Hello"),
+            focus: $focused,
+            isLoading: false,
+            contextFillPercentage: nil, contextWindowUnavailable: false,
+            canAttachFiles: true,
+            onSubmit: {},
+            onCancel: {}
+        )
+        #expect(!(try attachButton(in: enabled).isDisabled()))
+
+        let disabled = InputDock(
+            text: .constant("Hello"),
+            focus: $focused,
+            isLoading: false,
+            contextFillPercentage: nil, contextWindowUnavailable: false,
+            canAttachFiles: false,
+            onSubmit: {},
+            onCancel: {}
+        )
+        #expect(try attachButton(in: disabled).isDisabled())
     }
 
     @Test("onCancel called when cancel button tapped")

@@ -11,8 +11,19 @@ export type ToolRunEntry = {
 	readonly fullBody?: string;
 };
 
+export type TranscriptAttachment = {
+	readonly filename: string;
+	readonly mediaType: string;
+	readonly dataBase64: string;
+	readonly byteSize: number;
+};
+
 export type TranscriptEntry =
-	| { readonly kind: "user"; readonly text: string }
+	| {
+			readonly kind: "user";
+			readonly text: string;
+			readonly attachments?: readonly TranscriptAttachment[];
+	  }
 	| { readonly kind: "assistant"; readonly text: string }
 	| { readonly kind: "meta"; readonly text: string }
 	| {

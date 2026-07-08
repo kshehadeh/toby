@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import Observation
+import UniformTypeIdentifiers
 
 func makeRecordingChatPrompt(name: String, dateText: String, hourText: String) -> String {
 	let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -42,6 +43,8 @@ final class ChatStore {
 	var streamingAssistant: StreamingAssistantState?
 	var activityLine: String = "Connecting…"
 	var promptText: String = ""
+	var pendingAttachments: [ChatAttachmentDraft] = []
+	private var localAttachmentPreviewsByTranscriptText: [String: [ChatTranscriptAttachment]] = [:]
 	var promptFocusRequestId = UUID()
 	var isLoading = false
 	var isSelectingSession = false
@@ -91,6 +94,18 @@ final class ChatStore {
 
 	var isRecordButtonDisabled: Bool {
 		status == nil || isListenRequestInFlight
+	}
+
+	var attachmentCapability: ChatAttachmentCapability? {
+		status?.attachmentCapability
+	}
+
+	var canAttachFiles: Bool {
+		attachmentCapability?.supported == true && !isLoading
+	}
+
+	var attachmentUnavailableReason: String {
+		attachmentCapability?.reason ?? "The selected model does not support file attachments."
 	}
 
 	var hasCleanCurrentSession: Bool {
@@ -513,7 +528,7 @@ final class ChatStore {
 		)
 	}
 
-	private func createSessionAndSubmit(text: String) async {
+	private func createSessionAndSubmit() async {
 		do {
 			let created = try await client.createSession()
 			sessionId = created.id
@@ -529,17 +544,23 @@ final class ChatStore {
 
 	func submitPrompt() async {
 		let text = promptText.trimmingCharacters(in: .whitespacesAndNewlines)
-		guard !text.isEmpty, !isLoading else { return }
+		let attachments = pendingAttachments
+		guard (!text.isEmpty || !attachments.isEmpty), !isLoading else { return }
 
 		// Lazily create the server session on first prompt so we never
 		// pollute the session list with empty chats.
 		guard let sessionId else {
-			await createSessionAndSubmit(text: text)
+			await createSessionAndSubmit()
 			return
 		}
 
 		promptText = ""
-		transcript.append(.user(text: text))
+		let userText = userTranscriptText(text: text, attachments: attachments)
+		let transcriptAttachments = transcriptAttachments(from: attachments)
+		if !transcriptAttachments.isEmpty {
+			localAttachmentPreviewsByTranscriptText[userText] = transcriptAttachments
+		}
+		transcript.append(.user(text: userText, attachments: transcriptAttachments))
 		let userTurnStartIndex = transcript.count - 1
 		activeTurnStartedAt = Date()
 		activeTurnUserIndex = userTurnStartIndex
@@ -556,7 +577,7 @@ final class ChatStore {
 		activeTurnId = turnId
 
 		do {
-			let done = try await client.streamTurn(sessionId: sessionId, text: text, clientTurnId: turnId, onEvent: { event in
+			let done = try await client.streamTurn(sessionId: sessionId, text: text, attachments: attachments, clientTurnId: turnId, onEvent: { event in
 				self.apply(event: event)
 			}, onAskUser: { [weak self] prompt in
 				guard let self else { return (-1, "", "", "Prompt dismissed") }
@@ -580,6 +601,7 @@ final class ChatStore {
 			await reloadTranscriptFromServer(clearTurnDurationForIndex: userTurnStartIndex)
 			streamingAssistant = nil
 			activityLine = "Ready"
+			clearAttachments()
 			await refreshSessions()
 		} catch {
 			if isCancelling {
@@ -588,6 +610,7 @@ final class ChatStore {
 				}
 				transcript.append(.notice(text: "Turn cancelled.", tone: nil))
 				activityLine = "Ready"
+				clearAttachments()
 			} else {
 				errorMessage = error.localizedDescription
 				transcript.append(.error(text: error.localizedDescription))
@@ -599,6 +622,125 @@ final class ChatStore {
 		isCancelling = false
 		activeTurnId = nil
 		recordTurnDuration()
+	}
+
+	func addAttachmentFiles(_ urls: [URL]) {
+		guard canAttachFiles else {
+			errorMessage = attachmentUnavailableReason
+			return
+		}
+		let capability = attachmentCapability
+		var next = pendingAttachments
+		for url in urls {
+			if let maxFiles = capability?.maxFiles, next.count >= maxFiles {
+				errorMessage = "Too many attachments. Maximum is \(maxFiles)."
+				break
+			}
+			do {
+				let attachment = try makeAttachmentDraft(from: url)
+				if let maxBytes = capability?.maxBytesPerFile, attachment.byteSize > maxBytes {
+					errorMessage = "\(attachment.filename) is too large."
+					continue
+				}
+				let totalBytes = next.reduce(0) { $0 + $1.byteSize } + attachment.byteSize
+				if let maxTotal = capability?.maxTotalBytes, totalBytes > maxTotal {
+					errorMessage = "Attachments are too large."
+					continue
+				}
+				if let accepted = capability?.acceptedMediaTypes, !accepted.isEmpty, !accepted.contains(attachment.mediaType) {
+					errorMessage = "Unsupported attachment type: \(attachment.mediaType)."
+					continue
+				}
+				next.append(attachment)
+				errorMessage = nil
+			} catch {
+				errorMessage = error.localizedDescription
+			}
+		}
+		pendingAttachments = next
+	}
+
+	func removeAttachment(id: UUID) {
+		pendingAttachments.removeAll { $0.id == id }
+	}
+
+	func clearAttachments() {
+		pendingAttachments = []
+	}
+
+	private func makeAttachmentDraft(from url: URL) throws -> ChatAttachmentDraft {
+		let didAccess = url.startAccessingSecurityScopedResource()
+		defer {
+			if didAccess {
+				url.stopAccessingSecurityScopedResource()
+			}
+		}
+		let data = try Data(contentsOf: url)
+		let mediaType = mediaTypeForAttachment(url: url)
+		return ChatAttachmentDraft(
+			filename: url.lastPathComponent,
+			mediaType: mediaType,
+			dataBase64: data.base64EncodedString(),
+			byteSize: data.count
+		)
+	}
+
+	private func mediaTypeForAttachment(url: URL) -> String {
+		if let type = UTType(filenameExtension: url.pathExtension),
+			let mimeType = type.preferredMIMEType
+		{
+			switch mimeType {
+			case "application/x-javascript":
+				return "text/javascript"
+			default:
+				return mimeType
+			}
+		}
+		switch url.pathExtension.lowercased() {
+		case "md", "markdown": return "text/markdown"
+		case "ts", "tsx": return "application/typescript"
+		case "js", "jsx", "mjs", "cjs": return "text/javascript"
+		case "json": return "application/json"
+		case "csv": return "text/csv"
+		case "xml": return "application/xml"
+		case "html", "htm": return "text/html"
+		case "css": return "text/css"
+		case "rtf": return "application/rtf"
+		default: return "text/plain"
+		}
+	}
+
+	private func userTranscriptText(text: String, attachments: [ChatAttachmentDraft]) -> String {
+		guard !attachments.isEmpty else { return text }
+		let names = attachments.map { "\($0.filename) (\($0.mediaType), \($0.byteSize) bytes)" }
+			.joined(separator: ", ")
+		if text.isEmpty {
+			return "Attachments: \(names)"
+		}
+		return "\(text)\n\nAttachments: \(names)"
+	}
+
+	private func transcriptAttachments(from attachments: [ChatAttachmentDraft]) -> [ChatTranscriptAttachment] {
+		attachments.map {
+			ChatTranscriptAttachment(
+				id: $0.id,
+				filename: $0.filename,
+				mediaType: $0.mediaType,
+				dataBase64: $0.dataBase64,
+				byteSize: $0.byteSize
+			)
+		}
+	}
+
+	private func rehydrateLocalAttachmentPreviews(in entries: [TranscriptEntry]) -> [TranscriptEntry] {
+		entries.map { entry in
+			guard case .user(let text, let attachments) = entry, attachments.isEmpty,
+				let localAttachments = localAttachmentPreviewsByTranscriptText[text]
+			else {
+				return entry
+			}
+			return .user(text: text, attachments: localAttachments)
+		}
 	}
 
 	func cancelActiveTurn() {
@@ -659,7 +801,7 @@ final class ChatStore {
 		guard let sessionId else { return }
 		do {
 			let detail = try await client.fetchSession(id: sessionId)
-			transcript = detail.transcript
+			transcript = rehydrateLocalAttachmentPreviews(in: detail.transcript)
 			sessionPersonaImageUrl = detail.personaImageUrl
 			contextWindow = mergeContextWindowPayload(current: contextWindow, incoming: detail.contextWindow)
 			if let userIndex {

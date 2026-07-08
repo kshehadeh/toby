@@ -404,6 +404,7 @@ struct TobyClient {
 	func streamTurn(
 		sessionId: String,
 		text: String,
+		attachments: [ChatAttachmentDraft] = [],
 		clientTurnId: String? = nil,
 		onEvent: @escaping (ChatEventPayload) -> Void,
 		onAskUser: ((AskUserPromptPayload) async -> (selectedIndex: Int, selectedLabel: String, rawInput: String, error: String?))?,
@@ -417,11 +418,21 @@ struct TobyClient {
 		)
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		var bodyDict: [String: String] = ["text": text]
+		var bodyDict: [String: Any] = ["text": text]
 		if let clientTurnId {
 			bodyDict["clientTurnId"] = clientTurnId
 		}
-		request.httpBody = try JSONEncoder().encode(bodyDict)
+		if !attachments.isEmpty {
+			bodyDict["attachments"] = attachments.map { attachment in
+				[
+					"filename": attachment.filename,
+					"mediaType": attachment.mediaType,
+					"dataBase64": attachment.dataBase64,
+					"byteSize": attachment.byteSize,
+				] as [String: Any]
+			}
+		}
+		request.httpBody = try JSONSerialization.data(withJSONObject: bodyDict)
 
 		let (bytes, response) = try await URLSession.shared.bytes(for: request)
 		guard let http = response as? HTTPURLResponse else {

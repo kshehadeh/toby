@@ -1,5 +1,7 @@
 import type { LanguageModelUsage } from "ai";
 import type { AIContextWindowInfo } from "../ai/context-window";
+import type { ChatAttachmentCapability } from "../ai/model-capabilities";
+import type { ChatAttachment } from "../chat-pipeline/attachments";
 import type { ChatEvent } from "../chat-pipeline/chat-events";
 import type { TranscriptEntry } from "../chat-pipeline/transcript-types";
 import type { Plan, PlanPhaseStatus } from "../planning/types";
@@ -71,6 +73,7 @@ export type PatchSessionRequest = Partial<{
 
 export type TurnRequestBody = {
 	readonly text: string;
+	readonly attachments?: readonly ChatAttachment[];
 	readonly persona?: string;
 	readonly modules?: readonly string[];
 	readonly dryRun?: boolean;
@@ -126,6 +129,7 @@ export type ChatStatusResponse = {
 	readonly model: string;
 	readonly tobyDir: string;
 	readonly contextWindow?: AIContextWindowInfo;
+	readonly attachmentCapability: ChatAttachmentCapability;
 	readonly connectedIntegrations: readonly string[];
 	readonly skillCount: number;
 };

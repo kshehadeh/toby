@@ -24,6 +24,13 @@ import {
 	setSessionContextWindow,
 	setSessionLastPretreatment,
 } from "../session-store";
+import {
+	type ChatAttachment,
+	type ValidatedChatAttachment,
+	chatAttachmentsToTranscriptAttachments,
+	formatAttachmentTranscriptSummary,
+	validateChatAttachments,
+} from "./attachments";
 import type { ChatEvent, ChatEventSink } from "./chat-events";
 import { type TurnContext, runChatTurnPipeline } from "./pipeline";
 import { resolveWebChatModules } from "./resolve-chat-modules";
@@ -274,6 +281,7 @@ export async function bootstrapChatSession(params: {
 export async function runApiChatTurn(params: {
 	readonly sessionId: string;
 	readonly userText: string;
+	readonly attachments?: readonly ValidatedChatAttachment[];
 	readonly onEvent: ChatEventSink;
 	readonly persona?: string;
 	readonly modules?: readonly string[];
@@ -382,6 +390,7 @@ export async function runApiChatTurn(params: {
 		const result = await runChatTurnPipeline(
 			{
 				rawUserText: params.userText,
+				attachments: params.attachments,
 				priorMessages,
 				isFirstTurn,
 				priorPretreatment,
@@ -439,6 +448,7 @@ export async function runApiChatTurn(params: {
 export async function runApiChatTurnWithPersistence(params: {
 	readonly sessionId: string;
 	readonly userText: string;
+	readonly attachments?: readonly ChatAttachment[];
 	readonly onEvent: ChatEventSink;
 	readonly persona?: string;
 	readonly modules?: readonly string[];
@@ -468,9 +478,11 @@ export async function runApiChatTurnWithPersistence(params: {
 			projectOverride: params.projectId,
 		})?.personaName,
 	});
+	const attachments = validateChatAttachments(params.attachments, persona);
 
 	const result = await runApiChatTurn({
 		...params,
+		attachments,
 		onEvent: (event) => {
 			accumulator.applyEvent(event);
 			params.onEvent(event);
@@ -492,7 +504,16 @@ export async function runApiChatTurnWithPersistence(params: {
 		params.sessionId,
 		startIdx,
 		insertTurnWorkSummary(
-			accumulator.snapshot,
+			[
+				...accumulator.snapshot.slice(0, userTurnIndex),
+				{
+					kind: "user" as const,
+					text:
+						params.userText + formatAttachmentTranscriptSummary(attachments),
+					attachments: chatAttachmentsToTranscriptAttachments(attachments),
+				},
+				...accumulator.snapshot.slice(userTurnIndex + 1),
+			],
 			userTurnIndex,
 			Date.now() - turnStartedAt,
 		).slice(startIdx),

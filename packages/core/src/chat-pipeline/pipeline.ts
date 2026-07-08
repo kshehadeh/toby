@@ -3,6 +3,7 @@ import type { AskUserHandler } from "../ai/ask-user-tool";
 import type { ChatWithToolsOptions, CoreMessage } from "../ai/chat";
 import type { PriorPretreatment, UserIntentSpec } from "../ai/pretreatment";
 import { log, logWithSession } from "../logging/chat-log";
+import type { ValidatedChatAttachment } from "./attachments";
 
 export type { PriorPretreatment };
 import type { Persona } from "../config/index";
@@ -29,6 +30,7 @@ export type ToolCatalogInfo = Awaited<
 
 export type TurnRequest = {
 	readonly rawUserText: string;
+	readonly attachments?: readonly ValidatedChatAttachment[];
 	readonly priorMessages: readonly CoreMessage[];
 	readonly isFirstTurn: boolean;
 	/** Previous turn verbatim prompt + spec for follow-up reuse / delta pretreatment. */

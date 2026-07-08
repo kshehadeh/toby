@@ -147,11 +147,90 @@ struct AppStatus: Decodable {
 	let model: String
 	let tobyDir: String?
 	let contextWindow: ContextWindowPayload?
+	var attachmentCapability: ChatAttachmentCapability? = nil
 	let personaImageUrl: String?
 	let connectedIntegrations: [String]?
 	let skillCount: Int?
 	let skills: [SkillSummary]?
 	let transcription: TranscriptionStatus?
+}
+
+struct ChatAttachmentCapability: Decodable, Equatable {
+	let supported: Bool
+	let reason: String?
+	let acceptedMediaTypes: [String]
+	let maxFiles: Int
+	let maxBytesPerFile: Int
+	let maxTotalBytes: Int
+}
+
+struct ChatAttachmentDraft: Codable, Equatable, Identifiable {
+	let id: UUID
+	let filename: String
+	let mediaType: String
+	let dataBase64: String
+	let byteSize: Int
+
+	init(
+		id: UUID = UUID(),
+		filename: String,
+		mediaType: String,
+		dataBase64: String,
+		byteSize: Int
+	) {
+		self.id = id
+		self.filename = filename
+		self.mediaType = mediaType
+		self.dataBase64 = dataBase64
+		self.byteSize = byteSize
+	}
+}
+
+struct ChatTranscriptAttachment: Decodable, Equatable, Identifiable {
+	let id: UUID
+	let filename: String
+	let mediaType: String
+	let dataBase64: String
+	let byteSize: Int
+
+	init(
+		id: UUID = UUID(),
+		filename: String,
+		mediaType: String,
+		dataBase64: String,
+		byteSize: Int
+	) {
+		self.id = id
+		self.filename = filename
+		self.mediaType = mediaType
+		self.dataBase64 = dataBase64
+		self.byteSize = byteSize
+	}
+
+	private enum CodingKeys: String, CodingKey {
+		case id
+		case filename
+		case mediaType
+		case dataBase64
+		case byteSize
+	}
+
+	init(from decoder: Decoder) throws {
+		let container = try decoder.container(keyedBy: CodingKeys.self)
+		self.id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+		self.filename = try container.decode(String.self, forKey: .filename)
+		self.mediaType = try container.decode(String.self, forKey: .mediaType)
+		self.dataBase64 = try container.decode(String.self, forKey: .dataBase64)
+		self.byteSize = try container.decode(Int.self, forKey: .byteSize)
+	}
+
+	var isImagePreviewable: Bool {
+		mediaType.hasPrefix("image/")
+	}
+}
+
+func formatAttachmentByteSize(_ bytes: Int) -> String {
+	ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
 }
 
 struct TranscriptionStatus: Decodable, Equatable {
@@ -526,7 +605,7 @@ struct ListenRecordingDetail: Decodable {
 }
 
 enum TranscriptEntry: Decodable, Identifiable, Equatable {
-	case user(text: String)
+	case user(text: String, attachments: [ChatTranscriptAttachment] = [])
 	case assistant(text: String)
 	case meta(text: String)
 	case notice(text: String, tone: String?)
@@ -539,8 +618,9 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 
 	var id: String {
 		switch self {
-		case .user(let text):
-			return "user-\(text.hashValue)"
+		case .user(let text, let attachments):
+			let attachmentKey = attachments.map { "\($0.filename)-\($0.byteSize)" }.joined(separator: "|")
+			return "user-\(text.hashValue)-\(attachmentKey.hashValue)"
 		case .assistant(let text):
 			return "assistant-\(text.hashValue)"
 		case .meta(let text):
@@ -584,6 +664,7 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 		case answer
 		case error
 		case durationMs
+		case attachments
 	}
 
 	init(from decoder: Decoder) throws {
@@ -592,7 +673,10 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 
 		switch kind {
 		case "user":
-			self = .user(text: try container.decode(String.self, forKey: .text))
+			self = .user(
+				text: try container.decode(String.self, forKey: .text),
+				attachments: try container.decodeIfPresent([ChatTranscriptAttachment].self, forKey: .attachments) ?? [],
+			)
 		case "assistant":
 			self = .assistant(text: try container.decode(String.self, forKey: .text))
 		case "meta":

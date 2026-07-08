@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import type { AskUserToolResult } from "../../ai/ask-user-tool";
 import { resolveContextWindowInfo } from "../../ai/context-window";
+import { resolveChatAttachmentCapability } from "../../ai/model-capabilities";
 import { formatPersonaAiLabel } from "../../ai/model-factory";
 import { isWebSearchAvailable } from "../../ai/web-search-global-tools";
 import type {
@@ -8,6 +9,7 @@ import type {
 	PatchSessionRequest,
 	TurnRequestBody,
 } from "../../api/chat-api";
+import { validateChatAttachments } from "../../chat-pipeline/attachments";
 import type { ChatEvent } from "../../chat-pipeline/chat-events";
 import { listUsableChatModules } from "../../chat-pipeline/resolve-chat-modules";
 import {
@@ -18,8 +20,9 @@ import {
 } from "../../chat-pipeline/turn-runtime";
 import { getDefaultPersonaImagePath, resolveTobyDir } from "../../config/index";
 import { isTranscriptionConfigured } from "../../listen/transcription-providers";
-import { resolveDefaultPersona } from "../../personas/index";
+import { resolveDefaultPersona, resolvePersona } from "../../personas/index";
 import { loadPlanBySession } from "../../planning/plan-store";
+import { resolveProject } from "../../projects/index";
 import {
 	createChatSession,
 	deleteChatSession,
@@ -68,6 +71,28 @@ function planSummaryForSession(sessionId: string) {
 	};
 }
 
+function resolvePersonaForHttpTurn(
+	body: TurnRequestBody,
+	settings: NonNullable<ReturnType<typeof loadChatSession>>["settings"],
+) {
+	if (body.persona?.trim()) {
+		return resolvePersona(body.persona.trim()) ?? resolveDefaultPersona();
+	}
+	if (settings.persona?.trim()) {
+		return resolvePersona(settings.persona.trim()) ?? resolveDefaultPersona();
+	}
+	const projectId = body.projectId?.trim() || settings.projectId?.trim();
+	if (projectId) {
+		const project = resolveProject(projectId);
+		if (project?.personaName?.trim()) {
+			return (
+				resolvePersona(project.personaName.trim()) ?? resolveDefaultPersona()
+			);
+		}
+	}
+	return resolveDefaultPersona();
+}
+
 export async function handleChatStatusDetail(): Promise<Response> {
 	const persona = resolveDefaultPersona();
 	const modules = await listUsableChatModules();
@@ -87,6 +112,7 @@ export async function handleChatStatusDetail(): Promise<Response> {
 			providerId: persona.ai.provider,
 			model: persona.ai.model,
 		}),
+		attachmentCapability: resolveChatAttachmentCapability(persona),
 		personaImageUrl,
 		connectedIntegrations: modules.map((m) => m.displayName),
 		skillCount: skills.length,
@@ -201,13 +227,22 @@ export async function handleSessionTurn(
 		return errorResponse("Invalid JSON body", 400);
 	}
 	const text = body.text?.trim() ?? "";
-	if (!text) {
-		return errorResponse("Missing text", 400);
+	if (!text && (!body.attachments || body.attachments.length === 0)) {
+		return errorResponse("Missing text or attachments", 400);
 	}
 
 	const loaded = loadChatSession(sessionId);
 	if (!loaded) {
 		return errorResponse("Session not found", 404);
+	}
+	try {
+		validateChatAttachments(
+			body.attachments,
+			resolvePersonaForHttpTurn(body, loaded.settings),
+		);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return errorResponse(message, 400);
 	}
 
 	const stream = new ReadableStream<Uint8Array>({
@@ -240,6 +275,7 @@ export async function handleSessionTurn(
 				const result = await runApiChatTurnWithPersistence({
 					sessionId,
 					userText: text,
+					attachments: body.attachments,
 					onEvent: emit,
 					persona: body.persona,
 					modules: body.modules,

@@ -14,6 +14,32 @@ describe("turn_work transcript entry", () => {
 		expect(deserializeTranscriptRow(row)).toEqual(entry);
 	});
 
+	it("round-trips user transcript image attachments", () => {
+		const entry: TranscriptEntry = {
+			kind: "user",
+			text: "Describe this\n\nAttachments: pixel.png (image/png, 68 bytes)",
+			attachments: [
+				{
+					filename: "pixel.png",
+					mediaType: "image/png",
+					dataBase64:
+						"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+					byteSize: 68,
+				},
+			],
+		};
+		const row = serializeTranscriptEntry(entry);
+		expect(row.kind).toBe("user");
+		expect(row.text).toContain("pixel.png");
+		expect(deserializeTranscriptRow(row)).toEqual(entry);
+	});
+
+	it("keeps legacy plain-text user transcript rows readable", () => {
+		expect(
+			deserializeTranscriptRow({ kind: "user", text: "Legacy prompt" }),
+		).toEqual({ kind: "user", text: "Legacy prompt" });
+	});
+
 	it("inserts duration before the assistant reply when work steps exist", () => {
 		const entries: TranscriptEntry[] = [
 			{ kind: "user", text: "Hello" },

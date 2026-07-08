@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct InputDock: View {
 	@Binding var text: String
@@ -6,11 +7,53 @@ struct InputDock: View {
 	let isLoading: Bool
 	let contextFillPercentage: Int?
 	let contextWindowUnavailable: Bool
+	let attachments: [ChatAttachmentDraft]
+	let canAttachFiles: Bool
+	let attachmentDisabledReason: String
+	let onAttachFiles: ([URL]) -> Void
+	let onRemoveAttachment: (UUID) -> Void
 	let onSubmit: () -> Void
 	let onCancel: () -> Void
+	@State private var isFileImporterPresented = false
+
+	init(
+		text: Binding<String>,
+		focus: FocusState<Bool>.Binding,
+		isLoading: Bool,
+		contextFillPercentage: Int?,
+		contextWindowUnavailable: Bool,
+		attachments: [ChatAttachmentDraft] = [],
+		canAttachFiles: Bool = false,
+		attachmentDisabledReason: String = "The selected model does not support file attachments.",
+		onAttachFiles: @escaping ([URL]) -> Void = { _ in },
+		onRemoveAttachment: @escaping (UUID) -> Void = { _ in },
+		onSubmit: @escaping () -> Void,
+		onCancel: @escaping () -> Void
+	) {
+		self._text = text
+		self.focus = focus
+		self.isLoading = isLoading
+		self.contextFillPercentage = contextFillPercentage
+		self.contextWindowUnavailable = contextWindowUnavailable
+		self.attachments = attachments
+		self.canAttachFiles = canAttachFiles
+		self.attachmentDisabledReason = attachmentDisabledReason
+		self.onAttachFiles = onAttachFiles
+		self.onRemoveAttachment = onRemoveAttachment
+		self.onSubmit = onSubmit
+		self.onCancel = onCancel
+	}
 
 	var body: some View {
 		VStack(spacing: 0) {
+			if !attachments.isEmpty {
+				AttachmentChipRow(
+					attachments: attachments,
+					onRemove: onRemoveAttachment
+				)
+				.padding(.horizontal, 12)
+				.padding(.top, 10)
+			}
 			TextField("Ask Toby to handle something", text: $text, axis: .vertical)
 				.focused(focus)
 				.textFieldStyle(.plain)
@@ -35,6 +78,22 @@ struct InputDock: View {
 				Text("Shift+Return for newline")
 					.foregroundStyle(AppTheme.tertiaryText)
 				Spacer()
+				Button {
+					isFileImporterPresented = true
+				} label: {
+					Image(systemName: "plus")
+						.accessibilityLabel("Add files")
+						.frame(width: 26, height: 26)
+						.background(
+							Circle()
+								.fill(canUseAttachmentButton ? AppTheme.selection : AppTheme.selection.opacity(0.55))
+						)
+						.foregroundStyle(canUseAttachmentButton ? AppTheme.secondaryText : AppTheme.tertiaryText)
+				}
+				.buttonStyle(.plain)
+				.disabled(!canUseAttachmentButton)
+				.help(canUseAttachmentButton ? "Add files" : attachmentDisabledReason)
+				.accessibilityIdentifier("chat-attach-button")
 				if let pct = contextFillPercentage {
 					ContextFillGauge(percentage: pct)
 				} else if contextWindowUnavailable {
@@ -92,11 +151,77 @@ struct InputDock: View {
 				.stroke(AppTheme.separator)
 		)
 		.shadow(color: .black.opacity(0.16), radius: 20, y: 12)
+		.fileImporter(
+			isPresented: $isFileImporterPresented,
+			allowedContentTypes: [.item],
+			allowsMultipleSelection: true
+		) { result in
+			switch result {
+			case .success(let urls):
+				onAttachFiles(urls)
+			case .failure:
+				break
+			}
+		}
 	}
 
 	private var canSubmit: Bool {
-		!isLoading && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+		!isLoading && (!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
 	}
+
+	private var canUseAttachmentButton: Bool {
+		!isLoading && canAttachFiles
+	}
+}
+
+private struct AttachmentChipRow: View {
+	let attachments: [ChatAttachmentDraft]
+	let onRemove: (UUID) -> Void
+
+	var body: some View {
+		ScrollView(.horizontal, showsIndicators: false) {
+			HStack(spacing: 6) {
+				ForEach(attachments) { attachment in
+					AttachmentChip(attachment: attachment) {
+						onRemove(attachment.id)
+					}
+				}
+			}
+			.frame(maxWidth: .infinity, alignment: .leading)
+		}
+	}
+}
+
+private struct AttachmentChip: View {
+	let attachment: ChatAttachmentDraft
+	let onRemove: () -> Void
+
+	var body: some View {
+		HStack(spacing: 6) {
+			Image(systemName: "paperclip")
+				.font(.caption.weight(.semibold))
+			Text(attachment.filename)
+				.lineLimit(1)
+			Text(formatAttachmentByteSize(attachment.byteSize))
+				.foregroundStyle(AppTheme.tertiaryText)
+			Button(action: onRemove) {
+				Image(systemName: "xmark")
+					.font(.caption2.weight(.bold))
+					.frame(width: 16, height: 16)
+			}
+			.buttonStyle(.plain)
+			.accessibilityLabel("Remove \(attachment.filename)")
+		}
+		.font(.caption)
+		.foregroundStyle(AppTheme.secondaryText)
+		.padding(.horizontal, 8)
+		.padding(.vertical, 5)
+		.background(
+			Capsule(style: .continuous)
+				.fill(AppTheme.selection)
+		)
+	}
+
 }
 
 private struct ContextFillGauge: View {
