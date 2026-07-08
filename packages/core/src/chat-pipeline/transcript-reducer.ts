@@ -1,4 +1,5 @@
 import type { AskUserToolResult } from "../ai/ask-user-tool";
+import { stripLoneSurrogates } from "../lone-surrogates";
 import { getToolDisplayLabel } from "../tool-labels";
 import type { ChatEvent } from "./chat-events";
 import type { ToolRunEntry, TranscriptEntry } from "./transcript-types";
@@ -37,11 +38,13 @@ export function formatToolOutputFull(ctx: ToolOutputFormatContext): string {
 }
 
 function sanitizeOneLine(value: string, maxLen = 200): string {
-	return value.replace(/\r?\n/g, " ").trim().slice(0, maxLen);
+	return stripLoneSurrogates(
+		value.replace(/\r?\n/g, " ").trim().slice(0, maxLen),
+	);
 }
 
 function sanitizeFull(value: string, maxLen = 10000): string {
-	return value.trim().slice(0, maxLen);
+	return stripLoneSurrogates(value.trim().slice(0, maxLen));
 }
 
 function defaultToolOutputFormatter(ctx: ToolOutputFormatContext): string {
@@ -332,7 +335,8 @@ function summarizeArgsForHeader(
 		(typeof args.userId === "string" && args.userId) ||
 		null;
 	if (id) {
-		const short = id.length > 28 ? `${id.slice(0, 25)}…` : id;
+		const short =
+			id.length > 28 ? `${stripLoneSurrogates(id.slice(0, 25))}…` : id;
 		return ` · ${short}`;
 	}
 	const q =
@@ -342,7 +346,7 @@ function summarizeArgsForHeader(
 				? args.q.trim()
 				: "";
 	if (q) {
-		const short = q.length > 36 ? `${q.slice(0, 33)}…` : q;
+		const short = q.length > 36 ? `${stripLoneSurrogates(q.slice(0, 33))}…` : q;
 		return ` · “${short}”`;
 	}
 	return "";

@@ -1,4 +1,5 @@
 import type { TranscriptEntry } from "./chat-pipeline/transcript-types";
+import { stripLoneSurrogates } from "./lone-surrogates";
 
 type ToolCallPayload = {
 	readonly blockKey: string;
@@ -133,8 +134,32 @@ export function serializeTranscriptEntry(e: TranscriptEntry): {
 	return { kind: e.kind, text: e.text };
 }
 
+function deepStripLoneSurrogates<T>(value: T): T {
+	if (typeof value === "string") {
+		return stripLoneSurrogates(value) as T;
+	}
+	if (Array.isArray(value)) {
+		return value.map((item) => deepStripLoneSurrogates(item)) as T;
+	}
+	if (value && typeof value === "object") {
+		const out: Record<string, unknown> = {};
+		for (const [key, val] of Object.entries(value)) {
+			out[key] = deepStripLoneSurrogates(val);
+		}
+		return out as T;
+	}
+	return value;
+}
+
 /** Parse a DB row into a `TranscriptEntry` (handles legacy rows and corrupt JSON). */
 export function deserializeTranscriptRow(row: {
+	kind: string;
+	text: string;
+}): TranscriptEntry {
+	return deepStripLoneSurrogates(deserializeTranscriptRowInner(row));
+}
+
+function deserializeTranscriptRowInner(row: {
 	kind: string;
 	text: string;
 }): TranscriptEntry {
