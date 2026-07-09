@@ -6,15 +6,14 @@ unlisted: true
 
 # Azure AD (removed)
 
-The **Azure AD** integration (`azuread` / `toby-plugin-azuread`) is **no longer
-shipped** with Toby.
+The **Azure AD** integration is **no longer shipped** with Toby.
 
 If you previously connected Azure AD:
 
 - Remove or ignore any leftover `azuread` entries under
   `~/.toby/credentials.json` and `~/.toby/config.json`
-- Uninstall a leftover plugin directory if present:
-  `toby plugins uninstall azuread`
+- If a leftover plugin folder remains under `~/.toby/plugins/`, you can delete
+  the `toby-plugin-azuread` directory in Finder
 
 For Microsoft 365-style workflows today, use the integrations that are still
 supported—for example [Email](./email) for mailbox access, [Slack](./slack)

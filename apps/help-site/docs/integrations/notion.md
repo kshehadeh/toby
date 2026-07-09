@@ -8,11 +8,7 @@ title: Notion
 Connect Toby to Notion to search, read, create, and update durable document
 content from chat.
 
-**CLI name:** `notion`
-
-Shipped as **`toby-plugin-notion`** (TypeScript bun-package). Release installs
-place it in `~/.toby/plugins/`; from source run
-`toby plugins install ./apps/plugin-notion`.
+Notion ships as a first-party plugin bundled with Toby.app under `~/.toby/plugins/`.
 
 ## Prerequisites
 
@@ -28,7 +24,7 @@ place it in `~/.toby/plugins/`; from source run
 4. In Notion, share the relevant pages or databases with the connection.
 
 Do not commit the token to git. Toby stores it in `~/.toby/credentials.json` and
-masks it in the configure UI.
+masks it in the UI.
 
 ## Configure
 
@@ -39,23 +35,16 @@ Open **Toby.app → Integrations → Notion** and enter:
 | Notion API Key | Personal access token or internal connection token |
 | Default Parent Page ID | Optional parent page used when creating pages without an explicit `parentPageId` |
 
-Save the configuration. You can also run `toby config` in the terminal.
+Save the configuration.
 
 ## Connect
 
-Click **Connect** in Toby.app, or run:
-
-```bash
-toby connect notion
-```
-
-Toby validates the token with the Notion API, then marks Notion as connected.
+Click **Connect** on the Notion detail page. Toby validates the token with the
+Notion API, then marks Notion as connected.
 
 ## Verify
 
-```bash
-toby status integration -i notion
-```
+Return to **Integrations** in the sidebar. Notion should show as connected and healthy.
 
 ## Chat capabilities
 
@@ -90,9 +79,7 @@ base.
 
 ## Disconnect
 
-```bash
-toby disconnect notion
-```
+Open the Notion detail page and click **Disconnect**.
 
 ## Related
 

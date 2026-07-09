@@ -7,9 +7,7 @@ title: Jira
 
 Connect Toby to Atlassian Jira to search and read issues, comments, and projects from chat.
 
-**CLI name:** `jira`
-
-Shipped as **`toby-plugin-jira`** (TypeScript bun-package). Release installs place it in `~/.toby/plugins/`; from source run `toby plugins install ./apps/plugin-jira`.
+Jira ships as a first-party plugin bundled with Toby.app under `~/.toby/plugins/`.
 
 ## Prerequisites
 
@@ -26,7 +24,7 @@ Shipped as **`toby-plugin-jira`** (TypeScript bun-package). Release installs pla
 
 If your organization requires a **scoped API token** instead, Toby automatically retries via the Atlassian gateway (`api.atlassian.com/ex/jira/{cloudId}`) when the site URL rejects authentication. The token still needs Jira read scopes (for example `read:jira-work`).
 
-Do not commit the token to git. Toby stores it in `~/.toby/credentials.json` and masks it in the configure UI.
+Do not commit the token to git. Toby stores it in `~/.toby/credentials.json` and masks it in the UI.
 
 ## Configure
 
@@ -38,25 +36,15 @@ Open **Toby.app → Integrations → Jira** and enter:
 | Email | The Atlassian account email for the API token |
 | API Token | The Atlassian API token |
 
-Save the configuration. (You can also run `toby config` in the terminal.)
+Save the configuration.
 
 ## Connect
 
-Click **Connect** in Toby.app, or run:
-
-```bash
-toby connect jira
-```
-
-Toby validates the domain, email, and API token, then marks Jira as connected.
+Click **Connect** on the Jira detail page. Toby validates the domain, email, and API token, then marks Jira as connected.
 
 ## Verify
 
-```bash
-toby status integration -i jira
-```
-
-Status can validate the Jira API and the read-only tools.
+Return to **Integrations** in the sidebar. Jira should show as connected. Open the Jira detail page for any status notes about API reachability.
 
 ## Chat capabilities
 
@@ -96,9 +84,7 @@ Search and comment results are paginated; Toby requests up to 100 items at a tim
 
 ## Disconnect
 
-```bash
-toby disconnect jira
-```
+Open the Jira detail page and click **Disconnect**.
 
 ## Related
 

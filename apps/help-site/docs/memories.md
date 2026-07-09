@@ -18,7 +18,7 @@ Memories are stored separately from chat history in `~/.toby/memory.sqlite`. The
 
 ## How memories are added
 
-There is no separate `toby memory` command today. Memories are created through **conversation**:
+Memories are created through **conversation** and managed in the **Memories** window:
 
 1. You share something worth remembering, or Toby notices a stable preference from your work.
 2. Toby **proposes** a memory (you may see tool feedback in the transcript).
@@ -29,6 +29,12 @@ You can also ask directly:
 
 - “Remember that I prefer morning meetings.”
 - “Save that my main project this quarter is called Northstar.”
+
+### Browse and edit in the app
+
+Open **Toby.app** and click **Memories** in the sidebar. Search, add, edit, or delete memories, and inspect their type, sensitivity, visibility, and last-updated timestamp.
+
+![Toby.app Memories window](/img/toby-app-memories.png)
 
 ## Privacy and confirmation
 

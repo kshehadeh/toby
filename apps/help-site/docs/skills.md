@@ -44,24 +44,23 @@ You do not pick skills manually each message—Toby chooses from names in the ca
 
 ## Add and manage skills
 
-### Create on disk
-
-```bash
-mkdir -p ~/.toby/skills/organize-email
-# Edit ~/.toby/skills/organize-email/SKILL.md
-```
-
 ### Manage in the app
 
 Open **Toby.app** and click **Skills** in the sidebar. The Skills window lists installed skills with descriptions. You can add new skills, delete existing ones, and run a skill directly from the toolbar.
 
-In the terminal, run `toby skills` to list, view, edit (opens your editor), and delete skills.
+![Toby.app Skills window](/img/toby-app-skills.png)
 
-You can also create skills on disk (folder + `SKILL.md`) or ask Toby in chat to draft one with **createLocalSkill**.
+### Draft from chat
 
-### Draft from chat (advanced)
+In chat, ask Toby to create a skill. For example: “Create a skill that documents how I run weekly email cleanup.” Toby can draft a full `SKILL.md` and save it under `~/.toby/skills/`.
 
-In chat, Toby can use the **createLocalSkill** tool to draft a full `SKILL.md` and save it under `~/.toby/skills/`. Ask explicitly, for example: “Create a skill that documents how I run weekly email cleanup.”
+### Create on disk (advanced)
+
+You can also add a skill manually:
+
+1. Create a folder under `~/.toby/skills/<folder-name>/`.
+2. Add a `SKILL.md` file with frontmatter (`name`, `description`) and the skill body.
+3. Open the **Skills** window in Toby.app to confirm it appears in the list.
 
 ## Skills vs personas
 

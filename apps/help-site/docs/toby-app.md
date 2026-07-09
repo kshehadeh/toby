@@ -5,10 +5,7 @@ title: Toby Mac App
 
 # Toby Mac App
 
-Toby Mac App is the native macOS app for Toby and the primary way to use it. It gives you a SwiftUI surface for
-chat and configuration while keeping the assistant runtime, sessions,
-integrations, and configuration storage in the same Toby daemon and core harness
-used by the CLI.
+Toby Mac App is the native macOS app for Toby and the primary way to use it. It gives you a SwiftUI surface for chat and configuration while keeping the assistant runtime, sessions, integrations, and configuration storage in a local background service on your Mac.
 
 ## What it does
 
@@ -16,11 +13,10 @@ Toby.app currently has two roles:
 
 | Role | How it works |
 | ---- | ------------ |
-| Native user surface | Starts the daemon when needed, then calls the daemon's localhost API for status, sessions, streaming chat turns, personas, and configuration. |
-| Native permission bridge | Hosts a separate localhost native API server for macOS operations that need a stable app identity or native framework access. Both the macOS plugin (`toby-plugin-macos`) and the Apple Calendar plugin (`toby-plugin-applecalendar`) are TypeScript bun-package plugins that delegate all operations to this server. |
+| Native user surface | Starts the local service when needed, then calls its localhost API for status, sessions, streaming chat turns, personas, and configuration. |
+| Native permission bridge | Hosts a separate localhost native API server for macOS operations that need a stable app identity or native framework access. Both the macOS plugin (`toby-plugin-macos`) and the Apple Calendar plugin (`toby-plugin-applecalendar`) are TypeScript plugins that delegate all operations to this server. |
 
-The app does **not** import `@toby/core` directly. It talks to Toby through HTTP
-so the native app, CLI, and daemon stay on the same behavior path.
+The app does **not** embed the full assistant engine inside the SwiftUI process. It talks to the local service over HTTP so chat, schedules, and integrations stay on one shared path.
 
 ## Surfaces
 
@@ -87,25 +83,19 @@ and other preferences through a familiar preferences-style interface.
 
 ![Toby.app Settings window](/img/toby-app-settings.png)
 
-## Relationship to the daemon
+## How the local service starts
 
-When Toby.app opens, it checks the daemon API at:
+When Toby.app opens, it checks the local service at:
 
 ```text
 http://127.0.0.1:7847/api/status
 ```
 
-If the daemon is not available, Toby.app tries to start it with:
+If the service is not available, Toby.app starts it automatically in the
+background. You do not need to manage that process yourself—opening the app is
+enough.
 
-```bash
-toby daemon start
-```
-
-The app resolves the `toby` executable from `TOBY_CLI`, a sibling binary next to
-the app bundle, `~/.local/bin/toby`, Homebrew paths, and then standard local
-install locations.
-
-Once the daemon is reachable, Toby.app uses the daemon API for:
+Once the service is reachable, Toby.app uses it for:
 
 - session lists and transcripts
 - creating sessions
@@ -115,7 +105,7 @@ Once the daemon is reachable, Toby.app uses the daemon API for:
 - configure tree reads and writes
 - integration setup guides / wizards for onboarding new integrations
 
-Toby.app also preloads shared list data after the daemon is reachable so the
+Toby.app also preloads shared list data after the service is reachable so the
 Dashboard, sidebar, and command palette can show counts and shortcuts without
 waiting for each individual view to be opened first. This shared preload covers
 chat sessions, schedules, recordings, memories, skills, projects, and
@@ -134,7 +124,7 @@ writes that port to:
 
 macOS-facing plugins read that file, check `/api/native/health`, and use the
 native server when available. This lets users grant macOS permissions to a
-clearly identified app bundle instead of to changing command-line binaries.
+clearly identified app bundle instead of to changing helper processes.
 
 Current native API areas:
 

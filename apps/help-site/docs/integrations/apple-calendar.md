@@ -7,18 +7,11 @@ title: Apple Calendar
 
 Connect Toby to **Calendar.app** on your Mac to search, create, and update events.
 
-**CLI name:** `applecalendar`
-
-The plugin ships in Toby release archives as `toby-plugin-applecalendar` under `~/.toby/plugins/`. For local development:
-
-```bash
-bun run build:plugin:applecalendar
-toby plugins install ./dist/toby-plugin-applecalendar --link --force
-```
+The Apple Calendar plugin ships with Toby.app under `~/.toby/plugins/`.
 
 :::info[Platform]
 
-**macOS only.** On Linux or Windows you can configure the integration, but chat tools require Calendar.app on a Mac.
+**macOS only.** Calendar tools require Calendar.app on a Mac.
 
 :::
 
@@ -30,17 +23,11 @@ toby plugins install ./dist/toby-plugin-applecalendar --link --force
 
 ## Configure
 
-Open **Toby.app → Integrations → Apple Calendar**. Optional **Notes** are for your own reference only. Save. (You can also run `toby config` in the terminal.)
+Open **Toby.app → Integrations → Apple Calendar**. Optional **Notes** are for your own reference only. Save.
 
 ## Connect
 
-Click **Connect** in Toby.app, or run:
-
-```bash
-toby connect applecalendar
-```
-
-Toby runs a Calendar.app health check and stores a connected flag.
+Click **Connect** on the Apple Calendar detail page. Toby runs a Calendar.app health check and stores a connected flag.
 
 The plugin delegates all calendar operations to Toby.app's native API server,
 which uses EventKit to access Calendar.app. When Toby.app is not running, the
@@ -49,15 +36,11 @@ Toby.app, not the plugin itself.
 
 ## Verify
 
-```bash
-toby status integration -i applecalendar
-```
+Return to **Integrations** in the sidebar. Apple Calendar should show as connected. The first time you use calendar tools, macOS may prompt you to grant Calendar access to Toby.app.
 
 ## Disconnect
 
-```bash
-toby disconnect applecalendar
-```
+Open the Apple Calendar detail page and click **Disconnect**.
 
 ## Example chat prompts
 
@@ -66,7 +49,7 @@ toby disconnect applecalendar
 
 ## Tips
 
-- Use exact calendar names from `listCalendars` when filtering.
+- Use exact calendar names from your calendar list when filtering.
 - Event UIDs are Calendar.app string identifiers returned by search or create tools.
 
 ## Related

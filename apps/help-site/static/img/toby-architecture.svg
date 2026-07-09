@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1160" height="1040" viewBox="0 0 1160 1040" role="img" aria-labelledby="title desc">
   <title id="title">Toby high-level architecture</title>
-  <desc id="desc">A diagram showing Toby.app as the primary surface, the CLI, the daemon server API, the core harness, installable plugins, Toby.app native API server, and external systems.</desc>
+  <desc id="desc">A diagram showing Toby.app as the primary surface, the local daemon server API, the core harness, installable plugins, Toby.app native API server, and external systems.</desc>
   <defs>
     <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0" stop-color="#f8fafc"/>
@@ -55,30 +55,23 @@
 
   <text x="70" y="78" class="eyebrow">TOBY ARCHITECTURE</text>
   <text x="70" y="122" class="title">Surfaces, Server, Core, Plugins</text>
-  <text x="70" y="156" class="subtitle">Toby.app is the primary surface; the CLI provides terminal access and automation.</text>
+  <text x="70" y="156" class="subtitle">Toby.app is the primary surface; the local service powers chat, schedules, and configuration.</text>
 
   <g filter="url(#shadow)">
-    <g transform="translate(70 205)">
-      <rect width="300" height="118" rx="10" fill="url(#native)"/>
+    <g transform="translate(300 205)">
+      <rect width="560" height="118" rx="10" fill="url(#native)"/>
       <text x="28" y="43" class="layer-label">Toby.app</text>
-      <text x="28" y="70" class="layer-note">SwiftUI macOS app</text>
-      <text x="28" y="93" class="layer-note">Calls daemon API; hosts native API</text>
-    </g>
-    <g transform="translate(430 205)">
-      <rect width="300" height="118" rx="10" fill="url(#surface)"/>
-      <text x="28" y="43" class="layer-label">@toby/cli</text>
-      <text x="28" y="70" class="layer-note">Commander + Ink terminal UI</text>
-      <text x="28" y="93" class="layer-note">Runs core directly; starts daemon</text>
+      <text x="28" y="70" class="layer-note">SwiftUI macOS app — chat, settings, integrations, schedules</text>
+      <text x="28" y="93" class="layer-note">Starts local service; hosts native API for Calendar and system controls</text>
     </g>
   </g>
 
-  <path class="line" d="M 220 323 C 220 348 270 354 325 370"/>
-  <path class="dashed" d="M 580 323 C 580 352 634 358 690 378"/>
-  <text x="606" y="352" class="tiny">MANAGES</text>
+  <path class="line" d="M 580 323 L 580 370"/>
+  <text x="596" y="352" class="tiny">STARTS / CALLS</text>
 
   <g filter="url(#shadow)">
     <rect x="300" y="370" width="560" height="136" rx="10" fill="url(#server)"/>
-    <text x="332" y="411" class="layer-label">Daemon server API</text>
+    <text x="332" y="411" class="layer-label">Local service API</text>
     <text x="332" y="438" class="layer-note">Localhost HTTP API at 127.0.0.1:7847</text>
     <g transform="translate(332 458)">
       <rect width="154" height="30" rx="7" fill="rgba(255,255,255,0.16)" stroke="rgba(255,255,255,0.28)"/>
@@ -95,12 +88,11 @@
   </g>
 
   <path class="line-dark" d="M 580 506 L 580 550"/>
-  <path class="line-dark" d="M 580 323 C 580 430 550 500 470 560"/>
 
   <g filter="url(#shadow)">
     <rect x="170" y="550" width="820" height="196" rx="10" fill="url(#server)"/>
     <text x="202" y="592" class="layer-label">@toby/core</text>
-    <text x="202" y="618" class="layer-note">UI-agnostic harness for chat, AI, integrations, persistence, memory, and daemon workflows</text>
+    <text x="202" y="618" class="layer-note">UI-agnostic harness for chat, AI, integrations, persistence, memory, and background workflows</text>
 
     <g transform="translate(202 646)">
       <rect width="356" height="72" rx="8" fill="#ffffff" fill-opacity="0.96"/>
@@ -119,7 +111,7 @@
   <g filter="url(#shadow)">
     <rect x="170" y="788" width="500" height="112" rx="10" fill="url(#plugin)"/>
     <text x="202" y="828" class="layer-label">@toby/plugin-*</text>
-    <text x="202" y="854" class="layer-note">Installable integration executables</text>
+    <text x="202" y="854" class="layer-note">Installable integration packages</text>
     <rect x="382" y="812" width="250" height="34" rx="8" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.28)"/>
     <text x="402" y="835" class="white-text">JSON protocol over stdin/stdout</text>
   </g>

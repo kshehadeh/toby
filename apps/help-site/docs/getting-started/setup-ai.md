@@ -30,7 +30,7 @@ Click **OpenAI** under **AI** in the Settings tree. Paste your OpenAI API key in
 
 ![Toby.app OpenAI configuration](/img/toby-app-settings-openai.png)
 
-Get an API key from [platform.openai.com](https://platform.openai.com/) — open **API keys** under your organization settings and create a new secret key. Toby stores it in `~/.toby/credentials.json`, never in your shell history.
+Get an API key from [platform.openai.com](https://platform.openai.com/) — open **API keys** under your organization settings and create a new secret key. Toby stores it in `~/.toby/credentials.json` on your Mac.
 
 For recommended models, see [OpenAI (direct)](../ai-providers/openai#recommended-models).
 

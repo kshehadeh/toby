@@ -29,10 +29,6 @@ Open **Toby.app** and click **Settings** in the sidebar, then open **Personas**:
 
 Personas are stored in `~/.toby/config.json`.
 
-:::tip[Terminal alternative]
-Run `toby config` to open Toby.app settings from the terminal.
-:::
-
 ### Prompt mode
 
 | Mode | Behavior |

@@ -7,7 +7,7 @@ import FeatureHeading from "@site/src/components/FeatureHeading";
 
 # What Does Toby Do?
 
-Toby is a personal AI assistant that connects to the tools and systems you already use. Chat from the native macOS app, with a terminal CLI available for automation and advanced workflows. Here is what it can do for you.
+Toby is a personal AI assistant that connects to the tools and systems you already use. You chat and configure everything from the native macOS app. Here is what it can do for you.
 
 <FeatureHeading icon="bot" tone="ai" title="Context-aware AI support" />
 
@@ -23,7 +23,7 @@ Toby integrates with chat apps like Slack so you can talk to your assistant in i
 
 <FeatureHeading icon="app" tone="macos" title="Native macOS app" />
 
-On macOS, the native **Toby.app** is the primary way to use Toby. It gives you a SwiftUI chat and configuration surface. It starts the daemon when needed, then uses the same localhost API for sessions, streaming chat turns, and configuration. It also hosts the native API server for permission-gated work such as Calendar and Accessibility. See [Toby.app](./toby-app).
+On macOS, the native **Toby.app** is how you use Toby. It gives you a SwiftUI chat and configuration surface. It starts the local background service when needed, then uses that service for sessions, streaming chat turns, and configuration. It also hosts the native API server for permission-gated work such as Calendar and Accessibility. See [Toby.app](./toby-app).
 
 <FeatureHeading icon="apple" tone="macos" title="Deep macOS integration" />
 
@@ -33,9 +33,9 @@ Toby is built for the Mac. It can control system settings and UI elements on you
 
 You can schedule actions to run at regular intervals. A schedule runs a prompt with a chosen persona on a cron timetable—for example, summarize your email every morning and post the result to Slack or anywhere else Toby can reach. See [Schedules](./schedules).
 
-<FeatureHeading icon="config" tone="config" title="Configuration in the native app or terminal" />
+<FeatureHeading icon="config" tone="config" title="Configuration in the native app" />
 
-Configure your assistant from the [Toby.app](./toby-app) Settings window, or use `toby config` and related commands in the terminal. The native app also offers setup guides for each integration on macOS. All surfaces edit the same configuration under `~/.toby/`.
+Configure your assistant from the [Toby.app](./toby-app) **Settings** and **Integrations** windows. Setup guides walk you through each integration without leaving the app. All settings are stored under `~/.toby/` on your Mac.
 
 <FeatureHeading icon="persona" tone="persona" title="Personas" />
 

@@ -18,20 +18,18 @@ Toby.app’s bundle identity.
 When you stop and save:
 
 1. Source tracks and preferably `combined.m4a` are written under the recordings folder.
-2. Toby requests transcription through the daemon when a model is configured.
+2. Toby requests transcription through the local service when a model is configured.
 3. The result appears in the **Recordings** window (playback, transcript, delete).
 
 Ask in chat to summarize a transcript or extract action items after recording.
 
-## CLI
+## Retry transcription
 
-```bash
-toby listen
-toby listen transcribe ~/.toby/listen/recordings/<recording-id>
-```
+If a recording failed to transcribe or you changed your transcription settings:
 
-- `toby listen` opens native recording controls (routes through Toby.app).
-- `toby listen transcribe <folder>` retries transcription for a saved recording.
+1. Open **Recordings** in the sidebar.
+2. Select the recording.
+3. Use the transcription / retry control in the recording detail (or ask in chat to re-transcribe that recording).
 
 ## Permissions
 
@@ -41,4 +39,3 @@ Recording, and related permissions for **Toby.app**.
 ## Related
 
 - [Toby.app](./toby-app)
-- Source [listen architecture](https://github.com/kshehadeh/toby/blob/main/docs/listen.md)

@@ -15,15 +15,15 @@ Personas that use the **vercel** provider must use **gateway model slugs** in `p
 2. Open your team’s **AI Gateway** settings (see [Authentication](https://vercel.com/docs/ai-gateway#authentication) in Vercel’s docs).
 3. Create an **API key** and copy it.
 
-Alternatively, for local development on a linked Vercel project:
-
-- Run `vercel env pull` to provision **`VERCEL_OIDC_TOKEN`** so Toby can authenticate without a static key (see [Vercel OIDC](https://vercel.com/docs/ai-gateway#authentication)).
+Alternatively, for local development on a linked Vercel project, you can use a
+**`VERCEL_OIDC_TOKEN`** so Toby can authenticate without a static key (see
+[Vercel OIDC](https://vercel.com/docs/ai-gateway#authentication)).
 
 You can also set **`AI_GATEWAY_API_KEY`** in your environment instead of storing a key in `~/.toby/credentials.json`.
 
 ## Configure in Toby
 
-Open **Toby.app → Settings → AI → Vercel AI Gateway → API Key** and paste your key, **or** rely on `AI_GATEWAY_API_KEY` / `VERCEL_OIDC_TOKEN`. (You can also run `toby config` in the terminal.)
+Open **Toby.app → Settings → AI → Vercel AI Gateway → API Key** and paste your key, **or** rely on `AI_GATEWAY_API_KEY` / `VERCEL_OIDC_TOKEN` if you already set those in your environment.
 
 For a persona, set **AI Provider** to `vercel`, then pick a model from the list or enter a **Custom model slug** (any slug your gateway account exposes).
 

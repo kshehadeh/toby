@@ -5,7 +5,7 @@ title: AI providers overview
 
 # AI providers overview
 
-Toby uses a large language model for chat, summarization, organization, and background schedules. You configure **one or more AI providers** in **Toby.app → Settings → AI** (or `toby config` in the terminal), then pick a provider and model per [persona](../personas).
+Toby uses a large language model for chat, summarization, organization, and background schedules. You configure **one or more AI providers** in **Toby.app → Settings → AI**, then pick a provider and model per [persona](../personas).
 
 Toby supports two AI providers today:
 
@@ -23,7 +23,7 @@ Open **Toby.app → Settings** and configure:
 1. Open **AI** and enter credentials for at least one provider ([OpenAI](./openai#get-an-api-key) or [Vercel AI Gateway](./vercel-ai-gateway#get-an-api-key)).
 2. Open **Personas**, choose **AI Provider** and **Model** (or use the built-in **Toby** persona, which defaults to OpenAI `gpt-5-mini`).
 
-Credentials are stored in `~/.toby/credentials.json`, not in your shell history. You can also run `toby config` in the terminal to open the configure UI.
+Credentials are stored in `~/.toby/credentials.json` on your Mac.
 
 ## Choosing a provider
 

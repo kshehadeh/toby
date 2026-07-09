@@ -7,13 +7,7 @@ title: Todoist
 
 Connect Toby to Todoist to manage tasks and projects from chat.
 
-**CLI name:** `todoist`
-
-Toby ships Todoist as a first-party installable plugin (`toby-plugin-todoist`, TypeScript bun-package). Release archives and `install-toby.sh` place it under `~/.toby/plugins/`. For development:
-
-```bash
-toby plugins install ./apps/plugin-todoist --link --force
-```
+Toby ships Todoist as a first-party plugin bundled with Toby.app under `~/.toby/plugins/`.
 
 ## Prerequisites
 
@@ -41,17 +35,17 @@ You can also go directly to [Integrations settings](https://app.todoist.com/app/
 ### 3. Copy your API token
 
 1. Under **API token**, click **Copy API token**.
-2. Paste it somewhere safe temporarily—you will enter it in Toby configure next.
+2. Paste it somewhere safe temporarily—you will enter it in Toby next.
 
 The token is a long string (often 40 characters). Toby sends it as a Bearer token on each API request, same as other Todoist integrations.
 
 ### 4. Rotate the token (optional)
 
-If a token was exposed or `toby connect todoist` fails with an auth error:
+If a token was exposed or Connect fails with an auth error:
 
 1. In the same **Developer** tab, click **Issue a new API token**.
 2. Confirm with **Create**.
-3. Copy the new token and update it in Toby.app (old tokens stop working immediately).
+3. Copy the new token and update it in **Toby.app → Integrations → Todoist** (old tokens stop working immediately).
 
 Do not commit your token to git. Toby stores it in `~/.toby/credentials.json` (masked in the UI).
 
@@ -63,29 +57,19 @@ Open **Toby.app → Integrations → Todoist** and enter:
 | ----- | ----------- |
 | API Key | Your Todoist personal API token from the Developer tab |
 
-Save the configuration. (You can also run `toby config` in the terminal.)
+Save the configuration.
 
 ## Connect
 
-Click **Connect** in Toby.app, or run:
-
-```bash
-toby connect todoist
-```
-
-Toby validates the API key and marks Todoist as connected.
+Click **Connect** on the Todoist detail page. Toby validates the API key and marks Todoist as connected.
 
 ## Verify
 
-```bash
-toby status integration -i todoist
-```
+Return to **Integrations** in the sidebar. Todoist should show as connected and healthy.
 
 ## Disconnect
 
-```bash
-toby disconnect todoist
-```
+Open the Todoist detail page and click **Disconnect**.
 
 ## Example chat prompts
 

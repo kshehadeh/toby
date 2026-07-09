@@ -18,7 +18,7 @@ Store the key in Toby, not in shell profiles or committed files.
 
 ## Configure in Toby
 
-Open **Toby.app → Settings → AI → OpenAI → API Token** and paste your API key. (You can also run `toby config` in the terminal.)
+Open **Toby.app → Settings → AI → OpenAI → API Token** and paste your API key.
 
 Toby writes the token to `~/.toby/credentials.json`.
 
@@ -67,7 +67,7 @@ Toby sends a stable OpenAI `promptCacheKey` on chat turns so repeated system pro
 | `TOBY_PRETREAT_MODEL` | Override the pretreatment model (bare OpenAI id, e.g. `gpt-4.1-nano`) |
 | `TOBY_PRETREAT_DELTA` | Set to `0` to disable follow-up delta pretreatment (default: enabled) |
 
-OpenAI credentials are **not** read from `OPENAI_API_KEY` by Toby today—use Settings in Toby.app, `toby config`, or `~/.toby/credentials.json` via backup/restore.
+OpenAI credentials are **not** read from `OPENAI_API_KEY` by Toby today—use **Settings → AI → OpenAI** in Toby.app (or restore a backup that includes `~/.toby/credentials.json`).
 
 ## See also
 

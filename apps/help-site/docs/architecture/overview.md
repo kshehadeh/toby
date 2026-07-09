@@ -5,10 +5,10 @@ title: Architecture
 
 # Architecture
 
-Toby is organized as a small set of modules with strict boundaries. User
-surfaces present the experience, the daemon exposes a localhost API for local
-apps, `@toby/core` owns the reusable harness, and installable plugins connect
-Toby to external systems through a JSON protocol.
+Toby is organized as a small set of modules with strict boundaries. The native
+app presents the experience, a local background service exposes a localhost API,
+`@toby/core` owns the reusable harness, and installable plugins connect Toby to
+external systems through a JSON protocol.
 
 <div className="architectureDiagram">
 	<img src="/img/toby-architecture.svg" alt="Toby module organization diagram" />
@@ -17,14 +17,14 @@ Toby to external systems through a JSON protocol.
 ## Toby.app
 
 `Toby.app` is the native macOS SwiftUI app and the **primary user surface** for
-Toby. It bootstraps the daemon when needed, then calls the same localhost API
-for chat, sessions, configuration, recordings, projects, and streaming chat
+Toby. It bootstraps the local service when needed, then calls the same localhost
+API for chat, sessions, configuration, recordings, projects, and streaming chat
 turns.
 
 Toby.app also hosts a separate native API server for macOS system operations
 that require TCC permissions or native framework access. Plugins such as
 Apple Calendar (`toby-plugin-applecalendar`), Apple Contacts, Apple Reminders,
-and macOS (`toby-plugin-macos`) are TypeScript bun-package plugins that
+and macOS (`toby-plugin-macos`) are TypeScript plugins that
 delegate **all** native operations to the app’s native API server via
 `~/.toby/native-port`.
 
@@ -32,30 +32,16 @@ See [Toby.app](../toby-app) for the user-facing app documentation and the source
 [native helper notes](https://github.com/kshehadeh/toby/blob/main/docs/native-helpers.md)
 for implementation details.
 
-## `@toby/cli`
+## Local service (daemon)
 
-`@toby/cli` is the **maintenance CLI**. It owns Commander commands for connect,
-disconnect, status, config backup/restore, daemon control, plugins, schedules,
-upgrade, and related automation. Bare `toby` (no subcommand) opens Toby.app.
+Toby runs a local HTTP service at `http://127.0.0.1:7847` by default. Toby.app
+starts it when you open the app and uses it for sessions, streaming chat turns,
+memories, projects, configuration, status, and configure actions.
 
-Interactive chat and settings live in Toby.app, not in a terminal TUI. The CLI
-depends on `@toby/core` and can start and manage the daemon. Core code should
-not import from the CLI app.
-
-See [Your first chat](../getting-started/first-chat) for chat usage and
-[Configure and connect](../getting-started/configure-and-status) for
-integrations.
-
-## Daemon server API
-
-The daemon serves the local HTTP API at `http://127.0.0.1:7847` by default.
-Toby.app uses it for sessions, streaming chat turns, memories, projects,
-configuration, daemon status, and configure actions.
-
-The server is local-only and uses the same core harness as scheduled jobs and
-inbound chat. Interactive chat turns stream `ChatEvent` payloads over SSE so
-the native UI can render the turn lifecycle without reimplementing the
-pipeline.
+The service is local-only and uses the same core harness as scheduled jobs and
+inbound chat (for example Slack @mentions). Interactive chat turns stream events
+over SSE so the native UI can render the turn lifecycle without reimplementing
+the pipeline.
 
 See the source
 [server API reference](https://github.com/kshehadeh/toby/blob/main/docs/server-api.md).
@@ -64,10 +50,10 @@ See the source
 
 `@toby/core` is the shared harness. It contains the chat turn pipeline, AI model
 runtime, tool wiring, plugin/integration registry, configuration helpers,
-memory, session storage, logging, and daemon-safe workflows.
+memory, session storage, logging, and service-safe workflows.
 
-Put behavior here when it can run without a UI framework—so Toby.app, the CLI,
-scheduled jobs, and headless inbound flows share the same path.
+Put behavior here when it can run without a UI framework—so Toby.app, scheduled
+jobs, and headless inbound flows share the same path.
 
 For implementation details, see the source docs:
 
@@ -79,7 +65,7 @@ For implementation details, see the source docs:
 
 Plugins are installable TypeScript **bun-package** directories (legacy standalone
 executables are still discoverable). Toby finds them under `~/.toby/plugins/`,
-invokes one subcommand at a time (or a long-lived `inbound run` process),
+invokes one protocol operation at a time (or a long-lived inbound process),
 passes configuration through stdin, and reads JSON from stdout.
 
 **All new plugins must be TypeScript bun-packages.** When macOS frameworks or

@@ -123,7 +123,7 @@ What do you know about my meeting preferences?
 
 ## Daily automated brief
 
-**Setup:** Email connected, [daemon running](./schedules), schedule created in `toby schedules`.
+**Setup:** Email connected, Toby.app running so schedules can fire, and a schedule created in **Toby.app → Schedules**.
 
 | Field | Value |
 | ----- | ----- |
@@ -146,12 +146,7 @@ What do you know about my meeting preferences?
 Toby.app → Projects → + → rename to "Weekly Overview"
 ```
 
-**Add durable guidance** (from the project inspector / Finder):
-
-```bash
-# Open the project folder from the inspector, then edit AGENTS.md
-# e.g. goals, tone, required sections for the weekly overview
-```
+**Add durable guidance:** Open the project folder from the inspector (Reveal in Finder), then edit `AGENTS.md` with goals, tone, and required sections for the weekly overview.
 
 **Create a project-local skill** for consistent formatting (in a project chat):
 

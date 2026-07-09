@@ -10,14 +10,15 @@ Toby integrations ship as **installable plugins**. All new plugins **must** be
 `manifest.json` and TypeScript entrypoint, executed via Toby's bundled Bun
 runtime. No compilation step required.
 
-The only native macOS code in the Toby repository is the Toby.app itself
-(`apps/toby-app/`). When a plugin needs macOS framework access (EventKit,
-Shortcuts, system APIs, TCC-protected resources), the TypeScript plugin
-delegates those operations to Toby.app's native API server rather than
-compiling its own native binary. See `toby-plugin-macos` and
-`toby-plugin-applecalendar` for reference.
+The only native macOS code in the Toby product is the Toby.app itself. When a
+plugin needs macOS framework access (EventKit, Shortcuts, system APIs,
+TCC-protected resources), the TypeScript plugin delegates those operations to
+Toby.app's native API server rather than compiling its own native binary. See
+the macOS and Apple Calendar plugins for reference.
 
-Both formats implement the same **protocol v1** contract: Toby passes credentials and session state on **stdin** and reads **JSON on stdout**. Plugins must **not** read or write `~/.toby/` directly.
+Plugins implement a **protocol v1** contract: Toby passes credentials and session
+state on **stdin** and reads **JSON on stdout**. Plugins must **not** read or
+write `~/.toby/` directly.
 
 ## Choosing a plugin type
 
@@ -25,19 +26,21 @@ Both formats implement the same **protocol v1** contract: Toby passes credential
 |--| ------------------------ | ---------------------- |
 | **Format** | Directory with `manifest.json` + `.ts` entrypoint | Single compiled executable file |
 | **Runtime** | Toby's bundled Bun runtime | None — the binary is self-contained |
-| **Build step** | None (install the directory directly) | Compile with `bun build --compile`, SwiftPM, etc. |
-| **Dependencies** | `package.json` + `node_modules/` (vendored or installed at install time) | Linked at compile time |
+| **Build step** | None (install the directory directly) | Compile ahead of time |
+| **Dependencies** | `package.json` + `node_modules/` (vendored or installed when discovered) | Linked at compile time |
 | **Best for** | All new plugins — API integrations, web services, and macOS system controls routed through Toby.app | Existing compiled binaries only — do not create new ones |
-| **Reference** | `toby-plugin-sample-ts`, `toby-plugin-macos`, `toby-plugin-applecalendar` | (none — all migrated to bun-package) |
+| **Reference** | Sample TypeScript plugin, macOS, Apple Calendar | (none — all first-party plugins migrated to bun-package) |
 
 **Rule of thumb:** Always use a TypeScript package plugin. For macOS system
 controls and Calendar/EventKit access, route through Toby.app's native API
-server from a TypeScript plugin (as `toby-plugin-macos` and
-`toby-plugin-applecalendar` do) rather than building a native binary.
+server from a TypeScript plugin rather than building a native binary.
 
 ## TypeScript package plugins (bun-package)
 
-A TypeScript package plugin is a directory containing a `manifest.json`, a `package.json`, and a TypeScript entrypoint. Toby discovers the directory, reads the manifest, and invokes the entrypoint via `bun run <entry> <args>` with `cwd` set to the plugin directory.
+A TypeScript package plugin is a directory containing a `manifest.json`, a
+`package.json`, and a TypeScript entrypoint. Toby discovers the directory, reads
+the manifest, and invokes the entrypoint with the protocol arguments, with
+`cwd` set to the plugin directory.
 
 ### Directory layout
 
@@ -49,7 +52,9 @@ my-plugin/
   node_modules/       # optional — vendored dependencies
 ```
 
-The plugin name comes from the `name` field in `manifest.json` (not the directory name). Toby installs the directory as `~/.toby/plugins/toby-plugin-<name>/`.
+The plugin name comes from the `name` field in `manifest.json` (not the
+directory name). Installed plugins live as
+`~/.toby/plugins/toby-plugin-<name>/`.
 
 ### Manifest format (`manifest.json`)
 
@@ -71,8 +76,8 @@ The plugin name comes from the `name` field in `manifest.json` (not the director
 
 | Field | Required | Meaning |
 | ----- | -------- | ------- |
-| `name` | yes | Integration CLI name (must match `^[a-z0-9_-]+$`) |
-| `displayName` | yes | Human label in UI and status |
+| `name` | yes | Integration id (must match `^[a-z0-9_-]+$`) |
+| `displayName` | yes | Human label in the Integrations UI |
 | `description` | yes | One-line summary |
 | `version` | yes | Plugin release version |
 | `protocolVersion` | yes | Must be `"1"` for this spec |
@@ -89,39 +94,46 @@ Toby resolves the Bun runtime in the following order:
 2. `~/.toby/helpers/bun` (bundled in release installs)
 3. `bun` on `PATH` (development mode)
 
-Release builds bundle a Bun binary so TypeScript plugins work without a user-installed global `bun`.
+Release builds bundle a Bun binary so TypeScript plugins work without a
+user-installed global `bun`.
 
-### Install and dependencies
+### Install for local use
 
-```bash
-# Install the directory directly — no build step needed
-toby plugins install ./my-plugin
+First-party plugins are already installed with Toby.app. For a custom plugin:
 
-# Or symlink for local development
-toby plugins install ./my-plugin --link --force
-```
+1. Copy (or symlink) your plugin directory to
+   `~/.toby/plugins/toby-plugin-<name>/`.
+2. Ensure `manifest.json` has a valid `name` and runtime entry.
+3. Restart Toby.app (or use **`/restart-server`** in chat) so discovery reloads.
+4. Open **Integrations** — your plugin should appear by its display name.
+5. Enter credentials, click **Connect**, and try tools in chat.
 
-If `node_modules/` is not present in the plugin directory, Toby runs `bun install` automatically at install time (best-effort, requires a Bun runtime). For production plugins, vendor `node_modules/` to avoid network dependency at install time.
+If `node_modules/` is not present, Toby may install dependencies with the
+bundled Bun runtime when it first loads the plugin. For production plugins,
+vendor `node_modules/` so install does not need network access.
 
-### Invocation
+### Invocation (protocol)
 
-Toby invokes the entrypoint with the same argv matrix as binary plugins:
+Toby invokes the entrypoint with the same argv matrix as binary plugins. You
+normally do not run these yourself—the app does when you open Integrations,
+click Connect, or use tools in chat:
 
-```bash
+```text
 <bun-path> run ./src/index.ts status
 <bun-path> run ./src/index.ts tools list
 <bun-path> run ./src/index.ts tools execute
 ```
 
-The JSON protocol (stdin/stdout/stderr, exit codes, subcommands) is identical to binary plugins. See the [protocol subcommands](#protocol-subcommands) section below for the full contract.
+The JSON protocol (stdin/stdout/stderr, exit codes, subcommands) is identical to
+binary plugins. See the [protocol subcommands](#protocol-subcommands) section
+below for the full contract.
 
 ## Binary plugins (legacy)
 
 Binary plugins are standalone executables that Toby spawns directly. They are
 language-agnostic — any compiled binary works as long as it implements the
 protocol. **Do not create new binary plugins.** All new plugins must be
-TypeScript package plugins. Existing binary plugins should be migrated to
-bun-package format (see the `toby-ts-plugin` skill).
+TypeScript package plugins.
 
 :::note[Legacy format]
 
@@ -131,17 +143,17 @@ TypeScript plugin that delegates to Toby.app's native API server.
 
 :::
 
-Toby uses ordinary process spawn on the binary path. Your plugin does not need Bun, Node, or any particular runtime on the user's machine—only your compiled executable (or script with a shebang).
-
-For each operation (connect, list tools, run a tool, …), Toby spawns your binary once, passes optional JSON on stdin, reads one JSON object from stdout, and checks the exit code:
+For each operation (connect, list tools, run a tool, …), Toby spawns your binary
+once, passes optional JSON on stdin, reads one JSON object from stdout, and
+checks the exit code:
 
 ```text
 ~/.toby/plugins/toby-plugin-myapp <command> [subcommand]
 ```
 
-Examples:
+Examples of what Toby runs internally:
 
-```bash
+```text
 ~/.toby/plugins/toby-plugin-myapp status
 ~/.toby/plugins/toby-plugin-myapp connect          # stdin: config envelope
 ~/.toby/plugins/toby-plugin-myapp config shape
@@ -149,7 +161,8 @@ Examples:
 ~/.toby/plugins/toby-plugin-myapp tools execute    # stdin: tool request JSON
 ```
 
-After the response is parsed, the subprocess exits. Chat tools and connect flows all use this same one-shot pattern.
+After the response is parsed, the subprocess exits. Chat tools and connect flows
+all use this same one-shot pattern.
 
 ## Plugin naming and discovery
 
@@ -157,18 +170,14 @@ Both plugin formats use the same naming convention and discovery locations.
 
 | Rule | Detail |
 | ---- | ------ |
-| **Name** | `toby-plugin-<name>` where `<name>` matches `^[a-z0-9_-]+$` (this becomes the CLI integration name). For TypeScript plugins, `<name>` comes from `manifest.json`. For binary plugins, it's the filename. |
+| **Name** | `toby-plugin-<name>` where `<name>` matches `^[a-z0-9_-]+$` (this becomes the integration id). For TypeScript plugins, `<name>` comes from `manifest.json`. For binary plugins, it's the filename. |
 | **Location** | `~/.toby/plugins/` (or `$TOBY_DIR/plugins/` when `TOBY_DIR` is set) |
-| **Binary permissions** | Binary plugins must be executable (`chmod +x`) |
+| **Binary permissions** | Binary plugins must be executable |
 | **Collisions** | The name must not match an existing built-in integration |
 
-Toby discovers plugins from these locations, in precedence order:
-
-1. The directory containing the running `toby` binary (for development)
-2. The repository's `dist/` directory (for local development)
-3. `~/.toby/plugins/` (for installed plugins)
-
-Install with `toby plugins install <path>` (accepts a binary file, a directory with a binary, or a TypeScript plugin directory with `manifest.json`). Run `toby plugins list` to confirm discovery.
+Toby discovers plugins primarily from `~/.toby/plugins/` after install. Place
+your plugin there and restart the app (or restart the local service from chat)
+to pick up changes.
 
 ## Streams, exit codes, and limits
 
@@ -190,11 +199,13 @@ When stdin is empty for envelope-based commands, treat `config` and `state` as `
 | `1` | Business failure (`ok: false`) |
 | `2` | Contract or usage error (bad argv, malformed JSON, unknown subcommand) |
 
-Unknown commands or invalid usage should exit **`2`** with JSON like `{ "ok": false, "error": "…", "code?": "…" }`.
+Unknown commands or invalid usage should exit **`2`** with JSON like
+`{ "ok": false, "error": "…", "code?": "…" }`.
 
 ### Timeouts
 
-Each subprocess has a **120 second** timeout and **4 MiB** stdout limit. Long-running API work must finish within that window.
+Each subprocess has a **120 second** timeout and **4 MiB** stdout limit.
+Long-running API work must finish within that window.
 
 ## Config envelope (stdin)
 
@@ -213,32 +224,34 @@ Many subcommands read a JSON object from stdin:
 
 | Field | Meaning |
 | ----- | ------- |
-| `config` | Credential and integration fields Toby stores in `credentials.json` (namespaced as `<name>.<key>` in the configure UI) |
+| `config` | Credential and integration fields Toby stores in `credentials.json` (namespaced as `<name>.<key>` in the Integrations UI) |
 | `state` | Session fields Toby stores in `config.json` for this integration |
 | `validateTools` | Optional on `status` only—when `true`, return per-tool health rows (see [status](#status)) |
 
 ## Protocol subcommands
 
-Every plugin should implement the subcommands in this table. Toby invokes them with the argv shown.
+Every plugin should implement the subcommands in this table. Toby invokes them
+when you use Integrations, Connect, or chat tools.
 
-| argv | stdin | stdout | Purpose |
-| ---- | ----- | ------ | ------- |
-| `status` | Optional [config envelope](#config-envelope-stdin) | [Status response](#status) | Identity, health, chat prep, doctor checks |
-| `connect` | Config envelope | `{ ok, reason?, config? }` | `toby connect <name>` |
-| `disconnect` | Optional config envelope | `{ ok, reason?, config? }` | `toby disconnect <name>` |
-| `config shape` | *(none)* | `{ ok, fields? }` | Configure UI field definitions |
+| argv | stdin | stdout | When Toby runs it |
+| ---- | ----- | ------ | ----------------- |
+| `status` | Optional [config envelope](#config-envelope-stdin) | [Status response](#status) | Integrations list/detail, health checks |
+| `connect` | Config envelope | `{ ok, reason?, config? }` | **Connect** button in Integrations |
+| `disconnect` | Optional config envelope | `{ ok, reason?, config? }` | **Disconnect** button in Integrations |
+| `config shape` | *(none)* | `{ ok, fields? }` | Integrations field definitions |
 | `config get` | Config envelope | `{ ok, config? }` | Normalized credential readback |
 | `config set` | Config envelope | `{ ok }` | Optional hook after Toby saves credentials |
 | `tools list` | *(none)* | `{ ok, tools? }` | Chat tool catalog |
-| `tools execute` | [Tool request](#tools-execute) | [Tool response](#tools-execute) | Run one chat tool |
-| `setup` | Optional config envelope | [Setup response](#setup-optional) | One-time setup (`toby plugins setup`) |
-| `setup guide` | Optional config envelope | [Setup guide response](#setup-guide-optional) | Onboarding wizard in Toby.app |
+| `tools execute` | [Tool request](#tools-execute) | [Tool response](#tools-execute) | Chat tool execution |
+| `setup` | Optional config envelope | [Setup response](#setup-optional) | Optional one-time setup from the integration detail |
+| `setup guide` | Optional config envelope | [Setup guide response](#setup-guide-optional) | **Setup Guide** wizard in Toby.app |
 
 ---
 
 ### `status`
 
-Reports plugin identity, protocol version, connection state, and metadata used by `toby status`, the configure UI, and `toby plugins doctor`.
+Reports plugin identity, protocol version, connection state, and metadata used
+by the Integrations UI and health checks.
 
 **stdin:** optional config envelope.
 
@@ -262,22 +275,22 @@ Reports plugin identity, protocol version, connection state, and metadata used b
 | Field | Required | Meaning |
 | ----- | -------- | ------- |
 | `ok` | yes | Must be `true` on success |
-| `name` | yes | Integration CLI name (matches binary suffix) |
-| `displayName` | yes | Human label in UI and status |
+| `name` | yes | Integration id (matches plugin name) |
+| `displayName` | yes | Human label in the Integrations UI |
 | `description` | yes | One-line summary |
 | `version` | yes | Plugin release version |
 | `protocolVersion` | yes | Must be `"1"` for this spec |
 | `connected` | yes | Whether Toby should treat the integration as connected |
-| `capabilities` | no | Default `["chat"]`. May include `"inbound"` for daemon @mention listening |
+| `capabilities` | no | Default `["chat"]`. May include `"inbound"` for @mention listening |
 | `providerCategories` | no | e.g. `email`, `calendar`, `tasks`, `contacts`, `chat`, `documents`, `work_tracker` |
 | `details` | no | Extra status text |
 | `resources` | no | Arbitrary tags for status output |
 | `setupAvailable` | no | `true` when the plugin implements `setup` |
-| `setupDescription` | no | Short label for setup in configure / install prompts |
+| `setupDescription` | no | Short label for setup in the Integrations UI |
 
 **Optional extensions on `status`:**
 
-- **`authMethods`** — OAuth or multi-method auth, same shape as built-in integrations:
+- **`authMethods`** — OAuth or multi-method auth:
 
   ```json
   "authMethods": [
@@ -304,7 +317,7 @@ Reports plugin identity, protocol version, connection state, and metadata used b
   ```json
   "chatReadiness": {
     "ok": false,
-    "hint": "Run `toby connect myapp` after configuring credentials."
+    "hint": "Open Integrations, save credentials, then click Connect."
   }
   ```
 
@@ -320,7 +333,8 @@ Reports plugin identity, protocol version, connection state, and metadata used b
 
 ### `connect`
 
-Validates configuration and confirms the integration can be used. Invoked by `toby connect <name>`.
+Validates configuration and confirms the integration can be used. Invoked when
+you click **Connect** in Integrations.
 
 **stdin:** config envelope (required `config`).
 
@@ -336,13 +350,17 @@ or
 { "ok": false, "reason": "API key is required." }
 ```
 
-When `ok` is `true`, Toby writes `connectedAt` into integration state. You may return a **`config`** object to persist tokens or normalized fields (OAuth access/refresh tokens, etc.); Toby merges it into stored credentials.
+When `ok` is `true`, Toby writes `connectedAt` into integration state. You may
+return a **`config`** object to persist tokens or normalized fields (OAuth
+access/refresh tokens, etc.); Toby merges it into stored credentials.
 
 ---
 
 ### `disconnect`
 
-Acknowledges disconnect. Toby clears session state regardless; use this to release remote resources or wipe sensitive credential fields via a **`config`** writeback.
+Acknowledges disconnect. Toby clears session state regardless; use this to
+release remote resources or wipe sensitive credential fields via a **`config`**
+writeback.
 
 **stdin:** optional config envelope.
 
@@ -356,7 +374,8 @@ Acknowledges disconnect. Toby clears session state regardless; use this to relea
 
 ### `config shape`
 
-Returns field definitions for **Configure → Integrations**. Toby namespaces keys as `<name>.<key>`.
+Returns field definitions for **Integrations → your plugin**. Toby namespaces
+keys as `<name>.<key>`.
 
 **stdin:** none.
 
@@ -391,7 +410,8 @@ Returns field definitions for **Configure → Integrations**. Toby namespaces ke
 
 ### `config get`
 
-Optional normalization hook. Toby already stores values from the configure UI; this subcommand lets the plugin return cleaned or inferred config.
+Optional normalization hook. Toby already stores values from the Integrations
+UI; this subcommand lets the plugin return cleaned or inferred config.
 
 **stdin:** config envelope.
 
@@ -408,7 +428,8 @@ Optional normalization hook. Toby already stores values from the configure UI; t
 
 ### `config set`
 
-Optional sync hook after Toby saves credentials (remote registration, hydration, etc.).
+Optional sync hook after Toby saves credentials (remote registration,
+hydration, etc.).
 
 **stdin:** config envelope.
 
@@ -448,7 +469,10 @@ Returns the chat tool catalog for this integration.
 }
 ```
 
-Each tool requires `name`, `description`, and `inputSchema` (JSON Schema object root with `properties`, `required`, and primitive types). Optional: `readOnly` (default `false`). Mark read-only tools when they do not mutate remote state; Toby may cache their results within a chat turn.
+Each tool requires `name`, `description`, and `inputSchema` (JSON Schema object
+root with `properties`, `required`, and primitive types). Optional: `readOnly`
+(default `false`). Mark read-only tools when they do not mutate remote state;
+Toby may cache their results within a chat turn.
 
 ---
 
@@ -500,13 +524,16 @@ Runs one tool during chat.
 }
 ```
 
-Honor **`dryRun`** for mutating tools. Return **`appliedActions`** whenever the tool would change something in production mode.
+Honor **`dryRun`** for mutating tools. Return **`appliedActions`** whenever the
+tool would change something in production mode.
 
 ---
 
 ### `setup` (optional)
 
-For one-time setup (installing macOS Shortcuts, downloading models, etc.). Advertise on `status` with `setupAvailable: true` and optional `setupDescription`.
+For one-time setup (installing macOS Shortcuts, downloading models, etc.).
+Advertise on `status` with `setupAvailable: true` and optional
+`setupDescription`.
 
 **stdin:** optional config envelope.
 
@@ -541,15 +568,20 @@ For one-time setup (installing macOS Shortcuts, downloading models, etc.). Adver
 | `skipped` | no | Step not run because prerequisites are already met |
 | `detail` | no | Extra explanation for the user |
 
-Top-level `ok: true` means the setup command ran. Use top-level `ok: false` only for fatal errors. Individual step failures can set `ok: false` on that action while top-level `ok` stays `true`.
+Top-level `ok: true` means the setup command ran. Use top-level `ok: false` only
+for fatal errors. Individual step failures can set `ok: false` on that action
+while top-level `ok` stays `true`.
 
-Setup is **idempotent**—plugins detect whether work is already done; Toby does not persist setup completion separately.
+Setup is **idempotent**—plugins detect whether work is already done; Toby does
+not persist setup completion separately.
 
 ---
 
 ### `setup guide` (optional)
 
-Provide a guided onboarding experience for the native **Toby.app**. When a user opens an integration in the app's configure view and taps **Setup Guide**, Toby runs `toby-plugin-<name> setup guide` and renders the returned steps.
+Provide a guided onboarding experience for **Toby.app**. When a user opens an
+integration and taps **Setup Guide**, Toby runs `setup guide` on the plugin and
+renders the returned steps.
 
 **stdin:** optional config envelope.
 
@@ -604,13 +636,19 @@ Provide a guided onboarding experience for the native **Toby.app**. When a user 
 | `links` | no | Array of `{ label, url }` buttons |
 | `artifacts` | no | Array of `{ id, label, value, hint? }` copyable values |
 
-If your plugin does not implement `setup guide`, Toby builds a generic guide from `status`, `config shape`, and `authMethods`. Custom guides are especially useful for OAuth integrations so users know exactly which redirect URI and scopes to use.
+If your plugin does not implement `setup guide`, Toby builds a generic guide
+from `status`, `config shape`, and `authMethods`. Custom guides are especially
+useful for OAuth integrations so users know exactly which redirect URI and
+scopes to use.
 
 ---
 
 ## Inbound chat (optional, advanced)
 
-Plugins that listen for @mentions or DMs in a chat platform declare `"inbound"` in `capabilities` (in addition to `"chat"` for tools). Inbound uses a **different transport**: a long-lived subprocess and **newline-delimited JSON** (NDJSON), not the one-shot contract above.
+Plugins that listen for @mentions or DMs in a chat platform declare `"inbound"`
+in `capabilities` (in addition to `"chat"` for tools). Inbound uses a
+**different transport**: a long-lived subprocess and **newline-delimited JSON**
+(NDJSON), not the one-shot contract above.
 
 ```text
 toby-plugin-<name> inbound run
@@ -622,7 +660,9 @@ toby-plugin-<name> inbound run
 | **stdout** | One JSON object per line (messages to Toby) |
 | **stderr** | Diagnostics only |
 
-Toby spawns `inbound run` when the daemon starts inbound for that integration. The process stays alive until Toby sends `{ "type": "shutdown" }` or the daemon stops.
+Toby starts `inbound run` when inbound is enabled for that integration and the
+local service is running. The process stays alive until Toby sends
+`{ "type": "shutdown" }` or the service stops.
 
 Optional `status.inboundPrep` metadata:
 
@@ -654,39 +694,24 @@ Optional `status.inboundPrep` metadata:
 | `getPersonaAppendix` | Request persona-specific appendix text for a turn |
 | `shutdown` | Stop and exit |
 
-See the Slack plugin in the Toby repository for a full inbound reference.
+See the Slack integration guide for a full inbound user setup, and the Slack
+plugin in the Toby repository for a reference implementation.
 
-## Managing plugins (Toby commands)
+## Test your plugin in Toby.app
 
-| Command | Purpose |
-| ------- | ------- |
-| `toby plugins list` | List discovered binaries under `~/.toby/plugins/` |
-| `toby plugins install <path>` | Validate and copy (or symlink) a plugin into the plugins directory |
-| `toby plugins doctor` | Validate naming, `status`, protocol version, and `tools list` for every discovered plugin |
-| `toby plugins inspect <name>` | Show metadata and tool catalog for one plugin |
-| `toby plugins setup <name>` | Run optional one-time setup |
-| `toby plugins uninstall <name>` | Remove the binary and purge stored credentials, config, defaults, and cached tool results |
+| Step | Where |
+| ---- | ----- |
+| Confirm discovery | **Integrations** sidebar — your display name appears |
+| Enter credentials | Integration detail page (fields from `config shape`) |
+| Connect | **Connect** button (runs `connect`) |
+| Check health | Status on the detail page and Integrations list (runs `status`) |
+| Optional setup | Setup action if `setupAvailable` is true |
+| Onboarding wizard | **Setup Guide** if you implement `setup guide` |
+| Use tools | Chat, with the integration selected or mentioned |
 
-**`install` flags:**
-
-| Flag | Effect |
-| ---- | ------ |
-| `--force` | Overwrite an existing managed install |
-| `--link` | Symlink instead of copy (useful while developing locally) |
-| `--setup` | Run setup after install without prompting (requires a TTY when setup needs interaction) |
-| `--no-setup` | Skip the post-install setup prompt |
-
-`install` validates the same checks as `doctor`: binary name, successful `status`, supported `protocolVersion`, and parseable `tools list`. It rejects names that collide with built-in integrations.
-
-After install:
-
-```bash
-toby plugins doctor
-toby config          # open Toby.app settings for credentials
-toby connect myapp
-toby status integration -i myapp
-# Then try tools in Toby.app chat with the integration selected
-```
+To remove a custom plugin: quit Toby.app, delete
+`~/.toby/plugins/toby-plugin-<name>/`, and remove any leftover entries for that
+name under `~/.toby/credentials.json` and `~/.toby/config.json` if needed.
 
 ## Authoring checklist
 
@@ -698,56 +723,49 @@ toby status integration -i myapp
 4. Return `chatModelPrep` on `status` for chat-capable plugins.
 5. Honor `dryRun` in `tools execute` for mutating tools.
 6. Return `appliedActions` strings when tools change remote state.
-7. Install with `toby plugins install`, then run `toby plugins doctor`.
+7. Install under `~/.toby/plugins/`, restart Toby.app, then Connect and chat-test.
 8. Optional: implement `setup` and set `setupAvailable` on `status`.
 9. Optional: implement `setup guide` for a native-app onboarding wizard.
-10. Optional: implement `inbound run` when the integration should respond to daemon @mentions.
+10. Optional: implement `inbound run` when the integration should respond to @mentions.
 
 ### Additional steps for TypeScript package plugins
 
 1. Create a `manifest.json` with `name`, `displayName`, `description`, `version`, `protocolVersion`, and `runtime.type: "bun"` / `runtime.entry`.
-2. Ensure the `name` field matches the desired integration CLI name (`^[a-z0-9_-]+$`).
+2. Ensure the `name` field matches the desired integration id (`^[a-z0-9_-]+$`).
 3. Include a `package.json` for dependency management.
-4. Vendor `node_modules/` or let Toby run `bun install` at install time.
+4. Vendor `node_modules/` or allow Toby to install dependencies when the plugin is first loaded.
 
 ### Additional steps for binary plugins (legacy only)
 
 **Do not create new binary plugins.** These steps apply only to maintaining
 existing compiled binaries until they are migrated to bun-package format.
 
-1. Name the binary `toby-plugin-<name>` and make it executable (`chmod +x`).
-2. Compile with `bun build --compile` (TypeScript) or SwiftPM (Swift) — the output must be a standalone executable.
+1. Name the binary `toby-plugin-<name>` and make it executable.
+2. Compile to a standalone executable that implements the protocol above.
 
 ## Reference implementations
 
-The Toby repository includes working plugins you can copy from:
+The Toby repository includes working plugins you can copy from (paths under
+`apps/plugin-*` in the source tree):
 
-| Plugin | Format | Language | Notes |
-| ------ | ------ | -------- | ----- |
-| `toby-plugin-sample-ts` | TypeScript package | TypeScript (Bun runtime) | Minimal bun-package plugin—start here for API integrations |
-| `toby-plugin-email` | TypeScript package | TypeScript | IMAP/SMTP email, auth methods, config writeback |
-| `toby-plugin-todoist` | Bun-package | TypeScript | API key auth, task tools; vendored `@doist/todoist-sdk` |
-| `toby-plugin-slack` | TypeScript package | TypeScript | Chat tools + `inbound run` (Socket Mode); `@slack/bolt` |
-| `toby-plugin-jira` | Bun-package | TypeScript | Read-only Jira REST API integration |
-| `toby-plugin-notion` | Bun-package | TypeScript | Documents provider; Notion SDK |
-| `toby-plugin-applecalendar` | Bun-package | TypeScript | EventKit calendar operations via Toby.app native API |
-| `toby-plugin-applecontacts` | Bun-package | TypeScript | Contacts.framework via Toby.app native API |
-| `toby-plugin-applereminders` | Bun-package | TypeScript | EventKit reminders via Toby.app native API |
-| `toby-plugin-macos` | Bun-package | TypeScript | macOS system controls via Toby.app native API; optional `setup` for Shortcuts |
+| Plugin | Format | Notes |
+| ------ | ------ | ----- |
+| Sample TypeScript plugin | TypeScript package | Minimal bun-package plugin—start here for API integrations |
+| Email | TypeScript package | IMAP/SMTP email, auth methods, config writeback |
+| Todoist | TypeScript package | API key auth, task tools |
+| Slack | TypeScript package | Chat tools + `inbound run` (Socket Mode) |
+| Jira | TypeScript package | Read-only Jira REST API integration |
+| Notion | TypeScript package | Documents provider |
+| Apple Calendar | TypeScript package | EventKit via Toby.app native API |
+| Apple Contacts | TypeScript package | Contacts via Toby.app native API |
+| Apple Reminders | TypeScript package | EventKit reminders via Toby.app native API |
+| macOS | TypeScript package | System controls via Toby.app native API; optional `setup` for Shortcuts |
 
-Build and install examples from a git clone:
-
-```bash
-# TypeScript package plugin (no build step needed)
-toby plugins install ./apps/plugin-sample-ts --link --force
-
-toby plugins doctor
-```
-
-Release archives bundle first-party plugins into `~/.toby/plugins/` automatically; developers link local builds as shown above.
+Release archives bundle first-party plugins into `~/.toby/plugins/`
+automatically with Toby.app.
 
 ## Next steps
 
 - [Integrations overview](../integrations/overview) — connect and use plugins from chat
-- [Configure and connect](../getting-started/configure-and-status) — credentials and `toby connect`
+- [Configure and connect](../getting-started/configure-and-status) — credentials and Connect in the UI
 - Toby repo: `docs/plugin-protocol.md` — full protocol spec for contributors and agents

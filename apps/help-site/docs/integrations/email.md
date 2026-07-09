@@ -7,12 +7,7 @@ title: Email
 
 Connect Toby to any IMAP/SMTP mailbox to read, search, and organize email from chat.
 
-**CLI name:** `email`
-
-Email ships as an installable plugin (`toby-plugin-email`). Release installs
-and upgrades place it in `~/.toby/plugins/` automatically. When building from
-source, run `bun run build:plugin:email` then
-`toby plugins install ./dist/toby-plugin-email`.
+Email ships as a plugin bundled with Toby.app installs and updates under `~/.toby/plugins/`.
 
 ## Prerequisites
 
@@ -21,7 +16,7 @@ source, run `bun run build:plugin:email` then
 - Your SMTP **host**, **port**, **username**, and **password**
 
 :::tip[Use the Setup Guide in Toby.app]
-On macOS, open **Toby.app** → **Integrations → Email** and click **Setup Guide**. The wizard shows the fields you need and walks you through entering credentials and connecting.
+Open **Toby.app** → **Integrations → Email** and click **Setup Guide**. The wizard shows the fields you need and walks you through entering credentials and connecting.
 :::
 
 ## How IMAP/SMTP credentials work
@@ -54,29 +49,19 @@ Open **Toby.app → Integrations → Email** and enter your IMAP and SMTP creden
 | SMTP Username | Your email address or SMTP login |
 | SMTP Password | Account password or App Password (stored masked) |
 
-Save the configuration. (You can also run `toby config` in the terminal.)
+Save the configuration.
 
 ## Connect
 
-Click **Connect** in Toby.app, or run:
-
-```bash
-toby connect email
-```
-
-Toby validates your IMAP and SMTP credentials and marks the integration connected.
+Click **Connect** on the Email detail page. Toby validates your IMAP and SMTP credentials and marks the integration connected.
 
 ## Verify
 
-```bash
-toby status integration -i email
-```
+Return to **Integrations** in the sidebar. Email should show as connected and healthy. You can also open the Email detail page to confirm status text from Toby.
 
 ## Disconnect
 
-```bash
-toby disconnect email
-```
+Open the Email detail page and click **Disconnect**. This clears Toby's connection flag — it does not delete your mail at the provider.
 
 ## Example chat prompts
 

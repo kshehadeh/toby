@@ -7,7 +7,7 @@ title: Schedules
 
 **Schedules** are recurring jobs that run a **prompt** with a chosen **persona** on a **cron** timetable—for example, a daily inbox summary every morning at 9:00.
 
-Schedule definitions are stored in `~/.toby/chat.sqlite` alongside chat sessions. A background **daemon** checks which schedules are due and runs them.
+Schedule definitions are stored in `~/.toby/chat.sqlite` alongside chat sessions. While Toby is running, a background service checks which schedules are due and runs them.
 
 ## What a schedule includes
 
@@ -23,46 +23,32 @@ Example cron: `0 9 * * *` — every day at 9:00 AM (server local time).
 
 ## Add a schedule
 
-### Schedules UI
+### Schedules window
 
-```bash
-toby schedules
-```
+Open **Toby.app** and click **Schedules** in the sidebar.
 
-Create, edit, delete, enable or disable schedules, **run now** for a test, and view past runs.
+![Toby.app Schedules window](/img/toby-app-schedules.png)
+
+From there you can create, edit, delete, enable or disable schedules, **Run now** for a test, and view past runs.
 
 ### From chat
 
 Type **`/schedules`** to open the same manager without leaving chat.
 
-## Run schedules automatically
+## How schedules run automatically
 
-Scheduled prompts only fire when the daemon is running.
+Scheduled prompts only fire while Toby’s local background service is running. **Toby.app starts that service when you launch the app**, so keeping Toby open (or letting it run in the background) is enough for schedules to fire.
 
-### Start the daemon
+If something seems stuck:
 
-```bash
-toby daemon start
-```
+- Quit and reopen **Toby.app**, or
+- In chat, type **`/restart-server`** to restart the local service
 
-Or in chat: **`/restart-server`**
-
-The daemon polls on an interval (default about 60 seconds) for due schedules.
-
-### Check or stop
-
-```bash
-toby daemon status
-toby daemon stop
-```
-
-In chat: **`/restart-server`** (restarts the server; use `toby daemon stop` to stop without restarting)
-
-While running, the daemon uses a lock file at `~/.toby/daemon.lock`.
+The service polls on an interval (default about 60 seconds) for due schedules.
 
 ## Manual run
 
-In `toby schedules`, select a schedule and choose **Run now** to execute immediately without waiting for cron.
+In the **Schedules** window, select a schedule and choose **Run now** to execute immediately without waiting for cron.
 
 ## Example schedule
 
@@ -72,13 +58,13 @@ In `toby schedules`, select a schedule and choose **Run now** to execute immedia
 **Cron:** `0 9 * * *`  
 **Enabled:** Yes  
 
-After connecting Email and starting the daemon, you get a daily brief at 9am.
+After connecting Email and leaving Toby running, you get a daily brief at 9am.
 
 ## Tips
 
 - Connect the integrations your prompt needs (Email, Todoist, etc.) before relying on a schedule.
 - Use a persona whose instructions match the job (brief vs detailed).
-- Test with **Run now** before enabling a aggressive cron.
+- Test with **Run now** before enabling an aggressive cron.
 
 ## Related
 

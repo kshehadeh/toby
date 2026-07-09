@@ -10,7 +10,7 @@ title: Introduction
 
 # Welcome to Toby
 
-Toby is a native macOS app that organizes and summarizes work across integrations like Email, Todoist, Slack, Jira, and Apple Calendar. A SwiftUI interface gives you chat, configuration, recordings, schedules, and skills in one place, all backed by a local daemon and core harness. A terminal CLI is also available for automation and advanced workflows.
+Toby is a native macOS app that organizes and summarizes work across integrations like Email, Todoist, Slack, Jira, and Apple Calendar. A SwiftUI interface gives you chat, configuration, recordings, schedules, and skills in one place, all backed by a local background service that runs on your Mac.
 
 It combines:
 
