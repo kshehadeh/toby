@@ -425,6 +425,7 @@ final class ConfigureStore {
 				let response = try await client.fetchConfigureTree()
 				apply(response: response, resetDraft: false)
 			}
+			onChangesSaved?()
 		} catch {
 			errorMessage = error.localizedDescription
 		}
