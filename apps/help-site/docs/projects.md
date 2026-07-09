@@ -33,8 +33,6 @@ This makes projects ideal for recurring workflows like weekly overviews, monthly
 
 In Toby.app, open **Projects** from the sidebar and click **+**. Toby creates the project folder, selects the project, and shows the project inspector.
 
-You can also create a project from chat with `/project` and **Add Project**.
-
 ## Project workspace
 
 The Projects window combines three areas:
@@ -127,7 +125,7 @@ Over time, the `outputs/` folder accumulates each weekly overview, all produced 
 
 ## Related
 
-- [Skills](./skills) — reusable instructions that projects can pin
-- [Personas](./personas) — who Toby is being (complements what a project's context provides)
-- [Memories](./memories) — durable facts, separate from project context
+- [Skills](./skills) — reusable instructions, including project-local skills
+- [Personas](./personas) — who Toby is being (complements project guidance)
+- [Memories](./memories) — durable facts, separate from project guidance
 - [Schedules](./schedules) — automate recurring project workflows

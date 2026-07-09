@@ -108,11 +108,14 @@ Each integration declares one or more **provider categories**. A category descri
 | Email | `email` | `email` |
 | Apple Calendar | `applecalendar` | `calendar` |
 | Todoist | `todoist` | `tasks` |
+| Apple Reminders | `applereminders` | `tasks` |
+| Apple Contacts | `applecontacts` | `contacts` |
 | Slack | `slack` | `chat` |
 | Notion | `notion` | `documents` |
 | Jira | `jira` | `work_tracker` |
+| macOS | `macos` | (system tools; not a provider category) |
 
-Only **email** currently has one first-party integration in that category (Email). Defaults become important when you connect multiple integrations in the same category or when you want schedules to target a specific provider.
+Defaults become important when you connect multiple integrations in the same category (for example Todoist and Apple Reminders for tasks) or when you want schedules to target a specific provider.
 
 ### Why categories exist
 
@@ -123,7 +126,7 @@ Categories let Toby reason about *roles* instead of a flat list of app names:
 3. **Multi-integration chat** — When several integrations are active in one session, the combined system prompt lists your default providers so the model reaches for the right tools (for example your chosen email provider when you ask to triage mail).
 4. **New integrations** — Module authors assign `providerCategories` in code so Toby can register the integration in the right bucket for configure, schedules, and routing—without hard-coding vendor names across the codebase.
 
-Categories do **not** replace explicit scoping. You can still start a message with an integration name, use the integration picker in the chat window, or run `toby chat --integration email` from the terminal to choose exactly which integrations are in scope.
+Categories do **not** replace explicit scoping. You can still start a message with an integration name or use the integration picker in the Toby.app chat window to choose exactly which integrations are in scope.
 
 ### Set your defaults
 
@@ -141,7 +144,7 @@ If you only connect one integration per category, defaults are optional—Toby c
 email summarize unread messages from this week
 ```
 
-**Pick explicitly** — Use the integration picker in the chat window, or run `toby chat --integration email --integration todoist "..."` from the terminal.
+**Pick explicitly** — Use the integration picker in the Toby.app chat window.
 
 ## Web content tools
 
@@ -160,15 +163,19 @@ Jira is the first **Work Tracker** integration. It adds read-only chat tools for
 
 Notion is the first **Documents Provider** integration. It adds read tools for searching pages/databases and listing page or block content, plus write tools for creating pages and appending markdown-derived content to existing pages. Use it for prompts about notes, docs, wikis, knowledge-base content, meeting notes, or durable project context.
 
-## Other commands
+## CLI helpers
 
-Some integrations also support shared CLI commands:
+Integrations are used primarily through **Toby.app chat**. The maintenance CLI
+still supports lifecycle commands:
 
 ```bash
-toby summarize email
-toby organize todoist --dry-run
+toby connect email
+toby status integration -i email
+toby disconnect email
 ```
+
+For installable plugins, see `toby plugins list` / `doctor` / `install`.
 
 ## Next steps
 
-Pick an integration from the table above and follow its setup guide.
+Pick an integration from the grid above and follow its setup guide.

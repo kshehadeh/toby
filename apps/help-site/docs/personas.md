@@ -30,7 +30,7 @@ Open **Toby.app** and click **Settings** in the sidebar, then open **Personas**:
 Personas are stored in `~/.toby/config.json`.
 
 :::tip[Terminal alternative]
-Run `toby config` to manage personas from the terminal configure UI.
+Run `toby config` to open Toby.app settings from the terminal.
 :::
 
 ### Prompt mode
@@ -48,7 +48,7 @@ Most users start with `add` so integration-specific tool guidance stays intact.
 | ------ | --- |
 | Default | Set default in Settings; new sessions use it |
 | Switch in chat | Use the persona picker in the chat toolbar |
-| One-shot CLI | `toby chat --persona "Technologist"` (inside `toby chat`, `-p` is persona; at the root, `-p` is an initial **prompt**) |
+| Project default | Optional persona on a [project](./projects) applies to new project chats |
 
 ## Example personas
 
@@ -76,7 +76,7 @@ Most users start with `add` so integration-specific tool guidance stays intact.
 | --- | ------- | ----- |
 | Role | Lens and priorities | How to perform a task |
 | Storage | `config.json` | `~/.toby/skills/.../SKILL.md` |
-| Selection | You choose (default, `/persona`, `--persona`) | Toby picks relevant skills per message |
+| Selection | You choose (default or persona picker) | Toby picks relevant skills per message |
 | Example | “Act like a technologist” | “Steps to organize email by project” |
 
 See [Skills](./skills) and [Examples](./examples) for combined workflows.

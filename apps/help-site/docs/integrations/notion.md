@@ -74,13 +74,8 @@ Example prompts:
 - “Append this decision log to the project page.”
 - “Find wiki pages about customer onboarding.”
 
-You can scope chat to Notion explicitly:
-
-```bash
-toby chat --integration notion "Create a page for today's meeting notes"
-```
-
-or:
+You can scope chat to Notion in Toby.app by selecting Notion in the integration
+picker, or by leading with the integration name:
 
 ```text
 notion create a page for today's meeting notes

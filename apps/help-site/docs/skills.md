@@ -55,9 +55,9 @@ mkdir -p ~/.toby/skills/organize-email
 
 Open **Toby.app** and click **Skills** in the sidebar. The Skills window lists installed skills with descriptions. You can add new skills, delete existing ones, and run a skill directly from the toolbar.
 
-In the terminal, run `toby skills` to list, view, edit (opens your editor), and delete skills. In chat, type **`/skills`** to open the same manager.
+In the terminal, run `toby skills` to list, view, edit (opens your editor), and delete skills.
 
-There is no in-app “new skill wizard”—create the folder and `SKILL.md` file first, then refresh via chat or `toby skills`.
+You can also create skills on disk (folder + `SKILL.md`) or ask Toby in chat to draft one with **createLocalSkill**.
 
 ### Draft from chat (advanced)
 
@@ -74,19 +74,17 @@ In chat, Toby can use the **createLocalSkill** tool to draft a full `SKILL.md` a
 
 The same skill with different personas can produce different prioritization—for example, an email-organize skill under a technologist vs project manager persona (see [Examples](./examples)).
 
-## Pinning skills to a project
+## Project-local skills
 
-A [project](./projects) can declare **pinned skills** — skills that are relevant to that project's recurring workflow. Pinning makes the association explicit so you remember which skills to use, and the project detail view shows them at a glance.
+A [project](./projects) can include skills under its own folder:
 
-To pin a skill: open **Toby.app → Settings → Projects**, select the project, and enter comma-separated skill names in the **Skills** field.
-
-## Debug skill selection
-
-```bash
-toby chat --debug
+```text
+~/.toby/projects/<project-id>/.agent/skills/<skill-name>/SKILL.md
 ```
 
-Shows the skill catalog and which skills pretreatment selected for the turn.
+Those skills load automatically when the project is active. Prefer project-local
+skills for procedures that should not apply globally. Global skills under
+`~/.toby/skills/` still work for every session.
 
 ## Related
 

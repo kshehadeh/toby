@@ -31,7 +31,7 @@ On macOS, you can start a recording inside the active chat session. The recordin
 
 ## Projects
 
-Use the project picker in the chat toolbar to open or create a project. Projects collect AI-generated artifacts with their own reference context and pinned skills. See [Projects](../projects) for details.
+Use the project picker in the chat toolbar (or open **Projects** in the sidebar) to open or create a project. Projects collect guidance (`AGENTS.md`), project-local skills, and generated outputs. See [Projects](../projects) for details.
 
 ## Next steps
 

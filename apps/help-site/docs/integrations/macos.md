@@ -78,7 +78,7 @@ toby plugins doctor
 | System information | `macSystemInfo` | sysctl / ProcessInfo |
 | Notifications | `macNotificationsPeek` | **Not supported** |
 
-Mutating calls respect **dry run** modes from `toby chat` when enabled.
+Mutating calls respect **dry run** when the chat session has dry-run enabled.
 
 ## Example chat prompts
 

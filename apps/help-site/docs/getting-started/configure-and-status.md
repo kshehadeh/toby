@@ -37,7 +37,7 @@ Credentials live in `~/.toby/credentials.json`. Connection flags live in `~/.tob
 
 Click **Connect** on the integration detail page. Toby validates credentials and marks the integration connected.
 
-OAuth integrations (Slack, Azure AD) open a browser or local callback during connect. API-key integrations validate credentials and connect immediately.
+OAuth integrations (for example Slack) open a browser or local callback during connect. API-key integrations validate credentials and connect immediately.
 
 ## 4. Check status
 
@@ -54,11 +54,11 @@ Open the integration detail page and click **Disconnect**. This clears Toby's co
 | Email | [Email](../integrations/email) |
 | Todoist | [Todoist](../integrations/todoist) |
 | Slack | [Slack](../integrations/slack) |
-| Azure AD | [Azure AD](../integrations/azuread) |
 | Apple Calendar (macOS) | [Apple Calendar](../integrations/apple-calendar) |
 | macOS system controls | [macOS](../integrations/macos) |
 | Web Search | [Web Search](../integrations/web-search) |
 | Jira | [Jira](../integrations/jira) |
+| Notion | [Notion](../integrations/notion) |
 
 ## Next steps
 

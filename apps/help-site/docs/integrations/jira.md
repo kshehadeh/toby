@@ -74,13 +74,8 @@ Example prompts:
 - “List Jira projects I can access.”
 - “Search Jira for bugs in the current sprint ordered by priority.”
 
-You can scope chat to Jira explicitly:
-
-```bash
-toby chat --integration jira "Find unresolved issues assigned to me"
-```
-
-or:
+You can scope chat to Jira in Toby.app by selecting the Jira integration in the
+chat picker, or by leading with the integration name:
 
 ```text
 jira find unresolved issues assigned to me

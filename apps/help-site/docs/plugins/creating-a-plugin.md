@@ -194,7 +194,7 @@ Unknown commands or invalid usage should exit **`2`** with JSON like `{ "ok": fa
 
 ### Timeouts
 
-Each subprocess has a **25 second** timeout and **4 MiB** stdout limit. Long-running API work must finish within that window.
+Each subprocess has a **120 second** timeout and **4 MiB** stdout limit. Long-running API work must finish within that window.
 
 ## Config envelope (stdin)
 
@@ -682,10 +682,10 @@ After install:
 
 ```bash
 toby plugins doctor
-toby config          # configure credentials
+toby config          # open Toby.app settings for credentials
 toby connect myapp
 toby status integration -i myapp
-toby chat --integration myapp "try my tools"
+# Then try tools in Toby.app chat with the integration selected
 ```
 
 ## Authoring checklist
@@ -727,10 +727,12 @@ The Toby repository includes working plugins you can copy from:
 | `toby-plugin-sample-ts` | TypeScript package | TypeScript (Bun runtime) | Minimal bun-package plugin—start here for API integrations |
 | `toby-plugin-email` | TypeScript package | TypeScript | IMAP/SMTP email, auth methods, config writeback |
 | `toby-plugin-todoist` | Bun-package | TypeScript | API key auth, task tools; vendored `@doist/todoist-sdk` |
-| `toby-plugin-azuread` | TypeScript package | TypeScript | Full parity migration example |
 | `toby-plugin-slack` | TypeScript package | TypeScript | Chat tools + `inbound run` (Socket Mode); `@slack/bolt` |
 | `toby-plugin-jira` | Bun-package | TypeScript | Read-only Jira REST API integration |
+| `toby-plugin-notion` | Bun-package | TypeScript | Documents provider; Notion SDK |
 | `toby-plugin-applecalendar` | Bun-package | TypeScript | EventKit calendar operations via Toby.app native API |
+| `toby-plugin-applecontacts` | Bun-package | TypeScript | Contacts.framework via Toby.app native API |
+| `toby-plugin-applereminders` | Bun-package | TypeScript | EventKit reminders via Toby.app native API |
 | `toby-plugin-macos` | Bun-package | TypeScript | macOS system controls via Toby.app native API; optional `setup` for Shortcuts |
 
 Build and install examples from a git clone:

@@ -138,40 +138,39 @@ What do you know about my meeting preferences?
 
 ## Recurring weekly overview (Projects)
 
-**Setup:** [Email](./integrations/email) or [Todoist](./integrations/todoist) connected, a [project](./projects) created.
+**Setup:** [Email](./integrations/email) or [Todoist](./integrations/todoist) connected, a [project](./projects) created in Toby.app.
 
 **Create the project:**
 
 ```text
-/project  →  Add Project  →  name: "Weekly Overview"
+Toby.app → Projects → + → rename to "Weekly Overview"
 ```
 
-**Add reference context** (from a terminal or Finder):
+**Add durable guidance** (from the project inspector / Finder):
 
 ```bash
-mkdir -p ~/.toby/projects/weekly-overview/context
-cp last-weeks-overview.md ~/.toby/projects/weekly-overview/context/
-cp team-goals.md ~/.toby/projects/weekly-overview/context/
+# Open the project folder from the inspector, then edit AGENTS.md
+# e.g. goals, tone, required sections for the weekly overview
 ```
 
-**Create and pin a skill** for consistent formatting:
+**Create a project-local skill** for consistent formatting (in a project chat):
 
 ```text
 Create a skill called weekly-overview-format that formats a weekly status
 update with sections: Accomplishments, Blockers, Priorities Next Week.
 ```
 
-Then pin it via **Toby.app → Settings → Projects → Weekly Overview → Skills**.
+Save it under the project’s `.agent/skills/` folder so it loads only for that project.
 
-**Chat each week:**
+**Chat each week** (with the project active):
 
 ```text
 Generate this week's overview based on my recent emails and tasks.
 ```
 
-**Outcome:** Every weekly overview lands in the project's `outputs/` folder, formatted consistently and informed by the same reference documents.
+**Outcome:** Every weekly overview lands in the project's `outputs/` folder, formatted consistently and guided by `AGENTS.md` / project skills.
 
-**Optional schedule:** [Schedule](./schedules) `0 9 * * 1` (Mondays 9am) with the same prompt for a fully automated weekly brief.
+**Optional schedule:** [Schedule](./schedules) `0 9 * * 1` (Mondays 9am) with the same prompt and project for a fully automated weekly brief.
 
 ---
 

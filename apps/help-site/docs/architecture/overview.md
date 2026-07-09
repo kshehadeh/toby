@@ -14,44 +14,47 @@ Toby to external systems through a JSON protocol.
 	<img src="/img/toby-architecture.svg" alt="Toby module organization diagram" />
 </div>
 
-## `@toby/cli`
-
-`@toby/cli` is the terminal app. It provides a command-line interface and an Ink chat TUI for users who prefer the terminal, automation, or scripting. It owns command registration, configuration screens, local orchestration for commands such as `listen`, and presentation-specific behavior.
-
-It depends on `@toby/core` for chat turns, integrations, configuration, and session state. It can also start and manage the daemon for flows such as schedules, inbound chat, and local HTTP API access. Core code should not import from the CLI app.
-
-See [Your first chat](../getting-started/first-chat) for usage and
-[Configure and connect](../getting-started/configure-and-status) for the
-configuration flow.
-
 ## Toby.app
 
-`Toby.app` is the native macOS SwiftUI app and the primary user surface for
+`Toby.app` is the native macOS SwiftUI app and the **primary user surface** for
 Toby. It bootstraps the daemon when needed, then calls the same localhost API
-for chat, sessions, configuration, and streaming chat turns.
+for chat, sessions, configuration, recordings, projects, and streaming chat
+turns.
 
 Toby.app also hosts a separate native API server for macOS system operations
-that require TCC permissions or native framework access. Both the
-Apple Calendar plugin (`toby-plugin-applecalendar`) and the
-macOS plugin (`toby-plugin-macos`) are TypeScript bun-package plugins that
-delegate **all** native operations to the app's native API server via
-`~/.toby/native-port`. The Apple Calendar plugin routes EventKit calls through
-the app; the macOS plugin handles Wi-Fi, Bluetooth, audio, battery, display,
-clipboard, windows, and shortcuts.
+that require TCC permissions or native framework access. Plugins such as
+Apple Calendar (`toby-plugin-applecalendar`), Apple Contacts, Apple Reminders,
+and macOS (`toby-plugin-macos`) are TypeScript bun-package plugins that
+delegate **all** native operations to the app’s native API server via
+`~/.toby/native-port`.
 
 See [Toby.app](../toby-app) for the user-facing app documentation and the source
 [native helper notes](https://github.com/kshehadeh/toby/blob/main/docs/native-helpers.md)
 for implementation details.
 
+## `@toby/cli`
+
+`@toby/cli` is the **maintenance CLI**. It owns Commander commands for connect,
+disconnect, status, config backup/restore, daemon control, plugins, schedules,
+upgrade, and related automation. Bare `toby` (no subcommand) opens Toby.app.
+
+Interactive chat and settings live in Toby.app, not in a terminal TUI. The CLI
+depends on `@toby/core` and can start and manage the daemon. Core code should
+not import from the CLI app.
+
+See [Your first chat](../getting-started/first-chat) for chat usage and
+[Configure and connect](../getting-started/configure-and-status) for
+integrations.
+
 ## Daemon server API
 
 The daemon serves the local HTTP API at `http://127.0.0.1:7847` by default.
-Toby.app uses it for sessions, streaming chat turns, memories,
+Toby.app uses it for sessions, streaming chat turns, memories, projects,
 configuration, daemon status, and configure actions.
 
-The server is local-only and uses the same core harness as the native app and
-terminal experience. Interactive chat turns stream `ChatEvent` payloads over SSE, so UI
-surfaces can render the same turn lifecycle without reimplementing the
+The server is local-only and uses the same core harness as scheduled jobs and
+inbound chat. Interactive chat turns stream `ChatEvent` payloads over SSE so
+the native UI can render the turn lifecycle without reimplementing the
 pipeline.
 
 See the source
@@ -60,12 +63,11 @@ See the source
 ## `@toby/core`
 
 `@toby/core` is the shared harness. It contains the chat turn pipeline, AI model
-runtime, tool wiring, integration registry, configuration helpers, memory,
-session storage, logging, and daemon-safe workflows.
+runtime, tool wiring, plugin/integration registry, configuration helpers,
+memory, session storage, logging, and daemon-safe workflows.
 
-Put behavior here when it can run without Ink, React, Commander, or a browser.
-That keeps the native app, CLI, scheduled jobs, and headless flows on the same
-behavioral path.
+Put behavior here when it can run without a UI framework—so Toby.app, the CLI,
+scheduled jobs, and headless inbound flows share the same path.
 
 For implementation details, see the source docs:
 
@@ -73,21 +75,19 @@ For implementation details, see the source docs:
 - [Chat pipeline](https://github.com/kshehadeh/toby/blob/main/docs/chat-pipeline.md)
 - [AI caching](https://github.com/kshehadeh/toby/blob/main/docs/ai-caching.md)
 
-## `@toby/plugin-*`
+## Plugins (`toby-plugin-*`)
 
-Plugins are installable CLI binaries with strict contracts. Toby discovers them
-under `~/.toby/plugins/`, invokes one subcommand at a time, passes configuration
-through stdin, and reads exactly one JSON response from stdout.
+Plugins are installable TypeScript **bun-package** directories (legacy standalone
+executables are still discoverable). Toby finds them under `~/.toby/plugins/`,
+invokes one subcommand at a time (or a long-lived `inbound run` process),
+passes configuration through stdin, and reads JSON from stdout.
 
-This lets integrations be written in TypeScript, Swift, Go, Rust, Python, or any
-other language that can ship an executable. Toby remains the source of truth for
-credentials and connection state; plugins should not read or write `~/.toby/`
-directly.
+**All new plugins must be TypeScript bun-packages.** When macOS frameworks or
+TCC are required, the plugin delegates to Toby.app’s native API rather than
+shipping its own native binary.
 
-Most plugins call external systems directly. The macOS plugin (`toby-plugin-macos`)
-is a TypeScript bun-package that delegates all native operations to Toby.app's
-native API server over localhost — the app holds the TCC permissions and calls
-CoreWLAN, CoreAudio, IOBluetooth, IOKit, and AppKit directly.
+Toby remains the source of truth for credentials and connection state; plugins
+should not read or write `~/.toby/` directly.
 
 See [Creating a plugin](../plugins/creating-a-plugin) for the help-site guide
 and the source [plugin protocol](https://github.com/kshehadeh/toby/blob/main/docs/plugin-protocol.md)
