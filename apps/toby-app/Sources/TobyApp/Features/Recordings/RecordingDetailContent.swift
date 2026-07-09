@@ -2,11 +2,14 @@ import SwiftUI
 
 struct RecordingDetailContent: View {
 	@Bindable var store: RecordingsStore
-	var recordingId: String?
+	/// Snapshot of the recording detail to display. Passed as a value (not read
+	/// via `store.detail!`) so body evaluation cannot crash if the store clears
+	/// `detail` while this view is still briefly in the hierarchy — e.g. when
+	/// an in-progress recording is auto-selected and `selectActiveRecording`
+	/// nils out detail.
+	let detail: ListenRecordingDetail
 	var processingState: RecordingProcessingState? = nil
 	var validSessionIds: Set<String> = []
-
-	private var detail: ListenRecordingDetail { store.detail! }
 
 	var body: some View {
 		VStack(spacing: 0) {

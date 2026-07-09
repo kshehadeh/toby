@@ -18,13 +18,16 @@ struct RecordingsDetailView: View {
 			} else if let active = activeRecording, store.selectedActiveRecordingId == active.id || store.selectedRecordings.isEmpty {
 				ActiveRecordingDetailView(active: active)
 			} else if !store.selectedRecordings.isEmpty {
-				if store.selectedRecordings.count == 1, store.detail != nil {
+				if store.selectedRecordings.count == 1, let detail = store.detail {
 					if isProcessingSelected {
 						RecordingProcessingCard(processingState: processingState)
 							.padding(.horizontal, 24)
 							.padding(.top, 12)
 					}
-					RecordingDetailContent(store: store, recordingId: store.selectedRecording?.id, processingState: processingState, validSessionIds: validSessionIds)
+					// Pass detail as a value so RecordingDetailContent never
+					// force-unwraps store.detail (which can become nil mid-update
+					// when selectActiveRecording clears it for a live recording).
+					RecordingDetailContent(store: store, detail: detail, processingState: processingState, validSessionIds: validSessionIds)
 				} else {
 					SelectedRecordingsDeck(recordings: store.selectedRecordings)
 				}

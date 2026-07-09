@@ -522,6 +522,50 @@ struct RecordingsViewTests {
 		#expect(store.detail == nil)
 	}
 
+	@Test("selecting active recording clears loaded detail")
+	func selectingActiveRecordingClearsLoadedDetail() {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello")
+		store.selectActiveRecording(id: "active-1")
+		#expect(store.detail == nil)
+		#expect(store.selectedRecordingIds.isEmpty)
+		#expect(store.selectedActiveRecordingId == "active-1")
+	}
+
+	@Test("selecting active recording while detail was loaded shows active detail view")
+	func selectingActiveRecordingWhileDetailLoadedShowsActiveView() throws {
+		// Regression: previously RecordingDetailContent force-unwrapped store.detail,
+		// which crashed when selectActiveRecording cleared detail while switching
+		// from a saved recording to a live in-progress recording.
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello")
+		let active = makeActiveRecording(id: "active-1")
+		store.selectActiveRecording(id: active.id)
+		let view = RecordingsView(store: store, activeRecording: active)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "active-recording-detail")
+		}
+		#expect(throws: Error.self) {
+			try view.inspect().find(text: "Hello")
+		}
+	}
+
+	@Test("recording detail content renders from passed detail even if store detail is nil")
+	func recordingDetailContentUsesPassedDetail() throws {
+		// Ensures body never depends on store.detail! — the parent snapshot is enough.
+		let store = RecordingsStore()
+		store.detail = nil
+		let detail = makeRecordingDetail(id: "r1", transcript: "Standalone transcript")
+		let view = RecordingDetailContent(store: store, detail: detail)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Standalone transcript")
+		}
+	}
+
 	@Test("selecting saved recording clears active selection")
 	func selectingSavedRecordingClearsActiveSelection() async {
 		let store = RecordingsStore()

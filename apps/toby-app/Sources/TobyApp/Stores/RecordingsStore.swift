@@ -91,9 +91,13 @@ final class RecordingsStore {
 	/// detail without attempting a server fetch — active recordings are not
 	/// available from the recordings API until after stop/save.
 	func selectActiveRecording(id: String) {
+		// Set active selection first so the detail pane prefers the live
+		// recording view before we clear saved selection / detail. Avoids a
+		// brief window where RecordingDetailContent is still mounted against a
+		// nil `detail`.
+		selectedActiveRecordingId = id
 		selectedRecordingIds = []
 		detail = nil
-		selectedActiveRecordingId = id
 	}
 
 	private func loadDetailIfNeeded() async {
