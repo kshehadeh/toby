@@ -15,6 +15,10 @@ final class RecordingsStore {
 	var lastLoadedAt: Date?
 	var errorMessage: String?
 
+	/// ID of an in-progress recording selected in the sidebar. Distinct from
+	/// `selectedRecordingIds` because active recordings are not yet persisted.
+	var selectedActiveRecordingId: String?
+
 	/// Manual transcription processing state (from the Transcribe / Re-Transcribe
 	/// button in the recording detail sidebar). Distinct from the post-recording
 	/// processing state owned by `ChatStore`.
@@ -70,6 +74,7 @@ final class RecordingsStore {
 	}
 
 	func selectRecording(id: String, holdingCommand: Bool = false) async {
+		selectedActiveRecordingId = nil
 		if holdingCommand {
 			if selectedRecordingIds.contains(id) {
 				selectedRecordingIds.remove(id)
@@ -80,6 +85,15 @@ final class RecordingsStore {
 			selectedRecordingIds = [id]
 		}
 		await loadDetailIfNeeded()
+	}
+
+	/// Select an in-progress (active) recording. Clears saved selection and
+	/// detail without attempting a server fetch — active recordings are not
+	/// available from the recordings API until after stop/save.
+	func selectActiveRecording(id: String) {
+		selectedRecordingIds = []
+		detail = nil
+		selectedActiveRecordingId = id
 	}
 
 	private func loadDetailIfNeeded() async {

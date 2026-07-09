@@ -495,7 +495,7 @@ struct CreateSessionResponse: Decodable {
 	let settings: SessionSettings?
 }
 
-struct ListenSourceSelection: Decodable {
+struct ListenSourceSelection: Decodable, Equatable {
 	let mic: Bool
 	let system: Bool
 }
@@ -516,6 +516,31 @@ struct ListenStatusResponse: Decodable {
 	var isActive: Bool {
 		status == "starting" || status == "recording" || status == "stopping"
 			|| (status == "error" && session != nil)
+	}
+}
+
+/// UI-only model representing a recording that is currently in progress.
+/// Derived from `ListenStatusResponse` when `isActive` is true. Not a persisted
+/// recording — it cannot be fetched from the recordings API until after stop/save.
+struct ActiveRecordingInfo: Identifiable, Equatable {
+	let id: String
+	let startedAt: String
+	let sources: ListenSourceSelection
+	let outputDir: String?
+
+	init?(_ status: ListenStatusResponse) {
+		guard status.isActive, let session = status.session else { return nil }
+		self.id = session.id
+		self.startedAt = session.startedAt
+		self.sources = session.sources
+		self.outputDir = status.outputDir
+	}
+
+	init(id: String, startedAt: String, sources: ListenSourceSelection, outputDir: String? = nil) {
+		self.id = id
+		self.startedAt = startedAt
+		self.sources = sources
+		self.outputDir = outputDir
 	}
 }
 

@@ -5,6 +5,7 @@ struct RecordingsView: View {
 	var processingState: RecordingProcessingState? = nil
 	var validSessionIds: Set<String> = []
 	var onStartRecording: (() -> Void)? = nil
+	var activeRecording: ActiveRecordingInfo? = nil
 
 	/// Effective processing state: prefer the store's manual transcription
 	/// state when active, otherwise fall back to the post-recording state.
@@ -16,11 +17,16 @@ struct RecordingsView: View {
 	}
 
 	var body: some View {
-		RecordingsDetailView(store: store, processingState: effectiveProcessingState, validSessionIds: validSessionIds, onStartRecording: onStartRecording)
+		RecordingsDetailView(store: store, processingState: effectiveProcessingState, validSessionIds: validSessionIds, onStartRecording: onStartRecording, activeRecording: activeRecording)
 		.toolbarBackground(.visible)
 		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.ensureLoaded()
+			// If a recording is already in progress when the view appears,
+			// auto-select it so the detail is visible immediately.
+			if let active = activeRecording, store.selectedActiveRecordingId == nil {
+				store.selectActiveRecording(id: active.id)
+			}
 		}
 		.onChange(of: processingState?.stage) { _, newStage in
 			if newStage == .complete || newStage == .failed {
@@ -42,6 +48,16 @@ struct RecordingsView: View {
 						store.transcriptionProcessing = nil
 					}
 				}
+			}
+		}
+		.onChange(of: activeRecording?.id) { _, newID in
+			if let newID {
+				// Auto-select the active recording so its detail is visible
+				// immediately when a recording starts.
+				store.selectActiveRecording(id: newID)
+			} else {
+				// Clear stale active selection when recording stops.
+				store.selectedActiveRecordingId = nil
 			}
 		}
 		.alert(

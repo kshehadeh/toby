@@ -367,6 +367,7 @@ struct RootView: View {
                         RecordingsSidebarView(
                             store: recordingsStore,
                             processingState: store.recordingProcessing,
+                            activeRecording: store.listenStatus.flatMap { ActiveRecordingInfo($0) },
                             onDeleteRecording: { recording in
                                 recordingsStore.pendingDeleteRecordingIds = [recording.id]
                             }
@@ -562,7 +563,7 @@ struct RootView: View {
                         }
                     }
             case .recordings:
-                RecordingsView(store: recordingsStore, processingState: store.recordingProcessing, validSessionIds: Set(store.sessions.map(\.id)), onStartRecording: toggleRecording)
+                RecordingsView(store: recordingsStore, processingState: store.recordingProcessing, validSessionIds: Set(store.sessions.map(\.id)), onStartRecording: toggleRecording, activeRecording: store.listenStatus.flatMap { ActiveRecordingInfo($0) })
                     .toolbar {
                         commonToolbarItems()
                         ToolbarItem(placement: .principal) { Spacer() }

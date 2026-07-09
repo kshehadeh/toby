@@ -5,15 +5,18 @@ struct RecordingsDetailView: View {
 	var processingState: RecordingProcessingState? = nil
 	var validSessionIds: Set<String> = []
 	var onStartRecording: (() -> Void)? = nil
+	var activeRecording: ActiveRecordingInfo? = nil
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			if store.isLoading && store.recordings.isEmpty {
+			if store.isLoading && store.recordings.isEmpty && activeRecording == nil {
 				ProgressView("Loading recordings…")
 					.frame(maxWidth: .infinity, maxHeight: .infinity)
 			} else if store.isDetailLoading && store.selectedRecordings.count == 1 && store.detail == nil {
 				ProgressView("Loading recording...")
 					.frame(maxWidth: .infinity, minHeight: 240)
+			} else if let active = activeRecording, store.selectedActiveRecordingId == active.id || store.selectedRecordings.isEmpty {
+				ActiveRecordingDetailView(active: active)
 			} else if !store.selectedRecordings.isEmpty {
 				if store.selectedRecordings.count == 1, store.detail != nil {
 					if isProcessingSelected {
@@ -31,7 +34,7 @@ struct RecordingsDetailView: View {
 				} description: {
 					Text(errorMessage)
 				}
-			} else if store.recordings.isEmpty {
+			} else if store.recordings.isEmpty && activeRecording == nil {
 				RecordingsEmptyStateView(onStartRecording: onStartRecording)
 			} else {
 				Text("Select a recording")
@@ -91,5 +94,66 @@ private struct RecordingsEmptyStateView: View {
 		.padding(32)
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
 		.accessibilityElement(children: .contain)
+	}
+}
+
+private struct ActiveRecordingDetailView: View {
+	let active: ActiveRecordingInfo
+
+	var body: some View {
+		VStack(spacing: 24) {
+			Image(systemName: "record.circle")
+				.font(.system(size: 56, weight: .regular))
+				.foregroundStyle(.red)
+				.symbolEffect(.variableColor.iterative, options: .repeating)
+				.accessibilityHidden(true)
+
+			VStack(spacing: 8) {
+				Text("Recording in progress")
+					.font(.system(size: 24, weight: .semibold))
+					.foregroundStyle(SettingsDesign.rowTitle)
+
+				Text("Audio is being captured. Transcription, playback, and chat will be available after you stop recording.")
+					.font(.body)
+					.foregroundStyle(SettingsDesign.rowDescription)
+					.multilineTextAlignment(.center)
+					.lineLimit(4)
+					.frame(maxWidth: 480)
+			}
+
+			VStack(alignment: .leading, spacing: 10) {
+				metadataRow(label: "Started", value: friendlyRecordingDate(active.startedAt, fallback: active.startedAt))
+				metadataRow(label: "Sources", value: sourceText(active.sources))
+				if let dir = active.outputDir {
+					metadataRow(label: "Location", value: dir)
+				}
+			}
+			.padding(16)
+			.frame(maxWidth: 400)
+			.background(SettingsDesign.cardBackground)
+			.clipShape(RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius))
+			.overlay {
+				RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
+					.stroke(SettingsDesign.cardBorder, lineWidth: 1)
+			}
+		}
+		.padding(32)
+		.frame(maxWidth: .infinity, maxHeight: .infinity)
+		.accessibilityElement(children: .contain)
+		.accessibilityIdentifier("active-recording-detail")
+	}
+
+	private func metadataRow(label: String, value: String) -> some View {
+		VStack(alignment: .leading, spacing: 2) {
+			Text(label)
+				.font(.system(size: 11))
+				.foregroundStyle(SettingsDesign.rowDescription)
+			Text(value)
+				.font(.system(size: 12))
+				.foregroundStyle(SettingsDesign.rowTitle)
+				.lineLimit(2)
+				.textSelection(.enabled)
+		}
+		.frame(maxWidth: .infinity, alignment: .leading)
 	}
 }

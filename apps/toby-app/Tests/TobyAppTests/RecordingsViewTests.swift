@@ -392,6 +392,179 @@ struct RecordingsViewTests {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "empty-start-recording-button")
 		}
 	}
+
+	// MARK: - Active recording
+
+	@Test("active recording detail appears when no saved recordings exist")
+	func activeRecordingDetailAppearsWhenNoSavedRecordings() throws {
+		let store = RecordingsStore()
+		store.recordings = []
+		store.selectedActiveRecordingId = "active-1"
+		let active = makeActiveRecording(id: "active-1")
+		let view = RecordingsView(store: store, activeRecording: active)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "active-recording-detail")
+		}
+	}
+
+	@Test("active recording detail appears without explicit selection when no saved recordings")
+	func activeRecordingDetailAppearsWithoutSelection() throws {
+		let store = RecordingsStore()
+		store.recordings = []
+		store.selectedActiveRecordingId = nil
+		let active = makeActiveRecording(id: "active-1")
+		let view = RecordingsView(store: store, activeRecording: active)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "active-recording-detail")
+		}
+	}
+
+	@Test("saved recording detail takes priority over active when a saved recording is selected")
+	func savedRecordingDetailShownWhenSelectedAndActiveExists() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello")
+		store.selectedActiveRecordingId = nil
+		let active = makeActiveRecording(id: "active-1")
+		let view = RecordingsView(store: store, activeRecording: active)
+		#expect(throws: Error.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "active-recording-detail")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Hello")
+		}
+	}
+
+	@Test("active recording detail does not show empty state start button")
+	func activeRecordingDetailDoesNotShowEmptyState() throws {
+		let store = RecordingsStore()
+		store.recordings = []
+		store.selectedActiveRecordingId = "active-1"
+		let active = makeActiveRecording(id: "active-1")
+		let view = RecordingsView(store: store, onStartRecording: {}, activeRecording: active)
+		#expect(throws: Error.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "empty-start-recording-button")
+		}
+	}
+
+	@Test("active recording detail shows in progress text")
+	func activeRecordingDetailShowsInProgressText() throws {
+		let store = RecordingsStore()
+		store.recordings = []
+		store.selectedActiveRecordingId = "active-1"
+		let active = makeActiveRecording(id: "active-1")
+		let view = RecordingsView(store: store, activeRecording: active)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Recording in progress")
+		}
+	}
+
+	@Test("active recording detail does not expose rename field")
+	func activeRecordingDetailDoesNotExposeRenameField() throws {
+		let store = RecordingsStore()
+		store.recordings = []
+		store.selectedActiveRecordingId = "active-1"
+		let active = makeActiveRecording(id: "active-1")
+		let view = RecordingsView(store: store, activeRecording: active)
+		#expect(throws: Error.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "recording-name-field")
+		}
+	}
+
+	@Test("active recording detail does not expose delete button")
+	func activeRecordingDetailDoesNotExposeDeleteButton() throws {
+		let store = RecordingsStore()
+		store.recordings = []
+		store.selectedActiveRecordingId = "active-1"
+		let active = makeActiveRecording(id: "active-1")
+		let view = RecordingsView(store: store, activeRecording: active)
+		#expect(throws: Error.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-delete-recording-button")
+		}
+	}
+
+	@Test("active recording detail does not expose transcribe button")
+	func activeRecordingDetailDoesNotExposeTranscribeButton() throws {
+		let store = RecordingsStore()
+		store.recordings = []
+		store.selectedActiveRecordingId = "active-1"
+		let active = makeActiveRecording(id: "active-1")
+		let view = RecordingsView(store: store, activeRecording: active)
+		#expect(throws: Error.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-transcribe-button")
+		}
+	}
+
+	@Test("active recording detail does not expose chat buttons")
+	func activeRecordingDetailDoesNotExposeChatButtons() throws {
+		let store = RecordingsStore()
+		store.recordings = []
+		store.selectedActiveRecordingId = "active-1"
+		let active = makeActiveRecording(id: "active-1")
+		let view = RecordingsView(store: store, activeRecording: active)
+		#expect(throws: Error.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-start-chat-button")
+		}
+		#expect(throws: Error.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-show-chat-button")
+		}
+	}
+
+	@Test("selecting active recording clears saved selection")
+	func selectingActiveRecordingClearsSavedSelection() {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.selectActiveRecording(id: "active-1")
+		#expect(store.selectedRecordingIds.isEmpty)
+		#expect(store.selectedActiveRecordingId == "active-1")
+		#expect(store.detail == nil)
+	}
+
+	@Test("selecting saved recording clears active selection")
+	func selectingSavedRecordingClearsActiveSelection() async {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedActiveRecordingId = "active-1"
+		await store.selectRecording(id: "r1")
+		#expect(store.selectedActiveRecordingId == nil)
+		#expect(store.selectedRecordingIds == ["r1"])
+	}
+
+	@Test("ActiveRecordingInfo returns nil when status is not active")
+	func activeRecordingInfoReturnsNilWhenNotActive() {
+		let status = ListenStatusResponse(
+			status: "idle",
+			session: nil,
+			outputDir: nil,
+			message: nil,
+			error: nil
+		)
+		#expect(ActiveRecordingInfo(status) == nil)
+	}
+
+	@Test("ActiveRecordingInfo returns value when status is recording")
+	func activeRecordingInfoReturnsValueWhenRecording() {
+		let session = ListenSessionInfo(
+			id: "sess-1",
+			startedAt: "2026-07-09T10:00:00Z",
+			sources: ListenSourceSelection(mic: true, system: true)
+		)
+		let status = ListenStatusResponse(
+			status: "recording",
+			session: session,
+			outputDir: "/tmp/listen/tmp/sess-1",
+			message: nil,
+			error: nil
+		)
+		let active = ActiveRecordingInfo(status)
+		#expect(active != nil)
+		#expect(active?.id == "sess-1")
+		#expect(active?.sources.mic == true)
+		#expect(active?.sources.system == true)
+		#expect(active?.outputDir == "/tmp/listen/tmp/sess-1")
+	}
 }
 
 private func makeRecording(id: String, name: String? = nil) -> ListenRecordingSummary {
@@ -407,6 +580,15 @@ private func makeRecording(id: String, name: String? = nil) -> ListenRecordingSu
 		sources: ListenSourceSelection(mic: true, system: false),
 		hasAudio: true,
 		hasTranscript: false
+	)
+}
+
+private func makeActiveRecording(id: String, mic: Bool = true, system: Bool = false) -> ActiveRecordingInfo {
+	ActiveRecordingInfo(
+		id: id,
+		startedAt: "2026-07-09T10:00:00Z",
+		sources: ListenSourceSelection(mic: mic, system: system),
+		outputDir: "/tmp/listen/tmp/\(id)"
 	)
 }
 
