@@ -65,8 +65,20 @@ enum DaemonBootstrap {
 		}
 
 		if await isServerAvailable(baseURL: baseURL) {
-			log("ensure.available")
-			return
+			let runningInfo = await fetchRunningServerInfo(baseURL: baseURL)
+			if !shouldReplaceServer(
+				runningExecutablePath: runningInfo.executablePath,
+				runningVersion: runningInfo.version,
+				runningTobyDir: runningInfo.tobyDir,
+				bundledExecutable: nil,
+				bundledVersion: nil
+			) {
+				log("ensure.available")
+				return
+			}
+			log("ensure.tobyDirMismatch tobyDir=\(runningInfo.tobyDir ?? "<nil>")")
+			try await requestDaemonStop(baseURL: baseURL)
+			try await waitForServerUnavailable(baseURL: baseURL, timeout: 6)
 		}
 
 		let command = try resolveDaemonStartCommand(preferDevSource: true)
@@ -99,9 +111,23 @@ enum DaemonBootstrap {
 	static func shouldReplaceServer(
 		runningExecutablePath: String?,
 		runningVersion: String?,
-		bundledExecutable: URL,
-		bundledVersion: String?,
+		runningTobyDir: String? = nil,
+		bundledExecutable: URL? = nil,
+		bundledVersion: String? = nil,
 	) -> Bool {
+		// If TOBY_DIR is set, verify the running daemon uses the same directory.
+		if let expectedTobyDir = ProcessInfo.processInfo.environment["TOBY_DIR"]?
+			.trimmingCharacters(in: .whitespacesAndNewlines), !expectedTobyDir.isEmpty {
+			let running = runningTobyDir?.trimmingCharacters(in: .whitespacesAndNewlines)
+			if running != expectedTobyDir {
+				return true
+			}
+		}
+
+		guard let bundledExecutable = bundledExecutable else {
+			return false
+		}
+
 		guard let runningExecutablePath = runningExecutablePath?.trimmingCharacters(in: .whitespacesAndNewlines),
 			!runningExecutablePath.isEmpty
 		else {
@@ -161,6 +187,7 @@ enum DaemonBootstrap {
 		guard shouldReplaceServer(
 			runningExecutablePath: runningInfo.executablePath,
 			runningVersion: runningInfo.version,
+			runningTobyDir: runningInfo.tobyDir,
 			bundledExecutable: bundledExecutable,
 			bundledVersion: bundledAppVersion()
 		) else {
@@ -179,7 +206,8 @@ enum DaemonBootstrap {
 	private static func fetchRunningServerInfo(baseURL: URL) async -> RunningServerInfo {
 		async let executablePath = fetchRunningDaemonExecutablePath(baseURL: baseURL)
 		async let version = fetchRunningServerVersion(baseURL: baseURL)
-		return await RunningServerInfo(executablePath: executablePath, version: version)
+		async let tobyDir = fetchRunningTobyDir(baseURL: baseURL)
+		return await RunningServerInfo(executablePath: executablePath, version: version, tobyDir: tobyDir)
 	}
 
 	private static func fetchRunningDaemonExecutablePath(baseURL: URL) async -> String? {
@@ -196,6 +224,15 @@ enum DaemonBootstrap {
 		do {
 			let payload = try await fetchJSON(baseURL.appendingPathComponent("api/status"))
 			return payload?["version"] as? String
+		} catch {
+			return nil
+		}
+	}
+
+	private static func fetchRunningTobyDir(baseURL: URL) async -> String? {
+		do {
+			let payload = try await fetchJSON(baseURL.appendingPathComponent("api/status"))
+			return payload?["tobyDir"] as? String
 		} catch {
 			return nil
 		}
@@ -450,6 +487,7 @@ private struct BunExecutableCandidate: Equatable {
 private struct RunningServerInfo {
 	let executablePath: String?
 	let version: String?
+	let tobyDir: String?
 }
 
 private extension DaemonStartCommand {
