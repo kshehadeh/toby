@@ -53,12 +53,7 @@ export function listPersonas(): Persona[] {
 }
 
 export function resolveDefaultPersona(): Persona {
-	const name = getDefaultPersonaName();
-	if (name) {
-		const resolved = resolvePersona(name);
-		if (resolved) {
-			return resolved;
-		}
-	}
-	return DEFAULT_CHAT_PERSONA;
+	const name = getDefaultPersonaName() ?? DEFAULT_CHAT_PERSONA.name;
+	const resolved = resolvePersona(name);
+	return resolved ?? DEFAULT_CHAT_PERSONA;
 }

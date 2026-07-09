@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { isAIProviderConfigured } from "../../ai/model-factory";
 import { AI_PROVIDERS } from "../../ai/providers";
 import { listUsableChatModules } from "../../chat-pipeline/resolve-chat-modules";
 import { listPersonaOptions } from "../../chat-pipeline/turn-runtime";
@@ -80,6 +81,7 @@ export function handleAIProviders(): Response {
 			displayName: p.displayName,
 			models: p.models,
 			allowCustomModel: p.allowCustomModel ?? false,
+			configured: isAIProviderConfigured(p.id),
 		})),
 	});
 }

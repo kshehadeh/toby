@@ -289,7 +289,7 @@ describe("native app API fresh state", () => {
 		});
 	});
 
-	it("GET /api/ai/providers returns built-in providers", async () => {
+	it("GET /api/ai/providers returns built-in providers with configured flags", async () => {
 		await withTempTobyDir(async () => {
 			const res = await handleWebRequest(
 				new Request("http://127.0.0.1/api/ai/providers"),
@@ -302,6 +302,7 @@ describe("native app API fresh state", () => {
 					displayName: string;
 					models: string[];
 					allowCustomModel: boolean;
+					configured: boolean;
 				}>;
 			};
 			expect(body.providers.length).toBeGreaterThan(0);
@@ -309,11 +310,39 @@ describe("native app API fresh state", () => {
 			expect(openai).toBeDefined();
 			expect(openai?.displayName).toBe("OpenAI");
 			expect(openai?.models.length).toBeGreaterThan(0);
+			expect(typeof openai?.configured).toBe("boolean");
+			expect(openai?.configured).toBe(false);
 		});
 	});
 
-	it("POST /api/configure/actions/create-persona works in fresh state", async () => {
+	it("POST /api/configure/actions/create-persona fails without configured AI provider", async () => {
 		await withTempTobyDir(async () => {
+			const res = await handleWebRequest(
+				new Request("http://127.0.0.1/api/configure/actions/create-persona", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						name: "FreshTest",
+						instructions: "Be helpful.",
+						provider: "openai",
+						model: "gpt-4.1",
+						promptMode: "add",
+					}),
+				}),
+				null,
+			);
+			expect(res.status).toBe(400);
+			const body = (await res.json()) as { error: string };
+			expect(body.error).toContain("not configured");
+		});
+	});
+
+	it("POST /api/configure/actions/create-persona works with configured AI provider", async () => {
+		await withTempTobyDir(async () => {
+			// Seed OpenAI credentials
+			const { writeCredentials } = await import("@toby/core/config/index");
+			writeCredentials({ ai: { openai: { token: "sk-test" } } });
+
 			const res = await handleWebRequest(
 				new Request("http://127.0.0.1/api/configure/actions/create-persona", {
 					method: "POST",

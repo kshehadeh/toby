@@ -40,6 +40,10 @@ struct PersonaEditorTests {
 	func canSaveValidName() throws {
 		let store = PersonaEditorStore(mode: .create)
 		store.name = "My Persona"
+		store.providers = [
+			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: true),
+		]
+		store.provider = "openai"
 		#expect(store.canSave)
 	}
 
@@ -161,5 +165,117 @@ struct PersonaEditorTests {
 		#expect(!store.hasCustomImage)
 		store.imagePath = "my-image.png"
 		#expect(store.hasCustomImage)
+	}
+
+	// MARK: - AI provider configuration validation
+
+	@Test("hasConfiguredProviders is false when no providers are configured")
+	func hasConfiguredProvidersNone() throws {
+		let store = PersonaEditorStore(mode: .create)
+		store.providers = [
+			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: false),
+			AIProviderInfo(providerId: "vercel", displayName: "Vercel AI Gateway", models: ["openai/gpt-5"], allowCustomModel: true, configured: false),
+		]
+		#expect(!store.hasConfiguredProviders)
+	}
+
+	@Test("hasConfiguredProviders is true when at least one provider is configured")
+	func hasConfiguredProvidersSome() throws {
+		let store = PersonaEditorStore(mode: .create)
+		store.providers = [
+			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: false),
+			AIProviderInfo(providerId: "vercel", displayName: "Vercel AI Gateway", models: ["openai/gpt-5"], allowCustomModel: true, configured: true),
+		]
+		#expect(store.hasConfiguredProviders)
+	}
+
+	@Test("isSelectedProviderConfigured is false when selected provider is not configured")
+	func isSelectedProviderConfiguredFalse() throws {
+		let store = PersonaEditorStore(mode: .create)
+		store.providers = [
+			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: false),
+			AIProviderInfo(providerId: "vercel", displayName: "Vercel AI Gateway", models: ["openai/gpt-5"], allowCustomModel: true, configured: true),
+		]
+		store.provider = "openai"
+		#expect(!store.isSelectedProviderConfigured)
+	}
+
+	@Test("isSelectedProviderConfigured is true when selected provider is configured")
+	func isSelectedProviderConfiguredTrue() throws {
+		let store = PersonaEditorStore(mode: .create)
+		store.providers = [
+			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: true),
+		]
+		store.provider = "openai"
+		#expect(store.isSelectedProviderConfigured)
+	}
+
+	@Test("canSave is false when no providers are configured")
+	func canSaveNoConfiguredProviders() throws {
+		let store = PersonaEditorStore(mode: .create)
+		store.name = "My Persona"
+		store.providers = [
+			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: false),
+		]
+		store.provider = "openai"
+		#expect(!store.canSave)
+	}
+
+	@Test("canSave is false when selected provider is not configured")
+	func canSaveUnconfiguredSelectedProvider() throws {
+		let store = PersonaEditorStore(mode: .create)
+		store.name = "My Persona"
+		store.providers = [
+			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: false),
+			AIProviderInfo(providerId: "vercel", displayName: "Vercel AI Gateway", models: ["openai/gpt-5"], allowCustomModel: true, configured: true),
+		]
+		store.provider = "openai"
+		#expect(!store.canSave)
+	}
+
+	@Test("canSave is true when selected provider is configured")
+	func canSaveConfiguredSelectedProvider() throws {
+		let store = PersonaEditorStore(mode: .create)
+		store.name = "My Persona"
+		store.providers = [
+			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: true),
+		]
+		store.provider = "openai"
+		#expect(store.canSave)
+	}
+
+	@Test("providerValidationMessage is non-nil when no providers are configured")
+	func providerValidationMessageNoneConfigured() throws {
+		let store = PersonaEditorStore(mode: .create)
+		store.providers = [
+			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: false),
+		]
+		store.provider = "openai"
+		let message = store.providerValidationMessage
+		#expect(message != nil)
+		#expect(message?.contains("No AI provider") == true)
+	}
+
+	@Test("providerValidationMessage is non-nil when selected provider is not configured")
+	func providerValidationMessageUnconfiguredSelected() throws {
+		let store = PersonaEditorStore(mode: .create)
+		store.providers = [
+			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: false),
+			AIProviderInfo(providerId: "vercel", displayName: "Vercel AI Gateway", models: ["openai/gpt-5"], allowCustomModel: true, configured: true),
+		]
+		store.provider = "openai"
+		let message = store.providerValidationMessage
+		#expect(message != nil)
+		#expect(message?.contains("not configured") == true)
+	}
+
+	@Test("providerValidationMessage is nil when selected provider is configured")
+	func providerValidationMessageConfigured() throws {
+		let store = PersonaEditorStore(mode: .create)
+		store.providers = [
+			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: true),
+		]
+		store.provider = "openai"
+		#expect(store.providerValidationMessage == nil)
 	}
 }

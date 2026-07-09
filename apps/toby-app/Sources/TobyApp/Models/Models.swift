@@ -321,12 +321,14 @@ struct AIProviderInfo: Decodable, Identifiable {
 	let displayName: String
 	let models: [String]
 	let allowCustomModel: Bool
+	var configured: Bool = false
 
 	enum CodingKeys: String, CodingKey {
 		case providerId = "id"
 		case displayName
 		case models
 		case allowCustomModel
+		case configured
 	}
 }
 

@@ -22,7 +22,7 @@ struct PersonaEditorView: View {
 		.background(WindowAccessor { window in
 			window.styleMask.remove([.miniaturizable, .resizable])
 		})
-		.task {
+		.task(id: store.id) {
 			await store.load()
 		}
 	}
@@ -150,18 +150,26 @@ struct PersonaEditorView: View {
 	}
 
 	private var providerModelRow: some View {
-		HStack(spacing: 16) {
-			VStack(alignment: .leading, spacing: 6) {
-				Text("Provider")
-					.font(.subheadline.weight(.medium))
-					.foregroundStyle(SettingsDesign.sectionHeader)
-				providerMenu
+		VStack(alignment: .leading, spacing: 8) {
+			HStack(spacing: 16) {
+				VStack(alignment: .leading, spacing: 6) {
+					Text("Provider")
+						.font(.subheadline.weight(.medium))
+						.foregroundStyle(SettingsDesign.sectionHeader)
+					providerMenu
+				}
+				VStack(alignment: .leading, spacing: 6) {
+					Text("Model")
+						.font(.subheadline.weight(.medium))
+						.foregroundStyle(SettingsDesign.sectionHeader)
+					modelMenu
+				}
 			}
-			VStack(alignment: .leading, spacing: 6) {
-				Text("Model")
-					.font(.subheadline.weight(.medium))
-					.foregroundStyle(SettingsDesign.sectionHeader)
-				modelMenu
+			if let message = store.providerValidationMessage {
+				Text(message)
+					.font(.caption)
+					.foregroundStyle(store.hasConfiguredProviders ? .orange : .red)
+					.fixedSize(horizontal: false, vertical: true)
 			}
 		}
 	}
@@ -169,12 +177,17 @@ struct PersonaEditorView: View {
 	private var providerMenu: some View {
 		SettingsSelectChoiceField(
 			title: "Provider",
-			choices: store.providers.map {
-				SettingsSelectChoice(value: $0.providerId, label: $0.displayName)
-			},
+			choices: store.hasConfiguredProviders
+				? store.providers.filter { $0.configured }.map {
+					SettingsSelectChoice(value: $0.providerId, label: $0.displayName)
+				}
+				: store.providers.map {
+					SettingsSelectChoice(value: $0.providerId, label: $0.displayName)
+				},
 			selection: providerBinding,
 		)
 		.fixedSize()
+		.disabled(!store.hasConfiguredProviders)
 	}
 
 	private var modelMenu: some View {
@@ -186,6 +199,7 @@ struct PersonaEditorView: View {
 			selection: $store.model,
 		)
 		.fixedSize()
+		.disabled(!store.hasConfiguredProviders || !store.isSelectedProviderConfigured)
 	}
 
 	private var providerBinding: Binding<String> {

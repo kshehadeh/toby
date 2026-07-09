@@ -27,7 +27,9 @@ struct TobyClient {
 
 	func fetchStatus() async throws -> AppStatus {
 		let url = baseURL.appendingPathComponent("api/status")
-		let (data, response) = try await URLSession.shared.data(from: url)
+		var request = URLRequest(url: url)
+		request.cachePolicy = .reloadIgnoringLocalCacheData
+		let (data, response) = try await URLSession.shared.data(for: request)
 		try validate(response: response, data: data)
 		return try JSONDecoder().decode(AppStatus.self, from: data)
 	}
@@ -68,14 +70,18 @@ struct TobyClient {
 			withAllowedCharacters: .urlPathAllowed,
 		) ?? name
 		let url = baseURL.appendingPathComponent("api/personas/\(encoded)")
-		let (data, response) = try await URLSession.shared.data(from: url)
+		var request = URLRequest(url: url)
+		request.cachePolicy = .reloadIgnoringLocalCacheData
+		let (data, response) = try await URLSession.shared.data(for: request)
 		try validate(response: response, data: data)
 		return try JSONDecoder().decode(PersonaDetailResponse.self, from: data).persona
 	}
 
 	func fetchAIProviders() async throws -> [AIProviderInfo] {
 		let url = baseURL.appendingPathComponent("api/ai/providers")
-		let (data, response) = try await URLSession.shared.data(from: url)
+		var request = URLRequest(url: url)
+		request.cachePolicy = .reloadIgnoringLocalCacheData
+		let (data, response) = try await URLSession.shared.data(for: request)
 		try validate(response: response, data: data)
 		return try JSONDecoder().decode(AIProvidersResponse.self, from: data).providers
 	}

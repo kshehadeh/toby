@@ -23,6 +23,7 @@ final class PersonaEditorStore {
 	}
 
 	let mode: Mode
+	let id = UUID()
 	var name = ""
 	var instructions = ""
 	var provider = "openai"
@@ -82,9 +83,36 @@ final class PersonaEditorStore {
 		return models
 	}
 
+	var hasConfiguredProviders: Bool {
+		providers.contains { $0.configured }
+	}
+
+	var isSelectedProviderConfigured: Bool {
+		guard let info = providers.first(where: { $0.providerId == provider }) else {
+			return false
+		}
+		return info.configured
+	}
+
+	var providerValidationMessage: String? {
+		if !hasConfiguredProviders {
+			return "No AI provider is configured. Open Settings → AI to add an API key, then return here to choose a provider."
+		}
+		if !isSelectedProviderConfigured {
+			if let info = providers.first(where: { $0.providerId == provider }) {
+				return "\"\(info.displayName)\" is not configured. Choose a configured provider or add its API key in Settings → AI."
+			}
+			return "Selected provider is not configured."
+		}
+		return nil
+	}
+
 	var canSave: Bool {
 		guard !isLoading, saveState != .saving else { return false }
 		guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+			return false
+		}
+		guard hasConfiguredProviders, isSelectedProviderConfigured else {
 			return false
 		}
 		return true

@@ -6,7 +6,7 @@ import { type LanguageModel, wrapLanguageModel } from "ai";
 import { readConfig, readCredentials } from "../config/index";
 import type { Persona } from "../config/index";
 import { resolveDefaultPersona } from "../personas/index";
-import { getAIProvider } from "./providers";
+import { AI_PROVIDERS, getAIProvider } from "./providers";
 import {
 	createRecordMiddleware,
 	createReplayModel,
@@ -45,6 +45,45 @@ export function buildAiGatewayAttributionHeaders(): Record<string, string> {
 
 export function isGatewayModelSlug(model: string): boolean {
 	return model.includes("/");
+}
+
+/**
+ * Returns true when the given provider has credentials/settings configured
+ * (from credentials file or environment variables).
+ * Does not expose secret values.
+ */
+export function isAIProviderConfigured(providerId: string): boolean {
+	switch (providerId) {
+		case "openai": {
+			const token = readCredentials().ai?.openai?.token?.trim();
+			return Boolean(token);
+		}
+		case "vercel": {
+			const credsKey = readCredentials().ai?.vercel?.apiKey?.trim();
+			const envKey = process.env.AI_GATEWAY_API_KEY?.trim();
+			const oidc = process.env.VERCEL_OIDC_TOKEN?.trim();
+			return Boolean(credsKey || (envKey && envKey.length > 0) || oidc);
+		}
+		case "ollama": {
+			const credsKey = readCredentials().ai?.ollama?.apiKey?.trim();
+			const envKey = process.env.OLLAMA_API_KEY?.trim();
+			const envBaseUrl = process.env.TOBY_OLLAMA_BASE_URL?.trim();
+			const configBaseUrl = readConfig().ai?.ollama?.baseUrl?.trim();
+			return Boolean(
+				credsKey ||
+					(envKey && envKey.length > 0) ||
+					(envBaseUrl && envBaseUrl.length > 0) ||
+					(configBaseUrl && configBaseUrl.length > 0),
+			);
+		}
+		default:
+			return false;
+	}
+}
+
+/** Returns true when at least one AI provider has credentials configured. */
+export function hasAnyConfiguredAIProvider(): boolean {
+	return AI_PROVIDERS.some((p) => isAIProviderConfigured(p.id));
 }
 
 export function validatePersonaAi(persona: Persona): void {

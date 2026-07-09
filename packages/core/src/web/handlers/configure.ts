@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { isAIProviderConfigured } from "../../ai/model-factory";
 import {
 	clearDefaultPersona,
 	ensurePersonaImagesDir,
@@ -131,6 +132,11 @@ export async function handleConfigureAction(
 			const provider =
 				body?.provider?.trim() || DEFAULT_CHAT_PERSONA.ai.provider;
 			const model = body?.model?.trim() || DEFAULT_CHAT_PERSONA.ai.model;
+			if (!isAIProviderConfigured(provider)) {
+				return errorResponse(
+					`AI provider "${provider}" is not configured. Run \`toby configure\` to set up an AI provider.`,
+				);
+			}
 			const promptMode =
 				body?.promptMode?.trim() === "replace" ? "replace" : "add";
 			const instructions =
@@ -167,7 +173,13 @@ export async function handleConfigureAction(
 					cfg.personas.unshift(persona);
 				}
 				if (body?.provider !== undefined) {
-					persona.ai.provider = body.provider.trim() || persona.ai.provider;
+					const newProvider = body.provider.trim() || persona.ai.provider;
+					if (!isAIProviderConfigured(newProvider)) {
+						return errorResponse(
+							`AI provider "${newProvider}" is not configured. Run \`toby configure\` to set up an AI provider.`,
+						);
+					}
+					persona.ai.provider = newProvider;
 				}
 				if (body?.model !== undefined) {
 					persona.ai.model = body.model.trim() || persona.ai.model;
@@ -200,7 +212,13 @@ export async function handleConfigureAction(
 					body.promptMode.trim() === "replace" ? "replace" : "add";
 			}
 			if (body?.provider !== undefined) {
-				persona.ai.provider = body.provider.trim() || persona.ai.provider;
+				const newProvider = body.provider.trim() || persona.ai.provider;
+				if (!isAIProviderConfigured(newProvider)) {
+					return errorResponse(
+						`AI provider "${newProvider}" is not configured. Run \`toby configure\` to set up an AI provider.`,
+					);
+				}
+				persona.ai.provider = newProvider;
 			}
 			if (body?.model !== undefined) {
 				persona.ai.model = body.model.trim() || persona.ai.model;

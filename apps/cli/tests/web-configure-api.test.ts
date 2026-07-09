@@ -2,7 +2,12 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { readConfig, readCredentials } from "@toby/core/config/index";
+import {
+	readConfig,
+	readCredentials,
+	writeConfig,
+	writeCredentials,
+} from "@toby/core/config/index";
 import {
 	applyConfigureValuesPatch,
 	collectSecretConfigureKeys,
@@ -588,7 +593,7 @@ describe("persona API", () => {
 		fs.rmSync(tempDir, { recursive: true, force: true });
 	});
 
-	it("GET /api/ai/providers returns provider list", async () => {
+	it("GET /api/ai/providers returns provider list with configured flags", async () => {
 		const res = await handleWebRequest(
 			new Request("http://127.0.0.1/api/ai/providers"),
 			null,
@@ -600,6 +605,7 @@ describe("persona API", () => {
 				displayName: string;
 				models: string[];
 				allowCustomModel: boolean;
+				configured: boolean;
 			}>;
 		};
 		expect(body.providers.length).toBeGreaterThan(0);
@@ -607,6 +613,9 @@ describe("persona API", () => {
 		expect(openai).toBeDefined();
 		expect(openai?.displayName).toBe("OpenAI");
 		expect(openai?.models.length).toBeGreaterThan(0);
+		expect(typeof openai?.configured).toBe("boolean");
+		// In a fresh temp dir with no credentials, providers should be unconfigured
+		expect(openai?.configured).toBe(false);
 	});
 
 	it("GET /api/personas returns list with isDefault and isBuiltIn flags", async () => {
@@ -660,6 +669,7 @@ describe("persona API", () => {
 	});
 
 	it("create-persona accepts explicit fields", async () => {
+		writeCredentials({ ai: { openai: { token: "sk-test" } } });
 		const res = await handleWebRequest(
 			new Request("http://127.0.0.1/api/configure/actions/create-persona", {
 				method: "POST",
@@ -693,6 +703,7 @@ describe("persona API", () => {
 	});
 
 	it("update-persona modifies an existing persona", async () => {
+		writeCredentials({ ai: { openai: { token: "sk-test" } } });
 		// First create a persona
 		const createRes = await handleWebRequest(
 			new Request("http://127.0.0.1/api/configure/actions/create-persona", {
@@ -733,6 +744,7 @@ describe("persona API", () => {
 	});
 
 	it("update-persona supports rename", async () => {
+		writeCredentials({ ai: { openai: { token: "sk-test" } } });
 		// Create
 		await handleWebRequest(
 			new Request("http://127.0.0.1/api/configure/actions/create-persona", {
@@ -761,6 +773,11 @@ describe("persona API", () => {
 	});
 
 	it("update-persona updates provider and model for the built-in persona", async () => {
+		writeConfig({
+			integrations: {},
+			personas: [],
+			ai: { ollama: { baseUrl: "http://localhost:11434/v1" } },
+		});
 		const res = await handleWebRequest(
 			new Request("http://127.0.0.1/api/configure/actions/update-persona", {
 				method: "POST",
