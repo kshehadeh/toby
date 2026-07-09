@@ -719,14 +719,14 @@ struct RootView: View {
 
     private var onboardingChecklist: OnboardingChecklist {
         let connected = !(store.status?.connectedIntegrations?.isEmpty ?? true)
-        let modelConfigured = !(store.status?.model.isEmpty ?? true)
+        let hasCustomPersona = store.status?.persona != "Toby"
         let granted = Set(
             permissionsStore.statuses.filter(\.isGranted).map(\.kind)
         )
         let requiredPermissions = granted.contains(.microphone) && granted.contains(.screenCapture)
         return OnboardingChecklist.make(
             hasConnectedIntegrations: connected,
-            hasModelConfigured: modelConfigured,
+            hasModelConfigured: hasCustomPersona,
             hasRequiredPermissions: requiredPermissions,
             hasSchedule: !schedulesStore.schedules.isEmpty,
             hasSession: !store.sessions.isEmpty
