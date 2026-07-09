@@ -6,6 +6,8 @@ enum OnboardingStepKind: String, Identifiable {
 	case setupPersona
 	case grantPermissions
 	case createSchedule
+	case createSkill
+	case recordAndTranscribe
 	case samplePrompt
 
 	var id: String { rawValue }
@@ -38,6 +40,8 @@ struct OnboardingChecklist: Equatable {
 		hasModelConfigured: Bool,
 		hasRequiredPermissions: Bool,
 		hasSchedule: Bool,
+		hasSkill: Bool,
+		hasRecording: Bool,
 		hasSession: Bool
 	) -> OnboardingChecklist {
 		OnboardingChecklist(steps: [
@@ -70,6 +74,18 @@ struct OnboardingChecklist: Equatable {
 				title: "Create your first schedule",
 				isComplete: hasSchedule,
 				actionLabel: "Create"
+			),
+			OnboardingStep(
+				kind: .createSkill,
+				title: "Create a skill",
+				isComplete: hasSkill,
+				actionLabel: "Create"
+			),
+			OnboardingStep(
+				kind: .recordAndTranscribe,
+				title: "Record and transcribe",
+				isComplete: hasRecording,
+				actionLabel: "Record"
 			),
 			OnboardingStep(
 				kind: .samplePrompt,

@@ -79,6 +79,10 @@ struct DashboardView: View {
 			onOpenPermissions()
 		case .createSchedule:
 			onSelectRoute(.schedules)
+		case .createSkill:
+			onSelectRoute(.skills)
+		case .recordAndTranscribe:
+			onSelectRoute(.recordings)
 		case .samplePrompt:
 			onStartChat()
 		}

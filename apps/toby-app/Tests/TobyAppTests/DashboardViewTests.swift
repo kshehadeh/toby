@@ -45,12 +45,14 @@ struct DashboardModelsTests {
 			hasModelConfigured: true,
 			hasRequiredPermissions: false,
 			hasSchedule: false,
+			hasSkill: false,
+			hasRecording: false,
 			hasSession: false
 		)
 		#expect(checklist.completedCount == 3)
-		#expect(checklist.totalCount == 6)
+		#expect(checklist.totalCount == 8)
 		#expect(checklist.isComplete == false)
-		#expect(checklist.progress == 0.5)
+		#expect(checklist.progress == 0.375)
 	}
 
 	@Test("onboarding checklist is complete when all steps done")
@@ -61,10 +63,12 @@ struct DashboardModelsTests {
 			hasModelConfigured: true,
 			hasRequiredPermissions: true,
 			hasSchedule: true,
+			hasSkill: true,
+			hasRecording: true,
 			hasSession: true
 		)
 		#expect(checklist.isComplete)
-		#expect(checklist.completedCount == 6)
+		#expect(checklist.completedCount == 8)
 	}
 
 	@Test("due text falls back to no due date")
@@ -125,6 +129,8 @@ struct DashboardViewTests {
 				hasModelConfigured: true,
 				hasRequiredPermissions: false,
 				hasSchedule: false,
+				hasSkill: false,
+				hasRecording: false,
 				hasSession: false
 			),
 			onRefresh: {},
@@ -160,6 +166,8 @@ struct DashboardViewTests {
 				hasModelConfigured: true,
 				hasRequiredPermissions: true,
 				hasSchedule: true,
+				hasSkill: true,
+				hasRecording: true,
 				hasSession: true
 			),
 			onRefresh: {},
@@ -185,6 +193,8 @@ struct DashboardViewTests {
 			hasModelConfigured: true,
 			hasRequiredPermissions: false,
 			hasSchedule: false,
+			hasSkill: false,
+			hasRecording: false,
 			hasSession: false
 		)
 		let card = OnboardingCard(checklist: checklist, onStepAction: { _ in })

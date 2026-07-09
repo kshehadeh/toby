@@ -735,6 +735,8 @@ struct RootView: View {
             hasModelConfigured: hasCustomPersona,
             hasRequiredPermissions: requiredPermissions,
             hasSchedule: !schedulesStore.schedules.isEmpty,
+            hasSkill: !skillsStore.skills.isEmpty,
+            hasRecording: !recordingsStore.recordings.isEmpty,
             hasSession: !store.sessions.isEmpty
         )
     }
