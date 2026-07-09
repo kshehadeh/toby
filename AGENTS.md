@@ -78,6 +78,13 @@ belongs in core.
   and stay generic; they resolve behavior through the core registry.
 - After substantive changes, run `bun run lint`, `bun run typecheck`, and
   `bun run test` (and Swift tests when touching Toby.app).
+- **Documentation:** when changing or adding functionality (new features,
+  enhancements, or fixes that change documented behavior), update both
+  [`docs/`](docs/) (contributor/technical) and
+  [`apps/help-site/docs/`](apps/help-site/docs/) (user-facing) when those areas
+  already cover the topic—or create coverage for new user/developer-facing work.
+  If it is unclear whether docs need updating, ask. Use the `toby-docs` skill
+  (`.agents/skills/toby-docs/`).
 - When committing, use the `atomic-conventional-commit` skill for cohesive
   Conventional Commit messages.
 - **Dev loops:** `bun run dev` for CLI watch; `bun run app` to build/open the
