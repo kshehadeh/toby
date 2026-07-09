@@ -11,3 +11,4 @@ apps/plugin-macos/.build/
 .env
 .DS_Store
 .swiftpm
+.last-temp-dir
