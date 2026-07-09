@@ -6,6 +6,7 @@ enum DaemonBootstrapError: LocalizedError {
 	case serverUnavailable
 	case restartUnavailable
 	case stopUnavailable
+	case identityMismatch(String)
 
 	var errorDescription: String? {
 		switch self {
@@ -19,6 +20,8 @@ enum DaemonBootstrapError: LocalizedError {
 			return "Toby server did not become available after restarting."
 		case .stopUnavailable:
 			return "Toby server did not stop."
+		case .identityMismatch(let detail):
+			return "Toby server did not match this app after restart (\(detail))."
 		}
 	}
 }
@@ -29,64 +32,94 @@ struct DaemonStartCommand: Equatable {
 	let currentDirectoryURL: URL?
 }
 
+/// Progress updates during bootstrap / restart (user-visible status text).
+typealias DaemonBootstrapProgress = @Sendable (String) -> Void
+
 enum DaemonBootstrap {
-	static func restartServer(baseURL: URL) async throws {
+	// MARK: - Public entry points
+
+	static func restartServer(
+		baseURL: URL,
+		onProgress: DaemonBootstrapProgress? = nil,
+	) async throws {
 		log("restart.start baseURL=\(baseURL.absoluteString)")
-		try await requestDaemonStop(baseURL: baseURL)
-		log("restart.stopRequested")
-		try await waitForServerUnavailable(baseURL: baseURL, timeout: 6)
-		log("restart.serverUnavailable")
-		let command = try resolveDaemonStartCommand(preferDevSource: true)
+		progress(onProgress, "Stopping server…")
+		try await stopRunningServer(baseURL: baseURL, onProgress: onProgress)
+
+		progress(onProgress, "Starting server…")
+		let command = try resolvePreferredDaemonStartCommand()
+		log("restart.startCommand=\(command.logDescription)")
 		try await runDaemonStart(command: command)
 		log("restart.startCommandReturned")
-		try await waitForServerAvailable(baseURL: baseURL, timeout: 10, error: .restartUnavailable)
+
+		progress(onProgress, "Waiting for server…")
+		try await waitForServerAvailable(baseURL: baseURL, timeout: 12, error: .restartUnavailable)
+
+		progress(onProgress, "Verifying server…")
+		try await verifyPreferredServer(baseURL: baseURL, onProgress: onProgress)
 		log("restart.available")
+		progress(onProgress, "Server ready")
 	}
 
 	/// Stops the running daemon server and waits for it to become unavailable.
 	/// Used before app relaunch (e.g. Sparkle update) to ensure a clean shutdown.
 	static func stopDaemon(baseURL: URL) async throws {
 		log("stop.start baseURL=\(baseURL.absoluteString)")
-		try await requestDaemonStop(baseURL: baseURL)
-		log("stop.stopRequested")
-		try await waitForServerUnavailable(baseURL: baseURL, timeout: 6)
+		try await stopRunningServer(baseURL: baseURL, onProgress: nil)
 		log("stop.serverUnavailable")
 	}
 
-	static func ensureServerAvailable(baseURL: URL) async throws {
+	static func ensureServerAvailable(
+		baseURL: URL,
+		onProgress: DaemonBootstrapProgress? = nil,
+	) async throws {
 		log("ensure.start baseURL=\(baseURL.absoluteString)")
-		if let bundledExecutable = bundledTobyExecutable() {
-			try await ensureBundledServerAvailable(
-				baseURL: baseURL,
-				bundledExecutable: bundledExecutable
-			)
-			log("ensure.bundled.done")
-			return
-		}
+		progress(onProgress, "Checking server…")
+
+		let preferred = preferredDaemonIdentity()
+		log(
+			"ensure.preferred executable=\(preferred.executablePath ?? "<nil>") version=\(preferred.version ?? "<nil>") kind=\(preferred.execKind ?? "<nil>")"
+		)
 
 		if await isServerAvailable(baseURL: baseURL) {
-			let runningInfo = await fetchRunningServerInfo(baseURL: baseURL)
+			let running = await fetchDaemonIdentity(baseURL: baseURL)
+			log(
+				"ensure.running executable=\(running.executablePath ?? "<nil>") version=\(running.version ?? "<nil>") kind=\(running.execKind ?? "<nil>")"
+			)
+
 			if !shouldReplaceServer(
-				runningExecutablePath: runningInfo.executablePath,
-				runningVersion: runningInfo.version,
-				runningTobyDir: runningInfo.tobyDir,
-				bundledExecutable: nil,
-				bundledVersion: nil
+				runningExecutablePath: running.executablePath,
+				runningVersion: running.version,
+				runningTobyDir: running.tobyDir,
+				runningExecKind: running.execKind,
+				bundledExecutable: preferred.executableURL,
+				bundledVersion: preferred.version,
+				expectedExecKind: preferred.execKind,
 			) {
-				log("ensure.available")
+				log("ensure.keepRunning")
+				progress(onProgress, "Server ready")
 				return
 			}
-			log("ensure.tobyDirMismatch tobyDir=\(runningInfo.tobyDir ?? "<nil>")")
-			try await requestDaemonStop(baseURL: baseURL)
-			try await waitForServerUnavailable(baseURL: baseURL, timeout: 6)
+
+			progress(onProgress, "Replacing mismatched server…")
+			log("ensure.replace reason=identityMismatch")
+			try await stopRunningServer(baseURL: baseURL, onProgress: onProgress)
+		} else {
+			progress(onProgress, "Starting server…")
 		}
 
-		let command = try resolveDaemonStartCommand(preferDevSource: true)
+		let command = try resolvePreferredDaemonStartCommand()
+		log("ensure.startCommand=\(command.logDescription)")
 		try await runDaemonStart(command: command)
 		log("ensure.startCommandReturned")
 
-		try await waitForServerAvailable(baseURL: baseURL, timeout: 6, error: .serverUnavailable)
-		log("ensure.availableAfterStart")
+		progress(onProgress, "Waiting for server…")
+		try await waitForServerAvailable(baseURL: baseURL, timeout: 12, error: .serverUnavailable)
+
+		progress(onProgress, "Verifying server…")
+		try await verifyPreferredServer(baseURL: baseURL, onProgress: onProgress, allowReplaceRetry: true)
+		log("ensure.available")
+		progress(onProgress, "Server ready")
 	}
 
 	static func waitForServerAvailable(
@@ -108,12 +141,16 @@ enum DaemonBootstrap {
 		throw error
 	}
 
+	// MARK: - Match rules
+
 	static func shouldReplaceServer(
 		runningExecutablePath: String?,
 		runningVersion: String?,
 		runningTobyDir: String? = nil,
+		runningExecKind: String? = nil,
 		bundledExecutable: URL? = nil,
 		bundledVersion: String? = nil,
+		expectedExecKind: String? = nil,
 	) -> Bool {
 		// If TOBY_DIR is set, verify the running daemon uses the same directory.
 		if let expectedTobyDir = ProcessInfo.processInfo.environment["TOBY_DIR"]?
@@ -124,8 +161,28 @@ enum DaemonBootstrap {
 			}
 		}
 
+		if let expectedExecKind = expectedExecKind?.trimmingCharacters(in: .whitespacesAndNewlines),
+			!expectedExecKind.isEmpty
+		{
+			let running = runningExecKind?.trimmingCharacters(in: .whitespacesAndNewlines)
+			if running != expectedExecKind {
+				return true
+			}
+		}
+
 		guard let bundledExecutable = bundledExecutable else {
-			return false
+			// No preferred executable (unusual). Keep whatever is running unless version is known and mismatches.
+			guard let bundledVersion = bundledVersion?.trimmingCharacters(in: .whitespacesAndNewlines),
+				!bundledVersion.isEmpty
+			else {
+				return false
+			}
+			guard let runningVersion = runningVersion?.trimmingCharacters(in: .whitespacesAndNewlines),
+				!runningVersion.isEmpty
+			else {
+				return true
+			}
+			return normalizeVersion(runningVersion) != normalizeVersion(bundledVersion)
 		}
 
 		guard let runningExecutablePath = runningExecutablePath?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -152,13 +209,197 @@ enum DaemonBootstrap {
 			return true
 		}
 
-		return runningVersion != bundledVersion
+		return normalizeVersion(runningVersion) != normalizeVersion(bundledVersion)
+	}
+
+	// MARK: - Preferred identity / start command
+
+	/// Whether this app build includes a bundled CLI (production / self-contained).
+	static func hasBundledTobyExecutable() -> Bool {
+		bundledTobyExecutable() != nil
+	}
+
+	/// Prefer bundled binary for production; only use monorepo source when no bundle is present.
+	static func resolvePreferredDaemonStartCommand() throws -> DaemonStartCommand {
+		if let bundled = bundledTobyExecutable() {
+			return compiledDaemonStartCommand(executable: bundled)
+		}
+		return try resolveDaemonStartCommand(preferDevSource: true)
+	}
+
+	static func preferredDaemonIdentity() -> PreferredDaemonIdentity {
+		if let bundled = bundledTobyExecutable() {
+			return PreferredDaemonIdentity(
+				executableURL: bundled,
+				executablePath: bundled.normalizedExecutablePath,
+				version: bundledAppVersion(),
+				execKind: "compiled"
+			)
+		}
+
+		// Dev: resolve identity path (entry script or compiled CLI), not the bun host binary.
+		if let command = try? resolveDaemonStartCommand(preferDevSource: true) {
+			let identityURL: URL
+			let kind: String
+			if let script = command.arguments.first(where: {
+				$0.hasSuffix(".ts") || $0.hasSuffix(".js") || $0.hasSuffix(".mjs") || $0.hasSuffix(".cjs")
+			}) {
+				identityURL = URL(fileURLWithPath: script)
+				kind = "source"
+			} else if command.arguments == ["daemon", "start"] {
+				identityURL = command.executableURL
+				kind = "compiled"
+			} else {
+				// Fallback: compare against the start executable (may be bun); kind still source.
+				identityURL = command.executableURL
+				kind = "source"
+			}
+			return PreferredDaemonIdentity(
+				executableURL: identityURL,
+				executablePath: identityURL.normalizedExecutablePath,
+				version: bundledAppVersion(),
+				execKind: kind
+			)
+		}
+
+		return PreferredDaemonIdentity(
+			executableURL: nil,
+			executablePath: nil,
+			version: bundledAppVersion(),
+			execKind: nil
+		)
+	}
+
+	// MARK: - Identity fetch / verify
+
+	private static func verifyPreferredServer(
+		baseURL: URL,
+		onProgress: DaemonBootstrapProgress?,
+		allowReplaceRetry: Bool = false,
+	) async throws {
+		let preferred = preferredDaemonIdentity()
+		let running = await fetchDaemonIdentity(baseURL: baseURL)
+		let needsReplace = shouldReplaceServer(
+			runningExecutablePath: running.executablePath,
+			runningVersion: running.version,
+			runningTobyDir: running.tobyDir,
+			runningExecKind: running.execKind,
+			bundledExecutable: preferred.executableURL,
+			bundledVersion: preferred.version,
+			expectedExecKind: preferred.execKind,
+		)
+
+		if !needsReplace {
+			return
+		}
+
+		let detail = identityMismatchDetail(preferred: preferred, running: running)
+		log("verify.mismatch \(detail)")
+
+		guard allowReplaceRetry else {
+			throw DaemonBootstrapError.identityMismatch(detail)
+		}
+
+		// Common race: `daemon start` no-ops when an old process still holds the lock.
+		progress(onProgress, "Retrying with the correct server…")
+		try await stopRunningServer(baseURL: baseURL, onProgress: onProgress, force: true)
+
+		let command = try resolvePreferredDaemonStartCommand()
+		try await runDaemonStart(command: command)
+		try await waitForServerAvailable(baseURL: baseURL, timeout: 12, error: .serverUnavailable)
+
+		let after = await fetchDaemonIdentity(baseURL: baseURL)
+		if shouldReplaceServer(
+			runningExecutablePath: after.executablePath,
+			runningVersion: after.version,
+			runningTobyDir: after.tobyDir,
+			runningExecKind: after.execKind,
+			bundledExecutable: preferred.executableURL,
+			bundledVersion: preferred.version,
+			expectedExecKind: preferred.execKind,
+		) {
+			throw DaemonBootstrapError.identityMismatch(
+				identityMismatchDetail(preferred: preferred, running: after)
+			)
+		}
+	}
+
+	private static func identityMismatchDetail(
+		preferred: PreferredDaemonIdentity,
+		running: DaemonIdentity,
+	) -> String {
+		var parts: [String] = []
+		if let expected = preferred.executablePath {
+			parts.append("expected \(expected)")
+		}
+		if let actual = running.executablePath {
+			parts.append("got \(actual)")
+		}
+		if let expectedVersion = preferred.version, let actualVersion = running.version,
+			normalizeVersion(expectedVersion) != normalizeVersion(actualVersion)
+		{
+			parts.append("version \(actualVersion) ≠ \(expectedVersion)")
+		}
+		if let expectedKind = preferred.execKind, let actualKind = running.execKind,
+			expectedKind != actualKind
+		{
+			parts.append("kind \(actualKind) ≠ \(expectedKind)")
+		}
+		return parts.isEmpty ? "identity mismatch" : parts.joined(separator: "; ")
+	}
+
+	private static func fetchDaemonIdentity(baseURL: URL) async -> DaemonIdentity {
+		// Prefer unified /api/health identity when available.
+		if let fromHealth = await fetchIdentityFromHealth(baseURL: baseURL) {
+			return fromHealth
+		}
+
+		async let executablePath = fetchRunningDaemonExecutablePath(baseURL: baseURL)
+		async let version = fetchRunningServerVersion(baseURL: baseURL)
+		async let tobyDir = fetchRunningTobyDir(baseURL: baseURL)
+		async let execKind = fetchRunningExecKind(baseURL: baseURL)
+		return await DaemonIdentity(
+			executablePath: executablePath,
+			version: version,
+			tobyDir: tobyDir,
+			execKind: execKind,
+			pid: nil
+		)
+	}
+
+	private static func fetchIdentityFromHealth(baseURL: URL) async -> DaemonIdentity? {
+		do {
+			let payload = try await fetchJSON(baseURL.appendingPathComponent("api/health"))
+			guard let identity = payload?["identity"] as? [String: Any] else {
+				return nil
+			}
+			return DaemonIdentity(
+				executablePath: identity["executablePath"] as? String,
+				version: identity["version"] as? String,
+				tobyDir: identity["tobyDir"] as? String,
+				execKind: identity["execKind"] as? String,
+				pid: identity["pid"] as? Int
+			)
+		} catch {
+			return nil
+		}
 	}
 
 	private static func isServerAvailable(baseURL: URL) async -> Bool {
+		// Prefer health (cheap + carries identity on modern daemons).
+		var healthRequest = URLRequest(url: baseURL.appendingPathComponent("api/health"))
+		healthRequest.timeoutInterval = 1
+		do {
+			let (_, response) = try await URLSession.shared.data(for: healthRequest)
+			if let http = response as? HTTPURLResponse, (200 ... 299).contains(http.statusCode) {
+				return true
+			}
+		} catch {
+			// fall through to status
+		}
+
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/status"))
 		request.timeoutInterval = 1
-
 		do {
 			let (_, response) = try await URLSession.shared.data(for: request)
 			guard let http = response as? HTTPURLResponse else {
@@ -170,51 +411,21 @@ enum DaemonBootstrap {
 		}
 	}
 
-	private static func ensureBundledServerAvailable(
-		baseURL: URL,
-		bundledExecutable: URL,
-	) async throws {
-		log("ensureBundled.start executable=\(bundledExecutable.path)")
-		guard await isServerAvailable(baseURL: baseURL) else {
-			try await runDaemonStart(command: compiledDaemonStartCommand(executable: bundledExecutable))
-			try await waitForServerAvailable(baseURL: baseURL, timeout: 6, error: .serverUnavailable)
-			log("ensureBundled.started")
-			return
-		}
-
-		let runningInfo = await fetchRunningServerInfo(baseURL: baseURL)
-		log("ensureBundled.running executable=\(runningInfo.executablePath ?? "<nil>") version=\(runningInfo.version ?? "<nil>")")
-		guard shouldReplaceServer(
-			runningExecutablePath: runningInfo.executablePath,
-			runningVersion: runningInfo.version,
-			runningTobyDir: runningInfo.tobyDir,
-			bundledExecutable: bundledExecutable,
-			bundledVersion: bundledAppVersion()
-		) else {
-			log("ensureBundled.keepRunning")
-			return
-		}
-
-		log("ensureBundled.replace")
-		try await requestDaemonStop(baseURL: baseURL)
-		try await waitForServerUnavailable(baseURL: baseURL, timeout: 6)
-		try await runDaemonStart(command: compiledDaemonStartCommand(executable: bundledExecutable))
-		try await waitForServerAvailable(baseURL: baseURL, timeout: 10, error: .serverUnavailable)
-		log("ensureBundled.replaced")
-	}
-
-	private static func fetchRunningServerInfo(baseURL: URL) async -> RunningServerInfo {
-		async let executablePath = fetchRunningDaemonExecutablePath(baseURL: baseURL)
-		async let version = fetchRunningServerVersion(baseURL: baseURL)
-		async let tobyDir = fetchRunningTobyDir(baseURL: baseURL)
-		return await RunningServerInfo(executablePath: executablePath, version: version, tobyDir: tobyDir)
-	}
-
 	private static func fetchRunningDaemonExecutablePath(baseURL: URL) async -> String? {
 		do {
 			let payload = try await fetchJSON(baseURL.appendingPathComponent("api/daemon/status"))
 			let process = payload?["process"] as? [String: Any]
 			return process?["executablePath"] as? String
+		} catch {
+			return nil
+		}
+	}
+
+	private static func fetchRunningExecKind(baseURL: URL) async -> String? {
+		do {
+			let payload = try await fetchJSON(baseURL.appendingPathComponent("api/daemon/status"))
+			let process = payload?["process"] as? [String: Any]
+			return process?["execKind"] as? String
 		} catch {
 			return nil
 		}
@@ -241,12 +452,68 @@ enum DaemonBootstrap {
 	private static func fetchJSON(_ url: URL) async throws -> [String: Any]? {
 		var request = URLRequest(url: url)
 		request.timeoutInterval = 1
+		request.cachePolicy = .reloadIgnoringLocalCacheData
 
 		let (data, response) = try await URLSession.shared.data(for: request)
 		guard let http = response as? HTTPURLResponse, (200 ... 299).contains(http.statusCode) else {
 			return nil
 		}
 		return try JSONSerialization.jsonObject(with: data) as? [String: Any]
+	}
+
+	// MARK: - Stop / force kill
+
+	private static func stopRunningServer(
+		baseURL: URL,
+		onProgress: DaemonBootstrapProgress?,
+		force: Bool = false,
+	) async throws {
+		let lockPid = readDaemonLockPid()
+
+		if await isServerAvailable(baseURL: baseURL) {
+			progress(onProgress, "Stopping server…")
+			do {
+				try await requestDaemonStop(baseURL: baseURL)
+				log("stop.httpRequested")
+			} catch {
+				log("stop.httpFailed error=\(error.localizedDescription)")
+				if !force {
+					// Fall through to lock-based kill.
+				}
+			}
+		}
+
+		// Prefer waiting for HTTP to go down, then ensure the process is gone.
+		try? await waitForServerUnavailable(baseURL: baseURL, timeout: 6)
+
+		let pidToKill = lockPid ?? readDaemonLockPid()
+		if let pid = pidToKill, isProcessAlive(pid: pid) {
+			log("stop.forceKill pid=\(pid)")
+			progress(onProgress, "Stopping leftover server process…")
+			signalProcess(pid: pid, signal: SIGTERM)
+			if !(await waitForProcessExit(pid: pid, timeout: 4)) {
+				log("stop.sigkill pid=\(pid)")
+				signalProcess(pid: pid, signal: SIGKILL)
+				_ = await waitForProcessExit(pid: pid, timeout: 2)
+			}
+		}
+
+		// Best-effort remove stale lock so the next start is not a no-op.
+		removeDaemonLockIfStale()
+
+		if await isServerAvailable(baseURL: baseURL) {
+			// One more hard attempt if something is still answering.
+			if let pid = readDaemonLockPid() ?? lockPid {
+				signalProcess(pid: pid, signal: SIGKILL)
+				_ = await waitForProcessExit(pid: pid, timeout: 2)
+			}
+			try await waitForServerUnavailable(baseURL: baseURL, timeout: 4)
+		}
+
+		if await isServerAvailable(baseURL: baseURL) {
+			throw DaemonBootstrapError.stopUnavailable
+		}
+		log("stop.done")
 	}
 
 	private static func requestDaemonStop(baseURL: URL) async throws {
@@ -284,6 +551,65 @@ enum DaemonBootstrap {
 		log("wait.unavailable.timeout")
 		throw DaemonBootstrapError.stopUnavailable
 	}
+
+	private static func readDaemonLockPid() -> Int32? {
+		let lockPath = (ConfigReader.resolveTobyDir() as NSString).appendingPathComponent("daemon.lock")
+		guard let raw = try? String(contentsOfFile: lockPath, encoding: .utf8) else {
+			return nil
+		}
+		let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+		if let legacy = Int32(trimmed), legacy > 0 {
+			return legacy
+		}
+		guard
+			let data = trimmed.data(using: .utf8),
+			let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+		else {
+			return nil
+		}
+		if let pid = json["pid"] as? Int, pid > 0 {
+			return Int32(pid)
+		}
+		if let pid = json["pid"] as? Int32, pid > 0 {
+			return pid
+		}
+		return nil
+	}
+
+	private static func removeDaemonLockIfStale() {
+		guard let pid = readDaemonLockPid() else {
+			// No parseable PID; leave file alone unless process check fails later.
+			return
+		}
+		if isProcessAlive(pid: pid) {
+			return
+		}
+		let lockPath = (ConfigReader.resolveTobyDir() as NSString).appendingPathComponent("daemon.lock")
+		try? FileManager.default.removeItem(atPath: lockPath)
+		log("stop.removedStaleLock pid=\(pid)")
+	}
+
+	private static func isProcessAlive(pid: Int32) -> Bool {
+		if pid <= 0 { return false }
+		return kill(pid, 0) == 0
+	}
+
+	private static func signalProcess(pid: Int32, signal: Int32) {
+		_ = kill(pid, signal)
+	}
+
+	private static func waitForProcessExit(pid: Int32, timeout: TimeInterval) async -> Bool {
+		let deadline = Date().addingTimeInterval(timeout)
+		while Date() < deadline {
+			if !isProcessAlive(pid: pid) {
+				return true
+			}
+			try? await Task.sleep(nanoseconds: 150_000_000)
+		}
+		return !isProcessAlive(pid: pid)
+	}
+
+	// MARK: - Start process
 
 	private static func runDaemonStart(command: DaemonStartCommand) async throws {
 		log("runStart.start command=\(command.logDescription)")
@@ -473,10 +799,30 @@ enum DaemonBootstrap {
 		return parent.appendingPathComponent("toby")
 	}
 
+	private static func normalizeVersion(_ version: String) -> String {
+		let trimmed = version.trimmingCharacters(in: .whitespacesAndNewlines)
+		if trimmed.hasPrefix("v") || trimmed.hasPrefix("V") {
+			return String(trimmed.dropFirst())
+		}
+		return trimmed
+	}
+
+	private static func progress(_ handler: DaemonBootstrapProgress?, _ message: String) {
+		handler?(message)
+	}
+
 	private static func log(_ message: String) {
 		ServerEventLog.append("daemonBootstrap.\(message)")
 	}
+}
 
+// MARK: - Supporting types
+
+struct PreferredDaemonIdentity: Equatable {
+	let executableURL: URL?
+	let executablePath: String?
+	let version: String?
+	let execKind: String?
 }
 
 private struct BunExecutableCandidate: Equatable {
@@ -484,10 +830,12 @@ private struct BunExecutableCandidate: Equatable {
 	let argumentPrefix: [String]
 }
 
-private struct RunningServerInfo {
+private struct DaemonIdentity {
 	let executablePath: String?
 	let version: String?
 	let tobyDir: String?
+	let execKind: String?
+	let pid: Int?
 }
 
 private extension DaemonStartCommand {

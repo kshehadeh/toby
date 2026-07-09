@@ -4,6 +4,7 @@ import {
 	getDefaultPersonaImagePath,
 	resolvePersonaImagePath,
 } from "../config/index";
+import { getDaemonIdentity } from "../daemon/status";
 import { handleChangelog } from "./handlers/changelog";
 import {
 	handleAskUserAnswer,
@@ -140,7 +141,11 @@ export async function handleWebRequest(
 
 	if (pathname.startsWith("/api/")) {
 		if (pathname === "/api/health") {
-			return jsonResponse({ ok: true, daemon: true });
+			return jsonResponse({
+				ok: true,
+				daemon: true,
+				identity: getDaemonIdentity(),
+			});
 		}
 		if (pathname === "/api/dashboard" && req.method === "GET") {
 			return handleDashboard();

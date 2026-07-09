@@ -12,8 +12,10 @@ struct DaemonBootstrapTests {
 			DaemonBootstrap.shouldReplaceServer(
 				runningExecutablePath: "/Applications/Toby.app/Contents/Resources/toby",
 				runningVersion: "1.2.3",
+				runningExecKind: "compiled",
 				bundledExecutable: bundled,
-				bundledVersion: "1.2.3"
+				bundledVersion: "1.2.3",
+				expectedExecKind: "compiled"
 			) == false
 		)
 	}
@@ -26,9 +28,27 @@ struct DaemonBootstrapTests {
 			DaemonBootstrap.shouldReplaceServer(
 				runningExecutablePath: "/Applications/Toby.app/Contents/Resources/toby",
 				runningVersion: "1.2.2",
+				runningExecKind: "compiled",
 				bundledExecutable: bundled,
-				bundledVersion: "1.2.3"
+				bundledVersion: "1.2.3",
+				expectedExecKind: "compiled"
 			)
+		)
+	}
+
+	@Test("treats v-prefix version as equal")
+	func normalizesVersionPrefix() {
+		let bundled = URL(fileURLWithPath: "/Applications/Toby.app/Contents/Resources/toby")
+
+		#expect(
+			DaemonBootstrap.shouldReplaceServer(
+				runningExecutablePath: "/Applications/Toby.app/Contents/Resources/toby",
+				runningVersion: "v1.2.3",
+				runningExecKind: "compiled",
+				bundledExecutable: bundled,
+				bundledVersion: "1.2.3",
+				expectedExecKind: "compiled"
+			) == false
 		)
 	}
 
@@ -40,8 +60,24 @@ struct DaemonBootstrapTests {
 			DaemonBootstrap.shouldReplaceServer(
 				runningExecutablePath: "/Users/dev/toby/apps/cli/src/cli.ts",
 				runningVersion: "1.2.3",
+				runningExecKind: "source",
 				bundledExecutable: bundled,
-				bundledVersion: "1.2.3"
+				bundledVersion: "1.2.3",
+				expectedExecKind: "compiled"
+			)
+		)
+	}
+
+	@Test("replaces when exec kind differs even if path is unknown")
+	func replacesDifferentExecKind() {
+		#expect(
+			DaemonBootstrap.shouldReplaceServer(
+				runningExecutablePath: nil,
+				runningVersion: "1.2.3",
+				runningExecKind: "source",
+				bundledExecutable: nil,
+				bundledVersion: "1.2.3",
+				expectedExecKind: "compiled"
 			)
 		)
 	}
@@ -55,7 +91,8 @@ struct DaemonBootstrapTests {
 				runningExecutablePath: nil,
 				runningVersion: nil,
 				bundledExecutable: bundled,
-				bundledVersion: "1.2.3"
+				bundledVersion: "1.2.3",
+				expectedExecKind: "compiled"
 			)
 		)
 	}
@@ -111,5 +148,18 @@ struct DaemonBootstrapTests {
 
 		#expect(command.arguments == ["daemon", "start"])
 		#expect(command.currentDirectoryURL == nil)
+	}
+
+	@Test("preferred start command prefers bundled binary when present")
+	func preferredStartUsesBundledWhenAvailable() throws {
+		// In test host, bundle may or may not include Resources/toby.
+		// When no bundle CLI exists, preferred resolution must still return a command.
+		let command = try DaemonBootstrap.resolvePreferredDaemonStartCommand()
+		#expect(command.arguments.contains("daemon"))
+		#expect(command.arguments.contains("start"))
+		if DaemonBootstrap.hasBundledTobyExecutable() {
+			#expect(command.arguments == ["daemon", "start"])
+			#expect(command.currentDirectoryURL == nil)
+		}
 	}
 }

@@ -5,11 +5,18 @@ import {
 	getWebConfig,
 	resolveTobyDir,
 } from "../config/index";
+import {
+	getTobyEntryScriptArgv,
+	isRunningAsCompiledBinary,
+} from "../toby-spawn";
+import { getTobyVersion } from "../version";
 
 export interface DaemonLockData {
 	readonly pid: number;
 	readonly intervalSeconds: number | null;
 }
+
+export type DaemonExecKind = "compiled" | "source";
 
 /** Runtime information about the daemon process serving this request. */
 export interface DaemonRuntimeInfo {
@@ -19,8 +26,25 @@ export interface DaemonRuntimeInfo {
 	readonly intervalSeconds: number | null;
 	readonly logPath: string;
 	readonly webPort: number | null;
-	/** Absolute path of the executable running the daemon (process.argv[1] or execPath). */
+	/** Absolute path of the process binary or entry script running the daemon. */
 	readonly executablePath: string;
+	/** Whether this process is a compiled binary or a source (bun/node) run. */
+	readonly execKind: DaemonExecKind;
+	readonly version: string;
+	readonly tobyDir: string;
+	/** Absolute path of the entry script when running from source; null for compiled. */
+	readonly entryScript: string | null;
+}
+
+/** Compact identity used for app↔daemon handshake on bootstrap. */
+export interface DaemonIdentity {
+	readonly version: string;
+	readonly executablePath: string;
+	readonly execKind: DaemonExecKind;
+	readonly tobyDir: string;
+	readonly pid: number;
+	readonly startedAt: string;
+	readonly entryScript: string | null;
 }
 
 export function getDaemonLockPath(): string {
@@ -69,6 +93,18 @@ export function readDaemonLock(): DaemonLockData | null {
 	}
 }
 
+/** Absolute path of the binary (compiled) or entry script (source) for this process. */
+export function resolveDaemonExecutablePath(): string {
+	if (isRunningAsCompiledBinary()) {
+		return path.resolve(process.execPath);
+	}
+	const entry = getTobyEntryScriptArgv();
+	if (entry) {
+		return path.resolve(entry);
+	}
+	return path.resolve(process.execPath);
+}
+
 /**
  * Runtime info for the daemon process. The web server runs inside the daemon
  * process, so `process.pid` / `process.uptime()` describe the daemon itself.
@@ -77,6 +113,7 @@ export function getDaemonRuntimeInfo(): DaemonRuntimeInfo {
 	const lock = readDaemonLock();
 	const uptimeSeconds = Math.max(0, Math.round(process.uptime()));
 	const webCfg = getWebConfig();
+	const entryScript = getTobyEntryScriptArgv();
 	return {
 		pid: lock?.pid ?? process.pid,
 		uptimeSeconds,
@@ -84,6 +121,24 @@ export function getDaemonRuntimeInfo(): DaemonRuntimeInfo {
 		intervalSeconds: lock?.intervalSeconds ?? null,
 		logPath: getUnifiedLogPath(),
 		webPort: webCfg.enabled ? webCfg.port : null,
-		executablePath: process.argv[1] ?? process.execPath,
+		executablePath: resolveDaemonExecutablePath(),
+		execKind: isRunningAsCompiledBinary() ? "compiled" : "source",
+		version: getTobyVersion(),
+		tobyDir: resolveTobyDir(),
+		entryScript: entryScript ? path.resolve(entryScript) : null,
+	};
+}
+
+/** Identity subset for handshake endpoints (health / bootstrap). */
+export function getDaemonIdentity(): DaemonIdentity {
+	const runtime = getDaemonRuntimeInfo();
+	return {
+		version: runtime.version,
+		executablePath: runtime.executablePath,
+		execKind: runtime.execKind,
+		tobyDir: runtime.tobyDir,
+		pid: runtime.pid,
+		startedAt: runtime.startedAt,
+		entryScript: runtime.entryScript,
 	};
 }

@@ -41,8 +41,8 @@ struct TobyClient {
 		return try JSONDecoder().decode(DaemonStatus.self, from: data)
 	}
 
-	func restartDaemon() async throws {
-		try await DaemonBootstrap.restartServer(baseURL: baseURL)
+	func restartDaemon(onProgress: DaemonBootstrapProgress? = nil) async throws {
+		try await DaemonBootstrap.restartServer(baseURL: baseURL, onProgress: onProgress)
 	}
 
 	func listSessions(limit: Int = 20) async throws -> [SessionSummary] {

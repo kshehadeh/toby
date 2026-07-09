@@ -254,6 +254,36 @@ struct DaemonProcessInfo: Decodable {
 	let logPath: String?
 	let webPort: Int?
 	let executablePath: String?
+	let execKind: String?
+	let version: String?
+	let tobyDir: String?
+	let entryScript: String?
+
+	init(
+		pid: Int,
+		uptimeSeconds: Int,
+		startedAt: String? = nil,
+		intervalSeconds: Int? = nil,
+		logPath: String? = nil,
+		webPort: Int? = nil,
+		executablePath: String? = nil,
+		execKind: String? = nil,
+		version: String? = nil,
+		tobyDir: String? = nil,
+		entryScript: String? = nil
+	) {
+		self.pid = pid
+		self.uptimeSeconds = uptimeSeconds
+		self.startedAt = startedAt
+		self.intervalSeconds = intervalSeconds
+		self.logPath = logPath
+		self.webPort = webPort
+		self.executablePath = executablePath
+		self.execKind = execKind
+		self.version = version
+		self.tobyDir = tobyDir
+		self.entryScript = entryScript
+	}
 }
 
 struct ChatInboundAwaitingSession: Decodable, Identifiable {

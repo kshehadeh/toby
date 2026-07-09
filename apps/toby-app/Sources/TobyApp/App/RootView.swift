@@ -293,6 +293,8 @@ struct RootView: View {
                 status: store.status,
                 daemonStatus: store.daemonStatus,
                 isServerRestarting: store.isServerRestarting,
+                isServerConnecting: store.isServerConnecting,
+                serverLifecycleMessage: store.serverLifecycleMessage,
                 updateStore: updateStore,
                 onSelectRoute: navigateToRoute,
                 onCreatePersona: { openPersonaEditor(.create) },

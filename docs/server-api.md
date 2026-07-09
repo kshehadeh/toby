@@ -121,9 +121,31 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 
 Returns `200` when the daemon HTTP server is reachable. Use `GET` from clients; the current router does not restrict this health route by method.
 
+Includes a compact **identity** payload so Toby.app can handshake on launch: compare expected version / executable / kind and replace a mismatched (e.g. leftover dev) daemon with the one bundled for this app.
+
 ```json
-{ "ok": true, "daemon": true }
+{
+  "ok": true,
+  "daemon": true,
+  "identity": {
+    "version": "1.2.3",
+    "executablePath": "/Applications/Toby.app/Contents/Resources/toby",
+    "execKind": "compiled",
+    "tobyDir": "/Users/you/.toby",
+    "pid": 12345,
+    "startedAt": "2026-01-01T00:00:00.000Z",
+    "entryScript": null
+  }
+}
 ```
+
+| Field | Meaning |
+| --- | --- |
+| `version` | Toby release version (`getTobyVersion()`) |
+| `executablePath` | Absolute path of the compiled binary or source entry script |
+| `execKind` | `"compiled"` or `"source"` |
+| `tobyDir` | Data directory for this process |
+| `entryScript` | Absolute path of the TS/JS entry when `execKind` is `"source"`; otherwise `null` |
 
 ### `GET /api/status`
 
@@ -152,6 +174,11 @@ type DaemonStatusResponse = {
     intervalSeconds: number | null;
     logPath: string;
     webPort: number | null;
+    executablePath: string;
+    execKind: "compiled" | "source";
+    version: string;
+    tobyDir: string;
+    entryScript: string | null;
   };
   chatInbound: {
     enabled: boolean;

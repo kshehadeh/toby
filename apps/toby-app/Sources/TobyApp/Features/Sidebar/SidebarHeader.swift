@@ -5,6 +5,8 @@ struct SidebarHeader: View {
 	let status: AppStatus?
 	let daemonStatus: DaemonStatus?
 	let isServerRestarting: Bool
+	var isServerConnecting: Bool = false
+	var serverLifecycleMessage: String? = nil
 	let updateStore: UpdateStore?
 	let onCheckForUpdates: () -> Void
 	let onRestartServer: () -> Void
@@ -61,6 +63,13 @@ struct SidebarHeader: View {
 									.foregroundStyle(AppTheme.tertiaryText)
 									.lineLimit(1)
 							}
+						} else if isServerConnecting || isServerRestarting,
+							let message = serverLifecycleMessage, !message.isEmpty
+						{
+							Text(message)
+								.font(.caption)
+								.foregroundStyle(AppTheme.tertiaryText)
+								.lineLimit(1)
 						}
 					}
 				}
@@ -75,6 +84,8 @@ struct SidebarHeader: View {
 				status: status,
 				daemonStatus: daemonStatus,
 				isRestarting: isServerRestarting,
+				isConnecting: isServerConnecting,
+				lifecycleMessage: serverLifecycleMessage,
 				onRestart: onRestartServer
 			)
 		}

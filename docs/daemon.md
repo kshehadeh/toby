@@ -54,6 +54,17 @@ Implementation entrypoints:
 
 Toby.app can also restart the server from its native controls.
 
+### App handshake (dev vs production)
+
+Toby.app and the daemon share one localhost port and lock file. On launch (and on **Restart server**), the app:
+
+1. Probes `GET /api/health` for daemon **identity** (version, executable path, `execKind`, `tobyDir`).
+2. Compares that to the app’s preferred server (bundled `Contents/Resources/toby` for production builds; monorepo bun/source CLI for dev builds without a bundled binary).
+3. If the running daemon mismatches (common after switching between **Toby (Dev)** and production), stops it — including force-killing a leftover PID from `daemon.lock` when HTTP stop is not enough — then starts the preferred binary.
+4. Verifies identity after start; retries once if `daemon start` no-op’d on a still-living process.
+
+Manual **Restart server** always uses the same preferred binary as launch (production no longer prefers the monorepo source CLI).
+
 `start` accepts `-i, --interval <seconds>` to change the schedule poll interval. `restart` accepts the same option; when omitted, it reuses the interval from the running daemon's lock file, or 60s if the daemon was not running.
 
 ## Schedules

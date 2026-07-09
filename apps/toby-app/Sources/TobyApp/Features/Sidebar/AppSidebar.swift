@@ -26,6 +26,8 @@ struct AppSidebar<Content: View>: View {
 	let status: AppStatus?
 	let daemonStatus: DaemonStatus?
 	let isServerRestarting: Bool
+	var isServerConnecting: Bool = false
+	var serverLifecycleMessage: String? = nil
 	let updateStore: UpdateStore?
 	let onSelectRoute: (DetailRoute) -> Void
 	let onCreatePersona: () -> Void
@@ -117,6 +119,8 @@ struct AppSidebar<Content: View>: View {
 				status: status,
 				daemonStatus: daemonStatus,
 				isServerRestarting: isServerRestarting,
+				isServerConnecting: isServerConnecting,
+				serverLifecycleMessage: serverLifecycleMessage,
 				updateStore: updateStore,
 				onCheckForUpdates: onCheckForUpdates,
 				onRestartServer: onRestartServer

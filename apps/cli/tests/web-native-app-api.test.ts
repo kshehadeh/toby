@@ -78,6 +78,37 @@ describe("native app API fresh state", () => {
 		});
 	});
 
+	it("GET /api/health returns identity for app handshake", async () => {
+		await withTempTobyDir(async () => {
+			const res = await handleWebRequest(
+				new Request("http://127.0.0.1/api/health"),
+				null,
+			);
+			expect(res.status).toBe(200);
+			const body = (await res.json()) as {
+				ok: boolean;
+				daemon: boolean;
+				identity: {
+					version: string;
+					executablePath: string;
+					execKind: "compiled" | "source";
+					tobyDir: string;
+					pid: number;
+					startedAt: string;
+					entryScript: string | null;
+				};
+			};
+			expect(body.ok).toBe(true);
+			expect(body.daemon).toBe(true);
+			expect(body.identity.version.length).toBeGreaterThan(0);
+			expect(body.identity.executablePath.length).toBeGreaterThan(0);
+			expect(["compiled", "source"]).toContain(body.identity.execKind);
+			expect(body.identity.tobyDir).toBe(process.env.TOBY_DIR);
+			expect(body.identity.pid).toEqual(expect.any(Number));
+			expect(body.identity.startedAt.length).toBeGreaterThan(0);
+		});
+	});
+
 	it("GET /api/daemon/status returns process info", async () => {
 		await withTempTobyDir(async () => {
 			const res = await handleWebRequest(
@@ -86,7 +117,15 @@ describe("native app API fresh state", () => {
 			);
 			expect(res.status).toBe(200);
 			const body = (await res.json()) as {
-				process?: { pid: number; uptimeSeconds: number; logPath: string };
+				process?: {
+					pid: number;
+					uptimeSeconds: number;
+					logPath: string;
+					executablePath: string;
+					execKind: string;
+					version: string;
+					tobyDir: string;
+				};
 				chatInbound: { enabled: boolean; status: string };
 			};
 			expect(body.chatInbound).toMatchObject({
@@ -97,6 +136,10 @@ describe("native app API fresh state", () => {
 				expect(body.process.pid).toEqual(expect.any(Number));
 				expect(body.process.uptimeSeconds).toEqual(expect.any(Number));
 				expect(body.process.logPath).toEqual(expect.any(String));
+				expect(body.process.executablePath.length).toBeGreaterThan(0);
+				expect(["compiled", "source"]).toContain(body.process.execKind);
+				expect(body.process.version.length).toBeGreaterThan(0);
+				expect(body.process.tobyDir).toBe(process.env.TOBY_DIR);
 			}
 		});
 	});

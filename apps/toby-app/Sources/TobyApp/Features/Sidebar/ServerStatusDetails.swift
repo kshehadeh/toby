@@ -5,6 +5,7 @@ struct ServerStatusDetails: View {
 	let daemonStatus: DaemonStatus?
 	let health: ServerHealth
 	let isRestarting: Bool
+	var lifecycleMessage: String? = nil
 	let onShowServerInfo: () -> Void
 	let onRestart: () -> Void
 
@@ -17,16 +18,27 @@ struct ServerStatusDetails: View {
 				Text(health.label)
 					.font(.callout.weight(.medium))
 					.foregroundStyle(AppTheme.primaryText)
+				if isRestarting {
+					ProgressView()
+						.controlSize(.small)
+				}
 				Spacer()
 			}
-			HStack(spacing: 4) {
-				Text(uptimeText)
+			if health == .starting, let lifecycleMessage, !lifecycleMessage.isEmpty {
+				Text(lifecycleMessage)
 					.font(.caption)
-					.foregroundStyle(AppTheme.tertiaryText)
-				if let pid = daemonStatus?.process?.pid {
-					Text(verbatim: "· PID \(pid)")
+					.foregroundStyle(AppTheme.secondaryText)
+					.fixedSize(horizontal: false, vertical: true)
+			} else {
+				HStack(spacing: 4) {
+					Text(uptimeText)
 						.font(.caption)
 						.foregroundStyle(AppTheme.tertiaryText)
+					if let pid = daemonStatus?.process?.pid {
+						Text(verbatim: "· PID \(pid)")
+							.font(.caption)
+							.foregroundStyle(AppTheme.tertiaryText)
+					}
 				}
 			}
 			if let execPath = daemonStatus?.process?.executablePath, !execPath.isEmpty {

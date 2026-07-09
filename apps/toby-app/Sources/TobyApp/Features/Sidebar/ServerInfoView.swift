@@ -5,6 +5,7 @@ struct ServerInfoView: View {
 	let daemonStatus: DaemonStatus?
 	let health: ServerHealth
 	let isRestarting: Bool
+	var lifecycleMessage: String? = nil
 	var client: PluginsFetchable = TobyClient()
 	var onRestart: (() -> Void)? = nil
 	var onDismiss: (() -> Void)? = nil
@@ -18,6 +19,7 @@ struct ServerInfoView: View {
 		daemonStatus: DaemonStatus?,
 		health: ServerHealth,
 		isRestarting: Bool = false,
+		lifecycleMessage: String? = nil,
 		client: PluginsFetchable = TobyClient(),
 		initialPluginCount: Int? = nil,
 		onRestart: (() -> Void)? = nil,
@@ -27,6 +29,7 @@ struct ServerInfoView: View {
 		self.daemonStatus = daemonStatus
 		self.health = health
 		self.isRestarting = isRestarting
+		self.lifecycleMessage = lifecycleMessage
 		self.client = client
 		self.onRestart = onRestart
 		self.onDismiss = onDismiss
@@ -46,6 +49,9 @@ struct ServerInfoView: View {
 			ScrollView {
 				VStack(alignment: .leading, spacing: 16) {
 					connectionRow
+					if isRestarting, let lifecycleMessage, !lifecycleMessage.isEmpty {
+						infoRow(title: "Status", value: lifecycleMessage)
+					}
 					infoRow(title: "Version", value: status?.version)
 					infoRow(title: "Uptime", value: formatDaemonUptime(seconds: daemonStatus?.process?.uptimeSeconds))
 					pathRow(
@@ -129,14 +135,18 @@ struct ServerInfoView: View {
 				Circle()
 					.fill(health.color)
 					.frame(width: 8, height: 8)
-				Text(health.label)
+				Text(health.displayLabel(lifecycleMessage: lifecycleMessage))
 					.font(.callout.weight(.medium))
 					.foregroundStyle(AppTheme.primaryText)
+				if isRestarting {
+					ProgressView()
+						.controlSize(.small)
+				}
 			}
 			Spacer(minLength: 0)
 		}
 		.accessibilityElement(children: .combine)
-		.accessibilityLabel("Connection, \(health.label)")
+		.accessibilityLabel("Connection, \(health.displayLabel(lifecycleMessage: lifecycleMessage))")
 	}
 
 	private var pluginsRow: some View {

@@ -49,6 +49,10 @@ final class ChatStore {
 	var isLoading = false
 	var isSelectingSession = false
 	var isServerRestarting = false
+	/// True while bootstrap is ensuring / replacing the local daemon.
+	var isServerConnecting = false
+	/// User-visible detail for server lifecycle (bootstrap / restart steps).
+	var serverLifecycleMessage: String?
 	var listenStatus: ListenStatusResponse?
 	var isListenRequestInFlight = false
 	var toast: AppToastState?
@@ -127,16 +131,32 @@ final class ChatStore {
 	}
 
 	func bootstrap() async {
+		isServerConnecting = true
+		serverLifecycleMessage = "Checking server…"
+		activityLine = "Checking server…"
 		do {
-			activityLine = "Checking server…"
-			try await DaemonBootstrap.ensureServerAvailable(baseURL: client.baseURL)
+			try await DaemonBootstrap.ensureServerAvailable(baseURL: client.baseURL) { [weak self] message in
+				Task { @MainActor in
+					guard let self else { return }
+					self.serverLifecycleMessage = message
+					self.activityLine = message
+				}
+			}
 			activityLine = "Connecting…"
+			serverLifecycleMessage = "Connecting…"
 			status = try await client.fetchStatus()
 			listenStatus = try? await nativeAudioClient.status()
 			await refreshDaemonStatus()
 			await refreshSessions()
 			await startNewSession()
+			isServerConnecting = false
+			serverLifecycleMessage = nil
+			if !isLoading {
+				activityLine = "Ready"
+			}
 		} catch {
+			isServerConnecting = false
+			serverLifecycleMessage = nil
 			showErrorToast(error.localizedDescription)
 			activityLine = "Daemon unavailable"
 		}
@@ -181,23 +201,30 @@ final class ChatStore {
 		isServerRestarting = true
 		status = nil
 		daemonStatus = nil
+		serverLifecycleMessage = "Restarting server…"
 		activityLine = "Restarting server…"
+		toast = AppToastState(
+			style: .progress,
+			title: "Restarting server",
+			message: "Stopping the current server and starting the one for this app.",
+		)
 		do {
-			try await client.restartDaemon()
-			toast = AppToastState(
-				style: .progress,
-				title: "Restarting server",
-				message: "Toby will reconnect when the server is ready.",
-			)
-			try? await Task.sleep(nanoseconds: 2_000_000_000)
-			try await DaemonBootstrap.waitForServerAvailable(
-				baseURL: client.baseURL,
-				timeout: 10,
-				error: .restartUnavailable,
-			)
+			try await client.restartDaemon { [weak self] message in
+				Task { @MainActor in
+					guard let self else { return }
+					self.serverLifecycleMessage = message
+					self.activityLine = message
+					self.toast = AppToastState(
+						style: .progress,
+						title: "Restarting server",
+						message: message,
+					)
+				}
+			}
 			status = try await client.fetchStatus()
 			listenStatus = try? await nativeAudioClient.status()
 			isServerRestarting = false
+			serverLifecycleMessage = nil
 			await refreshDaemonStatus()
 			activityLine = "Ready"
 			toast = AppToastState(
@@ -207,6 +234,7 @@ final class ChatStore {
 			)
 		} catch {
 			isServerRestarting = false
+			serverLifecycleMessage = nil
 			activityLine = "Daemon unavailable"
 			toast = AppToastState(
 				style: .error,
