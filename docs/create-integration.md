@@ -1,133 +1,154 @@
 # Creating a new integration
 
-This checklist assumes a **first-party** integration in **`@toby/core`** under `packages/core/src/integrations/<id>/`, consistent with Slack. Email, Todoist, Azure AD, Jira, Notion, Web Search, Apple Calendar, Apple Reminders, and macOS ship as installable plugins or built-in global tools instead (see [Migrating a built-in to a plugin](#migrating-a-built-in-to-a-plugin)). Interactive configuration is served by core configure APIs and rendered in Toby.app; harness code stays in core. See [`architecture.md`](architecture.md#core-vs-apps).
+**All new integrations are TypeScript bun-package plugins** (directory named
+`toby-plugin-<name>/` with `manifest.json` + TypeScript entrypoint). Do not add
+in-process modules under `packages/core/src/integrations/<name>/` and do not
+create compiled binary or Swift plugins. When macOS frameworks or TCC are
+required, delegate to **Toby.app’s native API server** from the TypeScript
+plugin (see [`apps/plugin-macos/`](../apps/plugin-macos/) and
+[`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/)).
 
-## 1. Scaffold the folder
+Interactive configuration is served by core configure APIs and rendered in
+Toby.app. The harness adapts plugins into `IntegrationModule` at discovery time.
+See [`architecture.md`](architecture.md#core-vs-apps),
+[`plugin-protocol.md`](plugin-protocol.md), and the repo skill
+[`.agents/skills/toby-plugin/SKILL.md`](../.agents/skills/toby-plugin/SKILL.md).
 
-Create `packages/core/src/integrations/<id>/` with at least:
+## 1. Scaffold a bun-package plugin
 
-- `client.ts` — API client and any types for requests/responses.
-- `index.ts` — single exported `IntegrationModule` instance (e.g. `myServiceIntegrationModule`).
+Create `apps/plugin-<name>/` (release name `toby-plugin-<name>/`):
 
-Add optional files as needed:
+```text
+apps/plugin-myintegration/
+  manifest.json
+  package.json
+  README.md
+  src/
+    index.ts          # protocol entry (status, connect, tools, …)
+    tools.ts          # tool definitions + execute
+    prompts.ts        # optional chatModelPrep strings
+    auth.ts           # optional OAuth / token helpers
+```
 
-- `auth.ts` — OAuth or token exchange used by `connect`.
-- `tools.ts` — AI tools (`tool()` from `ai` package).
-- `prompts/*.ts` — message builders for summarize/organize flows.
-- `cli.ts` — `registerCommands(program)` implementation if the integration exposes its own subcommands.
+`manifest.json` must declare `name`, `displayName`, `description`, `version`,
+`protocolVersion: "1"`, and `runtime: { "type": "bun", "entry": "src/index.ts" }`.
+Optional: `capabilities`, `providerCategories`, `icon` / `iconAsset`.
 
-Use **flat credential keys** in descriptors (e.g. `myservice.apiKey`) so they merge cleanly with the configure UI’s value map.
+Use local credential field keys in `config shape` (Toby namespaces them as
+`<name>.<key>`).
 
-## 2. Implement `IntegrationModule`
+## 2. Implement the plugin protocol
 
-In `index.ts`:
+Implement the v1 subcommand matrix in [`plugin-protocol.md`](plugin-protocol.md):
 
-1. Implement **lifecycle** (`connect`, `disconnect`, `isConnected`, `testConnection`) using [`readConfig` / `writeConfig`](../packages/core/src/config/index.ts) and your client.
-2. Set **`name`** (CLI identifier), **`displayName`**, **`description`**.
-3. Set **`capabilities`** to the subset you support. If you add a **new** capability string, extend `IntegrationCapability` in [`packages/core/src/integrations/types.ts`](../packages/core/src/integrations/types.ts) and teach any core command that should use it (or add a new generic dispatcher there).
-4. Set **`providerCategories`** when the integration should participate in default-provider selection and schedule routing. Current categories are `email`, `calendar`, `tasks`, `contacts`, `chat`, `documents`, and `work_tracker`. Use `documents` for knowledge-base or document-store providers such as Notion and Confluence.
-5. Implement **`getCredentialDescriptors`**, **`seedCredentialValues`**, and **`mergeCredentialsPatch`** so `configure` can show and persist secrets. Map into `CredentialsFile` in [`packages/core/src/config/index.ts`](../packages/core/src/config/index.ts) — you may need to extend `CredentialsFile` with a new optional block for your service.
-   - If your integration supports multiple auth paths, set `authMethods` on the module and use `showForAuthMethods` on descriptors so the configure UI shows only fields relevant to the selected method.
-6. If the integration supports inbox-style summaries, implement **`summarize`** returning `{ status: "ok", messages }` or `{ status: "empty", message }` per [`SummarizeRunResult`](../packages/core/src/integrations/types.ts).
-7. Optionally implement **`registerCommands(program)`** for integration-specific subcommands (see the Slack module for an example).
+| Subcommand | Role |
+| ---------- | ---- |
+| `status` | Identity, health, `capabilities`, optional `chatModelPrep`, `authMethods`, `chatReadiness` |
+| `connect` / `disconnect` | Lifecycle; optional config writeback |
+| `config shape` / `get` / `set` | Configure UI fields and normalization |
+| `tools list` / `tools execute` | Chat tool catalog and execution (`dryRun`, `appliedActions`) |
+| `setup` / `setup guide` | Optional one-time setup and onboarding wizard content |
+| `inbound run` | Optional long-lived NDJSON inbound transport |
 
-### Note on watch / scheduling
+Rules:
 
-Integrations should implement **one-shot** runners (e.g. `module.organize(...)`) that complete a single pass of work.
-Recurring execution (like `toby organize --watch "every hour"`) is orchestrated by the **core command layer**, not by integration modules.
+1. **stdout** — exactly one JSON object (or NDJSON lines for inbound).
+2. **stdin** — config envelope for credential/state; do **not** read `~/.toby/`.
+3. Exit codes: `0` success, `1` business failure, `2` contract/usage error.
+4. Honor `dryRun` for mutating tools; return `appliedActions` for side effects.
 
-## 3. Register the module
+Provider categories (when relevant): `email`, `calendar`, `tasks`, `contacts`,
+`chat`, `documents`, `work_tracker`.
 
-In [`packages/core/src/integrations/index.ts`](../packages/core/src/integrations/index.ts):
+Capabilities today: `"chat"` (tools in chat) and/or `"inbound"` (daemon listener).
 
-- Import your module object.
-- Append it to the **`MODULES`** array.
+## 3. Register for local development
 
-No other registry file exists; this array is the source of truth.
+No changes to `BUILTIN_MODULES` are required — discovery loads plugins
+automatically.
 
-## 4. Wire config storage (if new credential shape)
+```bash
+bun run --cwd apps/plugin-myintegration build   # if the package defines build
+# or run sources via Bun entry as in other plugins
+toby plugins install ./apps/plugin-myintegration --link --force
+toby plugins doctor
+toby connect myintegration
+```
 
-If `CredentialsFile` gains new fields:
+First-party plugins are also built into `dist/` via root scripts
+(`bun run build:plugins` / per-plugin `build:plugin:*`).
 
-- Update [`packages/core/src/config/index.ts`](../packages/core/src/config/index.ts) types and any helpers.
-- Update credential merge behavior in [`packages/core/src/configure/persistence.ts`](../packages/core/src/configure/persistence.ts) only if your shape needs custom handling beyond module `mergeCredentialsPatch`; most integrations should rely on the generic module patch merge.
+## 4. Chat model prep (when `capabilities` includes `"chat"`)
 
-## 5. Tests
+Return `chatModelPrep` on `status` with integration rules and templates
+(`{{userPrompt}}` placeholders). Toby wraps these with persona composition and
+global tool guidance. See
+[complex integration extensions](plugin-protocol.md#complex-integrations-oauth-auth-methods-chat-prep).
 
-Extend [`apps/cli/tests/integrations.test.ts`](../apps/cli/tests/integrations.test.ts) (or add a focused test file) to assert:
+## 5. Inbound chat (optional)
 
-- The new `name` appears in `getIntegrationModules()`.
-- Descriptor and capability expectations match what you documented.
+For chat platforms that should answer @mentions/DMs while the daemon runs:
 
-Run:
+1. Advertise `"inbound"` (and usually `"chat"`) in capabilities.
+2. Implement `inbound run` (NDJSON) per
+   [plugin-protocol inbound](plugin-protocol.md#inbound-chat-daemon-transport).
+3. Document your `external_key` format (stable per channel + thread).
+4. Store bot/app tokens via `config shape`; use
+   `integrations.<name>.inboundEnabled` plus global `chatInbound` in config.
+
+Core routing stays in [`packages/core/src/chat-inbound/`](../packages/core/src/chat-inbound/);
+the plugin transport is adapted by
+[`inbound-adapter.ts`](../packages/core/src/integrations/plugins/inbound-adapter.ts).
+Reference: [`apps/plugin-slack/`](../apps/plugin-slack/).
+
+See [`chat-inbound.md`](chat-inbound.md) and [`daemon.md`](daemon.md).
+
+## 6. macOS-native work (optional)
+
+If tools need EventKit, Contacts, Accessibility, or similar:
+
+1. Add endpoints/handlers in Toby.app (`apps/toby-app/Sources/TobyApp/Native/`).
+2. Call them over HTTP from the TypeScript plugin (pattern in
+   `apps/plugin-macos` / `apps/plugin-applecalendar`).
+3. Do not ship a second native binary for the integration.
+
+## 7. Tests and verification
+
+- Unit-test pure tool/inbound logic in the plugin package when practical
+  (e.g. Slack’s `apps/plugin-slack/tests/`).
+- Run harness checks after install:
 
 ```bash
 bun run lint && bun run typecheck && bun run test
+toby plugins doctor
+toby status integration myintegration
 ```
 
-## 6. Documentation
+## 8. Documentation
 
-Update [`docs/integrations.md`](integrations.md) if you introduce new capabilities, registry helpers, or conventions future modules should follow.
+- Add a short section or dedicated doc under `docs/` if the integration has
+  non-obvious setup (tokens, TCC, scopes).
+- Update [`integrations.md`](integrations.md) first-party table when shipping
+  a new first-party plugin.
+- Prefer implementing **`setup guide`** so Toby.app can show a step-by-step
+  wizard (redirect URIs, scopes, links).
 
-If you are shipping as an installable plugin, consider implementing the optional [`setup guide`](plugin-protocol.md#setup-guide) subcommand so **Toby.app** can show a guided onboarding wizard for your integration (provider links, copyable redirect URIs/scopes, inline credential fields, and connect/validate actions).
+## Reference implementations
 
-## Inbound chat (optional)
+| Plugin | Why look here |
+| ------ | ------------- |
+| [`apps/plugin-sample-ts/`](../apps/plugin-sample-ts/) | Minimal protocol surface |
+| [`apps/plugin-email/`](../apps/plugin-email/) | Auth methods, config writeback, chat tools |
+| [`apps/plugin-slack/`](../apps/plugin-slack/) | Chat + inbound sidecar |
+| [`apps/plugin-jira/`](../apps/plugin-jira/) | Work tracker category |
+| [`apps/plugin-notion/`](../apps/plugin-notion/) | Documents category |
+| [`apps/plugin-macos/`](../apps/plugin-macos/) | Native API delegation + `setup` |
 
-For chat-category integrations that should respond to @mentions or DMs while the daemon runs:
+## Historical note: built-in modules
 
-1. Add `packages/core/src/integrations/<id>/inbound.ts` implementing `ChatInboundProvider` from [`packages/core/src/chat-inbound/types.ts`](../packages/core/src/chat-inbound/types.ts):
-   - `start(ctx)` — long-lived connection; call `ctx.emit(normalizedEvent)` for each user message.
-   - `deliverReply` / `deliverAskUser` — post back to the same channel/thread.
-   - Optional `buildInboundPersonaAppendix`, `matchesAskUserReply`.
-2. Set `chatInbound` on your `IntegrationModule` export.
-3. Document your `external_key` format (stable per channel+thread).
-4. Store transport credentials via existing configure descriptors; use `integrations.<id>.inboundEnabled` in config for the toggle.
-
-Core routing, session mapping, and headless turns live in [`packages/core/src/chat-inbound/`](../packages/core/src/chat-inbound/) and [`packages/core/src/chat-pipeline/headless-session.ts`](../packages/core/src/chat-pipeline/headless-session.ts) (which runs the shared node pipeline). See [`docs/chat-inbound.md`](chat-inbound.md) and [`docs/chat-pipeline.md`](chat-pipeline.md).
-
-**Slack** is the reference implementation: [`packages/core/src/integrations/slack/inbound.ts`](../packages/core/src/integrations/slack/inbound.ts).
-
-## External installable plugin (optional)
-
-To ship an integration **outside** the main Toby binary:
-
-1. Implement a TypeScript bun-package plugin named `toby-plugin-<name>` following
-   [`docs/plugin-protocol.md`](plugin-protocol.md). All new plugins must be
-   TypeScript bun-package plugins — do not create compiled binary or Swift
-   plugins. When macOS framework access is needed, delegate to Toby.app's
-   native API server from the TypeScript plugin.
-2. Install the directory with `toby plugins install <path>` or copy it into `~/.toby/plugins/`.
-3. Run `toby plugins doctor` to validate protocol compatibility.
-
-See [`apps/plugin-sample-ts/`](../apps/plugin-sample-ts/) for a minimal reference plugin and build script (`bun run build:plugin:sample-ts`). For a document-store provider, see [`apps/plugin-notion/`](../apps/plugin-notion/), which declares `providerCategories: ["documents"]` and exposes read/write page tools.
-
-No changes to `MODULES` are required — discovery registers plugin-backed modules automatically.
-
-## Migrating a built-in to a plugin
-
-Use this checklist when moving an existing first-party integration out of
-`packages/core/src/integrations/<name>/` (the Email plugin is a reference migration):
-
-1. **Audit** the built-in `IntegrationModule` — lifecycle, credentials, tools,
-   `chatModelPrep`, `chatReadiness`, and `testConnection({ validateTools })`.
-2. **Extend the plugin protocol** only if a gap appears; prefer reusing the
-   [complex integration extensions](plugin-protocol.md#complex-integrations-oauth-auth-methods-chat-prep)
-   (`config` writeback, `authMethods`, `validateTools`, `chatModelPrep`,
-   `chatReadiness`).
-3. **Port** `client.ts`, `auth.ts`, `tools.ts`, and prompt strings into
-   `apps/plugin-<name>/` (stdin config envelope; no `~/.toby/` access).
-4. **Map** each `IntegrationModule` hook to protocol subcommands/responses.
-5. **Remove** the module from `BUILTIN_MODULES` and delete integration-specific
-   config helpers from `@toby/core`.
-6. **Migrate** legacy credential shapes (e.g. top-level `credentials.azuread`
-   → `credentials.integrations.azuread`).
-7. **Bundle** the binary in release archives and auto-install to `~/.toby/plugins/`
-   (`install-toby.sh`, upgrade staging, `build:plugins`).
-8. **Verify** configure, connect (all auth methods), status `--validate-tools`,
-   chat, and disconnect against the pre-migration baseline.
-
-Reference implementations:
-
-- Minimal plugin: [`apps/plugin-sample-ts/`](../apps/plugin-sample-ts/)
-- Full parity migrations: [`apps/plugin-email/`](../apps/plugin-email/)
-- TypeScript bun-package plugin migrations: [`apps/plugin-jira/`](../apps/plugin-jira/), [`apps/plugin-email/`](../apps/plugin-email/), [`apps/plugin-slack/`](../apps/plugin-slack/)
+Older docs and some type comments refer to first-party modules under
+`packages/core/src/integrations/<name>/` and a `MODULES` / `BUILTIN_MODULES`
+registration list. That path is **legacy**: `BUILTIN_MODULES` is empty and all
+shipped integrations are plugins. Do not revive in-process integrations unless
+there is a strong product reason; prefer the plugin protocol so installs stay
+independent of the core binary.

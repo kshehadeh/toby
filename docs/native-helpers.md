@@ -26,9 +26,10 @@ system interaction.
 
 ## Why helpers exist
 
-Toby is primarily a TypeScript CLI. That works well for command routing,
-configuration, AI calls, storage, and terminal UI. It is not always the best
-place to call privileged or platform-native APIs.
+Toby is primarily TypeScript (core harness + CLI + plugins) plus Toby.app for
+UI and TCC-gated native APIs. TypeScript works well for command routing,
+configuration, AI calls, and storage. It is not always the best place to call
+privileged or platform-native frameworks.
 
 Use a native helper when the feature needs:
 

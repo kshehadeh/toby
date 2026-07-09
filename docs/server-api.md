@@ -55,10 +55,15 @@ type PlanSummary = {
 
 ## Endpoint Index
 
+Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
+
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `ANY` | `/api/health` | Basic daemon health check. |
 | `GET` | `/api/status` | Chat status: version, default persona, model, integrations, skills. |
+| `GET` | `/api/dashboard` | Home dashboard summary payload. |
+| `GET` | `/api/dashboard/:section` | Dashboard section detail. |
+| `POST` | `/api/issues` | File / forward an issue report (GitHub helper). |
 | `GET` | `/api/daemon/status` | Daemon process and inbound chat status. |
 | `POST` | `/api/daemon/restart` | Restart the background daemon. |
 | `POST` | `/api/daemon/stop` | Stop the current daemon process. |
@@ -82,16 +87,33 @@ type PlanSummary = {
 | `POST` | `/api/sessions/:id/plan/skip` | Mark a plan phase as skipped. |
 | `POST` | `/api/sessions/:id/plan/cancel` | Cancel the active plan. |
 | `GET` | `/api/personas` | List persona picker options. |
+| `GET` / related | `/api/personas/:name` | Persona detail (when implemented on router). |
+| `GET` | `/api/ai/providers` | AI provider/model catalog for settings. |
 | `GET` | `/api/modules` | List connected chat modules/integrations. |
 | `GET` | `/api/skills` | List local skills. |
+| `GET` | `/api/skills/:name` | Skill detail body. |
+| `GET` | `/api/skills/:name/icon` | Skill icon asset when present. |
+| `GET` | `/api/plugins` | List discovered installable plugins. |
+| `GET` | `/api/plugins/:name/icon` | Plugin icon asset. |
+| `GET` | `/api/projects` | List projects. |
+| `POST` | `/api/projects` | Create a project. |
+| `GET` / `PATCH` / `DELETE` | `/api/projects/:idOrSlug` | Project detail, update, delete. |
+| `GET` | `/api/projects/:idOrSlug/tree` | Project folder tree. |
+| `GET` | `/api/releases/changelog` | Changelog / release notes payload. |
 | `GET` | `/api/memories` | Search or page through stored memories. |
+| `POST` | `/api/memories` | Create a manual memory. |
 | `GET` | `/api/memories/:id` | Fetch one memory item. |
 | `GET` | `/api/memories/:id/explain` | Fetch source/audit explanation for one memory. |
 | `GET` | `/api/configure/tree` | Fetch configure UI schema and current values. |
-| `GET` | `/api/configure/sections` | Fetch lightweight section structure for the native settings sidebar. |
-| `GET` | `/api/configure/sections/:sectionKey` | Fetch full detail (fields + values) for one settings section. |
+| `GET` | `/api/configure/sections` | Lightweight section structure for the native settings sidebar. |
+| `GET` | `/api/configure/sections/:sectionKey` | Full detail (fields + values) for one settings section. |
 | `PATCH` | `/api/configure/values` | Persist configure value changes. |
-| `POST` | `/api/configure/actions/:action` | Run configure actions such as create/delete persona, skill, or schedule. |
+| `POST` | `/api/configure/actions/:action` | Configure actions (create/delete persona, skill, schedule, …). |
+| `POST` | `/api/schedules/parse-cron` | Parse natural-language or cron expressions. |
+| `GET` | `/api/schedules/runs/:id` | Schedule run detail / transcript. |
+| `GET` | `/api/integrations/:name/status` | Integration health / connection status. |
+| `GET` | `/api/integrations/:name/setup-guide` | Onboarding wizard steps for an integration. |
+| `GET` | `/icons/*` | Static AI/provider icons and related assets. |
 
 ## Health And Status
 

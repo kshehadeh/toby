@@ -11,7 +11,8 @@ This document describes the **provider-agnostic inbound architecture**: how exte
 | Core | `packages/core/src/chat-inbound/` | Router, askUser bridge, status, listener startup |
 | Pipeline | `packages/core/src/chat-pipeline/headless-session.ts` | Calls `runChatTurnPipeline` (full node chain through persist); integration selection via [`resolve-chat-modules.ts`](../packages/core/src/chat-pipeline/resolve-chat-modules.ts) |
 | Storage | `packages/core/src/session-store.ts` | `chat_external_sessions` maps external conversation → Toby session |
-| Provider | `packages/core/src/integrations/<name>/inbound.ts` | Transport, event normalization, `deliverReply` / `deliverAskUser`, optional `createStatusReporter` |
+| Plugin adapter | `packages/core/src/integrations/plugins/inbound-adapter.ts` | Spawns plugin `inbound run` (NDJSON) and implements `ChatInboundProvider` |
+| Provider transport | Plugin package (e.g. `apps/plugin-slack/`) | Socket Mode / platform SDK, event normalization, deliver reply/askUser |
 
 ## Session model
 
@@ -27,7 +28,8 @@ Each turn resolves **chat-capable integrations** from the user message (keyword 
 
 ### Configure UI
 
-Run `toby configure` (or `toby config`) and open **Daemon / inbound chat**:
+In **Toby.app** settings (or `toby config`, which opens the app), open **Daemon /
+inbound chat**:
 
 - **Enable inbound chat** — master switch
 - **Active integration** — which provider the daemon listens on (e.g. `slack`)
@@ -35,7 +37,7 @@ Run `toby configure` (or `toby config`) and open **Daemon / inbound chat**:
 
 Under each inbound-capable integration (e.g. **Slack**), set **Daemon: listen for @mentions** to **On**. Both the global **Active integration** and that integration’s inbound toggle must be enabled.
 
-Save with **Ctrl+S** in the configure UI.
+Values persist through the configure API into `~/.toby/config.json`.
 
 ### config.json
 
@@ -83,7 +85,7 @@ Setup checklist:
 1. Slack app with **Socket Mode** enabled.
 2. Bot scopes: `app_mentions:read`, `chat:write`, channel/history scopes (see help site).
 3. Events: `app_mention`, `message`.
-4. `toby configure`: **Bot Token**, **App Token**, optional **Bot User ID**.
+4. Toby.app settings (or configure API): **Bot Token**, **App Token**, optional **Bot User ID**.
 5. `toby connect slack` (if using OAuth for chat), enable inbound in config, `toby daemon start`.
 
 Triggers:
@@ -105,11 +107,16 @@ The router wires `ChatEvent`s from `runHeadlessChatTurn` through an optional `In
 
 ## Adding a provider (e.g. Discord)
 
-Implement `ChatInboundProvider` on your `IntegrationModule` (`chatInbound` field). See [create-integration.md](create-integration.md#inbound-chat).
+Ship a **plugin** with `"inbound"` capability and implement `inbound run`
+(NDJSON) per [plugin-protocol.md](plugin-protocol.md#inbound-chat-daemon-transport).
+The harness wraps that transport as `ChatInboundProvider` via
+[`inbound-adapter.ts`](../packages/core/src/integrations/plugins/inbound-adapter.ts).
+See [create-integration.md](create-integration.md#5-inbound-chat-optional).
 
-Optional: implement `createStatusReporter` to show transient progress during a turn (Slack uses post/update/delete; other platforms may use typing indicators or ephemeral messages).
-
-The router already calls `createStatusReporter`, passes `onProgress` into `runHeadlessChatTurn`, and `clear()`s the reporter before `deliverReply`.
+Optional: status update / clear messages during a turn (Slack uses
+post/update/delete; other platforms may use typing indicators or ephemeral
+messages). The router already wires progress into `runHeadlessChatTurn` and
+clears status before `deliverReply`.
 
 ## Related
 

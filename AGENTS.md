@@ -1,67 +1,95 @@
 # Agent and contributor guide
 
-This repository is **Toby**, a CLI for personal productivity (integrations such as Email and Todoist, AI-assisted flows, and an Ink-based configure UI). The repo is a **Bun monorepo**: shared harness code lives in **`@toby/core`**, and the Ink/Commander front-end lives in **`@toby/cli`**. Use **Bun** for installs and scripts (`bun install`, `bun run …`).
+This repository is **Toby**, a personal productivity product: a **native macOS
+app (Toby.app)**, a **maintenance CLI**, installable **integration plugins**,
+and a shared harness package. The repo is a **Bun monorepo**: harness code lives
+in **`@toby/core`**, the Commander CLI in **`@toby/cli`**, and SwiftUI UI in
+**`apps/toby-app/`**. Use **Bun** for installs and scripts (`bun install`,
+`bun run …`).
 
-Use this file as the **entry point** for orientation. Detailed design lives under [`docs/`](docs/), especially [`docs/architecture.md`](docs/architecture.md) for the core vs app split.
+Use this file as the **entry point** for orientation. Detailed design lives under
+[`docs/`](docs/), especially [`docs/architecture.md`](docs/architecture.md).
 
 ## Documentation index
 
 | Document | Purpose |
 | -------- | ------- |
-| [`docs/architecture.md`](docs/architecture.md) | Repository layout, runtime entrypoints, config storage, and how major layers interact. |
-| [`docs/recent-changes-2026-06-12-to-18.md`](docs/recent-changes-2026-06-12-to-18.md) | Dated summary of major native app, recording, daemon, project, AI, plugin, and chat changes from June 12–18, 2026. |
-| [`docs/integrations.md`](docs/integrations.md) | Plugin-style integrations: `IntegrationModule`, registry, capabilities, credentials, and CLI contributions. |
-| [`docs/plugin-protocol.md`](docs/plugin-protocol.md) | Installable plugin executables: subcommand contract, discovery, JSON protocol v1. |
-| [`docs/create-integration.md`](docs/create-integration.md) | Checklist for adding a new first-party integration module. |
-| [`docs/chat-pipeline.md`](docs/chat-pipeline.md) | Chat turn node pipeline, `ChatEvent` observability, and tool-result caching. |
-| [`docs/projects.md`](docs/projects.md) | Projects: scoped artifact collection with reference context, pinned skills, and recurring workflow support. |
-| [`docs/daemon.md`](docs/daemon.md) | Background daemon: schedules, chat inbound (@mentions), `daemon.log`, troubleshooting. |
-| [`docs/server-api.md`](docs/server-api.md) | Local daemon HTTP API reference: routes, request/response shapes, SSE chat turns, configure actions. |
-| [`docs/chat-inbound.md`](docs/chat-inbound.md) | Inbound provider contract, external session mapping, adding new chat platforms. |
-| [`docs/ai-caching.md`](docs/ai-caching.md) | Provider prompt caching adapters, stable cache keys, and token telemetry. |
-| [`docs/ui.md`](docs/ui.md) | Shared Ink UI components, visual conventions, and shortcut conventions. |
-| [`docs/macos-integration.md`](docs/macos-integration.md) | Local macOS system control: Wi‑Fi, battery/audio, shortcuts, optional Homebrew helpers. |
-| [`docs/web-search.md`](docs/web-search.md) | Web Search via AI Gateway Perplexity: built-in global `webSearch` tool, config. |
-| [`docs/listen.md`](docs/listen.md) | Foreground audio recording mode and macOS audio helper protocol. |
-| [`docs/native-helpers.md`](docs/native-helpers.md) | Pattern for adding native helper executables that bridge Toby to platform APIs. |
-| [`docs/build-executable.md`](docs/build-executable.md) | Optional **Bun** single-file `dist/toby` binary (`bun run build:executable`). |
-| [`docs/README.md`](docs/README.md) | Short index of everything in `docs/`. |
+| [`docs/architecture.md`](docs/architecture.md) | Monorepo layout, runtime entrypoints, config paths, native bridge. |
+| [`docs/commands.md`](docs/commands.md) | CLI commands, app launch, config backup/restore. |
+| [`docs/integrations.md`](docs/integrations.md) | `IntegrationModule` registry, first-party plugins, global tools. |
+| [`docs/plugin-protocol.md`](docs/plugin-protocol.md) | Installable plugin contract (v1): subcommands, JSON, discovery. |
+| [`docs/create-integration.md`](docs/create-integration.md) | Checklist for adding a new plugin integration. |
+| [`docs/chat-pipeline.md`](docs/chat-pipeline.md) | Chat turn node pipeline, events, pretreatment, tool-result cache. |
+| [`docs/projects.md`](docs/projects.md) | Projects: SQLite metadata, `AGENTS.md`, skills, outputs. |
+| [`docs/daemon.md`](docs/daemon.md) | Background daemon: schedules, inbound, unified log. |
+| [`docs/server-api.md`](docs/server-api.md) | Local daemon HTTP API: routes, SSE chat, configure. |
+| [`docs/chat-inbound.md`](docs/chat-inbound.md) | Inbound provider contract and external sessions. |
+| [`docs/ai-caching.md`](docs/ai-caching.md) | Provider prompt caching and token telemetry. |
+| [`docs/memory.md`](docs/memory.md) | Durable user memory (`memory.sqlite`). |
+| [`docs/macos-integration.md`](docs/macos-integration.md) | `toby-plugin-macos` system control via Toby.app native API. |
+| [`docs/apple-calendar.md`](docs/apple-calendar.md) | Apple Calendar plugin + EventKit native API. |
+| [`docs/apple-contacts.md`](docs/apple-contacts.md) | Apple Contacts plugin. |
+| [`docs/apple-reminders.md`](docs/apple-reminders.md) | Apple Reminders plugin. |
+| [`docs/web-search.md`](docs/web-search.md) | Global `webSearch` via AI Gateway Perplexity. |
+| [`docs/listen.md`](docs/listen.md) | Recording / transcription lifecycle. |
+| [`docs/native-helpers.md`](docs/native-helpers.md) | Toby.app native API pattern for platform bridges. |
+| [`docs/build-executable.md`](docs/build-executable.md) | Bun compile binary and release packaging. |
+| [`docs/README.md`](docs/README.md) | Full docs index. |
 
-## Core vs CLI (`@toby/core` vs `apps/cli`)
+## Core vs CLI vs Toby.app
 
-Put code in **`packages/core`** when it is **harness functionality** — usable without Ink, React, or Commander:
+| Belongs in `@toby/core` | Belongs in `apps/cli` | Belongs in `apps/toby-app` |
+| ----------------------- | --------------------- | -------------------------- |
+| Chat pipeline, AI, tools, pretreatment | Commander entry (`cli.ts`, `commands/`) | SwiftUI product UI |
+| Integrations registry + plugin adapter | Daemon start/stop, schedules CLI, upgrade | Daemon client + native API server |
+| Config, personas, skills, memory, projects | Listen CLI glue, plugins install CLI | TCC-gated native handlers (EventKit, audio, …) |
+| Session store, inbound router, HTTP routes | Release handoff helpers | Windowing, recordings browser, settings UI |
 
-| Belongs in `@toby/core` | Belongs in `apps/cli` |
-| ----------------------- | --------------------- |
-| Chat pipeline (`runChatTurnPipeline`, nodes, headless sessions) | Ink/React TUI (`ui/chat/`, `ui/configure/`, …) |
-| AI layer (models, tools, pretreatment, caching, replay) | Commander wiring (`cli.ts`, generic `commands/`) |
-| Integrations (registry, clients, tools, prompts, inbound) | Slash commands, transcript rendering, chat event → row reducers |
-| Config, personas, skills, memory, planning, logging | `listen/`, `schedules/` orchestration UI, `upgrade/`, `releases/` |
-| SQLite session store, message prep, chat-integration resolution | Shared Ink primitives (`ui/shared/`) |
+**Dependency rule:** `apps/cli` imports `@toby/core`; core must **not** import
+from `apps/cli`. Toby.app does **not** import core; it talks to the daemon over
+HTTP/SSE and exposes a separate native localhost API for plugins.
 
-**Dependency rule:** `apps/cli` imports `@toby/core`; core must **not** import from `apps/cli` (no `ui/`, `commands/`, or Ink).
+**Imports:** In the CLI app, use `@toby/core/...`. Core uses relative imports
+internally.
 
-**Imports:** In the CLI app, use `@toby/core/...` (e.g. `@toby/core/chat-pipeline/pipeline`, `@toby/core/config/index`). Core stays on relative imports internally.
+**Tests:** CLI/plugin tests under `apps/cli/tests/` and plugin packages; import
+harness from `@toby/core`. Swift tests under `apps/toby-app/Tests/`.
 
-**Tests:** CLI tests remain under `apps/cli/tests/` but should import harness code from `@toby/core`, not deleted `apps/cli/src/ai` paths.
-
-When unsure: if the daemon or a headless script could call it without a terminal UI, it belongs in core.
+When unsure: if the daemon or a headless script can call it without a UI, it
+belongs in core.
 
 ## Conventions for agents
 
-- **All new plugins must be TypeScript bun-package plugins** (directory with `manifest.json` + TypeScript entrypoint, executed via Toby's bundled Bun runtime). Do not create compiled binary or Swift plugins. The only native macOS code in this repository is the Toby.app itself (`apps/toby-app/`). When a plugin needs macOS framework access (EventKit, Shortcuts, system APIs, TCC-protected resources), the TypeScript plugin delegates those operations to Toby.app's native API server rather than compiling its own native binary. See [`toby-plugin-macos`](apps/plugin-macos/) and [`toby-plugin-applecalendar`](apps/plugin-applecalendar/) for reference.
-- Prefer **integration-local** code under `packages/core/src/integrations/<name>/` (client, prompts, tools; optional `cli.ts` for integration subcommands) over new cross-cutting branches in `apps/cli/src/commands/` when the behavior belongs to one integration.
-- **Register** new integrations in [`packages/core/src/integrations/index.ts`](packages/core/src/integrations/index.ts) (`MODULES` array).
-- **Shared** commands (`connect`, `disconnect`, `status`, `summarize`, `organize`, `chat`, `configure`) live in [`apps/cli/src/commands/`](apps/cli/src/commands/) and should stay generic; they resolve behavior through the core registry and module hooks.
-- After substantive changes, run `bun run lint`, `bun run typecheck`, and `bun run test`.
-- When committing changes, use the `atomic-conventional-commit` skill so commits are cohesive, reviewable, and follow Conventional Commit messages.
-- Use `bun run dev` for the Ink chat TUI (runs the CLI directly; do not use `dev:turbo` — Turborepo log prefixes break the TUI).
-- Use shared UI primitives from `apps/cli/src/ui/shared/` (`ViewFrame`, `ViewModal`, `ConfirmDialog`, `FieldNavigator`, `FieldEditor`, `FieldSelector`, `UI_GLYPHS`, row components, key predicates) when building Ink views. Do not create local frame/dialog/key/glyph duplicates. See [`docs/ui.md`](docs/ui.md).
+- **All new plugins must be TypeScript bun-package plugins** (`manifest.json` +
+  TypeScript entry, run via bundled Bun). Do not create compiled binary or Swift
+  plugins. The only native macOS product code in-repo is Toby.app
+  (`apps/toby-app/`). For EventKit / Shortcuts / TCC, delegate to Toby.app’s
+  native API from the TypeScript plugin. See
+  [`apps/plugin-macos/`](apps/plugin-macos/) and
+  [`apps/plugin-applecalendar/`](apps/plugin-applecalendar/).
+- Prefer **plugin-local** code under `apps/plugin-<name>/` for integration
+  behavior. Do not reintroduce first-party modules under
+  `packages/core/src/integrations/<name>/` unless there is a deliberate
+  built-in exception (`BUILTIN_MODULES` is empty).
+- **Discovery** registers plugins automatically; no `MODULES` array edit is
+  required for new plugins. See [`docs/create-integration.md`](docs/create-integration.md).
+- **Shared CLI commands** (`connect`, `disconnect`, `status`, `config`,
+  `daemon`, `plugins`, …) live in [`apps/cli/src/commands/`](apps/cli/src/commands/)
+  and stay generic; they resolve behavior through the core registry.
+- After substantive changes, run `bun run lint`, `bun run typecheck`, and
+  `bun run test` (and Swift tests when touching Toby.app).
+- When committing, use the `atomic-conventional-commit` skill for cohesive
+  Conventional Commit messages.
+- **Dev loops:** `bun run dev` for CLI watch; `bun run app` to build/open the
+  native app. Do not expect an Ink chat TUI — interactive UI is Toby.app only.
 
 ## Quick paths
 
 - CLI entry: [`apps/cli/src/cli.ts`](apps/cli/src/cli.ts)
-- Harness core (`@toby/core`): chat pipeline, AI, integrations, config — [`packages/core/src/`](packages/core/src/)
+- Harness (`@toby/core`): [`packages/core/src/`](packages/core/src/)
 - Integration types: [`packages/core/src/integrations/types.ts`](packages/core/src/integrations/types.ts)
 - Integration registry: [`packages/core/src/integrations/index.ts`](packages/core/src/integrations/index.ts)
-- User config and credentials: [`packages/core/src/config/index.ts`](packages/core/src/config/index.ts) (paths under `~/.toby/`, including optional `~/.toby/skills/` for `SKILL.md` skills)
+- Plugin runtime: [`packages/core/src/integrations/plugins/`](packages/core/src/integrations/plugins/)
+- User config: [`packages/core/src/config/index.ts`](packages/core/src/config/index.ts)
+  (paths under `~/.toby/`, including `~/.toby/skills/` and `~/.toby/plugins/`)
+- Native app: [`apps/toby-app/`](apps/toby-app/)

@@ -6,11 +6,11 @@ Monorepo managed with Bun workspaces and Turbo.
 
 ```
 apps/
-  cli/          TypeScript CLI (Commander + Ink TUI) — primary harness
+  cli/          TypeScript maintenance CLI (Commander) — no terminal TUI
   toby-app/     Native macOS app (Swift 6 / SwiftUI, macOS 14+) — only native code in the repo
   plugin-*/     First-party plugins (all TypeScript bun-package format)
 packages/
-  core/         Shared harness types and utilities
+  core/         Shared harness (chat pipeline, AI, plugins, config, daemon API)
 ```
 
 ## Plugin convention

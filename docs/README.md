@@ -4,24 +4,26 @@ Human- and agent-oriented docs for this repository.
 
 | Doc | Description |
 | --- | ----------- |
-| [architecture.md](architecture.md) | Monorepo layout: `@toby/core` harness vs `@toby/cli` app, runtime flow, config paths. |
-| [recent-changes-2026-06-12-to-18.md](recent-changes-2026-06-12-to-18.md) | Dated summary of native app, recording, daemon, project, AI, plugin, and chat changes made June 12–18, 2026. |
-| [commands.md](commands.md) | Shared CLI commands, native app launch behavior, and `config backup` / `config restore`. |
-| [projects.md](projects.md) | Projects: scoped artifact collection with reference context, pinned skills, and recurring workflow support. |
-| [integrations.md](integrations.md) | `IntegrationModule`, registry API, per-integration layout. |
-| [plugin-protocol.md](plugin-protocol.md) | Installable plugin CLI contract (v1): argv subcommands, stdin/stdout, exit codes, JSON payloads, discovery. |
-| [apple-calendar.md](apple-calendar.md) | macOS Apple Calendar integration (Calendar.app, EventKit via Toby.app native API). |
-| [apple-reminders.md](apple-reminders.md) | macOS Apple Reminders integration (Reminders.app, EventKit via Toby.app native API). |
-| [web-search.md](web-search.md) | Web Search via AI Gateway Perplexity: global `webSearch` tool, config. |
-| [macos-integration.md](macos-integration.md) | Local macOS system tools via installable `toby-plugin-macos`: Wi‑Fi, Bluetooth, battery, audio, display brightness, clipboard, shortcuts. |
-| [listen.md](listen.md) | Foreground audio recording mode, macOS helper protocol, and transcription notes. |
-| [native-helpers.md](native-helpers.md) | Pattern for small native executables that bridge Toby to platform APIs. |
-| [create-integration.md](create-integration.md) | Checklist for adding a new integration. |
-| [chat-pipeline.md](chat-pipeline.md) | Chat turn node pipeline (`TurnInit` → `ExpandPrompt` → `AssembleMessages` → `RunModelTurn` → `PersistTurn`), events, and tool-result caching. |
-| [daemon.md](daemon.md) | Background daemon: schedules, chat inbound (@mentions), the unified log (`logs/toby.log`). |
-| [server-api.md](server-api.md) | Local daemon HTTP API reference: routes, request/response shapes, SSE chat turns, configure actions. |
-| [chat-inbound.md](chat-inbound.md) | Inbound provider contract, external sessions, extending to new chat platforms. |
-| [ai-caching.md](ai-caching.md) | Provider prompt caching adapters, stable cache keys, and token telemetry. |
-| [build-executable.md](build-executable.md) | Bun `bun build --compile` standalone binary, patches, and tag-triggered GitHub Releases. |
+| [architecture.md](architecture.md) | Monorepo layout: `@toby/core` harness, `@toby/cli`, Toby.app, runtime flow, config paths. |
+| [commands.md](commands.md) | Shared CLI commands, native app launch, `config backup` / `config restore`. |
+| [projects.md](projects.md) | Projects: SQLite metadata, `AGENTS.md` guidance, skills, outputs. |
+| [integrations.md](integrations.md) | `IntegrationModule` registry, first-party plugins, global tools. |
+| [plugin-protocol.md](plugin-protocol.md) | Installable plugin CLI contract (v1): argv, stdin/stdout, discovery. |
+| [create-integration.md](create-integration.md) | Checklist for adding a new bun-package plugin. |
+| [apple-calendar.md](apple-calendar.md) | macOS Apple Calendar (EventKit via Toby.app). |
+| [apple-contacts.md](apple-contacts.md) | macOS Apple Contacts plugin. |
+| [apple-reminders.md](apple-reminders.md) | macOS Apple Reminders plugin. |
+| [web-search.md](web-search.md) | Web Search via AI Gateway Perplexity: global `webSearch` tool. |
+| [macos-integration.md](macos-integration.md) | `toby-plugin-macos`: Wi‑Fi, Bluetooth, battery, audio, display, clipboard, shortcuts. |
+| [listen.md](listen.md) | Recording mode, native capture, transcription. |
+| [native-helpers.md](native-helpers.md) | Toby.app native API pattern for platform bridges. |
+| [chat-pipeline.md](chat-pipeline.md) | Chat turn nodes, events, pretreatment, tool-result cache. |
+| [daemon.md](daemon.md) | Background daemon: schedules, inbound, unified log (`logs/toby.log`). |
+| [server-api.md](server-api.md) | Local daemon HTTP API: routes, SSE chat turns, configure. |
+| [chat-inbound.md](chat-inbound.md) | Inbound provider contract, external sessions. |
+| [ai-caching.md](ai-caching.md) | Provider prompt caching adapters and token telemetry. |
+| [memory.md](memory.md) | Durable user memory subsystem (`memory.sqlite`). |
+| [build-executable.md](build-executable.md) | Bun `bun build --compile` standalone binary and releases. |
+| [recent-changes-2026-06-12-to-18.md](recent-changes-2026-06-12-to-18.md) | Dated snapshot of major changes (June 12–18, 2026). |
 
-Start from the repo root **[`AGENTS.md`](../AGENTS.md)** for a short guide and links here.
+Start from the repo root **[`AGENTS.md`](../AGENTS.md)** for a short contributor guide and links here.

@@ -1,6 +1,17 @@
 # Integrations
 
-Integrations are **first-party plugins** in **`@toby/core`**: each is an object implementing `IntegrationModule`, registered in [`packages/core/src/integrations/index.ts`](../packages/core/src/integrations/index.ts). The CLI app loads the registry for maintenance commands; integration behavior itself lives in core or plugin packages. See [`architecture.md`](architecture.md#core-vs-apps).
+Integrations are **installable TypeScript plugins** discovered at runtime and
+adapted into `IntegrationModule` instances. The harness registry in
+[`packages/core/src/integrations/index.ts`](../packages/core/src/integrations/index.ts)
+merges an (empty) built-in list with plugins from
+[`packages/core/src/integrations/plugins/`](../packages/core/src/integrations/plugins/).
+The CLI and Toby.app both resolve integrations through that registry.
+
+**All first-party and new integrations are bun-package plugins** under
+`apps/plugin-<name>/` (installed as `toby-plugin-<name>/`). There are no in-tree
+built-in integration modules under `packages/core/src/integrations/<name>/`
+today — `BUILTIN_MODULES` is empty. See [`plugin-protocol.md`](plugin-protocol.md)
+and [`create-integration.md`](create-integration.md).
 
 ## Types (`packages/core/src/integrations/types.ts`)
 
@@ -8,134 +19,136 @@ Integrations are **first-party plugins** in **`@toby/core`**: each is an object 
 
 Baseline contract every integration satisfies:
 
-- Identity: `name`, `displayName`, `description`
+- Identity: `name`, `displayName`, `description` (optional `icon`, `iconUrl`, `launchUrl`)
 - Lifecycle: `connect`, `disconnect`, `isConnected`, `testConnection`
 
-`testConnection` returns `IntegrationHealth`, optionally including per-tool rows (`IntegrationToolHealth`) for `status integration`.
+`testConnection` returns `IntegrationHealth`, optionally including per-tool rows
+(`IntegrationToolHealth`) for `status integration` / validate-tools flows.
 
 ### `IntegrationModule`
 
-Extends `Integration` with optional **capabilities** and **hooks**:
+Extends `Integration` with capabilities and hooks. Plugin adapters synthesize
+these from the plugin protocol (`status`, `config shape`, `tools list`, etc.).
 
 | Field / method | Purpose |
 | ---------------- | ------- |
-| `capabilities` | Subset of `IntegrationCapability` (currently `"chat"`). |
+| `capabilities` | Subset of `IntegrationCapability`: `"chat"` and/or `"inbound"`. |
 | `providerCategories?` | Provider buckets for default-provider selection and schedule routing: `"email"` \| `"calendar"` \| `"tasks"` \| `"contacts"` \| `"chat"` \| `"documents"` \| `"work_tracker"`. |
-| `authMethods?` | Optional supported auth options for configure UI (e.g. OAuth vs client credentials) with a default method. |
-| `resources?` | Optional strings describing entities (e.g. inbox, tasks) for discovery or docs. |
-| `getCredentialDescriptors()` | Fields shown under Integrations in configure UI (`CredentialFieldDescriptor`: flat `key`, `label`, `masked`, plus optional auth-method gating via `showForAuthMethods`). |
-| `seedCredentialValues(creds)` | Populate the flat value map when opening configure. |
-| `mergeCredentialsPatch(values, previous)` | Return a `Partial<CredentialsFile>` fragment when saving; configure merges patches from all modules. |
-| `summarize?(options)` | Build `CoreMessage[]` (or return `empty`) for the shared `summarize` command. |
-| `chat?(options)` | Run the shared `chat` command: tool-calling AI for a user-supplied instruction (`ChatRunOptions`). |
-| `createChatTools?(params)` | Provide tools + action accumulator for **RunModelTurnNode** (`runSharedChatTurn` in `packages/core/src/chat-pipeline/run-turn.ts`). |
-| `registerCommands?(program)` | Attach Commander subcommands (e.g. Email's `email fetch`, `email organize`). |
-| `chatInbound?` | Long-lived inbound listener for the daemon (`ChatInboundProvider`); maps external channel+thread to chat sessions. See [`chat-inbound.md`](chat-inbound.md). |
+| `authMethods?` | Optional auth options for configure UI (e.g. OAuth vs API key) with a default method. |
+| `configureHint?` | Shown when the integration has no editable credential fields. |
+| `resources?` | Optional strings describing entities (inbox, tasks, …) for discovery UI. |
+| `chatModelPrep?` | System/user message builders for single- and multi-integration chat. |
+| `chatReadiness?(creds)` | Whether the integration can participate in chat selection. |
+| `getCredentialDescriptors()` | Fields under Integrations in configure (`CredentialFieldDescriptor`). |
+| `seedCredentialValues(creds)` | Flat value map when opening configure. |
+| `mergeCredentialsPatch(values, previous)` | `Partial<CredentialsFile>` fragment on save. |
+| `createChatTools?(params)` | Tools + action accumulator for **RunModelTurnNode** (plugin tools go through the adapter). |
+| `dashboard?` | Optional `getSummary` for the native home dashboard (often synthesized from `standardTool` tags). |
+| `chatInbound?` | Long-lived inbound listener for the daemon (`ChatInboundProvider`). For plugins, created by [`inbound-adapter.ts`](../packages/core/src/integrations/plugins/inbound-adapter.ts). See [`chat-inbound.md`](chat-inbound.md). |
+| `registerCommands?(program)` | Optional Commander subcommands on the CLI. |
 
-Types such as `IntegrationModule` and `IntegrationCapability` are exported from [`types.ts`](../packages/core/src/integrations/types.ts). Import them from there when you need them in implementation code; the barrel [`index.ts`](../packages/core/src/integrations/index.ts) exposes runtime registry functions.
+Types are exported from [`types.ts`](../packages/core/src/integrations/types.ts).
+The barrel [`index.ts`](../packages/core/src/integrations/index.ts) exposes
+runtime registry helpers.
 
 ## Registry
 
-[`packages/core/src/integrations/index.ts`](../packages/core/src/integrations/index.ts) holds the authoritative `MODULES` array.
+[`packages/core/src/integrations/index.ts`](../packages/core/src/integrations/index.ts):
+
+- `BUILTIN_MODULES` — reserved for in-process modules; currently **empty**.
+- Plugin modules — loaded via `getPluginModules()` from discovery under
+  `~/.toby/plugins/`, release `dist/`, or next to the `toby` binary.
+
+If a built-in and a plugin ever share a name, the built-in wins. Plugins alone
+are the normal case.
 
 | Function | Use |
 | -------- | --- |
 | `getIntegrationModules()` | All modules (full `IntegrationModule`). |
-| `getIntegrationModule(name)` | Lookup by CLI name (`email`, `todoist`). |
-| `getModulesWithCapability(cap)` | Filter by capability (e.g. all that support `summarize`). |
-| `getIntegrations()` / `getIntegration(name)` | Same instances typed as `Integration` for lifecycle-only call sites. |
+| `getIntegrationModule(name)` | Lookup by CLI name (`email`, `todoist`, `slack`). |
+| `getModulesWithCapability(cap)` | Filter by `"chat"` or `"inbound"`. |
+| `getModulesForCategory(category)` | Filter by provider category. |
+| `getIntegrations()` / `getIntegration(name)` | Lifecycle-only view of the same instances. |
+| `getIntegrationIconUrl(name)` | Relative icon URL when present. |
+| `isBuiltinIntegration(name)` | True only for names in `BUILTIN_MODULES`. |
 
-## Per-integration folder layout
+Plugin discovery, install, and adaptation live under
+[`packages/core/src/integrations/plugins/`](../packages/core/src/integrations/plugins/).
 
-Each integration typically owns:
+## First-party plugins
 
-- **`index.ts`** — exports `*IntegrationModule` constant wiring lifecycle, capabilities, credentials, `summarize`, optional `chat`, `createChatTools`, `registerCommands`, and tool validation used by `testConnection`. Chat turn execution is delegated to the shared `runSharedChatTurn` from `packages/core/src/chat-pipeline/run-turn.ts` (no per-integration `chat-turn.ts` needed).
-- **`client.ts`** — HTTP/API calls, typed DTOs.
-- **`auth.ts`** (if OAuth) — OAuth helper used by `connect`.
-- **`tools.ts`** — AI SDK `tool()` definitions and context types (module-private unless needed elsewhere).
-- **`prompts/`** — System/user message builders for summarize, organize, etc.
-- **`cli.ts`** (optional) — Commander registration kept out of `apps/cli/src/commands/`.
+| Integration | Package | Notes |
+| ----------- | ------- | ----- |
+| **Email** | [`apps/plugin-email/`](../apps/plugin-email/) | IMAP/SMTP; OAuth/auth methods; chat tools for mailbox workflows. |
+| **Todoist** | [`apps/plugin-todoist/`](../apps/plugin-todoist/) | Task list provider; API key auth. |
+| **Slack** | [`apps/plugin-slack/`](../apps/plugin-slack/) | Chat tools + **daemon inbound** (Socket Mode). Bot token (`xoxb-…`) and app token (`xapp-…`) required for inbound; OAuth user token is for user-scoped tools. See [help-site Slack credentials](../apps/help-site/docs/integrations/slack.md#credentials-and-auth-reference). |
+| **Jira** | [`apps/plugin-jira/`](../apps/plugin-jira/) | Work tracker: JQL search, issue/comment/project tools. |
+| **Notion** | [`apps/plugin-notion/`](../apps/plugin-notion/) | Documents provider: search/read pages; write/append content. |
+| **macOS** | [`apps/plugin-macos/`](../apps/plugin-macos/) | macOS-only system control; delegates to Toby.app native API. See [`macos-integration.md`](macos-integration.md). |
+| **Apple Calendar** | [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) | macOS-only; EventKit via Toby.app. See [`apple-calendar.md`](apple-calendar.md). |
+| **Apple Contacts** | [`apps/plugin-applecontacts/`](../apps/plugin-applecontacts/) | macOS-only contact list; Contacts.framework via Toby.app. See [`apple-contacts.md`](apple-contacts.md). |
+| **Apple Reminders** | [`apps/plugin-applereminders/`](../apps/plugin-applereminders/) | macOS-only task list; EventKit via Toby.app. See [`apple-reminders.md`](apple-reminders.md). |
+| **Sample** | [`apps/plugin-sample-ts/`](../apps/plugin-sample-ts/) | Minimal protocol reference. |
 
-**Email** and **Todoist** are shipped as installable plugins (`toby-plugin-email`, `toby-plugin-todoist`); both are TypeScript bun-package plugins. See [`apps/plugin-email/`](../apps/plugin-email/) and [`apps/plugin-todoist/`](../apps/plugin-todoist/).
+Release archives ship these as `toby-plugin-<name>` directories under
+`~/.toby/plugins/` (or next to the binary during local `dist/` development).
 
-**Slack** ([`packages/core/src/integrations/slack/`](../packages/core/src/integrations/slack/)) is a representative built-in chat integration: OAuth (PKCE + user scopes on localhost) or manual bot token auth, with chat tools to search channels/users, post messages, reply in threads, and search message history. **Daemon inbound** (@mentions via Socket Mode) always requires a **bot token** (`xoxb-…`) and **app token** (`xapp-…`) in addition to OAuth user credentials—see [help-site Slack credentials](../apps/help-site/docs/integrations/slack.md#credentials-and-auth-reference).
+### Built-in global tools (not plugins)
 
-**macOS** is shipped as a TypeScript (bun-package) installable plugin (`toby-plugin-macos`); see [`apps/plugin-macos/`](../apps/plugin-macos/) and [`macos-integration.md`](macos-integration.md). It is **macOS-only** and controls local system settings (Wi‑Fi, Bluetooth, battery, audio, display, clipboard, shortcuts) by delegating all native operations to **Toby.app's native API server**, which holds the TCC permissions.
+**Web Search** ([`web-search.md`](web-search.md)) uses the Vercel AI Gateway’s
+Perplexity search. The `webSearch` tool is a **conditional global tool**: when
+enabled in Settings → Web Search and a Vercel AI Gateway API key is present, it
+is available in every chat session regardless of the persona’s AI provider.
 
-**Apple Calendar** is shipped as a TypeScript bun-package plugin (`toby-plugin-applecalendar`); see [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) and [`apple-calendar.md`](apple-calendar.md). It is **macOS-only** and delegates all calendar operations to Toby.app's native API server, which uses **EventKit** for search and CRUD.
+**`fetchWebContent`** ([`packages/core/src/ai/web-fetch-tool.ts`](../packages/core/src/ai/web-fetch-tool.ts))
+fetches a URL and extracts readable content via `@mozilla/readability` +
+`linkedom`. No credentials required.
 
-**Apple Contacts** is shipped as a TypeScript bun-package plugin (`toby-plugin-applecontacts`); see [`apps/plugin-applecontacts/`](../apps/plugin-applecontacts/) and [`apple-contacts.md`](apple-contacts.md). It is **macOS-only**, belongs to the **Contact List Provider** category, and delegates all contact reads to Toby.app's native API server, which uses **Contacts.framework** for search and detail lookup.
-
-**Apple Reminders** is shipped as a TypeScript bun-package plugin (`toby-plugin-applereminders`); see [`apps/plugin-applereminders/`](../apps/plugin-applereminders/) and [`apple-reminders.md`](apple-reminders.md). It is **macOS-only**, belongs to the **Task List Provider** category, and delegates all reminder operations to Toby.app's native API server, which uses **EventKit** for search and CRUD.
-
-**Web Search** ([`web-search.md`](web-search.md)) is a built-in (non-plugin) feature that uses the Vercel AI Gateway's Perplexity search: `webSearch` chat tool for web search. The `webSearch` tool is a **conditional global tool** — when enabled in Settings → Web Search and a Vercel AI Gateway API key is present, the tool is available in every chat session regardless of the persona's AI provider. No separate API key needed; reuses the AI Gateway key.
-
-**Jira** is shipped as a TypeScript (bun-package) installable plugin (`toby-plugin-jira`); see [`apps/plugin-jira/`](../apps/plugin-jira/). It is the **Work Tracker** provider category integration: Atlassian domain + email + API-token auth, with read-only chat tools to search Jira issues with JQL (`searchJiraIssues`), fetch full issue details (`getJiraIssue`), read issue comments (`getJiraIssueComments`), and list accessible projects (`listJiraProjects`).
-
-**Notion** is shipped as a TypeScript (bun-package) installable plugin (`toby-plugin-notion`); see [`apps/plugin-notion/`](../apps/plugin-notion/). It is the first **Documents Provider** category integration: token auth, read tools for searching pages/databases and reading page/block context, and write tools for creating pages or appending markdown-derived content to existing pages.
-
-### Web content fetching
-
-The global `fetchWebContent` tool ([`packages/core/src/ai/web-fetch-tool.ts`](../packages/core/src/ai/web-fetch-tool.ts)) fetches any URL and extracts clean readable content using `@mozilla/readability` (the same engine Firefox Reader View uses) plus `linkedom` for server-side DOM parsing. It strips ads, navigation, footers, and other boilerplate, returning the article title, text content, excerpt, site name, and byline. This tool is always available in chat sessions (no credentials needed).
-
-## How core commands use modules
+## How the product uses modules
 
 - **`connect` / `disconnect`** — `getIntegration(name)` then lifecycle methods.
-- **`status integration`** — `testConnection()`; modules return structured tool checks where applicable.
-- **`summarize <integration>`** — `getIntegrationModule`, require `summarize` in `capabilities` and a defined `summarize` function, then AI generation on returned messages.
-- **`organize <integration>`** — `getIntegrationModule`, require `organize` in `capabilities` and a defined `organize` function. Pass `--dry-run` to preview changes. Pass `--watch "<interval>"` to run immediately and then repeat periodically (e.g. `--watch "every hour"` or `--watch "30m"`); stop with Ctrl+C.
-- **Native chat** — Toby.app and daemon inbound chat select chat-capable modules, merge their tools, and run the shared chat pipeline.
-- **`configure` API** — builds credential settings from `getCredentialDescriptors` across `getIntegrationModules()`, saves via each `mergeCredentialsPatch`, and is consumed by Toby.app.
-  - When `authMethods` are provided, configure shows an auth-method selector and only method-relevant credential fields.
-  - The native **Toby.app** can also open an **Integration Setup Wizard** for a guided onboarding flow: numbered steps, provider links, copyable artifacts (redirect URI, scopes), inline credential fields, and connect/validate actions.
+- **`status integration`** — `testConnection()`; optional per-tool probes.
+- **Native chat (Toby.app) and daemon inbound** — select chat-capable modules,
+  merge tools, run the shared chat pipeline
+  ([`chat-pipeline.md`](chat-pipeline.md)).
+- **Schedules** — headless turns with the same tool-calling pipeline.
+- **Configure API** — credential fields from `getCredentialDescriptors` across
+  `getIntegrationModules()`; save via `mergeCredentialsPatch`; consumed by
+  Toby.app.
+  - When `authMethods` are set, configure shows an auth-method selector and
+    method-relevant fields only.
+  - Toby.app can open an **Integration Setup Wizard** (guided onboarding).
 
-Keeping this wiring generic avoids adding new `if (name === "…")` branches in core commands when a new integration is added.
+Keeping command and API wiring generic avoids `if (name === "…")` branches when
+a new plugin is installed.
 
 ## Integration setup guide
 
-Toby can show a guided onboarding flow for an integration instead of leaving users to figure out provider console steps on their own. The wizard is surfaced in the native **Toby.app**; the underlying content is also available at the daemon API endpoint:
+Guided onboarding for Toby.app is also available at:
 
 ```text
 GET /api/integrations/<name>/setup-guide
 ```
 
-The response contains:
+The response includes `displayName`, `description`, and `steps` (title,
+description, optional `links` / `artifacts`). Plugins implement
+`setup guide`; otherwise Toby builds a generic guide from `status`,
+`config shape`, and `authMethods`.
 
-- `displayName` and `description` for the integration.
-- A list of `steps` with `title`, `description`, optional `links`, and optional `artifacts`.
-- Each `artifact` has a `label`, `value`, and optional `hint` (e.g. the redirect URI or OAuth scopes to paste into a provider console).
+Credentials stay in `~/.toby/credentials.json` and connection state in
+`~/.toby/config.json`. After fields are filled, the wizard runs connect/status
+through existing actions. See [`plugin-protocol.md`](plugin-protocol.md#setup-guide).
 
-Plugins supply the guide by implementing the **`setup guide`** subcommand (`toby-plugin-<name> setup guide`). If a plugin does not implement it, Toby falls back to a generic guide built from the plugin's `status`, `config shape`, and `authMethods`.
-
-The native app owns credential editing and storage; the wizard reads from and writes through the same configure API so values stay in `~/.toby/credentials.json` and `~/.toby/config.json`. After credentials are filled in, the wizard runs the existing `connect` and `status` integration actions to authorize and validate.
-
-For the plugin contract, see [`plugin-protocol.md`](plugin-protocol.md#setup-guide).
-
-## Installable plugins
-
-Third-party (or independently built) integrations ship as TypeScript bun-package
-plugins (directories named `toby-plugin-<name>/` with a `manifest.json`).
-Toby discovers them under `~/.toby/plugins/` (or `$TOBY_DIR/plugins/`), then
-adapts them into `IntegrationModule` instances using the subprocess protocol in
-[`plugin-protocol.md`](plugin-protocol.md). **All new plugins must be TypeScript
-bun-package plugins** — do not create compiled binary or Swift plugins. When
-macOS framework access is needed, delegate to Toby.app's native API server from
-the TypeScript plugin.
+## Installable plugins (operations)
 
 | Command | Purpose |
 | ------- | ------- |
-| `toby plugins list` | Show discovered plugin directories and metadata |
-| `toby plugins install <path>` | Validate and copy a plugin into `~/.toby/plugins/` |
-| `toby plugins uninstall <name>` | Remove a managed plugin and purge its stored configuration |
-| `toby plugins inspect <name>` | Show plugin details and tool catalog |
-| `toby plugins doctor` | Validate protocol compatibility |
+| `toby plugins list` | Discovered plugins and metadata |
+| `toby plugins install <path>` | Validate and install into `~/.toby/plugins/` |
+| `toby plugins uninstall <name>` | Remove managed plugin and purge its config |
+| `toby plugins inspect <name>` | Details and tool catalog |
+| `toby plugins doctor` | Protocol compatibility checks |
+| `toby plugins setup <name>` | One-time setup (e.g. macOS Shortcuts) when advertised |
 
-Runtime code lives under [`packages/core/src/integrations/plugins/`](../packages/core/src/integrations/plugins/).
-Reference plugins: [`apps/plugin-sample-ts/`](../apps/plugin-sample-ts/) (minimal),
-[`apps/plugin-email/`](../apps/plugin-email/) (full parity; OAuth, auth methods),
-[`apps/plugin-slack/`](../apps/plugin-slack/) (chat + inbound sidecar). All
-first-party plugins ship in release archives as `toby-plugin-<name>` directories.
-
-Built-in modules in `MODULES` take precedence when names collide. Toby remains
-the source of truth for credentials (`credentials.json`) and connection state
-(`config.json`); plugins receive config envelopes on stdin.
+Toby remains the source of truth for credentials and connection state; plugins
+receive config envelopes on stdin and must not read/write `~/.toby/` directly.

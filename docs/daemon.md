@@ -93,7 +93,7 @@ Only **one** inbound integration is active at a time (e.g. `slack` today; Discor
 sequenceDiagram
   participant User
   participant Slack
-  participant Listener as slack/inbound.ts
+  participant Listener as plugin-slack inbound run
   participant Router as chat-inbound/router
   participant Runner as headless-session
   participant DB as chat.sqlite
@@ -180,11 +180,14 @@ When the model calls **askUser**, the daemon:
 3. Waits for the user’s next message in that thread.
 4. Maps the reply (number, option label, or free text) and resumes the same tool-calling turn.
 
-This mirrors TUI behavior, but the “terminal” is the chat thread.
+This mirrors interactive chat `askUser` behavior, but the “UI” is the chat thread.
 
 ### Provider contract (for new integrations)
 
-Integrations implement `ChatInboundProvider` on `IntegrationModule` (`chatInbound` field). The daemon never imports provider SDKs directly—all transport code lives under `packages/core/src/integrations/<name>/inbound.ts`.
+Plugins with inbound capability implement `inbound run` (NDJSON); the harness
+adapts that into `ChatInboundProvider` on the module. The daemon never imports
+provider SDKs directly—transport lives in the plugin package (e.g.
+[`apps/plugin-slack/`](../apps/plugin-slack/)).
 
 Deep dive on types and extending: [chat-inbound.md](chat-inbound.md).
 
@@ -241,6 +244,6 @@ SSE streams emit `ChatEvent` JSON on default `data:` lines. Terminal events use 
 ## Related docs
 
 - [chat-inbound.md](chat-inbound.md) — provider contract, layers, Discord checklist
-- [chat-pipeline.md](chat-pipeline.md) — node pipeline, pretreatment, tools, caching (shared with TUI chat)
+- [chat-pipeline.md](chat-pipeline.md) — node pipeline, pretreatment, tools, caching (shared with Toby.app and inbound)
 - [integrations.md](integrations.md) — `chatInbound` on `IntegrationModule`
 - [create-integration.md](create-integration.md#inbound-chat) — adding a new inbound provider

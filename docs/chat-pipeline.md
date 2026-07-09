@@ -139,7 +139,14 @@ By default, Toby uses **embedding-based routing** ([`packages/core/src/routing/`
 2. **Expand-prompt** embeds the user message, runs cosine search, and selects up to **`TOBY_ROUTING_TOP_K`** integration-specific tools (default **8**) plus up to **2** skills above **`TOBY_ROUTING_MIN_SCORE`** (default **0.2** for tools; **`TOBY_ROUTING_SKILL_MIN_SCORE`** default **0.35** for skills — skills require a stronger match to avoid false-positive activation).
 3. **Finalize** still applies the token-overlap skill heuristic and unions tools declared in selected skill frontmatter.
 
-**Always-included tools** (~16: `askUser`, memory tools, `loadLocalSkillInstructions`, `tobyList*`, `webSearch`, etc.) are **not** part of the top-K count; they are always passed to the main model regardless of routing. So “top 8” means eight *additional* integration tools, not eight tools total.
+**Always-included tools** (base set in `ALWAYS_INCLUDED_TOOLS` in
+[`run-turn.ts`](../packages/core/src/chat-pipeline/run-turn.ts): `askUser`,
+`getCurrentDateTime`, `loadLocalSkillInstructions`, `writeTextFile`,
+`tobyListIntegrations`, `tobyListTools`, `tobyListSkills`, `delegateToSubAgent`,
+and core memory tools) are **not** part of the top-K count. Conditional globals
+such as `webSearch` (when enabled) are also protected from relevance filtering
+when present. So “top 8” means eight *additional* integration tools, not eight
+tools total.
 
 | Variable | Purpose |
 | -------- | ------- |
@@ -193,24 +200,27 @@ To author a new skill from chat, ask explicitly (for example “create a skill f
 
 ## Toby self-reflection tools
 
-Global reflection tools let the assistant answer questions about Toby itself without guessing from stale prompt text:
+Global reflection tools let the assistant answer questions about Toby itself without guessing from stale prompt text. The always-included subset includes:
 
 - `tobyListIntegrations` — list available integrations, connection state, categories, capabilities, and resources.
-- `tobyGetIntegrationSetup` — explain setup requirements for a specific integration.
-- `tobyListDefaults` — show configured default providers by category.
 - `tobyListTools` — list tools available in the current chat scope.
 - `tobyListSkills` — list installed local skills.
 
-These tools support prompts such as “Which integrations are connected?”, “How do I set up Jira?”, “What tools can you use right now?”, and “What skills are installed?”
+Additional reflect helpers (when exposed by the global tool set) may cover setup
+details and default providers; prefer the tools actually present in
+`tobyListTools` output over assuming a fixed catalog.
 
-### Web content tools (always-included)
+These tools support prompts such as “Which integrations are connected?”, “What
+tools can you use right now?”, and “What skills are installed?”
+
+### Web content tools
 
 Two global tools extend Toby's ability to access the web:
 
-- **`fetchWebContent`** — Fetches a URL and extracts its main readable content using `@mozilla/readability`. Strips ads, navigation, footers, and other boilerplate. Returns article title, text content, excerpt, and metadata. Always available (no credentials needed). Implemented in [`packages/core/src/ai/web-fetch-tool.ts`](../packages/core/src/ai/web-fetch-tool.ts).
-- **`webSearch`** — Searches the web via Perplexity through the Vercel AI Gateway. A client-side function tool whose `execute` makes a separate `generateText` call to the gateway with `openai/gpt-4.1-mini` + `gateway.tools.perplexitySearch()`. Returns titles, URLs, snippets, and optional dates. Available as a **conditional global tool** when web search is enabled in Settings and a Vercel AI Gateway API key is present (works with any persona AI provider). When available, it is always included in the tool set (protected from pretreatment filtering via `ALWAYS_INCLUDED_TOOLS`). See [`web-search.md`](web-search.md) and [`packages/core/src/ai/web-search-global-tools.ts`](../packages/core/src/ai/web-search-global-tools.ts).
+- **`fetchWebContent`** — Fetches a URL and extracts its main readable content using `@mozilla/readability`. Strips ads, navigation, footers, and other boilerplate. Returns article title, text content, excerpt, and metadata. No credentials needed. Implemented in [`packages/core/src/ai/web-fetch-tool.ts`](../packages/core/src/ai/web-fetch-tool.ts).
+- **`webSearch`** — Searches the web via Perplexity through the Vercel AI Gateway. A client-side function tool whose `execute` makes a separate `generateText` call to the gateway with `openai/gpt-4.1-mini` + `gateway.tools.perplexitySearch()`. Returns titles, URLs, snippets, and optional dates. Available as a **conditional global tool** when web search is enabled in Settings and a Vercel AI Gateway API key is present (works with any persona AI provider). When available, it is protected from pretreatment filtering. See [`web-search.md`](web-search.md) and [`packages/core/src/ai/web-search-global-tools.ts`](../packages/core/src/ai/web-search-global-tools.ts).
 
-Both tools are in the `ALWAYS_INCLUDED_TOOLS` set, so pretreatment's relevance filtering never removes them. The combined system prompt includes routing rules: use `webSearch` when the user asks about current events or research, use `fetchWebContent` when the user shares a URL or asks to read a specific page.
+The combined system prompt includes routing rules: use `webSearch` when the user asks about current events or research, use `fetchWebContent` when the user shares a URL or asks to read a specific page.
 
 ## Turn execution (tools + streaming)
 

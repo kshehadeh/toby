@@ -21,12 +21,11 @@ flowchart TB
   subgraph core ["@toby/core"]
     pipe[chat-pipeline]
     ai[ai]
-    integ[integrations]
+    integ[integrations + plugins]
     cfg[config]
   end
   subgraph cli ["@toby/cli"]
     entry[cli.ts + commands]
-    ui[Native SwiftUI app]
   end
   subgraph daemon ["daemon server API"]
     api[localhost HTTP + SSE]
@@ -35,9 +34,9 @@ flowchart TB
     nativeApi["localhost HTTP on ~/.toby/native-port"]
   end
   subgraph surfaces ["local app surfaces"]
-    app["Toby.app"]
+    app["Toby.app SwiftUI"]
   end
-  plugins["macOS plugins"]
+  plugins["TS plugins"]
   cli --> core
   cli -. starts/manages .-> daemon
   app --> api
@@ -50,7 +49,10 @@ flowchart TB
 
 **Put in the CLI app** when the behavior is shell-specific: Commander wiring, backup/restore prompts, daemon management commands, release upgrade handoff, and native app launch helpers.
 
-Integration **implementations** live in core (`packages/core/src/integrations/<name>/`) or installable plugins. Interactive integration configuration belongs in Toby.app through the core configure API.
+Integration **implementations** live in installable plugins (`apps/plugin-*`);
+core owns the registry adapter under `packages/core/src/integrations/plugins/`.
+Interactive integration configuration belongs in Toby.app through the core
+configure API.
 
 ## High-level layout
 
@@ -61,7 +63,7 @@ packages/core/src/       # @toby/core — UI-agnostic harness
   integrations/          # Integration modules + registry (see integrations.md)
   config/                # Read/write ~/.toby/config.json and credentials.json
   chat-inbound/          # Provider-agnostic daemon inbound router
-  session-store.ts       # SQLite chat sessions (TUI + headless)
+  session-store.ts       # SQLite chat sessions (native + headless)
   prepare-messages.ts    # Message assembly for chat turns
   chat-integrations.ts   # Resolve usable chat modules from config/registry
   …
@@ -73,16 +75,14 @@ apps/cli/src/
 
 apps/toby-app/             # Toby.app — native macOS app (SwiftUI)
   Sources/TobyApp/
-    TobyClient.swift              # Client for daemon /api routes and SSE chat turns
-    DaemonBootstrap.swift         # Starts `toby daemon start` when the API is unavailable
-    NativeServer.swift            # Localhost HTTP server (Network.framework); port in ~/.toby/native-port
-    NativeCalendarHandler.swift   # EventKit calendar operations
-    NativeContactsHandler.swift   # Contacts.framework contact search/detail operations
-    NativeAppleRemindersHandler.swift # EventKit reminder operations
-    NativeMacOSHandler.swift      # Accessibility-gated window operations
-    NativeAudioHandler.swift      # In-process microphone/system audio capture
-    RecordingsStore.swift         # Daemon-backed recording list/detail/delete state
-    RecordingsView.swift          # Native recording browser and audio playback
+    Native/                       # Localhost native API (TCC-gated)
+      NativeServer.swift          # Port published to ~/.toby/native-port
+      NativeCalendarHandler.swift # EventKit calendar operations
+      NativeContactsHandler.swift # Contacts.framework operations
+      NativeAppleRemindersHandler.swift # EventKit reminders
+      NativeMacOSHandler.swift    # Accessibility-gated window operations
+      NativeAudioHandler.swift    # Microphone / system audio capture
+    # Plus Features/, Stores/, UI/, … — product surfaces (chat, settings, recordings)
 ```
 
 ### Native app shared data
@@ -112,11 +112,11 @@ the detail surface that needs them.
 
 ## Runtime flow
 
-1. **`apps/cli/src/cli.ts`** constructs the Commander program, registers built-in commands, then calls `registerCommands` on each loaded `IntegrationModule` (if present). Bare `toby` (no subcommand) opens the native Toby app.
-2. **Connect / disconnect / status** use [`getIntegration`](../packages/core/src/integrations/index.ts) or [`getIntegrations`](../packages/core/src/integrations/index.ts) from core.
-3. **`summarize`** resolves a module by name, checks capabilities, and runs AI with returned messages (core integrations + core AI).
-4. **Chat and configuration** are interactive native-app workflows backed by core web/API handlers.
-5. **`config backup` / `config restore`** stay in CLI commands using core config helpers.
+1. **`apps/cli/src/cli.ts`** constructs the Commander program, registers built-in maintenance commands, then calls `registerCommands` on each loaded `IntegrationModule` (if present). Bare `toby` (no subcommand) opens the native Toby app.
+2. **Connect / disconnect / status** use [`getIntegration`](../packages/core/src/integrations/index.ts) or [`getIntegrations`](../packages/core/src/integrations/index.ts) from core (discovered plugins).
+3. **Chat and configuration** are interactive native-app workflows backed by core web/API handlers (daemon HTTP API).
+4. **`config backup` / `config restore`** stay in CLI commands using core config helpers.
+5. **Daemon** (`toby daemon start`) runs schedules, inbound chat, and the localhost API that Toby.app consumes.
 
 ## Local data
 
@@ -233,6 +233,8 @@ Shared AI and pipeline code lives under **`packages/core/src/ai/`** and **`packa
 - [`ask-user-tool.ts`](../packages/core/src/ai/ask-user-tool.ts) — **Ask User** tool; native/headless turn contexts provide the handler when needed.
 - [`providers.ts`](../packages/core/src/ai/providers.ts) — provider/model lists (configure UI reads these via core).
 
-Integration-specific **prompts** and **tool definitions** live under `packages/core/src/integrations/<name>/` so the harness stays integration-agnostic.
+Integration-specific **prompts** and **tool definitions** live in each plugin
+package (`apps/plugin-*/`); the harness stays integration-agnostic via the
+plugin protocol adapter.
 
 For pipeline stages, events, and caching, see [`chat-pipeline.md`](chat-pipeline.md) and [`ai-caching.md`](ai-caching.md).

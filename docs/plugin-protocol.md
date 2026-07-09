@@ -22,13 +22,15 @@ Plugins own full integration logic (tools, connect, chat prep); helpers do not.
 
 ## CLI contract
 
-Plugins are **language-agnostic executables**. Toby uses Node `spawnSync` on the
-binary path — no Bun, Node, or Swift runtime is required on the host beyond the
-plugin binary itself ([`packages/core/src/integrations/plugins/client.ts`](../packages/core/src/integrations/plugins/client.ts)).
+**Preferred format:** TypeScript **bun-package** directories (below). Legacy
+standalone executables named `toby-plugin-<name>` are still discovered for
+compatibility; Toby spawns them with `spawnSync`
+([`packages/core/src/integrations/plugins/client.ts`](../packages/core/src/integrations/plugins/client.ts)).
+New first-party work must use bun-packages.
 
-### Binary naming and discovery
+### Naming and discovery
 
-Plugin executables must be named:
+Plugin directories (and legacy binaries) must be named:
 
 ```text
 toby-plugin-<name>
@@ -36,23 +38,22 @@ toby-plugin-<name>
 
 where `<name>` matches `/^[a-z0-9_-]+$/` (the integration CLI name).
 
-Toby discovers plugin binaries from these locations, in precedence order:
+Toby discovers plugins from these locations, in precedence order:
 
-1. **The directory containing the running `toby` binary** (`dirname(process.execPath)`), if it contains at least one `toby-plugin-*` file. This makes `./dist/toby` use plugins built into `./dist/` without any install step, which is handy for local development.
-2. **The current repository's `dist/` directory**, when it contains plugin binaries and is different from the installed plugin directory. This supports running an uncompiled CLI from the repository against locally built plugins.
-3. **The Toby data directory**, `~/.toby/plugins/` (or `$TOBY_DIR/plugins/` when `TOBY_DIR` is set). This is where `toby plugins install` and release upgrades put binaries.
+1. **The directory containing the running `toby` binary** (`dirname(process.execPath)`), if it contains at least one `toby-plugin-*` entry. This makes `./dist/toby` use plugins built into `./dist/` without any install step, which is handy for local development.
+2. **The current repository's `dist/` directory**, when it contains plugins and is different from the installed plugin directory. This supports running an uncompiled CLI from the repository against locally built plugins.
+3. **The Toby data directory**, `~/.toby/plugins/` (or `$TOBY_DIR/plugins/` when `TOBY_DIR` is set). This is where `toby plugins install` and release upgrades put plugins.
 
 When the same plugin name exists in multiple directories, the first location in
 that precedence order wins. For end-user installs (binary on `PATH`, plugins
 under `~/.toby/plugins/`), the development directories are normally empty and
 behavior is unchanged.
 
-Install plugins with `toby plugins install <path>` or copy binaries into the
-data directory manually.
+Install plugins with `toby plugins install <path>` or copy a plugin directory
+into the data directory manually.
 
-The binary must be **executable** (`chmod +x`). `toby plugins doctor` and
-`toby plugins install` validate naming, `status`, protocol version, and
-`tools list`.
+`toby plugins doctor` and `toby plugins install` validate naming, `status`,
+protocol version, and `tools list`.
 
 ### TypeScript package plugins (bun-package)
 
@@ -224,7 +225,7 @@ Default subprocess limits from the Toby harness:
 
 | Limit | Value |
 | ----- | ----- |
-| Timeout | 25 seconds (`DEFAULT_TIMEOUT_MS` in `client.ts`) |
+| Timeout | 120 seconds (`DEFAULT_TIMEOUT_MS` in `client.ts`) |
 | stdout max size | 4 MiB |
 
 Long-running tool work (large mailbox searches, batch API calls) must complete
@@ -243,9 +244,8 @@ into `credentials.json` / `config.json`.
 | ------ | -------- | ----- | ----- |
 | [`apps/plugin-sample-ts/`](../apps/plugin-sample-ts/) | TypeScript (bun-package) | `bun run build:plugin:sample-ts` | Minimal protocol surface |
 | [`apps/plugin-email/`](../apps/plugin-email/) | TypeScript (bun-package) | `bun run build:plugin:email` | IMAP/SMTP email, auth methods, config writeback |
-| [`apps/plugin-azuread/`](../apps/plugin-azuread/) | TypeScript (bun-package) | `bun run build:plugin:azuread` | Full parity migration |
 | [`apps/plugin-todoist/`](../apps/plugin-todoist/) | TypeScript (bun-package) | `bun run build:plugin:todoist` | API key auth, task tools; vendored `@doist/todoist-sdk` |
-| [`apps/plugin-jira/`](../apps/plugin-jira/) | TypeScript (bun-package) | `bun run build:plugin:jira` | No compilation needed; runs via Bun |
+| [`apps/plugin-jira/`](../apps/plugin-jira/) | TypeScript (bun-package) | `bun run build:plugin:jira` | Work tracker; runs via Bun |
 | [`apps/plugin-notion/`](../apps/plugin-notion/) | TypeScript (bun-package) | `bun run build:plugin:notion` | Token auth, documents provider, Notion SDK |
 | [`apps/plugin-slack/`](../apps/plugin-slack/) | TypeScript (bun-package) | `bun run build:plugin:slack` | Chat + inbound sidecar; OAuth; `@slack/bolt` |
 | [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) | TypeScript (bun-package) | `bun run build:plugin:applecalendar` | Delegates EventKit calendar operations to Toby.app native API |
@@ -253,8 +253,9 @@ into `credentials.json` / `config.json`.
 | [`apps/plugin-applereminders/`](../apps/plugin-applereminders/) | TypeScript (bun-package) | `bun run build:plugin:applereminders` | Delegates EventKit reminder operations to Toby.app native API |
 | [`apps/plugin-macos/`](../apps/plugin-macos/) | TypeScript (bun-package) | `bun run build:plugin:macos` | Delegates macOS system ops to Toby.app native API; optional `setup` subcommand |
 
-TypeScript plugins route argv in `src/cli.ts`; Swift plugins mirror the same argv
-table in their executable entry point. Protocol types shared with the harness live in
+TypeScript plugins route argv from their `runtime.entry` (typically `src/index.ts`).
+Legacy standalone executables remain discoverable for compatibility, but **new**
+plugins must be bun-packages. Protocol types shared with the harness live in
 [`packages/core/src/integrations/plugins/protocol.ts`](../packages/core/src/integrations/plugins/protocol.ts).
 
 ## JSON payloads
@@ -537,9 +538,9 @@ When `status` receives a config envelope, return readiness for the chat picker:
 "chatReadiness": { "ok": false, "hint": "Run `toby connect myintegration` after configuring credentials." }
 ```
 
-Reference: [`apps/plugin-azuread/`](../apps/plugin-azuread/), [`apps/plugin-email/`](../apps/plugin-email/),
-[`apps/plugin-jira/`](../apps/plugin-jira/) (TypeScript bun-package), [`apps/plugin-slack/`](../apps/plugin-slack/) (chat + inbound sidecar). See
-[Migrating a built-in to a plugin](create-integration.md#migrating-a-built-in-to-a-plugin).
+Reference: [`apps/plugin-email/`](../apps/plugin-email/),
+[`apps/plugin-jira/`](../apps/plugin-jira/), [`apps/plugin-slack/`](../apps/plugin-slack/) (chat + inbound sidecar). See
+[`create-integration.md`](create-integration.md).
 
 ### Plugin setup
 
@@ -734,7 +735,9 @@ an unsupported protocol version.
 
 See the [reference implementations](#reference-implementations) table above.
 Release archives include the sample plugin plus first-party integrations
-(`toby-plugin-azuread`, `toby-plugin-email`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-slack`, `toby-plugin-applecalendar`, `toby-plugin-applereminders`, `toby-plugin-macos`);
+(`toby-plugin-email`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-notion`,
+`toby-plugin-slack`, `toby-plugin-applecalendar`, `toby-plugin-applecontacts`,
+`toby-plugin-applereminders`, `toby-plugin-macos`, `toby-plugin-sample-ts`);
 `install-toby.sh` and `toby upgrade` install them into `~/.toby/plugins/`.
 
 ## Installing plugins
