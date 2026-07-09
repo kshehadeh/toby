@@ -86,6 +86,23 @@ final class NativeAudioHandler {
 			files = [:]
 			return json(["ok": true, "data": payload])
 		} catch {
+			// Combined audio export failed, but individual mic/system files
+			// may still be valid. Save the recording with whatever files exist
+			// so it is not lost. The error is recorded in metadata.
+			let allErrors = session.errors + ["\(error)"]
+			files.removeValue(forKey: "combined")
+			if let finalDir = try? save(session: session, files: files, extraErrors: allErrors) {
+				var payload: [String: Any] = [
+					"status": "idle",
+					"message": "Recording saved.",
+					"id": session.options.id,
+					"outputDir": finalDir.path,
+					"files": remapFiles(files, from: session.options.tempDir, to: finalDir),
+				]
+				payload["errors"] = allErrors
+				files = [:]
+				return json(["ok": true, "data": payload])
+			}
 			files = [:]
 			return json(["ok": false, "error": "\(error)"])
 		}
@@ -138,7 +155,7 @@ final class NativeAudioHandler {
 		}
 		let now = Date()
 		let id = recordingId(date: now)
-		let base = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".toby")
+		let base = URL(fileURLWithPath: ConfigReader.resolveTobyDir())
 		let listenDir = base.appendingPathComponent("listen", isDirectory: true)
 		let tempRoot = listenDir.appendingPathComponent("tmp", isDirectory: true)
 		let recordingsRoot = listenDir.appendingPathComponent("recordings", isDirectory: true)
@@ -162,7 +179,7 @@ final class NativeAudioHandler {
 		)
 	}
 
-	private func save(session: NativeRecordingSession, files: [String: String]) throws -> URL {
+	private func save(session: NativeRecordingSession, files: [String: String], extraErrors: [String] = []) throws -> URL {
 		let options = session.options
 		let manager = FileManager.default
 		let finalDir = options.finalDir
@@ -186,8 +203,9 @@ final class NativeAudioHandler {
 			"osVersion": ProcessInfo.processInfo.operatingSystemVersionString,
 			"helper": ["path": "Toby.app", "version": helperVersion],
 		]
-		if !session.errors.isEmpty {
-			metadata["errors"] = session.errors
+		let allErrors = session.errors + extraErrors
+		if !allErrors.isEmpty {
+			metadata["errors"] = allErrors
 		}
 		if !JSONSerialization.isValidJSONObject(metadata) {
 			metadata["files"] = [:]

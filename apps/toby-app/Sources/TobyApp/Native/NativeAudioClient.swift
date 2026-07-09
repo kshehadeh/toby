@@ -74,8 +74,8 @@ struct NativeAudioClient {
 	}
 
 	private func resolveNativePort() -> Int? {
-		let home = FileManager.default.homeDirectoryForCurrentUser
-		let portFile = home.appendingPathComponent(".toby/native-port")
+		let portFile = URL(fileURLWithPath: ConfigReader.resolveTobyDir())
+			.appendingPathComponent("native-port")
 		guard let data = try? Data(contentsOf: portFile),
 			let text = String(data: data, encoding: .utf8),
 			let port = Int(text.trimmingCharacters(in: .whitespacesAndNewlines))

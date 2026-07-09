@@ -89,8 +89,8 @@ final class NativeServer {
 	static let shared = NativeServer()
 
 	private init() {
-		let home = FileManager.default.homeDirectoryForCurrentUser
-		portFileURL = home.appendingPathComponent(".toby/native-port")
+		portFileURL = URL(fileURLWithPath: ConfigReader.resolveTobyDir())
+			.appendingPathComponent("native-port")
 	}
 
 	func start() {
@@ -145,16 +145,12 @@ final class NativeServer {
 	// MARK: - Port file
 
 	private nonisolated func writePortFile(_ port: UInt16) {
-		let home = FileManager.default.homeDirectoryForCurrentUser
-		let url = home.appendingPathComponent(".toby/native-port")
 		let data = "\(port)".data(using: .utf8)
-		try? data?.write(to: url, options: .atomic)
+		try? data?.write(to: portFileURL, options: .atomic)
 	}
 
 	private nonisolated func deletePortFile() {
-		let home = FileManager.default.homeDirectoryForCurrentUser
-		let url = home.appendingPathComponent(".toby/native-port")
-		try? FileManager.default.removeItem(at: url)
+		try? FileManager.default.removeItem(at: portFileURL)
 	}
 
 	// MARK: - Request reading
