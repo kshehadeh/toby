@@ -459,7 +459,13 @@ async function resolvePluginChatReadiness(
 		return statusResult.data.chatReadiness;
 	}
 
-	return { ok: true };
+	// No explicit chatReadiness from the plugin — require a formal connect.
+	// Defaulting to ok:true would make unconnected plugins (e.g. sample-ts)
+	// appear in connectedIntegrations and falsely complete the onboarding step.
+	return {
+		ok: false,
+		hint: pluginConnectHint(name, target, creds),
+	};
 }
 
 /**

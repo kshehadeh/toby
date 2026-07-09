@@ -6,6 +6,7 @@ import {
 	getIntegrationModule,
 	getIntegrationModules,
 } from "@toby/core/integrations/index";
+import { isIntegrationUsableInChat } from "@toby/core/chat-integrations";
 import {
 	createPluginIntegrationModule,
 	inspectPluginBinary,
@@ -168,6 +169,18 @@ describe("plugin protocol", () => {
 	it("includes plugin modules in integration registry listing", () => {
 		const names = getIntegrationModules().map((m) => m.name);
 		expect(names).toContain("sample");
+	});
+
+	it("unconnected plugin without chatReadiness is not usable in chat", async () => {
+		const sample = getIntegrationModule("sample");
+		expect(sample).toBeDefined();
+		if (!sample) return;
+		// The sample plugin does not return chatReadiness in its status response.
+		// An unconnected plugin must NOT be considered usable in chat, otherwise
+		// it appears in connectedIntegrations and falsely completes the onboarding
+		// "Connect integrations" step.
+		const usable = await isIntegrationUsableInChat(sample);
+		expect(usable).toBe(false);
 	});
 
 	it("inspectPluginBinary surfaces load failures", () => {
