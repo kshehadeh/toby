@@ -40,21 +40,23 @@ struct DashboardModelsTests {
 	@Test("onboarding checklist counts completed steps")
 	func onboardingChecklistCounts() {
 		let checklist = OnboardingChecklist.make(
+			hasConfiguredAIProvider: true,
 			hasConnectedIntegrations: true,
 			hasModelConfigured: true,
 			hasRequiredPermissions: false,
 			hasSchedule: false,
 			hasSession: false
 		)
-		#expect(checklist.completedCount == 2)
-		#expect(checklist.totalCount == 5)
+		#expect(checklist.completedCount == 3)
+		#expect(checklist.totalCount == 6)
 		#expect(checklist.isComplete == false)
-		#expect(checklist.progress == 0.4)
+		#expect(checklist.progress == 0.5)
 	}
 
 	@Test("onboarding checklist is complete when all steps done")
 	func onboardingChecklistComplete() {
 		let checklist = OnboardingChecklist.make(
+			hasConfiguredAIProvider: true,
 			hasConnectedIntegrations: true,
 			hasModelConfigured: true,
 			hasRequiredPermissions: true,
@@ -62,7 +64,7 @@ struct DashboardModelsTests {
 			hasSession: true
 		)
 		#expect(checklist.isComplete)
-		#expect(checklist.completedCount == 5)
+		#expect(checklist.completedCount == 6)
 	}
 
 	@Test("due text falls back to no due date")
@@ -118,7 +120,8 @@ struct DashboardViewTests {
 			store: store,
 			userName: "Karim",
 			onboarding: OnboardingChecklist.make(
-				hasConnectedIntegrations: true,
+				hasConfiguredAIProvider: true,
+			hasConnectedIntegrations: true,
 				hasModelConfigured: true,
 				hasRequiredPermissions: false,
 				hasSchedule: false,
@@ -152,7 +155,8 @@ struct DashboardViewTests {
 			store: DashboardStore(),
 			userName: "Karim",
 			onboarding: OnboardingChecklist.make(
-				hasConnectedIntegrations: true,
+				hasConfiguredAIProvider: true,
+			hasConnectedIntegrations: true,
 				hasModelConfigured: true,
 				hasRequiredPermissions: true,
 				hasSchedule: true,
@@ -176,6 +180,7 @@ struct DashboardViewTests {
 	@Test("onboarding card renders title")
 	func onboardingCardRendersTitle() throws {
 		let checklist = OnboardingChecklist.make(
+			hasConfiguredAIProvider: true,
 			hasConnectedIntegrations: true,
 			hasModelConfigured: true,
 			hasRequiredPermissions: false,

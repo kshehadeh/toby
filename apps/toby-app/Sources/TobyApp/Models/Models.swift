@@ -145,6 +145,7 @@ struct AppStatus: Decodable {
 	let version: String
 	let persona: String
 	let model: String
+	let hasConfiguredAIProvider: Bool?
 	let tobyDir: String?
 	let contextWindow: ContextWindowPayload?
 	var attachmentCapability: ChatAttachmentCapability? = nil

@@ -718,6 +718,7 @@ struct RootView: View {
     }
 
     private var onboardingChecklist: OnboardingChecklist {
+        let hasAIProvider = store.status?.hasConfiguredAIProvider ?? false
         let connected = !(store.status?.connectedIntegrations?.isEmpty ?? true)
         let hasCustomPersona = (store.status?.personaCount ?? 1) > 1
         let granted = Set(
@@ -725,6 +726,7 @@ struct RootView: View {
         )
         let requiredPermissions = granted.contains(.microphone) && granted.contains(.screenCapture)
         return OnboardingChecklist.make(
+            hasConfiguredAIProvider: hasAIProvider,
             hasConnectedIntegrations: connected,
             hasModelConfigured: hasCustomPersona,
             hasRequiredPermissions: requiredPermissions,
@@ -921,6 +923,7 @@ struct RootView: View {
                 version: currentVersion.hasPrefix("v") ? String(currentVersion.dropFirst()) : currentVersion,
                 persona: currentStatus?.persona ?? "default",
                 model: currentStatus?.model ?? "debug",
+                hasConfiguredAIProvider: currentStatus?.hasConfiguredAIProvider,
                 tobyDir: currentStatus?.tobyDir,
                 contextWindow: currentStatus?.contextWindow,
                 personaImageUrl: currentStatus?.personaImageUrl,

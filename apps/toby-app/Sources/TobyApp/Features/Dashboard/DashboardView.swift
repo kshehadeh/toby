@@ -69,6 +69,8 @@ struct DashboardView: View {
 
 	private func handleStepAction(_ kind: OnboardingStepKind) {
 		switch kind {
+		case .configureAIProvider:
+			onSelectRoute(.settings)
 		case .connectIntegrations:
 			onSelectRoute(.integrations)
 		case .setupPersona:

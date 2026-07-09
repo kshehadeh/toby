@@ -59,6 +59,7 @@ describe("native app API fresh state", () => {
 				version: string;
 				persona: string;
 				model: string;
+				hasConfiguredAIProvider: boolean;
 				tobyDir: string;
 				connectedIntegrations: string[];
 				personaCount: number;
@@ -69,6 +70,7 @@ describe("native app API fresh state", () => {
 			expect(body.persona.length).toBeGreaterThan(0);
 			expect(body.model.length).toBeGreaterThan(0);
 			expect(body.tobyDir).toBe(process.env.TOBY_DIR);
+			expect(body.hasConfiguredAIProvider).toBe(false);
 			expect(body.connectedIntegrations).toEqual([]);
 			expect(body.personaCount).toBe(1);
 			expect(body.skillCount).toBe(0);
@@ -192,6 +194,7 @@ describe("native app API fresh state", () => {
 					promptMode: string;
 					provider: string;
 					model: string;
+				hasConfiguredAIProvider: boolean;
 					isBuiltIn: boolean;
 				};
 			};

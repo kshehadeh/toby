@@ -127,6 +127,7 @@ export type ChatStatusResponse = {
 	readonly version: string;
 	readonly persona: string;
 	readonly model: string;
+	readonly hasConfiguredAIProvider: boolean;
 	readonly tobyDir: string;
 	readonly contextWindow?: AIContextWindowInfo;
 	readonly attachmentCapability: ChatAttachmentCapability;

@@ -1,6 +1,7 @@
 import Foundation
 
 enum OnboardingStepKind: String, Identifiable {
+	case configureAIProvider
 	case connectIntegrations
 	case setupPersona
 	case grantPermissions
@@ -32,6 +33,7 @@ struct OnboardingChecklist: Equatable {
 	}
 
 	static func make(
+		hasConfiguredAIProvider: Bool,
 		hasConnectedIntegrations: Bool,
 		hasModelConfigured: Bool,
 		hasRequiredPermissions: Bool,
@@ -39,6 +41,12 @@ struct OnboardingChecklist: Equatable {
 		hasSession: Bool
 	) -> OnboardingChecklist {
 		OnboardingChecklist(steps: [
+			OnboardingStep(
+				kind: .configureAIProvider,
+				title: "Configure AI provider",
+				isComplete: hasConfiguredAIProvider,
+				actionLabel: "Configure"
+			),
 			OnboardingStep(
 				kind: .connectIntegrations,
 				title: "Connect integrations",
