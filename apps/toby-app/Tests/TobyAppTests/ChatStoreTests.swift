@@ -156,6 +156,7 @@ struct ChatStoreTests {
             ),
             personaImageUrl: nil,
             connectedIntegrations: nil,
+            personaCount: nil,
             skillCount: nil,
             skills: nil,
             transcription: nil

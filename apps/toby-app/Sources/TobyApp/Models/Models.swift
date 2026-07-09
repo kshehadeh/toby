@@ -150,6 +150,7 @@ struct AppStatus: Decodable {
 	var attachmentCapability: ChatAttachmentCapability? = nil
 	let personaImageUrl: String?
 	let connectedIntegrations: [String]?
+	let personaCount: Int?
 	let skillCount: Int?
 	let skills: [SkillSummary]?
 	let transcription: TranscriptionStatus?

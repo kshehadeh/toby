@@ -719,7 +719,7 @@ struct RootView: View {
 
     private var onboardingChecklist: OnboardingChecklist {
         let connected = !(store.status?.connectedIntegrations?.isEmpty ?? true)
-        let hasCustomPersona = store.status?.persona != "Toby"
+        let hasCustomPersona = (store.status?.personaCount ?? 1) > 1
         let granted = Set(
             permissionsStore.statuses.filter(\.isGranted).map(\.kind)
         )
@@ -925,6 +925,7 @@ struct RootView: View {
                 contextWindow: currentStatus?.contextWindow,
                 personaImageUrl: currentStatus?.personaImageUrl,
                 connectedIntegrations: currentStatus?.connectedIntegrations,
+                personaCount: currentStatus?.personaCount,
                 skillCount: currentStatus?.skillCount,
                 skills: currentStatus?.skills,
                 transcription: currentStatus?.transcription

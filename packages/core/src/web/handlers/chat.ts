@@ -20,7 +20,7 @@ import {
 } from "../../chat-pipeline/turn-runtime";
 import { getDefaultPersonaImagePath, resolveTobyDir } from "../../config/index";
 import { isTranscriptionConfigured } from "../../listen/transcription-providers";
-import { resolveDefaultPersona, resolvePersona } from "../../personas/index";
+import { resolveDefaultPersona, listPersonas, resolvePersona } from "../../personas/index";
 import { loadPlanBySession } from "../../planning/plan-store";
 import { resolveProject } from "../../projects/index";
 import {
@@ -115,6 +115,7 @@ export async function handleChatStatusDetail(): Promise<Response> {
 		attachmentCapability: resolveChatAttachmentCapability(persona),
 		personaImageUrl,
 		connectedIntegrations: modules.map((m) => m.displayName),
+		personaCount: listPersonas().length,
 		skillCount: skills.length,
 		skills: skills.map((s) => ({ name: s.name, description: s.description })),
 		transcription: {

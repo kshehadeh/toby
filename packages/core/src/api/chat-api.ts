@@ -131,6 +131,7 @@ export type ChatStatusResponse = {
 	readonly contextWindow?: AIContextWindowInfo;
 	readonly attachmentCapability: ChatAttachmentCapability;
 	readonly connectedIntegrations: readonly string[];
+	readonly personaCount: number;
 	readonly skillCount: number;
 };
 

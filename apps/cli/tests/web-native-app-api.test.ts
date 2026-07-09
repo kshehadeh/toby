@@ -61,6 +61,7 @@ describe("native app API fresh state", () => {
 				model: string;
 				tobyDir: string;
 				connectedIntegrations: string[];
+				personaCount: number;
 				skillCount: number;
 				skills: Array<{ name: string; description: string }>;
 			};
@@ -69,6 +70,7 @@ describe("native app API fresh state", () => {
 			expect(body.model.length).toBeGreaterThan(0);
 			expect(body.tobyDir).toBe(process.env.TOBY_DIR);
 			expect(body.connectedIntegrations).toEqual([]);
+			expect(body.personaCount).toBe(1);
 			expect(body.skillCount).toBe(0);
 			expect(body.skills).toEqual([]);
 		});

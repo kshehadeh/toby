@@ -250,6 +250,7 @@ struct AppSidebarTests {
             contextWindow: nil,
             personaImageUrl: nil,
             connectedIntegrations: nil,
+            personaCount: nil,
             skillCount: nil,
             skills: nil,
             transcription: nil
@@ -283,6 +284,7 @@ struct AppSidebarTests {
             contextWindow: nil,
             personaImageUrl: nil,
             connectedIntegrations: nil,
+            personaCount: nil,
             skillCount: nil,
             skills: nil,
             transcription: nil
@@ -359,6 +361,7 @@ struct AppSidebarTests {
             contextWindow: nil,
             personaImageUrl: nil,
             connectedIntegrations: nil,
+            personaCount: nil,
             skillCount: nil,
             skills: nil,
             transcription: nil
