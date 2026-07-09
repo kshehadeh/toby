@@ -452,6 +452,7 @@ struct AppSidebarTests {
             daemonStatus: nil,
             health: .offline,
             isRestarting: false,
+            onShowServerInfo: {},
             onRestart: { restartCount += 1 }
         )
         let button = try view.inspect().findAll(ViewType.Button.self).first { btn in
@@ -460,6 +461,25 @@ struct AppSidebarTests {
         try #require(button != nil, "Restart button not found")
         try button!.tap()
         #expect(restartCount == 1)
+    }
+
+    @Test("server status details server info button calls callback")
+    func serverStatusDetailsServerInfoButtonCallsCallback() throws {
+        var infoCount = 0
+        let view = ServerStatusDetails(
+            status: nil,
+            daemonStatus: nil,
+            health: .offline,
+            isRestarting: false,
+            onShowServerInfo: { infoCount += 1 },
+            onRestart: {}
+        )
+        let button = try view.inspect().findAll(ViewType.Button.self).first { btn in
+            (try? btn.find(text: "Server Info")) != nil
+        }
+        try #require(button != nil, "Server Info button not found")
+        try button!.tap()
+        #expect(infoCount == 1)
     }
 
     @Test("active chat row shows conversation name when Slack turn is active")

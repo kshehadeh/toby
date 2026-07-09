@@ -28,6 +28,7 @@ struct ServerStatusButton: View {
 	let isRestarting: Bool
 	let onRestart: () -> Void
 	@State private var isPresented = false
+	@State private var isServerInfoPresented = false
 	@State private var isHovered = false
 
 	private var health: ServerHealth {
@@ -67,9 +68,25 @@ struct ServerStatusButton: View {
 				daemonStatus: daemonStatus,
 				health: health,
 				isRestarting: isRestarting,
+				onShowServerInfo: {
+					isPresented = false
+					isServerInfoPresented = true
+				},
 				onRestart: onRestart
 			)
-			.frame(width: 280)
+			.frame(width: 320)
+		}
+		.sheet(isPresented: $isServerInfoPresented) {
+			ServerInfoView(
+				status: status,
+				daemonStatus: daemonStatus,
+				health: health,
+				isRestarting: isRestarting,
+				onRestart: onRestart,
+				onDismiss: {
+					isServerInfoPresented = false
+				}
+			)
 		}
 	}
 }

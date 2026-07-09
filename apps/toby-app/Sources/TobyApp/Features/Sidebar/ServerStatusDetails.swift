@@ -5,6 +5,7 @@ struct ServerStatusDetails: View {
 	let daemonStatus: DaemonStatus?
 	let health: ServerHealth
 	let isRestarting: Bool
+	let onShowServerInfo: () -> Void
 	let onRestart: () -> Void
 
 	var body: some View {
@@ -31,8 +32,15 @@ struct ServerStatusDetails: View {
 			if let execPath = daemonStatus?.process?.executablePath, !execPath.isEmpty {
 				RevealPathButton(path: execPath, label: "Server")
 			}
-			HStack {
+			HStack(spacing: 8) {
 				Spacer(minLength: 0)
+				Button {
+					onShowServerInfo()
+				} label: {
+					Label("Server Info", systemImage: "info.circle")
+				}
+				.buttonStyle(.bordered)
+				.accessibilityLabel("Server Info")
 				Button {
 					onRestart()
 				} label: {
@@ -60,15 +68,10 @@ struct ServerStatusDetails: View {
 	}
 
 	private var uptimeText: String {
-		guard let seconds = daemonStatus?.process?.uptimeSeconds, seconds > 0 else {
-			return "Just started"
+		let formatted = formatDaemonUptime(seconds: daemonStatus?.process?.uptimeSeconds)
+		if formatted == "Just started" {
+			return formatted
 		}
-		let minutes = seconds / 60
-		let hours = minutes / 60
-		let remainingMinutes = minutes % 60
-		if hours > 0 {
-			return "Online for \(hours)h \(remainingMinutes)m"
-		}
-		return "Online for \(minutes)m"
+		return "Online for \(formatted)"
 	}
 }
