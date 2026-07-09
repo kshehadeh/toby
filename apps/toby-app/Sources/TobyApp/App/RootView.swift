@@ -62,6 +62,10 @@ struct RootView: View {
             .background(WindowAccessor { window in
                 mainWindow = window
             })
+            .onAppear {
+                configureStore.onChangesSaved = { Task { await store.refreshStatus() } }
+                integrationsStore.onChangesSaved = { Task { await store.refreshStatus() } }
+            }
     }
 
     private var contentWithNotifications: some View {

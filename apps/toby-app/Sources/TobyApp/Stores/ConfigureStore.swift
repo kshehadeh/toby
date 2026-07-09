@@ -30,6 +30,10 @@ final class ConfigureStore {
 	/// instead of stale fields.
 	var sectionFieldsReloading: String?
 
+	/// Called after a successful save. Used by RootView to refresh ChatStore
+	/// status (e.g. hasConfiguredAIProvider) so onboarding reflects config changes.
+	var onChangesSaved: (() -> Void)?
+
 	private let client = TobyClient()
 	private var fieldByKey: [String: SettingsItem] = [:]
 	@ObservationIgnored private var autosaveTask: Task<Void, Never>?
@@ -302,6 +306,7 @@ final class ConfigureStore {
 			if hasPendingChanges {
 				scheduleAutosave()
 			}
+			onChangesSaved?()
 		} catch {
 			sectionFieldsReloading = nil
 			errorMessage = error.localizedDescription
@@ -323,6 +328,7 @@ final class ConfigureStore {
 				let response = try await client.fetchConfigureTree()
 				apply(response: response, resetDraft: false)
 			}
+			onChangesSaved?()
 		} catch {
 			errorMessage = error.localizedDescription
 		}
