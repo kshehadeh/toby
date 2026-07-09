@@ -46,13 +46,14 @@ struct DashboardModelsTests {
 			hasRequiredPermissions: false,
 			hasSchedule: false,
 			hasSkill: false,
+			hasTranscriptionConfigured: false,
 			hasRecording: false,
 			hasSession: false
 		)
 		#expect(checklist.completedCount == 3)
-		#expect(checklist.totalCount == 8)
+		#expect(checklist.totalCount == 9)
 		#expect(checklist.isComplete == false)
-		#expect(checklist.progress == 0.375)
+		#expect(checklist.progress == 3.0 / 9.0)
 	}
 
 	@Test("onboarding checklist is complete when all steps done")
@@ -64,11 +65,12 @@ struct DashboardModelsTests {
 			hasRequiredPermissions: true,
 			hasSchedule: true,
 			hasSkill: true,
+			hasTranscriptionConfigured: true,
 			hasRecording: true,
 			hasSession: true
 		)
 		#expect(checklist.isComplete)
-		#expect(checklist.completedCount == 8)
+		#expect(checklist.completedCount == 9)
 	}
 
 	@Test("due text falls back to no due date")
@@ -130,6 +132,7 @@ struct DashboardViewTests {
 				hasRequiredPermissions: false,
 				hasSchedule: false,
 				hasSkill: false,
+			hasTranscriptionConfigured: false,
 				hasRecording: false,
 				hasSession: false
 			),
@@ -167,6 +170,7 @@ struct DashboardViewTests {
 				hasRequiredPermissions: true,
 				hasSchedule: true,
 				hasSkill: true,
+			hasTranscriptionConfigured: true,
 				hasRecording: true,
 				hasSession: true
 			),
@@ -194,6 +198,7 @@ struct DashboardViewTests {
 			hasRequiredPermissions: false,
 			hasSchedule: false,
 			hasSkill: false,
+			hasTranscriptionConfigured: false,
 			hasRecording: false,
 			hasSession: false
 		)

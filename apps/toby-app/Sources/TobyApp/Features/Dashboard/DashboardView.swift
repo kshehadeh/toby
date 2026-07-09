@@ -81,6 +81,8 @@ struct DashboardView: View {
 			onSelectRoute(.schedules)
 		case .createSkill:
 			onSelectRoute(.skills)
+		case .setupTranscription:
+			onSelectRoute(.settings)
 		case .recordAndTranscribe:
 			onSelectRoute(.recordings)
 		case .samplePrompt:

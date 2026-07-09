@@ -736,6 +736,7 @@ struct RootView: View {
             hasRequiredPermissions: requiredPermissions,
             hasSchedule: !schedulesStore.schedules.isEmpty,
             hasSkill: !skillsStore.skills.isEmpty,
+            hasTranscriptionConfigured: store.status?.transcription?.configured ?? false,
             hasRecording: !recordingsStore.recordings.isEmpty,
             hasSession: !store.sessions.isEmpty
         )
