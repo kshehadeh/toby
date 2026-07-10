@@ -1,4 +1,4 @@
-import type { AIProviderInfo } from "../ai/providers";
+import { type AIProviderInfo, AI_PROVIDERS } from "../ai/providers";
 import {
 	WEB_SEARCH_PROVIDERS,
 	getWebSearchProvider,
@@ -45,6 +45,67 @@ const MAX_PERSONA_INSTRUCTION_PREVIEW = 120;
 
 function truncateSkillPreview(text: string, max: number): string {
 	return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+/**
+ * Build the credential/configure field children for a single AI provider.
+ * Most providers expose a single API key; Ollama also has a configurable base URL.
+ */
+function buildAIProviderChildren(
+	providerId: string,
+	values: Record<string, string>,
+): SettingsItem[] {
+	switch (providerId) {
+		case "openai":
+			return [
+				{
+					kind: "value",
+					key: "ai.openai.token",
+					label: "API Token",
+					masked: true,
+				},
+			];
+		case "ollama":
+			return [
+				{
+					kind: "value",
+					key: "ai.ollama.baseUrl",
+					label: "Base URL",
+					currentValue:
+						values["ai.ollama.baseUrl"] ?? "http://localhost:11434/v1",
+				},
+				{
+					kind: "value",
+					key: "ai.ollama.apiKey",
+					label: "API Key (optional)",
+					masked: true,
+				},
+			];
+		default:
+			return [
+				{
+					kind: "value",
+					key: `ai.${providerId}.apiKey`,
+					label: "API Key",
+					masked: true,
+				},
+			];
+	}
+}
+
+/** Build the AI section with sub-sections for every registered provider. */
+function buildAIProviderSections(
+	values: Record<string, string>,
+): SettingsItem[] {
+	return AI_PROVIDERS.map((provider) => ({
+		label: provider.displayName,
+		kind: "section" as const,
+		key: `ai.${provider.id}`,
+		...(provider.iconUrl ? { iconUrl: provider.iconUrl } : {}),
+		...(provider.description ? { description: provider.description } : {}),
+		...(provider.docUrl ? { docUrl: provider.docUrl } : {}),
+		children: buildAIProviderChildren(provider.id, values),
+	}));
 }
 
 export function buildSettingsTree(
@@ -793,98 +854,7 @@ export function buildSettingsTree(
 				label: "AI",
 				kind: "section",
 				key: "ai",
-				children: [
-					{
-						label: "OpenAI",
-						kind: "section",
-						key: "ai.openai",
-						iconUrl: "/icons/ai/openai.png",
-						description:
-							"Use OpenAI models like GPT-5, GPT-4o, and o3 directly with your OpenAI API token.",
-						docUrl: "https://openai.com/api/",
-						children: [
-							{
-								label: "API Token",
-								kind: "value",
-								key: "ai.openai.token",
-								masked: true,
-							},
-						],
-					},
-					{
-						label: "Vercel AI Gateway",
-						kind: "section",
-						key: "ai.vercel",
-						iconUrl: "/icons/ai/vercel.png",
-						description:
-							"Access models from OpenAI, Anthropic, Google, xAI, and more through a single Vercel AI Gateway API key.",
-						docUrl: "https://vercel.com/ai-gateway",
-						children: [
-							{
-								label: "API Key",
-								kind: "value",
-								key: "ai.vercel.apiKey",
-								masked: true,
-							},
-						],
-					},
-					{
-						label: "Ollama",
-						kind: "section",
-						key: "ai.ollama",
-						iconUrl: "/icons/ai/ollama.png",
-						description:
-							"Run open-source models like Llama, Qwen, and Mistral locally on your machine with Ollama.",
-						docUrl: "https://docs.ollama.com/quickstart",
-						children: [
-							{
-								label: "Base URL",
-								kind: "value",
-								key: "ai.ollama.baseUrl",
-								currentValue:
-									values["ai.ollama.baseUrl"] ?? "http://localhost:11434/v1",
-							},
-							{
-								label: "API Key (optional)",
-								kind: "value",
-								key: "ai.ollama.apiKey",
-								masked: true,
-							},
-						],
-					},
-					{
-						label: "Chutes",
-						kind: "section",
-						key: "ai.chutes",
-						description:
-							"Access open-source TEE-backed models like DeepSeek, Qwen, GLM, and Kimi through Chutes' OpenAI-compatible endpoint.",
-						docUrl: "https://chutes.ai/agents",
-						children: [
-							{
-								label: "API Key",
-								kind: "value",
-								key: "ai.chutes.apiKey",
-								masked: true,
-							},
-						],
-					},
-					{
-						label: "OpenRouter",
-						kind: "section",
-						key: "ai.openrouter",
-						description:
-							"Access hundreds of models from OpenAI, Anthropic, Google, Meta, and more through a single OpenRouter API key.",
-						docUrl: "https://openrouter.ai/keys",
-						children: [
-							{
-								label: "API Key",
-								kind: "value",
-								key: "ai.openrouter.apiKey",
-								masked: true,
-							},
-						],
-					},
-				],
+				children: buildAIProviderSections(values),
 			},
 			{
 				label: "Personas",
