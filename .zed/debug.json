@@ -1,0 +1,22 @@
+// Project-local debug tasks
+//
+// Package.swift lives under apps/toby-app (monorepo root is not a Swift package).
+// Build-task cwd / --package-path must point there; top-level "cwd" only affects
+// the process being debugged, not the pre-launch build.
+//
+// For more documentation: https://zed.dev/docs/debugger
+// Swift adapter: https://zed.dev/docs/languages/swift
+[
+  {
+    "label": "Debug Toby.app",
+    "adapter": "Swift",
+    "request": "launch",
+    "build": {
+      "command": "swift",
+      "args": ["build", "--package-path", "apps/toby-app"],
+      "cwd": "$ZED_WORKTREE_ROOT"
+    },
+    "program": "$ZED_WORKTREE_ROOT/apps/toby-app/.build/arm64-apple-macosx/debug/toby-app",
+    "cwd": "$ZED_WORKTREE_ROOT/apps/toby-app"
+  }
+]
