@@ -1,6 +1,11 @@
+import fs from "node:fs";
 import { generateText } from "ai";
 import { createModelForPersona } from "../ai/model-factory";
-import { type Persona, readConfig } from "../config/index";
+import {
+	type Persona,
+	getDashboardSummariesPath,
+	readConfig,
+} from "../config/index";
 import { daemonLog } from "../logging/daemon-log";
 import { resolveDefaultPersona, resolvePersona } from "../personas/index";
 import { composeSystemPromptWithPersona } from "../personas/prompt";
@@ -31,10 +36,60 @@ interface SummaryCacheEntry {
 }
 
 const summaryCache = new Map<string, SummaryCacheEntry>();
+const inFlightSummaryRefreshes = new Map<
+	string,
+	Promise<DashboardCategoryAiSummary | null>
+>();
+
+// --- Disk persistence ---
+
+interface PersistedSummaries {
+	readonly [category: string]: DashboardCategoryAiSummary;
+}
+
+/** Load persisted summaries from disk. Returns a map of category → summary. */
+function loadPersistedSummaries(): PersistedSummaries {
+	try {
+		const filePath = getDashboardSummariesPath();
+		if (!fs.existsSync(filePath)) return {};
+		const raw = fs.readFileSync(filePath, "utf-8");
+		const parsed = JSON.parse(raw) as PersistedSummaries;
+		return parsed && typeof parsed === "object" ? parsed : {};
+	} catch {
+		return {};
+	}
+}
+
+/** Persist a single category summary to disk, merging with existing entries. */
+function persistSummary(summary: DashboardCategoryAiSummary): void {
+	try {
+		const filePath = getDashboardSummariesPath();
+		const existing = loadPersistedSummaries();
+		const updated: PersistedSummaries = {
+			...existing,
+			[summary.category]: summary,
+		};
+		fs.writeFileSync(filePath, JSON.stringify(updated, null, 2), "utf-8");
+	} catch (error) {
+		daemonLog("warn", "general", "dashboard_summary_persist_error", {
+			category: summary.category,
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
+}
+
+/** Get a persisted summary for a category, or null if none exists. */
+function getPersistedSummary(
+	category: string,
+): DashboardCategoryAiSummary | null {
+	const all = loadPersistedSummaries();
+	return all[category] ?? null;
+}
 
 /** Clear the AI summary cache. Useful for testing or config changes. */
 export function clearDashboardSummaryCache(): void {
 	summaryCache.clear();
+	inFlightSummaryRefreshes.clear();
 }
 
 /** Resolve the persona configured for dashboard summaries, falling back to default. */
@@ -125,7 +180,7 @@ export async function getDashboardCategorySummary(
 	const data = await getDashboardCategory(category, { limit: 50 });
 	if (!data || data.count === 0) return null;
 
-	// Check AI summary cache
+	// Check AI summary cache (in-memory, 5 min TTL)
 	const persona = resolveDashboardPersona();
 	const dataSignature = buildDataSignature(data);
 	const cacheKey = buildCacheKey(category, persona, dataSignature);
@@ -135,11 +190,65 @@ export async function getDashboardCategorySummary(
 		return cached.data;
 	}
 
-	const cacheEntry: SummaryCacheEntry = {
+	// Fall back to persisted summary from disk (e.g. after daemon restart)
+	// so the UI has something to show immediately, even if stale.
+	const persisted = getPersistedSummary(category);
+	if (persisted) {
+		// Re-populate in-memory cache with the persisted entry so repeated
+		// calls within the TTL window don't re-read the file.
+		summaryCache.set(cacheKey, {
+			data: persisted,
+			expiresAt: Date.now() + SUMMARY_CACHE_TTL_MS,
+		});
+		// Kick off a background refresh — the data may have changed since
+		// the summary was last generated.
+		refreshSummary(cacheKey, category, data, persona, categoryPrompt).catch(
+			() => {},
+		);
+		return persisted;
+	}
+
+	// No persisted data — generate synchronously (caller waits)
+	return refreshSummary(cacheKey, category, data, persona, categoryPrompt);
+}
+
+/** Reuse an in-flight refresh for the same category/persona/data signature. */
+function refreshSummary(
+	cacheKey: string,
+	category: string,
+	data: DashboardCategorySummary,
+	persona: Persona,
+	categoryPrompt: string,
+): Promise<DashboardCategoryAiSummary | null> {
+	const inFlight = inFlightSummaryRefreshes.get(cacheKey);
+	if (inFlight) return inFlight;
+
+	const promise = generateFreshSummary(
+		category,
+		data,
+		persona,
+		categoryPrompt,
+	).finally(() => {
+		inFlightSummaryRefreshes.delete(cacheKey);
+	});
+	inFlightSummaryRefreshes.set(cacheKey, promise);
+	return promise;
+}
+
+/** Generate a fresh AI summary, update caches, and persist to disk. */
+async function generateFreshSummary(
+	category: string,
+	data: DashboardCategorySummary,
+	persona: Persona,
+	categoryPrompt: string,
+): Promise<DashboardCategoryAiSummary | null> {
+	const dataSignature = buildDataSignature(data);
+	const cacheKey = buildCacheKey(category, persona, dataSignature);
+
+	const nullCacheEntry: SummaryCacheEntry = {
 		data: null,
 		expiresAt: Date.now() + SUMMARY_CACHE_TTL_MS,
 	};
-	summaryCache.set(cacheKey, cacheEntry);
 
 	try {
 		const skills = loadLocalSkills().filter((s) => s.enabled !== false);
@@ -170,7 +279,9 @@ export async function getDashboardCategorySummary(
 
 			const text = result.text.trim();
 			if (!text) {
-				summaryCache.set(cacheKey, cacheEntry);
+				if (!summaryCache.has(cacheKey)) {
+					summaryCache.set(cacheKey, nullCacheEntry);
+				}
 				return null;
 			}
 
@@ -192,6 +303,8 @@ export async function getDashboardCategorySummary(
 				expiresAt: Date.now() + SUMMARY_CACHE_TTL_MS,
 			});
 
+			persistSummary(summary);
+
 			return summary;
 		} finally {
 			clearTimeout(timer);
@@ -201,7 +314,9 @@ export async function getDashboardCategorySummary(
 			category,
 			error: error instanceof Error ? error.message : String(error),
 		});
-		summaryCache.set(cacheKey, cacheEntry);
+		if (!summaryCache.has(cacheKey)) {
+			summaryCache.set(cacheKey, nullCacheEntry);
+		}
 		return null;
 	}
 }

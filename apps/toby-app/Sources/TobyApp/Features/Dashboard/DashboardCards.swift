@@ -27,12 +27,13 @@ struct DashboardCard<Content: View>: View {
 	}
 }
 
-private struct CardHeader: View {
+private struct CardHeader<Trailing: View>: View {
 	let systemImage: String
 	let iconColor: Color
 	let title: String
 	let badgeValue: String
 	let badgeLabel: String
+	@ViewBuilder let trailing: () -> Trailing
 
 	var body: some View {
 		HStack(spacing: 8) {
@@ -42,7 +43,7 @@ private struct CardHeader: View {
 			Text(title)
 				.font(.system(size: 14, weight: .semibold))
 				.foregroundStyle(AppTheme.primaryText)
-			Spacer()
+			Spacer(minLength: 0)
 			HStack(spacing: 4) {
 				Text(badgeValue)
 					.font(.system(size: 13, weight: .semibold))
@@ -51,7 +52,38 @@ private struct CardHeader: View {
 					.font(.system(size: 13))
 					.foregroundStyle(AppTheme.secondaryText)
 			}
+			trailing()
 		}
+	}
+}
+
+/// Small refresh icon button that rotates only while actively refreshing
+/// and is clickable to force a refresh when idle.
+struct CardRefreshButton: View {
+	let isRefreshing: Bool
+	let action: () -> Void
+
+	var body: some View {
+		Button(action: action) {
+			if isRefreshing {
+				TimelineView(.animation) { context in
+					let t = context.date.timeIntervalSinceReferenceDate
+					let angle = (t.truncatingRemainder(dividingBy: 0.8) / 0.8) * 360
+					Image(systemName: "arrow.clockwise")
+						.font(.system(size: 12, weight: .semibold))
+						.foregroundStyle(AppTheme.tertiaryText)
+						.rotationEffect(.degrees(angle))
+				}
+			} else {
+				Image(systemName: "arrow.clockwise")
+					.font(.system(size: 12, weight: .semibold))
+					.foregroundStyle(AppTheme.tertiaryText)
+			}
+		}
+		.buttonStyle(.plain)
+		.disabled(isRefreshing)
+		.help(isRefreshing ? "Refreshing..." : "Refresh")
+		.accessibilityLabel("Refresh")
 	}
 }
 
@@ -102,6 +134,8 @@ struct UnreadMailCard: View {
 	let aiSummary: DashboardCategoryAiSummary?
 	let isSummaryLoading: Bool
 	let summaryError: String?
+	let isRefreshing: Bool
+	let onRefresh: () -> Void
 	let onSummarize: () -> Void
 
 	private let chipPalette: [Color] = [
@@ -120,7 +154,9 @@ struct UnreadMailCard: View {
 				title: "Unread mail",
 				badgeValue: "\(summary?.count ?? 0)",
 				badgeLabel: "unread"
-			)
+			) {
+				CardRefreshButton(isRefreshing: isRefreshing, action: onRefresh)
+			}
 
 			if let summary, summary.count > 0 {
 				if !summary.groups.isEmpty {
@@ -147,7 +183,7 @@ struct UnreadMailCard: View {
 			} else {
 				DashboardEmptyState(
 					message: summary == nil
-						? "Connect an email account to see unread mail."
+						? "No email found. Connect an email account to see unread mail."
 						: "You're all caught up. No unread mail."
 				)
 				.padding(.top, 18)
@@ -223,6 +259,8 @@ struct TasksCard: View {
 	let aiSummary: DashboardCategoryAiSummary?
 	let isSummaryLoading: Bool
 	let summaryError: String?
+	let isRefreshing: Bool
+	let onRefresh: () -> Void
 	let onAddTask: () -> Void
 
 	var body: some View {
@@ -233,7 +271,9 @@ struct TasksCard: View {
 				title: "Tasks",
 				badgeValue: "\(summary?.count ?? 0)",
 				badgeLabel: "open"
-			)
+			) {
+				CardRefreshButton(isRefreshing: isRefreshing, action: onRefresh)
+			}
 
 			if let summary, summary.count > 0 {
 				summaryContent
@@ -254,7 +294,7 @@ struct TasksCard: View {
 			} else {
 				DashboardEmptyState(
 					message: summary == nil
-						? "Connect a task provider to see open tasks."
+						? "No tasks found. Connect a task provider to see open tasks."
 						: "No open tasks. Nicely done."
 				)
 				.padding(.top, 18)

@@ -35,15 +35,6 @@ struct DashboardView: View {
 			await store.load()
 			await store.loadSummariesIfStale()
 		}
-		.onAppear {
-			now = Date()
-			Task { await store.loadSummariesIfStale() }
-		}
-		.onChange(of: store.summariesAreStale) { _, stale in
-			if stale {
-				Task { await store.loadSummariesIfStale() }
-			}
-		}
 	}
 
 	private var greeting: some View {
@@ -64,6 +55,8 @@ struct DashboardView: View {
 				aiSummary: store.emailSummary,
 				isSummaryLoading: store.emailSummaryLoading,
 				summaryError: store.emailSummaryError,
+				isRefreshing: store.isEmailRefreshing,
+				onRefresh: { Task { await store.refreshEmail() } },
 				onSummarize: onSummarizeEmail
 			)
 			TasksCard(
@@ -71,6 +64,8 @@ struct DashboardView: View {
 				aiSummary: store.tasksSummary,
 				isSummaryLoading: store.tasksSummaryLoading,
 				summaryError: store.tasksSummaryError,
+				isRefreshing: store.isTasksRefreshing,
+				onRefresh: { Task { await store.refreshTasks() } },
 				onAddTask: onStartChat
 			)
 		}
