@@ -1,3 +1,4 @@
+import AppKit
 import ApplicationServices
 import EventKit
 import SwiftUI
@@ -143,7 +144,16 @@ struct TobyApp: App {
 				}
 			}
 
-			CommandGroup(after: .help) {
+			CommandGroup(replacing: .help) {
+				Button("Toby Help") {
+					if let url = URL(string: "https://toby.iwonderdesigns.com/docs/intro") {
+						NSWorkspace.shared.open(url)
+					}
+				}
+				.keyboardShortcut("?", modifiers: .command)
+
+				Divider()
+
 				Button("Show Changelog") {
 					NotificationCenter.default.post(name: .openChangelog, object: nil)
 				}
