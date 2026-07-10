@@ -38,6 +38,7 @@ const SETTINGS_SECTION_KEYS = [
 	"ai",
 	"transcription",
 	"webSearch",
+	"dashboard",
 	"projects",
 ];
 

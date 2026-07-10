@@ -739,6 +739,15 @@ struct TobyClient {
 		return try JSONDecoder().decode(DashboardCategorySummary?.self, from: data)
 	}
 
+	/// Fetch an AI-generated summary for a single dashboard category. Returns
+	/// `nil` when no data exists or the summary cannot be generated.
+	func fetchDashboardCategorySummary(_ category: String) async throws -> DashboardCategoryAiSummary? {
+		let url = baseURL.appendingPathComponent("api/dashboard/\(category)/summary")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(DashboardCategoryAiSummary?.self, from: data)
+	}
+
 	// MARK: - Memories
 
 	func listMemories(limit: Int = 50, offset: Int = 0, query: String? = nil) async throws -> MemoriesListResponse {

@@ -264,3 +264,56 @@ struct DashboardViewTests {
 	}
 }
 
+@MainActor
+@Suite("DashboardSummary")
+struct DashboardSummaryTests {
+	@Test("DashboardCategoryAiSummary decodes from JSON")
+	func aiSummaryDecodes() throws {
+		let json = """
+		{
+			"category": "email",
+			"text": "You have 3 urgent emails from your manager.",
+			"generatedAt": "2026-07-10T12:00:00Z",
+			"personaName": "Toby",
+			"count": 95,
+			"launchUrls": ["https://mail.example.com"]
+		}
+		""".data(using: .utf8)!
+		let summary = try JSONDecoder().decode(DashboardCategoryAiSummary.self, from: json)
+		#expect(summary.category == "email")
+		#expect(summary.text == "You have 3 urgent emails from your manager.")
+		#expect(summary.personaName == "Toby")
+		#expect(summary.count == 95)
+		#expect(summary.launchUrls?.first == "https://mail.example.com")
+	}
+
+	@Test("DashboardCategoryAiSummary decodes with null launchUrls")
+	func aiSummaryDecodesWithNullLaunchUrls() throws {
+		let json = """
+		{
+			"category": "tasks",
+			"text": "You have 2 overdue tasks.",
+			"generatedAt": "2026-07-10T12:00:00Z",
+			"personaName": "Work",
+			"count": 5,
+			"launchUrls": null
+		}
+		""".data(using: .utf8)!
+		let summary = try JSONDecoder().decode(DashboardCategoryAiSummary.self, from: json)
+		#expect(summary.category == "tasks")
+		#expect(summary.launchUrls == nil)
+	}
+
+	@Test("dashboard store initializes with empty summary state")
+	func dashboardStoreSummaryInitial() {
+		let store = DashboardStore()
+		#expect(store.emailSummary == nil)
+		#expect(store.tasksSummary == nil)
+		#expect(store.emailSummaryLoading == false)
+		#expect(store.tasksSummaryLoading == false)
+		#expect(store.isSummaryLoading == false)
+		#expect(store.summariesAreStale == true)
+		#expect(store.lastSummaryLoadedAt == nil)
+	}
+}
+

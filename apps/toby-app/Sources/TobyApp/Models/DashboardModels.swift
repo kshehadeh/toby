@@ -61,6 +61,16 @@ struct DashboardData: Decodable, Equatable {
 	let tasks: DashboardCategorySummary?
 }
 
+/// AI-generated summary for a single dashboard category.
+struct DashboardCategoryAiSummary: Decodable, Equatable {
+	let category: String
+	let text: String
+	let generatedAt: String
+	let personaName: String
+	let count: Int
+	let launchUrls: [String]?
+}
+
 enum DashboardDate {
 	static func parse(_ raw: String?) -> Date? {
 		guard let raw, !raw.isEmpty else { return nil }

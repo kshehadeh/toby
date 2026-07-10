@@ -871,6 +871,29 @@ export function buildSettingsTree(
 			},
 			transcriptionSection,
 			webSearchSection,
+			{
+				label: "Dashboard",
+				kind: "section" as const,
+				key: "dashboard",
+				children: [
+					{
+						label: "Persona for dashboard summaries",
+						kind: "select" as const,
+						key: "dashboard.persona",
+						options: personaOptions,
+						selectChoices: [
+							{ value: "(default)", label: "Default persona" },
+							...personas.map((p) => ({
+								value: p.name,
+								label: p.name,
+							})),
+						],
+						currentValue: values["dashboard.persona"] ?? "(default)",
+						description:
+							"Persona used to summarize dashboard sections. Falls back to the default persona.",
+					},
+				],
+			},
 			buildProjectsSection(values),
 			listenSection,
 			schedulesSection,

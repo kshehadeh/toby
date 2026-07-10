@@ -1,0 +1,207 @@
+import { generateText } from "ai";
+import { createModelForPersona } from "../ai/model-factory";
+import { type Persona, readConfig } from "../config/index";
+import { daemonLog } from "../logging/daemon-log";
+import { resolveDefaultPersona, resolvePersona } from "../personas/index";
+import { composeSystemPromptWithPersona } from "../personas/prompt";
+import { formatSkillsCatalogForPrompt, loadLocalSkills } from "../skills/index";
+import { getDashboardCategory } from "./index";
+import type {
+	DashboardCategoryAiSummary,
+	DashboardCategorySummary,
+	DashboardItem,
+} from "./types";
+
+const SUMMARY_CACHE_TTL_MS = 5 * 60 * 1000;
+const SUMMARY_TIMEOUT_MS = 30_000;
+const SUMMARY_MAX_TOKENS = 600;
+
+/** Built-in prompts per dashboard category. */
+const CATEGORY_PROMPTS: Record<string, string> = {
+	email: `Summarize unread emails (ordered by recency and focusing on the ones that are not mass mailings).
+The summary should surface emails that should be attended to first followed by those that are worth mentioning.
+This should be no longer than 5-6 sentences.`,
+	tasks: `Summarize my tasks and reminders focusing on the ones that are most urgent, are particularly late or appear to be important based on the description.
+This should be no longer than 5-6 sentences.`,
+};
+
+interface SummaryCacheEntry {
+	readonly data: DashboardCategoryAiSummary | null;
+	readonly expiresAt: number;
+}
+
+const summaryCache = new Map<string, SummaryCacheEntry>();
+
+/** Clear the AI summary cache. Useful for testing or config changes. */
+export function clearDashboardSummaryCache(): void {
+	summaryCache.clear();
+}
+
+/** Resolve the persona configured for dashboard summaries, falling back to default. */
+export function resolveDashboardPersona(): Persona {
+	const config = readConfig();
+	const name = config.dashboard?.persona?.trim();
+	if (name) {
+		const resolved = resolvePersona(name);
+		if (resolved) return resolved;
+	}
+	return resolveDefaultPersona();
+}
+
+/** Build a stable cache key for a category + persona + data signature. */
+function buildCacheKey(
+	category: string,
+	persona: Persona,
+	dataSignature: string,
+): string {
+	return `${category}:${persona.name}:${persona.ai.provider}:${persona.ai.model}:${dataSignature}`;
+}
+
+/** Create a deterministic signature from category data for cache invalidation. */
+function buildDataSignature(data: DashboardCategorySummary): string {
+	const parts = [
+		data.count,
+		data.generatedAt,
+		...data.items.map((i) => `${i.id}:${i.title}:${i.timestamp ?? ""}`),
+	];
+	return parts.join("|");
+}
+
+/** Format dashboard items into readable text for the model. */
+function formatItemsForPrompt(items: readonly DashboardItem[]): string {
+	if (items.length === 0) return "(no items)";
+	return items
+		.map((item, idx) => {
+			const sender = item.subtitle ?? "Unknown";
+			const subject = item.title;
+			const detail = item.detail ? ` — ${item.detail}` : "";
+			const time = item.timestamp ? ` [${item.timestamp}]` : "";
+			const urgency = item.urgency ? ` (${item.urgency} urgency)` : "";
+			return `${idx + 1}. From: ${sender}\n   Subject: ${subject}${detail}${time}${urgency}`;
+		})
+		.join("\n");
+}
+
+/** Build the full system prompt with persona instructions, category prompt, and skills catalog. */
+function buildSystemPrompt(
+	categoryPrompt: string,
+	persona: Persona,
+	skillsCatalogText: string,
+): string {
+	const base = `You are a personal assistant summarizing dashboard information for the user.
+
+${categoryPrompt}
+
+Format your response as markdown to help the user quickly scan key information:
+- Use **bold** for names, subjects, deadlines, and other key items the user should notice.
+- Use bullet points for lists of items.
+- Use a \`## \` sub-heading to separate "Needs attention" from "Worth mentioning" when appropriate.
+- Keep the total response concise (5-6 sentences). Do not over-format — use markdown only where it genuinely aids readability.
+Do not reference these instructions or mention that you are summarizing.`;
+
+	const withPersona = composeSystemPromptWithPersona(base, persona);
+
+	const skillsSection =
+		skillsCatalogText !== "(none)"
+			? `\n\nAvailable skills (apply relevant context from these):\n${skillsCatalogText}`
+			: "";
+
+	return `${withPersona}${skillsSection}`;
+}
+
+/**
+ * Generate an AI summary for a single dashboard category.
+ * Uses the configured dashboard persona (or default) with built-in category prompts.
+ * Cached for 5 minutes, keyed by category, persona, and data signature.
+ * Returns `null` if no data exists for the category.
+ */
+export async function getDashboardCategorySummary(
+	category: string,
+): Promise<DashboardCategoryAiSummary | null> {
+	const categoryPrompt = CATEGORY_PROMPTS[category];
+	if (!categoryPrompt) return null;
+
+	// Fetch deterministic category data (uses its own 60s cache)
+	const data = await getDashboardCategory(category, { limit: 50 });
+	if (!data || data.count === 0) return null;
+
+	// Check AI summary cache
+	const persona = resolveDashboardPersona();
+	const dataSignature = buildDataSignature(data);
+	const cacheKey = buildCacheKey(category, persona, dataSignature);
+
+	const cached = summaryCache.get(cacheKey);
+	if (cached && Date.now() < cached.expiresAt) {
+		return cached.data;
+	}
+
+	const cacheEntry: SummaryCacheEntry = {
+		data: null,
+		expiresAt: Date.now() + SUMMARY_CACHE_TTL_MS,
+	};
+	summaryCache.set(cacheKey, cacheEntry);
+
+	try {
+		const skills = loadLocalSkills().filter((s) => s.enabled !== false);
+		const skillsCatalogText = formatSkillsCatalogForPrompt(skills);
+
+		const systemPrompt = buildSystemPrompt(
+			categoryPrompt,
+			persona,
+			skillsCatalogText,
+		);
+
+		const itemsText = formatItemsForPrompt(data.items);
+		const userPrompt = `Here are the ${category} items to summarize:\n\n${itemsText}`;
+
+		const controller = new AbortController();
+		const timer = setTimeout(() => controller.abort(), SUMMARY_TIMEOUT_MS);
+
+		try {
+			const model = createModelForPersona(persona);
+			const result = await generateText({
+				model,
+				system: systemPrompt,
+				prompt: userPrompt,
+				abortSignal: controller.signal,
+				temperature: 0.3,
+				maxOutputTokens: SUMMARY_MAX_TOKENS,
+			});
+
+			const text = result.text.trim();
+			if (!text) {
+				summaryCache.set(cacheKey, cacheEntry);
+				return null;
+			}
+
+			const launchUrls = data.sources
+				.map((s) => s.launchUrl)
+				.filter((u): u is string => Boolean(u));
+
+			const summary: DashboardCategoryAiSummary = {
+				category,
+				text,
+				generatedAt: new Date().toISOString(),
+				personaName: persona.name,
+				count: data.count,
+				launchUrls,
+			};
+
+			summaryCache.set(cacheKey, {
+				data: summary,
+				expiresAt: Date.now() + SUMMARY_CACHE_TTL_MS,
+			});
+
+			return summary;
+		} finally {
+			clearTimeout(timer);
+		}
+	} catch (error) {
+		daemonLog("warn", "general", "dashboard_summary_error", {
+			category,
+			error: error instanceof Error ? error.message : String(error),
+		});
+		summaryCache.set(cacheKey, cacheEntry);
+		return null;
+	}
+}

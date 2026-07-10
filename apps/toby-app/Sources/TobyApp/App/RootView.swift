@@ -849,6 +849,7 @@ struct RootView: View {
         async let dashboard: () = dashboardStore.load()
         async let shared: () = refreshSharedAppDataIfConnected()
         _ = await (dashboard, shared)
+        await dashboardStore.reloadSummaries()
     }
 
     private func loadIntegrationsIfNeeded() async {

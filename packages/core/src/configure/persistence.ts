@@ -1,5 +1,9 @@
 import { getAIProvider } from "../ai/providers";
-import type { AISettings, ChatInboundConfig } from "../config/index";
+import type {
+	AISettings,
+	ChatInboundConfig,
+	DashboardConfig,
+} from "../config/index";
 import {
 	type CredentialsFile,
 	type Persona,
@@ -198,6 +202,8 @@ export function seedConfigureValues(
 	}
 	values["webSearch.provider"] = config.webSearch?.provider ?? "ai-gateway";
 	values["webSearch.enabled"] = config.webSearch?.enabled ? "true" : "false";
+	values["dashboard.persona"] =
+		config.dashboard?.persona?.trim() || "(default)";
 
 	for (const mod of getIntegrationModules()) {
 		if (!mod.chatInbound) continue;
@@ -257,6 +263,15 @@ export function rebuildChatInbound(
 	const persona =
 		personaRaw && personaRaw !== "(default)" ? personaRaw : undefined;
 	return { enabled, integration, persona };
+}
+
+export function rebuildDashboardConfig(
+	values: Record<string, string>,
+): DashboardConfig | undefined {
+	const personaRaw = values["dashboard.persona"]?.trim();
+	const persona =
+		personaRaw && personaRaw !== "(default)" ? personaRaw : undefined;
+	return persona ? { persona } : undefined;
 }
 
 export function applyIntegrationInboundFlags(
@@ -475,6 +490,7 @@ function applyConfigFromValues(values: Record<string, string>): void {
 	cfg.transcription = rebuildTranscriptionConfig(values);
 	cfg.webSearch = rebuildWebSearchConfig(values);
 	cfg.ai = rebuildAISettings(values);
+	cfg.dashboard = rebuildDashboardConfig(values);
 	applyIntegrationInboundFlags(cfg, values);
 	writeConfig(cfg);
 }

@@ -1,4 +1,5 @@
 import { getDashboardCategory, getDashboardData } from "../../dashboard";
+import { getDashboardCategorySummary } from "../../dashboard/summarizer";
 import { STANDARD_TOOL_FOR_CATEGORY } from "../../dashboard/types";
 import { jsonResponse } from "../http-utils";
 
@@ -20,4 +21,19 @@ export async function handleDashboardCategory(
 	}
 	const data = await getDashboardCategory(category);
 	return jsonResponse(data);
+}
+
+export async function handleDashboardCategorySummary(
+	category: string,
+): Promise<Response> {
+	if (
+		!Object.prototype.hasOwnProperty.call(STANDARD_TOOL_FOR_CATEGORY, category)
+	) {
+		return jsonResponse(
+			{ error: `Unknown dashboard category: ${category}` },
+			404,
+		);
+	}
+	const summary = await getDashboardCategorySummary(category);
+	return jsonResponse(summary);
 }

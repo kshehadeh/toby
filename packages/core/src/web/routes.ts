@@ -31,7 +31,11 @@ import {
 	handleDaemonStatus,
 	handleDaemonStop,
 } from "./handlers/daemon";
-import { handleDashboard, handleDashboardCategory } from "./handlers/dashboard";
+import {
+	handleDashboard,
+	handleDashboardCategory,
+	handleDashboardCategorySummary,
+} from "./handlers/dashboard";
 import {
 	handleIntegrationConnect,
 	handleIntegrationDisconnect,
@@ -151,10 +155,12 @@ export async function handleWebRequest(
 			return handleDashboard();
 		}
 		if (pathname.startsWith("/api/dashboard/") && req.method === "GET") {
-			const category = decodeURIComponent(
-				pathname.slice("/api/dashboard/".length),
-			);
-			return handleDashboardCategory(category);
+			const rest = decodeURIComponent(pathname.slice("/api/dashboard/".length));
+			const summaryMatch = rest.match(/^([^/]+)\/summary$/);
+			if (summaryMatch) {
+				return handleDashboardCategorySummary(summaryMatch[1]);
+			}
+			return handleDashboardCategory(rest);
 		}
 		if (pathname === "/api/issues" && req.method === "POST") {
 			return handleCreateIssue(req);

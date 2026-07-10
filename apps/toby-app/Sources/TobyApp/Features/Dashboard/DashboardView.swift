@@ -13,8 +13,6 @@ struct DashboardView: View {
 
 	@State private var now = Date()
 
-	private let refreshTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
-
 	var body: some View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 24) {
@@ -32,10 +30,19 @@ struct DashboardView: View {
 			.frame(maxWidth: .infinity, alignment: .top)
 		}
 		.background(AppTheme.contentBackground)
-		.task { await store.load() }
-		.onReceive(refreshTimer) { _ in
+		.task {
 			now = Date()
-			onRefresh()
+			await store.load()
+			await store.loadSummariesIfStale()
+		}
+		.onAppear {
+			now = Date()
+			Task { await store.loadSummariesIfStale() }
+		}
+		.onChange(of: store.summariesAreStale) { _, stale in
+			if stale {
+				Task { await store.loadSummariesIfStale() }
+			}
 		}
 	}
 
@@ -52,8 +59,20 @@ struct DashboardView: View {
 
 	private var cards: some View {
 		HStack(alignment: .top, spacing: 20) {
-			UnreadMailCard(summary: store.email, onSummarize: onSummarizeEmail)
-			TasksCard(summary: store.tasks, onAddTask: onStartChat)
+			UnreadMailCard(
+				summary: store.email,
+				aiSummary: store.emailSummary,
+				isSummaryLoading: store.emailSummaryLoading,
+				summaryError: store.emailSummaryError,
+				onSummarize: onSummarizeEmail
+			)
+			TasksCard(
+				summary: store.tasks,
+				aiSummary: store.tasksSummary,
+				isSummaryLoading: store.tasksSummaryLoading,
+				summaryError: store.tasksSummaryError,
+				onAddTask: onStartChat
+			)
 		}
 	}
 

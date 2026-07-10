@@ -73,10 +73,35 @@ private struct DashboardLinkButton: View {
 	}
 }
 
+// MARK: - Summary skeleton
+
+/// Pulsing placeholder lines shown while an AI summary is being generated.
+struct SummarySkeletonView: View {
+	@State private var pulse = false
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 8) {
+			ForEach(0..<4, id: \.self) { index in
+				RoundedRectangle(cornerRadius: 4)
+					.fill(AppTheme.elevatedBackground)
+					.frame(maxWidth: .infinity)
+					.frame(height: 12)
+					.opacity(pulse ? 0.5 : 0.9)
+			}
+		}
+		.animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: pulse)
+		.onAppear { pulse = true }
+		.accessibilityIdentifier("dashboard-summary-skeleton")
+	}
+}
+
 // MARK: - Unread mail card
 
 struct UnreadMailCard: View {
 	let summary: DashboardCategorySummary?
+	let aiSummary: DashboardCategoryAiSummary?
+	let isSummaryLoading: Bool
+	let summaryError: String?
 	let onSummarize: () -> Void
 
 	private let chipPalette: [Color] = [
@@ -86,10 +111,6 @@ struct UnreadMailCard: View {
 		Color(red: 0.55, green: 0.60, blue: 0.68),
 		Color(red: 0.55, green: 0.60, blue: 0.68),
 	]
-
-	private var unreadItems: [DashboardItem] {
-		Array((summary?.items ?? []).prefix(10))
-	}
 
 	var body: some View {
 		DashboardCard {
@@ -115,14 +136,8 @@ struct UnreadMailCard: View {
 					.padding(.top, 14)
 				}
 
-				if !unreadItems.isEmpty {
-					VStack(spacing: 0) {
-						ForEach(unreadItems) { item in
-							MailReplyRow(item: item)
-						}
-					}
+				summaryContent
 					.padding(.top, 14)
-				}
 
 				HStack(spacing: 16) {
 					DashboardLinkButton(title: "Open Mail", action: openMail)
@@ -142,6 +157,23 @@ struct UnreadMailCard: View {
 			}
 		}
 		.accessibilityIdentifier("dashboard-mail-card")
+	}
+
+	@ViewBuilder
+	private var summaryContent: some View {
+		if let aiSummary {
+			MarkdownText(
+				text: aiSummary.text,
+				font: .system(size: 13),
+				foregroundStyle: AppTheme.primaryText
+			)
+		} else if isSummaryLoading {
+			SummarySkeletonView()
+		} else if let summaryError {
+			DashboardEmptyState(message: "Summary unavailable. \(summaryError)")
+		} else {
+			DashboardEmptyState(message: "No summary available.")
+		}
 	}
 
 	/// Open the provider's webmail inbox if declared, else the default mail client.
@@ -184,94 +216,14 @@ private struct GroupChip: View {
 	}
 }
 
-private struct MailReplyRow: View {
-	let item: DashboardItem
-
-	private var sender: String { item.subtitle ?? item.title }
-
-	var body: some View {
-		HStack(alignment: .top, spacing: 10) {
-			AvatarCircle(name: sender)
-			VStack(alignment: .leading, spacing: 2) {
-				Text(sender)
-					.font(.system(size: 13, weight: .semibold))
-					.foregroundStyle(AppTheme.primaryText)
-					.lineLimit(1)
-				Text(item.title)
-					.font(.system(size: 12))
-					.foregroundStyle(AppTheme.secondaryText)
-					.lineLimit(1)
-			}
-			Spacer()
-			if let day = DashboardFormat.shortWeekday(item.timestamp) {
-				Text(day)
-					.font(.system(size: 12))
-					.foregroundStyle(AppTheme.tertiaryText)
-			}
-		}
-		.padding(.vertical, 7)
-	}
-}
-
-private struct AvatarCircle: View {
-	let name: String
-
-	private var initial: String {
-		String(name.trimmingCharacters(in: .whitespaces).prefix(1)).uppercased()
-	}
-
-	var body: some View {
-		Circle()
-			.fill(AppTheme.elevatedBackground)
-			.frame(width: 28, height: 28)
-			.overlay(
-				Text(initial)
-					.font(.system(size: 12, weight: .semibold))
-					.foregroundStyle(AppTheme.secondaryText)
-			)
-	}
-}
-
 // MARK: - Tasks card
 
 struct TasksCard: View {
 	let summary: DashboardCategorySummary?
+	let aiSummary: DashboardCategoryAiSummary?
+	let isSummaryLoading: Bool
+	let summaryError: String?
 	let onAddTask: () -> Void
-
-	private var taskItems: [DashboardItem] {
-		Array((summary?.items ?? []).prefix(5))
-	}
-
-	private func source(
-		for item: DashboardItem,
-		in summary: DashboardCategorySummary
-	) -> DashboardProviderSummary? {
-		guard let provider = item.providerName else { return nil }
-		return summary.sources.first { $0.providerName == provider }
-	}
-
-	private func sourceIconURL(
-		for item: DashboardItem,
-		in summary: DashboardCategorySummary
-	) -> URL? {
-		guard let icon = source(for: item, in: summary)?.iconUrl else { return nil }
-		return URL(string: ConfigReader.baseURL().absoluteString + icon)
-	}
-
-	private func sourceName(
-		for item: DashboardItem,
-		in summary: DashboardCategorySummary
-	) -> String? {
-		source(for: item, in: summary)?.providerDisplayName
-	}
-
-	private func sourceLaunchURL(
-		for item: DashboardItem,
-		in summary: DashboardCategorySummary
-	) -> URL? {
-		guard let launch = source(for: item, in: summary)?.launchUrl else { return nil }
-		return URL(string: launch)
-	}
 
 	var body: some View {
 		DashboardCard {
@@ -283,21 +235,22 @@ struct TasksCard: View {
 				badgeLabel: "open"
 			)
 
-			if let summary, summary.count > 0, !taskItems.isEmpty {
-				VStack(spacing: 0) {
-					ForEach(taskItems) { item in
-						TaskRow(
-							item: item,
-							sourceIconURL: sourceIconURL(for: item, in: summary),
-							sourceName: sourceName(for: item, in: summary),
-							sourceLaunchURL: sourceLaunchURL(for: item, in: summary)
-						)
+			if let summary, summary.count > 0 {
+				summaryContent
+					.padding(.top, 12)
+
+				HStack(spacing: 16) {
+					DashboardLinkButton(title: "Add a task", action: onAddTask)
+					ForEach(summary.sources.indices, id: \.self) { idx in
+						let source = summary.sources[idx]
+						if let launch = source.launchUrl, let url = URL(string: launch) {
+							DashboardLinkButton(title: "Open \(source.providerDisplayName)") {
+								NSWorkspace.shared.open(url)
+							}
+						}
 					}
 				}
-				.padding(.top, 12)
-
-				DashboardLinkButton(title: "Add a task", action: onAddTask)
-					.padding(.top, 14)
+				.padding(.top, 14)
 			} else {
 				DashboardEmptyState(
 					message: summary == nil
@@ -312,61 +265,21 @@ struct TasksCard: View {
 		}
 		.accessibilityIdentifier("dashboard-tasks-card")
 	}
-}
-
-private struct TaskRow: View {
-	let item: DashboardItem
-	let sourceIconURL: URL?
-	let sourceName: String?
-	let sourceLaunchURL: URL?
-
-	var body: some View {
-		HStack(alignment: .top, spacing: 10) {
-			Image(systemName: "circle")
-				.font(.system(size: 15))
-				.foregroundStyle(AppTheme.tertiaryText)
-				.padding(.top, 1)
-			VStack(alignment: .leading, spacing: 2) {
-				Text(item.title)
-					.font(.system(size: 13, weight: .medium))
-					.foregroundStyle(AppTheme.primaryText)
-					.lineLimit(2)
-				let due = DashboardFormat.dueText(item.timestamp)
-				Text(due.text)
-					.font(.system(size: 12))
-					.foregroundStyle(due.color)
-			}
-			Spacer()
-			if let sourceIconURL {
-				sourceIcon(url: sourceIconURL)
-			}
-		}
-		.padding(.vertical, 7)
-	}
 
 	@ViewBuilder
-	private func sourceIcon(url: URL) -> some View {
-		let icon = SidebarIconView(
-			url: url,
-			fallbackSystemName: "checklist",
-			isSelected: true
-		)
-		.frame(width: 16, height: 16)
-		.padding(.top, 1)
-
-		if let sourceLaunchURL {
-			Button {
-				NSWorkspace.shared.open(sourceLaunchURL)
-			} label: {
-				icon
-			}
-			.buttonStyle(.plain)
-			.help(sourceName.map { "Open in \($0)" } ?? "")
-			.accessibilityLabel(sourceName.map { "Open in \($0)" } ?? "Open task source")
+	private var summaryContent: some View {
+		if let aiSummary {
+			MarkdownText(
+				text: aiSummary.text,
+				font: .system(size: 13),
+				foregroundStyle: AppTheme.primaryText
+			)
+		} else if isSummaryLoading {
+			SummarySkeletonView()
+		} else if let summaryError {
+			DashboardEmptyState(message: "Summary unavailable. \(summaryError)")
 		} else {
-			icon
-				.help(sourceName ?? "")
-				.accessibilityLabel(sourceName ?? "Task source")
+			DashboardEmptyState(message: "No summary available.")
 		}
 	}
 }
@@ -438,13 +351,6 @@ struct DashboardEmptyState: View {
 }
 
 enum DashboardFormat {
-	static func shortWeekday(_ raw: String?) -> String? {
-		guard let date = DashboardDate.parse(raw) else { return nil }
-		let formatter = DateFormatter()
-		formatter.dateFormat = "EEE"
-		return formatter.string(from: date)
-	}
-
 	static func dueText(_ raw: String?) -> (text: String, color: Color) {
 		guard let date = DashboardDate.parse(raw) else {
 			return ("No due date", AppTheme.tertiaryText)

@@ -131,3 +131,23 @@ export interface DashboardData {
 	readonly email: DashboardCategorySummary | null;
 	readonly tasks: DashboardCategorySummary | null;
 }
+
+/**
+ * AI-generated summary for a single dashboard category.
+ * Produced by feeding deterministic dashboard data through a configurable
+ * persona model with built-in category-specific prompts.
+ */
+export interface DashboardCategoryAiSummary {
+	/** Category name (e.g. "email", "tasks"). */
+	readonly category: string;
+	/** Summary text from the model. */
+	readonly text: string;
+	/** ISO 8601 timestamp of summary generation. */
+	readonly generatedAt: string;
+	/** Name of the persona used for this summary. */
+	readonly personaName: string;
+	/** Total item count from the underlying deterministic data. */
+	readonly count: number;
+	/** Launch URLs from contributing providers, for "Open" links. */
+	readonly launchUrls: readonly string[];
+}

@@ -174,6 +174,11 @@ export interface AISettings {
 	readonly customModels?: Record<string, string[]>;
 }
 
+export interface DashboardConfig {
+	/** Persona used for dashboard section summaries; falls back to default persona. */
+	readonly persona?: string;
+}
+
 interface TobyConfig {
 	integrations: Record<string, Record<string, unknown>>;
 	personas: Persona[];
@@ -186,6 +191,7 @@ interface TobyConfig {
 	ai?: AISettings;
 	/** Slug of the currently active project (see `~/.toby/projects/<slug>/`). */
 	activeProject?: string;
+	dashboard?: DashboardConfig;
 }
 
 interface AICredentials {
