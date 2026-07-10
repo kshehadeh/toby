@@ -54,6 +54,7 @@ struct DashboardModelsTests {
 		#expect(checklist.totalCount == 9)
 		#expect(checklist.isComplete == false)
 		#expect(checklist.progress == 3.0 / 9.0)
+		#expect(checklist.upNextKind == .grantPermissions)
 	}
 
 	@Test("onboarding checklist is complete when all steps done")
@@ -71,6 +72,32 @@ struct DashboardModelsTests {
 		)
 		#expect(checklist.isComplete)
 		#expect(checklist.completedCount == 9)
+		#expect(checklist.upNextKind == nil)
+	}
+
+	@Test("onboarding steps include subtitles and app icons")
+	func onboardingStepsIncludeSubtitlesAndIcons() {
+		let checklist = OnboardingChecklist.make(
+			hasConfiguredAIProvider: true,
+			hasConnectedIntegrations: false,
+			hasModelConfigured: false,
+			hasRequiredPermissions: false,
+			hasSchedule: false,
+			hasSkill: false,
+			hasTranscriptionConfigured: false,
+			hasRecording: false,
+			hasSession: false
+		)
+		#expect(checklist.upNextKind == .connectIntegrations)
+		let ai = checklist.steps.first { $0.kind == .configureAIProvider }
+		#expect(ai?.subtitle == "Pick the model that powers Toby")
+		#expect(ai?.systemImage == "cpu")
+		#expect(ai?.isComplete == true)
+		#expect(ai?.actionLabel == "Configure")
+		let integrations = checklist.steps.first { $0.kind == .connectIntegrations }
+		#expect(integrations?.systemImage == DetailRoute.integrations.systemImage)
+		let skills = checklist.steps.first { $0.kind == .createSkill }
+		#expect(skills?.systemImage == DetailRoute.skills.systemImage)
 	}
 
 	@Test("due text falls back to no due date")
@@ -207,4 +234,33 @@ struct DashboardViewTests {
 			try card.inspect().find(text: "Finish setting up Toby")
 		}
 	}
+
+	@Test("onboarding card shows up next and completed states")
+	func onboardingCardShowsUpNextAndCompleted() throws {
+		let checklist = OnboardingChecklist.make(
+			hasConfiguredAIProvider: true,
+			hasConnectedIntegrations: false,
+			hasModelConfigured: false,
+			hasRequiredPermissions: false,
+			hasSchedule: false,
+			hasSkill: false,
+			hasTranscriptionConfigured: false,
+			hasRecording: false,
+			hasSession: false
+		)
+		let card = OnboardingCard(checklist: checklist, onStepAction: { _ in })
+		#expect(throws: Never.self) {
+			try card.inspect().find(text: "UP NEXT")
+		}
+		#expect(throws: Never.self) {
+			try card.inspect().find(text: "Completed")
+		}
+		#expect(throws: Never.self) {
+			try card.inspect().find(text: " of 9 done")
+		}
+		#expect(throws: Never.self) {
+			try card.inspect().find(text: "Pick the model that powers Toby")
+		}
+	}
 }
+
