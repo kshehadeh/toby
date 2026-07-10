@@ -19,7 +19,8 @@ import type {
 
 const SUMMARY_CACHE_TTL_MS = 5 * 60 * 1000;
 const SUMMARY_TIMEOUT_MS = 30_000;
-const SUMMARY_MAX_TOKENS = 600;
+/** Room for a short markdown summary; higher than needed so partial CoT leak does not truncate the answer. */
+const SUMMARY_MAX_TOKENS = 1500;
 
 /** Built-in prompts per dashboard category. */
 const CATEGORY_PROMPTS: Record<string, string> = {
@@ -137,6 +138,63 @@ function formatItemsForPrompt(items: readonly DashboardItem[]): string {
 		.join("\n");
 }
 
+/**
+ * Keep only the user-facing summary when a model dumps planning / chain-of-thought
+ * into the main text (common with some reasoning models via generateText).
+ *
+ * Prefer the final answer after markdown headings or after explicit "here is the
+ * summary" transitions when the preamble looks like internal monologue.
+ */
+export function extractDashboardSummaryText(raw: string): string {
+	let text = raw.trim();
+	if (!text) return text;
+
+	// Tagged reasoning blocks (DeepSeek/Qwen-style and similar).
+	text = text
+		.replace(/<think(?:ing)?\b[^>]*>[\s\S]*?<\/think(?:ing)?>/gi, "")
+		.replace(/<reasoning\b[^>]*>[\s\S]*?<\/reasoning>/gi, "")
+		.trim();
+
+	// Planning first, then markdown sections (## / # headings).
+	const headingMatch = /^(#{1,3}\s+\S)/m.exec(text);
+	if (headingMatch?.index != null && headingMatch.index > 0) {
+		const before = text.slice(0, headingMatch.index).trim();
+		const after = text.slice(headingMatch.index).trim();
+		if (before.length >= 120 && looksLikeModelPlanning(before) && after.length > 0) {
+			return after;
+		}
+	}
+
+	// Explicit transition into the final answer.
+	const transition =
+		/\n(?:I(?:'ll| will) write|Final (?:answer|summary)|Here(?:'s| is) (?:the )?(?:summary|response)|Output)\s*[:：]?\s*\n+/i.exec(
+			text,
+		);
+	if (transition?.index != null) {
+		const after = text.slice(transition.index + transition[0].length).trim();
+		if (after.length >= 40) return after;
+	}
+
+	return text;
+}
+
+/** Heuristic: preamble reads like model planning rather than a user-facing summary. */
+function looksLikeModelPlanning(text: string): boolean {
+	const patterns = [
+		/\bwe need to\b/i,
+		/\blet'?s\b/i,
+		/\bi(?:'ll| will)\b/i,
+		/\bthe user (?:provided|says|asks)\b/i,
+		/\bfor example, item\b/i,
+		/\bi can (?:see|infer)\b/i,
+		/\bfocusing on\b/i,
+		/\bcurrent date is not given\b/i,
+		/\bstructure\b/i,
+	];
+	const hits = patterns.filter((re) => re.test(text)).length;
+	return hits >= 2;
+}
+
 /** Build the full system prompt with persona instructions, category prompt, and skills catalog. */
 function buildSystemPrompt(
 	categoryPrompt: string,
@@ -146,6 +204,8 @@ function buildSystemPrompt(
 	const base = `You are a personal assistant summarizing dashboard information for the user.
 
 ${categoryPrompt}
+
+Output ONLY the final user-facing summary. Do not include chain-of-thought, planning, analysis of the instructions, item-by-item deliberation, or meta-commentary.
 
 Format your response as markdown to help the user quickly scan key information:
 - Use **bold** for names, subjects, deadlines, and other key items the user should notice.
@@ -277,7 +337,9 @@ async function generateFreshSummary(
 				maxOutputTokens: SUMMARY_MAX_TOKENS,
 			});
 
-			const text = result.text.trim();
+			// Prefer the final answer text. Some models still dump planning into
+			// `text`; strip that so the dashboard never shows chain-of-thought.
+			const text = extractDashboardSummaryText(result.text);
 			if (!text) {
 				if (!summaryCache.has(cacheKey)) {
 					summaryCache.set(cacheKey, nullCacheEntry);
