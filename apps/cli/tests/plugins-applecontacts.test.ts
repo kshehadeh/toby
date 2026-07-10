@@ -192,6 +192,42 @@ esac
 		);
 	});
 
+	it("connect finds native-port under TOBY_DIR when HOME has none", () => {
+		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "toby-applecontacts-"));
+		const tobyDir = path.join(tempHome, "custom-toby");
+		fs.mkdirSync(tobyDir, { recursive: true });
+		// Intentionally no $HOME/.toby/native-port — only TOBY_DIR.
+		fs.writeFileSync(path.join(tobyDir, "native-port"), "49152");
+		const binDir = path.join(tempHome, "bin");
+		fs.mkdirSync(binDir, { recursive: true });
+		fs.writeFileSync(
+			path.join(binDir, "curl"),
+			`#!/bin/zsh
+url="\${@: -1}"
+case "$url" in
+  */api/native/health) printf "200" ;;
+  */api/native/contacts/request-access) printf '{"ok":true,"data":{"prompted":true}}' ;;
+  */api/native/contacts/search) printf '{"ok":true,"data":{"contacts":[],"count":0}}' ;;
+  *) printf '{"ok":false,"error":"unknown"}' ;;
+esac
+`,
+			{ mode: 0o755 },
+		);
+
+		const result = runPlugin(["connect"], {
+			home: tempHome,
+			env: {
+				PATH: `${binDir}:${process.env.PATH ?? ""}`,
+				TOBY_DIR: tobyDir,
+			},
+		});
+		expect(result.exitCode).toBe(0);
+		expect(parseJson(result.stdout)).toEqual({
+			ok: true,
+			reason: "Apple Contacts connected successfully.",
+		});
+	});
+
 	it("core test connection does not mention credentials for no-config plugin", async () => {
 		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "toby-applecontacts-"));
 		const previousTobyDir = process.env.TOBY_DIR;

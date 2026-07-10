@@ -16,9 +16,15 @@ const TIMEOUT_MS = 30_000;
 const LAUNCH_RETRY_DELAY_MS = 1_000;
 const MAX_LAUNCH_RETRIES = 8;
 
+/** Matches CLI/core `resolveTobyDir()` so native discovery works with TOBY_DIR. */
+function resolveTobyDir(): string {
+	const override = process.env.TOBY_DIR?.trim();
+	if (override) return override;
+	return path.join(os.homedir(), ".toby");
+}
+
 function resolveNativePort(): number | null {
-	const home = os.homedir();
-	const portFile = path.join(home, ".toby", "native-port");
+	const portFile = path.join(resolveTobyDir(), "native-port");
 	try {
 		const text = fs.readFileSync(portFile, "utf8").trim();
 		const port = Number.parseInt(text, 10);
