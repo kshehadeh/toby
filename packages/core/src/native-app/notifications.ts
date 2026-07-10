@@ -1,6 +1,6 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import { resolveTobyDir } from "../config/index";
 
 type ScheduleCompletionStatus = "success" | "error";
 
@@ -15,7 +15,7 @@ export interface ScheduleCompletionNotification {
 const REQUEST_TIMEOUT_MS = 2_000;
 
 function resolveNativePort(): number | null {
-	const portFile = path.join(os.homedir(), ".toby", "native-port");
+	const portFile = path.join(resolveTobyDir(), "native-port");
 	try {
 		const port = Number.parseInt(fs.readFileSync(portFile, "utf8").trim(), 10);
 		return Number.isNaN(port) ? null : port;

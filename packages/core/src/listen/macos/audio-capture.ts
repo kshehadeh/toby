@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { resolveTobyDir } from "../../config/index";
 import type { ListenRecordingFiles, ListenSession } from "../types";
 import { selectedListenSources } from "../types";
 
@@ -94,8 +95,7 @@ function resolveTobyAppPath(): string | null {
 }
 
 function resolveNativePort(): number | null {
-	const home = os.homedir();
-	const portFile = path.join(home, ".toby/native-port");
+	const portFile = path.join(resolveTobyDir(), "native-port");
 	if (!fs.existsSync(portFile)) return null;
 	const text = fs.readFileSync(portFile, "utf8").trim();
 	const port = Number.parseInt(text, 10);

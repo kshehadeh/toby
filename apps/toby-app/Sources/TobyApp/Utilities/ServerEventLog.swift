@@ -3,12 +3,12 @@ import Foundation
 /// Unified JSON-lines log writer for the native macOS app.
 ///
 /// Appends structured entries with `source: "native-app"` to the shared
-/// log file at `~/.toby/logs/toby.log`. Mirrors the TypeScript unified
-/// logger schema (`packages/core/src/logging/logger.ts`).
+/// log file at `$TOBY_DIR/logs/toby.log` (default `~/.toby/logs/toby.log`).
+/// Mirrors the TypeScript unified logger schema (`packages/core/src/logging/logger.ts`).
 enum ServerEventLog {
 	static var url: URL {
-		FileManager.default.homeDirectoryForCurrentUser
-			.appendingPathComponent(".toby/logs/toby.log")
+		URL(fileURLWithPath: ConfigReader.resolveTobyDir())
+			.appendingPathComponent("logs/toby.log")
 	}
 
 	static var path: String {
