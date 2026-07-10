@@ -9,7 +9,6 @@ struct DashboardView: View {
 	let onOpenPermissions: () -> Void
 	let onStartChat: () -> Void
 	let onSummarizeEmail: () -> Void
-	let metrics: [DashboardMetric]
 
 	@State private var now = Date()
 
@@ -17,9 +16,6 @@ struct DashboardView: View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 24) {
 				greeting
-				if !metrics.isEmpty {
-					metricsRow
-				}
 				if !onboarding.isComplete {
 					OnboardingCard(checklist: onboarding, onStepAction: handleStepAction)
 				}
@@ -68,16 +64,6 @@ struct DashboardView: View {
 				onRefresh: { Task { await store.refreshTasks() } },
 				onAddTask: onStartChat
 			)
-		}
-	}
-
-	private var metricsRow: some View {
-		HStack(spacing: 12) {
-			ForEach(metrics) { metric in
-				DashboardMetricTile(metric: metric) {
-					onSelectRoute(metric.route)
-				}
-			}
 		}
 	}
 

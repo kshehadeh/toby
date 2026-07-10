@@ -167,8 +167,7 @@ struct DashboardViewTests {
 			onSelectRoute: { _ in },
 			onOpenPermissions: {},
 			onStartChat: {},
-			onSummarizeEmail: {},
-			metrics: []
+			onSummarizeEmail: {}
 		)
 	}
 
@@ -178,41 +177,6 @@ struct DashboardViewTests {
 		let expected = "\(DashboardView.greetingPrefix(for: Date())), Karim"
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: expected)
-		}
-	}
-
-	@Test("dashboard view renders metric counts")
-	func dashboardViewRendersMetricCounts() throws {
-		let metrics = [
-			DashboardMetric(route: .recordings, count: 7, label: "Recordings", systemImage: "waveform"),
-			DashboardMetric(route: .skills, count: 3, label: "Skills", systemImage: "wand.and.stars"),
-		]
-		let view = DashboardView(
-			store: DashboardStore(),
-			userName: "Karim",
-			onboarding: OnboardingChecklist.make(
-				hasConfiguredAIProvider: true,
-			hasConnectedIntegrations: true,
-				hasModelConfigured: true,
-				hasRequiredPermissions: true,
-				hasSchedule: true,
-				hasSkill: true,
-			hasTranscriptionConfigured: true,
-				hasRecording: true,
-				hasSession: true
-			),
-			onRefresh: {},
-			onSelectRoute: { _ in },
-			onOpenPermissions: {},
-			onStartChat: {},
-			onSummarizeEmail: {},
-			metrics: metrics
-		)
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "7")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Recordings")
 		}
 	}
 

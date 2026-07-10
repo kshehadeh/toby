@@ -28,20 +28,23 @@ struct DashboardCard<Content: View>: View {
 }
 
 private struct CardHeader<Trailing: View>: View {
-	let systemImage: String
+	let systemImage: String?
 	let iconColor: Color
 	let title: String
+	var titleSize: CGFloat = 14
 	let badgeValue: String
 	let badgeLabel: String
 	@ViewBuilder let trailing: () -> Trailing
 
 	var body: some View {
 		HStack(spacing: 8) {
-			Image(systemName: systemImage)
-				.font(.system(size: 14, weight: .semibold))
-				.foregroundStyle(iconColor)
+			if let systemImage {
+				Image(systemName: systemImage)
+					.font(.system(size: 14, weight: .semibold))
+					.foregroundStyle(iconColor)
+			}
 			Text(title)
-				.font(.system(size: 14, weight: .semibold))
+				.font(.system(size: titleSize, weight: .semibold))
 				.foregroundStyle(AppTheme.primaryText)
 			Spacer(minLength: 0)
 			HStack(spacing: 4) {
@@ -148,15 +151,18 @@ struct UnreadMailCard: View {
 
 	var body: some View {
 		DashboardCard {
+			// Leading inset keeps the title clear of the corner icon.
 			CardHeader(
-				systemImage: "envelope",
+				systemImage: nil,
 				iconColor: AppTheme.accent,
 				title: "Unread mail",
+				titleSize: 18,
 				badgeValue: "\(summary?.count ?? 0)",
 				badgeLabel: "unread"
 			) {
 				CardRefreshButton(isRefreshing: isRefreshing, action: onRefresh)
 			}
+			.padding(.leading, 40)
 
 			if let summary, summary.count > 0 {
 				if !summary.groups.isEmpty {
@@ -192,6 +198,21 @@ struct UnreadMailCard: View {
 					.padding(.top, 14)
 			}
 		}
+		.overlay(alignment: .topLeading) {
+			// Large decorative stamp that straddles the card border.
+			Image(systemName: "envelope.fill")
+				.font(.system(size: 54, weight: .semibold))
+				.symbolRenderingMode(.hierarchical)
+				.foregroundStyle(AppTheme.accent)
+				.rotationEffect(.degrees(-30))
+				.shadow(color: .black.opacity(0.4), radius: 10, x: 1, y: 3)
+				.offset(x: -16, y: -20)
+				.allowsHitTesting(false)
+				.accessibilityHidden(true)
+		}
+		// Room so the overhanging icon isn't clipped by the scroll view.
+		.padding(.top, 22)
+		.padding(.leading, 18)
 		.accessibilityIdentifier("dashboard-mail-card")
 	}
 
@@ -265,15 +286,18 @@ struct TasksCard: View {
 
 	var body: some View {
 		DashboardCard {
+			// Leading inset keeps the title clear of the corner icon.
 			CardHeader(
-				systemImage: "checklist",
+				systemImage: nil,
 				iconColor: AppTheme.accent,
 				title: "Tasks",
+				titleSize: 18,
 				badgeValue: "\(summary?.count ?? 0)",
 				badgeLabel: "open"
 			) {
 				CardRefreshButton(isRefreshing: isRefreshing, action: onRefresh)
 			}
+			.padding(.leading, 40)
 
 			if let summary, summary.count > 0 {
 				summaryContent
@@ -303,6 +327,21 @@ struct TasksCard: View {
 					.padding(.top, 14)
 			}
 		}
+		.overlay(alignment: .topLeading) {
+			// Large decorative stamp that straddles the card border.
+			Image(systemName: "checklist")
+				.font(.system(size: 54, weight: .semibold))
+				.symbolRenderingMode(.hierarchical)
+				.foregroundStyle(AppTheme.accent)
+				.rotationEffect(.degrees(-30))
+				.shadow(color: .black.opacity(0.4), radius: 10, x: 1, y: 3)
+				.offset(x: -16, y: -20)
+				.allowsHitTesting(false)
+				.accessibilityHidden(true)
+		}
+		// Room so the overhanging icon isn't clipped by the scroll view.
+		.padding(.top, 22)
+		.padding(.leading, 18)
 		.accessibilityIdentifier("dashboard-tasks-card")
 	}
 
@@ -325,59 +364,6 @@ struct TasksCard: View {
 }
 
 // MARK: - Shared helpers
-
-/// A compact stat tile for the dashboard metrics row (recordings, skills,
-/// schedules, memories). Tapping navigates to the related area.
-struct DashboardMetric: Identifiable {
-	let route: DetailRoute
-	let count: Int
-	let label: String
-	let systemImage: String
-	var id: String { route.rawValue }
-}
-
-struct DashboardMetricTile: View {
-	let metric: DashboardMetric
-	let action: () -> Void
-
-	@State private var isHovered = false
-
-	var body: some View {
-		Button(action: action) {
-			VStack(alignment: .leading, spacing: 8) {
-				Image(systemName: metric.systemImage)
-					.font(.system(size: 15, weight: .semibold))
-					.foregroundStyle(AppTheme.accent)
-				Text("\(metric.count)")
-					.font(.system(size: 22, weight: .bold))
-					.foregroundStyle(AppTheme.primaryText)
-					.lineLimit(1)
-				Text(metric.label)
-					.font(.system(size: 12))
-					.foregroundStyle(AppTheme.secondaryText)
-					.lineLimit(1)
-			}
-			.frame(maxWidth: .infinity, alignment: .topLeading)
-			.padding(14)
-			.background(
-				RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
-					.fill(AppTheme.panelBackground)
-			)
-			.overlay(
-				RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
-					.stroke(AppTheme.separator, lineWidth: 1)
-			)
-			.overlay(
-				RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
-					.fill(AppTheme.accent.opacity(isHovered ? 0.08 : 0))
-			)
-		}
-		.buttonStyle(.plain)
-		.onHover { isHovered = $0 }
-		.accessibilityLabel("\(metric.count) \(metric.label)")
-		.accessibilityHint("Open \(metric.label)")
-	}
-}
 
 struct DashboardEmptyState: View {
 	let message: String

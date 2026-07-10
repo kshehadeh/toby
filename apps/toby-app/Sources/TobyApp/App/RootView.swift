@@ -406,8 +406,7 @@ struct RootView: View {
                         navigateToRoute(.chat)
                         startNewChat()
                     },
-                    onSummarizeEmail: summarizeUnreadEmailInChat,
-                    metrics: dashboardMetrics
+                    onSummarizeEmail: summarizeUnreadEmailInChat
                 )
                 .toolbar {
                     commonToolbarItems()
@@ -743,15 +742,6 @@ struct RootView: View {
             hasRecording: !recordingsStore.recordings.isEmpty,
             hasSession: !store.sessions.isEmpty
         )
-    }
-
-    private var dashboardMetrics: [DashboardMetric] {
-        [
-            DashboardMetric(route: .recordings, count: recordingsStore.recordings.count, label: "Recordings", systemImage: "waveform"),
-            DashboardMetric(route: .skills, count: skillsStore.skills.count, label: "Skills", systemImage: "wand.and.stars"),
-            DashboardMetric(route: .schedules, count: schedulesStore.schedules.count, label: "Schedules", systemImage: "clock"),
-            DashboardMetric(route: .memories, count: memoriesStore.memories.count, label: "Memories", systemImage: "brain.head.profile"),
-        ]
     }
 
     private var dashboardUpdatedText: String {
