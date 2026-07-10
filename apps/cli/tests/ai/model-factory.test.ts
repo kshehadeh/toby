@@ -105,6 +105,20 @@ describe("validatePersonaAi", () => {
 			validatePersonaAi(testPersona({ provider: "chutes", model: "   " })),
 		).toThrow(/Chutes model is required/);
 	});
+
+	it("accepts openrouter model ids with slashes", () => {
+		expect(() =>
+			validatePersonaAi(
+				testPersona({ provider: "openrouter", model: "openai/gpt-5.6-luna" }),
+			),
+		).not.toThrow();
+	});
+
+	it("rejects empty openrouter model names", () => {
+		expect(() =>
+			validatePersonaAi(testPersona({ provider: "openrouter", model: "   " })),
+		).toThrow(/OpenRouter model is required/);
+	});
 });
 
 describe("normalizeModelOnProviderChange", () => {
@@ -153,6 +167,18 @@ describe("normalizeModelOnProviderChange", () => {
 	it("uses first curated chutes model when previous is empty", () => {
 		expect(normalizeModelOnProviderChange("chutes", "")).toBe(
 			"Qwen/Qwen3-32B-TEE",
+		);
+	});
+
+	it("keeps slash-delimited openrouter model ids when switching to openrouter", () => {
+		expect(
+			normalizeModelOnProviderChange("openrouter", "openai/gpt-5.6-luna"),
+		).toBe("openai/gpt-5.6-luna");
+	});
+
+	it("uses first curated openrouter model when previous is empty", () => {
+		expect(normalizeModelOnProviderChange("openrouter", "")).toBe(
+			"openai/gpt-5.6-sol",
 		);
 	});
 });
@@ -237,6 +263,14 @@ describe("formatPersonaAiLabel", () => {
 			),
 		).toBe("deepseek-ai/DeepSeek-V3.2-TEE");
 	});
+
+	it("shows model id only for openrouter", () => {
+		expect(
+			formatPersonaAiLabel(
+				testPersona({ provider: "openrouter", model: "openai/gpt-5.6-luna" }),
+			),
+		).toBe("openai/gpt-5.6-luna");
+	});
 });
 
 describe("isAIProviderConfigured (chutes)", () => {
@@ -269,5 +303,38 @@ describe("isAIProviderConfigured (chutes)", () => {
 		writeCredentials({});
 		process.env.CHUTES_API_KEY = "cpk-env-test";
 		expect(isAIProviderConfigured("chutes")).toBe(true);
+	});
+});
+
+describe("isAIProviderConfigured (openrouter)", () => {
+	let previousKey: string | undefined;
+
+	beforeEach(() => {
+		previousKey = process.env.OPENROUTER_API_KEY;
+		Reflect.deleteProperty(process.env, "OPENROUTER_API_KEY");
+	});
+
+	afterEach(() => {
+		if (previousKey !== undefined) {
+			process.env.OPENROUTER_API_KEY = previousKey;
+		} else {
+			Reflect.deleteProperty(process.env, "OPENROUTER_API_KEY");
+		}
+	});
+
+	it("returns false when openrouter is not configured", () => {
+		writeCredentials({});
+		expect(isAIProviderConfigured("openrouter")).toBe(false);
+	});
+
+	it("returns true when openrouter apiKey is in credentials", () => {
+		writeCredentials({ ai: { openrouter: { apiKey: "sk-or-test" } } });
+		expect(isAIProviderConfigured("openrouter")).toBe(true);
+	});
+
+	it("returns true when OPENROUTER_API_KEY env is set", () => {
+		writeCredentials({});
+		process.env.OPENROUTER_API_KEY = "sk-or-env-test";
+		expect(isAIProviderConfigured("openrouter")).toBe(true);
 	});
 });

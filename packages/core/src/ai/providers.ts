@@ -2,7 +2,8 @@ export type AIProviderModelFormat =
 	| "openai-id"
 	| "gateway-slug"
 	| "ollama-id"
-	| "chutes-id";
+	| "chutes-id"
+	| "openrouter-id";
 
 export interface AIProviderInfo {
 	id: string;
@@ -101,6 +102,26 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
 			"moonshotai/Kimi-K2.5-TEE",
 			"unsloth/Mistral-Nemo-Instruct-2407-TEE",
 			"zai-org/GLM-5-TEE",
+		],
+	},
+	{
+		id: "openrouter",
+		displayName: "OpenRouter",
+		modelFormat: "openrouter-id",
+		allowCustomModel: true,
+		supportsPlanUsage: false,
+		publicCatalog: true,
+		models: [
+			"openai/gpt-5.6-sol",
+			"openai/gpt-5.6-terra",
+			"openai/gpt-5.6-luna",
+			"anthropic/claude-sonnet-4.6",
+			"anthropic/claude-haiku-4.5",
+			"google/gemini-3-pro",
+			"google/gemini-3-flash",
+			"meta-llama/llama-4-maverick",
+			"deepseek/deepseek-v3.2",
+			"xai/grok-4",
 		],
 	},
 ];

@@ -193,6 +193,7 @@ interface AICredentials {
 	vercel?: { apiKey: string };
 	ollama?: { apiKey?: string };
 	chutes?: { apiKey: string };
+	openrouter?: { apiKey: string };
 }
 
 type SlackAuthMethod = "oauth" | "bot_token";

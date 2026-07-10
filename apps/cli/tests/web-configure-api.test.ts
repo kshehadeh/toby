@@ -442,9 +442,9 @@ describe("web API routes", () => {
 				expect(child.kind).toBe("section");
 			}
 		}
-		// AI should have 4 sub-sections (openai, vercel, ollama, chutes)
+		// AI should have 5 sub-sections (openai, vercel, ollama, chutes, openrouter)
 		const ai = body.sections.find((s) => s.key === "ai");
-		expect(ai?.children).toHaveLength(4);
+		expect(ai?.children).toHaveLength(5);
 		expect(ai?.children?.map((c) => c.key)).toContain("ai.openai");
 	});
 

@@ -21,6 +21,7 @@ let originalTobyDir: string | undefined;
 let originalFetch: typeof globalThis.fetch | undefined;
 let originalGatewayKey: string | undefined;
 let originalChutesKey: string | undefined;
+let originalOpenRouterKey: string | undefined;
 
 function emptyConfig(
 	overrides: {
@@ -73,6 +74,14 @@ function restoreEnv() {
 			Reflect.deleteProperty(process.env, "CHUTES_API_KEY");
 		}
 		originalChutesKey = undefined;
+	}
+	if (originalOpenRouterKey !== undefined) {
+		if (originalOpenRouterKey) {
+			process.env.OPENROUTER_API_KEY = originalOpenRouterKey;
+		} else {
+			Reflect.deleteProperty(process.env, "OPENROUTER_API_KEY");
+		}
+		originalOpenRouterKey = undefined;
 	}
 	clearModelListCache();
 }
@@ -390,6 +399,112 @@ describe("fetchAIProviderModels", () => {
 		expect(list.unavailableReason).toContain("connection refused");
 		expect(list.models.map((m) => m.id)).toEqual(
 			AI_PROVIDERS.find((p) => p.id === "chutes")?.models ?? [],
+		);
+	});
+
+	it("fetches live OpenRouter models even when unconfigured (public catalog)", async () => {
+		originalFetch = globalThis.fetch;
+		const fetchMock = mock().mockImplementation(async (input: RequestInfo) => {
+			const url = String(input);
+			expect(url).toBe("https://openrouter.ai/api/v1/models");
+			return new Response(
+				JSON.stringify({
+					data: [
+						{
+							id: "openai/gpt-5.6-luna",
+							name: "OpenAI: GPT-5.6 Luna",
+							context_length: 1050000,
+						},
+						{
+							id: "anthropic/claude-sonnet-4.6",
+							name: "Anthropic: Claude Sonnet 4.6",
+							context_length: 200000,
+						},
+					],
+				}),
+				{ status: 200, headers: { "Content-Type": "application/json" } },
+			);
+		});
+		globalThis.fetch = fetchMock as typeof globalThis.fetch;
+
+		const list = await fetchAIProviderModels("openrouter");
+		expect(list.remote).toBe(true);
+		expect(list.unavailableReason).toBeUndefined();
+		expect(list.models.map((m) => m.id)).toEqual([
+			"openai/gpt-5.6-luna",
+			"anthropic/claude-sonnet-4.6",
+		]);
+		expect(list.models[0]?.contextWindowTokens).toBe(1050000);
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+
+	it("fetches live OpenRouter models when configured", async () => {
+		originalOpenRouterKey = process.env.OPENROUTER_API_KEY;
+		process.env.OPENROUTER_API_KEY = "sk-or-test";
+
+		originalFetch = globalThis.fetch;
+		const fetchMock = mock().mockImplementation(async (input: RequestInfo) => {
+			const url = String(input);
+			expect(url).toBe("https://openrouter.ai/api/v1/models");
+			return new Response(
+				JSON.stringify({
+					data: [
+						{ id: "openai/gpt-5.6-sol", name: "OpenAI: GPT-5.6 Sol" },
+						{ id: "google/gemini-3-pro", name: "Google: Gemini 3 Pro" },
+					],
+				}),
+				{ status: 200, headers: { "Content-Type": "application/json" } },
+			);
+		});
+		globalThis.fetch = fetchMock as typeof globalThis.fetch;
+
+		const list = await fetchAIProviderModels("openrouter");
+		expect(list.remote).toBe(true);
+		expect(list.models.map((m) => m.id)).toEqual([
+			"openai/gpt-5.6-sol",
+			"google/gemini-3-pro",
+		]);
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+
+		// cache
+		await fetchAIProviderModels("openrouter");
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+
+	it("soft-falls back to curated OpenRouter models on API error", async () => {
+		originalOpenRouterKey = process.env.OPENROUTER_API_KEY;
+		process.env.OPENROUTER_API_KEY = "sk-or-test";
+
+		originalFetch = globalThis.fetch;
+		globalThis.fetch = mock().mockResolvedValue(
+			new Response(JSON.stringify({ error: "rate limited" }), {
+				status: 429,
+			}),
+		) as typeof globalThis.fetch;
+
+		const list = await fetchAIProviderModels("openrouter");
+		expect(list.remote).toBe(true);
+		expect(list.unavailableReason).toContain("429");
+		expect(list.models.length).toBeGreaterThan(0);
+		expect(list.models[0]?.id).toBe(
+			AI_PROVIDERS.find((p) => p.id === "openrouter")?.models[0],
+		);
+	});
+
+	it("soft-falls back when OpenRouter is unreachable", async () => {
+		originalOpenRouterKey = process.env.OPENROUTER_API_KEY;
+		process.env.OPENROUTER_API_KEY = "sk-or-test";
+
+		originalFetch = globalThis.fetch;
+		globalThis.fetch = mock().mockRejectedValue(
+			new Error("connection refused"),
+		) as typeof globalThis.fetch;
+
+		const list = await fetchAIProviderModels("openrouter");
+		expect(list.remote).toBe(true);
+		expect(list.unavailableReason).toContain("connection refused");
+		expect(list.models.map((m) => m.id)).toEqual(
+			AI_PROVIDERS.find((p) => p.id === "openrouter")?.models ?? [],
 		);
 	});
 });

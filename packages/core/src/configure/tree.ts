@@ -868,6 +868,22 @@ export function buildSettingsTree(
 							},
 						],
 					},
+					{
+						label: "OpenRouter",
+						kind: "section",
+						key: "ai.openrouter",
+						description:
+							"Access hundreds of models from OpenAI, Anthropic, Google, Meta, and more through a single OpenRouter API key.",
+						docUrl: "https://openrouter.ai/keys",
+						children: [
+							{
+								label: "API Key",
+								kind: "value",
+								key: "ai.openrouter.apiKey",
+								masked: true,
+							},
+						],
+					},
 				],
 			},
 			{

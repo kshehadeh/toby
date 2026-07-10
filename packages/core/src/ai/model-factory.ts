@@ -28,12 +28,16 @@ const OPENAI_AUX_DEFAULT = "gpt-4.1-nano";
 const VERCEL_AUX_DEFAULT = "openai/gpt-4.1-nano";
 const OLLAMA_AUX_DEFAULT = "llama3.2";
 const CHUTES_AUX_DEFAULT = "deepseek-ai/DeepSeek-V3.2-TEE";
+const OPENROUTER_AUX_DEFAULT = "openai/gpt-5.6-luna";
 
 /** Default base URL for a local Ollama server's OpenAI-compatible API. */
 export const OLLAMA_DEFAULT_BASE_URL = "http://localhost:11434/v1";
 
 /** Default base URL for Chutes' OpenAI-compatible LLM endpoint. */
 export const CHUTES_DEFAULT_BASE_URL = "https://llm.chutes.ai/v1";
+
+/** Default base URL for OpenRouter's OpenAI-compatible LLM endpoint. */
+export const OPENROUTER_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 
 /** Default app URL for Vercel AI Gateway attribution (https://vercel.com/docs/ai-gateway/ecosystem/app-attribution). */
 const DEFAULT_AI_GATEWAY_HTTP_REFERER = "https://github.com/kshehadeh/toby";
@@ -93,6 +97,11 @@ export function isAIProviderConfigured(providerId: string): boolean {
 			const envKey = process.env.CHUTES_API_KEY?.trim();
 			return Boolean(credsKey || (envKey && envKey.length > 0));
 		}
+		case "openrouter": {
+			const credsKey = readCredentials().ai?.openrouter?.apiKey?.trim();
+			const envKey = process.env.OPENROUTER_API_KEY?.trim();
+			return Boolean(credsKey || (envKey && envKey.length > 0));
+		}
 		default:
 			return false;
 	}
@@ -133,6 +142,15 @@ export function validatePersonaAi(persona: Persona): void {
 		if (!persona.ai.model.trim()) {
 			throw new Error(
 				"Chutes model is required (e.g. deepseek-ai/DeepSeek-V3.2-TEE). Run `toby configure` to set it.",
+			);
+		}
+		return;
+	}
+
+	if (provider.modelFormat === "openrouter-id") {
+		if (!persona.ai.model.trim()) {
+			throw new Error(
+				"OpenRouter model is required (e.g. openai/gpt-5.6-luna). Run `toby configure` to set it.",
 			);
 		}
 		return;
@@ -189,6 +207,15 @@ export function normalizeModelOnProviderChange(
 		return provider.models[0] ?? CHUTES_AUX_DEFAULT;
 	}
 
+	if (provider.modelFormat === "openrouter-id") {
+		// OpenRouter model IDs contain slashes (e.g. openai/gpt-5.6-luna).
+		// Keep them as-is if they already look like OpenRouter IDs.
+		if (previousModel.includes("/")) {
+			return previousModel;
+		}
+		return provider.models[0] ?? OPENROUTER_AUX_DEFAULT;
+	}
+
 	if (previousModel.includes("/")) {
 		const slash = previousModel.lastIndexOf("/");
 		return previousModel.slice(slash + 1) || "gpt-5-mini";
@@ -202,6 +229,9 @@ export function formatPersonaAiLabel(persona: Persona): string {
 		return persona.ai.model;
 	}
 	if (persona.ai.provider === "chutes") {
+		return persona.ai.model;
+	}
+	if (persona.ai.provider === "openrouter") {
 		return persona.ai.model;
 	}
 	return `${persona.ai.provider}/${persona.ai.model}`;
@@ -317,6 +347,30 @@ function createChutesModel(modelId: string): LanguageModel {
 	return createChutesProvider().chatModel(modelId);
 }
 
+/** Resolve the OpenRouter API key (credentials > env). */
+export function resolveOpenRouterApiKey(): string | undefined {
+	const fromCreds = readCredentials().ai?.openrouter?.apiKey?.trim();
+	if (fromCreds) {
+		return fromCreds;
+	}
+	const fromEnv = process.env.OPENROUTER_API_KEY?.trim();
+	return fromEnv && fromEnv.length > 0 ? fromEnv : undefined;
+}
+
+export function createOpenRouterProvider() {
+	const apiKey = resolveOpenRouterApiKey();
+	return createOpenAICompatible({
+		name: "openrouter",
+		baseURL: OPENROUTER_DEFAULT_BASE_URL,
+		...(apiKey ? { apiKey } : {}),
+		headers: buildAiGatewayAttributionHeaders(),
+	});
+}
+
+function createOpenRouterModel(modelId: string): LanguageModel {
+	return createOpenRouterProvider().chatModel(modelId);
+}
+
 export function resolveAuxiliaryModelId(
 	providerId: string,
 	override?: string,
@@ -329,6 +383,9 @@ export function resolveAuxiliaryModelId(
 			return raw;
 		}
 		if (providerId === "chutes") {
+			return raw;
+		}
+		if (providerId === "openrouter") {
 			return raw;
 		}
 		if (isGatewayModelSlug(raw)) {
@@ -348,6 +405,9 @@ export function resolveAuxiliaryModelId(
 	}
 	if (providerId === "chutes") {
 		return CHUTES_AUX_DEFAULT;
+	}
+	if (providerId === "openrouter") {
+		return OPENROUTER_AUX_DEFAULT;
 	}
 	return OPENAI_AUX_DEFAULT;
 }
@@ -372,6 +432,9 @@ export function createModelForPersona(persona: Persona): LanguageModel {
 			break;
 		case "chutes":
 			model = createChutesModel(persona.ai.model);
+			break;
+		case "openrouter":
+			model = createOpenRouterModel(persona.ai.model);
 			break;
 		default:
 			throw new Error(
