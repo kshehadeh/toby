@@ -36,5 +36,6 @@ Use the project picker in the chat toolbar (or open **Projects** in the sidebar)
 ## Next steps
 
 - [Integrations overview](../integrations/overview) — per-service setup
+- [Chat surfaces](../chat-surfaces/overview) — Slack tools and @mentions
 - [Personas](../personas) · [Skills](../skills) · [Memories](../memories) · [Schedules](../schedules)
 - [Examples](../examples)

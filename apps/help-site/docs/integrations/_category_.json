@@ -1,8 +1,11 @@
 {
 	"label": "Integrations",
-	"position": 6,
+	"position": 4.1,
 	"link": {
 		"type": "doc",
 		"id": "integrations/overview"
+	},
+	"customProps": {
+		"icon": "blocks"
 	}
 }

@@ -13,10 +13,12 @@ Toby.app currently has two roles:
 
 | Role | How it works |
 | ---- | ------------ |
-| Native user surface | Starts the local service when needed, then calls its localhost API for status, sessions, streaming chat turns, personas, and configuration. |
-| Native permission bridge | Hosts a separate localhost native API server for macOS operations that need a stable app identity or native framework access. Both the macOS plugin (`toby-plugin-macos`) and the Apple Calendar plugin (`toby-plugin-applecalendar`) are TypeScript plugins that delegate all operations to this server. |
+| Native user surface | Starts the local service when needed, then calls its localhost **Server API** for status, sessions, streaming chat turns, personas, and configuration. |
+| Native permission bridge | Hosts a separate localhost **Native API** for macOS operations that need a stable app identity or native framework access. TypeScript plugins such as macOS, Apple Calendar, Apple Contacts, and Apple Reminders delegate all native operations to this server. |
 
 The app does **not** embed the full assistant engine inside the SwiftUI process. It talks to the local service over HTTP so chat, schedules, and integrations stay on one shared path.
+
+For endpoint-level documentation, see [Local APIs](./api/overview): the daemon [Server API](./api/server-api) and Toby.app’s [Native API](./api/native-api).
 
 ## Surfaces
 
@@ -131,6 +133,8 @@ Current native API areas:
 | Area | Used by | macOS permission |
 | ---- | ------- | ---------------- |
 | Calendar operations | Apple Calendar plugin | Calendar / EventKit |
+| Reminders operations | Apple Reminders plugin | Reminders / EventKit |
+| Contacts search and detail | Apple Contacts plugin | Contacts |
 | Wi-Fi, Bluetooth, audio, battery, display, clipboard, shortcuts, system info | macOS plugin | Various (CoreWLAN, CoreAudio, IOBluetooth, IOKit, AppKit) |
 | Window minimize and restore | macOS plugin | Accessibility |
 
@@ -140,4 +144,6 @@ If Toby.app is not running, both plugins auto-launch it in the background.
 
 - [Architecture](./architecture/overview)
 - [Apple Calendar](./integrations/apple-calendar)
+- [Apple Reminders](./integrations/apple-reminders)
+- [Apple Contacts](./integrations/apple-contacts)
 - [macOS integration](./integrations/macos)

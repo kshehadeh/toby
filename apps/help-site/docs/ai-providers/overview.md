@@ -53,7 +53,7 @@ Override with `TOBY_PRETREAT_MODEL` (bare id for OpenAI, or a full gateway slug 
 
 ## Default integration providers
 
-Separate from AI: in **Toby.app → Settings → Default Providers**, you pick which connected integration Toby prefers per category (email, calendar, tasks, and so on). That is unrelated to which LLM vendor you use. See [Set up your AI](../getting-started/setup-ai#default-providers-optional).
+Separate from AI: in **Toby.app → Settings → Default Providers**, you pick which connected integration Toby prefers per category (email, calendar, tasks, and so on). That is unrelated to which LLM vendor you use. See [Default providers](../configuration/default-providers).
 
 ## Related topics
 

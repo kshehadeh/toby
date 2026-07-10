@@ -28,7 +28,8 @@ and macOS (`toby-plugin-macos`) are TypeScript plugins that
 delegate **all** native operations to the app’s native API server via
 `~/.toby/native-port`.
 
-See [Toby.app](../toby-app) for the user-facing app documentation and the source
+See [Toby.app](../toby-app) for the user-facing app documentation, the
+[Native API reference](../api/native-api) for endpoints, and the source
 [native helper notes](https://github.com/kshehadeh/toby/blob/main/docs/native-helpers.md)
 for implementation details.
 
@@ -41,10 +42,13 @@ memories, projects, configuration, status, and configure actions.
 The service is local-only and uses the same core harness as scheduled jobs and
 inbound chat (for example Slack @mentions). Interactive chat turns stream events
 over SSE so the native UI can render the turn lifecycle without reimplementing
-the pipeline.
+the pipeline. For how chat apps connect as tools and as inbound channels, see
+[Chat surfaces](../chat-surfaces/overview).
 
-See the source
-[server API reference](https://github.com/kshehadeh/toby/blob/main/docs/server-api.md).
+See [Local APIs](../api/overview), the [Server API reference](../api/server-api),
+and the [Native API reference](../api/native-api) for endpoint documentation.
+The daemon Server API and Toby.app’s Native API (`~/.toby/native-port`) are
+separate surfaces.
 
 ## `@toby/core`
 
@@ -85,8 +89,8 @@ External systems are the services Toby reaches through plugins and tools:
 email, tasks, chat, documents, work tracking, search, and calendars. Toby models
 integrations by provider category so a session can reason about the kind of work
 being requested instead of hard-coding vendor names everywhere. Web Search is a
-global tool, while document stores such as Notion use the `documents` provider
-category.
+global tool (see [Configuration → Web Search](../configuration/web-search)), while
+document stores such as Notion use the `documents` provider category.
 
 See [Integrations overview](../integrations/overview) for available integrations,
 provider categories, and default provider behavior.

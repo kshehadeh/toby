@@ -73,9 +73,10 @@ In the same Settings window, click **Default Providers** to pick which connected
 | Documents | Notion |
 | Work Tracker | Jira |
 
-These defaults help schedules and multi-integration chat pick the right tools.
+These defaults help schedules and multi-integration chat pick the right tools. Full detail: [Default providers](../configuration/default-providers).
 
 ## Next steps
 
 - [Configure and connect integrations](./configure-and-status)
+- [Configuration](../configuration/overview) — web search, inbound chat, transcription, and more
 - [Your first chat](./first-chat)

@@ -303,7 +303,7 @@ If you used the [app manifest](#create-from-app-manifest-recommended), Socket Mo
 
 ### Enable inbound in Toby
 
-1. Open **Toby.app → Settings → Daemon / inbound chat**: enable, set **Active integration** to Slack, pick a persona.
+1. Open **Toby.app → Settings → Chat** (inbound): enable, set **Active integration** to Slack, pick a persona. See [Inbound chat](../configuration/inbound-chat).
 2. **Integrations → Slack**: set **Bot Token**, **App Token**, optional **Bot User ID** (fields appear when inbound is enabled, even under OAuth).
 3. Click **Connect** if you use OAuth for chat (marks Slack connected).
 4. Keep **Toby.app** running so the local service can maintain the Socket Mode connection.
@@ -313,5 +313,7 @@ Each workspace + channel + thread root is one persisted Toby chat session.
 
 ## Related
 
+- [Chat surfaces](../chat-surfaces/overview) — tools vs inbound overview
+- [Inbound chat](../configuration/inbound-chat) — Settings → Chat
 - [Integrations overview](overview)
 - [Configure and connect](../getting-started/configure-and-status)

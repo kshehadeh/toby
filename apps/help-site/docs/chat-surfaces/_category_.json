@@ -1,0 +1,11 @@
+{
+	"label": "Chat surfaces",
+	"position": 7.5,
+	"link": {
+		"type": "doc",
+		"id": "chat-surfaces/overview"
+	},
+	"customProps": {
+		"icon": "message"
+	}
+}

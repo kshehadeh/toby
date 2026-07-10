@@ -1,5 +1,5 @@
 ---
-sidebar_position: 8
+sidebar_position: 10
 title: macOS
 ---
 
@@ -113,5 +113,7 @@ Open the macOS detail page and click **Disconnect**. This clears Toby's connecti
 
 - [Integrations overview](overview)
 - [Apple Calendar](apple-calendar)
+- [Apple Reminders](apple-reminders)
+- [Apple Contacts](apple-contacts)
 - [Toby.app](../toby-app)
 - [Configure and connect](../getting-started/configure-and-status)

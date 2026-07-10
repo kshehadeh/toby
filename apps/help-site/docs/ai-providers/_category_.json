@@ -4,5 +4,8 @@
 	"link": {
 		"type": "doc",
 		"id": "ai-providers/overview"
+	},
+	"customProps": {
+		"icon": "sparkles"
 	}
 }

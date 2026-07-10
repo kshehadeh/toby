@@ -68,7 +68,7 @@ Find unresolved Jira bugs assigned to me in the current sprint. Group them by pr
 
 ## Research a URL and the web
 
-**Setup:** AI configured. For web search, [Web Search](./integrations/web-search) configured.
+**Setup:** AI configured. For web search, [Web Search](./configuration/web-search) enabled (Vercel AI Gateway key + Settings → Web Search).
 
 **Chat:**
 

@@ -55,12 +55,16 @@ Open the integration detail page and click **Disconnect**. This clears Toby's co
 | Todoist | [Todoist](../integrations/todoist) |
 | Slack | [Slack](../integrations/slack) |
 | Apple Calendar (macOS) | [Apple Calendar](../integrations/apple-calendar) |
+| Apple Reminders (macOS) | [Apple Reminders](../integrations/apple-reminders) |
+| Apple Contacts (macOS) | [Apple Contacts](../integrations/apple-contacts) |
 | macOS system controls | [macOS](../integrations/macos) |
-| Web Search | [Web Search](../integrations/web-search) |
 | Jira | [Jira](../integrations/jira) |
 | Notion | [Notion](../integrations/notion) |
+
+Web Search is a **built-in setting**, not an integration. See [Web Search](../configuration/web-search).
 
 ## Next steps
 
 - [Your first chat](./first-chat)
 - [Integrations overview](../integrations/overview)
+- [Configuration](../configuration/overview)

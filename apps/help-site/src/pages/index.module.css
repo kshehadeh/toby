@@ -50,6 +50,25 @@
 	text-decoration-color: var(--toby-accent, #f97316);
 }
 
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.85rem 1.25rem;
+	margin: 1.5rem 0 0.5rem;
+}
+
+.secondaryAction {
+	font-size: 0.9375rem;
+	font-weight: 500;
+	color: var(--toby-text-muted, #a3a3a3);
+	text-decoration: none !important;
+}
+
+.secondaryAction:hover {
+	color: var(--toby-accent, #f97316);
+}
+
 .grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));

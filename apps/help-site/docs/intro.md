@@ -29,8 +29,11 @@ It combines:
 | What Toby can do | [What Does Toby Do?](./what-does-toby-do) |
 | Install Toby and set up AI | [Install](./getting-started/install) → [Set up AI](./getting-started/setup-ai) → [AI providers](./ai-providers/overview) |
 | Connect Email, Todoist, and more | [Configure & connect](./getting-started/configure-and-status) → [Integrations](./integrations/overview) |
+| Chat apps (Slack tools + @mentions) | [Chat surfaces](./chat-surfaces/overview) · [Slack](./integrations/slack) |
 | Start chatting | [Your first chat](./getting-started/first-chat) |
 | Use the native app | [Toby.app](./toby-app) |
 | Personas, skills, memories, schedules | [Personas](./personas) · [Skills](./skills) · [Memories](./memories) · [Schedules](./schedules) |
+| Settings not covered elsewhere | [Configuration](./configuration/overview) · [Web Search](./configuration/web-search) |
 | Real-world workflows | [Examples](./examples) |
 | Build your own integration | [Creating a plugin](./plugins/creating-a-plugin) |
+| Local APIs (daemon + Toby.app native) | [Local APIs](./api/overview) · [Server API](./api/server-api) · [Native API](./api/native-api) |

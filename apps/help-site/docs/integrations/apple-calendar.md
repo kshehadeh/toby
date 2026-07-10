@@ -55,5 +55,7 @@ Open the Apple Calendar detail page and click **Disconnect**.
 ## Related
 
 - [Integrations overview](overview)
+- [Apple Reminders](apple-reminders)
+- [Apple Contacts](apple-contacts)
 - [Toby.app](../toby-app)
 - [Configure and connect](../getting-started/configure-and-status)

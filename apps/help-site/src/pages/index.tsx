@@ -2,6 +2,7 @@ import Link from "@docusaurus/Link";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import Layout from "@theme/Layout";
 import type React from "react";
+import DownloadTobyButton from "../components/DownloadTobyButton";
 import styles from "./index.module.css";
 
 const sections = [
@@ -21,6 +22,11 @@ const sections = [
 		title: "Integrations",
 		description: "Email, Todoist, Slack, Jira, and Apple Calendar.",
 		to: "/docs/integrations/overview",
+	},
+	{
+		title: "Chat surfaces",
+		description: "Use Slack from Toby, or let @mentions drive chat turns.",
+		to: "/docs/chat-surfaces/overview",
 	},
 	{
 		title: "Personas",
@@ -72,9 +78,18 @@ export default function Home(): React.JSX.Element {
 				</p>
 				<p className={styles.lead}>
 					New here? Read{" "}
-					<Link to="/docs/what-does-toby-do">What Does Toby Do?</Link>, then{" "}
-					<Link to="/docs/getting-started/install">install Toby</Link>.
+					<Link to="/docs/what-does-toby-do">What Does Toby Do?</Link>, then
+					install Toby below.
 				</p>
+				<div className={styles.actions}>
+					<DownloadTobyButton />
+					<Link
+						to="/docs/getting-started/install"
+						className={styles.secondaryAction}
+					>
+						Installation guide →
+					</Link>
+				</div>
 				<div className={styles.grid}>
 					{sections.map((section) => (
 						<Link key={section.title} to={section.to} className={styles.card}>

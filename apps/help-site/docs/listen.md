@@ -36,6 +36,12 @@ If a recording failed to transcribe or you changed your transcription settings:
 Depending on selected sources, macOS may request Microphone, Screen/System Audio
 Recording, and related permissions for **Toby.app**.
 
+## Transcription settings
+
+Provider, model, and API key for speech-to-text are under **Settings → Transcription**.
+See [Transcription](./configuration/transcription).
+
 ## Related
 
+- [Transcription](./configuration/transcription)
 - [Toby.app](./toby-app)

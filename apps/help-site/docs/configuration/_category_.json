@@ -1,0 +1,11 @@
+{
+	"label": "Configuration",
+	"position": 4.25,
+	"link": {
+		"type": "doc",
+		"id": "configuration/overview"
+	},
+	"customProps": {
+		"icon": "settings"
+	}
+}

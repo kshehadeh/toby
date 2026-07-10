@@ -30,15 +30,20 @@ Integrations connect Toby to your email, tasks, chat, contacts, calendar, docume
 		<span className="integrationIconName">Apple Calendar</span>
 		<span className="integrationIconMeta">Calendar</span>
 	</a>
+	<a className="integrationIconCard" href="./apple-reminders">
+		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/apple/A2AAAD" alt="" /></span>
+		<span className="integrationIconName">Apple Reminders</span>
+		<span className="integrationIconMeta">Tasks</span>
+	</a>
+	<a className="integrationIconCard" href="./apple-contacts">
+		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/apple/A2AAAD" alt="" /></span>
+		<span className="integrationIconName">Apple Contacts</span>
+		<span className="integrationIconMeta">Contacts</span>
+	</a>
 	<a className="integrationIconCard" href="./macos">
 		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/apple/FFFFFF" alt="" /></span>
 		<span className="integrationIconName">macOS</span>
 		<span className="integrationIconMeta">System controls</span>
-	</a>
-	<a className="integrationIconCard" href="./web-search">
-		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/perplexity/20808D" alt="" /></span>
-		<span className="integrationIconName">Web Search</span>
-		<span className="integrationIconMeta">Search · AI Gateway</span>
 	</a>
 	<a className="integrationIconCard" href="./jira">
 		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/jira/0052CC" alt="" /></span>
@@ -68,9 +73,9 @@ Open **Toby.app** and use the **Setup Guide** button on any integration. It show
 
 ## Installable plugins
 
-Email, Todoist, Jira, Notion, Slack, Apple Calendar, macOS, and other first-party integrations ship as **plugins** bundled with Toby.app. When you install or update Toby from a release, they are placed under `~/.toby/plugins/` automatically.
+Email, Todoist, Jira, Notion, Slack, Apple Calendar, Apple Reminders, Apple Contacts, macOS, and other first-party integrations ship as **plugins** bundled with Toby.app. When you install or update Toby from a release, they are placed under `~/.toby/plugins/` automatically.
 
-Web Search is a **built-in feature** (not a plugin) that uses the Vercel AI Gateway's Perplexity search. See [Web Search](./web-search) for setup.
+**Web Search** is not an integration—it is a built-in Settings feature. See [Web Search](../configuration/web-search).
 
 Plugins come in two formats:
 
@@ -98,10 +103,10 @@ Each integration declares one or more **provider categories**. A category descri
 | Integration | Category |
 | ----------- | -------- |
 | Email | Email |
-| Apple Calendar | Calendar |
+| [Apple Calendar](./apple-calendar) | Calendar |
 | Todoist | Tasks |
-| Apple Reminders | Tasks |
-| Apple Contacts | Contacts |
+| [Apple Reminders](./apple-reminders) | Tasks |
+| [Apple Contacts](./apple-contacts) | Contacts |
 | Slack | Chat |
 | Notion | Documents |
 | Jira | Work Tracker |
@@ -126,6 +131,10 @@ Open **Toby.app → Settings → Default Providers** and choose an integration (
 
 If you only connect one integration per category, defaults are optional—Toby can infer that integration for schedules and chat. Defaults become important when multiple integrations share a category or when you want schedules to target a specific provider.
 
+## Chat apps (Slack and inbound)
+
+Integrations in the **Chat** category (today [Slack](./slack)) work in two directions: **tools from Toby** and optional **inbound @mentions** into Toby. See **[Chat surfaces](../chat-surfaces/overview)** for the product overview, then the Slack guide for credentials and app setup.
+
 ## Using integrations in chat
 
 **Default:** With multiple integrations connected, Toby merges their tools in one session.
@@ -138,14 +147,14 @@ email summarize unread messages from this week
 
 **Pick explicitly** — Use the integration picker in the Toby.app chat window.
 
-## Web content tools
+## Web content tools (built-in)
 
-Toby includes two tools for accessing web content in chat—no explicit integration selection needed:
+These are **not** installable integrations. No integration picker is required:
 
-- **`fetchWebContent`** — Always available. Fetches a URL and extracts the main readable article content (strips ads, navigation, footers). Use when you share a URL or ask Toby to read a page.
-- **`webSearch`** — Available when Web Search is enabled in Settings and a Vercel AI Gateway API key is configured. Searches the web via Perplexity and returns titles, URLs, and snippets. Works with any persona AI provider. Use when you ask Toby to look something up, research a topic, or find current information.
+- **`fetchWebContent`** — Always available. Fetches a URL and extracts the main readable article content (strips ads, navigation, footers).
+- **`webSearch`** — Available when [Web Search](../configuration/web-search) is enabled and a Vercel AI Gateway API key is configured.
 
-Toby automatically routes to the right tool based on your request. If you ask to "search the web for …" it uses `webSearch`; if you share a URL it uses `fetchWebContent`. You can combine both: search first, then read a result.
+See [Configuration → Web Search](../configuration/web-search) for setup.
 
 ## Work tracking
 
