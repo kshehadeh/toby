@@ -7,6 +7,7 @@ import {
 	getCredentialsPath,
 	readConfig,
 	readCredentials,
+	setDefaultPersona,
 	writeConfig,
 } from "@toby/core/config/index";
 
@@ -55,6 +56,22 @@ describe("readConfig", () => {
 		fs.writeFileSync(CONFIG_PATH, JSON.stringify(data));
 		const config = readConfig();
 		expect(config.integrations.todoist.apiKey).toBe("x");
+	});
+
+	it("preserves dashboard settings through read/write", () => {
+		writeConfig({
+			integrations: {},
+			personas: [],
+			dashboard: { persona: "Dashboard Updater" },
+			defaultPersona: "Toby",
+		});
+		expect(readConfig().dashboard).toEqual({ persona: "Dashboard Updater" });
+
+		// read → mutate → write must not drop dashboard (e.g. set-default-persona).
+		setDefaultPersona("Other");
+		const config = readConfig();
+		expect(config.defaultPersona).toBe("Other");
+		expect(config.dashboard).toEqual({ persona: "Dashboard Updater" });
 	});
 });
 

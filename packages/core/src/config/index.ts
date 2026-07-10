@@ -289,6 +289,7 @@ export function readConfig(): TobyConfig {
 		web: parsed.web,
 		ai: parsed.ai,
 		activeProject: parsed.activeProject,
+		dashboard: parsed.dashboard,
 	};
 }
 
