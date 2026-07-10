@@ -1,3 +1,4 @@
+import { chutesModelListAdapter } from "./adapters/chutes";
 import { ollamaModelListAdapter } from "./adapters/ollama";
 import { openAiModelListAdapter } from "./adapters/openai";
 import { vercelGatewayModelListAdapter } from "./adapters/vercel-gateway";
@@ -7,6 +8,7 @@ const ADAPTERS: readonly ModelListAdapter[] = [
 	openAiModelListAdapter,
 	vercelGatewayModelListAdapter,
 	ollamaModelListAdapter,
+	chutesModelListAdapter,
 ];
 
 const byId = new Map(ADAPTERS.map((a) => [a.providerId, a]));

@@ -1,3 +1,7 @@
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
 	clearModelListCache,
 	fetchAIProviderModels,
@@ -11,15 +15,12 @@ import {
 	writeConfig,
 	writeCredentials,
 } from "@toby/core/config/index";
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 
 let tempDir: string;
 let originalTobyDir: string | undefined;
 let originalFetch: typeof globalThis.fetch | undefined;
 let originalGatewayKey: string | undefined;
+let originalChutesKey: string | undefined;
 
 function emptyConfig(
 	overrides: {
@@ -64,6 +65,14 @@ function restoreEnv() {
 			Reflect.deleteProperty(process.env, "AI_GATEWAY_API_KEY");
 		}
 		originalGatewayKey = undefined;
+	}
+	if (originalChutesKey !== undefined) {
+		if (originalChutesKey) {
+			process.env.CHUTES_API_KEY = originalChutesKey;
+		} else {
+			Reflect.deleteProperty(process.env, "CHUTES_API_KEY");
+		}
+		originalChutesKey = undefined;
 	}
 	clearModelListCache();
 }
@@ -266,6 +275,121 @@ describe("fetchAIProviderModels", () => {
 		expect(list.unavailableReason).toContain("connection refused");
 		expect(list.models.map((m) => m.id)).toEqual(
 			AI_PROVIDERS.find((p) => p.id === "ollama")?.models ?? [],
+		);
+	});
+
+	it("fetches live Chutes models even when unconfigured (public catalog)", async () => {
+		originalFetch = globalThis.fetch;
+		const fetchMock = mock().mockImplementation(async (input: RequestInfo) => {
+			const url = String(input);
+			expect(url).toBe("https://llm.chutes.ai/v1/models");
+			return new Response(
+				JSON.stringify({
+					data: [
+						{ id: "Qwen/Qwen3-32B-TEE", owned_by: "Qwen" },
+						{ id: "deepseek-ai/DeepSeek-V3.2-TEE", owned_by: "deepseek-ai" },
+					],
+				}),
+				{ status: 200, headers: { "Content-Type": "application/json" } },
+			);
+		});
+		globalThis.fetch = fetchMock as typeof globalThis.fetch;
+
+		const list = await fetchAIProviderModels("chutes");
+		expect(list.remote).toBe(true);
+		expect(list.unavailableReason).toBeUndefined();
+		expect(list.models.map((m) => m.id)).toEqual([
+			"Qwen/Qwen3-32B-TEE",
+			"deepseek-ai/DeepSeek-V3.2-TEE",
+		]);
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+
+	it("fetches live Chutes models when configured", async () => {
+		originalChutesKey = process.env.CHUTES_API_KEY;
+		process.env.CHUTES_API_KEY = "cpk-test";
+
+		originalFetch = globalThis.fetch;
+		const fetchMock = mock().mockImplementation(async (input: RequestInfo) => {
+			const url = String(input);
+			expect(url).toBe("https://llm.chutes.ai/v1/models");
+			return new Response(
+				JSON.stringify({
+					data: [
+						{
+							id: "Qwen/Qwen3-32B-TEE",
+							owned_by: "Qwen",
+							context_length: 40000,
+						},
+						{
+							id: "deepseek-ai/DeepSeek-V3.2-TEE",
+							owned_by: "deepseek-ai",
+							context_length: 128000,
+						},
+						{
+							id: "zai-org/GLM-5-TEE",
+							owned_by: "zai-org",
+							context_length: 198000,
+						},
+					],
+				}),
+				{ status: 200, headers: { "Content-Type": "application/json" } },
+			);
+		});
+		globalThis.fetch = fetchMock as typeof globalThis.fetch;
+
+		const list = await fetchAIProviderModels("chutes");
+		expect(list.remote).toBe(true);
+		expect(list.unavailableReason).toBeUndefined();
+		const ids = list.models.map((m) => m.id);
+		expect(ids).toEqual([
+			"Qwen/Qwen3-32B-TEE",
+			"deepseek-ai/DeepSeek-V3.2-TEE",
+			"zai-org/GLM-5-TEE",
+		]);
+		// Context window is parsed
+		expect(list.models[0]?.contextWindowTokens).toBe(40000);
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+
+		// cache
+		await fetchAIProviderModels("chutes");
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+
+	it("soft-falls back to curated Chutes models on API error", async () => {
+		originalChutesKey = process.env.CHUTES_API_KEY;
+		process.env.CHUTES_API_KEY = "cpk-test";
+
+		originalFetch = globalThis.fetch;
+		globalThis.fetch = mock().mockResolvedValue(
+			new Response(JSON.stringify({ error: "rate limited" }), {
+				status: 429,
+			}),
+		) as typeof globalThis.fetch;
+
+		const list = await fetchAIProviderModels("chutes");
+		expect(list.remote).toBe(true);
+		expect(list.unavailableReason).toContain("429");
+		expect(list.models.length).toBeGreaterThan(0);
+		expect(list.models[0]?.id).toBe(
+			AI_PROVIDERS.find((p) => p.id === "chutes")?.models[0],
+		);
+	});
+
+	it("soft-falls back when Chutes is unreachable", async () => {
+		originalChutesKey = process.env.CHUTES_API_KEY;
+		process.env.CHUTES_API_KEY = "cpk-test";
+
+		originalFetch = globalThis.fetch;
+		globalThis.fetch = mock().mockRejectedValue(
+			new Error("connection refused"),
+		) as typeof globalThis.fetch;
+
+		const list = await fetchAIProviderModels("chutes");
+		expect(list.remote).toBe(true);
+		expect(list.unavailableReason).toContain("connection refused");
+		expect(list.models.map((m) => m.id)).toEqual(
+			AI_PROVIDERS.find((p) => p.id === "chutes")?.models ?? [],
 		);
 	});
 });

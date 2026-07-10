@@ -16,12 +16,24 @@ import {
 
 const GATEWAY_SLUG_RE = /^[a-z0-9-]+\/[a-z0-9][a-z0-9.-]*$/i;
 
+/**
+ * Chutes model IDs are slash-delimited (e.g. `Qwen/Qwen3-32B-TEE`).
+ * Routing pools allow comma-separated IDs with optional `:latency` or
+ * `:throughput` suffixes (e.g. `model-a,model-b:latency`).
+ */
+const CHUTES_MODEL_RE =
+	/^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+(?:,[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+)*(?::(?:latency|throughput))?$/;
+
 const OPENAI_AUX_DEFAULT = "gpt-4.1-nano";
 const VERCEL_AUX_DEFAULT = "openai/gpt-4.1-nano";
 const OLLAMA_AUX_DEFAULT = "llama3.2";
+const CHUTES_AUX_DEFAULT = "deepseek-ai/DeepSeek-V3.2-TEE";
 
 /** Default base URL for a local Ollama server's OpenAI-compatible API. */
 export const OLLAMA_DEFAULT_BASE_URL = "http://localhost:11434/v1";
+
+/** Default base URL for Chutes' OpenAI-compatible LLM endpoint. */
+export const CHUTES_DEFAULT_BASE_URL = "https://llm.chutes.ai/v1";
 
 /** Default app URL for Vercel AI Gateway attribution (https://vercel.com/docs/ai-gateway/ecosystem/app-attribution). */
 const DEFAULT_AI_GATEWAY_HTTP_REFERER = "https://github.com/kshehadeh/toby";
@@ -76,6 +88,11 @@ export function isAIProviderConfigured(providerId: string): boolean {
 					(configBaseUrl && configBaseUrl.length > 0),
 			);
 		}
+		case "chutes": {
+			const credsKey = readCredentials().ai?.chutes?.apiKey?.trim();
+			const envKey = process.env.CHUTES_API_KEY?.trim();
+			return Boolean(credsKey || (envKey && envKey.length > 0));
+		}
 		default:
 			return false;
 	}
@@ -107,6 +124,15 @@ export function validatePersonaAi(persona: Persona): void {
 		if (!persona.ai.model.trim()) {
 			throw new Error(
 				"Ollama model name is required (e.g. llama3.2). Run `toby configure` to set it.",
+			);
+		}
+		return;
+	}
+
+	if (provider.modelFormat === "chutes-id") {
+		if (!persona.ai.model.trim()) {
+			throw new Error(
+				"Chutes model is required (e.g. deepseek-ai/DeepSeek-V3.2-TEE). Run `toby configure` to set it.",
 			);
 		}
 		return;
@@ -150,6 +176,19 @@ export function normalizeModelOnProviderChange(
 		return previousModel || provider.models[0] || OLLAMA_AUX_DEFAULT;
 	}
 
+	if (provider.modelFormat === "chutes-id") {
+		// Chutes model IDs contain slashes (e.g. Qwen/Qwen3-32B-TEE).
+		// Keep them as-is if valid; strip routing suffixes from non-Chutes formats.
+		if (CHUTES_MODEL_RE.test(previousModel)) {
+			return previousModel;
+		}
+		// If switching from OpenAI (no slash), try wrapping in a common prefix
+		if (previousModel && !previousModel.includes("/")) {
+			return previousModel;
+		}
+		return provider.models[0] ?? CHUTES_AUX_DEFAULT;
+	}
+
 	if (previousModel.includes("/")) {
 		const slash = previousModel.lastIndexOf("/");
 		return previousModel.slice(slash + 1) || "gpt-5-mini";
@@ -160,6 +199,9 @@ export function normalizeModelOnProviderChange(
 
 export function formatPersonaAiLabel(persona: Persona): string {
 	if (persona.ai.provider === "vercel") {
+		return persona.ai.model;
+	}
+	if (persona.ai.provider === "chutes") {
 		return persona.ai.model;
 	}
 	return `${persona.ai.provider}/${persona.ai.model}`;
@@ -252,6 +294,29 @@ function createOllamaModel(modelId: string): LanguageModel {
 	return createOllamaProvider().chatModel(modelId);
 }
 
+/** Resolve the Chutes API key (credentials > env). */
+export function resolveChutesApiKey(): string | undefined {
+	const fromCreds = readCredentials().ai?.chutes?.apiKey?.trim();
+	if (fromCreds) {
+		return fromCreds;
+	}
+	const fromEnv = process.env.CHUTES_API_KEY?.trim();
+	return fromEnv && fromEnv.length > 0 ? fromEnv : undefined;
+}
+
+export function createChutesProvider() {
+	const apiKey = resolveChutesApiKey();
+	return createOpenAICompatible({
+		name: "chutes",
+		baseURL: CHUTES_DEFAULT_BASE_URL,
+		...(apiKey ? { apiKey } : {}),
+	});
+}
+
+function createChutesModel(modelId: string): LanguageModel {
+	return createChutesProvider().chatModel(modelId);
+}
+
 export function resolveAuxiliaryModelId(
 	providerId: string,
 	override?: string,
@@ -261,6 +326,9 @@ export function resolveAuxiliaryModelId(
 
 	if (raw) {
 		if (providerId === "ollama") {
+			return raw;
+		}
+		if (providerId === "chutes") {
 			return raw;
 		}
 		if (isGatewayModelSlug(raw)) {
@@ -277,6 +345,9 @@ export function resolveAuxiliaryModelId(
 	}
 	if (providerId === "ollama") {
 		return OLLAMA_AUX_DEFAULT;
+	}
+	if (providerId === "chutes") {
+		return CHUTES_AUX_DEFAULT;
 	}
 	return OPENAI_AUX_DEFAULT;
 }
@@ -298,6 +369,9 @@ export function createModelForPersona(persona: Persona): LanguageModel {
 			break;
 		case "ollama":
 			model = createOllamaModel(persona.ai.model);
+			break;
+		case "chutes":
+			model = createChutesModel(persona.ai.model);
 			break;
 		default:
 			throw new Error(

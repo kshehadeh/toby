@@ -137,10 +137,13 @@ export async function fetchAIProviderModels(
 		}
 
 		if (!isAIProviderConfigured(providerId)) {
-			return staticList(providerId, {
-				remote: false,
-				unavailableReason: "Provider not configured.",
-			});
+			const provider = getAIProvider(providerId);
+			if (!provider?.publicCatalog) {
+				return staticList(providerId, {
+					remote: false,
+					unavailableReason: "Provider not configured.",
+				});
+			}
 		}
 
 		const adapter = getModelListAdapter(providerId);

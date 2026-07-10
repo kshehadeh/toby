@@ -30,6 +30,7 @@ const SECRET_KEY_PREFIXES = [
 	"ai.openai.token",
 	"ai.vercel.apiKey",
 	"ai.ollama.apiKey",
+	"ai.chutes.apiKey",
 	"transcription.openai.apiKey",
 	"transcription.groq.apiKey",
 ] as const;
@@ -135,6 +136,9 @@ export function seedConfigureValues(
 	}
 	if (creds.ai?.ollama?.apiKey) {
 		values["ai.ollama.apiKey"] = creds.ai.ollama.apiKey;
+	}
+	if (creds.ai?.chutes?.apiKey) {
+		values["ai.chutes.apiKey"] = creds.ai.chutes.apiKey;
 	}
 	if (config.ai?.ollama?.baseUrl) {
 		values["ai.ollama.baseUrl"] = config.ai.ollama.baseUrl;
@@ -387,11 +391,14 @@ export function buildCredentialsFromValues(
 		values["ai.vercel.apiKey"] ?? creds.ai?.vercel?.apiKey ?? "";
 	const ollamaApiKey =
 		values["ai.ollama.apiKey"] ?? creds.ai?.ollama?.apiKey ?? "";
+	const chutesApiKey =
+		values["ai.chutes.apiKey"] ?? creds.ai?.chutes?.apiKey ?? "";
 	next = mergeCredentials(next, {
 		ai: {
 			openai: { token },
 			vercel: { apiKey: vercelApiKey },
 			ollama: { apiKey: ollamaApiKey },
+			chutes: { apiKey: chutesApiKey },
 		},
 	});
 

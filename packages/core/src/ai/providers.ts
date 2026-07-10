@@ -1,4 +1,8 @@
-export type AIProviderModelFormat = "openai-id" | "gateway-slug" | "ollama-id";
+export type AIProviderModelFormat =
+	| "openai-id"
+	| "gateway-slug"
+	| "ollama-id"
+	| "chutes-id";
 
 export interface AIProviderInfo {
 	id: string;
@@ -8,6 +12,8 @@ export interface AIProviderInfo {
 	allowCustomModel?: boolean;
 	/** Provider exposes plan spend / remaining balance via billing API. */
 	supportsPlanUsage?: boolean;
+	/** Model catalog endpoint is accessible without credentials. */
+	publicCatalog?: boolean;
 }
 
 export const AI_PROVIDERS: AIProviderInfo[] = [
@@ -72,6 +78,29 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
 			"mistral",
 			"deepseek-r1",
 			"gemma3",
+		],
+	},
+	{
+		id: "chutes",
+		displayName: "Chutes",
+		modelFormat: "chutes-id",
+		allowCustomModel: true,
+		supportsPlanUsage: false,
+		publicCatalog: true,
+		models: [
+			"Qwen/Qwen3-32B-TEE",
+			"google/gemma-4-31B-turbo-TEE",
+			"Qwen/Qwen3.5-397B-A17B-TEE",
+			"Qwen/Qwen3.6-27B-TEE",
+			"deepseek-ai/DeepSeek-V3.2-TEE",
+			"zai-org/GLM-5.2-TEE",
+			"zai-org/GLM-5.1-TEE",
+			"moonshotai/Kimi-K2.6-TEE",
+			"MiniMaxAI/MiniMax-M2.5-TEE",
+			"Qwen/Qwen3-235B-A22B-Thinking-2507-TEE",
+			"moonshotai/Kimi-K2.5-TEE",
+			"unsloth/Mistral-Nemo-Instruct-2407-TEE",
+			"zai-org/GLM-5-TEE",
 		],
 	},
 ];

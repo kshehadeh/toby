@@ -852,6 +852,22 @@ export function buildSettingsTree(
 							},
 						],
 					},
+					{
+						label: "Chutes",
+						kind: "section",
+						key: "ai.chutes",
+						description:
+							"Access open-source TEE-backed models like DeepSeek, Qwen, GLM, and Kimi through Chutes' OpenAI-compatible endpoint.",
+						docUrl: "https://chutes.ai/agents",
+						children: [
+							{
+								label: "API Key",
+								kind: "value",
+								key: "ai.chutes.apiKey",
+								masked: true,
+							},
+						],
+					},
 				],
 			},
 			{

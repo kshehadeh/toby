@@ -1,14 +1,16 @@
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
 	buildAiGatewayAttributionHeaders,
 	formatPersonaAiLabel,
+	isAIProviderConfigured,
 	normalizeModelOnProviderChange,
 	validatePersonaAi,
 } from "@toby/core/ai/model-factory";
 import type { Persona } from "@toby/core/config/index";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { readCredentials, writeCredentials } from "@toby/core/config/index";
 
 let tempDir: string;
 let previousTobyDir: string | undefined;
@@ -86,6 +88,23 @@ describe("validatePersonaAi", () => {
 			validatePersonaAi(testPersona({ provider: "ollama", model: "   " })),
 		).toThrow(/Ollama model name is required/);
 	});
+
+	it("accepts chutes model ids with slashes", () => {
+		expect(() =>
+			validatePersonaAi(
+				testPersona({
+					provider: "chutes",
+					model: "deepseek-ai/DeepSeek-V3.2-TEE",
+				}),
+			),
+		).not.toThrow();
+	});
+
+	it("rejects empty chutes model names", () => {
+		expect(() =>
+			validatePersonaAi(testPersona({ provider: "chutes", model: "   " })),
+		).toThrow(/Chutes model is required/);
+	});
 });
 
 describe("normalizeModelOnProviderChange", () => {
@@ -116,6 +135,24 @@ describe("normalizeModelOnProviderChange", () => {
 	it("keeps bare model names when switching to ollama", () => {
 		expect(normalizeModelOnProviderChange("ollama", "llama3.2")).toBe(
 			"llama3.2",
+		);
+	});
+
+	it("keeps valid chutes model ids when switching to chutes", () => {
+		expect(normalizeModelOnProviderChange("chutes", "Qwen/Qwen3-32B-TEE")).toBe(
+			"Qwen/Qwen3-32B-TEE",
+		);
+	});
+
+	it("uses default chutes model when switching from openai bare id", () => {
+		expect(normalizeModelOnProviderChange("chutes", "gpt-5-mini")).toBe(
+			"gpt-5-mini",
+		);
+	});
+
+	it("uses first curated chutes model when previous is empty", () => {
+		expect(normalizeModelOnProviderChange("chutes", "")).toBe(
+			"Qwen/Qwen3-32B-TEE",
 		);
 	});
 });
@@ -188,5 +225,49 @@ describe("formatPersonaAiLabel", () => {
 				testPersona({ provider: "ollama", model: "llama3.2" }),
 			),
 		).toBe("ollama/llama3.2");
+	});
+
+	it("shows model id only for chutes", () => {
+		expect(
+			formatPersonaAiLabel(
+				testPersona({
+					provider: "chutes",
+					model: "deepseek-ai/DeepSeek-V3.2-TEE",
+				}),
+			),
+		).toBe("deepseek-ai/DeepSeek-V3.2-TEE");
+	});
+});
+
+describe("isAIProviderConfigured (chutes)", () => {
+	let previousChutesKey: string | undefined;
+
+	beforeEach(() => {
+		previousChutesKey = process.env.CHUTES_API_KEY;
+		Reflect.deleteProperty(process.env, "CHUTES_API_KEY");
+	});
+
+	afterEach(() => {
+		if (previousChutesKey !== undefined) {
+			process.env.CHUTES_API_KEY = previousChutesKey;
+		} else {
+			Reflect.deleteProperty(process.env, "CHUTES_API_KEY");
+		}
+	});
+
+	it("returns false when chutes is not configured", () => {
+		writeCredentials({});
+		expect(isAIProviderConfigured("chutes")).toBe(false);
+	});
+
+	it("returns true when chutes apiKey is in credentials", () => {
+		writeCredentials({ ai: { chutes: { apiKey: "cpk-test" } } });
+		expect(isAIProviderConfigured("chutes")).toBe(true);
+	});
+
+	it("returns true when CHUTES_API_KEY env is set", () => {
+		writeCredentials({});
+		process.env.CHUTES_API_KEY = "cpk-env-test";
+		expect(isAIProviderConfigured("chutes")).toBe(true);
 	});
 });
