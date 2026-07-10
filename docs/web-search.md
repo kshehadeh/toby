@@ -6,7 +6,7 @@ Built-in web search via the **Vercel AI Gateway's Perplexity search**. No plugin
 
 `webSearch` is a **client-side function tool**. When the model calls it, the tool's `execute` makes a separate lightweight `generateText` call to the Vercel AI Gateway using `openai/gpt-4.1-mini` with `gateway.tools.perplexitySearch()` (a provider-executed tool that the gateway runs server-side). The gateway sends the search query to Perplexity and returns titles, URLs, snippets, and optional dates, which the tool returns to the calling model.
 
-Because the search runs in a dedicated gateway call (not in the persona's own model turn), **web search works with any persona AI provider** — OpenAI, Ollama, or the Vercel AI Gateway. The persona's AI provider does not need to be the gateway.
+Because the search runs in a dedicated gateway call (not in the persona's own model turn), **web search works with any persona AI provider** — OpenAI, Vercel AI Gateway, Chutes, OpenRouter, or Ollama. The persona's AI provider does not need to be the gateway.
 
 ## Setup
 

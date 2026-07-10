@@ -7,10 +7,13 @@ title: Set up your AI
 
 Toby uses an LLM for chat, summarization, and organization. You need at least one AI provider configured before chatting.
 
-Toby supports two AI providers:
+Toby supports five AI providers:
 
 - **[OpenAI (direct)](../ai-providers/openai)** — a single OpenAI API key; models like `gpt-5-mini`
 - **[Vercel AI Gateway](https://vercel.com/docs/ai-gateway)** — one Vercel key that routes to OpenAI, Anthropic, Google, and more via `provider/model` slugs like `openai/gpt-5-mini` or `anthropic/claude-sonnet-4.6`
+- **[Chutes](../ai-providers/chutes)** — open-source TEE-backed models (DeepSeek, Qwen, GLM, Kimi) via Chutes' OpenAI-compatible endpoint
+- **[OpenRouter](../ai-providers/openrouter)** — hundreds of models from many vendors through a single OpenRouter API key
+- **Ollama** — run open-source models locally on your machine (no API key needed)
 
 You only need **one** provider to start. See the [AI providers overview](../ai-providers/overview) for help choosing.
 
@@ -20,7 +23,7 @@ Open **Toby.app** and click **Settings** in the sidebar. The Settings window sho
 
 ![Toby.app Settings window with AI section](/img/toby-app-settings-ai.png)
 
-Click **AI** in the tree to expand the provider list. You will see **OpenAI**, **Vercel AI Gateway**, and **Ollama** as sub-items.
+Click **AI** in the tree to expand the provider list. You will see **OpenAI**, **Vercel AI Gateway**, **Ollama**, **Chutes**, and **OpenRouter** as sub-items.
 
 ## Step 2: Add your API key
 
@@ -48,6 +51,22 @@ Get an API key from the [Vercel dashboard](https://vercel.com/):
 See Vercel's [AI Gateway authentication docs](https://vercel.com/docs/ai-gateway#authentication) for details, including how to use `VERCEL_OIDC_TOKEN` for local development on a linked Vercel project instead of a static key.
 
 For recommended models, see [Vercel AI Gateway](../ai-providers/vercel-ai-gateway#recommended-models). You can also browse the full [list of models and providers](https://vercel.com/docs/ai-gateway/models-and-providers) in Vercel's docs.
+
+### Chutes
+
+Click **Chutes** under **AI** in the Settings tree. Paste your Chutes API key into the **API Key** field.
+
+Get an API key from [chutes.ai](https://chutes.ai/) — open **Auth → Start** to create a key (starts with `cpk_`).
+
+For recommended models, see [Chutes](../ai-providers/chutes#recommended-models). The model list is fetched live from Chutes' public catalog, so you can browse models even before adding an API key.
+
+### OpenRouter
+
+Click **OpenRouter** under **AI** in the Settings tree. Paste your OpenRouter API key into the **API Key** field.
+
+Get an API key from [openrouter.ai/keys](https://openrouter.ai/keys).
+
+For recommended models, see [OpenRouter](../ai-providers/openrouter#recommended-models). The model list is fetched live from OpenRouter's public catalog, so you can browse models even before adding an API key.
 
 ## Step 3: Choose a persona and model
 

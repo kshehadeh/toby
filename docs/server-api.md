@@ -88,7 +88,7 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `POST` | `/api/sessions/:id/plan/cancel` | Cancel the active plan. |
 | `GET` | `/api/personas` | List persona picker options. |
 | `GET` / related | `/api/personas/:name` | Persona detail (when implemented on router). |
-| `GET` | `/api/ai/providers` | AI provider catalog with live models when configured. |
+| `GET` | `/api/ai/providers` | AI provider catalog with live models when configured or public catalog available. |
 | `GET` | `/api/modules` | List connected chat modules/integrations. |
 | `GET` | `/api/skills` | List local skills. |
 | `GET` | `/api/skills/:name` | Skill detail body. |
@@ -674,7 +674,7 @@ AI provider catalog for settings and persona editor model pickers.
 
 When a provider is **configured** (credentials / API key present, or Ollama base URL), Toby queries that provider’s models API and returns that list as-is (de-duplicated). When the provider is unconfigured or the remote list fails, the response falls back to curated model ids. User `customModels` from config are appended only when not already present.
 
-Remote listing is **not** attempted without credentials (even for the public Vercel models endpoint), so model pickers stay offline-safe until the user configures a provider.
+For providers without a public catalog, remote listing is **not** attempted without credentials, so model pickers stay offline-safe until the user configures a provider. Providers with `publicCatalog: true` (Chutes, OpenRouter) are fetched live even without credentials, since their model catalog endpoints are publicly accessible.
 
 ```ts
 type AIProvidersResponse = {
