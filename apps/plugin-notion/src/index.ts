@@ -66,6 +66,10 @@ async function handleStatus(
 		version: PLUGIN_VERSION,
 		protocolVersion: PROTOCOL_VERSION,
 		icon: "📝",
+		iconAsset: {
+			path: "assets/notion-48.png",
+			mimeType: "image/png",
+		},
 		connected,
 		capabilities: ["chat"],
 		providerCategories: ["documents"],
