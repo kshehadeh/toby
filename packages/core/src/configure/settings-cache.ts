@@ -1,4 +1,4 @@
-import { AI_PROVIDERS } from "../ai/providers";
+import { resolveAIProvidersForUI } from "../ai/model-list";
 import { type Persona, readConfig } from "../config/index";
 import { getIntegrationModules } from "../integrations/index";
 import { resetPluginModuleCache } from "../integrations/plugins/registry";
@@ -15,6 +15,7 @@ interface CachedSettings {
 }
 
 let cached: CachedSettings | null = null;
+let inFlight: Promise<CachedSettings> | null = null;
 
 function buildIntegrationLabels(): Record<string, string> {
 	const labels: Record<string, string> = { "(none)": "None" };
@@ -50,13 +51,14 @@ function stripToSectionNodes(node: SettingsItem): SettingsItem {
 	};
 }
 
-function buildCachedSettings(): CachedSettings {
+async function buildCachedSettings(): Promise<CachedSettings> {
 	const values = seedConfigureValues();
 	const redacted = redactConfigureValues(values);
 	const personas = getPersonas();
+	const availableProviders = await resolveAIProvidersForUI();
 	const tree = buildSettingsTree(
 		personas,
-		AI_PROVIDERS,
+		availableProviders,
 		redacted,
 		readConfig().defaultProviders,
 		{ daemonRunning: true },
@@ -83,11 +85,22 @@ function buildCachedSettings(): CachedSettings {
  * (so newly installed/removed plugins are reflected without requiring a
  * daemon restart).
  */
-export function getSettingsCache(): CachedSettings {
-	if (!cached) {
-		cached = buildCachedSettings();
+export async function getSettingsCache(): Promise<CachedSettings> {
+	if (cached) {
+		return cached;
 	}
-	return cached;
+	if (inFlight) {
+		return inFlight;
+	}
+	inFlight = buildCachedSettings()
+		.then((result) => {
+			cached = result;
+			return result;
+		})
+		.finally(() => {
+			inFlight = null;
+		});
+	return inFlight;
 }
 
 /**
@@ -96,6 +109,7 @@ export function getSettingsCache(): CachedSettings {
  */
 export function invalidateSettingsCache(): void {
 	cached = null;
+	inFlight = null;
 }
 
 /**

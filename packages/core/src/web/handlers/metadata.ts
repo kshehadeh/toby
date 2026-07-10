@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { isAIProviderConfigured } from "../../ai/model-factory";
-import { AI_PROVIDERS } from "../../ai/providers";
+import { resolveAIProvidersForUI } from "../../ai/model-list";
 import { listUsableChatModules } from "../../chat-pipeline/resolve-chat-modules";
 import { listPersonaOptions } from "../../chat-pipeline/turn-runtime";
 import {
@@ -74,9 +74,10 @@ export async function handlePersonaDetail(name: string): Promise<Response> {
 	});
 }
 
-export function handleAIProviders(): Response {
+export async function handleAIProviders(): Promise<Response> {
+	const providers = await resolveAIProvidersForUI();
 	return jsonResponse({
-		providers: AI_PROVIDERS.map((p) => ({
+		providers: providers.map((p) => ({
 			id: p.id,
 			displayName: p.displayName,
 			models: p.models,

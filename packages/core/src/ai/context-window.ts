@@ -1,4 +1,5 @@
 import type { LanguageModelUsage } from "ai";
+import { fetchVercelContextWindows } from "./model-list/vercel-catalog";
 
 export type AIContextWindowInfo =
 	| {
@@ -10,26 +11,6 @@ export type AIContextWindowInfo =
 			readonly supported: false;
 			readonly unavailableReason: string;
 	  };
-
-type VercelGatewayModel = {
-	readonly id?: unknown;
-	readonly context_window?: unknown;
-};
-
-type VercelGatewayModelsResponse = {
-	readonly data?: unknown;
-};
-
-const VERCEL_MODELS_URL = "https://ai-gateway.vercel.sh/v1/models";
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-const FETCH_TIMEOUT_MS = 1500;
-
-let vercelContextWindowCache:
-	| {
-			readonly expiresAt: number;
-			readonly windows: ReadonlyMap<string, number>;
-	  }
-	| undefined;
 
 export function computeContextFillPercentage(
 	inputTokens: number | undefined,
@@ -151,51 +132,6 @@ export function extractContextInputTokens(
 	}
 
 	return undefined;
-}
-
-async function fetchVercelContextWindows(): Promise<
-	ReadonlyMap<string, number>
-> {
-	const now = Date.now();
-	if (vercelContextWindowCache && vercelContextWindowCache.expiresAt > now) {
-		return vercelContextWindowCache.windows;
-	}
-
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-	let response: Response;
-	try {
-		response = await fetch(VERCEL_MODELS_URL, { signal: controller.signal });
-		if (!response.ok) {
-			throw new Error(`AI Gateway models API returned HTTP ${response.status}`);
-		}
-	} finally {
-		clearTimeout(timeout);
-	}
-	const body = (await response.json()) as VercelGatewayModelsResponse;
-	const models = Array.isArray(body.data) ? body.data : [];
-	const windows = new Map<string, number>();
-	for (const item of models) {
-		if (!item || typeof item !== "object") {
-			continue;
-		}
-		const model = item as VercelGatewayModel;
-		if (typeof model.id !== "string") {
-			continue;
-		}
-		if (
-			typeof model.context_window === "number" &&
-			Number.isFinite(model.context_window) &&
-			model.context_window > 0
-		) {
-			windows.set(model.id.toLowerCase(), model.context_window);
-		}
-	}
-	vercelContextWindowCache = {
-		expiresAt: now + CACHE_TTL_MS,
-		windows,
-	};
-	return windows;
 }
 
 export async function resolveContextWindowInfo(params: {

@@ -175,13 +175,10 @@ export function buildSettingsTree(
 		const modelValue = values[`personas.${p.name}.ai.model`] ?? p.ai.model;
 		const providerInfo = availableProviders.find((pr) => pr.id === providerId);
 
-		const customModels = (values[`ai.customModels.${providerId}`] ?? "")
-			.split("\n")
-			.map((s) => s.trim())
-			.filter(Boolean);
-		const modelOptions = [
-			...new Set([...(providerInfo?.models ?? []), ...customModels]),
-		];
+		// providerInfo.models is already the live (or curated) catalog from
+		// resolveAIProvidersForUI, including any customModels not in that list.
+		// Only ensure the currently selected model is present.
+		const modelOptions = [...(providerInfo?.models ?? [])];
 		if (modelValue && !modelOptions.includes(modelValue)) {
 			modelOptions.push(modelValue);
 		}

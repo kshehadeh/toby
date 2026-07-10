@@ -26,7 +26,7 @@ For a persona, set **AI Provider** to `openai` and choose a model from the list 
 
 ## Recommended models
 
-These models are built into Toby’s configure picker and work well for everyday use. All use **direct** ids (examples below).
+Once your OpenAI API key is configured, the model picker loads the **live catalog** from OpenAI (chat models). If the catalog cannot be reached, Toby falls back to the curated list below. All use **direct** ids (examples below).
 
 ### Everyday chat (recommended default)
 

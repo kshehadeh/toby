@@ -99,7 +99,7 @@ Transcript entries and chat stream events are structured JSON objects emitted du
 | `GET` | `/api/personas` | Persona picker list |
 | `GET` | `/api/personas/:name` | Persona detail |
 | `GET` | `/api/personas/image/:filename` | Persona image asset |
-| `GET` | `/api/ai/providers` | AI provider/model catalog |
+| `GET` | `/api/ai/providers` | AI provider catalog with live models when configured |
 | `GET` | `/api/modules` | Connected chat modules |
 | `GET` | `/api/skills` | Local skills list |
 | `GET` | `/api/skills/:name` | Skill body |
@@ -588,7 +588,21 @@ Serves a persona image asset. Use `default.png` for the default image.
 
 ### `GET /api/ai/providers`
 
-AI provider and model catalog used by settings UIs.
+AI provider catalog used by settings and persona editor model pickers.
+
+When a provider is **configured** (API key / credentials present — or Ollama base URL), Toby queries that provider’s models API and returns that list as-is. When unconfigured or the remote list fails, the response falls back to built-in curated model ids. User `customModels` from config are appended only when not already present.
+
+```ts
+type AIProvidersResponse = {
+  providers: readonly {
+    id: string;
+    displayName: string;
+    models: string[];
+    allowCustomModel: boolean;
+    configured: boolean;
+  }[];
+};
+```
 
 ### `GET /api/modules`
 

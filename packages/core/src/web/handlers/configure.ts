@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { isAIProviderConfigured } from "../../ai/model-factory";
+import { clearModelListCache } from "../../ai/model-list";
 import {
 	clearDefaultPersona,
 	ensurePersonaImagesDir,
@@ -40,6 +41,12 @@ import {
 } from "../../skills/manage";
 import { errorResponse, jsonResponse, readJsonBody } from "../http-utils";
 
+/** Settings/credentials changed — drop settings tree + live model lists. */
+function invalidateConfigureCaches(): void {
+	invalidateSettingsCache();
+	clearModelListCache();
+}
+
 function annotateTreeSecrets(node: SettingsItem): SettingsItem {
 	// Masked/secret value fields are now editable from the web UI (rendered as
 	// password inputs) and persisted to the credentials file. Only structural
@@ -54,8 +61,8 @@ function annotateTreeSecrets(node: SettingsItem): SettingsItem {
 	};
 }
 
-export function handleConfigureTree(): Response {
-	const cache = getSettingsCache();
+export async function handleConfigureTree(): Promise<Response> {
+	const cache = await getSettingsCache();
 	return jsonResponse({
 		tree: annotateTreeSecrets(cache.tree),
 		values: cache.redactedValues,
@@ -77,13 +84,15 @@ function findSectionByKey(
 	return null;
 }
 
-export function handleConfigureSections(): Response {
-	const cache = getSettingsCache();
+export async function handleConfigureSections(): Promise<Response> {
+	const cache = await getSettingsCache();
 	return jsonResponse({ sections: cache.sectionsTree });
 }
 
-export function handleConfigureSectionDetail(sectionKey: string): Response {
-	const cache = getSettingsCache();
+export async function handleConfigureSectionDetail(
+	sectionKey: string,
+): Promise<Response> {
+	const cache = await getSettingsCache();
 	const section = findSectionByKey(cache.tree, sectionKey);
 	if (!section) {
 		return errorResponse(`Section "${sectionKey}" not found`, 404);
@@ -102,7 +111,7 @@ export async function handleConfigurePatch(req: Request): Promise<Response> {
 	}
 	try {
 		applyConfigureValuesPatch(body.changes);
-		invalidateSettingsCache();
+		invalidateConfigureCaches();
 		return handleConfigureTree();
 	} catch (e) {
 		return errorResponse(e instanceof Error ? e.message : String(e), 403);
@@ -116,7 +125,7 @@ export async function handleConfigureAction(
 	const body = await readJsonBody<Record<string, string>>(req);
 	// Any configure action may modify config/credentials, so invalidate the
 	// settings cache to ensure the next read picks up the changes.
-	invalidateSettingsCache();
+	invalidateConfigureCaches();
 
 	switch (action) {
 		case "create-persona": {

@@ -27,11 +27,13 @@ Open **Toby.app → Settings → AI → Vercel AI Gateway → API Key** and past
 
 For a persona, set **AI Provider** to `vercel`, then pick a model from the list or enter a **Custom model slug** (any slug your gateway account exposes).
 
+Once your gateway API key is configured, the model picker loads the **live catalog** from Vercel AI Gateway (language models). If the catalog cannot be reached, Toby falls back to the curated list below.
+
 Toby validates slugs as `provider/model` (for example `google/gemini-3-flash`).
 
 ## Recommended models
 
-The Settings model picker lists slugs Toby tests against regularly. These work well for Toby's chat, tool use, summarization, and schedules.
+These slugs work well for Toby's chat, tool use, summarization, and schedules.
 
 ### Everyday chat (recommended defaults)
 

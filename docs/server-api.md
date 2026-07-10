@@ -88,7 +88,7 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `POST` | `/api/sessions/:id/plan/cancel` | Cancel the active plan. |
 | `GET` | `/api/personas` | List persona picker options. |
 | `GET` / related | `/api/personas/:name` | Persona detail (when implemented on router). |
-| `GET` | `/api/ai/providers` | AI provider/model catalog for settings. |
+| `GET` | `/api/ai/providers` | AI provider catalog with live models when configured. |
 | `GET` | `/api/modules` | List connected chat modules/integrations. |
 | `GET` | `/api/skills` | List local skills. |
 | `GET` | `/api/skills/:name` | Skill detail body. |
@@ -667,6 +667,28 @@ type PersonasResponse = {
   }[];
 };
 ```
+
+### `GET /api/ai/providers`
+
+AI provider catalog for settings and persona editor model pickers.
+
+When a provider is **configured** (credentials / API key present, or Ollama base URL), Toby queries that provider’s models API and returns that list as-is (de-duplicated). When the provider is unconfigured or the remote list fails, the response falls back to curated model ids. User `customModels` from config are appended only when not already present.
+
+Remote listing is **not** attempted without credentials (even for the public Vercel models endpoint), so model pickers stay offline-safe until the user configures a provider.
+
+```ts
+type AIProvidersResponse = {
+  providers: readonly {
+    id: string;
+    displayName: string;
+    models: string[];
+    allowCustomModel: boolean;
+    configured: boolean;
+  }[];
+};
+```
+
+Implementation: [`packages/core/src/ai/model-list/`](../packages/core/src/ai/model-list/).
 
 ### `GET /api/modules`
 

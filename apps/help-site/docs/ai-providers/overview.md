@@ -37,6 +37,9 @@ Model ids differ by provider:
 
 - **OpenAI (direct)** — bare ids, e.g. `gpt-5-mini`
 - **Vercel AI Gateway** — `provider/model` slugs, e.g. `anthropic/claude-sonnet-4.6`
+- **Ollama** — local model names, e.g. `llama3.2`
+
+After you add credentials (or an Ollama base URL), persona and Settings model menus load an **up-to-date list** from that provider. Until a provider is configured, Toby shows a short curated default list.
 
 ## Context window display
 
