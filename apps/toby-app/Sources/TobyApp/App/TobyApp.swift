@@ -56,12 +56,15 @@ struct TobyApp: App {
 		.windowStyle(.hiddenTitleBar)
 		.defaultSize(width: 1024, height: 720)
 
+		// Secondary windows: .commandsRemoved() keeps them out of the Window menu
+		// (open via Help / in-app actions instead).
 		Window("Permissions", id: "permissions") {
 			PermissionsView()
 				.onDisappear { NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil) }
 		}
 		.windowStyle(.automatic)
 		.defaultSize(width: 620, height: 520)
+		.commandsRemoved()
 
 		Window("Persona Editor", id: "persona-editor") {
 			Group {
@@ -85,6 +88,7 @@ struct TobyApp: App {
 		}
 		.windowStyle(.automatic)
 		.defaultSize(width: 560, height: 580)
+		.commandsRemoved()
 
 		Window("Logs", id: "logs") {
 			LogsView(store: logsStore, tobyDirectory: store.status?.tobyDir)
@@ -95,8 +99,9 @@ struct TobyApp: App {
 		}
 		.windowStyle(.automatic)
 		.defaultSize(width: 980, height: 680)
+		.commandsRemoved()
 
-	.commands {
+		.commands {
 			CommandGroup(replacing: .newItem) {
 				Button("New Chat") {
 					NotificationCenter.default.post(name: .startNewChat, object: nil)
@@ -105,10 +110,6 @@ struct TobyApp: App {
 			}
 
 			CommandGroup(after: .newItem) {
-				OpenPermissionsMenuItem()
-
-				Divider()
-
 				Button("Backup Settings…") {
 					NotificationCenter.default.post(name: .backupConfig, object: nil)
 				}
@@ -173,6 +174,7 @@ struct TobyApp: App {
 				}
 				.keyboardShortcut("i", modifiers: [.command, .shift])
 				OpenLogsMenuItem()
+				OpenPermissionsMenuItem()
 			}
 		}
 	}
