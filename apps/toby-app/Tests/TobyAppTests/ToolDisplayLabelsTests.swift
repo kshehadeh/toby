@@ -120,8 +120,8 @@ struct ToolDisplayLabelsTests {
 
 	@Test("formats header with integration label prefix")
 	func headerWithIntegrationLabel() {
-		let header = ToolDisplayLabels.formatToolCallHeader(toolName: "listUsers", args: nil, integrationLabel: "Azure AD")
-		#expect(header == "Azure AD: List users")
+		let header = ToolDisplayLabels.formatToolCallHeader(toolName: "listUsers", args: nil, integrationLabel: "Slack")
+		#expect(header == "Slack: List users")
 	}
 
 	@Test("formats header with query argument summary")

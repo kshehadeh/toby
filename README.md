@@ -93,10 +93,11 @@ Current first-party plugin integrations include:
 - Todoist
 - Slack
 - Jira
-- Web Search
+- Notion
 - Apple Calendar
+- Apple Reminders
+- Apple Contacts
 - macOS
-- Azure AD
 - Sample plugin
 
 Plugins can be written in any language that can ship an executable. Toby

@@ -88,7 +88,7 @@ In the same Settings window, click **Default Providers** to pick which connected
 | Calendar | Apple Calendar |
 | Tasks | Todoist |
 | Chat | Slack |
-| Contacts | Azure AD |
+| Contacts | Apple Contacts |
 | Documents | Notion |
 | Work Tracker | Jira |
 

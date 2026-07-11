@@ -5,8 +5,8 @@ description: >-
   integration from packages/core to toby-plugin-<name>. All new plugins must
   be TypeScript bun-package plugins (directory with manifest.json). Use when
   the user asks to build a plugin, convert an integration to a plugin,
-  implement plugin protocol v1, port azuread/email/slack-style modules
-  externally, or wire release/install for toby-plugin directories.
+  implement plugin protocol v1, port email/slack-style modules externally,
+  or wire release/install for toby-plugin directories.
 ---
 
 # Toby integration plugin
@@ -119,8 +119,8 @@ toby plugins inspect <name>
 
 Add contract tests under `apps/cli/tests/` (see
 [`plugins.test.ts`](../../../apps/cli/tests/plugins.test.ts),
-[`plugins-azuread.test.ts`](../../../apps/cli/tests/plugins-azuread.test.ts),
-[`plugins-email.test.ts`](../../../apps/cli/tests/plugins-email.test.ts)):
+[`plugins-email.test.ts`](../../../apps/cli/tests/plugins-email.test.ts),
+[`plugins-slack.test.ts`](../../../apps/cli/tests/plugins-slack.test.ts)):
 status, connect failure/success, tools list/execute, config shape, registry
 discovery.
 
