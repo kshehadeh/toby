@@ -18,11 +18,12 @@ Toby’s preferences live in **Toby.app → Settings**. This section documents *
 | **Chat** (inbound) | Listen for @mentions / external chat into Toby | [Inbound chat](./inbound-chat) · [Chat surfaces](../chat-surfaces/overview) |
 | **Web Search** | Built-in `webSearch` tool (not an integration) | [Web Search](./web-search) |
 | **Transcription** | Provider, key, and summary persona for Listen / recordings | [Transcription](./transcription) |
-| **Listen / Recordings** | Capture and browse recordings | [Listen mode](../listen) · [Toby.app](../toby-app) |
 | **Schedules** | Recurring prompts | [Schedules](../schedules) |
-| **Projects** | Project folders, persona, pinned skills | [Projects](../projects) |
 | **Skills** | Skill list and bodies | [Skills](../skills) |
 | **Memories** | Durable memory browser | [Memories](../memories) |
+
+Projects and recordings are managed outside Settings (sidebar **Projects** and
+**Recordings** windows). See [Projects](../projects) and [Listen mode](../listen).
 
 ## Open Settings
 

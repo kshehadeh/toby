@@ -39,7 +39,6 @@ const SETTINGS_SECTION_KEYS = [
 	"transcription",
 	"webSearch",
 	"dashboard",
-	"projects",
 ];
 
 function stripToSectionNodes(node: SettingsItem): SettingsItem {

@@ -19,14 +19,9 @@ import {
 	getTranscriptionProvider,
 } from "../listen/transcription-providers";
 import { DEFAULT_CHAT_PERSONA } from "../personas/index";
-import {
-	type Project,
-	getActiveProjectSlug,
-	listProjects,
-} from "../projects/index";
+import { listProjects } from "../projects/index";
 import { cronToHuman } from "../schedules/cron-human";
 import { listScheduleRuns, listSchedules } from "../schedules/store";
-import { loadLocalSkills } from "../skills/index";
 import type { ConfigureTreeContext, SettingsItem } from "./types";
 import {
 	ADD_CUSTOM_MODEL_SENTINEL,
@@ -668,93 +663,6 @@ export function buildSettingsTree(
 		],
 	};
 
-	function buildProjectsSection(values: Record<string, string>): SettingsItem {
-		const projects = listProjects();
-		const activeSlug = getActiveProjectSlug();
-		const allSkillNames = loadLocalSkills().map((s) => s.name);
-		const allIntegrationNames = getIntegrationModules().map((m) => m.name);
-		const projectSections: SettingsItem[] = projects.map((project) => {
-			const isActive = project.slug === activeSlug;
-			const skillValue =
-				values[`projects.${project.slug}.skills`] ?? project.skills.join(", ");
-			const integrationsValue =
-				values[`projects.${project.slug}.integrations`] ??
-				project.integrations.join(", ");
-			return {
-				label: `${isActive ? "★ " : ""}${project.name}`,
-				kind: "section" as const,
-				key: `projects.${project.slug}`,
-				children: [
-					{
-						label: "Name",
-						kind: "value" as const,
-						key: `projects.${project.slug}.name`,
-						currentValue: project.name,
-					},
-					{
-						label: "Context path",
-						kind: "hint" as const,
-						key: `projects.${project.slug}._contextDir`,
-						currentValue: project.contextDir,
-					},
-					{
-						label: "Pinned skills",
-						kind: "multiSelect" as const,
-						key: `projects.${project.slug}.skills`,
-						currentValue: skillValue,
-						options: allSkillNames,
-						selectedValues: skillValue
-							? skillValue
-									.split(",")
-									.map((s) => s.trim())
-									.filter(Boolean)
-							: [],
-					},
-					{
-						label: "Context integrations",
-						kind: "multiSelect" as const,
-						key: `projects.${project.slug}.integrations`,
-						currentValue: integrationsValue,
-						options: allIntegrationNames,
-						selectedValues: integrationsValue
-							? integrationsValue
-									.split(",")
-									.map((s) => s.trim())
-									.filter(Boolean)
-							: [],
-					},
-					{
-						label: "Delete project",
-						kind: "delete" as const,
-						key: `projects.${project.slug}._delete`,
-					},
-				],
-			};
-		});
-
-		return {
-			label: "Projects",
-			kind: "section",
-			key: "projects",
-			children: [
-				{
-					label: "Add Project",
-					kind: "action",
-					key: "projects._new",
-				},
-				...(projectSections.length > 0
-					? projectSections
-					: [
-							{
-								label: "No projects yet. Use /project to create one.",
-								kind: "hint" as const,
-								key: "projects._empty",
-							},
-						]),
-			],
-		};
-	}
-
 	return {
 		label: "Toby Configuration",
 		kind: "section",
@@ -817,7 +725,6 @@ export function buildSettingsTree(
 					},
 				],
 			},
-			buildProjectsSection(values),
 			schedulesSection,
 		],
 	};
