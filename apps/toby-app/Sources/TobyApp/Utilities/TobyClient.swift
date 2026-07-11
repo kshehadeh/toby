@@ -811,4 +811,58 @@ struct TobyClient {
 		let (data, response) = try await URLSession.shared.data(for: request)
 		try validate(response: response, data: data)
 	}
+
+	/// Create a password-encrypted config + credentials backup (JSON envelope).
+	func createConfigBackup(password: String) async throws -> ConfigBackupCreateResponse {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/backup"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = try JSONSerialization.data(withJSONObject: ["password": password])
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+
+		guard
+			let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+			let backup = json["backup"],
+			let suggestedFileName = json["suggestedFileName"] as? String
+		else {
+			throw TobyClientError.invalidResponse
+		}
+		let backupData = try JSONSerialization.data(
+			withJSONObject: backup,
+			options: [.prettyPrinted, .sortedKeys],
+		)
+		return ConfigBackupCreateResponse(
+			backupData: backupData,
+			suggestedFileName: suggestedFileName,
+		)
+	}
+
+	/// Restore config + credentials from a backup envelope (encrypted or legacy).
+	func restoreConfigBackup(backupJSON: Data, password: String?, confirm: Bool = true) async throws {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/restore"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+		guard let backupObject = try JSONSerialization.jsonObject(with: backupJSON) as? [String: Any] else {
+			throw TobyClientError.serverError("Backup file is not valid JSON.")
+		}
+		var body: [String: Any] = [
+			"backup": backupObject,
+			"confirm": confirm,
+		]
+		if let password, !password.isEmpty {
+			body["password"] = password
+		}
+		request.httpBody = try JSONSerialization.data(withJSONObject: body)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+	}
+}
+
+// MARK: - Config backup models
+
+struct ConfigBackupCreateResponse {
+	let backupData: Data
+	let suggestedFileName: String
 }

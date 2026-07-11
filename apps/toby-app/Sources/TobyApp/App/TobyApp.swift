@@ -106,6 +106,16 @@ struct TobyApp: App {
 
 			CommandGroup(after: .newItem) {
 				OpenPermissionsMenuItem()
+
+				Divider()
+
+				Button("Backup Settings…") {
+					NotificationCenter.default.post(name: .backupConfig, object: nil)
+				}
+
+				Button("Restore Settings…") {
+					NotificationCenter.default.post(name: .restoreConfig, object: nil)
+				}
 			}
 
 			CommandGroup(replacing: .appInfo) {

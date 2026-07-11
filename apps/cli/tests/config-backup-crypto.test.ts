@@ -3,7 +3,7 @@ import {
 	decryptBackupPayload,
 	encryptBackupPayload,
 	isEncryptedBackupFile,
-} from "../src/commands/config-backup-crypto";
+} from "@toby/core/config/backup";
 
 describe("config backup encryption", () => {
 	it("encrypts and decrypts backup payload with a password", async () => {

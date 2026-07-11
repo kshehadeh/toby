@@ -4,28 +4,16 @@ import path from "node:path";
 import process from "node:process";
 import readline from "node:readline/promises";
 import {
-	getConfigPath,
-	getCredentialsPath,
-	readConfig,
-	readCredentials,
-	writeConfig,
-	writeCredentials,
-} from "@toby/core/config/index";
+	buildBackupFileName,
+	createEncryptedConfigBackup,
+	isEncryptedBackupFile,
+	parseRestorePayload,
+	restoreConfigBackup,
+} from "@toby/core/config/backup";
+import { getConfigPath, getCredentialsPath } from "@toby/core/config/index";
 import chalk from "chalk";
 import type { Command } from "commander";
 import { runAppLaunchCommand } from "./app";
-import {
-	decryptBackupPayload,
-	encryptBackupPayload,
-	isEncryptedBackupFile,
-} from "./config-backup-crypto";
-
-interface ConfigBackupPayload {
-	version: 1;
-	createdAt: string;
-	config: ReturnType<typeof readConfig>;
-	credentials: ReturnType<typeof readCredentials>;
-}
 
 interface BackupCommandOptions {
 	output?: string;
@@ -93,23 +81,10 @@ export function registerConfigCommand(program: Command): void {
 async function backupConfig(outputPath?: string): Promise<void> {
 	const backupPath = await resolveBackupPath(outputPath);
 	const password = await promptForBackupPassword();
-	const payload: ConfigBackupPayload = {
-		version: 1,
-		createdAt: new Date().toISOString(),
-		config: readConfig(),
-		credentials: readCredentials(),
-	};
-	const encryptedBackup = await encryptBackupPayload(
-		JSON.stringify(payload),
-		password,
-	);
+	const { backup } = await createEncryptedConfigBackup(password);
 
 	await mkdir(path.dirname(backupPath), { recursive: true });
-	await writeFile(
-		backupPath,
-		JSON.stringify(encryptedBackup, null, 2),
-		"utf-8",
-	);
+	await writeFile(backupPath, JSON.stringify(backup, null, 2), "utf-8");
 	console.log(chalk.green(`Backup saved to ${backupPath}`));
 }
 
@@ -119,7 +94,16 @@ async function restoreConfig(
 ): Promise<void> {
 	const sourcePath = path.resolve(sourceFile);
 	const rawBackup = readFileSync(sourcePath, "utf-8");
-	const payload = await parseRestorePayload(rawBackup, sourcePath);
+	const parsedJson = safeParseJson(rawBackup, sourcePath);
+
+	let password: string | undefined;
+	if (isEncryptedBackupFile(parsedJson)) {
+		password = await promptForRestorePassword();
+	} else {
+		// Validate shape early for clearer errors (legacy unencrypted).
+		await parseRestorePayload(parsedJson);
+	}
+
 	const configExists = await fileExists(getConfigPath());
 	const credentialsExists = await fileExists(getCredentialsPath());
 
@@ -134,23 +118,8 @@ async function restoreConfig(
 		}
 	}
 
-	writeConfig(payload.config);
-	writeCredentials(payload.credentials);
+	await restoreConfigBackup(parsedJson, password);
 	console.log(chalk.green(`Config restored from ${sourcePath}`));
-}
-
-async function parseRestorePayload(
-	raw: string,
-	sourcePath: string,
-): Promise<ConfigBackupPayload> {
-	const parsedJson = safeParseJson(raw, sourcePath);
-	if (isEncryptedBackupFile(parsedJson)) {
-		const password = await promptForRestorePassword();
-		const decrypted = await decryptBackupPayload(parsedJson, password);
-		return parseBackupPayload(decrypted, sourcePath);
-	}
-
-	return parseBackupPayload(raw, sourcePath);
 }
 
 function safeParseJson(raw: string, sourcePath: string): unknown {
@@ -159,43 +128,6 @@ function safeParseJson(raw: string, sourcePath: string): unknown {
 	} catch {
 		throw new Error(`Backup at ${sourcePath} is not valid JSON.`);
 	}
-}
-
-function parseBackupPayload(
-	raw: string,
-	sourcePath: string,
-): ConfigBackupPayload {
-	const parsed = safeParseJson(raw, sourcePath);
-
-	if (!isConfigBackupPayload(parsed)) {
-		throw new Error(
-			`Backup at ${sourcePath} is not a valid Toby config backup.`,
-		);
-	}
-
-	return parsed;
-}
-
-function isConfigBackupPayload(value: unknown): value is ConfigBackupPayload {
-	if (!isRecord(value)) {
-		return false;
-	}
-
-	return (
-		value.version === 1 &&
-		typeof value.createdAt === "string" &&
-		isRecord(value.config) &&
-		isRecord(value.credentials)
-	);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null;
-}
-
-function buildBackupFileName(): string {
-	const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-	return `toby-config-backup-${timestamp}.tbybak`;
 }
 
 async function resolveBackupPath(outputPath?: string): Promise<string> {
@@ -229,36 +161,23 @@ async function confirmConfigReplace(
 	configExists: boolean,
 	credentialsExists: boolean,
 ): Promise<boolean> {
-	if (!process.stdin.isTTY || !process.stdout.isTTY) {
-		throw new Error(
-			[
-				"Existing config files were found and confirmation is required.",
-				"Re-run with --yes to skip the prompt in non-interactive mode.",
-			].join(" "),
-		);
-	}
-
-	const existingFiles = [];
+	const existingFiles: string[] = [];
 	if (configExists) {
 		existingFiles.push("config.json");
 	}
 	if (credentialsExists) {
 		existingFiles.push("credentials.json");
 	}
-	const existingFilesLabel = existingFiles.join(" and ");
+
 	const rl = readline.createInterface({
 		input: process.stdin,
 		output: process.stdout,
 	});
-
 	try {
 		const answer = await rl.question(
-			chalk.yellow(
-				`This will replace existing ${existingFilesLabel}. Continue? (y/N) `,
-			),
+			`Replace existing ${existingFiles.join(" and ")}? [y/N] `,
 		);
-		const normalized = answer.trim().toLowerCase();
-		return normalized === "y" || normalized === "yes";
+		return answer.trim().toLowerCase() === "y";
 	} finally {
 		rl.close();
 	}
@@ -271,7 +190,7 @@ async function promptForBackupPassword(): Promise<string> {
 	}
 	const confirmation = await promptHiddenInput("Confirm backup password: ");
 	if (password !== confirmation) {
-		throw new Error("Passwords did not match.");
+		throw new Error("Backup passwords do not match.");
 	}
 	return password;
 }
@@ -285,22 +204,55 @@ async function promptForRestorePassword(): Promise<string> {
 }
 
 async function promptHiddenInput(prompt: string): Promise<string> {
-	if (!process.stdin.isTTY || !process.stdout.isTTY) {
-		throw new Error(
-			"Password input requires an interactive terminal. Run this command in a TTY session.",
-		);
+	const stdin = process.stdin;
+	const stdout = process.stdout;
+	if (!stdin.isTTY || !stdout.isTTY) {
+		const rl = readline.createInterface({ input: stdin, output: stdout });
+		try {
+			return (await rl.question(prompt)).trim();
+		} finally {
+			rl.close();
+		}
 	}
 
-	const rl = readline.createInterface({
-		input: process.stdin,
-		output: process.stdout,
-		terminal: true,
+	return await new Promise<string>((resolve, reject) => {
+		stdout.write(prompt);
+		const wasRaw = stdin.isRaw;
+		stdin.setRawMode(true);
+		stdin.resume();
+		stdin.setEncoding("utf8");
+
+		let value = "";
+		const onData = (chunk: string) => {
+			for (const char of chunk) {
+				if (char === "\n" || char === "\r" || char === "\u0004") {
+					cleanup();
+					stdout.write("\n");
+					resolve(value);
+					return;
+				}
+				if (char === "\u0003") {
+					cleanup();
+					stdout.write("\n");
+					reject(new Error("Cancelled."));
+					return;
+				}
+				if (char === "\u007f" || char === "\b") {
+					if (value.length > 0) {
+						value = value.slice(0, -1);
+					}
+					continue;
+				}
+				value += char;
+			}
+		};
+
+		const cleanup = () => {
+			stdin.off("data", onData);
+			stdin.setRawMode(wasRaw);
+			stdin.pause();
+		};
+
+		stdin.on("data", onData);
 	});
-
-	try {
-		const answer = await rl.question(`${prompt} `);
-		return answer.trim();
-	} finally {
-		rl.close();
-	}
 }

@@ -21,6 +21,8 @@ struct RootView: View {
     @State private var isCommandPalettePresented = false
     @State private var isIssueReportPresented = false
     @State private var isAboutPresented = false
+    @State private var isBackupSheetPresented = false
+    @State private var restoreSelection: RestoreBackupSelection?
     @State private var pendingDeleteSession: SessionSummary?
     @State private var isToastHovered = false
     @State private var toastDismissTask: Task<Void, Never>?
@@ -32,7 +34,67 @@ struct RootView: View {
     private let toastDuration: UInt64 = 4_000_000_000
 
     var body: some View {
+        contentWithBackup
+    }
+
+    /// Isolated so File → Backup / Restore sheets and notifications do not
+    /// overload the type checker on the main notification/sheet chains.
+    private var contentWithBackup: some View {
         contentWithAlerts
+            .onReceive(NotificationCenter.default.publisher(for: .backupConfig)) { _ in
+                bringMainWindowToFront()
+                isBackupSheetPresented = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .restoreConfig)) { _ in
+                bringMainWindowToFront()
+                if let url = ConfigBackupFilePanels.presentOpenPanel() {
+                    restoreSelection = RestoreBackupSelection(url: url)
+                }
+            }
+            .sheet(isPresented: $isBackupSheetPresented) {
+                ConfigBackupSheet(
+                    onDismiss: { isBackupSheetPresented = false },
+                    onSuccess: { path in
+                        store.toast = AppToastState(
+                            style: .success,
+                            title: "Backup saved",
+                            message: path
+                        )
+                    },
+                    onError: { message in
+                        store.toast = AppToastState(
+                            style: .error,
+                            title: "Backup failed",
+                            message: message
+                        )
+                    }
+                )
+            }
+            .sheet(item: $restoreSelection) { selection in
+                ConfigRestoreSheet(
+                    backupURL: selection.url,
+                    onDismiss: { restoreSelection = nil },
+                    onSuccess: {
+                        store.toast = AppToastState(
+                            style: .success,
+                            title: "Settings restored",
+                            message: "Config and credentials were replaced from the backup."
+                        )
+                        Task {
+                            await store.refreshStatus()
+                            await configureStore.loadSettingsSections()
+                            await integrationsStore.loadSettingsSections()
+                        }
+                    },
+                    onError: { message in
+                        store.toast = AppToastState(
+                            style: .error,
+                            title: "Restore failed",
+                            message: message
+                        )
+                    }
+                )
+            }
     }
 
     private var contentWithAlerts: some View {
@@ -954,6 +1016,13 @@ extension Notification.Name {
     static let menuBarToggleRecording = Notification.Name("menuBarToggleRecording")
     static let navigateToRoute = Notification.Name("navigateToRoute")
     static let openScheduleFromNotification = Notification.Name("openScheduleFromNotification")
+    static let backupConfig = Notification.Name("backupConfig")
+    static let restoreConfig = Notification.Name("restoreConfig")
+}
+
+struct RestoreBackupSelection: Identifiable {
+    let id = UUID()
+    let url: URL
 }
 
 struct StartChatAboutRecordingRequest {

@@ -105,6 +105,8 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `POST` | `/api/memories` | Create a manual memory. |
 | `GET` | `/api/memories/:id` | Fetch one memory item. |
 | `GET` | `/api/memories/:id/explain` | Fetch source/audit explanation for one memory. |
+| `POST` | `/api/config/backup` | Create a password-encrypted backup of config + credentials. |
+| `POST` | `/api/config/restore` | Restore config + credentials from a backup payload. |
 | `GET` | `/api/configure/tree` | Fetch configure UI schema and current values. |
 | `GET` | `/api/configure/sections` | Lightweight section structure for the native settings sidebar. |
 | `GET` | `/api/configure/sections/:sectionKey` | Full detail (fields + values) for one settings section. |
@@ -815,6 +817,46 @@ type MemoryExplainResponse = {
 Errors:
 
 - `404` when the memory does not exist.
+
+## Config backup / restore
+
+Shared helpers live in [`packages/core/src/config/backup.ts`](../packages/core/src/config/backup.ts).
+Toby.app **File → Backup Settings… / Restore Settings…** and `toby config backup` / `restore` use the same format (password-encrypted AES-256-GCM `.tbybak`).
+
+### `POST /api/config/backup`
+
+Body:
+
+```ts
+{ password: string }
+```
+
+Response:
+
+```ts
+{
+  backup: EncryptedBackupFile; // version 2 envelope
+  suggestedFileName: string;   // e.g. toby-config-backup-<timestamp>.tbybak
+}
+```
+
+Reads live `config.json` and decrypted credentials, then encrypts with the given password.
+Errors: `400` if password is empty or encryption fails.
+
+### `POST /api/config/restore`
+
+Body:
+
+```ts
+{
+  backup: EncryptedBackupFile | ConfigBackupPayload;
+  password?: string; // required when backup is encrypted
+  confirm: true;     // must be true to write
+}
+```
+
+Writes `config.json` and `credentials.json` (re-encrypting credentials at rest on macOS), then invalidates configure caches.
+Errors: `400` if `confirm` is not true, password is wrong, or the payload is invalid.
 
 ## Configure
 

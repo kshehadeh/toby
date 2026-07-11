@@ -18,6 +18,10 @@ import {
 	handleSessionTurn,
 } from "./handlers/chat";
 import {
+	handleConfigBackup,
+	handleConfigRestore,
+} from "./handlers/config-backup";
+import {
 	handleConfigureAction,
 	handleConfigurePatch,
 	handleConfigureSectionDetail,
@@ -392,6 +396,12 @@ export async function handleWebRequest(
 		}
 		if (memoryMatch && req.method === "DELETE") {
 			return handleMemoryDelete(decodeURIComponent(memoryMatch[1]));
+		}
+		if (pathname === "/api/config/backup" && req.method === "POST") {
+			return handleConfigBackup(req);
+		}
+		if (pathname === "/api/config/restore" && req.method === "POST") {
+			return handleConfigRestore(req);
 		}
 		if (pathname === "/api/configure/tree" && req.method === "GET") {
 			return handleConfigureTree();

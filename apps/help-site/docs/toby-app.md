@@ -20,6 +20,17 @@ The app does **not** embed the full assistant engine inside the SwiftUI process.
 
 For endpoint-level documentation, see [Local APIs](./api/overview): the daemon [Server API](./api/server-api) and Toby.app’s [Native API](./api/native-api).
 
+## Backup and restore
+
+Use the **File** menu to protect or move your settings:
+
+| Menu item | What it does |
+| --------- | ------------ |
+| **Backup Settings…** | Prompts for a password, then a save location for a `.tbybak` archive of settings and credentials |
+| **Restore Settings…** | Opens a `.tbybak` file, asks for the password if needed, and replaces your current config and credentials |
+
+The CLI equivalents are `toby config backup` and `toby config restore`. See [Configuration overview](./configuration/overview).
+
 ## Surfaces
 
 Toby.app's primary windows are accessible from the sidebar.

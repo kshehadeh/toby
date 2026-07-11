@@ -115,7 +115,7 @@ the detail surface that needs them.
 1. **`apps/cli/src/cli.ts`** constructs the Commander program, registers built-in maintenance commands, then calls `registerCommands` on each loaded `IntegrationModule` (if present). Bare `toby` (no subcommand) opens the native Toby app.
 2. **Connect / disconnect / status** use [`getIntegration`](../packages/core/src/integrations/index.ts) or [`getIntegrations`](../packages/core/src/integrations/index.ts) from core (discovered plugins).
 3. **Chat and configuration** are interactive native-app workflows backed by core web/API handlers (daemon HTTP API).
-4. **`config backup` / `config restore`** stay in CLI commands using core config helpers.
+4. **`config backup` / `config restore`** use shared helpers in `@toby/core` (`config/backup.ts`). The CLI and the daemon HTTP API (`POST /api/config/backup`, `POST /api/config/restore`) share the same implementation; Toby.app File → Backup / Restore drives the API with native save/open panels.
 5. **Daemon** (`toby daemon start`) runs schedules, inbound chat, and the localhost API that Toby.app consumes.
 
 ## Local data
@@ -123,14 +123,14 @@ the detail surface that needs them.
 | Location | Role |
 | -------- | ---- |
 | `~/.toby/config.json` | Integration connection flags, personas |
-| `~/.toby/credentials.json` | API keys, OAuth client secrets, OpenAI token |
+| `~/.toby/credentials.json` | API keys, OAuth tokens, and other secrets. On macOS the file is **encrypted at rest** (AES-256-GCM); the data key lives in the Keychain (`dev.toby.credentials`). Logical shape is still a `CredentialsFile` JSON object after decrypt. |
 | `~/.toby/chat.sqlite` | Chat session storage (sessions, messages, transcript) |
 | `~/.toby/logs/toby.log` | Unified JSON-lines log for all subsystems (chat, daemon, server events, upgrade, native-app, macOS plugin). A `source` field discriminates the emitter; rotation is shared. |
 | `~/.toby/listen/recordings/<id>/` | Saved audio, metadata, and transcript artifacts. |
 | `~/.toby/native-port` | Ephemeral port published by Toby.app's native permission/audio server. |
 | `~/.toby/projects/<slug>/` | Project metadata, reference context, local skills, and generated outputs. |
 
-Access is centralized in [`packages/core/src/config/index.ts`](../packages/core/src/config/index.ts). Integration modules should not hardcode paths; use the config helpers.
+Access is centralized in [`packages/core/src/config/index.ts`](../packages/core/src/config/index.ts). Integration modules should not hardcode paths; use the config helpers. Credentials I/O goes only through `readCredentials` / `writeCredentials`, which encrypt and decrypt on macOS using a Keychain-held data key (see `credentials-crypto.ts` and `credentials-keychain.ts`). Legacy plaintext `credentials.json` is migrated on first successful read. Override with `TOBY_CREDENTIALS_KEY_BACKEND=memory` (tests) or `plaintext` (disable encryption).
 
 Backup and restore behavior is documented in [`commands.md`](commands.md).
 

@@ -38,7 +38,7 @@ Projects and recordings are managed outside Settings (sidebar **Projects** and
 | Path | Contents |
 | ---- | -------- |
 | `~/.toby/config.json` | Non-secret preferences: connection flags, personas, defaults, web search, inbound chat, schedules metadata, and similar |
-| `~/.toby/credentials.json` | Secrets (API keys, tokens). Never commit or share this file |
+| `~/.toby/credentials.json` | Secrets (API keys, tokens). On Mac this file is **encrypted**; Toby keeps the encryption key in your Keychain. Never commit or share this file |
 | `~/.toby/plugins/` | Installed integration plugins |
 | `~/.toby/skills/` | User skills |
 | `~/.toby/listen/recordings/` | Saved audio recordings and transcripts |
@@ -46,6 +46,14 @@ Projects and recordings are managed outside Settings (sidebar **Projects** and
 | Local service port | Daemon [Server API](../api/server-api) default `http://127.0.0.1:7847` (`web.port` in config when set) |
 
 Most people only need the Settings UI. Paths above matter for backups, support, and advanced automation.
+
+### Credentials encryption (macOS)
+
+Toby encrypts `credentials.json` on disk with AES-256-GCM and stores the data key in the macOS Keychain (service `dev.toby.credentials`). The first time Toby needs the key, macOS may prompt you to allow access for the Toby process.
+
+- **Settings and plugins** keep working as before; encryption is transparent.
+- **Backups** — use **File → Backup Settings…** in Toby.app (or `toby config backup` in Terminal) to export a password-protected archive of your config and secrets. Restore with **File → Restore Settings…** or `toby config restore`. Do not copy a raw `credentials.json` to another Mac.
+- If the Keychain item is deleted while an encrypted credentials file remains, Toby cannot decrypt secrets until you restore a backup or re-enter keys in Settings.
 
 ## What this section covers
 
