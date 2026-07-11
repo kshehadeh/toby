@@ -21,6 +21,31 @@ struct LogsView: View {
 				}
 		} detail: {
 			LogsDetailView(store: store)
+				.toolbar {
+					ToolbarItemGroup(placement: .primaryAction) {
+						Button {
+							if let path = store.logFilePath {
+								// Select the log file inside its folder (opens Finder there).
+								RevealInFinder.reveal(path: path)
+							} else if let dir = store.logDirectoryPath {
+								RevealInFinder.reveal(path: dir)
+							}
+						} label: {
+							Image(systemName: "folder")
+						}
+						.help("Show log folder in Finder")
+						.accessibilityLabel("Show log in Finder")
+						.disabled(store.logFilePath == nil && store.logDirectoryPath == nil)
+
+						Button {
+							store.refreshFromDisk()
+						} label: {
+							Image(systemName: "arrow.clockwise")
+						}
+						.help("Reload logs from disk")
+						.accessibilityLabel("Refresh logs")
+					}
+				}
 		}
 		.toolbarBackground(.visible)
 		.frame(minWidth: 860, minHeight: 560)
@@ -37,7 +62,7 @@ struct LogsView: View {
 
 	private func refreshFromServerDirectory() {
 		store.setDirectory(path: tobyDirectory)
-		if store.selectedLog == nil, let first = store.availableLogs.first {
+		if store.selection == nil, let first = store.availableLogs.first {
 			store.selectLog(first)
 		}
 	}
