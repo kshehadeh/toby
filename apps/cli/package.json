@@ -15,8 +15,8 @@
 		"dev": "bun src/cli.ts",
 		"lint": "bunx biome check .",
 		"typecheck": "tsc --noEmit",
-		"test": "bun test",
-		"test:watch": "bun test --watch"
+		"test": "TOBY_CREDENTIALS_KEY_BACKEND=memory bun test",
+		"test:watch": "TOBY_CREDENTIALS_KEY_BACKEND=memory bun test --watch"
 	},
 	"dependencies": {
 		"@toby/core": "workspace:*",

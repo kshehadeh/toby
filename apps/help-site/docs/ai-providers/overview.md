@@ -26,7 +26,7 @@ Open **Toby.app → Settings** and configure:
 1. Open **AI** and enter credentials for at least one provider ([OpenAI](./openai#get-an-api-key), [Vercel AI Gateway](./vercel-ai-gateway#get-an-api-key), [Chutes](./chutes#get-an-api-key), [OpenRouter](./openrouter#get-an-api-key), or an Ollama base URL).
 2. Open **Personas**, choose **AI Provider** and **Model** (or use the built-in **Toby** persona, which defaults to OpenAI `gpt-5-mini`).
 
-Credentials are stored in `~/.toby/credentials.json` on your Mac.
+Credentials are stored in `~/.toby/credentials.json` on your Mac (encrypted at rest; see [Configuration overview](../configuration/overview)).
 
 ## Choosing a provider
 

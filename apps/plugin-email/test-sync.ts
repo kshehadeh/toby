@@ -5,19 +5,16 @@
  */
 
 import fs from "node:fs";
-import path from "node:path";
+// Relative import so this ad-hoc script does not need a package dependency on core.
+import { readCredentials as readTobyCredentials } from "../../packages/core/src/config/index";
 import { openDb } from "./src/db";
 import { executeTool } from "./src/tools";
 
 type JsonRecord = Record<string, unknown>;
 
 function readCredentials(): JsonRecord {
-	const tobyDir =
-		process.env.TOBY_DIR ?? path.join(process.env.HOME ?? "", ".toby");
-	const credsPath = path.join(tobyDir, "credentials.json");
-	const raw = fs.readFileSync(credsPath, "utf-8");
-	const creds = JSON.parse(raw) as JsonRecord;
-	return ((creds.integrations as JsonRecord)?.email as JsonRecord) ?? {};
+	const creds = readTobyCredentials();
+	return (creds.integrations?.email as JsonRecord) ?? {};
 }
 
 function printResult(label: string, result: unknown): void {

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import {
 	createWebSearchGlobalTools,
@@ -10,17 +11,16 @@ import {
 	getWebSearchProvider,
 	listWebSearchProviderIds,
 } from "@toby/core/ai/web-search-providers";
-import { readConfig, writeConfig } from "@toby/core/config/index";
-import { readCredentials, writeCredentials } from "@toby/core/config/index";
-import { resolveTobyDir } from "@toby/core/config/index";
+import {
+	clearCredentialsCache,
+	readConfig,
+	writeConfig,
+	writeCredentials,
+} from "@toby/core/config/index";
 import {
 	applyConfigureValuesPatch,
 	seedConfigureValues,
 } from "@toby/core/configure/persistence";
-
-const TOBY_DIR = resolveTobyDir();
-const CONFIG_PATH = path.join(TOBY_DIR, "config.json");
-const CREDS_PATH = path.join(TOBY_DIR, "credentials.json");
 
 const GATEWAY_PERSONA = {
 	name: "TestGateway",
@@ -36,47 +36,25 @@ const OPENAI_PERSONA = {
 	ai: { provider: "openai", model: "gpt-4.1-mini" },
 };
 
-function backupFiles(): { config: string; creds: string } | null {
-	const configExists = fs.existsSync(CONFIG_PATH);
-	const credsExists = fs.existsSync(CREDS_PATH);
-	if (!configExists && !credsExists) return null;
-	return {
-		config: configExists ? fs.readFileSync(CONFIG_PATH, "utf-8") : "",
-		creds: credsExists ? fs.readFileSync(CREDS_PATH, "utf-8") : "",
-	};
+let tempDir: string;
+let previousTobyDir: string | undefined;
+
+function withTempTobyDir(): void {
+	tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-web-search-"));
+	previousTobyDir = process.env.TOBY_DIR;
+	process.env.TOBY_DIR = tempDir;
+	clearCredentialsCache();
 }
 
-function restoreFiles(backup: { config: string; creds: string } | null) {
-	if (!backup) {
-		try {
-			fs.unlinkSync(CONFIG_PATH);
-		} catch {
-			/* ignore */
-		}
-		try {
-			fs.unlinkSync(CREDS_PATH);
-		} catch {
-			/* ignore */
-		}
-		return;
-	}
-	if (backup.config) {
-		fs.writeFileSync(CONFIG_PATH, backup.config);
+function restoreTempTobyDir(): void {
+	clearCredentialsCache();
+	if (previousTobyDir === undefined) {
+		Reflect.deleteProperty(process.env, "TOBY_DIR");
 	} else {
-		try {
-			fs.unlinkSync(CONFIG_PATH);
-		} catch {
-			/* ignore */
-		}
+		process.env.TOBY_DIR = previousTobyDir;
 	}
-	if (backup.creds) {
-		fs.writeFileSync(CREDS_PATH, backup.creds);
-	} else {
-		try {
-			fs.unlinkSync(CREDS_PATH);
-		} catch {
-			/* ignore */
-		}
+	if (tempDir && fs.existsSync(tempDir)) {
+		fs.rmSync(tempDir, { recursive: true, force: true });
 	}
 }
 
@@ -101,14 +79,12 @@ describe("web-search-providers", () => {
 });
 
 describe("isWebSearchAvailable", () => {
-	let backup: { config: string; creds: string } | null = null;
-
 	beforeEach(() => {
-		backup = backupFiles();
+		withTempTobyDir();
 	});
 
 	afterEach(() => {
-		restoreFiles(backup);
+		restoreTempTobyDir();
 	});
 
 	it("returns false when web search is not configured", () => {
@@ -169,14 +145,12 @@ describe("isWebSearchAvailable", () => {
 });
 
 describe("createWebSearchGlobalTools", () => {
-	let backup: { config: string; creds: string } | null = null;
-
 	beforeEach(() => {
-		backup = backupFiles();
+		withTempTobyDir();
 	});
 
 	afterEach(() => {
-		restoreFiles(backup);
+		restoreTempTobyDir();
 	});
 
 	it("returns empty record when web search is unavailable", () => {
@@ -223,14 +197,12 @@ describe("createWebSearchGlobalTools", () => {
 });
 
 describe("webSearch configure persistence", () => {
-	let backup: { config: string; creds: string } | null = null;
-
 	beforeEach(() => {
-		backup = backupFiles();
+		withTempTobyDir();
 	});
 
 	afterEach(() => {
-		restoreFiles(backup);
+		restoreTempTobyDir();
 	});
 
 	it("seedConfigureValues seeds default webSearch.provider when no config exists", () => {

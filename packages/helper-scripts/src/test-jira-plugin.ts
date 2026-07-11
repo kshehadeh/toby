@@ -348,12 +348,13 @@ function verifyCredentialPipeline(
 	envelope: { config: Record<string, unknown>; state: Record<string, unknown> },
 	verbose: boolean,
 ): TestResult {
-	const onDisk = JSON.parse(fs.readFileSync(credentialsPath, "utf8")) as {
+	// Prefer readCredentials so encrypted-on-disk envelopes are decrypted.
+	const onDisk = readCredentials() as {
 		integrations?: Record<string, Record<string, unknown>>;
 		jira?: Record<string, unknown>;
 	};
 	const diskJira = onDisk.integrations?.jira ?? onDisk.jira ?? {};
-	const readJira = readCredentials().integrations?.jira ?? {};
+	const readJira = onDisk.integrations?.jira ?? {};
 	const stdinConfig = JSON.parse(
 		JSON.stringify({
 			config: envelope.config,

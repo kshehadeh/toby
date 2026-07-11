@@ -31,7 +31,7 @@ Enter your IMAP and SMTP host, port, username, and password. Click **Setup Guide
 
 Apple Calendar needs no credentials — just click **Connect** and grant Calendar permission to Toby.app in System Settings when prompted.
 
-Credentials live in `~/.toby/credentials.json`. Connection flags live in `~/.toby/config.json`.
+Credentials live in `~/.toby/credentials.json` (encrypted on macOS; Keychain holds the key). Connection flags live in `~/.toby/config.json`.
 
 ## 3. Connect
 

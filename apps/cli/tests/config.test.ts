@@ -3,46 +3,38 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+	clearCredentialsCache,
 	getConfigPath,
 	getCredentialsPath,
 	readConfig,
 	readCredentials,
 	setDefaultPersona,
 	writeConfig,
+	writeCredentials,
 } from "@toby/core/config/index";
 
-const TOBY_DIR = path.join(os.homedir(), ".toby");
-const CONFIG_PATH = path.join(TOBY_DIR, "config.json");
-const CREDENTIALS_PATH = path.join(TOBY_DIR, "credentials.json");
-
-let originalConfig: string | null = null;
-let originalCreds: string | null = null;
+let tempDir: string;
+let previousTobyDir: string | undefined;
 
 beforeEach(() => {
-	if (fs.existsSync(CONFIG_PATH)) {
-		originalConfig = fs.readFileSync(CONFIG_PATH, "utf-8");
-	}
-	if (fs.existsSync(CREDENTIALS_PATH)) {
-		originalCreds = fs.readFileSync(CREDENTIALS_PATH, "utf-8");
-	}
+	tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-config-test-"));
+	previousTobyDir = process.env.TOBY_DIR;
+	process.env.TOBY_DIR = tempDir;
+	clearCredentialsCache();
 });
 
 afterEach(() => {
-	if (originalConfig !== null) {
-		fs.writeFileSync(CONFIG_PATH, originalConfig);
-	} else if (fs.existsSync(CONFIG_PATH)) {
-		fs.unlinkSync(CONFIG_PATH);
+	clearCredentialsCache();
+	if (previousTobyDir === undefined) {
+		Reflect.deleteProperty(process.env, "TOBY_DIR");
+	} else {
+		process.env.TOBY_DIR = previousTobyDir;
 	}
-	if (originalCreds !== null) {
-		fs.writeFileSync(CREDENTIALS_PATH, originalCreds);
-	} else if (fs.existsSync(CREDENTIALS_PATH)) {
-		fs.unlinkSync(CREDENTIALS_PATH);
-	}
+	fs.rmSync(tempDir, { recursive: true, force: true });
 });
 
 describe("readConfig", () => {
 	it("returns empty config when file does not exist", () => {
-		if (fs.existsSync(CONFIG_PATH)) fs.unlinkSync(CONFIG_PATH);
 		const config = readConfig();
 		expect(config).toEqual({ integrations: {}, personas: [] });
 	});
@@ -53,7 +45,7 @@ describe("readConfig", () => {
 				todoist: { apiKey: "x", mode: "y" },
 			},
 		};
-		fs.writeFileSync(CONFIG_PATH, JSON.stringify(data));
+		fs.writeFileSync(getConfigPath(), JSON.stringify(data));
 		const config = readConfig();
 		expect(config.integrations.todoist.apiKey).toBe("x");
 	});
@@ -83,21 +75,21 @@ describe("writeConfig", () => {
 			},
 		};
 		writeConfig(data);
-		const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
+		const raw = fs.readFileSync(getConfigPath(), "utf-8");
 		expect(JSON.parse(raw)).toEqual(data);
 	});
 });
 
 describe("readCredentials", () => {
 	it("returns empty when file does not exist", () => {
-		if (fs.existsSync(CREDENTIALS_PATH)) fs.unlinkSync(CREDENTIALS_PATH);
 		const creds = readCredentials();
 		expect(creds).toEqual({});
 	});
 
 	it("reads existing credentials", () => {
 		const data = { todoist: { apiKey: "abc", mode: "def" } };
-		fs.writeFileSync(CREDENTIALS_PATH, JSON.stringify(data));
+		writeCredentials(data);
+		clearCredentialsCache();
 		const creds = readCredentials();
 		expect(creds.todoist?.apiKey).toBe("abc");
 	});
@@ -105,18 +97,7 @@ describe("readCredentials", () => {
 
 describe("config paths", () => {
 	it("resolves config and credentials paths from TOBY_DIR override", () => {
-		const previousTobyDir = process.env.TOBY_DIR;
-		process.env.TOBY_DIR = "/tmp/toby-test-dir";
-
-		try {
-			expect(getConfigPath()).toBe("/tmp/toby-test-dir/config.json");
-			expect(getCredentialsPath()).toBe("/tmp/toby-test-dir/credentials.json");
-		} finally {
-			if (previousTobyDir === undefined) {
-				process.env.TOBY_DIR = undefined;
-			} else {
-				process.env.TOBY_DIR = previousTobyDir;
-			}
-		}
+		expect(getConfigPath()).toBe(path.join(tempDir, "config.json"));
+		expect(getCredentialsPath()).toBe(path.join(tempDir, "credentials.json"));
 	});
 });

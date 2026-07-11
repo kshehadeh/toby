@@ -1,6 +1,33 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import {
+	decryptCredentialsPayload,
+	encryptCredentialsPayload,
+	isEncryptedCredentialsEnvelope,
+} from "./credentials-crypto";
+import { getCredentialsKeyStore } from "./credentials-keychain";
+
+export {
+	CREDENTIALS_ENVELOPE_FORMAT,
+	isEncryptedCredentialsEnvelope,
+} from "./credentials-crypto";
+export {
+	CREDENTIALS_KEY_BACKEND_ENV,
+	clearMemoryCredentialsKeyStore,
+	getCredentialsKeyStore,
+	resetCredentialsKeyStoreCache,
+	resolveCredentialsKeyBackend,
+} from "./credentials-keychain";
+
+const SECURE_FILE_MODE = 0o600;
+
+/** Process-local cache of decrypted credentials (invalidated on write). */
+let credentialsCache: {
+	path: string;
+	mtimeMs: number;
+	data: CredentialsFile;
+} | null = null;
 
 export function resolveTobyDir(): string {
 	const override = process.env.TOBY_DIR?.trim();
@@ -189,7 +216,7 @@ export interface ListenConfig {
 	readonly summaryPersona?: string;
 }
 
-interface TobyConfig {
+export interface TobyConfig {
 	integrations: Record<string, Record<string, unknown>>;
 	personas: Persona[];
 	defaultPersona?: string;
@@ -296,7 +323,33 @@ export function readConfig(): TobyConfig {
 		ai: parsed.ai,
 		activeProject: parsed.activeProject,
 		dashboard: parsed.dashboard,
+		listen: parsed.listen,
 	};
+}
+
+/**
+ * Read the full on-disk config.json object without projecting through
+ * {@link TobyConfig}. Used for backup so unknown/future keys are preserved.
+ */
+export function readConfigRaw(): Record<string, unknown> {
+	const configPath = getConfigPath();
+	ensureTobyDir();
+	if (!fs.existsSync(configPath)) {
+		return {};
+	}
+	const raw = fs.readFileSync(configPath, "utf-8");
+	const parsed = JSON.parse(raw) as unknown;
+	if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+		return {};
+	}
+	return parsed as Record<string, unknown>;
+}
+
+/** Write a full config object (backup restore). Prefer {@link writeConfig} for typed updates. */
+export function writeConfigRaw(config: Record<string, unknown>): void {
+	const configPath = getConfigPath();
+	ensureTobyDir();
+	atomicWriteFile(configPath, JSON.stringify(config, null, 2));
 }
 
 export const DEFAULT_WEB_PORT = 7847;
@@ -312,22 +365,148 @@ export function getWebConfig(): { enabled: boolean; port: number } {
 export function writeConfig(config: TobyConfig): void {
 	const configPath = getConfigPath();
 	ensureTobyDir();
-	fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+	atomicWriteFile(configPath, JSON.stringify(config, null, 2));
 }
 
+/**
+ * Persist credentials. On macOS (default), the file is AES-256-GCM encrypted
+ * and the data key is stored in the Keychain. Set
+ * `TOBY_CREDENTIALS_KEY_BACKEND=plaintext` to disable encryption, or
+ * `memory` for tests.
+ */
 export function writeCredentials(creds: CredentialsFile): void {
 	const credentialsPath = getCredentialsPath();
 	ensureTobyDir();
-	fs.writeFileSync(credentialsPath, JSON.stringify(creds, null, 2));
+	const keyStore = getCredentialsKeyStore();
+	if (!keyStore) {
+		atomicWriteFile(credentialsPath, JSON.stringify(creds, null, 2));
+		setCredentialsCache(credentialsPath, creds);
+		return;
+	}
+	const dataKey = keyStore.getOrCreateDataKey();
+	const envelope = encryptCredentialsPayload(
+		JSON.stringify(creds, null, 2),
+		dataKey,
+	);
+	atomicWriteFile(credentialsPath, JSON.stringify(envelope, null, 2));
+	setCredentialsCache(credentialsPath, creds);
 }
 
 export function readCredentials(): CredentialsFile {
 	const credentialsPath = getCredentialsPath();
 	if (!fs.existsSync(credentialsPath)) {
+		credentialsCache = null;
 		return {};
 	}
+
+	const stat = fs.statSync(credentialsPath);
+	if (
+		credentialsCache &&
+		credentialsCache.path === credentialsPath &&
+		credentialsCache.mtimeMs === stat.mtimeMs
+	) {
+		return cloneCredentials(credentialsCache.data);
+	}
+
 	const raw = fs.readFileSync(credentialsPath, "utf-8");
-	return JSON.parse(raw) as CredentialsFile;
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch {
+		throw new Error(
+			`credentials.json is not valid JSON (${credentialsPath}). Fix or remove the file, or restore from backup.`,
+		);
+	}
+
+	if (isEncryptedCredentialsEnvelope(parsed)) {
+		const keyStore = getCredentialsKeyStore();
+		if (!keyStore) {
+			throw new Error(
+				"credentials.json is encrypted but encryption is disabled (TOBY_CREDENTIALS_KEY_BACKEND=plaintext). Set the backend to keychain or memory, or restore a plaintext backup.",
+			);
+		}
+		const dataKey = keyStore.getDataKey();
+		if (!dataKey) {
+			throw new Error(
+				"credentials.json is encrypted but the Keychain data key is missing. Restore from an encrypted backup (`toby config restore`) or re-enter secrets in Settings.",
+			);
+		}
+		const plaintext = decryptCredentialsPayload(parsed, dataKey);
+		const creds = JSON.parse(plaintext) as CredentialsFile;
+		setCredentialsCache(credentialsPath, creds, stat.mtimeMs);
+		return cloneCredentials(creds);
+	}
+
+	// Legacy plaintext CredentialsFile — migrate eagerly when encryption is on.
+	const creds = parsed as CredentialsFile;
+	const keyStore = getCredentialsKeyStore();
+	if (keyStore) {
+		try {
+			// Ensure the DEK is durable before replacing plaintext on disk.
+			const dataKey = keyStore.getOrCreateDataKey();
+			const verified = keyStore.getDataKey();
+			if (!verified || !verified.equals(dataKey)) {
+				throw new Error("Credentials data key is not durable");
+			}
+			writeCredentials(creds);
+		} catch {
+			// Leave plaintext on disk if migration fails; still return usable data.
+			setCredentialsCache(credentialsPath, creds, stat.mtimeMs);
+			return cloneCredentials(creds);
+		}
+		return cloneCredentials(creds);
+	}
+
+	setCredentialsCache(credentialsPath, creds, stat.mtimeMs);
+	return cloneCredentials(creds);
+}
+
+/** Clear the in-memory credentials cache (tests). */
+export function clearCredentialsCache(): void {
+	credentialsCache = null;
+}
+
+function setCredentialsCache(
+	credentialsPath: string,
+	creds: CredentialsFile,
+	mtimeMs?: number,
+): void {
+	let resolvedMtime = mtimeMs;
+	if (resolvedMtime === undefined) {
+		try {
+			resolvedMtime = fs.statSync(credentialsPath).mtimeMs;
+		} catch {
+			resolvedMtime = Date.now();
+		}
+	}
+	credentialsCache = {
+		path: credentialsPath,
+		mtimeMs: resolvedMtime,
+		data: cloneCredentials(creds),
+	};
+}
+
+function cloneCredentials(creds: CredentialsFile): CredentialsFile {
+	return JSON.parse(JSON.stringify(creds)) as CredentialsFile;
+}
+
+function atomicWriteFile(
+	filePath: string,
+	content: string,
+	mode: number = SECURE_FILE_MODE,
+): void {
+	const dir = path.dirname(filePath);
+	const tmp = path.join(
+		dir,
+		`.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`,
+	);
+	fs.writeFileSync(tmp, content, { encoding: "utf-8", mode });
+	fs.renameSync(tmp, filePath);
+	try {
+		fs.chmodSync(filePath, mode);
+	} catch {
+		// Best-effort on platforms that ignore mode.
+	}
 }
 
 export type { SlackAuthMethod };
