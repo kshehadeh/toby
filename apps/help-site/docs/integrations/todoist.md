@@ -3,7 +3,7 @@ sidebar_position: 3
 title: Todoist
 ---
 
-# Todoist
+# <span class="docs-brand-title"><img class="docs-brand-icon" src="/img/integrations/todoist.png" alt="" width="40" height="40" />Todoist</span>
 
 Connect Toby to Todoist to manage tasks and projects from chat.
 

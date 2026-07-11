@@ -433,10 +433,6 @@ a.downloadTobyButton:active,
 	);
 }
 
-.integrationIconBadgeAzure {
-	background: linear-gradient(135deg, #0078d4, #40e0d0);
-}
-
 .integrationIconName {
 	color: var(--toby-text);
 	font-size: 0.98rem;
@@ -657,4 +653,61 @@ div[class*="codeBlockContainer"] {
 /* Doc sidebar mobile */
 .navbar-sidebar__backdrop {
 	background: rgba(0, 0, 0, 0.7);
+}
+
+/* Brand logos next to doc page titles (AI providers, integrations) */
+.docs-brand-title {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+}
+
+.docs-brand-title .docs-brand-icon,
+.ai-provider-title .ai-provider-icon {
+	display: block;
+	flex-shrink: 0;
+	width: 40px;
+	height: 40px;
+	object-fit: contain;
+	margin: 0;
+	border-radius: 8px;
+	background: var(--toby-surface-raised);
+	padding: 6px;
+	box-sizing: content-box;
+	border: 1px solid var(--toby-border);
+}
+
+/* Keep legacy AI class as alias for existing pages */
+.ai-provider-title {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+}
+
+.docs-brand-icon-emoji {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: 40px;
+	height: 40px;
+	margin: 0;
+	border-radius: 8px;
+	background: var(--toby-surface-raised);
+	padding: 6px;
+	box-sizing: content-box;
+	border: 1px solid var(--toby-border);
+	font-size: 1.5rem;
+	line-height: 1;
+}
+
+.ai-provider-icon-inline,
+.docs-brand-icon-inline {
+	display: inline-block;
+	width: 20px;
+	height: 20px;
+	object-fit: contain;
+	vertical-align: -4px;
+	margin-right: 0.4rem;
+	border-radius: 4px;
 }

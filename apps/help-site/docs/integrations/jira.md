@@ -3,7 +3,7 @@ sidebar_position: 11
 title: Jira
 ---
 
-# Jira
+# <span class="docs-brand-title"><img class="docs-brand-icon" src="/img/integrations/jira.png" alt="" width="40" height="40" />Jira</span>
 
 Connect Toby to Atlassian Jira to search and read issues, comments, and projects from chat.
 

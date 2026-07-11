@@ -11,47 +11,47 @@ Integrations connect Toby to your email, tasks, chat, contacts, calendar, docume
 
 <div className="integrationIconGrid">
 	<a className="integrationIconCard" href="./email">
-		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/gmail/EA4335" alt="" /></span>
+		<span className="integrationIconBadge"><img src="/img/integrations/email.png" alt="" /></span>
 		<span className="integrationIconName">Email</span>
 		<span className="integrationIconMeta">Email</span>
 	</a>
 	<a className="integrationIconCard" href="./todoist">
-		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/todoist/E44332" alt="" /></span>
+		<span className="integrationIconBadge"><img src="/img/integrations/todoist.png" alt="" /></span>
 		<span className="integrationIconName">Todoist</span>
 		<span className="integrationIconMeta">Tasks</span>
 	</a>
 	<a className="integrationIconCard" href="./slack">
-		<span className="integrationIconBadge integrationIconBadgeSlack"><span className="integrationIconGlyph">#</span></span>
+		<span className="integrationIconBadge"><img src="/img/integrations/slack.png" alt="" /></span>
 		<span className="integrationIconName">Slack</span>
 		<span className="integrationIconMeta">Chat</span>
 	</a>
 	<a className="integrationIconCard" href="./apple-calendar">
-		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/apple/A2AAAD" alt="" /></span>
+		<span className="integrationIconBadge"><img src="/img/integrations/apple-calendar.png" alt="" /></span>
 		<span className="integrationIconName">Apple Calendar</span>
 		<span className="integrationIconMeta">Calendar</span>
 	</a>
 	<a className="integrationIconCard" href="./apple-reminders">
-		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/apple/A2AAAD" alt="" /></span>
+		<span className="integrationIconBadge"><img src="/img/integrations/apple-reminders.png" alt="" /></span>
 		<span className="integrationIconName">Apple Reminders</span>
 		<span className="integrationIconMeta">Tasks</span>
 	</a>
 	<a className="integrationIconCard" href="./apple-contacts">
-		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/apple/A2AAAD" alt="" /></span>
+		<span className="integrationIconBadge"><span className="integrationIconGlyph">👤</span></span>
 		<span className="integrationIconName">Apple Contacts</span>
 		<span className="integrationIconMeta">Contacts</span>
 	</a>
 	<a className="integrationIconCard" href="./macos">
-		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/apple/FFFFFF" alt="" /></span>
+		<span className="integrationIconBadge"><img src="/img/integrations/macos.png" alt="" /></span>
 		<span className="integrationIconName">macOS</span>
 		<span className="integrationIconMeta">System controls</span>
 	</a>
 	<a className="integrationIconCard" href="./jira">
-		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/jira/0052CC" alt="" /></span>
+		<span className="integrationIconBadge"><img src="/img/integrations/jira.png" alt="" /></span>
 		<span className="integrationIconName">Jira</span>
 		<span className="integrationIconMeta">Work Tracker</span>
 	</a>
 	<a className="integrationIconCard" href="./notion">
-		<span className="integrationIconBadge"><img src="https://cdn.simpleicons.org/notion/FFFFFF" alt="" /></span>
+		<span className="integrationIconBadge"><img src="/img/integrations/notion.png" alt="" /></span>
 		<span className="integrationIconName">Notion</span>
 		<span className="integrationIconMeta">Documents</span>
 	</a>

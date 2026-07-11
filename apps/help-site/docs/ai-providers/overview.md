@@ -11,11 +11,11 @@ Toby supports five AI providers:
 
 | Provider | Best for |
 | -------- | -------- |
-| [OpenAI (direct)](./openai) | A single OpenAI API key and familiar model ids (`gpt-5-mini`, `gpt-4.1`, …) |
-| [Vercel AI Gateway](./vercel-ai-gateway) | One API key that routes to OpenAI, Anthropic, Google, Amazon, and more via `provider/model` slugs |
-| [Chutes](./chutes) | Open-source TEE-backed models (DeepSeek, Qwen, GLM, Kimi) via Chutes' OpenAI-compatible endpoint |
-| [OpenRouter](./openrouter) | Hundreds of models from many vendors through a single OpenRouter API key |
-| Ollama | Run open-source models locally on your machine (no API key needed) |
+| <img class="ai-provider-icon-inline" src="/img/ai-providers/openai.png" alt="" width="20" height="20" /> [OpenAI (direct)](./openai) | A single OpenAI API key and familiar model ids (`gpt-5-mini`, `gpt-4.1`, …) |
+| <img class="ai-provider-icon-inline" src="/img/ai-providers/vercel.png" alt="" width="20" height="20" /> [Vercel AI Gateway](./vercel-ai-gateway) | One API key that routes to OpenAI, Anthropic, Google, Amazon, and more via `provider/model` slugs |
+| <img class="ai-provider-icon-inline" src="/img/ai-providers/chutes.png" alt="" width="20" height="20" /> [Chutes](./chutes) | Open-source TEE-backed models (DeepSeek, Qwen, GLM, Kimi) via Chutes' OpenAI-compatible endpoint |
+| <img class="ai-provider-icon-inline" src="/img/ai-providers/openrouter.png" alt="" width="20" height="20" /> [OpenRouter](./openrouter) | Hundreds of models from many vendors through a single OpenRouter API key |
+| <img class="ai-provider-icon-inline" src="/img/ai-providers/ollama.png" alt="" width="20" height="20" /> [Ollama](./ollama) | Run open-source models locally on your machine (no API key needed) |
 
 You only need **one** provider configured to start chatting. Many people use OpenAI direct for simplicity, Vercel AI Gateway for multi-vendor models with unified billing, Chutes or OpenRouter for open-source model access, or Ollama for fully local inference.
 

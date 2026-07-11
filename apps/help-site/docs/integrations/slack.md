@@ -3,7 +3,7 @@ sidebar_position: 4
 title: Slack
 ---
 
-# Slack
+# <span class="docs-brand-title"><img class="docs-brand-icon" src="/img/integrations/slack.png" alt="" width="40" height="40" />Slack</span>
 
 Connect Toby to Slack to search channels, read history, and post messages from chat. Optionally enable [inbound @mentions](#inbound-mentions) so Toby can reply in threads while the app is running.
 

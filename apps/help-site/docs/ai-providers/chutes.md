@@ -3,7 +3,7 @@ sidebar_position: 4
 title: Chutes
 ---
 
-# Chutes
+# <span class="ai-provider-title"><img class="ai-provider-icon" src="/img/ai-providers/chutes.png" alt="" width="40" height="40" />Chutes</span>
 
 [Chutes](https://chutes.ai/) hosts leading open-source AI models with confidential compute (TEE) backing. Toby connects to Chutes via its OpenAI-compatible endpoint, so chat, streaming, tool calling, and structured outputs all work out of the box.
 

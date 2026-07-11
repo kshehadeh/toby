@@ -3,7 +3,7 @@ sidebar_position: 2
 title: OpenAI (direct)
 ---
 
-# OpenAI (direct)
+# <span class="ai-provider-title"><img class="ai-provider-icon" src="/img/ai-providers/openai.png" alt="" width="40" height="40" />OpenAI (direct)</span>
 
 Connect Toby directly to the [OpenAI API](https://platform.openai.com/docs). Personas that use the **openai** provider send requests to OpenAI with **bare model ids** (no `provider/` prefix).
 

@@ -3,7 +3,7 @@ sidebar_position: 5
 title: OpenRouter
 ---
 
-# OpenRouter
+# <span class="ai-provider-title"><img class="ai-provider-icon" src="/img/ai-providers/openrouter.png" alt="" width="40" height="40" />OpenRouter</span>
 
 [OpenRouter](https://openrouter.ai/) is a unified API gateway that provides access to hundreds of AI models from leading providers like OpenAI, Anthropic, Google, Meta, Mistral, DeepSeek, xAI, and more. One API key gives you access to the full catalog.
 

@@ -3,7 +3,7 @@ sidebar_position: 10
 title: macOS
 ---
 
-# macOS
+# <span class="docs-brand-title"><img class="docs-brand-icon" src="/img/integrations/macos.png" alt="" width="40" height="40" />macOS</span>
 
 Connect Toby to local macOS system controls. The macOS plugin delegates all
 macOS-native operations to **Toby.app's native API server** — CoreWLAN,

@@ -3,7 +3,7 @@ sidebar_position: 2
 title: Email
 ---
 
-# Email
+# <span class="docs-brand-title"><img class="docs-brand-icon" src="/img/integrations/email.png" alt="" width="40" height="40" />Email</span>
 
 Connect Toby to any IMAP/SMTP mailbox to read, search, and organize email from chat.
 

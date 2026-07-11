@@ -3,7 +3,7 @@ sidebar_position: 7
 title: Apple Calendar
 ---
 
-# Apple Calendar
+# <span class="docs-brand-title"><img class="docs-brand-icon" src="/img/integrations/apple-calendar.png" alt="" width="40" height="40" />Apple Calendar</span>
 
 Connect Toby to **Calendar.app** on your Mac to search, create, and update events.
 

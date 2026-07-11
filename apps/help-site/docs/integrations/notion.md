@@ -3,7 +3,7 @@ sidebar_position: 12
 title: Notion
 ---
 
-# Notion
+# <span class="docs-brand-title"><img class="docs-brand-icon" src="/img/integrations/notion.png" alt="" width="40" height="40" />Notion</span>
 
 Connect Toby to Notion to search, read, create, and update durable document
 content from chat.

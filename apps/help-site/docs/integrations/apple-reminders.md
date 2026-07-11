@@ -3,7 +3,7 @@ sidebar_position: 8
 title: Apple Reminders
 ---
 
-# Apple Reminders
+# <span class="docs-brand-title"><img class="docs-brand-icon" src="/img/integrations/apple-reminders.png" alt="" width="40" height="40" />Apple Reminders</span>
 
 Connect Toby to **Reminders.app** on your Mac to search, create, update, complete, and delete reminders.
 

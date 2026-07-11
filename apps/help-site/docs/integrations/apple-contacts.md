@@ -3,7 +3,7 @@ sidebar_position: 9
 title: Apple Contacts
 ---
 
-# Apple Contacts
+# <span class="docs-brand-title"><span class="docs-brand-icon-emoji" aria-hidden="true">👤</span>Apple Contacts</span>
 
 Connect Toby to **Contacts.app** on your Mac to search people and look up contact details.
 
@@ -63,7 +63,7 @@ The integration is **read-only**. It does not create, update, or delete contacts
 
 - Prefer **identifiers** returned from search when asking for full details.
 - Empty search lists contacts up to a limit (default 25, max 100).
-- Apple Contacts is a **Contact List Provider**. If you also use Azure AD or another contacts source, set a default under **Settings → Default Providers**.
+- Apple Contacts is a **Contact List Provider**. If you connect more than one contacts source later, set a default under **Settings → Default Providers**.
 
 ## Related
 

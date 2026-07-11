@@ -3,7 +3,7 @@ sidebar_position: 3
 title: Vercel AI Gateway
 ---
 
-# Vercel AI Gateway
+# <span class="ai-provider-title"><img class="ai-provider-icon" src="/img/ai-providers/vercel.png" alt="" width="40" height="40" />Vercel AI Gateway</span>
 
 [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) routes Toby’s requests to many upstream providers (OpenAI, Anthropic, Google, Amazon Bedrock, Meta, Mistral, DeepSeek, xAI, and more) through **one API** and **one key**.
 
