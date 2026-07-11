@@ -29,7 +29,8 @@ Use the **File** menu to protect or move your settings:
 | **Backup Settings…** | Prompts for a password, then a save location for a `.tbybak` archive of settings and credentials |
 | **Restore Settings…** | Opens a `.tbybak` file, asks for the password if needed, and replaces your current config and credentials |
 
-The CLI equivalents are `toby config backup` and `toby config restore`. See [Configuration overview](./configuration/overview).
+The CLI equivalents are `toby config backup` and `toby config restore`. See
+[Security](./security) for what is included and how encryption works.
 
 ## Surfaces
 

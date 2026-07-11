@@ -820,7 +820,8 @@ Errors:
 
 ## Config backup / restore
 
-Shared helpers live in [`packages/core/src/config/backup.ts`](../packages/core/src/config/backup.ts).
+Design overview: [security.md](security.md). Shared helpers live in
+[`packages/core/src/config/backup.ts`](../packages/core/src/config/backup.ts).
 Toby.app **File → Backup Settings… / Restore Settings…** and `toby config backup` / `restore` use the same format (password-encrypted AES-256-GCM `.tbybak`).
 
 ### `POST /api/config/backup`

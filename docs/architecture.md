@@ -130,9 +130,7 @@ the detail surface that needs them.
 | `~/.toby/native-port` | Ephemeral port published by Toby.app's native permission/audio server. |
 | `~/.toby/projects/<slug>/` | Project metadata, reference context, local skills, and generated outputs. |
 
-Access is centralized in [`packages/core/src/config/index.ts`](../packages/core/src/config/index.ts). Integration modules should not hardcode paths; use the config helpers. Credentials I/O goes only through `readCredentials` / `writeCredentials`, which encrypt and decrypt on macOS using a Keychain-held data key (see `credentials-crypto.ts` and `credentials-keychain.ts`). Legacy plaintext `credentials.json` is migrated on first successful read. Override with `TOBY_CREDENTIALS_KEY_BACKEND=memory` (tests) or `plaintext` (disable encryption).
-
-Backup and restore behavior is documented in [`commands.md`](commands.md).
+Access is centralized in [`packages/core/src/config/index.ts`](../packages/core/src/config/index.ts). Integration modules should not hardcode paths; use the config helpers. Credentials I/O goes only through `readCredentials` / `writeCredentials`. Full design (Keychain item, envelope format, threat model, backup contents) is in [`security.md`](security.md). CLI flags are in [`commands.md`](commands.md); HTTP routes in [`server-api.md`](server-api.md).
 
 ## Daemon server API
 

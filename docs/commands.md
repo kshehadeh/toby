@@ -25,13 +25,13 @@ terminal configuration UI.
 
 Create an encrypted backup of `config.json` and `credentials.json`.
 
+Design, Keychain interaction, and threat model: [security.md](security.md).
+
 - Same format as **Toby.app → File → Backup Settings…** (daemon `POST /api/config/backup`).
-- Includes full `config.json` (personas, connection state, defaults, listen, …) and
-  the full credentials bag (`integrations.<plugin>` fields for Email, Notion, Slack,
-  etc., plus AI/transcription keys). Decrypts Keychain-wrapped credentials first.
-- Encrypts the backup payload with a **password**.
+- Includes full `config.json` and the full decrypted credentials bag
+  (`integrations.<plugin>` fields, AI/transcription keys).
+- Encrypts the backup payload with a **password** (AES-256-GCM + scrypt).
 - Prompts for a password and confirmation.
-- Encrypts with AES-256-GCM + scrypt key derivation.
 - If `destination` is omitted, the backup is written in the current directory.
 - If `destination` is an existing directory, Toby creates a timestamped backup
   filename inside that directory.

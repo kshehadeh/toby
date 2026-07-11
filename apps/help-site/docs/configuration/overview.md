@@ -47,13 +47,8 @@ Projects and recordings are managed outside Settings (sidebar **Projects** and
 
 Most people only need the Settings UI. Paths above matter for backups, support, and advanced automation.
 
-### Credentials encryption (macOS)
-
-Toby encrypts `credentials.json` on disk with AES-256-GCM and stores the data key in the macOS Keychain (service `dev.toby.credentials`). The first time Toby needs the key, macOS may prompt you to allow access for the Toby process.
-
-- **Settings and plugins** keep working as before; encryption is transparent.
-- **Backups** — use **File → Backup Settings…** in Toby.app (or `toby config backup` in Terminal) to export a password-protected archive of your config and secrets. Restore with **File → Restore Settings…** or `toby config restore`. Do not copy a raw `credentials.json` to another Mac.
-- If the Keychain item is deleted while an encrypted credentials file remains, Toby cannot decrypt secrets until you restore a backup or re-enter keys in Settings.
+For how credentials are encrypted on Mac, what a backup includes, and restore
+safety, see **[Security](../security)**.
 
 ## What this section covers
 

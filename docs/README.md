@@ -5,6 +5,7 @@ Human- and agent-oriented docs for this repository.
 | Doc | Description |
 | --- | ----------- |
 | [architecture.md](architecture.md) | Monorepo layout: `@toby/core` harness, `@toby/cli`, Toby.app, runtime flow, config paths. |
+| [security.md](security.md) | Credentials at rest (Keychain-wrapped AES-GCM), backup/restore format and threat model. |
 | [commands.md](commands.md) | Shared CLI commands, native app launch, `config backup` / `config restore`. |
 | [projects.md](projects.md) | Projects: SQLite metadata, `AGENTS.md` guidance, skills, outputs. |
 | [integrations.md](integrations.md) | `IntegrationModule` registry, first-party plugins, global tools. |
