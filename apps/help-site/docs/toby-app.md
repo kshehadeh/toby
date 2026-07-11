@@ -34,8 +34,8 @@ history, streaming responses, and a prompt input at the bottom.
 ### Recordings
 
 The Recordings window lists your past recordings with metadata such as start
-time, duration, and transcription status. You can view transcripts and start a
-chat about any recording.
+time, duration, and transcription status. You can view transcripts, generate an
+AI summary of a transcribed recording, and start a chat about any recording.
 
 ![Toby.app Recordings window](/img/toby-app-recordings.png)
 

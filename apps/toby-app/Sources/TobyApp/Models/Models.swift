@@ -625,6 +625,7 @@ struct ListenRecordingSummary: Decodable, Identifiable {
 	let sources: ListenSourceSelection
 	let hasAudio: Bool
 	let hasTranscript: Bool
+	let hasSummary: Bool?
 
 	var displayName: String {
 		if let name, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -638,6 +639,11 @@ struct ListenRecordingsListResponse: Decodable {
 	let recordings: [ListenRecordingSummary]
 }
 
+struct ListenRecordingSummaryMeta: Decodable {
+	let createdAt: String
+	let personaName: String?
+}
+
 struct ListenRecordingMetadata: Decodable {
 	let id: String
 	let name: String?
@@ -649,6 +655,7 @@ struct ListenRecordingMetadata: Decodable {
 	let sources: ListenSourceSelection
 	let errors: [String]?
 	let chatSessionId: String?
+	let summary: ListenRecordingSummaryMeta?
 }
 
 struct ListenRecordingDetail: Decodable {
@@ -661,6 +668,14 @@ struct ListenRecordingDetail: Decodable {
 	let transcript: String?
 	let transcriptError: String?
 	let warnings: [String]?
+	let hasSummary: Bool?
+	let summary: String?
+	let summaryMeta: ListenRecordingSummaryMeta?
+
+	var showsSummary: Bool {
+		if let hasSummary { return hasSummary }
+		return summary?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+	}
 }
 
 enum TranscriptEntry: Decodable, Identifiable, Equatable {

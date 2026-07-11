@@ -2,12 +2,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { resolveTobyDir } from "../config/index";
 import type { TranscriptPayload } from "./transcript-types";
-import type { ListenRecordingMetadata } from "./types";
+import type {
+	ListenRecordingMetadata,
+	ListenRecordingSummaryMeta,
+} from "./types";
 
 const LISTEN_DIR = "listen";
 const RECORDINGS_DIR = "recordings";
 const TRANSCRIPT_TXT = "transcript.txt";
 const TRANSCRIPT_JSON = "transcript.json";
+const SUMMARY_MD = "summary.md";
 const COMBINED_M4A = "combined.m4a";
 const MIC_WAV = "mic.wav";
 const SYSTEM_WAV = "system.wav";
@@ -119,6 +123,22 @@ export function recordingHasTranscript(
 	if (!transcriptPath) return false;
 	try {
 		return fs.readFileSync(transcriptPath, "utf8").trim().length > 0;
+	} catch {
+		return false;
+	}
+}
+
+export function recordingHasSummary(
+	recording: ListenRecordingSummary,
+): boolean {
+	const summaryPath = resolveFilePath(
+		recording.dir,
+		recording.metadata.files.summary,
+		SUMMARY_MD,
+	);
+	if (!summaryPath) return false;
+	try {
+		return fs.readFileSync(summaryPath, "utf8").trim().length > 0;
 	} catch {
 		return false;
 	}
@@ -238,4 +258,131 @@ export function readListenTranscript(
 			],
 		};
 	}
+}
+
+export type ReadListenSummaryResult =
+	| {
+			readonly ok: true;
+			readonly text: string;
+			readonly meta?: ListenRecordingSummaryMeta;
+	  }
+	| {
+			readonly ok: false;
+			readonly error: string;
+	  };
+
+export function readListenSummary(
+	recordingDir: string,
+): ReadListenSummaryResult {
+	const metadata = readRecordingMetadata(recordingDir);
+	const summaryPath = resolveFilePath(
+		recordingDir,
+		metadata?.files.summary,
+		SUMMARY_MD,
+	);
+	if (!summaryPath) {
+		return {
+			ok: false,
+			error: "No summary is available for this recording.",
+		};
+	}
+	try {
+		const text = fs.readFileSync(summaryPath, "utf8").trim();
+		if (!text) {
+			return {
+				ok: false,
+				error: "No summary is available for this recording.",
+			};
+		}
+		return {
+			ok: true,
+			text,
+			meta: metadata?.summary,
+		};
+	} catch (e) {
+		return {
+			ok: false,
+			error: e instanceof Error ? e.message : "Could not read summary.md.",
+		};
+	}
+}
+
+/**
+ * Persist a summary for a recording: write `summary.md` and update metadata.
+ * Replaces any existing summary.
+ */
+export function writeListenSummary(
+	recording: ListenRecordingSummary,
+	params: {
+		readonly text: string;
+		readonly personaName?: string;
+		readonly createdAt?: string;
+	},
+): ListenRecordingSummary {
+	const text = params.text.trim();
+	if (!text) {
+		throw new Error("Cannot write an empty summary.");
+	}
+	const summaryFile = SUMMARY_MD;
+	const summaryPath = path.join(recording.dir, summaryFile);
+	fs.writeFileSync(summaryPath, `${text}\n`, "utf8");
+
+	const createdAt = params.createdAt ?? new Date().toISOString();
+	const nextMetadata: ListenRecordingMetadata = {
+		...recording.metadata,
+		files: {
+			...recording.metadata.files,
+			summary: summaryFile,
+		},
+		summary: {
+			createdAt,
+			...(params.personaName ? { personaName: params.personaName } : {}),
+		},
+	};
+	fs.writeFileSync(
+		metadataPath(recording.dir),
+		`${JSON.stringify(nextMetadata, null, 2)}\n`,
+	);
+	return {
+		id: recording.id,
+		dir: recording.dir,
+		metadata: nextMetadata,
+	};
+}
+
+/**
+ * Remove a persisted summary (file + metadata fields). Safe if none exists.
+ * Used when re-transcribing so a stale summary cannot outlive a new transcript.
+ */
+export function clearListenSummary(
+	recording: ListenRecordingSummary,
+): ListenRecordingSummary {
+	const summaryPath = resolveFilePath(
+		recording.dir,
+		recording.metadata.files.summary,
+		SUMMARY_MD,
+	);
+	if (summaryPath) {
+		try {
+			fs.unlinkSync(summaryPath);
+		} catch {
+			// ignore missing file
+		}
+	}
+
+	const { summary: _summaryFile, ...restFiles } = recording.metadata.files;
+	const { summary: _summaryMeta, ...restMeta } = recording.metadata;
+	const nextMetadata: ListenRecordingMetadata = {
+		...restMeta,
+		files: restFiles,
+	};
+	fs.writeFileSync(
+		metadataPath(recording.dir),
+		`${JSON.stringify(nextMetadata, null, 2)}\n`,
+	);
+	return {
+		id: recording.id,
+		dir: recording.dir,
+		metadata: nextMetadata,
+	};
 }

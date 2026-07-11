@@ -314,6 +314,16 @@ struct TobyClient {
 		return try JSONDecoder().decode(ListenRecordingDetail.self, from: data)
 	}
 
+	func summarizeRecording(id: String) async throws -> ListenRecordingDetail {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)/summarize"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = Data("{}".utf8)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ListenRecordingDetail.self, from: data)
+	}
+
 	func streamTranscribeRecording(
 		id: String,
 		onStatus: @escaping (String) -> Void,

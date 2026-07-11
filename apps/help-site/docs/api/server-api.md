@@ -80,10 +80,11 @@ Transcript entries and chat stream events are structured JSON objects emitted du
 | `POST` | `/api/listen/start` | Start helper-backed capture |
 | `POST` | `/api/listen/stop` | Stop capture (save or discard) |
 | `GET` | `/api/listen/recordings` | List saved recordings |
-| `GET` | `/api/listen/recordings/:id` | Recording detail + transcript |
+| `GET` | `/api/listen/recordings/:id` | Recording detail + transcript + summary |
 | `PATCH` | `/api/listen/recordings/:id` | Update name, description, or linked chat |
 | `DELETE` | `/api/listen/recordings/:id` | Delete a recording |
 | `POST` | `/api/listen/recordings/:id/transcribe` | Transcribe or retranscribe |
+| `POST` | `/api/listen/recordings/:id/summarize` | Summarize or re-summarize a transcript |
 | `GET` | `/api/sessions` | List chat sessions |
 | `POST` | `/api/sessions` | Create a session |
 | `GET` | `/api/sessions/:id` | Session transcript and settings |

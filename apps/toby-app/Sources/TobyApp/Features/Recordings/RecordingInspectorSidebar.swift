@@ -29,6 +29,10 @@ struct RecordingInspectorSidebar: View {
 		return true
 	}
 
+	private var isSummarizing: Bool {
+		store.summarizingRecordingId == detail.id
+	}
+
 	/// Returns the associated chat session ID if it exists in the current
 	/// sessions list, otherwise nil (meaning "Start Chat" should be shown).
 	private var existingChatSessionId: String? {
@@ -227,8 +231,38 @@ struct RecordingInspectorSidebar: View {
 			}
 			.buttonStyle(.bordered)
 			.controlSize(.small)
-			.disabled(isTranscribing || !detail.hasAudio)
+			.disabled(isTranscribing || isSummarizing || !detail.hasAudio)
 			.accessibilityIdentifier("sidebar-transcribe-button")
+
+			if detail.hasTranscript {
+				if isSummarizing {
+					HStack(spacing: 8) {
+						ProgressView()
+							.scaleEffect(0.7)
+						Text("Summarizing…")
+							.font(.system(size: 11))
+							.foregroundStyle(SettingsDesign.rowDescription)
+					}
+				} else if detail.showsSummary {
+					Text("Summary available")
+						.font(.system(size: 11))
+						.foregroundStyle(SettingsDesign.rowDescription)
+				}
+
+				Button {
+					Task { await store.summarizeRecording(id: detail.id) }
+				} label: {
+					Label(
+						detail.showsSummary ? "Re-Summarize" : "Summarize",
+						systemImage: "text.badge.star"
+					)
+					.frame(maxWidth: .infinity)
+				}
+				.buttonStyle(.bordered)
+				.controlSize(.small)
+				.disabled(isTranscribing || isSummarizing)
+				.accessibilityIdentifier("sidebar-summarize-button")
+			}
 		}
 	}
 

@@ -200,6 +200,18 @@ export class TobyDaemonClient {
 		);
 	}
 
+	async summarizeRecording(
+		recordingId: string,
+	): Promise<ListenTranscriptionResponse> {
+		return this.json<ListenTranscriptionResponse>(
+			`/api/listen/recordings/${encodeURIComponent(recordingId)}/summarize`,
+			{
+				method: "POST",
+				body: JSON.stringify({}),
+			},
+		);
+	}
+
 	async streamTurn(options: StreamTurnOptions): Promise<TurnDonePayload> {
 		const { sessionId, onEvent, onAskUser, signal, ...body } = options;
 		const turnUrl = this.url(

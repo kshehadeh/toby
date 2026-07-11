@@ -11,6 +11,13 @@ struct RecordingDetailContent: View {
 	var processingState: RecordingProcessingState? = nil
 	var validSessionIds: Set<String> = []
 
+	@State private var isSummaryScrolling = false
+	@State private var summaryScrollProgress: CGFloat = 0
+	@State private var summaryScrollHeight: CGFloat = 220
+
+	private let summaryScrollbarWidth: CGFloat = 6
+	private let summaryScrollbarHeight: CGFloat = 56
+
 	var body: some View {
 		VStack(spacing: 0) {
 			RecordingHeader(detail: detail)
@@ -20,7 +27,7 @@ struct RecordingDetailContent: View {
 			Divider().overlay(SettingsDesign.cardBorder)
 
 			HStack(spacing: 0) {
-				transcriptColumn
+				mainColumn
 				Divider().overlay(SettingsDesign.cardBorder)
 				RecordingInspectorSidebar(store: store, detail: detail, processingState: processingState, validSessionIds: validSessionIds)
 			}
@@ -29,7 +36,87 @@ struct RecordingDetailContent: View {
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
 	}
 
-	private var transcriptColumn: some View {
+	private var mainColumn: some View {
+		VStack(alignment: .leading, spacing: 16) {
+			if detail.showsSummary, let summary = detail.summary,
+			   !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+			{
+				summarySection(text: summary)
+			}
+			transcriptSection
+		}
+		.padding(20)
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+	}
+
+	private func summarySection(text: String) -> some View {
+		VStack(alignment: .leading, spacing: 4) {
+			Text("Summary")
+				.font(.system(size: 13, weight: .semibold))
+				.foregroundStyle(SettingsDesign.rowTitle)
+			Text("AI-generated summary of the transcript")
+				.font(.caption)
+				.foregroundStyle(SettingsDesign.rowDescription)
+
+			ZStack(alignment: .trailing) {
+				ScrollView(.vertical, showsIndicators: false) {
+					VStack(alignment: .leading, spacing: 0) {
+						MarkdownText(
+							text: text,
+							font: .body,
+							foregroundStyle: SettingsDesign.rowTitle
+						)
+						.textSelection(.enabled)
+						.frame(maxWidth: .infinity, alignment: .leading)
+						.padding(12)
+
+						ScrollStateTracker(
+							isScrolling: $isSummaryScrolling,
+							progress: $summaryScrollProgress
+						)
+						.frame(width: 0, height: 0)
+					}
+				}
+
+				if isSummaryScrolling {
+					RoundedRectangle(cornerRadius: summaryScrollbarWidth / 2)
+						.fill(AppTheme.tertiaryText.opacity(0.58))
+						.frame(width: summaryScrollbarWidth, height: summaryScrollbarHeight)
+						.padding(.trailing, 4)
+						.offset(y: (summaryScrollProgress - 0.5) * max(summaryScrollHeight - summaryScrollbarHeight, 0))
+						.transition(.opacity)
+						.allowsHitTesting(false)
+				}
+			}
+			.frame(maxHeight: 220)
+			.background(SettingsDesign.cardBackground)
+			.clipShape(RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius))
+			.overlay {
+				RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
+					.stroke(SettingsDesign.cardBorder, lineWidth: 1)
+			}
+			.overlay(alignment: .topTrailing) {
+				CopyButton(text: text, label: "Copy summary")
+					.accessibilityIdentifier("copy-summary-button")
+					.padding(.top, 6)
+					.padding(.trailing, 8)
+			}
+			.background(
+				GeometryReader { geometry in
+					Color.clear
+						.onAppear { summaryScrollHeight = geometry.size.height }
+						.onChange(of: geometry.size.height) { _, newValue in
+							summaryScrollHeight = newValue
+						}
+				}
+			)
+			.animation(.easeInOut(duration: 0.25), value: isSummaryScrolling)
+			.padding(.top, 8)
+			.accessibilityIdentifier("recording-summary-section")
+		}
+	}
+
+	private var transcriptSection: some View {
 		VStack(alignment: .leading, spacing: 4) {
 			Text("Transcript")
 				.font(.system(size: 13, weight: .semibold))
@@ -64,7 +151,6 @@ struct RecordingDetailContent: View {
 			}
 			.padding(.top, 8)
 		}
-		.padding(20)
 		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 	}
 }

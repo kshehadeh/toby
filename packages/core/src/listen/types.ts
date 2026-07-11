@@ -13,6 +13,12 @@ export interface ListenRecordingFiles {
 	readonly combined?: string;
 	readonly transcript?: string;
 	readonly transcriptJson?: string;
+	readonly summary?: string;
+}
+
+export interface ListenRecordingSummaryMeta {
+	readonly createdAt: string;
+	readonly personaName?: string;
 }
 
 export interface ListenRecordingMetadata {
@@ -33,6 +39,8 @@ export interface ListenRecordingMetadata {
 	};
 	readonly errors?: string[];
 	readonly chatSessionId?: string;
+	/** Metadata about a persisted AI summary (text lives in files.summary). */
+	readonly summary?: ListenRecordingSummaryMeta;
 }
 
 export interface ListenTranscriptionResponse {
@@ -46,6 +54,9 @@ export interface ListenTranscriptionResponse {
 	readonly transcriptError?: string;
 	readonly segments?: TranscriptPayload["segments"];
 	readonly warnings?: readonly string[];
+	readonly hasSummary?: boolean;
+	readonly summary?: string;
+	readonly summaryMeta?: ListenRecordingSummaryMeta;
 }
 
 export const DEFAULT_LISTEN_SOURCES: ListenSourceSelection = {

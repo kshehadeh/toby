@@ -71,9 +71,10 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `POST` | `/api/listen/start` | Start helper-backed audio capture. |
 | `POST` | `/api/listen/stop` | Stop and save or discard helper-backed capture. |
 | `GET` | `/api/listen/recordings` | List saved recording summaries. |
-| `GET` | `/api/listen/recordings/:id` | Fetch recording metadata, audio path, and transcript. |
+| `GET` | `/api/listen/recordings/:id` | Fetch recording metadata, audio path, transcript, and summary. |
 | `DELETE` | `/api/listen/recordings/:id` | Delete a saved recording and its artifacts. |
 | `POST` | `/api/listen/recordings/:id/transcribe` | Transcribe or retranscribe a saved recording. |
+| `POST` | `/api/listen/recordings/:id/summarize` | Summarize or re-summarize a transcribed recording. |
 | `GET` | `/api/sessions` | List chat sessions. |
 | `POST` | `/api/sessions` | Create a chat session. |
 | `GET` | `/api/sessions/:id` | Fetch transcript, settings, and active plan for a session. |
@@ -284,15 +285,19 @@ type ListenRecordingsListResponse = {
     sources: { mic: boolean; system: boolean };
     hasAudio: boolean;
     hasTranscript: boolean;
+    hasSummary: boolean;
   }>;
 };
 ```
 
 ### `GET /api/listen/recordings/:id`
 
-Returns full metadata, the resolved playable `audioPath`, transcript text, and
-optional structured-segment warnings. Audio resolution prefers
-`combined.m4a`, then microphone WAV, then system WAV.
+Returns full metadata, the resolved playable `audioPath`, transcript text,
+optional AI summary text, and optional structured-segment warnings. Audio
+resolution prefers `combined.m4a`, then microphone WAV, then system WAV.
+
+Detail fields include `hasSummary`, `summary` (markdown text from `summary.md`
+when present), and `summaryMeta` (`createdAt`, optional `personaName`).
 
 Errors:
 
@@ -333,6 +338,25 @@ Errors:
 - `404` when the recording does not exist.
 - `500` when plugin transcription fails. The error is also appended to the
   recording metadata.
+
+Re-transcribe clears any previously stored AI summary for the recording.
+
+### `POST /api/listen/recordings/:id/summarize`
+
+Generates an AI summary of the recording transcript using the persona configured
+under Settings → Transcription → **Persona for recording summaries** (or the
+default persona). Writes `summary.md`, updates `metadata.json`, and returns the
+refreshed recording detail (including `hasSummary`, `summary`, and
+`summaryMeta`).
+
+Calling the endpoint again replaces the existing summary.
+
+Errors:
+
+- `400` when no non-empty transcript is available.
+- `404` when the recording does not exist.
+- `500` when the model call fails. The error is also appended to the recording
+  metadata.
 
 ## Sessions
 

@@ -1,16 +1,20 @@
+import { afterEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createListenChatTools } from "@toby/core/ai/listen-chat-tools";
 import {
+	clearListenSummary,
 	deleteListenRecordingById,
 	findListenRecordingById,
 	listListenRecordings,
+	readListenSummary,
 	readListenTranscript,
 	recordingHasAudio,
+	recordingHasSummary,
 	recordingHasTranscript,
+	writeListenSummary,
 } from "@toby/core/listen/recordings";
-import { afterEach, describe, expect, it } from "bun:test";
 import {
 	buildListenMetadata,
 	prepareListenSession,
@@ -199,6 +203,56 @@ describe("listen recordings core", () => {
 		expect(deleteListenRecordingById("delete-me", dir)).toBe(true);
 		expect(fs.existsSync(outputDir)).toBe(false);
 		expect(deleteListenRecordingById("delete-me", dir)).toBe(false);
+	});
+
+	it("writes, reads, and clears AI summaries", () => {
+		const dir = tempDir();
+		saveRecording({
+			dir,
+			id: "with-summary",
+			startedAt: "2026-05-21T12:00:00Z",
+			transcriptText: "We decided to ship Friday.",
+			combined: true,
+		});
+		const recording = findListenRecordingById("with-summary", dir);
+		expect(recording).not.toBeNull();
+		if (!recording) return;
+
+		expect(recordingHasSummary(recording)).toBe(false);
+		expect(readListenSummary(recording.dir).ok).toBe(false);
+
+		const updated = writeListenSummary(recording, {
+			text: "## Overview\n\nShip Friday.",
+			personaName: "Toby",
+			createdAt: "2026-05-21T12:05:00Z",
+		});
+		expect(updated.metadata.files.summary).toBe("summary.md");
+		expect(updated.metadata.summary).toEqual({
+			createdAt: "2026-05-21T12:05:00Z",
+			personaName: "Toby",
+		});
+		expect(recordingHasSummary(updated)).toBe(true);
+
+		const summary = readListenSummary(updated.dir);
+		expect(summary.ok).toBe(true);
+		if (!summary.ok) return;
+		expect(summary.text).toBe("## Overview\n\nShip Friday.");
+		expect(summary.meta?.personaName).toBe("Toby");
+
+		const replaced = writeListenSummary(updated, {
+			text: "Replaced summary.",
+			personaName: "Work",
+		});
+		const afterReplace = readListenSummary(replaced.dir);
+		expect(afterReplace.ok).toBe(true);
+		if (!afterReplace.ok) return;
+		expect(afterReplace.text).toBe("Replaced summary.");
+
+		const cleared = clearListenSummary(replaced);
+		expect(cleared.metadata.files.summary).toBeUndefined();
+		expect(cleared.metadata.summary).toBeUndefined();
+		expect(recordingHasSummary(cleared)).toBe(false);
+		expect(fs.existsSync(path.join(cleared.dir, "summary.md"))).toBe(false);
 	});
 });
 

@@ -27,11 +27,6 @@ import {
 import { cronToHuman } from "../schedules/cron-human";
 import { listScheduleRuns, listSchedules } from "../schedules/store";
 import { loadLocalSkills } from "../skills/index";
-import {
-	formatListenDuration,
-	formatListenRecordingDate,
-	listenRecordingTreeLabel,
-} from "./format";
 import type { ConfigureTreeContext, SettingsItem } from "./types";
 import {
 	ADD_CUSTOM_MODEL_SENTINEL,
@@ -125,7 +120,6 @@ export function buildSettingsTree(
 		...DEFAULT_CONFIGURE_TREE_CONTEXT,
 		...treeContext,
 	};
-	const listenRecordingsDir = ctx.listenRecordingsDir;
 	const integrationSections: SettingsItem[] = getIntegrationModules().map(
 		(mod) => {
 			const authMethods = mod.authMethods ?? [];
@@ -413,71 +407,6 @@ export function buildSettingsTree(
 		],
 	};
 
-	const recordingSections: SettingsItem[] = ctx.listenRecordings.map(
-		(recording) => ({
-			label: listenRecordingTreeLabel(
-				recording.metadata.startedAt,
-				recording.metadata.createdAt,
-				recording.metadata.name,
-				recording.id,
-			),
-			kind: "section" as const,
-			key: `listen.recordings.${recording.id}`,
-			children: [
-				{
-					label: "Name",
-					kind: "value" as const,
-					key: `listen.recordings.${recording.id}.name`,
-					currentValue: recording.metadata.name ?? "",
-				},
-				{
-					label: "Description",
-					kind: "value" as const,
-					key: `listen.recordings.${recording.id}.description`,
-					currentValue: recording.metadata.description ?? "",
-					multiline: true,
-				},
-				{
-					label: "Location",
-					kind: "hint" as const,
-					key: `listen.recordings.${recording.id}._location`,
-					currentValue: recording.dir,
-				},
-				{
-					label: "Duration",
-					kind: "hint" as const,
-					key: `listen.recordings.${recording.id}._duration`,
-					currentValue:
-						formatListenDuration(recording.metadata.durationMs) || "N/A",
-				},
-				{
-					label: "Date",
-					kind: "hint" as const,
-					key: `listen.recordings.${recording.id}._date`,
-					currentValue: formatListenRecordingDate(
-						recording.metadata.startedAt || recording.metadata.createdAt,
-					),
-				},
-				{
-					label: "Sources",
-					kind: "hint" as const,
-					key: `listen.recordings.${recording.id}._sources`,
-					currentValue: ctx.formatListenSources(recording.metadata.sources),
-				},
-				{
-					label: "Open folder in Finder",
-					kind: "action" as const,
-					key: `listen.recordings.${recording.id}._open`,
-				},
-				{
-					label: "Delete recording",
-					kind: "delete" as const,
-					key: `listen.recordings.${recording.id}._delete`,
-				},
-			],
-		}),
-	);
-
 	const transcriptionProviderId =
 		values["transcription.provider"] ??
 		TRANSCRIPTION_PROVIDERS[0]?.id ??
@@ -539,6 +468,22 @@ export function buildSettingsTree(
 						},
 					]
 				: []),
+			{
+				label: "Persona for recording summaries",
+				kind: "select" as const,
+				key: "listen.summaryPersona",
+				options: personaOptions,
+				selectChoices: [
+					{ value: "(default)", label: "Default persona" },
+					...personas.map((p) => ({
+						value: p.name,
+						label: p.name,
+					})),
+				],
+				currentValue: values["listen.summaryPersona"] ?? "(default)",
+				description:
+					"Persona used to summarize recording transcripts. Falls back to the default persona.",
+			},
 		],
 	};
 
@@ -583,28 +528,6 @@ export function buildSettingsTree(
 						},
 					]
 				: []),
-		],
-	};
-
-	const listenSection: SettingsItem = {
-		label: "Listen",
-		kind: "section",
-		key: "listen",
-		children: [
-			{
-				label: "Start new recording",
-				kind: "action",
-				key: "listen._start",
-			},
-			...(recordingSections.length > 0
-				? recordingSections
-				: [
-						{
-							label: "No recordings yet.",
-							kind: "hint" as const,
-							key: "listen._empty",
-						},
-					]),
 		],
 	};
 
@@ -895,7 +818,6 @@ export function buildSettingsTree(
 				],
 			},
 			buildProjectsSection(values),
-			listenSection,
 			schedulesSection,
 		],
 	};

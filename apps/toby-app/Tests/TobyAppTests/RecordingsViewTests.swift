@@ -271,6 +271,53 @@ struct RecordingsViewTests {
 		}
 	}
 
+	@Test("detail view shows Summarize button when transcript exists and no summary")
+	func detailViewShowsSummarizeButtonWhenTranscriptExists() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello world", hasAudio: true)
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-summarize-button")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Summarize")
+		}
+	}
+
+	@Test("detail view shows Re-Summarize button when summary exists")
+	func detailViewShowsReSummarizeButtonWhenSummaryExists() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(
+			id: "r1",
+			transcript: "Hello world",
+			hasAudio: true,
+			summary: "A brief summary of the recording."
+		)
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Re-Summarize")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "recording-summary-section")
+		}
+	}
+
+	@Test("detail view hides Summarize button when transcript is absent")
+	func detailViewHidesSummarizeButtonWhenNoTranscript() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: nil, hasAudio: true)
+		let view = RecordingsView(store: store)
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-summarize-button")
+		}
+	}
+
 	@Test("detail view shows transcript available status when transcript exists")
 	func detailViewShowsTranscriptAvailableStatus() throws {
 		let store = RecordingsStore()
@@ -623,7 +670,8 @@ private func makeRecording(id: String, name: String? = nil) -> ListenRecordingSu
 		durationMs: 60000,
 		sources: ListenSourceSelection(mic: true, system: false),
 		hasAudio: true,
-		hasTranscript: false
+		hasTranscript: false,
+		hasSummary: false
 	)
 }
 
@@ -641,7 +689,8 @@ private func makeRecordingDetail(
 	transcript: String?,
 	name: String? = nil,
 	hasAudio: Bool = false,
-	chatSessionId: String? = nil
+	chatSessionId: String? = nil,
+	summary: String? = nil
 ) -> ListenRecordingDetail {
 	ListenRecordingDetail(
 		id: id,
@@ -656,13 +705,21 @@ private func makeRecordingDetail(
 			durationMs: 60000,
 			sources: ListenSourceSelection(mic: true, system: false),
 			errors: nil,
-			chatSessionId: chatSessionId
+			chatSessionId: chatSessionId,
+			summary: summary != nil
+				? ListenRecordingSummaryMeta(createdAt: "2026-06-22T10:05:00Z", personaName: "Toby")
+				: nil
 		),
 		hasAudio: hasAudio,
 		audioPath: hasAudio ? "/tmp/\(id)/combined.m4a" : nil,
 		hasTranscript: transcript != nil,
 		transcript: transcript,
 		transcriptError: nil,
-		warnings: nil
+		warnings: nil,
+		hasSummary: summary != nil,
+		summary: summary,
+		summaryMeta: summary != nil
+			? ListenRecordingSummaryMeta(createdAt: "2026-06-22T10:05:00Z", personaName: "Toby")
+			: nil
 	)
 }

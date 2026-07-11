@@ -13,6 +13,8 @@ Toby.app provides native recording controls and the Recordings window.
 - Generate `combined.m4a` after listening stops for playback/transcription.
 - Generate `transcript.txt` and `transcript.json` via the configured
   transcription model.
+- Optionally generate `summary.md` via the configured summary persona after
+  transcription (on demand from the Recordings window).
 - Write `metadata.json` next to each recording.
 
 Recordings are stored under `~/.toby/listen/recordings/<recording-id>/`.
@@ -49,9 +51,26 @@ Stopping performs these steps:
    the **Recordings** window.
 
 The Recordings window fetches list and detail data from the daemon. It supports
-audio playback, transcript viewing, metadata editing, and confirmed deletion.
-Deletion is sent to `DELETE /api/listen/recordings/:id`; the SwiftUI app does
-not remove recording directories directly.
+audio playback, transcript viewing, AI summarization, metadata editing, and
+confirmed deletion. Deletion is sent to `DELETE /api/listen/recordings/:id`;
+the SwiftUI app does not remove recording directories directly.
+
+### Recording summaries
+
+When a recording has a non-empty transcript, the inspector shows a
+**Summarize** button (or **Re-Summarize** when a summary already exists). The
+app calls `POST /api/listen/recordings/:id/summarize`. The daemon:
+
+1. Reads `transcript.txt` for the recording.
+2. Resolves the persona from `config.listen.summaryPersona` (Settings →
+   Transcription → **Persona for recording summaries**), falling back to the
+   default persona.
+3. Runs a one-shot `generateText` call (no chat tools).
+4. Writes `summary.md` and updates `metadata.json` (`files.summary`,
+   `summary.createdAt`, `summary.personaName`).
+
+Re-summarize replaces the existing `summary.md`. Re-transcribe clears any
+persisted summary so it cannot outlive a new transcript.
 
 ```mermaid
 sequenceDiagram

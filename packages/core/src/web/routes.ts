@@ -49,6 +49,7 @@ import {
 	handleListenRecordingDelete,
 	handleListenRecordingDetail,
 	handleListenRecordingPatch,
+	handleListenRecordingSummarize,
 	handleListenRecordingTranscribe,
 	handleListenRecordingsList,
 	handleListenStart,
@@ -205,6 +206,13 @@ export async function handleWebRequest(
 			return handleListenRecordingTranscribe(
 				decodeURIComponent(listenRecordingTranscribeMatch[1]),
 				req,
+			);
+		}
+		const listenRecordingSummarizeMatch =
+			/^\/api\/listen\/recordings\/([^/]+)\/summarize$/.exec(pathname);
+		if (listenRecordingSummarizeMatch && req.method === "POST") {
+			return handleListenRecordingSummarize(
+				decodeURIComponent(listenRecordingSummarizeMatch[1]),
 			);
 		}
 		if (pathname === "/api/daemon/status" && req.method === "GET") {

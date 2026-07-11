@@ -17,7 +17,7 @@ Toby’s preferences live in **Toby.app → Settings**. This section documents *
 | **Default Providers** | Preferred integration per category (email, tasks, …) | [Default providers](./default-providers) |
 | **Chat** (inbound) | Listen for @mentions / external chat into Toby | [Inbound chat](./inbound-chat) · [Chat surfaces](../chat-surfaces/overview) |
 | **Web Search** | Built-in `webSearch` tool (not an integration) | [Web Search](./web-search) |
-| **Transcription** | Provider and key for Listen / recordings | [Transcription](./transcription) |
+| **Transcription** | Provider, key, and summary persona for Listen / recordings | [Transcription](./transcription) |
 | **Listen / Recordings** | Capture and browse recordings | [Listen mode](../listen) · [Toby.app](../toby-app) |
 | **Schedules** | Recurring prompts | [Schedules](../schedules) |
 | **Projects** | Project folders, persona, pinned skills | [Projects](../projects) |
@@ -51,6 +51,6 @@ Most people only need the Settings UI. Paths above matter for backups, support, 
 - **[Web Search](./web-search)** — enable the global search tool (requires Vercel AI Gateway key)
 - **[Default providers](./default-providers)** — prefer one integration when several share a category
 - **[Inbound chat](./inbound-chat)** — let Slack (or another inbound-capable plugin) drive headless chat turns
-- **[Transcription](./transcription)** — models used when Listen recordings are transcribed
+- **[Transcription](./transcription)** — models used when Listen recordings are transcribed, plus the persona for recording summaries
 
 For connecting Email, Todoist, Slack, and other services, use [Configure and connect](../getting-started/configure-and-status) and the [Integrations](../integrations/overview) guides.

@@ -1,16 +1,21 @@
 import fs from "node:fs";
 import { listenManager } from "../../listen/manager";
 import {
+	clearListenSummary,
 	deleteListenRecordingById,
 	findListenRecordingById,
 	listListenRecordings,
 	metadataPath,
+	readListenSummary,
 	readListenTranscript,
 	recordingHasAudio,
+	recordingHasSummary,
 	recordingHasTranscript,
 	resolveListenRecordingAudioPath,
+	writeListenSummary,
 } from "../../listen/recordings";
 import { updateListenRecordingMetadata } from "../../listen/session-controller";
+import { summarizeRecordingTranscript } from "../../listen/summarizer";
 import { ListenTranscriptionError } from "../../listen/transcription-errors";
 import { transcribeWithModel } from "../../listen/transcription-model";
 import { TRANSCRIPTION_NOT_CONFIGURED_CODE } from "../../listen/transcription-model";
@@ -48,6 +53,33 @@ export async function handleListenStop(req: Request): Promise<Response> {
 	}
 }
 
+function recordingDetailPayload(
+	recording: NonNullable<ReturnType<typeof findListenRecordingById>>,
+) {
+	const transcript = readListenTranscript(recording.dir, {
+		includeSegments: true,
+	});
+	const summary = readListenSummary(recording.dir);
+	const audioPath = resolveListenRecordingAudioPath(recording);
+	return {
+		id: recording.id,
+		dir: recording.dir,
+		metadata: recording.metadata,
+		hasAudio: audioPath !== undefined,
+		audioPath,
+		hasTranscript: transcript.ok,
+		transcript: transcript.ok ? transcript.text : undefined,
+		transcriptError: transcript.ok ? undefined : transcript.error,
+		segments: transcript.ok ? transcript.segments : undefined,
+		warnings: transcript.ok ? transcript.warnings : undefined,
+		hasSummary: summary.ok,
+		summary: summary.ok ? summary.text : undefined,
+		summaryMeta: summary.ok
+			? (summary.meta ?? recording.metadata.summary)
+			: undefined,
+	};
+}
+
 export function handleListenRecordingsList(): Response {
 	return jsonResponse({
 		recordings: listListenRecordings().map((recording) => ({
@@ -62,6 +94,7 @@ export function handleListenRecordingsList(): Response {
 			sources: recording.metadata.sources,
 			hasAudio: recordingHasAudio(recording),
 			hasTranscript: recordingHasTranscript(recording),
+			hasSummary: recordingHasSummary(recording),
 		})),
 	});
 }
@@ -71,22 +104,7 @@ export function handleListenRecordingDetail(recordingId: string): Response {
 	if (!recording) {
 		return errorResponse("Recording not found", 404);
 	}
-	const transcript = readListenTranscript(recording.dir, {
-		includeSegments: true,
-	});
-	const audioPath = resolveListenRecordingAudioPath(recording);
-	return jsonResponse({
-		id: recording.id,
-		dir: recording.dir,
-		metadata: recording.metadata,
-		hasAudio: audioPath !== undefined,
-		audioPath,
-		hasTranscript: transcript.ok,
-		transcript: transcript.ok ? transcript.text : undefined,
-		transcriptError: transcript.ok ? undefined : transcript.error,
-		segments: transcript.ok ? transcript.segments : undefined,
-		warnings: transcript.ok ? transcript.warnings : undefined,
-	});
+	return jsonResponse(recordingDetailPayload(recording));
 }
 
 export async function handleListenRecordingPatch(
@@ -134,22 +152,7 @@ export async function handleListenRecordingPatch(
 	}
 	try {
 		const updated = updateListenRecordingMetadata(recording, patch);
-		const transcript = readListenTranscript(updated.dir, {
-			includeSegments: true,
-		});
-		const audioPath = resolveListenRecordingAudioPath(updated);
-		return jsonResponse({
-			id: updated.id,
-			dir: updated.dir,
-			metadata: updated.metadata,
-			hasAudio: audioPath !== undefined,
-			audioPath,
-			hasTranscript: transcript.ok,
-			transcript: transcript.ok ? transcript.text : undefined,
-			transcriptError: transcript.ok ? undefined : transcript.error,
-			segments: transcript.ok ? transcript.segments : undefined,
-			warnings: transcript.ok ? transcript.warnings : undefined,
-		});
+		return jsonResponse(recordingDetailPayload(updated));
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		return errorResponse(message, 500);
@@ -292,6 +295,40 @@ async function handleListenRecordingTranscribeStream(
 	return new Response(stream, { headers: sseHeaders });
 }
 
+export async function handleListenRecordingSummarize(
+	recordingId: string,
+): Promise<Response> {
+	const recording = findListenRecordingById(recordingId);
+	if (!recording) {
+		return errorResponse("Recording not found", 404);
+	}
+	const transcript = readListenTranscript(recording.dir);
+	if (!transcript.ok) {
+		return errorResponse(
+			transcript.error ||
+				"No transcript is available for this recording. Transcribe it first.",
+			400,
+		);
+	}
+	try {
+		const result = await summarizeRecordingTranscript({
+			transcript: transcript.text,
+			recordingName: recording.metadata.name,
+			durationMs: recording.metadata.durationMs,
+		});
+		const updated = writeListenSummary(recording, {
+			text: result.text,
+			personaName: result.personaName,
+			createdAt: result.createdAt,
+		});
+		return jsonResponse(recordingDetailPayload(updated));
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		writeRecordingError(recording.metadata, recording.dir, message);
+		return errorResponse(message, 500);
+	}
+}
+
 function finalizeTranscription(
 	recording: ReturnType<typeof findListenRecordingById>,
 	transcriptFiles: ListenRecordingFiles,
@@ -299,36 +336,23 @@ function finalizeTranscription(
 	if (!recording) {
 		throw new Error("Recording not found");
 	}
+	// Drop any prior AI summary so it cannot outlive a new transcript.
+	const cleared = clearListenSummary(recording);
 	const nextMetadata: ListenRecordingMetadata = {
-		...recording.metadata,
+		...cleared.metadata,
 		files: {
-			...recording.metadata.files,
+			...cleared.metadata.files,
 			...transcriptFiles,
 		},
 	};
 	fs.writeFileSync(
-		metadataPath(recording.dir),
+		metadataPath(cleared.dir),
 		`${JSON.stringify(nextMetadata, null, 2)}\n`,
 	);
-	const transcript = readListenTranscript(recording.dir, {
-		includeSegments: true,
-	});
-	const audioPath = resolveListenRecordingAudioPath({
-		...recording,
+	return recordingDetailPayload({
+		...cleared,
 		metadata: nextMetadata,
 	});
-	return {
-		id: recording.id,
-		dir: recording.dir,
-		metadata: nextMetadata,
-		hasAudio: audioPath !== undefined,
-		audioPath,
-		hasTranscript: transcript.ok,
-		transcript: transcript.ok ? transcript.text : undefined,
-		transcriptError: transcript.ok ? undefined : transcript.error,
-		segments: transcript.ok ? transcript.segments : undefined,
-		warnings: transcript.ok ? transcript.warnings : undefined,
-	};
 }
 
 function writeRecordingError(

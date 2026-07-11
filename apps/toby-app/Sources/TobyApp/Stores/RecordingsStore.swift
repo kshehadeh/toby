@@ -24,6 +24,9 @@ final class RecordingsStore {
 	/// processing state owned by `ChatStore`.
 	var transcriptionProcessing: RecordingProcessingState?
 
+	/// Recording id currently being summarized (Summarize / Re-Summarize button).
+	var summarizingRecordingId: String?
+
 	private let client = TobyClient()
 
 	var selectedRecording: ListenRecordingSummary? {
@@ -151,14 +154,18 @@ final class RecordingsStore {
 					durationMs: currentDetail.metadata.durationMs,
 					sources: currentDetail.metadata.sources,
 					errors: currentDetail.metadata.errors,
-					chatSessionId: currentDetail.metadata.chatSessionId
+					chatSessionId: currentDetail.metadata.chatSessionId,
+					summary: currentDetail.metadata.summary
 				),
 				hasAudio: currentDetail.hasAudio,
 				audioPath: currentDetail.audioPath,
 				hasTranscript: currentDetail.hasTranscript,
 				transcript: currentDetail.transcript,
 				transcriptError: currentDetail.transcriptError,
-				warnings: currentDetail.warnings
+				warnings: currentDetail.warnings,
+				hasSummary: currentDetail.hasSummary,
+				summary: currentDetail.summary,
+				summaryMeta: currentDetail.summaryMeta
 			)
 		}
 		if let idx = recordings.firstIndex(where: { $0.id == id }) {
@@ -174,7 +181,8 @@ final class RecordingsStore {
 				durationMs: existing.durationMs,
 				sources: existing.sources,
 				hasAudio: existing.hasAudio,
-				hasTranscript: existing.hasTranscript
+				hasTranscript: existing.hasTranscript,
+				hasSummary: existing.hasSummary
 			)
 		}
 
@@ -240,6 +248,31 @@ final class RecordingsStore {
 		await load()
 		if selectedRecordingIds.contains(id) {
 			await selectRecording(id: id)
+		}
+	}
+
+	/// Generate (or regenerate) an AI summary for a transcribed recording.
+	func summarizeRecording(id: String) async {
+		guard summarizingRecordingId == nil else { return }
+		summarizingRecordingId = id
+		errorMessage = nil
+		defer {
+			if summarizingRecordingId == id {
+				summarizingRecordingId = nil
+			}
+		}
+
+		do {
+			let updated = try await client.summarizeRecording(id: id)
+			if selectedRecordingIds.contains(id) {
+				detail = updated
+			}
+			// Refresh list so hasSummary badges stay in sync.
+			if let list = try? await client.listRecordings() {
+				recordings = list
+			}
+		} catch {
+			errorMessage = error.localizedDescription
 		}
 	}
 }

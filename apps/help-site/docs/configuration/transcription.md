@@ -16,6 +16,7 @@ Open **Toby.app → Settings → Transcription**.
 | **Provider** | Transcription backend (for example OpenAI) |
 | **Model** | Model id offered by that provider |
 | **API Key** | Optional dedicated key for transcription |
+| **Persona for recording summaries** | Persona used when you summarize a recording transcript (falls back to the default persona) |
 
 ### OpenAI
 
@@ -29,6 +30,12 @@ If the provider reuses OpenAI, you can leave the transcription API key empty and
 
 Capture itself uses Toby.app’s [Native API](../api/native-api) (microphone / system audio). Listing and transcription use the daemon **Server API**.
 
+## Recording summaries
+
+Once a recording has a transcript, **Summarize** / **Re-Summarize** in the
+Recordings inspector generates an AI summary using the persona selected here.
+See [Listen mode](../listen).
+
 ## If transcription fails
 
 1. Confirm **Provider**, **Model**, and key (or OpenAI AI token).
@@ -38,5 +45,6 @@ Capture itself uses Toby.app’s [Native API](../api/native-api) (microphone / s
 ## Related
 
 - [Listen mode](../listen)
+- [Personas](../personas)
 - [Configuration overview](./overview)
 - [OpenAI (direct)](../ai-providers/openai) — shared API token case

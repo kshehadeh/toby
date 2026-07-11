@@ -3,6 +3,7 @@ import type {
 	AISettings,
 	ChatInboundConfig,
 	DashboardConfig,
+	ListenConfig,
 } from "../config/index";
 import {
 	type CredentialsFile,
@@ -28,7 +29,6 @@ import {
 import { listSchedules, updateSchedule } from "../schedules/store";
 import { loadLocalSkills } from "../skills/index";
 import { updateSkillFrontmatter } from "../skills/manage";
-import type { ConfigureListenRecording } from "./types";
 
 const SECRET_KEY_PREFIXES = [
 	"ai.openai.token",
@@ -77,23 +77,6 @@ export function collectCredentialConfigureKeys(): Set<string> {
 	return keys;
 }
 
-export function seedListenRecordingValues(
-	values: Record<string, string>,
-	recordings: readonly ConfigureListenRecording[],
-): void {
-	for (const key of Object.keys(values)) {
-		if (key.startsWith("listen.recordings.")) {
-			delete values[key];
-		}
-	}
-	for (const recording of recordings) {
-		values[`listen.recordings.${recording.id}.name`] =
-			recording.metadata.name ?? "";
-		values[`listen.recordings.${recording.id}.description`] =
-			recording.metadata.description ?? "";
-	}
-}
-
 export function seedScheduleValues(values: Record<string, string>): void {
 	for (const key of Object.keys(values)) {
 		if (key.startsWith("schedules.")) {
@@ -118,14 +101,8 @@ export function seedScheduleValues(values: Record<string, string>): void {
 	}
 }
 
-export interface SeedConfigureValuesOptions {
-	readonly listenRecordings?: readonly ConfigureListenRecording[];
-}
-
 /** Load full configure values from disk (includes secrets — CLI only). */
-export function seedConfigureValues(
-	options: SeedConfigureValuesOptions = {},
-): Record<string, string> {
+export function seedConfigureValues(): Record<string, string> {
 	const creds = readCredentials();
 	const config = readConfig();
 	const values: Record<string, string> = {};
@@ -170,7 +147,6 @@ export function seedConfigureValues(
 		values[`skills.${skill.dirName}.name`] = skill.name;
 		values[`skills.${skill.dirName}.description`] = skill.description;
 	}
-	seedListenRecordingValues(values, options.listenRecordings ?? []);
 	seedScheduleValues(values);
 	for (const project of listProjects()) {
 		values[`projects.${project.slug}.name`] = project.name;
@@ -204,6 +180,8 @@ export function seedConfigureValues(
 	values["webSearch.enabled"] = config.webSearch?.enabled ? "true" : "false";
 	values["dashboard.persona"] =
 		config.dashboard?.persona?.trim() || "(default)";
+	values["listen.summaryPersona"] =
+		config.listen?.summaryPersona?.trim() || "(default)";
 
 	for (const mod of getIntegrationModules()) {
 		if (!mod.chatInbound) continue;
@@ -272,6 +250,15 @@ export function rebuildDashboardConfig(
 	const persona =
 		personaRaw && personaRaw !== "(default)" ? personaRaw : undefined;
 	return persona ? { persona } : undefined;
+}
+
+export function rebuildListenConfig(
+	values: Record<string, string>,
+): ListenConfig | undefined {
+	const personaRaw = values["listen.summaryPersona"]?.trim();
+	const summaryPersona =
+		personaRaw && personaRaw !== "(default)" ? personaRaw : undefined;
+	return summaryPersona ? { summaryPersona } : undefined;
 }
 
 export function applyIntegrationInboundFlags(
@@ -491,6 +478,7 @@ function applyConfigFromValues(values: Record<string, string>): void {
 	cfg.webSearch = rebuildWebSearchConfig(values);
 	cfg.ai = rebuildAISettings(values);
 	cfg.dashboard = rebuildDashboardConfig(values);
+	cfg.listen = rebuildListenConfig(values);
 	applyIntegrationInboundFlags(cfg, values);
 	writeConfig(cfg);
 }

@@ -82,7 +82,8 @@ struct CommandPaletteViewTests {
             durationMs: durationMs,
             sources: ListenSourceSelection(mic: true, system: false),
             hasAudio: true,
-            hasTranscript: hasTranscript
+            hasTranscript: hasTranscript,
+            hasSummary: false
         )
     }
 

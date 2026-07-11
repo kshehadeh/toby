@@ -184,6 +184,11 @@ export interface DashboardConfig {
 	readonly persona?: string;
 }
 
+export interface ListenConfig {
+	/** Persona used for recording transcript summaries; falls back to default persona. */
+	readonly summaryPersona?: string;
+}
+
 interface TobyConfig {
 	integrations: Record<string, Record<string, unknown>>;
 	personas: Persona[];
@@ -197,6 +202,7 @@ interface TobyConfig {
 	/** Slug of the currently active project (see `~/.toby/projects/<slug>/`). */
 	activeProject?: string;
 	dashboard?: DashboardConfig;
+	listen?: ListenConfig;
 }
 
 interface AICredentials {
