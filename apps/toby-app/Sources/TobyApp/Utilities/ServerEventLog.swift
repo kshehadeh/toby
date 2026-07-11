@@ -36,6 +36,37 @@ enum ServerEventLog {
 		write(type: "end_turn", level: "info", sessionId: nil, data: nil)
 	}
 
+	/// Minimum severity to write. Mirrors TypeScript `getConfiguredLogLevel()`:
+	/// `TOBY_LOG_LEVEL` then `LOG_LEVEL`, default `info` (debug suppressed).
+	static func configuredMinLevel() -> String {
+		let env = ProcessInfo.processInfo.environment
+		let raw = (env["TOBY_LOG_LEVEL"] ?? env["LOG_LEVEL"] ?? "info")
+			.trimmingCharacters(in: .whitespacesAndNewlines)
+			.lowercased()
+		switch raw {
+		case "debug", "info", "warn", "error":
+			return raw
+		case "warning":
+			return "warn"
+		default:
+			return "info"
+		}
+	}
+
+	private static func levelRank(_ level: String) -> Int {
+		switch level.lowercased() {
+		case "debug": return 10
+		case "info": return 20
+		case "warn", "warning": return 30
+		case "error": return 40
+		default: return 20
+		}
+	}
+
+	private static func shouldEmit(level: String) -> Bool {
+		levelRank(level) >= levelRank(configuredMinLevel())
+	}
+
 	/// Write a single JSON-lines entry to the unified log file.
 	private static func write(
 		type: String,
@@ -43,6 +74,8 @@ enum ServerEventLog {
 		sessionId: String?,
 		data: [String: Any]?
 	) {
+		guard shouldEmit(level: level) else { return }
+
 		var entry: [String: Any] = [
 			"ts": timestamp(),
 			"source": "native-app",

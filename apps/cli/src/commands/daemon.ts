@@ -18,6 +18,7 @@ import {
 	resolvePluginSearchDirectories,
 } from "@toby/core/integrations/plugins/registry";
 import { daemonLog, flushDaemonLogSync } from "@toby/core/logging/daemon-log";
+import { getConfiguredLogLevel } from "@toby/core/logging/logger";
 import {
 	buildTobySpawnArgs,
 	getDetachedDaemonSpawnStdio,
@@ -171,10 +172,12 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 		// best-effort; default image seeding is non-fatal
 	}
 
+	const logLevel = getConfiguredLogLevel();
 	daemonLog("info", "daemon", "daemon_started", {
 		pid: process.pid,
 		intervalSeconds,
 		logPath: getUnifiedLogPath(),
+		logLevel,
 		pluginDirs: resolvePluginSearchDirectories(),
 		chatInboundEnabled: inboundCfg.enabled !== false,
 		chatInboundIntegration: inboundCfg.integration ?? null,
@@ -187,7 +190,7 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 			`Toby daemon started (schedules every ${intervalSeconds}s, chat inbound if configured).`,
 		),
 	);
-	console.log(chalk.dim(`  Log: ${getUnifiedLogPath()}`));
+	console.log(chalk.dim(`  Log: ${getUnifiedLogPath()} (level ≥ ${logLevel})`));
 	const pluginDirs = resolvePluginSearchDirectories();
 	console.log(chalk.dim(`  Plugins dir: ${pluginDirs.join(", ")}`));
 	console.log(chalk.dim("  Discovered plugins:"));

@@ -209,6 +209,7 @@ All daemon subsystems log to the **unified log** at `~/.toby/logs/toby.log` with
 - Buffered append (flush every ~2s or 50 entries)
 - JSON one object per line: `{ ts, source, level, category, type, data }`
 - Rotation when file exceeds `TOBY_LOG_MAX_KB` (default 512), shared across all sources
+- **Minimum level** defaults to **`info`** (debug is not written). Override with `TOBY_LOG_LEVEL` (or `LOG_LEVEL`): `debug` | `info` | `warn` | `error`
 
 **Categories:** `daemon`, `scheduler`, `inbound`, `turn`, `plugin`, `plugin-poller`, `general`.
 
@@ -217,6 +218,16 @@ All daemon subsystems log to the **unified log** at `~/.toby/logs/toby.log` with
 ```bash
 tail -f ~/.toby/logs/toby.log
 ```
+
+Include debug entries (chat prep, tool call start/end, plugin tool_execute, SSE raw, etc.):
+
+```bash
+TOBY_LOG_LEVEL=debug toby daemon start
+# or restart an already-running daemon so it picks up the env + code:
+TOBY_LOG_LEVEL=debug toby daemon restart
+```
+
+The minimum level is fixed at process start (see `logLevel` on the `daemon_started` entry). Restart the daemon after changing `TOBY_LOG_LEVEL` or after upgrading code that changes log filtering.
 
 **Useful events when debugging Slack:**
 

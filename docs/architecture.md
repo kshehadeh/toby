@@ -125,7 +125,7 @@ the detail surface that needs them.
 | `~/.toby/config.json` | Integration connection flags, personas |
 | `~/.toby/credentials.json` | API keys, OAuth tokens, and other secrets. On macOS the file is **encrypted at rest** (AES-256-GCM); the data key lives in the Keychain (`dev.toby.credentials`). Logical shape is still a `CredentialsFile` JSON object after decrypt. |
 | `~/.toby/chat.sqlite` | Chat session storage (sessions, messages, transcript) |
-| `~/.toby/logs/toby.log` | Unified JSON-lines log for all subsystems (chat, daemon, server events, upgrade, native-app, macOS plugin). A `source` field discriminates the emitter; rotation is shared. |
+| `~/.toby/logs/toby.log` | Unified JSON-lines log for all subsystems (chat, daemon, server events, upgrade, native-app, macOS plugin). A `source` field discriminates the emitter; rotation is shared. Minimum level defaults to `info` (set `TOBY_LOG_LEVEL=debug` to include debug). |
 | `~/.toby/listen/recordings/<id>/` | Saved audio, metadata, and transcript artifacts. |
 | `~/.toby/native-port` | Ephemeral port published by Toby.app's native permission/audio server. |
 | `~/.toby/projects/<slug>/` | Project metadata, reference context, local skills, and generated outputs. |

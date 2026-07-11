@@ -85,14 +85,22 @@ describe("chat-log", () => {
 	});
 
 	test("readLogTail returns last N entries", () => {
-		for (let i = 0; i < 20; i++) {
-			log("debug", "tool", "tool_call_start", { index: i });
+		const prev = process.env.TOBY_LOG_LEVEL;
+		process.env.TOBY_LOG_LEVEL = "debug";
+		try {
+			for (let i = 0; i < 20; i++) {
+				log("debug", "tool", "tool_call_start", { index: i });
+			}
+			flush();
+			const entries = readLogTail(5);
+			expect(entries.length).toBe(5);
+			expect(entries[0]?.data?.index).toBe(15);
+			expect(entries[4]?.data?.index).toBe(19);
+		} finally {
+			if (prev === undefined)
+				Reflect.deleteProperty(process.env, "TOBY_LOG_LEVEL");
+			else process.env.TOBY_LOG_LEVEL = prev;
 		}
-		flush();
-		const entries = readLogTail(5);
-		expect(entries.length).toBe(5);
-		expect(entries[0]?.data?.index).toBe(15);
-		expect(entries[4]?.data?.index).toBe(19);
 	});
 
 	test("logTurnSummary writes a turn_summary entry", () => {
@@ -124,13 +132,21 @@ describe("chat-log", () => {
 	});
 
 	test("truncate long string values in data", () => {
-		const longValue = "x".repeat(500);
-		log("debug", "tool", "tool_data", { value: longValue });
-		flush();
-		const entries = readLogTail(1);
-		const logged = entries[0]?.data?.value as string;
-		expect(logged.length).toBeLessThan(longValue.length);
-		expect(logged.endsWith("…")).toBe(true);
+		const prev = process.env.TOBY_LOG_LEVEL;
+		process.env.TOBY_LOG_LEVEL = "debug";
+		try {
+			const longValue = "x".repeat(500);
+			log("debug", "tool", "tool_data", { value: longValue });
+			flush();
+			const entries = readLogTail(1);
+			const logged = entries[0]?.data?.value as string;
+			expect(logged.length).toBeLessThan(longValue.length);
+			expect(logged.endsWith("…")).toBe(true);
+		} finally {
+			if (prev === undefined)
+				Reflect.deleteProperty(process.env, "TOBY_LOG_LEVEL");
+			else process.env.TOBY_LOG_LEVEL = prev;
+		}
 	});
 
 	test("formatLogEntry produces compact single-line output", () => {
@@ -173,12 +189,20 @@ describe("chat-log", () => {
 	});
 
 	test("buffering flushes after FLUSH_BUFFER_SIZE entries", () => {
-		// Write 50 entries (should trigger buffer flush)
-		for (let i = 0; i < 50; i++) {
-			log("debug", "general", "buffer_test", { index: i });
+		const prev = process.env.TOBY_LOG_LEVEL;
+		process.env.TOBY_LOG_LEVEL = "debug";
+		try {
+			// Write 50 entries (should trigger buffer flush)
+			for (let i = 0; i < 50; i++) {
+				log("debug", "general", "buffer_test", { index: i });
+			}
+			// Should be written without explicit flush()
+			const entries = readLogTail(50);
+			expect(entries.length).toBe(50);
+		} finally {
+			if (prev === undefined)
+				Reflect.deleteProperty(process.env, "TOBY_LOG_LEVEL");
+			else process.env.TOBY_LOG_LEVEL = prev;
 		}
-		// Should be written without explicit flush()
-		const entries = readLogTail(50);
-		expect(entries.length).toBe(50);
 	});
 });

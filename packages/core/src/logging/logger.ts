@@ -35,11 +35,60 @@ const FLUSH_BUFFER_SIZE = 50;
 const ROTATION_KEEP_RATIO = 0.6;
 const TRUNCATE_MAX_CHARS = 200;
 
+/** Severity rank — higher is more severe. */
+const LOG_LEVEL_RANK: Record<LogLevel, number> = {
+	debug: 10,
+	info: 20,
+	warn: 30,
+	error: 40,
+};
+
+/** Default minimum level: info and worse (debug suppressed). */
+const DEFAULT_MIN_LOG_LEVEL: LogLevel = "info";
+
 function getMaxKb(): number {
 	const env = process.env.TOBY_LOG_MAX_KB?.trim();
 	if (!env) return DEFAULT_MAX_KB;
 	const parsed = Number.parseInt(env, 10);
 	return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_KB;
+}
+
+function parseLogLevel(raw: string | undefined): LogLevel | null {
+	if (!raw) return null;
+	const value = raw.trim().toLowerCase();
+	if (
+		value === "debug" ||
+		value === "info" ||
+		value === "warn" ||
+		value === "error"
+	) {
+		return value;
+	}
+	if (value === "warning") return "warn";
+	return null;
+}
+
+/**
+ * Minimum log level that will be written to the unified log.
+ *
+ * Reads `TOBY_LOG_LEVEL` first, then `LOG_LEVEL`. Default is `info`
+ * (debug entries are dropped). Set to `debug` to include debug logs:
+ *
+ * ```sh
+ * TOBY_LOG_LEVEL=debug toby daemon start
+ * ```
+ */
+export function getConfiguredLogLevel(): LogLevel {
+	const fromToby = parseLogLevel(process.env.TOBY_LOG_LEVEL);
+	if (fromToby) return fromToby;
+	const fromGeneric = parseLogLevel(process.env.LOG_LEVEL);
+	if (fromGeneric) return fromGeneric;
+	return DEFAULT_MIN_LOG_LEVEL;
+}
+
+/** True when an entry at `level` should be written given the configured minimum. */
+export function shouldEmitLogLevel(level: LogLevel): boolean {
+	return LOG_LEVEL_RANK[level] >= LOG_LEVEL_RANK[getConfiguredLogLevel()];
 }
 
 function truncate(value: unknown): unknown {
@@ -132,6 +181,8 @@ export function emitLog(
 	sessionId?: string | null | undefined,
 	turnIndex?: number | undefined,
 ): void {
+	if (!shouldEmitLogLevel(level)) return;
+
 	const entry: UnifiedLogEntry = {
 		ts: new Date().toISOString(),
 		source,
