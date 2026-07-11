@@ -35,6 +35,13 @@ struct ConfigureSectionDetailView: View {
 		store.integrationLabels[section.key] != nil
 	}
 
+	/// Leaf AI provider sections (`ai.openai`, `ai.vercel`, …) with setup copy.
+	private var isAIProviderSection: Bool {
+		section.key.hasPrefix("ai.")
+			&& section.key != "ai"
+			&& (section.description?.isEmpty == false || section.docUrl?.isEmpty == false)
+	}
+
 	var body: some View {
 		VStack(alignment: .leading, spacing: 20) {
 			if isIntegrationSection {
@@ -92,6 +99,10 @@ struct ConfigureSectionDetailView: View {
 						field: field,
 						sectionLabel: section.label,
 					)
+				}
+
+				if isAIProviderSection {
+					AIProviderSetupHelpView(section: section)
 				}
 
 				if !deleteFields.isEmpty {

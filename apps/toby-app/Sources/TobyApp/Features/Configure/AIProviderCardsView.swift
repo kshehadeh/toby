@@ -58,6 +58,11 @@ private struct AIProviderCard: View {
 		return URL(string: docUrl)
 	}
 
+	/// Ollama is local; other providers need a cloud API key.
+	private var setupLinkTitle: String {
+		provider.key == "ai.ollama" ? "Setup guide" : "How to get an API key"
+	}
+
 	var body: some View {
 		VStack(alignment: .leading, spacing: 14) {
 			HStack(spacing: 12) {
@@ -93,13 +98,13 @@ private struct AIProviderCard: View {
 					.font(.subheadline)
 					.foregroundStyle(AppTheme.secondaryText)
 					.fixedSize(horizontal: false, vertical: true)
-					.lineLimit(3)
+					.lineLimit(4)
 			}
 
 			if let docURL {
 				Link(destination: docURL) {
 					HStack(spacing: 4) {
-						Text("Documentation")
+						Text(setupLinkTitle)
 							.font(.subheadline.weight(.medium))
 						Image(systemName: "arrow.up.right.square")
 							.font(.subheadline)

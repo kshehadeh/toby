@@ -19,9 +19,12 @@ export interface AIProviderInfo {
 	iconUrl?: string;
 	/** Short description shown on configure cards. */
 	description?: string;
-	/** External documentation URL shown as a link on configure cards. */
+	/** Toby setup guide URL shown as a link on configure cards. */
 	docUrl?: string;
 }
+
+/** Public Toby docs base for AI provider setup guides. */
+const AI_PROVIDER_DOCS_BASE = "https://toby.iwonderdesigns.com/docs/ai-providers";
 
 export const AI_PROVIDERS: AIProviderInfo[] = [
 	{
@@ -31,8 +34,8 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
 		supportsPlanUsage: false,
 		iconUrl: "/icons/ai/openai.png",
 		description:
-			"Use OpenAI models like GPT-5, GPT-4o, and o3 directly with your OpenAI API token.",
-		docUrl: "https://openai.com/api/",
+			"Sign up at platform.openai.com, create an API key under API keys, then paste it here. Full walkthrough in the setup guide.",
+		docUrl: `${AI_PROVIDER_DOCS_BASE}/openai`,
 		models: [
 			"gpt-5",
 			"gpt-5-mini",
@@ -54,8 +57,8 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
 		supportsPlanUsage: true,
 		iconUrl: "/icons/ai/vercel.png",
 		description:
-			"Access models from OpenAI, Anthropic, Google, xAI, and more through a single Vercel AI Gateway API key.",
-		docUrl: "https://vercel.com/ai-gateway",
+			"Sign in to Vercel, open AI Gateway, create an API key, then paste it here. One key routes to OpenAI, Anthropic, Google, and more.",
+		docUrl: `${AI_PROVIDER_DOCS_BASE}/vercel-ai-gateway`,
 		models: [
 			"openai/gpt-5.4",
 			"openai/gpt-5-mini",
@@ -88,8 +91,8 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
 		supportsPlanUsage: false,
 		iconUrl: "/icons/ai/ollama.png",
 		description:
-			"Run open-source models like Llama, Qwen, and Mistral locally on your machine with Ollama.",
-		docUrl: "https://docs.ollama.com/quickstart",
+			"Install Ollama on your Mac, pull a model (e.g. llama3.2), and point Toby at the local base URL. No cloud API key required.",
+		docUrl: `${AI_PROVIDER_DOCS_BASE}/ollama`,
 		models: [
 			"llama3.2",
 			"llama3.1",
@@ -108,8 +111,8 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
 		publicCatalog: true,
 		iconUrl: "/icons/ai/chutes.png",
 		description:
-			"Access open-source TEE-backed models like DeepSeek, Qwen, GLM, and Kimi through Chutes' OpenAI-compatible endpoint.",
-		docUrl: "https://chutes.ai/agents",
+			"Sign up at chutes.ai, create an API key under Auth (starts with cpk_), then paste it here for TEE-backed open-source models.",
+		docUrl: `${AI_PROVIDER_DOCS_BASE}/chutes`,
 		models: [
 			"Qwen/Qwen3-32B-TEE",
 			"google/gemma-4-31B-turbo-TEE",
@@ -135,8 +138,8 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
 		publicCatalog: true,
 		iconUrl: "/icons/ai/openrouter.png",
 		description:
-			"Access hundreds of models from OpenAI, Anthropic, Google, Meta, and more through a single OpenRouter API key.",
-		docUrl: "https://openrouter.ai/keys",
+			"Sign up at openrouter.ai, create an API key under Keys, then paste it here to access hundreds of models from many vendors.",
+		docUrl: `${AI_PROVIDER_DOCS_BASE}/openrouter`,
 		models: [
 			"openai/gpt-5.6-sol",
 			"openai/gpt-5.6-terra",
