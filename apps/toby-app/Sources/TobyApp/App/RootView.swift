@@ -34,7 +34,21 @@ struct RootView: View {
     private let toastDuration: UInt64 = 4_000_000_000
 
     var body: some View {
+        contentWithCreateActions
+    }
+
+    /// Isolated so File → New * menu actions do not overload the type checker.
+    private var contentWithCreateActions: some View {
         contentWithBackup
+            .onReceive(NotificationCenter.default.publisher(for: .startNewSchedule)) { _ in
+                startNewSchedule()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .startNewProject)) { _ in
+                startNewProject()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .startNewMemory)) { _ in
+                startNewMemory()
+            }
     }
 
     /// Isolated so File → Backup / Restore sheets and notifications do not
@@ -133,6 +147,7 @@ struct RootView: View {
     private var contentWithNotifications: some View {
         contentWithSheets
             .onReceive(NotificationCenter.default.publisher(for: .openCommandPalette)) { _ in
+                bringMainWindowToFront()
                 isCommandPalettePresented = true
             }
             .onReceive(NotificationCenter.default.publisher(for: .openIssueReport)) { _ in
@@ -151,6 +166,7 @@ struct RootView: View {
                 openScheduleFromNotification(id: request.scheduleId)
             }
             .onReceive(NotificationCenter.default.publisher(for: .startNewChat)) { _ in
+                bringMainWindowToFront()
                 startNewChat()
             }
             .onReceive(NotificationCenter.default.publisher(for: .menuBarToggleRecording)) { _ in
@@ -467,10 +483,7 @@ struct RootView: View {
                     onSelectRoute: navigateToRoute,
                     onOpenSettings: { openSettings() },
                     onOpenPermissions: { openWindow(id: "permissions") },
-                    onStartChat: {
-                        navigateToRoute(.chat)
-                        startNewChat()
-                    },
+                    onStartChat: startNewChat,
                     onSummarizeEmail: summarizeUnreadEmailInChat
                 )
                 .toolbar {
@@ -752,7 +765,26 @@ struct RootView: View {
     }
 
     private func startNewChat() {
+        navigateToRoute(.chat)
         Task { await store.startNewSession() }
+    }
+
+    private func startNewSchedule() {
+        bringMainWindowToFront()
+        navigateToRoute(.schedules)
+        Task { await schedulesStore.createSchedule() }
+    }
+
+    private func startNewProject() {
+        bringMainWindowToFront()
+        navigateToRoute(.projects)
+        Task { await projectsStore.createProject(chatStore: store) }
+    }
+
+    private func startNewMemory() {
+        bringMainWindowToFront()
+        navigateToRoute(.memories)
+        memoriesStore.startCreate()
     }
 
     private func summarizeUnreadEmailInChat() {
@@ -1016,6 +1048,9 @@ extension Notification.Name {
     static let openChangelog = Notification.Name("openChangelog")
     static let openRecordingFromToast = Notification.Name("openRecordingFromToast")
     static let startNewChat = Notification.Name("startNewChat")
+    static let startNewSchedule = Notification.Name("startNewSchedule")
+    static let startNewProject = Notification.Name("startNewProject")
+    static let startNewMemory = Notification.Name("startNewMemory")
     static let startChatAboutRecording = Notification.Name("startChatAboutRecording")
     static let showChatSession = Notification.Name("showChatSession")
     static let secondaryWindowClosed = Notification.Name("secondaryWindowClosed")

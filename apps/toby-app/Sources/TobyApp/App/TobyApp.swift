@@ -22,6 +22,13 @@ struct TobyApp: App {
 	@State private var nativeServer = NativeServer.shared
 	@State private var menuBarController: MenuBarController?
 
+	init() {
+		// Hide system View menu items that are not useful for Toby:
+		// "Show Tab Bar" / "Show All Tabs" and "Enter Full Screen".
+		NSWindow.allowsAutomaticWindowTabbing = false
+		UserDefaults.standard.set(false, forKey: "NSFullScreenMenuItemEverywhere")
+	}
+
 	var body: some Scene {
 		WindowGroup {
 			RootView(
@@ -117,9 +124,23 @@ struct TobyApp: App {
 					NotificationCenter.default.post(name: .startNewChat, object: nil)
 				}
 				.keyboardShortcut("n", modifiers: .command)
+
+				Button("New Schedule") {
+					NotificationCenter.default.post(name: .startNewSchedule, object: nil)
+				}
+
+				Button("New Project") {
+					NotificationCenter.default.post(name: .startNewProject, object: nil)
+				}
+
+				Button("New Memory") {
+					NotificationCenter.default.post(name: .startNewMemory, object: nil)
+				}
 			}
 
 			CommandGroup(after: .newItem) {
+				Divider()
+
 				Button("Backup Settings…") {
 					NotificationCenter.default.post(name: .backupConfig, object: nil)
 				}
@@ -145,7 +166,7 @@ struct TobyApp: App {
 			}
 
 			CommandGroup(after: .sidebar) {
-				Button("Search Sessions…") {
+				Button("Show Command View") {
 					NotificationCenter.default.post(name: .openCommandPalette, object: nil)
 				}
 				.keyboardShortcut("k", modifiers: .command)
