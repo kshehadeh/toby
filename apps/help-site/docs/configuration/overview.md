@@ -29,8 +29,8 @@ Projects and recordings are managed outside Settings (sidebar **Projects** and
 ## Open Settings
 
 1. Open **Toby.app**.
-2. Click **Settings** in the sidebar.
-3. Use the left tree to open a section. Changes save as you edit.
+2. Click the **gear** in the main toolbar (next to Search), or press **⌘,**.
+3. Use the **top toolbar tabs** to open a section (Chat, AI, Transcription, and so on). Hierarchical areas such as **AI** show a list of providers on the left of the Settings window. Changes save as you edit.
 
 ![Toby.app Settings window](/img/toby-app-settings.png)
 

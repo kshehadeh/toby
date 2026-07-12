@@ -196,6 +196,10 @@ struct RootView: View {
                     navigateToRoute(route)
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .openSettingsWindow)) { notification in
+                let navKey = notification.object as? String
+                openSettings(navKey: navKey)
+            }
     }
 
     @ViewBuilder
@@ -209,7 +213,7 @@ struct RootView: View {
                     recordings: recordingsStore.recordings,
                     onSelectSession: selectSession,
                     onNewChat: startNewChat,
-                    onOpenSettings: { navigateToRoute(.settings) },
+                    onOpenSettings: { openSettings() },
                     onNavigateToRoute: navigateToRoute,
                     onOpenIntegration: openIntegration,
                     onOpenSchedule: openSchedule,
@@ -448,8 +452,6 @@ struct RootView: View {
                                 id: memory.id, value: memory.value
                             )
                         })
-                    case .settings:
-                        ConfigureSidebarView(store: configureStore)
                     }
                 }
             )
@@ -463,6 +465,7 @@ struct RootView: View {
                     onboarding: onboardingChecklist,
                     onRefresh: { Task { await refreshDashboardData() } },
                     onSelectRoute: navigateToRoute,
+                    onOpenSettings: { openSettings() },
                     onOpenPermissions: { openWindow(id: "permissions") },
                     onStartChat: {
                         navigateToRoute(.chat)
@@ -670,12 +673,6 @@ struct RootView: View {
                         commonToolbarItems()
                         ToolbarItem(placement: .principal) { Spacer() }
                     }
-            case .settings:
-                ConfigureView(store: configureStore)
-                    .toolbar {
-                        commonToolbarItems()
-                        ToolbarItem(placement: .principal) { Spacer() }
-                    }
             }
         }
     }
@@ -691,6 +688,9 @@ struct RootView: View {
         }
         ToolbarItem(placement: .navigation) {
             SearchToolbarButton(onSearch: openCommandPalette)
+        }
+        ToolbarItem(placement: .navigation) {
+            SettingsToolbarButton(onOpenSettings: { openSettings() })
         }
         ToolbarItem(placement: .navigation) {
             Button(action: { _ = history.goBack() }) {
@@ -815,9 +815,15 @@ struct RootView: View {
 
     private func openSettings(navKey: String? = nil) {
         if let navKey {
-            configureStore.selectedNavKey = navKey
+            // Prefer selectSection once sections are loaded; otherwise seed selection
+            // so loadSettingsSections / selectTopLevelTab pick the right tab.
+            if configureStore.isSettingsMode {
+                configureStore.selectSection(navKey)
+            } else {
+                configureStore.selectedNavKey = navKey
+            }
         }
-        navigateToRoute(.settings)
+        openWindow(id: "settings")
     }
 
     private func openIntegration(navKey: String) {
@@ -1015,6 +1021,7 @@ extension Notification.Name {
     static let secondaryWindowClosed = Notification.Name("secondaryWindowClosed")
     static let menuBarToggleRecording = Notification.Name("menuBarToggleRecording")
     static let navigateToRoute = Notification.Name("navigateToRoute")
+    static let openSettingsWindow = Notification.Name("openSettingsWindow")
     static let openScheduleFromNotification = Notification.Name("openScheduleFromNotification")
     static let backupConfig = Notification.Name("backupConfig")
     static let restoreConfig = Notification.Name("restoreConfig")

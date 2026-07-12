@@ -9,7 +9,6 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 	case recordings
 	case skills
 	case memories
-	case settings
 
 	var id: String { rawValue }
 
@@ -24,7 +23,6 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 		case .memories: return "Memories"
 		case .schedules: return "Schedules"
 		case .recordings: return "Recordings"
-		case .settings: return "Settings…"
 		}
 	}
 
@@ -39,7 +37,6 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 		case .memories: return "brain.head.profile"
 		case .schedules: return "clock"
 		case .recordings: return "waveform"
-		case .settings: return "gearshape"
 		}
 	}
 }
@@ -85,6 +82,19 @@ struct SearchToolbarButton: View {
 		.help("Search")
 		.accessibilityLabel("Search")
 		.accessibilityIdentifier("toolbar-search-button")
+	}
+}
+
+struct SettingsToolbarButton: View {
+	let onOpenSettings: () -> Void
+
+	var body: some View {
+		Button(action: onOpenSettings) {
+			Image(systemName: "gearshape")
+		}
+		.help("Settings")
+		.accessibilityLabel("Settings")
+		.accessibilityIdentifier("toolbar-settings-button")
 	}
 }
 

@@ -103,14 +103,6 @@ struct AppSidebar<Content: View>: View {
 			accentColor: Color(red: 1, green: 0.36, blue: 0.42),
 			detail: "Review audio recordings, transcripts, and chats created from recorded context."
 		),
-		SidebarActionItem(
-			route: .settings,
-			title: "Settings",
-			systemImage: "gearshape",
-			hoveredSystemImage: "gearshape.fill",
-			accentColor: Color(red: 0.62, green: 0.72, blue: 0.78),
-			detail: "Configure AI providers, personas, app behavior, and local Toby preferences."
-		),
 	]
 
 	var body: some View {

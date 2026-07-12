@@ -124,8 +124,49 @@ struct ConfigureViewTests {
 		#expect(store.isSettingsMode == true)
 	}
 
-	@Test("AI section renders provider cards")
-	func aiSectionRendersProviderCards() throws {
+	@Test("AI hierarchy sidebar lists providers")
+	func aiHierarchySidebarListsProviders() throws {
+		let store = ConfigureStore()
+		let aiSection = SettingsItem(
+			label: "AI", kind: .section, key: "ai",
+			navKey: nil, children: [
+				SettingsItem(
+					label: "OpenAI", kind: .section, key: "ai.openai",
+					navKey: "ai.openai", children: [],
+					masked: nil, multiline: nil, options: nil, selectChoices: nil,
+					currentValue: nil, selectedValues: nil, readOnly: nil,
+					iconUrl: "/icons/ai/openai.png",
+					description: "Use OpenAI models like GPT-5, GPT-4o, and o3 directly.",
+					docUrl: "https://openai.com/api/"
+				),
+				SettingsItem(
+					label: "Ollama", kind: .section, key: "ai.ollama",
+					navKey: "ai.ollama", children: [],
+					masked: nil, multiline: nil, options: nil, selectChoices: nil,
+					currentValue: nil, selectedValues: nil, readOnly: nil,
+					iconUrl: "/icons/ai/ollama.png",
+					description: "Run open-source models locally.",
+					docUrl: "https://docs.ollama.com/quickstart"
+				),
+			],
+			masked: nil, multiline: nil, options: nil, selectChoices: nil,
+			currentValue: nil, selectedValues: nil, readOnly: nil
+		)
+		store.settingsSections = [aiSection]
+		store.selectedNavKey = "ai.openai"
+
+		let view = SettingsHierarchySidebarView(store: store, parent: aiSection)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "OpenAI")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Ollama")
+		}
+		#expect(ConfigureTreeHelpers.hasNestedSections(aiSection))
+	}
+
+	@Test("selectTopLevelTab on AI selects first provider child")
+	func selectTopLevelTabSelectsFirstAIChild() throws {
 		let store = ConfigureStore()
 		store.settingsSections = [
 			SettingsItem(
@@ -133,101 +174,95 @@ struct ConfigureViewTests {
 				navKey: nil, children: [
 					SettingsItem(
 						label: "OpenAI", kind: .section, key: "ai.openai",
-						navKey: "ai.openai", children: [
-							SettingsItem(
-								label: "API Token", kind: .value, key: "ai.openai.token",
-								navKey: nil, children: nil,
-								masked: true, multiline: nil, options: nil, selectChoices: nil,
-								currentValue: nil, selectedValues: nil, readOnly: nil
-							),
-						],
+						navKey: "ai.openai", children: [],
 						masked: nil, multiline: nil, options: nil, selectChoices: nil,
-						currentValue: nil, selectedValues: nil, readOnly: nil,
-						iconUrl: "/icons/ai/openai.png",
-						description: "Use OpenAI models like GPT-5, GPT-4o, and o3 directly.",
-					docUrl: "https://openai.com/api/"
+						currentValue: nil, selectedValues: nil, readOnly: nil
 					),
 					SettingsItem(
 						label: "Ollama", kind: .section, key: "ai.ollama",
-						navKey: "ai.ollama", children: [
-							SettingsItem(
-								label: "Base URL", kind: .value, key: "ai.ollama.baseUrl",
-								navKey: nil, children: nil,
-								masked: nil, multiline: nil, options: nil, selectChoices: nil,
-								currentValue: nil, selectedValues: nil, readOnly: nil
-							),
-						],
+						navKey: "ai.ollama", children: [],
 						masked: nil, multiline: nil, options: nil, selectChoices: nil,
-						currentValue: nil, selectedValues: nil, readOnly: nil,
-						iconUrl: "/icons/ai/ollama.png",
-						description: "Run open-source models locally.",
-					docUrl: "https://docs.ollama.com/quickstart"
+						currentValue: nil, selectedValues: nil, readOnly: nil
 					),
 				],
 				masked: nil, multiline: nil, options: nil, selectChoices: nil,
 				currentValue: nil, selectedValues: nil, readOnly: nil
 			),
 		]
+		store.selectTopLevelTab("ai")
+		#expect(store.selectedNavKey == "ai.openai")
+		#expect(store.selectedTopLevelKey == "ai")
+	}
+
+	@Test("settings window renders top-level section labels")
+	func settingsWindowRendersTopLevelLabels() throws {
+		let store = ConfigureStore()
+		store.settingsSections = [
+			SettingsItem(
+				label: "Chat", kind: .section, key: "chatInbound",
+				navKey: nil, children: [],
+				masked: nil, multiline: nil, options: nil, selectChoices: nil,
+				currentValue: nil, selectedValues: nil, readOnly: nil
+			),
+			SettingsItem(
+				label: "AI", kind: .section, key: "ai",
+				navKey: nil, children: [
+					SettingsItem(
+						label: "OpenAI", kind: .section, key: "ai.openai",
+						navKey: "ai.openai", children: [],
+						masked: nil, multiline: nil, options: nil, selectChoices: nil,
+						currentValue: nil, selectedValues: nil, readOnly: nil
+					),
+				],
+				masked: nil, multiline: nil, options: nil, selectChoices: nil,
+				currentValue: nil, selectedValues: nil, readOnly: nil
+			),
+		]
+		store.selectedNavKey = "chatInbound"
 		store.selectedSectionDetail = SettingsItem(
-			label: "AI", kind: .section, key: "ai",
-			navKey: nil, children: [
-				SettingsItem(
-					label: "OpenAI", kind: .section, key: "ai.openai",
-					navKey: "ai.openai", children: [
-						SettingsItem(
-							label: "API Token", kind: .value, key: "ai.openai.token",
-							navKey: nil, children: nil,
-							masked: true, multiline: nil, options: nil, selectChoices: nil,
-							currentValue: nil, selectedValues: nil, readOnly: nil
-						),
-					],
-					masked: nil, multiline: nil, options: nil, selectChoices: nil,
-					currentValue: nil, selectedValues: nil, readOnly: nil,
-					iconUrl: "/icons/ai/openai.png",
-					description: "Use OpenAI models like GPT-5, GPT-4o, and o3 directly.",
-				docUrl: "https://openai.com/api/"
-				),
-				SettingsItem(
-					label: "Ollama", kind: .section, key: "ai.ollama",
-					navKey: "ai.ollama", children: [
-						SettingsItem(
-							label: "Base URL", kind: .value, key: "ai.ollama.baseUrl",
-							navKey: nil, children: nil,
-							masked: nil, multiline: nil, options: nil, selectChoices: nil,
-							currentValue: nil, selectedValues: nil, readOnly: nil
-						),
-					],
-					masked: nil, multiline: nil, options: nil, selectChoices: nil,
-					currentValue: nil, selectedValues: nil, readOnly: nil,
-					iconUrl: "/icons/ai/ollama.png",
-					description: "Run open-source models locally.",
-				docUrl: "https://docs.ollama.com/quickstart"
-				),
-			],
+			label: "Chat", kind: .section, key: "chatInbound",
+			navKey: nil, children: [],
 			masked: nil, multiline: nil, options: nil, selectChoices: nil,
 			currentValue: nil, selectedValues: nil, readOnly: nil
 		)
-		store.selectedNavKey = "ai"
 
-		let view = ConfigureView(store: store)
-		// Provider titles should appear on the cards
+		let view = SettingsWindowView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "OpenAI")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-preferences-tab-bar")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Ollama")
+			try view.inspect().find(text: "Chat")
 		}
-		// Description text should appear
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Use OpenAI models like GPT-5, GPT-4o, and o3 directly.")
+			try view.inspect().find(text: "AI")
 		}
-		// CTA button should appear
+	}
+
+	@Test("settings preferences tab shows icon above text layout")
+	func settingsPreferencesTabShowsIconAboveText() throws {
+		let bar = SettingsPreferencesTabBar(
+			sections: [
+				SettingsItem(
+					label: "Chat", kind: .section, key: "chatInbound",
+					navKey: nil, children: [],
+					masked: nil, multiline: nil, options: nil, selectChoices: nil,
+					currentValue: nil, selectedValues: nil, readOnly: nil
+				),
+				SettingsItem(
+					label: "Weather", kind: .section, key: "weather",
+					navKey: nil, children: [],
+					masked: nil, multiline: nil, options: nil, selectChoices: nil,
+					currentValue: nil, selectedValues: nil, readOnly: nil
+				),
+			],
+			selectedKey: "chatInbound",
+			onSelect: { _ in },
+		)
 		#expect(throws: Never.self) {
-			try view.inspect().find(button: "Configure")
+			try bar.inspect().find(text: "Chat")
 		}
-		// Documentation link should appear
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Documentation")
+			try bar.inspect().find(text: "Weather")
 		}
 	}
 
@@ -444,6 +479,26 @@ struct ConfigureViewTests {
 		#expect(
 			SettingsSidebarIcon.systemName(
 				for: SettingsItem(
+					label: "Default Providers", kind: .section, key: "defaults",
+					navKey: nil, children: nil,
+					masked: nil, multiline: nil, options: nil, selectChoices: nil,
+					currentValue: nil, selectedValues: nil, readOnly: nil
+				)
+			) == "slider.horizontal.3"
+		)
+		#expect(
+			SettingsSidebarIcon.systemName(
+				for: SettingsItem(
+					label: "AI", kind: .section, key: "ai",
+					navKey: nil, children: nil,
+					masked: nil, multiline: nil, options: nil, selectChoices: nil,
+					currentValue: nil, selectedValues: nil, readOnly: nil
+				)
+			) == "sparkles"
+		)
+		#expect(
+			SettingsSidebarIcon.systemName(
+				for: SettingsItem(
 					label: "Transcription", kind: .section, key: "transcription",
 					navKey: nil, children: nil,
 					masked: nil, multiline: nil, options: nil, selectChoices: nil,
@@ -460,6 +515,26 @@ struct ConfigureViewTests {
 					currentValue: nil, selectedValues: nil, readOnly: nil
 				)
 			) == "magnifyingglass"
+		)
+		#expect(
+			SettingsSidebarIcon.systemName(
+				for: SettingsItem(
+					label: "Weather", kind: .section, key: "weather",
+					navKey: nil, children: nil,
+					masked: nil, multiline: nil, options: nil, selectChoices: nil,
+					currentValue: nil, selectedValues: nil, readOnly: nil
+				)
+			) == "cloud.sun"
+		)
+		#expect(
+			SettingsSidebarIcon.systemName(
+				for: SettingsItem(
+					label: "Dashboard", kind: .section, key: "dashboard",
+					navKey: nil, children: nil,
+					masked: nil, multiline: nil, options: nil, selectChoices: nil,
+					currentValue: nil, selectedValues: nil, readOnly: nil
+				)
+			) == "rectangle.3.group"
 		)
 	}
 

@@ -136,7 +136,18 @@ final class MenuBarController: NSObject {
 	}
 
 	private func settingsItem() -> NSMenuItem {
-		viewMenuItem(title: DetailRoute.settings.menuTitle, route: .settings, keyEquivalent: ",")
+		let item = NSMenuItem(
+			title: "Settings…",
+			action: #selector(openSettingsWindow),
+			keyEquivalent: ","
+		)
+		item.target = self
+		item.keyEquivalentModifierMask = .command
+		item.image = NSImage(
+			systemSymbolName: "gearshape",
+			accessibilityDescription: nil
+		)
+		return item
 	}
 
 	/// Builds a menu item for a view route with the matching SF Symbol icon.
@@ -186,6 +197,14 @@ final class MenuBarController: NSObject {
 	@objc private func navigateToRoute(_ sender: NSMenuItem) {
 		if let raw = sender.representedObject as? String {
 			NotificationCenter.default.post(name: .navigateToRoute, object: raw)
+		}
+	}
+
+	@objc private func openSettingsWindow() {
+		if let openWindow = OpenWindowBridge.shared.openWindow {
+			openWindow("settings")
+		} else {
+			NotificationCenter.default.post(name: .openSettingsWindow, object: nil)
 		}
 	}
 

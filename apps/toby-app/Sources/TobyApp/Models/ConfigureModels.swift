@@ -248,6 +248,21 @@ enum ConfigureTreeHelpers {
 		return substantive.allSatisfy { $0.kind == .section && !($0.children?.isEmpty ?? true) }
 	}
 
+	/// True when a settings section has nested section children (e.g. AI → providers).
+	/// Unlike `isContainerSection`, this works on the stripped sections tree where
+	/// provider nodes no longer carry field children.
+	static func hasNestedSections(_ section: SettingsItem) -> Bool {
+		(section.children ?? []).contains { $0.kind == .section }
+	}
+
+	static func nestedSectionChildren(of section: SettingsItem) -> [SettingsItem] {
+		(section.children ?? []).filter { $0.kind == .section }
+	}
+
+	static func sectionIdentityKey(_ section: SettingsItem) -> String {
+		section.navKey ?? section.key
+	}
+
 	static func isEditableField(_ field: SettingsItem) -> Bool {
 		if field.readOnly == true { return false }
 		switch field.kind {

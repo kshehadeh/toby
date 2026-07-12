@@ -1,7 +1,7 @@
 ---
 name: toby-native-window
 description: >-
-  Use when creating or modifying native macOS windows in the Toby app (apps/toby-app/). Covers sidebar windows (Integrations, Schedules, Recordings, Settings), modal/sheet-like windows (Changelog, Issue Report), window chrome, and SwiftUI window modifiers.
+  Use when creating or modifying native macOS windows in the Toby app (apps/toby-app/). Covers sidebar windows (Integrations, Schedules, Recordings, Logs), the Settings preferences window (toolbar tabs), modal/sheet-like windows (Changelog, Issue Report), window chrome, and SwiftUI window modifiers.
 ---
 
 # Toby Native Window Creation
@@ -12,7 +12,8 @@ Add or modify native macOS windows in the Toby app (`apps/toby-app/`). The app u
 
 | Pattern | Examples | Key traits |
 | --- | --- | --- |
-| **Sidebar window** | Integrations, Schedules, Recordings, Settings | `NavigationSplitView` with a sidebar + detail pane. The sidebar toolbar must extend into the title bar so the stoplight appears as part of the sidebar. |
+| **Sidebar window** | Logs (secondary); Integrations / Schedules / Recordings in the main window | `NavigationSplitView` with a sidebar + detail pane. The sidebar toolbar must extend into the title bar so the stoplight appears as part of the sidebar. |
+| **Preferences window** | Settings | Separate `Window` with a custom top tab strip (**icon above text**, always visible; scrolls when narrow). Hierarchical sections use a manual `HStack` sidebar + detail (not `NavigationSplitView`/`TabView`, which steal or collapse chrome). |
 | **Modal / sheet-like window** | Changelog, Issue Report | Fixed-size, non-resizable, only the red close button, traditional macOS title bar. |
 
 ## Hard rules
@@ -36,11 +37,13 @@ Add or modify native macOS windows in the Toby app (`apps/toby-app/`). The app u
 
 ## Common files
 
-- `apps/toby-app/Sources/TobyApp/TobyApp.swift` — window declarations.
-- `apps/toby-app/Sources/TobyApp/WindowAccessor.swift` — helper to access the underlying `NSWindow` for style changes.
-- `apps/toby-app/Sources/TobyApp/AppTheme.swift` — sidebar/content colors and sizing constants.
-- `apps/toby-app/Sources/TobyApp/SettingsDesign.swift` — canvas/card colors used by settings-style views.
-- `apps/toby-app/Sources/TobyApp/AppSidebar.swift` — main chat sidebar (different from settings sidebars).
+- `apps/toby-app/Sources/TobyApp/App/TobyApp.swift` — window declarations.
+- `apps/toby-app/Sources/TobyApp/UI/Platform/WindowAccessor.swift` — helper to access the underlying `NSWindow` for style changes.
+- `apps/toby-app/Sources/TobyApp/UI/Theme/AppTheme.swift` — sidebar/content colors and sizing constants.
+- `apps/toby-app/Sources/TobyApp/UI/Theme/SettingsDesign.swift` — canvas/card colors used by settings-style views.
+- `apps/toby-app/Sources/TobyApp/Features/Sidebar/AppSidebar.swift` — main chat sidebar (different from settings sidebars).
+- `apps/toby-app/Sources/TobyApp/Features/Configure/SettingsWindowView.swift` — Settings preferences window (toolbar tabs).
+- `apps/toby-app/Sources/TobyApp/Features/Configure/SettingsHierarchySidebarView.swift` — nested section list (e.g. AI providers).
 
 ## Workflow A — Sidebar window
 
@@ -68,9 +71,21 @@ Add or modify native macOS windows in the Toby app (`apps/toby-app/`). The app u
    - A `ChangelogStore`-style cache with a `cacheInterval` and `force` parameter.
 3. Add tests and run `bun run test:swift`.
 
+## Workflow C — Preferences window (Settings)
+
+1. Register `Window("Settings", id: "settings")` in `TobyApp.swift` with `.windowStyle(.automatic)`, resizable defaults, and `.commandsRemoved()`.
+2. Root view (`SettingsWindowView`):
+   - Load top-level sections from the configure API / `ConfigureStore.settingsSections`.
+   - Use **`SettingsPreferencesTabBar`** (icon above caption). Do **not** use `TabView` — it collapses the tab strip when the window is narrow.
+   - **Leaf tabs**: scroll form detail only (`ConfigureDetailView`).
+   - **Hierarchical tabs** (e.g. AI): manual `HStack` with `SettingsHierarchySidebarView` + detail. Do **not** use `NavigationSplitView` inside Settings — it replaces window chrome and hides the tab bar. Auto-select the first child when the tab is chosen.
+3. Open via `openWindow(id: "settings")` / `OpenWindowBridge` / Cmd+, (`OpenSettingsMenuItem`). Do **not** use a main-window `DetailRoute` for Settings.
+4. Deep links set `ConfigureStore` selection (`selectSection` / `selectedNavKey`) then open the window.
+
 ## Examples in the codebase
 
-- Sidebar windows: `IntegrationsView.swift`, `SchedulesView.swift`, `RecordingsView.swift`, `ConfigureView.swift`.
+- Preferences window: `SettingsWindowView.swift`, `SettingsHierarchySidebarView.swift`.
+- Sidebar windows: `IntegrationsView.swift`, `SchedulesView.swift`, `RecordingsView.swift`, `LogsView.swift`.
 - Modal window: `ChangelogView.swift`, `WindowAccessor.swift`.
 
 ## Common mistakes

@@ -170,6 +170,24 @@ struct AppSidebarTests {
         #expect(selectedRoute == .chat)
     }
 
+    @Test("sidebar does not include settings gear")
+    func sidebarDoesNotIncludeSettingsGear() throws {
+        let sidebar = makeSidebarWithRoute(currentRoute: .chat) { _ in }
+        let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
+        let settingsButton = buttons.first { (try? $0.accessibilityLabel().string()) == "Settings" }
+        #expect(settingsButton == nil)
+    }
+
+    @Test("settings toolbar button opens settings")
+    func settingsToolbarButtonOpensSettings() throws {
+        var didOpen = false
+        let button = SettingsToolbarButton(onOpenSettings: { didOpen = true })
+        let inspected = try button.inspect().button()
+        try inspected.tap()
+        #expect(didOpen)
+        #expect(try inspected.accessibilityLabel().string() == "Settings")
+    }
+
     @Test("built-in persona row exposes edit action")
     func builtInPersonaRowExposesEditAction() throws {
         var didEdit = false

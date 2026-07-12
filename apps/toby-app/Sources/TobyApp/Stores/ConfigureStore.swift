@@ -79,6 +79,18 @@ final class ConfigureStore {
 		selectedSectionDetail
 	}
 
+	/// Top-level Settings toolbar tab key for the current selection.
+	var selectedTopLevelKey: String? {
+		guard let selectedNavKey else { return nil }
+		for section in settingsSections {
+			let key = ConfigureTreeHelpers.sectionIdentityKey(section)
+			if selectedNavKey == key || selectedNavKey.hasPrefix(key + ".") {
+				return key
+			}
+		}
+		return selectedNavKey
+	}
+
 	var hasPendingChanges: Bool {
 		!allPendingChanges.isEmpty
 	}
@@ -182,12 +194,44 @@ final class ConfigureStore {
 			if let cached = sectionDetailCache[navKey], !dirtySectionKeys.contains(navKey) {
 				applySectionDetail(cached)
 			} else {
-				if selectedSectionDetail?.navKey != navKey {
+				if selectedSectionDetail?.navKey != navKey
+					&& selectedSectionDetail?.key != navKey
+				{
 					selectedSectionDetail = nil
 					sectionDetailLoading = true
 				}
 				Task { await loadSectionDetail(navKey) }
 			}
+		}
+	}
+
+	/// Select a top-level Settings toolbar tab. Container sections (e.g. AI)
+	/// auto-select their first child unless a nested child is already selected.
+	func selectTopLevelTab(_ sectionKey: String) {
+		guard let section = settingsSections.first(where: {
+			ConfigureTreeHelpers.sectionIdentityKey($0) == sectionKey
+		}) else {
+			return
+		}
+
+		if ConfigureTreeHelpers.hasNestedSections(section) {
+			let children = ConfigureTreeHelpers.nestedSectionChildren(of: section)
+			if let current = selectedNavKey,
+				children.contains(where: { ConfigureTreeHelpers.sectionIdentityKey($0) == current })
+			{
+				// Already on a valid child under this tab — refresh selection if needed.
+				if selectedSectionDetail?.key != current, selectedSectionDetail?.navKey != current {
+					selectSection(current)
+				}
+				return
+			}
+			if let first = children.first {
+				selectSection(ConfigureTreeHelpers.sectionIdentityKey(first))
+			} else {
+				selectSection(sectionKey)
+			}
+		} else {
+			selectSection(sectionKey)
 		}
 	}
 

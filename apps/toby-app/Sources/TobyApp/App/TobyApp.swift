@@ -101,6 +101,16 @@ struct TobyApp: App {
 		.defaultSize(width: 980, height: 680)
 		.commandsRemoved()
 
+		Window("Settings", id: "settings") {
+			SettingsWindowView(store: configureStore)
+				.onDisappear {
+					NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil)
+				}
+		}
+		.windowStyle(.automatic)
+		.defaultSize(width: 750, height: 535)
+		.commandsRemoved()
+
 		.commands {
 			CommandGroup(replacing: .newItem) {
 				Button("New Chat") {
@@ -131,10 +141,7 @@ struct TobyApp: App {
 			}
 
 			CommandGroup(replacing: .appSettings) {
-				Button("Settings…") {
-					NotificationCenter.default.post(name: .navigateToRoute, object: DetailRoute.settings.rawValue)
-				}
-				.keyboardShortcut(",", modifiers: .command)
+				OpenSettingsMenuItem()
 			}
 
 			CommandGroup(after: .sidebar) {
@@ -180,8 +187,7 @@ struct TobyApp: App {
 	}
 
 	/// Returns a keyboard shortcut for each view route (Cmd+1 through Cmd+8).
-	/// Settings uses Cmd+, from the app settings command group, so it gets no
-	/// duplicate shortcut here.
+	/// Settings uses Cmd+, from the app settings command group.
 	private func viewShortcut(for route: DetailRoute) -> KeyboardShortcut? {
 		switch route {
 		case .dashboard: return KeyboardShortcut("1", modifiers: .command)
@@ -192,7 +198,6 @@ struct TobyApp: App {
 		case .memories: return KeyboardShortcut("6", modifiers: .command)
 		case .schedules: return KeyboardShortcut("7", modifiers: .command)
 		case .recordings: return KeyboardShortcut("8", modifiers: .command)
-		case .settings: return nil
 		}
 	}
 
@@ -246,5 +251,16 @@ struct OpenLogsMenuItem: View {
 		Button("Logs…") {
 			openWindow(id: "logs")
 		}
+	}
+}
+
+struct OpenSettingsMenuItem: View {
+	@Environment(\.openWindow) private var openWindow
+
+	var body: some View {
+		Button("Settings…") {
+			openWindow(id: "settings")
+		}
+		.keyboardShortcut(",", modifiers: .command)
 	}
 }

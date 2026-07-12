@@ -65,18 +65,18 @@ struct ConfigureSectionDetailView: View {
 				CredentialsSkeletonView()
 			} else if section.key == "defaults" {
 				DefaultProviderCardsView(store: store, section: section)
-			} else if ConfigureTreeHelpers.isContainerSection(section) {
-				if section.key == "ai" {
-					AIProviderCardsView(store: store, section: section)
-				} else {
-					SettingsCard {
-						SettingsRow(
-							title: section.label,
-							description: "Select an item in the sidebar to view and edit its settings.",
-							showsDivider: false,
-						) {
-							EmptyView()
-						}
+			} else if ConfigureTreeHelpers.isContainerSection(section)
+				|| ConfigureTreeHelpers.hasNestedSections(section)
+			{
+				// Container sections use the hierarchy sidebar in SettingsWindowView;
+				// this path is only hit if the parent is selected without a child.
+				SettingsCard {
+					SettingsRow(
+						title: section.label,
+						description: "Select an item in the sidebar to view and edit its settings.",
+						showsDivider: false,
+					) {
+						EmptyView()
 					}
 				}
 			} else {

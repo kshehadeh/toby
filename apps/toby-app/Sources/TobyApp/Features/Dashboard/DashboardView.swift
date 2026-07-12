@@ -6,6 +6,7 @@ struct DashboardView: View {
 	let onboarding: OnboardingChecklist
 	let onRefresh: () -> Void
 	let onSelectRoute: (DetailRoute) -> Void
+	var onOpenSettings: () -> Void = {}
 	let onOpenPermissions: () -> Void
 	let onStartChat: () -> Void
 	let onSummarizeEmail: () -> Void
@@ -70,11 +71,11 @@ struct DashboardView: View {
 	private func handleStepAction(_ kind: OnboardingStepKind) {
 		switch kind {
 		case .configureAIProvider:
-			onSelectRoute(.settings)
+			onOpenSettings()
 		case .connectIntegrations:
 			onSelectRoute(.integrations)
 		case .setupPersona:
-			onSelectRoute(.settings)
+			onOpenSettings()
 		case .grantPermissions:
 			onOpenPermissions()
 		case .createSchedule:
@@ -82,7 +83,7 @@ struct DashboardView: View {
 		case .createSkill:
 			onSelectRoute(.skills)
 		case .setupTranscription:
-			onSelectRoute(.settings)
+			onOpenSettings()
 		case .recordAndTranscribe:
 			onSelectRoute(.recordings)
 		case .samplePrompt:
