@@ -201,6 +201,11 @@ struct ToolDisplayLabelsTests {
 		#expect(ToolDisplayLabels.iconForTool("fetchWebContent") == "globe")
 	}
 
+	@Test("returns cloud.sun for weather")
+	func getWeatherIcon() {
+		#expect(ToolDisplayLabels.iconForTool("getWeather") == "cloud.sun")
+	}
+
 	@Test("returns bubble icon for slack/messaging tools")
 	func slackIcon() {
 		#expect(ToolDisplayLabels.iconForTool("postToChannel") == "bubble.left")

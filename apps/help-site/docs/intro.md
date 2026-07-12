@@ -33,7 +33,7 @@ It combines:
 | Start chatting | [Your first chat](./getting-started/first-chat) |
 | Use the native app | [Toby.app](./toby-app) |
 | Personas, skills, memories, schedules | [Personas](./personas) · [Skills](./skills) · [Memories](./memories) · [Schedules](./schedules) |
-| Settings not covered elsewhere | [Configuration](./configuration/overview) · [Web Search](./configuration/web-search) |
+| Settings not covered elsewhere | [Configuration](./configuration/overview) · [Web Search](./configuration/web-search) · [Weather](./configuration/weather) |
 | Credentials, encryption, backup | [Security](./security) |
 | Real-world workflows | [Examples](./examples) |
 | Build your own integration | [Creating a plugin](./plugins/creating-a-plugin) |

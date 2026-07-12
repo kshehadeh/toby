@@ -38,6 +38,10 @@ import {
 import { createModelForAuxiliary } from "./model-factory";
 import { createReflectTools, reflectToolsPromptSection } from "./reflect-tools";
 import { createSubAgentTool, subAgentPromptSection } from "./sub-agent-tool";
+import {
+	createWeatherGlobalTools,
+	isWeatherAvailable,
+} from "./weather/weather-global-tools";
 import { createWebFetchTools } from "./web-fetch-tool";
 import {
 	createWebSearchGlobalTools,
@@ -207,8 +211,12 @@ export function globalChatToolsPromptSection(
 	const allSkills = [...globalSkills, ...projectSkills];
 	const skillsCatalog = formatSkillsCatalogForPrompt(allSkills);
 	const hasSearch = isWebSearchAvailable(persona);
+	const hasWeather = isWeatherAvailable(persona);
 	const searchToolLine = hasSearch
 		? "\n- **webSearch**: Search the web via Perplexity through the AI Gateway. Returns titles, URLs, snippets, and optional dates. Use when the user asks about current events, facts, research, or anything requiring up-to-date information from the web. Always cite source URLs from search results."
+		: "";
+	const weatherToolLine = hasWeather
+		? "\n- **getWeather**: Fetch structured weather forecast (and current conditions when asking about today) for a place name or lat/lon and optional date. Worldwide via Open-Meteo. Prefer this over webSearch for weather, temperature, precipitation, or forecast questions."
 		: "";
 	const searchRules = hasSearch
 		? `
@@ -216,6 +224,13 @@ Web search and fetch rules:
 - When the user asks to search, find, look up, or research something on the web, use **webSearch** first, then optionally **fetchWebContent** on the most relevant result URLs.
 - When the user shares a URL or asks to read a specific page, use **fetchWebContent** directly.
 - Never claim knowledge about current events, recent news, or time-sensitive facts without using **webSearch** first.`
+		: "";
+	const weatherRules = hasWeather
+		? `
+Weather rules:
+- When the user asks about weather, forecast, temperature, rain, or climate conditions for a place/date, use **getWeather**.
+- Prefer **getWeather** over **webSearch** for structured weather data.
+- If the place is ambiguous, pass the best location string you can; the tool geocodes place names.`
 		: "";
 	return `
 Global Toby tools (always available in addition to integration tools):
@@ -227,9 +242,9 @@ Global Toby tools (always available in addition to integration tools):
 - **memoryExplain**: Show why a memory exists (source and audit trail).
 - **memoryRetrieveForTask**: Retrieve memories relevant to the current task.
 - **getCurrentDateTime**: Return the current local/UTC date-time and timezone.
-- **fetchWebContent**: Fetch a web page and extract its main readable content (strips ads, navigation, footers). Returns article title, text content, excerpt, and metadata. Use to read blog posts, articles, documentation, or any page with substantive text.${searchToolLine}
+- **fetchWebContent**: Fetch a web page and extract its main readable content (strips ads, navigation, footers). Returns article title, text content, excerpt, and metadata. Use to read blog posts, articles, documentation, or any page with substantive text.${searchToolLine}${weatherToolLine}
 - **createSchedule**: Create a recurring scheduled chat run. Required: \`intention\` (what the schedule does), \`targetOutput\` (\`slack\` | \`project\` | \`none\`). Optional: \`frequency\` (natural language like "every weekday at 9am" or a cron expression) and \`projectId\`. If the user has not specified a frequency, **omit it** — the tool will return a signal; then call **askUser** to ask the user how often it should run and retry. The schedule runs headlessly via the daemon using the default persona.
-${searchRules}
+${searchRules}${weatherRules}
 
 Memory rules:
 - **Always** use **memoryPropose** when the user shares a durable preference, fact, or personal context worth remembering. Never skip this.
@@ -550,6 +565,11 @@ export function createGlobalChatTools(
 		...createListenChatTools(),
 		...createWebFetchTools(),
 		...createWebSearchGlobalTools({
+			persona: ctx.persona,
+			dryRun: ctx.dryRun,
+			appliedActions: ctx.appliedActions,
+		}),
+		...createWeatherGlobalTools({
 			persona: ctx.persona,
 			dryRun: ctx.dryRun,
 			appliedActions: ctx.appliedActions,

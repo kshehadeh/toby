@@ -9,6 +9,7 @@ import {
 	type CredentialsFile,
 	type Persona,
 	type TranscriptionConfig,
+	type WeatherConfig,
 	type WebSearchConfig,
 	readConfig,
 	readCredentials,
@@ -33,6 +34,7 @@ const SECRET_KEY_PREFIXES = [
 	"ai.openrouter.apiKey",
 	"transcription.openai.apiKey",
 	"transcription.groq.apiKey",
+	"weather.apiKey",
 ] as const;
 
 /** Keys that must never be written via the web API. */
@@ -167,6 +169,13 @@ export function seedConfigureValues(): Record<string, string> {
 	}
 	values["webSearch.provider"] = config.webSearch?.provider ?? "ai-gateway";
 	values["webSearch.enabled"] = config.webSearch?.enabled ? "true" : "false";
+	values["weather.enabled"] = config.weather?.enabled ? "true" : "false";
+	values["weather.defaultLocation"] = config.weather?.defaultLocation ?? "";
+	values["weather.temperatureUnit"] =
+		config.weather?.temperatureUnit === "fahrenheit" ? "fahrenheit" : "celsius";
+	if (creds.weather?.apiKey) {
+		values["weather.apiKey"] = creds.weather.apiKey;
+	}
 	values["dashboard.persona"] =
 		config.dashboard?.persona?.trim() || "(default)";
 	values["listen.summaryPersona"] =
@@ -217,6 +226,26 @@ export function rebuildWebSearchConfig(
 	const enabledValue = values["webSearch.enabled"]?.toLowerCase().trim();
 	const enabled = enabledValue === "true" || enabledValue === "yes";
 	return { provider, enabled };
+}
+
+export function rebuildWeatherConfig(
+	values: Record<string, string>,
+): WeatherConfig | undefined {
+	const enabledValue = values["weather.enabled"]?.toLowerCase().trim();
+	const enabled = enabledValue === "true" || enabledValue === "yes";
+	const defaultLocation =
+		values["weather.defaultLocation"]?.trim() || undefined;
+	const unitRaw = values["weather.temperatureUnit"]?.toLowerCase().trim();
+	const temperatureUnit = unitRaw === "fahrenheit" ? "fahrenheit" : "celsius";
+	// Always persist when the weather section has been seeded (enabled key present).
+	if (values["weather.enabled"] === undefined && !defaultLocation && !unitRaw) {
+		return undefined;
+	}
+	return {
+		enabled,
+		...(defaultLocation ? { defaultLocation } : {}),
+		temperatureUnit,
+	};
 }
 
 export function rebuildChatInbound(
@@ -412,6 +441,19 @@ export function buildCredentialsFromValues(
 	if (Object.keys(transcriptionBlock).length > 0) {
 		next = mergeCredentials(next, { transcription: transcriptionBlock });
 	}
+
+	const weatherApiKeyRaw = values["weather.apiKey"];
+	if (weatherApiKeyRaw !== undefined && weatherApiKeyRaw !== REDACTED) {
+		const trimmed = weatherApiKeyRaw.trim();
+		if (trimmed) {
+			next = mergeCredentials(next, { weather: { apiKey: trimmed } });
+		} else {
+			// Explicit clear: drop weather credentials.
+			const { weather: _drop, ...restCreds } = next;
+			next = restCreds;
+		}
+	}
+
 	return next;
 }
 
@@ -465,6 +507,7 @@ function applyConfigFromValues(values: Record<string, string>): void {
 	cfg.chatInbound = rebuildChatInbound(values);
 	cfg.transcription = rebuildTranscriptionConfig(values);
 	cfg.webSearch = rebuildWebSearchConfig(values);
+	cfg.weather = rebuildWeatherConfig(values);
 	cfg.ai = rebuildAISettings(values);
 	cfg.dashboard = rebuildDashboardConfig(values);
 	cfg.listen = rebuildListenConfig(values);

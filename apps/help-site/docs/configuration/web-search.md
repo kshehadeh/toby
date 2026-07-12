@@ -41,9 +41,10 @@ Once enabled (and the gateway key is present), `webSearch` is a **global tool** 
 ### Example prompts
 
 - “Search the web for the latest news on AI regulation”
-- “Look up the weather forecast for San Francisco this weekend”
 - “Research the best restaurants in Tokyo near Shibuya station”
 - “Find recent articles about the Rust programming language”
+
+For structured forecasts, enable [Weather](./weather) and ask about the weather for a place—Toby uses `getWeather` instead of web search when that tool is available.
 
 ### Combined with web fetch
 

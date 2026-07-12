@@ -6,6 +6,7 @@
 const CORE_TOOL_LABELS: Record<string, string> = {
 	askUser: "Ask you to choose",
 	createLocalSkill: "Create local Toby skill",
+	getWeather: "Get weather",
 	memorySearch: "Search memory",
 	memoryPropose: "Propose memory",
 	memorySave: "Save memory",

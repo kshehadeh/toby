@@ -271,6 +271,7 @@ enum ToolDisplayLabels {
 		"askUser": "questionmark.bubble",
 		"webSearch": "magnifyingglass",
 		"fetchWebContent": "globe",
+		"getWeather": "cloud.sun",
 		"getCurrentDateTime": "clock",
 		"writeTextFile": "doc",
 		"createLocalSkill": "wand.and.stars",

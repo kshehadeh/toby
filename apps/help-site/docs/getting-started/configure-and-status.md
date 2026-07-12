@@ -61,7 +61,7 @@ Open the integration detail page and click **Disconnect**. This clears Toby's co
 | Jira | [Jira](../integrations/jira) |
 | Notion | [Notion](../integrations/notion) |
 
-Web Search is a **built-in setting**, not an integration. See [Web Search](../configuration/web-search).
+Web Search and Weather are **built-in settings**, not integrations. See [Web Search](../configuration/web-search) and [Weather](../configuration/weather).
 
 ## Next steps
 

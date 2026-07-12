@@ -194,6 +194,15 @@ export interface WebSearchConfig {
 	readonly enabled: boolean;
 }
 
+/** Built-in weather tool settings (Open-Meteo). Non-secret fields only. */
+export interface WeatherConfig {
+	readonly enabled: boolean;
+	/** Used when the tool call omits location and coordinates. */
+	readonly defaultLocation?: string;
+	/** Default temperature unit when the tool call omits temperatureUnit. */
+	readonly temperatureUnit?: "celsius" | "fahrenheit";
+}
+
 export interface WebConfig {
 	readonly enabled?: boolean;
 	readonly port?: number;
@@ -224,6 +233,7 @@ export interface TobyConfig {
 	chatInbound?: ChatInboundConfig;
 	transcription?: TranscriptionConfig;
 	webSearch?: WebSearchConfig;
+	weather?: WeatherConfig;
 	web?: WebConfig;
 	ai?: AISettings;
 	/** Slug of the currently active project (see `~/.toby/projects/<slug>/`). */
@@ -271,6 +281,8 @@ export interface CredentialsFile {
 	ai?: AICredentials;
 	/** Per-provider API keys for built-in transcription (e.g. { groq: { apiKey } }). */
 	transcription?: Record<string, { apiKey: string }>;
+	/** Optional Open-Meteo customer API key for the weather tool. */
+	weather?: { apiKey?: string };
 }
 
 export function getIntegrationCredential(
@@ -319,6 +331,7 @@ export function readConfig(): TobyConfig {
 		chatInbound: parsed.chatInbound,
 		transcription: parsed.transcription,
 		webSearch: parsed.webSearch,
+		weather: parsed.weather,
 		web: parsed.web,
 		ai: parsed.ai,
 		activeProject: parsed.activeProject,

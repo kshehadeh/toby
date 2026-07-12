@@ -526,6 +526,63 @@ export function buildSettingsTree(
 		],
 	};
 
+	const weatherEnabled = values["weather.enabled"] === "true";
+	const weatherTempUnit =
+		values["weather.temperatureUnit"] === "fahrenheit"
+			? "fahrenheit"
+			: "celsius";
+	const weatherSection: SettingsItem = {
+		label: "Weather",
+		kind: "section",
+		key: "weather",
+		children: [
+			{
+				label: "Enabled",
+				kind: "select" as const,
+				key: "weather.enabled",
+				options: ["false", "true"],
+				selectChoices: [
+					{ value: "false", label: "Off" },
+					{ value: "true", label: "On" },
+				],
+				currentValue: weatherEnabled ? "true" : "false",
+			},
+			{
+				label: "Default location",
+				kind: "value" as const,
+				key: "weather.defaultLocation",
+				description:
+					"Used when chat does not specify a place (e.g. Seattle, WA).",
+				currentValue: values["weather.defaultLocation"] ?? "",
+			},
+			{
+				label: "Temperature unit",
+				kind: "select" as const,
+				key: "weather.temperatureUnit",
+				options: ["celsius", "fahrenheit"],
+				selectChoices: [
+					{ value: "celsius", label: "Celsius (°C)" },
+					{ value: "fahrenheit", label: "Fahrenheit (°F)" },
+				],
+				currentValue: weatherTempUnit,
+			},
+			{
+				label: "Open-Meteo API key",
+				kind: "value" as const,
+				key: "weather.apiKey",
+				masked: true,
+				description:
+					"Optional. Free tier works without a key. Paid/customer keys use customer-api.open-meteo.com.",
+			},
+			{
+				label:
+					"Weather via Open-Meteo (global). Place names are geocoded with Nominatim. Data: Open-Meteo CC BY 4.0.",
+				kind: "hint" as const,
+				key: "weather._hint",
+			},
+		],
+	};
+
 	let schedules = [] as ReturnType<typeof listSchedules>;
 	try {
 		schedules = listSchedules();
@@ -702,6 +759,7 @@ export function buildSettingsTree(
 			},
 			transcriptionSection,
 			webSearchSection,
+			weatherSection,
 			{
 				label: "Dashboard",
 				kind: "section" as const,

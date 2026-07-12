@@ -17,6 +17,7 @@ Toby’s preferences live in **Toby.app → Settings**. This section documents *
 | **Default Providers** | Preferred integration per category (email, tasks, …) | [Default providers](./default-providers) |
 | **Chat** (inbound) | Listen for @mentions / external chat into Toby | [Inbound chat](./inbound-chat) · [Chat surfaces](../chat-surfaces/overview) |
 | **Web Search** | Built-in `webSearch` tool (not an integration) | [Web Search](./web-search) |
+| **Weather** | Built-in `getWeather` tool (Open-Meteo; not an integration) | [Weather](./weather) |
 | **Transcription** | Provider, key, and summary persona for Listen / recordings | [Transcription](./transcription) |
 | **Schedules** | Recurring prompts | [Schedules](../schedules) |
 | **Skills** | Skill list and bodies | [Skills](../skills) |
@@ -53,6 +54,7 @@ safety, see **[Security](../security)**.
 ## What this section covers
 
 - **[Web Search](./web-search)** — enable the global search tool (requires Vercel AI Gateway key)
+- **[Weather](./weather)** — enable the global weather tool (Open-Meteo; optional paid API key)
 - **[Default providers](./default-providers)** — prefer one integration when several share a category
 - **[Inbound chat](./inbound-chat)** — let Slack (or another inbound-capable plugin) drive headless chat turns
 - **[Transcription](./transcription)** — models used when Listen recordings are transcribed, plus the persona for recording summaries

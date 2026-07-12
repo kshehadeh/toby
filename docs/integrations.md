@@ -100,6 +100,12 @@ Perplexity search. The `webSearch` tool is a **conditional global tool**: when
 enabled in Settings → Web Search and a Vercel AI Gateway API key is present, it
 is available in every chat session regardless of the persona’s AI provider.
 
+**Weather** ([`weather.md`](weather.md)) uses Open-Meteo for global forecasts.
+The `getWeather` tool is a **conditional global tool**: when enabled in
+Settings → Weather, it is available in every chat session. No API key is
+required for the free tier; an optional customer key is supported. Place names
+are geocoded (Nominatim by default).
+
 **`fetchWebContent`** ([`packages/core/src/ai/web-fetch-tool.ts`](../packages/core/src/ai/web-fetch-tool.ts))
 fetches a URL and extracts readable content via `@mozilla/readability` +
 `linkedom`. No credentials required.

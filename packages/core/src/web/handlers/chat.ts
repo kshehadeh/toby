@@ -2,7 +2,11 @@ import fs from "node:fs";
 import type { AskUserToolResult } from "../../ai/ask-user-tool";
 import { resolveContextWindowInfo } from "../../ai/context-window";
 import { resolveChatAttachmentCapability } from "../../ai/model-capabilities";
-import { formatPersonaAiLabel, hasAnyConfiguredAIProvider } from "../../ai/model-factory";
+import {
+	formatPersonaAiLabel,
+	hasAnyConfiguredAIProvider,
+} from "../../ai/model-factory";
+import { isWeatherAvailable } from "../../ai/weather/weather-global-tools";
 import { isWebSearchAvailable } from "../../ai/web-search-global-tools";
 import type {
 	CreateSessionRequest,
@@ -20,7 +24,11 @@ import {
 } from "../../chat-pipeline/turn-runtime";
 import { getDefaultPersonaImagePath, resolveTobyDir } from "../../config/index";
 import { isTranscriptionConfigured } from "../../listen/transcription-providers";
-import { resolveDefaultPersona, listPersonas, resolvePersona } from "../../personas/index";
+import {
+	listPersonas,
+	resolveDefaultPersona,
+	resolvePersona,
+} from "../../personas/index";
 import { loadPlanBySession } from "../../planning/plan-store";
 import { resolveProject } from "../../projects/index";
 import {
@@ -126,6 +134,10 @@ export async function handleChatStatusDetail(): Promise<Response> {
 		webSearch: {
 			configured: isWebSearchAvailable(persona),
 			settingsNavKey: "webSearch",
+		},
+		weather: {
+			configured: isWeatherAvailable(persona),
+			settingsNavKey: "weather",
 		},
 	});
 }

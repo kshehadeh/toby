@@ -88,8 +88,9 @@ for the lower-level contract.
 External systems are the services Toby reaches through plugins and tools:
 email, tasks, chat, documents, work tracking, search, and calendars. Toby models
 integrations by provider category so a session can reason about the kind of work
-being requested instead of hard-coding vendor names everywhere. Web Search is a
-global tool (see [Configuration → Web Search](../configuration/web-search)), while
+being requested instead of hard-coding vendor names everywhere. Web Search and
+Weather are global tools (see [Configuration → Web Search](../configuration/web-search)
+and [Weather](../configuration/weather)), while
 document stores such as Notion use the `documents` provider category.
 
 See [Integrations overview](../integrations/overview) for available integrations,

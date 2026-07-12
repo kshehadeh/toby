@@ -75,7 +75,7 @@ Open **Toby.app** and use the **Setup Guide** button on any integration. It show
 
 Email, Todoist, Jira, Notion, Slack, Apple Calendar, Apple Reminders, Apple Contacts, macOS, and other first-party integrations ship as **plugins** bundled with Toby.app. When you install or update Toby from a release, they are placed under `~/.toby/plugins/` automatically.
 
-**Web Search** is not an integration—it is a built-in Settings feature. See [Web Search](../configuration/web-search).
+**Web Search** and **Weather** are not integrations—they are built-in Settings features. See [Web Search](../configuration/web-search) and [Weather](../configuration/weather).
 
 Plugins come in two formats:
 
@@ -153,8 +153,9 @@ These are **not** installable integrations. No integration picker is required:
 
 - **`fetchWebContent`** — Always available. Fetches a URL and extracts the main readable article content (strips ads, navigation, footers).
 - **`webSearch`** — Available when [Web Search](../configuration/web-search) is enabled and a Vercel AI Gateway API key is configured.
+- **`getWeather`** — Available when [Weather](../configuration/weather) is enabled (Open-Meteo; optional paid API key).
 
-See [Configuration → Web Search](../configuration/web-search) for setup.
+See [Configuration → Web Search](../configuration/web-search) and [Configuration → Weather](../configuration/weather) for setup.
 
 ## Work tracking
 
