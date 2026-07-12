@@ -12,6 +12,8 @@ enum ToolDisplayLabels {
 		"memoryRetrieveForTask": "Retrieve memories for task",
 		"listListenRecordings": "List listen recordings",
 		"readTranscript": "Read listen transcript",
+		"getMyLocation": "Get my location",
+		"getWeather": "Get weather",
 	]
 
 	static func displayLabel(_ toolName: String) -> String {
@@ -272,6 +274,7 @@ enum ToolDisplayLabels {
 		"webSearch": "magnifyingglass",
 		"fetchWebContent": "globe",
 		"getWeather": "cloud.sun",
+		"getMyLocation": "location",
 		"getCurrentDateTime": "clock",
 		"writeTextFile": "doc",
 		"createLocalSkill": "wand.and.stars",

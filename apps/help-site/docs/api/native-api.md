@@ -5,7 +5,7 @@ title: Native API
 
 # Native API
 
-The **Native API** is a localhost HTTP server hosted by **Toby.app** (the macOS app). It exists for operations that must run under Toby.app’s signed bundle identity — macOS TCC permissions, EventKit, Contacts, Accessibility, microphone/system audio capture, and related system controls.
+The **Native API** is a localhost HTTP server hosted by **Toby.app** (the macOS app). It exists for operations that must run under Toby.app’s signed bundle identity — macOS TCC permissions, EventKit, Contacts, Location Services, Accessibility, microphone/system audio capture, and related system controls.
 
 This page is the endpoint reference. For how this differs from the daemon **Server API**, see [Local APIs](./overview). Product surfaces of the Mac app are in [Toby.app](../toby-app).
 
@@ -15,7 +15,7 @@ Chat, sessions, configure, memories, projects, and recording **list/transcribe**
 
 ## Why this API exists
 
-macOS ties permission grants (Calendar, Contacts, Reminders, Microphone, Screen Recording / system audio, Accessibility, Notifications) to the **calling binary’s identity**. Raw CLI or plugin binaries show confusing names in System Settings, or fail EventKit/XPC checks.
+macOS ties permission grants (Calendar, Contacts, Reminders, Location, Microphone, Screen Recording / system audio, Accessibility, Notifications) to the **calling binary’s identity**. Raw CLI or plugin binaries show confusing names in System Settings, or fail EventKit/XPC checks.
 
 By routing through Toby.app:
 
@@ -70,7 +70,7 @@ When access is denied, handlers typically return:
 }
 ```
 
-Grant the relevant permission to **Toby.app** in **System Settings → Privacy & Security** (Calendar, Contacts, Reminders, Microphone, Screen & System Audio Recording, Accessibility, Notifications, etc.).
+Grant the relevant permission to **Toby.app** in **System Settings → Privacy & Security** (Calendar, Contacts, Reminders, Location Services, Microphone, Screen & System Audio Recording, Accessibility, Notifications, etc.). You can also use Toby.app’s **Permissions** window.
 
 ## Who uses the Native API
 
@@ -82,6 +82,7 @@ Grant the relevant permission to **Toby.app** in **System Settings → Privacy &
 | **toby-plugin-applereminders** | EventKit reminder tools |
 | **toby-plugin-macos** | Wi‑Fi, battery, audio devices, windows, clipboard, shortcuts, … |
 | **CLI / core listen path** | Start/stop/combine recording via `/api/native/audio/*` |
+| **Core `getMyLocation` tool** | Current location via `/api/native/location/*` |
 
 After capture, **listing, deleting, and transcribing** recordings return to the [Server API](./server-api) (`/api/listen/…`).
 
@@ -100,6 +101,9 @@ After capture, **listing, deleting, and transcribing** recordings return to the 
 | `POST` | `/api/native/contacts/request-access` | Prompt Contacts permission |
 | `POST` | `/api/native/contacts/search` | Search contacts |
 | `POST` | `/api/native/contacts/get` | Get contact by identifier |
+| `POST` | `/api/native/location/status` | Location authorization status |
+| `POST` | `/api/native/location/request-access` | Prompt Location Services |
+| `POST` | `/api/native/location/current` | One-shot current location |
 | `POST` | `/api/native/reminders/request-access` | Prompt Reminders permission |
 | `POST` | `/api/native/reminders/lists` | List reminder lists |
 | `POST` | `/api/native/reminders/search` | Search reminders |
@@ -241,6 +245,46 @@ Contact summaries include `identifier`, `displayName`, names, organization, emai
 ```
 
 Returns full contact detail under `data`.
+
+## Location (CoreLocation)
+
+Requires **Location Services** access for Toby.app. Used by the global
+`getMyLocation` chat tool. You can also grant access from Toby.app’s
+**Permissions** window (Location Access).
+
+### `POST /api/native/location/status`
+
+Returns authorization status without prompting:
+
+```json
+{
+  "ok": true,
+  "data": {
+    "authorizationStatus": "authorizedWhenInUse",
+    "granted": true,
+    "servicesEnabled": true
+  }
+}
+```
+
+### `POST /api/native/location/request-access`
+
+Prompts for Location Services when status is not yet determined.
+
+### `POST /api/native/location/current`
+
+One-shot location fix. Prompts for permission when needed.
+
+```ts
+type CurrentLocationBody = {
+  accuracy?: "best" | "hundredMeters" | "kilometer"; // default hundredMeters
+  reverseGeocode?: boolean; // default true
+};
+```
+
+Success `data` includes `latitude`, `longitude`, `horizontalAccuracyMeters`,
+`timestamp`, and optional `place` (reverse-geocoded fields such as `locality`,
+`country`, `displayName`).
 
 ## Reminders (EventKit)
 

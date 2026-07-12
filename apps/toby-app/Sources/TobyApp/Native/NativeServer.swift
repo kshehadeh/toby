@@ -276,6 +276,12 @@ final class NativeServer {
 			return wrapHandlerData(NativeMacOSHandler.windowsShowAll())
 		case "/api/native/macos/window-hide-app":
 			return wrapHandlerData(NativeMacOSHandler.windowHideApp(body: request.body))
+		case "/api/native/location/status":
+			return wrapHandlerData(NativeLocationHandler.shared.status())
+		case "/api/native/location/request-access":
+			return wrapHandlerData(await NativeLocationHandler.shared.requestAccess())
+		case "/api/native/location/current":
+			return wrapHandlerData(await NativeLocationHandler.shared.currentLocation(body: request.body))
 		case "/api/native/audio/status":
 			return wrapHandlerData(NativeAudioHandler.shared.status())
 		case "/api/native/audio/start":

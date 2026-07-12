@@ -41,6 +41,10 @@ URL to `customer-api.open-meteo.com` and passes `apikey`.
 every chat session. It is **not** in the always-included tool set; pretreatment /
 semantic routing selects it for weather-related turns.
 
+When the user asks about weather “here” / “near me” without a place name, the
+model should call **`getMyLocation`** first (see [`location.md`](location.md)),
+then pass coordinates or the reverse-geocoded place into `getWeather`.
+
 ## Architecture
 
 | Layer | Location |

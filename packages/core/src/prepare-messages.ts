@@ -237,20 +237,23 @@ function buildCombinedChatBasePrompt(
 	const hasWeather = isWeatherAvailable(persona);
 	const searchToolsList = hasSearch ? ", **webSearch**" : "";
 	const weatherToolsList = hasWeather ? ", **getWeather**" : "";
+	const locationToolsList = ", **getMyLocation**";
 	const searchRule = hasSearch
 		? "\n- **Web search**: When the user asks about current events, facts, research, or anything requiring up-to-date information, use **webSearch** (Perplexity via AI Gateway) to find results. When the user shares a URL or asks to read a page, use **fetchWebContent** to extract the article content. Never claim knowledge about current events without searching first."
 		: "";
 	const weatherRule = hasWeather
-		? "\n- **Weather**: When the user asks about weather, forecast, or temperature for a place, use **getWeather** (prefer over webSearch for structured weather data)."
+		? '\n- **Weather**: When the user asks about weather, forecast, or temperature for a place, use **getWeather** (prefer over webSearch for structured weather data). For weather "here" / "near me", call **getMyLocation** first when no place is given.'
 		: "";
+	const locationRule =
+		'\n- **Location**: When the user asks where they are or for "near me" / "here" geographic context, use **getMyLocation** (may prompt for macOS Location Services).';
 	return `You are Toby, a personal assistant with access to: **${labels}**.
 
-Use the integration tools below for your connected integrations, plus the global Toby tools (**askUser**, **fetchWebContent**${searchToolsList}${weatherToolsList}). Pick the right integration based on the user's request. Use **createLocalSkill** only when the user explicitly asks to create or update a ~/.toby/skills skill file.
+Use the integration tools below for your connected integrations, plus the global Toby tools (**askUser**, **fetchWebContent**${searchToolsList}${weatherToolsList}${locationToolsList}). Pick the right integration based on the user's request. Use **createLocalSkill** only when the user explicitly asks to create or update a ~/.toby/skills skill file.
 
 Shared rules:
 - Use **askUser** whenever you need a multiple-choice decision from the user. The terminal does not respond to questions written only in plain assistant text.
 - If the request is fully answered, stop without dangling "Would you like…?" in prose unless you call **askUser** with concrete options.
-- When listing emails, tasks, or options in assistant text, prefer markdown list items (\`- item\`) with one item per line.${searchRule}${weatherRule}
+- When listing emails, tasks, or options in assistant text, prefer markdown list items (\`- item\`) with one item per line.${searchRule}${weatherRule}${locationRule}
 ${defaultsSection ? `\n${defaultsSection}\n` : ""}
 ${integrationBlocks}
 ${globalChatToolsPromptSection(project, persona)}

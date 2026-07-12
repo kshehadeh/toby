@@ -39,6 +39,7 @@ let package = Package(
 				.linkedFramework("CoreAudio"),
 				.linkedFramework("CoreGraphics"),
 				.linkedFramework("UserNotifications"),
+				.linkedFramework("CoreLocation"),
 				.unsafeFlags([
 					"-Xlinker",
 					"-rpath",

@@ -110,6 +110,11 @@ are geocoded (Nominatim by default).
 fetches a URL and extracts readable content via `@mozilla/readability` +
 `linkedom`. No credentials required.
 
+**Location** ([`location.md`](location.md)) reads the user’s current position
+from macOS Location Services through Toby.app. The `getMyLocation` tool is a
+**global tool** (always registered; macOS only) and prompts for Location
+permission when needed.
+
 ## How the product uses modules
 
 - **`connect` / `disconnect`** — `getIntegration(name)` then lifecycle methods.

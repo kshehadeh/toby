@@ -2,6 +2,7 @@ import AppKit
 import ApplicationServices
 import AVFoundation
 import CoreGraphics
+import CoreLocation
 import EventKit
 import Foundation
 import SwiftUI
@@ -10,6 +11,7 @@ enum PermissionKind: String, CaseIterable, Sendable {
 	case screenCapture = "Screen Capture"
 	case systemAudio = "System Audio Recording"
 	case microphone = "Microphone Access"
+	case location = "Location Access"
 	case accessibility = "Accessibility"
 	case calendar = "Calendar Access"
 	case reminders = "Reminders Access"
@@ -24,6 +26,8 @@ enum PermissionKind: String, CaseIterable, Sendable {
 			return "Required to capture system audio during recordings."
 		case .microphone:
 			return "Required to record microphone audio."
+		case .location:
+			return "Required to determine your current location for location-aware chat."
 		case .accessibility:
 			return "Required to control windows and run native macOS actions."
 		case .calendar:
@@ -38,6 +42,7 @@ enum PermissionKind: String, CaseIterable, Sendable {
 		case .screenCapture: return "display"
 		case .systemAudio: return "speaker.wave.2"
 		case .microphone: return "mic"
+		case .location: return "location"
 		case .accessibility: return "accessibility"
 		case .calendar: return "calendar"
 		case .reminders: return "checklist"
@@ -49,6 +54,7 @@ enum PermissionKind: String, CaseIterable, Sendable {
 		case .screenCapture: return Color(red: 0.20, green: 0.60, blue: 1.00)
 		case .systemAudio: return Color(red: 1.00, green: 0.55, blue: 0.00)
 		case .microphone: return Color(red: 1.00, green: 0.35, blue: 0.35)
+		case .location: return Color(red: 0.15, green: 0.70, blue: 0.85)
 		case .accessibility: return Color(red: 0.75, green: 0.40, blue: 0.95)
 		case .calendar: return Color(red: 0.25, green: 0.75, blue: 0.45)
 		case .reminders: return Color(red: 0.20, green: 0.55, blue: 0.95)
@@ -67,10 +73,12 @@ struct PermissionStatus: Identifiable, Sendable {
 @Observable
 final class PermissionsStore {
 	private(set) var statuses: [PermissionStatus] = PermissionKind.allCases.map { PermissionStatus(kind: $0, isGranted: false) }
+	/// Held so Location Services authorization callbacks stay associated with this process.
+	private let locationManager = CLLocationManager()
 
 	func refresh() {
 		statuses = PermissionKind.allCases.map { kind in
-			PermissionStatus(kind: kind, isGranted: Self.checkStatus(for: kind))
+			PermissionStatus(kind: kind, isGranted: Self.checkStatus(for: kind, locationManager: locationManager))
 		}
 	}
 
@@ -80,6 +88,14 @@ final class PermissionsStore {
 			_ = CGRequestScreenCaptureAccess()
 		case .microphone:
 			_ = await AVAudioApplication.requestRecordPermission()
+		case .location:
+			let status = locationManager.authorizationStatus
+			if status == .notDetermined {
+				locationManager.requestWhenInUseAuthorization()
+			} else if status == .denied || status == .restricted {
+				// Already decided — only System Settings can re-enable.
+				break
+			}
 		case .accessibility:
 			let options: CFDictionary = ["AXTrustedCheckOptionPrompt": kCFBooleanTrue!] as CFDictionary
 			_ = AXIsProcessTrustedWithOptions(options)
@@ -119,6 +135,8 @@ final class PermissionsStore {
 			pane = "Privacy_ScreenCapture"
 		case .microphone:
 			pane = "Privacy_Microphone"
+		case .location:
+			pane = "Privacy_LocationServices"
 		case .accessibility:
 			pane = "Privacy_Accessibility"
 		case .calendar:
@@ -130,12 +148,20 @@ final class PermissionsStore {
 		NSWorkspace.shared.open(url)
 	}
 
-	private static func checkStatus(for kind: PermissionKind) -> Bool {
+	private static func checkStatus(for kind: PermissionKind, locationManager: CLLocationManager) -> Bool {
 		switch kind {
 		case .screenCapture, .systemAudio:
 			return CGPreflightScreenCaptureAccess()
 		case .microphone:
 			return AVAudioApplication.shared.recordPermission == .granted
+		case .location:
+			guard CLLocationManager.locationServicesEnabled() else { return false }
+			switch locationManager.authorizationStatus {
+			case .authorizedAlways, .authorizedWhenInUse:
+				return true
+			default:
+				return false
+			}
 		case .accessibility:
 			return AXIsProcessTrusted()
 		case .calendar:

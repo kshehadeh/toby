@@ -7,6 +7,7 @@ const CORE_TOOL_LABELS: Record<string, string> = {
 	askUser: "Ask you to choose",
 	createLocalSkill: "Create local Toby skill",
 	getWeather: "Get weather",
+	getMyLocation: "Get my location",
 	memorySearch: "Search memory",
 	memoryPropose: "Propose memory",
 	memorySave: "Save memory",
@@ -28,7 +29,10 @@ const pluginToolLabels = new Map<string, string>();
  * Called by the plugin adapter when tool definitions are loaded.
  */
 export function registerPluginToolLabels(
-	tools: ReadonlyArray<{ readonly name: string; readonly displayName?: string }>,
+	tools: ReadonlyArray<{
+		readonly name: string;
+		readonly displayName?: string;
+	}>,
 ): void {
 	for (const t of tools) {
 		if (t.displayName) {

@@ -16,6 +16,10 @@
 	<string>Toby reads and manages your reminders when you use Apple Reminders integration.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>Toby needs full reminders access to search, create, update, complete, and delete reminders.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>Toby uses your location when you ask where you are or need location-aware help.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Toby uses your location when you ask where you are or need location-aware help.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Toby records microphone audio when you use Record Audio.</string>
 	<key>NSScreenCaptureUsageDescription</key>

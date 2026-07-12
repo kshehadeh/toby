@@ -35,6 +35,7 @@ import {
 	createListenChatTools,
 	listenChatToolsPromptSection,
 } from "./listen-chat-tools";
+import { createLocationGlobalTools } from "./location-global-tools";
 import { createModelForAuxiliary } from "./model-factory";
 import { createReflectTools, reflectToolsPromptSection } from "./reflect-tools";
 import { createSubAgentTool, subAgentPromptSection } from "./sub-agent-tool";
@@ -218,6 +219,8 @@ export function globalChatToolsPromptSection(
 	const weatherToolLine = hasWeather
 		? "\n- **getWeather**: Fetch structured weather forecast (and current conditions when asking about today) for a place name or lat/lon and optional date. Worldwide via Open-Meteo. Prefer this over webSearch for weather, temperature, precipitation, or forecast questions."
 		: "";
+	const locationToolLine =
+		"\n- **getMyLocation**: Read the user's current geographic location from this Mac (lat/lon + reverse-geocoded place). Triggers the macOS Location Services permission prompt for Toby.app if needed. macOS only.";
 	const searchRules = hasSearch
 		? `
 Web search and fetch rules:
@@ -230,8 +233,13 @@ Web search and fetch rules:
 Weather rules:
 - When the user asks about weather, forecast, temperature, rain, or climate conditions for a place/date, use **getWeather**.
 - Prefer **getWeather** over **webSearch** for structured weather data.
-- If the place is ambiguous, pass the best location string you can; the tool geocodes place names.`
+- If the place is ambiguous, pass the best location string you can; the tool geocodes place names.
+- When the user asks about weather "here" / "near me" without a place name, call **getMyLocation** first, then pass coordinates or the place name into **getWeather**.`
 		: "";
+	const locationRules = `
+Location rules:
+- When the user asks where they are, for their current location, or for "near me" / "here" geographic context, use **getMyLocation**.
+- **getMyLocation** may prompt for macOS Location Services permission the first time; if access is denied, explain that the user can allow Location for Toby in System Settings or the Permissions window.`;
 	return `
 Global Toby tools (always available in addition to integration tools):
 - **loadLocalSkillInstructions**: Load full SKILL.md instruction bodies for one or more local skills by exact name.
@@ -242,9 +250,9 @@ Global Toby tools (always available in addition to integration tools):
 - **memoryExplain**: Show why a memory exists (source and audit trail).
 - **memoryRetrieveForTask**: Retrieve memories relevant to the current task.
 - **getCurrentDateTime**: Return the current local/UTC date-time and timezone.
-- **fetchWebContent**: Fetch a web page and extract its main readable content (strips ads, navigation, footers). Returns article title, text content, excerpt, and metadata. Use to read blog posts, articles, documentation, or any page with substantive text.${searchToolLine}${weatherToolLine}
+- **fetchWebContent**: Fetch a web page and extract its main readable content (strips ads, navigation, footers). Returns article title, text content, excerpt, and metadata. Use to read blog posts, articles, documentation, or any page with substantive text.${searchToolLine}${weatherToolLine}${locationToolLine}
 - **createSchedule**: Create a recurring scheduled chat run. Required: \`intention\` (what the schedule does), \`targetOutput\` (\`slack\` | \`project\` | \`none\`). Optional: \`frequency\` (natural language like "every weekday at 9am" or a cron expression) and \`projectId\`. If the user has not specified a frequency, **omit it** — the tool will return a signal; then call **askUser** to ask the user how often it should run and retry. The schedule runs headlessly via the daemon using the default persona.
-${searchRules}${weatherRules}
+${searchRules}${weatherRules}${locationRules}
 
 Memory rules:
 - **Always** use **memoryPropose** when the user shares a durable preference, fact, or personal context worth remembering. Never skip this.
@@ -571,6 +579,10 @@ export function createGlobalChatTools(
 		}),
 		...createWeatherGlobalTools({
 			persona: ctx.persona,
+			dryRun: ctx.dryRun,
+			appliedActions: ctx.appliedActions,
+		}),
+		...createLocationGlobalTools({
 			dryRun: ctx.dryRun,
 			appliedActions: ctx.appliedActions,
 		}),

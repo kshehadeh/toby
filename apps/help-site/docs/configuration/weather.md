@@ -44,8 +44,13 @@ Once enabled, ask Toby about the weather. Prefer natural questions:
 
 Toby should use **`getWeather`** for these instead of a general web search when Weather is on.
 
+For “weather near me” / “here” without a place name, Toby may call
+**`getMyLocation`** first (see [Location](./location)), then pass coordinates
+into `getWeather`.
+
 ## Related
 
 - [Configuration overview](./overview)
+- [Location](./location) — current position for “near me” / “here”
 - [Web Search](./web-search) — general web research (not required for weather)
 - Developer notes: [weather.md](https://github.com/kshehadeh/toby/blob/main/docs/weather.md)

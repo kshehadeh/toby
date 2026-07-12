@@ -97,6 +97,16 @@ and other preferences through a familiar preferences-style interface.
 
 ![Toby.app Settings window](/img/toby-app-settings.png)
 
+### Permissions
+
+The Permissions window shows macOS privacy grants used by Toby.app (microphone,
+screen capture, location, calendar, reminders, accessibility, and more). Use
+**Allow** to trigger the system prompt, or **Open System Settings** when a
+permission was previously denied.
+
+**Location Access** is required for the chat tool **`getMyLocation`** (for
+example “Where am I?” or weather “near me”). See [Location](./configuration/location).
+
 ## How the local service starts
 
 When Toby.app opens, it checks the local service at:

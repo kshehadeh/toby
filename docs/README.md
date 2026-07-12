@@ -16,6 +16,7 @@ Human- and agent-oriented docs for this repository.
 | [apple-reminders.md](apple-reminders.md) | macOS Apple Reminders plugin. |
 | [web-search.md](web-search.md) | Web Search via AI Gateway Perplexity: global `webSearch` tool. |
 | [weather.md](weather.md) | Weather via Open-Meteo: global `getWeather` tool + Nominatim geocoding. |
+| [location.md](location.md) | Current location via Toby.app: global `getMyLocation` tool + CoreLocation. |
 | [macos-integration.md](macos-integration.md) | `toby-plugin-macos`: Wi‑Fi, Bluetooth, battery, audio, display, clipboard, shortcuts. |
 | [listen.md](listen.md) | Recording mode, native capture, transcription. |
 | [native-helpers.md](native-helpers.md) | Toby.app native API pattern for platform bridges. |
