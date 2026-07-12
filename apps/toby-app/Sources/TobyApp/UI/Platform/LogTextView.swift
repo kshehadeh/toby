@@ -15,9 +15,9 @@ struct LogTextView: NSViewRepresentable {
 		scrollView.hasHorizontalScroller = false
 		scrollView.autohidesScrollers = false
 		scrollView.drawsBackground = true
-		scrollView.backgroundColor = NSColor(red: 0.08, green: 0.08, blue: 0.09, alpha: 1.0)
+		scrollView.backgroundColor = .tobyLogBackground
 		scrollView.contentView.drawsBackground = true
-		scrollView.contentView.backgroundColor = NSColor(red: 0.08, green: 0.08, blue: 0.09, alpha: 1.0)
+		scrollView.contentView.backgroundColor = .tobyLogBackground
 
 		guard let textView = scrollView.documentView as? STTextView else {
 			return scrollView
@@ -27,8 +27,8 @@ struct LogTextView: NSViewRepresentable {
 		textView.isSelectable = true
 		textView.isHorizontallyResizable = false
 		textView.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
-		textView.textColor = NSColor.white.withAlphaComponent(0.88)
-		textView.backgroundColor = NSColor(red: 0.08, green: 0.08, blue: 0.09, alpha: 1.0)
+		textView.textColor = .tobyPrimaryText
+		textView.backgroundColor = .tobyLogBackground
 
 		return scrollView
 	}

@@ -40,6 +40,8 @@ struct EmptyChatWorkspace: View {
         if let logoURL = Bundle.tobyResources.url(forResource: "toby-128", withExtension: "png"),
             let nsImage = NSImage(contentsOf: logoURL)
         {
+            // Full-color logo art (not an alpha glyph) — do not mark as template.
+            nsImage.isTemplate = false
             return Image(nsImage: nsImage)
         }
         return Image(systemName: "brain.head.profile")

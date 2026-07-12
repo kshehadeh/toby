@@ -7,18 +7,12 @@ enum SkillMarkdownSyntax {
 	static let baseFont = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
 	static let semiboldFont = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .semibold)
 
-	static let primaryColor = NSColor(
-		calibratedRed: 0.949, green: 0.949, blue: 0.957, alpha: 1,
-	)
-	static let markerColor = NSColor.white.withAlphaComponent(0.35)
-	static let headingColor = NSColor(
-		calibratedRed: 0.427, green: 0.702, blue: 0.973, alpha: 1,
-	)
-	static let codeColor = NSColor(
-		calibratedRed: 0.902, green: 0.647, blue: 0.416, alpha: 1,
-	)
-	static let codeBackground = NSColor.white.withAlphaComponent(0.05)
-	static let boldColor = NSColor.white.withAlphaComponent(0.95)
+	static let primaryColor = NSColor.tobyMarkdownPrimary
+	static let markerColor = NSColor.tobyMarkdownMarker
+	static let headingColor = NSColor.tobyMarkdownHeading
+	static let codeColor = NSColor.tobyMarkdownCode
+	static let codeBackground = NSColor.tobyMarkdownCodeBackground
+	static let boldColor = NSColor.tobyMarkdownBold
 
 	static let paragraphStyle: NSParagraphStyle = {
 		let style = NSMutableParagraphStyle()

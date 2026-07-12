@@ -35,6 +35,31 @@ struct SettingsItem: Decodable, Identifiable {
 	var group: String? = nil
 	var description: String? = nil
 	var docUrl: String? = nil
+
+	/// Client-only Appearance tab (not from the daemon configure API).
+	static let appearanceSectionKey = "appearance"
+
+	static var appearanceSection: SettingsItem {
+		SettingsItem(
+			label: "Appearance",
+			kind: .section,
+			key: appearanceSectionKey,
+			navKey: appearanceSectionKey,
+			children: nil,
+			masked: nil,
+			multiline: nil,
+			options: nil,
+			selectChoices: nil,
+			currentValue: nil,
+			selectedValues: nil,
+			readOnly: true,
+			iconUrl: nil,
+			icon: nil,
+			group: nil,
+			description: nil,
+			docUrl: nil
+		)
+	}
 }
 
 struct ConfigureTreeResponse: Decodable {

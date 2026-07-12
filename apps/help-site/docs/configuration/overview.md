@@ -11,6 +11,7 @@ Toby’s preferences live in **Toby.app → Settings**. This section documents *
 
 | Settings area | What it controls | Documented here? |
 | ------------- | ---------------- | ---------------- |
+| **Appearance** | Light / Dark / System theme and accent color (app-local; not in `config.json`) | [Toby Mac App](../toby-app#settings) |
 | **AI** | OpenAI, Vercel AI Gateway, Ollama keys and endpoints | [AI providers](../ai-providers/overview) · [Set up AI](../getting-started/setup-ai) |
 | **Personas** | Instructions, default persona, model per persona | [Personas](../personas) |
 | **Integrations** | Credentials and connect for Email, Slack, Calendar, … | [Integrations](../integrations/overview) · [Configure and connect](../getting-started/configure-and-status) |
@@ -30,7 +31,7 @@ Projects and recordings are managed outside Settings (sidebar **Projects** and
 
 1. Open **Toby.app**.
 2. Click the **gear** in the main toolbar (next to Search), or press **⌘,**.
-3. Use the **top toolbar tabs** to open a section (Chat, AI, Transcription, and so on). Hierarchical areas such as **AI** show a list of providers on the left of the Settings window. Changes save as you edit.
+3. Use the **top toolbar tabs** to open a section (**Appearance**, Chat, AI, Transcription, and so on). Hierarchical areas such as **AI** show a list of providers on the left of the Settings window. Most changes save as you edit. **Appearance** is stored only on this Mac in the app’s preferences (theme and accent), not in `~/.toby/config.json`.
 
 ![Toby.app Settings window](/img/toby-app-settings.png)
 

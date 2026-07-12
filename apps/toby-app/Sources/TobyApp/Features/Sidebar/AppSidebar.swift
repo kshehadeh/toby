@@ -38,72 +38,74 @@ struct AppSidebar<Content: View>: View {
 	var onActionHelpChange: (SidebarActionHelpPresentation?) -> Void = { _ in }
 	@ViewBuilder let sidebarContent: () -> Content
 
-	private let actionItems: [SidebarActionItem] = [
-		SidebarActionItem(
-			route: .dashboard,
-			title: "Dashboard",
-			systemImage: "rectangle.3.group",
-			hoveredSystemImage: "rectangle.3.group.fill",
-			accentColor: Color(red: 0.96, green: 0.62, blue: 0.12),
-			detail: "See what needs your attention: unread mail, open tasks, and setup steps at a glance."
-		),
-		SidebarActionItem(
-			route: .chat,
-			title: "Chats",
-			systemImage: "message",
-			hoveredSystemImage: "message.fill",
-			accentColor: Color(red: 0.35, green: 0.68, blue: 1),
-			detail: "Open your chat workspace, continue existing conversations, or start a new session with Toby."
-		),
-		SidebarActionItem(
-			route: .integrations,
-			title: "Integrations",
-			systemImage: "square.grid.2x2",
-			hoveredSystemImage: "square.grid.2x2.fill",
-			accentColor: Color(red: 0.32, green: 0.82, blue: 0.48),
-			detail: "Manage connected services, credentials, setup guides, and integration-specific capabilities."
-		),
-		SidebarActionItem(
-			route: .projects,
-			title: "Projects",
-			systemImage: "folder",
-			hoveredSystemImage: "folder.fill",
-			accentColor: Color(red: 0.95, green: 0.7, blue: 0.28),
-			detail: "Work inside project folders with scoped chats, local guidance, skills, and generated outputs."
-		),
-		SidebarActionItem(
-			route: .skills,
-			title: "Skills",
-			systemImage: "wand.and.stars",
-			hoveredSystemImage: "wand.and.stars",
-			accentColor: Color(red: 0.72, green: 0.52, blue: 1),
-			detail: "Browse installed skills, inspect their instructions, edit them, or add new reusable workflows."
-		),
-		SidebarActionItem(
-			route: .memories,
-			title: "Memories",
-			systemImage: "brain.head.profile",
-			hoveredSystemImage: "brain.head.profile",
-			accentColor: Color(red: 0.92, green: 0.58, blue: 0.86),
-			detail: "Browse, create, edit, and delete memories Toby remembers across chats and automations."
-		),
-		SidebarActionItem(
-			route: .schedules,
-			title: "Schedules",
-			systemImage: "clock",
-			hoveredSystemImage: "clock.fill",
-			accentColor: AppTheme.accent,
-			detail: "Create and monitor recurring prompts that run on a schedule through Toby's background daemon."
-		),
-		SidebarActionItem(
-			route: .recordings,
-			title: "Recordings",
-			systemImage: "waveform",
-			hoveredSystemImage: "waveform",
-			accentColor: Color(red: 1, green: 0.36, blue: 0.42),
-			detail: "Review audio recordings, transcripts, and chats created from recorded context."
-		),
-	]
+	private var actionItems: [SidebarActionItem] {
+		[
+			SidebarActionItem(
+				route: .dashboard,
+				title: "Dashboard",
+				systemImage: "rectangle.3.group",
+				hoveredSystemImage: "rectangle.3.group.fill",
+				accentColor: AppTheme.accent,
+				detail: "See what needs your attention: unread mail, open tasks, and setup steps at a glance."
+			),
+			SidebarActionItem(
+				route: .chat,
+				title: "Chats",
+				systemImage: "message",
+				hoveredSystemImage: "message.fill",
+				accentColor: Color(red: 0.35, green: 0.68, blue: 1),
+				detail: "Open your chat workspace, continue existing conversations, or start a new session with Toby."
+			),
+			SidebarActionItem(
+				route: .integrations,
+				title: "Integrations",
+				systemImage: "square.grid.2x2",
+				hoveredSystemImage: "square.grid.2x2.fill",
+				accentColor: Color(red: 0.32, green: 0.82, blue: 0.48),
+				detail: "Manage connected services, credentials, setup guides, and integration-specific capabilities."
+			),
+			SidebarActionItem(
+				route: .projects,
+				title: "Projects",
+				systemImage: "folder",
+				hoveredSystemImage: "folder.fill",
+				accentColor: Color(red: 0.95, green: 0.7, blue: 0.28),
+				detail: "Work inside project folders with scoped chats, local guidance, skills, and generated outputs."
+			),
+			SidebarActionItem(
+				route: .skills,
+				title: "Skills",
+				systemImage: "wand.and.stars",
+				hoveredSystemImage: "wand.and.stars",
+				accentColor: Color(red: 0.72, green: 0.52, blue: 1),
+				detail: "Browse installed skills, inspect their instructions, edit them, or add new reusable workflows."
+			),
+			SidebarActionItem(
+				route: .memories,
+				title: "Memories",
+				systemImage: "brain.head.profile",
+				hoveredSystemImage: "brain.head.profile",
+				accentColor: Color(red: 0.92, green: 0.58, blue: 0.86),
+				detail: "Browse, create, edit, and delete memories Toby remembers across chats and automations."
+			),
+			SidebarActionItem(
+				route: .schedules,
+				title: "Schedules",
+				systemImage: "clock",
+				hoveredSystemImage: "clock.fill",
+				accentColor: AppTheme.accent,
+				detail: "Create and monitor recurring prompts that run on a schedule through Toby's background daemon."
+			),
+			SidebarActionItem(
+				route: .recordings,
+				title: "Recordings",
+				systemImage: "waveform",
+				hoveredSystemImage: "waveform",
+				accentColor: Color(red: 1, green: 0.36, blue: 0.42),
+				detail: "Review audio recordings, transcripts, and chats created from recorded context."
+			),
+		]
+	}
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {

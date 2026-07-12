@@ -5,6 +5,7 @@ enum SettingsSidebarIcon {
 
 		// Top-level Settings toolbar tabs (exact keys first).
 		switch key {
+		case "appearance": return "paintpalette"
 		case "chatinbound": return "bubble.left"
 		case "defaults": return "slider.horizontal.3"
 		case "ai": return "sparkles"

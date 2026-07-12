@@ -39,9 +39,9 @@ enum JSONPrettyPrinter {
 	private static var stringColor: NSColor { NSColor(red: 0.55, green: 0.85, blue: 0.55, alpha: 1) }
 	private static var numberColor: NSColor { NSColor(red: 0.95, green: 0.75, blue: 0.40, alpha: 1) }
 	private static var boolColor: NSColor { NSColor(red: 0.85, green: 0.55, blue: 0.95, alpha: 1) }
-	private static var nullColor: NSColor { NSColor.white.withAlphaComponent(0.40) }
-	private static var punctuationColor: NSColor { NSColor.white.withAlphaComponent(0.55) }
-	private static var defaultColor: NSColor { NSColor.white.withAlphaComponent(0.88) }
+	private static var nullColor: NSColor { .tobyTertiaryText }
+	private static var punctuationColor: NSColor { .tobySecondaryText }
+	private static var defaultColor: NSColor { .tobyPrimaryText }
 
 	private static func plain(_ text: String) -> AttributedString {
 		var result = AttributedString(text)

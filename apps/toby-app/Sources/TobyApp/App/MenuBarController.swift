@@ -33,6 +33,9 @@ final class MenuBarController: NSObject {
 		{
 			let size = NSSize(width: 22, height: 22)
 			logo.size = size
+			// Full-color logo art — not a monochrome alpha glyph. Template mode
+			// turns the opaque regions into a solid black/white box.
+			logo.isTemplate = false
 			baseMenuImage = logo
 			item.button?.image = logo
 		} else {

@@ -21,12 +21,15 @@ struct TobyApp: App {
 	@State private var logsStore = LogsStore()
 	@State private var nativeServer = NativeServer.shared
 	@State private var menuBarController: MenuBarController?
+	@State private var appearancePreferences = AppearancePreferences.shared
 
 	init() {
 		// Hide system View menu items that are not useful for Toby:
 		// "Show Tab Bar" / "Show All Tabs" and "Enter Full Screen".
 		NSWindow.allowsAutomaticWindowTabbing = false
 		UserDefaults.standard.set(false, forKey: "NSFullScreenMenuItemEverywhere")
+		// Apply saved appearance before first window draws.
+		AppearancePreferences.shared.applyToApp()
 	}
 
 	var body: some Scene {
@@ -48,6 +51,7 @@ struct TobyApp: App {
 			)
 				.frame(minWidth: 860, minHeight: 560)
 				.coordinateSpace(name: "TobyWindow")
+				.tobyAppearance(appearancePreferences)
 				.onAppear {
 					nativeServer.start()
 					requestNativePermissions()
@@ -67,6 +71,7 @@ struct TobyApp: App {
 		// (open via Help / in-app actions instead).
 		Window("Permissions", id: "permissions") {
 			PermissionsView()
+				.tobyAppearance(appearancePreferences)
 				.onDisappear { NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil) }
 		}
 		.windowStyle(.automatic)
@@ -91,6 +96,7 @@ struct TobyApp: App {
 						.background(SettingsDesign.canvasBackground)
 				}
 			}
+			.tobyAppearance(appearancePreferences)
 			.onDisappear { NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil) }
 		}
 		.windowStyle(.automatic)
@@ -99,6 +105,7 @@ struct TobyApp: App {
 
 		Window("Logs", id: "logs") {
 			LogsView(store: logsStore, tobyDirectory: store.status?.tobyDir)
+				.tobyAppearance(appearancePreferences)
 				.onDisappear {
 					logsStore.stopPolling()
 					NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil)
@@ -110,6 +117,7 @@ struct TobyApp: App {
 
 		Window("Settings", id: "settings") {
 			SettingsWindowView(store: configureStore)
+				.tobyAppearance(appearancePreferences)
 				.onDisappear {
 					NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil)
 				}

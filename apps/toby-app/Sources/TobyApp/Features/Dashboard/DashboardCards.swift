@@ -141,13 +141,15 @@ struct UnreadMailCard: View {
 	let onRefresh: () -> Void
 	let onSummarize: () -> Void
 
-	private let chipPalette: [Color] = [
-		Color(red: 0.90, green: 0.35, blue: 0.35),
-		Color(red: 0.96, green: 0.62, blue: 0.12),
-		Color(red: 0.35, green: 0.68, blue: 1),
-		Color(red: 0.55, green: 0.60, blue: 0.68),
-		Color(red: 0.55, green: 0.60, blue: 0.68),
-	]
+	private var chipPalette: [Color] {
+		[
+			Color(red: 0.90, green: 0.35, blue: 0.35),
+			AppTheme.accent,
+			Color(red: 0.35, green: 0.68, blue: 1),
+			Color(red: 0.55, green: 0.60, blue: 0.68),
+			Color(red: 0.55, green: 0.60, blue: 0.68),
+		]
+	}
 
 	var body: some View {
 		DashboardCard {

@@ -178,7 +178,7 @@ private struct OnboardingStepTile: View {
 		if isUpNext {
 			return AppTheme.accent.opacity(0.10)
 		}
-		return Color(red: 0.11, green: 0.11, blue: 0.12)
+		return AppTheme.elevatedBackground
 	}
 
 	private var tileBorder: Color {

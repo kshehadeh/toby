@@ -7,45 +7,55 @@ import SwiftUI
 /// shown (NavigationSplitView would steal the toolbar).
 struct SettingsWindowView: View {
 	@Bindable var store: ConfigureStore
+	@State private var appearancePreferences = AppearancePreferences.shared
+	/// Local tab selection so the client-only Appearance tab can be selected
+	/// without going through the daemon-backed configure store.
+	@State private var selectedTabKey: String = SettingsItem.appearanceSectionKey
 
-	private var selectedTabKey: String {
-		if let key = store.selectedTopLevelKey {
-			return key
-		}
-		return store.settingsSections.first.map {
-			ConfigureTreeHelpers.sectionIdentityKey($0)
-		} ?? ""
+	private var allSections: [SettingsItem] {
+		[SettingsItem.appearanceSection] + store.settingsSections
 	}
 
 	private var selectedTopLevelSection: SettingsItem? {
-		store.settingsSections.first {
+		allSections.first {
 			ConfigureTreeHelpers.sectionIdentityKey($0) == selectedTabKey
 		}
+	}
+
+	private var isAppearanceTab: Bool {
+		selectedTabKey == SettingsItem.appearanceSectionKey
 	}
 
 	var body: some View {
 		Group {
 			if store.isLoading && store.settingsSections.isEmpty {
-				ProgressView("Loading settings…")
-					.frame(maxWidth: .infinity, maxHeight: .infinity)
-					.background(SettingsDesign.canvasBackground)
-			} else if let errorMessage = store.errorMessage, store.settingsSections.isEmpty {
-				ContentUnavailableView {
-					Label("Configuration unavailable", systemImage: "exclamationmark.triangle")
-				} description: {
-					Text(errorMessage)
+				// Still show Appearance while daemon sections load.
+				VStack(spacing: 0) {
+					tabBar
+					Divider().background(AppTheme.separator)
+					settingsContent
+						.frame(maxWidth: .infinity, maxHeight: .infinity)
 				}
-				.frame(maxWidth: .infinity, maxHeight: .infinity)
-				.background(SettingsDesign.canvasBackground)
+			} else if let errorMessage = store.errorMessage, store.settingsSections.isEmpty {
+				// Appearance remains available even if configure API fails.
+				VStack(spacing: 0) {
+					tabBar
+					Divider().background(AppTheme.separator)
+					if isAppearanceTab {
+						AppearanceSettingsView(preferences: appearancePreferences)
+					} else {
+						ContentUnavailableView {
+							Label("Configuration unavailable", systemImage: "exclamationmark.triangle")
+						} description: {
+							Text(errorMessage)
+						}
+						.frame(maxWidth: .infinity, maxHeight: .infinity)
+						.background(SettingsDesign.canvasBackground)
+					}
+				}
 			} else {
 				VStack(spacing: 0) {
-					SettingsPreferencesTabBar(
-						sections: store.settingsSections,
-						selectedKey: selectedTabKey,
-						onSelect: { store.selectTopLevelTab($0) },
-					)
-					.accessibilityIdentifier("settings-preferences-tab-bar")
-
+					tabBar
 					Divider()
 						.background(AppTheme.separator)
 
@@ -58,10 +68,12 @@ struct SettingsWindowView: View {
 		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.loadSettingsSections()
-			// After load, ensure a hierarchical tab lands on a child section.
-			if let key = store.selectedTopLevelKey {
-				store.selectTopLevelTab(key)
-			}
+			syncTabFromStoreSelection()
+		}
+		.onChange(of: store.selectedNavKey) { _, _ in
+			// Deep links (openSettings(navKey:)) and in-app navigation set
+			// selectedNavKey; mirror that into the client tab bar.
+			syncTabFromStoreSelection()
 		}
 		.onDisappear {
 			Task { await store.flushPendingSave() }
@@ -94,9 +106,25 @@ struct SettingsWindowView: View {
 		}
 	}
 
+	private var tabBar: some View {
+		SettingsPreferencesTabBar(
+			sections: allSections,
+			selectedKey: selectedTabKey,
+			onSelect: { key in
+				selectedTabKey = key
+				if key != SettingsItem.appearanceSectionKey {
+					store.selectTopLevelTab(key)
+				}
+			},
+		)
+		.accessibilityIdentifier("settings-preferences-tab-bar")
+	}
+
 	@ViewBuilder
 	private var settingsContent: some View {
-		if let section = selectedTopLevelSection,
+		if isAppearanceTab {
+			AppearanceSettingsView(preferences: appearancePreferences)
+		} else if let section = selectedTopLevelSection,
 			ConfigureTreeHelpers.hasNestedSections(section)
 		{
 			// Manual split — avoid NavigationSplitView, which replaces the
@@ -115,6 +143,18 @@ struct SettingsWindowView: View {
 		} else {
 			ConfigureDetailView(store: store)
 		}
+	}
+
+	/// When the configure store has a section selection (deep link or prior
+	/// server tab), switch the client tab bar to match.
+	private func syncTabFromStoreSelection() {
+		guard let key = store.selectedTopLevelKey,
+			store.settingsSections.contains(where: {
+				ConfigureTreeHelpers.sectionIdentityKey($0) == key
+			})
+		else { return }
+		selectedTabKey = key
+		store.selectTopLevelTab(key)
 	}
 }
 
@@ -208,8 +248,8 @@ private struct SettingsPreferencesTab: View {
 	}
 
 	private var backgroundFill: Color {
-		if isSelected { return Color.white.opacity(0.10) }
-		if isHovered { return Color.white.opacity(0.05) }
+		if isSelected { return AppTheme.selection }
+		if isHovered { return AppTheme.selection.opacity(0.5) }
 		return .clear
 	}
 }

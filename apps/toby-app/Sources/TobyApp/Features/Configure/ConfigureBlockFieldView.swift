@@ -55,8 +55,8 @@ struct ConfigureBlockFieldView: View {
 					.stroke(
 						LinearGradient(
 							colors: [
-								Color(red: 0.96, green: 0.72, blue: 0.28).opacity(0.55),
-								Color(red: 0.96, green: 0.62, blue: 0.12).opacity(0.18),
+								AppTheme.accent.opacity(0.55),
+								AppTheme.accent.opacity(0.18),
 							],
 							startPoint: .topLeading,
 							endPoint: .bottomTrailing
@@ -72,8 +72,8 @@ struct ConfigureBlockFieldView: View {
 					.foregroundStyle(
 						LinearGradient(
 							colors: [
-								Color(red: 1.0, green: 0.88, blue: 0.35),
-								Color(red: 0.96, green: 0.62, blue: 0.12),
+								AppTheme.accent.opacity(0.95),
+								AppTheme.accent,
 							],
 							startPoint: .top,
 							endPoint: .bottom

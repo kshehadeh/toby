@@ -106,6 +106,17 @@ and other preferences through a familiar preferences-style interface.
 
 ![Toby.app Settings window](/img/toby-app-settings.png)
 
+The first tab, **Appearance**, is local to Toby.app (it is not stored in
+`~/.toby/config.json`):
+
+| Control | Options | Default |
+| ------- | ------- | ------- |
+| **Theme** | System, Light, Dark | System (follows macOS) |
+| **Accent color** | Orange, blue, green, purple, pink, red, teal, gray | Orange |
+
+Theme and accent apply across the main window, Settings, Logs, and other
+Toby.app windows.
+
 ### Permissions
 
 The Permissions window shows macOS privacy grants used by Toby.app (microphone,
