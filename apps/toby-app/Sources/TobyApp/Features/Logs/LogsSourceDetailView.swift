@@ -105,7 +105,7 @@ struct LogsSearchField: View {
 		.padding(.vertical, 7)
 		.background(
 			RoundedRectangle(cornerRadius: 8)
-				.fill(Color.white.opacity(0.06))
+				.fill(AppTheme.elevatedBackground)
 		)
 		.overlay(
 			RoundedRectangle(cornerRadius: 8)
@@ -184,7 +184,7 @@ struct LogLevelSection: View {
 					.padding(.vertical, 2)
 					.background(
 						Capsule()
-							.fill(Color.white.opacity(0.08))
+							.fill(AppTheme.selection)
 					)
 				Spacer(minLength: 0)
 			}
@@ -202,6 +202,8 @@ struct LogLevelSection: View {
 
 struct LogEntryRow: View {
 	let entry: UnifiedLogEntry
+	/// Rebuild attributed JSON when appearance flips so syntax colors re-resolve.
+	@Environment(\.colorScheme) private var colorScheme
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 6) {
@@ -229,12 +231,13 @@ struct LogEntryRow: View {
 
 			if let dataPretty = entry.dataPretty, !dataPretty.isEmpty {
 				Text(JSONPrettyPrinter.attributedString(prettyJSON: dataPretty))
+					.id(colorScheme)
 					.textSelection(.enabled)
 					.frame(maxWidth: .infinity, alignment: .leading)
 					.padding(10)
 					.background(
 						RoundedRectangle(cornerRadius: 8)
-							.fill(Color.black.opacity(0.28))
+							.fill(Color(nsColor: .tobyLogCodeBackground))
 					)
 			}
 		}
@@ -242,7 +245,7 @@ struct LogEntryRow: View {
 		.frame(maxWidth: .infinity, alignment: .leading)
 		.background(
 			RoundedRectangle(cornerRadius: 10)
-				.fill(AppTheme.elevatedBackground.opacity(0.55))
+				.fill(AppTheme.elevatedBackground)
 		)
 		.overlay(
 			RoundedRectangle(cornerRadius: 10)

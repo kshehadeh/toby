@@ -129,6 +129,39 @@ extension NSColor {
 		dark: (0.08, 0.08, 0.09, 1)
 	)
 
+	/// Nested code / JSON payload wells inside structured log rows.
+	static let tobyLogCodeBackground = tobyDynamic(
+		name: "tobyLogCodeBackground",
+		light: (0, 0, 0, 0.04),
+		dark: (0, 0, 0, 0.28)
+	)
+
+	// MARK: JSON syntax (log pretty-print)
+
+	static let tobyJSONKey = tobyDynamic(
+		name: "tobyJSONKey",
+		light: (0.18, 0.32, 0.68, 1),
+		dark: (0.55, 0.75, 0.98, 1)
+	)
+
+	static let tobyJSONString = tobyDynamic(
+		name: "tobyJSONString",
+		light: (0.12, 0.48, 0.28, 1),
+		dark: (0.55, 0.85, 0.55, 1)
+	)
+
+	static let tobyJSONNumber = tobyDynamic(
+		name: "tobyJSONNumber",
+		light: (0.72, 0.38, 0.05, 1),
+		dark: (0.95, 0.75, 0.40, 1)
+	)
+
+	static let tobyJSONBool = tobyDynamic(
+		name: "tobyJSONBool",
+		light: (0.52, 0.22, 0.68, 1),
+		dark: (0.85, 0.55, 0.95, 1)
+	)
+
 	static let tobyMarkdownPrimary = tobyDynamic(
 		name: "tobyMarkdownPrimary",
 		light: (0.12, 0.12, 0.14, 1),

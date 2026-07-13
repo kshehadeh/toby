@@ -35,10 +35,11 @@ enum JSONPrettyPrinter {
 		NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
 	}
 
-	private static var keyColor: NSColor { NSColor(red: 0.55, green: 0.75, blue: 0.98, alpha: 1) }
-	private static var stringColor: NSColor { NSColor(red: 0.55, green: 0.85, blue: 0.55, alpha: 1) }
-	private static var numberColor: NSColor { NSColor(red: 0.95, green: 0.75, blue: 0.40, alpha: 1) }
-	private static var boolColor: NSColor { NSColor(red: 0.85, green: 0.55, blue: 0.95, alpha: 1) }
+	// Theme-aware syntax colors (see NSColor+TobyTheme) so light mode keeps contrast.
+	private static var keyColor: NSColor { .tobyJSONKey }
+	private static var stringColor: NSColor { .tobyJSONString }
+	private static var numberColor: NSColor { .tobyJSONNumber }
+	private static var boolColor: NSColor { .tobyJSONBool }
 	private static var nullColor: NSColor { .tobyTertiaryText }
 	private static var punctuationColor: NSColor { .tobySecondaryText }
 	private static var defaultColor: NSColor { .tobyPrimaryText }
