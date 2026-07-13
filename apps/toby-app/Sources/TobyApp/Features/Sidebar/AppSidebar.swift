@@ -162,6 +162,9 @@ struct AppSidebar<Content: View>: View {
 		.padding(.vertical, 12)
 		.frame(minWidth: AppTheme.minSidebarWidth, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 		.background(AppTheme.sidebarBackground)
+		// Session rows / grid actions live in lazy stacks and need a theme epoch
+		// nudge to re-tint without resetting Settings tab or navigation state.
+		.tobyThemeRefreshable()
 		.accessibilityIdentifier("app-sidebar")
 	}
 }

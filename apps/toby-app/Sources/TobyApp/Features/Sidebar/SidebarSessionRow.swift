@@ -7,6 +7,8 @@ struct SidebarSessionRow: View {
 	var isExternal = false
 	var isAwaitingUser = false
 	var integrationIconUrl: URL?
+	@Environment(\.colorScheme) private var colorScheme
+	@Environment(\.tobyThemeEpoch) private var themeEpoch
 
 	var body: some View {
 		HStack(spacing: 8) {
@@ -40,6 +42,8 @@ struct SidebarSessionRow: View {
 			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
 				.fill(isSelected ? AppTheme.selection : Color.clear)
 		)
+		// Lazy session lists keep row identities; re-id on theme so text tints update.
+		.id("session-row-\(title)-\(themeEpoch)-\(colorScheme)")
 	}
 
 	@ViewBuilder

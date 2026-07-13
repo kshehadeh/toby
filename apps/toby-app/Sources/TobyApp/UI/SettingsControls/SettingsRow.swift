@@ -5,6 +5,8 @@ struct SettingsRow<Control: View>: View {
 	var description: String?
 	var showsDivider: Bool = true
 	@ViewBuilder let control: Control
+	@Environment(\.colorScheme) private var colorScheme
+	@Environment(\.tobyThemeEpoch) private var themeEpoch
 
 	var body: some View {
 		VStack(spacing: 0) {
@@ -36,5 +38,7 @@ struct SettingsRow<Control: View>: View {
 					.padding(.leading, SettingsDesign.rowHorizontalPadding)
 			}
 		}
+		// Ensure row chrome re-evaluates on theme flip (lazy form content).
+		.id("settings-row-\(title)-\(themeEpoch)-\(colorScheme)")
 	}
 }

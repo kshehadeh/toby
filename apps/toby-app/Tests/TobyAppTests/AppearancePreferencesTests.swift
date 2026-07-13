@@ -10,12 +10,11 @@ struct AppearancePreferencesTests {
 	@Test("defaults to system mode and orange accent")
 	func defaultsToSystemAndOrange() {
 		let suite = UserDefaults(suiteName: "toby.tests.appearance.\(UUID().uuidString)")!
-		defer { suite.removePersistentDomain(forName: suite.dictionaryRepresentation().keys.first ?? "") }
-
 		let prefs = AppearancePreferences(defaults: suite)
 		#expect(prefs.mode == .system)
 		#expect(prefs.accent == .orange)
-		#expect(prefs.preferredColorScheme == nil)
+		// System resolves to a concrete scheme (light or dark), never unspecified.
+		#expect(prefs.preferredColorScheme == .light || prefs.preferredColorScheme == .dark)
 		#expect(prefs.nsAppearance == nil)
 	}
 
@@ -24,15 +23,24 @@ struct AppearancePreferencesTests {
 		let suite = UserDefaults(suiteName: "toby.tests.appearance.\(UUID().uuidString)")!
 		let prefs = AppearancePreferences(mode: .light, accent: .blue, defaults: suite)
 		#expect(prefs.preferredColorScheme == .light)
+		#expect(prefs.resolvedColorScheme == .light)
 		#expect(prefs.nsAppearance?.name == .aqua)
 
 		prefs.mode = .dark
 		#expect(prefs.preferredColorScheme == .dark)
+		#expect(prefs.resolvedColorScheme == .dark)
 		#expect(prefs.nsAppearance?.name == .darkAqua)
 
 		prefs.mode = .system
-		#expect(prefs.preferredColorScheme == nil)
+		// System mirrors OS — concrete light or dark, not nil.
+		#expect(prefs.preferredColorScheme == AppearancePreferences.resolveColorScheme(for: .system))
 		#expect(prefs.nsAppearance == nil)
+	}
+
+	@Test("resolveColorScheme maps light and dark explicitly")
+	func resolveColorSchemeExplicitModes() {
+		#expect(AppearancePreferences.resolveColorScheme(for: .light) == .light)
+		#expect(AppearancePreferences.resolveColorScheme(for: .dark) == .dark)
 	}
 
 	@Test("persists mode and accent to UserDefaults")
@@ -49,6 +57,25 @@ struct AppearancePreferencesTests {
 		let reloaded = AppearancePreferences(defaults: suite)
 		#expect(reloaded.mode == .light)
 		#expect(reloaded.accent == .teal)
+		#expect(reloaded.resolvedColorScheme == .light)
+	}
+
+	@Test("ThemeResolution.isDark follows mode UserDefaults")
+	func themeResolutionFollowsMode() {
+		let previous = UserDefaults.standard.string(forKey: AppearanceDefaultsKey.mode)
+		defer {
+			if let previous {
+				UserDefaults.standard.set(previous, forKey: AppearanceDefaultsKey.mode)
+			} else {
+				UserDefaults.standard.removeObject(forKey: AppearanceDefaultsKey.mode)
+			}
+		}
+
+		UserDefaults.standard.set("light", forKey: AppearanceDefaultsKey.mode)
+		#expect(ThemeResolution.isDark == false)
+
+		UserDefaults.standard.set("dark", forKey: AppearanceDefaultsKey.mode)
+		#expect(ThemeResolution.isDark == true)
 	}
 
 	@Test("settings window shows appearance tab by default")

@@ -1,6 +1,9 @@
 import SwiftUI
 
 enum AppTheme {
+	// Dynamic NSColors resolve at draw time against the view's effective
+	// appearance (driven by preferredColorScheme). Prefer these over fixed RGB
+	// so list/form rows update without a full view identity reset.
 	static let sidebarBackground = Color(nsColor: .tobySidebarBackground)
 	static let contentBackground = Color(nsColor: .tobyContentBackground)
 	static let panelBackground = Color(nsColor: .tobyPanelBackground)
@@ -12,8 +15,6 @@ enum AppTheme {
 	static let selection = Color(nsColor: .tobySelection)
 
 	/// Brand accent from the user's Appearance preset (default orange).
-	/// Reads UserDefaults so it is safe from nonisolated helpers; UI still
-	/// re-renders when `AppearancePreferences` changes via observation.
 	static var accent: Color {
 		AccentPreset.current.color
 	}

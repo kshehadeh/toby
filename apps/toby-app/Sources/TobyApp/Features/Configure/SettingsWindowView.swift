@@ -65,14 +65,23 @@ struct SettingsWindowView: View {
 			}
 		}
 		.frame(minWidth: 640, minHeight: 420)
-		.background(SettingsDesign.canvasBackground)
+		// Observe epoch so canvas re-tints; id is only on the background fill.
+		.background(
+			SettingsDesign.canvasBackground
+				.id("settings-canvas-\(appearancePreferences.themeEpoch)")
+		)
 		.task {
 			await store.loadSettingsSections()
-			syncTabFromStoreSelection()
+			// Only honor an intentional store selection (deep link). Do not
+			// re-apply a stale Chat/AI nav key after the user is on Appearance
+			// or after a theme flip rebuilds this task.
+			if store.selectedNavKey != nil {
+				syncTabFromStoreSelection()
+			}
 		}
-		.onChange(of: store.selectedNavKey) { _, _ in
-			// Deep links (openSettings(navKey:)) and in-app navigation set
-			// selectedNavKey; mirror that into the client tab bar.
+		.onChange(of: store.selectedNavKey) { _, newKey in
+			// Deep links set selectedNavKey; ignore clears and leave Appearance alone.
+			guard newKey != nil else { return }
 			syncTabFromStoreSelection()
 		}
 		.onDisappear {
@@ -112,7 +121,11 @@ struct SettingsWindowView: View {
 			selectedKey: selectedTabKey,
 			onSelect: { key in
 				selectedTabKey = key
-				if key != SettingsItem.appearanceSectionKey {
+				if key == SettingsItem.appearanceSectionKey {
+					// Clear daemon selection so a later theme/task refresh cannot
+					// yank the user off Appearance back to Chat (or another tab).
+					store.selectedNavKey = nil
+				} else {
 					store.selectTopLevelTab(key)
 				}
 			},
@@ -122,32 +135,42 @@ struct SettingsWindowView: View {
 
 	@ViewBuilder
 	private var settingsContent: some View {
-		if isAppearanceTab {
-			AppearanceSettingsView(preferences: appearancePreferences)
-		} else if let section = selectedTopLevelSection,
-			ConfigureTreeHelpers.hasNestedSections(section)
-		{
-			// Manual split — avoid NavigationSplitView, which replaces the
-			// window toolbar and can hide the preferences tab bar.
-			HStack(spacing: 0) {
-				SettingsHierarchySidebarView(store: store, parent: section)
-					.frame(width: 220)
-					.frame(maxHeight: .infinity)
+		Group {
+			if isAppearanceTab {
+				AppearanceSettingsView(preferences: appearancePreferences)
+			} else if let section = selectedTopLevelSection,
+				ConfigureTreeHelpers.hasNestedSections(section)
+			{
+				// Manual split — avoid NavigationSplitView, which replaces the
+				// window toolbar and can hide the preferences tab bar.
+				HStack(spacing: 0) {
+					SettingsHierarchySidebarView(store: store, parent: section)
+						.frame(width: 220)
+						.frame(maxHeight: .infinity)
 
-				Divider()
-					.background(AppTheme.separator)
+					Divider()
+						.background(AppTheme.separator)
 
+					ConfigureDetailView(store: store)
+						.frame(maxWidth: .infinity, maxHeight: .infinity)
+				}
+			} else {
 				ConfigureDetailView(store: store)
-					.frame(maxWidth: .infinity, maxHeight: .infinity)
 			}
-		} else {
-			ConfigureDetailView(store: store)
 		}
+		// Refresh form labels/cards on theme flip without remounting the tab bar.
+		.tobyThemeRefreshable()
 	}
 
 	/// When the configure store has a section selection (deep link or prior
 	/// server tab), switch the client tab bar to match.
 	private func syncTabFromStoreSelection() {
+		// Never override an in-progress Appearance choice with a stale nav key.
+		if selectedTabKey == SettingsItem.appearanceSectionKey,
+			store.selectedNavKey == nil
+		{
+			return
+		}
 		guard let key = store.selectedTopLevelKey,
 			store.settingsSections.contains(where: {
 				ConfigureTreeHelpers.sectionIdentityKey($0) == key

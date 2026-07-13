@@ -25,71 +25,18 @@ struct ConfigureBlockFieldView: View {
 		field.label
 	}
 
-	/// Amber/gold tip card with a large rotated lightbulb stamp (dashboard-style).
+	/// Accent-tinted tip card with a large rotated lightbulb stamp.
 	private var tipHintCard: some View {
-		Text(tipMessage)
-			.font(.body)
-			.foregroundStyle(Color.white.opacity(0.92))
-			.textSelection(.enabled)
-			.fixedSize(horizontal: false, vertical: true)
-			.frame(maxWidth: .infinity, alignment: .leading)
-			.padding(.leading, 36)
-			.padding(.trailing, SettingsDesign.rowHorizontalPadding + 6)
-			.padding(.vertical, SettingsDesign.rowVerticalPadding + 10)
-			.background(
-				RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-					.fill(
-						LinearGradient(
-							colors: [
-								Color(red: 0.42, green: 0.28, blue: 0.08).opacity(0.95),
-								Color(red: 0.28, green: 0.18, blue: 0.06).opacity(0.95),
-								Color(red: 0.18, green: 0.14, blue: 0.08).opacity(0.98),
-							],
-							startPoint: .topLeading,
-							endPoint: .bottomTrailing
-						)
-					)
-			)
-			.overlay {
-				RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-					.stroke(
-						LinearGradient(
-							colors: [
-								AppTheme.accent.opacity(0.55),
-								AppTheme.accent.opacity(0.18),
-							],
-							startPoint: .topLeading,
-							endPoint: .bottomTrailing
-						),
-						lineWidth: 1
-					)
-			}
-			.overlay(alignment: .topLeading) {
-				// Large decorative stamp that straddles the card border.
-				Image(systemName: "lightbulb.fill")
-					.font(.system(size: 48, weight: .semibold))
-					.symbolRenderingMode(.hierarchical)
-					.foregroundStyle(
-						LinearGradient(
-							colors: [
-								AppTheme.accent.opacity(0.95),
-								AppTheme.accent,
-							],
-							startPoint: .top,
-							endPoint: .bottom
-						)
-					)
-					.rotationEffect(.degrees(-30))
-					.shadow(color: .black.opacity(0.45), radius: 10, x: 1, y: 3)
-					.offset(x: -14, y: -18)
-					.allowsHitTesting(false)
-					.accessibilityHidden(true)
-			}
-			// Room so the overhanging icon isn't clipped by the scroll view.
-			.padding(.top, 18)
-			.padding(.leading, 14)
-			.accessibilityElement(children: .combine)
-			.accessibilityIdentifier("configure-tip-hint")
+		SetupTipCard {
+			Text(tipMessage)
+				.font(.body)
+				.foregroundStyle(SetupTipCardStyle.message)
+				.textSelection(.enabled)
+				.fixedSize(horizontal: false, vertical: true)
+				.frame(maxWidth: .infinity, alignment: .leading)
+		}
+		.accessibilityElement(children: .combine)
+		.accessibilityIdentifier("configure-tip-hint")
 	}
 
 	private var standardBlock: some View {

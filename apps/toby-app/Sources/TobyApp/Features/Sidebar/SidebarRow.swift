@@ -4,6 +4,8 @@ struct SidebarRow: View {
 	let title: String
 	let systemImage: String
 	var isSelected = false
+	@Environment(\.colorScheme) private var colorScheme
+	@Environment(\.tobyThemeEpoch) private var themeEpoch
 
 	var body: some View {
 		Label(title, systemImage: systemImage)
@@ -18,5 +20,6 @@ struct SidebarRow: View {
 				RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
 					.fill(isSelected ? AppTheme.selection : Color.clear)
 			)
+			.id("sidebar-row-\(title)-\(themeEpoch)-\(colorScheme)")
 	}
 }

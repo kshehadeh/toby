@@ -92,6 +92,7 @@ struct IntegrationDetailContent: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .tobyThemeRefreshable()
         .task(id: section.key) {
             await store.loadIntegrationStatus(for: section.key)
             await store.loadSetupGuide(for: section.key)
@@ -283,6 +284,8 @@ struct IntegrationDetailContent: View {
                             Text(groupName)
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundStyle(SettingsDesign.rowDescription)
+                                // Form group labels stick in place; re-tint on theme flip.
+                                .tobyThemeRefreshable()
                         }
                         SettingsCard {
                             ForEach(Array(group.fields.enumerated()), id: \.element.id) { index, field in
