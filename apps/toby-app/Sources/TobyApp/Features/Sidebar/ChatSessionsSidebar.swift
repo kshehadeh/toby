@@ -7,9 +7,6 @@ struct ChatSessionsSidebar: View {
 	let isSessionsLoading: Bool
 	let onSelectSession: (String) -> Void
 	let onDeleteSession: (SessionSummary) -> Void
-	@State private var isWorkspaceScrolling = false
-	@State private var workspaceScrollProgress: CGFloat = 0
-	@State private var chatsHeight: CGFloat = 220
 
 	var body: some View {
 		SidebarSection(title: "Chats") {
@@ -26,65 +23,38 @@ struct ChatSessionsSidebar: View {
 					.padding(.horizontal, 8)
 					.padding(.vertical, 7)
 			} else {
-				ZStack(alignment: .trailing) {
-					ScrollView(.vertical, showsIndicators: false) {
-						VStack(alignment: .leading, spacing: 2) {
-							ForEach(sessions) { session in
-								Button {
-									onSelectSession(session.id)
-								} label: {
-									SidebarSessionRow(
-										title: session.name,
-										subtitle: sidebarSessionDate(session),
-										isSelected: session.id == selectedSessionId,
-										isExternal: session.isExternal,
-										isAwaitingUser: session.isAwaitingUser,
-										integrationIconUrl: session.integrationIconUrl,
-									)
-								}
-								.buttonStyle(.plain)
-								.frame(maxWidth: .infinity, alignment: .leading)
-								.disabled(isLoading)
-								.accessibilityIdentifier("session-\(session.id)")
-								.contextMenu {
-									Button(role: .destructive) {
-										onDeleteSession(session)
-									} label: {
-										Label("Delete Session", systemImage: "trash")
-									}
-									.disabled(isLoading)
-								}
+				ScrollView {
+					VStack(alignment: .leading, spacing: 2) {
+						ForEach(sessions) { session in
+							Button {
+								onSelectSession(session.id)
+							} label: {
+								SidebarSessionRow(
+									title: session.name,
+									subtitle: sidebarSessionDate(session),
+									isSelected: session.id == selectedSessionId,
+									isExternal: session.isExternal,
+									isAwaitingUser: session.isAwaitingUser,
+									integrationIconUrl: session.integrationIconUrl,
+								)
 							}
-							ScrollStateTracker(
-								isScrolling: $isWorkspaceScrolling,
-								progress: $workspaceScrollProgress
-							)
-							.frame(width: 0, height: 0)
+							.buttonStyle(.plain)
+							.frame(maxWidth: .infinity, alignment: .leading)
+							.disabled(isLoading)
+							.accessibilityIdentifier("session-\(session.id)")
+							.contextMenu {
+								Button(role: .destructive) {
+									onDeleteSession(session)
+								} label: {
+									Label("Delete Session", systemImage: "trash")
+								}
+								.disabled(isLoading)
+							}
 						}
 					}
-
-					if isWorkspaceScrolling {
-						Rectangle()
-							.fill(AppTheme.tertiaryText.opacity(0.6))
-							.frame(width: 3, height: 40)
-							.cornerRadius(1.5)
-							.padding(.trailing, 2)
-							.offset(y: (workspaceScrollProgress - 0.5) * (chatsHeight - 40))
-							.transition(.opacity)
-							.allowsHitTesting(false)
-					}
 				}
+				.automaticScrollIndicators(axes: .vertical)
 				.frame(maxHeight: .infinity)
-				.background(
-					GeometryReader { proxy in
-						Color.clear
-							.onAppear { chatsHeight = proxy.size.height }
-							.onChange(of: proxy.size.height) { _, newValue in
-								chatsHeight = newValue
-							}
-					}
-				)
-				.animation(.easeInOut(duration: 0.25), value: isWorkspaceScrolling)
 			}
 		}
 	}

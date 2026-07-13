@@ -11,13 +11,6 @@ struct RecordingDetailContent: View {
 	var processingState: RecordingProcessingState? = nil
 	var validSessionIds: Set<String> = []
 
-	@State private var isSummaryScrolling = false
-	@State private var summaryScrollProgress: CGFloat = 0
-	@State private var summaryScrollHeight: CGFloat = 220
-
-	private let summaryScrollbarWidth: CGFloat = 6
-	private let summaryScrollbarHeight: CGFloat = 56
-
 	var body: some View {
 		VStack(spacing: 0) {
 			RecordingHeader(detail: detail)
@@ -58,36 +51,17 @@ struct RecordingDetailContent: View {
 				.font(.caption)
 				.foregroundStyle(SettingsDesign.rowDescription)
 
-			ZStack(alignment: .trailing) {
-				ScrollView(.vertical, showsIndicators: false) {
-					VStack(alignment: .leading, spacing: 0) {
-						MarkdownText(
-							text: text,
-							font: .body,
-							foregroundStyle: SettingsDesign.rowTitle
-						)
-						.textSelection(.enabled)
-						.frame(maxWidth: .infinity, alignment: .leading)
-						.padding(12)
-
-						ScrollStateTracker(
-							isScrolling: $isSummaryScrolling,
-							progress: $summaryScrollProgress
-						)
-						.frame(width: 0, height: 0)
-					}
-				}
-
-				if isSummaryScrolling {
-					RoundedRectangle(cornerRadius: summaryScrollbarWidth / 2)
-						.fill(AppTheme.tertiaryText.opacity(0.58))
-						.frame(width: summaryScrollbarWidth, height: summaryScrollbarHeight)
-						.padding(.trailing, 4)
-						.offset(y: (summaryScrollProgress - 0.5) * max(summaryScrollHeight - summaryScrollbarHeight, 0))
-						.transition(.opacity)
-						.allowsHitTesting(false)
-				}
+			ScrollView {
+				MarkdownText(
+					text: text,
+					font: .body,
+					foregroundStyle: SettingsDesign.rowTitle
+				)
+				.textSelection(.enabled)
+				.frame(maxWidth: .infinity, alignment: .leading)
+				.padding(12)
 			}
+			.automaticScrollIndicators(axes: .vertical)
 			.frame(maxHeight: 220)
 			.background(SettingsDesign.cardBackground)
 			.clipShape(RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius))
@@ -101,16 +75,6 @@ struct RecordingDetailContent: View {
 					.padding(.top, 6)
 					.padding(.trailing, 8)
 			}
-			.background(
-				GeometryReader { geometry in
-					Color.clear
-						.onAppear { summaryScrollHeight = geometry.size.height }
-						.onChange(of: geometry.size.height) { _, newValue in
-							summaryScrollHeight = newValue
-						}
-				}
-			)
-			.animation(.easeInOut(duration: 0.25), value: isSummaryScrolling)
 			.padding(.top, 8)
 			.accessibilityIdentifier("recording-summary-section")
 		}

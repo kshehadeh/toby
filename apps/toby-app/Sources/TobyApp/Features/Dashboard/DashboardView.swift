@@ -26,6 +26,7 @@ struct DashboardView: View {
 			.frame(maxWidth: 940, alignment: .leading)
 			.frame(maxWidth: .infinity, alignment: .top)
 		}
+		.automaticScrollIndicators(axes: .vertical)
 		.background(AppTheme.contentBackground)
 		.task {
 			now = Date()

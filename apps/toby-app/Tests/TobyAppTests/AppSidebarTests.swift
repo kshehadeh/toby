@@ -215,15 +215,6 @@ struct AppSidebarTests {
         #expect(didEdit)
     }
 
-    @Test("scroll progress clamped to 0...1")
-    func scrollProgressClamped() {
-        #expect(clampedScrollProgress(contentHeight: 400, visibleHeight: 220, offset: 0) == 0)
-        #expect(clampedScrollProgress(contentHeight: 400, visibleHeight: 220, offset: 90) == 0.5)
-        #expect(clampedScrollProgress(contentHeight: 400, visibleHeight: 220, offset: 180) == 1)
-        #expect(clampedScrollProgress(contentHeight: 400, visibleHeight: 220, offset: 999) == 1)
-        #expect(clampedScrollProgress(contentHeight: 200, visibleHeight: 220, offset: 0) == 0)
-    }
-
     @Test("session with createdAt shows formatted date subtitle")
     func sessionShowsDateSubtitle() throws {
         let sessions = [

@@ -33,7 +33,7 @@ struct DashboardSidebarView: View {
 	}
 
 	var body: some View {
-		ScrollView(.vertical, showsIndicators: false) {
+		ScrollView {
 			VStack(alignment: .leading, spacing: 6) {
 				SidebarSection(title: "Recent Chats") {
 					if isSessionsLoading && recentSessions.isEmpty {
@@ -121,6 +121,7 @@ struct DashboardSidebarView: View {
 			}
 			.padding(.bottom, 8)
 		}
+		.automaticScrollIndicators(axes: .vertical)
 		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 	}
 }
