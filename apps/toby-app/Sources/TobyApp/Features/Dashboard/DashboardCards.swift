@@ -15,7 +15,7 @@ struct DashboardCard<Content: View>: View {
 			content
 		}
 		.frame(maxWidth: .infinity, alignment: .topLeading)
-		.padding(18)
+		.padding(22)
 		.background(
 			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
 				.fill(AppTheme.panelBackground)
@@ -27,11 +27,22 @@ struct DashboardCard<Content: View>: View {
 	}
 }
 
+/// Shared markdown styling for AI summaries inside dashboard cards.
+enum DashboardSummaryMarkdown {
+	static let bodyFont: Font = .system(size: 13)
+	/// Slightly muted body copy; bold spans use pure theme primary.
+	static let bodyColor = AppTheme.secondaryText
+	static let strongColor = AppTheme.primaryText
+	/// Section headings (h1–h3): muted, rendered uppercase by MarkdownText.
+	static let headingColor = AppTheme.tertiaryText
+}
+
 private struct CardHeader<Trailing: View>: View {
 	let systemImage: String?
 	let iconColor: Color
 	let title: String
-	var titleSize: CGFloat = 14
+	/// Default ~15% smaller than the previous 18pt card titles.
+	var titleSize: CGFloat = 15
 	let badgeValue: String
 	let badgeLabel: String
 	@ViewBuilder let trailing: () -> Trailing
@@ -40,7 +51,7 @@ private struct CardHeader<Trailing: View>: View {
 		HStack(spacing: 8) {
 			if let systemImage {
 				Image(systemName: systemImage)
-					.font(.system(size: 14, weight: .semibold))
+					.font(.system(size: 12, weight: .semibold))
 					.foregroundStyle(iconColor)
 			}
 			Text(title)
@@ -49,10 +60,10 @@ private struct CardHeader<Trailing: View>: View {
 			Spacer(minLength: 0)
 			HStack(spacing: 4) {
 				Text(badgeValue)
-					.font(.system(size: 13, weight: .semibold))
+					.font(.system(size: 11, weight: .semibold))
 					.foregroundStyle(AppTheme.primaryText)
 				Text(badgeLabel)
-					.font(.system(size: 13))
+					.font(.system(size: 11))
 					.foregroundStyle(AppTheme.secondaryText)
 			}
 			trailing()
@@ -73,13 +84,13 @@ struct CardRefreshButton: View {
 					let t = context.date.timeIntervalSinceReferenceDate
 					let angle = (t.truncatingRemainder(dividingBy: 0.8) / 0.8) * 360
 					Image(systemName: "arrow.clockwise")
-						.font(.system(size: 12, weight: .semibold))
+						.font(.system(size: 10, weight: .semibold))
 						.foregroundStyle(AppTheme.tertiaryText)
 						.rotationEffect(.degrees(angle))
 				}
 			} else {
 				Image(systemName: "arrow.clockwise")
-					.font(.system(size: 12, weight: .semibold))
+					.font(.system(size: 10, weight: .semibold))
 					.foregroundStyle(AppTheme.tertiaryText)
 			}
 		}
@@ -158,13 +169,18 @@ struct UnreadMailCard: View {
 				systemImage: nil,
 				iconColor: AppTheme.accent,
 				title: "Unread mail",
-				titleSize: 18,
+				titleSize: 15,
 				badgeValue: "\(summary?.count ?? 0)",
 				badgeLabel: "unread"
 			) {
 				CardRefreshButton(isRefreshing: isRefreshing, action: onRefresh)
 			}
 			.padding(.leading, 40)
+
+			Divider()
+				.overlay(AppTheme.separator)
+				.padding(.top, 14)
+				.padding(.bottom, 16)
 
 			if let summary, summary.count > 0 {
 				if !summary.groups.isEmpty {
@@ -177,11 +193,10 @@ struct UnreadMailCard: View {
 							)
 						}
 					}
-					.padding(.top, 14)
+					.padding(.bottom, 14)
 				}
 
 				summaryContent
-					.padding(.top, 14)
 
 				HStack(spacing: 16) {
 					DashboardLinkButton(title: "Open Mail", action: openMail)
@@ -194,7 +209,6 @@ struct UnreadMailCard: View {
 						? "No email found. Connect an email account to see unread mail."
 						: "You're all caught up. No unread mail."
 				)
-				.padding(.top, 18)
 
 				DashboardLinkButton(title: "Open Mail", action: openMail)
 					.padding(.top, 14)
@@ -223,8 +237,11 @@ struct UnreadMailCard: View {
 		if let aiSummary {
 			MarkdownText(
 				text: aiSummary.text,
-				font: .system(size: 13),
-				foregroundStyle: AppTheme.primaryText
+				font: DashboardSummaryMarkdown.bodyFont,
+				foregroundStyle: DashboardSummaryMarkdown.bodyColor,
+				strongForegroundStyle: DashboardSummaryMarkdown.strongColor,
+				headingForegroundStyle: DashboardSummaryMarkdown.headingColor,
+				uppercaseHeadings: true
 			)
 		} else if isSummaryLoading {
 			SummarySkeletonView()
@@ -293,7 +310,7 @@ struct TasksCard: View {
 				systemImage: nil,
 				iconColor: AppTheme.accent,
 				title: "Tasks",
-				titleSize: 18,
+				titleSize: 15,
 				badgeValue: "\(summary?.count ?? 0)",
 				badgeLabel: "open"
 			) {
@@ -301,9 +318,13 @@ struct TasksCard: View {
 			}
 			.padding(.leading, 40)
 
+			Divider()
+				.overlay(AppTheme.separator)
+				.padding(.top, 14)
+				.padding(.bottom, 16)
+
 			if let summary, summary.count > 0 {
 				summaryContent
-					.padding(.top, 12)
 
 				HStack(spacing: 16) {
 					DashboardLinkButton(title: "Add a task", action: onAddTask)
@@ -316,14 +337,13 @@ struct TasksCard: View {
 						}
 					}
 				}
-				.padding(.top, 14)
+				.padding(.top, 16)
 			} else {
 				DashboardEmptyState(
 					message: summary == nil
 						? "No tasks found. Connect a task provider to see open tasks."
 						: "No open tasks. Nicely done."
 				)
-				.padding(.top, 18)
 
 				DashboardLinkButton(title: "Add a task", action: onAddTask)
 					.padding(.top, 14)
@@ -352,8 +372,11 @@ struct TasksCard: View {
 		if let aiSummary {
 			MarkdownText(
 				text: aiSummary.text,
-				font: .system(size: 13),
-				foregroundStyle: AppTheme.primaryText
+				font: DashboardSummaryMarkdown.bodyFont,
+				foregroundStyle: DashboardSummaryMarkdown.bodyColor,
+				strongForegroundStyle: DashboardSummaryMarkdown.strongColor,
+				headingForegroundStyle: DashboardSummaryMarkdown.headingColor,
+				uppercaseHeadings: true
 			)
 		} else if isSummaryLoading {
 			SummarySkeletonView()

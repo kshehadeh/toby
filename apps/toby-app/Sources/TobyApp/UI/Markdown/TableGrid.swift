@@ -4,6 +4,7 @@ struct TableGrid: View {
 	let table: MarkdownTable
 	let font: Font
 	let foregroundStyle: Color
+	var strongForegroundStyle: Color? = nil
 
 	var body: some View {
 		ScrollView(.horizontal) {
@@ -17,6 +18,7 @@ struct TableGrid: View {
 								text: cell,
 								font: font,
 								foregroundStyle: foregroundStyle,
+								strongForegroundStyle: strongForegroundStyle,
 								alignment: alignment,
 								isHeader: isHeader
 							)
@@ -46,6 +48,7 @@ struct TableCell: View {
 	let text: String
 	let font: Font
 	let foregroundStyle: Color
+	var strongForegroundStyle: Color? = nil
 	let alignment: TextAlignment
 	let isHeader: Bool
 
@@ -54,14 +57,27 @@ struct TableCell: View {
 			Rectangle()
 				.fill(isHeader ? AppTheme.elevatedBackground.opacity(0.5) : Color.clear)
 				.frame(maxWidth: .infinity, maxHeight: .infinity)
-			InlineMarkdownText(text: text)
+			cellText
 				.font(font)
 				.tracking(AppTheme.transcriptTracking)
 				.bold(isHeader)
-				.foregroundStyle(foregroundStyle)
 				.multilineTextAlignment(alignment)
 				.padding(.horizontal, 12)
 				.padding(.vertical, 8)
+		}
+	}
+
+	@ViewBuilder
+	private var cellText: some View {
+		if let strong = strongForegroundStyle {
+			InlineMarkdownText(
+				text: text,
+				baseForeground: foregroundStyle,
+				strongForeground: strong
+			)
+		} else {
+			InlineMarkdownText(text: text)
+				.foregroundStyle(foregroundStyle)
 		}
 	}
 }

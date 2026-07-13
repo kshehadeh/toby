@@ -27,4 +27,16 @@ struct MarkdownTextTests {
 			.paragraph("After"),
 		])
 	}
+
+	@Test("parses h1 h2 h3 headings")
+	func parsesHeadings() {
+		let blocks = MarkdownText.parseBlocks("# Important\n\n## Other\n\n### Nested\n\nBody")
+
+		#expect(blocks == [
+			.heading(level: 1, content: "Important"),
+			.heading(level: 2, content: "Other"),
+			.heading(level: 3, content: "Nested"),
+			.paragraph("Body"),
+		])
+	}
 }

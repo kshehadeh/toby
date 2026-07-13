@@ -2,10 +2,18 @@ import SwiftUI
 
 struct InlineMarkdownText: View {
 	let text: String
+	/// Base color for normal (non-bold) runs. When set, colors are applied on the attributed string.
+	var baseForeground: Color? = nil
+	/// Color for bold/strong runs. Defaults to `baseForeground` when only base is set.
+	var strongForeground: Color? = nil
 
 	var body: some View {
-		if let attributed = parsedMarkdown {
+		if let attributed = styledAttributed {
 			Text(attributed)
+				.textSelection(.enabled)
+		} else if let baseForeground {
+			Text(text)
+				.foregroundStyle(baseForeground)
 				.textSelection(.enabled)
 		} else {
 			Text(text)
@@ -13,14 +21,29 @@ struct InlineMarkdownText: View {
 		}
 	}
 
-	private var parsedMarkdown: AttributedString? {
-		try? AttributedString(
+	private var styledAttributed: AttributedString? {
+		guard var attributed = try? AttributedString(
 			markdown: text,
 			options: AttributedString.MarkdownParsingOptions(
 				interpretedSyntax: .inlineOnlyPreservingWhitespace,
 				failurePolicy: .returnPartiallyParsedIfPossible,
 			),
-		)
+		) else {
+			return nil
+		}
+
+		guard baseForeground != nil || strongForeground != nil else {
+			return attributed
+		}
+
+		let base = baseForeground ?? strongForeground!
+		let strong = strongForeground ?? base
+
+		for run in attributed.runs {
+			let isStrong = run.inlinePresentationIntent?.contains(.stronglyEmphasized) == true
+			attributed[run.range].foregroundColor = isStrong ? strong : base
+		}
+		return attributed
 	}
 }
 

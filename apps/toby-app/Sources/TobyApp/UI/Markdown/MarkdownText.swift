@@ -21,40 +21,45 @@ struct MarkdownText: View {
 	let text: String
 	let font: Font
 	let foregroundStyle: Color
+	/// When set, bold/strong inline runs use this color while normal text uses `foregroundStyle`.
+	var strongForegroundStyle: Color? = nil
+	/// Heading color. Defaults to `foregroundStyle` (or primary when using standard styling).
+	var headingForegroundStyle: Color? = nil
+	/// When true, heading text is rendered in uppercase with slightly looser tracking.
+	var uppercaseHeadings: Bool = false
 
 	var body: some View {
-		VStack(alignment: .leading, spacing: 8) {
+		VStack(alignment: .leading, spacing: 10) {
 			ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
 				switch block {
 				case .heading(let level, let content):
-					InlineMarkdownText(text: content)
-						.font(level == 2 ? .title3 : .headline)
-						.bold()
-						.foregroundStyle(AppTheme.primaryText)
+					let display = uppercaseHeadings ? content.uppercased() : content
+					let headingColor = headingForegroundStyle ?? AppTheme.primaryText
+					inlineText(display, base: headingColor, strong: headingColor)
+						.font(headingFont(for: level))
+						.fontWeight(.semibold)
+						.tracking(uppercaseHeadings ? 0.9 : 0)
 				case .paragraph(let content):
-					InlineMarkdownText(text: content)
+					styledInline(content)
 						.font(font)
 						.tracking(AppTheme.transcriptTracking)
-						.foregroundStyle(foregroundStyle)
 				case .bullet(let content):
 					HStack(alignment: .firstTextBaseline, spacing: 8) {
 						Text("•")
 							.font(font)
 							.foregroundStyle(foregroundStyle)
-						InlineMarkdownText(text: content)
+						styledInline(content)
 							.font(font)
 							.tracking(AppTheme.transcriptTracking)
-							.foregroundStyle(foregroundStyle)
 					}
 				case .blockquote(let content):
 					HStack(alignment: .top, spacing: 10) {
 						RoundedRectangle(cornerRadius: 1.5)
 							.fill(AppTheme.separator)
 							.frame(width: 3)
-						InlineMarkdownText(text: content)
+						styledInline(content, baseOpacity: 0.88)
 							.font(font)
 							.tracking(AppTheme.transcriptTracking)
-							.foregroundStyle(foregroundStyle.opacity(0.88))
 					}
 					.accessibilityIdentifier("markdown-blockquote")
 				case .horizontalRule:
@@ -70,7 +75,12 @@ struct MarkdownText: View {
 							.textSelection(.enabled)
 					}
 				case .table(let table):
-					TableGrid(table: table, font: font, foregroundStyle: foregroundStyle)
+					TableGrid(
+						table: table,
+						font: font,
+						foregroundStyle: foregroundStyle,
+						strongForegroundStyle: strongForegroundStyle
+					)
 				}
 			}
 		}
@@ -80,6 +90,33 @@ struct MarkdownText: View {
 
 	private var blocks: [MarkdownBlock] {
 		Self.parseBlocks(text)
+	}
+
+	private func headingFont(for level: Int) -> Font {
+		if uppercaseHeadings {
+			// Compact section labels (all-caps) for denser cards like the dashboard.
+			switch level {
+			case 1: return .system(size: 12, weight: .semibold)
+			case 2: return .system(size: 11, weight: .semibold)
+			default: return .system(size: 11, weight: .semibold)
+			}
+		}
+		return level == 2 ? .title3 : .headline
+	}
+
+	@ViewBuilder
+	private func styledInline(_ content: String, baseOpacity: Double = 1) -> some View {
+		if let strong = strongForegroundStyle {
+			let base = foregroundStyle.opacity(baseOpacity)
+			inlineText(content, base: base, strong: strong.opacity(baseOpacity))
+		} else {
+			InlineMarkdownText(text: content)
+				.foregroundStyle(foregroundStyle.opacity(baseOpacity))
+		}
+	}
+
+	private func inlineText(_ content: String, base: Color, strong: Color) -> InlineMarkdownText {
+		InlineMarkdownText(text: content, baseForeground: base, strongForeground: strong)
 	}
 
 	static func parseBlocks(_ text: String) -> [MarkdownBlock] {
