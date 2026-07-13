@@ -53,6 +53,8 @@ struct EmptyChatWorkspace: View {
             VStack(spacing: 14) {
                 appIcon
                     .resizable()
+                    .interpolation(.high)
+                    .antialiased(true)
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 96, height: 96)
                 VStack(spacing: 8) {

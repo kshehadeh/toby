@@ -30,6 +30,8 @@ struct SidebarHeader: View {
 				HStack(spacing: 8) {
 					appIcon
 						.resizable()
+						.interpolation(.high)
+						.antialiased(true)
 						.aspectRatio(contentMode: .fit)
 						.frame(width: 33, height: 33)
 					VStack(alignment: .leading, spacing: 0) {
