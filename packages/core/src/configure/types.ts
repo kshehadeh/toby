@@ -55,6 +55,8 @@ export interface SettingsItem {
 
 export interface ConfigureTreeContext {
 	readonly daemonRunning: boolean;
+	/** Catalog-fetched transcription model IDs per provider, merged into the model picker. */
+	readonly transcriptionCatalogModels?: Readonly<Record<string, readonly string[]>>;
 }
 
 export const DEFAULT_CONFIGURE_TREE_CONTEXT: ConfigureTreeContext = {

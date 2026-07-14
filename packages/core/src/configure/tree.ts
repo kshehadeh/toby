@@ -410,11 +410,18 @@ export function buildSettingsTree(
 		transcriptionProviderId,
 	);
 	const transcriptionModelValue =
-		values["transcription.model"] ?? transcriptionProviderInfo?.models[0] ?? "";
+		values["transcription.model"] ??
+		ctx.transcriptionCatalogModels?.[transcriptionProviderId]?.[0] ??
+		transcriptionProviderInfo?.models[0] ??
+		"";
+	// Prefer catalog-supplied model list; fall back to the static built-in list.
+	const baseModels =
+		ctx.transcriptionCatalogModels?.[transcriptionProviderId] ??
+		transcriptionProviderInfo?.models ??
+		[];
 	const transcriptionModelOptions = [
-		...(transcriptionProviderInfo?.models ?? []),
-		...(transcriptionModelValue &&
-		!transcriptionProviderInfo?.models.includes(transcriptionModelValue)
+		...baseModels,
+		...(transcriptionModelValue && !baseModels.includes(transcriptionModelValue)
 			? [transcriptionModelValue]
 			: []),
 	];
@@ -460,6 +467,16 @@ export function buildSettingsTree(
 								"OpenAI reuses your AI → OpenAI API token when no key is set here.",
 							kind: "hint" as const,
 							key: "transcription._openaiHint",
+						},
+					]
+				: []),
+			...(transcriptionProviderInfo?.reusesVercelApiKey
+				? [
+						{
+							label:
+								"Vercel AI Gateway reuses your AI → Vercel API key (or AI_GATEWAY_API_KEY) when no key is set here.",
+							kind: "hint" as const,
+							key: "transcription._vercelHint",
 						},
 					]
 				: []),

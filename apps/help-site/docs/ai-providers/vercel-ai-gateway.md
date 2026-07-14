@@ -29,6 +29,8 @@ For a persona, set **AI Provider** to `vercel`, then pick a model from the list 
 
 Once your gateway API key is configured, the model picker loads the **live catalog** from Vercel AI Gateway (language models). If the catalog cannot be reached, Toby falls back to the curated list below.
 
+The same gateway key also powers **Listen transcription** — see [Transcription](../configuration/transcription) for STT provider setup. The transcription model list is filtered to catalog entries with `type: transcription`.
+
 Toby validates slugs as `provider/model` (for example `google/gemini-3-flash`).
 
 ## Recommended models

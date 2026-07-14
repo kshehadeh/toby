@@ -2,9 +2,10 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createGateway } from "@ai-sdk/gateway";
 import { createGroq } from "@ai-sdk/groq";
 import { createOpenAI } from "@ai-sdk/openai";
-import { experimental_transcribe as transcribe } from "ai";
+import { transcribe } from "ai";
 import type { TranscriptPayload, TranscriptSegment } from "./transcript-types";
 import { ListenTranscriptionError } from "./transcription-errors";
 import {
@@ -13,6 +14,7 @@ import {
 	resolveTranscriptionSelection,
 } from "./transcription-providers";
 import type { ListenRecordingFiles } from "./types";
+import { buildAiGatewayAttributionHeaders } from "../ai/model-factory";
 
 export { ListenTranscriptionError } from "./transcription-errors";
 
@@ -115,6 +117,13 @@ function createTranscriptionModel(
 		case "groq": {
 			const groq = createGroq({ apiKey });
 			return groq.transcription(model);
+		}
+		case "vercel": {
+			const gateway = createGateway({
+				...(apiKey ? { apiKey } : {}),
+				headers: buildAiGatewayAttributionHeaders(),
+			});
+			return gateway.transcriptionModel(model);
 		}
 		default:
 			throw new Error(`Unsupported transcription provider: ${providerId}`);
@@ -302,9 +311,7 @@ async function transcribeChunkedOrSingle(params: {
 		params.onStatus?.("Transcribing recording…");
 		const audio = await fs.promises.readFile(params.inputPath);
 		const result = await transcribe({
-			// ai v6 types transcription models as V2/V3; provider packages already
-			// return V4. Runtime is compatible, so cast across the version boundary.
-			model: model as Parameters<typeof transcribe>[0]["model"],
+			model,
 			audio,
 		});
 		return {
@@ -351,7 +358,7 @@ async function transcribeChunkedOrSingle(params: {
 	for (let i = 0; i < chunks.length; i++) {
 		params.onStatus?.(`Transcribing chunk ${i + 1}/${chunks.length}…`);
 		const result = await transcribe({
-			model: model as Parameters<typeof transcribe>[0]["model"],
+			model,
 			audio: chunks[i].buffer,
 		});
 		if (!language) language = result.language;

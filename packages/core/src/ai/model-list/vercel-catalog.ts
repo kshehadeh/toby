@@ -139,3 +139,26 @@ export function clearVercelCatalogCache(): void {
 	cache = undefined;
 	inFlight = undefined;
 }
+
+/**
+ * List transcription model IDs from the Vercel AI Gateway catalog.
+ * Filters for `type === "transcription"` and falls back to a curated static
+ * list when the catalog is unavailable.
+ */
+export async function listVercelTranscriptionModels(): Promise<string[]> {
+	const FALLBACK = [
+		"openai/whisper-1",
+		"openai/gpt-4o-mini-transcribe",
+		"openai/gpt-4o-transcribe",
+		"xai/grok-stt",
+	];
+	try {
+		const catalog = await fetchVercelGatewayCatalog();
+		const stt = catalog.models
+			.filter((m) => m.type === "transcription")
+			.map((m) => m.id);
+		return stt.length > 0 ? stt : FALLBACK;
+	} catch {
+		return FALLBACK;
+	}
+}

@@ -93,7 +93,7 @@ sequenceDiagram
 
     App->>Daemon: POST /api/listen/recordings/:id/transcribe
     Daemon->>Files: Read combined.m4a
-    Daemon->>Model: experimental_transcribe(model, audio)
+    Daemon->>Model: transcribe(model, audio)
     Model-->>Daemon: text + segments
     Daemon->>Files: Write transcript.txt / transcript.json
     Daemon->>Files: Update metadata.json
@@ -105,6 +105,31 @@ sequenceDiagram
 
 Node/Bun does not provide direct access to macOS audio capture APIs, so
 recording runs through **Toby.app**.
+
+Toby.app runs a local HTTP server on an ephemeral port published to
+`~/.toby/native-port`. The core audio capture client reads that port, launches
+Toby.app if it is not already running, and calls the `/api/native/audio/*`
+endpoints. Audio capture, permission handling, and source-track combination all
+happen inside Toby.app's `NativeAudioHandler`.
+
+## Transcription providers
+
+The transcription stack (`packages/core/src/listen/transcription-model.ts`)
+supports three providers:
+
+| Provider | Key resolution |
+| -------- | -------------- |
+| `openai` | `credentials.transcription.openai.apiKey` → shared `credentials.ai.openai.token` |
+| `groq` | `credentials.transcription.groq.apiKey` |
+| `vercel` | `credentials.transcription.vercel.apiKey` → shared `credentials.ai.vercel.apiKey` → `AI_GATEWAY_API_KEY` → `VERCEL_OIDC_TOKEN` (OIDC-only, empty key) |
+
+The Vercel provider uses `createGateway(...).transcriptionModel(slug)` from
+`@ai-sdk/gateway` and the stable `transcribe()` function from AI SDK 7. Model
+lists for Vercel are fetched from the public gateway catalog
+(`https://ai-gateway.vercel.sh/v1/models`), filtered to `type === "transcription"`,
+with a curated static fallback.
+
+All providers share WAV preparation, 25 MB chunking, and 413-retry logic.
 
 Toby.app runs a local HTTP server on an ephemeral port published to
 `~/.toby/native-port`. The core audio capture client reads that port, launches

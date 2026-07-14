@@ -9,6 +9,16 @@ export interface TranscriptionProviderInfo {
 	 * (`credentials.ai.openai.token`) if no transcription-specific key is set.
 	 */
 	readonly reusesOpenAiToken?: boolean;
+	/**
+	 * When true, the provider reuses the shared Vercel AI Gateway API key
+	 * (`credentials.ai.vercel.apiKey` or `AI_GATEWAY_API_KEY`) if no
+	 * transcription-specific key is set.
+	 */
+	readonly reusesVercelApiKey?: boolean;
+	/**
+	 * When true, the provider allows custom model IDs not in the built-in list.
+	 */
+	readonly allowCustomModel?: boolean;
 }
 
 export const TRANSCRIPTION_PROVIDERS: readonly TranscriptionProviderInfo[] = [
@@ -22,6 +32,18 @@ export const TRANSCRIPTION_PROVIDERS: readonly TranscriptionProviderInfo[] = [
 		id: "groq",
 		displayName: "Groq",
 		models: ["whisper-large-v3-turbo", "whisper-large-v3"],
+	},
+	{
+		id: "vercel",
+		displayName: "Vercel AI Gateway",
+		reusesVercelApiKey: true,
+		allowCustomModel: true,
+		models: [
+			"openai/whisper-1",
+			"openai/gpt-4o-mini-transcribe",
+			"openai/gpt-4o-transcribe",
+			"xai/grok-stt",
+		],
 	},
 ];
 
@@ -50,6 +72,15 @@ export function resolveTranscriptionApiKey(
 	if (providerId === "openai") {
 		return creds.ai?.openai?.token?.trim() || undefined;
 	}
+	if (providerId === "vercel") {
+		const fromCreds = creds.ai?.vercel?.apiKey?.trim();
+		if (fromCreds) return fromCreds;
+		const fromEnv = process.env.AI_GATEWAY_API_KEY?.trim();
+		if (fromEnv && fromEnv.length > 0) return fromEnv;
+		// OIDC-only: gateway works without an API key when VERCEL_OIDC_TOKEN is set.
+		if (process.env.VERCEL_OIDC_TOKEN?.trim()) return "";
+		return undefined;
+	}
 	return undefined;
 }
 
@@ -63,7 +94,7 @@ export function resolveTranscriptionSelection():
 	const info = getTranscriptionProvider(provider);
 	if (!info) return undefined;
 	const apiKey = resolveTranscriptionApiKey(provider);
-	if (!apiKey) return undefined;
+	if (apiKey === undefined) return undefined;
 	return { provider, model, apiKey };
 }
 

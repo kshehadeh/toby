@@ -1,8 +1,10 @@
 import { resolveAIProvidersForUI } from "../ai/model-list";
+import { listVercelTranscriptionModels } from "../ai/model-list/vercel-catalog";
 import { type Persona, readConfig } from "../config/index";
 import { getIntegrationModules } from "../integrations/index";
 import { resetPluginModuleCache } from "../integrations/plugins/registry";
 import { DEFAULT_CHAT_PERSONA } from "../personas/index";
+import { TRANSCRIPTION_PROVIDERS } from "../listen/transcription-providers";
 import { redactConfigureValues, seedConfigureValues } from "./persistence";
 import { buildSettingsTree } from "./tree";
 import type { SettingsItem } from "./types";
@@ -57,12 +59,20 @@ async function buildCachedSettings(): Promise<CachedSettings> {
 	const redacted = redactConfigureValues(values);
 	const personas = getPersonas();
 	const availableProviders = await resolveAIProvidersForUI();
+	const vercelTranscriptionModels = await listVercelTranscriptionModels();
+	// Build a uniform model map for every transcription provider:
+	// catalog-fetched for Vercel, static built-in lists for the rest.
+	const transcriptionCatalogModels: Record<string, readonly string[]> = {};
+	for (const p of TRANSCRIPTION_PROVIDERS) {
+		transcriptionCatalogModels[p.id] = p.models;
+	}
+	transcriptionCatalogModels.vercel = vercelTranscriptionModels;
 	const tree = buildSettingsTree(
 		personas,
 		availableProviders,
 		redacted,
 		readConfig().defaultProviders,
-		{ daemonRunning: true },
+		{ daemonRunning: true, transcriptionCatalogModels },
 	);
 	const sectionMap = new Map(
 		(tree.children ?? []).map((child) => [child.key, child]),

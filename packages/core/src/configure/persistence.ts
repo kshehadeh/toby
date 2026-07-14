@@ -34,6 +34,7 @@ const SECRET_KEY_PREFIXES = [
 	"ai.openrouter.apiKey",
 	"transcription.openai.apiKey",
 	"transcription.groq.apiKey",
+	"transcription.vercel.apiKey",
 	"weather.apiKey",
 ] as const;
 
