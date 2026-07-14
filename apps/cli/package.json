@@ -20,7 +20,7 @@
 	},
 	"dependencies": {
 		"@toby/core": "workspace:*",
-		"ai": "^6.0.168",
+		"ai": "^7.0.26",
 		"chalk": "^5.3.0",
 		"commander": "^12.1.0",
 		"croner": "^10.0.1",

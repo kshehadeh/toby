@@ -3,7 +3,7 @@ import {
 	type LanguageModel,
 	type Tool,
 	generateText,
-	stepCountIs,
+	isStepCount,
 	tool,
 } from "ai";
 import { z } from "zod";
@@ -262,10 +262,10 @@ Complete the task now using the tools above. Return a clear summary of your find
 		const result = await awaitWithAbort(
 			generateText({
 				model,
-				system: SUB_AGENT_SYSTEM,
+				instructions: SUB_AGENT_SYSTEM,
 				prompt: userPrompt,
 				tools: toolsForModel,
-				stopWhen: stepCountIs(SUB_AGENT_MAX_STEPS),
+				stopWhen: isStepCount(SUB_AGENT_MAX_STEPS),
 				abortSignal,
 			}),
 			abortSignal,

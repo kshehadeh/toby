@@ -330,7 +330,7 @@ async function generateFreshSummary(
 			const model = createModelForPersona(persona);
 			const result = await generateText({
 				model,
-				system: systemPrompt,
+				instructions: systemPrompt,
 				prompt: userPrompt,
 				abortSignal: controller.signal,
 				temperature: 0.3,

@@ -6,7 +6,7 @@ import {
 	type ProviderMetadata,
 	type Tool,
 	generateText,
-	stepCountIs,
+	isStepCount,
 	streamText,
 } from "ai";
 import { awaitWithAbort, throwIfAborted } from "../abort";
@@ -369,9 +369,10 @@ export async function chatWithTools(
 			model,
 			messages,
 			tools: toolsForModel,
-			stopWhen: stepCountIs(12),
+			stopWhen: isStepCount(12),
 			providerOptions: providerOptions as never,
 			abortSignal,
+			allowSystemInMessages: true,
 			onError: ({ error }) => {
 				if (!capturedStreamError) {
 					capturedStreamError = error;
@@ -404,7 +405,7 @@ export async function chatWithTools(
 		let sawContent = false;
 		const emittedToolCallStarts = new Map<string, number>();
 
-		const stream = result.fullStream[Symbol.asyncIterator]();
+		const stream = result.stream[Symbol.asyncIterator]();
 		while (true) {
 			const next = await awaitWithAbort(stream.next(), abortSignal);
 			throwIfAborted(abortSignal);
@@ -630,9 +631,10 @@ export async function chatWithTools(
 			model,
 			messages,
 			tools: toolsForModel,
-			stopWhen: stepCountIs(12),
+			stopWhen: isStepCount(12),
 			providerOptions: providerOptions as never,
 			abortSignal,
+			allowSystemInMessages: true,
 		}),
 		abortSignal,
 	);

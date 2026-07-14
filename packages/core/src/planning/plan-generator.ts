@@ -136,7 +136,7 @@ export async function generatePlan(
 
 		const result = await generateText({
 			model,
-			system: PLAN_SYSTEM,
+			instructions: PLAN_SYSTEM,
 			prompt: intentSection,
 			output: Output.object({
 				schema: zodSchema(planSchema),

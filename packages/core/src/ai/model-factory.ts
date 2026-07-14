@@ -1,7 +1,7 @@
 import { createGateway } from "@ai-sdk/gateway";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import type { LanguageModelV3 } from "@ai-sdk/provider";
+import type { LanguageModelV4 } from "@ai-sdk/provider";
 import { type LanguageModel, wrapLanguageModel } from "ai";
 import { readConfig, readCredentials } from "../config/index";
 import type { Persona } from "../config/index";
@@ -444,7 +444,7 @@ export function createModelForPersona(persona: Persona): LanguageModel {
 
 	if (isRecording()) {
 		return wrapLanguageModel({
-			model: model as LanguageModelV3,
+			model: model as LanguageModelV4,
 			middleware: createRecordMiddleware(),
 		});
 	}

@@ -375,7 +375,7 @@ ${params.description.trim()}${existing}`;
 		const model = createModelForAuxiliary({ persona: params.persona });
 		const result = await generateText({
 			model,
-			system: systemPrompt,
+			instructions: systemPrompt,
 			prompt: userPrompt,
 			output: Output.object({
 				schema: zodSchema(skillDraftSchema),
@@ -457,7 +457,7 @@ IMPORTANT: Respond with ONLY the raw SKILL.md file content. Start with --- on it
 		const model = createModelForAuxiliary({ persona: params.persona });
 		const result = await generateText({
 			model,
-			system: textSystem,
+			instructions: textSystem,
 			prompt: params.userPrompt,
 			temperature: 0.3,
 			maxOutputTokens: 8192,

@@ -23,7 +23,7 @@ async function naturalLanguageToCron(input: string): Promise<string> {
 	const model = createModelForAuxiliary({ modelId: NL_TO_CRON_MODEL });
 	const result = await generateText({
 		model,
-		system: NL_TO_CRON_SYSTEM,
+		instructions: NL_TO_CRON_SYSTEM,
 		prompt: input.trim(),
 		maxOutputTokens: 20,
 		temperature: 0,

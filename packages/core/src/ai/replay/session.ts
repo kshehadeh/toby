@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import type {
-	LanguageModelV3CallOptions,
-	LanguageModelV3GenerateResult,
-	LanguageModelV3StreamPart,
+	LanguageModelV4CallOptions,
+	LanguageModelV4GenerateResult,
+	LanguageModelV4StreamPart,
 } from "@ai-sdk/provider";
 import { resolveRecordingPath } from "./paths";
 import {
@@ -31,7 +31,7 @@ export class ReplayStore {
 
 	take(
 		op: RecordedModelCall["op"],
-		params: LanguageModelV3CallOptions,
+		params: LanguageModelV4CallOptions,
 	): RecordedModelCall {
 		if (this.cursor >= this.entries.length) {
 			throw new Error(
@@ -147,8 +147,8 @@ export function flushRecording(): void {
 }
 
 export function recordGenerateCall(
-	params: LanguageModelV3CallOptions,
-	result: LanguageModelV3GenerateResult,
+	params: LanguageModelV4CallOptions,
+	result: LanguageModelV4GenerateResult,
 ): void {
 	appendRecordedCall({
 		op: "generate",
@@ -159,8 +159,8 @@ export function recordGenerateCall(
 }
 
 export function recordStreamCall(
-	params: LanguageModelV3CallOptions,
-	chunks: readonly LanguageModelV3StreamPart[],
+	params: LanguageModelV4CallOptions,
+	chunks: readonly LanguageModelV4StreamPart[],
 ): void {
 	appendRecordedCall({
 		op: "stream",

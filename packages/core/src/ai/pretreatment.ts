@@ -233,7 +233,7 @@ async function generateSemanticSessionName(params: {
 		const model = createModelForAuxiliary({ persona: params.persona });
 		const result = await generateText({
 			model,
-			system: SESSION_NAME_SYSTEM,
+			instructions: SESSION_NAME_SYSTEM,
 			prompt: text,
 			output: Output.object({
 				schema: zodSchema(sessionNameSchema),
@@ -712,7 +712,7 @@ ${params.skillsCatalogText}`;
 			: "";
 		const result = await generateText({
 			model,
-			system: PREP_SYSTEM,
+			instructions: PREP_SYSTEM,
 			prompt: `${skillsSection}${toolsSection}
 
 Integrations in scope: ${integrationLabels || "(none)"}
@@ -791,7 +791,7 @@ async function pretreatUserPromptDelta(
 				: "(none)";
 		const result = await generateText({
 			model,
-			system: PREP_DELTA_SYSTEM,
+			instructions: PREP_DELTA_SYSTEM,
 			prompt: `Previous user message:
 ${prior.rawUserText.trim()}
 

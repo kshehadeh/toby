@@ -1,9 +1,9 @@
 import crypto from "node:crypto";
 import type {
-	LanguageModelV3CallOptions,
-	LanguageModelV3GenerateResult,
-	LanguageModelV3StreamPart,
-	SharedV3ProviderOptions,
+	LanguageModelV4CallOptions,
+	LanguageModelV4GenerateResult,
+	LanguageModelV4StreamPart,
+	SharedV4ProviderOptions,
 } from "@ai-sdk/provider";
 
 export const RECORDING_FORMAT_VERSION = 1;
@@ -15,7 +15,7 @@ const DATETIME_STANDALONE_RE =
 	/^<!-- TOBY_DATETIME_START -->[\s\S]*?<!-- TOBY_DATETIME_END -->$/;
 
 export type RecordedGenerateResult = Pick<
-	LanguageModelV3GenerateResult,
+	LanguageModelV4GenerateResult,
 	"content" | "finishReason" | "usage" | "warnings" | "providerMetadata"
 >;
 
@@ -28,7 +28,7 @@ export type RecordedModelCall =
 	| {
 			readonly op: "stream";
 			readonly paramsDigest: string;
-			readonly chunks: readonly LanguageModelV3StreamPart[];
+			readonly chunks: readonly LanguageModelV4StreamPart[];
 	  };
 
 export type SessionRecording = {
@@ -58,8 +58,8 @@ function stripDatetimeFromSystemContent(content: string): string {
 }
 
 function normalizePromptContent(
-	content: LanguageModelV3CallOptions["prompt"][number]["content"],
-): LanguageModelV3CallOptions["prompt"][number]["content"] {
+	content: LanguageModelV4CallOptions["prompt"][number]["content"],
+): LanguageModelV4CallOptions["prompt"][number]["content"] {
 	if (typeof content === "string") {
 		return stripDatetimeFromSystemContent(content);
 	}
@@ -71,22 +71,22 @@ function normalizePromptContent(
 			};
 		}
 		return part;
-	}) as LanguageModelV3CallOptions["prompt"][number]["content"];
+	}) as LanguageModelV4CallOptions["prompt"][number]["content"];
 }
 
 function normalizeProviderOptions(
-	options: SharedV3ProviderOptions | undefined,
-): SharedV3ProviderOptions | undefined {
+	options: SharedV4ProviderOptions | undefined,
+): SharedV4ProviderOptions | undefined {
 	if (!options) {
 		return undefined;
 	}
-	const normalized: SharedV3ProviderOptions = {};
+	const normalized: SharedV4ProviderOptions = {};
 	if (options.openai) {
 		const { promptCacheKey: _promptCacheKey, ...openaiRest } =
 			options.openai as Record<string, unknown>;
 		if (Object.keys(openaiRest).length > 0) {
 			normalized.openai = openaiRest as NonNullable<
-				SharedV3ProviderOptions["openai"]
+				SharedV4ProviderOptions["openai"]
 			>;
 		}
 	}
@@ -97,7 +97,7 @@ function normalizeProviderOptions(
 		>;
 		if (Object.keys(gatewayRest).length > 0) {
 			normalized.gateway = gatewayRest as NonNullable<
-				SharedV3ProviderOptions["gateway"]
+				SharedV4ProviderOptions["gateway"]
 			>;
 		}
 	}
@@ -112,7 +112,7 @@ function normalizeProviderOptions(
 
 /** Stable subset of model call params for digesting and matching. */
 export function normalizeCallParams(
-	params: LanguageModelV3CallOptions,
+	params: LanguageModelV4CallOptions,
 ): Record<string, unknown> {
 	return {
 		prompt: params.prompt
@@ -153,13 +153,13 @@ export function normalizeCallParams(
 }
 
 export function computeParamsDigest(
-	params: LanguageModelV3CallOptions,
+	params: LanguageModelV4CallOptions,
 ): string {
 	return sha256Digest(JSON.stringify(normalizeCallParams(params)));
 }
 
 export function serializeGenerateResult(
-	result: LanguageModelV3GenerateResult,
+	result: LanguageModelV4GenerateResult,
 ): RecordedGenerateResult {
 	return {
 		content: result.content,
@@ -246,7 +246,7 @@ export function parseRecording(raw: string): SessionRecording {
 
 export function toGenerateResult(
 	recorded: RecordedGenerateResult,
-): LanguageModelV3GenerateResult {
+): LanguageModelV4GenerateResult {
 	return {
 		...recorded,
 		warnings: [...recorded.warnings],
@@ -255,7 +255,7 @@ export function toGenerateResult(
 }
 
 export function toStreamChunks(
-	chunks: readonly LanguageModelV3StreamPart[],
-): LanguageModelV3StreamPart[] {
+	chunks: readonly LanguageModelV4StreamPart[],
+): LanguageModelV4StreamPart[] {
 	return chunks.map((chunk) => structuredClone(chunk));
 }

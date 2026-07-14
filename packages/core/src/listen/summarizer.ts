@@ -93,7 +93,7 @@ export async function summarizeRecordingTranscript(
 		const model = createModelForPersona(persona);
 		const result = await generateText({
 			model,
-			system,
+			instructions: system,
 			prompt: userPrompt,
 			abortSignal: controller.signal,
 			temperature: 0.3,

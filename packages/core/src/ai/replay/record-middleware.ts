@@ -1,10 +1,10 @@
-import type { LanguageModelV3StreamPart } from "@ai-sdk/provider";
+import type { LanguageModelV4StreamPart } from "@ai-sdk/provider";
 import type { LanguageModelMiddleware } from "ai";
 import { recordGenerateCall, recordStreamCall } from "./session";
 
 export function createRecordMiddleware(): LanguageModelMiddleware {
 	return {
-		specificationVersion: "v3",
+		specificationVersion: "v4",
 		wrapGenerate: async ({ doGenerate, params }) => {
 			const result = await doGenerate();
 			recordGenerateCall(params, result);
@@ -12,11 +12,11 @@ export function createRecordMiddleware(): LanguageModelMiddleware {
 		},
 		wrapStream: async ({ doStream, params }) => {
 			const streamResult = await doStream();
-			const chunks: LanguageModelV3StreamPart[] = [];
+			const chunks: LanguageModelV4StreamPart[] = [];
 			const recordedStream = streamResult.stream.pipeThrough(
 				new TransformStream<
-					LanguageModelV3StreamPart,
-					LanguageModelV3StreamPart
+					LanguageModelV4StreamPart,
+					LanguageModelV4StreamPart
 				>({
 					transform(chunk, controller) {
 						chunks.push(chunk);

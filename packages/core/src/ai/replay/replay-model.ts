@@ -1,14 +1,14 @@
 import type {
-	LanguageModelV3,
-	LanguageModelV3CallOptions,
+	LanguageModelV4,
+	LanguageModelV4CallOptions,
 } from "@ai-sdk/provider";
 import { simulateReadableStream } from "ai";
 import type { Persona } from "../../config/index";
 import { toGenerateResult, toStreamChunks } from "./recording-format";
 import { getReplayStore } from "./session";
 
-class ReplayLanguageModel implements LanguageModelV3 {
-	readonly specificationVersion = "v3";
+class ReplayLanguageModel implements LanguageModelV4 {
+	readonly specificationVersion = "v4";
 	readonly provider: string;
 	readonly modelId: string;
 	readonly supportedUrls: Record<string, RegExp[]> = {};
@@ -18,7 +18,7 @@ class ReplayLanguageModel implements LanguageModelV3 {
 		this.modelId = persona.ai.model;
 	}
 
-	doGenerate(options: LanguageModelV3CallOptions) {
+	doGenerate(options: LanguageModelV4CallOptions) {
 		const store = getReplayStore();
 		const entry = store.take("generate", options);
 		if (entry.op !== "generate") {
@@ -29,7 +29,7 @@ class ReplayLanguageModel implements LanguageModelV3 {
 		return Promise.resolve(toGenerateResult(entry.result));
 	}
 
-	doStream(options: LanguageModelV3CallOptions) {
+	doStream(options: LanguageModelV4CallOptions) {
 		const store = getReplayStore();
 		const entry = store.take("stream", options);
 		if (entry.op !== "stream") {
@@ -47,6 +47,6 @@ class ReplayLanguageModel implements LanguageModelV3 {
 	}
 }
 
-export function createReplayModel(persona: Persona): LanguageModelV3 {
+export function createReplayModel(persona: Persona): LanguageModelV4 {
 	return new ReplayLanguageModel(persona);
 }
