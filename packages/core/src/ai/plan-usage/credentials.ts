@@ -2,7 +2,15 @@ import { readCredentials } from "../../config/index";
 
 /** Auth token for Vercel AI Gateway billing APIs (same sources as chat). */
 export function resolveVercelGatewayAuthToken(): string | undefined {
-	const creds = readCredentials();
+	// readCredentials can throw when credentials.json is encrypted but the
+	// key backend is unavailable (e.g. test environments). Fall through to
+	// env vars in that case.
+	let creds: ReturnType<typeof readCredentials>;
+	try {
+		creds = readCredentials();
+	} catch {
+		creds = {};
+	}
 	const fromCreds = creds.ai?.vercel?.apiKey?.trim();
 	if (fromCreds) {
 		return fromCreds;

@@ -90,6 +90,8 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `GET` | `/api/personas` | List persona picker options. |
 | `GET` / related | `/api/personas/:name` | Persona detail (when implemented on router). |
 | `GET` | `/api/ai/providers` | AI provider catalog with live models when configured or public catalog available. |
+| `GET` | `/api/ai/providers/usage` | Plan usage / balance for all AI providers (cached). |
+| `GET` | `/api/ai/providers/:id/usage` | Plan usage / balance for a single AI provider (bypasses cache). |
 | `GET` | `/api/modules` | List connected chat modules/integrations. |
 | `GET` | `/api/skills` | List local skills. |
 | `GET` | `/api/skills/:name` | Skill detail body. |
@@ -715,6 +717,50 @@ type AIProvidersResponse = {
 ```
 
 Implementation: [`packages/core/src/ai/model-list/`](../packages/core/src/ai/model-list/).
+
+### `GET /api/ai/providers/usage`
+
+Returns plan usage / balance information for all registered AI providers. Each entry includes display-formatted labels (`totalSpentLabel`, `remainingLabel`) that are ready for UI rendering. Providers that do not expose balance APIs return `supported: false` with `totalSpentLabel: "N/A"` and `remainingLabel: "N/A"`.
+
+Results are cached for 60 seconds to avoid repeated billing API calls.
+
+```ts
+type AIProvidersUsageResponse = {
+  usage: readonly {
+    providerId: string;
+    supported: boolean;
+    currency?: "USD";
+    totalSpent?: number;
+    remaining?: number;
+    totalSpentLabel?: string;
+    remainingLabel?: string;
+    unavailableReason?: string;
+    fetchedAt: string;
+  }[];
+};
+```
+
+### `GET /api/ai/providers/:id/usage`
+
+Returns plan usage / balance for a single AI provider. Clears the cache entry for that provider before fetching, so this is suitable for a manual refresh action.
+
+```ts
+type AIProviderUsageResponse = {
+  usage: {
+    providerId: string;
+    supported: boolean;
+    currency?: "USD";
+    totalSpent?: number;
+    remaining?: number;
+    totalSpentLabel?: string;
+    remainingLabel?: string;
+    unavailableReason?: string;
+    fetchedAt: string;
+  };
+};
+```
+
+Implementation: [`packages/core/src/ai/plan-usage/`](../packages/core/src/ai/plan-usage/).
 
 ### `GET /api/modules`
 

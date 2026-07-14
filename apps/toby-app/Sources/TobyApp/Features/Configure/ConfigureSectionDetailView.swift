@@ -42,6 +42,12 @@ struct ConfigureSectionDetailView: View {
 			&& (section.description?.isEmpty == false || section.docUrl?.isEmpty == false)
 	}
 
+	/// Extracts the provider ID from a section key like `ai.openai` -> `openai`.
+	private var aiProviderId: String? {
+		guard isAIProviderSection else { return nil }
+		return String(section.key.dropFirst("ai.".count))
+	}
+
 	var body: some View {
 		VStack(alignment: .leading, spacing: 20) {
 			if isIntegrationSection {
@@ -102,6 +108,9 @@ struct ConfigureSectionDetailView: View {
 				}
 
 				if isAIProviderSection {
+					if let providerId = aiProviderId {
+						AIProviderUsageView(providerId: providerId)
+					}
 					AIProviderSetupHelpView(section: section)
 				}
 

@@ -2,6 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { isAIProviderConfigured } from "../../ai/model-factory";
 import { resolveAIProvidersForUI } from "../../ai/model-list";
+import {
+	clearPlanUsageCache,
+	fetchAIProviderPlanUsage,
+	fetchAllAIProviderPlanUsage,
+} from "../../ai/plan-usage";
 import { listUsableChatModules } from "../../chat-pipeline/resolve-chat-modules";
 import { listPersonaOptions } from "../../chat-pipeline/turn-runtime";
 import {
@@ -84,6 +89,43 @@ export async function handleAIProviders(): Promise<Response> {
 			allowCustomModel: p.allowCustomModel ?? false,
 			configured: isAIProviderConfigured(p.id),
 		})),
+	});
+}
+
+export async function handleAIProviderUsageAll(): Promise<Response> {
+	const usage = await fetchAllAIProviderPlanUsage();
+	return jsonResponse({
+		usage: usage.map((u) => ({
+			providerId: u.providerId,
+			supported: u.supported,
+			currency: u.currency,
+			totalSpent: u.totalSpent,
+			remaining: u.remaining,
+			totalSpentLabel: u.totalSpentLabel,
+			remainingLabel: u.remainingLabel,
+			unavailableReason: u.unavailableReason,
+			fetchedAt: u.fetchedAt,
+		})),
+	});
+}
+
+export async function handleAIProviderUsage(
+	providerId: string,
+): Promise<Response> {
+	clearPlanUsageCache(providerId);
+	const usage = await fetchAIProviderPlanUsage(providerId);
+	return jsonResponse({
+		usage: {
+			providerId: usage.providerId,
+			supported: usage.supported,
+			currency: usage.currency,
+			totalSpent: usage.totalSpent,
+			remaining: usage.remaining,
+			totalSpentLabel: usage.totalSpentLabel,
+			remainingLabel: usage.remainingLabel,
+			unavailableReason: usage.unavailableReason,
+			fetchedAt: usage.fetchedAt,
+		},
 	});
 }
 

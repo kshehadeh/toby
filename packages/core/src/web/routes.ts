@@ -69,6 +69,8 @@ import {
 	handleMemoryPatch,
 } from "./handlers/memories";
 import {
+	handleAIProviderUsage,
+	handleAIProviderUsageAll,
 	handleAIProviders,
 	handleModulesList,
 	handlePersonaDetail,
@@ -239,6 +241,15 @@ export async function handleWebRequest(
 		}
 		if (pathname === "/api/ai/providers" && req.method === "GET") {
 			return handleAIProviders();
+		}
+		if (pathname === "/api/ai/providers/usage" && req.method === "GET") {
+			return handleAIProviderUsageAll();
+		}
+		const aiProviderUsageMatch = /^\/api\/ai\/providers\/([^/]+)\/usage$/.exec(
+			pathname,
+		);
+		if (aiProviderUsageMatch && req.method === "GET") {
+			return handleAIProviderUsage(decodeURIComponent(aiProviderUsageMatch[1]));
 		}
 		const personaDetailMatch = /^\/api\/personas\/([^/]+)$/.exec(pathname);
 		if (personaDetailMatch && req.method === "GET") {

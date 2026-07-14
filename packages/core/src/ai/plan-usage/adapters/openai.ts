@@ -11,6 +11,8 @@ export const openAiPlanUsageAdapter: PlanUsageAdapter = {
 			providerId: "openai",
 			supported: false,
 			unavailableReason: OPENAI_UNSUPPORTED_REASON,
+			totalSpentLabel: "N/A",
+			remainingLabel: "N/A",
 			fetchedAt: new Date().toISOString(),
 		};
 	},

@@ -14,6 +14,10 @@ function parseUsdAmount(value: unknown): number | undefined {
 	return undefined;
 }
 
+function formatUsd(amount: number): string {
+	return `$${amount.toFixed(2)}`;
+}
+
 export const vercelGatewayPlanUsageAdapter: PlanUsageAdapter = {
 	providerId: "vercel",
 
@@ -26,6 +30,8 @@ export const vercelGatewayPlanUsageAdapter: PlanUsageAdapter = {
 				supported: true,
 				unavailableReason:
 					"Vercel AI Gateway API key not configured. Run `toby configure` to set it, or set AI_GATEWAY_API_KEY.",
+				totalSpentLabel: "N/A",
+				remainingLabel: "N/A",
 				fetchedAt,
 			};
 		}
@@ -45,6 +51,8 @@ export const vercelGatewayPlanUsageAdapter: PlanUsageAdapter = {
 				providerId: "vercel",
 				supported: true,
 				unavailableReason: `Failed to reach Vercel AI Gateway credits API: ${msg}`,
+				totalSpentLabel: "N/A",
+				remainingLabel: "N/A",
 				fetchedAt,
 			};
 		}
@@ -65,6 +73,8 @@ export const vercelGatewayPlanUsageAdapter: PlanUsageAdapter = {
 				providerId: "vercel",
 				supported: true,
 				unavailableReason: `Vercel AI Gateway credits API returned ${response.status}: ${detail}`,
+				totalSpentLabel: "N/A",
+				remainingLabel: "N/A",
 				fetchedAt,
 			};
 		}
@@ -74,12 +84,17 @@ export const vercelGatewayPlanUsageAdapter: PlanUsageAdapter = {
 			total_used?: unknown;
 		};
 
+		const remaining = parseUsdAmount(body.balance);
+		const totalSpent = parseUsdAmount(body.total_used);
+
 		return {
 			providerId: "vercel",
 			supported: true,
 			currency: "USD",
-			remaining: parseUsdAmount(body.balance),
-			totalSpent: parseUsdAmount(body.total_used),
+			remaining,
+			totalSpent,
+			totalSpentLabel: totalSpent !== undefined ? formatUsd(totalSpent) : "N/A",
+			remainingLabel: remaining !== undefined ? formatUsd(remaining) : "N/A",
 			fetchedAt,
 		};
 	},

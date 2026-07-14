@@ -8,6 +8,10 @@ export type AIProviderPlanUsage = {
 	/** Remaining balance (e.g. Vercel `balance`). */
 	readonly remaining?: number;
 	readonly unavailableReason?: string;
+	/** Display-formatted total spent (e.g. "$4.50" or "N/A"). */
+	readonly totalSpentLabel?: string;
+	/** Display-formatted remaining balance (e.g. "$95.50" or "N/A"). */
+	readonly remainingLabel?: string;
 	readonly fetchedAt: string;
 };
 

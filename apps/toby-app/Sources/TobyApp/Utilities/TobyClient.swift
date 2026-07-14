@@ -86,6 +86,23 @@ struct TobyClient {
 		return try JSONDecoder().decode(AIProvidersResponse.self, from: data).providers
 	}
 
+	func fetchAllAIProviderUsage() async throws -> [AIProviderUsage] {
+		let url = baseURL.appendingPathComponent("api/ai/providers/usage")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(AIProvidersUsageResponse.self, from: data).usage
+	}
+
+	func fetchAIProviderUsage(providerId: String) async throws -> AIProviderUsage {
+		let encoded = providerId.addingPercentEncoding(
+			withAllowedCharacters: .urlPathAllowed,
+		) ?? providerId
+		let url = baseURL.appendingPathComponent("api/ai/providers/\(encoded)/usage")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(AIProviderUsageResponse.self, from: data).usage
+	}
+
 	func createPersona(
 		name: String,
 		instructions: String,

@@ -368,6 +368,42 @@ struct AIProvidersResponse: Decodable {
 	let providers: [AIProviderInfo]
 }
 
+struct AIProviderUsage: Decodable, Identifiable {
+	let providerId: String
+	let supported: Bool
+	let currency: String?
+	let totalSpent: Double?
+	let remaining: Double?
+	let totalSpentLabel: String?
+	let remainingLabel: String?
+	let unavailableReason: String?
+	let fetchedAt: String
+
+	var id: String { providerId }
+
+	var displaySummary: String {
+		if !supported || unavailableReason != nil {
+			return "N/A"
+		}
+		var pieces: [String] = []
+		if let totalSpentLabel, totalSpentLabel != "N/A" {
+			pieces.append("\(totalSpentLabel) used")
+		}
+		if let remainingLabel, remainingLabel != "N/A" {
+			pieces.append("\(remainingLabel) left")
+		}
+		return pieces.isEmpty ? "N/A" : pieces.joined(separator: " · ")
+	}
+}
+
+struct AIProviderUsageResponse: Decodable {
+	let usage: AIProviderUsage
+}
+
+struct AIProvidersUsageResponse: Decodable {
+	let usage: [AIProviderUsage]
+}
+
 struct PluginsListResponse: Decodable {
 	let directory: String?
 	let plugins: [PluginSummary]

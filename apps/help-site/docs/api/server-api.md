@@ -101,6 +101,8 @@ Transcript entries and chat stream events are structured JSON objects emitted du
 | `GET` | `/api/personas/:name` | Persona detail |
 | `GET` | `/api/personas/image/:filename` | Persona image asset |
 | `GET` | `/api/ai/providers` | AI provider catalog with live models when configured |
+| `GET` | `/api/ai/providers/usage` | Plan usage / balance for all providers |
+| `GET` | `/api/ai/providers/:id/usage` | Plan usage / balance for one provider |
 | `GET` | `/api/modules` | Connected chat modules |
 | `GET` | `/api/skills` | Local skills list |
 | `GET` | `/api/skills/:name` | Skill body |
@@ -602,6 +604,46 @@ type AIProvidersResponse = {
     allowCustomModel: boolean;
     configured: boolean;
   }[];
+};
+```
+
+### `GET /api/ai/providers/usage`
+
+Plan usage and balance for all registered AI providers. Providers that do not expose balance APIs return `supported: false` with `"N/A"` display labels. Results are cached for 60 seconds.
+
+```ts
+type AIProvidersUsageResponse = {
+  usage: readonly {
+    providerId: string;
+    supported: boolean;
+    currency?: "USD";
+    totalSpent?: number;
+    remaining?: number;
+    totalSpentLabel?: string;
+    remainingLabel?: string;
+    unavailableReason?: string;
+    fetchedAt: string;
+  }[];
+};
+```
+
+### `GET /api/ai/providers/:id/usage`
+
+Plan usage and balance for a single AI provider. Bypasses the cache, so it is suitable for a manual refresh action.
+
+```ts
+type AIProviderUsageResponse = {
+  usage: {
+    providerId: string;
+    supported: boolean;
+    currency?: "USD";
+    totalSpent?: number;
+    remaining?: number;
+    totalSpentLabel?: string;
+    remainingLabel?: string;
+    unavailableReason?: string;
+    fetchedAt: string;
+  };
 };
 ```
 
