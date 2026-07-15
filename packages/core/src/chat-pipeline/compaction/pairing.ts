@@ -56,18 +56,25 @@ export function isClearedToolResult(
 	placeholder: string,
 ): boolean {
 	const payload = getToolResultPayload(part);
+	const markers = [
+		placeholder,
+		"[tool result cleared",
+		"[superseded tool result",
+	];
+	const matchesMarker = (text: string) =>
+		markers.some((m) => text === m || text.includes(m));
+
 	if (typeof payload === "string") {
-		return payload === placeholder || payload.includes("[tool result cleared");
+		return matchesMarker(payload);
 	}
 	if (isRecord(payload)) {
 		if (payload.type === "text" && typeof payload.value === "string") {
-			return (
-				payload.value === placeholder ||
-				payload.value.includes("[tool result cleared")
-			);
+			return matchesMarker(payload.value);
 		}
 		if (payload.type === "json" && isRecord(payload.value)) {
-			return payload.value._cleared === true;
+			return (
+				payload.value._cleared === true || payload.value._superseded === true
+			);
 		}
 	}
 	return false;

@@ -245,13 +245,14 @@ For each user submission:
 Long sessions accumulate tool outputs and can exceed the model context window. **CompactMessagesNode** runs after message assembly and before the model turn:
 
 1. **Budget** — target prompt tokens ≈ 75% of the known context window (Vercel catalog when available; otherwise a 128k default). Override ratio with `TOBY_COMPACTION_TARGET_RATIO`. Disable entirely with `TOBY_DISABLE_COMPACTION=1`.
-2. **Tiered reclaim (Phase 1, zero-LLM)** — if over budget:
+2. **Tiered reclaim (zero-LLM)** — if over budget:
    - **Clamp** oversized assistant text / tool-call args (head + tail with a `[clamped: …]` marker).
+   - **Dedupe superseded reads** — when the same resource is re-fetched (e.g. same `fetchWebContent` URL, email UID, Jira issue), blank older results and keep the newest. Keyed via [`result-keys.ts`](../packages/core/src/chat-pipeline/compaction/result-keys.ts); unknown tools are left alone.
    - **Clear old tool results** — blank oldest tool result payloads, keep the most recent pairs (default 6). Never clears `askUser` or core memory write tools. Skips clears that reclaim fewer than ~3k tokens (prompt-cache tradeoff).
 3. **Persistence** — compacted model history is written via `replaceSessionMessages` so the next load does not rehydrate full bloat. The UI transcript is left unchanged. Persist append index is updated so only new response messages are appended.
 4. **Observability** — `lifecycle_*` events and an optional `transcript_notice`; session log category `compaction`.
 
-Implementation: [`packages/core/src/chat-pipeline/compaction/`](../packages/core/src/chat-pipeline/compaction/). Future tiers (dedupe repeated reads, LLM summarize, limit warner) are planned but not yet enabled.
+Implementation: [`packages/core/src/chat-pipeline/compaction/`](../packages/core/src/chat-pipeline/compaction/). Future tiers (LLM summarize, limit warner) are planned but not yet enabled.
 
 ### Tool result cache (read-only tools)
 

@@ -12,12 +12,18 @@ import type { AssembledTurn, PipelineNode } from "../pipeline";
 
 function summarizeCompactionActions(params: {
 	readonly clampedParts: number;
+	readonly dedupedToolResults: number;
 	readonly clearedToolResults: number;
 }): string {
 	const bits: string[] = [];
 	if (params.clampedParts > 0) {
 		bits.push(
 			`clamped ${params.clampedParts} oversized part${params.clampedParts === 1 ? "" : "s"}`,
+		);
+	}
+	if (params.dedupedToolResults > 0) {
+		bits.push(
+			`deduped ${params.dedupedToolResults} superseded result${params.dedupedToolResults === 1 ? "" : "s"}`,
 		);
 	}
 	if (params.clearedToolResults > 0) {
@@ -30,7 +36,7 @@ function summarizeCompactionActions(params: {
 
 /**
  * CompactMessagesNode — keep assembled history under a prompt token budget
- * before the model turn. Zero-LLM strategies only (Phase 1).
+ * before the model turn. Zero-LLM strategies (clamp, dedupe, clear).
  */
 export const compactMessagesNode: PipelineNode<AssembledTurn, AssembledTurn> = {
 	name: "compact-messages",
@@ -70,6 +76,7 @@ export const compactMessagesNode: PipelineNode<AssembledTurn, AssembledTurn> = {
 			const result = applyTieredCompaction(input.messages, config);
 			const actions = summarizeCompactionActions({
 				clampedParts: result.clampedParts,
+				dedupedToolResults: result.dedupedToolResults,
 				clearedToolResults: result.clearedToolResults,
 			});
 			const detail = result.changed
@@ -100,6 +107,7 @@ export const compactMessagesNode: PipelineNode<AssembledTurn, AssembledTurn> = {
 				contextWindowTokens: contextWindowTokens ?? null,
 				strategiesApplied: result.strategiesApplied,
 				clampedParts: result.clampedParts,
+				dedupedToolResults: result.dedupedToolResults,
 				clearedToolResults: result.clearedToolResults,
 				changed: result.changed,
 			});

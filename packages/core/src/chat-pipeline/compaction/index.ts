@@ -23,6 +23,12 @@ export {
 	clearOldToolResults,
 } from "./clear-tool-results";
 export {
+	type DedupeToolResultsOptions,
+	type DedupeToolResultsResult,
+	SUPERSEDED_TOOL_RESULT_PLACEHOLDER,
+	dedupeSupersededToolResults,
+} from "./dedupe-results";
+export {
 	estimateMessageTokens,
 	estimateMessagesTokens,
 	estimateTextTokens,
@@ -36,6 +42,7 @@ export {
 	isToolCallPart,
 	isToolResultPart,
 } from "./pairing";
+export { resultKey } from "./result-keys";
 export {
 	type CompactionStrategyName,
 	type TieredCompactionResult,

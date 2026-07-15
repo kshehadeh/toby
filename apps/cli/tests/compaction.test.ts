@@ -1,13 +1,16 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import type { CoreMessage } from "@toby/core/ai/chat";
 import {
+	SUPERSEDED_TOOL_RESULT_PLACEHOLDER,
 	applyTieredCompaction,
 	clampOversizedMessages,
 	clearOldToolResults,
 	countOrphanToolParts,
+	dedupeSupersededToolResults,
 	estimateMessagesTokens,
 	estimateTextTokens,
 	resolveCompactionConfig,
+	resultKey,
 } from "@toby/core/chat-pipeline/compaction";
 
 afterEach(() => {
@@ -249,6 +252,144 @@ describe("clearOldToolResults", () => {
 	});
 });
 
+describe("resultKey", () => {
+	it("keys fetchWebContent by normalized URL", () => {
+		expect(
+			resultKey("fetchWebContent", {
+				url: "https://Example.COM/path#frag",
+			}),
+		).toBe("fetchWebContent:https://example.com/path");
+	});
+
+	it("keys email body by mailbox + uid", () => {
+		expect(resultKey("getEmailBody", { uid: 42, mailbox: "INBOX" })).toBe(
+			"getEmailBody:INBOX:42",
+		);
+	});
+
+	it("keys jira issues case-insensitively", () => {
+		expect(resultKey("getJiraIssue", { issueKey: "proj-1" })).toBe(
+			"getJiraIssue:PROJ-1",
+		);
+	});
+
+	it("returns null for unknown tools without strong args", () => {
+		expect(resultKey("completeTask", { taskId: "1" })).toBeNull();
+		expect(resultKey("mysteryTool", { foo: "bar" })).toBeNull();
+	});
+
+	it("uses generic path fallback", () => {
+		expect(resultKey("readSomething", { path: "/tmp/a.md" })).toBe(
+			"readSomething:/tmp/a.md",
+		);
+	});
+});
+
+describe("dedupeSupersededToolResults", () => {
+	it("blanks earlier results for the same resource, keeps the newest", () => {
+		const messages: CoreMessage[] = [
+			{ role: "user", content: "read the page twice" },
+			{
+				role: "assistant",
+				content: [
+					toolCall("c1", "fetchWebContent", { url: "https://example.com/a" }),
+				],
+			},
+			{
+				role: "tool",
+				content: [toolResult("c1", "fetchWebContent", bigPayload(20_000))],
+			},
+			{
+				role: "assistant",
+				content: [
+					toolCall("c2", "fetchWebContent", { url: "https://example.com/a" }),
+				],
+			},
+			{
+				role: "tool",
+				content: [
+					toolResult("c2", "fetchWebContent", `${bigPayload(20_000)}NEW`),
+				],
+			},
+		];
+		const result = dedupeSupersededToolResults(messages, {
+			minClearTokens: 100,
+			neverClearTools: new Set(),
+			clearedPlaceholder: "[tool result cleared]",
+		});
+		expect(result.changed).toBe(true);
+		expect(result.dedupedCount).toBe(1);
+		const first = (
+			result.messages[2]?.content as Array<{ output: { value: string } }>
+		)[0];
+		const second = (
+			result.messages[4]?.content as Array<{ output: { value: string } }>
+		)[0];
+		expect(first?.output?.value).toContain("[superseded tool result");
+		expect(second?.output?.value).toBe(`${bigPayload(20_000)}NEW`);
+		expect(countOrphanToolParts(result.messages)).toBe(0);
+	});
+
+	it("does not dedupe different resources", () => {
+		const messages: CoreMessage[] = [
+			{
+				role: "assistant",
+				content: [
+					toolCall("c1", "fetchWebContent", { url: "https://example.com/a" }),
+				],
+			},
+			{
+				role: "tool",
+				content: [toolResult("c1", "fetchWebContent", bigPayload(20_000))],
+			},
+			{
+				role: "assistant",
+				content: [
+					toolCall("c2", "fetchWebContent", { url: "https://example.com/b" }),
+				],
+			},
+			{
+				role: "tool",
+				content: [toolResult("c2", "fetchWebContent", bigPayload(20_000))],
+			},
+		];
+		const result = dedupeSupersededToolResults(messages, {
+			minClearTokens: 100,
+			neverClearTools: new Set(),
+			clearedPlaceholder: "[tool result cleared]",
+		});
+		expect(result.changed).toBe(false);
+		expect(result.dedupedCount).toBe(0);
+	});
+
+	it("never dedupes askUser", () => {
+		const messages: CoreMessage[] = [
+			{
+				role: "assistant",
+				content: [toolCall("a1", "askUser", { query: "ok?" })],
+			},
+			{
+				role: "tool",
+				content: [toolResult("a1", "askUser", bigPayload(20_000))],
+			},
+			{
+				role: "assistant",
+				content: [toolCall("a2", "askUser", { query: "ok?" })],
+			},
+			{
+				role: "tool",
+				content: [toolResult("a2", "askUser", bigPayload(20_000))],
+			},
+		];
+		const result = dedupeSupersededToolResults(messages, {
+			minClearTokens: 100,
+			neverClearTools: new Set(["askUser"]),
+			clearedPlaceholder: "[tool result cleared]",
+		});
+		expect(result.changed).toBe(false);
+	});
+});
+
 describe("applyTieredCompaction", () => {
 	it("no-ops when under target", () => {
 		const messages: CoreMessage[] = [
@@ -290,5 +431,52 @@ describe("applyTieredCompaction", () => {
 		expect(result.strategiesApplied).toContain("clear_tool_results");
 		expect(result.tokensAfter).toBeLessThan(result.tokensBefore);
 		expect(countOrphanToolParts(result.messages)).toBe(0);
+	});
+
+	it("dedupes before clear when the same resource is re-fetched", () => {
+		const messages: CoreMessage[] = [
+			{ role: "system", content: "sys" },
+			{ role: "user", content: "go" },
+		];
+		// Three fetches of the same URL — only newest should remain full after dedupe.
+		for (let i = 0; i < 3; i++) {
+			messages.push({
+				role: "assistant",
+				content: [
+					toolCall(`c${i}`, "fetchWebContent", {
+						url: "https://example.com/doc",
+					}),
+				],
+			});
+			messages.push({
+				role: "tool",
+				content: [
+					toolResult(
+						`c${i}`,
+						"fetchWebContent",
+						bigPayload(50_000) + String(i),
+					),
+				],
+			});
+		}
+		const config = {
+			...resolveCompactionConfig({ contextWindowTokens: 10_000 }),
+			targetPromptTokens: 5_000,
+			minClearTokens: 100,
+			keepPairs: 6,
+		};
+		const result = applyTieredCompaction(messages, config);
+		expect(result.changed).toBe(true);
+		expect(result.strategiesApplied).toContain("dedupe_results");
+		expect(result.dedupedToolResults).toBe(2);
+		// Newest payload still present
+		const lastTool = result.messages[result.messages.length - 1];
+		const part = (
+			lastTool?.content as Array<{ output: { value: string } }>
+		)?.[0];
+		expect(part?.output?.value).toContain("2");
+		expect(part?.output?.value).not.toContain(
+			SUPERSEDED_TOOL_RESULT_PLACEHOLDER.slice(0, 20),
+		);
 	});
 });

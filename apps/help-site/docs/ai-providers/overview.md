@@ -55,7 +55,7 @@ In chat, Toby may show context usage as `ctx N%` when it knows the selected mode
 
 ## Context compaction
 
-When a long chat approaches the model’s context limit, Toby can **automatically compact** older tool results in the model’s history so the next turn still fits. Recent tool results and your messages stay intact; large older tool dumps are replaced with a short placeholder the assistant can re-fetch if needed. The visible chat transcript is not rewritten. Compaction may briefly reduce prompt-cache reuse for that session after a rewrite.
+When a long chat approaches the model’s context limit, Toby can **automatically compact** the model’s history so the next turn still fits. It prefers cheap reclaim first: clamp runaway blobs, drop superseded re-reads of the same resource, then blank older tool dumps while keeping recent results. Your messages stay intact; the assistant can re-fetch tools if needed. The visible chat transcript is not rewritten. Compaction may briefly reduce prompt-cache reuse for that session after a rewrite.
 
 ## Auxiliary models
 
