@@ -41,6 +41,8 @@ flowchart LR
 3. **Model call** — [`packages/core/src/ai/chat.ts`](../packages/core/src/ai/chat.ts) forwards `providerOptions` to the AI SDK (`streamText` / `generateText`).
 4. **After the turn** — Callers use `extractTokenUsageReport(usage, { persona, moduleNames })` for logging and UI instead of reading `usage.inputTokenDetails` directly.
 
+**Context compaction tradeoff:** when **CompactMessagesNode** rewrites older tool results or clamps oversized parts (see [chat-pipeline.md](chat-pipeline.md#context-compaction)), the prompt prefix changes from the edit point onward and the next request typically pays a cache write rather than a full hit. Compaction skips trivial clears (`min_clear_tokens`) to avoid busting the cache for negligible reclaim.
+
 ## Provider adapters
 
 Each adapter implements [`CacheAdapter`](../packages/core/src/ai/caching/types.ts):

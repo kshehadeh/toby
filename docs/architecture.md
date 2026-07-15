@@ -58,7 +58,7 @@ configure API.
 
 ```
 packages/core/src/       # @toby/core — UI-agnostic harness
-  chat-pipeline/         # Node pipeline (turn init → expand → assemble → run → persist)
+  chat-pipeline/         # Node pipeline (turn init → expand → assemble → compact → run → persist)
   ai/                    # Shared AI helpers (chat, providers, pretreatment, replay)
   integrations/          # Integration modules + registry (see integrations.md)
   config/                # Read/write ~/.toby/config.json and credentials.json

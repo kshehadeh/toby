@@ -16,6 +16,7 @@ import {
 	listChatSessionsForProject,
 	loadChatSession,
 	renameChatSession,
+	replaceSessionMessages,
 	setPretreatmentCache,
 	setSessionContextWindow,
 } from "@toby/core/session-store";
@@ -86,6 +87,33 @@ describe.skipIf(!isBun)("chat session store", () => {
 		expect(loaded).not.toBeNull();
 		expect(loaded?.name).toBe("New chat");
 		expect(loaded?.messages).toEqual(msgs);
+		expect(loaded?.transcript).toEqual(transcript);
+	});
+
+	it("replaceSessionMessages rewrites model history without touching transcript", () => {
+		process.env.TOBY_DIR = makeTempDir();
+		const s = createChatSession({ name: "Compact me" });
+		appendMessageBatch(s.id, 0, [
+			{ role: "system", content: "sys" },
+			{ role: "user", content: "hello" },
+			{ role: "assistant", content: "long reply" },
+			{ role: "user", content: "again" },
+		]);
+		const transcript: TranscriptEntry[] = [
+			{ kind: "user", text: "hello" },
+			{ kind: "assistant", text: "long reply" },
+			{ kind: "user", text: "again" },
+		];
+		appendTranscriptBatch(s.id, 0, transcript);
+
+		const compacted: CoreMessage[] = [
+			{ role: "system", content: "sys" },
+			{ role: "user", content: "again" },
+		];
+		replaceSessionMessages(s.id, compacted);
+
+		const loaded = loadChatSession(s.id);
+		expect(loaded?.messages).toEqual(compacted);
 		expect(loaded?.transcript).toEqual(transcript);
 	});
 

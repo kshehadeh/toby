@@ -53,6 +53,10 @@ After you add credentials, persona and Settings model menus load an **up-to-date
 
 In chat, Toby may show context usage as `ctx N%` when it knows the selected model family’s context window. The estimate supports common OpenAI and gateway-routed model families, including Anthropic, Gemini, Nova, Llama, Mistral, DeepSeek, Grok, GLM, and Kimi models.
 
+## Context compaction
+
+When a long chat approaches the model’s context limit, Toby can **automatically compact** older tool results in the model’s history so the next turn still fits. Recent tool results and your messages stay intact; large older tool dumps are replaced with a short placeholder the assistant can re-fetch if needed. The visible chat transcript is not rewritten. Compaction may briefly reduce prompt-cache reuse for that session after a rewrite.
+
 ## Auxiliary models
 
 Pretreatment, planning, and other lightweight LLM steps use a smaller **auxiliary** model tied to the active persona’s provider:

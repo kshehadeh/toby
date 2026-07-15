@@ -13,6 +13,7 @@ import type { RoutingIndex } from "../routing/index";
 import type { LocalSkill } from "../skills/index";
 import type { ChatEventSink } from "./chat-events";
 import { assembleMessagesNode } from "./nodes/assemble-messages";
+import { compactMessagesNode } from "./nodes/compact-messages";
 import { expandPromptNode } from "./nodes/expand-prompt";
 import { persistTurnNode } from "./nodes/persist-turn";
 import { runModelTurnNode } from "./nodes/run-model-turn";
@@ -82,14 +83,24 @@ export type TurnContext = {
 	readonly project?: Project | null;
 	readonly persist?: {
 		readonly sessionId: string;
-		readonly startIdx: number;
+		/**
+		 * Index at which PersistTurnNode appends new messages.
+		 * CompactMessagesNode may update this after rewriting history.
+		 */
+		startIdx: number;
 	};
 	readonly emitPersistLifecycle: boolean;
 	/** Wall-clock timestamp (ms) when the turn was submitted. Used for latency logging. */
 	readonly turnStartMs?: number;
 };
 
-export type PipelineStage = "init" | "expand" | "assemble" | "run" | "persist";
+export type PipelineStage =
+	| "init"
+	| "expand"
+	| "assemble"
+	| "compact"
+	| "run"
+	| "persist";
 
 export type RunChatTurnPipelineOptions = {
 	readonly stopAfter?: PipelineStage;
@@ -100,6 +111,7 @@ export type PipelineResult =
 	| { readonly stage: "init"; readonly turn: InitedTurn }
 	| { readonly stage: "expand"; readonly turn: ExpandedTurn }
 	| { readonly stage: "assemble"; readonly turn: AssembledTurn }
+	| { readonly stage: "compact"; readonly turn: AssembledTurn }
 	| { readonly stage: "run"; readonly turn: RanTurn }
 	| { readonly stage: "persist"; readonly turn: CommittedTurn };
 
@@ -114,6 +126,7 @@ const STAGE_ORDER: readonly PipelineStage[] = [
 	"init",
 	"expand",
 	"assemble",
+	"compact",
 	"run",
 	"persist",
 ];
@@ -133,7 +146,19 @@ export async function runChatTurnPipeline(
 	const sid = ctx.persist?.sessionId ?? null;
 
 	if (options?.assembled) {
-		const ran = await runModelTurnNode.run(options.assembled, ctx);
+		const compactStart = Date.now();
+		const compacted = await compactMessagesNode.run(options.assembled, ctx);
+		const compactEnd = Date.now();
+		logWithSession(sid, undefined, "info", "turn", "stage_timing", {
+			stage: "compact",
+			durationMs: compactEnd - compactStart,
+			elapsedMs: compactEnd - turnStartMs,
+		});
+		if (stopIdx <= stageIndex("compact")) {
+			return { stage: "compact", turn: compacted };
+		}
+
+		const ran = await runModelTurnNode.run(compacted, ctx);
 		if (stopIdx <= stageIndex("run")) {
 			return { stage: "run", turn: ran };
 		}
@@ -177,8 +202,20 @@ export async function runChatTurnPipeline(
 		return { stage: "assemble", turn: assembled };
 	}
 
+	const compactStart = Date.now();
+	const compacted = await compactMessagesNode.run(assembled, ctx);
+	const compactEnd = Date.now();
+	logWithSession(sid, undefined, "info", "turn", "stage_timing", {
+		stage: "compact",
+		durationMs: compactEnd - compactStart,
+		elapsedMs: compactEnd - turnStartMs,
+	});
+	if (stopIdx <= stageIndex("compact")) {
+		return { stage: "compact", turn: compacted };
+	}
+
 	const runStart = Date.now();
-	const ran = await runModelTurnNode.run(assembled, ctx);
+	const ran = await runModelTurnNode.run(compacted, ctx);
 	const runEnd = Date.now();
 	logWithSession(sid, undefined, "info", "turn", "stage_timing", {
 		stage: "run",
@@ -201,6 +238,7 @@ export async function runChatTurnPipeline(
 
 export {
 	assembleMessagesNode,
+	compactMessagesNode,
 	expandPromptNode,
 	persistTurnNode,
 	runModelTurnNode,

@@ -1162,6 +1162,42 @@ export function appendMessageBatch(
 	tx();
 }
 
+/**
+ * Replace the full model message history for a session (used after compaction).
+ * Deletes existing rows then writes `messages` at indices 0..n-1.
+ * Does not touch the UI transcript table.
+ */
+export function replaceSessionMessages(
+	sessionId: string,
+	messages: readonly CoreMessage[],
+): void {
+	const id = sessionId.trim();
+	if (!id) return;
+	const db = getDb();
+	const del = db.query(
+		"DELETE FROM chat_session_messages WHERE session_id = $id",
+	);
+	const insert = db.query(
+		`INSERT INTO chat_session_messages (session_id, idx, role, content_json)
+     VALUES ($session_id, $idx, $role, $content_json)`,
+	);
+	const tx = db.transaction(() => {
+		del.run({ $id: id });
+		for (let i = 0; i < messages.length; i++) {
+			const m = messages[i];
+			if (!m) continue;
+			insert.run({
+				$session_id: id,
+				$idx: i,
+				$role: m.role,
+				$content_json: JSON.stringify(m.content),
+			});
+		}
+		touchChatSession(id);
+	});
+	tx();
+}
+
 export function appendTranscriptBatch(
 	sessionId: string,
 	startIdx: number,

@@ -21,7 +21,8 @@ Both the daemon API and the headless inbound path run the same **node pipeline**
 flowchart LR
   init[TurnInitNode] --> expand[ExpandPromptNode]
   expand --> assemble[AssembleMessagesNode]
-  assemble --> run[RunModelTurnNode]
+  assemble --> compact[CompactMessagesNode]
+  compact --> run[RunModelTurnNode]
   run --> persist[PersistTurnNode]
 ```
 
@@ -30,6 +31,7 @@ flowchart LR
 | **TurnInitNode** | Load skills catalog, build tool catalog, decide `shouldPretreat` | [`nodes/turn-init.ts`](../packages/core/src/chat-pipeline/nodes/turn-init.ts) |
 | **ExpandPromptNode** | Optional pretreatment; emits `prep_start` / `prep_end` | [`nodes/expand-prompt.ts`](../packages/core/src/chat-pipeline/nodes/expand-prompt.ts), [`pretreatment.ts`](../packages/core/src/ai/pretreatment.ts) |
 | **AssembleMessagesNode** | Build/append `CoreMessage[]`, inject skill bodies; emits merge `lifecycle_*` on follow-up turns | [`nodes/assemble-messages.ts`](../packages/core/src/chat-pipeline/nodes/assemble-messages.ts), [`prepare-messages.ts`](../packages/core/src/prepare-messages.ts) |
+| **CompactMessagesNode** | When estimated prompt tokens exceed a budget, clamp oversized parts and clear old tool results (persists rewrite) | [`nodes/compact-messages.ts`](../packages/core/src/chat-pipeline/nodes/compact-messages.ts), [`compaction/`](../packages/core/src/chat-pipeline/compaction/) |
 | **RunModelTurnNode** | Single fused model+tool turn (AI SDK agentic loop) | [`nodes/run-model-turn.ts`](../packages/core/src/chat-pipeline/nodes/run-model-turn.ts), [`run-turn.ts`](../packages/core/src/chat-pipeline/run-turn.ts), [`chat.ts`](../packages/core/src/ai/chat.ts) |
 | **PersistTurnNode** | Append messages to SQLite or emit save `lifecycle_*` | [`nodes/persist-turn.ts`](../packages/core/src/chat-pipeline/nodes/persist-turn.ts) |
 
@@ -229,13 +231,27 @@ The combined system prompt includes routing rules: use `webSearch` when the user
 For each user submission:
 
 1. `runChatTurnPipeline` runs **TurnInit → ExpandPrompt → AssembleMessages**.
-2. **RunModelTurnNode** calls `runIntegrationChatTurn(...)` with the full `messages` array (wiring an `AbortSignal` so the user can cancel with Escape).
-3. `runIntegrationChatTurn` resolves integration modules by name, then delegates to `runSharedChatTurn` which merges their tools, adds global tools, applies prompt caching, and calls `chatWithTools(...)`.
-4. `chatWithTools` applies `injectToolCache` (read-only tool result cache) then `injectToolLifecycleHooks` (events, callbacks, abort checks), and uses:
+2. **CompactMessagesNode** estimates prompt tokens; if over budget, applies zero-LLM compaction (see [Context compaction](#context-compaction)) and may rewrite stored model history.
+3. **RunModelTurnNode** calls `runIntegrationChatTurn(...)` with the (possibly compacted) `messages` array (wiring an `AbortSignal` so the user can cancel with Escape).
+4. `runIntegrationChatTurn` resolves integration modules by name, then delegates to `runSharedChatTurn` which merges their tools, adds global tools, applies prompt caching, and calls `chatWithTools(...)`.
+5. `chatWithTools` applies `injectToolCache` (read-only tool result cache) then `injectToolLifecycleHooks` (events, callbacks, abort checks), and uses:
   - `streamText(...)` when clients want incremental tokens, or
   - `generateText(...)` in non-streaming contexts.
-5. Tool lifecycle hooks (`onToolCallStart` / `onToolCallComplete`) and abort-signal checks are implemented by wrapping each tool’s `execute` in [`packages/core/src/ai/chat.ts`](../packages/core/src/ai/chat.ts). The `abortSignal` on `ChatWithToolsOptions` is propagated to `streamText`/`generateText` and checked before each tool execution. Optional `**onChatEvent**` emits UI-agnostic [`ChatEvent`](../packages/core/src/chat-pipeline/chat-events.ts) values (assistant segments at tool boundaries, tool start/complete, `prep_*`, `lifecycle_*` milestones, etc.).
-6. **PersistTurnNode** appends `response.messages` to session history.
+6. Tool lifecycle hooks (`onToolCallStart` / `onToolCallComplete`) and abort-signal checks are implemented by wrapping each tool’s `execute` in [`packages/core/src/ai/chat.ts`](../packages/core/src/ai/chat.ts). The `abortSignal` on `ChatWithToolsOptions` is propagated to `streamText`/`generateText` and checked before each tool execution. Optional `**onChatEvent**` emits UI-agnostic [`ChatEvent`](../packages/core/src/chat-pipeline/chat-events.ts) values (assistant segments at tool boundaries, tool start/complete, `prep_*`, `lifecycle_*` milestones, etc.).
+7. **PersistTurnNode** appends `response.messages` to session history.
+
+### Context compaction
+
+Long sessions accumulate tool outputs and can exceed the model context window. **CompactMessagesNode** runs after message assembly and before the model turn:
+
+1. **Budget** — target prompt tokens ≈ 75% of the known context window (Vercel catalog when available; otherwise a 128k default). Override ratio with `TOBY_COMPACTION_TARGET_RATIO`. Disable entirely with `TOBY_DISABLE_COMPACTION=1`.
+2. **Tiered reclaim (Phase 1, zero-LLM)** — if over budget:
+   - **Clamp** oversized assistant text / tool-call args (head + tail with a `[clamped: …]` marker).
+   - **Clear old tool results** — blank oldest tool result payloads, keep the most recent pairs (default 6). Never clears `askUser` or core memory write tools. Skips clears that reclaim fewer than ~3k tokens (prompt-cache tradeoff).
+3. **Persistence** — compacted model history is written via `replaceSessionMessages` so the next load does not rehydrate full bloat. The UI transcript is left unchanged. Persist append index is updated so only new response messages are appended.
+4. **Observability** — `lifecycle_*` events and an optional `transcript_notice`; session log category `compaction`.
+
+Implementation: [`packages/core/src/chat-pipeline/compaction/`](../packages/core/src/chat-pipeline/compaction/). Future tiers (dedupe repeated reads, LLM summarize, limit warner) are planned but not yet enabled.
 
 ### Tool result cache (read-only tools)
 

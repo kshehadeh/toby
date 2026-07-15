@@ -1,5 +1,7 @@
+import { afterEach, describe, expect, it, jest, mock, spyOn } from "bun:test";
 import type { CoreMessage } from "@toby/core/ai/chat";
 import { assembleMessagesNode } from "@toby/core/chat-pipeline/nodes/assemble-messages";
+import { compactMessagesNode } from "@toby/core/chat-pipeline/nodes/compact-messages";
 import { expandPromptNode } from "@toby/core/chat-pipeline/nodes/expand-prompt";
 import { persistTurnNode } from "@toby/core/chat-pipeline/nodes/persist-turn";
 import { runModelTurnNode } from "@toby/core/chat-pipeline/nodes/run-model-turn";
@@ -11,7 +13,6 @@ import {
 	runChatTurnPipeline,
 	withAssembledMessages,
 } from "@toby/core/chat-pipeline/pipeline";
-import { afterEach, describe, expect, it, jest, mock, spyOn } from "bun:test";
 
 afterEach(() => {
 	jest.restoreAllMocks();
@@ -88,6 +89,9 @@ describe("runChatTurnPipeline", () => {
 	});
 
 	it("runs from an assembled turn through persist", async () => {
+		const compactSpy = spyOn(compactMessagesNode, "run").mockResolvedValue(
+			assembled,
+		);
 		spyOn(runModelTurnNode, "run").mockResolvedValue(ran);
 		spyOn(persistTurnNode, "run").mockResolvedValue({
 			...ran,
@@ -99,6 +103,46 @@ describe("runChatTurnPipeline", () => {
 
 		expect(result.stage).toBe("persist");
 		expect(initSpy).not.toHaveBeenCalled();
+		expect(compactSpy).toHaveBeenCalledTimes(1);
+	});
+
+	it("runs compact between assemble and run", async () => {
+		spyOn(turnInitNode, "run").mockResolvedValue(inited);
+		spyOn(expandPromptNode, "run").mockResolvedValue(expanded);
+		spyOn(assembleMessagesNode, "run").mockResolvedValue(assembled);
+		const compactSpy = spyOn(compactMessagesNode, "run").mockResolvedValue(
+			assembled,
+		);
+		const runSpy = spyOn(runModelTurnNode, "run").mockResolvedValue(ran);
+		spyOn(persistTurnNode, "run").mockResolvedValue({
+			...ran,
+			messagesAfterTurn: [...assembled.messages, ...ran.responseMessages],
+		});
+
+		const result = await runChatTurnPipeline(request, ctx);
+
+		expect(result.stage).toBe("persist");
+		expect(compactSpy).toHaveBeenCalledTimes(1);
+		expect(runSpy).toHaveBeenCalledTimes(1);
+		// compact receives assembled output
+		expect(compactSpy.mock.calls[0]?.[0]).toBe(assembled);
+		// run receives compact output
+		expect(runSpy.mock.calls[0]?.[0]).toBe(assembled);
+	});
+
+	it("stops after compact when requested", async () => {
+		spyOn(turnInitNode, "run").mockResolvedValue(inited);
+		spyOn(expandPromptNode, "run").mockResolvedValue(expanded);
+		spyOn(assembleMessagesNode, "run").mockResolvedValue(assembled);
+		spyOn(compactMessagesNode, "run").mockResolvedValue(assembled);
+		const runSpy = spyOn(runModelTurnNode, "run");
+
+		const result = await runChatTurnPipeline(request, ctx, {
+			stopAfter: "compact",
+		});
+
+		expect(result.stage).toBe("compact");
+		expect(runSpy).not.toHaveBeenCalled();
 	});
 });
 
