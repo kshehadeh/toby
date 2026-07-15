@@ -6,11 +6,14 @@ struct ProjectsView: View {
 
 	var body: some View {
 		HStack(spacing: 0) {
+			// Flexible main pane (no minWidth) so nav/inspector stay visible when narrow.
 			projectChatArea
-				.frame(minWidth: 520, maxWidth: .infinity, maxHeight: .infinity)
+				.frame(maxWidth: .infinity, maxHeight: .infinity)
 			Divider().overlay(AppTheme.separator)
 			ProjectInspectorSidebar(store: projectsStore, chatStore: chatStore)
 				.frame(width: 320)
+				.frame(maxHeight: .infinity)
+				.layoutPriority(1)
 		}
 		.background(AppTheme.contentBackground)
 		.task {
