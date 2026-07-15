@@ -103,6 +103,7 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `GET` / `PATCH` / `DELETE` | `/api/projects/:idOrSlug` | Project detail, update, delete. |
 | `GET` | `/api/projects/:idOrSlug/tree` | Project folder tree. |
 | `GET` | `/api/releases/changelog` | Changelog / release notes payload. |
+| `GET` | `/api/logs` | Query unified log entries (filter by source/level/category/type, facets, log path). |
 | `GET` | `/api/memories` | Search or page through stored memories. |
 | `POST` | `/api/memories` | Create a manual memory. |
 | `GET` | `/api/memories/:id` | Fetch one memory item. |
@@ -165,6 +166,37 @@ type ChatStatusResponse = {
   skillCount: number;
 };
 ```
+
+### `GET /api/logs`
+
+Query the unified JSON-lines log (`~/.toby/logs/toby.log`) for Toby.app and other clients. Filtering and faceting happen on the server so the native app does not read the log file directly.
+
+| Query | Meaning |
+| --- | --- |
+| `source` | Exact match (`chat`, `daemon`, `server`, `upgrade`, `native-app`, `macos-plugin`, …) |
+| `level` | Exact match (`error`, `warn`, `info`, `debug`) |
+| `category` | Exact match on entry `category` |
+| `type` | Exact match on entry `type` |
+| `q` | Case-insensitive free-text search across level, category, type, source, sessionId, ts, and `data` |
+| `limit` | Max newest matching entries to return (default `100`, max `2000`) |
+
+```ts
+type LogQueryResult = {
+  logPath: string;
+  entries: readonly UnifiedLogEntry[]; // newest first
+  limit: number;
+  matched: number; // total matches before limit
+  hasMore: boolean;
+  facets: {
+    sources: readonly { name: string; count: number }[];
+    levels: readonly { name: string; count: number }[];
+    categories: readonly { name: string; count: number }[];
+    types: readonly { name: string; count: number }[];
+  };
+};
+```
+
+`logPath` is the absolute path of the unified log file (for “Reveal in Finder”). Facets use dimension-relaxed matching so pickers stay useful under partial filters. Implementation: [`packages/core/src/logging/query.ts`](../packages/core/src/logging/query.ts), handler [`packages/core/src/web/handlers/logs.ts`](../packages/core/src/web/handlers/logs.ts).
 
 ### `GET /api/daemon/status`
 

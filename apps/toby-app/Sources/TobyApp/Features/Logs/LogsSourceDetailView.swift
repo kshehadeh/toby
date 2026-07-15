@@ -6,52 +6,65 @@ struct LogsSourceDetailView: View {
 
 	@State private var searchText = ""
 
-	private var totalCount: Int {
-		store.entries(forSource: source).count
-	}
-
-	private var filteredCount: Int {
-		store.entries(forSource: source, matching: searchText).count
-	}
-
 	private var groups: [(level: String, entries: [UnifiedLogEntry])] {
-		store.entriesByLevel(forSource: source, matching: searchText)
+		store.entriesByLevel()
 	}
 
 	private var hasActiveSearch: Bool {
-		!searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+		!store.searchQuery.isEmpty
 	}
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
 			LogsSourceDetailHeader(
 				source: source,
-				entryCount: filteredCount,
-				totalCount: hasActiveSearch ? totalCount : nil
+				entryCount: store.entries.count,
+				matched: store.matched,
+				loadedLimit: store.loadedLimit
 			)
 			Divider()
 				.background(AppTheme.separator)
+
+			if store.showsFilterBar {
+				LogsFilterBar(store: store)
+				Divider()
+					.background(AppTheme.separator)
+			}
 
 			LogsSearchField(text: $searchText)
 				.padding(.horizontal, 16)
 				.padding(.vertical, 10)
 				.background(AppTheme.panelBackground)
+				.onChange(of: searchText) { _, newValue in
+					// Debounce lightly via Task — store coalesces identical queries.
+					store.setSearchQuery(newValue)
+				}
 
 			Divider()
 				.background(AppTheme.separator)
 
-			if totalCount == 0 {
+			if store.canLoadMore {
+				LogsLoadMoreBar(store: store)
+				Divider()
+					.background(AppTheme.separator)
+			}
+
+			if let errorMessage = store.errorMessage, store.entries.isEmpty {
+				ContentUnavailableView {
+					Label("Couldn’t load logs", systemImage: "exclamationmark.triangle")
+				} description: {
+					Text(errorMessage)
+				}
+				.frame(maxWidth: .infinity, maxHeight: .infinity)
+			} else if store.entries.isEmpty {
 				ContentUnavailableView {
 					Label("No entries", systemImage: "tray")
 				} description: {
-					Text("No log entries for this source in the last \(LogsStore.maxTailLines) lines.")
-				}
-				.frame(maxWidth: .infinity, maxHeight: .infinity)
-			} else if filteredCount == 0 {
-				ContentUnavailableView {
-					Label("No matches", systemImage: "magnifyingglass")
-				} description: {
-					Text("No entries match “\(searchText.trimmingCharacters(in: .whitespacesAndNewlines))”.")
+					if hasActiveSearch || store.filterLevel != nil || store.filterCategory != nil || store.filterType != nil {
+						Text("No entries match the current filters.")
+					} else {
+						Text("No log entries for this source.")
+					}
 				}
 				.frame(maxWidth: .infinity, maxHeight: .infinity)
 			} else {
@@ -73,6 +86,96 @@ struct LogsSourceDetailView: View {
 		.onChange(of: source) { _, _ in
 			searchText = ""
 		}
+		.onAppear {
+			searchText = store.searchQuery
+		}
+	}
+}
+
+struct LogsFilterBar: View {
+	@Bindable var store: LogsStore
+
+	var body: some View {
+		HStack(spacing: 12) {
+			if store.facets.levels.count > 1 || store.filterLevel != nil {
+				LogsFacetMenu(
+					title: "Level",
+					selection: store.filterLevel,
+					options: store.facets.levels,
+					displayName: { UnifiedLogEntry.displayName(forLevel: $0) },
+					onSelect: { store.setFilterLevel($0) }
+				)
+			}
+			if store.facets.categories.count > 1 || store.filterCategory != nil {
+				LogsFacetMenu(
+					title: "Category",
+					selection: store.filterCategory,
+					options: store.facets.categories,
+					displayName: { $0 },
+					onSelect: { store.setFilterCategory($0) }
+				)
+			}
+			if store.facets.types.count > 1 || store.filterType != nil {
+				LogsFacetMenu(
+					title: "Type",
+					selection: store.filterType,
+					options: store.facets.types,
+					displayName: { $0 },
+					onSelect: { store.setFilterType($0) }
+				)
+			}
+			Spacer(minLength: 0)
+		}
+		.padding(.horizontal, 16)
+		.padding(.vertical, 8)
+		.background(AppTheme.panelBackground)
+	}
+}
+
+struct LogsFacetMenu: View {
+	let title: String
+	let selection: String?
+	let options: [LogFacetBucket]
+	let displayName: (String) -> String
+	let onSelect: (String?) -> Void
+
+	var body: some View {
+		Menu {
+			Button("Any \(title.lowercased())") {
+				onSelect(nil)
+			}
+			Divider()
+			ForEach(options) { bucket in
+				Button {
+					onSelect(bucket.name)
+				} label: {
+					if selection == bucket.name {
+						Label("\(displayName(bucket.name)) (\(bucket.count))", systemImage: "checkmark")
+					} else {
+						Text("\(displayName(bucket.name)) (\(bucket.count))")
+					}
+				}
+			}
+		} label: {
+			HStack(spacing: 4) {
+				Text(selection.map(displayName) ?? title)
+					.font(.caption.weight(.medium))
+				Image(systemName: "chevron.down")
+					.font(.system(size: 9, weight: .semibold))
+			}
+			.foregroundStyle(selection == nil ? AppTheme.secondaryText : AppTheme.primaryText)
+			.padding(.horizontal, 8)
+			.padding(.vertical, 5)
+			.background(
+				RoundedRectangle(cornerRadius: 6)
+					.fill(AppTheme.elevatedBackground)
+			)
+			.overlay(
+				RoundedRectangle(cornerRadius: 6)
+					.strokeBorder(AppTheme.separator, lineWidth: 1)
+			)
+		}
+		.menuStyle(.borderlessButton)
 	}
 }
 
@@ -117,8 +220,8 @@ struct LogsSearchField: View {
 struct LogsSourceDetailHeader: View {
 	let source: String
 	let entryCount: Int
-	/// When non-nil, shown as "N of M entries" during an active search.
-	var totalCount: Int? = nil
+	var matched: Int = 0
+	var loadedLimit: Int = LogsStore.pageSize
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 2) {
@@ -138,10 +241,10 @@ struct LogsSourceDetailHeader: View {
 
 	private var subtitle: String {
 		let noun = entryCount == 1 ? "entry" : "entries"
-		if let totalCount {
-			return "\(entryCount) of \(totalCount) \(totalCount == 1 ? "entry" : "entries") · last \(LogsStore.maxTailLines) lines · source “\(source)”"
+		if matched > entryCount {
+			return "\(entryCount) of \(matched) \(matched == 1 ? "entry" : "entries") · source “\(source)”"
 		}
-		return "\(entryCount) \(noun) · last \(LogsStore.maxTailLines) lines · source “\(source)”"
+		return "\(entryCount) \(noun) · source “\(source)”"
 	}
 }
 

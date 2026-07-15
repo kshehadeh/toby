@@ -1,300 +1,215 @@
 import Foundation
 
-enum LogsSelection: Hashable, Sendable {
-	case raw(LogsStore.LogDescriptor)
-	case source(String)
-}
-
 @Observable
 @MainActor
 final class LogsStore {
-	struct LogDescriptor: Identifiable, Hashable, Sendable {
-		let id: String
-		let displayName: String
-		let fileName: String
-		let url: URL
+	/// Page size for initial load and each “Load more”.
+	static let pageSize = 100
 
-		var exists: Bool { FileManager.default.fileExists(atPath: url.path) }
-	}
-
-	var availableLogs: [LogDescriptor] = []
-	/// Currently selected sidebar item (raw file or parsed source).
-	var selection: LogsSelection?
-	var content: String = "" {
-		didSet { reparseContent() }
-	}
+	/// Selected source in the sidebar (`nil` = none).
+	var selectedSource: String?
+	/// Entries for the current filters (newest first, already filtered by server).
+	var entries: [UnifiedLogEntry] = []
+	var facets: LogFacets = .empty
+	/// Absolute path of the unified log file (from API).
+	var logPath: String?
 	var isLoading = false
-	/// Structured entries for the Sources UI (from the tailed lines only).
-	var parsedEntries: [UnifiedLogEntry] = []
-	var discoveredSources: [String] = []
+	var errorMessage: String?
+	var hasLoadedOnce = false
 
-	/// Max lines loaded from disk (like `tail -n`). Shared by Raw and Sources.
-	static let maxTailLines = 1000
-	/// Secondary filter for Sources: drop entries older than this within the tailed window.
-	static let sourceLookbackInterval: TimeInterval = 24 * 60 * 60
+	/// Optional facet filters applied as query params.
+	var filterLevel: String?
+	var filterCategory: String?
+	var filterType: String?
+	/// Free-text search (`q` query param).
+	var searchQuery: String = ""
 
-	/// Back-compat for older call sites / tests that used `selectedLog`.
-	var selectedLog: LogDescriptor? {
-		if case let .raw(log) = selection { return log }
-		return nil
+	/// Current limit window sent to the API.
+	var loadedLimit: Int = LogsStore.pageSize
+	var matched: Int = 0
+	var hasMore = false
+
+	var canLoadMore: Bool { hasMore }
+
+	/// Sources for the sidebar (from facets).
+	var discoveredSources: [String] {
+		facets.sources.map(\.name)
 	}
 
-	/// Absolute path of the tailed log file (for Reveal in Finder).
-	var logFilePath: String? {
-		if let tailedLog { return tailedLog.url.path }
-		return availableLogs.first?.url.path
-	}
-
-	/// Directory containing the log file.
-	var logDirectoryPath: String? {
-		guard let logFilePath else { return nil }
-		return URL(fileURLWithPath: logFilePath).deletingLastPathComponent().path
+	/// Whether the level/category/type filter menus should be shown.
+	var showsFilterBar: Bool {
+		facets.levels.count > 1 || filterLevel != nil
+			|| facets.categories.count > 1 || filterCategory != nil
+			|| facets.types.count > 1 || filterType != nil
 	}
 
 	private var pollTask: Task<Void, Never>?
-	private var lastFileSize: UInt64 = 0
+	private var fetchGeneration = 0
+	private let client: LogsFetching
 
-	private var directoryURL: URL?
-	/// URL of the file currently being tailed (raw selection or shared unified log).
-	private var tailedLog: LogDescriptor?
-
-	init(directoryURL: URL? = nil) {
-		self.directoryURL = directoryURL
-	}
-
-	static let knownLogs: [(name: String, relativeComponents: [String])] = [
-		("Toby", ["logs", "toby.log"]),
-	]
-
-	func refreshAvailableLogs() {
-		guard let directoryURL else {
-			availableLogs = []
-			selection = nil
-			tailedLog = nil
-			content = ""
-			return
-		}
-		availableLogs = Self.knownLogs.compactMap { (name, components) in
-			let url = components.reduce(directoryURL) { $0.appendingPathComponent($1) }
-			guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-			let fileName = components.joined(separator: "/")
-			return LogDescriptor(id: fileName, displayName: name, fileName: fileName, url: url)
-		}
-	}
-
-	func setDirectory(path: String?) {
-		guard let path, !path.isEmpty else {
-			if directoryURL != nil {
-				directoryURL = nil
-				selection = nil
-				tailedLog = nil
-				content = ""
-				refreshAvailableLogs()
-			}
-			return
-		}
-
-		let nextURL = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
-		guard directoryURL != nextURL else { return }
-		directoryURL = nextURL
-		selection = nil
-		tailedLog = nil
-		content = ""
-		refreshAvailableLogs()
-	}
-
-	func selectLog(_ log: LogDescriptor) {
-		selection = .raw(log)
-		beginTailing(log)
+	init(client: LogsFetching = TobyClient()) {
+		self.client = client
 	}
 
 	func selectSource(_ source: String) {
-		selection = .source(source)
-		// Keep tailing the unified log so sources stay live; prefer current tailed
-		// log or the first available log file.
-		if tailedLog != nil {
-			// Already tailing — just update selection; content/poll continue.
-			if pollTask == nil {
-				startPolling()
-			}
-			return
-		}
-		if let log = availableLogs.first {
-			beginTailing(log)
-		}
+		if selectedSource == source { return }
+		selectedSource = source
+		// Reset expansion and secondary filters when switching sources.
+		filterLevel = nil
+		filterCategory = nil
+		filterType = nil
+		searchQuery = ""
+		loadedLimit = Self.pageSize
+		Task { await refresh() }
 	}
 
-	func stopPolling() {
-		cancelPolling()
+	func setSearchQuery(_ query: String) {
+		let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard searchQuery != trimmed else { return }
+		searchQuery = trimmed
+		loadedLimit = Self.pageSize
+		Task { await refresh() }
 	}
 
-	/// Re-scan available logs and re-read the last `maxTailLines` from disk.
+	func setFilterLevel(_ level: String?) {
+		let next = level?.trimmingCharacters(in: .whitespacesAndNewlines)
+		let normalized = (next?.isEmpty == false) ? next : nil
+		guard filterLevel != normalized else { return }
+		filterLevel = normalized
+		loadedLimit = Self.pageSize
+		Task { await refresh() }
+	}
+
+	func setFilterCategory(_ category: String?) {
+		let next = category?.trimmingCharacters(in: .whitespacesAndNewlines)
+		let normalized = (next?.isEmpty == false) ? next : nil
+		guard filterCategory != normalized else { return }
+		filterCategory = normalized
+		loadedLimit = Self.pageSize
+		Task { await refresh() }
+	}
+
+	func setFilterType(_ type: String?) {
+		let next = type?.trimmingCharacters(in: .whitespacesAndNewlines)
+		let normalized = (next?.isEmpty == false) ? next : nil
+		guard filterType != normalized else { return }
+		filterType = normalized
+		loadedLimit = Self.pageSize
+		Task { await refresh() }
+	}
+
+	func loadMoreLines() {
+		guard canLoadMore else { return }
+		loadedLimit += Self.pageSize
+		Task { await refresh() }
+	}
+
+	/// Refresh from the daemon; also used by the toolbar button.
 	func refreshFromDisk() {
-		refreshAvailableLogs()
-		if tailedLog == nil {
-			if let log = availableLogs.first {
-				beginTailing(log)
-			}
-			return
-		}
-		// Prefer the same file if it still exists; otherwise switch to first available.
-		if let current = tailedLog, current.exists {
-			loadInitialTail()
-		} else if let log = availableLogs.first {
-			beginTailing(log)
-		} else {
-			tailedLog = nil
-			content = ""
-			lastFileSize = 0
-		}
+		Task { await refresh() }
 	}
 
-	func loadInitialTail() {
-		guard let log = tailedLog else { return }
-		guard let attrs = try? FileManager.default.attributesOfItem(atPath: log.url.path),
-		      let fileSize = attrs[.size] as? UInt64 else { return }
-
-		lastFileSize = fileSize
-		// Assign even when text is unchanged so reparse still runs if only mtime changed
-		// with identical content — use a force path when content is equal.
-		let next = Self.readLastLines(from: log.url, maxLines: Self.maxTailLines)
-		if next == content {
-			// didSet won't fire; reparse explicitly so Sources stay in sync.
-			reparseContent()
-		} else {
-			content = next
-		}
-	}
-
-	func entries(forSource source: String, matching search: String = "") -> [UnifiedLogEntry] {
-		let base = parsedEntries.filter { $0.source == source }
-		let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
-		guard !query.isEmpty else { return base }
-		return base.filter { $0.matches(search: query) }
-	}
-
-	/// Entries for a source grouped by level (severity order). Empty levels omitted.
-	/// Within each level, newest first. Optional `search` filters entries before grouping.
-	func entriesByLevel(
-		forSource source: String,
-		matching search: String = ""
-	) -> [(level: String, entries: [UnifiedLogEntry])] {
-		let filtered = entries(forSource: source, matching: search)
-		var buckets: [String: [UnifiedLogEntry]] = [:]
-		for entry in filtered {
-			buckets[entry.level, default: []].append(entry)
-		}
-		return UnifiedLogEntry.levelOrder.compactMap { level in
-			guard var list = buckets[level], !list.isEmpty else { return nil }
-			list.sort { lhs, rhs in
-				// Newest first by parsed date when available, else by ts string.
-				let ld = lhs.parsedDate
-				let rd = rhs.parsedDate
-				if let ld, let rd { return ld > rd }
-				return lhs.ts > rhs.ts
-			}
-			return (level: level, entries: list)
-		}
-	}
-
-	func checkForUpdates() {
-		guard let log = tailedLog else { return }
-		guard let attrs = try? FileManager.default.attributesOfItem(atPath: log.url.path),
-		      let fileSize = attrs[.size] as? UInt64 else { return }
-
-		// Any size change (append or rotation): re-tail last N lines so content never grows.
-		if fileSize != lastFileSize {
-			loadInitialTail()
-		}
-	}
-
-	/// Read the last `maxLines` newline-delimited lines from `url` (like `tail -n`).
-	/// Scans backward from EOF so large files do not need a full in-memory load.
-	static func readLastLines(from url: URL, maxLines: Int) -> String {
-		guard maxLines > 0 else { return "" }
-		guard let handle = try? FileHandle(forReadingFrom: url) else { return "" }
-		defer { try? handle.close() }
-
-		let fileSize: UInt64
-		do {
-			fileSize = try handle.seekToEnd()
-		} catch {
-			return ""
-		}
-		if fileSize == 0 { return "" }
-
-		let chunkSize: UInt64 = 8_192
-		var collected = Data()
-		var pos = fileSize
-		var newlineCount = 0
-
-		while pos > 0 && newlineCount <= maxLines {
-			let size = min(chunkSize, pos)
-			pos -= size
-			do {
-				try handle.seek(toOffset: pos)
-			} catch {
-				break
-			}
-			guard let chunk = try? handle.read(upToCount: Int(size)), !chunk.isEmpty else { break }
-			collected.insert(contentsOf: chunk, at: 0)
-			newlineCount = collected.reduce(into: 0) { count, byte in
-				if byte == 0x0A { count += 1 }
-			}
-		}
-
-		guard var text = String(data: collected, encoding: .utf8) else {
-			return ""
-		}
-
-		// If we did not start at byte 0, the first line may be partial — drop it.
-		if pos > 0, let idx = text.firstIndex(of: "\n") {
-			text = String(text[text.index(after: idx)...])
-		}
-
-		var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-		if lines.last == "" {
-			lines.removeLast()
-		}
-		if lines.count > maxLines {
-			lines = Array(lines.suffix(maxLines))
-		}
-		guard !lines.isEmpty else { return "" }
-		return lines.joined(separator: "\n") + "\n"
-	}
-
-	// MARK: - Private
-
-	private func beginTailing(_ log: LogDescriptor) {
-		cancelPolling()
-		tailedLog = log
-		content = ""
-		lastFileSize = 0
-		loadInitialTail()
-		startPolling()
-	}
-
-	private func reparseContent() {
-		// Parse only the tailed window; also drop entries older than the lookback.
-		let since = Date().addingTimeInterval(-Self.sourceLookbackInterval)
-		let entries = UnifiedLogEntry.parseJSONL(content, since: since)
-		parsedEntries = entries
-		let sources = Set(entries.map(\.source))
-		discoveredSources = UnifiedLogEntry.sortSources(Array(sources))
-	}
-
-	private func startPolling() {
+	func startPolling() {
+		guard pollTask == nil else { return }
 		pollTask = Task { [weak self] in
 			while !Task.isCancelled {
 				try? await Task.sleep(nanoseconds: 1_000_000_000)
 				guard let self else { return }
-				self.checkForUpdates()
+				await self.refresh(isPoll: true)
 			}
 		}
 	}
 
-	private func cancelPolling() {
+	func stopPolling() {
 		pollTask?.cancel()
 		pollTask = nil
 	}
+
+	/// Entries for the selected source already match server-side; grouping helper for UI.
+	func entriesByLevel() -> [(level: String, entries: [UnifiedLogEntry])] {
+		var buckets: [String: [UnifiedLogEntry]] = [:]
+		for entry in entries {
+			buckets[entry.level, default: []].append(entry)
+		}
+		return UnifiedLogEntry.levelOrder.compactMap { level in
+			guard let list = buckets[level], !list.isEmpty else { return nil }
+			// Server already returns newest first; preserve that within each level.
+			return (level: level, entries: list)
+		}
+	}
+
+	func entryCount(forSource source: String) -> Int {
+		facets.sources.first(where: { $0.name == source })?.count ?? 0
+	}
+
+	func refresh(isPoll: Bool = false) async {
+		if !isPoll {
+			isLoading = true
+		}
+		fetchGeneration += 1
+		let generation = fetchGeneration
+		errorMessage = nil
+
+		do {
+			let response = try await client.fetchLogs(
+				source: selectedSource,
+				level: filterLevel,
+				category: filterCategory,
+				type: filterType,
+				query: searchQuery.isEmpty ? nil : searchQuery,
+				limit: loadedLimit
+			)
+			guard generation == fetchGeneration else { return }
+			apply(response)
+			hasLoadedOnce = true
+			errorMessage = nil
+		} catch {
+			guard generation == fetchGeneration else { return }
+			// Keep previous content on poll failures; surface error on first load or explicit refresh.
+			if !isPoll || !hasLoadedOnce {
+				errorMessage = error.localizedDescription
+				hasLoadedOnce = true
+			}
+		}
+
+		if !isPoll {
+			isLoading = false
+		}
+	}
+
+	/// Initial load + auto-select first source if needed.
+	func ensureLoaded() async {
+		startPolling()
+		await refresh()
+		if selectedSource == nil, let first = discoveredSources.first {
+			selectedSource = first
+			await refresh()
+		}
+	}
+
+	// MARK: - Private
+
+	private func apply(_ response: LogsListResponse) {
+		logPath = response.logPath
+		entries = response.entries
+		facets = response.facets
+		matched = response.matched
+		hasMore = response.hasMore
+		// Keep loadedLimit as requested; server may return fewer when exhausted.
+	}
 }
+
+/// Protocol so tests can inject a fake client.
+@MainActor
+protocol LogsFetching {
+	func fetchLogs(
+		source: String?,
+		level: String?,
+		category: String?,
+		type: String?,
+		query: String?,
+		limit: Int
+	) async throws -> LogsListResponse
+}
+
+extension TobyClient: LogsFetching {}

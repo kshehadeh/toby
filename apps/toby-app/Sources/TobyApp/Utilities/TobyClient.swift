@@ -740,6 +740,47 @@ struct TobyClient {
 		try validate(response: response, data: data)
 		return try JSONDecoder().decode(ChangelogResponse.self, from: data)
 	}
+
+	/// Query unified log entries via the daemon (`GET /api/logs`).
+	func fetchLogs(
+		source: String? = nil,
+		level: String? = nil,
+		category: String? = nil,
+		type: String? = nil,
+		query: String? = nil,
+		limit: Int = 100
+	) async throws -> LogsListResponse {
+		var components = URLComponents(
+			url: baseURL.appendingPathComponent("api/logs"),
+			resolvingAgainstBaseURL: false,
+		)!
+		var items: [URLQueryItem] = [
+			URLQueryItem(name: "limit", value: String(max(1, min(limit, 2000)))),
+		]
+		if let source, !source.isEmpty {
+			items.append(URLQueryItem(name: "source", value: source))
+		}
+		if let level, !level.isEmpty {
+			items.append(URLQueryItem(name: "level", value: level))
+		}
+		if let category, !category.isEmpty {
+			items.append(URLQueryItem(name: "category", value: category))
+		}
+		if let type, !type.isEmpty {
+			items.append(URLQueryItem(name: "type", value: type))
+		}
+		if let query {
+			let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+			if !trimmed.isEmpty {
+				items.append(URLQueryItem(name: "q", value: trimmed))
+			}
+		}
+		components.queryItems = items
+		let (data, response) = try await URLSession.shared.data(from: components.url!)
+		try validate(response: response, data: data)
+		return try LogsListParser.parse(data)
+	}
+
 	func fetchPlugins() async throws -> PluginsListResponse {
 		let url = baseURL.appendingPathComponent("api/plugins")
 		let (data, response) = try await URLSession.shared.data(from: url)

@@ -60,6 +60,7 @@ import {
 	handleListenStatus,
 	handleListenStop,
 } from "./handlers/listen";
+import { handleLogsList } from "./handlers/logs";
 import {
 	handleMemoriesList,
 	handleMemoryCreate,
@@ -288,6 +289,9 @@ export async function handleWebRequest(
 		}
 		if (pathname === "/api/releases/changelog" && req.method === "GET") {
 			return handleChangelog(url);
+		}
+		if (pathname === "/api/logs" && req.method === "GET") {
+			return handleLogsList(url);
 		}
 		if (pathname === "/api/plugins" && req.method === "GET") {
 			return handlePluginsList();

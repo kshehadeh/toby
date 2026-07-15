@@ -104,7 +104,7 @@ struct TobyApp: App {
 		.commandsRemoved()
 
 		Window("Logs", id: "logs") {
-			LogsView(store: logsStore, tobyDirectory: store.status?.tobyDir)
+			LogsView(store: logsStore)
 				.tobyAppearance(appearancePreferences)
 				.onDisappear {
 					logsStore.stopPolling()

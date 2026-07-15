@@ -13,6 +13,7 @@ import type {
 import type { ChatEvent } from "../chat-pipeline/chat-events";
 import type { CreateIssueInput, CreateIssueResult } from "../issues/github";
 import type { ListenTranscriptionResponse } from "../listen/types";
+import type { LogQueryFilters, LogQueryResult } from "../logging/query";
 import type { ServerEventLog } from "./server-event-log";
 
 export type TobyClientOptions = {
@@ -77,6 +78,20 @@ export class TobyDaemonClient {
 
 	async fetchStatus(): Promise<ChatStatusResponse> {
 		return this.json<ChatStatusResponse>("/api/status");
+	}
+
+	async fetchLogs(filters: LogQueryFilters = {}): Promise<LogQueryResult> {
+		const params = new URLSearchParams();
+		if (filters.source) params.set("source", filters.source);
+		if (filters.level) params.set("level", filters.level);
+		if (filters.category) params.set("category", filters.category);
+		if (filters.type) params.set("type", filters.type);
+		if (filters.q) params.set("q", filters.q);
+		if (filters.limit !== undefined) {
+			params.set("limit", String(filters.limit));
+		}
+		const qs = params.toString();
+		return this.json<LogQueryResult>(`/api/logs${qs ? `?${qs}` : ""}`);
 	}
 
 	async createIssue(input: CreateIssueInput): Promise<CreateIssueResult> {
