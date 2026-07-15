@@ -2,6 +2,8 @@ import SwiftUI
 
 struct PersonaPickerPopover: View {
 	let currentPersona: String?
+	/// When true (e.g. onboarding), pulse-highlight the create action.
+	var emphasizeCreate: Bool = false
 	let onCreatePersona: () -> Void
 	let onEditPersona: (String) -> Void
 	let onPersonaSelected: () -> Void
@@ -11,6 +13,7 @@ struct PersonaPickerPopover: View {
 	@State private var isSaving = false
 	@State private var errorMessage: String?
 	@State private var hoveredPersonaId: String?
+	@State private var createPulse = false
 
 	private let client = TobyClient()
 
@@ -55,8 +58,31 @@ struct PersonaPickerPopover: View {
 					.contentShape(Rectangle())
 			}
 			.buttonStyle(.plain)
-			.padding(.horizontal, 6)
-			.padding(.vertical, 5)
+			.padding(.horizontal, 8)
+			.padding(.vertical, 7)
+			.background(
+				RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
+					.fill(emphasizeCreate ? AppTheme.accent.opacity(createPulse ? 0.22 : 0.12) : Color.clear)
+			)
+			.overlay {
+				RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
+					.stroke(
+						emphasizeCreate ? AppTheme.accent.opacity(createPulse ? 0.95 : 0.40) : Color.clear,
+						lineWidth: emphasizeCreate ? 1.5 : 0
+					)
+					.shadow(
+						color: emphasizeCreate ? AppTheme.accent.opacity(createPulse ? 0.55 : 0.20) : .clear,
+						radius: createPulse ? 10 : 4
+					)
+			}
+			.scaleEffect(emphasizeCreate && createPulse ? 1.02 : 1.0)
+			.animation(
+				emphasizeCreate
+					? .easeInOut(duration: 0.85).repeatForever(autoreverses: true)
+					: .default,
+				value: createPulse
+			)
+			.accessibilityIdentifier("persona-picker-add-new")
 
 			if let errorMessage {
 				Text(errorMessage)
@@ -69,6 +95,13 @@ struct PersonaPickerPopover: View {
 		.frame(width: 260)
 		.task {
 			await loadPersonas()
+		}
+		.onAppear {
+			guard emphasizeCreate else { return }
+			createPulse = false
+			DispatchQueue.main.async {
+				createPulse = true
+			}
 		}
 	}
 

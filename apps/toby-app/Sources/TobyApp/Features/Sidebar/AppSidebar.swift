@@ -30,6 +30,9 @@ struct AppSidebar<Content: View>: View {
 	var serverLifecycleMessage: String? = nil
 	let updateStore: UpdateStore?
 	let onSelectRoute: (DetailRoute) -> Void
+	@Binding var isPersonaPickerPresented: Bool
+	var isPersonaAttentionHighlighted: Bool = false
+	var emphasizeCreatePersona: Bool = false
 	let onCreatePersona: () -> Void
 	let onEditPersona: (String) -> Void
 	let onPersonaSelected: () -> Void
@@ -153,6 +156,9 @@ struct AppSidebar<Content: View>: View {
 				.padding(.vertical, 2)
 			SidebarFooter(
 				status: status,
+				isPersonaPickerPresented: $isPersonaPickerPresented,
+				isAttentionHighlighted: isPersonaAttentionHighlighted,
+				emphasizeCreatePersona: emphasizeCreatePersona,
 				onCreatePersona: onCreatePersona,
 				onEditPersona: onEditPersona,
 				onPersonaSelected: onPersonaSelected,

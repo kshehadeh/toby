@@ -226,6 +226,165 @@ struct DashboardViewTests {
 			try card.inspect().find(text: "Pick the model that powers Toby")
 		}
 	}
+
+	@Test("dashboard hides onboarding until ready even when checklist incomplete")
+	func dashboardHidesOnboardingUntilReady() throws {
+		let incomplete = OnboardingChecklist.make(
+			hasConfiguredAIProvider: false,
+			hasConnectedIntegrations: false,
+			hasModelConfigured: false,
+			hasRequiredPermissions: false,
+			hasSchedule: false,
+			hasSkill: false,
+			hasTranscriptionConfigured: false,
+			hasRecording: false,
+			hasSession: false
+		)
+		let view = DashboardView(
+			store: DashboardStore(),
+			userName: "Karim",
+			onboarding: incomplete,
+			isOnboardingReady: false,
+			onRefresh: {},
+			onSelectRoute: { _ in },
+			onOpenPermissions: {},
+			onStartChat: {},
+			onSummarizeEmail: {}
+		)
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-onboarding-card")
+		}
+	}
+
+	@Test("dashboard shows onboarding when ready and incomplete")
+	func dashboardShowsOnboardingWhenReady() throws {
+		let incomplete = OnboardingChecklist.make(
+			hasConfiguredAIProvider: false,
+			hasConnectedIntegrations: false,
+			hasModelConfigured: false,
+			hasRequiredPermissions: false,
+			hasSchedule: false,
+			hasSkill: false,
+			hasTranscriptionConfigured: false,
+			hasRecording: false,
+			hasSession: false
+		)
+		let view = DashboardView(
+			store: DashboardStore(),
+			userName: "Karim",
+			onboarding: incomplete,
+			isOnboardingReady: true,
+			onRefresh: {},
+			onSelectRoute: { _ in },
+			onOpenPermissions: {},
+			onStartChat: {},
+			onSummarizeEmail: {}
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-onboarding-card")
+		}
+	}
+
+	@Test("configure AI provider action opens settings on ai section")
+	func configureAIProviderOpensAISettings() throws {
+		var openedNavKey: String?
+		let incomplete = OnboardingChecklist.make(
+			hasConfiguredAIProvider: false,
+			hasConnectedIntegrations: true,
+			hasModelConfigured: true,
+			hasRequiredPermissions: true,
+			hasSchedule: true,
+			hasSkill: true,
+			hasTranscriptionConfigured: true,
+			hasRecording: true,
+			hasSession: true
+		)
+		let view = DashboardView(
+			store: DashboardStore(),
+			userName: "Karim",
+			onboarding: incomplete,
+			isOnboardingReady: true,
+			onRefresh: {},
+			onSelectRoute: { _ in },
+			onOpenSettings: { openedNavKey = $0 },
+			onOpenPermissions: {},
+			onStartChat: {},
+			onSummarizeEmail: {}
+		)
+		let button = try view.inspect().find(
+			viewWithAccessibilityIdentifier: "onboarding-action-configureAIProvider"
+		).button()
+		try button.tap()
+		#expect(openedNavKey == "ai")
+	}
+
+	@Test("setup persona action opens persona picker")
+	func setupPersonaOpensPersonaPicker() throws {
+		var didOpenPersonaPicker = false
+		let checklist = OnboardingChecklist.make(
+			hasConfiguredAIProvider: true,
+			hasConnectedIntegrations: true,
+			hasModelConfigured: false,
+			hasRequiredPermissions: false,
+			hasSchedule: false,
+			hasSkill: false,
+			hasTranscriptionConfigured: false,
+			hasRecording: false,
+			hasSession: false
+		)
+		let view = DashboardView(
+			store: DashboardStore(),
+			userName: "Karim",
+			onboarding: checklist,
+			isOnboardingReady: true,
+			onRefresh: {},
+			onSelectRoute: { _ in },
+			onOpenSettings: { _ in },
+			onOpenPersonaPicker: { didOpenPersonaPicker = true },
+			onOpenPermissions: {},
+			onStartChat: {},
+			onSummarizeEmail: {}
+		)
+		let button = try view.inspect().find(
+			viewWithAccessibilityIdentifier: "onboarding-action-setupPersona"
+		).button()
+		try button.tap()
+		#expect(didOpenPersonaPicker)
+	}
+
+	@Test("setup transcription action opens settings on transcription section")
+	func setupTranscriptionOpensTranscriptionSettings() throws {
+		var openedNavKey: String?
+		// Complete earlier steps so transcription is "up next" and shows its action.
+		let checklist = OnboardingChecklist.make(
+			hasConfiguredAIProvider: true,
+			hasConnectedIntegrations: true,
+			hasModelConfigured: true,
+			hasRequiredPermissions: true,
+			hasSchedule: true,
+			hasSkill: true,
+			hasTranscriptionConfigured: false,
+			hasRecording: false,
+			hasSession: false
+		)
+		let view = DashboardView(
+			store: DashboardStore(),
+			userName: "Karim",
+			onboarding: checklist,
+			isOnboardingReady: true,
+			onRefresh: {},
+			onSelectRoute: { _ in },
+			onOpenSettings: { openedNavKey = $0 },
+			onOpenPermissions: {},
+			onStartChat: {},
+			onSummarizeEmail: {}
+		)
+		let button = try view.inspect().find(
+			viewWithAccessibilityIdentifier: "onboarding-action-setupTranscription"
+		).button()
+		try button.tap()
+		#expect(openedNavKey == "transcription")
+	}
 }
 
 @MainActor

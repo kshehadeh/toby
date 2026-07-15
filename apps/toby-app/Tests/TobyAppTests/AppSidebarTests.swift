@@ -14,6 +14,7 @@ struct AppSidebarTests {
             isServerRestarting: false,
             updateStore: nil,
             onSelectRoute: { _ in },
+            isPersonaPickerPresented: .constant(false),
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
@@ -40,6 +41,7 @@ struct AppSidebarTests {
             isServerRestarting: false,
             updateStore: nil,
             onSelectRoute: onSelectRoute,
+            isPersonaPickerPresented: .constant(false),
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
@@ -70,6 +72,7 @@ struct AppSidebarTests {
             isServerRestarting: false,
             updateStore: nil,
             onSelectRoute: { _ in },
+            isPersonaPickerPresented: .constant(false),
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
@@ -118,6 +121,7 @@ struct AppSidebarTests {
             isServerRestarting: false,
             updateStore: nil,
             onSelectRoute: { _ in },
+            isPersonaPickerPresented: .constant(false),
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
@@ -186,6 +190,22 @@ struct AppSidebarTests {
         try inspected.tap()
         #expect(didOpen)
         #expect(try inspected.accessibilityLabel().string() == "Settings")
+    }
+
+    @Test("persona footer exposes accessibility id when attention highlighted")
+    func personaFooterAttentionIdentifier() throws {
+        let highlighted = SidebarFooter(
+            status: nil,
+            isPersonaPickerPresented: .constant(true),
+            isAttentionHighlighted: true,
+            emphasizeCreatePersona: true,
+            onCreatePersona: {},
+            onEditPersona: { _ in },
+            onPersonaSelected: {}
+        )
+        #expect(throws: Never.self) {
+            try highlighted.inspect().find(viewWithAccessibilityIdentifier: "sidebar-persona-footer")
+        }
     }
 
     @Test("built-in persona row exposes edit action")
@@ -272,6 +292,7 @@ struct AppSidebarTests {
             isServerRestarting: false,
             updateStore: nil,
             onSelectRoute: { _ in },
+            isPersonaPickerPresented: .constant(false),
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
@@ -310,6 +331,7 @@ struct AppSidebarTests {
             isServerRestarting: false,
             updateStore: updateStore,
             onSelectRoute: { _ in },
+            isPersonaPickerPresented: .constant(false),
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
@@ -332,6 +354,7 @@ struct AppSidebarTests {
             isServerRestarting: false,
             updateStore: nil,
             onSelectRoute: { _ in },
+            isPersonaPickerPresented: .constant(false),
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
@@ -385,6 +408,7 @@ struct AppSidebarTests {
             isServerRestarting: false,
             updateStore: nil,
             onSelectRoute: { _ in },
+            isPersonaPickerPresented: .constant(false),
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
@@ -416,6 +440,7 @@ struct AppSidebarTests {
             isServerRestarting: false,
             updateStore: nil,
             onSelectRoute: { _ in },
+            isPersonaPickerPresented: .constant(false),
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
@@ -439,6 +464,7 @@ struct AppSidebarTests {
             isServerRestarting: true,
             updateStore: nil,
             onSelectRoute: { _ in },
+            isPersonaPickerPresented: .constant(false),
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},

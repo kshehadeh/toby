@@ -53,6 +53,13 @@ final class ChatStore {
 	var isServerConnecting = false
 	/// User-visible detail for server lifecycle (bootstrap / restart steps).
 	var serverLifecycleMessage: String?
+
+	/// True once the daemon handshake succeeded and status has been fetched,
+	/// and the server is not mid-connect or mid-restart. Use this to gate UI
+	/// that depends on configuration / plugins (e.g. onboarding).
+	var isServerReady: Bool {
+		status != nil && !isServerConnecting && !isServerRestarting
+	}
 	var listenStatus: ListenStatusResponse?
 	var isListenRequestInFlight = false
 	var toast: AppToastState?

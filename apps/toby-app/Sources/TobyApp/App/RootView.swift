@@ -30,6 +30,13 @@ struct RootView: View {
     @State private var mainWindow: NSWindow?
     @State private var sidebarActionHelp: SidebarActionHelpPresentation?
     @State private var longRecordingPromptCoordinator = LongRecordingPromptCoordinator()
+    /// Becomes true after bootstrap handshake + first shared data load (and
+    /// permissions refresh). Gates onboarding so incomplete defaults do not flash.
+    @State private var hasCompletedInitialLoad = false
+    @State private var isPersonaPickerPresented = false
+    @State private var isPersonaAttentionHighlighted = false
+    @State private var emphasizeCreatePersona = false
+    @State private var personaAttentionTask: Task<Void, Never>?
 
     private let toastDuration: UInt64 = 4_000_000_000
 
@@ -283,6 +290,10 @@ struct RootView: View {
                 await store.bootstrap()
                 applyDebugUpdateOverride()
                 await loadSharedAppDataIfConnected()
+                // Permissions start as all-denied defaults; refresh before
+                // evaluating onboarding completeness.
+                permissionsStore.refresh()
+                hasCompletedInitialLoad = store.isServerReady
             }
             .task {
                 await store.daemonStatusRefreshLoop()
@@ -290,15 +301,32 @@ struct RootView: View {
             .task {
                 await longRecordingPromptLoop()
             }
+            .onChange(of: isPersonaPickerPresented) { _, presented in
+                // Create emphasis only applies while the popover is open.
+                // Keep the footer glow for the attention timer so the control
+                // remains discoverable if the user dismisses early.
+                if !presented {
+                    emphasizeCreatePersona = false
+                }
+            }
             .onChange(of: store.status?.version) { _, version in
                 guard version != nil else { return }
                 Task { await loadSharedAppDataIfConnected() }
             }
             .onChange(of: store.isServerRestarting) { wasRestarting, isRestarting in
+                if isRestarting {
+                    hasCompletedInitialLoad = false
+                }
                 guard wasRestarting, !isRestarting, store.status != nil else { return }
-                Task { await refreshSharedAppDataIfConnected() }
+                Task {
+                    await refreshSharedAppDataIfConnected()
+                    permissionsStore.refresh()
+                    hasCompletedInitialLoad = store.isServerReady
+                }
             }
             .task {
+                // Keep permissions fresh on appear; initial load also refreshes
+                // before marking hasCompletedInitialLoad.
                 permissionsStore.refresh()
             }
             .task {
@@ -379,9 +407,21 @@ struct RootView: View {
                 serverLifecycleMessage: store.serverLifecycleMessage,
                 updateStore: updateStore,
                 onSelectRoute: navigateToRoute,
-                onCreatePersona: { openPersonaEditor(.create) },
-                onEditPersona: { openPersonaEditor(.edit(name: $0)) },
-                onPersonaSelected: refreshStatus,
+                isPersonaPickerPresented: $isPersonaPickerPresented,
+                isPersonaAttentionHighlighted: isPersonaAttentionHighlighted,
+                emphasizeCreatePersona: emphasizeCreatePersona,
+                onCreatePersona: {
+                    clearPersonaAttention()
+                    openPersonaEditor(.create)
+                },
+                onEditPersona: { name in
+                    clearPersonaAttention()
+                    openPersonaEditor(.edit(name: name))
+                },
+                onPersonaSelected: {
+                    clearPersonaAttention()
+                    refreshStatus()
+                },
                 onCheckForUpdates: {
                     Task { await updateStore.checkNativeAppForUpdates() }
                 },
@@ -479,9 +519,11 @@ struct RootView: View {
                     store: dashboardStore,
                     userName: DashboardView.defaultUserName(),
                     onboarding: onboardingChecklist,
+                    isOnboardingReady: isOnboardingReady,
                     onRefresh: { Task { await refreshDashboardData() } },
                     onSelectRoute: navigateToRoute,
-                    onOpenSettings: { openSettings() },
+                    onOpenSettings: { openSettings(navKey: $0) },
+                    onOpenPersonaPicker: focusPersonaPickerFromOnboarding,
                     onOpenPermissions: { openWindow(id: "permissions") },
                     onStartChat: startNewChat,
                     onSummarizeEmail: summarizeUnreadEmailInChat
@@ -817,6 +859,15 @@ struct RootView: View {
         history.navigate(to: route)
     }
 
+    /// Onboarding must wait until the daemon handshake and first shared data
+    /// load finish; otherwise empty stores make every step look incomplete and
+    /// the card flashes then vanishes.
+    private var isOnboardingReady: Bool {
+        hasCompletedInitialLoad
+            && store.isServerReady
+            && permissionsStore.hasRefreshedOnce
+    }
+
     private var onboardingChecklist: OnboardingChecklist {
         let hasAIProvider = store.status?.hasConfiguredAIProvider ?? false
         let connected = !(store.status?.connectedIntegrations?.isEmpty ?? true)
@@ -847,15 +898,52 @@ struct RootView: View {
 
     private func openSettings(navKey: String? = nil) {
         if let navKey {
-            // Prefer selectSection once sections are loaded; otherwise seed selection
-            // so loadSettingsSections / selectTopLevelTab pick the right tab.
+            // Prefer top-level tab selection once sections are loaded (so nested
+            // containers like AI land on the tab + first child). Otherwise seed
+            // selectedNavKey so loadSettingsSections / syncTabFromStoreSelection
+            // pick the right tab after the window opens.
             if configureStore.isSettingsMode {
-                configureStore.selectSection(navKey)
+                let isTopLevel = configureStore.settingsSections.contains {
+                    ConfigureTreeHelpers.sectionIdentityKey($0) == navKey
+                }
+                if isTopLevel {
+                    configureStore.selectTopLevelTab(navKey)
+                } else {
+                    configureStore.selectSection(navKey)
+                }
             } else {
                 configureStore.selectedNavKey = navKey
             }
         }
         openWindow(id: "settings")
+    }
+
+    /// Opens the sidebar persona popover and briefly pulses the control so the
+    /// onboarding "Set up persona" step points at the right place.
+    private func focusPersonaPickerFromOnboarding() {
+        bringMainWindowToFront()
+        // Ensure the main sidebar (with the persona footer) is visible.
+        if sidebarVisibility == .detailOnly {
+            sidebarVisibility = .all
+        }
+        isPersonaPickerPresented = true
+        emphasizeCreatePersona = true
+        isPersonaAttentionHighlighted = true
+        personaAttentionTask?.cancel()
+        personaAttentionTask = Task {
+            try? await Task.sleep(for: .seconds(4.5))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                isPersonaAttentionHighlighted = false
+            }
+        }
+    }
+
+    private func clearPersonaAttention() {
+        personaAttentionTask?.cancel()
+        personaAttentionTask = nil
+        isPersonaAttentionHighlighted = false
+        emphasizeCreatePersona = false
     }
 
     private func openIntegration(navKey: String) {

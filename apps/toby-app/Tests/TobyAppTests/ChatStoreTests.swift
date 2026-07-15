@@ -174,4 +174,33 @@ struct ChatStoreTests {
         store.cancelActiveTurn()
         #expect(store.isLoading == false)
     }
+
+    @Test("isServerReady is false until status is set and connect/restart finish")
+    func isServerReadyRequiresStatusAndIdleLifecycle() {
+        let store = ChatStore()
+        #expect(store.isServerReady == false)
+
+        store.isServerConnecting = true
+        #expect(store.isServerReady == false)
+
+        store.isServerConnecting = false
+        store.status = AppStatus(
+            version: "1.0",
+            persona: "Toby",
+            model: "openai/gpt-5-mini",
+            hasConfiguredAIProvider: true,
+            tobyDir: nil,
+            contextWindow: nil,
+            personaImageUrl: nil,
+            connectedIntegrations: nil,
+            personaCount: nil,
+            skillCount: nil,
+            skills: nil,
+            transcription: nil
+        )
+        #expect(store.isServerReady == true)
+
+        store.isServerRestarting = true
+        #expect(store.isServerReady == false)
+    }
 }

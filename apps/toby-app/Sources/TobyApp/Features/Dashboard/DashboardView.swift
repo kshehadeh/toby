@@ -4,9 +4,17 @@ struct DashboardView: View {
 	@Bindable var store: DashboardStore
 	let userName: String
 	let onboarding: OnboardingChecklist
+	/// When false, hide onboarding entirely (app still bootstrapping / loading
+	/// status, schedules, skills, recordings, permissions). Avoids a flash of
+	/// incomplete checklist steps that disappear once data arrives.
+	var isOnboardingReady: Bool = true
 	let onRefresh: () -> Void
 	let onSelectRoute: (DetailRoute) -> Void
-	var onOpenSettings: () -> Void = {}
+	/// Opens Settings, optionally deep-linking to a top-level section key
+	/// (e.g. `"ai"`, `"transcription"`).
+	var onOpenSettings: (String?) -> Void = { _ in }
+	/// Opens the sidebar persona picker with attention highlighting.
+	var onOpenPersonaPicker: () -> Void = {}
 	let onOpenPermissions: () -> Void
 	let onStartChat: () -> Void
 	let onSummarizeEmail: () -> Void
@@ -17,7 +25,7 @@ struct DashboardView: View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 24) {
 				greeting
-				if !onboarding.isComplete {
+				if isOnboardingReady, !onboarding.isComplete {
 					OnboardingCard(checklist: onboarding, onStepAction: handleStepAction)
 				}
 				cards
@@ -72,11 +80,11 @@ struct DashboardView: View {
 	private func handleStepAction(_ kind: OnboardingStepKind) {
 		switch kind {
 		case .configureAIProvider:
-			onOpenSettings()
+			onOpenSettings("ai")
 		case .connectIntegrations:
 			onSelectRoute(.integrations)
 		case .setupPersona:
-			onOpenSettings()
+			onOpenPersonaPicker()
 		case .grantPermissions:
 			onOpenPermissions()
 		case .createSchedule:
@@ -84,7 +92,7 @@ struct DashboardView: View {
 		case .createSkill:
 			onSelectRoute(.skills)
 		case .setupTranscription:
-			onOpenSettings()
+			onOpenSettings("transcription")
 		case .recordAndTranscribe:
 			onSelectRoute(.recordings)
 		case .samplePrompt:

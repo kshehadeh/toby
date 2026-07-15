@@ -73,6 +73,9 @@ struct PermissionStatus: Identifiable, Sendable {
 @Observable
 final class PermissionsStore {
 	private(set) var statuses: [PermissionStatus] = PermissionKind.allCases.map { PermissionStatus(kind: $0, isGranted: false) }
+	/// False until the first `refresh()` so callers can avoid treating the
+	/// all-denied initial defaults as real permission state (e.g. onboarding).
+	private(set) var hasRefreshedOnce = false
 	/// Held so Location Services authorization callbacks stay associated with this process.
 	private let locationManager = CLLocationManager()
 
@@ -80,6 +83,7 @@ final class PermissionsStore {
 		statuses = PermissionKind.allCases.map { kind in
 			PermissionStatus(kind: kind, isGranted: Self.checkStatus(for: kind, locationManager: locationManager))
 		}
+		hasRefreshedOnce = true
 	}
 
 	func request(_ kind: PermissionKind) async {
