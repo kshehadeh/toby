@@ -113,6 +113,40 @@ struct MenuBarControllerTests {
 		RunLoop.current.run(until: Date().addingTimeInterval(0.1))
 		#expect(!controller.dockImageIsMarked)
 	}
+
+	@Test("status item can be hidden and shown")
+	func statusItemVisibilityToggle() throws {
+		let controller = MenuBarController(showStatusItem: true)
+		#expect(controller.isStatusItemVisible)
+
+		controller.setStatusItemVisible(false)
+		#expect(!controller.isStatusItemVisible)
+
+		controller.setStatusItemVisible(true)
+		#expect(controller.isStatusItemVisible)
+	}
+
+	@Test("init with showStatusItem false leaves status item hidden")
+	func initHiddenStatusItem() throws {
+		let controller = MenuBarController(showStatusItem: false)
+		#expect(!controller.isStatusItemVisible)
+		// Menu is still available for actions once shown again.
+		#expect(controller.menuItemTitles.contains("New Chat"))
+		controller.setStatusItemVisible(true)
+		#expect(controller.isStatusItemVisible)
+	}
+
+	@Test("dock recording indicator still updates when status item is hidden")
+	func dockIndicatorWhenStatusItemHidden() throws {
+		let controller = MenuBarController(showStatusItem: false)
+		#expect(!controller.isStatusItemVisible)
+
+		controller.setRecordingActive(true)
+		#expect(controller.dockImageIsMarked)
+
+		controller.setRecordingActive(false)
+		#expect(!controller.dockImageIsMarked)
+	}
 }
 
 @MainActor

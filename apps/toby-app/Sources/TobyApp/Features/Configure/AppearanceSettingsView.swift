@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Client-local General settings: theme and accent color.
+/// Client-local General settings: startup, menu bar, theme, and accent color.
 struct AppearanceSettingsView: View {
 	@Bindable var preferences: AppearancePreferences
 
@@ -11,10 +11,43 @@ struct AppearanceSettingsView: View {
 					Text("General")
 						.font(.title2.weight(.semibold))
 						.foregroundStyle(AppTheme.primaryText)
-					Text("Choose how Toby looks and which accent color highlights actions.")
-						.font(.subheadline)
-						.foregroundStyle(AppTheme.secondaryText)
-						.fixedSize(horizontal: false, vertical: true)
+					Text(
+						"Startup, menu bar, and how Toby looks on this Mac."
+					)
+					.font(.subheadline)
+					.foregroundStyle(AppTheme.secondaryText)
+					.fixedSize(horizontal: false, vertical: true)
+				}
+
+				SettingsCard {
+					SettingsRow(
+						title: "Start at login",
+						description:
+							"Open Toby automatically when you log in to this Mac. Off by default.",
+						showsDivider: true
+					) {
+						SettingsToggle(isOn: $preferences.launchAtLogin)
+							.accessibilityIdentifier("general-launch-at-login-toggle")
+					}
+					SettingsRow(
+						title: "Show menu bar icon",
+						description:
+							"Show Toby in the menu bar for quick access to chat, recording, and windows. On by default.",
+						showsDivider: false
+					) {
+						SettingsToggle(isOn: $preferences.showMenuBarIcon)
+							.accessibilityIdentifier("general-show-menu-bar-icon-toggle")
+					}
+				}
+
+				if preferences.launchAtLogin, let error = preferences.launchAtLoginError {
+					launchAtLoginNotice(message: error, isError: true)
+				} else if preferences.launchAtLogin, LaunchAtLogin.requiresApproval {
+					launchAtLoginNotice(
+						message:
+							"Toby is waiting for approval in System Settings → General → Login Items.",
+						isError: false
+					)
 				}
 
 				SettingsCard {
@@ -61,6 +94,34 @@ struct AppearanceSettingsView: View {
 			.padding(AppTheme.contentPadding)
 		}
 		.background(SettingsDesign.canvasBackground)
+	}
+
+	@ViewBuilder
+	private func launchAtLoginNotice(message: String, isError: Bool) -> some View {
+		HStack(alignment: .top, spacing: 10) {
+			Image(systemName: isError ? "exclamationmark.triangle.fill" : "info.circle.fill")
+				.foregroundStyle(isError ? Color.orange : AppTheme.accent)
+			VStack(alignment: .leading, spacing: 6) {
+				Text(message)
+					.font(.subheadline)
+					.foregroundStyle(AppTheme.secondaryText)
+					.fixedSize(horizontal: false, vertical: true)
+				Button("Open Login Items Settings…") {
+					LaunchAtLogin.openLoginItemsSettings()
+				}
+				.buttonStyle(.link)
+				.font(.subheadline)
+			}
+		}
+		.padding(12)
+		.frame(maxWidth: .infinity, alignment: .leading)
+		.background(SettingsDesign.cardBackground)
+		.clipShape(RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius))
+		.overlay {
+			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
+				.stroke(SettingsDesign.cardBorder, lineWidth: 1)
+		}
+		.accessibilityIdentifier("general-launch-at-login-notice")
 	}
 }
 

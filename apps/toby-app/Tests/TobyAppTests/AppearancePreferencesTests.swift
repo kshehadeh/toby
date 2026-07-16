@@ -7,13 +7,15 @@ import ViewInspector
 @MainActor
 @Suite("AppearancePreferences")
 struct AppearancePreferencesTests {
-	@Test("defaults to system mode and orange accent")
+	@Test("defaults to system mode, orange accent, and general startup defaults")
 	func defaultsToSystemAndOrange() {
 		let suite = UserDefaults(suiteName: "toby.tests.appearance.\(UUID().uuidString)")!
-		let prefs = AppearancePreferences(defaults: suite)
+		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
 		#expect(prefs.mode == .system)
 		#expect(prefs.accent == .orange)
 		#expect(prefs.hideOnboarding == false)
+		#expect(prefs.launchAtLogin == false)
+		#expect(prefs.showMenuBarIcon == true)
 		// System resolves to a concrete scheme (light or dark), never unspecified.
 		#expect(prefs.preferredColorScheme == .light || prefs.preferredColorScheme == .dark)
 		#expect(prefs.nsAppearance == nil)
@@ -22,7 +24,9 @@ struct AppearancePreferencesTests {
 	@Test("mode maps to color scheme and NSAppearance")
 	func modeMapsToSchemeAndAppearance() {
 		let suite = UserDefaults(suiteName: "toby.tests.appearance.\(UUID().uuidString)")!
-		let prefs = AppearancePreferences(mode: .light, accent: .blue, defaults: suite)
+		let prefs = AppearancePreferences(
+			mode: .light, accent: .blue, defaults: suite, applyLaunchAtLoginOnChange: false
+		)
 		#expect(prefs.preferredColorScheme == .light)
 		#expect(prefs.resolvedColorScheme == .light)
 		#expect(prefs.nsAppearance?.name == .aqua)
@@ -44,24 +48,49 @@ struct AppearancePreferencesTests {
 		#expect(AppearancePreferences.resolveColorScheme(for: .dark) == .dark)
 	}
 
-	@Test("persists mode, accent, and hide onboarding to UserDefaults")
+	@Test("persists mode, accent, hide onboarding, and general prefs to UserDefaults")
 	func persistsModeAccentAndHideOnboarding() {
 		let name = "toby.tests.appearance.\(UUID().uuidString)"
 		let suite = UserDefaults(suiteName: name)!
 
-		let prefs = AppearancePreferences(defaults: suite)
+		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
 		prefs.mode = .light
 		prefs.accent = .teal
 		prefs.hideOnboarding = true
+		prefs.launchAtLogin = true
+		prefs.showMenuBarIcon = false
 		#expect(suite.string(forKey: AppearancePreferences.modeDefaultsKey) == "light")
 		#expect(suite.string(forKey: AppearancePreferences.accentDefaultsKey) == "teal")
 		#expect(suite.bool(forKey: AppearancePreferences.hideOnboardingDefaultsKey) == true)
+		#expect(suite.bool(forKey: AppearancePreferences.launchAtLoginDefaultsKey) == true)
+		#expect(suite.bool(forKey: AppearancePreferences.showMenuBarIconDefaultsKey) == false)
 
-		let reloaded = AppearancePreferences(defaults: suite)
+		let reloaded = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
 		#expect(reloaded.mode == .light)
 		#expect(reloaded.accent == .teal)
 		#expect(reloaded.hideOnboarding == true)
+		#expect(reloaded.launchAtLogin == true)
+		#expect(reloaded.showMenuBarIcon == false)
 		#expect(reloaded.resolvedColorScheme == .light)
+	}
+
+	@Test("general settings view shows launch at login and menu bar toggles")
+	func generalSettingsShowsStartupAndMenuBarToggles() throws {
+		let suite = UserDefaults(suiteName: "toby.tests.appearance.\(UUID().uuidString)")!
+		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		let view = AppearanceSettingsView(preferences: prefs)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Start at login")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Show menu bar icon")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "general-launch-at-login-toggle")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "general-show-menu-bar-icon-toggle")
+		}
 	}
 
 	@Test("ThemeResolution.isDark follows mode UserDefaults")
@@ -107,7 +136,7 @@ struct AppearancePreferencesTests {
 	@Test("general settings view does not host hide onboarding toggle")
 	func generalSettingsDoesNotHostHideOnboardingToggle() throws {
 		let suite = UserDefaults(suiteName: "toby.tests.appearance.\(UUID().uuidString)")!
-		let prefs = AppearancePreferences(defaults: suite)
+		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
 		let view = AppearanceSettingsView(preferences: prefs)
 		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hide-onboarding-toggle")
@@ -120,7 +149,7 @@ struct AppearancePreferencesTests {
 	@Test("dashboard settings section shows hide onboarding toggle")
 	func dashboardSettingsShowsHideOnboardingToggle() throws {
 		let suite = UserDefaults(suiteName: "toby.tests.appearance.\(UUID().uuidString)")!
-		let prefs = AppearancePreferences(defaults: suite)
+		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
 		let store = ConfigureStore()
 		let section = SettingsItem(
 			label: "Dashboard",

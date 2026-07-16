@@ -12,18 +12,61 @@ final class MenuBarController: NSObject {
 	private var originalDockImage: NSImage?
 	private var appliedDockIndicatorImage: NSImage?
 	private var testMenuBarImageIsMarked = false
+	/// When false, skip creating a real status item and updating dock chrome (tests).
+	private let managesAppChrome: Bool
 
 	static let recordingStateChanged = Notification.Name("menuBarRecordingStateChanged")
 	private static let recordingDockImageName = NSImage.Name("TobyRecordingDockIndicator")
 
-	init(registerStatusItem: Bool = true) {
+	init(registerStatusItem: Bool = true, showStatusItem: Bool = true) {
+		self.managesAppChrome = registerStatusItem
 		super.init()
-		if registerStatusItem {
+		if registerStatusItem, showStatusItem {
 			setupStatusItem()
 		} else {
 			menu = buildMenu()
 		}
 		observeRecordingState()
+		observeMenuBarVisibilityPreference()
+	}
+
+	private func observeMenuBarVisibilityPreference() {
+		guard managesAppChrome else { return }
+		NotificationCenter.default.addObserver(
+			self,
+			selector: #selector(handleShowMenuBarIconChanged(_:)),
+			name: AppearancePreferences.showMenuBarIconDidChange,
+			object: nil
+		)
+	}
+
+	@objc private func handleShowMenuBarIconChanged(_ notification: Notification) {
+		let visible: Bool
+		if let flag = notification.object as? Bool {
+			visible = flag
+		} else {
+			visible = AppearancePreferences.shared.showMenuBarIcon
+		}
+		setStatusItemVisible(visible)
+	}
+
+	/// Shows or hides the menu bar status item. Dock recording indicator still
+	/// updates while the status item is hidden.
+	func setStatusItemVisible(_ visible: Bool) {
+		guard managesAppChrome else { return }
+		if visible {
+			if statusItem == nil {
+				setupStatusItem()
+				updateMenuBarIcon()
+			}
+		} else {
+			removeStatusItem()
+		}
+	}
+
+	/// Whether a menu bar status item is currently installed.
+	var isStatusItemVisible: Bool {
+		statusItem != nil
 	}
 
 	private func setupStatusItem() {
@@ -51,6 +94,12 @@ final class MenuBarController: NSObject {
 		item.menu = menu
 		self.menu = menu
 		statusItem = item
+	}
+
+	private func removeStatusItem() {
+		guard let statusItem else { return }
+		NSStatusBar.system.removeStatusItem(statusItem)
+		self.statusItem = nil
 	}
 
 	private func buildMenu() -> NSMenu {
@@ -257,7 +306,8 @@ final class MenuBarController: NSObject {
 	}
 
 	private func updateDockIcon() {
-		guard statusItem != nil else { return }
+		// Dock indicator should work even when the menu bar icon is hidden.
+		guard managesAppChrome else { return }
 		if isRecordingActive {
 			if originalDockImage == nil {
 				let current = NSApp.applicationIconImage

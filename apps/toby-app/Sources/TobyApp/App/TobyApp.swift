@@ -56,9 +56,22 @@ struct TobyApp: App {
 					nativeServer.start()
 					requestNativePermissions()
 					if menuBarController == nil {
-						menuBarController = MenuBarController()
+						menuBarController = MenuBarController(
+							showStatusItem: appearancePreferences.showMenuBarIcon
+						)
+					} else {
+						menuBarController?.setStatusItemVisible(
+							appearancePreferences.showMenuBarIcon
+						)
+					}
+					// Re-apply login item if the user enabled it previously.
+					if appearancePreferences.launchAtLogin {
+						appearancePreferences.applyLaunchAtLogin()
 					}
 					activateDebugPreviewWindow()
+				}
+				.onChange(of: appearancePreferences.showMenuBarIcon) { _, show in
+					menuBarController?.setStatusItemVisible(show)
 				}
 				.onDisappear {
 					nativeServer.stop()

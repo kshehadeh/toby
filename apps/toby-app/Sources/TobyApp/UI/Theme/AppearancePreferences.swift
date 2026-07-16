@@ -125,10 +125,14 @@ enum AppearanceDefaultsKey {
 	static let accent = "toby.appearance.accent"
 	/// Dashboard onboarding visibility (Settings → Dashboard; still app-local).
 	static let hideOnboarding = "toby.appearance.hideOnboarding"
+	/// Open Toby automatically when this Mac logs in (Settings → General).
+	static let launchAtLogin = "toby.general.launchAtLogin"
+	/// Show the Toby status item in the menu bar (Settings → General). Default on.
+	static let showMenuBarIcon = "toby.general.showMenuBarIcon"
 }
 
-/// Client-local preferences: theme, accent, and app-only dashboard options
-/// (not daemon / `~/.toby` config).
+/// Client-local preferences: theme, accent, startup, menu bar, and app-only
+/// dashboard options (not daemon / `~/.toby` config).
 @Observable
 @MainActor
 final class AppearancePreferences {
@@ -137,6 +141,8 @@ final class AppearancePreferences {
 	static let modeDefaultsKey = AppearanceDefaultsKey.mode
 	static let accentDefaultsKey = AppearanceDefaultsKey.accent
 	static let hideOnboardingDefaultsKey = AppearanceDefaultsKey.hideOnboarding
+	static let launchAtLoginDefaultsKey = AppearanceDefaultsKey.launchAtLogin
+	static let showMenuBarIconDefaultsKey = AppearanceDefaultsKey.showMenuBarIcon
 
 	/// Distributed notification posted when the user changes System Settings → Appearance.
 	private static let systemThemeChanged = Notification.Name("AppleInterfaceThemeChangedNotification")
@@ -145,6 +151,8 @@ final class AppearancePreferences {
 	/// Observer token; cleaned up when observation is replaced (singleton lives for app life).
 	private var systemThemeObserver: NSObjectProtocol?
 	private var isObservingSystemTheme = false
+	/// When true, `launchAtLogin` didSet skips calling `SMAppService` (init / tests).
+	private var suppressLaunchAtLoginSideEffects = false
 
 	var mode: AppearanceMode {
 		didSet {
@@ -170,6 +178,39 @@ final class AppearancePreferences {
 			defaults.set(hideOnboarding, forKey: Self.hideOnboardingDefaultsKey)
 		}
 	}
+
+	/// When true, Toby registers as a login item via `SMAppService.mainApp`.
+	/// Default is off. Registration may require approval in System Settings.
+	var launchAtLogin: Bool {
+		didSet {
+			guard launchAtLogin != oldValue else { return }
+			defaults.set(launchAtLogin, forKey: Self.launchAtLoginDefaultsKey)
+			guard !suppressLaunchAtLoginSideEffects else { return }
+			applyLaunchAtLogin()
+		}
+	}
+
+	/// Posted when `showMenuBarIcon` changes so AppKit menu bar chrome can update
+	/// even if the change originated in another SwiftUI window scene.
+	static let showMenuBarIconDidChange = Notification.Name("toby.showMenuBarIconDidChange")
+
+	/// When true, show Toby’s icon in the menu bar. Default is on.
+	var showMenuBarIcon: Bool {
+		didSet {
+			guard showMenuBarIcon != oldValue else { return }
+			defaults.set(showMenuBarIcon, forKey: Self.showMenuBarIconDefaultsKey)
+			// Only the live app singleton should drive menu bar chrome; test
+			// fixtures use isolated UserDefaults and must not fling global events.
+			guard self === AppearancePreferences.shared else { return }
+			NotificationCenter.default.post(
+				name: Self.showMenuBarIconDidChange,
+				object: showMenuBarIcon
+			)
+		}
+	}
+
+	/// Last error from applying launch-at-login (shown in General settings).
+	var launchAtLoginError: String?
 
 	/// Concrete light/dark currently applied. System mode mirrors macOS.
 	/// Always light or dark — never "unspecified" — so SwiftUI theme tokens flip.
@@ -199,9 +240,14 @@ final class AppearancePreferences {
 		mode: AppearanceMode? = nil,
 		accent: AccentPreset? = nil,
 		hideOnboarding: Bool? = nil,
-		defaults: UserDefaults = .standard
+		launchAtLogin: Bool? = nil,
+		showMenuBarIcon: Bool? = nil,
+		defaults: UserDefaults = .standard,
+		applyLaunchAtLoginOnChange: Bool = true
 	) {
 		self.defaults = defaults
+		// Suppress SMAppService during property init; apply explicitly when needed.
+		self.suppressLaunchAtLoginSideEffects = true
 
 		let resolvedMode: AppearanceMode
 		if let mode {
@@ -234,11 +280,33 @@ final class AppearancePreferences {
 			resolvedHideOnboarding = false
 		}
 
+		// Default off when unset.
+		let resolvedLaunchAtLogin: Bool
+		if let launchAtLogin {
+			resolvedLaunchAtLogin = launchAtLogin
+		} else if defaults.object(forKey: Self.launchAtLoginDefaultsKey) != nil {
+			resolvedLaunchAtLogin = defaults.bool(forKey: Self.launchAtLoginDefaultsKey)
+		} else {
+			resolvedLaunchAtLogin = false
+		}
+
+		// Default on when unset.
+		let resolvedShowMenuBarIcon: Bool
+		if let showMenuBarIcon {
+			resolvedShowMenuBarIcon = showMenuBarIcon
+		} else if defaults.object(forKey: Self.showMenuBarIconDefaultsKey) != nil {
+			resolvedShowMenuBarIcon = defaults.bool(forKey: Self.showMenuBarIconDefaultsKey)
+		} else {
+			resolvedShowMenuBarIcon = true
+		}
+
 		// Initialize all stored properties without touching self.mode first
 		// (@Observable synthesis requires resolvedColorScheme before other uses).
 		self.mode = resolvedMode
 		self.accent = resolvedAccent
 		self.hideOnboarding = resolvedHideOnboarding
+		self.launchAtLogin = resolvedLaunchAtLogin
+		self.showMenuBarIcon = resolvedShowMenuBarIcon
 		self.resolvedColorScheme = Self.resolveColorScheme(for: resolvedMode)
 
 		// When explicit values are passed, persist them so reloads see them.
@@ -250,6 +318,33 @@ final class AppearancePreferences {
 		}
 		if hideOnboarding != nil {
 			defaults.set(resolvedHideOnboarding, forKey: Self.hideOnboardingDefaultsKey)
+		}
+		if launchAtLogin != nil {
+			defaults.set(resolvedLaunchAtLogin, forKey: Self.launchAtLoginDefaultsKey)
+		}
+		if showMenuBarIcon != nil {
+			defaults.set(resolvedShowMenuBarIcon, forKey: Self.showMenuBarIconDefaultsKey)
+		}
+
+		self.suppressLaunchAtLoginSideEffects = !applyLaunchAtLoginOnChange
+	}
+
+	/// Applies the stored launch-at-login preference to the system login item.
+	func applyLaunchAtLogin() {
+		let result = LaunchAtLogin.setEnabled(launchAtLogin)
+		switch result {
+		case .success:
+			if launchAtLogin, LaunchAtLogin.requiresApproval {
+				launchAtLoginError =
+					"Toby is waiting for approval in System Settings → General → Login Items."
+			} else {
+				launchAtLoginError = nil
+			}
+		case .failure(let error):
+			launchAtLoginError = error.localizedDescription
+			// Keep the preference as the user set it so a later signed install
+			// can honor it; surface the error in Settings instead of silently
+			// flipping the toggle.
 		}
 	}
 

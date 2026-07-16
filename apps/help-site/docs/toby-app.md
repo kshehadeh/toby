@@ -111,11 +111,16 @@ The first tab, **General**, is local to Toby.app (it is not stored in
 
 | Control | Options | Default |
 | ------- | ------- | ------- |
+| **Start at login** | On / Off | Off — open Toby when you log in to this Mac |
+| **Show menu bar icon** | On / Off | On — Toby’s icon in the menu bar for quick actions |
 | **Theme** | System, Light, Dark | System (follows macOS) |
 | **Accent color** | Orange, blue, green, purple, pink, red, teal, gray | Orange |
 
 Theme and accent apply across the main window, Settings, Logs, and other
-Toby.app windows.
+Toby.app windows. **Start at login** uses macOS Login Items; if macOS asks for
+approval, allow Toby under **System Settings → General → Login Items**. You can
+always open Toby from the Dock or Applications even when the menu bar icon is
+hidden.
 
 Under **Settings → Dashboard**, you can also set the persona used for dashboard
 summaries and **Hide onboarding checklist** (app-local; default off). Turning
