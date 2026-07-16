@@ -18,14 +18,23 @@ struct DashboardView: View {
 	let onOpenPermissions: () -> Void
 	let onStartChat: () -> Void
 	let onSummarizeEmail: () -> Void
+	/// Client-local prefs (theme / hide onboarding). Defaults to the shared store.
+	@Bindable var appearancePreferences: AppearancePreferences = .shared
 
 	@State private var now = Date()
+
+	/// Ready, incomplete, and not dismissed via Settings → Dashboard.
+	private var shouldShowOnboarding: Bool {
+		isOnboardingReady
+			&& !onboarding.isComplete
+			&& !appearancePreferences.hideOnboarding
+	}
 
 	var body: some View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 24) {
 				greeting
-				if isOnboardingReady, !onboarding.isComplete {
+				if shouldShowOnboarding {
 					OnboardingCard(checklist: onboarding, onStepAction: handleStepAction)
 				}
 				cards

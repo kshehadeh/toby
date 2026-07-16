@@ -148,18 +148,37 @@ struct DashboardNavigationTests {
 @MainActor
 @Suite("DashboardView")
 struct DashboardViewTests {
+	private func makeAppearance(hideOnboarding: Bool = false) -> AppearancePreferences {
+		let suite = UserDefaults(suiteName: "toby.tests.dashboard.\(UUID().uuidString)")!
+		return AppearancePreferences(hideOnboarding: hideOnboarding, defaults: suite)
+	}
+
+	private func incompleteChecklist() -> OnboardingChecklist {
+		OnboardingChecklist.make(
+			hasConfiguredAIProvider: false,
+			hasConnectedIntegrations: false,
+			hasModelConfigured: false,
+			hasRequiredPermissions: false,
+			hasSchedule: false,
+			hasSkill: false,
+			hasTranscriptionConfigured: false,
+			hasRecording: false,
+			hasSession: false
+		)
+	}
+
 	private func makeView(store: DashboardStore) -> DashboardView {
 		DashboardView(
 			store: store,
 			userName: "Karim",
 			onboarding: OnboardingChecklist.make(
 				hasConfiguredAIProvider: true,
-			hasConnectedIntegrations: true,
+				hasConnectedIntegrations: true,
 				hasModelConfigured: true,
 				hasRequiredPermissions: false,
 				hasSchedule: false,
 				hasSkill: false,
-			hasTranscriptionConfigured: false,
+				hasTranscriptionConfigured: false,
 				hasRecording: false,
 				hasSession: false
 			),
@@ -167,7 +186,8 @@ struct DashboardViewTests {
 			onSelectRoute: { _ in },
 			onOpenPermissions: {},
 			onStartChat: {},
-			onSummarizeEmail: {}
+			onSummarizeEmail: {},
+			appearancePreferences: makeAppearance()
 		)
 	}
 
@@ -229,27 +249,17 @@ struct DashboardViewTests {
 
 	@Test("dashboard hides onboarding until ready even when checklist incomplete")
 	func dashboardHidesOnboardingUntilReady() throws {
-		let incomplete = OnboardingChecklist.make(
-			hasConfiguredAIProvider: false,
-			hasConnectedIntegrations: false,
-			hasModelConfigured: false,
-			hasRequiredPermissions: false,
-			hasSchedule: false,
-			hasSkill: false,
-			hasTranscriptionConfigured: false,
-			hasRecording: false,
-			hasSession: false
-		)
 		let view = DashboardView(
 			store: DashboardStore(),
 			userName: "Karim",
-			onboarding: incomplete,
+			onboarding: incompleteChecklist(),
 			isOnboardingReady: false,
 			onRefresh: {},
 			onSelectRoute: { _ in },
 			onOpenPermissions: {},
 			onStartChat: {},
-			onSummarizeEmail: {}
+			onSummarizeEmail: {},
+			appearancePreferences: makeAppearance()
 		)
 		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-onboarding-card")
@@ -258,29 +268,38 @@ struct DashboardViewTests {
 
 	@Test("dashboard shows onboarding when ready and incomplete")
 	func dashboardShowsOnboardingWhenReady() throws {
-		let incomplete = OnboardingChecklist.make(
-			hasConfiguredAIProvider: false,
-			hasConnectedIntegrations: false,
-			hasModelConfigured: false,
-			hasRequiredPermissions: false,
-			hasSchedule: false,
-			hasSkill: false,
-			hasTranscriptionConfigured: false,
-			hasRecording: false,
-			hasSession: false
-		)
 		let view = DashboardView(
 			store: DashboardStore(),
 			userName: "Karim",
-			onboarding: incomplete,
+			onboarding: incompleteChecklist(),
 			isOnboardingReady: true,
 			onRefresh: {},
 			onSelectRoute: { _ in },
 			onOpenPermissions: {},
 			onStartChat: {},
-			onSummarizeEmail: {}
+			onSummarizeEmail: {},
+			appearancePreferences: makeAppearance()
 		)
 		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-onboarding-card")
+		}
+	}
+
+	@Test("dashboard hides onboarding when hide preference is enabled")
+	func dashboardHidesOnboardingWhenPreferenceEnabled() throws {
+		let view = DashboardView(
+			store: DashboardStore(),
+			userName: "Karim",
+			onboarding: incompleteChecklist(),
+			isOnboardingReady: true,
+			onRefresh: {},
+			onSelectRoute: { _ in },
+			onOpenPermissions: {},
+			onStartChat: {},
+			onSummarizeEmail: {},
+			appearancePreferences: makeAppearance(hideOnboarding: true)
+		)
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-onboarding-card")
 		}
 	}
@@ -309,7 +328,8 @@ struct DashboardViewTests {
 			onOpenSettings: { openedNavKey = $0 },
 			onOpenPermissions: {},
 			onStartChat: {},
-			onSummarizeEmail: {}
+			onSummarizeEmail: {},
+			appearancePreferences: makeAppearance()
 		)
 		let button = try view.inspect().find(
 			viewWithAccessibilityIdentifier: "onboarding-action-configureAIProvider"
@@ -343,7 +363,8 @@ struct DashboardViewTests {
 			onOpenPersonaPicker: { didOpenPersonaPicker = true },
 			onOpenPermissions: {},
 			onStartChat: {},
-			onSummarizeEmail: {}
+			onSummarizeEmail: {},
+			appearancePreferences: makeAppearance()
 		)
 		let button = try view.inspect().find(
 			viewWithAccessibilityIdentifier: "onboarding-action-setupPersona"
@@ -377,7 +398,8 @@ struct DashboardViewTests {
 			onOpenSettings: { openedNavKey = $0 },
 			onOpenPermissions: {},
 			onStartChat: {},
-			onSummarizeEmail: {}
+			onSummarizeEmail: {},
+			appearancePreferences: makeAppearance()
 		)
 		let button = try view.inspect().find(
 			viewWithAccessibilityIdentifier: "onboarding-action-setupTranscription"

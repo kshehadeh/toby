@@ -85,16 +85,19 @@ apps/toby-app/             # Toby.app — native macOS app (SwiftUI)
     # Plus Features/, Stores/, UI/, … — product surfaces (chat, settings, recordings)
 ```
 
-### Native app appearance
+### Native app appearance (General) and local Dashboard prefs
 
-Toby.app theme (light / dark / system) and accent color are **client-local**
-preferences stored in `UserDefaults` (`toby.appearance.mode`,
-`toby.appearance.accent`). They are **not** part of `~/.toby/config.json` or the
-daemon configure API. Semantic colors live in `AppTheme` / `SettingsDesign` as
-dynamic `NSColor` pairs. Only true monochrome alpha-glyphs (AI provider marks,
-macOS plugin glyph) render as templates so they tint with text color. Filled
-art (Toby logo, Apple Reminders, brand multicolor plugin icons) stays original —
-template mode turns opaque regions into solid color boxes.
+Toby.app **General** preferences (Settings → General) are **client-local**
+`UserDefaults` values: theme (`toby.appearance.mode`) and accent
+(`toby.appearance.accent`). Hide dashboard onboarding
+(`toby.appearance.hideOnboarding`) is also app-local but edited under
+**Settings → Dashboard** alongside the daemon-backed summary persona. These are
+**not** part of `~/.toby/config.json` or the daemon configure API. Semantic
+colors live in `AppTheme` / `SettingsDesign` as dynamic `NSColor` pairs. Only
+true monochrome alpha-glyphs (AI provider marks, macOS plugin glyph) render as
+templates so they tint with text color. Filled art (Toby logo, Apple Reminders,
+brand multicolor plugin icons) stays original — template mode turns opaque
+regions into solid color boxes.
 
 ### Native app shared data
 

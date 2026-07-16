@@ -3,9 +3,15 @@ import SwiftUI
 struct ConfigureSectionDetailView: View {
 	@Bindable var store: ConfigureStore
 	let section: SettingsItem
+	/// Client-local prefs for app-only Dashboard controls (e.g. hide onboarding).
+	@Bindable var appearancePreferences: AppearancePreferences = .shared
 
 	private var fields: [SettingsItem] {
 		store.detailFields(for: section)
+	}
+
+	private var isDashboardSection: Bool {
+		section.key == "dashboard"
 	}
 
 	private var mainFields: [SettingsItem] {
@@ -105,6 +111,19 @@ struct ConfigureSectionDetailView: View {
 						field: field,
 						sectionLabel: section.label,
 					)
+				}
+
+				if isDashboardSection {
+					SettingsCard {
+						SettingsRow(
+							title: "Hide onboarding checklist",
+							description: "Hide the setup checklist on the dashboard even if steps are incomplete. Stored only on this Mac.",
+							showsDivider: false
+						) {
+							SettingsToggle(isOn: $appearancePreferences.hideOnboarding)
+								.accessibilityIdentifier("dashboard-hide-onboarding-toggle")
+						}
+					}
 				}
 
 				if isAIProviderSection {

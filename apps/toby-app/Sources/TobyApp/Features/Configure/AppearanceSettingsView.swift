@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Client-local Appearance settings: light/dark/system mode and accent swatches.
+/// Client-local General settings: theme and accent color.
 struct AppearanceSettingsView: View {
 	@Bindable var preferences: AppearancePreferences
 
@@ -8,7 +8,7 @@ struct AppearanceSettingsView: View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 28) {
 				VStack(alignment: .leading, spacing: 6) {
-					Text("Appearance")
+					Text("General")
 						.font(.title2.weight(.semibold))
 						.foregroundStyle(AppTheme.primaryText)
 					Text("Choose how Toby looks and which accent color highlights actions.")

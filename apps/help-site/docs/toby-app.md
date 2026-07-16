@@ -106,7 +106,7 @@ and other preferences through a familiar preferences-style interface.
 
 ![Toby.app Settings window](/img/toby-app-settings.png)
 
-The first tab, **Appearance**, is local to Toby.app (it is not stored in
+The first tab, **General**, is local to Toby.app (it is not stored in
 `~/.toby/config.json`):
 
 | Control | Options | Default |
@@ -116,6 +116,11 @@ The first tab, **Appearance**, is local to Toby.app (it is not stored in
 
 Theme and accent apply across the main window, Settings, Logs, and other
 Toby.app windows.
+
+Under **Settings → Dashboard**, you can also set the persona used for dashboard
+summaries and **Hide onboarding checklist** (app-local; default off). Turning
+that on removes the setup checklist from the home dashboard even if steps remain
+incomplete; turn it off to bring the checklist back.
 
 ### Permissions
 

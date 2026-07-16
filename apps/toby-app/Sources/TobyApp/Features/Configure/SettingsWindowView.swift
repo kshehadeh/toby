@@ -8,7 +8,7 @@ import SwiftUI
 struct SettingsWindowView: View {
 	@Bindable var store: ConfigureStore
 	@State private var appearancePreferences = AppearancePreferences.shared
-	/// Local tab selection so the client-only Appearance tab can be selected
+	/// Local tab selection so the client-only General tab can be selected
 	/// without going through the daemon-backed configure store.
 	@State private var selectedTabKey: String = SettingsItem.appearanceSectionKey
 
@@ -22,14 +22,14 @@ struct SettingsWindowView: View {
 		}
 	}
 
-	private var isAppearanceTab: Bool {
+	private var isGeneralTab: Bool {
 		selectedTabKey == SettingsItem.appearanceSectionKey
 	}
 
 	var body: some View {
 		Group {
 			if store.isLoading && store.settingsSections.isEmpty {
-				// Still show Appearance while daemon sections load.
+				// Still show General while daemon sections load.
 				VStack(spacing: 0) {
 					tabBar
 					Divider().background(AppTheme.separator)
@@ -37,11 +37,11 @@ struct SettingsWindowView: View {
 						.frame(maxWidth: .infinity, maxHeight: .infinity)
 				}
 			} else if let errorMessage = store.errorMessage, store.settingsSections.isEmpty {
-				// Appearance remains available even if configure API fails.
+				// General remains available even if configure API fails.
 				VStack(spacing: 0) {
 					tabBar
 					Divider().background(AppTheme.separator)
-					if isAppearanceTab {
+					if isGeneralTab {
 						AppearanceSettingsView(preferences: appearancePreferences)
 					} else {
 						ContentUnavailableView {
@@ -136,7 +136,7 @@ struct SettingsWindowView: View {
 	@ViewBuilder
 	private var settingsContent: some View {
 		Group {
-			if isAppearanceTab {
+			if isGeneralTab {
 				AppearanceSettingsView(preferences: appearancePreferences)
 			} else if let section = selectedTopLevelSection,
 				ConfigureTreeHelpers.hasNestedSections(section)
@@ -165,7 +165,7 @@ struct SettingsWindowView: View {
 	/// When the configure store has a section selection (deep link or prior
 	/// server tab), switch the client tab bar to match.
 	private func syncTabFromStoreSelection() {
-		// Never override an in-progress Appearance choice with a stale nav key.
+		// Never override an in-progress General choice with a stale nav key.
 		if selectedTabKey == SettingsItem.appearanceSectionKey,
 			store.selectedNavKey == nil
 		{

@@ -13,6 +13,7 @@ struct AppearancePreferencesTests {
 		let prefs = AppearancePreferences(defaults: suite)
 		#expect(prefs.mode == .system)
 		#expect(prefs.accent == .orange)
+		#expect(prefs.hideOnboarding == false)
 		// System resolves to a concrete scheme (light or dark), never unspecified.
 		#expect(prefs.preferredColorScheme == .light || prefs.preferredColorScheme == .dark)
 		#expect(prefs.nsAppearance == nil)
@@ -43,20 +44,23 @@ struct AppearancePreferencesTests {
 		#expect(AppearancePreferences.resolveColorScheme(for: .dark) == .dark)
 	}
 
-	@Test("persists mode and accent to UserDefaults")
-	func persistsModeAndAccent() {
+	@Test("persists mode, accent, and hide onboarding to UserDefaults")
+	func persistsModeAccentAndHideOnboarding() {
 		let name = "toby.tests.appearance.\(UUID().uuidString)"
 		let suite = UserDefaults(suiteName: name)!
 
 		let prefs = AppearancePreferences(defaults: suite)
 		prefs.mode = .light
 		prefs.accent = .teal
+		prefs.hideOnboarding = true
 		#expect(suite.string(forKey: AppearancePreferences.modeDefaultsKey) == "light")
 		#expect(suite.string(forKey: AppearancePreferences.accentDefaultsKey) == "teal")
+		#expect(suite.bool(forKey: AppearancePreferences.hideOnboardingDefaultsKey) == true)
 
 		let reloaded = AppearancePreferences(defaults: suite)
 		#expect(reloaded.mode == .light)
 		#expect(reloaded.accent == .teal)
+		#expect(reloaded.hideOnboarding == true)
 		#expect(reloaded.resolvedColorScheme == .light)
 	}
 
@@ -78,8 +82,8 @@ struct AppearancePreferencesTests {
 		#expect(ThemeResolution.isDark == true)
 	}
 
-	@Test("settings window shows appearance tab by default")
-	func settingsWindowShowsAppearanceTab() throws {
+	@Test("settings window shows General tab by default")
+	func settingsWindowShowsGeneralTab() throws {
 		let store = ConfigureStore()
 		store.settingsSections = [
 			SettingsItem(
@@ -91,12 +95,58 @@ struct AppearancePreferencesTests {
 		]
 		let view = SettingsWindowView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Appearance")
+			try view.inspect().find(text: "General")
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(AppearanceSettingsView.self)
 		}
-		#expect(SettingsSidebarIcon.systemName(for: .appearanceSection) == "paintpalette")
+		#expect(SettingsItem.appearanceSection.label == "General")
+		#expect(SettingsSidebarIcon.systemName(for: .appearanceSection) == "gearshape")
+	}
+
+	@Test("general settings view does not host hide onboarding toggle")
+	func generalSettingsDoesNotHostHideOnboardingToggle() throws {
+		let suite = UserDefaults(suiteName: "toby.tests.appearance.\(UUID().uuidString)")!
+		let prefs = AppearancePreferences(defaults: suite)
+		let view = AppearanceSettingsView(preferences: prefs)
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hide-onboarding-toggle")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(text: "Hide onboarding checklist")
+		}
+	}
+
+	@Test("dashboard settings section shows hide onboarding toggle")
+	func dashboardSettingsShowsHideOnboardingToggle() throws {
+		let suite = UserDefaults(suiteName: "toby.tests.appearance.\(UUID().uuidString)")!
+		let prefs = AppearancePreferences(defaults: suite)
+		let store = ConfigureStore()
+		let section = SettingsItem(
+			label: "Dashboard",
+			kind: .section,
+			key: "dashboard",
+			navKey: "dashboard",
+			children: [],
+			masked: nil,
+			multiline: nil,
+			options: nil,
+			selectChoices: nil,
+			currentValue: nil,
+			selectedValues: nil,
+			readOnly: nil
+		)
+		let view = ConfigureSectionDetailView(
+			store: store,
+			section: section,
+			appearancePreferences: prefs
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Hide onboarding checklist")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hide-onboarding-toggle")
+		}
 	}
 
 	@Test("monochrome AI icon URLs use template rendering")

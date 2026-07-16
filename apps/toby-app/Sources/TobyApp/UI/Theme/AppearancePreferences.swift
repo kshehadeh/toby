@@ -118,13 +118,17 @@ enum AccentPreset: String, CaseIterable, Identifiable, Sendable {
 
 // MARK: - Preferences store
 
-/// UserDefaults keys for appearance (nonisolated for use from `AppTheme.accent`).
+/// UserDefaults keys for client-local app preferences
+/// (nonisolated for use from `AppTheme.accent`).
 enum AppearanceDefaultsKey {
 	static let mode = "toby.appearance.mode"
 	static let accent = "toby.appearance.accent"
+	/// Dashboard onboarding visibility (Settings → Dashboard; still app-local).
+	static let hideOnboarding = "toby.appearance.hideOnboarding"
 }
 
-/// Client-local appearance preferences (not daemon / `~/.toby` config).
+/// Client-local preferences: theme, accent, and app-only dashboard options
+/// (not daemon / `~/.toby` config).
 @Observable
 @MainActor
 final class AppearancePreferences {
@@ -132,6 +136,7 @@ final class AppearancePreferences {
 
 	static let modeDefaultsKey = AppearanceDefaultsKey.mode
 	static let accentDefaultsKey = AppearanceDefaultsKey.accent
+	static let hideOnboardingDefaultsKey = AppearanceDefaultsKey.hideOnboarding
 
 	/// Distributed notification posted when the user changes System Settings → Appearance.
 	private static let systemThemeChanged = Notification.Name("AppleInterfaceThemeChangedNotification")
@@ -155,6 +160,14 @@ final class AppearancePreferences {
 			guard accent != oldValue else { return }
 			defaults.set(accent.rawValue, forKey: Self.accentDefaultsKey)
 			themeEpoch &+= 1
+		}
+	}
+
+	/// When true, the dashboard onboarding checklist is hidden even if incomplete.
+	var hideOnboarding: Bool {
+		didSet {
+			guard hideOnboarding != oldValue else { return }
+			defaults.set(hideOnboarding, forKey: Self.hideOnboardingDefaultsKey)
 		}
 	}
 
@@ -185,6 +198,7 @@ final class AppearancePreferences {
 	init(
 		mode: AppearanceMode? = nil,
 		accent: AccentPreset? = nil,
+		hideOnboarding: Bool? = nil,
 		defaults: UserDefaults = .standard
 	) {
 		self.defaults = defaults
@@ -211,10 +225,20 @@ final class AppearancePreferences {
 			resolvedAccent = .orange
 		}
 
+		let resolvedHideOnboarding: Bool
+		if let hideOnboarding {
+			resolvedHideOnboarding = hideOnboarding
+		} else if defaults.object(forKey: Self.hideOnboardingDefaultsKey) != nil {
+			resolvedHideOnboarding = defaults.bool(forKey: Self.hideOnboardingDefaultsKey)
+		} else {
+			resolvedHideOnboarding = false
+		}
+
 		// Initialize all stored properties without touching self.mode first
 		// (@Observable synthesis requires resolvedColorScheme before other uses).
 		self.mode = resolvedMode
 		self.accent = resolvedAccent
+		self.hideOnboarding = resolvedHideOnboarding
 		self.resolvedColorScheme = Self.resolveColorScheme(for: resolvedMode)
 
 		// When explicit values are passed, persist them so reloads see them.
@@ -223,6 +247,9 @@ final class AppearancePreferences {
 		}
 		if accent != nil {
 			defaults.set(resolvedAccent.rawValue, forKey: Self.accentDefaultsKey)
+		}
+		if hideOnboarding != nil {
+			defaults.set(resolvedHideOnboarding, forKey: Self.hideOnboardingDefaultsKey)
 		}
 	}
 
