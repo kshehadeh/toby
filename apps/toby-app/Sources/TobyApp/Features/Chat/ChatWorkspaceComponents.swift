@@ -117,6 +117,7 @@ struct ActiveChatWorkspace: View {
                 activeWorkStartDate: store.activeWorkStartDate,
                 bottomContentPadding: overlayHeight,
                 personaImageUrl: personaImageUrl,
+                askUserStore: store,
             )
             VStack(spacing: 8) {
                 InputDock(

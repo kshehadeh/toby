@@ -203,4 +203,88 @@ struct ChatStoreTests {
         store.isServerRestarting = true
         #expect(store.isServerReady == false)
     }
+
+    // MARK: - Ask user
+
+    @Test("promptForAskUser surfaces active prompt and pauses until option is chosen")
+    func promptForAskUserOptionResume() async {
+        let store = ChatStore()
+        let payload = AskUserPromptPayload(
+            turnId: "turn-1",
+            requestId: "req-1",
+            query: "Which calendar?",
+            options: ["Personal", "Work"]
+        )
+
+        async let answer = store.promptForAskUser(payload)
+        // Yield so the continuation is installed and the prompt is active.
+        await Task.yield()
+        #expect(store.activeAskUserPrompt?.query == "Which calendar?")
+        #expect(store.activityLine == "Waiting for your choice…")
+
+        store.submitAskUserOption(index: 1)
+        let result = await answer
+        #expect(result.selectedIndex == 1)
+        #expect(result.selectedLabel == "Work")
+        #expect(result.error == nil)
+        #expect(store.activeAskUserPrompt == nil)
+
+        guard case .askUserQA(_, let query, let answerText, let error) = store.transcript.last else {
+            Issue.record("Expected optimistic askUserQA transcript entry")
+            return
+        }
+        #expect(query == "Which calendar?")
+        #expect(answerText == "Work")
+        #expect(error == nil)
+    }
+
+    @Test("cancelAskUserPrompt records cancelled Q&A and resumes with error")
+    func cancelAskUserPromptResumesWithError() async {
+        let store = ChatStore()
+        let payload = AskUserPromptPayload(
+            turnId: "turn-1",
+            requestId: "req-2",
+            query: "Proceed?",
+            options: ["Yes", "No"]
+        )
+
+        async let answer = store.promptForAskUser(payload)
+        await Task.yield()
+        store.cancelAskUserPrompt()
+        let result = await answer
+        #expect(result.error == "Cancelled")
+        #expect(store.activeAskUserPrompt == nil)
+
+        guard case .askUserQA(_, let query, _, let error) = store.transcript.last else {
+            Issue.record("Expected cancelled askUserQA transcript entry")
+            return
+        }
+        #expect(query == "Proceed?")
+        #expect(error == "Cancelled")
+    }
+
+    @Test("custom ask-user answer is stored as the Q&A answer")
+    func customAskUserAnswer() async {
+        let store = ChatStore()
+        let payload = AskUserPromptPayload(
+            turnId: "turn-1",
+            requestId: "req-3",
+            query: "Anything else?",
+            options: ["Done"]
+        )
+
+        async let answer = store.promptForAskUser(payload)
+        await Task.yield()
+        store.submitAskUserCustomAnswer("Also book lunch")
+        let result = await answer
+        #expect(result.selectedIndex == -1)
+        #expect(result.selectedLabel == "Also book lunch")
+        #expect(result.rawInput == "Also book lunch")
+
+        guard case .askUserQA(_, _, let answerText, _) = store.transcript.last else {
+            Issue.record("Expected custom askUserQA transcript entry")
+            return
+        }
+        #expect(answerText == "Also book lunch")
+    }
 }

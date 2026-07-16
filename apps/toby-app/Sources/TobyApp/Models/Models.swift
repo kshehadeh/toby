@@ -951,11 +951,18 @@ struct TurnDonePayload: Decodable {
 	let contextWindow: ContextWindowPayload?
 }
 
-struct AskUserPromptPayload: Decodable {
+struct AskUserPromptPayload: Decodable, Equatable {
 	let turnId: String
 	let requestId: String
 	let query: String
 	let options: [String]
+
+	init(turnId: String, requestId: String, query: String, options: [String]) {
+		self.turnId = turnId
+		self.requestId = requestId
+		self.query = query
+		self.options = options
+	}
 }
 
 struct ActiveAskUserPrompt: Equatable, Identifiable {

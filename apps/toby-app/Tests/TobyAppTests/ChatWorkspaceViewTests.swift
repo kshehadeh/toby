@@ -88,4 +88,62 @@ struct ChatWorkspaceViewTests {
         let field = try view.inspect().find(ViewType.TextField.self)
         #expect(try field.input() == "Draft message")
     }
+
+    // MARK: - Ask user (inline transcript control)
+
+    @Test("renders ask-user prompt inline in the transcript, not as empty-state modal chrome")
+    func showsAskUserPromptInline() throws {
+        let store = ChatStore()
+        store.transcript = [.user(text: "Schedule something")]
+        store.activeAskUserPrompt = ActiveAskUserPrompt(
+            id: "req-1",
+            turnId: "turn-1",
+            requestId: "req-1",
+            query: "Which calendar should I use?",
+            options: ["Personal", "Work"]
+        )
+        let view = ChatWorkspaceView(store: store)
+
+        #expect(throws: Never.self) {
+            try view.inspect().find(viewWithAccessibilityIdentifier: "ask-user-prompt")
+        }
+        #expect(throws: Never.self) {
+            try view.inspect().find(text: "Which calendar should I use?")
+        }
+        #expect(throws: Never.self) {
+            try view.inspect().find(text: "Personal")
+        }
+        #expect(throws: Never.self) {
+            try view.inspect().find(text: "Work")
+        }
+        // Empty-state headline must not show while a turn is waiting on a choice.
+        #expect(throws: (any Error).self) {
+            try view.inspect().find(text: "What should Toby take care of?")
+        }
+    }
+
+    @Test("renders answered ask-user Q&A in the transcript")
+    func showsAskUserQAInTranscript() throws {
+        let store = ChatStore()
+        store.transcript = [
+            .user(text: "Schedule something"),
+            .askUserQA(
+                blockKey: "b1",
+                query: "Which calendar should I use?",
+                answer: "Work",
+                error: nil
+            ),
+        ]
+        let view = ChatWorkspaceView(store: store)
+
+        #expect(throws: Never.self) {
+            try view.inspect().find(text: "Which calendar should I use?")
+        }
+        #expect(throws: Never.self) {
+            try view.inspect().find(text: "Work")
+        }
+        #expect(throws: (any Error).self) {
+            try view.inspect().find(viewWithAccessibilityIdentifier: "ask-user-prompt")
+        }
+    }
 }

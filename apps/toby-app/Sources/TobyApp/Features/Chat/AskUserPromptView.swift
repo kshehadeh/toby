@@ -1,80 +1,49 @@
 import SwiftUI
 
+/// Interactive ask-user control rendered inline in the chat transcript.
+/// Matches the layout of `AskUserQARow` so the answered Q&A can replace it in place.
 struct AskUserPromptView: View {
 	@Bindable var store: ChatStore
 
 	var body: some View {
-		VStack(spacing: 0) {
-			Spacer()
-			VStack(alignment: .leading, spacing: 18) {
-				promptHeader
-				optionList
-				cancelButton
-			}
-			.padding(22)
-			.frame(maxWidth: 520)
-			.background(
-				RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
-					.fill(AppTheme.panelBackground)
-			)
-			.overlay(
-				RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
-					.stroke(AppTheme.separator)
-			)
-			.shadow(color: .black.opacity(0.28), radius: 36, y: 14)
-			.padding(.horizontal, AppTheme.contentPadding)
-			.padding(.bottom, 160)
-			Spacer()
-		}
-		.background(.black.opacity(0.42))
-		.ignoresSafeArea()
-	}
-
-	@ViewBuilder
-	private var promptHeader: some View {
-		HStack(spacing: 10) {
-			Image(systemName: "questionmark.bubble.fill")
-				.font(.title3.weight(.semibold))
-				.foregroundStyle(AppTheme.accent)
-			Text(store.activeAskUserPrompt?.query ?? "")
-				.font(.headline.weight(.semibold))
-				.foregroundStyle(AppTheme.primaryText)
-				.fixedSize(horizontal: false, vertical: true)
-				.frame(maxWidth: .infinity, alignment: .leading)
-		}
-	}
-
-	@ViewBuilder
-	private var optionList: some View {
 		if let prompt = store.activeAskUserPrompt {
-			VStack(spacing: 8) {
-				ForEach(Array(prompt.options.enumerated()), id: \.offset) { index, option in
+			HStack(alignment: .top, spacing: 10) {
+				AssistantRailColumn(iconName: "questionmark.bubble")
+				VStack(alignment: .leading, spacing: 10) {
+					Text(prompt.query)
+						.font(AppTheme.transcriptCalloutFont.weight(.semibold))
+						.foregroundStyle(AppTheme.primaryText)
+						.fixedSize(horizontal: false, vertical: true)
+						.frame(maxWidth: .infinity, alignment: .leading)
+
+					VStack(spacing: 8) {
+						ForEach(Array(prompt.options.enumerated()), id: \.offset) { index, option in
+							Button {
+								store.submitAskUserOption(index: index)
+							} label: {
+								AskUserOptionRow(number: index + 1, label: option)
+							}
+							.buttonStyle(.plain)
+							.accessibilityIdentifier("ask-user-option-\(index)")
+						}
+						AskUserCustomOptionRow(store: store, number: prompt.options.count + 1)
+					}
+
 					Button {
-						store.submitAskUserOption(index: index)
+						store.cancelAskUserPrompt()
 					} label: {
-						AskUserOptionRow(number: index + 1, label: option)
+						Text("Cancel")
+							.font(AppTheme.transcriptCalloutFont.weight(.medium))
+							.foregroundStyle(AppTheme.secondaryText)
 					}
 					.buttonStyle(.plain)
+					.accessibilityIdentifier("ask-user-cancel")
 				}
-				AskUserCustomOptionRow(store: store, number: prompt.options.count + 1)
+				.frame(maxWidth: 520, alignment: .leading)
+				Spacer(minLength: 0)
 			}
-		}
-	}
-
-	@ViewBuilder
-	private var cancelButton: some View {
-		HStack {
-			Spacer()
-			Button {
-				store.cancelAskUserPrompt()
-			} label: {
-				Text("Cancel")
-					.font(.callout.weight(.medium))
-					.foregroundStyle(AppTheme.secondaryText)
-					.padding(.horizontal, 12)
-					.padding(.vertical, 6)
-			}
-			.buttonStyle(.plain)
+			.accessibilityElement(children: .contain)
+			.accessibilityIdentifier("ask-user-prompt")
 		}
 	}
 }

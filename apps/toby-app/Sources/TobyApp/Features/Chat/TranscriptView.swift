@@ -8,13 +8,21 @@ struct TranscriptView: View {
 	var activeWorkStartDate: Date?
 	var bottomContentPadding: CGFloat = 18
 	var personaImageUrl: URL?
+	/// When set and `store.activeAskUserPrompt` is non-nil, the interactive prompt
+	/// is rendered as the last transcript control (not a modal overlay).
+	var askUserStore: ChatStore?
 	private let bottomAnchorID = "transcript-bottom-anchor"
+	private let askUserAnchorID = "transcript-ask-user-anchor"
 
 	@State private var expandedWorkGroups: Set<String> = []
 	@State private var collapsedWhileActive: Set<String> = []
 
 	private var displayItems: [TranscriptDisplayItem] {
 		TranscriptGrouping.groupedItems(from: entries, isLoading: isLoading)
+	}
+
+	private var hasActiveAskUser: Bool {
+		askUserStore?.activeAskUserPrompt != nil
 	}
 
 	private func isWorkGroupExpanded(_ group: TranscriptWorkGroup) -> Bool {
@@ -58,6 +66,10 @@ struct TranscriptView: View {
 						)
 						.id("streaming")
 					}
+					if let askUserStore, askUserStore.activeAskUserPrompt != nil {
+						AskUserPromptView(store: askUserStore)
+							.id(askUserAnchorID)
+					}
 					Color.clear
 						.frame(height: bottomContentPadding)
 						.id(bottomAnchorID)
@@ -73,6 +85,11 @@ struct TranscriptView: View {
 			}
 			.onChange(of: streamingAssistant?.text) { _, _ in
 				scrollToBottom(proxy: proxy)
+			}
+			.onChange(of: hasActiveAskUser) { _, isActive in
+				if isActive {
+					scrollToBottom(proxy: proxy)
+				}
 			}
 			.onChange(of: isLoading) { wasLoading, loading in
 				if wasLoading, !loading {

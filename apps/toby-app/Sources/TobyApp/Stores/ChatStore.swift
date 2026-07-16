@@ -779,7 +779,9 @@ final class ChatStore {
 		activeTurnUserIndex = nil
 	}
 
-	private func promptForAskUser(_ payload: AskUserPromptPayload) async -> (selectedIndex: Int, selectedLabel: String, rawInput: String, error: String?) {
+	/// Presents the interactive ask-user control and suspends until the user answers.
+	/// Internal for unit tests; production callers use the SSE `onAskUser` path.
+	func promptForAskUser(_ payload: AskUserPromptPayload) async -> (selectedIndex: Int, selectedLabel: String, rawInput: String, error: String?) {
 		await withCheckedContinuation { continuation in
 			self.askUserContinuation = continuation
 			self.activeAskUserPrompt = ActiveAskUserPrompt(
@@ -789,6 +791,7 @@ final class ChatStore {
 				query: payload.query,
 				options: payload.options
 			)
+			self.activityLine = "Waiting for your choice…"
 		}
 	}
 
@@ -798,23 +801,38 @@ final class ChatStore {
 		let label = prompt.options[index]
 		askUserContinuation = nil
 		activeAskUserPrompt = nil
+		// Replace the interactive control with the answered Q&A immediately.
+		appendLocalAskUserQA(query: prompt.query, answer: label, error: nil, requestId: prompt.requestId)
 		continuation.resume(returning: (index, label, String(index + 1), nil))
 	}
 
 	func submitAskUserCustomAnswer(_ rawInput: String) {
-		guard let continuation = askUserContinuation else { return }
+		guard let prompt = activeAskUserPrompt, let continuation = askUserContinuation else { return }
 		let trimmed = rawInput.trimmingCharacters(in: .whitespacesAndNewlines)
 		guard !trimmed.isEmpty else { return }
 		askUserContinuation = nil
 		activeAskUserPrompt = nil
+		appendLocalAskUserQA(query: prompt.query, answer: trimmed, error: nil, requestId: prompt.requestId)
 		continuation.resume(returning: (-1, trimmed, trimmed, nil))
 	}
 
 	func cancelAskUserPrompt() {
-		guard let continuation = askUserContinuation else { return }
+		guard let prompt = activeAskUserPrompt, let continuation = askUserContinuation else { return }
 		askUserContinuation = nil
 		activeAskUserPrompt = nil
+		appendLocalAskUserQA(query: prompt.query, answer: "", error: "Cancelled", requestId: prompt.requestId)
 		continuation.resume(returning: (-1, "", "", "Cancelled"))
+	}
+
+	private func appendLocalAskUserQA(query: String, answer: String, error: String?, requestId: String) {
+		transcript.append(
+			.askUserQA(
+				blockKey: "local-ask-\(requestId)",
+				query: query,
+				answer: answer,
+				error: error,
+			),
+		)
 	}
 
 	private func reloadTranscriptFromServer(clearTurnDurationForIndex userIndex: Int?) async {
@@ -875,6 +893,11 @@ final class ChatStore {
 				interim: event.interim == true,
 			)
 		case "tool_call_start":
+			// askUser is rendered as an inline transcript control, not a tool step.
+			if event.toolName == "askUser" {
+				activityLine = "Waiting for your choice…"
+				break
+			}
 			sawToolCallThisTurn = true
 			if let toolName = event.toolName {
 				let args = event.args?.value as? [String: Any]
@@ -895,6 +918,11 @@ final class ChatStore {
 				activityLine = "Running \(ToolDisplayLabels.displayLabel(toolName))…"
 			}
 		case "tool_call_complete":
+			if event.toolName == "askUser" {
+				appendAskUserQA(from: event)
+				activityLine = "Thinking…"
+				break
+			}
 			if let toolName = event.toolName {
 				let args = event.args?.value as? [String: Any]
 				let errorString: String?
@@ -1052,6 +1080,68 @@ final class ChatStore {
 					fullBody: fullBody,
 				),
 			),
+		)
+	}
+
+	/// Server-side askUser tool completion. Prefer upgrading a local optimistic
+	/// Q&A row when one was already inserted on submit, so the control does not
+	/// flash empty and then double-render.
+	private func appendAskUserQA(from event: ChatEventPayload) {
+		let args = event.args?.value as? [String: Any]
+		var query = (args?["query"] as? String) ?? ""
+		let blockKey = event.blockKey ?? event.id ?? UUID().uuidString
+
+		let errorString: String?
+		if let error = event.error?.value {
+			if error is NSNull {
+				errorString = nil
+			} else if let str = error as? String {
+				errorString = str
+			} else {
+				errorString = String(describing: error)
+			}
+		} else {
+			errorString = nil
+		}
+
+		let answer: String
+		let resolvedError: String?
+		if let errorString, !errorString.isEmpty {
+			answer = ""
+			resolvedError = errorString
+		} else if let result = event.result?.value as? [String: Any],
+			let resultError = result["error"] as? String,
+			!resultError.isEmpty
+		{
+			answer = ""
+			resolvedError = resultError
+		} else {
+			let result = event.result?.value as? [String: Any]
+			answer = ((result?["selectedLabel"] as? String) ?? "")
+				.trimmingCharacters(in: .whitespacesAndNewlines)
+			resolvedError = nil
+		}
+
+		if let index = transcript.lastIndex(where: { entry in
+			if case .askUserQA(let key, let existingQuery, _, _) = entry {
+				return existingQuery == query || key.hasPrefix("local-ask-")
+			}
+			return false
+		}) {
+			if query.isEmpty, case .askUserQA(_, let existingQuery, _, _) = transcript[index] {
+				query = existingQuery
+			}
+			transcript[index] = .askUserQA(
+				blockKey: blockKey,
+				query: query,
+				answer: answer,
+				error: resolvedError,
+			)
+			return
+		}
+
+		transcript.append(
+			.askUserQA(blockKey: blockKey, query: query, answer: answer, error: resolvedError),
 		)
 	}
 
