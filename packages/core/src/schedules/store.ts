@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { invalidateSettingsCache } from "../configure/settings-cache";
 import { getDb } from "../session-store";
 import type {
 	CreateScheduleParams,
@@ -10,6 +11,16 @@ import type {
 
 function nowIso(): string {
 	return new Date().toISOString();
+}
+
+/**
+ * Recent-run status is embedded in the configure settings tree. Mutating
+ * schedule_runs (or schedule last-run metadata) must drop that cache so the
+ * next tree fetch reflects live DB state. Without this, list UIs keep showing
+ * RUNNING after a run has completed in the DB.
+ */
+function invalidateScheduleSettingsViews(): void {
+	invalidateSettingsCache();
 }
 
 function rowToSchedule(row: Record<string, unknown>): Schedule {
@@ -86,6 +97,7 @@ export function createSchedule(params: CreateScheduleParams): Schedule {
 		$created_at: ts,
 		$updated_at: ts,
 	});
+	invalidateScheduleSettingsViews();
 	return getSchedule(id) as Schedule;
 }
 
@@ -132,6 +144,7 @@ export function updateSchedule(
 		$updated_at: nowIso(),
 	});
 
+	invalidateScheduleSettingsViews();
 	return getSchedule(id);
 }
 
@@ -142,6 +155,7 @@ export function deleteSchedule(id: string): boolean {
 		.get({ $id: id }) as Record<string, unknown> | undefined;
 	if (!row) return false;
 	db.query("DELETE FROM schedules WHERE id = $id").run({ $id: id });
+	invalidateScheduleSettingsViews();
 	return true;
 }
 
@@ -166,6 +180,7 @@ export function updateScheduleLastRun(id: string): void {
 		$last_run_at: nowIso(),
 		$updated_at: nowIso(),
 	});
+	invalidateScheduleSettingsViews();
 }
 
 export function claimScheduleRun(
@@ -191,7 +206,12 @@ export function claimScheduleRun(
        WHERE id = $id AND enabled = 1 AND ${lastRunWhere}`,
 		)
 		.run(params);
-	return Number((result as { changes: number } | null)?.changes ?? 0) > 0;
+	const claimed =
+		Number((result as { changes: number } | null)?.changes ?? 0) > 0;
+	if (claimed) {
+		invalidateScheduleSettingsViews();
+	}
+	return claimed;
 }
 
 export function createScheduleRun(params: {
@@ -212,6 +232,8 @@ export function createScheduleRun(params: {
 		$prompt: params.prompt,
 		$started_at: ts,
 	});
+	// New RUNNING row must appear in Recent runs immediately.
+	invalidateScheduleSettingsViews();
 	return id;
 }
 
@@ -244,6 +266,8 @@ export function completeScheduleRun(
 			$completed_at: ts,
 		});
 	}
+	// Drop cached configure tree so list UIs stop showing RUNNING.
+	invalidateScheduleSettingsViews();
 }
 
 export function listScheduleRuns(

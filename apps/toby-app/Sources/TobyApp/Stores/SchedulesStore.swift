@@ -57,6 +57,22 @@ struct ScheduleViewModel: Identifiable {
 		guard let nextRunAt else { return nil }
 		return CronHelpers.relativeTime(until: nextRunAt)
 	}
+
+	func replacingRecentRuns(_ recentRuns: [ScheduleRunViewModel]) -> ScheduleViewModel {
+		ScheduleViewModel(
+			id: id,
+			name: name,
+			prompt: prompt,
+			personaName: personaName,
+			projectId: projectId,
+			cronExpression: cronExpression,
+			cronHumanReadable: cronHumanReadable,
+			nextRunAt: nextRunAt,
+			enabled: enabled,
+			lastRunAt: lastRunAt,
+			recentRuns: recentRuns
+		)
+	}
 }
 
 struct ScheduleRunViewModel: Identifiable {
@@ -64,6 +80,19 @@ struct ScheduleRunViewModel: Identifiable {
 	let label: String
 	let status: String
 	let startedAt: String?
+
+	/// Rebuilds the configure-tree style label (`date · STATUS`) with an updated status.
+	func withStatus(_ newStatus: String) -> ScheduleRunViewModel {
+		let normalized = newStatus.lowercased()
+		let upper = normalized.uppercased()
+		let newLabel: String
+		if let range = label.range(of: " · ", options: .backwards) {
+			newLabel = String(label[..<range.upperBound]) + upper
+		} else {
+			newLabel = "\(label) · \(upper)"
+		}
+		return ScheduleRunViewModel(id: id, label: newLabel, status: normalized, startedAt: startedAt)
+	}
 }
 
 enum ScheduleField: String {
@@ -218,7 +247,7 @@ final class SchedulesStore {
 		runDetailError = nil
 		defer { isRunDetailLoading = false }
 		do {
-			selectedRunDetail = try await client.fetchScheduleRun(id: selectedRunId)
+			try await fetchAndApplyRunDetail(id: selectedRunId, surfaceError: true)
 			startRunDetailPollingIfNeeded()
 		} catch {
 			runDetailError = error.localizedDescription
@@ -226,25 +255,129 @@ final class SchedulesStore {
 	}
 
 	func closeRunDetail() {
-		pollTask?.cancel()
-		pollTask = nil
+		runDetailPollTask?.cancel()
+		runDetailPollTask = nil
 		selectedRunId = nil
 		selectedRunDetail = nil
 		runDetailError = nil
 	}
 
-	private var pollTask: Task<Void, Never>?
+	/// Updates local `recentRuns` entries to match a live run detail payload.
+	/// Internal for tests (`@testable import`).
+	func applyRunDetailToSchedules(_ detail: ScheduleRunDetail) {
+		var didChange = false
+		schedules = schedules.map { schedule in
+			guard schedule.recentRuns.contains(where: { $0.id == detail.id }) else {
+				return schedule
+			}
+			let updatedRuns = schedule.recentRuns.map { run -> ScheduleRunViewModel in
+				guard run.id == detail.id else { return run }
+				let next = run.withStatus(detail.status)
+				if next.status != run.status || next.label != run.label {
+					didChange = true
+				}
+				return next
+			}
+			return schedule.replacingRecentRuns(updatedRuns)
+		}
+		if didChange {
+			startListPollingIfNeeded()
+		}
+	}
+
+	private var runDetailPollTask: Task<Void, Never>?
+	private var listPollTask: Task<Void, Never>?
+	private var isQuietRefreshing = false
+
+	private func listStatus(forRunId runId: String) -> String? {
+		for schedule in schedules {
+			if let run = schedule.recentRuns.first(where: { $0.id == runId }) {
+				return run.status
+			}
+		}
+		return nil
+	}
+
+	private func hasRunningRecentRuns() -> Bool {
+		schedules.contains { schedule in
+			schedule.recentRuns.contains { $0.status == "running" }
+		}
+	}
+
+	/// Fetches a single run from the API and syncs list + detail state.
+	private func fetchAndApplyRunDetail(id: String, surfaceError: Bool) async throws {
+		let previousStatus = listStatus(forRunId: id)
+		let detail = try await client.fetchScheduleRun(id: id)
+		// Ignore late responses if the user closed or switched runs.
+		guard selectedRunId == id else { return }
+		selectedRunDetail = detail
+		// Modal status comes from the live run API; list UIs use the configure-tree
+		// snapshot. Propagate the live status so inspector + dashboard stay in sync.
+		applyRunDetailToSchedules(detail)
+		let transitionedToTerminal = previousStatus == "running" && !detail.isRunning
+		if transitionedToTerminal {
+			// Refresh tree for last-run metadata and authoritative labels.
+			await refreshQuietly()
+		}
+		if surfaceError {
+			runDetailError = nil
+		}
+	}
 
 	private func startRunDetailPollingIfNeeded() {
-		pollTask?.cancel()
-		pollTask = nil
-		guard selectedRunDetail?.isRunning == true else { return }
-		pollTask = Task { [weak self] in
-			while !Task.isCancelled, let self, self.selectedRunDetail?.isRunning == true {
+		runDetailPollTask?.cancel()
+		runDetailPollTask = nil
+		guard selectedRunDetail?.isRunning == true, let runId = selectedRunId else { return }
+		runDetailPollTask = Task { [weak self] in
+			while !Task.isCancelled {
 				try? await Task.sleep(nanoseconds: 2_000_000_000)
-				guard !Task.isCancelled, self.selectedRunDetail?.isRunning == true else { break }
-				await self.loadRunDetail()
+				guard !Task.isCancelled, let self else { break }
+				guard self.selectedRunId == runId, self.selectedRunDetail?.isRunning == true else {
+					break
+				}
+				do {
+					// Poll without restarting this task or flipping the loading spinner.
+					try await self.fetchAndApplyRunDetail(id: runId, surfaceError: false)
+				} catch {
+					// Soft-fail polls; keep trying until terminal or dismissed.
+				}
 			}
+		}
+	}
+
+	/// Polls the configure tree while any recent run is still `running`, so
+	/// dashboard/sidebar list statuses update even when the run modal is closed.
+	private func startListPollingIfNeeded() {
+		guard hasRunningRecentRuns() else {
+			listPollTask?.cancel()
+			listPollTask = nil
+			return
+		}
+		guard listPollTask == nil else { return }
+		listPollTask = Task { [weak self] in
+			while !Task.isCancelled {
+				try? await Task.sleep(nanoseconds: 3_000_000_000)
+				guard !Task.isCancelled, let self else { break }
+				guard self.hasRunningRecentRuns() else {
+					self.listPollTask = nil
+					break
+				}
+				await self.refreshQuietly()
+			}
+		}
+	}
+
+	/// Soft re-fetch of the schedules configure tree without flipping `isLoading`.
+	private func refreshQuietly() async {
+		guard !isQuietRefreshing else { return }
+		isQuietRefreshing = true
+		defer { isQuietRefreshing = false }
+		do {
+			let response = try await client.fetchConfigureTree()
+			// Preserve in-progress edits; only list/run metadata needs to refresh.
+			apply(response: response, resetDraft: false)
+		} catch {
+			// Quiet refresh failures are non-fatal; next poll or explicit load retries.
 		}
 	}
 
@@ -388,6 +521,8 @@ final class SchedulesStore {
 		} else {
 			pruneDraft()
 		}
+		// Keep list UIs (inspector + dashboard) in sync while any run is in flight.
+		startListPollingIfNeeded()
 	}
 
 	private func pruneDraft() {

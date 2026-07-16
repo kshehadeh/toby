@@ -165,4 +165,60 @@ struct SchedulesViewTests {
 		store.values[store.key(for: schedule.id, field: .cron)] = "every 2 days at 9am"
 		#expect(store.isCronValid(for: schedule.id) == false)
 	}
+
+	@Test("run view model withStatus rewrites label and normalizes status")
+	func runViewModelWithStatusRewritesLabel() {
+		let run = ScheduleRunViewModel(
+			id: "run-1",
+			label: "7/15/2026, 3:01:11 PM · RUNNING",
+			status: "running",
+			startedAt: "2026-07-15T15:01:11Z"
+		)
+		let updated = run.withStatus("success")
+		#expect(updated.status == "success")
+		#expect(updated.label == "7/15/2026, 3:01:11 PM · SUCCESS")
+		#expect(updated.id == run.id)
+		#expect(updated.startedAt == run.startedAt)
+	}
+
+	@Test("applyRunDetailToSchedules syncs list status from live run detail")
+	func applyRunDetailSyncsListStatus() {
+		let store = SchedulesStore()
+		let run = ScheduleRunViewModel(
+			id: "run-1",
+			label: "7/15/2026, 3:01:11 PM · RUNNING",
+			status: "running",
+			startedAt: "2026-07-15T15:01:11Z"
+		)
+		store.schedules = [
+			ScheduleViewModel(
+				id: "schedule-1",
+				name: "Email Checker",
+				prompt: "Check email",
+				personaName: "Audrey",
+				cronExpression: "0 9 * * *",
+				cronHumanReadable: "At 09:00 AM",
+				nextRunAt: nil,
+				enabled: true,
+				lastRunAt: nil,
+				recentRuns: [run]
+			),
+		]
+		let detail = ScheduleRunDetail(
+			id: "run-1",
+			scheduleId: "schedule-1",
+			scheduleName: "Email Checker",
+			personaName: "Audrey",
+			prompt: "Check email",
+			output: "done",
+			status: "success",
+			error: nil,
+			startedAt: "2026-07-15T15:01:11Z",
+			completedAt: "2026-07-15T15:02:26Z",
+			transcript: []
+		)
+		store.applyRunDetailToSchedules(detail)
+		#expect(store.schedules.first?.recentRuns.first?.status == "success")
+		#expect(store.schedules.first?.recentRuns.first?.label == "7/15/2026, 3:01:11 PM · SUCCESS")
+	}
 }

@@ -92,9 +92,10 @@ async function buildCachedSettings(): Promise<CachedSettings> {
 /**
  * Returns the cached settings snapshot, building it on first access.
  * The cache is invalidated by {@link invalidateSettingsCache} whenever
- * config or credentials are written.
- * (so newly installed/removed plugins are reflected without requiring a
- * daemon restart).
+ * config/credentials are written, plugins change, or schedule rows change
+ * (create/update/delete schedule, create/complete schedule runs). Schedule
+ * recent-run status is embedded in the tree, so run completion must drop
+ * this cache or list UIs stay stuck on RUNNING until the daemon restarts.
  */
 export async function getSettingsCache(): Promise<CachedSettings> {
 	if (cached) {
