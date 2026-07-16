@@ -303,19 +303,16 @@ struct WorkStepHeader: View {
 				HStack(alignment: .top, spacing: 8) {
 					Text(step.title)
 						.font(AppTheme.transcriptCaptionFont.weight(.semibold))
-						.tracking(AppTheme.transcriptTracking)
 						.foregroundStyle(AppTheme.secondaryText)
 					Spacer(minLength: 0)
 					if step.count > 1 {
 						Text("×\(step.count)")
 							.font(AppTheme.transcriptCaptionFont)
-							.tracking(AppTheme.transcriptTracking)
 							.foregroundStyle(AppTheme.tertiaryText)
 					}
 					if let durationMs = step.durationMs, durationMs > 0 {
 						Text(formatDurationMs(durationMs))
 							.font(AppTheme.transcriptCaptionFont)
-							.tracking(AppTheme.transcriptTracking)
 							.foregroundStyle(AppTheme.tertiaryText)
 							.monospacedDigit()
 					}
@@ -330,8 +327,6 @@ struct WorkStepHeader: View {
 				if !isExpanded && step.count == 1 && !step.body.isEmpty {
 					Text(step.body)
 						.font(AppTheme.transcriptCaptionFont)
-						.tracking(AppTheme.transcriptTracking)
-						.lineSpacing(AppTheme.transcriptLineSpacing)
 						.foregroundStyle(AppTheme.tertiaryText)
 						.lineLimit(4)
 						.frame(maxWidth: .infinity, alignment: .leading)
@@ -357,7 +352,6 @@ struct WorkStepExpandedBody: View {
 						if !child.title.isEmpty && child.title != step.title {
 							Text(child.title)
 								.font(AppTheme.transcriptCaptionFont.weight(.semibold))
-								.tracking(AppTheme.transcriptTracking)
 								.foregroundStyle(AppTheme.secondaryText)
 						}
 						WorkStepBodyText(step: child)
@@ -387,8 +381,6 @@ struct WorkStepBodyText: View {
 		} else {
 			Text(displayText)
 				.font(AppTheme.transcriptCaptionFont)
-				.tracking(AppTheme.transcriptTracking)
-				.lineSpacing(AppTheme.transcriptLineSpacing)
 				.foregroundStyle(AppTheme.tertiaryText)
 				.frame(maxWidth: .infinity, alignment: .leading)
 				.textSelection(.enabled)

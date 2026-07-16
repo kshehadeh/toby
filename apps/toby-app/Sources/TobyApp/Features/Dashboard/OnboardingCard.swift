@@ -81,7 +81,6 @@ private struct OnboardingStepTile: View {
 			if isUpNext {
 				Text("UP NEXT")
 					.font(.system(size: 9, weight: .bold))
-					.tracking(0.4)
 					.foregroundStyle(Color.black.opacity(0.85))
 					.padding(.horizontal, 7)
 					.padding(.vertical, 3)

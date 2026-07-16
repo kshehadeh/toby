@@ -14,7 +14,6 @@ struct AssistantMessageRow: View {
 			VStack(alignment: .leading, spacing: 6) {
 				Text(header)
 					.font(AppTheme.transcriptCaptionFont.weight(.semibold))
-					.tracking(AppTheme.transcriptTracking)
 					.foregroundStyle(AppTheme.secondaryText)
 				MarkdownText(
 					text: messageBody,

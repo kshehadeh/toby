@@ -33,8 +33,6 @@ struct UserMessageRow: View {
 				if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
 					Text(displayedText)
 						.font(AppTheme.transcriptBodyFont)
-						.tracking(AppTheme.transcriptTracking)
-						.lineSpacing(AppTheme.transcriptLineSpacing)
 						.foregroundStyle(AppTheme.primaryText)
 						.textSelection(.enabled)
 						.fixedSize(horizontal: false, vertical: true)
@@ -70,7 +68,6 @@ struct UserMessageRow: View {
 					}) {
 						Text(isExpanded ? "Show less" : "Show more")
 							.font(AppTheme.transcriptCaptionFont)
-							.tracking(AppTheme.transcriptTracking)
 							.foregroundStyle(AppTheme.accent)
 					}
 					.buttonStyle(.plain)
@@ -161,13 +158,11 @@ private struct TranscriptAttachmentCaption: View {
 		VStack(alignment: .leading, spacing: 2) {
 			Text(attachment.filename)
 				.font(AppTheme.transcriptCaptionFont)
-				.tracking(AppTheme.transcriptTracking)
 				.foregroundStyle(AppTheme.primaryText)
 				.lineLimit(1)
 				.truncationMode(.middle)
 			Text(formatAttachmentByteSize(attachment.byteSize))
 				.font(AppTheme.transcriptCaptionFont)
-				.tracking(AppTheme.transcriptTracking)
 				.foregroundStyle(AppTheme.secondaryText)
 		}
 	}

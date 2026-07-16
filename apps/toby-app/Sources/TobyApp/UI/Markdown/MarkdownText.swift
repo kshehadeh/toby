@@ -25,7 +25,7 @@ struct MarkdownText: View {
 	var strongForegroundStyle: Color? = nil
 	/// Heading color. Defaults to `foregroundStyle` (or primary when using standard styling).
 	var headingForegroundStyle: Color? = nil
-	/// When true, heading text is rendered in uppercase with slightly looser tracking.
+	/// When true, heading text is rendered in uppercase.
 	var uppercaseHeadings: Bool = false
 
 	var body: some View {
@@ -38,11 +38,9 @@ struct MarkdownText: View {
 					inlineText(display, base: headingColor, strong: headingColor)
 						.font(headingFont(for: level))
 						.fontWeight(.semibold)
-						.tracking(uppercaseHeadings ? 0.9 : 0)
 				case .paragraph(let content):
 					styledInline(content)
 						.font(font)
-						.tracking(AppTheme.transcriptTracking)
 				case .bullet(let content):
 					HStack(alignment: .firstTextBaseline, spacing: 8) {
 						Text("•")
@@ -50,7 +48,6 @@ struct MarkdownText: View {
 							.foregroundStyle(foregroundStyle)
 						styledInline(content)
 							.font(font)
-							.tracking(AppTheme.transcriptTracking)
 					}
 				case .blockquote(let content):
 					HStack(alignment: .top, spacing: 10) {
@@ -59,7 +56,6 @@ struct MarkdownText: View {
 							.frame(width: 3)
 						styledInline(content, baseOpacity: 0.88)
 							.font(font)
-							.tracking(AppTheme.transcriptTracking)
 					}
 					.accessibilityIdentifier("markdown-blockquote")
 				case .horizontalRule:
@@ -84,7 +80,6 @@ struct MarkdownText: View {
 				}
 			}
 		}
-		.lineSpacing(AppTheme.transcriptLineSpacing)
 		.frame(maxWidth: .infinity, alignment: .leading)
 	}
 

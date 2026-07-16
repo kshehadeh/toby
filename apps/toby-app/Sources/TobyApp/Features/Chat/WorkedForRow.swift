@@ -39,12 +39,10 @@ struct WorkedForRow: View {
 							}
 							Text(summaryLabel(at: context.date))
 								.font(AppTheme.transcriptCaptionFont.weight(.medium))
-								.tracking(AppTheme.transcriptTracking)
 								.foregroundStyle(AppTheme.secondaryText)
 							if isExpanded, toolStepCount > 0 {
 								Text("· \(toolStepCount) step\(toolStepCount == 1 ? "" : "s")")
 									.font(AppTheme.transcriptCaptionFont)
-									.tracking(AppTheme.transcriptTracking)
 									.foregroundStyle(AppTheme.tertiaryText)
 							}
 							Spacer(minLength: 0)
@@ -179,7 +177,6 @@ private struct AssistantWorkMessageRow: View {
 			VStack(alignment: .leading, spacing: 6) {
 				Text(step.title)
 					.font(AppTheme.transcriptCaptionFont.weight(.semibold))
-					.tracking(AppTheme.transcriptTracking)
 					.foregroundStyle(AppTheme.secondaryText)
 				MarkdownText(
 					text: messageBody,
@@ -196,7 +193,6 @@ private struct AssistantWorkMessageRow: View {
 							.rotationEffect(.degrees(isExpanded ? -90 : 90))
 					}
 					.font(AppTheme.transcriptCaptionFont.weight(.medium))
-					.tracking(AppTheme.transcriptTracking)
 					.foregroundStyle(AppTheme.accent)
 					.padding(.top, 2)
 				}

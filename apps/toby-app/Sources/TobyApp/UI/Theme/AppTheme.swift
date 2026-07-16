@@ -26,10 +26,8 @@ enum AppTheme {
 	static let smallCornerRadius: CGFloat = 9
 	static let contentPadding: CGFloat = 24
 
-	// Transcript typography: rounded SF Pro with looser spacing for readability
+	// Transcript typography: rounded SF Pro
 	static let transcriptBodyFont: Font = .system(.body, design: .rounded, weight: .regular)
 	static let transcriptCalloutFont: Font = .system(.callout, design: .rounded, weight: .regular)
 	static let transcriptCaptionFont: Font = .system(.caption, design: .rounded, weight: .medium)
-	static let transcriptLineSpacing: CGFloat = 6
-	static let transcriptTracking: CGFloat = 0.4
 }

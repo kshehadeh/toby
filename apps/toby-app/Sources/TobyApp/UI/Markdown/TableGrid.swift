@@ -59,7 +59,6 @@ struct TableCell: View {
 				.frame(maxWidth: .infinity, maxHeight: .infinity)
 			cellText
 				.font(font)
-				.tracking(AppTheme.transcriptTracking)
 				.bold(isHeader)
 				.multilineTextAlignment(alignment)
 				.padding(.horizontal, 12)
