@@ -134,6 +134,49 @@ enum AccentPreset: String, CaseIterable, Identifiable, Sendable {
 	}
 }
 
+// MARK: - Dashboard blocks
+
+/// Home-dashboard cards the user can show or hide under Settings → Dashboard.
+enum DashboardBlock: String, CaseIterable, Identifiable, Sendable {
+	case email
+	case tasks
+
+	var id: String { rawValue }
+
+	var displayName: String {
+		switch self {
+		case .email: "Unread mail"
+		case .tasks: "Tasks"
+		}
+	}
+
+	var settingsTitle: String {
+		switch self {
+		case .email: "Show unread mail"
+		case .tasks: "Show tasks"
+		}
+	}
+
+	var settingsDescription: String {
+		switch self {
+		case .email: "Show the unread mail card on the home dashboard. Stored only on this Mac."
+		case .tasks: "Show the tasks card on the home dashboard. Stored only on this Mac."
+		}
+	}
+
+	var accessibilityIdentifier: String {
+		"dashboard-show-\(rawValue)-toggle"
+	}
+
+	/// UserDefaults key for this block's visibility preference.
+	var defaultsKey: String {
+		switch self {
+		case .email: AppearanceDefaultsKey.showDashboardEmail
+		case .tasks: AppearanceDefaultsKey.showDashboardTasks
+		}
+	}
+}
+
 // MARK: - Preferences store
 
 /// UserDefaults keys for client-local app preferences
@@ -143,6 +186,10 @@ enum AppearanceDefaultsKey {
 	static let accent = "toby.appearance.accent"
 	/// Dashboard onboarding visibility (Settings → Dashboard; still app-local).
 	static let hideOnboarding = "toby.appearance.hideOnboarding"
+	/// Whether the unread-mail dashboard card is visible. Default on.
+	static let showDashboardEmail = "toby.appearance.showDashboardEmail"
+	/// Whether the tasks dashboard card is visible. Default on.
+	static let showDashboardTasks = "toby.appearance.showDashboardTasks"
 	/// Open Toby automatically when this Mac logs in (Settings → General).
 	static let launchAtLogin = "toby.general.launchAtLogin"
 	/// Show the Toby status item in the menu bar (Settings → General). Default on.
@@ -161,6 +208,8 @@ final class AppearancePreferences {
 	static let modeDefaultsKey = AppearanceDefaultsKey.mode
 	static let accentDefaultsKey = AppearanceDefaultsKey.accent
 	static let hideOnboardingDefaultsKey = AppearanceDefaultsKey.hideOnboarding
+	static let showDashboardEmailDefaultsKey = AppearanceDefaultsKey.showDashboardEmail
+	static let showDashboardTasksDefaultsKey = AppearanceDefaultsKey.showDashboardTasks
 	static let launchAtLoginDefaultsKey = AppearanceDefaultsKey.launchAtLogin
 	static let showMenuBarIconDefaultsKey = AppearanceDefaultsKey.showMenuBarIcon
 	static let chatTranscriptModeDefaultsKey = AppearanceDefaultsKey.chatTranscriptMode
@@ -198,6 +247,64 @@ final class AppearancePreferences {
 			guard hideOnboarding != oldValue else { return }
 			defaults.set(hideOnboarding, forKey: Self.hideOnboardingDefaultsKey)
 		}
+	}
+
+	/// When true, show the unread mail card on the home dashboard. Default is on.
+	var showDashboardEmail: Bool {
+		didSet {
+			guard showDashboardEmail != oldValue else { return }
+			defaults.set(showDashboardEmail, forKey: Self.showDashboardEmailDefaultsKey)
+		}
+	}
+
+	/// When true, show the tasks card on the home dashboard. Default is on.
+	var showDashboardTasks: Bool {
+		didSet {
+			guard showDashboardTasks != oldValue else { return }
+			defaults.set(showDashboardTasks, forKey: Self.showDashboardTasksDefaultsKey)
+		}
+	}
+
+	/// Whether the given dashboard block should be visible on the home screen.
+	func isDashboardBlockVisible(_ block: DashboardBlock) -> Bool {
+		switch block {
+		case .email: showDashboardEmail
+		case .tasks: showDashboardTasks
+		}
+	}
+
+	/// Updates visibility for a dashboard block (used by Settings toggles).
+	func setDashboardBlockVisible(_ block: DashboardBlock, visible: Bool) {
+		switch block {
+		case .email: showDashboardEmail = visible
+		case .tasks: showDashboardTasks = visible
+		}
+	}
+
+	/// Binding for a dashboard-block visibility toggle in Settings.
+	/// Mutations run inside `withAnimation` so the home dashboard can transition
+	/// sections in/out when the Settings window is open alongside it.
+	func dashboardBlockVisibilityBinding(_ block: DashboardBlock) -> Binding<Bool> {
+		Binding(
+			get: { self.isDashboardBlockVisible(block) },
+			set: { newValue in
+				withAnimation(DashboardSectionMotion.animation) {
+					self.setDashboardBlockVisible(block, visible: newValue)
+				}
+			}
+		)
+	}
+
+	/// Binding for the hide-onboarding Settings toggle, animated like card visibility.
+	var hideOnboardingBinding: Binding<Bool> {
+		Binding(
+			get: { self.hideOnboarding },
+			set: { newValue in
+				withAnimation(DashboardSectionMotion.animation) {
+					self.hideOnboarding = newValue
+				}
+			}
+		)
 	}
 
 	/// When true, Toby registers as a login item via `SMAppService.mainApp`.
@@ -269,6 +376,8 @@ final class AppearancePreferences {
 		mode: AppearanceMode? = nil,
 		accent: AccentPreset? = nil,
 		hideOnboarding: Bool? = nil,
+		showDashboardEmail: Bool? = nil,
+		showDashboardTasks: Bool? = nil,
 		launchAtLogin: Bool? = nil,
 		showMenuBarIcon: Bool? = nil,
 		chatTranscriptMode: ChatTranscriptMode? = nil,
@@ -310,6 +419,25 @@ final class AppearancePreferences {
 			resolvedHideOnboarding = false
 		}
 
+		// Default on when unset.
+		let resolvedShowDashboardEmail: Bool
+		if let showDashboardEmail {
+			resolvedShowDashboardEmail = showDashboardEmail
+		} else if defaults.object(forKey: Self.showDashboardEmailDefaultsKey) != nil {
+			resolvedShowDashboardEmail = defaults.bool(forKey: Self.showDashboardEmailDefaultsKey)
+		} else {
+			resolvedShowDashboardEmail = true
+		}
+
+		let resolvedShowDashboardTasks: Bool
+		if let showDashboardTasks {
+			resolvedShowDashboardTasks = showDashboardTasks
+		} else if defaults.object(forKey: Self.showDashboardTasksDefaultsKey) != nil {
+			resolvedShowDashboardTasks = defaults.bool(forKey: Self.showDashboardTasksDefaultsKey)
+		} else {
+			resolvedShowDashboardTasks = true
+		}
+
 		// Default off when unset.
 		let resolvedLaunchAtLogin: Bool
 		if let launchAtLogin {
@@ -347,6 +475,8 @@ final class AppearancePreferences {
 		self.mode = resolvedMode
 		self.accent = resolvedAccent
 		self.hideOnboarding = resolvedHideOnboarding
+		self.showDashboardEmail = resolvedShowDashboardEmail
+		self.showDashboardTasks = resolvedShowDashboardTasks
 		self.launchAtLogin = resolvedLaunchAtLogin
 		self.showMenuBarIcon = resolvedShowMenuBarIcon
 		self.chatTranscriptMode = resolvedChatTranscriptMode
@@ -361,6 +491,12 @@ final class AppearancePreferences {
 		}
 		if hideOnboarding != nil {
 			defaults.set(resolvedHideOnboarding, forKey: Self.hideOnboardingDefaultsKey)
+		}
+		if showDashboardEmail != nil {
+			defaults.set(resolvedShowDashboardEmail, forKey: Self.showDashboardEmailDefaultsKey)
+		}
+		if showDashboardTasks != nil {
+			defaults.set(resolvedShowDashboardTasks, forKey: Self.showDashboardTasksDefaultsKey)
 		}
 		if launchAtLogin != nil {
 			defaults.set(resolvedLaunchAtLogin, forKey: Self.launchAtLoginDefaultsKey)

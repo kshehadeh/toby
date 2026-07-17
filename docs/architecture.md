@@ -100,9 +100,14 @@ API). Implementation: `AppearancePreferences` /
 | `toby.appearance.mode` | system | Theme | Theme (`system` / `light` / `dark`) |
 | `toby.appearance.accent` | orange | Accent color | Accent color preset |
 
-Hide dashboard onboarding (`toby.appearance.hideOnboarding`) is also app-local
-but edited under **Settings → Dashboard** alongside the daemon-backed summary
-persona.
+App-local dashboard layout prefs are edited under **Settings → Dashboard**
+alongside the daemon-backed summary persona:
+
+| Key | Default | UI control | Purpose |
+| --- | ------- | ---------- | ------- |
+| `toby.appearance.showDashboardEmail` | **true** | Show unread mail | Show/hide the unread mail card on the home dashboard |
+| `toby.appearance.showDashboardTasks` | **true** | Show tasks | Show/hide the tasks card on the home dashboard |
+| `toby.appearance.hideOnboarding` | **false** | Hide onboarding checklist | Hide the setup checklist even if steps are incomplete |
 
 **Start at login** uses `ServiceManagement.SMAppService`; macOS may require the
 user to approve Toby under **System Settings → General → Login Items**. **Menu

@@ -148,10 +148,14 @@ status cues) across Toby.app windows. Same preset in light and dark.
 
 #### Dashboard (related)
 
-Under **Settings → Dashboard**, you can also set the persona used for dashboard
-summaries and **Hide onboarding checklist** (app-local; default off). Turning
-that on removes the setup checklist from the home dashboard even if steps remain
-incomplete; turn it off to bring the checklist back.
+Under **Settings → Dashboard**, you can set the persona used for dashboard
+summaries and control which home-dashboard cards are visible (app-local):
+
+- **Show unread mail** / **Show tasks** — On by default. Turn either off to hide
+  that card on the home dashboard; turn it back on to show it again.
+- **Hide onboarding checklist** — Off by default. Turning that on removes the
+  setup checklist from the home dashboard even if steps remain incomplete; turn
+  it off to bring the checklist back.
 
 ### Permissions
 

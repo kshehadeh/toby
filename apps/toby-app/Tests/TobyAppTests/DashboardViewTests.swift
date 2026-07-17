@@ -148,9 +148,18 @@ struct DashboardNavigationTests {
 @MainActor
 @Suite("DashboardView")
 struct DashboardViewTests {
-	private func makeAppearance(hideOnboarding: Bool = false) -> AppearancePreferences {
+	private func makeAppearance(
+		hideOnboarding: Bool = false,
+		showDashboardEmail: Bool = true,
+		showDashboardTasks: Bool = true
+	) -> AppearancePreferences {
 		let suite = UserDefaults(suiteName: "toby.tests.dashboard.\(UUID().uuidString)")!
-		return AppearancePreferences(hideOnboarding: hideOnboarding, defaults: suite)
+		return AppearancePreferences(
+			hideOnboarding: hideOnboarding,
+			showDashboardEmail: showDashboardEmail,
+			showDashboardTasks: showDashboardTasks,
+			defaults: suite
+		)
 	}
 
 	private func incompleteChecklist() -> OnboardingChecklist {
@@ -302,6 +311,104 @@ struct DashboardViewTests {
 		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-onboarding-card")
 		}
+	}
+
+	@Test("dashboard shows mail and tasks cards by default")
+	func dashboardShowsMailAndTasksByDefault() throws {
+		let view = makeView(store: DashboardStore())
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-mail-card")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-tasks-card")
+		}
+	}
+
+	@Test("dashboard hides mail card when show preference is off")
+	func dashboardHidesMailCardWhenPreferenceOff() throws {
+		let view = DashboardView(
+			store: DashboardStore(),
+			userName: "Karim",
+			onboarding: incompleteChecklist(),
+			isOnboardingReady: true,
+			onRefresh: {},
+			onSelectRoute: { _ in },
+			onOpenPermissions: {},
+			onStartChat: {},
+			onSummarizeEmail: {},
+			appearancePreferences: makeAppearance(showDashboardEmail: false)
+		)
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-mail-card")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-tasks-card")
+		}
+	}
+
+	@Test("dashboard hides tasks card when show preference is off")
+	func dashboardHidesTasksCardWhenPreferenceOff() throws {
+		let view = DashboardView(
+			store: DashboardStore(),
+			userName: "Karim",
+			onboarding: incompleteChecklist(),
+			isOnboardingReady: true,
+			onRefresh: {},
+			onSelectRoute: { _ in },
+			onOpenPermissions: {},
+			onStartChat: {},
+			onSummarizeEmail: {},
+			appearancePreferences: makeAppearance(showDashboardTasks: false)
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-mail-card")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-tasks-card")
+		}
+	}
+
+	@Test("dashboard hides both cards when both show preferences are off")
+	func dashboardHidesBothCardsWhenPreferencesOff() throws {
+		let view = DashboardView(
+			store: DashboardStore(),
+			userName: "Karim",
+			onboarding: incompleteChecklist(),
+			isOnboardingReady: true,
+			onRefresh: {},
+			onSelectRoute: { _ in },
+			onOpenPermissions: {},
+			onStartChat: {},
+			onSummarizeEmail: {},
+			appearancePreferences: makeAppearance(
+				showDashboardEmail: false,
+				showDashboardTasks: false
+			)
+		)
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-mail-card")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-tasks-card")
+		}
+	}
+
+	@Test("dashboard block visibility binding toggles preference under animation path")
+	func dashboardBlockVisibilityBindingTogglesPreference() {
+		let prefs = makeAppearance()
+		let emailBinding = prefs.dashboardBlockVisibilityBinding(.email)
+		emailBinding.wrappedValue = false
+		#expect(prefs.showDashboardEmail == false)
+		emailBinding.wrappedValue = true
+		#expect(prefs.showDashboardEmail == true)
+
+		let tasksBinding = prefs.dashboardBlockVisibilityBinding(.tasks)
+		tasksBinding.wrappedValue = false
+		#expect(prefs.showDashboardTasks == false)
+
+		let hideBinding = prefs.hideOnboardingBinding
+		hideBinding.wrappedValue = true
+		#expect(prefs.hideOnboarding == true)
 	}
 
 	@Test("configure AI provider action opens settings on ai section")

@@ -14,6 +14,8 @@ struct AppearancePreferencesTests {
 		#expect(prefs.mode == .system)
 		#expect(prefs.accent == .orange)
 		#expect(prefs.hideOnboarding == false)
+		#expect(prefs.showDashboardEmail == true)
+		#expect(prefs.showDashboardTasks == true)
 		#expect(prefs.launchAtLogin == false)
 		#expect(prefs.showMenuBarIcon == true)
 		#expect(prefs.chatTranscriptMode == .normal)
@@ -49,7 +51,7 @@ struct AppearancePreferencesTests {
 		#expect(AppearancePreferences.resolveColorScheme(for: .dark) == .dark)
 	}
 
-	@Test("persists mode, accent, hide onboarding, and general prefs to UserDefaults")
+	@Test("persists mode, accent, hide onboarding, dashboard blocks, and general prefs to UserDefaults")
 	func persistsModeAccentAndHideOnboarding() {
 		let name = "toby.tests.appearance.\(UUID().uuidString)"
 		let suite = UserDefaults(suiteName: name)!
@@ -58,12 +60,16 @@ struct AppearancePreferencesTests {
 		prefs.mode = .light
 		prefs.accent = .teal
 		prefs.hideOnboarding = true
+		prefs.showDashboardEmail = false
+		prefs.showDashboardTasks = false
 		prefs.launchAtLogin = true
 		prefs.showMenuBarIcon = false
 		prefs.chatTranscriptMode = .debug
 		#expect(suite.string(forKey: AppearancePreferences.modeDefaultsKey) == "light")
 		#expect(suite.string(forKey: AppearancePreferences.accentDefaultsKey) == "teal")
 		#expect(suite.bool(forKey: AppearancePreferences.hideOnboardingDefaultsKey) == true)
+		#expect(suite.bool(forKey: AppearancePreferences.showDashboardEmailDefaultsKey) == false)
+		#expect(suite.bool(forKey: AppearancePreferences.showDashboardTasksDefaultsKey) == false)
 		#expect(suite.bool(forKey: AppearancePreferences.launchAtLoginDefaultsKey) == true)
 		#expect(suite.bool(forKey: AppearancePreferences.showMenuBarIconDefaultsKey) == false)
 		#expect(suite.string(forKey: AppearancePreferences.chatTranscriptModeDefaultsKey) == "debug")
@@ -72,6 +78,8 @@ struct AppearancePreferencesTests {
 		#expect(reloaded.mode == .light)
 		#expect(reloaded.accent == .teal)
 		#expect(reloaded.hideOnboarding == true)
+		#expect(reloaded.showDashboardEmail == false)
+		#expect(reloaded.showDashboardTasks == false)
 		#expect(reloaded.launchAtLogin == true)
 		#expect(reloaded.showMenuBarIcon == false)
 		#expect(reloaded.chatTranscriptMode == .debug)
@@ -156,7 +164,7 @@ struct AppearancePreferencesTests {
 		}
 	}
 
-	@Test("dashboard settings section shows hide onboarding toggle")
+	@Test("dashboard settings section shows block visibility and hide onboarding toggles")
 	func dashboardSettingsShowsHideOnboardingToggle() throws {
 		let suite = UserDefaults(suiteName: "toby.tests.appearance.\(UUID().uuidString)")!
 		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
@@ -181,11 +189,37 @@ struct AppearancePreferencesTests {
 			appearancePreferences: prefs
 		)
 		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Show unread mail")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Show tasks")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-show-email-toggle")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-show-tasks-toggle")
+		}
+		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Hide onboarding checklist")
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hide-onboarding-toggle")
 		}
+	}
+
+	@Test("dashboard block visibility helpers update preferences")
+	func dashboardBlockVisibilityHelpers() {
+		let suite = UserDefaults(suiteName: "toby.tests.appearance.\(UUID().uuidString)")!
+		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		#expect(prefs.isDashboardBlockVisible(.email))
+		#expect(prefs.isDashboardBlockVisible(.tasks))
+		prefs.setDashboardBlockVisible(.email, visible: false)
+		#expect(!prefs.isDashboardBlockVisible(.email))
+		#expect(prefs.showDashboardEmail == false)
+		prefs.setDashboardBlockVisible(.tasks, visible: false)
+		#expect(!prefs.isDashboardBlockVisible(.tasks))
+		#expect(prefs.showDashboardTasks == false)
 	}
 
 	@Test("monochrome AI icon URLs use template rendering")

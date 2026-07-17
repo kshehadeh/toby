@@ -1,5 +1,25 @@
 import SwiftUI
 
+/// Shared motion for dashboard section insert/remove (cards + onboarding).
+/// Computed (not stored) so non-Sendable `AnyTransition` stays concurrency-safe.
+enum DashboardSectionMotion {
+	/// Matches toast / lightweight chrome springs used elsewhere in Toby.app.
+	static var animation: Animation {
+		.spring(response: 0.32, dampingFraction: 0.86)
+	}
+
+	/// Fade + slight scale/slide so sections feel like they settle into place.
+	static var transition: AnyTransition {
+		.asymmetric(
+			insertion: .opacity
+				.combined(with: .scale(scale: 0.97, anchor: .top))
+				.combined(with: .offset(y: 8)),
+			removal: .opacity
+				.combined(with: .scale(scale: 0.97, anchor: .top))
+		)
+	}
+}
+
 struct DashboardView: View {
 	@Bindable var store: DashboardStore
 	let userName: String
@@ -21,6 +41,8 @@ struct DashboardView: View {
 	/// Client-local prefs (theme / hide onboarding). Defaults to the shared store.
 	@Bindable var appearancePreferences: AppearancePreferences = .shared
 
+	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+
 	@State private var now = Date()
 
 	/// Ready, incomplete, and not dismissed via Settings → Dashboard.
@@ -30,15 +52,30 @@ struct DashboardView: View {
 			&& !appearancePreferences.hideOnboarding
 	}
 
+	/// Fingerprint of which dashboard sections are visible; drives insert/remove animation.
+	private var sectionVisibilityKey: String {
+		[
+			shouldShowOnboarding ? "onboarding" : "",
+			appearancePreferences.showDashboardEmail ? "email" : "",
+			appearancePreferences.showDashboardTasks ? "tasks" : "",
+		].joined(separator: "|")
+	}
+
+	private var sectionAnimation: Animation? {
+		reduceMotion ? nil : DashboardSectionMotion.animation
+	}
+
 	var body: some View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 24) {
 				greeting
 				if shouldShowOnboarding {
 					OnboardingCard(checklist: onboarding, onStepAction: handleStepAction)
+						.transition(DashboardSectionMotion.transition)
 				}
 				cards
 			}
+			.animation(sectionAnimation, value: sectionVisibilityKey)
 			.padding(AppTheme.contentPadding)
 			.frame(maxWidth: 940, alignment: .leading)
 			.frame(maxWidth: .infinity, alignment: .top)
@@ -63,26 +100,38 @@ struct DashboardView: View {
 		}
 	}
 
+	@ViewBuilder
 	private var cards: some View {
-		HStack(alignment: .top, spacing: 20) {
-			UnreadMailCard(
-				summary: store.email,
-				aiSummary: store.emailSummary,
-				isSummaryLoading: store.emailSummaryLoading,
-				summaryError: store.emailSummaryError,
-				isRefreshing: store.isEmailRefreshing,
-				onRefresh: { Task { await store.refreshEmail() } },
-				onSummarize: onSummarizeEmail
-			)
-			TasksCard(
-				summary: store.tasks,
-				aiSummary: store.tasksSummary,
-				isSummaryLoading: store.tasksSummaryLoading,
-				summaryError: store.tasksSummaryError,
-				isRefreshing: store.isTasksRefreshing,
-				onRefresh: { Task { await store.refreshTasks() } },
-				onAddTask: onStartChat
-			)
+		let showEmail = appearancePreferences.showDashboardEmail
+		let showTasks = appearancePreferences.showDashboardTasks
+		if showEmail || showTasks {
+			HStack(alignment: .top, spacing: 20) {
+				if showEmail {
+					UnreadMailCard(
+						summary: store.email,
+						aiSummary: store.emailSummary,
+						isSummaryLoading: store.emailSummaryLoading,
+						summaryError: store.emailSummaryError,
+						isRefreshing: store.isEmailRefreshing,
+						onRefresh: { Task { await store.refreshEmail() } },
+						onSummarize: onSummarizeEmail
+					)
+					.transition(DashboardSectionMotion.transition)
+				}
+				if showTasks {
+					TasksCard(
+						summary: store.tasks,
+						aiSummary: store.tasksSummary,
+						isSummaryLoading: store.tasksSummaryLoading,
+						summaryError: store.tasksSummaryError,
+						isRefreshing: store.isTasksRefreshing,
+						onRefresh: { Task { await store.refreshTasks() } },
+						onAddTask: onStartChat
+					)
+					.transition(DashboardSectionMotion.transition)
+				}
+			}
+			.transition(DashboardSectionMotion.transition)
 		}
 	}
 
