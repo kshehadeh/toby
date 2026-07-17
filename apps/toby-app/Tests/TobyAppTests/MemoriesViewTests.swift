@@ -53,6 +53,8 @@ struct MemoriesViewTests {
 		let view = MemoriesView(store: store)
 		// The alert should be present when pendingDelete is non-nil
 		#expect(store.pendingDelete != nil)
+		// Keep view alive so SwiftUI does not tear down mid-assertion.
+		_ = view
 	}
 
 	@Test("memories store initializes with empty state")
@@ -63,6 +65,38 @@ struct MemoriesViewTests {
 		#expect(store.selectedMemory == nil)
 		#expect(store.isListLoading == false)
 		#expect(store.errorMessage == nil)
+		#expect(store.isDirty == false)
+	}
+
+	@Test("markDirty flags store for reload")
+	func markDirtyFlagsStoreForReload() {
+		let store = MemoriesStore()
+		store.hasLoadedOnce = true
+		#expect(store.isDirty == false)
+		store.markDirty()
+		#expect(store.isDirty == true)
+	}
+
+	@Test("external memory change marks dirty")
+	func externalMemoryChangeMarksDirty() {
+		let store = MemoriesStore()
+		store.hasLoadedOnce = true
+		store.handleExternalMemoryChange()
+		#expect(store.isDirty == true)
+	}
+
+	@Test("mutating memory tools set covers write paths")
+	func mutatingMemoryToolsCoverWritePaths() {
+		#expect(MemoriesStore.mutatingMemoryTools.contains("memoryPropose"))
+		#expect(MemoriesStore.mutatingMemoryTools.contains("memorySave"))
+		#expect(MemoriesStore.mutatingMemoryTools.contains("memoryForget"))
+		#expect(!MemoriesStore.mutatingMemoryTools.contains("memorySearch"))
+		#expect(!MemoriesStore.mutatingMemoryTools.contains("memoryRetrieveForTask"))
+	}
+
+	@Test("memories notification name is defined")
+	func memoriesNotificationNameIsDefined() {
+		#expect(Notification.Name.memoriesDidChange.rawValue == "toby.memoriesDidChange")
 	}
 
 	@Test("memory item decodes from JSON")

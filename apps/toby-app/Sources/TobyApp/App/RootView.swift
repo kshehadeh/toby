@@ -56,6 +56,9 @@ struct RootView: View {
             .onReceive(NotificationCenter.default.publisher(for: .startNewMemory)) { _ in
                 startNewMemory()
             }
+            .onReceive(NotificationCenter.default.publisher(for: .memoriesDidChange)) { _ in
+                memoriesStore.handleExternalMemoryChange()
+            }
     }
 
     /// Isolated so File → Backup / Restore sheets and notifications do not
@@ -727,6 +730,17 @@ struct RootView: View {
                     .toolbar {
                         commonToolbarItems()
                         ToolbarItem(placement: .principal) { Spacer() }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button {
+                                Task { await memoriesStore.load() }
+                            } label: {
+                                Image(systemName: "arrow.clockwise")
+                            }
+                            .help("Refresh memories")
+                            .disabled(memoriesStore.isListLoading || memoriesStore.isSaving)
+                            .accessibilityIdentifier("refresh-memories-button")
+                            .accessibilityLabel("Refresh memories")
+                        }
                     }
             }
         }
@@ -1148,6 +1162,8 @@ extension Notification.Name {
     static let openScheduleFromNotification = Notification.Name("openScheduleFromNotification")
     static let backupConfig = Notification.Name("backupConfig")
     static let restoreConfig = Notification.Name("restoreConfig")
+    /// Posted when chat (or another writer) mutates durable memory so the memories UI can refresh.
+    static let memoriesDidChange = Notification.Name("toby.memoriesDidChange")
 }
 
 struct RestoreBackupSelection: Identifiable {

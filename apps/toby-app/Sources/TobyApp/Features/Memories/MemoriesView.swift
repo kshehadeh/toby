@@ -8,7 +8,13 @@ struct MemoriesView: View {
 			.toolbarBackground(.visible)
 			.background(SettingsDesign.canvasBackground)
 			.task {
-				await store.ensureLoaded()
+				// Always re-fetch when the view appears so chat-side memory
+				// writes (propose/save/forget) show up without a manual restart.
+				await store.load()
+				store.startPolling()
+			}
+			.onDisappear {
+				store.stopPolling()
 			}
 			.alert(
 				"Delete Memory?",

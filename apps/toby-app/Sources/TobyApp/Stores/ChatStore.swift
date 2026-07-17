@@ -975,6 +975,10 @@ final class ChatStore {
 					cacheHit: event.cacheHit,
 					durationMs: event.durationMs,
 				)
+				// Notify memories UI when chat mutates durable memory.
+				if errorString == nil, MemoriesStore.mutatingMemoryTools.contains(toolName) {
+					NotificationCenter.default.post(name: .memoriesDidChange, object: nil)
+				}
 			}
 			activityLine = "Thinking…"
 		case "prep_start":
