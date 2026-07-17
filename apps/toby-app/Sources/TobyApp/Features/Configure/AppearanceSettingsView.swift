@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Client-local General settings: startup, menu bar, theme, and accent color.
+/// Client-local General settings: startup, menu bar, chat mode, theme, and accent.
 struct AppearanceSettingsView: View {
 	@Bindable var preferences: AppearancePreferences
 
@@ -12,7 +12,7 @@ struct AppearanceSettingsView: View {
 						.font(.title2.weight(.semibold))
 						.foregroundStyle(AppTheme.primaryText)
 					Text(
-						"Startup, menu bar, and how Toby looks on this Mac."
+						"Startup, menu bar, chat transcript detail, and how Toby looks on this Mac."
 					)
 					.font(.subheadline)
 					.foregroundStyle(AppTheme.secondaryText)
@@ -48,6 +48,27 @@ struct AppearanceSettingsView: View {
 							"Toby is waiting for approval in System Settings → General → Login Items.",
 						isError: false
 					)
+				}
+
+				SettingsCard {
+					VStack(alignment: .leading, spacing: 12) {
+						SettingsSectionHeader(title: "Chat mode")
+						Text(
+							"Normal shows the conversation and Working status. Debug also expands tools, prompt preparation, and other pipeline detail."
+						)
+						.font(.subheadline)
+						.foregroundStyle(AppTheme.secondaryText)
+						.fixedSize(horizontal: false, vertical: true)
+						Picker("Chat mode", selection: $preferences.chatTranscriptMode) {
+							ForEach(ChatTranscriptMode.allCases) { mode in
+								Text(mode.displayName).tag(mode)
+							}
+						}
+						.pickerStyle(.segmented)
+						.labelsHidden()
+						.accessibilityIdentifier("general-chat-mode-picker")
+					}
+					.padding(14)
 				}
 
 				SettingsCard {

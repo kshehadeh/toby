@@ -22,7 +22,9 @@ struct TranscriptRow: View {
 		case .error(let text):
 			NoticeRow(text: text, tone: "error")
 		case .boxedStep(let payload):
-			if payload.variant == "assistant" {
+			// Final and interim assistant segments both render as conversation rows
+			// (interim only reaches here in normal transcript mode).
+			if payload.variant == "assistant" || payload.variant == "assistant_interim" {
 				AssistantMessageRow(
 					iconName: "sparkle",
 					header: payload.header,

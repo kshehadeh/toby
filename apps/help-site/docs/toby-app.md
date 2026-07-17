@@ -113,6 +113,7 @@ The first tab, **General**, is local to Toby.app (it is not stored in
 | ------- | ------- | ------- |
 | **Start at login** | On / Off | Off — open Toby when you log in to this Mac |
 | **Show menu bar icon** | On / Off | On — Toby’s icon in the menu bar for quick actions |
+| **Chat mode** | Normal, Debug | Normal — conversation + Working status; Debug also expands tools, prompt preparation, and other pipeline detail |
 | **Theme** | System, Light, Dark | System (follows macOS) |
 | **Accent color** | Orange, blue, green, purple, pink, red, teal, gray | Orange |
 
@@ -121,6 +122,12 @@ Toby.app windows. **Start at login** uses macOS Login Items; if macOS asks for
 approval, allow Toby under **System Settings → General → Login Items**. You can
 always open Toby from the Dock or Applications even when the menu bar icon is
 hidden.
+
+**Chat mode** controls how much pipeline detail appears in the chat transcript.
+In **Normal**, you still see the “Working…” / “Worked for” status chip, plus
+user messages, assistant replies, errors, and prompts — but not tool calls,
+prompt-prep output, skill/tool selection notices, or an expandable work log.
+Switch to **Debug** when you want that detail for troubleshooting.
 
 Under **Settings → Dashboard**, you can also set the persona used for dashboard
 summaries and **Hide onboarding checklist** (app-local; default off). Turning

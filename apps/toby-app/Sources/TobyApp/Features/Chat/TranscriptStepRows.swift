@@ -104,7 +104,7 @@ private func makeBoxedStepWorkStep(
 	let stepType: WorkStepType
 	switch payload.variant {
 	case "tool": stepType = .tool
-	case "lifecycle": stepType = .lifecycle
+	case "lifecycle", "prep", "thinking": stepType = .lifecycle
 	case "assistant_interim": stepType = .assistantInterim
 	case "plan": stepType = .plan
 	default: stepType = .lifecycle

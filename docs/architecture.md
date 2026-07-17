@@ -96,6 +96,7 @@ Toby.app **General** preferences (Settings → General) are **client-local**
 | `toby.appearance.accent` | orange | Accent color preset |
 | `toby.general.launchAtLogin` | **false** | Register Toby as a login item via `SMAppService.mainApp` |
 | `toby.general.showMenuBarIcon` | **true** | Show/hide the menu bar status item |
+| `toby.general.chatTranscriptMode` | **normal** | Chat transcript verbosity (`normal` / `debug`). Both modes show the Working/Worked-for status chip; debug also expands tools, prompt prep, selection notices, and work-step details. |
 
 Hide dashboard onboarding (`toby.appearance.hideOnboarding`) is also app-local
 but edited under **Settings → Dashboard** alongside the daemon-backed summary

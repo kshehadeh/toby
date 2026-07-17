@@ -15,32 +15,74 @@ enum TranscriptGrouping {
 		return false
 	}
 
-	static func isVisible(_ entry: TranscriptEntry) -> Bool {
-		switch entry {
-		case .meta, .turnWork:
+	/// Pretreatment selection notices (skills / tools) — debug transcript only.
+	static func isDebugSelectionNotice(_ text: String) -> Bool {
+		let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+		if trimmed.hasPrefix("Skills:") {
+			return true
+		}
+		// e.g. "5 tools: foo, bar" or "3 core tools"
+		if trimmed.range(of: #"^\d+ (core )?tools"#, options: .regularExpression) != nil {
+			return true
+		}
+		return false
+	}
+
+	/// Pipeline variants that contribute to the "Working" / "Worked for" group.
+	static func isWorkVariant(_ variant: String) -> Bool {
+		switch variant {
+		case "lifecycle", "prep", "tool", "plan", "thinking", "assistant_interim":
+			return true
+		default:
 			return false
+		}
+	}
+
+	static func isVisible(
+		_ entry: TranscriptEntry,
+		mode: ChatTranscriptMode = .normal,
+	) -> Bool {
+		switch entry {
+		case .meta, .turnWork, .toolCall, .toolOutput:
+			return false
+		case .notice(let text, _):
+			if mode == .normal, isDebugSelectionNotice(text) {
+				return false
+			}
+			return true
 		case .boxedStep(let payload):
-			if payload.variant == "prep" || payload.variant == "assistant_interim" {
+			if payload.variant == "assistant" {
+				return true
+			}
+			// Interim assistant replies surface as conversation rows in normal mode.
+			if payload.variant == "assistant_interim" {
+				return mode == .normal
+			}
+			if isWorkVariant(payload.variant) {
+				// Work steps are shown via work groups, not as top-level rows.
 				return false
 			}
 			if payload.variant == "lifecycle", isHiddenLifecycleHeader(payload.header) {
 				return false
 			}
-			return true
+			return mode == .debug
 		default:
 			return true
 		}
 	}
 
-	static func isWorkEntry(_ entry: TranscriptEntry) -> Bool {
+	static func isWorkEntry(
+		_ entry: TranscriptEntry,
+		mode: ChatTranscriptMode = .normal,
+	) -> Bool {
 		switch entry {
 		case .boxedStep(let payload):
-			switch payload.variant {
-			case "lifecycle", "prep", "tool", "plan", "thinking", "assistant_interim":
-				return true
-			default:
-				return false
+			// Keep interim replies in the conversation in normal mode; in debug
+			// they live inside the expandable work log.
+			if payload.variant == "assistant_interim" {
+				return mode == .debug
 			}
+			return isWorkVariant(payload.variant)
 		case .toolCall, .toolOutput:
 			return true
 		default:
@@ -51,6 +93,7 @@ enum TranscriptGrouping {
 	static func groupedItems(
 		from entries: [TranscriptEntry],
 		isLoading: Bool,
+		mode: ChatTranscriptMode = .normal,
 	) -> [TranscriptDisplayItem] {
 		var items: [TranscriptDisplayItem] = []
 		var workBuffer: [TranscriptEntry] = []
@@ -84,12 +127,12 @@ enum TranscriptGrouping {
 				continue
 			}
 
-			if isWorkEntry(entry) {
+			if isWorkEntry(entry, mode: mode) {
 				workBuffer.append(entry)
 				continue
 			}
 
-			guard isVisible(entry) else { continue }
+			guard isVisible(entry, mode: mode) else { continue }
 
 			flushWork(isActive: false)
 			items.append(.entry(entry, sourceIndex: index))

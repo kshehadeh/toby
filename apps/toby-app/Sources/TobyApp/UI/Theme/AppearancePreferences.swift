@@ -19,6 +19,24 @@ enum AppearanceMode: String, CaseIterable, Identifiable, Sendable {
 	}
 }
 
+// MARK: - Chat transcript mode
+
+/// How much pipeline detail the chat transcript shows.
+/// Normal is conversation-only; debug includes tools, prep, and selection notices.
+enum ChatTranscriptMode: String, CaseIterable, Identifiable, Sendable {
+	case normal
+	case debug
+
+	var id: String { rawValue }
+
+	var displayName: String {
+		switch self {
+		case .normal: "Normal"
+		case .debug: "Debug"
+		}
+	}
+}
+
 // MARK: - Theme resolution (mode → concrete light/dark)
 
 /// Resolves the user's appearance mode to a concrete light/dark scheme.
@@ -129,6 +147,8 @@ enum AppearanceDefaultsKey {
 	static let launchAtLogin = "toby.general.launchAtLogin"
 	/// Show the Toby status item in the menu bar (Settings → General). Default on.
 	static let showMenuBarIcon = "toby.general.showMenuBarIcon"
+	/// Chat transcript verbosity (Settings → General). Default normal.
+	static let chatTranscriptMode = "toby.general.chatTranscriptMode"
 }
 
 /// Client-local preferences: theme, accent, startup, menu bar, and app-only
@@ -143,6 +163,7 @@ final class AppearancePreferences {
 	static let hideOnboardingDefaultsKey = AppearanceDefaultsKey.hideOnboarding
 	static let launchAtLoginDefaultsKey = AppearanceDefaultsKey.launchAtLogin
 	static let showMenuBarIconDefaultsKey = AppearanceDefaultsKey.showMenuBarIcon
+	static let chatTranscriptModeDefaultsKey = AppearanceDefaultsKey.chatTranscriptMode
 
 	/// Distributed notification posted when the user changes System Settings → Appearance.
 	private static let systemThemeChanged = Notification.Name("AppleInterfaceThemeChangedNotification")
@@ -209,6 +230,14 @@ final class AppearancePreferences {
 		}
 	}
 
+	/// How much pipeline detail to show in the chat transcript. Default is normal.
+	var chatTranscriptMode: ChatTranscriptMode {
+		didSet {
+			guard chatTranscriptMode != oldValue else { return }
+			defaults.set(chatTranscriptMode.rawValue, forKey: Self.chatTranscriptModeDefaultsKey)
+		}
+	}
+
 	/// Last error from applying launch-at-login (shown in General settings).
 	var launchAtLoginError: String?
 
@@ -242,6 +271,7 @@ final class AppearancePreferences {
 		hideOnboarding: Bool? = nil,
 		launchAtLogin: Bool? = nil,
 		showMenuBarIcon: Bool? = nil,
+		chatTranscriptMode: ChatTranscriptMode? = nil,
 		defaults: UserDefaults = .standard,
 		applyLaunchAtLoginOnChange: Bool = true
 	) {
@@ -300,6 +330,18 @@ final class AppearancePreferences {
 			resolvedShowMenuBarIcon = true
 		}
 
+		// Default normal when unset.
+		let resolvedChatTranscriptMode: ChatTranscriptMode
+		if let chatTranscriptMode {
+			resolvedChatTranscriptMode = chatTranscriptMode
+		} else if let raw = defaults.string(forKey: Self.chatTranscriptModeDefaultsKey),
+			let stored = ChatTranscriptMode(rawValue: raw)
+		{
+			resolvedChatTranscriptMode = stored
+		} else {
+			resolvedChatTranscriptMode = .normal
+		}
+
 		// Initialize all stored properties without touching self.mode first
 		// (@Observable synthesis requires resolvedColorScheme before other uses).
 		self.mode = resolvedMode
@@ -307,6 +349,7 @@ final class AppearancePreferences {
 		self.hideOnboarding = resolvedHideOnboarding
 		self.launchAtLogin = resolvedLaunchAtLogin
 		self.showMenuBarIcon = resolvedShowMenuBarIcon
+		self.chatTranscriptMode = resolvedChatTranscriptMode
 		self.resolvedColorScheme = Self.resolveColorScheme(for: resolvedMode)
 
 		// When explicit values are passed, persist them so reloads see them.
@@ -324,6 +367,9 @@ final class AppearancePreferences {
 		}
 		if showMenuBarIcon != nil {
 			defaults.set(resolvedShowMenuBarIcon, forKey: Self.showMenuBarIconDefaultsKey)
+		}
+		if chatTranscriptMode != nil {
+			defaults.set(resolvedChatTranscriptMode.rawValue, forKey: Self.chatTranscriptModeDefaultsKey)
 		}
 
 		self.suppressLaunchAtLoginSideEffects = !applyLaunchAtLoginOnChange

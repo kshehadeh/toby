@@ -7,11 +7,14 @@ struct WorkedForRow: View {
 	let activeWorkStartDate: Date?
 	let isExpanded: Bool
 	let onToggle: () -> Void
+	/// When false (normal chat mode), only the summary chip is shown — no tool/prep steps.
+	var showsWorkDetails = true
 	var streamingAssistant: StreamingAssistantState?
 	var personaImage: URL?
 
 	private var steps: [WorkStep] {
-		workSteps(from: group)
+		guard showsWorkDetails else { return [] }
+		return workSteps(from: group)
 	}
 
 	private var toolStepCount: Int {
@@ -19,14 +22,17 @@ struct WorkedForRow: View {
 	}
 
 	private var hasExpandableContent: Bool {
-		!steps.isEmpty || streamingAssistant != nil
+		showsWorkDetails && (!steps.isEmpty || streamingAssistant != nil)
 	}
 
 	var body: some View {
 		TimelineView(.periodic(from: .now, by: 1.0)) { context in
 			HStack(alignment: .top, spacing: 0) {
 				VStack(alignment: .leading, spacing: 0) {
-					Button(action: onToggle) {
+					Button(action: {
+						guard hasExpandableContent else { return }
+						onToggle()
+					}) {
 						HStack(spacing: 8) {
 							if group.isActive {
 								ProgressView()
@@ -63,7 +69,7 @@ struct WorkedForRow: View {
 							.fill(Color.white.opacity(0.03))
 					)
 
-					if isExpanded {
+					if isExpanded, showsWorkDetails {
 						VStack(alignment: .leading, spacing: 0) {
 							ForEach(Array(steps.enumerated()), id: \.element.id) { index, step in
 								if index > 0 {

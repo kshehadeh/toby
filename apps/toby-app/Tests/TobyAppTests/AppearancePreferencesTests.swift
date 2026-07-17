@@ -16,6 +16,7 @@ struct AppearancePreferencesTests {
 		#expect(prefs.hideOnboarding == false)
 		#expect(prefs.launchAtLogin == false)
 		#expect(prefs.showMenuBarIcon == true)
+		#expect(prefs.chatTranscriptMode == .normal)
 		// System resolves to a concrete scheme (light or dark), never unspecified.
 		#expect(prefs.preferredColorScheme == .light || prefs.preferredColorScheme == .dark)
 		#expect(prefs.nsAppearance == nil)
@@ -59,11 +60,13 @@ struct AppearancePreferencesTests {
 		prefs.hideOnboarding = true
 		prefs.launchAtLogin = true
 		prefs.showMenuBarIcon = false
+		prefs.chatTranscriptMode = .debug
 		#expect(suite.string(forKey: AppearancePreferences.modeDefaultsKey) == "light")
 		#expect(suite.string(forKey: AppearancePreferences.accentDefaultsKey) == "teal")
 		#expect(suite.bool(forKey: AppearancePreferences.hideOnboardingDefaultsKey) == true)
 		#expect(suite.bool(forKey: AppearancePreferences.launchAtLoginDefaultsKey) == true)
 		#expect(suite.bool(forKey: AppearancePreferences.showMenuBarIconDefaultsKey) == false)
+		#expect(suite.string(forKey: AppearancePreferences.chatTranscriptModeDefaultsKey) == "debug")
 
 		let reloaded = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
 		#expect(reloaded.mode == .light)
@@ -71,10 +74,11 @@ struct AppearancePreferencesTests {
 		#expect(reloaded.hideOnboarding == true)
 		#expect(reloaded.launchAtLogin == true)
 		#expect(reloaded.showMenuBarIcon == false)
+		#expect(reloaded.chatTranscriptMode == .debug)
 		#expect(reloaded.resolvedColorScheme == .light)
 	}
 
-	@Test("general settings view shows launch at login and menu bar toggles")
+	@Test("general settings view shows launch at login, menu bar, and chat mode controls")
 	func generalSettingsShowsStartupAndMenuBarToggles() throws {
 		let suite = UserDefaults(suiteName: "toby.tests.appearance.\(UUID().uuidString)")!
 		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
@@ -86,10 +90,16 @@ struct AppearancePreferencesTests {
 			try view.inspect().find(text: "Show menu bar icon")
 		}
 		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Chat mode")
+		}
+		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "general-launch-at-login-toggle")
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "general-show-menu-bar-icon-toggle")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "general-chat-mode-picker")
 		}
 	}
 
@@ -200,6 +210,9 @@ struct AppearancePreferencesTests {
 			#expect(!preset.displayName.isEmpty)
 		}
 		for mode in AppearanceMode.allCases {
+			#expect(!mode.displayName.isEmpty)
+		}
+		for mode in ChatTranscriptMode.allCases {
 			#expect(!mode.displayName.isEmpty)
 		}
 	}

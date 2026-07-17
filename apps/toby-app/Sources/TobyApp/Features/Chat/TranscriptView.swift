@@ -11,21 +11,35 @@ struct TranscriptView: View {
 	/// When set and `store.activeAskUserPrompt` is non-nil, the interactive prompt
 	/// is rendered as the last transcript control (not a modal overlay).
 	var askUserStore: ChatStore?
+	/// Overrides the General → Chat mode preference (mainly for previews/tests).
+	var transcriptModeOverride: ChatTranscriptMode?
 	private let bottomAnchorID = "transcript-bottom-anchor"
 	private let askUserAnchorID = "transcript-ask-user-anchor"
 
+	/// App-local chat mode (Settings → General). Uses the shared preferences
+	/// singleton so ViewInspector tests need no environment injection.
+	@State private var appearancePreferences = AppearancePreferences.shared
 	@State private var expandedWorkGroups: Set<String> = []
 	@State private var collapsedWhileActive: Set<String> = []
 
+	private var transcriptMode: ChatTranscriptMode {
+		transcriptModeOverride ?? appearancePreferences.chatTranscriptMode
+	}
+
 	private var displayItems: [TranscriptDisplayItem] {
-		TranscriptGrouping.groupedItems(from: entries, isLoading: isLoading)
+		TranscriptGrouping.groupedItems(from: entries, isLoading: isLoading, mode: transcriptMode)
 	}
 
 	private var hasActiveAskUser: Bool {
 		askUserStore?.activeAskUserPrompt != nil
 	}
 
+	private var showsWorkDetails: Bool {
+		transcriptMode == .debug
+	}
+
 	private func isWorkGroupExpanded(_ group: TranscriptWorkGroup) -> Bool {
+		guard showsWorkDetails else { return false }
 		if workSteps(from: group).isEmpty { return false }
 		if group.isActive {
 			return !collapsedWhileActive.contains(group.id)
@@ -48,7 +62,12 @@ struct TranscriptView: View {
 								activeWorkStartDate: group.isActive ? activeWorkStartDate : nil,
 								isExpanded: isWorkGroupExpanded(group),
 								onToggle: { toggleWorkGroup(group) },
-								streamingAssistant: group.isActive && streamingAssistant?.inWorkArea == true
+								showsWorkDetails: showsWorkDetails,
+								// Debug only: stream inside the expandable work log.
+								// Normal mode streams in the main transcript below.
+								streamingAssistant: showsWorkDetails
+									&& group.isActive
+									&& streamingAssistant?.inWorkArea == true
 									? streamingAssistant
 									: nil,
 								personaImage: personaImageUrl,
@@ -56,7 +75,12 @@ struct TranscriptView: View {
 							.id(group.id)
 						}
 					}
-					if let streamingAssistant, !streamingAssistant.inWorkArea {
+					// In normal mode (non-expandable work chip), always stream in the
+					// main transcript. In debug, tool-turn streams render inside the
+					// active work group instead.
+					if let streamingAssistant,
+						transcriptMode == .normal || !streamingAssistant.inWorkArea
+					{
 						AssistantMessageRow(
 							iconName: "sparkle",
 							header: streamingAssistant.header,
@@ -118,6 +142,7 @@ struct TranscriptView: View {
 	}
 
 	private func toggleWorkGroup(_ group: TranscriptWorkGroup) {
+		guard showsWorkDetails else { return }
 		if workSteps(from: group).isEmpty { return }
 		if group.isActive {
 			if collapsedWhileActive.contains(group.id) {

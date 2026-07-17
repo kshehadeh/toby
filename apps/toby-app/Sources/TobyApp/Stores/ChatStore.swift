@@ -978,9 +978,21 @@ final class ChatStore {
 			}
 			activityLine = "Thinking…"
 		case "prep_start":
+			appendProcessingRow(
+				id: event.id ?? UUID().uuidString,
+				header: event.header ?? "Prompt preparation",
+				body: "",
+				variant: "prep",
+			)
 			if let header = event.header {
 				activityLine = header
 			}
+		case "prep_end":
+			updateProcessingRow(
+				id: event.id,
+				body: event.detail ?? "Request prepared.",
+			)
+			activityLine = "Ready for model…"
 		case "transcript_notice":
 			if let text = event.text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
 				transcript.append(.notice(text: text, tone: event.tone))

@@ -69,10 +69,10 @@ struct TranscriptViewTests {
 			durationMs: 1500,
 			toolRuns: nil,
 			fullBody: nil,
-		))))
+		)), mode: .debug))
 	}
 
-	@Test("groupedItems creates workGroup for tool entries")
+	@Test("groupedItems creates workGroup for tool entries in debug mode")
 	func groupedItemsCreatesWorkGroup() {
 		let entries: [TranscriptEntry] = [
 			.user(text: "Find my emails"),
@@ -92,7 +92,7 @@ struct TranscriptViewTests {
 			.assistant(text: "You have 5 unread emails."),
 		]
 
-		let items = TranscriptGrouping.groupedItems(from: entries, isLoading: false)
+		let items = TranscriptGrouping.groupedItems(from: entries, isLoading: false, mode: .debug)
 		#expect(items.count == 3) // user entry, work group, assistant entry
 
 		if case .workGroup(let group) = items[1] {
@@ -103,7 +103,129 @@ struct TranscriptViewTests {
 		}
 	}
 
-	@Test("groupedItems marks work group as active during loading")
+	@Test("groupedItems keeps Working block but hides selection notices in normal mode")
+	func groupedItemsNormalModeHidesDebugDetail() {
+		let entries: [TranscriptEntry] = [
+			.user(text: "Find my emails"),
+			.boxedStep(BoxedStepPayload(
+				id: "prep-1",
+				seq: 1,
+				variant: "prep",
+				header: "Prompt preparation",
+				body: "Intent specification attached to the model message.",
+				toolName: nil,
+				integrationLabel: nil,
+				cacheHit: nil,
+				durationMs: nil,
+				toolRuns: nil,
+				fullBody: nil,
+			)),
+			.notice(text: "Skills: email-triage", tone: "info"),
+			.notice(text: "5 tools: getRecentEmails, searchEmails", tone: "info"),
+			.boxedStep(BoxedStepPayload(
+				id: "tool-1",
+				seq: 2,
+				variant: "tool",
+				header: "Fetch recent unread emails",
+				body: "Found 5 email(s).",
+				toolName: "getRecentEmails",
+				integrationLabel: nil,
+				cacheHit: false,
+				durationMs: 1200,
+				toolRuns: nil,
+				fullBody: nil,
+			)),
+			.assistant(text: "You have 5 unread emails."),
+		]
+
+		let items = TranscriptGrouping.groupedItems(from: entries, isLoading: false, mode: .normal)
+		// user, work group (prep+tool), assistant — notices hidden
+		#expect(items.count == 3)
+		if case .entry(let entry, _) = items[0], case .user = entry {
+			// ok
+		} else {
+			Issue.record("Expected user entry first")
+		}
+		if case .workGroup(let group) = items[1] {
+			#expect(group.entries.count == 2)
+			#expect(!group.isActive)
+		} else {
+			Issue.record("Expected work group at index 1")
+		}
+		if case .entry(let entry, _) = items[2], case .assistant = entry {
+			// ok
+		} else {
+			Issue.record("Expected assistant entry third")
+		}
+	}
+
+	@Test("isWorkEntry groups tools in both modes; interim only in debug")
+	func isWorkEntryModes() {
+		let tool = TranscriptEntry.boxedStep(BoxedStepPayload(
+			id: "tool-1",
+			seq: 1,
+			variant: "tool",
+			header: "Search",
+			body: "Done.",
+			toolName: "memorySearch",
+			integrationLabel: nil,
+			cacheHit: false,
+			durationMs: 100,
+			toolRuns: nil,
+			fullBody: nil,
+		))
+		let interim = TranscriptEntry.boxedStep(BoxedStepPayload(
+			id: "asst-1",
+			seq: 1,
+			variant: "assistant_interim",
+			header: "Toby",
+			body: "Looking…",
+			toolName: nil,
+			integrationLabel: nil,
+			cacheHit: nil,
+			durationMs: nil,
+			toolRuns: nil,
+			fullBody: nil,
+		))
+		#expect(TranscriptGrouping.isWorkEntry(tool, mode: .normal))
+		#expect(TranscriptGrouping.isWorkEntry(tool, mode: .debug))
+		#expect(!TranscriptGrouping.isWorkEntry(interim, mode: .normal))
+		#expect(TranscriptGrouping.isWorkEntry(interim, mode: .debug))
+	}
+
+	@Test("groupedItems shows prep and selection notices in debug mode")
+	func groupedItemsDebugModeShowsPrepAndNotices() {
+		let entries: [TranscriptEntry] = [
+			.user(text: "Find my emails"),
+			.boxedStep(BoxedStepPayload(
+				id: "prep-1",
+				seq: 1,
+				variant: "prep",
+				header: "Prompt preparation",
+				body: "Intent specification attached to the model message.",
+				toolName: nil,
+				integrationLabel: nil,
+				cacheHit: nil,
+				durationMs: nil,
+				toolRuns: nil,
+				fullBody: nil,
+			)),
+			.notice(text: "Skills: email-triage", tone: "info"),
+			.notice(text: "5 tools: getRecentEmails", tone: "info"),
+			.assistant(text: "Done."),
+		]
+
+		let items = TranscriptGrouping.groupedItems(from: entries, isLoading: false, mode: .debug)
+		// user, work group (prep), two notices, assistant
+		#expect(items.count == 5)
+		if case .workGroup(let group) = items[1] {
+			#expect(group.entries.count == 1)
+		} else {
+			Issue.record("Expected prep work group at index 1")
+		}
+	}
+
+	@Test("groupedItems marks work group as active during loading in debug mode")
 	func activeWorkGroupDuringLoading() {
 		let entries: [TranscriptEntry] = [
 			.user(text: "Search memory"),
@@ -122,7 +244,7 @@ struct TranscriptViewTests {
 			)),
 		]
 
-		let items = TranscriptGrouping.groupedItems(from: entries, isLoading: true)
+		let items = TranscriptGrouping.groupedItems(from: entries, isLoading: true, mode: .debug)
 		if case .workGroup(let group) = items[1] {
 			#expect(group.isActive)
 		} else {
@@ -130,7 +252,7 @@ struct TranscriptViewTests {
 		}
 	}
 
-	@Test("isWorkEntry returns true for lifecycle entries")
+	@Test("isWorkEntry returns true for lifecycle entries in both modes")
 	func lifecycleIsWorkEntry() {
 		let payload = BoxedStepPayload(
 			id: "lc-1",
@@ -145,10 +267,11 @@ struct TranscriptViewTests {
 			toolRuns: nil,
 			fullBody: nil,
 		)
-		#expect(TranscriptGrouping.isWorkEntry(.boxedStep(payload)))
+		#expect(TranscriptGrouping.isWorkEntry(.boxedStep(payload), mode: .debug))
+		#expect(TranscriptGrouping.isWorkEntry(.boxedStep(payload), mode: .normal))
 	}
 
-	@Test("isWorkEntry returns true for plan entries")
+	@Test("isWorkEntry returns true for plan entries in both modes")
 	func planIsWorkEntry() {
 		let payload = BoxedStepPayload(
 			id: "plan-1",
@@ -163,7 +286,8 @@ struct TranscriptViewTests {
 			toolRuns: nil,
 			fullBody: nil,
 		)
-		#expect(TranscriptGrouping.isWorkEntry(.boxedStep(payload)))
+		#expect(TranscriptGrouping.isWorkEntry(.boxedStep(payload), mode: .debug))
+		#expect(TranscriptGrouping.isWorkEntry(.boxedStep(payload), mode: .normal))
 	}
 
 	@Test("isWorkEntry returns false for assistant boxed_step")
@@ -181,7 +305,37 @@ struct TranscriptViewTests {
 			toolRuns: nil,
 			fullBody: nil,
 		)
-		#expect(!TranscriptGrouping.isWorkEntry(.boxedStep(payload)))
+		#expect(!TranscriptGrouping.isWorkEntry(.boxedStep(payload), mode: .debug))
+		#expect(!TranscriptGrouping.isWorkEntry(.boxedStep(payload), mode: .normal))
+	}
+
+	@Test("normal mode surfaces assistant_interim as a visible entry")
+	func normalModeShowsAssistantInterim() {
+		let interim = TranscriptEntry.boxedStep(BoxedStepPayload(
+			id: "asst-1",
+			seq: 1,
+			variant: "assistant_interim",
+			header: "Toby",
+			body: "I'll look that up.",
+			toolName: nil,
+			integrationLabel: nil,
+			cacheHit: nil,
+			durationMs: nil,
+			toolRuns: nil,
+			fullBody: nil,
+		))
+		#expect(TranscriptGrouping.isVisible(interim, mode: .normal))
+		#expect(!TranscriptGrouping.isWorkEntry(interim, mode: .normal))
+		#expect(TranscriptGrouping.isWorkEntry(interim, mode: .debug))
+	}
+
+	@Test("debug selection notices are classified correctly")
+	func debugSelectionNotices() {
+		#expect(TranscriptGrouping.isDebugSelectionNotice("Skills: email-triage"))
+		#expect(TranscriptGrouping.isDebugSelectionNotice("5 tools: getRecentEmails"))
+		#expect(TranscriptGrouping.isDebugSelectionNotice("3 core tools"))
+		#expect(!TranscriptGrouping.isDebugSelectionNotice("Turn cancelled."))
+		#expect(!TranscriptGrouping.isDebugSelectionNotice("Session renamed."))
 	}
 
 	@Test("hidden lifecycle headers are filtered")
