@@ -11,7 +11,7 @@ Toby’s preferences live in **Toby.app → Settings**. This section documents *
 
 | Settings area | What it controls | Documented here? |
 | ------------- | ---------------- | ---------------- |
-| **General** | Start at login, menu bar icon, theme, accent (app-local; not in `config.json`) | [Toby Mac App](../toby-app#settings) |
+| **General** | Start at login, menu bar icon, chat mode, theme, accent (app-local; not in `config.json`) | [Toby Mac App](../toby-app#settings) |
 | **Dashboard** | Summary persona; hide onboarding checklist (hide is app-local) | [Toby Mac App](../toby-app#settings) |
 | **AI** | OpenAI, Vercel AI Gateway, Ollama keys and endpoints | [AI providers](../ai-providers/overview) · [Set up AI](../getting-started/setup-ai) |
 | **Personas** | Instructions, default persona, model per persona | [Personas](../personas) |
@@ -32,7 +32,7 @@ Projects and recordings are managed outside Settings (sidebar **Projects** and
 
 1. Open **Toby.app**.
 2. Click the **gear** in the main toolbar (next to Search), or press **⌘,**.
-3. Use the **top toolbar tabs** to open a section (**General**, Chat, AI, Dashboard, Transcription, and so on). Hierarchical areas such as **AI** show a list of providers on the left of the Settings window. Most changes save as you edit. **General** (start at login, menu bar icon, theme, accent) and **Dashboard → Hide onboarding checklist** are stored only on this Mac in the app’s preferences, not in `~/.toby/config.json`.
+3. Use the **top toolbar tabs** to open a section (**General**, Chat, AI, Dashboard, Transcription, and so on). Hierarchical areas such as **AI** show a list of providers on the left of the Settings window. Most changes save as you edit. **General** (start at login, menu bar icon, chat mode, theme, accent) and **Dashboard → Hide onboarding checklist** are stored only on this Mac in the app’s preferences, not in `~/.toby/config.json`.
 
 ![Toby.app Settings window](/img/toby-app-settings.png)
 

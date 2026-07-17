@@ -106,28 +106,47 @@ and other preferences through a familiar preferences-style interface.
 
 ![Toby.app Settings window](/img/toby-app-settings.png)
 
+#### General
+
 The first tab, **General**, is local to Toby.app (it is not stored in
-`~/.toby/config.json`):
+`~/.toby/config.json`). Changes apply immediately on this Mac.
 
 | Control | Options | Default |
 | ------- | ------- | ------- |
-| **Start at login** | On / Off | Off — open Toby when you log in to this Mac |
-| **Show menu bar icon** | On / Off | On — Toby’s icon in the menu bar for quick actions |
-| **Chat mode** | Normal, Debug | Normal — conversation + Working status; Debug also expands tools, prompt preparation, and other pipeline detail |
-| **Theme** | System, Light, Dark | System (follows macOS) |
-| **Accent color** | Orange, blue, green, purple, pink, red, teal, gray | Orange |
+| **Start at login** | On / Off | **Off** |
+| **Show menu bar icon** | On / Off | **On** |
+| **Chat mode** | Normal, Debug | **Normal** |
+| **Theme** | System, Light, Dark | **System** |
+| **Accent color** | Orange, blue, green, purple, pink, red, teal, gray | **Orange** |
 
-Theme and accent apply across the main window, Settings, Logs, and other
-Toby.app windows. **Start at login** uses macOS Login Items; if macOS asks for
-approval, allow Toby under **System Settings → General → Login Items**. You can
-always open Toby from the Dock or Applications even when the menu bar icon is
-hidden.
+**Start at login** — Open Toby automatically when you log in to this Mac. Uses
+macOS Login Items (`SMAppService`). If macOS asks for approval, allow Toby under
+**System Settings → General → Login Items**. Off by default so a fresh install
+does not start on every reboot.
 
-**Chat mode** controls how much pipeline detail appears in the chat transcript.
-In **Normal**, you still see the “Working…” / “Worked for” status chip, plus
-user messages, assistant replies, errors, and prompts — but not tool calls,
-prompt-prep output, skill/tool selection notices, or an expandable work log.
-Switch to **Debug** when you want that detail for troubleshooting.
+**Show menu bar icon** — Show Toby’s icon in the menu bar for quick access to
+chat, recording, and windows. On by default. You can always open Toby from the
+Dock or Applications when the icon is hidden; the Dock recording indicator still
+updates while a recording is active.
+
+**Chat mode** — How much pipeline detail appears in the chat transcript:
+
+| Mode | What you see |
+| ---- | ------------ |
+| **Normal** (default) | User messages, assistant replies, errors, ask-user prompts, and the **Working… / Worked for** status chip. Tool calls, prompt-preparation output, skill/tool selection notices, and the expandable work-step log stay hidden. |
+| **Debug** | Everything in Normal, plus expandable work-log detail: tools run, prompt preparation, plans, lifecycle steps, and pretreatment selection notices (skills / tools). |
+
+Use **Debug** when troubleshooting routing, tools, or prompt preparation; stay on
+**Normal** for everyday conversation.
+
+**Theme** — **System** follows macOS light/dark (including scheduled Auto);
+**Light** and **Dark** force that appearance. Theme applies across the main
+window, Settings, Logs, and other Toby.app windows.
+
+**Accent color** — Accent used for interactive highlights (buttons, selection,
+status cues) across Toby.app windows. Same preset in light and dark.
+
+#### Dashboard (related)
 
 Under **Settings → Dashboard**, you can also set the persona used for dashboard
 summaries and **Hide onboarding checklist** (app-local; default off). Turning

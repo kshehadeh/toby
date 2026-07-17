@@ -88,30 +88,32 @@ apps/toby-app/             # Toby.app — native macOS app (SwiftUI)
 ### Native app appearance (General) and local Dashboard prefs
 
 Toby.app **General** preferences (Settings → General) are **client-local**
-`UserDefaults` values:
+`UserDefaults` values (not part of `~/.toby/config.json` or the daemon configure
+API). Implementation: `AppearancePreferences` /
+`AppearanceSettingsView`.
 
-| Key | Default | Purpose |
-| --- | ------- | ------- |
-| `toby.appearance.mode` | system | Theme (system / light / dark) |
-| `toby.appearance.accent` | orange | Accent color preset |
-| `toby.general.launchAtLogin` | **false** | Register Toby as a login item via `SMAppService.mainApp` |
-| `toby.general.showMenuBarIcon` | **true** | Show/hide the menu bar status item |
-| `toby.general.chatTranscriptMode` | **normal** | Chat transcript verbosity (`normal` / `debug`). Both modes show the Working/Worked-for status chip; debug also expands tools, prompt prep, selection notices, and work-step details. |
+| Key | Default | UI control | Purpose |
+| --- | ------- | ---------- | ------- |
+| `toby.general.launchAtLogin` | **false** | Start at login | Register Toby as a login item via `SMAppService.mainApp` |
+| `toby.general.showMenuBarIcon` | **true** | Show menu bar icon | Show/hide the menu bar status item (`MenuBarController`) |
+| `toby.general.chatTranscriptMode` | **normal** | Chat mode | Transcript verbosity: `normal` (conversation + Working chip) or `debug` (expandable tools, prep, selection notices, work steps). Applied in `TranscriptGrouping` / `TranscriptView` / `WorkedForRow` |
+| `toby.appearance.mode` | system | Theme | Theme (`system` / `light` / `dark`) |
+| `toby.appearance.accent` | orange | Accent color | Accent color preset |
 
 Hide dashboard onboarding (`toby.appearance.hideOnboarding`) is also app-local
 but edited under **Settings → Dashboard** alongside the daemon-backed summary
-persona. These are **not** part of `~/.toby/config.json` or the daemon configure
-API.
+persona.
 
-Launch-at-login uses `ServiceManagement.SMAppService`; macOS may require the
-user to approve Toby under **System Settings → General → Login Items**. Menu bar
-visibility is applied by `MenuBarController` (dock recording indicator still
-works when the status item is hidden). Semantic colors live in `AppTheme` /
-`SettingsDesign` as dynamic `NSColor` pairs. Only true monochrome alpha-glyphs
-(AI provider marks, macOS plugin glyph) render as templates so they tint with
-text color. Filled art (Toby logo, Apple Reminders, brand multicolor plugin
-icons) stays original — template mode turns opaque regions into solid color
-boxes.
+**Start at login** uses `ServiceManagement.SMAppService`; macOS may require the
+user to approve Toby under **System Settings → General → Login Items**. **Menu
+bar** visibility is applied by `MenuBarController` (dock recording indicator
+still works when the status item is hidden). **Chat mode** only changes what
+Toby.app renders in the transcript; the daemon still emits the same pipeline
+events either way. Semantic colors live in `AppTheme` / `SettingsDesign` as
+dynamic `NSColor` pairs. Only true monochrome alpha-glyphs (AI provider marks,
+macOS plugin glyph) render as templates so they tint with text color. Filled art
+(Toby logo, Apple Reminders, brand multicolor plugin icons) stays original —
+template mode turns opaque regions into solid color boxes.
 
 ### Native app shared data
 
