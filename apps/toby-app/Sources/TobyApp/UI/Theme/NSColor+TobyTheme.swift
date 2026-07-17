@@ -117,8 +117,10 @@ extension NSColor {
 
 	static let tobySettingsSidebarSelection = tobyDynamic(
 		name: "tobySettingsSidebarSelection",
-		light: (0, 0, 0, 0.08),
-		dark: (1, 1, 1, 0.10)
+		// Stronger than general list selection so nested settings sidebars
+		// (e.g. AI providers) remain obvious in both light and dark mode.
+		light: (0, 0, 0, 0.12),
+		dark: (1, 1, 1, 0.16)
 	)
 
 	// MARK: Logs / markdown (AppKit)

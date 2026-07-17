@@ -21,7 +21,7 @@ struct ConfigureSidebarNodeView: View {
 			} else {
 				Image(systemName: iconName)
 					.font(.system(size: 14, weight: .semibold))
-					.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.tertiaryText)
+					.foregroundStyle(isSelected ? AppTheme.accent : AppTheme.tertiaryText)
 			}
 		}
 		.frame(width: 20, height: 20)
@@ -34,20 +34,27 @@ struct ConfigureSidebarNodeView: View {
 				Button {
 					store.selectSection(node.navKey)
 				} label: {
-					HStack(spacing: 12) {
+					HStack(spacing: 10) {
+						RoundedRectangle(cornerRadius: 1.5)
+							.fill(isSelected ? AppTheme.accent : Color.clear)
+							.frame(width: 3, height: 18)
+							.accessibilityHidden(true)
+
 						iconView
 						Text(node.item.label)
-							.font(.callout.weight(.medium))
+							.font(.callout.weight(isSelected ? .semibold : .medium))
 							.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.secondaryText)
 							.lineLimit(1)
 						Spacer(minLength: 0)
 					}
 					.frame(maxWidth: .infinity, alignment: .leading)
 					.padding(.vertical, 8)
-					.padding(.horizontal, 8)
+					.padding(.trailing, 8)
+					.padding(.leading, 5)
 					.contentShape(Rectangle())
 				}
 				.buttonStyle(.plain)
+				.accessibilityAddTraits(isSelected ? .isSelected : [])
 
 				if !node.children.isEmpty {
 					Button {
@@ -66,7 +73,7 @@ struct ConfigureSidebarNodeView: View {
 			}
 			.background(
 				RoundedRectangle(cornerRadius: 8)
-					.fill(isSelected ? Color.white.opacity(0.10) : Color.clear)
+					.fill(isSelected ? AppTheme.accent.opacity(0.18) : Color.clear)
 			)
 
 			if store.expandedKeys.contains(node.navKey) {
