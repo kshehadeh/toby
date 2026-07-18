@@ -21,7 +21,9 @@ You only need **one** provider configured to start chatting. **New installs shou
 
 ## Quick setup
 
-**Recommended:** Dashboard onboarding → **Configure AI provider → Connect** opens the [Vercel AI Gateway](./vercel-ai-gateway) guided wizard (signup, create key, validate). That also powers web search and transcription model lists.
+**Recommended:** Dashboard onboarding → **Configure AI provider → Connect** opens a chooser for guided setup:
+- **[Vercel AI Gateway](./vercel-ai-gateway)** (recommended) — multi-model chat, free credits, web search & transcription catalogs
+- **[OpenRouter](./openrouter)** — hundreds of models through one key
 
 Or open **Toby.app → Settings**:
 

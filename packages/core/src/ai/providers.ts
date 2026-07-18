@@ -139,7 +139,7 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
 		publicCatalog: true,
 		iconUrl: "/icons/ai/openrouter.png",
 		description:
-			"Sign up at openrouter.ai, create an API key under Keys, then paste it here to access hundreds of models from many vendors.",
+			"Sign up at openrouter.ai, create an API key under Keys, then paste it here (or use Guided setup) to access hundreds of models from many vendors.",
 		docUrl: `${AI_PROVIDER_DOCS_BASE}/openrouter`,
 		models: [
 			"openai/gpt-5.6-sol",

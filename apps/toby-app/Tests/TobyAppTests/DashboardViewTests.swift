@@ -109,7 +109,7 @@ struct DashboardModelsTests {
 		)
 		#expect(checklist.upNextKind == .connectIntegrations)
 		let ai = checklist.steps.first { $0.kind == .configureAIProvider }
-		#expect(ai?.subtitle == "Connect Vercel AI Gateway (recommended)")
+		#expect(ai?.subtitle == "Connect Vercel or OpenRouter (guided)")
 		#expect(ai?.systemImage == "cpu")
 		#expect(ai?.isComplete == true)
 		#expect(ai?.actionLabel == "Connect")
@@ -274,7 +274,7 @@ struct DashboardViewTests {
 			try card.inspect().find(text: " of 9 done")
 		}
 		#expect(throws: Never.self) {
-			try card.inspect().find(text: "Connect Vercel AI Gateway (recommended)")
+			try card.inspect().find(text: "Connect Vercel or OpenRouter (guided)")
 		}
 	}
 
@@ -462,8 +462,8 @@ struct DashboardViewTests {
 		#expect(prefs.hideOnboarding == true)
 	}
 
-	@Test("configure AI provider action opens Vercel guided setup")
-	func configureAIProviderOpensVercelSetup() throws {
+	@Test("configure AI provider action opens provider chooser path")
+	func configureAIProviderOpensSetupChooser() throws {
 		var didOpenAISetup = false
 		let incomplete = OnboardingChecklist.make(
 			hasConfiguredAIProvider: false,

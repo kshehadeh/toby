@@ -650,6 +650,26 @@ describe("persona API", () => {
 		expect(res.status).toBe(404);
 	});
 
+	it("GET /api/ai/providers/openrouter/setup returns OpenRouter guide", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/ai/providers/openrouter/setup"),
+			null,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			providerId: string;
+			displayName: string;
+			defaultModel: string;
+			fields: Array<{ key: string }>;
+			steps: Array<{ id: string }>;
+		};
+		expect(body.providerId).toBe("openrouter");
+		expect(body.displayName).toMatch(/OpenRouter/i);
+		expect(body.defaultModel).toContain("/");
+		expect(body.fields.some((f) => f.key === "apiKey")).toBe(true);
+		expect(body.steps.length).toBeGreaterThanOrEqual(3);
+	});
+
 	it("POST /api/ai/providers/:id/setup rejects missing fields", async () => {
 		const res = await handleWebRequest(
 			new Request("http://127.0.0.1/api/ai/providers/vercel/setup", {

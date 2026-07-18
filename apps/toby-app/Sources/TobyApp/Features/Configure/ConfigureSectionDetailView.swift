@@ -5,10 +5,10 @@ struct ConfigureSectionDetailView: View {
 	let section: SettingsItem
 	/// Client-local prefs for app-only Dashboard controls (card visibility, onboarding).
 	@Bindable var appearancePreferences: AppearancePreferences = .shared
-	/// Called after guided Vercel setup succeeds so the host can refresh status.
-	var onVercelSetupCompleted: (() -> Void)? = nil
+	/// Called after guided provider setup succeeds so the host can refresh status.
+	var onGuidedSetupCompleted: (() -> Void)? = nil
 
-	@State private var isVercelSetupPresented = false
+	@State private var guidedSetupProviderId: String?
 
 	private var fields: [SettingsItem] {
 		store.detailFields(for: section)
@@ -56,6 +56,12 @@ struct ConfigureSectionDetailView: View {
 	private var aiProviderId: String? {
 		guard isAIProviderSection else { return nil }
 		return String(section.key.dropFirst("ai.".count))
+	}
+
+	/// Providers with a server-side setup adapter (must match core registry).
+	private var supportsGuidedSetup: Bool {
+		guard let aiProviderId else { return false }
+		return ["vercel", "openrouter"].contains(aiProviderId)
 	}
 
 	var body: some View {
@@ -144,18 +150,18 @@ struct ConfigureSectionDetailView: View {
 				}
 
 				if isAIProviderSection {
-					if section.key == "ai.vercel" {
+					if supportsGuidedSetup, let providerId = aiProviderId {
 						SettingsCard {
 							SettingsRow(
 								title: "Guided setup",
 								description:
-									"Step-by-step Vercel account, API key creation, and one-click validation.",
+									"Step-by-step account, API key creation, and one-click validation.",
 								showsDivider: false
 							) {
 								SettingsActionButton(title: "Start setup") {
-									isVercelSetupPresented = true
+									guidedSetupProviderId = providerId
 								}
-								.accessibilityIdentifier("vercel-guided-setup-button")
+								.accessibilityIdentifier("ai-guided-setup-button-\(providerId)")
 							}
 						}
 					}
@@ -188,14 +194,22 @@ struct ConfigureSectionDetailView: View {
 				await store.loadIntegrationStatus(for: section.key)
 			}
 		}
-		.sheet(isPresented: $isVercelSetupPresented) {
+		.sheet(item: Binding(
+			get: { guidedSetupProviderId.map { GuidedSetupSheetItem(id: $0) } },
+			set: { guidedSetupProviderId = $0?.id }
+		)) { item in
 			VercelAIGatewaySetupWizardView(
+				providerId: item.id,
 				onCompleted: {
-					onVercelSetupCompleted?()
+					onGuidedSetupCompleted?()
 					Task { await store.loadSectionDetail(section.key) }
 				},
-				onDismiss: { isVercelSetupPresented = false }
+				onDismiss: { guidedSetupProviderId = nil }
 			)
 		}
+	}
+
+	private struct GuidedSetupSheetItem: Identifiable {
+		let id: String
 	}
 }

@@ -18,14 +18,18 @@ Toby also supports:
 
 You only need **one** provider to start. See the [AI providers overview](../ai-providers/overview) for help choosing.
 
-## Recommended: guided Vercel setup
+## Recommended: guided setup
 
-1. On the **Dashboard**, open the onboarding checklist and click **Connect** on **Configure AI provider** (or open **Settings → AI → Vercel AI Gateway → Guided setup**).
-2. Follow the in-app wizard:
-   - Create or sign in to a free [Vercel](https://vercel.com/signup) account
-   - Open **AI Gateway → API Keys**, create a key named **Toby**, and copy it
-   - Paste the key into Toby and click **Validate & connect**
-3. Toby checks the key with Vercel, saves it securely, and sets the built-in **Toby** persona to **Vercel AI Gateway** with model `openai/gpt-5-mini`.
+1. On the **Dashboard**, open the onboarding checklist and click **Connect** on **Configure AI provider**.
+2. Choose a path:
+   - **Vercel AI Gateway** (recommended) — multi-model chat, free credits, plus Toby web search and transcription catalogs
+   - **OpenRouter** — hundreds of models through one key
+3. Follow the in-app wizard (signup / create key deep links, paste, **Validate & connect**).
+4. Toby validates the key, saves it securely, and sets the built-in **Toby** persona:
+   - Vercel → `vercel` / `openai/gpt-5-mini`
+   - OpenRouter → `openrouter` / `openai/gpt-5.6-luna`
+
+You can also start guided setup from **Settings → AI → [provider] → Guided setup**.
 
 New Vercel teams receive free AI Gateway credits (a subset of models). See [Vercel AI Gateway pricing](https://vercel.com/docs/ai-gateway/pricing).
 

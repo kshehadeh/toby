@@ -11,6 +11,10 @@ Personas that use the **openrouter** provider send requests to `https://openrout
 
 ## Get an API key
 
+**Easiest path:** use Toby’s guided setup (Dashboard onboarding **Connect → OpenRouter**, or **Settings → AI → OpenRouter → Guided setup**). The wizard opens OpenRouter and the [Keys](https://openrouter.ai/keys) page, then validates and saves your key.
+
+Manual steps:
+
 1. Sign in at [openrouter.ai](https://openrouter.ai/).
 2. Open **Keys** (or go to [openrouter.ai/keys](https://openrouter.ai/keys)).
 3. Create a new API key and copy it.
@@ -19,13 +23,14 @@ Store the key in Toby, not in shell profiles or committed files.
 
 ## Configure in Toby
 
-Open **Toby.app → Settings → AI → OpenRouter → API Key** and paste your key.
+1. **Guided setup:** Dashboard checklist → **Configure AI provider → Connect → OpenRouter**, or **Settings → AI → OpenRouter → Guided setup**. Toby validates the key and sets the built-in **Toby** persona to `openrouter` / `openai/gpt-5.6-luna`.
+2. **Manual:** **Settings → AI → OpenRouter → API Key**, paste your key, then set a persona’s **AI Provider** to `openrouter`.
 
-Toby writes it to `~/.toby/credentials.json`.
+Toby writes the key to `~/.toby/credentials.json`.
 
 You can also set **`OPENROUTER_API_KEY`** in your environment instead of storing a key in credentials.
 
-For a persona, set **AI Provider** to `openrouter`, then pick a model from the list or enter a custom model id.
+For any persona, set **AI Provider** to `openrouter`, then pick a model from the list or enter a custom model id.
 
 ## Model catalog
 

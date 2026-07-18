@@ -1,7 +1,11 @@
+import { openRouterProviderSetupAdapter } from "./adapters/openrouter";
 import { vercelProviderSetupAdapter } from "./adapters/vercel";
 import type { ProviderSetupAdapter } from "./types";
 
-const ADAPTERS: readonly ProviderSetupAdapter[] = [vercelProviderSetupAdapter];
+const ADAPTERS: readonly ProviderSetupAdapter[] = [
+	vercelProviderSetupAdapter,
+	openRouterProviderSetupAdapter,
+];
 
 const byId = new Map(ADAPTERS.map((a) => [a.providerId, a]));
 

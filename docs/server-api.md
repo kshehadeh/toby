@@ -758,7 +758,8 @@ Implementation: [`packages/core/src/ai/model-list/`](../packages/core/src/ai/mod
 
 Generic **guided onboarding** contract. Providers opt in by registering a
 `ProviderSetupAdapter` under [`packages/core/src/ai/provider-setup/`](../packages/core/src/ai/provider-setup/).
-Vercel AI Gateway is the first adapter; others can be added without new routes.
+Current adapters: **Vercel AI Gateway** and **OpenRouter**. New providers need
+only a registry entry — no new routes.
 
 **GET** returns a wizard guide (`404` if the provider has no adapter):
 

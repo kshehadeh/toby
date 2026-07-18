@@ -57,7 +57,7 @@ struct OnboardingChecklist: Equatable {
 			OnboardingStep(
 				kind: .configureAIProvider,
 				title: "Configure AI provider",
-				subtitle: "Connect Vercel AI Gateway (recommended)",
+				subtitle: "Connect Vercel or OpenRouter (guided)",
 				systemImage: "cpu",
 				isComplete: hasConfiguredAIProvider,
 				actionLabel: "Connect"

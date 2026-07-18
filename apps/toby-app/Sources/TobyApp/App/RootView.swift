@@ -37,7 +37,9 @@ struct RootView: View {
     @State private var isPersonaAttentionHighlighted = false
     @State private var emphasizeCreatePersona = false
     @State private var personaAttentionTask: Task<Void, Never>?
-    @State private var isVercelAISetupPresented = false
+    @State private var isAIProviderChooserPresented = false
+    /// When non-nil, present guided setup for this provider id.
+    @State private var aiProviderSetupProviderId: String?
 
     private let toastDuration: UInt64 = 4_000_000_000
 
@@ -287,8 +289,29 @@ struct RootView: View {
                     .interactiveDismissDisabled(true)
                 }
             }
-            .sheet(isPresented: $isVercelAISetupPresented) {
+            .sheet(isPresented: $isAIProviderChooserPresented) {
+                AIProviderSetupChooserView(
+                    onSelect: { providerId in
+                        isAIProviderChooserPresented = false
+                        // Present the wizard after the chooser sheet dismisses.
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .milliseconds(200))
+                            aiProviderSetupProviderId = providerId
+                        }
+                    },
+                    onDismiss: { isAIProviderChooserPresented = false },
+                    onBrowseAllProviders: {
+                        isAIProviderChooserPresented = false
+                        openSettings(navKey: "ai")
+                    }
+                )
+            }
+            .sheet(item: Binding(
+                get: { aiProviderSetupProviderId.map { AIProviderSetupSheetItem(id: $0) } },
+                set: { aiProviderSetupProviderId = $0?.id }
+            )) { item in
                 VercelAIGatewaySetupWizardView(
+                    providerId: item.id,
                     onCompleted: {
                         Task {
                             await store.refreshStatus()
@@ -296,9 +319,14 @@ struct RootView: View {
                             await integrationsStore.loadSettingsSections()
                         }
                     },
-                    onDismiss: { isVercelAISetupPresented = false }
+                    onDismiss: { aiProviderSetupProviderId = nil }
                 )
             }
+    }
+
+    /// Identifiable wrapper so `.sheet(item:)` can present setup by provider id.
+    private struct AIProviderSetupSheetItem: Identifiable {
+        let id: String
     }
 
     private var contentWithTasks: some View {
@@ -542,7 +570,7 @@ struct RootView: View {
                     onRefresh: { Task { await refreshDashboardData() } },
                     onSelectRoute: navigateToRoute,
                     onOpenSettings: { openSettings(navKey: $0) },
-                    onOpenAIProviderSetup: { isVercelAISetupPresented = true },
+                    onOpenAIProviderSetup: { isAIProviderChooserPresented = true },
                     onOpenPersonaPicker: focusPersonaPickerFromOnboarding,
                     onOpenPermissions: { openWindow(id: "permissions") },
                     onStartChat: startNewChat,
