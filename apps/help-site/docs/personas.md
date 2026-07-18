@@ -13,7 +13,7 @@ Personas do not describe step-by-step procedures—that is what [skills](./skill
 
 - **Prioritization** — A “technologist” persona cares more about technical threads; a “project manager” persona cares more about schedules and cross-team coordination.
 - **Tone and depth** — Instructions can ask for brevity, bullet summaries, or executive-level framing.
-- **Model choice** — Each persona can use a different provider and model (for example, a faster model for triage, a larger one for drafting). See [AI providers](./ai-providers/overview) for API keys and recommended models.
+- **Model choice** — Each persona can use a different provider and model (for example, a faster model for triage, a larger one for drafting). See [AI providers](./ai-providers/overview) for API keys and recommended models. In the model picker, entries tagged **· reasoning** come from the provider catalog (for example Vercel `reasoning` tags) and are better for deep thinking than short dashboard-style summaries.
 
 ## Built-in default: Toby
 

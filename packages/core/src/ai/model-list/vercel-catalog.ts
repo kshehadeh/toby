@@ -7,7 +7,11 @@ export const VERCEL_MODELS_URL = "https://ai-gateway.vercel.sh/v1/models";
 
 /** Align with previous context-window TTL (models change slowly). */
 export const VERCEL_CATALOG_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-const FETCH_TIMEOUT_MS = 2500;
+/**
+ * Full gateway catalog is large (~300 models). 2.5s was aborting often on
+ * cold network, which forced curated fallbacks without `reasoning` tags.
+ */
+const FETCH_TIMEOUT_MS = 12_000;
 
 export type VercelCatalogModel = {
 	readonly id: string;

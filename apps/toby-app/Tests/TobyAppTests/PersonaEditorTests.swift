@@ -64,8 +64,8 @@ struct PersonaEditorTests {
 		store.provider = "openai"
 		store.model = "custom-model"
 		let models = store.availableModels
-		#expect(models.contains("gpt-5"))
-		#expect(models.contains("custom-model"))
+		#expect(models.map(\.id).contains("gpt-5"))
+		#expect(models.map(\.id).contains("custom-model"))
 	}
 
 	@Test("availableModels returns provider models")
@@ -77,8 +77,16 @@ struct PersonaEditorTests {
 		store.provider = "openai"
 		store.model = "gpt-5"
 		let models = store.availableModels
-		#expect(models.contains("gpt-5"))
-		#expect(models.contains("gpt-5-mini"))
+		#expect(models.map(\.id).contains("gpt-5"))
+		#expect(models.map(\.id).contains("gpt-5-mini"))
+	}
+
+	@Test("reasoning models get a picker label suffix")
+	func reasoningModelPickerLabel() throws {
+		let reasoning = AIModelOption(id: "openai/gpt-5-nano", reasoning: true)
+		let plain = AIModelOption(id: "openai/gpt-4.1-mini")
+		#expect(reasoning.pickerLabel == "openai/gpt-5-nano · reasoning")
+		#expect(plain.pickerLabel == "openai/gpt-4.1-mini")
 	}
 
 	@Test("editor view renders name field in create mode")

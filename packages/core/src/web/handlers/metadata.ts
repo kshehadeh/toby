@@ -93,7 +93,12 @@ export async function handleAIProviders(): Promise<Response> {
 		providers: providers.map((p) => ({
 			id: p.id,
 			displayName: p.displayName,
-			models: p.models,
+			/** Rich model entries (id + optional reasoning flag from provider catalog). */
+			models: p.models.map((m) => ({
+				id: m.id,
+				...(m.displayName ? { displayName: m.displayName } : {}),
+				...(m.reasoning ? { reasoning: true } : {}),
+			})),
 			allowCustomModel: p.allowCustomModel ?? false,
 			configured: isAIProviderConfigured(p.id),
 			/** True when GET/POST `/api/ai/providers/:id/setup` is implemented. */

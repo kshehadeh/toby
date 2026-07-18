@@ -77,6 +77,10 @@ struct ConfigureFieldRowView: View {
 				? "This setting is currently enabled."
 				: "This setting is currently disabled."
 		}
+		// Server-provided field copy (e.g. dashboard persona guidance).
+		if let description = field.description, !description.isEmpty {
+			return description
+		}
 		return nil
 	}
 

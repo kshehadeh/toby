@@ -304,7 +304,8 @@ Category prompts and system-prompt framing live in
    `extractDashboardSummaryText` on the structured `markdown` field.
 
 Config UI: configure tree key `dashboard.persona` (Settings / configure
-persistence).
+persistence). The field description advises preferring a **non-reasoning**
+model for dashboard summaries.
 
 ### Multi-provider note
 

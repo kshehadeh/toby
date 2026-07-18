@@ -3,7 +3,42 @@ import { isAIProviderConfigured } from "../model-factory";
 import { type AIProviderInfo, AI_PROVIDERS, getAIProvider } from "../providers";
 import { getModelListAdapter } from "./registry";
 import type { AIModelListItem, AIProviderModelList } from "./types";
-import { clearVercelCatalogCache } from "./vercel-catalog";
+import {
+	clearVercelCatalogCache,
+	fetchVercelGatewayCatalog,
+} from "./vercel-catalog";
+
+/** Provider row for settings / persona pickers — models carry catalog metadata. */
+export type AIProviderForUI = Omit<AIProviderInfo, "models"> & {
+	readonly models: readonly AIModelListItem[];
+};
+
+/**
+ * When the live model list fell back to curated ids (no tags), re-apply
+ * Vercel catalog `reasoning` tags so pickers still show the indicator.
+ */
+async function enrichVercelReasoningFlags(
+	models: readonly AIModelListItem[],
+): Promise<AIModelListItem[]> {
+	if (models.length === 0) return [...models];
+	// Live catalog path already stamped reasoning on tagged models.
+	if (models.some((m) => m.reasoning === true)) {
+		return [...models];
+	}
+	try {
+		const catalog = await fetchVercelGatewayCatalog();
+		const reasoningIds = new Set(
+			catalog.models
+				.filter((m) => m.tags?.includes("reasoning") === true)
+				.map((m) => m.id),
+		);
+		return models.map((m) =>
+			reasoningIds.has(m.id) ? { ...m, reasoning: true } : m,
+		);
+	} catch {
+		return [...models];
+	}
+}
 
 /** OpenAI / Ollama list cache — shorter than Vercel catalog (6h shared cache). */
 const DEFAULT_CACHE_TTL_MS = 10 * 60 * 1000;
@@ -52,20 +87,6 @@ export function uniqueModelItems(
 		}
 		seen.add(id);
 		out.push(item.id === id ? item : { ...item, id });
-	}
-	return out;
-}
-
-function uniqueIds(ids: readonly string[]): string[] {
-	const out: string[] = [];
-	const seen = new Set<string>();
-	for (const id of ids) {
-		const trimmed = id.trim();
-		if (!trimmed || seen.has(trimmed)) {
-			continue;
-		}
-		seen.add(trimmed);
-		out.push(trimmed);
 	}
 	return out;
 }
@@ -176,23 +197,29 @@ export async function fetchAIProviderModels(
  * Resolve full AI provider catalog for UI (settings, persona editor).
  * Models are live when the provider is configured; otherwise curated defaults.
  * User `customModels` are appended only when not already in the list.
+ * Catalog metadata (e.g. `reasoning`) is preserved for picker labels.
  */
-export async function resolveAIProvidersForUI(): Promise<AIProviderInfo[]> {
+export async function resolveAIProvidersForUI(): Promise<AIProviderForUI[]> {
 	const customModels = readConfig().ai?.customModels ?? {};
 
 	return Promise.all(
 		AI_PROVIDERS.map(async (provider) => {
 			const list = await fetchAIProviderModels(provider.id);
-			const remoteIds = list.models.map((m) => m.id);
-			const remoteSet = new Set(remoteIds);
+			let remoteItems = uniqueModelItems(list.models);
+			// Curated Vercel fallbacks omit tags; re-apply reasoning from the
+			// public catalog when possible so pickers stay informative.
+			if (provider.id === "vercel") {
+				remoteItems = await enrichVercelReasoningFlags(remoteItems);
+			}
+			const remoteSet = new Set(remoteItems.map((m) => m.id));
 			// Only append custom entries that are not already in the provider list.
-			const extras = (customModels[provider.id] ?? []).filter(
-				(id) => id.trim() && !remoteSet.has(id.trim()),
-			);
-			const modelIds = uniqueIds([...remoteIds, ...extras]);
+			const extras = (customModels[provider.id] ?? [])
+				.map((id) => id.trim())
+				.filter((id) => id && !remoteSet.has(id))
+				.map((id): AIModelListItem => ({ id }));
 			return {
 				...provider,
-				models: modelIds,
+				models: uniqueModelItems([...remoteItems, ...extras]),
 			};
 		}),
 	);

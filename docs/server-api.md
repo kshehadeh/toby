@@ -743,11 +743,22 @@ When a provider is **configured** (credentials / API key present, or Ollama base
 For providers without a public catalog, remote listing is **not** attempted without credentials, so model pickers stay offline-safe until the user configures a provider. Providers with `publicCatalog: true` (Chutes, OpenRouter) are fetched live even without credentials, since their model catalog endpoints are publicly accessible.
 
 ```ts
+type AIModelOption = {
+  id: string;
+  displayName?: string;
+  /**
+   * True when the provider catalog marks the model as reasoning
+   * (Vercel `tags` includes `"reasoning"`; OpenRouter exposes a `reasoning` object
+   * or reasoning-related `supported_parameters`). Omitted when unknown.
+   */
+  reasoning?: boolean;
+};
+
 type AIProvidersResponse = {
   providers: readonly {
     id: string;
     displayName: string;
-    models: string[];
+    models: AIModelOption[];
     allowCustomModel: boolean;
     configured: boolean;
     /** True when this provider implements guided setup (see below). */
@@ -755,6 +766,10 @@ type AIProvidersResponse = {
   }[];
 };
 ```
+
+Model pickers (Settings personas + persona editor) show a `· reasoning` suffix on
+catalog-flagged models so users can avoid them for short structured tasks like
+dashboard summaries.
 
 Implementation: [`packages/core/src/ai/model-list/`](../packages/core/src/ai/model-list/).
 

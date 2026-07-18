@@ -5,7 +5,8 @@ struct SettingsSelectChoiceField: View {
 	let choices: [SettingsSelectChoice]
 	@Binding var selection: String
 	var minWidth: CGFloat = 120
-	var maxWidth: CGFloat = 240
+	/// Wide enough for gateway model slugs plus a " · reasoning" suffix.
+	var maxWidth: CGFloat = 320
 
 	var body: some View {
 		Picker(title, selection: $selection) {

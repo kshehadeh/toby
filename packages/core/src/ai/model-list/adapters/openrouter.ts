@@ -11,6 +11,26 @@ function modelsUrl(baseUrl: string): string {
 	return `${trimmed}/models`;
 }
 
+function openRouterModelIsReasoning(rec: {
+	readonly reasoning?: unknown;
+	readonly supported_parameters?: unknown;
+}): boolean {
+	// Catalog exposes an explicit reasoning capability object when applicable.
+	if (rec.reasoning && typeof rec.reasoning === "object") {
+		return true;
+	}
+	const params = Array.isArray(rec.supported_parameters)
+		? rec.supported_parameters
+		: [];
+	return params.some(
+		(p) =>
+			typeof p === "string" &&
+			(p === "reasoning" ||
+				p === "reasoning_effort" ||
+				p === "include_reasoning"),
+	);
+}
+
 function parseOpenRouterModels(body: unknown): AIModelListItem[] {
 	const root =
 		body && typeof body === "object" && !Array.isArray(body)
@@ -28,6 +48,8 @@ function parseOpenRouterModels(body: unknown): AIModelListItem[] {
 			id?: unknown;
 			name?: unknown;
 			context_length?: unknown;
+			reasoning?: unknown;
+			supported_parameters?: unknown;
 		};
 		if (typeof rec.id !== "string" || !rec.id.trim()) {
 			continue;
@@ -37,12 +59,14 @@ function parseOpenRouterModels(body: unknown): AIModelListItem[] {
 			continue;
 		}
 		seen.add(id);
+		const reasoning = openRouterModelIsReasoning(rec);
 		items.push({
 			id,
 			...(typeof rec.name === "string" ? { displayName: rec.name } : {}),
 			...(typeof rec.context_length === "number"
 				? { contextWindowTokens: rec.context_length }
 				: {}),
+			...(reasoning ? { reasoning: true } : {}),
 		});
 	}
 

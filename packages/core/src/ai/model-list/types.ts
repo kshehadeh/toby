@@ -4,6 +4,12 @@ export type AIModelListItem = {
 	readonly displayName?: string;
 	readonly contextWindowTokens?: number;
 	readonly ownedBy?: string;
+	/**
+	 * True when the provider catalog marks this as a reasoning model
+	 * (e.g. Vercel `tags` includes `"reasoning"`, OpenRouter `reasoning` object).
+	 * Omitted when the catalog does not expose that signal.
+	 */
+	readonly reasoning?: boolean;
 };
 
 /** Normalized model list for one AI provider. */
@@ -21,4 +27,13 @@ export interface ModelListAdapter {
 	readonly providerId: string;
 	/** Only called when the provider is already configured. */
 	fetchModels(): Promise<AIProviderModelList>;
+}
+
+/** Label shown in model pickers (settings tree, persona editor, API clients). */
+export function formatModelChoiceLabel(
+	item: Pick<AIModelListItem, "id" | "reasoning">,
+): string {
+	const id = item.id.trim();
+	if (!id) return id;
+	return item.reasoning ? `${id} · reasoning` : id;
 }

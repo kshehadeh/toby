@@ -72,13 +72,13 @@ final class PersonaEditorStore {
 			.appendingPathComponent("api/personas/image/default.png")
 	}
 
-	var availableModels: [String] {
+	var availableModels: [AIModelOption] {
 		guard let info = providers.first(where: { $0.providerId == provider }) else {
-			return [model]
+			return model.isEmpty ? [] : [AIModelOption(id: model)]
 		}
 		var models = info.models
-		if !model.isEmpty && !models.contains(model) {
-			models.append(model)
+		if !model.isEmpty && !models.contains(where: { $0.id == model }) {
+			models.append(AIModelOption(id: model))
 		}
 		return models
 	}

@@ -1,4 +1,6 @@
-import { type AIProviderInfo, AI_PROVIDERS } from "../ai/providers";
+import type { AIProviderForUI } from "../ai/model-list";
+import { formatModelChoiceLabel } from "../ai/model-list";
+import { AI_PROVIDERS } from "../ai/providers";
 import {
 	WEB_SEARCH_PROVIDERS,
 	getWebSearchProvider,
@@ -107,7 +109,7 @@ export function buildSettingsTree(
 		promptMode: "add" | "replace";
 		imagePath?: string;
 	}[],
-	availableProviders: AIProviderInfo[],
+	availableProviders: AIProviderForUI[],
 	values: Record<string, string> = {},
 	defaultProviders?: Partial<Record<ProviderCategory, string>>,
 	treeContext: Partial<ConfigureTreeContext> = {},
@@ -229,13 +231,14 @@ export function buildSettingsTree(
 		// providerInfo.models is already the live (or curated) catalog from
 		// resolveAIProvidersForUI, including any customModels not in that list.
 		// Only ensure the currently selected model is present.
-		const modelOptions = [...(providerInfo?.models ?? [])];
-		if (modelValue && !modelOptions.includes(modelValue)) {
-			modelOptions.push(modelValue);
+		const modelItems = [...(providerInfo?.models ?? [])];
+		if (modelValue && !modelItems.some((m) => m.id === modelValue)) {
+			modelItems.push({ id: modelValue });
 		}
-		const modelSelectChoices = modelOptions.map((m) => ({
-			value: m,
-			label: m,
+		const modelOptions = modelItems.map((m) => m.id);
+		const modelSelectChoices = modelItems.map((m) => ({
+			value: m.id,
+			label: formatModelChoiceLabel(m),
 		}));
 		if (providerInfo?.allowCustomModel) {
 			modelOptions.push(ADD_CUSTOM_MODEL_SENTINEL);
@@ -815,7 +818,7 @@ export function buildSettingsTree(
 						],
 						currentValue: values["dashboard.persona"] ?? "(default)",
 						description:
-							"Persona used to summarize dashboard sections. Falls back to the default persona.",
+							"Persona used to summarize dashboard cards (email, tasks, calendar). Falls back to the default persona. Prefer a non-reasoning model for this persona — reasoning models often fail or time out on short structured summaries.",
 					},
 				],
 			},

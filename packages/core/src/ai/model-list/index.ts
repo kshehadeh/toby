@@ -3,6 +3,7 @@ export type {
 	AIProviderModelList,
 	ModelListAdapter,
 } from "./types";
+export { formatModelChoiceLabel } from "./types";
 export { getModelListAdapter, listModelListAdapters } from "./registry";
 export {
 	clearModelListCache,
@@ -10,6 +11,7 @@ export {
 	resolveAIProvidersForUI,
 	uniqueModelItems,
 } from "./fetch";
+export type { AIProviderForUI } from "./fetch";
 export {
 	clearVercelCatalogCache,
 	fetchVercelContextWindows,

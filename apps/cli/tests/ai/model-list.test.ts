@@ -5,6 +5,7 @@ import path from "node:path";
 import {
 	clearModelListCache,
 	fetchAIProviderModels,
+	formatModelChoiceLabel,
 	isOpenAiChatModelId,
 	resolveAIProvidersForUI,
 	uniqueModelItems,
@@ -117,6 +118,17 @@ describe("uniqueModelItems", () => {
 				{ id: " b " },
 			]).map((m) => m.id),
 		).toEqual(["a", "b"]);
+	});
+});
+
+describe("formatModelChoiceLabel", () => {
+	it("appends a reasoning suffix when the catalog marks the model", () => {
+		expect(
+			formatModelChoiceLabel({ id: "openai/gpt-5-nano", reasoning: true }),
+		).toBe("openai/gpt-5-nano · reasoning");
+		expect(formatModelChoiceLabel({ id: "openai/gpt-4.1-mini" })).toBe(
+			"openai/gpt-4.1-mini",
+		);
 	});
 });
 
@@ -236,6 +248,38 @@ describe("fetchAIProviderModels", () => {
 		expect(ids).toContain("anthropic/claude-sonnet-4.6");
 		expect(ids).toContain("xai/grok-new");
 		expect(ids).not.toContain("openai/text-embedding-3-small");
+	});
+
+	it("marks Vercel models with the reasoning catalog tag", async () => {
+		originalGatewayKey = process.env.AI_GATEWAY_API_KEY;
+		process.env.AI_GATEWAY_API_KEY = "gateway-test";
+
+		originalFetch = globalThis.fetch;
+		globalThis.fetch = mock().mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					data: [
+						{
+							id: "openai/gpt-5-nano",
+							type: "language",
+							tags: ["reasoning", "tool-use"],
+						},
+						{
+							id: "openai/gpt-4.1-mini",
+							type: "language",
+							tags: ["tool-use"],
+						},
+					],
+				}),
+				{ status: 200, headers: { "Content-Type": "application/json" } },
+			),
+		) as typeof globalThis.fetch;
+
+		const list = await fetchAIProviderModels("vercel");
+		const nano = list.models.find((m) => m.id === "openai/gpt-5-nano");
+		const mini = list.models.find((m) => m.id === "openai/gpt-4.1-mini");
+		expect(nano?.reasoning).toBe(true);
+		expect(mini?.reasoning).toBeUndefined();
 	});
 
 	it("fetches Ollama models when base URL is configured", async () => {
@@ -414,11 +458,17 @@ describe("fetchAIProviderModels", () => {
 							id: "openai/gpt-5.6-luna",
 							name: "OpenAI: GPT-5.6 Luna",
 							context_length: 1050000,
+							reasoning: {
+								mandatory: true,
+								supported_efforts: ["high", "medium", "low"],
+							},
+							supported_parameters: ["reasoning", "tools"],
 						},
 						{
 							id: "anthropic/claude-sonnet-4.6",
 							name: "Anthropic: Claude Sonnet 4.6",
 							context_length: 200000,
+							supported_parameters: ["tools"],
 						},
 					],
 				}),
@@ -435,6 +485,8 @@ describe("fetchAIProviderModels", () => {
 			"anthropic/claude-sonnet-4.6",
 		]);
 		expect(list.models[0]?.contextWindowTokens).toBe(1050000);
+		expect(list.models[0]?.reasoning).toBe(true);
+		expect(list.models[1]?.reasoning).toBeUndefined();
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
 
@@ -539,8 +591,9 @@ describe("resolveAIProvidersForUI", () => {
 
 		const providers = await resolveAIProvidersForUI();
 		const openai = providers.find((p) => p.id === "openai");
-		expect(openai?.models).toEqual(["gpt-5-mini", "o4-mini", "my-fine-tune"]);
+		const ids = openai?.models.map((m) => m.id);
+		expect(ids).toEqual(["gpt-5-mini", "o4-mini", "my-fine-tune"]);
 		// gpt-5-mini from customModels must not duplicate the remote entry
-		expect(openai?.models.filter((m) => m === "gpt-5-mini")).toHaveLength(1);
+		expect(ids?.filter((m) => m === "gpt-5-mini")).toHaveLength(1);
 	});
 });

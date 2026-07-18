@@ -356,11 +356,33 @@ struct PersonaDetail: Decodable, Identifiable {
 	let isDefault: Bool
 }
 
+/// A chat model option from the provider catalog (`GET /api/ai/providers`).
+struct AIModelOption: Decodable, Equatable, Hashable, Identifiable {
+	let id: String
+	let displayName: String?
+	/// True when the provider catalog marks this model as a reasoning model.
+	let reasoning: Bool?
+
+	init(id: String, displayName: String? = nil, reasoning: Bool? = nil) {
+		self.id = id
+		self.displayName = displayName
+		self.reasoning = reasoning
+	}
+
+	/// Menu / picker label; keeps the model id as the primary text.
+	var pickerLabel: String {
+		if reasoning == true {
+			return "\(id) · reasoning"
+		}
+		return id
+	}
+}
+
 struct AIProviderInfo: Decodable, Identifiable {
 	var id: String { providerId }
 	let providerId: String
 	let displayName: String
-	let models: [String]
+	let models: [AIModelOption]
 	let allowCustomModel: Bool
 	var configured: Bool = false
 
@@ -370,6 +392,35 @@ struct AIProviderInfo: Decodable, Identifiable {
 		case models
 		case allowCustomModel
 		case configured
+	}
+
+	/// Test / local convenience: build from bare model ids.
+	init(
+		providerId: String,
+		displayName: String,
+		models: [String],
+		allowCustomModel: Bool,
+		configured: Bool = false
+	) {
+		self.providerId = providerId
+		self.displayName = displayName
+		self.models = models.map { AIModelOption(id: $0) }
+		self.allowCustomModel = allowCustomModel
+		self.configured = configured
+	}
+
+	init(
+		providerId: String,
+		displayName: String,
+		models: [AIModelOption],
+		allowCustomModel: Bool,
+		configured: Bool = false
+	) {
+		self.providerId = providerId
+		self.displayName = displayName
+		self.models = models
+		self.allowCustomModel = allowCustomModel
+		self.configured = configured
 	}
 }
 

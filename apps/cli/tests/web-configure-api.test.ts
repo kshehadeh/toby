@@ -604,7 +604,7 @@ describe("persona API", () => {
 			providers: Array<{
 				id: string;
 				displayName: string;
-				models: string[];
+				models: Array<{ id: string; reasoning?: boolean }>;
 				allowCustomModel: boolean;
 				configured: boolean;
 			}>;
@@ -614,6 +614,7 @@ describe("persona API", () => {
 		expect(openai).toBeDefined();
 		expect(openai?.displayName).toBe("OpenAI");
 		expect(openai?.models.length).toBeGreaterThan(0);
+		expect(typeof openai?.models[0]?.id).toBe("string");
 		expect(typeof openai?.configured).toBe("boolean");
 		// In a fresh temp dir with no credentials, providers should be unconfigured
 		expect(openai?.configured).toBe(false);

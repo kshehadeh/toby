@@ -16,6 +16,7 @@ function toListItems(
 			continue;
 		}
 		seen.add(model.id);
+		const reasoning = model.tags?.includes("reasoning") === true;
 		items.push({
 			id: model.id,
 			...(model.name ? { displayName: model.name } : {}),
@@ -23,6 +24,7 @@ function toListItems(
 				? { contextWindowTokens: model.contextWindowTokens }
 				: {}),
 			...(model.ownedBy ? { ownedBy: model.ownedBy } : {}),
+			...(reasoning ? { reasoning: true } : {}),
 		});
 	}
 

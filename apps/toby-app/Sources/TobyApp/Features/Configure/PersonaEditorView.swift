@@ -194,7 +194,7 @@ struct PersonaEditorView: View {
 		SettingsSelectChoiceField(
 			title: "Model",
 			choices: store.availableModels.map {
-				SettingsSelectChoice(value: $0, label: $0)
+				SettingsSelectChoice(value: $0.id, label: $0.pickerLabel)
 			},
 			selection: $store.model,
 		)
@@ -210,7 +210,7 @@ struct PersonaEditorView: View {
 				if let provider = store.providers.first(where: { $0.providerId == providerId }),
 					let firstModel = provider.models.first
 				{
-					store.model = firstModel
+					store.model = firstModel.id
 				}
 			},
 		)
