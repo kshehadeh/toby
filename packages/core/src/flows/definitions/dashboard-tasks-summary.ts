@@ -9,8 +9,8 @@ import {
 	formatSkillsCatalogForPrompt,
 	loadLocalSkills,
 } from "../../skills/index";
-import { registerAgent } from "../registry";
-import type { AgentDefinition } from "../types";
+import { registerFlow } from "../registry";
+import type { FlowDefinition } from "../types";
 import { itemsFromDashboardToolResult } from "./dashboard-shared";
 
 const tasksSummarySchema = z.object({
@@ -22,13 +22,13 @@ const tasksSummarySchema = z.object({
 });
 
 /**
- * Agent: fetch open tasks via tasks.openSummary (no LLM), then produce structured markdown.
+ * Flow: fetch open tasks via tasks.openSummary (no LLM), then produce structured markdown.
  * Registered as `dashboard.tasks.summary`.
  *
  * Note: Tool Executor uses the active/default tasks provider (standardTool resolution).
  * Deterministic multi-provider merge for the card list still uses the dashboard aggregator.
  */
-export const tasksDashboardSummaryAgent: AgentDefinition = {
+export const tasksDashboardSummaryFlow: FlowDefinition = {
 	name: "dashboard.tasks.summary",
 	description:
 		"Fetch open tasks via the tasks.openSummary standard tool, then produce a short markdown summary with the dashboard persona.",
@@ -75,4 +75,4 @@ export const tasksDashboardSummaryAgent: AgentDefinition = {
 	],
 };
 
-registerAgent(tasksDashboardSummaryAgent);
+registerFlow(tasksDashboardSummaryFlow);

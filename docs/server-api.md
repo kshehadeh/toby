@@ -63,7 +63,7 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `GET` | `/api/status` | Chat status: version, default persona, model, integrations, skills. |
 | `GET` | `/api/dashboard` | Home dashboard summary payload (all categories). |
 | `GET` | `/api/dashboard/:category` | One dashboard category (`email`, `tasks`, `calendar`), or `null`. |
-| `GET` | `/api/dashboard/:category/summary` | AI markdown blurb for one category (named agent pipeline), or `null`. See [dashboard.md](dashboard.md) and [agents.md](agents.md). |
+| `GET` | `/api/dashboard/:category/summary` | AI markdown blurb for one category (named flow pipeline), or `null`. See [dashboard.md](dashboard.md) and [flows.md](flows.md). |
 | `POST` | `/api/issues` | File / forward an issue report (GitHub helper). |
 | `GET` | `/api/daemon/status` | Daemon process and inbound chat status. |
 | `POST` | `/api/daemon/restart` | Restart the background daemon. |

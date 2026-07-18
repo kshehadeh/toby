@@ -8,19 +8,19 @@ import {
 	defaultToolExecutorOutputs,
 	runToolExecutorNode,
 } from "./nodes/tool-executor";
-import { getAgent } from "./registry";
+import { getFlow } from "./registry";
 import { applyNodeOutputs, resolveNodeInputs } from "./resolve-inputs";
 import type {
-	AgentContextBag,
-	AgentDefinition,
-	AgentNodeTrace,
-	AgentResult,
-	AgentRunOptions,
+	FlowContextBag,
+	FlowDefinition,
+	FlowNodeTrace,
+	FlowResult,
+	FlowRunOptions,
 } from "./types";
-import { AgentNodeError } from "./types";
+import { FlowNodeError } from "./types";
 
-function resolveAgentPersona(
-	definition: AgentDefinition,
+function resolveFlowPersona(
+	definition: FlowDefinition,
 	override?: Persona,
 ): Persona {
 	if (override) return override;
@@ -35,35 +35,35 @@ function resolveAgentPersona(
 }
 
 /**
- * Run a registered agent by name with optional initial inputs and persona override.
+ * Run a registered flow by name with optional initial inputs and persona override.
  */
-export async function runAgent(
+export async function runFlow(
 	name: string,
-	options: AgentRunOptions = {},
-): Promise<AgentResult> {
-	const definition = getAgent(name);
+	options: FlowRunOptions = {},
+): Promise<FlowResult> {
+	const definition = getFlow(name);
 	if (!definition) {
 		return {
 			ok: false,
-			agentName: name,
+			flowName: name,
 			outputs: {},
 			nodeTrace: [],
-			error: `Unknown agent "${name}"`,
+			error: `Unknown flow "${name}"`,
 		};
 	}
-	return runAgentDefinition(definition, options);
+	return runFlowDefinition(definition, options);
 }
 
 /**
- * Run an agent definition (does not require registry membership).
+ * Run a flow definition (does not require registry membership).
  */
-export async function runAgentDefinition(
-	definition: AgentDefinition,
-	options: AgentRunOptions = {},
-): Promise<AgentResult> {
-	const persona = resolveAgentPersona(definition, options.personaOverride);
-	const bag: AgentContextBag = { ...(options.inputs ?? {}) };
-	const nodeTrace: AgentNodeTrace[] = [];
+export async function runFlowDefinition(
+	definition: FlowDefinition,
+	options: FlowRunOptions = {},
+): Promise<FlowResult> {
+	const persona = resolveFlowPersona(definition, options.personaOverride);
+	const bag: FlowContextBag = { ...(options.inputs ?? {}) };
+	const nodeTrace: FlowNodeTrace[] = [];
 
 	for (const node of definition.nodes) {
 		const started = Date.now();
@@ -95,7 +95,7 @@ export async function runAgentDefinition(
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			const failedNodeId =
-				error instanceof AgentNodeError ? error.nodeId : node.id;
+				error instanceof FlowNodeError ? error.nodeId : node.id;
 			nodeTrace.push({
 				nodeId: node.id,
 				type: node.type,
@@ -105,7 +105,7 @@ export async function runAgentDefinition(
 			});
 			return {
 				ok: false,
-				agentName: definition.name,
+				flowName: definition.name,
 				persona,
 				outputs: bag,
 				nodeTrace,
@@ -117,7 +117,7 @@ export async function runAgentDefinition(
 
 	return {
 		ok: true,
-		agentName: definition.name,
+		flowName: definition.name,
 		persona,
 		outputs: bag,
 		nodeTrace,

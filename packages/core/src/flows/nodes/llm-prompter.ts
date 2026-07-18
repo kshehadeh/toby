@@ -3,11 +3,11 @@ import type { z } from "zod";
 import { createModelForPersona } from "../../ai/model-factory";
 import { daemonLog } from "../../logging/daemon-log";
 import type {
-	AgentNodePromptContext,
-	AgentNodeRuntime,
+	FlowNodePromptContext,
+	FlowNodeRuntime,
 	LlmPrompterNodeDefinition,
 } from "../types";
-import { AgentNodeError } from "../types";
+import { FlowNodeError } from "../types";
 
 const DEFAULT_TEMPERATURE = 0.3;
 const DEFAULT_MAX_OUTPUT_TOKENS = 1500;
@@ -28,7 +28,7 @@ export function defaultLlmPrompterOutputs(): typeof DEFAULT_OUTPUTS {
 /**
  * Coerce free-form model text into the node schema when possible.
  * Prefer JSON that already matches the schema; otherwise wrap as `{ markdown }`
- * (dashboard agents) or a bare string schema.
+ * (dashboard flows) or a bare string schema.
  */
 export function coerceFreeTextToSchema(
 	schema: z.ZodTypeAny,
@@ -48,7 +48,7 @@ export function coerceFreeTextToSchema(
 		}
 	}
 
-	// Common dashboard agent shape: { markdown: string }
+	// Common dashboard flow shape: { markdown: string }
 	const asMarkdown = schema.safeParse({ markdown: trimmed });
 	if (asMarkdown.success) return asMarkdown.data;
 
@@ -106,9 +106,9 @@ async function withTimeout<T>(
 export async function runLlmPrompterNode(
 	node: LlmPrompterNodeDefinition,
 	inputs: Readonly<Record<string, unknown>>,
-	runtime: AgentNodeRuntime,
+	runtime: FlowNodeRuntime,
 ): Promise<LlmPrompterNodeResult> {
-	const promptCtx: AgentNodePromptContext = {
+	const promptCtx: FlowNodePromptContext = {
 		persona: runtime.persona,
 		bag: runtime.bag,
 		inputs,
@@ -122,7 +122,7 @@ export async function runLlmPrompterNode(
 	const timeoutMs = node.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
 	if (runtime.abortSignal?.aborted) {
-		throw new AgentNodeError(node.id, "Aborted", "aborted");
+		throw new FlowNodeError(node.id, "Aborted", "aborted");
 	}
 
 	try {
@@ -147,9 +147,9 @@ export async function runLlmPrompterNode(
 							prompt: userPrompt,
 							output: Output.object({
 								schema: zodSchema(node.schema),
-								name: node.schemaName ?? "AgentStructuredOutput",
+								name: node.schemaName ?? "FlowStructuredOutput",
 								description:
-									node.schemaDescription ?? "Structured output for agent node",
+									node.schemaDescription ?? "Structured output for flow node",
 							}),
 							abortSignal: signal,
 							temperature,
@@ -164,7 +164,7 @@ export async function runLlmPrompterNode(
 				if (runtime.abortSignal?.aborted) {
 					throw structuredError;
 				}
-				daemonLog("info", "general", "agent_llm_structured_fallback", {
+				daemonLog("info", "general", "flow_llm_structured_fallback", {
 					nodeId: node.id,
 					error:
 						structuredError instanceof Error
@@ -173,7 +173,7 @@ export async function runLlmPrompterNode(
 				});
 			}
 		} else {
-			daemonLog("debug", "general", "agent_llm_freeform_preferred", {
+			daemonLog("debug", "general", "flow_llm_freeform_preferred", {
 				nodeId: node.id,
 				reason: "markdown_only_schema",
 			});
@@ -202,7 +202,7 @@ OUTPUT FORMAT:
 
 		const coerced = coerceFreeTextToSchema(node.schema, freeform.text ?? "");
 		if (coerced == null) {
-			throw new AgentNodeError(
+			throw new FlowNodeError(
 				node.id,
 				"Model returned no usable free-form output",
 				"structured_output_null",
@@ -211,12 +211,12 @@ OUTPUT FORMAT:
 
 		return { object: coerced };
 	} catch (error) {
-		if (error instanceof AgentNodeError) throw error;
+		if (error instanceof FlowNodeError) throw error;
 		const message = error instanceof Error ? error.message : String(error);
 		const aborted =
 			runtime.abortSignal?.aborted ||
 			(error instanceof Error && /abort/i.test(error.message));
-		throw new AgentNodeError(
+		throw new FlowNodeError(
 			node.id,
 			message,
 			aborted ? "aborted" : "llm_error",

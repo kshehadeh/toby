@@ -9,8 +9,8 @@ import {
 	formatSkillsCatalogForPrompt,
 	loadLocalSkills,
 } from "../../skills/index";
-import { registerAgent } from "../registry";
-import type { AgentDefinition } from "../types";
+import { registerFlow } from "../registry";
+import type { FlowDefinition } from "../types";
 import { itemsFromDashboardToolResult } from "./dashboard-shared";
 
 const emailSummarySchema = z.object({
@@ -22,10 +22,10 @@ const emailSummarySchema = z.object({
 });
 
 /**
- * Agent: fetch unread email metadata (no LLM), then produce structured markdown.
+ * Flow: fetch unread email metadata (no LLM), then produce structured markdown.
  * Registered as `dashboard.email.summary`.
  */
-export const emailDashboardSummaryAgent: AgentDefinition = {
+export const emailDashboardSummaryFlow: FlowDefinition = {
 	name: "dashboard.email.summary",
 	description:
 		"Fetch unread inbox items via the email.unreadSummary standard tool, then produce a short markdown summary with the dashboard persona.",
@@ -74,4 +74,4 @@ export const emailDashboardSummaryAgent: AgentDefinition = {
 	],
 };
 
-registerAgent(emailDashboardSummaryAgent);
+registerFlow(emailDashboardSummaryFlow);

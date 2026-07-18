@@ -3,8 +3,8 @@
 This document describes how Toby prepares chat messages, runs a model turn, and (optionally) takes advantage of provider prompt caching to reduce repeated prompt tokens.
 
 **Named non-chat workflows** (for example home dashboard AI blurbs) use a
-separate runtime documented in [`agents.md`](agents.md). Do not confuse that
-agent node graph with the chat turn stages below.
+separate runtime documented in [`flows.md`](flows.md). Do not confuse that
+flow node graph with the chat turn stages below.
 
 The pipeline implementation lives in **`@toby/core`** ([`packages/core/src/chat-pipeline/`](../packages/core/src/chat-pipeline/)). Native and web clients consume turns through the daemon HTTP API (`POST /api/sessions/:id/turn`, SSE `ChatEvent` stream). The turn runtime in [`turn-runtime.ts`](../packages/core/src/chat-pipeline/turn-runtime.ts) wraps `runChatTurnPipeline` for API consumers. See [`daemon.md`](daemon.md#unified-chat-api).
 

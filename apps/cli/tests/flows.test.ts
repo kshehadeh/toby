@@ -1,23 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import {
-	AgentNodeError,
+	FlowNodeError,
 	applyNodeOutputs,
-	clearAgentRegistry,
-	calendarDashboardSummaryAgent,
-	emailDashboardSummaryAgent,
-	getAgent,
+	clearFlowRegistry,
+	calendarDashboardSummaryFlow,
+	emailDashboardSummaryFlow,
+	getFlow,
 	getByPath,
-	listAgents,
-	registerAgent,
+	listFlows,
+	registerFlow,
 	resolveNodeInputs,
-	runAgentDefinition,
-	tasksDashboardSummaryAgent,
-	type AgentDefinition,
-} from "@toby/core/agents";
+	runFlowDefinition,
+	tasksDashboardSummaryFlow,
+	type FlowDefinition,
+} from "@toby/core/flows";
 import {
 	coerceFreeTextToSchema,
 	isMarkdownOnlyObjectSchema,
-} from "@toby/core/agents/nodes/llm-prompter";
+} from "@toby/core/flows/nodes/llm-prompter";
 import { z } from "zod";
 
 describe("coerceFreeTextToSchema", () => {
@@ -43,7 +43,7 @@ describe("coerceFreeTextToSchema", () => {
 		expect(coerceFreeTextToSchema(markdownSchema, "   ")).toBeNull();
 	});
 
-	it("detects markdown-only object schemas used by dashboard agents", () => {
+	it("detects markdown-only object schemas used by dashboard flows", () => {
 		expect(isMarkdownOnlyObjectSchema(markdownSchema)).toBe(true);
 		expect(
 			isMarkdownOnlyObjectSchema(
@@ -56,7 +56,7 @@ describe("coerceFreeTextToSchema", () => {
 	});
 });
 
-describe("agent input/output resolution", () => {
+describe("flow input/output resolution", () => {
 	it("getByPath reads nested fields and treats . as identity", () => {
 		const obj = { a: { b: 1 }, items: [{ id: "x" }] };
 		expect(getByPath(obj, "a.b")).toBe(1);
@@ -85,10 +85,10 @@ describe("agent input/output resolution", () => {
 		});
 	});
 
-	it("resolveNodeInputs throws AgentNodeError on missing key", () => {
+	it("resolveNodeInputs throws FlowNodeError on missing key", () => {
 		expect(() =>
 			resolveNodeInputs("n1", { x: { from: "missing" } }, {}),
-		).toThrow(AgentNodeError);
+		).toThrow(FlowNodeError);
 	});
 
 	it("applyNodeOutputs writes paths into the bag", () => {
@@ -104,22 +104,22 @@ describe("agent input/output resolution", () => {
 	});
 });
 
-describe("agent registry", () => {
+describe("flow registry", () => {
 	beforeEach(() => {
-		clearAgentRegistry();
+		clearFlowRegistry();
 	});
 
 	afterEach(() => {
-		clearAgentRegistry();
+		clearFlowRegistry();
 		// Re-register built-ins so other tests / imports still work.
-		registerAgent(emailDashboardSummaryAgent);
-		registerAgent(tasksDashboardSummaryAgent);
-		registerAgent(calendarDashboardSummaryAgent);
+		registerFlow(emailDashboardSummaryFlow);
+		registerFlow(tasksDashboardSummaryFlow);
+		registerFlow(calendarDashboardSummaryFlow);
 	});
 
-	it("registerAgent and getAgent round-trip", () => {
-		const def: AgentDefinition = {
-			name: "test.agent",
+	it("registerFlow and getFlow round-trip", () => {
+		const def: FlowDefinition = {
+			name: "test.flow",
 			nodes: [
 				{
 					id: "t1",
@@ -128,14 +128,14 @@ describe("agent registry", () => {
 				},
 			],
 		};
-		registerAgent(def);
-		expect(getAgent("test.agent")?.name).toBe("test.agent");
-		expect(listAgents().some((a) => a.name === "test.agent")).toBe(true);
+		registerFlow(def);
+		expect(getFlow("test.flow")?.name).toBe("test.flow");
+		expect(listFlows().some((a) => a.name === "test.flow")).toBe(true);
 	});
 
 	it("rejects empty name and duplicate node ids", () => {
 		expect(() =>
-			registerAgent({
+			registerFlow({
 				name: "  ",
 				nodes: [
 					{
@@ -148,7 +148,7 @@ describe("agent registry", () => {
 		).toThrow();
 
 		expect(() =>
-			registerAgent({
+			registerFlow({
 				name: "dup",
 				nodes: [
 					{
@@ -167,36 +167,36 @@ describe("agent registry", () => {
 	});
 });
 
-describe("dashboard summary agent definitions", () => {
-	it("email agent is registered with tool_executor then llm_prompter", () => {
-		registerAgent(emailDashboardSummaryAgent);
-		const agent = getAgent("dashboard.email.summary");
-		expect(agent).toBeDefined();
-		expect(agent?.nodes).toHaveLength(2);
-		expect(agent?.nodes[0]?.type).toBe("tool_executor");
-		expect(agent?.nodes[1]?.type).toBe("llm_prompter");
-		if (agent?.nodes[0]?.type === "tool_executor") {
+describe("dashboard summary flow definitions", () => {
+	it("email flow is registered with tool_executor then llm_prompter", () => {
+		registerFlow(emailDashboardSummaryFlow);
+		const flow = getFlow("dashboard.email.summary");
+		expect(flow).toBeDefined();
+		expect(flow?.nodes).toHaveLength(2);
+		expect(flow?.nodes[0]?.type).toBe("tool_executor");
+		expect(flow?.nodes[1]?.type).toBe("llm_prompter");
+		if (flow?.nodes[0]?.type === "tool_executor") {
 			expect(
-				"standardTool" in agent.nodes[0].tool &&
-					agent.nodes[0].tool.standardTool,
+				"standardTool" in flow.nodes[0].tool &&
+					flow.nodes[0].tool.standardTool,
 			).toBe("email.unreadSummary");
 		}
 	});
 
-	it("tasks agent is registered with tool_executor then llm_prompter", () => {
-		registerAgent(tasksDashboardSummaryAgent);
-		const agent = getAgent("dashboard.tasks.summary");
-		expect(agent).toBeDefined();
-		expect(agent?.nodes).toHaveLength(2);
-		expect(agent?.nodes[0]?.type).toBe("tool_executor");
-		expect(agent?.nodes[1]?.type).toBe("llm_prompter");
-		if (agent?.nodes[0]?.type === "tool_executor") {
+	it("tasks flow is registered with tool_executor then llm_prompter", () => {
+		registerFlow(tasksDashboardSummaryFlow);
+		const flow = getFlow("dashboard.tasks.summary");
+		expect(flow).toBeDefined();
+		expect(flow?.nodes).toHaveLength(2);
+		expect(flow?.nodes[0]?.type).toBe("tool_executor");
+		expect(flow?.nodes[1]?.type).toBe("llm_prompter");
+		if (flow?.nodes[0]?.type === "tool_executor") {
 			expect(
-				"standardTool" in agent.nodes[0].tool &&
-					agent.nodes[0].tool.standardTool,
+				"standardTool" in flow.nodes[0].tool &&
+					flow.nodes[0].tool.standardTool,
 			).toBe("tasks.openSummary");
 		}
-		const llm = agent?.nodes[1];
+		const llm = flow?.nodes[1];
 		if (llm?.type === "llm_prompter") {
 			expect(
 				llm.schema.safeParse({ markdown: "## Needs attention\n- x" }).success,
@@ -204,25 +204,25 @@ describe("dashboard summary agent definitions", () => {
 		}
 	});
 
-	it("calendar agent is registered with tool_executor then llm_prompter", () => {
-		registerAgent(calendarDashboardSummaryAgent);
-		const agent = getAgent("dashboard.calendar.summary");
-		expect(agent).toBeDefined();
-		expect(agent?.nodes).toHaveLength(2);
-		expect(agent?.nodes[0]?.type).toBe("tool_executor");
-		expect(agent?.nodes[1]?.type).toBe("llm_prompter");
-		if (agent?.nodes[0]?.type === "tool_executor") {
+	it("calendar flow is registered with tool_executor then llm_prompter", () => {
+		registerFlow(calendarDashboardSummaryFlow);
+		const flow = getFlow("dashboard.calendar.summary");
+		expect(flow).toBeDefined();
+		expect(flow?.nodes).toHaveLength(2);
+		expect(flow?.nodes[0]?.type).toBe("tool_executor");
+		expect(flow?.nodes[1]?.type).toBe("llm_prompter");
+		if (flow?.nodes[0]?.type === "tool_executor") {
 			expect(
-				"standardTool" in agent.nodes[0].tool &&
-					agent.nodes[0].tool.standardTool,
+				"standardTool" in flow.nodes[0].tool &&
+					flow.nodes[0].tool.standardTool,
 			).toBe("calendar.upcomingSummary");
 		}
 	});
 });
 
-describe("runAgentDefinition", () => {
-	it("returns unknown agent style failure via run with empty pipeline result on missing inputs", async () => {
-		const def: AgentDefinition = {
+describe("runFlowDefinition", () => {
+	it("returns unknown flow style failure via run with empty pipeline result on missing inputs", async () => {
+		const def: FlowDefinition = {
 			name: "test.const-only-then-read",
 			nodes: [
 				{
@@ -235,7 +235,7 @@ describe("runAgentDefinition", () => {
 				},
 			],
 		};
-		const result = await runAgentDefinition(def, {
+		const result = await runFlowDefinition(def, {
 			personaOverride: {
 				name: "Test",
 				instructions: "",
@@ -251,9 +251,9 @@ describe("runAgentDefinition", () => {
 	});
 
 	it("runs a pure llm_prompter node when generate path is not needed for input wiring", async () => {
-		// This agent only has a tool node that will fail resolve — covered above.
-		// Smoke: structured schema exists on email agent llm node.
-		const llm = emailDashboardSummaryAgent.nodes[1];
+		// This flow only has a tool node that will fail resolve — covered above.
+		// Smoke: structured schema exists on email flow llm node.
+		const llm = emailDashboardSummaryFlow.nodes[1];
 		expect(llm?.type).toBe("llm_prompter");
 		if (llm?.type === "llm_prompter") {
 			const parsed = llm.schema.safeParse({ markdown: "## Needs attention\n- Hi" });

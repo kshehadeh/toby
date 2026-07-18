@@ -1,6 +1,6 @@
 import { executeToolRef } from "../tool-resolve";
-import type { AgentNodeRuntime, ToolExecutorNodeDefinition } from "../types";
-import { AgentNodeError } from "../types";
+import type { FlowNodeRuntime, ToolExecutorNodeDefinition } from "../types";
+import { FlowNodeError } from "../types";
 
 export type ToolExecutorNodeResult = {
 	readonly result: unknown;
@@ -18,14 +18,14 @@ export function defaultToolExecutorOutputs(): typeof DEFAULT_OUTPUTS {
 export async function runToolExecutorNode(
 	node: ToolExecutorNodeDefinition,
 	inputs: Readonly<Record<string, unknown>>,
-	_runtime: AgentNodeRuntime,
+	_runtime: FlowNodeRuntime,
 ): Promise<ToolExecutorNodeResult> {
 	const exec = await executeToolRef(
 		node.tool,
 		inputs as Record<string, unknown>,
 	);
 	if (!exec.ok) {
-		throw new AgentNodeError(node.id, exec.error, "tool_execution_failed");
+		throw new FlowNodeError(node.id, exec.error, "tool_execution_failed");
 	}
 	return {
 		result: exec.result,

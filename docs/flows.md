@@ -1,15 +1,15 @@
-# Agents (named pipelines)
+# Flows (named pipelines)
 
-Agents are **named, code-defined pipelines**: an ordered sequence of **nodes**
+Flows are **named, code-defined pipelines**: an ordered sequence of **nodes**
 with explicit **inputs** and **outputs**. They power non-chat workflows that need
 a fixed sequence of steps (today: home dashboard AI blurbs).
 
-Agents are **not** the chat turn pipeline. They have no pretreatment, message
+Flows are **not** the chat turn pipeline. They have no pretreatment, message
 compaction, multi-step tool loops, session transcript, or SQLite chat history.
 
-| | Chat pipeline | Agents |
+| | Chat pipeline | Flows |
 | --- | --- | --- |
-| Location | `packages/core/src/chat-pipeline/` | `packages/core/src/agents/` |
+| Location | `packages/core/src/chat-pipeline/` | `packages/core/src/flows/` |
 | Purpose | Interactive / headless chat turns | Named reusable workflows |
 | Graph | Fixed six stages (init → … → persist) | Author-defined node list |
 | LLM | Tool-calling multi-step loop | Optional **LLM Prompter** (structured + free-form fallback) |
@@ -19,18 +19,18 @@ compaction, multi-step tool loops, session transcript, or SQLite chat history.
 ## Mental model
 
 ```
-AgentDefinition (registered by name)
+FlowDefinition (registered by name)
   persona binding
   nodes: [ Node₁, Node₂, … Nodeₙ ]
 
-runAgent(name, options)
+runFlow(name, options)
   → resolve persona
   → context bag = { …initial inputs }
   → for each node:
         resolve inputs from bag / consts
         run node
         write outputs into bag
-  → AgentResult { ok, outputs, nodeTrace, … }
+  → FlowResult { ok, outputs, nodeTrace, … }
 ```
 
 The **context bag** is a mutable `Record<string, unknown>`. Nodes do not call
@@ -40,7 +40,7 @@ each other by name; the definition **wires** ports via `inputs` / `outputs`.
 
 | Concept | Meaning |
 | --- | --- |
-| **Agent** | Named list of nodes + optional persona binding |
+| **Flow** | Named list of nodes + optional persona binding |
 | **Node** | One step: currently `tool_executor` or `llm_prompter` |
 | **Context bag** | Intermediate values during a run |
 | **Input source** | How a node parameter is filled (`const` or `from` bag key) |
@@ -51,8 +51,8 @@ each other by name; the definition **wires** ports via `inputs` / `outputs`.
 
 For each run, the effective persona is:
 
-1. `personaOverride` on `runAgent` options  
-2. `personaName` on the agent definition  
+1. `personaOverride` on `runFlow` options  
+2. `personaName` on the flow definition  
 3. `resolvePersona()` on the definition (e.g. dashboard settings)  
 4. Default persona  
 
@@ -105,12 +105,12 @@ shape,” not an LLM summary of the whole inbox. The tool returns structured
 metadata (subjects, from, dates, etc.). Prose is produced only by an
 **LLM Prompter** node downstream.
 
-Implementation: `packages/core/src/agents/nodes/tool-executor.ts`,
-`packages/core/src/agents/tool-resolve.ts`.
+Implementation: `packages/core/src/flows/nodes/tool-executor.ts`,
+`packages/core/src/flows/tool-resolve.ts`.
 
 ### LLM Prompter
 
-Calls the agent persona’s model once with **structured** output (Zod →
+Calls the flow persona’s model once with **structured** output (Zod →
 `Output.object`). No tool-calling loop.
 
 ```ts
@@ -131,7 +131,7 @@ Calls the agent persona’s model once with **structured** output (Zod →
 
 **Prompt context** (`ctx`):
 
-- `persona` — resolved agent persona  
+- `persona` — resolved flow persona  
 - `bag` — full context bag  
 - `inputs` — resolved inputs for this node  
 
@@ -140,7 +140,7 @@ Calls the agent persona’s model once with **structured** output (Zod →
 
 For schemas richer than a single `markdown` string field, tries structured
 `Output.object` first (short timeout), then free-form. For **`{ markdown:
-string }`** (all dashboard agents), skips structured output and generates
+string }`** (all dashboard flows), skips structured output and generates
 free-form markdown directly — many gateway models (e.g. DeepSeek) fail
 structured mode and previously burned the shared timeout so free-form was
 aborted (`Delay was aborted`). Free-form always gets a **fresh full**
@@ -150,7 +150,7 @@ timeout budget and is coerced into the schema (JSON parse or wrap as
 Callers may further sanitize string fields after the run (dashboard uses
 `extractDashboardSummaryText`).
 
-Implementation: `packages/core/src/agents/nodes/llm-prompter.ts`.
+Implementation: `packages/core/src/flows/nodes/llm-prompter.ts`.
 
 ## Input / output wiring
 
@@ -162,7 +162,7 @@ Implementation: `packages/core/src/agents/nodes/llm-prompter.ts`.
 | `{ from: "key" }` | Whole value at bag key `key` |
 | `{ from: "key", path: "items" }` | Dot-path into that value (`a.b.c`) |
 
-Missing bag keys or paths throw `AgentNodeError` and fail the run.
+Missing bag keys or paths throw `FlowNodeError` and fail the run.
 
 ### Outputs
 
@@ -177,22 +177,22 @@ outputs: {
 }
 ```
 
-Implementation: `packages/core/src/agents/resolve-inputs.ts`.
+Implementation: `packages/core/src/flows/resolve-inputs.ts`.
 
 ## Runtime API
 
 ```ts
 import {
-  registerAgent,
-  getAgent,
-  listAgents,
-  runAgent,
-  runAgentDefinition,
-  type AgentDefinition,
-  type AgentResult,
-} from "@toby/core/agents";
+  registerFlow,
+  getFlow,
+  listFlows,
+  runFlow,
+  runFlowDefinition,
+  type FlowDefinition,
+  type FlowResult,
+} from "@toby/core/flows";
 
-const result: AgentResult = await runAgent("dashboard.email.summary", {
+const result: FlowResult = await runFlow("dashboard.email.summary", {
   personaOverride, // optional Persona
   inputs: { /* optional seed bag */ },
   abortSignal,
@@ -209,31 +209,31 @@ if (result.ok) {
 
 | Function | Role |
 | --- | --- |
-| `registerAgent(def)` | Register (or replace) by `def.name` |
-| `getAgent(name)` | Lookup |
-| `listAgents()` | All definitions, name-sorted |
-| `runAgent(name, opts?)` | Run from registry |
-| `runAgentDefinition(def, opts?)` | Run without requiring registration |
-| `clearAgentRegistry()` | Tests only |
+| `registerFlow(def)` | Register (or replace) by `def.name` |
+| `getFlow(name)` | Lookup |
+| `listFlows()` | All definitions, name-sorted |
+| `runFlow(name, opts?)` | Run from registry |
+| `runFlowDefinition(def, opts?)` | Run without requiring registration |
+| `clearFlowRegistry()` | Tests only |
 
-Definitions live under `packages/core/src/agents/definitions/` and register at
-import time. Public entry: `packages/core/src/agents/index.ts`.
+Definitions live under `packages/core/src/flows/definitions/` and register at
+import time. Public entry: `packages/core/src/flows/index.ts`.
 
 ## Package layout
 
 | Path | Role |
 | --- | --- |
-| `agents/types.ts` | Definition + result types, `AgentNodeError` |
-| `agents/registry.ts` | Register / get / list |
-| `agents/runner.ts` | Sequential driver |
-| `agents/resolve-inputs.ts` | `const` / `from` / path + apply outputs |
-| `agents/tool-resolve.ts` | standardTool / named tool resolve + execute |
-| `agents/nodes/tool-executor.ts` | Tool Executor node |
-| `agents/nodes/llm-prompter.ts` | LLM Prompter node |
-| `agents/definitions/*.ts` | Built-in agents (side-effect `registerAgent`) |
-| `agents/index.ts` | Public exports + import definitions |
+| `flows/types.ts` | Definition + result types, `FlowNodeError` |
+| `flows/registry.ts` | Register / get / list |
+| `flows/runner.ts` | Sequential driver |
+| `flows/resolve-inputs.ts` | `const` / `from` / path + apply outputs |
+| `flows/tool-resolve.ts` | standardTool / named tool resolve + execute |
+| `flows/nodes/tool-executor.ts` | Tool Executor node |
+| `flows/nodes/llm-prompter.ts` | LLM Prompter node |
+| `flows/definitions/*.ts` | Built-in flows (side-effect `registerFlow`) |
+| `flows/index.ts` | Public exports + import definitions |
 
-Tests: `apps/cli/tests/agents.test.ts`.
+Tests: `apps/cli/tests/flows.test.ts`.
 
 ## Built-in consumers: dashboard AI summaries
 
@@ -242,13 +242,13 @@ The home dashboard keeps **two independent paths** per card category:
 | Path | API | What it is |
 | --- | --- | --- |
 | Deterministic | `GET /api/dashboard/:category` | Aggregator → standard tools → badge + item list |
-| AI prose | `GET /api/dashboard/:category/summary` | Agent pipeline → markdown blurb |
+| AI prose | `GET /api/dashboard/:category/summary` | Flow pipeline → markdown blurb |
 
 Full card lifecycle, caching, and plugins: [dashboard.md](dashboard.md).
 
-### Agent map
+### Flow map
 
-| Category | Agent name | Tool Executor standard tool | Context bag key for tool result |
+| Category | Flow name | Tool Executor standard tool | Context bag key for tool result |
 | --- | --- | --- | --- |
 | Email | `dashboard.email.summary` | `email.unreadSummary` | `unread` |
 | Tasks | `dashboard.tasks.summary` | `tasks.openSummary` | `openTasks` |
@@ -266,7 +266,7 @@ LLM Prompter → { markdown: string }
 Persona: Settings → Dashboard (`config.dashboard.persona`) via
 `resolveDashboardPersona()` in `packages/core/src/dashboard/prompts.ts`.
 
-### How the summarizer invokes agents
+### How the summarizer invokes flows
 
 `getDashboardCategorySummary` in
 `packages/core/src/dashboard/summarizer.ts`:
@@ -274,34 +274,34 @@ Persona: Settings → Dashboard (`config.dashboard.persona`) via
 1. Ensures category has a known prompt and non-empty deterministic data
    (`getDashboardCategory`, limit 50) for **cache keying** and empty-state.  
 2. Checks in-memory (5 min) + disk (`~/.toby/dashboard-summaries.json`) caches.  
-3. On miss: `runAgent("dashboard.<category>.summary", { personaOverride })`.  
+3. On miss: `runFlow("dashboard.<category>.summary", { personaOverride })`.  
 4. Maps `outputs.summary.markdown` → `DashboardCategoryAiSummary.text` (after
    `extractDashboardSummaryText` CoT strip).  
-5. Fills `count` / `launchUrls` from the agent tool result when present,
+5. Fills `count` / `launchUrls` from the flow tool result when present,
    else from the deterministic category snapshot.
 
-The agent’s Tool Executor **re-fetches** list data for the LLM (single
+The flow’s Tool Executor **re-fetches** list data for the LLM (single
 active/default provider). The card’s badge/list still come from the multi-provider
 aggregator on the deterministic API. That split is intentional for v1.
 
 ### Definition files
 
-| Agent | File |
+| Flow | File |
 | --- | --- |
-| Email | `packages/core/src/agents/definitions/dashboard-email-summary.ts` |
-| Tasks | `packages/core/src/agents/definitions/dashboard-tasks-summary.ts` |
-| Calendar | `packages/core/src/agents/definitions/dashboard-calendar-summary.ts` |
-| Shared item helpers | `packages/core/src/agents/definitions/dashboard-shared.ts` |
+| Email | `packages/core/src/flows/definitions/dashboard-email-summary.ts` |
+| Tasks | `packages/core/src/flows/definitions/dashboard-tasks-summary.ts` |
+| Calendar | `packages/core/src/flows/definitions/dashboard-calendar-summary.ts` |
+| Shared item helpers | `packages/core/src/flows/definitions/dashboard-shared.ts` |
 | Category prompts | `packages/core/src/dashboard/prompts.ts` |
 
-## Adding an agent
+## Adding a flow
 
-1. Create `packages/core/src/agents/definitions/<name>.ts`.  
-2. Build an `AgentDefinition` and call `registerAgent(...)`.  
-3. Side-effect import it from `packages/core/src/agents/index.ts` (and from any
-   module that must load before the first `runAgent`, e.g. the dashboard
+1. Create `packages/core/src/flows/definitions/<name>.ts`.  
+2. Build an `FlowDefinition` and call `registerFlow(...)`.  
+3. Side-effect import it from `packages/core/src/flows/index.ts` (and from any
+   module that must load before the first `runFlow`, e.g. the dashboard
    summarizer).  
-4. Call `runAgent("<name>")` from the consumer.  
+4. Call `runFlow("<name>")` from the consumer.  
 5. Add tests under `apps/cli/tests/` and document here (and in consumer docs if
    user-visible).
 
@@ -309,11 +309,11 @@ aggregator on the deterministic API. That split is intentional for v1.
 
 ```ts
 import { z } from "zod";
-import { registerAgent } from "../registry";
-import type { AgentDefinition } from "../types";
+import { registerFlow } from "../registry";
+import type { FlowDefinition } from "../types";
 
-export const myAgent: AgentDefinition = {
-  name: "example.my-agent",
+export const myFlow: FlowDefinition = {
+  name: "example.my-flow",
   description: "…",
   // personaName: "Toby",
   // resolvePersona: () => resolveDashboardPersona(),
@@ -336,13 +336,13 @@ export const myAgent: AgentDefinition = {
   ],
 };
 
-registerAgent(myAgent);
+registerFlow(myFlow);
 ```
 
 ## Failure behavior
 
-- Unknown agent name → `ok: false`, error message, empty trace.  
-- Missing input / output path → `AgentNodeError`, run stops, prior bag kept.  
+- Unknown flow name → `ok: false`, error message, empty trace.  
+- Missing input / output path → `FlowNodeError`, run stops, prior bag kept.  
 - Tool exec failure → node fails with plugin error string.  
 - LLM structured output null / timeout / abort → node fails.  
 - `nodeTrace` always lists completed and failed nodes with `durationMs`.
@@ -350,17 +350,17 @@ registerAgent(myAgent);
 ## Non-goals (v1)
 
 - UI / visual pipeline editor  
-- User-authored agent files on disk  
+- User-authored flow files on disk  
 - Branching, conditionals, or DAGs  
 - Parallel node execution  
-- HTTP `POST /api/agents/...` or CLI `toby agents`  
+- HTTP `POST /api/flows/...` or CLI `toby flows`  
 - Multi-step tool loops inside LLM Prompter (use chat or
   `delegateToSubAgent` for that)  
-- Session transcript / SQLite persistence of agent runs  
+- Session transcript / SQLite persistence of flow runs  
 
 ## Related docs
 
-- [dashboard.md](dashboard.md) — widget load path, caches, plugins, AI agent wiring  
+- [dashboard.md](dashboard.md) — widget load path, caches, plugins, AI flow wiring  
 - [dashboard-standard-tools-plan.md](dashboard-standard-tools-plan.md) — standard tool contract  
 - [chat-pipeline.md](chat-pipeline.md) — interactive chat turn nodes  
 - [plugin-protocol.md](plugin-protocol.md) — `tools list` / `tools execute`  

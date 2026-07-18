@@ -227,7 +227,7 @@ export async function executeNamedTool(params: {
 	forwardPluginStderr(params.moduleName, execResult.stderr);
 
 	if (!execResult.ok) {
-		daemonLog("warn", "plugin", "agent_tool_exec_failed", {
+		daemonLog("warn", "plugin", "flow_tool_exec_failed", {
 			plugin: params.moduleName,
 			tool: params.toolName,
 			error: execResult.error,
@@ -244,7 +244,7 @@ export async function executeNamedTool(params: {
 	if (!execResult.data.ok) {
 		const error =
 			execResult.data.error ?? execResult.data.code ?? "Tool execution failed";
-		daemonLog("warn", "plugin", "agent_tool_exec_failed", {
+		daemonLog("warn", "plugin", "flow_tool_exec_failed", {
 			plugin: params.moduleName,
 			tool: params.toolName,
 			error,

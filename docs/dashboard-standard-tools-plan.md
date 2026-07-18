@@ -6,9 +6,9 @@ checklist. The native SwiftUI UI can be built from this document alone without
 reading the core TypeScript implementation.
 
 For the end-to-end **update lifecycle** (Toby.app → HTTP → aggregator → plugin
-tool → AI summary agent), including an email walkthrough, see
-[`dashboard.md`](dashboard.md). Named agent pipelines used for AI blurbs are
-documented in [`agents.md`](agents.md).
+tool → AI summary flow), including an email walkthrough, see
+[`dashboard.md`](dashboard.md). Named flow pipelines used for AI blurbs are
+documented in [`flows.md`](flows.md).
 
 ## Problem
 
@@ -33,9 +33,9 @@ get a predictable shape back.
 - **No AI in the deterministic path**: all urgency/grouping on the standard
   tool / aggregator is deterministic (overdue, flagged, starred, list
   membership). A **separate** AI path (`GET /api/dashboard/:category/summary`)
-  runs a named agent (Tool Executor + LLM Prompter) for the optional markdown
-  blurb under each card — see [`agents.md`](agents.md) and
-  [`dashboard.md`](dashboard.md#ai-summary-path-agents).
+  runs a named flow (Tool Executor + LLM Prompter) for the optional markdown
+  blurb under each card — see [`flows.md`](flows.md) and
+  [`dashboard.md`](dashboard.md#ai-summary-path-flows).
 
 ## Standard tool IDs
 
@@ -292,8 +292,8 @@ local app shortcuts:
   `GET /api/dashboard/:category` on view appear and refresh (standard tools +
   aggregator). Cache TTL is 60s.
 - **AI card blurb** — `GET /api/dashboard/:category/summary` runs a named
-  agent pipeline (not free-form ad-hoc `generateText` in the handler). See
-  [`agents.md`](agents.md).
+  flow pipeline (not free-form ad-hoc `generateText` in the handler). See
+  [`flows.md`](flows.md).
 - **Local app counts and shortcuts** (sessions, schedules, recordings,
   memories, skills, projects, and integration sections) come from shared
   root-scoped stores. Toby.app preloads those list/index stores after daemon
@@ -451,9 +451,9 @@ flowchart TD
 | `packages/core/src/dashboard/types.ts` | Contract types: `StandardToolId`, `DashboardSummaryResult`, `DashboardItem`, `DashboardCategorySummary`, `DashboardData` |
 | `packages/core/src/dashboard/schema.ts` | Zod validation for plugin results |
 | `packages/core/src/dashboard/index.ts` | Aggregator: `getDashboardData()`, caching, per-provider timeout |
-| `packages/core/src/dashboard/summarizer.ts` | AI summaries: cache + invoke category agents |
+| `packages/core/src/dashboard/summarizer.ts` | AI summaries: cache + invoke category flows |
 | `packages/core/src/dashboard/prompts.ts` | Category prompts, persona, item formatting for LLM |
-| `packages/core/src/agents/` | Named agent runtime (Tool Executor + LLM Prompter); see [`agents.md`](agents.md) |
+| `packages/core/src/flows/` | Named flow runtime (Tool Executor + LLM Prompter); see [`flows.md`](flows.md) |
 | `packages/core/src/integrations/types.ts` | `IntegrationModule.dashboard` hook |
 | `packages/core/src/integrations/plugins/protocol.ts` | `PluginToolDefinition.standardTool` field |
 | `packages/core/src/integrations/plugins/adapter.ts` | `buildPluginDashboardHook()` — synthesizes dashboard hook for installable plugins |
@@ -464,5 +464,5 @@ flowchart TD
 ## Future extensions
 
 - `work_tracker.openSummary` for work trackers (Jira, Linear)
-- Multi-provider inputs into dashboard AI agents (today: one default/connected provider per agent Tool Executor)
+- Multi-provider inputs into dashboard AI flows (today: one default/connected provider per flow Tool Executor)
 - Promoting the doctor warning to a hard install-time failure

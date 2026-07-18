@@ -9,8 +9,8 @@ import {
 	formatSkillsCatalogForPrompt,
 	loadLocalSkills,
 } from "../../skills/index";
-import { registerAgent } from "../registry";
-import type { AgentDefinition } from "../types";
+import { registerFlow } from "../registry";
+import type { FlowDefinition } from "../types";
 import { itemsFromDashboardToolResult } from "./dashboard-shared";
 
 const calendarSummarySchema = z.object({
@@ -22,13 +22,13 @@ const calendarSummarySchema = z.object({
 });
 
 /**
- * Agent: fetch upcoming events via calendar.upcomingSummary (no LLM), then produce structured markdown.
+ * Flow: fetch upcoming events via calendar.upcomingSummary (no LLM), then produce structured markdown.
  * Registered as `dashboard.calendar.summary`.
  *
  * Note: Tool Executor uses the active/default calendar provider (standardTool resolution).
  * Deterministic multi-provider merge for the card list still uses the dashboard aggregator.
  */
-export const calendarDashboardSummaryAgent: AgentDefinition = {
+export const calendarDashboardSummaryFlow: FlowDefinition = {
 	name: "dashboard.calendar.summary",
 	description:
 		"Fetch upcoming events via the calendar.upcomingSummary standard tool, then produce a short markdown summary with the dashboard persona.",
@@ -75,4 +75,4 @@ export const calendarDashboardSummaryAgent: AgentDefinition = {
 	],
 };
 
-registerAgent(calendarDashboardSummaryAgent);
+registerFlow(calendarDashboardSummaryFlow);

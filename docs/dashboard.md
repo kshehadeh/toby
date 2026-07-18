@@ -7,12 +7,12 @@ Each card uses **two independent paths**:
 
 1. **Deterministic data** — badge count, sources, item rows (standard tools +
    aggregator, no LLM)
-2. **AI prose** — short markdown under the card, produced by a **named agent
+2. **AI prose** — short markdown under the card, produced by a **named flow
    pipeline** (Tool Executor → LLM Prompter)
 
 | Topic | Doc |
 | --- | --- |
-| Agent / pipeline design | [`agents.md`](agents.md) |
+| Flow / pipeline design | [`flows.md`](flows.md) |
 | Standard tool contract & plugin checklist | [`dashboard-standard-tools-plan.md`](dashboard-standard-tools-plan.md) |
 
 ## Overview
@@ -24,7 +24,7 @@ Reminders both contribute to `tasks`). Plugins declare
 synthesizes a `dashboard.getSummary` hook that executes that tool without an
 LLM.
 
-| Category | Standard tool ID | Example plugins | AI agent |
+| Category | Standard tool ID | Example plugins | AI flow |
 | --- | --- | --- | --- |
 | `email` | `email.unreadSummary` | `email` (IMAP/SMTP) | `dashboard.email.summary` |
 | `tasks` | `tasks.openSummary` | `todoist`, `applereminders` | `dashboard.tasks.summary` |
@@ -77,7 +77,7 @@ getDashboardCategorySummary(category)
         ├─ AI cache (5 min memory + ~/.toby/dashboard-summaries.json)
         │
         ▼ (on miss)
-runAgent("dashboard.<category>.summary")
+runFlow("dashboard.<category>.summary")
         │
         ├─ Tool Executor  → standard tool (list metadata, one provider)
         └─ LLM Prompter   → { markdown: string }  (dashboard persona)
@@ -89,7 +89,7 @@ Map markdown → DashboardCategoryAiSummary.text
 DashboardStore → card AI blurb
 ```
 
-Details of node wiring and runtime: [`agents.md`](agents.md).
+Details of node wiring and runtime: [`flows.md`](flows.md).
 
 ## When the UI refreshes
 
@@ -129,7 +129,7 @@ Routes are registered in `packages/core/src/web/routes.ts` and handled in
 | --- | --- | --- |
 | `GET` | `/api/dashboard` | All categories (`email`, `tasks`, `calendar`) in parallel |
 | `GET` | `/api/dashboard/:category` | Deterministic category data, or `null` |
-| `GET` | `/api/dashboard/:category/summary` | AI summary via agent pipeline, or `null` |
+| `GET` | `/api/dashboard/:category/summary` | AI summary via flow pipeline, or `null` |
 
 Unknown categories return `404` with
 `{ "error": "Unknown dashboard category: …" }`.
@@ -199,9 +199,9 @@ Tool **names** are arbitrary; only the `standardTool` tag matters. Doctor /
 plugin validation can warn when a category is declared without the matching
 tag (`checkStandardToolCompliance`).
 
-The agent **Tool Executor** resolves the same `standardTool` IDs independently
+The flow **Tool Executor** resolves the same `standardTool` IDs independently
 (prefer default/connected provider). See
-[`agents.md`](agents.md#tool-executor).
+[`flows.md`](flows.md#tool-executor).
 
 ### Reserved result shape
 
@@ -249,11 +249,11 @@ On execute (`fetchUnreadInbox`):
 - Aggregator includes the `email` module if connected and the hook succeeds.
 - Swift `UnreadMailCard` binds to `store.email` (badge, sources, items).
 
-### 4. AI blurb via agent
+### 4. AI blurb via flow
 
 On `GET /api/dashboard/email/summary` (after cache miss):
 
-1. Agent `dashboard.email.summary` runs.
+1. Flow `dashboard.email.summary` runs.
 2. **Tool Executor** re-fetches `email.unreadSummary` (limit 50) into bag
    key `unread`.
 3. **LLM Prompter** uses email category prompt + dashboard persona; schema
@@ -262,20 +262,20 @@ On `GET /api/dashboard/email/summary` (after cache miss):
 
 Card refresh: `refreshEmail()` → `loadEmail()` then `loadEmailSummary()`.
 
-## AI summary path (agents)
+## AI summary path (flows)
 
 Implementation: `packages/core/src/dashboard/summarizer.ts`  
-Agent runtime: `packages/core/src/agents/` — see [`agents.md`](agents.md)
+Flow runtime: `packages/core/src/flows/` — see [`flows.md`](flows.md)
 
-### Category → agent
+### Category → flow
 
-| Category | Agent | Tool bag key | Definition file |
+| Category | Flow | Tool bag key | Definition file |
 | --- | --- | --- | --- |
-| `email` | `dashboard.email.summary` | `unread` | `agents/definitions/dashboard-email-summary.ts` |
-| `tasks` | `dashboard.tasks.summary` | `openTasks` | `agents/definitions/dashboard-tasks-summary.ts` |
-| `calendar` | `dashboard.calendar.summary` | `upcoming` | `agents/definitions/dashboard-calendar-summary.ts` |
+| `email` | `dashboard.email.summary` | `unread` | `flows/definitions/dashboard-email-summary.ts` |
+| `tasks` | `dashboard.tasks.summary` | `openTasks` | `flows/definitions/dashboard-tasks-summary.ts` |
+| `calendar` | `dashboard.calendar.summary` | `upcoming` | `flows/definitions/dashboard-calendar-summary.ts` |
 
-Shared shape for every category agent:
+Shared shape for every category flow:
 
 ```
 Tool Executor (standardTool, limit: 50)
@@ -293,14 +293,14 @@ Category prompts and system-prompt framing live in
 1. Load deterministic category data via `getDashboardCategory(category, {
    limit: 50 })` (shares the 60s category cache) for empty-state and **cache
    signature**.
-2. If no data or `count === 0` → `null` (no agent run).
+2. If no data or `count === 0` → `null` (no flow run).
 3. Cache key: `category` + dashboard persona + **data signature** (count,
    `generatedAt`, item ids/titles/timestamps).
 4. **In-memory AI cache TTL: 5 minutes**.
 5. Disk fallback: `~/.toby/dashboard-summaries.json` — after daemon restart the
    UI can show the last summary immediately while a background refresh runs.
 6. Persona: `config.dashboard.persona`, else default (`resolveDashboardPersona`).
-7. On generate: `runAgent(…)` then strip chain-of-thought leakage with
+7. On generate: `runFlow(…)` then strip chain-of-thought leakage with
    `extractDashboardSummaryText` on the structured `markdown` field.
 
 Config UI: configure tree key `dashboard.persona` (Settings / configure
@@ -311,18 +311,18 @@ persistence).
 - **Card list/badge** (`GET /api/dashboard/:category`): may merge **all**
   connected providers in the category (calendar may prefer the default
   provider only).
-- **Agent Tool Executor**: resolves **one** connected provider for the
+- **Flow Tool Executor**: resolves **one** connected provider for the
   standard tool (default provider when set, else first connected match).
 
 Acceptable for v1; multi-provider AI context would require a future node or
-agent input that reuses the aggregator result.
+flow input that reuses the aggregator result.
 
 ### Response shape
 
 ```ts
 interface DashboardCategoryAiSummary {
   category: string;
-  text: string;           // markdown from agent summary.markdown
+  text: string;           // markdown from flow summary.markdown
   generatedAt: string;
   personaName: string;
   count: number;
@@ -340,7 +340,7 @@ interface DashboardCategoryAiSummary {
 | Provider throw | Logged + excluded | Same |
 | Tool exec / Zod failure (hook) | Empty summary `{ count: 0, items: [] }` from adapter | Can look like “zero items” rather than “error” |
 | AI no data / count 0 | Summary `null` | No AI prose |
-| Agent / LLM failure | Logged (`dashboard_category_agent_error`); summary `null` | Card shows summary error / empty when set |
+| Flow / LLM failure | Logged (`dashboard_category_flow_error`); summary `null` | Card shows summary error / empty when set |
 | CoT-only model output | Stripped to empty → `null` | No prose until next successful generate |
 
 Implications:
@@ -365,10 +365,10 @@ Swift models mirror core types in
 | Item list | `category.items[]` |
 | Group chips | `category.groups[]` (ids namespaced as `providerName:…`) |
 | “As of …” | `category.generatedAt` |
-| AI blurb | `DashboardCategoryAiSummary.text` (from agent) |
+| AI blurb | `DashboardCategoryAiSummary.text` (from flow) |
 
 Onboarding checklist is separate (local readiness steps), not driven by
-standard tools or agents.
+standard tools or flows.
 
 ## Key files
 
@@ -378,9 +378,9 @@ standard tools or agents.
 | Zod validation | `packages/core/src/dashboard/schema.ts` |
 | Aggregator + 60s cache | `packages/core/src/dashboard/index.ts` |
 | Category prompts / persona | `packages/core/src/dashboard/prompts.ts` |
-| AI summaries + agent invoke | `packages/core/src/dashboard/summarizer.ts` |
-| Agent runtime | `packages/core/src/agents/` |
-| Dashboard agent definitions | `packages/core/src/agents/definitions/dashboard-*.ts` |
+| AI summaries + flow invoke | `packages/core/src/dashboard/summarizer.ts` |
+| Flow runtime | `packages/core/src/flows/` |
+| Dashboard flow definitions | `packages/core/src/flows/definitions/dashboard-*.ts` |
 | HTTP handlers | `packages/core/src/web/handlers/dashboard.ts` |
 | Hook synthesis | `packages/core/src/integrations/plugins/adapter.ts` (`buildPluginDashboardHook`) |
 | Module type | `packages/core/src/integrations/types.ts` (`dashboard?`) |
@@ -389,11 +389,11 @@ standard tools or agents.
 | Swift store | `apps/toby-app/Sources/TobyApp/Stores/DashboardStore.swift` |
 | Cards / home view | `apps/toby-app/Sources/TobyApp/Features/Dashboard/` |
 | Contract + plugin checklist | [`dashboard-standard-tools-plan.md`](dashboard-standard-tools-plan.md) |
-| Agent pipelines | [`agents.md`](agents.md) |
+| Flow pipelines | [`flows.md`](flows.md) |
 
 ## Related docs
 
-- [`agents.md`](agents.md) — named pipelines, node types, dashboard agents  
+- [`flows.md`](flows.md) — named pipelines, node types, dashboard flows  
 - [`server-api.md`](server-api.md) — route list for the local daemon API  
 - [`integrations.md`](integrations.md) — `IntegrationModule` and plugins  
 - [`create-integration.md`](create-integration.md) — adding a new plugin  

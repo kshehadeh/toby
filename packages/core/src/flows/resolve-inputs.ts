@@ -1,10 +1,10 @@
 import type {
-	AgentContextBag,
-	AgentInputMap,
-	AgentInputSource,
-	AgentOutputMap,
+	FlowContextBag,
+	FlowInputMap,
+	FlowInputSource,
+	FlowOutputMap,
 } from "./types";
-import { AgentNodeError } from "./types";
+import { FlowNodeError } from "./types";
 
 /** Read a simple dot-path from a value (`a.b.c`). Returns undefined if missing. */
 export function getByPath(value: unknown, path: string | undefined): unknown {
@@ -22,8 +22,8 @@ export function getByPath(value: unknown, path: string | undefined): unknown {
 }
 
 function resolveSource(
-	source: AgentInputSource,
-	bag: Readonly<AgentContextBag>,
+	source: FlowInputSource,
+	bag: Readonly<FlowContextBag>,
 	nodeId: string,
 	paramName: string,
 ): unknown {
@@ -31,7 +31,7 @@ function resolveSource(
 		return source.const;
 	}
 	if (!(source.from in bag)) {
-		throw new AgentNodeError(
+		throw new FlowNodeError(
 			nodeId,
 			`Missing context key "${source.from}" for input "${paramName}"`,
 			"missing_input",
@@ -43,7 +43,7 @@ function resolveSource(
 	}
 	const nested = getByPath(root, source.path);
 	if (nested === undefined) {
-		throw new AgentNodeError(
+		throw new FlowNodeError(
 			nodeId,
 			`Context key "${source.from}" has no path "${source.path}" for input "${paramName}"`,
 			"missing_input_path",
@@ -55,8 +55,8 @@ function resolveSource(
 /** Resolve a node's input map against the context bag. */
 export function resolveNodeInputs(
 	nodeId: string,
-	inputs: AgentInputMap | undefined,
-	bag: Readonly<AgentContextBag>,
+	inputs: FlowInputMap | undefined,
+	bag: Readonly<FlowContextBag>,
 ): Record<string, unknown> {
 	if (!inputs) return {};
 	const resolved: Record<string, unknown> = {};
@@ -72,14 +72,14 @@ export function resolveNodeInputs(
  */
 export function applyNodeOutputs(
 	nodeId: string,
-	outputs: AgentOutputMap,
+	outputs: FlowOutputMap,
 	nodeResult: unknown,
-	bag: AgentContextBag,
+	bag: FlowContextBag,
 ): void {
 	for (const [contextKey, path] of Object.entries(outputs)) {
 		const value = getByPath(nodeResult, path);
 		if (value === undefined && path !== "." && path !== "") {
-			throw new AgentNodeError(
+			throw new FlowNodeError(
 				nodeId,
 				`Node result has no path "${path}" for output key "${contextKey}"`,
 				"missing_output_path",

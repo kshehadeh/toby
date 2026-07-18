@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import { generateText } from "ai";
-import { runAgent } from "../agents/runner";
 import { createModelForPersona } from "../ai/model-factory";
 import { type Persona, getDashboardSummariesPath } from "../config/index";
+import { runFlow } from "../flows/runner";
 import { daemonLog } from "../logging/daemon-log";
 import { formatSkillsCatalogForPrompt, loadLocalSkills } from "../skills/index";
 import { getDashboardCategory } from "./index";
@@ -17,10 +17,10 @@ import type {
 	DashboardCategorySummary,
 } from "./types";
 
-// Ensure built-in dashboard agents are registered.
-import "../agents/definitions/dashboard-email-summary";
-import "../agents/definitions/dashboard-tasks-summary";
-import "../agents/definitions/dashboard-calendar-summary";
+// Ensure built-in dashboard flows are registered.
+import "../flows/definitions/dashboard-email-summary";
+import "../flows/definitions/dashboard-tasks-summary";
+import "../flows/definitions/dashboard-calendar-summary";
 
 export {
 	CATEGORY_PROMPTS,
@@ -319,12 +319,12 @@ async function generateFreshSummary(
 	};
 
 	try {
-		// Known categories use named agent pipelines (tool fetch + LLM).
-		const agentName = DASHBOARD_CATEGORY_AGENTS[category];
-		if (agentName) {
-			return generateCategorySummaryViaAgent(
+		// Known categories use named flow pipelines (tool fetch + LLM).
+		const flowName = DASHBOARD_CATEGORY_FLOWS[category];
+		if (flowName) {
+			return generateCategorySummaryViaFlow(
 				category,
-				agentName,
+				flowName,
 				data,
 				persona,
 				cacheKey,
@@ -332,7 +332,7 @@ async function generateFreshSummary(
 			);
 		}
 
-		// Fallback for any future category with a prompt but no agent yet.
+		// Fallback for any future category with a prompt but no flow yet.
 		return generateLegacyCategorySummary(
 			category,
 			categoryPrompt,
@@ -353,18 +353,18 @@ async function generateFreshSummary(
 	}
 }
 
-/** Categories that generate AI summaries via a named agent pipeline. */
-const DASHBOARD_CATEGORY_AGENTS: Readonly<Record<string, string>> = {
+/** Categories that generate AI summaries via a named flow pipeline. */
+const DASHBOARD_CATEGORY_FLOWS: Readonly<Record<string, string>> = {
 	email: "dashboard.email.summary",
 	tasks: "dashboard.tasks.summary",
 	calendar: "dashboard.calendar.summary",
 };
 
 /**
- * Context bag keys used by dashboard agents for the tool-executor result
+ * Context bag keys used by dashboard flows for the tool-executor result
  * (standard tool payload with count / items / launchUrl).
  */
-const AGENT_DATA_CONTEXT_KEYS: Readonly<Record<string, string>> = {
+const FLOW_DATA_CONTEXT_KEYS: Readonly<Record<string, string>> = {
 	"dashboard.email.summary": "unread",
 	"dashboard.tasks.summary": "openTasks",
 	"dashboard.calendar.summary": "upcoming",
@@ -372,7 +372,7 @@ const AGENT_DATA_CONTEXT_KEYS: Readonly<Record<string, string>> = {
 
 /**
  * Legacy inline generateText path for categories that have a prompt but no
- * registered agent yet.
+ * registered flow yet.
  */
 async function generateLegacyCategorySummary(
 	category: string,
@@ -446,21 +446,21 @@ async function generateLegacyCategorySummary(
 }
 
 /**
- * Run a dashboard category agent and map structured `{ markdown }` into the
+ * Run a dashboard category flow and map structured `{ markdown }` into the
  * AI summary contract (preserving cache + disk behavior).
  */
-async function generateCategorySummaryViaAgent(
+async function generateCategorySummaryViaFlow(
 	category: string,
-	agentName: string,
+	flowName: string,
 	data: DashboardCategorySummary,
 	persona: Persona,
 	cacheKey: string,
 	nullCacheEntry: SummaryCacheEntry,
 ): Promise<DashboardCategoryAiSummary | null> {
-	// Seed the agent bag with aggregator data under the same key the agent
+	// Seed the flow bag with aggregator data under the same key the flow
 	// tool node writes. If Tool Executor fails or returns empty, the LLM can
 	// still summarize the items already shown on the card.
-	const dataKey = AGENT_DATA_CONTEXT_KEYS[agentName] ?? "data";
+	const dataKey = FLOW_DATA_CONTEXT_KEYS[flowName] ?? "data";
 	const seedPayload = {
 		count: data.count,
 		items: data.items,
@@ -469,30 +469,30 @@ async function generateCategorySummaryViaAgent(
 		launchUrl: data.sources.find((s) => s.launchUrl)?.launchUrl,
 	};
 
-	daemonLog("info", "general", "dashboard_summary_agent_start", {
+	daemonLog("info", "general", "dashboard_summary_flow_start", {
 		category,
-		agent: agentName,
+		flow: flowName,
 		persona: persona.name,
 		provider: persona.ai.provider,
 		model: persona.ai.model,
 		itemCount: data.count,
 	});
 
-	const agentResult = await runAgent(agentName, {
+	const flowResult = await runFlow(flowName, {
 		personaOverride: persona,
 		inputs: {
 			[dataKey]: seedPayload,
 		},
 	});
 
-	if (!agentResult.ok) {
-		daemonLog("warn", "general", "dashboard_category_agent_error", {
+	if (!flowResult.ok) {
+		daemonLog("warn", "general", "dashboard_category_flow_error", {
 			category,
-			agent: agentName,
+			flow: flowName,
 			persona: persona.name,
 			model: `${persona.ai.provider}/${persona.ai.model}`,
-			error: agentResult.error,
-			failedNodeId: agentResult.failedNodeId,
+			error: flowResult.error,
+			failedNodeId: flowResult.failedNodeId,
 		});
 		if (!summaryCache.has(cacheKey)) {
 			summaryCache.set(cacheKey, nullCacheEntry);
@@ -500,7 +500,7 @@ async function generateCategorySummaryViaAgent(
 		return null;
 	}
 
-	const toolData = agentResult.outputs[dataKey] as
+	const toolData = flowResult.outputs[dataKey] as
 		| { count?: number; launchUrl?: string; items?: unknown[] }
 		| undefined;
 	// Prefer non-zero tool/seed count; fall back to aggregator count from the card.
@@ -512,7 +512,7 @@ async function generateCategorySummaryViaAgent(
 		return null;
 	}
 
-	const summaryObj = agentResult.outputs.summary as
+	const summaryObj = flowResult.outputs.summary as
 		| { markdown?: string }
 		| undefined;
 	const rawMarkdown =
@@ -530,13 +530,13 @@ async function generateCategorySummaryViaAgent(
 		return null;
 	}
 
-	const launchUrlsFromAgent =
+	const launchUrlsFromFlow =
 		typeof toolData?.launchUrl === "string" && toolData.launchUrl
 			? [toolData.launchUrl]
 			: [];
 	const launchUrls =
-		launchUrlsFromAgent.length > 0
-			? launchUrlsFromAgent
+		launchUrlsFromFlow.length > 0
+			? launchUrlsFromFlow
 			: data.sources
 					.map((s) => s.launchUrl)
 					.filter((u): u is string => Boolean(u));
@@ -545,7 +545,7 @@ async function generateCategorySummaryViaAgent(
 		category,
 		text,
 		generatedAt: new Date().toISOString(),
-		personaName: agentResult.persona.name,
+		personaName: flowResult.persona.name,
 		count: itemCount,
 		launchUrls,
 	};
