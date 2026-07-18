@@ -60,6 +60,22 @@ versioned envelope:
 
 Code: [`credentials-crypto.ts`](../packages/core/src/config/credentials-crypto.ts).
 
+### Debug: decrypt a credentials file
+
+For local debugging only (prints secrets — never commit the output):
+
+```bash
+# Default: ~/.toby/credentials.json → stdout (metadata on stderr)
+bun scripts/decrypt-credentials.ts
+
+# Explicit path / write to a temp file (mode 0600)
+bun scripts/decrypt-credentials.ts ~/.toby/credentials.json -o /tmp/creds.plain.json
+```
+
+Encrypted envelopes need the macOS Keychain DEK named in the file
+(`dev.toby.credentials` / `data-encryption-key` by default). A file copied from
+another Mac cannot be decrypted without that machine’s Keychain key.
+
 ### Keychain item
 
 Toby stores a **32-byte data encryption key (DEK)** as a **generic password** in
