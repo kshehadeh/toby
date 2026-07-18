@@ -6,8 +6,9 @@ checklist. The native SwiftUI UI can be built from this document alone without
 reading the core TypeScript implementation.
 
 For the end-to-end **update lifecycle** (Toby.app → HTTP → aggregator → plugin
-tool → AI summary), including an email walkthrough, see
-[`dashboard.md`](dashboard.md).
+tool → AI summary agent), including an email walkthrough, see
+[`dashboard.md`](dashboard.md). Named agent pipelines used for AI blurbs are
+documented in [`agents.md`](agents.md).
 
 ## Problem
 
@@ -29,9 +30,12 @@ get a predictable shape back.
 - **Cache TTL**: 60 seconds for on-demand dashboard refreshes.
 - **`groups`**: included in v1 as an optional field. Providers may return no
   groups until they have deterministic buckets (folders, labels, lists).
-- **No AI in the loop**: all urgency/grouping is deterministic (overdue,
-  flagged, starred, list membership). AI-assisted triage is a future opt-in
-  layer.
+- **No AI in the deterministic path**: all urgency/grouping on the standard
+  tool / aggregator is deterministic (overdue, flagged, starred, list
+  membership). A **separate** AI path (`GET /api/dashboard/:category/summary`)
+  runs a named agent (Tool Executor + LLM Prompter) for the optional markdown
+  blurb under each card — see [`agents.md`](agents.md) and
+  [`dashboard.md`](dashboard.md#ai-summary-path-agents).
 
 ## Standard tool IDs
 
@@ -281,18 +285,21 @@ keyed by the `limit` parameter.
 
 ## SwiftUI consumption guide
 
-The native app dashboard has two data paths:
+The native app dashboard has two data paths for integration-backed cards, plus
+local app shortcuts:
 
-- Integration-backed cards call `GET /api/dashboard` or
-  `GET /api/dashboard/:category` on view appear and refresh. The dashboard
-  cache TTL is 60s, so refresh controls should not expect provider data to
-  change more often unless the cache is explicitly cleared.
-- Local app counts and shortcuts (sessions, schedules, recordings, memories,
-  skills, projects, and integration sections) come from shared root-scoped
-  stores. Toby.app preloads those list/index stores after daemon bootstrap and
-  refreshes them with the dashboard refresh action. Feature views should use
-  idempotent `ensureLoaded()` fallbacks instead of being the only path that
-  populates shared data.
+- **Deterministic card data** — `GET /api/dashboard` or
+  `GET /api/dashboard/:category` on view appear and refresh (standard tools +
+  aggregator). Cache TTL is 60s.
+- **AI card blurb** — `GET /api/dashboard/:category/summary` runs a named
+  agent pipeline (not free-form ad-hoc `generateText` in the handler). See
+  [`agents.md`](agents.md).
+- **Local app counts and shortcuts** (sessions, schedules, recordings,
+  memories, skills, projects, and integration sections) come from shared
+  root-scoped stores. Toby.app preloads those list/index stores after daemon
+  bootstrap and refreshes them with the dashboard refresh action. Feature
+  views should use idempotent `ensureLoaded()` fallbacks instead of being the
+  only path that populates shared data.
 
 Keep detail payloads lazy. Recording transcripts, memory detail/explanations,
 skill bodies, project file trees, and schedule run transcripts should load only
@@ -444,17 +451,18 @@ flowchart TD
 | `packages/core/src/dashboard/types.ts` | Contract types: `StandardToolId`, `DashboardSummaryResult`, `DashboardItem`, `DashboardCategorySummary`, `DashboardData` |
 | `packages/core/src/dashboard/schema.ts` | Zod validation for plugin results |
 | `packages/core/src/dashboard/index.ts` | Aggregator: `getDashboardData()`, caching, per-provider timeout |
+| `packages/core/src/dashboard/summarizer.ts` | AI summaries: cache + invoke category agents |
+| `packages/core/src/dashboard/prompts.ts` | Category prompts, persona, item formatting for LLM |
+| `packages/core/src/agents/` | Named agent runtime (Tool Executor + LLM Prompter); see [`agents.md`](agents.md) |
 | `packages/core/src/integrations/types.ts` | `IntegrationModule.dashboard` hook |
 | `packages/core/src/integrations/plugins/protocol.ts` | `PluginToolDefinition.standardTool` field |
 | `packages/core/src/integrations/plugins/adapter.ts` | `buildPluginDashboardHook()` — synthesizes dashboard hook for installable plugins |
 | `packages/core/src/integrations/plugins/validate.ts` | `checkStandardToolCompliance()` — doctor warning |
-| `packages/core/src/web/handlers/dashboard.ts` | `handleDashboard()` — HTTP handler |
-| `packages/core/src/web/routes.ts` | `GET /api/dashboard` route |
+| `packages/core/src/web/handlers/dashboard.ts` | Dashboard HTTP handlers (data + AI summary) |
+| `packages/core/src/web/routes.ts` | `GET /api/dashboard` and `/:category/summary` routes |
 
 ## Future extensions
 
-- `calendar.upcomingSummary` for calendar providers (Apple Calendar, Google
-  Calendar)
 - `work_tracker.openSummary` for work trackers (Jira, Linear)
-- AI-assisted triage as an opt-in layer on top of this deterministic data
+- Multi-provider inputs into dashboard AI agents (today: one default/connected provider per agent Tool Executor)
 - Promoting the doctor warning to a hard install-time failure

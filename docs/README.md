@@ -21,9 +21,10 @@ Human- and agent-oriented docs for this repository.
 | [listen.md](listen.md) | Recording mode, native capture, transcription. |
 | [native-helpers.md](native-helpers.md) | Toby.app native API pattern for platform bridges. |
 | [chat-pipeline.md](chat-pipeline.md) | Chat turn nodes, events, pretreatment, tool-result cache. |
+| [agents.md](agents.md) | Named agent pipelines: Tool Executor, LLM Prompter, wiring, dashboard agents. |
 | [daemon.md](daemon.md) | Background daemon: schedules, inbound, unified log (`logs/toby.log`). |
 | [server-api.md](server-api.md) | Local daemon HTTP API: routes, SSE chat turns, configure. |
-| [dashboard.md](dashboard.md) | Home dashboard cards: how blocks load, cache, standard tools, AI summaries (email walkthrough). |
+| [dashboard.md](dashboard.md) | Home dashboard cards: deterministic tools + agent-based AI blurbs, cache, email walkthrough. |
 | [dashboard-standard-tools-plan.md](dashboard-standard-tools-plan.md) | Dashboard standard-tool contract, merge rules, plugin checklist. |
 | [chat-inbound.md](chat-inbound.md) | Inbound provider contract, external sessions. |
 | [ai-caching.md](ai-caching.md) | Provider prompt caching adapters and token telemetry. |

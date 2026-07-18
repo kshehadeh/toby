@@ -1,40 +1,38 @@
 import fs from "node:fs";
 import { generateText } from "ai";
+import { runAgent } from "../agents/runner";
 import { createModelForPersona } from "../ai/model-factory";
-import {
-	type Persona,
-	getDashboardSummariesPath,
-	readConfig,
-} from "../config/index";
+import { type Persona, getDashboardSummariesPath } from "../config/index";
 import { daemonLog } from "../logging/daemon-log";
-import { resolveDefaultPersona, resolvePersona } from "../personas/index";
-import { composeSystemPromptWithPersona } from "../personas/prompt";
 import { formatSkillsCatalogForPrompt, loadLocalSkills } from "../skills/index";
 import { getDashboardCategory } from "./index";
+import {
+	CATEGORY_PROMPTS,
+	buildDashboardSummarySystemPrompt,
+	formatItemsForPrompt,
+	resolveDashboardPersona,
+} from "./prompts";
 import type {
 	DashboardCategoryAiSummary,
 	DashboardCategorySummary,
-	DashboardItem,
 } from "./types";
+
+// Ensure built-in dashboard agents are registered.
+import "../agents/definitions/dashboard-email-summary";
+import "../agents/definitions/dashboard-tasks-summary";
+import "../agents/definitions/dashboard-calendar-summary";
+
+export {
+	CATEGORY_PROMPTS,
+	buildDashboardSummarySystemPrompt,
+	formatItemsForPrompt,
+	resolveDashboardPersona,
+} from "./prompts";
 
 const SUMMARY_CACHE_TTL_MS = 5 * 60 * 1000;
 const SUMMARY_TIMEOUT_MS = 30_000;
 /** Room for a short markdown summary; higher than needed so partial CoT leak does not truncate the answer. */
 const SUMMARY_MAX_TOKENS = 1500;
-
-/** Built-in prompts per dashboard category. */
-const CATEGORY_PROMPTS: Record<string, string> = {
-	email: `Summarize unread emails (ordered by recency and focusing on the ones that are not mass mailings).
-The summary should surface emails that should be attended to first followed by those that are worth mentioning.
-This should be no longer than 5-6 sentences.`,
-	tasks: `Summarize my tasks and reminders focusing on the ones that are most urgent, are particularly late or appear to be important based on the description.
-This should be no longer than 5-6 sentences.`,
-	calendar: `Summarize my upcoming calendar events for the next week.
-Call out what is happening soonest, any conflicts or back-to-back blocks if obvious from the list, and anything that looks like a meeting I should prepare for.
-This should be no longer than 5-6 sentences. Use "Today", "Tommorow", "Later" headers.  Do not go beyond the next three business days.  So, if it's Friday,
-summarize events for Friday, Saturday, Sunday, Monday, and Tuesday. But if it's Monday then just
-summarize events for Monday, Tuesday, and Wednesday.  If there are no events in the next three business days, then just say "No upcoming events in the next three business days."`,
-};
 
 interface SummaryCacheEntry {
 	readonly data: DashboardCategoryAiSummary | null;
@@ -128,17 +126,6 @@ export function clearDashboardSummaryCache(): void {
 	inFlightSummaryRefreshes.clear();
 }
 
-/** Resolve the persona configured for dashboard summaries, falling back to default. */
-export function resolveDashboardPersona(): Persona {
-	const config = readConfig();
-	const name = config.dashboard?.persona?.trim();
-	if (name) {
-		const resolved = resolvePersona(name);
-		if (resolved) return resolved;
-	}
-	return resolveDefaultPersona();
-}
-
 /** Build a stable cache key for a category + persona + data signature. */
 function buildCacheKey(
 	category: string,
@@ -156,21 +143,6 @@ function buildDataSignature(data: DashboardCategorySummary): string {
 		...data.items.map((i) => `${i.id}:${i.title}:${i.timestamp ?? ""}`),
 	];
 	return parts.join("|");
-}
-
-/** Format dashboard items into readable text for the model. */
-function formatItemsForPrompt(items: readonly DashboardItem[]): string {
-	if (items.length === 0) return "(no items)";
-	return items
-		.map((item, idx) => {
-			const sender = item.subtitle ?? "Unknown";
-			const subject = item.title;
-			const detail = item.detail ? ` — ${item.detail}` : "";
-			const time = item.timestamp ? ` [${item.timestamp}]` : "";
-			const urgency = item.urgency ? ` (${item.urgency} urgency)` : "";
-			return `${idx + 1}. From: ${sender}\n   Subject: ${subject}${detail}${time}${urgency}`;
-		})
-		.join("\n");
 }
 
 /**
@@ -260,38 +232,6 @@ function looksLikeModelPlanning(text: string): boolean {
 	return hits >= 2;
 }
 
-/** Build the full system prompt with persona instructions, category prompt, and skills catalog. */
-function buildSystemPrompt(
-	categoryPrompt: string,
-	persona: Persona,
-	skillsCatalogText: string,
-): string {
-	const base = `You are a personal assistant summarizing dashboard information for the user.
-
-${categoryPrompt}
-
-CRITICAL OUTPUT RULES:
-- Reply with ONLY the final user-facing summary in markdown.
-- Do NOT include chain-of-thought, planning, self-checks, sentence counting, drafts, or analysis of these instructions.
-- Do NOT write phrases like "we need to", "let's count", "the instruction says", "sentence 1:", or "also note".
-- Start immediately with the summary (a heading or the first sentence for the user).
-
-Format:
-- Use **bold** for names, subjects, deadlines, and other key items the user should notice.
-- Use bullet points for lists of items.
-- Use a \`## \` sub-heading to separate "Needs attention" from "Worth mentioning" when appropriate.
-- Keep the total response concise (5-6 sentences). Do not over-format — use markdown only where it genuinely aids readability.`;
-
-	const withPersona = composeSystemPromptWithPersona(base, persona);
-
-	const skillsSection =
-		skillsCatalogText !== "(none)"
-			? `\n\nAvailable skills (apply relevant context from these):\n${skillsCatalogText}`
-			: "";
-
-	return `${withPersona}${skillsSection}`;
-}
-
 /**
  * Generate an AI summary for a single dashboard category.
  * Uses the configured dashboard persona (or default) with built-in category prompts.
@@ -379,71 +319,28 @@ async function generateFreshSummary(
 	};
 
 	try {
-		const skills = loadLocalSkills().filter((s) => s.enabled !== false);
-		const skillsCatalogText = formatSkillsCatalogForPrompt(skills);
-
-		const systemPrompt = buildSystemPrompt(
-			categoryPrompt,
-			persona,
-			skillsCatalogText,
-		);
-
-		const itemsText = formatItemsForPrompt(data.items);
-		const userPrompt = `Here are the ${category} items to summarize:\n\n${itemsText}`;
-
-		const controller = new AbortController();
-		const timer = setTimeout(() => controller.abort(), SUMMARY_TIMEOUT_MS);
-
-		try {
-			const model = createModelForPersona(persona);
-			const result = await generateText({
-				model,
-				instructions: systemPrompt,
-				prompt: userPrompt,
-				abortSignal: controller.signal,
-				temperature: 0.3,
-				maxOutputTokens: SUMMARY_MAX_TOKENS,
-			});
-
-			// Prefer the final answer text. Some models still dump planning into
-			// `text`; strip that so the dashboard never shows chain-of-thought.
-			const text = extractDashboardSummaryText(result.text);
-			if (!text) {
-				clearPersistedSummary(category);
-				if (!summaryCache.has(cacheKey)) {
-					summaryCache.set(cacheKey, nullCacheEntry);
-				}
-				daemonLog("warn", "general", "dashboard_summary_cot_stripped", {
-					category,
-					rawChars: result.text?.length ?? 0,
-				});
-				return null;
-			}
-
-			const launchUrls = data.sources
-				.map((s) => s.launchUrl)
-				.filter((u): u is string => Boolean(u));
-
-			const summary: DashboardCategoryAiSummary = {
+		// Known categories use named agent pipelines (tool fetch + LLM).
+		const agentName = DASHBOARD_CATEGORY_AGENTS[category];
+		if (agentName) {
+			return generateCategorySummaryViaAgent(
 				category,
-				text,
-				generatedAt: new Date().toISOString(),
-				personaName: persona.name,
-				count: data.count,
-				launchUrls,
-			};
-
-			summaryCache.set(cacheKey, {
-				data: summary,
-				expiresAt: Date.now() + SUMMARY_CACHE_TTL_MS,
-			});
-
-			persistSummary(summary);
-
-			return summary;
-		} finally {
-			clearTimeout(timer);
+				agentName,
+				data,
+				persona,
+				cacheKey,
+				nullCacheEntry,
+			);
 		}
+
+		// Fallback for any future category with a prompt but no agent yet.
+		return generateLegacyCategorySummary(
+			category,
+			categoryPrompt,
+			data,
+			persona,
+			cacheKey,
+			nullCacheEntry,
+		);
 	} catch (error) {
 		daemonLog("warn", "general", "dashboard_summary_error", {
 			category,
@@ -454,4 +351,209 @@ async function generateFreshSummary(
 		}
 		return null;
 	}
+}
+
+/** Categories that generate AI summaries via a named agent pipeline. */
+const DASHBOARD_CATEGORY_AGENTS: Readonly<Record<string, string>> = {
+	email: "dashboard.email.summary",
+	tasks: "dashboard.tasks.summary",
+	calendar: "dashboard.calendar.summary",
+};
+
+/**
+ * Context bag keys used by dashboard agents for the tool-executor result
+ * (standard tool payload with count / items / launchUrl).
+ */
+const AGENT_DATA_CONTEXT_KEYS: Readonly<Record<string, string>> = {
+	"dashboard.email.summary": "unread",
+	"dashboard.tasks.summary": "openTasks",
+	"dashboard.calendar.summary": "upcoming",
+};
+
+/**
+ * Legacy inline generateText path for categories that have a prompt but no
+ * registered agent yet.
+ */
+async function generateLegacyCategorySummary(
+	category: string,
+	categoryPrompt: string,
+	data: DashboardCategorySummary,
+	persona: Persona,
+	cacheKey: string,
+	nullCacheEntry: SummaryCacheEntry,
+): Promise<DashboardCategoryAiSummary | null> {
+	const skills = loadLocalSkills().filter((s) => s.enabled !== false);
+	const skillsCatalogText = formatSkillsCatalogForPrompt(skills);
+
+	const systemPrompt = buildDashboardSummarySystemPrompt(
+		categoryPrompt,
+		persona,
+		skillsCatalogText,
+	);
+
+	const itemsText = formatItemsForPrompt(data.items);
+	const userPrompt = `Here are the ${category} items to summarize:\n\n${itemsText}`;
+
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), SUMMARY_TIMEOUT_MS);
+
+	try {
+		const model = createModelForPersona(persona);
+		const result = await generateText({
+			model,
+			instructions: systemPrompt,
+			prompt: userPrompt,
+			abortSignal: controller.signal,
+			temperature: 0.3,
+			maxOutputTokens: SUMMARY_MAX_TOKENS,
+		});
+
+		const text = extractDashboardSummaryText(result.text);
+		if (!text) {
+			clearPersistedSummary(category);
+			if (!summaryCache.has(cacheKey)) {
+				summaryCache.set(cacheKey, nullCacheEntry);
+			}
+			daemonLog("warn", "general", "dashboard_summary_cot_stripped", {
+				category,
+				rawChars: result.text?.length ?? 0,
+			});
+			return null;
+		}
+
+		const launchUrls = data.sources
+			.map((s) => s.launchUrl)
+			.filter((u): u is string => Boolean(u));
+
+		const summary: DashboardCategoryAiSummary = {
+			category,
+			text,
+			generatedAt: new Date().toISOString(),
+			personaName: persona.name,
+			count: data.count,
+			launchUrls,
+		};
+
+		summaryCache.set(cacheKey, {
+			data: summary,
+			expiresAt: Date.now() + SUMMARY_CACHE_TTL_MS,
+		});
+		persistSummary(summary);
+		return summary;
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
+/**
+ * Run a dashboard category agent and map structured `{ markdown }` into the
+ * AI summary contract (preserving cache + disk behavior).
+ */
+async function generateCategorySummaryViaAgent(
+	category: string,
+	agentName: string,
+	data: DashboardCategorySummary,
+	persona: Persona,
+	cacheKey: string,
+	nullCacheEntry: SummaryCacheEntry,
+): Promise<DashboardCategoryAiSummary | null> {
+	// Seed the agent bag with aggregator data under the same key the agent
+	// tool node writes. If Tool Executor fails or returns empty, the LLM can
+	// still summarize the items already shown on the card.
+	const dataKey = AGENT_DATA_CONTEXT_KEYS[agentName] ?? "data";
+	const seedPayload = {
+		count: data.count,
+		items: data.items,
+		groups: data.groups,
+		generatedAt: data.generatedAt,
+		launchUrl: data.sources.find((s) => s.launchUrl)?.launchUrl,
+	};
+
+	daemonLog("info", "general", "dashboard_summary_agent_start", {
+		category,
+		agent: agentName,
+		persona: persona.name,
+		provider: persona.ai.provider,
+		model: persona.ai.model,
+		itemCount: data.count,
+	});
+
+	const agentResult = await runAgent(agentName, {
+		personaOverride: persona,
+		inputs: {
+			[dataKey]: seedPayload,
+		},
+	});
+
+	if (!agentResult.ok) {
+		daemonLog("warn", "general", "dashboard_category_agent_error", {
+			category,
+			agent: agentName,
+			persona: persona.name,
+			model: `${persona.ai.provider}/${persona.ai.model}`,
+			error: agentResult.error,
+			failedNodeId: agentResult.failedNodeId,
+		});
+		if (!summaryCache.has(cacheKey)) {
+			summaryCache.set(cacheKey, nullCacheEntry);
+		}
+		return null;
+	}
+
+	const toolData = agentResult.outputs[dataKey] as
+		| { count?: number; launchUrl?: string; items?: unknown[] }
+		| undefined;
+	// Prefer non-zero tool/seed count; fall back to aggregator count from the card.
+	const itemCount =
+		typeof toolData?.count === "number" && toolData.count > 0
+			? toolData.count
+			: data.count;
+	if (itemCount === 0) {
+		return null;
+	}
+
+	const summaryObj = agentResult.outputs.summary as
+		| { markdown?: string }
+		| undefined;
+	const rawMarkdown =
+		typeof summaryObj?.markdown === "string" ? summaryObj.markdown : "";
+	const text = extractDashboardSummaryText(rawMarkdown);
+	if (!text) {
+		clearPersistedSummary(category);
+		if (!summaryCache.has(cacheKey)) {
+			summaryCache.set(cacheKey, nullCacheEntry);
+		}
+		daemonLog("warn", "general", "dashboard_summary_cot_stripped", {
+			category,
+			rawChars: rawMarkdown.length,
+		});
+		return null;
+	}
+
+	const launchUrlsFromAgent =
+		typeof toolData?.launchUrl === "string" && toolData.launchUrl
+			? [toolData.launchUrl]
+			: [];
+	const launchUrls =
+		launchUrlsFromAgent.length > 0
+			? launchUrlsFromAgent
+			: data.sources
+					.map((s) => s.launchUrl)
+					.filter((u): u is string => Boolean(u));
+
+	const summary: DashboardCategoryAiSummary = {
+		category,
+		text,
+		generatedAt: new Date().toISOString(),
+		personaName: agentResult.persona.name,
+		count: itemCount,
+		launchUrls,
+	};
+
+	summaryCache.set(cacheKey, {
+		data: summary,
+		expiresAt: Date.now() + SUMMARY_CACHE_TTL_MS,
+	});
+	persistSummary(summary);
+	return summary;
 }

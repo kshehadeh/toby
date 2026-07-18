@@ -1,35 +1,41 @@
 # Home dashboard data population
 
 How Toby.app’s home-screen cards (unread mail, tasks, upcoming calendar) get
-their data. The chat pipeline is **not** involved: cards pull deterministic
-plugin summaries over the local daemon HTTP API, then optionally request a
-separate AI text summary.
+their data. The **chat** pipeline is not involved.
 
-For the reserved tool contract, merge rules, and plugin implementation
-checklist, see also
-[`dashboard-standard-tools-plan.md`](dashboard-standard-tools-plan.md).
+Each card uses **two independent paths**:
+
+1. **Deterministic data** — badge count, sources, item rows (standard tools +
+   aggregator, no LLM)
+2. **AI prose** — short markdown under the card, produced by a **named agent
+   pipeline** (Tool Executor → LLM Prompter)
+
+| Topic | Doc |
+| --- | --- |
+| Agent / pipeline design | [`agents.md`](agents.md) |
+| Standard tool contract & plugin checklist | [`dashboard-standard-tools-plan.md`](dashboard-standard-tools-plan.md) |
 
 ## Overview
 
 Each integration-backed card is a **category** (`email`, `tasks`, `calendar`).
 A category may be fed by multiple plugins (for example Todoist and Apple
-Reminders both contribute to `tasks`). Plugins declare a
-`providerCategories` value and tag one tool with a reserved `standardTool` ID;
-core synthesizes a `dashboard.getSummary` hook that executes that tool without
-an LLM.
+Reminders both contribute to `tasks`). Plugins declare
+`providerCategories` and tag one tool with a reserved `standardTool` ID; core
+synthesizes a `dashboard.getSummary` hook that executes that tool without an
+LLM.
 
-| Category | Standard tool ID | Example plugins |
-| --- | --- | --- |
-| `email` | `email.unreadSummary` | `email` (IMAP/SMTP) |
-| `tasks` | `tasks.openSummary` | `todoist`, `applereminders` |
-| `calendar` | `calendar.upcomingSummary` | `applecalendar` |
+| Category | Standard tool ID | Example plugins | AI agent |
+| --- | --- | --- | --- |
+| `email` | `email.unreadSummary` | `email` (IMAP/SMTP) | `dashboard.email.summary` |
+| `tasks` | `tasks.openSummary` | `todoist`, `applereminders` | `dashboard.tasks.summary` |
+| `calendar` | `calendar.upcomingSummary` | `applecalendar` | `dashboard.calendar.summary` |
 
-There are **two independent data paths** per category:
-
-1. **Deterministic summary** — count, items, sources, groups (no AI)
-2. **AI summary** — short markdown generated from that data (persona-driven)
+Despite names like `email.unreadSummary`, standard tools return a **list/count
+shape** (metadata items), not LLM prose. The AI blurb is a separate step.
 
 ## End-to-end flow
+
+### Deterministic path (badge + list)
 
 ```
 DashboardView (.task / refresh button)
@@ -38,12 +44,10 @@ DashboardView (.task / refresh button)
 DashboardStore  (per-category parallel load)
         │
         ▼
-TobyClient
-  GET /api/dashboard/:category
-  GET /api/dashboard/:category/summary   ← AI path only
+TobyClient  GET /api/dashboard/:category
         │
         ▼
-Daemon handlers → getDashboardCategory / getDashboardCategorySummary
+getDashboardCategory  (60s in-memory cache)
         │
         ▼
 Aggregator: connected modules with providerCategories + dashboard hook
@@ -52,14 +56,40 @@ Aggregator: connected modules with providerCategories + dashboard hook
 module.dashboard.getSummary({ limit })
         │
         ▼
-Plugin adapter: find tool by standardTool tag → tools execute
+Plugin adapter: standardTool tag → tools execute
         │
         ▼
-Plugin tool returns DashboardSummaryResult → Zod validate → merge → cache
+DashboardSummaryResult → Zod validate → merge → JSON
         │
         ▼
-JSON → DashboardStore → card UI (e.g. UnreadMailCard)
+DashboardStore → card UI (badge, sources, items)
 ```
+
+### AI path (markdown under the card)
+
+```
+DashboardStore  GET /api/dashboard/:category/summary
+        │
+        ▼
+getDashboardCategorySummary(category)
+        │
+        ├─ getDashboardCategory (cache key / empty check)
+        ├─ AI cache (5 min memory + ~/.toby/dashboard-summaries.json)
+        │
+        ▼ (on miss)
+runAgent("dashboard.<category>.summary")
+        │
+        ├─ Tool Executor  → standard tool (list metadata, one provider)
+        └─ LLM Prompter   → { markdown: string }  (dashboard persona)
+        │
+        ▼
+Map markdown → DashboardCategoryAiSummary.text
+        │
+        ▼
+DashboardStore → card AI blurb
+```
+
+Details of node wiring and runtime: [`agents.md`](agents.md).
 
 ## When the UI refreshes
 
@@ -67,7 +97,7 @@ JSON → DashboardStore → card UI (e.g. UnreadMailCard)
 | --- | --- | --- |
 | Home dashboard appears | `DashboardView.task` | `store.load()` then `store.loadSummariesIfStale()` |
 | Global refresh | `RootView.refreshDashboardData()` | `load()` + shared app stores + `reloadSummaries()` |
-| Card refresh button | e.g. `store.refreshEmail()` | That category’s data **then** its AI summary |
+| Card refresh button | e.g. `store.refreshEmail()` | That category’s **data**, then its **AI summary** |
 
 ### Swift store behavior
 
@@ -98,8 +128,8 @@ Routes are registered in `packages/core/src/web/routes.ts` and handled in
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/api/dashboard` | All categories (`email`, `tasks`, `calendar`) in parallel |
-| `GET` | `/api/dashboard/:category` | One category summary, or `null` |
-| `GET` | `/api/dashboard/:category/summary` | AI summary for one category, or `null` |
+| `GET` | `/api/dashboard/:category` | Deterministic category data, or `null` |
+| `GET` | `/api/dashboard/:category/summary` | AI summary via agent pipeline, or `null` |
 
 Unknown categories return `404` with
 `{ "error": "Unknown dashboard category: …" }`.
@@ -169,7 +199,11 @@ Tool **names** are arbitrary; only the `standardTool` tag matters. Doctor /
 plugin validation can warn when a category is declared without the matching
 tag (`checkStandardToolCompliance`).
 
-### Reserved result shape (summary)
+The agent **Tool Executor** resolves the same `standardTool` IDs independently
+(prefer default/connected provider). See
+[`agents.md`](agents.md#tool-executor).
+
+### Reserved result shape
 
 ```ts
 interface DashboardSummaryResult {
@@ -186,88 +220,133 @@ Full item fields, urgency rules, and merge details:
 
 ## Walkthrough: email card
 
-Concrete path for the Unread Mail block.
+Concrete path for the Unread Mail block (tasks/calendar are analogous).
 
 ### 1. Plugin declaration
 
 `apps/plugin-email/manifest.json`:
 
 - `providerCategories: ["email"]`
-- Capabilities/chat as usual; no special dashboard field in the manifest
+- No special dashboard field in the manifest
 
-### 2. Standard tool
+### 2. Standard tool (deterministic list)
 
 `apps/plugin-email/src/tools.ts` defines `getUnreadSummary` with
 `standardTool: "email.unreadSummary"`. Input is optional `{ limit }`.
 
-### 3. Tool execution
+On execute (`fetchUnreadInbox`):
 
-On execute, the email plugin:
+1. Live IMAP (not the SQLite chat cache)
+2. Unseen count + newest unread envelopes
+3. Items: subject, from, date, flagged → urgency
+4. Optional webmail `launchUrl`
 
-1. Calls `fetchUnreadInbox(config, limit)` in
-   `apps/plugin-email/src/client.ts`.
-2. Opens a live IMAP connection (not the SQLite cache) and:
-   - Reads `STATUS INBOX` unseen count
-   - Searches unseen UIDs, takes the newest `limit`, fetches envelope + flags
-3. Maps messages to items:
-   - `id`: `"{uid}:INBOX"`
-   - `title`: subject
-   - `subtitle`: from
-   - `timestamp`: ISO date
-   - `urgency`: `"high"` if `\Flagged`, else `"normal"`
-4. Optionally sets `launchUrl` from the IMAP host → webmail URL
-5. Returns `{ count, items, launchUrl?, generatedAt }`
+> Note: the tool’s human description may still say “local cache”; the
+> implementation is **live IMAP** so the badge matches server unread state.
 
-> Note: the tool’s human description still mentions “local cache”; the
-> implementation is **live IMAP** so the badge reflects server unread state
-> (messages read or archived elsewhere are excluded).
-
-### 4. Aggregation and UI
+### 3. Deterministic aggregation and UI
 
 - Aggregator includes the `email` module if connected and the hook succeeds.
-- Swift `UnreadMailCard` binds to `store.email` (badge, sources, items) and
-  `store.emailSummary` (AI markdown / skeleton).
-- Card refresh: `refreshEmail()` → `loadEmail()` then `loadEmailSummary()`.
+- Swift `UnreadMailCard` binds to `store.email` (badge, sources, items).
 
-## AI summary path
+### 4. AI blurb via agent
 
-Implementation: `packages/core/src/dashboard/summarizer.ts`.
+On `GET /api/dashboard/email/summary` (after cache miss):
 
-Separate from the deterministic aggregator. Used for the prose under each card.
+1. Agent `dashboard.email.summary` runs.
+2. **Tool Executor** re-fetches `email.unreadSummary` (limit 50) into bag
+   key `unread`.
+3. **LLM Prompter** uses email category prompt + dashboard persona; schema
+   `{ markdown: string }` → bag key `summary`.
+4. Summarizer maps markdown → `DashboardCategoryAiSummary` and persists caches.
 
-1. Load category data via `getDashboardCategory(category, { limit: 50 })`
-   (shares the 60s category cache).
-2. If no data or `count === 0` → `null`.
+Card refresh: `refreshEmail()` → `loadEmail()` then `loadEmailSummary()`.
+
+## AI summary path (agents)
+
+Implementation: `packages/core/src/dashboard/summarizer.ts`  
+Agent runtime: `packages/core/src/agents/` — see [`agents.md`](agents.md)
+
+### Category → agent
+
+| Category | Agent | Tool bag key | Definition file |
+| --- | --- | --- | --- |
+| `email` | `dashboard.email.summary` | `unread` | `agents/definitions/dashboard-email-summary.ts` |
+| `tasks` | `dashboard.tasks.summary` | `openTasks` | `agents/definitions/dashboard-tasks-summary.ts` |
+| `calendar` | `dashboard.calendar.summary` | `upcoming` | `agents/definitions/dashboard-calendar-summary.ts` |
+
+Shared shape for every category agent:
+
+```
+Tool Executor (standardTool, limit: 50)
+        ↓ bag.<key>
+LLM Prompter → { markdown: string }
+        ↓ bag.summary
+```
+
+Category prompts and system-prompt framing live in
+`packages/core/src/dashboard/prompts.ts` (`CATEGORY_PROMPTS`,
+`buildDashboardSummarySystemPrompt`, `formatItemsForPrompt`).
+
+### Caching and persona
+
+1. Load deterministic category data via `getDashboardCategory(category, {
+   limit: 50 })` (shares the 60s category cache) for empty-state and **cache
+   signature**.
+2. If no data or `count === 0` → `null` (no agent run).
 3. Cache key: `category` + dashboard persona + **data signature** (count,
    `generatedAt`, item ids/titles/timestamps).
 4. **In-memory AI cache TTL: 5 minutes**.
-5. Fallback file: `~/.toby/dashboard-summaries.json` so after a daemon restart
-   the UI can show the last summary immediately while a background refresh
-   runs.
-6. Persona: `config.dashboard.persona`, else default persona.
-7. Built-in category prompts (email / tasks / calendar) + persona system
-   prompt + skills catalog; `generateText` with a timeout (30s), no tools.
-8. Output is sanitized to strip common chain-of-thought / planning leakage
-   (`extractDashboardSummaryText`).
+5. Disk fallback: `~/.toby/dashboard-summaries.json` — after daemon restart the
+   UI can show the last summary immediately while a background refresh runs.
+6. Persona: `config.dashboard.persona`, else default (`resolveDashboardPersona`).
+7. On generate: `runAgent(…)` then strip chain-of-thought leakage with
+   `extractDashboardSummaryText` on the structured `markdown` field.
 
 Config UI: configure tree key `dashboard.persona` (Settings / configure
 persistence).
+
+### Multi-provider note
+
+- **Card list/badge** (`GET /api/dashboard/:category`): may merge **all**
+  connected providers in the category (calendar may prefer the default
+  provider only).
+- **Agent Tool Executor**: resolves **one** connected provider for the
+  standard tool (default provider when set, else first connected match).
+
+Acceptable for v1; multi-provider AI context would require a future node or
+agent input that reuses the aggregator result.
+
+### Response shape
+
+```ts
+interface DashboardCategoryAiSummary {
+  category: string;
+  text: string;           // markdown from agent summary.markdown
+  generatedAt: string;
+  personaName: string;
+  count: number;
+  launchUrls: string[];
+}
+```
 
 ## Failure and empty-state semantics
 
 | Situation | Aggregator / API behavior | Typical UI effect |
 | --- | --- | --- |
-| No module for category | Category `null` | Empty / connect prompt (store may keep last value if previously set) |
+| No module for category | Category `null` | Empty / connect prompt (store may keep last value) |
 | Module not connected | Skipped | Same as no sources if all skipped |
 | Provider timeout (25s) | Excluded from `sources` | Other providers still show |
 | Provider throw | Logged + excluded | Same |
-| Tool exec / Zod failure | Empty summary `{ count: 0, items: [] }` from adapter | Can look like “zero items” rather than “error” |
+| Tool exec / Zod failure (hook) | Empty summary `{ count: 0, items: [] }` from adapter | Can look like “zero items” rather than “error” |
 | AI no data / count 0 | Summary `null` | No AI prose |
-| AI generation fail | Error path / null depending on layer | Card shows summary error state when set |
+| Agent / LLM failure | Logged (`dashboard_category_agent_error`); summary `null` | Card shows summary error / empty when set |
+| CoT-only model output | Stripped to empty → `null` | No prose until next successful generate |
 
-Implications for reliability work:
+Implications:
 
 - Aggressive UI refresh still hits the **60s** category cache unless cleared.
+- AI refresh still hits the **5 min** summary cache / disk file.
 - Empty vs failed is not always distinguishable for plugins that return the
   adapter’s empty fallback.
 - IMAP (and other network backends) dominate tail latency for email; other
@@ -279,8 +358,6 @@ Swift models mirror core types in
 `apps/toby-app/Sources/TobyApp/Models/DashboardModels.swift`. Cards live under
 `apps/toby-app/Sources/TobyApp/Features/Dashboard/`.
 
-Practical mapping:
-
 | UI element | Source field |
 | --- | --- |
 | Badge number | `category.count` |
@@ -288,10 +365,10 @@ Practical mapping:
 | Item list | `category.items[]` |
 | Group chips | `category.groups[]` (ids namespaced as `providerName:…`) |
 | “As of …” | `category.generatedAt` |
-| AI blurb | `DashboardCategoryAiSummary.text` |
+| AI blurb | `DashboardCategoryAiSummary.text` (from agent) |
 
 Onboarding checklist is separate (local readiness steps), not driven by
-standard tools.
+standard tools or agents.
 
 ## Key files
 
@@ -300,7 +377,10 @@ standard tools.
 | Types / standard tool IDs | `packages/core/src/dashboard/types.ts` |
 | Zod validation | `packages/core/src/dashboard/schema.ts` |
 | Aggregator + 60s cache | `packages/core/src/dashboard/index.ts` |
-| AI summaries | `packages/core/src/dashboard/summarizer.ts` |
+| Category prompts / persona | `packages/core/src/dashboard/prompts.ts` |
+| AI summaries + agent invoke | `packages/core/src/dashboard/summarizer.ts` |
+| Agent runtime | `packages/core/src/agents/` |
+| Dashboard agent definitions | `packages/core/src/agents/definitions/dashboard-*.ts` |
 | HTTP handlers | `packages/core/src/web/handlers/dashboard.ts` |
 | Hook synthesis | `packages/core/src/integrations/plugins/adapter.ts` (`buildPluginDashboardHook`) |
 | Module type | `packages/core/src/integrations/types.ts` (`dashboard?`) |
@@ -309,11 +389,13 @@ standard tools.
 | Swift store | `apps/toby-app/Sources/TobyApp/Stores/DashboardStore.swift` |
 | Cards / home view | `apps/toby-app/Sources/TobyApp/Features/Dashboard/` |
 | Contract + plugin checklist | [`dashboard-standard-tools-plan.md`](dashboard-standard-tools-plan.md) |
+| Agent pipelines | [`agents.md`](agents.md) |
 
 ## Related docs
 
-- [`server-api.md`](server-api.md) — route list for the local daemon API
-- [`integrations.md`](integrations.md) — `IntegrationModule` and plugins
-- [`create-integration.md`](create-integration.md) — adding a new plugin
-- [`architecture.md`](architecture.md) — app-local dashboard visibility prefs
-- Help site (user-facing card visibility): `apps/help-site/docs/toby-app.md`
+- [`agents.md`](agents.md) — named pipelines, node types, dashboard agents  
+- [`server-api.md`](server-api.md) — route list for the local daemon API  
+- [`integrations.md`](integrations.md) — `IntegrationModule` and plugins  
+- [`create-integration.md`](create-integration.md) — adding a new plugin  
+- [`architecture.md`](architecture.md) — app-local dashboard visibility prefs  
+- Help site (user-facing card visibility): `apps/help-site/docs/toby-app.md`  

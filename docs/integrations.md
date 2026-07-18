@@ -43,7 +43,7 @@ these from the plugin protocol (`status`, `config shape`, `tools list`, etc.).
 | `seedCredentialValues(creds)` | Flat value map when opening configure. |
 | `mergeCredentialsPatch(values, previous)` | `Partial<CredentialsFile>` fragment on save. |
 | `createChatTools?(params)` | Tools + action accumulator for **RunModelTurnNode** (plugin tools go through the adapter). |
-| `dashboard?` | Optional `getSummary` for the native home dashboard (often synthesized from `standardTool` tags). See [dashboard.md](dashboard.md). |
+| `dashboard?` | Optional `getSummary` for the native home dashboard (often synthesized from `standardTool` tags). Deterministic card data; AI blurbs use separate agents. See [dashboard.md](dashboard.md) and [agents.md](agents.md). |
 | `chatInbound?` | Long-lived inbound listener for the daemon (`ChatInboundProvider`). For plugins, created by [`inbound-adapter.ts`](../packages/core/src/integrations/plugins/inbound-adapter.ts). See [`chat-inbound.md`](chat-inbound.md). |
 | `registerCommands?(program)` | Optional Commander subcommands on the CLI. |
 

@@ -151,6 +151,9 @@ status cues) across Toby.app windows. Same preset in light and dark.
 Under **Settings → Dashboard**, you can set the persona used for dashboard
 summaries and control which home-dashboard cards are visible (app-local):
 
+- **Dashboard persona** — Model and instructions used for the short AI blurbs
+  under the unread mail, tasks, and upcoming events cards (list counts and rows
+  still come from your connected integrations without the AI).
 - **Show unread mail** / **Show tasks** / **Show upcoming events** — On by
   default. Turn any off to hide that card on the home dashboard; turn it back on
   to show it again. Upcoming events come from your default calendar provider

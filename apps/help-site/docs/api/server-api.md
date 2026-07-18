@@ -71,7 +71,8 @@ Transcript entries and chat stream events are structured JSON objects emitted du
 | `ANY` | `/api/health` | Daemon health and identity handshake |
 | `GET` | `/api/status` | Version, persona, model, integrations, skill count |
 | `GET` | `/api/dashboard` | Home dashboard summary |
-| `GET` | `/api/dashboard/:section` | Dashboard section detail |
+| `GET` | `/api/dashboard/:section` | Dashboard section detail (deterministic data) |
+| `GET` | `/api/dashboard/:section/summary` | AI markdown blurb for a section |
 | `POST` | `/api/issues` | File or forward a GitHub issue report |
 | `GET` | `/api/daemon/status` | Process + inbound chat status |
 | `POST` | `/api/daemon/restart` | Restart the daemon |
@@ -233,7 +234,11 @@ Returns the home dashboard summary payload (counts and category snapshots used b
 
 ### `GET /api/dashboard/:section`
 
-Returns detail for one dashboard category. Unknown categories return `404` with `{ "error": "Unknown dashboard category: …" }`.
+Returns detail for one dashboard category (`email`, `tasks`, `calendar`). Unknown categories return `404` with `{ "error": "Unknown dashboard category: …" }`.
+
+### `GET /api/dashboard/:section/summary`
+
+Returns the AI markdown blurb for one category (generated with the dashboard persona from your connected integration data), or `null` when there is nothing to summarize.
 
 ## Issues
 

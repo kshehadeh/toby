@@ -21,10 +21,11 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | [`docs/plugin-protocol.md`](docs/plugin-protocol.md) | Installable plugin contract (v1): subcommands, JSON, discovery. |
 | [`docs/create-integration.md`](docs/create-integration.md) | Checklist for adding a new plugin integration. |
 | [`docs/chat-pipeline.md`](docs/chat-pipeline.md) | Chat turn node pipeline, events, pretreatment, tool-result cache. |
+| [`docs/agents.md`](docs/agents.md) | Named agent pipelines: nodes, wiring, runtime API, dashboard category agents. |
 | [`docs/projects.md`](docs/projects.md) | Projects: SQLite metadata, `AGENTS.md`, skills, outputs. |
 | [`docs/daemon.md`](docs/daemon.md) | Background daemon: schedules, inbound, unified log. |
 | [`docs/server-api.md`](docs/server-api.md) | Local daemon HTTP API: routes, SSE chat, configure. |
-| [`docs/dashboard.md`](docs/dashboard.md) | Home dashboard cards: load path, cache, standard tools, AI summaries. |
+| [`docs/dashboard.md`](docs/dashboard.md) | Home dashboard cards: standard tools + agent AI blurbs, cache, plugins. |
 | [`docs/chat-inbound.md`](docs/chat-inbound.md) | Inbound provider contract and external sessions. |
 | [`docs/ai-caching.md`](docs/ai-caching.md) | Provider prompt caching and token telemetry. |
 | [`docs/memory.md`](docs/memory.md) | Durable user memory (`memory.sqlite`). |
