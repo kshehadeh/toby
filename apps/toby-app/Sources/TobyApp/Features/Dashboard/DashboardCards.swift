@@ -23,12 +23,29 @@ private struct DashboardCardContentHeightKey: PreferenceKey {
 	}
 }
 
+/// Whether a dashboard card body may accept content interaction (text selection,
+/// etc.). Collapsed cards set this to `false` so clicking a markdown sub-block
+/// cannot expand/reflow clipped text in place — only “Show more” grows the card.
+private struct DashboardCardBodyInteractiveKey: EnvironmentKey {
+	static let defaultValue = true
+}
+
+extension EnvironmentValues {
+	var dashboardCardBodyInteractive: Bool {
+		get { self[DashboardCardBodyInteractiveKey.self] }
+		set { self[DashboardCardBodyInteractiveKey.self] = newValue }
+	}
+}
+
 /// Equal-height dashboard block with overflow “Show more”.
 ///
 /// Collapsed height is shared across mail / tasks / calendar so a row of cards
 /// aligns. Expanding grows the card **in layout** so siblings are not covered
 /// and the parent ScrollView can scroll to the full content. Hovering away
 /// collapses it again.
+///
+/// Only the “Show more” control expands a collapsed card. Body copy is
+/// non-interactive while collapsed so sub-blocks cannot grow text in place.
 struct DashboardCard<Content: View>: View {
 	@Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -60,6 +77,13 @@ struct DashboardCard<Content: View>: View {
 		// Single continuous hierarchy so expand doesn’t tear down the hovered view.
 		ZStack(alignment: .bottom) {
 			cardBody
+				// Header controls (refresh / menu) stay tappable; summary markdown
+				// respects `dashboardCardBodyInteractive` and is inert while clipped.
+				// Fully-visible (non-overflowing) bodies stay interactive.
+				.environment(
+					\.dashboardCardBodyInteractive,
+					isExpanded || !isOverflowing
+				)
 				.frame(maxWidth: .infinity, alignment: .topLeading)
 				.frame(
 					maxHeight: isExpanded ? nil : DashboardBlockLayout.collapsedHeight,
@@ -71,6 +95,8 @@ struct DashboardCard<Content: View>: View {
 						? DashboardBlockLayout.showMoreButtonHeight
 						: 0
 				)
+				// Clip drawing + hit testing so clipped subviews cannot grow out of band.
+				.contentShape(Rectangle())
 				.clipped()
 
 			if !isExpanded, isOverflowing {
@@ -101,10 +127,13 @@ struct DashboardCard<Content: View>: View {
 			y: isExpanded ? 6 : 0
 		)
 		// Hidden unconstrained pass measures full content height for overflow.
+		// Non-interactive so it never steals hits or selection from the real body.
 		.background(alignment: .top) {
 			cardBody
+				.environment(\.dashboardCardBodyInteractive, false)
 				.fixedSize(horizontal: false, vertical: true)
 				.hidden()
+				.allowsHitTesting(false)
 				.background(
 					GeometryReader { geo in
 						Color.clear.preference(

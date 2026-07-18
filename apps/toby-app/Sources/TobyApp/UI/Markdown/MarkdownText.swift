@@ -28,6 +28,10 @@ struct MarkdownText: View {
 	/// When true, heading text is rendered in uppercase.
 	var uppercaseHeadings: Bool = false
 
+	/// Collapsed dashboard cards disable body interaction so sub-blocks cannot
+	/// expand/reflow clipped text; only the card’s “Show more” grows layout.
+	@Environment(\.dashboardCardBodyInteractive) private var bodyInteractive
+
 	var body: some View {
 		VStack(alignment: .leading, spacing: 10) {
 			ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
@@ -65,10 +69,14 @@ struct MarkdownText: View {
 						.accessibilityIdentifier("markdown-horizontal-rule")
 				case .code(let content):
 					ScrollView(.horizontal, showsIndicators: false) {
-						Text(content)
+						let codeText = Text(content)
 							.font(.system(.callout, design: .monospaced))
 							.foregroundStyle(foregroundStyle)
-							.textSelection(.enabled)
+						if bodyInteractive {
+							codeText.textSelection(.enabled)
+						} else {
+							codeText.textSelection(.disabled)
+						}
 					}
 				case .table(let table):
 					TableGrid(
@@ -81,6 +89,9 @@ struct MarkdownText: View {
 			}
 		}
 		.frame(maxWidth: .infinity, alignment: .leading)
+		// When the hosting dashboard card is collapsed, ignore hits so individual
+		// markdown sub-blocks cannot expand text inside the fixed-height clip.
+		.allowsHitTesting(bodyInteractive)
 	}
 
 	private var blocks: [MarkdownBlock] {

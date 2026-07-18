@@ -7,17 +7,26 @@ struct InlineMarkdownText: View {
 	/// Color for bold/strong runs. Defaults to `baseForeground` when only base is set.
 	var strongForeground: Color? = nil
 
+	/// Collapsed dashboard cards set this to `false` so text selection cannot
+	/// expand/reflow a single markdown sub-block inside a fixed-height clip.
+	@Environment(\.dashboardCardBodyInteractive) private var bodyInteractive
+
 	var body: some View {
 		if let attributed = styledAttributed {
-			Text(attributed)
-				.textSelection(.enabled)
+			selectableText(Text(attributed))
 		} else if let baseForeground {
-			Text(text)
-				.foregroundStyle(baseForeground)
-				.textSelection(.enabled)
+			selectableText(Text(text).foregroundStyle(baseForeground))
 		} else {
-			Text(text)
-				.textSelection(.enabled)
+			selectableText(Text(text))
+		}
+	}
+
+	@ViewBuilder
+	private func selectableText<Content: View>(_ content: Content) -> some View {
+		if bodyInteractive {
+			content.textSelection(.enabled)
+		} else {
+			content.textSelection(.disabled)
 		}
 	}
 
