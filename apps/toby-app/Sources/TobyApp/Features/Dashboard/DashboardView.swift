@@ -33,6 +33,8 @@ struct DashboardView: View {
 	/// Opens Settings, optionally deep-linking to a top-level section key
 	/// (e.g. `"ai"`, `"transcription"`).
 	var onOpenSettings: (String?) -> Void = { _ in }
+	/// Opens the guided Vercel AI Gateway setup wizard (recommended first-run path).
+	var onOpenAIProviderSetup: () -> Void = {}
 	/// Opens the sidebar persona picker with attention highlighting.
 	var onOpenPersonaPicker: () -> Void = {}
 	let onOpenPermissions: () -> Void
@@ -160,7 +162,7 @@ struct DashboardView: View {
 	private func handleStepAction(_ kind: OnboardingStepKind) {
 		switch kind {
 		case .configureAIProvider:
-			onOpenSettings("ai")
+			onOpenAIProviderSetup()
 		case .connectIntegrations:
 			onSelectRoute(.integrations)
 		case .setupPersona:

@@ -92,6 +92,8 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `GET` | `/api/ai/providers` | AI provider catalog with live models when configured or public catalog available. |
 | `GET` | `/api/ai/providers/usage` | Plan usage / balance for all AI providers (cached). |
 | `GET` | `/api/ai/providers/:id/usage` | Plan usage / balance for a single AI provider (bypasses cache). |
+| `GET` | `/api/ai/providers/:id/setup` | Guided setup guide when the provider registered a setup adapter (`404` otherwise). Returns steps, field schema, optional `meta`. |
+| `POST` | `/api/ai/providers/:id/setup` | Complete guided setup. Body: `{ fields: Record<string,string>, model? }` (flat string keys also accepted). Adapter-specific validation + credential persistence. |
 | `GET` | `/api/modules` | List connected chat modules/integrations. |
 | `GET` | `/api/skills` | List local skills. |
 | `GET` | `/api/skills/:name` | Skill detail body. |
@@ -744,11 +746,58 @@ type AIProvidersResponse = {
     models: string[];
     allowCustomModel: boolean;
     configured: boolean;
+    /** True when this provider implements guided setup (see below). */
+    supportsGuidedSetup: boolean;
   }[];
 };
 ```
 
 Implementation: [`packages/core/src/ai/model-list/`](../packages/core/src/ai/model-list/).
+
+### `GET /api/ai/providers/:id/setup` / `POST /api/ai/providers/:id/setup`
+
+Generic **guided onboarding** contract. Providers opt in by registering a
+`ProviderSetupAdapter` under [`packages/core/src/ai/provider-setup/`](../packages/core/src/ai/provider-setup/).
+Vercel AI Gateway is the first adapter; others can be added without new routes.
+
+**GET** returns a wizard guide (`404` if the provider has no adapter):
+
+```ts
+type ProviderSetupGuide = {
+  providerId: string;
+  displayName: string;
+  description?: string;
+  defaultModel?: string;
+  steps: readonly {
+    id: string;
+    title: string;
+    description?: string;
+    url?: string;
+    urlLabel?: string;
+  }[];
+  /** Open-ended form schema; submit matching keys under `fields` on POST. */
+  fields: readonly {
+    key: string;
+    label: string;
+    secret?: boolean;
+    placeholder?: string;
+    required?: boolean;
+  }[];
+  /** Provider-specific extras (deep links, flags). */
+  meta?: Record<string, unknown>;
+};
+```
+
+**POST** completes setup. Preferred body:
+
+```json
+{ "fields": { "apiKey": "…" }, "model": "optional-slug" }
+```
+
+Flat string keys (except `model`) are also accepted and folded into `fields`.
+On success the adapter persists credentials and may update the default persona.
+Response includes `ok`, `providerId`, `model`, `personaName`, `configured`, and
+open-ended `details` (e.g. credit balance).
 
 ### `GET /api/ai/providers/usage`
 

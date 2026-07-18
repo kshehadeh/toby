@@ -17,14 +17,16 @@ Toby supports five AI providers:
 | <img class="ai-provider-icon-inline" src="/img/ai-providers/openrouter.png" alt="" width="20" height="20" /> [OpenRouter](./openrouter) | Hundreds of models from many vendors through a single OpenRouter API key |
 | <img class="ai-provider-icon-inline" src="/img/ai-providers/ollama.png" alt="" width="20" height="20" /> [Ollama](./ollama) | Run open-source models locally on your machine (no API key needed) |
 
-You only need **one** provider configured to start chatting. Many people use OpenAI direct for simplicity, Vercel AI Gateway for multi-vendor models with unified billing, Chutes or OpenRouter for open-source model access, or Ollama for fully local inference.
+You only need **one** provider configured to start chatting. **New installs should start with Vercel AI Gateway** (guided setup on the Dashboard checklist). Use OpenAI direct for a single-vendor key, Chutes or OpenRouter for open-source catalogs, or Ollama for fully local inference.
 
 ## Quick setup
 
-Open **Toby.app → Settings** and configure:
+**Recommended:** Dashboard onboarding → **Configure AI provider → Connect** opens the [Vercel AI Gateway](./vercel-ai-gateway) guided wizard (signup, create key, validate). That also powers web search and transcription model lists.
 
-1. Open **AI** and enter credentials for at least one provider ([OpenAI](./openai#get-an-api-key), [Vercel AI Gateway](./vercel-ai-gateway#get-an-api-key), [Chutes](./chutes#get-an-api-key), [OpenRouter](./openrouter#get-an-api-key), or an Ollama base URL).
-2. Open **Personas**, choose **AI Provider** and **Model** (or use the built-in **Toby** persona, which defaults to OpenAI `gpt-5-mini`).
+Or open **Toby.app → Settings**:
+
+1. Open **AI** and enter credentials for at least one provider ([Vercel AI Gateway](./vercel-ai-gateway#get-an-api-key), [OpenAI](./openai#get-an-api-key), [Chutes](./chutes#get-an-api-key), [OpenRouter](./openrouter#get-an-api-key), or an Ollama base URL).
+2. Open **Personas**, choose **AI Provider** and **Model** (the guided Vercel flow configures the built-in **Toby** persona for you).
 
 Credentials are stored in `~/.toby/credentials.json` on your Mac (encrypted at rest; see [Configuration overview](../configuration/overview)).
 
@@ -32,8 +34,8 @@ Credentials are stored in `~/.toby/credentials.json` on your Mac (encrypted at r
 
 | If you want… | Consider |
 | ------------ | -------- |
+| Fastest full Toby setup (chat + web search + multi-vendor models) | **Vercel AI Gateway** (recommended) |
 | The simplest path with OpenAI models only | **OpenAI (direct)** |
-| Anthropic, Google, or other vendors without separate API accounts | **Vercel AI Gateway** |
 | Open-source TEE-backed models with privacy guarantees | **Chutes** |
 | The widest selection of models from many vendors | **OpenRouter** |
 | Fully local, private inference with no API costs | **Ollama** |

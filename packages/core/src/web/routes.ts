@@ -70,6 +70,8 @@ import {
 	handleMemoryPatch,
 } from "./handlers/memories";
 import {
+	handleAIProviderSetup,
+	handleAIProviderSetupGuide,
 	handleAIProviderUsage,
 	handleAIProviderUsageAll,
 	handleAIProviders,
@@ -245,6 +247,20 @@ export async function handleWebRequest(
 		}
 		if (pathname === "/api/ai/providers/usage" && req.method === "GET") {
 			return handleAIProviderUsageAll();
+		}
+		const aiProviderSetupMatch = /^\/api\/ai\/providers\/([^/]+)\/setup$/.exec(
+			pathname,
+		);
+		if (aiProviderSetupMatch && req.method === "GET") {
+			return handleAIProviderSetupGuide(
+				decodeURIComponent(aiProviderSetupMatch[1]),
+			);
+		}
+		if (aiProviderSetupMatch && req.method === "POST") {
+			return handleAIProviderSetup(
+				decodeURIComponent(aiProviderSetupMatch[1]),
+				req,
+			);
 		}
 		const aiProviderUsageMatch = /^\/api\/ai\/providers\/([^/]+)\/usage$/.exec(
 			pathname,

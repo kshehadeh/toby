@@ -103,6 +103,43 @@ struct TobyClient {
 		return try JSONDecoder().decode(AIProviderUsageResponse.self, from: data).usage
 	}
 
+	/// Guided setup guide for any provider with a setup adapter (`GET …/setup`).
+	func fetchAIProviderSetupGuide(providerId: String) async throws -> AIProviderSetupGuide {
+		let encoded = providerId.addingPercentEncoding(
+			withAllowedCharacters: .urlPathAllowed,
+		) ?? providerId
+		let url = baseURL.appendingPathComponent("api/ai/providers/\(encoded)/setup")
+		var request = URLRequest(url: url)
+		request.cachePolicy = .reloadIgnoringLocalCacheData
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(AIProviderSetupGuide.self, from: data)
+	}
+
+	/// Complete guided setup (`POST …/setup`) with open-ended `fields`.
+	func setupAIProvider(
+		providerId: String,
+		fields: [String: String],
+		model: String? = nil,
+	) async throws -> AIProviderSetupResponse {
+		let encoded = providerId.addingPercentEncoding(
+			withAllowedCharacters: .urlPathAllowed,
+		) ?? providerId
+		var request = URLRequest(
+			url: baseURL.appendingPathComponent("api/ai/providers/\(encoded)/setup")
+		)
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		var body: [String: Any] = ["fields": fields]
+		if let model, !model.isEmpty {
+			body["model"] = model
+		}
+		request.httpBody = try JSONSerialization.data(withJSONObject: body)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(AIProviderSetupResponse.self, from: data)
+	}
+
 	func createPersona(
 		name: String,
 		instructions: String,

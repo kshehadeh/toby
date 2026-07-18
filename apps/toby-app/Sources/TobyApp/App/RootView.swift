@@ -37,6 +37,7 @@ struct RootView: View {
     @State private var isPersonaAttentionHighlighted = false
     @State private var emphasizeCreatePersona = false
     @State private var personaAttentionTask: Task<Void, Never>?
+    @State private var isVercelAISetupPresented = false
 
     private let toastDuration: UInt64 = 4_000_000_000
 
@@ -223,7 +224,10 @@ struct RootView: View {
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .openSettingsWindow)) { notification in
-                let navKey = notification.object as? String
+                // Prefer `object` (primary); accept userInfo["navKey"] as a fallback.
+                let navKey =
+                    (notification.object as? String)
+                    ?? (notification.userInfo?["navKey"] as? String)
                 openSettings(navKey: navKey)
             }
     }
@@ -282,6 +286,18 @@ struct RootView: View {
                     .presentationBackground(.clear)
                     .interactiveDismissDisabled(true)
                 }
+            }
+            .sheet(isPresented: $isVercelAISetupPresented) {
+                VercelAIGatewaySetupWizardView(
+                    onCompleted: {
+                        Task {
+                            await store.refreshStatus()
+                            await configureStore.loadSettingsSections()
+                            await integrationsStore.loadSettingsSections()
+                        }
+                    },
+                    onDismiss: { isVercelAISetupPresented = false }
+                )
             }
     }
 
@@ -526,6 +542,7 @@ struct RootView: View {
                     onRefresh: { Task { await refreshDashboardData() } },
                     onSelectRoute: navigateToRoute,
                     onOpenSettings: { openSettings(navKey: $0) },
+                    onOpenAIProviderSetup: { isVercelAISetupPresented = true },
                     onOpenPersonaPicker: focusPersonaPickerFromOnboarding,
                     onOpenPermissions: { openWindow(id: "permissions") },
                     onStartChat: startNewChat,

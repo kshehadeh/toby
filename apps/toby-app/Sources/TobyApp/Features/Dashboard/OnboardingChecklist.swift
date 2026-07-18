@@ -57,10 +57,10 @@ struct OnboardingChecklist: Equatable {
 			OnboardingStep(
 				kind: .configureAIProvider,
 				title: "Configure AI provider",
-				subtitle: "Pick the model that powers Toby",
+				subtitle: "Connect Vercel AI Gateway (recommended)",
 				systemImage: "cpu",
 				isComplete: hasConfiguredAIProvider,
-				actionLabel: "Configure"
+				actionLabel: "Connect"
 			),
 			OnboardingStep(
 				kind: .connectIntegrations,

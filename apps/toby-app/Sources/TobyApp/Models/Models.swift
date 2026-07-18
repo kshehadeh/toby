@@ -404,6 +404,57 @@ struct AIProvidersUsageResponse: Decodable {
 	let usage: [AIProviderUsage]
 }
 
+/// Generic guided setup guide for any AI provider that supports it.
+struct AIProviderSetupGuide: Decodable {
+	let providerId: String
+	let displayName: String
+	let description: String?
+	let defaultModel: String?
+	let steps: [AIProviderSetupGuideStep]
+	let fields: [AIProviderSetupField]
+	let meta: AIProviderSetupMeta?
+}
+
+struct AIProviderSetupGuideStep: Decodable, Identifiable {
+	let id: String
+	let title: String
+	let description: String?
+	let url: String?
+	let urlLabel: String?
+}
+
+struct AIProviderSetupField: Decodable, Identifiable {
+	var id: String { key }
+	let key: String
+	let label: String
+	let secret: Bool?
+	let placeholder: String?
+	let required: Bool?
+}
+
+/// Open-ended provider extras (deep links, flags). Unknown keys are ignored.
+struct AIProviderSetupMeta: Decodable {
+	let signupUrl: String?
+	let apiKeysUrl: String?
+	let recommended: Bool?
+}
+
+struct AIProviderSetupResponse: Decodable {
+	let ok: Bool
+	let providerId: String
+	let model: String?
+	let personaName: String?
+	let configured: Bool
+	let remaining: Double?
+	let totalSpent: Double?
+	let details: AIProviderSetupDetails?
+}
+
+struct AIProviderSetupDetails: Decodable {
+	let remaining: Double?
+	let totalSpent: Double?
+}
+
 struct PluginsListResponse: Decodable {
 	let directory: String?
 	let plugins: [PluginSummary]

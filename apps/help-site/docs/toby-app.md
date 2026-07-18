@@ -190,6 +190,7 @@ Once the service is reachable, Toby.app uses it for:
 - persona options
 - configure tree reads and writes
 - integration setup guides / wizards for onboarding new integrations
+- guided Vercel AI Gateway setup (Dashboard onboarding and Settings → AI)
 
 Toby.app also preloads shared list data after the service is reachable so the
 Dashboard, sidebar, and command palette can show counts and shortcuts without

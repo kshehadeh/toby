@@ -11,9 +11,13 @@ Personas that use the **vercel** provider must use **gateway model slugs** in `p
 
 ## Get an API key
 
-1. Sign in to the [Vercel dashboard](https://vercel.com/).
-2. Open your team’s **AI Gateway** settings (see [Authentication](https://vercel.com/docs/ai-gateway#authentication) in Vercel’s docs).
-3. Create an **API key** and copy it.
+**Easiest path:** use Toby’s guided setup (Dashboard onboarding **Connect**, or **Settings → AI → Vercel AI Gateway → Guided setup**). The wizard opens Vercel signup and the [AI Gateway API Keys](https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway%2Fapi-keys&title=AI+Gateway+API+Keys) page, then validates and saves your key.
+
+Manual steps:
+
+1. Sign in to the [Vercel dashboard](https://vercel.com/) (or [create an account](https://vercel.com/signup)).
+2. Open [AI Gateway → API Keys](https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway%2Fapi-keys&title=AI+Gateway+API+Keys).
+3. Create an **API key** (name it **Toby**), copy it immediately, and paste it into Toby.
 
 Alternatively, for local development on a linked Vercel project, you can use a
 **`VERCEL_OIDC_TOKEN`** so Toby can authenticate without a static key (see
@@ -23,9 +27,10 @@ You can also set **`AI_GATEWAY_API_KEY`** in your environment instead of storing
 
 ## Configure in Toby
 
-Open **Toby.app → Settings → AI → Vercel AI Gateway → API Key** and paste your key, **or** rely on `AI_GATEWAY_API_KEY` / `VERCEL_OIDC_TOKEN` if you already set those in your environment.
+1. **Guided setup (recommended):** Dashboard checklist → **Configure AI provider → Connect**, or **Settings → AI → Vercel AI Gateway → Guided setup**. Toby validates the key and sets the built-in **Toby** persona to `vercel` / `openai/gpt-5-mini`.
+2. **Manual:** **Settings → AI → Vercel AI Gateway → API Key**, paste your key, then set a persona’s **AI Provider** to `vercel` and pick a model.
 
-For a persona, set **AI Provider** to `vercel`, then pick a model from the list or enter a **Custom model slug** (any slug your gateway account exposes).
+For any persona, set **AI Provider** to `vercel`, then pick a model from the list or enter a **Custom model slug** (any slug your gateway account exposes).
 
 Once your gateway API key is configured, the model picker loads the **live catalog** from Vercel AI Gateway (language models). If the catalog cannot be reached, Toby falls back to the curated list below.
 

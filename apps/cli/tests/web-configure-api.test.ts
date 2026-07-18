@@ -619,6 +619,129 @@ describe("persona API", () => {
 		expect(openai?.configured).toBe(false);
 	});
 
+	it("GET /api/ai/providers/:id/setup returns guide for supported providers", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/ai/providers/vercel/setup"),
+			null,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			providerId: string;
+			displayName: string;
+			defaultModel: string;
+			fields: Array<{ key: string; secret?: boolean }>;
+			steps: Array<{ id: string; title: string }>;
+			meta?: { signupUrl?: string; apiKeysUrl?: string };
+		};
+		expect(body.providerId).toBe("vercel");
+		expect(body.displayName).toMatch(/Vercel/i);
+		expect(body.defaultModel).toContain("/");
+		expect(body.fields.some((f) => f.key === "apiKey")).toBe(true);
+		expect(body.steps.length).toBeGreaterThanOrEqual(3);
+		expect(body.meta?.signupUrl).toContain("vercel.com");
+		expect(body.meta?.apiKeysUrl).toContain("ai-gateway");
+	});
+
+	it("GET /api/ai/providers/:id/setup returns 404 without a setup adapter", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/ai/providers/openai/setup"),
+			null,
+		);
+		expect(res.status).toBe(404);
+	});
+
+	it("POST /api/ai/providers/:id/setup rejects missing fields", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/ai/providers/vercel/setup", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ fields: {} }),
+			}),
+			null,
+		);
+		expect(res.status).toBe(400);
+	});
+
+	it("POST /api/ai/providers/:id/setup saves a valid key and sets persona", async () => {
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = (async (input: RequestInfo | URL) => {
+			const url = String(input);
+			if (url.includes("ai-gateway.vercel.sh/v1/credits")) {
+				return new Response(
+					JSON.stringify({ balance: "5.00", total_used: "0" }),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			return originalFetch(input as RequestInfo);
+		}) as typeof fetch;
+
+		try {
+			const res = await handleWebRequest(
+				new Request("http://127.0.0.1/api/ai/providers/vercel/setup", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ fields: { apiKey: "vck_test_from_api" } }),
+				}),
+				null,
+			);
+			expect(res.status).toBe(200);
+			const body = (await res.json()) as {
+				ok: boolean;
+				providerId: string;
+				model: string;
+				personaName: string;
+				configured: boolean;
+				remaining?: number;
+				details?: { remaining?: number };
+			};
+			expect(body.ok).toBe(true);
+			expect(body.providerId).toBe("vercel");
+			expect(body.configured).toBe(true);
+			expect(body.personaName).toBe("Toby");
+			expect(body.model).toContain("openai/");
+			expect(body.remaining).toBe(5);
+			expect(body.details?.remaining).toBe(5);
+
+			const creds = readCredentials();
+			expect(creds.ai?.vercel?.apiKey).toBe("vck_test_from_api");
+			const cfg = readConfig();
+			const toby = cfg.personas.find((p) => p.name === "Toby");
+			expect(toby?.ai.provider).toBe("vercel");
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
+	it("POST /api/ai/providers/:id/setup accepts flat legacy body", async () => {
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = (async (input: RequestInfo | URL) => {
+			const url = String(input);
+			if (url.includes("ai-gateway.vercel.sh/v1/credits")) {
+				return new Response(
+					JSON.stringify({ balance: "1", total_used: "0" }),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			return originalFetch(input as RequestInfo);
+		}) as typeof fetch;
+
+		try {
+			const res = await handleWebRequest(
+				new Request("http://127.0.0.1/api/ai/providers/vercel/setup", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ apiKey: "vck_flat_body" }),
+				}),
+				null,
+			);
+			expect(res.status).toBe(200);
+			const creds = readCredentials();
+			expect(creds.ai?.vercel?.apiKey).toBe("vck_flat_body");
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
 	it("GET /api/personas returns list with isDefault and isBuiltIn flags", async () => {
 		const res = await handleWebRequest(
 			new Request("http://127.0.0.1/api/personas"),

@@ -5,6 +5,10 @@ struct ConfigureSectionDetailView: View {
 	let section: SettingsItem
 	/// Client-local prefs for app-only Dashboard controls (card visibility, onboarding).
 	@Bindable var appearancePreferences: AppearancePreferences = .shared
+	/// Called after guided Vercel setup succeeds so the host can refresh status.
+	var onVercelSetupCompleted: (() -> Void)? = nil
+
+	@State private var isVercelSetupPresented = false
 
 	private var fields: [SettingsItem] {
 		store.detailFields(for: section)
@@ -140,6 +144,21 @@ struct ConfigureSectionDetailView: View {
 				}
 
 				if isAIProviderSection {
+					if section.key == "ai.vercel" {
+						SettingsCard {
+							SettingsRow(
+								title: "Guided setup",
+								description:
+									"Step-by-step Vercel account, API key creation, and one-click validation.",
+								showsDivider: false
+							) {
+								SettingsActionButton(title: "Start setup") {
+									isVercelSetupPresented = true
+								}
+								.accessibilityIdentifier("vercel-guided-setup-button")
+							}
+						}
+					}
 					if let providerId = aiProviderId {
 						AIProviderUsageView(providerId: providerId)
 					}
@@ -168,6 +187,15 @@ struct ConfigureSectionDetailView: View {
 			if isIntegrationSection {
 				await store.loadIntegrationStatus(for: section.key)
 			}
+		}
+		.sheet(isPresented: $isVercelSetupPresented) {
+			VercelAIGatewaySetupWizardView(
+				onCompleted: {
+					onVercelSetupCompleted?()
+					Task { await store.loadSectionDetail(section.key) }
+				},
+				onDismiss: { isVercelSetupPresented = false }
+			)
 		}
 	}
 }

@@ -109,10 +109,10 @@ struct DashboardModelsTests {
 		)
 		#expect(checklist.upNextKind == .connectIntegrations)
 		let ai = checklist.steps.first { $0.kind == .configureAIProvider }
-		#expect(ai?.subtitle == "Pick the model that powers Toby")
+		#expect(ai?.subtitle == "Connect Vercel AI Gateway (recommended)")
 		#expect(ai?.systemImage == "cpu")
 		#expect(ai?.isComplete == true)
-		#expect(ai?.actionLabel == "Configure")
+		#expect(ai?.actionLabel == "Connect")
 		let integrations = checklist.steps.first { $0.kind == .connectIntegrations }
 		#expect(integrations?.systemImage == DetailRoute.integrations.systemImage)
 		let skills = checklist.steps.first { $0.kind == .createSkill }
@@ -274,7 +274,7 @@ struct DashboardViewTests {
 			try card.inspect().find(text: " of 9 done")
 		}
 		#expect(throws: Never.self) {
-			try card.inspect().find(text: "Pick the model that powers Toby")
+			try card.inspect().find(text: "Connect Vercel AI Gateway (recommended)")
 		}
 	}
 
@@ -462,9 +462,9 @@ struct DashboardViewTests {
 		#expect(prefs.hideOnboarding == true)
 	}
 
-	@Test("configure AI provider action opens settings on ai section")
-	func configureAIProviderOpensAISettings() throws {
-		var openedNavKey: String?
+	@Test("configure AI provider action opens Vercel guided setup")
+	func configureAIProviderOpensVercelSetup() throws {
+		var didOpenAISetup = false
 		let incomplete = OnboardingChecklist.make(
 			hasConfiguredAIProvider: false,
 			hasConnectedIntegrations: true,
@@ -483,7 +483,8 @@ struct DashboardViewTests {
 			isOnboardingReady: true,
 			onRefresh: {},
 			onSelectRoute: { _ in },
-			onOpenSettings: { openedNavKey = $0 },
+			onOpenSettings: { _ in },
+			onOpenAIProviderSetup: { didOpenAISetup = true },
 			onOpenPermissions: {},
 			onStartChat: {},
 			onSummarizeEmail: {},
@@ -493,7 +494,7 @@ struct DashboardViewTests {
 			viewWithAccessibilityIdentifier: "onboarding-action-configureAIProvider"
 		).button()
 		try button.tap()
-		#expect(openedNavKey == "ai")
+		#expect(didOpenAISetup == true)
 	}
 
 	@Test("setup persona action opens persona picker")

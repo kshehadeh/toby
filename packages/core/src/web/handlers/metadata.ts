@@ -1,12 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
 import { isAIProviderConfigured } from "../../ai/model-factory";
-import { resolveAIProvidersForUI } from "../../ai/model-list";
+import {
+	clearModelListCache,
+	resolveAIProvidersForUI,
+} from "../../ai/model-list";
 import {
 	clearPlanUsageCache,
 	fetchAIProviderPlanUsage,
 	fetchAllAIProviderPlanUsage,
 } from "../../ai/plan-usage";
+import {
+	getProviderSetupAdapter,
+	hasProviderSetupAdapter,
+} from "../../ai/provider-setup";
 import { listUsableChatModules } from "../../chat-pipeline/resolve-chat-modules";
 import { listPersonaOptions } from "../../chat-pipeline/turn-runtime";
 import {
@@ -14,10 +21,11 @@ import {
 	getDefaultPersonaName,
 	resolvePersonaImagePath,
 } from "../../config/index";
+import { invalidateSettingsCache } from "../../configure/settings-cache";
 import { DEFAULT_CHAT_PERSONA, listPersonas } from "../../personas/index";
 import { loadLocalSkills } from "../../skills/index";
 import { resolveSkillIconPath } from "../../skills/manage";
-import { errorResponse, jsonResponse } from "../http-utils";
+import { errorResponse, jsonResponse, readJsonBody } from "../http-utils";
 
 const ICON_CONTENT_TYPES: Record<string, string> = {
 	".png": "image/png",
@@ -88,6 +96,8 @@ export async function handleAIProviders(): Promise<Response> {
 			models: p.models,
 			allowCustomModel: p.allowCustomModel ?? false,
 			configured: isAIProviderConfigured(p.id),
+			/** True when GET/POST `/api/ai/providers/:id/setup` is implemented. */
+			supportsGuidedSetup: hasProviderSetupAdapter(p.id),
 		})),
 	});
 }
@@ -127,6 +137,112 @@ export async function handleAIProviderUsage(
 			fetchedAt: usage.fetchedAt,
 		},
 	});
+}
+
+/**
+ * Guided setup guide for any provider that registered a setup adapter.
+ * `GET /api/ai/providers/:providerId/setup`
+ */
+export async function handleAIProviderSetupGuide(
+	providerId: string,
+): Promise<Response> {
+	const adapter = getProviderSetupAdapter(providerId);
+	if (!adapter) {
+		return errorResponse(
+			`Provider "${providerId}" does not support guided setup`,
+			404,
+		);
+	}
+	const guide = await adapter.getGuide();
+	return jsonResponse(guide);
+}
+
+/**
+ * Complete guided setup for a provider.
+ * `POST /api/ai/providers/:providerId/setup`
+ *
+ * Body (open-ended):
+ * ```json
+ * { "fields": { "apiKey": "…" }, "model": "optional-slug" }
+ * ```
+ * Flat legacy body `{ apiKey, model? }` is also accepted and folded into `fields`.
+ */
+export async function handleAIProviderSetup(
+	providerId: string,
+	req: Request,
+): Promise<Response> {
+	const adapter = getProviderSetupAdapter(providerId);
+	if (!adapter) {
+		return errorResponse(
+			`Provider "${providerId}" does not support guided setup`,
+			404,
+		);
+	}
+
+	const body = await readJsonBody<Record<string, unknown>>(req);
+	const fields = normalizeSetupFields(body);
+	const model = typeof body?.model === "string" ? body.model : undefined;
+
+	try {
+		const result = await adapter.setup({ fields, model });
+		if (!result.ok) {
+			return errorResponse(result.error, result.status ?? 400);
+		}
+
+		invalidateSettingsCache();
+		clearModelListCache(providerId);
+		clearPlanUsageCache(providerId);
+
+		return jsonResponse({
+			ok: true,
+			providerId: result.providerId,
+			model: result.model,
+			personaName: result.personaName,
+			configured: isAIProviderConfigured(providerId),
+			details: result.details ?? {},
+			// Convenience flat mirrors for common detail keys (optional).
+			remaining:
+				typeof result.details?.remaining === "number"
+					? result.details.remaining
+					: undefined,
+			totalSpent:
+				typeof result.details?.totalSpent === "number"
+					? result.details.totalSpent
+					: undefined,
+		});
+	} catch (e) {
+		return errorResponse(e instanceof Error ? e.message : String(e), 500);
+	}
+}
+
+/**
+ * Accept either `{ fields: Record<string, string> }` or a flat map of string
+ * values (excluding `model`) so clients can stay simple.
+ */
+function normalizeSetupFields(
+	body: Record<string, unknown> | null | undefined,
+): Record<string, string> {
+	if (!body) return {};
+	const nested = body.fields;
+	if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+		const out: Record<string, string> = {};
+		for (const [key, value] of Object.entries(
+			nested as Record<string, unknown>,
+		)) {
+			if (typeof value === "string") {
+				out[key] = value;
+			}
+		}
+		return out;
+	}
+	const out: Record<string, string> = {};
+	for (const [key, value] of Object.entries(body)) {
+		if (key === "model" || key === "fields") continue;
+		if (typeof value === "string") {
+			out[key] = value;
+		}
+	}
+	return out;
 }
 
 export async function handleModulesList(): Promise<Response> {
