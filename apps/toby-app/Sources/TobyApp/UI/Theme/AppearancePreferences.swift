@@ -140,6 +140,7 @@ enum AccentPreset: String, CaseIterable, Identifiable, Sendable {
 enum DashboardBlock: String, CaseIterable, Identifiable, Sendable {
 	case email
 	case tasks
+	case calendar
 
 	var id: String { rawValue }
 
@@ -147,6 +148,7 @@ enum DashboardBlock: String, CaseIterable, Identifiable, Sendable {
 		switch self {
 		case .email: "Unread mail"
 		case .tasks: "Tasks"
+		case .calendar: "Upcoming"
 		}
 	}
 
@@ -154,6 +156,7 @@ enum DashboardBlock: String, CaseIterable, Identifiable, Sendable {
 		switch self {
 		case .email: "Show unread mail"
 		case .tasks: "Show tasks"
+		case .calendar: "Show upcoming events"
 		}
 	}
 
@@ -161,6 +164,8 @@ enum DashboardBlock: String, CaseIterable, Identifiable, Sendable {
 		switch self {
 		case .email: "Show the unread mail card on the home dashboard. Stored only on this Mac."
 		case .tasks: "Show the tasks card on the home dashboard. Stored only on this Mac."
+		case .calendar:
+			"Show the upcoming events card on the home dashboard. Stored only on this Mac."
 		}
 	}
 
@@ -173,6 +178,7 @@ enum DashboardBlock: String, CaseIterable, Identifiable, Sendable {
 		switch self {
 		case .email: AppearanceDefaultsKey.showDashboardEmail
 		case .tasks: AppearanceDefaultsKey.showDashboardTasks
+		case .calendar: AppearanceDefaultsKey.showDashboardCalendar
 		}
 	}
 }
@@ -190,6 +196,8 @@ enum AppearanceDefaultsKey {
 	static let showDashboardEmail = "toby.appearance.showDashboardEmail"
 	/// Whether the tasks dashboard card is visible. Default on.
 	static let showDashboardTasks = "toby.appearance.showDashboardTasks"
+	/// Whether the upcoming-events dashboard card is visible. Default on.
+	static let showDashboardCalendar = "toby.appearance.showDashboardCalendar"
 	/// Open Toby automatically when this Mac logs in (Settings → General).
 	static let launchAtLogin = "toby.general.launchAtLogin"
 	/// Show the Toby status item in the menu bar (Settings → General). Default on.
@@ -210,6 +218,7 @@ final class AppearancePreferences {
 	static let hideOnboardingDefaultsKey = AppearanceDefaultsKey.hideOnboarding
 	static let showDashboardEmailDefaultsKey = AppearanceDefaultsKey.showDashboardEmail
 	static let showDashboardTasksDefaultsKey = AppearanceDefaultsKey.showDashboardTasks
+	static let showDashboardCalendarDefaultsKey = AppearanceDefaultsKey.showDashboardCalendar
 	static let launchAtLoginDefaultsKey = AppearanceDefaultsKey.launchAtLogin
 	static let showMenuBarIconDefaultsKey = AppearanceDefaultsKey.showMenuBarIcon
 	static let chatTranscriptModeDefaultsKey = AppearanceDefaultsKey.chatTranscriptMode
@@ -265,11 +274,20 @@ final class AppearancePreferences {
 		}
 	}
 
+	/// When true, show the upcoming events card on the home dashboard. Default is on.
+	var showDashboardCalendar: Bool {
+		didSet {
+			guard showDashboardCalendar != oldValue else { return }
+			defaults.set(showDashboardCalendar, forKey: Self.showDashboardCalendarDefaultsKey)
+		}
+	}
+
 	/// Whether the given dashboard block should be visible on the home screen.
 	func isDashboardBlockVisible(_ block: DashboardBlock) -> Bool {
 		switch block {
 		case .email: showDashboardEmail
 		case .tasks: showDashboardTasks
+		case .calendar: showDashboardCalendar
 		}
 	}
 
@@ -278,6 +296,7 @@ final class AppearancePreferences {
 		switch block {
 		case .email: showDashboardEmail = visible
 		case .tasks: showDashboardTasks = visible
+		case .calendar: showDashboardCalendar = visible
 		}
 	}
 
@@ -378,6 +397,7 @@ final class AppearancePreferences {
 		hideOnboarding: Bool? = nil,
 		showDashboardEmail: Bool? = nil,
 		showDashboardTasks: Bool? = nil,
+		showDashboardCalendar: Bool? = nil,
 		launchAtLogin: Bool? = nil,
 		showMenuBarIcon: Bool? = nil,
 		chatTranscriptMode: ChatTranscriptMode? = nil,
@@ -438,6 +458,15 @@ final class AppearancePreferences {
 			resolvedShowDashboardTasks = true
 		}
 
+		let resolvedShowDashboardCalendar: Bool
+		if let showDashboardCalendar {
+			resolvedShowDashboardCalendar = showDashboardCalendar
+		} else if defaults.object(forKey: Self.showDashboardCalendarDefaultsKey) != nil {
+			resolvedShowDashboardCalendar = defaults.bool(forKey: Self.showDashboardCalendarDefaultsKey)
+		} else {
+			resolvedShowDashboardCalendar = true
+		}
+
 		// Default off when unset.
 		let resolvedLaunchAtLogin: Bool
 		if let launchAtLogin {
@@ -477,6 +506,7 @@ final class AppearancePreferences {
 		self.hideOnboarding = resolvedHideOnboarding
 		self.showDashboardEmail = resolvedShowDashboardEmail
 		self.showDashboardTasks = resolvedShowDashboardTasks
+		self.showDashboardCalendar = resolvedShowDashboardCalendar
 		self.launchAtLogin = resolvedLaunchAtLogin
 		self.showMenuBarIcon = resolvedShowMenuBarIcon
 		self.chatTranscriptMode = resolvedChatTranscriptMode
@@ -497,6 +527,9 @@ final class AppearancePreferences {
 		}
 		if showDashboardTasks != nil {
 			defaults.set(resolvedShowDashboardTasks, forKey: Self.showDashboardTasksDefaultsKey)
+		}
+		if showDashboardCalendar != nil {
+			defaults.set(resolvedShowDashboardCalendar, forKey: Self.showDashboardCalendarDefaultsKey)
 		}
 		if launchAtLogin != nil {
 			defaults.set(resolvedLaunchAtLogin, forKey: Self.launchAtLoginDefaultsKey)

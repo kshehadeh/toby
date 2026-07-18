@@ -16,6 +16,7 @@ struct AppearancePreferencesTests {
 		#expect(prefs.hideOnboarding == false)
 		#expect(prefs.showDashboardEmail == true)
 		#expect(prefs.showDashboardTasks == true)
+		#expect(prefs.showDashboardCalendar == true)
 		#expect(prefs.launchAtLogin == false)
 		#expect(prefs.showMenuBarIcon == true)
 		#expect(prefs.chatTranscriptMode == .normal)
@@ -62,6 +63,7 @@ struct AppearancePreferencesTests {
 		prefs.hideOnboarding = true
 		prefs.showDashboardEmail = false
 		prefs.showDashboardTasks = false
+		prefs.showDashboardCalendar = false
 		prefs.launchAtLogin = true
 		prefs.showMenuBarIcon = false
 		prefs.chatTranscriptMode = .debug
@@ -70,6 +72,7 @@ struct AppearancePreferencesTests {
 		#expect(suite.bool(forKey: AppearancePreferences.hideOnboardingDefaultsKey) == true)
 		#expect(suite.bool(forKey: AppearancePreferences.showDashboardEmailDefaultsKey) == false)
 		#expect(suite.bool(forKey: AppearancePreferences.showDashboardTasksDefaultsKey) == false)
+		#expect(suite.bool(forKey: AppearancePreferences.showDashboardCalendarDefaultsKey) == false)
 		#expect(suite.bool(forKey: AppearancePreferences.launchAtLoginDefaultsKey) == true)
 		#expect(suite.bool(forKey: AppearancePreferences.showMenuBarIconDefaultsKey) == false)
 		#expect(suite.string(forKey: AppearancePreferences.chatTranscriptModeDefaultsKey) == "debug")
@@ -80,6 +83,7 @@ struct AppearancePreferencesTests {
 		#expect(reloaded.hideOnboarding == true)
 		#expect(reloaded.showDashboardEmail == false)
 		#expect(reloaded.showDashboardTasks == false)
+		#expect(reloaded.showDashboardCalendar == false)
 		#expect(reloaded.launchAtLogin == true)
 		#expect(reloaded.showMenuBarIcon == false)
 		#expect(reloaded.chatTranscriptMode == .debug)
@@ -195,10 +199,16 @@ struct AppearancePreferencesTests {
 			try view.inspect().find(text: "Show tasks")
 		}
 		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Show upcoming events")
+		}
+		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-show-email-toggle")
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-show-tasks-toggle")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-show-calendar-toggle")
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Hide onboarding checklist")
@@ -214,12 +224,16 @@ struct AppearancePreferencesTests {
 		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
 		#expect(prefs.isDashboardBlockVisible(.email))
 		#expect(prefs.isDashboardBlockVisible(.tasks))
+		#expect(prefs.isDashboardBlockVisible(.calendar))
 		prefs.setDashboardBlockVisible(.email, visible: false)
 		#expect(!prefs.isDashboardBlockVisible(.email))
 		#expect(prefs.showDashboardEmail == false)
 		prefs.setDashboardBlockVisible(.tasks, visible: false)
 		#expect(!prefs.isDashboardBlockVisible(.tasks))
 		#expect(prefs.showDashboardTasks == false)
+		prefs.setDashboardBlockVisible(.calendar, visible: false)
+		#expect(!prefs.isDashboardBlockVisible(.calendar))
+		#expect(prefs.showDashboardCalendar == false)
 	}
 
 	@Test("monochrome AI icon URLs use template rendering")

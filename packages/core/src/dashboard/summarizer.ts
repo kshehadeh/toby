@@ -29,6 +29,11 @@ The summary should surface emails that should be attended to first followed by t
 This should be no longer than 5-6 sentences.`,
 	tasks: `Summarize my tasks and reminders focusing on the ones that are most urgent, are particularly late or appear to be important based on the description.
 This should be no longer than 5-6 sentences.`,
+	calendar: `Summarize my upcoming calendar events for the next week.
+Call out what is happening soonest, any conflicts or back-to-back blocks if obvious from the list, and anything that looks like a meeting I should prepare for.
+This should be no longer than 5-6 sentences. Use "Today", "Tommorow", "Later" headers.  Do not go beyond the next three business days.  So, if it's Friday,
+summarize events for Friday, Saturday, Sunday, Monday, and Tuesday. But if it's Monday then just
+summarize events for Monday, Tuesday, and Wednesday.  If there are no events in the next three business days, then just say "No upcoming events in the next three business days."`,
 };
 
 interface SummaryCacheEntry {
@@ -79,12 +84,42 @@ function persistSummary(summary: DashboardCategoryAiSummary): void {
 	}
 }
 
+/** Remove a category entry from the on-disk summary file (e.g. CoT garbage). */
+function clearPersistedSummary(category: string): void {
+	try {
+		const filePath = getDashboardSummariesPath();
+		if (!fs.existsSync(filePath)) return;
+		const existing = loadPersistedSummaries();
+		if (!(category in existing)) return;
+		const { [category]: _removed, ...rest } = existing;
+		fs.writeFileSync(filePath, JSON.stringify(rest, null, 2), "utf-8");
+	} catch (error) {
+		daemonLog("warn", "general", "dashboard_summary_clear_error", {
+			category,
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
+}
+
 /** Get a persisted summary for a category, or null if none exists. */
 function getPersistedSummary(
 	category: string,
 ): DashboardCategoryAiSummary | null {
 	const all = loadPersistedSummaries();
-	return all[category] ?? null;
+	const entry = all[category];
+	if (!entry) return null;
+	// Re-sanitize so older disk entries that stored chain-of-thought are not shown.
+	const text = extractDashboardSummaryText(entry.text);
+	if (!text) {
+		clearPersistedSummary(category);
+		return null;
+	}
+	if (text !== entry.text) {
+		const cleaned: DashboardCategoryAiSummary = { ...entry, text };
+		persistSummary(cleaned);
+		return cleaned;
+	}
+	return entry;
 }
 
 /** Clear the AI summary cache. Useful for testing or config changes. */
@@ -144,6 +179,7 @@ function formatItemsForPrompt(items: readonly DashboardItem[]): string {
  *
  * Prefer the final answer after markdown headings or after explicit "here is the
  * summary" transitions when the preamble looks like internal monologue.
+ * If the entire payload is planning with no salvageable summary, returns "".
  */
 export function extractDashboardSummaryText(raw: string): string {
 	let text = raw.trim();
@@ -153,6 +189,9 @@ export function extractDashboardSummaryText(raw: string): string {
 	text = text
 		.replace(/<think(?:ing)?\b[^>]*>[\s\S]*?<\/think(?:ing)?>/gi, "")
 		.replace(/<reasoning\b[^>]*>[\s\S]*?<\/reasoning>/gi, "")
+		// Unclosed / truncated think tags (stream cut off mid-reasoning).
+		.replace(/<think(?:ing)?\b[^>]*>[\s\S]*$/gi, "")
+		.replace(/<reasoning\b[^>]*>[\s\S]*$/gi, "")
 		.trim();
 
 	// Planning first, then markdown sections (## / # headings).
@@ -160,38 +199,64 @@ export function extractDashboardSummaryText(raw: string): string {
 	if (headingMatch?.index != null && headingMatch.index > 0) {
 		const before = text.slice(0, headingMatch.index).trim();
 		const after = text.slice(headingMatch.index).trim();
-		if (before.length >= 120 && looksLikeModelPlanning(before) && after.length > 0) {
+		if (
+			before.length >= 80 &&
+			looksLikeModelPlanning(before) &&
+			after.length > 0 &&
+			!looksLikeModelPlanning(after)
+		) {
 			return after;
 		}
 	}
 
 	// Explicit transition into the final answer.
 	const transition =
-		/\n(?:I(?:'ll| will) write|Final (?:answer|summary)|Here(?:'s| is) (?:the )?(?:summary|response)|Output)\s*[:：]?\s*\n+/i.exec(
+		/\n(?:I(?:'ll| will) write|Final (?:answer|summary)|Here(?:'s| is) (?:the )?(?:summary|response)|Output|Draft(?:ed)? summary)\s*[:：]?\s*\n+/i.exec(
 			text,
 		);
 	if (transition?.index != null) {
 		const after = text.slice(transition.index + transition[0].length).trim();
-		if (after.length >= 40) return after;
+		if (after.length >= 40 && !looksLikeModelPlanning(after)) return after;
+	}
+
+	// Whole response is internal monologue (no user-facing summary at all).
+	if (looksLikeModelPlanning(text)) {
+		return "";
 	}
 
 	return text;
 }
 
-/** Heuristic: preamble reads like model planning rather than a user-facing summary. */
+/** Heuristic: text reads like model planning rather than a user-facing summary. */
 function looksLikeModelPlanning(text: string): boolean {
 	const patterns = [
 		/\bwe need to\b/i,
 		/\blet'?s\b/i,
 		/\bi(?:'ll| will)\b/i,
-		/\bthe user (?:provided|says|asks)\b/i,
+		/\bthe user (?:provided|says|asks|said)\b/i,
 		/\bfor example, item\b/i,
-		/\bi can (?:see|infer)\b/i,
+		/\bi can (?:see|infer|compute)\b/i,
 		/\bfocusing on\b/i,
 		/\bcurrent date is not given\b/i,
 		/\bstructure\b/i,
+		/\bthe instruction\b/i,
+		/\binstruction says\b/i,
+		/\bso we need to\b/i,
+		/\balso note\b/i,
+		/\blet'?s count\b/i,
+		/\btotal sentences\b/i,
+		/\bthat'?s (?:more|less) than\b/i,
+		/\bsentence \d+\s*:/i,
+		/\bi recall\b/i,
+		/\blet me try\b/i,
+		/\bneed to condense\b/i,
+		/\bwe should (?:write|structure|mention|cover)\b/i,
+		/\bdo not go beyond\b/i,
+		/\bactually it'?s\b/i,
+		/\bbetter:\s/i,
 	];
 	const hits = patterns.filter((re) => re.test(text)).length;
+	// Require 2+ hits so real summaries that say "let's" once still pass.
 	return hits >= 2;
 }
 
@@ -205,14 +270,17 @@ function buildSystemPrompt(
 
 ${categoryPrompt}
 
-Output ONLY the final user-facing summary. Do not include chain-of-thought, planning, analysis of the instructions, item-by-item deliberation, or meta-commentary.
+CRITICAL OUTPUT RULES:
+- Reply with ONLY the final user-facing summary in markdown.
+- Do NOT include chain-of-thought, planning, self-checks, sentence counting, drafts, or analysis of these instructions.
+- Do NOT write phrases like "we need to", "let's count", "the instruction says", "sentence 1:", or "also note".
+- Start immediately with the summary (a heading or the first sentence for the user).
 
-Format your response as markdown to help the user quickly scan key information:
+Format:
 - Use **bold** for names, subjects, deadlines, and other key items the user should notice.
 - Use bullet points for lists of items.
 - Use a \`## \` sub-heading to separate "Needs attention" from "Worth mentioning" when appropriate.
-- Keep the total response concise (5-6 sentences). Do not over-format — use markdown only where it genuinely aids readability.
-Do not reference these instructions or mention that you are summarizing.`;
+- Keep the total response concise (5-6 sentences). Do not over-format — use markdown only where it genuinely aids readability.`;
 
 	const withPersona = composeSystemPromptWithPersona(base, persona);
 
@@ -341,9 +409,14 @@ async function generateFreshSummary(
 			// `text`; strip that so the dashboard never shows chain-of-thought.
 			const text = extractDashboardSummaryText(result.text);
 			if (!text) {
+				clearPersistedSummary(category);
 				if (!summaryCache.has(cacheKey)) {
 					summaryCache.set(cacheKey, nullCacheEntry);
 				}
+				daemonLog("warn", "general", "dashboard_summary_cot_stripped", {
+					category,
+					rawChars: result.text?.length ?? 0,
+				});
 				return null;
 			}
 

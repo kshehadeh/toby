@@ -37,7 +37,7 @@ Each provider category maps to a reserved standard tool ID:
 | --- | --- |
 | `email` | `email.unreadSummary` |
 | `tasks` | `tasks.openSummary` |
-| `calendar` (future) | `calendar.upcomingSummary` |
+| `calendar` | `calendar.upcomingSummary` |
 | `work_tracker` (future) | `work_tracker.openSummary` |
 
 A plugin tags one of its tool definitions with `standardTool: "<id>"` to
@@ -76,11 +76,16 @@ interface DashboardItem {
 ```
 
 **`urgency` rules**: deterministic only. `\Flagged` IMAP flag = high.
-Todoist priority 4 = high. Overdue due date = high. Never AI-inferred.
+Todoist priority 4 = high. Overdue due date = high. Calendar: in progress or
+starting within 1 hour = high; within 24 hours = normal; otherwise low.
+Never AI-inferred.
 
 **`groups` rules**: deterministic buckets the source already has (Gmail
-labels, IMAP folders, Todoist projects, Reminders lists). If the source
-has no such signal, omit `groups` entirely.
+labels, IMAP folders, Todoist projects, Reminders lists, calendar names). If
+the source has no such signal, omit `groups` entirely.
+
+**Calendar window**: `calendar.upcomingSummary` returns events from **now**
+through **now + 7 days**.
 
 ## API surface
 
@@ -92,11 +97,20 @@ Returns aggregated dashboard data from all connected providers.
 interface DashboardData {
   email: DashboardCategorySummary | null;
   tasks: DashboardCategorySummary | null;
+  calendar: DashboardCategorySummary | null;
 }
 ```
 
 `null` means no connected providers implement the standard tool for that
 category.
+
+**Default provider (calendar):** when `defaultProviders.calendar` is set in
+config, the aggregator only queries that integration for the calendar card.
+If unset (or the named provider has no dashboard hook), it falls back to all
+connected calendar providers with `calendar.upcomingSummary`.
+
+**Sort order:** email and tasks merge items by timestamp **descending**
+(newest first). Calendar merges items **ascending** (soonest first).
 
 #### `DashboardCategorySummary`
 
@@ -123,7 +137,7 @@ interface DashboardProviderSummary {
 - **sources**: individual provider summaries, one per connected provider
   that responded successfully. Use these for per-account UI rows.
 - **items**: all items from all sources concatenated, sorted by `timestamp`
-  descending, capped at 100.
+  (descending for email/tasks, ascending for calendar), capped at 100.
 - **groups**: union of all source groups. IDs are namespaced as
   `<providerName>:<groupId>` to avoid collisions between providers.
 - **generatedAt**: the most recent `generatedAt` across all sources.

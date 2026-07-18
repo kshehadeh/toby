@@ -38,6 +38,8 @@ struct DashboardView: View {
 	let onOpenPermissions: () -> Void
 	let onStartChat: () -> Void
 	let onSummarizeEmail: () -> Void
+	/// Opens chat with a prefilled prompt about upcoming calendar events.
+	var onPlanInChat: () -> Void = {}
 	/// Client-local prefs (theme / hide onboarding). Defaults to the shared store.
 	@Bindable var appearancePreferences: AppearancePreferences = .shared
 
@@ -58,6 +60,7 @@ struct DashboardView: View {
 			shouldShowOnboarding ? "onboarding" : "",
 			appearancePreferences.showDashboardEmail ? "email" : "",
 			appearancePreferences.showDashboardTasks ? "tasks" : "",
+			appearancePreferences.showDashboardCalendar ? "calendar" : "",
 		].joined(separator: "|")
 	}
 
@@ -100,12 +103,19 @@ struct DashboardView: View {
 		}
 	}
 
+	/// Adaptive columns: as many as fit above `minimum`, so the dashboard
+	/// reflows 3 → 2 → 1 as the window narrows. Onboarding stays outside this grid.
+	private static let cardColumns = [
+		GridItem(.adaptive(minimum: 280, maximum: .infinity), spacing: 20, alignment: .top),
+	]
+
 	@ViewBuilder
 	private var cards: some View {
 		let showEmail = appearancePreferences.showDashboardEmail
 		let showTasks = appearancePreferences.showDashboardTasks
-		if showEmail || showTasks {
-			HStack(alignment: .top, spacing: 20) {
+		let showCalendar = appearancePreferences.showDashboardCalendar
+		if showEmail || showTasks || showCalendar {
+			LazyVGrid(columns: Self.cardColumns, alignment: .leading, spacing: 20) {
 				if showEmail {
 					UnreadMailCard(
 						summary: store.email,
@@ -127,6 +137,18 @@ struct DashboardView: View {
 						isRefreshing: store.isTasksRefreshing,
 						onRefresh: { Task { await store.refreshTasks() } },
 						onAddTask: onStartChat
+					)
+					.transition(DashboardSectionMotion.transition)
+				}
+				if showCalendar {
+					UpcomingEventsCard(
+						summary: store.calendar,
+						aiSummary: store.calendarSummary,
+						isSummaryLoading: store.calendarSummaryLoading,
+						summaryError: store.calendarSummaryError,
+						isRefreshing: store.isCalendarRefreshing,
+						onRefresh: { Task { await store.refreshCalendar() } },
+						onPlanInChat: onPlanInChat
 					)
 					.transition(DashboardSectionMotion.transition)
 				}

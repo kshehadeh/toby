@@ -1,5 +1,9 @@
+import { getDefaultProvider } from "../config/index";
 import { getIntegrationModules } from "../integrations/index";
-import type { IntegrationModule } from "../integrations/types";
+import type {
+	IntegrationModule,
+	ProviderCategory,
+} from "../integrations/types";
 import { daemonLog } from "../logging/daemon-log";
 import type {
 	DashboardCategorySummary,
@@ -14,6 +18,9 @@ const CACHE_TTL_MS = 60_000;
 const PER_PROVIDER_TIMEOUT_MS = 25_000;
 const DEFAULT_LIMIT = 20;
 const MAX_ITEMS_PER_CATEGORY = 100;
+
+/** Categories that should prefer the configured default provider when set. */
+const DEFAULT_PROVIDER_ONLY_CATEGORIES = new Set<string>(["calendar"]);
 
 interface CategoryCacheEntry {
 	readonly data: DashboardCategorySummary | null;
@@ -55,12 +62,13 @@ export async function getDashboardData(params?: {
 }): Promise<DashboardData> {
 	const limit = params?.limit ?? DEFAULT_LIMIT;
 
-	const [email, tasks] = await Promise.all([
+	const [email, tasks, calendar] = await Promise.all([
 		getDashboardCategory("email", { limit }),
 		getDashboardCategory("tasks", { limit }),
+		getDashboardCategory("calendar", { limit }),
 	]);
 
-	return { email, tasks };
+	return { email, tasks, calendar };
 }
 
 /**
@@ -106,11 +114,22 @@ async function aggregateCategory(
 	category: string,
 	limit: number,
 ): Promise<DashboardCategorySummary | null> {
-	const modules = getIntegrationModules().filter(
+	let modules = getIntegrationModules().filter(
 		(m) =>
 			m.providerCategories?.includes(category as never) &&
 			m.dashboard !== undefined,
 	);
+
+	// Calendar (and similar) cards should follow Settings → Defaults when set.
+	if (DEFAULT_PROVIDER_ONLY_CATEGORIES.has(category)) {
+		const defaultName = getDefaultProvider(category as ProviderCategory);
+		if (defaultName) {
+			const preferred = modules.filter((m) => m.name === defaultName);
+			if (preferred.length > 0) {
+				modules = preferred;
+			}
+		}
+	}
 
 	if (modules.length === 0) return null;
 
@@ -140,17 +159,19 @@ async function aggregateCategory(
 
 	const totalCount = sources.reduce((sum, s) => sum + s.summary.count, 0);
 
-	// Concatenate items from all sources, sort by timestamp descending
+	// Concatenate items from all sources. Calendar is soonest-first (ascending);
+	// email/tasks stay most-recent-first (descending).
 	const allItems: DashboardItem[] = [];
 	for (const source of sources) {
 		for (const item of source.summary.items) {
 			allItems.push({ ...item, providerName: source.providerName });
 		}
 	}
+	const ascending = category === "calendar";
 	allItems.sort((a, b) => {
 		const aTime = a.timestamp ?? "";
 		const bTime = b.timestamp ?? "";
-		return bTime.localeCompare(aTime);
+		return ascending ? aTime.localeCompare(bTime) : bTime.localeCompare(aTime);
 	});
 	const cappedItems = allItems.slice(0, MAX_ITEMS_PER_CATEGORY);
 

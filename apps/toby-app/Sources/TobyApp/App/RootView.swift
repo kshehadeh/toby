@@ -529,7 +529,8 @@ struct RootView: View {
                     onOpenPersonaPicker: focusPersonaPickerFromOnboarding,
                     onOpenPermissions: { openWindow(id: "permissions") },
                     onStartChat: startNewChat,
-                    onSummarizeEmail: summarizeUnreadEmailInChat
+                    onSummarizeEmail: summarizeUnreadEmailInChat,
+                    onPlanInChat: planCalendarInChat
                 )
                 .toolbar {
                     commonToolbarItems()
@@ -846,6 +847,15 @@ struct RootView: View {
     private func summarizeUnreadEmailInChat() {
         navigateToRoute(.chat)
         Task { await store.startChatWithPrompt("Show me a summary of all my unread email") }
+    }
+
+    private func planCalendarInChat() {
+        navigateToRoute(.chat)
+        Task {
+            await store.startChatWithPrompt(
+                "Help me plan around my upcoming calendar events for the next week. Summarize what's coming up and what I should prepare for."
+            )
+        }
     }
 
     private func bringMainWindowToFront() {

@@ -43,6 +43,12 @@ function validateSubtools(): JsonRecord[] {
 		details: r2.ok ? "search completed" : (r2.error ?? "failed"),
 	});
 	checks.push({
+		tool: "getUpcomingEventsSummary",
+		ok: true,
+		details:
+			"Not executed during status; used by the home dashboard for upcoming events.",
+	});
+	checks.push({
 		tool: "getCalendarEvent",
 		ok: true,
 		details: "Not executed; requires an event uid from searchCalendarEvents.",
@@ -88,6 +94,8 @@ function handleStatus(
 			path: "assets/icon-256.png",
 			mimeType: "image/png",
 		},
+		// Opens Calendar.app (same pattern as reminders' x-apple-reminderkit://).
+		launchUrl: "ical://",
 		connected,
 		capabilities: ["chat"],
 		providerCategories: ["calendar"],

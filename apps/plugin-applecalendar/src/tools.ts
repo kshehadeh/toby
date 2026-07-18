@@ -7,6 +7,8 @@ export type ToolDefinition = {
 	displayName: string;
 	description: string;
 	readOnly?: boolean;
+	/** Marks a reserved dashboard standard tool contract when set. */
+	standardTool?: string;
 	inputSchema: {
 		type: string;
 		properties: Record<string, { type: string; description: string }>;
@@ -53,6 +55,20 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 					"End date filter, e.g. 2026-01-20 or January 20, 2026. ISO 8601 or natural language accepted.",
 				),
 				limit: prop("number", "Max results (default 30, max 200)"),
+			},
+		},
+	},
+	{
+		name: "getUpcomingEventsSummary",
+		displayName: "Upcoming events summary",
+		description:
+			"Dashboard summary of upcoming Apple Calendar events for the next 7 days. Returns a standardized shape with count, items, groups, and generatedAt. Tagged as calendar.upcomingSummary standard tool.",
+		readOnly: true,
+		standardTool: "calendar.upcomingSummary",
+		inputSchema: {
+			type: "object",
+			properties: {
+				limit: prop("number", "Max items to return (default 20)"),
 			},
 		},
 	},
@@ -238,6 +254,114 @@ export function executeTool(
 				result: {
 					count: data.count ?? 0,
 					events: data.events ?? [],
+				},
+				appliedActions: [],
+			};
+		}
+
+		case "getUpcomingEventsSummary": {
+			if (dryRun) {
+				return {
+					result: {
+						dryRun: true,
+						message: "Would fetch upcoming Apple Calendar events summary.",
+					},
+					appliedActions: [],
+				};
+			}
+			const summaryLimit = Math.min(
+				Math.max(1, intValue(input.limit) ?? 20),
+				200,
+			);
+			const now = new Date();
+			const weekAhead = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+			const r = nativeRequest("calendar/search", {
+				dateFrom: now.toISOString(),
+				dateTo: weekAhead.toISOString(),
+				limit: summaryLimit,
+			});
+			if (!r.ok) {
+				return {
+					result: {
+						count: 0,
+						items: [],
+						generatedAt: new Date().toISOString(),
+					},
+					appliedActions: [],
+				};
+			}
+			const data = r.data ?? {};
+			const events = (data.events ?? []) as JsonRecord[];
+			const nowMs = now.getTime();
+			const oneHourMs = 60 * 60 * 1000;
+			const oneDayMs = 24 * oneHourMs;
+
+			const groups = new Map<string, { label: string; count: number }>();
+			const items = events.map((event) => {
+				const id = String(event.uid ?? "");
+				const title = String(event.summary ?? "");
+				const calendarName = stringValue(event.calendar);
+				const location = stringValue(event.location);
+				const startDate = stringValue(event.startDate);
+				const endDate = stringValue(event.endDate);
+				const isAllDay = boolValue(event.isAllDay) ?? false;
+
+				let urgency: "low" | "normal" | "high" = "low";
+				if (startDate) {
+					const startMs = new Date(startDate).getTime();
+					const endMs = endDate ? new Date(endDate).getTime() : Number.NaN;
+					if (!Number.isNaN(startMs)) {
+						const inProgress =
+							startMs <= nowMs && !Number.isNaN(endMs) && endMs > nowMs;
+						const startingSoon =
+							startMs >= nowMs && startMs - nowMs <= oneHourMs;
+						if (inProgress || startingSoon) {
+							urgency = "high";
+						} else if (startMs - nowMs <= oneDayMs) {
+							urgency = "normal";
+						}
+					}
+				}
+
+				if (calendarName) {
+					const existing = groups.get(calendarName);
+					if (existing) {
+						existing.count += 1;
+					} else {
+						groups.set(calendarName, { label: calendarName, count: 1 });
+					}
+				}
+
+				const detail =
+					location && location.length > 0
+						? location
+						: isAllDay
+							? "All day"
+							: endDate
+								? `${startDate ?? ""} – ${endDate}`
+								: startDate;
+
+				return {
+					id,
+					title,
+					subtitle: calendarName,
+					detail,
+					timestamp: startDate,
+					urgency,
+					groupId: calendarName,
+				};
+			});
+
+			return {
+				result: {
+					count: data.count ?? events.length,
+					groups: [...groups.entries()].map(([id, g]) => ({
+						id,
+						label: g.label,
+						count: g.count,
+					})),
+					items,
+					generatedAt: new Date().toISOString(),
 				},
 				appliedActions: [],
 			};

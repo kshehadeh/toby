@@ -59,6 +59,7 @@ struct DashboardCategorySummary: Decodable, Equatable {
 struct DashboardData: Decodable, Equatable {
 	let email: DashboardCategorySummary?
 	let tasks: DashboardCategorySummary?
+	let calendar: DashboardCategorySummary?
 }
 
 /// AI-generated summary for a single dashboard category.

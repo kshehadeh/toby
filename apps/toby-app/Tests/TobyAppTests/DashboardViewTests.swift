@@ -27,7 +27,24 @@ struct DashboardModelsTests {
 				"groups": [{ "id": "email:urgent", "label": "Urgent", "count": 4 }],
 				"generatedAt": "2026-07-05T09:00:00Z"
 			},
-			"tasks": null
+			"tasks": null,
+			"calendar": {
+				"count": 2,
+				"sources": [{
+					"providerName": "applecalendar",
+					"providerDisplayName": "Apple Calendar",
+					"iconUrl": null,
+					"summary": {
+						"count": 2,
+						"groups": [{ "id": "Work", "label": "Work", "count": 2 }],
+						"items": [{ "id": "e1", "title": "Standup", "subtitle": "Work", "timestamp": "2026-07-17T14:00:00Z", "urgency": "normal" }],
+						"generatedAt": "2026-07-17T10:00:00Z"
+					}
+				}],
+				"items": [{ "id": "e1", "title": "Standup", "subtitle": "Work", "timestamp": "2026-07-17T14:00:00Z", "urgency": "normal" }],
+				"groups": [{ "id": "applecalendar:Work", "label": "Work", "count": 2 }],
+				"generatedAt": "2026-07-17T10:00:00Z"
+			}
 		}
 		""".data(using: .utf8)!
 		let data = try JSONDecoder().decode(DashboardData.self, from: json)
@@ -35,6 +52,8 @@ struct DashboardModelsTests {
 		#expect(data.email?.groups.first?.label == "Urgent")
 		#expect(data.email?.items.first?.subtitle == "Mollye Miller")
 		#expect(data.tasks == nil)
+		#expect(data.calendar?.count == 2)
+		#expect(data.calendar?.items.first?.title == "Standup")
 	}
 
 	@Test("onboarding checklist counts completed steps")
@@ -110,6 +129,7 @@ struct DashboardModelsTests {
 		let store = DashboardStore()
 		#expect(store.email == nil)
 		#expect(store.tasks == nil)
+		#expect(store.calendar == nil)
 		#expect(store.isLoading == false)
 		#expect(store.hasLoadedOnce == false)
 		#expect(store.lastLoadedAt == nil)
@@ -151,13 +171,15 @@ struct DashboardViewTests {
 	private func makeAppearance(
 		hideOnboarding: Bool = false,
 		showDashboardEmail: Bool = true,
-		showDashboardTasks: Bool = true
+		showDashboardTasks: Bool = true,
+		showDashboardCalendar: Bool = true
 	) -> AppearancePreferences {
 		let suite = UserDefaults(suiteName: "toby.tests.dashboard.\(UUID().uuidString)")!
 		return AppearancePreferences(
 			hideOnboarding: hideOnboarding,
 			showDashboardEmail: showDashboardEmail,
 			showDashboardTasks: showDashboardTasks,
+			showDashboardCalendar: showDashboardCalendar,
 			defaults: suite
 		)
 	}
@@ -313,7 +335,7 @@ struct DashboardViewTests {
 		}
 	}
 
-	@Test("dashboard shows mail and tasks cards by default")
+	@Test("dashboard shows mail, tasks, and calendar cards by default")
 	func dashboardShowsMailAndTasksByDefault() throws {
 		let view = makeView(store: DashboardStore())
 		#expect(throws: Never.self) {
@@ -321,6 +343,9 @@ struct DashboardViewTests {
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-tasks-card")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-calendar-card")
 		}
 	}
 
@@ -382,7 +407,8 @@ struct DashboardViewTests {
 			onSummarizeEmail: {},
 			appearancePreferences: makeAppearance(
 				showDashboardEmail: false,
-				showDashboardTasks: false
+				showDashboardTasks: false,
+				showDashboardCalendar: false
 			)
 		)
 		#expect(throws: (any Error).self) {
@@ -390,6 +416,31 @@ struct DashboardViewTests {
 		}
 		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-tasks-card")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-calendar-card")
+		}
+	}
+
+	@Test("dashboard hides calendar card when show preference is off")
+	func dashboardHidesCalendarCardWhenPreferenceOff() throws {
+		let view = DashboardView(
+			store: DashboardStore(),
+			userName: "Karim",
+			onboarding: incompleteChecklist(),
+			isOnboardingReady: true,
+			onRefresh: {},
+			onSelectRoute: { _ in },
+			onOpenPermissions: {},
+			onStartChat: {},
+			onSummarizeEmail: {},
+			appearancePreferences: makeAppearance(showDashboardCalendar: false)
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-mail-card")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-calendar-card")
 		}
 	}
 
@@ -561,8 +612,10 @@ struct DashboardSummaryTests {
 		let store = DashboardStore()
 		#expect(store.emailSummary == nil)
 		#expect(store.tasksSummary == nil)
+		#expect(store.calendarSummary == nil)
 		#expect(store.emailSummaryLoading == false)
 		#expect(store.tasksSummaryLoading == false)
+		#expect(store.calendarSummaryLoading == false)
 		#expect(store.isSummaryLoading == false)
 		#expect(store.summariesAreStale == true)
 		#expect(store.lastSummaryLoadedAt == nil)

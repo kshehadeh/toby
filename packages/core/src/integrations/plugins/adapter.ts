@@ -532,11 +532,15 @@ function buildPluginDashboardHook(
 				if (toolName) break;
 			}
 			if (!toolName) {
-				return {
-					count: 0,
-					items: [],
-					generatedAt: new Date().toISOString(),
-				};
+				// Do not return a fake empty summary — that looks like "no events"
+				// when the installed plugin is simply stale / missing the tool.
+				daemonLog("warn", "plugin", "dashboard_standard_tool_missing", {
+					plugin: name,
+					expectedStandardTools: [...standardToolIds],
+				});
+				throw new Error(
+					`Plugin "${name}" has no tool tagged with a dashboard standardTool id (${[...standardToolIds].join(", ")}). Rebuild/reinstall the plugin.`,
+				);
 			}
 
 			const envelope = buildEnvelope(name);

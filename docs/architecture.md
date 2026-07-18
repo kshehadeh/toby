@@ -107,6 +107,7 @@ alongside the daemon-backed summary persona:
 | --- | ------- | ---------- | ------- |
 | `toby.appearance.showDashboardEmail` | **true** | Show unread mail | Show/hide the unread mail card on the home dashboard |
 | `toby.appearance.showDashboardTasks` | **true** | Show tasks | Show/hide the tasks card on the home dashboard |
+| `toby.appearance.showDashboardCalendar` | **true** | Show upcoming events | Show/hide the upcoming calendar events card on the home dashboard |
 | `toby.appearance.hideOnboarding` | **false** | Hide onboarding checklist | Hide the setup checklist even if steps are incomplete |
 
 **Start at login** uses `ServiceManagement.SMAppService`; macOS may require the

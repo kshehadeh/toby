@@ -151,8 +151,10 @@ status cues) across Toby.app windows. Same preset in light and dark.
 Under **Settings → Dashboard**, you can set the persona used for dashboard
 summaries and control which home-dashboard cards are visible (app-local):
 
-- **Show unread mail** / **Show tasks** — On by default. Turn either off to hide
-  that card on the home dashboard; turn it back on to show it again.
+- **Show unread mail** / **Show tasks** / **Show upcoming events** — On by
+  default. Turn any off to hide that card on the home dashboard; turn it back on
+  to show it again. Upcoming events come from your default calendar provider
+  (Settings → Default Providers).
 - **Hide onboarding checklist** — Off by default. Turning that on removes the
   setup checklist from the home dashboard even if steps remain incomplete; turn
   it off to bring the checklist back.

@@ -3,19 +3,88 @@ import SwiftUI
 
 // MARK: - Card container
 
-struct DashboardCard<Content: View>: View {
-	let content: Content
+/// Shared layout tokens for equal-height non-onboarding dashboard blocks.
+enum DashboardBlockLayout {
+	/// Collapsed height for mail / tasks / calendar cards (aligned in a row).
+	static let collapsedHeight: CGFloat = 340
+	/// Soft fade over clipped body text (fully opaque at the bottom of the fade).
+	static let showMoreFadeHeight: CGFloat = 40
+	/// Solid control bar under the fade (no body text in this band).
+	static let showMoreButtonHeight: CGFloat = 36
+	static var showMoreChromeHeight: CGFloat {
+		showMoreFadeHeight + showMoreButtonHeight
+	}
+}
 
-	init(@ViewBuilder content: () -> Content) {
-		self.content = content()
+private struct DashboardCardContentHeightKey: PreferenceKey {
+	static let defaultValue: CGFloat = 0
+	static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+		value = max(value, nextValue())
+	}
+}
+
+/// Equal-height dashboard block with overflow “Show more”.
+///
+/// Collapsed height is shared across mail / tasks / calendar so a row of cards
+/// aligns. Expanding grows the card **in layout** so siblings are not covered
+/// and the parent ScrollView can scroll to the full content. Hovering away
+/// collapses it again.
+struct DashboardCard<Content: View>: View {
+	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+	@ViewBuilder private let content: () -> Content
+
+	@State private var isExpanded = false
+	@State private var isPointerInside = false
+	@State private var intrinsicContentHeight: CGFloat = 0
+	/// Ignores the hover-exit that fires when the “Show more” control is removed
+	/// from under the cursor right after expand (would otherwise flash-collapse).
+	@State private var suppressHoverCollapse = false
+
+	init(@ViewBuilder content: @escaping () -> Content) {
+		self.content = content
+	}
+
+	/// Content taller than the collapsed body band needs “Show more”.
+	private var isOverflowing: Bool {
+		let bodyBudget =
+			DashboardBlockLayout.collapsedHeight - DashboardBlockLayout.showMoreChromeHeight
+		return intrinsicContentHeight > bodyBudget + 0.5
+	}
+
+	private var motion: Animation? {
+		reduceMotion ? nil : DashboardSectionMotion.animation
 	}
 
 	var body: some View {
-		VStack(alignment: .leading, spacing: 0) {
-			content
+		// Single continuous hierarchy so expand doesn’t tear down the hovered view.
+		ZStack(alignment: .bottom) {
+			cardBody
+				.frame(maxWidth: .infinity, alignment: .topLeading)
+				.frame(
+					maxHeight: isExpanded ? nil : DashboardBlockLayout.collapsedHeight,
+					alignment: .topLeading
+				)
+				.padding(
+					.bottom,
+					(!isExpanded && isOverflowing)
+						? DashboardBlockLayout.showMoreButtonHeight
+						: 0
+				)
+				.clipped()
+
+			if !isExpanded, isOverflowing {
+				showMoreChrome
+			}
 		}
-		.frame(maxWidth: .infinity, alignment: .topLeading)
-		.padding(22)
+		.frame(maxWidth: .infinity)
+		.frame(
+			minHeight: DashboardBlockLayout.collapsedHeight,
+			// Collapsed: fixed height. Expanded: grow with content (ScrollView can scroll).
+			maxHeight: isExpanded ? .infinity : DashboardBlockLayout.collapsedHeight,
+			alignment: .top
+		)
+		.fixedSize(horizontal: false, vertical: isExpanded)
 		.background(
 			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
 				.fill(AppTheme.panelBackground)
@@ -24,6 +93,106 @@ struct DashboardCard<Content: View>: View {
 			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
 				.stroke(AppTheme.separator, lineWidth: 1)
 		)
+		.clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadius))
+		.shadow(
+			color: isExpanded ? Color.black.opacity(0.18) : .clear,
+			radius: isExpanded ? 12 : 0,
+			x: 0,
+			y: isExpanded ? 6 : 0
+		)
+		// Hidden unconstrained pass measures full content height for overflow.
+		.background(alignment: .top) {
+			cardBody
+				.fixedSize(horizontal: false, vertical: true)
+				.hidden()
+				.background(
+					GeometryReader { geo in
+						Color.clear.preference(
+							key: DashboardCardContentHeightKey.self,
+							value: geo.size.height
+						)
+					}
+				)
+		}
+		.onPreferenceChange(DashboardCardContentHeightKey.self) { height in
+			intrinsicContentHeight = height
+		}
+		.onHover { hovering in
+			isPointerInside = hovering
+			guard isExpanded, !hovering else { return }
+			// Clicking “Show more” removes the button under the cursor and
+			// delivers a spurious hover-exit — ignore that until the pointer
+			// has settled or left and re-entered.
+			if suppressHoverCollapse { return }
+			withAnimation(motion) {
+				isExpanded = false
+			}
+		}
+		.animation(motion, value: isExpanded)
+		.accessibilityIdentifier(
+			isExpanded ? "dashboard-card-expanded" : "dashboard-card-collapsed"
+		)
+	}
+
+	private var cardBody: some View {
+		VStack(alignment: .leading, spacing: 0) {
+			content()
+		}
+		.frame(maxWidth: .infinity, alignment: .topLeading)
+		.padding(22)
+	}
+
+	/// Fade over truncated body + solid bar for the control (no text under the label).
+	private var showMoreChrome: some View {
+		VStack(spacing: 0) {
+			LinearGradient(
+				colors: [
+					AppTheme.panelBackground.opacity(0),
+					AppTheme.panelBackground,
+				],
+				startPoint: .top,
+				endPoint: .bottom
+			)
+			.frame(height: DashboardBlockLayout.showMoreFadeHeight)
+			.allowsHitTesting(false)
+
+			Button {
+				expandFromShowMore()
+			} label: {
+				Text("Show more")
+					.font(.system(size: 12, weight: .semibold))
+					.foregroundStyle(AppTheme.accent)
+					.frame(maxWidth: .infinity)
+					.frame(height: DashboardBlockLayout.showMoreButtonHeight)
+					.contentShape(Rectangle())
+			}
+			.buttonStyle(.plain)
+			.background(AppTheme.panelBackground)
+			.accessibilityLabel("Show more")
+			.accessibilityIdentifier("dashboard-card-show-more")
+			.help("Expand this card. Move the pointer away to collapse.")
+		}
+		.frame(maxWidth: .infinity)
+	}
+
+	private func expandFromShowMore() {
+		// Clicking “Show more” removes that control under the cursor, which
+		// delivers a spurious hover-exit. Ignore hover-collapse briefly.
+		suppressHoverCollapse = true
+		isPointerInside = true
+		withAnimation(motion) {
+			isExpanded = true
+		}
+		Task { @MainActor in
+			try? await Task.sleep(for: .milliseconds(400))
+			suppressHoverCollapse = false
+			// If the pointer already left during the grace window, collapse now.
+			if isExpanded, !isPointerInside {
+				withAnimation(motion) {
+					isExpanded = false
+				}
+			}
+		}
 	}
 }
 
@@ -101,21 +270,39 @@ struct CardRefreshButton: View {
 	}
 }
 
-private struct DashboardLinkButton: View {
-	let title: String
-	let action: () -> Void
+/// Trailing `…` control that presents card actions in a dropdown menu.
+private struct CardActionsMenu<Content: View>: View {
+	@ViewBuilder let content: () -> Content
 
 	var body: some View {
-		Button(action: action) {
-			HStack(spacing: 4) {
-				Text(title)
-				Image(systemName: "arrow.right")
-					.font(.system(size: 11, weight: .semibold))
-			}
-			.font(.system(size: 13, weight: .medium))
-			.foregroundStyle(Color(red: 0.35, green: 0.68, blue: 1))
+		Menu {
+			content()
+		} label: {
+			Image(systemName: "ellipsis")
+				.font(.system(size: 11, weight: .semibold))
+				.foregroundStyle(AppTheme.tertiaryText)
+				.frame(width: 18, height: 18)
+				.contentShape(Rectangle())
 		}
-		.buttonStyle(.plain)
+		.menuStyle(.borderlessButton)
+		.menuIndicator(.hidden)
+		.help("Actions")
+		.accessibilityLabel("Actions")
+		.accessibilityIdentifier("dashboard-card-actions-menu")
+	}
+}
+
+/// Refresh + actions menu for the top-right of a dashboard card header.
+private struct CardHeaderTrailingControls<MenuContent: View>: View {
+	let isRefreshing: Bool
+	let onRefresh: () -> Void
+	@ViewBuilder let menuContent: () -> MenuContent
+
+	var body: some View {
+		HStack(spacing: 2) {
+			CardRefreshButton(isRefreshing: isRefreshing, action: onRefresh)
+			CardActionsMenu(content: menuContent)
+		}
 	}
 }
 
@@ -173,7 +360,12 @@ struct UnreadMailCard: View {
 				badgeValue: "\(summary?.count ?? 0)",
 				badgeLabel: "unread"
 			) {
-				CardRefreshButton(isRefreshing: isRefreshing, action: onRefresh)
+				CardHeaderTrailingControls(isRefreshing: isRefreshing, onRefresh: onRefresh) {
+					Button("Open Mail", action: openMail)
+					if let summary, summary.count > 0 {
+						Button("Summarize all in chat", action: onSummarize)
+					}
+				}
 			}
 			.padding(.leading, 40)
 
@@ -197,21 +389,12 @@ struct UnreadMailCard: View {
 				}
 
 				summaryContent
-
-				HStack(spacing: 16) {
-					DashboardLinkButton(title: "Open Mail", action: openMail)
-					DashboardLinkButton(title: "Summarize all in chat", action: onSummarize)
-				}
-				.padding(.top, 16)
 			} else {
 				DashboardEmptyState(
 					message: summary == nil
 						? "No email found. Connect an email account to see unread mail."
 						: "You're all caught up. No unread mail."
 				)
-
-				DashboardLinkButton(title: "Open Mail", action: openMail)
-					.padding(.top, 14)
 			}
 		}
 		.overlay(alignment: .topLeading) {
@@ -314,7 +497,19 @@ struct TasksCard: View {
 				badgeValue: "\(summary?.count ?? 0)",
 				badgeLabel: "open"
 			) {
-				CardRefreshButton(isRefreshing: isRefreshing, action: onRefresh)
+				CardHeaderTrailingControls(isRefreshing: isRefreshing, onRefresh: onRefresh) {
+					Button("Add a task", action: onAddTask)
+					if let summary {
+						ForEach(summary.sources.indices, id: \.self) { idx in
+							let source = summary.sources[idx]
+							if let launch = source.launchUrl, let url = URL(string: launch) {
+								Button("Open \(source.providerDisplayName)") {
+									NSWorkspace.shared.open(url)
+								}
+							}
+						}
+					}
+				}
 			}
 			.padding(.leading, 40)
 
@@ -325,28 +520,12 @@ struct TasksCard: View {
 
 			if let summary, summary.count > 0 {
 				summaryContent
-
-				HStack(spacing: 16) {
-					DashboardLinkButton(title: "Add a task", action: onAddTask)
-					ForEach(summary.sources.indices, id: \.self) { idx in
-						let source = summary.sources[idx]
-						if let launch = source.launchUrl, let url = URL(string: launch) {
-							DashboardLinkButton(title: "Open \(source.providerDisplayName)") {
-								NSWorkspace.shared.open(url)
-							}
-						}
-					}
-				}
-				.padding(.top, 16)
 			} else {
 				DashboardEmptyState(
 					message: summary == nil
 						? "No tasks found. Connect a task provider to see open tasks."
 						: "No open tasks. Nicely done."
 				)
-
-				DashboardLinkButton(title: "Add a task", action: onAddTask)
-					.padding(.top, 14)
 			}
 		}
 		.overlay(alignment: .topLeading) {
@@ -384,6 +563,111 @@ struct TasksCard: View {
 			DashboardEmptyState(message: "Summary unavailable. \(summaryError)")
 		} else {
 			DashboardEmptyState(message: "No summary available.")
+		}
+	}
+}
+
+// MARK: - Upcoming events card
+
+struct UpcomingEventsCard: View {
+	let summary: DashboardCategorySummary?
+	let aiSummary: DashboardCategoryAiSummary?
+	let isSummaryLoading: Bool
+	let summaryError: String?
+	let isRefreshing: Bool
+	let onRefresh: () -> Void
+	let onPlanInChat: () -> Void
+
+	var body: some View {
+		DashboardCard {
+			// Leading inset keeps the title clear of the corner icon.
+			CardHeader(
+				systemImage: nil,
+				iconColor: AppTheme.accent,
+				title: "Upcoming",
+				titleSize: 15,
+				badgeValue: "\(summary?.count ?? 0)",
+				badgeLabel: "events"
+			) {
+				CardHeaderTrailingControls(isRefreshing: isRefreshing, onRefresh: onRefresh) {
+					// Single open action uses the provider launchUrl (see openCalendar).
+					// Do not also list per-source "Open Apple Calendar" rows — same target.
+					Button("Open Calendar", action: openCalendar)
+					Button("Plan in chat", action: onPlanInChat)
+				}
+			}
+			.padding(.leading, 40)
+
+			Divider()
+				.overlay(AppTheme.separator)
+				.padding(.top, 14)
+				.padding(.bottom, 16)
+
+			if let summary, summary.count > 0 {
+				summaryContent
+			} else {
+				DashboardEmptyState(
+					message: summary == nil
+						? "No events found. Connect a calendar provider to see upcoming events."
+						: "Nothing on the calendar for the next 7 days."
+				)
+			}
+		}
+		.overlay(alignment: .topLeading) {
+			// Large decorative stamp that straddles the card border.
+			Image(systemName: "calendar")
+				.font(.system(size: 54, weight: .semibold))
+				.symbolRenderingMode(.hierarchical)
+				.foregroundStyle(AppTheme.accent)
+				.rotationEffect(.degrees(-30))
+				.shadow(color: .black.opacity(0.4), radius: 10, x: 1, y: 3)
+				.offset(x: -16, y: -20)
+				.allowsHitTesting(false)
+				.accessibilityHidden(true)
+		}
+		// Room so the overhanging icon isn't clipped by the scroll view.
+		.padding(.top, 22)
+		.padding(.leading, 18)
+		.accessibilityIdentifier("dashboard-calendar-card")
+	}
+
+	@ViewBuilder
+	private var summaryContent: some View {
+		if let aiSummary {
+			MarkdownText(
+				text: aiSummary.text,
+				font: DashboardSummaryMarkdown.bodyFont,
+				foregroundStyle: DashboardSummaryMarkdown.bodyColor,
+				strongForegroundStyle: DashboardSummaryMarkdown.strongColor,
+				headingForegroundStyle: DashboardSummaryMarkdown.headingColor,
+				uppercaseHeadings: true
+			)
+		} else if isSummaryLoading {
+			SummarySkeletonView()
+		} else if let summaryError {
+			DashboardEmptyState(message: "Summary unavailable. \(summaryError)")
+		} else {
+			DashboardEmptyState(message: "No summary available.")
+		}
+	}
+
+	/// Open the calendar provider app via its plugin-declared `launchUrl`
+	/// (same path as email/tasks dashboard sources). Fall back to Calendar.app.
+	private func openCalendar() {
+		if let launch = summary?.sources.compactMap(\.launchUrl).first,
+			let url = URL(string: launch)
+		{
+			NSWorkspace.shared.open(url)
+			return
+		}
+		// Plugin did not advertise a launch URL — open Calendar.app by bundle id.
+		let workspace = NSWorkspace.shared
+		if let appURL = workspace.urlForApplication(withBundleIdentifier: "com.apple.iCal") {
+			workspace.openApplication(at: appURL, configuration: NSWorkspace.OpenConfiguration())
+			return
+		}
+		if let url = URL(string: "ical://") {
+			workspace.open(url)
 		}
 	}
 }

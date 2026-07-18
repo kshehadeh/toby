@@ -2,6 +2,8 @@
 
 First-party integration id: **`applecalendar`**, shipped as the TypeScript bun-package plugin **`toby-plugin-applecalendar`** ([`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/)). Release archives and `install-toby.sh` install it under `~/.toby/plugins/`.
 
+**Launch URL:** `ical://` (opens Calendar.app). Surfaced on the home dashboard **Open Calendar** action via the plugin `launchUrl` field, same pattern as Todoist (`todoist://`) and Apple Reminders (`x-apple-reminderkit://`).
+
 ## Platform
 
 - **macOS only.** The plugin delegates all calendar operations to **Toby.app's native API server**, which uses **EventKit** (`EKEventStore`) to drive Calendar.app on the local Mac. On Linux or Windows the plugin can be installed for tests but chat tools require Toby.app running on a Mac.
@@ -21,6 +23,7 @@ No API keys are stored; optional notes can be saved under **Configure** as `appl
 | ---- | ------- |
 | `listCalendars` | List Calendar.app calendar names and colors; use exact names for the `calendar` filter. |
 | `searchCalendarEvents` | Search events by query text, calendar name, date range, and limit. Uses EventKit for fast queries. |
+| `getUpcomingEventsSummary` | Dashboard standard tool (`calendar.upcomingSummary`): upcoming events for the next 7 days. Powers the home **Upcoming** card when this integration is the default calendar provider (or the only connected calendar source). |
 | `getCalendarEvent` | Get full details of a single event by uid, including attendees. |
 | `createCalendarEvent` | Create a new event (summary, start/end dates, optional calendar, location, description, allDay). Returns a **uid**. |
 | `updateCalendarEvent` | Update an existing event by uid (any subset of fields). |

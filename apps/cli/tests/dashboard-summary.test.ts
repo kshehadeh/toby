@@ -83,6 +83,25 @@ You have **3 late tasks** that need attention today.`;
 		// Short preamble without planning language should stay.
 		expect(extractDashboardSummaryText(raw)).toBe(raw);
 	});
+
+	it("rejects pure chain-of-thought with no final summary", () => {
+		const raw = `We need to determine the current date. The events start on 2026-07-17.
+The user said: "if it's Friday, summarize events for Friday…" Let's check.
+The instruction says 5-6 sentences total. So we need to condense.
+Also note: Use Today/Tomorrow headers. Let's count: Today section: 2 sentences.
+Sentence 1: Today is packed with Open Dev Day.
+Better: write bullets. That's more than 5-6 sentences. Need to condense.`;
+		expect(extractDashboardSummaryText(raw)).toBe("");
+	});
+
+	it("keeps a real calendar-style summary", () => {
+		const clean = `## Needs attention
+Your week kicks off **today** with an all-day **Open Dev Day** and a **Delta flight** at 9:40 PM ET.
+
+## Later
+Monday is packed: **Standup: UAI Web** at 10 AM, then overlapping afternoon meetings.`;
+		expect(extractDashboardSummaryText(clean)).toBe(clean);
+	});
 });
 
 describe("dashboard summarizer types", () => {

@@ -11,8 +11,11 @@
  * A plugin tags a tool definition with one of these to indicate it fulfills
  * the contract for that category's dashboard summary.
  */
-export type StandardToolId = "email.unreadSummary" | "tasks.openSummary";
-// future: "calendar.upcomingSummary" | "work_tracker.openSummary"
+export type StandardToolId =
+	| "email.unreadSummary"
+	| "tasks.openSummary"
+	| "calendar.upcomingSummary";
+// future: "work_tracker.openSummary"
 
 /**
  * Mapping from provider category to the standard tool ID that fulfills the
@@ -21,6 +24,7 @@ export type StandardToolId = "email.unreadSummary" | "tasks.openSummary";
 export const STANDARD_TOOL_FOR_CATEGORY: Record<string, StandardToolId> = {
 	email: "email.unreadSummary",
 	tasks: "tasks.openSummary",
+	calendar: "calendar.upcomingSummary",
 };
 
 /**
@@ -130,6 +134,7 @@ export interface DashboardCategorySummary {
 export interface DashboardData {
 	readonly email: DashboardCategorySummary | null;
 	readonly tasks: DashboardCategorySummary | null;
+	readonly calendar: DashboardCategorySummary | null;
 }
 
 /**

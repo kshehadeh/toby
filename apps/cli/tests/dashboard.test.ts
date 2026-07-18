@@ -117,6 +117,7 @@ describe("dashboard aggregator", () => {
 		expect(data).toBeDefined();
 		expect(data).toHaveProperty("email");
 		expect(data).toHaveProperty("tasks");
+		expect(data).toHaveProperty("calendar");
 
 		// If a category is populated, verify its structure
 		if (data.email) {
@@ -140,6 +141,19 @@ describe("dashboard aggregator", () => {
 			expect(Array.isArray(data.tasks.items)).toBe(true);
 			// Merged items are tagged with their source provider name.
 			for (const item of data.tasks.items) {
+				expect(typeof item.providerName).toBe("string");
+			}
+		}
+		if (data.calendar) {
+			expect(data.calendar).toHaveProperty("count");
+			expect(data.calendar).toHaveProperty("sources");
+			expect(data.calendar).toHaveProperty("items");
+			expect(data.calendar).toHaveProperty("groups");
+			expect(data.calendar).toHaveProperty("generatedAt");
+			expect(typeof data.calendar.count).toBe("number");
+			expect(Array.isArray(data.calendar.sources)).toBe(true);
+			expect(Array.isArray(data.calendar.items)).toBe(true);
+			for (const item of data.calendar.items) {
 				expect(typeof item.providerName).toBe("string");
 			}
 		}
