@@ -242,11 +242,14 @@ describe("runFlowDefinition", () => {
 				promptMode: "add",
 				ai: { provider: "openai", model: "gpt-4.1-nano" },
 			},
+			record: false,
 		});
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
 			expect(result.failedNodeId).toBe("need-missing");
 			expect(result.error).toMatch(/Missing context key/);
+			expect(result.startedAt).toBeTruthy();
+			expect(result.completedAt).toBeTruthy();
 		}
 	});
 

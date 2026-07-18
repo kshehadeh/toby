@@ -5,6 +5,7 @@ import { daemonLog } from "../../logging/daemon-log";
 import type {
 	FlowNodePromptContext,
 	FlowNodeRuntime,
+	LlmPrompterDetail,
 	LlmPrompterNodeDefinition,
 } from "../types";
 import { FlowNodeError } from "../types";
@@ -17,6 +18,7 @@ const STRUCTURED_ATTEMPT_TIMEOUT_MS = 12_000;
 
 export type LlmPrompterNodeResult = {
 	readonly object: unknown;
+	readonly detail: LlmPrompterDetail;
 };
 
 const DEFAULT_OUTPUTS = { object: "object" } as const;
@@ -103,6 +105,49 @@ async function withTimeout<T>(
 	}
 }
 
+function usageFromResult(result: {
+	usage?: {
+		inputTokens?: number;
+		outputTokens?: number;
+		totalTokens?: number;
+	};
+}): LlmPrompterDetail["usage"] {
+	const u = result.usage;
+	if (!u) return null;
+	return {
+		...(u.inputTokens !== undefined ? { inputTokens: u.inputTokens } : {}),
+		...(u.outputTokens !== undefined ? { outputTokens: u.outputTokens } : {}),
+		...(u.totalTokens !== undefined ? { totalTokens: u.totalTokens } : {}),
+	};
+}
+
+function baseDetail(
+	node: LlmPrompterNodeDefinition,
+	runtime: FlowNodeRuntime,
+	systemPrompt: string,
+	userPrompt: string,
+	temperature: number,
+	maxOutputTokens: number,
+	mode: "structured" | "freeform",
+	usage: LlmPrompterDetail["usage"],
+): LlmPrompterDetail {
+	return {
+		kind: "llm_prompter",
+		model: {
+			provider: runtime.persona.ai.provider,
+			modelId: runtime.persona.ai.model,
+		},
+		personaName: runtime.persona.name,
+		mode,
+		temperature,
+		maxOutputTokens,
+		...(node.schemaName ? { schemaName: node.schemaName } : {}),
+		systemPrompt,
+		userPrompt,
+		usage,
+	};
+}
+
 export async function runLlmPrompterNode(
 	node: LlmPrompterNodeDefinition,
 	inputs: Readonly<Record<string, unknown>>,
@@ -158,7 +203,19 @@ export async function runLlmPrompterNode(
 				);
 
 				if (structured.output != null) {
-					return { object: structured.output };
+					return {
+						object: structured.output,
+						detail: baseDetail(
+							node,
+							runtime,
+							systemPrompt,
+							userPrompt,
+							temperature,
+							maxOutputTokens,
+							"structured",
+							usageFromResult(structured),
+						),
+					};
 				}
 			} catch (structuredError) {
 				if (runtime.abortSignal?.aborted) {
@@ -180,7 +237,6 @@ export async function runLlmPrompterNode(
 		}
 
 		// 2) Free-form generation with a **fresh full** timeout budget.
-		//    (Previously shared one 30s timer with structured → free-form aborted.)
 		const freeform = await withTimeout(
 			timeoutMs,
 			runtime.abortSignal,
@@ -209,7 +265,19 @@ OUTPUT FORMAT:
 			);
 		}
 
-		return { object: coerced };
+		return {
+			object: coerced,
+			detail: baseDetail(
+				node,
+				runtime,
+				systemPrompt,
+				userPrompt,
+				temperature,
+				maxOutputTokens,
+				"freeform",
+				usageFromResult(freeform),
+			),
+		};
 	} catch (error) {
 		if (error instanceof FlowNodeError) throw error;
 		const message = error instanceof Error ? error.message : String(error);

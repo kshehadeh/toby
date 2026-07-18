@@ -196,12 +196,16 @@ const result: FlowResult = await runFlow("dashboard.email.summary", {
   personaOverride, // optional Persona
   inputs: { /* optional seed bag */ },
   abortSignal,
+  trigger: "dashboard.summary:email", // optional label for history
+  record: true, // default; set false to skip chat.sqlite writes
 });
 
 if (result.ok) {
   // result.outputs — final context bag
-  // result.persona — persona used
-  // result.nodeTrace — per-node ok / durationMs / error
+  // result.persona / provider / model
+  // result.runId — history row id when recorded
+  // result.startedAt / completedAt / durationMs
+  // result.nodeTrace — per-node inputs, outputs, detail, duration
 } else {
   // result.error, result.failedNodeId, partial result.outputs
 }
@@ -212,20 +216,72 @@ if (result.ok) {
 | `registerFlow(def)` | Register (or replace) by `def.name` |
 | `getFlow(name)` | Lookup |
 | `listFlows()` | All definitions, name-sorted |
-| `runFlow(name, opts?)` | Run from registry |
+| `runFlow(name, opts?)` | Run from registry (records history by default) |
 | `runFlowDefinition(def, opts?)` | Run without requiring registration |
 | `clearFlowRegistry()` | Tests only |
+| `listFlowRuns` / `getFlowRun` | Read execution history |
+| `pruneFlowRuns({ olderThanIso })` | Delete completed runs with `started_at` before a date |
 
 Definitions live under `packages/core/src/flows/definitions/` and register at
 import time. Public entry: `packages/core/src/flows/index.ts`.
+
+## Execution history
+
+Every flow run is persisted to **`~/.toby/chat.sqlite`** (tables `flow_runs`,
+`flow_run_nodes`) unless `record: false`.
+
+### Run record (`flow_runs`)
+
+| Field | Purpose |
+| --- | --- |
+| `id` | UUID for detail API / UI |
+| `flow_name` | Registered flow name |
+| `status` | `running` \| `success` \| `error` |
+| `persona_name`, `provider`, `model` | Resolved persona / model |
+| `trigger` | Caller label (e.g. `dashboard.summary:calendar`) |
+| `definition_snapshot_json` | Graph metadata for UI (node list, wiring) |
+| `initial_inputs_json` / `final_outputs_json` | Seed bag and final bag |
+| **`started_at`** / **`completed_at`** | ISO timestamps for the execution window |
+| **`duration_ms`** | Wall-clock duration |
+| `error`, `failed_node_id` | Failure info |
+
+Timestamps enable listing by recency and **purging old runs**:
+
+```ts
+import { pruneFlowRuns } from "@toby/core/flows";
+
+// Delete completed runs started before a cutoff (running rows kept)
+pruneFlowRuns({ olderThanIso: "2026-01-01T00:00:00.000Z" });
+pruneFlowRuns({ olderThanIso: cutoff, flowName: "dashboard.email.summary" });
+```
+
+### Node records (`flow_run_nodes`)
+
+Per node: resolved **inputs**, bag **outputs**, **duration_ms**,
+**started_at** / **completed_at**, status, and **detail_json**:
+
+- **tool_executor** — tool ref, resolved module/tool, `toolCalls[]` (args, result, timing)
+- **llm_prompter** — provider/model, persona, mode (structured/freeform), prompts, usage
+
+### HTTP (daemon)
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/flows` | Registered flow definition snapshots |
+| `GET` | `/api/flows/runs` | Run summaries (`?flowName=&limit=&offset=`) |
+| `GET` | `/api/flows/runs/:id` | Full run + ordered nodes for the interactive graph UI |
+
+List responses omit heavy node I/O; use the detail route for click-through.
 
 ## Package layout
 
 | Path | Role |
 | --- | --- |
-| `flows/types.ts` | Definition + result types, `FlowNodeError` |
+| `flows/types.ts` | Definition + result + history types, `FlowNodeError` |
 | `flows/registry.ts` | Register / get / list |
-| `flows/runner.ts` | Sequential driver |
+| `flows/runner.ts` | Sequential driver + history instrumentation |
+| `flows/store.ts` | SQLite persistence, list/get/prune |
+| `flows/definition-snapshot.ts` | Serializable graph for UI |
 | `flows/resolve-inputs.ts` | `const` / `from` / path + apply outputs |
 | `flows/tool-resolve.ts` | standardTool / named tool resolve + execute |
 | `flows/nodes/tool-executor.ts` | Tool Executor node |

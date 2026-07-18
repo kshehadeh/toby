@@ -41,6 +41,11 @@ import {
 	handleDashboardCategorySummary,
 } from "./handlers/dashboard";
 import {
+	handleFlowRunDetail,
+	handleFlowRunsList,
+	handleFlowsList,
+} from "./handlers/flows";
+import {
 	handleIntegrationConnect,
 	handleIntegrationDisconnect,
 	handleIntegrationReauthorize,
@@ -171,6 +176,16 @@ export async function handleWebRequest(
 				return handleDashboardCategorySummary(summaryMatch[1]);
 			}
 			return handleDashboardCategory(rest);
+		}
+		if (pathname === "/api/flows" && req.method === "GET") {
+			return handleFlowsList();
+		}
+		if (pathname === "/api/flows/runs" && req.method === "GET") {
+			return handleFlowRunsList(url);
+		}
+		const flowRunMatch = /^\/api\/flows\/runs\/([^/]+)$/.exec(pathname);
+		if (flowRunMatch && req.method === "GET") {
+			return handleFlowRunDetail(decodeURIComponent(flowRunMatch[1]));
 		}
 		if (pathname === "/api/issues" && req.method === "POST") {
 			return handleCreateIssue(req);

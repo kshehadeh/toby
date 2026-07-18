@@ -5,15 +5,26 @@ import "./definitions/dashboard-calendar-summary";
 export type {
 	FlowContextBag,
 	FlowDefinition,
+	FlowDefinitionSnapshot,
 	FlowInputMap,
 	FlowInputSource,
 	FlowNodeDefinition,
+	FlowNodeDetail,
 	FlowNodePromptContext,
+	FlowNodeRecord,
+	FlowNodeSnapshot,
 	FlowNodeTrace,
 	FlowOutputMap,
 	FlowResult,
+	FlowRunDetail,
+	FlowRunNodeDetail,
 	FlowRunOptions,
+	FlowRunStatus,
+	FlowRunSummary,
+	LlmPrompterDetail,
 	LlmPrompterNodeDefinition,
+	ToolCallRecord,
+	ToolExecutorDetail,
 	ToolExecutorNodeDefinition,
 	ToolRef,
 } from "./types";
@@ -41,6 +52,19 @@ export {
 	resolveStandardTool,
 } from "./tool-resolve";
 export type { ExecuteToolResult, ResolvedToolTarget } from "./tool-resolve";
+
+export { buildDefinitionSnapshot } from "./definition-snapshot";
+
+export {
+	createFlowRun,
+	insertFlowRunNode,
+	completeFlowRunNode,
+	completeFlowRun,
+	getFlowRun,
+	listFlowRuns,
+	deleteFlowRun,
+	pruneFlowRuns,
+} from "./store";
 
 export { emailDashboardSummaryFlow } from "./definitions/dashboard-email-summary";
 export { tasksDashboardSummaryFlow } from "./definitions/dashboard-tasks-summary";

@@ -483,6 +483,7 @@ async function generateCategorySummaryViaFlow(
 		inputs: {
 			[dataKey]: seedPayload,
 		},
+		trigger: `dashboard.summary:${category}`,
 	});
 
 	if (!flowResult.ok) {

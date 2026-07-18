@@ -192,6 +192,50 @@ CREATE INDEX IF NOT EXISTS idx_schedule_runs_schedule_id
 CREATE INDEX IF NOT EXISTS idx_schedule_runs_started_at
   ON schedule_runs(started_at DESC);
 
+CREATE TABLE IF NOT EXISTS flow_runs (
+  id TEXT PRIMARY KEY,
+  flow_name TEXT NOT NULL,
+  status TEXT NOT NULL,
+  persona_name TEXT,
+  provider TEXT,
+  model TEXT,
+  trigger TEXT,
+  definition_snapshot_json TEXT NOT NULL,
+  initial_inputs_json TEXT,
+  final_outputs_json TEXT,
+  error TEXT,
+  failed_node_id TEXT,
+  started_at TEXT NOT NULL,
+  completed_at TEXT,
+  duration_ms INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_flow_runs_started_at
+  ON flow_runs(started_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_flow_runs_flow_name_started_at
+  ON flow_runs(flow_name, started_at DESC);
+
+CREATE TABLE IF NOT EXISTS flow_run_nodes (
+  id TEXT PRIMARY KEY,
+  run_id TEXT NOT NULL,
+  node_id TEXT NOT NULL,
+  node_type TEXT NOT NULL,
+  node_order INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  inputs_json TEXT,
+  outputs_json TEXT,
+  error TEXT,
+  duration_ms INTEGER,
+  started_at TEXT,
+  completed_at TEXT,
+  detail_json TEXT,
+  FOREIGN KEY (run_id) REFERENCES flow_runs(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_flow_run_nodes_run_id_order
+  ON flow_run_nodes(run_id, node_order);
+
 CREATE TABLE IF NOT EXISTS chat_external_sessions (
   integration TEXT NOT NULL,
   external_key TEXT NOT NULL,
