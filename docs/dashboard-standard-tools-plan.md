@@ -5,6 +5,10 @@ for the dashboard data contract, API surface, and plugin implementation
 checklist. The native SwiftUI UI can be built from this document alone without
 reading the core TypeScript implementation.
 
+For the end-to-end **update lifecycle** (Toby.app → HTTP → aggregator → plugin
+tool → AI summary), including an email walkthrough, see
+[`dashboard.md`](dashboard.md).
+
 ## Problem
 
 The home-screen dashboard (unread mail card, tasks card, onboarding

@@ -24,6 +24,7 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | [`docs/projects.md`](docs/projects.md) | Projects: SQLite metadata, `AGENTS.md`, skills, outputs. |
 | [`docs/daemon.md`](docs/daemon.md) | Background daemon: schedules, inbound, unified log. |
 | [`docs/server-api.md`](docs/server-api.md) | Local daemon HTTP API: routes, SSE chat, configure. |
+| [`docs/dashboard.md`](docs/dashboard.md) | Home dashboard cards: load path, cache, standard tools, AI summaries. |
 | [`docs/chat-inbound.md`](docs/chat-inbound.md) | Inbound provider contract and external sessions. |
 | [`docs/ai-caching.md`](docs/ai-caching.md) | Provider prompt caching and token telemetry. |
 | [`docs/memory.md`](docs/memory.md) | Durable user memory (`memory.sqlite`). |

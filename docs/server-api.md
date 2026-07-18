@@ -61,8 +61,9 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | --- | --- | --- |
 | `ANY` | `/api/health` | Basic daemon health check. |
 | `GET` | `/api/status` | Chat status: version, default persona, model, integrations, skills. |
-| `GET` | `/api/dashboard` | Home dashboard summary payload. |
-| `GET` | `/api/dashboard/:section` | Dashboard section detail. |
+| `GET` | `/api/dashboard` | Home dashboard summary payload (all categories). |
+| `GET` | `/api/dashboard/:category` | One dashboard category (`email`, `tasks`, `calendar`), or `null`. |
+| `GET` | `/api/dashboard/:category/summary` | AI-generated text summary for one category, or `null`. See [dashboard.md](dashboard.md). |
 | `POST` | `/api/issues` | File / forward an issue report (GitHub helper). |
 | `GET` | `/api/daemon/status` | Daemon process and inbound chat status. |
 | `POST` | `/api/daemon/restart` | Restart the background daemon. |

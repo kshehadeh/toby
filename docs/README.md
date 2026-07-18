@@ -23,6 +23,8 @@ Human- and agent-oriented docs for this repository.
 | [chat-pipeline.md](chat-pipeline.md) | Chat turn nodes, events, pretreatment, tool-result cache. |
 | [daemon.md](daemon.md) | Background daemon: schedules, inbound, unified log (`logs/toby.log`). |
 | [server-api.md](server-api.md) | Local daemon HTTP API: routes, SSE chat turns, configure. |
+| [dashboard.md](dashboard.md) | Home dashboard cards: how blocks load, cache, standard tools, AI summaries (email walkthrough). |
+| [dashboard-standard-tools-plan.md](dashboard-standard-tools-plan.md) | Dashboard standard-tool contract, merge rules, plugin checklist. |
 | [chat-inbound.md](chat-inbound.md) | Inbound provider contract, external sessions. |
 | [ai-caching.md](ai-caching.md) | Provider prompt caching adapters and token telemetry. |
 | [memory.md](memory.md) | Durable user memory subsystem (`memory.sqlite`). |
