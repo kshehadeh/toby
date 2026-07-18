@@ -23,7 +23,7 @@ import {
 	submitAskUserAnswer,
 } from "../../chat-pipeline/turn-runtime";
 import { getDefaultPersonaImagePath, resolveTobyDir } from "../../config/index";
-import { isTranscriptionConfigured } from "../../listen/transcription-providers";
+import { getTranscriptionSetupStatus } from "../../listen/transcription-providers";
 import {
 	listPersonas,
 	resolveDefaultPersona,
@@ -127,10 +127,19 @@ export async function handleChatStatusDetail(): Promise<Response> {
 		personaCount: listPersonas().length,
 		skillCount: skills.length,
 		skills: skills.map((s) => ({ name: s.name, description: s.description })),
-		transcription: {
-			configured: isTranscriptionConfigured(),
-			settingsNavKey: "transcription",
-		},
+		transcription: (() => {
+			const status = getTranscriptionSetupStatus();
+			return {
+				configured: status.configured,
+				settingsNavKey: "transcription",
+				provider: status.provider,
+				model: status.model,
+				hasProviderAndModel: status.hasProviderAndModel,
+				hasApiKey: status.hasApiKey,
+				needsApiKey: status.needsApiKey,
+				statusMessage: status.statusMessage,
+			};
+		})(),
 		webSearch: {
 			configured: isWebSearchAvailable(persona),
 			settingsNavKey: "webSearch",

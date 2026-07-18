@@ -5,7 +5,7 @@ title: Transcription
 
 # Transcription
 
-When you save a [Listen](../listen) recording, Toby can transcribe audio with a configured **transcription** provider. These settings are separate from your chat AI provider (though OpenAI can reuse the same API token).
+When you save a [Listen](../listen) recording, Toby can transcribe audio with a configured **transcription** provider. These settings are separate from your chat AI provider (though OpenAI, Vercel AI Gateway, and OpenRouter can reuse the same API keys you set under **AI**).
 
 Open **Toby.app → Settings → Transcription**.
 
@@ -13,7 +13,7 @@ Open **Toby.app → Settings → Transcription**.
 
 | Setting | Purpose |
 | ------- | ------- |
-| **Provider** | Transcription backend (OpenAI, Groq, or Vercel AI Gateway) |
+| **Provider** | Transcription backend (OpenAI, Groq, Vercel AI Gateway, or OpenRouter) |
 | **Model** | Model id offered by that provider |
 | **API Key** | Optional dedicated key for transcription |
 | **Persona for recording summaries** | Persona used when you summarize a recording transcript (falls back to the default persona) |
@@ -36,6 +36,25 @@ Available models are fetched from the live gateway catalog (filtered to `type: t
 | `xai/grok-stt` | xAI Grok STT |
 
 > **Note:** Gateway transcription is non-streaming and subject to the same audio payload limits as other providers (25 MB before chunking).
+
+### OpenRouter
+
+The **OpenRouter** provider uses OpenRouter’s speech-to-text API
+([`/api/v1/audio/transcriptions`](https://openrouter.ai/docs/guides/overview/multimodal/stt)),
+which is OpenAI-compatible. It reuses **Settings → AI → OpenRouter → API Key**
+(or `OPENROUTER_API_KEY`) when no transcription-specific key is set.
+
+Available models are loaded from the live OpenRouter catalog:
+
+```text
+GET https://openrouter.ai/api/v1/models?output_modalities=transcription
+```
+
+If the catalog is unreachable, Toby falls back to a curated list (Whisper,
+GPT-4o transcribe variants, Voxtral Mini Transcribe, Deepgram Nova-3, and similar).
+
+> **Note:** Multipart uploads are limited to 25 MB (same as other providers);
+> Toby chunks larger recordings automatically when possible.
 
 ## When transcription runs
 

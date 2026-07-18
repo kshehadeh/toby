@@ -17,6 +17,7 @@ import {
 import {
 	TRANSCRIPTION_PROVIDERS,
 	getTranscriptionProvider,
+	resolveTranscriptionApiKey,
 } from "../listen/transcription-providers";
 import { DEFAULT_CHAT_PERSONA } from "../personas/index";
 import { listProjects } from "../projects/index";
@@ -425,11 +426,49 @@ export function buildSettingsTree(
 			? [transcriptionModelValue]
 			: []),
 	];
+	const transcriptionApiKeyAvailable =
+		resolveTranscriptionApiKey(transcriptionProviderId) !== undefined;
+	const providerLabel =
+		transcriptionProviderInfo?.displayName ?? transcriptionProviderId;
+	// Single status tip — avoid stacking a second provider-specific "needs key" hint.
+	const transcriptionStatusHint = (() => {
+		if (!values["transcription.provider"]?.trim()) {
+			return "Choose a provider and model. OpenAI and Vercel can reuse AI keys; Groq and OpenRouter need their own API keys.";
+		}
+		if (!transcriptionApiKeyAvailable) {
+			if (transcriptionProviderInfo?.reusesOpenAiToken) {
+				return "OpenAI needs an API key — set AI → OpenAI, or paste a key below. Until a key is set, onboarding and recording treat transcription as not configured.";
+			}
+			if (transcriptionProviderInfo?.reusesVercelApiKey) {
+				return "Vercel AI Gateway needs an API key — set AI → Vercel AI Gateway, or paste a key below. Until a key is set, onboarding and recording treat transcription as not configured.";
+			}
+			if (transcriptionProviderInfo?.reusesOpenRouterApiKey) {
+				return "OpenRouter needs an API key — set AI → OpenRouter (or run guided setup), or paste a key below. Until a key is set, onboarding and recording treat transcription as not configured.";
+			}
+			return `${providerLabel} needs an API key — paste one below. Until a key is set, onboarding and recording treat transcription as not configured.`;
+		}
+		if (transcriptionProviderInfo?.reusesOpenAiToken) {
+			return "Transcription is ready. OpenAI reuses your AI → OpenAI API token when no key is set here.";
+		}
+		if (transcriptionProviderInfo?.reusesVercelApiKey) {
+			return "Transcription is ready. Vercel reuses your AI → Vercel API key (or AI_GATEWAY_API_KEY) when no key is set here.";
+		}
+		if (transcriptionProviderInfo?.reusesOpenRouterApiKey) {
+			return "Transcription is ready. OpenRouter reuses your AI → OpenRouter API key (or OPENROUTER_API_KEY) when no key is set here.";
+		}
+		return `Transcription is ready to use with ${providerLabel}.`;
+	})();
+
 	const transcriptionSection: SettingsItem = {
 		label: "Transcription",
 		kind: "section",
 		key: "transcription",
 		children: [
+			{
+				label: transcriptionStatusHint,
+				kind: "hint" as const,
+				key: "transcription._status",
+			},
 			{
 				label: "Provider",
 				kind: "select" as const,
@@ -460,26 +499,6 @@ export function buildSettingsTree(
 				key: `transcription.${transcriptionProviderId}.apiKey`,
 				masked: true,
 			},
-			...(transcriptionProviderInfo?.reusesOpenAiToken
-				? [
-						{
-							label:
-								"OpenAI reuses your AI → OpenAI API token when no key is set here.",
-							kind: "hint" as const,
-							key: "transcription._openaiHint",
-						},
-					]
-				: []),
-			...(transcriptionProviderInfo?.reusesVercelApiKey
-				? [
-						{
-							label:
-								"Vercel AI Gateway reuses your AI → Vercel API key (or AI_GATEWAY_API_KEY) when no key is set here.",
-							kind: "hint" as const,
-							key: "transcription._vercelHint",
-						},
-					]
-				: []),
 			{
 				label: "Persona for recording summaries",
 				kind: "select" as const,

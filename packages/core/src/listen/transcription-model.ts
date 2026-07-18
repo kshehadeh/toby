@@ -6,6 +6,10 @@ import { createGateway } from "@ai-sdk/gateway";
 import { createGroq } from "@ai-sdk/groq";
 import { createOpenAI } from "@ai-sdk/openai";
 import { transcribe } from "ai";
+import {
+	OPENROUTER_DEFAULT_BASE_URL,
+	buildAiGatewayAttributionHeaders,
+} from "../ai/model-factory";
 import type { TranscriptPayload, TranscriptSegment } from "./transcript-types";
 import { ListenTranscriptionError } from "./transcription-errors";
 import {
@@ -14,7 +18,6 @@ import {
 	resolveTranscriptionSelection,
 } from "./transcription-providers";
 import type { ListenRecordingFiles } from "./types";
-import { buildAiGatewayAttributionHeaders } from "../ai/model-factory";
 
 export { ListenTranscriptionError } from "./transcription-errors";
 
@@ -124,6 +127,16 @@ function createTranscriptionModel(
 				headers: buildAiGatewayAttributionHeaders(),
 			});
 			return gateway.transcriptionModel(model);
+		}
+		case "openrouter": {
+			// OpenRouter's /audio/transcriptions is OpenAI-compatible (multipart).
+			// Point the OpenAI provider at OpenRouter so AI SDK `transcribe()` works.
+			const openai = createOpenAI({
+				apiKey,
+				baseURL: OPENROUTER_DEFAULT_BASE_URL,
+				headers: buildAiGatewayAttributionHeaders(),
+			});
+			return openai.transcription(model);
 		}
 		default:
 			throw new Error(`Unsupported transcription provider: ${providerId}`);

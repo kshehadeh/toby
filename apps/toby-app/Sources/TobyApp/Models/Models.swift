@@ -238,6 +238,15 @@ func formatAttachmentByteSize(_ bytes: Int) -> String {
 struct TranscriptionStatus: Decodable, Equatable {
 	let configured: Bool
 	let settingsNavKey: String?
+	/// Provider id saved in config (may be set even when `configured` is false).
+	let provider: String?
+	let model: String?
+	let hasProviderAndModel: Bool?
+	/// False when provider/model are set but no API key is resolvable.
+	let hasApiKey: Bool?
+	/// True when provider+model are saved but a key is still required.
+	let needsApiKey: Bool?
+	let statusMessage: String?
 }
 
 struct SkillSummary: Decodable, Identifiable {

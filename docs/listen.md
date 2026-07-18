@@ -115,19 +115,26 @@ happen inside Toby.app's `NativeAudioHandler`.
 ## Transcription providers
 
 The transcription stack (`packages/core/src/listen/transcription-model.ts`)
-supports three providers:
+supports four providers:
 
 | Provider | Key resolution |
 | -------- | -------------- |
 | `openai` | `credentials.transcription.openai.apiKey` → shared `credentials.ai.openai.token` |
 | `groq` | `credentials.transcription.groq.apiKey` |
 | `vercel` | `credentials.transcription.vercel.apiKey` → shared `credentials.ai.vercel.apiKey` → `AI_GATEWAY_API_KEY` → `VERCEL_OIDC_TOKEN` (OIDC-only, empty key) |
+| `openrouter` | `credentials.transcription.openrouter.apiKey` → shared `credentials.ai.openrouter.apiKey` → `OPENROUTER_API_KEY` |
 
 The Vercel provider uses `createGateway(...).transcriptionModel(slug)` from
 `@ai-sdk/gateway` and the stable `transcribe()` function from AI SDK 7. Model
 lists for Vercel are fetched from the public gateway catalog
 (`https://ai-gateway.vercel.sh/v1/models`), filtered to `type === "transcription"`,
 with a curated static fallback.
+
+The OpenRouter provider uses OpenAI-compatible multipart
+`/api/v1/audio/transcriptions` (via `createOpenAI` pointed at
+`https://openrouter.ai/api/v1`). Model lists are fetched from
+`GET https://openrouter.ai/api/v1/models?output_modalities=transcription`, with
+a curated static fallback when the catalog is unreachable.
 
 All providers share WAV preparation, 25 MB chunking, and 413-retry logic.
 

@@ -21,6 +21,10 @@ import {
 	ALL_PROVIDER_CATEGORIES,
 	type ProviderCategory,
 } from "../integrations/types";
+import {
+	TRANSCRIPTION_PROVIDERS,
+	getTranscriptionProvider,
+} from "../listen/transcription-providers";
 import { DEFAULT_CHAT_PERSONA } from "../personas/index";
 import { listSchedules, updateSchedule } from "../schedules/store";
 import { loadLocalSkills } from "../skills/index";
@@ -35,6 +39,7 @@ const SECRET_KEY_PREFIXES = [
 	"transcription.openai.apiKey",
 	"transcription.groq.apiKey",
 	"transcription.vercel.apiKey",
+	"transcription.openrouter.apiKey",
 	"weather.apiKey",
 ] as const;
 
@@ -208,6 +213,57 @@ export function redactConfigureValues(
 		}
 	}
 	return out;
+}
+
+/**
+ * Ensure provider + model are a complete pair after a partial Settings patch.
+ *
+ * Autosave sends only the changed key (e.g. provider alone). Without this,
+ * `rebuildTranscriptionConfig` would drop the whole transcription block when
+ * model is missing from the merged values, so the UI looks like the choice
+ * "didn't save".
+ */
+export function normalizeTranscriptionConfigureValues(
+	values: Record<string, string>,
+	options?: { readonly providerJustChanged?: boolean },
+): void {
+	const providerKey = "transcription.provider";
+	const modelKey = "transcription.model";
+	let provider = values[providerKey]?.trim();
+	const model = values[modelKey]?.trim();
+
+	if (!provider && !model) return;
+
+	if (!provider) {
+		provider = TRANSCRIPTION_PROVIDERS[0]?.id ?? "openai";
+		values[providerKey] = provider;
+	}
+
+	const info = getTranscriptionProvider(provider);
+	if (!info) return;
+
+	const knownModels = info.models;
+	const firstModel = knownModels[0] ?? "";
+
+	if (!model) {
+		if (firstModel) values[modelKey] = firstModel;
+		return;
+	}
+
+	if (!options?.providerJustChanged) return;
+
+	// Provider just changed — keep the model only if it is still a sensible
+	// choice for the new provider. Bare OpenAI ids (no slash) on slug-based
+	// providers (Vercel / OpenRouter) are almost always stale and get reset.
+	const modelKnown = knownModels.includes(model);
+	const looksLikeBareOpenAiId = !model.includes("/");
+	const providerUsesSlugs = firstModel.includes("/");
+
+	if (modelKnown) return;
+
+	if (!info.allowCustomModel || (looksLikeBareOpenAiId && providerUsesSlugs)) {
+		if (firstModel) values[modelKey] = firstModel;
+	}
 }
 
 export function rebuildTranscriptionConfig(
@@ -613,6 +669,9 @@ export function applyConfigureValuesPatch(
 
 	if (Object.keys(config).length > 0) {
 		const merged = { ...(baseValues ?? seedConfigureValues()), ...config };
+		normalizeTranscriptionConfigureValues(merged, {
+			providerJustChanged: Object.hasOwn(config, "transcription.provider"),
+		});
 		// When a persona model is set to a value not in the provider's built-in
 		// list, automatically append it to the custom model list so it appears in
 		// future selector sessions.

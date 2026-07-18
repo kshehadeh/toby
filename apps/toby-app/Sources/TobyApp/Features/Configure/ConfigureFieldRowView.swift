@@ -192,7 +192,9 @@ struct ConfigureFieldRowView: View {
 				let saved = store.savedValues[field.key] ?? ""
 				return saved == ConfigureConstants.redactedSecret ? "" : saved
 			},
-			set: { store.setDraftValue(field.key, $0) },
+			// Save secrets immediately so a provider switch / section reload cannot
+			// drop a key that was only queued on the delayed autosave timer.
+			set: { store.setDraftValue(field.key, $0, autosaveImmediately: true) },
 		)
 	}
 

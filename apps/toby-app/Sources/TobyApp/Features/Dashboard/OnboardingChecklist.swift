@@ -50,10 +50,22 @@ struct OnboardingChecklist: Equatable {
 		hasSchedule: Bool,
 		hasSkill: Bool,
 		hasTranscriptionConfigured: Bool,
+		transcriptionNeedsApiKey: Bool = false,
+		transcriptionProviderLabel: String? = nil,
 		hasRecording: Bool,
 		hasSession: Bool
 	) -> OnboardingChecklist {
-		OnboardingChecklist(steps: [
+		let transcriptionSubtitle: String = {
+			if hasTranscriptionConfigured {
+				return "Ready to turn recordings into text"
+			}
+			if transcriptionNeedsApiKey {
+				let name = transcriptionProviderLabel ?? "this provider"
+				return "Add an API key for \(name)"
+			}
+			return "Provider, model, and a working API key"
+		}()
+		return OnboardingChecklist(steps: [
 			OnboardingStep(
 				kind: .configureAIProvider,
 				title: "Configure AI provider",
@@ -105,10 +117,10 @@ struct OnboardingChecklist: Equatable {
 			OnboardingStep(
 				kind: .setupTranscription,
 				title: "Set up transcription provider",
-				subtitle: "Turn recordings into text",
+				subtitle: transcriptionSubtitle,
 				systemImage: "pencil.and.scribble",
 				isComplete: hasTranscriptionConfigured,
-				actionLabel: "Set up"
+				actionLabel: transcriptionNeedsApiKey ? "Add key" : "Set up"
 			),
 			OnboardingStep(
 				kind: .recordAndTranscribe,
