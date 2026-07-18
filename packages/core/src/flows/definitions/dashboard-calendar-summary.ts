@@ -55,7 +55,7 @@ export const calendarDashboardSummaryFlow: FlowDefinition = {
 			},
 			outputs: { summary: "object" },
 			temperature: 0.3,
-			maxOutputTokens: 1500,
+			maxOutputTokens: 3000,
 			timeoutMs: 45_000,
 			systemPrompt: (ctx) => {
 				const skills = loadLocalSkills().filter((s) => s.enabled !== false);

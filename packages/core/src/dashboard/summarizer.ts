@@ -31,8 +31,8 @@ export {
 
 const SUMMARY_CACHE_TTL_MS = 5 * 60 * 1000;
 const SUMMARY_TIMEOUT_MS = 30_000;
-/** Room for a short markdown summary; higher than needed so partial CoT leak does not truncate the answer. */
-const SUMMARY_MAX_TOKENS = 1500;
+/** Room for a short markdown summary; higher than needed so partial CoT leak / reasoning tokens do not truncate the answer. */
+const SUMMARY_MAX_TOKENS = 3000;
 
 interface SummaryCacheEntry {
 	readonly data: DashboardCategoryAiSummary | null;

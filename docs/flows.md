@@ -124,7 +124,7 @@ Calls the flow persona’s model once with **structured** output (Zod →
   inputs: { data: { from: "unread" } },
   outputs: { summary: "object" },
   temperature: 0.3,       // default 0.3
-  maxOutputTokens: 1500,  // default 1500
+  maxOutputTokens: 3000,  // default 3000
   timeoutMs: 30_000,      // default 30s
 }
 ```

@@ -11,7 +11,7 @@ import type {
 import { FlowNodeError } from "../types";
 
 const DEFAULT_TEMPERATURE = 0.3;
-const DEFAULT_MAX_OUTPUT_TOKENS = 1500;
+const DEFAULT_MAX_OUTPUT_TOKENS = 3000;
 const DEFAULT_TIMEOUT_MS = 45_000;
 /** Cap structured-output attempt so slow/unsupported models fail fast into free-form. */
 const STRUCTURED_ATTEMPT_TIMEOUT_MS = 12_000;
