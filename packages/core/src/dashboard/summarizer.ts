@@ -17,11 +17,6 @@ import type {
 	DashboardCategorySummary,
 } from "./types";
 
-// Ensure built-in dashboard flows are registered.
-import "../flows/definitions/dashboard-email-summary";
-import "../flows/definitions/dashboard-tasks-summary";
-import "../flows/definitions/dashboard-calendar-summary";
-
 export {
 	CATEGORY_PROMPTS,
 	buildDashboardSummarySystemPrompt,

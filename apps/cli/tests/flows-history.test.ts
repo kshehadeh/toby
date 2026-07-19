@@ -6,7 +6,6 @@ import {
 	getFlowRun,
 	listFlowRuns,
 	pruneFlowRuns,
-	registerFlow,
 	runFlowDefinition,
 	type FlowDefinition,
 } from "@toby/core/flows";
@@ -59,8 +58,6 @@ describe("flow execution history", () => {
 				},
 			],
 		};
-		registerFlow(def);
-
 		const result = await runFlowDefinition(def, {
 			personaOverride: persona,
 			trigger: "test",

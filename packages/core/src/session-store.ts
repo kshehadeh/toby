@@ -236,6 +236,19 @@ CREATE TABLE IF NOT EXISTS flow_run_nodes (
 CREATE INDEX IF NOT EXISTS idx_flow_run_nodes_run_id_order
   ON flow_run_nodes(run_id, node_order);
 
+CREATE TABLE IF NOT EXISTS flows (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  persona_json TEXT,
+  definition_json TEXT NOT NULL,
+  builtin INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_flows_name ON flows(name);
+
 CREATE TABLE IF NOT EXISTS chat_external_sessions (
   integration TEXT NOT NULL,
   external_key TEXT NOT NULL,

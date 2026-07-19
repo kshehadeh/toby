@@ -4,7 +4,7 @@ import { listFlows } from "../../flows/registry";
 import { getFlowRun, listFlowRuns } from "../../flows/store";
 import { errorResponse, jsonResponse, parseIntParam } from "../http-utils";
 
-/** GET /api/flows — registered flow definitions (metadata snapshot). */
+/** GET /api/flows — stored flow definitions (metadata snapshot; seeds built-ins). */
 export function handleFlowsList(): Response {
 	const flows = listFlows().map((def) => buildDefinitionSnapshot(def));
 	return jsonResponse({ flows });

@@ -1,4 +1,4 @@
-import type { DashboardItem } from "../../dashboard/types";
+import type { DashboardItem } from "../dashboard/types";
 
 export function isDashboardItem(value: unknown): value is DashboardItem {
 	return (

@@ -21,7 +21,7 @@ Human- and flow-oriented docs for this repository.
 | [listen.md](listen.md) | Recording mode, native capture, transcription. |
 | [native-helpers.md](native-helpers.md) | Toby.app native API pattern for platform bridges. |
 | [chat-pipeline.md](chat-pipeline.md) | Chat turn nodes, events, pretreatment, tool-result cache. |
-| [flows.md](flows.md) | Named flow pipelines: Tool Executor, LLM Prompter, wiring, dashboard flows. |
+| [flows.md](flows.md) | Named flow pipelines: SQLite definitions, built-in seed, Tool Executor, LLM Prompter, dashboard flows. |
 | [daemon.md](daemon.md) | Background daemon: schedules, inbound, unified log (`logs/toby.log`). |
 | [server-api.md](server-api.md) | Local daemon HTTP API: routes, SSE chat turns, configure. |
 | [dashboard.md](dashboard.md) | Home dashboard cards: deterministic tools + flow-based AI blurbs, cache, email walkthrough. |

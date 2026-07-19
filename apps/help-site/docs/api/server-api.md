@@ -73,7 +73,7 @@ Transcript entries and chat stream events are structured JSON objects emitted du
 | `GET` | `/api/dashboard` | Home dashboard summary |
 | `GET` | `/api/dashboard/:section` | Dashboard section detail (deterministic data) |
 | `GET` | `/api/dashboard/:section/summary` | AI markdown blurb for a section |
-| `GET` | `/api/flows` | Registered flow definitions |
+| `GET` | `/api/flows` | Stored flow definitions (built-ins seeded on first use) |
 | `GET` | `/api/flows/runs` | Flow execution history summaries |
 | `GET` | `/api/flows/runs/:id` | One flow run with per-node detail |
 | `POST` | `/api/issues` | File or forward a GitHub issue report |

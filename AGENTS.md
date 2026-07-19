@@ -21,7 +21,7 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | [`docs/plugin-protocol.md`](docs/plugin-protocol.md) | Installable plugin contract (v1): subcommands, JSON, discovery. |
 | [`docs/create-integration.md`](docs/create-integration.md) | Checklist for adding a new plugin integration. |
 | [`docs/chat-pipeline.md`](docs/chat-pipeline.md) | Chat turn node pipeline, events, pretreatment, tool-result cache. |
-| [`docs/flows.md`](docs/flows.md) | Named flow pipelines: nodes, wiring, runtime API, dashboard category flows. |
+| [`docs/flows.md`](docs/flows.md) | Named flow pipelines: SQLite definitions, seed-on-miss built-ins, nodes, runtime API, dashboard flows. |
 | [`docs/projects.md`](docs/projects.md) | Projects: SQLite metadata, `AGENTS.md`, skills, outputs. |
 | [`docs/daemon.md`](docs/daemon.md) | Background daemon: schedules, inbound, unified log. |
 | [`docs/server-api.md`](docs/server-api.md) | Local daemon HTTP API: routes, SSE chat, configure. |

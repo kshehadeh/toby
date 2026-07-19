@@ -64,7 +64,7 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `GET` | `/api/dashboard` | Home dashboard summary payload (all categories). |
 | `GET` | `/api/dashboard/:category` | One dashboard category (`email`, `tasks`, `calendar`), or `null`. |
 | `GET` | `/api/dashboard/:category/summary` | AI markdown blurb for one category (named flow pipeline), or `null`. See [dashboard.md](dashboard.md) and [flows.md](flows.md). |
-| `GET` | `/api/flows` | Registered flow definition snapshots (for flow history UI). |
+| `GET` | `/api/flows` | Stored flow definition snapshots (seeds built-ins on list). |
 | `GET` | `/api/flows/runs` | Flow execution history summaries (`?flowName=&limit=&offset=`). |
 | `GET` | `/api/flows/runs/:id` | One flow run with per-node inputs/outputs/detail and timestamps. |
 | `POST` | `/api/issues` | File / forward an issue report (GitHub helper). |

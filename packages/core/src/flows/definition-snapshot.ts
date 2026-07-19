@@ -10,10 +10,8 @@ function snapshotInputs(
 	inputs: FlowInputMap | undefined,
 ): FlowNodeSnapshot["inputs"] {
 	if (!inputs) return undefined;
-	const out: Record<
-		string,
-		{ const?: unknown; from?: string; path?: string }
-	> = {};
+	const out: Record<string, { const?: unknown; from?: string; path?: string }> =
+		{};
 	for (const [key, source] of Object.entries(inputs)) {
 		if ("const" in source) {
 			out[key] = { const: source.const };

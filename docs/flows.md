@@ -1,11 +1,16 @@
 # Flows (named pipelines)
 
-Flows are **named, code-defined pipelines**: an ordered sequence of **nodes**
-with explicit **inputs** and **outputs**. They power non-chat workflows that need
-a fixed sequence of steps (today: home dashboard AI blurbs).
+Flows are **named pipelines**: an ordered sequence of **nodes** with explicit
+**inputs** and **outputs**. They power non-chat workflows that need a fixed
+sequence of steps (today: home dashboard AI blurbs).
+
+**Definitions** are stored in SQLite (`flows` table in `~/.toby/chat.sqlite`) as
+JSON documents. Built-in dashboard flows are seeded from code on first lookup
+if missing. **Executions** are stored separately (`flow_runs` /
+`flow_run_nodes`).
 
 Flows are **not** the chat turn pipeline. They have no pretreatment, message
-compaction, multi-step tool loops, session transcript, or SQLite chat history.
+compaction, multi-step tool loops, or session transcript.
 
 | | Chat pipeline | Flows |
 | --- | --- | --- |
@@ -19,11 +24,13 @@ compaction, multi-step tool loops, session transcript, or SQLite chat history.
 ## Mental model
 
 ```
-FlowDefinition (registered by name)
-  persona binding
-  nodes: [ Node₁, Node₂, … Nodeₙ ]
+FlowDocument (SQLite flows table, id = stable key)
+  persona spec (default | named | dashboard)
+  nodes: [ Node₁, Node₂, … Nodeₙ ]   // JSON-serializable
 
-runFlow(name, options)
+getFlow(id) / runFlow(id)
+  → load row (seed built-in if missing)
+  → hydrate → runtime FlowDefinition (Zod + prompt fns)
   → resolve persona
   → context bag = { …initial inputs }
   → for each node:
@@ -40,7 +47,8 @@ each other by name; the definition **wires** ports via `inputs` / `outputs`.
 
 | Concept | Meaning |
 | --- | --- |
-| **Flow** | Named list of nodes + optional persona binding |
+| **Flow document** | JSON definition in SQLite (`id`, persona, nodes) |
+| **Flow** | Hydrated runtime form: node list + persona binding |
 | **Node** | One step: currently `tool_executor` or `llm_prompter` |
 | **Context bag** | Intermediate values during a run |
 | **Input source** | How a node parameter is filled (`const` or `from` bag key) |
@@ -49,11 +57,19 @@ each other by name; the definition **wires** ports via `inputs` / `outputs`.
 
 ## Persona resolution
 
+Stored documents use a serializable **persona spec**:
+
+| Spec | Runtime behavior |
+| --- | --- |
+| `{ source: "dashboard" }` | `resolveDashboardPersona()` (Settings → Dashboard) |
+| `{ source: "named", name }` | `resolvePersona(name)`, then default |
+| `{ source: "default" }` or omitted | Default persona |
+
 For each run, the effective persona is:
 
 1. `personaOverride` on `runFlow` options  
-2. `personaName` on the flow definition  
-3. `resolvePersona()` on the definition (e.g. dashboard settings)  
+2. Named persona from the hydrated definition  
+3. `resolvePersona()` on the definition (dashboard source)  
 4. Default persona  
 
 All **LLM Prompter** nodes use `createModelForPersona` for that persona (not the
@@ -113,44 +129,50 @@ Implementation: `packages/core/src/flows/nodes/tool-executor.ts`,
 Calls the flow persona’s model once with **structured** output (Zod →
 `Output.object`). No tool-calling loop.
 
+**Stored document form** (SQLite / `FlowDocument`):
+
 ```ts
 {
   id: "summarize",
   type: "llm_prompter",
-  schema: z.object({ markdown: z.string() }),
+  schema: { kind: "markdown" }, // only preset today → z.object({ markdown: z.string() })
   schemaName: "EmailDashboardSummary",
-  systemPrompt: (ctx) => "…",
-  userPrompt: (ctx) => "…",
+  systemPrompt: "You are …",   // template string
+  userPrompt: "Here are the items:\n\n{{dashboardItems bag.unread}}",
+  promptHelpers: {
+    composePersona: true,       // wrap with persona instructions
+    appendSkillsCatalog: true,  // append enabled skills
+  },
   inputs: { data: { from: "unread" } },
   outputs: { summary: "object" },
   temperature: 0.3,       // default 0.3
   maxOutputTokens: 3000,  // default 3000
-  timeoutMs: 30_000,      // default 30s
+  timeoutMs: 45_000,      // default 45s
 }
 ```
 
-**Prompt context** (`ctx`):
+### Prompt templates
 
-- `persona` — resolved flow persona  
-- `bag` — full context bag  
-- `inputs` — resolved inputs for this node  
+| Token | Meaning |
+| --- | --- |
+| `{{bag.<key>}}` | Compact JSON (or string) of bag value |
+| `{{json bag.<key>}}` | Pretty-printed JSON |
+| `{{dashboardItems bag.<key>}}` | Format dashboard tool-result items for the model |
+| `{{inputs.<name>}}` | Resolved node input value |
 
-**Node result:** `{ object: <parsed schema> }`.  
-**Default outputs:** `{ object: "object" }`.
+After template render, optional **promptHelpers** apply persona composition and
+skills catalog (same behavior dashboard summaries used when prompts were code).
 
-For schemas richer than a single `markdown` string field, tries structured
-`Output.object` first (short timeout), then free-form. For **`{ markdown:
-string }`** (all dashboard flows), skips structured output and generates
-free-form markdown directly — many gateway models (e.g. DeepSeek) fail
-structured mode and previously burned the shared timeout so free-form was
-aborted (`Delay was aborted`). Free-form always gets a **fresh full**
-timeout budget and is coerced into the schema (JSON parse or wrap as
-`{ markdown }`).
+Hydration turns templates into runtime prompt functions. **Node result:**
+`{ object: <parsed schema> }`. **Default outputs:** `{ object: "object" }`.
 
-Callers may further sanitize string fields after the run (dashboard uses
+For the markdown schema preset, free-form generation is preferred (many gateway
+models fail structured mode). Free-form gets a full timeout budget and is
+coerced into `{ markdown }`. Callers may further sanitize (dashboard uses
 `extractDashboardSummaryText`).
 
-Implementation: `packages/core/src/flows/nodes/llm-prompter.ts`.
+Implementation: `packages/core/src/flows/nodes/llm-prompter.ts`,
+`prompt-template.ts`, `schema-presets.ts`, `hydrate.ts`.
 
 ## Input / output wiring
 
@@ -179,16 +201,47 @@ outputs: {
 
 Implementation: `packages/core/src/flows/resolve-inputs.ts`.
 
-## Runtime API
+## Storage model
+
+All of the following live in **`~/.toby/chat.sqlite`**:
+
+| Table | Role |
+| --- | --- |
+| `flows` | Flow **definitions** (JSON documents) |
+| `flow_runs` / `flow_run_nodes` | Execution **history** |
+
+### Definition table (`flows`)
+
+| Column | Purpose |
+| --- | --- |
+| `id` | Stable key (e.g. `dashboard.email.summary`) |
+| `name` | Display name (often same as `id`) |
+| `description` | Optional text |
+| `persona_json` | Persona spec JSON |
+| `definition_json` | Full `FlowDocument` JSON |
+| `builtin` | `1` for seeded built-ins |
+| `created_at` / `updated_at` | ISO timestamps |
+
+### Built-in seed-on-miss
+
+Dashboard (and future) built-ins are defined as seed `FlowDocument`s in
+`packages/core/src/flows/builtins.ts`.
+
+- `getFlow(id)` / `getFlowRecord(id)`: if no row and `id` is a known built-in,
+  **insert the seed once** and return it.
+- `listFlows()`: ensures **all** built-ins exist, then lists every row.
+- Existing rows are **never overwritten** by seed (preserves future user edits).
+
+### Runtime API
 
 ```ts
 import {
-  registerFlow,
   getFlow,
   listFlows,
+  saveFlowDocument,
   runFlow,
   runFlowDefinition,
-  type FlowDefinition,
+  type FlowDocument,
   type FlowResult,
 } from "@toby/core/flows";
 
@@ -197,7 +250,7 @@ const result: FlowResult = await runFlow("dashboard.email.summary", {
   inputs: { /* optional seed bag */ },
   abortSignal,
   trigger: "dashboard.summary:email", // optional label for history
-  record: true, // default; set false to skip chat.sqlite writes
+  record: true, // default; set false to skip chat.sqlite run writes
 });
 
 if (result.ok) {
@@ -213,21 +266,20 @@ if (result.ok) {
 
 | Function | Role |
 | --- | --- |
-| `registerFlow(def)` | Register (or replace) by `def.name` |
-| `getFlow(name)` | Lookup |
-| `listFlows()` | All definitions, name-sorted |
-| `runFlow(name, opts?)` | Run from registry (records history by default) |
-| `runFlowDefinition(def, opts?)` | Run without requiring registration |
-| `clearFlowRegistry()` | Tests only |
+| `getFlow(id)` | Load + hydrate (seed built-in on miss) |
+| `listFlows()` | All stored definitions (seeds built-ins first) |
+| `saveFlowDocument(doc)` | Insert or replace a serializable document |
+| `removeFlowDocument(id)` | Delete a definition row |
+| `runFlow(id, opts?)` | Run by id from the store (records history by default) |
+| `runFlowDefinition(def, opts?)` | Run an in-memory runtime definition (no store write of def) |
 | `listFlowRuns` / `getFlowRun` | Read execution history |
 | `pruneFlowRuns({ olderThanIso })` | Delete completed runs with `started_at` before a date |
 
-Definitions live under `packages/core/src/flows/definitions/` and register at
-import time. Public entry: `packages/core/src/flows/index.ts`.
+Public entry: `packages/core/src/flows/index.ts`.
 
 ## Execution history
 
-Every flow run is persisted to **`~/.toby/chat.sqlite`** (tables `flow_runs`,
+Every flow **run** is persisted to **`~/.toby/chat.sqlite`** (tables `flow_runs`,
 `flow_run_nodes`) unless `record: false`.
 
 ### Run record (`flow_runs`)
@@ -235,7 +287,7 @@ Every flow run is persisted to **`~/.toby/chat.sqlite`** (tables `flow_runs`,
 | Field | Purpose |
 | --- | --- |
 | `id` | UUID for detail API / UI |
-| `flow_name` | Registered flow name |
+| `flow_name` | Flow id |
 | `status` | `running` \| `success` \| `error` |
 | `persona_name`, `provider`, `model` | Resolved persona / model |
 | `trigger` | Caller label (e.g. `dashboard.summary:calendar`) |
@@ -267,29 +319,36 @@ Per node: resolved **inputs**, bag **outputs**, **duration_ms**,
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/flows` | Registered flow definition snapshots |
+| `GET` | `/api/flows` | Stored flow definition snapshots (seeds built-ins) |
 | `GET` | `/api/flows/runs` | Run summaries (`?flowName=&limit=&offset=`) |
 | `GET` | `/api/flows/runs/:id` | Full run + ordered nodes for the interactive graph UI |
 
 List responses omit heavy node I/O; use the detail route for click-through.
+There is no write API yet (user create/edit is future work).
 
 ## Package layout
 
 | Path | Role |
 | --- | --- |
-| `flows/types.ts` | Definition + result + history types, `FlowNodeError` |
-| `flows/registry.ts` | Register / get / list |
+| `flows/types.ts` | Runtime definition + result + history types |
+| `flows/document-types.ts` | Serializable `FlowDocument` / stored node types |
+| `flows/builtins.ts` | Built-in seed documents (dashboard summaries) |
+| `flows/definition-store.ts` | SQLite CRUD + seed-on-miss |
+| `flows/hydrate.ts` | Document → runtime `FlowDefinition` |
+| `flows/prompt-template.ts` | Template render + persona/skills helpers |
+| `flows/schema-presets.ts` | Schema kind → Zod |
+| `flows/registry.ts` | `getFlow` / `listFlows` / `saveFlowDocument` |
 | `flows/runner.ts` | Sequential driver + history instrumentation |
-| `flows/store.ts` | SQLite persistence, list/get/prune |
-| `flows/definition-snapshot.ts` | Serializable graph for UI |
+| `flows/store.ts` | Run history persistence, list/get/prune |
+| `flows/definition-snapshot.ts` | Serializable graph for UI / run snapshots |
 | `flows/resolve-inputs.ts` | `const` / `from` / path + apply outputs |
 | `flows/tool-resolve.ts` | standardTool / named tool resolve + execute |
 | `flows/nodes/tool-executor.ts` | Tool Executor node |
 | `flows/nodes/llm-prompter.ts` | LLM Prompter node |
-| `flows/definitions/*.ts` | Built-in flows (side-effect `registerFlow`) |
-| `flows/index.ts` | Public exports + import definitions |
+| `flows/dashboard-items.ts` | Dashboard tool-result item helpers |
+| `flows/index.ts` | Public exports |
 
-Tests: `apps/cli/tests/flows.test.ts`.
+Tests: `apps/cli/tests/flows.test.ts`, `flows-history.test.ts`.
 
 ## Built-in consumers: dashboard AI summaries
 
@@ -340,39 +399,35 @@ The flow’s Tool Executor **re-fetches** list data for the LLM (single
 active/default provider). The card’s badge/list still come from the multi-provider
 aggregator on the deterministic API. That split is intentional for v1.
 
-### Definition files
+### Seed source
 
-| Flow | File |
+| Flow | Seed |
 | --- | --- |
-| Email | `packages/core/src/flows/definitions/dashboard-email-summary.ts` |
-| Tasks | `packages/core/src/flows/definitions/dashboard-tasks-summary.ts` |
-| Calendar | `packages/core/src/flows/definitions/dashboard-calendar-summary.ts` |
-| Shared item helpers | `packages/core/src/flows/definitions/dashboard-shared.ts` |
-| Category prompts | `packages/core/src/dashboard/prompts.ts` |
+| All three dashboard summaries | `packages/core/src/flows/builtins.ts` |
+| Category prompt text | `CATEGORY_PROMPTS` in `dashboard/prompts.ts` (inlined into seed system prompts) |
+| Item formatting helper | `packages/core/src/flows/dashboard-items.ts` |
 
-## Adding a flow
+## Adding a built-in flow
 
-1. Create `packages/core/src/flows/definitions/<name>.ts`.  
-2. Build an `FlowDefinition` and call `registerFlow(...)`.  
-3. Side-effect import it from `packages/core/src/flows/index.ts` (and from any
-   module that must load before the first `runFlow`, e.g. the dashboard
-   summarizer).  
-4. Call `runFlow("<name>")` from the consumer.  
-5. Add tests under `apps/cli/tests/` and document here (and in consumer docs if
-   user-visible).
+1. Add a `FlowDocument` to `packages/core/src/flows/builtins.ts` and
+   `BUILTIN_FLOWS`.  
+2. Use serializable nodes only (string prompt templates, schema `{ kind:
+   "markdown" }` for now).  
+3. Call `runFlow("<id>")` from the consumer (`getFlow` seeds on first miss).  
+4. Add tests under `apps/cli/tests/` and document here.
 
-### Example skeleton
+### Example document skeleton
 
 ```ts
-import { z } from "zod";
-import { registerFlow } from "../registry";
-import type { FlowDefinition } from "../types";
+import { saveFlowDocument, type FlowDocument } from "@toby/core/flows";
 
-export const myFlow: FlowDefinition = {
+const myFlow: FlowDocument = {
+  id: "example.my-flow",
   name: "example.my-flow",
   description: "…",
-  // personaName: "Toby",
-  // resolvePersona: () => resolveDashboardPersona(),
+  persona: { source: "default" },
+  // or: { source: "named", name: "Toby" }
+  // or: { source: "dashboard" }
   nodes: [
     {
       id: "fetch",
@@ -384,35 +439,39 @@ export const myFlow: FlowDefinition = {
     {
       id: "draft",
       type: "llm_prompter",
-      schema: z.object({ title: z.string(), body: z.string() }),
-      systemPrompt: () => "You return structured fields only.",
-      userPrompt: (ctx) => JSON.stringify(ctx.bag.data),
-      outputs: { draft: "object" },
+      schema: { kind: "markdown" },
+      systemPrompt: "Summarize the data. Reply with markdown only.",
+      userPrompt: "Data:\n\n{{json bag.data}}",
+      promptHelpers: { composePersona: true },
+      outputs: { summary: "object" },
     },
   ],
 };
 
-registerFlow(myFlow);
+saveFlowDocument(myFlow);
 ```
+
+For one-off tests without persisting a definition, build a runtime
+`FlowDefinition` and call `runFlowDefinition(def, { record: false })`.
 
 ## Failure behavior
 
-- Unknown flow name → `ok: false`, error message, empty trace.  
+- Unknown flow id → `ok: false`, error message, empty trace.  
 - Missing input / output path → `FlowNodeError`, run stops, prior bag kept.  
 - Tool exec failure → node fails with plugin error string.  
 - LLM structured output null / timeout / abort → node fails.  
 - `nodeTrace` always lists completed and failed nodes with `durationMs`.
 
-## Non-goals (v1)
+## Non-goals (current)
 
 - UI / visual pipeline editor  
-- User-authored flow files on disk  
+- HTTP `POST` create/update or CLI `toby flows`  
+- Overwriting existing built-in rows when seed content changes  
 - Branching, conditionals, or DAGs  
 - Parallel node execution  
-- HTTP `POST /api/flows/...` or CLI `toby flows`  
 - Multi-step tool loops inside LLM Prompter (use chat or
   `delegateToSubAgent` for that)  
-- Session transcript / SQLite persistence of flow runs  
+- Schema presets beyond `{ kind: "markdown" }`
 
 ## Related docs
 

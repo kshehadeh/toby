@@ -269,11 +269,14 @@ Flow runtime: `packages/core/src/flows/` — see [`flows.md`](flows.md)
 
 ### Category → flow
 
-| Category | Flow | Tool bag key | Definition file |
+| Category | Flow id | Tool bag key | Seed |
 | --- | --- | --- | --- |
-| `email` | `dashboard.email.summary` | `unread` | `flows/definitions/dashboard-email-summary.ts` |
-| `tasks` | `dashboard.tasks.summary` | `openTasks` | `flows/definitions/dashboard-tasks-summary.ts` |
-| `calendar` | `dashboard.calendar.summary` | `upcoming` | `flows/definitions/dashboard-calendar-summary.ts` |
+| `email` | `dashboard.email.summary` | `unread` | `flows/builtins.ts` |
+| `tasks` | `dashboard.tasks.summary` | `openTasks` | `flows/builtins.ts` |
+| `calendar` | `dashboard.calendar.summary` | `upcoming` | `flows/builtins.ts` |
+
+Definitions are stored in the `flows` SQLite table and **seeded on first
+lookup** from `builtins.ts` when missing. See [`flows.md`](flows.md).
 
 Shared shape for every category flow:
 
@@ -284,9 +287,9 @@ LLM Prompter → { markdown: string }
         ↓ bag.summary
 ```
 
-Category prompts and system-prompt framing live in
-`packages/core/src/dashboard/prompts.ts` (`CATEGORY_PROMPTS`,
-`buildDashboardSummarySystemPrompt`, `formatItemsForPrompt`).
+Category prompt text is inlined into built-in system prompt templates (from
+`CATEGORY_PROMPTS` in `packages/core/src/dashboard/prompts.ts`). Item formatting
+uses `{{dashboardItems bag.<key>}}` templates at run time.
 
 ### Caching and persona
 
@@ -381,7 +384,7 @@ standard tools or flows.
 | Category prompts / persona | `packages/core/src/dashboard/prompts.ts` |
 | AI summaries + flow invoke | `packages/core/src/dashboard/summarizer.ts` |
 | Flow runtime | `packages/core/src/flows/` |
-| Dashboard flow definitions | `packages/core/src/flows/definitions/dashboard-*.ts` |
+| Dashboard flow seeds + store | `packages/core/src/flows/builtins.ts`, `definition-store.ts` |
 | HTTP handlers | `packages/core/src/web/handlers/dashboard.ts` |
 | Hook synthesis | `packages/core/src/integrations/plugins/adapter.ts` (`buildPluginDashboardHook`) |
 | Module type | `packages/core/src/integrations/types.ts` (`dashboard?`) |

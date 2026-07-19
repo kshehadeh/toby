@@ -1,7 +1,3 @@
-import "./definitions/dashboard-email-summary";
-import "./definitions/dashboard-tasks-summary";
-import "./definitions/dashboard-calendar-summary";
-
 export type {
 	FlowContextBag,
 	FlowDefinition,
@@ -30,11 +26,23 @@ export type {
 } from "./types";
 export { FlowNodeError } from "./types";
 
+export type {
+	FlowDocument,
+	FlowPersonaSpec,
+	FlowSchemaSpec,
+	StoredFlowNode,
+	StoredFlowRecord,
+	StoredLlmPrompterNode,
+	StoredToolExecutorNode,
+} from "./document-types";
+
 export {
 	clearFlowRegistry,
 	getFlow,
 	listFlows,
 	registerFlow,
+	removeFlowDocument,
+	saveFlowDocument,
 } from "./registry";
 
 export { runFlow, runFlowDefinition } from "./runner";
@@ -66,6 +74,32 @@ export {
 	pruneFlowRuns,
 } from "./store";
 
-export { emailDashboardSummaryFlow } from "./definitions/dashboard-email-summary";
-export { tasksDashboardSummaryFlow } from "./definitions/dashboard-tasks-summary";
-export { calendarDashboardSummaryFlow } from "./definitions/dashboard-calendar-summary";
+export {
+	ensureAllBuiltinFlows,
+	ensureBuiltinFlow,
+	getFlowRecord,
+	listFlowRecords,
+	loadFlowRecord,
+	upsertFlowDocument,
+	deleteFlowDocument,
+} from "./definition-store";
+
+export { hydrateFlowDocument } from "./hydrate";
+export {
+	renderFlowPromptTemplate,
+	renderStoredSystemPrompt,
+	renderStoredUserPrompt,
+} from "./prompt-template";
+export { schemaFromSpec } from "./schema-presets";
+
+export {
+	BUILTIN_FLOWS,
+	calendarDashboardSummaryDocument,
+	emailDashboardSummaryDocument,
+	getBuiltinFlowDocument,
+	isBuiltinFlowId,
+	listBuiltinFlowIds,
+	tasksDashboardSummaryDocument,
+} from "./builtins";
+
+export { itemsFromDashboardToolResult } from "./dashboard-items";

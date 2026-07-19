@@ -1,24 +1,39 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
+	BUILTIN_FLOWS,
 	FlowNodeError,
 	applyNodeOutputs,
-	clearFlowRegistry,
-	calendarDashboardSummaryFlow,
-	emailDashboardSummaryFlow,
+	emailDashboardSummaryDocument,
+	getBuiltinFlowDocument,
 	getFlow,
 	getByPath,
+	hydrateFlowDocument,
 	listFlows,
-	registerFlow,
+	loadFlowRecord,
+	removeFlowDocument,
+	renderFlowPromptTemplate,
 	resolveNodeInputs,
 	runFlowDefinition,
-	tasksDashboardSummaryFlow,
+	saveFlowDocument,
+	schemaFromSpec,
+	tasksDashboardSummaryDocument,
+	calendarDashboardSummaryDocument,
 	type FlowDefinition,
+	type FlowDocument,
 } from "@toby/core/flows";
 import {
 	coerceFreeTextToSchema,
 	isMarkdownOnlyObjectSchema,
 } from "@toby/core/flows/nodes/llm-prompter";
+import { closeChatDbForTests } from "@toby/core/session-store";
 import { z } from "zod";
+
+function makeTempDir(): string {
+	return fs.mkdtempSync(path.join(os.tmpdir(), "toby-flows-"));
+}
 
 describe("coerceFreeTextToSchema", () => {
 	const markdownSchema = z.object({ markdown: z.string() });
@@ -104,22 +119,156 @@ describe("flow input/output resolution", () => {
 	});
 });
 
-describe("flow registry", () => {
+describe("prompt templates", () => {
+	const persona = {
+		name: "Test",
+		instructions: "",
+		promptMode: "add" as const,
+		ai: { provider: "openai" as const, model: "gpt-4.1-nano" },
+	};
+
+	it("renders bag, json bag, dashboardItems, and inputs tokens", () => {
+		const bag = {
+			unread: {
+				count: 1,
+				items: [
+					{
+						id: "1",
+						title: "Hello",
+						subtitle: "from bob",
+					},
+				],
+			},
+			plain: "x",
+		};
+		const ctx = {
+			persona,
+			bag,
+			inputs: { data: { count: 1 } },
+		};
+		const out = renderFlowPromptTemplate(
+			[
+				"items:",
+				"{{dashboardItems bag.unread}}",
+				"json:",
+				"{{json bag.unread}}",
+				"bag:",
+				"{{bag.plain}}",
+				"in:",
+				"{{inputs.data}}",
+			].join("\n"),
+			ctx,
+		);
+		expect(out).toContain("1. Hello");
+		expect(out).toContain("from bob");
+		expect(out).toContain('"count": 1');
+		expect(out).toContain("bag:\nx");
+		expect(out).toContain("in:\n{\"count\":1}");
+	});
+});
+
+describe("hydrate + schema presets", () => {
+	it("hydrates dashboard email document into tool then llm nodes", () => {
+		const flow = hydrateFlowDocument(emailDashboardSummaryDocument);
+		expect(flow.name).toBe("dashboard.email.summary");
+		expect(flow.nodes).toHaveLength(2);
+		expect(flow.nodes[0]?.type).toBe("tool_executor");
+		expect(flow.nodes[1]?.type).toBe("llm_prompter");
+		expect(flow.resolvePersona).toBeDefined();
+		if (flow.nodes[0]?.type === "tool_executor") {
+			expect(
+				"standardTool" in flow.nodes[0].tool &&
+					flow.nodes[0].tool.standardTool,
+			).toBe("email.unreadSummary");
+		}
+		if (flow.nodes[1]?.type === "llm_prompter") {
+			expect(
+				flow.nodes[1].schema.safeParse({ markdown: "## Needs attention\n- x" })
+					.success,
+			).toBe(true);
+		}
+	});
+
+	it("schemaFromSpec markdown matches llm_prompter expectations", () => {
+		const schema = schemaFromSpec({ kind: "markdown" });
+		expect(isMarkdownOnlyObjectSchema(schema)).toBe(true);
+		expect(schema.safeParse({ markdown: "hi" }).success).toBe(true);
+	});
+});
+
+describe("flow definition store + seed-on-miss", () => {
+	let previousTobyDir: string | undefined;
+
 	beforeEach(() => {
-		clearFlowRegistry();
+		closeChatDbForTests();
+		previousTobyDir = process.env.TOBY_DIR;
+		process.env.TOBY_DIR = makeTempDir();
 	});
 
 	afterEach(() => {
-		clearFlowRegistry();
-		// Re-register built-ins so other tests / imports still work.
-		registerFlow(emailDashboardSummaryFlow);
-		registerFlow(tasksDashboardSummaryFlow);
-		registerFlow(calendarDashboardSummaryFlow);
+		closeChatDbForTests();
+		const dir = process.env.TOBY_DIR;
+		if (previousTobyDir === undefined) {
+			Reflect.deleteProperty(process.env, "TOBY_DIR");
+		} else {
+			process.env.TOBY_DIR = previousTobyDir;
+		}
+		if (dir && fs.existsSync(dir)) {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
 	});
 
-	it("registerFlow and getFlow round-trip", () => {
-		const def: FlowDefinition = {
-			name: "test.flow",
+	it("getFlow seeds built-in on first miss and does not duplicate", () => {
+		expect(loadFlowRecord("dashboard.email.summary")).toBeNull();
+
+		const flow = getFlow("dashboard.email.summary");
+		expect(flow).toBeDefined();
+		expect(flow?.name).toBe("dashboard.email.summary");
+		expect(flow?.nodes).toHaveLength(2);
+		expect(flow?.nodes[0]?.type).toBe("tool_executor");
+		expect(flow?.nodes[1]?.type).toBe("llm_prompter");
+
+		const row = loadFlowRecord("dashboard.email.summary");
+		expect(row?.builtin).toBe(true);
+		expect(row?.document.id).toBe("dashboard.email.summary");
+
+		// Second lookup uses existing row (still present, same id).
+		const again = getFlow("dashboard.email.summary");
+		expect(again?.name).toBe("dashboard.email.summary");
+		expect(loadFlowRecord("dashboard.email.summary")?.id).toBe(
+			"dashboard.email.summary",
+		);
+	});
+
+	it("listFlows ensures all built-in dashboard flows exist", () => {
+		const flows = listFlows();
+		const names = flows.map((f) => f.name);
+		expect(names).toContain("dashboard.email.summary");
+		expect(names).toContain("dashboard.tasks.summary");
+		expect(names).toContain("dashboard.calendar.summary");
+		expect(Object.keys(BUILTIN_FLOWS)).toHaveLength(3);
+	});
+
+	it("does not overwrite an existing built-in row when ensuring", () => {
+		const custom: FlowDocument = {
+			...emailDashboardSummaryDocument,
+			description: "user-edited description",
+		};
+		saveFlowDocument(custom, { builtin: true });
+		expect(loadFlowRecord("dashboard.email.summary")?.document.description).toBe(
+			"user-edited description",
+		);
+
+		// getFlow should return existing, not re-seed from code defaults.
+		const flow = getFlow("dashboard.email.summary");
+		expect(flow?.description).toBe("user-edited description");
+	});
+
+	it("saveFlowDocument round-trips a tool-only user flow", () => {
+		const doc: FlowDocument = {
+			id: "test.user.flow",
+			name: "test.user.flow",
+			description: "test",
 			nodes: [
 				{
 					id: "t1",
@@ -128,100 +277,32 @@ describe("flow registry", () => {
 				},
 			],
 		};
-		registerFlow(def);
-		expect(getFlow("test.flow")?.name).toBe("test.flow");
-		expect(listFlows().some((a) => a.name === "test.flow")).toBe(true);
+		const saved = saveFlowDocument(doc);
+		expect(saved.name).toBe("test.user.flow");
+		expect(getFlow("test.user.flow")?.nodes[0]?.type).toBe("tool_executor");
+		expect(removeFlowDocument("test.user.flow")).toBe(true);
+		expect(getFlow("test.user.flow")).toBeUndefined();
 	});
 
-	it("rejects empty name and duplicate node ids", () => {
-		expect(() =>
-			registerFlow({
-				name: "  ",
-				nodes: [
-					{
-						id: "a",
-						type: "tool_executor",
-						tool: { standardTool: "email.unreadSummary" },
-					},
-				],
-			}),
-		).toThrow();
-
-		expect(() =>
-			registerFlow({
-				name: "dup",
-				nodes: [
-					{
-						id: "same",
-						type: "tool_executor",
-						tool: { standardTool: "email.unreadSummary" },
-					},
-					{
-						id: "same",
-						type: "tool_executor",
-						tool: { standardTool: "email.unreadSummary" },
-					},
-				],
-			}),
-		).toThrow(/duplicate node id/);
-	});
-});
-
-describe("dashboard summary flow definitions", () => {
-	it("email flow is registered with tool_executor then llm_prompter", () => {
-		registerFlow(emailDashboardSummaryFlow);
-		const flow = getFlow("dashboard.email.summary");
-		expect(flow).toBeDefined();
-		expect(flow?.nodes).toHaveLength(2);
-		expect(flow?.nodes[0]?.type).toBe("tool_executor");
-		expect(flow?.nodes[1]?.type).toBe("llm_prompter");
-		if (flow?.nodes[0]?.type === "tool_executor") {
-			expect(
-				"standardTool" in flow.nodes[0].tool &&
-					flow.nodes[0].tool.standardTool,
-			).toBe("email.unreadSummary");
-		}
-	});
-
-	it("tasks flow is registered with tool_executor then llm_prompter", () => {
-		registerFlow(tasksDashboardSummaryFlow);
-		const flow = getFlow("dashboard.tasks.summary");
-		expect(flow).toBeDefined();
-		expect(flow?.nodes).toHaveLength(2);
-		expect(flow?.nodes[0]?.type).toBe("tool_executor");
-		expect(flow?.nodes[1]?.type).toBe("llm_prompter");
-		if (flow?.nodes[0]?.type === "tool_executor") {
-			expect(
-				"standardTool" in flow.nodes[0].tool &&
-					flow.nodes[0].tool.standardTool,
-			).toBe("tasks.openSummary");
-		}
-		const llm = flow?.nodes[1];
-		if (llm?.type === "llm_prompter") {
-			expect(
-				llm.schema.safeParse({ markdown: "## Needs attention\n- x" }).success,
-			).toBe(true);
-		}
-	});
-
-	it("calendar flow is registered with tool_executor then llm_prompter", () => {
-		registerFlow(calendarDashboardSummaryFlow);
-		const flow = getFlow("dashboard.calendar.summary");
-		expect(flow).toBeDefined();
-		expect(flow?.nodes).toHaveLength(2);
-		expect(flow?.nodes[0]?.type).toBe("tool_executor");
-		expect(flow?.nodes[1]?.type).toBe("llm_prompter");
-		if (flow?.nodes[0]?.type === "tool_executor") {
-			expect(
-				"standardTool" in flow.nodes[0].tool &&
-					flow.nodes[0].tool.standardTool,
-			).toBe("calendar.upcomingSummary");
-		}
+	it("tasks and calendar built-in documents have expected tools", () => {
+		const tasks = getBuiltinFlowDocument("dashboard.tasks.summary");
+		const cal = getBuiltinFlowDocument("dashboard.calendar.summary");
+		expect(tasks?.nodes[0]).toMatchObject({
+			type: "tool_executor",
+			tool: { standardTool: "tasks.openSummary" },
+		});
+		expect(cal?.nodes[0]).toMatchObject({
+			type: "tool_executor",
+			tool: { standardTool: "calendar.upcomingSummary" },
+		});
+		// Documents match exported constants.
+		expect(tasks).toEqual(tasksDashboardSummaryDocument);
+		expect(cal).toEqual(calendarDashboardSummaryDocument);
 	});
 });
 
 describe("runFlowDefinition", () => {
-	it("returns unknown flow style failure via run with empty pipeline result on missing inputs", async () => {
+	it("returns failure on missing inputs", async () => {
 		const def: FlowDefinition = {
 			name: "test.const-only-then-read",
 			nodes: [
@@ -253,17 +334,17 @@ describe("runFlowDefinition", () => {
 		}
 	});
 
-	it("runs a pure llm_prompter node when generate path is not needed for input wiring", async () => {
-		// This flow only has a tool node that will fail resolve — covered above.
-		// Smoke: structured schema exists on email flow llm node.
-		const llm = emailDashboardSummaryFlow.nodes[1];
+	it("hydrated email llm schema accepts markdown object", () => {
+		const flow = hydrateFlowDocument(emailDashboardSummaryDocument);
+		const llm = flow.nodes[1];
 		expect(llm?.type).toBe("llm_prompter");
 		if (llm?.type === "llm_prompter") {
-			const parsed = llm.schema.safeParse({ markdown: "## Needs attention\n- Hi" });
+			const parsed = llm.schema.safeParse({
+				markdown: "## Needs attention\n- Hi",
+			});
 			expect(parsed.success).toBe(true);
 			const bad = llm.schema.safeParse({ notMarkdown: true });
 			expect(bad.success).toBe(false);
 		}
 	});
 });
-
