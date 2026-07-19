@@ -8,8 +8,9 @@ enum DashboardBlockLayout {
 	/// Collapsed height for mail / tasks / calendar cards (aligned in a row).
 	static let collapsedHeight: CGFloat = 340
 	/// Soft fade over clipped body text (fully opaque at the bottom of the fade).
+	/// Drawn as an overlay; does not reserve layout space inside the body.
 	static let showMoreFadeHeight: CGFloat = 40
-	/// Solid control bar under the fade (no body text in this band).
+	/// Solid control bar under the fade, overlaid on the card’s lower edge.
 	static let showMoreButtonHeight: CGFloat = 36
 	static var showMoreChromeHeight: CGFloat {
 		showMoreFadeHeight + showMoreButtonHeight
@@ -62,11 +63,9 @@ struct DashboardCard<Content: View>: View {
 		self.content = content
 	}
 
-	/// Content taller than the collapsed body band needs “Show more”.
+	/// Content taller than the fixed collapsed card needs “Show more”.
 	private var isOverflowing: Bool {
-		let bodyBudget =
-			DashboardBlockLayout.collapsedHeight - DashboardBlockLayout.showMoreChromeHeight
-		return intrinsicContentHeight > bodyBudget + 0.5
+		intrinsicContentHeight > DashboardBlockLayout.collapsedHeight + 0.5
 	}
 
 	private var motion: Animation? {
@@ -74,93 +73,87 @@ struct DashboardCard<Content: View>: View {
 	}
 
 	var body: some View {
-		// Single continuous hierarchy so expand doesn’t tear down the hovered view.
-		ZStack(alignment: .bottom) {
-			cardBody
-				// Header controls (refresh / menu) stay tappable; summary markdown
-				// respects `dashboardCardBodyInteractive` and is inert while clipped.
-				// Fully-visible (non-overflowing) bodies stay interactive.
-				.environment(
-					\.dashboardCardBodyInteractive,
-					isExpanded || !isOverflowing
-				)
-				.frame(maxWidth: .infinity, alignment: .topLeading)
-				.frame(
-					maxHeight: isExpanded ? nil : DashboardBlockLayout.collapsedHeight,
-					alignment: .topLeading
-				)
-				.padding(
-					.bottom,
-					(!isExpanded && isOverflowing)
-						? DashboardBlockLayout.showMoreButtonHeight
-						: 0
-				)
-				// Clip drawing + hit testing so clipped subviews cannot grow out of band.
-				.contentShape(Rectangle())
-				.clipped()
-
-			if !isExpanded, isOverflowing {
-				showMoreChrome
+		// Body is a fixed-height clipped band when collapsed. “Show more” is a
+		// true overlay on the lower edge (not a layout sibling), so long content
+		// cannot push the control below the card and out of view.
+		cardBody
+			// Header controls (refresh / menu) stay tappable; summary markdown
+			// respects `dashboardCardBodyInteractive` and is inert while clipped.
+			// Fully-visible (non-overflowing) bodies stay interactive.
+			.environment(
+				\.dashboardCardBodyInteractive,
+				isExpanded || !isOverflowing
+			)
+			.frame(maxWidth: .infinity, alignment: .topLeading)
+			.frame(
+				maxHeight: isExpanded ? nil : DashboardBlockLayout.collapsedHeight,
+				alignment: .topLeading
+			)
+			.frame(
+				minHeight: DashboardBlockLayout.collapsedHeight,
+				// Collapsed: fixed height. Expanded: grow with content (ScrollView can scroll).
+				maxHeight: isExpanded ? .infinity : DashboardBlockLayout.collapsedHeight,
+				alignment: .top
+			)
+			.fixedSize(horizontal: false, vertical: isExpanded)
+			// Clip drawing + hit testing so clipped subviews cannot grow out of band.
+			.contentShape(Rectangle())
+			.clipped()
+			.overlay(alignment: .bottom) {
+				if !isExpanded, isOverflowing {
+					showMoreChrome
+				}
 			}
-		}
-		.frame(maxWidth: .infinity)
-		.frame(
-			minHeight: DashboardBlockLayout.collapsedHeight,
-			// Collapsed: fixed height. Expanded: grow with content (ScrollView can scroll).
-			maxHeight: isExpanded ? .infinity : DashboardBlockLayout.collapsedHeight,
-			alignment: .top
-		)
-		.fixedSize(horizontal: false, vertical: isExpanded)
-		.background(
-			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
-				.fill(AppTheme.panelBackground)
-		)
-		.overlay(
-			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
-				.stroke(AppTheme.separator, lineWidth: 1)
-		)
-		.clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadius))
-		.shadow(
-			color: isExpanded ? Color.black.opacity(0.18) : .clear,
-			radius: isExpanded ? 12 : 0,
-			x: 0,
-			y: isExpanded ? 6 : 0
-		)
-		// Hidden unconstrained pass measures full content height for overflow.
-		// Non-interactive so it never steals hits or selection from the real body.
-		.background(alignment: .top) {
-			cardBody
-				.environment(\.dashboardCardBodyInteractive, false)
-				.fixedSize(horizontal: false, vertical: true)
-				.hidden()
-				.allowsHitTesting(false)
-				.background(
-					GeometryReader { geo in
-						Color.clear.preference(
-							key: DashboardCardContentHeightKey.self,
-							value: geo.size.height
-						)
-					}
-				)
-		}
-		.onPreferenceChange(DashboardCardContentHeightKey.self) { height in
-			intrinsicContentHeight = height
-		}
-		.onHover { hovering in
-			isPointerInside = hovering
-			guard isExpanded, !hovering else { return }
-			// Clicking “Show more” removes the button under the cursor and
-			// delivers a spurious hover-exit — ignore that until the pointer
-			// has settled or left and re-entered.
-			if suppressHoverCollapse { return }
-			withAnimation(motion) {
-				isExpanded = false
+			.background(
+				RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
+					.fill(AppTheme.panelBackground)
+			)
+			.overlay(
+				RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
+					.stroke(AppTheme.separator, lineWidth: 1)
+			)
+			.clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadius))
+			.shadow(
+				color: isExpanded ? Color.black.opacity(0.18) : .clear,
+				radius: isExpanded ? 12 : 0,
+				x: 0,
+				y: isExpanded ? 6 : 0
+			)
+			// Hidden unconstrained pass measures full content height for overflow.
+			// Non-interactive so it never steals hits or selection from the real body.
+			.background(alignment: .top) {
+				cardBody
+					.environment(\.dashboardCardBodyInteractive, false)
+					.fixedSize(horizontal: false, vertical: true)
+					.hidden()
+					.allowsHitTesting(false)
+					.background(
+						GeometryReader { geo in
+							Color.clear.preference(
+								key: DashboardCardContentHeightKey.self,
+								value: geo.size.height
+							)
+						}
+					)
 			}
-		}
-		.animation(motion, value: isExpanded)
-		.accessibilityIdentifier(
-			isExpanded ? "dashboard-card-expanded" : "dashboard-card-collapsed"
-		)
+			.onPreferenceChange(DashboardCardContentHeightKey.self) { height in
+				intrinsicContentHeight = height
+			}
+			.onHover { hovering in
+				isPointerInside = hovering
+				guard isExpanded, !hovering else { return }
+				// Clicking “Show more” removes the button under the cursor and
+				// delivers a spurious hover-exit — ignore that until the pointer
+				// has settled or left and re-entered.
+				if suppressHoverCollapse { return }
+				withAnimation(motion) {
+					isExpanded = false
+				}
+			}
+			.animation(motion, value: isExpanded)
+			.accessibilityIdentifier(
+				isExpanded ? "dashboard-card-expanded" : "dashboard-card-collapsed"
+			)
 	}
 
 	private var cardBody: some View {
@@ -171,7 +164,7 @@ struct DashboardCard<Content: View>: View {
 		.padding(22)
 	}
 
-	/// Fade over truncated body + solid bar for the control (no text under the label).
+	/// Fade + control overlaid on the card’s lower border (out of content flow).
 	private var showMoreChrome: some View {
 		VStack(spacing: 0) {
 			LinearGradient(
@@ -202,6 +195,8 @@ struct DashboardCard<Content: View>: View {
 			.help("Expand this card. Move the pointer away to collapse.")
 		}
 		.frame(maxWidth: .infinity)
+		// Overlay must not expand the card’s layout height.
+		.fixedSize(horizontal: false, vertical: true)
 	}
 
 	private func expandFromShowMore() {
