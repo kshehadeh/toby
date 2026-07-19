@@ -105,6 +105,16 @@ struct CommandPaletteView: View {
 			))
 		}
 
+		if trimmed.isEmpty || "flows".localizedCaseInsensitiveContains(trimmed) {
+			items.append(CommandPaletteResult(
+				id: "action-flows",
+				title: "Open Flows",
+				subtitle: "Browse named flow pipelines",
+				systemImage: "arrow.triangle.branch",
+				kind: .route(.flows),
+			))
+		}
+
 		if trimmed.isEmpty || "recordings".localizedCaseInsensitiveContains(trimmed) {
 			items.append(CommandPaletteResult(
 				id: "action-recordings",

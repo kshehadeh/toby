@@ -14,6 +14,7 @@ struct TobyApp: App {
 	@State private var integrationsStore = ConfigureStore()
 	@State private var skillsStore = SkillsStore()
 	@State private var memoriesStore = MemoriesStore()
+	@State private var flowsStore = FlowsStore()
 	@State private var changelogStore = ChangelogStore()
 	@State private var pluginsStore = PluginsStore()
 	@State private var updateStore = UpdateStore()
@@ -44,6 +45,7 @@ struct TobyApp: App {
 				integrationsStore: integrationsStore,
 				skillsStore: skillsStore,
 				memoriesStore: memoriesStore,
+				flowsStore: flowsStore,
 				personaEditorCoordinator: personaEditorCoordinator,
 				updateStore: updateStore,
 				changelogStore: changelogStore,
@@ -228,7 +230,7 @@ struct TobyApp: App {
 		}
 	}
 
-	/// Returns a keyboard shortcut for each view route (Cmd+1 through Cmd+8).
+	/// Returns a keyboard shortcut for each view route (Cmd+1 through Cmd+9).
 	/// Settings uses Cmd+, from the app settings command group.
 	private func viewShortcut(for route: DetailRoute) -> KeyboardShortcut? {
 		switch route {
@@ -239,7 +241,8 @@ struct TobyApp: App {
 		case .skills: return KeyboardShortcut("5", modifiers: .command)
 		case .memories: return KeyboardShortcut("6", modifiers: .command)
 		case .schedules: return KeyboardShortcut("7", modifiers: .command)
-		case .recordings: return KeyboardShortcut("8", modifiers: .command)
+		case .flows: return KeyboardShortcut("8", modifiers: .command)
+		case .recordings: return KeyboardShortcut("9", modifiers: .command)
 		}
 	}
 

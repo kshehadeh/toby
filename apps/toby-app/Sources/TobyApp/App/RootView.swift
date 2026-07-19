@@ -11,6 +11,7 @@ struct RootView: View {
     @Bindable var integrationsStore: ConfigureStore
     @Bindable var skillsStore: SkillsStore
     @Bindable var memoriesStore: MemoriesStore
+    @Bindable var flowsStore: FlowsStore
     let personaEditorCoordinator: PersonaEditorCoordinator
     @Bindable var updateStore: UpdateStore
     @Bindable var changelogStore: ChangelogStore
@@ -555,6 +556,8 @@ struct RootView: View {
                                 id: memory.id, value: memory.value
                             )
                         })
+                    case .flows:
+                        FlowsSidebarView(store: flowsStore)
                     }
                 }
             )
@@ -786,6 +789,28 @@ struct RootView: View {
                             .disabled(memoriesStore.isListLoading || memoriesStore.isSaving)
                             .accessibilityIdentifier("refresh-memories-button")
                             .accessibilityLabel("Refresh memories")
+                        }
+                    }
+            case .flows:
+                FlowsView(store: flowsStore)
+                    .toolbar {
+                        commonToolbarItems()
+                        ToolbarItem(placement: .principal) { Spacer() }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button {
+                                Task {
+                                    await flowsStore.load()
+                                    if flowsStore.selectedFlowId != nil {
+                                        await flowsStore.refreshSelectedRuns()
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: "arrow.clockwise")
+                            }
+                            .help("Refresh flows")
+                            .disabled(flowsStore.isListLoading || flowsStore.isRunsLoading)
+                            .accessibilityIdentifier("refresh-flows-button")
+                            .accessibilityLabel("Refresh flows")
                         }
                     }
             }

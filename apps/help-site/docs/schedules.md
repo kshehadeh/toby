@@ -70,4 +70,5 @@ After connecting Email and leaving Toby running, you get a daily brief at 9am.
 
 - [Personas](./personas)
 - [Integrations](./integrations/overview)
+- [Flows](./flows) — tool + persona pipelines (built-in dashboard today; custom flows on schedules later)
 - [Examples](./examples)

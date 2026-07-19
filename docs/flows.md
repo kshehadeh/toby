@@ -319,12 +319,19 @@ Per node: resolved **inputs**, bag **outputs**, **duration_ms**,
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/flows` | Stored flow definition snapshots (seeds built-ins) |
+| `GET` | `/api/flows` | Flow list for the app UI (`id`, `name`, `description`, `builtin`, `persona`, node graph snapshot, timestamps); seeds built-ins |
 | `GET` | `/api/flows/runs` | Run summaries (`?flowName=&limit=&offset=`) |
 | `GET` | `/api/flows/runs/:id` | Full run + ordered nodes for the interactive graph UI |
 
 List responses omit heavy node I/O; use the detail route for click-through.
 There is no write API yet (user create/edit is future work).
+
+### Toby.app UI
+
+The main window **Flows** surface (`DetailRoute.flows`) lists definitions in the
+sidebar, shows a card home for all flows, and opens a read-only detail with
+node steps and recent runs. Built-in flows are labeled and cannot be deleted;
+custom flow edit/delete is reserved for a later release.
 
 ## Package layout
 

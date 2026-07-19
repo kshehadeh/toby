@@ -39,7 +39,7 @@ The CLI equivalents for backup/restore are `toby config backup` and `toby config
 | Menu item | What it does |
 | --------- | ------------ |
 | **Show Command View** | Opens the command palette to jump to sessions, routes, and actions (⌘K) |
-| Route items (Dashboard, Chat, …) | Switch the main window to that surface (⌘1–⌘8) |
+| Route items (Dashboard, Chat, …) | Switch the main window to that surface (⌘1–⌘9) |
 
 ## Surfaces
 
@@ -99,6 +99,17 @@ expressions. You can add new schedules, run them on demand, or delete them.
 
 ![Toby.app Schedules window](/img/toby-app-schedules.png)
 
+### Flows
+
+The **Flows** window shows automated pipelines that combine local tools with a
+persona and an LLM—today mainly the built-in jobs that fill the home dashboard
+blocks (email, tasks, calendar). Browse flows as cards, open one for its steps
+and recent runs, and inspect run history. Flows are **not customizable yet**
+(you cannot create or edit your own); that will come later, including running
+custom flows from [schedules](./schedules).
+
+See [Flows](./flows) for a fuller explanation.
+
 ### Settings
 
 The Settings window lets you configure chat defaults, AI providers, personas,
@@ -149,7 +160,8 @@ status cues) across Toby.app windows. Same preset in light and dark.
 #### Dashboard (related)
 
 Under **Settings → Dashboard**, you can set the persona used for dashboard
-summaries and control which home-dashboard cards are visible (app-local):
+summaries and control which home-dashboard cards are visible (app-local). Those
+AI blurbs are produced by built-in [flows](./flows).
 
 - **Dashboard persona** — Model and instructions used for the short AI blurbs
   under the unread mail, tasks, and upcoming events cards (list counts and rows

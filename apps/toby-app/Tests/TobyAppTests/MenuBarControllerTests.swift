@@ -16,6 +16,7 @@ struct MenuBarControllerTests {
 		#expect(titles.contains("Skills"))
 		#expect(titles.contains("Memories"))
 		#expect(titles.contains("Schedules"))
+		#expect(titles.contains("Flows"))
 		#expect(titles.contains("Recordings"))
 		#expect(titles.contains("Settings…"))
 		#expect(titles.contains("Quit Toby"))
@@ -43,7 +44,7 @@ struct MenuBarControllerTests {
 		let viewTitles = Array(titles[viewStart...viewEnd])
 		#expect(viewTitles == [
 			"Chats", "Integrations", "Projects", "Skills",
-			"Memories", "Schedules", "Recordings", "Settings…",
+			"Memories", "Schedules", "Flows", "Recordings", "Settings…",
 		])
 	}
 

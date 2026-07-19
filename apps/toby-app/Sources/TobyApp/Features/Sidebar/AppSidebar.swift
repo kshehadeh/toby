@@ -100,6 +100,14 @@ struct AppSidebar<Content: View>: View {
 				detail: "Create and monitor recurring prompts that run on a schedule through Toby's background daemon."
 			),
 			SidebarActionItem(
+				route: .flows,
+				title: "Flows",
+				systemImage: "arrow.triangle.branch",
+				hoveredSystemImage: "arrow.triangle.branch",
+				accentColor: Color(red: 0.38, green: 0.72, blue: 0.86),
+				detail: "Browse named flow pipelines, inspect their nodes, and review recent execution history."
+			),
+			SidebarActionItem(
 				route: .recordings,
 				title: "Recordings",
 				systemImage: "waveform",

@@ -751,6 +751,47 @@ struct TobyClient {
 		return try JSONDecoder().decode(Payload.self, from: data).skills
 	}
 
+	// MARK: - Flows
+
+	func listFlows() async throws -> [FlowListItem] {
+		let url = baseURL.appendingPathComponent("api/flows")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		struct Payload: Decodable { let flows: [FlowListItem] }
+		return try JSONDecoder().decode(Payload.self, from: data).flows
+	}
+
+	func listFlowRuns(flowName: String? = nil, limit: Int = 50, offset: Int = 0) async throws -> [FlowRunSummary] {
+		var components = URLComponents(
+			url: baseURL.appendingPathComponent("api/flows/runs"),
+			resolvingAgainstBaseURL: false
+		)!
+		var items = [
+			URLQueryItem(name: "limit", value: String(limit)),
+			URLQueryItem(name: "offset", value: String(offset)),
+		]
+		if let flowName, !flowName.isEmpty {
+			items.append(URLQueryItem(name: "flowName", value: flowName))
+		}
+		components.queryItems = items
+		let (data, response) = try await URLSession.shared.data(from: components.url!)
+		try validate(response: response, data: data)
+		struct Payload: Decodable { let runs: [FlowRunSummary] }
+		return try JSONDecoder().decode(Payload.self, from: data).runs
+	}
+
+	func fetchFlowRun(id: String) async throws -> FlowRunDetail {
+		let url = baseURL.appendingPathComponent("api/flows/runs/\(id)")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		// Detail payload nests nodes on the run object from the store; the handler
+		// also echoes `nodes` at the top level — prefer the nested run payload.
+		struct Payload: Decodable {
+			let run: FlowRunDetail
+		}
+		return try JSONDecoder().decode(Payload.self, from: data).run
+	}
+
 	func fetchSkill(dirName: String) async throws -> SkillDetail {
 		let url = baseURL.appendingPathComponent("api/skills/\(dirName)")
 		let (data, response) = try await URLSession.shared.data(from: url)

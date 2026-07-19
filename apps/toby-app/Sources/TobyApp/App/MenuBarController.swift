@@ -115,6 +115,7 @@ final class MenuBarController: NSObject {
 			skillsItem(),
 			memoriesItem(),
 			schedulesItem(),
+			flowsItem(),
 			recordingsItem(),
 			settingsItem(),
 			.separator(),
@@ -164,11 +165,15 @@ final class MenuBarController: NSObject {
 	}
 
 	private func recordingsItem() -> NSMenuItem {
-		viewMenuItem(title: DetailRoute.recordings.menuTitle, route: .recordings, keyEquivalent: "8")
+		viewMenuItem(title: DetailRoute.recordings.menuTitle, route: .recordings, keyEquivalent: "9")
 	}
 
 	private func schedulesItem() -> NSMenuItem {
 		viewMenuItem(title: DetailRoute.schedules.menuTitle, route: .schedules, keyEquivalent: "7")
+	}
+
+	private func flowsItem() -> NSMenuItem {
+		viewMenuItem(title: DetailRoute.flows.menuTitle, route: .flows, keyEquivalent: "8")
 	}
 
 	private func integrationsItem() -> NSMenuItem {

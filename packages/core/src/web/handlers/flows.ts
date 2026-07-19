@@ -1,12 +1,26 @@
 import "../../flows/index";
+import { listFlowRecords } from "../../flows/definition-store";
 import { buildDefinitionSnapshot } from "../../flows/definition-snapshot";
-import { listFlows } from "../../flows/registry";
+import { hydrateFlowDocument } from "../../flows/hydrate";
 import { getFlowRun, listFlowRuns } from "../../flows/store";
 import { errorResponse, jsonResponse, parseIntParam } from "../http-utils";
 
-/** GET /api/flows — stored flow definitions (metadata snapshot; seeds built-ins). */
+/** GET /api/flows — stored flow definitions (metadata + graph; seeds built-ins). */
 export function handleFlowsList(): Response {
-	const flows = listFlows().map((def) => buildDefinitionSnapshot(def));
+	const flows = listFlowRecords().map((record) => {
+		const def = hydrateFlowDocument(record.document);
+		const snapshot = buildDefinitionSnapshot(def);
+		return {
+			id: record.id,
+			name: record.name,
+			description: record.description,
+			builtin: record.builtin,
+			persona: record.document.persona ?? { source: "default" as const },
+			nodes: snapshot.nodes,
+			createdAt: record.createdAt,
+			updatedAt: record.updatedAt,
+		};
+	});
 	return jsonResponse({ flows });
 }
 

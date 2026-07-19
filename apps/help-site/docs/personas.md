@@ -75,4 +75,4 @@ Most users start with `add` so integration-specific tool guidance stays intact.
 | Selection | You choose (default or persona picker) | Toby picks relevant skills per message |
 | Example | “Act like a technologist” | “Steps to organize email by project” |
 
-See [Skills](./skills) and [Examples](./examples) for combined workflows.
+See [Skills](./skills), [Flows](./flows), and [Examples](./examples) for combined workflows.
