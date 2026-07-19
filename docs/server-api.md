@@ -61,9 +61,10 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | --- | --- | --- |
 | `ANY` | `/api/health` | Basic daemon health check. |
 | `GET` | `/api/status` | Chat status: version, default persona, model, integrations, skills. |
-| `GET` | `/api/dashboard` | Home dashboard summary payload (all categories). |
-| `GET` | `/api/dashboard/:category` | One dashboard category (`email`, `tasks`, `calendar`), or `null`. |
-| `GET` | `/api/dashboard/:category/summary` | AI markdown blurb for one category (named flow pipeline), or `null`. See [dashboard.md](dashboard.md) and [flows.md](flows.md). |
+| `GET` | `/api/dashboard` | Aggregator payload for all categories (internal / debug). |
+| `GET` | `/api/dashboard/:category` | Aggregator list for one category, or `null` (not used by home cards). Optional `?fresh=1` bypasses the 60s category cache. |
+| `GET` | `/api/dashboard/:category/content` | Home card **block content** (flow output). Preferred. Optional `?fresh=1`. See [dashboard.md](dashboard.md). |
+| `GET` | `/api/dashboard/:category/summary` | Alias of `/content`. |
 | `GET` | `/api/flows` | Stored flow list items for the app UI: `id`, `name`, `description`, `builtin`, `persona`, `nodes` (graph snapshot), timestamps. Seeds built-ins on list. |
 | `GET` | `/api/flows/runs` | Flow execution history summaries (`?flowName=&limit=&offset=`). |
 | `GET` | `/api/flows/runs/:id` | One flow run with per-node inputs/outputs/detail and timestamps. |

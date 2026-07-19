@@ -24,7 +24,7 @@ Human- and flow-oriented docs for this repository.
 | [flows.md](flows.md) | Named flow pipelines: SQLite definitions, built-in seed, Tool Executor, LLM Prompter, dashboard flows. |
 | [daemon.md](daemon.md) | Background daemon: schedules, inbound, unified log (`logs/toby.log`). |
 | [server-api.md](server-api.md) | Local daemon HTTP API: routes, SSE chat turns, configure. |
-| [dashboard.md](dashboard.md) | Home dashboard cards: deterministic tools + flow-based AI blurbs, cache, email walkthrough. |
+| [dashboard.md](dashboard.md) | Home dashboard cards: block shell, soft vs force refresh (`?fresh=1`), standard tools + flow AI blurbs, cache. |
 | [dashboard-standard-tools-plan.md](dashboard-standard-tools-plan.md) | Dashboard standard-tool contract, merge rules, plugin checklist. |
 | [chat-inbound.md](chat-inbound.md) | Inbound provider contract, external sessions. |
 | [ai-caching.md](ai-caching.md) | Provider prompt caching adapters and token telemetry. |

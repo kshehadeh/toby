@@ -124,9 +124,12 @@ template mode turns opaque regions into solid color boxes.
 ### Native app shared data
 
 Toby.app owns long-lived SwiftUI stores at the root scene level and preloads
-shared list/index data only after daemon bootstrap succeeds. Dashboard metrics,
-the dashboard sidebar, top-level sidebars, and the command palette all read from
-those shared stores instead of relying on each feature view to hit the daemon
+shared list/index data only after daemon bootstrap succeeds. Home **dashboard
+cards** (email / tasks / calendar) load via `DashboardStore` once the daemon is
+ready (soft load) or on toolbar/card refresh (force); see
+[`dashboard.md`](dashboard.md). Other dashboard metrics, the dashboard sidebar,
+top-level sidebars, and the command palette read from shared list stores instead
+of relying on each feature view to hit the daemon
 first.
 
 The shared preload covers chat sessions, schedules, recording summaries,

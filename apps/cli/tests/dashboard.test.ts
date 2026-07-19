@@ -174,4 +174,16 @@ describe("dashboard aggregator", () => {
 		// Different reference means the cache was bypassed.
 		expect(second).not.toBe(first);
 	}, 15_000);
+
+	it("force bypasses category cache without clearing", async () => {
+		const first = await getDashboardCategory("tasks", { limit: 5 });
+		const soft = await getDashboardCategory("tasks", { limit: 5 });
+		expect(soft).toBe(first);
+		const forced = await getDashboardCategory("tasks", {
+			limit: 5,
+			force: true,
+		});
+		// Re-aggregate produces a new object even if content is identical.
+		expect(forced).not.toBe(first);
+	}, 15_000);
 });

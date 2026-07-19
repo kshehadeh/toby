@@ -5,10 +5,12 @@ for the dashboard data contract, API surface, and plugin implementation
 checklist. The native SwiftUI UI can be built from this document alone without
 reading the core TypeScript implementation.
 
-For the end-to-end **update lifecycle** (Toby.app → HTTP → aggregator → plugin
-tool → AI summary flow), including an email walkthrough, see
-[`dashboard.md`](dashboard.md). Named flow pipelines used for AI blurbs are
-documented in [`flows.md`](flows.md).
+For the home UI architecture (**definition-owned static header + single flow
+content path**), see [`dashboard.md`](dashboard.md). Named flow pipelines that
+produce card bodies are documented in [`flows.md`](flows.md).
+
+Home cards no longer render aggregator list/count chrome. Standard tools remain
+the **inside-the-flow** data contract for Tool Executor nodes.
 
 ## Problem
 
@@ -27,15 +29,15 @@ get a predictable shape back.
 - **Per-source rows**: multiple providers in the same category are preserved
   as per-source rows in the API response, with a category-level total for
   simple cards.
-- **Cache TTL**: 60 seconds for on-demand dashboard refreshes.
+- **Cache TTL**: 60 seconds for **soft** dashboard loads. Manual UI refresh
+  sends `?fresh=1` and bypasses that cache (see [`dashboard.md`](dashboard.md)).
 - **`groups`**: included in v1 as an optional field. Providers may return no
   groups until they have deterministic buckets (folders, labels, lists).
 - **No AI in the deterministic path**: all urgency/grouping on the standard
   tool / aggregator is deterministic (overdue, flagged, starred, list
-  membership). A **separate** AI path (`GET /api/dashboard/:category/summary`)
-  runs a named flow (Tool Executor + LLM Prompter) for the optional markdown
-  blurb under each card — see [`flows.md`](flows.md) and
-  [`dashboard.md`](dashboard.md#ai-summary-path-flows).
+  membership). Card **bodies** use a single content path that runs a named
+  flow (Tool Executor + LLM Prompter) — see [`flows.md`](flows.md) and
+  [`dashboard.md`](dashboard.md).
 
 ## Standard tool IDs
 
@@ -160,9 +162,11 @@ interface DashboardProviderSummary {
 
 #### Caching
 
-The aggregator caches results for 60 seconds. Rapid UI refreshes within
-that window receive cached data without re-polling IMAP/APIs. The cache is
-keyed by the `limit` parameter.
+The aggregator caches results for 60 seconds on soft loads. Appear / ready
+paths within that window receive cached data without re-polling IMAP/APIs.
+Manual refresh from Toby.app passes `?fresh=1` (`force: true`) so the
+aggregator re-queries providers. Soft cache entries are still write-through
+after a force fetch.
 
 #### Example response
 
@@ -285,21 +289,18 @@ keyed by the `limit` parameter.
 
 ## SwiftUI consumption guide
 
-The native app dashboard has two data paths for integration-backed cards, plus
-local app shortcuts:
+Home cards are **registered blocks** (`DashboardBlockRegistry` /
+`CategoryDashboardBlock`). Architecture details: [`dashboard.md`](dashboard.md).
 
-- **Deterministic card data** — `GET /api/dashboard` or
-  `GET /api/dashboard/:category` on view appear and refresh (standard tools +
-  aggregator). Cache TTL is 60s.
-- **AI card blurb** — `GET /api/dashboard/:category/summary` runs a named
-  flow pipeline (not free-form ad-hoc `generateText` in the handler). See
-  [`flows.md`](flows.md).
-- **Local app counts and shortcuts** (sessions, schedules, recordings,
-  memories, skills, projects, and integration sections) come from shared
-  root-scoped stores. Toby.app preloads those list/index stores after daemon
-  bootstrap and refreshes them with the dashboard refresh action. Feature
-  views should use idempotent `ensureLoaded()` fallbacks instead of being the
-  only path that populates shared data.
+- **Card definition** — static header (title + actions) from
+  `DashboardBlockDescriptor`. Never rewritten on refresh.
+- **Block content** — `GET /api/dashboard/:category/content` (or `/summary`
+  alias). Soft load when home appears and the daemon is ready; `?fresh=1` on
+  toolbar / per-card refresh. Body is flow markdown; meta (`count`,
+  `launchUrls`, `sources`) supports empty UX and open actions.
+- **Local app shortcuts** (sessions, schedules, recordings, memories, skills,
+  projects, integrations) still use shared root-scoped stores, refreshed with
+  the dashboard toolbar action.
 
 Keep detail payloads lazy. Recording transcripts, memory detail/explanations,
 skill bodies, project file trees, and schedule run transcripts should load only
@@ -307,28 +308,16 @@ when the user opens the corresponding detail surface.
 
 ### Card rendering
 
-1. **Badge number**: use `category.count` for the card's headline number
-   (e.g. "95 unread", "4 open").
-2. **Per-source rows**: iterate `category.sources` if you want to show
-   per-account rows (e.g. "Gmail: 80" / "Fastmail: 15"). Use
-   `source.providerDisplayName` and `source.iconUrl` for the row label/icon.
-3. **Item list**: use `category.items` for the main list. Sort is already
-   timestamp-descending. Each item has `title`, `subtitle`, `detail`,
-   `timestamp`, `urgency`, `url`, and `groupId`.
-4. **Group chips**: use `category.groups` for filter/bucket chips. Each
-   group has `id` (namespaced as `providerName:originalId`), `label`, and
-   `count`. Filter items by matching `item.groupId` to the original
-   (un-namespaced) group ID — the suffix after `:` in `group.id`.
-5. **"As of" label**: use `category.generatedAt` to show "as of 2 minutes
-   ago".
-6. **Urgency indicator**: map `urgency: "high"` to a red dot or flag icon.
-   `"normal"` and `"low"` can be unstyled or muted.
-7. **Deep links**: if `item.url` is present, tapping the item opens it.
+1. **Title**: definition only (`descriptor.title`).
+2. **Actions**: definition + optional content meta for enablement / open URLs.
+3. **Body**: `content.text` markdown when non-empty.
+4. **Empty**: definition `emptyWhenNil` (JSON null / no providers) or
+   `emptyWhenZero` (count 0 / empty text).
+5. Do **not** show header count badges or aggregator item lists on home cards.
 
 ### Null handling
 
-If a category is `null`, show an empty state card (e.g. "No email connected"
-or "Connect a task list to see your open tasks here").
+If content is `null`, show the definition’s “not connected” empty state.
 
 ## Plugin implementation checklist
 
@@ -459,7 +448,7 @@ flowchart TD
 | `packages/core/src/integrations/plugins/adapter.ts` | `buildPluginDashboardHook()` — synthesizes dashboard hook for installable plugins |
 | `packages/core/src/integrations/plugins/validate.ts` | `checkStandardToolCompliance()` — doctor warning |
 | `packages/core/src/web/handlers/dashboard.ts` | Dashboard HTTP handlers (data + AI summary) |
-| `packages/core/src/web/routes.ts` | `GET /api/dashboard` and `/:category/summary` routes |
+| `packages/core/src/web/routes.ts` | `GET /api/dashboard`, `/:category`, `/:category/content` (+ `/summary` alias) |
 
 ## Future extensions
 

@@ -138,21 +138,43 @@ export interface DashboardData {
 }
 
 /**
- * AI-generated summary for a single dashboard category.
- * Produced by feeding deterministic dashboard data through a configurable
- * persona model with built-in category-specific prompts.
+ * Provider open target carried on block content (not header chrome).
+ * Used for multi-source "Open …" actions without a second client fetch.
  */
-export interface DashboardCategoryAiSummary {
-	/** Category name (e.g. "email", "tasks"). */
-	readonly category: string;
-	/** Summary text from the model. */
-	readonly text: string;
-	/** ISO 8601 timestamp of summary generation. */
-	readonly generatedAt: string;
-	/** Name of the persona used for this summary. */
-	readonly personaName: string;
-	/** Total item count from the underlying deterministic data. */
-	readonly count: number;
-	/** Launch URLs from contributing providers, for "Open" links. */
-	readonly launchUrls: readonly string[];
+export interface DashboardBlockContentSource {
+	readonly providerName: string;
+	readonly providerDisplayName: string;
+	readonly launchUrl?: string;
 }
+
+/**
+ * Home-dashboard **block content** — the only payload the card body needs.
+ *
+ * Architecture: the card *definition* owns the static header (title + actions);
+ * this object is always **flow output** (markdown body + light meta for
+ * empty-state / open links). One update path refreshes content only.
+ */
+export interface DashboardBlockContent {
+	/** Block / category id (e.g. "email", "tasks", "calendar"). */
+	readonly category: string;
+	/**
+	 * Body markdown from the block's flow. Empty string when there is nothing
+	 * to show (zero items or generation produced no usable text).
+	 */
+	readonly text: string;
+	/** ISO 8601 timestamp of content generation (or source data when empty). */
+	readonly generatedAt: string;
+	/** Persona used when the flow ran (or the configured dashboard persona). */
+	readonly personaName: string;
+	/** Item count from the flow/tool payload (for empty UX and action enablement). */
+	readonly count: number;
+	/** Launch URLs for Open actions. */
+	readonly launchUrls: readonly string[];
+	/** Optional per-provider open targets (e.g. Todoist + Reminders). */
+	readonly sources?: readonly DashboardBlockContentSource[];
+}
+
+/**
+ * @deprecated Prefer {@link DashboardBlockContent}. Same shape; kept for call sites.
+ */
+export type DashboardCategoryAiSummary = DashboardBlockContent;

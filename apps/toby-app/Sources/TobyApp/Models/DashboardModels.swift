@@ -1,6 +1,6 @@
 import Foundation
 
-/// Deterministic urgency signal carried by dashboard items.
+/// Deterministic urgency signal carried by dashboard items (aggregator / tools).
 enum DashboardUrgency: String, Decodable {
 	case low
 	case normal
@@ -46,7 +46,7 @@ struct DashboardProviderSummary: Decodable, Identifiable, Equatable {
 	var id: String { providerName }
 }
 
-/// Aggregated dashboard summary for a single category (e.g. all email sources).
+/// Aggregated dashboard summary for a single category (internal / debug API).
 struct DashboardCategorySummary: Decodable, Equatable {
 	let count: Int
 	let sources: [DashboardProviderSummary]
@@ -62,15 +62,35 @@ struct DashboardData: Decodable, Equatable {
 	let calendar: DashboardCategorySummary?
 }
 
-/// AI-generated summary for a single dashboard category.
-struct DashboardCategoryAiSummary: Decodable, Equatable {
+/// Provider open target on block content (multi-source "Open …" actions).
+struct DashboardBlockContentSource: Decodable, Identifiable, Equatable {
+	let providerName: String
+	let providerDisplayName: String
+	let launchUrl: String?
+
+	var id: String { providerName }
+}
+
+/// Home-dashboard **block content** — sole payload for a card body.
+/// Header chrome comes only from the card definition.
+struct DashboardBlockContent: Decodable, Equatable {
+	/// Block / category id (e.g. "email").
 	let category: String
+	/// Body markdown from the block's flow. Empty when nothing to show.
 	let text: String
 	let generatedAt: String
 	let personaName: String
+	/// Item count for empty UX and action enablement.
 	let count: Int
 	let launchUrls: [String]?
+	let sources: [DashboardBlockContentSource]?
+
+	/// Non-empty body ready to render.
+	var hasBody: Bool { !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 }
+
+/// Legacy name for block content (same JSON shape).
+typealias DashboardCategoryAiSummary = DashboardBlockContent
 
 enum DashboardDate {
 	static func parse(_ raw: String?) -> Date? {

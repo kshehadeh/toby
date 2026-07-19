@@ -1,15 +1,26 @@
 import { getDashboardCategory, getDashboardData } from "../../dashboard";
-import { getDashboardCategorySummary } from "../../dashboard/summarizer";
+import { getDashboardBlockContent } from "../../dashboard/summarizer";
 import { STANDARD_TOOL_FOR_CATEGORY } from "../../dashboard/types";
 import { jsonResponse } from "../http-utils";
+
+/** True when the client asked for a cache-bypassing refresh (`?fresh=1`). */
+function isFreshRequest(url?: URL): boolean {
+	if (!url) return false;
+	const raw = url.searchParams.get("fresh");
+	return raw === "1" || raw === "true";
+}
 
 export async function handleDashboard(): Promise<Response> {
 	const data = await getDashboardData();
 	return jsonResponse(data);
 }
 
+/**
+ * Aggregator list/count payload (internal / debug). Home cards use block content.
+ */
 export async function handleDashboardCategory(
 	category: string,
+	url?: URL,
 ): Promise<Response> {
 	if (
 		!Object.prototype.hasOwnProperty.call(STANDARD_TOOL_FOR_CATEGORY, category)
@@ -19,12 +30,18 @@ export async function handleDashboardCategory(
 			404,
 		);
 	}
-	const data = await getDashboardCategory(category);
+	const force = isFreshRequest(url);
+	const data = await getDashboardCategory(category, { force });
 	return jsonResponse(data);
 }
 
-export async function handleDashboardCategorySummary(
+/**
+ * Home-dashboard block content (flow output). Single path for card bodies.
+ * Aliases: `…/summary` (legacy) and `…/content`.
+ */
+export async function handleDashboardBlockContent(
 	category: string,
+	url?: URL,
 ): Promise<Response> {
 	if (
 		!Object.prototype.hasOwnProperty.call(STANDARD_TOOL_FOR_CATEGORY, category)
@@ -34,6 +51,15 @@ export async function handleDashboardCategorySummary(
 			404,
 		);
 	}
-	const summary = await getDashboardCategorySummary(category);
-	return jsonResponse(summary);
+	const force = isFreshRequest(url);
+	const content = await getDashboardBlockContent(category, { force });
+	return jsonResponse(content);
+}
+
+/** @deprecated Prefer {@link handleDashboardBlockContent}. */
+export async function handleDashboardCategorySummary(
+	category: string,
+	url?: URL,
+): Promise<Response> {
+	return handleDashboardBlockContent(category, url);
 }

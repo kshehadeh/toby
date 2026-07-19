@@ -2,7 +2,7 @@
 
 Flows are **named pipelines**: an ordered sequence of **nodes** with explicit
 **inputs** and **outputs**. They power non-chat workflows that need a fixed
-sequence of steps (today: home dashboard AI blurbs).
+sequence of steps (today: home dashboard card **bodies**).
 
 **Definitions** are stored in SQLite (`flows` table in `~/.toby/chat.sqlite`) as
 JSON documents. Built-in dashboard flows are seeded from code on first lookup
@@ -357,16 +357,19 @@ custom flow edit/delete is reserved for a later release.
 
 Tests: `apps/cli/tests/flows.test.ts`, `flows-history.test.ts`.
 
-## Built-in consumers: dashboard AI summaries
+## Built-in consumers: dashboard card content
 
-The home dashboard keeps **two independent paths** per card category:
+Home cards use a **single content path**. The card **definition** owns the
+static header; the body is **flow output** only. See [dashboard.md](dashboard.md).
 
-| Path | API | What it is |
-| --- | --- | --- |
-| Deterministic | `GET /api/dashboard/:category` | Aggregator → standard tools → badge + item list |
-| AI prose | `GET /api/dashboard/:category/summary` | Flow pipeline → markdown blurb |
+| API | Role |
+| --- | --- |
+| `GET /api/dashboard/:category/content` | Block content (preferred) |
+| `GET /api/dashboard/:category/summary` | Alias of `/content` |
 
-Full card lifecycle, caching, and plugins: [dashboard.md](dashboard.md).
+Optional `?fresh=1` bypasses soft caches and **awaits** a new flow run.
+Toby.app force-refreshes on toolbar / per-card refresh; soft-loads on home
+appear when the daemon is ready.
 
 ### Flow map
 
@@ -388,29 +391,28 @@ LLM Prompter → { markdown: string }
 Persona: Settings → Dashboard (`config.dashboard.persona`) via
 `resolveDashboardPersona()` in `packages/core/src/dashboard/prompts.ts`.
 
-### How the summarizer invokes flows
+### How content generation invokes flows
 
-`getDashboardCategorySummary` in
+`getDashboardBlockContent` in
 `packages/core/src/dashboard/summarizer.ts`:
 
-1. Ensures category has a known prompt and non-empty deterministic data
-   (`getDashboardCategory`, limit 50) for **cache keying** and empty-state.  
-2. Checks in-memory (5 min) + disk (`~/.toby/dashboard-summaries.json`) caches.  
-3. On miss: `runFlow("dashboard.<category>.summary", { personaOverride })`.  
-4. Maps `outputs.summary.markdown` → `DashboardCategoryAiSummary.text` (after
+1. Loads category data server-side (`getDashboardCategory`, limit 50) for
+   empty-state, cache keying, and seed.  
+2. If `count === 0`, returns empty content (no flow/LLM).  
+3. Soft path: in-memory (5 min) + disk (`~/.toby/dashboard-summaries.json`).  
+4. On miss / force: `runFlow("dashboard.<category>.summary", { personaOverride })`.  
+5. Maps `outputs.summary.markdown` → `DashboardBlockContent.text` (after
    `extractDashboardSummaryText` CoT strip).  
-5. Fills `count` / `launchUrls` from the flow tool result when present,
-   else from the deterministic category snapshot.
+6. Fills `count` / `launchUrls` / `sources` from tool + aggregator data.
 
-The flow’s Tool Executor **re-fetches** list data for the LLM (single
-active/default provider). The card’s badge/list still come from the multi-provider
-aggregator on the deterministic API. That split is intentional for v1.
+The aggregator HTTP routes remain available for debug; home cards do not call
+them.
 
 ### Seed source
 
 | Flow | Seed |
 | --- | --- |
-| All three dashboard summaries | `packages/core/src/flows/builtins.ts` |
+| All three dashboard content flows | `packages/core/src/flows/builtins.ts` |
 | Category prompt text | `CATEGORY_PROMPTS` in `dashboard/prompts.ts` (inlined into seed system prompts) |
 | Item formatting helper | `packages/core/src/flows/dashboard-items.ts` |
 

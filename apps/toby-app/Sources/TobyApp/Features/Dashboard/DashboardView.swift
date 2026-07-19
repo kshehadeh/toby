@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Shared motion for dashboard section insert/remove (cards + onboarding).
@@ -28,6 +29,8 @@ struct DashboardView: View {
 	/// status, schedules, skills, recordings, permissions). Avoids a flash of
 	/// incomplete checklist steps that disappear once data arrives.
 	var isOnboardingReady: Bool = true
+	/// When true, daemon is ready for HTTP; soft-loads dashboard data.
+	var isServerReady: Bool = true
 	let onRefresh: () -> Void
 	let onSelectRoute: (DetailRoute) -> Void
 	/// Opens Settings, optionally deep-linking to a top-level section key
@@ -38,10 +41,8 @@ struct DashboardView: View {
 	/// Opens the sidebar persona picker with attention highlighting.
 	var onOpenPersonaPicker: () -> Void = {}
 	let onOpenPermissions: () -> Void
-	let onStartChat: () -> Void
-	let onSummarizeEmail: () -> Void
-	/// Opens chat with a prefilled prompt about upcoming calendar events.
-	var onPlanInChat: () -> Void = {}
+	/// Shell hooks for block menu actions (chat prompts, etc.).
+	var actionContext: DashboardBlockActionContext = .init()
 	/// Client-local prefs (theme / hide onboarding). Defaults to the shared store.
 	@Bindable var appearancePreferences: AppearancePreferences = .shared
 
@@ -56,14 +57,14 @@ struct DashboardView: View {
 			&& !appearancePreferences.hideOnboarding
 	}
 
+	private var visibleBlocks: [CategoryDashboardBlock] {
+		store.registry.orderedVisible(preferences: appearancePreferences)
+	}
+
 	/// Fingerprint of which dashboard sections are visible; drives insert/remove animation.
 	private var sectionVisibilityKey: String {
-		[
-			shouldShowOnboarding ? "onboarding" : "",
-			appearancePreferences.showDashboardEmail ? "email" : "",
-			appearancePreferences.showDashboardTasks ? "tasks" : "",
-			appearancePreferences.showDashboardCalendar ? "calendar" : "",
-		].joined(separator: "|")
+		([shouldShowOnboarding ? "onboarding" : ""]
+			+ visibleBlocks.map(\.id.rawValue)).joined(separator: "|")
 	}
 
 	private var sectionAnimation: Animation? {
@@ -87,10 +88,11 @@ struct DashboardView: View {
 		}
 		.automaticScrollIndicators(axes: .vertical)
 		.background(AppTheme.contentBackground)
-		.task {
+		.task(id: isServerReady) {
 			now = Date()
-			await store.load()
-			await store.loadSummariesIfStale()
+			guard isServerReady else { return }
+			// Soft load: one content path per block (server caches OK).
+			await store.updateAll(force: false)
 		}
 	}
 
@@ -113,46 +115,11 @@ struct DashboardView: View {
 
 	@ViewBuilder
 	private var cards: some View {
-		let showEmail = appearancePreferences.showDashboardEmail
-		let showTasks = appearancePreferences.showDashboardTasks
-		let showCalendar = appearancePreferences.showDashboardCalendar
-		if showEmail || showTasks || showCalendar {
+		if !visibleBlocks.isEmpty {
 			LazyVGrid(columns: Self.cardColumns, alignment: .leading, spacing: 20) {
-				if showEmail {
-					UnreadMailCard(
-						summary: store.email,
-						aiSummary: store.emailSummary,
-						isSummaryLoading: store.emailSummaryLoading,
-						summaryError: store.emailSummaryError,
-						isRefreshing: store.isEmailRefreshing,
-						onRefresh: { Task { await store.refreshEmail() } },
-						onSummarize: onSummarizeEmail
-					)
-					.transition(DashboardSectionMotion.transition)
-				}
-				if showTasks {
-					TasksCard(
-						summary: store.tasks,
-						aiSummary: store.tasksSummary,
-						isSummaryLoading: store.tasksSummaryLoading,
-						summaryError: store.tasksSummaryError,
-						isRefreshing: store.isTasksRefreshing,
-						onRefresh: { Task { await store.refreshTasks() } },
-						onAddTask: onStartChat
-					)
-					.transition(DashboardSectionMotion.transition)
-				}
-				if showCalendar {
-					UpcomingEventsCard(
-						summary: store.calendar,
-						aiSummary: store.calendarSummary,
-						isSummaryLoading: store.calendarSummaryLoading,
-						summaryError: store.calendarSummaryError,
-						isRefreshing: store.isCalendarRefreshing,
-						onRefresh: { Task { await store.refreshCalendar() } },
-						onPlanInChat: onPlanInChat
-					)
-					.transition(DashboardSectionMotion.transition)
+				ForEach(visibleBlocks, id: \.id) { block in
+					DashboardBlockCard(block: block, actionContext: actionContext)
+						.transition(DashboardSectionMotion.transition)
 				}
 			}
 			.transition(DashboardSectionMotion.transition)
@@ -178,7 +145,7 @@ struct DashboardView: View {
 		case .recordAndTranscribe:
 			onSelectRoute(.recordings)
 		case .samplePrompt:
-			onStartChat()
+			actionContext.startChat()
 		}
 	}
 

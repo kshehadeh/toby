@@ -32,16 +32,21 @@ const categoryCache = new Map<string, CategoryCacheEntry>();
 /**
  * Get an aggregated dashboard summary for a single category, cached for the
  * TTL window. Returns `null` if no connected providers contributed data.
+ *
+ * Pass `force: true` to bypass the in-memory cache (manual UI refresh).
  */
 export async function getDashboardCategory(
 	category: string,
-	params?: { readonly limit?: number },
+	params?: { readonly limit?: number; readonly force?: boolean },
 ): Promise<DashboardCategorySummary | null> {
 	const limit = params?.limit ?? DEFAULT_LIMIT;
+	const force = params?.force === true;
 
-	const cached = categoryCache.get(category);
-	if (cached && Date.now() < cached.expiresAt) {
-		return cached.data;
+	if (!force) {
+		const cached = categoryCache.get(category);
+		if (cached && Date.now() < cached.expiresAt) {
+			return cached.data;
+		}
 	}
 
 	const data = await aggregateCategory(category, limit);

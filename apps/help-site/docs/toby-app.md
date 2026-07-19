@@ -159,13 +159,19 @@ status cues) across Toby.app windows. Same preset in light and dark.
 
 #### Dashboard (related)
 
-Under **Settings → Dashboard**, you can set the persona used for dashboard
-summaries and control which home-dashboard cards are visible (app-local). Those
-AI blurbs are produced by built-in [flows](./flows).
+The **Dashboard** home surface shows unread mail, open tasks, and upcoming
+events (when the matching integrations are connected). Each card has a fixed
+title and actions, plus a short summary body generated from your connected
+integrations. Use the **refresh** control in the toolbar (or the refresh
+control on a single card) to regenerate that content. Cards load once the local
+service is ready when you open the app.
 
-- **Dashboard persona** — Model and instructions used for the short AI blurbs
-  under the unread mail, tasks, and upcoming events cards (list counts and rows
-  still come from your connected integrations without the AI). Prefer a
+Under **Settings → Dashboard**, you can set the persona used for dashboard
+summaries and control which home-dashboard cards are visible (app-local). Card
+bodies are produced by built-in [flows](./flows).
+
+- **Dashboard persona** — Model and instructions used for the short summary
+  bodies on the unread mail, tasks, and upcoming events cards. Prefer a
   **non-reasoning** model for this persona (entries without a **· reasoning**
   label in the model picker) so summaries stay reliable.
 - **Show unread mail** / **Show tasks** / **Show upcoming events** — On by

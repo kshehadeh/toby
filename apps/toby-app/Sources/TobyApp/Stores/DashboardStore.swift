@@ -4,259 +4,138 @@ import Observation
 @Observable
 @MainActor
 final class DashboardStore {
-	var email: DashboardCategorySummary?
-	var tasks: DashboardCategorySummary?
-	var calendar: DashboardCategorySummary?
-	var emailLoading = false
-	var tasksLoading = false
-	var calendarLoading = false
+	let registry: DashboardBlockRegistry
+
 	var hasLoadedOnce = false
-	var emailError: String?
-	var tasksError: String?
-	var calendarError: String?
 	var lastLoadedAt: Date?
 
-	// AI summary state
-	var emailSummary: DashboardCategoryAiSummary?
-	var tasksSummary: DashboardCategoryAiSummary?
-	var calendarSummary: DashboardCategoryAiSummary?
-	var emailSummaryLoading = false
-	var tasksSummaryLoading = false
-	var calendarSummaryLoading = false
-	var emailSummaryError: String?
-	var tasksSummaryError: String?
-	var calendarSummaryError: String?
-	var lastSummaryLoadedAt: Date?
+	/// True for the full duration of a global force refresh (toolbar spinner).
+	private(set) var isGlobalUpdating = false
 
-	private let client = TobyClient()
+	private let client: TobyClient
 
-	/// Minimum interval between AI summary refreshes (5 minutes).
-	private let summaryStaleInterval: TimeInterval = 300
-
-	/// True while any category is still loading.
-	var isLoading: Bool { emailLoading || tasksLoading || calendarLoading }
-
-	/// True only during the brief window all categories are starting a fresh
-	/// fetch. Used for the refresh button so it isn't held disabled by a single
-	/// slow category (e.g. IMAP on a blocked network).
-	var isRefreshing: Bool { emailLoading && tasksLoading && calendarLoading }
-
-	/// True while any AI summary is being generated.
-	var isSummaryLoading: Bool {
-		emailSummaryLoading || tasksSummaryLoading || calendarSummaryLoading
+	init(client: TobyClient = TobyClient()) {
+		self.client = client
+		self.registry = DashboardBlockRegistry(client: client)
 	}
 
-	/// Whether AI summaries are stale enough to warrant a refresh.
-	var summariesAreStale: Bool {
-		guard let last = lastSummaryLoadedAt else { return true }
-		return Date().timeIntervalSince(last) >= summaryStaleInterval
+	/// Convenience for tests / registry access.
+	var blocks: [CategoryDashboardBlock] { registry.blocks }
+
+	// MARK: - Aggregate flags
+
+	/// True while any block is loading content.
+	var isLoading: Bool {
+		isGlobalUpdating || blocks.contains { $0.isUpdating }
 	}
 
-	/// Refresh all categories. Each section updates independently as its
-	/// fetch resolves, so a slow provider (e.g. IMAP on a blocked network)
-	/// never delays the other categories. Does not load AI summaries — use
-	/// `loadSummariesIfStale()` or `reloadSummaries()` separately.
-	func load() async {
+	/// Toolbar disable / global spinner — entire force refresh.
+	var isRefreshing: Bool { isGlobalUpdating }
+
+	// MARK: - Compatibility accessors (tests)
+
+	var emailContent: DashboardBlockContent? {
+		get { registry.block(id: .email)?.content }
+		set { registry.block(id: .email)?.content = newValue }
+	}
+
+	var tasksContent: DashboardBlockContent? {
+		get { registry.block(id: .tasks)?.content }
+		set { registry.block(id: .tasks)?.content = newValue }
+	}
+
+	var calendarContent: DashboardBlockContent? {
+		get { registry.block(id: .calendar)?.content }
+		set { registry.block(id: .calendar)?.content = newValue }
+	}
+
+	/// Legacy aliases used by older tests.
+	var emailSummary: DashboardBlockContent? {
+		get { emailContent }
+		set { emailContent = newValue }
+	}
+
+	var tasksSummary: DashboardBlockContent? {
+		get { tasksContent }
+		set { tasksContent = newValue }
+	}
+
+	var calendarSummary: DashboardBlockContent? {
+		get { calendarContent }
+		set { calendarContent = newValue }
+	}
+
+	var email: DashboardCategorySummary? { nil }
+	var tasks: DashboardCategorySummary? { nil }
+	var calendar: DashboardCategorySummary? { nil }
+
+	var emailSummaryLoading: Bool { registry.block(id: .email)?.isLoading ?? false }
+	var tasksSummaryLoading: Bool { registry.block(id: .tasks)?.isLoading ?? false }
+	var calendarSummaryLoading: Bool { registry.block(id: .calendar)?.isLoading ?? false }
+
+	var isSummaryLoading: Bool { blocks.contains { $0.isLoading } }
+
+	// MARK: - Public update API
+
+	/// Soft or force refresh: fan-out `block.update` for every registered block.
+	/// Single path per block (flow content only).
+	func updateAll(force: Bool) async {
 		hasLoadedOnce = true
 		lastLoadedAt = Date()
-		async let e: Void = loadEmail()
-		async let t: Void = loadTasks()
-		async let c: Void = loadCalendar()
-		_ = await (e, t, c)
+
+		if force {
+			isGlobalUpdating = true
+		}
+		defer {
+			if force {
+				isGlobalUpdating = false
+			}
+		}
+
+		let tasks = blocks.map { block in
+			Task { @MainActor in
+				await block.update(force: force)
+			}
+		}
+		for task in tasks {
+			await task.value
+		}
 	}
 
-	/// Load AI summaries only if the 5-minute stale interval has passed.
-	/// Called when the dashboard view becomes visible. If a persisted (but
-	/// stale) summary is returned from the server, a delayed re-fetch is
-	/// scheduled to pick up the refreshed data.
+	/// Global toolbar refresh — force every block and hold spinner until done.
+	func refreshAll() async {
+		await updateAll(force: true)
+	}
+
+	/// Per-block force refresh.
+	func refreshBlock(_ id: DashboardBlockID) async {
+		guard let block = registry.block(id: id) else { return }
+		await block.update(force: true)
+	}
+
+	// MARK: - Legacy names (RootView / DashboardView migration)
+
+	func load() async {
+		await updateAll(force: false)
+	}
+
 	func loadSummariesIfStale() async {
-		guard summariesAreStale else { return }
-		async let e = loadEmailSummary()
-		async let t = loadTasksSummary()
-		async let c = loadCalendarSummary()
-		let loaded = await (e, t, c)
-		if loaded.0 || loaded.1 || loaded.2 {
-			lastSummaryLoadedAt = Date()
-		}
-
-		// If the returned summaries are stale (from disk persistence),
-		// schedule a delayed re-fetch to pick up fresh data.
-		await scheduleReFetchIfStale()
+		// Content is loaded with updateAll; no separate summary path.
 	}
 
-	/// Check if loaded summaries have old `generatedAt` timestamps and
-	/// re-fetch them after a short delay so the server's background refresh
-	/// has time to complete.
-	private func scheduleReFetchIfStale() async {
-		let emailIsStale = isSummaryGeneratedAtStale(emailSummary)
-		let tasksIsStale = isSummaryGeneratedAtStale(tasksSummary)
-		let calendarIsStale = isSummaryGeneratedAtStale(calendarSummary)
-
-		if emailIsStale || tasksIsStale || calendarIsStale {
-			try? await Task.sleep(for: .seconds(3))
-			if emailIsStale {
-				await loadEmailSummary()
-			}
-			if tasksIsStale {
-				await loadTasksSummary()
-			}
-			if calendarIsStale {
-				await loadCalendarSummary()
-			}
-		}
-	}
-
-	/// True if the summary's `generatedAt` is older than the stale interval.
-	private func isSummaryGeneratedAtStale(_ summary: DashboardCategoryAiSummary?) -> Bool {
-		guard let summary else { return false }
-		guard let generated = DashboardDate.parse(summary.generatedAt) else {
-			return true
-		}
-		return Date().timeIntervalSince(generated) >= summaryStaleInterval
-	}
-
-	/// Force-refresh summaries regardless of staleness (e.g. manual refresh).
 	func reloadSummaries() async {
-		async let e = loadEmailSummary()
-		async let t = loadTasksSummary()
-		async let c = loadCalendarSummary()
-		let loaded = await (e, t, c)
-		if loaded.0 || loaded.1 || loaded.2 {
-			lastSummaryLoadedAt = Date()
-		}
+		await updateAll(force: true)
 	}
 
-	/// Force-refresh email category data and its AI summary together.
-	/// Data is fetched first so the summary can use the latest items.
 	func refreshEmail() async {
-		await loadEmail()
-		await loadEmailSummary()
+		await refreshBlock(.email)
 	}
 
-	/// Force-refresh tasks category data and its AI summary together.
-	/// Data is fetched first so the summary can use the latest items.
 	func refreshTasks() async {
-		await loadTasks()
-		await loadTasksSummary()
+		await refreshBlock(.tasks)
 	}
 
-	/// Force-refresh calendar category data and its AI summary together.
 	func refreshCalendar() async {
-		await loadCalendar()
-		await loadCalendarSummary()
-	}
-
-	/// True while email category data or its summary is loading.
-	var isEmailRefreshing: Bool { emailLoading || emailSummaryLoading }
-
-	/// True while tasks category data or its summary is loading.
-	var isTasksRefreshing: Bool { tasksLoading || tasksSummaryLoading }
-
-	/// True while calendar category data or its summary is loading.
-	var isCalendarRefreshing: Bool { calendarLoading || calendarSummaryLoading }
-
-	func loadEmail() async {
-		guard !emailLoading else { return }
-		emailLoading = true
-		emailError = nil
-		defer { emailLoading = false }
-		do {
-			if let latest = try await client.fetchDashboardCategory("email") {
-				email = latest
-			}
-		} catch {
-			emailError = error.localizedDescription
-		}
-	}
-
-	func loadTasks() async {
-		guard !tasksLoading else { return }
-		tasksLoading = true
-		tasksError = nil
-		defer { tasksLoading = false }
-		do {
-			if let latest = try await client.fetchDashboardCategory("tasks") {
-				tasks = latest
-			}
-		} catch {
-			tasksError = error.localizedDescription
-		}
-	}
-
-	func loadCalendar() async {
-		guard !calendarLoading else { return }
-		calendarLoading = true
-		calendarError = nil
-		defer { calendarLoading = false }
-		do {
-			if let latest = try await client.fetchDashboardCategory("calendar") {
-				calendar = latest
-			}
-		} catch {
-			calendarError = error.localizedDescription
-		}
-	}
-
-	@discardableResult
-	func loadEmailSummary() async -> Bool {
-		guard !emailSummaryLoading else { return false }
-		guard let emailData = email, emailData.count > 0 else {
-			emailSummaryError = nil
-			return false
-		}
-		emailSummaryLoading = true
-		emailSummaryError = nil
-		defer { emailSummaryLoading = false }
-		do {
-			if let summary = try await client.fetchDashboardCategorySummary("email") {
-				emailSummary = summary
-			}
-			return true
-		} catch {
-			emailSummaryError = error.localizedDescription
-			return true
-		}
-	}
-
-	@discardableResult
-	func loadTasksSummary() async -> Bool {
-		guard !tasksSummaryLoading else { return false }
-		guard let tasksData = tasks, tasksData.count > 0 else {
-			tasksSummaryError = nil
-			return false
-		}
-		tasksSummaryLoading = true
-		tasksSummaryError = nil
-		defer { tasksSummaryLoading = false }
-		do {
-			if let summary = try await client.fetchDashboardCategorySummary("tasks") {
-				tasksSummary = summary
-			}
-			return true
-		} catch {
-			tasksSummaryError = error.localizedDescription
-			return true
-		}
-	}
-
-	@discardableResult
-	func loadCalendarSummary() async -> Bool {
-		guard !calendarSummaryLoading else { return false }
-		guard let calendarData = calendar, calendarData.count > 0 else {
-			calendarSummaryError = nil
-			return false
-		}
-		calendarSummaryLoading = true
-		calendarSummaryError = nil
-		defer { calendarSummaryLoading = false }
-		do {
-			if let summary = try await client.fetchDashboardCategorySummary("calendar") {
-				calendarSummary = summary
-			}
-			return true
-		} catch {
-			calendarSummaryError = error.localizedDescription
-			return true
-		}
+		await refreshBlock(.calendar)
 	}
 }

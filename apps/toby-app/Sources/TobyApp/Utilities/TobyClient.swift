@@ -875,23 +875,51 @@ struct TobyClient {
 		return try JSONDecoder().decode(DashboardData.self, from: data)
 	}
 
-	/// Fetch a single dashboard category independently so a slow provider in
-	/// one category never blocks another. Returns `nil` when the category has
-	/// no connected providers (the endpoint responds with JSON `null`).
-	func fetchDashboardCategory(_ category: String) async throws -> DashboardCategorySummary? {
-		let url = baseURL.appendingPathComponent("api/dashboard/\(category)")
+	/// Fetch home-dashboard **block content** (flow output for the card body).
+	/// Returns `nil` when no connected providers implement the category.
+	/// - Parameter fresh: When true, bypasses caches and awaits a fresh flow run.
+	func fetchDashboardBlockContent(
+		_ category: String,
+		fresh: Bool = false
+	) async throws -> DashboardBlockContent? {
+		let url = dashboardURL(category: category, content: true, fresh: fresh)
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(DashboardBlockContent?.self, from: data)
+	}
+
+	/// Aggregator list payload (internal / debug; not used by home cards).
+	func fetchDashboardCategory(
+		_ category: String,
+		fresh: Bool = false
+	) async throws -> DashboardCategorySummary? {
+		let url = dashboardURL(category: category, content: false, fresh: fresh)
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
 		return try JSONDecoder().decode(DashboardCategorySummary?.self, from: data)
 	}
 
-	/// Fetch an AI-generated summary for a single dashboard category. Returns
-	/// `nil` when no data exists or the summary cannot be generated.
-	func fetchDashboardCategorySummary(_ category: String) async throws -> DashboardCategoryAiSummary? {
-		let url = baseURL.appendingPathComponent("api/dashboard/\(category)/summary")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(DashboardCategoryAiSummary?.self, from: data)
+	/// Legacy alias for {@link fetchDashboardBlockContent}.
+	func fetchDashboardCategorySummary(
+		_ category: String,
+		fresh: Bool = false
+	) async throws -> DashboardBlockContent? {
+		try await fetchDashboardBlockContent(category, fresh: fresh)
+	}
+
+	private func dashboardURL(category: String, content: Bool, fresh: Bool) -> URL {
+		var path = "api/dashboard/\(category)"
+		if content {
+			path += "/content"
+		}
+		var components = URLComponents(
+			url: baseURL.appendingPathComponent(path),
+			resolvingAgainstBaseURL: false
+		)!
+		if fresh {
+			components.queryItems = [URLQueryItem(name: "fresh", value: "1")]
+		}
+		return components.url!
 	}
 
 	// MARK: - Memories

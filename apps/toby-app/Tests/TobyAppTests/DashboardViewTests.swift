@@ -216,8 +216,7 @@ struct DashboardViewTests {
 			onRefresh: {},
 			onSelectRoute: { _ in },
 			onOpenPermissions: {},
-			onStartChat: {},
-			onSummarizeEmail: {},
+			actionContext: .init(startChat: {}),
 			appearancePreferences: makeAppearance()
 		)
 	}
@@ -288,8 +287,7 @@ struct DashboardViewTests {
 			onRefresh: {},
 			onSelectRoute: { _ in },
 			onOpenPermissions: {},
-			onStartChat: {},
-			onSummarizeEmail: {},
+			actionContext: .init(startChat: {}),
 			appearancePreferences: makeAppearance()
 		)
 		#expect(throws: (any Error).self) {
@@ -307,8 +305,7 @@ struct DashboardViewTests {
 			onRefresh: {},
 			onSelectRoute: { _ in },
 			onOpenPermissions: {},
-			onStartChat: {},
-			onSummarizeEmail: {},
+			actionContext: .init(startChat: {}),
 			appearancePreferences: makeAppearance()
 		)
 		#expect(throws: Never.self) {
@@ -326,8 +323,7 @@ struct DashboardViewTests {
 			onRefresh: {},
 			onSelectRoute: { _ in },
 			onOpenPermissions: {},
-			onStartChat: {},
-			onSummarizeEmail: {},
+			actionContext: .init(startChat: {}),
 			appearancePreferences: makeAppearance(hideOnboarding: true)
 		)
 		#expect(throws: (any Error).self) {
@@ -359,8 +355,7 @@ struct DashboardViewTests {
 			onRefresh: {},
 			onSelectRoute: { _ in },
 			onOpenPermissions: {},
-			onStartChat: {},
-			onSummarizeEmail: {},
+			actionContext: .init(startChat: {}),
 			appearancePreferences: makeAppearance(showDashboardEmail: false)
 		)
 		#expect(throws: (any Error).self) {
@@ -381,8 +376,7 @@ struct DashboardViewTests {
 			onRefresh: {},
 			onSelectRoute: { _ in },
 			onOpenPermissions: {},
-			onStartChat: {},
-			onSummarizeEmail: {},
+			actionContext: .init(startChat: {}),
 			appearancePreferences: makeAppearance(showDashboardTasks: false)
 		)
 		#expect(throws: Never.self) {
@@ -403,8 +397,7 @@ struct DashboardViewTests {
 			onRefresh: {},
 			onSelectRoute: { _ in },
 			onOpenPermissions: {},
-			onStartChat: {},
-			onSummarizeEmail: {},
+			actionContext: .init(startChat: {}),
 			appearancePreferences: makeAppearance(
 				showDashboardEmail: false,
 				showDashboardTasks: false,
@@ -432,8 +425,7 @@ struct DashboardViewTests {
 			onRefresh: {},
 			onSelectRoute: { _ in },
 			onOpenPermissions: {},
-			onStartChat: {},
-			onSummarizeEmail: {},
+			actionContext: .init(startChat: {}),
 			appearancePreferences: makeAppearance(showDashboardCalendar: false)
 		)
 		#expect(throws: Never.self) {
@@ -486,8 +478,7 @@ struct DashboardViewTests {
 			onOpenSettings: { _ in },
 			onOpenAIProviderSetup: { didOpenAISetup = true },
 			onOpenPermissions: {},
-			onStartChat: {},
-			onSummarizeEmail: {},
+			actionContext: .init(startChat: {}),
 			appearancePreferences: makeAppearance()
 		)
 		let button = try view.inspect().find(
@@ -521,8 +512,7 @@ struct DashboardViewTests {
 			onOpenSettings: { _ in },
 			onOpenPersonaPicker: { didOpenPersonaPicker = true },
 			onOpenPermissions: {},
-			onStartChat: {},
-			onSummarizeEmail: {},
+			actionContext: .init(startChat: {}),
 			appearancePreferences: makeAppearance()
 		)
 		let button = try view.inspect().find(
@@ -556,8 +546,7 @@ struct DashboardViewTests {
 			onSelectRoute: { _ in },
 			onOpenSettings: { openedNavKey = $0 },
 			onOpenPermissions: {},
-			onStartChat: {},
-			onSummarizeEmail: {},
+			actionContext: .init(startChat: {}),
 			appearancePreferences: makeAppearance()
 		)
 		let button = try view.inspect().find(
@@ -569,10 +558,10 @@ struct DashboardViewTests {
 }
 
 @MainActor
-@Suite("DashboardSummary")
-struct DashboardSummaryTests {
-	@Test("DashboardCategoryAiSummary decodes from JSON")
-	func aiSummaryDecodes() throws {
+@Suite("DashboardBlockContent")
+struct DashboardBlockContentTests {
+	@Test("DashboardBlockContent decodes from JSON")
+	func contentDecodes() throws {
 		let json = """
 		{
 			"category": "email",
@@ -580,19 +569,28 @@ struct DashboardSummaryTests {
 			"generatedAt": "2026-07-10T12:00:00Z",
 			"personaName": "Toby",
 			"count": 95,
-			"launchUrls": ["https://mail.example.com"]
+			"launchUrls": ["https://mail.example.com"],
+			"sources": [
+				{
+					"providerName": "email",
+					"providerDisplayName": "Email (IMAP/SMTP)",
+					"launchUrl": "https://mail.example.com"
+				}
+			]
 		}
 		""".data(using: .utf8)!
-		let summary = try JSONDecoder().decode(DashboardCategoryAiSummary.self, from: json)
-		#expect(summary.category == "email")
-		#expect(summary.text == "You have 3 urgent emails from your manager.")
-		#expect(summary.personaName == "Toby")
-		#expect(summary.count == 95)
-		#expect(summary.launchUrls?.first == "https://mail.example.com")
+		let content = try JSONDecoder().decode(DashboardBlockContent.self, from: json)
+		#expect(content.category == "email")
+		#expect(content.text == "You have 3 urgent emails from your manager.")
+		#expect(content.personaName == "Toby")
+		#expect(content.count == 95)
+		#expect(content.launchUrls?.first == "https://mail.example.com")
+		#expect(content.sources?.first?.providerName == "email")
+		#expect(content.hasBody)
 	}
 
-	@Test("DashboardCategoryAiSummary decodes with null launchUrls")
-	func aiSummaryDecodesWithNullLaunchUrls() throws {
+	@Test("DashboardBlockContent decodes with null launchUrls")
+	func contentDecodesWithNullLaunchUrls() throws {
 		let json = """
 		{
 			"category": "tasks",
@@ -603,23 +601,23 @@ struct DashboardSummaryTests {
 			"launchUrls": null
 		}
 		""".data(using: .utf8)!
-		let summary = try JSONDecoder().decode(DashboardCategoryAiSummary.self, from: json)
-		#expect(summary.category == "tasks")
-		#expect(summary.launchUrls == nil)
+		let content = try JSONDecoder().decode(DashboardBlockContent.self, from: json)
+		#expect(content.category == "tasks")
+		#expect(content.launchUrls == nil)
 	}
 
-	@Test("dashboard store initializes with empty summary state")
-	func dashboardStoreSummaryInitial() {
+	@Test("dashboard store initializes with empty content state")
+	func dashboardStoreContentInitial() {
 		let store = DashboardStore()
-		#expect(store.emailSummary == nil)
-		#expect(store.tasksSummary == nil)
-		#expect(store.calendarSummary == nil)
+		#expect(store.emailContent == nil)
+		#expect(store.tasksContent == nil)
+		#expect(store.calendarContent == nil)
 		#expect(store.emailSummaryLoading == false)
 		#expect(store.tasksSummaryLoading == false)
 		#expect(store.calendarSummaryLoading == false)
 		#expect(store.isSummaryLoading == false)
-		#expect(store.summariesAreStale == true)
-		#expect(store.lastSummaryLoadedAt == nil)
+		#expect(store.lastLoadedAt == nil)
 	}
 }
+
 

@@ -284,19 +284,33 @@ final class AppearancePreferences {
 
 	/// Whether the given dashboard block should be visible on the home screen.
 	func isDashboardBlockVisible(_ block: DashboardBlock) -> Bool {
-		switch block {
+		isDashboardBlockVisible(id: DashboardBlockID(block.rawValue))
+	}
+
+	/// Visibility by block id (registry / data-block API).
+	func isDashboardBlockVisible(id: DashboardBlockID) -> Bool {
+		switch id {
 		case .email: showDashboardEmail
 		case .tasks: showDashboardTasks
 		case .calendar: showDashboardCalendar
+		default:
+			// Unknown future blocks default to visible until prefs exist.
+			true
 		}
 	}
 
 	/// Updates visibility for a dashboard block (used by Settings toggles).
 	func setDashboardBlockVisible(_ block: DashboardBlock, visible: Bool) {
-		switch block {
+		setDashboardBlockVisible(id: DashboardBlockID(block.rawValue), visible: visible)
+	}
+
+	func setDashboardBlockVisible(id: DashboardBlockID, visible: Bool) {
+		switch id {
 		case .email: showDashboardEmail = visible
 		case .tasks: showDashboardTasks = visible
 		case .calendar: showDashboardCalendar = visible
+		default:
+			break
 		}
 	}
 

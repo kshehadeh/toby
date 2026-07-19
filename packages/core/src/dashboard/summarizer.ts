@@ -12,10 +12,7 @@ import {
 	formatItemsForPrompt,
 	resolveDashboardPersona,
 } from "./prompts";
-import type {
-	DashboardCategoryAiSummary,
-	DashboardCategorySummary,
-} from "./types";
+import type { DashboardBlockContent, DashboardCategorySummary } from "./types";
 
 export {
 	CATEGORY_PROMPTS,
@@ -30,20 +27,54 @@ const SUMMARY_TIMEOUT_MS = 30_000;
 const SUMMARY_MAX_TOKENS = 3000;
 
 interface SummaryCacheEntry {
-	readonly data: DashboardCategoryAiSummary | null;
+	readonly data: DashboardBlockContent | null;
 	readonly expiresAt: number;
 }
 
 const summaryCache = new Map<string, SummaryCacheEntry>();
 const inFlightSummaryRefreshes = new Map<
 	string,
-	Promise<DashboardCategoryAiSummary | null>
+	Promise<DashboardBlockContent | null>
 >();
 
 // --- Disk persistence ---
 
 interface PersistedSummaries {
-	readonly [category: string]: DashboardCategoryAiSummary;
+	readonly [category: string]: DashboardBlockContent;
+}
+
+/** Map aggregator sources → content meta for Open actions. */
+function contentSourcesFromCategory(
+	data: DashboardCategorySummary,
+): DashboardBlockContent["sources"] {
+	return data.sources.map((s) => ({
+		providerName: s.providerName,
+		providerDisplayName: s.providerDisplayName,
+		...(s.launchUrl ? { launchUrl: s.launchUrl } : {}),
+	}));
+}
+
+function launchUrlsFromCategory(data: DashboardCategorySummary): string[] {
+	return data.sources
+		.map((s) => s.launchUrl)
+		.filter((u): u is string => Boolean(u));
+}
+
+/** Content with no body markdown (zero items or no usable generation). */
+function emptyBlockContent(
+	category: string,
+	data: DashboardCategorySummary,
+	personaName: string,
+): DashboardBlockContent {
+	return {
+		category,
+		text: "",
+		generatedAt: data.generatedAt,
+		personaName,
+		count: data.count,
+		launchUrls: launchUrlsFromCategory(data),
+		sources: contentSourcesFromCategory(data),
+	};
 }
 
 /** Load persisted summaries from disk. Returns a map of category → summary. */
@@ -60,7 +91,10 @@ function loadPersistedSummaries(): PersistedSummaries {
 }
 
 /** Persist a single category summary to disk, merging with existing entries. */
-function persistSummary(summary: DashboardCategoryAiSummary): void {
+function persistSummary(summary: DashboardBlockContent): void {
+	// Do not persist empty bodies — they are cheap to recompute and avoid
+	// sticky "blank card" after reconnecting a provider.
+	if (!summary.text.trim()) return;
 	try {
 		const filePath = getDashboardSummariesPath();
 		const existing = loadPersistedSummaries();
@@ -95,9 +129,7 @@ function clearPersistedSummary(category: string): void {
 }
 
 /** Get a persisted summary for a category, or null if none exists. */
-function getPersistedSummary(
-	category: string,
-): DashboardCategoryAiSummary | null {
+function getPersistedSummary(category: string): DashboardBlockContent | null {
 	const all = loadPersistedSummaries();
 	const entry = all[category];
 	if (!entry) return null;
@@ -108,7 +140,7 @@ function getPersistedSummary(
 		return null;
 	}
 	if (text !== entry.text) {
-		const cleaned: DashboardCategoryAiSummary = { ...entry, text };
+		const cleaned: DashboardBlockContent = { ...entry, text };
 		persistSummary(cleaned);
 		return cleaned;
 	}
@@ -228,51 +260,75 @@ function looksLikeModelPlanning(text: string): boolean {
 }
 
 /**
- * Generate an AI summary for a single dashboard category.
- * Uses the configured dashboard persona (or default) with built-in category prompts.
- * Cached for 5 minutes, keyed by category, persona, and data signature.
- * Returns `null` if no data exists for the category.
+ * Home-dashboard block content for one category (single client path).
+ *
+ * Fetches standard-tool/aggregator data server-side, then runs the category
+ * flow when there are items. The card definition owns the header; this return
+ * value is the body only.
+ *
+ * - `null` — unknown category, or no connected providers for that category
+ * - content with `count === 0` / empty `text` — connected but nothing to show
+ * - content with markdown — flow output
+ *
+ * Pass `force: true` (manual UI refresh) to bypass caches and await a fresh flow.
  */
-export async function getDashboardCategorySummary(
+export async function getDashboardBlockContent(
 	category: string,
-): Promise<DashboardCategoryAiSummary | null> {
+	params?: { readonly force?: boolean },
+): Promise<DashboardBlockContent | null> {
+	const force = params?.force === true;
 	const categoryPrompt = CATEGORY_PROMPTS[category];
 	if (!categoryPrompt) return null;
 
-	// Fetch deterministic category data (uses its own 60s cache)
-	const data = await getDashboardCategory(category, { limit: 50 });
-	if (!data || data.count === 0) return null;
+	// Aggregator data is internal to content generation (not a second client path).
+	const data = await getDashboardCategory(category, {
+		limit: 50,
+		force,
+	});
+	if (!data) return null;
 
-	// Check AI summary cache (in-memory, 5 min TTL)
 	const persona = resolveDashboardPersona();
+
+	// Zero items: no flow/LLM — return empty content with open-link meta.
+	if (data.count === 0) {
+		return emptyBlockContent(category, data, persona.name);
+	}
+
 	const dataSignature = buildDataSignature(data);
 	const cacheKey = buildCacheKey(category, persona, dataSignature);
 
-	const cached = summaryCache.get(cacheKey);
-	if (cached && Date.now() < cached.expiresAt) {
-		return cached.data;
+	if (!force) {
+		const cached = summaryCache.get(cacheKey);
+		if (cached && Date.now() < cached.expiresAt) {
+			return cached.data;
+		}
+
+		const persisted = getPersistedSummary(category);
+		if (persisted) {
+			summaryCache.set(cacheKey, {
+				data: persisted,
+				expiresAt: Date.now() + SUMMARY_CACHE_TTL_MS,
+			});
+			refreshSummary(cacheKey, category, data, persona, categoryPrompt).catch(
+				() => {},
+			);
+			return persisted;
+		}
+	} else {
+		summaryCache.delete(cacheKey);
 	}
 
-	// Fall back to persisted summary from disk (e.g. after daemon restart)
-	// so the UI has something to show immediately, even if stale.
-	const persisted = getPersistedSummary(category);
-	if (persisted) {
-		// Re-populate in-memory cache with the persisted entry so repeated
-		// calls within the TTL window don't re-read the file.
-		summaryCache.set(cacheKey, {
-			data: persisted,
-			expiresAt: Date.now() + SUMMARY_CACHE_TTL_MS,
-		});
-		// Kick off a background refresh — the data may have changed since
-		// the summary was last generated.
-		refreshSummary(cacheKey, category, data, persona, categoryPrompt).catch(
-			() => {},
-		);
-		return persisted;
-	}
-
-	// No persisted data — generate synchronously (caller waits)
 	return refreshSummary(cacheKey, category, data, persona, categoryPrompt);
+}
+
+/**
+ * @deprecated Prefer {@link getDashboardBlockContent}.
+ */
+export async function getDashboardCategorySummary(
+	category: string,
+	params?: { readonly force?: boolean },
+): Promise<DashboardBlockContent | null> {
+	return getDashboardBlockContent(category, params);
 }
 
 /** Reuse an in-flight refresh for the same category/persona/data signature. */
@@ -282,7 +338,7 @@ function refreshSummary(
 	data: DashboardCategorySummary,
 	persona: Persona,
 	categoryPrompt: string,
-): Promise<DashboardCategoryAiSummary | null> {
+): Promise<DashboardBlockContent | null> {
 	const inFlight = inFlightSummaryRefreshes.get(cacheKey);
 	if (inFlight) return inFlight;
 
@@ -304,7 +360,7 @@ async function generateFreshSummary(
 	data: DashboardCategorySummary,
 	persona: Persona,
 	categoryPrompt: string,
-): Promise<DashboardCategoryAiSummary | null> {
+): Promise<DashboardBlockContent | null> {
 	const dataSignature = buildDataSignature(data);
 	const cacheKey = buildCacheKey(category, persona, dataSignature);
 
@@ -376,7 +432,7 @@ async function generateLegacyCategorySummary(
 	persona: Persona,
 	cacheKey: string,
 	nullCacheEntry: SummaryCacheEntry,
-): Promise<DashboardCategoryAiSummary | null> {
+): Promise<DashboardBlockContent | null> {
 	const skills = loadLocalSkills().filter((s) => s.enabled !== false);
 	const skillsCatalogText = formatSkillsCatalogForPrompt(skills);
 
@@ -413,20 +469,17 @@ async function generateLegacyCategorySummary(
 				category,
 				rawChars: result.text?.length ?? 0,
 			});
-			return null;
+			return emptyBlockContent(category, data, persona.name);
 		}
 
-		const launchUrls = data.sources
-			.map((s) => s.launchUrl)
-			.filter((u): u is string => Boolean(u));
-
-		const summary: DashboardCategoryAiSummary = {
+		const summary: DashboardBlockContent = {
 			category,
 			text,
 			generatedAt: new Date().toISOString(),
 			personaName: persona.name,
 			count: data.count,
-			launchUrls,
+			launchUrls: launchUrlsFromCategory(data),
+			sources: contentSourcesFromCategory(data),
 		};
 
 		summaryCache.set(cacheKey, {
@@ -451,7 +504,7 @@ async function generateCategorySummaryViaFlow(
 	persona: Persona,
 	cacheKey: string,
 	nullCacheEntry: SummaryCacheEntry,
-): Promise<DashboardCategoryAiSummary | null> {
+): Promise<DashboardBlockContent | null> {
 	// Seed the flow bag with aggregator data under the same key the flow
 	// tool node writes. If Tool Executor fails or returns empty, the LLM can
 	// still summarize the items already shown on the card.
@@ -499,13 +552,13 @@ async function generateCategorySummaryViaFlow(
 	const toolData = flowResult.outputs[dataKey] as
 		| { count?: number; launchUrl?: string; items?: unknown[] }
 		| undefined;
-	// Prefer non-zero tool/seed count; fall back to aggregator count from the card.
+	// Prefer non-zero tool/seed count; fall back to aggregator count.
 	const itemCount =
 		typeof toolData?.count === "number" && toolData.count > 0
 			? toolData.count
 			: data.count;
 	if (itemCount === 0) {
-		return null;
+		return emptyBlockContent(category, data, persona.name);
 	}
 
 	const summaryObj = flowResult.outputs.summary as
@@ -523,7 +576,7 @@ async function generateCategorySummaryViaFlow(
 			category,
 			rawChars: rawMarkdown.length,
 		});
-		return null;
+		return emptyBlockContent(category, data, persona.name);
 	}
 
 	const launchUrlsFromFlow =
@@ -533,17 +586,16 @@ async function generateCategorySummaryViaFlow(
 	const launchUrls =
 		launchUrlsFromFlow.length > 0
 			? launchUrlsFromFlow
-			: data.sources
-					.map((s) => s.launchUrl)
-					.filter((u): u is string => Boolean(u));
+			: launchUrlsFromCategory(data);
 
-	const summary: DashboardCategoryAiSummary = {
+	const summary: DashboardBlockContent = {
 		category,
 		text,
 		generatedAt: new Date().toISOString(),
 		personaName: flowResult.persona.name,
 		count: itemCount,
 		launchUrls,
+		sources: contentSourcesFromCategory(data),
 	};
 
 	summaryCache.set(cacheKey, {

@@ -570,15 +570,18 @@ struct RootView: View {
                     userName: DashboardView.defaultUserName(),
                     onboarding: onboardingChecklist,
                     isOnboardingReady: isOnboardingReady,
+                    isServerReady: store.isServerReady,
                     onRefresh: { Task { await refreshDashboardData() } },
                     onSelectRoute: navigateToRoute,
                     onOpenSettings: { openSettings(navKey: $0) },
                     onOpenAIProviderSetup: { isAIProviderChooserPresented = true },
                     onOpenPersonaPicker: focusPersonaPickerFromOnboarding,
                     onOpenPermissions: { openWindow(id: "permissions") },
-                    onStartChat: startNewChat,
-                    onSummarizeEmail: summarizeUnreadEmailInChat,
-                    onPlanInChat: planCalendarInChat
+                    actionContext: DashboardBlockActionContext(
+                        startChat: startNewChat,
+                        summarizeEmail: summarizeUnreadEmailInChat,
+                        planInChat: planCalendarInChat
+                    )
                 )
                 .toolbar {
                     commonToolbarItems()
@@ -1121,10 +1124,11 @@ struct RootView: View {
     }
 
     private func refreshDashboardData() async {
-        async let dashboard: () = dashboardStore.load()
+        // Force every registered block (bypasses server caches; awaits AI).
+        // Shared app stores refresh in parallel but do not gate the spinner.
+        async let dashboard: () = dashboardStore.refreshAll()
         async let shared: () = refreshSharedAppDataIfConnected()
         _ = await (dashboard, shared)
-        await dashboardStore.reloadSummaries()
     }
 
     private func loadIntegrationsIfNeeded() async {

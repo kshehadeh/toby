@@ -105,9 +105,8 @@ Monday is packed: **Standup: UAI Web** at 10 AM, then overlapping afternoon meet
 });
 
 describe("dashboard summarizer types", () => {
-	it("DashboardCategoryAiSummary has expected fields", () => {
-		// Type-level test: verify the interface exists and has the right shape
-		const summary = {
+	it("DashboardBlockContent has expected fields", () => {
+		const content = {
 			category: "email",
 			text: "You have 3 important emails.",
 			generatedAt: "2026-07-10T12:00:00Z",
@@ -115,10 +114,10 @@ describe("dashboard summarizer types", () => {
 			count: 10,
 			launchUrls: ["https://mail.example.com"],
 		};
-		expect(summary.category).toBe("email");
-		expect(summary.text).toContain("3 important emails");
-		expect(summary.personaName).toBe("Toby");
-		expect(summary.count).toBe(10);
-		expect(summary.launchUrls).toHaveLength(1);
+		expect(content.category).toBe("email");
+		expect(content.text).toContain("3 important emails");
+		expect(content.personaName).toBe("Toby");
+		expect(content.count).toBe(10);
+		expect(content.launchUrls).toHaveLength(1);
 	});
 });

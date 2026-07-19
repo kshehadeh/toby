@@ -70,9 +70,10 @@ Transcript entries and chat stream events are structured JSON objects emitted du
 | --- | --- | --- |
 | `ANY` | `/api/health` | Daemon health and identity handshake |
 | `GET` | `/api/status` | Version, persona, model, integrations, skill count |
-| `GET` | `/api/dashboard` | Home dashboard summary |
-| `GET` | `/api/dashboard/:section` | Dashboard section detail (deterministic data) |
-| `GET` | `/api/dashboard/:section/summary` | AI markdown blurb for a section |
+| `GET` | `/api/dashboard` | Aggregator payload (all categories; internal / debug) |
+| `GET` | `/api/dashboard/:section` | Aggregator list for one category (not used by home cards) |
+| `GET` | `/api/dashboard/:section/content` | Home card block content (flow output; preferred) |
+| `GET` | `/api/dashboard/:section/summary` | Alias of `/content` |
 | `GET` | `/api/flows` | Flow list for the app UI (`id`, `name`, `description`, `builtin`, `persona`, nodes, timestamps; built-ins seeded on list) |
 | `GET` | `/api/flows/runs` | Flow execution history summaries |
 | `GET` | `/api/flows/runs/:id` | One flow run with per-node detail |
@@ -233,15 +234,23 @@ Schedules `SIGTERM` after the response is flushed. The API goes offline when the
 
 ### `GET /api/dashboard`
 
-Returns the home dashboard summary payload (counts and category snapshots used by Toby.app).
+Returns aggregator list/count data for all categories. Home cards do not use this; it remains for debug and tooling.
 
 ### `GET /api/dashboard/:section`
 
-Returns detail for one dashboard category (`email`, `tasks`, `calendar`). Unknown categories return `404` with `{ "error": "Unknown dashboard category: …" }`.
+Returns aggregator detail for one category (`email`, `tasks`, `calendar`). Unknown categories return `404` with `{ "error": "Unknown dashboard category: …" }`.
+
+Optional query: `?fresh=1` bypasses the short category cache.
+
+### `GET /api/dashboard/:section/content`
+
+Returns **block content** for a home card body (flow-generated markdown plus light meta such as `count` and `launchUrls`), or `null` when no providers are connected. Preferred path for Toby.app.
+
+Optional query: `?fresh=1` regenerates content (bypasses caches; used for manual refresh).
 
 ### `GET /api/dashboard/:section/summary`
 
-Returns the AI markdown blurb for one category (generated with the dashboard persona from your connected integration data), or `null` when there is nothing to summarize.
+Alias of `/content` (legacy path name).
 
 ## Issues
 

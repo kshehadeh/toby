@@ -230,14 +230,13 @@ enum DashboardSummaryMarkdown {
 	static let headingColor = AppTheme.tertiaryText
 }
 
+/// Static header chrome from the card definition (title + trailing actions only).
 private struct CardHeader<Trailing: View>: View {
 	let systemImage: String?
 	let iconColor: Color
 	let title: String
 	/// Default ~15% smaller than the previous 18pt card titles.
 	var titleSize: CGFloat = 15
-	let badgeValue: String
-	let badgeLabel: String
 	@ViewBuilder let trailing: () -> Trailing
 
 	var body: some View {
@@ -251,14 +250,6 @@ private struct CardHeader<Trailing: View>: View {
 				.font(.system(size: titleSize, weight: .semibold))
 				.foregroundStyle(AppTheme.primaryText)
 			Spacer(minLength: 0)
-			HStack(spacing: 4) {
-				Text(badgeValue)
-					.font(.system(size: 11, weight: .semibold))
-					.foregroundStyle(AppTheme.primaryText)
-				Text(badgeLabel)
-					.font(.system(size: 11))
-					.foregroundStyle(AppTheme.secondaryText)
-			}
 			trailing()
 		}
 	}
@@ -352,25 +343,19 @@ struct SummarySkeletonView: View {
 	}
 }
 
-// MARK: - Unread mail card
+// MARK: - Generic data-block card
 
-struct UnreadMailCard: View {
-	let summary: DashboardCategorySummary?
-	let aiSummary: DashboardCategoryAiSummary?
-	let isSummaryLoading: Bool
-	let summaryError: String?
-	let isRefreshing: Bool
-	let onRefresh: () -> Void
-	let onSummarize: () -> Void
+/// One home-dashboard card: definition-owned static header + flow-output body.
+struct DashboardBlockCard: View {
+	@Bindable var block: CategoryDashboardBlock
+	var actionContext: DashboardBlockActionContext = .init()
 
-	private var chipPalette: [Color] {
-		[
-			Color(red: 0.90, green: 0.35, blue: 0.35),
-			AppTheme.accent,
-			Color(red: 0.35, green: 0.68, blue: 1),
-			Color(red: 0.55, green: 0.60, blue: 0.68),
-			Color(red: 0.55, green: 0.60, blue: 0.68),
-		]
+	private var actions: [DashboardBlockAction] { block.actions(context: actionContext) }
+	private var content: DashboardBlockContent? { block.content }
+
+	/// Skeleton while loading with no body yet (including force refresh).
+	private var showContentSkeleton: Bool {
+		block.isUpdating && !(content?.hasBody ?? false)
 	}
 
 	var body: some View {
@@ -379,15 +364,16 @@ struct UnreadMailCard: View {
 			CardHeader(
 				systemImage: nil,
 				iconColor: AppTheme.accent,
-				title: "Unread mail",
-				titleSize: 15,
-				badgeValue: "\(summary?.count ?? 0)",
-				badgeLabel: "unread"
+				title: block.title,
+				titleSize: 15
 			) {
-				CardHeaderTrailingControls(isRefreshing: isRefreshing, onRefresh: onRefresh) {
-					Button("Open Mail", action: openMail)
-					if let summary, summary.count > 0 {
-						Button("Summarize all in chat", action: onSummarize)
+				CardHeaderTrailingControls(
+					isRefreshing: block.isUpdating,
+					onRefresh: { Task { await block.update(force: true) } }
+				) {
+					ForEach(actions) { action in
+						Button(action.title, action: action.perform)
+							.disabled(!action.isEnabled)
 					}
 				}
 			}
@@ -398,32 +384,11 @@ struct UnreadMailCard: View {
 				.padding(.top, 14)
 				.padding(.bottom, 16)
 
-			if let summary, summary.count > 0 {
-				if !summary.groups.isEmpty {
-					FlowLayout(spacing: 6) {
-						ForEach(Array(summary.groups.enumerated()), id: \.element.id) { index, group in
-							GroupChip(
-								count: group.count,
-								label: group.label,
-								color: chipPalette[index % chipPalette.count]
-							)
-						}
-					}
-					.padding(.bottom, 14)
-				}
-
-				summaryContent
-			} else {
-				DashboardEmptyState(
-					message: summary == nil
-						? "No email found. Connect an email account to see unread mail."
-						: "You're all caught up. No unread mail."
-				)
-			}
+			bodyContent
 		}
 		.overlay(alignment: .topLeading) {
 			// Large decorative stamp that straddles the card border.
-			Image(systemName: "envelope.fill")
+			Image(systemName: block.systemImage)
 				.font(.system(size: 54, weight: .semibold))
 				.symbolRenderingMode(.hierarchical)
 				.foregroundStyle(AppTheme.accent)
@@ -436,262 +401,29 @@ struct UnreadMailCard: View {
 		// Room so the overhanging icon isn't clipped by the scroll view.
 		.padding(.top, 22)
 		.padding(.leading, 18)
-		.accessibilityIdentifier("dashboard-mail-card")
+		.accessibilityIdentifier(block.accessibilityIdentifier)
 	}
 
 	@ViewBuilder
-	private var summaryContent: some View {
-		if let aiSummary {
+	private var bodyContent: some View {
+		if showContentSkeleton {
+			SummarySkeletonView()
+		} else if let content, content.hasBody {
 			MarkdownText(
-				text: aiSummary.text,
+				text: content.text,
 				font: DashboardSummaryMarkdown.bodyFont,
 				foregroundStyle: DashboardSummaryMarkdown.bodyColor,
 				strongForegroundStyle: DashboardSummaryMarkdown.strongColor,
 				headingForegroundStyle: DashboardSummaryMarkdown.headingColor,
 				uppercaseHeadings: true
 			)
-		} else if isSummaryLoading {
-			SummarySkeletonView()
-		} else if let summaryError {
-			DashboardEmptyState(message: "Summary unavailable. \(summaryError)")
+		} else if let error = block.error {
+			DashboardEmptyState(message: "Content unavailable. \(error)")
+		} else if content == nil {
+			DashboardEmptyState(message: block.descriptor.emptyWhenNil)
 		} else {
-			DashboardEmptyState(message: "No summary available.")
-		}
-	}
-
-	/// Open the provider's webmail inbox if declared, else the default mail client.
-	private func openMail() {
-		if let launch = summary?.sources.compactMap(\.launchUrl).first,
-			let url = URL(string: launch)
-		{
-			NSWorkspace.shared.open(url)
-			return
-		}
-		guard let mailto = URL(string: "mailto:") else { return }
-		let workspace = NSWorkspace.shared
-		if let appURL = workspace.urlForApplication(toOpen: mailto) {
-			workspace.openApplication(at: appURL, configuration: NSWorkspace.OpenConfiguration())
-		} else {
-			workspace.open(mailto)
-		}
-	}
-}
-
-private struct GroupChip: View {
-	let count: Int
-	let label: String
-	let color: Color
-
-	var body: some View {
-		HStack(spacing: 5) {
-			Text("\(count)")
-				.font(.system(size: 12, weight: .semibold))
-				.foregroundStyle(color)
-			Text(label)
-				.font(.system(size: 12))
-				.foregroundStyle(AppTheme.secondaryText)
-		}
-		.padding(.horizontal, 10)
-		.padding(.vertical, 5)
-		.background(
-			Capsule().fill(color.opacity(0.14))
-		)
-	}
-}
-
-// MARK: - Tasks card
-
-struct TasksCard: View {
-	let summary: DashboardCategorySummary?
-	let aiSummary: DashboardCategoryAiSummary?
-	let isSummaryLoading: Bool
-	let summaryError: String?
-	let isRefreshing: Bool
-	let onRefresh: () -> Void
-	let onAddTask: () -> Void
-
-	var body: some View {
-		DashboardCard {
-			// Leading inset keeps the title clear of the corner icon.
-			CardHeader(
-				systemImage: nil,
-				iconColor: AppTheme.accent,
-				title: "Tasks",
-				titleSize: 15,
-				badgeValue: "\(summary?.count ?? 0)",
-				badgeLabel: "open"
-			) {
-				CardHeaderTrailingControls(isRefreshing: isRefreshing, onRefresh: onRefresh) {
-					Button("Add a task", action: onAddTask)
-					if let summary {
-						ForEach(summary.sources.indices, id: \.self) { idx in
-							let source = summary.sources[idx]
-							if let launch = source.launchUrl, let url = URL(string: launch) {
-								Button("Open \(source.providerDisplayName)") {
-									NSWorkspace.shared.open(url)
-								}
-							}
-						}
-					}
-				}
-			}
-			.padding(.leading, 40)
-
-			Divider()
-				.overlay(AppTheme.separator)
-				.padding(.top, 14)
-				.padding(.bottom, 16)
-
-			if let summary, summary.count > 0 {
-				summaryContent
-			} else {
-				DashboardEmptyState(
-					message: summary == nil
-						? "No tasks found. Connect a task provider to see open tasks."
-						: "No open tasks. Nicely done."
-				)
-			}
-		}
-		.overlay(alignment: .topLeading) {
-			// Large decorative stamp that straddles the card border.
-			Image(systemName: "checklist")
-				.font(.system(size: 54, weight: .semibold))
-				.symbolRenderingMode(.hierarchical)
-				.foregroundStyle(AppTheme.accent)
-				.rotationEffect(.degrees(-30))
-				.shadow(color: .black.opacity(0.4), radius: 10, x: 1, y: 3)
-				.offset(x: -16, y: -20)
-				.allowsHitTesting(false)
-				.accessibilityHidden(true)
-		}
-		// Room so the overhanging icon isn't clipped by the scroll view.
-		.padding(.top, 22)
-		.padding(.leading, 18)
-		.accessibilityIdentifier("dashboard-tasks-card")
-	}
-
-	@ViewBuilder
-	private var summaryContent: some View {
-		if let aiSummary {
-			MarkdownText(
-				text: aiSummary.text,
-				font: DashboardSummaryMarkdown.bodyFont,
-				foregroundStyle: DashboardSummaryMarkdown.bodyColor,
-				strongForegroundStyle: DashboardSummaryMarkdown.strongColor,
-				headingForegroundStyle: DashboardSummaryMarkdown.headingColor,
-				uppercaseHeadings: true
-			)
-		} else if isSummaryLoading {
-			SummarySkeletonView()
-		} else if let summaryError {
-			DashboardEmptyState(message: "Summary unavailable. \(summaryError)")
-		} else {
-			DashboardEmptyState(message: "No summary available.")
-		}
-	}
-}
-
-// MARK: - Upcoming events card
-
-struct UpcomingEventsCard: View {
-	let summary: DashboardCategorySummary?
-	let aiSummary: DashboardCategoryAiSummary?
-	let isSummaryLoading: Bool
-	let summaryError: String?
-	let isRefreshing: Bool
-	let onRefresh: () -> Void
-	let onPlanInChat: () -> Void
-
-	var body: some View {
-		DashboardCard {
-			// Leading inset keeps the title clear of the corner icon.
-			CardHeader(
-				systemImage: nil,
-				iconColor: AppTheme.accent,
-				title: "Upcoming",
-				titleSize: 15,
-				badgeValue: "\(summary?.count ?? 0)",
-				badgeLabel: "events"
-			) {
-				CardHeaderTrailingControls(isRefreshing: isRefreshing, onRefresh: onRefresh) {
-					// Single open action uses the provider launchUrl (see openCalendar).
-					// Do not also list per-source "Open Apple Calendar" rows — same target.
-					Button("Open Calendar", action: openCalendar)
-					Button("Plan in chat", action: onPlanInChat)
-				}
-			}
-			.padding(.leading, 40)
-
-			Divider()
-				.overlay(AppTheme.separator)
-				.padding(.top, 14)
-				.padding(.bottom, 16)
-
-			if let summary, summary.count > 0 {
-				summaryContent
-			} else {
-				DashboardEmptyState(
-					message: summary == nil
-						? "No events found. Connect a calendar provider to see upcoming events."
-						: "Nothing on the calendar for the next 7 days."
-				)
-			}
-		}
-		.overlay(alignment: .topLeading) {
-			// Large decorative stamp that straddles the card border.
-			Image(systemName: "calendar")
-				.font(.system(size: 54, weight: .semibold))
-				.symbolRenderingMode(.hierarchical)
-				.foregroundStyle(AppTheme.accent)
-				.rotationEffect(.degrees(-30))
-				.shadow(color: .black.opacity(0.4), radius: 10, x: 1, y: 3)
-				.offset(x: -16, y: -20)
-				.allowsHitTesting(false)
-				.accessibilityHidden(true)
-		}
-		// Room so the overhanging icon isn't clipped by the scroll view.
-		.padding(.top, 22)
-		.padding(.leading, 18)
-		.accessibilityIdentifier("dashboard-calendar-card")
-	}
-
-	@ViewBuilder
-	private var summaryContent: some View {
-		if let aiSummary {
-			MarkdownText(
-				text: aiSummary.text,
-				font: DashboardSummaryMarkdown.bodyFont,
-				foregroundStyle: DashboardSummaryMarkdown.bodyColor,
-				strongForegroundStyle: DashboardSummaryMarkdown.strongColor,
-				headingForegroundStyle: DashboardSummaryMarkdown.headingColor,
-				uppercaseHeadings: true
-			)
-		} else if isSummaryLoading {
-			SummarySkeletonView()
-		} else if let summaryError {
-			DashboardEmptyState(message: "Summary unavailable. \(summaryError)")
-		} else {
-			DashboardEmptyState(message: "No summary available.")
-		}
-	}
-
-	/// Open the calendar provider app via its plugin-declared `launchUrl`
-	/// (same path as email/tasks dashboard sources). Fall back to Calendar.app.
-	private func openCalendar() {
-		if let launch = summary?.sources.compactMap(\.launchUrl).first,
-			let url = URL(string: launch)
-		{
-			NSWorkspace.shared.open(url)
-			return
-		}
-		// Plugin did not advertise a launch URL — open Calendar.app by bundle id.
-		let workspace = NSWorkspace.shared
-		if let appURL = workspace.urlForApplication(withBundleIdentifier: "com.apple.iCal") {
-			workspace.openApplication(at: appURL, configuration: NSWorkspace.OpenConfiguration())
-			return
-		}
-		if let url = URL(string: "ical://") {
-			workspace.open(url)
+			// Connected / loaded but zero items or empty markdown.
+			DashboardEmptyState(message: block.descriptor.emptyWhenZero)
 		}
 	}
 }
@@ -733,49 +465,4 @@ enum DashboardFormat {
 	}
 }
 
-// MARK: - Flow layout
 
-struct FlowLayout: Layout {
-	var spacing: CGFloat = 6
-
-	func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) -> CGSize {
-		let maxWidth = proposal.width ?? .infinity
-		var rowWidth: CGFloat = 0
-		var rowHeight: CGFloat = 0
-		var totalHeight: CGFloat = 0
-		var totalWidth: CGFloat = 0
-
-		for subview in subviews {
-			let size = subview.sizeThatFits(.unspecified)
-			if rowWidth + size.width > maxWidth, rowWidth > 0 {
-				totalWidth = max(totalWidth, rowWidth - spacing)
-				totalHeight += rowHeight + spacing
-				rowWidth = 0
-				rowHeight = 0
-			}
-			rowWidth += size.width + spacing
-			rowHeight = max(rowHeight, size.height)
-		}
-		totalWidth = max(totalWidth, rowWidth - spacing)
-		totalHeight += rowHeight
-		return CGSize(width: min(totalWidth, maxWidth), height: totalHeight)
-	}
-
-	func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) {
-		var x = bounds.minX
-		var y = bounds.minY
-		var rowHeight: CGFloat = 0
-
-		for subview in subviews {
-			let size = subview.sizeThatFits(.unspecified)
-			if x + size.width > bounds.maxX, x > bounds.minX {
-				x = bounds.minX
-				y += rowHeight + spacing
-				rowHeight = 0
-			}
-			subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
-			x += size.width + spacing
-			rowHeight = max(rowHeight, size.height)
-		}
-	}
-}

@@ -171,11 +171,13 @@ export async function handleWebRequest(
 		}
 		if (pathname.startsWith("/api/dashboard/") && req.method === "GET") {
 			const rest = decodeURIComponent(pathname.slice("/api/dashboard/".length));
-			const summaryMatch = rest.match(/^([^/]+)\/summary$/);
-			if (summaryMatch) {
-				return handleDashboardCategorySummary(summaryMatch[1]);
+			// Home cards: block content (flow output). `/content` preferred; `/summary` alias.
+			const contentMatch = rest.match(/^([^/]+)\/(content|summary)$/);
+			if (contentMatch) {
+				return handleDashboardCategorySummary(contentMatch[1], url);
 			}
-			return handleDashboardCategory(rest);
+			// Aggregator list payload (internal / debug; not used by home cards).
+			return handleDashboardCategory(rest, url);
 		}
 		if (pathname === "/api/flows" && req.method === "GET") {
 			return handleFlowsList();
