@@ -10,7 +10,8 @@ their content.
 
 | Piece | Source | Changes on refresh? |
 | --- | --- | --- |
-| Header (title, icon, actions) | Card **definition** (`DashboardBlockDescriptor`) | No |
+| Header title, icon, actions | Card **definition** (`DashboardBlockDescriptor`) | No |
+| Header last-run time | `DashboardBlockContent.generatedAt` (short date + `HH:mm`) | Yes, when content updates |
 | Body | **Flow output** (`DashboardBlockContent`) | Yes — one path |
 | Count badge | — | Removed (not part of the model) |
 
@@ -35,9 +36,11 @@ Compile-time registration in Toby.app
 - visibility defaults key, sort order, accessibility id
 - action metadata (`openPrimaryTitle`, `listsSourceOpenActions`, fallbacks)
 
-The header **title** comes only from the definition. Actions are declared by
-the block (open app, chat hooks); enablement may use light **meta** from the
-latest content (e.g. `count > 0` for “Summarize all in chat”).
+The header **title** comes only from the definition. The **last-run** timestamp
+in the header is formatted from content `generatedAt` (locale short date +
+24-hour `HH:mm`) when content is present. Actions are declared by the block
+(open app, chat hooks); enablement may use light **meta** from the latest
+content (e.g. `count > 0` for “Summarize all in chat”).
 
 ## Block content (refreshable)
 
@@ -47,9 +50,9 @@ Single DTO from the daemon:
 interface DashboardBlockContent {
   category: string;       // block id: "email" | "tasks" | "calendar"
   text: string;           // markdown body; empty when nothing to show
-  generatedAt: string;    // ISO 8601
+  generatedAt: string;    // ISO 8601 — shown in header as short date + HH:mm
   personaName: string;
-  count: number;          // for empty UX / action enablement (not header chrome)
+  count: number;          // for empty UX / action enablement (not a badge)
   launchUrls: string[];
   sources?: {             // multi-provider open targets
     providerName: string;

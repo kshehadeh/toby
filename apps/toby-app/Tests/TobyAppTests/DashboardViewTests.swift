@@ -124,6 +124,20 @@ struct DashboardModelsTests {
 		#expect(DashboardFormat.dueText(nil).text == "No due date")
 	}
 
+	@Test("flow ran-at text uses short date and HH:mm")
+	func flowRanAtTextFormatsShortDateAndTime() {
+		#expect(DashboardFormat.flowRanAtText(nil) == nil)
+		#expect(DashboardFormat.flowRanAtText("not-a-date") == nil)
+		// Fixed ISO instant: 2026-07-20 14:05 UTC
+		let formatted = DashboardFormat.flowRanAtText("2026-07-20T14:05:00Z")
+		#expect(formatted != nil)
+		// Time portion is always 24h HH:mm in local calendar; date is locale short.
+		#expect(formatted!.contains(":"))
+		let timeSuffix = formatted!.split(separator: " ").last.map(String.init)
+		#expect(timeSuffix?.count == 5) // HH:mm
+		#expect(timeSuffix?.contains(":") == true)
+	}
+
 	@Test("dashboard store initializes empty")
 	func dashboardStoreInitializesEmpty() {
 		let store = DashboardStore()

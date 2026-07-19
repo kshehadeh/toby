@@ -230,13 +230,15 @@ enum DashboardSummaryMarkdown {
 	static let headingColor = AppTheme.tertiaryText
 }
 
-/// Static header chrome from the card definition (title + trailing actions only).
+/// Static header chrome: title, optional last-run timestamp, trailing actions.
 private struct CardHeader<Trailing: View>: View {
 	let systemImage: String?
 	let iconColor: Color
 	let title: String
 	/// Default ~15% smaller than the previous 18pt card titles.
 	var titleSize: CGFloat = 15
+	/// Short date + HH:mm when the block flow last produced content.
+	var lastRanAtText: String? = nil
 	@ViewBuilder let trailing: () -> Trailing
 
 	var body: some View {
@@ -249,6 +251,15 @@ private struct CardHeader<Trailing: View>: View {
 			Text(title)
 				.font(.system(size: titleSize, weight: .semibold))
 				.foregroundStyle(AppTheme.primaryText)
+				.lineLimit(1)
+			if let lastRanAtText {
+				Text(lastRanAtText)
+					.font(.system(size: 11, weight: .medium))
+					.foregroundStyle(AppTheme.tertiaryText)
+					.lineLimit(1)
+					.help("Last updated \(lastRanAtText)")
+					.accessibilityLabel("Last updated \(lastRanAtText)")
+			}
 			Spacer(minLength: 0)
 			trailing()
 		}
@@ -365,7 +376,8 @@ struct DashboardBlockCard: View {
 				systemImage: nil,
 				iconColor: AppTheme.accent,
 				title: block.title,
-				titleSize: 15
+				titleSize: 15,
+				lastRanAtText: DashboardFormat.flowRanAtText(content?.generatedAt)
 			) {
 				CardHeaderTrailingControls(
 					isRefreshing: block.isUpdating,
@@ -442,6 +454,19 @@ struct DashboardEmptyState: View {
 }
 
 enum DashboardFormat {
+	/// Locale short date + 24h `HH:mm` for when a block flow last ran.
+	/// Returns `nil` when the ISO timestamp cannot be parsed.
+	static func flowRanAtText(_ raw: String?) -> String? {
+		guard let date = DashboardDate.parse(raw) else { return nil }
+		let datePart = DateFormatter()
+		datePart.dateStyle = .short
+		datePart.timeStyle = .none
+		// `HH` is always 24-hour (Unicode pattern), independent of 12h locale prefs.
+		let timePart = DateFormatter()
+		timePart.dateFormat = "HH:mm"
+		return "\(datePart.string(from: date)) \(timePart.string(from: date))"
+	}
+
 	static func dueText(_ raw: String?) -> (text: String, color: Color) {
 		guard let date = DashboardDate.parse(raw) else {
 			return ("No due date", AppTheme.tertiaryText)
