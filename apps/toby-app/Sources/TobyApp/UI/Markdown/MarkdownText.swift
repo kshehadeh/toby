@@ -33,7 +33,9 @@ struct MarkdownText: View {
 	@Environment(\.dashboardCardBodyInteractive) private var bodyInteractive
 
 	var body: some View {
-		VStack(alignment: .leading, spacing: 10) {
+		// Keep block stack denser than the SwiftUI VStack default (8) so multi-block
+		// summaries (headings + bullets) don’t read as double-spaced.
+		VStack(alignment: .leading, spacing: 4) {
 			ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
 				switch block {
 				case .heading(let level, let content):
@@ -46,7 +48,7 @@ struct MarkdownText: View {
 					styledInline(content)
 						.font(font)
 				case .bullet(let content):
-					HStack(alignment: .firstTextBaseline, spacing: 8) {
+					HStack(alignment: .firstTextBaseline, spacing: 6) {
 						Text("•")
 							.font(font)
 							.foregroundStyle(foregroundStyle)
@@ -54,7 +56,7 @@ struct MarkdownText: View {
 							.font(font)
 					}
 				case .blockquote(let content):
-					HStack(alignment: .top, spacing: 10) {
+					HStack(alignment: .top, spacing: 8) {
 						RoundedRectangle(cornerRadius: 1.5)
 							.fill(AppTheme.separator)
 							.frame(width: 3)
