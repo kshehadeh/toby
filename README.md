@@ -12,7 +12,7 @@ from chat.
 Toby combines:
 
 - **Chat-first workflows** through the native macOS app
-- **Installable integrations** shipped as `@toby/plugin-*` binaries
+- **Installable integrations** shipped as `@toby/plugin-*` TypeScript plugins
 - **Personas, skills, and memories** for durable assistant context
 - **Schedules and daemon flows** for recurring prompts and inbound chat
 - **Listen mode** for local audio recording and transcription on macOS
@@ -71,7 +71,7 @@ toby plugins doctor
 | ------ | ---- |
 | `@toby/cli` | Commander entrypoint for automation, setup, backup/restore, daemon, plugins, and app launch. |
 | `@toby/core` | Shared harness: chat pipeline, AI runtime, tools, integration registry, config, memory, sessions, logging, daemon-safe workflows. |
-| `@toby/plugin-*` | Installable CLI binaries with strict JSON stdin/stdout contracts. |
+| `@toby/plugin-*` | Installable TypeScript plugins with strict JSON stdin/stdout contracts. |
 | External systems | Email, tasks, chat, work tracking, search, calendars, and local macOS APIs. |
 
 Core is intentionally UI-agnostic. Put behavior in `@toby/core` when it should
@@ -84,8 +84,8 @@ page for more detail.
 
 ## Integrations and Plugins
 
-First-party integrations ship as installable plugin binaries in release
-archives. Fresh installs and upgrades copy them into `~/.toby/plugins/`.
+First-party integrations ship as installable TypeScript plugin directories in
+release archives. Fresh installs and upgrades copy them into `~/.toby/plugins/`.
 
 Current first-party plugin integrations include:
 
@@ -98,11 +98,13 @@ Current first-party plugin integrations include:
 - Apple Reminders
 - Apple Contacts
 - macOS
-- Sample plugin
+- Sample TypeScript plugin
 
-Plugins can be written in any language that can ship an executable. Toby
-discovers `toby-plugin-<name>` binaries, passes config on stdin, and reads one
-JSON object from stdout.
+New plugins should be TypeScript bun-package plugins (a directory with a
+`manifest.json` and TypeScript entrypoint). Toby discovers
+`toby-plugin-<name>` directories, passes config on stdin, and reads one JSON
+object from stdout. Legacy standalone binary plugins are still supported for
+backward compatibility.
 
 See:
 
