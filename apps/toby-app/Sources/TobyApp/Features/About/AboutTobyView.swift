@@ -238,10 +238,6 @@ struct AboutTobyView: View {
 		OpenSourceLibrary(name: "Bun", detail: "oven-sh — JavaScript runtime, bundled server, plugins, and SQLite storage"),
 		OpenSourceLibrary(name: "Sparkle", detail: "sparkle-project.org — app updates"),
 		OpenSourceLibrary(
-			name: "STTextView, STTextKitPlus, CoreTextSwift",
-			detail: "Krzyzanowskim — native log and text editing components"
-		),
-		OpenSourceLibrary(
 			name: "AI SDK, @ai-sdk/gateway, @ai-sdk/openai, @ai-sdk/groq, @ai-sdk/openai-compatible",
 			detail: "Vercel — chat, tool calling, streaming, transcription, and model providers"
 		),
@@ -256,7 +252,6 @@ struct AboutTobyView: View {
 			name: "Mozilla Readability, linkedom",
 			detail: "web page extraction and HTML parsing for fetched content"
 		),
-		OpenSourceLibrary(name: "googleapis", detail: "Google API client support for calendar and related integrations"),
 		OpenSourceLibrary(name: "open", detail: "cross-platform browser and file opener"),
 		OpenSourceLibrary(name: "@slack/bolt", detail: "Slack app, OAuth, Socket Mode, and inbound chat support"),
 		OpenSourceLibrary(name: "@doist/todoist-sdk", detail: "Todoist task integration client"),
