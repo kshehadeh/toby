@@ -34,13 +34,95 @@ import {
 import { resolveBunRuntime } from "@toby/core/integrations/plugins/runtime";
 import { buildIntegrationSetupGuide } from "@toby/core/integrations/plugins/setup";
 
-const repoRoot = path.resolve(import.meta.dirname, "..");
-const sampleCli = path.join(repoRoot, "../plugin-sample/src/cli.ts");
+const SAMPLE_PLUGIN_SCRIPT = `
+type JsonRecord = Record<string, unknown>;
+
+function readStdin(): Promise<string> {
+	return new Promise((resolve) => {
+		const chunks: Buffer[] = [];
+		process.stdin.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+		process.stdin.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+		if (process.stdin.isTTY) resolve("");
+	});
+}
+
+function emitJson(payload: JsonRecord, exitCode = 0): never {
+	process.stdout.write(JSON.stringify(payload) + "\\n");
+	process.exit(exitCode);
+}
+
+function parseEnvelope(raw: string): { config: JsonRecord; state: JsonRecord } {
+	if (!raw.trim()) return { config: {}, state: {} };
+	try {
+		const parsed = JSON.parse(raw) as JsonRecord;
+		const config = parsed.config && typeof parsed.config === "object" && !Array.isArray(parsed.config) ? parsed.config as JsonRecord : {};
+		const state = parsed.state && typeof parsed.state === "object" && !Array.isArray(parsed.state) ? parsed.state as JsonRecord : {};
+		return { config, state };
+	} catch { emitJson({ ok: false, error: "Invalid JSON", code: "invalid_input" }, 2); }
+}
+
+async function main() {
+	const [command, subcommand] = process.argv.slice(2);
+	const stdin = await readStdin();
+
+	if (command === "status") {
+		const { config, state } = parseEnvelope(stdin);
+		const connected = Boolean(state.connectedAt) || String(config.apiKey ?? "").trim().length > 0;
+		emitJson({ ok: true, name: "sample", displayName: "Sample Plugin", description: "Reference installable plugin for Toby protocol v1", version: "1.0.0", protocolVersion: "1", connected, capabilities: ["chat"], resources: ["demo"], chatModelPrep: { systemPromptSection: "### Sample Plugin\\nDemo installable plugin for search-style chat tools.", singleSessionRules: "You are assisting via the Sample Plugin integration. Use sample tools when helpful.", singleSessionUserTemplate: "{{userPrompt}}", multiUserContentTemplate: '## Sample Plugin context\\nUse sample tools when the user request benefits from them.\\n\\nQuery: \"{{userPrompt}}\"' }, setupAvailable: true, setupDescription: "Demo setup for protocol testing", details: connected ? "Sample plugin configured." : "Configure sample.apiKey in Toby configure." });
+	}
+	if (command === "connect") {
+		const { config } = parseEnvelope(stdin);
+		const apiKey = String(config.apiKey ?? "").trim();
+		if (!apiKey) emitJson({ ok: false, reason: "API key is required." });
+		emitJson({ ok: true, reason: "Sample plugin connection validated." });
+	}
+	if (command === "disconnect") emitJson({ ok: true, reason: "Sample plugin disconnected." });
+	if (command === "config" && subcommand === "shape") {
+		emitJson({ ok: true, fields: [{ key: "apiKey", label: "API Key", type: "string", required: true, masked: true, description: "Demo credential" }, { key: "greeting", label: "Greeting prefix", type: "string", required: false, default: "Hello" }] });
+	}
+	if (command === "config" && subcommand === "get") {
+		const { config } = parseEnvelope(stdin);
+		emitJson({ ok: true, config: { apiKey: String(config.apiKey ?? ""), greeting: String(config.greeting ?? "Hello") } });
+	}
+	if (command === "config" && subcommand === "set") emitJson({ ok: true, reason: "Sample plugin config synced." });
+	if (command === "tools" && subcommand === "list") {
+		emitJson({ ok: true, tools: [{ name: "sampleEcho", description: "Echo a message", readOnly: true, inputSchema: { type: "object", properties: { message: { type: "string" } }, required: ["message"] } }, { name: "sampleMutate", description: "Record a demo mutation", readOnly: false, inputSchema: { type: "object", properties: { note: { type: "string" } }, required: ["note"] } }] });
+	}
+	if (command === "tools" && subcommand === "execute") {
+		const body = JSON.parse(stdin) as JsonRecord;
+		const tool = String(body.tool ?? "");
+		const input = body.input && typeof body.input === "object" ? body.input as JsonRecord : {};
+		const config = body.config && typeof body.config === "object" ? body.config as JsonRecord : {};
+		const dryRun = Boolean(body.dryRun);
+		const greeting = String(config.greeting ?? "Hello").trim() || "Hello";
+		if (tool === "sampleEcho") {
+			const message = String(input.message ?? "").trim();
+			if (!message) emitJson({ ok: false, error: "message is required" });
+			emitJson({ ok: true, result: { echo: greeting + ", " + message + "!" } });
+		}
+		if (tool === "sampleMutate") {
+			const note = String(input.note ?? "").trim();
+			if (!note) emitJson({ ok: false, error: "note is required" });
+			if (dryRun) emitJson({ ok: true, result: { dryRun: true, wouldRecord: note }, appliedActions: ["Would record note: " + note] });
+			emitJson({ ok: true, result: { recorded: note }, appliedActions: ["Recorded note: " + note] });
+		}
+		emitJson({ ok: false, error: "Unknown tool: " + tool });
+	}
+	if (command === "setup") emitJson({ ok: true, actions: [{ id: "demo:already-done", label: "Demo prerequisite check", ok: true, skipped: true, detail: "Already satisfied." }, { id: "demo:install", label: "Demo install step", ok: true, detail: "Completed successfully." }] });
+	if (command === "setup" && subcommand === "guide") {
+		emitJson({ ok: true, name: "sample", displayName: "Sample Plugin", description: "Reference installable plugin", steps: [{ id: "overview", title: "What the Sample Plugin does", description: "The Sample Plugin demonstrates Toby protocol v1." }, { id: "credentials", title: "Add credentials", description: "Enter the API key in the fields below, then connect.", artifacts: [{ id: "redirectUri", label: "Demo redirect URI", value: "http://localhost:9999/callback", hint: "Paste this into the provider console if asked." }] }, { id: "validate", title: "Validate", description: "Click Connect to finish the demo setup." }] });
+	}
+	emitJson({ ok: false, error: "Unknown command: " + (command ?? "(none)"), code: "usage" }, 2);
+}
+main().catch((e) => emitJson({ ok: false, error: e instanceof Error ? e.message : String(e), code: "internal_error" }, 2));
+`;
 
 function writeSamplePluginWrapper(pluginDir: string): string {
 	fs.mkdirSync(pluginDir, { recursive: true });
+	const scriptPath = path.join(pluginDir, "sample-fixture.ts");
+	fs.writeFileSync(scriptPath, SAMPLE_PLUGIN_SCRIPT, { mode: 0o644 });
 	const wrapperPath = path.join(pluginDir, "toby-plugin-sample");
-	const script = `#!/usr/bin/env bash\nexec bun ${JSON.stringify(sampleCli)} "$@"\n`;
+	const script = `#!/usr/bin/env bash\nexec bun ${JSON.stringify(scriptPath)} "$@"\n`;
 	fs.writeFileSync(wrapperPath, script, { mode: 0o755 });
 	return wrapperPath;
 }

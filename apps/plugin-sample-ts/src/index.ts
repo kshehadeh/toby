@@ -2,9 +2,9 @@
 /**
  * Reference installable Toby TypeScript plugin (bun-package, protocol v1).
  *
- * Unlike the binary sample plugin (apps/plugin-sample), this plugin is not
- * compiled with `bun build --compile`. Toby discovers the directory, reads
- * manifest.json, and invokes this entry point via `bun run src/index.ts`.
+ * This plugin is not compiled with `bun build --compile`. Toby discovers the
+ * directory, reads manifest.json, and invokes this entry point via
+ * `bun run src/index.ts`.
  */
 
 type JsonRecord = Record<string, unknown>;
