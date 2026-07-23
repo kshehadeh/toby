@@ -30,6 +30,7 @@
     "build:executable": "bun run build:plugins && mkdir -p ./dist && (cd apps/cli && bun build ./src/cli.ts --compile --outfile ../../dist/toby)",
     "build:app": "bash ./scripts/build-app.sh",
     "app": "bun run build:app && open \"./dist/Toby (Dev).app\"",
+    "app:screenshots": "bash ./scripts/run-app-screenshots.sh",
     "build:release": "./scripts/build-release-artifacts.sh",
     "build:dmg": "bun run build:release && ./scripts/build-dmg.sh",
     "dev": "bun run build:app && \"./dist/Toby (Dev).app/Contents/MacOS/toby-app\"",

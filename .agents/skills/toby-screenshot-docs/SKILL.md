@@ -44,10 +44,11 @@ time, then update whatever markdown references those files.
 3. **Permissions:** `cua-driver permissions status` (Accessibility + Screen Recording). Grant with `cua-driver permissions grant` if needed.
 4. **Dev app built:** `bun run build:app` → `dist/Toby (Dev).app`, bundle ID `dev.karim.toby.app.dev`
 5. **ImageMagick** (`magick` / `convert`) for crops (preferred over `sips`)
-6. **Generic Toby home seeded** (required for docs captures):
+6. **Generic Toby home** (required for docs captures):
    ```bash
-   python3 scripts/seed-toby-generic-home.py
-   # → ~/.toby-generic (never touches ~/.toby; re-run wipes and rebuilds dest only)
+   bun run app:screenshots
+   # seeds ~/.toby-generic if missing, builds Dev, launches with TOBY_DIR set
+   # force rebuild: bun run app:screenshots -- --reseed
    ```
 
 Optional: read the **cua-driver** skill for the full snapshot/action loop. This
@@ -176,35 +177,12 @@ Keep all raw and cropped files under `$RUN_DIR` until you copy into the repo.
 use plain `cua-driver launch_app` alone for docs shots — that opens the user’s
 real `~/.toby` data.
 
-### 3a. Ensure generic home exists
+### 3a–3c. Seed (if needed) + launch (recommended)
 
 ```bash
-# Safe to re-run; only rebuilds ~/.toby-generic
-python3 scripts/seed-toby-generic-home.py
-```
-
-### 3b. Quit any existing Dev instance
-
-Avoid a leftover process still bound to `~/.toby`:
-
-```bash
-pkill -f 'Toby \(Dev\)' 2>/dev/null || true
-sleep 1
-```
-
-### 3c. Launch Dev app with generic env (canonical)
-
-Use macOS `open --env` so the GUI process inherits `TOBY_DIR` (shell exports
-alone are not reliable with `open` / LaunchServices):
-
-```bash
-APP_PATH="$(pwd)/dist/Toby (Dev).app"
-TOBY_GENERIC="${HOME}/.toby-generic"
-
-open -n -g \
-  --env "TOBY_DIR=${TOBY_GENERIC}" \
-  --env "TOBY_CREDENTIALS_KEY_BACKEND=plaintext" \
-  "$APP_PATH"
+bun run app:screenshots
+# force wipe/rebuild of demo data:
+bun run app:screenshots -- --reseed
 
 sleep 4
 
@@ -221,6 +199,22 @@ fi
 echo "PID=$PID"
 ```
 
+That script seeds `~/.toby-generic` when missing/incomplete, builds Dev, quits a
+leftover Dev process, and opens with `TOBY_DIR` + plaintext credentials via
+`open --env` (shell exports alone are not reliable with LaunchServices).
+
+Manual equivalent (if you need to customize):
+
+```bash
+python3 scripts/seed-toby-generic-home.py   # safe to re-run; only rebuilds dest
+pkill -f 'Toby \(Dev\)' 2>/dev/null || true
+sleep 1
+open -n -g \
+  --env "TOBY_DIR=${HOME}/.toby-generic" \
+  --env "TOBY_CREDENTIALS_KEY_BACKEND=plaintext" \
+  "$(pwd)/dist/Toby (Dev).app"
+```
+
 Notes:
 
 - `-n` = new instance; `-g` = background (no focus steal).
@@ -231,7 +225,8 @@ Notes:
   show demo names (e.g. Alex Rivera, Morning briefing), not personal data.
 - After launch, drive the UI with **cua-driver** (`list_windows`,
   `get_window_state`, `click`, …) as usual. `launch_app` is fine for *other*
-  apps; for Toby docs shots, **this `open --env` path is how we launch**.
+  apps; for Toby docs shots, **use `bun run app:screenshots` or the `open --env`
+  path above**.
 
 ### 3d. Resolve windows
 
@@ -424,8 +419,8 @@ cua-driver end_session "{\"session\":\"$SESSION\"}"
 | Wrong app chrome | Dev vs release title; confirm bundle id `dev.karim.toby.app.dev` |
 | Overlay in image | `set_agent_cursor_enabled` false for the session before capture |
 | Daemon/permissions | `cua-driver doctor` / `permissions status` |
-| Personal data in UI | App launched without `TOBY_DIR`; re-seed + relaunch via Step 3 (`open --env`) |
-| Empty / wrong integrations | Re-run `python3 scripts/seed-toby-generic-home.py` (copies connection flags from real config) |
+| Personal data in UI | App launched without `TOBY_DIR`; re-run `bun run app:screenshots -- --reseed` |
+| Empty / wrong integrations | `bun run app:screenshots -- --reseed` (copies connection flags from real config) |
 
 ---
 
