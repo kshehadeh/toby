@@ -1,3 +1,4 @@
+import { afterEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -7,7 +8,6 @@ import {
 	closeChatDbForTests,
 	createChatSession,
 } from "@toby/core/session-store";
-import { afterEach, describe, expect, it } from "bun:test";
 
 const isBun =
 	typeof (globalThis as unknown as { Bun?: unknown }).Bun !== "undefined";

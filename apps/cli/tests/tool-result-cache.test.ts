@@ -1,3 +1,4 @@
+import { describe, expect, it } from "bun:test";
 import {
 	buildToolResultCacheKey,
 	clearToolResultCache,
@@ -5,7 +6,6 @@ import {
 	isReadOnlyChatTool,
 	setCachedToolResult,
 } from "@toby/core/chat-pipeline/tool-result-cache";
-import { describe, expect, it } from "bun:test";
 
 describe("tool-result-cache", () => {
 	it("builds stable keys regardless object property order", () => {

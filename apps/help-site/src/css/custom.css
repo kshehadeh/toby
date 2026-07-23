@@ -210,7 +210,9 @@ body {
 	gap: 0.45rem;
 }
 
-.sidebar-cat-icon > .menu__list-item-collapsible > .menu__link--sublist::before {
+.sidebar-cat-icon
+	> .menu__list-item-collapsible
+	> .menu__link--sublist::before {
 	content: "";
 	flex-shrink: 0;
 	display: inline-block;

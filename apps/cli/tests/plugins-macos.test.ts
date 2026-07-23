@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -21,7 +22,6 @@ import {
 } from "@toby/core/integrations/plugins/registry";
 import { resolvePluginTarget } from "@toby/core/integrations/plugins/runtime";
 import { runPluginSetup } from "@toby/core/integrations/plugins/setup";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const pluginSourceDir = path.join(repoRoot, "../plugin-macos");

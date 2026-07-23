@@ -1,9 +1,9 @@
+import { describe, expect, it } from "bun:test";
 import {
 	compareVersions,
 	isVersionNewer,
 	normalizeReleaseVersion,
 } from "@toby/core/version";
-import { describe, expect, it } from "bun:test";
 
 describe("version", () => {
 	it("normalizes release tags", () => {

@@ -1,5 +1,5 @@
-import { sanitizeSkillFolderSegment } from "@toby/core/ai/global-chat-tools";
 import { describe, expect, it } from "bun:test";
+import { sanitizeSkillFolderSegment } from "@toby/core/ai/global-chat-tools";
 
 describe("sanitizeSkillFolderSegment", () => {
 	it("normalizes to kebab-case", () => {

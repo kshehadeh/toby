@@ -65,7 +65,7 @@ describe("recordScheduleInvariantFailureAndThrow", () => {
 		expect(runs).toHaveLength(1);
 		expect(runs[0]?.status).toBe("error");
 		expect(runs[0]?.error).toBe("boom");
-		expect(getScheduleRun(runs[0]!.id)?.status).toBe("error");
+		expect(getScheduleRun(runs[0]?.id)?.status).toBe("error");
 
 		const updated = listSchedules().find((s) => s.id === created.id);
 		expect(updated?.lastRunAt).toBeTruthy();

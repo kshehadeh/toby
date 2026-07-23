@@ -1,6 +1,6 @@
 import { mock } from "bun:test";
-import * as actualEmbeddings from "@toby/core/routing/embeddings";
 import * as actualModelFactory from "@toby/core/ai/model-factory";
+import * as actualEmbeddings from "@toby/core/routing/embeddings";
 import { getDb } from "@toby/core/session-store";
 import * as actualAi from "ai";
 

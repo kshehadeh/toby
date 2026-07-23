@@ -1,10 +1,10 @@
 import "./helpers/setup-mocks";
+import { describe, expect, it } from "bun:test";
 import {
 	type UserIntentSpec,
 	formatUserMessageWithPretreatment,
 } from "@toby/core/ai/pretreatment";
 import { mergeUserPromptWithPretreatmentSpec } from "@toby/core/prepare-messages";
-import { describe, expect, it } from "bun:test";
 
 function minimalSpec(over: Partial<UserIntentSpec> = {}): UserIntentSpec {
 	return {

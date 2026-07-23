@@ -50,7 +50,10 @@ function toolStatusEmoji(toolName: string): string {
 	return "🔧";
 }
 
-function integrationLabelEmoji(label: string, pluginIcon?: string): string | null {
+function integrationLabelEmoji(
+	label: string,
+	pluginIcon?: string,
+): string | null {
 	if (pluginIcon) return pluginIcon;
 	const lower = label.toLowerCase();
 	if (lower.includes("email") || lower.includes("mail")) return "📧";

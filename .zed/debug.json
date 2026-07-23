@@ -7,16 +7,16 @@
 // For more documentation: https://zed.dev/docs/debugger
 // Swift adapter: https://zed.dev/docs/languages/swift
 [
-  {
-    "label": "Debug Toby.app",
-    "adapter": "Swift",
-    "request": "launch",
-    "build": {
-      "command": "swift",
-      "args": ["build", "--package-path", "apps/toby-app"],
-      "cwd": "$ZED_WORKTREE_ROOT"
-    },
-    "program": "$ZED_WORKTREE_ROOT/apps/toby-app/.build/arm64-apple-macosx/debug/toby-app",
-    "cwd": "$ZED_WORKTREE_ROOT/apps/toby-app"
-  }
+	{
+		"label": "Debug Toby.app",
+		"adapter": "Swift",
+		"request": "launch",
+		"build": {
+			"command": "swift",
+			"args": ["build", "--package-path", "apps/toby-app"],
+			"cwd": "$ZED_WORKTREE_ROOT"
+		},
+		"program": "$ZED_WORKTREE_ROOT/apps/toby-app/.build/arm64-apple-macosx/debug/toby-app",
+		"cwd": "$ZED_WORKTREE_ROOT/apps/toby-app"
+	}
 ]

@@ -3,11 +3,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+	type FlowDefinition,
 	getFlowRun,
 	listFlowRuns,
 	pruneFlowRuns,
 	runFlowDefinition,
-	type FlowDefinition,
 } from "@toby/core/flows";
 import { closeChatDbForTests } from "@toby/core/session-store";
 
@@ -168,9 +168,7 @@ describe("flow execution history", () => {
 		expect(result.runId).toBeDefined();
 
 		// Cutoff in the past: run is not older than that → nothing deleted.
-		expect(
-			pruneFlowRuns({ olderThanIso: "2000-01-01T00:00:00.000Z" }),
-		).toBe(0);
+		expect(pruneFlowRuns({ olderThanIso: "2000-01-01T00:00:00.000Z" })).toBe(0);
 		expect(getFlowRun(result.runId as string)).not.toBeNull();
 
 		// Cutoff in the future: run started_at is older than that → deleted.

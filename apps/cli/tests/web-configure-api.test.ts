@@ -738,10 +738,10 @@ describe("persona API", () => {
 		globalThis.fetch = (async (input: RequestInfo | URL) => {
 			const url = String(input);
 			if (url.includes("ai-gateway.vercel.sh/v1/credits")) {
-				return new Response(
-					JSON.stringify({ balance: "1", total_used: "0" }),
-					{ status: 200, headers: { "Content-Type": "application/json" } },
-				);
+				return new Response(JSON.stringify({ balance: "1", total_used: "0" }), {
+					status: 200,
+					headers: { "Content-Type": "application/json" },
+				});
 			}
 			return originalFetch(input as RequestInfo);
 		}) as typeof fetch;

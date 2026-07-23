@@ -1,7 +1,4 @@
-import {
-	clampLogLimit,
-	queryUnifiedLog,
-} from "../../logging/query";
+import { clampLogLimit, queryUnifiedLog } from "../../logging/query";
 import { jsonResponse, parseIntParam } from "../http-utils";
 
 /**

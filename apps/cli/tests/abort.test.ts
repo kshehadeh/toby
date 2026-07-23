@@ -1,9 +1,9 @@
+import { describe, expect, it } from "bun:test";
 import {
 	createChatTurnAbortError,
 	isAbortError,
 	throwIfAborted,
 } from "@toby/core/abort";
-import { describe, expect, it } from "bun:test";
 
 describe("abort helpers", () => {
 	it("isAbortError detects AbortError by name", () => {

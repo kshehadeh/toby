@@ -279,10 +279,9 @@ function buildMinimalIntentSpec(params: {
 		relevantIntegrations: [...params.routing.relevantIntegrations],
 		relevantSkills: [...params.routing.relevantSkills],
 		relevantTools: [...params.routing.relevantTools],
-		sessionName:
-			params.isFirstTurn
-				? (params.sessionName ?? heuristicSessionName(params.userText))
-				: "",
+		sessionName: params.isFirstTurn
+			? (params.sessionName ?? heuristicSessionName(params.userText))
+			: "",
 	};
 }
 
@@ -379,9 +378,7 @@ function bulletList(title: string, items: readonly string[]): string {
 function skillDescriptionLookup(
 	skills: readonly LocalSkill[],
 ): Map<string, string> {
-	return new Map(
-		skills.map((s) => [s.name.toLowerCase(), s.description]),
-	);
+	return new Map(skills.map((s) => [s.name.toLowerCase(), s.description]));
 }
 
 function sanitizeRelevantSkills(

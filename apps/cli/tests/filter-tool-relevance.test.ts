@@ -1,5 +1,5 @@
-import { filterToolNamesByRelevance } from "@toby/core/chat-pipeline/run-turn";
 import { describe, expect, it } from "bun:test";
+import { filterToolNamesByRelevance } from "@toby/core/chat-pipeline/run-turn";
 
 describe("filterToolNamesByRelevance", () => {
 	const all = [

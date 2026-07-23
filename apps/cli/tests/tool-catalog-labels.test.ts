@@ -1,8 +1,8 @@
+import { describe, expect, it } from "bun:test";
 import { buildToolsCatalogForPretreatment } from "@toby/core/chat-pipeline/run-turn";
 import type { Persona } from "@toby/core/config/index";
 import type { IntegrationModule } from "@toby/core/integrations/types";
 import { tool } from "ai";
-import { describe, expect, it } from "bun:test";
 import { z } from "zod";
 
 const persona: Persona = {

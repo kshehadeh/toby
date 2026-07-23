@@ -91,31 +91,31 @@ describe("handleInboundEvent status reporter", () => {
 
 	beforeAll(() => {
 		spyOn(actualHeadlessSession, "runHeadlessChatTurn").mockImplementation(
-			mockRunHeadlessChatTurn as any,
+			mockRunHeadlessChatTurn as never,
 		);
 		spyOn(actualSessionStore, "getOrCreateExternalSession").mockImplementation(
-			mockGetOrCreateExternalSession as any,
+			mockGetOrCreateExternalSession as never,
 		);
 		spyOn(actualSessionStore, "loadExternalSession").mockImplementation(
-			mockLoadExternalSession as any,
+			mockLoadExternalSession as never,
 		);
 		spyOn(actualSessionStore, "wasMessageProcessed").mockImplementation(
-			mockWasMessageProcessed as any,
+			mockWasMessageProcessed as never,
 		);
 		spyOn(actualSessionStore, "markMessageProcessed").mockImplementation(
-			mockMarkMessageProcessed as any,
+			mockMarkMessageProcessed as never,
 		);
 		spyOn(actualSessionStore, "clearPendingAskUser").mockImplementation(
-			mockClearPendingAskUser as any,
+			mockClearPendingAskUser as never,
 		);
 		spyOn(actualSessionStore, "setSessionLifecycleStatus").mockImplementation(
-			mockSetSessionLifecycleStatus as any,
+			mockSetSessionLifecycleStatus as never,
 		);
 		spyOn(actualAskUserBridge, "createAskUserBridge").mockImplementation(
-			mockCreateAskUserBridge as any,
+			mockCreateAskUserBridge as never,
 		);
 		spyOn(actualMutex, "withConversationMutex").mockImplementation(
-			mockWithConversationMutex as any,
+			mockWithConversationMutex as never,
 		);
 		spyOn(actualDaemonLog, "daemonLog").mockImplementation(() => {});
 	});
@@ -228,15 +228,37 @@ describe("handleInboundEvent status reporter", () => {
 	});
 
 	afterAll(() => {
-		(actualHeadlessSession.runHeadlessChatTurn as any).mockRestore?.();
-		(actualSessionStore.getOrCreateExternalSession as any).mockRestore?.();
-		(actualSessionStore.loadExternalSession as any).mockRestore?.();
-		(actualSessionStore.wasMessageProcessed as any).mockRestore?.();
-		(actualSessionStore.markMessageProcessed as any).mockRestore?.();
-		(actualSessionStore.clearPendingAskUser as any).mockRestore?.();
-		(actualSessionStore.setSessionLifecycleStatus as any).mockRestore?.();
-		(actualAskUserBridge.createAskUserBridge as any).mockRestore?.();
-		(actualMutex.withConversationMutex as any).mockRestore?.();
-		(actualDaemonLog.daemonLog as any).mockRestore?.();
+		(
+			actualHeadlessSession.runHeadlessChatTurn as { mockRestore?: () => void }
+		).mockRestore?.();
+		(
+			actualSessionStore.getOrCreateExternalSession as {
+				mockRestore?: () => void;
+			}
+		).mockRestore?.();
+		(
+			actualSessionStore.loadExternalSession as { mockRestore?: () => void }
+		).mockRestore?.();
+		(
+			actualSessionStore.wasMessageProcessed as { mockRestore?: () => void }
+		).mockRestore?.();
+		(
+			actualSessionStore.markMessageProcessed as { mockRestore?: () => void }
+		).mockRestore?.();
+		(
+			actualSessionStore.clearPendingAskUser as { mockRestore?: () => void }
+		).mockRestore?.();
+		(
+			actualSessionStore.setSessionLifecycleStatus as {
+				mockRestore?: () => void;
+			}
+		).mockRestore?.();
+		(
+			actualAskUserBridge.createAskUserBridge as { mockRestore?: () => void }
+		).mockRestore?.();
+		(
+			actualMutex.withConversationMutex as { mockRestore?: () => void }
+		).mockRestore?.();
+		(actualDaemonLog.daemonLog as { mockRestore?: () => void }).mockRestore?.();
 	});
 });

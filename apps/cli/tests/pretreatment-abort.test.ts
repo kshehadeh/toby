@@ -1,17 +1,11 @@
 import "./helpers/setup-mocks";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { createChatTurnAbortError } from "@toby/core/abort";
 import type {
 	InitedTurn,
 	TurnContext,
 } from "@toby/core/chat-pipeline/pipeline";
 import { closeChatDbForTests } from "@toby/core/session-store";
-import {
-	afterEach,
-	beforeEach,
-	describe,
-	expect,
-	it,
-} from "bun:test";
 import {
 	clearPretreatmentCache,
 	generateTextMock,
@@ -39,8 +33,12 @@ afterEach(() => {
 	}
 });
 
-const { wrapUserPromptWithPretreatment } = await import("@toby/core/ai/pretreatment");
-const { expandPromptNode } = await import("@toby/core/chat-pipeline/nodes/expand-prompt");
+const { wrapUserPromptWithPretreatment } = await import(
+	"@toby/core/ai/pretreatment"
+);
+const { expandPromptNode } = await import(
+	"@toby/core/chat-pipeline/nodes/expand-prompt"
+);
 
 describe("pretreatment abort propagation", () => {
 	it("wrapUserPromptWithPretreatment throws when abortSignal is already aborted", async () => {

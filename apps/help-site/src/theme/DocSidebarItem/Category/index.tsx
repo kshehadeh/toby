@@ -1,7 +1,7 @@
-import React from "react";
+import type { WrapperProps } from "@docusaurus/types";
 import Category from "@theme-original/DocSidebarItem/Category";
 import type CategoryType from "@theme/DocSidebarItem/Category";
-import type { WrapperProps } from "@docusaurus/types";
+import type React from "react";
 
 type Props = WrapperProps<typeof CategoryType>;
 

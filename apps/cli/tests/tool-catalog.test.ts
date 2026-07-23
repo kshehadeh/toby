@@ -1,6 +1,6 @@
+import { describe, expect, it } from "bun:test";
 import { buildToolsCatalog } from "@toby/core/chat-pipeline/run-turn";
 import { tool } from "ai";
-import { describe, expect, it } from "bun:test";
 import { z } from "zod";
 
 describe("buildToolsCatalog", () => {

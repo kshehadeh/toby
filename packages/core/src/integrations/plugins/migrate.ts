@@ -94,7 +94,11 @@ function migratePrefixedIntegrationCredentialKeys(): void {
 function migrateRetiredIntegrations(): void {
 	const config = readConfig();
 	const integrations = config.integrations;
-	if (!integrations?.applemail && !integrations?.websearch && !integrations?.bravesearch) {
+	if (
+		!integrations?.applemail &&
+		!integrations?.websearch &&
+		!integrations?.bravesearch
+	) {
 		return;
 	}
 

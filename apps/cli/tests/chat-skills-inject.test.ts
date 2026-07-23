@@ -1,3 +1,4 @@
+import { describe, expect, it } from "bun:test";
 import type { CoreMessage } from "@toby/core/ai/chat";
 import {
 	SKILL_INSTRUCTIONS_APPENDIX_START,
@@ -5,7 +6,6 @@ import {
 	injectSkillBodiesIntoFirstSystemMessage,
 	stripSkillInstructionsAppendix,
 } from "@toby/core/prepare-messages";
-import { describe, expect, it } from "bun:test";
 
 describe("injectSkillBodiesIntoFirstSystemMessage", () => {
 	it("appends skill bodies to the first system message", () => {

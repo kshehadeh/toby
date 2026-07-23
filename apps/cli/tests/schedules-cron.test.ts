@@ -14,7 +14,7 @@ describe("shouldRun", () => {
 	afterEach(() => {
 		jest.useRealTimers();
 		if (originalTz === undefined) {
-			delete process.env.TZ;
+			process.env.TZ = undefined;
 		} else {
 			process.env.TZ = originalTz;
 		}

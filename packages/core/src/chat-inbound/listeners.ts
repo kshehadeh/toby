@@ -80,8 +80,7 @@ export async function startChatInboundListeners(
 		daemonLog("info", "inbound", "inbound_connected", {
 			integration: active.module.name,
 			persona: active.persona.name,
-			transport:
-				active.module.inboundTransport ?? active.module.name,
+			transport: active.module.inboundTransport ?? active.module.name,
 		});
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);

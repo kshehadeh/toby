@@ -83,9 +83,7 @@ describe("schedule run settings cache", () => {
 		expect(warm).toBe(whileRunning);
 
 		const runningLabels = findRunLabels(whileRunning.tree);
-		expect(runningLabels.some((label) => label.includes("RUNNING"))).toBe(
-			true,
-		);
+		expect(runningLabels.some((label) => label.includes("RUNNING"))).toBe(true);
 
 		completeScheduleRun(runId, { status: "success", output: "done" });
 
@@ -93,9 +91,7 @@ describe("schedule run settings cache", () => {
 		expect(afterComplete).not.toBe(whileRunning);
 
 		const successLabels = findRunLabels(afterComplete.tree);
-		expect(successLabels.some((label) => label.includes("SUCCESS"))).toBe(
-			true,
-		);
+		expect(successLabels.some((label) => label.includes("SUCCESS"))).toBe(true);
 		expect(successLabels.some((label) => label.includes("RUNNING"))).toBe(
 			false,
 		);

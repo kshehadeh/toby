@@ -1,3 +1,4 @@
+import { afterEach, describe, expect, it, jest, mock, spyOn } from "bun:test";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
@@ -6,7 +7,6 @@ import path from "node:path";
 import { ListenManager } from "@toby/core/listen/manager";
 import { listListenRecordings } from "@toby/core/listen/recordings";
 import { closeChatDbForTests } from "@toby/core/session-store";
-import { afterEach, describe, expect, it, jest, mock, spyOn } from "bun:test";
 
 afterEach(() => {
 	jest.restoreAllMocks();

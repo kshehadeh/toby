@@ -1,4 +1,4 @@
-import { type Tool, generateText, gateway, tool } from "ai";
+import { type Tool, gateway, generateText, tool } from "ai";
 import { z } from "zod";
 import type { Persona } from "../config/index";
 import { readConfig, readCredentials } from "../config/index";
@@ -109,8 +109,7 @@ export function createWebSearchGlobalTools(
 					);
 				} catch (e) {
 					return {
-						error:
-							e instanceof Error ? e.message : "Web search failed",
+						error: e instanceof Error ? e.message : "Web search failed",
 					};
 				}
 			},

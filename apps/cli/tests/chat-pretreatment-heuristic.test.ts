@@ -1,15 +1,8 @@
 import "./helpers/setup-mocks";
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import type { CoreMessage } from "@toby/core/ai/chat";
 import type { UserIntentSpec } from "@toby/core/ai/pretreatment";
 import * as sessionStore from "@toby/core/session-store";
-import {
-	afterEach,
-	beforeEach,
-	describe,
-	expect,
-	it,
-	spyOn,
-} from "bun:test";
 import {
 	clearPretreatmentCache,
 	generateTextMock,
@@ -272,7 +265,10 @@ describe("wrapUserPromptWithPretreatment", () => {
 			});
 		}
 
-		const getSpy = spyOn(sessionStore, "getPretreatmentCache").mockReturnValueOnce({
+		const getSpy = spyOn(
+			sessionStore,
+			"getPretreatmentCache",
+		).mockReturnValueOnce({
 			goal: "Do a thing",
 			mustDo: [],
 			mustNotDo: [],
@@ -324,7 +320,10 @@ describe("wrapUserPromptWithPretreatment", () => {
 			});
 		}
 
-		const getSpy = spyOn(sessionStore, "getPretreatmentCache").mockReturnValueOnce({
+		const getSpy = spyOn(
+			sessionStore,
+			"getPretreatmentCache",
+		).mockReturnValueOnce({
 			goal: "Summarize mail",
 			mustDo: [],
 			mustNotDo: [],

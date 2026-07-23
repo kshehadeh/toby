@@ -4,12 +4,15 @@ import os from "node:os";
 import path from "node:path";
 import {
 	BUILTIN_FLOWS,
+	type FlowDefinition,
+	type FlowDocument,
 	FlowNodeError,
 	applyNodeOutputs,
+	calendarDashboardSummaryDocument,
 	emailDashboardSummaryDocument,
 	getBuiltinFlowDocument,
-	getFlow,
 	getByPath,
+	getFlow,
 	hydrateFlowDocument,
 	listFlows,
 	loadFlowRecord,
@@ -20,9 +23,6 @@ import {
 	saveFlowDocument,
 	schemaFromSpec,
 	tasksDashboardSummaryDocument,
-	calendarDashboardSummaryDocument,
-	type FlowDefinition,
-	type FlowDocument,
 } from "@toby/core/flows";
 import {
 	coerceFreeTextToSchema,
@@ -47,10 +47,7 @@ describe("coerceFreeTextToSchema", () => {
 	});
 
 	it("parses JSON object that matches schema", () => {
-		const out = coerceFreeTextToSchema(
-			markdownSchema,
-			'{"markdown":"Hello"}',
-		);
+		const out = coerceFreeTextToSchema(markdownSchema, '{"markdown":"Hello"}');
 		expect(out).toEqual({ markdown: "Hello" });
 	});
 
@@ -163,7 +160,7 @@ describe("prompt templates", () => {
 		expect(out).toContain("from bob");
 		expect(out).toContain('"count": 1');
 		expect(out).toContain("bag:\nx");
-		expect(out).toContain("in:\n{\"count\":1}");
+		expect(out).toContain('in:\n{"count":1}');
 	});
 });
 
@@ -177,8 +174,7 @@ describe("hydrate + schema presets", () => {
 		expect(flow.resolvePersona).toBeDefined();
 		if (flow.nodes[0]?.type === "tool_executor") {
 			expect(
-				"standardTool" in flow.nodes[0].tool &&
-					flow.nodes[0].tool.standardTool,
+				"standardTool" in flow.nodes[0].tool && flow.nodes[0].tool.standardTool,
 			).toBe("email.unreadSummary");
 		}
 		if (flow.nodes[1]?.type === "llm_prompter") {
@@ -255,9 +251,9 @@ describe("flow definition store + seed-on-miss", () => {
 			description: "user-edited description",
 		};
 		saveFlowDocument(custom, { builtin: true });
-		expect(loadFlowRecord("dashboard.email.summary")?.document.description).toBe(
-			"user-edited description",
-		);
+		expect(
+			loadFlowRecord("dashboard.email.summary")?.document.description,
+		).toBe("user-edited description");
 
 		// getFlow should return existing, not re-seed from code defaults.
 		const flow = getFlow("dashboard.email.summary");

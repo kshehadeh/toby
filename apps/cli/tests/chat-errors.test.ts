@@ -1,6 +1,6 @@
+import { describe, expect, it } from "bun:test";
 import { formatChatModelError } from "@toby/core/ai/chat-errors";
 import { APICallError, NoOutputGeneratedError } from "ai";
-import { describe, expect, it } from "bun:test";
 
 describe("formatChatModelError", () => {
 	it("unwraps NoOutputGeneratedError using captured stream error", () => {

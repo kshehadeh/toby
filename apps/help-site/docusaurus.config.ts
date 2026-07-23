@@ -4,8 +4,7 @@ import { themes as prismThemes } from "prism-react-renderer";
 
 const config: Config = {
 	title: "Toby",
-	tagline:
-		"Native macOS AI assistant for personal productivity workflows.",
+	tagline: "Native macOS AI assistant for personal productivity workflows.",
 	favicon: "img/64x64.png",
 
 	future: {

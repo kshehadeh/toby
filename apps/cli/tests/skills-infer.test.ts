@@ -1,5 +1,5 @@
-import { inferRelevantSkillsFromUserPrompt } from "@toby/core/skills/index";
 import { describe, expect, it } from "bun:test";
+import { inferRelevantSkillsFromUserPrompt } from "@toby/core/skills/index";
 
 const gmailSkill = {
 	dirName: "check-unread-emails-summarize",

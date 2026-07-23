@@ -1,6 +1,6 @@
+import { describe, expect, it } from "bun:test";
 import { formatScopeLabel } from "@toby/core/chat-pipeline/format-scope-label";
 import type { IntegrationModule } from "@toby/core/integrations/types";
-import { describe, expect, it } from "bun:test";
 
 function mockModule(name: string, displayName?: string): IntegrationModule {
 	return {

@@ -17,7 +17,6 @@ async function waitFor(assertion: () => void, timeoutMs = 500): Promise<void> {
 }
 
 describe("createSlackStatusReporter", () => {
-
 	it("lazy-posts on first update and updates in place", async () => {
 		const post = mock(() => Promise.resolve({ channel: "C1", ts: "1.0" }));
 		const update = mock(() => Promise.resolve(undefined));

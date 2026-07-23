@@ -1,5 +1,5 @@
-import { resolveAskUserAnswer } from "@toby/core/chat-inbound/ask-user-bridge";
 import { describe, expect, it } from "bun:test";
+import { resolveAskUserAnswer } from "@toby/core/chat-inbound/ask-user-bridge";
 
 describe("resolveAskUserAnswer", () => {
 	const options = ["Archive", "Keep", "Snooze"];

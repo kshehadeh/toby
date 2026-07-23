@@ -1,3 +1,4 @@
+import { afterEach, describe, expect, it, jest, mock, spyOn } from "bun:test";
 import * as chatModule from "@toby/core/ai/chat";
 import {
 	buildToolsCatalogForPretreatment,
@@ -8,7 +9,6 @@ import {
 import type { Persona } from "@toby/core/config/index";
 import type { IntegrationModule } from "@toby/core/integrations/types";
 import { tool } from "ai";
-import { afterEach, describe, expect, it, jest, mock, spyOn } from "bun:test";
 import { z } from "zod";
 
 afterEach(() => {

@@ -237,7 +237,7 @@ describe("native app API fresh state", () => {
 					promptMode: string;
 					provider: string;
 					model: string;
-				hasConfiguredAIProvider: boolean;
+					hasConfiguredAIProvider: boolean;
 					isBuiltIn: boolean;
 				};
 			};
