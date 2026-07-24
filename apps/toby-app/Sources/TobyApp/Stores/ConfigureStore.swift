@@ -444,6 +444,17 @@ final class ConfigureStore {
 		await runAction(action, body: body)
 	}
 
+	/// Called when personas change externally (e.g. via the Persona Editor
+	/// window). Marks all cached section details as stale so persona dropdowns
+	/// (dashboard, chat inbound, schedules) refresh on next visit, then
+	/// reloads the currently-selected section if any.
+	func handlePersonasChanged() async {
+		dirtySectionKeys = Set(sectionDetailCache.keys)
+		if isSettingsMode, let navKey = selectedNavKey {
+			await loadSectionDetail(navKey)
+		}
+	}
+
 	func loadIntegrationStatus(for name: String) async {
 		integrationStatusLoading = name
 		defer { integrationStatusLoading = nil }

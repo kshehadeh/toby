@@ -291,6 +291,16 @@ final class ProjectsStore {
 		projectSessions = next
 	}
 
+	/// Re-fetch only the persona option list (called when personas change
+	/// externally, e.g. via the Persona Editor window).
+	func refreshPersonas() async {
+		do {
+			personaOptions = try await client.listPersonas()
+		} catch {
+			// Quiet — next full load retries.
+		}
+	}
+
 	private func loadListData() async throws {
 		async let loadedProjects = client.listProjects()
 		async let personas = client.listPersonas()

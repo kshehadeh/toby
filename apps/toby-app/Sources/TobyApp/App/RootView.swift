@@ -63,6 +63,13 @@ struct RootView: View {
             .onReceive(NotificationCenter.default.publisher(for: .memoriesDidChange)) { _ in
                 memoriesStore.handleExternalMemoryChange()
             }
+            .onReceive(NotificationCenter.default.publisher(for: .personasDidChange)) { _ in
+                Task {
+                    await configureStore.handlePersonasChanged()
+                    await schedulesStore.refreshPersonas()
+                    await projectsStore.refreshPersonas()
+                }
+            }
     }
 
     /// Isolated so File → Backup / Restore sheets and notifications do not
@@ -1251,6 +1258,7 @@ extension Notification.Name {
     static let restoreConfig = Notification.Name("restoreConfig")
     /// Posted when chat (or another writer) mutates durable memory so the memories UI can refresh.
     static let memoriesDidChange = Notification.Name("toby.memoriesDidChange")
+    static let personasDidChange = Notification.Name("toby.personasDidChange")
 }
 
 struct RestoreBackupSelection: Identifiable {

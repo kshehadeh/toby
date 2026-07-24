@@ -100,6 +100,7 @@ struct TobyApp: App {
 						store: editorStore,
 						onSaved: {
 							Task { await store.refreshStatus() }
+							NotificationCenter.default.post(name: .personasDidChange, object: nil)
 						},
 						onCancel: {
 							personaEditorCoordinator.store = nil

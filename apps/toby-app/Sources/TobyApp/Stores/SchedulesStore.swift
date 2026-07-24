@@ -174,6 +174,16 @@ final class SchedulesStore {
 		await load()
 	}
 
+	/// Re-fetch only the persona option list (called when personas change
+	/// externally, e.g. via the Persona Editor window).
+	func refreshPersonas() async {
+		do {
+			personaOptions = try await client.listPersonas()
+		} catch {
+			// Quiet — next full load retries.
+		}
+	}
+
 	func selectSchedule(id: String) async {
 		await flushPendingSave()
 		selectedScheduleId = id

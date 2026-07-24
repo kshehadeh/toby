@@ -96,6 +96,9 @@ struct PersonaPickerPopover: View {
 		.task {
 			await loadPersonas()
 		}
+		.onReceive(NotificationCenter.default.publisher(for: .personasDidChange)) { _ in
+			Task { await loadPersonas() }
+		}
 		.onAppear {
 			guard emphasizeCreate else { return }
 			createPulse = false
