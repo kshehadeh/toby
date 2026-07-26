@@ -17,9 +17,9 @@ struct RootView: View {
     @Bindable var changelogStore: ChangelogStore
     @Bindable var pluginsStore: PluginsStore
     @Environment(\.openWindow) private var openWindow
+    @Environment(AppearancePreferences.self) private var appearancePreferences
     @State private var permissionsStore = PermissionsStore()
     @State private var history = NavigationHistory()
-    @State private var isCommandPalettePresented = false
     @State private var isIssueReportPresented = false
     @State private var isAboutPresented = false
     @State private var isBackupSheetPresented = false
@@ -168,8 +168,7 @@ struct RootView: View {
     private var contentWithNotifications: some View {
         contentWithSheets
             .onReceive(NotificationCenter.default.publisher(for: .openCommandPalette)) { _ in
-                bringMainWindowToFront()
-                isCommandPalettePresented = true
+                presentCommandPalette()
             }
             .onReceive(NotificationCenter.default.publisher(for: .openIssueReport)) { _ in
                 isIssueReportPresented = true
@@ -245,26 +244,6 @@ struct RootView: View {
     @ViewBuilder
     private var contentWithSheets: some View {
         contentWithTasks
-            .sheet(isPresented: $isCommandPalettePresented) {
-                CommandPaletteView(
-                    sessions: store.sessions,
-                    integrations: integrationsStore.integrationSections,
-                    schedules: schedulesStore.schedules,
-                    recordings: recordingsStore.recordings,
-                    onSelectSession: selectSession,
-                    onNewChat: startNewChat,
-                    onOpenSettings: { openSettings() },
-                    onNavigateToRoute: navigateToRoute,
-                    onOpenIntegration: openIntegration,
-                    onOpenSchedule: openSchedule,
-                    onOpenRecording: openRecording,
-                    onRestartServer: {
-                        Task { await store.restartServer() }
-                    },
-                    onDismiss: { isCommandPalettePresented = false },
-                )
-                .presentationBackground(.clear)
-            }
             .sheet(isPresented: $isIssueReportPresented) {
                 IssueReportView(store: store) {
                     isIssueReportPresented = false
@@ -861,7 +840,31 @@ struct RootView: View {
     }
 
     private func openCommandPalette() {
-        isCommandPalettePresented = true
+        presentCommandPalette()
+    }
+
+    private func presentCommandPalette() {
+        bringMainWindowToFront()
+        CommandPalettePanelController.shared.show {
+            CommandPaletteView(
+                sessions: store.sessions,
+                integrations: integrationsStore.integrationSections,
+                schedules: schedulesStore.schedules,
+                recordings: recordingsStore.recordings,
+                onSelectSession: selectSession,
+                onNewChat: startNewChat,
+                onOpenSettings: { openSettings() },
+                onNavigateToRoute: navigateToRoute,
+                onOpenIntegration: openIntegration,
+                onOpenSchedule: openSchedule,
+                onOpenRecording: openRecording,
+                onRestartServer: {
+                    Task { await store.restartServer() }
+                },
+                onDismiss: { CommandPalettePanelController.shared.dismiss() },
+            )
+            .tobyAppearance(appearancePreferences)
+        }
     }
 
     private var recordingsDeleteButtonTitle: String {

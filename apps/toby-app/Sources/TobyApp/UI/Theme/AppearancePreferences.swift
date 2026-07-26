@@ -204,6 +204,9 @@ enum AppearanceDefaultsKey {
 	static let showMenuBarIcon = "toby.general.showMenuBarIcon"
 	/// Chat transcript verbosity (Settings → General). Default normal.
 	static let chatTranscriptMode = "toby.general.chatTranscriptMode"
+	/// System-wide shortcut to summon the command palette (JSON-encoded
+	/// `GlobalKeyboardShortcut`). Nil/unset until the user records one.
+	static let commandPaletteShortcut = "toby.general.commandPaletteShortcut"
 }
 
 /// Client-local preferences: theme, accent, startup, menu bar, and app-only
@@ -222,6 +225,7 @@ final class AppearancePreferences {
 	static let launchAtLoginDefaultsKey = AppearanceDefaultsKey.launchAtLogin
 	static let showMenuBarIconDefaultsKey = AppearanceDefaultsKey.showMenuBarIcon
 	static let chatTranscriptModeDefaultsKey = AppearanceDefaultsKey.chatTranscriptMode
+	static let commandPaletteShortcutDefaultsKey = AppearanceDefaultsKey.commandPaletteShortcut
 
 	/// Distributed notification posted when the user changes System Settings → Appearance.
 	private static let systemThemeChanged = Notification.Name("AppleInterfaceThemeChangedNotification")
@@ -378,6 +382,25 @@ final class AppearancePreferences {
 		}
 	}
 
+	/// Posted when `commandPaletteShortcut` changes so the global hotkey
+	/// controller can re-register without holding a direct reference to prefs.
+	static let commandPaletteShortcutDidChange = Notification.Name("toby.commandPaletteShortcutDidChange")
+
+	/// System-wide shortcut that summons the command palette. Nil until the
+	/// user records one in Settings → General. Persisted as a JSON string.
+	var commandPaletteShortcut: GlobalKeyboardShortcut? {
+		didSet {
+			guard commandPaletteShortcut != oldValue else { return }
+			if let value = commandPaletteShortcut?.persistedValue {
+				defaults.set(value, forKey: Self.commandPaletteShortcutDefaultsKey)
+			} else {
+				defaults.removeObject(forKey: Self.commandPaletteShortcutDefaultsKey)
+			}
+			guard self === AppearancePreferences.shared else { return }
+			NotificationCenter.default.post(name: Self.commandPaletteShortcutDidChange, object: nil)
+		}
+	}
+
 	/// Last error from applying launch-at-login (shown in General settings).
 	var launchAtLoginError: String?
 
@@ -415,6 +438,7 @@ final class AppearancePreferences {
 		launchAtLogin: Bool? = nil,
 		showMenuBarIcon: Bool? = nil,
 		chatTranscriptMode: ChatTranscriptMode? = nil,
+		commandPaletteShortcut: GlobalKeyboardShortcut? = nil,
 		defaults: UserDefaults = .standard,
 		applyLaunchAtLoginOnChange: Bool = true
 	) {
@@ -513,6 +537,18 @@ final class AppearancePreferences {
 			resolvedChatTranscriptMode = .normal
 		}
 
+		// Nil until the user records a shortcut.
+		let resolvedCommandPaletteShortcut: GlobalKeyboardShortcut
+		if let commandPaletteShortcut {
+			resolvedCommandPaletteShortcut = commandPaletteShortcut
+		} else if let stored = GlobalKeyboardShortcut.from(
+			persistedValue: defaults.string(forKey: Self.commandPaletteShortcutDefaultsKey)
+		) {
+			resolvedCommandPaletteShortcut = stored
+		} else {
+			resolvedCommandPaletteShortcut = .init(keyCode: 0, modifiers: 0, displayText: "")
+		}
+
 		// Initialize all stored properties without touching self.mode first
 		// (@Observable synthesis requires resolvedColorScheme before other uses).
 		self.mode = resolvedMode
@@ -524,6 +560,8 @@ final class AppearancePreferences {
 		self.launchAtLogin = resolvedLaunchAtLogin
 		self.showMenuBarIcon = resolvedShowMenuBarIcon
 		self.chatTranscriptMode = resolvedChatTranscriptMode
+		self.commandPaletteShortcut = resolvedCommandPaletteShortcut.hasRequiredModifiers
+			? resolvedCommandPaletteShortcut : nil
 		self.resolvedColorScheme = Self.resolveColorScheme(for: resolvedMode)
 
 		// When explicit values are passed, persist them so reloads see them.
@@ -553,6 +591,12 @@ final class AppearancePreferences {
 		}
 		if chatTranscriptMode != nil {
 			defaults.set(resolvedChatTranscriptMode.rawValue, forKey: Self.chatTranscriptModeDefaultsKey)
+		}
+		if commandPaletteShortcut != nil {
+			defaults.set(
+				resolvedCommandPaletteShortcut.persistedValue ?? "",
+				forKey: Self.commandPaletteShortcutDefaultsKey
+			)
 		}
 
 		self.suppressLaunchAtLoginSideEffects = !applyLaunchAtLoginOnChange

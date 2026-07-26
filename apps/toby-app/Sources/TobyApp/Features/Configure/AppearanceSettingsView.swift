@@ -33,10 +33,19 @@ struct AppearanceSettingsView: View {
 						title: "Show menu bar icon",
 						description:
 							"Show Toby in the menu bar for quick access to chat, recording, and windows. On by default.",
-						showsDivider: false
+						showsDivider: true
 					) {
 						SettingsToggle(isOn: $preferences.showMenuBarIcon)
 							.accessibilityIdentifier("general-show-menu-bar-icon-toggle")
+					}
+					SettingsRow(
+						title: "Command palette shortcut",
+						description:
+							"Set a system-wide keyboard shortcut to summon Toby's command palette from anywhere, like Spotlight.",
+						showsDivider: false
+					) {
+						CommandPaletteShortcutRecorder(preferences: preferences)
+							.accessibilityIdentifier("general-command-palette-shortcut-recorder")
 					}
 				}
 

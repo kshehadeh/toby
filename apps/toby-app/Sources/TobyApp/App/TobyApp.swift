@@ -70,6 +70,8 @@ struct TobyApp: App {
 					if appearancePreferences.launchAtLogin {
 						appearancePreferences.applyLaunchAtLogin()
 					}
+					// Register the system-wide command palette hotkey (if set).
+					GlobalHotkeyController.shared.start(prefs: appearancePreferences)
 					activateDebugPreviewWindow()
 				}
 				.onChange(of: appearancePreferences.showMenuBarIcon) { _, show in
@@ -77,6 +79,7 @@ struct TobyApp: App {
 				}
 				.onDisappear {
 					nativeServer.stop()
+					GlobalHotkeyController.shared.stop()
 				}
 		}
 		.windowStyle(.hiddenTitleBar)

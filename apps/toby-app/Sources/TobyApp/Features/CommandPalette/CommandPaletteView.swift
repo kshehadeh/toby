@@ -281,13 +281,18 @@ struct CommandPaletteView: View {
 		.frame(width: 560, height: 420)
 		.background(AppTheme.contentBackground)
 		.clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadius))
+		.shadow(color: .black.opacity(0.25), radius: 20, x: 0, y: 8)
 		.overlay {
 			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
 				.stroke(AppTheme.separator, lineWidth: 1)
 		}
 		.onAppear {
-			isSearchFocused = true
 			selectedIndex = 0
+			// Defer focus until after the panel has been made key, otherwise
+			// the @FocusState write is ignored (window is not yet key).
+			DispatchQueue.main.async {
+				isSearchFocused = true
+			}
 		}
 		.onExitCommand(perform: onDismiss)
 		.background {
