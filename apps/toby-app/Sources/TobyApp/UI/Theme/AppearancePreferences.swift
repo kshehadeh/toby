@@ -204,9 +204,10 @@ enum AppearanceDefaultsKey {
 	static let showMenuBarIcon = "toby.general.showMenuBarIcon"
 	/// Chat transcript verbosity (Settings → General). Default normal.
 	static let chatTranscriptMode = "toby.general.chatTranscriptMode"
-	/// System-wide shortcut to summon the command palette (JSON-encoded
-	/// `GlobalKeyboardShortcut`). Nil/unset until the user records one.
-	static let commandPaletteShortcut = "toby.general.commandPaletteShortcut"
+	/// System-wide shortcuts for global hotkey actions (JSON-encoded
+	/// `[GlobalHotkeyAction: GlobalKeyboardShortcut]`). Empty until the user
+	/// records shortcuts in Settings → General.
+	static let globalShortcuts = "toby.general.globalShortcuts"
 }
 
 /// Client-local preferences: theme, accent, startup, menu bar, and app-only
@@ -225,7 +226,7 @@ final class AppearancePreferences {
 	static let launchAtLoginDefaultsKey = AppearanceDefaultsKey.launchAtLogin
 	static let showMenuBarIconDefaultsKey = AppearanceDefaultsKey.showMenuBarIcon
 	static let chatTranscriptModeDefaultsKey = AppearanceDefaultsKey.chatTranscriptMode
-	static let commandPaletteShortcutDefaultsKey = AppearanceDefaultsKey.commandPaletteShortcut
+	static let globalShortcutsDefaultsKey = AppearanceDefaultsKey.globalShortcuts
 
 	/// Distributed notification posted when the user changes System Settings → Appearance.
 	private static let systemThemeChanged = Notification.Name("AppleInterfaceThemeChangedNotification")
@@ -382,23 +383,41 @@ final class AppearancePreferences {
 		}
 	}
 
-	/// Posted when `commandPaletteShortcut` changes so the global hotkey
-	/// controller can re-register without holding a direct reference to prefs.
-	static let commandPaletteShortcutDidChange = Notification.Name("toby.commandPaletteShortcutDidChange")
+	/// Posted when `globalShortcuts` changes so the global hotkey controller
+	/// can re-register without holding a direct reference to prefs.
+	static let globalShortcutsDidChange = Notification.Name("toby.globalShortcutsDidChange")
 
-	/// System-wide shortcut that summons the command palette. Nil until the
-	/// user records one in Settings → General. Persisted as a JSON string.
-	var commandPaletteShortcut: GlobalKeyboardShortcut? {
+	/// System-wide keyboard shortcuts keyed by action. Empty until the user
+	/// records shortcuts in Settings → General. Persisted as a JSON string.
+	var globalShortcuts: [GlobalHotkeyAction: GlobalKeyboardShortcut] {
 		didSet {
-			guard commandPaletteShortcut != oldValue else { return }
-			if let value = commandPaletteShortcut?.persistedValue {
-				defaults.set(value, forKey: Self.commandPaletteShortcutDefaultsKey)
+			guard globalShortcuts != oldValue else { return }
+			if let data = try? JSONEncoder().encode(globalShortcuts),
+				let value = String(data: data, encoding: .utf8)
+			{
+				defaults.set(value, forKey: Self.globalShortcutsDefaultsKey)
 			} else {
-				defaults.removeObject(forKey: Self.commandPaletteShortcutDefaultsKey)
+				defaults.removeObject(forKey: Self.globalShortcutsDefaultsKey)
 			}
 			guard self === AppearancePreferences.shared else { return }
-			NotificationCenter.default.post(name: Self.commandPaletteShortcutDidChange, object: nil)
+			NotificationCenter.default.post(name: Self.globalShortcutsDidChange, object: nil)
 		}
+	}
+
+	/// Returns the shortcut for the given action, or nil if not set.
+	func shortcut(for action: GlobalHotkeyAction) -> GlobalKeyboardShortcut? {
+		globalShortcuts[action]
+	}
+
+	/// Sets or clears the shortcut for the given action.
+	func setShortcut(_ shortcut: GlobalKeyboardShortcut?, for action: GlobalHotkeyAction) {
+		var copy = globalShortcuts
+		if let shortcut {
+			copy[action] = shortcut
+		} else {
+			copy.removeValue(forKey: action)
+		}
+		globalShortcuts = copy
 	}
 
 	/// Last error from applying launch-at-login (shown in General settings).
@@ -438,7 +457,7 @@ final class AppearancePreferences {
 		launchAtLogin: Bool? = nil,
 		showMenuBarIcon: Bool? = nil,
 		chatTranscriptMode: ChatTranscriptMode? = nil,
-		commandPaletteShortcut: GlobalKeyboardShortcut? = nil,
+		globalShortcuts: [GlobalHotkeyAction: GlobalKeyboardShortcut]? = nil,
 		defaults: UserDefaults = .standard,
 		applyLaunchAtLoginOnChange: Bool = true
 	) {
@@ -537,16 +556,17 @@ final class AppearancePreferences {
 			resolvedChatTranscriptMode = .normal
 		}
 
-		// Nil until the user records a shortcut.
-		let resolvedCommandPaletteShortcut: GlobalKeyboardShortcut
-		if let commandPaletteShortcut {
-			resolvedCommandPaletteShortcut = commandPaletteShortcut
-		} else if let stored = GlobalKeyboardShortcut.from(
-			persistedValue: defaults.string(forKey: Self.commandPaletteShortcutDefaultsKey)
-		) {
-			resolvedCommandPaletteShortcut = stored
-		} else {
-			resolvedCommandPaletteShortcut = .init(keyCode: 0, modifiers: 0, displayText: "")
+		// Empty until the user records shortcuts.
+		var resolvedGlobalShortcuts: [GlobalHotkeyAction: GlobalKeyboardShortcut] = [:]
+		if let globalShortcuts {
+			resolvedGlobalShortcuts = globalShortcuts
+		} else if let raw = defaults.string(forKey: Self.globalShortcutsDefaultsKey),
+			let data = raw.data(using: .utf8),
+			let stored = try? JSONDecoder().decode(
+				[GlobalHotkeyAction: GlobalKeyboardShortcut].self, from: data
+			)
+		{
+			resolvedGlobalShortcuts = stored.filter { $0.value.hasRequiredModifiers }
 		}
 
 		// Initialize all stored properties without touching self.mode first
@@ -560,8 +580,7 @@ final class AppearancePreferences {
 		self.launchAtLogin = resolvedLaunchAtLogin
 		self.showMenuBarIcon = resolvedShowMenuBarIcon
 		self.chatTranscriptMode = resolvedChatTranscriptMode
-		self.commandPaletteShortcut = resolvedCommandPaletteShortcut.hasRequiredModifiers
-			? resolvedCommandPaletteShortcut : nil
+		self.globalShortcuts = resolvedGlobalShortcuts
 		self.resolvedColorScheme = Self.resolveColorScheme(for: resolvedMode)
 
 		// When explicit values are passed, persist them so reloads see them.
@@ -592,11 +611,10 @@ final class AppearancePreferences {
 		if chatTranscriptMode != nil {
 			defaults.set(resolvedChatTranscriptMode.rawValue, forKey: Self.chatTranscriptModeDefaultsKey)
 		}
-		if commandPaletteShortcut != nil {
-			defaults.set(
-				resolvedCommandPaletteShortcut.persistedValue ?? "",
-				forKey: Self.commandPaletteShortcutDefaultsKey
-			)
+		if globalShortcuts != nil, let data = try? JSONEncoder().encode(resolvedGlobalShortcuts),
+			let value = String(data: data, encoding: .utf8)
+		{
+			defaults.set(value, forKey: Self.globalShortcutsDefaultsKey)
 		}
 
 		self.suppressLaunchAtLoginSideEffects = !applyLaunchAtLoginOnChange

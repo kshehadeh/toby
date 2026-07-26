@@ -3,14 +3,19 @@ import Carbon.HIToolbox
 import SwiftUI
 
 /// A Settings control that lets the user record a system-wide keyboard
-/// shortcut for the command palette.
+/// shortcut for a given global hotkey action.
 ///
 /// Click "Record…" to enter capture mode, press a key with at least one
 /// modifier, and the shortcut is saved. Press Escape to cancel recording.
 /// "Clear" removes the shortcut.
-struct CommandPaletteShortcutRecorder: View {
+struct GlobalShortcutRecorder: View {
 	@Bindable var preferences: AppearancePreferences
+	let action: GlobalHotkeyAction
 	@State private var isRecording = false
+
+	private var shortcut: GlobalKeyboardShortcut? {
+		preferences.shortcut(for: action)
+	}
 
 	var body: some View {
 		HStack(spacing: 10) {
@@ -26,12 +31,12 @@ struct CommandPaletteShortcutRecorder: View {
 					)
 				Button("Cancel") { isRecording = false }
 					.buttonStyle(.bordered)
-			} else if let shortcut = preferences.commandPaletteShortcut {
+			} else if let shortcut {
 				ShortcutBadge(text: shortcut.displayText)
 				Button("Record…") { isRecording = true }
 					.buttonStyle(.bordered)
 				Button("Clear") {
-					preferences.commandPaletteShortcut = nil
+					preferences.setShortcut(nil, for: action)
 				}
 				.buttonStyle(.bordered)
 			} else {
@@ -44,8 +49,8 @@ struct CommandPaletteShortcutRecorder: View {
 		}
 		.overlay {
 			if isRecording {
-				ShortcutCaptureView { shortcut in
-					preferences.commandPaletteShortcut = shortcut
+				ShortcutCaptureView { captured in
+					preferences.setShortcut(captured, for: action)
 					isRecording = false
 				} onCancel: {
 					isRecording = false

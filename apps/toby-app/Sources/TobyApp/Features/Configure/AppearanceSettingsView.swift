@@ -41,11 +41,29 @@ struct AppearanceSettingsView: View {
 					SettingsRow(
 						title: "Command palette shortcut",
 						description:
-							"Set a system-wide keyboard shortcut to summon Toby's command palette from anywhere, like Spotlight.",
+							"Summon Toby's command palette from anywhere, like Spotlight.",
+						showsDivider: true
+					) {
+						GlobalShortcutRecorder(preferences: preferences, action: .commandPalette)
+							.accessibilityIdentifier("general-shortcut-command-palette")
+					}
+					SettingsRow(
+						title: "Start/stop recording shortcut",
+						description:
+							"Start or stop an audio recording without switching to Toby.",
+						showsDivider: true
+					) {
+						GlobalShortcutRecorder(preferences: preferences, action: .toggleRecording)
+							.accessibilityIdentifier("general-shortcut-toggle-recording")
+					}
+					SettingsRow(
+						title: "New chat shortcut",
+						description:
+							"Bring Toby to the front and start a fresh chat session.",
 						showsDivider: false
 					) {
-						CommandPaletteShortcutRecorder(preferences: preferences)
-							.accessibilityIdentifier("general-command-palette-shortcut-recorder")
+						GlobalShortcutRecorder(preferences: preferences, action: .newChat)
+							.accessibilityIdentifier("general-shortcut-new-chat")
 					}
 				}
 

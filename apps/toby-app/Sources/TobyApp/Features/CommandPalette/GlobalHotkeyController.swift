@@ -1,9 +1,9 @@
 import Carbon.HIToolbox
 import Foundation
 
-/// Registers a system-wide keyboard shortcut via Carbon's `RegisterEventHotKey`
-/// and posts `Notification.Name.openCommandPalette` when the user presses it
-/// anywhere on the system — even while another app is frontmost.
+/// Registers system-wide keyboard shortcuts via Carbon's
+/// `RegisterEventHotKey` and posts the appropriate notification when the user
+/// presses one anywhere on the system — even while another app is frontmost.
 ///
 /// `@MainActor` because all interaction with `AppearancePreferences` and the
 /// posted notification happens on the main thread. Carbon event handlers run
@@ -12,68 +12,75 @@ import Foundation
 final class GlobalHotkeyController {
 	static let shared = GlobalHotkeyController()
 
-	private var hotkeyRef: EventHotKeyRef?
+	/// Maps Carbon hotkey ID → action for dispatch.
+	private var registeredActions: [UInt32: GlobalHotkeyAction] = [:]
+	/// Maps Carbon hotkey ID → ref for unregistration.
+	private var hotkeyRefs: [UInt32: EventHotKeyRef] = [:]
 	private var eventHandler: EventHandlerRef?
 	private var observer: NSObjectProtocol?
-	private var currentShortcut: GlobalKeyboardShortcut?
 
 	private init() {}
 
-	/// Begins observing preference changes and registers the current shortcut.
+	/// Begins observing preference changes and registers all current shortcuts.
 	func start(prefs: AppearancePreferences) {
 		guard observer == nil else { return }
-		register(prefs.commandPaletteShortcut)
+		registerAll(prefs.globalShortcuts)
 		observer = NotificationCenter.default.addObserver(
-			forName: AppearancePreferences.commandPaletteShortcutDidChange,
+			forName: AppearancePreferences.globalShortcutsDidChange,
 			object: nil,
 			queue: .main
 		) { [weak self] _ in
 			Task { @MainActor in
-				self?.register(prefs.commandPaletteShortcut)
+				self?.registerAll(prefs.globalShortcuts)
 			}
 		}
 	}
 
-	/// Removes any active hotkey registration and stops observing changes.
+	/// Removes any active hotkey registrations and stops observing changes.
 	func stop() {
-		unregister()
+		unregisterAll()
 		if let observer {
 			NotificationCenter.default.removeObserver(observer)
 			self.observer = nil
 		}
 	}
 
-	/// Updates the registered hotkey. Unregisters the previous one first.
-	func register(_ shortcut: GlobalKeyboardShortcut?) {
-		unregister()
-		currentShortcut = shortcut
-		guard let shortcut, shortcut.hasRequiredModifiers else { return }
+	/// Re-registers all hotkeys from the given dictionary.
+	func registerAll(_ shortcuts: [GlobalHotkeyAction: GlobalKeyboardShortcut]) {
+		unregisterAll()
+		guard !shortcuts.isEmpty else { return }
 		installEventHandlerIfNeeded()
 
-		let id = EventHotKeyID(signature: OSType(0x544f4259), id: 1) // 'TOBY'
-		let status = RegisterEventHotKey(
-			shortcut.keyCode,
-			shortcut.modifiers,
-			id,
-			GetApplicationEventTarget(),
-			0,
-			&hotkeyRef
-		)
-		if status != noErr {
-			hotkeyRef = nil
+		for (action, shortcut) in shortcuts {
+			guard shortcut.hasRequiredModifiers else { continue }
+			let hotkeyId = action.hotkeyId
+			var ref: EventHotKeyRef?
+			let id = EventHotKeyID(signature: OSType(0x544f4259), id: hotkeyId) // 'TOBY'
+			let status = RegisterEventHotKey(
+				shortcut.keyCode,
+				shortcut.modifiers,
+				id,
+				GetApplicationEventTarget(),
+				0,
+				&ref
+			)
+			if status == noErr, let ref {
+				hotkeyRefs[hotkeyId] = ref
+				registeredActions[hotkeyId] = action
+			}
 		}
 	}
 
-	private func unregister() {
-		if let hotkeyRef {
-			UnregisterEventHotKey(hotkeyRef)
-			self.hotkeyRef = nil
+	private func unregisterAll() {
+		for (_, ref) in hotkeyRefs {
+			UnregisterEventHotKey(ref)
 		}
-		currentShortcut = nil
+		hotkeyRefs.removeAll()
+		registeredActions.removeAll()
 	}
 
-	/// Installs the one-shot Carbon event handler that dispatches the
-	/// `openCommandPalette` notification. Idempotent.
+	/// Installs the one-shot Carbon event handler that dispatches notifications.
+	/// Idempotent.
 	private func installEventHandlerIfNeeded() {
 		guard eventHandler == nil else { return }
 
@@ -88,8 +95,22 @@ final class GlobalHotkeyController {
 			{ _, event, userData in
 				guard let userData else { return noErr }
 				let controller = Unmanaged<GlobalHotkeyController>.fromOpaque(userData).takeUnretainedValue()
+
+				// Extract the hotkey ID from the event.
+				var hotkeyId = EventHotKeyID()
+				let result = GetEventParameter(
+					event,
+					EventParamName(kEventParamDirectObject),
+					EventParamType(typeEventHotKeyID),
+					nil,
+					MemoryLayout<EventHotKeyID>.size,
+					nil,
+					&hotkeyId
+				)
+				guard result == noErr else { return noErr }
+
 				Task { @MainActor in
-					controller.handleHotkeyPressed()
+					controller.handleHotkeyPressed(id: hotkeyId.id)
 				}
 				return noErr
 			},
@@ -100,7 +121,8 @@ final class GlobalHotkeyController {
 		)
 	}
 
-	private func handleHotkeyPressed() {
-		NotificationCenter.default.post(name: .openCommandPalette, object: nil)
+	private func handleHotkeyPressed(id: UInt32) {
+		guard let action = registeredActions[id] else { return }
+		NotificationCenter.default.post(name: action.notificationName, object: nil)
 	}
 }
