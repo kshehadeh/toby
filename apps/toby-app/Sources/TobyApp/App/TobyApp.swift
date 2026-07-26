@@ -193,7 +193,7 @@ struct TobyApp: App {
 			}
 
 			CommandGroup(after: .sidebar) {
-				Button("Show Command View") {
+				Button("Command Palette") {
 					NotificationCenter.default.post(name: .openCommandPalette, object: nil)
 				}
 				.keyboardShortcut("k", modifiers: .command)

@@ -106,6 +106,7 @@ final class MenuBarController: NSObject {
 		let menu = NSMenu()
 		menu.items = [
 			newChatItem(),
+			commandPaletteItem(),
 			recordingItem(),
 			.separator(),
 			dashboardItem(),
@@ -136,6 +137,21 @@ final class MenuBarController: NSObject {
 		item.keyEquivalentModifierMask = .command
 		item.image = NSImage(
 			systemSymbolName: "plus.bubble",
+			accessibilityDescription: nil
+		)
+		return item
+	}
+
+	private func commandPaletteItem() -> NSMenuItem {
+		let item = NSMenuItem(
+			title: "Command Palette",
+			action: #selector(postOpenCommandPalette),
+			keyEquivalent: "k"
+		)
+		item.target = self
+		item.keyEquivalentModifierMask = .command
+		item.image = NSImage(
+			systemSymbolName: "magnifyingglass",
 			accessibilityDescription: nil
 		)
 		return item
@@ -245,6 +261,10 @@ final class MenuBarController: NSObject {
 
 	@objc private func postNewChat() {
 		NotificationCenter.default.post(name: .startNewChat, object: nil)
+	}
+
+	@objc private func postOpenCommandPalette() {
+		NotificationCenter.default.post(name: .openCommandPalette, object: nil)
 	}
 
 	@objc private func toggleRecording() {

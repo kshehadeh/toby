@@ -10,6 +10,7 @@ struct MenuBarControllerTests {
 		let controller = MenuBarController(registerStatusItem: false)
 		let titles = controller.menuItemTitles
 		#expect(titles.contains("New Chat"))
+		#expect(titles.contains("Command Palette"))
 		#expect(titles.contains("Chats"))
 		#expect(titles.contains("Integrations"))
 		#expect(titles.contains("Projects"))
