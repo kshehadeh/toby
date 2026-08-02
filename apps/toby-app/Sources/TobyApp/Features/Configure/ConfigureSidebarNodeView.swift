@@ -41,7 +41,7 @@ struct ConfigureSidebarNodeView: View {
 							.accessibilityHidden(true)
 
 						iconView
-						Text(node.item.label)
+						Text(node.item.displayLabel)
 							.font(.callout.weight(isSelected ? .semibold : .medium))
 							.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.secondaryText)
 							.lineLimit(1)

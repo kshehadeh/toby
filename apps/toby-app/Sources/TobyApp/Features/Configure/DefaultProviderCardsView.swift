@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Card-based layout for the Default Providers configuration page.
+/// Card-based layout for the Providers configuration page.
 /// Each provider category gets a card with an icon, title, description,
 /// and a dropdown to select the associated integration plugin.
 struct DefaultProviderCardsView: View {
@@ -18,16 +18,6 @@ struct DefaultProviderCardsView: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 20) {
-			VStack(alignment: .leading, spacing: 6) {
-				Text("Default Providers")
-					.font(.title2.weight(.semibold))
-					.foregroundStyle(AppTheme.primaryText)
-				Text("Choose which integration handles each category of data when multiple are connected.")
-					.font(.subheadline)
-					.foregroundStyle(AppTheme.secondaryText)
-					.fixedSize(horizontal: false, vertical: true)
-			}
-
 			LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
 				ForEach(providerFields, id: \.id) { field in
 					DefaultProviderCard(store: store, field: field)

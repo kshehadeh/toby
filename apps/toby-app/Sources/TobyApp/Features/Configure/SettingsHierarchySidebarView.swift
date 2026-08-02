@@ -12,7 +12,7 @@ struct SettingsHierarchySidebarView: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			Text(parent.label)
+			Text(parent.displayLabel)
 				.font(.caption)
 				.foregroundStyle(AppTheme.tertiaryText)
 				.padding(.horizontal, 12)
@@ -108,7 +108,7 @@ private struct SettingsHierarchyRow: View {
 				.frame(width: 20, height: 20)
 				.accessibilityHidden(true)
 
-				Text(item.label)
+				Text(item.displayLabel)
 					.font(.callout.weight(isSelected ? .semibold : .medium))
 					.foregroundStyle(labelColor)
 					.lineLimit(1)

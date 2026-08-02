@@ -224,7 +224,7 @@ struct SettingsPreferencesTabBar: View {
 						ForEach(sections, id: \.key) { section in
 							let key = ConfigureTreeHelpers.sectionIdentityKey(section)
 							SettingsPreferencesTab(
-								title: section.label,
+								title: section.displayLabel,
 								systemImage: SettingsSidebarIcon.systemName(for: section),
 								isSelected: key == selectedKey,
 							) {

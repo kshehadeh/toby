@@ -80,7 +80,7 @@ struct ConfigureSectionDetailView: View {
 					},
 				)
 			} else {
-				SettingsSectionHeader(title: section.label)
+				SettingsSectionHeader(title: section.displayLabel)
 			}
 
 			if store.sectionFieldsReloading == section.key {
@@ -94,7 +94,7 @@ struct ConfigureSectionDetailView: View {
 				// this path is only hit if the parent is selected without a child.
 				SettingsCard {
 					SettingsRow(
-						title: section.label,
+						title: section.displayLabel,
 						description: "Select an item in the sidebar to view and edit its settings.",
 						showsDivider: false,
 					) {
@@ -108,7 +108,7 @@ struct ConfigureSectionDetailView: View {
 							ConfigureFieldRowView(
 								store: store,
 								field: field,
-								sectionLabel: section.label,
+								sectionLabel: section.displayLabel,
 								showsDivider: index < rowFields.count - 1,
 							)
 						}
@@ -119,7 +119,7 @@ struct ConfigureSectionDetailView: View {
 					ConfigureBlockFieldView(
 						store: store,
 						field: field,
-						sectionLabel: section.label,
+						sectionLabel: section.displayLabel,
 					)
 				}
 
@@ -181,7 +181,7 @@ struct ConfigureSectionDetailView: View {
 								showsDivider: index < deleteFields.count - 1,
 							) {
 								SettingsDestructiveButton(title: field.label) {
-									store.requestDelete(for: field, sectionLabel: section.label)
+									store.requestDelete(for: field, sectionLabel: section.displayLabel)
 								}
 							}
 						}

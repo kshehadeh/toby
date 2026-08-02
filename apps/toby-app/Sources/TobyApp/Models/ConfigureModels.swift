@@ -36,6 +36,10 @@ struct SettingsItem: Decodable, Identifiable {
 	var description: String? = nil
 	var docUrl: String? = nil
 
+	var displayLabel: String {
+		key == "defaults" ? "Providers" : label
+	}
+
 	/// Client-only General tab (theme / accent; not from the daemon API).
 	/// Key remains `appearance` for stable tab identity across upgrades.
 	static let appearanceSectionKey = "appearance"
