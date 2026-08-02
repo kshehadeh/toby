@@ -30,4 +30,18 @@ enum AppTheme {
 	static let transcriptBodyFont: Font = .system(.body, design: .rounded, weight: .regular)
 	static let transcriptCalloutFont: Font = .system(.callout, design: .rounded, weight: .regular)
 	static let transcriptCaptionFont: Font = .system(.caption, design: .rounded, weight: .medium)
+
+	// Assistant answers are long-form prose: give them a paragraph-grade size and
+	// generous leading so they read as the response, not a caption.
+	static let transcriptAnswerFont: Font = .system(size: 14, weight: .regular, design: .rounded)
+	static let transcriptAnswerLineSpacing: CGFloat = 5
+
+	// Step metadata (skills / tools / worked-for) is chrome around the answer:
+	// small, tracked-out, uppercased so it recedes instead of competing.
+	static let transcriptStepMetaFont: Font = .system(size: 10.5, weight: .medium, design: .rounded)
+	/// +0.07em at 10.5pt.
+	static let transcriptStepMetaTracking: CGFloat = 0.735
+
+	// Table headers read as semibold labels at caption size above monospaced-digit cells.
+	static let transcriptTableHeaderFont: Font = .system(.caption, design: .rounded, weight: .semibold)
 }

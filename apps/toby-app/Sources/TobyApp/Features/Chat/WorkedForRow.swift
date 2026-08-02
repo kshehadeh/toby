@@ -44,11 +44,15 @@ struct WorkedForRow: View {
 									.foregroundStyle(AppTheme.secondaryText)
 							}
 							Text(summaryLabel(at: context.date))
-								.font(AppTheme.transcriptCaptionFont.weight(.medium))
+								.font(AppTheme.transcriptStepMetaFont)
+								.tracking(AppTheme.transcriptStepMetaTracking)
+								.textCase(.uppercase)
 								.foregroundStyle(AppTheme.secondaryText)
 							if isExpanded, toolStepCount > 0 {
 								Text("· \(toolStepCount) step\(toolStepCount == 1 ? "" : "s")")
-									.font(AppTheme.transcriptCaptionFont)
+									.font(AppTheme.transcriptStepMetaFont)
+									.tracking(AppTheme.transcriptStepMetaTracking)
+									.textCase(.uppercase)
 									.foregroundStyle(AppTheme.tertiaryText)
 							}
 							Spacer(minLength: 0)

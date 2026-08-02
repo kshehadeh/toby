@@ -58,8 +58,8 @@ struct TableCell: View {
 				.fill(isHeader ? AppTheme.elevatedBackground.opacity(0.5) : Color.clear)
 				.frame(maxWidth: .infinity, maxHeight: .infinity)
 			cellText
-				.font(font)
-				.bold(isHeader)
+				.font(isHeader ? AppTheme.transcriptTableHeaderFont : font)
+				.monospacedDigit()
 				.multilineTextAlignment(alignment)
 				.padding(.horizontal, 12)
 				.padding(.vertical, 8)

@@ -17,9 +17,10 @@ struct AssistantMessageRow: View {
 					.foregroundStyle(AppTheme.secondaryText)
 				MarkdownText(
 					text: messageBody,
-					font: AppTheme.transcriptBodyFont,
+					font: AppTheme.transcriptAnswerFont,
 					foregroundStyle: AppTheme.primaryText,
 				)
+				.lineSpacing(AppTheme.transcriptAnswerLineSpacing)
 				.frame(maxWidth: .infinity, alignment: .leading)
 				if isStreaming {
 					ProgressView()
