@@ -127,10 +127,7 @@ struct WorkedForRow: View {
 			}
 			return "Working…"
 		}
-		if let elapsed {
-			return "Worked for \(formatSeconds(elapsed))"
-		}
-		return "Worked"
+		return workedSummaryLabel(duration: elapsed)
 	}
 
 	private func liveDuration(at date: Date) -> TimeInterval? {
@@ -146,6 +143,13 @@ struct WorkedForRow: View {
 	private func formatSeconds(_ interval: TimeInterval) -> String {
 		WorkDurationFormatter.format(interval)
 	}
+}
+
+func workedSummaryLabel(duration: TimeInterval?) -> String {
+	guard let duration, duration >= 1 else {
+		return "Worked for a short time"
+	}
+	return "Worked for \(WorkDurationFormatter.format(duration))"
 }
 
 private struct AssistantWorkMessageRow: View {

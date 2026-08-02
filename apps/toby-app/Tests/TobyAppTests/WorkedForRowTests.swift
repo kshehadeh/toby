@@ -7,6 +7,21 @@ import ViewInspector
 @Suite("WorkedForRow")
 struct WorkedForRowTests {
 
+	@Test("completed work uses a short-time label when duration is unavailable")
+	func shortWorkLabelWhenDurationIsMissing() {
+		#expect(workedSummaryLabel(duration: nil) == "Worked for a short time")
+	}
+
+	@Test("completed work uses a short-time label for sub-second durations")
+	func shortWorkLabelForSubsecondDuration() {
+		#expect(workedSummaryLabel(duration: 0.4) == "Worked for a short time")
+	}
+
+	@Test("completed work includes formatted duration when available")
+	func formattedWorkLabel() {
+		#expect(workedSummaryLabel(duration: 1.2) == "Worked for 1s")
+	}
+
 	@Test("WorkStepRow is a button when it has more body text to show")
 	func workStepRowWithLongBodyIsAButton() throws {
 		let step = WorkStep(

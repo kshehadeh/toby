@@ -619,7 +619,7 @@ final class ChatStore {
 				sessionName = nextSessionName
 			}
 			contextWindow = done.contextWindow
-			await reloadTranscriptFromServer(clearTurnDurationForIndex: userTurnStartIndex)
+			await reloadTranscriptFromServer()
 			streamingAssistant = nil
 			activityLine = "Ready"
 			clearAttachments()
@@ -639,10 +639,13 @@ final class ChatStore {
 			}
 		}
 
+		// Record the local fallback before the work group transitions from active
+		// to completed. Otherwise SwiftUI can render a completed group while the
+		// duration map is still empty.
+		recordTurnDuration()
 		isLoading = false
 		isCancelling = false
 		activeTurnId = nil
-		recordTurnDuration()
 	}
 
 	func addAttachmentFiles(_ urls: [URL]) {
@@ -835,16 +838,13 @@ final class ChatStore {
 		)
 	}
 
-	private func reloadTranscriptFromServer(clearTurnDurationForIndex userIndex: Int?) async {
+	private func reloadTranscriptFromServer() async {
 		guard let sessionId else { return }
 		do {
 			let detail = try await client.fetchSession(id: sessionId)
 			transcript = rehydrateLocalAttachmentPreviews(in: detail.transcript)
 			sessionPersonaImageUrl = detail.personaImageUrl
 			contextWindow = mergeContextWindowPayload(current: contextWindow, incoming: detail.contextWindow)
-			if let userIndex {
-				turnWorkDurations.removeValue(forKey: userIndex)
-			}
 		} catch {
 			// Keep the locally streamed transcript if refresh fails.
 		}
