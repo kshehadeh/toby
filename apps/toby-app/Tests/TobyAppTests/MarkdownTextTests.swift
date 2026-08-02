@@ -39,4 +39,17 @@ struct MarkdownTextTests {
 			.paragraph("Body"),
 		])
 	}
+
+	@Test("parses ordered steps")
+	func parsesOrderedSteps() {
+		let blocks = MarkdownText.parseBlocks(
+			"WHAT I'D DO NEXT\n\n1. Update the payment method\n2. Replace the battery"
+		)
+
+		#expect(blocks == [
+			.paragraph("WHAT I'D DO NEXT"),
+			.orderedStep(number: 1, content: "Update the payment method"),
+			.orderedStep(number: 2, content: "Replace the battery"),
+		])
+	}
 }

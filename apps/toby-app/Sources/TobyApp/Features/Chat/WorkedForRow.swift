@@ -127,7 +127,9 @@ struct WorkedForRow: View {
 			}
 			return "Working…"
 		}
-		return workedSummaryLabel(duration: elapsed)
+		let stepDuration = workStepDuration(from: steps)
+		let completedDuration = [elapsed, stepDuration].compactMap { $0 }.max()
+		return workedSummaryLabel(duration: completedDuration)
 	}
 
 	private func liveDuration(at date: Date) -> TimeInterval? {
@@ -150,6 +152,17 @@ func workedSummaryLabel(duration: TimeInterval?) -> String {
 		return "Worked for a short time"
 	}
 	return "Worked for \(WorkDurationFormatter.format(duration))"
+}
+
+func workStepDuration(from steps: [WorkStep]) -> TimeInterval? {
+	let durationMs = steps.reduce(0) { total, step in
+		if let durationMs = step.durationMs {
+			return total + durationMs
+		}
+		let childDurationMs = step.children.compactMap(\.durationMs).reduce(0, +)
+		return total + childDurationMs
+	}
+	return durationMs > 0 ? TimeInterval(durationMs) / 1000.0 : nil
 }
 
 private struct AssistantWorkMessageRow: View {
@@ -194,9 +207,11 @@ private struct AssistantWorkMessageRow: View {
 					.foregroundStyle(AppTheme.secondaryText)
 				MarkdownText(
 					text: messageBody,
-					font: AppTheme.transcriptBodyFont,
+					font: AppTheme.transcriptAnswerFont,
 					foregroundStyle: AppTheme.primaryText,
+					usesProseTypography: true,
 				)
+				.lineSpacing(AppTheme.transcriptAnswerLineSpacing)
 				.lineLimit(isExpanded || !isExpandable ? nil : 4)
 				.fixedSize(horizontal: false, vertical: true)
 				.frame(maxWidth: .infinity, alignment: .leading)

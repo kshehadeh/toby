@@ -11,6 +11,7 @@ enum MarkdownBlock: Equatable {
 	case heading(level: Int, content: String)
 	case paragraph(String)
 	case bullet(String)
+	case orderedStep(number: Int, content: String)
 	case blockquote(String)
 	case horizontalRule
 	case code(String)
@@ -27,23 +28,29 @@ struct MarkdownText: View {
 	var headingForegroundStyle: Color? = nil
 	/// When true, heading text is rendered in uppercase.
 	var uppercaseHeadings: Bool = false
+	/// Applies prose typography to headings while keeping tables and code as chrome.
+	var usesProseTypography: Bool = false
 
 	/// Collapsed dashboard cards disable body interaction so sub-blocks cannot
 	/// expand/reflow clipped text; only the card’s “Show more” grows layout.
 	@Environment(\.dashboardCardBodyInteractive) private var bodyInteractive
 
 	var body: some View {
-		// Keep block stack denser than the SwiftUI VStack default (8) so multi-block
-		// summaries (headings + bullets) don’t read as double-spaced.
-		VStack(alignment: .leading, spacing: 4) {
+		// Give long-form assistant prose room to breathe between blocks while
+		// preserving the denser rhythm used by compact cards and metadata.
+		VStack(alignment: .leading, spacing: usesProseTypography ? 8 : 4) {
 			ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
 				switch block {
 				case .heading(let level, let content):
-					let display = uppercaseHeadings ? content.uppercased() : content
-					let headingColor = headingForegroundStyle ?? AppTheme.primaryText
+					let isSectionLabel = usesProseTypography && level >= 3
+					let display = uppercaseHeadings || isSectionLabel ? content.uppercased() : content
+					let headingColor = isSectionLabel
+						? AppTheme.accent
+						: (headingForegroundStyle ?? AppTheme.primaryText)
 					inlineText(display, base: headingColor, strong: headingColor)
 						.font(headingFont(for: level))
 						.fontWeight(.semibold)
+						.tracking(headingTracking(for: level))
 				case .paragraph(let content):
 					styledInline(content)
 						.font(font)
@@ -52,6 +59,20 @@ struct MarkdownText: View {
 						Text("•")
 							.font(font)
 							.foregroundStyle(foregroundStyle)
+						styledInline(content)
+							.font(font)
+					}
+				case .orderedStep(let number, let content):
+					HStack(alignment: .firstTextBaseline, spacing: 8) {
+						Text("\(number)")
+							.font(.system(size: 10, weight: .semibold, design: .rounded))
+							.monospacedDigit()
+							.foregroundStyle(AppTheme.accent)
+							.frame(width: 18, height: 18)
+							.background(
+								Circle()
+									.fill(AppTheme.accent.opacity(0.12))
+							)
 						styledInline(content)
 							.font(font)
 					}
@@ -83,7 +104,7 @@ struct MarkdownText: View {
 				case .table(let table):
 					TableGrid(
 						table: table,
-						font: font,
+						font: AppTheme.transcriptTableBodyFont,
 						foregroundStyle: foregroundStyle,
 						strongForegroundStyle: strongForegroundStyle
 					)
@@ -109,7 +130,19 @@ struct MarkdownText: View {
 			default: return .system(size: 11, weight: .semibold)
 			}
 		}
+		if usesProseTypography {
+			switch level {
+			case 1: return .system(size: 21, weight: .bold, design: .rounded)
+			case 2: return .system(size: 16, weight: .semibold, design: .rounded)
+			default: return .system(size: 11, weight: .semibold, design: .rounded)
+			}
+		}
 		return level == 2 ? .title3 : .headline
+	}
+
+	private func headingTracking(for level: Int) -> CGFloat {
+		guard usesProseTypography, level >= 3 else { return 0 }
+		return 11 * 0.085
 	}
 
 	@ViewBuilder
@@ -229,6 +262,11 @@ struct MarkdownText: View {
 				output.append(.bullet(String(line.dropFirst(2))))
 				continue
 			}
+			if let orderedStep = parseOrderedStep(line) {
+				flushParagraph()
+				output.append(.orderedStep(number: orderedStep.number, content: orderedStep.content))
+				continue
+			}
 			paragraph.append(rawLine)
 		}
 
@@ -246,6 +284,15 @@ struct MarkdownText: View {
 	private static func isHorizontalRuleLine(_ line: String) -> Bool {
 		let trimmed = line.trimmingCharacters(in: .whitespaces)
 		return trimmed.count >= 3 && trimmed.allSatisfy { $0 == "-" }
+	}
+
+	private static func parseOrderedStep(_ line: String) -> (number: Int, content: String)? {
+		guard let match = line.firstMatch(of: /^(\d+)\.\s+(.+)$/),
+			let number = Int(match.1)
+		else {
+			return nil
+		}
+		return (number, String(match.2))
 	}
 
 	private static func isTableSeparatorLine(_ line: String) -> Bool {

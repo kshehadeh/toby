@@ -22,6 +22,41 @@ struct WorkedForRowTests {
 		#expect(workedSummaryLabel(duration: 1.2) == "Worked for 1s")
 	}
 
+	@Test("work summary falls back to recorded step durations")
+	func workStepDurationFallback() {
+		let steps = [
+			WorkStep(
+				id: "search",
+				type: .tool,
+				title: "Search",
+				body: "Done.",
+				fullBody: nil,
+				durationMs: 600,
+				isActive: false,
+				cacheHit: false,
+				toolName: "search",
+				count: 1,
+				children: []
+			),
+			WorkStep(
+				id: "fetch",
+				type: .tool,
+				title: "Fetch",
+				body: "Done.",
+				fullBody: nil,
+				durationMs: 400,
+				isActive: false,
+				cacheHit: false,
+				toolName: "fetch",
+				count: 1,
+				children: []
+			),
+		]
+
+		#expect(workStepDuration(from: steps) == 1)
+		#expect(workedSummaryLabel(duration: workStepDuration(from: steps)) == "Worked for 1s")
+	}
+
 	@Test("WorkStepRow is a button when it has more body text to show")
 	func workStepRowWithLongBodyIsAButton() throws {
 		let step = WorkStep(

@@ -19,6 +19,7 @@ struct AssistantMessageRow: View {
 					text: messageBody,
 					font: AppTheme.transcriptAnswerFont,
 					foregroundStyle: AppTheme.primaryText,
+					usesProseTypography: true,
 				)
 				.lineSpacing(AppTheme.transcriptAnswerLineSpacing)
 				.frame(maxWidth: .infinity, alignment: .leading)
