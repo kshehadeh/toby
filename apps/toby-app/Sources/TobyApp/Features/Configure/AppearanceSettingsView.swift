@@ -81,7 +81,7 @@ struct AppearanceSettingsView: View {
 					VStack(alignment: .leading, spacing: 12) {
 						SettingsSectionHeader(title: "Chat mode")
 						Text(
-							"Normal shows the conversation and Working status. Debug also expands tools, prompt preparation, and other pipeline detail."
+							"Normal shows the conversation and an expandable Working log of the steps that ran. Debug also reveals skill and tool selection and other pipeline detail."
 						)
 						.font(.subheadline)
 						.foregroundStyle(AppTheme.secondaryText)

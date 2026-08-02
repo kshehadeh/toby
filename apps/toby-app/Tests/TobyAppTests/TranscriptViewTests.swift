@@ -159,6 +159,53 @@ struct TranscriptViewTests {
 		}
 	}
 
+	@Test("normal mode work group exposes expandable steps while hiding selection notices")
+	func normalModeWorkGroupHasExpandableSteps() {
+		let entries: [TranscriptEntry] = [
+			.user(text: "Find my emails"),
+			.boxedStep(BoxedStepPayload(
+				id: "prep-1",
+				seq: 1,
+				variant: "prep",
+				header: "Prompt preparation",
+				body: "Intent specification attached to the model message.",
+				toolName: nil,
+				integrationLabel: nil,
+				cacheHit: nil,
+				durationMs: nil,
+				toolRuns: nil,
+				fullBody: nil,
+			)),
+			.notice(text: "Skills: email-triage", tone: "info"),
+			.notice(text: "5 tools: getRecentEmails", tone: "info"),
+			.boxedStep(BoxedStepPayload(
+				id: "tool-1",
+				seq: 2,
+				variant: "tool",
+				header: "Fetch recent unread emails",
+				body: "Found 5 email(s).",
+				toolName: "getRecentEmails",
+				integrationLabel: nil,
+				cacheHit: false,
+				durationMs: 1200,
+				toolRuns: nil,
+				fullBody: nil,
+			)),
+			.assistant(text: "You have 5 unread emails."),
+		]
+
+		let items = TranscriptGrouping.groupedItems(from: entries, isLoading: false, mode: .normal)
+		guard case .workGroup(let group) = items[1] else {
+			Issue.record("Expected work group at index 1")
+			return
+		}
+		// Normal mode must surface steps so the "Working" section can expand …
+		let steps = workSteps(from: group)
+		#expect(steps.contains { $0.title == "Fetch recent unread emails" })
+		// … but the skill/tool selection notices must not leak into it.
+		#expect(!steps.contains { $0.title.contains("Skills:") || $0.body.contains("tools:") })
+	}
+
 	@Test("isWorkEntry groups tools in both modes; interim only in debug")
 	func isWorkEntryModes() {
 		let tool = TranscriptEntry.boxedStep(BoxedStepPayload(

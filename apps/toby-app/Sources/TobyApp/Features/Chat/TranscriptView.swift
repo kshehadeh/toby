@@ -34,15 +34,20 @@ struct TranscriptView: View {
 		askUserStore?.activeAskUserPrompt != nil
 	}
 
-	private var showsWorkDetails: Bool {
-		transcriptMode == .debug
-	}
+	/// Both modes render the expandable work log so users can open the "Working"
+	/// section and see the steps that ran. Normal mode still hides the skill/tool
+	/// selection notices (see `TranscriptGrouping.isVisible`).
+	private let showsWorkDetails = true
 
 	private func isWorkGroupExpanded(_ group: TranscriptWorkGroup) -> Bool {
-		guard showsWorkDetails else { return false }
 		if workSteps(from: group).isEmpty { return false }
 		if group.isActive {
-			return !collapsedWhileActive.contains(group.id)
+			// Debug expands the live work log by default (opt-out); normal mode keeps
+			// the active conversation clean and only expands when the user opts in.
+			if transcriptMode == .debug {
+				return !collapsedWhileActive.contains(group.id)
+			}
+			return expandedWorkGroups.contains(group.id)
 		}
 		return expandedWorkGroups.contains(group.id)
 	}
@@ -65,7 +70,7 @@ struct TranscriptView: View {
 								showsWorkDetails: showsWorkDetails,
 								// Debug only: stream inside the expandable work log.
 								// Normal mode streams in the main transcript below.
-								streamingAssistant: showsWorkDetails
+								streamingAssistant: transcriptMode == .debug
 									&& group.isActive
 									&& streamingAssistant?.inWorkArea == true
 									? streamingAssistant
@@ -142,9 +147,10 @@ struct TranscriptView: View {
 	}
 
 	private func toggleWorkGroup(_ group: TranscriptWorkGroup) {
-		guard showsWorkDetails else { return }
 		if workSteps(from: group).isEmpty { return }
-		if group.isActive {
+		// Debug uses opt-out collapse for the live (active) group; normal mode and
+		// every completed group use opt-in expansion.
+		if group.isActive, transcriptMode == .debug {
 			if collapsedWhileActive.contains(group.id) {
 				collapsedWhileActive.remove(group.id)
 			} else {

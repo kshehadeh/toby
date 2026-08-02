@@ -144,8 +144,8 @@ updates while a recording is active.
 
 | Mode | What you see |
 | ---- | ------------ |
-| **Normal** (default) | User messages, assistant replies, errors, ask-user prompts, and the **Working… / Worked for** status chip. Tool calls, prompt-preparation output, skill/tool selection notices, and the expandable work-step log stay hidden. |
-| **Debug** | Everything in Normal, plus expandable work-log detail: tools run, prompt preparation, plans, lifecycle steps, and pretreatment selection notices (skills / tools). |
+| **Normal** (default) | User messages, assistant replies, errors, ask-user prompts, and the **Working… / Worked for** chip. Expand the chip to see the work-step log (tools run, prompt preparation, plans, lifecycle steps). Skill/tool selection notices stay hidden. |
+| **Debug** | Everything in Normal, plus the pretreatment selection notices (skills / tools) and a work log that auto-expands while a turn is running. |
 
 Use **Debug** when troubleshooting routing, tools, or prompt preparation; stay on
 **Normal** for everyday conversation.
