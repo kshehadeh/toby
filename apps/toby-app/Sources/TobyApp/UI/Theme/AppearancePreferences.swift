@@ -204,6 +204,8 @@ enum AppearanceDefaultsKey {
 	static let showMenuBarIcon = "toby.general.showMenuBarIcon"
 	/// Chat transcript verbosity (Settings → General). Default normal.
 	static let chatTranscriptMode = "toby.general.chatTranscriptMode"
+	/// Last top-level tab visited in the Settings window. Defaults to General.
+	static let settingsLastTab = "toby.general.settingsLastTab"
 	/// System-wide shortcuts for global hotkey actions (JSON-encoded
 	/// `[GlobalHotkeyAction: GlobalKeyboardShortcut]`). Empty until the user
 	/// records shortcuts in Settings → General.

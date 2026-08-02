@@ -11,6 +11,9 @@ struct SettingsWindowView: View {
 	/// Local tab selection so the client-only General tab can be selected
 	/// without going through the daemon-backed configure store.
 	@State private var selectedTabKey: String = SettingsItem.appearanceSectionKey
+	@AppStorage(AppearanceDefaultsKey.settingsLastTab)
+	private var lastTabKey = SettingsItem.appearanceSectionKey
+	@State private var isRestoringTab = false
 
 	private var allSections: [SettingsItem] {
 		[SettingsItem.appearanceSection] + store.settingsSections
@@ -71,17 +74,25 @@ struct SettingsWindowView: View {
 				.id("settings-canvas-\(appearancePreferences.themeEpoch)")
 		)
 		.task {
+			isRestoringTab = true
+			let requestedNavKey = store.selectedNavKey
 			await store.loadSettingsSections()
-			// Only honor an intentional store selection (deep link). Do not
-			// re-apply a stale Chat/AI nav key after the user is on Appearance
-			// or after a theme flip rebuilds this task.
-			if store.selectedNavKey != nil {
+			if requestedNavKey != nil {
+				// Deep links take precedence over the remembered tab.
 				syncTabFromStoreSelection()
+			} else if let restoredKey = restoredTabKey {
+				selectedTabKey = restoredKey
+				if restoredKey == SettingsItem.appearanceSectionKey {
+					store.selectedNavKey = nil
+				} else {
+					store.selectTopLevelTab(restoredKey)
+				}
 			}
+			isRestoringTab = false
 		}
 		.onChange(of: store.selectedNavKey) { _, newKey in
 			// Deep links set selectedNavKey; ignore clears and leave Appearance alone.
-			guard newKey != nil else { return }
+			guard !isRestoringTab, newKey != nil else { return }
 			syncTabFromStoreSelection()
 		}
 		.onDisappear {
@@ -121,6 +132,7 @@ struct SettingsWindowView: View {
 			selectedKey: selectedTabKey,
 			onSelect: { key in
 				selectedTabKey = key
+				lastTabKey = key
 				if key == SettingsItem.appearanceSectionKey {
 					// Clear daemon selection so a later theme/task refresh cannot
 					// yank the user off Appearance back to Chat (or another tab).
@@ -131,6 +143,18 @@ struct SettingsWindowView: View {
 			},
 		)
 		.accessibilityIdentifier("settings-preferences-tab-bar")
+	}
+
+	private var restoredTabKey: String? {
+		if lastTabKey == SettingsItem.appearanceSectionKey {
+			return SettingsItem.appearanceSectionKey
+		}
+		guard allSections.contains(where: {
+			ConfigureTreeHelpers.sectionIdentityKey($0) == lastTabKey
+		}) else {
+			return SettingsItem.appearanceSectionKey
+		}
+		return lastTabKey
 	}
 
 	@ViewBuilder
@@ -177,6 +201,7 @@ struct SettingsWindowView: View {
 			})
 		else { return }
 		selectedTabKey = key
+		lastTabKey = key
 		store.selectTopLevelTab(key)
 	}
 }
