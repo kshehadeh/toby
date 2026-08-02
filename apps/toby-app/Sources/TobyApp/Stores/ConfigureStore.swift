@@ -30,6 +30,11 @@ final class ConfigureStore {
 	/// instead of stale fields.
 	var sectionFieldsReloading: String?
 
+	/// Deep-link target for the client-only Personas settings tab. When non-nil,
+	/// `PersonasSettingsView` selects this persona on appear. Cleared after
+	/// consumption.
+	var pendingPersonaSelection: String?
+
 	/// Called after a successful save. Used by RootView to refresh ChatStore
 	/// status (e.g. hasConfiguredAIProvider) so onboarding reflects config changes.
 	var onChangesSaved: (() -> Void)?

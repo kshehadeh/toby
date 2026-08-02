@@ -16,7 +16,7 @@ struct SettingsWindowView: View {
 	@State private var isRestoringTab = false
 
 	private var allSections: [SettingsItem] {
-		[SettingsItem.appearanceSection] + store.settingsSections
+		[SettingsItem.appearanceSection, SettingsItem.personasSection] + store.settingsSections
 	}
 
 	private var selectedTopLevelSection: SettingsItem? {
@@ -29,6 +29,15 @@ struct SettingsWindowView: View {
 		selectedTabKey == SettingsItem.appearanceSectionKey
 	}
 
+	private var isPersonasTab: Bool {
+		selectedTabKey == SettingsItem.personasSectionKey
+	}
+
+	private static let clientOnlyTabKeys: Set<String> = [
+		SettingsItem.appearanceSectionKey,
+		SettingsItem.personasSectionKey,
+	]
+
 	var body: some View {
 		Group {
 			if store.isLoading && store.settingsSections.isEmpty {
@@ -40,12 +49,14 @@ struct SettingsWindowView: View {
 						.frame(maxWidth: .infinity, maxHeight: .infinity)
 				}
 			} else if let errorMessage = store.errorMessage, store.settingsSections.isEmpty {
-				// General remains available even if configure API fails.
+				// General and Personas remain available even if configure API fails.
 				VStack(spacing: 0) {
 					tabBar
 					Divider().background(AppTheme.separator)
 					if isGeneralTab {
 						AppearanceSettingsView(preferences: appearancePreferences)
+					} else if isPersonasTab {
+						PersonasSettingsView(store: store)
 					} else {
 						ContentUnavailableView {
 							Label("Configuration unavailable", systemImage: "exclamationmark.triangle")
@@ -82,7 +93,7 @@ struct SettingsWindowView: View {
 				syncTabFromStoreSelection()
 			} else if let restoredKey = restoredTabKey {
 				selectedTabKey = restoredKey
-				if restoredKey == SettingsItem.appearanceSectionKey {
+				if Self.clientOnlyTabKeys.contains(restoredKey) {
 					store.selectedNavKey = nil
 				} else {
 					store.selectTopLevelTab(restoredKey)
@@ -133,9 +144,9 @@ struct SettingsWindowView: View {
 			onSelect: { key in
 				selectedTabKey = key
 				lastTabKey = key
-				if key == SettingsItem.appearanceSectionKey {
+				if Self.clientOnlyTabKeys.contains(key) {
 					// Clear daemon selection so a later theme/task refresh cannot
-					// yank the user off Appearance back to Chat (or another tab).
+					// yank the user off a client-only tab back to a daemon section.
 					store.selectedNavKey = nil
 				} else {
 					store.selectTopLevelTab(key)
@@ -146,8 +157,8 @@ struct SettingsWindowView: View {
 	}
 
 	private var restoredTabKey: String? {
-		if lastTabKey == SettingsItem.appearanceSectionKey {
-			return SettingsItem.appearanceSectionKey
+		if Self.clientOnlyTabKeys.contains(lastTabKey) {
+			return lastTabKey
 		}
 		guard allSections.contains(where: {
 			ConfigureTreeHelpers.sectionIdentityKey($0) == lastTabKey
@@ -162,6 +173,8 @@ struct SettingsWindowView: View {
 		Group {
 			if isGeneralTab {
 				AppearanceSettingsView(preferences: appearancePreferences)
+			} else if isPersonasTab {
+				PersonasSettingsView(store: store)
 			} else if let section = selectedTopLevelSection,
 				ConfigureTreeHelpers.hasNestedSections(section)
 			{
@@ -195,6 +208,16 @@ struct SettingsWindowView: View {
 		{
 			return
 		}
+		// Handle client-only tabs (General, Personas) — these are not in the
+		// daemon settings sections tree.
+		if let key = store.selectedNavKey,
+			Self.clientOnlyTabKeys.contains(key)
+		{
+			selectedTabKey = key
+			lastTabKey = key
+			store.selectedNavKey = nil
+			return
+		}
 		guard let key = store.selectedTopLevelKey,
 			store.settingsSections.contains(where: {
 				ConfigureTreeHelpers.sectionIdentityKey($0) == key
@@ -209,38 +232,202 @@ struct SettingsWindowView: View {
 // MARK: - Preferences tab bar (icon over text)
 
 /// Horizontal preferences-style strip: SF Symbol above caption, always visible.
-/// Scrolls horizontally when the window is too narrow for all tabs.
+/// Scrolls horizontally when the window is too narrow for all tabs. When the
+/// tabs overflow, a fade + chevron affordance appears on the trailing edge so
+/// the hidden tabs are discoverable; tapping it reveals the remaining tabs.
 struct SettingsPreferencesTabBar: View {
 	let sections: [SettingsItem]
 	let selectedKey: String
 	let onSelect: (String) -> Void
 
+	private static let edgeInset: CGFloat = 12
+	/// Width of the chevron affordance, so the tap-to-scroll target can clear
+	/// the button rather than leaving the end tab tucked underneath it.
+	private static let affordanceWidth: CGFloat = 44
+	private static let scrollSpace = "settings-tab-bar-scroll"
+	private static let leadingAnchor = "settings-tab-bar-leading-end"
+	private static let trailingAnchor = "settings-tab-bar-trailing-end"
+
+	/// Full width of the scrollable row content, read from the row's backing
+	/// geometry (`size.width`) so it always reflects the true overflow,
+	/// independent of any coordinate-space frame clamping.
+	@State private var contentWidth: CGFloat = 0
+	/// Horizontal scroll offset: the content's leading edge measured in the
+	/// scroll coordinate space. `0` at rest, growing negative as the row
+	/// scrolls toward the trailing tabs.
+	@State private var scrollOffset: CGFloat = 0
+	/// Width of the visible scroll viewport (the tab strip), read from the
+	/// scroll view's own geometry so the row no longer needs a wrapping
+	/// `GeometryReader`.
+	@State private var viewportWidth: CGFloat = 0
+	/// Vertical inset that centres the 52pt tabs inside the 64pt bar. Both the
+	/// fit and scroll branches use it so switching between them never nudges
+	/// the strip vertically.
+	private static let verticalInset: CGFloat = 6
+
+	// A pixel of slack absorbs sub-point rounding so the affordances don't
+	// flicker at the extremes.
+	private var canScrollLeading: Bool { -scrollOffset > 1 }
+	private var canScrollTrailing: Bool {
+		contentWidth - viewportWidth + scrollOffset > 1
+	}
+
 	var body: some View {
-		GeometryReader { geo in
+		// ViewThatFits natively selects the first branch that fits the bar
+		// width. When every tab fits, the centered row is used; when they
+		// overflow, SwiftUI falls through to the scrollable branch — which
+		// carries the chevron affordances. The scrollable branch then measures
+		// its content and scroll offset to toggle the leading/trailing chevrons.
+		ViewThatFits(in: .horizontal) {
+			tabButtons
+				.padding(.horizontal, Self.edgeInset)
+				.padding(.vertical, Self.verticalInset)
+
+			scrollableTabRow
+		}
+		.frame(maxWidth: .infinity)
+		.frame(height: 64)
+		.background(AppTheme.panelBackground.opacity(0.55))
+	}
+
+	private var tabButtons: some View {
+		HStack(spacing: 4) {
+			ForEach(sections, id: \.key) { section in
+				let key = ConfigureTreeHelpers.sectionIdentityKey(section)
+				SettingsPreferencesTab(
+					title: section.displayLabel,
+					systemImage: SettingsSidebarIcon.systemName(for: section),
+					isSelected: key == selectedKey,
+				) {
+					onSelect(key)
+				}
+				.id(key)
+			}
+		}
+	}
+
+	private var scrollableTabRow: some View {
+		// No wrapping GeometryReader here: it pinned the content to the top and
+		// nudged the strip down a few points relative to the non-scroll branch.
+		// The viewport width is read from the scroll view's own background
+		// instead, so this branch lays out vertically just like the fit branch.
+		ScrollViewReader { proxy in
 			ScrollView(.horizontal, showsIndicators: false) {
 				HStack(spacing: 0) {
-					Spacer(minLength: 12)
-					HStack(spacing: 4) {
-						ForEach(sections, id: \.key) { section in
-							let key = ConfigureTreeHelpers.sectionIdentityKey(section)
-							SettingsPreferencesTab(
-								title: section.displayLabel,
-								systemImage: SettingsSidebarIcon.systemName(for: section),
-								isSelected: key == selectedKey,
-							) {
-								onSelect(key)
+					// Zero-content anchors at the true edges (outside the
+					// tabs) let a tap scroll all the way to each end, past
+					// the insets, so the affordance can fully retract.
+					Color.clear
+						.frame(width: Self.edgeInset)
+						.id(Self.leadingAnchor)
+
+					tabButtons
+
+					Color.clear
+						.frame(width: Self.edgeInset)
+						.id(Self.trailingAnchor)
+				}
+				.padding(.vertical, Self.verticalInset)
+				.background(
+					// Assign the measurements straight to @State rather than
+					// routing them through preferences: ViewThatFits does not
+					// reliably propagate child preferences to `.onPreferenceChange`
+					// on an ancestor, which left the extents stuck at zero and
+					// the affordances permanently hidden.
+					GeometryReader { contentGeo in
+						let width = contentGeo.size.width
+						let offset = contentGeo.frame(in: .named(Self.scrollSpace)).minX
+						Color.clear
+							.onAppear {
+								contentWidth = width
+								scrollOffset = offset
 							}
+							.onChange(of: width) { _, newValue in
+								contentWidth = newValue
+							}
+							.onChange(of: offset) { _, newValue in
+								scrollOffset = newValue
+							}
+					},
+				)
+			}
+			.coordinateSpace(name: Self.scrollSpace)
+			.background(
+				GeometryReader { viewportGeo in
+					let width = viewportGeo.size.width
+					Color.clear
+						.onAppear { viewportWidth = width }
+						.onChange(of: width) { _, newValue in
+							viewportWidth = newValue
+						}
+				},
+			)
+			.overlay(alignment: .leading) {
+				if canScrollLeading {
+					scrollAffordance(edge: .leading) {
+						withAnimation(.easeInOut(duration: 0.22)) {
+							proxy.scrollTo(Self.leadingAnchor, anchor: .leading)
 						}
 					}
-					Spacer(minLength: 12)
+					.transition(.opacity)
 				}
-				// At least as wide as the bar so Spacers center the tabs when they fit.
-				.frame(minWidth: geo.size.width)
-				.padding(.vertical, 10)
+			}
+			.overlay(alignment: .trailing) {
+				if canScrollTrailing {
+					scrollAffordance(edge: .trailing) {
+						withAnimation(.easeInOut(duration: 0.22)) {
+							proxy.scrollTo(Self.trailingAnchor, anchor: .trailing)
+						}
+					}
+					.transition(.opacity)
+				}
+			}
+			.animation(.easeInOut(duration: 0.15), value: canScrollLeading)
+			.animation(.easeInOut(duration: 0.15), value: canScrollTrailing)
+		}
+	}
+
+	private func scrollAffordance(
+		edge: HorizontalEdge,
+		action: @escaping () -> Void,
+	) -> some View {
+		let isLeading = edge == .leading
+		let fade = LinearGradient(
+			colors: [
+				AppTheme.panelBackground.opacity(0),
+				AppTheme.panelBackground.opacity(0.9),
+			],
+			startPoint: isLeading ? .trailing : .leading,
+			endPoint: isLeading ? .leading : .trailing,
+		)
+		.frame(width: 24)
+		.allowsHitTesting(false)
+
+		let button = Button(action: action) {
+			Image(systemName: isLeading ? "chevron.left" : "chevron.right")
+				.font(.system(size: 12, weight: .bold))
+				.foregroundStyle(AppTheme.secondaryText)
+				.frame(width: Self.affordanceWidth - 24, height: 64)
+				.background(AppTheme.panelBackground.opacity(0.9))
+				.contentShape(Rectangle())
+		}
+		.buttonStyle(.plain)
+		.help("Show more tabs")
+		.accessibilityLabel("Show more tabs")
+		.accessibilityIdentifier(
+			isLeading ? "settings-tab-bar-scroll-leading" : "settings-tab-bar-scroll-trailing",
+		)
+
+		return HStack(spacing: 0) {
+			if isLeading {
+				button
+				fade
+			} else {
+				fade
+				button
 			}
 		}
 		.frame(height: 64)
-		.background(AppTheme.panelBackground.opacity(0.55))
 	}
 }
 

@@ -53,7 +53,7 @@ struct PersonaPickerPopover: View {
 			Button {
 				onCreatePersona()
 			} label: {
-				Label("Add New Persona…", systemImage: "plus.circle")
+				Label("Manage Personas…", systemImage: "person.crop.circle.badge.gearshape")
 					.frame(maxWidth: .infinity, alignment: .leading)
 					.contentShape(Rectangle())
 			}
@@ -82,7 +82,7 @@ struct PersonaPickerPopover: View {
 					: .default,
 				value: createPulse
 			)
-			.accessibilityIdentifier("persona-picker-add-new")
+			.accessibilityIdentifier("persona-picker-manage-personas")
 
 			if let errorMessage {
 				Text(errorMessage)

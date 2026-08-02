@@ -446,11 +446,11 @@ struct RootView: View {
                 emphasizeCreatePersona: emphasizeCreatePersona,
                 onCreatePersona: {
                     clearPersonaAttention()
-                    openPersonaEditor(.create)
+                    openSettings(navKey: SettingsItem.personasSectionKey)
                 },
                 onEditPersona: { name in
                     clearPersonaAttention()
-                    openPersonaEditor(.edit(name: name))
+                    openSettings(navKey: SettingsItem.personasSectionKey, personaName: name)
                 },
                 onPersonaSelected: {
                     clearPersonaAttention()
@@ -1006,13 +1006,15 @@ struct RootView: View {
         return "Updated \(formatter.localizedString(for: lastLoadedAt, relativeTo: Date()))"
     }
 
-    private func openSettings(navKey: String? = nil) {
+    private func openSettings(navKey: String? = nil, personaName: String? = nil) {
+        configureStore.pendingPersonaSelection = personaName
         if let navKey {
-            // Prefer top-level tab selection once sections are loaded (so nested
-            // containers like AI land on the tab + first child). Otherwise seed
-            // selectedNavKey so loadSettingsSections / syncTabFromStoreSelection
-            // pick the right tab after the window opens.
-            if configureStore.isSettingsMode {
+            let isClientTab = Self.clientOnlySettingsTabKeys.contains(navKey)
+            if configureStore.isSettingsMode && !isClientTab {
+                // Prefer top-level tab selection once sections are loaded (so nested
+                // containers like AI land on the tab + first child). Otherwise seed
+                // selectedNavKey so loadSettingsSections / syncTabFromStoreSelection
+                // pick the right tab after the window opens.
                 let isTopLevel = configureStore.settingsSections.contains {
                     ConfigureTreeHelpers.sectionIdentityKey($0) == navKey
                 }
@@ -1027,6 +1029,11 @@ struct RootView: View {
         }
         openWindow(id: "settings")
     }
+
+    private static let clientOnlySettingsTabKeys: Set<String> = [
+        SettingsItem.appearanceSectionKey,
+        SettingsItem.personasSectionKey,
+    ]
 
     /// Opens the sidebar persona popover and briefly pulses the control so the
     /// onboarding "Set up persona" step points at the right place.

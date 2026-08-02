@@ -44,12 +44,38 @@ struct SettingsItem: Decodable, Identifiable {
 	/// Key remains `appearance` for stable tab identity across upgrades.
 	static let appearanceSectionKey = "appearance"
 
+	/// Client-only Personas tab (sidebar list + inline editor; not from the
+	/// daemon configure-sections API).
+	static let personasSectionKey = "personas"
+
 	static var appearanceSection: SettingsItem {
 		SettingsItem(
 			label: "General",
 			kind: .section,
 			key: appearanceSectionKey,
 			navKey: appearanceSectionKey,
+			children: nil,
+			masked: nil,
+			multiline: nil,
+			options: nil,
+			selectChoices: nil,
+			currentValue: nil,
+			selectedValues: nil,
+			readOnly: true,
+			iconUrl: nil,
+			icon: nil,
+			group: nil,
+			description: nil,
+			docUrl: nil
+		)
+	}
+
+	static var personasSection: SettingsItem {
+		SettingsItem(
+			label: "Personas",
+			kind: .section,
+			key: personasSectionKey,
+			navKey: personasSectionKey,
 			children: nil,
 			masked: nil,
 			multiline: nil,

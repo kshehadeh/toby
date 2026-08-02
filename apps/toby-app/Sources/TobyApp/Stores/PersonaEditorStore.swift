@@ -213,4 +213,23 @@ final class PersonaEditorStore {
 			errorMessage = error.localizedDescription
 		}
 	}
+
+	func delete() async {
+		guard case .edit(let personaName) = mode, !isBuiltIn else { return }
+		saveState = .saving
+		errorMessage = nil
+		defer {
+			if case .saving = saveState { saveState = .idle }
+		}
+		do {
+			_ = try await client.runConfigureAction(
+				"delete-persona",
+				body: ["personaName": personaName],
+			)
+			saveState = .saved
+		} catch {
+			saveState = .error(error.localizedDescription)
+			errorMessage = error.localizedDescription
+		}
+	}
 }
