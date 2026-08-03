@@ -844,20 +844,43 @@ struct RootView: View {
     }
 
     private func presentCommandPalette() {
-        bringMainWindowToFront()
+        // Show the palette without activating Toby or bringing the main window
+        // forward — the panel is non-activating, like Spotlight. Each action
+        // callback surfaces the relevant window when the user picks something.
         CommandPalettePanelController.shared.show {
             CommandPaletteView(
                 sessions: store.sessions,
                 integrations: integrationsStore.integrationSections,
                 schedules: schedulesStore.schedules,
                 recordings: recordingsStore.recordings,
-                onSelectSession: selectSession,
-                onNewChat: startNewChat,
-                onOpenSettings: { openSettings() },
-                onNavigateToRoute: navigateToRoute,
-                onOpenIntegration: openIntegration,
-                onOpenSchedule: openSchedule,
-                onOpenRecording: openRecording,
+                onSelectSession: { id in
+                    bringMainWindowToFront()
+                    selectSession(id)
+                },
+                onNewChat: {
+                    bringMainWindowToFront()
+                    startNewChat()
+                },
+                onOpenSettings: {
+                    bringMainWindowToFront()
+                    openSettings()
+                },
+                onNavigateToRoute: { route in
+                    bringMainWindowToFront()
+                    navigateToRoute(route)
+                },
+                onOpenIntegration: { navKey in
+                    bringMainWindowToFront()
+                    openIntegration(navKey: navKey)
+                },
+                onOpenSchedule: { id in
+                    bringMainWindowToFront()
+                    openSchedule(id: id)
+                },
+                onOpenRecording: { id in
+                    bringMainWindowToFront()
+                    openRecording(id: id)
+                },
                 onRestartServer: {
                     Task { await store.restartServer() }
                 },

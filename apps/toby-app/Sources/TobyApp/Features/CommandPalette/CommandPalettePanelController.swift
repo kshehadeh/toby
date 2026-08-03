@@ -13,24 +13,38 @@ final class CommandPalettePanelController {
 
 	private var panel: CommandPalettePanel?
 
+	/// UserDefaults key holding the last panel origin as "x,y".
+	private static let frameOriginKey = "toby.commandPalette.frameOrigin"
+
 	private init() {}
 
 	/// Presents the command palette hosted in `content`.
-	/// Brings Toby to the front so the panel receives keyboard focus.
+	///
+	/// The panel is a non-activating panel, so it becomes key and receives
+	/// keyboard input without activating Toby or bringing the main window to
+	/// the front — matching the Spotlight experience. Selecting an action is
+	/// responsible for surfacing the main window when needed.
 	func show<Content: View>(@ViewBuilder content: () -> Content) {
-		NSApp.activate(ignoringOtherApps: true)
-
 		let view = content()
 		let hosting = NSHostingController(rootView: view)
+		// Keep the hosting backing transparent so the rounded card is the only
+		// opaque content; the window server derives the (rounded) drop shadow
+		// from that alpha.
+		hosting.view.wantsLayer = true
+		hosting.view.layer?.backgroundColor = NSColor.clear.cgColor
 
 		if panel == nil {
-			panel = CommandPalettePanel(contentViewController: hosting)
+			let created = CommandPalettePanel(contentViewController: hosting)
+			created.onFrameMoved = { [weak self] origin in
+				self?.saveOrigin(origin)
+			}
+			panel = created
 		} else {
 			panel?.contentViewController = hosting
 		}
 
 		guard let panel else { return }
-		panel.centerOnActiveScreen()
+		positionPanel(panel)
 		panel.makeKeyAndOrderFront(nil)
 		panel.orderFrontRegardless()
 		// Ensure the hosted SwiftUI content receives keyboard focus after the
@@ -46,6 +60,50 @@ final class CommandPalettePanelController {
 	func dismiss() {
 		panel?.orderOut(nil)
 	}
+
+	/// Restores the last saved origin if it lands on a currently visible
+	/// screen; otherwise centers on the active screen. Enforces the fixed panel
+	/// size in case reusing the content view controller resized the window.
+	private func positionPanel(_ panel: CommandPalettePanel) {
+		let size = CommandPalettePanel.panelSize
+		if let origin = savedOrigin(),
+			isFrameVisible(NSRect(origin: origin, size: size))
+		{
+			panel.setFrame(NSRect(origin: origin, size: size), display: false)
+		} else {
+			panel.setContentSize(size)
+			panel.centerOnActiveScreen()
+		}
+	}
+
+	private func savedOrigin() -> NSPoint? {
+		guard let raw = UserDefaults.standard.string(forKey: Self.frameOriginKey) else {
+			return nil
+		}
+		let parts = raw.split(separator: ",")
+		guard parts.count == 2, let x = Double(parts[0]), let y = Double(parts[1]) else {
+			return nil
+		}
+		return NSPoint(x: x, y: y)
+	}
+
+	private func saveOrigin(_ origin: NSPoint) {
+		UserDefaults.standard.set("\(origin.x),\(origin.y)", forKey: Self.frameOriginKey)
+	}
+
+	/// True when a meaningful portion of `frame` overlaps a visible screen, so
+	/// a restored position never lands the palette off-screen (e.g. after a
+	/// display is disconnected).
+	private func isFrameVisible(_ frame: NSRect) -> Bool {
+		let frameArea = frame.width * frame.height
+		guard frameArea > 0 else { return false }
+		for screen in NSScreen.screens {
+			let intersection = screen.visibleFrame.intersection(frame)
+			let area = intersection.width * intersection.height
+			if area >= frameArea * 0.5 { return true }
+		}
+		return false
+	}
 }
 
 /// A borderless, Spotlight-like panel that:
@@ -57,9 +115,19 @@ final class CommandPalettePanel: NSPanel {
 	override var canBecomeKey: Bool { true }
 	override var canBecomeMain: Bool { false }
 
+	/// Matches the SwiftUI card's fixed `.frame(width:height:)`. The window is
+	/// sized exactly to the card so the only opaque content is the rounded card
+	/// itself — no oversized transparent margin whose clipped shadow would show
+	/// as squared edges over bright backdrops.
+	static let panelSize = NSSize(width: 560, height: 420)
+
+	/// Invoked whenever the window frame changes (e.g. the user drags it), so
+	/// the controller can persist the position.
+	var onFrameMoved: (@MainActor (NSPoint) -> Void)?
+
 	init(contentViewController: NSViewController) {
 		super.init(
-			contentRect: NSRect(x: 0, y: 0, width: 580, height: 440),
+			contentRect: NSRect(origin: .zero, size: Self.panelSize),
 			styleMask: [.borderless, .nonactivatingPanel],
 			backing: .buffered,
 			defer: false
@@ -71,6 +139,9 @@ final class CommandPalettePanel: NSPanel {
 		self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 		self.isOpaque = false
 		self.backgroundColor = .clear
+		// The window is sized exactly to the rounded card, so the window
+		// server derives a correctly rounded drop shadow from the card's alpha
+		// (unlike a SwiftUI shadow, which the hosting layer clips to a square).
 		self.hasShadow = true
 		self.isMovableByWindowBackground = false
 		self.hidesOnDeactivate = true
@@ -89,6 +160,13 @@ final class CommandPalettePanel: NSPanel {
 	/// Allow the hosted SwiftUI view's `.onExitCommand` to receive Escape.
 	override func cancelOperation(_ sender: Any?) {
 		orderOut(nil)
+	}
+
+	/// `performDrag(with:)` moves the window through `setFrame`, so this is the
+	/// reliable hook for persisting the position as the user drags.
+	override func setFrame(_ frameRect: NSRect, display flag: Bool) {
+		super.setFrame(frameRect, display: flag)
+		onFrameMoved?(frameRect.origin)
 	}
 
 	deinit {

@@ -218,6 +218,18 @@ struct CommandPaletteView: View {
 
 	var body: some View {
 		VStack(spacing: 0) {
+			WindowDragArea()
+				.frame(height: 18)
+				.frame(maxWidth: .infinity)
+				.background(AppTheme.panelBackground.overlay(Color.black.opacity(0.14)))
+				.overlay {
+					Capsule()
+						.fill(AppTheme.accent)
+						.frame(width: 36, height: 4)
+						.allowsHitTesting(false)
+				}
+				.contentShape(Rectangle())
+
 			HStack(spacing: 10) {
 				Image(systemName: "magnifyingglass")
 					.foregroundStyle(AppTheme.secondaryText)
@@ -280,10 +292,9 @@ struct CommandPaletteView: View {
 		}
 		.frame(width: 560, height: 420)
 		.background(AppTheme.contentBackground)
-		.clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadius))
-		.shadow(color: .black.opacity(0.25), radius: 20, x: 0, y: 8)
+		.clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadius, style: .continuous))
 		.overlay {
-			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
+			RoundedRectangle(cornerRadius: AppTheme.cornerRadius, style: .continuous)
 				.stroke(AppTheme.separator, lineWidth: 1)
 		}
 		.onAppear {
@@ -375,5 +386,26 @@ struct CommandPaletteView: View {
 		let minutes = seconds / 60
 		let remainder = seconds % 60
 		return "\(minutes):\(String(format: "%02d", remainder))"
+	}
+}
+
+/// A transparent region that lets the user drag the hosting window (the
+/// borderless command palette panel) by clicking and dragging within it, and
+/// shows a hand cursor to signal that the palette can be moved from here.
+struct WindowDragArea: NSViewRepresentable {
+	func makeNSView(context: Context) -> NSView {
+		DragHandleView()
+	}
+
+	func updateNSView(_ nsView: NSView, context: Context) {}
+
+	private final class DragHandleView: NSView {
+		override func mouseDown(with event: NSEvent) {
+			window?.performDrag(with: event)
+		}
+
+		override func resetCursorRects() {
+			addCursorRect(bounds, cursor: .openHand)
+		}
 	}
 }
