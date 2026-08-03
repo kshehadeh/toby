@@ -51,6 +51,7 @@ struct MarkdownText: View {
 						.font(headingFont(for: level))
 						.fontWeight(.semibold)
 						.tracking(headingTracking(for: level))
+						.padding(.top, headingTopSpacing(for: level))
 				case .paragraph(let content):
 					styledInline(content)
 						.font(font)
@@ -63,18 +64,20 @@ struct MarkdownText: View {
 							.font(font)
 					}
 				case .orderedStep(let number, let content):
-					HStack(alignment: .firstTextBaseline, spacing: 8) {
+					HStack(alignment: .top, spacing: 8) {
 						Text("\(number)")
 							.font(.system(size: 10, weight: .semibold, design: .rounded))
 							.monospacedDigit()
 							.foregroundStyle(AppTheme.accent)
-							.frame(width: 18, height: 18)
+							.frame(width: 20, height: 20)
 							.background(
 								Circle()
 									.fill(AppTheme.accent.opacity(0.12))
 							)
+							.frame(width: 22, alignment: .leading)
 						styledInline(content)
 							.font(font)
+							.frame(maxWidth: .infinity, alignment: .leading)
 					}
 				case .blockquote(let content):
 					HStack(alignment: .top, spacing: 8) {
@@ -108,6 +111,7 @@ struct MarkdownText: View {
 						foregroundStyle: foregroundStyle,
 						strongForegroundStyle: strongForegroundStyle
 					)
+					.padding(.vertical, usesProseTypography ? 8 : 6)
 				}
 			}
 		}
@@ -143,6 +147,13 @@ struct MarkdownText: View {
 	private func headingTracking(for level: Int) -> CGFloat {
 		guard usesProseTypography, level >= 3 else { return 0 }
 		return 11 * 0.085
+	}
+
+	private func headingTopSpacing(for level: Int) -> CGFloat {
+		if usesProseTypography {
+			return level >= 3 ? 14 : 10
+		}
+		return level >= 3 ? 10 : 6
 	}
 
 	@ViewBuilder
