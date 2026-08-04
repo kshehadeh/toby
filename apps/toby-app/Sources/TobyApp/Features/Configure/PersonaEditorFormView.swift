@@ -12,6 +12,10 @@ struct PersonaEditorFormView: View {
 	var onDelete: (() -> Void)? = nil
 	let onSaved: () -> Void
 	var onCancel: (() -> Void)? = nil
+	/// Called when the user clicks "Reset". The form discards field edits via
+	/// `store.discardChanges()` before invoking this callback. When `nil`,
+	/// no Reset button is shown.
+	var onReset: (() -> Void)? = nil
 
 	@State private var isImagePickerPresented = false
 	@State private var showResetImageConfirm = false
@@ -253,8 +257,22 @@ struct PersonaEditorFormView: View {
 					.foregroundStyle(.red)
 					.lineLimit(2)
 					.frame(maxWidth: .infinity, alignment: .leading)
+			} else if store.hasUnsavedChanges {
+				Text("Unsaved changes")
+					.font(.caption)
+					.foregroundStyle(AppTheme.accent)
+					.frame(maxWidth: .infinity, alignment: .leading)
 			} else {
 				Spacer()
+			}
+			if let onReset {
+				Button("Reset") {
+					store.discardChanges()
+					onReset()
+				}
+				.buttonStyle(.plain)
+				.foregroundStyle(SettingsDesign.rowDescription)
+				.disabled(!store.hasUnsavedChanges || store.saveState == .saving)
 			}
 			if showCancelButton, let onCancel {
 				Button("Cancel") {

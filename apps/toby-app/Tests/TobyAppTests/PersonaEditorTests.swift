@@ -286,4 +286,118 @@ struct PersonaEditorTests {
 		store.provider = "openai"
 		#expect(store.providerValidationMessage == nil)
 	}
+
+	// MARK: - Dirty tracking & Reset (issue #74)
+
+	@Test("hasUnsavedChanges is false before snapshot is captured")
+	func noUnsavedChangesBeforeLoad() throws {
+		let store = PersonaEditorStore(mode: .edit(name: "MyPersona"))
+		#expect(!store.hasUnsavedChanges)
+	}
+
+	@Test("discardChanges is a no-op before snapshot is captured")
+	func discardChangesNoOpBeforeLoad() throws {
+		let store = PersonaEditorStore(mode: .create)
+		store.name = "Edited"
+		store.discardChanges()
+		// No snapshot — field should be untouched.
+		#expect(store.name == "Edited")
+	}
+
+	@Test("hasUnsavedChanges is false when fields match snapshot")
+	func noUnsavedChangesAfterSnapshot() throws {
+		let store = PersonaEditorStore(mode: .edit(name: "MyPersona"))
+		store.name = "MyPersona"
+		store.instructions = "Be helpful"
+		store.provider = "openai"
+		store.model = "gpt-5"
+		store.promptMode = "add"
+		store.captureSnapshot()
+		#expect(!store.hasUnsavedChanges)
+	}
+
+	@Test("hasUnsavedChanges is true after editing a field")
+	func unsavedChangesAfterEdit() throws {
+		let store = PersonaEditorStore(mode: .edit(name: "MyPersona"))
+		store.name = "MyPersona"
+		store.instructions = "Be helpful"
+		store.captureSnapshot()
+		store.instructions = "Changed instructions"
+		#expect(store.hasUnsavedChanges)
+	}
+
+	@Test("discardChanges restores fields to snapshot")
+	func discardChangesRestoresFields() throws {
+		let store = PersonaEditorStore(mode: .edit(name: "MyPersona"))
+		store.name = "MyPersona"
+		store.instructions = "Be helpful"
+		store.provider = "openai"
+		store.model = "gpt-5"
+		store.promptMode = "add"
+		store.captureSnapshot()
+		store.instructions = "Modified"
+		store.name = "Renamed"
+		#expect(store.hasUnsavedChanges)
+		store.discardChanges()
+		#expect(!store.hasUnsavedChanges)
+		#expect(store.instructions == "Be helpful")
+		#expect(store.name == "MyPersona")
+	}
+
+	@Test("Reset button is not present in inline settings form")
+	func inlineFormHidesCancelButton() throws {
+		let store = PersonaEditorStore(mode: .edit(name: "MyPersona"))
+		store.providers = [
+			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
+		]
+		store.name = "MyPersona"
+		store.instructions = "Be helpful"
+		let view = PersonaEditorFormView(
+			store: store,
+			showCancelButton: false,
+			onSaved: {},
+			onReset: {},
+		)
+		#expect(throws: Error.self) {
+			try view.inspect().find(button: "Cancel")
+		}
+	}
+
+	@Test("Reset button is present when onReset is provided")
+	func formViewShowsResetButton() throws {
+		let store = PersonaEditorStore(mode: .edit(name: "MyPersona"))
+		store.providers = [
+			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
+		]
+		store.name = "MyPersona"
+		store.instructions = "Be helpful"
+		store.captureSnapshot()
+		store.instructions = "Changed"
+		let view = PersonaEditorFormView(
+			store: store,
+			showCancelButton: false,
+			onSaved: {},
+			onReset: {},
+		)
+		#expect(throws: Never.self) { try view.inspect().find(button: "Reset") }
+	}
+
+	@Test("form view shows unsaved changes indicator when dirty")
+	func formViewShowsUnsavedChangesIndicator() throws {
+		let store = PersonaEditorStore(mode: .edit(name: "MyPersona"))
+		store.providers = [
+			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
+		]
+		store.name = "MyPersona"
+		store.instructions = "Be helpful"
+		store.captureSnapshot()
+		store.instructions = "Changed"
+		let view = PersonaEditorFormView(
+			store: store,
+			showCancelButton: false,
+			onSaved: {},
+			onReset: {},
+		)
+		#expect(throws: Never.self) { try view.inspect().find(text: "Unsaved changes") }
+	}
 }

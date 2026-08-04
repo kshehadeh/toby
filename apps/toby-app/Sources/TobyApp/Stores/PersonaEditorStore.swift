@@ -22,6 +22,16 @@ final class PersonaEditorStore {
 		case error(String)
 	}
 
+	/// Snapshot of field values captured after `load()` so we can detect
+	/// unsaved edits and power the "Reset" button.
+	private struct Snapshot: Equatable {
+		var name: String
+		var instructions: String
+		var provider: String
+		var model: String
+		var promptMode: String
+	}
+
 	let mode: Mode
 	let id = UUID()
 	var name = ""
@@ -38,6 +48,7 @@ final class PersonaEditorStore {
 	var saveState: SaveState = .idle
 	var errorMessage: String?
 
+	private var originalSnapshot: Snapshot?
 	private let client = TobyClient()
 
 	init(mode: Mode) {
@@ -118,6 +129,41 @@ final class PersonaEditorStore {
 		return true
 	}
 
+	/// True when any editable field differs from its value at load time.
+	var hasUnsavedChanges: Bool {
+		guard let original = originalSnapshot else { return false }
+		return name != original.name
+			|| instructions != original.instructions
+			|| provider != original.provider
+			|| model != original.model
+			|| promptMode != original.promptMode
+	}
+
+	/// Restores all editable fields to their state when the persona was loaded.
+	/// No-op until `load()` has captured a snapshot.
+	func discardChanges() {
+		guard let original = originalSnapshot else { return }
+		name = original.name
+		instructions = original.instructions
+		provider = original.provider
+		model = original.model
+		promptMode = original.promptMode
+		errorMessage = nil
+	}
+
+	/// Captures the current field values as the clean baseline for
+	/// dirty-tracking. Called automatically at the end of `load()` and after a
+	/// successful `save()`. Exposed for test setup.
+	func captureSnapshot() {
+		originalSnapshot = Snapshot(
+			name: name,
+			instructions: instructions,
+			provider: provider,
+			model: model,
+			promptMode: promptMode
+		)
+	}
+
 	func load() async {
 		isLoading = true
 		errorMessage = nil
@@ -138,6 +184,8 @@ final class PersonaEditorStore {
 		} catch {
 			errorMessage = error.localizedDescription
 		}
+		// Capture the baseline for dirty-tracking / Reset regardless of mode.
+		captureSnapshot()
 	}
 
 	func save() async {
@@ -167,6 +215,8 @@ final class PersonaEditorStore {
 					promptMode: isBuiltIn ? nil : promptMode,
 				)
 			}
+			// Re-baseline so hasUnsavedChanges clears after a successful save.
+			captureSnapshot()
 			saveState = .saved
 		} catch {
 			saveState = .error(error.localizedDescription)

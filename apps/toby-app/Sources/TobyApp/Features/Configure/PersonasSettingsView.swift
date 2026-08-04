@@ -12,6 +12,10 @@ struct PersonasSettingsView: View {
 	@State private var isLoading = false
 	@State private var listErrorMessage: String?
 	@State private var pendingDelete: PersonaOption?
+	/// Captured when the user tries to switch personas or create a new one
+	/// while the current editor has unsaved changes. If they confirm, the
+	/// pending switch is performed.
+	@State private var pendingNavigation: PendingNavigation?
 
 	private let client = TobyClient()
 
@@ -57,6 +61,25 @@ struct PersonasSettingsView: View {
 			}
 		} message: {
 			Text("Are you sure you want to delete \"\(pendingDelete?.label ?? "")\"? This cannot be undone.")
+		}
+		.alert(
+			"Discard Unsaved Changes?",
+			isPresented: Binding(
+				get: { pendingNavigation != nil },
+				set: { if !$0 { pendingNavigation = nil } },
+			),
+		) {
+			Button("Keep Editing", role: .cancel) {
+				pendingNavigation = nil
+			}
+			Button("Discard Changes", role: .destructive) {
+				if let nav = pendingNavigation {
+					pendingNavigation = nil
+					performNavigation(nav)
+				}
+			}
+		} message: {
+			Text("The current persona has unsaved changes. Discarding them will switch away without saving.")
 		}
 	}
 
@@ -127,6 +150,7 @@ struct PersonasSettingsView: View {
 			PersonaEditorFormView(
 				store: currentStore,
 				showDeleteButton: canDeleteCurrentPersona,
+				showCancelButton: false,
 				onDelete: {
 					if let name = selectedPersonaName,
 						let persona = personas.first(where: { $0.name == name })
@@ -138,12 +162,7 @@ struct PersonasSettingsView: View {
 					Task { await handleSaved() }
 					NotificationCenter.default.post(name: .personasDidChange, object: nil)
 				},
-				onCancel: {
-					if currentStore.mode.isCreate {
-						editorStore = nil
-						selectedPersonaName = nil
-					}
-				},
+				onReset: {},
 			)
 		} else if isLoading {
 			ProgressView("Loading…")
@@ -167,13 +186,33 @@ struct PersonasSettingsView: View {
 	// MARK: - Actions
 
 	private func selectPersona(_ persona: PersonaOption) {
-		selectedPersonaName = persona.name
-		editorStore = PersonaEditorStore(mode: .edit(name: persona.name))
+		let nav: PendingNavigation = .selectPersona(persona)
+		if editorStore?.hasUnsavedChanges == true {
+			pendingNavigation = nav
+		} else {
+			performNavigation(nav)
+		}
 	}
 
 	private func startCreate() {
-		selectedPersonaName = nil
-		editorStore = PersonaEditorStore(mode: .create)
+		let nav: PendingNavigation = .startCreate
+		if editorStore?.hasUnsavedChanges == true {
+			pendingNavigation = nav
+		} else {
+			performNavigation(nav)
+		}
+	}
+
+	/// Executes a deferred sidebar navigation (persona switch or create).
+	private func performNavigation(_ nav: PendingNavigation) {
+		switch nav {
+		case .selectPersona(let persona):
+			selectedPersonaName = persona.name
+			editorStore = PersonaEditorStore(mode: .edit(name: persona.name))
+		case .startCreate:
+			selectedPersonaName = nil
+			editorStore = PersonaEditorStore(mode: .create)
+		}
 	}
 
 	private func handleSaved() async {
@@ -225,6 +264,13 @@ struct PersonasSettingsView: View {
 		selectedPersonaName = name
 		editorStore = PersonaEditorStore(mode: .edit(name: name))
 	}
+}
+
+/// Deferred sidebar action captured when the user attempts to navigate away
+/// from an editor with unsaved changes.
+private enum PendingNavigation {
+	case selectPersona(PersonaOption)
+	case startCreate
 }
 
 // MARK: - Sidebar row

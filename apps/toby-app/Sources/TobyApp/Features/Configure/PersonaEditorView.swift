@@ -21,7 +21,8 @@ struct PersonaEditorView: View {
 			onCancel: {
 				onCancel()
 				dismissWindow()
-			}
+			},
+			onReset: {}
 		)
 		.frame(minWidth: 520, minHeight: 520)
 		.background(WindowAccessor { window in
