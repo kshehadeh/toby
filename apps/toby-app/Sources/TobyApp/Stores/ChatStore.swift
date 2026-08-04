@@ -415,6 +415,14 @@ final class ChatStore {
 		focusPrompt()
 	}
 
+	func startNewChat(withPrompt prompt: String) async {
+		guard !isLoading else { return }
+		await startNewSession()
+		clearAttachments()
+		promptText = prompt
+		await submitPrompt()
+	}
+
 	func focusPrompt() {
 		promptFocusRequestId = UUID()
 	}

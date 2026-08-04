@@ -12,6 +12,7 @@ struct CommandPaletteView: View {
 	let onOpenIntegration: (String) -> Void
 	let onOpenSchedule: (String) -> Void
 	let onOpenRecording: (String) -> Void
+	let onStartChat: (String) -> Void
 	let onRestartServer: () -> Void
 	let onDismiss: () -> Void
 
@@ -213,6 +214,18 @@ struct CommandPaletteView: View {
 				),
 			)
 		}
+
+		if items.isEmpty, isChatPrompt(trimmed) {
+			items.append(
+				CommandPaletteResult(
+					id: "action-chat-prompt",
+					title: "Start a chat with '\(trimmed)'",
+					subtitle: "Ask Toby in a new session",
+					systemImage: "message",
+					kind: .chatPrompt(trimmed),
+				),
+			)
+		}
 		return items
 	}
 
@@ -335,7 +348,7 @@ struct CommandPaletteView: View {
 		activate(results[selectedIndex])
 	}
 
-	private func activate(_ result: CommandPaletteResult) {
+	func activate(_ result: CommandPaletteResult) {
 		switch result.kind {
 		case .action where result.id == "action-new-chat":
 			onDismiss()
@@ -361,9 +374,21 @@ struct CommandPaletteView: View {
 		case .recording(let id):
 			onDismiss()
 			onOpenRecording(id)
+		case .chatPrompt(let prompt):
+			onDismiss()
+			onStartChat(prompt)
 		default:
 			break
 		}
+	}
+
+	private func isChatPrompt(_ query: String) -> Bool {
+		guard !query.isEmpty, query.unicodeScalars.contains(where: { CharacterSet.alphanumerics.contains($0) }) else {
+			return false
+		}
+
+		let wordCount = query.split(whereSeparator: \.isWhitespace).count
+		return wordCount >= 2 || query.last.map { ".?!".contains($0) } == true
 	}
 
 	private func sessionSubtitle(_ session: SessionSummary) -> String {

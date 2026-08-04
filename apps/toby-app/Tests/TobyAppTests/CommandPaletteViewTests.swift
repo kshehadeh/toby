@@ -18,6 +18,7 @@ struct CommandPaletteViewTests {
         onOpenIntegration: @escaping (String) -> Void = { _ in },
         onOpenSchedule: @escaping (String) -> Void = { _ in },
         onOpenRecording: @escaping (String) -> Void = { _ in },
+        onStartChat: @escaping (String) -> Void = { _ in },
         onRestartServer: @escaping () -> Void = {},
         onDismiss: @escaping () -> Void = {}
     ) -> CommandPaletteView {
@@ -33,6 +34,7 @@ struct CommandPaletteViewTests {
             onOpenIntegration: onOpenIntegration,
             onOpenSchedule: onOpenSchedule,
             onOpenRecording: onOpenRecording,
+            onStartChat: onStartChat,
             onRestartServer: onRestartServer,
             onDismiss: onDismiss
         )
@@ -258,6 +260,60 @@ struct CommandPaletteViewTests {
         let view = makeView()
         let results = view.results(for: "server")
         #expect(results.contains { $0.id == "action-restart-server" })
+    }
+
+    @Test("unmatched sentence-like input offers a chat prompt")
+    func unmatchedSentenceOffersChatPrompt() {
+        let view = makeView()
+        let results = view.results(for: "summarize my day")
+
+        #expect(results.count == 1)
+        #expect(results.first?.title == "Start a chat with 'summarize my day'")
+        #expect(results.first?.kind == .chatPrompt("summarize my day"))
+    }
+
+    @Test("unmatched punctuated input offers a chat prompt")
+    func unmatchedPunctuatedInputOffersChatPrompt() {
+        let view = makeView()
+        let results = view.results(for: "summarize?")
+
+        #expect(results.first?.kind == .chatPrompt("summarize?"))
+    }
+
+    @Test("single-word unmatched input does not offer a chat prompt")
+    func singleWordDoesNotOfferChatPrompt() {
+        let view = makeView()
+
+        #expect(view.results(for: "Spotify").isEmpty)
+        #expect(view.results(for: "?").isEmpty)
+        #expect(view.results(for: "").isEmpty == false)
+    }
+
+    @Test("existing matches take precedence over a chat prompt")
+    func existingMatchTakesPrecedence() {
+        let view = makeView(
+            integrations: [makeIntegration(label: "Daily Review", key: "daily-review")]
+        )
+
+        let results = view.results(for: "daily review")
+
+        #expect(results.contains { $0.kind == .integration("daily-review") })
+        #expect(!results.contains { if case .chatPrompt = $0.kind { true } else { false } })
+    }
+
+    @Test("selecting a chat prompt dismisses and forwards the prompt")
+    func selectChatPromptCallback() throws {
+        var selectedPrompt: String?
+        var didDismiss = false
+        let view = makeView(
+            onStartChat: { selectedPrompt = $0 },
+            onDismiss: { didDismiss = true }
+        )
+        let prompt = try #require(view.results(for: "summarize my day").first)
+        view.activate(prompt)
+
+        #expect(selectedPrompt == "summarize my day")
+        #expect(didDismiss)
     }
 
     @Test("selecting restart server action calls callback")

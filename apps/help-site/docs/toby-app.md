@@ -41,6 +41,12 @@ The CLI equivalents for backup/restore are `toby config backup` and `toby config
 | **Show Command View** | Opens the command palette to jump to sessions, routes, and actions (⌘K) |
 | Route items (Dashboard, Chat, …) | Switch the main window to that surface (⌘1–⌘9) |
 
+When your search does not match an existing action or item, you can type a
+natural-language prompt such as “summarize my day” and choose the suggested
+**Start a chat with …** result. Toby opens a new Chat session and submits the
+prompt for you. The suggestion appears for sentence-like input with at least
+two words or sentence punctuation.
+
 ## Surfaces
 
 Toby.app's primary windows are accessible from the sidebar.

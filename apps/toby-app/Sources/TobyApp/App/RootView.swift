@@ -168,7 +168,7 @@ struct RootView: View {
     private var contentWithNotifications: some View {
         contentWithSheets
             .onReceive(NotificationCenter.default.publisher(for: .openCommandPalette)) { _ in
-                presentCommandPalette()
+                presentCommandPalette(activateApplication: true)
             }
             .onReceive(NotificationCenter.default.publisher(for: .openIssueReport)) { _ in
                 isIssueReportPresented = true
@@ -843,9 +843,13 @@ struct RootView: View {
         presentCommandPalette()
     }
 
-    private func presentCommandPalette() {
+    private func presentCommandPalette(activateApplication: Bool = false) {
+        if activateApplication {
+            NSApp.activate(ignoringOtherApps: true)
+        }
         // Show the palette without activating Toby or bringing the main window
-        // forward — the panel is non-activating, like Spotlight. Each action
+        // forward unless it was summoned by the global shortcut — the panel is
+        // non-activating, like Spotlight. Each action
         // callback surfaces the relevant window when the user picks something.
         CommandPalettePanelController.shared.show {
             CommandPaletteView(
@@ -880,6 +884,11 @@ struct RootView: View {
                 onOpenRecording: { id in
                     bringMainWindowToFront()
                     openRecording(id: id)
+                },
+                onStartChat: { prompt in
+                    bringMainWindowToFront()
+                    navigateToRoute(.chat)
+                    Task { await store.startNewChat(withPrompt: prompt) }
                 },
                 onRestartServer: {
                     Task { await store.restartServer() }

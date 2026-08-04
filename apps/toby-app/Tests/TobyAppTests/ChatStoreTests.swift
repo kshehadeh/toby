@@ -58,6 +58,19 @@ struct ChatStoreTests {
         #expect(store.promptFocusRequestId != originalId)
     }
 
+    @Test("startNewChat with prompt does not interrupt an active turn")
+    func startNewChatWithPromptGuardsActiveTurn() async {
+        let store = ChatStore()
+        store.isLoading = true
+        store.sessionId = "existing-session"
+        store.promptText = "existing prompt"
+
+        await store.startNewChat(withPrompt: "new prompt")
+
+        #expect(store.sessionId == "existing-session")
+        #expect(store.promptText == "existing prompt")
+    }
+
     @Test("contextFillPercentage is nil when no context window data")
     func contextFillNilWhenNoContextWindowData() {
         let store = ChatStore()

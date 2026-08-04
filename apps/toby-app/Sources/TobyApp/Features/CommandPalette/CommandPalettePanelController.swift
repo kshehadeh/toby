@@ -50,6 +50,8 @@ final class CommandPalettePanelController {
 		// Ensure the hosted SwiftUI content receives keyboard focus after the
 		// panel becomes key. This complements the view's deferred @FocusState.
 		DispatchQueue.main.async {
+			guard panel.isVisible else { return }
+			panel.makeKey()
 			if let contentView = panel.contentView {
 				panel.makeFirstResponder(contentView)
 			}

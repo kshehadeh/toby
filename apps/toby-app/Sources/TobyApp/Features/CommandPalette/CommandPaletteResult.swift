@@ -8,6 +8,7 @@ struct CommandPaletteResult: Identifiable {
 		case integration(String)
 		case schedule(String)
 		case recording(String)
+		case chatPrompt(String)
 	}
 
 	let id: String
