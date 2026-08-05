@@ -202,6 +202,14 @@ struct RootView: View {
                 if (stage == .complete || stage == .failed), !store.isRecordingActive {
                     NotificationCenter.default.post(name: MenuBarController.recordingStateChanged, object: false)
                 }
+                // Refresh Recordings globally — RecordingsView is not mounted on
+                // other routes, so its local onChange would never run.
+                if let stage, Self.shouldRefreshRecordings(for: stage) {
+                    let recordingId = store.recordingProcessing?.recordingId
+                    Task {
+                        await recordingsStore.refreshAfterRecordingProcessing(recordingId: recordingId)
+                    }
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .secondaryWindowClosed)) { _ in
                 bringMainWindowToFront()
@@ -1115,8 +1123,22 @@ struct RootView: View {
     }
 
     private func openRecording(id: String) {
-        Task { await recordingsStore.selectRecording(id: id) }
+        Task {
+            // Always reload the list so a recording finished off-route appears
+            // in the sidebar before we select it.
+            await recordingsStore.refreshAfterRecordingProcessing(recordingId: id)
+        }
         navigateToRoute(.recordings)
+    }
+
+    /// Stages that imply the recordings list or detail may have changed.
+    private static func shouldRefreshRecordings(for stage: RecordingProcessingStage) -> Bool {
+        switch stage {
+        case .preparingTranscription, .transcribing, .complete, .failed:
+            true
+        case .generatingAudio, .finalizing:
+            false
+        }
     }
 
     private func openMemory(id: String) {

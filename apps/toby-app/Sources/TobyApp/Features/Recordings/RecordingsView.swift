@@ -28,16 +28,9 @@ struct RecordingsView: View {
 				store.selectActiveRecording(id: active.id)
 			}
 		}
-		.onChange(of: processingState?.stage) { _, newStage in
-			if newStage == .complete || newStage == .failed {
-				Task {
-					await store.load()
-					if let id = processingState?.recordingId {
-						await store.selectRecording(id: id)
-					}
-				}
-			}
-		}
+		// Post-recording list refresh is owned by RootView so it also runs when
+		// this route is not mounted. Manual re-transcribe still reloads detail
+		// via RecordingsStore.transcribeRecording.
 		.onChange(of: store.transcriptionProcessing?.stage) { _, newStage in
 			if newStage == .complete || newStage == .failed {
 				// Clear the manual processing state after a short delay so the

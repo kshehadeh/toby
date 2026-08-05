@@ -12,6 +12,9 @@ final class RecordingsStore {
 	var isDetailLoading = false
 	var isDeletingSelection = false
 	var hasLoadedOnce = false
+	/// Set when a recording is saved/processed off the Recordings route so the
+	/// next visit reloads the list even if `hasLoadedOnce` is already true.
+	var listNeedsRefresh = false
 	var lastLoadedAt: Date?
 	var errorMessage: String?
 
@@ -64,16 +67,38 @@ final class RecordingsStore {
 	}
 
 	func ensureLoaded() async {
-		if hasLoadedOnce {
-			await loadDetailIfNeeded()
+		if listNeedsRefresh || !hasLoadedOnce {
+			await load()
 			return
 		}
-		await load()
+		await loadDetailIfNeeded()
 	}
 
 	func ensureListLoaded() async {
-		guard !hasLoadedOnce else { return }
-		await loadList()
+		if listNeedsRefresh || !hasLoadedOnce {
+			await loadList()
+		}
+	}
+
+	/// Mark the cached list as out of date (e.g. a recording finished while the
+	/// Recordings view was not mounted).
+	func markListStale() {
+		listNeedsRefresh = true
+	}
+
+	/// Reload the list after stop/save/transcription. Prefer selecting `recordingId`
+	/// when provided so the new item is the focused selection.
+	func refreshAfterRecordingProcessing(recordingId: String?) async {
+		markListStale()
+		// Wait out any in-flight load so we never no-op on `guard !isLoading`
+		// when preparingTranscription and complete fire in quick succession.
+		while isLoading {
+			try? await Task.sleep(for: .milliseconds(30))
+		}
+		await load()
+		if let recordingId, !recordingId.isEmpty {
+			await selectRecording(id: recordingId)
+		}
 	}
 
 	func selectRecording(id: String, holdingCommand: Bool = false) async {
@@ -125,6 +150,7 @@ final class RecordingsStore {
 			selectedRecordingIds = Set(recordings.prefix(1).map(\.id))
 		}
 		hasLoadedOnce = true
+		listNeedsRefresh = false
 		lastLoadedAt = Date()
 	}
 
