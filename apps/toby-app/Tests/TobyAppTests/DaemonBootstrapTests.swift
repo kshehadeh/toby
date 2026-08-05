@@ -131,7 +131,11 @@ struct DaemonBootstrapTests {
 		#expect(command.arguments.contains("daemon"))
 		#expect(command.arguments.contains("start"))
 		#expect(command.arguments.contains { $0.hasSuffix("apps/cli/src/cli.ts") })
-		#expect(command.currentDirectoryURL?.appendingPathComponent("apps/cli/src/cli.ts").path(percentEncoded: false) == command.arguments.first { $0.hasSuffix("apps/cli/src/cli.ts") })
+		// Cwd must be the CLI package root so Bun can resolve @toby/core.
+		#expect(command.currentDirectoryURL?.lastPathComponent == "cli")
+		#expect(command.currentDirectoryURL?.deletingLastPathComponent().lastPathComponent == "apps")
+		let cliPath = try #require(command.arguments.first { $0.hasSuffix("apps/cli/src/cli.ts") })
+		#expect(command.currentDirectoryURL?.appendingPathComponent("src/cli.ts").path(percentEncoded: false) == cliPath)
 	}
 
 	@Test("dev start commands do not use env bun fallback")

@@ -705,7 +705,12 @@ enum DaemonBootstrap {
 	}
 
 	private static func sourceDaemonStartCommands(repoRoot: URL) -> [DaemonStartCommand] {
-		sourceCliCandidates(repoRoot: repoRoot).flatMap { cliURL in
+		// Bun resolves workspace packages (@toby/core) from the package that
+		// owns the entry script. Running with the monorepo root as cwd fails
+		// with "Cannot find module '@toby/core/...'"; apps/cli is the package
+		// that depends on @toby/core (matches `bun run --cwd apps/cli dev`).
+		let cliPackageRoot = repoRoot.appendingPathComponent("apps/cli")
+		return sourceCliCandidates(repoRoot: repoRoot).flatMap { cliURL in
 			bunExecutableCandidates(repoRoot: repoRoot).map { bunCandidate in
 				var arguments = bunCandidate.argumentPrefix
 				arguments.append(cliURL.path)
@@ -713,7 +718,7 @@ enum DaemonBootstrap {
 				return DaemonStartCommand(
 					executableURL: bunCandidate.executableURL,
 					arguments: arguments,
-					currentDirectoryURL: repoRoot
+					currentDirectoryURL: cliPackageRoot
 				)
 			}
 		}

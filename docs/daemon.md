@@ -65,6 +65,8 @@ Toby.app and the daemon share one localhost port and lock file. On launch (and o
 
 Manual **Restart server** always uses the same preferred binary as launch (production no longer prefers the monorepo source CLI).
 
+**Dev source CLI cwd:** When the Dev app starts the daemon via Bun + `apps/cli/src/cli.ts`, the process working directory is **`apps/cli`** (not the monorepo root). Bun resolves the `@toby/core` workspace package from that package root; starting from the repo root fails with `Cannot find module '@toby/core/…'`. Equivalent CLI: `bun run --cwd apps/cli dev daemon start` (or `bun run start:server` from the monorepo root).
+
 `start` accepts `-i, --interval <seconds>` to change the schedule poll interval. `restart` accepts the same option; when omitted, it reuses the interval from the running daemon's lock file, or 60s if the daemon was not running.
 
 ## Schedules
