@@ -811,6 +811,10 @@ struct ListenRecordingDetail: Decodable {
 	let metadata: ListenRecordingMetadata
 	let hasAudio: Bool
 	let audioPath: String?
+	/// Preferred combined mix when present.
+	let combinedPath: String?
+	let micPath: String?
+	let systemPath: String?
 	let hasTranscript: Bool
 	let transcript: String?
 	let transcriptError: String?
@@ -822,6 +826,34 @@ struct ListenRecordingDetail: Decodable {
 	var showsSummary: Bool {
 		if let hasSummary { return hasSummary }
 		return summary?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+	}
+
+	/// Distinct playable source tracks for the inspector player.
+	/// Prefer single tracks first so default playback is not a summed dual mix.
+	/// Dual-mono combined (L=mic, R=system) is labeled "Both (L/R)".
+	var playableAudioSources: [(id: String, label: String, path: String)] {
+		var items: [(id: String, label: String, path: String)] = []
+		// Default listening: system (what you heard) is usually the cleanest
+		// mono preview of a meeting; mic is your voice; both is dual-mono stereo.
+		if let systemPath, !systemPath.isEmpty {
+			items.append((id: "system", label: "System", path: systemPath))
+		}
+		if let micPath, !micPath.isEmpty {
+			items.append((id: "mic", label: "Mic", path: micPath))
+		}
+		if let combinedPath, !combinedPath.isEmpty {
+			let label = (micPath != nil && systemPath != nil) ? "Both (L/R)" : "Combined"
+			items.append((id: "combined", label: label, path: combinedPath))
+		} else if let audioPath, !audioPath.isEmpty {
+			items.append((id: "combined", label: "Combined", path: audioPath))
+		}
+		// De-dupe if paths collide.
+		var seen = Set<String>()
+		return items.filter { item in
+			if seen.contains(item.path) { return false }
+			seen.insert(item.path)
+			return true
+		}
 	}
 }
 

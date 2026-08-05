@@ -186,6 +186,10 @@ export function seedConfigureValues(): Record<string, string> {
 		config.dashboard?.persona?.trim() || "(default)";
 	values["listen.summaryPersona"] =
 		config.listen?.summaryPersona?.trim() || "(default)";
+	values["listen.recordMic"] =
+		config.listen?.recordMic === false ? "false" : "true";
+	values["listen.recordSystem"] =
+		config.listen?.recordSystem === false ? "false" : "true";
 
 	for (const mod of getIntegrationModules()) {
 		if (!mod.chatInbound) continue;
@@ -333,7 +337,22 @@ export function rebuildListenConfig(
 	const personaRaw = values["listen.summaryPersona"]?.trim();
 	const summaryPersona =
 		personaRaw && personaRaw !== "(default)" ? personaRaw : undefined;
-	return summaryPersona ? { summaryPersona } : undefined;
+	// Defaults are both true; only persist when either source is turned off.
+	// Ensure at least one source stays on so recording can always start.
+	let recordMic = values["listen.recordMic"] !== "false";
+	let recordSystem = values["listen.recordSystem"] !== "false";
+	if (!recordMic && !recordSystem) {
+		recordMic = true;
+		recordSystem = true;
+	}
+	const nonDefaultSources = !recordMic || !recordSystem;
+	if (!summaryPersona && !nonDefaultSources) {
+		return undefined;
+	}
+	return {
+		...(summaryPersona ? { summaryPersona } : {}),
+		...(nonDefaultSources ? { recordMic, recordSystem } : {}),
+	};
 }
 
 export function applyIntegrationInboundFlags(

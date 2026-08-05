@@ -10,6 +10,7 @@ final class NativeAudioHandler {
 
 	private var session: NativeRecordingSession?
 	private var files: [String: String] = [:]
+	private var lastCombineDetails: [String: any Sendable] = [:]
 	private var helperVersion = "native-app"
 
 	private init() {}
@@ -69,10 +70,12 @@ final class NativeAudioHandler {
 		}
 
 		do {
+			lastCombineDetails = [:]
 			if let combined = try await exportCombinedAudio(files: files, outDir: session.options.tempDir) {
-				files["combined"] = combined
+				files["combined"] = combined.path
+				lastCombineDetails = combined.details
 			}
-			let finalDir = try save(session: session, files: files)
+			let finalDir = try save(session: session, files: files, combineDetails: lastCombineDetails)
 			var payload: [String: Any] = [
 				"status": "idle",
 				"message": "Recording saved.",
@@ -83,7 +86,11 @@ final class NativeAudioHandler {
 			if !session.errors.isEmpty {
 				payload["errors"] = session.errors
 			}
+			if !lastCombineDetails.isEmpty {
+				payload["combine"] = sendableDictionaryToJSON(lastCombineDetails)
+			}
 			files = [:]
+			lastCombineDetails = [:]
 			return json(["ok": true, "data": payload])
 		} catch {
 			// Combined audio export failed, but individual mic/system files
@@ -101,9 +108,11 @@ final class NativeAudioHandler {
 				]
 				payload["errors"] = allErrors
 				files = [:]
+				lastCombineDetails = [:]
 				return json(["ok": true, "data": payload])
 			}
 			files = [:]
+			lastCombineDetails = [:]
 			return json(["ok": false, "error": "\(error)"])
 		}
 	}
@@ -123,7 +132,13 @@ final class NativeAudioHandler {
 			guard let combined = try await exportCombinedAudio(files: files, outDir: outDir) else {
 				return json(["ok": false, "error": "No usable audio tracks to combine."])
 			}
-			return json(["ok": true, "data": ["combined": combined]])
+			return json([
+				"ok": true,
+				"data": [
+					"combined": combined.path,
+					"combine": sendableDictionaryToJSON(combined.details),
+				],
+			])
 		} catch {
 			return json(["ok": false, "error": "\(error)"])
 		}
@@ -179,7 +194,12 @@ final class NativeAudioHandler {
 		)
 	}
 
-	private func save(session: NativeRecordingSession, files: [String: String], extraErrors: [String] = []) throws -> URL {
+	private func save(
+		session: NativeRecordingSession,
+		files: [String: String],
+		extraErrors: [String] = [],
+		combineDetails: [String: any Sendable] = [:],
+	) throws -> URL {
 		let options = session.options
 		let manager = FileManager.default
 		let finalDir = options.finalDir
@@ -203,6 +223,9 @@ final class NativeAudioHandler {
 			"osVersion": ProcessInfo.processInfo.operatingSystemVersionString,
 			"helper": ["path": "Toby.app", "version": helperVersion],
 		]
+		if !combineDetails.isEmpty {
+			metadata["combine"] = sendableDictionaryToJSON(combineDetails)
+		}
 		let allErrors = session.errors + extraErrors
 		if !allErrors.isEmpty {
 			metadata["errors"] = allErrors
@@ -516,65 +539,26 @@ func validatedAudioFiles(_ files: [String: String]) async -> [String: String] {
 	return valid
 }
 
-func exportCombinedAudio(files: [String: String], outDir: URL) async throws -> String? {
-	let sourceURLs = ["mic", "system"]
-		.compactMap { files[$0] }
-		.map { URL(fileURLWithPath: $0) }
-		.filter { FileManager.default.fileExists(atPath: $0.path) }
-	if sourceURLs.isEmpty {
-		return nil
-	}
-
-	let composition = AVMutableComposition()
-	var insertedAnyTrack = false
-	for url in sourceURLs {
-		let asset = AVURLAsset(url: url)
-		guard let sourceTrack = try await asset.loadTracks(withMediaType: .audio).first else {
-			continue
-		}
-		let duration = try await asset.load(.duration)
-		guard let compositionTrack = composition.addMutableTrack(
-			withMediaType: .audio,
-			preferredTrackID: kCMPersistentTrackID_Invalid,
-		) else {
-			continue
-		}
-		try compositionTrack.insertTimeRange(
-			CMTimeRange(start: .zero, duration: duration),
-			of: sourceTrack,
-			at: .zero,
-		)
-		insertedAnyTrack = true
-	}
-	guard insertedAnyTrack else {
-		return nil
-	}
-
-	let combinedURL = outDir.appendingPathComponent("combined.m4a")
-	let partialURL = outDir.appendingPathComponent(".combined.\(UUID().uuidString).partial.m4a")
-	defer {
-		if FileManager.default.fileExists(atPath: partialURL.path) {
-			try? FileManager.default.removeItem(at: partialURL)
+/// Flatten `[String: any Sendable]` combine diagnostics into a JSON-safe dictionary.
+func sendableDictionaryToJSON(_ details: [String: any Sendable]) -> [String: Any] {
+	var out: [String: Any] = [:]
+	for (key, value) in details {
+		switch value {
+		case let v as Bool:
+			out[key] = v
+		case let v as Int:
+			out[key] = v
+		case let v as Double:
+			out[key] = v
+		case let v as Float:
+			out[key] = Double(v)
+		case let v as String:
+			out[key] = v
+		default:
+			out[key] = "\(value)"
 		}
 	}
-	guard let exportSession = AVAssetExportSession(
-		asset: composition,
-		presetName: AVAssetExportPresetAppleM4A,
-	) else {
-		throw NativeAudioError.runtime("Could not create combined audio export session.")
-	}
-	exportSession.outputURL = partialURL
-	exportSession.outputFileType = .m4a
-	await withCheckedContinuation { continuation in
-		exportSession.exportAsynchronously {
-			continuation.resume()
-		}
-	}
-	if exportSession.status == .completed {
-		try FileManager.default.moveItem(at: partialURL, to: combinedURL)
-		return combinedURL.path
-	}
-	throw NativeAudioError.runtime(exportSession.error?.localizedDescription ?? "Could not export combined audio.")
+	return out
 }
 
 private func recordingId(date: Date) -> String {

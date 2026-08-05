@@ -23,11 +23,17 @@ struct NativeAudioClient {
 		try await request("audio/status", method: "GET", body: nil, as: ListenStatusResponse.self)
 	}
 
-	func start() async throws -> ListenStatusResponse {
-		try await request(
+	func start(mic: Bool = true, system: Bool = true) async throws -> ListenStatusResponse {
+		var micOn = mic
+		var systemOn = system
+		if !micOn && !systemOn {
+			micOn = true
+			systemOn = true
+		}
+		return try await request(
 			"audio/start",
 			method: "POST",
-			body: ["mic": true, "system": true],
+			body: ["mic": micOn, "system": systemOn],
 			as: ListenStatusResponse.self,
 		)
 	}

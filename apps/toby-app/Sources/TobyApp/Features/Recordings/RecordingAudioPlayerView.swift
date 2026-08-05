@@ -4,12 +4,41 @@ import SwiftUI
 struct RecordingAudioPlayerView: View {
 	let detail: ListenRecordingDetail
 	@State private var audioPlayer = RecordingAudioPlayer()
+	@State private var selectedSourceId: String = ""
 	private let timer = Timer.publish(every: 0.25, on: .main, in: .common).autoconnect()
+
+	private var sources: [(id: String, label: String, path: String)] {
+		detail.playableAudioSources
+	}
+
+	private var selectedPath: String? {
+		if let match = sources.first(where: { $0.id == selectedSourceId }) {
+			return match.path
+		}
+		return sources.first?.path
+	}
+
+	private func defaultSourceId() -> String {
+		// Prefer System for dual recordings (clean meeting audio), else first available.
+		if sources.contains(where: { $0.id == "system" }) { return "system" }
+		return sources.first?.id ?? ""
+	}
 
 	var body: some View {
 		SettingsCard {
 			VStack(alignment: .leading, spacing: 12) {
-				if detail.hasAudio, detail.audioPath != nil {
+				if detail.hasAudio, selectedPath != nil {
+					if sources.count > 1 {
+						Picker("Source", selection: $selectedSourceId) {
+							ForEach(sources, id: \.id) { source in
+								Text(source.label).tag(source.id)
+							}
+						}
+						.labelsHidden()
+						.pickerStyle(.segmented)
+						.accessibilityIdentifier("recording-audio-source-picker")
+					}
+
 					HStack(spacing: 12) {
 						Button {
 							audioPlayer.togglePlayback()
@@ -59,8 +88,16 @@ struct RecordingAudioPlayerView: View {
 			.padding(.horizontal, SettingsDesign.rowHorizontalPadding)
 			.padding(.vertical, SettingsDesign.rowVerticalPadding)
 		}
-		.task(id: detail.audioPath ?? detail.id) {
-			audioPlayer.load(audioPath: detail.audioPath)
+		.onAppear {
+			if selectedSourceId.isEmpty || !sources.contains(where: { $0.id == selectedSourceId }) {
+				selectedSourceId = defaultSourceId()
+			}
+		}
+		.onChange(of: detail.id) { _, _ in
+			selectedSourceId = defaultSourceId()
+		}
+		.task(id: "\(detail.id)-\(selectedPath ?? "")") {
+			audioPlayer.load(audioPath: selectedPath)
 		}
 		.onReceive(timer) { _ in
 			audioPlayer.refresh()

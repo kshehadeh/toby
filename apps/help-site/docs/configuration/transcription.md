@@ -17,6 +17,12 @@ Open **Toby.app → Settings → Transcription**.
 | **Model** | Model id offered by that provider |
 | **API Key** | Optional dedicated key for transcription |
 | **Persona for recording summaries** | Persona used when you summarize a recording transcript (falls back to the default persona) |
+| **Record microphone** | Capture the mic during **Record Audio** (default on) |
+| **Record system audio** | Capture other apps during **Record Audio** (default on) |
+
+At least one of microphone or system audio must stay on. When both are recorded,
+`combined.m4a` is dual-mono stereo (mic left, system right) rather than a summed
+mix—so headphone bleed does not turn into an echo. See [Listen mode](../listen).
 
 ### OpenAI
 

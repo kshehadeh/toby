@@ -518,6 +518,32 @@ export function buildSettingsTree(
 				description:
 					"Persona used to summarize recording transcripts. Falls back to the default persona.",
 			},
+			{
+				label: "Record microphone",
+				kind: "select" as const,
+				key: "listen.recordMic",
+				options: ["true", "false"],
+				selectChoices: [
+					{ value: "true", label: "On" },
+					{ value: "false", label: "Off" },
+				],
+				currentValue: values["listen.recordMic"] ?? "true",
+				description:
+					"Capture your microphone when using Record Audio. At least one of microphone or system audio must be on.",
+			},
+			{
+				label: "Record system audio",
+				kind: "select" as const,
+				key: "listen.recordSystem",
+				options: ["true", "false"],
+				selectChoices: [
+					{ value: "true", label: "On" },
+					{ value: "false", label: "Off" },
+				],
+				currentValue: values["listen.recordSystem"] ?? "true",
+				description:
+					"Capture other apps (meetings, browser, music). With the mic on, combined audio is dual-mono stereo (mic left, system right)—not a summed mix.",
+			},
 		],
 	};
 

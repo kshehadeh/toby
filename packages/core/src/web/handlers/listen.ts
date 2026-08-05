@@ -12,6 +12,9 @@ import {
 	recordingHasSummary,
 	recordingHasTranscript,
 	resolveListenRecordingAudioPath,
+	resolveListenRecordingCombinedPath,
+	resolveListenRecordingMicPath,
+	resolveListenRecordingSystemPath,
 	writeListenSummary,
 } from "../../listen/recordings";
 import { updateListenRecordingMetadata } from "../../listen/session-controller";
@@ -61,12 +64,18 @@ function recordingDetailPayload(
 	});
 	const summary = readListenSummary(recording.dir);
 	const audioPath = resolveListenRecordingAudioPath(recording);
+	const combinedPath = resolveListenRecordingCombinedPath(recording);
+	const micPath = resolveListenRecordingMicPath(recording);
+	const systemPath = resolveListenRecordingSystemPath(recording);
 	return {
 		id: recording.id,
 		dir: recording.dir,
 		metadata: recording.metadata,
 		hasAudio: audioPath !== undefined,
 		audioPath,
+		combinedPath,
+		micPath,
+		systemPath,
 		hasTranscript: transcript.ok,
 		transcript: transcript.ok ? transcript.text : undefined,
 		transcriptError: transcript.ok ? undefined : transcript.error,

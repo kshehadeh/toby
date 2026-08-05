@@ -452,7 +452,8 @@ final class ChatStore {
 			)
 		}
 		do {
-			listenStatus = try await nativeAudioClient.start()
+			let sources = ConfigReader.listenRecordSources()
+			listenStatus = try await nativeAudioClient.start(mic: sources.mic, system: sources.system)
 			activityLine = "Recording audio"
 		} catch {
 			showRecordingError(error.localizedDescription)

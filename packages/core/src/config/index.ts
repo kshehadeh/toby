@@ -223,6 +223,12 @@ export interface DashboardConfig {
 export interface ListenConfig {
 	/** Persona used for recording transcript summaries; falls back to default persona. */
 	readonly summaryPersona?: string;
+	/**
+	 * Capture sources for Record Audio. Defaults to both when omitted.
+	 * At least one must be true when starting a recording.
+	 */
+	readonly recordMic?: boolean;
+	readonly recordSystem?: boolean;
 }
 
 export interface TobyConfig {

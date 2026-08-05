@@ -15,11 +15,21 @@ Use **Record Audio** (or equivalent recording controls) in Toby.app. Capture run
 inside the app so Microphone and Screen/System Audio permissions stay tied to
 Toby.app’s bundle identity.
 
+By default Toby records **both** your microphone and system audio (other apps
+such as meetings). You can turn either source off under
+**Settings → Transcription** (**Record microphone** / **Record system audio**).
+
 When you stop and save:
 
-1. Source tracks and preferably `combined.m4a` are written under the recordings folder.
+1. Source tracks (`mic.wav` / `system.wav`) and a `combined.m4a` file are written
+   under the recordings folder. If both sources were captured, combined is
+   **stereo dual-mono** (left = your mic, right = system audio)—not a mix that
+   stacks both onto one channel (that causes echo from headphone bleed). Raw
+   tracks are always kept.
 2. Toby requests transcription through the local service when a model is configured.
 3. The result appears in the **Recordings** window (playback, transcript, delete).
+   The player defaults to **System** (clean meeting audio) and can switch to
+   **Mic** or **Both (L/R)** when available.
 
 ## Summarize a recording
 

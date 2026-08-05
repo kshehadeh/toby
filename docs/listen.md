@@ -8,14 +8,20 @@ Toby.app provides native recording controls and the Recordings window.
 ## Current Scope
 
 - macOS-only capture adapter.
-- Record microphone, system audio, or both from Toby.app.
-- Save source tracks separately as PCM `wav` files.
+- Record microphone, system audio, or both from Toby.app (defaults: both;
+  configurable under **Settings → Transcription**).
+- Save source tracks separately as PCM `wav` files (`mic.wav`, `system.wav`).
 - Generate `combined.m4a` after listening stops for playback/transcription.
+  When **both** sources are present, combined is **dual-mono stereo**
+  (left = microphone, right = system audio)—not a sample-level sum. Summing
+  reintroduces headphone bleed as an audible echo. Raw source WAVs are always
+  kept; the Recordings player defaults to **System** for a clean mono preview.
 - Generate `transcript.txt` and `transcript.json` via the configured
   transcription model.
 - Optionally generate `summary.md` via the configured summary persona after
   transcription (on demand from the Recordings window).
-- Write `metadata.json` next to each recording.
+- Write `metadata.json` next to each recording (includes optional `combine`
+  diagnostics: mode / channel layout).
 
 Recordings are stored under `~/.toby/listen/recordings/<recording-id>/`.
 
@@ -34,15 +40,19 @@ points to an existing file, otherwise it falls back to
 ## Toby.app Flow
 
 Toby.app exposes **Record Audio** in the chat sidebar. Starting it calls the
-app's own native localhost API and captures microphone and system audio in the
+app's own native localhost API and captures the sources selected in config
+(`listen.recordMic` / `listen.recordSystem`, both default **on**) in the
 Toby.app process. This keeps Microphone and Screen/System Audio permission tied
 to the app's stable bundle identity.
+
+In the **Recordings** inspector, playback can switch between **System**,
+**Mic**, and **Both (L/R)** (dual-mono combined) when those files exist.
 
 Stopping performs these steps:
 
 1. `NativeAudioHandler` stops capture, validates source files, exports
-   `combined.m4a`, and moves the temporary session into the shared recordings
-   directory.
+   `combined.m4a` (dual-mono stereo when both tracks exist), and
+   moves the temporary session into the shared recordings directory.
 2. The app calls the daemon's
    `POST /api/listen/recordings/:id/transcribe` endpoint.
 3. The daemon invokes the configured transcription plugin and updates
@@ -111,6 +121,30 @@ Toby.app runs a local HTTP server on an ephemeral port published to
 Toby.app if it is not already running, and calls the `/api/native/audio/*`
 endpoints. Audio capture, permission handling, and source-track combination all
 happen inside Toby.app's `NativeAudioHandler`.
+
+## Capture sources and combine layout
+
+| Setting key | Default | Meaning |
+| ----------- | ------- | ------- |
+| `listen.recordMic` | `true` | Capture the default microphone (**input** — your voice) |
+| `listen.recordSystem` | `true` | Capture system/app audio via ScreenCaptureKit (**output** — what you hear) |
+
+Turn either off under **Settings → Transcription** if you only need one source.
+At least one source must remain on.
+
+These are not “two mics.” Combined is meant to keep **input and output**
+together for transcription/archival. When both are present:
+
+| File | Content |
+| ---- | ------- |
+| `mic.wav` | Microphone only |
+| `system.wav` | System audio only |
+| `combined.m4a` | Stereo dual-mono: **L = mic**, **R = system** (no sum) |
+
+**Why not sum?** The mic often re-picks up remote meeting audio that is already
+on the system track (headphone bleed). Sample-summing those tracks creates a
+delayed echo. Dual-mono avoids that for listening; the player defaults to
+**System** for a clean mono preview of the meeting.
 
 ## Transcription providers
 

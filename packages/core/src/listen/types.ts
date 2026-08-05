@@ -41,6 +41,26 @@ export interface ListenRecordingMetadata {
 	readonly chatSessionId?: string;
 	/** Metadata about a persisted AI summary (text lives in files.summary). */
 	readonly summary?: ListenRecordingSummaryMeta;
+	/**
+	 * Diagnostics from dual-source combine. Written by Toby.app when exporting
+	 * combined.m4a (e.g. dual-mono L=mic,R=system).
+	 */
+	readonly combine?: {
+		readonly mode?: string;
+		readonly layout?: string;
+		readonly sampleRate?: number;
+		readonly sampleCount?: number;
+		readonly source?: string;
+		readonly fallbackError?: string;
+		/** @deprecated older AEC sum path */
+		readonly aecApplied?: boolean;
+		readonly lagMs?: number;
+		readonly correlation?: number;
+		readonly aecGain?: number;
+		readonly micGain?: number;
+		readonly systemGain?: number;
+		readonly peak?: number;
+	};
 }
 
 export interface ListenTranscriptionResponse {

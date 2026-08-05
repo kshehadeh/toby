@@ -152,13 +152,35 @@ export function resolveListenRecordingAudioPath(
 	recording: ListenRecordingSummary,
 ): string | undefined {
 	return (
-		resolveFilePath(
-			recording.dir,
-			recording.metadata.files.combined,
-			COMBINED_M4A,
-		) ??
-		resolveFilePath(recording.dir, recording.metadata.files.mic, MIC_WAV) ??
-		resolveFilePath(recording.dir, recording.metadata.files.system, SYSTEM_WAV)
+		resolveListenRecordingCombinedPath(recording) ??
+		resolveListenRecordingMicPath(recording) ??
+		resolveListenRecordingSystemPath(recording)
+	);
+}
+
+export function resolveListenRecordingCombinedPath(
+	recording: ListenRecordingSummary,
+): string | undefined {
+	return resolveFilePath(
+		recording.dir,
+		recording.metadata.files.combined,
+		COMBINED_M4A,
+	);
+}
+
+export function resolveListenRecordingMicPath(
+	recording: ListenRecordingSummary,
+): string | undefined {
+	return resolveFilePath(recording.dir, recording.metadata.files.mic, MIC_WAV);
+}
+
+export function resolveListenRecordingSystemPath(
+	recording: ListenRecordingSummary,
+): string | undefined {
+	return resolveFilePath(
+		recording.dir,
+		recording.metadata.files.system,
+		SYSTEM_WAV,
 	);
 }
 
