@@ -261,9 +261,10 @@ struct TobyApp: App {
 				Task { _ = await NativeCalendarHandler.requestAccess() }
 			}
 		}
-		// Don't prompt for Accessibility on launch - it's not persistent for
-		// ad-hoc signed binaries. The native API endpoints will prompt on-demand
-		// when an Accessibility operation is actually needed.
+		// Don't prompt for Accessibility on launch. Grant is user-driven via
+		// Permissions / first use; prompting every launch is noisy. Native
+		// minimize/unminimize endpoints still call AXIsProcessTrustedWithOptions
+		// on demand when an Accessibility operation is needed.
 	}
 
 #if DEBUG

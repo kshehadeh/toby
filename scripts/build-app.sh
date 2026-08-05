@@ -155,11 +155,40 @@ if [[ ! -f "${ICON_SRC}" && ! -f "${ICON_MASTER}" ]]; then
 	exit 1
 fi
 
-echo "Building toby-app (swift ${ARCH})..."
-swift build -c release --arch "${ARCH}" --package-path "${PKG}"
+# The Mach-O __info_plist section is linked from Sources/TobyApp/Info.plist
+# (see Package.swift sectcreate). That section must match the outer app
+# bundle's CFBundleIdentifier/CFBundleName so TCC (Accessibility, mic, etc.)
+# binds to the same identity System Settings shows for this variant.
+SOURCE_INFO_PLIST="${PKG}/Sources/TobyApp/Info.plist"
+INFO_PLIST_BACKUP="$(mktemp)"
+cp "${SOURCE_INFO_PLIST}" "${INFO_PLIST_BACKUP}"
+restore_info_plist() {
+	if [[ -n "${INFO_PLIST_BACKUP:-}" && -f "${INFO_PLIST_BACKUP}" ]]; then
+		cp "${INFO_PLIST_BACKUP}" "${SOURCE_INFO_PLIST}"
+		rm -f "${INFO_PLIST_BACKUP}"
+		INFO_PLIST_BACKUP=""
+	fi
+}
+trap restore_info_plist EXIT
+
+/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${APP_BUNDLE_ID}" "${SOURCE_INFO_PLIST}" >/dev/null
+/usr/libexec/PlistBuddy -c "Set :CFBundleName ${APP_DISPLAY_NAME}" "${SOURCE_INFO_PLIST}" >/dev/null
+echo "Embedding bundle identity ${APP_BUNDLE_ID} (${APP_DISPLAY_NAME}) into binary…"
+
+# SPM does not track the sectcreate Info.plist as an input, so remove the
+# prior binary to force a re-link with the variant identity above.
 BUILD_DIR="$(
 	swift build --show-bin-path -c release --arch "${ARCH}" --package-path "${PKG}"
 )"
+rm -f "${BUILD_DIR}/toby-app"
+
+echo "Building toby-app (swift ${ARCH})..."
+swift build -c release --arch "${ARCH}" --package-path "${PKG}"
+# Restore the tracked Info.plist immediately after link so the working tree
+# stays clean even if later packaging steps fail.
+restore_info_plist
+trap - EXIT
+
 BIN="${BUILD_DIR}/toby-app"
 RESOURCE_BUNDLE="${BUILD_DIR}/TobyApp_TobyApp.bundle"
 

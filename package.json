@@ -33,7 +33,7 @@
     "app:screenshots": "bash ./scripts/run-app-screenshots.sh",
     "build:release": "./scripts/build-release-artifacts.sh",
     "build:dmg": "bun run build:release && ./scripts/build-dmg.sh",
-    "dev": "bun run build:app && \"./dist/Toby (Dev).app/Contents/MacOS/toby-app\"",
+    "dev": "bun run build:app && open \"./dist/Toby (Dev).app\"",
     "dev:sandbox": "bash ./scripts/run-sandbox.sh",
     "restart:server": "TOBY_PLUGINS_DIR=$PWD/dist bun run --cwd apps/cli dev daemon restart",
     "stop:server": "TOBY_PLUGINS_DIR=$PWD/dist bun run --cwd apps/cli dev daemon stop",

@@ -118,7 +118,7 @@ Depending on OS version and invoking app (Terminal, Cursor agent, daemon):
 | Bluetooth | Plugin Info.plist declares `NSBluetoothAlwaysUsageDescription`. |
 | Shortcuts | macOS may prompt for Automation permissions when Shortcuts access other apps. |
 | `pmset` | Low Power Mode writes may require admin privileges. Use a Shortcut or manual `sudo` per Apple guidance. |
-| Window minimize / unminimize | `macWindowsMinimizeAll`, `macWindowsUnminimizeAll`, `macWindowMinimizeApp`, and `macWindowUnminimizeApp` route through Toby.app's native API server, which has a proper app bundle identity for Accessibility. Grant Accessibility to **Toby.app** under System Settings → Privacy & Security → Accessibility. Run `toby plugins setup macos` to trigger the prompt. Hide/show work without extra permission. |
+| Window minimize / unminimize | `macWindowsMinimizeAll`, `macWindowsUnminimizeAll`, `macWindowMinimizeApp`, and `macWindowUnminimizeApp` route through Toby.app's native API server, which has a proper app bundle identity for Accessibility. Grant Accessibility to **Toby.app** (or **Toby (Dev)** for development builds — bundle id `dev.karim.toby.app.dev`) under System Settings → Privacy & Security → Accessibility. After enabling the toggle, fully quit and relaunch the app; stale rows from earlier rebuilds can look approved while `AXIsProcessTrusted()` still returns false — remove them and re-grant if needed. Run `toby plugins setup macos` to trigger the prompt. Prefer `bun run app` / `bun run dev` (Launch Services `open`) over launching `Contents/MacOS/toby-app` directly. Hide/show work without extra permission. |
 
 Toby never runs **`sudo`** for you.
 

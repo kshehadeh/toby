@@ -2,6 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!--
+	  Defaults match the production app. scripts/build-app.sh temporarily
+	  rewrites CFBundleIdentifier / CFBundleName for the active variant
+	  (e.g. dev.karim.toby.app.dev / "Toby (Dev)") before `swift build` so the
+	  linked __info_plist section matches the outer .app Info.plist. That keeps
+	  TCC grants (Accessibility, mic, etc.) bound to one stable identity.
+	  The script restores this file after the link step.
+	-->
 	<key>CFBundleIdentifier</key>
 	<string>dev.karim.toby.app</string>
 	<key>CFBundleName</key>
