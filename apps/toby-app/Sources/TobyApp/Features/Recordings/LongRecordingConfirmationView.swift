@@ -27,8 +27,14 @@ final class LongRecordingPromptCoordinator {
 	private var activeRecordingId: String?
 	private var activeRecordingStartedAt: Date?
 	private var nextPromptAt: Date?
+	/// After the user (or countdown) requests stop, ignore further "active"
+	/// updates for that same session so the dialog cannot reappear while stop
+	/// / combine / transcription are still in flight and `listenStatus` has
+	/// not yet flipped to idle.
+	private var suppressedSessionId: String?
 
 	var nextPromptDateForTesting: Date? { nextPromptAt }
+	var suppressedSessionIdForTesting: String? { suppressedSessionId }
 
 	func updateRecordingStatus(
 		isActive: Bool,
@@ -36,11 +42,20 @@ final class LongRecordingPromptCoordinator {
 		startedAt rawStartedAt: String?,
 	) {
 		guard isActive, let sessionId, let rawStartedAt else {
-			reset()
+			// Capture fully idle — clear tracking but keep suppress so a
+			// lagging "still active" tick for the stopped session is ignored.
+			clearActiveTracking()
 			return
 		}
+		if let suppressedSessionId, suppressedSessionId == sessionId {
+			// Same session still reports active during async stop/process.
+			return
+		}
+		// A different session (or first session after suppress) is a new recording.
+		suppressedSessionId = nil
+
 		guard let startedAt = parseRecordingDate(rawStartedAt) else {
-			reset()
+			clearActiveTracking()
 			return
 		}
 
@@ -54,7 +69,6 @@ final class LongRecordingPromptCoordinator {
 
 	func advance(now: Date) -> LongRecordingPromptAction? {
 		guard activeRecordingId != nil else {
-			reset()
 			return nil
 		}
 
@@ -65,7 +79,8 @@ final class LongRecordingPromptCoordinator {
 				presentedPrompt?.remainingSeconds = remaining
 			}
 			if remaining <= 0 {
-				reset()
+				suppressedSessionId = activeRecordingId
+				clearActiveTracking()
 				return .stop
 			}
 			return nil
@@ -85,7 +100,8 @@ final class LongRecordingPromptCoordinator {
 	}
 
 	func stopRecording() -> LongRecordingPromptAction {
-		reset()
+		suppressedSessionId = activeRecordingId ?? presentedPrompt?.recordingId
+		clearActiveTracking()
 		return .stop
 	}
 
@@ -99,7 +115,7 @@ final class LongRecordingPromptCoordinator {
 		)
 	}
 
-	private func reset() {
+	private func clearActiveTracking() {
 		activeRecordingId = nil
 		activeRecordingStartedAt = nil
 		nextPromptAt = nil

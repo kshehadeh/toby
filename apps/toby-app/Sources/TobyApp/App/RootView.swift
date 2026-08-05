@@ -1237,8 +1237,14 @@ struct RootView: View {
     }
 
     private func updateLongRecordingPromptState(now: Date) {
+        // Only treat capture as live for the long-recording prompt. While stop
+        // is in flight or post-stop processing/transcription runs, listenStatus
+        // can still report active until native stop returns — do not re-prompt.
+        let isLiveCapture = store.isRecordingActive
+            && !store.isListenRequestInFlight
+            && store.recordingProcessing == nil
         longRecordingPromptCoordinator.updateRecordingStatus(
-            isActive: store.isRecordingActive,
+            isActive: isLiveCapture,
             sessionId: store.listenStatus?.session?.id,
             startedAt: store.listenStatus?.session?.startedAt
         )

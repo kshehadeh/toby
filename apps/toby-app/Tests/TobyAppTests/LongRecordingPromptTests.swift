@@ -88,6 +88,86 @@ struct LongRecordingPromptTests {
 		#expect(coordinator.advance(now: startedAt.addingTimeInterval(60 * 60)) == nil)
 	}
 
+	@Test("stop suppresses re-present while same session still reports active")
+	func stopSuppressesRepromptDuringAsyncStop() {
+		let coordinator = LongRecordingPromptCoordinator()
+		let dueAt = startedAt.addingTimeInterval(60 * 60)
+
+		coordinator.updateRecordingStatus(
+			isActive: true,
+			sessionId: "recording-1",
+			startedAt: startedAtString
+		)
+		#expect(coordinator.advance(now: dueAt) == .present)
+
+		// User taps Stop and Save — coordinator resets and suppresses this session.
+		#expect(coordinator.stopRecording() == .stop)
+		#expect(coordinator.presentedPrompt == nil)
+		#expect(coordinator.suppressedSessionIdForTesting == "recording-1")
+
+		// Listen status has not flipped idle yet (async native stop / process).
+		coordinator.updateRecordingStatus(
+			isActive: true,
+			sessionId: "recording-1",
+			startedAt: startedAtString
+		)
+		// Would be due again because startedAt + 1h is in the past — must not re-present.
+		#expect(coordinator.advance(now: dueAt.addingTimeInterval(5)) == nil)
+		#expect(coordinator.presentedPrompt == nil)
+		#expect(coordinator.nextPromptDateForTesting == nil)
+	}
+
+	@Test("countdown stop also suppresses same-session re-present")
+	func countdownStopSuppressesReprompt() {
+		let coordinator = LongRecordingPromptCoordinator()
+		let dueAt = startedAt.addingTimeInterval(60 * 60)
+
+		coordinator.updateRecordingStatus(
+			isActive: true,
+			sessionId: "recording-1",
+			startedAt: startedAtString
+		)
+		#expect(coordinator.advance(now: dueAt) == .present)
+		#expect(coordinator.advance(now: dueAt.addingTimeInterval(60)) == .stop)
+		#expect(coordinator.suppressedSessionIdForTesting == "recording-1")
+
+		coordinator.updateRecordingStatus(
+			isActive: true,
+			sessionId: "recording-1",
+			startedAt: startedAtString
+		)
+		#expect(coordinator.advance(now: dueAt.addingTimeInterval(90)) == nil)
+		#expect(coordinator.presentedPrompt == nil)
+	}
+
+	@Test("new recording session after stop can schedule prompts again")
+	func newSessionAfterStopCanPrompt() {
+		let coordinator = LongRecordingPromptCoordinator()
+		let dueAt = startedAt.addingTimeInterval(60 * 60)
+
+		coordinator.updateRecordingStatus(
+			isActive: true,
+			sessionId: "recording-1",
+			startedAt: startedAtString
+		)
+		#expect(coordinator.advance(now: dueAt) == .present)
+		_ = coordinator.stopRecording()
+
+		let secondStart = startedAt.addingTimeInterval(2 * 60 * 60)
+		let formatter = ISO8601DateFormatter()
+		formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+		let secondStartString = formatter.string(from: secondStart)
+
+		coordinator.updateRecordingStatus(
+			isActive: true,
+			sessionId: "recording-2",
+			startedAt: secondStartString
+		)
+		#expect(coordinator.suppressedSessionIdForTesting == nil)
+		#expect(coordinator.nextPromptDateForTesting == secondStart.addingTimeInterval(60 * 60))
+		#expect(coordinator.advance(now: secondStart.addingTimeInterval(60 * 60)) == .present)
+	}
+
 	@Test("confirmation view renders countdown")
 	func confirmationViewRendersCountdown() throws {
 		let view = LongRecordingConfirmationView(

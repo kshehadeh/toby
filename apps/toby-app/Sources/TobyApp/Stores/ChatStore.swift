@@ -465,6 +465,16 @@ final class ChatStore {
 	private func stopRecording() async {
 		isListenRequestInFlight = true
 		defer { isListenRequestInFlight = false }
+		// Clear live-capture status immediately so UI (long-recording prompt,
+		// active sidebar row, record button) does not treat async stop /
+		// combine / transcription as "still recording".
+		listenStatus = ListenStatusResponse(
+			status: "idle",
+			session: nil,
+			outputDir: listenStatus?.outputDir,
+			message: "Stopping…",
+			error: nil,
+		)
 		recordingProcessing = RecordingProcessingState(stage: .generatingAudio)
 		toast = recordingProcessing?.toastState()
 		activityLine = "Generating final audio…"
