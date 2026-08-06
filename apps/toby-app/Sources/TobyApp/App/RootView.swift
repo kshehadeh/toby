@@ -447,6 +447,7 @@ struct RootView: View {
                 isServerRestarting: store.isServerRestarting,
                 isServerConnecting: store.isServerConnecting,
                 serverLifecycleMessage: store.serverLifecycleMessage,
+                isRecordingActive: store.isRecordingActive,
                 updateStore: updateStore,
                 onSelectRoute: navigateToRoute,
                 isPersonaPickerPresented: $isPersonaPickerPresented,

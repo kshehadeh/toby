@@ -7,6 +7,7 @@ struct SidebarHeader: View {
 	let isServerRestarting: Bool
 	var isServerConnecting: Bool = false
 	var serverLifecycleMessage: String? = nil
+	var isRecordingActive: Bool = false
 	let updateStore: UpdateStore?
 	let onCheckForUpdates: () -> Void
 	let onRestartServer: () -> Void
@@ -35,10 +36,17 @@ struct SidebarHeader: View {
 						.aspectRatio(contentMode: .fit)
 						.frame(width: 33, height: 33)
 					VStack(alignment: .leading, spacing: 0) {
-						Text("TOBY")
-							.font(.system(size: 19, weight: .bold))
-							.foregroundStyle(AppTheme.primaryText)
-							.fixedSize(horizontal: true, vertical: false)
+						HStack(alignment: .center, spacing: 6) {
+							Text("TOBY")
+								.font(.system(size: 19, weight: .bold))
+								.foregroundStyle(AppTheme.primaryText)
+								.fixedSize(horizontal: true, vertical: false)
+							if isRecordingActive {
+								ActivePulseIcon(color: .red, isProminent: true)
+									.accessibilityIdentifier("sidebar-recording-indicator")
+									.accessibilityLabel("Recording in progress")
+							}
+						}
 						if let version = status?.version {
 							if updateStore?.isUpgrading == true {
 								Text("Updating")
@@ -81,7 +89,11 @@ struct SidebarHeader: View {
 			}
 			.buttonStyle(.plain)
 			.disabled(updateStore?.isUpgrading == true)
-			.accessibilityLabel("Toby version \(status?.version ?? "")")
+			.accessibilityLabel(
+				isRecordingActive
+					? "Toby version \(status?.version ?? ""), recording in progress"
+					: "Toby version \(status?.version ?? "")"
+			)
 			.accessibilityHint("Check for updates")
 			Spacer(minLength: 0)
 			ServerStatusButton(

@@ -498,6 +498,67 @@ struct AppSidebarTests {
         #expect(restartCount == 1)
     }
 
+    @Test("sidebar header hides recording indicator when idle")
+    func sidebarHeaderHidesRecordingIndicatorWhenIdle() throws {
+        let header = SidebarHeader(
+            status: nil,
+            daemonStatus: nil,
+            isServerRestarting: false,
+            isRecordingActive: false,
+            updateStore: nil,
+            onCheckForUpdates: {},
+            onRestartServer: {}
+        )
+        #expect(throws: (any Error).self) {
+            try header.inspect().find(viewWithAccessibilityIdentifier: "sidebar-recording-indicator")
+        }
+    }
+
+    @Test("sidebar header shows recording indicator while recording")
+    func sidebarHeaderShowsRecordingIndicatorWhileRecording() throws {
+        let header = SidebarHeader(
+            status: nil,
+            daemonStatus: nil,
+            isServerRestarting: false,
+            isRecordingActive: true,
+            updateStore: nil,
+            onCheckForUpdates: {},
+            onRestartServer: {}
+        )
+        #expect(throws: Never.self) {
+            try header.inspect().find(viewWithAccessibilityIdentifier: "sidebar-recording-indicator")
+        }
+        let buttons = try header.inspect().findAll(ViewType.Button.self)
+        let tobyButton = try buttons.first { btn in
+            let label = try? btn.accessibilityLabel().string()
+            return label?.contains("recording in progress") == true
+        }
+        try #require(tobyButton != nil, "Toby header button should mention recording")
+    }
+
+    @Test("app sidebar passes recording state into header")
+    func appSidebarShowsRecordingIndicatorWhenActive() throws {
+        let sidebar = AppSidebar(
+            currentRoute: .chat,
+            status: nil,
+            daemonStatus: nil,
+            isServerRestarting: false,
+            isRecordingActive: true,
+            updateStore: nil,
+            onSelectRoute: { _ in },
+            isPersonaPickerPresented: .constant(false),
+            onCreatePersona: {},
+            onEditPersona: { _ in },
+            onPersonaSelected: {},
+            onCheckForUpdates: {},
+            onRestartServer: {},
+            sidebarContent: { EmptyView() }
+        )
+        #expect(throws: Never.self) {
+            try sidebar.inspect().find(viewWithAccessibilityIdentifier: "sidebar-recording-indicator")
+        }
+    }
+
     @Test("server status details server info button calls callback")
     func serverStatusDetailsServerInfoButtonCallsCallback() throws {
         var infoCount = 0
