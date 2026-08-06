@@ -46,10 +46,7 @@ struct ConfigBackupSheet: View {
 			}
 
 			if let localError {
-				Text(localError)
-					.font(.caption)
-					.foregroundStyle(.red)
-					.fixedSize(horizontal: false, vertical: true)
+				InlineStatusMessage(message: localError, tone: .error, font: .caption)
 			}
 
 			HStack {
@@ -171,10 +168,7 @@ struct ConfigRestoreSheet: View {
 			}
 
 			if let localError {
-				Text(localError)
-					.font(.caption)
-					.foregroundStyle(.red)
-					.fixedSize(horizontal: false, vertical: true)
+				InlineStatusMessage(message: localError, tone: .error, font: .caption)
 			}
 
 			HStack {

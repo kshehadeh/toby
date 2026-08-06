@@ -136,9 +136,7 @@ struct FlowDetailContent: View {
 				}
 
 				if let errorMessage = store.errorMessage, !store.flows.isEmpty {
-					Text(errorMessage)
-						.font(.caption)
-						.foregroundStyle(.red)
+					InlineStatusMessage(message: errorMessage, tone: .error, font: .caption)
 				}
 			}
 			.padding(24)

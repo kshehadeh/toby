@@ -79,10 +79,7 @@ struct RecordingAudioPlayerView: View {
 				}
 
 				if let errorMessage = audioPlayer.errorMessage {
-					Text(errorMessage)
-						.font(.caption)
-						.foregroundStyle(.red.opacity(0.85))
-						.fixedSize(horizontal: false, vertical: true)
+					InlineStatusMessage(message: errorMessage, tone: .error, font: .caption)
 				}
 			}
 			.padding(.horizontal, SettingsDesign.rowHorizontalPadding)

@@ -162,10 +162,7 @@ struct ScheduleInspectorSidebar: View {
                 .accessibilityIdentifier("validate-schedule-button")
             }
             if let error = store.cronValidationErrors[schedule.id], !error.isEmpty {
-                Text(error)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
+                InlineStatusMessage(message: error, tone: .error, font: .system(size: 11))
             }
         }
     }

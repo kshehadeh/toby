@@ -252,11 +252,8 @@ struct PersonaEditorFormView: View {
 	private var footer: some View {
 		HStack(spacing: 12) {
 			if let errorMessage = store.errorMessage {
-				Text(errorMessage)
-					.font(.caption)
-					.foregroundStyle(.red)
+				InlineStatusMessage(message: errorMessage, tone: .error, font: .caption)
 					.lineLimit(2)
-					.frame(maxWidth: .infinity, alignment: .leading)
 			} else if store.hasUnsavedChanges {
 				Text("Unsaved changes")
 					.font(.caption)

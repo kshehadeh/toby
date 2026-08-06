@@ -12,10 +12,7 @@ struct SkillsDetailView: View {
 				VStack(spacing: 0) {
 					SkillDetailContent(store: store, skill: skill)
 					if let errorMessage = store.errorMessage, !store.skills.isEmpty {
-						Text(errorMessage)
-							.font(.caption)
-							.foregroundStyle(.red)
-							.frame(maxWidth: .infinity, alignment: .leading)
+						InlineStatusMessage(message: errorMessage, tone: .error, font: .caption)
 							.padding(.horizontal, 24)
 							.padding(.bottom, 12)
 					}

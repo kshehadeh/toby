@@ -121,10 +121,7 @@ struct MemoriesDetailView: View {
 			.tableStyle(.inset)
 			.frame(maxWidth: .infinity, maxHeight: .infinity)
 			if let errorMessage = store.errorMessage, !store.memories.isEmpty {
-				Text(errorMessage)
-					.font(.caption)
-					.foregroundStyle(.red)
-					.frame(maxWidth: .infinity, alignment: .leading)
+				InlineStatusMessage(message: errorMessage, tone: .error, font: .caption)
 					.padding(.horizontal, 16)
 					.padding(.bottom, 8)
 			}

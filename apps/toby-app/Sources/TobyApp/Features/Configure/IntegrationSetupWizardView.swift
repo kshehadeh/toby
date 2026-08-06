@@ -274,18 +274,6 @@ struct IntegrationSetupWizardView: View {
 	}
 
 	private func errorLabel(_ message: String) -> some View {
-		HStack(spacing: 8) {
-			Image(systemName: "exclamationmark.triangle")
-				.foregroundStyle(Color.red)
-			Text(message)
-				.font(.subheadline)
-				.foregroundStyle(Color.red.opacity(0.85))
-				.fixedSize(horizontal: false, vertical: true)
-		}
-		.padding(12)
-		.background(
-			RoundedRectangle(cornerRadius: SettingsDesign.controlCornerRadius)
-				.fill(Color.red.opacity(0.08))
-		)
+		InlineStatusMessage(message: message, tone: .error)
 	}
 }

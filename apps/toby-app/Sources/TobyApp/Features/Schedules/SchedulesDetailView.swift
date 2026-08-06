@@ -25,9 +25,8 @@ struct SchedulesDetailView: View {
 			}
 
 			if let errorMessage = store.errorMessage, !store.schedules.isEmpty {
-				Text(errorMessage)
-					.font(.caption)
-					.foregroundStyle(.red)
+				InlineStatusMessage(message: errorMessage, tone: .error, font: .caption)
+					.padding(.horizontal, 16)
 					.padding(.bottom, 8)
 			}
 		}

@@ -85,10 +85,7 @@ struct PersonaPickerPopover: View {
 			.accessibilityIdentifier("persona-picker-manage-personas")
 
 			if let errorMessage {
-				Text(errorMessage)
-					.font(.caption)
-					.foregroundStyle(.red)
-					.fixedSize(horizontal: false, vertical: true)
+				InlineStatusMessage(message: errorMessage, tone: .error, font: .caption)
 			}
 		}
 		.padding(12)

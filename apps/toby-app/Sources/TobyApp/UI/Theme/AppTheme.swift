@@ -14,6 +14,14 @@ enum AppTheme {
 	static let tertiaryText = Color(nsColor: .tobyTertiaryText)
 	static let selection = Color(nsColor: .tobySelection)
 
+	// Inline status callouts (filled + outlined blocks for success / error)
+	static let statusErrorBackground = Color(nsColor: .tobyStatusErrorBackground)
+	static let statusErrorBorder = Color(nsColor: .tobyStatusErrorBorder)
+	static let statusErrorForeground = Color(nsColor: .tobyStatusErrorForeground)
+	static let statusSuccessBackground = Color(nsColor: .tobyStatusSuccessBackground)
+	static let statusSuccessBorder = Color(nsColor: .tobyStatusSuccessBorder)
+	static let statusSuccessForeground = Color(nsColor: .tobyStatusSuccessForeground)
+
 	/// Brand accent from the user's Appearance preset (default orange).
 	static var accent: Color {
 		AccentPreset.current.color

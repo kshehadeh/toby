@@ -24,9 +24,7 @@ struct ConfigureDetailView: View {
 				}
 
 				if let errorMessage = store.errorMessage, !store.settingsSections.isEmpty {
-					Text(errorMessage)
-						.font(.caption)
-						.foregroundStyle(.red)
+					InlineStatusMessage(message: errorMessage, tone: .error, font: .caption)
 				}
 			}
 			.frame(maxWidth: SettingsDesign.contentMaxWidth)

@@ -81,12 +81,14 @@ struct ScheduleRunDetailView: View {
 
 			if let error = run.error, !error.isEmpty {
 				ScheduleSection(title: "Error") {
-					Text(error)
-						.font(.body)
-						.foregroundStyle(.red)
-						.frame(maxWidth: .infinity, alignment: .leading)
-						.padding(SettingsDesign.rowHorizontalPadding)
-						.padding(.vertical, SettingsDesign.rowVerticalPadding)
+					InlineStatusMessage(
+						message: error,
+						tone: .error,
+						font: .body,
+						allowsTextSelection: true
+					)
+					.padding(SettingsDesign.rowHorizontalPadding)
+					.padding(.vertical, SettingsDesign.rowVerticalPadding)
 				}
 			}
 

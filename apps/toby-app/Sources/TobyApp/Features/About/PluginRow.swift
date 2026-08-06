@@ -12,27 +12,26 @@ struct PluginRow: View {
 	}
 
 	var body: some View {
-		HStack(alignment: .firstTextBaseline, spacing: 6) {
-			HStack(alignment: .firstTextBaseline, spacing: 4) {
-				Text(plugin.displayName)
-					.font(.callout)
-					.foregroundStyle(AppTheme.primaryText)
-				if let version = plugin.version, !version.isEmpty {
-					Text("v\(version)")
-						.font(.caption)
-						.foregroundStyle(AppTheme.tertiaryText)
+		VStack(alignment: .leading, spacing: 6) {
+			HStack(alignment: .firstTextBaseline, spacing: 6) {
+				HStack(alignment: .firstTextBaseline, spacing: 4) {
+					Text(plugin.displayName)
+						.font(.callout)
+						.foregroundStyle(AppTheme.primaryText)
+					if let version = plugin.version, !version.isEmpty {
+						Text("v\(version)")
+							.font(.caption)
+							.foregroundStyle(AppTheme.tertiaryText)
+					}
 				}
+				Spacer(minLength: 0)
+				Text(plugin.statusLabel)
+					.font(.caption.weight(.medium))
+					.foregroundStyle(statusColor)
 			}
-			if plugin.state == "invalid", let error = plugin.error {
-				Text(error)
-					.font(.caption)
-					.foregroundStyle(.red)
-					.lineLimit(1)
+			if plugin.state == "invalid", let error = plugin.error, !error.isEmpty {
+				InlineStatusMessage(message: error, tone: .error, font: .caption)
 			}
-			Spacer(minLength: 0)
-			Text(plugin.statusLabel)
-				.font(.caption.weight(.medium))
-				.foregroundStyle(statusColor)
 		}
 		.padding(.vertical, 3)
 	}

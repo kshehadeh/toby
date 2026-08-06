@@ -161,10 +161,7 @@ struct ServerInfoView: View {
 						.font(.callout)
 						.foregroundStyle(AppTheme.tertiaryText)
 				} else if let pluginError {
-					Text(pluginError)
-						.font(.callout)
-						.foregroundStyle(.red)
-						.fixedSize(horizontal: false, vertical: true)
+					InlineStatusMessage(message: pluginError, tone: .error, font: .callout)
 				} else if let pluginCount {
 					Text(pluginCount == 1 ? "1 registered" : "\(pluginCount) registered")
 						.font(.callout)

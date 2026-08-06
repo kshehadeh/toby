@@ -74,11 +74,12 @@ struct FlowRunDetailView: View {
 
 			if let error = run.error, !error.isEmpty {
 				section(title: "Error") {
-					Text(error)
-						.font(.body)
-						.foregroundStyle(.red)
-						.frame(maxWidth: .infinity, alignment: .leading)
-						.textSelection(.enabled)
+					InlineStatusMessage(
+						message: error,
+						tone: .error,
+						font: .body,
+						allowsTextSelection: true
+					)
 				}
 			}
 
@@ -203,10 +204,12 @@ private struct FlowRunNodeBlock: View {
 			if isExpanded {
 				VStack(alignment: .leading, spacing: 8) {
 					if let error = node.error, !error.isEmpty {
-						Text(error)
-							.font(.system(size: 11))
-							.foregroundStyle(.red)
-							.textSelection(.enabled)
+						InlineStatusMessage(
+							message: error,
+							tone: .error,
+							font: .system(size: 11),
+							allowsTextSelection: true
+						)
 					}
 					if let inputs = node.inputs {
 						labeledJSON("Inputs", inputs.prettyPrinted())

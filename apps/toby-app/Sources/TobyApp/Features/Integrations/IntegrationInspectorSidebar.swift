@@ -86,11 +86,12 @@ struct IntegrationInspectorSidebar: View {
 						.foregroundStyle(SettingsDesign.rowTitle)
 				}
 				if let health = status.health, let details = health.details, !details.isEmpty {
-					Text(details)
-						.font(.system(size: 11))
-						.foregroundStyle(health.ok ? Color.green.opacity(0.85) : Color.red.opacity(0.85))
-						.fixedSize(horizontal: false, vertical: true)
-						.textSelection(.enabled)
+					InlineStatusMessage(
+						message: details,
+						tone: health.ok ? .success : .error,
+						font: .system(size: 11),
+						allowsTextSelection: true
+					)
 				}
 			} else {
 				Text("Status unavailable")

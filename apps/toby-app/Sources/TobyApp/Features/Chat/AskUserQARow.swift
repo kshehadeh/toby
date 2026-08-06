@@ -14,10 +14,12 @@ struct AskUserQARow: View {
 					.font(AppTheme.transcriptCalloutFont.weight(.semibold))
 					.foregroundStyle(AppTheme.primaryText)
 				if let error {
-					Text(error)
-						.font(AppTheme.transcriptCalloutFont)
-						.foregroundStyle(.red)
-						.textSelection(.enabled)
+					InlineStatusMessage(
+						message: error,
+						tone: .error,
+						font: AppTheme.transcriptCalloutFont,
+						allowsTextSelection: true
+					)
 				} else {
 					Text(answer)
 						.font(AppTheme.transcriptCalloutFont)

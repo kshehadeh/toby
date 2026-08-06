@@ -168,19 +168,7 @@ struct IntegrationDetailContent: View {
                     .stroke(SettingsDesign.cardBorder, lineWidth: 1)
             }
         } else if let guide, !guide.ok, let error = guide.error {
-            HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .foregroundStyle(Color.red)
-                Text(error)
-                    .font(.subheadline)
-                    .foregroundStyle(Color.red.opacity(0.85))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: SettingsDesign.controlCornerRadius)
-                    .fill(Color.red.opacity(0.08))
-            )
+            InlineStatusMessage(message: error, tone: .error)
         }
     }
 

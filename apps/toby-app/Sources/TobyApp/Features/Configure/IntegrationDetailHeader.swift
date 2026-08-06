@@ -39,10 +39,10 @@ struct IntegrationDetailHeader: View {
 				}
 
 				if let health = status.health, let details = health.details, !details.isEmpty {
-					Text(details)
-						.font(.subheadline)
-						.foregroundStyle(health.ok ? Color.green.opacity(0.85) : Color.red.opacity(0.85))
-						.fixedSize(horizontal: false, vertical: true)
+					InlineStatusMessage(
+						message: details,
+						tone: health.ok ? .success : .error
+					)
 				}
 
 				HStack(spacing: 10) {

@@ -272,11 +272,12 @@ struct RecordingInspectorSidebar: View {
 			Text("Errors")
 				.font(.system(size: 12, weight: .semibold))
 				.foregroundStyle(SettingsDesign.rowTitle)
-			Text(visibleErrors.joined(separator: "\n"))
-				.font(.system(size: 11))
-				.foregroundStyle(.red.opacity(0.85))
-				.textSelection(.enabled)
-				.fixedSize(horizontal: false, vertical: true)
+			InlineStatusMessage(
+				message: visibleErrors.joined(separator: "\n"),
+				tone: .error,
+				font: .system(size: 11),
+				allowsTextSelection: true
+			)
 		}
 	}
 

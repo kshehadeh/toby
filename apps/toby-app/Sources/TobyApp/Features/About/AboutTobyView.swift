@@ -115,10 +115,7 @@ struct AboutTobyView: View {
 					.font(.callout)
 					.foregroundStyle(AppTheme.tertiaryText)
 			} else if let error = pluginsStore.errorMessage {
-				Text(error)
-					.font(.caption)
-					.foregroundStyle(.red)
-					.fixedSize(horizontal: false, vertical: true)
+				InlineStatusMessage(message: error, tone: .error, font: .caption)
 			} else if pluginsStore.plugins.isEmpty {
 				Text("No plugins installed.")
 					.font(.callout)

@@ -48,10 +48,7 @@ struct VercelAIGatewaySetupWizardView: View {
 								.foregroundStyle(AppTheme.secondaryText)
 						}
 					} else if let guideError {
-						Text(guideError)
-							.font(.subheadline)
-							.foregroundStyle(.red)
-							.fixedSize(horizontal: false, vertical: true)
+						InlineStatusMessage(message: guideError, tone: .error)
 					} else if let guide {
 						if let description = guide.description, !description.isEmpty {
 							Text(description)
@@ -194,17 +191,11 @@ struct VercelAIGatewaySetupWizardView: View {
 			}
 
 			if let submitError {
-				Text(submitError)
-					.font(.caption)
-					.foregroundStyle(.red)
-					.fixedSize(horizontal: false, vertical: true)
+				InlineStatusMessage(message: submitError, tone: .error, font: .caption)
 					.accessibilityIdentifier("ai-provider-setup-error")
 			}
 			if let successMessage {
-				Label(successMessage, systemImage: "checkmark.circle.fill")
-					.font(.subheadline.weight(.medium))
-					.foregroundStyle(Color.green)
-					.fixedSize(horizontal: false, vertical: true)
+				InlineStatusMessage(message: successMessage, tone: .success)
 					.accessibilityIdentifier("ai-provider-setup-success")
 			}
 		}

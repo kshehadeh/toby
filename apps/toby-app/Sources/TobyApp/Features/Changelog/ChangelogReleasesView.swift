@@ -10,10 +10,7 @@ struct ChangelogReleasesView: View {
 			if store.isLoading && store.changelog == nil {
 				ChangelogSkeletonView()
 			} else if let errorMessage = store.errorMessage {
-				Text(errorMessage)
-					.font(.callout)
-					.foregroundStyle(.red)
-					.fixedSize(horizontal: false, vertical: true)
+				InlineStatusMessage(message: errorMessage, tone: .error, font: .callout)
 					.padding(.top, 8)
 			} else if let releases = store.changelog?.releases, !releases.isEmpty {
 				ScrollView {

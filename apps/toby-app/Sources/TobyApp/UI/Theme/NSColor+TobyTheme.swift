@@ -123,6 +123,44 @@ extension NSColor {
 		dark: (1, 1, 1, 0.16)
 	)
 
+	// MARK: Inline status callouts (success / error)
+
+	static let tobyStatusErrorBackground = tobyDynamic(
+		name: "tobyStatusErrorBackground",
+		light: (0.98, 0.93, 0.93, 1),
+		dark: (0.28, 0.12, 0.12, 1)
+	)
+
+	static let tobyStatusErrorBorder = tobyDynamic(
+		name: "tobyStatusErrorBorder",
+		light: (0.72, 0.22, 0.22, 0.45),
+		dark: (0.90, 0.45, 0.45, 0.40)
+	)
+
+	static let tobyStatusErrorForeground = tobyDynamic(
+		name: "tobyStatusErrorForeground",
+		light: (0.62, 0.12, 0.12, 1),
+		dark: (0.95, 0.70, 0.70, 1)
+	)
+
+	static let tobyStatusSuccessBackground = tobyDynamic(
+		name: "tobyStatusSuccessBackground",
+		light: (0.93, 0.97, 0.94, 1),
+		dark: (0.12, 0.22, 0.16, 1)
+	)
+
+	static let tobyStatusSuccessBorder = tobyDynamic(
+		name: "tobyStatusSuccessBorder",
+		light: (0.18, 0.55, 0.30, 0.45),
+		dark: (0.45, 0.85, 0.55, 0.40)
+	)
+
+	static let tobyStatusSuccessForeground = tobyDynamic(
+		name: "tobyStatusSuccessForeground",
+		light: (0.12, 0.42, 0.22, 1),
+		dark: (0.70, 0.92, 0.75, 1)
+	)
+
 	// MARK: Logs / markdown (AppKit)
 
 	static let tobyLogBackground = tobyDynamic(
