@@ -168,7 +168,24 @@ struct DashboardView: View {
 extension DashboardView {
 	/// The macOS account holder's first name, used for the greeting.
 	static func defaultUserName() -> String {
-		let full = NSFullUserName().trimmingCharacters(in: .whitespacesAndNewlines)
+		userName(from: NSFullUserName())
+	}
+
+	/// Short greeting name from a macOS full name.
+	/// Supports `"First Last"` and `"Last, First"` (last-name-first with comma).
+	static func userName(from fullName: String) -> String {
+		let full = fullName.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard !full.isEmpty else { return "there" }
+
+		// "Shehadeh, Karim" → first name after the comma
+		if let comma = full.firstIndex(of: ",") {
+			let afterComma = full[full.index(after: comma)...]
+				.trimmingCharacters(in: .whitespacesAndNewlines)
+			if let first = afterComma.split(separator: " ").first, !first.isEmpty {
+				return String(first)
+			}
+		}
+
 		if let first = full.split(separator: " ").first, !first.isEmpty {
 			return String(first)
 		}

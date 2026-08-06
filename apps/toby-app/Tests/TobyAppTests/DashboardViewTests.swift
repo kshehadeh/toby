@@ -177,6 +177,25 @@ struct DashboardNavigationTests {
 		let evening = Calendar.current.date(from: components)!
 		#expect(DashboardView.greetingPrefix(for: evening) == "Good evening")
 	}
+
+	@Test("userName uses first word of First Last format")
+	func userNameFromFirstLast() {
+		#expect(DashboardView.userName(from: "Karim Shehadeh") == "Karim")
+		#expect(DashboardView.userName(from: "Karim") == "Karim")
+	}
+
+	@Test("userName uses first name after comma for Last, First format")
+	func userNameFromLastCommaFirst() {
+		#expect(DashboardView.userName(from: "Shehadeh, Karim") == "Karim")
+		#expect(DashboardView.userName(from: "Shehadeh, Karim A.") == "Karim")
+		#expect(DashboardView.userName(from: "  Shehadeh,  Karim  ") == "Karim")
+	}
+
+	@Test("userName falls back to there when empty")
+	func userNameEmptyFallback() {
+		#expect(DashboardView.userName(from: "") == "there")
+		#expect(DashboardView.userName(from: "   ") == "there")
+	}
 }
 
 @MainActor
