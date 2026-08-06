@@ -267,43 +267,49 @@ struct CommandPaletteView: View {
 
 			Divider().overlay(AppTheme.separator)
 
-			if results.isEmpty {
-				Text("No matching results")
-					.font(.callout)
-					.foregroundStyle(AppTheme.secondaryText)
-					.frame(maxWidth: .infinity, alignment: .leading)
-					.padding(16)
-			} else {
-				ScrollViewReader { proxy in
-					ScrollView {
-						LazyVStack(spacing: 2) {
-							ForEach(Array(results.enumerated()), id: \.element.id) { index, result in
-								Button {
-									selectedIndex = index
-									activate(result)
-								} label: {
-									CommandPaletteRow(
-										result: result,
-										isSelected: index == selectedIndex,
-									)
+			Group {
+				if results.isEmpty {
+					Text("No matching results")
+						.font(.callout)
+						.foregroundStyle(AppTheme.secondaryText)
+						.padding(16)
+						.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+				} else {
+					ScrollViewReader { proxy in
+						ScrollView {
+							LazyVStack(spacing: 2) {
+								ForEach(Array(results.enumerated()), id: \.element.id) { index, result in
+									Button {
+										selectedIndex = index
+										activate(result)
+									} label: {
+										CommandPaletteRow(
+											result: result,
+											isSelected: index == selectedIndex,
+										)
+									}
+									.buttonStyle(.plain)
+									.id(result.id)
 								}
-								.buttonStyle(.plain)
-								.id(result.id)
 							}
+							.padding(8)
 						}
-						.padding(8)
-					}
-					.onChange(of: selectedIndex) {
-						if selectedIndex < results.count {
-							withAnimation {
-								proxy.scrollTo(results[selectedIndex].id, anchor: .center)
+						.onChange(of: selectedIndex) {
+							if selectedIndex < results.count {
+								withAnimation {
+									proxy.scrollTo(results[selectedIndex].id, anchor: .center)
+								}
 							}
 						}
 					}
+					.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 				}
 			}
+			.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 		}
-		.frame(width: 560, height: 420)
+		// Fixed panel size; always top-align so short/empty result lists do not
+		// vertically center the drag handle + search field in the card.
+		.frame(width: 560, height: 420, alignment: .top)
 		.background(AppTheme.contentBackground)
 		.clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadius, style: .continuous))
 		.overlay {
