@@ -43,9 +43,6 @@ struct ProjectsSidebarView: View {
 					} else {
 						ForEach(store.projects) { project in
 							let isSelectedProject = store.selectedProjectId == project.id
-							let hasSummary = !project.summary
-								.trimmingCharacters(in: .whitespacesAndNewlines)
-								.isEmpty
 
 							VStack(alignment: .leading, spacing: 2) {
 								// Flat header (not a Button — control sizing was stretching the row).
@@ -82,15 +79,6 @@ struct ProjectsSidebarView: View {
 								.accessibilityElement(children: .combine)
 								.accessibilityLabel(project.name)
 								.accessibilityAddTraits(isSelectedProject ? [.isButton, .isSelected] : .isButton)
-
-								if hasSummary {
-									Text(project.summary)
-										.font(.system(size: 11))
-										.foregroundStyle(AppTheme.tertiaryText)
-										.lineLimit(1)
-										.padding(.horizontal, 10)
-										.padding(.leading, titleRowHeight + 8)
-								}
 
 								if isSelectedProject {
 									let sessions = store.sessions(for: project.id)
