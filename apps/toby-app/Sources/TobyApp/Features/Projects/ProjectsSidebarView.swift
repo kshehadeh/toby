@@ -7,6 +7,10 @@ struct ProjectsSidebarView: View {
 	let onSelect: (String) -> Void
 	let onSelectSession: (String) -> Void
 
+	/// Single-line title content height. Hard-capped so layout proposals cannot
+	/// stretch the project header (macOS was leaving a large empty band under the name).
+	private let titleRowHeight: CGFloat = 16
+
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
 			HStack {
@@ -39,38 +43,53 @@ struct ProjectsSidebarView: View {
 					} else {
 						ForEach(store.projects) { project in
 							let isSelectedProject = store.selectedProjectId == project.id
+							let hasSummary = !project.summary
+								.trimmingCharacters(in: .whitespacesAndNewlines)
+								.isEmpty
+
 							VStack(alignment: .leading, spacing: 2) {
-								Button {
-									onSelect(project.id)
-								} label: {
-									HStack(spacing: 8) {
-										Image(systemName: isSelectedProject ? "folder.fill" : "folder")
-											.foregroundStyle(AppTheme.accent)
-										VStack(alignment: .leading, spacing: 2) {
-											Text(project.name)
-												.font(.system(size: 13, weight: isSelectedProject ? .semibold : .medium))
-												.lineLimit(1)
-											if !project.summary.isEmpty {
-												Text(project.summary)
-													.font(.system(size: 11))
-													.foregroundStyle(AppTheme.tertiaryText)
-													.lineLimit(1)
-											}
-										}
-										Spacer(minLength: 0)
-									}
-									.padding(.horizontal, 10)
-									.padding(.vertical, 8)
+								// Flat header (not a Button — control sizing was stretching the row).
+								HStack(alignment: .center, spacing: 8) {
+									Image(systemName: isSelectedProject ? "folder.fill" : "folder")
+										.font(.system(size: 13, weight: .semibold))
+										.foregroundStyle(AppTheme.accent)
+										.frame(width: titleRowHeight, height: titleRowHeight)
+
+									Text(project.name)
+										.font(.system(size: 13, weight: isSelectedProject ? .semibold : .medium))
+										.lineLimit(1)
+										.frame(height: titleRowHeight, alignment: .leading)
+
+									Spacer(minLength: 0)
 								}
-								.buttonStyle(.plain)
-								if isSelectedProject {
-									Rectangle()
-										.fill(AppTheme.accent)
-										.frame(maxWidth: .infinity)
-										.frame(height: 1)
+								.frame(height: titleRowHeight)
+								.padding(.horizontal, 10)
+								.padding(.top, 4)
+								.padding(.bottom, 2)
+								// Total header height is fixed: 16 + 4 + 2 = 22.
+								.frame(height: titleRowHeight + 6)
+								.frame(maxWidth: .infinity, alignment: .leading)
+								.overlay(alignment: .bottom) {
+									if isSelectedProject {
+										Rectangle()
+											.fill(AppTheme.accent)
+											.frame(height: 1)
+											.padding(.horizontal, 10)
+									}
+								}
+								.contentShape(Rectangle())
+								.onTapGesture { onSelect(project.id) }
+								.accessibilityElement(children: .combine)
+								.accessibilityLabel(project.name)
+								.accessibilityAddTraits(isSelectedProject ? [.isButton, .isSelected] : .isButton)
+
+								if hasSummary {
+									Text(project.summary)
+										.font(.system(size: 11))
+										.foregroundStyle(AppTheme.tertiaryText)
+										.lineLimit(1)
 										.padding(.horizontal, 10)
-										.padding(.top, 1)
-										.padding(.bottom, 5)
+										.padding(.leading, titleRowHeight + 8)
 								}
 
 								if isSelectedProject {
@@ -104,7 +123,7 @@ struct ProjectsSidebarView: View {
 												}
 												.padding(.leading, 30)
 												.padding(.trailing, 8)
-												.padding(.vertical, 5)
+												.padding(.vertical, 4)
 												.background(
 													RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
 														.fill(isActive ? AppTheme.selection.opacity(0.75) : Color.clear)
@@ -115,6 +134,8 @@ struct ProjectsSidebarView: View {
 									}
 								}
 							}
+							.fixedSize(horizontal: false, vertical: true)
+							.frame(maxWidth: .infinity, alignment: .topLeading)
 						}
 					}
 				}
