@@ -85,14 +85,12 @@ struct RecordingDetailContent: View {
 			Text("Transcript")
 				.font(.system(size: 13, weight: .semibold))
 				.foregroundStyle(SettingsDesign.rowTitle)
-			Text("Read-only transcript of the recording")
+			Text(transcriptCaption)
 				.font(.caption)
 				.foregroundStyle(SettingsDesign.rowDescription)
 
 			ScrollView {
-				Text(detail.transcript ?? detail.transcriptError ?? "Transcript not available.")
-					.font(.body.monospaced())
-					.foregroundStyle(detail.transcript == nil ? SettingsDesign.rowDescription : SettingsDesign.rowTitle)
+				transcriptBody
 					.textSelection(.enabled)
 					.frame(maxWidth: .infinity, alignment: .leading)
 					.padding(12)
@@ -104,9 +102,7 @@ struct RecordingDetailContent: View {
 					.stroke(SettingsDesign.cardBorder, lineWidth: 1)
 			}
 			.overlay(alignment: .topTrailing) {
-				if let transcript = detail.transcript,
-				   !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-				{
+				if let transcript = detail.copyableTranscript {
 					CopyButton(text: transcript, label: "Copy transcript")
 						.accessibilityIdentifier("copy-transcript-button")
 						.padding(.top, 6)
@@ -114,7 +110,34 @@ struct RecordingDetailContent: View {
 				}
 			}
 			.padding(.top, 8)
+			.accessibilityIdentifier(
+				detail.hasTimedSegments ? "timed-transcript-section" : "plain-transcript-section"
+			)
 		}
 		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+	}
+
+	private var transcriptCaption: String {
+		if detail.hasTimedSegments {
+			return "Timed transcript with segment start times"
+		}
+		return "Read-only transcript of the recording"
+	}
+
+	@ViewBuilder
+	private var transcriptBody: some View {
+		if detail.hasTimedSegments {
+			Text(attributedTimedTranscript(detail.timedSegments))
+		} else if let transcript = detail.transcript,
+		          !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+		{
+			Text(transcript)
+				.font(.body.monospaced())
+				.foregroundStyle(SettingsDesign.rowTitle)
+		} else {
+			Text(detail.transcriptError ?? "Transcript not available.")
+				.font(.body.monospaced())
+				.foregroundStyle(SettingsDesign.rowDescription)
+		}
 	}
 }

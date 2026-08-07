@@ -53,6 +53,64 @@ struct RecordingsViewTests {
 		}
 	}
 
+	@Test("recordings detail shows timed transcript when segments are present")
+	func recordingsDetailShowsTimedTranscriptWhenSegmentsPresent() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(
+			id: "r1",
+			transcript: "Hello world",
+			segments: [
+				ListenTranscriptSegment(
+					text: "Hello world",
+					timestamp: 12.4,
+					duration: 1.2,
+					confidence: 1,
+					alternatives: []
+				),
+			]
+		)
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "timed-transcript-section")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Timed transcript with segment start times")
+		}
+		#expect(store.detail?.copyableTranscript == "[0:12] Hello world")
+	}
+
+	@Test("recordings detail falls back to plain transcript when segments are empty")
+	func recordingsDetailFallsBackToPlainTranscriptWhenSegmentsEmpty() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(
+			id: "r1",
+			transcript: "Hello world transcript",
+			segments: []
+		)
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "plain-transcript-section")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Read-only transcript of the recording")
+		}
+		#expect(store.detail?.copyableTranscript == "Hello world transcript")
+	}
+
+	@Test("formatTimedTranscript uses hours when needed")
+	func formatTimedTranscriptUsesHoursWhenNeeded() {
+		let segments = [
+			ListenTranscriptSegment(text: "Intro", timestamp: 3661, duration: 2, confidence: nil, alternatives: nil),
+			ListenTranscriptSegment(text: "  ", timestamp: 0, duration: 0, confidence: nil, alternatives: nil),
+			ListenTranscriptSegment(text: "Outro", timestamp: 5.6, duration: 1, confidence: nil, alternatives: nil),
+		]
+		#expect(formatTimedTranscript(segments) == "[1:01:01] Intro\n[0:06] Outro")
+	}
+
 	@Test("recordings detail hides copy transcript button when transcript is absent")
 	func recordingsDetailHidesCopyTranscriptButtonWhenAbsent() throws {
 		let store = RecordingsStore()
@@ -715,7 +773,8 @@ private func makeRecordingDetail(
 	name: String? = nil,
 	hasAudio: Bool = false,
 	chatSessionId: String? = nil,
-	summary: String? = nil
+	summary: String? = nil,
+	segments: [ListenTranscriptSegment]? = nil
 ) -> ListenRecordingDetail {
 	ListenRecordingDetail(
 		id: id,
@@ -743,6 +802,7 @@ private func makeRecordingDetail(
 		hasTranscript: transcript != nil,
 		transcript: transcript,
 		transcriptError: nil,
+		segments: segments,
 		warnings: nil,
 		hasSummary: summary != nil,
 		summary: summary,

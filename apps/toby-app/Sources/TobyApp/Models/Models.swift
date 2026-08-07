@@ -791,6 +791,16 @@ struct ListenRecordingSummaryMeta: Decodable {
 	let personaName: String?
 }
 
+/// Timed utterance from `transcript.json` / the listen detail API.
+struct ListenTranscriptSegment: Decodable, Equatable, Hashable {
+	let text: String
+	/// Segment start time in seconds from the beginning of the audio.
+	let timestamp: Double
+	let duration: Double
+	let confidence: Double?
+	let alternatives: [String]?
+}
+
 struct ListenRecordingMetadata: Decodable {
 	let id: String
 	let name: String?
@@ -818,6 +828,8 @@ struct ListenRecordingDetail: Decodable {
 	let hasTranscript: Bool
 	let transcript: String?
 	let transcriptError: String?
+	/// Timed segments from `transcript.json` when the model returned them.
+	let segments: [ListenTranscriptSegment]?
 	let warnings: [String]?
 	let hasSummary: Bool?
 	let summary: String?
@@ -826,6 +838,25 @@ struct ListenRecordingDetail: Decodable {
 	var showsSummary: Bool {
 		if let hasSummary { return hasSummary }
 		return summary?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+	}
+
+	/// Non-empty timed segments suitable for display (falls back to plain text otherwise).
+	var timedSegments: [ListenTranscriptSegment] {
+		(segments ?? []).filter { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+	}
+
+	var hasTimedSegments: Bool {
+		!timedSegments.isEmpty
+	}
+
+	/// Best text for copy/export: timed lines when segments exist, else plain transcript.
+	var copyableTranscript: String? {
+		if hasTimedSegments {
+			return formatTimedTranscript(timedSegments)
+		}
+		guard let transcript else { return nil }
+		let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+		return trimmed.isEmpty ? nil : trimmed
 	}
 
 	/// Distinct playable source tracks for the inspector player.

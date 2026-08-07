@@ -191,6 +191,7 @@ final class RecordingsStore {
 				hasTranscript: currentDetail.hasTranscript,
 				transcript: currentDetail.transcript,
 				transcriptError: currentDetail.transcriptError,
+				segments: currentDetail.segments,
 				warnings: currentDetail.warnings,
 				hasSummary: currentDetail.hasSummary,
 				summary: currentDetail.summary,

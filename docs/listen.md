@@ -17,7 +17,10 @@ Toby.app provides native recording controls and the Recordings window.
   reintroduces headphone bleed as an audible echo. Raw source WAVs are always
   kept; the Recordings player defaults to **System** for a clean mono preview.
 - Generate `transcript.txt` and `transcript.json` via the configured
-  transcription model.
+  transcription model. When the model returns timed segments (common with
+  Whisper-class models), `transcript.json` stores start time and duration per
+  segment; the Recordings window shows those timestamps and Copy uses the timed
+  text. Plain `transcript.txt` remains a single concatenated string.
 - Optionally generate `summary.md` via the configured summary persona after
   transcription (on demand from the Recordings window).
 - Write `metadata.json` next to each recording (includes optional `combine`
