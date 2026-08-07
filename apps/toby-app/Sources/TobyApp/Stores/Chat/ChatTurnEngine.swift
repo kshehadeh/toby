@@ -140,6 +140,10 @@ enum ChatTurnEngine {
 				if errorString == nil, MemoriesStore.mutatingMemoryTools.contains(toolName) {
 					NotificationCenter.default.post(name: .memoriesDidChange, object: nil)
 				}
+				// Notify skills UI when chat creates or updates a local skill.
+				if errorString == nil, SkillsStore.mutatingSkillTools.contains(toolName) {
+					NotificationCenter.default.post(name: .skillsDidChange, object: nil)
+				}
 			}
 			state.activityLine = "Thinking…"
 		case "prep_start":

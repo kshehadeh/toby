@@ -97,10 +97,19 @@ final class SkillsStore {
 		let name: String
 	}
 
+	/// Tools that create or update local skills from chat.
+	static let mutatingSkillTools: Set<String> = [
+		"createLocalSkill",
+	]
+
+	/// When true, the next `ensureLoaded` / appear path should re-fetch.
+	private(set) var isDirty = false
+
 	private let client = TobyClient()
 	private var autosaveTask: Task<Void, Never>?
 	private let autosaveDelay: Duration = .milliseconds(450)
 	private var draft: [String: String] = [:]
+	private var isQuietRefreshing = false
 
 	func load() async {
 		guard !isListLoading else { return }
@@ -130,7 +139,7 @@ final class SkillsStore {
 	}
 
 	func ensureLoaded() async {
-		if hasLoadedOnce {
+		if hasLoadedOnce, !isDirty {
 			if let selectedSkillId, selectedSkill == nil {
 				await loadDetail(id: selectedSkillId)
 			}
@@ -140,8 +149,45 @@ final class SkillsStore {
 	}
 
 	func ensureListLoaded() async {
-		guard !hasLoadedOnce else { return }
+		guard !hasLoadedOnce || isDirty else { return }
 		await loadList()
+	}
+
+	/// Mark the store stale so the next load / ensure path re-fetches.
+	/// Posted from chat when skill tools mutate data.
+	func markDirty() {
+		isDirty = true
+	}
+
+	/// Handle an external skill change (chat tools, etc.).
+	/// Refreshes immediately when the store has already loaded; otherwise marks dirty
+	/// for the next appear/ensure path.
+	func handleExternalSkillChange() {
+		markDirty()
+		guard hasLoadedOnce else { return }
+		Task { await refreshQuietly() }
+	}
+
+	/// Soft re-fetch without loading spinners (external invalidation while skills UI is open).
+	func refreshQuietly() async {
+		guard !isListLoading, !isQuietRefreshing, !isSaving else { return }
+		isQuietRefreshing = true
+		defer { isQuietRefreshing = false }
+		do {
+			try await loadListData()
+			if let selectedSkillId, skills.contains(where: { $0.id == selectedSkillId }) {
+				if let detail = try? await client.fetchSkill(dirName: selectedSkillId) {
+					selectedSkill = detail
+					pruneDraft()
+				}
+			} else if let selectedSkillId {
+				await loadDetail(id: selectedSkillId)
+			} else {
+				selectedSkill = nil
+			}
+		} catch {
+			// Quiet refresh failures are non-fatal; next explicit load retries.
+		}
 	}
 
 	func selectSkill(id: String) async {
@@ -253,6 +299,7 @@ final class SkillsStore {
 		}
 		hasLoadedOnce = true
 		lastLoadedAt = Date()
+		isDirty = false
 	}
 
 	private func pruneDraft() {

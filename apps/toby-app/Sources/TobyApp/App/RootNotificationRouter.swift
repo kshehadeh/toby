@@ -12,6 +12,7 @@ struct RootNotificationRouter: ViewModifier {
 	var onStartNewMemory: () -> Void
 	var onMemoriesDidChange: () -> Void
 	var onPersonasDidChange: () -> Void
+	var onSkillsDidChange: () -> Void
 	var onBackupConfig: () -> Void
 	var onRestoreConfig: () -> Void
 	var onOpenCommandPalette: () -> Void
@@ -62,6 +63,9 @@ struct RootNotificationRouter: ViewModifier {
 			}
 			.onReceive(NotificationCenter.default.publisher(for: .personasDidChange)) { _ in
 				onPersonasDidChange()
+			}
+			.onReceive(NotificationCenter.default.publisher(for: .skillsDidChange)) { _ in
+				onSkillsDidChange()
 			}
 	}
 

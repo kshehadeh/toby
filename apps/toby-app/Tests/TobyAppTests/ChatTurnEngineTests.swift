@@ -147,4 +147,52 @@ struct ChatTurnEngineTests {
 		#expect(state.sawToolCallThisTurn == false)
 		#expect(state.activityLine == "Waiting for your choice…")
 	}
+
+	@Test("successful createLocalSkill posts skillsDidChange")
+	func createLocalSkillPostsSkillsDidChange() throws {
+		let expectation = expectationForNotification(.skillsDidChange)
+		var state = makeState()
+		let event = try event(from: """
+			{"type":"tool_call_complete","toolName":"createLocalSkill","id":"t1","blockKey":"t1","result":{"ok":true}}
+			""")
+		ChatTurnEngine.apply(event: event, state: &state)
+		#expect(expectation.wasPosted)
+	}
+
+	@Test("failed createLocalSkill does not post skillsDidChange")
+	func failedCreateLocalSkillDoesNotPostSkillsDidChange() throws {
+		let expectation = expectationForNotification(.skillsDidChange)
+		var state = makeState()
+		let event = try event(from: """
+			{"type":"tool_call_complete","toolName":"createLocalSkill","id":"t1","blockKey":"t1","error":"disk full"}
+			""")
+		ChatTurnEngine.apply(event: event, state: &state)
+		#expect(!expectation.wasPosted)
+	}
+
+	/// Records whether a named notification is posted during the current runloop turn.
+	private final class NotificationExpectation: @unchecked Sendable {
+		private(set) var wasPosted = false
+		private var token: NSObjectProtocol?
+
+		init(name: Notification.Name) {
+			token = NotificationCenter.default.addObserver(
+				forName: name,
+				object: nil,
+				queue: nil
+			) { [weak self] _ in
+				self?.wasPosted = true
+			}
+		}
+
+		deinit {
+			if let token {
+				NotificationCenter.default.removeObserver(token)
+			}
+		}
+	}
+
+	private func expectationForNotification(_ name: Notification.Name) -> NotificationExpectation {
+		NotificationExpectation(name: name)
+	}
 }

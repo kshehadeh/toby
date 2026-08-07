@@ -26,6 +26,8 @@ extension Notification.Name {
 	/// Posted when chat (or another writer) mutates durable memory so the memories UI can refresh.
 	static let memoriesDidChange = Notification.Name("toby.memoriesDidChange")
 	static let personasDidChange = Notification.Name("toby.personasDidChange")
+	/// Posted when chat (or another writer) creates/updates a local skill so the skills UI can refresh.
+	static let skillsDidChange = Notification.Name("toby.skillsDidChange")
 }
 
 // MARK: - Notification payloads / sheet models

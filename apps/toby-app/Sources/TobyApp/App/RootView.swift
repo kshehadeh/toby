@@ -58,6 +58,7 @@ struct RootView: View {
                     await projectsStore.refreshPersonas()
                 }
             },
+            onSkillsDidChange: { skillsStore.handleExternalSkillChange() },
             onBackupConfig: {
                 bringMainWindowToFront()
                 isBackupSheetPresented = true

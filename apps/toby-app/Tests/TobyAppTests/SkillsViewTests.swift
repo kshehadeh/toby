@@ -169,4 +169,34 @@ struct SkillsViewTests {
 		#expect(store.value(for: "skill-1.description") == "Research assistant")
 		#expect(store.value(for: "skill-1.body") == "# Research")
 	}
+
+	@Test("mutating skill tools set covers write paths")
+	func mutatingSkillToolsCoverWritePaths() {
+		#expect(SkillsStore.mutatingSkillTools.contains("createLocalSkill"))
+		#expect(!SkillsStore.mutatingSkillTools.contains("loadLocalSkills"))
+		#expect(!SkillsStore.mutatingSkillTools.contains("writeTextFile"))
+	}
+
+	@Test("skills notification name is defined")
+	func skillsNotificationNameIsDefined() {
+		#expect(Notification.Name.skillsDidChange.rawValue == "toby.skillsDidChange")
+	}
+
+	@Test("handleExternalSkillChange marks store dirty when not yet loaded")
+	func handleExternalSkillChangeMarksDirtyWhenNotLoaded() {
+		let store = SkillsStore()
+		#expect(store.hasLoadedOnce == false)
+		#expect(store.isDirty == false)
+		store.handleExternalSkillChange()
+		#expect(store.isDirty == true)
+	}
+
+	@Test("markDirty sets isDirty for ensure paths")
+	func markDirtySetsIsDirty() {
+		let store = SkillsStore()
+		store.hasLoadedOnce = true
+		#expect(store.isDirty == false)
+		store.markDirty()
+		#expect(store.isDirty == true)
+	}
 }
