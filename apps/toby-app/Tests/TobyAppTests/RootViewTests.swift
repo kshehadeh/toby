@@ -13,6 +13,7 @@ struct RootViewTests {
 			configureStore: ConfigureStore(),
 			recordingsStore: RecordingsStore(),
 			schedulesStore: SchedulesStore(),
+			projectsStore: ProjectsStore(),
 			integrationsStore: ConfigureStore(),
 			skillsStore: SkillsStore(),
 			memoriesStore: MemoriesStore(),

@@ -151,6 +151,36 @@ struct TranscriptWorkGroup: Identifiable, Equatable {
 	let isActive: Bool
 }
 
+extension TranscriptEntry {
+	/// Cheap per-row stamp for cache / change detection (not full payload equality).
+	/// Used by TranscriptView grouping invalidation and ChatStore streaming writes.
+	var contentStamp: Int {
+		switch self {
+		case .user(let text, let attachments):
+			return text.count &+ attachments.count &+ 1
+		case .assistant(let text), .meta(let text), .error(let text):
+			return text.count &+ 2
+		case .notice(let text, _):
+			return text.count &+ 3
+		case .boxedStep(let payload):
+			return payload.id.hashValue
+				&+ payload.seq
+				&+ payload.body.count
+				&+ payload.header.hashValue
+				&+ (payload.fullBody?.count ?? 0)
+				&+ (payload.durationMs ?? 0)
+		case .toolCall(let blockKey, let title, _):
+			return blockKey.hashValue &+ title.count &+ 5
+		case .toolOutput(let blockKey, let detail, _):
+			return blockKey.hashValue &+ detail.count &+ 6
+		case .askUserQA(let blockKey, let query, let answer, let error):
+			return blockKey.hashValue &+ query.count &+ answer.count &+ (error?.count ?? 0) &+ 7
+		case .turnWork(let durationMs):
+			return durationMs &+ 8
+		}
+	}
+}
+
 enum TranscriptDisplayItem: Identifiable, Equatable {
 	case entry(TranscriptEntry, sourceIndex: Int)
 	case workGroup(TranscriptWorkGroup)

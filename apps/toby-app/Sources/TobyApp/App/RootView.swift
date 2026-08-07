@@ -7,7 +7,7 @@ struct RootView: View {
     @Bindable var configureStore: ConfigureStore
     @Bindable var recordingsStore: RecordingsStore
     @Bindable var schedulesStore: SchedulesStore
-    @Bindable var projectsStore: ProjectsStore = ProjectsStore()
+    @Bindable var projectsStore: ProjectsStore
     @Bindable var integrationsStore: ConfigureStore
     @Bindable var skillsStore: SkillsStore
     @Bindable var memoriesStore: MemoriesStore
@@ -25,8 +25,6 @@ struct RootView: View {
     @State private var isBackupSheetPresented = false
     @State private var restoreSelection: RestoreBackupSelection?
     @State private var pendingDeleteSession: SessionSummary?
-    @State private var isToastHovered = false
-    @State private var toastDismissTask: Task<Void, Never>?
     @State private var sidebarVisibility: NavigationSplitViewVisibility = .all
     @State private var mainWindow: NSWindow?
     @State private var sidebarActionHelp: SidebarActionHelpPresentation?
@@ -42,50 +40,78 @@ struct RootView: View {
     /// When non-nil, present guided setup for this provider id.
     @State private var aiProviderSetupProviderId: String?
 
-    private let toastDuration: UInt64 = 4_000_000_000
-
     var body: some View {
-        contentWithCreateActions
+        contentWithBackup
+            .modifier(rootNotificationRouter)
     }
 
-    /// Isolated so File → New * menu actions do not overload the type checker.
-    private var contentWithCreateActions: some View {
-        contentWithBackup
-            .onReceive(NotificationCenter.default.publisher(for: .startNewSchedule)) { _ in
-                startNewSchedule()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .startNewProject)) { _ in
-                startNewProject()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .startNewMemory)) { _ in
-                startNewMemory()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .memoriesDidChange)) { _ in
-                memoriesStore.handleExternalMemoryChange()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .personasDidChange)) { _ in
+    private var rootNotificationRouter: RootNotificationRouter {
+        RootNotificationRouter(
+            onStartNewSchedule: startNewSchedule,
+            onStartNewProject: startNewProject,
+            onStartNewMemory: startNewMemory,
+            onMemoriesDidChange: { memoriesStore.handleExternalMemoryChange() },
+            onPersonasDidChange: {
                 Task {
                     await configureStore.handlePersonasChanged()
                     await schedulesStore.refreshPersonas()
                     await projectsStore.refreshPersonas()
                 }
-            }
-    }
-
-    /// Isolated so File → Backup / Restore sheets and notifications do not
-    /// overload the type checker on the main notification/sheet chains.
-    private var contentWithBackup: some View {
-        contentWithAlerts
-            .onReceive(NotificationCenter.default.publisher(for: .backupConfig)) { _ in
+            },
+            onBackupConfig: {
                 bringMainWindowToFront()
                 isBackupSheetPresented = true
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .restoreConfig)) { _ in
+            },
+            onRestoreConfig: {
                 bringMainWindowToFront()
                 if let url = ConfigBackupFilePanels.presentOpenPanel() {
                     restoreSelection = RestoreBackupSelection(url: url)
                 }
+            },
+            onOpenCommandPalette: { presentCommandPalette(activateApplication: true) },
+            onOpenIssueReport: { isIssueReportPresented = true },
+            onOpenChangelog: presentAbout,
+            onOpenRecording: openRecording,
+            onOpenScheduleFromNotification: openScheduleFromNotification,
+            onStartNewChat: {
+                bringMainWindowToFront()
+                startNewChat()
+            },
+            onToggleRecording: toggleRecording,
+            onSecondaryWindowClosed: bringMainWindowToFront,
+            onStartChatAboutRecording: { request in
+                bringMainWindowToFront()
+                navigateToRoute(.chat)
+                Task {
+                    await store.startChatAboutRecording(
+                        recordingId: request.recordingId,
+                        name: request.name,
+                        dateText: request.dateText,
+                        hourText: request.hourText
+                    )
+                }
+            },
+            onShowChatSession: { sessionId in
+                bringMainWindowToFront()
+                navigateToRoute(.chat)
+                Task { await store.selectSession(id: sessionId) }
+            },
+            onNavigateToRoute: navigateToRoute,
+            onOpenSettings: { openSettings(navKey: $0) },
+            isRecordingActive: store.isRecordingActive,
+            recordingProcessingStage: store.recordingProcessing?.stage,
+            recordingProcessingRecordingId: store.recordingProcessing?.recordingId,
+            onRefreshRecordingsAfterProcessing: { recordingId in
+                Task {
+                    await recordingsStore.refreshAfterRecordingProcessing(recordingId: recordingId)
+                }
             }
+        )
+    }
+
+    /// Backup / restore sheets (notification entry points live on the router).
+    private var contentWithBackup: some View {
+        contentWithAlerts
             .sheet(isPresented: $isBackupSheetPresented) {
                 ConfigBackupSheet(
                     onDismiss: { isBackupSheetPresented = false },
@@ -155,97 +181,13 @@ struct RootView: View {
     }
 
     private var contentWithBackground: some View {
-        contentWithNotifications
+        contentWithSheets
             .background(WindowAccessor { window in
                 mainWindow = window
             })
             .onAppear {
                 configureStore.onChangesSaved = { Task { await store.refreshStatus() } }
                 integrationsStore.onChangesSaved = { Task { await store.refreshStatus() } }
-            }
-    }
-
-    private var contentWithNotifications: some View {
-        contentWithSheets
-            .onReceive(NotificationCenter.default.publisher(for: .openCommandPalette)) { _ in
-                presentCommandPalette(activateApplication: true)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .openIssueReport)) { _ in
-                isIssueReportPresented = true
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .openChangelog)) { _ in
-                presentAbout()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .openRecordingFromToast)) { notification in
-                if let id = notification.object as? String {
-                    openRecording(id: id)
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .openScheduleFromNotification)) { notification in
-                guard let request = notification.object as? OpenScheduleFromNotificationRequest else { return }
-                openScheduleFromNotification(id: request.scheduleId)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .startNewChat)) { _ in
-                bringMainWindowToFront()
-                startNewChat()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .menuBarToggleRecording)) { _ in
-                toggleRecording()
-            }
-            .onChange(of: store.isRecordingActive) { _, active in
-                NotificationCenter.default.post(name: MenuBarController.recordingStateChanged, object: active)
-            }
-            .onChange(of: store.recordingProcessing?.stage) { _, stage in
-                // Fallback: ensure the dock/menu bar overlay is cleared when
-                // recording processing finishes, even if isRecordingActive
-                // already transitioned without the onChange above firing.
-                if (stage == .complete || stage == .failed), !store.isRecordingActive {
-                    NotificationCenter.default.post(name: MenuBarController.recordingStateChanged, object: false)
-                }
-                // Refresh Recordings globally — RecordingsView is not mounted on
-                // other routes, so its local onChange would never run.
-                if let stage, Self.shouldRefreshRecordings(for: stage) {
-                    let recordingId = store.recordingProcessing?.recordingId
-                    Task {
-                        await recordingsStore.refreshAfterRecordingProcessing(recordingId: recordingId)
-                    }
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .secondaryWindowClosed)) { _ in
-                bringMainWindowToFront()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .startChatAboutRecording)) { notification in
-                guard let request = notification.object as? StartChatAboutRecordingRequest else { return }
-                bringMainWindowToFront()
-                navigateToRoute(.chat)
-                Task {
-                    await store.startChatAboutRecording(
-                        recordingId: request.recordingId,
-                        name: request.name,
-                        dateText: request.dateText,
-                        hourText: request.hourText
-                    )
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .showChatSession)) { notification in
-                guard let sessionId = notification.object as? String else { return }
-                bringMainWindowToFront()
-                navigateToRoute(.chat)
-                Task { await store.selectSession(id: sessionId) }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .navigateToRoute)) { notification in
-                if let raw = notification.object as? String,
-                   let route = DetailRoute(rawValue: raw)
-                {
-                    navigateToRoute(route)
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .openSettingsWindow)) { notification in
-                // Prefer `object` (primary); accept userInfo["navKey"] as a fallback.
-                let navKey =
-                    (notification.object as? String)
-                    ?? (notification.userInfo?["navKey"] as? String)
-                openSettings(navKey: navKey)
             }
     }
 
@@ -420,20 +362,8 @@ struct RootView: View {
                     .zIndex(100)
                 }
             }
-            .overlay(alignment: .bottomTrailing) { toastOverlay }
-            .animation(.spring(response: 0.28, dampingFraction: 0.82), value: store.toast?.id)
-            .onChange(of: store.toast?.id) { (_: UUID?, id: UUID?) in
-                isToastHovered = false
-                if id == nil {
-                    toastDismissTask?.cancel()
-                    toastDismissTask = nil
-                } else {
-                    scheduleToastDismiss()
-                }
-            }
-            .onDisappear {
-                toastDismissTask?.cancel()
-                toastDismissTask = nil
+            .overlay(alignment: .bottomTrailing) {
+                AppToastHost(store: store, onAction: handleToastAction)
             }
     }
 
@@ -579,278 +509,143 @@ struct RootView: View {
                     )
                 )
                 .toolbar {
-                    commonToolbarItems()
-                    ToolbarItem(placement: .principal) {
-                        SessionTitleBadge(
-                            title: "Dashboard",
-                            activityLine: dashboardUpdatedText,
-                        )
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(
-                            Capsule()
-                                .fill(AppTheme.elevatedBackground.opacity(0.92)),
-                        )
-                        .overlay(
-                            Capsule()
-                                .stroke(Color.white.opacity(0.12), lineWidth: 1),
-                        )
-                        .fixedSize(horizontal: true, vertical: false)
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button {
-                            Task { await refreshDashboardData() }
-                        } label: {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                        .help("Refresh")
-                        .disabled(dashboardStore.isRefreshing)
-                        .accessibilityIdentifier("dashboard-refresh-button")
-                    }
+                    RootToolbars.dashboard(
+                        common: commonToolbarModel,
+                        updatedText: RootToolbars.dashboardUpdatedText(
+                            lastLoadedAt: dashboardStore.lastLoadedAt
+                        ),
+                        isRefreshing: dashboardStore.isRefreshing,
+                        onRefresh: { Task { await refreshDashboardData() } }
+                    )
                 }
             case .chat:
                 ChatWorkspaceView(store: store)
                     .toolbar {
-                        commonToolbarItems()
-                        ToolbarItem(placement: .principal) {
-                            HStack(spacing: 8) {
-                                if let iconUrl = store.resolvedIntegrationIconUrl {
-                                    AsyncImage(url: iconUrl) { phase in
-                                        switch phase {
-                                        case .success(let image):
-                                            image
-                                                .resizable()
-                                                .scaledToFit()
-                                        case .failure:
-                                            Image(systemName: "arrowshape.turn.up.left")
-                                                .font(.system(size: 13, weight: .semibold))
-                                                .foregroundStyle(AppTheme.primaryText)
-                                        case .empty:
-                                            Image(systemName: "arrowshape.turn.up.left")
-                                                .font(.system(size: 13, weight: .semibold))
-                                                .foregroundStyle(AppTheme.tertiaryText)
-                                        @unknown default:
-                                            Image(systemName: "arrowshape.turn.up.left")
-                                                .font(.system(size: 13, weight: .semibold))
-                                                .foregroundStyle(AppTheme.tertiaryText)
-                                        }
-                                    }
-                                    .frame(width: 18, height: 18)
-                                }
-                                SessionTitleBadge(
-                                    title: store.sessionName,
-                                    activityLine: store.activityLine,
-                                )
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(
-                                Capsule()
-                                    .fill(AppTheme.elevatedBackground.opacity(0.92)),
-                            )
-                            .overlay(
-                                Capsule()
-                                    .stroke(Color.white.opacity(0.12), lineWidth: 1),
-                            )
-                            .fixedSize(horizontal: true, vertical: false)
-                        }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button(action: startNewChat) {
-                                Image(systemName: "plus")
-                            }
-                            .help("New Chat")
-                            .disabled(store.isLoading)
-                            .accessibilityIdentifier("new-chat-button")
-                        }
+                        RootToolbars.chat(
+                            common: commonToolbarModel,
+                            sessionName: store.sessionName,
+                            activityLine: store.activityLine,
+                            integrationIconUrl: store.resolvedIntegrationIconUrl,
+                            isLoading: store.isLoading,
+                            onNewChat: startNewChat
+                        )
                     }
             case .integrations:
                 IntegrationsView(store: integrationsStore)
                     .toolbar {
-                        commonToolbarItems()
-                        ToolbarItem(placement: .principal) { Spacer() }
+                        RootToolbars.integrations(common: commonToolbarModel)
                     }
             case .projects:
                 ProjectsView(projectsStore: projectsStore, chatStore: store)
                     .toolbar {
-                        commonToolbarItems()
-                        ToolbarItem(placement: .principal) {
-                            SessionTitleBadge(
-                                title: projectsStore.selectedProjectName,
-                                activityLine: store.activityLine,
-                            )
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(
-                                Capsule()
-                                    .fill(AppTheme.elevatedBackground.opacity(0.92)),
-                            )
-                            .overlay(
-                                Capsule()
-                                    .stroke(Color.white.opacity(0.12), lineWidth: 1),
-                            )
-                            .fixedSize(horizontal: true, vertical: false)
-                        }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button {
+                        RootToolbars.projects(
+                            common: commonToolbarModel,
+                            selectedProjectName: projectsStore.selectedProjectName,
+                            activityLine: store.activityLine,
+                            isSaving: projectsStore.isSaving,
+                            isChatLoading: store.isLoading,
+                            onNewProject: {
                                 Task { await projectsStore.createProject(chatStore: store) }
-                            } label: {
-                                Image(systemName: "plus")
                             }
-                            .help("New Project")
-                            .disabled(projectsStore.isSaving || store.isLoading)
-                        }
+                        )
                     }
             case .schedules:
                 SchedulesView(store: schedulesStore)
                     .toolbar {
-                        commonToolbarItems()
-                        ToolbarItem(placement: .principal) { Spacer() }
-                        ToolbarItem(placement: .confirmationAction) {
-                            if let schedule = schedulesStore.selectedSchedule {
-                                Button {
-                                    Task { await schedulesStore.runSchedule(id: schedule.id) }
-                                } label: {
-                                    Image(systemName: "play.fill")
-                                }
-                                .help("Run Now")
-                                // Autosave must not disable Run; only block while a run is in flight.
-                                .disabled(schedulesStore.runningScheduleId != nil)
-                                .accessibilityIdentifier("run-schedule-button")
+                        RootToolbars.schedules(
+                            common: commonToolbarModel,
+                            hasSelection: schedulesStore.selectedSchedule != nil,
+                            isRunning: schedulesStore.runningScheduleId != nil,
+                            isDeleting: schedulesStore.deletingScheduleId != nil,
+                            onRun: {
+                                guard let id = schedulesStore.selectedSchedule?.id else { return }
+                                Task { await schedulesStore.runSchedule(id: id) }
+                            },
+                            onDelete: {
+                                guard let schedule = schedulesStore.selectedSchedule else { return }
+                                schedulesStore.pendingDelete = SchedulesStore.PendingDelete(
+                                    scheduleId: schedule.id,
+                                    title: schedule.displayName
+                                )
                             }
-                        }
-                        ToolbarItem(placement: .confirmationAction) {
-                            if let schedule = schedulesStore.selectedSchedule {
-                                Button(role: .destructive) {
-                                    schedulesStore.pendingDelete = SchedulesStore.PendingDelete(
-                                        scheduleId: schedule.id,
-                                        title: schedule.displayName
-                                    )
-                                } label: {
-                                    Image(systemName: "trash")
-                                }
-                                .help("Delete Schedule")
-                                .disabled(schedulesStore.deletingScheduleId != nil)
-                                .accessibilityIdentifier("delete-schedule-button")
-                            }
-                        }
+                        )
                     }
             case .recordings:
                 RecordingsView(store: recordingsStore, processingState: store.recordingProcessing, validSessionIds: Set(store.sessions.map(\.id)), onStartRecording: toggleRecording, activeRecording: store.listenStatus.flatMap { ActiveRecordingInfo($0) })
                     .toolbar {
-                        commonToolbarItems()
-                        ToolbarItem(placement: .principal) { Spacer() }
-                        ToolbarItem(placement: .confirmationAction) {
-                            if !recordingsStore.selectedRecordings.isEmpty {
-                                Button(role: .destructive) {
-                                    recordingsStore.pendingDeleteRecordingIds = Set(recordingsStore.selectedRecordings.map(\.id))
-                                } label: {
-                                    Image(systemName: "trash")
-                                }
-                                .help(recordingsDeleteButtonTitle)
-                                .disabled(recordingsStore.isDeletingSelection)
-                                .accessibilityIdentifier("delete-recordings-button")
+                        RootToolbars.recordings(
+                            common: commonToolbarModel,
+                            hasSelection: !recordingsStore.selectedRecordings.isEmpty,
+                            deleteHelp: RootToolbars.recordingsDeleteHelp(
+                                selectedCount: recordingsStore.selectedRecordings.count
+                            ),
+                            isDeleting: recordingsStore.isDeletingSelection,
+                            onDelete: {
+                                recordingsStore.pendingDeleteRecordingIds = Set(
+                                    recordingsStore.selectedRecordings.map(\.id)
+                                )
                             }
-                        }
+                        )
                     }
             case .skills:
                 SkillsView(store: skillsStore)
                     .toolbar {
-                        commonToolbarItems()
-                        ToolbarItem(placement: .principal) { Spacer() }
-                        ToolbarItem(placement: .confirmationAction) {
-                            if let skill = skillsStore.selectedSkill {
-                                Button(role: .destructive) {
-                                    skillsStore.pendingDelete = SkillsStore.PendingDelete(
-                                        dirName: skill.dirName,
-                                        name: skill.name
-                                    )
-                                } label: {
-                                    Image(systemName: "trash")
-                                }
-                                .help("Delete Skill")
-                                .disabled(skillsStore.isSaving)
-                                .accessibilityIdentifier("delete-skill-button")
+                        RootToolbars.skills(
+                            common: commonToolbarModel,
+                            hasSelection: skillsStore.selectedSkill != nil,
+                            isSaving: skillsStore.isSaving,
+                            onDelete: {
+                                guard let skill = skillsStore.selectedSkill else { return }
+                                skillsStore.pendingDelete = SkillsStore.PendingDelete(
+                                    dirName: skill.dirName,
+                                    name: skill.name
+                                )
                             }
-                        }
+                        )
                     }
             case .memories:
                 MemoriesView(store: memoriesStore)
                     .toolbar {
-                        commonToolbarItems()
-                        ToolbarItem(placement: .principal) { Spacer() }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button {
-                                Task { await memoriesStore.load() }
-                            } label: {
-                                Image(systemName: "arrow.clockwise")
-                            }
-                            .help("Refresh memories")
-                            .disabled(memoriesStore.isListLoading || memoriesStore.isSaving)
-                            .accessibilityIdentifier("refresh-memories-button")
-                            .accessibilityLabel("Refresh memories")
-                        }
+                        RootToolbars.memories(
+                            common: commonToolbarModel,
+                            isListLoading: memoriesStore.isListLoading,
+                            isSaving: memoriesStore.isSaving,
+                            onRefresh: { Task { await memoriesStore.load() } }
+                        )
                     }
             case .flows:
                 FlowsView(store: flowsStore)
                     .toolbar {
-                        commonToolbarItems()
-                        ToolbarItem(placement: .principal) { Spacer() }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button {
+                        RootToolbars.flows(
+                            common: commonToolbarModel,
+                            isListLoading: flowsStore.isListLoading,
+                            isRunsLoading: flowsStore.isRunsLoading,
+                            onRefresh: {
                                 Task {
                                     await flowsStore.load()
                                     if flowsStore.selectedFlowId != nil {
                                         await flowsStore.refreshSelectedRuns()
                                     }
                                 }
-                            } label: {
-                                Image(systemName: "arrow.clockwise")
                             }
-                            .help("Refresh flows")
-                            .disabled(flowsStore.isListLoading || flowsStore.isRunsLoading)
-                            .accessibilityIdentifier("refresh-flows-button")
-                            .accessibilityLabel("Refresh flows")
-                        }
+                        )
                     }
             }
         }
     }
 
-    @ToolbarContentBuilder
-    private func commonToolbarItems() -> some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
-            RecordingToolbarButton(
-                isRecordingActive: store.isRecordingActive,
-                isRecordButtonDisabled: store.isRecordButtonDisabled,
-                onToggleRecording: toggleRecording
-            )
-        }
-        ToolbarItem(placement: .navigation) {
-            SearchToolbarButton(onSearch: openCommandPalette)
-        }
-        ToolbarItem(placement: .navigation) {
-            SettingsToolbarButton(onOpenSettings: { openSettings() })
-        }
-        ToolbarItem(placement: .navigation) {
-            Button(action: { _ = history.goBack() }) {
-                Image(systemName: "chevron.backward")
-            }
-            .disabled(!history.canGoBack)
-            .help("Back")
-            .accessibilityIdentifier("nav-back-button")
-        }
-        ToolbarItem(placement: .navigation) {
-            Button(action: { _ = history.goForward() }) {
-                Image(systemName: "chevron.forward")
-            }
-            .disabled(!history.canGoForward)
-            .help("Forward")
-            .accessibilityIdentifier("nav-forward-button")
-        }
-    }
-
-    private func openCommandPalette() {
-        presentCommandPalette()
+    private var commonToolbarModel: RootCommonToolbarModel {
+        RootCommonToolbarModel(
+            isRecordingActive: store.isRecordingActive,
+            isRecordButtonDisabled: store.isRecordButtonDisabled,
+            canGoBack: history.canGoBack,
+            canGoForward: history.canGoForward,
+            onToggleRecording: toggleRecording,
+            onSearch: { presentCommandPalette() },
+            onOpenSettings: { openSettings() },
+            onBack: { _ = history.goBack() },
+            onForward: { _ = history.goForward() }
+        )
     }
 
     private func presentCommandPalette(activateApplication: Bool = false) {
@@ -906,43 +701,6 @@ struct RootView: View {
                 onDismiss: { CommandPalettePanelController.shared.dismiss() },
             )
             .tobyAppearance(appearancePreferences)
-        }
-    }
-
-    private var recordingsDeleteButtonTitle: String {
-        if recordingsStore.selectedRecordings.count == 1 {
-            return "Delete Recording"
-        }
-        return "Delete \(recordingsStore.selectedRecordings.count) Recordings"
-    }
-
-    @ViewBuilder
-    private var toastOverlay: some View {
-        if let toast = store.toast {
-            ToastView(
-                toast: toast,
-                onDismiss: dismissToast,
-                onAction: handleToastAction
-            )
-                .frame(maxWidth: 420)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
-                .contentShape(Rectangle())
-                .onHover { hovering in
-                    isToastHovered = hovering
-                    if hovering {
-                        toastDismissTask?.cancel()
-                        toastDismissTask = nil
-                    } else {
-                        scheduleToastDismiss()
-                    }
-                }
-                .onTapGesture {
-                    if !isProcessingToast {
-                        dismissToast()
-                    }
-                }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
         }
     }
 
@@ -1041,41 +799,14 @@ struct RootView: View {
         )
     }
 
-    private var dashboardUpdatedText: String {
-        guard let lastLoadedAt = dashboardStore.lastLoadedAt else { return "" }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return "Updated \(formatter.localizedString(for: lastLoadedAt, relativeTo: Date()))"
-    }
-
     private func openSettings(navKey: String? = nil, personaName: String? = nil) {
-        configureStore.pendingPersonaSelection = personaName
-        if let navKey {
-            let isClientTab = Self.clientOnlySettingsTabKeys.contains(navKey)
-            if configureStore.isSettingsMode && !isClientTab {
-                // Prefer top-level tab selection once sections are loaded (so nested
-                // containers like AI land on the tab + first child). Otherwise seed
-                // selectedNavKey so loadSettingsSections / syncTabFromStoreSelection
-                // pick the right tab after the window opens.
-                let isTopLevel = configureStore.settingsSections.contains {
-                    ConfigureTreeHelpers.sectionIdentityKey($0) == navKey
-                }
-                if isTopLevel {
-                    configureStore.selectTopLevelTab(navKey)
-                } else {
-                    configureStore.selectSection(navKey)
-                }
-            } else {
-                configureStore.selectedNavKey = navKey
-            }
-        }
+        RootSettingsNavigation.prepare(
+            configureStore: configureStore,
+            navKey: navKey,
+            personaName: personaName
+        )
         openWindow(id: "settings")
     }
-
-    private static let clientOnlySettingsTabKeys: Set<String> = [
-        SettingsItem.appearanceSectionKey,
-        SettingsItem.personasSectionKey,
-    ]
 
     /// Opens the sidebar persona popover and briefly pulses the control so the
     /// onboarding "Set up persona" step points at the right place.
@@ -1131,16 +862,6 @@ struct RootView: View {
             await recordingsStore.refreshAfterRecordingProcessing(recordingId: id)
         }
         navigateToRoute(.recordings)
-    }
-
-    /// Stages that imply the recordings list or detail may have changed.
-    private static func shouldRefreshRecordings(for stage: RecordingProcessingStage) -> Bool {
-        switch stage {
-        case .preparingTranscription, .transcribing, .complete, .failed:
-            true
-        case .generatingAudio, .finalizing:
-            false
-        }
     }
 
     private func openMemory(id: String) {
@@ -1216,21 +937,6 @@ struct RootView: View {
         }
     }
 
-    private func scheduleToastDismiss() {
-        toastDismissTask?.cancel()
-        guard store.toast != nil, !isToastHovered, !isProcessingToast else { return }
-        toastDismissTask = Task {
-            try? await Task.sleep(nanoseconds: toastDuration)
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                if !isToastHovered && !isProcessingToast {
-                    store.toast = nil
-                    toastDismissTask = nil
-                }
-            }
-        }
-    }
-
     private func longRecordingPromptLoop() async {
         while !Task.isCancelled {
             updateLongRecordingPromptState(now: Date())
@@ -1262,18 +968,6 @@ struct RootView: View {
         case .stop:
             Task { await store.stopActiveRecording() }
         }
-    }
-
-    private var isProcessingToast: Bool {
-        store.recordingProcessing?.isActive == true
-    }
-
-    private func dismissToast() {
-        toastDismissTask?.cancel()
-        toastDismissTask = nil
-        store.toast = nil
-        store.recordingProcessing = nil
-        isToastHovered = false
     }
 
 #if DEBUG
@@ -1308,43 +1002,4 @@ struct RootView: View {
     private func applyDebugUpdateOverride() {}
 #endif
 
-}
-
-extension Notification.Name {
-    static let openCommandPalette = Notification.Name("openCommandPalette")
-    static let openIssueReport = Notification.Name("openIssueReport")
-    static let openChangelog = Notification.Name("openChangelog")
-    static let openRecordingFromToast = Notification.Name("openRecordingFromToast")
-    static let startNewChat = Notification.Name("startNewChat")
-    static let startNewSchedule = Notification.Name("startNewSchedule")
-    static let startNewProject = Notification.Name("startNewProject")
-    static let startNewMemory = Notification.Name("startNewMemory")
-    static let startChatAboutRecording = Notification.Name("startChatAboutRecording")
-    static let showChatSession = Notification.Name("showChatSession")
-    static let secondaryWindowClosed = Notification.Name("secondaryWindowClosed")
-    static let menuBarToggleRecording = Notification.Name("menuBarToggleRecording")
-    static let navigateToRoute = Notification.Name("navigateToRoute")
-    static let openSettingsWindow = Notification.Name("openSettingsWindow")
-    static let openScheduleFromNotification = Notification.Name("openScheduleFromNotification")
-    static let backupConfig = Notification.Name("backupConfig")
-    static let restoreConfig = Notification.Name("restoreConfig")
-    /// Posted when chat (or another writer) mutates durable memory so the memories UI can refresh.
-    static let memoriesDidChange = Notification.Name("toby.memoriesDidChange")
-    static let personasDidChange = Notification.Name("toby.personasDidChange")
-}
-
-struct RestoreBackupSelection: Identifiable {
-    let id = UUID()
-    let url: URL
-}
-
-struct StartChatAboutRecordingRequest {
-    let recordingId: String
-    let name: String
-    let dateText: String
-    let hourText: String
-}
-
-struct OpenScheduleFromNotificationRequest {
-    let scheduleId: String
 }

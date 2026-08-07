@@ -300,4 +300,173 @@ struct ChatStoreTests {
         }
         #expect(answerText == "Also book lunch")
     }
+
+    // MARK: - Client injection (Phase 7)
+
+    @Test("refreshSessions loads from injected client")
+    func refreshSessionsUsesInjectedClient() async {
+        let client = MockChatClient()
+        client.sessions = [
+            SessionSummary(
+                id: "s1",
+                name: "Alpha",
+                createdAt: "2026-01-01T00:00:00Z",
+                updatedAt: "2026-01-01T00:00:00Z",
+            ),
+            SessionSummary(
+                id: "s2",
+                name: "Beta",
+                createdAt: "2026-01-02T00:00:00Z",
+                updatedAt: "2026-01-02T00:00:00Z",
+            ),
+        ]
+        let store = ChatStore(client: client)
+        await store.refreshSessions()
+        #expect(client.listSessionsLimit == 50)
+        #expect(store.sessions.map(\.id) == ["s1", "s2"])
+        #expect(store.toast == nil)
+    }
+
+    @Test("refreshSessions surfaces client errors as toast")
+    func refreshSessionsSurfacesError() async {
+        let client = MockChatClient()
+        client.error = TobyClientError.serverError("down")
+        let store = ChatStore(client: client)
+        await store.refreshSessions()
+        #expect(store.sessions.isEmpty)
+        #expect(store.toast?.style == .error)
+        #expect(store.toast?.message == "down")
+    }
+
+    @Test("selectSession applies detail from injected client")
+    func selectSessionUsesInjectedClient() async {
+        let client = MockChatClient()
+        client.sessionDetails["s9"] = SessionDetail(
+            id: "s9",
+            name: "Injected",
+            transcript: [.user(text: "hi from mock")],
+            messageCount: 1,
+            settings: nil,
+            contextWindow: ContextWindowPayload(
+                supported: true,
+                contextWindowTokens: 100,
+                fillPercentage: 12,
+                unavailableReason: nil,
+            ),
+            personaImageUrl: "/p.png",
+            activePlan: nil,
+            integration: "slack",
+            integrationIconUrl: "/i.png",
+            externalKey: "ext",
+        )
+        let store = ChatStore(client: client)
+        await store.selectSession(id: "s9")
+        #expect(client.fetchSessionIds == ["s9"])
+        #expect(store.sessionId == "s9")
+        #expect(store.sessionName == "Injected")
+        #expect(store.transcript == [.user(text: "hi from mock")])
+        #expect(store.integration == "slack")
+        #expect(store.externalKey == "ext")
+        #expect(store.contextFillPercentage == 12)
+        #expect(store.activityLine == "Ready")
+    }
+
+    @Test("deleteSession uses client and drafts when current session removed")
+    func deleteSessionUsesInjectedClient() async {
+        let client = MockChatClient()
+        client.sessions = [
+            SessionSummary(id: "keep", name: "Keep", createdAt: nil, updatedAt: nil),
+            SessionSummary(id: "gone", name: "Gone", createdAt: nil, updatedAt: nil),
+        ]
+        let store = ChatStore(client: client)
+        store.sessionId = "gone"
+        store.transcript = [.user(text: "bye")]
+        await store.deleteSession(id: "gone")
+        #expect(client.deletedSessionIds == ["gone"])
+        #expect(store.sessions.map(\.id) == ["keep"])
+        #expect(store.sessionId == nil)
+        #expect(store.transcript.isEmpty)
+    }
+
+    @Test("submitPrompt streams turn through injected client")
+    func submitPromptUsesInjectedClient() async {
+        let client = MockChatClient()
+        client.turnDone = TurnDonePayload(
+            turnId: "t1",
+            text: "assistant reply",
+            appliedActions: nil,
+            sessionName: "Named chat",
+            usage: nil,
+            contextWindow: nil,
+        )
+        // Reload after stream uses fetchSession.
+        client.sessionDetails["sess"] = SessionDetail(
+            id: "sess",
+            name: "Named chat",
+            transcript: [
+                .user(text: "hello"),
+                .assistant(text: "assistant reply"),
+            ],
+            messageCount: 2,
+            settings: nil,
+            contextWindow: nil,
+            personaImageUrl: nil,
+            activePlan: nil,
+            integration: nil,
+            integrationIconUrl: nil,
+            externalKey: nil,
+        )
+        client.sessions = [
+            SessionSummary(id: "sess", name: "Named chat", createdAt: nil, updatedAt: nil),
+        ]
+        let store = ChatStore(client: client)
+        store.sessionId = "sess"
+        store.promptText = "hello"
+        await store.submitPrompt()
+        #expect(client.streamTurnCalls == 1)
+        #expect(store.isLoading == false)
+        #expect(store.sessionName == "Named chat")
+        #expect(store.activityLine == "Ready")
+        #expect(store.transcript.contains { entry in
+            if case .user(let text, _) = entry { return text == "hello" }
+            return false
+        })
+    }
+
+    @Test("toggleRecording start uses native audio client")
+    func toggleRecordingStartUsesNativeClient() async {
+        let chat = MockChatClient()
+        chat.status = AppStatus(
+            version: "1.0",
+            persona: "Toby",
+            model: "m",
+            hasConfiguredAIProvider: true,
+            tobyDir: nil,
+            contextWindow: nil,
+            personaImageUrl: nil,
+            connectedIntegrations: nil,
+            personaCount: nil,
+            skillCount: nil,
+            skills: nil,
+            transcription: nil,
+        )
+        let audio = MockNativeAudioClient()
+        audio.startResponse = ListenStatusResponse(
+            status: "recording",
+            session: ListenSessionInfo(
+                id: "live-1",
+                startedAt: "2026-01-01T00:00:00Z",
+                sources: ListenSourceSelection(mic: true, system: false),
+            ),
+            outputDir: "/tmp/live",
+            message: nil,
+            error: nil,
+        )
+        let store = ChatStore(client: chat, nativeAudioClient: audio)
+        store.status = chat.status
+        await store.toggleRecording()
+        #expect(audio.startCalls == 1)
+        #expect(store.isRecordingActive == true)
+        #expect(store.activityLine == "Recording audio")
+    }
 }

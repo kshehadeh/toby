@@ -1,34 +1,6 @@
 import AppKit
 import Foundation
 import Observation
-import UniformTypeIdentifiers
-
-func makeRecordingChatPrompt(name: String, dateText: String, hourText: String) -> String {
-	let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-	let resolvedName = trimmedName.isEmpty ? "Recording" : trimmedName
-	return "Summarize the transcript of the recording named \"\(resolvedName)\" on \"\(dateText)\" at \"\(hourText)\" oclock."
-}
-
-func mergeContextWindowPayload(
-	current: ContextWindowPayload?,
-	incoming: ContextWindowPayload?,
-) -> ContextWindowPayload? {
-	guard let incoming else { return current }
-	guard let current else { return incoming }
-	if current.supported,
-		incoming.supported,
-		current.fillPercentage != nil,
-		incoming.fillPercentage == nil
-	{
-		return ContextWindowPayload(
-			supported: true,
-			contextWindowTokens: incoming.contextWindowTokens ?? current.contextWindowTokens,
-			fillPercentage: current.fillPercentage,
-			unavailableReason: nil,
-		)
-	}
-	return incoming
-}
 
 @Observable
 @MainActor
@@ -122,8 +94,8 @@ final class ChatStore {
 		sessionId != nil && transcript.isEmpty && streamingAssistant == nil
 	}
 
-	private let client = TobyClient()
-	private let nativeAudioClient = NativeAudioClient()
+	private let client: any ChatClientable
+	private let nativeAudioClient: any NativeAudioClientable
 	private var assistantHeader = ""
 	private var assistantBuffer = ""
 	private var sawToolCallThisTurn = false
@@ -132,6 +104,14 @@ final class ChatStore {
 	private var askUserContinuation: CheckedContinuation<(selectedIndex: Int, selectedLabel: String, rawInput: String, error: String?), Never>?
 	@ObservationIgnored
 	nonisolated(unsafe) private var externalSessionRefreshTask: Task<Void, Never>?
+
+	init(
+		client: any ChatClientable = TobyClient(),
+		nativeAudioClient: any NativeAudioClientable = NativeAudioClient(),
+	) {
+		self.client = client
+		self.nativeAudioClient = nativeAudioClient
+	}
 
 	deinit {
 		externalSessionRefreshTask?.cancel()
@@ -281,10 +261,9 @@ final class ChatStore {
 		do {
 			let detail = try await client.fetchSession(id: currentSessionId)
 			guard sessionId == detail.id, !isLoading else { return }
-			sessionName = detail.name
-			integrationIconUrl = detail.integrationIconUrl
-			transcript = detail.transcript
-			activityLine = "Ready"
+			var identity = sessionIdentityState()
+			ChatSessionController.applyExternalRefresh(detail, into: &identity)
+			applySessionIdentityState(identity)
 		} catch {
 			// Keep existing transcript on refresh failure.
 		}
@@ -302,6 +281,24 @@ final class ChatStore {
 	func stopActiveRecording() async {
 		guard !isListenRequestInFlight, isRecordingActive else { return }
 		await stopRecording()
+	}
+
+	// MARK: - Recording UI bridge
+
+	private func recordingUIState() -> ChatRecordingUIState {
+		ChatRecordingUIState(
+			listenStatus: listenStatus,
+			recordingProcessing: recordingProcessing,
+			toast: toast,
+			activityLine: activityLine,
+		)
+	}
+
+	private func applyRecordingUIState(_ state: ChatRecordingUIState) {
+		listenStatus = state.listenStatus
+		recordingProcessing = state.recordingProcessing
+		toast = state.toast
+		activityLine = state.activityLine
 	}
 
 	private func showErrorToast(_ message: String, title: String = "Something went wrong") {
@@ -355,24 +352,19 @@ final class ChatStore {
 	}
 
 	func selectSession(id: String) async {
-		guard !isLoading else { return }
-		guard sessionId != id || transcript.isEmpty else { return }
+		guard ChatSessionController.shouldSelectSession(
+			requestedId: id,
+			currentSessionId: sessionId,
+			transcriptIsEmpty: transcript.isEmpty,
+			isLoading: isLoading,
+		) else { return }
 		isSelectingSession = true
 		defer { isSelectingSession = false }
 		do {
 			let detail = try await client.fetchSession(id: id)
-			sessionId = detail.id
-			sessionName = detail.name
-			transcript = detail.transcript
-			integration = detail.integration
-			integrationIconUrl = detail.integrationIconUrl
-			externalKey = detail.externalKey
-			sessionPersonaImageUrl = detail.personaImageUrl
-			streamingAssistant = nil
-			turnWorkDurations = [:]
-			contextWindow = detail.contextWindow
-			promptText = ""
-			activityLine = "Ready"
+			var identity = sessionIdentityState()
+			ChatSessionController.applyLoadedSession(detail, into: &identity)
+			applySessionIdentityState(identity)
 			startExternalSessionRefreshLoop()
 		} catch {
 			showErrorToast(error.localizedDescription)
@@ -381,17 +373,9 @@ final class ChatStore {
 
 	func startNewSession() async {
 		guard !isLoading else { return }
-		sessionId = nil
-		sessionName = "New chat"
-		transcript = []
-		integration = nil
-		integrationIconUrl = nil
-		externalKey = nil
-		sessionPersonaImageUrl = nil
-		streamingAssistant = nil
-		turnWorkDurations = [:]
-		contextWindow = nil
-		activityLine = "Ready"
+		var identity = sessionIdentityState()
+		ChatSessionController.applyNewDraft(into: &identity)
+		applySessionIdentityState(identity)
 		stopExternalSessionRefreshLoop()
 		focusPrompt()
 	}
@@ -444,129 +428,82 @@ final class ChatStore {
 		isListenRequestInFlight = true
 		defer { isListenRequestInFlight = false }
 		if status?.transcription?.configured != true {
-			toast = AppToastState(
-				style: .error,
-				title: "No transcription model configured",
-				message: "Audio will be saved without a transcript. Choose a transcription provider to enable transcripts.",
-				action: .openSettings(navKey: "transcription")
-			)
+			toast = ChatRecordingController.unconfiguredTranscriptionToast()
 		}
+		var ui = recordingUIState()
 		do {
 			let sources = ConfigReader.listenRecordSources()
-			listenStatus = try await nativeAudioClient.start(mic: sources.mic, system: sources.system)
-			activityLine = "Recording audio"
+			let status = try await nativeAudioClient.start(mic: sources.mic, system: sources.system)
+			ChatRecordingController.applyStartSuccess(status: status, into: &ui)
+			applyRecordingUIState(ui)
 		} catch {
-			showRecordingError(error.localizedDescription)
-			activityLine = "Error"
-			listenStatus = try? await nativeAudioClient.status()
+			let status = try? await nativeAudioClient.status()
+			ChatRecordingController.applyStartFailure(
+				message: error.localizedDescription,
+				status: status,
+				into: &ui,
+			)
+			applyRecordingUIState(ui)
 		}
 	}
 
 	private func stopRecording() async {
 		isListenRequestInFlight = true
 		defer { isListenRequestInFlight = false }
+
+		var ui = recordingUIState()
 		// Clear live-capture status immediately so UI (long-recording prompt,
 		// active sidebar row, record button) does not treat async stop /
 		// combine / transcription as "still recording".
-		listenStatus = ListenStatusResponse(
-			status: "idle",
-			session: nil,
-			outputDir: listenStatus?.outputDir,
-			message: "Stopping…",
-			error: nil,
+		ChatRecordingController.applyStoppingCapture(
+			preservingOutputDir: listenStatus?.outputDir,
+			into: &ui,
 		)
-		recordingProcessing = RecordingProcessingState(stage: .generatingAudio)
-		toast = recordingProcessing?.toastState()
-		activityLine = "Generating final audio…"
+		applyRecordingUIState(ui)
 
 		do {
 			let result = try await nativeAudioClient.stop()
-			listenStatus = result.asStatus
-			guard let id = result.id else {
-				activityLine = "Recording saved"
-				showRecordingCompletionToast(recordingId: result.id, errors: result.errors)
-				recordingProcessing = nil
-				return
-			}
+			let classification = ChatRecordingController.classifyStopResult(result)
+			ui = recordingUIState()
+			ChatRecordingController.applyStopClassification(classification, into: &ui)
+			applyRecordingUIState(ui)
 
-			if let errors = result.errors, let firstError = errors.first?.trimmingCharacters(in: .whitespacesAndNewlines), !firstError.isEmpty {
-				recordingProcessing = RecordingProcessingState(
-					recordingId: id,
-					stage: .failed,
-					message: firstError,
-				)
-				toast = recordingProcessing?.toastState()
-				activityLine = "Recording saved"
-				return
-			}
-
-			recordingProcessing = RecordingProcessingState(
-				recordingId: id,
-				stage: .preparingTranscription,
-			)
-			toast = recordingProcessing?.toastState()
-			activityLine = "Transcribing recording…"
+			guard case .readyForTranscription(let id, _) = classification else { return }
 
 			do {
 				_ = try await client.streamTranscribeRecording(id: id) { message in
 					Task { @MainActor in
-						guard self.recordingProcessing?.recordingId == id,
-							self.recordingProcessing?.isActive == true else { return }
-						self.recordingProcessing?.stage = .transcribing
-						self.recordingProcessing?.message = message
-						self.toast = self.recordingProcessing?.toastState()
-						self.activityLine = message
+						var progress = self.recordingUIState()
+						ChatRecordingController.applyTranscriptionProgress(
+							recordingId: id,
+							message: message,
+							into: &progress,
+						)
+						self.applyRecordingUIState(progress)
 					}
 				}
-				recordingProcessing = RecordingProcessingState(
-					recordingId: id,
-					stage: .complete,
-					message: "Your recording is ready.",
-				)
-				toast = recordingProcessing?.toastState()
-				activityLine = "Recording transcribed"
+				ui = recordingUIState()
+				ChatRecordingController.applyTranscriptionComplete(recordingId: id, into: &ui)
+				applyRecordingUIState(ui)
 			} catch {
-				recordingProcessing = RecordingProcessingState(
+				ui = recordingUIState()
+				ChatRecordingController.applyTranscriptionFailed(
 					recordingId: id,
-					stage: .failed,
-					message: "Recording saved, but transcription failed: \(error.localizedDescription)",
+					errorDescription: error.localizedDescription,
+					into: &ui,
 				)
-				toast = recordingProcessing?.toastState()
-				activityLine = "Recording saved"
+				applyRecordingUIState(ui)
 			}
 		} catch {
-			showRecordingError(error.localizedDescription)
-			activityLine = "Error"
-			listenStatus = try? await nativeAudioClient.status()
-			recordingProcessing = nil
-		}
-	}
-
-	private func showRecordingError(_ message: String) {
-		toast = AppToastState(
-			style: .error,
-			title: "Recording failed",
-			message: message,
-		)
-	}
-
-	private func showRecordingCompletionToast(recordingId: String?, errors: [String]?) {
-		let message = errors?.first?.trimmingCharacters(in: .whitespacesAndNewlines)
-		if let message, !message.isEmpty {
-			toast = AppToastState(
-				style: .error,
-				title: "Recording issue",
-				message: message,
+			ui = recordingUIState()
+			let status = try? await nativeAudioClient.status()
+			ChatRecordingController.applyNativeStopFailed(
+				message: error.localizedDescription,
+				status: status,
+				into: &ui,
 			)
-			return
+			applyRecordingUIState(ui)
 		}
-		let action: AppToastAction? = recordingId.map { .openRecording(id: $0) }
-		toast = AppToastState(
-			style: .success,
-			title: "Recording transcribed",
-			message: "Your recording is ready.",
-			action: action
-		)
 	}
 
 	private func createSessionAndSubmit() async {
@@ -596,8 +533,8 @@ final class ChatStore {
 		}
 
 		promptText = ""
-		let userText = userTranscriptText(text: text, attachments: attachments)
-		let transcriptAttachments = transcriptAttachments(from: attachments)
+		let userText = ChatAttachmentDrafting.userTranscriptText(text: text, attachments: attachments)
+		let transcriptAttachments = ChatAttachmentDrafting.transcriptAttachments(from: attachments)
 		if !transcriptAttachments.isEmpty {
 			localAttachmentPreviewsByTranscriptText[userText] = transcriptAttachments
 		}
@@ -618,19 +555,25 @@ final class ChatStore {
 
 		do {
 			let done = try await client.streamTurn(sessionId: sessionId, text: text, attachments: attachments, clientTurnId: turnId, onEvent: { event in
-				self.apply(event: event)
+				self.applyTurnEvent(event)
 			}, onAskUser: { [weak self] prompt in
 				guard let self else { return (-1, "", "", "Prompt dismissed") }
 				return await self.promptForAskUser(prompt)
 			})
 			if !assistantBuffer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-				commitAssistantSegment(id: UUID().uuidString, interim: false)
+				commitTurnAssistantSegment(id: UUID().uuidString, interim: false)
 			}
 			let reply = done.text.trimmingCharacters(in: .whitespacesAndNewlines)
-			if !reply.isEmpty && !hasAssistantReplyBody(reply, sinceIndex: userTurnStartIndex) {
+			if !reply.isEmpty
+				&& !ChatTurnEngine.hasAssistantReplyBody(
+					reply,
+					sinceIndex: userTurnStartIndex,
+					in: transcript,
+				)
+			{
 				assistantHeader = status?.persona ?? "Assistant"
 				assistantBuffer = reply
-				commitAssistantSegment(id: UUID().uuidString, interim: false)
+				commitTurnAssistantSegment(id: UUID().uuidString, interim: false)
 			}
 			if let nextSessionName = done.sessionName?.trimmingCharacters(
 				in: .whitespacesAndNewlines,
@@ -646,7 +589,7 @@ final class ChatStore {
 		} catch {
 			if isCancelling {
 				if !assistantBuffer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-					commitAssistantSegment(id: UUID().uuidString, interim: false)
+					commitTurnAssistantSegment(id: UUID().uuidString, interim: false)
 				}
 				transcript.append(.notice(text: "Turn cancelled.", tone: nil))
 				activityLine = "Ready"
@@ -668,38 +611,17 @@ final class ChatStore {
 	}
 
 	func addAttachmentFiles(_ urls: [URL]) {
-		guard canAttachFiles else {
-			showErrorToast(attachmentUnavailableReason, title: "Attachments unavailable")
-			return
+		let outcome = ChatAttachmentDrafting.adding(
+			urls: urls,
+			to: pendingAttachments,
+			capability: attachmentCapability,
+			canAttach: canAttachFiles,
+			unavailableReason: attachmentUnavailableReason,
+		)
+		pendingAttachments = outcome.pendingAttachments
+		for toast in outcome.toasts {
+			showErrorToast(toast.message, title: toast.title)
 		}
-		let capability = attachmentCapability
-		var next = pendingAttachments
-		for url in urls {
-			if let maxFiles = capability?.maxFiles, next.count >= maxFiles {
-				showErrorToast("Too many attachments. Maximum is \(maxFiles).", title: "Attachment error")
-				break
-			}
-			do {
-				let attachment = try makeAttachmentDraft(from: url)
-				if let maxBytes = capability?.maxBytesPerFile, attachment.byteSize > maxBytes {
-					showErrorToast("\(attachment.filename) is too large.", title: "Attachment error")
-					continue
-				}
-				let totalBytes = next.reduce(0) { $0 + $1.byteSize } + attachment.byteSize
-				if let maxTotal = capability?.maxTotalBytes, totalBytes > maxTotal {
-					showErrorToast("Attachments are too large.", title: "Attachment error")
-					continue
-				}
-				if let accepted = capability?.acceptedMediaTypes, !accepted.isEmpty, !accepted.contains(attachment.mediaType) {
-					showErrorToast("Unsupported attachment type: \(attachment.mediaType).", title: "Attachment error")
-					continue
-				}
-				next.append(attachment)
-			} catch {
-				showErrorToast(error.localizedDescription, title: "Attachment error")
-			}
-		}
-		pendingAttachments = next
 	}
 
 	func removeAttachment(id: UUID) {
@@ -708,81 +630,6 @@ final class ChatStore {
 
 	func clearAttachments() {
 		pendingAttachments = []
-	}
-
-	private func makeAttachmentDraft(from url: URL) throws -> ChatAttachmentDraft {
-		let didAccess = url.startAccessingSecurityScopedResource()
-		defer {
-			if didAccess {
-				url.stopAccessingSecurityScopedResource()
-			}
-		}
-		let data = try Data(contentsOf: url)
-		let mediaType = mediaTypeForAttachment(url: url)
-		return ChatAttachmentDraft(
-			filename: url.lastPathComponent,
-			mediaType: mediaType,
-			dataBase64: data.base64EncodedString(),
-			byteSize: data.count
-		)
-	}
-
-	private func mediaTypeForAttachment(url: URL) -> String {
-		if let type = UTType(filenameExtension: url.pathExtension),
-			let mimeType = type.preferredMIMEType
-		{
-			switch mimeType {
-			case "application/x-javascript":
-				return "text/javascript"
-			default:
-				return mimeType
-			}
-		}
-		switch url.pathExtension.lowercased() {
-		case "md", "markdown": return "text/markdown"
-		case "ts", "tsx": return "application/typescript"
-		case "js", "jsx", "mjs", "cjs": return "text/javascript"
-		case "json": return "application/json"
-		case "csv": return "text/csv"
-		case "xml": return "application/xml"
-		case "html", "htm": return "text/html"
-		case "css": return "text/css"
-		case "rtf": return "application/rtf"
-		default: return "text/plain"
-		}
-	}
-
-	private func userTranscriptText(text: String, attachments: [ChatAttachmentDraft]) -> String {
-		guard !attachments.isEmpty else { return text }
-		let names = attachments.map { "\($0.filename) (\($0.mediaType), \($0.byteSize) bytes)" }
-			.joined(separator: ", ")
-		if text.isEmpty {
-			return "Attachments: \(names)"
-		}
-		return "\(text)\n\nAttachments: \(names)"
-	}
-
-	private func transcriptAttachments(from attachments: [ChatAttachmentDraft]) -> [ChatTranscriptAttachment] {
-		attachments.map {
-			ChatTranscriptAttachment(
-				id: $0.id,
-				filename: $0.filename,
-				mediaType: $0.mediaType,
-				dataBase64: $0.dataBase64,
-				byteSize: $0.byteSize
-			)
-		}
-	}
-
-	private func rehydrateLocalAttachmentPreviews(in entries: [TranscriptEntry]) -> [TranscriptEntry] {
-		entries.map { entry in
-			guard case .user(let text, let attachments) = entry, attachments.isEmpty,
-				let localAttachments = localAttachmentPreviewsByTranscriptText[text]
-			else {
-				return entry
-			}
-			return .user(text: text, attachments: localAttachments)
-		}
 	}
 
 	func cancelActiveTurn() {
@@ -861,7 +708,10 @@ final class ChatStore {
 		guard let sessionId else { return }
 		do {
 			let detail = try await client.fetchSession(id: sessionId)
-			transcript = rehydrateLocalAttachmentPreviews(in: detail.transcript)
+			transcript = ChatAttachmentDrafting.rehydrateLocalPreviews(
+				in: detail.transcript,
+				previewsByTranscriptText: localAttachmentPreviewsByTranscriptText,
+			)
 			sessionPersonaImageUrl = detail.personaImageUrl
 			contextWindow = mergeContextWindowPayload(current: contextWindow, incoming: detail.contextWindow)
 		} catch {
@@ -869,415 +719,92 @@ final class ChatStore {
 		}
 	}
 
-	private func apply(event: ChatEventPayload) {
-		switch event.type {
-		case "lifecycle_start":
-			appendProcessingRow(
-				id: event.id ?? UUID().uuidString,
-				header: event.header ?? "Working",
-				body: "Thinking",
-				variant: "lifecycle",
-			)
-			if let header = event.header {
-				activityLine = header
-			}
-		case "lifecycle_end":
-			updateProcessingRow(
-				id: event.id,
-				body: event.detail ?? "Done.",
-			)
-		case "lifecycle_append":
-			appendProcessingDetail(id: event.id, line: event.line)
-		case "lifecycle_set":
-			updateProcessingRow(id: event.id, body: event.line ?? "")
-		case "assistant_segment_start":
-			assistantHeader = event.header ?? status?.persona ?? "Assistant"
-			assistantBuffer = ""
-			streamingAssistant = StreamingAssistantState(
-				header: assistantHeader,
-				text: "",
-				inWorkArea: !sawToolCallThisTurn,
-			)
-			activityLine = "Responding…"
-		case "assistant_text_delta":
-			assistantBuffer += event.delta ?? ""
-			streamingAssistant = StreamingAssistantState(
-				header: assistantHeader,
-				text: assistantBuffer,
-				inWorkArea: !sawToolCallThisTurn,
-			)
-		case "assistant_segment_end":
-			commitAssistantSegment(
-				id: event.id ?? UUID().uuidString,
-				interim: event.interim == true,
-			)
-		case "tool_call_start":
-			// askUser is rendered as an inline transcript control, not a tool step.
-			if event.toolName == "askUser" {
-				activityLine = "Waiting for your choice…"
-				break
-			}
-			sawToolCallThisTurn = true
-			if let toolName = event.toolName {
-				let args = event.args?.value as? [String: Any]
-				let header = ToolDisplayLabels.formatToolCallHeader(
-					toolName: toolName,
-					args: args,
-					integrationLabel: event.integrationLabel,
-				)
-				appendToolRow(
-					id: event.blockKey ?? event.id ?? UUID().uuidString,
-					header: header,
-					body: "Running…",
-					toolName: toolName,
-					integrationLabel: event.integrationLabel,
-					cacheHit: nil,
-					durationMs: nil,
-				)
-				activityLine = "Running \(ToolDisplayLabels.displayLabel(toolName))…"
-			}
-		case "tool_call_complete":
-			if event.toolName == "askUser" {
-				appendAskUserQA(from: event)
-				activityLine = "Thinking…"
-				break
-			}
-			if let toolName = event.toolName {
-				let args = event.args?.value as? [String: Any]
-				let errorString: String?
-				if let error = event.error?.value {
-					if error is NSNull {
-						errorString = nil
-					} else if let str = error as? String {
-						errorString = str
-					} else {
-						errorString = String(describing: error)
-					}
-				} else {
-					errorString = nil
-				}
-				let body: String
-				if event.cacheHit == true {
-					body = "Done. Cached result."
-				} else {
-					body = ToolDisplayLabels.formatToolOutput(
-						toolName: toolName,
-						args: args,
-						result: event.result?.value,
-						error: errorString,
-					)
-				}
-				let fullBody: String?
-				if event.cacheHit == true {
-					fullBody = nil
-				} else {
-					let full = ToolDisplayLabels.formatToolOutputFull(
-						toolName: toolName,
-						args: args,
-						result: event.result?.value,
-						error: errorString,
-					)
-					fullBody = full != body ? full : nil
-				}
-				let header = ToolDisplayLabels.formatToolCallHeader(
-					toolName: toolName,
-					args: args,
-					integrationLabel: event.integrationLabel,
-				)
-				upsertToolRow(
-					id: event.blockKey ?? event.id ?? UUID().uuidString,
-					header: header,
-					body: body,
-					fullBody: fullBody,
-					toolName: toolName,
-					integrationLabel: event.integrationLabel,
-					cacheHit: event.cacheHit,
-					durationMs: event.durationMs,
-				)
-				// Notify memories UI when chat mutates durable memory.
-				if errorString == nil, MemoriesStore.mutatingMemoryTools.contains(toolName) {
-					NotificationCenter.default.post(name: .memoriesDidChange, object: nil)
-				}
-			}
-			activityLine = "Thinking…"
-		case "prep_start":
-			appendProcessingRow(
-				id: event.id ?? UUID().uuidString,
-				header: event.header ?? "Prompt preparation",
-				body: "",
-				variant: "prep",
-			)
-			if let header = event.header {
-				activityLine = header
-			}
-		case "prep_end":
-			updateProcessingRow(
-				id: event.id,
-				body: event.detail ?? "Request prepared.",
-			)
-			activityLine = "Ready for model…"
-		case "transcript_notice":
-			if let text = event.text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
-				transcript.append(.notice(text: text, tone: event.tone))
-			}
-		default:
-			break
-		}
-	}
+	// MARK: - Session identity bridge
 
-	private func appendProcessingRow(
-		id: String,
-		header: String,
-		body: String,
-		variant: String,
-	) {
-		transcript.append(
-			.boxedStep(
-				BoxedStepPayload(
-					id: id,
-					seq: transcript.count + 1,
-					variant: variant,
-					header: header,
-					body: body,
-					toolName: nil,
-					integrationLabel: nil,
-					cacheHit: nil,
-					durationMs: nil,
-					toolRuns: nil,
-					fullBody: nil,
-				),
-			),
+	private func sessionIdentityState() -> ChatSessionIdentityState {
+		ChatSessionIdentityState(
+			sessionId: sessionId,
+			sessionName: sessionName,
+			transcript: transcript,
+			integration: integration,
+			integrationIconUrl: integrationIconUrl,
+			externalKey: externalKey,
+			sessionPersonaImageUrl: sessionPersonaImageUrl,
+			streamingAssistant: streamingAssistant,
+			turnWorkDurations: turnWorkDurations,
+			contextWindow: contextWindow,
+			promptText: promptText,
+			activityLine: activityLine,
 		)
 	}
 
-	private func updateProcessingRow(id: String?, body: String) {
-		guard let id else { return }
-		replaceBoxedStep(id: id) { current in
-			BoxedStepPayload(
-				id: current.id,
-				seq: current.seq,
-				variant: current.variant,
-				header: current.header,
-				body: body,
-				toolName: current.toolName,
-				integrationLabel: current.integrationLabel,
-				cacheHit: current.cacheHit,
-				durationMs: current.durationMs,
-				toolRuns: current.toolRuns,
-				fullBody: current.fullBody,
-			)
-		}
+	private func applySessionIdentityState(_ state: ChatSessionIdentityState) {
+		sessionId = state.sessionId
+		sessionName = state.sessionName
+		transcript = state.transcript
+		integration = state.integration
+		integrationIconUrl = state.integrationIconUrl
+		externalKey = state.externalKey
+		sessionPersonaImageUrl = state.sessionPersonaImageUrl
+		streamingAssistant = state.streamingAssistant
+		turnWorkDurations = state.turnWorkDurations
+		contextWindow = state.contextWindow
+		promptText = state.promptText
+		activityLine = state.activityLine
 	}
 
-	private func appendProcessingDetail(id: String?, line: String?) {
-		guard let id, let line, !line.isEmpty else { return }
-		replaceBoxedStep(id: id) { current in
-			let nextBody = current.body.isEmpty ? line : "\(current.body)\n\(line)"
-			return BoxedStepPayload(
-				id: current.id,
-				seq: current.seq,
-				variant: current.variant,
-				header: current.header,
-				body: nextBody,
-				toolName: current.toolName,
-				integrationLabel: current.integrationLabel,
-				cacheHit: current.cacheHit,
-				durationMs: current.durationMs,
-				toolRuns: current.toolRuns,
-				fullBody: current.fullBody,
-			)
-		}
-	}
+	// MARK: - Turn engine bridge
 
-	private func appendToolRow(
-		id: String,
-		header: String,
-		body: String,
-		fullBody: String? = nil,
-		toolName: String,
-		integrationLabel: String?,
-		cacheHit: Bool?,
-		durationMs: Int?,
-	) {
-		transcript.append(
-			.boxedStep(
-				BoxedStepPayload(
-					id: id,
-					seq: transcript.count + 1,
-					variant: "tool",
-					header: header,
-					body: body,
-					toolName: toolName,
-					integrationLabel: integrationLabel,
-					cacheHit: cacheHit,
-					durationMs: durationMs,
-					toolRuns: nil,
-					fullBody: fullBody,
-				),
-			),
+	/// Snapshot of fields the turn engine may rewrite during SSE streaming.
+	private func turnMutationState() -> ChatTurnMutationState {
+		ChatTurnMutationState(
+			transcript: transcript,
+			streamingAssistant: streamingAssistant,
+			activityLine: activityLine,
+			assistantHeader: assistantHeader,
+			assistantBuffer: assistantBuffer,
+			sawToolCallThisTurn: sawToolCallThisTurn,
+			personaFallback: status?.persona ?? "Assistant",
 		)
 	}
 
-	/// Server-side askUser tool completion. Prefer upgrading a local optimistic
-	/// Q&A row when one was already inserted on submit, so the control does not
-	/// flash empty and then double-render.
-	private func appendAskUserQA(from event: ChatEventPayload) {
-		let args = event.args?.value as? [String: Any]
-		var query = (args?["query"] as? String) ?? ""
-		let blockKey = event.blockKey ?? event.id ?? UUID().uuidString
-
-		let errorString: String?
-		if let error = event.error?.value {
-			if error is NSNull {
-				errorString = nil
-			} else if let str = error as? String {
-				errorString = str
-			} else {
-				errorString = String(describing: error)
-			}
-		} else {
-			errorString = nil
-		}
-
-		let answer: String
-		let resolvedError: String?
-		if let errorString, !errorString.isEmpty {
-			answer = ""
-			resolvedError = errorString
-		} else if let result = event.result?.value as? [String: Any],
-			let resultError = result["error"] as? String,
-			!resultError.isEmpty
+	private func applyTurnMutationState(_ state: ChatTurnMutationState) {
+		// Avoid rewriting `transcript` on pure assistant text-deltas (same rows).
+		// Reassignment notifies @Observable observers and forced TranscriptView to
+		// re-fingerprint / re-group large histories on every token.
+		if state.transcript.count != transcript.count
+			|| state.transcript.last?.id != transcript.last?.id
+			|| state.transcript.first?.id != transcript.first?.id
+			|| !transcriptRowStampsMatch(state.transcript)
 		{
-			answer = ""
-			resolvedError = resultError
-		} else {
-			let result = event.result?.value as? [String: Any]
-			answer = ((result?["selectedLabel"] as? String) ?? "")
-				.trimmingCharacters(in: .whitespacesAndNewlines)
-			resolvedError = nil
+			transcript = state.transcript
 		}
-
-		if let index = transcript.lastIndex(where: { entry in
-			if case .askUserQA(let key, let existingQuery, _, _) = entry {
-				return existingQuery == query || key.hasPrefix("local-ask-")
-			}
-			return false
-		}) {
-			if query.isEmpty, case .askUserQA(_, let existingQuery, _, _) = transcript[index] {
-				query = existingQuery
-			}
-			transcript[index] = .askUserQA(
-				blockKey: blockKey,
-				query: query,
-				answer: answer,
-				error: resolvedError,
-			)
-			return
-		}
-
-		transcript.append(
-			.askUserQA(blockKey: blockKey, query: query, answer: answer, error: resolvedError),
-		)
+		streamingAssistant = state.streamingAssistant
+		activityLine = state.activityLine
+		assistantHeader = state.assistantHeader
+		assistantBuffer = state.assistantBuffer
+		sawToolCallThisTurn = state.sawToolCallThisTurn
 	}
 
-	private func upsertToolRow(
-		id: String,
-		header: String,
-		body: String,
-		fullBody: String? = nil,
-		toolName: String,
-		integrationLabel: String?,
-		cacheHit: Bool?,
-		durationMs: Int?,
-	) {
-		let replaced = replaceBoxedStep(id: id) { current in
-			BoxedStepPayload(
-				id: current.id,
-				seq: current.seq,
-				variant: "tool",
-				header: header,
-				body: body,
-				toolName: toolName,
-				integrationLabel: integrationLabel,
-				cacheHit: cacheHit,
-				durationMs: durationMs,
-				toolRuns: nil,
-				fullBody: fullBody,
-			)
+	/// True when each row's lightweight stamp matches (ids + body lengths, not full text).
+	private func transcriptRowStampsMatch(_ other: [TranscriptEntry]) -> Bool {
+		guard other.count == transcript.count else { return false }
+		for index in transcript.indices {
+			if transcript[index].id != other[index].id { return false }
+			if transcript[index].contentStamp != other[index].contentStamp { return false }
 		}
-		if !replaced {
-			appendToolRow(
-				id: id,
-				header: header,
-				body: body,
-				fullBody: fullBody,
-				toolName: toolName,
-				integrationLabel: integrationLabel,
-				cacheHit: cacheHit,
-				durationMs: durationMs,
-			)
-		}
+		return true
 	}
 
-	@discardableResult
-	private func replaceBoxedStep(
-		id: String,
-		transform: (BoxedStepPayload) -> BoxedStepPayload,
-	) -> Bool {
-		guard let index = transcript.lastIndex(where: { entry in
-			if case .boxedStep(let payload) = entry {
-				return payload.id == id
-			}
-			return false
-		}) else {
-			return false
-		}
-		if case .boxedStep(let payload) = transcript[index] {
-			transcript[index] = .boxedStep(transform(payload))
-			return true
-		}
-		return false
+	private func applyTurnEvent(_ event: ChatEventPayload) {
+		var state = turnMutationState()
+		ChatTurnEngine.apply(event: event, state: &state)
+		applyTurnMutationState(state)
 	}
 
-	private func commitAssistantSegment(id: String, interim: Bool) {
-		let body = assistantBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
-		guard !body.isEmpty else { return }
-		transcript.append(
-			.boxedStep(
-				BoxedStepPayload(
-					id: id,
-					seq: transcript.count + 1,
-					variant: interim ? "assistant_interim" : "assistant",
-					header: assistantHeader,
-					body: body,
-					toolName: nil,
-					integrationLabel: nil,
-					cacheHit: nil,
-					durationMs: nil,
-					toolRuns: nil,
-					fullBody: nil,
-				),
-			),
-		)
-		assistantBuffer = ""
-		streamingAssistant = nil
-	}
-
-	private func hasAssistantReplyBody(_ body: String, sinceIndex userIndex: Int) -> Bool {
-		guard userIndex >= 0, userIndex < transcript.count else { return false }
-		let normalized = body.trimmingCharacters(in: .whitespacesAndNewlines)
-		for entry in transcript[(userIndex + 1)...] {
-			if case .boxedStep(let payload) = entry, payload.variant == "assistant" {
-				if payload.body.trimmingCharacters(in: .whitespacesAndNewlines) == normalized {
-					return true
-				}
-			}
-			if case .assistant(let text) = entry {
-				if text.trimmingCharacters(in: .whitespacesAndNewlines) == normalized {
-					return true
-				}
-			}
-		}
-		return false
+	private func commitTurnAssistantSegment(id: String, interim: Bool) {
+		var state = turnMutationState()
+		ChatTurnEngine.commitAssistantSegment(id: id, interim: interim, state: &state)
+		applyTurnMutationState(state)
 	}
 }
