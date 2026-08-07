@@ -66,6 +66,35 @@ export function resolvePluginSearchDirectories(): string[] {
 	return directories;
 }
 
+/**
+ * Try to discover a bun-package plugin at `directoryPath`.
+ * Returns null when the path is not a valid bun-package plugin directory.
+ */
+function tryDiscoverBunPackage(
+	binaryName: string,
+	directoryPath: string,
+): Extract<DiscoveredPlugin, { kind: "bun-package" }> | null {
+	const manifestPath = path.join(directoryPath, "manifest.json");
+	if (!fs.existsSync(manifestPath)) return null;
+
+	const manifestResult = parseManifest(directoryPath);
+	if (!manifestResult.ok) return null;
+
+	const entryPath = path.resolve(
+		directoryPath,
+		manifestResult.manifest.runtime.entry,
+	);
+	if (!fs.existsSync(entryPath)) return null;
+
+	return {
+		kind: "bun-package",
+		binaryName,
+		directoryPath,
+		manifestPath,
+		entryPath,
+	};
+}
+
 function listPluginsInDirectory(directory: string): DiscoveredPlugin[] {
 	if (!fs.existsSync(directory) || !fs.statSync(directory).isDirectory()) {
 		return [];
@@ -79,51 +108,58 @@ function listPluginsInDirectory(directory: string): DiscoveredPlugin[] {
 		const name = entry.name;
 		if (!name.startsWith(PLUGIN_BINARY_PREFIX)) continue;
 		if (!parsePluginNameFromBinary(name)) continue;
+		if (seenNames.has(name)) continue;
 
-		// Binary plugin: file or symlink
-		if (entry.isFile() || entry.isSymbolicLink()) {
-			// Skip if a directory with the same name already discovered this plugin
-			if (seenNames.has(name)) continue;
-			const binaryPath = path.join(directory, name);
-			try {
-				fs.accessSync(binaryPath, fs.constants.X_OK);
-			} catch {
-				continue;
-			}
-			plugins.push({ kind: "binary", binaryName: name, binaryPath });
+		const fullPath = path.join(directory, name);
+
+		// Resolve through symlinks so a symlink → plugin directory is treated as
+		// bun-package, not as a binary executable path (which yields EACCES).
+		let realStat: fs.Stats;
+		try {
+			realStat = fs.statSync(fullPath);
+		} catch {
+			continue;
+		}
+
+		// Bun-package plugin: directory with manifest.json (preferred).
+		if (realStat.isDirectory()) {
+			const discovered = tryDiscoverBunPackage(name, fullPath);
+			if (!discovered) continue;
+			plugins.push(discovered);
 			seenNames.add(name);
 			continue;
 		}
 
-		// Bun-package plugin: directory with manifest.json
-		if (entry.isDirectory()) {
-			// Skip if a binary with the same name already discovered this plugin
-			if (seenNames.has(name)) continue;
-			const directoryPath = path.join(directory, name);
-			const manifestPath = path.join(directoryPath, "manifest.json");
-			if (!fs.existsSync(manifestPath)) continue;
-
-			const manifestResult = parseManifest(directoryPath);
-			if (!manifestResult.ok) continue;
-
-			const entryPath = path.resolve(
-				directoryPath,
-				manifestResult.manifest.runtime.entry,
-			);
-			if (!fs.existsSync(entryPath)) continue;
-
-			plugins.push({
-				kind: "bun-package",
-				binaryName: name,
-				directoryPath,
-				manifestPath,
-				entryPath,
-			});
+		// Binary plugin: regular executable file.
+		if (realStat.isFile()) {
+			try {
+				fs.accessSync(fullPath, fs.constants.X_OK);
+			} catch {
+				continue;
+			}
+			plugins.push({ kind: "binary", binaryName: name, binaryPath: fullPath });
 			seenNames.add(name);
 		}
 	}
 
 	return plugins;
+}
+
+/**
+ * Stable fingerprint of the current on-disk plugin set (name, kind, path).
+ * Used to invalidate the in-memory plugin module cache when dist/ plugins are
+ * rebuilt or replaced without restarting the daemon.
+ */
+export function pluginDiscoveryFingerprint(): string {
+	return discoverPluginBinaries()
+		.map((p) => {
+			const loc =
+				p.kind === "binary"
+					? p.binaryPath
+					: `${p.directoryPath}@${p.entryPath}`;
+			return `${p.binaryName}:${p.kind}:${loc}`;
+		})
+		.join("\n");
 }
 
 export function discoverPluginBinaries(): DiscoveredPlugin[] {

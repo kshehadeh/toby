@@ -3,6 +3,7 @@ import { listOpenRouterTranscriptionModels } from "../ai/model-list/openrouter-t
 import { listVercelTranscriptionModels } from "../ai/model-list/vercel-catalog";
 import { type Persona, readConfig } from "../config/index";
 import { getIntegrationModules } from "../integrations/index";
+import { pluginDiscoveryFingerprint } from "../integrations/plugins/discovery";
 import { resetPluginModuleCache } from "../integrations/plugins/registry";
 import { TRANSCRIPTION_PROVIDERS } from "../listen/transcription-providers";
 import { DEFAULT_CHAT_PERSONA } from "../personas/index";
@@ -15,6 +16,8 @@ interface CachedSettings {
 	readonly redactedValues: Record<string, string>;
 	readonly integrationLabels: Record<string, string>;
 	readonly sectionsTree: SettingsItem[];
+	/** Plugin discovery fingerprint when this snapshot was built. */
+	readonly pluginFingerprint: string;
 }
 
 let cached: CachedSettings | null = null;
@@ -92,6 +95,7 @@ async function buildCachedSettings(): Promise<CachedSettings> {
 		redactedValues: redacted,
 		integrationLabels: buildIntegrationLabels(),
 		sectionsTree,
+		pluginFingerprint: pluginDiscoveryFingerprint(),
 	};
 }
 
@@ -102,10 +106,22 @@ async function buildCachedSettings(): Promise<CachedSettings> {
  * (create/update/delete schedule, create/complete schedule runs). Schedule
  * recent-run status is embedded in the tree, so run completion must drop
  * this cache or list UIs stay stuck on RUNNING until the daemon restarts.
+ *
+ * Also auto-invalidates when the on-disk plugin set changes (dev rebuilds of
+ * `dist/toby-plugin-*`), so iconUrls and integration sections stay in sync
+ * without a daemon restart.
  */
 export async function getSettingsCache(): Promise<CachedSettings> {
 	if (cached) {
-		return cached;
+		const currentFingerprint = pluginDiscoveryFingerprint();
+		if (cached.pluginFingerprint !== currentFingerprint) {
+			// Plugin binaries/directories changed under us (common after
+			// `bun run build:plugins`). Drop both caches so modules re-resolve.
+			resetPluginModuleCache();
+			cached = null;
+		} else {
+			return cached;
+		}
 	}
 	if (inFlight) {
 		return inFlight;

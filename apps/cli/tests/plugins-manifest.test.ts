@@ -344,3 +344,57 @@ describe("manifest events.poll parsing", () => {
 		expect(result.code).toBe("manifest_invalid_events");
 	});
 });
+
+describe("plugin discovery kind + target recovery", () => {
+	let tempDir: string;
+	let previousPluginsDir: string | undefined;
+
+	beforeEach(() => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-plugin-kind-"));
+		previousPluginsDir = process.env.TOBY_PLUGINS_DIR;
+		process.env.TOBY_PLUGINS_DIR = tempDir;
+	});
+
+	afterEach(() => {
+		if (previousPluginsDir === undefined) {
+			Reflect.deleteProperty(process.env, "TOBY_PLUGINS_DIR");
+		} else {
+			process.env.TOBY_PLUGINS_DIR = previousPluginsDir;
+		}
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	it("discovers a directory with manifest.json as bun-package (not binary)", async () => {
+		const { discoverPluginBinaries } = await import(
+			"@toby/core/integrations/plugins/discovery"
+		);
+		const pluginDir = path.join(tempDir, "toby-plugin-testpkg");
+		writeManifest(pluginDir, validManifest);
+		writeEntryFile(pluginDir);
+
+		const discovered = discoverPluginBinaries();
+		const hit = discovered.find((p) => p.binaryName === "toby-plugin-testpkg");
+		expect(hit?.kind).toBe("bun-package");
+		if (hit?.kind !== "bun-package") return;
+		expect(hit.directoryPath).toBe(pluginDir);
+	});
+
+	it("upgrades a stale binary descriptor when the path is a bun-package directory", async () => {
+		const { resolvePluginTarget } = await import(
+			"@toby/core/integrations/plugins/runtime"
+		);
+		const pluginDir = path.join(tempDir, "toby-plugin-testpkg");
+		writeManifest(pluginDir, validManifest);
+		writeEntryFile(pluginDir);
+
+		const target = resolvePluginTarget({
+			kind: "binary",
+			binaryName: "toby-plugin-testpkg",
+			binaryPath: pluginDir,
+		});
+		expect(target.kind).toBe("bun-package");
+		if (target.kind !== "bun-package") return;
+		expect(target.cwd).toBe(pluginDir);
+		expect(target.entryPath).toBe(path.join(pluginDir, "src/index.ts"));
+	});
+});

@@ -7,7 +7,11 @@ import {
 	rememberPluginMetadata,
 } from "./adapter";
 import { pluginToolsList } from "./client";
-import { discoverPluginBinaries, findPluginBinary } from "./discovery";
+import {
+	discoverPluginBinaries,
+	findPluginBinary,
+	pluginDiscoveryFingerprint,
+} from "./discovery";
 import { readDisabledPluginNames } from "./list-status";
 import { migrateLegacyPluginCredentials } from "./migrate";
 import type { DiscoveredPlugin } from "./protocol";
@@ -15,17 +19,31 @@ import { resolvePluginTarget } from "./runtime";
 import { setCachedPluginToolDefinitions } from "./tool-def-cache";
 
 let cachedPluginModules: IntegrationModule[] | null = null;
+/** Fingerprint of the on-disk plugin set used to build `cachedPluginModules`. */
+let cachedDiscoveryFingerprint: string | null = null;
 
+/**
+ * Return integration modules for discovered plugins.
+ *
+ * The module list is cached, but the cache is automatically invalidated when
+ * the on-disk plugin set changes (name/kind/path). That matters in dev when
+ * `bun run build:plugins` replaces compiled binaries with bun-package
+ * directories without restarting the daemon — without this, status calls keep
+ * trying to `posix_spawn` a directory (EACCES) and iconUrls never refresh.
+ */
 export function getPluginModules(): IntegrationModule[] {
-	if (cachedPluginModules) {
+	const fingerprint = pluginDiscoveryFingerprint();
+	if (cachedPluginModules && cachedDiscoveryFingerprint === fingerprint) {
 		return cachedPluginModules;
 	}
+	cachedDiscoveryFingerprint = fingerprint;
 	cachedPluginModules = loadDiscoveredPluginModules();
 	return cachedPluginModules;
 }
 
 export function resetPluginModuleCache(): void {
 	cachedPluginModules = null;
+	cachedDiscoveryFingerprint = null;
 }
 
 function loadDiscoveredPluginModules(): IntegrationModule[] {

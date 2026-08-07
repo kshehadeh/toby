@@ -148,9 +148,17 @@ function invokePlugin<T>(
 	const stderr = typeof result.stderr === "string" ? result.stderr : "";
 
 	if (result.error) {
+		const message = result.error.message;
+		// Common after rebuilding plugins in place: a stale binary target still
+		// points at a directory path. Surface a clearer recovery hint.
+		const looksLikeDirSpawn =
+			/EACCES|EISDIR|permission denied/i.test(message) &&
+			!command.includes("bun");
 		return {
 			ok: false,
-			error: result.error.message,
+			error: looksLikeDirSpawn
+				? `${message}. This path looks like a bun-package plugin directory being spawned as a binary — restart the daemon or rebuild plugins with \`bun run build:plugins\`.`
+				: message,
 			code: "spawn_error",
 			stderr: stderr.trim(),
 			exitCode: result.status,

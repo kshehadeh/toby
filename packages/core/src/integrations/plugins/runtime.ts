@@ -51,15 +51,68 @@ export function resolveBunRuntime(): BunRuntimeResult {
 }
 
 /**
+ * If `directoryPath` looks like a bun-package plugin, resolve a bun-package
+ * invocation target. Returns null when it is not a valid package directory.
+ */
+function tryResolveBunPackageTarget(
+	directoryPath: string,
+): PluginInvocationTarget | null {
+	const manifestPath = path.join(directoryPath, "manifest.json");
+	if (
+		!fs.existsSync(manifestPath) ||
+		!fs.statSync(directoryPath).isDirectory()
+	) {
+		return null;
+	}
+	let entryRel: string;
+	try {
+		const raw = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as {
+			runtime?: { entry?: string };
+		};
+		entryRel = raw.runtime?.entry?.trim() ?? "";
+	} catch {
+		return null;
+	}
+	if (!entryRel) return null;
+	const entryPath = path.resolve(directoryPath, entryRel);
+	if (!fs.existsSync(entryPath)) return null;
+
+	const runtime = resolveBunRuntime();
+	if (!runtime.ok) {
+		throw new Error(runtime.error);
+	}
+	return {
+		kind: "bun-package",
+		bunPath: runtime.bunPath,
+		cwd: directoryPath,
+		entryPath,
+	};
+}
+
+/**
  * Convert a discovered plugin descriptor into an invocation target
  * suitable for the plugin client subprocess functions.
  *
  * Throws if a bun-package plugin is discovered but no Bun runtime is available.
+ *
+ * Recovery: if a descriptor claims `binary` but the path is actually a
+ * bun-package directory (common after `bun run build:plugins` replaces old
+ * compiled binaries with directories without restarting the daemon), upgrade
+ * to a bun-package target instead of spawning the directory (EACCES).
  */
 export function resolvePluginTarget(
 	discovered: DiscoveredPlugin,
 ): PluginInvocationTarget {
 	if (discovered.kind === "binary") {
+		// Stale binary descriptor after a bun-package rebuild into the same path.
+		try {
+			if (fs.statSync(discovered.binaryPath).isDirectory()) {
+				const upgraded = tryResolveBunPackageTarget(discovered.binaryPath);
+				if (upgraded) return upgraded;
+			}
+		} catch {
+			// Fall through to binary target; spawn will surface the real error.
+		}
 		return { kind: "binary", executablePath: discovered.binaryPath };
 	}
 
