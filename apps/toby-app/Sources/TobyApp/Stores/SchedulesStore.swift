@@ -140,6 +140,9 @@ final class SchedulesStore {
 	private let client = TobyClient()
 	private var autosaveTask: Task<Void, Never>?
 	private let autosaveDelay: Duration = .milliseconds(450)
+	/// Mutex for in-flight configure patches. Kept separate from `isSaving` so
+	/// background autosave does not disable Run/Delete controls while typing.
+	private var isSaveInFlight = false
 	private var loadedTree: SettingsItem?
 
 	var selectedSchedule: ScheduleViewModel? {
@@ -403,8 +406,14 @@ final class SchedulesStore {
 		let key = key(for: scheduleId, field: .cron)
 		let value = self.value(for: key)
 		guard !value.isEmpty else { return }
+		// Already a valid crontab — nothing to convert.
+		if Self.isValidCronExpression(value) {
+			cronValidationErrors[scheduleId] = nil
+			return
+		}
 		parsingCronScheduleId = scheduleId
 		errorMessage = nil
+		// Suppress "invalid cron" while the LLM converts natural language.
 		cronValidationErrors[scheduleId] = nil
 		defer { parsingCronScheduleId = nil }
 		do {
@@ -418,13 +427,22 @@ final class SchedulesStore {
 	}
 
 	func validateCronOnBlur(for scheduleId: String) {
+		// Don't flash validation UI while a conversion is already in flight (focus often
+		// leaves the field when the user clicks Convert).
+		guard parsingCronScheduleId != scheduleId else { return }
 		let key = key(for: scheduleId, field: .cron)
 		let value = self.value(for: key)
-		guard !value.isEmpty else {
+		// Clear hard errors on blur when empty or valid. Natural-language text is
+		// expected input and is handled as a soft "needs convert" hint in the view —
+		// not as a validation error — so we do not set cronValidationErrors for it.
+		if value.isEmpty || Self.isValidCronExpression(value) {
 			cronValidationErrors[scheduleId] = nil
-			return
 		}
-		cronValidationErrors[scheduleId] = Self.isValidCronExpression(value) ? nil : "Not a valid cron expression."
+	}
+
+	/// Soft status while natural-language schedule text is being converted.
+	func isParsingCron(for scheduleId: String) -> Bool {
+		parsingCronScheduleId == scheduleId
 	}
 
 	func isCronValid(for scheduleId: String) -> Bool {
@@ -447,7 +465,20 @@ final class SchedulesStore {
 		} else {
 			draft[key] = value
 		}
+		// Typing a new schedule expression invalidates any prior convert failure.
+		if key.hasSuffix(".\(ScheduleField.cron.rawValue)"),
+			let scheduleId = scheduleId(fromKeyPrefix: key)
+		{
+			cronValidationErrors[scheduleId] = nil
+		}
 		scheduleAutosave(immediately: autosaveImmediately)
+	}
+
+	private func scheduleId(fromKeyPrefix key: String) -> String? {
+		// keys look like "schedules.<id>.cron"
+		let parts = key.split(separator: ".")
+		guard parts.count == 3, parts[0] == "schedules", parts[2] == "cron" else { return nil }
+		return String(parts[1])
 	}
 
 	func save() async {
@@ -488,14 +519,17 @@ final class SchedulesStore {
 	}
 
 	private func savePendingChanges() async {
-		if isSaving {
+		if isSaveInFlight {
+			// Another patch is running; retry once it finishes if drafts remain dirty.
 			scheduleAutosave()
 			return
 		}
 		let changes = allPendingChanges
 		guard !changes.isEmpty else { return }
-		isSaving = true
-		defer { isSaving = false }
+		isSaveInFlight = true
+		// Intentionally do not set `isSaving` here — autosave must not disable
+		// Run/Delete (or other chrome) while the user is editing.
+		defer { isSaveInFlight = false }
 		do {
 			let response = try await client.patchConfigure(changes: changes)
 			apply(response: response, resetDraft: false)

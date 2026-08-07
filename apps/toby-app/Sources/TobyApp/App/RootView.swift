@@ -713,7 +713,8 @@ struct RootView: View {
                                     Image(systemName: "play.fill")
                                 }
                                 .help("Run Now")
-                                .disabled(schedulesStore.runningScheduleId != nil || schedulesStore.isSaving)
+                                // Autosave must not disable Run; only block while a run is in flight.
+                                .disabled(schedulesStore.runningScheduleId != nil)
                                 .accessibilityIdentifier("run-schedule-button")
                             }
                         }
@@ -728,7 +729,7 @@ struct RootView: View {
                                     Image(systemName: "trash")
                                 }
                                 .help("Delete Schedule")
-                                .disabled(schedulesStore.deletingScheduleId != nil || schedulesStore.isSaving)
+                                .disabled(schedulesStore.deletingScheduleId != nil)
                                 .accessibilityIdentifier("delete-schedule-button")
                             }
                         }

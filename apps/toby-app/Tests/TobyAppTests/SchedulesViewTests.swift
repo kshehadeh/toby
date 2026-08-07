@@ -106,8 +106,8 @@ struct SchedulesViewTests {
 		}
 	}
 
-	@Test("cron blur validation sets error for invalid expression")
-	func cronBlurValidationSetsError() throws {
+	@Test("cron blur validation does not treat natural language as a hard error")
+	func cronBlurValidationDoesNotErrorNaturalLanguage() throws {
 		let store = SchedulesStore()
 		let schedule = ScheduleViewModel(
 			id: "schedule-1",
@@ -121,9 +121,11 @@ struct SchedulesViewTests {
 			lastRunAt: nil,
 			recentRuns: []
 		)
-		store.values[store.key(for: schedule.id, field: .cron)] = "not a cron"
+		store.values[store.key(for: schedule.id, field: .cron)] = "every weekday at 9am"
 		store.validateCronOnBlur(for: schedule.id)
-		#expect(store.cronValidationErrors[schedule.id] != nil)
+		// Natural language is converted via Convert; blur must not flash "invalid cron".
+		#expect(store.cronValidationErrors[schedule.id] == nil)
+		#expect(store.isCronValid(for: schedule.id) == false)
 	}
 
 	@Test("cron blur validation clears error for valid expression")
@@ -147,6 +149,28 @@ struct SchedulesViewTests {
 		#expect(store.cronValidationErrors[schedule.id] == nil)
 	}
 
+	@Test("cron blur validation is skipped while conversion is in flight")
+	func cronBlurValidationSkippedWhileParsing() throws {
+		let store = SchedulesStore()
+		let schedule = ScheduleViewModel(
+			id: "schedule-1",
+			name: "Daily Standup",
+			prompt: "Summarize",
+			personaName: "default",
+			cronExpression: "0 9 * * *",
+			cronHumanReadable: "At 09:00 AM",
+			nextRunAt: nil,
+			enabled: true,
+			lastRunAt: nil,
+			recentRuns: []
+		)
+		store.parsingCronScheduleId = schedule.id
+		store.values[store.key(for: schedule.id, field: .cron)] = "every weekday at 9am"
+		store.validateCronOnBlur(for: schedule.id)
+		#expect(store.cronValidationErrors[schedule.id] == nil)
+		#expect(store.isParsingCron(for: schedule.id))
+	}
+
 	@Test("cron validity does not treat plain language with numbers as cron")
 	func cronValidityRejectsPlainLanguageWithNumbers() throws {
 		let store = SchedulesStore()
@@ -164,6 +188,58 @@ struct SchedulesViewTests {
 		)
 		store.values[store.key(for: schedule.id, field: .cron)] = "every 2 days at 9am"
 		#expect(store.isCronValid(for: schedule.id) == false)
+	}
+
+	@Test("schedule detail shows converting status while parsing cron")
+	func scheduleDetailShowsConvertingStatus() throws {
+		let store = SchedulesStore()
+		let schedule = ScheduleViewModel(
+			id: "schedule-1",
+			name: "Daily Standup",
+			prompt: "Summarize",
+			personaName: "default",
+			cronExpression: "0 9 * * *",
+			cronHumanReadable: "At 09:00 AM",
+			nextRunAt: nil,
+			enabled: true,
+			lastRunAt: nil,
+			recentRuns: []
+		)
+		store.schedules = [schedule]
+		store.selectedScheduleId = schedule.id
+		store.values[store.key(for: schedule.id, field: .cron)] = "every weekday at 9am"
+		store.parsingCronScheduleId = schedule.id
+		let view = SchedulesView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "cron-converting-status")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Converting natural language to cron…")
+		}
+	}
+
+	@Test("schedule detail shows convert hint for natural language cron")
+	func scheduleDetailShowsConvertHint() throws {
+		let store = SchedulesStore()
+		let schedule = ScheduleViewModel(
+			id: "schedule-1",
+			name: "Daily Standup",
+			prompt: "Summarize",
+			personaName: "default",
+			cronExpression: "0 9 * * *",
+			cronHumanReadable: "At 09:00 AM",
+			nextRunAt: nil,
+			enabled: true,
+			lastRunAt: nil,
+			recentRuns: []
+		)
+		store.schedules = [schedule]
+		store.selectedScheduleId = schedule.id
+		store.values[store.key(for: schedule.id, field: .cron)] = "every weekday at 9am"
+		let view = SchedulesView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "cron-needs-convert-hint")
+		}
 	}
 
 	@Test("run view model withStatus rewrites label and normalizes status")

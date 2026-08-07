@@ -33,7 +33,8 @@ struct ScheduleInspectorSidebar: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
-                .disabled(store.isSaving || store.runningScheduleId != nil)
+                // Do not gate on isSaving — autosave must not flicker these controls.
+                .disabled(store.runningScheduleId != nil)
                 .accessibilityIdentifier("sidebar-run-now-button")
 
                 Button(role: .destructive) {
@@ -48,7 +49,7 @@ struct ScheduleInspectorSidebar: View {
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
                 .tint(.red)
-                .disabled(store.isSaving)
+                .disabled(store.deletingScheduleId != nil)
                 .accessibilityIdentifier("sidebar-delete-schedule-button")
             }
             .padding(18)
@@ -127,8 +128,9 @@ struct ScheduleInspectorSidebar: View {
                 .foregroundStyle(AppTheme.accent)
             }
             let cronBinding = binding(for: .cron)
-            let isParsing = store.parsingCronScheduleId == schedule.id
+            let isParsing = store.isParsingCron(for: schedule.id)
             let isCronValid = store.isCronValid(for: schedule.id)
+            let cronText = cronBinding.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines)
             HStack(spacing: 8) {
                 SettingsInlineField(text: cronBinding, placeholder: "0 9 * * *")
                     .disabled(isParsing)
@@ -161,8 +163,22 @@ struct ScheduleInspectorSidebar: View {
                 )
                 .accessibilityIdentifier("validate-schedule-button")
             }
-            if let error = store.cronValidationErrors[schedule.id], !error.isEmpty {
+            if isParsing {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.mini)
+                    Text("Converting natural language to cron…")
+                        .font(.system(size: 11))
+                        .foregroundStyle(SettingsDesign.rowDescription)
+                }
+                .accessibilityIdentifier("cron-converting-status")
+            } else if let error = store.cronValidationErrors[schedule.id], !error.isEmpty {
                 InlineStatusMessage(message: error, tone: .error, font: .system(size: 11))
+            } else if !cronText.isEmpty && !isCronValid {
+                Text("Click Convert to turn this into a cron expression.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(SettingsDesign.rowDescription)
+                    .accessibilityIdentifier("cron-needs-convert-hint")
             }
         }
     }
