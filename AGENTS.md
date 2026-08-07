@@ -92,8 +92,47 @@ belongs in core.
   (`.agents/skills/toby-docs/`).
 - When committing, use the `atomic-conventional-commit` skill for cohesive
   Conventional Commit messages.
+- **Swift / macOS reviews:** use the multi-skill pipeline under
+  [`.agents/skills/`](.agents/skills/) (see
+  [Swift review skills](#swift-review-skills) below). Do not re-discover app
+  architecture on every review — load
+  [`.agents/context/swift-project-assessment.yaml`](.agents/context/swift-project-assessment.yaml).
 - **Dev loops:** `bun run dev` for CLI watch; `bun run app` to build/open the
   native app. Do not expect an Ink chat TUI — interactive UI is Toby.app only.
+
+## Swift review skills
+
+Toby.app reviews are intentionally split so each skill stays focused and
+produces fewer false positives:
+
+```
+swift-project-assessment          # context only — never nitpicks code
+        │
+        ▼
+swiftui-architecture-review     # architecture + SwiftUI quality
+        │
+        ▼
+toby-engineering-standards      # org/repo culture (ownership, tests, DS)
+        │
+        ▼
+toby-swift-review               # orchestrator + findings aggregator
+```
+
+| Skill | Role |
+| ----- | ---- |
+| [`swift-project-assessment`](.agents/skills/swift-project-assessment/) | What kind of app this is, conventions, feature boundaries; writes `.agents/context/swift-project-assessment.yaml` |
+| [`swiftui-architecture-review`](.agents/skills/swiftui-architecture-review/) | Assumes assessment exists; state, performance, concurrency, navigation, a11y, maintainability |
+| [`toby-engineering-standards`](.agents/skills/toby-engineering-standards/) | Toby-specific: ownership, design system, file size, DI, tests, logging, plugins policy |
+| [`toby-swift-review`](.agents/skills/toby-swift-review/) | Runs the pipeline and aggregates findings |
+
+**Reference libraries (not project context):**
+[`swiftui-pro`](.agents/skills/swiftui-pro/),
+[`swiftui-expert-skill`](.agents/skills/swiftui-expert-skill/) (deep topic
+refs + Instruments). **Windows:**
+[`toby-native-window`](.agents/skills/toby-native-window/).
+
+Slash commands: `/toby-swift-review`, `/swift-project-assessment`,
+`/swiftui-architecture-review`, `/toby-engineering-standards`.
 
 ## Quick paths
 

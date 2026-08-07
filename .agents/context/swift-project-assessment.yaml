@@ -1,0 +1,125 @@
+# Seed assessment for Toby.app. Refresh with /swift-project-assessment when Package.swift,
+# folder layout, or architectural conventions change.
+source: swift-project-assessment
+assessed_at: 2026-08-07
+target: apps/toby-app
+confidence: high
+
+Project:
+  Name: Toby.app
+  Kind: >
+    Native macOS productivity app (multi-window SwiftUI product UI + menu bar)
+    talking to a local daemon over HTTP/SSE and exposing a native localhost API
+    for TCC-gated plugins. Only native product code in the Bun monorepo.
+  Architecture: >
+    Feature-folder SwiftUI UI with @Observable @MainActor stores (MVVM-like).
+    App owns stores at the scene root; views receive them by injection.
+    Business logic and persistence live in @toby/core (daemon), not in the app.
+  Deployment_Target: macOS 14
+  Swift: "6.0"
+  Observation: "@Observable + @State store ownership at App/Root; @Environment for openWindow and shared prefs"
+  Navigation: >
+    WindowGroup main chat shell; additional Window scenes for Settings, Logs,
+    Changelog, Issue Report, etc. In-window NavigationSplitView for sidebar
+    features. Settings uses custom tab strip + hierarchy sidebar (not TabView /
+    NavigationSplitView for chrome reasons). See toby-native-window.
+  Persistence: >
+    No SwiftData. Session/config/memory data via local daemon HTTP API.
+    Appearance and some client prefs in UserDefaults (AppearancePreferences).
+  Dependency_Injection: >
+    Initializer injection of stores into RootView and feature roots;
+    @Environment(\.openWindow); @Environment(AppearancePreferences.self);
+    singletons sparingly (NativeServer.shared, GlobalHotkeyController, AppearancePreferences.shared).
+  Networking: >
+    TobyClient → daemon localhost HTTP + SSE. NativeServer → plugin-facing
+    native API on ~/.toby/native-port. App does not import @toby/core.
+  Frameworks:
+    - SwiftUI
+    - AppKit (menu bar, window chrome, pasteboard bridges, NSColor theme)
+    - Observation
+    - EventKit
+    - Contacts
+    - AVFoundation / ScreenCaptureKit / CoreMedia (recording)
+    - CoreLocation
+    - CoreWLAN / IOBluetooth / CoreAudio / IOKit (native macOS controls)
+    - ServiceManagement (launch at login)
+    - UserNotifications
+    - Network
+    - ApplicationServices (Accessibility)
+  Third_Party:
+    - Sparkle (updates)
+    - ViewInspector (Swift UI tests only)
+
+Repository_Conventions:
+  - Feature modules under Sources/TobyApp/Features/<Name>/
+  - Shared @Observable stores under Sources/TobyApp/Stores/
+  - Design system: UI/Theme (AppTheme, SettingsDesign, AppearancePreferences),
+    UI/Primitives, UI/SettingsControls, UI/Markdown
+  - Native TCC / framework bridges under Sources/TobyApp/Native/ only
+  - Window scenes declared in App/TobyApp.swift
+  - Swift Package Manager package (apps/toby-app/Package.swift); macOS 14+
+  - Swift Testing (import Testing) + ViewInspector; test suites @MainActor
+  - Prefer structural ViewInspector navigation over find(viewWithId:) when SF Symbols
+    lack accessibility labels (AccessibilityImageLabel blocks traversal)
+  - Tabs/spacing/colors go through AppTheme / SettingsDesign — avoid ad-hoc RGB
+  - Dynamic NSColor-backed theme colors preferred so appearance changes resolve at draw time
+  - No new compiled Swift plugins; plugins are TypeScript bun-packages that call NativeServer
+  - Docs: docs/architecture.md, docs/native-helpers.md, Claude.md Swift test notes
+
+Feature_Boundaries:
+  App: Sources/TobyApp/App
+  Features: Sources/TobyApp/Features
+  Stores: Sources/TobyApp/Stores
+  UI: Sources/TobyApp/UI
+  Native: Sources/TobyApp/Native
+  Models: Sources/TobyApp/Models
+  Utilities: Sources/TobyApp/Utilities
+  Tests: Tests/TobyAppTests
+  Major_Features:
+    - Chat / Sidebar / Dashboard
+    - Configure (Settings) / Personas
+    - Integrations / Skills / Flows / Projects / Memories
+    - Recordings / Schedules / Logs
+    - CommandPalette / Permissions / Changelog / IssueReport / About
+  Intentional_Patterns:
+    - Store-per-domain (@Observable @MainActor) owned at App entry with @State
+    - Feature views split into Sidebar / Detail / Inspector content files
+    - SettingsDesign + Settings* controls for preferences-style forms
+    - WindowAccessor for NSWindow style mask tweaks on modal windows
+    - Daemon bootstrap and lifecycle separate from pure UI (DaemonBootstrap)
+    - OpenWindowBridge for opening secondary windows from non-Scene contexts
+
+Potential_Risks:
+  - Large root/composition files (e.g. RootView, ChatStore) becoming change magnets
+  - TobyClient API surface growing as the single daemon gateway
+  - Native handlers accumulating many framework responsibilities in few files
+  - Dual ConfigureStore instances (settings vs integrations) must stay intentional
+  - AppKit bridges necessary but easy to overuse for pure UI work
+
+Review_Guidance:
+  Prefer:
+    - @Observable / @State / @Bindable guidance over ObservableObject migration
+    - macOS multi-window and NavigationSplitView patterns (swiftui-expert macos-* refs)
+    - Theme tokens (AppTheme, SettingsDesign) and existing primitives
+    - MainActor-isolated stores and UI; structured concurrency for async loads
+    - Window rules from toby-native-window for any new Window / WindowGroup
+    - View extraction and stable ForEach identity for performance
+  Ignore:
+    - UIKit migration or UIKit-first advice
+    - iOS-only APIs, SwiftData adoption pitches, VIPER/TCA mandates
+    - "Move business logic into the app" — daemon/core owns harness logic
+    - Suggesting compiled binary or Swift plugins
+    - Replacing Settings custom tabs with TabView (chrome regression)
+  Validate_Against:
+    - AppTheme / SettingsDesign / SettingsControls
+    - toby-native-window hard rules for window chrome
+    - Claude.md Swift test conventions
+    - docs/architecture.md ownership (app vs core vs plugins)
+
+Related_Skills:
+  windows: toby-native-window
+  swiftui_refs:
+    - swiftui-expert-skill
+    - swiftui-pro
+  engineering: toby-engineering-standards
+  orchestrator: toby-swift-review

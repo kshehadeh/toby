@@ -71,6 +71,21 @@ bun run lint:fix        # Biome lint with auto-fix
    than using `find(viewWithId:)` — system images without explicit `.accessibilityLabel()`
    create `AccessibilityImageLabel` modifiers that block ViewInspector tree traversal.
 
+## Swift review skills (agents)
+
+For SwiftUI / macOS architecture and quality reviews, use the pipeline in
+`.agents/skills/` rather than a single monolithic checklist:
+
+| Skill | Purpose |
+| ----- | ------- |
+| `swift-project-assessment` | Repo context → `.agents/context/swift-project-assessment.yaml` |
+| `swiftui-architecture-review` | Framework + architecture review (assumes assessment) |
+| `toby-engineering-standards` | Toby ownership, design system, tests, file size, plugins |
+| `toby-swift-review` | Orchestrator (assessment → architecture → standards) |
+
+Deep SwiftUI references remain in `swiftui-pro` and `swiftui-expert-skill`.
+Window chrome: `toby-native-window`. See `Agents.md` → **Swift review skills**.
+
 ## CI
 
 - `release.yml` — triggered on version tags; builds, signs, notarizes, and publishes
