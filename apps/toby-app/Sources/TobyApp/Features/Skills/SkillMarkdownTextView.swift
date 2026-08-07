@@ -44,6 +44,7 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 		textView.textColor = SkillMarkdownSyntax.primaryColor
 		textView.insertionPointColor = SkillMarkdownSyntax.primaryColor
 		textView.typingAttributes = SkillMarkdownSyntax.baseTypingAttributes
+		textView.defaultParagraphStyle = SkillMarkdownSyntax.paragraphStyle
 		textView.isVerticallyResizable = true
 		textView.isHorizontallyResizable = false
 		textView.textContainer?.widthTracksTextView = true
@@ -60,9 +61,11 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 		context.coordinator.highlight()
 		context.coordinator.updateCursor()
 
-		model.applyFormat = { [weak coordinator = context.coordinator] format in
+		let applyFormat: (SkillMarkdownFormat) -> Void = { [weak coordinator = context.coordinator] format in
 			coordinator?.applyFormat(format)
 		}
+		model.applyFormat = applyFormat
+		textView.onFormat = applyFormat
 
 		let scrollView = SkillMarkdownScrollView()
 		scrollView.documentView = textView
@@ -74,11 +77,13 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 	}
 
 	func updateNSView(_ nsView: NSScrollView, context: Context) {
-		guard let textView = nsView.documentView as? NSTextView else { return }
+		guard let textView = nsView.documentView as? SkillMarkdownNSTextView else { return }
 		context.coordinator.parent = self
-		model.applyFormat = { [weak coordinator = context.coordinator] format in
+		let applyFormat: (SkillMarkdownFormat) -> Void = { [weak coordinator = context.coordinator] format in
 			coordinator?.applyFormat(format)
 		}
+		model.applyFormat = applyFormat
+		textView.onFormat = applyFormat
 		if textView.string != text {
 			context.coordinator.isUpdating = true
 			let selected = textView.selectedRange()
@@ -205,17 +210,34 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 	}
 }
 
+/// Thin NSTextView subclass: tab traversal + markdown format key equivalents.
+/// Caret size, blink, and drawing are left entirely to AppKit.
 final class SkillMarkdownNSTextView: NSTextView {
-	override func setNeedsDisplay(_ rect: NSRect, avoidAdditionalLayout flag: Bool) {
-		super.setNeedsDisplay(insertionPointRect(for: rect), avoidAdditionalLayout: flag)
+	/// Called for toolbar actions and keyboard shortcuts (⌘B / ⌘I).
+	var onFormat: ((SkillMarkdownFormat) -> Void)?
+
+	override func performKeyEquivalent(with event: NSEvent) -> Bool {
+		// Only ⌘ (not ⌘⇧ / ⌘⌥ / etc.). Ignore caps lock and other noise flags.
+		let mods = event.modifierFlags.intersection([.command, .shift, .option, .control])
+		guard isEditable,
+			event.type == .keyDown,
+			mods == .command,
+			let chars = event.charactersIgnoringModifiers?.lowercased(),
+			let format = Self.format(forCommandKey: chars)
+		else {
+			return super.performKeyEquivalent(with: event)
+		}
+		onFormat?(format)
+		return true
 	}
 
-	override func drawInsertionPoint(
-		in rect: NSRect,
-		color: NSColor,
-		turnedOn flag: Bool,
-	) {
-		super.drawInsertionPoint(in: insertionPointRect(for: rect), color: color, turnedOn: flag)
+	/// Maps plain ⌘+letter shortcuts to markdown formats. Internal for tests.
+	static func format(forCommandKey chars: String) -> SkillMarkdownFormat? {
+		switch chars.lowercased() {
+		case "b": return .bold
+		case "i": return .italic
+		default: return nil
+		}
 	}
 
 	override func doCommand(by selector: Selector) {
@@ -227,18 +249,6 @@ final class SkillMarkdownNSTextView: NSTextView {
 		default:
 			super.doCommand(by: selector)
 		}
-	}
-
-	private func insertionPointRect(for rect: NSRect) -> NSRect {
-		let font = typingAttributes[.font] as? NSFont ?? self.font ?? SkillMarkdownSyntax.baseFont
-		let height = ceil(font.ascender - font.descender)
-		guard height > 0, rect.height > height else { return rect }
-		return NSRect(
-			x: rect.origin.x,
-			y: rect.origin.y + floor((rect.height - height) / 2),
-			width: max(rect.width, 1),
-			height: height,
-		)
 	}
 }
 

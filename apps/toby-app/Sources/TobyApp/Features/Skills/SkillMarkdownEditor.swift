@@ -36,8 +36,8 @@ struct SkillMarkdownEditor: View {
 			Divider().frame(height: 18).overlay(SettingsDesign.cardBorder)
 
 			HStack(spacing: 4) {
-				toolbarButton("Bold", systemImage: "bold", format: .bold)
-				toolbarButton("Italic", systemImage: "italic", format: .italic)
+				toolbarButton("Bold", systemImage: "bold", format: .bold, shortcut: "⌘B")
+				toolbarButton("Italic", systemImage: "italic", format: .italic, shortcut: "⌘I")
 				toolbarButton("Code", systemImage: "chevron.left.forwardslash.chevron.right", format: .code)
 				toolbarButton("List", systemImage: "list.bullet", format: .list)
 				toolbarButton("Quote", systemImage: "text.quote", format: .quote)
@@ -55,6 +55,7 @@ struct SkillMarkdownEditor: View {
 		_ label: String,
 		systemImage: String,
 		format: SkillMarkdownFormat,
+		shortcut: String? = nil,
 	) -> some View {
 		Button {
 			model.format(format)
@@ -65,8 +66,9 @@ struct SkillMarkdownEditor: View {
 		}
 		.buttonStyle(.borderless)
 		.foregroundStyle(SettingsDesign.rowTitle)
-		.help(label)
+		.help(shortcut.map { "\(label) (\($0))" } ?? label)
 		.accessibilityLabel(label)
+		.accessibilityHint(shortcut.map { "Keyboard shortcut \($0)" } ?? "")
 	}
 
 	@ViewBuilder

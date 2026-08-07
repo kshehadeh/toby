@@ -88,6 +88,15 @@ struct SkillsViewTests {
 		}
 	}
 
+	@Test("markdown editor maps command-key shortcuts to bold and italic")
+	func markdownEditorMapsCommandKeyShortcuts() {
+		#expect(SkillMarkdownNSTextView.format(forCommandKey: "b") == .bold)
+		#expect(SkillMarkdownNSTextView.format(forCommandKey: "B") == .bold)
+		#expect(SkillMarkdownNSTextView.format(forCommandKey: "i") == .italic)
+		#expect(SkillMarkdownNSTextView.format(forCommandKey: "I") == .italic)
+		#expect(SkillMarkdownNSTextView.format(forCommandKey: "u") == nil)
+	}
+
 	@Test("skill detail shows instructions and summary sidebar fields")
 	func skillDetailShowsInstructionsAndSummary() throws {
 		let store = SkillsStore()

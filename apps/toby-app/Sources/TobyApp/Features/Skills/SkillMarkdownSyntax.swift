@@ -16,7 +16,11 @@ enum SkillMarkdownSyntax {
 
 	static let paragraphStyle: NSParagraphStyle = {
 		let style = NSMutableParagraphStyle()
-		style.lineHeightMultiple = 1.75
+		// Use lineSpacing (space *between* fragments), not lineHeightMultiple.
+		// The latter expands the line fragment itself, so AppKit draws a caret
+		// that is taller than the glyphs. Leave insertion-point drawing to NSTextView.
+		let natural = baseFont.ascender - baseFont.descender
+		style.lineSpacing = ceil(natural * 0.75)
 		return style
 	}()
 
