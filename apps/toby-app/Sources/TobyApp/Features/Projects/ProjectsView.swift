@@ -232,21 +232,30 @@ private struct ProjectTreeRow: View {
 	let projectFolderPath: String
 	let depth: Int
 	@State private var isExpanded = true
+	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+	private var expandAnimation: Animation? {
+		reduceMotion ? nil : .easeOut(duration: 0.2)
+	}
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 2) {
 			Button {
 				if entry.isDirectory {
-					isExpanded.toggle()
+					withAnimation(expandAnimation) {
+						isExpanded.toggle()
+					}
 				} else {
 					RevealInFinder.openWithDefaultApp(path: absolutePath)
 				}
 			} label: {
 				HStack(spacing: 6) {
 					if entry.isDirectory {
-						Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+						Image(systemName: "chevron.right")
+							.font(.system(size: 10, weight: .semibold))
 							.frame(width: 12)
 							.foregroundStyle(AppTheme.tertiaryText)
+							.rotationEffect(.degrees(isExpanded ? 90 : 0))
 					} else {
 						Color.clear
 							.frame(width: 12, height: 1)
@@ -264,16 +273,26 @@ private struct ProjectTreeRow: View {
 			.buttonStyle(.plain)
 			.help(entry.isDirectory ? (isExpanded ? "Collapse folder" : "Expand folder") : "Open with default app")
 			.accessibilityLabel(entry.isDirectory ? entry.name : "Open \(entry.name)")
-			if entry.isDirectory && isExpanded {
-				ForEach(entry.children ?? []) { child in
-					ProjectTreeRow(
-						entry: child,
-						projectFolderPath: projectFolderPath,
-						depth: depth + 1
-					)
+			.accessibilityValue(entry.isDirectory ? (isExpanded ? "Expanded" : "Collapsed") : "")
+			if entry.isDirectory, isExpanded {
+				VStack(alignment: .leading, spacing: 2) {
+					ForEach(entry.children ?? []) { child in
+						ProjectTreeRow(
+							entry: child,
+							projectFolderPath: projectFolderPath,
+							depth: depth + 1
+						)
+					}
 				}
+				.transition(
+					reduceMotion
+						? .opacity
+						: .opacity.combined(with: .move(edge: .top))
+				)
 			}
 		}
+		.clipped()
+		.animation(expandAnimation, value: isExpanded)
 	}
 
 	private var absolutePath: String {
