@@ -28,6 +28,9 @@ extension Notification.Name {
 	static let personasDidChange = Notification.Name("toby.personasDidChange")
 	/// Posted when chat (or another writer) creates/updates a local skill so the skills UI can refresh.
 	static let skillsDidChange = Notification.Name("toby.skillsDidChange")
+	/// Posted after a successful in-process Toby home directory switch.
+	/// Shell should clear feature stores and reload from the new data root.
+	static let tobyHomeDidChange = Notification.Name("toby.homeDidChange")
 }
 
 // MARK: - Notification payloads / sheet models

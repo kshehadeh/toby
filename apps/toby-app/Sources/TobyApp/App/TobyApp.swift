@@ -29,6 +29,8 @@ struct TobyApp: App {
 		// "Show Tab Bar" / "Show All Tabs" and "Enter Full Screen".
 		NSWindow.allowsAutomaticWindowTabbing = false
 		UserDefaults.standard.set(false, forKey: "NSFullScreenMenuItemEverywhere")
+		// Apply saved home-directory preference before daemon/native paths resolve.
+		AppearancePreferences.applyStoredTobyDirEnvironment()
 		// Apply saved appearance before first window draws.
 		AppearancePreferences.shared.applyToApp()
 	}
@@ -76,6 +78,10 @@ struct TobyApp: App {
 				}
 				.onChange(of: appearancePreferences.showMenuBarIcon) { _, show in
 					menuBarController?.setStatusItemVisible(show)
+				}
+				.onReceive(NotificationCenter.default.publisher(for: .tobyHomeDidChange)) { _ in
+					// Logs store is owned at the app scene level (not RootView).
+					logsStore.resetForHomeSwitch()
 				}
 				.onDisappear {
 					nativeServer.stop()
@@ -135,7 +141,12 @@ struct TobyApp: App {
 		.commandsRemoved()
 
 		Window("Settings", id: "settings") {
-			SettingsWindowView(store: configureStore)
+			SettingsWindowView(
+				store: configureStore,
+				onSwitchTobyHome: { path in
+					try await store.switchTobyHome(to: path)
+				}
+			)
 				.tobyAppearance(appearancePreferences)
 				.onDisappear {
 					NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil)

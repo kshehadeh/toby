@@ -7,6 +7,8 @@ import SwiftUI
 /// shown (NavigationSplitView would steal the toolbar).
 struct SettingsWindowView: View {
 	@Bindable var store: ConfigureStore
+	/// Soft-resets the app onto a new Toby data root (`nil` = default `~/.toby`).
+	var onSwitchTobyHome: ((String?) async throws -> Void)? = nil
 	@State private var appearancePreferences = AppearancePreferences.shared
 	/// Local tab selection so the client-only General tab can be selected
 	/// without going through the daemon-backed configure store.
@@ -54,7 +56,10 @@ struct SettingsWindowView: View {
 					tabBar
 					Divider().background(AppTheme.separator)
 					if isGeneralTab {
-						AppearanceSettingsView(preferences: appearancePreferences)
+						AppearanceSettingsView(
+							preferences: appearancePreferences,
+							onSwitchTobyHome: onSwitchTobyHome
+						)
 					} else if isPersonasTab {
 						PersonasSettingsView(store: store)
 					} else {
@@ -172,7 +177,10 @@ struct SettingsWindowView: View {
 	private var settingsContent: some View {
 		Group {
 			if isGeneralTab {
-				AppearanceSettingsView(preferences: appearancePreferences)
+				AppearanceSettingsView(
+					preferences: appearancePreferences,
+					onSwitchTobyHome: onSwitchTobyHome
+				)
 			} else if isPersonasTab {
 				PersonasSettingsView(store: store)
 			} else if let section = selectedTopLevelSection,

@@ -111,6 +111,25 @@ final class SkillsStore {
 	private var draft: [String: String] = [:]
 	private var isQuietRefreshing = false
 
+	/// Clears skills state after a Toby home directory switch.
+	func resetForHomeSwitch() {
+		autosaveTask?.cancel()
+		autosaveTask = nil
+		skills = []
+		selectedSkillId = nil
+		selectedSkill = nil
+		isListLoading = false
+		isDetailLoading = false
+		isSaving = false
+		hasLoadedOnce = false
+		lastLoadedAt = nil
+		errorMessage = nil
+		pendingDelete = nil
+		isDirty = false
+		draft = [:]
+		isQuietRefreshing = false
+	}
+
 	func load() async {
 		guard !isListLoading else { return }
 		isListLoading = true

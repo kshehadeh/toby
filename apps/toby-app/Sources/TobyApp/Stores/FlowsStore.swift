@@ -28,6 +28,21 @@ final class FlowsStore {
 		flows.filter(\.builtin).count
 	}
 
+	/// Clears flows state after a Toby home directory switch.
+	func resetForHomeSwitch() {
+		flows = []
+		selectedFlowId = nil
+		runs = []
+		selectedRunId = nil
+		selectedRunDetail = nil
+		isListLoading = false
+		isRunsLoading = false
+		isRunDetailLoading = false
+		hasLoadedOnce = false
+		errorMessage = nil
+		runDetailError = nil
+	}
+
 	func ensureLoaded() async {
 		if hasLoadedOnce { return }
 		await load()

@@ -90,7 +90,7 @@ struct AppearancePreferencesTests {
 		#expect(reloaded.resolvedColorScheme == .light)
 	}
 
-	@Test("general settings view shows launch at login, menu bar, and chat mode controls")
+	@Test("general settings view shows launch at login, menu bar, chat mode, and home directory controls")
 	func generalSettingsShowsStartupAndMenuBarToggles() throws {
 		let suite = UserDefaults(suiteName: "toby.tests.appearance.\(UUID().uuidString)")!
 		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
@@ -105,6 +105,9 @@ struct AppearancePreferencesTests {
 			try view.inspect().find(text: "Chat mode")
 		}
 		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Home directory")
+		}
+		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "general-launch-at-login-toggle")
 		}
 		#expect(throws: Never.self) {
@@ -113,6 +116,31 @@ struct AppearancePreferencesTests {
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "general-chat-mode-picker")
 		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "general-home-directory-choose")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "general-home-directory-path")
+		}
+	}
+
+	@Test("persists tobyDirOverride to UserDefaults")
+	func persistsTobyDirOverride() {
+		let suite = UserDefaults(suiteName: "toby.tests.appearance.\(UUID().uuidString)")!
+		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		#expect(prefs.tobyDirOverride == nil)
+		#expect(prefs.hasCustomTobyDirOverride == false)
+
+		prefs.tobyDirOverride = "/tmp/custom-toby-home"
+		#expect(prefs.hasCustomTobyDirOverride)
+		#expect(suite.string(forKey: AppearancePreferences.tobyDirDefaultsKey) == ConfigReader.standardizePath("/tmp/custom-toby-home"))
+
+		let reloaded = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		#expect(reloaded.tobyDirOverride == ConfigReader.standardizePath("/tmp/custom-toby-home"))
+
+		prefs.tobyDirOverride = nil
+		#expect(prefs.hasCustomTobyDirOverride == false)
+		#expect(suite.string(forKey: AppearancePreferences.tobyDirDefaultsKey) == nil)
 	}
 
 	@Test("ThemeResolution.isDark follows mode UserDefaults")

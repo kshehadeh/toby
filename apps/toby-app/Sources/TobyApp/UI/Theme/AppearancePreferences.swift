@@ -210,6 +210,9 @@ enum AppearanceDefaultsKey {
 	/// `[GlobalHotkeyAction: GlobalKeyboardShortcut]`). Empty until the user
 	/// records shortcuts in Settings → General.
 	static let globalShortcuts = "toby.general.globalShortcuts"
+	/// Absolute path override for the Toby data directory (Settings → General).
+	/// Empty / missing means default `~/.toby` (or `TOBY_DIR` when set externally).
+	static let tobyDir = "toby.general.tobyDir"
 }
 
 /// Client-local preferences: theme, accent, startup, menu bar, and app-only
@@ -229,6 +232,7 @@ final class AppearancePreferences {
 	static let showMenuBarIconDefaultsKey = AppearanceDefaultsKey.showMenuBarIcon
 	static let chatTranscriptModeDefaultsKey = AppearanceDefaultsKey.chatTranscriptMode
 	static let globalShortcutsDefaultsKey = AppearanceDefaultsKey.globalShortcuts
+	static let tobyDirDefaultsKey = AppearanceDefaultsKey.tobyDir
 
 	/// Distributed notification posted when the user changes System Settings → Appearance.
 	private static let systemThemeChanged = Notification.Name("AppleInterfaceThemeChangedNotification")
@@ -239,6 +243,8 @@ final class AppearancePreferences {
 	private var isObservingSystemTheme = false
 	/// When true, `launchAtLogin` didSet skips calling `SMAppService` (init / tests).
 	private var suppressLaunchAtLoginSideEffects = false
+	/// When true, `tobyDirOverride` didSet skips process environment sync (init).
+	private var suppressTobyDirSideEffects = false
 
 	var mode: AppearanceMode {
 		didSet {
@@ -385,6 +391,45 @@ final class AppearancePreferences {
 		}
 	}
 
+	/// Absolute path of a custom Toby data directory, or `nil` for the default
+	/// (`~/.toby`). Stored only on this Mac; not part of daemon `config.json`.
+	/// Changing this does not switch the live home by itself — callers must run
+	/// the soft-reset orchestration (`ChatStore.switchTobyHome`).
+	var tobyDirOverride: String? {
+		didSet {
+			guard !suppressTobyDirSideEffects else { return }
+			let normalizedNew = Self.normalizedOverride(tobyDirOverride)
+			let normalizedOld = Self.normalizedOverride(oldValue)
+			guard normalizedNew != normalizedOld else { return }
+
+			if let path = normalizedNew {
+				defaults.set(path, forKey: Self.tobyDirDefaultsKey)
+			} else {
+				defaults.removeObject(forKey: Self.tobyDirDefaultsKey)
+			}
+
+			// Coalesce equivalent spellings into the canonical stored form.
+			if tobyDirOverride != normalizedNew {
+				suppressTobyDirSideEffects = true
+				tobyDirOverride = normalizedNew
+				suppressTobyDirSideEffects = false
+			}
+
+			guard self === AppearancePreferences.shared else { return }
+			ConfigReader.syncTobyDirEnvironment(defaults: defaults)
+		}
+	}
+
+	/// Resolved data directory currently in effect (env → preference → default).
+	var resolvedTobyDir: String {
+		ConfigReader.resolveTobyDir()
+	}
+
+	/// Whether a custom home path is stored in preferences (not merely env).
+	var hasCustomTobyDirOverride: Bool {
+		Self.normalizedOverride(tobyDirOverride) != nil
+	}
+
 	/// Posted when `globalShortcuts` changes so the global hotkey controller
 	/// can re-register without holding a direct reference to prefs.
 	static let globalShortcutsDidChange = Notification.Name("toby.globalShortcutsDidChange")
@@ -460,12 +505,14 @@ final class AppearancePreferences {
 		showMenuBarIcon: Bool? = nil,
 		chatTranscriptMode: ChatTranscriptMode? = nil,
 		globalShortcuts: [GlobalHotkeyAction: GlobalKeyboardShortcut]? = nil,
+		tobyDirOverride: String? = nil,
 		defaults: UserDefaults = .standard,
 		applyLaunchAtLoginOnChange: Bool = true
 	) {
 		self.defaults = defaults
 		// Suppress SMAppService during property init; apply explicitly when needed.
 		self.suppressLaunchAtLoginSideEffects = true
+		self.suppressTobyDirSideEffects = true
 
 		let resolvedMode: AppearanceMode
 		if let mode {
@@ -571,6 +618,15 @@ final class AppearancePreferences {
 			resolvedGlobalShortcuts = stored.filter { $0.value.hasRequiredModifiers }
 		}
 
+		let resolvedTobyDirOverride: String?
+		if tobyDirOverride != nil {
+			resolvedTobyDirOverride = Self.normalizedOverride(tobyDirOverride)
+		} else {
+			resolvedTobyDirOverride = Self.normalizedOverride(
+				defaults.string(forKey: Self.tobyDirDefaultsKey)
+			)
+		}
+
 		// Initialize all stored properties without touching self.mode first
 		// (@Observable synthesis requires resolvedColorScheme before other uses).
 		self.mode = resolvedMode
@@ -583,6 +639,7 @@ final class AppearancePreferences {
 		self.showMenuBarIcon = resolvedShowMenuBarIcon
 		self.chatTranscriptMode = resolvedChatTranscriptMode
 		self.globalShortcuts = resolvedGlobalShortcuts
+		self.tobyDirOverride = resolvedTobyDirOverride
 		self.resolvedColorScheme = Self.resolveColorScheme(for: resolvedMode)
 
 		// When explicit values are passed, persist them so reloads see them.
@@ -618,8 +675,30 @@ final class AppearancePreferences {
 		{
 			defaults.set(value, forKey: Self.globalShortcutsDefaultsKey)
 		}
+		if tobyDirOverride != nil {
+			if let path = resolvedTobyDirOverride {
+				defaults.set(path, forKey: Self.tobyDirDefaultsKey)
+			} else {
+				defaults.removeObject(forKey: Self.tobyDirDefaultsKey)
+			}
+		}
 
 		self.suppressLaunchAtLoginSideEffects = !applyLaunchAtLoginOnChange
+		self.suppressTobyDirSideEffects = false
+	}
+
+	/// Apply the stored home-directory preference to the process environment.
+	/// Call once at app launch before daemon bootstrap / native server start.
+	static func applyStoredTobyDirEnvironment() {
+		ConfigReader.syncTobyDirEnvironment()
+	}
+
+	/// Normalize an override path: trim, standardize, treat empty as `nil`.
+	static func normalizedOverride(_ path: String?) -> String? {
+		guard let path else { return nil }
+		let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard !trimmed.isEmpty else { return nil }
+		return ConfigReader.standardizePath(trimmed)
 	}
 
 	/// Applies the stored launch-at-login preference to the system login item.

@@ -94,6 +94,7 @@ API). Implementation: `AppearancePreferences` /
 
 | Key | Default | UI control | Purpose |
 | --- | ------- | ---------- | ------- |
+| `toby.general.tobyDir` | *(unset → `~/.toby`)* | Home directory | Absolute path of the Toby data root (`TOBY_DIR`). Stored only on this Mac; switching soft-resets stores, restarts the daemon, and reloads UI data. Precedence: process `TOBY_DIR` env → this preference → `~/.toby`. See `ConfigReader` / `ChatStore.switchTobyHome`. |
 | `toby.general.launchAtLogin` | **false** | Start at login | Register Toby as a login item via `SMAppService.mainApp` |
 | `toby.general.showMenuBarIcon` | **true** | Show menu bar icon | Show/hide the menu bar status item (`MenuBarController`) |
 | `toby.general.chatTranscriptMode` | **normal** | Chat mode | Transcript verbosity: `normal` (conversation + Working chip) or `debug` (expandable tools, prep, selection notices, work steps). Applied in `TranscriptGrouping` / `TranscriptView` / `WorkedForRow` |

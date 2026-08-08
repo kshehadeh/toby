@@ -22,6 +22,14 @@ final class PluginsStore {
 		self.client = client
 	}
 
+	/// Clears plugins list after a Toby home directory switch.
+	func resetForHomeSwitch() {
+		plugins = []
+		pluginsDirectory = nil
+		isLoading = false
+		errorMessage = nil
+	}
+
 	func load() async {
 		guard !isLoading else { return }
 		isLoading = true

@@ -46,6 +46,27 @@ final class ProjectsStore {
 		folderWatchTask?.cancel()
 	}
 
+	/// Clears projects state after a Toby home directory switch.
+	func resetForHomeSwitch() {
+		autosaveTask?.cancel()
+		autosaveTask = nil
+		folderWatchTask?.cancel()
+		folderWatchTask = nil
+		projects = []
+		selectedProjectId = nil
+		selectedProject = nil
+		projectSessions = [:]
+		tree = []
+		personaOptions = []
+		isLoading = false
+		isSaving = false
+		hasLoadedOnce = false
+		lastLoadedAt = nil
+		errorMessage = nil
+		pendingDelete = nil
+		selectedProjectDetailId = nil
+	}
+
 	func load(chatStore: ChatStore? = nil) async {
 		guard !isLoading else { return }
 		isLoading = true

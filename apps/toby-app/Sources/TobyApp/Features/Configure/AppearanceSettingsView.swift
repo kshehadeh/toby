@@ -1,8 +1,16 @@
+import AppKit
 import SwiftUI
 
-/// Client-local General settings: startup, menu bar, chat mode, theme, and accent.
+/// Client-local General settings: home directory, startup, menu bar, chat mode, theme, and accent.
 struct AppearanceSettingsView: View {
 	@Bindable var preferences: AppearancePreferences
+	/// Applies a home-directory switch (soft reset). `nil` restores default `~/.toby`.
+	var onSwitchTobyHome: ((String?) async throws -> Void)? = nil
+
+	@State private var pendingHomePath: String?
+	@State private var isConfirmingHomeSwitch = false
+	@State private var isSwitchingHome = false
+	@State private var homeSwitchError: String?
 
 	var body: some View {
 		ScrollView {
@@ -12,12 +20,14 @@ struct AppearanceSettingsView: View {
 						.font(.title2.weight(.semibold))
 						.foregroundStyle(AppTheme.primaryText)
 					Text(
-						"Startup, menu bar, chat transcript detail, and how Toby looks on this Mac."
+						"Home directory, startup, menu bar, chat transcript detail, and how Toby looks on this Mac."
 					)
 					.font(.subheadline)
 					.foregroundStyle(AppTheme.secondaryText)
 					.fixedSize(horizontal: false, vertical: true)
 				}
+
+				homeDirectoryCard
 
 				SettingsCard {
 					SettingsRow(
@@ -142,6 +152,152 @@ struct AppearanceSettingsView: View {
 			.padding(AppTheme.contentPadding)
 		}
 		.background(SettingsDesign.canvasBackground)
+		.disabled(isSwitchingHome)
+		.alert(
+			"Switch Toby home directory?",
+			isPresented: $isConfirmingHomeSwitch,
+			presenting: pendingHomePath
+		) { path in
+			Button("Cancel", role: .cancel) {
+				pendingHomePath = nil
+			}
+			Button("Switch") {
+				Task { await performHomeSwitch(to: path) }
+			}
+			.keyboardShortcut(.defaultAction)
+		} message: { path in
+			let displayPath = path.isEmpty ? ConfigReader.defaultTobyDir() : path
+			Text(
+				"""
+				Toby will stop the local server and reload sessions, settings, plugins, and recordings from:
+
+				\(displayPath)
+
+				This does not copy data from the current home.
+				"""
+			)
+		}
+		.alert(
+			"Could not switch home",
+			isPresented: Binding(
+				get: { homeSwitchError != nil },
+				set: { if !$0 { homeSwitchError = nil } }
+			)
+		) {
+			Button("OK", role: .cancel) { homeSwitchError = nil }
+		} message: {
+			Text(homeSwitchError ?? "")
+		}
+	}
+
+	// MARK: - Home directory
+
+	private var homeDirectoryCard: some View {
+		SettingsCard {
+			VStack(alignment: .leading, spacing: 12) {
+				HStack(alignment: .firstTextBaseline, spacing: 8) {
+					SettingsSectionHeader(title: "Home directory")
+					Spacer(minLength: 0)
+					Text(preferences.hasCustomTobyDirOverride || ConfigReader.isCustomTobyDir() ? "Custom" : "Default")
+						.font(.caption.weight(.semibold))
+						.foregroundStyle(AppTheme.secondaryText)
+						.padding(.horizontal, 8)
+						.padding(.vertical, 3)
+						.background(AppTheme.secondaryText.opacity(0.12), in: Capsule())
+						.accessibilityIdentifier("general-home-directory-badge")
+				}
+				Text(
+					"Where Toby stores config, chat history, plugins, and recordings on this Mac. Switching reloads all app data and restarts the local server. It does not copy data between homes."
+				)
+				.font(.subheadline)
+				.foregroundStyle(AppTheme.secondaryText)
+				.fixedSize(horizontal: false, vertical: true)
+
+				Text(preferences.resolvedTobyDir)
+					.font(.system(.caption, design: .monospaced))
+					.foregroundStyle(AppTheme.primaryText)
+					.lineLimit(3)
+					.truncationMode(.middle)
+					.textSelection(.enabled)
+					.frame(maxWidth: .infinity, alignment: .leading)
+					.padding(10)
+					.background(AppTheme.secondaryText.opacity(0.08))
+					.clipShape(RoundedRectangle(cornerRadius: 8))
+					.accessibilityIdentifier("general-home-directory-path")
+
+				HStack(spacing: 10) {
+					Button("Choose…") {
+						presentHomeDirectoryChooser()
+					}
+					.buttonStyle(.bordered)
+					.disabled(isSwitchingHome || onSwitchTobyHome == nil)
+					.accessibilityIdentifier("general-home-directory-choose")
+
+					Button("Use Default") {
+						requestHomeSwitch(to: nil)
+					}
+					.buttonStyle(.bordered)
+					.disabled(
+						isSwitchingHome
+							|| onSwitchTobyHome == nil
+							|| (!preferences.hasCustomTobyDirOverride && !ConfigReader.isCustomTobyDir())
+					)
+					.accessibilityIdentifier("general-home-directory-use-default")
+
+					Button("Reveal in Finder") {
+						RevealInFinder.reveal(path: preferences.resolvedTobyDir)
+					}
+					.buttonStyle(.bordered)
+					.accessibilityIdentifier("general-home-directory-reveal")
+
+					if isSwitchingHome {
+						ProgressView()
+							.controlSize(.small)
+							.accessibilityIdentifier("general-home-directory-switching")
+					}
+				}
+			}
+			.padding(14)
+		}
+	}
+
+	private func presentHomeDirectoryChooser() {
+		let panel = NSOpenPanel()
+		panel.canChooseFiles = false
+		panel.canChooseDirectories = true
+		panel.canCreateDirectories = true
+		panel.allowsMultipleSelection = false
+		panel.directoryURL = URL(fileURLWithPath: preferences.resolvedTobyDir)
+		panel.prompt = "Choose"
+		panel.message = "Choose a folder for Toby’s home directory (data root)."
+		guard panel.runModal() == .OK, let url = panel.url else { return }
+		requestHomeSwitch(to: url.path)
+	}
+
+	/// `path == nil` means restore default; empty string is also treated as default in the alert.
+	private func requestHomeSwitch(to path: String?) {
+		homeSwitchError = nil
+		if let path {
+			pendingHomePath = ConfigReader.standardizePath(path)
+		} else {
+			// Sentinel for “use default” in the confirmation alert.
+			pendingHomePath = ""
+		}
+		isConfirmingHomeSwitch = true
+	}
+
+	private func performHomeSwitch(to path: String) async {
+		guard let onSwitchTobyHome else { return }
+		isSwitchingHome = true
+		defer { isSwitchingHome = false }
+		do {
+			let target: String? = path.isEmpty ? nil : path
+			try await onSwitchTobyHome(target)
+			pendingHomePath = nil
+		} catch {
+			homeSwitchError = error.localizedDescription
+			pendingHomePath = nil
+		}
 	}
 
 	@ViewBuilder

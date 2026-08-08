@@ -84,12 +84,15 @@ private final class NativeHTTPRequestReader: @unchecked Sendable {
 final class NativeServer {
 	private var listener: NWListener?
 	private var port: UInt16?
-	private let portFileURL: URL
 
 	static let shared = NativeServer()
 
-	private init() {
-		portFileURL = URL(fileURLWithPath: ConfigReader.resolveTobyDir())
+	private init() {}
+
+	/// Port advertisement file under the current Toby home (`native-port`).
+	/// Recomputed each write so a mid-session home switch lands in the new root.
+	private nonisolated static func portFileURL() -> URL {
+		URL(fileURLWithPath: ConfigReader.resolveTobyDir())
 			.appendingPathComponent("native-port")
 	}
 
@@ -145,12 +148,18 @@ final class NativeServer {
 	// MARK: - Port file
 
 	private nonisolated func writePortFile(_ port: UInt16) {
+		let url = Self.portFileURL()
+		// Ensure the home directory exists before advertising the port.
+		try? FileManager.default.createDirectory(
+			at: url.deletingLastPathComponent(),
+			withIntermediateDirectories: true
+		)
 		let data = "\(port)".data(using: .utf8)
-		try? data?.write(to: portFileURL, options: .atomic)
+		try? data?.write(to: url, options: .atomic)
 	}
 
 	private nonisolated func deletePortFile() {
-		try? FileManager.default.removeItem(at: portFileURL)
+		try? FileManager.default.removeItem(at: Self.portFileURL())
 	}
 
 	// MARK: - Request reading

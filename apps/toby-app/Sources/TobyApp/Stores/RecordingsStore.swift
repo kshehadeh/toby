@@ -41,6 +41,24 @@ final class RecordingsStore {
 		recordings.filter { selectedRecordingIds.contains($0.id) }
 	}
 
+	/// Clears list/selection after a Toby home directory switch.
+	func resetForHomeSwitch() {
+		recordings = []
+		selectedRecordingIds = []
+		pendingDeleteRecordingIds = []
+		detail = nil
+		isLoading = false
+		isDetailLoading = false
+		isDeletingSelection = false
+		hasLoadedOnce = false
+		listNeedsRefresh = true
+		lastLoadedAt = nil
+		errorMessage = nil
+		selectedActiveRecordingId = nil
+		transcriptionProcessing = nil
+		summarizingRecordingId = nil
+	}
+
 	func load() async {
 		guard !isLoading else { return }
 		isLoading = true

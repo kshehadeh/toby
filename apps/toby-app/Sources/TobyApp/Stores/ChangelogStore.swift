@@ -24,6 +24,14 @@ final class ChangelogStore {
 		self.cacheInterval = cacheInterval
 	}
 
+	/// Clears cached changelog after a Toby home directory switch.
+	func resetForHomeSwitch() {
+		changelog = nil
+		isLoading = false
+		errorMessage = nil
+		lastFetchedAt = nil
+	}
+
 	func load(force: Bool = false) async {
 		if !force, changelog != nil, let lastFetchedAt, Date().timeIntervalSince(lastFetchedAt) < cacheInterval {
 			return

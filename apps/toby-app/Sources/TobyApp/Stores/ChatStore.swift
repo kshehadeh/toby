@@ -232,6 +232,179 @@ final class ChatStore {
 		}
 	}
 
+	// MARK: - Home directory switch
+
+	/// Switches the Toby data root in-process: stops the daemon and native
+	/// server, applies the preference, clears chat state, and bootstraps the
+	/// new home. Pass `nil` to restore the default `~/.toby`.
+	///
+	/// Posts `.tobyHomeDidChange` on success so the shell can reset feature stores.
+	func switchTobyHome(to path: String?) async throws {
+		try validateCanSwitchTobyHome()
+
+		let targetOverride = AppearancePreferences.normalizedOverride(path)
+		let targetResolved: String
+		if let targetOverride {
+			targetResolved = targetOverride
+		} else {
+			// Preview default without applying yet: ignore current override env/prefs.
+			targetResolved = ConfigReader.defaultTobyDir()
+		}
+
+		let currentResolved = ConfigReader.resolveTobyDir()
+		if ConfigReader.standardizePath(targetResolved) == ConfigReader.standardizePath(currentResolved) {
+			// Still update preference if we're clearing/setting the same resolved path
+			// via a different mechanism (e.g. custom path that equals default).
+			let currentOverride = AppearancePreferences.shared.tobyDirOverride
+			if AppearancePreferences.normalizedOverride(currentOverride) == targetOverride {
+				throw TobyHomeError.alreadyCurrent
+			}
+		}
+
+		if let targetOverride {
+			try ConfigReader.ensureWritableDirectory(at: targetOverride)
+		} else {
+			try ConfigReader.ensureWritableDirectory(at: targetResolved)
+		}
+
+		let oldBaseURL = client.baseURL
+		isServerConnecting = true
+		status = nil
+		daemonStatus = nil
+		serverLifecycleMessage = "Stopping server…"
+		activityLine = "Stopping server…"
+		toast = AppToastState(
+			style: .progress,
+			title: "Switching home directory",
+			message: "Stopping the current server…",
+		)
+
+		// Best-effort stop of work against the old home.
+		if isLoading, let sessionId, let activeTurnId {
+			await client.cancelTurn(sessionId: sessionId, turnId: activeTurnId)
+		}
+		clearSessionStateForHomeSwitch()
+
+		do {
+			try await DaemonBootstrap.stopDaemon(baseURL: oldBaseURL)
+		} catch {
+			// Continue — force path inside stop may have cleaned up; proceed carefully.
+			ServerEventLog.append(
+				"homeSwitch.stopDaemonError error=\(error.localizedDescription)"
+			)
+		}
+
+		NativeServer.shared.stop()
+
+		serverLifecycleMessage = "Switching home…"
+		activityLine = "Switching home…"
+		AppearancePreferences.shared.tobyDirOverride = targetOverride
+		// Ensure process env matches even if preference was already equivalent.
+		ConfigReader.syncTobyDirEnvironment()
+		try ConfigReader.ensureWritableDirectory(at: ConfigReader.resolveTobyDir())
+
+		NativeServer.shared.start()
+
+		serverLifecycleMessage = "Starting server…"
+		activityLine = "Starting server…"
+		toast = AppToastState(
+			style: .progress,
+			title: "Switching home directory",
+			message: "Starting the server for the new home…",
+		)
+
+		do {
+			try await DaemonBootstrap.ensureServerAvailable(baseURL: client.baseURL) {
+				[weak self] message in
+				Task { @MainActor in
+					guard let self else { return }
+					self.serverLifecycleMessage = message
+					self.activityLine = message
+					self.toast = AppToastState(
+						style: .progress,
+						title: "Switching home directory",
+						message: message,
+					)
+				}
+			}
+			status = try await client.fetchStatus()
+			listenStatus = try? await nativeAudioClient.status()
+			await refreshDaemonStatus()
+			await refreshSessions()
+			await startNewSession()
+			isServerConnecting = false
+			serverLifecycleMessage = nil
+			activityLine = "Ready"
+			toast = AppToastState(
+				style: .success,
+				title: "Home directory updated",
+				message: ConfigReader.resolveTobyDir(),
+			)
+			NotificationCenter.default.post(name: .tobyHomeDidChange, object: nil)
+		} catch {
+			isServerConnecting = false
+			serverLifecycleMessage = nil
+			activityLine = "Daemon unavailable"
+			toast = AppToastState(
+				style: .error,
+				title: "Home switch failed",
+				message: error.localizedDescription,
+			)
+			throw error
+		}
+	}
+
+	/// Preconditions for switching home (idle process, no active capture).
+	func validateCanSwitchTobyHome() throws {
+		if isLoading {
+			throw TobyHomeError.busy("Finish or cancel the current chat turn before switching home.")
+		}
+		if isRecordingActive || isListenRequestInFlight || recordingProcessing != nil {
+			throw TobyHomeError.busy("Stop recording before switching home.")
+		}
+		if isServerConnecting || isServerRestarting {
+			throw TobyHomeError.busy("Wait for the server to finish connecting before switching home.")
+		}
+	}
+
+	private func clearSessionStateForHomeSwitch() {
+		stopExternalSessionRefreshLoop()
+		sessionId = nil
+		sessionName = "New chat"
+		sessions = []
+		transcript = []
+		streamingAssistant = nil
+		pendingAttachments = []
+		localAttachmentPreviewsByTranscriptText = [:]
+		activeAskUserPrompt = nil
+		if let askUserContinuation {
+			askUserContinuation.resume(returning: (
+				selectedIndex: -1,
+				selectedLabel: "",
+				rawInput: "",
+				error: "Home directory changed"
+			))
+			self.askUserContinuation = nil
+		}
+		integration = nil
+		integrationIconUrl = nil
+		externalKey = nil
+		sessionPersonaImageUrl = nil
+		contextWindow = nil
+		activeTurnId = nil
+		isCancelling = false
+		isLoading = false
+		isSelectingSession = false
+		turnWorkDurations = [:]
+		assistantHeader = ""
+		assistantBuffer = ""
+		sawToolCallThisTurn = false
+		activeTurnStartedAt = nil
+		activeTurnUserIndex = nil
+		lastInboundUpdatedAt = nil
+		promptText = ""
+	}
+
 	func daemonStatusRefreshLoop() async {
 		while !Task.isCancelled {
 			await refreshDaemonStatus()

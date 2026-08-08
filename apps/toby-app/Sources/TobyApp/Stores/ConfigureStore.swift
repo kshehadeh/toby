@@ -118,6 +118,36 @@ final class ConfigureStore {
 		return changes
 	}
 
+	/// Clears tree, drafts, and caches after a Toby home directory switch.
+	func resetForHomeSwitch() {
+		autosaveTask?.cancel()
+		autosaveTask = nil
+		tree = nil
+		savedValues = [:]
+		integrationLabels = [:]
+		selectedNavKey = nil
+		expandedKeys = []
+		draft = [:]
+		errorMessage = nil
+		pendingDelete = nil
+		integrationStatus = [:]
+		integrationStatusLoading = nil
+		integrationActionLoading = nil
+		setupGuide = nil
+		setupGuideLoading = nil
+		setupGuidePresented = false
+		settingsSections = []
+		selectedSectionDetail = nil
+		sectionDetailLoading = false
+		sectionFieldsReloading = nil
+		pendingPersonaSelection = nil
+		fieldByKey = [:]
+		sectionDetailCache = [:]
+		dirtySectionKeys = []
+		isLoading = false
+		isSaving = false
+	}
+
 	func load() async {
 		isLoading = true
 		errorMessage = nil

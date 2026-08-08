@@ -78,6 +78,40 @@ struct ChatStoreTests {
         #expect(store.contextWindowUnavailable == false)
     }
 
+    @Test("validateCanSwitchTobyHome blocks during an active chat turn")
+    func validateCanSwitchBlocksWhenLoading() {
+        let store = ChatStore()
+        store.isLoading = true
+        #expect(throws: TobyHomeError.self) {
+            try store.validateCanSwitchTobyHome()
+        }
+    }
+
+    @Test("validateCanSwitchTobyHome blocks during recording")
+    func validateCanSwitchBlocksWhenRecording() {
+        let store = ChatStore()
+        store.listenStatus = ListenStatusResponse(
+            status: "recording",
+            session: ListenSessionInfo(
+                id: "sess-1",
+                startedAt: "2026-07-09T10:00:00Z",
+                sources: ListenSourceSelection(mic: true, system: false)
+            ),
+            outputDir: nil,
+            message: nil,
+            error: nil
+        )
+        #expect(throws: TobyHomeError.self) {
+            try store.validateCanSwitchTobyHome()
+        }
+    }
+
+    @Test("validateCanSwitchTobyHome allows idle store")
+    func validateCanSwitchAllowsIdle() throws {
+        let store = ChatStore()
+        try store.validateCanSwitchTobyHome()
+    }
+
     @Test("contextFillPercentage comes from API payload")
     func contextFillComesFromApiPayload() {
         let store = ChatStore()

@@ -102,6 +102,19 @@ final class DashboardStore {
 		}
 	}
 
+	/// Clears dashboard block content after a Toby home directory switch.
+	func resetForHomeSwitch() {
+		hasLoadedOnce = false
+		lastLoadedAt = nil
+		isGlobalUpdating = false
+		for block in blocks {
+			block.content = nil
+			block.error = nil
+			block.isLoading = false
+			block.isForceUpdating = false
+		}
+	}
+
 	/// Global toolbar refresh — force every block and hold spinner until done.
 	func refreshAll() async {
 		await updateAll(force: true)

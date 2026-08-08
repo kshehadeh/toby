@@ -82,6 +82,40 @@ struct DaemonBootstrapTests {
 		)
 	}
 
+	@Test("replaces server when tobyDir differs from expected")
+	func replacesDifferentTobyDir() {
+		let bundled = URL(fileURLWithPath: "/Applications/Toby.app/Contents/Resources/toby")
+		#expect(
+			DaemonBootstrap.shouldReplaceServer(
+				runningExecutablePath: "/Applications/Toby.app/Contents/Resources/toby",
+				runningVersion: "1.2.3",
+				runningTobyDir: "/tmp/other-toby-home",
+				runningExecKind: "compiled",
+				bundledExecutable: bundled,
+				bundledVersion: "1.2.3",
+				expectedExecKind: "compiled",
+				expectedTobyDir: "/Users/example/.toby"
+			)
+		)
+	}
+
+	@Test("keeps server when tobyDir matches expected")
+	func keepsMatchingTobyDir() {
+		let bundled = URL(fileURLWithPath: "/Applications/Toby.app/Contents/Resources/toby")
+		#expect(
+			DaemonBootstrap.shouldReplaceServer(
+				runningExecutablePath: "/Applications/Toby.app/Contents/Resources/toby",
+				runningVersion: "1.2.3",
+				runningTobyDir: "/Users/example/.toby",
+				runningExecKind: "compiled",
+				bundledExecutable: bundled,
+				bundledVersion: "1.2.3",
+				expectedExecKind: "compiled",
+				expectedTobyDir: "/Users/example/.toby"
+			) == false
+		)
+	}
+
 	@Test("replaces server when executable path is missing")
 	func replacesMissingExecutablePath() {
 		let bundled = URL(fileURLWithPath: "/Applications/Toby.app/Contents/Resources/toby")

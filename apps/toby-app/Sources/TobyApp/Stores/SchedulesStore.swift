@@ -145,6 +145,34 @@ final class SchedulesStore {
 	private var isSaveInFlight = false
 	private var loadedTree: SettingsItem?
 
+	/// Clears schedules state after a Toby home directory switch.
+	func resetForHomeSwitch() {
+		autosaveTask?.cancel()
+		autosaveTask = nil
+		schedules = []
+		selectedScheduleId = nil
+		personaOptions = []
+		projectOptions = []
+		values = [:]
+		draft = [:]
+		isLoading = false
+		isSaving = false
+		deletingScheduleId = nil
+		runningScheduleId = nil
+		parsingCronScheduleId = nil
+		hasLoadedOnce = false
+		lastLoadedAt = nil
+		cronValidationErrors = [:]
+		errorMessage = nil
+		pendingDelete = nil
+		selectedRunId = nil
+		selectedRunDetail = nil
+		isRunDetailLoading = false
+		runDetailError = nil
+		isSaveInFlight = false
+		loadedTree = nil
+	}
+
 	var selectedSchedule: ScheduleViewModel? {
 		schedules.first { $0.id == selectedScheduleId }
 	}

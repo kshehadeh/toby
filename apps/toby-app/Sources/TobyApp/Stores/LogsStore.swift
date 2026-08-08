@@ -51,6 +51,26 @@ final class LogsStore {
 		self.client = client
 	}
 
+	/// Clears log state after a Toby home directory switch.
+	func resetForHomeSwitch() {
+		stopPolling()
+		selectedSource = nil
+		entries = []
+		facets = .empty
+		logPath = nil
+		isLoading = false
+		errorMessage = nil
+		hasLoadedOnce = false
+		filterLevel = nil
+		filterCategory = nil
+		filterType = nil
+		searchQuery = ""
+		loadedLimit = Self.pageSize
+		matched = 0
+		hasMore = false
+		fetchGeneration += 1
+	}
+
 	func selectSource(_ source: String) {
 		if selectedSource == source { return }
 		selectedSource = source

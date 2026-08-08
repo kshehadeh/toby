@@ -73,6 +73,12 @@ final class NavigationHistory {
 		currentIndex += 1
 		return stack[currentIndex]
 	}
+
+	/// Reset to dashboard (used after a Toby home directory switch).
+	func resetToDashboard() {
+		stack = [.dashboard]
+		currentIndex = 0
+	}
 }
 
 struct SearchToolbarButton: View {

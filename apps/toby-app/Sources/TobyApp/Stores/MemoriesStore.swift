@@ -41,6 +41,27 @@ final class MemoriesStore {
 	/// Interval for quiet polling while the memories UI is visible.
 	static let pollIntervalNanoseconds: UInt64 = 5_000_000_000
 
+	/// Clears memories state after a Toby home directory switch.
+	func resetForHomeSwitch() {
+		stopPolling()
+		memories = []
+		selectedMemoryId = nil
+		selectedMemory = nil
+		isListLoading = false
+		isDetailLoading = false
+		isSaving = false
+		hasLoadedOnce = false
+		lastLoadedAt = nil
+		errorMessage = nil
+		pendingDelete = nil
+		searchQuery = ""
+		total = 0
+		hasMore = false
+		isCreatingNew = false
+		isDirty = false
+		isQuietRefreshing = false
+	}
+
 	func load() async {
 		guard !isListLoading else { return }
 		isListLoading = true

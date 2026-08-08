@@ -151,12 +151,17 @@ enum DaemonBootstrap {
 		bundledExecutable: URL? = nil,
 		bundledVersion: String? = nil,
 		expectedExecKind: String? = nil,
+		expectedTobyDir: String? = nil,
 	) -> Bool {
-		// If TOBY_DIR is set, verify the running daemon uses the same directory.
-		if let expectedTobyDir = ProcessInfo.processInfo.environment["TOBY_DIR"]?
-			.trimmingCharacters(in: .whitespacesAndNewlines), !expectedTobyDir.isEmpty {
-			let running = runningTobyDir?.trimmingCharacters(in: .whitespacesAndNewlines)
-			if running != expectedTobyDir {
+		// Always verify the running daemon uses this app's expected data root
+		// when the daemon reports a tobyDir (modern health/status payloads).
+		let expectedDir = (expectedTobyDir ?? ConfigReader.resolveTobyDir())
+			.trimmingCharacters(in: .whitespacesAndNewlines)
+		if !expectedDir.isEmpty,
+			let running = runningTobyDir?.trimmingCharacters(in: .whitespacesAndNewlines),
+			!running.isEmpty
+		{
+			if ConfigReader.standardizePath(running) != ConfigReader.standardizePath(expectedDir) {
 				return true
 			}
 		}
@@ -613,11 +618,18 @@ enum DaemonBootstrap {
 
 	private static func runDaemonStart(command: DaemonStartCommand) async throws {
 		log("runStart.start command=\(command.logDescription)")
+		let tobyDir = ConfigReader.resolveTobyDir()
 		try await Task.detached(priority: .userInitiated) {
 			let process = Process()
 			process.executableURL = command.executableURL
 			process.arguments = command.arguments
 			process.currentDirectoryURL = command.currentDirectoryURL
+
+			// Ensure the child uses the app's resolved data root even when the
+			// preference was applied mid-session (do not rely only on inheritance).
+			var environment = ProcessInfo.processInfo.environment
+			environment["TOBY_DIR"] = tobyDir
+			process.environment = environment
 
 			let outputPipe = Pipe()
 			process.standardOutput = outputPipe

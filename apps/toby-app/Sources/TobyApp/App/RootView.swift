@@ -59,6 +59,9 @@ struct RootView: View {
                 }
             },
             onSkillsDidChange: { skillsStore.handleExternalSkillChange() },
+            onTobyHomeDidChange: {
+                Task { await handleTobyHomeDidChange() }
+            },
             onBackupConfig: {
                 bringMainWindowToFront()
                 isBackupSheetPresented = true
@@ -904,6 +907,32 @@ struct RootView: View {
         async let projects: () = projectsStore.ensureListLoaded()
         async let integrations: () = loadIntegrationsIfNeeded()
         _ = await (sessions, schedules, recordings, memories, skills, projects, integrations)
+    }
+
+    /// Soft-reset feature stores after Settings → General switches the Toby home.
+    private func handleTobyHomeDidChange() async {
+        hasCompletedInitialLoad = false
+        history.resetToDashboard()
+
+        dashboardStore.resetForHomeSwitch()
+        configureStore.resetForHomeSwitch()
+        integrationsStore.resetForHomeSwitch()
+        recordingsStore.resetForHomeSwitch()
+        schedulesStore.resetForHomeSwitch()
+        projectsStore.resetForHomeSwitch()
+        skillsStore.resetForHomeSwitch()
+        memoriesStore.resetForHomeSwitch()
+        flowsStore.resetForHomeSwitch()
+        pluginsStore.resetForHomeSwitch()
+        changelogStore.resetForHomeSwitch()
+
+        await refreshSharedAppDataIfConnected()
+        await dashboardStore.refreshAll()
+        await configureStore.loadSettingsSections()
+        await integrationsStore.loadSettingsSections()
+        await pluginsStore.load()
+        permissionsStore.refresh()
+        hasCompletedInitialLoad = store.isServerReady
     }
 
     private func refreshSharedAppDataIfConnected() async {

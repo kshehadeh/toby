@@ -130,11 +130,21 @@ The first tab, **General**, is local to Toby.app (it is not stored in
 
 | Control | Options | Default |
 | ------- | ------- | ------- |
+| **Home directory** | Choose folder / Use default | **`~/.toby`** |
 | **Start at login** | On / Off | **Off** |
 | **Show menu bar icon** | On / Off | **On** |
 | **Chat mode** | Normal, Debug | **Normal** |
 | **Theme** | System, Light, Dark | **System** |
 | **Accent color** | Orange, blue, green, purple, pink, red, teal, gray | **Orange** |
+
+**Home directory** — Folder where Toby stores config, chat history, plugins,
+recordings, and other data (the same path About calls “Toby home directory”).
+Default is `~/.toby`. **Choose…** picks another folder; **Use Default** restores
+`~/.toby`. Switching **does not copy** data between homes — it points Toby at a
+different (or empty) data root, restarts the local server, and reloads the app
+UI. Finish or cancel any chat turn and stop recording before switching. The
+preference is stored only for Toby.app on this Mac; the `toby` CLI still uses
+`~/.toby` unless you set the `TOBY_DIR` environment variable.
 
 **Start at login** — Open Toby automatically when you log in to this Mac. Uses
 macOS Login Items (`SMAppService`). If macOS asks for approval, allow Toby under

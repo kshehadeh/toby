@@ -19,10 +19,17 @@ enum TobyClientError: LocalizedError {
 
 @MainActor
 struct TobyClient {
-	let baseURL: URL
+	/// Optional fixed base URL (tests / explicit override). When `nil`, each
+	/// request re-reads `ConfigReader.baseURL()` so a home-directory switch
+	/// that changes `web.port` is picked up without reconstructing clients.
+	private let baseURLOverride: URL?
 
-	init(baseURL: URL = ConfigReader.baseURL()) {
-		self.baseURL = baseURL
+	var baseURL: URL {
+		baseURLOverride ?? ConfigReader.baseURL()
+	}
+
+	init(baseURL: URL? = nil) {
+		self.baseURLOverride = baseURL
 	}
 
 	func fetchStatus() async throws -> AppStatus {

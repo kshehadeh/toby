@@ -55,6 +55,18 @@ struct NavigationHistoryTests {
 		#expect(history.current == .schedules)
 	}
 
+	@Test("resetToDashboard clears history to dashboard only")
+	func resetToDashboardClearsHistory() {
+		let history = NavigationHistory()
+		history.navigate(to: .chat)
+		history.navigate(to: .schedules)
+		history.resetToDashboard()
+		#expect(history.current == .dashboard)
+		#expect(history.stack == [.dashboard])
+		#expect(!history.canGoBack)
+		#expect(!history.canGoForward)
+	}
+
 	@Test("goBack at stack bottom returns nil")
 	func goBackAtBottomReturnsNil() {
 		let history = NavigationHistory()
