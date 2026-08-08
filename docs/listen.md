@@ -65,10 +65,13 @@ Stopping performs these steps:
 4. Toby.app shows a success/error toast and the result becomes available in
    the **Recordings** window.
 
-The Recordings window fetches list and detail data from the daemon. It supports
-audio playback, transcript viewing, AI summarization, metadata editing, and
-confirmed deletion. Deletion is sent to `DELETE /api/listen/recordings/:id`;
-the SwiftUI app does not remove recording directories directly.
+The Recordings window fetches list and detail data from the daemon. While a
+recording is in progress, the detail pane shows live capture metadata and a
+**Stop Recording** control that uses the same stop path as the toolbar and
+menu bar. After stop, the window supports audio playback, transcript viewing,
+AI summarization, metadata editing, and confirmed deletion. Deletion is sent
+to `DELETE /api/listen/recordings/:id`; the SwiftUI app does not remove
+recording directories directly.
 
 ### Recording summaries
 

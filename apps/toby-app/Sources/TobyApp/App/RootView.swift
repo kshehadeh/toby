@@ -575,7 +575,7 @@ struct RootView: View {
                         )
                     }
             case .recordings:
-                RecordingsView(store: recordingsStore, processingState: store.recordingProcessing, validSessionIds: Set(store.sessions.map(\.id)), onStartRecording: toggleRecording, activeRecording: store.listenStatus.flatMap { ActiveRecordingInfo($0) })
+                RecordingsView(store: recordingsStore, processingState: store.recordingProcessing, validSessionIds: Set(store.sessions.map(\.id)), onStartRecording: toggleRecording, onStopRecording: toggleRecording, activeRecording: store.listenStatus.flatMap { ActiveRecordingInfo($0) })
                     .toolbar {
                         RootToolbars.recordings(
                             common: commonToolbarModel,

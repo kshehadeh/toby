@@ -5,6 +5,7 @@ struct RecordingsDetailView: View {
 	var processingState: RecordingProcessingState? = nil
 	var validSessionIds: Set<String> = []
 	var onStartRecording: (() -> Void)? = nil
+	var onStopRecording: (() -> Void)? = nil
 	var activeRecording: ActiveRecordingInfo? = nil
 
 	var body: some View {
@@ -16,7 +17,7 @@ struct RecordingsDetailView: View {
 				ProgressView("Loading recording...")
 					.frame(maxWidth: .infinity, minHeight: 240)
 			} else if let active = activeRecording, store.selectedActiveRecordingId == active.id || store.selectedRecordings.isEmpty {
-				ActiveRecordingDetailView(active: active)
+				ActiveRecordingDetailView(active: active, onStopRecording: onStopRecording)
 			} else if !store.selectedRecordings.isEmpty {
 				if store.selectedRecordings.count == 1, let detail = store.detail {
 					if isProcessingSelected {
@@ -102,6 +103,7 @@ private struct RecordingsEmptyStateView: View {
 
 private struct ActiveRecordingDetailView: View {
 	let active: ActiveRecordingInfo
+	var onStopRecording: (() -> Void)? = nil
 
 	var body: some View {
 		VStack(spacing: 24) {
@@ -122,6 +124,17 @@ private struct ActiveRecordingDetailView: View {
 					.multilineTextAlignment(.center)
 					.lineLimit(4)
 					.frame(maxWidth: 480)
+			}
+
+			if let onStopRecording {
+				Button {
+					onStopRecording()
+				} label: {
+					Label("Stop Recording", systemImage: "stop.circle.fill")
+				}
+				.buttonStyle(.borderedProminent)
+				.tint(.red)
+				.accessibilityIdentifier("active-stop-recording-button")
 			}
 
 			VStack(alignment: .leading, spacing: 10) {

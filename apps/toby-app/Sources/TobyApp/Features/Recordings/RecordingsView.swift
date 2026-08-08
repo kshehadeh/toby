@@ -5,6 +5,7 @@ struct RecordingsView: View {
 	var processingState: RecordingProcessingState? = nil
 	var validSessionIds: Set<String> = []
 	var onStartRecording: (() -> Void)? = nil
+	var onStopRecording: (() -> Void)? = nil
 	var activeRecording: ActiveRecordingInfo? = nil
 
 	/// Effective processing state: prefer the store's manual transcription
@@ -17,7 +18,7 @@ struct RecordingsView: View {
 	}
 
 	var body: some View {
-		RecordingsDetailView(store: store, processingState: effectiveProcessingState, validSessionIds: validSessionIds, onStartRecording: onStartRecording, activeRecording: activeRecording)
+		RecordingsDetailView(store: store, processingState: effectiveProcessingState, validSessionIds: validSessionIds, onStartRecording: onStartRecording, onStopRecording: onStopRecording, activeRecording: activeRecording)
 		.toolbarBackground(.visible)
 		.background(SettingsDesign.canvasBackground)
 		.task {

@@ -565,6 +565,45 @@ struct RecordingsViewTests {
 		}
 	}
 
+	@Test("active recording detail shows Stop Recording button when callback is provided")
+	func activeRecordingDetailShowsStopButtonWhenCallbackProvided() throws {
+		let store = RecordingsStore()
+		store.recordings = []
+		store.selectedActiveRecordingId = "active-1"
+		let active = makeActiveRecording(id: "active-1")
+		let view = RecordingsView(store: store, onStopRecording: {}, activeRecording: active)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "active-stop-recording-button")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Stop Recording")
+		}
+	}
+
+	@Test("active recording detail Stop Recording button is absent when no callback is provided")
+	func activeRecordingDetailStopButtonAbsentWithoutCallback() throws {
+		let store = RecordingsStore()
+		store.recordings = []
+		store.selectedActiveRecordingId = "active-1"
+		let active = makeActiveRecording(id: "active-1")
+		let view = RecordingsView(store: store, activeRecording: active)
+		#expect(throws: Error.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "active-stop-recording-button")
+		}
+	}
+
+	@Test("active recording Stop Recording button invokes callback")
+	func activeRecordingStopButtonInvokesCallback() throws {
+		let store = RecordingsStore()
+		store.recordings = []
+		store.selectedActiveRecordingId = "active-1"
+		let active = makeActiveRecording(id: "active-1")
+		var didStop = false
+		let view = RecordingsView(store: store, onStopRecording: { didStop = true }, activeRecording: active)
+		try view.inspect().find(viewWithAccessibilityIdentifier: "active-stop-recording-button").button().tap()
+		#expect(didStop)
+	}
+
 	@Test("active recording detail does not expose rename field")
 	func activeRecordingDetailDoesNotExposeRenameField() throws {
 		let store = RecordingsStore()
