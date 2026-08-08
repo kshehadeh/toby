@@ -52,7 +52,7 @@ if [[ "$RESEED" -eq 1 ]] || needs_seed; then
 	else
 		echo "Generic screenshot home missing or incomplete; seeding $DEST …"
 	fi
-	python3 "$ROOT/scripts/seed-toby-generic-home.py" --dest "$DEST"
+	bun "$ROOT/scripts/seed-toby-generic-home.ts" "$DEST"
 else
 	echo "Using existing generic home: $DEST"
 	echo "(pass --reseed to wipe and rebuild)"

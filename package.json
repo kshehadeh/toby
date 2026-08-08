@@ -31,6 +31,7 @@
     "build:app": "bash ./scripts/build-app.sh",
     "app": "bun run build:app && open \"./dist/Toby (Dev).app\"",
     "app:screenshots": "bash ./scripts/run-app-screenshots.sh",
+    "seed:home": "bun ./scripts/seed-toby-generic-home.ts",
     "build:release": "./scripts/build-release-artifacts.sh",
     "build:dmg": "bun run build:release && ./scripts/build-dmg.sh",
     "dev": "bun run build:app && open \"./dist/Toby (Dev).app\"",
