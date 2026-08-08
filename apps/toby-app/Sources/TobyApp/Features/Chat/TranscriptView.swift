@@ -26,6 +26,13 @@ struct TranscriptView: View {
 	@State private var cachedGroupingKey: TranscriptGroupingKey?
 	@State private var lastStreamingScrollAt: Date?
 	@State private var trailingScrollTask: Task<Void, Never>?
+	/// Identity of the last history we pinned to the bottom (count + ends only).
+	@State private var lastPinnedIdentity: TranscriptPinIdentity?
+	/// How many older items above the default window are revealed.
+	@State private var revealedOlderCount = 0
+	/// User is near the bottom — only then auto-scroll on stream / new turns.
+	/// Scrolling *up* clears this so layout/stream updates do not fight the user.
+	@State private var isNearBottom = true
 
 	private var transcriptMode: ChatTranscriptMode {
 		transcriptModeOverride ?? appearancePreferences.chatTranscriptMode
@@ -45,8 +52,6 @@ struct TranscriptView: View {
 
 	/// Prefer the state cache when the grouping key matches so streaming-only
 	/// invalidations (activity line, token deltas) do not re-parse the history.
-	/// Fall back to a live group when the key is cold/stale (first paint,
-	/// ViewInspector) — never deep-`==` full transcript payloads in `body`.
 	private var displayItems: [TranscriptDisplayItem] {
 		if cachedGroupingKey == currentGroupingKey {
 			return cachedDisplayItems
@@ -63,13 +68,17 @@ struct TranscriptView: View {
 	/// selection notices (see `TranscriptGrouping.isVisible`).
 	private let showsWorkDetails = true
 
+	/// Cap how many transcript rows we materialize in the lazy path.
+	private static let defaultVisibleItems = 60
+	private static let revealChunk = 40
+	/// Prefer an eager stack under this size — LazyVStack materializing complex
+	/// markdown rows while scrolling up is a common freeze source (worse in a
+	/// narrow Projects split beside the inspector).
+	private static let eagerStackLimit = 48
+
 	private func isWorkGroupExpanded(_ group: TranscriptWorkGroup) -> Bool {
-		// Do not call `workSteps(from:)` here — that re-parses every group on
-		// every parent invalidation. Empty groups never need expansion UI.
 		if group.entries.isEmpty { return false }
 		if group.isActive {
-			// Debug expands the live work log by default (opt-out); normal mode keeps
-			// the active conversation clean and only expands when the user opts in.
 			if transcriptMode == .debug {
 				return !collapsedWhileActive.contains(group.id)
 			}
@@ -81,71 +90,59 @@ struct TranscriptView: View {
 	var body: some View {
 		ScrollViewReader { proxy in
 			ScrollView {
-				// Lazy stack avoids laying out the full history on every parent tick
-				// (e.g. streaming token updates that only touch the bottom row).
-				LazyVStack(alignment: .leading, spacing: 22) {
-					ForEach(displayItems) { item in
-						switch item {
-						case .entry(let entry, _):
-							TranscriptRow(entry: entry, personaImage: personaImageUrl)
-						case .workGroup(let group):
-							WorkedForRow(
-								group: group,
-								duration: duration(for: group),
-								activeWorkStartDate: group.isActive ? activeWorkStartDate : nil,
-								isExpanded: isWorkGroupExpanded(group),
-								onToggle: { toggleWorkGroup(group) },
-								showsWorkDetails: showsWorkDetails,
-								// Debug only: stream inside the expandable work log.
-								// Normal mode streams in the main transcript below.
-								streamingAssistant: transcriptMode == .debug
-									&& group.isActive
-									&& streamingAssistant?.inWorkArea == true
-									? streamingAssistant
-									: nil,
-								personaImage: personaImageUrl,
-							)
-							.id(group.id)
+				let items = displayItems
+				let window = visibleWindow(itemCount: items.count)
+				let useEagerStack = items.count <= Self.eagerStackLimit
+
+				Group {
+					if useEagerStack {
+						// Full history laid out once — scrolling never materializes
+						// new markdown rows (the freeze path when reading upward).
+						VStack(alignment: .leading, spacing: 22) {
+							transcriptStackContent(items: items, window: window)
+						}
+					} else {
+						LazyVStack(alignment: .leading, spacing: 22) {
+							transcriptStackContent(items: items, window: window)
 						}
 					}
-					// In normal mode (non-expandable work chip), always stream in the
-					// main transcript. In debug, tool-turn streams render inside the
-					// active work group instead.
-					if let streamingAssistant,
-						transcriptMode == .normal || !streamingAssistant.inWorkArea
-					{
-						AssistantMessageRow(
-							iconName: "sparkle",
-							header: streamingAssistant.header,
-							messageBody: streamingAssistant.text,
-							isStreaming: true,
-							personaImage: personaImageUrl,
-						)
-						.id("streaming")
-					}
-					if let askUserStore, askUserStore.activeAskUserPrompt != nil {
-						AskUserPromptView(store: askUserStore)
-							.id(askUserAnchorID)
-					}
-					Color.clear
-						.frame(height: bottomContentPadding)
-						.id(bottomAnchorID)
 				}
 				.frame(maxWidth: .infinity, alignment: .leading)
 				.padding(.horizontal, AppTheme.contentPadding)
 				.padding(.top, 10)
 			}
+			// Do NOT use defaultScrollAnchor(.bottom): when the user scrolls up and
+			// content height changes (LazyVStack / padding / inspector reflow), the
+			// bottom anchor fights scroll offset and freezes the main thread.
 			.automaticScrollIndicators(axes: .vertical)
 			.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+			.modifier(TranscriptNearBottomTracker(isNearBottom: $isNearBottom))
 			.onAppear {
 				refreshDisplayItemsCache()
 			}
-			.onChange(of: currentGroupingKey, initial: true) { _, _ in
+			.onChange(of: currentGroupingKey, initial: true) { _, newKey in
 				refreshDisplayItemsCache()
-				scrollToBottom(proxy: proxy, policy: .immediate)
+				let identity = TranscriptPinIdentity(from: newKey)
+				// New conversation / appended turns: reset the history window and
+				// pin once. Ignore stamp-only updates (body growth mid-turn).
+				if lastPinnedIdentity != identity {
+					let isNewSession = lastPinnedIdentity?.firstId != identity.firstId
+						|| lastPinnedIdentity == nil
+					if isNewSession {
+						revealedOlderCount = 0
+						isNearBottom = true
+					}
+					lastPinnedIdentity = identity
+					// Only pin when the user is following the bottom (or new session).
+					if isNearBottom || isNewSession {
+						isNearBottom = true
+						DispatchQueue.main.async {
+							scrollToBottom(proxy: proxy, policy: .immediate)
+						}
+					}
+				}
 			}
 			.onChange(of: isLoading) { wasLoading, loading in
-				// Grouping key already includes isLoading; also collapse work chips.
 				if wasLoading, !loading {
 					withAnimation(.easeOut(duration: 0.2)) {
 						collapsedWhileActive.removeAll()
@@ -158,10 +155,11 @@ struct TranscriptView: View {
 				}
 			}
 			.onChange(of: streamingAssistant?.text) { _, _ in
+				guard isNearBottom else { return }
 				scrollToBottom(proxy: proxy, policy: .throttled)
 			}
 			.onChange(of: hasActiveAskUser) { _, isActive in
-				if isActive {
+				if isActive, isNearBottom {
 					scrollToBottom(proxy: proxy, policy: .immediate)
 				}
 			}
@@ -170,6 +168,87 @@ struct TranscriptView: View {
 				trailingScrollTask = nil
 			}
 		}
+	}
+
+	@ViewBuilder
+	private func transcriptStackContent(
+		items: [TranscriptDisplayItem],
+		window: (start: Int, range: Range<Int>),
+	) -> some View {
+		if window.start > 0 {
+			Button {
+				revealedOlderCount += Self.revealChunk
+			} label: {
+				Text("Show \(min(Self.revealChunk, window.start)) earlier messages")
+					.font(.caption.weight(.medium))
+					.foregroundStyle(AppTheme.accent)
+					.frame(maxWidth: .infinity)
+					.padding(.vertical, 10)
+			}
+			.buttonStyle(.plain)
+			.accessibilityIdentifier("transcript-show-earlier")
+		}
+
+		ForEach(Array(items[window.range]), id: \.id) { item in
+			transcriptItemView(item)
+		}
+
+		if let streamingAssistant,
+			transcriptMode == .normal || !streamingAssistant.inWorkArea
+		{
+			AssistantMessageRow(
+				iconName: "sparkle",
+				header: streamingAssistant.header,
+				messageBody: streamingAssistant.text,
+				isStreaming: true,
+				personaImage: personaImageUrl,
+			)
+			.id("streaming")
+		}
+		if let askUserStore, askUserStore.activeAskUserPrompt != nil {
+			AskUserPromptView(store: askUserStore)
+				.id(askUserAnchorID)
+		}
+		Color.clear
+			.frame(height: bottomContentPadding)
+			.id(bottomAnchorID)
+	}
+
+	@ViewBuilder
+	private func transcriptItemView(_ item: TranscriptDisplayItem) -> some View {
+		switch item {
+		case .entry(let entry, _):
+			TranscriptRow(entry: entry, personaImage: personaImageUrl)
+		case .workGroup(let group):
+			WorkedForRow(
+				group: group,
+				duration: duration(for: group),
+				activeWorkStartDate: group.isActive ? activeWorkStartDate : nil,
+				isExpanded: isWorkGroupExpanded(group),
+				onToggle: { toggleWorkGroup(group) },
+				showsWorkDetails: showsWorkDetails,
+				streamingAssistant: transcriptMode == .debug
+					&& group.isActive
+					&& streamingAssistant?.inWorkArea == true
+					? streamingAssistant
+					: nil,
+				personaImage: personaImageUrl,
+			)
+			.id(group.id)
+		}
+	}
+
+	private func visibleWindow(itemCount: Int) -> (start: Int, range: Range<Int>) {
+		// Eager path always shows everything; window only applies to lazy stacks.
+		if itemCount <= Self.eagerStackLimit {
+			return (0, 0..<itemCount)
+		}
+		let base = Self.defaultVisibleItems + max(0, revealedOlderCount)
+		if itemCount <= base {
+			return (0, 0..<itemCount)
+		}
+		let start = itemCount - base
+		return (start, start..<itemCount)
 	}
 
 	private func refreshDisplayItemsCache() {
@@ -194,10 +273,8 @@ struct TranscriptView: View {
 	}
 
 	private func toggleWorkGroup(_ group: TranscriptWorkGroup) {
-		// Resolve expandability once on user action (not every body pass).
-		if workSteps(from: group).isEmpty { return }
-		// Debug uses opt-out collapse for the live (active) group; normal mode and
-		// every completed group use opt-in expansion.
+		// Cheap expandability check — do not parse work steps until expanded.
+		if group.entries.isEmpty { return }
 		if group.isActive, transcriptMode == .debug {
 			if collapsedWhileActive.contains(group.id) {
 				collapsedWhileActive.remove(group.id)
@@ -235,7 +312,6 @@ struct TranscriptView: View {
 				return
 			}
 			guard let delay = decision.trailingDelay else { return }
-			// Coalesce trailing scrolls so a burst of deltas ends with one catch-up.
 			trailingScrollTask?.cancel()
 			trailingScrollTask = Task { @MainActor in
 				let ns = UInt64(max(delay, 0) * 1_000_000_000)
@@ -249,7 +325,9 @@ struct TranscriptView: View {
 	}
 
 	private func performScrollToBottom(proxy: ScrollViewProxy) {
-		withAnimation(.easeOut(duration: 0.15)) {
+		var transaction = Transaction()
+		transaction.disablesAnimations = true
+		withTransaction(transaction) {
 			proxy.scrollTo(bottomAnchorID, anchor: .bottom)
 		}
 	}
@@ -266,14 +344,91 @@ struct TranscriptGroupingKey: Equatable {
 
 	init(entries: [TranscriptEntry], isLoading: Bool, mode: ChatTranscriptMode) {
 		count = entries.count
-		firstId = entries.first?.id
-		lastId = entries.last?.id
+		// Prefer stable boxed-step ids over hashing full user/assistant text.
+		firstId = entries.first.map(Self.stableId(for:))
+		lastId = entries.last.map(Self.stableId(for:))
 		var hash = 0
-		for entry in entries {
-			hash ^= entry.contentStamp
+		// Sample stamps instead of walking huge payloads on every body eval.
+		if entries.isEmpty {
+			hash = 0
+		} else if entries.count <= 64 {
+			for entry in entries {
+				hash ^= entry.contentStamp
+			}
+		} else {
+			hash ^= entries[0].contentStamp
+			hash ^= entries[entries.count / 2].contentStamp
+			hash ^= entries[entries.count - 1].contentStamp
+			hash ^= entries.count
 		}
 		stampHash = hash
 		self.isLoading = isLoading
 		self.mode = mode
+	}
+
+	private static func stableId(for entry: TranscriptEntry) -> String {
+		switch entry {
+		case .boxedStep(let payload):
+			return "boxed-\(payload.id)-\(payload.seq)"
+		case .toolCall(let blockKey, _, _):
+			return "tool-call-\(blockKey)"
+		case .toolOutput(let blockKey, _, _):
+			return "tool-output-\(blockKey)"
+		case .askUserQA(let blockKey, _, _, _):
+			return "ask-user-\(blockKey)"
+		case .turnWork(let durationMs):
+			return "turn-work-\(durationMs)"
+		case .user(let text, _):
+			return "user-\(text.count)"
+		case .assistant(let text):
+			return "assistant-\(text.count)"
+		case .meta(let text):
+			return "meta-\(text.count)"
+		case .notice(let text, _):
+			return "notice-\(text.count)"
+		case .error(let text):
+			return "error-\(text.count)"
+		}
+	}
+}
+
+/// Count + endpoints only — used to decide when to pin scroll / reset window.
+struct TranscriptPinIdentity: Equatable {
+	let count: Int
+	let firstId: String?
+	let lastId: String?
+	let isLoading: Bool
+	let mode: ChatTranscriptMode
+
+	init(from key: TranscriptGroupingKey) {
+		count = key.count
+		firstId = key.firstId
+		lastId = key.lastId
+		isLoading = key.isLoading
+		mode = key.mode
+	}
+}
+
+/// Tracks whether the transcript is scrolled near the bottom (macOS 15+).
+/// On older OS versions, stays `true` so streaming still follows the end.
+private struct TranscriptNearBottomTracker: ViewModifier {
+	@Binding var isNearBottom: Bool
+
+	func body(content: Content) -> some View {
+		if #available(macOS 15.0, *) {
+			content.onScrollGeometryChange(for: Bool.self) { geometry in
+				let viewHeight = geometry.containerSize.height
+				let maxY = geometry.contentOffset.y + viewHeight
+				let contentHeight = geometry.contentSize.height
+				return contentHeight <= viewHeight + 1
+					|| maxY >= contentHeight - 120
+			} action: { _, nearBottom in
+				if nearBottom != isNearBottom {
+					isNearBottom = nearBottom
+				}
+			}
+		} else {
+			content
+		}
 	}
 }

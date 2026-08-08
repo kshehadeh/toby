@@ -35,6 +35,11 @@ struct MarkdownText: View {
 	/// expand/reflow clipped text; only the card’s “Show more” grows layout.
 	@Environment(\.dashboardCardBodyInteractive) private var bodyInteractive
 
+	/// Parsed blocks for the last `text` value. Avoid re-splitting long assistant
+	/// replies on every parent invalidation (scroll, work-chip ticks, etc.).
+	@State private var cachedText: String?
+	@State private var cachedBlocks: [MarkdownBlock] = []
+
 	var body: some View {
 		// Give long-form assistant prose room to breathe between blocks while
 		// preserving the denser rhythm used by compact cards and metadata.
@@ -119,10 +124,24 @@ struct MarkdownText: View {
 		// When the hosting dashboard card is collapsed, ignore hits so individual
 		// markdown sub-blocks cannot expand text inside the fixed-height clip.
 		.allowsHitTesting(bodyInteractive)
+		.onAppear { refreshBlocksCacheIfNeeded() }
+		.onChange(of: text) { _, _ in
+			refreshBlocksCacheIfNeeded()
+		}
 	}
 
 	private var blocks: [MarkdownBlock] {
-		Self.parseBlocks(text)
+		if cachedText == text {
+			return cachedBlocks
+		}
+		// Cold / ViewInspector: parse once without waiting for onAppear.
+		return Self.parseBlocks(text)
+	}
+
+	private func refreshBlocksCacheIfNeeded() {
+		guard cachedText != text else { return }
+		cachedBlocks = Self.parseBlocks(text)
+		cachedText = text
 	}
 
 	private func headingFont(for level: Int) -> Font {

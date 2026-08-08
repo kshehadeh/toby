@@ -6,14 +6,29 @@ struct ProjectsView: View {
 
 	var body: some View {
 		HStack(spacing: 0) {
-			// Flexible main pane (no minWidth) so nav/inspector stay visible when narrow.
-			projectChatArea
-				.frame(maxWidth: .infinity, maxHeight: .infinity)
+			// Chat pane is isolated in its own view type so inspector tree polls /
+			// TextEditor layout never rebuild the transcript while scrolling.
+			ProjectChatPane(
+				chatStore: chatStore,
+				hasSelectedProject: projectsStore.selectedProject != nil,
+				hasSessions: !projectsStore.selectedProjectSessions.isEmpty,
+				onCreateChat: {
+					Task { await projectsStore.createChat(chatStore: chatStore) }
+				},
+			)
+			.frame(maxWidth: .infinity, maxHeight: .infinity)
+			.layoutPriority(1)
+
 			Divider().overlay(AppTheme.separator)
-			ProjectInspectorSidebar(store: projectsStore, chatStore: chatStore)
-				.frame(width: 320)
-				.frame(maxHeight: .infinity)
-				.layoutPriority(1)
+
+			ProjectInspectorSidebar(
+				store: projectsStore,
+				onCreateChat: {
+					Task { await projectsStore.createChat(chatStore: chatStore) }
+				},
+			)
+			.frame(width: 320)
+			.frame(maxHeight: .infinity)
 		}
 		.background(AppTheme.contentBackground)
 		.task {
@@ -43,35 +58,47 @@ struct ProjectsView: View {
 			Text("Are you sure you want to delete \"\(pending.name)\"? This cannot be undone.")
 		}
 	}
+}
 
-	@ViewBuilder
-	private var projectChatArea: some View {
-		if projectsStore.selectedProject == nil {
-			ContentUnavailableView(
-				"No Project Selected",
-				systemImage: "folder",
-				description: Text("Create or select a project.")
-			)
-		} else if projectsStore.selectedProjectSessions.isEmpty {
-			ContentUnavailableView {
-				Label("No Project Chat", systemImage: "bubble.left.and.bubble.right")
-			} description: {
-				Text("Start a chat for this project.")
-			} actions: {
-				Button("New Chat") {
-					Task { await projectsStore.createChat(chatStore: chatStore) }
+// MARK: - Chat pane (observation-isolated from project inspector)
+
+/// Only depends on `ChatStore` (+ lightweight flags). Folder-tree polling and
+/// inspector edits must not invalidate this subtree while the user scrolls.
+private struct ProjectChatPane: View {
+	@Bindable var chatStore: ChatStore
+	let hasSelectedProject: Bool
+	let hasSessions: Bool
+	let onCreateChat: () -> Void
+
+	var body: some View {
+		Group {
+			if !hasSelectedProject {
+				ContentUnavailableView(
+					"No Project Selected",
+					systemImage: "folder",
+					description: Text("Create or select a project.")
+				)
+			} else if !hasSessions {
+				ContentUnavailableView {
+					Label("No Project Chat", systemImage: "bubble.left.and.bubble.right")
+				} description: {
+					Text("Start a chat for this project.")
+				} actions: {
+					Button("New Chat", action: onCreateChat)
+						.buttonStyle(.borderedProminent)
 				}
-				.buttonStyle(.borderedProminent)
+			} else {
+				ChatWorkspaceView(store: chatStore)
 			}
-		} else {
-			ChatWorkspaceView(store: chatStore)
 		}
 	}
 }
 
+// MARK: - Inspector
+
 private struct ProjectInspectorSidebar: View {
 	@Bindable var store: ProjectsStore
-	@Bindable var chatStore: ChatStore
+	let onCreateChat: () -> Void
 
 	var body: some View {
 		VStack(spacing: 0) {
@@ -90,7 +117,7 @@ private struct ProjectInspectorSidebar: View {
 						personaField(project: project)
 						pathSection(project: project)
 						Divider().overlay(SettingsDesign.cardBorder)
-						fileTreeSection
+						ProjectFileTreeSection(store: store)
 					}
 					.padding(18)
 					.frame(maxWidth: .infinity, alignment: .leading)
@@ -99,9 +126,7 @@ private struct ProjectInspectorSidebar: View {
 				Divider().overlay(SettingsDesign.cardBorder)
 
 				HStack(spacing: 10) {
-					Button {
-						Task { await store.createChat(chatStore: chatStore) }
-					} label: {
+					Button(action: onCreateChat) {
 						Label("New Chat", systemImage: "plus.bubble")
 							.frame(maxWidth: .infinity)
 					}
@@ -143,6 +168,9 @@ private struct ProjectInspectorSidebar: View {
 			Text("Summary")
 				.font(.system(size: 12, weight: .semibold))
 				.foregroundStyle(SettingsDesign.rowTitle)
+			// Fixed height so the TextEditor cannot thrash HStack layout while the
+			// chat transcript scrolls (sibling ScrollView + flexible editor is a
+			// known macOS jank/freeze combo).
 			TextEditor(
 				text: Binding(
 					get: { store.selectedProject?.summary ?? project.summary },
@@ -151,7 +179,7 @@ private struct ProjectInspectorSidebar: View {
 			)
 			.font(.system(size: 13))
 			.scrollContentBackground(.hidden)
-			.frame(minHeight: 92)
+			.frame(height: 92)
 			.padding(8)
 			.background(
 				RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
@@ -192,8 +220,13 @@ private struct ProjectInspectorSidebar: View {
 			RevealPathButton(path: project.folderPath)
 		}
 	}
+}
 
-	private var fileTreeSection: some View {
+/// File tree + 2s folder poll live only here so they never invalidate the chat pane.
+private struct ProjectFileTreeSection: View {
+	@Bindable var store: ProjectsStore
+
+	var body: some View {
 		VStack(alignment: .leading, spacing: 8) {
 			HStack {
 				Text("Files")

@@ -359,9 +359,11 @@ final class ProjectsStore {
 
 	private func startFolderWatch(projectId: String) {
 		folderWatchTask?.cancel()
+		// Poll less aggressively — a 2s tree refresh was invalidating the project
+		// inspector during chat scroll and contributing to main-thread freezes.
 		folderWatchTask = Task { [weak self] in
 			while !Task.isCancelled {
-				try? await Task.sleep(for: .seconds(2))
+				try? await Task.sleep(for: .seconds(8))
 				await self?.refreshTreeIfStillSelected(projectId: projectId)
 			}
 		}

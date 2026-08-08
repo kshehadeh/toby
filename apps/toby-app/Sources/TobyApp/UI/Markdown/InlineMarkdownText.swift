@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 struct InlineMarkdownText: View {
@@ -12,7 +13,11 @@ struct InlineMarkdownText: View {
 	@Environment(\.dashboardCardBodyInteractive) private var bodyInteractive
 
 	var body: some View {
-		if let attributed = styledAttributed {
+		if let attributed = Self.makeAttributed(
+			text: text,
+			baseForeground: baseForeground,
+			strongForeground: strongForeground,
+		) {
 			selectableText(Text(attributed))
 		} else if let baseForeground {
 			selectableText(Text(text).foregroundStyle(baseForeground))
@@ -29,8 +34,37 @@ struct InlineMarkdownText: View {
 			content.textSelection(.disabled)
 		}
 	}
+}
 
-	private var styledAttributed: AttributedString? {
+// MARK: - Parsing cache
+
+private enum InlineMarkdownCache {
+	/// Process-wide parse cache. NSCache is thread-safe; marked unsafe for Swift 6
+	/// static isolation checks only.
+	nonisolated(unsafe) static let store = NSCache<NSString, CachedInlineMarkdown>()
+
+	final class CachedInlineMarkdown: NSObject {
+		let attributed: AttributedString
+		init(_ attributed: AttributedString) {
+			self.attributed = attributed
+			super.init()
+		}
+	}
+}
+
+extension InlineMarkdownText {
+	static func makeAttributed(
+		text: String,
+		baseForeground: Color?,
+		strongForeground: Color?,
+	) -> AttributedString? {
+		let key =
+			"\(text.count)|\(text.hashValue)|\(baseForeground != nil)|\(strongForeground != nil)"
+			as NSString
+		if let hit = InlineMarkdownCache.store.object(forKey: key) {
+			return hit.attributed
+		}
+
 		guard var attributed = try? AttributedString(
 			markdown: text,
 			options: AttributedString.MarkdownParsingOptions(
@@ -41,17 +75,19 @@ struct InlineMarkdownText: View {
 			return nil
 		}
 
-		guard baseForeground != nil || strongForeground != nil else {
-			return attributed
+		if baseForeground != nil || strongForeground != nil {
+			let base = baseForeground ?? strongForeground!
+			let strong = strongForeground ?? base
+			for run in attributed.runs {
+				let isStrong = run.inlinePresentationIntent?.contains(.stronglyEmphasized) == true
+				attributed[run.range].foregroundColor = isStrong ? strong : base
+			}
 		}
 
-		let base = baseForeground ?? strongForeground!
-		let strong = strongForeground ?? base
-
-		for run in attributed.runs {
-			let isStrong = run.inlinePresentationIntent?.contains(.stronglyEmphasized) == true
-			attributed[run.range].foregroundColor = isStrong ? strong : base
-		}
+		InlineMarkdownCache.store.setObject(
+			InlineMarkdownCache.CachedInlineMarkdown(attributed),
+			forKey: key,
+		)
 		return attributed
 	}
 }

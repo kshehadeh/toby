@@ -416,8 +416,9 @@ struct WorkStepStatusIndicator: View {
 					.frame(width: 7, height: 7)
 			}
 		}
-		.frame(width: 16, height: 16)
-		.frame(maxHeight: .infinity, alignment: .center)
+		// Fixed size only — unbounded maxHeight inside LazyVStack work rows
+		// contributes to layout freezes when scrolling long transcripts.
+		.frame(width: 16, height: 16, alignment: .center)
 	}
 }
 

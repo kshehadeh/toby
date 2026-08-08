@@ -181,7 +181,7 @@ extension TranscriptEntry {
 	}
 }
 
-enum TranscriptDisplayItem: Identifiable, Equatable {
+enum TranscriptDisplayItem: Identifiable {
 	case entry(TranscriptEntry, sourceIndex: Int)
 	case workGroup(TranscriptWorkGroup)
 
@@ -194,3 +194,6 @@ enum TranscriptDisplayItem: Identifiable, Equatable {
 		}
 	}
 }
+
+// Intentionally not Equatable via full payload deep-compare: SwiftUI would walk
+// multi-KB tool `fullBody` strings on every parent invalidation / scroll frame.

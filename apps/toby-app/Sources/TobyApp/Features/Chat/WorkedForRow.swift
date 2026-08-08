@@ -12,111 +12,163 @@ struct WorkedForRow: View {
 	var streamingAssistant: StreamingAssistantState?
 	var personaImage: URL?
 
+	/// Parsed only while expanded (or when needed for an active live label).
+	@State private var cachedSteps: [WorkStep] = []
+	@State private var cachedStepsGroupId: String?
+	@State private var cachedStepsEntryCount: Int?
+
+	/// Expandability must not parse tool bodies — empty groups never expand.
+	private var hasExpandableContent: Bool {
+		showsWorkDetails && (!group.entries.isEmpty || streamingAssistant != nil)
+	}
+
 	private var steps: [WorkStep] {
-		guard showsWorkDetails else { return [] }
+		guard showsWorkDetails, isExpanded || group.isActive else { return [] }
+		if cachedStepsGroupId == group.id, cachedStepsEntryCount == group.entries.count {
+			return cachedSteps
+		}
 		return workSteps(from: group)
 	}
 
 	private var toolStepCount: Int {
-		steps.filter { $0.type != .assistantInterim }.count
-	}
-
-	private var hasExpandableContent: Bool {
-		showsWorkDetails && (!steps.isEmpty || streamingAssistant != nil)
+		guard isExpanded else { return 0 }
+		return steps.filter { $0.type != .assistantInterim }.count
 	}
 
 	var body: some View {
-		TimelineView(.periodic(from: .now, by: 1.0)) { context in
-			HStack(alignment: .top, spacing: 0) {
-				VStack(alignment: .leading, spacing: 0) {
-					Button(action: {
-						guard hasExpandableContent else { return }
-						onToggle()
-					}) {
-						HStack(spacing: 8) {
-							if group.isActive {
-								ProgressView()
-									.controlSize(.small)
-									.frame(width: 14, height: 14)
-							} else {
-								Image(systemName: "clock")
-									.font(AppTheme.transcriptCaptionFont.weight(.semibold))
-									.foregroundStyle(AppTheme.secondaryText)
-							}
-							Text(summaryLabel(at: context.date))
+		// Only tick the live "Working for…" label while a turn is active.
+		Group {
+			if group.isActive {
+				TimelineView(.periodic(from: .now, by: 1.0)) { context in
+					chipContent(at: context.date)
+				}
+			} else {
+				chipContent(at: .now)
+			}
+		}
+		.onChange(of: isExpanded) { _, expanded in
+			if expanded { refreshStepsCacheIfNeeded() }
+		}
+		.onChange(of: group.id) { _, _ in
+			cachedSteps = []
+			cachedStepsGroupId = nil
+			cachedStepsEntryCount = nil
+			if isExpanded || group.isActive { refreshStepsCacheIfNeeded() }
+		}
+		.onChange(of: group.entries.count) { _, _ in
+			if isExpanded || group.isActive { refreshStepsCacheIfNeeded(force: true) }
+		}
+	}
+
+	private func refreshStepsCacheIfNeeded(force: Bool = false) {
+		guard showsWorkDetails else {
+			cachedSteps = []
+			cachedStepsGroupId = group.id
+			cachedStepsEntryCount = group.entries.count
+			return
+		}
+		if !force,
+			cachedStepsGroupId == group.id,
+			cachedStepsEntryCount == group.entries.count
+		{
+			return
+		}
+		cachedSteps = workSteps(from: group)
+		cachedStepsGroupId = group.id
+		cachedStepsEntryCount = group.entries.count
+	}
+
+	private func chipContent(at date: Date) -> some View {
+		HStack(alignment: .top, spacing: 0) {
+			VStack(alignment: .leading, spacing: 0) {
+				Button(action: {
+					guard hasExpandableContent else { return }
+					onToggle()
+				}) {
+					HStack(spacing: 8) {
+						if group.isActive {
+							ProgressView()
+								.controlSize(.small)
+								.frame(width: 14, height: 14)
+						} else {
+							Image(systemName: "clock")
+								.font(AppTheme.transcriptCaptionFont.weight(.semibold))
+								.foregroundStyle(AppTheme.secondaryText)
+						}
+						Text(summaryLabel(at: date))
+							.font(AppTheme.transcriptStepMetaFont)
+							.tracking(AppTheme.transcriptStepMetaTracking)
+							.textCase(.uppercase)
+							.foregroundStyle(AppTheme.secondaryText)
+						if isExpanded, toolStepCount > 0 {
+							Text("· \(toolStepCount) step\(toolStepCount == 1 ? "" : "s")")
 								.font(AppTheme.transcriptStepMetaFont)
 								.tracking(AppTheme.transcriptStepMetaTracking)
 								.textCase(.uppercase)
-								.foregroundStyle(AppTheme.secondaryText)
-							if isExpanded, toolStepCount > 0 {
-								Text("· \(toolStepCount) step\(toolStepCount == 1 ? "" : "s")")
-									.font(AppTheme.transcriptStepMetaFont)
-									.tracking(AppTheme.transcriptStepMetaTracking)
-									.textCase(.uppercase)
-									.foregroundStyle(AppTheme.tertiaryText)
-							}
-							Spacer(minLength: 0)
-							if hasExpandableContent {
-								Image(systemName: "chevron.right")
-									.font(AppTheme.transcriptCaptionFont.weight(.semibold))
-									.foregroundStyle(AppTheme.tertiaryText)
-									.rotationEffect(.degrees(isExpanded ? 90 : 0))
-							}
+								.foregroundStyle(AppTheme.tertiaryText)
 						}
-						.padding(.vertical, 10)
-						.padding(.horizontal, 12)
-						.contentShape(Rectangle())
+						Spacer(minLength: 0)
+						if hasExpandableContent {
+							Image(systemName: "chevron.right")
+								.font(AppTheme.transcriptCaptionFont.weight(.semibold))
+								.foregroundStyle(AppTheme.tertiaryText)
+								.rotationEffect(.degrees(isExpanded ? 90 : 0))
+						}
 					}
-					.buttonStyle(.plain)
-					.background(
-						RoundedRectangle(cornerRadius: 12, style: .continuous)
-							.fill(Color.white.opacity(0.03))
-					)
+					.padding(.vertical, 10)
+					.padding(.horizontal, 12)
+					.contentShape(Rectangle())
+				}
+				.buttonStyle(.plain)
+				.background(
+					RoundedRectangle(cornerRadius: 12, style: .continuous)
+						.fill(Color.white.opacity(0.03))
+				)
 
-					if isExpanded, showsWorkDetails {
-						VStack(alignment: .leading, spacing: 0) {
-							ForEach(Array(steps.enumerated()), id: \.element.id) { index, step in
-								if index > 0 {
-									Rectangle()
-										.fill(AppTheme.separator)
-										.frame(height: 1)
-										.padding(.horizontal, 4)
-								}
-								if step.type == .assistantInterim {
-									AssistantWorkMessageRow(step: step, personaImage: personaImage)
-								} else {
-									WorkStepRow(step: step)
-								}
-							}
-							if let streamingAssistant {
+				if isExpanded, showsWorkDetails {
+					let resolvedSteps = steps
+					VStack(alignment: .leading, spacing: 0) {
+						ForEach(Array(resolvedSteps.enumerated()), id: \.element.id) { index, step in
+							if index > 0 {
 								Rectangle()
 									.fill(AppTheme.separator)
 									.frame(height: 1)
 									.padding(.horizontal, 4)
-								AssistantMessageRow(
-									iconName: "sparkle",
-									header: streamingAssistant.header,
-									messageBody: streamingAssistant.text,
-									isStreaming: true,
-									personaImage: personaImage,
-								)
+							}
+							if step.type == .assistantInterim {
+								AssistantWorkMessageRow(step: step, personaImage: personaImage)
+							} else {
+								WorkStepRow(step: step)
 							}
 						}
-						.padding(.horizontal, 12)
-						.padding(.bottom, 12)
-						.transition(.opacity.combined(with: .move(edge: .top)))
+						if let streamingAssistant {
+							Rectangle()
+								.fill(AppTheme.separator)
+								.frame(height: 1)
+								.padding(.horizontal, 4)
+							AssistantMessageRow(
+								iconName: "sparkle",
+								header: streamingAssistant.header,
+								messageBody: streamingAssistant.text,
+								isStreaming: true,
+								personaImage: personaImage,
+							)
+						}
 					}
+					.padding(.horizontal, 12)
+					.padding(.bottom, 12)
+					.transition(.opacity.combined(with: .move(edge: .top)))
 				}
-				.frame(maxWidth: 640, alignment: .leading)
-				.overlay(
-					RoundedRectangle(cornerRadius: 12, style: .continuous)
-						.stroke(AppTheme.separator)
-				)
-				.clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-				Spacer(minLength: 0)
 			}
-			.animation(.easeOut(duration: 0.2), value: isExpanded)
+			.frame(maxWidth: 640, alignment: .leading)
+			.overlay(
+				RoundedRectangle(cornerRadius: 12, style: .continuous)
+					.stroke(AppTheme.separator)
+			)
+			.clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+			Spacer(minLength: 0)
 		}
+		.animation(.easeOut(duration: 0.2), value: isExpanded)
 	}
 
 	private func summaryLabel(at date: Date) -> String {
@@ -127,9 +179,14 @@ struct WorkedForRow: View {
 			}
 			return "Working…"
 		}
-		let stepDuration = workStepDuration(from: steps)
-		let completedDuration = [elapsed, stepDuration].compactMap { $0 }.max()
-		return workedSummaryLabel(duration: completedDuration)
+		// Collapsed chips use the stored group duration only — never re-parse
+		// tool steps (that was a major freeze source on long project chats).
+		if isExpanded {
+			let stepDuration = workStepDuration(from: steps)
+			let completedDuration = [elapsed, stepDuration].compactMap { $0 }.max()
+			return workedSummaryLabel(duration: completedDuration)
+		}
+		return workedSummaryLabel(duration: elapsed)
 	}
 
 	private func liveDuration(at date: Date) -> TimeInterval? {

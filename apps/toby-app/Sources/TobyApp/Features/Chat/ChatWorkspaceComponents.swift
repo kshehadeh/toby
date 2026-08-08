@@ -147,6 +147,8 @@ struct ActiveChatWorkspace: View {
             )
         }
         .onPreferenceChange(OverlayHeightPreferenceKey.self) { newValue in
+            // Ignore sub-pixel thrash that can re-layout the transcript endlessly.
+            guard abs(newValue - overlayHeight) > 0.5 else { return }
             overlayHeight = newValue
         }
     }

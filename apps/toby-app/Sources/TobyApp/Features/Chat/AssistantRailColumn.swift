@@ -6,25 +6,35 @@ struct AssistantRailColumn: View {
 	var iconColor: Color? = nil
 	var personaImage: URL? = nil
 
+	static let width: CGFloat = 34
+	static let avatarSize: CGFloat = 26
+
 	var body: some View {
-		VStack(spacing: 0) {
+		// Fixed-size avatar only. Do not use maxHeight: .infinity or GeometryReader
+		// here — both cause layout thrash inside LazyVStack / ScrollView rows.
+		Group {
 			if let personaImage {
-				PersonaImageView(url: personaImage, size: 26)
-					.overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(AppTheme.accent.opacity(0.4), lineWidth: 1))
+				PersonaImageView(url: personaImage, size: Self.avatarSize)
+					.overlay(
+						RoundedRectangle(cornerRadius: 4, style: .continuous)
+							.stroke(AppTheme.accent.opacity(0.4), lineWidth: 1)
+					)
 			} else {
 				Image(systemName: iconName)
 					.font(.system(size: 10, weight: .semibold))
 					.foregroundStyle(iconColor ?? AppTheme.accent)
-					.frame(width: 26, height: 26)
-					.background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(AppTheme.panelBackground))
-					.overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(AppTheme.accent.opacity(0.4), lineWidth: 1))
+					.frame(width: Self.avatarSize, height: Self.avatarSize)
+					.background(
+						RoundedRectangle(cornerRadius: 4, style: .continuous)
+							.fill(AppTheme.panelBackground)
+					)
+					.overlay(
+						RoundedRectangle(cornerRadius: 4, style: .continuous)
+							.stroke(AppTheme.accent.opacity(0.4), lineWidth: 1)
+					)
 			}
-			Rectangle()
-				.fill(AppTheme.accent.opacity(0.35))
-				.frame(width: 1.5)
-				.frame(maxHeight: .infinity)
-				.padding(.top, 6)
 		}
-		.frame(width: 34)
+		.frame(width: Self.width, height: Self.avatarSize, alignment: .top)
+		.accessibilityHidden(true)
 	}
 }
