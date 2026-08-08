@@ -382,7 +382,9 @@ Errors:
 - `500` when plugin transcription fails. The error is also appended to the
   recording metadata.
 
-Re-transcribe clears any previously stored AI summary for the recording.
+Re-transcribe clears any previously stored AI summary for the recording and
+clears prior `metadata.errors` so a successful retry does not leave a stale
+failure message in the Recordings inspector.
 
 ### `POST /api/listen/recordings/:id/summarize`
 
@@ -392,7 +394,9 @@ default persona). Writes `summary.md`, updates `metadata.json`, and returns the
 refreshed recording detail (including `hasSummary`, `summary`, and
 `summaryMeta`).
 
-Calling the endpoint again replaces the existing summary.
+Calling the endpoint again replaces the existing summary. A successful
+summarize also clears prior `metadata.errors` (for example a failed earlier
+attempt) so the Recordings inspector matches the outcome.
 
 Errors:
 

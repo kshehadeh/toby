@@ -680,6 +680,65 @@ describe("web chat API routes", () => {
 		});
 	});
 
+	it("clears prior metadata.errors after a successful re-transcribe", async () => {
+		await withTempTobyDir(async () => {
+			const recordingsDir = path.join(
+				process.env.TOBY_DIR ?? "",
+				"listen",
+				"recordings",
+			);
+			const session = prepareListenSession({
+				recordingsDir,
+				id: "sticky-error-recording",
+				now: new Date("2026-06-17T11:00:00Z"),
+				sources: { mic: true, system: false },
+			});
+			const outputDir = saveListenSession(
+				session,
+				buildListenMetadata({
+					session,
+					stoppedAt: new Date("2026-06-17T11:00:05Z"),
+					files: {
+						mic: "mic.wav",
+						combined: "combined.m4a",
+					},
+					errors: [
+						"AI Gateway authentication failed: Invalid API key or token.",
+					],
+				}),
+			);
+			fs.writeFileSync(path.join(outputDir, "mic.wav"), "mic");
+			fs.writeFileSync(path.join(outputDir, "combined.m4a"), "combined");
+
+			const before = JSON.parse(
+				fs.readFileSync(path.join(outputDir, "metadata.json"), "utf8"),
+			) as { errors?: string[] };
+			expect(before.errors).toEqual([
+				"AI Gateway authentication failed: Invalid API key or token.",
+			]);
+
+			const response = await handleWebRequest(
+				new Request(
+					"http://127.0.0.1/api/listen/recordings/sticky-error-recording/transcribe",
+					{ method: "POST" },
+				),
+				null,
+			);
+			expect(response.status).toBe(200);
+			const body = (await response.json()) as {
+				hasTranscript?: boolean;
+				metadata?: { errors?: string[] };
+			};
+			expect(body.hasTranscript).toBe(true);
+			expect(body.metadata?.errors).toBeUndefined();
+
+			const after = JSON.parse(
+				fs.readFileSync(path.join(outputDir, "metadata.json"), "utf8"),
+			) as { errors?: string[] };
+			expect(after.errors).toBeUndefined();
+		});
+	});
+
 	it.skipIf(!canUseBunSqlite())(
 		"handles PATCH and DELETE /api/sessions/:id",
 		async () => {

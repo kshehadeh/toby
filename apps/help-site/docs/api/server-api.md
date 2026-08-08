@@ -363,6 +363,8 @@ At least one of `name`, `description`, or `chatSessionId` is required. Returns t
 ### `POST /api/listen/recordings/:id/transcribe`
 
 Runs transcription against the recording’s audio and updates artifacts.
+A successful run clears any prior AI summary and prior `metadata.errors` so a
+retry after a failure does not leave a stale error in the Recordings inspector.
 
 Optional body:
 
@@ -374,7 +376,7 @@ Clients that send `Accept: text/event-stream` may receive a streaming transcript
 
 - `400` no readable audio
 - `404` not found
-- `500` transcription failure
+- `500` transcription failure (error is also appended to recording metadata)
 
 ## Sessions
 

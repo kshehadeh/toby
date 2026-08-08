@@ -350,8 +350,11 @@ export function writeListenSummary(
 	fs.writeFileSync(summaryPath, `${text}\n`, "utf8");
 
 	const createdAt = params.createdAt ?? new Date().toISOString();
+	// Drop prior metadata errors so a successful summarize does not leave a
+	// stale failure message in the Recordings inspector.
+	const { errors: _staleErrors, ...metaWithoutErrors } = recording.metadata;
 	const nextMetadata: ListenRecordingMetadata = {
-		...recording.metadata,
+		...metaWithoutErrors,
 		files: {
 			...recording.metadata.files,
 			summary: summaryFile,

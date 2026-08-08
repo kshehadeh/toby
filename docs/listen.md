@@ -59,7 +59,9 @@ Stopping performs these steps:
 2. The app calls the daemon's
    `POST /api/listen/recordings/:id/transcribe` endpoint.
 3. The daemon invokes the configured transcription plugin and updates
-   `metadata.json` with transcript paths or errors.
+   `metadata.json` with transcript paths, or appends the failure to
+   `metadata.errors`. A later successful re-transcribe clears those errors
+   (and any prior AI summary).
 4. Toby.app shows a success/error toast and the result becomes available in
    the **Recordings** window.
 

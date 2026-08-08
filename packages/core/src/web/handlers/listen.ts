@@ -347,8 +347,11 @@ function finalizeTranscription(
 	}
 	// Drop any prior AI summary so it cannot outlive a new transcript.
 	const cleared = clearListenSummary(recording);
+	// Drop prior metadata errors (e.g. a failed earlier attempt) so the
+	// Recordings inspector does not keep showing stale failures after success.
+	const { errors: _staleErrors, ...metaWithoutErrors } = cleared.metadata;
 	const nextMetadata: ListenRecordingMetadata = {
-		...cleared.metadata,
+		...metaWithoutErrors,
 		files: {
 			...cleared.metadata.files,
 			...transcriptFiles,
