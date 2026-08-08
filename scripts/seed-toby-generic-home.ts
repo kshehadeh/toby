@@ -21,10 +21,12 @@
  */
 
 import { Database } from "bun:sqlite";
+import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const NOW = new Date(Date.UTC(2026, 6, 10, 15, 30, 0));
 
@@ -839,152 +841,121 @@ Sort by priority and updated time. Summarize each with key, title, status, and n
 	}
 }
 
-function parseRecordingStart(id: string): Date {
-	// id prefix: 2026-07-06T15-00-00
-	const m = id
-		.slice(0, 19)
-		.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})$/);
-	if (!m) return addDays(NOW, -5);
-	const [, y, mo, d, h, mi, s] = m;
-	return new Date(
-		Date.UTC(
-			Number(y),
-			Number(mo) - 1,
-			Number(d),
-			Number(h),
-			Number(mi),
-			Number(s),
-		),
+/**
+ * Real dual-source recordings ship as `scripts/fixtures/listen-recordings.zip`
+ * (combined + mic/system + transcripts). Seed unzips into the demo home so
+ * playback, source switching, and timed transcripts work without bloating the
+ * working tree with loose multi‑MB WAV files.
+ */
+function listenRecordingFixturesZip(): string {
+	return path.join(
+		path.dirname(fileURLToPath(import.meta.url)),
+		"fixtures",
+		"listen-recordings.zip",
 	);
+}
+
+function extractZip(zipPath: string, destDir: string): void {
+	fs.mkdirSync(destDir, { recursive: true });
+	const result = spawnSync("unzip", ["-oq", zipPath, "-d", destDir], {
+		encoding: "utf-8",
+	});
+	if (result.error) {
+		throw new Error(
+			`Failed to run unzip for ${zipPath}: ${result.error.message}`,
+		);
+	}
+	if (result.status !== 0) {
+		const detail = (result.stderr || result.stdout || "").trim();
+		throw new Error(
+			`unzip exited ${result.status} for ${zipPath}${detail ? `: ${detail}` : ""}`,
+		);
+	}
+}
+
+/** Normalize metadata.files to portable relative basenames after extract/copy. */
+function normalizeRecordingMetadata(destDir: string, id: string): void {
+	const metaPath = path.join(destDir, "metadata.json");
+	if (!fs.existsSync(metaPath)) {
+		throw new Error(`Recording fixture ${id} is missing metadata.json`);
+	}
+	const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8")) as {
+		id?: string;
+		files?: Record<string, unknown>;
+		[key: string]: unknown;
+	};
+	const files = {
+		...(typeof meta.files === "object" && meta.files ? meta.files : {}),
+	} as Record<string, string>;
+	for (const key of [
+		"combined",
+		"mic",
+		"system",
+		"transcript",
+		"transcriptJson",
+		"summary",
+	] as const) {
+		const val = files[key];
+		if (typeof val === "string" && val.trim()) {
+			files[key] = path.basename(val);
+		}
+	}
+	const defaults: Record<string, string> = {
+		combined: "combined.m4a",
+		mic: "mic.wav",
+		system: "system.wav",
+		transcript: "transcript.txt",
+		transcriptJson: "transcript.json",
+		summary: "summary.md",
+	};
+	for (const [key, basename] of Object.entries(defaults)) {
+		if (fs.existsSync(path.join(destDir, basename))) {
+			files[key] = basename;
+		}
+	}
+	meta.id = typeof meta.id === "string" && meta.id ? meta.id : id;
+	meta.files = files;
+	writeJson(metaPath, meta);
+
+	const hasAudio =
+		fs.existsSync(path.join(destDir, "combined.m4a")) ||
+		fs.existsSync(path.join(destDir, "mic.wav")) ||
+		fs.existsSync(path.join(destDir, "system.wav"));
+	const hasTranscript =
+		fs.existsSync(path.join(destDir, "transcript.txt")) ||
+		fs.existsSync(path.join(destDir, "transcript.json"));
+	if (!hasAudio || !hasTranscript) {
+		throw new Error(
+			`Recording fixture ${id} is incomplete (audio=${hasAudio}, transcript=${hasTranscript}).`,
+		);
+	}
 }
 
 function seedRecordings(dest: string): void {
 	const root = path.join(dest, "listen", "recordings");
-	const samples = [
-		{
-			id: "2026-07-06T15-00-00-000Z-DEMO01",
-			name: "Product Planning Sync",
-			duration_ms: 18 * 60 * 1000 + 40 * 1000,
-			summary: `# Product Planning Sync — Summary
+	const zipPath = listenRecordingFixturesZip();
+	if (!fs.existsSync(zipPath)) {
+		throw new Error(
+			`Recording fixtures zip missing at ${zipPath}. Expected scripts/fixtures/listen-recordings.zip.`,
+		);
+	}
 
-A working session to refine the Q3 roadmap and align on launch criteria.
+	extractZip(zipPath, root);
 
-## Key decisions
-- Target **feature freeze** two weeks before release
-- Prioritize onboarding polish over experimental settings
-- Keep release notes customer-facing and short
+	const fixtureIds = fs
+		.readdirSync(root, { withFileTypes: true })
+		.filter((e) => e.isDirectory() && !e.name.startsWith("."))
+		.map((e) => e.name)
+		.sort();
 
-## Action items
-- Alex: draft release email outline
-- Sam: update QA checklist for mobile
-- Jordan: schedule design review
-`,
-			transcript: `Alex: Thanks everyone for joining. Let's walk the roadmap board.
+	if (fixtureIds.length === 0) {
+		throw new Error(
+			`No recording directories found after extracting ${zipPath}.`,
+		);
+	}
 
-Sam: Onboarding is the riskiest item for support volume if we ship incomplete.
-
-Jordan: Agreed. I can have revised flows ready by Thursday for review.
-
-Alex: Perfect. We'll freeze experimental settings and focus the release message on clarity.
-
-Sam: I'll update the QA checklist to cover the new empty states.
-
-Alex: Great. We'll reconvene Friday for a go / no-go check.
-`,
-		},
-		{
-			id: "2026-07-02T14-00-00-000Z-DEMO02",
-			name: "Design Critique",
-			duration_ms: 32 * 60 * 1000,
-			summary: `# Design Critique — Summary
-
-Reviewed navigation and empty-state mockups for the mobile app.
-
-## Feedback themes
-- Increase contrast on secondary actions
-- Empty states should suggest one primary next step
-- Keep iconography consistent with the system set
-
-## Follow-ups
-- Update empty-state copy
-- Share a second pass mid-week
-`,
-			transcript: `Jordan: Starting with the home empty state. The CTA is easy to miss.
-
-Alex: Let's make the primary button full width on small screens.
-
-Sam: And drop the second link into a text button so hierarchy is clearer.
-
-Jordan: I'll revise and ping the group by Wednesday.
-`,
-		},
-		{
-			id: "2026-07-01T16-30-00-000Z-DEMO03",
-			name: "Customer Discovery Call",
-			duration_ms: 25 * 60 * 1000 + 50 * 1000,
-			summary: `# Customer Discovery Call — Summary
-
-Spoke with a mid-market customer about weekly planning pain points.
-
-## Insights
-- Manual status collection takes most of Monday morning
-- They want templates more than free-form docs
-- Integrations with calendar and tasks are table stakes
-
-## Opportunities
-- Opinionated weekly template
-- One-click pull from tasks + calendar
-`,
-			transcript: `Alex: What does planning look like for your team today?
-
-Customer: Honestly, a lot of copy-paste from tickets into a slide deck.
-
-Alex: If Toby drafted the first version automatically, what would you still edit?
-
-Customer: Tone and priorities — but not the raw list of work items.
-`,
-		},
-	];
-
-	for (const s of samples) {
-		const d = path.join(root, s.id);
-		fs.mkdirSync(d, { recursive: true });
-		const started = parseRecordingStart(s.id);
-		const stopped = addMs(started, s.duration_ms);
-		const meta = {
-			id: s.id,
-			name: s.name,
-			createdAt: iso(started),
-			startedAt: iso(started),
-			stoppedAt: iso(stopped),
-			durationMs: s.duration_ms,
-			sources: { mic: true, system: true },
-			files: {
-				transcript: "transcript.txt",
-				transcriptJson: "transcript.json",
-				summary: "summary.md",
-				combined: path.join(d, "combined.m4a"),
-			},
-			platform: "darwin",
-			osVersion: "Version 15.0 (Build Demo)",
-			helper: { path: "Toby.app", version: "native-app" },
-			summary: {
-				createdAt: iso(addMinutes(stopped, 2)),
-				personaName: "Toby",
-			},
-		};
-		writeJson(path.join(d, "metadata.json"), meta);
-		writeText(path.join(d, "summary.md"), s.summary);
-		writeText(path.join(d, "transcript.txt"), s.transcript);
-		writeJson(path.join(d, "transcript.json"), {
-			text: s.transcript,
-			segments: s.transcript
-				.trim()
-				.split("\n")
-				.filter((line) => line.trim())
-				.map((line) => ({ start: 0, end: 5, text: line })),
-		});
-		fs.writeFileSync(path.join(d, "combined.m4a"), Buffer.alloc(0));
+	for (const id of fixtureIds) {
+		normalizeRecordingMetadata(path.join(root, id), id);
 	}
 }
 
@@ -1031,7 +1002,8 @@ TOBY_DIR="${dest}" TOBY_CREDENTIALS_KEY_BACKEND=plaintext bun run app
 
 ## Contents
 
-- Generic **memories**, **chats**, **projects**, **schedules**, **skills**, **recordings**
+- Generic **memories**, **chats**, **projects**, **schedules**, **skills**
+- **Recordings** extracted from \`scripts/fixtures/listen-recordings.zip\` (real dual-source audio + transcripts)
 - Placeholder **credentials** (not real secrets)
 - Integration **connection flags** copied from your real config so Integrations look connected
 
