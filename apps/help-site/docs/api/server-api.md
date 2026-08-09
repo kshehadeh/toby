@@ -187,6 +187,11 @@ type ChatStatusResponse = {
 
 ### `GET /api/daemon/status`
 
+When inbound config is incomplete or disabled (`disabledReason` is set),
+`status` is reported as `"disabled"` even if a previous listener has not
+finished tearing down. Configure changes to `chatInbound.*` (and related
+inbound credentials/toggles) hot-reload the inbound supervisor.
+
 ```ts
 type DaemonStatusResponse = {
   process: {

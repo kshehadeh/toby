@@ -91,7 +91,7 @@ Chat inbound lets Toby **listen** on a connected chat integration and respond in
 
 ### How it fits in the daemon
 
-On startup the daemon calls `startChatInboundListeners()` alongside the scheduler loop. If inbound is not configured, the listener exits immediately and only schedules run.
+On startup the daemon runs `runChatInboundSupervisor()` alongside the scheduler loop. The supervisor starts inbound listeners and **hot-reloads** them when configure changes `chatInbound.*` (or related inbound credentials/toggles). If inbound is not configured, the listener exits and the supervisor waits for a config change rather than spinning.
 
 When enabled, the daemon:
 

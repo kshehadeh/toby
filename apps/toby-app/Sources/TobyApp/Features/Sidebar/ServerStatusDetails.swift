@@ -7,6 +7,7 @@ struct ServerStatusDetails: View {
 	let isRestarting: Bool
 	var lifecycleMessage: String? = nil
 	let onShowServerInfo: () -> Void
+	var onShowInboundDetails: (() -> Void)? = nil
 	let onRestart: () -> Void
 
 	var body: some View {
@@ -73,7 +74,10 @@ struct ServerStatusDetails: View {
 			}
 			Divider()
 				.background(AppTheme.separator)
-			SlackStatusRow(status: status, daemonStatus: daemonStatus)
+			InboundChatStatusRow(
+				daemonStatus: daemonStatus,
+				onShowDetails: onShowInboundDetails
+			)
 			ActiveChatRow(daemonStatus: daemonStatus)
 		}
 		.padding(12)

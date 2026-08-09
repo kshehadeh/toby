@@ -19,6 +19,17 @@ export function handleDaemonStatus(): Response {
 	const module = integrationName
 		? getIntegrationModule(integrationName)
 		: undefined;
+	const disabledReason = getChatInboundDisabledReason();
+	// Config is source of truth for "should be listening". Runtime can lag
+	// briefly until the inbound supervisor reloads; never report connected
+	// when config says inbound is off / incomplete.
+	const status = disabledReason ? "disabled" : runtime.status;
+	const detail = disabledReason ? null : runtime.detail;
+	const activeConversationName = disabledReason
+		? null
+		: runtime.activeConversationName;
+	const activeSince = disabledReason ? null : runtime.activeSince;
+	const activeKind = disabledReason ? null : runtime.activeKind;
 
 	// Query durable lifecycle state for the active inbound integration.
 	// This surfaces sessions that are awaiting user reply even when no
@@ -27,7 +38,7 @@ export function handleDaemonStatus(): Response {
 		externalKey: string;
 		displayName: string | null;
 	}> = [];
-	if (integrationName && config.enabled === true) {
+	if (integrationName && config.enabled === true && !disabledReason) {
 		awaitingUserSessions = listExternalSessionsForIntegration(integrationName)
 			.filter((s) => s.lifecycleStatus === "awaiting_user")
 			.map((s) => ({
@@ -42,13 +53,13 @@ export function handleDaemonStatus(): Response {
 			enabled: config.enabled === true,
 			integration: integrationName,
 			integrationLabel: module?.displayName ?? integrationName,
-			status: runtime.status,
-			detail: runtime.detail,
-			disabledReason: getChatInboundDisabledReason(),
+			status,
+			detail,
+			disabledReason,
 			updatedAt: runtime.updatedAt,
-			activeConversationName: runtime.activeConversationName,
-			activeSince: runtime.activeSince,
-			activeKind: runtime.activeKind,
+			activeConversationName,
+			activeSince,
+			activeKind,
 			awaitingUserSessions,
 		},
 	});

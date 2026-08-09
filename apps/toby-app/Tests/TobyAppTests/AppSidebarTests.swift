@@ -659,6 +659,190 @@ struct AppSidebarTests {
         #expect(throws: Never.self) { try row.inspect().find(text: "Slack #general is waiting for your reply") }
     }
 
+    @Test("inbound chat status row shows connected for Slack inbound")
+    func inboundChatStatusRowShowsConnected() throws {
+        let inbound = ChatInboundStatus(
+            enabled: true,
+            integration: "slack",
+            integrationLabel: "Slack",
+            status: "connected",
+            detail: nil,
+            disabledReason: nil,
+            updatedAt: "2026-07-04T10:00:00Z",
+            activeConversationName: nil,
+            activeSince: nil,
+            activeKind: nil,
+            awaitingUserSessions: nil
+        )
+        let daemon = DaemonStatus(process: nil, chatInbound: inbound)
+        let row = InboundChatStatusRow(daemonStatus: daemon)
+        #expect(throws: Never.self) { try row.inspect().find(text: "Inbound chat") }
+        #expect(throws: Never.self) { try row.inspect().find(text: "Slack") }
+        #expect(throws: Never.self) { try row.inspect().find(text: "Connected") }
+        #expect(throws: (any Error).self) { try row.inspect().find(text: "Why?") }
+    }
+
+    @Test("inbound chat status row shows Disabled when enabled is false even if status connected")
+    func inboundChatStatusRowShowsDisabledWhenConfigOff() throws {
+        // Runtime can lag after toggling the setting; UI must follow enabled.
+        let inbound = ChatInboundStatus(
+            enabled: false,
+            integration: "slack",
+            integrationLabel: "Slack",
+            status: "connected",
+            detail: nil,
+            disabledReason: "chatInbound.enabled is false.",
+            updatedAt: "2026-07-04T10:00:00Z",
+            activeConversationName: "Slack #general",
+            activeSince: "2026-07-04T10:00:00Z",
+            activeKind: "turn",
+            awaitingUserSessions: nil
+        )
+        #expect(!inbound.isConnected)
+        #expect(inbound.connectionLabel == "Disabled")
+        let daemon = DaemonStatus(process: nil, chatInbound: inbound)
+        let row = InboundChatStatusRow(daemonStatus: daemon)
+        #expect(throws: Never.self) { try row.inspect().find(text: "Disabled") }
+        #expect(throws: Never.self) { try row.inspect().find(text: "Why?") }
+        #expect(throws: (any Error).self) { try row.inspect().find(text: "Connected") }
+    }
+
+    @Test("inbound chat status row reflects chatInbound error, not OAuth connect")
+    func inboundChatStatusRowReflectsChatInboundError() throws {
+        // Previously SlackStatusRow used connectedIntegrations (OAuth tools).
+        // Inbound must follow daemon chatInbound.status instead.
+        let inbound = ChatInboundStatus(
+            enabled: true,
+            integration: "slack",
+            integrationLabel: "Slack",
+            status: "error",
+            detail: "Slack is not connected.",
+            disabledReason: nil,
+            updatedAt: "2026-07-04T10:00:00Z",
+            activeConversationName: nil,
+            activeSince: nil,
+            activeKind: nil,
+            awaitingUserSessions: nil
+        )
+        let daemon = DaemonStatus(process: nil, chatInbound: inbound)
+        let row = InboundChatStatusRow(daemonStatus: daemon)
+        #expect(throws: Never.self) { try row.inspect().find(text: "Error") }
+        #expect(throws: Never.self) { try row.inspect().find(text: "Why?") }
+        #expect(throws: (any Error).self) { try row.inspect().find(text: "Connected") }
+    }
+
+    @Test("inbound chat status row shows Why button when disabled")
+    func inboundChatStatusRowShowsWhyWhenDisabled() throws {
+        var detailsCount = 0
+        let inbound = ChatInboundStatus(
+            enabled: false,
+            integration: nil,
+            integrationLabel: nil,
+            status: "disabled",
+            detail: nil,
+            disabledReason: "chatInbound.enabled is false.",
+            updatedAt: "2026-07-04T10:00:00Z",
+            activeConversationName: nil,
+            activeSince: nil,
+            activeKind: nil,
+            awaitingUserSessions: nil
+        )
+        let daemon = DaemonStatus(process: nil, chatInbound: inbound)
+        let row = InboundChatStatusRow(daemonStatus: daemon, onShowDetails: { detailsCount += 1 })
+        #expect(throws: Never.self) { try row.inspect().find(text: "Disabled") }
+        let button = try row.inspect().findAll(ViewType.Button.self).first { btn in
+            (try? btn.find(text: "Why?")) != nil
+        }
+        try #require(button != nil, "Why? button not found")
+        try button!.tap()
+        #expect(detailsCount == 1)
+    }
+
+    @Test("inbound chat details view shows disconnect reason")
+    func inboundChatDetailsViewShowsReason() throws {
+        let inbound = ChatInboundStatus(
+            enabled: false,
+            integration: "slack",
+            integrationLabel: "Slack",
+            status: "disabled",
+            detail: nil,
+            disabledReason: "chatInbound.enabled is false (or TOBY_CHAT_INBOUND_ENABLED=0).",
+            updatedAt: "2026-07-04T10:00:00Z",
+            activeConversationName: nil,
+            activeSince: nil,
+            activeKind: nil,
+            awaitingUserSessions: nil
+        )
+        var dismissed = false
+        let view = InboundChatDetailsView(inbound: inbound, onDismiss: { dismissed = true })
+        #expect(throws: Never.self) { try view.inspect().find(text: "Inbound Chat") }
+        #expect(throws: Never.self) { try view.inspect().find(text: "Disabled") }
+        #expect(throws: Never.self) { try view.inspect().find(text: "Slack") }
+        #expect(throws: Never.self) {
+            try view.inspect().find(text: "chatInbound.enabled is false (or TOBY_CHAT_INBOUND_ENABLED=0).")
+        }
+        let button = try view.inspect().findAll(ViewType.Button.self).first { btn in
+            (try? btn.find(text: "Done")) != nil
+        }
+        try #require(button != nil, "Done button not found")
+        try button!.tap()
+        #expect(dismissed)
+    }
+
+    @Test("inbound chat details prefers runtime detail over disabledReason")
+    func inboundChatDetailsPrefersRuntimeDetail() throws {
+        let inbound = ChatInboundStatus(
+            enabled: true,
+            integration: "slack",
+            integrationLabel: "Slack",
+            status: "error",
+            detail: "Missing bot token for Socket Mode.",
+            disabledReason: "should not appear",
+            updatedAt: "2026-07-04T10:00:00Z",
+            activeConversationName: nil,
+            activeSince: nil,
+            activeKind: nil,
+            awaitingUserSessions: nil
+        )
+        #expect(inbound.disconnectExplanation == "Missing bot token for Socket Mode.")
+        let view = InboundChatDetailsView(inbound: inbound)
+        #expect(throws: Never.self) { try view.inspect().find(text: "Missing bot token for Socket Mode.") }
+        #expect(throws: (any Error).self) { try view.inspect().find(text: "should not appear") }
+    }
+
+    @Test("server status details inbound why button calls callback")
+    func serverStatusDetailsInboundWhyButtonCallsCallback() throws {
+        var inboundCount = 0
+        let inbound = ChatInboundStatus(
+            enabled: false,
+            integration: nil,
+            integrationLabel: nil,
+            status: "disabled",
+            detail: nil,
+            disabledReason: "not enabled",
+            updatedAt: nil,
+            activeConversationName: nil,
+            activeSince: nil,
+            activeKind: nil,
+            awaitingUserSessions: nil
+        )
+        let view = ServerStatusDetails(
+            status: nil,
+            daemonStatus: DaemonStatus(process: nil, chatInbound: inbound),
+            health: .connected,
+            isRestarting: false,
+            onShowServerInfo: {},
+            onShowInboundDetails: { inboundCount += 1 },
+            onRestart: {}
+        )
+        let button = try view.inspect().findAll(ViewType.Button.self).first { btn in
+            (try? btn.find(text: "Why?")) != nil
+        }
+        try #require(button != nil, "Why? button not found in server status details")
+        try button!.tap()
+        #expect(inboundCount == 1)
+    }
+
     @Test("session row with integration icon URL renders SidebarIconView")
     func sessionRowWithIntegrationIconRendersIconView() throws {
         let row = SidebarSessionRow(

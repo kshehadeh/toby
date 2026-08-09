@@ -209,6 +209,12 @@ type LogQueryResult = {
 
 Returns process details plus inbound chat connection state.
 
+When inbound config is incomplete or disabled (`disabledReason` is set),
+`status` is reported as `"disabled"` even if the previous runtime listener
+has not finished tearing down yet. Configure patches that touch
+`chatInbound.*` (or related inbound credentials/toggles) hot-reload the
+inbound supervisor so the live transport matches config.
+
 ```ts
 type DaemonStatusResponse = {
   process: {

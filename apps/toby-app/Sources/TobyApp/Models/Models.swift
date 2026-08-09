@@ -315,15 +315,61 @@ struct ChatInboundStatus: Decodable {
 	var awaitingUserSessions: [ChatInboundAwaitingSession]? = nil
 
 	var isConnected: Bool {
-		status == "connected"
+		// Config must allow listening; runtime status alone can lag a restart.
+		enabled && status == "connected"
 	}
 
 	var isActive: Bool {
-		activeKind != nil && activeConversationName != nil
+		isConnected && activeKind != nil && activeConversationName != nil
 	}
 
 	var hasAwaitingUserSessions: Bool {
 		!(awaitingUserSessions ?? []).isEmpty
+	}
+
+	/// Human-readable connection state for status badges.
+	var connectionLabel: String {
+		if !enabled || status == "disabled" {
+			return "Disabled"
+		}
+		switch status {
+		case "connected":
+			return "Connected"
+		case "connecting":
+			return "Connecting…"
+		case "idle":
+			return "Idle"
+		case "error":
+			return "Error"
+		default:
+			return status.isEmpty ? "Unknown" : status.capitalized
+		}
+	}
+
+	/// Prefer runtime detail, then config-level disabled reason.
+	var disconnectExplanation: String? {
+		if isConnected { return nil }
+		if let detail, !detail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+			return detail
+		}
+		if let disabledReason, !disabledReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+			return disabledReason
+		}
+		if !enabled {
+			return "Inbound chat is not enabled in Settings → Daemon / inbound chat."
+		}
+		return "Inbound chat is not connected."
+	}
+
+	/// Row title: prefer the active integration label (e.g. "Slack"), else generic.
+	var displayTitle: String {
+		if let integrationLabel, !integrationLabel.isEmpty {
+			return integrationLabel
+		}
+		if let integration, !integration.isEmpty {
+			return integration.capitalized
+		}
+		return "Inbound chat"
 	}
 }
 

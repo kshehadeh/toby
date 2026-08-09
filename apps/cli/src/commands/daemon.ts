@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { startChatInboundListeners } from "@toby/core/chat-inbound/listeners";
 import { getChatInboundStatus } from "@toby/core/chat-inbound/status";
+import { runChatInboundSupervisor } from "@toby/core/chat-inbound/supervisor";
 import { readChatInboundConfig } from "@toby/core/config/chat-inbound";
 import {
 	ensureDefaultPersonaImage,
@@ -220,7 +220,7 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 					}
 				},
 			}),
-			startChatInboundListeners(controller.signal),
+			runChatInboundSupervisor(controller.signal),
 			startPluginPollingLoop({
 				signal: controller.signal,
 				onError: (name, message) => {

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { isAIProviderConfigured } from "../../ai/model-factory";
 import { clearModelListCache } from "../../ai/model-list";
+import { requestChatInboundReload } from "../../chat-inbound/supervisor";
 import {
 	clearDefaultPersona,
 	ensurePersonaImagesDir,
@@ -45,6 +46,29 @@ import { errorResponse, jsonResponse, readJsonBody } from "../http-utils";
 function invalidateConfigureCaches(): void {
 	invalidateSettingsCache();
 	clearModelListCache();
+}
+
+/** Keys that affect whether / how inbound chat listens. */
+export function patchAffectsChatInbound(
+	changes: Record<string, string>,
+): boolean {
+	return Object.keys(changes).some((key) => {
+		if (key.startsWith("chatInbound.")) return true;
+		if (key.endsWith(".inboundEnabled")) return true;
+		// Socket Mode / inbound transport credentials for integrations.
+		if (
+			/\.(botToken|appToken|botUserId)$/.test(key) ||
+			key.includes(".inbound")
+		) {
+			return true;
+		}
+		return false;
+	});
+}
+
+function maybeReloadChatInbound(changes: Record<string, string>): void {
+	if (!patchAffectsChatInbound(changes)) return;
+	requestChatInboundReload();
 }
 
 function annotateTreeSecrets(node: SettingsItem): SettingsItem {
@@ -112,6 +136,7 @@ export async function handleConfigurePatch(req: Request): Promise<Response> {
 	try {
 		applyConfigureValuesPatch(body.changes);
 		invalidateConfigureCaches();
+		maybeReloadChatInbound(body.changes);
 		return handleConfigureTree();
 	} catch (e) {
 		return errorResponse(e instanceof Error ? e.message : String(e), 403);

@@ -39,6 +39,7 @@ struct ServerStatusButton: View {
 	let onRestart: () -> Void
 	@State private var isPresented = false
 	@State private var isServerInfoPresented = false
+	@State private var isInboundDetailsPresented = false
 	@State private var isHovered = false
 
 	private var health: ServerHealth {
@@ -83,6 +84,10 @@ struct ServerStatusButton: View {
 					isPresented = false
 					isServerInfoPresented = true
 				},
+				onShowInboundDetails: {
+					isPresented = false
+					isInboundDetailsPresented = true
+				},
 				onRestart: onRestart
 			)
 			.frame(width: 320)
@@ -97,6 +102,14 @@ struct ServerStatusButton: View {
 				onRestart: onRestart,
 				onDismiss: {
 					isServerInfoPresented = false
+				}
+			)
+		}
+		.sheet(isPresented: $isInboundDetailsPresented) {
+			InboundChatDetailsView(
+				inbound: daemonStatus?.chatInbound,
+				onDismiss: {
+					isInboundDetailsPresented = false
 				}
 			)
 		}
