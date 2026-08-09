@@ -44,6 +44,7 @@ Typical flow:
 - Inbound turns use the same core chat pipeline as the Mac app (tools, memory, skills), under the chosen persona.
 - Turning inbound **off** stops listening; it does not disconnect the integration or delete credentials.
 - Only one **active** inbound integration is selected globally at a time.
+- **Sessions:** external threads and DMs map to Toby chat sessions so follow-ups keep context. In Slack, that means **one session per channel thread**, and **one session per 1:1 DM** with the bot (not a new session on every message). See [Chat surfaces → How conversations map to Toby sessions](../chat-surfaces/overview#how-conversations-map-to-toby-sessions).
 
 ## Related
 

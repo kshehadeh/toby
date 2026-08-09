@@ -307,13 +307,25 @@ If you used the [app manifest](#create-from-app-manifest-recommended), Socket Mo
 2. **Integrations → Slack**: set **Bot Token**, **App Token**, optional **Bot User ID** (fields appear when inbound is enabled, even under OAuth).
 3. Click **Connect** if you use OAuth for chat (marks Slack connected).
 4. Keep **Toby.app** running so the local service can maintain the Socket Mode connection.
-5. @mention the bot in a channel thread.
+5. @mention the bot in a channel thread, or open a **DM** with the Toby app and message it directly.
 
-Each workspace + channel + thread root is one persisted Toby chat session.
+### How Slack maps to Toby sessions
+
+Toby keeps conversation history by linking each Slack place to one chat session:
+
+| You talk in… | Toby treats as… | How to continue |
+| ------------ | --------------- | --------------- |
+| A **channel/group thread** (after you @mention the bot) | One session for that **thread** | Keep replying in the same thread (another @ is optional once the session exists) |
+| A **new** top-level @mention in a channel | A **new** thread and a **new** session | Use that new thread for follow-ups |
+| A **DM** with the Toby app | One session for the **whole DM** | Send another message in the same DM—no @ required |
+
+Top-level messages in a channel **without** an @mention are ignored. Deleting the matching session in Toby.app clears history for that thread/DM; the next message starts a clean session in the same Slack place.
+
+Product-level overview (all chat apps): [Chat surfaces → How conversations map to Toby sessions](../chat-surfaces/overview#how-conversations-map-to-toby-sessions). Settings: [Inbound chat](../configuration/inbound-chat).
 
 ## Related
 
-- [Chat surfaces](../chat-surfaces/overview) — tools vs inbound overview
+- [Chat surfaces](../chat-surfaces/overview) — tools vs inbound overview, session mapping
 - [Inbound chat](../configuration/inbound-chat) — Settings → Chat
 - [Integrations overview](overview)
 - [Configure and connect](../getting-started/configure-and-status)

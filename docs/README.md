@@ -26,7 +26,7 @@ Human- and flow-oriented docs for this repository.
 | [server-api.md](server-api.md) | Local daemon HTTP API: routes, SSE chat turns, configure. |
 | [dashboard.md](dashboard.md) | Home dashboard cards: block shell, soft vs force refresh (`?fresh=1`), standard tools + flow AI blurbs, cache. |
 | [dashboard-standard-tools-plan.md](dashboard-standard-tools-plan.md) | Dashboard standard-tool contract, merge rules, plugin checklist. |
-| [chat-inbound.md](chat-inbound.md) | Inbound provider contract, external sessions. |
+| [chat-inbound.md](chat-inbound.md) | Inbound provider contract; external session keys; Slack thread/DM mapping. |
 | [ai-caching.md](ai-caching.md) | Provider prompt caching adapters and token telemetry. |
 | [memory.md](memory.md) | Durable user memory subsystem (`memory.sqlite`). |
 | [build-executable.md](build-executable.md) | Bun `bun build --compile` standalone binary and releases. |

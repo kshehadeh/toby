@@ -26,7 +26,7 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | [`docs/daemon.md`](docs/daemon.md) | Background daemon: schedules, inbound, unified log. |
 | [`docs/server-api.md`](docs/server-api.md) | Local daemon HTTP API: routes, SSE chat, configure. |
 | [`docs/dashboard.md`](docs/dashboard.md) | Home dashboard cards: block shell, soft vs force refresh, standard tools + flow AI blurbs, cache. |
-| [`docs/chat-inbound.md`](docs/chat-inbound.md) | Inbound provider contract and external sessions. |
+| [`docs/chat-inbound.md`](docs/chat-inbound.md) | Inbound provider contract; external session keys; Slack thread/DM mapping. |
 | [`docs/ai-caching.md`](docs/ai-caching.md) | Provider prompt caching and token telemetry. |
 | [`docs/memory.md`](docs/memory.md) | Durable user memory (`memory.sqlite`). |
 | [`docs/macos-integration.md`](docs/macos-integration.md) | `toby-plugin-macos` system control via Toby.app native API. |

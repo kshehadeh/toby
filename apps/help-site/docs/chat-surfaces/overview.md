@@ -61,6 +61,25 @@ Inbound turns use the **same** assistant pipeline as the Mac app: persona, skill
 
 Only **one** inbound integration is active globally at a time.
 
+### How conversations map to Toby sessions
+
+Inbound does **not** invent a new chat every time someone talks to Toby, and it does **not** merge unrelated threads by topic. It ties each **external conversation identity** (Slack workspace + channel + thread, or a whole DM) to one Toby chat session so history stays continuous.
+
+| Where you talk | What becomes “one conversation” | What continues that session |
+| -------------- | -------------------------------- | --------------------------- |
+| **Channel or group** | One **Slack thread** (started by an @mention, or an existing thread Toby already joined) | Further messages in **that same thread**—another @mention is not required once Toby owns the thread |
+| **Direct message with the Toby app** | The **entire 1:1 DM** (normal top-level messages) | Every message you send in that DM—no @mention required |
+
+**Practical notes:**
+
+- A **new** top-level @mention in a channel starts a **new** thread and a **new** Toby session. A different channel or a different thread is a different session.
+- Top-level channel chatter **without** an @mention is ignored (it does not open a session).
+- DMs with the bot feel like one long chat: the first message creates the session; later messages reuse it (there is no automatic “reset after idle”).
+- If you **delete** that chat session inside Toby.app, the next Slack message on the same thread/DM starts a **fresh** empty session linked to the same Slack place.
+- If Toby asks a clarifying question (`askUser`), reply in the **same** thread or DM—your answer continues that turn rather than starting a disconnected chat.
+
+Provider setup and tokens: [Slack → Inbound @mentions](../integrations/slack#inbound-mentions). Global switches: [Inbound chat](../configuration/inbound-chat).
+
 ## Slack checklist (both modes)
 
 Use this when you want Slack as a full chat surface:

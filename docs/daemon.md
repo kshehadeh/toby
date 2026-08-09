@@ -137,16 +137,21 @@ Top-level channel messages without an @mention are still ignored.
 
 ### Session model
 
-Each **external conversation** (Slack: workspace + channel + thread root) maps to one Toby chat session:
+Each **external conversation** maps to one Toby chat session via
+`chat_external_sessions` (lookup key: `integration` + provider `external_key`).
+There is no topic- or time-based merge: same key reuses history; new key creates
+a session. If the linked `chat_sessions` row was deleted, the same external key
+is **relinked** to a new empty session.
 
-| Concept | Storage |
-| ------- | ------- |
-| External key | Provider-defined string, e.g. `slack:{teamId}:{channelId}:{threadRootTs}` |
-| Toby session | `chat_sessions` row linked via `chat_external_sessions` |
-| Message history | Same `chat_session_messages` table used by native/headless chat |
-| Pending askUser | `awaiting_ask_user_json` on the external session row |
+**Slack (reference):**
 
-Follow-up @mentions in the **same thread** append to the same session and continue the `CoreMessage[]` history.
+| Surface | External identity | Session behavior |
+| ------- | ----------------- | ---------------- |
+| Channel `@mention` / thread | `slack:{team}:{channel}:{threadRootTs}` | One session **per Slack thread**. New top-level mention → new root → new session. Follow-ups in that thread (with or without another `@`) continue the same session once Toby owns the thread. |
+| 1:1 DM with the bot | `threadRootTs` = DM channel id (`D…`) when not nested | One session **for the whole DM** (all top-level messages). No `@` required. Nested threads inside a DM get their own keys/sessions. |
+
+Full resolution rules, classification, and `getOrCreateExternalSession` behavior:
+**[chat-inbound.md](chat-inbound.md#session-model)**.
 
 ### Configuration
 
