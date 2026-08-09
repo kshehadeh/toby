@@ -187,7 +187,7 @@ export const TOOL_DEFINITIONS = [
 		name: "syncMailbox",
 		displayName: "Sync mailbox",
 		description:
-			"Trigger a manual IMAP sync to fetch new messages into the local cache. Use this when the cache may be stale.",
+			"Trigger a manual IMAP sync to refresh the local cache: fetch new messages, prune messages no longer on the server, and refresh flags on recent cached messages. Write tools also sync automatically after they complete.",
 		inputSchema: {
 			type: "object",
 			properties: {
@@ -213,7 +213,7 @@ export const TOOL_DEFINITIONS = [
 		name: "markAsRead",
 		displayName: "Mark emails as read",
 		description:
-			"Mark one or more messages as read by setting the \\Seen IMAP flag. Also updates the local cache.",
+			"Mark one or more messages as read by setting the \\Seen IMAP flag. Updates the local cache and re-syncs the mailbox afterward.",
 		inputSchema: {
 			type: "object",
 			properties: {
@@ -235,7 +235,7 @@ export const TOOL_DEFINITIONS = [
 		name: "markAsUnread",
 		displayName: "Mark emails as unread",
 		description:
-			"Mark one or more messages as unread by removing the \\Seen IMAP flag. Also updates the local cache.",
+			"Mark one or more messages as unread by removing the \\Seen IMAP flag. Updates the local cache and re-syncs the mailbox afterward.",
 		inputSchema: {
 			type: "object",
 			properties: {
@@ -257,7 +257,7 @@ export const TOOL_DEFINITIONS = [
 		name: "setEmailFlags",
 		displayName: "Set email flags",
 		description:
-			"Add or remove arbitrary IMAP flags on messages. Common flags: \\Seen (read), \\Flagged (starred), \\Answered (replied), \\Draft (draft). Custom labels (e.g. Gmail labels) may also be set this way.",
+			"Add or remove arbitrary IMAP flags on messages. Common flags: \\Seen (read), \\Flagged (starred), \\Answered (replied), \\Draft (draft). Custom labels (e.g. Gmail labels) may also be set this way. Updates the local cache and re-syncs the mailbox afterward.",
 		inputSchema: {
 			type: "object",
 			properties: {
@@ -289,7 +289,7 @@ export const TOOL_DEFINITIONS = [
 		name: "moveToMailbox",
 		displayName: "Move to mailbox",
 		description:
-			"Move one or more messages to a different IMAP mailbox. Use listMailboxes to find available mailbox names. Removes the messages from the source mailbox.",
+			"Move one or more messages to a different IMAP mailbox. Use listMailboxes to find available mailbox names. Removes the messages from the source mailbox cache and re-syncs both source and destination afterward.",
 		inputSchema: {
 			type: "object",
 			properties: {
@@ -316,7 +316,7 @@ export const TOOL_DEFINITIONS = [
 		name: "deleteEmail",
 		displayName: "Delete email",
 		description:
-			"Delete one or more messages. If the server has a Trash mailbox, messages are moved there. Otherwise the \\Deleted flag is set and the mailbox is expunged. Also removes the messages from the local cache.",
+			"Delete one or more messages. If the server has a Trash mailbox, messages are moved there. Otherwise the \\Deleted flag is set and the mailbox is expunged. Removes them from the local cache and re-syncs the source (and Trash when used) afterward.",
 		inputSchema: {
 			type: "object",
 			properties: {
@@ -338,7 +338,7 @@ export const TOOL_DEFINITIONS = [
 		name: "archiveEmail",
 		displayName: "Archive email",
 		description:
-			"Archive one or more messages by moving them to the server's archive mailbox (auto-detected via the \\All special-use flag or common names like 'All Mail' or 'Archive'). Also removes the messages from the local cache.",
+			"Archive one or more messages by moving them to the server's archive mailbox (auto-detected via the \\All special-use flag or common names like 'All Mail' or 'Archive'). Removes them from the local cache and re-syncs the source and archive mailboxes afterward.",
 		inputSchema: {
 			type: "object",
 			properties: {
@@ -465,6 +465,46 @@ function getStringArray(value: unknown): string[] {
 function getNumberArray(value: unknown): number[] {
 	if (!Array.isArray(value)) return [];
 	return value.filter((v): v is number => typeof v === "number");
+}
+
+function toErrorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * After an IMAP write, re-sync affected mailboxes so the local SQLite cache
+ * picks up new UIDs (e.g. moved messages in a destination folder) and stays
+ * aligned with the server. Failures are logged and do not fail the write.
+ */
+export async function syncMailboxesAfterWrite(
+	config: JsonRecord,
+	db: EmailDb,
+	mailboxes: string[],
+	sync: typeof syncMailbox = syncMailbox,
+): Promise<string[]> {
+	const unique = [
+		...new Set(mailboxes.map((m) => m.trim()).filter((m) => m.length > 0)),
+	];
+	const applied: string[] = [];
+	for (const mailbox of unique) {
+		try {
+			const result = await sync(config, mailbox, db);
+			applied.push(
+				`Synced ${result.mailbox}: ${result.newCount} new message(s)`,
+			);
+			log.debug("post_write_sync_done", {
+				mailbox: result.mailbox,
+				newCount: result.newCount,
+				lastUid: result.lastUid,
+			});
+		} catch (error) {
+			log.warn("post_write_sync_failed", {
+				mailbox,
+				error: toErrorMessage(error),
+			});
+		}
+	}
+	return applied;
 }
 
 export async function executeTool(
@@ -672,10 +712,12 @@ async function executeToolInner(
 			}
 			await addFlags(config, mailbox, uids, ["\\Seen"]);
 			db.updateFlags(uids, mailbox, "\\Seen", true);
+			const syncActions = await syncMailboxesAfterWrite(config, db, [mailbox]);
 			return {
 				result: { uids, mailbox, marked: true },
 				appliedActions: [
 					`Marked ${uids.length} message(s) as read in ${mailbox}`,
+					...syncActions,
 				],
 			};
 		}
@@ -695,10 +737,12 @@ async function executeToolInner(
 			}
 			await removeFlags(config, mailbox, uids, ["\\Seen"]);
 			db.updateFlags(uids, mailbox, "\\Seen", false);
+			const syncActions = await syncMailboxesAfterWrite(config, db, [mailbox]);
 			return {
 				result: { uids, mailbox, marked: false },
 				appliedActions: [
 					`Marked ${uids.length} message(s) as unread in ${mailbox}`,
+					...syncActions,
 				],
 			};
 		}
@@ -731,10 +775,12 @@ async function executeToolInner(
 				await removeFlags(config, mailbox, uids, remove);
 				for (const flag of remove) db.updateFlags(uids, mailbox, flag, false);
 			}
+			const syncActions = await syncMailboxesAfterWrite(config, db, [mailbox]);
 			return {
 				result: { uids, mailbox, added: add, removed: remove },
 				appliedActions: [
 					`Updated flags on ${uids.length} message(s) in ${mailbox}`,
+					...syncActions,
 				],
 			};
 		}
@@ -760,10 +806,15 @@ async function executeToolInner(
 			for (const uid of uids) {
 				db.deleteMessage(uid, mailbox);
 			}
+			const syncActions = await syncMailboxesAfterWrite(config, db, [
+				mailbox,
+				destination,
+			]);
 			return {
 				result: { uids, mailbox, destination, moved: true },
 				appliedActions: [
 					`Moved ${uids.length} message(s) from ${mailbox} to ${destination}`,
+					...syncActions,
 				],
 			};
 		}
@@ -781,13 +832,27 @@ async function executeToolInner(
 					],
 				};
 			}
-			await deleteMessages(config, mailbox, uids);
+			const { trashPath } = await deleteMessages(config, mailbox, uids);
 			for (const uid of uids) {
 				db.deleteMessage(uid, mailbox);
 			}
+			const mailboxesToSync = trashPath ? [mailbox, trashPath] : [mailbox];
+			const syncActions = await syncMailboxesAfterWrite(
+				config,
+				db,
+				mailboxesToSync,
+			);
 			return {
-				result: { uids, mailbox, deleted: true },
-				appliedActions: [`Deleted ${uids.length} message(s) from ${mailbox}`],
+				result: {
+					uids,
+					mailbox,
+					deleted: true,
+					...(trashPath ? { trashPath } : {}),
+				},
+				appliedActions: [
+					`Deleted ${uids.length} message(s) from ${mailbox}`,
+					...syncActions,
+				],
 			};
 		}
 
@@ -808,10 +873,15 @@ async function executeToolInner(
 			for (const uid of uids) {
 				db.deleteMessage(uid, mailbox);
 			}
+			const syncActions = await syncMailboxesAfterWrite(config, db, [
+				mailbox,
+				archivePath,
+			]);
 			return {
 				result: { uids, mailbox, archived: true, archivePath },
 				appliedActions: [
 					`Archived ${uids.length} message(s) from ${mailbox} to ${archivePath}`,
+					...syncActions,
 				],
 			};
 		}

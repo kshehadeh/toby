@@ -241,6 +241,26 @@ export class EmailDb {
 		);
 	}
 
+	/** All cached UIDs for a mailbox (for reconcile / prune during sync). */
+	getMessageUids(mailbox: string): number[] {
+		return this.#db
+			.query<{ uid: number }>(
+				"SELECT uid FROM messages WHERE mailbox = ? ORDER BY uid ASC",
+			)
+			.all(mailbox)
+			.map((row) => row.uid);
+	}
+
+	/** Replace the full flags string for a cached message. */
+	setMessageFlags(uid: number, mailbox: string, flags: string): void {
+		this.#db.run(
+			"UPDATE messages SET flags = ? WHERE uid = ? AND mailbox = ?",
+			flags,
+			uid,
+			mailbox,
+		);
+	}
+
 	getMaxUid(mailbox: string): number {
 		const row = this.#db
 			.query<{ maxUid: number | null }>(

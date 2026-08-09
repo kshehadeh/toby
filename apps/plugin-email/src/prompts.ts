@@ -3,7 +3,7 @@ You can read, search, and manage email through a local cached IMAP mailbox, and 
 Use email tools to check inbox, read messages, create drafts, and send email.`;
 
 export const EMAIL_SINGLE_SESSION_RULES =
-	"You are assisting via the Email integration. Use email tools when the user wants to read, search, organize, draft, or send email. Prefer cached data (getInboxOverview, getEmailMetadata, getEmailBody) before triggering a manual sync. Drafts are stored locally and can be sent via sendDraft or sendEmail.";
+	"You are assisting via the Email integration. Use email tools when the user wants to read, search, organize, draft, or send email. Prefer cached data (getInboxOverview, getEmailMetadata, getEmailBody) before triggering a manual sync. Write tools (mark read/unread, flags, move, delete, archive) automatically re-sync affected mailboxes after they succeed, so subsequent reads reflect the change. Drafts are stored locally and can be sent via sendDraft or sendEmail.";
 
 export const EMAIL_SINGLE_SESSION_USER_TEMPLATE = "{{userPrompt}}";
 

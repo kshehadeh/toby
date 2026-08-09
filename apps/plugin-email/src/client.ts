@@ -261,9 +261,10 @@ export async function fetchUnreadInbox(
 }
 
 /**
- * Sync new messages from an IMAP mailbox into the local SQLite cache.
- * Uses imapflow to connect and fetch message metadata for UIDs greater
- * than the last synced UID.
+ * Sync an IMAP mailbox into the local SQLite cache:
+ * - Fetch metadata for UIDs newer than the highest cached UID
+ * - Prune cached messages that no longer exist on the server
+ * - Refresh flags for remaining cached messages still on the server
  */
 export async function syncMailbox(
 	config: JsonRecord,
@@ -277,78 +278,120 @@ export async function syncMailbox(
 	try {
 		const lock = await client.getMailboxLock(mailbox);
 		try {
-			const status = await client.status(mailbox, { uidNext: true });
 			const lastUid = db.getSyncState(mailbox)?.lastUid ?? 0;
 			const maxCachedUid = db.getMaxUid(mailbox);
+			const cachedUids = db.getMessageUids(mailbox);
 
-			// Fetch messages with UID > lastUid
-			const searchUids = await client.search(
-				{ uid: `${maxCachedUid + 1}:*` },
-				{ uid: true },
-			);
-			if (!searchUids || searchUids.length === 0) {
-				log.debug("imap_sync_no_new", { mailbox, lastUid });
-				return { newCount: 0, lastUid, mailbox };
+			// All UIDs currently present on the server for this mailbox.
+			const serverUidsRaw = await client.search({ all: true }, { uid: true });
+			const serverUids = Array.isArray(serverUidsRaw) ? serverUidsRaw : [];
+			const serverUidSet = new Set<number>(serverUids);
+
+			// Prune cache entries that the server no longer has.
+			let prunedCount = 0;
+			for (const uid of cachedUids) {
+				if (!serverUidSet.has(uid)) {
+					db.deleteMessage(uid, mailbox);
+					prunedCount++;
+				}
 			}
 
+			// Refresh flags for recent messages still on the server.
+			// Cap the set so large mailboxes stay responsive on poll/post-write sync.
+			const FLAG_REFRESH_LIMIT = 500;
+			const remainingCached = cachedUids.filter((uid) => serverUidSet.has(uid));
+			const flagsToRefresh =
+				remainingCached.length > FLAG_REFRESH_LIMIT
+					? remainingCached.slice(-FLAG_REFRESH_LIMIT)
+					: remainingCached;
+			if (flagsToRefresh.length > 0) {
+				for await (const msg of client.fetch(
+					flagsToRefresh,
+					{ flags: true, uid: true },
+					{ uid: true },
+				)) {
+					db.setMessageFlags(
+						msg.uid,
+						mailbox,
+						Array.from(msg.flags ?? []).join(","),
+					);
+				}
+			}
+
+			// Fetch messages with UID > maxCachedUid (new since last sync).
+			const newUids = serverUids.filter((uid) => uid > maxCachedUid);
 			let newCount = 0;
-			let highestUid = lastUid;
+			let highestUid = Math.max(lastUid, maxCachedUid);
 
-			for await (const msg of client.fetch(
-				searchUids,
-				{
-					envelope: true,
-					flags: true,
-					uid: true,
-					bodyStructure: true,
-					internalDate: true,
-				},
-				{ uid: true },
-			)) {
-				const uid = msg.uid;
-				if (uid <= maxCachedUid) continue;
+			if (newUids.length > 0) {
+				for await (const msg of client.fetch(
+					newUids,
+					{
+						envelope: true,
+						flags: true,
+						uid: true,
+						bodyStructure: true,
+						internalDate: true,
+					},
+					{ uid: true },
+				)) {
+					const uid = msg.uid;
+					if (uid <= maxCachedUid) continue;
 
-				const envelope = msg.envelope;
-				const fromAddr =
-					envelope?.from
-						?.map((a: { address?: string; name?: string }) =>
-							a.name ? `${a.name} <${a.address}>` : a.address,
-						)
-						.join(", ") ?? "";
-				const toAddr =
-					envelope?.to
-						?.map((a: { address?: string; name?: string }) =>
-							a.name ? `${a.name} <${a.address}>` : a.address,
-						)
-						.join(", ") ?? "";
-				const ccAddr =
-					envelope?.cc
-						?.map((a: { address?: string; name?: string }) =>
-							a.name ? `${a.name} <${a.address}>` : a.address,
-						)
-						.join(", ") ?? "";
+					const envelope = msg.envelope;
+					const fromAddr =
+						envelope?.from
+							?.map((a: { address?: string; name?: string }) =>
+								a.name ? `${a.name} <${a.address}>` : a.address,
+							)
+							.join(", ") ?? "";
+					const toAddr =
+						envelope?.to
+							?.map((a: { address?: string; name?: string }) =>
+								a.name ? `${a.name} <${a.address}>` : a.address,
+							)
+							.join(", ") ?? "";
+					const ccAddr =
+						envelope?.cc
+							?.map((a: { address?: string; name?: string }) =>
+								a.name ? `${a.name} <${a.address}>` : a.address,
+							)
+							.join(", ") ?? "";
 
-				db.upsertMessage({
-					uid,
-					mailbox,
-					messageId: envelope?.messageId ?? "",
-					fromAddress: fromAddr,
-					toAddress: toAddr,
-					ccAddress: ccAddr,
-					subject: envelope?.subject ?? "",
-					date: envelope?.date
-						? new Date(envelope.date).toISOString()
-						: new Date().toISOString(),
-					snippet: "",
-					flags: Array.from(msg.flags ?? []).join(","),
-				});
-				newCount++;
-				if (uid > highestUid) highestUid = uid;
+					db.upsertMessage({
+						uid,
+						mailbox,
+						messageId: envelope?.messageId ?? "",
+						fromAddress: fromAddr,
+						toAddress: toAddr,
+						ccAddress: ccAddr,
+						subject: envelope?.subject ?? "",
+						date: envelope?.date
+							? new Date(envelope.date).toISOString()
+							: new Date().toISOString(),
+						snippet: "",
+						flags: Array.from(msg.flags ?? []).join(","),
+					});
+					newCount++;
+					if (uid > highestUid) highestUid = uid;
+				}
 			}
 
-			db.setSyncState(mailbox, highestUid);
-			log.debug("imap_sync_done", { mailbox, newCount, highestUid });
-			return { newCount, lastUid: highestUid, mailbox };
+			if (highestUid > lastUid) {
+				db.setSyncState(mailbox, highestUid);
+			} else if (prunedCount > 0 || flagsToRefresh.length > 0) {
+				// Touch sync timestamp so callers know a reconcile ran.
+				db.setSyncState(mailbox, highestUid || lastUid);
+			}
+
+			log.debug("imap_sync_done", {
+				mailbox,
+				newCount,
+				prunedCount,
+				refreshedFlags: flagsToRefresh.length,
+				highestUid,
+			});
+			return { newCount, lastUid: highestUid || lastUid, mailbox };
 		} finally {
 			lock.release();
 		}
@@ -552,6 +595,11 @@ export async function moveMessages(
 	}
 }
 
+export interface DeleteMessagesResult {
+	/** When messages were moved to Trash, the Trash mailbox path. */
+	trashPath?: string;
+}
+
 /**
  * Delete messages (move to Trash or set \Deleted and expunge).
  * If the server has a Trash mailbox, moves there; otherwise sets \Deleted.
@@ -560,7 +608,7 @@ export async function deleteMessages(
 	config: JsonRecord,
 	mailbox: string,
 	uids: number[],
-): Promise<void> {
+): Promise<DeleteMessagesResult> {
 	log.debug("imap_delete", { mailbox, uids: uids.length });
 	const client = await createConnectedImapClient(config, "deleteMessages");
 	try {
@@ -581,17 +629,18 @@ export async function deleteMessages(
 				lock.release();
 			}
 			log.debug("imap_delete_moved_to_trash", { trash: trash.path });
-		} else {
-			// No Trash mailbox — set \Deleted and expunge
-			const lock = await client.getMailboxLock(mailbox);
-			try {
-				await client.messageFlagsAdd(uids, ["\\Deleted"], { uid: true });
-				await client.expunge();
-			} finally {
-				lock.release();
-			}
-			log.debug("imap_deleted_expunged");
+			return { trashPath: trash.path };
 		}
+		// No Trash mailbox — set \Deleted and expunge
+		const lock = await client.getMailboxLock(mailbox);
+		try {
+			await client.messageFlagsAdd(uids, ["\\Deleted"], { uid: true });
+			await client.expunge();
+		} finally {
+			lock.release();
+		}
+		log.debug("imap_deleted_expunged");
+		return {};
 	} finally {
 		await client.logout();
 	}
