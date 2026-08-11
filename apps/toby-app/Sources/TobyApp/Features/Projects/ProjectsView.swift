@@ -94,11 +94,28 @@ private struct ProjectChatPane: View {
 	}
 }
 
+// MARK: - Summary helpers
+
+/// First non-empty paragraph of a project summary (text up to the first blank line).
+func projectSummaryFirstParagraph(_ text: String) -> String {
+	let normalized = text
+		.replacingOccurrences(of: "\r\n", with: "\n")
+		.replacingOccurrences(of: "\r", with: "\n")
+	let trimmed = normalized.trimmingCharacters(in: .whitespacesAndNewlines)
+	guard !trimmed.isEmpty else { return "" }
+	guard let blankLine = trimmed.range(of: #"\n[ \t]*\n"#, options: .regularExpression) else {
+		return trimmed
+	}
+	return String(trimmed[..<blankLine.lowerBound])
+		.trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
 // MARK: - Inspector
 
 private struct ProjectInspectorSidebar: View {
 	@Bindable var store: ProjectsStore
 	let onCreateChat: () -> Void
+	@State private var isSummaryEditorPresented = false
 
 	var body: some View {
 		VStack(spacing: 0) {
@@ -161,34 +178,63 @@ private struct ProjectInspectorSidebar: View {
 			}
 		}
 		.background(AppTheme.sidebarBackground)
+		.sheet(isPresented: $isSummaryEditorPresented) {
+			ProjectSummaryEditorSheet(
+				initialSummary: store.selectedProject?.summary ?? "",
+				isSaving: store.isSaving,
+				onSave: { text in
+					store.updateSummary(text)
+					isSummaryEditorPresented = false
+					Task { await store.flushPendingSave() }
+				},
+				onCancel: {
+					isSummaryEditorPresented = false
+				}
+			)
+		}
 	}
 
 	private func summaryField(project: ProjectSummary) -> some View {
-		VStack(alignment: .leading, spacing: 6) {
+		let summary = store.selectedProject?.summary ?? project.summary
+		let preview = projectSummaryFirstParagraph(summary)
+
+		return VStack(alignment: .leading, spacing: 8) {
 			Text("Summary")
 				.font(.system(size: 12, weight: .semibold))
 				.foregroundStyle(SettingsDesign.rowTitle)
-			// Fixed height so the TextEditor cannot thrash HStack layout while the
-			// chat transcript scrolls (sibling ScrollView + flexible editor is a
-			// known macOS jank/freeze combo).
-			TextEditor(
-				text: Binding(
-					get: { store.selectedProject?.summary ?? project.summary },
-					set: { store.updateSummary($0) }
-				)
-			)
-			.font(.system(size: 13))
-			.scrollContentBackground(.hidden)
-			.frame(height: 92)
-			.padding(8)
-			.background(
-				RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
-					.fill(AppTheme.elevatedBackground)
-			)
-			.overlay(
-				RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
-					.stroke(SettingsDesign.cardBorder, lineWidth: 1)
-			)
+
+			// Read-only first paragraph keeps the inspector compact; full editing
+			// happens in ProjectSummaryEditorSheet.
+			Group {
+				if preview.isEmpty {
+					Text("No summary yet")
+						.font(.system(size: 13))
+						.foregroundStyle(AppTheme.tertiaryText)
+						.frame(maxWidth: .infinity, alignment: .leading)
+						.accessibilityIdentifier("project-summary-empty-placeholder")
+				} else {
+					Text(preview)
+						.font(.system(size: 13))
+						.foregroundStyle(SettingsDesign.rowTitle)
+						.multilineTextAlignment(.leading)
+						.lineLimit(5)
+						.fixedSize(horizontal: false, vertical: true)
+						.textSelection(.enabled)
+						.frame(maxWidth: .infinity, alignment: .leading)
+						.accessibilityIdentifier("project-summary-preview")
+				}
+			}
+
+			Button {
+				isSummaryEditorPresented = true
+			} label: {
+				Label("Edit", systemImage: "square.and.pencil")
+					.frame(maxWidth: .infinity)
+			}
+			.buttonStyle(.bordered)
+			.controlSize(.small)
+			.disabled(store.isSaving)
+			.accessibilityIdentifier("project-summary-edit-button")
 		}
 	}
 
@@ -218,6 +264,68 @@ private struct ProjectInspectorSidebar: View {
 				.font(.system(size: 12, weight: .semibold))
 				.foregroundStyle(SettingsDesign.rowTitle)
 			RevealPathButton(path: project.folderPath)
+		}
+	}
+}
+
+// MARK: - Summary editor sheet
+
+/// Full markdown editor for a project summary. Edits a local draft so Cancel
+/// discards changes without triggering the store's autosave path.
+struct ProjectSummaryEditorSheet: View {
+	let initialSummary: String
+	let isSaving: Bool
+	let onSave: (String) -> Void
+	let onCancel: () -> Void
+
+	@State private var draft = ""
+
+	var body: some View {
+		VStack(spacing: 0) {
+			HStack {
+				Text("Edit Summary")
+					.font(.title3.weight(.semibold))
+					.foregroundStyle(AppTheme.primaryText)
+				Spacer()
+			}
+			.padding(.horizontal, 20)
+			.padding(.top, 20)
+			.padding(.bottom, 12)
+
+			MarkdownEditor(text: $draft)
+				.padding(.horizontal, 20)
+				.frame(maxWidth: .infinity, maxHeight: .infinity)
+
+			HStack(spacing: 12) {
+				Spacer()
+				Button("Cancel", role: .cancel) {
+					onCancel()
+				}
+				.disabled(isSaving)
+				.keyboardShortcut(.cancelAction)
+
+				Button("Save") {
+					onSave(draft)
+				}
+				.buttonStyle(.borderedProminent)
+				.disabled(isSaving)
+				.keyboardShortcut(.defaultAction)
+				.accessibilityIdentifier("project-summary-save-button")
+			}
+			.padding(.horizontal, 20)
+			.padding(.vertical, 16)
+			.overlay(alignment: .top) {
+				Rectangle()
+					.fill(SettingsDesign.cardBorder)
+					.frame(height: 1)
+			}
+		}
+		.padding(.bottom, 4)
+		.frame(minWidth: 560, idealWidth: 640, minHeight: 420, idealHeight: 480)
+		.background(SettingsDesign.canvasBackground)
+		.accessibilityIdentifier("project-summary-editor-sheet")
+		.onAppear {
+			draft = initialSummary
 		}
 	}
 }

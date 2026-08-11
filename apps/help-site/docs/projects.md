@@ -41,7 +41,7 @@ The Projects window combines three areas:
 | ---- | ------------ |
 | Project sidebar | Lists projects, summaries, and project chats. Select a project or jump between chats. |
 | Chat workspace | Runs chats scoped to the selected project. Click **New Chat** to start another project chat. |
-| Inspector | Edits the project name, summary, persona, folder path, and file tree. |
+| Inspector | Edits the project name, persona, folder path, and file tree. Shows the first paragraph of the summary; **Edit** opens a markdown editor to change the full summary. |
 
 The project persona is optional. When set, new project chats use that persona by default, which is useful when a project always needs a specific voice or role.
 
