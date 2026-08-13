@@ -103,6 +103,42 @@ struct ChatStoreTests {
         #expect(store.sessionId == nil)
         #expect(store.draftPersonaName == "Mailman")
         #expect(store.sessionPersonaImageUrl == "/api/personas/image/mailman.png")
+        #expect(store.resolvedPersonaImagePath == "/api/personas/image/mailman.png")
+    }
+
+    @Test("resolved persona image prefers draft option then status then default")
+    func resolvedPersonaImageFallbackOrder() {
+        let store = ChatStore()
+        #expect(store.resolvedPersonaImagePath == "/api/personas/image/default.png")
+
+        store.status = AppStatus(
+            version: "1.0",
+            persona: "Toby",
+            model: "m",
+            hasConfiguredAIProvider: true,
+            tobyDir: nil,
+            contextWindow: nil,
+            personaImageUrl: "/api/personas/image/toby.png",
+            connectedIntegrations: nil,
+            personaCount: 2,
+            skillCount: nil,
+            skills: nil,
+            transcription: nil,
+        )
+        #expect(store.resolvedPersonaImagePath == "/api/personas/image/toby.png")
+
+        store.draftPersonaName = "Mailman"
+        store.personaOptions = [
+            PersonaOption(
+                name: "Mailman",
+                label: "Mailman",
+                imagePath: "mailman.png",
+                imageUrl: "/api/personas/image/mailman.png",
+                isDefault: false,
+                isBuiltIn: true,
+            ),
+        ]
+        #expect(store.resolvedPersonaImagePath == "/api/personas/image/mailman.png")
     }
 
     @Test("submitPrompt creates a server session with the draft persona")

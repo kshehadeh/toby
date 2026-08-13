@@ -28,6 +28,17 @@ struct ChatWorkspaceViewTests {
         }
     }
 
+    @Test("empty state shows the connected persona image")
+    func emptyStateShowsPersonaImage() throws {
+        let store = ChatStore()
+        store.sessionPersonaImageUrl = "/api/personas/image/mailman.png"
+        store.draftPersonaName = "Mailman"
+        let view = ChatWorkspaceView(store: store)
+        let image = try view.inspect().find(PersonaImageView.self).actualView()
+        #expect(image.url.absoluteString.contains("mailman.png"))
+        #expect(image.size == 96)
+    }
+
     @Test("shows input dock in empty state")
     func showsInputDockInEmptyState() throws {
         let store = ChatStore()

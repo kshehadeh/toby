@@ -40,27 +40,14 @@ struct EmptyChatWorkspace: View {
         store.draftPersonaName ?? store.status?.persona ?? "Toby"
     }
 
-    private var appIcon: Image {
-        if let logoURL = Bundle.tobyResources.url(forResource: "toby-128", withExtension: "png"),
-            let nsImage = NSImage(contentsOf: logoURL)
-        {
-            // Full-color logo art (not an alpha glyph) — do not mark as template.
-            nsImage.isTemplate = false
-            return Image(nsImage: nsImage)
-        }
-        return Image(systemName: "brain.head.profile")
-    }
-
     var body: some View {
         VStack(spacing: 18) {
             Spacer()
             VStack(spacing: 14) {
-                appIcon
-                    .resizable()
-                    .interpolation(.high)
-                    .antialiased(true)
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 96, height: 96)
+                if let personaImageUrl = store.resolvedPersonaImageUrl {
+                    PersonaImageView(url: personaImageUrl, size: 96)
+                        .accessibilityLabel("\(greetingName) persona")
+                }
                 VStack(spacing: 8) {
                     Text("What should \(greetingName) take care of?")
                         .font(.title2.weight(.semibold))
@@ -103,14 +90,6 @@ struct ActiveChatWorkspace: View {
     let promptFocus: FocusState<Bool>.Binding
     @State private var overlayHeight: CGFloat = 126
 
-    private var personaImageUrl: URL? {
-        let urlString = store.sessionPersonaImageUrl ?? store.status?.personaImageUrl
-        if let urlString {
-            return URL(string: ConfigReader.baseURL().absoluteString + urlString)
-        }
-        return ConfigReader.baseURL().appendingPathComponent("api/personas/image/default.png")
-    }
-
     var body: some View {
         ZStack(alignment: .bottom) {
             TranscriptView(
@@ -120,7 +99,7 @@ struct ActiveChatWorkspace: View {
                 turnWorkDurations: store.turnWorkDurations,
                 activeWorkStartDate: store.activeWorkStartDate,
                 bottomContentPadding: overlayHeight,
-                personaImageUrl: personaImageUrl,
+                personaImageUrl: store.resolvedPersonaImageUrl,
                 askUserStore: store,
             )
             VStack(spacing: 8) {

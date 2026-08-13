@@ -60,6 +60,18 @@ final class ChatStore {
 		return URL(string: ConfigReader.baseURL().absoluteString + integrationIconUrl)
 	}
 
+	/// Image for the active draft or session persona, then the configured default.
+	var resolvedPersonaImagePath: String {
+		sessionPersonaImageUrl
+			?? personaOptions.first(where: { $0.name == draftPersonaName })?.imageUrl
+			?? status?.personaImageUrl
+			?? "/api/personas/image/default.png"
+	}
+
+	var resolvedPersonaImageUrl: URL? {
+		URL(string: ConfigReader.baseURL().absoluteString + resolvedPersonaImagePath)
+	}
+
 	var contextFillPercentage: Int? {
 		let info = contextWindow ?? status?.contextWindow
 		guard info?.supported == true else { return nil }
