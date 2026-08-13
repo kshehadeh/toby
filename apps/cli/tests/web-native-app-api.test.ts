@@ -72,7 +72,7 @@ describe("native app API fresh state", () => {
 			expect(body.tobyDir).toBe(process.env.TOBY_DIR);
 			expect(body.hasConfiguredAIProvider).toBe(false);
 			expect(body.connectedIntegrations).toEqual([]);
-			expect(body.personaCount).toBe(1);
+			expect(body.personaCount).toBe(2);
 			expect(body.skillCount).toBe(0);
 			expect(body.skills).toEqual([]);
 		});
@@ -214,6 +214,7 @@ describe("native app API fresh state", () => {
 					label: string;
 					isDefault: boolean;
 					isBuiltIn: boolean;
+					imageUrl?: string;
 				}>;
 			};
 			expect(body.personas.length).toBeGreaterThan(0);
@@ -223,6 +224,8 @@ describe("native app API fresh state", () => {
 			const mailman = body.personas.find((p) => p.name === "Mailman");
 			expect(mailman).toBeDefined();
 			expect(mailman?.isBuiltIn).toBe(true);
+			expect(toby?.imageUrl).toBe("/api/personas/image/toby.png");
+			expect(mailman?.imageUrl).toBe("/api/personas/image/mailman.png");
 		});
 	});
 

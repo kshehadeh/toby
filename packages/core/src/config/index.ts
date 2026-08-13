@@ -95,12 +95,12 @@ export function ensurePersonaImagesDir(): void {
 	}
 }
 
-/** Resolve the absolute path for a persona image stored by relative filename. */
+/** User-writable path for a persona image stored by relative filename. */
 export function resolvePersonaImagePath(imagePath: string): string {
 	return path.join(getPersonaImagesDir(), imagePath);
 }
 
-/** Path to the bundled default persona image. */
+/** Path to the user-seeded default persona image (legacy `default.png`). */
 export function getDefaultPersonaImagePath(): string {
 	return path.join(getPersonaImagesDir(), "default.png");
 }
@@ -172,7 +172,11 @@ export interface Persona {
 	instructions: string;
 	promptMode: PersonaPromptMode;
 	ai: AIProvider;
-	/** Relative filename of a custom persona image stored in `~/.toby/persona/images/`. */
+	/**
+	 * Relative image filename. Built-ins use a file in
+	 * `packages/core/assets/personas/`; custom uploads live in
+	 * `~/.toby/persona/images/`.
+	 */
 	imagePath?: string;
 }
 

@@ -16,13 +16,13 @@ import {
 } from "../../ai/provider-setup";
 import { listUsableChatModules } from "../../chat-pipeline/resolve-chat-modules";
 import { listPersonaOptions } from "../../chat-pipeline/turn-runtime";
-import {
-	getDefaultPersonaImagePath,
-	getDefaultPersonaName,
-	resolvePersonaImagePath,
-} from "../../config/index";
+import { getDefaultPersonaName } from "../../config/index";
 import { invalidateSettingsCache } from "../../configure/settings-cache";
-import { isBuiltInPersonaName, listPersonas } from "../../personas/index";
+import {
+	isBuiltInPersonaName,
+	listPersonas,
+	personaImageApiPath,
+} from "../../personas/index";
 import { loadLocalSkills } from "../../skills/index";
 import { resolveSkillIconPath } from "../../skills/manage";
 import { errorResponse, jsonResponse, readJsonBody } from "../http-utils";
@@ -43,15 +43,10 @@ function skillIconUrl(dirName: string): string | undefined {
 
 export async function handlePersonasList(): Promise<Response> {
 	const options = listPersonaOptions();
-	const hasDefault = fs.existsSync(getDefaultPersonaImagePath());
 	const defaultName = getDefaultPersonaName();
 	const personas = options.map((p) => ({
 		...p,
-		imageUrl: p.imagePath
-			? `/api/personas/image/${encodeURIComponent(p.imagePath)}`
-			: hasDefault
-				? "/api/personas/image/default.png"
-				: undefined,
+		imageUrl: personaImageApiPath(p.imagePath),
 		isDefault: p.name === defaultName,
 		isBuiltIn: isBuiltInPersonaName(p.name),
 	}));
@@ -65,7 +60,6 @@ export async function handlePersonaDetail(name: string): Promise<Response> {
 	if (!persona) {
 		return jsonResponse({ error: "Persona not found" }, 404);
 	}
-	const hasDefault = fs.existsSync(getDefaultPersonaImagePath());
 	const isBuiltIn = isBuiltInPersonaName(persona.name);
 	return jsonResponse({
 		persona: {
@@ -76,11 +70,7 @@ export async function handlePersonaDetail(name: string): Promise<Response> {
 			provider: persona.ai.provider,
 			model: persona.ai.model,
 			imagePath: persona.imagePath,
-			imageUrl: persona.imagePath
-				? `/api/personas/image/${encodeURIComponent(persona.imagePath)}`
-				: hasDefault
-					? "/api/personas/image/default.png"
-					: undefined,
+			imageUrl: personaImageApiPath(persona.imagePath),
 			isBuiltIn,
 			isDefault: persona.name === getDefaultPersonaName(),
 		},

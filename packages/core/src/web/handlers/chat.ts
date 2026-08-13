@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import type { AskUserToolResult } from "../../ai/ask-user-tool";
 import { resolveContextWindowInfo } from "../../ai/context-window";
 import { resolveChatAttachmentCapability } from "../../ai/model-capabilities";
@@ -22,10 +21,11 @@ import {
 	runApiChatTurnWithPersistence,
 	submitAskUserAnswer,
 } from "../../chat-pipeline/turn-runtime";
-import { getDefaultPersonaImagePath, resolveTobyDir } from "../../config/index";
+import { resolveTobyDir } from "../../config/index";
 import { getTranscriptionSetupStatus } from "../../listen/transcription-providers";
 import {
 	listPersonas,
+	personaImageApiPath,
 	resolveDefaultPersona,
 	resolvePersona,
 } from "../../personas/index";
@@ -105,12 +105,7 @@ export async function handleChatStatusDetail(): Promise<Response> {
 	const persona = resolveDefaultPersona();
 	const modules = await listUsableChatModules();
 	const skills = loadLocalSkills();
-	const hasDefaultImage = fs.existsSync(getDefaultPersonaImagePath());
-	const personaImageUrl = persona.imagePath
-		? `/api/personas/image/${encodeURIComponent(persona.imagePath)}`
-		: hasDefaultImage
-			? "/api/personas/image/default.png"
-			: undefined;
+	const personaImageUrl = personaImageApiPath(persona.imagePath);
 	return jsonResponse({
 		version: getTobyVersion(),
 		persona: persona.name,

@@ -5,7 +5,6 @@ import { getChatInboundStatus } from "@toby/core/chat-inbound/status";
 import { runChatInboundSupervisor } from "@toby/core/chat-inbound/supervisor";
 import { readChatInboundConfig } from "@toby/core/config/chat-inbound";
 import {
-	ensureDefaultPersonaImage,
 	ensureTobyDir,
 	getUnifiedLogPath,
 	getWebConfig,
@@ -154,22 +153,6 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 		warmupPluginToolDefinitions();
 	} catch {
 		// best-effort; errors are non-fatal
-	}
-
-	// Seed default persona image if available
-	try {
-		const possiblePaths = [
-			path.join(process.cwd(), "images", "toby.png"),
-			path.join(path.dirname(getTobyExecPath()), "images", "toby.png"),
-		];
-		for (const p of possiblePaths) {
-			if (fs.existsSync(p)) {
-				ensureDefaultPersonaImage(p);
-				break;
-			}
-		}
-	} catch {
-		// best-effort; default image seeding is non-fatal
 	}
 
 	const logLevel = getConfiguredLogLevel();

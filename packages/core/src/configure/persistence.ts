@@ -442,6 +442,7 @@ export function rebuildPersonas(
 			imagePath:
 				values[`personas.${name}.imagePath`] ||
 				existingPersona?.imagePath ||
+				builtIn?.imagePath ||
 				undefined,
 		};
 	});

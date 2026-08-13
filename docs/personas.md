@@ -15,6 +15,8 @@ Source:
 
 `BUILTIN_PERSONAS` is the shipped set. `DEFAULT_CHAT_PERSONA` is still **Toby** (used when no default is configured). Every built-in uses `promptMode: "add"` so instructions append to integration and one-shot base prompts rather than replacing tool guidance.
 
+Built-in images live in [`packages/core/assets/personas/`](../packages/core/assets/personas/) (`toby.png`, `mailman.png`). `resolvePersona` / `listPersonas` attach that `imagePath` unless the user uploaded a custom image. `GET /api/personas/image/:filename` serves a user file from `~/.toby/persona/images/` first, then the bundled asset. `default.png` maps to `toby.png` when no user default exists.
+
 | Persona | Role | Instructions contract |
 | ------- | ---- | --------------------- |
 | **Toby** | General productivity | Focus, grounding, missing-context, format; optional labels News / Ads / Personal / Career / Creative |
@@ -27,6 +29,7 @@ To add another built-in:
 1. Add an instructions module next to `mailman-instructions.ts`.
 2. Register a `Persona` on `BUILTIN_PERSONAS` (picker order is array order).
 3. Keep name / instructions / promptMode locked; inherit Toby's persisted AI until the user sets this persona's provider/model.
+4. Add a portrait at [`packages/core/assets/personas/<name>.png`](../packages/core/assets/personas/) (lowercase filename) and set `imagePath` to that file. Release packaging copies this directory next to the compiled binary.
 
 Reserved names cannot be created, renamed onto, or deleted.
 

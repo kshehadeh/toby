@@ -734,16 +734,22 @@ Errors:
 
 ### `GET /api/personas`
 
-Returns persona picker options.
+Returns persona picker options. Built-in personas include `imagePath` / `imageUrl` for the bundled portrait (`toby.png`, `mailman.png`).
 
 ```ts
 type PersonasResponse = {
   personas: readonly {
     name: string;
     label: string;
+    imagePath?: string;
+    imageUrl?: string;
   }[];
 };
 ```
+
+### `GET /api/personas/image/:filename`
+
+Serves a persona image. User files in `~/.toby/persona/images/` win over bundled files in `packages/core/assets/personas/`. `default.png` maps to bundled `toby.png` when no user default exists.
 
 ### `GET /api/ai/providers`
 

@@ -12,6 +12,7 @@ export const DEFAULT_CHAT_PERSONA: Persona = {
 	instructions: DEFAULT_TOBY_INSTRUCTIONS,
 	promptMode: "add",
 	ai: { ...DEFAULT_BUILTIN_AI },
+	imagePath: "toby.png",
 };
 
 export const MAILMAN_PERSONA: Persona = {
@@ -19,9 +20,11 @@ export const MAILMAN_PERSONA: Persona = {
 	instructions: MAILMAN_INSTRUCTIONS,
 	promptMode: "add",
 	ai: { ...DEFAULT_BUILTIN_AI },
+	imagePath: "mailman.png",
 };
 
-/** Shipped personas. Order is the Settings / picker order. */
+/** Shipped personas. Order is the Settings / picker order.
+ * Portraits live in `packages/core/assets/personas/<imagePath>`. */
 export const BUILTIN_PERSONAS: readonly Persona[] = [
 	DEFAULT_CHAT_PERSONA,
 	MAILMAN_PERSONA,

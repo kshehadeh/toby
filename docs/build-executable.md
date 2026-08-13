@@ -61,7 +61,7 @@ Release build steps:
 
 1. Builds the signed and notarized macOS DMG, currently `Toby-arm64.dmg`.
 2. The DMG contains `Toby.app`; the app bundle contains `toby`, `bun`
-   (runtime for bun-package plugins), the web UI, icons, and first-party
+   (runtime for bun-package plugins), the web UI, icons, persona images, and first-party
    plugins including `toby-plugin-sample-ts`, `toby-plugin-email`,
    `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-notion`, `toby-plugin-slack`,
    `toby-plugin-applecalendar`, `toby-plugin-applecontacts`,

@@ -339,6 +339,11 @@ bundle_production_resources() {
 		cp -R "${DIST}/icons" "${res_dir}/icons"
 	fi
 
+	if [[ -d "${DIST}/personas" ]]; then
+		rm -rf "${res_dir}/personas"
+		cp -R "${DIST}/personas" "${res_dir}/personas"
+	fi
+
 	# Copy all plugin artifacts (binaries and bun-package directories)
 	# For bun-package plugins, strip node_modules and re-install fresh
 	# inside the app bundle. The dist copy's node_modules may contain

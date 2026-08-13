@@ -777,15 +777,43 @@ describe("persona API", () => {
 				name: string;
 				isDefault: boolean;
 				isBuiltIn: boolean;
+				imagePath?: string;
+				imageUrl?: string;
 			}>;
 		};
 		expect(body.personas.length).toBeGreaterThan(0);
 		const toby = body.personas.find((p) => p.name === "Toby");
 		expect(toby).toBeDefined();
 		expect(toby?.isBuiltIn).toBe(true);
+		expect(toby?.imagePath).toBe("toby.png");
+		expect(toby?.imageUrl).toBe("/api/personas/image/toby.png");
 		const mailman = body.personas.find((p) => p.name === "Mailman");
 		expect(mailman).toBeDefined();
 		expect(mailman?.isBuiltIn).toBe(true);
+		expect(mailman?.imagePath).toBe("mailman.png");
+		expect(mailman?.imageUrl).toBe("/api/personas/image/mailman.png");
+	});
+
+	it("GET /api/personas/image/:filename serves bundled built-in portraits", async () => {
+		const mailman = await handleWebRequest(
+			new Request("http://127.0.0.1/api/personas/image/mailman.png"),
+			null,
+		);
+		expect(mailman.status).toBe(200);
+		expect(mailman.headers.get("Content-Type")).toBe("image/png");
+		const mailmanBytes = Buffer.from(await mailman.arrayBuffer());
+		expect(
+			mailmanBytes
+				.subarray(0, 8)
+				.equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+		).toBe(true);
+
+		const toby = await handleWebRequest(
+			new Request("http://127.0.0.1/api/personas/image/toby.png"),
+			null,
+		);
+		expect(toby.status).toBe(200);
+		expect(toby.headers.get("Content-Type")).toBe("image/png");
 	});
 
 	it("GET /api/personas/:name returns full persona detail", async () => {
@@ -802,10 +830,14 @@ describe("persona API", () => {
 				provider: string;
 				model: string;
 				isBuiltIn: boolean;
+				imagePath?: string;
+				imageUrl?: string;
 			};
 		};
 		expect(body.persona.name).toBe("Toby");
 		expect(body.persona.isBuiltIn).toBe(true);
+		expect(body.persona.imagePath).toBe("toby.png");
+		expect(body.persona.imageUrl).toBe("/api/personas/image/toby.png");
 		expect(typeof body.persona.instructions).toBe("string");
 		expect(body.persona.instructions.length).toBeGreaterThan(0);
 		expect(body.persona.promptMode).toMatch(/^(add|replace)$/);

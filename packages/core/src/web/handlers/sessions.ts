@@ -1,7 +1,9 @@
-import fs from "node:fs";
-import { getDefaultPersonaImagePath } from "../../config/index";
 import { getIntegrationIconUrl } from "../../integrations/index";
-import { resolveDefaultPersona, resolvePersona } from "../../personas/index";
+import {
+	personaImageApiPath,
+	resolveDefaultPersona,
+	resolvePersona,
+} from "../../personas/index";
 import { loadPlanBySession } from "../../planning/plan-store";
 import { resolveProject } from "../../projects/index";
 import {
@@ -53,12 +55,7 @@ export function handleSessionDetail(sessionId: string): Response {
 	const persona = personaName
 		? resolvePersona(personaName)
 		: resolveDefaultPersona();
-	const hasDefaultImage = fs.existsSync(getDefaultPersonaImagePath());
-	const personaImageUrl = persona?.imagePath
-		? `/api/personas/image/${encodeURIComponent(persona.imagePath)}`
-		: hasDefaultImage
-			? "/api/personas/image/default.png"
-			: undefined;
+	const personaImageUrl = personaImageApiPath(persona?.imagePath);
 
 	return jsonResponse({
 		id: session.id,

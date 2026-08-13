@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import {
 	clearDefaultPersona,
+	ensurePersonaImagesDir,
+	resolvePersonaImagePath,
 	setDefaultPersona,
 } from "@toby/core/config/index";
 import {
@@ -15,8 +17,11 @@ import {
 	getBuiltInPersona,
 	isBuiltInPersonaName,
 	listPersonas,
+	personaImageApiPath,
+	removeUserPersonaImage,
 	resolveDefaultPersona,
 	resolvePersona,
+	resolvePersonaImageFile,
 	withBuiltInPersonaDefaults,
 } from "@toby/core/personas/index";
 
@@ -85,6 +90,8 @@ describe("built-in persona registry", () => {
 		expect(isBuiltInPersonaName("Planner")).toBe(false);
 		expect(getBuiltInPersona("Mailman")).toEqual(MAILMAN_PERSONA);
 		expect(BUILTIN_PERSONAS.map((p) => p.name)).toEqual(["Toby", "Mailman"]);
+		expect(DEFAULT_CHAT_PERSONA.imagePath).toBe("toby.png");
+		expect(MAILMAN_PERSONA.imagePath).toBe("mailman.png");
 	});
 });
 
@@ -143,7 +150,28 @@ describe("personas", () => {
 			...override,
 			instructions: MAILMAN_PERSONA.instructions,
 			promptMode: MAILMAN_PERSONA.promptMode,
+			imagePath: MAILMAN_PERSONA.imagePath,
 		});
+	});
+
+	it("fills a missing built-in imagePath and keeps a custom upload", () => {
+		expect(
+			withBuiltInPersonaDefaults({
+				name: "Mailman",
+				instructions: "stale",
+				promptMode: "replace",
+				ai: { provider: "openai", model: "gpt-5.1" },
+			}).imagePath,
+		).toBe("mailman.png");
+		expect(
+			withBuiltInPersonaDefaults({
+				name: "Toby",
+				instructions: "stale",
+				promptMode: "add",
+				ai: { provider: "openai", model: "gpt-5.1" },
+				imagePath: "Toby-custom.png",
+			}).imagePath,
+		).toBe("Toby-custom.png");
 	});
 
 	it("does not rewrite instructions for custom personas", () => {
@@ -238,6 +266,37 @@ describe("personas", () => {
 
 			clearDefaultPersona();
 			expect(resolveDefaultPersona()).toEqual(DEFAULT_CHAT_PERSONA);
+		});
+	});
+
+	describe("built-in persona images", () => {
+		it("resolves bundled portraits and prefers a user override", () => {
+			const mailman = resolvePersonaImageFile("mailman.png");
+			const toby = resolvePersonaImageFile("toby.png");
+			const fallback = resolvePersonaImageFile("default.png");
+			expect(mailman).toBeTruthy();
+			expect(toby).toBeTruthy();
+			expect(fallback).toBe(toby);
+			expect(mailman?.endsWith(`${path.sep}mailman.png`)).toBe(true);
+			expect(fs.existsSync(mailman as string)).toBe(true);
+
+			ensurePersonaImagesDir();
+			const override = resolvePersonaImagePath("mailman.png");
+			fs.writeFileSync(override, "user-upload");
+			expect(resolvePersonaImageFile("mailman.png")).toBe(override);
+
+			removeUserPersonaImage("mailman.png");
+			expect(fs.existsSync(override)).toBe(false);
+			expect(resolvePersonaImageFile("mailman.png")).toBe(mailman);
+		});
+
+		it("maps persona image API paths", () => {
+			expect(personaImageApiPath("mailman.png")).toBe(
+				"/api/personas/image/mailman.png",
+			);
+			expect(personaImageApiPath(undefined)).toBe(
+				"/api/personas/image/default.png",
+			);
 		});
 	});
 });

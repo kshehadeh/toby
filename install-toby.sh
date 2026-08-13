@@ -6,6 +6,7 @@
 #   - toby → $TOBY_INSTALL_DIR (default ~/.local/bin)
 #   - bun runtime → ~/.toby/helpers/bun (for bun-package plugins)
 #   - icon assets → sibling icons/ directory
+#   - persona images → sibling personas/ directory
 #   - toby-plugin-* → ~/.toby/plugins/
 #
 # Usage:
@@ -132,6 +133,13 @@ if [[ -d "${resources_dir}/icons" ]]; then
 	rm -rf "${install_dir}/icons"
 	cp -R "${resources_dir}/icons" "${install_dir}/icons"
 	echo "Installed: ${install_dir}/icons"
+fi
+
+# Install built-in persona images next to the CLI
+if [[ -d "${resources_dir}/personas" ]]; then
+	rm -rf "${install_dir}/personas"
+	cp -R "${resources_dir}/personas" "${install_dir}/personas"
+	echo "Installed: ${install_dir}/personas"
 fi
 
 # Install Bun runtime

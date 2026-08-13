@@ -13,6 +13,11 @@ import {
 export { DEFAULT_TOBY_INSTRUCTIONS } from "./default-instructions";
 export { MAILMAN_INSTRUCTIONS } from "./mailman-instructions";
 export {
+	personaImageApiPath,
+	removeUserPersonaImage,
+	resolvePersonaImageFile,
+} from "./images";
+export {
 	BUILTIN_PERSONAS,
 	DEFAULT_CHAT_PERSONA,
 	MAILMAN_PERSONA,
@@ -35,6 +40,7 @@ export function withBuiltInPersonaDefaults(persona: Persona): Persona {
 		name: builtIn.name,
 		instructions: builtIn.instructions,
 		promptMode: builtIn.promptMode,
+		imagePath: persona.imagePath?.trim() || builtIn.imagePath,
 	};
 }
 

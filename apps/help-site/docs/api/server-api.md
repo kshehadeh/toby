@@ -601,7 +601,12 @@ type SessionPlanResponse = {
 
 ```ts
 type PersonasResponse = {
-  personas: readonly { name: string; label: string }[];
+  personas: readonly {
+    name: string;
+    label: string;
+    imagePath?: string;
+    imageUrl?: string;
+  }[];
 };
 ```
 
@@ -611,7 +616,7 @@ Persona detail for the named persona (`404` if missing).
 
 ### `GET /api/personas/image/:filename`
 
-Serves a persona image asset. Use `default.png` for the default image.
+Serves a persona image. Built-in portraits (`toby.png`, `mailman.png`) come from the bundled persona assets. User uploads are stored under `~/.toby/persona/images/`. `default.png` maps to the bundled Toby portrait when no user default exists.
 
 ### `GET /api/ai/providers`
 

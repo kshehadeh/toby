@@ -1,10 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import {
-	getDefaultPersonaImagePath,
-	resolvePersonaImagePath,
-} from "../config/index";
 import { getDaemonIdentity } from "../daemon/status";
+import { resolvePersonaImageFile } from "../personas/index";
 import { handleChangelog } from "./handlers/changelog";
 import {
 	handleAskUserAnswer,
@@ -294,11 +291,8 @@ export async function handleWebRequest(
 		);
 		if (personaImageMatch && req.method === "GET") {
 			const filename = decodeURIComponent(personaImageMatch[1]);
-			const filePath =
-				filename === "default.png"
-					? getDefaultPersonaImagePath()
-					: resolvePersonaImagePath(filename);
-			if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+			const filePath = resolvePersonaImageFile(filename);
+			if (filePath) {
 				const body = fs.readFileSync(filePath);
 				return new Response(body, {
 					headers: { "Content-Type": contentTypeForPath(filePath) },

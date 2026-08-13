@@ -23,6 +23,7 @@ import {
 	DEFAULT_CHAT_PERSONA,
 	getBuiltInPersona,
 	isBuiltInPersonaName,
+	removeUserPersonaImage,
 } from "../../personas/index";
 import { humanToCronAsync } from "../../schedules/cron-parser";
 import {
@@ -316,16 +317,8 @@ export async function handleConfigureAction(
 			const buffer = Buffer.from(imageBase64, "base64");
 			fs.writeFileSync(destPath, buffer);
 
-			// Remove old image if it existed
 			if (persona.imagePath) {
-				const oldPath = resolvePersonaImagePath(persona.imagePath);
-				if (fs.existsSync(oldPath)) {
-					try {
-						fs.unlinkSync(oldPath);
-					} catch {
-						// ignore cleanup errors
-					}
-				}
+				removeUserPersonaImage(persona.imagePath);
 			}
 
 			persona.imagePath = imageFilename;
@@ -341,14 +334,7 @@ export async function handleConfigureAction(
 			if (!persona) return errorResponse(`Persona "${personaName}" not found`);
 
 			if (persona.imagePath) {
-				const oldPath = resolvePersonaImagePath(persona.imagePath);
-				if (fs.existsSync(oldPath)) {
-					try {
-						fs.unlinkSync(oldPath);
-					} catch {
-						// ignore cleanup errors
-					}
-				}
+				removeUserPersonaImage(persona.imagePath);
 				persona.imagePath = undefined;
 				writeConfig(cfg);
 			}

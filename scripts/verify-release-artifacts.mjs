@@ -60,6 +60,8 @@ const iconAssets = [
 	"icons/ai/openai.png",
 	"icons/ai/vercel.png",
 	"icons/ai/ollama.png",
+	"personas/toby.png",
+	"personas/mailman.png",
 ];
 for (const iconAsset of iconAssets) {
 	if (!fs.existsSync(path.join(directory, iconAsset))) {
@@ -79,7 +81,12 @@ if (!fs.existsSync(tobyAppExecutable)) {
 
 // Verify self-contained app bundle has resources in Contents/Resources/
 const appResources = path.join(tobyApp, "Contents", "Resources");
-const appResourceChecks = ["toby", "bun", "icons/ai/openai.png"];
+const appResourceChecks = [
+	"toby",
+	"bun",
+	"icons/ai/openai.png",
+	"personas/toby.png",
+];
 for (const resource of appResourceChecks) {
 	const resourcePath = path.join(appResources, resource);
 	if (!fs.existsSync(resourcePath)) {
