@@ -726,7 +726,7 @@ struct CreateSessionResponse: Decodable {
 	let settings: SessionSettings?
 }
 
-struct ListenSourceSelection: Decodable, Equatable {
+struct ListenSourceSelection: Decodable, Equatable, Sendable {
 	let mic: Bool
 	let system: Bool
 }
@@ -824,7 +824,7 @@ struct NativeAudioStopResponse: Decodable {
 	}
 }
 
-struct ListenRecordingSummary: Decodable, Identifiable {
+struct ListenRecordingSummary: Decodable, Identifiable, Sendable {
 	let id: String
 	let dir: String
 	let name: String?
@@ -850,13 +850,13 @@ struct ListenRecordingsListResponse: Decodable {
 	let recordings: [ListenRecordingSummary]
 }
 
-struct ListenRecordingSummaryMeta: Decodable {
+struct ListenRecordingSummaryMeta: Decodable, Sendable {
 	let createdAt: String
 	let personaName: String?
 }
 
 /// Timed utterance from `transcript.json` / the listen detail API.
-struct ListenTranscriptSegment: Decodable, Equatable, Hashable {
+struct ListenTranscriptSegment: Decodable, Equatable, Hashable, Sendable {
 	let text: String
 	/// Segment start time in seconds from the beginning of the audio.
 	let timestamp: Double
@@ -865,7 +865,7 @@ struct ListenTranscriptSegment: Decodable, Equatable, Hashable {
 	let alternatives: [String]?
 }
 
-struct ListenRecordingMetadata: Decodable {
+struct ListenRecordingMetadata: Decodable, Sendable {
 	let id: String
 	let name: String?
 	let description: String?
@@ -879,7 +879,7 @@ struct ListenRecordingMetadata: Decodable {
 	let summary: ListenRecordingSummaryMeta?
 }
 
-struct ListenRecordingDetail: Decodable {
+struct ListenRecordingDetail: Decodable, Sendable {
 	let id: String
 	let dir: String
 	let metadata: ListenRecordingMetadata
@@ -949,6 +949,62 @@ struct ListenRecordingDetail: Decodable {
 			seen.insert(item.path)
 			return true
 		}
+	}
+
+	/// List-row shell so the detail chrome can appear before transcript / summary / paths load.
+	static func placeholder(from summary: ListenRecordingSummary) -> ListenRecordingDetail {
+		ListenRecordingDetail(
+			id: summary.id,
+			dir: summary.dir,
+			metadata: ListenRecordingMetadata(
+				id: summary.id,
+				name: summary.name,
+				description: summary.description,
+				createdAt: summary.createdAt,
+				startedAt: summary.startedAt,
+				stoppedAt: summary.stoppedAt,
+				durationMs: summary.durationMs,
+				sources: summary.sources,
+				errors: nil,
+				chatSessionId: nil,
+				summary: nil,
+			),
+			hasAudio: summary.hasAudio,
+			audioPath: nil,
+			combinedPath: nil,
+			micPath: nil,
+			systemPath: nil,
+			hasTranscript: summary.hasTranscript,
+			transcript: nil,
+			transcriptError: nil,
+			segments: nil,
+			warnings: nil,
+			hasSummary: summary.hasSummary,
+			summary: nil,
+			summaryMeta: nil,
+		)
+	}
+
+	/// True when this value is a list-row shell (no transcript/summary bodies or audio paths yet).
+	var isShell: Bool {
+		transcript == nil
+			&& (segments == nil || segments?.isEmpty == true)
+			&& transcriptError == nil
+			&& (summary == nil || summary?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true)
+			&& playableAudioSources.isEmpty
+	}
+
+	var hasLoadedTranscriptBody: Bool {
+		transcript != nil || !(segments ?? []).isEmpty || transcriptError != nil
+	}
+
+	var hasLoadedSummaryBody: Bool {
+		guard showsSummary else { return true }
+		return summary?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+	}
+
+	var hasLoadedAudioPaths: Bool {
+		!hasAudio || !playableAudioSources.isEmpty
 	}
 }
 

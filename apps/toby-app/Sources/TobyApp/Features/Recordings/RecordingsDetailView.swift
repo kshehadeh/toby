@@ -13,9 +13,6 @@ struct RecordingsDetailView: View {
 			if store.isLoading && store.recordings.isEmpty && activeRecording == nil {
 				ProgressView("Loading recordings…")
 					.frame(maxWidth: .infinity, maxHeight: .infinity)
-			} else if store.isDetailLoading && store.selectedRecordings.count == 1 && store.detail == nil {
-				ProgressView("Loading recording...")
-					.frame(maxWidth: .infinity, minHeight: 240)
 			} else if let active = activeRecording, store.selectedActiveRecordingId == active.id || store.selectedRecordings.isEmpty {
 				ActiveRecordingDetailView(active: active, onStopRecording: onStopRecording)
 			} else if processingState?.isActive == true, store.selectedRecordings.isEmpty {
@@ -23,16 +20,20 @@ struct RecordingsDetailView: View {
 					.padding(32)
 					.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 			} else if !store.selectedRecordings.isEmpty {
-				if store.selectedRecordings.count == 1, let detail = store.detail {
+				if store.selectedRecordings.count == 1, let recording = store.selectedRecording {
 					if isProcessingSelected {
 						RecordingProcessingCard(processingState: processingState)
 							.padding(.horizontal, 24)
 							.padding(.top, 12)
 					}
-					// Pass detail as a value so RecordingDetailContent never
-					// force-unwraps store.detail (which can become nil mid-update
-					// when selectActiveRecording clears it for a live recording).
-					RecordingDetailContent(store: store, detail: detail, processingState: processingState, validSessionIds: validSessionIds)
+					let displayedDetail = displayedDetail(for: recording)
+					RecordingDetailContent(
+						store: store,
+						detail: displayedDetail,
+						processingState: processingState,
+						validSessionIds: validSessionIds,
+						isLoadingHeavyContent: isLoadingHeavyContent(displayedDetail),
+					)
 				} else {
 					SelectedRecordingsDeck(recordings: store.selectedRecordings)
 				}
@@ -63,6 +64,17 @@ struct RecordingsDetailView: View {
 		guard let id = processingState?.recordingId,
 			processingState?.isActive == true else { return false }
 		return store.selectedRecordingIds.contains(id)
+	}
+
+	private func displayedDetail(for recording: ListenRecordingSummary) -> ListenRecordingDetail {
+		if let detail = store.detail, detail.id == recording.id {
+			return detail
+		}
+		return .placeholder(from: recording)
+	}
+
+	private func isLoadingHeavyContent(_ detail: ListenRecordingDetail) -> Bool {
+		store.isDetailLoading && detail.isShell
 	}
 }
 

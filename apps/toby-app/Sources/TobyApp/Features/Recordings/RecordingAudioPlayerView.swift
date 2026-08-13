@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreMedia
 import SwiftUI
 
 struct RecordingAudioPlayerView: View {
@@ -94,7 +95,7 @@ struct RecordingAudioPlayerView: View {
 			selectedSourceId = defaultSourceId()
 		}
 		.task(id: "\(detail.id)-\(selectedPath ?? "")") {
-			audioPlayer.load(audioPath: selectedPath)
+			await audioPlayer.load(audioPath: selectedPath, fallbackDurationMs: detail.metadata.durationMs)
 		}
 		.onReceive(timer) { _ in
 			audioPlayer.refresh()
@@ -116,32 +117,43 @@ final class RecordingAudioPlayer {
 	var errorMessage: String?
 
 	var isReady: Bool {
-		player != nil && errorMessage == nil
+		loadedAudioPath != nil && errorMessage == nil
 	}
 
-	func load(audioPath: String?) {
+	func load(audioPath: String?, fallbackDurationMs: Int? = nil) async {
 		guard loadedAudioPath != audioPath else { return }
 		stop()
 		loadedAudioPath = audioPath
 		errorMessage = nil
 		currentTime = 0
-		duration = 0
+		duration = TimeInterval(max(0, fallbackDurationMs ?? 0)) / 1000
 		guard let audioPath else {
 			player = nil
 			return
 		}
+		let url = URL(fileURLWithPath: audioPath)
 		do {
-			let nextPlayer = try AVAudioPlayer(contentsOf: URL(fileURLWithPath: audioPath))
-			nextPlayer.prepareToPlay()
-			player = nextPlayer
-			duration = nextPlayer.duration
+			let loadedDuration = try await Task.detached(priority: .userInitiated) {
+				let asset = AVURLAsset(url: url)
+				let time = try await asset.load(.duration)
+				return CMTimeGetSeconds(time)
+			}.value
+			guard loadedAudioPath == audioPath else { return }
+			if loadedDuration.isFinite, loadedDuration > 0 {
+				duration = loadedDuration
+			}
+			// Open the player on first play so selecting a long recording does
+			// not decode the whole file on the main actor.
 		} catch {
-			player = nil
+			guard loadedAudioPath == audioPath else { return }
 			errorMessage = "Could not load audio: \(error.localizedDescription)"
 		}
 	}
 
 	func togglePlayback() {
+		if player == nil {
+			preparePlayerIfNeeded()
+		}
 		guard let player else { return }
 		if player.isPlaying {
 			player.pause()
@@ -180,5 +192,21 @@ final class RecordingAudioPlayer {
 		isPlaying = false
 		currentTime = 0
 		duration = 0
+	}
+
+	private func preparePlayerIfNeeded() {
+		guard player == nil, let loadedAudioPath else { return }
+		do {
+			let nextPlayer = try AVAudioPlayer(contentsOf: URL(fileURLWithPath: loadedAudioPath))
+			nextPlayer.prepareToPlay()
+			player = nextPlayer
+			if nextPlayer.duration > 0 {
+				duration = nextPlayer.duration
+			}
+			errorMessage = nil
+		} catch {
+			player = nil
+			errorMessage = "Could not load audio: \(error.localizedDescription)"
+		}
 	}
 }

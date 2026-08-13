@@ -6,6 +6,72 @@ import ViewInspector
 @MainActor
 @Suite("RecordingsView")
 struct RecordingsViewTests {
+	@Test("placeholder detail is a shell without transcript or audio paths")
+	func placeholderDetailIsShell() {
+		let summary = makeRecording(
+			id: "r1",
+			name: "Long meeting",
+			hasTranscript: true,
+			hasSummary: true,
+			hasAudio: true,
+		)
+		let detail = ListenRecordingDetail.placeholder(from: summary)
+		#expect(detail.id == "r1")
+		#expect(detail.metadata.name == "Long meeting")
+		#expect(detail.isShell)
+		#expect(detail.hasTranscript)
+		#expect(detail.showsSummary)
+		#expect(detail.hasAudio)
+		#expect(!detail.hasLoadedTranscriptBody)
+		#expect(!detail.hasLoadedSummaryBody)
+		#expect(!detail.hasLoadedAudioPaths)
+	}
+
+	@Test("detail view shows chrome and skeletons while heavy content loads")
+	func detailViewShowsSkeletonsWhileLoading() throws {
+		let store = RecordingsStore()
+		let recording = makeRecording(
+			id: "r1",
+			name: "Long meeting",
+			hasTranscript: true,
+			hasSummary: true,
+			hasAudio: true,
+		)
+		store.recordings = [recording]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = .placeholder(from: recording)
+		store.isDetailLoading = true
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Long meeting")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "recording-transcript-skeleton")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "recording-summary-skeleton")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "recording-audio-skeleton")
+		}
+		#expect(throws: Error.self) {
+			try view.inspect().find(text: "Loading recording...")
+		}
+	}
+
+	@Test("applyDetailShellIfNeeded uses the selected list row immediately")
+	func applyDetailShellIfNeededUsesListRow() {
+		let store = RecordingsStore()
+		store.recordings = [
+			makeRecording(id: "r1", name: "One", hasTranscript: true, hasAudio: true),
+		]
+		store.selectedRecordingIds = ["r1"]
+		store.applyDetailShellIfNeeded()
+		#expect(store.detail?.id == "r1")
+		#expect(store.detail?.metadata.name == "One")
+		#expect(store.detail?.isShell == true)
+	}
+
 	@Test("recordings view renders detail content")
 	func recordingsViewRendersDetailContent() throws {
 		let view = RecordingsView(store: RecordingsStore())
@@ -738,6 +804,8 @@ struct RecordingsViewTests {
 		await store.selectRecording(id: "r1")
 		#expect(store.selectedActiveRecordingId == nil)
 		#expect(store.selectedRecordingIds == ["r1"])
+		#expect(store.detail?.id == "r1")
+		#expect(store.detail?.isShell == true)
 	}
 
 	@Test("markListStale forces ensureLoaded to refresh after first load")
@@ -800,7 +868,13 @@ struct RecordingsViewTests {
 	}
 }
 
-private func makeRecording(id: String, name: String? = nil) -> ListenRecordingSummary {
+private func makeRecording(
+	id: String,
+	name: String? = nil,
+	hasTranscript: Bool = false,
+	hasSummary: Bool = false,
+	hasAudio: Bool = true,
+) -> ListenRecordingSummary {
 	ListenRecordingSummary(
 		id: id,
 		dir: "/tmp/\(id)",
@@ -811,9 +885,9 @@ private func makeRecording(id: String, name: String? = nil) -> ListenRecordingSu
 		stoppedAt: nil,
 		durationMs: 60000,
 		sources: ListenSourceSelection(mic: true, system: false),
-		hasAudio: true,
-		hasTranscript: false,
-		hasSummary: false
+		hasAudio: hasAudio,
+		hasTranscript: hasTranscript,
+		hasSummary: hasSummary
 	)
 }
 

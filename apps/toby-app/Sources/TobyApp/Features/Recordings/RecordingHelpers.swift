@@ -76,27 +76,6 @@ func formatTimedTranscript(_ segments: [ListenTranscriptSegment]) -> String {
 	.joined(separator: "\n")
 }
 
-/// Attributed timed transcript for the Recordings detail view (secondary timestamps).
-func attributedTimedTranscript(_ segments: [ListenTranscriptSegment]) -> AttributedString {
-	var result = AttributedString()
-	for segment in segments {
-		let text = segment.text.trimmingCharacters(in: .whitespacesAndNewlines)
-		guard !text.isEmpty else { continue }
-		if !result.characters.isEmpty {
-			result.append(AttributedString("\n"))
-		}
-		var time = AttributedString("[\(playbackTimeText(segment.timestamp))] ")
-		time.font = .body.monospaced()
-		time.foregroundColor = .secondary
-		var body = AttributedString(text)
-		body.font = .body.monospaced()
-		body.foregroundColor = .primary
-		result.append(time)
-		result.append(body)
-	}
-	return result
-}
-
 func sourceText(_ sources: ListenSourceSelection) -> String {
 	switch (sources.mic, sources.system) {
 	case (true, true):

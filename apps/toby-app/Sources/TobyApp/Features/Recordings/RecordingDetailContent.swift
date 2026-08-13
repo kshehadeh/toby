@@ -10,6 +10,8 @@ struct RecordingDetailContent: View {
 	let detail: ListenRecordingDetail
 	var processingState: RecordingProcessingState? = nil
 	var validSessionIds: Set<String> = []
+	/// True while transcript / summary / audio paths are still being fetched.
+	var isLoadingHeavyContent: Bool = false
 
 	var body: some View {
 		VStack(spacing: 0) {
@@ -22,7 +24,13 @@ struct RecordingDetailContent: View {
 			HStack(spacing: 0) {
 				mainColumn
 				Divider().overlay(SettingsDesign.cardBorder)
-				RecordingInspectorSidebar(store: store, detail: detail, processingState: processingState, validSessionIds: validSessionIds)
+				RecordingInspectorSidebar(
+					store: store,
+					detail: detail,
+					processingState: processingState,
+					validSessionIds: validSessionIds,
+					isLoadingHeavyContent: isLoadingHeavyContent,
+				)
 			}
 			.frame(maxWidth: .infinity, maxHeight: .infinity)
 		}
@@ -31,8 +39,10 @@ struct RecordingDetailContent: View {
 
 	private var mainColumn: some View {
 		VStack(alignment: .leading, spacing: 16) {
-			if detail.showsSummary, let summary = detail.summary,
-			   !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+			if isLoadingHeavyContent && detail.showsSummary && !detail.hasLoadedSummaryBody {
+				summarySkeleton
+			} else if detail.showsSummary, let summary = detail.summary,
+				!summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 			{
 				summarySection(text: summary)
 			}
@@ -102,7 +112,7 @@ struct RecordingDetailContent: View {
 					.stroke(SettingsDesign.cardBorder, lineWidth: 1)
 			}
 			.overlay(alignment: .topTrailing) {
-				if let transcript = detail.copyableTranscript {
+				if !isLoadingTranscript, let transcript = detail.copyableTranscript {
 					CopyButton(text: transcript, label: "Copy transcript")
 						.accessibilityIdentifier("copy-transcript-button")
 						.padding(.top, 6)
@@ -124,20 +134,68 @@ struct RecordingDetailContent: View {
 		return "Read-only transcript of the recording"
 	}
 
+	private var isLoadingTranscript: Bool {
+		isLoadingHeavyContent && detail.hasTranscript && !detail.hasLoadedTranscriptBody
+	}
+
+	private var summarySkeleton: some View {
+		VStack(alignment: .leading, spacing: 4) {
+			Text("Summary")
+				.font(.system(size: 13, weight: .semibold))
+				.foregroundStyle(SettingsDesign.rowTitle)
+			Text("AI-generated summary of the transcript")
+				.font(.caption)
+				.foregroundStyle(SettingsDesign.rowDescription)
+			RecordingBlockSkeleton(lineCount: 5, accessibilityIdentifier: "recording-summary-skeleton")
+				.padding(.top, 8)
+		}
+	}
+
 	@ViewBuilder
 	private var transcriptBody: some View {
-		if detail.hasTimedSegments {
-			Text(attributedTimedTranscript(detail.timedSegments))
+		if isLoadingTranscript {
+			RecordingBlockSkeleton(lineCount: 14, accessibilityIdentifier: "recording-transcript-skeleton")
+		} else if detail.hasTimedSegments {
+			// Lazy rows so a long timed transcript does not build one giant attributed string.
+			LazyVStack(alignment: .leading, spacing: 6) {
+				ForEach(Array(detail.timedSegments.enumerated()), id: \.offset) { _, segment in
+					TimedTranscriptLine(segment: segment)
+				}
+			}
 		} else if let transcript = detail.transcript,
-		          !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+			!transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 		{
-			Text(transcript)
-				.font(.body.monospaced())
-				.foregroundStyle(SettingsDesign.rowTitle)
+			LazyVStack(alignment: .leading, spacing: 4) {
+				ForEach(Array(transcript.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).enumerated()), id: \.offset) { _, line in
+					Text(line.isEmpty ? " " : String(line))
+						.font(.body.monospaced())
+						.foregroundStyle(SettingsDesign.rowTitle)
+						.frame(maxWidth: .infinity, alignment: .leading)
+						.textSelection(.enabled)
+				}
+			}
 		} else {
 			Text(detail.transcriptError ?? "Transcript not available.")
 				.font(.body.monospaced())
 				.foregroundStyle(SettingsDesign.rowDescription)
 		}
+	}
+}
+
+private struct TimedTranscriptLine: View {
+	let segment: ListenTranscriptSegment
+
+	var body: some View {
+		HStack(alignment: .firstTextBaseline, spacing: 8) {
+			Text("[\(playbackTimeText(segment.timestamp))]")
+				.font(.body.monospaced())
+				.foregroundStyle(SettingsDesign.rowDescription)
+			Text(segment.text.trimmingCharacters(in: .whitespacesAndNewlines))
+				.font(.body.monospaced())
+				.foregroundStyle(SettingsDesign.rowTitle)
+				.textSelection(.enabled)
+				.frame(maxWidth: .infinity, alignment: .leading)
+		}
+		.frame(maxWidth: .infinity, alignment: .leading)
 	}
 }

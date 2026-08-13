@@ -38,9 +38,11 @@ When you stop and save:
    tracks are always kept.
 3. Toby requests transcription through the local service when a model is configured.
 4. The result appears in the **Recordings** window (playback, transcript, delete).
-   The player defaults to **System** (clean meeting audio) and can switch to
-   **Mic** or **Both (L/R)** when available. When the transcription model
-   returns timed segments, the transcript view shows **start timestamps** on
+   Opening a long recording shows the title and sidebar immediately; the
+   transcript, summary, and player fill in after a short skeleton so the window
+   stays responsive. The player defaults to **System** (clean meeting audio) and
+   can switch to **Mic** or **Both (L/R)** when available. When the transcription
+   model returns timed segments, the transcript view shows **start timestamps** on
    each line (for example `[0:12] …`); **Copy transcript** includes those times.
 
 ## Summarize a recording

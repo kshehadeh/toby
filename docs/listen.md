@@ -76,9 +76,12 @@ recording is in progress, the detail pane shows live capture metadata and a
 menu bar. After stop, while combine / transcription is still running, the
 window shows a processing card instead of the live “Recording in progress”
 pane. After processing, the window supports audio playback, transcript viewing,
-AI summarization, metadata editing, and confirmed deletion. Deletion is sent
-to `DELETE /api/listen/recordings/:id`; the SwiftUI app does not remove
-recording directories directly.
+AI summarization, metadata editing, and confirmed deletion. Selecting a saved
+recording paints the header and inspector immediately from the list row;
+transcript, summary, and the audio player show skeletons until the detail
+payload is decoded (off the main actor) so a long recording does not freeze
+the UI. Deletion is sent to `DELETE /api/listen/recordings/:id`; the SwiftUI
+app does not remove recording directories directly.
 
 ### Recording summaries
 

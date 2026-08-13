@@ -5,6 +5,7 @@ struct RecordingInspectorSidebar: View {
 	let detail: ListenRecordingDetail
 	var processingState: RecordingProcessingState? = nil
 	var validSessionIds: Set<String> = []
+	var isLoadingHeavyContent: Bool = false
 
 	@State private var nameText = ""
 	@State private var saveTask: Task<Void, Never>?
@@ -185,7 +186,9 @@ struct RecordingInspectorSidebar: View {
 			Text("Audio")
 				.font(.system(size: 12, weight: .semibold))
 				.foregroundStyle(SettingsDesign.rowTitle)
-			if detail.hasAudio, detail.audioPath != nil {
+			if isLoadingHeavyContent && detail.hasAudio && !detail.hasLoadedAudioPaths {
+				RecordingAudioPlayerSkeleton()
+			} else if detail.hasAudio, !detail.playableAudioSources.isEmpty {
 				RecordingAudioPlayerView(detail: detail)
 			} else {
 				Text("No audio file available")

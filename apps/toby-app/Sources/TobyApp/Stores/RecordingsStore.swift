@@ -31,6 +31,7 @@ final class RecordingsStore {
 	var summarizingRecordingId: String?
 
 	private let client = TobyClient()
+	private var detailLoadToken = UUID()
 
 	var selectedRecording: ListenRecordingSummary? {
 		guard selectedRecordingIds.count == 1, let id = selectedRecordingIds.first else { return nil }
@@ -130,6 +131,7 @@ final class RecordingsStore {
 		} else {
 			selectedRecordingIds = [id]
 		}
+		applyDetailShellIfNeeded()
 		await loadDetailIfNeeded()
 	}
 
@@ -146,17 +148,43 @@ final class RecordingsStore {
 		detail = nil
 	}
 
+	/// Show header / inspector from the list row immediately, before the heavy
+	/// detail payload (transcript, summary, audio paths) arrives.
+	func applyDetailShellIfNeeded() {
+		guard selectedRecordingIds.count == 1, let recording = selectedRecording else {
+			if selectedRecordingIds.count != 1 {
+				detail = nil
+			}
+			return
+		}
+		if detail?.id != recording.id {
+			detail = .placeholder(from: recording)
+		}
+	}
+
 	private func loadDetailIfNeeded() async {
 		guard selectedRecordingIds.count == 1, let id = selectedRecordingIds.first else {
 			detail = nil
 			return
 		}
+		applyDetailShellIfNeeded()
+		let token = UUID()
+		detailLoadToken = token
 		isDetailLoading = true
 		errorMessage = nil
-		defer { isDetailLoading = false }
+		// Let SwiftUI paint the shell + skeletons before the detail request runs.
+		await Task.yield()
+		defer {
+			if detailLoadToken == token {
+				isDetailLoading = false
+			}
+		}
 		do {
-			detail = try await client.fetchRecording(id: id)
+			let loaded = try await client.fetchRecording(id: id)
+			guard detailLoadToken == token, selectedRecordingIds == [id] else { return }
+			detail = loaded
 		} catch {
+			guard detailLoadToken == token, selectedRecordingIds == [id] else { return }
 			errorMessage = error.localizedDescription
 		}
 	}

@@ -316,7 +316,7 @@ struct TobyClient {
 		let url = baseURL.appendingPathComponent("api/listen/recordings/\(id)")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ListenRecordingDetail.self, from: data)
+		return try await Self.decodeRecordingDetail(data)
 	}
 
 	func updateRecording(id: String, name: String?) async throws -> ListenRecordingDetail {
@@ -328,7 +328,7 @@ struct TobyClient {
 		request.httpBody = try JSONSerialization.data(withJSONObject: body)
 		let (data, response) = try await URLSession.shared.data(for: request)
 		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ListenRecordingDetail.self, from: data)
+		return try await Self.decodeRecordingDetail(data)
 	}
 
 	func updateRecordingChatSession(id: String, chatSessionId: String?) async throws -> ListenRecordingDetail {
@@ -344,7 +344,7 @@ struct TobyClient {
 		request.httpBody = try JSONSerialization.data(withJSONObject: body)
 		let (data, response) = try await URLSession.shared.data(for: request)
 		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ListenRecordingDetail.self, from: data)
+		return try await Self.decodeRecordingDetail(data)
 	}
 
 	func deleteRecording(id: String) async throws {
@@ -372,7 +372,7 @@ struct TobyClient {
 		request.httpBody = Data("{}".utf8)
 		let (data, response) = try await URLSession.shared.data(for: request)
 		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ListenRecordingDetail.self, from: data)
+		return try await Self.decodeRecordingDetail(data)
 	}
 
 	func summarizeRecording(id: String) async throws -> ListenRecordingDetail {
@@ -382,7 +382,7 @@ struct TobyClient {
 		request.httpBody = Data("{}".utf8)
 		let (data, response) = try await URLSession.shared.data(for: request)
 		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ListenRecordingDetail.self, from: data)
+		return try await Self.decodeRecordingDetail(data)
 	}
 
 	func streamTranscribeRecording(
@@ -475,7 +475,7 @@ struct TobyClient {
 		let url = baseURL.appendingPathComponent("api/listen/recordings/\(id)")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ListenRecordingDetail.self, from: data)
+		return try await Self.decodeRecordingDetail(data)
 	}
 
 	func streamTurn(
@@ -644,6 +644,13 @@ struct TobyClient {
 		request.httpBody = try JSONSerialization.data(withJSONObject: body)
 		let (data, response) = try await URLSession.shared.data(for: request)
 		try validate(response: response, data: data)
+	}
+
+	/// Decode off the main actor so large transcripts / timed segments do not freeze the UI.
+	nonisolated private static func decodeRecordingDetail(_ data: Data) async throws -> ListenRecordingDetail {
+		try await Task.detached(priority: .userInitiated) {
+			try JSONDecoder().decode(ListenRecordingDetail.self, from: data)
+		}.value
 	}
 
 	private func validate(response: URLResponse, data: Data) throws {
