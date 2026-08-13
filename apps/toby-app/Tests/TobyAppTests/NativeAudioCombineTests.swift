@@ -143,6 +143,20 @@ struct NativeAudioCombineTests {
 		let duration = try await asset.load(.duration)
 		#expect(CMTimeGetSeconds(duration) > 0.5)
 	}
+
+	@Test("finalizeCombinedAudio returns empty files when sources are missing")
+	func finalizeCombinedAudioMissingSources() async {
+		let dir = FileManager.default.temporaryDirectory
+			.appendingPathComponent("toby-finalize-\(UUID().uuidString)", isDirectory: true)
+		try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+		defer { try? FileManager.default.removeItem(at: dir) }
+		let result = await finalizeCombinedAudio(
+			files: ["mic": dir.appendingPathComponent("missing.wav").path],
+			outDir: dir,
+		)
+		#expect(result.files.isEmpty)
+		#expect(result.errorMessage == nil)
+	}
 }
 
 /// Writes mono float samples via AVAudioFile processingFormat (Float32).

@@ -43,28 +43,72 @@ struct ChatRecordingControllerTests {
 		#expect(toast.action == .openRecording(id: "r1"))
 	}
 
-	@Test("applyStoppingCapture clears session and starts generating stage")
+	@Test("applyStoppingCapture leaves live capture and starts generating stage")
 	func applyStoppingCapture() {
-		var state = makeState(
-			listenStatus: ListenStatusResponse(
-				status: "recording",
+		let current = ListenStatusResponse(
+			status: "recording",
+			session: ListenSessionInfo(
+				id: "s1",
+				startedAt: "2026-01-01T00:00:00Z",
+				sources: ListenSourceSelection(mic: true, system: false),
+			),
+			outputDir: "/tmp/out",
+			message: nil,
+			error: nil,
+		)
+		var state = makeState(listenStatus: current)
+		ChatRecordingController.applyStoppingCapture(current: current, into: &state)
+		#expect(state.listenStatus?.status == "stopping")
+		#expect(state.listenStatus?.session?.id == "s1")
+		#expect(state.listenStatus?.isLiveCapture == false)
+		#expect(state.listenStatus?.isFinalizing == true)
+		#expect(state.listenStatus?.outputDir == "/tmp/out")
+		#expect(state.recordingProcessing?.stage == .generatingAudio)
+		#expect(state.recordingProcessing?.recordingId == "s1")
+		#expect(state.activityLine == "Generating final audio…")
+		#expect(state.toast?.style == .progress)
+	}
+
+	@Test("applyNativeStopFailed keeps processing when native is still finalizing")
+	func applyNativeStopFailedKeepsFinalizing() {
+		var state = makeState()
+		ChatRecordingController.applyNativeStopFailed(
+			message: "The request timed out.",
+			status: ListenStatusResponse(
+				status: "stopping",
 				session: ListenSessionInfo(
 					id: "s1",
 					startedAt: "2026-01-01T00:00:00Z",
 					sources: ListenSourceSelection(mic: true, system: false),
 				),
 				outputDir: "/tmp/out",
-				message: nil,
+				message: "Generating final audio.",
 				error: nil,
 			),
+			into: &state,
 		)
-		ChatRecordingController.applyStoppingCapture(preservingOutputDir: "/tmp/out", into: &state)
-		#expect(state.listenStatus?.status == "idle")
-		#expect(state.listenStatus?.session == nil)
-		#expect(state.listenStatus?.outputDir == "/tmp/out")
+		#expect(state.listenStatus?.isFinalizing == true)
 		#expect(state.recordingProcessing?.stage == .generatingAudio)
 		#expect(state.activityLine == "Generating final audio…")
-		#expect(state.toast?.style == .progress)
+	}
+
+	@Test("live capture excludes stopping status")
+	func liveCaptureExcludesStopping() {
+		let stopping = ListenStatusResponse(
+			status: "stopping",
+			session: ListenSessionInfo(
+				id: "s1",
+				startedAt: "2026-01-01T00:00:00Z",
+				sources: ListenSourceSelection(mic: true, system: false),
+			),
+			outputDir: nil,
+			message: nil,
+			error: nil,
+		)
+		#expect(stopping.isLiveCapture == false)
+		#expect(stopping.isActive == false)
+		#expect(stopping.isFinalizing == true)
+		#expect(ActiveRecordingInfo(stopping) == nil)
 	}
 
 	@Test("classifyStopResult routes missing id, errors, and ready")

@@ -53,22 +53,29 @@ In the **Recordings** inspector, playback can switch between **System**,
 
 Stopping performs these steps:
 
-1. `NativeAudioHandler` stops capture, validates source files, exports
-   `combined.m4a` (dual-mono stereo when both tracks exist), and
-   moves the temporary session into the shared recordings directory.
-2. The app calls the daemon's
+1. Toby.app immediately leaves live-capture chrome (red pulse / Stop control)
+   and shows a **processing** state (toast, toolbar, sidebar, menu bar, Dock).
+   Extra Stop / Record clicks are ignored until processing finishes so they
+   cannot start a second take.
+2. `NativeAudioHandler` stops capture, then validates source files and exports
+   `combined.m4a` (dual-mono stereo when both tracks exist) **off the main
+   actor**. Native `GET /api/native/audio/status` reports `stopping` until
+   the session is moved into the shared recordings directory.
+3. The app calls the daemon's
    `POST /api/listen/recordings/:id/transcribe` endpoint.
-3. The daemon invokes the configured transcription plugin and updates
+4. The daemon invokes the configured transcription plugin and updates
    `metadata.json` with transcript paths, or appends the failure to
    `metadata.errors`. A later successful re-transcribe clears those errors
    (and any prior AI summary).
-4. Toby.app shows a success/error toast and the result becomes available in
+5. Toby.app shows a success/error toast and the result becomes available in
    the **Recordings** window.
 
 The Recordings window fetches list and detail data from the daemon. While a
 recording is in progress, the detail pane shows live capture metadata and a
 **Stop Recording** control that uses the same stop path as the toolbar and
-menu bar. After stop, the window supports audio playback, transcript viewing,
+menu bar. After stop, while combine / transcription is still running, the
+window shows a processing card instead of the live “Recording in progress”
+pane. After processing, the window supports audio playback, transcript viewing,
 AI summarization, metadata editing, and confirmed deletion. Deletion is sent
 to `DELETE /api/listen/recordings/:id`; the SwiftUI app does not remove
 recording directories directly.
@@ -104,8 +111,9 @@ sequenceDiagram
     App-->>App: Recording...
 
     User->>App: Click Stop / Save
+    App-->>App: Processing chrome (not live recording)
     App->>App: NativeAudioHandler stop(action: save)
-    App->>App: Validate tracks, export combined.m4a
+    App->>App: Stop capture, then combine off main actor
     App->>Files: Move session to recordings dir
     App-->>App: files (source + combined)
 

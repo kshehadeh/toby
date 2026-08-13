@@ -18,6 +18,10 @@ struct RecordingsDetailView: View {
 					.frame(maxWidth: .infinity, minHeight: 240)
 			} else if let active = activeRecording, store.selectedActiveRecordingId == active.id || store.selectedRecordings.isEmpty {
 				ActiveRecordingDetailView(active: active, onStopRecording: onStopRecording)
+			} else if processingState?.isActive == true, store.selectedRecordings.isEmpty {
+				RecordingProcessingCard(processingState: processingState)
+					.padding(32)
+					.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 			} else if !store.selectedRecordings.isEmpty {
 				if store.selectedRecordings.count == 1, let detail = store.detail {
 					if isProcessingSelected {

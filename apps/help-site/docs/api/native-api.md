@@ -345,7 +345,13 @@ Used by Toby.app UI and the listen / CLI capture path. Microphone and Screen/Sys
 
 ### `GET /api/native/audio/status`
 
-Returns recording state under `data` (`idle` vs `recording`, message, options when active).
+Returns recording state under `data`:
+
+- `idle` — nothing in progress
+- `recording` — microphone / system audio is being captured
+- `stopping` — capture has stopped; combine / export is still running (long recordings)
+
+Also includes a message and session/options while `recording` or `stopping`.
 
 ### `POST /api/native/audio/start`
 
@@ -367,7 +373,12 @@ or
 { "action": "discard" }
 ```
 
-Default is save. On save, returns `id`, `outputDir`, `files` (paths), and optional `errors`. Files land under Toby’s listen storage; use the [Server API](./server-api#listen-and-recordings) to list, patch, delete, or transcribe.
+Default is save. Stop returns after capture ends **and** final audio is written
+(combine / `combined.m4a` export). That finalize step can take minutes for a
+long dual-source recording; clients should not use a short HTTP timeout.
+`GET /api/native/audio/status` reports `stopping` while finalize runs.
+
+On save, returns `id`, `outputDir`, `files` (paths), and optional `errors`. Files land under Toby’s listen storage; use the [Server API](./server-api#listen-and-recordings) to list, patch, delete, or transcribe.
 
 ### `POST /api/native/audio/combine`
 

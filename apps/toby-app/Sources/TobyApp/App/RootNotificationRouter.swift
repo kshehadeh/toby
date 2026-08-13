@@ -30,6 +30,7 @@ struct RootNotificationRouter: ViewModifier {
 	var onOpenSettings: (String?) -> Void
 	/// Mirrors recording capture state to the menu bar / dock indicator.
 	var isRecordingActive: Bool
+	var recordingChromeState: RecordingChromeState = .idle
 	var recordingProcessingStage: RecordingProcessingStage?
 	var recordingProcessingRecordingId: String?
 	var onRefreshRecordingsAfterProcessing: (String?) -> Void
@@ -142,8 +143,8 @@ struct RootNotificationRouter: ViewModifier {
 
 	private func withRecordingObservers<V: View>(_ content: V) -> some View {
 		content
-			.onChange(of: isRecordingActive) { _, active in
-				NotificationCenter.default.post(name: MenuBarController.recordingStateChanged, object: active)
+			.onChange(of: recordingChromeState) { _, state in
+				NotificationCenter.default.post(name: MenuBarController.recordingStateChanged, object: state)
 			}
 			.onChange(of: recordingProcessingStage) { _, stage in
 				handleRecordingProcessingStageChange(stage)
@@ -154,8 +155,11 @@ struct RootNotificationRouter: ViewModifier {
 		// Fallback: ensure the dock/menu bar overlay is cleared when
 		// recording processing finishes, even if isRecordingActive
 		// already transitioned without the capture onChange firing.
-		if (stage == .complete || stage == .failed), !isRecordingActive {
-			NotificationCenter.default.post(name: MenuBarController.recordingStateChanged, object: false)
+		if (stage == .complete || stage == .failed), !isRecordingActive, recordingChromeState == .idle {
+			NotificationCenter.default.post(
+				name: MenuBarController.recordingStateChanged,
+				object: RecordingChromeState.idle,
+			)
 		}
 		// Refresh Recordings globally — RecordingsView is not mounted on
 		// other routes, so its local onChange would never run.

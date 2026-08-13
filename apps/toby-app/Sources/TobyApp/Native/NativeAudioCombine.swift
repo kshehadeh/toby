@@ -34,6 +34,39 @@ enum NativeAudioCombineError: Error, CustomStringConvertible {
 	}
 }
 
+// MARK: - Background finalize
+
+/// Validated source tracks plus optional `combined.m4a`, safe to run off the main actor.
+struct NativeAudioFinalizeResult: Sendable {
+	var files: [String: String]
+	var details: [String: any Sendable]
+	var errorMessage: String?
+}
+
+/// Validate tracks and export `combined.m4a`. Intended for a detached task so
+/// long dual-source combines do not freeze SwiftUI.
+func finalizeCombinedAudio(files: [String: String], outDir: URL) async -> NativeAudioFinalizeResult {
+	let valid = await validatedAudioFiles(files)
+	do {
+		guard let combined = try await exportCombinedAudio(files: valid, outDir: outDir) else {
+			return NativeAudioFinalizeResult(files: valid, details: [:], errorMessage: nil)
+		}
+		var out = valid
+		out["combined"] = combined.path
+		return NativeAudioFinalizeResult(
+			files: out,
+			details: combined.details,
+			errorMessage: nil,
+		)
+	} catch {
+		return NativeAudioFinalizeResult(
+			files: valid,
+			details: [:],
+			errorMessage: "\(error)",
+		)
+	}
+}
+
 // MARK: - Public export
 
 /// Combines mic and/or system WAV tracks into `combined.m4a`.

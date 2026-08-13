@@ -103,6 +103,7 @@ struct RootView: View {
             onNavigateToRoute: navigateToRoute,
             onOpenSettings: { openSettings(navKey: $0) },
             isRecordingActive: store.isRecordingActive,
+            recordingChromeState: store.recordingChromeState,
             recordingProcessingStage: store.recordingProcessing?.stage,
             recordingProcessingRecordingId: store.recordingProcessing?.recordingId,
             onRefreshRecordingsAfterProcessing: { recordingId in
@@ -382,6 +383,7 @@ struct RootView: View {
                 isServerConnecting: store.isServerConnecting,
                 serverLifecycleMessage: store.serverLifecycleMessage,
                 isRecordingActive: store.isRecordingActive,
+                isRecordingProcessing: store.isRecordingProcessing,
                 updateStore: updateStore,
                 onSelectRoute: navigateToRoute,
                 isPersonaPickerPresented: $isPersonaPickerPresented,
@@ -641,6 +643,7 @@ struct RootView: View {
     private var commonToolbarModel: RootCommonToolbarModel {
         RootCommonToolbarModel(
             isRecordingActive: store.isRecordingActive,
+            isRecordingProcessing: store.isRecordingProcessing,
             isRecordButtonDisabled: store.isRecordButtonDisabled,
             canGoBack: history.canGoBack,
             canGoForward: history.canGoForward,

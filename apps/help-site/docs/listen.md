@@ -25,13 +25,19 @@ such as meetings). You can turn either source off under
 
 When you stop and save:
 
-1. Source tracks (`mic.wav` / `system.wav`) and a `combined.m4a` file are written
+1. Capture stops immediately. Long recordings then take a while to **prepare
+   final audio** (especially when both mic and system tracks were captured).
+   Toby shows a **processing** state — not the red live-recording indicator —
+   on the toolbar, sidebar, menu bar, Dock, and Recordings window. Pressing
+   Stop or Record again during this step does nothing; wait for the
+   “Processing recording” toast to finish.
+2. Source tracks (`mic.wav` / `system.wav`) and a `combined.m4a` file are written
    under the recordings folder. If both sources were captured, combined is
    **stereo dual-mono** (left = your mic, right = system audio)—not a mix that
    stacks both onto one channel (that causes echo from headphone bleed). Raw
    tracks are always kept.
-2. Toby requests transcription through the local service when a model is configured.
-3. The result appears in the **Recordings** window (playback, transcript, delete).
+3. Toby requests transcription through the local service when a model is configured.
+4. The result appears in the **Recordings** window (playback, transcript, delete).
    The player defaults to **System** (clean meeting audio) and can switch to
    **Mic** or **Both (L/R)** when available. When the transcription model
    returns timed segments, the transcript view shows **start timestamps** on

@@ -149,6 +149,34 @@ struct MenuBarControllerTests {
 		controller.setRecordingActive(false)
 		#expect(!controller.dockImageIsMarked)
 	}
+
+	@Test("processing chrome is not a live stop control")
+	func processingChromeDisablesStop() throws {
+		let controller = MenuBarController(registerStatusItem: false)
+		controller.setRecordingChrome(.processing)
+		#expect(controller.menuItemTitles.contains("Processing Recording"))
+		#expect(!controller.menuItemTitles.contains("Stop Recording"))
+		#expect(controller.menuBarImageIsMarked == true)
+		let item = try #require(controller.menu?.item(withTag: MenuBarController.recordingItemTag))
+		#expect(item.isEnabled == false)
+		#expect(item.action == nil)
+
+		controller.setRecordingChrome(.idle)
+		#expect(controller.menuItemTitles.contains("Start Recording"))
+		#expect(controller.menuBarImageIsMarked == false)
+	}
+
+	@Test("processing notification updates menu without looking like live capture")
+	func processingNotificationUpdatesTitle() throws {
+		let controller = MenuBarController(registerStatusItem: false)
+		NotificationCenter.default.post(
+			name: MenuBarController.recordingStateChanged,
+			object: RecordingChromeState.processing,
+		)
+		RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+		#expect(controller.menuItemTitles.contains("Processing Recording"))
+		controller.setRecordingChrome(.idle)
+	}
 }
 
 @MainActor

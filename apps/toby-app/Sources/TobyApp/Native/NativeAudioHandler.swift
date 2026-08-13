@@ -12,6 +12,9 @@ final class NativeAudioHandler {
 	private var files: [String: String] = [:]
 	private var lastCombineDetails: [String: any Sendable] = [:]
 	private var helperVersion = "native-app"
+	/// True while capture has stopped and combine / save is still running.
+	private var isFinalizing = false
+	private var finalizingOptions: NativeRecordOptions?
 
 	private init() {}
 
@@ -26,12 +29,25 @@ final class NativeAudioHandler {
 				),
 			])
 		}
+		if isFinalizing, let options = finalizingOptions {
+			return json([
+				"ok": true,
+				"data": statePayload(
+					status: "stopping",
+					options: options,
+					message: "Generating final audio.",
+				),
+			])
+		}
 		return json(["ok": true, "data": statePayload(message: "Ready to record audio.")])
 	}
 
 	func start(body: Data?) async -> Data {
 		guard session == nil else {
 			return json(["ok": false, "error": "Already recording."])
+		}
+		guard !isFinalizing else {
+			return json(["ok": false, "error": "Still finishing the previous recording."])
 		}
 		do {
 			let sources = parseSources(body: body)
@@ -56,12 +72,20 @@ final class NativeAudioHandler {
 
 	func stop(body: Data?) async -> Data {
 		guard let session else {
+			if isFinalizing {
+				return json(["ok": false, "error": "Still finishing the previous recording."])
+			}
 			return json(["ok": false, "error": "No active recording."])
 		}
 		let discard = parseDiscard(body: body)
 		self.session = nil
+		isFinalizing = true
+		finalizingOptions = session.options
+		defer {
+			isFinalizing = false
+			finalizingOptions = nil
+		}
 		await session.stop()
-		files = await validatedAudioFiles(files)
 
 		if discard {
 			try? FileManager.default.removeItem(at: session.options.tempDir)
@@ -69,51 +93,31 @@ final class NativeAudioHandler {
 			return json(["ok": true, "data": ["status": "idle", "message": "Recording discarded."]])
 		}
 
+		let snapshotFiles = files
+		let tempDir = session.options.tempDir
+		let finalized = await Task.detached(priority: .userInitiated) {
+			await finalizeCombinedAudio(files: snapshotFiles, outDir: tempDir)
+		}.value
+		files = finalized.files
+		lastCombineDetails = finalized.details
+
+		if let errorMessage = finalized.errorMessage {
+			return savedRecordingPayload(
+				session: session,
+				extraErrors: [errorMessage],
+				combineDetails: [:],
+			)
+		}
+
 		do {
-			lastCombineDetails = [:]
-			if let combined = try await exportCombinedAudio(files: files, outDir: session.options.tempDir) {
-				files["combined"] = combined.path
-				lastCombineDetails = combined.details
-			}
 			let finalDir = try save(session: session, files: files, combineDetails: lastCombineDetails)
-			var payload: [String: Any] = [
-				"status": "idle",
-				"message": "Recording saved.",
-				"id": session.options.id,
-				"outputDir": finalDir.path,
-				"files": remapFiles(files, from: session.options.tempDir, to: finalDir),
-			]
-			if !session.errors.isEmpty {
-				payload["errors"] = session.errors
-			}
-			if !lastCombineDetails.isEmpty {
-				payload["combine"] = sendableDictionaryToJSON(lastCombineDetails)
-			}
-			files = [:]
-			lastCombineDetails = [:]
-			return json(["ok": true, "data": payload])
+			return successPayload(session: session, finalDir: finalDir, extraErrors: [])
 		} catch {
-			// Combined audio export failed, but individual mic/system files
-			// may still be valid. Save the recording with whatever files exist
-			// so it is not lost. The error is recorded in metadata.
-			let allErrors = session.errors + ["\(error)"]
-			files.removeValue(forKey: "combined")
-			if let finalDir = try? save(session: session, files: files, extraErrors: allErrors) {
-				var payload: [String: Any] = [
-					"status": "idle",
-					"message": "Recording saved.",
-					"id": session.options.id,
-					"outputDir": finalDir.path,
-					"files": remapFiles(files, from: session.options.tempDir, to: finalDir),
-				]
-				payload["errors"] = allErrors
-				files = [:]
-				lastCombineDetails = [:]
-				return json(["ok": true, "data": payload])
-			}
-			files = [:]
-			lastCombineDetails = [:]
-			return json(["ok": false, "error": "\(error)"])
+			return savedRecordingPayload(
+				session: session,
+				extraErrors: ["\(error)"],
+				combineDetails: lastCombineDetails,
+			)
 		}
 	}
 
@@ -129,7 +133,11 @@ final class NativeAudioHandler {
 		if let mic = raw["mic"] as? String { files["mic"] = mic }
 		if let system = raw["system"] as? String { files["system"] = system }
 		do {
-			guard let combined = try await exportCombinedAudio(files: files, outDir: outDir) else {
+			let snapshot = files
+			let combined = try await Task.detached(priority: .userInitiated) {
+				try await exportCombinedAudio(files: snapshot, outDir: outDir)
+			}.value
+			guard let combined else {
 				return json(["ok": false, "error": "No usable audio tracks to combine."])
 			}
 			return json([
@@ -192,6 +200,60 @@ final class NativeAudioHandler {
 				system: sources.system,
 			),
 		)
+	}
+
+	private func savedRecordingPayload(
+		session: NativeRecordingSession,
+		extraErrors: [String],
+		combineDetails: [String: any Sendable],
+	) -> Data {
+		files.removeValue(forKey: "combined")
+		let allErrors = session.errors + extraErrors
+		if let finalDir = try? save(
+			session: session,
+			files: files,
+			extraErrors: allErrors,
+			combineDetails: combineDetails,
+		) {
+			var payload: [String: Any] = [
+				"status": "idle",
+				"message": "Recording saved.",
+				"id": session.options.id,
+				"outputDir": finalDir.path,
+				"files": remapFiles(files, from: session.options.tempDir, to: finalDir),
+			]
+			payload["errors"] = allErrors
+			files = [:]
+			lastCombineDetails = [:]
+			return json(["ok": true, "data": payload])
+		}
+		files = [:]
+		lastCombineDetails = [:]
+		return json(["ok": false, "error": extraErrors.first ?? "Could not save recording."])
+	}
+
+	private func successPayload(
+		session: NativeRecordingSession,
+		finalDir: URL,
+		extraErrors: [String],
+	) -> Data {
+		var payload: [String: Any] = [
+			"status": "idle",
+			"message": "Recording saved.",
+			"id": session.options.id,
+			"outputDir": finalDir.path,
+			"files": remapFiles(files, from: session.options.tempDir, to: finalDir),
+		]
+		let allErrors = session.errors + extraErrors
+		if !allErrors.isEmpty {
+			payload["errors"] = allErrors
+		}
+		if !lastCombineDetails.isEmpty {
+			payload["combine"] = sendableDictionaryToJSON(lastCombineDetails)
+		}
+		files = [:]
+		lastCombineDetails = [:]
+		return json(["ok": true, "data": payload])
 	}
 
 	private func save(

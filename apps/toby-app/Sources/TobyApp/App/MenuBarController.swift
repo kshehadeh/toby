@@ -7,7 +7,7 @@ import SwiftUI
 final class MenuBarController: NSObject {
 	private var statusItem: NSStatusItem?
 	private(set) var menu: NSMenu?
-	private var isRecordingActive = false
+	private var recordingChrome: RecordingChromeState = .idle
 	private var baseMenuImage: NSImage?
 	private var originalDockImage: NSImage?
 	private var appliedDockIndicatorImage: NSImage?
@@ -292,7 +292,11 @@ final class MenuBarController: NSObject {
 	// MARK: - Recording state
 
 	private var recordingItemTitle: String {
-		isRecordingActive ? "Stop Recording" : "Start Recording"
+		switch recordingChrome {
+		case .idle: "Start Recording"
+		case .recording: "Stop Recording"
+		case .processing: "Processing Recording"
+		}
 	}
 
 	private func observeRecordingState() {
@@ -305,8 +309,10 @@ final class MenuBarController: NSObject {
 	}
 
 	@objc private func handleRecordingStateChanged(_ notification: Notification) {
-		if let active = notification.object as? Bool {
-			isRecordingActive = active
+		if let state = notification.object as? RecordingChromeState {
+			recordingChrome = state
+		} else if let active = notification.object as? Bool {
+			recordingChrome = active ? .recording : .idle
 		}
 		updateRecordingUI()
 	}
@@ -319,13 +325,19 @@ final class MenuBarController: NSObject {
 
 	private func updateMenuBarIcon() {
 		guard statusItem != nil else {
-			testMenuBarImageIsMarked = isRecordingActive
+			testMenuBarImageIsMarked = recordingChrome != .idle
 			return
 		}
 		guard let base = baseMenuImage else { return }
-		let image = isRecordingActive
-			? Self.imageWithRecordingIndicator(base)
-			: base
+		let image: NSImage
+		switch recordingChrome {
+		case .idle:
+			image = base
+		case .recording:
+			image = Self.imageWithRecordingIndicator(base, color: .systemRed)
+		case .processing:
+			image = Self.imageWithRecordingIndicator(base, color: .systemOrange)
+		}
 		image.size = NSSize(width: 22, height: 22)
 		statusItem?.button?.image = image
 	}
@@ -333,7 +345,10 @@ final class MenuBarController: NSObject {
 	private func updateDockIcon() {
 		// Dock indicator should work even when the menu bar icon is hidden.
 		guard managesAppChrome else { return }
-		if isRecordingActive {
+		switch recordingChrome {
+		case .idle:
+			restoreDockIcon()
+		case .recording, .processing:
 			if originalDockImage == nil {
 				let current = NSApp.applicationIconImage
 				if current?.name() != Self.recordingDockImageName {
@@ -341,12 +356,11 @@ final class MenuBarController: NSObject {
 				}
 			}
 			let base = originalDockImage ?? Self.cleanDockFallbackImage() ?? baseMenuImage ?? NSImage()
-			let image = Self.imageWithRecordingIndicator(base, dotFraction: 0.4)
+			let color: NSColor = recordingChrome == .recording ? .systemRed : .systemOrange
+			let image = Self.imageWithRecordingIndicator(base, color: color, dotFraction: 0.4)
 			image.setName(Self.recordingDockImageName)
 			appliedDockIndicatorImage = image
 			NSApp.applicationIconImage = image
-		} else {
-			restoreDockIcon()
 		}
 	}
 
@@ -377,8 +391,12 @@ final class MenuBarController: NSObject {
 		return image
 	}
 
-	/// Composites a small red circle indicator at the bottom-right of `image`.
-	private static func imageWithRecordingIndicator(_ image: NSImage, dotFraction: CGFloat = 0.45) -> NSImage {
+	/// Composites a status-color circle at the bottom-right of `image`.
+	private static func imageWithRecordingIndicator(
+		_ image: NSImage,
+		color: NSColor = .systemRed,
+		dotFraction: CGFloat = 0.45,
+	) -> NSImage {
 		let result = image.copy() as! NSImage
 		result.lockFocus()
 		let size = result.size
@@ -389,7 +407,7 @@ final class MenuBarController: NSObject {
 			width: radius * 1.2,
 			height: radius * 1.2
 		)
-		NSColor.systemRed.setFill()
+		color.setFill()
 		NSBezierPath(ovalIn: dotRect).fill()
 		NSColor.white.withAlphaComponent(0.9).setStroke()
 		let border = NSBezierPath(ovalIn: dotRect.insetBy(dx: -1, dy: -1))
@@ -403,6 +421,13 @@ final class MenuBarController: NSObject {
 		guard let menu else { return }
 		guard let item = menu.item(withTag: Self.recordingItemTag) else { return }
 		item.title = recordingItemTitle
+		item.isEnabled = recordingChrome != .processing
+		item.action = recordingChrome == .processing ? nil : #selector(toggleRecording)
+		let symbol = switch recordingChrome {
+		case .idle, .recording: "record.circle"
+		case .processing: "hourglass"
+		}
+		item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
 	}
 
 	// MARK: - Internal (for testing)
@@ -417,7 +442,12 @@ final class MenuBarController: NSObject {
 
 	/// Updates recording state (for testing).
 	func setRecordingActive(_ active: Bool) {
-		isRecordingActive = active
+		recordingChrome = active ? .recording : .idle
+		updateRecordingUI()
+	}
+
+	func setRecordingChrome(_ state: RecordingChromeState) {
+		recordingChrome = state
 		updateRecordingUI()
 	}
 

@@ -6,6 +6,14 @@ enum AppToastStyle {
 	case progress
 }
 
+/// Global recording chrome (toolbar, sidebar, menu bar, Dock).
+/// Live capture is distinct from post-stop finalize / transcription.
+enum RecordingChromeState: String, Equatable {
+	case idle
+	case recording
+	case processing
+}
+
 enum RecordingProcessingStage: Equatable {
 	case generatingAudio
 	case preparingTranscription
@@ -736,9 +744,19 @@ struct ListenStatusResponse: Decodable {
 	let message: String?
 	let error: String?
 
+	/// Microphone / system audio is being captured right now.
+	var isLiveCapture: Bool {
+		status == "starting" || status == "recording"
+	}
+
+	/// Capture has stopped; native finalize (combine / export) is still running.
+	var isFinalizing: Bool {
+		status == "stopping"
+	}
+
+	/// Live capture only. Post-stop finalize must not keep the red recording chrome.
 	var isActive: Bool {
-		status == "starting" || status == "recording" || status == "stopping"
-			|| (status == "error" && session != nil)
+		isLiveCapture
 	}
 }
 

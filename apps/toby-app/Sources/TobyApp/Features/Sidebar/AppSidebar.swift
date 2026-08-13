@@ -29,6 +29,7 @@ struct AppSidebar<Content: View>: View {
 	var isServerConnecting: Bool = false
 	var serverLifecycleMessage: String? = nil
 	var isRecordingActive: Bool = false
+	var isRecordingProcessing: Bool = false
 	let updateStore: UpdateStore?
 	let onSelectRoute: (DetailRoute) -> Void
 	@Binding var isPersonaPickerPresented: Bool
@@ -128,6 +129,7 @@ struct AppSidebar<Content: View>: View {
 				isServerConnecting: isServerConnecting,
 				serverLifecycleMessage: serverLifecycleMessage,
 				isRecordingActive: isRecordingActive,
+				isRecordingProcessing: isRecordingProcessing,
 				updateStore: updateStore,
 				onCheckForUpdates: onCheckForUpdates,
 				onRestartServer: onRestartServer

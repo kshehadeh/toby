@@ -154,7 +154,8 @@ does not start on every reboot.
 **Show menu bar icon** — Show Toby’s icon in the menu bar for quick access to
 chat, recording, and windows. On by default. You can always open Toby from the
 Dock or Applications when the icon is hidden; the Dock recording indicator still
-updates while a recording is active.
+updates while a recording is active or while a just-stopped recording is still
+being prepared (amber processing indicator, not the live red recording dot).
 
 **Chat mode** — How much pipeline detail appears in the chat transcript:
 

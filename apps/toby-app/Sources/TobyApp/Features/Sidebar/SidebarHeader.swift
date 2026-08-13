@@ -8,6 +8,7 @@ struct SidebarHeader: View {
 	var isServerConnecting: Bool = false
 	var serverLifecycleMessage: String? = nil
 	var isRecordingActive: Bool = false
+	var isRecordingProcessing: Bool = false
 	let updateStore: UpdateStore?
 	let onCheckForUpdates: () -> Void
 	let onRestartServer: () -> Void
@@ -45,6 +46,10 @@ struct SidebarHeader: View {
 								ActivePulseIcon(color: .red, isProminent: true)
 									.accessibilityIdentifier("sidebar-recording-indicator")
 									.accessibilityLabel("Recording in progress")
+							} else if isRecordingProcessing {
+								ActivePulseIcon(color: .orange, isProminent: true)
+									.accessibilityIdentifier("sidebar-recording-processing-indicator")
+									.accessibilityLabel("Processing recording")
 							}
 						}
 						if let version = status?.version {
@@ -89,11 +94,7 @@ struct SidebarHeader: View {
 			}
 			.buttonStyle(.plain)
 			.disabled(updateStore?.isUpgrading == true)
-			.accessibilityLabel(
-				isRecordingActive
-					? "Toby version \(status?.version ?? ""), recording in progress"
-					: "Toby version \(status?.version ?? "")"
-			)
+			.accessibilityLabel(headerAccessibilityLabel)
 			.accessibilityHint("Check for updates")
 			Spacer(minLength: 0)
 			ServerStatusButton(
@@ -107,5 +108,16 @@ struct SidebarHeader: View {
 		}
 		.padding(.horizontal, 8)
 		.padding(.bottom, 14)
+	}
+
+	private var headerAccessibilityLabel: String {
+		let version = status?.version ?? ""
+		if isRecordingActive {
+			return "Toby version \(version), recording in progress"
+		}
+		if isRecordingProcessing {
+			return "Toby version \(version), processing recording"
+		}
+		return "Toby version \(version)"
 	}
 }

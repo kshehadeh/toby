@@ -536,6 +536,32 @@ struct AppSidebarTests {
         try #require(tobyButton != nil, "Toby header button should mention recording")
     }
 
+    @Test("sidebar header shows processing indicator after stop")
+    func sidebarHeaderShowsProcessingIndicator() throws {
+        let header = SidebarHeader(
+            status: nil,
+            daemonStatus: nil,
+            isServerRestarting: false,
+            isRecordingActive: false,
+            isRecordingProcessing: true,
+            updateStore: nil,
+            onCheckForUpdates: {},
+            onRestartServer: {}
+        )
+        #expect(throws: (any Error).self) {
+            try header.inspect().find(viewWithAccessibilityIdentifier: "sidebar-recording-indicator")
+        }
+        #expect(throws: Never.self) {
+            try header.inspect().find(viewWithAccessibilityIdentifier: "sidebar-recording-processing-indicator")
+        }
+        let buttons = try header.inspect().findAll(ViewType.Button.self)
+        let tobyButton = try buttons.first { btn in
+            let label = try? btn.accessibilityLabel().string()
+            return label?.contains("processing recording") == true
+        }
+        try #require(tobyButton != nil, "Toby header button should mention processing")
+    }
+
     @Test("app sidebar passes recording state into header")
     func appSidebarShowsRecordingIndicatorWhenActive() throws {
         let sidebar = AppSidebar(

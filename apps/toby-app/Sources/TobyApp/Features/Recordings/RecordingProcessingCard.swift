@@ -22,6 +22,10 @@ struct RecordingProcessingCard: View {
 				.padding(.horizontal, SettingsDesign.rowHorizontalPadding)
 				.padding(.vertical, SettingsDesign.rowVerticalPadding)
 			}
+			.accessibilityIdentifier("recording-processing-card")
+			.accessibilityElement(children: .contain)
+			.accessibilityLabel("Processing recording")
+			.accessibilityValue(state.message ?? state.stage.label)
 		}
 	}
 }

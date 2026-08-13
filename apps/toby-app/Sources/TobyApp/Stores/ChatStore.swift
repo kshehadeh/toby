@@ -71,11 +71,21 @@ final class ChatStore {
 	}
 
 	var isRecordingActive: Bool {
-		listenStatus?.isActive == true
+		listenStatus?.isLiveCapture == true
+	}
+
+	var isRecordingProcessing: Bool {
+		recordingProcessing?.isActive == true || listenStatus?.isFinalizing == true
+	}
+
+	var recordingChromeState: RecordingChromeState {
+		if isRecordingActive { return .recording }
+		if isRecordingProcessing { return .processing }
+		return .idle
 	}
 
 	var isRecordButtonDisabled: Bool {
-		status == nil || isListenRequestInFlight
+		status == nil || isListenRequestInFlight || isRecordingProcessing
 	}
 
 	var attachmentCapability: ChatAttachmentCapability? {
@@ -132,7 +142,9 @@ final class ChatStore {
 			activityLine = "Connecting…"
 			serverLifecycleMessage = "Connecting…"
 			status = try await client.fetchStatus()
-			listenStatus = try? await nativeAudioClient.status()
+			if let native = try? await nativeAudioClient.status() {
+				applyRefreshedListenStatus(native)
+			}
 			await refreshDaemonStatus()
 			await refreshSessions()
 			await startNewSession()
@@ -162,7 +174,9 @@ final class ChatStore {
 	func refreshStatus() async {
 		do {
 			status = try await client.fetchStatus()
-			listenStatus = try? await nativeAudioClient.status()
+			if let native = try? await nativeAudioClient.status() {
+				applyRefreshedListenStatus(native)
+			}
 		} catch {
 			showErrorToast(error.localizedDescription)
 		}
@@ -209,7 +223,9 @@ final class ChatStore {
 				}
 			}
 			status = try await client.fetchStatus()
-			listenStatus = try? await nativeAudioClient.status()
+			if let native = try? await nativeAudioClient.status() {
+				applyRefreshedListenStatus(native)
+			}
 			isServerRestarting = false
 			serverLifecycleMessage = nil
 			await refreshDaemonStatus()
@@ -328,7 +344,9 @@ final class ChatStore {
 				}
 			}
 			status = try await client.fetchStatus()
-			listenStatus = try? await nativeAudioClient.status()
+			if let native = try? await nativeAudioClient.status() {
+				applyRefreshedListenStatus(native)
+			}
 			await refreshDaemonStatus()
 			await refreshSessions()
 			await startNewSession()
@@ -446,6 +464,10 @@ final class ChatStore {
 		guard !isListenRequestInFlight else { return }
 		if isRecordingActive {
 			await stopActiveRecording()
+		} else if isRecordingProcessing {
+			// Extra Stop / Record clicks while finalize or transcription runs
+			// must not start a new take.
+			return
 		} else {
 			await startRecording()
 		}
@@ -454,6 +476,21 @@ final class ChatStore {
 	func stopActiveRecording() async {
 		guard !isListenRequestInFlight, isRecordingActive else { return }
 		await stopRecording()
+	}
+
+	/// Ignore a lagging "still recording" native snapshot while stop / finalize
+	/// is already in flight so chrome cannot flip back to live capture.
+	private func applyRefreshedListenStatus(_ native: ListenStatusResponse) {
+		if (isListenRequestInFlight || recordingProcessing?.isActive == true), native.isLiveCapture {
+			return
+		}
+		listenStatus = native
+		if native.isFinalizing, recordingProcessing?.isActive != true {
+			recordingProcessing = RecordingProcessingState(
+				recordingId: native.session?.id,
+				stage: .generatingAudio,
+			)
+		}
 	}
 
 	// MARK: - Recording UI bridge
@@ -625,14 +662,17 @@ final class ChatStore {
 		defer { isListenRequestInFlight = false }
 
 		var ui = recordingUIState()
-		// Clear live-capture status immediately so UI (long-recording prompt,
+		// Drop live-capture chrome immediately so UI (long-recording prompt,
 		// active sidebar row, record button) does not treat async stop /
 		// combine / transcription as "still recording".
 		ChatRecordingController.applyStoppingCapture(
-			preservingOutputDir: listenStatus?.outputDir,
+			current: listenStatus,
 			into: &ui,
 		)
 		applyRecordingUIState(ui)
+		// Let SwiftUI paint processing chrome before native stop hops back
+		// onto the main actor for recorder teardown.
+		await Task.yield()
 
 		do {
 			let result = try await nativeAudioClient.stop()

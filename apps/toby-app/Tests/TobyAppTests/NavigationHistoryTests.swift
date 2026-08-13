@@ -153,6 +153,20 @@ struct NavigationHistoryTests {
 		#expect(inspected.isDisabled())
 	}
 
+	@Test("recording toolbar button reflects processing state")
+	@MainActor
+	func recordingToolbarButtonReflectsProcessing() throws {
+		let button = RecordingToolbarButton(
+			isRecordingActive: false,
+			isRecordingProcessing: true,
+			isRecordButtonDisabled: false,
+			onToggleRecording: {}
+		)
+		let inspected = try button.inspect().button()
+		#expect(try inspected.accessibilityLabel().string() == "Processing recording")
+		#expect(inspected.isDisabled())
+	}
+
 	@Test("search toolbar button calls callback")
 	@MainActor
 	func searchToolbarButtonCallsCallback() throws {

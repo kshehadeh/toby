@@ -44,6 +44,9 @@ struct NativeAudioClient {
 			method: "POST",
 			body: ["action": "save"],
 			as: NativeAudioStopResponse.self,
+			// Combine + m4a export for a long dual-source take can exceed minutes.
+			// 0 means the request does not time out.
+			timeout: 0,
 		)
 	}
 
@@ -52,6 +55,7 @@ struct NativeAudioClient {
 		method: String,
 		body: [String: Any]?,
 		as type: T.Type,
+		timeout: TimeInterval = 120,
 	) async throws -> T {
 		guard let port = resolveNativePort(),
 			let url = URL(string: "http://127.0.0.1:\(port)/api/native/\(endpoint)")
@@ -60,7 +64,7 @@ struct NativeAudioClient {
 		}
 		var request = URLRequest(url: url)
 		request.httpMethod = method
-		request.timeoutInterval = 120
+		request.timeoutInterval = timeout
 		if let body {
 			request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 			request.httpBody = try JSONSerialization.data(withJSONObject: body)

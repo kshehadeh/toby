@@ -157,6 +157,26 @@ struct RecordingsViewTests {
 		}
 	}
 
+	@Test("detail view shows processing card when finalize has no saved recording yet")
+	func detailViewShowsProcessingCardWithoutSavedRecording() throws {
+		let store = RecordingsStore()
+		let processing = RecordingProcessingState(
+			recordingId: "live-1",
+			stage: .generatingAudio,
+			message: "Generating final audio…"
+		)
+		let view = RecordingsView(store: store, processingState: processing)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "recording-processing-card")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Generating final audio…")
+		}
+		#expect(throws: Error.self) {
+			try view.inspect().find(text: "Recording in progress")
+		}
+	}
+
 	@Test("detail view shows processing card when selected recording is processing")
 	func detailViewShowsProcessingCard() throws {
 		let store = RecordingsStore()

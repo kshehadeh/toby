@@ -258,9 +258,9 @@ The native server listens on a random localhost port written to `~/.toby/native-
 | `POST` | `/api/native/macos/minimize-app` | Minimize app windows (Accessibility) |
 | `POST` | `/api/native/macos/unminimize-app` | Unminimize app windows (Accessibility) |
 | `GET` | `/api/native/macos/accessibility-status` | Check if Accessibility is granted |
-| `GET` | `/api/native/audio/status` | Check active native audio recording state |
+| `GET` | `/api/native/audio/status` | Check native audio state (`idle`, `recording`, or `stopping` while combine/export runs) |
 | `POST` | `/api/native/audio/start` | Start native microphone/system audio capture |
-| `POST` | `/api/native/audio/stop` | Stop native audio capture and save recording files |
+| `POST` | `/api/native/audio/stop` | Stop capture, then finalize (combine/export off the main actor) and save |
 | `POST` | `/api/native/audio/combine` | Combine existing mic/system WAV files into `combined.m4a` |
 
 ### Plugin integration

@@ -73,19 +73,22 @@ enum ChatRecordingController {
 
 	// MARK: - Stop
 
-	/// Immediate UI when the user hits stop — clear live capture before native stop returns.
+	/// Immediate UI when the user hits stop — drop live-capture chrome before native stop returns.
 	static func applyStoppingCapture(
-		preservingOutputDir: String?,
+		current: ListenStatusResponse?,
 		into state: inout ChatRecordingUIState,
 	) {
 		state.listenStatus = ListenStatusResponse(
-			status: "idle",
-			session: nil,
-			outputDir: preservingOutputDir,
-			message: "Stopping…",
+			status: "stopping",
+			session: current?.session,
+			outputDir: current?.outputDir,
+			message: "Generating final audio…",
 			error: nil,
 		)
-		state.recordingProcessing = RecordingProcessingState(stage: .generatingAudio)
+		state.recordingProcessing = RecordingProcessingState(
+			recordingId: current?.session?.id,
+			stage: .generatingAudio,
+		)
 		state.toast = state.recordingProcessing?.toastState()
 		state.activityLine = "Generating final audio…"
 	}
@@ -190,6 +193,17 @@ enum ChatRecordingController {
 		into state: inout ChatRecordingUIState,
 	) {
 		state.toast = recordingFailedToast(message: message)
+		if let status, status.isFinalizing {
+			state.listenStatus = status
+			if state.recordingProcessing?.isActive != true {
+				state.recordingProcessing = RecordingProcessingState(
+					recordingId: status.session?.id,
+					stage: .generatingAudio,
+				)
+			}
+			state.activityLine = "Generating final audio…"
+			return
+		}
 		state.activityLine = "Error"
 		state.listenStatus = status
 		state.recordingProcessing = nil

@@ -142,6 +142,13 @@ final class MockNativeAudioClient: NativeAudioClientable {
 	var startCalls = 0
 	var stopCalls = 0
 	var statusCalls = 0
+	var waitForStop = false
+	var stopGate: CheckedContinuation<Void, Never>?
+
+	func resumeStop() {
+		stopGate?.resume()
+		stopGate = nil
+	}
 
 	func status() async throws -> ListenStatusResponse {
 		statusCalls += 1
@@ -159,6 +166,11 @@ final class MockNativeAudioClient: NativeAudioClientable {
 
 	func stop() async throws -> NativeAudioStopResponse {
 		stopCalls += 1
+		if waitForStop {
+			await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+				stopGate = continuation
+			}
+		}
 		if let error { throw error }
 		guard let stopResponse else { throw NativeAudioClientError.unavailable }
 		return stopResponse

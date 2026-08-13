@@ -109,17 +109,36 @@ struct SettingsToolbarButton: View {
 
 struct RecordingToolbarButton: View {
 	let isRecordingActive: Bool
+	var isRecordingProcessing: Bool = false
 	let isRecordButtonDisabled: Bool
 	let onToggleRecording: () -> Void
 
+	private var label: String {
+		if isRecordingProcessing { return "Processing recording" }
+		if isRecordingActive { return "Stop Recording" }
+		return "Record Audio"
+	}
+
 	var body: some View {
 		Button(action: onToggleRecording) {
-			Image(systemName: isRecordingActive ? "stop.circle" : "record.circle")
-				.foregroundStyle(isRecordingActive ? .red : .primary)
+			Image(systemName: iconName)
+				.foregroundStyle(iconColor)
 		}
-		.help(isRecordingActive ? "Stop Recording" : "Record Audio")
-		.accessibilityLabel(isRecordingActive ? "Stop Recording" : "Record Audio")
+		.help(label)
+		.accessibilityLabel(label)
 		.accessibilityIdentifier("toolbar-record-button")
-		.disabled(isRecordButtonDisabled)
+		.disabled(isRecordButtonDisabled || isRecordingProcessing)
+	}
+
+	private var iconName: String {
+		if isRecordingProcessing { return "hourglass" }
+		if isRecordingActive { return "stop.circle" }
+		return "record.circle"
+	}
+
+	private var iconColor: Color {
+		if isRecordingProcessing { return .orange }
+		if isRecordingActive { return .red }
+		return .primary
 	}
 }

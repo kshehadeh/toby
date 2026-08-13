@@ -503,4 +503,101 @@ struct ChatStoreTests {
         #expect(store.isRecordingActive == true)
         #expect(store.activityLine == "Recording audio")
     }
+
+    @Test("stop recording flips chrome to processing before native stop returns")
+    func stopRecordingShowsProcessingBeforeNativeStopReturns() async {
+        let chat = MockChatClient()
+        chat.status = AppStatus(
+            version: "1.0",
+            persona: "Toby",
+            model: "m",
+            hasConfiguredAIProvider: true,
+            tobyDir: nil,
+            contextWindow: nil,
+            personaImageUrl: nil,
+            connectedIntegrations: nil,
+            personaCount: nil,
+            skillCount: nil,
+            skills: nil,
+            transcription: nil,
+        )
+        let audio = MockNativeAudioClient()
+        audio.waitForStop = true
+        audio.stopResponse = NativeAudioStopResponse(
+            status: "idle",
+            message: "saved",
+            id: "live-1",
+            outputDir: "/tmp/live",
+            files: nil,
+            errors: nil,
+        )
+        let store = ChatStore(client: chat, nativeAudioClient: audio)
+        store.status = chat.status
+        store.listenStatus = ListenStatusResponse(
+            status: "recording",
+            session: ListenSessionInfo(
+                id: "live-1",
+                startedAt: "2026-01-01T00:00:00Z",
+                sources: ListenSourceSelection(mic: true, system: false),
+            ),
+            outputDir: "/tmp/live",
+            message: nil,
+            error: nil,
+        )
+
+        let task = Task { await store.toggleRecording() }
+        for _ in 0 ..< 100 where audio.stopCalls == 0 {
+            await Task.yield()
+        }
+        #expect(audio.stopCalls == 1)
+        #expect(store.isRecordingActive == false)
+        #expect(store.isRecordingProcessing == true)
+        #expect(store.recordingChromeState == .processing)
+        #expect(store.recordingProcessing?.stage == .generatingAudio)
+        #expect(store.isRecordButtonDisabled)
+
+        await store.toggleRecording()
+        #expect(audio.startCalls == 0)
+        #expect(audio.stopCalls == 1)
+
+        audio.resumeStop()
+        await task.value
+    }
+
+    @Test("toggleRecording does not start while processing")
+    func toggleRecordingIgnoresStartWhileProcessing() async {
+        let chat = MockChatClient()
+        chat.status = AppStatus(
+            version: "1.0",
+            persona: "Toby",
+            model: "m",
+            hasConfiguredAIProvider: true,
+            tobyDir: nil,
+            contextWindow: nil,
+            personaImageUrl: nil,
+            connectedIntegrations: nil,
+            personaCount: nil,
+            skillCount: nil,
+            skills: nil,
+            transcription: nil,
+        )
+        let audio = MockNativeAudioClient()
+        audio.startResponse = ListenStatusResponse(
+            status: "recording",
+            session: ListenSessionInfo(
+                id: "live-2",
+                startedAt: "2026-01-01T00:00:00Z",
+                sources: ListenSourceSelection(mic: true, system: false),
+            ),
+            outputDir: "/tmp/live",
+            message: nil,
+            error: nil,
+        )
+        let store = ChatStore(client: chat, nativeAudioClient: audio)
+        store.status = chat.status
+        store.recordingProcessing = RecordingProcessingState(stage: .generatingAudio)
+        await store.toggleRecording()
+        #expect(audio.startCalls == 0)
+        #expect(store.recordingChromeState == .processing)
+    }
 }

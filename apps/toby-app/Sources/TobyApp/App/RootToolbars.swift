@@ -4,6 +4,7 @@ import SwiftUI
 @MainActor
 struct RootCommonToolbarModel {
 	var isRecordingActive: Bool
+	var isRecordingProcessing: Bool = false
 	var isRecordButtonDisabled: Bool
 	var canGoBack: Bool
 	var canGoForward: Bool
@@ -91,6 +92,7 @@ enum RootToolbars {
 		ToolbarItem(placement: .navigation) {
 			RecordingToolbarButton(
 				isRecordingActive: model.isRecordingActive,
+				isRecordingProcessing: model.isRecordingProcessing,
 				isRecordButtonDisabled: model.isRecordButtonDisabled,
 				onToggleRecording: model.onToggleRecording,
 			)
