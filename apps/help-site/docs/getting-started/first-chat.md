@@ -11,6 +11,8 @@ After you [set up AI](./setup-ai) and [connect at least one integration](./confi
 
 Click **Chat** in the sidebar, then click the **+** button in the chat toolbar to start a new session. You will see an empty conversation with a prompt input at the bottom.
 
+The **+** control is also a menu. Click the chevron to start a chat with a specific persona: **Chat with Default Persona**, **Chat with Toby**, **Chat with Mailman**, and any custom personas you have created. Choosing a named persona pins that persona on the new session; **Chat with Default Persona** (and a plain click on **+**) follows your current default.
+
 ![Toby.app new chat session](/img/toby-app-chat-empty.png)
 
 ## Send a message
@@ -23,7 +25,7 @@ Toby can also answer questions about its own setup. Try prompts like "Which inte
 
 ## Switch personas
 
-Use the persona picker in the chat toolbar to switch personas without leaving the conversation. See [Personas](../personas) for details.
+Use the **+** menu in the chat toolbar to start a new session with a chosen persona. To change the default used by **Chat with Default Persona**, use the persona picker in the sidebar footer. See [Personas](../personas) for details.
 
 ## Record audio into chat
 

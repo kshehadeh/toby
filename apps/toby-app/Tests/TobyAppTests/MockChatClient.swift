@@ -9,6 +9,7 @@ final class MockChatClient: ChatClientable {
 	var status: AppStatus?
 	var daemonStatus: DaemonStatus?
 	var sessions: [SessionSummary] = []
+	var personas: [PersonaOption] = []
 	var sessionDetails: [String: SessionDetail] = [:]
 	var createSessionResponse: CreateSessionResponse?
 	var createIssueResponse: CreateIssueResponse?
@@ -21,6 +22,7 @@ final class MockChatClient: ChatClientable {
 	var cancelTurnCalls: [(sessionId: String, turnId: String)] = []
 	var streamTurnCalls = 0
 	var createSessionCalls = 0
+	var lastCreateSessionPersona: String?
 	var restartDaemonCalls = 0
 	var fetchStatusCalls = 0
 
@@ -53,6 +55,11 @@ final class MockChatClient: ChatClientable {
 		return sessions
 	}
 
+	func listPersonas() async throws -> [PersonaOption] {
+		if let error { throw error }
+		return personas
+	}
+
 	func fetchSession(id: String) async throws -> SessionDetail {
 		fetchSessionIds.append(id)
 		if let error { throw error }
@@ -60,8 +67,9 @@ final class MockChatClient: ChatClientable {
 		return detail
 	}
 
-	func createSession() async throws -> CreateSessionResponse {
+	func createSession(persona: String?) async throws -> CreateSessionResponse {
 		createSessionCalls += 1
+		lastCreateSessionPersona = persona
 		if let error { throw error }
 		guard let createSessionResponse else { throw TobyClientError.invalidResponse }
 		return createSessionResponse

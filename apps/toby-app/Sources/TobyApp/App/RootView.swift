@@ -56,6 +56,7 @@ struct RootView: View {
                     await configureStore.handlePersonasChanged()
                     await schedulesStore.refreshPersonas()
                     await projectsStore.refreshPersonas()
+                    await store.refreshPersonas()
                 }
             },
             onSkillsDidChange: { skillsStore.handleExternalSkillChange() },
@@ -533,7 +534,8 @@ struct RootView: View {
                             activityLine: store.activityLine,
                             integrationIconUrl: store.resolvedIntegrationIconUrl,
                             isLoading: store.isLoading,
-                            onNewChat: startNewChat
+                            personas: store.personaOptions,
+                            onNewChat: { startNewChat(persona: $0) }
                         )
                     }
             case .integrations:
@@ -712,8 +714,12 @@ struct RootView: View {
     }
 
     private func startNewChat() {
+        startNewChat(persona: nil)
+    }
+
+    private func startNewChat(persona: PersonaOption?) {
         navigateToRoute(.chat)
-        Task { await store.startNewSession() }
+        Task { await store.startNewSession(persona: persona) }
     }
 
     private func startNewSchedule() {

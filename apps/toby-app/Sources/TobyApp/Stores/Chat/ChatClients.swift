@@ -9,8 +9,9 @@ protocol ChatClientable {
 	func fetchDaemonStatus() async throws -> DaemonStatus
 	func restartDaemon(onProgress: DaemonBootstrapProgress?) async throws
 	func listSessions(limit: Int) async throws -> [SessionSummary]
+	func listPersonas() async throws -> [PersonaOption]
 	func fetchSession(id: String) async throws -> SessionDetail
-	func createSession() async throws -> CreateSessionResponse
+	func createSession(persona: String?) async throws -> CreateSessionResponse
 	func deleteSession(id: String) async throws
 	func updateRecordingChatSession(id: String, chatSessionId: String?) async throws
 		-> ListenRecordingDetail

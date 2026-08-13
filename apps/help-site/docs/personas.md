@@ -32,7 +32,7 @@ If you do not set a custom default, new chats use **Toby**. It is written for ge
 
 ### Mailman
 
-**Mailman** is an inbox specialist. Switch to it from the sidebar persona picker (or set it as your default) when you want email reviewed, prioritized, and labeled.
+**Mailman** is an inbox specialist. Start a new chat with it from the **+** menu in the chat toolbar (or set it as your default) when you want email reviewed, prioritized, and labeled.
 
 It sorts mail into:
 
@@ -69,8 +69,9 @@ Most users start with `add` so integration-specific tool guidance stays intact.
 
 | Method | How |
 | ------ | --- |
-| Default | Set default in Settings; new sessions use it |
-| Switch default | Use the persona picker in the sidebar footer |
+| Default | Set default in Settings; **Chat with Default Persona**, **+**, and ⌘N use it |
+| New chat | Open the **+** menu in the chat toolbar and choose **Chat with Default Persona** or **Chat with** a named persona |
+| Change default | Use the persona picker in the sidebar footer |
 | Project default | Optional persona on a [project](./projects) applies to new project chats |
 
 ## Example personas

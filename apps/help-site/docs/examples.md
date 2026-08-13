@@ -9,7 +9,7 @@ These workflows combine integrations, personas, skills, memories, and schedules 
 
 ## Morning email triage (Email)
 
-**Setup:** [Email connected](./integrations/email), [AI configured](./getting-started/setup-ai), [**Mailman** persona](./personas#mailman) selected.
+**Setup:** [Email connected](./integrations/email), [AI configured](./getting-started/setup-ai), then start the chat with [**Mailman**](./personas#mailman) from the **+** menu (or set Mailman as your default).
 
 **Chat:**
 

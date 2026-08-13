@@ -46,14 +46,17 @@ enum ChatSessionController {
 	}
 
 	/// Reset to a local draft session (no server id yet).
-	static func applyNewDraft(into state: inout ChatSessionIdentityState) {
+	static func applyNewDraft(
+		into state: inout ChatSessionIdentityState,
+		personaImageUrl: String? = nil,
+	) {
 		state.sessionId = nil
 		state.sessionName = "New chat"
 		state.transcript = []
 		state.integration = nil
 		state.integrationIconUrl = nil
 		state.externalKey = nil
-		state.sessionPersonaImageUrl = nil
+		state.sessionPersonaImageUrl = personaImageUrl
 		state.streamingAssistant = nil
 		state.turnWorkDurations = [:]
 		state.contextWindow = nil

@@ -190,11 +190,15 @@ struct TobyClient {
 		return try JSONDecoder().decode(SessionDetail.self, from: data)
 	}
 
-	func createSession() async throws -> CreateSessionResponse {
+	func createSession(persona: String? = nil) async throws -> CreateSessionResponse {
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/sessions"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = Data("{}".utf8)
+		var body: [String: Any] = [:]
+		if let persona, !persona.isEmpty {
+			body["persona"] = persona
+		}
+		request.httpBody = try JSONSerialization.data(withJSONObject: body)
 		let (data, response) = try await URLSession.shared.data(for: request)
 		try validate(response: response, data: data)
 		return try JSONDecoder().decode(CreateSessionResponse.self, from: data)

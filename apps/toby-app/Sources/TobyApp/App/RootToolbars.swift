@@ -149,7 +149,8 @@ enum RootToolbars {
 		activityLine: String,
 		integrationIconUrl: URL?,
 		isLoading: Bool,
-		onNewChat: @escaping () -> Void,
+		personas: [PersonaOption],
+		onNewChat: @escaping (PersonaOption?) -> Void,
 	) -> some ToolbarContent {
 		common(model)
 		ToolbarItem(placement: .principal) {
@@ -160,12 +161,11 @@ enum RootToolbars {
 			)
 		}
 		ToolbarItem(placement: .confirmationAction) {
-			Button(action: onNewChat) {
-				Image(systemName: "plus")
-			}
-			.help("New Chat")
-			.disabled(isLoading)
-			.accessibilityIdentifier("new-chat-button")
+			NewChatPersonaMenu(
+				personas: personas,
+				isDisabled: isLoading,
+				onSelect: onNewChat,
+			)
 		}
 	}
 

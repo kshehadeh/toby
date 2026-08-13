@@ -40,8 +40,17 @@ A built-in that is not yet persisted inherits AI settings from the persisted **T
 
 Custom personas keep whatever instructions the user stored.
 
+## Starting a chat from the toolbar
+
+The chat toolbar **+** control is a split button:
+
+- Click **+** (or File → New Chat / ⌘N) to start a draft that follows the configured default.
+- Open the menu for **Chat with Default Persona** plus **Chat with \<name\>** for each `listPersonas()` option (built-ins first, then custom).
+
+A named pick is sent as `persona` on `POST /api/sessions` when the first turn creates the session. That becomes `session.settings.persona` (a named override). **Chat with Default Persona** omits `persona` so later default changes still apply.
+
 ## Resolution order
 
-1. Named override (chat picker, schedule, flow, project, inbound config).
+1. Named override (new-chat menu, schedule, flow, project, inbound config).
 2. Configured default (`defaultPersona` in `config.json`).
 3. Built-in **Toby**.

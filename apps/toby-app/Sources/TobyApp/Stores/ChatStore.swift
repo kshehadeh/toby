@@ -42,6 +42,10 @@ final class ChatStore {
 	var integrationIconUrl: String?
 	var externalKey: String?
 	var sessionPersonaImageUrl: String?
+	/// Persona pinned for the current local draft. `nil` uses the configured default.
+	var draftPersonaName: String?
+	/// Personas available for the new-chat toolbar menu.
+	var personaOptions: [PersonaOption] = []
 	var contextWindow: ContextWindowPayload?
 	private var activeTurnId: String?
 	private var isCancelling = false
@@ -147,6 +151,7 @@ final class ChatStore {
 			}
 			await refreshDaemonStatus()
 			await refreshSessions()
+			await refreshPersonas()
 			await startNewSession()
 			isServerConnecting = false
 			serverLifecycleMessage = nil
@@ -168,6 +173,14 @@ final class ChatStore {
 			sessions = try await client.listSessions(limit: 50)
 		} catch {
 			showErrorToast(error.localizedDescription)
+		}
+	}
+
+	func refreshPersonas() async {
+		do {
+			personaOptions = try await client.listPersonas()
+		} catch {
+			// Menu still offers Chat with Default Persona.
 		}
 	}
 
@@ -349,6 +362,7 @@ final class ChatStore {
 			}
 			await refreshDaemonStatus()
 			await refreshSessions()
+			await refreshPersonas()
 			await startNewSession()
 			isServerConnecting = false
 			serverLifecycleMessage = nil
@@ -408,6 +422,7 @@ final class ChatStore {
 		integrationIconUrl = nil
 		externalKey = nil
 		sessionPersonaImageUrl = nil
+		draftPersonaName = nil
 		contextWindow = nil
 		activeTurnId = nil
 		isCancelling = false
@@ -575,17 +590,22 @@ final class ChatStore {
 			var identity = sessionIdentityState()
 			ChatSessionController.applyLoadedSession(detail, into: &identity)
 			applySessionIdentityState(identity)
+			draftPersonaName = nil
 			startExternalSessionRefreshLoop()
 		} catch {
 			showErrorToast(error.localizedDescription)
 		}
 	}
 
-	func startNewSession() async {
+	func startNewSession(persona: PersonaOption? = nil) async {
 		guard !isLoading else { return }
 		var identity = sessionIdentityState()
-		ChatSessionController.applyNewDraft(into: &identity)
+		ChatSessionController.applyNewDraft(
+			into: &identity,
+			personaImageUrl: persona?.imageUrl,
+		)
 		applySessionIdentityState(identity)
+		draftPersonaName = persona?.name
 		stopExternalSessionRefreshLoop()
 		focusPrompt()
 	}
@@ -721,7 +741,7 @@ final class ChatStore {
 
 	private func createSessionAndSubmit() async {
 		do {
-			let created = try await client.createSession()
+			let created = try await client.createSession(persona: draftPersonaName)
 			sessionId = created.id
 			sessionName = created.name
 			stopExternalSessionRefreshLoop()

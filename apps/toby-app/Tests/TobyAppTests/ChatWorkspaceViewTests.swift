@@ -18,6 +18,16 @@ struct ChatWorkspaceViewTests {
         }
     }
 
+    @Test("empty headline uses the draft persona name")
+    func emptyHeadlineUsesDraftPersona() throws {
+        let store = ChatStore()
+        store.draftPersonaName = "Mailman"
+        let view = ChatWorkspaceView(store: store)
+        #expect(throws: Never.self) {
+            try view.inspect().find(text: "What should Mailman take care of?")
+        }
+    }
+
     @Test("shows input dock in empty state")
     func showsInputDockInEmptyState() throws {
         let store = ChatStore()

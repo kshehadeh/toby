@@ -130,6 +130,17 @@ struct ChatSessionControllerTests {
 		#expect(state.promptText == "draft")
 	}
 
+	@Test("applyNewDraft can seed a persona image for the local draft")
+	func applyNewDraftSeedsPersonaImage() {
+		var state = makeState()
+		ChatSessionController.applyNewDraft(
+			into: &state,
+			personaImageUrl: "/api/personas/image/mailman.png",
+		)
+		#expect(state.sessionId == nil)
+		#expect(state.sessionPersonaImageUrl == "/api/personas/image/mailman.png")
+	}
+
 	@Test("applyExternalRefresh only updates poll fields")
 	func applyExternalRefreshUpdatesPollFields() {
 		var state = makeState()

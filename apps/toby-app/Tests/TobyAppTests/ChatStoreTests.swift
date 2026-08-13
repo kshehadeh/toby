@@ -43,6 +43,7 @@ struct ChatStoreTests {
         #expect(store.sessionId == nil)
         #expect(store.sessionName == "New chat")
         #expect(store.transcript.isEmpty)
+        #expect(store.draftPersonaName == nil)
         #expect(store.promptFocusRequestId != originalId)
     }
 
@@ -55,7 +56,129 @@ struct ChatStoreTests {
         let originalId = store.promptFocusRequestId
         await store.startNewSession()
         #expect(store.sessionId == nil)
+        #expect(store.draftPersonaName == nil)
         #expect(store.promptFocusRequestId != originalId)
+    }
+
+    @Test("refreshPersonas stores the client persona list")
+    func refreshPersonasStoresOptions() async {
+        let client = MockChatClient()
+        client.personas = [
+            PersonaOption(
+                name: "Toby",
+                label: "Toby",
+                imagePath: nil,
+                imageUrl: nil,
+                isDefault: true,
+                isBuiltIn: true,
+            ),
+            PersonaOption(
+                name: "Mailman",
+                label: "Mailman",
+                imagePath: nil,
+                imageUrl: nil,
+                isDefault: false,
+                isBuiltIn: true,
+            ),
+        ]
+        let store = ChatStore(client: client)
+        await store.refreshPersonas()
+        #expect(store.personaOptions.map(\.name) == ["Toby", "Mailman"])
+    }
+
+    @Test("startNewSession with persona pins draft persona and image")
+    func startNewSessionPinsDraftPersona() async {
+        let store = ChatStore()
+        store.sessionId = "existing-session"
+        let persona = PersonaOption(
+            name: "Mailman",
+            label: "Mailman",
+            imagePath: "mailman.png",
+            imageUrl: "/api/personas/image/mailman.png",
+            isDefault: false,
+            isBuiltIn: true,
+        )
+
+        await store.startNewSession(persona: persona)
+        #expect(store.sessionId == nil)
+        #expect(store.draftPersonaName == "Mailman")
+        #expect(store.sessionPersonaImageUrl == "/api/personas/image/mailman.png")
+    }
+
+    @Test("submitPrompt creates a server session with the draft persona")
+    func submitPromptCreatesSessionWithDraftPersona() async {
+        let client = MockChatClient()
+        client.createSessionResponse = CreateSessionResponse(
+            id: "new-sess",
+            name: "New chat",
+            settings: SessionSettings(
+                persona: "Mailman",
+                modules: nil,
+                dryRun: nil,
+                debug: nil,
+                projectId: nil,
+            ),
+        )
+        client.sessionDetails["new-sess"] = SessionDetail(
+            id: "new-sess",
+            name: "New chat",
+            transcript: [
+                .user(text: "hello"),
+                .assistant(text: "hi"),
+            ],
+            messageCount: 2,
+            settings: nil,
+            contextWindow: nil,
+            personaImageUrl: "/api/personas/image/mailman.png",
+            activePlan: nil,
+            integration: nil,
+            integrationIconUrl: nil,
+            externalKey: nil,
+        )
+        client.sessions = [
+            SessionSummary(id: "new-sess", name: "New chat", createdAt: nil, updatedAt: nil),
+        ]
+        let store = ChatStore(client: client)
+        await store.startNewSession(
+            persona: PersonaOption(
+                name: "Mailman",
+                label: "Mailman",
+                imagePath: nil,
+                imageUrl: "/api/personas/image/mailman.png",
+                isDefault: false,
+                isBuiltIn: true,
+            ),
+        )
+        store.promptText = "hello"
+        await store.submitPrompt()
+
+        #expect(client.createSessionCalls == 1)
+        #expect(client.lastCreateSessionPersona == "Mailman")
+        #expect(client.streamTurnCalls == 1)
+        #expect(store.sessionId == "new-sess")
+    }
+
+    @Test("selectSession clears a draft persona pin")
+    func selectSessionClearsDraftPersona() async {
+        let client = MockChatClient()
+        client.sessionDetails["sess"] = SessionDetail(
+            id: "sess",
+            name: "Existing",
+            transcript: [.user(text: "hi")],
+            messageCount: 1,
+            settings: nil,
+            contextWindow: nil,
+            personaImageUrl: "/p.png",
+            activePlan: nil,
+            integration: nil,
+            integrationIconUrl: nil,
+            externalKey: nil,
+        )
+        let store = ChatStore(client: client)
+        store.draftPersonaName = "Mailman"
+        await store.selectSession(id: "sess")
+        #expect(store.draftPersonaName == nil)
+        #expect(store.sessionId == "sess")
     }
 
     @Test("startNewChat with prompt does not interrupt an active turn")
