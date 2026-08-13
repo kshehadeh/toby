@@ -131,6 +131,7 @@ Where this is implemented:
 - Email system prompt is static policy + tool strategy in `apps/plugin-email/src/prompts.ts` (`EMAIL_SINGLE_SESSION_RULES`; adapter wraps persona and global tools).
 - Todoist system prompt is static policy + tool rules in `apps/plugin-todoist/src/prompts.ts` (returned from plugin `status.chatModelPrep`).
 - Multi-integration system prompt is assembled in `packages/core/src/prepare-messages.ts` and does **not** embed the user request.
+- Persona instructions are appended (`add`) or substituted (`replace`) by `composeSystemPromptWithPersona`. The built-in **Toby** prompt is documented in [`personas.md`](personas.md).
 - The actual user request (and dynamic context like task snapshots) is always provided via `role: "user"` messages.
 
 ## Pretreatment and semantic routing (optional)

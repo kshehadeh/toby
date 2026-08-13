@@ -9,7 +9,7 @@ These workflows combine integrations, personas, skills, memories, and schedules 
 
 ## Morning email triage (Email)
 
-**Setup:** [Email connected](./integrations/email), [AI configured](./getting-started/setup-ai), default **Toby** persona.
+**Setup:** [Email connected](./integrations/email), [AI configured](./getting-started/setup-ai), [**Mailman** persona](./personas#mailman) selected.
 
 **Chat:**
 
@@ -17,7 +17,7 @@ These workflows combine integrations, personas, skills, memories, and schedules 
 Summarize my unread email from the last 24 hours. List anything that needs a reply today and suggest archive or label actions.
 ```
 
-**Outcome:** One pass over the inbox with actionable next steps.
+**Outcome:** One pass over the inbox grouped by Needs attention / Worth noting / Ignore, with category labels and next steps.
 
 ---
 

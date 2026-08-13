@@ -22,7 +22,7 @@ import {
 	resolvePersonaImagePath,
 } from "../../config/index";
 import { invalidateSettingsCache } from "../../configure/settings-cache";
-import { DEFAULT_CHAT_PERSONA, listPersonas } from "../../personas/index";
+import { isBuiltInPersonaName, listPersonas } from "../../personas/index";
 import { loadLocalSkills } from "../../skills/index";
 import { resolveSkillIconPath } from "../../skills/manage";
 import { errorResponse, jsonResponse, readJsonBody } from "../http-utils";
@@ -53,7 +53,7 @@ export async function handlePersonasList(): Promise<Response> {
 				? "/api/personas/image/default.png"
 				: undefined,
 		isDefault: p.name === defaultName,
-		isBuiltIn: p.name === DEFAULT_CHAT_PERSONA.name,
+		isBuiltIn: isBuiltInPersonaName(p.name),
 	}));
 	return jsonResponse({ personas });
 }
@@ -66,7 +66,7 @@ export async function handlePersonaDetail(name: string): Promise<Response> {
 		return jsonResponse({ error: "Persona not found" }, 404);
 	}
 	const hasDefault = fs.existsSync(getDefaultPersonaImagePath());
-	const isBuiltIn = persona.name === DEFAULT_CHAT_PERSONA.name;
+	const isBuiltIn = isBuiltInPersonaName(persona.name);
 	return jsonResponse({
 		persona: {
 			name: persona.name,

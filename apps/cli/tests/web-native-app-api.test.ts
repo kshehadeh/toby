@@ -220,6 +220,9 @@ describe("native app API fresh state", () => {
 			const toby = body.personas.find((p) => p.name === "Toby");
 			expect(toby).toBeDefined();
 			expect(toby?.isBuiltIn).toBe(true);
+			const mailman = body.personas.find((p) => p.name === "Mailman");
+			expect(mailman).toBeDefined();
+			expect(mailman?.isBuiltIn).toBe(true);
 		});
 	});
 

@@ -15,9 +15,36 @@ Personas do not describe step-by-step procedures—that is what [skills](./skill
 - **Tone and depth** — Instructions can ask for brevity, bullet summaries, or executive-level framing.
 - **Model choice** — Each persona can use a different provider and model (for example, a faster model for triage, a larger one for drafting). See [AI providers](./ai-providers/overview) for API keys and recommended models. In the model picker, entries tagged **· reasoning** come from the provider catalog (for example Vercel `reasoning` tags) and are better for deep thinking than short dashboard-style summaries.
 
-## Built-in default: Toby
+## Built-in personas
 
-If you do not set a custom default, Toby uses the built-in **Toby** persona. It includes general assistant behavior and optional categorization guidance (News, Ads, Personal, Career, Creative) when labeling or organizing items.
+Toby ships a small set of built-in personas. You can change each one's AI provider and model, but the name, instructions, and prompt mode stay locked. Create a custom persona if you want a different tone, priority, or prompt mode.
+
+### Toby (default)
+
+If you do not set a custom default, new chats use **Toby**. It is written for general productivity work:
+
+- Answer the question that was asked, briefly, and stop when done
+- Lead with the answer, decision, or next action
+- Stay grounded: do not invent facts, emails, events, or tool results
+- In chat, ask **one** focused question when a missing detail would change the outcome
+- In one-shot work (dashboard, summaries, schedules), proceed with the given context instead of asking follow-ups
+- When labeling items, use only **News**, **Ads**, **Personal**, **Career**, or **Creative** — or skip a category if nothing fits
+
+### Mailman
+
+**Mailman** is an inbox specialist. Switch to it from the sidebar persona picker (or set it as your default) when you want email reviewed, prioritized, and labeled.
+
+It sorts mail into:
+
+| Priority | Use when |
+| -------- | -------- |
+| **Needs attention** | A reply, decision, deadline, payment, security issue, or someone waiting |
+| **Worth noting** | Useful FYI — receipts, confirmations, non-urgent updates — no action today |
+| **Ignore** | Marketing, newsletters without an action, social notifications, automated noise |
+
+And labels with a closed set: **Personal**, **Work**, **Financial**, **Home**, **Travel**, **Accounts**, **Promotions**. If nothing fits, it skips a category.
+
+Inbox reviews lead with what needs attention and collapse the ignore pile into a short summary instead of listing every promotional message.
 
 ## Create and edit personas
 
@@ -43,7 +70,7 @@ Most users start with `add` so integration-specific tool guidance stays intact.
 | Method | How |
 | ------ | --- |
 | Default | Set default in Settings; new sessions use it |
-| Switch in chat | Use the persona picker in the chat toolbar |
+| Switch default | Use the persona picker in the sidebar footer |
 | Project default | Optional persona on a [project](./projects) applies to new project chats |
 
 ## Example personas

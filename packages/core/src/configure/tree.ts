@@ -21,7 +21,7 @@ import {
 	getTranscriptionProvider,
 	resolveTranscriptionApiKey,
 } from "../listen/transcription-providers";
-import { DEFAULT_CHAT_PERSONA } from "../personas/index";
+import { isBuiltInPersonaName } from "../personas/index";
 import { listProjects } from "../projects/index";
 import { cronToHuman } from "../schedules/cron-human";
 import { listScheduleRuns, listSchedules } from "../schedules/store";
@@ -222,7 +222,7 @@ export function buildSettingsTree(
 	const currentDefault = getDefaultPersonaName();
 
 	const personaItems: SettingsItem[] = personas.map((p) => {
-		const isBuiltIn = p.name === DEFAULT_CHAT_PERSONA.name;
+		const isBuiltIn = isBuiltInPersonaName(p.name);
 		const providerId =
 			values[`personas.${p.name}.ai.provider`] ?? p.ai.provider;
 		const modelValue = values[`personas.${p.name}.ai.model`] ?? p.ai.model;

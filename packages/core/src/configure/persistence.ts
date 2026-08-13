@@ -25,7 +25,7 @@ import {
 	TRANSCRIPTION_PROVIDERS,
 	getTranscriptionProvider,
 } from "../listen/transcription-providers";
-import { DEFAULT_CHAT_PERSONA } from "../personas/index";
+import { getBuiltInPersona } from "../personas/index";
 import { listSchedules, updateSchedule } from "../schedules/store";
 import { loadLocalSkills } from "../skills/index";
 import { updateSkillFrontmatter } from "../skills/manage";
@@ -405,21 +405,15 @@ export function rebuildPersonas(
 	}
 
 	return [...names].map((name) => {
-		const existingPersona =
-			existing.find((p) => p.name === name) ??
-			(name === DEFAULT_CHAT_PERSONA.name ? DEFAULT_CHAT_PERSONA : undefined);
-		const lockedBuiltInFields =
-			name === DEFAULT_CHAT_PERSONA.name
-				? {
-						name: DEFAULT_CHAT_PERSONA.name,
-						instructions:
-							existing.find((p) => p.name === name)?.instructions ??
-							DEFAULT_CHAT_PERSONA.instructions,
-						promptMode:
-							existing.find((p) => p.name === name)?.promptMode ??
-							DEFAULT_CHAT_PERSONA.promptMode,
-					}
-				: null;
+		const builtIn = getBuiltInPersona(name);
+		const existingPersona = existing.find((p) => p.name === name) ?? builtIn;
+		const lockedBuiltInFields = builtIn
+			? {
+					name: builtIn.name,
+					instructions: builtIn.instructions,
+					promptMode: builtIn.promptMode,
+				}
+			: null;
 		return {
 			name:
 				lockedBuiltInFields?.name ?? values[`personas.${name}.name`] ?? name,

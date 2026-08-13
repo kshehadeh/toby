@@ -1,12 +1,12 @@
 import { resolveAIProvidersForUI } from "../ai/model-list";
 import { listOpenRouterTranscriptionModels } from "../ai/model-list/openrouter-transcription-catalog";
 import { listVercelTranscriptionModels } from "../ai/model-list/vercel-catalog";
-import { type Persona, readConfig } from "../config/index";
+import { readConfig } from "../config/index";
 import { getIntegrationModules } from "../integrations/index";
 import { pluginDiscoveryFingerprint } from "../integrations/plugins/discovery";
 import { resetPluginModuleCache } from "../integrations/plugins/registry";
 import { TRANSCRIPTION_PROVIDERS } from "../listen/transcription-providers";
-import { DEFAULT_CHAT_PERSONA } from "../personas/index";
+import { listPersonas } from "../personas/index";
 import { redactConfigureValues, seedConfigureValues } from "./persistence";
 import { buildSettingsTree } from "./tree";
 import type { SettingsItem } from "./types";
@@ -29,13 +29,6 @@ function buildIntegrationLabels(): Record<string, string> {
 		labels[mod.name] = mod.displayName;
 	}
 	return labels;
-}
-
-function getPersonas(): Persona[] {
-	const config = readConfig();
-	return config.personas.some((p) => p.name === DEFAULT_CHAT_PERSONA.name)
-		? config.personas
-		: [DEFAULT_CHAT_PERSONA, ...config.personas];
 }
 
 const SETTINGS_SECTION_KEYS = [
@@ -61,7 +54,7 @@ function stripToSectionNodes(node: SettingsItem): SettingsItem {
 async function buildCachedSettings(): Promise<CachedSettings> {
 	const values = seedConfigureValues();
 	const redacted = redactConfigureValues(values);
-	const personas = getPersonas();
+	const personas = listPersonas();
 	const availableProviders = await resolveAIProvidersForUI();
 	const [vercelTranscriptionModels, openRouterTranscriptionModels] =
 		await Promise.all([

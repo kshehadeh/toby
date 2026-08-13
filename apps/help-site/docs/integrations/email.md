@@ -65,6 +65,8 @@ Open the Email detail page and click **Disconnect**. This clears Toby's connecti
 
 ## Example chat prompts
 
+Switch to the built-in [**Mailman** persona](../personas#mailman) for inbox triage (Needs attention / Worth noting / Ignore, plus category labels).
+
 - "Summarize my unread email from today and list anything that needs a reply."
 - "Find threads about the Q2 launch and suggest archive or label actions."
 - "Search my inbox for messages from alice@example.com from last week."
@@ -72,4 +74,5 @@ Open the Email detail page and click **Disconnect**. This clears Toby's connecti
 ## Related
 
 - [Integrations overview](overview)
+- [Personas](../personas)
 - [Configure and connect](../getting-started/configure-and-status)

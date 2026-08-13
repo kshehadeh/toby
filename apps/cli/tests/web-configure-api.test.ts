@@ -16,6 +16,7 @@ import {
 	seedConfigureValues,
 } from "@toby/core/configure/persistence";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
+import { DEFAULT_CHAT_PERSONA } from "@toby/core/personas/index";
 import { closeChatDbForTests } from "@toby/core/session-store";
 import { handleWebRequest } from "@toby/core/web/routes";
 
@@ -240,7 +241,9 @@ describe("configure persistence", () => {
 				name: "Toby",
 				ai: { provider: "ollama", model: "llama3.2" },
 			});
-			expect(config.personas[0]?.instructions.length).toBeGreaterThan(0);
+			expect(config.personas[0]?.instructions).toBe(
+				DEFAULT_CHAT_PERSONA.instructions,
+			);
 			expect(config.personas[0]?.promptMode).toBe("add");
 		});
 	});
@@ -780,6 +783,9 @@ describe("persona API", () => {
 		const toby = body.personas.find((p) => p.name === "Toby");
 		expect(toby).toBeDefined();
 		expect(toby?.isBuiltIn).toBe(true);
+		const mailman = body.personas.find((p) => p.name === "Mailman");
+		expect(mailman).toBeDefined();
+		expect(mailman?.isBuiltIn).toBe(true);
 	});
 
 	it("GET /api/personas/:name returns full persona detail", async () => {
@@ -835,16 +841,18 @@ describe("persona API", () => {
 		expect(body.personaName).toBe("TestPersona");
 	});
 
-	it("create-persona rejects reserved name", async () => {
-		const res = await handleWebRequest(
-			new Request("http://127.0.0.1/api/configure/actions/create-persona", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ name: "Toby" }),
-			}),
-			null,
-		);
-		expect(res.status).toBe(400);
+	it("create-persona rejects reserved built-in names", async () => {
+		for (const name of ["Toby", "Mailman"]) {
+			const res = await handleWebRequest(
+				new Request("http://127.0.0.1/api/configure/actions/create-persona", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ name }),
+				}),
+				null,
+			);
+			expect(res.status).toBe(400);
+		}
 	});
 
 	it("update-persona modifies an existing persona", async () => {
@@ -917,44 +925,66 @@ describe("persona API", () => {
 		expect(body.personaName).toBe("Renamed");
 	});
 
-	it("update-persona updates provider and model for the built-in persona", async () => {
+	it("update-persona updates provider and model for built-in personas", async () => {
 		writeConfig({
 			integrations: {},
 			personas: [],
 			ai: { ollama: { baseUrl: "http://localhost:11434/v1" } },
 		});
-		const res = await handleWebRequest(
-			new Request("http://127.0.0.1/api/configure/actions/update-persona", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					originalName: "Toby",
-					provider: "ollama",
-					model: "llama3.2",
+		for (const originalName of ["Toby", "Mailman"]) {
+			const res = await handleWebRequest(
+				new Request("http://127.0.0.1/api/configure/actions/update-persona", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						originalName,
+						provider: "ollama",
+						model: "llama3.2",
+					}),
 				}),
-			}),
-			null,
-		);
-		expect(res.status).toBe(200);
-		const body = (await res.json()) as { ok: boolean; personaName: string };
-		expect(body).toEqual({ ok: true, personaName: "Toby" });
-		const persona = readConfig().personas.find((p) => p.name === "Toby");
-		expect(persona?.ai).toEqual({ provider: "ollama", model: "llama3.2" });
+				null,
+			);
+			expect(res.status).toBe(200);
+			const body = (await res.json()) as { ok: boolean; personaName: string };
+			expect(body).toEqual({ ok: true, personaName: originalName });
+			const persona = readConfig().personas.find(
+				(p) => p.name === originalName,
+			);
+			expect(persona?.ai).toEqual({ provider: "ollama", model: "llama3.2" });
+		}
 	});
 
 	it("update-persona rejects locked built-in persona fields", async () => {
+		for (const originalName of ["Toby", "Mailman"]) {
+			const res = await handleWebRequest(
+				new Request("http://127.0.0.1/api/configure/actions/update-persona", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						originalName,
+						instructions: "Hacked",
+					}),
+				}),
+				null,
+			);
+			expect(res.status).toBe(400);
+			const body = (await res.json()) as { error?: string };
+			expect(body.error).toContain("provider and model");
+		}
+	});
+
+	it("delete-persona rejects built-in personas", async () => {
 		const res = await handleWebRequest(
-			new Request("http://127.0.0.1/api/configure/actions/update-persona", {
+			new Request("http://127.0.0.1/api/configure/actions/delete-persona", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					originalName: "Toby",
-					instructions: "Hacked",
-				}),
+				body: JSON.stringify({ personaName: "Mailman" }),
 			}),
 			null,
 		);
 		expect(res.status).toBe(400);
+		const body = (await res.json()) as { error?: string };
+		expect(body.error).toBe("Cannot delete a built-in persona");
 	});
 
 	it("update-persona returns error for unknown persona", async () => {

@@ -19,7 +19,11 @@ import {
 } from "../../configure/settings-cache";
 import type { SettingsItem } from "../../configure/types";
 import { daemonLog } from "../../logging/daemon-log";
-import { DEFAULT_CHAT_PERSONA } from "../../personas/index";
+import {
+	DEFAULT_CHAT_PERSONA,
+	getBuiltInPersona,
+	isBuiltInPersonaName,
+} from "../../personas/index";
 import { humanToCronAsync } from "../../schedules/cron-parser";
 import {
 	createScheduleRunForExecution,
@@ -157,7 +161,7 @@ export async function handleConfigureAction(
 			const cfg = readConfig();
 			const requestedName = body?.name?.trim();
 			const name = requestedName || `Persona ${cfg.personas.length + 1}`;
-			if (name === DEFAULT_CHAT_PERSONA.name) {
+			if (isBuiltInPersonaName(name)) {
 				return errorResponse(`"${name}" is a reserved persona name`);
 			}
 			if (cfg.personas.some((p) => p.name === name)) {
@@ -188,23 +192,27 @@ export async function handleConfigureAction(
 			const originalName = body?.originalName?.trim();
 			if (!originalName) return errorResponse("originalName required");
 			const cfg = readConfig();
-			if (originalName === DEFAULT_CHAT_PERSONA.name) {
+			if (isBuiltInPersonaName(originalName)) {
 				const attemptedLockedEdit =
 					body?.name !== undefined ||
 					body?.instructions !== undefined ||
 					body?.promptMode !== undefined;
 				if (attemptedLockedEdit) {
 					return errorResponse(
-						"The built-in default persona only supports provider and model edits",
+						"Built-in personas only support provider and model edits",
 					);
+				}
+				const builtIn = getBuiltInPersona(originalName);
+				if (!builtIn) {
+					return errorResponse(`Persona "${originalName}" not found`);
 				}
 				let persona = cfg.personas.find((p) => p.name === originalName);
 				if (!persona) {
 					persona = {
-						...DEFAULT_CHAT_PERSONA,
-						ai: { ...DEFAULT_CHAT_PERSONA.ai },
+						...builtIn,
+						ai: { ...builtIn.ai },
 					};
-					cfg.personas.unshift(persona);
+					cfg.personas.push(persona);
 				}
 				if (body?.provider !== undefined) {
 					const newProvider = body.provider.trim() || persona.ai.provider;
@@ -227,7 +235,7 @@ export async function handleConfigureAction(
 			}
 			const newName = body?.name?.trim();
 			if (newName && newName !== originalName) {
-				if (newName === DEFAULT_CHAT_PERSONA.name) {
+				if (isBuiltInPersonaName(newName)) {
 					return errorResponse(`"${newName}" is a reserved persona name`);
 				}
 				if (cfg.personas.some((p) => p.name === newName)) {
@@ -262,8 +270,12 @@ export async function handleConfigureAction(
 		}
 		case "delete-persona": {
 			const personaName = body?.personaName?.trim();
-			if (!personaName || personaName === DEFAULT_CHAT_PERSONA.name) {
-				return errorResponse("Invalid persona name");
+			if (!personaName || isBuiltInPersonaName(personaName)) {
+				return errorResponse(
+					personaName
+						? "Cannot delete a built-in persona"
+						: "Invalid persona name",
+				);
 			}
 			const cfg = readConfig();
 			cfg.personas = cfg.personas.filter((p) => p.name !== personaName);
