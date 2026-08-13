@@ -141,6 +141,24 @@ Query: `?fresh=1` bypasses caches and awaits a fresh flow when generating body t
 | --- | --- |
 | Content types | `packages/core/src/dashboard/types.ts` (`DashboardBlockContent`) |
 | Content generation | `packages/core/src/dashboard/summarizer.ts` (`getDashboardBlockContent`) |
+| CoT / reasoning strip | `extractDashboardSummaryText` in summarizer (post-process) |
+
+## Model choice (reasoning leaks)
+
+Dashboard cards use short free-form markdown via flow **LLM Prompter** nodes.
+Reasoning models (for example Grok 4.5) often write chain-of-thought, skill
+metadata, or planning into `text` instead of a separate reasoning channel.
+
+Mitigations in code:
+
+1. Built-in dashboard flows do **not** append the skills catalog (reduces meta echo).
+2. `extractDashboardSummaryText` strips think tags, fidelity matrices, skill
+   crumbs, and planning monologue before the card body is cached.
+3. We deliberately **do not** send `reasoning: "none"` / `reasoning_effort: none`
+   — several models (including Grok 4.5) reject that value as invalid.
+
+**Config recommendation:** set the Dashboard persona to a **non-reasoning**
+model (no **· reasoning** label in the picker). See Settings → Dashboard.
 | Aggregator (internal) | `packages/core/src/dashboard/index.ts` |
 | HTTP | `packages/core/src/web/handlers/dashboard.ts` |
 | Flows | `packages/core/src/flows/` — see [`flows.md`](flows.md) |

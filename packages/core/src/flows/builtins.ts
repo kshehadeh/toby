@@ -15,6 +15,7 @@ CRITICAL OUTPUT RULES:
 - Reply with ONLY the final user-facing summary in markdown.
 - Do NOT include chain-of-thought, planning, self-checks, sentence counting, drafts, or analysis of these instructions.
 - Do NOT write phrases like "we need to", "let's count", "the instruction says", "sentence 1:", or "also note".
+- Do NOT include skill names, fidelity matrices, XML/HTML tags, or any internal metadata.
 - Start immediately with the summary (a heading or the first sentence for the user).
 
 Format:
@@ -26,7 +27,9 @@ Format:
 
 const DASHBOARD_PROMPT_HELPERS = {
 	composePersona: true,
-	appendSkillsCatalog: true,
+	// Skills belong in interactive chat, not short dashboard blurbs. Injecting
+	// the catalog pulls reasoning models into skill formatting / meta output.
+	appendSkillsCatalog: false,
 } as const;
 
 function dashboardSummaryFlow(params: {

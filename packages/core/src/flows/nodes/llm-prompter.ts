@@ -176,6 +176,9 @@ export async function runLlmPrompterNode(
 
 		// 1) Structured output — skip for simple { markdown } schemas (dashboard)
 		//    where free-form is more reliable on many gateway models (e.g. DeepSeek).
+		// Do not pass reasoning: "none" — several models (e.g. Grok 4.5) reject
+		// reasoning_effort=none as invalid. CoT leaks are stripped post-hoc by
+		// extractDashboardSummaryText for dashboard consumers.
 		if (!markdownOnly) {
 			const structuredTimeout = Math.min(
 				STRUCTURED_ATTEMPT_TIMEOUT_MS,

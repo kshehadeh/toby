@@ -189,7 +189,10 @@ bodies are produced by built-in [flows](./flows).
 - **Dashboard persona** — Model and instructions used for the short summary
   bodies on the unread mail, tasks, and upcoming events cards. Prefer a
   **non-reasoning** model for this persona (entries without a **· reasoning**
-  label in the model picker) so summaries stay reliable.
+  label in the model picker) so summaries stay reliable. Reasoning models
+  (for example Grok 4.5) can leak planning or internal metadata into the card
+  body; Toby strips common leaks, but a non-reasoning model is still the best
+  fix.
 - **Show unread mail** / **Show tasks** / **Show upcoming events** — On by
   default. Turn any off to hide that card on the home dashboard; turn it back on
   to show it again. Upcoming events come from your default calendar provider

@@ -47,11 +47,17 @@ export function formatItemsForPrompt(items: readonly DashboardItem[]): string {
 		.join("\n");
 }
 
-/** Build the full system prompt with persona instructions, category prompt, and skills catalog. */
+/**
+ * Build the full system prompt with persona instructions and category prompt.
+ *
+ * Skills catalogs are intentionally omitted: dashboard cards are short structured
+ * blurbs. Injecting skills (or other agent tooling) encourages reasoning models
+ * to echo skill metadata into the card body.
+ */
 export function buildDashboardSummarySystemPrompt(
 	categoryPrompt: string,
 	persona: Persona,
-	skillsCatalogText: string,
+	_skillsCatalogText?: string,
 ): string {
 	const base = `You are a personal assistant summarizing dashboard information for the user.
 
@@ -61,6 +67,7 @@ CRITICAL OUTPUT RULES:
 - Reply with ONLY the final user-facing summary in markdown.
 - Do NOT include chain-of-thought, planning, self-checks, sentence counting, drafts, or analysis of these instructions.
 - Do NOT write phrases like "we need to", "let's count", "the instruction says", "sentence 1:", or "also note".
+- Do NOT include skill names, fidelity matrices, XML/HTML tags, or any internal metadata.
 - Start immediately with the summary (a heading or the first sentence for the user).
 
 Format:
@@ -69,12 +76,5 @@ Format:
 - Use a \`## \` sub-heading to separate "Needs attention" from "Worth mentioning" when appropriate.
 - Keep the total response concise (5-6 sentences). Do not over-format — use markdown only where it genuinely aids readability.`;
 
-	const withPersona = composeSystemPromptWithPersona(base, persona);
-
-	const skillsSection =
-		skillsCatalogText !== "(none)"
-			? `\n\nAvailable skills (apply relevant context from these):\n${skillsCatalogText}`
-			: "";
-
-	return `${withPersona}${skillsSection}`;
+	return composeSystemPromptWithPersona(base, persona);
 }

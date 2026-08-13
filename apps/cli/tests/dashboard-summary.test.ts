@@ -77,6 +77,41 @@ You have **3 late tasks** that need attention today.`;
 		);
 	});
 
+	it("strips fidelity-matrix / skill metadata before the real summary", () => {
+		const raw = `<fidelity-matrix>
+Category | Requirement | Source | Status
+Tasks | Urgency first | list | ok
+</fidelity-matrix>
+skill name="writing-style"
+skill name="task-event-organizer"
+
+## Needs attention
+- **Close QMES PAP supplies account** — high urgency
+
+## Worth mentioning
+Fraud-prevention and estate items stand out.`;
+		const extracted = extractDashboardSummaryText(raw);
+		expect(extracted.startsWith("## Needs attention")).toBe(true);
+		expect(extracted).toContain("Close QMES PAP supplies account");
+		expect(extracted).not.toContain("fidelity-matrix");
+		expect(extracted).not.toContain("writing-style");
+		expect(extracted).not.toContain("Category | Requirement");
+	});
+
+	it("salvages plain NEEDS ATTENTION section after meta preamble", () => {
+		const raw = `Category | Requirement | Source | Status
+skill name="task-event-organizer"
+
+NEEDS ATTENTION
+- Close QMES PAP supplies account — high urgency
+WORTH MENTIONING
+Fraud-prevention items stand out.`;
+		const extracted = extractDashboardSummaryText(raw);
+		expect(extracted.toLowerCase().startsWith("needs attention")).toBe(true);
+		expect(extracted).toContain("Close QMES PAP");
+		expect(extracted).not.toContain("Category | Requirement");
+	});
+
 	it("keeps short preambles that are part of the answer", () => {
 		const raw =
 			"Nothing urgent today.\n\n## Worth mentioning\n- A newsletter you might skim.";

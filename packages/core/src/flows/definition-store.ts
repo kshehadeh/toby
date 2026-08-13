@@ -135,17 +135,39 @@ export function loadFlowRecord(id: string): StoredFlowRecord | null {
 
 /**
  * Insert a built-in seed if the id is a known built-in and no row exists.
- * Never overwrites an existing row.
+ *
+ * Dashboard built-ins (`dashboard.*`) are refreshed from code when still marked
+ * builtin so prompt/helper fixes ship without requiring a manual delete.
+ * Non-dashboard built-ins keep seed-on-miss only (never overwrite).
  */
 export function ensureBuiltinFlow(id: string): StoredFlowRecord | null {
 	const key = id.trim();
 	if (!key || !isBuiltinFlowId(key)) return null;
 
-	const existing = loadFlowRecord(key);
-	if (existing) return existing;
-
 	const seed = getBuiltinFlowDocument(key);
 	if (!seed) return null;
+
+	const existing = loadFlowRecord(key);
+	if (existing) {
+		// Ship dashboard prompt/helper fixes (e.g. no skills catalog, CoT rules)
+		// without rewriting SQLite on every load.
+		if (
+			existing.builtin &&
+			key.startsWith("dashboard.") &&
+			JSON.stringify(existing.document) !== JSON.stringify(seed)
+		) {
+			try {
+				return upsertFlowDocument(seed, { builtin: true });
+			} catch (error) {
+				daemonLog("warn", "general", "flow_builtin_refresh_failed", {
+					id: key,
+					error: error instanceof Error ? error.message : String(error),
+				});
+				return existing;
+			}
+		}
+		return existing;
+	}
 
 	try {
 		return insertDocument(seed, true);

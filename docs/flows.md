@@ -141,7 +141,7 @@ Calls the flow persona’s model once with **structured** output (Zod →
   userPrompt: "Here are the items:\n\n{{dashboardItems bag.unread}}",
   promptHelpers: {
     composePersona: true,       // wrap with persona instructions
-    appendSkillsCatalog: true,  // append enabled skills
+    appendSkillsCatalog: false, // dashboard seeds omit skills (avoids meta leak)
   },
   inputs: { data: { from: "unread" } },
   outputs: { summary: "object" },
