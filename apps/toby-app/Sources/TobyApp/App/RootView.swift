@@ -483,11 +483,7 @@ struct RootView: View {
                             )
                         })
                     case .memories:
-                        MemoriesSidebarView(store: memoriesStore, onDelete: { memory in
-                            memoriesStore.pendingDelete = MemoriesStore.PendingDelete(
-                                id: memory.id, value: memory.value
-                            )
-                        })
+                        MemoriesSidebarView(store: memoriesStore)
                     case .flows:
                         FlowsSidebarView(store: flowsStore)
                     }

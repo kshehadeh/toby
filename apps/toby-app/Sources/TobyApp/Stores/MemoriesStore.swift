@@ -248,6 +248,11 @@ final class MemoriesStore {
 		}
 	}
 
+	/// Stages the confirmation alert used by the table, sidebar, and editor.
+	func requestDelete(_ memory: MemoryItem) {
+		pendingDelete = PendingDelete(id: memory.id, value: memory.value)
+	}
+
 	func deleteMemory(id: String) async {
 		isSaving = true
 		errorMessage = nil

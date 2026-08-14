@@ -119,6 +119,15 @@ struct MemoriesDetailView: View {
 				.width(min: 80, ideal: 100)
 			}
 			.tableStyle(.inset)
+			.contextMenu(forSelectionType: MemoryItem.ID.self) { selection in
+				if let memory = memory(for: selection) {
+					Button("Delete Memory", systemImage: "trash", role: .destructive) {
+						store.requestDelete(memory)
+					}
+					.disabled(store.isSaving)
+					.accessibilityIdentifier("delete-memory-menu-item")
+				}
+			}
 			.frame(maxWidth: .infinity, maxHeight: .infinity)
 			if let errorMessage = store.errorMessage, !store.memories.isEmpty {
 				InlineStatusMessage(message: errorMessage, tone: .error, font: .caption)
@@ -170,7 +179,7 @@ struct MemoriesDetailView: View {
 					) }
 				},
 				onCancel: { resetDraft(from: memory) },
-				onDelete: { store.pendingDelete = MemoriesStore.PendingDelete(id: memory.id, value: memory.value) }
+				onDelete: { store.requestDelete(memory) }
 			)
 		} else {
 			VStack(spacing: 10) {
@@ -220,6 +229,11 @@ struct MemoriesDetailView: View {
 				draftVisibility != memory.visibility
 		}
 		return false
+	}
+
+	private func memory(for selection: Set<MemoryItem.ID>) -> MemoryItem? {
+		guard let id = selection.first else { return nil }
+		return store.memories.first { $0.id == id }
 	}
 
 	private func sensitivityColor(_ sensitivity: String) -> Color {

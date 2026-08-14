@@ -28,7 +28,7 @@ struct MemoriesViewTests {
 			MemoryItem(id: "m1", userId: "u", type: "fact", subject: nil, value: "Likes dark mode", confidence: 1, sensitivity: "normal", visibility: "usable_by_ai", sourceIds: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z", expiresAt: nil),
 			MemoryItem(id: "m2", userId: "u", type: "preference", subject: "Editor", value: "Prefers VS Code", confidence: 1, sensitivity: "normal", visibility: "usable_by_ai", sourceIds: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z", expiresAt: nil),
 		]
-		let view = MemoriesSidebarView(store: store, onDelete: { _ in })
+		let view = MemoriesSidebarView(store: store)
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Likes dark mode")
 		}
@@ -40,7 +40,7 @@ struct MemoriesViewTests {
 	@Test("memories sidebar shows empty state when no memories")
 	func memoriesSidebarShowsEmptyState() throws {
 		let store = MemoriesStore()
-		let view = MemoriesSidebarView(store: store, onDelete: { _ in })
+		let view = MemoriesSidebarView(store: store)
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "No memories")
 		}
@@ -55,6 +55,57 @@ struct MemoriesViewTests {
 		#expect(store.pendingDelete != nil)
 		// Keep view alive so SwiftUI does not tear down mid-assertion.
 		_ = view
+	}
+
+	@Test("requestDelete stages the same confirmation as the editor")
+	func requestDeleteStagesConfirmation() {
+		let store = MemoriesStore()
+		let memory = MemoryItem(
+			id: "m1",
+			userId: "u",
+			type: "fact",
+			subject: nil,
+			value: "Likes dark mode",
+			confidence: 1,
+			sensitivity: "normal",
+			visibility: "usable_by_ai",
+			sourceIds: nil,
+			createdAt: "2026-01-01T00:00:00Z",
+			updatedAt: "2026-01-01T00:00:00Z",
+			expiresAt: nil
+		)
+		store.requestDelete(memory)
+		#expect(store.pendingDelete?.id == "m1")
+		#expect(store.pendingDelete?.value == "Likes dark mode")
+	}
+
+	@Test("memories detail view shows table chrome when memories exist")
+	func memoriesDetailViewShowsTableChromeWhenMemoriesExist() throws {
+		let store = MemoriesStore()
+		let memory = MemoryItem(
+			id: "m1",
+			userId: "u",
+			type: "fact",
+			subject: nil,
+			value: "Likes dark mode",
+			confidence: 1,
+			sensitivity: "normal",
+			visibility: "usable_by_ai",
+			sourceIds: nil,
+			createdAt: "2026-01-01T00:00:00Z",
+			updatedAt: "2026-01-01T00:00:00Z",
+			expiresAt: nil
+		)
+		store.memories = [memory]
+		store.selectedMemoryId = memory.id
+		store.selectedMemory = memory
+		let view = MemoriesDetailView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "new-memory-button")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "delete-memory-button")
+		}
 	}
 
 	@Test("memories store initializes with empty state")
