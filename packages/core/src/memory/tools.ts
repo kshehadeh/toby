@@ -33,18 +33,27 @@ export function createMemoryTools(
 	return {
 		memorySearch: tool({
 			description:
-				"Search the user's personal memory for preferences, relationships, projects, facts, and other stored context. Use this to recall information the user previously shared.",
+				'Search the user\'s personal memory for preferences, relationships, projects, facts, and other stored context. Each word is matched independently, so a phrase like "where I live" still finds "Lives in Baltimore". Prefer a short natural-language phrase or a few keywords.',
 			inputSchema: z.object({
 				query: z
 					.string()
 					.min(1)
-					.describe("Search terms to find relevant memories"),
+					.describe(
+						"Natural-language phrase or keywords (matched independently, not as one exact substring)",
+					),
 			}),
 			execute: async ({ query }) => {
 				if (ctx.dryRun) {
 					return { dryRun: true, message: `Would search memory for: ${query}` };
 				}
 				const results = memory.search(ctx.userId, query);
+				if (results.length === 0) {
+					return {
+						count: 0,
+						memories: [],
+						hint: "No memories matched. Try fewer keywords (e.g. home, name, or a city).",
+					};
+				}
 				return {
 					count: results.length,
 					memories: results.map((m) => ({

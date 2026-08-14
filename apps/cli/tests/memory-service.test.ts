@@ -95,6 +95,89 @@ describe.skipIf(!isBun)("memory-service", () => {
 		expect(searchResults).toHaveLength(0);
 	});
 
+	it("lists only usable, non-expired memories for the prompt", () => {
+		memory.createManual("user1", { value: "Lives in Baltimore, Maryland" });
+		memory.createManual("user1", {
+			value: "Needs confirmation",
+			visibility: "requires_confirmation",
+		});
+		memory.createManual("user1", {
+			value: "Private",
+			visibility: "private",
+		});
+		memory.createManual("user1", {
+			value: "Expired",
+			expiresAt: "2020-01-01T00:00:00.000Z",
+		});
+
+		const usable = memory.listUsableForPrompt("user1");
+		expect(usable.map((m) => m.value)).toEqual([
+			"Lives in Baltimore, Maryland",
+		]);
+	});
+
+	it("finds a home-location memory from a natural-language query", () => {
+		const proposal = memory.propose(
+			"user1",
+			{
+				userId: "user1",
+				type: "fact",
+				value: "Lives in Baltimore, Maryland",
+				confidence: 1,
+				sensitivity: "normal",
+				visibility: "usable_by_ai",
+				expiresAt: null,
+			},
+			{ system: "chat" },
+			"User explicitly asked to remember their home location",
+		);
+		expect(proposal.status).toBe("accepted");
+
+		const results = memory.search(
+			"user1",
+			"where I live home address residence",
+		);
+		expect(results).toHaveLength(1);
+		expect(results[0]?.value).toBe("Lives in Baltimore, Maryland");
+	});
+
+	it("ranks a phrase match above a single-keyword overlap", () => {
+		memory.propose(
+			"user1",
+			{
+				userId: "user1",
+				type: "fact",
+				value: "Baltimore is a great city",
+				confidence: 0.95,
+				sensitivity: "normal",
+				visibility: "usable_by_ai",
+				expiresAt: null,
+			},
+			{ system: "chat" },
+			"Stated by user",
+		);
+		memory.propose(
+			"user1",
+			{
+				userId: "user1",
+				type: "fact",
+				value: "Lives in Baltimore, Maryland",
+				confidence: 0.9,
+				sensitivity: "normal",
+				visibility: "usable_by_ai",
+				expiresAt: null,
+			},
+			{ system: "chat" },
+			"Stated by user",
+		);
+
+		const results = memory.search("user1", "lives in baltimore");
+		expect(results.map((r) => r.value)).toContain(
+			"Lives in Baltimore, Maryland",
+		);
+		expect(results[0]?.value).toBe("Lives in Baltimore, Maryland");
+	});
+
 	it("retrieves relevant memories for a task", () => {
 		memory.propose(
 			"user1",

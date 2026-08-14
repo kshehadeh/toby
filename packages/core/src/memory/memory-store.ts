@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { ensureTobyDir, getMemoryDbPath } from "../config/index";
+import { escapeLikePattern } from "./keywords";
 import type {
 	MemoryAuditAction,
 	MemoryAuditEntry,
@@ -287,15 +288,17 @@ export function deleteItem(userId: string, memoryId: string): boolean {
 	return Number((result as { changes: number } | null)?.changes ?? 0) > 0;
 }
 
+const ITEM_SELECT = `SELECT id, user_id, type, subject, value, confidence, sensitivity, visibility, expires_at, created_at, updated_at
+       FROM memory_items`;
+
 export function searchItems(userId: string, query: string): MemoryItem[] {
 	const db = getDb();
-	const pattern = `%${query}%`;
+	const pattern = `%${escapeLikePattern(query)}%`;
 	const rows = db
 		.query(
-			`SELECT id, user_id, type, subject, value, confidence, sensitivity, visibility, expires_at, created_at, updated_at
-       FROM memory_items
+			`${ITEM_SELECT}
        WHERE user_id = $uid
-         AND (value LIKE $pat OR subject LIKE $pat OR type LIKE $pat)
+         AND (value LIKE $pat ESCAPE '!' OR subject LIKE $pat ESCAPE '!' OR type LIKE $pat ESCAPE '!')
        ORDER BY updated_at DESC`,
 		)
 		.all({ $uid: userId, $pat: pattern }) as Array<{
@@ -311,20 +314,47 @@ export function searchItems(userId: string, query: string): MemoryItem[] {
 		created_at: string;
 		updated_at: string;
 	}>;
-	return rows.map((r) => ({
-		id: r.id,
-		userId: r.user_id,
-		type: r.type as MemoryItem["type"],
-		subject: r.subject ?? undefined,
-		value: r.value,
-		confidence: r.confidence,
-		sensitivity: r.sensitivity as MemorySensitivity,
-		visibility: r.visibility as MemoryVisibility,
-		sourceIds: getItemSourceIds(r.id),
-		createdAt: r.created_at,
-		updatedAt: r.updated_at,
-		expiresAt: r.expires_at ?? undefined,
-	}));
+	return rows.map(rowToItem);
+}
+
+/** Match items that contain any of the given keywords in value, subject, or type. */
+export function searchItemsByKeywords(
+	userId: string,
+	keywords: readonly string[],
+): MemoryItem[] {
+	if (keywords.length === 0) return [];
+	const db = getDb();
+	const likeClauses = keywords.map(
+		(_, i) =>
+			`(value LIKE $kw${i} ESCAPE '!' OR subject LIKE $kw${i} ESCAPE '!' OR type LIKE $kw${i} ESCAPE '!')`,
+	);
+	const kwParams: Record<string, unknown> = { $uid: userId };
+	for (let i = 0; i < keywords.length; i++) {
+		const kw = keywords[i];
+		if (!kw) continue;
+		kwParams[`$kw${i}`] = `%${escapeLikePattern(kw)}%`;
+	}
+	const rows = db
+		.query(
+			`${ITEM_SELECT}
+       WHERE user_id = $uid
+         AND (${likeClauses.join(" OR ")})
+       ORDER BY updated_at DESC`,
+		)
+		.all(kwParams) as Array<{
+		id: string;
+		user_id: string;
+		type: string;
+		subject: string | null;
+		value: string;
+		confidence: number;
+		sensitivity: string;
+		visibility: string;
+		expires_at: string | null;
+		created_at: string;
+		updated_at: string;
+	}>;
+	return rows.map(rowToItem);
 }
 
 export function listItems(
@@ -381,6 +411,39 @@ export function listItems(
 	}));
 }
 
+/** Usable-by-AI memories for system-prompt injection (excludes expired). */
+export function listUsableItems(
+	userId: string,
+	opts?: { limit?: number },
+): MemoryItem[] {
+	const db = getDb();
+	const limit = Math.max(1, Math.min(500, opts?.limit ?? 200));
+	const now = nowIso();
+	const rows = db
+		.query(
+			`${ITEM_SELECT}
+       WHERE user_id = $uid
+         AND visibility = 'usable_by_ai'
+         AND (expires_at IS NULL OR expires_at > $now)
+       ORDER BY updated_at DESC
+       LIMIT $limit`,
+		)
+		.all({ $uid: userId, $now: now, $limit: limit }) as Array<{
+		id: string;
+		user_id: string;
+		type: string;
+		subject: string | null;
+		value: string;
+		confidence: number;
+		sensitivity: string;
+		visibility: string;
+		expires_at: string | null;
+		created_at: string;
+		updated_at: string;
+	}>;
+	return rows.map(rowToItem);
+}
+
 export function countItems(userId: string, opts?: { query?: string }): number {
 	const db = getDb();
 	const query = opts?.query?.trim();
@@ -433,11 +496,14 @@ export function getItemsForRetrieval(
 	}
 
 	const likeClauses = keywords.map(
-		(_, i) => `(value LIKE $kw${i} OR subject LIKE $kw${i})`,
+		(_, i) =>
+			`(value LIKE $kw${i} ESCAPE '!' OR subject LIKE $kw${i} ESCAPE '!')`,
 	);
 	const kwParams: Record<string, unknown> = {};
 	for (let i = 0; i < keywords.length; i++) {
-		kwParams[`$kw${i}`] = `%${keywords[i]}%`;
+		const kw = keywords[i];
+		if (!kw) continue;
+		kwParams[`$kw${i}`] = `%${escapeLikePattern(kw)}%`;
 	}
 	const rows = db
 		.query(

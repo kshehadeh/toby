@@ -38,6 +38,10 @@ is not yet determined.
 enable flag). Pretreatment / semantic routing may still select it only when
 relevant, but the tool is always registered on the global tool set.
 
+Use it for **current** position (“where am I”, “near me”). Questions about
+where the user **lives** or a **saved home address** should search memory
+first — see [`memory.md`](memory.md).
+
 ### Example response shape
 
 ```json

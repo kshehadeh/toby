@@ -86,6 +86,19 @@ The policy engine scans the value and subject for keywords:
 - **summary**: short text describing what was found
 - **omitted**: count of items excluded due to privacy
 
+`memorySearch` / `search()` tokenizes the query (stopwords removed) and matches **any** remaining term against `value`, `subject`, or `type`. A stuffed phrase such as “where I live home address residence” still finds “Lives in Baltimore, Maryland”. Results are ranked by full-phrase hit, keyword overlap, then confidence.
+
+### System-prompt injection
+
+Each chat turn (and scheduled run) appends a **Known memories** section to the first system message when there is anything to include:
+
+- Only `usable_by_ai` items are listed. `requires_confirmation` and `private` items are omitted (same privacy rules as `retrieveForTask` without `includeUnconfirmed`).
+- Expired items (`expires_at` in the past) are omitted.
+- The whole section is capped at **20,000 characters**. Newest memories fill the budget first; leftover items are noted so the model can `memorySearch`.
+- The section is stripped and rebuilt every turn so saves and forgets show up without starting a new chat.
+
+Implementation: [`packages/core/src/memory/prompt.ts`](../packages/core/src/memory/prompt.ts), injected by [`prepare-messages.ts`](../packages/core/src/prepare-messages.ts).
+
 Retrieval rules:
 
 - Only returns `usable_by_ai` memories by default
@@ -99,7 +112,7 @@ Memory is exposed as tools to the AI harness:
 
 | Tool | Description |
 | ---- | ----------- |
-| `memorySearch` | Search memories by keyword |
+| `memorySearch` | Search memories by independent keywords (not one exact substring) |
 | `memoryPropose` | Propose a new memory (never direct writes) |
 | `memorySave` | Confirm a pending proposal |
 | `memoryForget` | Delete a memory |
@@ -123,5 +136,6 @@ src/memory/
   memory-store.ts     # SQLite repository layer
   memory-service.ts   # Public API
   policy.ts           # Sensitivity classification + auto-save rules
+  prompt.ts           # System-prompt formatting (≤20k, privacy-filtered)
   tools.ts            # AI tool wrappers
 ```

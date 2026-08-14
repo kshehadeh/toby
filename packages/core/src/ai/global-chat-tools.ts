@@ -238,7 +238,9 @@ Weather rules:
 		: "";
 	const locationRules = `
 Location rules:
-- When the user asks where they are, for their current location, or for "near me" / "here" geographic context, use **getMyLocation**.
+- When the user asks where they **live**, their **home**, or a **saved address**, search memory first (**memorySearch**). Do not treat GPS as their home.
+- When the user asks where they **are right now**, for their current location, or for "near me" / "here" geographic context, use **getMyLocation**.
+- If both home and current location might matter, search memory for the saved home and only use **getMyLocation** for the device's current position.
 - **getMyLocation** may prompt for macOS Location Services permission the first time; if access is denied, explain that the user can allow Location for Toby in System Settings or the Permissions window.`;
 	return `
 Global Toby tools (always available in addition to integration tools):
@@ -256,8 +258,8 @@ ${searchRules}${weatherRules}${locationRules}
 
 Memory rules:
 - **Always** use **memoryPropose** when the user shares a durable preference, fact, or personal context worth remembering. Never skip this.
-- Use **memoryRetrieveForTask** at the start of a turn to recall relevant context before acting.
-- Use **memorySearch** when you need to look up something specific the user previously mentioned.
+- Usable memories may already appear under **Known memories** in the system prompt — treat that list as known context and do not re-search for those facts.
+- Use **memorySearch** or **memoryRetrieveForTask** when something is missing from that list or you need to look up a specific stored fact.
 - Use **memoryForget** when the user asks to remove a memory.
 - Use **memoryExplain** when the user asks why you know something.
 

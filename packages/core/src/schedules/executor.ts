@@ -17,6 +17,7 @@ import {
 import { notifyNativeScheduleCompleted } from "../native-app/notifications";
 import { resolvePersona } from "../personas/index";
 import {
+	injectMemoriesIntoFirstSystemMessage,
 	injectProjectContextIntoFirstSystemMessage,
 	prepareChatSessionMessages,
 } from "../prepare-messages";
@@ -140,6 +141,7 @@ export async function executeScheduleRun(
 		if (project) {
 			messages = injectProjectContextIntoFirstSystemMessage(messages, project);
 		}
+		messages = injectMemoriesIntoFirstSystemMessage(messages);
 
 		const toolBundles = await Promise.all(
 			chatModules.map(async (m) => {
