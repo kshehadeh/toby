@@ -5,7 +5,7 @@ import Observation
 @MainActor
 final class MemoriesStore {
 	var memories: [MemoryItem] = []
-	var selectedMemoryId: String?
+	var selectedMemoryIds: Set<String> = []
 	var selectedMemory: MemoryItem?
 	var isListLoading = false
 	var isDetailLoading = false
@@ -20,8 +20,26 @@ final class MemoriesStore {
 	var isCreatingNew: Bool = false
 
 	struct PendingDelete: Identifiable {
-		let id: String
-		let value: String
+		let ids: Set<String>
+		let value: String?
+
+		var id: String {
+			ids.sorted().joined(separator: ",")
+		}
+
+		var count: Int {
+			ids.count
+		}
+	}
+
+	var selectedMemoryId: String? {
+		get {
+			guard selectedMemoryIds.count == 1 else { return nil }
+			return selectedMemoryIds.first
+		}
+		set {
+			selectedMemoryIds = newValue.map { [$0] } ?? []
+		}
 	}
 
 	/// Tools that create, update, or delete durable memory.
@@ -35,6 +53,7 @@ final class MemoriesStore {
 	private let pageSize: Int = 50
 	private var pollTask: Task<Void, Never>?
 	private var isQuietRefreshing = false
+	private var detailLoadToken: UUID?
 	/// When true, the next `ensureLoaded` / appear path should re-fetch.
 	private(set) var isDirty = false
 
@@ -45,7 +64,7 @@ final class MemoriesStore {
 	func resetForHomeSwitch() {
 		stopPolling()
 		memories = []
-		selectedMemoryId = nil
+		selectedMemoryIds = []
 		selectedMemory = nil
 		isListLoading = false
 		isDetailLoading = false
@@ -168,7 +187,7 @@ final class MemoriesStore {
 
 	func startCreate() {
 		isCreatingNew = true
-		selectedMemoryId = nil
+		selectedMemoryIds = []
 		selectedMemory = nil
 	}
 
@@ -177,8 +196,21 @@ final class MemoriesStore {
 	}
 
 	func selectMemory(id: String) async {
+		selectMemories(ids: [id])
+		await loadSelectedMemory()
+	}
+
+	func selectMemories(ids: Set<String>) {
 		isCreatingNew = false
-		selectedMemoryId = id
+		selectedMemoryIds = ids
+		detailLoadToken = nil
+		selectedMemory = nil
+	}
+
+	func loadSelectedMemory() async {
+		guard selectedMemoryIds.count == 1, let id = selectedMemoryIds.first else {
+			return
+		}
 		await loadDetail(id: id)
 	}
 
@@ -206,7 +238,7 @@ final class MemoriesStore {
 			let created = try await client.createMemory(request)
 			isCreatingNew = false
 			await load()
-			selectedMemoryId = created.id
+			selectedMemoryIds = [created.id]
 			await loadDetail(id: created.id)
 			return true
 		} catch {
@@ -250,17 +282,32 @@ final class MemoriesStore {
 
 	/// Stages the confirmation alert used by the table, sidebar, and editor.
 	func requestDelete(_ memory: MemoryItem) {
-		pendingDelete = PendingDelete(id: memory.id, value: memory.value)
+		pendingDelete = PendingDelete(ids: [memory.id], value: memory.value)
+	}
+
+	func requestDeleteSelected() {
+		guard !selectedMemoryIds.isEmpty else { return }
+		let value = selectedMemoryIds.count == 1
+			? memories.first(where: { selectedMemoryIds.contains($0.id) })?.value
+			: nil
+		pendingDelete = PendingDelete(ids: selectedMemoryIds, value: value)
 	}
 
 	func deleteMemory(id: String) async {
+		await deleteMemories(ids: [id])
+	}
+
+	func deleteMemories(ids: Set<String>) async {
+		guard !ids.isEmpty else { return }
 		isSaving = true
 		errorMessage = nil
 		defer { isSaving = false }
 		do {
-			try await client.deleteMemory(id: id)
-			if selectedMemoryId == id {
-				selectedMemoryId = nil
+			for id in ids.sorted() {
+				try await client.deleteMemory(id: id)
+			}
+			if !selectedMemoryIds.isDisjoint(with: ids) {
+				selectedMemoryIds.subtract(ids)
 				selectedMemory = nil
 			}
 			await load()
@@ -286,12 +333,21 @@ final class MemoriesStore {
 	}
 
 	private func loadDetail(id: String) async {
+		let token = UUID()
+		detailLoadToken = token
 		isDetailLoading = true
 		errorMessage = nil
-		defer { isDetailLoading = false }
+		defer {
+			if detailLoadToken == token {
+				isDetailLoading = false
+			}
+		}
 		do {
-			selectedMemory = try await client.fetchMemory(id: id)
+			let loaded = try await client.fetchMemory(id: id)
+			guard detailLoadToken == token, selectedMemoryIds == [id] else { return }
+			selectedMemory = loaded
 		} catch {
+			guard detailLoadToken == token, selectedMemoryIds == [id] else { return }
 			errorMessage = error.localizedDescription
 		}
 	}
@@ -312,12 +368,18 @@ final class MemoriesStore {
 		if autoSelectIfNeeded {
 			if isCreatingNew {
 				// Leave selection cleared for the create editor.
-			} else if selectedMemoryId == nil || !memories.contains(where: { $0.id == selectedMemoryId }) {
-				selectedMemoryId = memories.first?.id
+			} else {
+				selectedMemoryIds.formIntersection(memories.map(\.id))
+				if selectedMemoryIds.isEmpty, let firstId = memories.first?.id {
+					selectedMemoryIds = [firstId]
+				}
 			}
-		} else if let selectedMemoryId, !memories.contains(where: { $0.id == selectedMemoryId }) {
+		} else if !selectedMemoryIds.isSubset(of: Set(memories.map(\.id))) {
 			// Item deleted elsewhere while we intentionally kept create/selection rules soft.
-			self.selectedMemoryId = memories.first?.id
+			selectedMemoryIds.formIntersection(memories.map(\.id))
+			if selectedMemoryIds.isEmpty, let firstId = memories.first?.id {
+				selectedMemoryIds = [firstId]
+			}
 		}
 		hasLoadedOnce = true
 		lastLoadedAt = Date()

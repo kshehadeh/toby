@@ -49,7 +49,7 @@ struct MemoriesViewTests {
 	@Test("memories view shows delete confirmation alert")
 	func memoriesViewShowsDeleteAlert() throws {
 		let store = MemoriesStore()
-		store.pendingDelete = MemoriesStore.PendingDelete(id: "m1", value: "Test memory")
+		store.pendingDelete = MemoriesStore.PendingDelete(ids: ["m1"], value: "Test memory")
 		let view = MemoriesView(store: store)
 		// The alert should be present when pendingDelete is non-nil
 		#expect(store.pendingDelete != nil)
@@ -75,8 +75,63 @@ struct MemoriesViewTests {
 			expiresAt: nil
 		)
 		store.requestDelete(memory)
-		#expect(store.pendingDelete?.id == "m1")
+		#expect(store.pendingDelete?.ids == ["m1"])
 		#expect(store.pendingDelete?.value == "Likes dark mode")
+	}
+
+	@Test("requestDeleteSelected stages one batch confirmation")
+	func requestDeleteSelectedStagesBatchConfirmation() {
+		let store = MemoriesStore()
+		store.selectedMemoryIds = ["m1", "m2", "m3"]
+
+		store.requestDeleteSelected()
+
+		#expect(store.pendingDelete?.ids == ["m1", "m2", "m3"])
+		#expect(store.pendingDelete?.count == 3)
+		#expect(store.pendingDelete?.value == nil)
+	}
+
+	@Test("selecting multiple memories synchronously preserves the full selection")
+	func selectingMultipleMemoriesPreservesFullSelection() {
+		let store = MemoriesStore()
+		store.selectedMemory = MemoryItem(
+			id: "m1",
+			userId: "u",
+			type: "fact",
+			subject: nil,
+			value: "Likes dark mode",
+			confidence: 1,
+			sensitivity: "normal",
+			visibility: "usable_by_ai",
+			sourceIds: nil,
+			createdAt: "2026-01-01T00:00:00Z",
+			updatedAt: "2026-01-01T00:00:00Z",
+			expiresAt: nil
+		)
+
+		store.selectMemories(ids: ["m1", "m2"])
+
+		#expect(store.selectedMemoryIds == ["m1", "m2"])
+		#expect(store.selectedMemory == nil)
+	}
+
+	@Test("memories detail view summarizes multiple selection")
+	func memoriesDetailViewSummarizesMultipleSelection() throws {
+		let store = MemoriesStore()
+		store.memories = [
+			MemoryItem(id: "m1", userId: "u", type: "fact", subject: nil, value: "Likes dark mode", confidence: 1, sensitivity: "normal", visibility: "usable_by_ai", sourceIds: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z", expiresAt: nil),
+			MemoryItem(id: "m2", userId: "u", type: "preference", subject: nil, value: "Prefers compact UI", confidence: 1, sensitivity: "normal", visibility: "usable_by_ai", sourceIds: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z", expiresAt: nil),
+		]
+		store.selectedMemoryIds = ["m1", "m2"]
+
+		let view = MemoriesDetailView(store: store)
+
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "2 memories selected")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "delete-memories-button")
+		}
 	}
 
 	@Test("memories detail view shows table chrome when memories exist")
@@ -112,6 +167,7 @@ struct MemoriesViewTests {
 	func memoriesStoreInitializesEmpty() {
 		let store = MemoriesStore()
 		#expect(store.memories.isEmpty)
+		#expect(store.selectedMemoryIds.isEmpty)
 		#expect(store.selectedMemoryId == nil)
 		#expect(store.selectedMemory == nil)
 		#expect(store.isListLoading == false)

@@ -76,14 +76,12 @@ struct MemoriesDetailView: View {
 			.padding(.vertical, 10)
 			Divider().overlay(SettingsDesign.cardBorder)
 			Table(store.memories, selection: Binding(
-				get: { store.selectedMemoryId },
-				set: { newId in
+				get: { store.selectedMemoryIds },
+				set: { newIds in
 					store.cancelCreate()
-					if let newId {
-						Task { await store.selectMemory(id: newId) }
-					} else {
-						store.selectedMemoryId = nil
-						store.selectedMemory = nil
+					store.selectMemories(ids: newIds)
+					if newIds.count == 1 {
+						Task { await store.loadSelectedMemory() }
 					}
 				},
 			)) {
@@ -120,9 +118,14 @@ struct MemoriesDetailView: View {
 			}
 			.tableStyle(.inset)
 			.contextMenu(forSelectionType: MemoryItem.ID.self) { selection in
-				if let memory = memory(for: selection) {
-					Button("Delete Memory", systemImage: "trash", role: .destructive) {
-						store.requestDelete(memory)
+				if !selection.isEmpty {
+					Button(
+						selection.count == 1 ? "Delete Memory" : "Delete \(selection.count) Memories",
+						systemImage: "trash",
+						role: .destructive
+					) {
+						store.selectedMemoryIds = selection
+						store.requestDeleteSelected()
 					}
 					.disabled(store.isSaving)
 					.accessibilityIdentifier("delete-memory-menu-item")
@@ -161,6 +164,8 @@ struct MemoriesDetailView: View {
 				onCancel: { store.cancelCreate() },
 				onDelete: nil
 			)
+		} else if store.selectedMemoryIds.count > 1 {
+			multiSelectionPanel
 		} else if let memory = store.selectedMemory {
 			memoryEditor(
 				title: "Edit Memory",
@@ -229,11 +234,6 @@ struct MemoriesDetailView: View {
 				draftVisibility != memory.visibility
 		}
 		return false
-	}
-
-	private func memory(for selection: Set<MemoryItem.ID>) -> MemoryItem? {
-		guard let id = selection.first else { return nil }
-		return store.memories.first { $0.id == id }
 	}
 
 	private func sensitivityColor(_ sensitivity: String) -> Color {
@@ -454,6 +454,53 @@ private extension MemoriesDetailView {
 		.padding(.horizontal, 10)
 		.padding(.top, 10)
 		.padding(.bottom, 6)
+	}
+
+	private var multiSelectionPanel: some View {
+		VStack(alignment: .leading, spacing: 16) {
+			HStack(spacing: 10) {
+				Image(systemName: "brain.head.profile")
+					.font(.system(size: 20))
+					.foregroundStyle(AppTheme.accent)
+				Text("Multiple Memories")
+					.font(.system(size: 16, weight: .semibold))
+					.foregroundStyle(AppTheme.primaryText)
+				Spacer()
+			}
+
+			Spacer()
+
+			VStack(spacing: 10) {
+				Image(systemName: "checklist")
+					.font(.system(size: 40))
+					.foregroundStyle(AppTheme.tertiaryText)
+				Text("\(store.selectedMemoryIds.count) memories selected")
+					.font(.callout)
+					.foregroundStyle(AppTheme.secondaryText)
+				Text("You can delete the selected memories together.")
+					.font(.caption)
+					.foregroundStyle(AppTheme.tertiaryText)
+			}
+			.frame(maxWidth: .infinity)
+
+			Spacer()
+
+			HStack {
+				Spacer()
+				Button(role: .destructive) {
+					store.requestDeleteSelected()
+				} label: {
+					Label("Delete", systemImage: "trash")
+				}
+				.buttonStyle(.bordered)
+				.disabled(store.isSaving)
+				.accessibilityIdentifier("delete-memories-button")
+			}
+			.padding(.horizontal, 4)
+		}
+		.padding(20)
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+		.background(SettingsDesign.canvasBackground)
 	}
 
 	@ViewBuilder
