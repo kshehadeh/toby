@@ -2,7 +2,8 @@
 
 Flows are **named pipelines**: an ordered sequence of **nodes** with explicit
 **inputs** and **outputs**. They power non-chat workflows that need a fixed
-sequence of steps (today: home dashboard card **bodies**).
+sequence of steps: home dashboard card **bodies**, custom macros, and
+**scheduled runs**.
 
 **Definitions** are stored in SQLite (`flows` table in `~/.toby/chat.sqlite`) as
 JSON documents. Built-in dashboard flows are seeded from code on first lookup
@@ -534,6 +535,13 @@ saveFlowDocument(myFlow);
 For one-off tests without persisting a definition, build a runtime
 `FlowDefinition` and call `runFlowDefinition(def, { record: false })`.
 
+## Scheduled runs
+
+A [schedule](daemon.md#schedules) may set `flow_id` instead of a chat prompt.
+The daemon then calls `runUserFlowById` (same destination delivery as **Run now**
+on the Flows screen). Modal/dashboard destinations do not open a window on a
+daemon tick; email/Slack still send. Output is stored on the schedule run.
+
 ## Failure behavior
 
 - Unknown flow id → `ok: false`, error message, empty trace.  
@@ -549,7 +557,7 @@ For one-off tests without persisting a definition, build a runtime
   (structured bind; e.g. LLM-picked email UIDs → `archiveEmail`)
 - Multi-step tool loops inside LLM Prompter (use chat or a schedule prompt)
 - Branching, conditionals, parallel nodes
-- Running a flow from a schedule or the command palette
+- Running a flow from the command palette
 - Overwriting existing built-in rows when seed content changes
 - Schema presets beyond `{ kind: "markdown" }`
 - CLI `toby flows`

@@ -568,7 +568,7 @@ struct RootView: View {
                         )
                     }
             case .schedules:
-                SchedulesView(store: schedulesStore)
+                SchedulesView(store: schedulesStore, onOpenFlow: openDashboardFlow)
                     .toolbar {
                         RootToolbars.schedules(
                             common: commonToolbarModel,

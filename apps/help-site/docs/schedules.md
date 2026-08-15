@@ -5,7 +5,9 @@ title: Schedules
 
 # Schedules
 
-**Schedules** are recurring jobs that run a **prompt** with a chosen **persona** on a **cron** timetable—for example, a daily inbox summary every morning at 9:00.
+**Schedules** are recurring jobs that run on a **cron** timetable. Each schedule
+runs either a **prompt** (with a persona) or a saved **flow**—for example, a
+daily inbox summary every morning at 9:00.
 
 Schedule definitions are stored in `~/.toby/chat.sqlite` alongside chat sessions. While Toby is running, a background service checks which schedules are due and runs them.
 
@@ -14,8 +16,10 @@ Schedule definitions are stored in `~/.toby/chat.sqlite` alongside chat sessions
 | Field | Description |
 | ----- | ----------- |
 | Name | Label you recognize in the list |
-| Prompt | What Toby should do when the schedule fires |
-| Persona | Which persona to use (defaults often to **Toby**) |
+| When it runs | **Prompt** (chat) or **Flow** (named pipeline) |
+| Prompt | What Toby should do when the schedule fires (prompt mode) |
+| Flow | Which saved flow to run (flow mode) |
+| Persona | Which persona to use in prompt mode (defaults often to **Toby**) |
 | Cron expression | When to run (standard five-field cron) |
 | Enabled | Whether the schedule is active |
 
@@ -29,7 +33,8 @@ Open **Toby.app** and click **Schedules** in the sidebar.
 
 ![Toby.app Schedules window](/img/toby-app-schedules.png)
 
-From there you can create, edit, delete, enable or disable schedules, **Run now** for a test, and view past runs.
+From there you can create, edit, delete, enable or disable schedules, choose a
+**prompt** or a **flow**, **Run now** for a test, and view past runs.
 
 ### From chat
 
@@ -62,13 +67,14 @@ After connecting Email and leaving Toby running, you get a daily brief at 9am.
 
 ## Tips
 
-- Connect the integrations your prompt needs (Email, Todoist, etc.) before relying on a schedule.
-- Use a persona whose instructions match the job (brief vs detailed).
+- Connect the integrations your prompt or flow needs (Email, Todoist, etc.) before relying on a schedule.
+- Use a persona whose instructions match the job (brief vs detailed), or let the flow pick its own persona.
+- In flow mode, email and Slack destinations on the flow still send; a “show result” window does not pop up when the daemon runs.
 - Test with **Run now** before enabling an aggressive cron.
 
 ## Related
 
 - [Personas](./personas)
 - [Integrations](./integrations/overview)
-- [Flows](./flows) — tool + persona pipelines (custom flows run now; schedule-as-flow later)
+- [Flows](./flows) — tool + persona pipelines you can also run on a schedule
 - [Examples](./examples)

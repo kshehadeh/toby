@@ -431,6 +431,15 @@ export async function handleConfigureAction(
 				updateSchedule(scheduleId, {
 					projectId: projectId && projectId !== "(none)" ? projectId : null,
 				});
+			} else if (field === "action") {
+				if (String(value ?? "") === "prompt") {
+					updateSchedule(scheduleId, { flowId: null });
+				}
+			} else if (field === "flow") {
+				const flowId = String(value ?? "").trim();
+				updateSchedule(scheduleId, {
+					flowId: flowId && flowId !== "(none)" ? flowId : null,
+				});
 			} else {
 				return errorResponse(`Unknown schedule field: ${field}`);
 			}

@@ -94,6 +94,10 @@ export function seedScheduleValues(values: Record<string, string>): void {
 	}
 	for (const schedule of schedules) {
 		values[`schedules.${schedule.id}.name`] = schedule.name;
+		values[`schedules.${schedule.id}.action`] = schedule.flowId
+			? "flow"
+			: "prompt";
+		values[`schedules.${schedule.id}.flow`] = schedule.flowId ?? "(none)";
 		values[`schedules.${schedule.id}.prompt`] = schedule.prompt;
 		values[`schedules.${schedule.id}.persona`] = schedule.personaName;
 		values[`schedules.${schedule.id}.cron`] = schedule.cronExpression;
@@ -588,7 +592,7 @@ function applyConfigFromValues(values: Record<string, string>): void {
 
 const SKILL_FIELD_RE = /^skills\.([^.]+)\.(name|description)$/;
 const SCHEDULE_FIELD_RE =
-	/^schedules\.([^.]+)\.(name|prompt|persona|cron|project|enabled)$/;
+	/^schedules\.([^.]+)\.(name|action|flow|prompt|persona|cron|project|enabled)$/;
 
 function partitionConfigurePatch(patch: Record<string, string>): {
 	config: Record<string, string>;
@@ -601,7 +605,9 @@ function partitionConfigurePatch(patch: Record<string, string>): {
 			personaName?: string;
 			cronExpression?: string;
 			projectId?: string | null;
+			flowId?: string | null;
 			enabled?: boolean;
+			action?: "prompt" | "flow";
 		}
 	>;
 } {
@@ -615,7 +621,9 @@ function partitionConfigurePatch(patch: Record<string, string>): {
 			personaName?: string;
 			cronExpression?: string;
 			projectId?: string | null;
+			flowId?: string | null;
 			enabled?: boolean;
+			action?: "prompt" | "flow";
 		}
 	>();
 
@@ -640,6 +648,11 @@ function partitionConfigurePatch(patch: Record<string, string>): {
 			else if (field === "cron") entry.cronExpression = value;
 			else if (field === "project")
 				entry.projectId = value === "(none)" ? null : value;
+			else if (field === "action")
+				entry.action = value === "flow" ? "flow" : "prompt";
+			else if (field === "flow")
+				entry.flowId =
+					value === "(none)" || !value.trim() ? null : value.trim();
 			else entry.enabled = value === "Yes" || value === "true";
 			schedules.set(scheduleId, entry);
 			continue;
@@ -717,7 +730,12 @@ export function applyConfigureValuesPatch(
 	}
 
 	for (const [scheduleId, updates] of schedules) {
-		updateSchedule(scheduleId, updates);
+		const { action, ...rest } = updates;
+		if (action === "prompt") {
+			updateSchedule(scheduleId, { ...rest, flowId: null });
+		} else {
+			updateSchedule(scheduleId, rest);
+		}
 	}
 }
 

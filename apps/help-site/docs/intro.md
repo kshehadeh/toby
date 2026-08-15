@@ -20,7 +20,7 @@ It combines:
 - **Memories** — durable context Toby remembers across sessions
 - **Projects** — Scoped chats, skills, and memories for a specific context
 - **Recordings** — audio recordings with transcriptions and chat integration
-- **Schedules** — recurring prompts that run automatically
+- **Schedules** — recurring prompts or flows that run automatically
 - **Flows** — tool + persona + LLM pipelines (dashboard blurbs plus custom macros you create)
 
 ## Where to go next

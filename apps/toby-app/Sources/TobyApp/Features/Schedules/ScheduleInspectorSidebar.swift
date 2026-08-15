@@ -10,8 +10,13 @@ struct ScheduleInspectorSidebar: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     nameField
-                    personaField
-                    projectField
+                    actionField
+                    if isFlowAction {
+                        flowField
+                    } else {
+                        personaField
+                        projectField
+                    }
                     cronField
                     enableRow
                     Divider().overlay(SettingsDesign.cardBorder)
@@ -64,6 +69,56 @@ struct ScheduleInspectorSidebar: View {
             placeholder: "Schedule name",
             text: binding(for: .name),
         )
+    }
+
+    private var actionField: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("When it runs")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(SettingsDesign.rowTitle)
+            Picker("When it runs", selection: actionBinding) {
+                Text("Prompt").tag("prompt")
+                Text("Flow").tag("flow")
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .controlSize(.regular)
+            .accessibilityIdentifier("schedule-action-picker")
+            Text(
+                isFlowAction
+                    ? "Runs the selected flow on this timetable."
+                    : "Sends the prompt through chat when this timetable fires."
+            )
+            .font(.system(size: 11))
+            .foregroundStyle(SettingsDesign.rowDescription)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var flowField: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Flow")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(SettingsDesign.rowTitle)
+            if store.flowOptions.isEmpty {
+                Text("Create a flow first, then pick it here.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(SettingsDesign.rowDescription)
+            } else {
+                Picker("Flow", selection: flowBinding) {
+                    Text("Select a flow").tag("(none)")
+                    ForEach(store.flowOptions) { flow in
+                        Text(flow.builtin ? "\(flow.displayName) (built-in)" : flow.displayName)
+                            .tag(flow.id)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .controlSize(.regular)
+                .accessibilityIdentifier("schedule-flow-picker")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var personaField: some View {
@@ -274,6 +329,33 @@ struct ScheduleInspectorSidebar: View {
         Binding(
             get: { store.value(for: store.key(for: schedule.id, field: field)) },
             set: { store.setDraftValue(store.key(for: schedule.id, field: field), $0) },
+        )
+    }
+
+    private var isFlowAction: Bool {
+        store.value(for: store.key(for: schedule.id, field: .action)) == "flow"
+    }
+
+    private var actionBinding: Binding<String> {
+        Binding(
+            get: { isFlowAction ? "flow" : "prompt" },
+            set: { store.setAction($0, for: schedule.id) },
+        )
+    }
+
+    private var flowBinding: Binding<String> {
+        Binding(
+            get: {
+                let value = store.value(for: store.key(for: schedule.id, field: .flow))
+                return value.isEmpty ? "(none)" : value
+            },
+            set: {
+                store.setDraftValue(
+                    store.key(for: schedule.id, field: .flow),
+                    $0,
+                    autosaveImmediately: true,
+                )
+            },
         )
     }
 

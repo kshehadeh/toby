@@ -2,9 +2,10 @@ import SwiftUI
 
 struct SchedulesView: View {
 	@Bindable var store: SchedulesStore
+	var onOpenFlow: ((String) -> Void)?
 
 	var body: some View {
-		SchedulesDetailView(store: store)
+		SchedulesDetailView(store: store, onOpenFlow: onOpenFlow)
 		.toolbarBackground(.visible)
 		.background(SettingsDesign.canvasBackground)
 		.task {

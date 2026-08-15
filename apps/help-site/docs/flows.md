@@ -67,15 +67,16 @@ flow can have only one Dashboard destination.
 
 A good first flow is a focus macro: turn Wi-Fi off, then minimize all windows. Tools that need IDs from a previous search (for example “archive these messages”) still belong in [chat](./chat-surfaces/overview) or a [schedule](./schedules) prompt — the model can pick IDs and call the tool itself.
 
-**Coming later:** run a custom flow on a [schedule](./schedules).
+To run a flow on a timetable, open **Schedules**, set **When it runs** to
+**Flow**, and pick the flow. See [Schedules](./schedules).
 
 ## Flows vs chat vs schedules
 
 | | **Chat** | **Flow** | **Schedule** |
 | --- | -------- | -------- | ------------ |
-| **How it runs** | Interactive conversation with tools chosen per turn | Fixed pipeline of tool + model steps | Fires a prompt (or, later, a flow) on a cron |
+| **How it runs** | Interactive conversation with tools chosen per turn | Fixed pipeline of tool + model steps | Fires a prompt **or a flow** on a cron |
 | **Best for** | Open-ended questions and multi-step work | Repeatable summaries and automated workflows | “Do this every morning” |
-| **Today** | Fully available | Built-in dashboard flows plus custom macros you create | Recurring prompts with a persona |
+| **Today** | Fully available | Built-in dashboard flows plus custom macros you create | Recurring prompts or a selected flow |
 
 ## Tips
 

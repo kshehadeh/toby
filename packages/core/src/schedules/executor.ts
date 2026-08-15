@@ -6,6 +6,8 @@ import {
 } from "../chat-pipeline/resolve-chat-modules";
 import { getDefaultProvider } from "../config/index";
 import type { Persona } from "../config/index";
+import type { UserFlowRunResult } from "../flows/run-user-flow";
+import { runUserFlowById } from "../flows/run-user-flow";
 import {
 	getModulesForCategory,
 	getModulesWithCapability,
@@ -27,7 +29,11 @@ import {
 	updateScheduleLastRun,
 	updateScheduleRunTranscript,
 } from "./store";
-import type { Schedule } from "./types";
+import {
+	type Schedule,
+	scheduleRunPromptSnapshot,
+	scheduleRunsFlow,
+} from "./types";
 
 const SCHEDULE_SYSTEM_INSTRUCTION_APPENDIX = `
 
@@ -42,15 +48,40 @@ export function createScheduleRunForExecution(schedule: Schedule): string {
 	return createScheduleRun({
 		scheduleId: schedule.id,
 		personaName: schedule.personaName,
-		prompt: schedule.prompt,
+		prompt: scheduleRunPromptSnapshot(schedule),
 	});
+}
+
+export function flowScheduleTranscript(result: UserFlowRunResult): unknown[] {
+	return result.nodeTrace.map((node, seq) => ({
+		type: "flow_node",
+		seq,
+		header: `${node.nodeId} · ${node.type}`,
+		detail: node.status,
+		durationMs: node.durationMs,
+		...(node.error ? { error: node.error } : {}),
+	}));
+}
+
+export function flowScheduleOutput(result: UserFlowRunResult): string {
+	const text = result.extracted?.text.trim() ?? "";
+	if (text) return text;
+	return "Flow completed with no text output.";
 }
 
 export async function executeScheduleRun(
 	runId: string,
 	schedule: Schedule,
-	options?: { onChatEvent?: ChatEventSink },
+	options?: {
+		onChatEvent?: ChatEventSink;
+		runUserFlow?: typeof runUserFlowById;
+	},
 ): Promise<void> {
+	if (scheduleRunsFlow(schedule)) {
+		await executeFlowScheduleRun(runId, schedule, options?.runUserFlow);
+		return;
+	}
+
 	const persona = resolvePersona(schedule.personaName);
 	if (!persona) {
 		await completeScheduleRunWithError(
@@ -215,6 +246,60 @@ export async function executeSchedule(
 ): Promise<void> {
 	const runId = createScheduleRunForExecution(schedule);
 	await executeScheduleRun(runId, schedule, options);
+}
+
+async function executeFlowScheduleRun(
+	runId: string,
+	schedule: Schedule,
+	runUserFlow: typeof runUserFlowById = runUserFlowById,
+): Promise<void> {
+	const flowId = schedule.flowId;
+	if (!flowId) {
+		await completeScheduleRunWithError(
+			runId,
+			schedule,
+			`Schedule "${schedule.name}": no flow is selected.`,
+		);
+		return;
+	}
+
+	try {
+		const result = await runUserFlow(flowId, {
+			trigger: `schedule:${schedule.id}`,
+		});
+		try {
+			updateScheduleRunTranscript(
+				runId,
+				safeStringify(flowScheduleTranscript(result)),
+			);
+		} catch {
+			// Persist best-effort.
+		}
+
+		if (!result.ok) {
+			await completeScheduleRunWithError(
+				runId,
+				schedule,
+				result.error ?? `Flow "${flowId}" failed.`,
+			);
+			return;
+		}
+
+		completeScheduleRun(runId, {
+			status: "success",
+			output: flowScheduleOutput(result),
+		});
+		updateScheduleLastRun(schedule.id);
+		await notifyNativeScheduleCompleted({
+			scheduleId: schedule.id,
+			scheduleName: schedule.name,
+			runId,
+			status: "success",
+		});
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		await completeScheduleRunWithError(runId, schedule, msg);
+	}
 }
 
 async function completeScheduleRunWithError(

@@ -165,6 +165,7 @@ CREATE TABLE IF NOT EXISTS schedules (
   persona_name TEXT NOT NULL,
   cron_expression TEXT NOT NULL,
   project_id TEXT,
+  flow_id TEXT,
   enabled INTEGER NOT NULL DEFAULT 1,
   last_run_at TEXT,
   created_at TEXT NOT NULL,
@@ -351,6 +352,9 @@ function migrateSchedulesSchema(db: SqliteDb): void {
 	}>;
 	if (!cols.some((c) => c.name === "project_id")) {
 		db.exec("ALTER TABLE schedules ADD COLUMN project_id TEXT");
+	}
+	if (!cols.some((c) => c.name === "flow_id")) {
+		db.exec("ALTER TABLE schedules ADD COLUMN flow_id TEXT");
 	}
 }
 

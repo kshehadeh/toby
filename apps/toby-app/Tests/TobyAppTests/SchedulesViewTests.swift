@@ -20,7 +20,7 @@ struct SchedulesViewTests {
 			try view.inspect().find(text: "Schedules")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Schedules run recurring prompts through Toby's background daemon so routine work can happen automatically.")
+			try view.inspect().find(text: "Schedules run a prompt or a flow through Toby's background daemon so routine work can happen automatically.")
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "empty-create-schedule-button")
@@ -53,6 +53,57 @@ struct SchedulesViewTests {
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Enabled")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "schedule-action-picker")
+		}
+	}
+
+	@Test("flow schedule shows flow picker and hides prompt editor")
+	func flowScheduleShowsFlowPicker() throws {
+		let store = SchedulesStore()
+		let schedule = ScheduleViewModel(
+			id: "schedule-flow",
+			name: "Morning brief",
+			prompt: "",
+			personaName: "Toby",
+			flowId: "dashboard.email",
+			cronExpression: "0 9 * * *",
+			cronHumanReadable: "At 09:00 AM",
+			nextRunAt: nil,
+			enabled: true,
+			lastRunAt: nil,
+			recentRuns: []
+		)
+		store.schedules = [schedule]
+		store.selectedScheduleId = schedule.id
+		store.values = [
+			"schedules.schedule-flow.action": "flow",
+			"schedules.schedule-flow.flow": "dashboard.email",
+		]
+		store.flowOptions = [
+			FlowListItem(
+				id: "dashboard.email",
+				name: "Email summary",
+				description: "Unread mail blurb",
+				builtin: true,
+				persona: nil,
+				nodes: [],
+				result: nil,
+				destinations: nil,
+				createdAt: nil,
+				updatedAt: nil
+			),
+		]
+		let view = SchedulesView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "schedule-flow-picker")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "This schedule runs the selected flow instead of a chat prompt.")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(text: "Sent to Toby when this schedule runs")
 		}
 	}
 

@@ -73,13 +73,15 @@ Manual **Restart server** always uses the same preferred binary as launch (produ
 
 ## Schedules
 
-Schedules are stored in `chat.sqlite` and managed via `toby schedules` or **`/schedules`** in chat. Each schedule has a name, prompt, persona, cron expression, and enabled flag.
+Schedules are stored in `chat.sqlite` and managed via `toby schedules` or **`/schedules`** in chat. Each schedule has a name, cron expression, enabled flag, and either a **prompt** (plus persona/project) or a **flow** (`flow_id`).
 
 When the daemon is running, every poll interval it:
 
 1. Loads schedules that may be due.
 2. Evaluates cron against `lastRunAt`.
-3. Runs matching schedules through the same tool-calling pipeline as headless chat (non-interactive; no `askUser`).
+3. Runs matching schedules:
+   - **Prompt** — the same tool-calling pipeline as headless chat (non-interactive; no `askUser`).
+   - **Flow** — `runUserFlowById` (destinations such as email/Slack still fire; modal/dashboard do not pop a window).
 
 Schedule execution is logged under category `scheduler` in the unified log (`source: "daemon"`, `schedule_run_start`, `schedule_run_complete`, `schedules_fired`, etc.).
 

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SchedulesDetailView: View {
 	@Bindable var store: SchedulesStore
+	var onOpenFlow: ((String) -> Void)?
 
 	var body: some View {
 		VStack(spacing: 0) {
@@ -9,7 +10,7 @@ struct SchedulesDetailView: View {
 				ProgressView("Loading schedules…")
 					.frame(maxWidth: .infinity, maxHeight: .infinity)
 			} else if let schedule = store.selectedSchedule {
-				ScheduleDetailContent(store: store, schedule: schedule)
+				ScheduleDetailContent(store: store, schedule: schedule, onOpenFlow: onOpenFlow)
 			} else if let errorMessage = store.errorMessage, store.schedules.isEmpty {
 				ContentUnavailableView {
 					Label("Schedules unavailable", systemImage: "exclamationmark.triangle")
@@ -50,7 +51,7 @@ private struct SchedulesEmptyStateView: View {
 					.font(.system(size: 28, weight: .semibold))
 					.foregroundStyle(SettingsDesign.rowTitle)
 
-				Text("Schedules run recurring prompts through Toby's background daemon so routine work can happen automatically.")
+				Text("Schedules run a prompt or a flow through Toby's background daemon so routine work can happen automatically.")
 					.font(.body)
 					.foregroundStyle(SettingsDesign.rowDescription)
 					.multilineTextAlignment(.center)

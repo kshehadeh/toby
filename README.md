@@ -14,7 +14,7 @@ Toby combines:
 - **Chat-first workflows** through the native macOS app
 - **Installable integrations** shipped as `@toby/plugin-*` TypeScript plugins
 - **Personas, skills, and memories** for durable assistant context
-- **Schedules and daemon flows** for recurring prompts and inbound chat
+- **Schedules and daemon flows** for recurring prompts or flows and inbound chat
 - **Listen mode** for local audio recording and transcription on macOS
 - **CLI maintenance commands** for automation, setup, backup/restore, and daemon control
 

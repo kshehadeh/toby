@@ -6,6 +6,7 @@ import {
 	getWebSearchProvider,
 } from "../ai/web-search-providers";
 import { getDefaultPersonaName } from "../config/index";
+import { listFlowRecords } from "../flows/definition-store";
 import {
 	getIntegrationModules,
 	getModulesForCategory,
@@ -25,6 +26,7 @@ import { isBuiltInPersonaName } from "../personas/index";
 import { listProjects } from "../projects/index";
 import { cronToHuman } from "../schedules/cron-human";
 import { listScheduleRuns, listSchedules } from "../schedules/store";
+import { NONE_SCHEDULE_FLOW_ID, scheduleRunsFlow } from "../schedules/types";
 import type { ConfigureTreeContext, SettingsItem } from "./types";
 import {
 	ADD_CUSTOM_MODEL_SENTINEL,
@@ -662,6 +664,19 @@ export function buildSettingsTree(
 			label: project.name,
 		})),
 	];
+	let flows: ReturnType<typeof listFlowRecords> = [];
+	try {
+		flows = listFlowRecords();
+	} catch {
+		flows = [];
+	}
+	const flowSelectChoices = [
+		{ value: NONE_SCHEDULE_FLOW_ID, label: "Select a flow" },
+		...flows.map((flow) => ({
+			value: flow.id,
+			label: flow.builtin ? `${flow.name} (built-in)` : flow.name,
+		})),
+	];
 	const daemonRunning = ctx.daemonRunning;
 	const activeScheduleCount = schedules.filter((s) => s.enabled).length;
 	const scheduleSections: SettingsItem[] = schedules.map((schedule) => {
@@ -688,6 +703,25 @@ export function buildSettingsTree(
 					kind: "value" as const,
 					key: `schedules.${schedule.id}.name`,
 					currentValue: schedule.name,
+				},
+				{
+					label: "When it runs",
+					kind: "select" as const,
+					key: `schedules.${schedule.id}.action`,
+					options: ["prompt", "flow"],
+					currentValue: scheduleRunsFlow(schedule) ? "flow" : "prompt",
+					selectChoices: [
+						{ value: "prompt", label: "Prompt" },
+						{ value: "flow", label: "Flow" },
+					],
+				},
+				{
+					label: "Flow",
+					kind: "select" as const,
+					key: `schedules.${schedule.id}.flow`,
+					options: flowSelectChoices.map((choice) => choice.value),
+					selectChoices: flowSelectChoices,
+					currentValue: schedule.flowId ?? NONE_SCHEDULE_FLOW_ID,
 				},
 				{
 					label: "Prompt",

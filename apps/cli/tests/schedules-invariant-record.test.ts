@@ -51,6 +51,7 @@ describe("recordScheduleInvariantFailureAndThrow", () => {
 			personaName: "Toby",
 			cronExpression: "0 9 * * *",
 			projectId: null,
+			flowId: null,
 			enabled: true,
 			lastRunAt: null,
 			createdAt: created.createdAt,

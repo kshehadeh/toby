@@ -7,6 +7,7 @@ struct ScheduleViewModel: Identifiable {
 	let prompt: String
 	let personaName: String
 	let projectId: String?
+	let flowId: String?
 	let cronExpression: String
 	let cronHumanReadable: String
 	let nextRunAt: Date?
@@ -20,6 +21,7 @@ struct ScheduleViewModel: Identifiable {
 		prompt: String,
 		personaName: String,
 		projectId: String? = nil,
+		flowId: String? = nil,
 		cronExpression: String,
 		cronHumanReadable: String,
 		nextRunAt: Date?,
@@ -32,12 +34,18 @@ struct ScheduleViewModel: Identifiable {
 		self.prompt = prompt
 		self.personaName = personaName
 		self.projectId = projectId
+		self.flowId = flowId
 		self.cronExpression = cronExpression
 		self.cronHumanReadable = cronHumanReadable
 		self.nextRunAt = nextRunAt
 		self.enabled = enabled
 		self.lastRunAt = lastRunAt
 		self.recentRuns = recentRuns
+	}
+
+	var runsFlow: Bool {
+		guard let flowId, !flowId.isEmpty, flowId != "(none)" else { return false }
+		return true
 	}
 
 	var displayName: String {
@@ -65,6 +73,7 @@ struct ScheduleViewModel: Identifiable {
 			prompt: prompt,
 			personaName: personaName,
 			projectId: projectId,
+			flowId: flowId,
 			cronExpression: cronExpression,
 			cronHumanReadable: cronHumanReadable,
 			nextRunAt: nextRunAt,
@@ -97,6 +106,8 @@ struct ScheduleRunViewModel: Identifiable {
 
 enum ScheduleField: String {
 	case name = "name"
+	case action = "action"
+	case flow = "flow"
 	case prompt = "prompt"
 	case persona = "persona"
 	case project = "project"
@@ -112,6 +123,7 @@ final class SchedulesStore {
 	var selectedScheduleId: String?
 	var personaOptions: [PersonaOption] = []
 	var projectOptions: [ProjectSummary] = []
+	var flowOptions: [FlowListItem] = []
 	var values: [String: String] = [:]
 	var draft: [String: String] = [:]
 	var isLoading = false
@@ -153,6 +165,7 @@ final class SchedulesStore {
 		selectedScheduleId = nil
 		personaOptions = []
 		projectOptions = []
+		flowOptions = []
 		values = [:]
 		draft = [:]
 		isLoading = false
@@ -189,6 +202,7 @@ final class SchedulesStore {
 			let response = try await treeResponse
 			personaOptions = try await personas
 			projectOptions = try await projects
+			flowOptions = (try? await client.listFlows()) ?? []
 			apply(response: response, resetDraft: true)
 			if selectedScheduleId == nil || !schedules.contains(where: { $0.id == selectedScheduleId }) {
 				selectedScheduleId = schedules.first?.id
@@ -523,6 +537,24 @@ final class SchedulesStore {
 		"schedules.\(scheduleId).\(field.rawValue)"
 	}
 
+	func flow(for id: String?) -> FlowListItem? {
+		guard let id, !id.isEmpty, id != "(none)" else { return nil }
+		return flowOptions.first { $0.id == id }
+	}
+
+	func setAction(_ action: String, for scheduleId: String) {
+		setDraftValue(key(for: scheduleId, field: .action), action, autosaveImmediately: true)
+		if action == "prompt" {
+			setDraftValue(key(for: scheduleId, field: .flow), "(none)", autosaveImmediately: true)
+			return
+		}
+		let current = value(for: key(for: scheduleId, field: .flow))
+		if current.isEmpty || current == "(none)" {
+			let fallback = flowOptions.first?.id ?? "(none)"
+			setDraftValue(key(for: scheduleId, field: .flow), fallback, autosaveImmediately: true)
+		}
+	}
+
 	private func scheduleAutosave(immediately: Bool = false) {
 		autosaveTask?.cancel()
 		guard hasPendingChanges else {
@@ -619,6 +651,7 @@ final class SchedulesStore {
 			let prompt = values[key(for: id, field: .prompt)] ?? ""
 			let persona = values[key(for: id, field: .persona)] ?? ""
 			let projectValue = values[key(for: id, field: .project)] ?? "(none)"
+			let flowValue = values[key(for: id, field: .flow)] ?? "(none)"
 			let cron = values[key(for: id, field: .cron)] ?? ""
 			let cronCurrentValue = findChild(node, key: key(for: id, field: .cron))?.currentValue
 			let cronHumanReadable = cronHumanReadable(from: cron, currentValue: cronCurrentValue)
@@ -632,6 +665,7 @@ final class SchedulesStore {
 				prompt: prompt,
 				personaName: persona,
 				projectId: projectValue == "(none)" ? nil : projectValue,
+				flowId: flowValue == "(none)" || flowValue.isEmpty ? nil : flowValue,
 				cronExpression: cron,
 				cronHumanReadable: cronHumanReadable,
 				nextRunAt: nextRunAt,
