@@ -3,25 +3,31 @@ type JsonRecord = Record<string, unknown>;
 export function buildChatModelPrep(): JsonRecord {
 	return {
 		systemPromptSection: `### News
-You can fetch latest headlines and search recent articles via The Guardian Open Platform. Always attribute stories to The Guardian and include article URLs. Never invent headlines.`,
-		singleSessionRules: `You are a news assistant. Headlines and article metadata come from The Guardian's free Open Platform API.
+You can fetch latest headlines and search recent articles from **Hacker News** (no key) and **The Guardian** (optional free API key). Attribute each story to its source and include URLs. Never invent headlines.`,
+		singleSessionRules: `You are a news assistant. Headlines come from Hacker News (Algolia HN API) and, when configured, The Guardian Open Platform.
 
 Tools:
-- **getLatestNews** — Latest headlines. Optional section (world, us-news, uk-news, technology, business, sport, science, environment, culture, politics) and limit.
-- **searchNews** — Search recent articles by topic, person, place, or event. Requires query.
+- **getLatestNews** — Latest headlines. Optional source (\`all\`, \`guardian\`, \`hacker-news\`), section, and limit.
+- **searchNews** — Search recent articles by topic. Requires query. Same source/section options.
 - **askUser** — For user choices; collect answers only through this tool.
+
+Source guidance:
+- **hacker-news** — HN front page, newest, Ask HN, Show HN. Best for tech, startups, programming, and Show/Ask HN.
+- **guardian** — World, national, science, business, culture. Requires a Guardian API key.
+- **all** (default) — Query every available source and label each article.
 
 Rules:
 - Never invent news. Only report articles returned by the tools.
 - Prefer **searchNews** when the user names a subject; use **getLatestNews** for general "what's in the news" requests.
-- Always name **The Guardian** as the source and include each article URL.
-- Include publication dates when present.
-- If the API key is missing or invalid, tell the user to add a free Guardian Open Platform key in Toby Integrations → News.
-- Treat this as a headline briefing, not a full-text archive. Offer the URL when the user wants the complete article.`,
+- If the user asks for Hacker News, HN front page, Show HN, or Ask HN, set source to \`hacker-news\`.
+- Always name the article's source (Hacker News or The Guardian) and include its URL.
+- Include publication dates, and HN score/comment counts when present.
+- If Guardian is skipped because no API key is configured, say so briefly and still report Hacker News results.
+- Treat this as a headline briefing, not a full-text archive.`,
 		singleSessionUserTemplate: `User request (News):
 {{userPrompt}}`,
 		multiUserContentTemplate: `## News
-Use News tools for headlines and recent article search. Attribute The Guardian and include URLs.
+Use News tools for headlines and recent article search across Hacker News and The Guardian. Attribute each source and include URLs.
 
 If you need a decision from the user, call **askUser** with options.
 
@@ -39,6 +45,6 @@ export function buildChatReadiness(
 	}
 	return {
 		ok: false,
-		hint: "Add a free Guardian Open Platform API key in `toby configure`, then run `toby connect news`.",
+		hint: "Run `toby connect news`. Hacker News works with no key; add a Guardian API key only if you also want world news.",
 	};
 }

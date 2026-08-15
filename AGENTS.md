@@ -31,7 +31,7 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | [`docs/ai-caching.md`](docs/ai-caching.md) | Provider prompt caching and token telemetry. |
 | [`docs/memory.md`](docs/memory.md) | Durable user memory (`memory.sqlite`). |
 | [`docs/macos-integration.md`](docs/macos-integration.md) | `toby-plugin-macos` system control via Toby.app native API. |
-| [`docs/news.md`](docs/news.md) | News plugin via The Guardian Open Platform. |
+| [`docs/news.md`](docs/news.md) | News plugin via Hacker News and The Guardian. |
 | [`docs/apple-calendar.md`](docs/apple-calendar.md) | Apple Calendar plugin + EventKit native API. |
 | [`docs/apple-contacts.md`](docs/apple-contacts.md) | Apple Contacts plugin. |
 | [`docs/apple-reminders.md`](docs/apple-reminders.md) | Apple Reminders plugin. |

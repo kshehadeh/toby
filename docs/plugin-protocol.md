@@ -252,7 +252,7 @@ into `credentials.json` / `config.json`.
 | [`apps/plugin-applecontacts/`](../apps/plugin-applecontacts/) | TypeScript (bun-package) | `bun run build:plugin:applecontacts` | Delegates Contacts.framework contact reads to Toby.app native API |
 | [`apps/plugin-applereminders/`](../apps/plugin-applereminders/) | TypeScript (bun-package) | `bun run build:plugin:applereminders` | Delegates EventKit reminder operations to Toby.app native API |
 | [`apps/plugin-macos/`](../apps/plugin-macos/) | TypeScript (bun-package) | `bun run build:plugin:macos` | Delegates macOS system ops to Toby.app native API; optional `setup` subcommand |
-| [`apps/plugin-news/`](../apps/plugin-news/) | TypeScript (bun-package) | `bun run build:plugin:news` | Latest headlines and search via The Guardian Open Platform |
+| [`apps/plugin-news/`](../apps/plugin-news/) | TypeScript (bun-package) | `bun run build:plugin:news` | Headlines and search via Hacker News and The Guardian |
 
 TypeScript plugins route argv from their `runtime.entry` (typically `src/index.ts`).
 Legacy standalone executables remain discoverable for compatibility, but **new**

@@ -2,12 +2,13 @@
 /**
  * News installable Toby plugin (protocol v1, bun-package).
  *
- * Fetches latest headlines and searches recent articles through
- * The Guardian Open Platform (free personal API key).
+ * Fetches latest headlines and searches recent articles from Hacker News
+ * (Algolia HN API, no key) and The Guardian Open Platform (optional key).
  */
 
 import {
 	NEWS_SECTION_OPTIONS,
+	NEWS_SOURCE_IDS,
 	hasNewsApiKey,
 	normalizeConfig,
 	testNewsConnection,
@@ -18,12 +19,12 @@ import { TOOL_DEFINITIONS, ToolFailure, executeTool } from "./tools";
 
 type JsonRecord = Record<string, unknown>;
 
-const PLUGIN_VERSION = "1.0.0";
+const PLUGIN_VERSION = "1.1.0";
 const PROTOCOL_VERSION = "1";
 const DISPLAY_NAME = "News";
 const DESCRIPTION =
-	"Get the latest headlines and search recent news via The Guardian's free Open Platform API";
-const RESOURCES = ["news", "headlines"];
+	"Get the latest headlines and search recent news from Hacker News and The Guardian";
+const RESOURCES = ["news", "headlines", "hacker-news"];
 
 function isConnected(config: JsonRecord, state: JsonRecord): boolean {
 	return Boolean(state.connectedAt) || hasNewsApiKey(config);
@@ -38,16 +39,17 @@ async function validateNewsTools(
 ): Promise<Array<{ tool: string; ok: boolean; details: string }>> {
 	const checks: Array<{ tool: string; ok: boolean; details: string }> = [];
 	try {
-		await testNewsConnection(config);
+		const probe = await testNewsConnection(config);
+		const sourceList = probe.sources.join(", ");
 		checks.push({
 			tool: "getLatestNews",
 			ok: true,
-			details: "Fetched latest headlines successfully.",
+			details: `Fetched latest headlines (${sourceList}).`,
 		});
 		checks.push({
 			tool: "searchNews",
 			ok: true,
-			details: "Search uses the same Guardian API as getLatestNews.",
+			details: `Search uses the same sources (${sourceList}).`,
 		});
 	} catch (error) {
 		const details = toErrorMessage(error);
@@ -55,7 +57,7 @@ async function validateNewsTools(
 		checks.push({
 			tool: "searchNews",
 			ok: false,
-			details: "Not executed because the Guardian API check failed.",
+			details: "Not executed because the news source check failed.",
 		});
 	}
 	return checks;
@@ -75,36 +77,37 @@ async function handleStatus(
 		version: PLUGIN_VERSION,
 		protocolVersion: PROTOCOL_VERSION,
 		icon: "📰",
-		launchUrl: "https://www.theguardian.com",
+		launchUrl: "https://news.ycombinator.com",
 		connected,
 		capabilities: ["chat"],
 		resources: RESOURCES,
 		chatModelPrep: buildChatModelPrep(),
 		chatReadiness: buildChatReadiness(config, state),
 		details: connected
-			? "Guardian news API reachable."
-			: "News is not connected. Add a free Guardian API key, then run `toby connect news`.",
+			? "News sources reachable."
+			: "News is not connected. Run `toby connect news` (Hacker News needs no key).",
 	};
 
-	if (hasNewsApiKey(config)) {
+	if (connected || validateTools) {
 		try {
-			await testNewsConnection(config);
+			const probe = await testNewsConnection(config);
+			const sourceList = probe.sources.join(" and ");
 			payload.details = state.connectedAt
-				? "Guardian news API reachable."
-				: "Guardian API key configured. Run `toby connect news` to mark connected, or use chat directly.";
+				? `${sourceList} reachable.`
+				: `${sourceList} reachable. Run \`toby connect news\` to mark connected, or use chat directly.`;
 		} catch (error) {
 			payload.ok = false;
-			payload.details = `Guardian API check failed: ${toErrorMessage(error)}`;
+			payload.details = `News source check failed: ${toErrorMessage(error)}`;
 		}
 	}
 
-	if (validateTools && hasNewsApiKey(config)) {
+	if (validateTools) {
 		const toolChecks = await validateNewsTools(config);
 		payload.tools = toolChecks;
 		const failed = toolChecks.filter((check) => check.ok !== true);
 		if (failed.length === 0) {
 			payload.ok = true;
-			payload.details = `Guardian API reachable; validated ${toolChecks.length} tool check(s).`;
+			payload.details = `News sources reachable; validated ${toolChecks.length} tool check(s).`;
 		} else {
 			payload.ok = false;
 			payload.details = `Connected, but ${failed.length}/${toolChecks.length} tool check(s) failed.`;
@@ -115,21 +118,19 @@ async function handleStatus(
 }
 
 async function handleConnect(config: JsonRecord): Promise<never> {
-	if (!hasNewsApiKey(config)) {
-		emitJson({
-			ok: false,
-			reason:
-				"A Guardian Open Platform API key is required. Get a free key at https://open-platform.theguardian.com/access/ and add it in Toby configure.",
-		});
-	}
-
 	try {
-		await testNewsConnection(config);
-		emitJson({ ok: true, reason: "News connected successfully." });
+		const probe = await testNewsConnection(config);
+		const sourceList = probe.sources.join(" and ");
+		emitJson({
+			ok: true,
+			reason: hasNewsApiKey(config)
+				? `News connected (${sourceList}).`
+				: `News connected (${sourceList}). Add a Guardian API key later for world news.`,
+		});
 	} catch (error) {
 		emitJson({
 			ok: false,
-			reason: `Could not reach The Guardian API: ${toErrorMessage(error)}`,
+			reason: `Could not reach news sources: ${toErrorMessage(error)}`,
 		});
 	}
 }
@@ -143,23 +144,33 @@ function handleConfigShape(): never {
 		ok: true,
 		fields: [
 			{
+				key: "defaultSource",
+				label: "Default source",
+				type: "select",
+				required: false,
+				default: "all",
+				options: [...NEWS_SOURCE_IDS],
+				description:
+					"Used when a tool call does not specify a source. Hacker News needs no key; The Guardian needs an API key.",
+			},
+			{
 				key: "apiKey",
 				label: "Guardian API key",
 				type: "string",
-				required: true,
+				required: false,
 				masked: true,
 				description:
-					"Free key from https://open-platform.theguardian.com/access/",
+					"Optional. Free key from https://open-platform.theguardian.com/access/ for world news.",
 			},
 			{
 				key: "defaultSection",
-				label: "Default section",
+				label: "Default Guardian section",
 				type: "select",
 				required: false,
 				default: "all",
 				options: [...NEWS_SECTION_OPTIONS],
 				description:
-					"Used when a tool call does not specify a section. Choose all for every Guardian desk.",
+					"Used for Guardian requests that do not specify a section.",
 			},
 		],
 	});
@@ -228,41 +239,57 @@ function handleSetupGuide(): never {
 				id: "overview",
 				title: "What News can do in Toby",
 				description:
-					"Connect Toby to The Guardian Open Platform so chat can fetch latest headlines and search recent articles. The developer tier is free for personal use.",
+					"Chat can fetch latest headlines and search recent articles from Hacker News (no API key) and The Guardian (optional free API key).",
+			},
+			{
+				id: "hacker-news",
+				title: "Hacker News is ready",
+				description:
+					"Hacker News uses the public Algolia HN Search API. No registration is required. Connect now for the front page, newest stories, Ask HN, and Show HN.",
+				links: [
+					{
+						label: "Hacker News",
+						url: "https://news.ycombinator.com",
+					},
+					{
+						label: "HN Search API",
+						url: "https://hn.algolia.com/api",
+					},
+				],
 			},
 			{
 				id: "provider",
-				title: "Get a free Guardian API key",
+				title: "Optional: add The Guardian",
 				description:
-					"Register on The Guardian Open Platform and copy your API key. Registration is free and does not require a credit card.",
+					"For world, national, science, and culture coverage, register for a free Guardian Open Platform key and paste it below. You can skip this and use Hacker News only.",
 				links: [
 					{
-						label: "Get a free API key",
+						label: "Get a free Guardian API key",
 						url: "https://open-platform.theguardian.com/access/",
 					},
 					{
-						label: "API documentation",
+						label: "Guardian API documentation",
 						url: "https://open-platform.theguardian.com/documentation/",
 					},
 				],
 			},
 			{
 				id: "credentials",
-				title: "Add the API key",
+				title: "Choose defaults",
 				description:
-					"Paste the Guardian API key into the field below. Optionally pick a default section (world, technology, and so on) for headline requests that do not specify one.",
+					"Pick a default source (all, hacker-news, or guardian). The Guardian API key is optional. Default section applies only to Guardian requests.",
 			},
 			{
 				id: "auth",
 				title: "Connect",
 				description:
-					"Click Connect. Toby will call The Guardian search API with your key and mark News as connected.",
+					"Click Connect. Toby checks Hacker News and, if you added a key, The Guardian, then marks News as connected.",
 			},
 			{
 				id: "validate",
 				title: "Validate",
 				description:
-					"Toby will run a health check to confirm the API key can fetch headlines.",
+					"Toby will run a health check against the sources you enabled.",
 			},
 		],
 	});

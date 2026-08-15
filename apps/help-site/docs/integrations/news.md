@@ -5,21 +5,14 @@ title: News
 
 # <span class="docs-brand-title"><span class="docs-brand-icon-emoji" aria-hidden="true">📰</span>News</span>
 
-Connect Toby to **The Guardian Open Platform** to fetch latest headlines and search recent articles from chat.
+Connect Toby to **Hacker News** and, optionally, **The Guardian** to fetch latest headlines and search recent articles from chat.
 
 The News plugin ships with Toby.app under `~/.toby/plugins/`.
 
 ## Prerequisites
 
-- A free [Guardian Open Platform](https://open-platform.theguardian.com/access/) API key (no credit card)
-
-## Get your API key
-
-1. Open [The Guardian Open Platform access page](https://open-platform.theguardian.com/access/).
-2. Register for a developer key and copy it.
-3. Keep the key private — it is tied to your registration.
-
-The developer tier is free for personal use.
+- None for Hacker News
+- Optional: a free [Guardian Open Platform](https://open-platform.theguardian.com/access/) API key for world news (no credit card)
 
 ## Configure
 
@@ -27,8 +20,9 @@ Open **Toby.app → Integrations → News** and enter:
 
 | Field | Description |
 | ----- | ----------- |
-| Guardian API key | Your Open Platform key |
-| Default section | Optional desk for headline requests that do not specify a section (`all`, `world`, `us-news`, `technology`, …) |
+| Default source | `all` (Hacker News plus Guardian when a key is set), `hacker-news`, or `guardian` |
+| Guardian API key | Optional Open Platform key for The Guardian |
+| Default Guardian section | Optional desk for Guardian requests that do not specify a section |
 
 Save the configuration.
 
@@ -36,7 +30,7 @@ You can also use the **Setup Guide** button on the News detail page.
 
 ## Connect
 
-Click **Connect** on the News detail page. Toby validates the key against The Guardian search API and marks News as connected.
+Click **Connect** on the News detail page. Toby checks Hacker News immediately. If you added a Guardian key, it validates that too.
 
 ## Verify
 
@@ -50,22 +44,25 @@ Open the News detail page and click **Disconnect**. This clears Toby's connectio
 
 | Capability | Examples |
 | ---------- | -------- |
-| Latest headlines | “What's in the news today?” / “Give me the latest technology headlines.” |
-| Topic search | “What has The Guardian written about interest rates this week?” |
+| Hacker News | “What's on the HN front page?” / “Any good Show HN posts today?” |
+| World news | “What are the top world headlines?” (needs a Guardian key) |
+| Topic search | “Search Hacker News for SQLite” / “What has The Guardian written about interest rates?” |
 
-Stories are attributed to **The Guardian**. Toby returns headlines, short summaries, dates, and article URLs — not the full article body.
+Each story is attributed to **Hacker News** or **The Guardian**. Toby returns headlines, short summaries, dates, and article URLs — not the full article body.
 
 ## Example chat prompts
 
-- “What are the top world headlines?”
+- “What's on Hacker News right now?”
 - “Search news about the Fed and inflation.”
+- “Show me recent Ask HN posts.”
 - “Any recent science stories I should know about?”
 
 ## Tips
 
-- Use a section (`world`, `us-news`, `uk-news`, `technology`, `business`, `sport`, `science`, `environment`, `culture`, `politics`) when you want a desk, not the whole site.
+- Ask for **Hacker News** explicitly when you want the front page, Show HN, or Ask HN.
+- Guardian sections include `world`, `us-news`, `uk-news`, `technology`, `business`, `sport`, `science`, `environment`, `culture`, and `politics`.
 - For a specific subject, ask Toby to **search** rather than only fetch latest headlines.
-- If Connect fails, re-copy the key from the Open Platform dashboard and try again.
+- If Guardian Connect fails, re-copy the key from the Open Platform dashboard. Hacker News still works without it.
 
 ## Related
 

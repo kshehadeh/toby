@@ -47,6 +47,22 @@ function parseJson(stdout: string): Record<string, unknown> {
 	return JSON.parse(stdout) as Record<string, unknown>;
 }
 
+const hnFixture = {
+	nbHits: 1,
+	hits: [
+		{
+			objectID: "12345",
+			title: "Show HN: Example",
+			url: "https://example.com/hn",
+			author: "pg",
+			created_at: "2026-08-15T12:00:00.000Z",
+			points: 42,
+			num_comments: 7,
+			_tags: ["story", "show_hn", "author_pg"],
+		},
+	],
+};
+
 const guardianFixture = {
 	response: {
 		status: "ok",
@@ -82,11 +98,11 @@ describe("News plugin", () => {
 		expect(body.displayName).toBe("News");
 		expect(body.connected).toBe(false);
 		expect(body.capabilities).toEqual(["chat"]);
-		expect(body.resources).toEqual(["news", "headlines"]);
+		expect(body.resources).toEqual(["news", "headlines", "hacker-news"]);
 		expect(body.chatModelPrep).toBeDefined();
 		expect(body.chatReadiness).toEqual({
 			ok: false,
-			hint: "Add a free Guardian Open Platform API key in `toby configure`, then run `toby connect news`.",
+			hint: "Run `toby connect news`. Hacker News works with no key; add a Guardian API key only if you also want world news.",
 		});
 	});
 
@@ -105,7 +121,7 @@ describe("News plugin", () => {
 		expect(body.tools.every((tool) => tool.readOnly)).toBe(true);
 	});
 
-	it("returns config shape with API key and default section", async () => {
+	it("returns config shape with optional Guardian key and default source", async () => {
 		const result = await runPlugin(["config", "shape"]);
 		expect(result.exitCode).toBe(0);
 		const body = parseJson(result.stdout) as {
@@ -114,10 +130,13 @@ describe("News plugin", () => {
 		};
 		expect(body.ok).toBe(true);
 		expect(body.fields.map((field) => field.key)).toEqual([
+			"defaultSource",
 			"apiKey",
 			"defaultSection",
 		]);
-		expect(body.fields[0]?.required).toBe(true);
+		expect(body.fields.find((field) => field.key === "apiKey")?.required).toBe(
+			false,
+		);
 	});
 
 	it("honors dryRun without calling the Guardian API", async () => {
@@ -136,16 +155,8 @@ describe("News plugin", () => {
 		expect(body.ok).toBe(true);
 		expect(body.result.dryRun).toBe(true);
 		expect(body.result.message).toBe(
-			"Would fetch the latest Guardian headlines.",
+			"Would fetch the latest headlines from the selected news sources.",
 		);
-	});
-
-	it("connect fails clearly when the API key is missing", async () => {
-		const result = await runPlugin(["connect"], { stdin: { config: {} } });
-		expect(result.exitCode).toBe(0);
-		const body = parseJson(result.stdout);
-		expect(body.ok).toBe(false);
-		expect(String(body.reason)).toContain("API key is required");
 	});
 
 	it("returns a setup guide for the native app", async () => {
@@ -160,6 +171,7 @@ describe("News plugin", () => {
 		expect(body.name).toBe("news");
 		expect(body.steps.map((step) => step.id)).toEqual([
 			"overview",
+			"hacker-news",
 			"provider",
 			"credentials",
 			"auth",
@@ -183,61 +195,128 @@ describe("News plugin", () => {
 	});
 });
 
-describe("News plugin against a mock Guardian API", () => {
-	let server: ReturnType<typeof Bun.serve> | undefined;
-	let previousBase: string | undefined;
+describe("News plugin against mock news APIs", () => {
+	let guardianServer: ReturnType<typeof Bun.serve> | undefined;
+	let hnServer: ReturnType<typeof Bun.serve> | undefined;
+	let previousGuardianBase: string | undefined;
+	let previousHnBase: string | undefined;
 
 	beforeEach(() => {
-		previousBase = process.env.TOBY_NEWS_API_BASE;
+		previousGuardianBase = process.env.TOBY_NEWS_API_BASE;
+		previousHnBase = process.env.TOBY_HN_API_BASE;
 	});
 
 	afterEach(() => {
-		server?.stop(true);
-		server = undefined;
-		if (previousBase === undefined) {
+		guardianServer?.stop(true);
+		hnServer?.stop(true);
+		guardianServer = undefined;
+		hnServer = undefined;
+		if (previousGuardianBase === undefined) {
 			Reflect.deleteProperty(process.env, "TOBY_NEWS_API_BASE");
 		} else {
-			process.env.TOBY_NEWS_API_BASE = previousBase;
+			process.env.TOBY_NEWS_API_BASE = previousGuardianBase;
+		}
+		if (previousHnBase === undefined) {
+			Reflect.deleteProperty(process.env, "TOBY_HN_API_BASE");
+		} else {
+			process.env.TOBY_HN_API_BASE = previousHnBase;
 		}
 	});
 
-	it("connects when the Guardian API accepts the key", async () => {
-		server = Bun.serve({
+	function startGuardian(handler: (request: Request) => Response) {
+		guardianServer = Bun.serve({
 			hostname: "127.0.0.1",
 			port: 0,
-			fetch() {
-				return Response.json(guardianFixture);
-			},
+			fetch: handler,
 		});
+		return `http://127.0.0.1:${guardianServer.port}`;
+	}
+
+	function startHn(
+		handler: (request: Request) => Response = () => Response.json(hnFixture),
+	) {
+		hnServer = Bun.serve({
+			hostname: "127.0.0.1",
+			port: 0,
+			fetch: handler,
+		});
+		return `http://127.0.0.1:${hnServer.port}`;
+	}
+
+	it("connects with Hacker News when no Guardian key is set", async () => {
+		const hnBase = startHn();
 		const result = await runPlugin(["connect"], {
-			stdin: { config: { apiKey: "test-key" } },
-			env: { TOBY_NEWS_API_BASE: `http://127.0.0.1:${server.port}` },
+			stdin: { config: {} },
+			env: { TOBY_HN_API_BASE: hnBase },
 		});
 		expect(result.exitCode).toBe(0);
 		expect(parseJson(result.stdout)).toEqual({
 			ok: true,
-			reason: "News connected successfully.",
+			reason:
+				"News connected (Hacker News). Add a Guardian API key later for world news.",
 		});
 	});
 
-	it("executes getLatestNews against the mock API", async () => {
-		server = Bun.serve({
-			hostname: "127.0.0.1",
-			port: 0,
-			fetch(request) {
-				const url = new URL(request.url);
-				expect(url.pathname).toBe("/search");
-				expect(url.searchParams.get("api-key")).toBe("test-key");
-				return Response.json(guardianFixture);
+	it("connects to both sources when the Guardian key is valid", async () => {
+		const guardianBase = startGuardian(() => Response.json(guardianFixture));
+		const hnBase = startHn();
+		const result = await runPlugin(["connect"], {
+			stdin: { config: { apiKey: "test-key" } },
+			env: {
+				TOBY_NEWS_API_BASE: guardianBase,
+				TOBY_HN_API_BASE: hnBase,
 			},
+		});
+		expect(result.exitCode).toBe(0);
+		expect(parseJson(result.stdout)).toEqual({
+			ok: true,
+			reason: "News connected (The Guardian and Hacker News).",
+		});
+	});
+
+	it("executes getLatestNews against Hacker News", async () => {
+		const hnBase = startHn((request) => {
+			const url = new URL(request.url);
+			expect(url.pathname).toBe("/search");
+			expect(url.searchParams.get("tags")).toBe("front_page");
+			return Response.json(hnFixture);
 		});
 		const result = await runPlugin(["tools", "execute"], {
 			stdin: {
 				tool: "getLatestNews",
-				input: { limit: 3 },
+				input: { source: "hacker-news", limit: 3 },
+				config: {},
+			},
+			env: { TOBY_HN_API_BASE: hnBase },
+		});
+		expect(result.exitCode).toBe(0);
+		const body = parseJson(result.stdout) as {
+			ok: boolean;
+			result: {
+				count: number;
+				articles: Array<{ title: string; source: string }>;
+			};
+		};
+		expect(body.ok).toBe(true);
+		expect(body.result.count).toBe(1);
+		expect(body.result.articles[0]?.title).toBe("Show HN: Example");
+		expect(body.result.articles[0]?.source).toBe("Hacker News");
+	});
+
+	it("executes getLatestNews against The Guardian", async () => {
+		const guardianBase = startGuardian((request) => {
+			const url = new URL(request.url);
+			expect(url.pathname).toBe("/search");
+			expect(url.searchParams.get("api-key")).toBe("test-key");
+			return Response.json(guardianFixture);
+		});
+		const result = await runPlugin(["tools", "execute"], {
+			stdin: {
+				tool: "getLatestNews",
+				input: { source: "guardian", limit: 3 },
 				config: { apiKey: "test-key" },
 			},
-			env: { TOBY_NEWS_API_BASE: `http://127.0.0.1:${server.port}` },
+			env: { TOBY_NEWS_API_BASE: guardianBase },
 		});
 		expect(result.exitCode).toBe(0);
 		const body = parseJson(result.stdout) as {
@@ -249,20 +328,20 @@ describe("News plugin against a mock Guardian API", () => {
 		expect(body.result.articles[0]?.title).toBe("Example headline");
 	});
 
-	it("rejects an invalid API key from connect", async () => {
-		server = Bun.serve({
-			hostname: "127.0.0.1",
-			port: 0,
-			fetch() {
-				return Response.json(
-					{ response: { message: "Invalid authentication credentials" } },
-					{ status: 403 },
-				);
-			},
-		});
+	it("rejects an invalid Guardian API key from connect", async () => {
+		const guardianBase = startGuardian(() =>
+			Response.json(
+				{ response: { message: "Invalid authentication credentials" } },
+				{ status: 403 },
+			),
+		);
+		const hnBase = startHn();
 		const result = await runPlugin(["connect"], {
 			stdin: { config: { apiKey: "bad-key" } },
-			env: { TOBY_NEWS_API_BASE: `http://127.0.0.1:${server.port}` },
+			env: {
+				TOBY_NEWS_API_BASE: guardianBase,
+				TOBY_HN_API_BASE: hnBase,
+			},
 		});
 		expect(result.exitCode).toBe(0);
 		const body = parseJson(result.stdout);

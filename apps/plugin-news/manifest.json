@@ -1,8 +1,8 @@
 {
 	"name": "news",
 	"displayName": "News",
-	"description": "Get the latest headlines and search recent news via The Guardian's free Open Platform API",
-	"version": "1.0.0",
+	"description": "Get the latest headlines and search recent news from Hacker News and The Guardian",
+	"version": "1.1.0",
 	"protocolVersion": "1",
 	"icon": "📰",
 	"runtime": {

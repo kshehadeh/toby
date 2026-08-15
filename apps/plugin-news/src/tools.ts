@@ -19,26 +19,34 @@ export type ToolDefinition = {
 	};
 };
 
+const SOURCE_DESCRIPTION =
+	"News source: all (default), guardian (The Guardian, needs API key), or hacker-news (HN Algolia API, no key). Use hacker-news for tech/startup front page, Show HN, or Ask HN.";
+
 const SECTION_DESCRIPTION =
-	"Optional Guardian section id such as world, us-news, uk-news, technology, business, sport, science, environment, culture, or politics. Omit to use the configured default (or all sections).";
+	"Optional section. Guardian: world, us-news, uk-news, technology, business, sport, science, environment, culture, or politics. Hacker News: front_page, newest, ask_hn, or show_hn.";
 
 export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	{
 		name: "getLatestNews",
 		displayName: "Latest news",
 		description:
-			"Fetch the latest headlines from The Guardian. Optionally filter by section. Use this for 'what's in the news' or top stories.",
+			"Fetch the latest headlines. Defaults to all configured sources (Hacker News plus The Guardian when an API key is set). Use source=hacker-news for the HN front page.",
 		readOnly: true,
 		inputSchema: {
 			type: "object",
 			properties: {
+				source: {
+					type: "string",
+					description: SOURCE_DESCRIPTION,
+				},
 				section: {
 					type: "string",
 					description: SECTION_DESCRIPTION,
 				},
 				limit: {
 					type: "number",
-					description: "Maximum articles to return (default 8, max 20)",
+					description:
+						"Maximum articles per source (default 8, max 20). Combined results may include one page from each source.",
 				},
 				fromDate: {
 					type: "string",
@@ -51,7 +59,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 		name: "searchNews",
 		displayName: "Search news",
 		description:
-			"Search recent Guardian articles by topic, person, place, or event. Prefer this over getLatestNews when the user names a subject.",
+			"Search recent articles by topic, person, place, or event. Prefer this over getLatestNews when the user names a subject. Use source=hacker-news for HN stories.",
 		readOnly: true,
 		inputSchema: {
 			type: "object",
@@ -60,13 +68,17 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 					type: "string",
 					description: "Search text, for example 'interest rates' or 'OpenAI'",
 				},
+				source: {
+					type: "string",
+					description: SOURCE_DESCRIPTION,
+				},
 				section: {
 					type: "string",
 					description: SECTION_DESCRIPTION,
 				},
 				limit: {
 					type: "number",
-					description: "Maximum articles to return (default 8, max 20)",
+					description: "Maximum articles per source (default 8, max 20)",
 				},
 				fromDate: {
 					type: "string",
@@ -114,13 +126,15 @@ export async function executeTool(
 				return {
 					result: {
 						dryRun: true,
-						message: "Would fetch the latest Guardian headlines.",
+						message:
+							"Would fetch the latest headlines from the selected news sources.",
 					},
 					appliedActions: [],
 				};
 			}
 			try {
 				const result = await fetchLatestNews(config, {
+					source: input.source as string | undefined,
 					section: input.section as string | undefined,
 					limit: input.limit as number | undefined,
 					fromDate: input.fromDate as string | undefined,
@@ -140,7 +154,7 @@ export async function executeTool(
 				return {
 					result: {
 						dryRun: true,
-						message: `Would search Guardian news for ${JSON.stringify(query)}.`,
+						message: `Would search news for ${JSON.stringify(query)}.`,
 					},
 					appliedActions: [],
 				};
@@ -148,6 +162,7 @@ export async function executeTool(
 			try {
 				const result = await searchNews(config, {
 					query,
+					source: input.source as string | undefined,
 					section: input.section as string | undefined,
 					limit: input.limit as number | undefined,
 					fromDate: input.fromDate as string | undefined,
