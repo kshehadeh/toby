@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { deliverFlowDestinations } from "@toby/core/flows";
+import {
+	deliverFlowDestinations,
+	destinationDeliveryFailed,
+} from "@toby/core/flows";
 
 describe("deliverFlowDestinations", () => {
 	it("records modal as ok without calling a tool", async () => {
@@ -12,6 +15,29 @@ describe("deliverFlowDestinations", () => {
 			},
 		});
 		expect(results).toEqual([{ type: "modal", ok: true }]);
+	});
+
+	it("does not treat a failed dashboard delivery as a run failure", async () => {
+		const failed = destinationDeliveryFailed([
+			{ type: "dashboard", ok: false, error: "unused" },
+			{ type: "modal", ok: false, error: "unused" },
+			{ type: "email", ok: false, error: "send failed" },
+		]);
+		expect(failed).toEqual([
+			{ type: "email", ok: false, error: "send failed" },
+		]);
+	});
+
+	it("records dashboard as ok without calling a tool", async () => {
+		const results = await deliverFlowDestinations({
+			destinations: [{ type: "dashboard", variant: "informational" }],
+			result: {
+				text: "Hello",
+				format: "plain",
+				pointer: { from: "result" },
+			},
+		});
+		expect(results).toEqual([{ type: "dashboard", ok: true }]);
 	});
 
 	it("fails email/slack when the result text is empty", async () => {

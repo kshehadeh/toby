@@ -11,7 +11,7 @@ import Observation
 final class CategoryDashboardBlock {
 	/// Stable identity (matches daemon category path). Immutable after init.
 	nonisolated let id: DashboardBlockID
-	let descriptor: DashboardBlockDescriptor
+	private(set) var descriptor: DashboardBlockDescriptor
 	private let client: TobyClient
 
 	/// Latest flow output for the body (nil = no providers / not loaded).
@@ -49,6 +49,10 @@ final class CategoryDashboardBlock {
 		self.client = client
 	}
 
+	func applyFlowDescriptor(_ next: DashboardBlockDescriptor) {
+		descriptor = next
+	}
+
 	// MARK: - Update
 
 	/// Single refresh path: fetch block content (flow output) only.
@@ -75,6 +79,11 @@ final class CategoryDashboardBlock {
 	}
 
 	private func performUpdate(force: Bool) async {
+		// Runner cards never auto-run and do not show last-run output.
+		if descriptor.isFlowRunner {
+			return
+		}
+
 		if force {
 			isForceUpdating = true
 			// Clear body so the skeleton shows during force regen.
@@ -183,7 +192,16 @@ final class CategoryDashboardBlock {
 				)
 			)
 		default:
-			break
+			if descriptor.isFlowBlock {
+				result.append(
+					DashboardBlockAction(
+						id: "open-flow",
+						title: "Open flow",
+						isEnabled: true,
+						perform: { Task { @MainActor in context.openFlow(self.id.rawValue) } }
+					)
+				)
+			}
 		}
 
 		return result

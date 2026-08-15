@@ -77,9 +77,19 @@ final class DashboardStore {
 
 	// MARK: - Public update API
 
+	func syncFlowBlocks() async {
+		do {
+			let infos = try await client.fetchFlowDashboardBlocks()
+			registry.syncFlowBlocks(infos, client: client)
+		} catch {
+			// Keep built-ins if the flow-block list fails.
+		}
+	}
+
 	/// Soft or force refresh: fan-out `block.update` for every registered block.
 	/// Single path per block (flow content only).
 	func updateAll(force: Bool) async {
+		await syncFlowBlocks()
 		hasLoadedOnce = true
 		lastLoadedAt = Date()
 
@@ -107,6 +117,7 @@ final class DashboardStore {
 		hasLoadedOnce = false
 		lastLoadedAt = nil
 		isGlobalUpdating = false
+		registry.syncFlowBlocks([], client: client)
 		for block in blocks {
 			block.content = nil
 			block.error = nil

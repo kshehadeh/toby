@@ -440,6 +440,104 @@ struct DashboardBlockCard: View {
 	}
 }
 
+/// Compact home card for a runner-only flow: description + Run Now.
+/// Shares the built-in card grid, stamp inset, and inner padding so edges align.
+struct FlowRunnerDashboardCard: View {
+	@Bindable var block: CategoryDashboardBlock
+	var actionContext: DashboardBlockActionContext = .init()
+	@State private var isRunning = false
+	@State private var runError: String?
+
+	private var descriptionText: String {
+		let trimmed = block.descriptor.flowDescription?
+			.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+		return trimmed.isEmpty ? "Run this flow." : trimmed
+	}
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 0) {
+			CardHeader(
+				systemImage: nil,
+				iconColor: AppTheme.accent,
+				title: block.title,
+				titleSize: 15
+			) {
+				CardActionsMenu {
+					Button("Open flow") {
+						actionContext.openFlow(block.id.rawValue)
+					}
+				}
+			}
+			.padding(.leading, 40)
+
+			Divider()
+				.overlay(AppTheme.separator)
+				.padding(.top, 14)
+				.padding(.bottom, 16)
+
+			Text(descriptionText)
+				.font(.system(size: 13))
+				.foregroundStyle(AppTheme.secondaryText)
+				.fixedSize(horizontal: false, vertical: true)
+
+			if let runError {
+				Text(runError)
+					.font(.system(size: 12))
+					.foregroundStyle(Color.red.opacity(0.9))
+					.padding(.top, 8)
+					.fixedSize(horizontal: false, vertical: true)
+			}
+
+			Button {
+				Task { @MainActor in
+					isRunning = true
+					runError = nil
+					defer { isRunning = false }
+					let response = await actionContext.runFlow(block.id.rawValue)
+					if response == nil {
+						runError = "Couldn’t run this flow."
+					} else if let response, !response.ok {
+						runError = response.error ?? "Flow failed"
+					}
+				}
+			} label: {
+				Text(isRunning ? "Running…" : "Run Now")
+					.frame(maxWidth: .infinity)
+			}
+			.buttonStyle(.borderedProminent)
+			.controlSize(.regular)
+			.disabled(isRunning)
+			.padding(.top, 16)
+			.accessibilityIdentifier("dashboard-flow-run-\(block.id.rawValue)")
+		}
+		.frame(maxWidth: .infinity, alignment: .topLeading)
+		.padding(22)
+		.background(
+			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
+				.fill(AppTheme.panelBackground)
+		)
+		.overlay(
+			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
+				.stroke(AppTheme.separator, lineWidth: 1)
+		)
+		.clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadius))
+		.overlay(alignment: .topLeading) {
+			Image(systemName: block.systemImage)
+				.font(.system(size: 54, weight: .semibold))
+				.symbolRenderingMode(.hierarchical)
+				.foregroundStyle(AppTheme.accent)
+				.rotationEffect(.degrees(-30))
+				.shadow(color: .black.opacity(0.4), radius: 10, x: 1, y: 3)
+				.offset(x: -16, y: -20)
+				.allowsHitTesting(false)
+				.accessibilityHidden(true)
+		}
+		.padding(.top, 22)
+		.padding(.leading, 18)
+		.accessibilityIdentifier(block.accessibilityIdentifier)
+	}
+}
+
 // MARK: - Shared helpers
 
 struct DashboardEmptyState: View {

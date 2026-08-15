@@ -55,7 +55,7 @@ each other by name; the definition **wires** ports via `inputs` / `outputs`.
 | **Output map** | Which bag keys get which fields of the node result |
 | **Persona** | Model + instructions used by every LLM Prompter in that run |
 | **Declared result** | Bag pointer destinations and the result sheet consume |
-| **Destination** | What to do after a successful run (`modal`, `email`, `slack`) |
+| **Destination** | What to do after a successful run (`modal`, `email`, `slack`, `dashboard`) |
 
 ## Persona resolution
 
@@ -221,11 +221,30 @@ list of **destinations**:
 | `modal` | Toby.app | Interactive **Run now** opens a result sheet |
 | `email` | Daemon via `email.sendEmail` | `to` + `subject` are author-time constants; body is the result text |
 | `slack` | Daemon via `slack.postToChannel` | `channel` is an author-time constant |
+| `dashboard` | Toby.app home screen | Registers a home card. `variant` is `informational` (last-run body + refresh) or `runner` (compact **Run Now** card). At most one dashboard destination per flow. |
 
 If `result` is omitted, the last LLM node’s markdown (or the last tool’s
 `appliedActions` / payload) is used. New user flows default to
 `[{ type: "modal" }]`. A failed email/slack destination fails the run.
-Built-in dashboard flows omit destinations and keep reading the bag in code.
+Modal and dashboard destinations are registration-only (they never fail the
+run). Built-in dashboard flows omit destinations and keep reading the bag in
+code.
+
+### Custom flow home cards
+
+A custom flow with `{ type: "dashboard", variant }` appears on the home
+dashboard. Discovery: `listFlowDashboardBlocks()` /
+`GET /api/dashboard/flow-blocks`. Card body:
+`GET /api/dashboard/:flowId/content`.
+
+| Variant | Card | Soft load | Force refresh / **Run Now** |
+| --- | --- | --- | --- |
+| `informational` | Same size as built-ins; body is last successful run output | Last success via `extractFlowResult` (no re-run) | `runUserFlowById` (same path as built-in card refresh) |
+| `runner` | Compact card: flow description + **Run Now** | Never runs; no body | **Run Now** is `POST /api/flows/:id/run`. Toolbar / card refresh does **not** run it. |
+
+`showsResultSheet` is true when the flow also has a `modal` destination. **Run
+Now** then opens the result sheet. Combining dashboard + email/slack is
+allowed; those sinks still fire on a successful run.
 
 ## Storage model
 
@@ -402,11 +421,11 @@ modal destination opens a result sheet.
 | `flows/validate-user-flow.ts` | Policy for user-authored documents |
 | `flows/extract-result.ts` | Declared / inferred result text |
 | `flows/catalog.ts` | Connected tool catalog for the editor |
-| `flows/deliver-destinations.ts` | Email / Slack / modal sinks |
+| `flows/deliver-destinations.ts` | Email / Slack / modal / dashboard sinks |
 | `flows/run-user-flow.ts` | Run + extract + deliver |
 | `flows/index.ts` | Public exports |
 
-Tests: `apps/cli/tests/flows.test.ts`, `flows-history.test.ts`, `user-flows.test.ts`, `user-flows-api.test.ts`.
+Tests: `apps/cli/tests/flows.test.ts`, `flows-history.test.ts`, `user-flows.test.ts`, `user-flows-api.test.ts`, `flow-destinations.test.ts`, `flow-dashboard-blocks.test.ts`.
 
 ## Built-in consumers: dashboard card content
 
@@ -415,7 +434,8 @@ static header; the body is **flow output** only. See [dashboard.md](dashboard.md
 
 | API | Role |
 | --- | --- |
-| `GET /api/dashboard/:category/content` | Block content (preferred) |
+| `GET /api/dashboard/flow-blocks` | Custom flows opted onto the home screen |
+| `GET /api/dashboard/:category/content` | Block content (preferred; `:category` may be a custom flow id) |
 | `GET /api/dashboard/:category/summary` | Alias of `/content` |
 
 Optional `?fresh=1` bypasses soft caches and **awaits** a new flow run.

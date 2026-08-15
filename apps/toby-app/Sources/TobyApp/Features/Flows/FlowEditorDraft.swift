@@ -180,17 +180,50 @@ struct FlowEditorDestination: Identifiable, Equatable {
 	var emailTo: String
 	var emailSubject: String
 	var slackChannel: String
+	var dashboardVariant: String
 
 	static func modal() -> FlowEditorDestination {
-		FlowEditorDestination(id: UUID().uuidString, type: "modal", emailTo: "", emailSubject: "", slackChannel: "")
+		FlowEditorDestination(
+			id: UUID().uuidString,
+			type: "modal",
+			emailTo: "",
+			emailSubject: "",
+			slackChannel: "",
+			dashboardVariant: "informational"
+		)
 	}
 
 	static func email() -> FlowEditorDestination {
-		FlowEditorDestination(id: UUID().uuidString, type: "email", emailTo: "", emailSubject: "", slackChannel: "")
+		FlowEditorDestination(
+			id: UUID().uuidString,
+			type: "email",
+			emailTo: "",
+			emailSubject: "",
+			slackChannel: "",
+			dashboardVariant: "informational"
+		)
 	}
 
 	static func slack() -> FlowEditorDestination {
-		FlowEditorDestination(id: UUID().uuidString, type: "slack", emailTo: "", emailSubject: "", slackChannel: "")
+		FlowEditorDestination(
+			id: UUID().uuidString,
+			type: "slack",
+			emailTo: "",
+			emailSubject: "",
+			slackChannel: "",
+			dashboardVariant: "informational"
+		)
+	}
+
+	static func dashboard() -> FlowEditorDestination {
+		FlowEditorDestination(
+			id: UUID().uuidString,
+			type: "dashboard",
+			emailTo: "",
+			emailSubject: "",
+			slackChannel: "",
+			dashboardVariant: "informational"
+		)
 	}
 
 	init(spec: FlowDestinationSpec) {
@@ -199,14 +232,23 @@ struct FlowEditorDestination: Identifiable, Equatable {
 		emailTo = (spec.to ?? []).joined(separator: ", ")
 		emailSubject = spec.subject ?? ""
 		slackChannel = spec.channel ?? ""
+		dashboardVariant = spec.variant ?? "informational"
 	}
 
-	init(id: String, type: String, emailTo: String, emailSubject: String, slackChannel: String) {
+	init(
+		id: String,
+		type: String,
+		emailTo: String,
+		emailSubject: String,
+		slackChannel: String,
+		dashboardVariant: String
+	) {
 		self.id = id
 		self.type = type
 		self.emailTo = emailTo
 		self.emailSubject = emailSubject
 		self.slackChannel = slackChannel
+		self.dashboardVariant = dashboardVariant
 	}
 
 	var label: String {
@@ -214,6 +256,7 @@ struct FlowEditorDestination: Identifiable, Equatable {
 		case "modal": return "Show a result window"
 		case "email": return "Send email"
 		case "slack": return "Post to Slack"
+		case "dashboard": return "Dashboard"
 		default: return type.capitalized
 		}
 	}
@@ -232,6 +275,11 @@ struct FlowEditorDestination: Identifiable, Equatable {
 			]
 		case "slack":
 			return ["type": "slack", "channel": slackChannel]
+		case "dashboard":
+			return [
+				"type": "dashboard",
+				"variant": dashboardVariant == "runner" ? "runner" : "informational",
+			]
 		default:
 			return ["type": "modal"]
 		}

@@ -157,6 +157,12 @@ struct FlowEditorView: View {
 						draft.destinations.append(.slack())
 					}
 					.disabled(!store.isModuleConnected("slack"))
+					Button("Dashboard") {
+						if !draft.destinations.contains(where: { $0.type == "dashboard" }) {
+							draft.destinations.append(.dashboard())
+						}
+					}
+					.disabled(draft.destinations.contains(where: { $0.type == "dashboard" }))
 				} label: {
 					Label("Add destination", systemImage: "plus")
 				}
@@ -332,6 +338,20 @@ private struct FlowDestinationRow: View {
 			} else if destination.type == "slack" {
 				TextField("Channel (e.g. #general)", text: $destination.slackChannel)
 					.textFieldStyle(.roundedBorder)
+			} else if destination.type == "dashboard" {
+				Picker("Card type", selection: $destination.dashboardVariant) {
+					Text("Informational").tag("informational")
+					Text("Runner only").tag("runner")
+				}
+				.pickerStyle(.menu)
+				.controlSize(.regular)
+				Text(
+					destination.dashboardVariant == "runner"
+						? "A compact home card with a Run Now button. The flow only runs when you click it."
+						: "A home card that shows the last run’s output. Refresh works like the built-in dashboard cards."
+				)
+				.font(.caption)
+				.foregroundStyle(SettingsDesign.rowDescription)
 			} else {
 				Text("After a successful run, Toby shows the result in a window.")
 					.font(.caption)

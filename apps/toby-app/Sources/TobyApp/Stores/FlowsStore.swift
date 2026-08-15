@@ -231,27 +231,37 @@ final class FlowsStore {
 	}
 
 	func runSelected() async {
-		guard let id = selectedFlowId else { return }
+		guard let selectedFlowId else { return }
+		_ = await runFlow(id: selectedFlowId)
+	}
+
+	/// Run a custom flow without changing the Flows selection.
+	@discardableResult
+	func runFlow(id: String) async -> FlowRunNowResponse? {
 		isRunning = true
 		errorMessage = nil
 		defer { isRunning = false }
 		do {
 			let response = try await client.runFlow(id: id)
 			lastRunResult = response
-			let wantsModal = selectedFlow?.destinations?.contains(where: { $0.type == "modal" }) ?? true
+			let wantsModal = response.destinations?.contains(where: { $0.type == "modal" }) ?? false
 			if response.ok, wantsModal {
 				showResultSheet = true
 			} else if !response.ok {
 				errorMessage = response.error ?? "Flow failed"
-				if let runId = response.runId {
+				if selectedFlowId == id, let runId = response.runId {
 					await selectRun(id: runId)
 				}
-			} else if let runId = response.runId {
+			} else if selectedFlowId == id, let runId = response.runId {
 				await selectRun(id: runId)
 			}
-			await refreshSelectedRuns()
+			if selectedFlowId == id {
+				await refreshSelectedRuns()
+			}
+			return response
 		} catch {
 			errorMessage = error.localizedDescription
+			return nil
 		}
 	}
 

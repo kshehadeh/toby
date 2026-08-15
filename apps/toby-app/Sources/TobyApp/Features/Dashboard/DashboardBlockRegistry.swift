@@ -26,6 +26,26 @@ final class DashboardBlockRegistry {
 		block(id: DashboardBlockID(rawId))
 	}
 
+	/// Replace only custom-flow cards. Built-ins keep their in-flight state.
+	func syncFlowBlocks(_ infos: [FlowDashboardBlockInfo], client: TobyClient) {
+		let builtIns = blocks.filter { !$0.descriptor.isFlowBlock }
+		let existing = Dictionary(
+			uniqueKeysWithValues: blocks.filter(\.descriptor.isFlowBlock).map { ($0.id.rawValue, $0) }
+		)
+		var next = builtIns
+		for (offset, info) in infos.enumerated() {
+			let sortIndex = 100 + offset
+			let descriptor = DashboardBlockDescriptor.flow(info, sortIndex: sortIndex)
+			if let block = existing[info.id] {
+				block.applyFlowDescriptor(descriptor)
+				next.append(block)
+			} else {
+				next.append(CategoryDashboardBlock(descriptor: descriptor, client: client))
+			}
+		}
+		blocks = next.sorted { $0.sortIndex < $1.sortIndex }
+	}
+
 	/// Blocks sorted for layout, filtered by appearance visibility.
 	func orderedVisible(preferences: AppearancePreferences) -> [CategoryDashboardBlock] {
 		blocks

@@ -321,6 +321,25 @@ export function completeFlowRunDestinations(params: {
 	}
 }
 
+/** Newest successful run for a flow, or null. */
+export function getLatestSuccessfulFlowRun(
+	flowName: string,
+): FlowRunDetail | null {
+	const key = flowName.trim();
+	if (!key) return null;
+	const db = getDb();
+	const row = db
+		.query(
+			`SELECT id FROM flow_runs
+       WHERE flow_name = $flow_name AND status = 'success'
+       ORDER BY COALESCE(completed_at, started_at) DESC
+       LIMIT 1`,
+		)
+		.get({ $flow_name: key }) as { id?: string } | undefined;
+	if (!row?.id) return null;
+	return getFlowRun(row.id);
+}
+
 export function listFlowRuns(params?: {
 	readonly flowName?: string;
 	readonly limit?: number;

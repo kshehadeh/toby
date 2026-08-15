@@ -28,7 +28,9 @@ export type {
 export { FlowNodeError } from "./types";
 
 export type {
+	FlowDashboardVariant,
 	FlowDestination,
+	FlowDestinationDashboard,
 	FlowDestinationEmail,
 	FlowDestinationModal,
 	FlowDestinationSlack,
@@ -91,6 +93,7 @@ export {
 	completeFlowRun,
 	completeFlowRunDestinations,
 	getFlowRun,
+	getLatestSuccessfulFlowRun,
 	listFlowRuns,
 	deleteFlowRun,
 	pruneFlowRuns,

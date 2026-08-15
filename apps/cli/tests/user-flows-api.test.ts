@@ -256,4 +256,42 @@ describe("user flow HTTP API", () => {
 			expect(delAgain.status).toBe(404);
 		});
 	});
+
+	it("GET /api/dashboard/flow-blocks lists custom dashboard destinations", async () => {
+		await withTempTobyDir(async () => {
+			const created = await handleWebRequest(
+				new Request("http://127.0.0.1/api/flows", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						...llmOnlyBody,
+						destinations: [{ type: "dashboard", variant: "informational" }],
+					}),
+				}),
+				null,
+			);
+			const createdBody = (await created.json()) as { flow: { id: string } };
+			const list = await handleWebRequest(
+				new Request("http://127.0.0.1/api/dashboard/flow-blocks"),
+				null,
+			);
+			expect(list.status).toBe(200);
+			const body = (await list.json()) as {
+				blocks: Array<{ id: string; variant: string }>;
+			};
+			expect(body.blocks).toHaveLength(1);
+			expect(body.blocks[0]?.id).toBe(createdBody.flow.id);
+			expect(body.blocks[0]?.variant).toBe("informational");
+
+			const content = await handleWebRequest(
+				new Request(
+					`http://127.0.0.1/api/dashboard/${createdBody.flow.id}/content`,
+				),
+				null,
+			);
+			expect(content.status).toBe(200);
+			const contentBody = (await content.json()) as { text: string };
+			expect(contentBody.text).toBe("");
+		});
+	});
 });

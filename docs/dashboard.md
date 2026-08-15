@@ -1,7 +1,7 @@
 # Home dashboard
 
-How Toby.app’s home-screen cards (unread mail, tasks, upcoming calendar) get
-their content.
+How Toby.app’s home-screen cards (unread mail, tasks, upcoming calendar, and
+optional custom-flow cards) get their content.
 
 ## Architecture
 
@@ -120,7 +120,8 @@ synthesizes a dashboard hook used by the aggregator / tool executor. See the
 
 | Method | Path | Role |
 | --- | --- | --- |
-| `GET` | `/api/dashboard/:category/content` | **Home card body** (preferred) |
+| `GET` | `/api/dashboard/flow-blocks` | Custom flows with a Dashboard destination |
+| `GET` | `/api/dashboard/:category/content` | **Home card body** (preferred; built-in category or custom flow id) |
 | `GET` | `/api/dashboard/:category/summary` | Alias of `/content` |
 | `GET` | `/api/dashboard/:category` | Aggregator list (internal / debug; not home cards) |
 | `GET` | `/api/dashboard` | All categories’ aggregator data |
@@ -135,13 +136,34 @@ Query: `?fresh=1` bypasses caches and awaits a fresh flow when generating body t
 | Content memory cache | 5 min | Keyed by category + persona + data signature |
 | Disk | `~/.toby/dashboard-summaries.json` | Soft path may return stale then refresh in background |
 
+## Custom flow cards
+
+A user-authored flow can add `{ type: "dashboard", variant }` as a destination.
+Toby.app syncs `GET /api/dashboard/flow-blocks` on each home load and registers
+a card whose id is the flow id.
+
+| Variant | UI | Load |
+| --- | --- | --- |
+| `informational` | Built-in-sized card. Body is last successful run output (last step / declared result). Header refresh matches built-ins (`?fresh=1` re-runs the flow). Menu includes **Open flow**. | Soft: last success. Force: `runUserFlowById`. |
+| `runner` | Compact card: description + visible **Run Now**. Never auto-runs. Menu includes **Open flow**. | `POST /api/flows/:id/run`. Content fetch is a no-op. |
+
+Built-in email / tasks / calendar cards are unchanged.
+
 ## Key files
 
 | Area | Path |
 | --- | --- |
 | Content types | `packages/core/src/dashboard/types.ts` (`DashboardBlockContent`) |
 | Content generation | `packages/core/src/dashboard/summarizer.ts` (`getDashboardBlockContent`) |
+| Custom flow cards | `packages/core/src/dashboard/flow-blocks.ts` |
 | CoT / reasoning strip | `extractDashboardSummaryText` in summarizer (post-process) |
+| Aggregator (internal) | `packages/core/src/dashboard/index.ts` |
+| HTTP | `packages/core/src/web/handlers/dashboard.ts` |
+| Flows | `packages/core/src/flows/` — see [`flows.md`](flows.md) |
+| Card definition | `apps/toby-app/.../Dashboard/DashboardBlock.swift` |
+| Block controller | `apps/toby-app/.../Dashboard/CategoryDashboardBlock.swift` |
+| Store (fan-out) | `apps/toby-app/.../Stores/DashboardStore.swift` |
+| Card UI | `apps/toby-app/.../Dashboard/DashboardCards.swift` |
 
 ## Model choice (reasoning leaks)
 
@@ -159,13 +181,6 @@ Mitigations in code:
 
 **Config recommendation:** set the Dashboard persona to a **non-reasoning**
 model (no **· reasoning** label in the picker). See Settings → Dashboard.
-| Aggregator (internal) | `packages/core/src/dashboard/index.ts` |
-| HTTP | `packages/core/src/web/handlers/dashboard.ts` |
-| Flows | `packages/core/src/flows/` — see [`flows.md`](flows.md) |
-| Card definition | `apps/toby-app/.../Dashboard/DashboardBlock.swift` |
-| Block controller | `apps/toby-app/.../Dashboard/CategoryDashboardBlock.swift` |
-| Store (fan-out) | `apps/toby-app/.../Stores/DashboardStore.swift` |
-| Card UI | `apps/toby-app/.../Dashboard/DashboardCards.swift` |
 
 ## Related
 

@@ -36,6 +36,10 @@ struct DashboardBlockActionContext {
 	var startChat: @MainActor () -> Void = {}
 	var summarizeEmail: @MainActor () -> Void = {}
 	var planInChat: @MainActor () -> Void = {}
+	var openFlow: @MainActor (String) -> Void = { _ in }
+	/// Runs a custom flow by id. Returns the daemon response when the request
+	/// completed (including `ok: false`); `nil` when the HTTP call itself failed.
+	var runFlow: @MainActor (String) async -> FlowRunNowResponse? = { _ in nil }
 }
 
 /// A single menu / header action declared by a block definition.
@@ -68,8 +72,14 @@ struct DashboardBlockDescriptor: Identifiable, Sendable {
 	let openPrimaryTitle: String?
 	/// Whether the menu lists per-source "Open …" rows from content meta.
 	let listsSourceOpenActions: Bool
+	/// `runner` / `informational` for custom flow cards; nil for built-ins.
+	var flowVariant: String? = nil
+	var flowDescription: String? = nil
+	var showsResultSheet: Bool = false
 
 	var rawId: String { id.rawValue }
+	var isFlowBlock: Bool { flowVariant != nil }
+	var isFlowRunner: Bool { flowVariant == "runner" }
 
 	// MARK: Built-in descriptors
 
@@ -121,4 +131,23 @@ struct DashboardBlockDescriptor: Identifiable, Sendable {
 		.tasks,
 		.calendar,
 	]
+
+	static func flow(_ info: FlowDashboardBlockInfo, sortIndex: Int) -> DashboardBlockDescriptor {
+		DashboardBlockDescriptor(
+			id: DashboardBlockID(info.id),
+			title: info.title,
+			systemImage: "arrow.triangle.branch",
+			emptyWhenNil: "Run this flow to see output here.",
+			emptyWhenZero: "Run this flow to see output here.",
+			sortIndex: sortIndex,
+			visibilityDefaultsKey: "toby.appearance.showDashboardFlow.\(info.id)",
+			accessibilityIdentifier: "dashboard-flow-\(info.id)",
+			openFallbackBundleId: nil,
+			openPrimaryTitle: nil,
+			listsSourceOpenActions: false,
+			flowVariant: info.variant,
+			flowDescription: info.description,
+			showsResultSheet: info.showsResultSheet ?? false
+		)
+	}
 }

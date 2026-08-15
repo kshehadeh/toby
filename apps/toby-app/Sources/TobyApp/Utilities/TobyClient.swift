@@ -953,6 +953,16 @@ struct TobyClient {
 		return try JSONDecoder().decode(DashboardData.self, from: data)
 	}
 
+	func fetchFlowDashboardBlocks() async throws -> [FlowDashboardBlockInfo] {
+		let url = baseURL.appendingPathComponent("api/dashboard/flow-blocks")
+		var request = URLRequest(url: url)
+		request.cachePolicy = .reloadIgnoringLocalCacheData
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		struct Payload: Decodable { let blocks: [FlowDashboardBlockInfo] }
+		return try JSONDecoder().decode(Payload.self, from: data).blocks
+	}
+
 	/// Fetch home-dashboard **block content** (flow output for the card body).
 	/// Returns `nil` when no connected providers implement the category.
 	/// - Parameter fresh: When true, bypasses caches and awaits a fresh flow run.
@@ -986,7 +996,10 @@ struct TobyClient {
 	}
 
 	private func dashboardURL(category: String, content: Bool, fresh: Bool) -> URL {
-		var path = "api/dashboard/\(category)"
+		var allowed = CharacterSet.urlPathAllowed
+		allowed.remove(charactersIn: "/")
+		let encoded = category.addingPercentEncoding(withAllowedCharacters: allowed) ?? category
+		var path = "api/dashboard/\(encoded)"
 		if content {
 			path += "/content"
 		}

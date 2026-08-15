@@ -140,7 +140,7 @@ function validateDestination(
 	issues: string[],
 ): void {
 	const label = `Destination ${index + 1}`;
-	if (destination.type === "modal") {
+	if (destination.type === "modal" || destination.type === "dashboard") {
 		return;
 	}
 	if (destination.type === "email") {
@@ -201,6 +201,16 @@ function normalizeDestination(
 			type: "slack",
 			channel: typeof raw.channel === "string" ? raw.channel : "",
 		};
+	}
+	if (raw.type === "dashboard") {
+		const variant = raw.variant;
+		if (variant !== "runner" && variant !== "informational") {
+			issues.push(
+				`Destination ${index + 1}: Dashboard needs variant "runner" or "informational"`,
+			);
+			return null;
+		}
+		return { type: "dashboard", variant };
 	}
 	issues.push(
 		`Destination ${index + 1}: Unknown destination type "${raw.type}"`,
@@ -266,6 +276,11 @@ export function validateUserFlowDocument(
 	});
 	if (destinations.length === 0 && issues.length === 0) {
 		destinations.push({ type: "modal" });
+	}
+
+	const dashboardDests = destinations.filter((d) => d.type === "dashboard");
+	if (dashboardDests.length > 1) {
+		issues.push("A flow can have only one Dashboard destination");
 	}
 
 	if (document.result && !document.result.from.trim()) {

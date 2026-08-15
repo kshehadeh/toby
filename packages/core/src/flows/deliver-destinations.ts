@@ -12,8 +12,8 @@ async function deliverOne(
 	destination: FlowDestination,
 	result: ExtractedFlowResult,
 ): Promise<FlowDestinationDelivery> {
-	if (destination.type === "modal") {
-		return { type: "modal", ok: true };
+	if (isRegistrationDestination(destination.type)) {
+		return { type: destination.type, ok: true };
 	}
 
 	if (!result.text.trim()) {
@@ -50,7 +50,12 @@ async function deliverOne(
 		: { type: "slack", ok: false, error: exec.error };
 }
 
-/** Deliver non-node sinks. Modal is recorded as ok and is not a daemon side effect. */
+/** Modal and dashboard only register a sink; they are not daemon side effects. */
+function isRegistrationDestination(type: FlowDestination["type"]): boolean {
+	return type === "modal" || type === "dashboard";
+}
+
+/** Deliver non-node sinks. Modal/dashboard are recorded as ok without a tool call. */
 export async function deliverFlowDestinations(params: {
 	readonly destinations: readonly FlowDestination[];
 	readonly result: ExtractedFlowResult;
@@ -65,5 +70,7 @@ export async function deliverFlowDestinations(params: {
 export function destinationDeliveryFailed(
 	results: readonly FlowDestinationDelivery[],
 ): FlowDestinationDelivery[] {
-	return results.filter((item) => item.type !== "modal" && !item.ok);
+	return results.filter(
+		(item) => !isRegistrationDestination(item.type) && !item.ok,
+	);
 }

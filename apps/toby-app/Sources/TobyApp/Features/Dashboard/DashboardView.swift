@@ -61,6 +61,14 @@ struct DashboardView: View {
 		store.registry.orderedVisible(preferences: appearancePreferences)
 	}
 
+	private var informationalBlocks: [CategoryDashboardBlock] {
+		visibleBlocks.filter { !$0.descriptor.isFlowRunner }
+	}
+
+	private var runnerBlocks: [CategoryDashboardBlock] {
+		visibleBlocks.filter(\.descriptor.isFlowRunner)
+	}
+
 	/// Fingerprint of which dashboard sections are visible; drives insert/remove animation.
 	private var sectionVisibilityKey: String {
 		([shouldShowOnboarding ? "onboarding" : ""]
@@ -109,16 +117,26 @@ struct DashboardView: View {
 
 	/// Adaptive columns: as many as fit above `minimum`, so the dashboard
 	/// reflows 3 → 2 → 1 as the window narrows. Onboarding stays outside this grid.
+	/// Informational and runner cards share this spec so left edges and gutters match.
 	private static let cardColumns = [
 		GridItem(.adaptive(minimum: 280, maximum: .infinity), spacing: 20, alignment: .top),
 	]
 
 	@ViewBuilder
 	private var cards: some View {
-		if !visibleBlocks.isEmpty {
+		if !informationalBlocks.isEmpty {
 			LazyVGrid(columns: Self.cardColumns, alignment: .leading, spacing: 20) {
-				ForEach(visibleBlocks, id: \.id) { block in
+				ForEach(informationalBlocks, id: \.id) { block in
 					DashboardBlockCard(block: block, actionContext: actionContext)
+						.transition(DashboardSectionMotion.transition)
+				}
+			}
+			.transition(DashboardSectionMotion.transition)
+		}
+		if !runnerBlocks.isEmpty {
+			LazyVGrid(columns: Self.cardColumns, alignment: .leading, spacing: 20) {
+				ForEach(runnerBlocks, id: \.id) { block in
+					FlowRunnerDashboardCard(block: block, actionContext: actionContext)
 						.transition(DashboardSectionMotion.transition)
 				}
 			}

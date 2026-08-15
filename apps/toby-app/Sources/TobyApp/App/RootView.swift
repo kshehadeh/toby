@@ -512,7 +512,9 @@ struct RootView: View {
                     actionContext: DashboardBlockActionContext(
                         startChat: startNewChat,
                         summarizeEmail: summarizeUnreadEmailInChat,
-                        planInChat: planCalendarInChat
+                        planInChat: planCalendarInChat,
+                        openFlow: openDashboardFlow,
+                        runFlow: runDashboardFlow
                     )
                 )
                 .toolbar {
@@ -524,6 +526,14 @@ struct RootView: View {
                         isRefreshing: dashboardStore.isRefreshing,
                         onRefresh: { Task { await refreshDashboardData() } }
                     )
+                }
+                .sheet(isPresented: Binding(
+                    get: { flowsStore.showResultSheet },
+                    set: { if !$0 { flowsStore.closeResultSheet() } }
+                )) {
+                    FlowResultSheet(result: flowsStore.lastRunResult) {
+                        flowsStore.closeResultSheet()
+                    }
                 }
             case .chat:
                 ChatWorkspaceView(store: store)
@@ -780,6 +790,19 @@ struct RootView: View {
 
     private func navigateToRoute(_ route: DetailRoute) {
         history.navigate(to: route)
+    }
+
+    private func openDashboardFlow(_ flowId: String) {
+        navigateToRoute(.flows)
+        Task {
+            await flowsStore.ensureLoaded()
+            await flowsStore.selectFlow(id: flowId)
+        }
+    }
+
+    private func runDashboardFlow(_ flowId: String) async -> FlowRunNowResponse? {
+        await flowsStore.ensureLoaded()
+        return await flowsStore.runFlow(id: flowId)
     }
 
     /// Onboarding must wait until the daemon handshake and first shared data

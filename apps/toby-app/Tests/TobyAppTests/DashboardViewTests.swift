@@ -653,4 +653,170 @@ struct DashboardBlockContentTests {
 	}
 }
 
+@MainActor
+@Suite("DashboardFlowBlocks")
+struct DashboardFlowBlocksTests {
+	private func flowInfo(
+		id: String,
+		title: String,
+		description: String?,
+		variant: String,
+		showsResultSheet: Bool = false
+	) -> FlowDashboardBlockInfo {
+		FlowDashboardBlockInfo(
+			id: id,
+			flowId: id,
+			title: title,
+			description: description,
+			variant: variant,
+			lastRanAt: nil,
+			showsResultSheet: showsResultSheet
+		)
+	}
+
+	@Test("flow dashboard block info decodes from JSON")
+	func flowDashboardBlockInfoDecodes() throws {
+		let json = """
+		{
+			"id": "flow.abc",
+			"flowId": "flow.abc",
+			"title": "Focus mode",
+			"description": "Turn off Wi-Fi",
+			"variant": "runner",
+			"lastRanAt": "2026-08-15T12:00:00Z",
+			"showsResultSheet": false
+		}
+		""".data(using: .utf8)!
+		let info = try JSONDecoder().decode(FlowDashboardBlockInfo.self, from: json)
+		#expect(info.id == "flow.abc")
+		#expect(info.isRunner)
+		#expect(info.description == "Turn off Wi-Fi")
+		#expect(info.showsResultSheet == false)
+	}
+
+	@Test("flow descriptor marks runner vs informational")
+	func flowDescriptorMarksVariants() {
+		let runner = DashboardBlockDescriptor.flow(
+			flowInfo(id: "flow.run", title: "Focus mode", description: "Turn off Wi-Fi", variant: "runner"),
+			sortIndex: 100
+		)
+		#expect(runner.isFlowBlock)
+		#expect(runner.isFlowRunner)
+		#expect(runner.title == "Focus mode")
+		#expect(runner.flowDescription == "Turn off Wi-Fi")
+		#expect(runner.accessibilityIdentifier == "dashboard-flow-flow.run")
+
+		let info = DashboardBlockDescriptor.flow(
+			flowInfo(id: "flow.info", title: "Status", description: "Latest", variant: "informational"),
+			sortIndex: 101
+		)
+		#expect(info.isFlowBlock)
+		#expect(!info.isFlowRunner)
+	}
+
+	@Test("registry syncs flow cards without dropping built-ins")
+	func registrySyncsFlowCards() {
+		let registry = DashboardBlockRegistry()
+		#expect(registry.blocks.contains { $0.id == .email })
+		registry.syncFlowBlocks(
+			[
+				flowInfo(id: "flow.run", title: "Focus mode", description: "Turn off Wi-Fi", variant: "runner"),
+			],
+			client: TobyClient()
+		)
+		#expect(registry.blocks.contains { $0.id == .email })
+		#expect(registry.blocks.contains { $0.id.rawValue == "flow.run" })
+		#expect(registry.block(rawId: "flow.run")?.descriptor.isFlowRunner == true)
+
+		registry.syncFlowBlocks([], client: TobyClient())
+		#expect(!registry.blocks.contains { $0.descriptor.isFlowBlock })
+		#expect(registry.blocks.contains { $0.id == .email })
+	}
+
+	@Test("flow informational actions include open flow")
+	func flowInformationalActionsIncludeOpenFlow() {
+		let block = CategoryDashboardBlock(
+			descriptor: .flow(
+				flowInfo(id: "flow.info", title: "Status", description: "Latest", variant: "informational"),
+				sortIndex: 100
+			)
+		)
+		let actions = block.actions(context: .init())
+		#expect(actions.map(\.id).contains("open-flow"))
+		#expect(!actions.map(\.id).contains("summarize-email"))
+	}
+
+	@Test("runner card shows description and run now")
+	func runnerCardShowsDescriptionAndRunNow() throws {
+		let block = CategoryDashboardBlock(
+			descriptor: .flow(
+				flowInfo(id: "flow.run", title: "Focus mode", description: "Turn off Wi-Fi", variant: "runner"),
+				sortIndex: 100
+			)
+		)
+		let card = FlowRunnerDashboardCard(block: block)
+		#expect(throws: Never.self) {
+			try card.inspect().find(text: "Focus mode")
+		}
+		#expect(throws: Never.self) {
+			try card.inspect().find(text: "Turn off Wi-Fi")
+		}
+		#expect(throws: Never.self) {
+			try card.inspect().find(text: "Run Now")
+		}
+		#expect(throws: Never.self) {
+			try card.inspect().find(viewWithAccessibilityIdentifier: "dashboard-flow-run-flow.run")
+		}
+	}
+
+	@Test("dashboard view renders informational and runner flow cards")
+	func dashboardViewRendersFlowCards() throws {
+		let store = DashboardStore()
+		store.registry.syncFlowBlocks(
+			[
+				flowInfo(id: "flow.info", title: "Inbox note", description: "Latest status", variant: "informational"),
+				flowInfo(id: "flow.run", title: "Focus mode", description: "Turn off Wi-Fi", variant: "runner"),
+			],
+			client: TobyClient()
+		)
+		let suite = UserDefaults(suiteName: "toby.tests.dashboard.flow.\(UUID().uuidString)")!
+		let prefs = AppearancePreferences(
+			hideOnboarding: true,
+			defaults: suite
+		)
+		let view = DashboardView(
+			store: store,
+			userName: "Karim",
+			onboarding: OnboardingChecklist.make(
+				hasConfiguredAIProvider: true,
+				hasConnectedIntegrations: true,
+				hasModelConfigured: true,
+				hasRequiredPermissions: true,
+				hasSchedule: true,
+				hasSkill: true,
+				hasTranscriptionConfigured: true,
+				hasRecording: true,
+				hasSession: true
+			),
+			onRefresh: {},
+			onSelectRoute: { _ in },
+			onOpenPermissions: {},
+			actionContext: .init(startChat: {}),
+			appearancePreferences: prefs
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-flow-flow.info")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-flow-flow.run")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Run Now")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Turn off Wi-Fi")
+		}
+	}
+}
+
 

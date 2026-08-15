@@ -246,6 +246,35 @@ struct FlowsViewTests {
 		}
 	}
 
+	@Test("dashboard destination summary and editor payload")
+	func dashboardDestinationSummaryAndEditorPayload() {
+		let informational = FlowDestinationSpec(
+			type: "dashboard",
+			to: nil,
+			subject: nil,
+			cc: nil,
+			channel: nil,
+			variant: "informational"
+		)
+		let runner = FlowDestinationSpec(
+			type: "dashboard",
+			to: nil,
+			subject: nil,
+			cc: nil,
+			channel: nil,
+			variant: "runner"
+		)
+		#expect(informational.summary == "Dashboard · Informational")
+		#expect(runner.summary == "Dashboard · Run now")
+
+		let draft = FlowEditorDestination(spec: runner)
+		#expect(draft.type == "dashboard")
+		#expect(draft.dashboardVariant == "runner")
+		let body = draft.jsonBody()
+		#expect(body["type"] as? String == "dashboard")
+		#expect(body["variant"] as? String == "runner")
+	}
+
 	@Test("startCreate opens a blank editor")
 	func startCreateOpensBlankEditor() async {
 		let store = FlowsStore()

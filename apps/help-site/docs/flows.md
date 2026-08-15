@@ -54,7 +54,16 @@ Choose **New flow** from the Flows sidebar or the toolbar.
    - **Show a result window** (default)
    - **Send email** (Email must be connected)
    - **Post to Slack** (Slack must be connected)
+   - **Dashboard** — put the flow on the home screen as a card:
+     - **Informational** — same size as the built-in cards. Shows the last
+       successful run’s output. Refresh on the card (or the dashboard toolbar)
+       runs the flow again, like unread mail / tasks / calendar.
+     - **Runner only** — a smaller card with the flow’s description and a
+       **Run Now** button. It only runs when you click that button.
 5. **Save**, then **Run now**.
+
+You can combine a dashboard card with a result window (or email / Slack). A
+flow can have only one Dashboard destination.
 
 A good first flow is a focus macro: turn Wi-Fi off, then minimize all windows. Tools that need IDs from a previous search (for example “archive these messages”) still belong in [chat](./chat-surfaces/overview) or a [schedule](./schedules) prompt — the model can pick IDs and call the tool itself.
 

@@ -68,10 +68,18 @@ export type FlowDestinationSlack = {
 	readonly channel: string;
 };
 
+export type FlowDashboardVariant = "runner" | "informational";
+
+export type FlowDestinationDashboard = {
+	readonly type: "dashboard";
+	readonly variant: FlowDashboardVariant;
+};
+
 export type FlowDestination =
 	| FlowDestinationModal
 	| FlowDestinationEmail
-	| FlowDestinationSlack;
+	| FlowDestinationSlack
+	| FlowDestinationDashboard;
 
 /**
  * Fully JSON-serializable flow definition stored in SQLite.

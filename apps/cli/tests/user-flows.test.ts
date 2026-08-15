@@ -234,6 +234,41 @@ describe("validateUserFlowDocument", () => {
 		expect(normalized.destinations).toHaveLength(3);
 	});
 
+	it("accepts a dashboard destination and rejects two of them", () => {
+		const one = validateUserFlowDocument(
+			wifiThenMinimize({
+				destinations: [{ type: "dashboard", variant: "runner" }],
+			}),
+			{ tools: catalog, connectedModules: connected },
+		);
+		expect(one.destinations).toEqual([
+			{ type: "dashboard", variant: "runner" },
+		]);
+
+		expect(() =>
+			validateUserFlowDocument(
+				wifiThenMinimize({
+					destinations: [
+						{ type: "dashboard", variant: "runner" },
+						{ type: "dashboard", variant: "informational" },
+					],
+				}),
+				{ tools: catalog, connectedModules: connected },
+			),
+		).toThrow(/only one Dashboard destination/);
+	});
+
+	it("rejects a dashboard destination without a variant", () => {
+		expect(() =>
+			validateUserFlowDocument(
+				wifiThenMinimize({
+					destinations: [{ type: "dashboard" } as never],
+				}),
+				{ tools: catalog, connectedModules: connected },
+			),
+		).toThrow(/variant/);
+	});
+
 	it("rejects an unknown destination type", () => {
 		const doc = wifiThenMinimize({
 			destinations: [{ type: "carrier-pigeon" } as never],

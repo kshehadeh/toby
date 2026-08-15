@@ -332,6 +332,7 @@ struct FlowDestinationSpec: Decodable, Equatable {
 	let subject: String?
 	let cc: [String]?
 	let channel: String?
+	let variant: String?
 
 	var summary: String {
 		switch type {
@@ -342,6 +343,8 @@ struct FlowDestinationSpec: Decodable, Equatable {
 			return recipients.isEmpty ? "Email" : "Email \(recipients)"
 		case "slack":
 			return channel?.isEmpty == false ? "Slack \(channel ?? "")" : "Slack"
+		case "dashboard":
+			return variant == "runner" ? "Dashboard · Run now" : "Dashboard · Informational"
 		default:
 			return type.capitalized
 		}

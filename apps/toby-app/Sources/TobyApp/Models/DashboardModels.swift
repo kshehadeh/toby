@@ -71,6 +71,19 @@ struct DashboardBlockContentSource: Decodable, Identifiable, Equatable {
 	var id: String { providerName }
 }
 
+/// Custom flow opted onto the home dashboard.
+struct FlowDashboardBlockInfo: Decodable, Identifiable, Equatable {
+	let id: String
+	let flowId: String
+	let title: String
+	let description: String?
+	let variant: String
+	let lastRanAt: String?
+	let showsResultSheet: Bool?
+
+	var isRunner: Bool { variant == "runner" }
+}
+
 /// Home-dashboard **block content** — sole payload for a card body.
 /// Header chrome comes only from the card definition.
 struct DashboardBlockContent: Decodable, Equatable {
