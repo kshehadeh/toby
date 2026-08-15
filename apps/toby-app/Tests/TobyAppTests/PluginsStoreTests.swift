@@ -31,7 +31,8 @@ struct PluginsStoreTests {
 			state: state,
 			connected: connected,
 			error: nil,
-			errorCode: nil
+			errorCode: nil,
+			tools: nil
 		)
 	}
 

@@ -628,6 +628,9 @@ struct RootView: View {
                             common: commonToolbarModel,
                             isListLoading: flowsStore.isListLoading,
                             isRunsLoading: flowsStore.isRunsLoading,
+                            onNewFlow: {
+                                Task { await flowsStore.startCreate() }
+                            },
                             onRefresh: {
                                 Task {
                                     await flowsStore.load()

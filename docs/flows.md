@@ -54,6 +54,8 @@ each other by name; the definition **wires** ports via `inputs` / `outputs`.
 | **Input source** | How a node parameter is filled (`const` or `from` bag key) |
 | **Output map** | Which bag keys get which fields of the node result |
 | **Persona** | Model + instructions used by every LLM Prompter in that run |
+| **Declared result** | Bag pointer destinations and the result sheet consume |
+| **Destination** | What to do after a successful run (`modal`, `email`, `slack`) |
 
 ## Persona resolution
 
@@ -186,6 +188,11 @@ Implementation: `packages/core/src/flows/nodes/llm-prompter.ts`,
 
 Missing bag keys or paths throw `FlowNodeError` and fail the run.
 
+User-authored flows may only use `{ const }` on **tool** inputs. LLM prompts
+may still interpolate bag values (`{{json bag.<key>}}`). That is the v1
+policy: author-time constants for tools, no structured bind into the next
+tool’s arguments.
+
 ### Outputs
 
 Map **bag key → path into node result**. Path `"."` (or empty) means the entire
@@ -200,6 +207,25 @@ outputs: {
 ```
 
 Implementation: `packages/core/src/flows/resolve-inputs.ts`.
+
+## Declared result and destinations
+
+The context bag and `flow_runs.final_outputs_json` remain the store for every
+run. Destinations do not replace that history.
+
+A document may name **one result** (`result.from` / optional `path`) and a
+list of **destinations**:
+
+| Destination | Who delivers | Notes |
+| --- | --- | --- |
+| `modal` | Toby.app | Interactive **Run now** opens a result sheet |
+| `email` | Daemon via `email.sendEmail` | `to` + `subject` are author-time constants; body is the result text |
+| `slack` | Daemon via `slack.postToChannel` | `channel` is an author-time constant |
+
+If `result` is omitted, the last LLM node’s markdown (or the last tool’s
+`appliedActions` / payload) is used. New user flows default to
+`[{ type: "modal" }]`. A failed email/slack destination fails the run.
+Built-in dashboard flows omit destinations and keep reading the bag in code.
 
 ## Storage model
 
@@ -319,19 +345,39 @@ Per node: resolved **inputs**, bag **outputs**, **duration_ms**,
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/flows` | Flow list for the app UI (`id`, `name`, `description`, `builtin`, `persona`, node graph snapshot, timestamps); seeds built-ins |
+| `GET` | `/api/flows` | Flow list for the app UI (`id`, `name`, `description`, `builtin`, `persona`, node graph snapshot, `result`, `destinations`, timestamps); seeds built-ins |
+| `POST` | `/api/flows` | Create a custom flow (server mints `flow.<uuid>`) |
+| `GET` | `/api/flows/catalog` | Connected plugin tools including `inputSchema` |
+| `GET` | `/api/flows/:id` | List item + stored `document` (prompts, destinations) |
+| `PUT` | `/api/flows/:id` | Replace a custom flow (403 for built-ins) |
+| `DELETE` | `/api/flows/:id` | Delete a custom flow (403 for built-ins) |
+| `POST` | `/api/flows/:id/run` | Run now, extract declared result, deliver email/slack destinations |
 | `GET` | `/api/flows/runs` | Run summaries (`?flowName=&limit=&offset=`) |
-| `GET` | `/api/flows/runs/:id` | Full run + ordered nodes for the interactive graph UI |
+| `GET` | `/api/flows/runs/:id` | Full run + ordered nodes + destination results |
 
-List responses omit heavy node I/O; use the detail route for click-through.
-There is no write API yet (user create/edit is future work).
+List responses omit heavy node I/O; use `GET /api/flows/:id` or a run detail
+route for click-through.
+
+User-authored documents are validated by `validateUserFlowDocument`:
+
+- Tool executor inputs must be `{ const }` (no bag wiring)
+- Required tool fields must be filled when the plugin is installed
+- An LLM Prompter, if present, must be last and use `{ kind: "markdown" }`
+- Destinations are `modal`, `email` (`to`, `subject`), or `slack` (`channel`)
+- Email/Slack destinations require that integration to be connected
+
+`runUserFlowById` extracts the declared result (or infers it from the last
+node) and delivers non-modal destinations via `sendEmail` / `postToChannel`.
+Modal is UI-only: the run response includes `result` for the app to display.
 
 ### Toby.app UI
 
 The main window **Flows** surface (`DetailRoute.flows`) lists definitions in the
-sidebar, shows a card home for all flows, and opens a read-only detail with
-node steps and recent runs. Built-in flows are labeled and cannot be deleted;
-custom flow edit/delete is reserved for a later release.
+sidebar, shows a card home for all flows, and opens detail with node steps and
+recent runs. **New flow** opens a step-list editor (tool picker, const inputs,
+optional last LLM, destinations). Custom flows can be edited, deleted, and
+**Run now**. Built-in flows stay read-only. A successful interactive run with a
+modal destination opens a result sheet.
 
 ## Package layout
 
@@ -353,9 +399,14 @@ custom flow edit/delete is reserved for a later release.
 | `flows/nodes/tool-executor.ts` | Tool Executor node |
 | `flows/nodes/llm-prompter.ts` | LLM Prompter node |
 | `flows/dashboard-items.ts` | Dashboard tool-result item helpers |
+| `flows/validate-user-flow.ts` | Policy for user-authored documents |
+| `flows/extract-result.ts` | Declared / inferred result text |
+| `flows/catalog.ts` | Connected tool catalog for the editor |
+| `flows/deliver-destinations.ts` | Email / Slack / modal sinks |
+| `flows/run-user-flow.ts` | Run + extract + deliver |
 | `flows/index.ts` | Public exports |
 
-Tests: `apps/cli/tests/flows.test.ts`, `flows-history.test.ts`.
+Tests: `apps/cli/tests/flows.test.ts`, `flows-history.test.ts`, `user-flows.test.ts`, `user-flows-api.test.ts`.
 
 ## Built-in consumers: dashboard card content
 
@@ -473,14 +524,15 @@ For one-off tests without persisting a definition, build a runtime
 
 ## Non-goals (current)
 
-- UI / visual pipeline editor  
-- HTTP `POST` create/update or CLI `toby flows`  
-- Overwriting existing built-in rows when seed content changes  
-- Branching, conditionals, or DAGs  
-- Parallel node execution  
-- Multi-step tool loops inside LLM Prompter (use chat or
-  `delegateToSubAgent` for that)  
+- Visual canvas / DAG editor (the editor is a vertical step list)
+- Runtime binding of one node’s output into the next **tool**’s arguments
+  (structured bind; e.g. LLM-picked email UIDs → `archiveEmail`)
+- Multi-step tool loops inside LLM Prompter (use chat or a schedule prompt)
+- Branching, conditionals, parallel nodes
+- Running a flow from a schedule or the command palette
+- Overwriting existing built-in rows when seed content changes
 - Schema presets beyond `{ kind: "markdown" }`
+- CLI `toby flows`
 
 ## Related docs
 

@@ -38,8 +38,14 @@ import {
 	handleDashboardCategorySummary,
 } from "./handlers/dashboard";
 import {
+	handleFlowCreate,
+	handleFlowDelete,
+	handleFlowDetail,
+	handleFlowRun,
 	handleFlowRunDetail,
 	handleFlowRunsList,
+	handleFlowUpdate,
+	handleFlowsCatalog,
 	handleFlowsList,
 } from "./handlers/flows";
 import {
@@ -179,12 +185,35 @@ export async function handleWebRequest(
 		if (pathname === "/api/flows" && req.method === "GET") {
 			return handleFlowsList();
 		}
+		if (pathname === "/api/flows" && req.method === "POST") {
+			return handleFlowCreate(req);
+		}
+		if (pathname === "/api/flows/catalog" && req.method === "GET") {
+			return handleFlowsCatalog();
+		}
 		if (pathname === "/api/flows/runs" && req.method === "GET") {
 			return handleFlowRunsList(url);
 		}
 		const flowRunMatch = /^\/api\/flows\/runs\/([^/]+)$/.exec(pathname);
 		if (flowRunMatch && req.method === "GET") {
 			return handleFlowRunDetail(decodeURIComponent(flowRunMatch[1]));
+		}
+		const flowRunNowMatch = /^\/api\/flows\/([^/]+)\/run$/.exec(pathname);
+		if (flowRunNowMatch && req.method === "POST") {
+			return handleFlowRun(decodeURIComponent(flowRunNowMatch[1]));
+		}
+		const flowItemMatch = /^\/api\/flows\/([^/]+)$/.exec(pathname);
+		if (flowItemMatch) {
+			const flowId = decodeURIComponent(flowItemMatch[1]);
+			if (req.method === "GET") {
+				return handleFlowDetail(flowId);
+			}
+			if (req.method === "PUT") {
+				return handleFlowUpdate(flowId, req);
+			}
+			if (req.method === "DELETE") {
+				return handleFlowDelete(flowId);
+			}
 		}
 		if (pathname === "/api/issues" && req.method === "POST") {
 			return handleCreateIssue(req);

@@ -169,7 +169,9 @@ struct IntegrationsViewTests {
 					name: "gmailSearch",
 					displayName: "Search Mail",
 					description: "Find messages in the connected Gmail mailbox.",
-					readOnly: true
+					readOnly: true,
+					standardTool: nil,
+					inputSchema: nil
 				),
 			],
 			isExpanded: .constant(true)

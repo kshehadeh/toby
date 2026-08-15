@@ -66,6 +66,23 @@ struct FlowDetailContent: View {
 					.foregroundStyle(AppTheme.tertiaryText)
 					.multilineTextAlignment(.trailing)
 					.frame(maxWidth: 180)
+			} else {
+				HStack(spacing: 8) {
+					Button {
+						Task { await store.startEdit(id: flow.id) }
+					} label: {
+						Text("Edit")
+					}
+					.accessibilityIdentifier("flow-edit-button")
+					Button {
+						Task { await store.runSelected() }
+					} label: {
+						Text(store.isRunning ? "Running…" : "Run now")
+					}
+					.disabled(store.isRunning)
+					.keyboardShortcut("r", modifiers: [.command])
+					.accessibilityIdentifier("flow-run-button")
+				}
 			}
 		}
 	}
@@ -175,10 +192,27 @@ struct FlowDetailContent: View {
 					.fixedSize(horizontal: false, vertical: true)
 
 				if flow.builtin {
-					Text("Custom flow editing and deletion will be available in a future update. Built-in flows remain read-only.")
+					Text("Built-in flows remain read-only. Duplicate their idea as a new custom flow if you want to change the steps.")
 						.font(.system(size: 11))
 						.foregroundStyle(SettingsDesign.rowDescription)
 						.fixedSize(horizontal: false, vertical: true)
+				} else {
+					Button("Delete flow", role: .destructive) {
+						store.confirmDelete(id: flow.id)
+					}
+					.accessibilityIdentifier("flow-delete-button")
+				}
+
+				if let destinations = flow.destinations, !destinations.isEmpty {
+					Divider().overlay(SettingsDesign.cardBorder)
+					Text("When it finishes")
+						.font(.system(size: 12, weight: .semibold))
+						.foregroundStyle(SettingsDesign.rowTitle)
+					ForEach(Array(destinations.enumerated()), id: \.offset) { _, dest in
+						Text(dest.summary)
+							.font(.system(size: 11))
+							.foregroundStyle(SettingsDesign.rowDescription)
+					}
 				}
 			}
 			.padding(18)

@@ -46,6 +46,33 @@ export type StoredLlmPrompterNode = {
 
 export type StoredFlowNode = StoredToolExecutorNode | StoredLlmPrompterNode;
 
+/** Bag pointer for the value destinations and the result sheet consume. */
+export type FlowResultPointer = {
+	readonly from: string;
+	readonly path?: string;
+};
+
+export type FlowDestinationModal = {
+	readonly type: "modal";
+};
+
+export type FlowDestinationEmail = {
+	readonly type: "email";
+	readonly to: readonly string[];
+	readonly subject: string;
+	readonly cc?: readonly string[];
+};
+
+export type FlowDestinationSlack = {
+	readonly type: "slack";
+	readonly channel: string;
+};
+
+export type FlowDestination =
+	| FlowDestinationModal
+	| FlowDestinationEmail
+	| FlowDestinationSlack;
+
 /**
  * Fully JSON-serializable flow definition stored in SQLite.
  * Runtime execution still uses FlowDefinition after hydration.
@@ -56,6 +83,10 @@ export type FlowDocument = {
 	readonly description?: string;
 	readonly persona?: FlowPersonaSpec;
 	readonly nodes: readonly StoredFlowNode[];
+	/** Optional bag pointer; inferred from the last node when omitted. */
+	readonly result?: FlowResultPointer;
+	/** What to do with the declared result after a successful run. */
+	readonly destinations?: readonly FlowDestination[];
 };
 
 /** Row shape returned by the definition store (includes persistence metadata). */

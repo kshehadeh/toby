@@ -8,6 +8,7 @@ import { FlowNodeError } from "../types";
 
 export type ToolExecutorNodeResult = {
 	readonly result: unknown;
+	readonly appliedActions?: readonly string[];
 	readonly moduleName: string;
 	readonly toolName: string;
 	readonly standardTool?: string;
@@ -90,6 +91,9 @@ export async function runToolExecutorNode(
 
 	return {
 		result: exec.result,
+		...(exec.appliedActions && exec.appliedActions.length > 0
+			? { appliedActions: exec.appliedActions }
+			: {}),
 		moduleName: exec.moduleName,
 		toolName: exec.toolName,
 		...(exec.standardTool ? { standardTool: exec.standardTool } : {}),

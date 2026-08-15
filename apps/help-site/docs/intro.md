@@ -21,7 +21,7 @@ It combines:
 - **Projects** — Scoped chats, skills, and memories for a specific context
 - **Recordings** — audio recordings with transcriptions and chat integration
 - **Schedules** — recurring prompts that run automatically
-- **Flows** — tool + persona + LLM pipelines (built-in dashboard blurbs today; custom flows later)
+- **Flows** — tool + persona + LLM pipelines (dashboard blurbs plus custom macros you create)
 
 ## Where to go next
 

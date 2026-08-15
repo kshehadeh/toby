@@ -58,8 +58,12 @@ struct FlowsSidebarView: View {
 								if flow.builtin {
 									Text("Built-in flows can’t be deleted")
 								} else {
-									// Custom flow delete is future work; keep menu reserved.
-									Text("Delete is not available yet")
+									Button("Edit") {
+										Task { await store.startEdit(id: flow.id) }
+									}
+									Button("Delete", role: .destructive) {
+										store.confirmDelete(id: flow.id)
+									}
 								}
 							}
 						}
@@ -69,6 +73,27 @@ struct FlowsSidebarView: View {
 				.padding(10)
 			}
 			.background(AppTheme.sidebarBackground)
+
+			HStack {
+				Button {
+					Task { await store.startCreate() }
+				} label: {
+					Label("New flow", systemImage: "plus")
+						.font(.caption.weight(.medium))
+				}
+				.buttonStyle(.plain)
+				.foregroundStyle(AppTheme.accent)
+				.padding(.horizontal, 14)
+				.padding(.vertical, 8)
+				.accessibilityIdentifier("flows-new-button")
+				Spacer()
+			}
+			.background(AppTheme.sidebarBackground)
+			.overlay(alignment: .top) {
+				Rectangle()
+					.fill(AppTheme.separator)
+					.frame(height: 1)
+			}
 
 			if !store.isListLoading || !store.flows.isEmpty {
 				HStack(spacing: 4) {

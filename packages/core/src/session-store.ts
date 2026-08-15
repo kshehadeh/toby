@@ -203,6 +203,7 @@ CREATE TABLE IF NOT EXISTS flow_runs (
   definition_snapshot_json TEXT NOT NULL,
   initial_inputs_json TEXT,
   final_outputs_json TEXT,
+  destination_results_json TEXT,
   error TEXT,
   failed_node_id TEXT,
   started_at TEXT NOT NULL,
@@ -274,6 +275,7 @@ CREATE INDEX IF NOT EXISTS idx_chat_external_sessions_session_id
 	migrateChatExternalSessionsSchema(db);
 	migrateScheduleRunsSchema(db);
 	migrateSchedulesSchema(db);
+	migrateFlowRunsSchema(db);
 	db.exec(`
 CREATE INDEX IF NOT EXISTS idx_chat_sessions_project_id
   ON chat_sessions(project_id);
@@ -349,6 +351,15 @@ function migrateSchedulesSchema(db: SqliteDb): void {
 	}>;
 	if (!cols.some((c) => c.name === "project_id")) {
 		db.exec("ALTER TABLE schedules ADD COLUMN project_id TEXT");
+	}
+}
+
+function migrateFlowRunsSchema(db: SqliteDb): void {
+	const cols = db.query("PRAGMA table_info(flow_runs)").all() as Array<{
+		name: string;
+	}>;
+	if (!cols.some((c) => c.name === "destination_results_json")) {
+		db.exec("ALTER TABLE flow_runs ADD COLUMN destination_results_json TEXT");
 	}
 }
 

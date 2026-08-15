@@ -107,12 +107,13 @@ expressions. You can add new schedules, run them on demand, or delete them.
 
 ### Flows
 
-The **Flows** window shows automated pipelines that combine local tools with a
-persona and an LLM—today mainly the built-in jobs that fill the home dashboard
-blocks (email, tasks, calendar). Browse flows as cards, open one for its steps
-and recent runs, and inspect run history. Flows are **not customizable yet**
-(you cannot create or edit your own); that will come later, including running
-custom flows from [schedules](./schedules).
+The **Flows** window shows automated pipelines that combine local tools with an
+optional persona and LLM step. Built-in jobs still fill the home dashboard
+blocks (email, tasks, calendar). You can also **create your own** flows: pick
+tools, fill in their arguments, optionally add a last LLM step, choose whether
+the result opens in a window / is emailed / is posted to Slack, and **Run now**.
+Built-in flows stay read-only. Running a custom flow from a
+[schedule](./schedules) is still later.
 
 See [Flows](./flows) for a fuller explanation.
 

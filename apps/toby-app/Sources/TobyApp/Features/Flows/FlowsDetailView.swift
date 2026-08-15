@@ -5,7 +5,15 @@ struct FlowsDetailView: View {
 
 	var body: some View {
 		Group {
-			if store.isListLoading && store.flows.isEmpty {
+			if store.editor != nil {
+				FlowEditorView(
+					store: store,
+					draft: Binding(
+						get: { store.editor ?? .blank() },
+						set: { store.editor = $0 }
+					)
+				)
+			} else if store.isListLoading && store.flows.isEmpty {
 				ProgressView("Loading flows…")
 					.frame(maxWidth: .infinity, maxHeight: .infinity)
 			} else if let errorMessage = store.errorMessage, store.flows.isEmpty {
@@ -40,7 +48,7 @@ private struct FlowsEmptyStateView: View {
 					.font(.system(size: 28, weight: .semibold))
 					.foregroundStyle(SettingsDesign.rowTitle)
 
-				Text("Flows are named pipelines that run fixed sequences of tools and model steps. Built-in dashboard flows appear here once the daemon is ready.")
+				Text("Flows are named pipelines that run fixed sequences of tools and model steps. Create your own, or inspect built-in dashboard flows.")
 					.font(.body)
 					.foregroundStyle(SettingsDesign.rowDescription)
 					.multilineTextAlignment(.center)
@@ -91,7 +99,7 @@ struct FlowsHomeView: View {
 			Text("Flows")
 				.font(.system(size: 24, weight: .semibold))
 				.foregroundStyle(SettingsDesign.rowTitle)
-			Text("Named pipelines that power dashboard summaries and other non-chat workflows. Select a flow to inspect its nodes and recent runs.")
+			Text("Named pipelines that power dashboard summaries and your own tool macros. Select a flow to inspect its nodes and recent runs.")
 				.font(.body)
 				.foregroundStyle(SettingsDesign.rowDescription)
 				.fixedSize(horizontal: false, vertical: true)

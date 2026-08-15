@@ -258,9 +258,16 @@ export type FlowRunNodeDetail = {
 	readonly detail: unknown;
 };
 
+export type FlowDestinationDeliveryRecord = {
+	readonly type: string;
+	readonly ok: boolean;
+	readonly error?: string;
+};
+
 export type FlowRunDetail = FlowRunSummary & {
 	readonly definitionSnapshot: FlowDefinitionSnapshot;
 	readonly initialInputs: unknown;
 	readonly finalOutputs: unknown;
+	readonly destinationResults: readonly FlowDestinationDeliveryRecord[] | null;
 	readonly nodes: readonly FlowRunNodeDetail[];
 };

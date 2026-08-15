@@ -299,10 +299,19 @@ enum RootToolbars {
 		common model: RootCommonToolbarModel,
 		isListLoading: Bool,
 		isRunsLoading: Bool,
+		onNewFlow: @escaping () -> Void,
 		onRefresh: @escaping () -> Void,
 	) -> some ToolbarContent {
 		common(model)
 		ToolbarItem(placement: .principal) { Spacer() }
+		ToolbarItem(placement: .confirmationAction) {
+			Button(action: onNewFlow) {
+				Image(systemName: "plus")
+			}
+			.help("New flow")
+			.accessibilityIdentifier("toolbar-new-flow-button")
+			.accessibilityLabel("New flow")
+		}
 		ToolbarItem(placement: .confirmationAction) {
 			Button(action: onRefresh) {
 				Image(systemName: "arrow.clockwise")

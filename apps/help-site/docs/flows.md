@@ -43,16 +43,22 @@ From there you can:
 
 Built-in flows are labeled and are **read-only** in the UI.
 
-## Customization status
+## Create your own flow
 
-**Flows are not customizable yet.** You cannot create, edit, or delete your own flows in the current release. That limitation is **temporary**.
+Choose **New flow** from the Flows sidebar or the toolbar.
 
-**Coming later:**
+1. Give the flow a name.
+2. Add **steps**. Each step is either a **tool** (one action from a connected integration) or a final **LLM** step that writes markdown.
+3. For tools that need arguments (for example “Wi-Fi on/off”), fill those values when you build the flow. Steps do not pass data into later **tools** — that kind of mapping is not available yet.
+4. Choose **what happens when it finishes**:
+   - **Show a result window** (default)
+   - **Send email** (Email must be connected)
+   - **Post to Slack** (Slack must be connected)
+5. **Save**, then **Run now**.
 
-- Create and edit **your own** flows
-- Run custom flows on a [schedule](./schedules) so automated workflows fire on a timetable (alongside or instead of free-form schedule prompts)
+A good first flow is a focus macro: turn Wi-Fi off, then minimize all windows. Tools that need IDs from a previous search (for example “archive these messages”) still belong in [chat](./chat-surfaces/overview) or a [schedule](./schedules) prompt — the model can pick IDs and call the tool itself.
 
-Until then, use the built-in dashboard flows as they are, and use [schedules](./schedules) for recurring chat-style prompts.
+**Coming later:** run a custom flow on a [schedule](./schedules).
 
 ## Flows vs chat vs schedules
 
@@ -60,17 +66,18 @@ Until then, use the built-in dashboard flows as they are, and use [schedules](./
 | --- | -------- | -------- | ------------ |
 | **How it runs** | Interactive conversation with tools chosen per turn | Fixed pipeline of tool + model steps | Fires a prompt (or, later, a flow) on a cron |
 | **Best for** | Open-ended questions and multi-step work | Repeatable summaries and automated workflows | “Do this every morning” |
-| **Today** | Fully available | Built-in dashboard flows only | Recurring prompts with a persona |
+| **Today** | Fully available | Built-in dashboard flows plus custom macros you create | Recurring prompts with a persona |
 
 ## Tips
 
 - Connect Email, tasks, and Calendar integrations so dashboard flows have something useful to summarize.
 - Tune **Settings → Dashboard** for the persona used by dashboard AI blurbs.
 - Use the **Flows** window when you want to see *why* a dashboard blurb looks the way it does (which tools ran, and recent history).
+- For a first custom flow, start with tools whose arguments you already know (Wi-Fi off, volume, minimize all). Leave “pick these emails and archive them” to chat.
 
 ## Related
 
 - [Toby.app](./toby-app) — Dashboard, Flows window, and settings
 - [Personas](./personas) — Model and instructions used by LLM steps
-- [Schedules](./schedules) — Recurring automation (future home for custom flows)
+- [Schedules](./schedules) — Recurring chat prompts (schedule-as-flow later)
 - [Integrations](./integrations/overview) — Local tools flows call

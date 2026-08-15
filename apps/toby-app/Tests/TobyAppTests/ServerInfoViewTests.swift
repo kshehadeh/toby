@@ -60,7 +60,8 @@ struct ServerInfoViewTests {
 					state: "valid",
 					connected: true,
 					error: nil,
-					errorCode: nil
+					errorCode: nil,
+					tools: nil
 				)
 			}
 		)

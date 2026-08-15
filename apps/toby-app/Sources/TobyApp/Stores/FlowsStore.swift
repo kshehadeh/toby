@@ -16,6 +16,15 @@ final class FlowsStore {
 	var hasLoadedOnce = false
 	var errorMessage: String?
 	var runDetailError: String?
+	var editor: FlowEditorDraft?
+	var catalog: FlowToolCatalog?
+	var isSaving = false
+	var isRunning = false
+	var editorError: String?
+	var lastRunResult: FlowRunNowResponse?
+	var showResultSheet = false
+	var pendingDeleteId: String?
+	var personaOptions: [PersonaOption] = []
 
 	private let client = TobyClient()
 
@@ -41,6 +50,15 @@ final class FlowsStore {
 		hasLoadedOnce = false
 		errorMessage = nil
 		runDetailError = nil
+		editor = nil
+		catalog = nil
+		isSaving = false
+		isRunning = false
+		editorError = nil
+		lastRunResult = nil
+		showResultSheet = false
+		pendingDeleteId = nil
+		personaOptions = []
 	}
 
 	func ensureLoaded() async {
@@ -114,5 +132,140 @@ final class FlowsStore {
 		selectedRunDetail = nil
 		runDetailError = nil
 		isRunDetailLoading = false
+	}
+
+	func loadCatalog() async {
+		do {
+			let loaded = try await client.fetchPlugins()
+			let modules = loaded.plugins.compactMap(FlowCatalogModule.init(plugin:))
+			catalog = FlowToolCatalog(modules: modules)
+			if modules.isEmpty {
+				editorError = "No integrations are installed. Open Integrations to add a plugin, then try again."
+			} else {
+				editorError = nil
+			}
+		} catch {
+			catalog = nil
+			editorError = "Couldn’t load integrations: \(error.localizedDescription)"
+		}
+	}
+
+	func loadPersonas() async {
+		do {
+			personaOptions = try await client.listPersonas()
+		} catch {
+			personaOptions = []
+		}
+	}
+
+	func startCreate() async {
+		editorError = nil
+		editor = .blank()
+		async let catalog: () = loadCatalog()
+		async let personas: () = loadPersonas()
+		_ = await (catalog, personas)
+	}
+
+	func startEdit(id: String) async {
+		editorError = nil
+		async let catalog: () = loadCatalog()
+		async let personas: () = loadPersonas()
+		do {
+			let document = try await client.fetchFlowDocument(id: id)
+			editor = .from(document: document)
+		} catch {
+			editorError = error.localizedDescription
+		}
+		_ = await (catalog, personas)
+	}
+
+	func cancelEditor() {
+		editor = nil
+		editorError = nil
+	}
+
+	func saveEditor() async {
+		guard let draft = editor else { return }
+		isSaving = true
+		editorError = nil
+		defer { isSaving = false }
+		do {
+			let response: FlowMutationResponse
+			if let existingId = draft.existingId {
+				response = try await client.updateFlow(id: existingId, body: draft.jsonBody())
+			} else {
+				response = try await client.createFlow(body: draft.jsonBody())
+			}
+			if let index = flows.firstIndex(where: { $0.id == response.flow.id }) {
+				flows[index] = response.flow
+			} else {
+				flows.append(response.flow)
+				flows.sort { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+			}
+			editor = nil
+			await selectFlow(id: response.flow.id)
+		} catch {
+			editorError = error.localizedDescription
+		}
+	}
+
+	func confirmDelete(id: String) {
+		pendingDeleteId = id
+	}
+
+	func cancelDelete() {
+		pendingDeleteId = nil
+	}
+
+	func deleteFlow(id: String) async {
+		pendingDeleteId = nil
+		do {
+			try await client.deleteFlow(id: id)
+			flows.removeAll { $0.id == id }
+			if selectedFlowId == id {
+				selectHome()
+			}
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	func runSelected() async {
+		guard let id = selectedFlowId else { return }
+		isRunning = true
+		errorMessage = nil
+		defer { isRunning = false }
+		do {
+			let response = try await client.runFlow(id: id)
+			lastRunResult = response
+			let wantsModal = selectedFlow?.destinations?.contains(where: { $0.type == "modal" }) ?? true
+			if response.ok, wantsModal {
+				showResultSheet = true
+			} else if !response.ok {
+				errorMessage = response.error ?? "Flow failed"
+				if let runId = response.runId {
+					await selectRun(id: runId)
+				}
+			} else if let runId = response.runId {
+				await selectRun(id: runId)
+			}
+			await refreshSelectedRuns()
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	func closeResultSheet() {
+		showResultSheet = false
+	}
+
+	func catalogTool(moduleName: String, toolName: String) -> FlowCatalogTool? {
+		catalog?.modules
+			.first(where: { $0.name == moduleName })?
+			.tools.first(where: { $0.toolName == toolName })
+	}
+
+	func isModuleConnected(_ name: String) -> Bool {
+		catalog?.modules.contains(where: { $0.name == name }) ?? false
 	}
 }

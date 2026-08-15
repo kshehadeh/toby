@@ -156,6 +156,14 @@ struct IntegrationToolDefinition: Decodable, Identifiable {
 	let displayName: String
 	let description: String
 	let readOnly: Bool?
+	let standardTool: String?
+	let inputSchema: FlowInputSchema?
+
+	var requiredFields: [String] { inputSchema?.required ?? [] }
+
+	func property(named name: String) -> FlowInputProperty? {
+		inputSchema?.properties?[name]
+	}
 }
 
 struct IntegrationHealth: Decodable {

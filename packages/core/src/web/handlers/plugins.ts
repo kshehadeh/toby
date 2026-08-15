@@ -1,3 +1,4 @@
+import { listIntegrationTools } from "../../integrations/list-tools";
 import { resolveActivePluginDirectory } from "../../integrations/plugins/discovery";
 import { readPluginIconAsset } from "../../integrations/plugins/icons";
 import { collectPluginListEntries } from "../../integrations/plugins/list-status";
@@ -24,6 +25,7 @@ export async function handlePluginsList(): Promise<Response> {
 			connected: entry.connected,
 			error: entry.error ?? null,
 			errorCode: entry.errorCode ?? null,
+			tools: entry.state === "valid" ? listIntegrationTools(entry.name) : [],
 		})),
 	});
 }

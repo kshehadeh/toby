@@ -74,7 +74,13 @@ Transcript entries and chat stream events are structured JSON objects emitted du
 | `GET` | `/api/dashboard/:section` | Aggregator list for one category (not used by home cards) |
 | `GET` | `/api/dashboard/:section/content` | Home card block content (flow output; preferred) |
 | `GET` | `/api/dashboard/:section/summary` | Alias of `/content` |
-| `GET` | `/api/flows` | Flow list for the app UI (`id`, `name`, `description`, `builtin`, `persona`, nodes, timestamps; built-ins seeded on list) |
+| `GET` | `/api/flows` | Flow list for the app UI (`id`, `name`, `description`, `builtin`, `persona`, nodes, destinations, timestamps; built-ins seeded on list) |
+| `POST` | `/api/flows` | Create a custom flow |
+| `GET` | `/api/flows/catalog` | Connected plugin tools (including input schemas) for the flow editor |
+| `GET` | `/api/flows/:id` | One flow plus its stored document |
+| `PUT` | `/api/flows/:id` | Replace a custom flow |
+| `DELETE` | `/api/flows/:id` | Delete a custom flow |
+| `POST` | `/api/flows/:id/run` | Run a flow now and deliver destinations |
 | `GET` | `/api/flows/runs` | Flow execution history summaries |
 | `GET` | `/api/flows/runs/:id` | One flow run with per-node detail |
 | `POST` | `/api/issues` | File or forward a GitHub issue report |

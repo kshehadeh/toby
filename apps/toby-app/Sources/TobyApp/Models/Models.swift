@@ -586,6 +586,7 @@ struct PluginSummary: Decodable, Identifiable {
 	let connected: Bool
 	let error: String?
 	let errorCode: String?
+	let tools: [IntegrationToolDefinition]?
 
 	var id: String { name }
 

@@ -283,3 +283,29 @@ export function deleteFlowDocument(id: string): boolean {
 		.run({ $id: key }) as { changes?: number };
 	return (result.changes ?? 0) > 0;
 }
+
+/**
+ * Persist a user-authored flow. Refuses to create or overwrite built-in rows.
+ */
+export function saveUserFlowDocument(document: FlowDocument): StoredFlowRecord {
+	const existing = loadFlowRecord(document.id.trim());
+	if (existing?.builtin) {
+		throw new Error(`Cannot overwrite built-in flow "${existing.id}"`);
+	}
+	return upsertFlowDocument(document, { builtin: false });
+}
+
+/**
+ * Delete a user-authored flow. Refuses built-in rows.
+ * Returns false when no row exists.
+ */
+export function deleteUserFlowDocument(id: string): boolean {
+	const key = id.trim();
+	if (!key) return false;
+	const existing = loadFlowRecord(key);
+	if (!existing) return false;
+	if (existing.builtin) {
+		throw new Error(`Cannot delete built-in flow "${key}"`);
+	}
+	return deleteFlowDocument(key);
+}

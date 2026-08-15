@@ -810,6 +810,66 @@ struct TobyClient {
 		return try JSONDecoder().decode(Payload.self, from: data).run
 	}
 
+	func fetchFlowCatalog() async throws -> FlowToolCatalog {
+		let url = baseURL.appendingPathComponent("api/flows/catalog")
+		var request = URLRequest(url: url)
+		request.cachePolicy = .reloadIgnoringLocalCacheData
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try FlowToolCatalog.parse(data)
+	}
+
+	func fetchFlowDocument(id: String) async throws -> FlowDocumentPayload {
+		let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
+		let url = baseURL.appendingPathComponent("api/flows/\(encoded)")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		struct Payload: Decodable {
+			let document: FlowDocumentPayload
+		}
+		return try JSONDecoder().decode(Payload.self, from: data).document
+	}
+
+	func createFlow(body: [String: Any]) async throws -> FlowMutationResponse {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/flows"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = try JSONSerialization.data(withJSONObject: body)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(FlowMutationResponse.self, from: data)
+	}
+
+	func updateFlow(id: String, body: [String: Any]) async throws -> FlowMutationResponse {
+		let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/flows/\(encoded)"))
+		request.httpMethod = "PUT"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = try JSONSerialization.data(withJSONObject: body)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(FlowMutationResponse.self, from: data)
+	}
+
+	func deleteFlow(id: String) async throws {
+		let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/flows/\(encoded)"))
+		request.httpMethod = "DELETE"
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+	}
+
+	func runFlow(id: String) async throws -> FlowRunNowResponse {
+		let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/flows/\(encoded)/run"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = Data("{}".utf8)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(FlowRunNowResponse.self, from: data)
+	}
+
 	func fetchSkill(dirName: String) async throws -> SkillDetail {
 		let url = baseURL.appendingPathComponent("api/skills/\(dirName)")
 		let (data, response) = try await URLSession.shared.data(from: url)

@@ -3,6 +3,7 @@ import { daemonLog } from "../logging/daemon-log";
 import { getDb } from "../session-store";
 import type {
 	FlowDefinitionSnapshot,
+	FlowDestinationDeliveryRecord,
 	FlowNodeDetail,
 	FlowNodeStatus,
 	FlowRunDetail,
@@ -255,6 +256,7 @@ export function getFlowRun(id: string): FlowRunDetail | null {
 		.query(
 			`SELECT id, flow_name, status, persona_name, provider, model, trigger,
         definition_snapshot_json, initial_inputs_json, final_outputs_json,
+        destination_results_json,
         error, failed_node_id, started_at, completed_at, duration_ms
        FROM flow_runs WHERE id = $id`,
 		)
@@ -277,13 +279,46 @@ export function getFlowRun(id: string): FlowRunDetail | null {
 	) as FlowDefinitionSnapshot | null;
 
 	const summary = rowToSummary(row);
+	const destinationParsed = safeJsonParse(
+		row.destination_results_json as string | null,
+	);
+	const destinationResults = Array.isArray(destinationParsed)
+		? (destinationParsed as FlowDestinationDeliveryRecord[])
+		: null;
 	return {
 		...summary,
 		definitionSnapshot: snapshot ?? { name: summary.flowName, nodes: [] },
 		initialInputs: safeJsonParse(row.initial_inputs_json as string | null),
 		finalOutputs: safeJsonParse(row.final_outputs_json as string | null),
+		destinationResults,
 		nodes: nodeRows.map(rowToNode),
 	};
+}
+
+export function completeFlowRunDestinations(params: {
+	readonly id: string;
+	readonly destinationResults: readonly FlowDestinationDeliveryRecord[];
+	readonly error?: string | null;
+}): void {
+	try {
+		const db = getDb();
+		const failed = Boolean(params.error);
+		db.query(
+			`UPDATE flow_runs SET
+        destination_results_json = $destination_results_json
+        ${failed ? ", status = 'error', error = $error" : ""}
+      WHERE id = $id`,
+		).run({
+			$id: params.id,
+			$destination_results_json: safeJsonStringify(params.destinationResults),
+			...(failed ? { $error: params.error } : {}),
+		});
+	} catch (error) {
+		daemonLog("warn", "general", "flow_run_destinations_failed", {
+			id: params.id,
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
 }
 
 export function listFlowRuns(params?: {

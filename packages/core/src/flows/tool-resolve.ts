@@ -34,6 +34,7 @@ export type ExecuteToolResult =
 	| {
 			readonly ok: true;
 			readonly result: unknown;
+			readonly appliedActions?: readonly string[];
 			readonly moduleName: string;
 			readonly toolName: string;
 			readonly standardTool?: string;
@@ -69,7 +70,8 @@ function buildPluginEnvelope(moduleName: string): {
 	return { config, state };
 }
 
-function listToolDefs(
+/** Cached `tools list` for a plugin module, or null if unavailable. */
+export function listModuleToolDefinitions(
 	moduleName: string,
 ): NonNullable<PluginToolsListResponse["tools"]> | null {
 	const metadata = getPluginMetadata(moduleName);
@@ -99,7 +101,7 @@ function findToolNameForStandardTool(
 	moduleName: string,
 	standardToolId: string,
 ): string | null {
-	const defs = listToolDefs(moduleName);
+	const defs = listModuleToolDefinitions(moduleName);
 	if (!defs) return null;
 	const match = defs.find((t) => t.standardTool === standardToolId);
 	return match?.name ?? null;
@@ -185,7 +187,7 @@ export async function resolveNamedTool(
 	if (!connected) {
 		// Still allow resolution so the executor can report a clear error.
 	}
-	const defs = listToolDefs(moduleName);
+	const defs = listModuleToolDefinitions(moduleName);
 	if (defs && !defs.some((t) => t.name === toolName)) {
 		return null;
 	}
@@ -258,9 +260,13 @@ export async function executeNamedTool(params: {
 		};
 	}
 
+	const appliedActions = execResult.data.appliedActions;
 	return {
 		ok: true,
 		result: execResult.data.result,
+		...(appliedActions && appliedActions.length > 0
+			? { appliedActions: [...appliedActions] }
+			: {}),
 		moduleName: params.moduleName,
 		toolName: params.toolName,
 		standardTool: params.standardTool,

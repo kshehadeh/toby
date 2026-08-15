@@ -65,9 +65,15 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `GET` | `/api/dashboard/:category` | Aggregator list for one category, or `null` (not used by home cards). Optional `?fresh=1` bypasses the 60s category cache. |
 | `GET` | `/api/dashboard/:category/content` | Home card **block content** (flow output). Preferred. Optional `?fresh=1`. See [dashboard.md](dashboard.md). |
 | `GET` | `/api/dashboard/:category/summary` | Alias of `/content`. |
-| `GET` | `/api/flows` | Stored flow list items for the app UI: `id`, `name`, `description`, `builtin`, `persona`, `nodes` (graph snapshot), timestamps. Seeds built-ins on list. |
+| `GET` | `/api/flows` | Stored flow list items for the app UI: `id`, `name`, `description`, `builtin`, `persona`, `nodes`, `result`, `destinations`, timestamps. Seeds built-ins on list. |
+| `POST` | `/api/flows` | Create a custom flow (server mints `flow.<uuid>`). Body is a user `FlowDocument` minus `id`. Tool inputs must be `{ const }`. |
+| `GET` | `/api/flows/catalog` | Connected integrations and their tools, including `inputSchema`. |
+| `GET` | `/api/flows/:id` | One flow plus the stored `document` (prompts, destinations) for the editor. |
+| `PUT` | `/api/flows/:id` | Replace a custom flow. Built-ins return 403. |
+| `DELETE` | `/api/flows/:id` | Delete a custom flow. Built-ins return 403. |
+| `POST` | `/api/flows/:id/run` | Run now (`trigger: "ui"`), extract the declared result, deliver email/slack destinations. Response: `ok`, `runId`, `result`, `destinations`. |
 | `GET` | `/api/flows/runs` | Flow execution history summaries (`?flowName=&limit=&offset=`). |
-| `GET` | `/api/flows/runs/:id` | One flow run with per-node inputs/outputs/detail and timestamps. |
+| `GET` | `/api/flows/runs/:id` | One flow run with per-node inputs/outputs/detail, destination results, and timestamps. |
 | `POST` | `/api/issues` | File / forward an issue report (GitHub helper). |
 | `GET` | `/api/daemon/status` | Daemon process and inbound chat status. |
 | `POST` | `/api/daemon/restart` | Restart the background daemon. |

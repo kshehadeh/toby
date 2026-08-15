@@ -1,6 +1,6 @@
 import { invalidateSettingsCache } from "../../configure/settings-cache";
 import { getIntegrationModule } from "../../integrations/index";
-import { pluginToolsList } from "../../integrations/plugins/client";
+import { listIntegrationTools } from "../../integrations/list-tools";
 import { targetDisplayPath } from "../../integrations/plugins/protocol";
 import { getPluginMetadata } from "../../integrations/plugins/registry";
 import {
@@ -8,42 +8,7 @@ import {
 	resolveInstalledPluginTarget,
 	runPluginSetup,
 } from "../../integrations/plugins/setup";
-import {
-	getCachedPluginToolDefinitions,
-	setCachedPluginToolDefinitions,
-} from "../../integrations/plugins/tool-def-cache";
 import { errorResponse, jsonResponse } from "../http-utils";
-
-function listIntegrationTools(name: string) {
-	const metadata = getPluginMetadata(name);
-	if (!metadata) return [];
-
-	let tools = getCachedPluginToolDefinitions({
-		target: metadata.target,
-		version: metadata.version,
-		protocolVersion: metadata.protocolVersion,
-	});
-	if (!tools) {
-		const result = pluginToolsList(metadata.target);
-		if (!result.ok || !result.data.ok || !result.data.tools) {
-			return [];
-		}
-		tools = result.data.tools;
-		setCachedPluginToolDefinitions({
-			target: metadata.target,
-			version: metadata.version,
-			protocolVersion: metadata.protocolVersion,
-			tools,
-		});
-	}
-
-	return tools.map((tool) => ({
-		name: tool.name,
-		displayName: tool.displayName ?? tool.name,
-		description: tool.description,
-		readOnly: tool.readOnly ?? false,
-	}));
-}
 
 export async function handleIntegrationStatus(name: string): Promise<Response> {
 	const module = getIntegrationModule(name);

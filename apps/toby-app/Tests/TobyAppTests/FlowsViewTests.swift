@@ -40,6 +40,8 @@ struct FlowsViewTests {
 					outputs: ["summary": "object"]
 				),
 			],
+			result: nil,
+			destinations: nil,
 			createdAt: "2026-01-01T00:00:00Z",
 			updatedAt: "2026-01-01T00:00:00Z"
 		)
@@ -199,6 +201,122 @@ struct FlowsViewTests {
 		#expect(item.nodes[0].type == "tool_executor")
 		#expect(item.nodes[0].tool?.standardTool == "email.unreadSummary")
 		#expect(item.displayName == "Email Summary")
+	}
+
+	@Test("custom flow detail shows edit and run")
+	func customFlowDetailShowsEditAndRun() throws {
+		let store = FlowsStore()
+		let flow = sampleFlow(id: "flow.custom", name: "Focus mode", builtin: false)
+		store.flows = [flow]
+		store.selectedFlowId = flow.id
+		let view = FlowDetailContent(store: store, flow: flow)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-edit-button")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-run-button")
+		}
+	}
+
+	@Test("editor shows persona menu when an LLM step is present")
+	func editorShowsPersonaMenuForLLM() throws {
+		let store = FlowsStore()
+		store.personaOptions = [
+			PersonaOption(
+				name: "Toby",
+				label: "Toby",
+				imagePath: nil,
+				imageUrl: nil,
+				isDefault: true,
+				isBuiltIn: true
+			),
+		]
+		var draft = FlowEditorDraft.blank()
+		draft.nodes = [FlowEditorNode.llm()]
+		store.editor = draft
+		let view = FlowEditorView(
+			store: store,
+			draft: Binding(
+				get: { store.editor ?? draft },
+				set: { store.editor = $0 }
+			)
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-persona")
+		}
+	}
+
+	@Test("startCreate opens a blank editor")
+	func startCreateOpensBlankEditor() async {
+		let store = FlowsStore()
+		await store.startCreate()
+		#expect(store.editor != nil)
+		#expect(store.editor?.isNew == true)
+		#expect(store.editor?.destinations.first?.type == "modal")
+	}
+
+	@Test("flow tool catalog parses daemon-shaped JSON")
+	func flowToolCatalogParsesDaemonJSON() throws {
+		let json = """
+		{
+			"modules": [
+				{
+					"name": "macos",
+					"displayName": "macOS",
+					"connected": true,
+					"tools": [
+						{
+							"moduleName": "macos",
+							"toolName": "macWifiSetPower",
+							"displayName": "Set Wi-Fi power",
+							"description": "Turn Wi-Fi on/off",
+							"readOnly": false,
+							"inputSchema": {
+								"type": "object",
+								"properties": {
+									"enabled": { "type": "boolean", "description": "true = On" }
+								},
+								"required": ["enabled"]
+							}
+						},
+						{
+							"moduleName": "macos",
+							"toolName": "macWindowsMinimizeAll",
+							"displayName": "Minimize all windows",
+							"description": "Minimize all windows",
+							"readOnly": false,
+							"inputSchema": { "type": "object", "properties": {} }
+						}
+					]
+				}
+			]
+		}
+		""".data(using: .utf8)!
+		let catalog = try FlowToolCatalog.parse(json)
+		#expect(catalog.modules.count == 1)
+		#expect(catalog.modules[0].tools.count == 2)
+		#expect(catalog.modules[0].tools[0].requiredFields == ["enabled"])
+		#expect(catalog.modules[0].tools[0].property(named: "enabled")?.type == "boolean")
+	}
+
+	@Test("editor draft encodes const tool inputs")
+	func editorDraftEncodesConstToolInputs() {
+		var draft = FlowEditorDraft.blank()
+		draft.name = "Focus mode"
+		var node = FlowEditorNode.tool(
+			moduleName: "macos",
+			toolName: "macWifiSetPower",
+			required: ["enabled"]
+		)
+		node.constInputs["enabled"] = "false"
+		draft.nodes = [node]
+		let body = draft.jsonBody()
+		#expect(body["name"] as? String == "Focus mode")
+		let nodes = body["nodes"] as? [[String: Any]]
+		#expect(nodes?.count == 1)
+		let inputs = nodes?.first?["inputs"] as? [String: Any]
+		let enabled = inputs?["enabled"] as? [String: Any]
+		#expect(enabled?["const"] as? Bool == false)
 	}
 
 	@Test("flow run summary decodes from JSON")
