@@ -1,3 +1,4 @@
+import { extractKeywords, rankMemories } from "./keywords";
 import * as store from "./memory-store";
 import {
 	classifySensitivity,
@@ -19,7 +20,14 @@ import type {
 } from "./types";
 
 export function search(userId: string, query: string): MemoryItem[] {
-	return store.searchItems(userId, query);
+	const trimmed = query.trim();
+	if (!trimmed) return [];
+	const keywords = extractKeywords(trimmed);
+	const items =
+		keywords.length === 0
+			? store.searchItems(userId, trimmed)
+			: store.searchItemsByKeywords(userId, keywords);
+	return rankMemories(items, trimmed, keywords);
 }
 
 export function get(userId: string, memoryId: string): MemoryItem | null {
@@ -38,6 +46,14 @@ export function countMemoryItems(
 	opts?: { query?: string },
 ): number {
 	return store.countItems(userId, opts);
+}
+
+/** Memories allowed in the system prompt: `usable_by_ai` and not expired. */
+export function listUsableForPrompt(
+	userId: string,
+	opts?: { limit?: number },
+): MemoryItem[] {
+	return store.listUsableItems(userId, opts);
 }
 
 export interface ManualMemoryInput {
@@ -262,117 +278,6 @@ export function explain(userId: string, memoryId: string): MemoryExplanation {
 	return { item, sources, auditTrail };
 }
 
-function extractKeywords(text: string): string[] {
-	const stopWords = new Set([
-		"a",
-		"an",
-		"the",
-		"is",
-		"are",
-		"was",
-		"were",
-		"be",
-		"been",
-		"being",
-		"have",
-		"has",
-		"had",
-		"do",
-		"does",
-		"did",
-		"will",
-		"would",
-		"could",
-		"should",
-		"may",
-		"might",
-		"can",
-		"shall",
-		"to",
-		"of",
-		"in",
-		"for",
-		"on",
-		"with",
-		"at",
-		"by",
-		"from",
-		"as",
-		"into",
-		"through",
-		"during",
-		"before",
-		"after",
-		"above",
-		"below",
-		"between",
-		"out",
-		"off",
-		"over",
-		"under",
-		"again",
-		"further",
-		"then",
-		"once",
-		"and",
-		"but",
-		"or",
-		"nor",
-		"not",
-		"so",
-		"if",
-		"this",
-		"that",
-		"these",
-		"those",
-		"i",
-		"me",
-		"my",
-		"we",
-		"our",
-		"you",
-		"your",
-		"it",
-		"its",
-		"he",
-		"she",
-		"they",
-		"them",
-		"what",
-		"which",
-		"who",
-		"when",
-		"where",
-		"how",
-		"all",
-		"each",
-		"every",
-		"both",
-		"few",
-		"more",
-		"most",
-		"other",
-		"some",
-		"such",
-		"no",
-		"only",
-		"own",
-		"same",
-		"than",
-		"too",
-		"very",
-		"just",
-		"also",
-		"about",
-		"up",
-	]);
-	return text
-		.toLowerCase()
-		.replace(/[^\w\s]/g, " ")
-		.split(/\s+/)
-		.filter((w) => w.length > 2 && !stopWords.has(w));
-}
-
 export function retrieveForTask(
 	userId: string,
 	taskDescription: string,
@@ -385,10 +290,15 @@ export function retrieveForTask(
 	}
 
 	const keywords = extractKeywords(taskDescription);
-	const memories = store.getItemsForRetrieval(
+	const fetchLimit = Math.max(maxItems * 5, 25);
+	const candidates = store.getItemsForRetrieval(
 		userId,
 		visibilities,
 		keywords,
+		fetchLimit,
+	);
+	const memories = rankMemories(candidates, taskDescription, keywords).slice(
+		0,
 		maxItems,
 	);
 

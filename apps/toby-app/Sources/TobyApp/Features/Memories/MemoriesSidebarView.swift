@@ -2,7 +2,6 @@ import SwiftUI
 
 struct MemoriesSidebarView: View {
 	@Bindable var store: MemoriesStore
-	let onDelete: (MemoryItem) -> Void
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
@@ -70,8 +69,9 @@ struct MemoriesSidebarView: View {
 							.buttonStyle(.plain)
 							.contextMenu {
 								Button("Delete Memory", systemImage: "trash", role: .destructive) {
-									onDelete(memory)
+									store.requestDelete(memory)
 								}
+								.disabled(store.isSaving)
 							}
 						}
 					}

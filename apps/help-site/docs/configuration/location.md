@@ -46,6 +46,9 @@ Ask natural questions such as:
 
 Toby should use **`getMyLocation`** instead of guessing your city.
 
+Ask **“where do I live?”** or **“what’s my home address?”** when you want a
+**saved memory**, not the Mac’s current GPS fix. See [Memories](../memories).
+
 ## Privacy
 
 Precise location is sensitive. Toby uses it only when a tool call needs it for

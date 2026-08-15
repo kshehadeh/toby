@@ -23,6 +23,7 @@ import {
 	insertSource,
 	linkItemSource,
 	searchItems,
+	searchItemsByKeywords,
 	updateItem,
 	updateProposalStatus,
 } from "@toby/core/memory/memory-store";
@@ -192,6 +193,58 @@ describe.skipIf(!isBun)("memory-store", () => {
 				null,
 			);
 			expect(searchItems("user2", "private")).toHaveLength(0);
+		});
+
+		it("treats % as a literal character", () => {
+			insertItem(
+				"user1",
+				"fact",
+				undefined,
+				"Discount is 20% off",
+				0.9,
+				"normal",
+				"usable_by_ai",
+				null,
+			);
+			expect(searchItems("user1", "20% off")).toHaveLength(1);
+			expect(searchItems("user1", "20X off")).toHaveLength(0);
+		});
+	});
+
+	describe("searchItemsByKeywords", () => {
+		it("matches any keyword independently", () => {
+			insertItem(
+				"user1",
+				"fact",
+				undefined,
+				"Lives in Baltimore, Maryland",
+				1,
+				"normal",
+				"usable_by_ai",
+				null,
+			);
+			const results = searchItemsByKeywords("user1", [
+				"live",
+				"home",
+				"address",
+				"residence",
+			]);
+			expect(results).toHaveLength(1);
+			expect(results[0]?.value).toContain("Baltimore");
+		});
+
+		it("returns empty for an empty keyword list", () => {
+			insertItem(
+				"user1",
+				"fact",
+				undefined,
+				"Lives in Baltimore, Maryland",
+				1,
+				"normal",
+				"usable_by_ai",
+				null,
+			);
+			expect(searchItemsByKeywords("user1", [])).toHaveLength(0);
 		});
 	});
 

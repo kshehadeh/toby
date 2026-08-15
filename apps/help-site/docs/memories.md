@@ -57,6 +57,10 @@ Memory operations appear as tool activity in the transcript, for example:
 
 Approve or reject pending items when Toby asks.
 
+Questions like “where do I live?” or “what’s my name?” look up **saved memories**. GPS (`getMyLocation`) is only for where this Mac is right now—not a substitute for a home address you asked Toby to remember.
+
+Memories marked as usable by AI are also included in the chat instructions (up to a size limit) so a new conversation can use them without a search step. Private or confirmation-required memories stay out of that list.
+
 ## Example prompts
 
 | Goal | Example |

@@ -34,7 +34,7 @@ flowchart LR
 | ---- | -------------- | ------------------ |
 | **TurnInitNode** | Load skills catalog, build tool catalog, decide `shouldPretreat` | [`nodes/turn-init.ts`](../packages/core/src/chat-pipeline/nodes/turn-init.ts) |
 | **ExpandPromptNode** | Optional pretreatment; emits `prep_start` / `prep_end` | [`nodes/expand-prompt.ts`](../packages/core/src/chat-pipeline/nodes/expand-prompt.ts), [`pretreatment.ts`](../packages/core/src/ai/pretreatment.ts) |
-| **AssembleMessagesNode** | Build/append `CoreMessage[]`, inject skill bodies; emits merge `lifecycle_*` on follow-up turns | [`nodes/assemble-messages.ts`](../packages/core/src/chat-pipeline/nodes/assemble-messages.ts), [`prepare-messages.ts`](../packages/core/src/prepare-messages.ts) |
+| **AssembleMessagesNode** | Build/append `CoreMessage[]`, inject skill bodies, project guidance, and privacy-filtered memories (≤20k); emits merge `lifecycle_*` on follow-up turns | [`nodes/assemble-messages.ts`](../packages/core/src/chat-pipeline/nodes/assemble-messages.ts), [`prepare-messages.ts`](../packages/core/src/prepare-messages.ts) |
 | **CompactMessagesNode** | When estimated prompt tokens exceed a budget, clamp oversized parts and clear old tool results (persists rewrite) | [`nodes/compact-messages.ts`](../packages/core/src/chat-pipeline/nodes/compact-messages.ts), [`compaction/`](../packages/core/src/chat-pipeline/compaction/) |
 | **RunModelTurnNode** | Single fused model+tool turn (AI SDK agentic loop) | [`nodes/run-model-turn.ts`](../packages/core/src/chat-pipeline/nodes/run-model-turn.ts), [`run-turn.ts`](../packages/core/src/chat-pipeline/run-turn.ts), [`chat.ts`](../packages/core/src/ai/chat.ts) |
 | **PersistTurnNode** | Append messages to SQLite or emit save `lifecycle_*` | [`nodes/persist-turn.ts`](../packages/core/src/chat-pipeline/nodes/persist-turn.ts) |
@@ -229,7 +229,7 @@ Two global tools extend Toby's ability to access the web:
 - **`getWeather`** — Structured weather forecast for a place name or lat/lon and optional date via Open-Meteo (place names geocoded with Nominatim). Available as a **conditional global tool** when weather is enabled in Settings. No API key required for free tier. See [`weather.md`](weather.md) and [`packages/core/src/ai/weather/weather-global-tools.ts`](../packages/core/src/ai/weather/weather-global-tools.ts).
 - **`getMyLocation`** — Current user location from macOS Location Services via Toby.app (lat/lon + optional reverse-geocoded place). Always registered; prompts for Location permission when needed. See [`location.md`](location.md) and [`packages/core/src/ai/location-global-tools.ts`](../packages/core/src/ai/location-global-tools.ts).
 
-The combined system prompt includes routing rules: use `webSearch` when the user asks about current events or research, use `fetchWebContent` when the user shares a URL or asks to read a specific page, use `getWeather` (when enabled) for weather/forecast questions instead of web search, and use `getMyLocation` for “where am I” / “near me” geographic context.
+The combined system prompt includes routing rules: use `webSearch` when the user asks about current events or research, use `fetchWebContent` when the user shares a URL or asks to read a specific page, use `getWeather` (when enabled) for weather/forecast questions instead of web search, use `getMyLocation` for “where am I” / “near me”, and search memory (not GPS) for “where do I live” / saved home address.
 
 ## Turn execution (tools + streaming)
 

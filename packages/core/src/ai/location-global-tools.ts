@@ -28,7 +28,7 @@ export function createLocationGlobalTools(
 	return {
 		getMyLocation: tool({
 			description:
-				"Get the running user's current geographic location from this Mac (latitude/longitude, accuracy, and reverse-geocoded place when available). Triggers the macOS Location Services permission prompt for Toby.app if access has not been granted yet. Use when the user asks where they are, for local weather/nearby context without a place name, or when a tool needs the user's coordinates. macOS only.",
+				"Get the running user's current geographic location from this Mac (latitude/longitude, accuracy, and reverse-geocoded place when available). Triggers the macOS Location Services permission prompt for Toby.app if access has not been granted yet. Use when the user asks where they are right now, for local weather/nearby context without a place name, or when a tool needs the user's coordinates. Do not use this for where the user lives or a saved home address — search memory instead. macOS only.",
 			inputSchema: z.object({
 				accuracy: z
 					.enum(["best", "hundredMeters", "kilometer"])

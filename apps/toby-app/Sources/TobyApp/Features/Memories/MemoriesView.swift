@@ -17,7 +17,7 @@ struct MemoriesView: View {
 				store.stopPolling()
 			}
 			.alert(
-				"Delete Memory?",
+				store.pendingDelete?.count == 1 ? "Delete Memory?" : "Delete Memories?",
 				isPresented: Binding(
 					get: { store.pendingDelete != nil },
 					set: { if !$0 { store.pendingDelete = nil } },
@@ -29,10 +29,14 @@ struct MemoriesView: View {
 				}
 				Button("Delete", role: .destructive) {
 					store.pendingDelete = nil
-					Task { await store.deleteMemory(id: pending.id) }
+					Task { await store.deleteMemories(ids: pending.ids) }
 				}
 			} message: { pending in
-				Text("Are you sure you want to delete this memory? This cannot be undone.\n\n\"\(pending.value)\"")
+				if pending.count == 1, let value = pending.value {
+					Text("Are you sure you want to delete this memory? This cannot be undone.\n\n\"\(value)\"")
+				} else {
+					Text("Are you sure you want to delete \(pending.count) memories? This cannot be undone.")
+				}
 			}
 	}
 }

@@ -15,6 +15,12 @@ import {
 	type ProviderCategory,
 } from "./integrations/types";
 import type { IntegrationModule } from "./integrations/types";
+import * as memory from "./memory/memory-service";
+import {
+	DEFAULT_MEMORY_USER_ID,
+	MEMORY_INSTRUCTIONS_APPENDIX_START,
+	formatMemoriesForInstructions,
+} from "./memory/prompt";
 import { composeSystemPromptWithPersona } from "./personas/prompt";
 import {
 	PROJECT_CONTEXT_APPENDIX_START,
@@ -204,6 +210,51 @@ export function injectProjectContextIntoFirstSystemMessage(
 	return next;
 }
 
+export function stripMemoryInstructionsAppendix(systemContent: string): string {
+	const idx = systemContent.indexOf(MEMORY_INSTRUCTIONS_APPENDIX_START);
+	if (idx === -1) {
+		return systemContent;
+	}
+	return systemContent.slice(0, idx);
+}
+
+/**
+ * Append privacy-filtered memories to the first system message when they fit
+ * under the 20k-character budget. Replaces any prior appendix from an earlier turn.
+ */
+export function injectMemoriesIntoFirstSystemMessage(
+	messages: readonly CoreMessage[],
+	userId: string = DEFAULT_MEMORY_USER_ID,
+): CoreMessage[] {
+	if (messages.length === 0) {
+		return [...messages];
+	}
+	const first = messages[0];
+	if (!first || first.role !== "system" || typeof first.content !== "string") {
+		return [...messages];
+	}
+	const base = stripMemoryInstructionsAppendix(first.content);
+	let appendix = "";
+	try {
+		appendix = formatMemoriesForInstructions(
+			memory.listUsableForPrompt(userId),
+		);
+	} catch {
+		appendix = "";
+	}
+	if (!appendix) {
+		if (base === first.content) {
+			return [...messages];
+		}
+		const next = [...messages];
+		next[0] = { ...first, content: base };
+		return next;
+	}
+	const next = [...messages];
+	next[0] = { ...first, content: base + appendix };
+	return next;
+}
+
 function buildDefaultProvidersSection(): string {
 	const lines: string[] = [];
 	for (const cat of ALL_PROVIDER_CATEGORIES) {
@@ -245,7 +296,7 @@ function buildCombinedChatBasePrompt(
 		? '\n- **Weather**: When the user asks about weather, forecast, or temperature for a place, use **getWeather** (prefer over webSearch for structured weather data). For weather "here" / "near me", call **getMyLocation** first when no place is given.'
 		: "";
 	const locationRule =
-		'\n- **Location**: When the user asks where they are or for "near me" / "here" geographic context, use **getMyLocation** (may prompt for macOS Location Services).';
+		'\n- **Location**: When the user asks where they live / their home / a saved address, search memory first. Use **getMyLocation** only for where they are right now or for "near me" / "here" (may prompt for macOS Location Services).';
 	return `You are Toby, a personal assistant with access to: **${labels}**.
 
 Use the integration tools below for your connected integrations, plus the global Toby tools (**askUser**, **fetchWebContent**${searchToolsList}${weatherToolsList}${locationToolsList}). Pick the right integration based on the user's request. Use **createLocalSkill** only when the user explicitly asks to create or update a ~/.toby/skills skill file.
@@ -446,7 +497,7 @@ export async function replaceSessionSystemMessageForPersona(
 		if (project) {
 			result = injectProjectContextIntoFirstSystemMessage(result, project);
 		}
-		return result;
+		return injectMemoriesIntoFirstSystemMessage(result);
 	}
 
 	const systemContent = composeSystemPromptWithPersona(
@@ -461,7 +512,7 @@ export async function replaceSessionSystemMessageForPersona(
 	if (project) {
 		result = injectProjectContextIntoFirstSystemMessage(result, project);
 	}
-	return result;
+	return injectMemoriesIntoFirstSystemMessage(result);
 }
 
 /**
