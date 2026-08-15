@@ -12,19 +12,23 @@ struct WorkedForRow: View {
 	var streamingAssistant: StreamingAssistantState?
 	var personaImage: URL?
 
-	/// Parsed only while expanded (or when needed for an active live label).
+	/// Parsed only while expanded. Key includes in-place body/duration stamps so a
+	/// `tool_call_complete` (same entry count) does not keep a "Running…" row.
 	@State private var cachedSteps: [WorkStep] = []
-	@State private var cachedStepsGroupId: String?
-	@State private var cachedStepsEntryCount: Int?
+	@State private var cachedStepsKey: WorkStepsCacheKey?
 
 	/// Expandability must not parse tool bodies — empty groups never expand.
 	private var hasExpandableContent: Bool {
 		showsWorkDetails && (!group.entries.isEmpty || streamingAssistant != nil)
 	}
 
+	private var stepsKey: WorkStepsCacheKey {
+		WorkStepsCacheKey(group: group)
+	}
+
 	private var steps: [WorkStep] {
-		guard showsWorkDetails, isExpanded || group.isActive else { return [] }
-		if cachedStepsGroupId == group.id, cachedStepsEntryCount == group.entries.count {
+		guard showsWorkDetails, isExpanded else { return [] }
+		if cachedStepsKey == stepsKey {
 			return cachedSteps
 		}
 		return workSteps(from: group)
@@ -47,35 +51,33 @@ struct WorkedForRow: View {
 			}
 		}
 		.onChange(of: isExpanded) { _, expanded in
-			if expanded { refreshStepsCacheIfNeeded() }
+			if expanded {
+				refreshStepsCache(force: true)
+			} else {
+				clearStepsCache()
+			}
 		}
-		.onChange(of: group.id) { _, _ in
-			cachedSteps = []
-			cachedStepsGroupId = nil
-			cachedStepsEntryCount = nil
-			if isExpanded || group.isActive { refreshStepsCacheIfNeeded() }
-		}
-		.onChange(of: group.entries.count) { _, _ in
-			if isExpanded || group.isActive { refreshStepsCacheIfNeeded(force: true) }
+		.onChange(of: stepsKey) { _, _ in
+			if isExpanded { refreshStepsCache(force: true) }
 		}
 	}
 
-	private func refreshStepsCacheIfNeeded(force: Bool = false) {
-		guard showsWorkDetails else {
-			cachedSteps = []
-			cachedStepsGroupId = group.id
-			cachedStepsEntryCount = group.entries.count
+	private func clearStepsCache() {
+		cachedSteps = []
+		cachedStepsKey = nil
+	}
+
+	private func refreshStepsCache(force: Bool = false) {
+		guard showsWorkDetails, isExpanded else {
+			clearStepsCache()
 			return
 		}
-		if !force,
-			cachedStepsGroupId == group.id,
-			cachedStepsEntryCount == group.entries.count
-		{
+		let key = stepsKey
+		if !force, cachedStepsKey == key {
 			return
 		}
 		cachedSteps = workSteps(from: group)
-		cachedStepsGroupId = group.id
-		cachedStepsEntryCount = group.entries.count
+		cachedStepsKey = key
 	}
 
 	private func chipContent(at date: Date) -> some View {
@@ -220,6 +222,33 @@ func workStepDuration(from steps: [WorkStep]) -> TimeInterval? {
 		return total + childDurationMs
 	}
 	return durationMs > 0 ? TimeInterval(durationMs) / 1000.0 : nil
+}
+
+/// Fingerprint for the expanded work-step cache.
+/// Count-only keys miss in-place `tool_call_complete` updates (body/duration change,
+/// entry count does not), which left a finished turn showing "Running…".
+struct WorkStepsCacheKey: Equatable {
+	let groupId: String
+	let isActive: Bool
+	let durationMs: Int?
+	let entryCount: Int
+	let stampHash: Int
+
+	init(group: TranscriptWorkGroup) {
+		groupId = group.id
+		isActive = group.isActive
+		durationMs = group.durationMs
+		entryCount = group.entries.count
+		var hash = 0
+		for entry in group.entries {
+			hash ^= entry.contentStamp
+			if case .boxedStep(let payload) = entry {
+				hash ^= payload.body.hashValue
+				hash ^= (payload.cacheHit == true ? 1 : 0)
+			}
+		}
+		stampHash = hash
+	}
 }
 
 private struct AssistantWorkMessageRow: View {

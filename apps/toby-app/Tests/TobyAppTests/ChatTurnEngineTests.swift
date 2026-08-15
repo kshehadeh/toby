@@ -136,6 +136,36 @@ struct ChatTurnEngineTests {
 		)
 	}
 
+	@Test("tool_call_complete replaces Running body on the matching start row")
+	func toolCallCompleteUpdatesRunningRowInPlace() throws {
+		var state = makeState()
+		let start = try event(from: """
+			{"type":"tool_call_start","toolName":"archiveEmail","id":"evt-1","blockKey":"archive-1","integrationLabel":"Email (IMAP/SMTP)"}
+			""")
+		ChatTurnEngine.apply(event: start, state: &state)
+		#expect(state.transcript.count == 1)
+		guard case .boxedStep(let started) = state.transcript[0] else {
+			Issue.record("expected boxedStep after start")
+			return
+		}
+		#expect(started.id == "archive-1")
+		#expect(started.body == "Running…")
+		#expect(started.durationMs == nil)
+
+		let complete = try event(from: """
+			{"type":"tool_call_complete","toolName":"archiveEmail","id":"evt-2","blockKey":"archive-1","integrationLabel":"Email (IMAP/SMTP)","durationMs":104000,"result":{"archived":true}}
+			""")
+		ChatTurnEngine.apply(event: complete, state: &state)
+		#expect(state.transcript.count == 1)
+		guard case .boxedStep(let finished) = state.transcript[0] else {
+			Issue.record("expected boxedStep after complete")
+			return
+		}
+		#expect(finished.id == "archive-1")
+		#expect(finished.body != "Running…")
+		#expect(finished.durationMs == 104_000)
+	}
+
 	@Test("tool_call_start for askUser only updates activity line")
 	func askUserToolStartDoesNotAppendToolRow() throws {
 		var state = makeState()

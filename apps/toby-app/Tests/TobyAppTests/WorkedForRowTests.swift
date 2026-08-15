@@ -219,4 +219,95 @@ struct WorkedForRowTests {
 		#expect(strings.contains("Done 1."))
 		#expect(strings.contains("Done 2."))
 	}
+
+	@Test("completed work group does not mark a leftover Running body as active")
+	func completedGroupDoesNotKeepRunningStepActive() {
+		let group = TranscriptWorkGroup(
+			id: "work-0",
+			entries: [
+				.boxedStep(BoxedStepPayload(
+					id: "archive-1",
+					seq: 1,
+					variant: "tool",
+					header: "Email (IMAP/SMTP): Archive email",
+					body: "Running…",
+					toolName: "archiveEmail",
+					integrationLabel: "Email (IMAP/SMTP)",
+					cacheHit: nil,
+					durationMs: nil,
+					toolRuns: nil,
+					fullBody: nil,
+				)),
+			],
+			userTurnIndex: 0,
+			durationMs: 104_000,
+			isActive: false,
+		)
+
+		let steps = workSteps(from: group)
+		#expect(steps.count == 1)
+		#expect(steps[0].isActive == false)
+		#expect(steps[0].title == "Email (IMAP/SMTP): Archive email")
+	}
+
+	@Test("work-step cache key changes when a tool body updates in place")
+	func workStepsCacheKeyChangesOnInPlaceComplete() {
+		func group(body: String, durationMs: Int?, isActive: Bool) -> TranscriptWorkGroup {
+			TranscriptWorkGroup(
+				id: "work-0",
+				entries: [
+					.boxedStep(BoxedStepPayload(
+						id: "archive-1",
+						seq: 1,
+						variant: "tool",
+						header: "Email (IMAP/SMTP): Archive email",
+						body: body,
+						toolName: "archiveEmail",
+						integrationLabel: "Email (IMAP/SMTP)",
+						cacheHit: false,
+						durationMs: durationMs,
+						toolRuns: nil,
+						fullBody: nil,
+					)),
+				],
+				userTurnIndex: 0,
+				durationMs: isActive ? nil : 104_000,
+				isActive: isActive,
+			)
+		}
+
+		let running = WorkStepsCacheKey(group: group(body: "Running…", durationMs: nil, isActive: true))
+		let completed = WorkStepsCacheKey(group: group(
+			body: "Archived 1 message(s).",
+			durationMs: 104_000,
+			isActive: false,
+		))
+		let sameRunningAgain = WorkStepsCacheKey(group: group(body: "Running…", durationMs: nil, isActive: true))
+
+		#expect(running != completed)
+		#expect(running == sameRunningAgain)
+		#expect(running.entryCount == completed.entryCount)
+	}
+
+	@Test("completed work step with leftover Running body does not render a spinner")
+	func completedRunningBodyDoesNotRenderSpinner() throws {
+		let step = WorkStep(
+			id: "archive-1",
+			type: .tool,
+			title: "Email (IMAP/SMTP): Archive email",
+			body: "Running…",
+			fullBody: nil,
+			durationMs: nil,
+			isActive: false,
+			cacheHit: nil,
+			toolName: "archiveEmail",
+			count: 1,
+			children: []
+		)
+		let view = WorkStepHeader(step: step, isExpanded: false, icon: "envelope")
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(ViewType.ProgressView.self)
+		}
+		#expect(try view.inspect().find(text: "Running…").string() == "Running…")
+	}
 }
