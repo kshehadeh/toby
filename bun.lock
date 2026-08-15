@@ -15,7 +15,7 @@
     },
     "apps/cli": {
       "name": "@toby/cli",
-      "version": "0.109.0",
+      "version": "0.126.0",
       "bin": {
         "toby": "./dist/cli.js",
       },
@@ -85,6 +85,10 @@
     "apps/plugin-macos": {
       "name": "@toby/plugin-macos",
       "version": "1.1.0",
+    },
+    "apps/plugin-news": {
+      "name": "@toby/plugin-news",
+      "version": "1.0.0",
     },
     "apps/plugin-notion": {
       "name": "@toby/plugin-notion",
@@ -1048,6 +1052,8 @@
     "@toby/plugin-jira": ["@toby/plugin-jira@workspace:apps/plugin-jira"],
 
     "@toby/plugin-macos": ["@toby/plugin-macos@workspace:apps/plugin-macos"],
+
+    "@toby/plugin-news": ["@toby/plugin-news@workspace:apps/plugin-news"],
 
     "@toby/plugin-notion": ["@toby/plugin-notion@workspace:apps/plugin-notion"],
 

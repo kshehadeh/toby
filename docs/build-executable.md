@@ -65,7 +65,7 @@ Release build steps:
    plugins including `toby-plugin-sample-ts`, `toby-plugin-email`,
    `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-notion`, `toby-plugin-slack`,
    `toby-plugin-applecalendar`, `toby-plugin-applecontacts`,
-   `toby-plugin-applereminders`, and `toby-plugin-macos`.
+   `toby-plugin-applereminders`, `toby-plugin-macos`, and `toby-plugin-news`.
 3. The workflow signs and notarizes `Toby.app`, then builds, notarizes, and
    staples the DMG.
 4. Sparkle generates a signed `appcast.xml` from the notarized DMG and publishes
@@ -116,7 +116,7 @@ notarization.
 Local `bun run build:release` builds `dist/toby`, `dist/bun`, `dist/Toby.app`,
 and first-party plugin directories (`dist/toby-plugin-sample-ts`,
 `toby-plugin-email`, `todoist`, `jira`, `notion`, `slack`, `applecalendar`,
-`applecontacts`, `applereminders`, `macos`). Verify staged artifacts with
+`applecontacts`, `applereminders`, `macos`, `news`). Verify staged artifacts with
 `node scripts/verify-release-artifacts.mjs release-payload`.
 Use the GitHub release workflow for signed and notarized distribution artifacts.
 
@@ -149,7 +149,7 @@ Configuration is in [`.release-it.json`](../.release-it.json): publishing to the
 From the repo root, [`install-toby.sh`](../install-toby.sh) downloads the
 **latest matching macOS release archive** and installs the `toby` binary into
 **`~/.local/bin/toby`** (override with `TOBY_INSTALL_DIR`). The bundled `bun` runtime is placed under **`~/.toby/helpers/`**, and first-party plugins (`toby-plugin-sample-ts`,
-`toby-plugin-email`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-notion`, `toby-plugin-slack`, `toby-plugin-applecalendar`, `toby-plugin-applecontacts`, `toby-plugin-applereminders`, `toby-plugin-macos`) under **`~/.toby/plugins/`**, so only `toby` lands on your
+`toby-plugin-email`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-notion`, `toby-plugin-slack`, `toby-plugin-applecalendar`, `toby-plugin-applecontacts`, `toby-plugin-applereminders`, `toby-plugin-macos`, `toby-plugin-news`) under **`~/.toby/plugins/`**, so only `toby` lands on your
 `PATH`. It does not use `sudo`. If the install directory is not on `PATH`, the
 script prints how to add it for zsh, bash, or fish.
 

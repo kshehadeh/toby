@@ -252,6 +252,7 @@ into `credentials.json` / `config.json`.
 | [`apps/plugin-applecontacts/`](../apps/plugin-applecontacts/) | TypeScript (bun-package) | `bun run build:plugin:applecontacts` | Delegates Contacts.framework contact reads to Toby.app native API |
 | [`apps/plugin-applereminders/`](../apps/plugin-applereminders/) | TypeScript (bun-package) | `bun run build:plugin:applereminders` | Delegates EventKit reminder operations to Toby.app native API |
 | [`apps/plugin-macos/`](../apps/plugin-macos/) | TypeScript (bun-package) | `bun run build:plugin:macos` | Delegates macOS system ops to Toby.app native API; optional `setup` subcommand |
+| [`apps/plugin-news/`](../apps/plugin-news/) | TypeScript (bun-package) | `bun run build:plugin:news` | Latest headlines and search via The Guardian Open Platform |
 
 TypeScript plugins route argv from their `runtime.entry` (typically `src/index.ts`).
 Legacy standalone executables remain discoverable for compatibility, but **new**
@@ -737,7 +738,7 @@ See the [reference implementations](#reference-implementations) table above.
 Release archives include the sample plugin plus first-party integrations
 (`toby-plugin-email`, `toby-plugin-todoist`, `toby-plugin-jira`, `toby-plugin-notion`,
 `toby-plugin-slack`, `toby-plugin-applecalendar`, `toby-plugin-applecontacts`,
-`toby-plugin-applereminders`, `toby-plugin-macos`, `toby-plugin-sample-ts`);
+`toby-plugin-applereminders`, `toby-plugin-macos`, `toby-plugin-news`, `toby-plugin-sample-ts`);
 `install-toby.sh` and `toby upgrade` install them into `~/.toby/plugins/`.
 
 ## Installing plugins

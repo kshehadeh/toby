@@ -130,6 +130,7 @@ export function getStagingPaths(): {
 	readonly pluginApplecalendarPath: string;
 	readonly pluginAppleremindersPath: string;
 	readonly pluginMacosPath: string;
+	readonly pluginNewsPath: string;
 	readonly appPath: string;
 	readonly iconsPath: string;
 	readonly archivePath: string;
@@ -154,6 +155,7 @@ export function getStagingPaths(): {
 			"toby-plugin-applereminders",
 		),
 		pluginMacosPath: path.join(stagingDir, "toby-plugin-macos"),
+		pluginNewsPath: path.join(stagingDir, "toby-plugin-news"),
 		appPath: path.join(stagingDir, "Toby.app"),
 		iconsPath: path.join(stagingDir, "icons"),
 		archivePath: path.join(stagingDir, "toby-release.dmg"),
@@ -248,6 +250,7 @@ export async function downloadRelease(
 		pluginApplecalendarPath,
 		pluginAppleremindersPath,
 		pluginMacosPath,
+		pluginNewsPath,
 		archivePath,
 		manifestPath,
 	} = getStagingPaths();
@@ -284,6 +287,9 @@ export async function downloadRelease(
 			() => undefined,
 		);
 		await rm(pluginMacosPath, { recursive: true, force: true }).catch(
+			() => undefined,
+		);
+		await rm(pluginNewsPath, { recursive: true, force: true }).catch(
 			() => undefined,
 		);
 		await rm(archivePath, { force: true }).catch(() => undefined);
@@ -490,6 +496,7 @@ export async function applyStagedRelease(
 		pluginApplecalendarPath,
 		pluginAppleremindersPath,
 		pluginMacosPath,
+		pluginNewsPath,
 	} = getStagingPaths();
 	options?.onProgress?.({ phase: "installing", detail: "plugins" });
 	await yieldToEventLoop();
@@ -516,6 +523,7 @@ export async function applyStagedRelease(
 		"toby-plugin-applereminders",
 	);
 	await installStagedPluginDirectory(pluginMacosPath, "toby-plugin-macos");
+	await installStagedPluginDirectory(pluginNewsPath, "toby-plugin-news");
 	await removeDeprecatedPluginBinaries();
 
 	// Migration: older installs placed helper binaries next to `toby` on PATH.

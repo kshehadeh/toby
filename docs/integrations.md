@@ -88,6 +88,7 @@ Plugin discovery, install, and adaptation live under
 | **Apple Calendar** | [`apps/plugin-applecalendar/`](../apps/plugin-applecalendar/) | macOS-only; EventKit via Toby.app. See [`apple-calendar.md`](apple-calendar.md). |
 | **Apple Contacts** | [`apps/plugin-applecontacts/`](../apps/plugin-applecontacts/) | macOS-only contact list; Contacts.framework via Toby.app. See [`apple-contacts.md`](apple-contacts.md). |
 | **Apple Reminders** | [`apps/plugin-applereminders/`](../apps/plugin-applereminders/) | macOS-only task list; EventKit via Toby.app. See [`apple-reminders.md`](apple-reminders.md). |
+| **News** | [`apps/plugin-news/`](../apps/plugin-news/) | Latest headlines and article search via The Guardian Open Platform (free API key). See [`news.md`](news.md). |
 | **Sample** | [`apps/plugin-sample-ts/`](../apps/plugin-sample-ts/) | Minimal protocol reference. |
 
 Release archives ship these as `toby-plugin-<name>` directories under

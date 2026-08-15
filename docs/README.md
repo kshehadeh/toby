@@ -18,6 +18,7 @@ Human- and flow-oriented docs for this repository.
 | [weather.md](weather.md) | Weather via Open-Meteo: global `getWeather` tool + Nominatim geocoding. |
 | [location.md](location.md) | Current location via Toby.app: global `getMyLocation` tool + CoreLocation. |
 | [macos-integration.md](macos-integration.md) | `toby-plugin-macos`: Wi‑Fi, Bluetooth, battery, audio, display, clipboard, shortcuts. |
+| [news.md](news.md) | News plugin: The Guardian Open Platform headlines and search. |
 | [listen.md](listen.md) | Recording mode, native capture, transcription. |
 | [native-helpers.md](native-helpers.md) | Toby.app native API pattern for platform bridges. |
 | [chat-pipeline.md](chat-pipeline.md) | Chat turn nodes, events, pretreatment, tool-result cache. |

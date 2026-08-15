@@ -143,6 +143,7 @@ toby status integration myintegration
 | [`apps/plugin-jira/`](../apps/plugin-jira/) | Work tracker category |
 | [`apps/plugin-notion/`](../apps/plugin-notion/) | Documents category |
 | [`apps/plugin-macos/`](../apps/plugin-macos/) | Native API delegation + `setup` |
+| [`apps/plugin-news/`](../apps/plugin-news/) | Free news API (The Guardian Open Platform) |
 
 ## Historical note: built-in modules
 
