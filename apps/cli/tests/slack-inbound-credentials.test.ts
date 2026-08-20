@@ -6,6 +6,7 @@ import { readCredentials, writeCredentials } from "@toby/core/config/index";
 import { buildSettingsTree } from "@toby/core/configure/tree";
 import { migrateLegacyPluginCredentials } from "@toby/core/integrations/plugins/migrate";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
+import { closeChatDbForTests } from "@toby/core/session-store";
 import { getSlackInboundCredentials } from "../../plugin-slack/src/client";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
@@ -35,21 +36,22 @@ function writeCredentialsFile(data: object): void {
 type SettingsNode = {
 	key: string;
 	children?: SettingsNode[];
+	showForAuthMethods?: string[];
+	showForInbound?: boolean;
+	selectChoices?: Array<{ value: string; label: string }>;
 };
 
-function itemHasKey(items: SettingsNode[] | undefined, key: string): boolean {
-	if (!items) return false;
-	for (const item of items) {
-		if (item.key === key) return true;
-		if (itemHasKey(item.children, key)) return true;
-	}
-	return false;
+function findSlackField(
+	root: SettingsNode,
+	key: string,
+): SettingsNode | undefined {
+	const integrations = root.children?.find((c) => c.key === "integrations");
+	const slack = integrations?.children?.find((c) => c.key === "slack");
+	return slack?.children?.find((c) => c.key === key);
 }
 
 function treeHasKey(root: SettingsNode, key: string): boolean {
-	const integrations = root.children?.find((c) => c.key === "integrations");
-	const slack = integrations?.children?.find((c) => c.key === "slack");
-	return itemHasKey(slack?.children, key);
+	return findSlackField(root, key) !== undefined;
 }
 
 describe("Slack inbound credentials", () => {
@@ -133,25 +135,11 @@ describe("configure Slack inbound fields", () => {
 			process.env.TOBY_DIR = previousTobyDir;
 		}
 		resetPluginModuleCache();
+		closeChatDbForTests();
 		fs.rmSync(tempDir, { recursive: true, force: true });
 	});
 
-	it("shows bot token for OAuth when global inbound targets slack", () => {
-		const root = buildSettingsTree(
-			[],
-			[],
-			{
-				"slack.authMethod": "oauth",
-				"chatInbound.enabled": "true",
-				"chatInbound.integration": "slack",
-			},
-			undefined,
-			{ daemonRunning: true },
-		);
-		expect(treeHasKey(root, "slack.botToken")).toBe(true);
-	});
-
-	it("hides bot token for OAuth when inbound is off", () => {
+	it("includes bot token with inbound and bot_token gating regardless of current auth", () => {
 		const root = buildSettingsTree(
 			[],
 			[],
@@ -163,6 +151,32 @@ describe("configure Slack inbound fields", () => {
 			undefined,
 			{ daemonRunning: true },
 		);
-		expect(treeHasKey(root, "slack.botToken")).toBe(false);
+		const botToken = findSlackField(root, "slack.botToken");
+		expect(botToken).toBeDefined();
+		expect(botToken?.showForAuthMethods).toEqual(["bot_token"]);
+		expect(botToken?.showForInbound).toBe(true);
+		expect(treeHasKey(root, "slack.clientId")).toBe(true);
+	});
+
+	it("keeps oauth credential fields in the tree when auth is bot_token", () => {
+		const root = buildSettingsTree(
+			[],
+			[],
+			{
+				"slack.authMethod": "bot_token",
+			},
+			undefined,
+			{ daemonRunning: true },
+		);
+		const clientId = findSlackField(root, "slack.clientId");
+		expect(clientId?.showForAuthMethods).toEqual(["oauth"]);
+		expect(findSlackField(root, "slack.botToken")?.showForAuthMethods).toEqual([
+			"bot_token",
+		]);
+		const authSelect = findSlackField(root, "slack.authMethod");
+		expect(authSelect?.selectChoices?.map((c) => c.value)).toEqual([
+			"oauth",
+			"bot_token",
+		]);
 	});
 });

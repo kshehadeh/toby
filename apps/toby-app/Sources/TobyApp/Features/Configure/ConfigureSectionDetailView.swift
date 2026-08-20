@@ -102,26 +102,31 @@ struct ConfigureSectionDetailView: View {
 					}
 				}
 			} else {
-				if !rowFields.isEmpty {
-					SettingsCard {
-						ForEach(Array(rowFields.enumerated()), id: \.element.id) { index, field in
-							ConfigureFieldRowView(
-								store: store,
-								field: field,
-								sectionLabel: section.displayLabel,
-								showsDivider: index < rowFields.count - 1,
-							)
+				Group {
+					if !rowFields.isEmpty {
+						SettingsCard {
+							ForEach(Array(rowFields.enumerated()), id: \.element.id) { index, field in
+								ConfigureFieldRowView(
+									store: store,
+									field: field,
+									sectionLabel: section.displayLabel,
+									showsDivider: index < rowFields.count - 1,
+								)
+							}
 						}
 					}
-				}
 
-				ForEach(blockFields) { field in
-					ConfigureBlockFieldView(
-						store: store,
-						field: field,
-						sectionLabel: section.displayLabel,
-					)
+					ForEach(blockFields) { field in
+						ConfigureBlockFieldView(
+							store: store,
+							field: field,
+							sectionLabel: section.displayLabel,
+						)
+					}
 				}
+				.id(
+					"\(section.key)-auth-\(store.resolvedAuthMethod(for: section))-in-\(store.isInboundEnabled(for: section))"
+				)
 
 				if isDashboardSection {
 					SettingsCard {

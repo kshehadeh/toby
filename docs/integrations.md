@@ -127,8 +127,10 @@ permission when needed.
 - **Configure API** — credential fields from `getCredentialDescriptors` across
   `getIntegrationModules()`; save via `mergeCredentialsPatch`; consumed by
   Toby.app.
-  - When `authMethods` are set, configure shows an auth-method selector and
-    method-relevant fields only.
+  - When `authMethods` are set, configure shows an auth-method selector.
+    Credential fields carry `showForAuthMethods` / `showForInbound` metadata;
+    Toby.app filters the visible set live as the auth method (or inbound
+    toggle) changes, so the form does not wait for a tree rebuild.
   - Toby.app can open an **Integration Setup Wizard** (guided onboarding).
 
 Keeping command and API wiring generic avoids `if (name === "…")` branches when

@@ -35,6 +35,8 @@ struct SettingsItem: Decodable, Identifiable {
 	var group: String? = nil
 	var description: String? = nil
 	var docUrl: String? = nil
+	var showForAuthMethods: [String]? = nil
+	var showForInbound: Bool? = nil
 
 	var displayLabel: String {
 		key == "defaults" ? "Providers" : label

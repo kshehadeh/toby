@@ -296,6 +296,9 @@ struct IntegrationDetailContent: View {
                     )
                 }
             }
+            .id(
+                "\(section.key)-auth-\(store.resolvedAuthMethod(for: section))-in-\(store.isInboundEnabled(for: section))"
+            )
         }
     }
 

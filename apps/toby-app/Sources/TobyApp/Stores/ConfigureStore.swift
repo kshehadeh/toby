@@ -25,9 +25,9 @@ final class ConfigureStore {
 	var selectedSectionDetail: SettingsItem?
 	var sectionDetailLoading = false
 
-	/// Section key whose credential fields are being reloaded after an auth
-	/// method change. While non-nil, the UI shows a skeleton placeholder
-	/// instead of stale fields.
+	/// Section key whose credential fields are being reloaded. While non-nil,
+	/// the UI shows a skeleton placeholder instead of stale fields. Auth-method
+	/// switches filter client-side and no longer set this.
 	var sectionFieldsReloading: String?
 
 	/// Deep-link target for the client-only Personas settings tab. When non-nil,
@@ -209,6 +209,7 @@ final class ConfigureStore {
 		for (key, field) in indexFields(in: response.section) {
 			fieldByKey[key] = field
 		}
+		seedMissingSavedValues(from: response.section)
 		pruneDraft()
 	}
 
@@ -283,16 +284,6 @@ final class ConfigureStore {
 	}
 
 	func setDraftValue(_ key: String, _ value: String, autosaveImmediately: Bool = false) {
-		// Detect auth method changes and mark the section as reloading so the
-		// UI can show a skeleton while the server rebuilds the field set.
-		if key.hasSuffix(".authMethod") {
-			let sectionKey = String(key.dropLast(".authMethod".count))
-			let savedAuthMethod = savedValues[key] ?? ""
-			if value != savedAuthMethod {
-				sectionFieldsReloading = sectionKey
-			}
-		}
-
 		if fieldByKey[key]?.masked == true {
 			let saved = savedValues[key] ?? ""
 			if value.isEmpty, saved == ConfigureConstants.redactedSecret || saved.isEmpty {
@@ -361,8 +352,6 @@ final class ConfigureStore {
 		guard !changes.isEmpty else { return }
 		isSaving = true
 		errorMessage = nil
-		let reloadingSection = sectionFieldsReloading
-		let reloadStart = Date()
 		defer { isSaving = false }
 		do {
 			let response = try await client.patchConfigure(changes: changes)
@@ -372,22 +361,11 @@ final class ConfigureStore {
 			} else {
 				apply(response: response, resetDraft: false)
 			}
-			// Ensure the skeleton is visible long enough to be perceived
-			// even when the localhost server responds instantly.
-			if reloadingSection != nil {
-				let elapsed = Date().timeIntervalSince(reloadStart)
-				let minSkeletonSeconds: TimeInterval = 0.35
-				if elapsed < minSkeletonSeconds {
-					try? await Task.sleep(for: .seconds(minSkeletonSeconds - elapsed))
-				}
-			}
-			sectionFieldsReloading = nil
 			if hasPendingChanges {
 				scheduleAutosave()
 			}
 			onChangesSaved?()
 		} catch {
-			sectionFieldsReloading = nil
 			errorMessage = error.localizedDescription
 		}
 	}
@@ -539,15 +517,65 @@ final class ConfigureStore {
 	}
 
 	func detailFields(for section: SettingsItem) -> [SettingsItem] {
-		(section.children ?? []).filter { child in
+		let selectedAuthMethod = resolvedAuthMethod(for: section)
+		let inboundOn = isInboundEnabled(for: section)
+		return (section.children ?? []).filter { child in
 			if child.kind == .section, !(child.children?.isEmpty ?? true) {
 				return false
 			}
 			if child.kind == .hint, child.key.hasSuffix("._empty") {
 				return false
 			}
+			return isFieldVisible(
+				child,
+				selectedAuthMethod: selectedAuthMethod,
+				inboundOn: inboundOn,
+			)
+		}
+	}
+
+	/// Auth method currently shown in the form: draft, then saved, then the
+	/// field's default/`currentValue`.
+	func resolvedAuthMethod(for section: SettingsItem) -> String {
+		let authKey = "\(section.key).authMethod"
+		let live = value(for: authKey)
+		if !live.isEmpty {
+			return live
+		}
+		let authField = (section.children ?? []).first { $0.key == authKey }
+		if let current = authField?.currentValue, !current.isEmpty {
+			return current
+		}
+		return authField?.options?.first ?? ""
+	}
+
+	func isInboundEnabled(for section: SettingsItem) -> Bool {
+		let integrationOn = isTruthyConfigureFlag(value(for: "\(section.key).inboundEnabled"))
+		let globalOn = isTruthyConfigureFlag(value(for: "chatInbound.enabled"))
+		let globalIntegration = value(for: "chatInbound.integration")
+		return integrationOn || (globalOn && globalIntegration == section.key)
+	}
+
+	func isFieldVisible(
+		_ field: SettingsItem,
+		selectedAuthMethod: String,
+		inboundOn: Bool,
+	) -> Bool {
+		if field.showForInbound == true, inboundOn {
 			return true
 		}
+		guard let methods = field.showForAuthMethods, !methods.isEmpty else {
+			return true
+		}
+		guard !selectedAuthMethod.isEmpty else {
+			return false
+		}
+		return methods.contains(selectedAuthMethod)
+	}
+
+	private func isTruthyConfigureFlag(_ raw: String) -> Bool {
+		let value = raw.lowercased()
+		return value == "true" || value == "yes"
 	}
 
 	private func apply(response: ConfigureTreeResponse, resetDraft: Bool) {
@@ -555,11 +583,30 @@ final class ConfigureStore {
 		savedValues = response.values
 		integrationLabels = response.integrationLabels ?? [:]
 		fieldByKey = indexFields(in: response.tree)
+		seedMissingSavedValues(from: response.tree)
 		if resetDraft {
 			draft = [:]
 		} else {
 			pruneDraft()
 		}
+	}
+
+	/// Fill gaps so select fields (especially auth method) bind to their
+	/// server-provided default before the user has saved an explicit value.
+	private func seedMissingSavedValues(from root: SettingsItem) {
+		func walk(_ node: SettingsItem) {
+			if node.kind != .section,
+				savedValues[node.key] == nil || savedValues[node.key]?.isEmpty == true,
+				let current = node.currentValue,
+				!current.isEmpty
+			{
+				savedValues[node.key] = current
+			}
+			for child in node.children ?? [] {
+				walk(child)
+			}
+		}
+		walk(root)
 	}
 
 	private func pruneDraft() {

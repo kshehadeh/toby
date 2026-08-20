@@ -3,8 +3,10 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { buildSettingsTree } from "@toby/core/configure/tree";
 import { getIntegrationModule } from "@toby/core/integrations/index";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
+import { closeChatDbForTests } from "@toby/core/session-store";
 import { createJiraPkceChallenge } from "../../plugin-jira/src/auth";
 import { getJiraAuthMethod } from "../../plugin-jira/src/config";
 import {
@@ -154,6 +156,7 @@ describe("jira integration module (plugin registry)", () => {
 			process.env.TOBY_PLUGINS_DIR = previousPluginsDir;
 		}
 		resetPluginModuleCache();
+		closeChatDbForTests();
 		fs.rmSync(tempDir, { recursive: true, force: true });
 	});
 
@@ -176,5 +179,27 @@ describe("jira integration module (plugin registry)", () => {
 		expect(oauthKeys).toContain("jira.clientSecret");
 		expect(tokenKeys).toContain("jira.domain");
 		expect(tokenKeys).toContain("jira.apiToken");
+	});
+
+	it("configure tree includes both oauth and api_token fields with gating metadata", () => {
+		const root = buildSettingsTree(
+			[],
+			[],
+			{ "jira.authMethod": "oauth" },
+			undefined,
+			{ daemonRunning: true },
+		);
+		const integrations = root.children?.find((c) => c.key === "integrations");
+		const jira = integrations?.children?.find((c) => c.key === "jira");
+		const fields = jira?.children ?? [];
+		const byKey = Object.fromEntries(fields.map((f) => [f.key, f]));
+		expect(
+			byKey["jira.authMethod"]?.selectChoices?.map((c) => c.value),
+		).toEqual(["oauth", "api_token"]);
+		expect(byKey["jira.clientId"]?.showForAuthMethods).toEqual(["oauth"]);
+		expect(byKey["jira.clientSecret"]?.showForAuthMethods).toEqual(["oauth"]);
+		expect(byKey["jira.domain"]?.showForAuthMethods).toEqual(["api_token"]);
+		expect(byKey["jira.email"]?.showForAuthMethods).toEqual(["api_token"]);
+		expect(byKey["jira.apiToken"]?.showForAuthMethods).toEqual(["api_token"]);
 	});
 });

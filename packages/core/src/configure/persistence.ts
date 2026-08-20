@@ -116,6 +116,15 @@ export function seedConfigureValues(): Record<string, string> {
 
 	for (const mod of getIntegrationModules()) {
 		Object.assign(values, mod.seedCredentialValues(creds));
+		if (mod.authMethods && mod.authMethods.length > 0) {
+			const key = `${mod.name}.authMethod`;
+			if (!values[key]?.trim()) {
+				values[key] =
+					mod.authMethods.find((method) => method.isDefault)?.id ??
+					mod.authMethods[0]?.id ??
+					"";
+			}
+		}
 	}
 	if (creds.ai?.openai?.token) {
 		values["ai.openai.token"] = creds.ai.openai.token;

@@ -497,7 +497,10 @@ Optional `authMethods` on `status` (same shape as built-in integrations):
 ```
 
 `config shape` fields may include `showForAuthMethods` to gate configure UI
-fields (Toby namespaces keys as `<name>.<key>`).
+fields (Toby namespaces keys as `<name>.<key>`). The configure tree includes
+every credential field with that metadata; Toby.app hides fields that do not
+match the currently selected auth method (and still shows `showForInbound`
+fields when inbound is on).
 
 ### Config normalization (`config get`)
 

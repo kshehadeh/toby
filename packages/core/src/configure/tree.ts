@@ -137,40 +137,31 @@ export function buildSettingsTree(
 								kind: "select" as const,
 								key: authMethodKey,
 								options: authMethods.map((method) => method.id),
+								selectChoices: authMethods.map((method) => ({
+									value: method.id,
+									label: method.label,
+								})),
 								currentValue: selectedAuthMethod,
 							},
 						]
 					: [];
 
-			const inboundActive =
-				values["chatInbound.enabled"] === "true" &&
-				(values["chatInbound.integration"] ?? "(none)") === mod.name;
-			const integrationInboundOn =
-				values[`${mod.name}.inboundEnabled`] === "true";
-			const showInboundCredentials =
-				Boolean(mod.chatInbound) && (inboundActive || integrationInboundOn);
-
-			const credentialItems = mod
-				.getCredentialDescriptors()
-				.filter((d) => {
-					if (d.showForInbound && showInboundCredentials) {
-						return true;
-					}
-					if (!d.showForAuthMethods || d.showForAuthMethods.length === 0) {
-						return true;
-					}
-					if (!selectedAuthMethod) return false;
-					return d.showForAuthMethods.includes(selectedAuthMethod);
-				})
-				.map((d) => ({
-					label: d.label,
-					kind: d.kind ?? "value",
-					key: d.key,
-					options: d.options ? [...d.options] : undefined,
-					masked: d.masked,
-					multiline: d.multiline,
-					group: d.group,
-				}));
+			// Include every credential field with gating metadata. The native
+			// configure UI filters by the live auth-method / inbound draft so
+			// switching methods updates fields immediately without a rebuild.
+			const credentialItems = mod.getCredentialDescriptors().map((d) => ({
+				label: d.label,
+				kind: d.kind ?? "value",
+				key: d.key,
+				options: d.options ? [...d.options] : undefined,
+				masked: d.masked,
+				multiline: d.multiline,
+				group: d.group,
+				...(d.showForAuthMethods && d.showForAuthMethods.length > 0
+					? { showForAuthMethods: [...d.showForAuthMethods] }
+					: {}),
+				...(d.showForInbound ? { showForInbound: true } : {}),
+			}));
 
 			const globalInboundForMod =
 				values["chatInbound.enabled"] === "true" &&

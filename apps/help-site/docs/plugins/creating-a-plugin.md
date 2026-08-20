@@ -404,7 +404,7 @@ keys as `<name>.<key>`.
 | `required`, `masked`, `multiline` | Optional UI behavior |
 | `options` | Required for `select` type |
 | `default`, `pattern`, `minLength`, `maxLength`, `description` | Optional validation and help text |
-| `showForAuthMethods` | Optional list of auth method ids—show field only for those methods |
+| `showForAuthMethods` | Optional list of auth method ids—show field only for those methods. Toby.app filters live as the user switches auth method. |
 
 ---
 

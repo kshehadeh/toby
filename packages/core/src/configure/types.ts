@@ -51,6 +51,17 @@ export interface SettingsItem {
 	description?: string;
 	/** External documentation URL shown as a link on parent section cards. */
 	docUrl?: string;
+	/**
+	 * Auth-method ids this field is visible for. Omitted/empty means always
+	 * visible. The configure UI filters live from the current auth-method
+	 * draft so switching methods does not wait on a tree rebuild.
+	 */
+	showForAuthMethods?: string[];
+	/**
+	 * When true, show this field if inbound is enabled for the integration
+	 * even when the current auth method would otherwise hide it.
+	 */
+	showForInbound?: boolean;
 }
 
 export interface ConfigureTreeContext {

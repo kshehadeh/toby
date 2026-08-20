@@ -8,6 +8,7 @@ import {
 	writeCredentials,
 } from "@toby/core/config/index";
 import {
+	applyConfigureValuesPatch,
 	saveConfigureValues,
 	seedConfigureValues,
 } from "@toby/core/configure/persistence";
@@ -67,6 +68,13 @@ afterEach(() => {
 });
 
 describe("configure credential save", () => {
+	it("seeds default slack authMethod and persists a switch", () => {
+		expect(seedConfigureValues()["slack.authMethod"]).toBe("oauth");
+		applyConfigureValuesPatch({ "slack.authMethod": "bot_token" });
+		expect(readCredentials().integrations?.slack?.authMethod).toBe("bot_token");
+		expect(seedConfigureValues()["slack.authMethod"]).toBe("bot_token");
+	});
+
 	it("persists slack bot token when another plugin merges after slack", () => {
 		const pluginDir = path.join(tempDir, "toby-home", "plugins");
 		writeTodoistPluginWrapper(pluginDir);
