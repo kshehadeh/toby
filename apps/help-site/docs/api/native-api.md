@@ -70,7 +70,7 @@ When access is denied, handlers typically return:
 }
 ```
 
-Grant the relevant permission to **Toby.app** in **System Settings → Privacy & Security** (Calendar, Contacts, Reminders, Location Services, Microphone, Screen & System Audio Recording, Accessibility, Notifications, etc.). You can also use Toby.app’s **Permissions** window.
+Grant the relevant permission to **Toby.app** in **System Settings → Privacy & Security** (Calendar, Contacts, Reminders, Location Services, Microphone, Screen & System Audio Recording, Accessibility, Notifications, etc.). You can also use Toby.app → **File → Permissions…**.
 
 ## Who uses the Native API
 

@@ -29,7 +29,7 @@ system-wide.
 
 You can allow access in either place:
 
-1. **Toby.app → Permissions → Location Access → Allow**
+1. **Toby.app → File → Permissions… → Location Access → Allow**
 2. **System Settings → Privacy & Security → Location Services → Toby**
 
 If access was previously denied, use System Settings (or **Open System Settings**

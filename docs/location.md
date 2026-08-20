@@ -22,7 +22,7 @@ macOS only. On other platforms the tool returns `unsupported_platform`.
 
 Grant **Location** for **Toby.app** in:
 
-- Toby.app → **Permissions** (Location Access card), or
+- Toby.app → **File → Permissions…** (Location Access card), or
 - **System Settings → Privacy & Security → Location Services**
 
 The Permissions window and the tool both trigger the system prompt when status

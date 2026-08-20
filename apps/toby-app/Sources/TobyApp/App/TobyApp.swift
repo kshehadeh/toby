@@ -179,6 +179,10 @@ struct TobyApp: App {
 			CommandGroup(after: .newItem) {
 				Divider()
 
+				OpenPermissionsMenuItem()
+
+				Divider()
+
 				Button("Backup Settings…") {
 					NotificationCenter.default.post(name: .backupConfig, object: nil)
 				}
@@ -240,7 +244,6 @@ struct TobyApp: App {
 				}
 				.keyboardShortcut("i", modifiers: [.command, .shift])
 				OpenLogsMenuItem()
-				OpenPermissionsMenuItem()
 			}
 		}
 	}

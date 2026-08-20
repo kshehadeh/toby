@@ -28,6 +28,7 @@ For endpoint-level documentation, see [Local APIs](./api/overview): the daemon [
 | **New Schedule** | Opens Schedules and creates a new schedule |
 | **New Project** | Opens Projects and creates a new project |
 | **New Memory** | Opens Memories and starts the new-memory editor |
+| **Permissions…** | Opens the Permissions window for macOS privacy grants (microphone, screen, location, and more) |
 | **Backup Settings…** | Prompts for a password, then a save location for a `.tbybak` archive of settings and credentials |
 | **Restore Settings…** | Opens a `.tbybak` file, asks for the password if needed, and replaces your current config and credentials |
 
@@ -209,10 +210,10 @@ bodies are produced by built-in [flows](./flows).
 
 ### Permissions
 
-The Permissions window shows macOS privacy grants used by Toby.app (microphone,
-screen capture, location, calendar, reminders, accessibility, and more). Use
-**Allow** to trigger the system prompt, or **Open System Settings** when a
-permission was previously denied.
+Open **File → Permissions…**. The window shows macOS privacy grants used by
+Toby.app (microphone, screen capture, location, calendar, reminders,
+accessibility, and more). Use **Allow** to trigger the system prompt, or
+**Open System Settings** when a permission was previously denied.
 
 **Location Access** is required for the chat tool **`getMyLocation`** (for
 example “Where am I?” or weather “near me”). See [Location](./configuration/location).
