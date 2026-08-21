@@ -25,6 +25,7 @@ export type DaemonLogCategory =
 	| "turn"
 	| "plugin-poller"
 	| "plugin"
+	| "sync"
 	| "general";
 
 export type DaemonLogEntry = {

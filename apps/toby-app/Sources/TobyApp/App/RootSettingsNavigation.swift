@@ -6,6 +6,7 @@ import Foundation
 enum RootSettingsNavigation {
 	static let clientOnlySettingsTabKeys: Set<String> = [
 		SettingsItem.appearanceSectionKey,
+		SettingsItem.iCloudSectionKey,
 		SettingsItem.personasSectionKey,
 	]
 

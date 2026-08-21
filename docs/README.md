@@ -5,8 +5,9 @@ Human- and flow-oriented docs for this repository.
 | Doc | Description |
 | --- | ----------- |
 | [architecture.md](architecture.md) | Monorepo layout: `@toby/core` harness, `@toby/cli`, Toby.app, runtime flow, config paths. |
-| [security.md](security.md) | Credentials at rest (Keychain-wrapped AES-GCM), backup/restore format and threat model. |
-| [commands.md](commands.md) | Shared CLI commands, native app launch, `config backup` / `config restore`. |
+| [security.md](security.md) | Credentials at rest (Keychain-wrapped AES-GCM), backup/restore, iCloud sync threat model. |
+| [icloud-sync.md](icloud-sync.md) | Encrypted iCloud Drive settings snapshots: payload, clocks, Keychain, surfaces. |
+| [commands.md](commands.md) | Shared CLI commands, native app launch, `config backup` / `config restore` / `config sync`. |
 | [projects.md](projects.md) | Projects: SQLite metadata, `AGENTS.md` guidance, skills, outputs. |
 | [integrations.md](integrations.md) | `IntegrationModule` registry, first-party plugins, global tools. |
 | [plugin-protocol.md](plugin-protocol.md) | Installable plugin CLI contract (v1): argv, stdin/stdout, discovery. |

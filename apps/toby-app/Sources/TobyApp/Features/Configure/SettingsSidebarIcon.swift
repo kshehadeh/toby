@@ -6,6 +6,7 @@ enum SettingsSidebarIcon {
 		// Top-level Settings toolbar tabs (exact keys first).
 		switch key {
 		case "appearance": return "gearshape"
+		case "icloud": return "icloud"
 		case "chatinbound": return "bubble.left"
 		case "defaults": return "slider.horizontal.3"
 		case "ai": return "sparkles"
@@ -16,6 +17,9 @@ enum SettingsSidebarIcon {
 		default: break
 		}
 
+		if key == "icloud" || key.hasPrefix("icloud.") {
+			return "icloud"
+		}
 		if key == "personas" || key.hasPrefix("personas.") {
 			return "person.crop.circle"
 		}

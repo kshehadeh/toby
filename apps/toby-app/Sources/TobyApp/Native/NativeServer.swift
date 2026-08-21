@@ -299,6 +299,18 @@ final class NativeServer {
 			return wrapHandlerData(await NativeAudioHandler.shared.stop(body: request.body))
 		case "/api/native/audio/combine":
 			return wrapHandlerData(await NativeAudioHandler.shared.combine(body: request.body))
+		case "/api/native/icloud/status":
+			return wrapHandlerData(NativeICloudHandler.status())
+		case "/api/native/icloud/ensure":
+			return wrapHandlerData(NativeICloudHandler.ensure(body: request.body))
+		case "/api/native/icloud/read":
+			return wrapHandlerData(NativeICloudHandler.read(body: request.body))
+		case "/api/native/icloud/write":
+			return wrapHandlerData(NativeICloudHandler.write(body: request.body))
+		case "/api/native/icloud/history":
+			return wrapHandlerData(NativeICloudHandler.history())
+		case "/api/native/icloud/delete":
+			return wrapHandlerData(NativeICloudHandler.deleteAll())
 		default:
 			return httpResponse(json: ["ok": false, "error": "Unknown endpoint: \(path)"], status: 404)
 		}

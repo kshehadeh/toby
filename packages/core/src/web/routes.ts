@@ -19,6 +19,15 @@ import {
 	handleConfigRestore,
 } from "./handlers/config-backup";
 import {
+	handleConfigSyncDisable,
+	handleConfigSyncEnable,
+	handleConfigSyncHistory,
+	handleConfigSyncPull,
+	handleConfigSyncPush,
+	handleConfigSyncRestoreHistory,
+	handleConfigSyncStatus,
+} from "./handlers/config-sync";
+import {
 	handleConfigureAction,
 	handleConfigurePatch,
 	handleConfigureSectionDetail,
@@ -477,6 +486,30 @@ export async function handleWebRequest(
 		}
 		if (pathname === "/api/config/restore" && req.method === "POST") {
 			return handleConfigRestore(req);
+		}
+		if (pathname === "/api/config/sync" && req.method === "GET") {
+			return handleConfigSyncStatus();
+		}
+		if (pathname === "/api/config/sync/enable" && req.method === "POST") {
+			return handleConfigSyncEnable(req);
+		}
+		if (pathname === "/api/config/sync/disable" && req.method === "POST") {
+			return handleConfigSyncDisable(req);
+		}
+		if (pathname === "/api/config/sync/push" && req.method === "POST") {
+			return handleConfigSyncPush();
+		}
+		if (pathname === "/api/config/sync/pull" && req.method === "POST") {
+			return handleConfigSyncPull(req);
+		}
+		if (pathname === "/api/config/sync/history" && req.method === "GET") {
+			return handleConfigSyncHistory();
+		}
+		if (
+			pathname === "/api/config/sync/restore-history" &&
+			req.method === "POST"
+		) {
+			return handleConfigSyncRestoreHistory(req);
 		}
 		if (pathname === "/api/configure/tree" && req.method === "GET") {
 			return handleConfigureTree();

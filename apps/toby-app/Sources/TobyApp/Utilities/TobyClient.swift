@@ -1113,6 +1113,71 @@ struct TobyClient {
 		let (data, response) = try await URLSession.shared.data(for: request)
 		try validate(response: response, data: data)
 	}
+
+	func fetchConfigSyncStatus() async throws -> ConfigSyncStatus {
+		let url = baseURL.appendingPathComponent("api/config/sync")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ConfigSyncStatus.self, from: data)
+	}
+
+	func enableConfigSync(password: String, mode: String? = nil) async throws -> ConfigSyncStatus {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/sync/enable"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		var body: [String: Any] = ["password": password]
+		if let mode { body["mode"] = mode }
+		request.httpBody = try JSONSerialization.data(withJSONObject: body)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ConfigSyncStatus.self, from: data)
+	}
+
+	func disableConfigSync(deleteCloud: Bool = false) async throws -> ConfigSyncStatus {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/sync/disable"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = try JSONSerialization.data(withJSONObject: ["deleteCloud": deleteCloud])
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(ConfigSyncStatus.self, from: data)
+	}
+
+	func pushConfigSync() async throws {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/sync/push"))
+		request.httpMethod = "POST"
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+	}
+
+	func pullConfigSync() async throws {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/sync/pull"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = try JSONSerialization.data(withJSONObject: ["confirm": true])
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+	}
+
+	func listConfigSyncHistory() async throws -> [ConfigSyncHistoryItem] {
+		let url = baseURL.appendingPathComponent("api/config/sync/history")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		struct Payload: Decodable { let history: [ConfigSyncHistoryItem] }
+		return try JSONDecoder().decode(Payload.self, from: data).history
+	}
+
+	func restoreConfigSyncHistory(filename: String) async throws {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/sync/restore-history"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = try JSONSerialization.data(withJSONObject: [
+			"filename": filename,
+			"confirm": true,
+		])
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+	}
 }
 
 // MARK: - Config backup models
@@ -1120,4 +1185,47 @@ struct TobyClient {
 struct ConfigBackupCreateResponse {
 	let backupData: Data
 	let suggestedFileName: String
+}
+
+// MARK: - Config sync models
+
+struct ConfigSyncClock: Decodable, Equatable {
+	let lamport: Int
+	let utc: String
+	let deviceId: String
+	let deviceName: String
+}
+
+struct ConfigSyncRemoteInfo: Decodable, Equatable {
+	let lamport: Int
+	let utc: String
+	let deviceId: String
+	let deviceName: String
+	let contentHash: String
+}
+
+struct ConfigSyncStatus: Decodable, Equatable {
+	var enabled: Bool
+	var iCloudAvailable: Bool
+	var deviceId: String
+	var deviceName: String
+	var vaultPath: String
+	var lastPushAt: String?
+	var lastPullAt: String?
+	var lastError: String?
+	var lastWriterDeviceName: String?
+	var lastWriterDeviceId: String?
+	var lastAckedLamport: Int
+	var lastAckedContentHash: String
+	var dirty: Bool
+	var hasRemote: Bool
+	var remote: ConfigSyncRemoteInfo?
+}
+
+struct ConfigSyncHistoryItem: Decodable, Equatable, Identifiable {
+	var id: String { filename }
+	let filename: String
+	let createdAt: String
+	let contentHash: String
+	let clock: ConfigSyncClock
 }

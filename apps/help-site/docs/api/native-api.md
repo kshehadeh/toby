@@ -104,6 +104,12 @@ After capture, **listing, deleting, and transcribing** recordings return to the 
 | `POST` | `/api/native/location/status` | Location authorization status |
 | `POST` | `/api/native/location/request-access` | Prompt Location Services |
 | `POST` | `/api/native/location/current` | One-shot current location |
+| `GET` | `/api/native/icloud/status` | iCloud Drive availability and vault path |
+| `POST` | `/api/native/icloud/ensure` | Download a dataless vault file if needed |
+| `POST` | `/api/native/icloud/read` | Coordinated read of the encrypted vault |
+| `POST` | `/api/native/icloud/write` | Coordinated write of the encrypted vault |
+| `GET` | `/api/native/icloud/history` | History filenames |
+| `POST` | `/api/native/icloud/delete` | Delete the iCloud vault folder |
 | `POST` | `/api/native/reminders/request-access` | Prompt Reminders permission |
 | `POST` | `/api/native/reminders/lists` | List reminder lists |
 | `POST` | `/api/native/reminders/search` | Search reminders |

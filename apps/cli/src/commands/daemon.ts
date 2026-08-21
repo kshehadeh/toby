@@ -9,6 +9,7 @@ import {
 	getUnifiedLogPath,
 	getWebConfig,
 } from "@toby/core/config/index";
+import { runConfigSyncLoop } from "@toby/core/config/sync";
 import { warmupPluginToolDefinitions } from "@toby/core/integrations/index";
 import { startPluginPollingLoop } from "@toby/core/integrations/plugins/poller";
 import { pluginDisplayPath } from "@toby/core/integrations/plugins/protocol";
@@ -213,6 +214,7 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 					});
 				},
 			}),
+			runConfigSyncLoop({ signal: controller.signal }),
 		];
 		if (webCfg.enabled) {
 			tasks.push(

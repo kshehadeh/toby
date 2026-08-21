@@ -1,7 +1,8 @@
 # Security: credentials and backups
 
-How Toby stores secrets on disk, encrypts them on macOS, and exports them via
-backup/restore. Implementation lives primarily under
+How Toby stores secrets on disk, encrypts them on macOS, exports them via
+backup/restore, and syncs them across Macs through an **encrypted iCloud Drive
+vault**. Implementation lives primarily under
 [`packages/core/src/config/`](../packages/core/src/config/).
 
 ## Threat model (honest scope)
@@ -124,7 +125,26 @@ depending on Keychain policy.
 - Deleting the Keychain item while leaving an encrypted file makes secrets
   unreadable until a password backup is restored or secrets are re-entered.
 - Copying only `credentials.json` to another Mac does **not** move the DEK;
-  use [backup/restore](#backup-and-restore) instead.
+  use [backup/restore](#backup-and-restore) or [iCloud sync](#icloud-settings-sync)
+  instead.
+
+## iCloud settings sync
+
+Multi-Mac sharing uses **iCloud Drive as a dumb blob store**. The cloud file is
+an AES-256-GCM + scrypt envelope (`format: "toby.config.sync.encrypted"`). Apple
+never sees plaintext secrets. After pull, credentials are re-wrapped with
+**this Mac’s** Keychain DEK.
+
+| Keychain field | Value |
+| -------------- | ----- |
+| Service | `dev.toby.sync` |
+| Account | `vault-passphrase` |
+
+Payload, clocks, history, denylist, and surfaces: [icloud-sync.md](icloud-sync.md).
+
+**Does not protect against** someone who has both the iCloud vault **and** the
+sync password. Forgotten password cannot be recovered from iCloud; re-enable
+from a Mac that still has local secrets, or restore a `.tbybak`.
 
 ## Backup and restore
 
@@ -189,8 +209,9 @@ reimplements Keychain decrypt; it asks the daemon, which calls
 
 ## Related docs
 
+- [icloud-sync.md](icloud-sync.md) — encrypted iCloud Drive snapshots
 - [architecture.md](architecture.md) — local data layout
-- [commands.md](commands.md) — CLI backup/restore flags
-- [server-api.md](server-api.md) — HTTP backup/restore endpoints
+- [commands.md](commands.md) — CLI backup/restore and `config sync` flags
+- [server-api.md](server-api.md) — HTTP backup/restore and sync endpoints
 - [plugin-protocol.md](plugin-protocol.md) — plugin credential envelope
 - User help: [Security](../apps/help-site/docs/security.md) (product language)

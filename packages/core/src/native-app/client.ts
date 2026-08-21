@@ -96,6 +96,8 @@ export async function nativeAppRequest(
 		readonly method?: string;
 		readonly body?: Record<string, unknown>;
 		readonly timeoutMs?: number;
+		/** When false, do not launch Toby.app; fail if the native server is down. */
+		readonly launch?: boolean;
 	},
 ): Promise<NativeAppResponse> {
 	const method = options?.method ?? "POST";
@@ -103,7 +105,18 @@ export async function nativeAppRequest(
 
 	let port: number;
 	try {
-		port = await ensureNativeServer();
+		if (options?.launch === false) {
+			const existing = resolveNativePort();
+			if (!existing || !(await isNativeServerAlive(existing))) {
+				return {
+					ok: false,
+					error: "Toby.app native server is unavailable.",
+				};
+			}
+			port = existing;
+		} else {
+			port = await ensureNativeServer();
+		}
 	} catch (error) {
 		return {
 			ok: false,

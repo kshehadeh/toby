@@ -7,6 +7,7 @@ import {
 	isEncryptedCredentialsEnvelope,
 } from "./credentials-crypto";
 import { getCredentialsKeyStore } from "./credentials-keychain";
+import { markSyncDirty } from "./sync-dirty";
 
 export {
 	CREDENTIALS_ENVELOPE_FORMAT,
@@ -373,6 +374,7 @@ export function writeConfigRaw(config: Record<string, unknown>): void {
 	const configPath = getConfigPath();
 	ensureTobyDir();
 	atomicWriteFile(configPath, JSON.stringify(config, null, 2));
+	markSyncDirty();
 }
 
 export const DEFAULT_WEB_PORT = 7847;
@@ -389,6 +391,7 @@ export function writeConfig(config: TobyConfig): void {
 	const configPath = getConfigPath();
 	ensureTobyDir();
 	atomicWriteFile(configPath, JSON.stringify(config, null, 2));
+	markSyncDirty();
 }
 
 /**
@@ -404,6 +407,7 @@ export function writeCredentials(creds: CredentialsFile): void {
 	if (!keyStore) {
 		atomicWriteFile(credentialsPath, JSON.stringify(creds, null, 2));
 		setCredentialsCache(credentialsPath, creds);
+		markSyncDirty();
 		return;
 	}
 	const dataKey = keyStore.getOrCreateDataKey();
@@ -413,6 +417,7 @@ export function writeCredentials(creds: CredentialsFile): void {
 	);
 	atomicWriteFile(credentialsPath, JSON.stringify(envelope, null, 2));
 	setCredentialsCache(credentialsPath, creds);
+	markSyncDirty();
 }
 
 export function readCredentials(): CredentialsFile {

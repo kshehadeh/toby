@@ -262,6 +262,12 @@ The native server listens on a random localhost port written to `~/.toby/native-
 | `POST` | `/api/native/audio/start` | Start native microphone/system audio capture |
 | `POST` | `/api/native/audio/stop` | Stop capture, then finalize (combine/export off the main actor) and save |
 | `POST` | `/api/native/audio/combine` | Combine existing mic/system WAV files into `combined.m4a` |
+| `GET` | `/api/native/icloud/status` | iCloud Drive folder availability and vault path |
+| `POST` | `/api/native/icloud/ensure` | Download a dataless vault/history file if needed |
+| `POST` | `/api/native/icloud/read` | Coordinated read of `vault.json` or a history file |
+| `POST` | `/api/native/icloud/write` | Coordinated rotate+write of the current vault |
+| `GET` | `/api/native/icloud/history` | History filenames |
+| `POST` | `/api/native/icloud/delete` | Delete the iCloud vault folder |
 
 ### Plugin integration
 

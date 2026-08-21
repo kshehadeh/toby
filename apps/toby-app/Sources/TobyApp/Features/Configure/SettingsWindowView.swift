@@ -18,7 +18,11 @@ struct SettingsWindowView: View {
 	@State private var isRestoringTab = false
 
 	private var allSections: [SettingsItem] {
-		[SettingsItem.appearanceSection, SettingsItem.personasSection] + store.settingsSections
+		[
+			SettingsItem.appearanceSection,
+			SettingsItem.iCloudSection,
+			SettingsItem.personasSection,
+		] + store.settingsSections
 	}
 
 	private var selectedTopLevelSection: SettingsItem? {
@@ -35,8 +39,13 @@ struct SettingsWindowView: View {
 		selectedTabKey == SettingsItem.personasSectionKey
 	}
 
+	private var isICloudTab: Bool {
+		selectedTabKey == SettingsItem.iCloudSectionKey
+	}
+
 	private static let clientOnlyTabKeys: Set<String> = [
 		SettingsItem.appearanceSectionKey,
+		SettingsItem.iCloudSectionKey,
 		SettingsItem.personasSectionKey,
 	]
 
@@ -51,7 +60,7 @@ struct SettingsWindowView: View {
 						.frame(maxWidth: .infinity, maxHeight: .infinity)
 				}
 			} else if let errorMessage = store.errorMessage, store.settingsSections.isEmpty {
-				// General and Personas remain available even if configure API fails.
+				// General, iCloud, and Personas remain available even if configure API fails.
 				VStack(spacing: 0) {
 					tabBar
 					Divider().background(AppTheme.separator)
@@ -62,6 +71,8 @@ struct SettingsWindowView: View {
 						)
 					} else if isPersonasTab {
 						PersonasSettingsView(store: store)
+					} else if isICloudTab {
+						ICloudSyncSettingsView()
 					} else {
 						ContentUnavailableView {
 							Label("Configuration unavailable", systemImage: "exclamationmark.triangle")
@@ -183,6 +194,8 @@ struct SettingsWindowView: View {
 				)
 			} else if isPersonasTab {
 				PersonasSettingsView(store: store)
+			} else if isICloudTab {
+				ICloudSyncSettingsView()
 			} else if let section = selectedTopLevelSection,
 				ConfigureTreeHelpers.hasNestedSections(section)
 			{

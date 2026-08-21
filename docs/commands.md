@@ -58,6 +58,24 @@ Examples:
 - `toby config restore ./backups/work-laptop.tbybak`
 - `toby config restore ./backups/work-laptop.tbybak --yes`
 
+### `toby config sync`
+
+Encrypted iCloud Drive snapshots of the same payload as backup. Design:
+[icloud-sync.md](icloud-sync.md). Settings UI: **Settings → iCloud**.
+
+| Command | Purpose |
+| ------- | ------- |
+| `toby config sync status` | Enabled flag, iCloud Drive availability, last writer |
+| `toby config sync enable [--mode create\|join\|replace]` | Store the vault password and create or join |
+| `toby config sync disable [--delete-cloud]` | Stop sync; optionally delete the iCloud folder |
+| `toby config sync push` | Upload a snapshot now |
+| `toby config sync pull --yes` | Apply the cloud snapshot (`--yes` skips confirm) |
+| `toby config sync history` | List previous snapshots |
+| `toby config sync restore-history <filename> --yes` | Apply a history file and push it as current |
+
+Enable prompts for a password (and confirmation). Join decrypts the existing
+vault with that password; create is refused if a vault already exists.
+
 ### `toby configure` (compatibility alias)
 
 `configure` is kept as an alias for `config`; prefer `config`.

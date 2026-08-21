@@ -50,6 +50,9 @@ struct SettingsItem: Decodable, Identifiable {
 	/// daemon configure-sections API).
 	static let personasSectionKey = "personas"
 
+	/// Client-only iCloud settings sync tab (daemon `/api/config/sync*` + native I/O).
+	static let iCloudSectionKey = "icloud"
+
 	static var appearanceSection: SettingsItem {
 		SettingsItem(
 			label: "General",
@@ -78,6 +81,28 @@ struct SettingsItem: Decodable, Identifiable {
 			kind: .section,
 			key: personasSectionKey,
 			navKey: personasSectionKey,
+			children: nil,
+			masked: nil,
+			multiline: nil,
+			options: nil,
+			selectChoices: nil,
+			currentValue: nil,
+			selectedValues: nil,
+			readOnly: true,
+			iconUrl: nil,
+			icon: nil,
+			group: nil,
+			description: nil,
+			docUrl: nil
+		)
+	}
+
+	static var iCloudSection: SettingsItem {
+		SettingsItem(
+			label: "iCloud",
+			kind: .section,
+			key: iCloudSectionKey,
+			navKey: iCloudSectionKey,
 			children: nil,
 			masked: nil,
 			multiline: nil,

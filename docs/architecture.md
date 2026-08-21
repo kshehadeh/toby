@@ -156,7 +156,8 @@ the detail surface that needs them.
 2. **Connect / disconnect / status** use [`getIntegration`](../packages/core/src/integrations/index.ts) or [`getIntegrations`](../packages/core/src/integrations/index.ts) from core (discovered plugins).
 3. **Chat and configuration** are interactive native-app workflows backed by core web/API handlers (daemon HTTP API).
 4. **`config backup` / `config restore`** use shared helpers in `@toby/core` (`config/backup.ts`). The CLI and the daemon HTTP API (`POST /api/config/backup`, `POST /api/config/restore`) share the same implementation; Toby.app File → Backup / Restore drives the API with native save/open panels.
-5. **Daemon** (`toby daemon start`) runs schedules, inbound chat, and the localhost API that Toby.app consumes.
+5. **`config sync`** uploads encrypted settings snapshots to iCloud Drive (`config/sync*.ts`). The daemon loop pushes after local writes and pulls on an interval; Toby.app Settings → iCloud and `/api/native/icloud/*` handle coordinated file I/O. See [icloud-sync.md](icloud-sync.md).
+6. **Daemon** (`toby daemon start`) runs schedules, inbound chat, iCloud settings sync, and the localhost API that Toby.app consumes.
 
 ## Local data
 
@@ -168,6 +169,7 @@ the detail surface that needs them.
 | `~/.toby/logs/toby.log` | Unified JSON-lines log for all subsystems (chat, daemon, server events, upgrade, native-app, macOS plugin). A `source` field discriminates the emitter; rotation is shared. Minimum level defaults to `info` (set `TOBY_LOG_LEVEL=debug` to include debug). |
 | `~/.toby/listen/recordings/<id>/` | Saved audio, metadata, and transcript artifacts. |
 | `~/.toby/native-port` | Ephemeral port published by Toby.app's native permission/audio server. |
+| `~/.toby/sync-state.json` | Local iCloud sync bookkeeping (device id, last-acked hash). Vault files live in iCloud Drive, not here. |
 | `~/.toby/projects/<slug>/` | Project metadata, reference context, local skills, and generated outputs. |
 
 Access is centralized in [`packages/core/src/config/index.ts`](../packages/core/src/config/index.ts). Integration modules should not hardcode paths; use the config helpers. Credentials I/O goes only through `readCredentials` / `writeCredentials`. Full design (Keychain item, envelope format, threat model, backup contents) is in [`security.md`](security.md). CLI flags are in [`commands.md`](commands.md); HTTP routes in [`server-api.md`](server-api.md).

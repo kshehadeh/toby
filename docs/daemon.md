@@ -4,11 +4,12 @@
 
 The **daemon** is a single long-running Toby process that runs work in the background for Toby.app, schedules, inbound chat, and local HTTP APIs. Only one instance may run at a time; it records lock metadata in **`~/.toby/daemon.lock`** (PID and poll interval) so `toby daemon start` can detect duplicates and `toby daemon stop` knows which process to signal.
 
-Today the daemon has three responsibilities that run **in parallel** inside that process:
+Today the daemon has four responsibilities that run **in parallel** inside that process:
 
 1. **Schedules** — cron-based prompts (summaries, inbox triage, etc.).
 2. **Chat inbound** — listen on an external chat provider (Slack via Socket Mode today) and run chat turns when users @mention the bot.
 3. **HTTP API server** — localhost API for the native macOS app and CLI.
+4. **iCloud settings sync** — debounced upload and periodic pull of the encrypted vault when enabled (see [icloud-sync.md](icloud-sync.md)).
 
 Start it with `toby daemon start` (detached background) or `toby daemon run` (foreground, useful for debugging). Structured activity is appended to the **unified log** at `~/.toby/logs/toby.log` (JSON lines, `source: "daemon"`, shared buffering and rotation across all subsystems).
 

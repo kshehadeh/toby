@@ -124,6 +124,13 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `GET` | `/api/memories/:id/explain` | Fetch source/audit explanation for one memory. |
 | `POST` | `/api/config/backup` | Create a password-encrypted backup of config + credentials. |
 | `POST` | `/api/config/restore` | Restore config + credentials from a backup payload. |
+| `GET` | `/api/config/sync` | iCloud settings sync status. |
+| `POST` | `/api/config/sync/enable` | Enable sync (`password`, optional `mode`: `create` / `join` / `replace`). |
+| `POST` | `/api/config/sync/disable` | Disable sync (`deleteCloud?: boolean`). |
+| `POST` | `/api/config/sync/push` | Upload a snapshot now. |
+| `POST` | `/api/config/sync/pull` | Apply the cloud snapshot (`confirm: true`). |
+| `GET` | `/api/config/sync/history` | List previous snapshots (metadata only). |
+| `POST` | `/api/config/sync/restore-history` | Restore a history file (`filename`, `confirm: true`). |
 | `GET` | `/api/configure/tree` | Fetch configure UI schema and current values. |
 | `GET` | `/api/configure/sections` | Lightweight section structure for the native settings sidebar. |
 | `GET` | `/api/configure/sections/:sectionKey` | Full detail (fields + values) for one settings section. |
@@ -1029,6 +1036,16 @@ Body:
 
 Writes `config.json` and `credentials.json` (re-encrypting credentials at rest on macOS), then invalidates configure caches.
 Errors: `400` if `confirm` is not true, password is wrong, or the payload is invalid.
+
+## Config iCloud sync
+
+Design: [icloud-sync.md](icloud-sync.md). Handlers:
+[`packages/core/src/web/handlers/config-sync.ts`](../packages/core/src/web/handlers/config-sync.ts).
+Toby.app **Settings → iCloud** and `toby config sync` use these routes.
+
+`POST /api/config/sync/pull` and `restore-history` require `confirm: true`, same
+guard as restore. Automatic daemon pulls call the engine with `automatic: true`
+and do not go through this HTTP confirm.
 
 ## Configure
 

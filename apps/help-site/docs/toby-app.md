@@ -33,7 +33,9 @@ For endpoint-level documentation, see [Local APIs](./api/overview): the daemon [
 | **Restore Settings…** | Opens a `.tbybak` file, asks for the password if needed, and replaces your current config and credentials |
 
 The CLI equivalents for backup/restore are `toby config backup` and `toby config restore`. See
-[Security](./security) for what is included and how encryption works.
+[Security](./security) for what is included and how encryption works. To share
+settings across Macs without copying a file, use **Settings → iCloud**
+([iCloud sync](./configuration/icloud-sync)).
 
 ## View menu
 
