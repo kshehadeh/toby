@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { ensureTobyDir, resolveTobyDir } from "./index";
+import { type SyncBackend, isSyncBackend } from "./sync-folder";
 
 const SECURE_FILE_MODE = 0o600;
 
@@ -18,6 +19,10 @@ export interface SyncState {
 	vaultPath?: string;
 	lastWriterDeviceName?: string;
 	lastWriterDeviceId?: string;
+	/** Default when omitted: iCloud Drive. Machine-local; not part of the vault. */
+	backend?: SyncBackend;
+	/** User-picked folder (absolute). Required when backend is `folder`. */
+	folderPath?: string;
 }
 
 export function getSyncStatePath(): string {
@@ -75,12 +80,24 @@ export function isSyncState(value: unknown): value is SyncState {
 		return false;
 	}
 	const record = value as Record<string, unknown>;
-	return (
-		record.version === 1 &&
-		typeof record.enabled === "boolean" &&
-		typeof record.deviceId === "string" &&
-		record.deviceId.length > 0 &&
-		typeof record.lastAckedContentHash === "string" &&
-		typeof record.lastAckedLamport === "number"
-	);
+	if (
+		record.version !== 1 ||
+		typeof record.enabled !== "boolean" ||
+		typeof record.deviceId !== "string" ||
+		record.deviceId.length === 0 ||
+		typeof record.lastAckedContentHash !== "string" ||
+		typeof record.lastAckedLamport !== "number"
+	) {
+		return false;
+	}
+	if (record.backend !== undefined && !isSyncBackend(record.backend)) {
+		return false;
+	}
+	if (
+		record.folderPath !== undefined &&
+		typeof record.folderPath !== "string"
+	) {
+		return false;
+	}
+	return true;
 }

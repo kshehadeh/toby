@@ -36,7 +36,7 @@ export function registerConfigCommand(program: Command): void {
 	const config = program
 		.command("config")
 		.description(
-			"Open native app settings and manage config backup, restore, and iCloud sync",
+			"Open native app settings and manage config backup, restore, and settings sync",
 		);
 
 	config.action(() => {
@@ -80,11 +80,13 @@ export function registerConfigCommand(program: Command): void {
 
 	const sync = config
 		.command("sync")
-		.description("Sync settings and credentials through iCloud Drive");
+		.description(
+			"Sync settings and credentials through iCloud Drive or a shared folder",
+		);
 
 	sync
 		.command("status")
-		.description("Show iCloud settings sync status")
+		.description("Show settings sync status")
 		.action(async () => {
 			try {
 				await printSyncStatus();
@@ -95,17 +97,27 @@ export function registerConfigCommand(program: Command): void {
 
 	sync
 		.command("enable")
-		.description("Enable iCloud settings sync")
+		.description("Enable settings sync")
 		.option(
 			"--mode <mode>",
 			"create, join, or replace (default: join if a vault exists, else create)",
 		)
-		.action(async (options: { mode?: string }) => {
+		.option(
+			"--dir <path>",
+			"Sync through this folder instead of iCloud Drive (Dropbox, Google Drive, NAS, …)",
+		)
+		.action(async (options: { mode?: string; dir?: string }) => {
 			try {
 				const mode = parseSyncMode(options.mode);
 				const password = await promptForSyncPassword(true);
-				await enableSync({ password, mode });
-				console.log(chalk.green("iCloud settings sync enabled."));
+				const dir = options.dir?.trim();
+				await enableSync({
+					password,
+					mode,
+					backend: dir ? "folder" : "icloud",
+					folderPath: dir,
+				});
+				console.log(chalk.green("Settings sync enabled."));
 				await printSyncStatus();
 			} catch (error) {
 				failCli(error);
@@ -114,12 +126,12 @@ export function registerConfigCommand(program: Command): void {
 
 	sync
 		.command("disable")
-		.description("Disable iCloud settings sync")
-		.option("--delete-cloud", "Also delete the iCloud vault and history")
+		.description("Disable settings sync")
+		.option("--delete-cloud", "Also delete the vault folder and history")
 		.action(async (options: { deleteCloud?: boolean }) => {
 			try {
 				await disableSync({ deleteCloud: options.deleteCloud === true });
-				console.log(chalk.green("iCloud settings sync disabled."));
+				console.log(chalk.green("Settings sync disabled."));
 			} catch (error) {
 				failCli(error);
 			}
@@ -127,12 +139,12 @@ export function registerConfigCommand(program: Command): void {
 
 	sync
 		.command("push")
-		.description("Upload a settings snapshot to iCloud now")
+		.description("Upload a settings snapshot now")
 		.action(async () => {
 			try {
 				const result = await pushSnapshot({ force: true });
 				if (result.pushed) {
-					console.log(chalk.green("Pushed settings snapshot to iCloud."));
+					console.log(chalk.green("Pushed settings snapshot."));
 				} else {
 					console.log(
 						chalk.dim(`Did not push (${result.reason ?? "skipped"}).`),
@@ -145,13 +157,13 @@ export function registerConfigCommand(program: Command): void {
 
 	sync
 		.command("pull")
-		.description("Download and apply the iCloud settings snapshot")
-		.option("-y, --yes", "Confirm replacing local settings from iCloud")
+		.description("Download and apply the remote settings snapshot")
+		.option("-y, --yes", "Confirm replacing local settings from the vault")
 		.action(async (options: { yes?: boolean }) => {
 			try {
 				if (!options.yes) {
 					const confirmed = await confirmYes(
-						"Replace local settings from the iCloud vault? [y/N] ",
+						"Replace local settings from the sync vault? [y/N] ",
 					);
 					if (!confirmed) {
 						console.log(chalk.yellow("Pull cancelled."));
@@ -160,7 +172,7 @@ export function registerConfigCommand(program: Command): void {
 				}
 				const result = await pullSnapshot({ confirm: true });
 				if (result.applied) {
-					console.log(chalk.green("Applied iCloud settings snapshot."));
+					console.log(chalk.green("Applied settings snapshot."));
 				} else {
 					console.log(
 						chalk.dim(`Did not apply (${result.reason ?? "skipped"}).`),
@@ -173,7 +185,7 @@ export function registerConfigCommand(program: Command): void {
 
 	sync
 		.command("history")
-		.description("List previous iCloud settings snapshots")
+		.description("List previous settings snapshots")
 		.action(async () => {
 			try {
 				const history = await listSyncHistory();
@@ -193,7 +205,7 @@ export function registerConfigCommand(program: Command): void {
 
 	sync
 		.command("restore-history")
-		.description("Restore a previous iCloud snapshot and push it as current")
+		.description("Restore a previous snapshot and push it as current")
 		.argument("<filename>", "History filename from `toby config sync history`")
 		.option("-y, --yes", "Confirm restoring that snapshot")
 		.action(async (filename: string, options: { yes?: boolean }) => {
@@ -208,7 +220,9 @@ export function registerConfigCommand(program: Command): void {
 					}
 				}
 				await restoreSyncHistory({ filename, confirm: true });
-				console.log(chalk.green(`Restored ${filename} and pushed to iCloud.`));
+				console.log(
+					chalk.green(`Restored ${filename} and pushed to the vault.`),
+				);
 			} catch (error) {
 				failCli(error);
 			}
@@ -369,9 +383,16 @@ function parseSyncMode(
 async function printSyncStatus(): Promise<void> {
 	const status = await getSyncStatus();
 	console.log(`enabled: ${status.enabled ? "yes" : "no"}`);
+	console.log(`backend: ${status.backend}`);
+	console.log(
+		`store: ${status.storeAvailable ? "available" : "not available"}`,
+	);
 	console.log(
 		`iCloud Drive: ${status.iCloudAvailable ? "available" : "not found"}`,
 	);
+	if (status.folderPath) {
+		console.log(`folder: ${status.folderPath}`);
+	}
 	console.log(`device: ${status.deviceName} (${status.deviceId})`);
 	console.log(`vault: ${status.vaultPath}`);
 	if (status.lastPushAt) console.log(`last push: ${status.lastPushAt}`);
@@ -387,14 +408,12 @@ async function printSyncStatus(): Promise<void> {
 }
 
 async function promptForSyncPassword(confirm: boolean): Promise<string> {
-	const password = await promptHiddenInput("Enter iCloud sync password: ");
+	const password = await promptHiddenInput("Enter sync password: ");
 	if (!password) {
 		throw new Error("Sync password cannot be empty.");
 	}
 	if (confirm) {
-		const confirmation = await promptHiddenInput(
-			"Confirm iCloud sync password: ",
-		);
+		const confirmation = await promptHiddenInput("Confirm sync password: ");
 		if (password !== confirmation) {
 			throw new Error("Sync passwords do not match.");
 		}

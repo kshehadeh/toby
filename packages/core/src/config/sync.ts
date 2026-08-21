@@ -24,6 +24,15 @@ export {
 	type SyncPayload,
 } from "./sync-payload";
 export {
+	FOLDER_SYNC_RELATIVE,
+	isFolderSyncPickedAvailable,
+	isSyncBackend,
+	resolveFolderSyncVaultDir,
+	resolveSyncBackend,
+	validateFolderSyncPickedPath,
+	type SyncBackend,
+} from "./sync-folder";
+export {
 	defaultSyncState,
 	getSyncStatePath,
 	readSyncState,

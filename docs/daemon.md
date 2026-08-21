@@ -9,7 +9,7 @@ Today the daemon has four responsibilities that run **in parallel** inside that 
 1. **Schedules** — cron-based prompts (summaries, inbox triage, etc.).
 2. **Chat inbound** — listen on an external chat provider (Slack via Socket Mode today) and run chat turns when users @mention the bot.
 3. **HTTP API server** — localhost API for the native macOS app and CLI.
-4. **iCloud settings sync** — debounced upload and periodic pull of the encrypted vault when enabled (see [icloud-sync.md](icloud-sync.md)).
+4. **Settings sync** — debounced upload and periodic pull of the encrypted vault when enabled (iCloud Drive or a user-picked folder; see [icloud-sync.md](icloud-sync.md)).
 
 Start it with `toby daemon start` (detached background) or `toby daemon run` (foreground, useful for debugging). Structured activity is appended to the **unified log** at `~/.toby/logs/toby.log` (JSON lines, `source: "daemon"`, shared buffering and rotation across all subsystems).
 

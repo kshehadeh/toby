@@ -11,6 +11,7 @@ import {
 import {
 	type SyncBlobStore,
 	type SyncHistoryItem,
+	createFilesystemSyncBlobStore,
 	isICloudDriveFolderAvailable,
 	resolveSyncVaultDir,
 } from "./sync-blob-store";
@@ -28,6 +29,14 @@ import {
 	markSyncDirty,
 	shouldPushNow,
 } from "./sync-dirty";
+import {
+	type SyncBackend,
+	folderUnavailableMessage,
+	isFolderSyncPickedAvailable,
+	resolveFolderSyncVaultDir,
+	resolveSyncBackend,
+	validateFolderSyncPickedPath,
+} from "./sync-folder";
 import {
 	createNativeAwareSyncBlobStore,
 	nativeICloudStatus,
@@ -47,10 +56,14 @@ import {
 import { type SyncState, readSyncState, writeSyncState } from "./sync-state";
 
 export type SyncEnableMode = "create" | "join" | "replace";
+export type { SyncBackend };
 
 export interface SyncStatus {
 	enabled: boolean;
 	iCloudAvailable: boolean;
+	backend: SyncBackend;
+	folderPath?: string;
+	storeAvailable: boolean;
 	deviceId: string;
 	deviceName: string;
 	vaultPath: string;
@@ -90,6 +103,19 @@ export function getSyncBlobStore(): SyncBlobStore {
 	if (injectedStore) {
 		return injectedStore;
 	}
+	if (process.env.TOBY_SYNC_DIR?.trim()) {
+		return createFilesystemSyncBlobStore(resolveSyncVaultDir());
+	}
+	const state = readSyncState();
+	if (resolveSyncBackend(state.backend) === "folder") {
+		const picked = state.folderPath?.trim();
+		if (!picked) {
+			return createFilesystemSyncBlobStore(
+				resolveFolderSyncVaultDir("/nonexistent-toby-sync-folder"),
+			);
+		}
+		return createFilesystemSyncBlobStore(resolveFolderSyncVaultDir(picked));
+	}
 	return createNativeAwareSyncBlobStore();
 }
 
@@ -115,11 +141,17 @@ export async function getSyncStatus(
 	store: SyncBlobStore = getSyncBlobStore(),
 ): Promise<SyncStatus> {
 	const state = readSyncState();
+	const backend = resolveSyncBackend(state.backend);
 	const remote = await store.readCurrent().catch(() => null);
 	const nativeStatus = await nativeICloudStatus().catch(() => null);
+	const iCloudAvailable =
+		nativeStatus?.available ?? isICloudDriveFolderAvailable();
 	return {
 		enabled: state.enabled,
-		iCloudAvailable: nativeStatus?.available ?? isICloudDriveFolderAvailable(),
+		iCloudAvailable,
+		backend,
+		folderPath: backend === "folder" ? state.folderPath : undefined,
+		storeAvailable: isStoreAvailable(state, iCloudAvailable),
 		deviceId: state.deviceId,
 		deviceName: getDeviceName(),
 		vaultPath: store.rootDir,
@@ -148,11 +180,33 @@ export async function enableSync(options: {
 	password: string;
 	mode?: SyncEnableMode;
 	store?: SyncBlobStore;
+	backend?: SyncBackend;
+	folderPath?: string;
 }): Promise<SyncStatus> {
 	const password = options.password.trim();
 	if (!password) {
 		throw new Error("Sync password cannot be empty.");
 	}
+	const prior = readSyncState();
+	const backend = resolveEnableBackend(options);
+	let folderPath: string | undefined;
+	if (backend === "folder") {
+		folderPath = validateFolderSyncPickedPath(
+			options.folderPath ?? prior.folderPath ?? "",
+		);
+	}
+
+	if (backend === "icloud") {
+		await assertICloudAvailable(options.store);
+	}
+
+	writeSyncState({
+		...prior,
+		backend,
+		folderPath,
+		lastError: null,
+	});
+
 	const store = options.store ?? getSyncBlobStore();
 	const remote = await store.readCurrent();
 	let mode = options.mode;
@@ -161,30 +215,39 @@ export async function enableSync(options: {
 	}
 
 	if (mode === "join" && !remote) {
+		writeSyncState(prior);
 		throw new Error(
-			"No iCloud vault was found. Create one from a Mac that already has your settings.",
+			"No sync vault was found. Create one from a Mac that already has your settings.",
 		);
 	}
 	if (mode === "create" && remote) {
+		writeSyncState(prior);
 		throw new Error(
-			"An iCloud vault already exists. Join it with the existing password, or replace the cloud copy from this Mac.",
+			"A sync vault already exists. Join it with the existing password, or replace the cloud copy from this Mac.",
 		);
 	}
 	if (mode === "replace" && remote && localConfigLooksEmpty()) {
+		writeSyncState(prior);
 		throw new Error(
-			"This Mac has no settings to upload. Join the existing iCloud vault instead of replacing it.",
+			"This Mac has no settings to upload. Join the existing vault instead of replacing it.",
 		);
 	}
 
 	if (mode === "join" && remote) {
-		await decryptSyncPayload(remote, password);
+		try {
+			await decryptSyncPayload(remote, password);
+		} catch (error) {
+			writeSyncState(prior);
+			throw error;
+		}
 	}
 
 	setSyncPassphrase(password);
-	const prior = readSyncState();
 	writeSyncState({
-		...prior,
+		...readSyncState(),
 		enabled: true,
+		backend,
+		folderPath,
 		vaultPath: store.rootDir,
 		lastError: null,
 	});
@@ -197,7 +260,7 @@ export async function enableSync(options: {
 		}
 	} catch (error) {
 		deleteSyncPassphrase();
-		writeSyncState({ ...readSyncState(), enabled: false });
+		writeSyncState({ ...prior, enabled: false });
 		throw error;
 	}
 
@@ -234,6 +297,10 @@ export async function pushSnapshot(options?: {
 	if (!password) {
 		recordError(state, "Sync password is missing from Keychain.");
 		return { pushed: false, reason: "no-passphrase" };
+	}
+	if (!isFolderStoreReady(state)) {
+		recordError(state, folderUnavailableMessage(state.folderPath));
+		return { pushed: false, reason: "store-unavailable" };
 	}
 
 	const payload = buildSyncPayload();
@@ -286,13 +353,17 @@ export async function pullSnapshot(options?: {
 		return { applied: false, reason: "disabled" };
 	}
 	if (!options?.automatic && options?.confirm !== true) {
-		throw new Error("confirm must be true to apply a cloud snapshot.");
+		throw new Error("confirm must be true to apply a sync snapshot.");
 	}
 
 	const password = getSyncPassphrase();
 	if (!password) {
 		recordError(state, "Sync password is missing from Keychain.");
 		return { applied: false, reason: "no-passphrase" };
+	}
+	if (!isFolderStoreReady(state)) {
+		recordError(state, folderUnavailableMessage(state.folderPath));
+		return { applied: false, reason: "store-unavailable" };
 	}
 
 	const remote = await store.readCurrent();
@@ -389,7 +460,7 @@ async function applyRemoteEnvelope(
 	try {
 		parsed = JSON.parse(plaintext);
 	} catch {
-		throw new Error("Cloud vault payload is not valid JSON.");
+		throw new Error("Sync vault payload is not valid JSON.");
 	}
 	const payload = parseSyncPayload(parsed);
 	const local = readConfigRaw();
@@ -449,6 +520,54 @@ function recordError(state: SyncState, message: string): void {
 	writeSyncState({ ...state, lastError: message });
 }
 
+function resolveEnableBackend(options: {
+	backend?: SyncBackend;
+	folderPath?: string;
+}): SyncBackend {
+	if (options.backend) {
+		return options.backend;
+	}
+	if (options.folderPath?.trim()) {
+		return "folder";
+	}
+	return "icloud";
+}
+
+async function assertICloudAvailable(
+	injectedStore?: SyncBlobStore,
+): Promise<void> {
+	if (injectedStore || process.env.TOBY_SYNC_DIR?.trim()) {
+		return;
+	}
+	const nativeStatus = await nativeICloudStatus().catch(() => null);
+	const available = nativeStatus?.available ?? isICloudDriveFolderAvailable();
+	if (!available) {
+		throw new Error(
+			"iCloud Drive is not available. Turn it on in System Settings, or choose a folder.",
+		);
+	}
+}
+
+function isStoreAvailable(state: SyncState, iCloudAvailable: boolean): boolean {
+	if (process.env.TOBY_SYNC_DIR?.trim()) {
+		return true;
+	}
+	if (resolveSyncBackend(state.backend) === "folder") {
+		return isFolderSyncPickedAvailable(state.folderPath);
+	}
+	return iCloudAvailable;
+}
+
+function isFolderStoreReady(state: SyncState): boolean {
+	if (resolveSyncBackend(state.backend) !== "folder") {
+		return true;
+	}
+	if (process.env.TOBY_SYNC_DIR?.trim()) {
+		return true;
+	}
+	return isFolderSyncPickedAvailable(state.folderPath);
+}
+
 export function resolveSyncVaultDirForStatus(): string {
-	return resolveSyncVaultDir();
+	return getSyncBlobStore().rootDir;
 }

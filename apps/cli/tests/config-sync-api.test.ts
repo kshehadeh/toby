@@ -188,9 +188,89 @@ describe("POST /api/config/sync", () => {
 				null,
 			);
 			expect(res.status).toBe(200);
-			const body = (await res.json()) as { enabled: boolean; deviceId: string };
+			const body = (await res.json()) as {
+				enabled: boolean;
+				deviceId: string;
+				backend: string;
+				storeAvailable: boolean;
+			};
 			expect(body.enabled).toBe(false);
 			expect(body.deviceId.length).toBeGreaterThan(0);
+			expect(body.backend).toBe("icloud");
+			expect(body.storeAvailable).toBe(true);
+		});
+	});
+
+	it("enables folder backend via HTTP", async () => {
+		await withTempDirs(async () => {
+			const previousSyncDir = process.env.TOBY_SYNC_DIR;
+			Reflect.deleteProperty(process.env, "TOBY_SYNC_DIR");
+			const picked = fs.mkdtempSync(
+				path.join(os.tmpdir(), "toby-sync-api-picked-"),
+			);
+			try {
+				writeConfig({
+					integrations: {},
+					personas: [],
+					defaultPersona: "HttpFolder",
+				});
+				writeCredentials({ ai: { openai: { token: "sk-http-folder" } } });
+				const enableRes = await handleWebRequest(
+					new Request("http://127.0.0.1/api/config/sync/enable", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							password: "vault",
+							mode: "create",
+							backend: "folder",
+							folderPath: picked,
+						}),
+					}),
+					null,
+				);
+				expect(enableRes.status).toBe(200);
+				const enabled = (await enableRes.json()) as {
+					enabled: boolean;
+					backend: string;
+					folderPath: string;
+					storeAvailable: boolean;
+				};
+				expect(enabled.enabled).toBe(true);
+				expect(enabled.backend).toBe("folder");
+				expect(enabled.folderPath).toBe(path.resolve(picked));
+				expect(enabled.storeAvailable).toBe(true);
+
+				const statusRes = await handleWebRequest(
+					new Request("http://127.0.0.1/api/config/sync"),
+					null,
+				);
+				const status = (await statusRes.json()) as { backend: string };
+				expect(status.backend).toBe("folder");
+			} finally {
+				if (previousSyncDir === undefined) {
+					Reflect.deleteProperty(process.env, "TOBY_SYNC_DIR");
+				} else {
+					process.env.TOBY_SYNC_DIR = previousSyncDir;
+				}
+				fs.rmSync(picked, { recursive: true, force: true });
+			}
+		});
+	});
+
+	it("rejects folder backend without folderPath", async () => {
+		await withTempDirs(async () => {
+			const res = await handleWebRequest(
+				new Request("http://127.0.0.1/api/config/sync/enable", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						password: "vault",
+						backend: "folder",
+					}),
+				}),
+				null,
+			);
+			expect(res.status).toBe(400);
 		});
 	});
 });

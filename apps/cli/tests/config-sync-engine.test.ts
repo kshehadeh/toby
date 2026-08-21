@@ -12,15 +12,19 @@ import {
 	writeCredentials,
 } from "@toby/core/config/index";
 import {
+	FOLDER_SYNC_RELATIVE,
 	SYNC_HISTORY_LIMIT,
 	createFilesystemSyncBlobStore,
 	disableSync,
 	enableSync,
+	getSyncStatus,
 	isSyncDirty,
 	pullSnapshot,
 	pushSnapshot,
+	readSyncState,
 	resetSyncDirty,
 	resetSyncPassphraseStore,
+	resolveFolderSyncVaultDir,
 	restoreSyncHistory,
 	runSyncTick,
 	setSyncBlobStoreForTests,
@@ -326,4 +330,158 @@ describe("config sync engine", () => {
 			expect(await store.readCurrent()).toBeNull();
 		});
 	});
+
+	it("folder backend create and join share a user-picked directory", async () => {
+		await withFolderSyncHome(async ({ picked }) => {
+			writeConfig({
+				integrations: {},
+				personas: [],
+				defaultPersona: "FolderToby",
+			});
+			writeCredentials({ ai: { openai: { token: "sk-folder" } } });
+
+			const status = await enableSync({
+				password: "vault",
+				mode: "create",
+				backend: "folder",
+				folderPath: picked,
+			});
+			expect(status.enabled).toBe(true);
+			expect(status.backend).toBe("folder");
+			expect(status.folderPath).toBe(path.resolve(picked));
+			expect(status.storeAvailable).toBe(true);
+			const vaultFile = path.join(
+				resolveFolderSyncVaultDir(picked),
+				"vault.json",
+			);
+			expect(fs.existsSync(vaultFile)).toBe(true);
+			expect(status.vaultPath.endsWith(FOLDER_SYNC_RELATIVE)).toBe(true);
+
+			const firstHome = process.env.TOBY_DIR as string;
+			const secondHome = fs.mkdtempSync(
+				path.join(os.tmpdir(), "toby-sync-folder-b-"),
+			);
+			process.env.TOBY_DIR = secondHome;
+			clearCredentialsCache();
+			clearMemoryCredentialsKeyStore();
+			resetCredentialsKeyStoreCache();
+			resetSyncPassphraseStore();
+			resetSyncDirty();
+			writeConfig({ integrations: {}, personas: [] });
+			writeCredentials({});
+
+			await enableSync({
+				password: "vault",
+				mode: "join",
+				backend: "folder",
+				folderPath: picked,
+			});
+			expect(readCredentials().ai?.openai?.token).toBe("sk-folder");
+			expect(readConfig().defaultPersona).toBe("FolderToby");
+			expect(readSyncState().backend).toBe("folder");
+
+			process.env.TOBY_DIR = firstHome;
+			fs.rmSync(secondHome, { recursive: true, force: true });
+		});
+	});
+
+	it("refuses a folder path inside the Toby home directory", async () => {
+		await withFolderSyncHome(async ({ tobyDir }) => {
+			writeConfig({ integrations: {}, personas: [] });
+			writeCredentials({});
+			const nested = path.join(tobyDir, "inside");
+			fs.mkdirSync(nested);
+			await expect(
+				enableSync({
+					password: "vault",
+					mode: "create",
+					backend: "folder",
+					folderPath: nested,
+				}),
+			).rejects.toThrow(/Toby home directory/);
+			expect(readSyncState().enabled).toBe(false);
+		});
+	});
+
+	it("refuses a relative folder path", async () => {
+		await withFolderSyncHome(async () => {
+			writeConfig({ integrations: {}, personas: [] });
+			writeCredentials({});
+			await expect(
+				enableSync({
+					password: "vault",
+					mode: "create",
+					backend: "folder",
+					folderPath: "relative-sync",
+				}),
+			).rejects.toThrow(/absolute path/);
+		});
+	});
+
+	it("records lastError when the sync folder is unmounted and stays enabled", async () => {
+		await withFolderSyncHome(async ({ picked }) => {
+			writeConfig({ integrations: {}, personas: [] });
+			writeCredentials({ ai: { openai: { token: "sk" } } });
+			await enableSync({
+				password: "vault",
+				mode: "create",
+				backend: "folder",
+				folderPath: picked,
+			});
+			fs.rmSync(picked, { recursive: true, force: true });
+			const result = await pushSnapshot({ force: true });
+			expect(result.pushed).toBe(false);
+			expect(result.reason).toBe("store-unavailable");
+			expect(readSyncState().enabled).toBe(true);
+			expect(readSyncState().lastError).toMatch(/not available/);
+			const status = await getSyncStatus();
+			expect(status.storeAvailable).toBe(false);
+		});
+	});
 });
+
+function withFolderSyncHome(
+	run: (ctx: { tobyDir: string; picked: string }) => Promise<void>,
+): Promise<void> {
+	const previousTobyDir = process.env.TOBY_DIR;
+	const previousSyncDir = process.env.TOBY_SYNC_DIR;
+	const previousBackend = process.env.TOBY_CREDENTIALS_KEY_BACKEND;
+	const tobyDir = fs.mkdtempSync(
+		path.join(os.tmpdir(), "toby-sync-folder-home-"),
+	);
+	const picked = fs.mkdtempSync(path.join(os.tmpdir(), "toby-sync-picked-"));
+	process.env.TOBY_DIR = tobyDir;
+	Reflect.deleteProperty(process.env, "TOBY_SYNC_DIR");
+	process.env.TOBY_CREDENTIALS_KEY_BACKEND = "memory";
+	clearCredentialsCache();
+	clearMemoryCredentialsKeyStore();
+	resetCredentialsKeyStoreCache();
+	resetSyncPassphraseStore();
+	resetSyncDirty();
+	setSyncBlobStoreForTests(null);
+	return run({ tobyDir, picked }).finally(() => {
+		clearCredentialsCache();
+		clearMemoryCredentialsKeyStore();
+		resetCredentialsKeyStoreCache();
+		resetSyncPassphraseStore();
+		resetSyncDirty();
+		setSyncBlobStoreForTests(null);
+		if (previousTobyDir === undefined) {
+			Reflect.deleteProperty(process.env, "TOBY_DIR");
+		} else {
+			process.env.TOBY_DIR = previousTobyDir;
+		}
+		if (previousSyncDir === undefined) {
+			Reflect.deleteProperty(process.env, "TOBY_SYNC_DIR");
+		} else {
+			process.env.TOBY_SYNC_DIR = previousSyncDir;
+		}
+		if (previousBackend === undefined) {
+			Reflect.deleteProperty(process.env, "TOBY_CREDENTIALS_KEY_BACKEND");
+		} else {
+			process.env.TOBY_CREDENTIALS_KEY_BACKEND = previousBackend;
+		}
+		fs.rmSync(tobyDir, { recursive: true, force: true });
+		fs.rmSync(picked, { recursive: true, force: true });
+	});
+}

@@ -50,7 +50,8 @@ struct SettingsItem: Decodable, Identifiable {
 	/// daemon configure-sections API).
 	static let personasSectionKey = "personas"
 
-	/// Client-only iCloud settings sync tab (daemon `/api/config/sync*` + native I/O).
+	/// Client-only settings sync tab (daemon `/api/config/sync*` + native I/O).
+	/// Key remains `icloud` for stable tab identity across upgrades.
 	static let iCloudSectionKey = "icloud"
 
 	static var appearanceSection: SettingsItem {
@@ -99,7 +100,7 @@ struct SettingsItem: Decodable, Identifiable {
 
 	static var iCloudSection: SettingsItem {
 		SettingsItem(
-			label: "iCloud",
+			label: "Sync",
 			kind: .section,
 			key: iCloudSectionKey,
 			navKey: iCloudSectionKey,

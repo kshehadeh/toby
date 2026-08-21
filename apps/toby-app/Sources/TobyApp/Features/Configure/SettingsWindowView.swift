@@ -60,7 +60,7 @@ struct SettingsWindowView: View {
 						.frame(maxWidth: .infinity, maxHeight: .infinity)
 				}
 			} else if let errorMessage = store.errorMessage, store.settingsSections.isEmpty {
-				// General, iCloud, and Personas remain available even if configure API fails.
+				// General, Sync, and Personas remain available even if configure API fails.
 				VStack(spacing: 0) {
 					tabBar
 					Divider().background(AppTheme.separator)

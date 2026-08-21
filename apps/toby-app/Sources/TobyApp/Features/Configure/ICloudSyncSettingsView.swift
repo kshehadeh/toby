@@ -1,6 +1,7 @@
+import AppKit
 import SwiftUI
 
-/// Client-orchestrated iCloud settings sync tab. Crypto and apply/restore live
+/// Client-orchestrated settings sync tab. Crypto and apply/restore live
 /// in the daemon; this view only drives `/api/config/sync*`.
 struct ICloudSyncSettingsView: View {
 	var client: TobyClient = TobyClient()
@@ -12,20 +13,38 @@ struct ICloudSyncSettingsView: View {
 	@State private var history: [ConfigSyncHistoryItem] = []
 	@State private var password = ""
 	@State private var confirmPassword = ""
+	@State private var selectedBackend: String
+	@State private var folderPath: String
+	@State private var didSeedTransport = false
 	@State private var isWorking = false
 	@State private var localError: String?
 	@State private var pendingDisable = false
 	@State private var pendingRestore: ConfigSyncHistoryItem?
 
+	init(
+		client: TobyClient = TobyClient(),
+		previewStatus: ConfigSyncStatus? = nil,
+		previewHistory: [ConfigSyncHistoryItem] = []
+	) {
+		self.client = client
+		self.previewStatus = previewStatus
+		self.previewHistory = previewHistory
+		_status = State(initialValue: previewStatus)
+		_history = State(initialValue: previewHistory)
+		_selectedBackend = State(initialValue: Self.initialBackend(previewStatus))
+		_folderPath = State(initialValue: previewStatus?.folderPath ?? "")
+		_didSeedTransport = State(initialValue: previewStatus != nil)
+	}
+
 	var body: some View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 28) {
 				VStack(alignment: .leading, spacing: 6) {
-					Text("iCloud")
+					Text("Sync")
 						.font(.title2.weight(.semibold))
 						.foregroundStyle(AppTheme.primaryText)
 					Text(
-						"Sync settings and credentials across your Macs through iCloud Drive. The cloud copy is encrypted with a password you choose. Chats, memories, recordings, skills, and schedules stay on this Mac."
+						"Sync settings and credentials across your Macs through iCloud Drive or a folder you already replicate (Dropbox, Google Drive, NAS). The copy is encrypted with a password you choose. Chats, memories, recordings, skills, and schedules stay on this Mac."
 					)
 					.font(.subheadline)
 					.foregroundStyle(AppTheme.secondaryText)
@@ -42,8 +61,8 @@ struct ICloudSyncSettingsView: View {
 
 				SettingsCard {
 					SettingsRow(
-						title: "Sync settings with iCloud",
-						description: driveDescription,
+						title: "Sync settings across Macs",
+						description: transportDescription,
 						showsDivider: !(resolvedStatus?.enabled ?? false)
 					) {
 						if resolvedStatus?.enabled == true {
@@ -77,13 +96,13 @@ struct ICloudSyncSettingsView: View {
 				await refresh()
 			}
 		}
-		.alert("Disable iCloud sync?", isPresented: $pendingDisable) {
+		.alert("Disable settings sync?", isPresented: $pendingDisable) {
 			Button("Cancel", role: .cancel) { pendingDisable = false }
 			Button("Disable", role: .destructive) {
 				Task { await disable() }
 			}
 		} message: {
-			Text("This Mac will stop uploading and downloading settings. The iCloud vault is left in place unless you delete it from the command line.")
+			Text("This Mac will stop uploading and downloading settings. The vault is left in place unless you delete it from the command line.")
 		}
 		.alert(
 			"Restore this snapshot?",
@@ -99,7 +118,7 @@ struct ICloudSyncSettingsView: View {
 				}
 			}
 		} message: {
-			Text("This replaces settings on this Mac and uploads the snapshot as the current iCloud vault.")
+			Text("This replaces settings on this Mac and uploads the snapshot as the current vault.")
 		}
 	}
 
@@ -111,12 +130,22 @@ struct ICloudSyncSettingsView: View {
 		previewStatus == nil ? history : previewHistory
 	}
 
-	private var driveDescription: String {
-		if resolvedStatus?.iCloudAvailable == false {
-			return "Sign in to iCloud and turn on iCloud Drive in System Settings to use sync."
-		}
+	private var usingFolder: Bool {
+		selectedBackend == "folder"
+	}
+
+	private var transportDescription: String {
 		if resolvedStatus?.enabled == true {
+			if resolvedStatus?.resolvedBackend == "folder" {
+				return "This Mac uploads an encrypted snapshot after settings change and pulls updates from the chosen folder."
+			}
 			return "This Mac uploads an encrypted snapshot after settings change and pulls updates automatically."
+		}
+		if usingFolder {
+			return "Choose a private folder you already sync to your other Macs. Toby writes an encrypted vault under Toby/config-sync inside it."
+		}
+		if resolvedStatus?.iCloudAvailable == false {
+			return "Sign in to iCloud and turn on iCloud Drive in System Settings, or choose a folder instead."
 		}
 		if resolvedStatus?.hasRemote == true {
 			return "An existing vault was found. Enter the password from your other Mac to join."
@@ -137,17 +166,41 @@ struct ICloudSyncSettingsView: View {
 	@ViewBuilder
 	private var enableForm: some View {
 		VStack(alignment: .leading, spacing: 12) {
+			Picker("Transport", selection: $selectedBackend) {
+				Text("iCloud Drive").tag("icloud")
+				Text("Folder").tag("folder")
+			}
+			.pickerStyle(.segmented)
+			.disabled(isWorking)
+			.accessibilityIdentifier("icloud-sync-backend")
+
+			if usingFolder {
+				HStack(alignment: .center, spacing: 8) {
+					Text(folderPath.isEmpty ? "No folder selected" : folderPath)
+						.font(.caption)
+						.foregroundStyle(folderPath.isEmpty ? AppTheme.secondaryText : AppTheme.primaryText)
+						.lineLimit(1)
+						.truncationMode(.middle)
+						.frame(maxWidth: .infinity, alignment: .leading)
+						.help(folderPath)
+						.accessibilityIdentifier("icloud-sync-folder-path")
+					Button("Choose…") { presentFolderChooser() }
+						.disabled(isWorking)
+						.accessibilityIdentifier("icloud-sync-choose-folder")
+				}
+			}
+
 			SecureField("Sync password", text: $password)
 				.textFieldStyle(.roundedBorder)
-				.disabled(isWorking || resolvedStatus?.iCloudAvailable == false)
+				.disabled(isWorking)
 				.accessibilityIdentifier("icloud-sync-password")
 			SecureField("Confirm password", text: $confirmPassword)
 				.textFieldStyle(.roundedBorder)
-				.disabled(isWorking || resolvedStatus?.iCloudAvailable == false)
+				.disabled(isWorking)
 				.accessibilityIdentifier("icloud-sync-password-confirm")
 			HStack {
 				Spacer()
-				Button(resolvedStatus?.hasRemote == true ? "Join iCloud vault" : "Enable iCloud sync") {
+				Button(enableButtonTitle) {
 					Task { await enable() }
 				}
 				.disabled(!canEnable)
@@ -157,11 +210,18 @@ struct ICloudSyncSettingsView: View {
 		.padding(14)
 	}
 
+	private var enableButtonTitle: String {
+		resolvedStatus?.hasRemote == true ? "Join vault" : "Enable sync"
+	}
+
 	private var canEnable: Bool {
-		!isWorking
-			&& resolvedStatus?.iCloudAvailable != false
-			&& !password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-			&& password == confirmPassword
+		guard !isWorking else { return false }
+		let trimmed = password.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard !trimmed.isEmpty, trimmed == confirmPassword else { return false }
+		if usingFolder {
+			return !folderPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+		}
+		return resolvedStatus?.iCloudAvailable != false
 	}
 
 	private var statusCard: some View {
@@ -169,6 +229,13 @@ struct ICloudSyncSettingsView: View {
 			VStack(alignment: .leading, spacing: 12) {
 				SettingsSectionHeader(title: "Status")
 				if let status = resolvedStatus {
+					statusLine(
+						"Transport",
+						status.resolvedBackend == "folder" ? "Folder" : "iCloud Drive"
+					)
+					if let folder = status.folderPath, !folder.isEmpty {
+						statusLine("Folder", folder)
+					}
 					statusLine("This Mac", status.deviceName)
 					if let writer = status.lastWriterDeviceName {
 						statusLine("Last writer", writer)
@@ -243,7 +310,24 @@ struct ICloudSyncSettingsView: View {
 				.font(.subheadline)
 				.foregroundStyle(AppTheme.primaryText)
 				.textSelection(.enabled)
+				.lineLimit(1)
+				.truncationMode(.middle)
 		}
+	}
+
+	private func presentFolderChooser() {
+		let panel = NSOpenPanel()
+		panel.canChooseFiles = false
+		panel.canChooseDirectories = true
+		panel.canCreateDirectories = true
+		panel.allowsMultipleSelection = false
+		if !folderPath.isEmpty {
+			panel.directoryURL = URL(fileURLWithPath: folderPath)
+		}
+		panel.prompt = "Choose"
+		panel.message = "Choose a private folder you already sync to your other Macs."
+		guard panel.runModal() == .OK, let url = panel.url else { return }
+		folderPath = url.path
 	}
 
 	private func enable() async {
@@ -257,7 +341,13 @@ struct ICloudSyncSettingsView: View {
 		defer { isWorking = false }
 		do {
 			let mode = resolvedStatus?.hasRemote == true ? "join" : "create"
-			status = try await client.enableConfigSync(password: trimmed, mode: mode)
+			let path = folderPath.trimmingCharacters(in: .whitespacesAndNewlines)
+			status = try await client.enableConfigSync(
+				password: trimmed,
+				mode: mode,
+				backend: selectedBackend,
+				folderPath: usingFolder ? path : nil
+			)
 			password = ""
 			confirmPassword = ""
 			await loadHistory()
@@ -317,11 +407,28 @@ struct ICloudSyncSettingsView: View {
 
 	private func refresh() async {
 		do {
-			status = try await client.fetchConfigSyncStatus()
+			let next = try await client.fetchConfigSyncStatus()
+			applyFetchedStatus(next)
 			await loadHistory()
 			localError = nil
 		} catch {
 			localError = error.localizedDescription
+		}
+	}
+
+	private func applyFetchedStatus(_ next: ConfigSyncStatus) {
+		status = next
+		if !didSeedTransport {
+			selectedBackend = Self.initialBackend(next)
+			if let path = next.folderPath, !path.isEmpty {
+				folderPath = path
+			}
+			didSeedTransport = true
+		} else if next.enabled {
+			selectedBackend = next.resolvedBackend
+			if let path = next.folderPath, !path.isEmpty {
+				folderPath = path
+			}
 		}
 	}
 
@@ -331,5 +438,15 @@ struct ICloudSyncSettingsView: View {
 			return
 		}
 		history = (try? await client.listConfigSyncHistory()) ?? []
+	}
+
+	private static func initialBackend(_ status: ConfigSyncStatus?) -> String {
+		if let backend = status?.backend, backend == "folder" {
+			return "folder"
+		}
+		if status?.iCloudAvailable == false {
+			return "folder"
+		}
+		return "icloud"
 	}
 }

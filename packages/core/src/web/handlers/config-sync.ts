@@ -1,8 +1,10 @@
 import {
+	type SyncBackend,
 	type SyncEnableMode,
 	disableSync,
 	enableSync,
 	getSyncStatus,
+	isSyncBackend,
 	listSyncHistory,
 	pullSnapshot,
 	pushSnapshot,
@@ -24,6 +26,8 @@ export async function handleConfigSyncEnable(req: Request): Promise<Response> {
 	const body = await readJsonBody<{
 		password?: string;
 		mode?: string;
+		backend?: string;
+		folderPath?: string;
 	}>(req);
 	if (!body) {
 		return errorResponse("Invalid JSON body", 400);
@@ -33,8 +37,17 @@ export async function handleConfigSyncEnable(req: Request): Promise<Response> {
 		return errorResponse("password is required", 400);
 	}
 	const mode = parseEnableMode(body.mode);
+	const backend = parseEnableBackend(body.backend);
+	if (body.backend !== undefined && body.backend !== "" && !backend) {
+		return errorResponse("backend must be icloud or folder", 400);
+	}
+	const folderPath =
+		typeof body.folderPath === "string" ? body.folderPath : undefined;
+	if (backend === "folder" && !folderPath?.trim()) {
+		return errorResponse("folderPath is required when backend is folder", 400);
+	}
 	try {
-		const status = await enableSync({ password, mode });
+		const status = await enableSync({ password, mode, backend, folderPath });
 		return jsonResponse(status);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
@@ -74,7 +87,7 @@ export async function handleConfigSyncPull(req: Request): Promise<Response> {
 		return errorResponse("Invalid JSON body", 400);
 	}
 	if (body.confirm !== true) {
-		return errorResponse("confirm must be true to apply a cloud snapshot", 400);
+		return errorResponse("confirm must be true to apply a sync snapshot", 400);
 	}
 	try {
 		const result = await pullSnapshot({ confirm: true });
@@ -132,4 +145,12 @@ function parseEnableMode(value: unknown): SyncEnableMode | undefined {
 		return value;
 	}
 	return undefined;
+}
+
+function parseEnableBackend(value: unknown): SyncBackend | undefined {
+	if (typeof value !== "string") {
+		return undefined;
+	}
+	const trimmed = value.trim();
+	return isSyncBackend(trimmed) ? trimmed : undefined;
 }

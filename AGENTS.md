@@ -16,7 +16,7 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | -------- | ------- |
 | [`docs/architecture.md`](docs/architecture.md) | Monorepo layout, runtime entrypoints, config paths, native bridge. |
 | [`docs/security.md`](docs/security.md) | Credentials encryption (Keychain), backup/restore, iCloud sync threat model. |
-| [`docs/icloud-sync.md`](docs/icloud-sync.md) | Encrypted iCloud Drive settings snapshots across Macs. |
+| [`docs/icloud-sync.md`](docs/icloud-sync.md) | Encrypted settings snapshots across Macs (iCloud Drive or a shared folder). |
 | [`docs/commands.md`](docs/commands.md) | CLI commands, app launch, config backup/restore/sync. |
 | [`docs/integrations.md`](docs/integrations.md) | `IntegrationModule` registry, first-party plugins, global tools. |
 | [`docs/plugin-protocol.md`](docs/plugin-protocol.md) | Installable plugin contract (v1): subcommands, JSON, discovery. |

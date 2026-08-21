@@ -10,11 +10,11 @@ struct ICloudSyncSettingsTests {
 	func iCloudSectionProperties() {
 		let section = SettingsItem.iCloudSection
 		#expect(section.key == SettingsItem.iCloudSectionKey)
-		#expect(section.label == "iCloud")
+		#expect(section.label == "Sync")
 		#expect(section.kind == .section)
 		#expect(section.navKey == SettingsItem.iCloudSectionKey)
 		#expect(SettingsItem.iCloudSectionKey == "icloud")
-		#expect(SettingsSidebarIcon.systemName(for: section) == "icloud")
+		#expect(SettingsSidebarIcon.systemName(for: section) == "arrow.triangle.2.circlepath")
 	}
 
 	@Test("iCloud tab is a client-only settings tab")
@@ -26,8 +26,8 @@ struct ICloudSyncSettingsTests {
 		)
 	}
 
-	@Test("settings view shows title and disabled enable when Drive is unavailable")
-	func enableDisabledWhenDriveUnavailable() throws {
+	@Test("settings view offers a folder when Drive is unavailable")
+	func folderOfferedWhenDriveUnavailable() throws {
 		let status = ConfigSyncStatus(
 			enabled: false,
 			iCloudAvailable: false,
@@ -46,10 +46,39 @@ struct ICloudSyncSettingsTests {
 			remote: nil
 		)
 		let view = ICloudSyncSettingsView(previewStatus: status)
-		let title = try view.inspect().find(text: "iCloud")
-		#expect(try title.string() == "iCloud")
+		let title = try view.inspect().find(text: "Sync")
+		#expect(try title.string() == "Sync")
 		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-enable")
-		_ = try view.inspect().find(text: "Sign in to iCloud and turn on iCloud Drive in System Settings to use sync.")
+		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-backend")
+		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-choose-folder")
+		_ = try view.inspect().find(text: "Choose a private folder you already sync to your other Macs. Toby writes an encrypted vault under Toby/config-sync inside it.")
+	}
+
+	@Test("folder path preview still shows enable when Drive is unavailable")
+	func folderPathDoesNotRequireICloud() throws {
+		let status = ConfigSyncStatus(
+			enabled: false,
+			iCloudAvailable: false,
+			backend: "folder",
+			folderPath: "/tmp/dropbox",
+			storeAvailable: true,
+			deviceId: "test-device",
+			deviceName: "Test Mac",
+			vaultPath: "/tmp/dropbox/Toby/config-sync",
+			lastPushAt: nil,
+			lastPullAt: nil,
+			lastError: nil,
+			lastWriterDeviceName: nil,
+			lastWriterDeviceId: nil,
+			lastAckedLamport: 0,
+			lastAckedContentHash: "",
+			dirty: false,
+			hasRemote: false,
+			remote: nil
+		)
+		let view = ICloudSyncSettingsView(previewStatus: status)
+		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-enable")
+		_ = try view.inspect().find(text: "/tmp/dropbox")
 	}
 
 	@Test("enabled status shows sync now and pull now")

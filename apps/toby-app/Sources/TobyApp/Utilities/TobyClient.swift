@@ -1121,12 +1121,19 @@ struct TobyClient {
 		return try JSONDecoder().decode(ConfigSyncStatus.self, from: data)
 	}
 
-	func enableConfigSync(password: String, mode: String? = nil) async throws -> ConfigSyncStatus {
+	func enableConfigSync(
+		password: String,
+		mode: String? = nil,
+		backend: String? = nil,
+		folderPath: String? = nil
+	) async throws -> ConfigSyncStatus {
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/sync/enable"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 		var body: [String: Any] = ["password": password]
 		if let mode { body["mode"] = mode }
+		if let backend { body["backend"] = backend }
+		if let folderPath { body["folderPath"] = folderPath }
 		request.httpBody = try JSONSerialization.data(withJSONObject: body)
 		let (data, response) = try await URLSession.shared.data(for: request)
 		try validate(response: response, data: data)
@@ -1207,6 +1214,9 @@ struct ConfigSyncRemoteInfo: Decodable, Equatable {
 struct ConfigSyncStatus: Decodable, Equatable {
 	var enabled: Bool
 	var iCloudAvailable: Bool
+	var backend: String? = nil
+	var folderPath: String? = nil
+	var storeAvailable: Bool? = nil
 	var deviceId: String
 	var deviceName: String
 	var vaultPath: String
@@ -1220,6 +1230,9 @@ struct ConfigSyncStatus: Decodable, Equatable {
 	var dirty: Bool
 	var hasRemote: Bool
 	var remote: ConfigSyncRemoteInfo?
+
+	var resolvedBackend: String { backend ?? "icloud" }
+	var resolvedStoreAvailable: Bool { storeAvailable ?? iCloudAvailable }
 }
 
 struct ConfigSyncHistoryItem: Decodable, Equatable, Identifiable {

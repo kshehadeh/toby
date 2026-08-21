@@ -53,7 +53,7 @@ export async function decryptSyncPayload(
 		return await decryptBackupPayload(backup, password);
 	} catch {
 		throw new Error(
-			"Could not decrypt the iCloud vault. Check that the password is correct.",
+			"Could not decrypt the sync vault. Check that the password is correct.",
 		);
 	}
 }

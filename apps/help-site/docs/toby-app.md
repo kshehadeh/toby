@@ -34,8 +34,8 @@ For endpoint-level documentation, see [Local APIs](./api/overview): the daemon [
 
 The CLI equivalents for backup/restore are `toby config backup` and `toby config restore`. See
 [Security](./security) for what is included and how encryption works. To share
-settings across Macs without copying a file, use **Settings → iCloud**
-([iCloud sync](./configuration/icloud-sync)).
+settings across Macs without copying a file, use **Settings → Sync**
+([Settings sync](./configuration/icloud-sync)).
 
 ## View menu
 

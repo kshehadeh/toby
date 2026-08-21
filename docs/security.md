@@ -125,15 +125,17 @@ depending on Keychain policy.
 - Deleting the Keychain item while leaving an encrypted file makes secrets
   unreadable until a password backup is restored or secrets are re-entered.
 - Copying only `credentials.json` to another Mac does **not** move the DEK;
-  use [backup/restore](#backup-and-restore) or [iCloud sync](#icloud-settings-sync)
+  use [backup/restore](#backup-and-restore) or [settings sync](#settings-sync)
   instead.
 
-## iCloud settings sync
+## Settings sync
 
-Multi-Mac sharing uses **iCloud Drive as a dumb blob store**. The cloud file is
-an AES-256-GCM + scrypt envelope (`format: "toby.config.sync.encrypted"`). Apple
-never sees plaintext secrets. After pull, credentials are re-wrapped with
-**this Mac’s** Keychain DEK.
+Multi-Mac sharing uses a **dumb blob store**: iCloud Drive by default, or a
+user-picked folder (Dropbox, Google Drive, NAS, …) when Drive is unavailable.
+The remote file is an AES-256-GCM + scrypt envelope
+(`format: "toby.config.sync.encrypted"`). The storage provider never sees
+plaintext secrets. After pull, credentials are re-wrapped with **this Mac’s**
+Keychain DEK.
 
 | Keychain field | Value |
 | -------------- | ----- |
@@ -142,8 +144,8 @@ never sees plaintext secrets. After pull, credentials are re-wrapped with
 
 Payload, clocks, history, denylist, and surfaces: [icloud-sync.md](icloud-sync.md).
 
-**Does not protect against** someone who has both the iCloud vault **and** the
-sync password. Forgotten password cannot be recovered from iCloud; re-enable
+**Does not protect against** someone who has both the vault file **and** the
+sync password. Forgotten password cannot be recovered from the vault; re-enable
 from a Mac that still has local secrets, or restore a `.tbybak`.
 
 ## Backup and restore
@@ -209,7 +211,7 @@ reimplements Keychain decrypt; it asks the daemon, which calls
 
 ## Related docs
 
-- [icloud-sync.md](icloud-sync.md) — encrypted iCloud Drive snapshots
+- [icloud-sync.md](icloud-sync.md) — encrypted settings snapshots (iCloud Drive or a shared folder)
 - [architecture.md](architecture.md) — local data layout
 - [commands.md](commands.md) — CLI backup/restore and `config sync` flags
 - [server-api.md](server-api.md) — HTTP backup/restore and sync endpoints

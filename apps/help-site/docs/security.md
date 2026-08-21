@@ -11,13 +11,13 @@ backup and restore work.
 ## What Toby protects
 
 Toby stores secrets **on your computer**. There is no Toby-hosted cloud for
-credentials. Optional [iCloud sync](./configuration/icloud-sync) stores only an
-**encrypted** snapshot in **your** iCloud Drive.
+credentials. Optional [settings sync](./configuration/icloud-sync) stores only an
+**encrypted** snapshot in **your** iCloud Drive or a folder you already sync.
 
 | Goal | How Toby handles it |
 | ---- | ------------------- |
 | Keep secrets out of plain text files | On macOS, `credentials.json` is **encrypted at rest** |
-| Let you move settings between Macs | **Password-protected** backup files (`.tbybak`) and optional **iCloud sync** |
+| Let you move settings between Macs | **Password-protected** backup files (`.tbybak`) and optional **settings sync** |
 | Avoid leaking keys in the UI | Settings shows masked values (`••••••`) for secrets |
 
 Toby does **not** replace full-disk encryption, a strong Mac login password, or
@@ -58,15 +58,15 @@ transparent while you use Toby.
   your secrets (the Keychain item does not travel with the file).
 - If the Keychain item is deleted and you have no backup, Toby cannot decrypt
   the file — re-enter secrets in Settings, restore a `.tbybak` backup, or join
-  [iCloud sync](./configuration/icloud-sync) from another Mac.
+  [settings sync](./configuration/icloud-sync) from another Mac.
 
-## iCloud sync
+## Settings sync
 
-**Settings → iCloud** can keep an encrypted copy of settings and secrets in
-iCloud Drive so your other Macs stay in sync. The wrapping password is stored in
-this Mac’s Keychain (`dev.toby.sync`), not in iCloud. See
-[iCloud sync](./configuration/icloud-sync) for setup, what is included, and
-password recovery.
+**Settings → Sync** can keep an encrypted copy of settings and secrets in
+iCloud Drive or a folder you already replicate so your other Macs stay in
+sync. The wrapping password is stored in this Mac’s Keychain (`dev.toby.sync`),
+not in the remote file. See [Settings sync](./configuration/icloud-sync) for
+setup, what is included, and password recovery.
 
 ## Backup and restore
 
@@ -121,6 +121,6 @@ secrets — choose a strong password and store the file carefully.
 ## Related
 
 - [Configuration overview](./configuration/overview) — paths and Settings map
-- [iCloud sync](./configuration/icloud-sync) — multi-Mac encrypted snapshots
+- [Settings sync](./configuration/icloud-sync) — multi-Mac encrypted snapshots
 - [Toby.app](./toby-app) — File menu backup/restore and Settings
 - [Configure and connect](./getting-started/configure-and-status) — setting up integrations

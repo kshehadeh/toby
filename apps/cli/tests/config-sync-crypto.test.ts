@@ -49,7 +49,7 @@ describe("config sync encryption", () => {
 		});
 		await expect(
 			decryptSyncPayload(encrypted, "wrong-password"),
-		).rejects.toThrow(/Could not decrypt the iCloud vault/);
+		).rejects.toThrow(/Could not decrypt the sync vault/);
 	});
 });
 

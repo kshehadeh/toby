@@ -12,7 +12,7 @@ Toby’s preferences live in **Toby.app → Settings**. This section documents *
 | Settings area | What it controls | Documented here? |
 | ------------- | ---------------- | ---------------- |
 | **General** | Home directory, start at login, menu bar icon, chat mode, theme, accent (app-local; not in `config.json`) | [Toby Mac App](../toby-app#settings) |
-| **iCloud** | Encrypted settings/credentials snapshots via iCloud Drive | [iCloud sync](./icloud-sync) |
+| **Sync** | Encrypted settings/credentials snapshots via iCloud Drive or a shared folder | [Settings sync](./icloud-sync) |
 | **Dashboard** | Summary persona; hide onboarding checklist (hide is app-local) | [Toby Mac App](../toby-app#settings) |
 | **AI** | OpenAI, Vercel AI Gateway, Ollama keys and endpoints | [AI providers](../ai-providers/overview) · [Set up AI](../getting-started/setup-ai) |
 | **Personas** | Instructions, default persona, model per persona | [Personas](../personas) |
