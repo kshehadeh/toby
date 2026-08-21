@@ -147,7 +147,7 @@ struct ICloudSyncSettingsView: View {
 		if resolvedStatus?.iCloudAvailable == false {
 			return "Sign in to iCloud and turn on iCloud Drive in System Settings, or choose a folder instead."
 		}
-		if resolvedStatus?.hasRemote == true {
+		if joiningExistingVault {
 			return "An existing vault was found. Enter the password from your other Mac to join."
 		}
 		return "Choose a password you will remember. It is required on every Mac that joins."
@@ -211,7 +211,24 @@ struct ICloudSyncSettingsView: View {
 	}
 
 	private var enableButtonTitle: String {
-		resolvedStatus?.hasRemote == true ? "Join vault" : "Enable sync"
+		joiningExistingVault ? "Join vault" : "Enable sync"
+	}
+
+	/// `hasRemote` is for the store currently in sync-state, not a newly picked folder.
+	private var joiningExistingVault: Bool {
+		guard resolvedStatus?.hasRemote == true else { return false }
+		if usingFolder {
+			let picked = standardizedPath(folderPath)
+			let current = standardizedPath(resolvedStatus?.folderPath ?? "")
+			return !picked.isEmpty && picked == current
+		}
+		return selectedBackend == "icloud"
+	}
+
+	private func standardizedPath(_ path: String) -> String {
+		let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard !trimmed.isEmpty else { return "" }
+		return URL(fileURLWithPath: trimmed).standardizedFileURL.path
 	}
 
 	private var canEnable: Bool {
@@ -340,11 +357,10 @@ struct ICloudSyncSettingsView: View {
 		localError = nil
 		defer { isWorking = false }
 		do {
-			let mode = resolvedStatus?.hasRemote == true ? "join" : "create"
 			let path = folderPath.trimmingCharacters(in: .whitespacesAndNewlines)
 			status = try await client.enableConfigSync(
 				password: trimmed,
-				mode: mode,
+				mode: usingFolder ? nil : (joiningExistingVault ? "join" : "create"),
 				backend: selectedBackend,
 				folderPath: usingFolder ? path : nil
 			)

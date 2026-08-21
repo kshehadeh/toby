@@ -79,6 +79,56 @@ struct ICloudSyncSettingsTests {
 		let view = ICloudSyncSettingsView(previewStatus: status)
 		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-enable")
 		_ = try view.inspect().find(text: "/tmp/dropbox")
+		_ = try view.inspect().find(text: "Enable sync")
+	}
+
+	@Test("same folder with an existing vault shows join")
+	func matchingFolderShowsJoin() throws {
+		let status = ConfigSyncStatus(
+			enabled: false,
+			iCloudAvailable: false,
+			backend: "folder",
+			folderPath: "/tmp/dropbox",
+			storeAvailable: true,
+			deviceId: "test-device",
+			deviceName: "Test Mac",
+			vaultPath: "/tmp/dropbox/Toby/config-sync",
+			lastPushAt: nil,
+			lastPullAt: nil,
+			lastError: nil,
+			lastWriterDeviceName: nil,
+			lastWriterDeviceId: nil,
+			lastAckedLamport: 0,
+			lastAckedContentHash: "",
+			dirty: false,
+			hasRemote: true,
+			remote: nil
+		)
+		let view = ICloudSyncSettingsView(previewStatus: status)
+		_ = try view.inspect().find(text: "Join vault")
+	}
+
+	@Test("stale hasRemote does not force join when no folder is selected")
+	func staleRemoteShowsEnableSync() throws {
+		let status = ConfigSyncStatus(
+			enabled: false,
+			iCloudAvailable: false,
+			deviceId: "test-device",
+			deviceName: "Test Mac",
+			vaultPath: "/tmp/toby-sync",
+			lastPushAt: nil,
+			lastPullAt: nil,
+			lastError: nil,
+			lastWriterDeviceName: nil,
+			lastWriterDeviceId: nil,
+			lastAckedLamport: 0,
+			lastAckedContentHash: "",
+			dirty: false,
+			hasRemote: true,
+			remote: nil
+		)
+		let view = ICloudSyncSettingsView(previewStatus: status)
+		_ = try view.inspect().find(text: "Enable sync")
 	}
 
 	@Test("enabled status shows sync now and pull now")

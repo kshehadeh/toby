@@ -213,12 +213,9 @@ export async function enableSync(options: {
 	if (!mode) {
 		mode = remote ? "join" : "create";
 	}
-
+	// Stale "join" from a previous folder/iCloud vault: the selected store is empty.
 	if (mode === "join" && !remote) {
-		writeSyncState(prior);
-		throw new Error(
-			"No sync vault was found. Create one from a Mac that already has your settings.",
-		);
+		mode = "create";
 	}
 	if (mode === "create" && remote) {
 		writeSyncState(prior);

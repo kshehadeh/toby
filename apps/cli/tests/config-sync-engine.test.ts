@@ -385,6 +385,46 @@ describe("config sync engine", () => {
 		});
 	});
 
+	it("creates a vault when join is sent for a new empty folder", async () => {
+		await withFolderSyncHome(async ({ picked }) => {
+			writeConfig({
+				integrations: {},
+				personas: [],
+				defaultPersona: "First",
+			});
+			writeCredentials({ ai: { openai: { token: "sk-first" } } });
+			await enableSync({
+				password: "vault",
+				mode: "create",
+				backend: "folder",
+				folderPath: picked,
+			});
+			await disableSync({});
+
+			const next = fs.mkdtempSync(
+				path.join(os.tmpdir(), "toby-sync-picked-next-"),
+			);
+			try {
+				const status = await enableSync({
+					password: "vault",
+					mode: "join",
+					backend: "folder",
+					folderPath: next,
+				});
+				expect(status.enabled).toBe(true);
+				expect(status.folderPath).toBe(path.resolve(next));
+				expect(
+					fs.existsSync(
+						path.join(resolveFolderSyncVaultDir(next), "vault.json"),
+					),
+				).toBe(true);
+				expect(readConfig().defaultPersona).toBe("First");
+			} finally {
+				fs.rmSync(next, { recursive: true, force: true });
+			}
+		});
+	});
+
 	it("refuses a folder path inside the Toby home directory", async () => {
 		await withFolderSyncHome(async ({ tobyDir }) => {
 			writeConfig({ integrations: {}, personas: [] });
