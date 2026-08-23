@@ -231,7 +231,11 @@ struct DashboardViewTests {
 		)
 	}
 
-	private func makeView(store: DashboardStore) -> DashboardView {
+	private func makeView(
+		store: DashboardStore,
+		appearance: AppearancePreferences? = nil,
+		isEditing: Bool = false
+	) -> DashboardView {
 		DashboardView(
 			store: store,
 			userName: "Karim",
@@ -250,7 +254,8 @@ struct DashboardViewTests {
 			onSelectRoute: { _ in },
 			onOpenPermissions: {},
 			actionContext: .init(startChat: {}),
-			appearancePreferences: makeAppearance()
+			appearancePreferences: appearance ?? makeAppearance(),
+			isEditing: isEditing
 		)
 	}
 
@@ -467,6 +472,55 @@ struct DashboardViewTests {
 		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-calendar-card")
 		}
+	}
+
+	@Test("edit mode shows a tray for hidden cards and keeps remaining cards")
+	func editModeShowsHiddenTray() throws {
+		let prefs = makeAppearance(showDashboardEmail: false)
+		let view = makeView(store: DashboardStore(), appearance: prefs, isEditing: true)
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-mail-card")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-tasks-card")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hidden-tray")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hidden-chip-email")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-unhide-email")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-edit-overlay-tasks")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-reorder-tasks")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hide-tasks")
+		}
+	}
+
+	@Test("view mode omits the hidden-card tray")
+	func viewModeOmitsHiddenTray() throws {
+		let prefs = makeAppearance(showDashboardEmail: false)
+		let view = makeView(store: DashboardStore(), appearance: prefs, isEditing: false)
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hidden-tray")
+		}
+	}
+
+	@Test("custom layout order is applied by the registry")
+	func registryAppliesCustomOrder() {
+		let store = DashboardStore()
+		let layout = DashboardLayout(order: ["calendar", "email", "tasks"], hidden: ["tasks"])
+		#expect(
+			store.registry.orderedVisible(layout: layout).map(\.id.rawValue) == ["calendar", "email"]
+		)
+		#expect(store.registry.orderedHidden(layout: layout).map(\.id.rawValue) == ["tasks"])
 	}
 
 	@Test("dashboard block visibility binding toggles preference under animation path")

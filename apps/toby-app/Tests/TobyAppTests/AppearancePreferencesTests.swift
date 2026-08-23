@@ -76,6 +76,8 @@ struct AppearancePreferencesTests {
 		#expect(suite.bool(forKey: AppearancePreferences.launchAtLoginDefaultsKey) == true)
 		#expect(suite.bool(forKey: AppearancePreferences.showMenuBarIconDefaultsKey) == false)
 		#expect(suite.string(forKey: AppearancePreferences.chatTranscriptModeDefaultsKey) == "debug")
+		#expect(suite.string(forKey: AppearancePreferences.dashboardLayoutDefaultsKey) != nil)
+		#expect(prefs.dashboardLayout.hidden.contains("email"))
 
 		let reloaded = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
 		#expect(reloaded.mode == .light)
@@ -244,6 +246,40 @@ struct AppearancePreferencesTests {
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hide-onboarding-toggle")
 		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Reset dashboard layout")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-reset-layout-button")
+		}
+	}
+
+	@Test("reset dashboard layout shows all cards and clears custom order")
+	func resetDashboardLayoutRestoresDefaults() {
+		let suite = UserDefaults(suiteName: "toby.tests.appearance.reset.\(UUID().uuidString)")!
+		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		prefs.dashboardLayout = DashboardLayout(
+			order: ["calendar", "email", "tasks"],
+			hidden: ["email", "flow.x"]
+		)
+		prefs.resetDashboardLayout()
+		#expect(prefs.dashboardLayout == .empty)
+		#expect(prefs.showDashboardEmail)
+		#expect(prefs.showDashboardTasks)
+		#expect(prefs.showDashboardCalendar)
+		#expect(prefs.isDashboardBlockVisible(id: DashboardBlockID("flow.x")))
+	}
+
+	@Test("flow card visibility is stored on the layout document")
+	func flowCardVisibilityPersists() {
+		let suite = UserDefaults(suiteName: "toby.tests.appearance.flowvis.\(UUID().uuidString)")!
+		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		let flowID = DashboardBlockID("flow.info")
+		#expect(prefs.isDashboardBlockVisible(id: flowID))
+		prefs.setDashboardBlockVisible(id: flowID, visible: false)
+		#expect(!prefs.isDashboardBlockVisible(id: flowID))
+		let reloaded = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		#expect(!reloaded.isDashboardBlockVisible(id: flowID))
 	}
 
 	@Test("dashboard block visibility helpers update preferences")

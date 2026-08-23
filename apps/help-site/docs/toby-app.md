@@ -191,6 +191,23 @@ until you click it. Use the **refresh** control in the toolbar (or the
 refresh control on a built-in or informational card) to regenerate that
 content. Cards load once the local service is ready when you open the app.
 
+You can rearrange the home cards without leaving the dashboard. Click
+**Edit dashboard** (pencil) in the toolbar, next to **Refresh**. While
+editing:
+
+- Each card shows a drag handle and a hide button. The outline highlights the
+  card under the pointer.
+- Drag a handle to move the card; the grid reflows to show the drop result.
+- Press **Escape** to cancel an in-progress drag.
+- Hidden cards collect in a **Hidden cards** tray at the bottom. Drag a
+  chip onto the grid to place it, or click **Show** to restore it at the
+  end.
+- Click **Done** (checkmark) when you are finished. Leaving the dashboard
+  also exits edit mode.
+
+Layout (order and hidden cards) is stored only on this Mac, with other app
+appearance settings — not in Toby’s server config.
+
 Under **Settings → Dashboard**, you can set the persona used for dashboard
 summaries and control which home-dashboard cards are visible (app-local). Card
 bodies are produced by built-in [flows](./flows).
@@ -205,10 +222,13 @@ bodies are produced by built-in [flows](./flows).
 - **Show unread mail** / **Show tasks** / **Show upcoming events** — On by
   default. Turn any off to hide that card on the home dashboard; turn it back on
   to show it again. Upcoming events come from your default calendar provider
-  (Settings → Default Providers).
+  (Settings → Default Providers). Hide custom flow cards from the dashboard
+  editor (these toggles only cover the three built-in cards).
 - **Hide onboarding checklist** — Off by default. Turning that on removes the
   setup checklist from the home dashboard even if steps remain incomplete; turn
   it off to bring the checklist back.
+- **Reset dashboard layout** — Restores the default card order and shows all
+  cards. Does not change the onboarding checklist setting.
 
 ### Permissions
 

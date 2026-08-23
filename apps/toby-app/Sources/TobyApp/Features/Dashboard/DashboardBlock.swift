@@ -60,9 +60,9 @@ struct DashboardBlockDescriptor: Identifiable, Sendable {
 	let systemImage: String
 	let emptyWhenNil: String
 	let emptyWhenZero: String
-	/// Hardcoded layout position (lower = first). Later: prefs order.
+	/// Default layout position (lower = first). User order lives in `DashboardLayout`.
 	let sortIndex: Int
-	/// UserDefaults key for show/hide (app-local).
+	/// Legacy per-block UserDefaults key (built-ins); layout JSON is the source of truth.
 	let visibilityDefaultsKey: String
 	/// Accessibility id for the card root.
 	let accessibilityIdentifier: String

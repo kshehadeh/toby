@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// Holds registered dashboard data-block controllers.
-/// Layout order = `sortIndex` (later: user-configured order).
+/// Layout order comes from `DashboardLayout` (default: `sortIndex` grouping).
 @Observable
 @MainActor
 final class DashboardBlockRegistry {
@@ -46,10 +46,26 @@ final class DashboardBlockRegistry {
 		blocks = next.sorted { $0.sortIndex < $1.sortIndex }
 	}
 
+	var descriptors: [DashboardBlockDescriptor] {
+		blocks.map(\.descriptor)
+	}
+
+	/// Blocks in user (or default) order, excluding hidden cards.
+	func orderedVisible(layout: DashboardLayout) -> [CategoryDashboardBlock] {
+		layout.resolvedVisible(from: descriptors).compactMap { id in
+			blocks.first { $0.id == id }
+		}
+	}
+
+	/// Hidden registered cards, in last-known sequence.
+	func orderedHidden(layout: DashboardLayout) -> [CategoryDashboardBlock] {
+		layout.resolvedHidden(from: descriptors).compactMap { id in
+			blocks.first { $0.id == id }
+		}
+	}
+
 	/// Blocks sorted for layout, filtered by appearance visibility.
 	func orderedVisible(preferences: AppearancePreferences) -> [CategoryDashboardBlock] {
-		blocks
-			.filter { preferences.isDashboardBlockVisible(id: $0.id) }
-			.sorted { $0.sortIndex < $1.sortIndex }
+		orderedVisible(layout: preferences.dashboardLayout)
 	}
 }

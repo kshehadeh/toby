@@ -33,7 +33,7 @@ Compile-time registration in Toby.app
 
 - `id`, `title`, `systemImage`
 - empty-state copy (`emptyWhenNil` / `emptyWhenZero`)
-- visibility defaults key, sort order, accessibility id
+- visibility defaults key (legacy; layout JSON is source of truth), default sort index, accessibility id
 - action metadata (`openPrimaryTitle`, `listsSourceOpenActions`, fallbacks)
 
 The header **title** comes only from the definition. The **last-run** timestamp
@@ -104,6 +104,43 @@ DashboardBlockContent → card body
 Global refresh is **not** a second system: it iterates registered blocks and
 calls each block’s force update in parallel.
 
+## Layout editor (app-local)
+
+Toby.app can reorder and hide home cards without talking to the daemon.
+Layout is stored in `UserDefaults` key `toby.appearance.dashboardLayout`
+alongside other UI prefs (`AppearancePreferences`), not in `~/.toby` or
+server settings.
+
+```json
+{ "order": ["calendar", "email", "tasks"], "hidden": ["tasks"] }
+```
+
+| Field | Meaning |
+| --- | --- |
+| `order` | Last-known sequence of card ids. Empty means default grouping. |
+| `hidden` | Card ids not shown on the home grid (including custom flow cards). |
+
+**Default order** when `order` is empty (and after **Reset dashboard layout**):
+
+1. Built-ins by `sortIndex` (email, tasks, calendar)
+2. Informational flow cards
+3. Runner flow cards
+
+Unknown ids are ignored. Newly registered flow cards that are not listed
+append as **visible**. Built-in Settings toggles write the same `hidden`
+set; the three legacy `showDashboard*` bool keys are mirrored for
+compatibility.
+
+**Edit mode** is session-only (toolbar pencil next to Refresh). Each card
+shows a drag handle and hide button; the outline highlights the card
+under the pointer. Dragging reflows the unified grid live; Escape cancels
+the in-flight drag. Hidden cards appear in a **Hidden cards** tray and
+can be dragged onto a slot or shown at the end. Leaving the dashboard
+exits edit mode.
+
+Onboarding is not part of this layout; it still uses **Hide onboarding
+checklist**.
+
 ## Categories and flows
 
 | Category | Standard tool (inside flow) | Flow id |
@@ -164,6 +201,8 @@ Built-in email / tasks / calendar cards are unchanged.
 | Block controller | `apps/toby-app/.../Dashboard/CategoryDashboardBlock.swift` |
 | Store (fan-out) | `apps/toby-app/.../Stores/DashboardStore.swift` |
 | Card UI | `apps/toby-app/.../Dashboard/DashboardCards.swift` |
+| Layout document | `apps/toby-app/.../Dashboard/DashboardLayout.swift` |
+| Edit session | `apps/toby-app/.../Dashboard/DashboardLayoutEditor.swift` |
 
 ## Model choice (reasoning leaks)
 
@@ -186,4 +225,4 @@ model (no **· reasoning** label in the picker). See Settings → Dashboard.
 
 - [`server-api.md`](server-api.md) — route list
 - [`integrations.md`](integrations.md) — `dashboard?` hook
-- Help site: `apps/help-site/docs/toby-app.md` (user-facing card visibility)
+- Help site: `apps/help-site/docs/toby-app.md` (user-facing card layout and visibility)

@@ -49,6 +49,7 @@ extension EnvironmentValues {
 /// non-interactive while collapsed so sub-blocks cannot grow text in place.
 struct DashboardCard<Content: View>: View {
 	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+	@Environment(\.dashboardIsEditing) private var isEditing
 
 	@ViewBuilder private let content: () -> Content
 
@@ -100,7 +101,7 @@ struct DashboardCard<Content: View>: View {
 			.contentShape(Rectangle())
 			.clipped()
 			.overlay(alignment: .bottom) {
-				if !isExpanded, isOverflowing {
+				if !isEditing, !isExpanded, isOverflowing {
 					showMoreChrome
 				}
 			}
@@ -139,9 +140,14 @@ struct DashboardCard<Content: View>: View {
 			.onPreferenceChange(DashboardCardContentHeightKey.self) { height in
 				intrinsicContentHeight = height
 			}
+			.onChange(of: isEditing) { _, editing in
+				if editing {
+					isExpanded = false
+				}
+			}
 			.onHover { hovering in
 				isPointerInside = hovering
-				guard isExpanded, !hovering else { return }
+				guard !isEditing, isExpanded, !hovering else { return }
 				// Clicking “Show more” removes the button under the cursor and
 				// delivers a spurious hover-exit — ignore that until the pointer
 				// has settled or left and re-entered.
@@ -200,6 +206,7 @@ struct DashboardCard<Content: View>: View {
 	}
 
 	private func expandFromShowMore() {
+		guard !isEditing else { return }
 		// Clicking “Show more” removes that control under the cursor, which
 		// delivers a spurious hover-exit. Ignore hover-collapse briefly.
 		suppressHoverCollapse = true
@@ -320,14 +327,19 @@ private struct CardActionsMenu<Content: View>: View {
 
 /// Refresh + actions menu for the top-right of a dashboard card header.
 private struct CardHeaderTrailingControls<MenuContent: View>: View {
+	@Environment(\.dashboardIsEditing) private var isEditing
 	let isRefreshing: Bool
 	let onRefresh: () -> Void
 	@ViewBuilder let menuContent: () -> MenuContent
 
 	var body: some View {
-		HStack(spacing: 2) {
-			CardRefreshButton(isRefreshing: isRefreshing, action: onRefresh)
-			CardActionsMenu(content: menuContent)
+		if isEditing {
+			EmptyView()
+		} else {
+			HStack(spacing: 2) {
+				CardRefreshButton(isRefreshing: isRefreshing, action: onRefresh)
+				CardActionsMenu(content: menuContent)
+			}
 		}
 	}
 }
@@ -445,6 +457,7 @@ struct DashboardBlockCard: View {
 struct FlowRunnerDashboardCard: View {
 	@Bindable var block: CategoryDashboardBlock
 	var actionContext: DashboardBlockActionContext = .init()
+	@Environment(\.dashboardIsEditing) private var isEditing
 	@State private var isRunning = false
 	@State private var runError: String?
 
@@ -462,9 +475,11 @@ struct FlowRunnerDashboardCard: View {
 				title: block.title,
 				titleSize: 15
 			) {
-				CardActionsMenu {
-					Button("Open flow") {
-						actionContext.openFlow(block.id.rawValue)
+				if !isEditing {
+					CardActionsMenu {
+						Button("Open flow") {
+							actionContext.openFlow(block.id.rawValue)
+						}
 					}
 				}
 			}

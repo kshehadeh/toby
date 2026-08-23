@@ -126,11 +126,21 @@ enum RootToolbars {
 		common model: RootCommonToolbarModel,
 		updatedText: String,
 		isRefreshing: Bool,
+		isEditing: Bool = false,
+		onToggleEdit: @escaping () -> Void = {},
 		onRefresh: @escaping () -> Void,
 	) -> some ToolbarContent {
 		common(model)
 		ToolbarItem(placement: .principal) {
 			RootPrincipalTitle(title: "Dashboard", activityLine: updatedText)
+		}
+		ToolbarItem(placement: .confirmationAction) {
+			Button(action: onToggleEdit) {
+				Image(systemName: isEditing ? "checkmark" : "square.and.pencil")
+			}
+			.help(dashboardEditHelp(isEditing: isEditing))
+			.accessibilityLabel(dashboardEditHelp(isEditing: isEditing))
+			.accessibilityIdentifier(dashboardEditIdentifier(isEditing: isEditing))
 		}
 		ToolbarItem(placement: .confirmationAction) {
 			Button(action: onRefresh) {
@@ -140,6 +150,14 @@ enum RootToolbars {
 			.disabled(isRefreshing)
 			.accessibilityIdentifier("dashboard-refresh-button")
 		}
+	}
+
+	static func dashboardEditHelp(isEditing: Bool) -> String {
+		isEditing ? "Done" : "Edit dashboard"
+	}
+
+	static func dashboardEditIdentifier(isEditing: Bool) -> String {
+		isEditing ? "dashboard-done-editing-button" : "dashboard-edit-button"
 	}
 
 	@ToolbarContentBuilder

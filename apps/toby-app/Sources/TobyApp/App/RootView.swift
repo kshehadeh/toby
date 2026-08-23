@@ -39,6 +39,8 @@ struct RootView: View {
     @State private var isAIProviderChooserPresented = false
     /// When non-nil, present guided setup for this provider id.
     @State private var aiProviderSetupProviderId: String?
+    /// Session-only dashboard layout editor. Exits when leaving the home route.
+    @State private var isEditingDashboard = false
 
     var body: some View {
         contentWithBackup
@@ -511,7 +513,8 @@ struct RootView: View {
                         planInChat: planCalendarInChat,
                         openFlow: openDashboardFlow,
                         runFlow: runDashboardFlow
-                    )
+                    ),
+                    isEditing: isEditingDashboard
                 )
                 .toolbar {
                     RootToolbars.dashboard(
@@ -520,6 +523,8 @@ struct RootView: View {
                             lastLoadedAt: dashboardStore.lastLoadedAt
                         ),
                         isRefreshing: dashboardStore.isRefreshing,
+                        isEditing: isEditingDashboard,
+                        onToggleEdit: { isEditingDashboard.toggle() },
                         onRefresh: { Task { await refreshDashboardData() } }
                     )
                 }
@@ -647,6 +652,11 @@ struct RootView: View {
                             }
                         )
                     }
+            }
+        }
+        .onChange(of: history.current) { _, route in
+            if route != .dashboard {
+                isEditingDashboard = false
             }
         }
     }

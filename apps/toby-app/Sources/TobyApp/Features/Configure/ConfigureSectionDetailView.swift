@@ -146,10 +146,21 @@ struct ConfigureSectionDetailView: View {
 							title: "Hide onboarding checklist",
 							description:
 								"Hide the setup checklist on the dashboard even if steps are incomplete. Stored only on this Mac.",
-							showsDivider: false
+							showsDivider: true
 						) {
 							SettingsToggle(isOn: appearancePreferences.hideOnboardingBinding)
 								.accessibilityIdentifier("dashboard-hide-onboarding-toggle")
+						}
+						SettingsRow(
+							title: "Reset dashboard layout",
+							description:
+								"Restore default card order and show all cards. Stored only on this Mac.",
+							showsDivider: false
+						) {
+							SettingsActionButton(title: "Reset") {
+								appearancePreferences.resetDashboardLayout()
+							}
+							.accessibilityIdentifier("dashboard-reset-layout-button")
 						}
 					}
 				}
