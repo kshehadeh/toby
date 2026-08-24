@@ -26,10 +26,8 @@ function Card(){
       <CardSection label="Ignore">Nine newsletters and three receipts.</CardSection>
     </DashboardCard>
     <div style={{display:'flex',flexDirection:'column',gap:20}}>
-      <div style={{height:200}}>
-        <FlowRunnerCard title="Weekly review" stamp={<I n="git-branch" s={120}/>}
-          description="Collects last week's shipped work, open tasks, and calendar into one summary you can paste into a status update."/>
-      </div>
+      <FlowRunnerCard title="Weekly review"
+        description="Collects last week's shipped work, open tasks, and calendar into one summary you can paste into a status update."/>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
         <OnboardingTile upNext title="Connect an integration" subtitle="Email, Slack, Jira, Todoist, or Apple Calendar." actionLabel="Connect" glyph={<I n="grid-2x2" s={15}/>}/>
         <OnboardingTile complete title="Set up AI" subtitle="Provider and model chosen." glyph={<I n="sparkles" s={15}/>}/>

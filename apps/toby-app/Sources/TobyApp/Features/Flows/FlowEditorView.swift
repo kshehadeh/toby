@@ -347,7 +347,7 @@ private struct FlowDestinationRow: View {
 				.controlSize(.regular)
 				Text(
 					destination.dashboardVariant == "runner"
-						? "A compact home card with a Run Now button. The flow only runs when you click it."
+						? "An Actions button on the home dashboard. Hover for the description; the flow only runs when you click it."
 						: "A home card that shows the last run’s output. Refresh works like the built-in dashboard cards."
 				)
 				.font(.caption)

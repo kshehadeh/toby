@@ -1,8 +1,11 @@
-For flows that only run — no summary body to show. Same shell as `DashboardCard` (panel, cap rule, ghost glyph) so a mixed grid aligns, with the single prominent action pinned to the bottom.
+For flows that only run — no summary body to show. Compact **Actions** rail
+row beside the card grid (title is the button). Hover shows the description;
+do not occupy a 340px card slot.
 
 ```jsx
 <FlowRunnerCard title="Weekly review" description="Collects last week's shipped work, open tasks, and calendar into one summary."
-  stamp={<GitBranch size={120} />} running={isRunning} error={err} onRun={run} />
+  running={isRunning} error={err} onRun={run} />
 ```
 
-Run Now is the only accent-filled button on the dashboard besides the up-next onboarding tile — don't add a second.
+The rail is omitted when there are no runner flows. While running, disable the
+row and replace the play glyph with a progress indicator — keep the title.

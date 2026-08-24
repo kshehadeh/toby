@@ -1,7 +1,8 @@
 import CoreGraphics
 import Foundation
 
-/// App-local home-dashboard layout: card order plus which cards are hidden.
+/// App-local home-dashboard layout: card order, hidden cards, and the Actions
+/// rail (visibility + width).
 ///
 /// Persisted in `UserDefaults` with other UI prefs (not daemon / `~/.toby` config).
 /// An empty `order` means “use the default grouping” (built-ins, then
@@ -10,28 +11,65 @@ import Foundation
 struct DashboardLayout: Equatable, Codable, Sendable {
 	var order: [String]
 	var hidden: [String]
+	/// When false, the Actions rail is collapsed (toolbar toggle). Independent
+	/// of per-runner hide. Default on.
+	var actionsVisible: Bool
+	/// Width of the Actions rail, clamped to `DashboardBlockLayout` min/max.
+	var actionsWidth: CGFloat
 
-	static let empty = DashboardLayout(order: [], hidden: [])
+	static let empty = DashboardLayout()
 
-	init(order: [String] = [], hidden: [String] = []) {
+	init(
+		order: [String] = [],
+		hidden: [String] = [],
+		actionsVisible: Bool = true,
+		actionsWidth: CGFloat = DashboardBlockLayout.actionsRailDefaultWidth
+	) {
 		self.order = Self.uniquing(order)
 		self.hidden = Self.uniquing(hidden)
+		self.actionsVisible = actionsVisible
+		self.actionsWidth = Self.clampedActionsWidth(actionsWidth)
 	}
 
 	private enum CodingKeys: String, CodingKey {
-		case order, hidden
+		case order, hidden, actionsVisible, actionsWidth
 	}
 
 	init(from decoder: Decoder) throws {
 		let container = try decoder.container(keyedBy: CodingKeys.self)
 		order = Self.uniquing(try container.decodeIfPresent([String].self, forKey: .order) ?? [])
 		hidden = Self.uniquing(try container.decodeIfPresent([String].self, forKey: .hidden) ?? [])
+		actionsVisible = try container.decodeIfPresent(Bool.self, forKey: .actionsVisible) ?? true
+		let width = try container.decodeIfPresent(Double.self, forKey: .actionsWidth)
+		actionsWidth = Self.clampedActionsWidth(
+			width.map { CGFloat($0) } ?? DashboardBlockLayout.actionsRailDefaultWidth
+		)
 	}
 
 	func encode(to encoder: Encoder) throws {
 		var container = encoder.container(keyedBy: CodingKeys.self)
 		try container.encode(order, forKey: .order)
 		try container.encode(hidden, forKey: .hidden)
+		try container.encode(actionsVisible, forKey: .actionsVisible)
+		try container.encode(Double(actionsWidth), forKey: .actionsWidth)
+	}
+
+	static func clampedActionsWidth(_ width: CGFloat) -> CGFloat {
+		guard width.isFinite else { return DashboardBlockLayout.actionsRailDefaultWidth }
+		return min(
+			DashboardBlockLayout.actionsRailMaxWidth,
+			max(DashboardBlockLayout.actionsRailMinWidth, width)
+		)
+	}
+
+	/// Copy with a new order/hidden list, keeping the Actions pane fields.
+	func withCards(order: [String], hidden: [String]) -> DashboardLayout {
+		DashboardLayout(
+			order: order,
+			hidden: hidden,
+			actionsVisible: actionsVisible,
+			actionsWidth: actionsWidth
+		)
 	}
 
 	var hiddenSet: Set<String> { Set(hidden) }
@@ -55,7 +93,7 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 		if !nextOrder.contains(id.rawValue) {
 			nextOrder.append(id.rawValue)
 		}
-		return DashboardLayout(order: nextOrder, hidden: nextHidden)
+		return withCards(order: nextOrder, hidden: nextHidden)
 	}
 
 	func hiding(_ id: DashboardBlockID, from descriptors: [DashboardBlockDescriptor]) -> DashboardLayout {
@@ -64,7 +102,7 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 		if !hiddenIDs.contains(id) {
 			hiddenIDs.append(id)
 		}
-		return DashboardLayout(
+		return withCards(
 			order: visible.map(\.rawValue) + hiddenIDs.map(\.rawValue),
 			hidden: hiddenIDs.map(\.rawValue)
 		)
@@ -84,7 +122,7 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 			visible.append(id)
 		}
 		let hiddenIDs = resolvedHidden(from: descriptors).filter { $0 != id }
-		return DashboardLayout(
+		return withCards(
 			order: visible.map(\.rawValue) + hiddenIDs.map(\.rawValue),
 			hidden: hiddenIDs.map(\.rawValue)
 		)
@@ -100,7 +138,7 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 		visible.removeAll { $0 == id }
 		visible.insert(id, at: min(max(0, index), visible.count))
 		let hiddenIDs = resolvedHidden(from: descriptors)
-		return DashboardLayout(
+		return withCards(
 			order: visible.map(\.rawValue) + hiddenIDs.map(\.rawValue),
 			hidden: hidden
 		)
@@ -112,6 +150,53 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 
 	func resolvedHidden(from descriptors: [DashboardBlockDescriptor]) -> [DashboardBlockID] {
 		resolvedSequence(from: descriptors).filter { hiddenSet.contains($0.rawValue) }
+	}
+
+	/// Informational / built-in cards only (runners live in the Actions rail).
+	func resolvedVisibleCards(from descriptors: [DashboardBlockDescriptor]) -> [DashboardBlockID] {
+		resolvedVisible(from: descriptors).filter { id in
+			!(descriptors.first { $0.id == id }?.isFlowRunner ?? false)
+		}
+	}
+
+	/// Runner-variant flows shown in the Actions rail.
+	func resolvedVisibleRunners(from descriptors: [DashboardBlockDescriptor]) -> [DashboardBlockID] {
+		resolvedVisible(from: descriptors).filter { id in
+			descriptors.first { $0.id == id }?.isFlowRunner ?? false
+		}
+	}
+
+	/// Maps a cards-only or runners-only index onto the full visible list so
+	/// reorder stays inside that kind (a runner cannot land between mail cards).
+	static func visibleIndex(
+		forRegionIndex regionIndex: Int,
+		draggingID: DashboardBlockID,
+		visible: [DashboardBlockID],
+		descriptors: [DashboardBlockDescriptor]
+	) -> Int {
+		let isRunner = descriptors.first { $0.id == draggingID }?.isFlowRunner ?? false
+		let others = visible.filter { $0 != draggingID }
+		var seen = 0
+		for (index, id) in others.enumerated() {
+			let idIsRunner = descriptors.first { $0.id == id }?.isFlowRunner ?? false
+			if idIsRunner == isRunner {
+				if seen == regionIndex {
+					return index
+				}
+				seen += 1
+			}
+		}
+		if let last = others.lastIndex(where: { id in
+			(descriptors.first { $0.id == id }?.isFlowRunner ?? false) == isRunner
+		}) {
+			return last + 1
+		}
+		if isRunner {
+			return others.count
+		}
+		return others.firstIndex(where: { id in
+			descriptors.first { $0.id == id }?.isFlowRunner ?? false
+		}) ?? others.count
 	}
 
 	/// Built-ins by `sortIndex`, then informational flows, then runners.

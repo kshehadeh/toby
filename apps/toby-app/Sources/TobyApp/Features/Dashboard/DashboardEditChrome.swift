@@ -37,32 +37,40 @@ struct DashboardEditOverlay: View {
 	let blockID: DashboardBlockID
 	var isHovered: Bool
 	var isDragging: Bool
+	/// Compact chrome for Actions rail rows (smaller radius and controls).
+	var compact: Bool = false
 	let onHide: () -> Void
 	let onDragChanged: (DragGesture.Value) -> Void
 	let onDragEnded: () -> Void
 
+	private var cornerRadius: CGFloat {
+		compact ? AppTheme.smallCornerRadius : AppTheme.cornerRadius
+	}
+
+	private var controlPadding: CGFloat { compact ? 4 : 8 }
+
 	var body: some View {
 		// Clear fill gives the overlay a real size in the card ZStack (a
 		// stroke-only shape has no intrinsic size) and a hover/hit target.
-		RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
+		RoundedRectangle(cornerRadius: cornerRadius)
 			.fill(Color.clear)
 			.overlay(
-				RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
-					.stroke(AppTheme.accent.opacity(outlineOpacity), lineWidth: 2)
+				RoundedRectangle(cornerRadius: cornerRadius)
+					.stroke(AppTheme.accent.opacity(outlineOpacity), lineWidth: compact ? 1.5 : 2)
 			)
 			.overlay(alignment: .topLeading) {
 				handle
-					.padding(8)
+					.padding(controlPadding)
 					.opacity(isDragging ? 0 : 1)
 			}
 			.overlay(alignment: .topTrailing) {
 				hideButton
-					.padding(8)
+					.padding(controlPadding)
 					.opacity(isDragging ? 0 : 1)
 					.allowsHitTesting(!isDragging)
 			}
 			.frame(maxWidth: .infinity, maxHeight: .infinity)
-			.contentShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadius))
+			.contentShape(RoundedRectangle(cornerRadius: cornerRadius))
 			.highPriorityGesture(cardDragGesture)
 	}
 
@@ -79,11 +87,13 @@ struct DashboardEditOverlay: View {
 		return isHovered ? 1 : 0.45
 	}
 
+	private var controlSize: CGFloat { compact ? 22 : 28 }
+
 	private var handle: some View {
 		Image(systemName: "line.3.horizontal")
-			.font(.system(size: 13, weight: .semibold))
+			.font(.system(size: compact ? 11 : 13, weight: .semibold))
 			.foregroundStyle(AppTheme.primaryText)
-			.frame(width: 28, height: 28)
+			.frame(width: controlSize, height: controlSize)
 			.background(
 				RoundedRectangle(cornerRadius: 8)
 					.fill(AppTheme.elevatedBackground)
@@ -97,16 +107,16 @@ struct DashboardEditOverlay: View {
 	private var hideButton: some View {
 		Button(action: onHide) {
 			Image(systemName: "eye.slash")
-				.font(.system(size: 12, weight: .semibold))
+				.font(.system(size: compact ? 11 : 12, weight: .semibold))
 				.foregroundStyle(AppTheme.primaryText)
-				.frame(width: 28, height: 28)
+				.frame(width: controlSize, height: controlSize)
 				.background(
 					RoundedRectangle(cornerRadius: 8)
 						.fill(AppTheme.elevatedBackground)
 				)
 		}
 		.buttonStyle(.plain)
-		.help("Hide this card")
+		.help(compact ? "Hide this action" : "Hide this card")
 		.accessibilityLabel("Hide \(title)")
 		.accessibilityIdentifier("dashboard-hide-\(blockID.rawValue)")
 	}

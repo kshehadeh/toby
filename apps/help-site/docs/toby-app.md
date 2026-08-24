@@ -185,19 +185,27 @@ events (when the matching integrations are connected), plus any **custom
 flows** you associated with a Dashboard destination. Built-in cards have a
 fixed title and actions, plus a short summary body generated from your
 connected integrations. **Informational** flow cards work the same way and
-show the last run’s output. **Runner only** flow cards share the same card
-size and show the flow description with a **Run Now** button; they never
-run until you click it. Use the **refresh** control in the toolbar (or the
-refresh control on a built-in or informational card) to regenerate that
-content. Cards load once the local service is ready when you open the app.
+show the last run’s output. **Runner only** flows appear in an **Actions**
+strip beside the cards (not as full-size cards). Each action is the flow’s
+title; hover to see its description. They never run until you click one —
+while a run is in progress that button is disabled and shows a spinner.
+The Actions strip is hidden when you have no runner flows (or all of them
+are hidden). It appears as a trailing sidebar on the right of the dashboard;
+drag the system divider to make it narrower or wider. When at least one
+runner flow exists, a toolbar control next to **Refresh** hides or shows the
+whole strip without removing the individual actions. Use the **refresh**
+control in the toolbar (or the refresh control on a built-in or informational
+card) to regenerate card content. Cards load once the local service is ready
+when you open the app.
 
 You can rearrange the home cards without leaving the dashboard. Click
 **Edit dashboard** (pencil) in the toolbar, next to **Refresh**. While
 editing:
 
-- Each card shows a drag handle and a hide button. The outline highlights the
-  card under the pointer.
-- Drag a handle to move the card; the grid reflows to show the drop result.
+- Each card (and each Actions button) shows a drag handle and a hide button.
+  The outline highlights the item under the pointer.
+- Drag a handle to move a card in the grid, or an action in the Actions
+  strip. Cards and actions do not mix.
 - Press **Escape** to cancel an in-progress drag.
 - Hidden cards collect in a **Hidden cards** tray at the bottom. Drag a
   chip onto the grid to place it, or click **Show** to restore it at the
@@ -205,8 +213,9 @@ editing:
 - Click **Done** (checkmark) when you are finished. Leaving the dashboard
   also exits edit mode.
 
-Layout (order and hidden cards) is stored only on this Mac, with other app
-appearance settings — not in Toby’s server config.
+Layout (order, hidden cards, Actions strip visibility, and Actions width) is
+stored only on this Mac, with other app appearance settings — not in Toby’s
+server config.
 
 Under **Settings → Dashboard**, you can set the persona used for dashboard
 summaries and control which home-dashboard cards are visible (app-local). Card

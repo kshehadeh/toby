@@ -55,6 +55,9 @@ struct DashboardView: View {
 	@State private var hoveredID: DashboardBlockID?
 	@State private var slotFrames: [DashboardSlotFrame] = []
 	@State private var trayFrame: CGRect = .null
+	/// Frozen inspector ideal width for this presentation so persisting the
+	/// user’s drag does not fight the system divider.
+	@State private var actionsInspectorIdealWidth: CGFloat?
 
 	/// Ready, incomplete, and not dismissed via Settings → Dashboard.
 	private var shouldShowOnboarding: Bool {
@@ -72,19 +75,30 @@ struct DashboardView: View {
 		return appearancePreferences.dashboardLayout
 	}
 
-	private var visibleBlocks: [CategoryDashboardBlock] {
-		store.registry.orderedVisible(layout: layoutSource)
+	private var visibleCards: [CategoryDashboardBlock] {
+		store.registry.orderedVisibleCards(layout: layoutSource)
+	}
+
+	private var visibleRunners: [CategoryDashboardBlock] {
+		store.registry.orderedVisibleRunners(layout: layoutSource)
 	}
 
 	private var hiddenBlocks: [CategoryDashboardBlock] {
 		store.registry.orderedHidden(layout: layoutSource)
 	}
 
+	private var isActionsInspectorPresented: Bool {
+		layoutSource.actionsVisible && !visibleRunners.isEmpty
+	}
+
 	/// Fingerprint of which dashboard sections are visible; drives insert/remove animation.
 	private var sectionVisibilityKey: String {
 		let hiddenKey = isEditing ? hiddenBlocks.map { "h:\($0.id.rawValue)" } : []
+		let railKey = isActionsInspectorPresented ? "actions" : ""
 		return ([shouldShowOnboarding ? "onboarding" : ""]
-			+ visibleBlocks.map(\.id.rawValue)
+			+ visibleCards.map(\.id.rawValue)
+			+ visibleRunners.map { "r:\($0.id.rawValue)" }
+			+ [railKey]
 			+ hiddenKey).joined(separator: "|")
 	}
 
@@ -92,68 +106,75 @@ struct DashboardView: View {
 		reduceMotion ? nil : DashboardSectionMotion.animation
 	}
 
+	private var actionsInspectorPresented: Binding<Bool> {
+		Binding(
+			get: { isActionsInspectorPresented },
+			set: { presented in
+				var next = appearancePreferences.dashboardLayout
+				next.actionsVisible = presented
+				appearancePreferences.dashboardLayout = next
+			}
+		)
+	}
+
 	var body: some View {
-		ScrollView {
-			VStack(alignment: .leading, spacing: 24) {
-				greeting
-				if shouldShowOnboarding {
-					OnboardingCard(checklist: onboarding, onStepAction: handleStepAction)
-						.transition(DashboardSectionMotion.transition)
-				}
-				cards
-				if isEditing, !hiddenBlocks.isEmpty {
-					DashboardHiddenBlocksTray(
-						blocks: hiddenBlocks,
-						draggingID: editor.draggingID,
-						onShow: handleShow,
-						onDragChanged: { id, value in
-							handleDragChanged(id: id, fromTray: true, value: value)
-						},
-						onDragEnded: handleDragEnded
-					)
-					.transition(DashboardSectionMotion.transition)
-				}
+		mainScroll
+			.inspector(isPresented: actionsInspectorPresented) {
+				actionsInspector
 			}
 			.coordinateSpace(name: DashboardEditSpace.name)
 			.overlay(alignment: .topLeading) {
 				dragPreview
 			}
 			.animation(sectionAnimation, value: sectionVisibilityKey)
-			.padding(AppTheme.contentPadding)
-			.frame(maxWidth: 940, alignment: .leading)
-			.frame(maxWidth: .infinity, alignment: .top)
-		}
-		.automaticScrollIndicators(axes: .vertical)
-		.background(AppTheme.contentBackground)
-		.environment(\.dashboardIsEditing, isEditing)
-		.onPreferenceChange(DashboardSlotFramesKey.self) { slotFrames = $0 }
-		.onPreferenceChange(DashboardTrayFrameKey.self) { trayFrame = $0 }
-		.onAppear {
-			bindEditorPointerHandlers()
-			if isEditing {
-				editor.sync(from: appearancePreferences.dashboardLayout)
+			.background(AppTheme.contentBackground)
+			.environment(appearancePreferences)
+			.environment(\.dashboardIsEditing, isEditing)
+			.onPreferenceChange(DashboardSlotFramesKey.self) { frames in
+				guard isEditing, frames != slotFrames else { return }
+				slotFrames = frames
 			}
-		}
-		.onChange(of: isEditing) { _, editing in
-			if editing {
-				editor.sync(from: appearancePreferences.dashboardLayout)
-			} else {
+			.onPreferenceChange(DashboardTrayFrameKey.self) { frame in
+				guard isEditing, frame != trayFrame else { return }
+				trayFrame = frame
+			}
+			.onAppear {
+				bindEditorPointerHandlers()
+				if isEditing {
+					editor.sync(from: appearancePreferences.dashboardLayout)
+				}
+				if actionsInspectorIdealWidth == nil {
+					actionsInspectorIdealWidth = layoutSource.actionsWidth
+				}
+			}
+			.onChange(of: isEditing) { _, editing in
+				if editing {
+					editor.sync(from: appearancePreferences.dashboardLayout)
+				} else {
+					editor.cancelDrag()
+					hoveredID = nil
+				}
+			}
+			.onChange(of: appearancePreferences.dashboardLayout) { _, layout in
+				editor.sync(from: layout)
+				if layout == .empty {
+					actionsInspectorIdealWidth = layout.actionsWidth
+				}
+			}
+			.onChange(of: isActionsInspectorPresented) { _, presented in
+				if presented {
+					actionsInspectorIdealWidth = layoutSource.actionsWidth
+				}
+			}
+			.onDisappear {
 				editor.cancelDrag()
-				hoveredID = nil
 			}
-		}
-		.onChange(of: appearancePreferences.dashboardLayout) { _, layout in
-			editor.sync(from: layout)
-		}
-		.onDisappear {
-			editor.cancelDrag()
-		}
-		.task(id: isServerReady) {
-			now = Date()
-			guard isServerReady else { return }
-			// Soft load: one content path per block (server caches OK).
-			await store.updateAll(force: false)
-		}
+			.task(id: isServerReady) {
+				now = Date()
+				guard isServerReady else { return }
+				// Soft load: one content path per block (server caches OK).
+				await store.updateAll(force: false)
+			}
 	}
 
 	private var greeting: some View {
@@ -167,16 +188,59 @@ struct DashboardView: View {
 		}
 	}
 
+	private var mainScroll: some View {
+		ScrollView {
+			VStack(alignment: .leading, spacing: 24) {
+				greeting
+				if shouldShowOnboarding {
+					OnboardingCard(checklist: onboarding, onStepAction: handleStepAction)
+						.transition(DashboardSectionMotion.transition)
+				}
+				cardGrid
+				if isEditing, !hiddenBlocks.isEmpty {
+					DashboardHiddenBlocksTray(
+						blocks: hiddenBlocks,
+						draggingID: editor.draggingID,
+						onShow: handleShow,
+						onDragChanged: { id, value in
+							handleDragChanged(id: id, fromTray: true, value: value)
+						},
+						onDragEnded: handleDragEnded
+					)
+					.transition(DashboardSectionMotion.transition)
+				}
+			}
+			.padding(AppTheme.contentPadding)
+			.frame(maxWidth: DashboardBlockLayout.cardsMaxWidth, alignment: .leading)
+			.frame(maxWidth: .infinity, alignment: .top)
+		}
+		.automaticScrollIndicators(axes: .vertical)
+		.frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+	}
+
 	@ViewBuilder
-	private var cards: some View {
-		if !visibleBlocks.isEmpty {
+	private var actionsInspector: some View {
+		DashboardActionRunnersRail(blocks: visibleRunners) { block in
+			editableRunner(block)
+		}
+		.padding(.top, 8)
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+		.inspectorColumnWidth(
+			min: DashboardBlockLayout.actionsRailMinWidth,
+			ideal: actionsInspectorIdealWidth ?? layoutSource.actionsWidth,
+			max: DashboardBlockLayout.actionsRailMaxWidth
+		)
+	}
+
+	@ViewBuilder
+	private var cardGrid: some View {
+		if !visibleCards.isEmpty {
 			AdaptiveColumnLayout(minItemWidth: 280, spacing: 20) {
-				ForEach(visibleBlocks, id: \.id) { block in
+				ForEach(visibleCards, id: \.id) { block in
 					editableCard(block)
 						.transition(DashboardSectionMotion.transition)
 				}
 			}
-			.transition(DashboardSectionMotion.transition)
 		}
 	}
 
@@ -222,12 +286,53 @@ struct DashboardView: View {
 	}
 
 	@ViewBuilder
-	private func blockCard(_ block: CategoryDashboardBlock) -> some View {
-		if block.descriptor.isFlowRunner {
-			FlowRunnerDashboardCard(block: block, actionContext: actionContext)
-		} else {
-			DashboardBlockCard(block: block, actionContext: actionContext)
+	private func editableRunner(_ block: CategoryDashboardBlock) -> some View {
+		let isDragSource = editor.draggingID == block.id
+		let isHovered = hoveredID == block.id
+		ZStack(alignment: .topLeading) {
+			DashboardActionRunnerRow(
+				block: block,
+				actionContext: actionContext
+			)
+			.allowsHitTesting(!isEditing)
+			.opacity(isDragSource ? 0 : 1)
+			if isEditing {
+				if isDragSource {
+					RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
+						.stroke(style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+						.foregroundStyle(AppTheme.accent.opacity(0.55))
+				}
+				DashboardEditOverlay(
+					title: block.title,
+					blockID: block.id,
+					isHovered: isHovered,
+					isDragging: editor.isDragging,
+					compact: true,
+					onHide: { handleHide(block.id) },
+					onDragChanged: { value in
+						handleDragChanged(id: block.id, fromTray: false, value: value)
+					},
+					onDragEnded: handleDragEnded
+				)
+				.accessibilityIdentifier("dashboard-edit-overlay-\(block.id.rawValue)")
+			}
 		}
+		.dashboardSlotFrame(id: block.id)
+		.contentShape(Rectangle())
+		.onHover { hovering in
+			guard isEditing, editor.draggingID == nil else {
+				if !hovering, hoveredID == block.id {
+					hoveredID = nil
+				}
+				return
+			}
+			hoveredID = hovering ? block.id : (hoveredID == block.id ? nil : hoveredID)
+		}
+	}
+
+	@ViewBuilder
+	private func blockCard(_ block: CategoryDashboardBlock) -> some View {
+		DashboardBlockCard(block: block, actionContext: actionContext)
 	}
 
 	@ViewBuilder
@@ -240,7 +345,7 @@ struct DashboardView: View {
 			DashboardDragPreview(
 				title: block.title,
 				systemImage: block.systemImage,
-				isChip: chip
+				isChip: chip || block.descriptor.isFlowRunner
 			)
 			.position(location)
 		}

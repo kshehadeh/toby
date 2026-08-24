@@ -225,7 +225,7 @@ final class AppearancePreferences {
 		}
 	}
 
-	/// App-local card order and hidden ids. Source of truth for home layout.
+	/// App-local card order, hidden ids, and Actions rail. Source of truth for home layout.
 	var dashboardLayout: DashboardLayout {
 		didSet {
 			guard dashboardLayout != oldValue else { return }

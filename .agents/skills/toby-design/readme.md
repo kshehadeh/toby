@@ -203,7 +203,7 @@ Grouped by concern; each has a `.jsx`, a `.d.ts` props contract, a
 - **navigation** — `SidebarSection`, `SidebarRow`, `SidebarActionGrid`,
   `PersonaFooter`
 - **chat** — `InputDock`, `UserMessage`, `AssistantMessage`, `WorkStepRow`
-- **dashboard** — `DashboardCard`, `CardSection`, `FlowRunnerCard`, `OnboardingTile`
+- **dashboard** — `DashboardCard`, `CardSection`, `FlowRunnerCard` (Actions rail row), `OnboardingTile`
 
 The inventory mirrors what the app actually defines (`UI/Primitives`,
 `UI/SettingsControls`, and the reusable row/card types inside `Features/`).

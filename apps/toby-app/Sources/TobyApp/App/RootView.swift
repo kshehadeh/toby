@@ -17,7 +17,7 @@ struct RootView: View {
     @Bindable var changelogStore: ChangelogStore
     @Bindable var pluginsStore: PluginsStore
     @Environment(\.openWindow) private var openWindow
-    @Environment(AppearancePreferences.self) private var appearancePreferences
+    @Bindable var appearancePreferences: AppearancePreferences = .shared
     @State private var permissionsStore = PermissionsStore()
     @State private var history = NavigationHistory()
     @State private var isIssueReportPresented = false
@@ -27,7 +27,7 @@ struct RootView: View {
     @State private var pendingDeleteSession: SessionSummary?
     @State private var sidebarVisibility: NavigationSplitViewVisibility = .all
     @State private var mainWindow: NSWindow?
-    @State private var sidebarActionHelp: SidebarActionHelpPresentation?
+
     @State private var longRecordingPromptCoordinator = LongRecordingPromptCoordinator()
     /// Becomes true after bootstrap handshake + first shared data load (and
     /// permissions refresh). Gates onboarding so incomplete defaults do not flash.
@@ -353,23 +353,6 @@ struct RootView: View {
 
     private var contentWithOverlay: some View {
         routeContent
-            .coordinateSpace(name: RootContentCoordinateSpace.name)
-            .overlay(alignment: .topLeading) {
-                if let sidebarActionHelp {
-                    SidebarActionHelpPopover(
-                        title: sidebarActionHelp.item.title,
-                        detail: sidebarActionHelp.item.detail
-                    )
-                    .frame(width: 260)
-                    .position(
-                        x: sidebarActionHelp.buttonFrame.maxX + 140,
-                        y: sidebarActionHelp.buttonFrame.midY
-                    )
-                    .allowsHitTesting(false)
-                    .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .leading)))
-                    .zIndex(100)
-                }
-            }
             .overlay(alignment: .bottomTrailing) {
                 AppToastHost(store: store, onAction: handleToastAction)
             }
@@ -409,11 +392,6 @@ struct RootView: View {
                 },
                 onRestartServer: {
                     Task { await store.restartServer() }
-                },
-                onActionHelpChange: { presentation in
-                    withAnimation(.easeOut(duration: presentation == nil ? 0.08 : 0.12)) {
-                        sidebarActionHelp = presentation
-                    }
                 },
                 sidebarContent: {
                     switch history.current {
@@ -525,6 +503,15 @@ struct RootView: View {
                         isRefreshing: dashboardStore.isRefreshing,
                         isEditing: isEditingDashboard,
                         onToggleEdit: { isEditingDashboard.toggle() },
+                        showActionsToggle: dashboardStore.blocks.contains {
+                            $0.descriptor.isFlowRunner
+                        },
+                        actionsVisible: appearancePreferences.dashboardLayout.actionsVisible,
+                        onToggleActions: {
+                            withAnimation(DashboardSectionMotion.animation) {
+                                appearancePreferences.toggleDashboardActionsVisible()
+                            }
+                        },
                         onRefresh: { Task { await refreshDashboardData() } }
                     )
                 }

@@ -28,6 +28,7 @@ struct RootViewTests {
 	@Test("root view presents app sidebar")
 	func rootViewPresentsAppSidebar() throws {
 		let view = makeRootView()
+			.environment(AppearancePreferences.shared)
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "app-sidebar")
 		}

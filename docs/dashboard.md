@@ -57,8 +57,10 @@ Home cards share one visual shell (`DashboardBlockChrome`):
 - Expanded cards drop a small downward shadow; collapsed overflow uses the
   gradient fade + **Show more** bar
 
-Onboarding uses the same shell without a glyph. Runner flow cards use the same
-shell and collapsed height, with **Run Now** pinned to the bottom.
+Onboarding uses the same shell without a glyph. Runner-variant flows are **not**
+cards: they appear in a compact **Actions** rail beside the grid (title button,
+hover description, in-flight spinner). The rail is omitted when no runners are
+visible.
 
 ## Block content (refreshable)
 
@@ -130,30 +132,53 @@ alongside other UI prefs (`AppearancePreferences`), not in `~/.toby` or
 server settings.
 
 ```json
-{ "order": ["calendar", "email", "tasks"], "hidden": ["tasks"] }
+{
+  "order": ["calendar", "email", "tasks"],
+  "hidden": ["tasks"],
+  "actionsVisible": true,
+  "actionsWidth": 156
+}
 ```
 
 | Field | Meaning |
 | --- | --- |
 | `order` | Last-known sequence of card ids. Empty means default grouping. |
 | `hidden` | Card ids not shown on the home grid (including custom flow cards). |
+| `actionsVisible` | Whether the Actions inspector is shown (toolbar toggle). Default `true`. Independent of per-runner hide. |
+| `actionsWidth` | Preferred Actions inspector width in points (default 156, clamped 120–280). The system divider resizes the column. |
+
+Older documents without the Actions keys load as visible at the default width.
 
 **Default order** when `order` is empty (and after **Reset dashboard layout**):
 
 1. Built-ins by `sortIndex` (email, tasks, calendar)
 2. Informational flow cards
-3. Runner flow cards
+3. Runner flows (Actions rail; not grid cells)
+
+The home grid renders only built-ins and informational cards. Visible runners
+render in a trailing **inspector** column (SwiftUI `.inspector`) in that same
+stored order among themselves, unless the column is collapsed via the toolbar
+or the system divider. Hidden runners still appear in the **Hidden cards**
+tray. The inspector uses the system split divider; drag it to resize. Visibility is stored on the layout document. The column’s preferred width is
+the layout `actionsWidth` (ideal); live divider drags are handled by the
+system split view and must not write back during the drag (that invalidates
+Auto Layout constraints mid-tracking).
 
 Unknown ids are ignored. Newly registered flow cards that are not listed
 append as **visible**. Built-in Settings toggles write the same `hidden`
 set; the three legacy `showDashboard*` bool keys are mirrored for
 compatibility.
 
+The dashboard toolbar includes **Hide Actions** / **Show Actions** (trailing
+sidebar icon) when at least one runner flow is registered. That toggle is
+stored as `actionsVisible` and does not hide individual runners.
+
 **Edit mode** is session-only (toolbar pencil next to Refresh). Each card
-shows a drag handle and hide button; the outline highlights the card
-under the pointer. Dragging reflows the unified grid live; Escape cancels
-the in-flight drag. Hidden cards appear in a **Hidden cards** tray and
-can be dragged onto a slot or shown at the end. Leaving the dashboard
+and each Actions button shows a drag handle and hide button; the outline
+highlights the item under the pointer. Dragging reflows that region live
+(cards stay in the grid, runners stay in the rail). Escape cancels the
+in-flight drag. Hidden items appear in a **Hidden cards** tray and can be
+dragged onto a matching slot or shown at the end. Leaving the dashboard
 exits edit mode.
 
 Onboarding is not part of this layout; it still uses **Hide onboarding
@@ -200,7 +225,7 @@ a card whose id is the flow id.
 | Variant | UI | Load |
 | --- | --- | --- |
 | `informational` | Built-in-sized card. Body is last successful run output (last step / declared result). Header refresh matches built-ins (`?fresh=1` re-runs the flow). Menu includes **Open flow**. | Soft: last success. Force: `runUserFlowById`. |
-| `runner` | Same shell and collapsed height as built-ins: description + **Run Now** pinned to the bottom. Never auto-runs. Menu includes **Open flow**. | `POST /api/flows/:id/run`. Content fetch is a no-op. |
+| `runner` | Compact **Actions** inspector button (title). Hover shows the flow description in a system popover (same as the server-status button, so it can draw outside the window). Never auto-runs. The button disables with a spinner (and a subtle pulse unless Reduce Motion) while the run is in flight. Context menu includes **Open flow**. The inspector is hidden when no runners are visible. | `POST /api/flows/:id/run`. Content fetch is a no-op. |
 
 Built-in email / tasks / calendar cards are unchanged.
 
@@ -219,6 +244,7 @@ Built-in email / tasks / calendar cards are unchanged.
 | Block controller | `apps/toby-app/.../Dashboard/CategoryDashboardBlock.swift` |
 | Store (fan-out) | `apps/toby-app/.../Stores/DashboardStore.swift` |
 | Card UI | `apps/toby-app/.../Dashboard/DashboardCards.swift` |
+| Actions rail | `apps/toby-app/.../Dashboard/DashboardActionRunnersRail.swift` |
 | Card chrome | `apps/toby-app/.../Dashboard/DashboardBlockChrome.swift` |
 | Layout document | `apps/toby-app/.../Dashboard/DashboardLayout.swift` |
 | Edit session | `apps/toby-app/.../Dashboard/DashboardLayoutEditor.swift` |

@@ -1,15 +1,15 @@
 /**
- * Compact dashboard card for a runner-only flow: description plus a single
- * full-width Run Now action. Shares the block card's shell so edges align.
+ * Compact Actions-rail row for a runner-only flow: title button, hover
+ * description, spinner while running. Not a full dashboard card.
  */
 export interface FlowRunnerCardProps {
   title: string;
-  /** Flow description from the block descriptor; falls back to "Run this flow." */
+  /** Flow description; shown on hover (native: SidebarActionHelpPopover). */
   description?: string;
-  /** The ghost glyph — a ~120px icon node. */
+  /** Optional leading glyph. Native uses play.circle. */
   stamp?: React.ReactNode;
   running?: boolean;
-  /** Error text from the last run, shown under the description. */
+  /** Error text from the last run, shown under the row. */
   error?: string;
   onRun?: () => void;
 }

@@ -57,6 +57,20 @@ final class DashboardBlockRegistry {
 		}
 	}
 
+	/// Built-in and informational flow cards for the home grid.
+	func orderedVisibleCards(layout: DashboardLayout) -> [CategoryDashboardBlock] {
+		layout.resolvedVisibleCards(from: descriptors).compactMap { id in
+			blocks.first { $0.id == id }
+		}
+	}
+
+	/// Runner-variant flows for the Actions rail.
+	func orderedVisibleRunners(layout: DashboardLayout) -> [CategoryDashboardBlock] {
+		layout.resolvedVisibleRunners(from: descriptors).compactMap { id in
+			blocks.first { $0.id == id }
+		}
+	}
+
 	/// Hidden registered cards, in last-known sequence.
 	func orderedHidden(layout: DashboardLayout) -> [CategoryDashboardBlock] {
 		layout.resolvedHidden(from: descriptors).compactMap { id in

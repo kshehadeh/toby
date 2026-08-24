@@ -264,10 +264,28 @@ struct AppearancePreferencesTests {
 		)
 		prefs.resetDashboardLayout()
 		#expect(prefs.dashboardLayout == .empty)
+		#expect(prefs.dashboardLayout.actionsVisible)
+		#expect(
+			prefs.dashboardLayout.actionsWidth == DashboardBlockLayout.actionsRailDefaultWidth
+		)
 		#expect(prefs.showDashboardEmail)
 		#expect(prefs.showDashboardTasks)
 		#expect(prefs.showDashboardCalendar)
 		#expect(prefs.isDashboardBlockVisible(id: DashboardBlockID("flow.x")))
+	}
+
+	@Test("actions pane visibility and width persist on the layout document")
+	func actionsPanePersistsOnLayout() {
+		let suite = UserDefaults(suiteName: "toby.tests.appearance.actions.\(UUID().uuidString)")!
+		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		#expect(prefs.dashboardLayout.actionsVisible)
+		prefs.toggleDashboardActionsVisible()
+		#expect(!prefs.dashboardLayout.actionsVisible)
+		prefs.setDashboardActionsWidth(200)
+		#expect(prefs.dashboardLayout.actionsWidth == 200)
+		let reloaded = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		#expect(!reloaded.dashboardLayout.actionsVisible)
+		#expect(reloaded.dashboardLayout.actionsWidth == 200)
 	}
 
 	@Test("flow card visibility is stored on the layout document")

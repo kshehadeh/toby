@@ -1,9 +1,4 @@
-import AppKit
 import SwiftUI
-
-enum RootContentCoordinateSpace {
-	static let name = "root-content-coordinate-space"
-}
 
 struct SidebarActionItem: Identifiable, Equatable {
 	let route: DetailRoute
@@ -14,11 +9,6 @@ struct SidebarActionItem: Identifiable, Equatable {
 	let detail: String
 
 	var id: DetailRoute { route }
-}
-
-struct SidebarActionHelpPresentation: Equatable {
-	let item: SidebarActionItem
-	let buttonFrame: CGRect
 }
 
 struct AppSidebar<Content: View>: View {
@@ -40,7 +30,6 @@ struct AppSidebar<Content: View>: View {
 	let onPersonaSelected: () -> Void
 	let onCheckForUpdates: () -> Void
 	let onRestartServer: () -> Void
-	var onActionHelpChange: (SidebarActionHelpPresentation?) -> Void = { _ in }
 	@ViewBuilder let sidebarContent: () -> Content
 
 	private var actionItems: [SidebarActionItem] {
@@ -155,8 +144,6 @@ struct AppSidebar<Content: View>: View {
 						isSelected: currentRoute == item.route
 					) {
 						onSelectRoute(item.route)
-					} onHelpChange: { presentation in
-						onActionHelpChange(presentation)
 					}
 				}
 			}
@@ -183,6 +170,7 @@ struct AppSidebar<Content: View>: View {
 		// Session rows / grid actions live in lazy stacks and need a theme epoch
 		// nudge to re-tint without resetting Settings tab or navigation state.
 		.tobyThemeRefreshable()
+		.environment(AppearancePreferences.shared)
 		.accessibilityIdentifier("app-sidebar")
 	}
 }
@@ -191,41 +179,32 @@ private struct SidebarActionGridButton: View {
 	let item: SidebarActionItem
 	let isSelected: Bool
 	let action: () -> Void
-	let onHelpChange: (SidebarActionHelpPresentation?) -> Void
 
 	@State private var isHovered = false
 	@State private var isHelpVisible = false
 	@State private var hoverWorkItem: DispatchWorkItem?
-	@State private var buttonFrame = CGRect.zero
 
 	var body: some View {
-		GeometryReader { proxy in
-			Button(action: action) {
-				Image(systemName: isHovered ? item.hoveredSystemImage : item.systemImage)
-					.font(.system(size: 18, weight: .medium))
-					.symbolRenderingMode(isHovered ? .palette : .monochrome)
-					.foregroundStyle(iconPrimaryStyle, iconSecondaryStyle)
-					.frame(maxWidth: .infinity, minHeight: 34)
-					.contentShape(RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius))
-					.background(
-						RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
-							.fill(backgroundFill)
-					)
-			}
-			.buttonStyle(.plain)
-			.onHover(perform: handleHover)
-			.onAppear {
-				buttonFrame = proxy.frame(in: .named(RootContentCoordinateSpace.name))
-			}
-			.onChange(of: proxy.frame(in: .named(RootContentCoordinateSpace.name))) { _, frame in
-				buttonFrame = frame
-				if isHelpVisible {
-					onHelpChange(SidebarActionHelpPresentation(item: item, buttonFrame: frame))
-				}
-			}
-			.accessibilityLabel(item.title)
-			.accessibilityHint(item.detail)
+		Button(action: action) {
+			Image(systemName: isHovered ? item.hoveredSystemImage : item.systemImage)
+				.font(.system(size: 18, weight: .medium))
+				.symbolRenderingMode(isHovered ? .palette : .monochrome)
+				.foregroundStyle(iconPrimaryStyle, iconSecondaryStyle)
+				.frame(maxWidth: .infinity, minHeight: 34)
+				.contentShape(RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius))
+				.background(
+					RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
+						.fill(backgroundFill)
+				)
 		}
+		.buttonStyle(.plain)
+		.onHover(perform: handleHover)
+		.popover(isPresented: $isHelpVisible, arrowEdge: .leading) {
+			SidebarActionHelpPopover(title: item.title, detail: item.detail)
+				.environment(AppearancePreferences.shared)
+		}
+		.accessibilityLabel(item.title)
+		.accessibilityHint(item.detail)
 		.frame(maxWidth: .infinity, minHeight: 34)
 	}
 
@@ -252,23 +231,18 @@ private struct SidebarActionGridButton: View {
 
 		if hovering {
 			let workItem = DispatchWorkItem {
-				withAnimation(.easeOut(duration: 0.12)) {
-					isHelpVisible = true
-				}
-				onHelpChange(SidebarActionHelpPresentation(item: item, buttonFrame: buttonFrame))
+				isHelpVisible = true
 			}
 			hoverWorkItem = workItem
 			DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: workItem)
 		} else {
-			withAnimation(.easeOut(duration: 0.08)) {
-				isHelpVisible = false
-			}
-			onHelpChange(nil)
+			isHelpVisible = false
 			hoverWorkItem = nil
 		}
 	}
 }
 
+/// Inner content for a system `.popover` (same chrome as the server-status button).
 struct SidebarActionHelpPopover: View {
 	let title: String
 	let detail: String
@@ -284,14 +258,6 @@ struct SidebarActionHelpPopover: View {
 				.fixedSize(horizontal: false, vertical: true)
 		}
 		.padding(14)
-		.background(
-			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
-				.fill(AppTheme.elevatedBackground)
-				.shadow(color: .black.opacity(0.28), radius: 14, x: 0, y: 8)
-		)
-		.overlay(
-			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
-				.stroke(AppTheme.separator, lineWidth: 1)
-		)
+		.frame(width: 260, alignment: .leading)
 	}
 }

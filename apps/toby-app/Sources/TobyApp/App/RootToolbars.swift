@@ -128,6 +128,9 @@ enum RootToolbars {
 		isRefreshing: Bool,
 		isEditing: Bool = false,
 		onToggleEdit: @escaping () -> Void = {},
+		showActionsToggle: Bool = false,
+		actionsVisible: Bool = true,
+		onToggleActions: @escaping () -> Void = {},
 		onRefresh: @escaping () -> Void,
 	) -> some ToolbarContent {
 		common(model)
@@ -141,6 +144,16 @@ enum RootToolbars {
 			.help(dashboardEditHelp(isEditing: isEditing))
 			.accessibilityLabel(dashboardEditHelp(isEditing: isEditing))
 			.accessibilityIdentifier(dashboardEditIdentifier(isEditing: isEditing))
+		}
+		if showActionsToggle {
+			ToolbarItem(placement: .confirmationAction) {
+				Button(action: onToggleActions) {
+					Image(systemName: "sidebar.trailing")
+				}
+				.help(dashboardActionsHelp(actionsVisible: actionsVisible))
+				.accessibilityLabel(dashboardActionsHelp(actionsVisible: actionsVisible))
+				.accessibilityIdentifier("dashboard-actions-toggle")
+			}
 		}
 		ToolbarItem(placement: .confirmationAction) {
 			Button(action: onRefresh) {
@@ -158,6 +171,10 @@ enum RootToolbars {
 
 	static func dashboardEditIdentifier(isEditing: Bool) -> String {
 		isEditing ? "dashboard-done-editing-button" : "dashboard-edit-button"
+	}
+
+	static func dashboardActionsHelp(actionsVisible: Bool) -> String {
+		actionsVisible ? "Hide Actions" : "Show Actions"
 	}
 
 	@ToolbarContentBuilder

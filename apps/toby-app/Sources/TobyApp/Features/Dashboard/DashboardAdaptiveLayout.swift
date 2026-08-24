@@ -7,9 +7,16 @@ struct AdaptiveColumnLayout: Layout {
 	var spacing: CGFloat
 
 	func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-		let width = proposal.width ?? minItemWidth
+		// ViewThatFits / unconstrained stacks propose infinite width. Never
+		// convert that to Int — report a one-column ideal instead.
+		let width = Self.resolvedWidth(proposal.width, minItemWidth: minItemWidth)
 		guard !subviews.isEmpty else { return CGSize(width: width, height: 0) }
-		let columns = columnCount(for: width)
+		let columns = Self.columnCount(
+			containerWidth: width,
+			minItemWidth: minItemWidth,
+			spacing: spacing,
+			itemCount: subviews.count
+		)
 		let itemWidth = self.itemWidth(containerWidth: width, columns: columns)
 		var y: CGFloat = 0
 		var column = 0
@@ -38,8 +45,14 @@ struct AdaptiveColumnLayout: Layout {
 		subviews: Subviews,
 		cache: inout ()
 	) {
-		let columns = columnCount(for: bounds.width)
-		let itemWidth = self.itemWidth(containerWidth: bounds.width, columns: columns)
+		let width = Self.resolvedWidth(bounds.width, minItemWidth: minItemWidth)
+		let columns = Self.columnCount(
+			containerWidth: width,
+			minItemWidth: minItemWidth,
+			spacing: spacing,
+			itemCount: subviews.count
+		)
+		let itemWidth = self.itemWidth(containerWidth: width, columns: columns)
 		var x = bounds.minX
 		var y = bounds.minY
 		var column = 0
@@ -64,12 +77,34 @@ struct AdaptiveColumnLayout: Layout {
 		}
 	}
 
-	private func columnCount(for width: CGFloat) -> Int {
-		max(1, Int((width + spacing) / (minItemWidth + spacing)))
+	/// Finite positive width for column math. Nil / infinite / NaN → one column.
+	static func resolvedWidth(_ width: CGFloat?, minItemWidth: CGFloat) -> CGFloat {
+		guard let width, width.isFinite, width > 0 else { return minItemWidth }
+		return width
+	}
+
+	static func columnCount(
+		containerWidth: CGFloat,
+		minItemWidth: CGFloat,
+		spacing: CGFloat,
+		itemCount: Int = Int.max
+	) -> Int {
+		let width = resolvedWidth(containerWidth, minItemWidth: minItemWidth)
+		let denominator = minItemWidth + spacing
+		guard denominator > 0 else { return 1 }
+		let raw = (width + spacing) / denominator
+		guard raw.isFinite else { return 1 }
+		// Cap before Int() — a huge finite width would still trap on conversion.
+		let count = max(1, Int(min(raw, 32).rounded(.down)))
+		guard itemCount > 0, itemCount != Int.max else { return count }
+		return min(count, itemCount)
 	}
 
 	private func itemWidth(containerWidth: CGFloat, columns: Int) -> CGFloat {
-		let totalSpacing = spacing * CGFloat(max(0, columns - 1))
-		return max(minItemWidth, (containerWidth - totalSpacing) / CGFloat(columns))
+		let safeColumns = max(1, columns)
+		let totalSpacing = spacing * CGFloat(max(0, safeColumns - 1))
+		let raw = (containerWidth - totalSpacing) / CGFloat(safeColumns)
+		guard raw.isFinite else { return minItemWidth }
+		return max(minItemWidth, raw)
 	}
 }

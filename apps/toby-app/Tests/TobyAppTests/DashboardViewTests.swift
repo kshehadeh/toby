@@ -759,6 +759,7 @@ struct DashboardFlowBlocksTests {
 		#expect(runner.title == "Focus mode")
 		#expect(runner.flowDescription == "Turn off Wi-Fi")
 		#expect(runner.accessibilityIdentifier == "dashboard-flow-flow.run")
+		#expect(runner.systemImage == "play.circle")
 
 		let info = DashboardBlockDescriptor.flow(
 			flowInfo(id: "flow.info", title: "Status", description: "Latest", variant: "informational"),
@@ -812,30 +813,31 @@ struct DashboardFlowBlocksTests {
 		}
 	}
 
-	@Test("runner card shows description and run now")
-	func runnerCardShowsDescriptionAndRunNow() throws {
+	@Test("runner row shows title as the action, not a full card")
+	func runnerRowShowsTitleAsAction() throws {
 		let block = CategoryDashboardBlock(
 			descriptor: .flow(
 				flowInfo(id: "flow.run", title: "Focus mode", description: "Turn off Wi-Fi", variant: "runner"),
 				sortIndex: 100
 			)
 		)
-		let card = FlowRunnerDashboardCard(block: block)
+		let row = DashboardActionRunnerRow(block: block)
+			.environment(AppearancePreferences.shared)
 		#expect(throws: Never.self) {
-			try card.inspect().find(text: "Focus mode")
+			try row.inspect().find(text: "Focus mode")
 		}
 		#expect(throws: Never.self) {
-			try card.inspect().find(text: "Turn off Wi-Fi")
+			try row.inspect().find(viewWithAccessibilityIdentifier: "dashboard-flow-run-flow.run")
 		}
-		#expect(throws: Never.self) {
-			try card.inspect().find(text: "Run Now")
+		#expect(throws: (any Error).self) {
+			try row.inspect().find(text: "Run Now")
 		}
-		#expect(throws: Never.self) {
-			try card.inspect().find(viewWithAccessibilityIdentifier: "dashboard-flow-run-flow.run")
+		#expect(throws: (any Error).self) {
+			try row.inspect().find(text: "Turn off Wi-Fi")
 		}
 	}
 
-	@Test("dashboard view renders informational and runner flow cards")
+	@Test("dashboard view keeps informational flow cards and does not host runners in the grid")
 	func dashboardViewRendersFlowCards() throws {
 		let store = DashboardStore()
 		store.registry.syncFlowBlocks(
@@ -873,14 +875,144 @@ struct DashboardFlowBlocksTests {
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-flow-flow.info")
 		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-flow-flow.run")
-		}
-		#expect(throws: Never.self) {
+		// Runner rows live in the trailing inspector, which ViewInspector cannot
+		// traverse. The home grid must not host a full runner card.
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(text: "Run Now")
 		}
+		#expect(store.registry.orderedVisibleRunners(layout: prefs.dashboardLayout).map(\.id.rawValue)
+			== ["flow.run"])
+
+		let runnerBlock = store.registry.block(rawId: "flow.run")!
+		let rail = DashboardActionRunnersRail(blocks: [runnerBlock]) { block in
+			DashboardActionRunnerRow(block: block)
+		}
+		.environment(AppearancePreferences.shared)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Turn off Wi-Fi")
+			try rail.inspect().find(viewWithAccessibilityIdentifier: "dashboard-actions-rail")
+		}
+		#expect(throws: Never.self) {
+			try rail.inspect().find(text: "Actions")
+		}
+		#expect(throws: Never.self) {
+			try rail.inspect().find(text: "Focus mode")
+		}
+	}
+
+	@Test("actions rail is omitted when there are no visible runners")
+	func actionsRailOmittedWithoutRunners() throws {
+		let suite = UserDefaults(suiteName: "toby.tests.dashboard.rail.none.\(UUID().uuidString)")!
+		let prefs = AppearancePreferences(
+			hideOnboarding: true,
+			defaults: suite
+		)
+		let view = DashboardView(
+			store: DashboardStore(),
+			userName: "Karim",
+			onboarding: OnboardingChecklist.make(
+				hasConfiguredAIProvider: true,
+				hasConnectedIntegrations: true,
+				hasModelConfigured: true,
+				hasRequiredPermissions: true,
+				hasSchedule: true,
+				hasSkill: true,
+				hasTranscriptionConfigured: true,
+				hasRecording: true,
+				hasSession: true
+			),
+			onRefresh: {},
+			onSelectRoute: { _ in },
+			onOpenPermissions: {},
+			actionContext: .init(startChat: {}),
+			appearancePreferences: prefs
+		)
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-actions-rail")
+		}
+	}
+
+	@Test("toolbar pane flag hides the actions rail while keeping runners registered")
+	func actionsPaneToggleHidesRail() throws {
+		let store = DashboardStore()
+		store.registry.syncFlowBlocks(
+			[
+				flowInfo(id: "flow.run", title: "Focus mode", description: "Turn off Wi-Fi", variant: "runner"),
+			],
+			client: TobyClient()
+		)
+		let suite = UserDefaults(suiteName: "toby.tests.dashboard.rail.toggle.\(UUID().uuidString)")!
+		let prefs = AppearancePreferences(
+			hideOnboarding: true,
+			defaults: suite
+		)
+		prefs.dashboardLayout = DashboardLayout(order: [], hidden: [], actionsVisible: false)
+		let view = DashboardView(
+			store: store,
+			userName: "Karim",
+			onboarding: OnboardingChecklist.make(
+				hasConfiguredAIProvider: true,
+				hasConnectedIntegrations: true,
+				hasModelConfigured: true,
+				hasRequiredPermissions: true,
+				hasSchedule: true,
+				hasSkill: true,
+				hasTranscriptionConfigured: true,
+				hasRecording: true,
+				hasSession: true
+			),
+			onRefresh: {},
+			onSelectRoute: { _ in },
+			onOpenPermissions: {},
+			actionContext: .init(startChat: {}),
+			appearancePreferences: prefs
+		)
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-actions-rail")
+		}
+		#expect(store.registry.block(rawId: "flow.run")?.descriptor.isFlowRunner == true)
+	}
+
+	@Test("hiding the last runner removes the actions rail")
+	func hidingLastRunnerRemovesRail() throws {
+		let store = DashboardStore()
+		store.registry.syncFlowBlocks(
+			[
+				flowInfo(id: "flow.run", title: "Focus mode", description: "Turn off Wi-Fi", variant: "runner"),
+			],
+			client: TobyClient()
+		)
+		let suite = UserDefaults(suiteName: "toby.tests.dashboard.rail.hide.\(UUID().uuidString)")!
+		let prefs = AppearancePreferences(
+			hideOnboarding: true,
+			defaults: suite
+		)
+		prefs.dashboardLayout = DashboardLayout(order: [], hidden: ["flow.run"])
+		let view = DashboardView(
+			store: store,
+			userName: "Karim",
+			onboarding: OnboardingChecklist.make(
+				hasConfiguredAIProvider: true,
+				hasConnectedIntegrations: true,
+				hasModelConfigured: true,
+				hasRequiredPermissions: true,
+				hasSchedule: true,
+				hasSkill: true,
+				hasTranscriptionConfigured: true,
+				hasRecording: true,
+				hasSession: true
+			),
+			onRefresh: {},
+			onSelectRoute: { _ in },
+			onOpenPermissions: {},
+			actionContext: .init(startChat: {}),
+			appearancePreferences: prefs,
+			isEditing: true
+		)
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-actions-rail")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hidden-chip-flow.run")
 		}
 	}
 }

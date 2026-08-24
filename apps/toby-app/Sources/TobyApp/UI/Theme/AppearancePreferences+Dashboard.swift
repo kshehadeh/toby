@@ -111,4 +111,19 @@ extension AppearancePreferences {
 			dashboardLayout = .empty
 		}
 	}
+
+	/// Toolbar toggle for the Actions rail (independent of per-runner hide).
+	func toggleDashboardActionsVisible() {
+		var next = dashboardLayout
+		next.actionsVisible.toggle()
+		guard next != dashboardLayout else { return }
+		dashboardLayout = next
+	}
+
+	func setDashboardActionsWidth(_ width: CGFloat) {
+		var next = dashboardLayout
+		next.actionsWidth = DashboardLayout.clampedActionsWidth(width)
+		guard next != dashboardLayout else { return }
+		dashboardLayout = next
+	}
 }

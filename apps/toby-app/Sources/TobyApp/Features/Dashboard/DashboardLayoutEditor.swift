@@ -74,14 +74,26 @@ final class DashboardLayoutEditor {
 		lastTrayFrame = trayFrame
 		lastDescriptors = descriptors
 		dragLocation = location
+
+		let isRunner = descriptors.first { $0.id == draggingID }?.isFlowRunner ?? false
+		let kindSlots = slots.filter { slot in
+			(descriptors.first { $0.id == slot.id }?.isFlowRunner ?? false) == isRunner
+		}
 		let visible = draft.resolvedVisible(from: descriptors)
+		let kindVisible = visible.filter { id in
+			(descriptors.first { $0.id == id }?.isFlowRunner ?? false) == isRunner
+		}
 		let stillInTray = isDraggingFromTray && draft.isHidden(id: draggingID)
+		let regionBounds = kindSlots.reduce(CGRect.null) { $0.union($1.frame) }
+		let inKindRegion = !regionBounds.isNull
+			&& regionBounds.insetBy(dx: -24, dy: -24).contains(location)
+
 		let target = DashboardDragGeometry.targetIndex(
 			at: location,
-			slots: slots.filter { $0.id != draggingID || !stillInTray },
-			visible: visible.filter { $0 != draggingID || !stillInTray },
+			slots: kindSlots.filter { $0.id != draggingID || !stillInTray },
+			visible: kindVisible.filter { $0 != draggingID || !stillInTray },
 			trayFrame: trayFrame,
-			requireHit: stillInTray
+			requireHit: stillInTray || !inKindRegion
 		)
 
 		if stillInTray {
@@ -89,7 +101,13 @@ final class DashboardLayoutEditor {
 				return
 			}
 			guard let target else { return }
-			draft = draft.showing(draggingID, at: target, from: descriptors)
+			let fullIndex = DashboardLayout.visibleIndex(
+				forRegionIndex: target,
+				draggingID: draggingID,
+				visible: draft.resolvedVisible(from: descriptors),
+				descriptors: descriptors
+			)
+			draft = draft.showing(draggingID, at: fullIndex, from: descriptors)
 			return
 		}
 
@@ -100,8 +118,14 @@ final class DashboardLayoutEditor {
 			return
 		}
 
-		guard let target else { return }
-		let next = draft.moving(draggingID, to: target, from: descriptors)
+		guard inKindRegion, let target else { return }
+		let fullIndex = DashboardLayout.visibleIndex(
+			forRegionIndex: target,
+			draggingID: draggingID,
+			visible: draft.resolvedVisible(from: descriptors),
+			descriptors: descriptors
+		)
+		let next = draft.moving(draggingID, to: fullIndex, from: descriptors)
 		if next != draft {
 			draft = next
 		}

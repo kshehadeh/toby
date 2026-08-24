@@ -2,25 +2,26 @@ import React from 'react';
 
 export function FlowRunnerCard({ title, description, stamp, running = false, error, onRun }) {
   return (
-    <div style={{ position: 'relative', background: 'var(--surface-panel)', borderRadius: 'var(--radius-lg)',
-      padding: '26px', overflow: 'hidden', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <span style={{ position: 'absolute', left: '26px', right: '26px', top: 0, height: '2px', background: 'var(--toby-accent)', opacity: 0.85 }} />
-      {stamp ? <span aria-hidden="true" style={{ position: 'absolute', right: '-10px', bottom: '-14px', color: 'var(--text-body)', opacity: 0.045, pointerEvents: 'none', display: 'inline-flex' }}>{stamp}</span> : null}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-5)', marginBottom: 'var(--space-9)' }}>
-        <span style={{ fontFamily: 'var(--font-system)', fontSize: 'var(--size-card-title)', fontWeight: 'var(--weight-semibold)', color: 'var(--text-body)' }}>{title}</span>
-      </div>
-      <div style={{ fontFamily: 'var(--font-serif)', fontSize: '14px', lineHeight: 1.6, color: 'var(--text-muted)', textWrap: 'pretty' }}>{description}</div>
-      {error ? (
-        <div style={{ marginTop: 'var(--space-4)', fontFamily: 'var(--font-system)', fontSize: 'var(--size-callout)', color: 'var(--status-danger)' }}>{error}</div>
-      ) : null}
-      <div style={{ flex: 1, minHeight: 'var(--space-8)' }} />
-      <button type="button" onClick={onRun} disabled={running}
-        style={{ width: '100%', height: '30px', borderRadius: 'var(--radius-control)', border: '1px solid transparent',
-          background: 'var(--toby-accent)', color: 'var(--text-on-accent)', fontFamily: 'var(--font-system)',
-          fontSize: 'var(--size-body)', fontWeight: 'var(--weight-semibold)', cursor: running ? 'default' : 'pointer',
-          opacity: running ? 0.5 : 1, transition: 'opacity var(--dur-hover) var(--ease-out)' }}>
-        {running ? 'Running…' : 'Run Now'}
+    <div style={{ width: 156, display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ fontFamily: 'var(--font-system)', fontSize: 'var(--size-caption, 11px)',
+        color: 'var(--text-faint)', padding: '2px 8px 0' }}>Actions</div>
+      <button type="button" onClick={onRun} disabled={running} aria-label={title}
+        title={description}
+        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+          padding: '8px', border: 'none', borderRadius: 'var(--radius-sm)',
+          background: running ? 'color-mix(in srgb, var(--toby-accent) 12%, transparent)' : 'transparent',
+          color: 'var(--text-body)', fontFamily: 'var(--font-system)',
+          fontSize: 'var(--size-callout, 12px)', fontWeight: 500, cursor: running ? 'default' : 'pointer',
+          opacity: running ? 0.85 : 1, textAlign: 'left' }}>
+        <span aria-hidden="true" style={{ width: 16, height: 16, display: 'inline-flex',
+          color: 'var(--toby-accent)', flex: '0 0 16px' }}>
+          {running ? '…' : (stamp ?? '▶')}
+        </span>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
       </button>
+      {error ? (
+        <div style={{ padding: '0 8px', fontFamily: 'var(--font-system)', fontSize: 10, color: 'var(--status-danger)' }}>{error}</div>
+      ) : null}
     </div>
   );
 }

@@ -33,6 +33,12 @@ struct RootToolbarsTests {
 			RootToolbars.dashboardEditIdentifier(isEditing: true) == "dashboard-done-editing-button"
 		)
 	}
+
+	@Test("dashboard actions toolbar help swaps with pane visibility")
+	func dashboardActionsToolbarHelp() {
+		#expect(RootToolbars.dashboardActionsHelp(actionsVisible: true) == "Hide Actions")
+		#expect(RootToolbars.dashboardActionsHelp(actionsVisible: false) == "Show Actions")
+	}
 }
 
 @MainActor

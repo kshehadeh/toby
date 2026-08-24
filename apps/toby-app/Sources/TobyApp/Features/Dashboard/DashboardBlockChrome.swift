@@ -12,6 +12,13 @@ enum DashboardBlockLayout {
 		showMoreFadeHeight + showMoreButtonHeight
 	}
 
+	/// Home card column cap (informational / built-in cards).
+	static let cardsMaxWidth: CGFloat = 940
+	/// Preferred / min / max width of the Actions inspector column.
+	static let actionsRailDefaultWidth: CGFloat = 156
+	static let actionsRailMinWidth: CGFloat = 120
+	static let actionsRailMaxWidth: CGFloat = 280
+
 	/// Inset matching the design-system `DashboardCard` (26px).
 	static let cardPadding: CGFloat = 26
 	static let headerSpacing: CGFloat = 18

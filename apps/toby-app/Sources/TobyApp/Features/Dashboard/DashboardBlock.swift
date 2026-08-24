@@ -136,7 +136,7 @@ struct DashboardBlockDescriptor: Identifiable, Sendable {
 		DashboardBlockDescriptor(
 			id: DashboardBlockID(info.id),
 			title: info.title,
-			systemImage: "arrow.triangle.branch",
+			systemImage: info.variant == "runner" ? "play.circle" : "arrow.triangle.branch",
 			emptyWhenNil: "Run this flow to see output here.",
 			emptyWhenZero: "Run this flow to see output here.",
 			sortIndex: sortIndex,
