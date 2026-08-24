@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="1040" viewBox="0 0 1160 1040" role="img" aria-labelledby="title desc">
+  <title id="title">Toby high-level architecture</title>
+  <desc id="desc">A diagram showing the CLI, Toby.app, the daemon server API, the core harness, installable plugins, Toby.app native API server, and external systems.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f8fafc"></stop>
+      <stop offset="1" stop-color="#eef4f8"></stop>
+    </linearGradient>
+    <linearGradient id="surface" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#0f766e"></stop>
+      <stop offset="1" stop-color="#15803d"></stop>
+    </linearGradient>
+    <linearGradient id="server" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#2563eb"></stop>
+      <stop offset="1" stop-color="#4338ca"></stop>
+    </linearGradient>
+    <linearGradient id="plugin" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#be123c"></stop>
+      <stop offset="1" stop-color="#9d174d"></stop>
+    </linearGradient>
+    <linearGradient id="native" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#b45309"></stop>
+      <stop offset="1" stop-color="#92400e"></stop>
+    </linearGradient>
+    <filter id="shadow" x="-18%" y="-18%" width="136%" height="136%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#0f172a" flood-opacity="0.13"></feDropShadow>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.4" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"></path>
+    </marker>
+    <marker id="arrowDark" viewBox="0 0 10 10" refX="8.4" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"></path>
+    </marker>
+    
+  </defs>
+
+  <rect class="page" width="1160" height="1040"></rect>
+
+  <text x="70" y="78" class="eyebrow">TOBY ARCHITECTURE</text>
+  <text x="70" y="122" class="title">Surfaces, Server, Core, Plugins</text>
+  <text x="70" y="156" class="subtitle">Toby.app uses the daemon API; the CLI can run the core harness directly and manage server-backed flows.</text>
+
+  <g filter="url(#shadow)">
+    <g transform="translate(70 205)">
+      <rect width="300" height="118" rx="10" fill="url(#surface)"></rect>
+      <text x="28" y="43" class="layer-label">@toby/cli</text>
+      <text x="28" y="70" class="layer-note">Commander maintenance CLI</text>
+      <text x="28" y="93" class="layer-note">Runs core directly; starts daemon</text>
+    </g>
+    <g transform="translate(430 205)">
+      <rect width="300" height="118" rx="10" fill="url(#native)"></rect>
+      <text x="28" y="43" class="layer-label">Toby.app</text>
+      <text x="28" y="70" class="layer-note">SwiftUI macOS app</text>
+      <text x="28" y="93" class="layer-note">Calls daemon API; hosts native API</text>
+    </g>
+  </g>
+
+  <path class="line" d="M 580 323 C 580 348 630 354 685 370"></path>
+  <path class="dashed" d="M 220 323 C 220 352 274 358 330 378"></path>
+  <text x="246" y="352" class="tiny">MANAGES</text>
+
+  <g filter="url(#shadow)">
+    <rect x="300" y="370" width="560" height="136" rx="10" fill="url(#server)"></rect>
+    <text x="332" y="411" class="layer-label">Daemon server API</text>
+    <text x="332" y="438" class="layer-note">Localhost HTTP API at 127.0.0.1:7847</text>
+    <g transform="translate(332 458)">
+      <rect width="154" height="30" rx="7" fill="rgba(255,255,255,0.16)" stroke="rgba(255,255,255,0.28)"></rect>
+      <text x="18" y="20" class="white-text">sessions</text>
+    </g>
+    <g transform="translate(502 458)">
+      <rect width="154" height="30" rx="7" fill="rgba(255,255,255,0.16)" stroke="rgba(255,255,255,0.28)"></rect>
+      <text x="18" y="20" class="white-text">SSE chat turns</text>
+    </g>
+    <g transform="translate(672 458)">
+      <rect width="154" height="30" rx="7" fill="rgba(255,255,255,0.16)" stroke="rgba(255,255,255,0.28)"></rect>
+      <text x="18" y="20" class="white-text">configuration</text>
+    </g>
+  </g>
+
+  <path class="line-dark" d="M 580 506 L 580 550"></path>
+  <path class="line-dark" d="M 220 323 C 220 430 250 500 330 560"></path>
+
+  <g filter="url(#shadow)">
+    <rect x="170" y="550" width="820" height="196" rx="10" fill="url(#server)"></rect>
+    <text x="202" y="592" class="layer-label">@toby/core</text>
+    <text x="202" y="618" class="layer-note">UI-agnostic harness for chat, AI, integrations, persistence, memory, and daemon workflows</text>
+
+    <g transform="translate(202 646)">
+      <rect width="356" height="72" rx="8" fill="#ffffff" fill-opacity="0.96"></rect>
+      <text x="18" y="29" class="card-title">Chat pipeline + AI runtime</text>
+      <text x="18" y="53" class="card-text">turn assembly, tools, model calls, caching</text>
+    </g>
+    <g transform="translate(602 646)">
+      <rect width="356" height="72" rx="8" fill="#ffffff" fill-opacity="0.96"></rect>
+      <text x="18" y="29" class="card-title">State, context, integrations</text>
+      <text x="18" y="53" class="card-text">config, sessions, memory, registry, logs</text>
+    </g>
+  </g>
+
+  <path class="line-dark" d="M 580 746 L 580 788"></path>
+
+  <g filter="url(#shadow)">
+    <rect x="170" y="788" width="500" height="112" rx="10" fill="url(#plugin)"></rect>
+    <text x="202" y="828" class="layer-label">@toby/plugin-*</text>
+    <text x="202" y="854" class="layer-note">Installable integration executables</text>
+    <rect x="382" y="812" width="250" height="34" rx="8" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.28)"></rect>
+    <text x="402" y="835" class="white-text">JSON protocol over stdin/stdout</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="730" y="788" width="260" height="112" rx="10" fill="url(#native)"></rect>
+    <text x="758" y="826" class="layer-label">Native API server</text>
+    <text x="758" y="852" class="layer-note">Hosted by Toby.app</text>
+    <text x="758" y="875" class="layer-note">EventKit + Accessibility</text>
+  </g>
+
+  <path class="line" d="M 670 844 L 726 844"></path>
+  <text x="682" y="834" class="tiny">HTTP</text>
+
+  <path class="line" d="M 420 900 L 420 932"></path>
+  <path class="line" d="M 860 900 L 860 932"></path>
+
+  <g filter="url(#shadow)">
+    <rect x="170" y="932" width="820" height="70" rx="10" class="panel"></rect>
+    <text x="202" y="974" class="card-title">External systems and macOS services</text>
+    <text x="504" y="974" class="card-text">Email, tasks, chat, work tracking, search, calendars, EventKit, Accessibility</text>
+  </g>
+</svg>

@@ -1,0 +1,166 @@
+/* Base palette — converted 1:1 from NSColor+TobyTheme.swift.
+   Cascade order matters: light defaults, then system-dark, then explicit
+   [data-theme] overrides. Set data-theme="light"/"dark" to pin a scheme. */
+:root{
+  /* App chrome */
+  --toby-sidebar-bg:#f2f2f5;
+  --toby-content-bg:#fcfcfc;
+  --toby-panel-bg:#f0f0f2;
+  --toby-elevated-bg:#f7f7fa;
+  --toby-separator:rgba(0,0,0,.10);
+  --toby-text-primary:rgba(0,0,0,.88);
+  --toby-text-secondary:rgba(0,0,0,.55);
+  --toby-text-tertiary:rgba(0,0,0,.38);
+  --toby-selection:rgba(0,0,0,.06);
+  /* Settings surfaces */
+  --toby-settings-canvas:#f5f5f7;
+  --toby-settings-card:#ffffff;
+  --toby-settings-card-border:rgba(0,0,0,.08);
+  --toby-settings-section-header:rgba(0,0,0,.45);
+  --toby-settings-row-title:rgba(0,0,0,.92);
+  --toby-settings-row-description:rgba(0,0,0,.42);
+  --toby-settings-control-border:rgba(0,0,0,.14);
+  --toby-settings-sidebar-selection:rgba(0,0,0,.12);
+  /* Inline status callouts */
+  --toby-status-error-bg:#faeded;
+  --toby-status-error-border:rgba(184,56,56,.45);
+  --toby-status-error-fg:#9e1f1f;
+  --toby-status-success-bg:#edf7ef;
+  --toby-status-success-border:rgba(46,140,77,.45);
+  --toby-status-success-fg:#1f6b38;
+  /* Logs + markdown islands */
+  --toby-log-bg:#f7f7fa;
+  --toby-log-code-bg:rgba(0,0,0,.04);
+  --toby-json-key:#2e52ad;
+  --toby-json-string:#1f7a47;
+  --toby-json-number:#b8610d;
+  --toby-json-bool:#8538ad;
+  --toby-md-primary:#1f1f24;
+  --toby-md-marker:rgba(0,0,0,.35);
+  --toby-md-heading:#2666bf;
+  --toby-md-code:#b3661a;
+  --toby-md-code-bg:rgba(0,0,0,.05);
+  --toby-md-bold:rgba(0,0,0,.92);
+
+  /* Fixed (appearance-independent) */
+  --toby-toggle-tint:#33c759;
+  --toby-completed-green:#59bf73;
+  --toby-danger:#e65959;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --toby-sidebar-bg:#1f2426;
+    --toby-content-bg:#141414;
+    --toby-panel-bg:#262626;
+    --toby-elevated-bg:#2e2e2e;
+    --toby-separator:rgba(255,255,255,.08);
+    --toby-text-primary:rgba(255,255,255,.88);
+    --toby-text-secondary:rgba(255,255,255,.58);
+    --toby-text-tertiary:rgba(255,255,255,.38);
+    --toby-selection:rgba(255,255,255,.08);
+    --toby-settings-canvas:#1a1a1c;
+    --toby-settings-card:#29292b;
+    --toby-settings-card-border:rgba(255,255,255,.07);
+    --toby-settings-section-header:rgba(255,255,255,.45);
+    --toby-settings-row-title:rgba(255,255,255,.92);
+    --toby-settings-row-description:rgba(255,255,255,.42);
+    --toby-settings-control-border:rgba(255,255,255,.14);
+    --toby-settings-sidebar-selection:rgba(255,255,255,.16);
+    --toby-status-error-bg:#471f1f;
+    --toby-status-error-border:rgba(230,115,115,.40);
+    --toby-status-error-fg:#f2b3b3;
+    --toby-status-success-bg:#1f3829;
+    --toby-status-success-border:rgba(115,217,140,.40);
+    --toby-status-success-fg:#b3ebbf;
+    --toby-log-bg:#141417;
+    --toby-log-code-bg:rgba(0,0,0,.28);
+    --toby-json-key:#8cbffa;
+    --toby-json-string:#8cd98c;
+    --toby-json-number:#f2bf66;
+    --toby-json-bool:#d98cf2;
+    --toby-md-primary:#f2f2f4;
+    --toby-md-marker:rgba(255,255,255,.35);
+    --toby-md-heading:#6db3f8;
+    --toby-md-code:#e6a56a;
+    --toby-md-code-bg:rgba(255,255,255,.05);
+    --toby-md-bold:rgba(255,255,255,.95);
+  }
+}
+[data-theme="dark"]{
+  --toby-sidebar-bg:#1f2426;
+  --toby-content-bg:#141414;
+  --toby-panel-bg:#262626;
+  --toby-elevated-bg:#2e2e2e;
+  --toby-separator:rgba(255,255,255,.08);
+  --toby-text-primary:rgba(255,255,255,.88);
+  --toby-text-secondary:rgba(255,255,255,.58);
+  --toby-text-tertiary:rgba(255,255,255,.38);
+  --toby-selection:rgba(255,255,255,.08);
+  --toby-settings-canvas:#1a1a1c;
+  --toby-settings-card:#29292b;
+  --toby-settings-card-border:rgba(255,255,255,.07);
+  --toby-settings-section-header:rgba(255,255,255,.45);
+  --toby-settings-row-title:rgba(255,255,255,.92);
+  --toby-settings-row-description:rgba(255,255,255,.42);
+  --toby-settings-control-border:rgba(255,255,255,.14);
+  --toby-settings-sidebar-selection:rgba(255,255,255,.16);
+  --toby-status-error-bg:#471f1f;
+  --toby-status-error-border:rgba(230,115,115,.40);
+  --toby-status-error-fg:#f2b3b3;
+  --toby-status-success-bg:#1f3829;
+  --toby-status-success-border:rgba(115,217,140,.40);
+  --toby-status-success-fg:#b3ebbf;
+  --toby-log-bg:#141417;
+  --toby-log-code-bg:rgba(0,0,0,.28);
+  --toby-json-key:#8cbffa;
+  --toby-json-string:#8cd98c;
+  --toby-json-number:#f2bf66;
+  --toby-json-bool:#d98cf2;
+  --toby-md-primary:#f2f2f4;
+  --toby-md-marker:rgba(255,255,255,.35);
+  --toby-md-heading:#6db3f8;
+  --toby-md-code:#e6a56a;
+  --toby-md-code-bg:rgba(255,255,255,.05);
+  --toby-md-bold:rgba(255,255,255,.95);
+}
+[data-theme="light"]{
+  /* App chrome */
+  --toby-sidebar-bg:#f2f2f5;
+  --toby-content-bg:#fcfcfc;
+  --toby-panel-bg:#f0f0f2;
+  --toby-elevated-bg:#f7f7fa;
+  --toby-separator:rgba(0,0,0,.10);
+  --toby-text-primary:rgba(0,0,0,.88);
+  --toby-text-secondary:rgba(0,0,0,.55);
+  --toby-text-tertiary:rgba(0,0,0,.38);
+  --toby-selection:rgba(0,0,0,.06);
+  /* Settings surfaces */
+  --toby-settings-canvas:#f5f5f7;
+  --toby-settings-card:#ffffff;
+  --toby-settings-card-border:rgba(0,0,0,.08);
+  --toby-settings-section-header:rgba(0,0,0,.45);
+  --toby-settings-row-title:rgba(0,0,0,.92);
+  --toby-settings-row-description:rgba(0,0,0,.42);
+  --toby-settings-control-border:rgba(0,0,0,.14);
+  --toby-settings-sidebar-selection:rgba(0,0,0,.12);
+  /* Inline status callouts */
+  --toby-status-error-bg:#faeded;
+  --toby-status-error-border:rgba(184,56,56,.45);
+  --toby-status-error-fg:#9e1f1f;
+  --toby-status-success-bg:#edf7ef;
+  --toby-status-success-border:rgba(46,140,77,.45);
+  --toby-status-success-fg:#1f6b38;
+  /* Logs + markdown islands */
+  --toby-log-bg:#f7f7fa;
+  --toby-log-code-bg:rgba(0,0,0,.04);
+  --toby-json-key:#2e52ad;
+  --toby-json-string:#1f7a47;
+  --toby-json-number:#b8610d;
+  --toby-json-bool:#8538ad;
+  --toby-md-primary:#1f1f24;
+  --toby-md-marker:rgba(0,0,0,.35);
+  --toby-md-heading:#2666bf;
+  --toby-md-code:#b3661a;
+  --toby-md-code-bg:rgba(0,0,0,.05);
+  --toby-md-bold:rgba(0,0,0,.92);
+}

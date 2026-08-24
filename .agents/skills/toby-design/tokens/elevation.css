@@ -1,0 +1,12 @@
+/* Shadows are rare and always downward. Flat is the default state;
+   elevation appears only for floating chrome and expanded cards. */
+:root{
+  --shadow-none:none;
+  --shadow-dock:0 12px 20px rgba(0,0,0,.16);      /* InputDock */
+  --shadow-toast:0 6px 16px rgba(0,0,0,.22);      /* ToastView */
+  --shadow-popover:0 8px 14px rgba(0,0,0,.28);    /* sidebar help popover */
+  --shadow-card-expanded:0 6px 12px rgba(0,0,0,.18);
+  --shadow-stamp:1px 3px 10px rgba(0,0,0,.4);     /* decorative card glyph */
+  --blur-material:blur(20px); /* @kind other */
+  --blur-navbar:blur(12px); /* @kind other */
+}

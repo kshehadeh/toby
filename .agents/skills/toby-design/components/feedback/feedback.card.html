@@ -1,0 +1,31 @@
+<!-- @dsCard group="Components" viewport="700x260" name="Feedback" subtitle="Status callouts, toast, loading skeleton" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="dark"><head><meta charset="utf-8"><title>Feedback</title>
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;background:var(--surface-content);font-family:var(--font-system);color:var(--text-body)}#root{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px}.lbl{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-faint);margin-bottom:8px}a{color:var(--text-accent)}a:hover{color:var(--text-body)}</style>
+</head><body><div id="root"></div>
+<script type="text/babel">
+const { InlineStatusMessage, Toast, Skeleton } = window.TobyDesignSystem_28de33;
+ReactDOM.createRoot(document.getElementById('root')).render(<React.Fragment>
+  <div>
+    <div className="lbl">Inline status</div>
+    <div style={{display:'flex',flexDirection:'column',gap:10}}>
+      <InlineStatusMessage tone="success" message="Connected. Toby can read and send mail for this account."/>
+      <InlineStatusMessage tone="error" message="Couldn't reach the daemon. Restart the server from the sidebar."/>
+    </div>
+    <div className="lbl" style={{marginTop:18}}>Skeleton</div>
+    <Skeleton lines={3}/>
+  </div>
+  <div>
+    <div className="lbl">Toast</div>
+    <div style={{display:'flex',flexDirection:'column',gap:10}}>
+      <Toast style="success" title="Backup restored" message="Config and credentials were written to ~/.toby." actionLabel="Reveal in Finder"/>
+      <Toast style="error" title="Flow failed" message="jira-triage exited with status 1."/>
+    </div>
+  </div>
+</React.Fragment>);
+</script></body></html>

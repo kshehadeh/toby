@@ -1,0 +1,120 @@
+<!-- @dsCard group="Toby for macOS" viewport="1280x800" name="Toby app" subtitle="Click-through recreation: dashboard, chat, integrations, settings" -->
+<!-- @startingPoint section="Toby for macOS" subtitle="Full app shell — sidebar, toolbar, and four screens" viewport="1280x800" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-accent="orange"><head><meta charset="utf-8"><title>Toby — macOS app</title>
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.417.0/dist/umd/lucide.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<script src="data.js"></script>
+<style>
+html,body{margin:0;height:100%}
+body{background:var(--surface-content);color:var(--text-body);font-family:var(--font-system);font-size:var(--size-body);overflow:hidden}
+#root{height:100vh}
+a{color:var(--text-accent)}a:hover{color:var(--text-body)}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--text-faint) 40%,transparent);border-radius:999px}::-webkit-scrollbar-track{background:transparent}
+</style>
+</head><body><div id="root"></div>
+<script type="text/babel" src="Sidebar.jsx"></script>
+<script type="text/babel" src="ChatScreen.jsx"></script>
+<script type="text/babel" src="DashboardScreen.jsx"></script>
+<script type="text/babel" src="IntegrationsScreen.jsx"></script>
+<script type="text/babel" src="SettingsScreen.jsx"></script>
+<script type="text/babel">
+const { IconButton, Button, Toast } = window.TobyDesignSystem_28de33;
+const data = window.TobyKitData;
+
+const answerFor = (prompt) => 'Three threads are waiting on you. The vendor renewal from Priya is the oldest — open since Thursday, and it names a Friday deadline.\n\nThe other two are quick confirmations: a calendar accept for Thursday\u2019s design review and a one-line reply to the security questionnaire.';
+
+function Toolbar({ title, activity, onNewChat, onSettings }) {
+  return (
+    <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '0 var(--pad-content)',
+      borderBottom: '1px solid var(--border-hairline)', background: 'var(--surface-content)' }}>
+      <span style={{ fontSize: 'var(--size-headline)', fontWeight: 'var(--weight-semibold)', color: 'var(--text-body)' }}>{title}</span>
+      {activity ? <span style={{ fontSize: 'var(--size-caption)', color: 'var(--text-faint)' }}>{activity}</span> : null}
+      <span style={{ flex: 1 }} />
+      <IconButton label="Command palette" filled={false} tone="faint" glyph={<Icon name="search" size={14} />} />
+      <IconButton label="Settings" filled={false} tone="faint" glyph={<Icon name="settings-2" size={14} />} onClick={onSettings} />
+      <IconButton label="New chat" glyph={<Icon name="plus" size={14} />} onClick={onNewChat} />
+    </div>
+  );
+}
+
+function NotBuilt({ route }) {
+  const r = data.routes.find((x) => x.id === route);
+  return (
+    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ maxWidth: 420, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
+        <span style={{ color: 'var(--text-faint)' }}><Icon name={r.icon} size={28} /></span>
+        <span style={{ fontSize: 'var(--size-title2)', fontWeight: 'var(--weight-semibold)' }}>{r.title}</span>
+        <span style={{ fontSize: 'var(--size-callout)', color: 'var(--text-muted)', textWrap: 'pretty' }}>{r.detail}</span>
+        <span style={{ fontSize: 'var(--size-caption)', color: 'var(--text-faint)' }}>Left blank on purpose — this surface is not recreated in the UI kit.</span>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [route, setRoute] = React.useState('dashboard');
+  const [session, setSession] = React.useState('s1');
+  const [turns, setTurns] = React.useState([]);
+  const [draft, setDraft] = React.useState('');
+  const [refreshing, setRefreshing] = React.useState(null);
+  const [theme, setTheme] = React.useState('dark');
+  const [accent, setAccent] = React.useState('orange');
+  const [tab, setTab] = React.useState('appearance');
+  const [personaOpen, setPersonaOpen] = React.useState(false);
+  const [toast, setToast] = React.useState(null);
+
+  React.useEffect(() => { lucide.createIcons(); });
+  React.useEffect(() => {
+    const el = document.documentElement;
+    el.setAttribute('data-accent', accent);
+    if (theme === 'system') { el.removeAttribute('data-theme'); } else { el.setAttribute('data-theme', theme); }
+  }, [theme, accent]);
+
+  const send = () => {
+    if (!draft.trim()) return;
+    const prompt = draft;
+    setDraft('');
+    setTurns((t) => t.concat([{ prompt, steps: [{ title: 'Search mail', icon: 'mail', active: true }], answer: null }]));
+    setTimeout(() => setTurns((t) => t.map((x, i) => i === t.length - 1 ? {
+      prompt: x.prompt,
+      steps: [
+        { title: 'Search mail', icon: 'mail', body: '12 threads since Monday, 3 flagged', duration: '1.4s', count: 3 },
+        { title: 'Planning', icon: 'list', body: 'Group by sender, rank by age', duration: '0.4s' }
+      ],
+      answer: answerFor(x.prompt)
+    } : x)), 1100);
+  };
+
+  const refresh = (id) => { setRefreshing(id); setTimeout(() => setRefreshing(null), 1200); };
+  const newChat = () => { setRoute('chat'); setTurns([]); setDraft(''); };
+
+  const titles = { dashboard: 'Home', chat: turns.length ? 'Inbox triage' : 'New chat', integrations: 'Integrations', settings: 'Settings' };
+
+  return (
+    <div style={{ height: '100%', display: 'flex' }}>
+      <TobySidebar route={route} onRoute={setRoute} sessions={data.sessions} activeSession={session} onSession={setSession}
+        personaOpen={personaOpen} onPersona={() => { setPersonaOpen(!personaOpen); setToast({ title: 'Persona picker', message: 'Toby and Mailman are built in; custom personas live in Settings.' }); setTimeout(() => setToast(null), 2600); }} />
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: route === 'settings' ? 'var(--surface-settings-canvas)' : 'var(--surface-content)' }}>
+        <Toolbar title={titles[route] || (data.routes.find((r) => r.id === route) || {}).title}
+          activity={route === 'chat' && turns.length ? 'worked for 4.2s · 2 tools' : null}
+          onNewChat={newChat} onSettings={() => setRoute('settings')} />
+        <div style={{ flex: 1, minHeight: 0 }}>
+          {route === 'dashboard' ? <DashboardScreen refreshing={refreshing} onRefresh={refresh} />
+            : route === 'chat' ? <ChatScreen turns={turns} draft={draft} setDraft={setDraft} onSend={send} />
+            : route === 'integrations' ? <IntegrationsScreen selected={session} onSelect={setSession} />
+            : route === 'settings' ? <SettingsScreen theme={theme} setTheme={setTheme} accent={accent} setAccent={setAccent} tab={tab} setTab={setTab} />
+            : <NotBuilt route={route} />}
+        </div>
+      </div>
+      {toast ? <div style={{ position: 'fixed', right: 20, bottom: 20 }}><Toast title={toast.title} message={toast.message} onDismiss={() => setToast(null)} /></div> : null}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script></body></html>

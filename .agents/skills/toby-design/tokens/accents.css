@@ -1,0 +1,37 @@
+/* User-selectable accent presets (AccentPreset in AppearancePreferences.swift).
+   Same RGB in light and dark. Default: orange.
+   Switch with [data-accent="blue"] etc. on any ancestor. */
+:root{
+  --toby-accent-orange:#f59e1f;
+  --toby-accent-blue:#408cf2;
+  --toby-accent-green:#40bf73;
+  --toby-accent-purple:#9e6bf2;
+  --toby-accent-pink:#eb66a6;
+  --toby-accent-red:#e65959;
+  --toby-accent-teal:#33b8b8;
+  --toby-accent-gray:#8c949e;
+  --toby-accent:var(--toby-accent-orange);
+}
+[data-accent="orange"]{--toby-accent:var(--toby-accent-orange)}
+[data-accent="blue"]{--toby-accent:var(--toby-accent-blue)}
+[data-accent="green"]{--toby-accent:var(--toby-accent-green)}
+[data-accent="purple"]{--toby-accent:var(--toby-accent-purple)}
+[data-accent="pink"]{--toby-accent:var(--toby-accent-pink)}
+[data-accent="red"]{--toby-accent:var(--toby-accent-red)}
+[data-accent="teal"]{--toby-accent:var(--toby-accent-teal)}
+[data-accent="gray"]{--toby-accent:var(--toby-accent-gray)}
+
+/* Per-destination hues for the sidebar action grid (AppSidebar.swift).
+   These are fixed identity colors and do NOT follow the user's accent —
+   except Dashboard and Schedules, which intentionally use the accent. */
+:root{
+  --toby-route-dashboard:var(--toby-accent);
+  --toby-route-chats:#59adff;
+  --toby-route-integrations:#52d17a;
+  --toby-route-projects:#f2b347;
+  --toby-route-skills:#b885ff;
+  --toby-route-memories:#eb94db;
+  --toby-route-schedules:var(--toby-accent);
+  --toby-route-flows:#61b8db;
+  --toby-route-recordings:#ff5c6b;
+}

@@ -1,0 +1,17 @@
+:root{
+  --sidebar-width:250px;      /* AppTheme.sidebarWidth / minSidebarWidth */
+  --sidebar-width-max:320px;
+  --settings-content-max:640px;
+  --form-row-height:42px;
+  --form-control-height:24px;
+  --transcript-user-max:520px;
+  --transcript-assistant-max:640px;
+  --dashboard-card-collapsed:340px;
+  --dashboard-fade-height:40px;
+  --dashboard-showmore-height:36px;
+  --onboarding-tile-min:148px;
+  --toast-max:420px;
+  --hit-min:26px;             /* circular dock buttons */
+  --web-prose-max:48rem;
+  --web-page-max:960px;
+}

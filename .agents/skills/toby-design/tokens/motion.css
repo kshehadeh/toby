@@ -1,0 +1,13 @@
+/* Short, linear-feeling ease-outs. No bounce, no spring, no scale on press. */
+:root{
+  --ease-out:cubic-bezier(0,0,.58,1); /* @kind other */
+  --ease-in-out:cubic-bezier(.42,0,.58,1); /* @kind other */
+  --dur-exit:80ms; /* @kind other */
+  --dur-hover:120ms; /* @kind other */
+  --dur-expand:200ms; /* @kind other */
+  --dur-section:250ms; /* @kind other */
+  --dur-pulse:850ms; /* @kind other */
+  --dur-skeleton:800ms; /* @kind other */
+  --delay-help:600ms; /* @kind other */
+  --spin-refresh:800ms; /* @kind other */
+}

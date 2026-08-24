@@ -1,0 +1,34 @@
+<!-- @dsCard group="Components" viewport="700x400" name="Chat" subtitle="Composer, message bubbles, work steps" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="dark"><head><meta charset="utf-8"><title>Chat</title>
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.417.0/dist/umd/lucide.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;background:var(--surface-content);font-family:var(--font-system);color:var(--text-body)}#root{padding:20px;display:flex;flex-direction:column;gap:16px;max-width:660px}a{color:var(--text-accent)}a:hover{color:var(--text-body)}</style>
+</head><body><div id="root"></div>
+<script type="text/babel">
+const { InputDock, UserMessage, AssistantMessage, WorkStepRow, Chip, Button } = window.TobyDesignSystem_28de33;
+const I = ({n,s=14}) => <i data-lucide={n} style={{width:s,height:s,display:'inline-flex'}}></i>;
+function Card(){
+  const [draft,setDraft]=React.useState('Draft a reply to the vendor thread');
+  const [open,setOpen]=React.useState(false);
+  React.useEffect(()=>{lucide.createIcons();});
+  return <React.Fragment>
+    <UserMessage text="Summarize unread mail that needs a reply today" footer={<Button variant="plain">Copy prompt</Button>}/>
+    <div style={{display:'flex',flexDirection:'column'}}>
+      <WorkStepRow title="Search mail" body="12 threads since Monday, 3 flagged" duration="1.4s" count={3} glyph={<I n="mail" s={11}/>} expandable expanded={open} onToggle={()=>setOpen(!open)}/>
+      <WorkStepRow title="Planning" body="Group by sender, rank by age" duration="0.4s" glyph={<I n="list" s={11}/>}/>
+      <WorkStepRow title="Drafting answer" active/>
+    </div>
+    <AssistantMessage header="Toby" avatarSrc="../../assets/personas/toby.png" footer={<Button variant="plain">Copy response</Button>}>
+      Three threads are waiting on you. The vendor renewal from Priya is the oldest — it has been open since Thursday and mentions a Friday deadline. The other two are quick confirmations.
+    </AssistantMessage>
+    <InputDock value={draft} contextPercent={42} onChange={setDraft}
+      attachments={<Chip leading={<I n="paperclip" s={12}/>} label="renewal-terms.pdf" meta="88 KB" onRemove={()=>{}}/>}/>
+  </React.Fragment>;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Card/>);
+</script></body></html>

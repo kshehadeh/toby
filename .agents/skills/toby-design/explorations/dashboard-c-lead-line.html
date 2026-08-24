@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-accent="orange"><head><meta charset="utf-8"><title>Dashboard — Lead line</title>
+<link rel="stylesheet" href="../styles.css">
+<script src="https://unpkg.com/lucide@0.417.0/dist/umd/lucide.js"></script>
+<style>
+html,body{margin:0}
+body{background:var(--surface-content);color:var(--text-body);font-family:var(--font-system);padding:32px;box-sizing:border-box}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1220px}
+.card{background:var(--surface-panel);border-radius:var(--radius-lg);padding:26px}
+.head{display:flex;align-items:center;gap:10px;margin-bottom:22px}
+.badge{width:28px;height:28px;border-radius:var(--radius-pill);background:var(--accent-wash-weak);display:inline-flex;align-items:center;justify-content:center;color:var(--toby-accent);flex-shrink:0}
+.head h3{margin:0;font-size:var(--size-callout);font-weight:var(--weight-semibold);letter-spacing:.04em;text-transform:uppercase;color:var(--text-faint)}
+.head time{margin-left:auto;font-size:var(--size-card-meta);color:var(--text-faint)}
+.lead{margin:0 0 16px;font-size:24px;font-weight:var(--weight-semibold);line-height:1.25;letter-spacing:-.015em;color:var(--text-body);text-wrap:balance}
+ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
+li{display:flex;gap:9px;font-size:var(--size-card-body);line-height:1.5;color:var(--text-muted);text-wrap:pretty}
+li span{flex-shrink:0;width:5px;height:5px;border-radius:999px;background:var(--text-faint);margin-top:7px}
+li.warn span{background:var(--toby-accent)}
+.more{margin-top:20px;border:none;background:transparent;padding:0;font-family:var(--font-system);font-size:var(--size-callout);font-weight:var(--weight-semibold);color:var(--text-accent);cursor:pointer}
+.note{max-width:1220px;margin:0 0 28px;font-size:var(--size-subheadline);color:var(--text-faint);line-height:1.6}
+.note b{color:var(--text-muted)}
+a{color:var(--text-accent)}a:hover{color:var(--text-body)}
+</style></head><body>
+<p class="note"><b>C · Lead line.</b> Simplify the content, not just the frame: every block opens with one 24px sentence you can read from across the room, then at most three supporting lines. The title demotes to a small uppercase label; the icon sits in a soft accent circle. Nothing overflows, so the fade and the fixed height both disappear. <b>Needs a flow-contract change</b> — the summary must emit a lead line plus bullets.</p>
+<div class="grid">
+  <section class="card">
+    <div class="head"><span class="badge"><i data-lucide="mail" style="width:14px;height:14px"></i></span><h3>Unread mail</h3><time>07:15</time></div>
+    <p class="lead">Three threads need a reply today.</p>
+    <ul>
+      <li class="warn"><span></span>Priya's renewal has been open since Thursday and names a Friday deadline.</li>
+      <li><span></span>Design-review invite clashes with your 1:1.</li>
+      <li><span></span>Nine newsletters, safely ignorable.</li>
+    </ul>
+    <button class="more">Open in chat</button>
+  </section>
+  <section class="card">
+    <div class="head"><span class="badge"><i data-lucide="list-checks" style="width:14px;height:14px"></i></span><h3>Open tasks</h3><time>07:15</time></div>
+    <p class="lead">Two tasks are overdue.</p>
+    <ul>
+      <li class="warn"><span></span>Plugin protocol doc, two days late.</li>
+      <li class="warn"><span></span>Vendor security questionnaire.</li>
+      <li><span></span>Four tasks blocked on the daemon rewrite.</li>
+    </ul>
+    <button class="more">Open in chat</button>
+  </section>
+  <section class="card">
+    <div class="head"><span class="badge"><i data-lucide="calendar" style="width:14px;height:14px"></i></span><h3>Upcoming events</h3><time>07:15</time></div>
+    <p class="lead">Your 16:00 overlaps the design review.</p>
+    <ul>
+      <li><span></span>10:00 Standup.</li>
+      <li class="warn"><span></span>13:30 Design review, 16:00 1:1 with Priya.</li>
+      <li><span></span>Tomorrow: two focus blocks, vendor call at 15:00.</li>
+    </ul>
+    <button class="more">Open in chat</button>
+  </section>
+</div>
+<script>lucide.createIcons()</script>
+</body></html>

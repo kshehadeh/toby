@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-accent="orange"><head><meta charset="utf-8"><title>Dashboard — Quiet</title>
+<link rel="stylesheet" href="../styles.css">
+<script src="https://unpkg.com/lucide@0.417.0/dist/umd/lucide.js"></script>
+<style>
+html,body{margin:0}
+body{background:var(--surface-content);color:var(--text-body);font-family:var(--font-system);padding:32px;box-sizing:border-box}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1220px}
+.card{background:var(--surface-panel);border-radius:var(--radius-lg);padding:26px}
+.head{display:flex;align-items:center;gap:9px;margin-bottom:20px}
+.head i{color:var(--toby-accent);width:14px;height:14px;display:inline-flex}
+.head h3{margin:0;font-size:var(--size-card-title);font-weight:var(--weight-semibold);color:var(--text-body)}
+.head time{margin-left:auto;font-size:var(--size-card-meta);color:var(--text-faint)}
+.head button{border:none;background:transparent;color:var(--text-faint);cursor:pointer;padding:0;display:inline-flex}
+p{margin:0 0 14px;font-size:var(--size-card-body);line-height:1.65;color:var(--text-muted);text-wrap:pretty}
+p:last-of-type{margin-bottom:0}
+p b{color:var(--text-body);font-weight:var(--weight-semibold)}
+.more{margin-top:16px;border:none;background:transparent;padding:0;font-family:var(--font-system);font-size:var(--size-callout);font-weight:var(--weight-semibold);color:var(--text-accent);cursor:pointer}
+.note{max-width:1220px;margin:0 0 28px;font-size:var(--size-subheadline);color:var(--text-faint);line-height:1.6}
+.note b{color:var(--text-muted)}
+a{color:var(--text-accent)}a:hover{color:var(--text-body)}
+</style></head><body>
+<p class="note"><b>A · Quiet.</b> No stamp, no border, no divider, no gradient. The card is a fill and 26px of air. Section headings become bold lead-ins inside the prose, so each card carries two type styles instead of three. Height follows content; overflow is a plain text link.</p>
+<div class="grid">
+  <section class="card">
+    <div class="head"><i data-lucide="mail"></i><h3>Unread mail</h3><time>07:15</time><button aria-label="Actions"><i data-lucide="ellipsis" style="width:14px;height:14px"></i></button></div>
+    <p><b>Needs attention.</b> Priya asked for the signed renewal before Friday — the thread has been open since Thursday and nobody has replied.</p>
+    <p><b>Worth noting.</b> Two CI failure digests, and a design-review invite for Thursday that conflicts with your 1:1.</p>
+    <button class="more">Show more</button>
+  </section>
+  <section class="card">
+    <div class="head"><i data-lucide="list-checks"></i><h3>Open tasks</h3><time>07:15</time><button aria-label="Actions"><i data-lucide="ellipsis" style="width:14px;height:14px"></i></button></div>
+    <p><b>Overdue.</b> Ship the plugin protocol doc, two days late, and reply to the vendor security questionnaire.</p>
+    <p><b>Due today.</b> Review the transcription settings PR, then write the weekly summary.</p>
+    <button class="more">Show more</button>
+  </section>
+  <section class="card">
+    <div class="head"><i data-lucide="calendar"></i><h3>Upcoming events</h3><time>07:15</time><button aria-label="Actions"><i data-lucide="ellipsis" style="width:14px;height:14px"></i></button></div>
+    <p><b>Today.</b> Standup at 10:00, design review at 13:30, and a 1:1 with Priya at 16:00 that overlaps the review.</p>
+    <p><b>Tomorrow.</b> Two blocks of focus time and a vendor call at 15:00.</p>
+  </section>
+</div>
+<script>lucide.createIcons()</script>
+</body></html>

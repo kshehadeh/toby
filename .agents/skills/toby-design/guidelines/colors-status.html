@@ -1,0 +1,14 @@
+<!-- @dsCard group="Colors" viewport="700x140" name="Status colors" subtitle="Success / error callouts, toggle green, danger" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="dark"><head><meta charset="utf-8"><title>Status</title>
+<link rel="stylesheet" href="../styles.css">
+<style>html,body{margin:0}body{font-family:var(--font-system);color:var(--text-body);background:var(--surface-settings-canvas);padding:16px}
+.g{display:flex;flex-wrap:wrap;gap:10px}.sw{width:96px}.sw i{display:block;height:44px;border-radius:6px;border:1px solid var(--border-hairline)}
+.sw b{display:block;font-size:10px;font-weight:600;margin-top:6px;color:var(--text-body)}.sw s{display:block;font-size:9px;text-decoration:none;color:var(--text-faint);font-family:var(--font-mono)}
+s{text-decoration:none}a{color:var(--text-accent)}a:hover{color:var(--text-body)}.cal{padding:10px 12px;border-radius:6px;font-size:11px;margin-bottom:8px}</style></head><body><div style="display:flex;gap:20px"><div style="flex:1">
+<div class="cal" style="background:var(--status-success-bg);border:1px solid var(--status-success-border);color:var(--status-success-fg)">✓ Connected. Toby can read this mailbox.</div>
+<div class="cal" style="background:var(--status-error-bg);border:1px solid var(--status-error-border);color:var(--status-error-fg)">! Couldn't reach the daemon.</div>
+</div><div class="g" style="flex:0 0 220px">
+<div class="sw"><i style="background:var(--control-toggle-on)"></i><b>Toggle on</b><s>#33c759</s></div>
+<div class="sw"><i style="background:var(--status-complete)"></i><b>Completed</b><s>#59bf73</s></div>
+</div></div></body></html>

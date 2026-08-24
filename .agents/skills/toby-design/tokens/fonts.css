@@ -1,0 +1,8 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&display=swap");
+/* Uploaded Apple system faces, self-hosted so non-macOS surfaces match.
+   Variable TTFs — one face each, covering the full weight range.
+   Inter stays on Google Fonts: no local file was provided, and the help site
+   loads it from the same CDN. */
+@font-face{font-family:"SF Pro Text";src:url("../fonts/SF-Pro.ttf") format("truetype");font-weight:100 900;font-style:normal;font-display:swap}
+@font-face{font-family:"SF Pro";src:url("../fonts/SF-Pro.ttf") format("truetype");font-weight:100 900;font-style:normal;font-display:swap}
+@font-face{font-family:"New York";src:url("../fonts/NewYork.ttf") format("truetype");font-weight:100 900;font-style:normal;font-display:swap}

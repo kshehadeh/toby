@@ -1,0 +1,45 @@
+<!-- @dsCard group="Components" viewport="700x330" name="Forms" subtitle="Settings card, rows, toggle, select, field" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="dark"><head><meta charset="utf-8"><title>Forms</title>
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;background:var(--surface-settings-canvas);font-family:var(--font-system);color:var(--text-body)}#root{padding:20px;max-width:640px}a{color:var(--text-accent)}a:hover{color:var(--text-body)}</style>
+</head><body><div id="root"></div>
+<script type="text/babel">
+const { SettingsCard, SettingsRow, SettingsSectionHeader, Toggle, Select, TextField, Button } = window.TobyDesignSystem_28de33;
+function Card(){
+  const [dark,setDark]=React.useState(true);
+  const [menu,setMenu]=React.useState(true);
+  return <div style={{display:'flex',flexDirection:'column',gap:20}}>
+    <div>
+      <SettingsSectionHeader>Appearance</SettingsSectionHeader>
+      <SettingsCard>
+        <SettingsRow title="Theme" description="Follow the system setting or pin light / dark.">
+          <Select value="system" options={[{value:'system',label:'System'},{value:'light',label:'Light'},{value:'dark',label:'Dark'}]}/>
+        </SettingsRow>
+        <SettingsRow title="Accent color" description="Tints selection, highlights, and the send button.">
+          <Select value="orange" options={[{value:'orange',label:'Orange'},{value:'blue',label:'Blue'},{value:'teal',label:'Teal'}]}/>
+        </SettingsRow>
+        <SettingsRow title="Show menu bar icon" showsDivider={false}>
+          <Toggle checked={menu} label="Show menu bar icon" onChange={setMenu}/>
+        </SettingsRow>
+      </SettingsCard>
+    </div>
+    <div>
+      <SettingsSectionHeader>OpenAI</SettingsSectionHeader>
+      <SettingsCard>
+        <SettingsRow title="API key" description="Stored in the macOS keychain, never in config.json.">
+          <TextField secure value="sk-live-8f21" placeholder="sk-…"/>
+        </SettingsRow>
+        <SettingsRow title="Connection" description="Runs a single test request." showsDivider={false}>
+          <Button>Test connection</Button>
+        </SettingsRow>
+      </SettingsCard>
+    </div>
+  </div>;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Card/>);
+</script></body></html>

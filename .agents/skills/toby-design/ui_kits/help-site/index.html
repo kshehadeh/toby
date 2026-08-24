@@ -1,0 +1,175 @@
+<!-- @dsCard group="Help site" viewport="1280x800" name="Help site" subtitle="Docs home and article page — dark Docusaurus theme" -->
+<!-- @startingPoint section="Help site" subtitle="Documentation home + article layout" viewport="1280x800" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Toby documentation</title>
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/lucide@0.417.0/dist/umd/lucide.js"></script>
+<style>
+html,body{margin:0;height:100%}
+body{background:var(--web-black);color:var(--web-text-muted);font-family:var(--font-web);-webkit-font-smoothing:antialiased;overflow:hidden}
+a{color:var(--web-text);text-decoration:none}
+.nav{position:sticky;top:0;display:flex;align-items:center;gap:20px;height:56px;padding:0 24px;border-bottom:1px solid var(--web-border-subtle);backdrop-filter:var(--blur-navbar);background:rgba(0,0,0,.8);z-index:2}
+.nav img{width:26px;height:26px}
+.brand{font-size:.95rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--web-text)}
+.nav a.link{font-size:.875rem;font-weight:500;color:var(--web-text-muted);padding:.35rem .65rem;border-radius:var(--web-radius-sm);cursor:pointer}
+.nav a.link:hover{color:var(--web-text);background:var(--web-surface-hover)}
+.nav a.on{color:var(--web-text);border-bottom:2px solid var(--web-text);border-radius:0;padding-bottom:calc(.35rem - 2px)}
+.shell{display:flex;height:calc(100% - 56px);overflow:hidden}
+.side{width:260px;flex-shrink:0;border-right:1px solid var(--web-border-subtle);background:var(--web-surface);padding:12px 8px 24px;overflow:auto}
+.cat{display:flex;align-items:center;gap:.45rem;font-size:.6875rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--web-text-faint);padding:.75rem .65rem .35rem}
+.menu a{display:block;font-size:.875rem;line-height:1.4;border-radius:var(--web-radius);padding:.4rem .65rem;color:var(--web-text-muted);cursor:pointer;transition:background var(--dur-hover) var(--ease-out),color var(--dur-hover) var(--ease-out)}
+.menu a:hover{background:var(--web-surface-hover);color:var(--web-text)}
+.menu a.on{background:var(--web-surface-hover);color:var(--web-text);font-weight:500}
+main{flex:1;overflow:auto;padding:28px 40px 64px}
+.wrap{max-width:48rem}
+.crumbs{font-size:.8125rem;color:var(--web-text-faint);margin-bottom:.5rem}
+.crumbs b{color:var(--web-accent);font-weight:500}
+h1{font-size:2.25rem;font-weight:700;letter-spacing:-.025em;color:var(--web-text);margin:0 0 .75rem}
+h2{font-size:1.375rem;font-weight:600;letter-spacing:-.02em;color:var(--web-text);border-bottom:1px solid var(--web-border-subtle);padding-bottom:.5rem;margin:2.5rem 0 1rem}
+p,li{line-height:var(--leading-web-prose);font-size:1rem}
+strong{color:var(--web-text)}
+code{border:1px solid var(--web-border-subtle);border-radius:var(--web-radius-sm);padding:.15em .4em;font-size:.875em;font-family:var(--font-mono);background:var(--web-surface-raised)}
+pre{border:1px solid var(--web-border);border-radius:var(--web-radius);background:var(--web-surface-raised);padding:14px 16px;font-family:var(--font-mono);font-size:.8125rem;overflow:auto}
+.eyebrow{display:inline-block;font-size:.75rem;font-weight:600;letter-spacing:var(--tracking-web-eyebrow);text-transform:uppercase;color:var(--web-accent);margin-bottom:.75rem}
+.hero-logo{width:128px;height:128px;display:block;margin-bottom:1.25rem}
+.lead{font-size:1.0625rem;line-height:1.65;max-width:36rem;margin:0 0 .75rem}
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--web-accent);color:#0a0a0a;font-weight:600;font-size:1rem;padding:.7rem 1.1rem;border-radius:var(--web-radius);cursor:pointer}
+.btn:hover{background:var(--web-accent-dim);color:#0a0a0a}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.75rem;margin-top:2.5rem}
+.card{display:block;padding:1.25rem 1.35rem;border-radius:var(--web-radius);border:1px solid var(--web-border);background:var(--web-surface);cursor:pointer;transition:border-color var(--dur-hover) var(--ease-out),background var(--dur-hover) var(--ease-out)}
+.card:hover{border-color:#404040;background:var(--web-surface-hover)}
+.card b{display:block;font-size:.9375rem;font-weight:600;color:var(--web-text);margin-bottom:.35rem}
+.card span{font-size:.875rem;line-height:1.5;color:var(--web-text-muted)}
+.igrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr));gap:.85rem;margin:.6rem 0 1.75rem}
+.icard{display:flex;flex-direction:column;gap:.55rem;min-height:8.75rem;padding:1rem;border:1px solid var(--web-border);border-radius:var(--web-radius);background:linear-gradient(180deg,var(--web-surface-raised),var(--web-surface));cursor:pointer;transition:border-color var(--dur-hover) var(--ease-out),transform var(--dur-hover) var(--ease-out)}
+.icard:hover{border-color:var(--web-text-faint);transform:translateY(-1px)}
+.badge{display:inline-flex;align-items:center;justify-content:center;width:2.75rem;height:2.75rem;border:1px solid var(--web-border-subtle);border-radius:999px;background:rgba(255,255,255,.04)}
+.badge img{width:1.55rem;height:1.55rem;object-fit:contain}
+.iname{color:var(--web-text);font-size:.98rem;font-weight:650}
+.imeta{color:var(--web-text-faint);font-size:.78rem;line-height:1.45}
+.toc{width:200px;flex-shrink:0;padding:28px 20px;overflow:auto}
+.toc div{font-size:.8125rem;color:var(--web-text-faint);padding:4px 0;cursor:pointer}
+.toc div.on{color:var(--web-text);font-weight:500}
+.diagram{width:100%;margin:1.5rem 0 2rem;padding:.75rem;border:1px solid var(--web-border);border-radius:var(--web-radius);background:var(--web-surface-raised)}
+.diagram img{display:block;width:100%;border-radius:var(--web-radius-sm)}
+</style>
+</head><body>
+<div class="nav">
+  <img src="../../assets/logo/toby-128.png" alt="">
+  <span class="brand">Toby</span>
+  <a class="link on" data-page="home">Docs</a>
+  <a class="link" data-page="integrations">Integrations</a>
+  <a class="link" data-page="architecture">Architecture</a>
+  <span style="flex:1"></span>
+  <a class="link" href="https://github.com/kshehadeh/toby">GitHub</a>
+</div>
+<div class="shell">
+  <nav class="side">
+    <div class="cat"><i data-lucide="rocket" style="width:14px;height:14px"></i>Getting started</div>
+    <div class="menu">
+      <a data-page="home" class="on">What does Toby do?</a>
+      <a data-page="home">Install Toby</a>
+      <a data-page="home">Set up AI</a>
+      <a data-page="home">First chat</a>
+    </div>
+    <div class="cat"><i data-lucide="blocks" style="width:14px;height:14px"></i>Integrations</div>
+    <div class="menu">
+      <a data-page="integrations">Overview</a>
+      <a data-page="integrations">Email</a>
+      <a data-page="integrations">Slack</a>
+      <a data-page="integrations">Jira</a>
+      <a data-page="integrations">Apple Calendar</a>
+    </div>
+    <div class="cat"><i data-lucide="code" style="width:14px;height:14px"></i>Architecture</div>
+    <div class="menu">
+      <a data-page="architecture">Overview</a>
+      <a data-page="architecture">Plugin protocol</a>
+      <a data-page="architecture">Server API</a>
+    </div>
+    <div class="cat"><i data-lucide="sparkles" style="width:14px;height:14px"></i>Features</div>
+    <div class="menu">
+      <a data-page="home">Personas</a>
+      <a data-page="home">Skills</a>
+      <a data-page="home">Memories</a>
+      <a data-page="home">Schedules</a>
+    </div>
+  </nav>
+  <main id="main"></main>
+  <div class="toc" id="toc"></div>
+</div>
+<script>
+const integrations = [
+  ['email','Email','IMAP + SMTP. Search, summarize, draft, send.'],
+  ['todoist','Todoist','Tasks, projects, and due dates from chat.'],
+  ['slack','Slack','Read channels and answer @mentions.'],
+  ['jira','Jira','Issues assigned to you, sprint state.'],
+  ['notion','Notion','Search pages, append to a daily note.'],
+  ['apple-calendar','Apple Calendar','Native EventKit, no cloud round trip.'],
+  ['apple-reminders','Apple Reminders','Read and create local reminders.'],
+  ['macos','macOS','Focus modes, windows, Shortcuts.']
+];
+const pages = {
+  home: {
+    toc: ['Overview','Install','Quick start','Where to go next'],
+    html: `<div class="wrap">
+      <img class="hero-logo" src="../../assets/logo/toby-256.png" alt="Toby logo">
+      <span class="eyebrow">Documentation</span>
+      <h1>Toby Documentation</h1>
+      <p class="lead">Toby is a native macOS app that organizes and summarizes work across Email, Todoist, Slack, Jira, and Apple Calendar. Chat with your assistant, configure integrations, and manage schedules from a familiar SwiftUI interface.</p>
+      <p class="lead">New here? Read <a>What Does Toby Do?</a>, then install Toby below.</p>
+      <div style="display:flex;align-items:center;gap:1.25rem;margin:1.5rem 0 .5rem"><a class="btn">⬇ Download Toby for macOS</a><a style="font-size:.9375rem;font-weight:500;color:var(--web-text-muted)">Installation guide →</a></div>
+      <h2>Install</h2>
+      <pre>curl -fsSL https://raw.githubusercontent.com/kshehadeh/toby/main/install-toby.sh | bash</pre>
+      <p>The installer places <code>toby</code> on your PATH, installs helper binaries under <code>~/.toby/helpers/</code>, first-party plugins under <code>~/.toby/plugins/</code>, and runs <code>toby whisper setup</code> for the default local transcription model.</p>
+      <h2>Where to go next</h2>
+      <div class="grid">
+        <a class="card"><b>What Does Toby Do?</b><span>AI support, audio transcription, chat integrations, macOS control, schedules, and personas.</span></a>
+        <a class="card"><b>Getting Started</b><span>Install Toby, set up AI, connect integrations, and start chatting.</span></a>
+        <a class="card"><b>Integrations</b><span>Email, Todoist, Slack, Jira, and Apple Calendar.</span></a>
+        <a class="card"><b>Personas</b><span>Shape how Toby prioritizes and responds.</span></a>
+        <a class="card"><b>Schedules</b><span>Recurring prompts that run on a cron timetable.</span></a>
+        <a class="card"><b>Examples</b><span>Real-world workflows combining Toby features.</span></a>
+      </div>
+    </div>`
+  },
+  integrations: {
+    toc: ['First-party plugins','How plugins work','Adding your own'],
+    html: `<div class="wrap">
+      <div class="crumbs">Docs › Integrations › <b>Overview</b></div>
+      <h1>Integrations overview</h1>
+      <p class="lead">First-party integrations ship as installable TypeScript plugin directories. Fresh installs and upgrades copy them into <code>~/.toby/plugins/</code>.</p>
+      <h2>First-party plugins</h2>
+      <div class="igrid">${integrations.map(([id,name,meta])=>`<a class="icard"><span class="badge"><img src="../../assets/icons/integrations/${id}.png" alt=""></span><span class="iname">${name}</span><span class="imeta">${meta}</span></a>`).join('')}</div>
+      <h2>How plugins work</h2>
+      <p>Toby discovers <code>toby-plugin-&lt;name&gt;</code> directories, passes config on stdin, and reads one JSON object from stdout. Legacy standalone binary plugins are still supported for backward compatibility.</p>
+      <h2>Adding your own</h2>
+      <p>New plugins should be TypeScript bun-package plugins — a directory with a <code>manifest.json</code> and a TypeScript entrypoint. See <strong>Creating a plugin</strong> for the full protocol.</p>
+    </div>`
+  },
+  architecture: {
+    toc: ['Module organization','Core is UI-agnostic'],
+    html: `<div class="wrap">
+      <div class="crumbs">Docs › Architecture › <b>Overview</b></div>
+      <h1>Architecture</h1>
+      <p class="lead">Toby is a bun monorepo: a Commander CLI, a UI-agnostic core harness, installable plugins, and the native SwiftUI app.</p>
+      <div class="diagram"><img src="../../assets/illustrations/toby-architecture.svg" alt="Toby module organization"></div>
+      <h2>Core is UI-agnostic</h2>
+      <p>Put behavior in <code>@toby/core</code> when it should work from the CLI, daemon, headless scripts, or tests without importing React or Commander.</p>
+    </div>`
+  }
+};
+function render(page){
+  const p = pages[page] || pages.home;
+  document.getElementById('main').innerHTML = p.html;
+  document.getElementById('toc').innerHTML = p.toc.map((t,i)=>`<div class="${i===0?'on':''}">${t}</div>`).join('');
+  document.querySelectorAll('[data-page]').forEach((el)=>{
+    el.classList.toggle('on', el.dataset.page === page && (el.closest('.menu') ? el.textContent.trim() === (page==='home'?'What does Toby do?':'Overview') : true));
+  });
+  lucide.createIcons();
+}
+document.addEventListener('click',(e)=>{
+  const el = e.target.closest('[data-page]');
+  if (el) { e.preventDefault(); render(el.dataset.page); document.getElementById('main').scrollTop = 0; }
+});
+render('home');
+</script></body></html>

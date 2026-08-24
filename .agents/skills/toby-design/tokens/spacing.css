@@ -1,0 +1,34 @@
+/* Toby's spacing is not a strict 4pt grid — odd values (5, 7, 14, 22) come
+   straight from the source and are preserved deliberately. */
+:root{
+  --space-1:2px;
+  --space-2:4px;
+  --space-3:6px;
+  --space-4:8px;
+  --space-5:10px;
+  --space-6:12px;
+  --space-7:14px;
+  --space-8:16px;
+  --space-9:18px;
+  --space-10:20px;
+  --space-11:22px;
+  --space-12:24px;
+  --space-14:40px;
+
+  /* Named, load-bearing insets */
+  --pad-content:24px;      /* AppTheme.contentPadding */
+  --pad-card:22px;         /* DashboardCard body */
+  --pad-tile:14px;         /* onboarding tile */
+  --pad-sidebar-x:10px;
+  --pad-sidebar-y:12px;
+  --pad-row-x:10px;        /* SettingsDesign.rowHorizontalPadding */
+  --pad-row-y:8px;         /* SettingsDesign.rowVerticalPadding */
+  --pad-dock-x:14px;
+  --pad-dock-y:12px;
+  --pad-chip-x:8px;
+  --pad-chip-y:5px;
+  --pad-bubble-x:16px;
+  --pad-bubble-y:12px;
+  --gap-grid:6px;          /* sidebar action grid */
+  --gap-tile:12px;
+}

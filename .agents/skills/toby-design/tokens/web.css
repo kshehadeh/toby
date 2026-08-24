@@ -1,0 +1,17 @@
+/* Help site (Docusaurus) palette — a dark, near-black documentation theme.
+   Separate from the app: the site is dark-only and uses a hotter orange. */
+:root{
+  --web-black:#000000;
+  --web-surface:#0a0a0a;
+  --web-surface-raised:#141414;
+  --web-surface-hover:#1a1a1a;
+  --web-border:#262626;
+  --web-border-subtle:#1a1a1a;
+  --web-text:#fafafa;
+  --web-text-muted:#a3a3a3;
+  --web-text-faint:#737373;
+  --web-accent:#f97316;
+  --web-accent-dim:#ea580c;
+  --web-radius:8px;
+  --web-radius-sm:6px;
+}

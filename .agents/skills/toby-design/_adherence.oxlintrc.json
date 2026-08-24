@@ -1,0 +1,683 @@
+{
+  "plugins": [
+    "react",
+    "import"
+  ],
+  "rules": {
+    "react/forbid-elements": [
+      "warn",
+      {
+        "forbid": []
+      }
+    ],
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": [
+          {
+            "group": [
+              "components/chat/**",
+              "components/core/**",
+              "components/dashboard/**",
+              "components/feedback/**",
+              "components/forms/**",
+              "components/navigation/**",
+              "ui_kits/toby-app/**"
+            ],
+            "message": "Import design-system components from 'index.js', not component internals."
+          }
+        ]
+      }
+    ],
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        "message": "Raw hex color — use a design-system color token via var()."
+      },
+      {
+        "selector": "Literal[value=/\\b\\d+px\\b/]",
+        "message": "Raw px value — use a design-system spacing token via var()."
+      },
+      {
+        "selector": "Literal[value=/font-family\\s*:\\s*(?!['\\\"]?(?:SF Pro Text|SF Pro|New York|Inter))/i]",
+        "message": "Font not provided by the design system. Available: SF Pro Text, SF Pro, New York, Inter."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AssistantMessage'] > JSXAttribute > JSXIdentifier[name!=/^(?:header|avatarSrc|children|footer|key|ref|className|style|children)$/]",
+        "message": "<AssistantMessage> doesn't accept that prop. Declared props: header, avatarSrc, children, footer."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Badge'] > JSXAttribute > JSXIdentifier[name!=/^(?:tone|children|key|ref|className|style|children)$/]",
+        "message": "<Badge> doesn't accept that prop. Declared props: tone, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Badge'] > JSXAttribute[name.name='tone'] > Literal[value!=/^(?:neutral|accent|accentSoft)$/]",
+        "message": "<Badge> tone must be one of 'neutral' | 'accent' | 'accentSoft'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute > JSXIdentifier[name!=/^(?:variant|wide|disabled|external|children|onClick|key|ref|className|style|children)$/]",
+        "message": "<Button> doesn't accept that prop. Declared props: variant, wide, disabled, external, children, onClick."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:bordered|prominent|plain|destructive)$/]",
+        "message": "<Button> variant must be one of 'bordered' | 'prominent' | 'plain' | 'destructive'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Chip'] > JSXAttribute > JSXIdentifier[name!=/^(?:leading|label|meta|onRemove|key|ref|className|style|children)$/]",
+        "message": "<Chip> doesn't accept that prop. Declared props: leading, label, meta, onRemove."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='DashboardCard'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|stamp|lastRan|actions|children|showMore|key|ref|className|style|children)$/]",
+        "message": "<DashboardCard> doesn't accept that prop. Declared props: title, stamp, lastRan, actions, children, showMore."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FlowRunnerCard'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|description|stamp|running|error|onRun|key|ref|className|style|children)$/]",
+        "message": "<FlowRunnerCard> doesn't accept that prop. Declared props: title, description, stamp, running, error, onRun."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='IconButton'] > JSXAttribute > JSXIdentifier[name!=/^(?:glyph|label|tone|size|filled|disabled|onClick|key|ref|className|style|children)$/]",
+        "message": "<IconButton> doesn't accept that prop. Declared props: glyph, label, tone, size, filled, disabled, onClick."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='IconButton'] > JSXAttribute[name.name='tone'] > Literal[value!=/^(?:muted|faint|accent|inverted)$/]",
+        "message": "<IconButton> tone must be one of 'muted' | 'faint' | 'accent' | 'inverted'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='IconButton'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:sm|md|lg)$/]",
+        "message": "<IconButton> size must be one of 'sm' | 'md' | 'lg'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='InlineStatusMessage'] > JSXAttribute > JSXIdentifier[name!=/^(?:tone|message|glyph|key|ref|className|style|children)$/]",
+        "message": "<InlineStatusMessage> doesn't accept that prop. Declared props: tone, message, glyph."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='InlineStatusMessage'] > JSXAttribute[name.name='tone'] > Literal[value!=/^(?:success|error)$/]",
+        "message": "<InlineStatusMessage> tone must be one of 'success' | 'error'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='InputDock'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|placeholder|hint|contextPercent|attachments|loading|onChange|onSubmit|key|ref|className|style|children)$/]",
+        "message": "<InputDock> doesn't accept that prop. Declared props: value, placeholder, hint, contextPercent, attachments, loading, onChange, onSubmit."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='OnboardingTile'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|subtitle|glyph|actionLabel|upNext|complete|onAction|key|ref|className|style|children)$/]",
+        "message": "<OnboardingTile> doesn't accept that prop. Declared props: title, subtitle, glyph, actionLabel, upNext, complete, onAction."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='PersonaFooter'] > JSXAttribute > JSXIdentifier[name!=/^(?:name|model|imageSrc|open|onClick|key|ref|className|style|children)$/]",
+        "message": "<PersonaFooter> doesn't accept that prop. Declared props: name, model, imageSrc, open, onClick."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ProgressBar'] > JSXAttribute > JSXIdentifier[name!=/^(?:progress|height|key|ref|className|style|children)$/]",
+        "message": "<ProgressBar> doesn't accept that prop. Declared props: progress, height."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SelectChoice'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|label|key|ref|className|style|children)$/]",
+        "message": "<SelectChoice> doesn't accept that prop. Declared props: value, label."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SettingsCard'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|key|ref|className|style|children)$/]",
+        "message": "<SettingsCard> doesn't accept that prop. Declared props: children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SettingsRow'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|description|showsDivider|children|key|ref|className|style|children)$/]",
+        "message": "<SettingsRow> doesn't accept that prop. Declared props: title, description, showsDivider, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SettingsSectionHeader'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|key|ref|className|style|children)$/]",
+        "message": "<SettingsSectionHeader> doesn't accept that prop. Declared props: children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SidebarActionItem'] > JSXAttribute > JSXIdentifier[name!=/^(?:id|title|glyph|color|key|ref|className|style|children)$/]",
+        "message": "<SidebarActionItem> doesn't accept that prop. Declared props: id, title, glyph, color."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SidebarRow'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|subtitle|glyph|selected|trailing|onClick|key|ref|className|style|children)$/]",
+        "message": "<SidebarRow> doesn't accept that prop. Declared props: title, subtitle, glyph, selected, trailing, onClick."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SidebarSection'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|children|key|ref|className|style|children)$/]",
+        "message": "<SidebarSection> doesn't accept that prop. Declared props: title, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Skeleton'] > JSXAttribute > JSXIdentifier[name!=/^(?:lines|height|key|ref|className|style|children)$/]",
+        "message": "<Skeleton> doesn't accept that prop. Declared props: lines, height."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TextField'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|placeholder|secure|minWidth|maxWidth|onChange|key|ref|className|style|children)$/]",
+        "message": "<TextField> doesn't accept that prop. Declared props: value, placeholder, secure, minWidth, maxWidth, onChange."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Toast'] > JSXAttribute > JSXIdentifier[name!=/^(?:style|title|message|actionLabel|onAction|onDismiss|key|ref|className|style|children)$/]",
+        "message": "<Toast> doesn't accept that prop. Declared props: style, title, message, actionLabel, onAction, onDismiss."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Toast'] > JSXAttribute[name.name='style'] > Literal[value!=/^(?:success|error|progress)$/]",
+        "message": "<Toast> style must be one of 'success' | 'error' | 'progress'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Toggle'] > JSXAttribute > JSXIdentifier[name!=/^(?:checked|disabled|label|onChange|key|ref|className|style|children)$/]",
+        "message": "<Toggle> doesn't accept that prop. Declared props: checked, disabled, label, onChange."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='UserMessage'] > JSXAttribute > JSXIdentifier[name!=/^(?:text|footer|key|ref|className|style|children)$/]",
+        "message": "<UserMessage> doesn't accept that prop. Declared props: text, footer."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='WorkStepRow'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|body|duration|count|glyph|active|expandable|expanded|onToggle|key|ref|className|style|children)$/]",
+        "message": "<WorkStepRow> doesn't accept that prop. Declared props: title, body, duration, count, glyph, active, expandable, expanded, onToggle."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/index.js"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "x-omelette": {
+    "components": {
+      "AssistantMessage": {
+        "replaces": []
+      },
+      "Badge": {
+        "replaces": []
+      },
+      "Button": {
+        "replaces": []
+      },
+      "Chip": {
+        "replaces": []
+      },
+      "DashboardCard": {
+        "replaces": []
+      },
+      "FlowRunnerCard": {
+        "replaces": []
+      },
+      "IconButton": {
+        "replaces": []
+      },
+      "InlineStatusMessage": {
+        "replaces": []
+      },
+      "InputDock": {
+        "replaces": []
+      },
+      "OnboardingTile": {
+        "replaces": []
+      },
+      "PersonaFooter": {
+        "replaces": []
+      },
+      "ProgressBar": {
+        "replaces": []
+      },
+      "SelectChoice": {
+        "replaces": []
+      },
+      "SettingsCard": {
+        "replaces": []
+      },
+      "SettingsRow": {
+        "replaces": []
+      },
+      "SettingsSectionHeader": {
+        "replaces": []
+      },
+      "SidebarActionItem": {
+        "replaces": []
+      },
+      "SidebarRow": {
+        "replaces": []
+      },
+      "SidebarSection": {
+        "replaces": []
+      },
+      "Skeleton": {
+        "replaces": []
+      },
+      "TextField": {
+        "replaces": []
+      },
+      "Toast": {
+        "replaces": []
+      },
+      "Toggle": {
+        "replaces": []
+      },
+      "UserMessage": {
+        "replaces": []
+      },
+      "WorkStepRow": {
+        "replaces": []
+      }
+    },
+    "tokens": [
+      "--accent-border",
+      "--accent-border-soft",
+      "--accent-wash",
+      "--accent-wash-strong",
+      "--accent-wash-weak",
+      "--blur-material",
+      "--blur-navbar",
+      "--border-card",
+      "--border-control",
+      "--border-hairline",
+      "--control-toggle-on",
+      "--dashboard-card-collapsed",
+      "--dashboard-fade-height",
+      "--dashboard-showmore-height",
+      "--delay-help",
+      "--dur-exit",
+      "--dur-expand",
+      "--dur-hover",
+      "--dur-pulse",
+      "--dur-section",
+      "--dur-skeleton",
+      "--ease-in-out",
+      "--ease-out",
+      "--font-mono",
+      "--font-rounded",
+      "--font-serif",
+      "--font-system",
+      "--font-web",
+      "--form-control-height",
+      "--form-row-height",
+      "--gap-grid",
+      "--gap-tile",
+      "--hit-min",
+      "--leading-answer",
+      "--leading-body",
+      "--leading-web-prose",
+      "--onboarding-tile-min",
+      "--pad-bubble-x",
+      "--pad-bubble-y",
+      "--pad-card",
+      "--pad-chip-x",
+      "--pad-chip-y",
+      "--pad-content",
+      "--pad-dock-x",
+      "--pad-dock-y",
+      "--pad-row-x",
+      "--pad-row-y",
+      "--pad-sidebar-x",
+      "--pad-sidebar-y",
+      "--pad-tile",
+      "--radius-bubble",
+      "--radius-card",
+      "--radius-control",
+      "--radius-lg",
+      "--radius-pill",
+      "--radius-row",
+      "--radius-skeleton",
+      "--radius-sm",
+      "--radius-tile",
+      "--radius-xs",
+      "--settings-content-max",
+      "--shadow-card-expanded",
+      "--shadow-dock",
+      "--shadow-none",
+      "--shadow-popover",
+      "--shadow-stamp",
+      "--shadow-toast",
+      "--sidebar-width",
+      "--sidebar-width-max",
+      "--size-answer",
+      "--size-badge",
+      "--size-body",
+      "--size-callout",
+      "--size-caption",
+      "--size-card-body",
+      "--size-card-meta",
+      "--size-card-title",
+      "--size-headline",
+      "--size-row-title",
+      "--size-stamp",
+      "--size-step-meta",
+      "--size-subheadline",
+      "--size-tile-sub",
+      "--size-tile-title",
+      "--size-title2",
+      "--size-wordmark",
+      "--space-1",
+      "--space-10",
+      "--space-11",
+      "--space-12",
+      "--space-14",
+      "--space-2",
+      "--space-3",
+      "--space-4",
+      "--space-5",
+      "--space-6",
+      "--space-7",
+      "--space-8",
+      "--space-9",
+      "--spin-refresh",
+      "--status-complete",
+      "--status-danger",
+      "--status-error-bg",
+      "--status-error-border",
+      "--status-error-fg",
+      "--status-success-bg",
+      "--status-success-border",
+      "--status-success-fg",
+      "--surface-card",
+      "--surface-content",
+      "--surface-elevated",
+      "--surface-hover",
+      "--surface-panel",
+      "--surface-selected",
+      "--surface-selected-strong",
+      "--surface-settings-canvas",
+      "--surface-sidebar",
+      "--text-accent",
+      "--text-body",
+      "--text-faint",
+      "--text-muted",
+      "--text-on-accent",
+      "--text-row-description",
+      "--text-row-title",
+      "--text-section-header",
+      "--toast-max",
+      "--toby-accent",
+      "--toby-accent-blue",
+      "--toby-accent-gray",
+      "--toby-accent-green",
+      "--toby-accent-orange",
+      "--toby-accent-pink",
+      "--toby-accent-purple",
+      "--toby-accent-red",
+      "--toby-accent-teal",
+      "--toby-completed-green",
+      "--toby-content-bg",
+      "--toby-danger",
+      "--toby-elevated-bg",
+      "--toby-json-bool",
+      "--toby-json-key",
+      "--toby-json-number",
+      "--toby-json-string",
+      "--toby-log-bg",
+      "--toby-log-code-bg",
+      "--toby-md-bold",
+      "--toby-md-code",
+      "--toby-md-code-bg",
+      "--toby-md-heading",
+      "--toby-md-marker",
+      "--toby-md-primary",
+      "--toby-panel-bg",
+      "--toby-route-chats",
+      "--toby-route-dashboard",
+      "--toby-route-flows",
+      "--toby-route-integrations",
+      "--toby-route-memories",
+      "--toby-route-projects",
+      "--toby-route-recordings",
+      "--toby-route-schedules",
+      "--toby-route-skills",
+      "--toby-selection",
+      "--toby-separator",
+      "--toby-settings-canvas",
+      "--toby-settings-card",
+      "--toby-settings-card-border",
+      "--toby-settings-control-border",
+      "--toby-settings-row-description",
+      "--toby-settings-row-title",
+      "--toby-settings-section-header",
+      "--toby-settings-sidebar-selection",
+      "--toby-sidebar-bg",
+      "--toby-status-error-bg",
+      "--toby-status-error-border",
+      "--toby-status-error-fg",
+      "--toby-status-success-bg",
+      "--toby-status-success-border",
+      "--toby-status-success-fg",
+      "--toby-text-primary",
+      "--toby-text-secondary",
+      "--toby-text-tertiary",
+      "--toby-toggle-tint",
+      "--tracking-step-meta",
+      "--tracking-web-eyebrow",
+      "--tracking-web-h1",
+      "--transcript-assistant-max",
+      "--transcript-user-max",
+      "--web-accent",
+      "--web-accent-dim",
+      "--web-black",
+      "--web-border",
+      "--web-border-subtle",
+      "--web-page-max",
+      "--web-prose-max",
+      "--web-radius",
+      "--web-radius-sm",
+      "--web-surface",
+      "--web-surface-hover",
+      "--web-surface-raised",
+      "--web-text",
+      "--web-text-faint",
+      "--web-text-muted",
+      "--weight-bold",
+      "--weight-medium",
+      "--weight-regular",
+      "--weight-semibold"
+    ],
+    "tokenKinds": {
+      "--toby-sidebar-bg": "color",
+      "--toby-content-bg": "color",
+      "--toby-panel-bg": "color",
+      "--toby-elevated-bg": "color",
+      "--toby-separator": "color",
+      "--toby-text-primary": "font",
+      "--toby-text-secondary": "font",
+      "--toby-text-tertiary": "font",
+      "--toby-selection": "color",
+      "--toby-settings-canvas": "color",
+      "--toby-settings-card": "color",
+      "--toby-settings-card-border": "color",
+      "--toby-settings-section-header": "color",
+      "--toby-settings-row-title": "color",
+      "--toby-settings-row-description": "color",
+      "--toby-settings-control-border": "color",
+      "--toby-settings-sidebar-selection": "color",
+      "--toby-status-error-bg": "color",
+      "--toby-status-error-border": "color",
+      "--toby-status-error-fg": "color",
+      "--toby-status-success-bg": "color",
+      "--toby-status-success-border": "color",
+      "--toby-status-success-fg": "color",
+      "--toby-log-bg": "color",
+      "--toby-log-code-bg": "color",
+      "--toby-json-key": "color",
+      "--toby-json-string": "color",
+      "--toby-json-number": "color",
+      "--toby-json-bool": "color",
+      "--toby-md-primary": "color",
+      "--toby-md-marker": "color",
+      "--toby-md-heading": "color",
+      "--toby-md-code": "color",
+      "--toby-md-code-bg": "color",
+      "--toby-md-bold": "color",
+      "--toby-toggle-tint": "color",
+      "--toby-completed-green": "color",
+      "--toby-danger": "color",
+      "--toby-accent-orange": "color",
+      "--toby-accent-blue": "color",
+      "--toby-accent-green": "color",
+      "--toby-accent-purple": "color",
+      "--toby-accent-pink": "color",
+      "--toby-accent-red": "color",
+      "--toby-accent-teal": "color",
+      "--toby-accent-gray": "color",
+      "--toby-accent": "color",
+      "--toby-route-dashboard": "color",
+      "--toby-route-chats": "color",
+      "--toby-route-integrations": "color",
+      "--toby-route-projects": "color",
+      "--toby-route-skills": "color",
+      "--toby-route-memories": "color",
+      "--toby-route-schedules": "color",
+      "--toby-route-flows": "color",
+      "--toby-route-recordings": "color",
+      "--surface-sidebar": "color",
+      "--surface-content": "color",
+      "--surface-panel": "color",
+      "--surface-elevated": "color",
+      "--surface-settings-canvas": "color",
+      "--surface-card": "color",
+      "--surface-hover": "color",
+      "--surface-selected": "color",
+      "--surface-selected-strong": "color",
+      "--text-body": "font",
+      "--text-muted": "font",
+      "--text-faint": "font",
+      "--text-accent": "font",
+      "--text-on-accent": "font",
+      "--text-row-title": "font",
+      "--text-row-description": "font",
+      "--text-section-header": "font",
+      "--border-hairline": "color",
+      "--border-card": "color",
+      "--border-control": "color",
+      "--status-success-bg": "color",
+      "--status-success-border": "color",
+      "--status-success-fg": "color",
+      "--status-error-bg": "color",
+      "--status-error-border": "color",
+      "--status-error-fg": "color",
+      "--status-danger": "color",
+      "--status-complete": "color",
+      "--control-toggle-on": "color",
+      "--accent-wash-weak": "color",
+      "--accent-wash": "color",
+      "--accent-wash-strong": "color",
+      "--accent-border-soft": "color",
+      "--accent-border": "color",
+      "--font-system": "font",
+      "--font-rounded": "radius",
+      "--font-serif": "font",
+      "--font-mono": "font",
+      "--font-web": "font",
+      "--size-title2": "spacing",
+      "--size-headline": "spacing",
+      "--size-body": "spacing",
+      "--size-callout": "spacing",
+      "--size-subheadline": "spacing",
+      "--size-caption": "spacing",
+      "--size-card-title": "spacing",
+      "--size-card-body": "spacing",
+      "--size-card-meta": "spacing",
+      "--size-row-title": "spacing",
+      "--size-tile-title": "spacing",
+      "--size-tile-sub": "spacing",
+      "--size-answer": "spacing",
+      "--size-step-meta": "spacing",
+      "--size-badge": "spacing",
+      "--size-wordmark": "spacing",
+      "--size-stamp": "spacing",
+      "--weight-regular": "font",
+      "--weight-medium": "font",
+      "--weight-semibold": "font",
+      "--weight-bold": "font",
+      "--leading-answer": "font",
+      "--leading-body": "font",
+      "--leading-web-prose": "font",
+      "--tracking-step-meta": "font",
+      "--tracking-web-eyebrow": "font",
+      "--tracking-web-h1": "font",
+      "--space-1": "spacing",
+      "--space-2": "spacing",
+      "--space-3": "spacing",
+      "--space-4": "spacing",
+      "--space-5": "spacing",
+      "--space-6": "spacing",
+      "--space-7": "spacing",
+      "--space-8": "spacing",
+      "--space-9": "spacing",
+      "--space-10": "spacing",
+      "--space-11": "spacing",
+      "--space-12": "spacing",
+      "--space-14": "spacing",
+      "--pad-content": "spacing",
+      "--pad-card": "spacing",
+      "--pad-tile": "spacing",
+      "--pad-sidebar-x": "spacing",
+      "--pad-sidebar-y": "spacing",
+      "--pad-row-x": "spacing",
+      "--pad-row-y": "spacing",
+      "--pad-dock-x": "spacing",
+      "--pad-dock-y": "spacing",
+      "--pad-chip-x": "spacing",
+      "--pad-chip-y": "spacing",
+      "--pad-bubble-x": "spacing",
+      "--pad-bubble-y": "spacing",
+      "--gap-grid": "spacing",
+      "--gap-tile": "spacing",
+      "--radius-lg": "radius",
+      "--radius-bubble": "radius",
+      "--radius-tile": "radius",
+      "--radius-card": "radius",
+      "--radius-sm": "radius",
+      "--radius-row": "radius",
+      "--radius-control": "radius",
+      "--radius-xs": "radius",
+      "--radius-skeleton": "radius",
+      "--radius-pill": "radius",
+      "--shadow-none": "shadow",
+      "--shadow-dock": "shadow",
+      "--shadow-toast": "shadow",
+      "--shadow-popover": "shadow",
+      "--shadow-card-expanded": "shadow",
+      "--shadow-stamp": "shadow",
+      "--blur-material": "other",
+      "--blur-navbar": "other",
+      "--ease-out": "other",
+      "--ease-in-out": "other",
+      "--dur-exit": "other",
+      "--dur-hover": "other",
+      "--dur-expand": "other",
+      "--dur-section": "other",
+      "--dur-pulse": "other",
+      "--dur-skeleton": "other",
+      "--delay-help": "other",
+      "--spin-refresh": "other",
+      "--sidebar-width": "spacing",
+      "--sidebar-width-max": "spacing",
+      "--settings-content-max": "spacing",
+      "--form-row-height": "spacing",
+      "--form-control-height": "spacing",
+      "--transcript-user-max": "spacing",
+      "--transcript-assistant-max": "spacing",
+      "--dashboard-card-collapsed": "spacing",
+      "--dashboard-fade-height": "spacing",
+      "--dashboard-showmore-height": "spacing",
+      "--onboarding-tile-min": "spacing",
+      "--toast-max": "spacing",
+      "--hit-min": "spacing",
+      "--web-prose-max": "spacing",
+      "--web-page-max": "spacing",
+      "--web-black": "color",
+      "--web-surface": "color",
+      "--web-surface-raised": "color",
+      "--web-surface-hover": "color",
+      "--web-border": "color",
+      "--web-border-subtle": "color",
+      "--web-text": "font",
+      "--web-text-muted": "font",
+      "--web-text-faint": "font",
+      "--web-accent": "color",
+      "--web-accent-dim": "color",
+      "--web-radius": "radius",
+      "--web-radius-sm": "radius"
+    },
+    "fontFamilies": [
+      "Inter",
+      "New York",
+      "SF Pro",
+      "SF Pro Text"
+    ]
+  }
+}

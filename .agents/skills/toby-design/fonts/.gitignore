@@ -1,0 +1,3 @@
+# Apple system faces — not redistributable. HTML kits fall back to
+# system-ui / ui-serif when these files are absent.
+*.ttf

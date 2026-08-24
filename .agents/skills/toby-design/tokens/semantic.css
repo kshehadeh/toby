@@ -1,0 +1,46 @@
+/* Semantic aliases — prefer these in product work. */
+:root{
+  /* Surfaces, outermost → innermost */
+  --surface-sidebar:var(--toby-sidebar-bg);
+  --surface-content:var(--toby-content-bg);
+  --surface-panel:var(--toby-panel-bg);
+  --surface-elevated:var(--toby-elevated-bg);
+  --surface-settings-canvas:var(--toby-settings-canvas);
+  --surface-card:var(--toby-settings-card);
+  --surface-hover:var(--toby-selection);
+  --surface-selected:var(--toby-selection);
+  --surface-selected-strong:var(--toby-settings-sidebar-selection);
+
+  /* Text */
+  --text-body:var(--toby-text-primary);
+  --text-muted:var(--toby-text-secondary);
+  --text-faint:var(--toby-text-tertiary);
+  --text-accent:var(--toby-accent);
+  --text-on-accent:rgba(0,0,0,.85);
+  --text-row-title:var(--toby-settings-row-title);
+  --text-row-description:var(--toby-settings-row-description);
+  --text-section-header:var(--toby-settings-section-header);
+
+  /* Lines */
+  --border-hairline:var(--toby-separator);
+  --border-card:var(--toby-settings-card-border);
+  --border-control:var(--toby-settings-control-border);
+
+  /* Status */
+  --status-success-bg:var(--toby-status-success-bg);
+  --status-success-border:var(--toby-status-success-border);
+  --status-success-fg:var(--toby-status-success-fg);
+  --status-error-bg:var(--toby-status-error-bg);
+  --status-error-border:var(--toby-status-error-border);
+  --status-error-fg:var(--toby-status-error-fg);
+  --status-danger:var(--toby-danger);
+  --status-complete:var(--toby-completed-green);
+  --control-toggle-on:var(--toby-toggle-tint);
+
+  /* Accent washes — the app tints with opacity rather than second hues */
+  --accent-wash-weak:color-mix(in srgb,var(--toby-accent) 10%,transparent);
+  --accent-wash:color-mix(in srgb,var(--toby-accent) 18%,transparent);
+  --accent-wash-strong:color-mix(in srgb,var(--toby-accent) 22%,transparent);
+  --accent-border-soft:color-mix(in srgb,var(--toby-accent) 25%,transparent);
+  --accent-border:color-mix(in srgb,var(--toby-accent) 55%,transparent);
+}

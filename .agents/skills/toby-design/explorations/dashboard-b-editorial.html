@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-accent="orange"><head><meta charset="utf-8"><title>Dashboard — Editorial</title>
+<link rel="stylesheet" href="../styles.css">
+<script src="https://unpkg.com/lucide@0.417.0/dist/umd/lucide.js"></script>
+<style>
+html,body{margin:0}
+body{background:var(--surface-content);color:var(--text-body);font-family:var(--font-system);padding:32px;box-sizing:border-box}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1220px}
+.card{position:relative;background:var(--surface-panel);border-radius:var(--radius-lg);padding:26px 26px 28px;overflow:hidden}
+.card::before{content:"";position:absolute;left:26px;right:26px;top:0;height:2px;background:var(--toby-accent);opacity:.85}
+.head{display:flex;align-items:baseline;gap:10px;margin-bottom:18px}
+.head h3{margin:0;font-size:var(--size-card-title);font-weight:var(--weight-semibold);color:var(--text-body)}
+.head time{margin-left:auto;font-size:var(--size-card-meta);color:var(--text-faint)}
+.ghost{position:absolute;right:-10px;bottom:-14px;color:var(--text-body);opacity:.045;pointer-events:none}
+.lbl{font-size:var(--size-caption);font-weight:var(--weight-semibold);letter-spacing:.09em;text-transform:uppercase;color:var(--text-faint);margin:0 0 5px}
+.body{font-family:var(--font-serif);font-size:14px;line-height:1.6;color:var(--text-muted);margin:0 0 16px;text-wrap:pretty}
+.body:last-of-type{margin-bottom:0}
+.more{margin-top:18px;border:none;background:transparent;padding:0;font-family:var(--font-system);font-size:var(--size-callout);font-weight:var(--weight-semibold);color:var(--text-accent);cursor:pointer}
+.note{max-width:1220px;margin:0 0 28px;font-size:var(--size-subheadline);color:var(--text-faint);line-height:1.6}
+.note b{color:var(--text-muted)}
+a{color:var(--text-accent)}a:hover{color:var(--text-body)}
+</style></head><body>
+<p class="note"><b>B · Editorial.</b> The stamp becomes a huge flat glyph at 4.5% opacity in the corner — present, not shouting. A 2px accent rule caps the card instead of a border. The summary is set in the same serif as assistant answers, so anything Toby wrote reads in Toby's voice wherever it appears.</p>
+<div class="grid">
+  <section class="card">
+    <i class="ghost" data-lucide="mail" style="width:120px;height:120px"></i>
+    <div class="head"><h3>Unread mail</h3><time>07:15</time></div>
+    <p class="lbl">Needs attention</p>
+    <p class="body">Priya asked for the signed renewal before Friday — the thread has been open since Thursday and nobody has replied.</p>
+    <p class="lbl">Worth noting</p>
+    <p class="body">Two CI failure digests, and a design-review invite for Thursday that conflicts with your 1:1.</p>
+    <button class="more">Show more</button>
+  </section>
+  <section class="card">
+    <i class="ghost" data-lucide="list-checks" style="width:120px;height:120px"></i>
+    <div class="head"><h3>Open tasks</h3><time>07:15</time></div>
+    <p class="lbl">Overdue</p>
+    <p class="body">Ship the plugin protocol doc, two days late, and reply to the vendor security questionnaire.</p>
+    <p class="lbl">Due today</p>
+    <p class="body">Review the transcription settings PR, then write the weekly summary.</p>
+    <button class="more">Show more</button>
+  </section>
+  <section class="card">
+    <i class="ghost" data-lucide="calendar" style="width:120px;height:120px"></i>
+    <div class="head"><h3>Upcoming events</h3><time>07:15</time></div>
+    <p class="lbl">Today</p>
+    <p class="body">Standup at 10:00, design review at 13:30, and a 1:1 with Priya at 16:00 that overlaps the review.</p>
+    <p class="lbl">Tomorrow</p>
+    <p class="body">Two blocks of focus time and a vendor call at 15:00.</p>
+  </section>
+</div>
+<script>lucide.createIcons()</script>
+</body></html>
