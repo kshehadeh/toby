@@ -44,7 +44,8 @@ struct OnboardingCard: View {
 	private var header: some View {
 		HStack(alignment: .firstTextBaseline) {
 			Text("Finish setting up Toby")
-				.font(.system(size: 15, weight: .semibold))
+				.font(.system(size: DashboardBlockLayout.titleSize, weight: DashboardBlockLayout.titleWeight))
+				.tracking(DashboardBlockLayout.titleTracking)
 				.foregroundStyle(AppTheme.primaryText)
 			Spacer()
 			HStack(spacing: 0) {

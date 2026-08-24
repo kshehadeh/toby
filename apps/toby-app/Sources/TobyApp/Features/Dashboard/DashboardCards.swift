@@ -218,8 +218,6 @@ enum DashboardSummaryMarkdown {
 /// Static header chrome: title, optional last-run timestamp, trailing actions.
 private struct CardHeader<Trailing: View>: View {
 	let title: String
-	/// Default ~15% smaller than the previous 18pt card titles.
-	var titleSize: CGFloat = 15
 	/// Short date + HH:mm when the block flow last produced content.
 	var lastRanAtText: String? = nil
 	@ViewBuilder let trailing: () -> Trailing
@@ -227,7 +225,8 @@ private struct CardHeader<Trailing: View>: View {
 	var body: some View {
 		HStack(alignment: .firstTextBaseline, spacing: 10) {
 			Text(title)
-				.font(.system(size: titleSize, weight: .semibold))
+				.font(.system(size: DashboardBlockLayout.titleSize, weight: DashboardBlockLayout.titleWeight))
+				.tracking(DashboardBlockLayout.titleTracking)
 				.foregroundStyle(AppTheme.primaryText)
 				.lineLimit(1)
 			Spacer(minLength: 0)
@@ -357,7 +356,6 @@ struct DashboardBlockCard: View {
 		DashboardCard(systemImage: block.systemImage) {
 			CardHeader(
 				title: block.title,
-				titleSize: 15,
 				lastRanAtText: DashboardFormat.flowRanAtText(content?.generatedAt)
 			) {
 				CardHeaderTrailingControls(
@@ -419,8 +417,7 @@ struct FlowRunnerDashboardCard: View {
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
 			CardHeader(
-				title: block.title,
-				titleSize: 15
+				title: block.title
 			) {
 				if !isEditing {
 					CardActionsMenu {

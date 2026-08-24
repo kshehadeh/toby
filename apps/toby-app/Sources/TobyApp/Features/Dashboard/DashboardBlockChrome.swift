@@ -15,12 +15,17 @@ enum DashboardBlockLayout {
 	/// Inset matching the design-system `DashboardCard` (26px).
 	static let cardPadding: CGFloat = 26
 	static let headerSpacing: CGFloat = 18
+	/// Large light title so the card name leads by scale, not weight.
+	static let titleSize: CGFloat = 22
+	static let titleWeight: Font.Weight = .light
+	/// ~−0.02em at 22pt — large light SF Pro reads tighter than default.
+	static let titleTracking: CGFloat = -0.44
 	static let capRuleHeight: CGFloat = 2
 	static let capRuleOpacity: Double = 0.85
 	static let ghostGlyphSize: CGFloat = 120
 	static let ghostGlyphOpacity: Double = 0.045
-	/// Pushes the glyph past the card’s lower-right corner so clipShape crops it.
-	static let ghostGlyphOffset = CGSize(width: 10, height: 14)
+	/// Inset from the card’s lower-right edges so the glyph does not kiss the clip.
+	static let ghostGlyphInset: CGFloat = 5
 	static let expandedShadowRadius: CGFloat = 12
 	static let expandedShadowY: CGFloat = 6
 	static let expandedShadowOpacity: Double = 0.18
@@ -86,10 +91,8 @@ private struct DashboardGhostGlyph: View {
 			.font(.system(size: DashboardBlockLayout.ghostGlyphSize, weight: .ultraLight))
 			.symbolRenderingMode(.monochrome)
 			.foregroundStyle(AppTheme.primaryText.opacity(DashboardBlockLayout.ghostGlyphOpacity))
-			.offset(
-				x: DashboardBlockLayout.ghostGlyphOffset.width,
-				y: DashboardBlockLayout.ghostGlyphOffset.height
-			)
+			.padding(.trailing, DashboardBlockLayout.ghostGlyphInset)
+			.padding(.bottom, DashboardBlockLayout.ghostGlyphInset)
 			.allowsHitTesting(false)
 			.accessibilityHidden(true)
 	}
