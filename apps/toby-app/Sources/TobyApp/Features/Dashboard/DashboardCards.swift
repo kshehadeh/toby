@@ -3,20 +3,6 @@ import SwiftUI
 
 // MARK: - Card container
 
-/// Shared layout tokens for equal-height non-onboarding dashboard blocks.
-enum DashboardBlockLayout {
-	/// Collapsed height for mail / tasks / calendar cards (aligned in a row).
-	static let collapsedHeight: CGFloat = 340
-	/// Soft fade over clipped body text (fully opaque at the bottom of the fade).
-	/// Drawn as an overlay; does not reserve layout space inside the body.
-	static let showMoreFadeHeight: CGFloat = 40
-	/// Solid control bar under the fade, overlaid on the card’s lower edge.
-	static let showMoreButtonHeight: CGFloat = 36
-	static var showMoreChromeHeight: CGFloat {
-		showMoreFadeHeight + showMoreButtonHeight
-	}
-}
-
 private struct DashboardCardContentHeightKey: PreferenceKey {
 	static let defaultValue: CGFloat = 0
 	static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
@@ -51,6 +37,8 @@ struct DashboardCard<Content: View>: View {
 	@Environment(\.accessibilityReduceMotion) private var reduceMotion
 	@Environment(\.dashboardIsEditing) private var isEditing
 
+	/// SF Symbol used as the lower-right ghost glyph.
+	var systemImage: String? = nil
 	@ViewBuilder private let content: () -> Content
 
 	@State private var isExpanded = false
@@ -60,7 +48,8 @@ struct DashboardCard<Content: View>: View {
 	/// from under the cursor right after expand (would otherwise flash-collapse).
 	@State private var suppressHoverCollapse = false
 
-	init(@ViewBuilder content: @escaping () -> Content) {
+	init(systemImage: String? = nil, @ViewBuilder content: @escaping () -> Content) {
+		self.systemImage = systemImage
 		self.content = content
 	}
 
@@ -105,21 +94,7 @@ struct DashboardCard<Content: View>: View {
 					showMoreChrome
 				}
 			}
-			.background(
-				RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
-					.fill(AppTheme.panelBackground)
-			)
-			.overlay(
-				RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
-					.stroke(AppTheme.separator, lineWidth: 1)
-			)
-			.clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadius))
-			.shadow(
-				color: isExpanded ? Color.black.opacity(0.18) : .clear,
-				radius: isExpanded ? 12 : 0,
-				x: 0,
-				y: isExpanded ? 6 : 0
-			)
+			.dashboardBlockChrome(systemImage: systemImage, isExpanded: isExpanded)
 			// Hidden unconstrained pass measures full content height for overflow.
 			// Non-interactive so it never steals hits or selection from the real body.
 			.background(alignment: .top) {
@@ -167,7 +142,7 @@ struct DashboardCard<Content: View>: View {
 			content()
 		}
 		.frame(maxWidth: .infinity, alignment: .topLeading)
-		.padding(22)
+		.padding(DashboardBlockLayout.cardPadding)
 	}
 
 	/// Fade + control overlaid on the card’s lower border (out of content flow).
@@ -228,8 +203,11 @@ struct DashboardCard<Content: View>: View {
 }
 
 /// Shared markdown styling for AI summaries inside dashboard cards.
+/// Serif body matches assistant answers so anything Toby wrote reads in Toby’s voice.
 enum DashboardSummaryMarkdown {
-	static let bodyFont: Font = .system(size: 13)
+	static let bodyFont: Font = .system(size: 14, weight: .regular, design: .serif)
+	/// Extra leading so 14pt serif sits near 1.6.
+	static let bodyLineSpacing: CGFloat = 8
 	/// Slightly muted body copy; bold spans use pure theme primary.
 	static let bodyColor = AppTheme.secondaryText
 	static let strongColor = AppTheme.primaryText
@@ -239,8 +217,6 @@ enum DashboardSummaryMarkdown {
 
 /// Static header chrome: title, optional last-run timestamp, trailing actions.
 private struct CardHeader<Trailing: View>: View {
-	let systemImage: String?
-	let iconColor: Color
 	let title: String
 	/// Default ~15% smaller than the previous 18pt card titles.
 	var titleSize: CGFloat = 15
@@ -249,16 +225,12 @@ private struct CardHeader<Trailing: View>: View {
 	@ViewBuilder let trailing: () -> Trailing
 
 	var body: some View {
-		HStack(spacing: 8) {
-			if let systemImage {
-				Image(systemName: systemImage)
-					.font(.system(size: 12, weight: .semibold))
-					.foregroundStyle(iconColor)
-			}
+		HStack(alignment: .firstTextBaseline, spacing: 10) {
 			Text(title)
 				.font(.system(size: titleSize, weight: .semibold))
 				.foregroundStyle(AppTheme.primaryText)
 				.lineLimit(1)
+			Spacer(minLength: 0)
 			if let lastRanAtText {
 				Text(lastRanAtText)
 					.font(.system(size: 11, weight: .medium))
@@ -267,9 +239,9 @@ private struct CardHeader<Trailing: View>: View {
 					.help("Last updated \(lastRanAtText)")
 					.accessibilityLabel("Last updated \(lastRanAtText)")
 			}
-			Spacer(minLength: 0)
 			trailing()
 		}
+		.padding(.bottom, DashboardBlockLayout.headerSpacing)
 	}
 }
 
@@ -382,11 +354,8 @@ struct DashboardBlockCard: View {
 	}
 
 	var body: some View {
-		DashboardCard {
-			// Leading inset keeps the title clear of the corner icon.
+		DashboardCard(systemImage: block.systemImage) {
 			CardHeader(
-				systemImage: nil,
-				iconColor: AppTheme.accent,
 				title: block.title,
 				titleSize: 15,
 				lastRanAtText: DashboardFormat.flowRanAtText(content?.generatedAt)
@@ -401,30 +370,9 @@ struct DashboardBlockCard: View {
 					}
 				}
 			}
-			.padding(.leading, 40)
-
-			Divider()
-				.overlay(AppTheme.separator)
-				.padding(.top, 14)
-				.padding(.bottom, 16)
 
 			bodyContent
 		}
-		.overlay(alignment: .topLeading) {
-			// Large decorative stamp that straddles the card border.
-			Image(systemName: block.systemImage)
-				.font(.system(size: 54, weight: .semibold))
-				.symbolRenderingMode(.hierarchical)
-				.foregroundStyle(AppTheme.accent)
-				.rotationEffect(.degrees(-30))
-				.shadow(color: .black.opacity(0.4), radius: 10, x: 1, y: 3)
-				.offset(x: -16, y: -20)
-				.allowsHitTesting(false)
-				.accessibilityHidden(true)
-		}
-		// Room so the overhanging icon isn't clipped by the scroll view.
-		.padding(.top, 22)
-		.padding(.leading, 18)
 		.accessibilityIdentifier(block.accessibilityIdentifier)
 	}
 
@@ -441,6 +389,7 @@ struct DashboardBlockCard: View {
 				headingForegroundStyle: DashboardSummaryMarkdown.headingColor,
 				uppercaseHeadings: true
 			)
+			.lineSpacing(DashboardSummaryMarkdown.bodyLineSpacing)
 		} else if let error = block.error {
 			DashboardEmptyState(message: "Content unavailable. \(error)")
 		} else if content == nil {
@@ -452,8 +401,8 @@ struct DashboardBlockCard: View {
 	}
 }
 
-/// Compact home card for a runner-only flow: description + Run Now.
-/// Shares the built-in card grid, stamp inset, and inner padding so edges align.
+/// Home card for a runner-only flow: description + Run Now.
+/// Shares the built-in card shell (cap rule, ghost glyph, collapsed height).
 struct FlowRunnerDashboardCard: View {
 	@Bindable var block: CategoryDashboardBlock
 	var actionContext: DashboardBlockActionContext = .init()
@@ -470,8 +419,6 @@ struct FlowRunnerDashboardCard: View {
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
 			CardHeader(
-				systemImage: nil,
-				iconColor: AppTheme.accent,
 				title: block.title,
 				titleSize: 15
 			) {
@@ -483,16 +430,11 @@ struct FlowRunnerDashboardCard: View {
 					}
 				}
 			}
-			.padding(.leading, 40)
-
-			Divider()
-				.overlay(AppTheme.separator)
-				.padding(.top, 14)
-				.padding(.bottom, 16)
 
 			Text(descriptionText)
-				.font(.system(size: 13))
-				.foregroundStyle(AppTheme.secondaryText)
+				.font(DashboardSummaryMarkdown.bodyFont)
+				.foregroundStyle(DashboardSummaryMarkdown.bodyColor)
+				.lineSpacing(DashboardSummaryMarkdown.bodyLineSpacing)
 				.fixedSize(horizontal: false, vertical: true)
 
 			if let runError {
@@ -502,6 +444,8 @@ struct FlowRunnerDashboardCard: View {
 					.padding(.top, 8)
 					.fixedSize(horizontal: false, vertical: true)
 			}
+
+			Spacer(minLength: 16)
 
 			Button {
 				Task { @MainActor in
@@ -522,33 +466,11 @@ struct FlowRunnerDashboardCard: View {
 			.buttonStyle(.borderedProminent)
 			.controlSize(.regular)
 			.disabled(isRunning)
-			.padding(.top, 16)
 			.accessibilityIdentifier("dashboard-flow-run-\(block.id.rawValue)")
 		}
-		.frame(maxWidth: .infinity, alignment: .topLeading)
-		.padding(22)
-		.background(
-			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
-				.fill(AppTheme.panelBackground)
-		)
-		.overlay(
-			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
-				.stroke(AppTheme.separator, lineWidth: 1)
-		)
-		.clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadius))
-		.overlay(alignment: .topLeading) {
-			Image(systemName: block.systemImage)
-				.font(.system(size: 54, weight: .semibold))
-				.symbolRenderingMode(.hierarchical)
-				.foregroundStyle(AppTheme.accent)
-				.rotationEffect(.degrees(-30))
-				.shadow(color: .black.opacity(0.4), radius: 10, x: 1, y: 3)
-				.offset(x: -16, y: -20)
-				.allowsHitTesting(false)
-				.accessibilityHidden(true)
-		}
-		.padding(.top, 22)
-		.padding(.leading, 18)
+		.padding(DashboardBlockLayout.cardPadding)
+		.frame(maxWidth: .infinity, minHeight: DashboardBlockLayout.collapsedHeight, alignment: .topLeading)
+		.dashboardBlockChrome(systemImage: block.systemImage)
 		.accessibilityIdentifier(block.accessibilityIdentifier)
 	}
 }
@@ -560,8 +482,9 @@ struct DashboardEmptyState: View {
 
 	var body: some View {
 		Text(message)
-			.font(.system(size: 13))
+			.font(DashboardSummaryMarkdown.bodyFont)
 			.foregroundStyle(AppTheme.tertiaryText)
+			.lineSpacing(DashboardSummaryMarkdown.bodyLineSpacing)
 			.frame(maxWidth: .infinity, alignment: .leading)
 	}
 }

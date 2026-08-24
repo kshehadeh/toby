@@ -38,9 +38,27 @@ Compile-time registration in Toby.app
 
 The header **title** comes only from the definition. The **last-run** timestamp
 in the header is formatted from content `generatedAt` (locale short date +
-24-hour `HH:mm`) when content is present. Actions are declared by the block
-(open app, chat hooks); enablement may use light **meta** from the latest
-content (e.g. `count > 0` for “Summarize all in chat”).
+24-hour `HH:mm`) when content is present. `systemImage` is not a header icon —
+it is the card’s lower-right **ghost glyph** (flat, ~120pt, 4.5% opacity).
+Actions are declared by the block (open app, chat hooks); enablement may use
+light **meta** from the latest content (e.g. `count > 0` for “Summarize all in
+chat”).
+
+## Card chrome
+
+Home cards share one visual shell (`DashboardBlockChrome`):
+
+- Flat panel fill, 16pt corners, **no border** and **no header divider**
+- 2px accent **cap rule** inset 26px from the sides
+- Oversized flat **ghost glyph** in the lower-right corner
+- 26px inner padding; informational cards collapse to a shared 340px height
+- Summary body is **serif** (same face as assistant answers); `##` section
+  labels render as 10pt uppercase with +0.09em tracking
+- Expanded cards drop a small downward shadow; collapsed overflow uses the
+  gradient fade + **Show more** bar
+
+Onboarding uses the same shell without a glyph. Runner flow cards use the same
+shell and collapsed height, with **Run Now** pinned to the bottom.
 
 ## Block content (refreshable)
 
@@ -182,7 +200,7 @@ a card whose id is the flow id.
 | Variant | UI | Load |
 | --- | --- | --- |
 | `informational` | Built-in-sized card. Body is last successful run output (last step / declared result). Header refresh matches built-ins (`?fresh=1` re-runs the flow). Menu includes **Open flow**. | Soft: last success. Force: `runUserFlowById`. |
-| `runner` | Compact card: description + visible **Run Now**. Never auto-runs. Menu includes **Open flow**. | `POST /api/flows/:id/run`. Content fetch is a no-op. |
+| `runner` | Same shell and collapsed height as built-ins: description + **Run Now** pinned to the bottom. Never auto-runs. Menu includes **Open flow**. | `POST /api/flows/:id/run`. Content fetch is a no-op. |
 
 Built-in email / tasks / calendar cards are unchanged.
 
@@ -201,6 +219,7 @@ Built-in email / tasks / calendar cards are unchanged.
 | Block controller | `apps/toby-app/.../Dashboard/CategoryDashboardBlock.swift` |
 | Store (fan-out) | `apps/toby-app/.../Stores/DashboardStore.swift` |
 | Card UI | `apps/toby-app/.../Dashboard/DashboardCards.swift` |
+| Card chrome | `apps/toby-app/.../Dashboard/DashboardBlockChrome.swift` |
 | Layout document | `apps/toby-app/.../Dashboard/DashboardLayout.swift` |
 | Edit session | `apps/toby-app/.../Dashboard/DashboardLayoutEditor.swift` |
 

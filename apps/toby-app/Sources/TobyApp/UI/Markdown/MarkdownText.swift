@@ -43,8 +43,8 @@ struct MarkdownText: View {
 	var body: some View {
 		// Give long-form assistant prose room to breathe between blocks while
 		// preserving the denser rhythm used by compact cards and metadata.
-		VStack(alignment: .leading, spacing: usesProseTypography ? 8 : 4) {
-			ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+		VStack(alignment: .leading, spacing: usesProseTypography ? 8 : (uppercaseHeadings ? 5 : 4)) {
+			ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
 				switch block {
 				case .heading(let level, let content):
 					let isSectionLabel = usesProseTypography && level >= 3
@@ -56,7 +56,7 @@ struct MarkdownText: View {
 						.font(headingFont(for: level))
 						.fontWeight(.semibold)
 						.tracking(headingTracking(for: level))
-						.padding(.top, headingTopSpacing(for: level))
+						.padding(.top, index == 0 ? 0 : headingTopSpacing(for: level))
 				case .paragraph(let content):
 					styledInline(content)
 						.font(font)
@@ -146,12 +146,8 @@ struct MarkdownText: View {
 
 	private func headingFont(for level: Int) -> Font {
 		if uppercaseHeadings {
-			// Compact section labels (all-caps) for denser cards like the dashboard.
-			switch level {
-			case 1: return .system(size: 12, weight: .semibold)
-			case 2: return .system(size: 11, weight: .semibold)
-			default: return .system(size: 11, weight: .semibold)
-			}
+			// Compact 10pt section labels (all-caps) for dashboard cards.
+			return .system(size: 10, weight: .semibold)
 		}
 		if usesProseTypography {
 			switch level {
@@ -164,11 +160,18 @@ struct MarkdownText: View {
 	}
 
 	private func headingTracking(for level: Int) -> CGFloat {
+		if uppercaseHeadings {
+			// +0.09em at 10pt.
+			return 0.9
+		}
 		guard usesProseTypography, level >= 3 else { return 0 }
 		return 11 * 0.085
 	}
 
 	private func headingTopSpacing(for level: Int) -> CGFloat {
+		if uppercaseHeadings {
+			return 16
+		}
 		if usesProseTypography {
 			return level >= 3 ? 14 : 10
 		}

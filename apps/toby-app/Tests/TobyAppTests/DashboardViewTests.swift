@@ -800,6 +800,18 @@ struct DashboardFlowBlocksTests {
 		#expect(!actions.map(\.id).contains("summarize-email"))
 	}
 
+	@Test("built-in block card renders definition title")
+	func builtInBlockCardRendersTitle() throws {
+		let block = CategoryDashboardBlock(descriptor: .email)
+		let card = DashboardBlockCard(block: block)
+		#expect(throws: Never.self) {
+			try card.inspect().find(text: "Unread mail")
+		}
+		#expect(throws: Never.self) {
+			try card.inspect().find(viewWithAccessibilityIdentifier: "dashboard-mail-card")
+		}
+	}
+
 	@Test("runner card shows description and run now")
 	func runnerCardShowsDescriptionAndRunNow() throws {
 		let block = CategoryDashboardBlock(

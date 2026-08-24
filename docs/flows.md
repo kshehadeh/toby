@@ -241,7 +241,7 @@ dashboard. Discovery: `listFlowDashboardBlocks()` /
 | Variant | Card | Soft load | Force refresh / **Run Now** |
 | --- | --- | --- | --- |
 | `informational` | Same size as built-ins; body is last successful run output | Last success via `extractFlowResult` (no re-run) | `runUserFlowById` (same path as built-in card refresh) |
-| `runner` | Compact card: flow description + **Run Now** | Never runs; no body | **Run Now** is `POST /api/flows/:id/run`. Toolbar / card refresh does **not** run it. |
+| `runner` | Same shell and collapsed height as built-ins; description + **Run Now** | Never runs; no body | **Run Now** is `POST /api/flows/:id/run`. Toolbar / card refresh does **not** run it. |
 
 `showsResultSheet` is true when the flow also has a `modal` destination. **Run
 Now** then opens the result sheet. Combining dashboard + email/slack is

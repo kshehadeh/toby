@@ -193,8 +193,6 @@ struct DashboardView: View {
 					RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
 						.stroke(style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
 						.foregroundStyle(AppTheme.accent.opacity(0.55))
-						.padding(.top, 22)
-						.padding(.leading, 18)
 				}
 				DashboardEditOverlay(
 					title: block.title,
@@ -207,8 +205,6 @@ struct DashboardView: View {
 					},
 					onDragEnded: handleDragEnded
 				)
-				.padding(.top, 22)
-				.padding(.leading, 18)
 				.accessibilityIdentifier("dashboard-edit-overlay-\(block.id.rawValue)")
 			}
 		}

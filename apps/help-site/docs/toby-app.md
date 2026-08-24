@@ -185,9 +185,9 @@ events (when the matching integrations are connected), plus any **custom
 flows** you associated with a Dashboard destination. Built-in cards have a
 fixed title and actions, plus a short summary body generated from your
 connected integrations. **Informational** flow cards work the same way and
-show the last run’s output. **Runner only** flow cards are smaller: they
-show the flow description and a **Run Now** button, and they never run
-until you click it. Use the **refresh** control in the toolbar (or the
+show the last run’s output. **Runner only** flow cards share the same card
+size and show the flow description with a **Run Now** button; they never
+run until you click it. Use the **refresh** control in the toolbar (or the
 refresh control on a built-in or informational card) to regenerate that
 content. Cards load once the local service is ready when you open the app.
 

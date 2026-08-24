@@ -7,7 +7,7 @@ struct OnboardingCard: View {
 	private let columnCount = 3
 
 	var body: some View {
-		VStack(alignment: .leading, spacing: 16) {
+		VStack(alignment: .leading, spacing: DashboardBlockLayout.headerSpacing) {
 			header
 			ProgressBar(progress: checklist.progress)
 				.frame(height: 3)
@@ -32,15 +32,8 @@ struct OnboardingCard: View {
 				}
 			}
 		}
-		.padding(20)
-		.background(
-			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
-				.fill(AppTheme.panelBackground)
-		)
-		.overlay(
-			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
-				.stroke(AppTheme.accent.opacity(0.25), lineWidth: 1)
-		)
+		.padding(DashboardBlockLayout.cardPadding)
+		.dashboardBlockChrome()
 		.accessibilityIdentifier("dashboard-onboarding-card")
 	}
 

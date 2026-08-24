@@ -58,8 +58,9 @@ Choose **New flow** from the Flows sidebar or the toolbar.
      - **Informational** — same size as the built-in cards. Shows the last
        successful run’s output. Refresh on the card (or the dashboard toolbar)
        runs the flow again, like unread mail / tasks / calendar.
-     - **Runner only** — a smaller card with the flow’s description and a
-       **Run Now** button. It only runs when you click that button.
+     - **Runner only** — same size as the built-in cards, with the flow’s
+       description and a **Run Now** button. It only runs when you click that
+       button.
 5. **Save**, then **Run now**.
 
 You can combine a dashboard card with a result window (or email / Slack). A
