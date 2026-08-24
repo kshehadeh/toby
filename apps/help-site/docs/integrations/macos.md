@@ -19,7 +19,7 @@ under `~/.toby/plugins/`.
 
 ## Prerequisites
 
-- macOS 14+ (Sonoma or later) with Toby running locally on the Mac you want to control
+- macOS 26 or later with Toby running locally on the Mac you want to control
 - Toby.app running for macOS system tools (the plugin auto-launches Toby.app in the background if needed)
 
 ## Connect

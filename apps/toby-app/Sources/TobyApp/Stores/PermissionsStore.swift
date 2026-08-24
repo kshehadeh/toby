@@ -105,26 +105,10 @@ final class PermissionsStore {
 			_ = AXIsProcessTrustedWithOptions(options)
 		case .calendar:
 			let store = EKEventStore()
-			if #available(macOS 14.0, *) {
-				_ = try? await store.requestFullAccessToEvents()
-			} else {
-				_ = await withCheckedContinuation { continuation in
-					store.requestAccess(to: .event) { granted, _ in
-						continuation.resume(returning: granted)
-					}
-				}
-			}
+			_ = try? await store.requestFullAccessToEvents()
 		case .reminders:
 			let store = EKEventStore()
-			if #available(macOS 14.0, *) {
-				_ = try? await store.requestFullAccessToReminders()
-			} else {
-				_ = await withCheckedContinuation { continuation in
-					store.requestAccess(to: .reminder) { granted, _ in
-						continuation.resume(returning: granted)
-					}
-				}
-			}
+			_ = try? await store.requestFullAccessToReminders()
 		}
 		// macOS permission dialogs are asynchronous from the OS perspective; give the user a moment
 		// to answer before re-checking, and then re-check once more when the app returns to foreground.
@@ -169,17 +153,9 @@ final class PermissionsStore {
 		case .accessibility:
 			return AXIsProcessTrusted()
 		case .calendar:
-			if #available(macOS 14.0, *) {
-				return EKEventStore.authorizationStatus(for: .event) == .fullAccess
-			} else {
-				return EKEventStore.authorizationStatus(for: .event) == .authorized
-			}
+			return EKEventStore.authorizationStatus(for: .event) == .fullAccess
 		case .reminders:
-			if #available(macOS 14.0, *) {
-				return EKEventStore.authorizationStatus(for: .reminder) == .fullAccess
-			} else {
-				return EKEventStore.authorizationStatus(for: .reminder) == .authorized
-			}
+			return EKEventStore.authorizationStatus(for: .reminder) == .fullAccess
 		}
 	}
 }

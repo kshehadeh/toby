@@ -277,23 +277,12 @@ enum NativeAppleRemindersHandler {
 	// MARK: - Helpers
 
 	private static func ensureAccessAsync() async -> Bool {
-		if #available(macOS 14.0, *) {
-			if EKEventStore.authorizationStatus(for: .reminder) == .fullAccess {
-				return true
-			}
-			return await withCheckedContinuation { continuation in
-				store.requestFullAccessToReminders { @Sendable granted, _ in
-					continuation.resume(returning: granted)
-				}
-			}
-		} else {
-			if EKEventStore.authorizationStatus(for: .reminder) == .authorized {
-				return true
-			}
-			return await withCheckedContinuation { continuation in
-				store.requestAccess(to: .reminder) { @Sendable granted, _ in
-					continuation.resume(returning: granted)
-				}
+		if EKEventStore.authorizationStatus(for: .reminder) == .fullAccess {
+			return true
+		}
+		return await withCheckedContinuation { continuation in
+			store.requestFullAccessToReminders { @Sendable granted, _ in
+				continuation.resume(returning: granted)
 			}
 		}
 	}

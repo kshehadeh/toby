@@ -8,7 +8,7 @@ import Observation
 /// **content** is flow output for the body — refreshed by a single update path.
 @Observable
 @MainActor
-final class CategoryDashboardBlock {
+final class CategoryDashboardBlock: Identifiable {
 	/// Stable identity (matches daemon category path). Immutable after init.
 	nonisolated let id: DashboardBlockID
 	private(set) var descriptor: DashboardBlockDescriptor

@@ -409,26 +409,21 @@ struct TranscriptPinIdentity: Equatable {
 	}
 }
 
-/// Tracks whether the transcript is scrolled near the bottom (macOS 15+).
-/// On older OS versions, stays `true` so streaming still follows the end.
+/// Tracks whether the transcript is scrolled near the bottom.
 private struct TranscriptNearBottomTracker: ViewModifier {
 	@Binding var isNearBottom: Bool
 
 	func body(content: Content) -> some View {
-		if #available(macOS 15.0, *) {
-			content.onScrollGeometryChange(for: Bool.self) { geometry in
-				let viewHeight = geometry.containerSize.height
-				let maxY = geometry.contentOffset.y + viewHeight
-				let contentHeight = geometry.contentSize.height
-				return contentHeight <= viewHeight + 1
-					|| maxY >= contentHeight - 120
-			} action: { _, nearBottom in
-				if nearBottom != isNearBottom {
-					isNearBottom = nearBottom
-				}
+		content.onScrollGeometryChange(for: Bool.self) { geometry in
+			let viewHeight = geometry.containerSize.height
+			let maxY = geometry.contentOffset.y + viewHeight
+			let contentHeight = geometry.contentSize.height
+			return contentHeight <= viewHeight + 1
+				|| maxY >= contentHeight - 120
+		} action: { _, nearBottom in
+			if nearBottom != isNearBottom {
+				isNearBottom = nearBottom
 			}
-		} else {
-			content
 		}
 	}
 }

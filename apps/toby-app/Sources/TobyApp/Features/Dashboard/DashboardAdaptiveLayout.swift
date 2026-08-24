@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Wrapping columns with a minimum item width — non-lazy so edit-mode
-/// slot frames stay reported even when cards would otherwise virtualize.
+/// Wrapping columns with a minimum item width. Non-lazy so every card stays
+/// in the layout tree (needed for edit-mode reorder placeholders).
 struct AdaptiveColumnLayout: Layout {
 	var minItemWidth: CGFloat
 	var spacing: CGFloat

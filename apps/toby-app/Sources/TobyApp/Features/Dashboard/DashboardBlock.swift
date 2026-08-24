@@ -1,3 +1,4 @@
+import CoreTransferable
 import Foundation
 
 // MARK: - Identity
@@ -18,6 +19,15 @@ struct DashboardBlockID: Hashable, Sendable, RawRepresentable, Codable {
 	static let email = DashboardBlockID("email")
 	static let tasks = DashboardBlockID("tasks")
 	static let calendar = DashboardBlockID("calendar")
+}
+
+extension DashboardBlockID: Transferable {
+	/// Plain-text proxy so in-app `dropDestination` can load the id. A custom
+	/// exported UTI is easy to fail `hasItemsConforming` when it is not in the
+	/// bundle’s declared types.
+	static var transferRepresentation: some TransferRepresentation {
+		ProxyRepresentation(exporting: \.rawValue) { DashboardBlockID($0) }
+	}
 }
 
 // MARK: - Snapshot

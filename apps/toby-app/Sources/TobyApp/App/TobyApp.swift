@@ -266,14 +266,8 @@ struct TobyApp: App {
 
 	private func requestNativePermissions() {
 		// Only prompt for Calendar access if not already granted
-		if #available(macOS 14.0, *) {
-			if EKEventStore.authorizationStatus(for: .event) != .fullAccess {
-				Task { _ = await NativeCalendarHandler.requestAccess() }
-			}
-		} else {
-			if EKEventStore.authorizationStatus(for: .event) != .authorized {
-				Task { _ = await NativeCalendarHandler.requestAccess() }
-			}
+		if EKEventStore.authorizationStatus(for: .event) != .fullAccess {
+			Task { _ = await NativeCalendarHandler.requestAccess() }
 		}
 		// Don't prompt for Accessibility on launch. Grant is user-driven via
 		// Permissions / first use; prompting every launch is noisy. Native

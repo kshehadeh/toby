@@ -222,23 +222,12 @@ enum NativeCalendarHandler {
 
 	private static func ensureAccessAsync() async -> Bool {
 		// Check current status first - don't re-prompt if already granted
-		if #available(macOS 14.0, *) {
-			if EKEventStore.authorizationStatus(for: .event) == .fullAccess {
-				return true
-			}
-			return await withCheckedContinuation { continuation in
-				store.requestFullAccessToEvents { @Sendable granted, _ in
-					continuation.resume(returning: granted)
-				}
-			}
-		} else {
-			if EKEventStore.authorizationStatus(for: .event) == .authorized {
-				return true
-			}
-			return await withCheckedContinuation { continuation in
-				store.requestAccess(to: .event) { @Sendable granted, _ in
-					continuation.resume(returning: granted)
-				}
+		if EKEventStore.authorizationStatus(for: .event) == .fullAccess {
+			return true
+		}
+		return await withCheckedContinuation { continuation in
+			store.requestFullAccessToEvents { @Sendable granted, _ in
+				continuation.resume(returning: granted)
 			}
 		}
 	}

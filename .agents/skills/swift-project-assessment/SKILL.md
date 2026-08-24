@@ -131,7 +131,7 @@ Set `assessed_at` to today’s date (ISO `YYYY-MM-DD`) and `source: swift-projec
 ### 6) Chat summary (short)
 
 ```
-Project: Toby.app — macOS 14+ SwiftUI product UI over local daemon
+Project: Toby.app — macOS 26+ SwiftUI product UI over local daemon
 Architecture: Feature folders + @Observable @MainActor stores
 Key guidance: …
 Artifact: .agents/context/swift-project-assessment.yaml

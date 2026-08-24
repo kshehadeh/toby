@@ -7,7 +7,7 @@ Monorepo managed with Bun workspaces and Turbo.
 ```
 apps/
   cli/          TypeScript maintenance CLI (Commander) — no terminal TUI
-  toby-app/     Native macOS app (Swift 6 / SwiftUI, macOS 14+) — only native code in the repo
+  toby-app/     Native macOS app (Swift 6 / SwiftUI, macOS 26+) — only native code in the repo
   plugin-*/     First-party plugins (all TypeScript bun-package format)
 packages/
   core/         Shared harness (chat pipeline, AI, plugins, config, daemon API)

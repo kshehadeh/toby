@@ -1,4 +1,3 @@
-import CoreGraphics
 import Foundation
 
 /// App-local home-dashboard layout: card order, hidden cards, and the Actions
@@ -144,6 +143,47 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 		)
 	}
 
+	/// Where to insert cards in the informational grid (not the Actions rail).
+	enum CardPlacement: Equatable, Sendable {
+		/// Immediately before this visible card.
+		case before(DashboardBlockID)
+		/// After the last visible card.
+		case end
+	}
+
+	/// Shows (if hidden) and reorders informational cards. Runner ids are ignored
+	/// so the Actions rail cannot mix with the home grid.
+	func placingVisibleCards(
+		_ ids: [DashboardBlockID],
+		at placement: CardPlacement,
+		from descriptors: [DashboardBlockDescriptor]
+	) -> DashboardLayout {
+		let allowed = ids.filter { id in
+			descriptors.contains { $0.id == id && !$0.isFlowRunner }
+		}
+		guard !allowed.isEmpty else { return self }
+
+		var cards = resolvedVisibleCards(from: descriptors)
+		cards.removeAll { allowed.contains($0) }
+		switch placement {
+		case let .before(destination):
+			if let index = cards.firstIndex(of: destination) {
+				cards.insert(contentsOf: allowed, at: index)
+			} else {
+				cards.append(contentsOf: allowed)
+			}
+		case .end:
+			cards.append(contentsOf: allowed)
+		}
+
+		let runners = resolvedVisibleRunners(from: descriptors)
+		let hiddenIDs = resolvedHidden(from: descriptors).filter { !allowed.contains($0) }
+		return withCards(
+			order: cards.map(\.rawValue) + runners.map(\.rawValue) + hiddenIDs.map(\.rawValue),
+			hidden: hiddenIDs.map(\.rawValue)
+		)
+	}
+
 	func resolvedVisible(from descriptors: [DashboardBlockDescriptor]) -> [DashboardBlockID] {
 		resolvedSequence(from: descriptors).filter { !hiddenSet.contains($0.rawValue) }
 	}
@@ -164,39 +204,6 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 		resolvedVisible(from: descriptors).filter { id in
 			descriptors.first { $0.id == id }?.isFlowRunner ?? false
 		}
-	}
-
-	/// Maps a cards-only or runners-only index onto the full visible list so
-	/// reorder stays inside that kind (a runner cannot land between mail cards).
-	static func visibleIndex(
-		forRegionIndex regionIndex: Int,
-		draggingID: DashboardBlockID,
-		visible: [DashboardBlockID],
-		descriptors: [DashboardBlockDescriptor]
-	) -> Int {
-		let isRunner = descriptors.first { $0.id == draggingID }?.isFlowRunner ?? false
-		let others = visible.filter { $0 != draggingID }
-		var seen = 0
-		for (index, id) in others.enumerated() {
-			let idIsRunner = descriptors.first { $0.id == id }?.isFlowRunner ?? false
-			if idIsRunner == isRunner {
-				if seen == regionIndex {
-					return index
-				}
-				seen += 1
-			}
-		}
-		if let last = others.lastIndex(where: { id in
-			(descriptors.first { $0.id == id }?.isFlowRunner ?? false) == isRunner
-		}) {
-			return last + 1
-		}
-		if isRunner {
-			return others.count
-		}
-		return others.firstIndex(where: { id in
-			descriptors.first { $0.id == id }?.isFlowRunner ?? false
-		}) ?? others.count
 	}
 
 	/// Built-ins by `sortIndex`, then informational flows, then runners.
@@ -255,50 +262,4 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 		var seen = Set<String>()
 		return ids.filter { seen.insert($0).inserted }
 	}
-}
-
-/// Reported card (or tray chip) frame in the dashboard edit coordinate space.
-struct DashboardSlotFrame: Equatable, Sendable {
-	var id: DashboardBlockID
-	var frame: CGRect
-}
-
-enum DashboardDragGeometry {
-	/// Index in `visible` of the slot under `point`, or the nearest slot center.
-	/// When `requireHit` is true (tray origin, not yet inserted), returns `nil`
-	/// unless `point` is inside a slot — and `nil` when it is inside `trayFrame`.
-	static func targetIndex(
-		at point: CGPoint,
-		slots: [DashboardSlotFrame],
-		visible: [DashboardBlockID],
-		trayFrame: CGRect?,
-		requireHit: Bool
-	) -> Int? {
-		if let trayFrame, trayFrame.contains(point), requireHit {
-			return nil
-		}
-		if let hit = slots.first(where: { $0.frame.contains(point) }) {
-			return visible.firstIndex(of: hit.id)
-		}
-		if requireHit {
-			return nil
-		}
-		guard !slots.isEmpty else { return nil }
-		let nearest = slots.min { lhs, rhs in
-			distance(from: point, to: lhs.frame) < distance(from: point, to: rhs.frame)
-		}
-		guard let nearest else { return nil }
-		return visible.firstIndex(of: nearest.id)
-	}
-
-	private static func distance(from point: CGPoint, to rect: CGRect) -> CGFloat {
-		let center = CGPoint(x: rect.midX, y: rect.midY)
-		let dx = point.x - center.x
-		let dy = point.y - center.y
-		return dx * dx + dy * dy
-	}
-}
-
-enum DashboardEditSpace {
-	static let name = "dashboard-edit"
 }

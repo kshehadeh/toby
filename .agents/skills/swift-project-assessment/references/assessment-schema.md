@@ -15,7 +15,7 @@ Project:
   Name: Toby.app
   Kind: <one line>
   Architecture: <pattern label>
-  Deployment_Target: macOS 14
+  Deployment_Target: macOS 26
   Swift: "6.0"                    # from Package.swift tools version / practice
   Observation: "@Observable + @State ownership"
   Navigation: <summary>

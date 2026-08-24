@@ -202,14 +202,13 @@ You can rearrange the home cards without leaving the dashboard. Click
 **Edit dashboard** (pencil) in the toolbar, next to **Refresh**. While
 editing:
 
-- Each card (and each Actions button) shows a drag handle and a hide button.
-  The outline highlights the item under the pointer.
-- Drag a handle to move a card in the grid, or an action in the Actions
-  strip. Cards and actions do not mix.
-- Press **Escape** to cancel an in-progress drag.
+- Each card shows a drag handle and a hide button.
+- Drag a handle (or the card) to move it in the grid. An insertion bar
+  appears before the card you are hovering. Actions in the Actions strip
+  can be hidden, but not reordered.
 - Hidden cards collect in a **Hidden cards** tray at the bottom. Drag a
-  chip onto the grid to place it, or click **Show** to restore it at the
-  end.
+  card chip onto the grid to place it, or click **Show** to restore it at
+  the end. Hidden actions restore with **Show** only.
 - Click **Done** (checkmark) when you are finished. Leaving the dashboard
   also exits edit mode.
 

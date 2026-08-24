@@ -15,7 +15,7 @@ Project:
     Feature-folder SwiftUI UI with @Observable @MainActor stores (MVVM-like).
     App owns stores at the scene root; views receive them by injection.
     Business logic and persistence live in @toby/core (daemon), not in the app.
-  Deployment_Target: macOS 14
+  Deployment_Target: macOS 26
   Swift: "6.0"
   Observation: "@Observable + @State store ownership at App/Root; @Environment for openWindow and shared prefs"
   Navigation: >
@@ -57,7 +57,7 @@ Repository_Conventions:
     UI/Primitives, UI/SettingsControls, UI/Markdown
   - Native TCC / framework bridges under Sources/TobyApp/Native/ only
   - Window scenes declared in App/TobyApp.swift
-  - Swift Package Manager package (apps/toby-app/Package.swift); macOS 14+
+  - Swift Package Manager package (apps/toby-app/Package.swift); macOS 26+
   - Swift Testing (import Testing) + ViewInspector; test suites @MainActor
   - Prefer structural ViewInspector navigation over find(viewWithId:) when SF Symbols
     lack accessibility labels (AccessibilityImageLabel blocks traversal)

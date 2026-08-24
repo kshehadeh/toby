@@ -3,10 +3,8 @@ import SwiftUI
 /// Hidden-card tray shown at the bottom of the dashboard in edit mode.
 struct DashboardHiddenBlocksTray: View {
 	let blocks: [CategoryDashboardBlock]
-	var draggingID: DashboardBlockID?
 	let onShow: (DashboardBlockID) -> Void
-	let onDragChanged: (DashboardBlockID, DragGesture.Value) -> Void
-	let onDragEnded: () -> Void
+	var onDragBegan: (DashboardBlockID) -> Void = { _ in }
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 10) {
@@ -30,26 +28,19 @@ struct DashboardHiddenBlocksTray: View {
 			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
 				.stroke(AppTheme.separator, lineWidth: 1)
 		)
-		.background(
-			GeometryReader { geo in
-				Color.clear.preference(
-					key: DashboardTrayFrameKey.self,
-					value: geo.frame(in: .named(DashboardEditSpace.name))
-				)
-			}
-		)
 		.accessibilityIdentifier("dashboard-hidden-tray")
 	}
 
 	private func chip(for block: CategoryDashboardBlock) -> some View {
-		let isDragging = draggingID == block.id
-		return HStack(spacing: 8) {
-			Image(systemName: "line.3.horizontal")
-				.font(.system(size: 11, weight: .semibold))
-				.foregroundStyle(AppTheme.tertiaryText)
-				.frame(width: 16, height: 16)
-				.contentShape(Rectangle())
-				.accessibilityLabel("Reorder \(block.title)")
+		HStack(spacing: 8) {
+			if !block.descriptor.isFlowRunner {
+				Image(systemName: "line.3.horizontal")
+					.font(.system(size: 11, weight: .semibold))
+					.foregroundStyle(AppTheme.tertiaryText)
+					.frame(width: 16, height: 16)
+					.contentShape(Rectangle())
+					.accessibilityLabel("Reorder \(block.title)")
+			}
 			Image(systemName: block.systemImage)
 				.font(.system(size: 11, weight: .semibold))
 				.foregroundStyle(AppTheme.accent)
@@ -76,13 +67,35 @@ struct DashboardHiddenBlocksTray: View {
 			RoundedRectangle(cornerRadius: 8)
 				.stroke(AppTheme.separator, lineWidth: 1)
 		)
-		.opacity(isDragging ? 0.35 : 1)
 		.contentShape(RoundedRectangle(cornerRadius: 8))
-		.highPriorityGesture(
-			DragGesture(minimumDistance: 4, coordinateSpace: .named(DashboardEditSpace.name))
-				.onChanged { onDragChanged(block.id, $0) }
-				.onEnded { _ in onDragEnded() }
-		)
+		.modifier(HiddenCardDragModifier(
+			id: block.id,
+			title: block.title,
+			systemImage: block.systemImage,
+			enabled: !block.descriptor.isFlowRunner,
+			onBegan: { onDragBegan(block.id) }
+		))
 		.accessibilityIdentifier("dashboard-hidden-chip-\(block.id.rawValue)")
+	}
+}
+
+/// Cards can be dragged onto the home grid; Actions chips stay put (Show only).
+private struct HiddenCardDragModifier: ViewModifier {
+	let id: DashboardBlockID
+	let title: String
+	let systemImage: String
+	let enabled: Bool
+	let onBegan: () -> Void
+
+	func body(content: Content) -> some View {
+		if enabled {
+			content
+				.draggable(id) {
+					DashboardDragPreview(title: title, systemImage: systemImage, isChip: true)
+						.onAppear(perform: onBegan)
+				}
+		} else {
+			content
+		}
 	}
 }

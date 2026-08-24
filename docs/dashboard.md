@@ -174,12 +174,12 @@ sidebar icon) when at least one runner flow is registered. That toggle is
 stored as `actionsVisible` and does not hide individual runners.
 
 **Edit mode** is session-only (toolbar pencil next to Refresh). Each card
-and each Actions button shows a drag handle and hide button; the outline
-highlights the item under the pointer. Dragging reflows that region live
-(cards stay in the grid, runners stay in the rail). Escape cancels the
-in-flight drag. Hidden items appear in a **Hidden cards** tray and can be
-dragged onto a matching slot or shown at the end. Leaving the dashboard
-exits edit mode.
+shows a drag handle and hide button. Dragging a card uses SwiftUI
+`draggable`; an insertion bar marks the slot *before* the hovered card.
+The Actions rail is not reorderable in edit mode (hide only). Hidden
+informational cards appear in a **Hidden cards** tray and can be dragged
+onto the grid or shown at the end; hidden runners use **Show** only.
+Leaving the dashboard exits edit mode.
 
 Onboarding is not part of this layout; it still uses **Hide onboarding
 checklist**.
@@ -247,7 +247,7 @@ Built-in email / tasks / calendar cards are unchanged.
 | Actions rail | `apps/toby-app/.../Dashboard/DashboardActionRunnersRail.swift` |
 | Card chrome | `apps/toby-app/.../Dashboard/DashboardBlockChrome.swift` |
 | Layout document | `apps/toby-app/.../Dashboard/DashboardLayout.swift` |
-| Edit session | `apps/toby-app/.../Dashboard/DashboardLayoutEditor.swift` |
+| Edit chrome / card drag | `apps/toby-app/.../Dashboard/DashboardEditChrome.swift` |
 
 ## Model choice (reasoning leaks)
 

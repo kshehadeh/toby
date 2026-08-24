@@ -12,36 +12,18 @@ extension EnvironmentValues {
 	}
 }
 
-struct DashboardSlotFramesKey: PreferenceKey {
-	static let defaultValue: [DashboardSlotFrame] = []
-
-	static func reduce(value: inout [DashboardSlotFrame], nextValue: () -> [DashboardSlotFrame]) {
-		value.append(contentsOf: nextValue())
-	}
-}
-
-struct DashboardTrayFrameKey: PreferenceKey {
-	static let defaultValue: CGRect = .null
-
-	static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
-		let next = nextValue()
-		if next != .null {
-			value = next
-		}
-	}
-}
-
-/// Hover outline with a drag handle and hide button (edit mode only).
+/// Hide button (and optional drag handle) shown in dashboard edit mode.
 struct DashboardEditOverlay: View {
 	let title: String
 	let blockID: DashboardBlockID
-	var isHovered: Bool
-	var isDragging: Bool
+	var isDragging: Bool = false
+	/// Insert-before target while a card drag is over this slot.
+	var isDropTarget: Bool = false
 	/// Compact chrome for Actions rail rows (smaller radius and controls).
 	var compact: Bool = false
+	/// Visual reorder affordance. Off for the Actions rail (not reorderable).
+	var showsHandle: Bool = true
 	let onHide: () -> Void
-	let onDragChanged: (DragGesture.Value) -> Void
-	let onDragEnded: () -> Void
 
 	private var cornerRadius: CGFloat {
 		compact ? AppTheme.smallCornerRadius : AppTheme.cornerRadius
@@ -50,41 +32,42 @@ struct DashboardEditOverlay: View {
 	private var controlPadding: CGFloat { compact ? 4 : 8 }
 
 	var body: some View {
-		// Clear fill gives the overlay a real size in the card ZStack (a
-		// stroke-only shape has no intrinsic size) and a hover/hit target.
 		RoundedRectangle(cornerRadius: cornerRadius)
 			.fill(Color.clear)
-			.overlay(
-				RoundedRectangle(cornerRadius: cornerRadius)
-					.stroke(AppTheme.accent.opacity(outlineOpacity), lineWidth: compact ? 1.5 : 2)
-			)
+			.overlay {
+				if isDragging {
+					RoundedRectangle(cornerRadius: cornerRadius)
+						.stroke(
+							style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
+						)
+						.foregroundStyle(AppTheme.separator)
+				}
+			}
+			.overlay(alignment: .leading) {
+				if isDropTarget {
+					Capsule()
+						.fill(AppTheme.accent)
+						.frame(width: 6)
+						.padding(.vertical, 6)
+						.offset(x: -9)
+						.shadow(color: AppTheme.accent.opacity(0.45), radius: 3, y: 0)
+						.accessibilityIdentifier("dashboard-drop-indicator-\(blockID.rawValue)")
+				}
+			}
 			.overlay(alignment: .topLeading) {
-				handle
-					.padding(controlPadding)
-					.opacity(isDragging ? 0 : 1)
+				if showsHandle, !isDragging {
+					handle
+						.padding(controlPadding)
+				}
 			}
 			.overlay(alignment: .topTrailing) {
-				hideButton
-					.padding(controlPadding)
-					.opacity(isDragging ? 0 : 1)
-					.allowsHitTesting(!isDragging)
+				if !isDragging {
+					hideButton
+						.padding(controlPadding)
+				}
 			}
 			.frame(maxWidth: .infinity, maxHeight: .infinity)
 			.contentShape(RoundedRectangle(cornerRadius: cornerRadius))
-			.highPriorityGesture(cardDragGesture)
-	}
-
-	private var cardDragGesture: some Gesture {
-		DragGesture(minimumDistance: 4, coordinateSpace: .named(DashboardEditSpace.name))
-			.onChanged(onDragChanged)
-			.onEnded { _ in onDragEnded() }
-	}
-
-	/// Strong outline on the hovered card; quieter chrome on the rest so edit
-	/// mode is obvious without waiting for hover.
-	private var outlineOpacity: Double {
-		if isDragging { return 0 }
-		return isHovered ? 1 : 0.45
 	}
 
 	private var controlSize: CGFloat { compact ? 22 : 28 }
@@ -150,25 +133,51 @@ struct DashboardDragPreview: View {
 		)
 		.shadow(color: Color.black.opacity(0.2), radius: 10, y: 4)
 		.scaleEffect(1.03)
-		.allowsHitTesting(false)
 		.accessibilityHidden(true)
 	}
 }
 
-extension View {
-	func dashboardSlotFrame(id: DashboardBlockID) -> some View {
-		background(
-			GeometryReader { geo in
-				Color.clear.preference(
-					key: DashboardSlotFramesKey.self,
-					value: [
-						DashboardSlotFrame(
-							id: id,
-							frame: geo.frame(in: .named(DashboardEditSpace.name))
-						),
-					]
-				)
-			}
-		)
+/// Hit-tests a drag-session point against card frames. Always “insert before”.
+enum DashboardDropGeometry {
+	static func insertBeforeID(
+		at point: CGPoint,
+		frames: [DashboardBlockID: CGRect],
+		draggingID: DashboardBlockID?
+	) -> DashboardBlockID? {
+		let slots = frames.filter { $0.key != draggingID && !$0.value.isNull && $0.value.width > 1 }
+		if let hit = slots.first(where: { $0.value.contains(point) }) {
+			return hit.key
+		}
+		let padded = slots.filter { $0.value.insetBy(dx: -16, dy: -16).contains(point) }
+		return padded.min { lhs, rhs in
+			distance(point, lhs.value) < distance(point, rhs.value)
+		}?.key
+	}
+
+	private static func distance(_ point: CGPoint, _ rect: CGRect) -> CGFloat {
+		let dx = point.x - rect.midX
+		let dy = point.y - rect.midY
+		return dx * dx + dy * dy
+	}
+}
+
+/// System lift preview for one home-grid card.
+struct CardReorderModifier: ViewModifier {
+	let id: DashboardBlockID
+	let title: String
+	let systemImage: String
+	let enabled: Bool
+	let onBegan: () -> Void
+
+	func body(content: Content) -> some View {
+		if enabled {
+			content
+				.draggable(id) {
+					DashboardDragPreview(title: title, systemImage: systemImage)
+						.onAppear(perform: onBegan)
+				}
+		} else {
+			content
+		}
 	}
 }

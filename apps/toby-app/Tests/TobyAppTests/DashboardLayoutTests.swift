@@ -218,153 +218,74 @@ struct DashboardLayoutTests {
 		#expect(hiddenRunner.resolvedHidden(from: registered).map(\.rawValue) == ["flow.run"])
 	}
 
-	@Test("visibleIndex maps a runner region index onto the full list")
-	func visibleIndexKeepsKindsSeparate() {
-		let visible: [DashboardBlockID] = [
-			.email, .tasks, .calendar, DashboardBlockID("flow.info"), DashboardBlockID("flow.run"),
-		]
-		let runner = DashboardBlockID("flow.run")
-		#expect(
-			DashboardLayout.visibleIndex(
-				forRegionIndex: 0,
-				draggingID: runner,
-				visible: visible,
-				descriptors: registered
-			) == 4
+	@Test("placingVisibleCards reorders informational cards and ignores runners")
+	func placingVisibleCardsReordersAndIgnoresRunners() {
+		let start = DashboardLayout.empty
+		let moved = start.placingVisibleCards(
+			[.email],
+			at: .before(.calendar),
+			from: registered
 		)
-		#expect(
-			DashboardLayout.visibleIndex(
-				forRegionIndex: 1,
-				draggingID: .email,
-				visible: visible,
-				descriptors: registered
-			) == 1
-		)
-	}
-
-	@Test("drag geometry hits containing slot then nearest center")
-	func dragGeometryHitAndNearest() {
-		let slots = [
-			DashboardSlotFrame(id: .email, frame: CGRect(x: 0, y: 0, width: 100, height: 100)),
-			DashboardSlotFrame(id: .tasks, frame: CGRect(x: 120, y: 0, width: 100, height: 100)),
-		]
-		let visible: [DashboardBlockID] = [.email, .tasks]
-		#expect(
-			DashboardDragGeometry.targetIndex(
-				at: CGPoint(x: 130, y: 10),
-				slots: slots,
-				visible: visible,
-				trayFrame: nil,
-				requireHit: false
-			) == 1
-		)
-		#expect(
-			DashboardDragGeometry.targetIndex(
-				at: CGPoint(x: 400, y: 400),
-				slots: slots,
-				visible: visible,
-				trayFrame: CGRect(x: 0, y: 200, width: 400, height: 80),
-				requireHit: true
-			) == nil
-		)
-		#expect(
-			DashboardDragGeometry.targetIndex(
-				at: CGPoint(x: 10, y: 220),
-				slots: slots,
-				visible: visible,
-				trayFrame: CGRect(x: 0, y: 200, width: 400, height: 80),
-				requireHit: true
-			) == nil
-		)
-	}
-}
-
-@MainActor
-@Suite("DashboardLayoutEditor")
-struct DashboardLayoutEditorTests {
-	private var descriptors: [DashboardBlockDescriptor] {
-		DashboardBlockDescriptor.builtIn
-	}
-
-	@Test("hide updates draft and cancel restores a drag snapshot")
-	func hideAndCancelDrag() {
-		let editor = DashboardLayoutEditor()
-		editor.sync(from: .empty)
-		let hidden = editor.hide(.email, from: descriptors)
-		#expect(!hidden.isVisible(id: .email))
-
-		editor.beginDrag(id: .tasks, fromTray: false, location: .zero)
-		editor.updateDrag(
-			location: CGPoint(x: 10, y: 10),
-			slots: [
-				DashboardSlotFrame(id: .tasks, frame: CGRect(x: 0, y: 0, width: 80, height: 80)),
-				DashboardSlotFrame(id: .calendar, frame: CGRect(x: 0, y: 0, width: 80, height: 80)),
-			],
-			trayFrame: nil,
-			descriptors: descriptors
-		)
-		#expect(editor.isDragging)
-		editor.cancelDrag()
-		#expect(!editor.isDragging)
-		#expect(!editor.draft.isVisible(id: .email))
-		#expect(editor.draft.isVisible(id: .tasks))
-	}
-
-	@Test("drop commits draft; tray drag without a slot does not")
-	func dropCommitsAndTrayCancel() {
-		let editor = DashboardLayoutEditor()
-		let start = DashboardLayout.empty.hiding(.calendar, from: descriptors)
-		editor.sync(from: start)
-
-		editor.beginDrag(id: .email, fromTray: false, location: .zero)
-		let slots = [
-			DashboardSlotFrame(id: .email, frame: CGRect(x: 0, y: 0, width: 100, height: 100)),
-			DashboardSlotFrame(id: .tasks, frame: CGRect(x: 0, y: 0, width: 100, height: 100)),
-		]
-		editor.updateDrag(
-			location: CGPoint(x: 10, y: 10),
-			slots: slots,
-			trayFrame: nil,
-			descriptors: descriptors
-		)
-		let committed = editor.endDrag(commit: true)
-		#expect(committed != nil)
-
-		editor.sync(from: start)
-		editor.beginDrag(id: .calendar, fromTray: true, location: CGPoint(x: 5, y: 205))
-		let none = editor.endDrag(commit: true)
-		#expect(none == nil)
-		#expect(editor.draft.isHidden(id: .calendar))
-	}
-
-	@Test("updateDrag moves the dragged card onto the hovered slot")
-	func updateDragMovesToHoveredSlot() {
-		let editor = DashboardLayoutEditor()
-		editor.sync(from: .empty)
-		editor.beginDrag(id: .email, fromTray: false, location: CGPoint(x: 10, y: 10))
-		editor.updateDrag(
-			location: CGPoint(x: 150, y: 10),
-			slots: [
-				DashboardSlotFrame(id: .email, frame: CGRect(x: 0, y: 0, width: 100, height: 100)),
-				DashboardSlotFrame(id: .tasks, frame: CGRect(x: 120, y: 0, width: 100, height: 100)),
-			],
-			trayFrame: nil,
-			descriptors: descriptors
-		)
-		#expect(editor.draft.resolvedVisible(from: descriptors).map(\.rawValue) == [
+		#expect(moved.resolvedVisibleCards(from: registered).map(\.rawValue) == [
 			"tasks",
 			"email",
 			"calendar",
+			"flow.info",
 		])
-		editor.cancelDrag()
+		#expect(moved.resolvedVisibleRunners(from: registered).map(\.rawValue) == ["flow.run"])
+
+		let ignored = start.placingVisibleCards(
+			[DashboardBlockID("flow.run")],
+			at: .before(.email),
+			from: registered
+		)
+		#expect(ignored == start)
 	}
 
-	@Test("show appending restores a hidden card at the end")
-	func showAppendingRestoresAtEnd() {
-		let editor = DashboardLayoutEditor()
-		editor.sync(from: DashboardLayout.empty.hiding(.email, from: descriptors))
-		let next = editor.showAppending(.email, from: descriptors)
-		#expect(next.resolvedVisible(from: descriptors).last == .email)
+	@Test("insert-before hit testing prefers containing slot then padded nearest")
+	func insertBeforeGeometry() {
+		let frames: [DashboardBlockID: CGRect] = [
+			.email: CGRect(x: 0, y: 0, width: 100, height: 80),
+			.tasks: CGRect(x: 120, y: 0, width: 100, height: 80),
+			.calendar: CGRect(x: 240, y: 0, width: 100, height: 80),
+		]
+		#expect(
+			DashboardDropGeometry.insertBeforeID(
+				at: CGPoint(x: 150, y: 40),
+				frames: frames,
+				draggingID: .email
+			) == .tasks
+		)
+		#expect(
+			DashboardDropGeometry.insertBeforeID(
+				at: CGPoint(x: 112, y: 40),
+				frames: frames,
+				draggingID: .email
+			) == .tasks
+		)
+		#expect(
+			DashboardDropGeometry.insertBeforeID(
+				at: CGPoint(x: 50, y: 40),
+				frames: frames,
+				draggingID: .email
+			) == nil
+		)
+	}
+
+	@Test("placingVisibleCards shows a hidden card before a target or at end")
+	func placingVisibleCardsShowsHidden() {
+		let hidden = DashboardLayout.empty.hiding(.email, from: registered)
+		let beforeTasks = hidden.placingVisibleCards([.email], at: .before(.tasks), from: registered)
+		#expect(beforeTasks.resolvedVisibleCards(from: registered).map(\.rawValue) == [
+			"email",
+			"tasks",
+			"calendar",
+			"flow.info",
+		])
+		#expect(!beforeTasks.isHidden(id: .email))
+
+		let atEnd = hidden.placingVisibleCards([.email], at: .end, from: registered)
+		#expect(atEnd.resolvedVisibleCards(from: registered).last == .email)
 	}
 
 	@Test("adaptive column count stays finite for infinite and NaN widths")
@@ -401,44 +322,5 @@ struct DashboardLayoutEditorTests {
 				itemCount: 3
 			) == 3
 		)
-	}
-
-	@Test("dragging a runner over a card slot does not mix kinds")
-	func runnerDragIgnoresCardSlots() {
-		let runner = DashboardBlockDescriptor.flow(
-			FlowDashboardBlockInfo(
-				id: "flow.run",
-				flowId: "flow.run",
-				title: "Focus mode",
-				description: "Turn off Wi-Fi",
-				variant: "runner",
-				lastRanAt: nil,
-				showsResultSheet: false
-			),
-			sortIndex: 101
-		)
-		let all = DashboardBlockDescriptor.builtIn + [runner]
-		let editor = DashboardLayoutEditor()
-		editor.sync(from: .empty)
-		editor.beginDrag(id: DashboardBlockID("flow.run"), fromTray: false, location: CGPoint(x: 10, y: 10))
-		editor.updateDrag(
-			location: CGPoint(x: 10, y: 10),
-			slots: [
-				DashboardSlotFrame(id: .email, frame: CGRect(x: 0, y: 0, width: 100, height: 100)),
-				DashboardSlotFrame(
-					id: DashboardBlockID("flow.run"),
-					frame: CGRect(x: 400, y: 0, width: 80, height: 40)
-				),
-			],
-			trayFrame: nil,
-			descriptors: all
-		)
-		#expect(editor.draft.resolvedVisible(from: all).map(\.rawValue) == [
-			"email",
-			"tasks",
-			"calendar",
-			"flow.run",
-		])
-		editor.cancelDrag()
 	}
 }
