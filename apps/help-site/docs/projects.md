@@ -35,6 +35,9 @@ In Toby.app, open **Projects** from the sidebar and click **+**, or use **Create
 
 ## Project workspace
 
+On **Home**, the left sidebar lists the five most recently updated projects.
+Click one to open its project page.
+
 The Projects area has a sidebar list and a main page:
 
 | Area | What it does |

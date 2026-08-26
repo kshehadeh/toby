@@ -403,7 +403,7 @@ struct RootView: View {
                     case .dashboard:
                         DashboardSidebarView(
                             sessions: store.sessions,
-                            schedules: schedulesStore.schedules,
+                            projects: projectsStore.projects,
                             recordings: recordingsStore.recordings,
                             memories: memoriesStore.memories,
                             isSessionsLoading: store.isSessionsLoading,
@@ -411,12 +411,9 @@ struct RootView: View {
                                 navigateToRoute(.chat)
                                 selectSession(id)
                             },
-                            onOpenScheduleRun: { item in
-                                Task {
-                                    await schedulesStore.selectSchedule(id: item.schedule.id)
-                                    await schedulesStore.selectRun(id: item.run.id)
-                                }
-                                navigateToRoute(.schedules)
+                            onOpenProject: { id in
+                                Task { await projectsStore.selectProject(id: id) }
+                                navigateToRoute(.projects)
                             },
                             onOpenRecording: openRecording,
                             onOpenMemory: openMemory

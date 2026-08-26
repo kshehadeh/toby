@@ -2,12 +2,12 @@ import SwiftUI
 
 struct DashboardSidebarView: View {
 	let sessions: [SessionSummary]
-	let schedules: [ScheduleViewModel]
+	let projects: [ProjectSummary]
 	let recordings: [ListenRecordingSummary]
 	let memories: [MemoryItem]
 	let isSessionsLoading: Bool
 	let onOpenSession: (String) -> Void
-	let onOpenScheduleRun: (DashboardScheduleRunItem) -> Void
+	let onOpenProject: (String) -> Void
 	let onOpenRecording: (String) -> Void
 	let onOpenMemory: (String) -> Void
 
@@ -15,13 +15,8 @@ struct DashboardSidebarView: View {
 		Array(sessions.prefix(5))
 	}
 
-	private var recentScheduleRuns: [DashboardScheduleRunItem] {
-		let runs = schedules.flatMap { schedule in
-			schedule.recentRuns.map { run in
-				DashboardScheduleRunItem(schedule: schedule, run: run)
-			}
-		}
-		return Array(runs.sorted(by: dashboardScheduleRunSort).prefix(5))
+	private var recentProjects: [ProjectSummary] {
+		Array(projects.sorted(by: dashboardProjectSort).prefix(5))
 	}
 
 	private var recentRecordings: [ListenRecordingSummary] {
@@ -59,21 +54,22 @@ struct DashboardSidebarView: View {
 					}
 				}
 
-				if !recentScheduleRuns.isEmpty {
-					SidebarSection(title: "Recent Schedule Runs") {
+				if !recentProjects.isEmpty {
+					SidebarSection(title: "Recent Projects") {
 						VStack(alignment: .leading, spacing: 2) {
-							ForEach(recentScheduleRuns) { item in
+							ForEach(recentProjects) { project in
 								Button {
-									onOpenScheduleRun(item)
+									onOpenProject(project.id)
 								} label: {
 									DashboardSidebarRow(
-										systemImage: dashboardScheduleRunIcon(for: item.run.status),
-										title: item.schedule.displayName,
-										subtitle: item.run.label,
-										tint: dashboardScheduleRunTint(for: item.run.status)
+										systemImage: "folder",
+										title: project.name,
+										subtitle: dashboardProjectSubtitle(project),
+										tint: Color(red: 0.96, green: 0.68, blue: 0.26)
 									)
 								}
 								.buttonStyle(.plain)
+								.accessibilityIdentifier("dashboard-sidebar-project-\(project.id)")
 							}
 						}
 					}
@@ -126,13 +122,6 @@ struct DashboardSidebarView: View {
 	}
 }
 
-struct DashboardScheduleRunItem: Identifiable {
-	let schedule: ScheduleViewModel
-	let run: ScheduleRunViewModel
-
-	var id: String { run.id }
-}
-
 private struct DashboardSidebarRow: View {
 	let systemImage: String
 	let title: String
@@ -180,16 +169,25 @@ private struct DashboardSidebarEmptyRow: View {
 	}
 }
 
-private func dashboardScheduleRunSort(
-	_ lhs: DashboardScheduleRunItem,
-	_ rhs: DashboardScheduleRunItem
-) -> Bool {
-	let left = dashboardSidebarDate(lhs.run.startedAt)
-	let right = dashboardSidebarDate(rhs.run.startedAt)
+private func dashboardProjectSort(_ lhs: ProjectSummary, _ rhs: ProjectSummary) -> Bool {
+	let left = dashboardProjectRecency(lhs)
+	let right = dashboardProjectRecency(rhs)
 	if let left, let right {
 		return left > right
 	}
-	return lhs.run.label > rhs.run.label
+	if left != nil { return true }
+	if right != nil { return false }
+	return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+}
+
+private func dashboardProjectRecency(_ project: ProjectSummary) -> Date? {
+	dashboardSidebarDate(project.updatedAt) ?? dashboardSidebarDate(project.createdAt)
+}
+
+private func dashboardProjectSubtitle(_ project: ProjectSummary) -> String {
+	dashboardSidebarDateText(project.updatedAt)
+		?? dashboardSidebarDateText(project.createdAt)
+		?? "Project"
 }
 
 private func dashboardRecordingSort(
@@ -225,20 +223,4 @@ private func dashboardSidebarDate(_ value: String?) -> Date? {
 	return fractional.date(from: value) ?? ISO8601DateFormatter().date(from: value)
 }
 
-private func dashboardScheduleRunIcon(for status: String) -> String {
-	switch status {
-	case "success": return "checkmark.circle"
-	case "error": return "exclamationmark.circle"
-	case "running": return "arrow.triangle.2.circlepath"
-	default: return "clock"
-	}
-}
 
-private func dashboardScheduleRunTint(for status: String) -> Color {
-	switch status {
-	case "success": return Color.green
-	case "error": return Color.red
-	case "running": return AppTheme.accent
-	default: return AppTheme.tertiaryText
-	}
-}

@@ -82,7 +82,8 @@ configuration.
 The Projects area lists each project in the sidebar. Select one to open its
 page in the main window: start a new chat, resume a recent chat, edit the
 summary or persona, reveal the project folder, and inspect the generated file
-tree. Click **Projects** in the sidebar to see every project as cards. While a
+tree. Click **Projects** in the sidebar to see every project as cards. Home
+also lists the five most recently updated projects in its left sidebar. While a
 project chat is open, a folder icon marks the chat and a toolbar button returns
 you to the project page.
 
@@ -184,7 +185,9 @@ status cues) across Toby.app windows. Same preset in light and dark.
 
 The **Home** surface shows unread mail, open tasks, and upcoming
 events (when the matching integrations are connected), plus any **custom
-flows** you associated with a Dashboard destination. Built-in cards have a
+flows** you associated with a Dashboard destination. The left sidebar lists
+recent chats, the five most recently updated projects, recent recordings, and
+recent memories; click a project to open it. Built-in cards have a
 fixed title and actions, plus a short summary body generated from your
 connected integrations. **Informational** flow cards work the same way and
 show the last run’s output. **Runner only** flows appear in an **Actions**
