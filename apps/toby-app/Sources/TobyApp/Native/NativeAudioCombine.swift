@@ -514,20 +514,12 @@ private func exportURLToM4A(source: URL, destination: URL) async throws {
 	) else {
 		throw NativeAudioCombineError.runtime("Could not create combined audio export session.")
 	}
-	exportSession.outputURL = partialURL
-	exportSession.outputFileType = .m4a
-	await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-		exportSession.exportAsynchronously {
-			continuation.resume()
-		}
+	do {
+		try await exportSession.export(to: partialURL, as: .m4a)
+	} catch {
+		throw NativeAudioCombineError.runtime(error.localizedDescription)
 	}
-	if exportSession.status == .completed {
-		try FileManager.default.moveItem(at: partialURL, to: destination)
-		return
-	}
-	throw NativeAudioCombineError.runtime(
-		exportSession.error?.localizedDescription ?? "Could not export combined audio.",
-	)
+	try FileManager.default.moveItem(at: partialURL, to: destination)
 }
 
 
