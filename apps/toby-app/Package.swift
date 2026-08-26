@@ -38,6 +38,7 @@ let package = Package(
 				.linkedFramework("CoreGraphics"),
 				.linkedFramework("UserNotifications"),
 				.linkedFramework("CoreLocation"),
+				.linkedFramework("MapKit"),
 				.linkedFramework("ServiceManagement"),
 				.unsafeFlags([
 					"-Xlinker",

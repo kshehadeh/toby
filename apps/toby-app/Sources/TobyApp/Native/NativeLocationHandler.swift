@@ -1,10 +1,13 @@
 import CoreLocation
 import Foundation
+import MapKit
 
-/// CoreLocation bridge for the Toby.app native API.
+/// CoreLocation + MapKit bridge for the Toby.app native API.
 ///
 /// Location Services prompts are tied to Toby.app's bundle identity. One-shot
 /// reads request authorization when needed, then call `requestLocation()`.
+/// Reverse geocoding uses `MKReverseGeocodingRequest` (CLGeocoder is deprecated
+/// on macOS 26).
 @MainActor
 final class NativeLocationHandler: NSObject, CLLocationManagerDelegate {
 	static let shared = NativeLocationHandler()
@@ -260,53 +263,13 @@ final class NativeLocationHandler: NSObject, CLLocationManagerDelegate {
 	}
 
 	private func reverseGeocodePlace(_ location: CLLocation) async -> [String: Any]? {
-		let geocoder = CLGeocoder()
+		guard let request = MKReverseGeocodingRequest(location: location) else {
+			return nil
+		}
 		do {
-			let placemarks = try await geocoder.reverseGeocodeLocation(location)
-			guard let placemark = placemarks.first else { return nil }
-			var place: [String: Any] = [:]
-			if let name = placemark.name, !name.isEmpty { place["name"] = name }
-			if let thoroughfare = placemark.thoroughfare, !thoroughfare.isEmpty {
-				place["thoroughfare"] = thoroughfare
-			}
-			if let subThoroughfare = placemark.subThoroughfare, !subThoroughfare.isEmpty {
-				place["subThoroughfare"] = subThoroughfare
-			}
-			if let locality = placemark.locality, !locality.isEmpty { place["locality"] = locality }
-			if let subLocality = placemark.subLocality, !subLocality.isEmpty {
-				place["subLocality"] = subLocality
-			}
-			if let administrativeArea = placemark.administrativeArea, !administrativeArea.isEmpty {
-				place["administrativeArea"] = administrativeArea
-			}
-			if let subAdministrativeArea = placemark.subAdministrativeArea, !subAdministrativeArea.isEmpty {
-				place["subAdministrativeArea"] = subAdministrativeArea
-			}
-			if let postalCode = placemark.postalCode, !postalCode.isEmpty {
-				place["postalCode"] = postalCode
-			}
-			if let country = placemark.country, !country.isEmpty { place["country"] = country }
-			if let iso = placemark.isoCountryCode, !iso.isEmpty { place["isoCountryCode"] = iso }
-			if let timeZone = placemark.timeZone {
-				place["timeZone"] = timeZone.identifier
-			}
-
-			let parts = [
-				placemark.name,
-				placemark.locality,
-				placemark.administrativeArea,
-				placemark.country,
-			].compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
-			if !parts.isEmpty {
-				// Prefer a compact human label for the model.
-				var unique: [String] = []
-				for part in parts where !unique.contains(part) {
-					unique.append(part)
-				}
-				place["displayName"] = unique.joined(separator: ", ")
-			}
-
-			return place.isEmpty ? nil : place
+			let mapItems = try await request.mapItems
+			guard let item = mapItems.first else { return nil }
+			return reverseGeocodedPlaceDictionary(from: item)
 		} catch {
 			return nil
 		}
@@ -398,4 +361,83 @@ final class NativeLocationHandler: NSObject, CLLocationManagerDelegate {
 private struct LocationError: Error {
 	let message: String
 	let needsPermission: Bool
+}
+
+/// Maps a MapKit reverse-geocode result onto the `place` object returned by
+/// `/api/native/location/current`. MKAddressRepresentations does not expose
+/// street-level CLPlacemark fields; locality / region / country are preserved.
+func reverseGeocodedPlaceDictionary(from item: MKMapItem) -> [String: Any]? {
+	let representations = item.addressRepresentations
+	return reverseGeocodedPlaceDictionary(
+		name: item.name,
+		timeZoneIdentifier: item.timeZone?.identifier,
+		cityName: representations?.cityName,
+		cityWithContext: representations?.cityWithContext,
+		cityWithFullContext: representations?.cityWithContext(.full),
+		regionName: representations?.regionName,
+		isoCountryCode: representations?.region?.identifier,
+		fullAddress: item.address?.fullAddress,
+		shortAddress: item.address?.shortAddress,
+	)
+}
+
+func reverseGeocodedPlaceDictionary(
+	name: String?,
+	timeZoneIdentifier: String?,
+	cityName: String?,
+	cityWithContext: String?,
+	cityWithFullContext: String?,
+	regionName: String?,
+	isoCountryCode: String?,
+	fullAddress: String?,
+	shortAddress: String?,
+) -> [String: Any]? {
+	func nonempty(_ value: String?) -> String? {
+		guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+			return nil
+		}
+		return trimmed
+	}
+
+	var place: [String: Any] = [:]
+	if let name = nonempty(name) { place["name"] = name }
+	if let locality = nonempty(cityName) { place["locality"] = locality }
+	if let country = nonempty(regionName) { place["country"] = country }
+	if let iso = nonempty(isoCountryCode) { place["isoCountryCode"] = iso }
+	if let timeZone = nonempty(timeZoneIdentifier) { place["timeZone"] = timeZone }
+	if let full = nonempty(fullAddress) { place["fullAddress"] = full }
+	if let short = nonempty(shortAddress) { place["shortAddress"] = short }
+
+	if let locality = nonempty(cityName),
+	   let context = nonempty(cityWithContext)
+	{
+		let prefix = locality + ", "
+		if context.hasPrefix(prefix) {
+			let remainder = String(context.dropFirst(prefix.count))
+			let admin = remainder
+				.split(separator: ",", maxSplits: 1)
+				.first
+				.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) } ?? ""
+			if !admin.isEmpty, admin != nonempty(regionName) {
+				place["administrativeArea"] = admin
+			}
+		}
+	}
+
+	if let display = nonempty(cityWithFullContext) {
+		place["displayName"] = display
+	} else if let display = nonempty(cityWithContext) {
+		place["displayName"] = display
+	} else {
+		let parts = [nonempty(name), nonempty(cityName), nonempty(regionName)].compactMap { $0 }
+		var unique: [String] = []
+		for part in parts where !unique.contains(part) {
+			unique.append(part)
+		}
+		if !unique.isEmpty {
+			place["displayName"] = unique.joined(separator: ", ")
+		}
+	}
+
+	return place.isEmpty ? nil : place
 }

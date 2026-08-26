@@ -286,7 +286,7 @@ Plugins use a `NativeHelperClient` that:
 
 - `apps/toby-app/Sources/TobyApp/NativeServer.swift` — HTTP server using Network.framework
 - `apps/toby-app/Sources/TobyApp/NativeCalendarHandler.swift` — EventKit calendar operations
-- `apps/toby-app/Sources/TobyApp/NativeLocationHandler.swift` — CoreLocation current position and reverse geocode (global `getMyLocation` tool)
+- `apps/toby-app/Sources/TobyApp/Native/NativeLocationHandler.swift` — CoreLocation current position and MapKit reverse geocode (global `getMyLocation` tool)
 - `apps/toby-app/Sources/TobyApp/NativeAppleRemindersHandler.swift` — EventKit reminder operations
 - `apps/toby-app/Sources/TobyApp/NativeContactsHandler.swift` — Contacts.framework contact search/detail operations
 - `apps/toby-app/Sources/TobyApp/NativeMacOSHandler.swift` — macOS system controls and Accessibility-gated operations (Wi-Fi, Bluetooth, audio, battery, display, clipboard, windows, shortcuts)

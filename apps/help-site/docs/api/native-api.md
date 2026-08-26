@@ -289,8 +289,8 @@ type CurrentLocationBody = {
 ```
 
 Success `data` includes `latitude`, `longitude`, `horizontalAccuracyMeters`,
-`timestamp`, and optional `place` (reverse-geocoded fields such as `locality`,
-`country`, `displayName`).
+`timestamp`, and optional `place` (MapKit reverse-geocoded fields such as
+`locality`, `administrativeArea`, `country`, `displayName`).
 
 ## Reminders (EventKit)
 

@@ -13,8 +13,8 @@ required.
    discovered via `~/.toby/native-port`.
 3. Toby.app requests **Location Services** access when not already granted
    (TCC prompt is tied to Toby.app’s bundle identity).
-4. CoreLocation returns a one-shot fix; optionally reverse-geocodes to a place
-   name (city, region, country).
+4. CoreLocation returns a one-shot fix; optionally reverse-geocodes via MapKit
+   (`MKReverseGeocodingRequest`) to a place name (city, region, country).
 
 macOS only. On other platforms the tool returns `unsupported_platform`.
 
