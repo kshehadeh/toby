@@ -21,10 +21,27 @@ struct RootPrincipalTitle: View {
 	var activityLine: String = ""
 	var leading: AnyView? = nil
 
-	init(title: String, activityLine: String = "", leading: AnyView? = nil) {
+	init(
+		title: String,
+		activityLine: String = "",
+		leading: AnyView? = nil,
+		systemImage: String? = nil,
+	) {
 		self.title = title
 		self.activityLine = activityLine
-		self.leading = leading
+		if let leading {
+			self.leading = leading
+		} else if let systemImage {
+			self.leading = AnyView(
+				Image(systemName: systemImage)
+					.font(.system(size: 13, weight: .semibold))
+					.foregroundStyle(AppTheme.accent)
+					.frame(width: 18, height: 18)
+					.accessibilityHidden(true)
+			)
+		} else {
+			self.leading = nil
+		}
 	}
 
 	/// Integration / external-session icon leading the chat principal title.
@@ -214,21 +231,37 @@ enum RootToolbars {
 	static func projects(
 		common model: RootCommonToolbarModel,
 		selectedProjectName: String,
+		sessionName: String = "",
 		activityLine: String,
 		isSaving: Bool,
 		isChatLoading: Bool,
+		isShowingChat: Bool = false,
 		onNewProject: @escaping () -> Void,
+		onReturnToProject: @escaping () -> Void = {},
 	) -> some ToolbarContent {
 		common(model)
 		ToolbarItem(placement: .principal) {
-			RootPrincipalTitle(title: selectedProjectName, activityLine: activityLine)
+			RootPrincipalTitle(
+				title: isShowingChat ? sessionName : selectedProjectName,
+				activityLine: activityLine,
+				systemImage: isShowingChat ? "folder.fill" : nil,
+			)
 		}
 		ToolbarItem(placement: .confirmationAction) {
-			Button(action: onNewProject) {
-				Image(systemName: "plus")
+			if isShowingChat {
+				Button(action: onReturnToProject) {
+					Image(systemName: "arrow.uturn.backward")
+				}
+				.help("Back to \(selectedProjectName)")
+				.accessibilityLabel("Back to \(selectedProjectName)")
+				.accessibilityIdentifier("project-chat-home-button")
+			} else {
+				Button(action: onNewProject) {
+					Image(systemName: "plus")
+				}
+				.help("New Project")
+				.disabled(isSaving || isChatLoading)
 			}
-			.help("New Project")
-			.disabled(isSaving || isChatLoading)
 		}
 	}
 

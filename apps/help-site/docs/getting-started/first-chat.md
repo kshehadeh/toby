@@ -33,7 +33,7 @@ On macOS, you can start a recording inside the active chat session. The recordin
 
 ## Projects
 
-Use the project picker in the chat toolbar (or open **Projects** in the sidebar) to open or create a project. Projects collect guidance (`AGENTS.md`), project-local skills, and generated outputs. See [Projects](../projects) for details.
+Open **Projects** in the sidebar to create a project or select one from the card view. From a project page you can start a scoped chat, add guidance (`AGENTS.md`), use project-local skills, and collect generated outputs. See [Projects](../projects) for details.
 
 ## Next steps
 

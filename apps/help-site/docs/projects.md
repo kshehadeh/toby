@@ -11,7 +11,7 @@ title: Projects
 
 ## What a project is
 
-A project is a record in Toby's local session database backed by a folder under `~/.toby/projects/`. New projects use a stable project id for the folder name, and Toby.app exposes the exact path from the project inspector.
+A project is a record in Toby's local session database backed by a folder under `~/.toby/projects/`. New projects use a stable project id for the folder name, and Toby.app exposes the exact path from the project page.
 
 ```text
 ~/.toby/projects/<project-id>/
@@ -25,23 +25,24 @@ When you work inside a project, Toby uses the project metadata and folder conten
 1. **Project guidance** — `AGENTS.md` is included as project-specific instruction.
 2. **Project-local skills** — every `SKILL.md` under `.agent/skills/` is loaded automatically for that project.
 3. **Output scoping** — generated files land in the project's `outputs/` folder by default.
-4. **Project chat grouping** — project chats appear under the project in Toby.app so the conversation history and workspace stay together.
+4. **Project chat grouping** — project chats belong to the project. Open the project page to start a new chat or continue a recent one.
 
 This makes projects ideal for recurring workflows like weekly overviews, monthly reports, or any task where you want the AI to produce consistent output informed by the same reference material each time.
 
 ## Create a project
 
-In Toby.app, open **Projects** from the sidebar and click **+**. Toby creates the project folder, selects the project, and shows the project inspector.
+In Toby.app, open **Projects** from the sidebar and click **+**, or use **Create Project** on the empty Projects page. Toby creates the project folder, selects the project, and opens the project page.
 
 ## Project workspace
 
-The Projects window combines three areas:
+The Projects area has a sidebar list and a main page:
 
 | Area | What it does |
 | ---- | ------------ |
-| Project sidebar | Lists projects, summaries, and project chats. Select a project or jump between chats. |
-| Chat workspace | Runs chats scoped to the selected project. Click **New Chat** to start another project chat. |
-| Inspector | Edits the project name, persona, folder path, and file tree. Shows the first paragraph of the summary; **Edit** opens a markdown editor to change the full summary. |
+| Project sidebar | Lists each project by name, with chat count and persona underneath. Select a project to open it. Click **Projects** to return to the all-projects view. |
+| All projects | Shown when nothing is selected. Projects appear as cards, or an empty state with **Create Project** if you have none yet. |
+| Project page | The selected project's details: a prominent **New Chat** button, the last five chats, name, summary, persona, folder path, and file tree. |
+| Project chat | Opens in the main area when you start or resume a project chat. The toolbar shows a folder icon and a **Back to Project** button; the project stays highlighted in the sidebar. Select the project or use that button to return to its details. |
 
 The project persona is optional. When set, new project chats use that persona by default, which is useful when a project always needs a specific voice or role.
 
@@ -70,7 +71,7 @@ Global skills under `~/.toby/skills/` still work normally. Use project-local ski
 
 ## Browse project files
 
-The inspector shows the project file tree. Use it to confirm that generated outputs and skills landed in the right place. The folder row reveals the project folder in Finder, and files in the tree can be opened with their default app.
+The project page shows the project file tree. Use it to confirm that generated outputs and skills landed in the right place. The folder row reveals the project folder in Finder, and files in the tree can be opened with their default app.
 
 Generated files are written to:
 
@@ -97,7 +98,7 @@ Older Toby project folders may contain a `context/` directory or `project.json`.
 Toby.app → Projects → + → rename to "Weekly Updates"
 
 # 2. Add durable guidance
-Open the project folder from the inspector and edit AGENTS.md.
+Open the project folder from the project page and edit AGENTS.md.
 
 # 3. Create a skill for consistent formatting
 "Create a skill called weekly-overview-format that formats a weekly status

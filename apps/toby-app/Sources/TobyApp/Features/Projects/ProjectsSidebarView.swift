@@ -2,158 +2,131 @@ import SwiftUI
 
 struct ProjectsSidebarView: View {
 	@Bindable var store: ProjectsStore
-	let selectedSessionId: String?
 	let onCreate: () -> Void
 	let onSelect: (String) -> Void
-	let onSelectSession: (String) -> Void
+	let onSelectHome: () -> Void
+	var onDelete: ((ProjectSummary) -> Void)? = nil
 
-	@Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-	/// Single-line title content height. Hard-capped so layout proposals cannot
-	/// stretch the project header (macOS was leaving a large empty band under the name).
-	private let titleRowHeight: CGFloat = 16
-
-	private var expandAnimation: Animation? {
-		reduceMotion ? nil : .easeOut(duration: 0.22)
-	}
+	private var isHomeSelected: Bool { store.selectedProjectId == nil }
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			HStack {
-				Text("Projects")
-					.font(.system(size: 12, weight: .semibold))
-					.foregroundStyle(AppTheme.secondaryText)
-				Spacer()
+			HStack(spacing: 8) {
+				Button(action: onSelectHome) {
+					Text("Projects")
+						.font(.system(size: 12, weight: .semibold))
+						.foregroundStyle(isHomeSelected ? AppTheme.primaryText : AppTheme.secondaryText)
+						.frame(maxWidth: .infinity, alignment: .leading)
+						.contentShape(Rectangle())
+				}
+				.buttonStyle(.plain)
+				.accessibilityIdentifier("projects-home-button")
+				.accessibilityAddTraits(isHomeSelected ? [.isSelected] : [])
+
 				Button(action: onCreate) {
 					Image(systemName: "plus")
 				}
 				.buttonStyle(.plain)
 				.help("New Project")
 				.accessibilityLabel("New Project")
+				.disabled(store.isSaving)
 			}
 			.padding(.horizontal, 12)
 			.padding(.vertical, 8)
 
 			ScrollView {
-				LazyVStack(alignment: .leading, spacing: 4) {
+				LazyVStack(alignment: .leading, spacing: 2) {
 					if store.isLoading && store.projects.isEmpty {
 						Text("Loading projects…")
-							.font(.system(size: 12))
+							.font(.caption)
 							.foregroundStyle(AppTheme.tertiaryText)
-							.padding(12)
+							.padding(10)
 					} else if store.projects.isEmpty {
 						Text("No projects")
-							.font(.system(size: 12))
+							.font(.caption)
 							.foregroundStyle(AppTheme.tertiaryText)
-							.padding(12)
+							.padding(10)
 					} else {
 						ForEach(store.projects) { project in
-							projectRow(project)
+							Button {
+								onSelect(project.id)
+							} label: {
+								ProjectSidebarRow(
+									project: project,
+									metaLine: store.metaLine(for: project),
+									isSelected: store.selectedProjectId == project.id,
+									isActiveChat: store.isShowingChat
+										&& store.selectedProjectId == project.id,
+								)
+							}
+							.buttonStyle(.plain)
+							.contextMenu {
+								if let onDelete {
+									Button("Delete Project", systemImage: "trash", role: .destructive) {
+										onDelete(project)
+									}
+								}
+							}
 						}
 					}
 				}
+				.frame(maxWidth: .infinity, alignment: .leading)
 				.padding(.horizontal, 8)
-				.animation(expandAnimation, value: store.selectedProjectId)
 			}
 		}
 	}
+}
 
-	@ViewBuilder
-	private func projectRow(_ project: ProjectSummary) -> some View {
-		let isSelectedProject = store.selectedProjectId == project.id
+struct ProjectSidebarRow: View {
+	let project: ProjectSummary
+	let metaLine: String
+	let isSelected: Bool
+	var isActiveChat = false
 
-		VStack(alignment: .leading, spacing: 2) {
-			// Flat header (not a Button — control sizing was stretching the row).
-			HStack(alignment: .center, spacing: 8) {
-				Image(systemName: isSelectedProject ? "folder.fill" : "folder")
-					.font(.system(size: 13, weight: .semibold))
-					.foregroundStyle(AppTheme.accent)
-					.frame(width: titleRowHeight, height: titleRowHeight)
-					.contentTransition(.symbolEffect(.replace))
+	var body: some View {
+		HStack(spacing: 12) {
+			Image(systemName: isSelected ? "folder.fill" : "folder")
+				.font(.system(size: 14, weight: .semibold))
+				.foregroundStyle(isSelected ? AppTheme.accent : AppTheme.tertiaryText)
+				.frame(width: 20, height: 20)
+				.contentTransition(.symbolEffect(.replace))
 
+			VStack(alignment: .leading, spacing: 2) {
 				Text(project.name)
-					.font(.system(size: 13, weight: isSelectedProject ? .semibold : .medium))
+					.font(.callout.weight(.medium))
+					.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.secondaryText)
 					.lineLimit(1)
-					.frame(height: titleRowHeight, alignment: .leading)
-
-				Spacer(minLength: 0)
+				Text(metaLine)
+					.font(.caption)
+					.foregroundStyle(AppTheme.tertiaryText)
+					.lineLimit(1)
 			}
-			.frame(height: titleRowHeight)
-			.padding(.horizontal, 10)
-			.padding(.top, 4)
-			.padding(.bottom, 2)
-			// Total header height is fixed: 16 + 4 + 2 = 22.
-			.frame(height: titleRowHeight + 6)
-			.frame(maxWidth: .infinity, alignment: .leading)
-			.overlay(alignment: .bottom) {
-				if isSelectedProject {
-					Rectangle()
-						.fill(AppTheme.accent)
-						.frame(height: 1)
-						.padding(.horizontal, 10)
-						.transition(.opacity)
-				}
-			}
-			.contentShape(Rectangle())
-			.onTapGesture { onSelect(project.id) }
-			.accessibilityElement(children: .combine)
-			.accessibilityLabel(project.name)
-			.accessibilityAddTraits(isSelectedProject ? [.isButton, .isSelected] : .isButton)
-
-			if isSelectedProject {
-				projectSessionsList(for: project.id)
-					.transition(
-						reduceMotion
-							? .opacity
-							: .opacity.combined(with: .move(edge: .top))
-					)
+			Spacer(minLength: 0)
+			if isActiveChat {
+				Image(systemName: "bubble.left.fill")
+					.font(.system(size: 10, weight: .semibold))
+					.foregroundStyle(AppTheme.accent)
+					.accessibilityHidden(true)
 			}
 		}
-		.fixedSize(horizontal: false, vertical: true)
-		.frame(maxWidth: .infinity, alignment: .topLeading)
-		.clipped()
-	}
-
-	@ViewBuilder
-	private func projectSessionsList(for projectId: String) -> some View {
-		let sessions = store.sessions(for: projectId)
-		if sessions.isEmpty {
-			Text("No chats")
-				.font(.system(size: 11))
-				.foregroundStyle(AppTheme.tertiaryText)
-				.padding(.leading, 32)
-				.padding(.vertical, 3)
-		} else {
-			ForEach(sessions) { session in
-				let isActive = session.id == selectedSessionId
-				Button {
-					onSelectSession(session.id)
-				} label: {
-					HStack(spacing: 6) {
-						Image(systemName: isActive ? "bubble.left.fill" : "bubble.left")
-							.foregroundStyle(isActive ? AppTheme.primaryText : AppTheme.secondaryText)
-							.frame(width: 14)
-						Text(session.name)
-							.font(.system(size: 12))
-							.foregroundStyle(isActive ? AppTheme.primaryText : AppTheme.secondaryText)
-							.lineLimit(1)
-						Spacer(minLength: 0)
-						if isActive {
-							Circle()
-								.fill(Color.green)
-								.frame(width: 7, height: 7)
-						}
-					}
-					.padding(.leading, 30)
-					.padding(.trailing, 8)
-					.padding(.vertical, 4)
-					.background(
-						RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
-							.fill(isActive ? AppTheme.selection.opacity(0.75) : Color.clear)
-					)
-				}
-				.buttonStyle(.plain)
-			}
-		}
+		.padding(.vertical, 8)
+		.padding(.horizontal, 10)
+		.contentShape(Rectangle())
+		.background(
+			RoundedRectangle(cornerRadius: 8)
+				.fill(isSelected ? AppTheme.selection : Color.clear)
+		)
+		.accessibilityElement(children: .combine)
+		.accessibilityLabel(
+			isActiveChat
+				? "\(project.name), \(metaLine), open chat"
+				: "\(project.name), \(metaLine)"
+		)
+		.accessibilityAddTraits(isSelected ? [.isSelected] : [])
+		.accessibilityIdentifier(
+			isActiveChat
+				? "project-sidebar-active-chat"
+				: "project-sidebar-row-\(project.id)"
+		)
 	}
 }

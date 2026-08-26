@@ -79,10 +79,12 @@ configuration.
 
 ### Projects
 
-The Projects window keeps project chats, project instructions, project-local
-skills, generated outputs, and project settings together. Select a project to
-continue scoped chats, set the project summary or persona, reveal the project
-folder, and inspect the generated file tree.
+The Projects area lists each project in the sidebar. Select one to open its
+page in the main window: start a new chat, resume a recent chat, edit the
+summary or persona, reveal the project folder, and inspect the generated file
+tree. Click **Projects** in the sidebar to see every project as cards. While a
+project chat is open, a folder icon marks the chat and a toolbar button returns
+you to the project page.
 
 ![Toby.app Projects window](/img/toby-app-projects.png)
 

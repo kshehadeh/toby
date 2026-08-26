@@ -41,7 +41,13 @@ Active project slug is stored in config via `getActiveProjectSlug` /
 Chat sessions and schedules can also reference a `project_id`.
 
 There is **no** terminal `/project` or `/config` slash-command UI; interactive
-management lives in Toby.app.
+management lives in Toby.app. The Projects sidebar lists each project (name,
+chat count, persona). Selecting a project opens a details page in the main pane
+(new chat, recent chats, metadata, file tree). Clicking **Projects** shows all
+projects as cards, or an empty state if none exist. Project chats are not listed
+in the sidebar; while a project chat is open, the toolbar shows a folder icon and
+a control to return to the project page, and the project stays highlighted in
+the sidebar.
 
 ### Editable metadata
 

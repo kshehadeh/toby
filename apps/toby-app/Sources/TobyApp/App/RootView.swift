@@ -371,7 +371,12 @@ struct RootView: View {
                 isRecordingActive: store.isRecordingActive,
                 isRecordingProcessing: store.isRecordingProcessing,
                 updateStore: updateStore,
-                onSelectRoute: navigateToRoute,
+                onSelectRoute: { route in
+                    if route == .projects, history.current == .projects {
+                        Task { await projectsStore.selectHome() }
+                    }
+                    navigateToRoute(route)
+                },
                 isPersonaPickerPresented: $isPersonaPickerPresented,
                 isPersonaAttentionHighlighted: isPersonaAttentionHighlighted,
                 emphasizeCreatePersona: emphasizeCreatePersona,
@@ -432,13 +437,18 @@ struct RootView: View {
                     case .projects:
                         ProjectsSidebarView(
                             store: projectsStore,
-                            selectedSessionId: store.sessionId,
-                            onCreate: { Task { await projectsStore.createProject(chatStore: store) } },
+                            onCreate: { Task { await projectsStore.createProject() } },
                             onSelect: { id in
-                                Task { await projectsStore.selectProject(id: id, chatStore: store) }
+                                Task { await projectsStore.selectProject(id: id) }
                             },
-                            onSelectSession: { id in
-                                Task { await projectsStore.selectChat(id: id, chatStore: store) }
+                            onSelectHome: {
+                                Task { await projectsStore.selectHome() }
+                            },
+                            onDelete: { project in
+                                projectsStore.pendingDelete = ProjectsStore.PendingDelete(
+                                    projectId: project.id,
+                                    name: project.name,
+                                )
                             }
                         )
                     case .schedules:
@@ -547,11 +557,16 @@ struct RootView: View {
                         RootToolbars.projects(
                             common: commonToolbarModel,
                             selectedProjectName: projectsStore.selectedProjectName,
-                            activityLine: store.activityLine,
+                            sessionName: store.sessionName,
+                            activityLine: projectsStore.isShowingChat ? store.activityLine : "",
                             isSaving: projectsStore.isSaving,
                             isChatLoading: store.isLoading,
+                            isShowingChat: projectsStore.isShowingChat,
                             onNewProject: {
-                                Task { await projectsStore.createProject(chatStore: store) }
+                                Task { await projectsStore.createProject() }
+                            },
+                            onReturnToProject: {
+                                projectsStore.showProjectHome()
                             }
                         )
                     }
@@ -737,7 +752,7 @@ struct RootView: View {
     private func startNewProject() {
         bringMainWindowToFront()
         navigateToRoute(.projects)
-        Task { await projectsStore.createProject(chatStore: store) }
+        Task { await projectsStore.createProject() }
     }
 
     private func startNewMemory() {

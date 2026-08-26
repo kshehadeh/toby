@@ -146,7 +146,7 @@ What do you know about my meeting preferences?
 Toby.app → Projects → + → rename to "Weekly Overview"
 ```
 
-**Add durable guidance:** Open the project folder from the inspector (Reveal in Finder), then edit `AGENTS.md` with goals, tone, and required sections for the weekly overview.
+**Add durable guidance:** Open the project folder from the project page (Reveal in Finder), then edit `AGENTS.md` with goals, tone, and required sections for the weekly overview.
 
 **Create a project-local skill** for consistent formatting (in a project chat):
 
