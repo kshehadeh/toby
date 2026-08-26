@@ -36,9 +36,9 @@ struct AppSidebar<Content: View>: View {
 		[
 			SidebarActionItem(
 				route: .dashboard,
-				title: "Dashboard",
-				systemImage: "rectangle.3.group",
-				hoveredSystemImage: "rectangle.3.group.fill",
+				title: "Home",
+				systemImage: "house",
+				hoveredSystemImage: "house.fill",
 				accentColor: AppTheme.accent,
 				detail: "See what needs your attention: unread mail, open tasks, and setup steps at a glance."
 			),

@@ -26,7 +26,7 @@ struct RootToolbarsTests {
 
 	@Test("dashboard edit toolbar labels swap with editing state")
 	func dashboardEditToolbarLabels() {
-		#expect(RootToolbars.dashboardEditHelp(isEditing: false) == "Edit dashboard")
+		#expect(RootToolbars.dashboardEditHelp(isEditing: false) == "Edit Home")
 		#expect(RootToolbars.dashboardEditHelp(isEditing: true) == "Done")
 		#expect(RootToolbars.dashboardEditIdentifier(isEditing: false) == "dashboard-edit-button")
 		#expect(

@@ -38,12 +38,12 @@ Toby.app, not the plugin itself.
 
 Return to **Integrations** in the sidebar. Apple Calendar should show as connected. The first time you use calendar tools, macOS may prompt you to grant Calendar access to Toby.app.
 
-## Dashboard
+## Home
 
 When Apple Calendar is connected (and set as the default calendar provider under
 **Settings → Default Providers**, if you use more than one calendar integration),
-the home dashboard **Upcoming** card shows events for the next 7 days. You can
-hide or show that card under **Settings → Dashboard**.
+the Home **Upcoming** card shows events for the next 7 days. You can
+hide or show that card under **Settings → Home**.
 
 ## Disconnect
 

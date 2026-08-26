@@ -439,6 +439,9 @@ describe("web API routes", () => {
 			"weather",
 			"dashboard",
 		]);
+		expect(body.sections.find((s) => s.key === "dashboard")?.label).toBe(
+			"Home",
+		);
 		// All sections and their children should be section-type only (no fields)
 		for (const section of body.sections) {
 			expect(section.kind).toBe("section");

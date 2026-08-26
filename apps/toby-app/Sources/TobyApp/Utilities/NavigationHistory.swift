@@ -16,7 +16,7 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 	/// Display title for menu items (matches sidebar labels).
 	var menuTitle: String {
 		switch self {
-		case .dashboard: return "Dashboard"
+		case .dashboard: return "Home"
 		case .chat: return "Chats"
 		case .integrations: return "Integrations"
 		case .projects: return "Projects"
@@ -31,7 +31,7 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 	/// SF Symbol name matching the sidebar icon for this route.
 	var systemImage: String {
 		switch self {
-		case .dashboard: return "rectangle.3.group"
+		case .dashboard: return "house"
 		case .chat: return "message"
 		case .integrations: return "square.grid.2x2"
 		case .projects: return "folder"

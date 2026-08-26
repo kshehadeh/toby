@@ -851,12 +851,12 @@ export function buildSettingsTree(
 			webSearchSection,
 			weatherSection,
 			{
-				label: "Dashboard",
+				label: "Home",
 				kind: "section" as const,
 				key: "dashboard",
 				children: [
 					{
-						label: "Persona for dashboard summaries",
+						label: "Persona for Home summaries",
 						kind: "select" as const,
 						key: "dashboard.persona",
 						options: personaOptions,
@@ -869,7 +869,7 @@ export function buildSettingsTree(
 						],
 						currentValue: values["dashboard.persona"] ?? "(default)",
 						description:
-							"Persona used to summarize dashboard cards (email, tasks, calendar). Falls back to the default persona. Prefer a non-reasoning model for this persona — reasoning models often fail or time out on short structured summaries.",
+							"Persona used to summarize Home cards (email, tasks, calendar). Falls back to the default persona. Prefer a non-reasoning model for this persona — reasoning models often fail or time out on short structured summaries.",
 					},
 				],
 			},

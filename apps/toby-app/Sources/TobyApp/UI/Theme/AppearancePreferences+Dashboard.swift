@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Dashboard blocks
 
-/// Home-dashboard cards the user can show or hide under Settings → Dashboard.
+/// Home cards the user can show or hide under Settings → Home.
 enum DashboardBlock: String, CaseIterable, Identifiable, Sendable {
 	case email
 	case tasks

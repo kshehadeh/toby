@@ -11,6 +11,7 @@ struct MenuBarControllerTests {
 		let titles = controller.menuItemTitles
 		#expect(titles.contains("New Chat"))
 		#expect(titles.contains("Command Palette"))
+		#expect(titles.contains("Home"))
 		#expect(titles.contains("Chats"))
 		#expect(titles.contains("Integrations"))
 		#expect(titles.contains("Projects"))
@@ -40,11 +41,11 @@ struct MenuBarControllerTests {
 		let controller = MenuBarController(registerStatusItem: false)
 		let titles = controller.menuItemTitles
 		// After the recording separator, view items should appear in sidebar order.
-		let viewStart = titles.firstIndex(of: "Chats") ?? 0
+		let viewStart = titles.firstIndex(of: "Home") ?? 0
 		let viewEnd = titles.firstIndex(of: "Settings…") ?? 0
 		let viewTitles = Array(titles[viewStart...viewEnd])
 		#expect(viewTitles == [
-			"Chats", "Integrations", "Projects", "Skills",
+			"Home", "Chats", "Integrations", "Projects", "Skills",
 			"Memories", "Schedules", "Flows", "Recordings", "Settings…",
 		])
 	}

@@ -3,7 +3,7 @@ import SwiftUI
 struct ConfigureSectionDetailView: View {
 	@Bindable var store: ConfigureStore
 	let section: SettingsItem
-	/// Client-local prefs for app-only Dashboard controls (card visibility, onboarding).
+	/// Client-local prefs for app-only Home controls (card visibility, onboarding).
 	@Bindable var appearancePreferences: AppearancePreferences = .shared
 	/// Called after guided provider setup succeeds so the host can refresh status.
 	var onGuidedSetupCompleted: (() -> Void)? = nil
@@ -145,14 +145,14 @@ struct ConfigureSectionDetailView: View {
 						SettingsRow(
 							title: "Hide onboarding checklist",
 							description:
-								"Hide the setup checklist on the dashboard even if steps are incomplete. Stored only on this Mac.",
+								"Hide the setup checklist on Home even if steps are incomplete. Stored only on this Mac.",
 							showsDivider: true
 						) {
 							SettingsToggle(isOn: appearancePreferences.hideOnboardingBinding)
 								.accessibilityIdentifier("dashboard-hide-onboarding-toggle")
 						}
 						SettingsRow(
-							title: "Reset dashboard layout",
+							title: "Reset Home layout",
 							description:
 								"Restore default card order and show all cards. Stored only on this Mac.",
 							showsDivider: false

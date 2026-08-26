@@ -13,7 +13,7 @@ enum SettingsSidebarIcon {
 		case "transcription": return "pencil.and.scribble"
 		case "websearch": return "magnifyingglass"
 		case "weather": return "cloud.sun"
-		case "dashboard": return "rectangle.3.group"
+		case "dashboard": return "house"
 		default: break
 		}
 
@@ -48,7 +48,7 @@ enum SettingsSidebarIcon {
 			return "cloud.sun"
 		}
 		if key == "dashboard" || key.hasPrefix("dashboard.") {
-			return "rectangle.3.group"
+			return "house"
 		}
 		if key == "defaults" || key.hasPrefix("defaults.") {
 			return "slider.horizontal.3"

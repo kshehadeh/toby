@@ -64,7 +64,7 @@ Stored documents use a serializable **persona spec**:
 
 | Spec | Runtime behavior |
 | --- | --- |
-| `{ source: "dashboard" }` | `resolveDashboardPersona()` (Settings → Dashboard) |
+| `{ source: "dashboard" }` | `resolveDashboardPersona()` (Settings → Home) |
 | `{ source: "named", name }` | `resolvePersona(name)`, then default |
 | `{ source: "default" }` or omitted | Default persona |
 
@@ -460,7 +460,7 @@ LLM Prompter → { markdown: string }
         ↓ bag.summary
 ```
 
-Persona: Settings → Dashboard (`config.dashboard.persona`) via
+Persona: Settings → Home (`config.dashboard.persona`) via
 `resolveDashboardPersona()` in `packages/core/src/dashboard/prompts.ts`.
 
 ### How content generation invokes flows

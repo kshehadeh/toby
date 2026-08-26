@@ -158,6 +158,12 @@ struct DashboardNavigationTests {
 		#expect(DetailRoute.allCases.contains(.dashboard))
 	}
 
+	@Test("dashboard route uses Home as the UI label and house icon")
+	func dashboardRouteUsesHomeUI() {
+		#expect(DetailRoute.dashboard.menuTitle == "Home")
+		#expect(DetailRoute.dashboard.systemImage == "house")
+	}
+
 	@Test("dashboard is the default route")
 	func dashboardIsDefaultRoute() {
 		let history = NavigationHistory()

@@ -141,7 +141,7 @@ enum AccentPreset: String, CaseIterable, Identifiable, Sendable {
 enum AppearanceDefaultsKey {
 	static let mode = "toby.appearance.mode"
 	static let accent = "toby.appearance.accent"
-	/// Dashboard onboarding visibility (Settings → Dashboard; still app-local).
+	/// Home onboarding visibility (Settings → Home; still app-local).
 	static let hideOnboarding = "toby.appearance.hideOnboarding"
 	/// Whether the unread-mail dashboard card is visible. Default on.
 	static let showDashboardEmail = "toby.appearance.showDashboardEmail"

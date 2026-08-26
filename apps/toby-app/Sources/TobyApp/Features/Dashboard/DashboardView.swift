@@ -60,7 +60,7 @@ struct DashboardView: View {
 	/// user’s drag does not fight the system divider.
 	@State private var actionsInspectorIdealWidth: CGFloat?
 
-	/// Ready, incomplete, and not dismissed via Settings → Dashboard.
+	/// Ready, incomplete, and not dismissed via Settings → Home.
 	private var shouldShowOnboarding: Bool {
 		isOnboardingReady
 			&& !onboarding.isComplete

@@ -204,7 +204,7 @@ struct AppearancePreferencesTests {
 		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
 		let store = ConfigureStore()
 		let section = SettingsItem(
-			label: "Dashboard",
+			label: "Home",
 			kind: .section,
 			key: "dashboard",
 			navKey: "dashboard",
@@ -222,6 +222,10 @@ struct AppearancePreferencesTests {
 			section: section,
 			appearancePreferences: prefs
 		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Home")
+		}
+		#expect(SettingsSidebarIcon.systemName(for: section) == "house")
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Show unread mail")
 		}
@@ -247,7 +251,7 @@ struct AppearancePreferencesTests {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hide-onboarding-toggle")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Reset dashboard layout")
+			try view.inspect().find(text: "Reset Home layout")
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-reset-layout-button")

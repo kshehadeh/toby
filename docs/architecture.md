@@ -101,7 +101,7 @@ API). Implementation: `AppearancePreferences` /
 | `toby.appearance.mode` | system | Theme | Theme (`system` / `light` / `dark`) |
 | `toby.appearance.accent` | orange | Accent color | Accent color preset |
 
-App-local dashboard layout prefs are edited under **Settings → Dashboard**
+App-local dashboard layout prefs are edited under **Settings → Home**
 alongside the daemon-backed summary persona:
 
 | Key | Default | UI control | Purpose |

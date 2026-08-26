@@ -7,7 +7,7 @@ title: Flows
 
 **Flows** are automated pipelines that combine your **local tools** (integrations such as Email, tasks, and Calendar) with a **persona** and an **LLM** to produce a result without a full free-form chat turn.
 
-Think of a flow as a fixed recipe: fetch data with tools, then have the model write a short summary or transform that data under the persona’s instructions and model choice. That makes flows well suited for reliable, repeatable workflows—especially the short AI blurbs on the home [dashboard](./toby-app#dashboard-related).
+Think of a flow as a fixed recipe: fetch data with tools, then have the model write a short summary or transform that data under the persona’s instructions and model choice. That makes flows well suited for reliable, repeatable workflows—especially the short AI blurbs on [Home](./toby-app#home-related).
 
 ## What flows are for
 
@@ -29,7 +29,7 @@ Today, the flows that ship with Toby are **built-in** and power the **home dashb
 | **Tasks** | Loads open tasks, then summarizes what needs attention |
 | **Calendar** | Loads upcoming events, then summarizes what’s coming up |
 
-Those pipelines use the **Dashboard persona** (configured under **Settings → Dashboard**) for their model and writing style. Connect the matching [integrations](./integrations/overview), leave Toby running, and the dashboard can refresh those blurbs automatically.
+Those pipelines use the **Home persona** (configured under **Settings → Home**) for their model and writing style. Connect the matching [integrations](./integrations/overview), leave Toby running, and Home can refresh those blurbs automatically.
 
 ## Browse flows in Toby.app
 
@@ -83,13 +83,13 @@ To run a flow on a timetable, open **Schedules**, set **When it runs** to
 ## Tips
 
 - Connect Email, tasks, and Calendar integrations so dashboard flows have something useful to summarize.
-- Tune **Settings → Dashboard** for the persona used by dashboard AI blurbs.
+- Tune **Settings → Home** for the persona used by Home AI blurbs.
 - Use the **Flows** window when you want to see *why* a dashboard blurb looks the way it does (which tools ran, and recent history).
 - For a first custom flow, start with tools whose arguments you already know (Wi-Fi off, volume, minimize all). Leave “pick these emails and archive them” to chat.
 
 ## Related
 
-- [Toby.app](./toby-app) — Dashboard, Flows window, and settings
+- [Toby.app](./toby-app) — Home, Flows window, and settings
 - [Personas](./personas) — Model and instructions used by LLM steps
 - [Schedules](./schedules) — Recurring chat prompts (schedule-as-flow later)
 - [Integrations](./integrations/overview) — Local tools flows call

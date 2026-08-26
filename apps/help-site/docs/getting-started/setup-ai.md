@@ -20,7 +20,7 @@ You only need **one** provider to start. See the [AI providers overview](../ai-p
 
 ## Recommended: guided setup
 
-1. On the **Dashboard**, open the onboarding checklist and click **Connect** on **Configure AI provider**.
+1. On **Home**, open the onboarding checklist and click **Connect** on **Configure AI provider**.
 2. Choose a path:
    - **Vercel AI Gateway** (recommended) — multi-model chat, free credits, plus Toby web search and transcription catalogs
    - **OpenRouter** — hundreds of models through one key

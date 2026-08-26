@@ -263,8 +263,8 @@ Mitigations in code:
 3. We deliberately **do not** send `reasoning: "none"` / `reasoning_effort: none`
    — several models (including Grok 4.5) reject that value as invalid.
 
-**Config recommendation:** set the Dashboard persona to a **non-reasoning**
-model (no **· reasoning** label in the picker). See Settings → Dashboard.
+**Config recommendation:** set the Home persona to a **non-reasoning**
+model (no **· reasoning** label in the picker). See Settings → Home.
 
 ## Related
 

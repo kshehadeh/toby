@@ -11,7 +11,7 @@ Personas that use the **vercel** provider must use **gateway model slugs** in `p
 
 ## Get an API key
 
-**Easiest path:** use Toby’s guided setup (Dashboard onboarding **Connect**, or **Settings → AI → Vercel AI Gateway → Guided setup**). The wizard opens Vercel signup and the [AI Gateway API Keys](https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway%2Fapi-keys&title=AI+Gateway+API+Keys) page, then validates and saves your key.
+**Easiest path:** use Toby’s guided setup (Home onboarding **Connect**, or **Settings → AI → Vercel AI Gateway → Guided setup**). The wizard opens Vercel signup and the [AI Gateway API Keys](https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway%2Fapi-keys&title=AI+Gateway+API+Keys) page, then validates and saves your key.
 
 Manual steps:
 
@@ -27,7 +27,7 @@ You can also set **`AI_GATEWAY_API_KEY`** in your environment instead of storing
 
 ## Configure in Toby
 
-1. **Guided setup (recommended):** Dashboard checklist → **Configure AI provider → Connect**, or **Settings → AI → Vercel AI Gateway → Guided setup**. Toby validates the key and sets the built-in **Toby** persona to `vercel` / `openai/gpt-5-mini`.
+1. **Guided setup (recommended):** Home checklist → **Configure AI provider → Connect**, or **Settings → AI → Vercel AI Gateway → Guided setup**. Toby validates the key and sets the built-in **Toby** persona to `vercel` / `openai/gpt-5-mini`.
 2. **Manual:** **Settings → AI → Vercel AI Gateway → API Key**, paste your key, then set a persona’s **AI Provider** to `vercel` and pick a model.
 
 For any persona, set **AI Provider** to `vercel`, then pick a model from the list or enter a **Custom model slug** (any slug your gateway account exposes).

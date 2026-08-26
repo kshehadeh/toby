@@ -135,7 +135,7 @@ enum RootToolbars {
 	) -> some ToolbarContent {
 		common(model)
 		ToolbarItem(placement: .principal) {
-			RootPrincipalTitle(title: "Dashboard", activityLine: updatedText)
+			RootPrincipalTitle(title: "Home", activityLine: updatedText)
 		}
 		ToolbarItem(placement: .confirmationAction) {
 			Button(action: onToggleEdit) {
@@ -166,7 +166,7 @@ enum RootToolbars {
 	}
 
 	static func dashboardEditHelp(isEditing: Bool) -> String {
-		isEditing ? "Done" : "Edit dashboard"
+		isEditing ? "Done" : "Edit Home"
 	}
 
 	static func dashboardEditIdentifier(isEditing: Bool) -> String {

@@ -17,11 +17,11 @@ Toby supports five AI providers:
 | <img class="ai-provider-icon-inline" src="/img/ai-providers/openrouter.png" alt="" width="20" height="20" /> [OpenRouter](./openrouter) | Hundreds of models from many vendors through a single OpenRouter API key |
 | <img class="ai-provider-icon-inline" src="/img/ai-providers/ollama.png" alt="" width="20" height="20" /> [Ollama](./ollama) | Run open-source models locally on your machine (no API key needed) |
 
-You only need **one** provider configured to start chatting. **New installs should start with Vercel AI Gateway** (guided setup on the Dashboard checklist). Use OpenAI direct for a single-vendor key, Chutes or OpenRouter for open-source catalogs, or Ollama for fully local inference.
+You only need **one** provider configured to start chatting. **New installs should start with Vercel AI Gateway** (guided setup on the Home checklist). Use OpenAI direct for a single-vendor key, Chutes or OpenRouter for open-source catalogs, or Ollama for fully local inference.
 
 ## Quick setup
 
-**Recommended:** Dashboard onboarding → **Configure AI provider → Connect** opens a chooser for guided setup:
+**Recommended:** Home onboarding → **Configure AI provider → Connect** opens a chooser for guided setup:
 - **[Vercel AI Gateway](./vercel-ai-gateway)** (recommended) — multi-model chat, free credits, web search & transcription catalogs
 - **[OpenRouter](./openrouter)** — hundreds of models through one key
 

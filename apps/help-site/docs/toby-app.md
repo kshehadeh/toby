@@ -42,7 +42,7 @@ settings across Macs without copying a file, use **Settings → Sync**
 | Menu item | What it does |
 | --------- | ------------ |
 | **Show Command View** | Opens the command palette to jump to sessions, routes, and actions (⌘K) |
-| Route items (Dashboard, Chat, …) | Switch the main window to that surface (⌘1–⌘9) |
+| Route items (Home, Chat, …) | Switch the main window to that surface (⌘1–⌘9) |
 
 When your search does not match an existing action or item, you can type a
 natural-language prompt such as “summarize my day” and choose the suggested
@@ -178,9 +178,9 @@ window, Settings, Logs, and other Toby.app windows.
 **Accent color** — Accent used for interactive highlights (buttons, selection,
 status cues) across Toby.app windows. Same preset in light and dark.
 
-#### Dashboard (related)
+#### Home (related)
 
-The **Dashboard** home surface shows unread mail, open tasks, and upcoming
+The **Home** surface shows unread mail, open tasks, and upcoming
 events (when the matching integrations are connected), plus any **custom
 flows** you associated with a Dashboard destination. Built-in cards have a
 fixed title and actions, plus a short summary body generated from your
@@ -190,7 +190,7 @@ strip beside the cards (not as full-size cards). Each action is the flow’s
 title; hover to see its description. They never run until you click one —
 while a run is in progress that button is disabled and shows a spinner.
 The Actions strip is hidden when you have no runner flows (or all of them
-are hidden). It appears as a trailing sidebar on the right of the dashboard;
+are hidden). It appears as a trailing sidebar on the right of Home;
 drag the system divider to make it narrower or wider. When at least one
 runner flow exists, a toolbar control next to **Refresh** hides or shows the
 whole strip without removing the individual actions. Use the **refresh**
@@ -198,8 +198,8 @@ control in the toolbar (or the refresh control on a built-in or informational
 card) to regenerate card content. Cards load once the local service is ready
 when you open the app.
 
-You can rearrange the home cards without leaving the dashboard. Click
-**Edit dashboard** (pencil) in the toolbar, next to **Refresh**. While
+You can rearrange the home cards without leaving Home. Click
+**Edit Home** (pencil) in the toolbar, next to **Refresh**. While
 editing:
 
 - Each card shows a drag handle and a hide button.
@@ -209,18 +209,18 @@ editing:
 - Hidden cards collect in a **Hidden cards** tray at the bottom. Drag a
   card chip onto the grid to place it, or click **Show** to restore it at
   the end. Hidden actions restore with **Show** only.
-- Click **Done** (checkmark) when you are finished. Leaving the dashboard
+- Click **Done** (checkmark) when you are finished. Leaving Home
   also exits edit mode.
 
 Layout (order, hidden cards, Actions strip visibility, and Actions width) is
 stored only on this Mac, with other app appearance settings — not in Toby’s
 server config.
 
-Under **Settings → Dashboard**, you can set the persona used for dashboard
-summaries and control which home-dashboard cards are visible (app-local). Card
+Under **Settings → Home**, you can set the persona used for Home
+summaries and control which home cards are visible (app-local). Card
 bodies are produced by built-in [flows](./flows).
 
-- **Dashboard persona** — Model and instructions used for the short summary
+- **Home persona** — Model and instructions used for the short summary
   bodies on the unread mail, tasks, and upcoming events cards. Prefer a
   **non-reasoning** model for this persona (entries without a **· reasoning**
   label in the model picker) so summaries stay reliable. Reasoning models
@@ -228,14 +228,14 @@ bodies are produced by built-in [flows](./flows).
   body; Toby strips common leaks, but a non-reasoning model is still the best
   fix.
 - **Show unread mail** / **Show tasks** / **Show upcoming events** — On by
-  default. Turn any off to hide that card on the home dashboard; turn it back on
+  default. Turn any off to hide that card on Home; turn it back on
   to show it again. Upcoming events come from your default calendar provider
-  (Settings → Default Providers). Hide custom flow cards from the dashboard
+  (Settings → Default Providers). Hide custom flow cards from the Home
   editor (these toggles only cover the three built-in cards).
 - **Hide onboarding checklist** — Off by default. Turning that on removes the
-  setup checklist from the home dashboard even if steps remain incomplete; turn
+  setup checklist from Home even if steps remain incomplete; turn
   it off to bring the checklist back.
-- **Reset dashboard layout** — Restores the default card order and shows all
+- **Reset Home layout** — Restores the default card order and shows all
   cards. Does not change the onboarding checklist setting.
 
 ### Permissions
@@ -269,10 +269,10 @@ Once the service is reachable, Toby.app uses it for:
 - persona options
 - configure tree reads and writes
 - integration setup guides / wizards for onboarding new integrations
-- guided Vercel AI Gateway setup (Dashboard onboarding and Settings → AI)
+- guided Vercel AI Gateway setup (Home onboarding and Settings → AI)
 
 Toby.app also preloads shared list data after the service is reachable so the
-Dashboard, sidebar, and command palette can show counts and shortcuts without
+Home surface, sidebar, and command palette can show counts and shortcuts without
 waiting for each individual view to be opened first. This shared preload covers
 chat sessions, schedules, recordings, memories, skills, projects, and
 integration sections. Heavy detail payloads stay lazy: recording transcripts,
