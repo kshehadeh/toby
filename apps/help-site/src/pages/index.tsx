@@ -90,6 +90,19 @@ export default function Home(): React.JSX.Element {
 						Installation guide →
 					</Link>
 				</div>
+				<a
+					className={styles.betaListBadge}
+					target="_blank"
+					rel="noopener noreferrer"
+					href="https://betalist.com/startups/toby?utm_campaign=badge-toby&utm_medium=badge&utm_source=badge-featured"
+				>
+					<img
+						alt="Toby - Organize and summarize work across Email, Todoist, Slack, Jira, and Calendr | BetaList"
+						width={156}
+						height={54}
+						src="https://betalist.com/badges/featured?id=180938&theme=dark"
+					/>
+				</a>
 				<div className={styles.grid}>
 					{sections.map((section) => (
 						<Link key={section.title} to={section.to} className={styles.card}>

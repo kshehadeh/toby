@@ -69,6 +69,19 @@
 	color: var(--toby-accent, #f97316);
 }
 
+.betaListBadge {
+	display: inline-block;
+	margin: 1.25rem 0 0;
+	line-height: 0;
+	text-decoration: none !important;
+}
+
+.betaListBadge img {
+	display: block;
+	width: 156px;
+	height: 54px;
+}
+
 .grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
