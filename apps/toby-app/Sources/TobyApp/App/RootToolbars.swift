@@ -227,6 +227,21 @@ enum RootToolbars {
 		ToolbarItem(placement: .principal) { Spacer() }
 	}
 
+	enum ProjectToolbarMode: Equatable {
+		/// All-projects / empty state: only New Project.
+		case home
+		/// Project details: New Chat + Delete.
+		case project
+		/// Project chat: return to the project page.
+		case projectChat
+	}
+
+	static func projectToolbarMode(hasSelection: Bool, isShowingChat: Bool) -> ProjectToolbarMode {
+		if isShowingChat { return .projectChat }
+		if hasSelection { return .project }
+		return .home
+	}
+
 	@ToolbarContentBuilder
 	static func projects(
 		common model: RootCommonToolbarModel,
@@ -236,7 +251,10 @@ enum RootToolbars {
 		isSaving: Bool,
 		isChatLoading: Bool,
 		isShowingChat: Bool = false,
+		hasSelection: Bool = false,
 		onNewProject: @escaping () -> Void,
+		onNewChat: @escaping () -> Void = {},
+		onDelete: @escaping () -> Void = {},
 		onReturnToProject: @escaping () -> Void = {},
 	) -> some ToolbarContent {
 		common(model)
@@ -248,19 +266,41 @@ enum RootToolbars {
 			)
 		}
 		ToolbarItem(placement: .confirmationAction) {
-			if isShowingChat {
+			switch projectToolbarMode(hasSelection: hasSelection, isShowingChat: isShowingChat) {
+			case .projectChat:
 				Button(action: onReturnToProject) {
 					Image(systemName: "arrow.uturn.backward")
 				}
 				.help("Back to \(selectedProjectName)")
 				.accessibilityLabel("Back to \(selectedProjectName)")
 				.accessibilityIdentifier("project-chat-home-button")
-			} else {
+			case .project:
+				Button(action: onNewChat) {
+					Image(systemName: "plus.bubble")
+				}
+				.help("New Chat")
+				.disabled(isSaving || isChatLoading)
+				.accessibilityIdentifier("toolbar-project-new-chat-button")
+				.accessibilityLabel("New Chat")
+			case .home:
 				Button(action: onNewProject) {
 					Image(systemName: "plus")
 				}
 				.help("New Project")
 				.disabled(isSaving || isChatLoading)
+				.accessibilityIdentifier("toolbar-new-project-button")
+				.accessibilityLabel("New Project")
+			}
+		}
+		ToolbarItem(placement: .confirmationAction) {
+			if projectToolbarMode(hasSelection: hasSelection, isShowingChat: isShowingChat) == .project {
+				Button(role: .destructive, action: onDelete) {
+					Image(systemName: "trash")
+				}
+				.help("Delete Project")
+				.disabled(isSaving)
+				.accessibilityIdentifier("delete-project-button")
+				.accessibilityLabel("Delete Project")
 			}
 		}
 	}

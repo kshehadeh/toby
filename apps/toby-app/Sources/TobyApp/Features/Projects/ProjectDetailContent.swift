@@ -72,20 +72,7 @@ struct ProjectDetailContent: View {
 					.foregroundStyle(AppTheme.secondaryText)
 			}
 
-			Spacer(minLength: 12)
-
-			Button(role: .destructive) {
-				store.pendingDelete = ProjectsStore.PendingDelete(
-					projectId: project.id,
-					name: store.selectedProject?.name ?? project.name,
-				)
-			} label: {
-				Label("Delete…", systemImage: "trash")
-			}
-			.buttonStyle(.bordered)
-			.tint(.red)
-			.disabled(store.isSaving)
-			.accessibilityIdentifier("project-delete-button")
+			Spacer(minLength: 0)
 		}
 	}
 

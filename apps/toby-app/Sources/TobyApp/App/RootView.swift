@@ -559,8 +559,19 @@ struct RootView: View {
                             isSaving: projectsStore.isSaving,
                             isChatLoading: store.isLoading,
                             isShowingChat: projectsStore.isShowingChat,
+                            hasSelection: projectsStore.selectedProjectId != nil,
                             onNewProject: {
                                 Task { await projectsStore.createProject() }
+                            },
+                            onNewChat: {
+                                Task { await projectsStore.createChat(chatStore: store) }
+                            },
+                            onDelete: {
+                                guard let project = projectsStore.selectedProject else { return }
+                                projectsStore.pendingDelete = ProjectsStore.PendingDelete(
+                                    projectId: project.id,
+                                    name: project.name
+                                )
                             },
                             onReturnToProject: {
                                 projectsStore.showProjectHome()

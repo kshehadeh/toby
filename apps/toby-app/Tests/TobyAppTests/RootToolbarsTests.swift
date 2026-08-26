@@ -39,6 +39,22 @@ struct RootToolbarsTests {
 		#expect(RootToolbars.dashboardActionsHelp(actionsVisible: true) == "Hide Actions")
 		#expect(RootToolbars.dashboardActionsHelp(actionsVisible: false) == "Show Actions")
 	}
+
+	@Test("projects toolbar is home, project details, or project chat")
+	func projectToolbarMode() {
+		#expect(
+			RootToolbars.projectToolbarMode(hasSelection: false, isShowingChat: false) == .home
+		)
+		#expect(
+			RootToolbars.projectToolbarMode(hasSelection: true, isShowingChat: false) == .project
+		)
+		#expect(
+			RootToolbars.projectToolbarMode(hasSelection: true, isShowingChat: true) == .projectChat
+		)
+		#expect(
+			RootToolbars.projectToolbarMode(hasSelection: false, isShowingChat: true) == .projectChat
+		)
+	}
 }
 
 @MainActor

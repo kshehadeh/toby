@@ -82,10 +82,11 @@ configuration.
 The Projects area lists each project in the sidebar. Select one to open its
 page in the main window: start a new chat, resume a recent chat, edit the
 summary or persona, reveal the project folder, and inspect the generated file
-tree. Click **Projects** in the sidebar to see every project as cards. Home
-also lists the five most recently updated projects in its left sidebar. While a
-project chat is open, a folder icon marks the chat and a toolbar button returns
-you to the project page.
+tree. The toolbar shows **+** (new project) when nothing is selected, and
+**New Chat** plus **Delete** on a project page. Click **Projects** in the
+sidebar to see every project as cards. Home also lists the five most recently
+updated projects in its left sidebar. While a project chat is open, a folder
+icon marks the chat and a toolbar button returns you to the project page.
 
 ![Toby.app Projects window](/img/toby-app-projects.png)
 

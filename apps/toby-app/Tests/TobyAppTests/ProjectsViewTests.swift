@@ -218,6 +218,12 @@ struct ProjectsViewTests {
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "project-show-all-chats-button")
 		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "project-delete-button")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(button: "Delete…")
+		}
 	}
 
 	@Test("projects inspector shows empty summary placeholder")

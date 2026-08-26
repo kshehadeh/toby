@@ -31,7 +31,7 @@ This makes projects ideal for recurring workflows like weekly overviews, monthly
 
 ## Create a project
 
-In Toby.app, open **Projects** from the sidebar and click **+**, or use **Create Project** on the empty Projects page. Toby creates the project folder, selects the project, and opens the project page.
+In Toby.app, open **Projects** from the sidebar and click **+** in the toolbar (shown when no project is selected), or use **Create Project** on the empty Projects page. Toby creates the project folder, selects the project, and opens the project page.
 
 ## Project workspace
 
@@ -43,8 +43,8 @@ The Projects area has a sidebar list and a main page:
 | Area | What it does |
 | ---- | ------------ |
 | Project sidebar | Lists each project by name, with chat count and persona underneath. Select a project to open it. Click **Projects** to return to the all-projects view. |
-| All projects | Shown when nothing is selected. Projects appear as cards, or an empty state with **Create Project** if you have none yet. |
-| Project page | The selected project's details: a prominent **New Chat** button, the last five chats, name, summary, persona, folder path, and file tree. |
+| All projects | Shown when nothing is selected. Projects appear as cards, or an empty state with **Create Project** if you have none yet. The toolbar **+** creates a new project. |
+| Project page | The selected project's details: a prominent **New Chat** button, the last five chats, name, summary, persona, folder path, and file tree. The toolbar switches to **New Chat** and **Delete**. |
 | Project chat | Opens in the main area when you start or resume a project chat. The toolbar shows a folder icon and a **Back to Project** button; the project stays highlighted in the sidebar. Select the project or use that button to return to its details. |
 
 The project persona is optional. When set, new project chats use that persona by default, which is useful when a project always needs a specific voice or role.
