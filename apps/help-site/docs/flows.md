@@ -35,6 +35,8 @@ Those pipelines use the **Home persona** (configured under **Settings → Home**
 
 Open **Toby.app** and choose **Flows** from the sidebar (or the View menu / menu bar).
 
+![Toby.app Flows](/img/toby-app-flows.png)
+
 From there you can:
 
 - See **all flows** as cards on the home screen

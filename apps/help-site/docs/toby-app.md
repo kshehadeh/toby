@@ -54,6 +54,15 @@ two words or sentence punctuation.
 
 Toby.app's primary windows are accessible from the sidebar.
 
+### Home
+
+**Home** is the landing surface. It shows unread mail, open tasks, and upcoming
+events when the matching integrations are connected, plus any custom flows you
+pin to the dashboard. The left sidebar lists recent chats, projects, recordings,
+and memories.
+
+![Toby.app Home](/img/toby-app-home.png)
+
 ### Chat
 
 The main window is where you interact with Toby. It shows your conversation
@@ -121,6 +130,8 @@ tools, fill in their arguments, optionally add a last LLM step, choose whether
 the result opens in a window / is emailed / is posted to Slack / appears as a
 home-dashboard card, and **Run now**. Built-in flows stay read-only. Running a
 custom flow from a [schedule](./schedules) is still later.
+
+![Toby.app Flows](/img/toby-app-flows.png)
 
 See [Flows](./flows) for a fuller explanation.
 
