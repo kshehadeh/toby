@@ -218,13 +218,19 @@ Query: `?fresh=1` bypasses caches and awaits a fresh flow when generating body t
 
 ## Custom flow cards
 
-A user-authored flow can add `{ type: "dashboard", variant }` as a destination.
-Toby.app syncs `GET /api/dashboard/flow-blocks` on each home load and registers
-a card whose id is the flow id.
+A user-authored flow can add `{ type: "dashboard", variant, refresh? }` as a
+destination. Toby.app syncs `GET /api/dashboard/flow-blocks` on each home load
+and registers a card whose id is the flow id. Informational `refresh` is
+`asNeeded` (default) or `manual`. Runner ignores `refresh`.
+
+Dashboard content generation runs the flow with **no** email/Slack delivery
+(`deliverDestinations: false`). Those sinks still fire on **Run now** and
+schedules.
 
 | Variant | UI | Load |
 | --- | --- | --- |
-| `informational` | Built-in-sized card. Body is last successful run output (last step / declared result). Header refresh matches built-ins (`?fresh=1` re-runs the flow). Menu includes **Open flow**. | Soft: last success. Force: `runUserFlowById`. |
+| `informational` + `asNeeded` | Built-in-sized card. Body is last successful run output. Menu includes **Open flow**. | Soft: last success if younger than 5 min; older last success is returned immediately and a background rerun starts; never-run awaits a run. Force (`?fresh=1`): await rerun. |
+| `informational` + `manual` | Same card chrome. | Soft: last success only (no rerun). Force: await rerun. |
 | `runner` | Compact **Actions** inspector button (title). Hover shows the flow description in a system popover (same as the server-status button, so it can draw outside the window). Never auto-runs. The button disables with a spinner (and a subtle pulse unless Reduce Motion) while the run is in flight. Context menu includes **Open flow**. The inspector is hidden when no runners are visible. | `POST /api/flows/:id/run`. Content fetch is a no-op. |
 
 Built-in email / tasks / calendar cards are unchanged.

@@ -277,11 +277,12 @@ describe("user flow HTTP API", () => {
 			);
 			expect(list.status).toBe(200);
 			const body = (await list.json()) as {
-				blocks: Array<{ id: string; variant: string }>;
+				blocks: Array<{ id: string; variant: string; refresh: string }>;
 			};
 			expect(body.blocks).toHaveLength(1);
 			expect(body.blocks[0]?.id).toBe(createdBody.flow.id);
 			expect(body.blocks[0]?.variant).toBe("informational");
+			expect(body.blocks[0]?.refresh).toBe("asNeeded");
 
 			const content = await handleWebRequest(
 				new Request(

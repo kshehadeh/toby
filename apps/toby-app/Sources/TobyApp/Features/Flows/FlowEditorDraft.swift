@@ -181,6 +181,7 @@ struct FlowEditorDestination: Identifiable, Equatable {
 	var emailSubject: String
 	var slackChannel: String
 	var dashboardVariant: String
+	var dashboardRefresh: String
 
 	static func modal() -> FlowEditorDestination {
 		FlowEditorDestination(
@@ -189,7 +190,8 @@ struct FlowEditorDestination: Identifiable, Equatable {
 			emailTo: "",
 			emailSubject: "",
 			slackChannel: "",
-			dashboardVariant: "informational"
+			dashboardVariant: "informational",
+			dashboardRefresh: "asNeeded"
 		)
 	}
 
@@ -200,7 +202,8 @@ struct FlowEditorDestination: Identifiable, Equatable {
 			emailTo: "",
 			emailSubject: "",
 			slackChannel: "",
-			dashboardVariant: "informational"
+			dashboardVariant: "informational",
+			dashboardRefresh: "asNeeded"
 		)
 	}
 
@@ -211,7 +214,8 @@ struct FlowEditorDestination: Identifiable, Equatable {
 			emailTo: "",
 			emailSubject: "",
 			slackChannel: "",
-			dashboardVariant: "informational"
+			dashboardVariant: "informational",
+			dashboardRefresh: "asNeeded"
 		)
 	}
 
@@ -222,7 +226,8 @@ struct FlowEditorDestination: Identifiable, Equatable {
 			emailTo: "",
 			emailSubject: "",
 			slackChannel: "",
-			dashboardVariant: "informational"
+			dashboardVariant: "informational",
+			dashboardRefresh: "asNeeded"
 		)
 	}
 
@@ -233,6 +238,7 @@ struct FlowEditorDestination: Identifiable, Equatable {
 		emailSubject = spec.subject ?? ""
 		slackChannel = spec.channel ?? ""
 		dashboardVariant = spec.variant ?? "informational"
+		dashboardRefresh = spec.refresh == "manual" ? "manual" : "asNeeded"
 	}
 
 	init(
@@ -241,7 +247,8 @@ struct FlowEditorDestination: Identifiable, Equatable {
 		emailTo: String,
 		emailSubject: String,
 		slackChannel: String,
-		dashboardVariant: String
+		dashboardVariant: String,
+		dashboardRefresh: String = "asNeeded"
 	) {
 		self.id = id
 		self.type = type
@@ -249,6 +256,7 @@ struct FlowEditorDestination: Identifiable, Equatable {
 		self.emailSubject = emailSubject
 		self.slackChannel = slackChannel
 		self.dashboardVariant = dashboardVariant
+		self.dashboardRefresh = dashboardRefresh
 	}
 
 	var label: String {
@@ -276,9 +284,13 @@ struct FlowEditorDestination: Identifiable, Equatable {
 		case "slack":
 			return ["type": "slack", "channel": slackChannel]
 		case "dashboard":
+			if dashboardVariant == "runner" {
+				return ["type": "dashboard", "variant": "runner"]
+			}
 			return [
 				"type": "dashboard",
-				"variant": dashboardVariant == "runner" ? "runner" : "informational",
+				"variant": "informational",
+				"refresh": dashboardRefresh == "manual" ? "manual" : "asNeeded",
 			]
 		default:
 			return ["type": "modal"]

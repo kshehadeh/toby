@@ -210,7 +210,20 @@ function normalizeDestination(
 			);
 			return null;
 		}
-		return { type: "dashboard", variant };
+		if (variant === "runner") {
+			return { type: "dashboard", variant };
+		}
+		const refresh = raw.refresh;
+		if (refresh === undefined || refresh === null || refresh === "") {
+			return { type: "dashboard", variant };
+		}
+		if (refresh !== "asNeeded" && refresh !== "manual") {
+			issues.push(
+				`Destination ${index + 1}: Dashboard refresh must be "asNeeded" or "manual"`,
+			);
+			return null;
+		}
+		return { type: "dashboard", variant, refresh };
 	}
 	issues.push(
 		`Destination ${index + 1}: Unknown destination type "${raw.type}"`,

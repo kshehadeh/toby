@@ -254,7 +254,17 @@ struct FlowsViewTests {
 			subject: nil,
 			cc: nil,
 			channel: nil,
-			variant: "informational"
+			variant: "informational",
+			refresh: nil
+		)
+		let manual = FlowDestinationSpec(
+			type: "dashboard",
+			to: nil,
+			subject: nil,
+			cc: nil,
+			channel: nil,
+			variant: "informational",
+			refresh: "manual"
 		)
 		let runner = FlowDestinationSpec(
 			type: "dashboard",
@@ -262,9 +272,11 @@ struct FlowsViewTests {
 			subject: nil,
 			cc: nil,
 			channel: nil,
-			variant: "runner"
+			variant: "runner",
+			refresh: nil
 		)
 		#expect(informational.summary == "Dashboard · Informational")
+		#expect(manual.summary == "Dashboard · Informational · Manual")
 		#expect(runner.summary == "Dashboard · Run now")
 
 		let draft = FlowEditorDestination(spec: runner)
@@ -273,6 +285,16 @@ struct FlowsViewTests {
 		let body = draft.jsonBody()
 		#expect(body["type"] as? String == "dashboard")
 		#expect(body["variant"] as? String == "runner")
+		#expect(body["refresh"] == nil)
+
+		let infoDraft = FlowEditorDestination(spec: informational)
+		#expect(infoDraft.dashboardRefresh == "asNeeded")
+		let infoBody = infoDraft.jsonBody()
+		#expect(infoBody["refresh"] as? String == "asNeeded")
+
+		let manualDraft = FlowEditorDestination(spec: manual)
+		#expect(manualDraft.dashboardRefresh == "manual")
+		#expect(manualDraft.jsonBody()["refresh"] as? String == "manual")
 	}
 
 	@Test("startCreate opens a blank editor")

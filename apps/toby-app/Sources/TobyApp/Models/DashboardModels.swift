@@ -78,6 +78,7 @@ struct FlowDashboardBlockInfo: Decodable, Identifiable, Equatable {
 	let title: String
 	let description: String?
 	let variant: String
+	let refresh: String?
 	let lastRanAt: String?
 	let showsResultSheet: Bool?
 

@@ -345,13 +345,17 @@ private struct FlowDestinationRow: View {
 				}
 				.pickerStyle(.menu)
 				.controlSize(.regular)
-				Text(
-					destination.dashboardVariant == "runner"
-						? "An Actions button on the home dashboard. Hover for the description; the flow only runs when you click it."
-						: "A home card that shows the last run’s output. Refresh works like the built-in dashboard cards."
-				)
-				.font(.caption)
-				.foregroundStyle(SettingsDesign.rowDescription)
+				if destination.dashboardVariant != "runner" {
+					Picker("Refresh", selection: $destination.dashboardRefresh) {
+						Text("As Needed").tag("asNeeded")
+						Text("Manual").tag("manual")
+					}
+					.pickerStyle(.menu)
+					.controlSize(.regular)
+				}
+				Text(dashboardDestinationHelp)
+					.font(.caption)
+					.foregroundStyle(SettingsDesign.rowDescription)
 			} else {
 				Text("After a successful run, Toby shows the result in a window.")
 					.font(.caption)
@@ -367,6 +371,16 @@ private struct FlowDestinationRow: View {
 			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
 				.stroke(SettingsDesign.cardBorder, lineWidth: 1)
 		)
+	}
+
+	private var dashboardDestinationHelp: String {
+		if destination.dashboardVariant == "runner" {
+			return "An Actions button on the home dashboard. Hover for the description; the flow only runs when you click it."
+		}
+		if destination.dashboardRefresh == "manual" {
+			return "Only updates when you tap refresh on this card or the dashboard toolbar."
+		}
+		return "Updates when you open Home (if older than a few minutes) or when you tap refresh, like mail, tasks, and calendar."
 	}
 }
 

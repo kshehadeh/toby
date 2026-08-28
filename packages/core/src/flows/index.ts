@@ -28,6 +28,7 @@ export type {
 export { FlowNodeError } from "./types";
 
 export type {
+	FlowDashboardRefresh,
 	FlowDashboardVariant,
 	FlowDestination,
 	FlowDestinationDashboard,
@@ -80,7 +81,7 @@ export {
 export type { FlowDestinationDelivery } from "./deliver-destinations";
 
 export { runUserFlow, runUserFlowById } from "./run-user-flow";
-export type { UserFlowRunResult } from "./run-user-flow";
+export type { UserFlowRunOptions, UserFlowRunResult } from "./run-user-flow";
 
 export { parseUserFlowDocumentBody } from "./parse-user-flow";
 

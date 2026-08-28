@@ -1,13 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { DASHBOARD_CONTENT_TTL_MS } from "@toby/core/dashboard/cache-ttl";
 import {
 	getFlowDashboardContent,
 	listFlowDashboardBlocks,
 } from "@toby/core/dashboard/flow-blocks";
 import {
 	type FlowDocument,
+	type UserFlowRunResult,
 	completeFlowRun,
 	createFlowRun,
 	saveUserFlowDocument,
@@ -49,6 +51,45 @@ const infoDoc: FlowDocument = {
 		},
 	],
 };
+
+function seedSuccess(
+	flowId: string,
+	markdown: string,
+	completedAt: string,
+): void {
+	const runId = createFlowRun({
+		flowName: flowId,
+		personaName: "Toby",
+		definitionSnapshot: { name: flowId, nodes: [] },
+		startedAt: completedAt,
+	});
+	expect(runId).toBeTruthy();
+	completeFlowRun({
+		id: runId as string,
+		status: "success",
+		finalOutputs: { summary: { markdown } },
+		durationMs: 10,
+		completedAt,
+	});
+}
+
+function fakeOkRun(flowId: string, text: string): UserFlowRunResult {
+	const now = new Date().toISOString();
+	return {
+		ok: true,
+		flowName: flowId,
+		persona: { name: "Toby" },
+		provider: "test",
+		model: "test",
+		outputs: { summary: { markdown: text } },
+		nodeTrace: [],
+		startedAt: now,
+		completedAt: now,
+		durationMs: 1,
+		extracted: { text, format: "markdown", pointer: { from: "summary" } },
+		destinations: [],
+	} as UserFlowRunResult;
+}
 
 describe("listFlowDashboardBlocks", () => {
 	let previousTobyDir: string | undefined;
@@ -100,34 +141,161 @@ describe("listFlowDashboardBlocks", () => {
 			"informational",
 			"runner",
 		]);
+		expect(blocks.map((b) => b.refresh)).toEqual([
+			"asNeeded",
+			"asNeeded",
+			"manual",
+		]);
 		expect(blocks[0]?.showsResultSheet).toBe(true);
 		expect(blocks[1]?.showsResultSheet).toBe(false);
 		expect(blocks[2]?.title).toBe("Focus mode");
 	});
 
+	it("resolves explicit informational refresh on the list payload", () => {
+		saveUserFlowDocument({
+			...infoDoc,
+			id: "flow.test.manual",
+			name: "Manual note",
+			destinations: [
+				{ type: "dashboard", variant: "informational", refresh: "manual" },
+			],
+		});
+		const blocks = listFlowDashboardBlocks();
+		expect(blocks[0]?.refresh).toBe("manual");
+	});
+
 	it("soft informational content uses the last successful run", async () => {
-		saveUserFlowDocument(infoDoc);
+		saveUserFlowDocument({
+			...infoDoc,
+			destinations: [
+				{ type: "dashboard", variant: "informational", refresh: "manual" },
+			],
+		});
 		const empty = await getFlowDashboardContent("flow.test.info");
 		expect(empty?.text).toBe("");
 		expect(empty?.count).toBe(0);
 
-		const runId = createFlowRun({
-			flowName: "flow.test.info",
-			personaName: "Toby",
-			definitionSnapshot: { name: "flow.test.info", nodes: [] },
-		});
-		expect(runId).toBeTruthy();
-		completeFlowRun({
-			id: runId as string,
-			status: "success",
-			finalOutputs: { summary: { markdown: "## Inbox\n- **Standup**" } },
-			durationMs: 10,
-		});
+		seedSuccess(
+			"flow.test.info",
+			"## Inbox\n- **Standup**",
+			new Date().toISOString(),
+		);
 
 		const content = await getFlowDashboardContent("flow.test.info");
 		expect(content?.text).toBe("## Inbox\n- **Standup**");
 		expect(content?.count).toBe(1);
 		expect(content?.personaName).toBe("Toby");
+	});
+
+	it("as-needed soft skips a rerun when the last success is fresh", async () => {
+		saveUserFlowDocument(infoDoc);
+		const completedAt = new Date().toISOString();
+		seedSuccess("flow.test.info", "## Fresh", completedAt);
+		const runUserFlow = mock(async () => fakeOkRun("flow.test.info", "## New"));
+		const content = await getFlowDashboardContent("flow.test.info", {
+			runUserFlow,
+			now: Date.parse(completedAt) + 1_000,
+		});
+		expect(content?.text).toBe("## Fresh");
+		expect(runUserFlow).toHaveBeenCalledTimes(0);
+	});
+
+	it("as-needed soft returns last success and reruns when stale", async () => {
+		saveUserFlowDocument(infoDoc);
+		const completedAt = new Date("2026-01-01T00:00:00.000Z").toISOString();
+		seedSuccess("flow.test.info", "## Stale", completedAt);
+		const runUserFlow = mock(async () => fakeOkRun("flow.test.info", "## New"));
+		const content = await getFlowDashboardContent("flow.test.info", {
+			runUserFlow,
+			now: Date.parse(completedAt) + DASHBOARD_CONTENT_TTL_MS + 1,
+		});
+		expect(content?.text).toBe("## Stale");
+		expect(runUserFlow).toHaveBeenCalledTimes(1);
+		expect(runUserFlow.mock.calls[0]?.[1]).toMatchObject({
+			deliverDestinations: false,
+			trigger: "dashboard.flow:flow.test.info",
+		});
+	});
+
+	it("as-needed soft awaits a run when the flow has never succeeded", async () => {
+		saveUserFlowDocument(infoDoc);
+		const runUserFlow = mock(async () =>
+			fakeOkRun("flow.test.info", "## First"),
+		);
+		const content = await getFlowDashboardContent("flow.test.info", {
+			runUserFlow,
+		});
+		expect(content?.text).toBe("## First");
+		expect(runUserFlow).toHaveBeenCalledTimes(1);
+	});
+
+	it("omitted refresh behaves as as-needed", async () => {
+		saveUserFlowDocument(infoDoc);
+		const runUserFlow = mock(async () =>
+			fakeOkRun("flow.test.info", "## First"),
+		);
+		await getFlowDashboardContent("flow.test.info", { runUserFlow });
+		expect(runUserFlow).toHaveBeenCalledTimes(1);
+	});
+
+	it("manual soft never reruns", async () => {
+		saveUserFlowDocument({
+			...infoDoc,
+			destinations: [
+				{ type: "dashboard", variant: "informational", refresh: "manual" },
+			],
+		});
+		const completedAt = new Date("2026-01-01T00:00:00.000Z").toISOString();
+		seedSuccess("flow.test.info", "## Old", completedAt);
+		const runUserFlow = mock(async () => fakeOkRun("flow.test.info", "## New"));
+		const content = await getFlowDashboardContent("flow.test.info", {
+			runUserFlow,
+			now: Date.parse(completedAt) + DASHBOARD_CONTENT_TTL_MS + 1,
+		});
+		expect(content?.text).toBe("## Old");
+		expect(runUserFlow).toHaveBeenCalledTimes(0);
+	});
+
+	it("force reruns informational cards for both refresh policies", async () => {
+		saveUserFlowDocument({
+			...infoDoc,
+			destinations: [
+				{ type: "dashboard", variant: "informational", refresh: "manual" },
+			],
+		});
+		seedSuccess("flow.test.info", "## Old", new Date().toISOString());
+		const runUserFlow = mock(async () => fakeOkRun("flow.test.info", "## New"));
+		const content = await getFlowDashboardContent("flow.test.info", {
+			force: true,
+			runUserFlow,
+		});
+		expect(content?.text).toBe("## New");
+		expect(runUserFlow).toHaveBeenCalledTimes(1);
+	});
+
+	it("coalesces concurrent informational dashboard runs", async () => {
+		saveUserFlowDocument(infoDoc);
+		let release: (() => void) | undefined;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const runUserFlow = mock(async () => {
+			await gate;
+			return fakeOkRun("flow.test.info", "## Once");
+		});
+		const first = getFlowDashboardContent("flow.test.info", {
+			force: true,
+			runUserFlow,
+		});
+		const second = getFlowDashboardContent("flow.test.info", {
+			force: true,
+			runUserFlow,
+		});
+		release?.();
+		const [a, b] = await Promise.all([first, second]);
+		expect(a?.text).toBe("## Once");
+		expect(b?.text).toBe("## Once");
+		expect(runUserFlow).toHaveBeenCalledTimes(1);
 	});
 
 	it("runner content never runs and stays empty-bodied", async () => {

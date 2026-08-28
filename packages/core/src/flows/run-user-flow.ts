@@ -10,6 +10,14 @@ import { runFlow } from "./runner";
 import { completeFlowRunDestinations } from "./store";
 import type { FlowResult, FlowRunOptions } from "./types";
 
+export type UserFlowRunOptions = FlowRunOptions & {
+	/**
+	 * Deliver email/Slack destinations after a successful run.
+	 * Default true. Dashboard card generation passes false.
+	 */
+	readonly deliverDestinations?: boolean;
+};
+
 export type UserFlowRunResult = FlowResult & {
 	readonly extracted: ExtractedFlowResult | null;
 	readonly destinations: readonly FlowDestinationDelivery[];
@@ -27,7 +35,7 @@ function lastNodeResult(result: FlowResult): unknown {
 export async function runUserFlow(
 	id: string,
 	document: FlowDocument,
-	options: FlowRunOptions = {},
+	options: UserFlowRunOptions = {},
 ): Promise<UserFlowRunResult> {
 	const result = await runFlow(id, options);
 	if (!result.ok) {
@@ -41,6 +49,14 @@ export async function runUserFlow(
 	const extracted = extractFlowResult(result.outputs, document, {
 		lastNodeResult: lastNodeResult(result),
 	});
+	if (options.deliverDestinations === false) {
+		return {
+			...result,
+			extracted,
+			destinations: [],
+		};
+	}
+
 	const destinations = await deliverFlowDestinations({
 		destinations: document.destinations ?? [],
 		result: extracted,
@@ -89,7 +105,7 @@ export async function runUserFlow(
 
 export async function runUserFlowById(
 	id: string,
-	options: FlowRunOptions = {},
+	options: UserFlowRunOptions = {},
 ): Promise<UserFlowRunResult> {
 	const record = getFlowRecord(id);
 	if (!record) {

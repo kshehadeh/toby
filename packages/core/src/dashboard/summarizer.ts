@@ -4,6 +4,7 @@ import { createModelForPersona } from "../ai/model-factory";
 import { type Persona, getDashboardSummariesPath } from "../config/index";
 import { runFlow } from "../flows/runner";
 import { daemonLog } from "../logging/daemon-log";
+import { DASHBOARD_CONTENT_TTL_MS } from "./cache-ttl";
 import { getDashboardCategory } from "./index";
 import {
 	CATEGORY_PROMPTS,
@@ -20,7 +21,6 @@ export {
 	resolveDashboardPersona,
 } from "./prompts";
 
-const SUMMARY_CACHE_TTL_MS = 5 * 60 * 1000;
 const SUMMARY_TIMEOUT_MS = 30_000;
 /** Room for a short markdown summary; higher than needed so partial CoT leak / reasoning tokens do not truncate the answer. */
 const SUMMARY_MAX_TOKENS = 3000;
@@ -385,7 +385,7 @@ export async function getDashboardBlockContent(
 		if (persisted) {
 			summaryCache.set(cacheKey, {
 				data: persisted,
-				expiresAt: Date.now() + SUMMARY_CACHE_TTL_MS,
+				expiresAt: Date.now() + DASHBOARD_CONTENT_TTL_MS,
 			});
 			refreshSummary(cacheKey, category, data, persona, categoryPrompt).catch(
 				() => {},
@@ -444,7 +444,7 @@ async function generateFreshSummary(
 
 	const nullCacheEntry: SummaryCacheEntry = {
 		data: null,
-		expiresAt: Date.now() + SUMMARY_CACHE_TTL_MS,
+		expiresAt: Date.now() + DASHBOARD_CONTENT_TTL_MS,
 	};
 
 	try {
@@ -561,7 +561,7 @@ async function generateLegacyCategorySummary(
 
 		summaryCache.set(cacheKey, {
 			data: summary,
-			expiresAt: Date.now() + SUMMARY_CACHE_TTL_MS,
+			expiresAt: Date.now() + DASHBOARD_CONTENT_TTL_MS,
 		});
 		persistSummary(summary);
 		return summary;
@@ -677,7 +677,7 @@ async function generateCategorySummaryViaFlow(
 
 	summaryCache.set(cacheKey, {
 		data: summary,
-		expiresAt: Date.now() + SUMMARY_CACHE_TTL_MS,
+		expiresAt: Date.now() + DASHBOARD_CONTENT_TTL_MS,
 	});
 	persistSummary(summary);
 	return summary;

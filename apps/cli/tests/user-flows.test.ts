@@ -258,6 +258,77 @@ describe("validateUserFlowDocument", () => {
 		).toThrow(/only one Dashboard destination/);
 	});
 
+	it("accepts informational dashboard refresh and strips it on runner", () => {
+		const asNeeded = validateUserFlowDocument(
+			wifiThenMinimize({
+				destinations: [
+					{
+						type: "dashboard",
+						variant: "informational",
+						refresh: "asNeeded",
+					},
+				],
+			}),
+			{ tools: catalog, connectedModules: connected },
+		);
+		expect(asNeeded.destinations).toEqual([
+			{
+				type: "dashboard",
+				variant: "informational",
+				refresh: "asNeeded",
+			},
+		]);
+
+		const manual = validateUserFlowDocument(
+			wifiThenMinimize({
+				destinations: [
+					{
+						type: "dashboard",
+						variant: "informational",
+						refresh: "manual",
+					},
+				],
+			}),
+			{ tools: catalog, connectedModules: connected },
+		);
+		expect(manual.destinations).toEqual([
+			{ type: "dashboard", variant: "informational", refresh: "manual" },
+		]);
+
+		const runner = validateUserFlowDocument(
+			wifiThenMinimize({
+				destinations: [
+					{
+						type: "dashboard",
+						variant: "runner",
+						refresh: "asNeeded",
+					} as never,
+				],
+			}),
+			{ tools: catalog, connectedModules: connected },
+		);
+		expect(runner.destinations).toEqual([
+			{ type: "dashboard", variant: "runner" },
+		]);
+	});
+
+	it("rejects an unknown dashboard refresh value", () => {
+		expect(() =>
+			validateUserFlowDocument(
+				wifiThenMinimize({
+					destinations: [
+						{
+							type: "dashboard",
+							variant: "informational",
+							refresh: "hourly",
+						} as never,
+					],
+				}),
+				{ tools: catalog, connectedModules: connected },
+			),
+		).toThrow(/asNeeded" or "manual/);
+	});
+
 	it("rejects a dashboard destination without a variant", () => {
 		expect(() =>
 			validateUserFlowDocument(

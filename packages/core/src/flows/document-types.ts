@@ -70,9 +70,14 @@ export type FlowDestinationSlack = {
 
 export type FlowDashboardVariant = "runner" | "informational";
 
+/** How an informational dashboard card re-runs. Ignored for runner. */
+export type FlowDashboardRefresh = "asNeeded" | "manual";
+
 export type FlowDestinationDashboard = {
 	readonly type: "dashboard";
 	readonly variant: FlowDashboardVariant;
+	/** Informational only. Omitted → `"asNeeded"`. Ignored for runner. */
+	readonly refresh?: FlowDashboardRefresh;
 };
 
 export type FlowDestination =

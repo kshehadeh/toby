@@ -222,7 +222,7 @@ list of **destinations**:
 | `modal` | Toby.app | Interactive **Run now** opens a result sheet |
 | `email` | Daemon via `email.sendEmail` | `to` + `subject` are author-time constants; body is the result text |
 | `slack` | Daemon via `slack.postToChannel` | `channel` is an author-time constant |
-| `dashboard` | Toby.app home screen | Registers a home card **or** an Actions rail button. `variant` is `informational` (last-run body + refresh) or `runner` (compact title button in the Actions rail). At most one dashboard destination per flow. |
+| `dashboard` | Toby.app home screen | Registers a home card **or** an Actions rail button. `variant` is `informational` (last-run body + refresh) or `runner` (compact title button in the Actions rail). Informational cards take `refresh`: `asNeeded` (default; soft-refresh like built-ins) or `manual` (card/toolbar refresh only). At most one dashboard destination per flow. |
 
 If `result` is omitted, the last LLM node’s markdown (or the last tool’s
 `appliedActions` / payload) is used. New user flows default to
@@ -233,19 +233,21 @@ code.
 
 ### Custom flow home cards
 
-A custom flow with `{ type: "dashboard", variant }` appears on the home
+A custom flow with `{ type: "dashboard", variant, refresh? }` appears on the home
 dashboard. Discovery: `listFlowDashboardBlocks()` /
-`GET /api/dashboard/flow-blocks`. Card body:
+`GET /api/dashboard/flow-blocks` (includes resolved `refresh`). Card body:
 `GET /api/dashboard/:flowId/content`.
 
 | Variant | Home UI | Soft load | Force refresh / click |
 | --- | --- | --- | --- |
-| `informational` | Same size as built-ins; body is last successful run output | Last success via `extractFlowResult` (no re-run) | `runUserFlowById` (same path as built-in card refresh) |
+| `informational` + `asNeeded` (default) | Same size as built-ins; body is last successful run output | Last success if younger than 5 min; stale last success returned immediately plus a background rerun; never-run awaits a run | `runUserFlowById` with `deliverDestinations: false` |
+| `informational` + `manual` | Same card chrome | Last success only (no rerun) | Same force path as as-needed |
 | `runner` | Compact **Actions** rail button (title; hover shows description). Hidden when no runners are visible. | Never runs; no body | Click is `POST /api/flows/:id/run`. Toolbar / card refresh does **not** run it. The button disables and shows a spinner while the run is in flight. |
 
 `showsResultSheet` is true when the flow also has a `modal` destination. **Run
 Now** then opens the result sheet. Combining dashboard + email/slack is
-allowed; those sinks still fire on a successful run.
+allowed; email/Slack still fire on **Run now** and schedules, **not** on
+dashboard card generation.
 
 ## Storage model
 
@@ -383,7 +385,7 @@ User-authored documents are validated by `validateUserFlowDocument`:
 - Tool executor inputs must be `{ const }` (no bag wiring)
 - Required tool fields must be filled when the plugin is installed
 - An LLM Prompter, if present, must be last and use `{ kind: "markdown" }`
-- Destinations are `modal`, `email` (`to`, `subject`), or `slack` (`channel`)
+- Destinations are `modal`, `email` (`to`, `subject`), `slack` (`channel`), or `dashboard` (`variant`, optional informational `refresh`)
 - Email/Slack destinations require that integration to be connected
 
 `runUserFlowById` extracts the declared result (or infers it from the last
@@ -441,7 +443,8 @@ static header; the body is **flow output** only. See [dashboard.md](dashboard.md
 
 Optional `?fresh=1` bypasses soft caches and **awaits** a new flow run.
 Toby.app force-refreshes on toolbar / per-card refresh; soft-loads on home
-appear when the daemon is ready.
+appear when the daemon is ready. Custom informational cards with
+`refresh: "manual"` skip the soft rerun; force refresh still awaits a run.
 
 ### Flow map
 

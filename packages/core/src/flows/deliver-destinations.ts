@@ -12,7 +12,7 @@ async function deliverOne(
 	destination: FlowDestination,
 	result: ExtractedFlowResult,
 ): Promise<FlowDestinationDelivery> {
-	if (isRegistrationDestination(destination.type)) {
+	if (destination.type === "modal" || destination.type === "dashboard") {
 		return { type: destination.type, ok: true };
 	}
 

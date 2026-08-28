@@ -729,6 +729,7 @@ struct DashboardFlowBlocksTests {
 			title: title,
 			description: description,
 			variant: variant,
+			refresh: nil,
 			lastRanAt: nil,
 			showsResultSheet: showsResultSheet
 		)
@@ -743,6 +744,7 @@ struct DashboardFlowBlocksTests {
 			"title": "Focus mode",
 			"description": "Turn off Wi-Fi",
 			"variant": "runner",
+			"refresh": "manual",
 			"lastRanAt": "2026-08-15T12:00:00Z",
 			"showsResultSheet": false
 		}
@@ -750,8 +752,21 @@ struct DashboardFlowBlocksTests {
 		let info = try JSONDecoder().decode(FlowDashboardBlockInfo.self, from: json)
 		#expect(info.id == "flow.abc")
 		#expect(info.isRunner)
+		#expect(info.refresh == "manual")
 		#expect(info.description == "Turn off Wi-Fi")
 		#expect(info.showsResultSheet == false)
+
+		let withoutRefresh = """
+		{
+			"id": "flow.abc",
+			"flowId": "flow.abc",
+			"title": "Focus mode",
+			"variant": "informational"
+		}
+		""".data(using: .utf8)!
+		let omitted = try JSONDecoder().decode(FlowDashboardBlockInfo.self, from: withoutRefresh)
+		#expect(omitted.refresh == nil)
+		#expect(!omitted.isRunner)
 	}
 
 	@Test("flow descriptor marks runner vs informational")

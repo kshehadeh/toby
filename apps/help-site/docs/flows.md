@@ -58,8 +58,13 @@ Choose **New flow** from the Flows sidebar or the toolbar.
    - **Post to Slack** (Slack must be connected)
    - **Dashboard** — put the flow on the home screen as a card:
      - **Informational** — same size as the built-in cards. Shows the last
-       successful run’s output. Refresh on the card (or the dashboard toolbar)
-       runs the flow again, like unread mail / tasks / calendar.
+       successful run’s output. Choose how the card updates:
+       - **As Needed** (default) — when you open Home, Toby refreshes the card
+         if the last run is older than a few minutes, the same way mail, tasks,
+         and calendar cards update. Refresh on the card or the dashboard
+         toolbar always runs it again.
+       - **Manual** — the card keeps the last run until you tap refresh on that
+         card or the dashboard toolbar.
      - **Runner only** — a button in the home dashboard **Actions** strip
        (beside the cards). The button is the flow’s name; hover to see the
        description. It only runs when you click it. The strip is hidden if
@@ -67,7 +72,8 @@ Choose **New flow** from the Flows sidebar or the toolbar.
 5. **Save**, then **Run now**.
 
 You can combine a dashboard card with a result window (or email / Slack). A
-flow can have only one Dashboard destination.
+flow can have only one Dashboard destination. Email and Slack still send when
+you **Run now** or when a schedule fires — not when the home card refreshes.
 
 A good first flow is a focus macro: turn Wi-Fi off, then minimize all windows. Tools that need IDs from a previous search (for example “archive these messages”) still belong in [chat](./chat-surfaces/overview) or a [schedule](./schedules) prompt — the model can pick IDs and call the tool itself.
 

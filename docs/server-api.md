@@ -62,7 +62,7 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `ANY` | `/api/health` | Basic daemon health check. |
 | `GET` | `/api/status` | Chat status: version, default persona, model, integrations, skills. |
 | `GET` | `/api/dashboard` | Aggregator payload for all categories (internal / debug). |
-| `GET` | `/api/dashboard/flow-blocks` | Custom flows with a Dashboard destination (`id`, `title`, `variant`, `showsResultSheet`, …). |
+| `GET` | `/api/dashboard/flow-blocks` | Custom flows with a Dashboard destination (`id`, `title`, `variant`, `refresh`, `showsResultSheet`, …). |
 | `GET` | `/api/dashboard/:category` | Aggregator list for one category, or `null` (not used by home cards). Optional `?fresh=1` bypasses the 60s category cache. |
 | `GET` | `/api/dashboard/:category/content` | Home card **block content** (flow output). `:category` is a built-in id (`email`, `tasks`, `calendar`) or a custom flow id. Preferred. Optional `?fresh=1`. See [dashboard.md](dashboard.md). |
 | `GET` | `/api/dashboard/:category/summary` | Alias of `/content`. |

@@ -19,6 +19,7 @@ struct DashboardLayoutTests {
 				title: title,
 				description: title,
 				variant: variant,
+				refresh: nil,
 				lastRanAt: nil,
 				showsResultSheet: false
 			),
