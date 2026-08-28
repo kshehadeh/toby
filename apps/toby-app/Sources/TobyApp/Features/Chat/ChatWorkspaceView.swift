@@ -13,7 +13,8 @@ struct ChatWorkspaceView: View {
             }
         }
         .background(AppTheme.contentBackground)
-        .onChange(of: store.promptFocusRequestId) { _, _ in
+        .defaultFocus($isPromptFocused, true)
+        .task(id: store.promptFocusRequestId) {
             isPromptFocused = true
         }
     }

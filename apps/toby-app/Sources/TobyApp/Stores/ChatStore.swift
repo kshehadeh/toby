@@ -589,12 +589,16 @@ final class ChatStore {
 	}
 
 	func selectSession(id: String) async {
+		guard !isLoading else { return }
 		guard ChatSessionController.shouldSelectSession(
 			requestedId: id,
 			currentSessionId: sessionId,
 			transcriptIsEmpty: transcript.isEmpty,
 			isLoading: isLoading,
-		) else { return }
+		) else {
+			focusPrompt()
+			return
+		}
 		isSelectingSession = true
 		defer { isSelectingSession = false }
 		do {
@@ -604,6 +608,7 @@ final class ChatStore {
 			applySessionIdentityState(identity)
 			draftPersonaName = nil
 			startExternalSessionRefreshLoop()
+			focusPrompt()
 		} catch {
 			showErrorToast(error.localizedDescription)
 		}

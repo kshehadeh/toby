@@ -564,6 +564,48 @@ struct ChatStoreTests {
         #expect(store.activityLine == "Ready")
     }
 
+    @Test("selectSession focuses the prompt after loading")
+    func selectSessionFocusesPrompt() async {
+        let client = MockChatClient()
+        client.sessionDetails["sess"] = SessionDetail(
+            id: "sess",
+            name: "Existing",
+            transcript: [.user(text: "hi")],
+            messageCount: 1,
+            settings: nil,
+            contextWindow: nil,
+            personaImageUrl: nil,
+            activePlan: nil,
+            integration: nil,
+            integrationIconUrl: nil,
+            externalKey: nil,
+        )
+        let store = ChatStore(client: client)
+        let originalId = store.promptFocusRequestId
+        await store.selectSession(id: "sess")
+        #expect(store.promptFocusRequestId != originalId)
+    }
+
+    @Test("selectSession focuses the prompt when already showing that session")
+    func selectSessionAlreadyShowingFocusesPrompt() async {
+        let store = ChatStore()
+        store.sessionId = "sess"
+        store.transcript = [.user(text: "hi")]
+        let originalId = store.promptFocusRequestId
+        await store.selectSession(id: "sess")
+        #expect(store.promptFocusRequestId != originalId)
+    }
+
+    @Test("selectSession does not steal focus during an active turn")
+    func selectSessionSkipsFocusWhenLoading() async {
+        let store = ChatStore()
+        store.isLoading = true
+        store.sessionId = "sess"
+        let originalId = store.promptFocusRequestId
+        await store.selectSession(id: "other")
+        #expect(store.promptFocusRequestId == originalId)
+    }
+
     @Test("deleteSession uses client and drafts when current session removed")
     func deleteSessionUsesInjectedClient() async {
         let client = MockChatClient()
