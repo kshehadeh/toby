@@ -25,6 +25,11 @@ export type StoredLlmPromptHelpers = {
 	readonly composePersona?: boolean;
 	/** Append enabled skills catalog to the system prompt. Default false. */
 	readonly appendSkillsCatalog?: boolean;
+	/**
+	 * Append the user's current local date/time and timezone to the system
+	 * prompt (rendered per run). Default false.
+	 */
+	readonly appendCurrentDateTime?: boolean;
 };
 
 export type StoredLlmPrompterNode = {

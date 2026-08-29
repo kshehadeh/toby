@@ -1,5 +1,5 @@
 import type { CoreMessage } from "./ai/chat";
-import { getCurrentDateTimeInfo } from "./ai/current-datetime";
+import { currentDateTimePromptSection } from "./ai/current-datetime";
 import { globalChatToolsPromptSection } from "./ai/global-chat-tools";
 import {
 	type UserIntentSpec,
@@ -38,14 +38,8 @@ const CURRENT_DATETIME_START = "<!-- TOBY_DATETIME_START -->";
 const CURRENT_DATETIME_END = "<!-- TOBY_DATETIME_END -->";
 
 function buildCurrentDatetimeAppendix(): string {
-	const now = getCurrentDateTimeInfo();
 	return `\n\n${CURRENT_DATETIME_START}
-## Current date and time
-
-- Local datetime: ${now.localDateTime}
-- Timezone: ${now.timeZone}
-- UTC datetime: ${now.utcDateTime}
-- Unix ms: ${now.unixMs}
+${currentDateTimePromptSection()}
 ${CURRENT_DATETIME_END}`;
 }
 

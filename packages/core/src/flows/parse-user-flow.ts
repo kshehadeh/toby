@@ -107,6 +107,12 @@ function parseNode(raw: unknown): StoredFlowNode | null {
 										appendSkillsCatalog: raw.promptHelpers.appendSkillsCatalog,
 									}
 								: {}),
+							...(typeof raw.promptHelpers.appendCurrentDateTime === "boolean"
+								? {
+										appendCurrentDateTime:
+											raw.promptHelpers.appendCurrentDateTime,
+									}
+								: {}),
 						},
 					}
 				: {}),

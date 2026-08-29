@@ -1,10 +1,48 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { formatLocalTimestampForPrompt } from "@toby/core/ai/current-datetime";
 import { clearDashboardCache } from "@toby/core/dashboard";
+import {
+	buildDashboardSummarySystemPrompt,
+	formatItemsForPrompt,
+} from "@toby/core/dashboard/prompts";
 import {
 	clearDashboardSummaryCache,
 	extractDashboardSummaryText,
 } from "@toby/core/dashboard/summarizer";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
+
+describe("dashboard prompt timezone handling", () => {
+	const persona = {
+		name: "Test",
+		instructions: "",
+		promptMode: "add" as const,
+		ai: { provider: "openai" as const, model: "gpt-4.1-nano" },
+	};
+
+	it("formatItemsForPrompt renders timestamps as local time, not raw ISO", () => {
+		const out = formatItemsForPrompt([
+			{ id: "1", title: "Standup", timestamp: "2026-08-29T14:00:00Z" },
+		]);
+		expect(out).toContain("when:");
+		expect(out).not.toContain("2026-08-29T14:00:00Z");
+		expect(out).toContain("2026");
+	});
+
+	it("formatLocalTimestampForPrompt leaves date-only and invalid values unchanged", () => {
+		expect(formatLocalTimestampForPrompt("2026-08-29")).toBe("2026-08-29");
+		expect(formatLocalTimestampForPrompt("not a date")).toBe("not a date");
+		expect(formatLocalTimestampForPrompt("")).toBe("");
+	});
+
+	it("legacy dashboard system prompt includes the local timezone section", () => {
+		const out = buildDashboardSummarySystemPrompt(
+			"Summarize my upcoming calendar events.",
+			persona,
+		);
+		expect(out).toContain("## Current date and time");
+		expect(out).toContain("- Timezone:");
+	});
+});
 
 describe("dashboard summarizer", () => {
 	beforeEach(() => {

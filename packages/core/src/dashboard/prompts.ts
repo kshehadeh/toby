@@ -1,3 +1,7 @@
+import {
+	currentDateTimePromptSection,
+	formatLocalTimestampForPrompt,
+} from "../ai/current-datetime";
 import type { Persona } from "../config/index";
 import { readConfig } from "../config/index";
 import { resolveDefaultPersona, resolvePersona } from "../personas/index";
@@ -40,7 +44,9 @@ export function formatItemsForPrompt(items: readonly DashboardItem[]): string {
 			const title = item.title || "(untitled)";
 			const subtitle = item.subtitle ? `\n   ${item.subtitle}` : "";
 			const detail = item.detail ? `\n   ${item.detail}` : "";
-			const time = item.timestamp ? `\n   when: ${item.timestamp}` : "";
+			const time = item.timestamp
+				? `\n   when: ${formatLocalTimestampForPrompt(item.timestamp)}`
+				: "";
 			const urgency = item.urgency ? `\n   urgency: ${item.urgency}` : "";
 			return `${idx + 1}. ${title}${subtitle}${detail}${time}${urgency}`;
 		})
@@ -74,7 +80,11 @@ Format:
 - Use **bold** for names, subjects, deadlines, and other key items the user should notice.
 - Use bullet points for lists of items.
 - Use a \`## \` sub-heading to separate "Needs attention" from "Worth mentioning" when appropriate.
-- Keep the total response concise (5-6 sentences). Do not over-format — use markdown only where it genuinely aids readability.`;
+- Keep the total response concise (5-6 sentences). Do not over-format — use markdown only where it genuinely aids readability.
+
+${currentDateTimePromptSection()}
+
+All event times must be written in the user's local timezone above (never UTC or raw ISO strings).`;
 
 	return composeSystemPromptWithPersona(base, persona);
 }

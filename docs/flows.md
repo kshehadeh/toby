@@ -144,8 +144,9 @@ Calls the flow persona’s model once with **structured** output (Zod →
   systemPrompt: "You are …",   // template string
   userPrompt: "Here are the items:\n\n{{dashboardItems bag.unread}}",
   promptHelpers: {
-    composePersona: true,       // wrap with persona instructions
-    appendSkillsCatalog: false, // dashboard seeds omit skills (avoids meta leak)
+    composePersona: true,        // wrap with persona instructions
+    appendSkillsCatalog: false,  // dashboard seeds omit skills (avoids meta leak)
+    appendCurrentDateTime: true, // append local date/time + timezone (per run)
   },
   inputs: { data: { from: "unread" } },
   outputs: { summary: "object" },
@@ -164,8 +165,13 @@ Calls the flow persona’s model once with **structured** output (Zod →
 | `{{dashboardItems bag.<key>}}` | Format dashboard tool-result items for the model |
 | `{{inputs.<name>}}` | Resolved node input value |
 
-After template render, optional **promptHelpers** apply persona composition and
-skills catalog (same behavior dashboard summaries used when prompts were code).
+After template render, optional **promptHelpers** apply persona composition,
+skills catalog, and a current date/time + timezone section (same behavior
+dashboard summaries used when prompts were code). `appendCurrentDateTime`
+renders per run and appends the user's local timezone so models can write
+wall-clock times instead of echoing the UTC ISO timestamps carried by
+dashboard items (item `when:` lines are already pre-formatted to local time
+by `{{dashboardItems ...}}` / `formatItemsForPrompt`).
 
 Hydration turns templates into runtime prompt functions. **Node result:**
 `{ object: <parsed schema> }`. **Default outputs:** `{ object: "object" }`.

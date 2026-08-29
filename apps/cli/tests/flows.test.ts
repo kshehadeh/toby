@@ -18,6 +18,7 @@ import {
 	loadFlowRecord,
 	removeFlowDocument,
 	renderFlowPromptTemplate,
+	renderStoredSystemPrompt,
 	resolveNodeInputs,
 	runFlowDefinition,
 	saveFlowDocument,
@@ -161,6 +162,37 @@ describe("prompt templates", () => {
 		expect(out).toContain('"count": 1');
 		expect(out).toContain("bag:\nx");
 		expect(out).toContain('in:\n{"count":1}');
+	});
+
+	it("appendCurrentDateTime helper injects the local timezone section", () => {
+		const out = renderStoredSystemPrompt(
+			"You are a summarizer.",
+			{ composePersona: false, appendCurrentDateTime: true },
+			{ persona, bag: {}, inputs: {} },
+		);
+		expect(out).toContain("## Current date and time");
+		expect(out).toContain("- Timezone:");
+		expect(out).toContain("local timezone");
+	});
+
+	it("appendCurrentDateTime defaults to off", () => {
+		const out = renderStoredSystemPrompt("You are a summarizer.", undefined, {
+			persona,
+			bag: {},
+			inputs: {},
+		});
+		expect(out).toBe("You are a summarizer.");
+	});
+
+	it("calendar dashboard summary flow injects timezone via promptHelpers", () => {
+		const flow = hydrateFlowDocument(calendarDashboardSummaryDocument);
+		const llm = flow.nodes[1];
+		if (llm?.type !== "llm_prompter") {
+			throw new Error("expected llm_prompter node");
+		}
+		const system = llm.systemPrompt({ persona, bag: {}, inputs: {} });
+		expect(system).toContain("## Current date and time");
+		expect(system).toContain("- Timezone:");
 	});
 });
 

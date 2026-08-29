@@ -1,3 +1,4 @@
+import { currentDateTimePromptSection } from "../ai/current-datetime";
 import type { Persona } from "../config/index";
 import { formatItemsForPrompt } from "../dashboard/prompts";
 import { composeSystemPromptWithPersona } from "../personas/prompt";
@@ -85,6 +86,9 @@ export function applySystemPromptHelpers(
 		if (skillsCatalogText !== "(none)") {
 			out = `${out}\n\nAvailable skills (apply relevant context from these):\n${skillsCatalogText}`;
 		}
+	}
+	if (helpers?.appendCurrentDateTime) {
+		out = `${out}\n\n${currentDateTimePromptSection()}\n\nAll event times must be written in the user's local timezone above (never UTC or raw ISO strings).`;
 	}
 	return out;
 }

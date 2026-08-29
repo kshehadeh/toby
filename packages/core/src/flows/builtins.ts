@@ -30,6 +30,9 @@ const DASHBOARD_PROMPT_HELPERS = {
 	// Skills belong in interactive chat, not short dashboard blurbs. Injecting
 	// the catalog pulls reasoning models into skill formatting / meta output.
 	appendSkillsCatalog: false,
+	// Dashboard items carry UTC ISO timestamps; the summarizer needs the
+	// user's local timezone to render wall-clock times in the card.
+	appendCurrentDateTime: true,
 } as const;
 
 function dashboardSummaryFlow(params: {
