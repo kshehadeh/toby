@@ -4,6 +4,7 @@ struct FlowEditorDraft: Equatable {
 	var existingId: String?
 	var name: String
 	var description: String
+	var icon: String
 	var personaName: String
 	var nodes: [FlowEditorNode]
 	var destinations: [FlowEditorDestination]
@@ -15,6 +16,7 @@ struct FlowEditorDraft: Equatable {
 			existingId: nil,
 			name: "Untitled flow",
 			description: "",
+			icon: FlowIconOption.defaultSymbol,
 			personaName: "",
 			nodes: [],
 			destinations: [FlowEditorDestination.modal()]
@@ -33,6 +35,7 @@ struct FlowEditorDraft: Equatable {
 			existingId: document.id,
 			name: document.name,
 			description: document.description ?? "",
+			icon: FlowIconOption.resolvedSymbol(document.icon),
 			personaName: personaName,
 			nodes: document.nodes.map(FlowEditorNode.init(stored:)),
 			destinations: destinations.isEmpty ? [FlowEditorDestination.modal()] : destinations
@@ -42,6 +45,7 @@ struct FlowEditorDraft: Equatable {
 	func jsonBody() -> [String: Any] {
 		var body: [String: Any] = [
 			"name": name.trimmingCharacters(in: .whitespacesAndNewlines),
+			"icon": FlowIconOption.resolvedSymbol(icon),
 			"nodes": nodes.map { $0.jsonBody() },
 			"destinations": destinations.map { $0.jsonBody() },
 		]

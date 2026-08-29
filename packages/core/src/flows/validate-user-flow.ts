@@ -6,6 +6,7 @@ import type {
 	StoredLlmPrompterNode,
 	StoredToolExecutorNode,
 } from "./document-types";
+import { isFlowIconSymbol } from "./flow-icons";
 import type { FlowInputSource, ToolRef } from "./types";
 
 export type FlowCatalogTool = {
@@ -242,6 +243,7 @@ export function validateUserFlowDocument(
 	const issues: string[] = [];
 	const id = document.id.trim();
 	const name = document.name.trim();
+	const icon = document.icon?.trim();
 
 	if (!id) {
 		issues.push("Flow must have an id");
@@ -250,6 +252,9 @@ export function validateUserFlowDocument(
 	}
 	if (!name) {
 		issues.push("Flow must have a name");
+	}
+	if (icon !== undefined && !isFlowIconSymbol(icon)) {
+		issues.push(`Icon "${icon}" is not a supported flow icon`);
 	}
 	if (document.nodes.length === 0) {
 		issues.push("Flow must have at least one node");
@@ -308,6 +313,7 @@ export function validateUserFlowDocument(
 		...document,
 		id,
 		name,
+		...(icon ? { icon } : {}),
 		destinations,
 		...(document.result
 			? {

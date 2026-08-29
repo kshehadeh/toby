@@ -27,6 +27,13 @@ export type {
 } from "./types";
 export { FlowNodeError } from "./types";
 
+export {
+	DEFAULT_CUSTOM_FLOW_ICON,
+	FLOW_ICON_SYMBOLS,
+	isFlowIconSymbol,
+} from "./flow-icons";
+export type { FlowIconSymbol } from "./flow-icons";
+
 export type {
 	FlowDashboardRefresh,
 	FlowDashboardVariant,

@@ -34,6 +34,7 @@ function withTempTobyDir(run: () => void | Promise<void>): Promise<void> {
 const llmOnlyBody = {
 	name: "Status note",
 	description: "Write a line",
+	icon: "  sparkles  ",
 	nodes: [
 		{
 			id: "note",
@@ -118,6 +119,7 @@ describe("user flow HTTP API", () => {
 				flow: {
 					id: string;
 					name: string;
+					icon: string | null;
 					builtin: boolean;
 					destinations: Array<{ type: string }>;
 				};
@@ -125,7 +127,19 @@ describe("user flow HTTP API", () => {
 			expect(body.flow.id.startsWith("flow.")).toBe(true);
 			expect(body.flow.builtin).toBe(false);
 			expect(body.flow.name).toBe("Status note");
+			expect(body.flow.icon).toBe("sparkles");
 			expect(body.flow.destinations).toEqual([{ type: "modal" }]);
+
+			const list = await handleWebRequest(
+				new Request("http://127.0.0.1/api/flows"),
+				null,
+			);
+			const listBody = (await list.json()) as {
+				flows: Array<{ id: string; icon: string | null }>;
+			};
+			expect(
+				listBody.flows.find((flow) => flow.id === body.flow.id)?.icon,
+			).toBe("sparkles");
 
 			const detail = await handleWebRequest(
 				new Request(`http://127.0.0.1/api/flows/${body.flow.id}`),
@@ -133,11 +147,31 @@ describe("user flow HTTP API", () => {
 			);
 			expect(detail.status).toBe(200);
 			const detailBody = (await detail.json()) as {
-				document: { nodes: Array<{ systemPrompt?: string }> };
+				document: {
+					icon?: string;
+					nodes: Array<{ systemPrompt?: string }>;
+				};
 			};
+			expect(detailBody.document.icon).toBe("sparkles");
 			expect(detailBody.document.nodes[0]?.systemPrompt).toBe(
 				"Write one sentence.",
 			);
+		});
+	});
+
+	it("POST /api/flows rejects unsupported icons", async () => {
+		await withTempTobyDir(async () => {
+			const res = await handleWebRequest(
+				new Request("http://127.0.0.1/api/flows", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ ...llmOnlyBody, icon: "not.a.symbol" }),
+				}),
+				null,
+			);
+			expect(res.status).toBe(400);
+			const body = (await res.json()) as { issues: string[] };
+			expect(body.issues.join(" ")).toMatch(/not a supported flow icon/);
 		});
 	});
 

@@ -18,6 +18,7 @@ struct DashboardLayoutTests {
 				flowId: id,
 				title: title,
 				description: title,
+				icon: nil,
 				variant: variant,
 				refresh: nil,
 				lastRanAt: nil,

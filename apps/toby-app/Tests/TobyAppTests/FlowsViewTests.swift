@@ -16,6 +16,7 @@ struct FlowsViewTests {
 			id: id,
 			name: name ?? id,
 			description: description,
+			icon: builtin ? nil : "flame",
 			builtin: builtin,
 			persona: FlowPersonaSpec(source: "dashboard", name: nil),
 			nodes: [
@@ -180,6 +181,7 @@ struct FlowsViewTests {
 			"id": "dashboard.email.summary",
 			"name": "dashboard.email.summary",
 			"description": "Fetch unread inbox items",
+			"icon": "sparkles",
 			"builtin": true,
 			"persona": { "source": "dashboard" },
 			"nodes": [
@@ -197,6 +199,8 @@ struct FlowsViewTests {
 		let item = try JSONDecoder().decode(FlowListItem.self, from: json)
 		#expect(item.id == "dashboard.email.summary")
 		#expect(item.builtin == true)
+		#expect(item.icon == "sparkles")
+		#expect(item.systemImage == "sparkles")
 		#expect(item.nodes.count == 1)
 		#expect(item.nodes[0].type == "tool_executor")
 		#expect(item.nodes[0].tool?.standardTool == "email.unreadSummary")
@@ -244,6 +248,21 @@ struct FlowsViewTests {
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-persona")
 		}
+	}
+
+	@Test("editor shows curated icon picker")
+	func editorShowsCuratedIconPicker() throws {
+		let store = FlowsStore()
+		var draft = FlowEditorDraft.blank()
+		draft.nodes = [FlowEditorNode.llm()]
+		let view = FlowEditorView(
+			store: store,
+			draft: .constant(draft)
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-icon")
+		}
+		#expect(FlowIconOption.all.contains { $0.symbol == "sparkles" })
 	}
 
 	@Test("dashboard destination summary and editor payload")
@@ -363,11 +382,30 @@ struct FlowsViewTests {
 		draft.nodes = [node]
 		let body = draft.jsonBody()
 		#expect(body["name"] as? String == "Focus mode")
+		#expect(body["icon"] as? String == FlowIconOption.defaultSymbol)
 		let nodes = body["nodes"] as? [[String: Any]]
 		#expect(nodes?.count == 1)
 		let inputs = nodes?.first?["inputs"] as? [String: Any]
 		let enabled = inputs?["enabled"] as? [String: Any]
 		#expect(enabled?["const"] as? Bool == false)
+	}
+
+	@Test("editor draft preserves a stored curated icon")
+	func editorDraftPreservesStoredIcon() {
+		let document = FlowDocumentPayload(
+			id: "flow.focus",
+			name: "Focus mode",
+			description: "Prepare for deep work",
+			icon: "flame",
+			persona: nil,
+			nodes: [],
+			result: nil,
+			destinations: nil
+		)
+		let draft = FlowEditorDraft.from(document: document)
+		#expect(draft.icon == "flame")
+		#expect(draft.jsonBody()["icon"] as? String == "flame")
+		#expect(FlowIconOption.resolvedSymbol("not.a.symbol") == FlowIconOption.defaultSymbol)
 	}
 
 	@Test("flow run summary decodes from JSON")

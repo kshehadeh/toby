@@ -87,6 +87,24 @@ describe("validateUserFlowDocument", () => {
 		expect(normalized.name).toBe("Focus mode");
 	});
 
+	it("accepts curated flow icons and rejects unsupported symbols", () => {
+		const normalized = validateUserFlowDocument(
+			wifiThenMinimize({ icon: "flame" }),
+			{
+				tools: catalog,
+				connectedModules: connected,
+			},
+		);
+		expect(normalized.icon).toBe("flame");
+
+		expect(() =>
+			validateUserFlowDocument(wifiThenMinimize({ icon: "not.a.symbol" }), {
+				tools: catalog,
+				connectedModules: connected,
+			}),
+		).toThrow(/not a supported flow icon/);
+	});
+
 	it("rejects bag wiring on a tool input", () => {
 		const doc = wifiThenMinimize({
 			nodes: [

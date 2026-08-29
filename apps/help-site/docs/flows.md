@@ -49,7 +49,9 @@ Built-in flows are labeled and are **read-only** in the UI.
 
 Choose **New flow** from the Flows sidebar or the toolbar.
 
-1. Give the flow a name.
+1. Give the flow a name and choose an icon from Toby's SF Symbol picker. The
+   icon identifies the flow throughout Flows, schedules, and Home dashboard
+   cards or action buttons.
 2. Add **steps**. Each step is either a **tool** (one action from a connected integration) or a final **LLM** step that writes markdown.
 3. For tools that need arguments (for example “Wi-Fi on/off”), fill those values when you build the flow. Steps do not pass data into later **tools** — that kind of mapping is not available yet.
 4. Choose **what happens when it finishes**:

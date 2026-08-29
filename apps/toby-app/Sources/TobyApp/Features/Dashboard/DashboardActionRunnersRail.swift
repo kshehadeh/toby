@@ -64,7 +64,7 @@ struct DashboardActionRunnerRow: View {
 							.controlSize(.small)
 							.frame(width: 16, height: 16)
 					} else {
-						Image(systemName: "play.circle")
+						Image(systemName: block.systemImage)
 							.font(.system(size: 14, weight: .semibold))
 							.foregroundStyle(AppTheme.accent)
 							.frame(width: 16, height: 16)

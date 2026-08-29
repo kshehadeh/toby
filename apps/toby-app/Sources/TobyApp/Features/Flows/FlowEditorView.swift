@@ -69,10 +69,31 @@ struct FlowEditorView: View {
 				.textFieldStyle(.roundedBorder)
 			TextField("Description (optional)", text: $draft.description)
 				.textFieldStyle(.roundedBorder)
+			iconPicker
 			if draft.nodes.contains(where: \.isLLM) {
 				personaPicker
 			}
 		}
+	}
+
+	private var iconPicker: some View {
+		HStack(spacing: 10) {
+			Image(systemName: FlowIconOption.resolvedSymbol(draft.icon))
+				.font(.system(size: 16, weight: .semibold))
+				.foregroundStyle(AppTheme.accent)
+				.frame(width: 24, height: 24)
+				.accessibilityHidden(true)
+			Picker("Icon", selection: $draft.icon) {
+				ForEach(FlowIconOption.all) { option in
+					Label(option.label, systemImage: option.symbol)
+						.tag(option.symbol)
+				}
+			}
+			.pickerStyle(.menu)
+			.controlSize(.regular)
+			.accessibilityIdentifier("flow-editor-icon")
+		}
+		.frame(maxWidth: 280, alignment: .leading)
 	}
 
 	private var personaPicker: some View {

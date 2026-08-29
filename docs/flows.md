@@ -6,8 +6,9 @@ sequence of steps: home dashboard card **bodies**, custom macros, and
 **scheduled runs**.
 
 **Definitions** are stored in SQLite (`flows` table in `~/.toby/chat.sqlite`) as
-JSON documents. Built-in dashboard flows are seeded from code on first lookup
-if missing. **Executions** are stored separately (`flow_runs` /
+JSON documents. A custom definition may include an `icon` containing one of
+Toby's curated SF Symbol names. Built-in dashboard flows are seeded from code
+on first lookup if missing. **Executions** are stored separately (`flow_runs` /
 `flow_run_nodes`).
 
 Flows are **not** the chat turn pipeline. They have no pretreatment, message
@@ -367,7 +368,7 @@ Per node: resolved **inputs**, bag **outputs**, **duration_ms**,
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/flows` | Flow list for the app UI (`id`, `name`, `description`, `builtin`, `persona`, node graph snapshot, `result`, `destinations`, timestamps); seeds built-ins |
+| `GET` | `/api/flows` | Flow list for the app UI (`id`, `name`, `description`, `icon`, `builtin`, `persona`, node graph snapshot, `result`, `destinations`, timestamps); seeds built-ins |
 | `POST` | `/api/flows` | Create a custom flow (server mints `flow.<uuid>`) |
 | `GET` | `/api/flows/catalog` | Connected plugin tools including `inputSchema` |
 | `GET` | `/api/flows/:id` | List item + stored `document` (prompts, destinations) |
@@ -396,8 +397,11 @@ Modal is UI-only: the run response includes `result` for the app to display.
 
 The main window **Flows** surface (`DetailRoute.flows`) lists definitions in the
 sidebar, shows a card home for all flows, and opens detail with node steps and
-recent runs. **New flow** opens a step-list editor (tool picker, const inputs,
-optional last LLM, destinations). Custom flows can be edited, deleted, and
+recent runs. **New flow** opens a step-list editor (name, curated SF Symbol
+icon, tool picker, const inputs, optional last LLM, destinations). The selected
+icon follows the custom flow into Flows, schedules, and custom home dashboard
+cards or action runners. Documents without an icon retain the existing
+category-derived or generic fallback. Custom flows can be edited, deleted, and
 **Run now**. Built-in flows stay read-only. A successful interactive run with a
 modal destination opens a result sheet.
 

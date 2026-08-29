@@ -7,6 +7,7 @@ struct FlowListItem: Decodable, Identifiable, Equatable {
 	let id: String
 	let name: String
 	let description: String?
+	let icon: String?
 	let builtin: Bool
 	let persona: FlowPersonaSpec?
 	let nodes: [FlowNodeSnapshot]
@@ -46,6 +47,9 @@ struct FlowListItem: Decodable, Identifiable, Equatable {
 	}
 
 	var systemImage: String {
+		if let icon, FlowIconOption.all.contains(where: { $0.symbol == icon }) {
+			return icon
+		}
 		if id.contains("email") { return "envelope" }
 		if id.contains("task") { return "checklist" }
 		if id.contains("calendar") { return "calendar" }
@@ -590,6 +594,7 @@ struct FlowDocumentPayload: Decodable, Equatable {
 	let id: String
 	let name: String
 	let description: String?
+	let icon: String?
 	let persona: FlowPersonaSpec?
 	let nodes: [FlowStoredNode]
 	let result: FlowResultPointer?

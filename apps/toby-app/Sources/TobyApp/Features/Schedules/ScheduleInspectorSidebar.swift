@@ -108,7 +108,10 @@ struct ScheduleInspectorSidebar: View {
                 Picker("Flow", selection: flowBinding) {
                     Text("Select a flow").tag("(none)")
                     ForEach(store.flowOptions) { flow in
-                        Text(flow.builtin ? "\(flow.displayName) (built-in)" : flow.displayName)
+                        Label(
+                            flow.builtin ? "\(flow.displayName) (built-in)" : flow.displayName,
+                            systemImage: flow.systemImage
+                        )
                             .tag(flow.id)
                     }
                 }

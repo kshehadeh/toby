@@ -24,6 +24,7 @@ const runnerDoc: FlowDocument = {
 	id: "flow.test.runner",
 	name: "Focus mode",
 	description: "Turn off Wi-Fi",
+	icon: "flame",
 	destinations: [{ type: "dashboard", variant: "runner" }],
 	nodes: [
 		{
@@ -149,6 +150,8 @@ describe("listFlowDashboardBlocks", () => {
 		expect(blocks[0]?.showsResultSheet).toBe(true);
 		expect(blocks[1]?.showsResultSheet).toBe(false);
 		expect(blocks[2]?.title).toBe("Focus mode");
+		expect(blocks[2]?.icon).toBe("flame");
+		expect(blocks[1]?.icon).toBeNull();
 	});
 
 	it("resolves explicit informational refresh on the list payload", () => {

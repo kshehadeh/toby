@@ -86,6 +86,7 @@ struct SchedulesViewTests {
 				id: "dashboard.email",
 				name: "Email summary",
 				description: "Unread mail blurb",
+				icon: "sparkles",
 				builtin: true,
 				persona: nil,
 				nodes: [],

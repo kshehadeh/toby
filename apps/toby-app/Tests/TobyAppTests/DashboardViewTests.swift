@@ -721,6 +721,7 @@ struct DashboardFlowBlocksTests {
 		title: String,
 		description: String?,
 		variant: String,
+		icon: String? = nil,
 		showsResultSheet: Bool = false
 	) -> FlowDashboardBlockInfo {
 		FlowDashboardBlockInfo(
@@ -728,6 +729,7 @@ struct DashboardFlowBlocksTests {
 			flowId: id,
 			title: title,
 			description: description,
+			icon: icon,
 			variant: variant,
 			refresh: nil,
 			lastRanAt: nil,
@@ -743,6 +745,7 @@ struct DashboardFlowBlocksTests {
 			"flowId": "flow.abc",
 			"title": "Focus mode",
 			"description": "Turn off Wi-Fi",
+			"icon": "flame",
 			"variant": "runner",
 			"refresh": "manual",
 			"lastRanAt": "2026-08-15T12:00:00Z",
@@ -754,6 +757,7 @@ struct DashboardFlowBlocksTests {
 		#expect(info.isRunner)
 		#expect(info.refresh == "manual")
 		#expect(info.description == "Turn off Wi-Fi")
+		#expect(info.icon == "flame")
 		#expect(info.showsResultSheet == false)
 
 		let withoutRefresh = """
@@ -772,7 +776,13 @@ struct DashboardFlowBlocksTests {
 	@Test("flow descriptor marks runner vs informational")
 	func flowDescriptorMarksVariants() {
 		let runner = DashboardBlockDescriptor.flow(
-			flowInfo(id: "flow.run", title: "Focus mode", description: "Turn off Wi-Fi", variant: "runner"),
+			flowInfo(
+				id: "flow.run",
+				title: "Focus mode",
+				description: "Turn off Wi-Fi",
+				variant: "runner",
+				icon: "flame"
+			),
 			sortIndex: 100
 		)
 		#expect(runner.isFlowBlock)
@@ -780,7 +790,7 @@ struct DashboardFlowBlocksTests {
 		#expect(runner.title == "Focus mode")
 		#expect(runner.flowDescription == "Turn off Wi-Fi")
 		#expect(runner.accessibilityIdentifier == "dashboard-flow-flow.run")
-		#expect(runner.systemImage == "play.circle")
+		#expect(runner.systemImage == "flame")
 
 		let info = DashboardBlockDescriptor.flow(
 			flowInfo(id: "flow.info", title: "Status", description: "Latest", variant: "informational"),
@@ -788,6 +798,7 @@ struct DashboardFlowBlocksTests {
 		)
 		#expect(info.isFlowBlock)
 		#expect(!info.isFlowRunner)
+		#expect(info.systemImage == FlowIconOption.defaultSymbol)
 	}
 
 	@Test("registry syncs flow cards without dropping built-ins")
@@ -838,7 +849,13 @@ struct DashboardFlowBlocksTests {
 	func runnerRowShowsTitleAsAction() throws {
 		let block = CategoryDashboardBlock(
 			descriptor: .flow(
-				flowInfo(id: "flow.run", title: "Focus mode", description: "Turn off Wi-Fi", variant: "runner"),
+				flowInfo(
+					id: "flow.run",
+					title: "Focus mode",
+					description: "Turn off Wi-Fi",
+					variant: "runner",
+					icon: "flame"
+				),
 				sortIndex: 100
 			)
 		)
@@ -850,6 +867,8 @@ struct DashboardFlowBlocksTests {
 		#expect(throws: Never.self) {
 			try row.inspect().find(viewWithAccessibilityIdentifier: "dashboard-flow-run-flow.run")
 		}
+		let image = try row.inspect().find(ViewType.Image.self)
+		#expect(try image.actualImage().name() == "flame")
 		#expect(throws: (any Error).self) {
 			try row.inspect().find(text: "Run Now")
 		}

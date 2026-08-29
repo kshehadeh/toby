@@ -176,6 +176,9 @@ export function parseUserFlowDocumentBody(
 		...(typeof body.description === "string"
 			? { description: body.description }
 			: {}),
+		...(typeof body.icon === "string" && body.icon.trim()
+			? { icon: body.icon.trim() }
+			: {}),
 		...(persona ? { persona } : {}),
 		nodes,
 		...(result ? { result } : {}),
