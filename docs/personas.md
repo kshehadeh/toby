@@ -19,7 +19,7 @@ Built-in images live in [`packages/core/assets/personas/`](../packages/core/asse
 
 | Persona | Role | Instructions contract |
 | ------- | ---- | --------------------- |
-| **Toby** | General productivity | Focus, grounding, missing-context, format; optional labels News / Ads / Personal / Career / Creative |
+| **Toby** | General productivity | Focus, grounding, missing-context, format (including markdown images for visual items); optional labels News / Ads / Personal / Career / Creative |
 | **Mailman** | Inbox triage | Same grounding; priorities Needs attention / Worth noting / Ignore; labels Personal / Work / Financial / Home / Travel / Accounts / Promotions |
 
 Do not put integration-specific tool policy in these prompts. Those rules belong on the integration / combined chat base prompt.

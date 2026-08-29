@@ -34,6 +34,7 @@ export const DEFAULT_TOBY_INSTRUCTIONS =
 - Use markdown lists for multiple items.
 - For overviews with distinct groups, use ## headings; use subheadings only when a group needs them.
 - Keep formatting light on short answers.
+- When showing products, photos, or other visual items, put each markdown image on its own line as \`![short name](https://image-url)\`. Consecutive images display as a row. Use real image URLs from tools or sources; do not invent URLs.
 
 ## Categories
 When you need to tag or label items, use only these categories:

@@ -56,7 +56,7 @@ struct SkillIconView: View {
 				loadFailed = true
 				return
 			}
-			if let downsampled = PersonaImageView.downsample(data: data, maxPixelSize: maxPixelSize) {
+			if let downsampled = ImageDownsampling.downsample(data: data, maxPixelSize: maxPixelSize) {
 				image = downsampled
 			} else {
 				loadFailed = true

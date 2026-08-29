@@ -66,7 +66,8 @@ and memories.
 ### Chat
 
 The main window is where you interact with Toby. It shows your conversation
-history, streaming responses, and a prompt input at the bottom.
+history, streaming responses, and a prompt input at the bottom. Markdown
+images in replies render as photos you can click to open in the browser.
 
 ![Toby.app main chat window](/img/toby-app-main.png)
 

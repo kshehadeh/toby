@@ -68,7 +68,9 @@ struct TableCell: View {
 
 	@ViewBuilder
 	private var cellText: some View {
-		if let strong = strongForegroundStyle {
+		if let image = MarkdownParser.singleImage(from: text) {
+			MarkdownRemoteImageCard(image: image, metrics: .compact, compact: true)
+		} else if let strong = strongForegroundStyle {
 			InlineMarkdownText(
 				text: text,
 				baseForeground: foregroundStyle,

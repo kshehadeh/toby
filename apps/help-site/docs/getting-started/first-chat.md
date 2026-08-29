@@ -21,6 +21,8 @@ Type your message in the input field at the bottom and press **Enter** to send. 
 
 ![Toby.app chat with a simple prompt and streaming response](/img/toby-app-chat-example.png)
 
+When a reply includes a markdown image (`![name](https://…)`), such as a product photo in a recommendation, Toby shows the picture inline. Click the picture to open it (or the linked page) in your browser.
+
 Toby can also answer questions about its own setup. Try prompts like "Which integrations are connected?", "What tools can you use?", "How do I set up Jira?", or "What skills are installed?"
 
 ## Switch personas

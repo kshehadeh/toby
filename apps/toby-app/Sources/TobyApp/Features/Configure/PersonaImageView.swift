@@ -44,7 +44,7 @@ struct PersonaImageView: View {
 	private var defaultPersonaImage: some View {
 		if let bundled = Bundle.tobyResources.url(forResource: "default-persona", withExtension: "png"),
 			let data = try? Data(contentsOf: bundled),
-			let downsampled = PersonaImageView.downsample(data: data, maxPixelSize: maxPixelSize)
+			let downsampled = ImageDownsampling.downsample(data: data, maxPixelSize: maxPixelSize)
 		{
 			return AnyView(
 				Image(nsImage: downsampled)
@@ -76,7 +76,7 @@ struct PersonaImageView: View {
 				loadFailed = true
 				return
 			}
-			if let downsampled = PersonaImageView.downsample(data: data, maxPixelSize: maxPixelSize) {
+			if let downsampled = ImageDownsampling.downsample(data: data, maxPixelSize: maxPixelSize) {
 				image = downsampled
 			} else {
 				loadFailed = true
@@ -84,25 +84,5 @@ struct PersonaImageView: View {
 		} catch {
 			loadFailed = true
 		}
-	}
-
-	/// Downsample image data to a target max pixel dimension using CGImageSource thumbnails.
-	/// Produces sharper results than `.resizable()` scaling alone and avoids loading full-res bitmaps.
-	static func downsample(data: Data, maxPixelSize: CGFloat) -> NSImage? {
-		guard let source = CGImageSourceCreateWithData(data as CFData, [
-			kCGImageSourceShouldCache: false,
-		] as CFDictionary) else {
-			return nil
-		}
-		let options: [CFString: Any] = [
-			kCGImageSourceCreateThumbnailFromImageAlways: true,
-			kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
-			kCGImageSourceCreateThumbnailWithTransform: true,
-			kCGImageSourceShouldCacheImmediately: true,
-		]
-		guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
-			return nil
-		}
-		return NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
 	}
 }

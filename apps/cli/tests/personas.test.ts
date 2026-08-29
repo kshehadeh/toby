@@ -54,6 +54,8 @@ describe("default Toby instructions", () => {
 		expect(DEFAULT_TOBY_INSTRUCTIONS).toContain("## Grounding");
 		expect(DEFAULT_TOBY_INSTRUCTIONS).toContain("## Missing context");
 		expect(DEFAULT_TOBY_INSTRUCTIONS).toContain("## Productivity");
+		expect(DEFAULT_TOBY_INSTRUCTIONS).toContain("## Format");
+		expect(DEFAULT_TOBY_INSTRUCTIONS).toContain("markdown image");
 		expect(DEFAULT_TOBY_INSTRUCTIONS).toMatch(/Do not invent/i);
 		expect(DEFAULT_TOBY_INSTRUCTIONS).toMatch(/ask one focused question/i);
 		expect(DEFAULT_TOBY_INSTRUCTIONS).toContain("## Categories");
