@@ -154,6 +154,7 @@ struct ICloudSyncSettingsTests {
 		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-push")
 		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-pull")
 		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-disable")
+		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "database-backups-enabled")
 	}
 }
 

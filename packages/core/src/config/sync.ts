@@ -77,6 +77,15 @@ export {
 } from "./sync-engine";
 export { runConfigSyncLoop } from "./sync-loop";
 export {
+	createDatabaseSyncBackup,
+	listDatabaseSyncBackups,
+	restoreDatabaseSyncBackup,
+	runDatabaseBackupTick,
+	setDatabaseBackupsEnabled,
+	shouldCreateDatabaseSyncBackup,
+	type DatabaseSyncBackupInfo,
+} from "./database-sync-backups";
+export {
 	SYNC_DEBOUNCE_MS,
 	clearSyncDirty,
 	isSyncDirty,

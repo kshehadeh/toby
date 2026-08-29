@@ -19,8 +19,8 @@ Same payload as [backup/restore](security.md#backup-and-restore):
 
 | Included | Not included |
 | -------- | ------------ |
-| `config.json` (personas, connection flags, AI/listen/inbound/search/weather prefs) | `chat.sqlite` (sessions, **schedules**, **flows**) |
-| Full credentials bag (AI keys, plugin tokens) | `memory.sqlite`, recordings, logs |
+| `config.json` (personas, connection flags, AI/listen/inbound/search/weather prefs) | Live multi-Mac database sync |
+| Full credentials bag (AI keys, plugin tokens) | Recordings, logs |
 | | `~/.toby/skills/`, persona image files, plugin packages |
 | | App `UserDefaults` (theme, menu bar, `TOBY_DIR`) |
 
@@ -135,6 +135,24 @@ when Drive is unavailable is refused; choose a folder instead.
 
 `POST /api/config/sync/enable` accepts optional `backend` (`icloud` \| `folder`)
 and `folderPath` (required for folder). CLI: `toby config sync enable --dir <path>`.
+
+## Database backups
+
+Database data is deliberately **not** added to the settings vault: a
+last-write-wins live sync could discard newer chats or memories from another
+Mac. Instead, opt in under **Settings → Sync → Database backups** to write one
+encrypted snapshot per day, retaining the latest 10 per Mac:
+
+```
+<sync vault>/database-backups/<device-id>/<utc>.json
+```
+
+Snapshots contain `chat.sqlite` (chats, projects, schedules, flows, run
+history) and `memory.sqlite`. They use the same sync password and transport
+but a distinct `toby.database.backup.encrypted` envelope. They are never
+pulled or applied automatically; restore is an explicit whole-database
+replacement followed by a daemon restart. CLI:
+`toby config sync backup-data enable|disable|now|list|restore`.
 
 ## Tests
 

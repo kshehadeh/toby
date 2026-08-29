@@ -34,6 +34,7 @@ type LoadedChatSession = {
 
 type SqliteDb = {
 	exec: (sql: string) => void;
+	serialize: () => Uint8Array;
 	query: (sql: string) => {
 		run: (params?: Record<string, unknown>) => unknown;
 		get: (params?: Record<string, unknown>) => unknown;
@@ -48,6 +49,11 @@ let dbSingleton: SqliteDb | null = null;
 export type { SqliteDb };
 
 export function closeChatDbForTests(): void {
+	closeChatDb();
+}
+
+/** Close the shared handle before an on-disk database replacement. */
+export function closeChatDb(): void {
 	if (dbSingleton) {
 		dbSingleton.close();
 		dbSingleton = null;

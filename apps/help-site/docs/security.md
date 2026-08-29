@@ -70,15 +70,15 @@ setup, what is included, and password recovery.
 
 ## Backup and restore
 
-Use a **password-protected backup** when you want a portable copy of settings
-and secrets (new Mac, reinstall, safety before a big change).
+Use a **password-protected backup** when you want a portable copy of settings,
+secrets, and your Toby data (new Mac, reinstall, safety before a big change).
 
 ### From Toby.app
 
 | Menu | Action |
 | ---- | ------ |
-| **File → Backup Settings…** | Choose a password, then a save location for a `.tbybak` file |
-| **File → Restore Settings…** | Pick a `.tbybak` file, enter the password if asked, confirm replace |
+| **File → Backup Toby Data…** | Choose a password, then a save location for a `.tbybak` file |
+| **File → Restore Toby Data…** | Pick a `.tbybak` file, enter the password if asked, confirm replace |
 
 ### From Terminal
 
@@ -94,10 +94,10 @@ The app menus use the **same** `.tbybak` format as these CLI commands.
 
 | Included | Not included |
 | -------- | ------------ |
-| Settings in `config.json` (personas, connection flags, defaults, …) | Chat history database |
-| Secrets in credentials (AI keys, **Email, Notion, Slack, and other plugin credentials**, transcription keys) | Audio recordings |
-| | Memories database |
-| | Installed plugin packages |
+| Settings in `config.json` (personas, connection flags, defaults, …) | Audio recordings and transcripts |
+| Secrets in credentials (AI keys, **Email, Notion, Slack, and other plugin credentials**, transcription keys) | Installed plugin packages and local plugin data |
+| Chat database (chats, projects, schedules, flows, and run history) | Skills and persona image files |
+| Memories database | App appearance and other Mac-only preferences |
 
 The archive is encrypted with **your backup password** (separate from the
 Keychain). Anyone with the file **and** that password can restore your
@@ -105,8 +105,9 @@ secrets — choose a strong password and store the file carefully.
 
 ### Restore notes
 
-- Restore **replaces** current config and credentials for those files.
+- Restore **replaces** current settings, credentials, chat data, and memories.
 - After restore, Toby re-encrypts credentials for **this** Mac’s Keychain.
+- Toby restarts its daemon before applying database data.
 - Prefer restore over manually copying `credentials.json`.
 
 ## Tips

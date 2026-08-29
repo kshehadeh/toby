@@ -23,12 +23,13 @@ terminal configuration UI.
 
 ### `toby config backup [destination]`
 
-Create an encrypted backup of `config.json` and `credentials.json`.
+Create an encrypted backup of settings, credentials, and local databases.
 
 Design, Keychain interaction, and threat model: [security.md](security.md).
 
-- Same format as **Toby.app → File → Backup Settings…** (daemon `POST /api/config/backup`).
-- Includes full `config.json` and the full decrypted credentials bag
+- Same format as **Toby.app → File → Backup Toby Data…** (daemon `POST /api/config/backup`).
+- Includes full `config.json`, the full decrypted credentials bag,
+  `chat.sqlite` (chats/projects/schedules/flows), and `memory.sqlite`.
   (`integrations.<plugin>` fields, AI/transcription keys).
 - Encrypts the backup payload with a **password** (AES-256-GCM + scrypt).
 - Prompts for a password and confirmation.
@@ -45,9 +46,10 @@ Examples:
 
 ### `toby config restore <sourceFile>`
 
-Restore `config.json` and `credentials.json` from a backup file.
+Restore settings, credentials, chats, schedules, flows, projects, and memories
+from a backup file.
 
-- Same format as **Toby.app → File → Restore Settings…** (daemon `POST /api/config/restore`).
+- Same format as **Toby.app → File → Restore Toby Data…** (daemon `POST /api/config/restore`).
 - For encrypted backups, prompts for the backup password.
 - If existing config files are detected, asks for confirmation before replacing.
 - Use `--yes` to skip replace confirmation.
@@ -73,6 +75,11 @@ Encrypted snapshots of the same payload as backup, through **iCloud Drive** or a
 | `toby config sync pull --yes` | Apply the remote snapshot (`--yes` skips confirm) |
 | `toby config sync history` | List previous snapshots |
 | `toby config sync restore-history <filename> --yes` | Apply a history file and push it as current |
+| `toby config sync backup-data enable` | Opt in to daily encrypted database backups and create one now |
+| `toby config sync backup-data disable` | Stop daily database backups; existing snapshots remain |
+| `toby config sync backup-data now` | Create a database snapshot now |
+| `toby config sync backup-data list` | List database snapshots from all Macs |
+| `toby config sync backup-data restore <deviceId> <filename> --yes` | Replace both local databases from a selected snapshot |
 
 Enable prompts for a password (and confirmation). Join decrypts the existing
 vault with that password; create is refused if a vault already exists. Without

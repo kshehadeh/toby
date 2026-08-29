@@ -20,6 +20,8 @@ struct ICloudSyncSettingsView: View {
 	@State private var localError: String?
 	@State private var pendingDisable = false
 	@State private var pendingRestore: ConfigSyncHistoryItem?
+	@State private var databaseBackups: [DatabaseSyncBackup] = []
+	@State private var pendingDatabaseRestore: DatabaseSyncBackup?
 
 	init(
 		client: TobyClient = TobyClient(),
@@ -81,6 +83,7 @@ struct ICloudSyncSettingsView: View {
 
 				if resolvedStatus?.enabled == true {
 					statusCard
+					databaseBackupsCard
 					historyCard
 				}
 
@@ -119,6 +122,22 @@ struct ICloudSyncSettingsView: View {
 			}
 		} message: {
 			Text("This replaces settings on this Mac and uploads the snapshot as the current vault.")
+		}
+		.alert(
+			"Restore database backup?",
+			isPresented: Binding(
+				get: { pendingDatabaseRestore != nil },
+				set: { if !$0 { pendingDatabaseRestore = nil } }
+			)
+		) {
+			Button("Cancel", role: .cancel) { pendingDatabaseRestore = nil }
+			Button("Restore", role: .destructive) {
+				if let backup = pendingDatabaseRestore {
+					Task { await restoreDatabase(backup) }
+				}
+			}
+		} message: {
+			Text("This replaces chats, projects, schedules, flows, run history, and memories on this Mac. Toby will restart.")
 		}
 	}
 
@@ -308,6 +327,53 @@ struct ICloudSyncSettingsView: View {
 		}
 	}
 
+	private var databaseBackupsCard: some View {
+		SettingsCard {
+			VStack(alignment: .leading, spacing: 12) {
+				SettingsSectionHeader(title: "Database backups")
+				Text("Back up chats, projects, schedules, flows, run history, and memories daily. Backups are encrypted, retained for 10 days per Mac, and never merge or sync automatically.")
+					.font(.subheadline)
+					.foregroundStyle(AppTheme.secondaryText)
+					.fixedSize(horizontal: false, vertical: true)
+				Toggle(
+					"Back up this Mac’s databases daily",
+					isOn: Binding(
+						get: { resolvedStatus?.databaseBackupsEnabled == true },
+						set: { enabled in Task { await setDatabaseBackups(enabled) } }
+					)
+				)
+				.disabled(isWorking)
+				.accessibilityIdentifier("database-backups-enabled")
+				if resolvedStatus?.databaseBackupsEnabled == true {
+					HStack {
+						Button("Back Up Now") { Task { await createDatabaseBackup() } }
+							.disabled(isWorking)
+							.accessibilityIdentifier("database-backups-create")
+						if let last = resolvedStatus?.lastDatabaseBackupAt {
+							Text("Last backup: \(last)")
+								.font(.caption)
+								.foregroundStyle(AppTheme.secondaryText)
+						}
+					}
+					ForEach(databaseBackups) { backup in
+						HStack {
+							Text("\(backup.deviceName) · \(backup.createdAt)")
+								.font(.caption)
+								.foregroundStyle(AppTheme.primaryText)
+							Spacer()
+							Button("Restore") { pendingDatabaseRestore = backup }
+								.disabled(isWorking)
+						}
+					}
+				}
+				if let error = resolvedStatus?.lastDatabaseBackupError, !error.isEmpty {
+					InlineStatusMessage(message: error, tone: .error, font: .caption)
+				}
+			}
+			.padding(14)
+		}
+	}
+
 	private var inboundNote: some View {
 		Text(
 			"If you use inbound Slack chat, enable the inbound listener on only one Mac. Sharing tokens is fine; two daemons should not both listen."
@@ -421,11 +487,51 @@ struct ICloudSyncSettingsView: View {
 		}
 	}
 
+	private func setDatabaseBackups(_ enabled: Bool) async {
+		isWorking = true
+		localError = nil
+		defer { isWorking = false }
+		do {
+			status = try await client.setDatabaseBackupsEnabled(enabled)
+			await loadDatabaseBackups()
+		} catch {
+			localError = error.localizedDescription
+		}
+	}
+
+	private func createDatabaseBackup() async {
+		isWorking = true
+		localError = nil
+		defer { isWorking = false }
+		do {
+			try await client.createDatabaseBackupNow()
+			await refresh()
+		} catch {
+			localError = error.localizedDescription
+		}
+	}
+
+	private func restoreDatabase(_ backup: DatabaseSyncBackup) async {
+		pendingDatabaseRestore = nil
+		isWorking = true
+		localError = nil
+		defer { isWorking = false }
+		do {
+			try await client.restoreDatabaseBackup(
+				deviceId: backup.deviceId,
+				filename: backup.filename
+			)
+		} catch {
+			localError = error.localizedDescription
+		}
+	}
+
 	private func refresh() async {
 		do {
 			let next = try await client.fetchConfigSyncStatus()
 			applyFetchedStatus(next)
 			await loadHistory()
+			await loadDatabaseBackups()
 			localError = nil
 		} catch {
 			localError = error.localizedDescription
@@ -454,6 +560,14 @@ struct ICloudSyncSettingsView: View {
 			return
 		}
 		history = (try? await client.listConfigSyncHistory()) ?? []
+	}
+
+	private func loadDatabaseBackups() async {
+		guard resolvedStatus?.databaseBackupsEnabled == true else {
+			databaseBackups = []
+			return
+		}
+		databaseBackups = (try? await client.listDatabaseBackups()) ?? []
 	}
 
 	private static func initialBackend(_ status: ConfigSyncStatus?) -> String {

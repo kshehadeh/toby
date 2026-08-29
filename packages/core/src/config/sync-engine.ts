@@ -76,6 +76,9 @@ export interface SyncStatus {
 	lastAckedContentHash: string;
 	dirty: boolean;
 	hasRemote: boolean;
+	databaseBackupsEnabled: boolean;
+	lastDatabaseBackupAt?: string;
+	lastDatabaseBackupError?: string | null;
 	remote?: {
 		lamport: number;
 		utc: string;
@@ -164,6 +167,9 @@ export async function getSyncStatus(
 		lastAckedContentHash: state.lastAckedContentHash,
 		dirty: isSyncDirty(),
 		hasRemote: remote !== null,
+		databaseBackupsEnabled: state.databaseBackupsEnabled === true,
+		lastDatabaseBackupAt: state.lastDatabaseBackupAt,
+		lastDatabaseBackupError: state.lastDatabaseBackupError,
 		remote: remote
 			? {
 					lamport: remote.clock.lamport,

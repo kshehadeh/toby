@@ -21,12 +21,12 @@ struct ConfigBackupSheet: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 20) {
-			Text("Backup Settings")
+			Text("Backup Toby Data")
 				.font(.title2.weight(.bold))
 				.foregroundStyle(AppTheme.primaryText)
 
 			Text(
-				"Creates a password-protected backup of your settings and credentials (config.json and credentials.json). Choose a password you will remember — it is required to restore."
+				"Creates a password-protected backup of your settings, credentials, chats, schedules, flows, projects, and memories. Choose a password you will remember — it is required to restore."
 			)
 			.font(.subheadline)
 			.foregroundStyle(AppTheme.secondaryText)
@@ -142,12 +142,12 @@ struct ConfigRestoreSheet: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 20) {
-			Text("Restore Settings")
+			Text("Restore Toby Data")
 				.font(.title2.weight(.bold))
 				.foregroundStyle(AppTheme.primaryText)
 
 			Text(
-				"Restoring replaces your current config.json and credentials.json with the contents of this backup. This cannot be undone without another backup."
+				"Restoring replaces your settings, credentials, chats, schedules, flows, projects, and memories. Toby restarts to apply database data. This cannot be undone without another backup."
 			)
 			.font(.subheadline)
 			.foregroundStyle(AppTheme.secondaryText)

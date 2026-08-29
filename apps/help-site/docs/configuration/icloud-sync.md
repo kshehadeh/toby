@@ -22,7 +22,7 @@ Drive is off, blocked, or you prefer another service.
 | Shared | Stays on each Mac |
 | ------ | ----------------- |
 | Settings (personas, connected integrations, AI and tool preferences) | Chat history |
-| Secrets (AI keys, Email / Slack / Notion tokens, and other plugin credentials) | Memories, recordings, schedules, flows |
+| Secrets (AI keys, Email / Slack / Notion tokens, and other plugin credentials) | Live chat/memory sync, recordings |
 | | Skills, installed plugins, theme / menu bar / home directory |
 
 ## Set up with iCloud Drive
@@ -72,6 +72,19 @@ wait. CLI equivalents: `toby config sync push` and `toby config sync pull --yes`
 
 To change between iCloud Drive and a folder, disable sync on this Mac and enable
 again with the other transport.
+
+## Database backups
+
+Chats, projects, schedules, flows, run history, and memories are not
+continuously synchronized because two Macs changing them at once could lose
+data. Instead, turn on **Database backups** in **Settings → Sync** to save an
+encrypted snapshot of this Mac once a day. Toby keeps the latest 10 snapshots
+per Mac in the same iCloud Drive or selected folder.
+
+Use **Back Up Now** to create one immediately. To restore, select a snapshot
+and choose **Restore**. This replaces all local chat and memory data on this
+Mac and restarts Toby; it does not merge databases or restore them
+automatically.
 
 ## If two Macs change settings at once
 

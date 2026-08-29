@@ -1,4 +1,5 @@
 import { daemonLog } from "../logging/daemon-log";
+import { runDatabaseBackupTick } from "./database-sync-backups";
 import { isSyncDirty, shouldPushNow } from "./sync-dirty";
 import { pullSnapshot, pushSnapshot } from "./sync-engine";
 import { readSyncState } from "./sync-state";
@@ -32,6 +33,7 @@ export async function runConfigSyncLoop(options: {
 		try {
 			const state = readSyncState();
 			if (state.enabled) {
+				await runDatabaseBackupTick();
 				if (shouldPushNow()) {
 					await pushSnapshot();
 				} else if (!isSyncDirty()) {

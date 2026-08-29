@@ -16,6 +16,8 @@ import {
 	resetSyncPassphraseStore,
 	setSyncBlobStoreForTests,
 } from "@toby/core/config/sync";
+import { closeMemoryDb } from "@toby/core/memory/memory-store";
+import { closeChatDb } from "@toby/core/session-store";
 import { handleWebRequest } from "@toby/core/web/routes";
 
 function withTempDirs(run: () => Promise<void>): Promise<void> {
@@ -64,6 +66,8 @@ function withTempDirs(run: () => Promise<void>): Promise<void> {
 
 describe("POST /api/config/sync", () => {
 	beforeEach(() => {
+		closeChatDb();
+		closeMemoryDb();
 		resetSyncDirty();
 		resetSyncPassphraseStore();
 		clearCredentialsCache();
@@ -72,6 +76,8 @@ describe("POST /api/config/sync", () => {
 	});
 
 	afterEach(() => {
+		closeChatDb();
+		closeMemoryDb();
 		resetSyncDirty();
 		resetSyncPassphraseStore();
 		clearCredentialsCache();
@@ -198,6 +204,49 @@ describe("POST /api/config/sync", () => {
 			expect(body.deviceId.length).toBeGreaterThan(0);
 			expect(body.backend).toBe("icloud");
 			expect(body.storeAvailable).toBe(true);
+		});
+	});
+
+	it("opts into daily database backups and lists the initial snapshot", async () => {
+		await withTempDirs(async () => {
+			writeConfig({ integrations: {}, personas: [] });
+			writeCredentials({});
+			await handleWebRequest(
+				new Request("http://127.0.0.1/api/config/sync/enable", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ password: "vault", mode: "create" }),
+				}),
+				null,
+			);
+
+			const enable = await handleWebRequest(
+				new Request(
+					"http://127.0.0.1/api/config/sync/database-backups/enable",
+					{
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ enabled: true }),
+					},
+				),
+				null,
+			);
+			expect(enable.status).toBe(200);
+			const enabled = (await enable.json()) as {
+				status: { databaseBackupsEnabled: boolean };
+			};
+			expect(enabled.status.databaseBackupsEnabled).toBe(true);
+
+			const list = await handleWebRequest(
+				new Request("http://127.0.0.1/api/config/sync/database-backups"),
+				null,
+			);
+			expect(list.status).toBe(200);
+			const body = (await list.json()) as {
+				backups: Array<{ deviceId: string }>;
+			};
+			expect(body.backups).toHaveLength(1);
+			expect(body.backups[0]?.deviceId.length).toBeGreaterThan(0);
 		});
 	});
 

@@ -1,15 +1,22 @@
+import fs from "node:fs";
 import {
 	type SyncBackend,
 	type SyncEnableMode,
+	createDatabaseSyncBackup,
 	disableSync,
 	enableSync,
 	getSyncStatus,
 	isSyncBackend,
+	listDatabaseSyncBackups,
 	listSyncHistory,
 	pullSnapshot,
 	pushSnapshot,
+	restoreDatabaseSyncBackup,
 	restoreSyncHistory,
+	setDatabaseBackupsEnabled,
 } from "../../config/sync";
+import { spawnDetachedDaemonRestart } from "../../daemon/spawn-restart";
+import { getDaemonLockPath, parseDaemonLock } from "../../daemon/status";
 import { errorResponse, jsonResponse, readJsonBody } from "../http-utils";
 
 export async function handleConfigSyncStatus(): Promise<Response> {
@@ -137,6 +144,99 @@ export async function handleConfigSyncRestoreHistory(
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		return errorResponse(message, 400);
+	}
+}
+
+export async function handleDatabaseBackupsEnable(
+	req: Request,
+): Promise<Response> {
+	const body = await readJsonBody<{ enabled?: boolean }>(req);
+	if (!body || body.enabled !== true) {
+		return errorResponse("enabled must be true", 400);
+	}
+	try {
+		setDatabaseBackupsEnabled(true);
+		const backup = await createDatabaseSyncBackup();
+		return jsonResponse({ ok: true, backup, status: await getSyncStatus() });
+	} catch (error) {
+		return errorResponse(
+			error instanceof Error ? error.message : String(error),
+			400,
+		);
+	}
+}
+
+export async function handleDatabaseBackupsDisable(): Promise<Response> {
+	try {
+		setDatabaseBackupsEnabled(false);
+		return jsonResponse({ ok: true, status: await getSyncStatus() });
+	} catch (error) {
+		return errorResponse(
+			error instanceof Error ? error.message : String(error),
+			400,
+		);
+	}
+}
+
+export async function handleDatabaseBackupsCreate(): Promise<Response> {
+	try {
+		return jsonResponse({ ok: true, backup: await createDatabaseSyncBackup() });
+	} catch (error) {
+		return errorResponse(
+			error instanceof Error ? error.message : String(error),
+			400,
+		);
+	}
+}
+
+export async function handleDatabaseBackupsList(): Promise<Response> {
+	try {
+		return jsonResponse({ backups: await listDatabaseSyncBackups() });
+	} catch (error) {
+		return errorResponse(
+			error instanceof Error ? error.message : String(error),
+			400,
+		);
+	}
+}
+
+export async function handleDatabaseBackupsRestore(
+	req: Request,
+): Promise<Response> {
+	const body = await readJsonBody<{
+		deviceId?: string;
+		filename?: string;
+		confirm?: boolean;
+	}>(req);
+	if (!body || body.confirm !== true) {
+		return errorResponse("confirm must be true to restore databases", 400);
+	}
+	if (!body.deviceId || !body.filename) {
+		return errorResponse("deviceId and filename are required", 400);
+	}
+	try {
+		await restoreDatabaseSyncBackup({
+			deviceId: body.deviceId,
+			filename: body.filename,
+		});
+		if (isServingDaemon()) {
+			setTimeout(() => spawnDetachedDaemonRestart(), 200);
+		}
+		return jsonResponse({ ok: true, restarting: true });
+	} catch (error) {
+		return errorResponse(
+			error instanceof Error ? error.message : String(error),
+			400,
+		);
+	}
+}
+
+function isServingDaemon(): boolean {
+	try {
+		const lock = parseDaemonLock(fs.readFileSync(getDaemonLockPath(), "utf8"));
+		return lock?.pid === process.pid;
+	} catch {
+		return false;
 	}
 }
 

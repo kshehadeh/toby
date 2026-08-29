@@ -5,6 +5,7 @@ const DEFAULT_TOOL_RESULT_TTL_MS = 5 * 60 * 1000;
 
 type SqliteDb = {
 	exec: (sql: string) => void;
+	close: () => void;
 	query: (sql: string) => {
 		run: (params?: Record<string, unknown>) => unknown;
 		get: (params?: Record<string, unknown>) => unknown;
@@ -18,6 +19,14 @@ type ToolCacheEntry = {
 
 let dbSingleton: SqliteDb | null = null;
 const toolResultCacheFallback = new Map<string, ToolCacheEntry>();
+
+/** Close the independent chat.sqlite cache handle before database replacement. */
+export function closeToolResultCacheDb(): void {
+	if (dbSingleton) {
+		dbSingleton.close();
+		dbSingleton = null;
+	}
+}
 
 const READ_ONLY_CHAT_TOOLS = new Set<string>([
 	"getInboxUnreadOverview",

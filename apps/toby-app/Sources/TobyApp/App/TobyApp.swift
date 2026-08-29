@@ -183,11 +183,11 @@ struct TobyApp: App {
 
 				Divider()
 
-				Button("Backup Settings…") {
+				Button("Backup Toby Data…") {
 					NotificationCenter.default.post(name: .backupConfig, object: nil)
 				}
 
-				Button("Restore Settings…") {
+				Button("Restore Toby Data…") {
 					NotificationCenter.default.post(name: .restoreConfig, object: nil)
 				}
 			}

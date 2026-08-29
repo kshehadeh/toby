@@ -12,16 +12,21 @@ import {
 } from "@toby/core/config/backup";
 import { getConfigPath, getCredentialsPath } from "@toby/core/config/index";
 import {
+	createDatabaseSyncBackup,
 	disableSync,
 	enableSync,
 	getSyncStatus,
+	listDatabaseSyncBackups,
 	listSyncHistory,
 	pullSnapshot,
 	pushSnapshot,
+	restoreDatabaseSyncBackup,
 	restoreSyncHistory,
+	setDatabaseBackupsEnabled,
 } from "@toby/core/config/sync";
 import chalk from "chalk";
 import type { Command } from "commander";
+import { restartDaemonIfRunning } from "../schedules/daemon-status";
 import { runAppLaunchCommand } from "./app";
 
 interface BackupCommandOptions {
@@ -45,7 +50,7 @@ export function registerConfigCommand(program: Command): void {
 
 	config
 		.command("backup")
-		.description("Back up config.json and credentials.json to a file")
+		.description("Back up settings, credentials, chats, and memories to a file")
 		.option(
 			"-o, --output <path>",
 			"Backup destination file or directory (defaults to current directory)",
@@ -62,7 +67,9 @@ export function registerConfigCommand(program: Command): void {
 
 	config
 		.command("restore")
-		.description("Restore config.json and credentials.json from a backup file")
+		.description(
+			"Restore settings, credentials, chats, and memories from a backup",
+		)
 		.argument("<sourceFile>", "Path to a backup file created by config backup")
 		.option(
 			"-y, --yes",
@@ -94,6 +101,95 @@ export function registerConfigCommand(program: Command): void {
 				failCli(error);
 			}
 		});
+
+	const databaseBackups = sync
+		.command("backup-data")
+		.description("Manage daily encrypted chat and memory database backups");
+
+	databaseBackups
+		.command("enable")
+		.description("Enable daily database backups and create one now")
+		.action(async () => {
+			try {
+				setDatabaseBackupsEnabled(true);
+				const backup = await createDatabaseSyncBackup();
+				console.log(chalk.green(`Database backup saved: ${backup.filename}`));
+			} catch (error) {
+				failCli(error);
+			}
+		});
+
+	databaseBackups
+		.command("disable")
+		.description("Stop automatic database backups (existing backups remain)")
+		.action(() => {
+			try {
+				setDatabaseBackupsEnabled(false);
+				console.log(chalk.green("Automatic database backups disabled."));
+			} catch (error) {
+				failCli(error);
+			}
+		});
+
+	databaseBackups
+		.command("now")
+		.description("Create an encrypted database backup now")
+		.action(async () => {
+			try {
+				const backup = await createDatabaseSyncBackup();
+				console.log(chalk.green(`Database backup saved: ${backup.filename}`));
+			} catch (error) {
+				failCli(error);
+			}
+		});
+
+	databaseBackups
+		.command("list")
+		.description("List database backups from all Macs")
+		.action(async () => {
+			try {
+				const backups = await listDatabaseSyncBackups();
+				for (const backup of backups) {
+					console.log(
+						`${backup.deviceId}  ${backup.deviceName}  ${backup.createdAt}  ${backup.filename}`,
+					);
+				}
+			} catch (error) {
+				failCli(error);
+			}
+		});
+
+	databaseBackups
+		.command("restore")
+		.description("Restore chat and memory databases from a backup")
+		.argument("<deviceId>", "Source device id")
+		.argument("<filename>", "Filename from backup-data list")
+		.option("-y, --yes", "Confirm replacing both local databases")
+		.action(
+			async (
+				deviceId: string,
+				filename: string,
+				options: { yes?: boolean },
+			) => {
+				try {
+					if (!options.yes) {
+						const confirmed = await confirmYes(
+							"Replace chats, schedules, flows, projects, and memories from this snapshot? [y/N] ",
+						);
+						if (!confirmed) return;
+					}
+					await restoreDatabaseSyncBackup({ deviceId, filename });
+					await restartDaemonIfRunning();
+					console.log(
+						chalk.green(
+							"Database restore staged. It will apply when the daemon starts.",
+						),
+					);
+				} catch (error) {
+					failCli(error);
+				}
+			},
+		);
 
 	sync
 		.command("enable")
@@ -279,8 +375,11 @@ async function restoreConfig(
 		}
 	}
 
-	await restoreConfigBackup(parsedJson, password);
-	console.log(chalk.green(`Config restored from ${sourcePath}`));
+	const restored = await restoreConfigBackup(parsedJson, password);
+	if (restored.databases) {
+		await restartDaemonIfRunning();
+	}
+	console.log(chalk.green(`Toby data restored from ${sourcePath}`));
 }
 
 function safeParseJson(raw: string, sourcePath: string): unknown {

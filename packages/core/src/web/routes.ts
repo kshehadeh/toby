@@ -26,6 +26,11 @@ import {
 	handleConfigSyncPush,
 	handleConfigSyncRestoreHistory,
 	handleConfigSyncStatus,
+	handleDatabaseBackupsCreate,
+	handleDatabaseBackupsDisable,
+	handleDatabaseBackupsEnable,
+	handleDatabaseBackupsList,
+	handleDatabaseBackupsRestore,
 } from "./handlers/config-sync";
 import {
 	handleConfigureAction,
@@ -510,6 +515,36 @@ export async function handleWebRequest(
 			req.method === "POST"
 		) {
 			return handleConfigSyncRestoreHistory(req);
+		}
+		if (
+			pathname === "/api/config/sync/database-backups" &&
+			req.method === "GET"
+		) {
+			return handleDatabaseBackupsList();
+		}
+		if (
+			pathname === "/api/config/sync/database-backups/enable" &&
+			req.method === "POST"
+		) {
+			return handleDatabaseBackupsEnable(req);
+		}
+		if (
+			pathname === "/api/config/sync/database-backups/disable" &&
+			req.method === "POST"
+		) {
+			return handleDatabaseBackupsDisable();
+		}
+		if (
+			pathname === "/api/config/sync/database-backups/create" &&
+			req.method === "POST"
+		) {
+			return handleDatabaseBackupsCreate();
+		}
+		if (
+			pathname === "/api/config/sync/database-backups/restore" &&
+			req.method === "POST"
+		) {
+			return handleDatabaseBackupsRestore(req);
 		}
 		if (pathname === "/api/configure/tree" && req.method === "GET") {
 			return handleConfigureTree();

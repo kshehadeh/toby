@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { isEncryptedBackupFile } from "@toby/core/config/backup";
+import {
+	isEncryptedBackupFile,
+	parseRestorePayload,
+} from "@toby/core/config/backup";
 import {
 	clearCredentialsCache,
 	clearMemoryCredentialsKeyStore,
@@ -12,6 +15,8 @@ import {
 	writeConfig,
 	writeCredentials,
 } from "@toby/core/config/index";
+import { closeMemoryDb } from "@toby/core/memory/memory-store";
+import { closeChatDb } from "@toby/core/session-store";
 import { handleWebRequest } from "@toby/core/web/routes";
 
 function withTempTobyDir(run: () => Promise<void>): Promise<void> {
@@ -43,12 +48,16 @@ function withTempTobyDir(run: () => Promise<void>): Promise<void> {
 
 describe("POST /api/config/backup and restore", () => {
 	beforeEach(() => {
+		closeChatDb();
+		closeMemoryDb();
 		clearCredentialsCache();
 		clearMemoryCredentialsKeyStore();
 		resetCredentialsKeyStoreCache();
 	});
 
 	afterEach(() => {
+		closeChatDb();
+		closeMemoryDb();
 		clearCredentialsCache();
 		clearMemoryCredentialsKeyStore();
 		resetCredentialsKeyStoreCache();
@@ -95,6 +104,13 @@ describe("POST /api/config/backup and restore", () => {
 			expect(backupBody.suggestedFileName).toMatch(/\.tbybak$/);
 			expect(JSON.stringify(backupBody.backup)).not.toContain("sk-backup-test");
 			expect(JSON.stringify(backupBody.backup)).not.toContain("secret-mail");
+			const parsedBackup = await parseRestorePayload(
+				backupBody.backup,
+				"test-pass",
+			);
+			expect(parsedBackup.version).toBe(2);
+			expect(parsedBackup.databases?.chat.compression).toBe("gzip-base64");
+			expect(parsedBackup.databases?.memory.compression).toBe("gzip-base64");
 
 			// Wipe live data
 			writeConfig({ integrations: {}, personas: [] });

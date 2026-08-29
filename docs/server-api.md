@@ -122,8 +122,8 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `POST` | `/api/memories` | Create a manual memory. |
 | `GET` | `/api/memories/:id` | Fetch one memory item. |
 | `GET` | `/api/memories/:id/explain` | Fetch source/audit explanation for one memory. |
-| `POST` | `/api/config/backup` | Create a password-encrypted backup of config + credentials. |
-| `POST` | `/api/config/restore` | Restore config + credentials from a backup payload. |
+| `POST` | `/api/config/backup` | Create a password-encrypted complete backup. |
+| `POST` | `/api/config/restore` | Restore settings, credentials, and databases from a backup payload. |
 | `GET` | `/api/config/sync` | Settings sync status (`backend`, `folderPath`, `storeAvailable`, iCloud flags). |
 | `POST` | `/api/config/sync/enable` | Enable sync (`password`, optional `mode`: `create` / `join` / `replace`, optional `backend`: `icloud` / `folder`, `folderPath` when folder). |
 | `POST` | `/api/config/sync/disable` | Disable sync (`deleteCloud?: boolean` deletes this store’s vault folder). |
@@ -131,6 +131,11 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `POST` | `/api/config/sync/pull` | Apply the remote snapshot (`confirm: true`). |
 | `GET` | `/api/config/sync/history` | List previous snapshots (metadata only). |
 | `POST` | `/api/config/sync/restore-history` | Restore a history file (`filename`, `confirm: true`). |
+| `GET` | `/api/config/sync/database-backups` | List encrypted per-device database snapshots. |
+| `POST` | `/api/config/sync/database-backups/enable` | Opt in and create an initial database snapshot. |
+| `POST` | `/api/config/sync/database-backups/disable` | Stop automatic database snapshots. |
+| `POST` | `/api/config/sync/database-backups/create` | Create a database snapshot now. |
+| `POST` | `/api/config/sync/database-backups/restore` | Stage a confirmed database restore and restart the daemon. |
 | `GET` | `/api/configure/tree` | Fetch configure UI schema and current values. |
 | `GET` | `/api/configure/sections` | Lightweight section structure for the native settings sidebar. |
 | `GET` | `/api/configure/sections/:sectionKey` | Full detail (fields + values) for one settings section. |
@@ -1000,7 +1005,7 @@ Errors:
 
 Design overview: [security.md](security.md). Shared helpers live in
 [`packages/core/src/config/backup.ts`](../packages/core/src/config/backup.ts).
-Toby.app **File → Backup Settings… / Restore Settings…** and `toby config backup` / `restore` use the same format (password-encrypted AES-256-GCM `.tbybak`).
+Toby.app **File → Backup Toby Data… / Restore Toby Data…** and `toby config backup` / `restore` use the same format (password-encrypted AES-256-GCM `.tbybak`).
 
 ### `POST /api/config/backup`
 

@@ -1185,6 +1185,52 @@ struct TobyClient {
 		let (data, response) = try await URLSession.shared.data(for: request)
 		try validate(response: response, data: data)
 	}
+
+	func setDatabaseBackupsEnabled(_ enabled: Bool) async throws -> ConfigSyncStatus {
+		let action = enabled ? "enable" : "disable"
+		var request = URLRequest(
+			url: baseURL.appendingPathComponent("api/config/sync/database-backups/\(action)")
+		)
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		if enabled {
+			request.httpBody = try JSONSerialization.data(withJSONObject: ["enabled": true])
+		}
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		struct Response: Decodable { let status: ConfigSyncStatus }
+		return try JSONDecoder().decode(Response.self, from: data).status
+	}
+
+	func createDatabaseBackupNow() async throws {
+		var request = URLRequest(
+			url: baseURL.appendingPathComponent("api/config/sync/database-backups/create")
+		)
+		request.httpMethod = "POST"
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+	}
+
+	func listDatabaseBackups() async throws -> [DatabaseSyncBackup] {
+		let url = baseURL.appendingPathComponent("api/config/sync/database-backups")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		struct Response: Decodable { let backups: [DatabaseSyncBackup] }
+		return try JSONDecoder().decode(Response.self, from: data).backups
+	}
+
+	func restoreDatabaseBackup(deviceId: String, filename: String) async throws {
+		var request = URLRequest(
+			url: baseURL.appendingPathComponent("api/config/sync/database-backups/restore")
+		)
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = try JSONSerialization.data(
+			withJSONObject: ["deviceId": deviceId, "filename": filename, "confirm": true]
+		)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+	}
 }
 
 // MARK: - Config backup models
@@ -1230,9 +1276,20 @@ struct ConfigSyncStatus: Decodable, Equatable {
 	var dirty: Bool
 	var hasRemote: Bool
 	var remote: ConfigSyncRemoteInfo?
+	var databaseBackupsEnabled: Bool? = nil
+	var lastDatabaseBackupAt: String? = nil
+	var lastDatabaseBackupError: String? = nil
 
 	var resolvedBackend: String { backend ?? "icloud" }
 	var resolvedStoreAvailable: Bool { storeAvailable ?? iCloudAvailable }
+}
+
+struct DatabaseSyncBackup: Decodable, Equatable, Identifiable {
+	var id: String { "\\(deviceId)/\\(filename)" }
+	let filename: String
+	let deviceId: String
+	let deviceName: String
+	let createdAt: String
 }
 
 struct ConfigSyncHistoryItem: Decodable, Equatable, Identifiable {

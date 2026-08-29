@@ -15,6 +15,7 @@ import type {
 
 type SqliteDb = {
 	exec: (sql: string) => void;
+	serialize: () => Uint8Array;
 	query: (sql: string) => {
 		run: (params?: Record<string, unknown>) => unknown;
 		get: (params?: Record<string, unknown>) => unknown;
@@ -27,6 +28,11 @@ type SqliteDb = {
 let dbSingleton: SqliteDb | null = null;
 
 export function closeMemoryDbForTests(): void {
+	closeMemoryDb();
+}
+
+/** Close the shared handle before an on-disk database replacement. */
+export function closeMemoryDb(): void {
 	if (dbSingleton) {
 		dbSingleton.close();
 		dbSingleton = null;

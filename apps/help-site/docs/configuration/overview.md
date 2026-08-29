@@ -48,6 +48,8 @@ environment.
 | ---- | -------- |
 | `~/.toby/config.json` | Non-secret preferences: connection flags, personas, defaults, web search, inbound chat, schedules metadata, and similar |
 | `~/.toby/credentials.json` | Secrets (API keys, tokens). On Mac this file is **encrypted**; Toby keeps the encryption key in your Keychain. Never commit or share this file |
+| `~/.toby/chat.sqlite` | Chats, projects, schedules, flows, and run history |
+| `~/.toby/memory.sqlite` | Saved memories, sources, and memory audit data |
 | `~/.toby/plugins/` | Installed integration plugins |
 | `~/.toby/skills/` | User skills |
 | `~/.toby/listen/recordings/` | Saved audio recordings and transcripts |

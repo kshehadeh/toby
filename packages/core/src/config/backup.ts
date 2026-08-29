@@ -5,6 +5,12 @@ import {
 	isEncryptedBackupFile,
 } from "./backup-crypto";
 import {
+	type DatabaseBackupBundle,
+	createDatabaseBackupBundle,
+	isDatabaseBackupBundle,
+	stageDatabaseRestore,
+} from "./database-backup";
+import {
 	type CredentialsFile,
 	readConfigRaw,
 	readCredentials,
@@ -13,7 +19,7 @@ import {
 } from "./index";
 
 export interface ConfigBackupPayload {
-	version: 1;
+	version: 1 | 2;
 	createdAt: string;
 	/** Full config.json object (integrations connection state, personas, etc.). */
 	config: Record<string, unknown>;
@@ -22,6 +28,8 @@ export interface ConfigBackupPayload {
 	 * transcription keys, etc.).
 	 */
 	credentials: CredentialsFile | Record<string, unknown>;
+	/** Present in version 2 complete backups. */
+	databases?: DatabaseBackupBundle;
 }
 
 export function buildBackupFileName(date = new Date()): string {
@@ -41,10 +49,11 @@ export async function createEncryptedConfigBackup(
 	// keys survive backup/restore. Credentials go through readCredentials so
 	// on-disk encryption (Keychain-wrapped) is decrypted first.
 	const payload: ConfigBackupPayload = {
-		version: 1,
+		version: 2,
 		createdAt: new Date().toISOString(),
 		config: readConfigRaw(),
 		credentials: readCredentials(),
+		databases: createDatabaseBackupBundle(),
 	};
 	const backup = await encryptBackupPayload(JSON.stringify(payload), trimmed);
 	return { backup, suggestedFileName: buildBackupFileName() };
@@ -65,6 +74,9 @@ export async function restoreConfigBackup(
 			: {};
 	writeConfigRaw(config);
 	writeCredentials(payload.credentials as CredentialsFile);
+	if (payload.databases) {
+		stageDatabaseRestore(payload.databases);
+	}
 	return payload;
 }
 
@@ -103,12 +115,13 @@ export function isConfigBackupPayload(
 	}
 	const record = value as Record<string, unknown>;
 	return (
-		record.version === 1 &&
+		(record.version === 1 || record.version === 2) &&
 		typeof record.createdAt === "string" &&
 		typeof record.config === "object" &&
 		record.config !== null &&
 		typeof record.credentials === "object" &&
-		record.credentials !== null
+		record.credentials !== null &&
+		(record.databases === undefined || isDatabaseBackupBundle(record.databases))
 	);
 }
 

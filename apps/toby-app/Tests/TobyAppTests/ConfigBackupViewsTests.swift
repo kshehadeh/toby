@@ -13,8 +13,8 @@ struct ConfigBackupViewsTests {
 			onSuccess: { _ in },
 			onError: { _ in }
 		)
-		let title = try view.inspect().find(text: "Backup Settings")
-		#expect(try title.string() == "Backup Settings")
+		let title = try view.inspect().find(text: "Backup Toby Data")
+		#expect(try title.string() == "Backup Toby Data")
 		_ = try view.inspect().find(button: "Choose Location…")
 		_ = try view.inspect().find(button: "Cancel")
 	}
@@ -28,8 +28,8 @@ struct ConfigBackupViewsTests {
 			onSuccess: {},
 			onError: { _ in }
 		)
-		let title = try view.inspect().find(text: "Restore Settings")
-		#expect(try title.string() == "Restore Settings")
+		let title = try view.inspect().find(text: "Restore Toby Data")
+		#expect(try title.string() == "Restore Toby Data")
 		_ = try view.inspect().find(button: "Restore")
 		_ = try view.inspect().find(button: "Cancel")
 	}

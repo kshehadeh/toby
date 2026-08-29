@@ -4,6 +4,7 @@ import path from "node:path";
 import { getChatInboundStatus } from "@toby/core/chat-inbound/status";
 import { runChatInboundSupervisor } from "@toby/core/chat-inbound/supervisor";
 import { readChatInboundConfig } from "@toby/core/config/chat-inbound";
+import { applyPendingDatabaseRestore } from "@toby/core/config/database-backup";
 import {
 	ensureTobyDir,
 	getUnifiedLogPath,
@@ -127,6 +128,12 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 		console.error(chalk.red(e instanceof Error ? e.message : String(e)));
 		process.exitCode = 1;
 		return;
+	}
+
+	// Complete staged database restores before any daemon subsystem opens a
+	// SQLite singleton. The restore endpoint schedules this daemon restart.
+	if (applyPendingDatabaseRestore()) {
+		console.log(chalk.green("Applied staged database restore."));
 	}
 
 	const controller = new AbortController();

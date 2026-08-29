@@ -150,17 +150,17 @@ from a Mac that still has local secrets, or restore a `.tbybak`.
 
 ## Backup and restore
 
-Password-protected archives (`.tbybak`) export **logical** config + credentials
-so a machine move does not depend on Keychain.
+Password-protected archives (`.tbybak`) export settings, credentials, and
+safe SQLite snapshots so a machine move does not depend on Keychain.
 
 ### What is included
 
 | Included | Not included (today) |
 | -------- | -------------------- |
-| Full `config.json` object (`readConfigRaw`) | Chat DB (`chat.sqlite`), memories, recordings |
+| Full `config.json` object (`readConfigRaw`) | Recordings and audio/transcript artifacts |
 | Full decrypted `CredentialsFile` (all `integrations.*`, AI, transcription) | Installed plugin packages under `plugins/` |
-| | Plugin local data under `plugins-data/` |
-| | Skills directory bodies (unless later extended) |
+| `chat.sqlite` (chat sessions, projects, schedules, flows, run history) | Plugin local data under `plugins-data/` |
+| `memory.sqlite` (memories, sources, proposals, audit data) | Skills directory bodies and persona image files |
 
 ### Crypto
 
@@ -168,14 +168,19 @@ so a machine move does not depend on Keychain.
   (`format: "toby.config.backup.encrypted"`, version 2).  
   Code: [`backup-crypto.ts`](../packages/core/src/config/backup-crypto.ts),
   orchestration [`backup.ts`](../packages/core/src/config/backup.ts).
-- Inner payload (version 1):
+- Inner payload (version 2):
 
 ```ts
 {
-  version: 1,
+  version: 2,
   createdAt: string, // ISO
   config: Record<string, unknown>,
-  credentials: CredentialsFile
+  credentials: CredentialsFile,
+  databases: {
+    version: 1,
+    chat: { compression: "gzip-base64", data: string, sha256: string },
+    memory: { compression: "gzip-base64", data: string, sha256: string }
+  }
 }
 ```
 
@@ -185,7 +190,7 @@ Legacy **unencrypted** payload JSON is still accepted on restore.
 
 | Surface | Entry |
 | ------- | ----- |
-| Toby.app | **File → Backup Settings…** / **Restore Settings…** |
+| Toby.app | **File → Backup Toby Data…** / **Restore Toby Data…** |
 | CLI | `toby config backup` / `toby config restore` |
 | Daemon API | `POST /api/config/backup`, `POST /api/config/restore` (see [server-api.md](server-api.md)) |
 
@@ -200,6 +205,9 @@ reimplements Keychain decrypt; it asks the daemon, which calls
    `--yes`).
 3. `writeConfigRaw` + `writeCredentials` (credentials re-encrypted at rest on
    macOS with **this machine’s** Keychain DEK).
+4. For complete v2 backups, validate and stage both SQLite databases, then
+   restart the daemon so they replace local databases before either is opened.
+   Legacy v1 settings-only backups remain supported.
 4. Invalidate configure / model-list caches on the API path.
 
 ### Operational guidance

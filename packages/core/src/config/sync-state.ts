@@ -23,6 +23,10 @@ export interface SyncState {
 	backend?: SyncBackend;
 	/** User-picked folder (absolute). Required when backend is `folder`. */
 	folderPath?: string;
+	/** Opt-in, machine-local daily backups of chat.sqlite and memory.sqlite. */
+	databaseBackupsEnabled?: boolean;
+	lastDatabaseBackupAt?: string;
+	lastDatabaseBackupError?: string | null;
 }
 
 export function getSyncStatePath(): string {
@@ -96,6 +100,25 @@ export function isSyncState(value: unknown): value is SyncState {
 	if (
 		record.folderPath !== undefined &&
 		typeof record.folderPath !== "string"
+	) {
+		return false;
+	}
+	if (
+		record.databaseBackupsEnabled !== undefined &&
+		typeof record.databaseBackupsEnabled !== "boolean"
+	) {
+		return false;
+	}
+	if (
+		record.lastDatabaseBackupAt !== undefined &&
+		typeof record.lastDatabaseBackupAt !== "string"
+	) {
+		return false;
+	}
+	if (
+		record.lastDatabaseBackupError !== undefined &&
+		record.lastDatabaseBackupError !== null &&
+		typeof record.lastDatabaseBackupError !== "string"
 	) {
 		return false;
 	}

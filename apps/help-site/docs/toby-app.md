@@ -29,8 +29,8 @@ For endpoint-level documentation, see [Local APIs](./api/overview): the daemon [
 | **New Project** | Opens Projects and creates a new project |
 | **New Memory** | Opens Memories and starts the new-memory editor |
 | **Permissions…** | Opens the Permissions window for macOS privacy grants (microphone, screen, location, and more) |
-| **Backup Settings…** | Prompts for a password, then a save location for a `.tbybak` archive of settings and credentials |
-| **Restore Settings…** | Opens a `.tbybak` file, asks for the password if needed, and replaces your current config and credentials |
+| **Backup Toby Data…** | Prompts for a password, then a save location for a `.tbybak` archive of settings, credentials, chats, schedules, flows, projects, and memories |
+| **Restore Toby Data…** | Opens a `.tbybak` file, asks for the password if needed, replaces the included local data, and restarts Toby to apply databases |
 
 The CLI equivalents for backup/restore are `toby config backup` and `toby config restore`. See
 [Security](./security) for what is included and how encryption works. To share
