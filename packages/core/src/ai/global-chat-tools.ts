@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import {
 	NoOutputGeneratedError,
 	Output,
@@ -202,6 +203,32 @@ export function resolveWriteTextFileTarget(params: {
 	return { ok: true, absPath, baseDir, baseLabel };
 }
 
+/**
+ * Markdown the model should paste into its reply so the chat UI can offer
+ * Download / Open for a file written by `writeTextFile`.
+ */
+export function markdownDownloadLinkForWrittenFile(absPath: string): string {
+	const name = path.basename(absPath);
+	return `[Download ${name}](${pathToFileURL(absPath).href})`;
+}
+
+function writeTextFileSuccessPayload(params: {
+	readonly absPath: string;
+	readonly dryRun: boolean;
+	readonly created: boolean;
+	readonly message: string;
+}) {
+	return {
+		ok: true as const,
+		dryRun: params.dryRun,
+		path: params.absPath,
+		fileUrl: pathToFileURL(params.absPath).href,
+		markdown: markdownDownloadLinkForWrittenFile(params.absPath),
+		created: params.created,
+		message: params.message,
+	};
+}
+
 /** Explains global tools for integration system prompts. */
 export function globalChatToolsPromptSection(
 	project?: Project | null,
@@ -284,6 +311,7 @@ Write a text file (explicit request only):
 - Do not use writeTextFile to author Toby skills (SKILL.md). Use **createLocalSkill** instead.
 - When a project is active, writes go to the project's **outputs** folder by default (for generated artifacts). Use \`location='context'\` only when the user wants to place a reference file in the project folder. When no project is active, writes go to \`~/.toby/generated-files\`.
 - Required: \`path\` (relative) and \`content\`. Optional: \`location\` (\`outputs\` | \`context\`), \`overwrite\` (default false).
+- After a successful write, include the returned \`markdown\` download link in your reply **exactly as returned** so the user can save or open the file. Do not invent a different URL or omit the link.
 
 Available local skills (name + description):
 ${skillsCatalog}
@@ -791,13 +819,12 @@ export function createGlobalChatTools(
 					const verb = alreadyExists ? "update" : "write";
 					const msg = `[dry-run] Would ${verb} ${targetFile}`;
 					ctx.appliedActions.push(msg);
-					return {
-						ok: true as const,
+					return writeTextFileSuccessPayload({
+						absPath: targetFile,
 						dryRun: true,
-						path: targetFile,
 						created: !alreadyExists,
 						message: msg,
-					};
+					});
 				}
 
 				try {
@@ -819,13 +846,12 @@ export function createGlobalChatTools(
 					? `Updated ${targetFile}`
 					: `Wrote ${targetFile} (${resolved.baseLabel})`;
 				ctx.appliedActions.push(msg);
-				return {
-					ok: true as const,
+				return writeTextFileSuccessPayload({
+					absPath: targetFile,
 					dryRun: false,
-					path: targetFile,
 					created: !alreadyExists,
 					message: msg,
-				};
+				});
 			},
 		}),
 		loadLocalSkillInstructions: tool({

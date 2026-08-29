@@ -102,6 +102,9 @@ struct MarkdownText: View {
 				case .imageGroup(let images):
 					MarkdownImageGroupView(images: images, compact: !usesProseTypography)
 						.padding(.vertical, usesProseTypography ? 8 : 4)
+				case .fileLink(let file):
+					MarkdownFileLinkView(link: file, compact: !usesProseTypography)
+						.padding(.vertical, usesProseTypography ? 4 : 2)
 				}
 			}
 		}

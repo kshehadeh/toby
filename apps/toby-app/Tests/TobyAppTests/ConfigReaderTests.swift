@@ -74,6 +74,13 @@ struct ConfigReaderTests {
 		#expect(ConfigReader.resolveTobyDir() == ConfigReader.standardizePath(envPath))
 	}
 
+	@Test("generatedFilesDir is under the resolved Toby dir")
+	func generatedFilesDir() {
+		let dir = ConfigReader.generatedFilesDir()
+		#expect(dir.hasSuffix("/generated-files"))
+		#expect(dir.hasPrefix(ConfigReader.resolveTobyDir()))
+	}
+
 	@Test("ensureWritableDirectory creates missing folders")
 	func ensureWritableCreates() throws {
 		let dir = FileManager.default.temporaryDirectory

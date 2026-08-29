@@ -97,6 +97,11 @@ under `~/.toby/skills/`.
 
 When no project is active, writes go to `~/.toby/generated-files/`.
 
+Successful writes return a `fileUrl` and a markdown download link
+(`[Download filename](file://…)`). The model includes that link in the reply so
+Toby.app can render a **Download** / **Open** chip (save a copy to Downloads, or
+open the original with the default app).
+
 Paths must be relative, within the base directory, and use an allowed text
 extension (`.md`, `.txt`, `.json`, …). See
 [`packages/core/src/ai/global-chat-tools.ts`](../packages/core/src/ai/global-chat-tools.ts).

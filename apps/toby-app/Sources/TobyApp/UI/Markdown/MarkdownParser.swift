@@ -139,7 +139,7 @@ enum MarkdownParser {
 
 	/// The cell is a single markdown/HTML image with no surrounding text.
 	static func singleImage(from text: String) -> MarkdownImage? {
-		let fragments = splitInlineImages(text)
+		let fragments = splitInlineMedia(text)
 		let images = fragments.compactMap { fragment -> MarkdownImage? in
 			if case .image(let image) = fragment { return image }
 			return nil
@@ -169,18 +169,21 @@ enum MarkdownParser {
 	private enum InlineFragment {
 		case text(String)
 		case image(MarkdownImage)
+		case file(MarkdownFileLink)
 	}
 
 	private static func blocksFromFragments(
 		_ text: String,
 		wrapText: (String) -> MarkdownBlock,
 	) -> [MarkdownBlock] {
-		let fragments = splitInlineImages(text)
-		let hasImage = fragments.contains { fragment in
-			if case .image = fragment { return true }
-			return false
+		let fragments = splitInlineMedia(text)
+		let hasMedia = fragments.contains { fragment in
+			switch fragment {
+			case .image, .file: return true
+			case .text: return false
+			}
 		}
-		guard hasImage else {
+		guard hasMedia else {
 			return [wrapText(text)]
 		}
 		var blocks: [MarkdownBlock] = []
@@ -193,6 +196,8 @@ enum MarkdownParser {
 				}
 			case .image(let image):
 				blocks.append(.imageGroup([image]))
+			case .file(let file):
+				blocks.append(.fileLink(file))
 			}
 		}
 		return blocks.isEmpty ? [wrapText(text)] : blocks
@@ -220,15 +225,20 @@ enum MarkdownParser {
 		return output
 	}
 
-	private static func splitInlineImages(_ text: String) -> [InlineFragment] {
+	private static func splitInlineMedia(_ text: String) -> [InlineFragment] {
 		var fragments: [InlineFragment] = []
 		var cursor = text.startIndex
 		while cursor < text.endIndex {
-			if let match = nextImage(in: text, from: cursor) {
+			if let match = nextMedia(in: text, from: cursor) {
 				if match.range.lowerBound > cursor {
 					fragments.append(.text(String(text[cursor..<match.range.lowerBound])))
 				}
-				fragments.append(.image(match.image))
+				switch match {
+				case .image(let image, _):
+					fragments.append(.image(image))
+				case .file(let file, _):
+					fragments.append(.file(file))
+				}
 				cursor = match.range.upperBound
 			} else {
 				fragments.append(.text(String(text[cursor...])))
@@ -243,21 +253,60 @@ enum MarkdownParser {
 		let range: Range<String.Index>
 	}
 
-	private static func nextImage(in text: String, from start: String.Index) -> ImageMatch? {
+	private enum MediaMatch {
+		case image(MarkdownImage, range: Range<String.Index>)
+		case file(MarkdownFileLink, range: Range<String.Index>)
+
+		var range: Range<String.Index> {
+			switch self {
+			case .image(_, let range), .file(_, let range):
+				return range
+			}
+		}
+	}
+
+	private static func nextMedia(in text: String, from start: String.Index) -> MediaMatch? {
 		var index = start
 		while index < text.endIndex {
 			if text[index] == "[", let match = parseLinkedImage(in: text, at: index) {
-				return match
+				return .image(match.image, range: match.range)
 			}
 			if text[index] == "!", let match = parseMarkdownImage(in: text, at: index) {
-				return match
+				return .image(match.image, range: match.range)
+			}
+			if text[index] == "[", let match = parseFileLink(in: text, at: index) {
+				return .file(match.file, range: match.range)
 			}
 			if text[index] == "<", let match = parseHTMLImage(in: text, at: index) {
-				return match
+				return .image(match.image, range: match.range)
 			}
 			index = text.index(after: index)
 		}
 		return nil
+	}
+
+	private struct FileMatch {
+		let file: MarkdownFileLink
+		let range: Range<String.Index>
+	}
+
+	private static func parseFileLink(in text: String, at open: String.Index) -> FileMatch? {
+		guard text[open] == "[" else { return nil }
+		let labelStart = text.index(after: open)
+		guard labelStart < text.endIndex, text[labelStart] != "!" else { return nil }
+		guard let labelClose = text[labelStart...].firstIndex(of: "]") else { return nil }
+		let afterLabel = text.index(after: labelClose)
+		guard afterLabel < text.endIndex, text[afterLabel] == "(" else { return nil }
+		guard let dest = parseParenthesizedDestination(text, from: text.index(after: afterLabel)),
+			MarkdownFileLink.isFileDestination(dest.url)
+		else {
+			return nil
+		}
+		let label = String(text[labelStart..<labelClose])
+		return FileMatch(
+			file: MarkdownFileLink(label: label, destination: dest.url),
+			range: open..<dest.end,
+		)
 	}
 
 	private static func parseLinkedImage(in text: String, at open: String.Index) -> ImageMatch? {

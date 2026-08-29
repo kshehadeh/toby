@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { resolveWriteTextFileTarget } from "@toby/core/ai/global-chat-tools";
+import {
+	markdownDownloadLinkForWrittenFile,
+	resolveWriteTextFileTarget,
+} from "@toby/core/ai/global-chat-tools";
 import type { Project } from "@toby/core/projects/index";
 
 let tempDir: string;
@@ -177,6 +180,20 @@ describe("resolveWriteTextFileTarget", () => {
 		});
 		expect(result.ok).toBe(true);
 		expect(result.absPath).toBe(path.join(outputsDir, "report.md"));
+	});
+
+	it("builds a file:// markdown download link", () => {
+		const absPath = "/Users/example/.toby/generated-files/vim-cheat-sheet.md";
+		expect(markdownDownloadLinkForWrittenFile(absPath)).toBe(
+			"[Download vim-cheat-sheet.md](file:///Users/example/.toby/generated-files/vim-cheat-sheet.md)",
+		);
+	});
+
+	it("percent-encodes spaces in download link URLs", () => {
+		const absPath = "/tmp/My Notes.md";
+		expect(markdownDownloadLinkForWrittenFile(absPath)).toBe(
+			"[Download My Notes.md](file:///tmp/My%20Notes.md)",
+		);
 	});
 
 	it("allows supported extensions", () => {

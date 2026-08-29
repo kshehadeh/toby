@@ -179,10 +179,121 @@ struct MarkdownTextTests {
 		}
 	}
 
+	@Test("parses a file:// markdown download link")
+	func parsesFileURLDownloadLink() throws {
+		let blocks = MarkdownText.parseBlocks(
+			"[Download vim-cheat-sheet.md](file:///Users/example/.toby/generated-files/vim-cheat-sheet.md)"
+		)
+		let file = try #require(firstFileLink(in: blocks))
+		#expect(file.label == "Download vim-cheat-sheet.md")
+		#expect(file.filename == "vim-cheat-sheet.md")
+		#expect(file.destination.hasPrefix("file://"))
+	}
+
+	@Test("parses an absolute path download link")
+	func parsesAbsolutePathDownloadLink() throws {
+		let blocks = MarkdownText.parseBlocks(
+			"Generated the sheet:\n[Download notes.md](/Users/example/.toby/generated-files/notes.md)"
+		)
+		#expect(blocks.count == 2)
+		guard case .paragraph(let text) = blocks[0] else {
+			Issue.record("Expected surrounding text")
+			return
+		}
+		#expect(text == "Generated the sheet:")
+		let file = try #require(firstFileLink(in: blocks))
+		#expect(file.filename == "notes.md")
+	}
+
+	@Test("parses a relative generated-file download link")
+	func parsesRelativeDownloadLink() throws {
+		let blocks = MarkdownText.parseBlocks("[Download vim-cheat-sheet.md](vim-cheat-sheet.md)")
+		let file = try #require(firstFileLink(in: blocks))
+		#expect(file.filename == "vim-cheat-sheet.md")
+		let resolved = file.resolvedFileURL(generatedFilesDir: "/tmp/generated-files")
+		#expect(resolved?.path == "/tmp/generated-files/vim-cheat-sheet.md")
+	}
+
+	@Test("leaves https links as paragraph markdown")
+	func leavesHTTPSLinksInline() {
+		#expect(MarkdownText.parseBlocks("[Apple](https://apple.com)") == [
+			.paragraph("[Apple](https://apple.com)"),
+		])
+		#expect(MarkdownText.parseBlocks("[site](apple.com)") == [
+			.paragraph("[site](apple.com)"),
+		])
+	}
+
+	@Test("does not treat javascript links as files")
+	func rejectsUnsafeFileDestinations() {
+		#expect(MarkdownText.parseBlocks("[x](javascript:alert(1))") == [
+			.paragraph("[x](javascript:alert(1))"),
+		])
+	}
+
+	@Test("renders a generated file chip")
+	func rendersFileLinkChip() throws {
+		let view = MarkdownText(
+			text: "[Download vim-cheat-sheet.md](file:///tmp/vim-cheat-sheet.md)",
+			font: .body,
+			foregroundStyle: .primary,
+			usesProseTypography: true,
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "markdown-file-link")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "markdown-file-link-download")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "markdown-file-link-open")
+		}
+	}
+
+	@Test("resolves file URLs and unique download names")
+	func resolvesFileLinkHelpers() {
+		let fileURL = MarkdownFileLink.resolvedFileURL(
+			destination: "file:///Users/example/.toby/generated-files/notes.md",
+			generatedFilesDir: "/tmp/generated-files"
+		)
+		#expect(fileURL?.path == "/Users/example/.toby/generated-files/notes.md")
+
+		let relative = MarkdownFileLink.resolvedFileURL(
+			destination: "reports/summary.md",
+			generatedFilesDir: "/tmp/generated-files"
+		)
+		#expect(relative?.path == "/tmp/generated-files/reports/summary.md")
+
+		#expect(MarkdownFileLink.isFileDestination("vim-cheat-sheet.md"))
+		#expect(!MarkdownFileLink.isFileDestination("https://example.com/notes.md"))
+		#expect(!MarkdownFileLink.isFileDestination("../escape.md"))
+
+		let dir = URL(fileURLWithPath: "/tmp/downloads", isDirectory: true)
+		let existing: Set<String> = [
+			"/tmp/downloads/notes.md",
+			"/tmp/downloads/notes (1).md",
+		]
+		let unique = MarkdownFileLink.uniqueURL(
+			in: dir,
+			preferredFilename: "notes.md",
+			fileExists: { existing.contains($0) }
+		)
+		#expect(unique.lastPathComponent == "notes (2).md")
+	}
+
 	private func firstImage(in blocks: [MarkdownBlock]) -> MarkdownImage? {
 		for block in blocks {
 			if case .imageGroup(let images) = block, let image = images.first {
 				return image
+			}
+		}
+		return nil
+	}
+
+	private func firstFileLink(in blocks: [MarkdownBlock]) -> MarkdownFileLink? {
+		for block in blocks {
+			if case .fileLink(let file) = block {
+				return file
 			}
 		}
 		return nil

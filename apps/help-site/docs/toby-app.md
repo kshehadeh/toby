@@ -68,6 +68,8 @@ and memories.
 The main window is where you interact with Toby. It shows your conversation
 history, streaming responses, and a prompt input at the bottom. Markdown
 images in replies render as photos you can click to open in the browser.
+Generated files appear as a chip with **Download** (copy to your Downloads
+folder) and **Open**.
 
 ![Toby.app main chat window](/img/toby-app-main.png)
 

@@ -84,6 +84,11 @@ Generated files are written to:
 
 When no project is active, generated files fall back to `~/.toby/generated-files/`.
 
+When Toby writes a file in chat, the reply includes a download chip. **Download**
+saves a copy to your Downloads folder and reveals it in Finder; **Open** opens
+the original with its default app. You can also **Save As…** or **Reveal in
+Finder** from the chip’s context menu.
+
 ## Use projects with schedules
 
 Schedules can be associated with a project. When a scheduled prompt runs with a project selected, Toby uses that project's guidance and writes generated artifacts to the project workspace.

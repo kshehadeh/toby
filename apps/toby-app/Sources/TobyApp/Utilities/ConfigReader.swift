@@ -38,6 +38,13 @@ enum ConfigReader {
 		standardizePath(resolveTobyDir()) != defaultTobyDir()
 	}
 
+	/// Fallback location for chat-generated text files: `<tobyDir>/generated-files`.
+	static func generatedFilesDir() -> String {
+		URL(fileURLWithPath: resolveTobyDir(), isDirectory: true)
+			.appendingPathComponent("generated-files", isDirectory: true)
+			.path
+	}
+
 	/// Absolute, symlink-resolved path for equality checks.
 	static func standardizePath(_ path: String) -> String {
 		URL(fileURLWithPath: path)
