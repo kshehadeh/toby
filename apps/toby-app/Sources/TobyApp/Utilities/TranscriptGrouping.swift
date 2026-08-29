@@ -28,6 +28,42 @@ enum TranscriptGrouping {
 		return false
 	}
 
+	static func isToolSelectionNotice(_ text: String) -> Bool {
+		parseToolSelectionNotice(text) != nil
+	}
+
+	static func parseToolSelectionNotice(_ text: String) -> TranscriptToolSelection? {
+		let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+		let pattern = #"^(\d+)\s+(?:core\s+)?tools(?:\s*:\s*(.*))?$"#
+		guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
+			let match = regex.firstMatch(
+				in: trimmed,
+				range: NSRange(trimmed.startIndex..., in: trimmed)
+			),
+			let countRange = Range(match.range(at: 1), in: trimmed),
+			let count = Int(trimmed[countRange])
+		else {
+			return nil
+		}
+
+		var names: [String] = []
+		if match.range(at: 2).location != NSNotFound,
+			let namesRange = Range(match.range(at: 2), in: trimmed)
+		{
+			let namesText = String(trimmed[namesRange])
+				.replacingOccurrences(
+					of: #"\s*(?:…|\.\.\.)?\s*\+\d+\s+more\s*$"#,
+					with: "",
+					options: .regularExpression
+				)
+			names = namesText.split(separator: ",").compactMap { rawName in
+				let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+				return name.isEmpty ? nil : name
+			}
+		}
+		return TranscriptToolSelection(count: count, names: names)
+	}
+
 	/// Pipeline variants that contribute to the "Working" / "Worked for" group.
 	static func isWorkVariant(_ variant: String) -> Bool {
 		switch variant {
@@ -46,6 +82,10 @@ enum TranscriptGrouping {
 		case .meta, .turnWork, .toolCall, .toolOutput:
 			return false
 		case .notice(let text, _):
+			// Tool names now live in the activity card footer in every mode.
+			if isToolSelectionNotice(text) {
+				return false
+			}
 			if mode == .normal, isDebugSelectionNotice(text) {
 				return false
 			}
@@ -54,9 +94,10 @@ enum TranscriptGrouping {
 			if payload.variant == "assistant" {
 				return true
 			}
-			// Interim assistant replies surface as conversation rows in normal mode.
+			// Assistant content remains a conversation row in every transcript
+			// mode; activity metadata must not own message rendering.
 			if payload.variant == "assistant_interim" {
-				return mode == .normal
+				return true
 			}
 			if isWorkVariant(payload.variant) {
 				// Work steps are shown via work groups, not as top-level rows.
@@ -77,10 +118,8 @@ enum TranscriptGrouping {
 	) -> Bool {
 		switch entry {
 		case .boxedStep(let payload):
-			// Keep interim replies in the conversation in normal mode; in debug
-			// they live inside the expandable work log.
 			if payload.variant == "assistant_interim" {
-				return mode == .debug
+				return false
 			}
 			return isWorkVariant(payload.variant)
 		case .toolCall, .toolOutput:
@@ -98,6 +137,8 @@ enum TranscriptGrouping {
 		var items: [TranscriptDisplayItem] = []
 		var workBuffer: [TranscriptEntry] = []
 		var pendingWorkDurationMs: Int?
+		var pendingWorkError: String?
+		var pendingToolSelection: TranscriptToolSelection?
 		var lastUserIndex: Int?
 
 		func flushWork(isActive: Bool) {
@@ -108,10 +149,14 @@ enum TranscriptGrouping {
 				userTurnIndex: lastUserIndex,
 				durationMs: pendingWorkDurationMs,
 				isActive: isActive,
+				errorText: pendingWorkError,
+				toolSelection: pendingToolSelection,
 			)
 			items.append(.workGroup(group))
 			workBuffer = []
 			pendingWorkDurationMs = nil
+			pendingWorkError = nil
+			pendingToolSelection = nil
 		}
 
 		for (index, entry) in entries.enumerated() {
@@ -122,6 +167,7 @@ enum TranscriptGrouping {
 
 			if case .user = entry {
 				flushWork(isActive: false)
+				pendingToolSelection = nil
 				lastUserIndex = index
 				items.append(.entry(entry, sourceIndex: index))
 				continue
@@ -129,6 +175,21 @@ enum TranscriptGrouping {
 
 			if isWorkEntry(entry, mode: mode) {
 				workBuffer.append(entry)
+				continue
+			}
+
+			if case .notice(let text, _) = entry,
+				let selection = parseToolSelectionNotice(text)
+			{
+				pendingToolSelection = selection
+				continue
+			}
+
+			// A turn-level error belongs to the activity that immediately
+			// preceded it. Keep errors without activity as standalone notices.
+			if case .error(let text) = entry, !workBuffer.isEmpty {
+				pendingWorkError = text
+				flushWork(isActive: false)
 				continue
 			}
 
@@ -143,12 +204,37 @@ enum TranscriptGrouping {
 	}
 }
 
+struct TranscriptToolSelection: Equatable {
+	let count: Int
+	let names: [String]
+}
+
 struct TranscriptWorkGroup: Identifiable, Equatable {
 	let id: String
 	let entries: [TranscriptEntry]
 	let userTurnIndex: Int?
 	let durationMs: Int?
 	let isActive: Bool
+	let errorText: String?
+	let toolSelection: TranscriptToolSelection?
+
+	init(
+		id: String,
+		entries: [TranscriptEntry],
+		userTurnIndex: Int?,
+		durationMs: Int?,
+		isActive: Bool,
+		errorText: String? = nil,
+		toolSelection: TranscriptToolSelection? = nil
+	) {
+		self.id = id
+		self.entries = entries
+		self.userTurnIndex = userTurnIndex
+		self.durationMs = durationMs
+		self.isActive = isActive
+		self.errorText = errorText
+		self.toolSelection = toolSelection
+	}
 }
 
 extension TranscriptEntry {

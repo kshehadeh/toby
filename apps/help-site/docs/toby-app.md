@@ -183,8 +183,8 @@ being prepared (amber processing indicator, not the live red recording dot).
 
 | Mode | What you see |
 | ---- | ------------ |
-| **Normal** (default) | User messages, assistant replies, errors, ask-user prompts, and the **Working… / Worked for** chip. Expand the chip to see the work-step log (tools run, prompt preparation, plans, lifecycle steps). Skill/tool selection notices stay hidden. |
-| **Debug** | Everything in Normal, plus the pretreatment selection notices (skills / tools) and a work log that auto-expands while a turn is running. |
+| **Normal** (default) | User messages, assistant replies, errors, ask-user prompts, and one **Working… / Worked for** activity card. It expands while a turn runs, collapses after a successful turn, and stays open after a failure. Expand a completed card to see work steps and selected tools. |
+| **Debug** | Everything in Normal, plus skill-selection and other pipeline notices. Selected tools stay inside the activity card instead of appearing as a separate transcript line. |
 
 Use **Debug** when troubleshooting routing, tools, or prompt preparation; stay on
 **Normal** for everyday conversation.

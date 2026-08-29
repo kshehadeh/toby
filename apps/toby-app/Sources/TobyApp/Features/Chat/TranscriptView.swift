@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct TranscriptView: View {
+	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+
 	let entries: [TranscriptEntry]
 	let streamingAssistant: StreamingAssistantState?
 	var isLoading = false
@@ -78,11 +80,8 @@ struct TranscriptView: View {
 
 	private func isWorkGroupExpanded(_ group: TranscriptWorkGroup) -> Bool {
 		if group.entries.isEmpty { return false }
-		if group.isActive {
-			if transcriptMode == .debug {
-				return !collapsedWhileActive.contains(group.id)
-			}
-			return expandedWorkGroups.contains(group.id)
+		if group.isActive || group.errorText != nil {
+			return !collapsedWhileActive.contains(group.id)
 		}
 		return expandedWorkGroups.contains(group.id)
 	}
@@ -144,10 +143,10 @@ struct TranscriptView: View {
 			}
 			.onChange(of: isLoading) { wasLoading, loading in
 				if wasLoading, !loading {
-					withAnimation(.easeOut(duration: 0.2)) {
+					withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
 						collapsedWhileActive.removeAll()
 						for item in displayItems {
-							if case .workGroup(let group) = item {
+							if case .workGroup(let group) = item, group.errorText == nil {
 								expandedWorkGroups.remove(group.id)
 							}
 						}
@@ -193,9 +192,7 @@ struct TranscriptView: View {
 			transcriptItemView(item)
 		}
 
-		if let streamingAssistant,
-			transcriptMode == .normal || !streamingAssistant.inWorkArea
-		{
+		if let streamingAssistant {
 			AssistantMessageRow(
 				iconName: "sparkle",
 				header: streamingAssistant.header,
@@ -227,12 +224,6 @@ struct TranscriptView: View {
 				isExpanded: isWorkGroupExpanded(group),
 				onToggle: { toggleWorkGroup(group) },
 				showsWorkDetails: showsWorkDetails,
-				streamingAssistant: transcriptMode == .debug
-					&& group.isActive
-					&& streamingAssistant?.inWorkArea == true
-					? streamingAssistant
-					: nil,
-				personaImage: personaImageUrl,
 			)
 			.id(group.id)
 		}
@@ -275,7 +266,7 @@ struct TranscriptView: View {
 	private func toggleWorkGroup(_ group: TranscriptWorkGroup) {
 		// Cheap expandability check — do not parse work steps until expanded.
 		if group.entries.isEmpty { return }
-		if group.isActive, transcriptMode == .debug {
+		if group.isActive || group.errorText != nil {
 			if collapsedWhileActive.contains(group.id) {
 				collapsedWhileActive.remove(group.id)
 			} else {

@@ -237,9 +237,15 @@ struct ToolDisplayLabelsTests {
 		#expect(ToolDisplayLabels.iconForTool("getCurrentDateTime") == "clock")
 	}
 
-	@Test("returns doc for file tools")
+	@Test("returns doc text for file tools")
 	func fileIcon() {
-		#expect(ToolDisplayLabels.iconForTool("writeTextFile") == "doc")
+		#expect(ToolDisplayLabels.iconForTool("writeTextFile") == "doc.text")
+	}
+
+	@Test("returns clipboard document for clipboard tools")
+	func clipboardIcon() {
+		#expect(ToolDisplayLabels.iconForTool("macClipboardRead") == "doc.on.clipboard")
+		#expect(ToolDisplayLabels.iconForTool("macClipboardWrite") == "doc.on.clipboard")
 	}
 
 	@Test("returns questionmark.bubble for askUser")

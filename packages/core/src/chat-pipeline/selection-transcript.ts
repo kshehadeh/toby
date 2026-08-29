@@ -1,8 +1,6 @@
 import { ALWAYS_INCLUDED_TOOLS, filterToolNamesByRelevance } from "./run-turn";
 import type { NoticeTone, TranscriptEntry } from "./transcript-types";
 
-const MAX_NON_GLOBAL_TOOL_NAMES = 3;
-
 function buildNoticeEntry(
 	text: string,
 	tone: NoticeTone = "info",
@@ -43,16 +41,8 @@ export function buildSelectionTranscriptEntries(params: {
 			? `${activeNames.length} tools`
 			: `${globalCount} core tools`;
 
-	const head = nonGlobal.slice(0, MAX_NON_GLOBAL_TOOL_NAMES);
-	const extra = nonGlobal.length - head.length;
-
-	let text = totalLabel;
-	if (head.length > 0) {
-		const namesStr = head.join(", ");
-		const suffix = extra > 0 ? ` … +${extra} more` : "";
-		text = `${totalLabel}: ${namesStr}${suffix}`;
-	}
-
-	entries.push(buildNoticeEntry(text));
+	// The native app consumes this hidden notice as Activity Card metadata.
+	// Include every selected name so the footer can reveal the complete set.
+	entries.push(buildNoticeEntry(`${totalLabel}: ${activeNames.join(", ")}`));
 	return entries;
 }

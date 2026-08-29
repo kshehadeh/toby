@@ -206,7 +206,7 @@ struct TranscriptViewTests {
 		#expect(!steps.contains { $0.title.contains("Skills:") || $0.body.contains("tools:") })
 	}
 
-	@Test("isWorkEntry groups tools in both modes; interim only in debug")
+	@Test("isWorkEntry groups tools but keeps interim assistant messages in conversation")
 	func isWorkEntryModes() {
 		let tool = TranscriptEntry.boxedStep(BoxedStepPayload(
 			id: "tool-1",
@@ -237,7 +237,7 @@ struct TranscriptViewTests {
 		#expect(TranscriptGrouping.isWorkEntry(tool, mode: .normal))
 		#expect(TranscriptGrouping.isWorkEntry(tool, mode: .debug))
 		#expect(!TranscriptGrouping.isWorkEntry(interim, mode: .normal))
-		#expect(TranscriptGrouping.isWorkEntry(interim, mode: .debug))
+		#expect(!TranscriptGrouping.isWorkEntry(interim, mode: .debug))
 	}
 
 	@Test("groupedItems shows prep and selection notices in debug mode")
@@ -263,13 +263,126 @@ struct TranscriptViewTests {
 		]
 
 		let items = TranscriptGrouping.groupedItems(from: entries, isLoading: false, mode: .debug)
-		// user, work group (prep), two notices, assistant
-		#expect(items.count == 5)
+		// Tool selection is represented by the activity footer; skill selection
+		// remains debug-only: user, work group, skill notice, assistant.
+		#expect(items.count == 4)
 		if case .workGroup(let group) = items[1] {
 			#expect(group.entries.count == 1)
 		} else {
 			Issue.record("Expected prep work group at index 1")
 		}
+		if case .entry(let entry, _) = items[2], case .notice(let text, _) = entry {
+			#expect(text == "Skills: email-triage")
+		} else {
+			Issue.record("Expected debug skill notice")
+		}
+	}
+
+	@Test("turn error is folded into the preceding activity group")
+	func errorBelongsToActivityGroup() {
+		let error = "Reconnect Slack, then retry."
+		let entries: [TranscriptEntry] = [
+			.user(text: "Search Slack"),
+			.boxedStep(BoxedStepPayload(
+				id: "tool-1",
+				seq: 1,
+				variant: "tool",
+				header: "Search Slack",
+				body: "Running…",
+				toolName: "searchSlack",
+				integrationLabel: "Slack",
+				cacheHit: nil,
+				durationMs: nil,
+				toolRuns: nil,
+				fullBody: nil
+			)),
+			.error(text: error),
+		]
+
+		let items = TranscriptGrouping.groupedItems(from: entries, isLoading: false)
+		#expect(items.count == 2)
+		guard case .workGroup(let group) = items[1] else {
+			Issue.record("Expected failed activity group")
+			return
+		}
+		#expect(group.errorText == error)
+		#expect(!group.isActive)
+	}
+
+	@Test("standalone error remains visible when no activity precedes it")
+	func standaloneErrorRemainsVisible() {
+		let items = TranscriptGrouping.groupedItems(
+			from: [.user(text: "Hello"), .error(text: "Unavailable")],
+			isLoading: false
+		)
+		#expect(items.count == 2)
+		if case .entry(let entry, _) = items[1], case .error(let text) = entry {
+			#expect(text == "Unavailable")
+		} else {
+			Issue.record("Expected standalone error row")
+		}
+	}
+
+	@Test("tool selection metadata feeds declared count and complete footer names")
+	func toolSelectionMetadataFeedsActivityModel() {
+		let toolNames = [
+			"askUser", "getCurrentDateTime", "writeTextFile", "memorySearch",
+			"searchSlack", "readSlackThread", "postSlackMessage", "webSearch",
+			"fetchWebContent", "getWeather", "getMyLocation", "readTranscript",
+			"macClipboardRead",
+		]
+		let entries: [TranscriptEntry] = [
+			.user(text: "Find the answer"),
+			.notice(text: "13 tools: \(toolNames.joined(separator: ", "))", tone: "info"),
+			.boxedStep(BoxedStepPayload(
+				id: "tool-1",
+				seq: 1,
+				variant: "tool",
+				header: "Search Slack",
+				body: "Found it.",
+				toolName: "searchSlack",
+				integrationLabel: "Slack",
+				cacheHit: false,
+				durationMs: 100,
+				toolRuns: nil,
+				fullBody: nil
+			)),
+			.assistant(text: "Done."),
+		]
+
+		let items = TranscriptGrouping.groupedItems(from: entries, isLoading: false)
+		#expect(items.count == 3)
+		guard case .workGroup(let group) = items[1] else {
+			Issue.record("Expected activity group")
+			return
+		}
+		#expect(group.toolSelection?.count == 13)
+		#expect(group.toolSelection?.names == toolNames)
+
+		let model = WorkActivityModel(group: group, steps: workSteps(from: group), duration: 1)
+		#expect(model.summary == "1 step · 13 tools")
+		#expect(model.tools == toolNames)
+	}
+
+	@Test("legacy truncated and core-only tool notices parse robustly")
+	func legacyToolSelectionNoticeParsing() {
+		let truncated = TranscriptGrouping.parseToolSelectionNotice(
+			"13 tools: searchSlack, readSlackThread, postSlackMessage … +10 more"
+		)
+		#expect(truncated?.count == 13)
+		#expect(truncated?.names == ["searchSlack", "readSlackThread", "postSlackMessage"])
+
+		let coreOnly = TranscriptGrouping.parseToolSelectionNotice("3 core tools")
+		#expect(coreOnly?.count == 3)
+		#expect(coreOnly?.names == [])
+	}
+
+	@Test("activity tool symbols use accepted mappings")
+	func activityToolSymbolMappings() {
+		#expect(ToolDisplayLabels.iconForTool("writeTextFile") == "doc.text")
+		#expect(ToolDisplayLabels.iconForTool("macClipboardRead") == "doc.on.clipboard")
+		#expect(ToolDisplayLabels.iconForTool("macClipboardWrite") == "doc.on.clipboard")
+		#expect(ToolDisplayLabels.iconForTool("webSearch") == "magnifyingglass")
 	}
 
 	@Test("groupedItems marks work group as active during loading in debug mode")
@@ -373,7 +486,8 @@ struct TranscriptViewTests {
 		))
 		#expect(TranscriptGrouping.isVisible(interim, mode: .normal))
 		#expect(!TranscriptGrouping.isWorkEntry(interim, mode: .normal))
-		#expect(TranscriptGrouping.isWorkEntry(interim, mode: .debug))
+		#expect(TranscriptGrouping.isVisible(interim, mode: .debug))
+		#expect(!TranscriptGrouping.isWorkEntry(interim, mode: .debug))
 	}
 
 	@Test("debug selection notices are classified correctly")

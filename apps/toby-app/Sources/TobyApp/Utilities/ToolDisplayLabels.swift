@@ -253,8 +253,11 @@ enum ToolDisplayLabels {
 		if lower.contains("integration") {
 			return "puzzlepiece"
 		}
+		if lower.contains("clipboard") {
+			return "doc.on.clipboard"
+		}
 		if lower.contains("file") || lower.contains("write") {
-			return "doc"
+			return "doc.text"
 		}
 		if lower.contains("askuser") {
 			return "questionmark.bubble"
@@ -276,7 +279,9 @@ enum ToolDisplayLabels {
 		"getWeather": "cloud.sun",
 		"getMyLocation": "location",
 		"getCurrentDateTime": "clock",
-		"writeTextFile": "doc",
+		"writeTextFile": "doc.text",
+		"macClipboardRead": "doc.on.clipboard",
+		"macClipboardWrite": "doc.on.clipboard",
 		"createLocalSkill": "wand.and.stars",
 		"loadLocalSkillInstructions": "book",
 		"tobyListIntegrations": "puzzlepiece",

@@ -160,7 +160,13 @@ private func makeBoxedStepWorkStep(
 
 private func friendlyToolTitle(title: String, toolName: String?) -> String {
 	if let toolName = toolName, !toolName.isEmpty {
-		return ToolDisplayLabels.displayLabel(toolName)
+		if title == toolName
+			|| (!title.contains(" ")
+				&& title.range(of: "([a-z0-9])([A-Z])", options: .regularExpression) != nil)
+		{
+			return ToolDisplayLabels.displayLabel(toolName)
+		}
+		return title
 	}
 	if !title.contains(" ") && title.range(of: "([a-z0-9])([A-Z])", options: .regularExpression) != nil {
 		return ToolDisplayLabels.displayLabel(title)
@@ -204,7 +210,8 @@ private func aggregateConsecutiveToolSteps(_ steps: [WorkStep]) -> [WorkStep] {
 		   canAggregate,
 		   last.type == step.type,
 		   step.toolName != nil,
-		   step.toolName == last.toolName {
+		   step.toolName == last.toolName,
+		   step.title == last.title {
 			buffer.append(step)
 		} else {
 			flush()

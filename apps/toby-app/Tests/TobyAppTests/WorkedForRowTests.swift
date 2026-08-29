@@ -7,19 +7,166 @@ import ViewInspector
 @Suite("WorkedForRow")
 struct WorkedForRowTests {
 
-	@Test("completed work uses a short-time label when duration is unavailable")
-	func shortWorkLabelWhenDurationIsMissing() {
-		#expect(workedSummaryLabel(duration: nil) == "Worked for a short time")
+	@Test("completed work uses minimum display duration when duration is unavailable")
+	func minimumWorkLabelWhenDurationIsMissing() {
+		#expect(workedSummaryLabel(duration: nil) == "Worked for 0.1s")
 	}
 
-	@Test("completed work uses a short-time label for sub-second durations")
-	func shortWorkLabelForSubsecondDuration() {
-		#expect(workedSummaryLabel(duration: 0.4) == "Worked for a short time")
+	@Test("completed work uses minimum display duration for sub-second durations")
+	func minimumWorkLabelForSubsecondDuration() {
+		#expect(workedSummaryLabel(duration: 0.4) == "Worked for 0.4s")
 	}
 
 	@Test("completed work includes formatted duration when available")
 	func formattedWorkLabel() {
 		#expect(workedSummaryLabel(duration: 1.2) == "Worked for 1s")
+	}
+
+	@Test("activity durations use compact non-decorative precision")
+	func compactActivityDurations() {
+		#expect(formatActivityDuration(0.05) == "0.1s")
+		#expect(formatActivityDuration(0.9) == "0.9s")
+		#expect(formatActivityDuration(14) == "14s")
+		#expect(formatActivityDuration(72) == "1m 12s")
+	}
+
+	@Test("aggregated executions count as one displayed step")
+	func aggregatedExecutionsCountAsOneStep() {
+		let repeated = WorkStep(
+			id: "a",
+			type: .tool,
+			title: "Search the web",
+			body: "",
+			fullBody: nil,
+			durationMs: 300,
+			isActive: false,
+			cacheHit: nil,
+			toolName: "webSearch",
+			count: 3,
+			children: []
+		)
+		let model = WorkActivityModel(
+			group: TranscriptWorkGroup(
+				id: "work-0",
+				entries: [],
+				userTurnIndex: 0,
+				durationMs: 300,
+				isActive: false
+			),
+			steps: [repeated],
+			duration: 0.3
+		)
+
+		#expect(model.stepCount == 1)
+		#expect(model.summary == "1 step · 1 tools")
+	}
+
+	@Test("done activity model summarizes steps and unique real tool names")
+	func doneActivitySummary() {
+		let model = WorkActivityModel(
+			group: TranscriptWorkGroup(
+				id: "work-0",
+				entries: [],
+				userTurnIndex: 0,
+				durationMs: 14_000,
+				isActive: false
+			),
+			steps: [
+				activityStep(id: "a", toolName: "webSearch"),
+				activityStep(id: "b", toolName: "webSearch"),
+				activityStep(id: "c", toolName: "readTranscript"),
+			],
+			duration: 14
+		)
+
+		#expect(model.title == "Worked for 14s")
+		#expect(model.summary == "3 steps · 2 tools")
+		#expect(model.tools == ["webSearch", "readTranscript"])
+	}
+
+	@Test("running activity model shows elapsed time and plan progress")
+	func runningActivitySummary() {
+		let model = WorkActivityModel(
+			group: TranscriptWorkGroup(
+				id: "work-0",
+				entries: [],
+				userTurnIndex: 0,
+				durationMs: nil,
+				isActive: true
+			),
+			steps: [
+				activityStep(id: "plan", title: "Phase 2/3: Search", toolName: nil),
+			],
+			duration: 14
+		)
+
+		#expect(model.title == "Working…")
+		#expect(model.summary == "14s · step 2 of 3")
+	}
+
+	@Test("failed activity model preserves backend error copy")
+	func failedActivitySummary() {
+		let error = "Reconnect Slack, then retry this request."
+		let model = WorkActivityModel(
+			group: TranscriptWorkGroup(
+				id: "work-0",
+				entries: [],
+				userTurnIndex: 0,
+				durationMs: 14_000,
+				isActive: false,
+				errorText: error
+			),
+			steps: [activityStep(id: "a", toolName: "searchSlack")],
+			duration: 14
+		)
+
+		#expect(model.title == "Stopped after 14s")
+		#expect(model.summary == "1 of 1 steps · 1 error")
+		#expect(model.errorText == error)
+	}
+
+	@Test("collapsed activity card renders only its header button")
+	func collapsedCardIsHeaderOnly() throws {
+		let group = TranscriptWorkGroup(
+			id: "work-0",
+			entries: [.boxedStep(activityPayload())],
+			userTurnIndex: 0,
+			durationMs: 14_000,
+			isActive: false
+		)
+		let view = WorkedForRow(
+			group: group,
+			duration: 14,
+			activeWorkStartDate: nil,
+			isExpanded: false,
+			onToggle: {}
+		)
+
+		#expect(try view.inspect().findAll(ViewType.Button.self).count == 1)
+		#expect(throws: (any Error).self) { try view.inspect().find(text: "Tools") }
+		#expect(throws: (any Error).self) { try view.inspect().find(text: "Search the web") }
+	}
+
+	@Test("expanded activity card renders step and camelCase tool chip")
+	func expandedCardShowsRowsAndTools() throws {
+		let group = TranscriptWorkGroup(
+			id: "work-0",
+			entries: [.boxedStep(activityPayload())],
+			userTurnIndex: 0,
+			durationMs: 14_000,
+			isActive: false
+		)
+		let view = WorkedForRow(
+			group: group,
+			duration: 14,
+			activeWorkStartDate: nil,
+			isExpanded: true,
+			onToggle: {}
+		)
+
+		#expect(try view.inspect().find(text: "Search the web").string() == "Search the web")
+		#expect(try view.inspect().find(text: "Tools").string() == "Tools")
+		#expect(try view.inspect().find(text: "webSearch").string() == "webSearch")
 	}
 
 	@Test("work summary falls back to recorded step durations")
@@ -309,5 +456,41 @@ struct WorkedForRowTests {
 			try view.inspect().find(ViewType.ProgressView.self)
 		}
 		#expect(try view.inspect().find(text: "Running…").string() == "Running…")
+	}
+
+	private func activityStep(
+		id: String,
+		title: String = "Search the web",
+		toolName: String?
+	) -> WorkStep {
+		WorkStep(
+			id: id,
+			type: .tool,
+			title: title,
+			body: "Found a result.",
+			fullBody: nil,
+			durationMs: 100,
+			isActive: false,
+			cacheHit: false,
+			toolName: toolName,
+			count: 1,
+			children: []
+		)
+	}
+
+	private func activityPayload() -> BoxedStepPayload {
+		BoxedStepPayload(
+			id: "tool-1",
+			seq: 1,
+			variant: "tool",
+			header: "Search the web",
+			body: "Found a result.",
+			toolName: "webSearch",
+			integrationLabel: nil,
+			cacheHit: false,
+			durationMs: 100,
+			toolRuns: nil,
+			fullBody: nil
+		)
 	}
 }
