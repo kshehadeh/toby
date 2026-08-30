@@ -65,6 +65,25 @@ struct ChatAttachmentDraftingTests {
 		])
 	}
 
+	@Test("adding a project attachment allows files outside model limits")
+	func addingProjectAttachmentAllowsAnyMediaType() throws {
+		let url = FileManager.default.temporaryDirectory
+			.appendingPathComponent("chat-project-attach-\(UUID().uuidString).zip")
+		try "archive".write(to: url, atomically: true, encoding: .utf8)
+		defer { try? FileManager.default.removeItem(at: url) }
+
+		let outcome = ChatAttachmentDrafting.adding(
+			urls: [url],
+			to: [],
+			capability: capability(supported: false, acceptedMediaTypes: ["text/plain"]),
+			canAttach: true,
+			unavailableReason: "",
+			allowAnyMediaType: true,
+		)
+		#expect(outcome.pendingAttachments.count == 1)
+		#expect(outcome.toasts.isEmpty)
+	}
+
 	@Test("adding enforces maxFiles")
 	func addingEnforcesMaxFiles() throws {
 		let dir = FileManager.default.temporaryDirectory

@@ -84,6 +84,23 @@ Generated files are written to:
 
 When no project is active, generated files fall back to `~/.toby/generated-files/`.
 
+### Save an attached file to a project
+
+In a project chat, use the **+** button to attach a file, then explicitly ask
+Toby to save it to the project, for example: “Save this brief to the project.”
+Toby stores the original file in the project's `attachments` folder. This also
+works for files your selected AI model cannot read. Toby will not replace a file
+with the same name unless you explicitly ask it to overwrite the existing file.
+
+### Rename or delete project files
+
+In a project chat, ask Toby to rename or delete a file already in the project,
+for example: “Rename `attachments/brief.pdf` to `attachments/final-brief.pdf`”
+or “Delete `outputs/old-report.md`.” Toby only acts on your explicit request,
+uses paths inside the project folder, and will not replace an existing file
+during a rename unless you ask it to overwrite that file. Deletions permanently
+remove the requested file.
+
 When Toby writes a file in chat, the reply includes a download chip. **Download**
 saves a copy to your Downloads folder and reveals it in Finder; **Open** opens
 the original with its default app. You can also **Save As…** or **Reveal in

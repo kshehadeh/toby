@@ -38,13 +38,17 @@ function decodedBase64Size(input: string): number {
 export function validateChatAttachments(
 	attachments: readonly ChatAttachment[] | undefined,
 	persona: Persona,
+	options: {
+		readonly allowUnsupportedModel?: boolean;
+		readonly allowAnyMediaType?: boolean;
+	} = {},
 ): readonly ValidatedChatAttachment[] {
 	if (!attachments || attachments.length === 0) {
 		return [];
 	}
 
 	const capability = resolveChatAttachmentCapability(persona);
-	if (!capability.supported) {
+	if (!capability.supported && !options.allowUnsupportedModel) {
 		throw new Error(
 			capability.reason ?? "The selected model does not support attachments.",
 		);
@@ -69,7 +73,10 @@ export function validateChatAttachments(
 		}
 
 		const mediaType = attachment.mediaType?.trim().toLowerCase();
-		if (!isAcceptedChatAttachmentMediaType(mediaType)) {
+		if (
+			!options.allowAnyMediaType &&
+			!isAcceptedChatAttachmentMediaType(mediaType)
+		) {
 			throw new Error(
 				`Unsupported attachment type: ${mediaType || "(missing)"}.`,
 			);

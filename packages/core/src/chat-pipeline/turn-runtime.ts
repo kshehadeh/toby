@@ -458,6 +458,7 @@ export async function runApiChatTurnWithPersistence(params: {
 	readonly clientTurnId?: string;
 	readonly personaNameForFallback?: string;
 	readonly projectId?: string;
+	readonly saveAttachmentsToProject?: boolean;
 }): Promise<ApiChatTurnResult> {
 	const loaded = loadChatSession(params.sessionId);
 	if (!loaded) {
@@ -470,15 +471,21 @@ export async function runApiChatTurnWithPersistence(params: {
 	const accumulator = new TranscriptAccumulator(loaded.transcript);
 	accumulator.addUser(params.userText);
 
+	const project = resolveProjectForTurn({
+		settings: loaded.settings,
+		projectOverride: params.projectId,
+	});
 	const persona = resolvePersonaForTurn({
 		settings: loaded.settings,
 		personaOverride: params.persona,
-		projectPersonaName: resolveProjectForTurn({
-			settings: loaded.settings,
-			projectOverride: params.projectId,
-		})?.personaName,
+		projectPersonaName: project?.personaName ?? null,
 	});
-	const attachments = validateChatAttachments(params.attachments, persona);
+	const attachments = validateChatAttachments(params.attachments, persona, {
+		allowUnsupportedModel:
+			params.saveAttachmentsToProject === true && project !== null,
+		allowAnyMediaType:
+			params.saveAttachmentsToProject === true && project !== null,
+	});
 
 	const result = await runApiChatTurn({
 		...params,

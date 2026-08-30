@@ -35,6 +35,7 @@ struct SessionTitleBadge: View {
 struct EmptyChatWorkspace: View {
     @Bindable var store: ChatStore
     let promptFocus: FocusState<Bool>.Binding
+    var allowsProjectFileAttachments = false
 
     private var greetingName: String {
         store.draftPersonaName ?? store.status?.persona ?? "Toby"
@@ -65,9 +66,16 @@ struct EmptyChatWorkspace: View {
                 contextFillPercentage: store.contextFillPercentage,
                 contextWindowUnavailable: store.contextWindowUnavailable,
                 attachments: store.pendingAttachments,
-                canAttachFiles: store.canAttachFiles,
-                attachmentDisabledReason: store.attachmentUnavailableReason,
-                onAttachFiles: { store.addAttachmentFiles($0) },
+                canAttachFiles: store.canAttachFiles || allowsProjectFileAttachments,
+                attachmentDisabledReason: allowsProjectFileAttachments
+                    ? "Add files to save to this project"
+                    : store.attachmentUnavailableReason,
+                onAttachFiles: {
+                    store.addAttachmentFiles(
+                        $0,
+                        allowProjectFileAttachments: allowsProjectFileAttachments
+                    )
+                },
                 onRemoveAttachment: { store.removeAttachment(id: $0) },
                 onSubmit: submit,
                 onCancel: { store.cancelActiveTurn() },
@@ -81,13 +89,18 @@ struct EmptyChatWorkspace: View {
     }
 
     private func submit() {
-        Task { await store.submitPrompt() }
+        Task {
+            await store.submitPrompt(
+                saveAttachmentsToProject: allowsProjectFileAttachments
+            )
+        }
     }
 }
 
 struct ActiveChatWorkspace: View {
     @Bindable var store: ChatStore
     let promptFocus: FocusState<Bool>.Binding
+    var allowsProjectFileAttachments = false
     @State private var overlayHeight: CGFloat = 126
 
     var body: some View {
@@ -110,9 +123,16 @@ struct ActiveChatWorkspace: View {
                     contextFillPercentage: store.contextFillPercentage,
                     contextWindowUnavailable: store.contextWindowUnavailable,
                     attachments: store.pendingAttachments,
-                    canAttachFiles: store.canAttachFiles,
-                    attachmentDisabledReason: store.attachmentUnavailableReason,
-                    onAttachFiles: { store.addAttachmentFiles($0) },
+                    canAttachFiles: store.canAttachFiles || allowsProjectFileAttachments,
+                    attachmentDisabledReason: allowsProjectFileAttachments
+                        ? "Add files to save to this project"
+                        : store.attachmentUnavailableReason,
+                    onAttachFiles: {
+                        store.addAttachmentFiles(
+                            $0,
+                            allowProjectFileAttachments: allowsProjectFileAttachments
+                        )
+                    },
                     onRemoveAttachment: { store.removeAttachment(id: $0) },
                     onSubmit: submit,
                     onCancel: { store.cancelActiveTurn() },
@@ -137,7 +157,11 @@ struct ActiveChatWorkspace: View {
     }
 
     private func submit() {
-        Task { await store.submitPrompt() }
+        Task {
+            await store.submitPrompt(
+                saveAttachmentsToProject: allowsProjectFileAttachments
+            )
+        }
     }
 }
 

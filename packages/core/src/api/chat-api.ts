@@ -84,6 +84,8 @@ export type TurnRequestBody = {
 	/** First-turn plan generation (multi-step prompts). */
 	readonly generatePlan?: boolean;
 	readonly projectId?: string;
+	/** Allow attachments to be preserved by a project-only tool, even when the model cannot read them. */
+	readonly saveAttachmentsToProject?: boolean;
 };
 
 export type TurnDonePayload = {

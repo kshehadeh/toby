@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { resolveChatAttachmentCapability } from "@toby/core/ai/model-capabilities";
+import { validateChatAttachments } from "@toby/core/chat-pipeline/attachments";
 import { assembleMessagesNode } from "@toby/core/chat-pipeline/nodes/assemble-messages";
 import { persistTurnNode } from "@toby/core/chat-pipeline/nodes/persist-turn";
 import type {
@@ -63,6 +64,23 @@ describe("chat attachment model capabilities", () => {
 		expect(
 			resolveChatAttachmentCapability(persona("ollama", "llama3.2")).supported,
 		).toBe(false);
+	});
+
+	it("allows project attachment storage for models that cannot inspect files", () => {
+		expect(() =>
+			validateChatAttachments(
+				[
+					{
+						filename: "brief.pdf",
+						mediaType: "application/pdf",
+						dataBase64: "aGVsbG8=",
+						byteSize: 5,
+					},
+				],
+				persona("ollama", "llama3.2"),
+				{ allowUnsupportedModel: true, allowAnyMediaType: true },
+			),
+		).not.toThrow();
 	});
 
 	it("strips file bytes from persisted message history", async () => {
@@ -198,6 +216,46 @@ describe("chat attachment message assembly", () => {
 					data: "aGVsbG8=",
 				},
 			],
+		});
+	});
+
+	it("lists files as text when the model cannot inspect their contents", async () => {
+		const result = await assembleMessagesNode.run(
+			{
+				rawUserText: "Save this to the project",
+				effectiveText: "Save this to the project",
+				attachments: [
+					{
+						filename: "brief.pdf",
+						mediaType: "application/pdf",
+						dataBase64: "aGVsbG8=",
+						byteSize: 5,
+					},
+				],
+				priorMessages: [{ role: "system", content: "sys" }],
+				isFirstTurn: false,
+				localSkills: [],
+				toolCatalog: {},
+				willPretreat: false,
+				integrationLabel: "",
+				routingIndex: null,
+				spec: null,
+				prepId: null,
+			} as unknown as ExpandedTurn,
+			{
+				emit: () => {},
+				nextSeq: () => 1,
+				persona: persona("ollama", "llama3.2"),
+				modules: [],
+				dryRun: false,
+				emitPersistLifecycle: false,
+			} as unknown as TurnContext,
+		);
+
+		expect(result.messages.at(-1)).toEqual({
+			role: "user",
+			content:
+				"Save this to the project\n\nAttachments: brief.pdf (application/pdf, 5 bytes)",
 		});
 	});
 });

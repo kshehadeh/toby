@@ -668,6 +668,26 @@ struct ChatStoreTests {
         })
     }
 
+    @Test("project attachment prompt enables project attachment storage")
+    func submitProjectAttachmentPromptEnablesStorage() async {
+        let client = MockChatClient()
+        client.turnDone = TurnDonePayload(
+            turnId: "t1",
+            text: "",
+            appliedActions: nil,
+            sessionName: nil,
+            usage: nil,
+            contextWindow: nil,
+        )
+        let store = ChatStore(client: client)
+        store.sessionId = "sess"
+        store.promptText = "Save this attachment to the project"
+
+        await store.submitPrompt(saveAttachmentsToProject: true)
+
+        #expect(client.saveAttachmentsToProjectValues == [true])
+    }
+
     @Test("toggleRecording start uses native audio client")
     func toggleRecordingStartUsesNativeClient() async {
         let chat = MockChatClient()

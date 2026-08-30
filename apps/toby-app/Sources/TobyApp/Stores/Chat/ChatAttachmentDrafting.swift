@@ -22,6 +22,7 @@ enum ChatAttachmentDrafting {
 		capability: ChatAttachmentCapability?,
 		canAttach: Bool,
 		unavailableReason: String,
+		allowAnyMediaType: Bool = false,
 	) -> AddOutcome {
 		guard canAttach else {
 			return AddOutcome(
@@ -61,7 +62,8 @@ enum ChatAttachmentDrafting {
 					)
 					continue
 				}
-				if let accepted = capability?.acceptedMediaTypes,
+				if !allowAnyMediaType,
+					let accepted = capability?.acceptedMediaTypes,
 					!accepted.isEmpty,
 					!accepted.contains(attachment.mediaType)
 				{

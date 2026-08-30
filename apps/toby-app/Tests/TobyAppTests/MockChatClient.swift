@@ -21,6 +21,7 @@ final class MockChatClient: ChatClientable {
 	var deletedSessionIds: [String] = []
 	var cancelTurnCalls: [(sessionId: String, turnId: String)] = []
 	var streamTurnCalls = 0
+	var saveAttachmentsToProjectValues: [Bool] = []
 	var createSessionCalls = 0
 	var lastCreateSessionPersona: String?
 	var restartDaemonCalls = 0
@@ -102,6 +103,7 @@ final class MockChatClient: ChatClientable {
 		sessionId: String,
 		text: String,
 		attachments: [ChatAttachmentDraft],
+		saveAttachmentsToProject: Bool,
 		clientTurnId: String?,
 		onEvent: @escaping (ChatEventPayload) -> Void,
 		onAskUser: ((AskUserPromptPayload) async -> (
@@ -112,6 +114,7 @@ final class MockChatClient: ChatClientable {
 		))?,
 	) async throws -> TurnDonePayload {
 		streamTurnCalls += 1
+		saveAttachmentsToProjectValues.append(saveAttachmentsToProject)
 		if let streamTurnError { throw streamTurnError }
 		if let error { throw error }
 		for event in streamEvents {

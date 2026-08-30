@@ -486,6 +486,7 @@ struct TobyClient {
 		sessionId: String,
 		text: String,
 		attachments: [ChatAttachmentDraft] = [],
+		saveAttachmentsToProject: Bool = false,
 		clientTurnId: String? = nil,
 		onEvent: @escaping (ChatEventPayload) -> Void,
 		onAskUser: ((AskUserPromptPayload) async -> (selectedIndex: Int, selectedLabel: String, rawInput: String, error: String?))?,
@@ -512,6 +513,9 @@ struct TobyClient {
 					"byteSize": attachment.byteSize,
 				] as [String: Any]
 			}
+		}
+		if saveAttachmentsToProject {
+			bodyDict["saveAttachmentsToProject"] = true
 		}
 		request.httpBody = try JSONSerialization.data(withJSONObject: bodyDict)
 

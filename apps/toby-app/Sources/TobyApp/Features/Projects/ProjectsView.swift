@@ -43,7 +43,7 @@ struct ProjectsView: View {
 	}
 
 	private var projectChat: some View {
-		ChatWorkspaceView(store: chatStore)
+		ChatWorkspaceView(store: chatStore, allowsProjectFileAttachments: true)
 			.inspector(isPresented: $projectsStore.isFilesSidebarPresented) {
 				ProjectFilesSidebarView(store: projectsStore)
 					.inspectorColumnWidth(

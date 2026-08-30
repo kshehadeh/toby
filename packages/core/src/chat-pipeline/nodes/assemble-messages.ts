@@ -1,20 +1,27 @@
 import { randomUUID } from "node:crypto";
 import type { TextPart, UserContent } from "ai";
 import type { CoreMessage } from "../../ai/chat";
+import { resolveChatAttachmentCapability } from "../../ai/model-capabilities";
 import {
 	injectMemoriesIntoFirstSystemMessage,
 	injectProjectContextIntoFirstSystemMessage,
 	injectSkillBodiesIntoFirstSystemMessage,
 	prepareChatSessionMessages,
 } from "../../prepare-messages";
-import { chatAttachmentsToFileParts } from "../attachments";
+import {
+	chatAttachmentsToFileParts,
+	formatAttachmentTranscriptSummary,
+} from "../attachments";
 import type { AssembledTurn, ExpandedTurn, PipelineNode } from "../pipeline";
 
 function withAttachmentParts(
 	text: string,
 	attachments: ExpandedTurn["attachments"],
+	canUseAttachments: boolean,
 ): UserContent {
-	const fileParts = chatAttachmentsToFileParts(attachments);
+	const fileParts = canUseAttachments
+		? chatAttachmentsToFileParts(attachments)
+		: [];
 	if (fileParts.length === 0) {
 		return text;
 	}
@@ -24,8 +31,11 @@ function withAttachmentParts(
 function attachFilesToLastUserMessage(
 	messages: readonly CoreMessage[],
 	attachments: ExpandedTurn["attachments"],
+	canUseAttachments: boolean,
 ): CoreMessage[] {
-	const fileParts = chatAttachmentsToFileParts(attachments);
+	const fileParts = canUseAttachments
+		? chatAttachmentsToFileParts(attachments)
+		: [];
 	if (fileParts.length === 0) {
 		return [...messages];
 	}
@@ -68,6 +78,19 @@ export const assembleMessagesNode: PipelineNode<ExpandedTurn, AssembledTurn> = {
 	name: "assemble-messages",
 	async run(input, ctx) {
 		let messages: CoreMessage[];
+		const attachmentCapability = resolveChatAttachmentCapability(ctx.persona);
+		const modelAttachments = attachmentCapability.supported
+			? (input.attachments ?? []).filter((attachment) =>
+					attachmentCapability.acceptedMediaTypes.includes(
+						attachment.mediaType,
+					),
+				)
+			: [];
+		const messageText =
+			modelAttachments.length === (input.attachments?.length ?? 0)
+				? input.effectiveText
+				: input.effectiveText +
+					formatAttachmentTranscriptSummary(input.attachments);
 
 		if (input.isFirstTurn) {
 			if (ctx.onStatusLine) {
@@ -77,11 +100,12 @@ export const assembleMessagesNode: PipelineNode<ExpandedTurn, AssembledTurn> = {
 				await prepareChatSessionMessages(
 					ctx.modules,
 					ctx.persona,
-					input.effectiveText,
+					messageText,
 					ctx.onStatusLine,
 					ctx.project,
 				),
-				input.attachments,
+				modelAttachments,
+				true,
 			);
 		} else {
 			const mergeLifecycleId = randomUUID();
@@ -95,7 +119,7 @@ export const assembleMessagesNode: PipelineNode<ExpandedTurn, AssembledTurn> = {
 				...input.priorMessages,
 				{
 					role: "user",
-					content: withAttachmentParts(input.effectiveText, input.attachments),
+					content: withAttachmentParts(messageText, modelAttachments, true),
 				},
 			];
 			ctx.emit({

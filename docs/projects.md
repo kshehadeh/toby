@@ -11,7 +11,7 @@ A **project** is:
 1. A **row in `chat.sqlite`** (`projects` table) with id, slug, name, summary,
    optional default persona, and a folder path.
 2. A **folder on disk** (default `~/.toby/projects/<slug>/`) that holds guidance,
-   skills, and generated outputs.
+   skills, user-attached files, and generated outputs.
 
 When a project is **active** (or attached to a chat session), each turn:
 
@@ -105,6 +105,23 @@ Successful writes return a `fileUrl` and a markdown download link
 Toby.app can render a **Download** / **Open** chip (save a copy to Downloads, or
 open the original with the default app).
 
+## Saving chat attachments
+
+In a project chat, attach a file and explicitly ask Toby to save it to the
+project. Toby uses `saveProjectAttachment` to preserve the original bytes under
+`<projectFolder>/attachments/<filename>`. This also works for files the current
+AI model cannot read. Existing files are never replaced unless the user
+explicitly asks to overwrite them.
+
+## Managing project files from chat
+
+Project chats also expose `renameProjectFile` and `deleteProjectFile` for
+existing files. Both tools require a user’s explicit request and accept only
+relative paths inside the project folder. They reject folders, symbolic links,
+and any path that escapes the project. Renames never replace a destination file
+unless the user explicitly requests an overwrite; deletes permanently remove
+the requested file.
+
 Paths must be relative, within the base directory, and use an allowed text
 extension (`.md`, `.txt`, `.json`, …). See
 [`packages/core/src/ai/global-chat-tools.ts`](../packages/core/src/ai/global-chat-tools.ts).
@@ -114,6 +131,7 @@ extension (`.md`, `.txt`, `.json`, …). See
 ```text
 ~/.toby/projects/<slug>/          # default folder (custom paths allowed)
   AGENTS.md                       # project guidance injected into the system prompt
+  attachments/                    # original files explicitly saved from project chat
   outputs/                        # generated artifacts from writeTextFile
   .agent/
     skills/

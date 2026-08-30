@@ -10,6 +10,7 @@ import {
 	zodSchema,
 } from "ai";
 import { z } from "zod";
+import type { ValidatedChatAttachment } from "../chat-pipeline/attachments";
 import type { ChatEventSink } from "../chat-pipeline/chat-events";
 import {
 	type Persona,
@@ -101,6 +102,8 @@ type GlobalChatToolsContext = {
 	readonly nextSeq?: () => number;
 	/** Session ID for log attribution. */
 	readonly sessionId?: string;
+	/** Validated files attached to the current turn. */
+	readonly attachments?: readonly ValidatedChatAttachment[];
 };
 
 /** Text file extensions `writeTextFile` is allowed to create. */
@@ -129,6 +132,75 @@ interface ResolveWriteTargetResult {
 	readonly baseDir?: string;
 	/** Human-readable label for the base location. */
 	readonly baseLabel?: string;
+}
+
+interface ResolveProjectFileTargetResult {
+	readonly ok: boolean;
+	readonly error?: string;
+	readonly absPath?: string;
+}
+
+/**
+ * Resolve a project-relative file path without imposing text-file extension
+ * restrictions. Project file-management tools use this for existing files.
+ */
+export function resolveProjectFileTarget(params: {
+	readonly inputPath: string;
+	readonly project: Project;
+}): ResolveProjectFileTargetResult {
+	const raw = params.inputPath.trim();
+	if (!raw) {
+		return { ok: false, error: "path must not be empty." };
+	}
+	if (path.isAbsolute(raw)) {
+		return { ok: false, error: "path must be relative to the project folder." };
+	}
+	const normalized = path.normalize(raw);
+	if (
+		normalized === ".." ||
+		normalized.startsWith(`..${path.sep}`) ||
+		normalized.split(path.sep).includes("..")
+	) {
+		return {
+			ok: false,
+			error: "path must not traverse outside the project folder.",
+		};
+	}
+	const absPath = path.resolve(params.project.folderPath, normalized);
+	const relCheck = path.relative(params.project.folderPath, absPath);
+	if (relCheck.startsWith("..") || path.isAbsolute(relCheck)) {
+		return { ok: false, error: "Resolved path escapes the project folder." };
+	}
+	return { ok: true, absPath };
+}
+
+function hasSafeProjectParentDirectory(
+	project: Project,
+	targetFile: string,
+): boolean {
+	let current = project.folderPath;
+	try {
+		const root = fs.lstatSync(current);
+		if (!root.isDirectory() || root.isSymbolicLink()) return false;
+	} catch {
+		return false;
+	}
+
+	const relativeParent = path.relative(
+		project.folderPath,
+		path.dirname(targetFile),
+	);
+	if (!relativeParent) return true;
+	for (const segment of relativeParent.split(path.sep)) {
+		current = path.join(current, segment);
+		try {
+			const stat = fs.lstatSync(current);
+			if (!stat.isDirectory() || stat.isSymbolicLink()) return false;
+		} catch {
+			return false;
+		}
+	}
+	return true;
 }
 
 /**
@@ -281,7 +353,23 @@ Global Toby tools (always available in addition to integration tools):
 - **getCurrentDateTime**: Return the current local/UTC date-time and timezone.
 - **fetchWebContent**: Fetch a web page and extract its main readable content (strips ads, navigation, footers). Returns article title, text content, excerpt, and metadata. Use to read blog posts, articles, documentation, or any page with substantive text.${searchToolLine}${weatherToolLine}${locationToolLine}
 - **createSchedule**: Create a recurring scheduled chat run. Required: \`intention\` (what the schedule does), \`targetOutput\` (\`slack\` | \`project\` | \`none\`). Optional: \`frequency\` (natural language like "every weekday at 9am" or a cron expression) and \`projectId\`. If the user has not specified a frequency, **omit it** — the tool will return a signal; then call **askUser** to ask the user how often it should run and retry. The schedule runs headlessly via the daemon using the default persona.
-${searchRules}${weatherRules}${locationRules}
+${
+	project
+		? `- **saveProjectAttachment**: Save an original file attached to this turn into this project's \`attachments/\` folder. Only call when the user explicitly asks to save an attached file to the project. Required: \`filename\` (the exact attached filename). Optional: \`overwrite\` (default false).
+- **renameProjectFile**: Rename a file already in this project. Only call when the user explicitly asks to rename it. Required: \`sourcePath\` and \`destinationPath\`, both relative to the project folder. Optional: \`overwrite\` (default false).
+- **deleteProjectFile**: Permanently delete a file already in this project. Only call when the user explicitly asks to delete it. Required: \`path\`, relative to the project folder.
+
+Project attachment rules:
+- This tool is available only in project chats and only for files attached to the current user message.
+- Preserve the original file bytes. Do not use \`writeTextFile\` to recreate an attachment.
+- Never overwrite an existing attachment unless the user explicitly asks to replace it, then pass \`overwrite=true\`.
+
+Project file-management rules:
+- Rename and delete apply only to existing regular files. Never rename or delete folders or symbolic links.
+- Never overwrite a destination file unless the user explicitly asks to replace it, then pass \`overwrite=true\`.
+`
+		: ""
+}${searchRules}${weatherRules}${locationRules}
 
 Memory rules:
 - **Always** use **memoryPropose** when the user shares a durable preference, fact, or personal context worth remembering. Never skip this.
@@ -598,8 +686,304 @@ export function createGlobalChatTools(
 		dryRun: ctx.dryRun,
 		persona: ctx.persona,
 	});
+	const project = ctx.project;
+	const projectAttachmentTools: Record<string, Tool> = project
+		? {
+				saveProjectAttachment: tool({
+					description:
+						"Save an original file attached to the current turn into the active project's attachments folder. Only call when the user explicitly asks to save an attached file to the project.",
+					inputSchema: z.object({
+						filename: z
+							.string()
+							.min(1)
+							.describe(
+								"Exact filename of a file attached to the current user message",
+							),
+						overwrite: z
+							.boolean()
+							.optional()
+							.describe(
+								"Replace an existing attachment with the same name (default false)",
+							),
+					}),
+					execute: async ({ filename, overwrite }) => {
+						const attachment = ctx.attachments?.find(
+							(candidate) => candidate.filename === filename,
+						);
+						if (!attachment) {
+							return {
+								ok: false as const,
+								error: `No current-turn attachment named "${filename}".`,
+							};
+						}
+
+						const attachmentDir = path.join(project.folderPath, "attachments");
+						const targetFile = path.join(attachmentDir, attachment.filename);
+						try {
+							const existingDir = fs.lstatSync(attachmentDir);
+							if (!existingDir.isDirectory() || existingDir.isSymbolicLink()) {
+								return {
+									ok: false as const,
+									error: "Project attachments path is not a safe directory.",
+								};
+							}
+						} catch {
+							// Create it below for new projects.
+						}
+
+						let alreadyExists = false;
+						try {
+							const existing = fs.lstatSync(targetFile);
+							alreadyExists = true;
+							if (existing.isSymbolicLink() || existing.isDirectory()) {
+								return {
+									ok: false as const,
+									error: "Refusing to replace a symbolic link or directory.",
+								};
+							}
+						} catch {
+							// The target does not exist.
+						}
+						if (alreadyExists && overwrite !== true) {
+							return {
+								ok: false as const,
+								error: `An attachment named "${attachment.filename}" already exists. Set overwrite=true to replace it.`,
+							};
+						}
+
+						if (ctx.dryRun) {
+							const verb = alreadyExists ? "replace" : "save";
+							const message = `[dry-run] Would ${verb} ${targetFile}`;
+							ctx.appliedActions.push(message);
+							return writeTextFileSuccessPayload({
+								absPath: targetFile,
+								dryRun: true,
+								created: !alreadyExists,
+								message,
+							});
+						}
+
+						try {
+							fs.mkdirSync(attachmentDir, { recursive: true });
+							fs.writeFileSync(
+								targetFile,
+								Buffer.from(attachment.dataBase64, "base64"),
+							);
+						} catch (error) {
+							return {
+								ok: false as const,
+								error:
+									error instanceof Error
+										? error.message
+										: "Failed to save the project attachment.",
+							};
+						}
+						const message = `Saved ${targetFile} (project attachments)`;
+						ctx.appliedActions.push(message);
+						return writeTextFileSuccessPayload({
+							absPath: targetFile,
+							dryRun: false,
+							created: !alreadyExists,
+							message,
+						});
+					},
+				}),
+				renameProjectFile: tool({
+					description:
+						"Rename a file already in the active project. Only call when the user explicitly asks to rename it.",
+					inputSchema: z.object({
+						sourcePath: z
+							.string()
+							.min(1)
+							.describe("Current path relative to the project folder"),
+						destinationPath: z
+							.string()
+							.min(1)
+							.describe("New path relative to the project folder"),
+						overwrite: z
+							.boolean()
+							.optional()
+							.describe("Replace an existing destination file (default false)"),
+					}),
+					execute: async ({ sourcePath, destinationPath, overwrite }) => {
+						const source = resolveProjectFileTarget({
+							inputPath: sourcePath,
+							project,
+						});
+						const destination = resolveProjectFileTarget({
+							inputPath: destinationPath,
+							project,
+						});
+						if (!source.ok || !source.absPath) {
+							return { ok: false as const, error: source.error };
+						}
+						if (!destination.ok || !destination.absPath) {
+							return { ok: false as const, error: destination.error };
+						}
+						if (source.absPath === destination.absPath) {
+							return {
+								ok: false as const,
+								error: "Source and destination paths are the same.",
+							};
+						}
+						if (
+							!hasSafeProjectParentDirectory(project, source.absPath) ||
+							!hasSafeProjectParentDirectory(project, destination.absPath)
+						) {
+							return {
+								ok: false as const,
+								error:
+									"Source or destination is outside a safe project directory.",
+							};
+						}
+
+						let sourceStat: fs.Stats;
+						try {
+							sourceStat = fs.lstatSync(source.absPath);
+						} catch {
+							return {
+								ok: false as const,
+								error: "Source file does not exist.",
+							};
+						}
+						if (!sourceStat.isFile() || sourceStat.isSymbolicLink()) {
+							return {
+								ok: false as const,
+								error:
+									"Source must be a regular file, not a folder or symbolic link.",
+							};
+						}
+
+						let destinationExists = false;
+						try {
+							const destinationStat = fs.lstatSync(destination.absPath);
+							destinationExists = true;
+							if (
+								!destinationStat.isFile() ||
+								destinationStat.isSymbolicLink()
+							) {
+								return {
+									ok: false as const,
+									error: "Destination must not be a folder or symbolic link.",
+								};
+							}
+						} catch {
+							// A new destination file is safe.
+						}
+						if (destinationExists && overwrite !== true) {
+							return {
+								ok: false as const,
+								error: `A file already exists at ${destinationPath}. Set overwrite=true to replace it.`,
+							};
+						}
+
+						const verb = destinationExists ? "Replaced" : "Renamed";
+						const message = `${verb} ${sourcePath} to ${destinationPath}`;
+						if (ctx.dryRun) {
+							ctx.appliedActions.push(
+								`[dry-run] Would ${message.toLowerCase()}`,
+							);
+							return {
+								ok: true as const,
+								dryRun: true,
+								path: destination.absPath,
+								message: `[dry-run] Would ${message.toLowerCase()}`,
+							};
+						}
+						try {
+							fs.renameSync(source.absPath, destination.absPath);
+						} catch (error) {
+							return {
+								ok: false as const,
+								error:
+									error instanceof Error
+										? error.message
+										: "Failed to rename the project file.",
+							};
+						}
+						ctx.appliedActions.push(message);
+						return {
+							ok: true as const,
+							dryRun: false,
+							path: destination.absPath,
+							message,
+						};
+					},
+				}),
+				deleteProjectFile: tool({
+					description:
+						"Permanently delete a file already in the active project. Only call when the user explicitly asks to delete it.",
+					inputSchema: z.object({
+						path: z
+							.string()
+							.min(1)
+							.describe(
+								"Path of the file to delete, relative to the project folder",
+							),
+					}),
+					execute: async ({ path: inputPath }) => {
+						const target = resolveProjectFileTarget({
+							inputPath,
+							project,
+						});
+						if (!target.ok || !target.absPath) {
+							return { ok: false as const, error: target.error };
+						}
+						if (!hasSafeProjectParentDirectory(project, target.absPath)) {
+							return {
+								ok: false as const,
+								error: "File is outside a safe project directory.",
+							};
+						}
+						let stat: fs.Stats;
+						try {
+							stat = fs.lstatSync(target.absPath);
+						} catch {
+							return { ok: false as const, error: "File does not exist." };
+						}
+						if (!stat.isFile() || stat.isSymbolicLink()) {
+							return {
+								ok: false as const,
+								error:
+									"Only regular files can be deleted, not folders or symbolic links.",
+							};
+						}
+
+						const message = `Deleted ${inputPath}`;
+						if (ctx.dryRun) {
+							ctx.appliedActions.push(`[dry-run] Would delete ${inputPath}`);
+							return {
+								ok: true as const,
+								dryRun: true,
+								path: target.absPath,
+								message: `[dry-run] Would delete ${inputPath}`,
+							};
+						}
+						try {
+							fs.unlinkSync(target.absPath);
+						} catch (error) {
+							return {
+								ok: false as const,
+								error:
+									error instanceof Error
+										? error.message
+										: "Failed to delete the project file.",
+							};
+						}
+						ctx.appliedActions.push(message);
+						return {
+							ok: true as const,
+							dryRun: false,
+							path: target.absPath,
+							message,
+						};
+					},
+				}),
+			}
+		: {};
 	return {
 		...reflectTools,
+		...projectAttachmentTools,
 		...createListenChatTools(),
 		...createWebFetchTools(),
 		...createWebSearchGlobalTools({

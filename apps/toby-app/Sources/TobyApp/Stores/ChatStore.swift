@@ -770,7 +770,7 @@ final class ChatStore {
 		}
 	}
 
-	func submitPrompt() async {
+	func submitPrompt(saveAttachmentsToProject: Bool = false) async {
 		let text = promptText.trimmingCharacters(in: .whitespacesAndNewlines)
 		let attachments = pendingAttachments
 		guard (!text.isEmpty || !attachments.isEmpty), !isLoading else { return }
@@ -804,7 +804,7 @@ final class ChatStore {
 		activeTurnId = turnId
 
 		do {
-			let done = try await client.streamTurn(sessionId: sessionId, text: text, attachments: attachments, clientTurnId: turnId, onEvent: { event in
+			let done = try await client.streamTurn(sessionId: sessionId, text: text, attachments: attachments, saveAttachmentsToProject: saveAttachmentsToProject, clientTurnId: turnId, onEvent: { event in
 				self.applyTurnEvent(event)
 			}, onAskUser: { [weak self] prompt in
 				guard let self else { return (-1, "", "", "Prompt dismissed") }
@@ -860,13 +860,19 @@ final class ChatStore {
 		activeTurnId = nil
 	}
 
-	func addAttachmentFiles(_ urls: [URL]) {
+	func addAttachmentFiles(
+		_ urls: [URL],
+		allowProjectFileAttachments: Bool = false,
+	) {
 		let outcome = ChatAttachmentDrafting.adding(
 			urls: urls,
 			to: pendingAttachments,
 			capability: attachmentCapability,
-			canAttach: canAttachFiles,
-			unavailableReason: attachmentUnavailableReason,
+			canAttach: canAttachFiles || allowProjectFileAttachments,
+			unavailableReason: allowProjectFileAttachments
+				? ""
+				: attachmentUnavailableReason,
+			allowAnyMediaType: allowProjectFileAttachments,
 		)
 		pendingAttachments = outcome.pendingAttachments
 		for toast in outcome.toasts {

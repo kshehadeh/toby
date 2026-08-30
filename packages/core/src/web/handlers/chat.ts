@@ -253,10 +253,17 @@ export async function handleSessionTurn(
 	if (!loaded) {
 		return errorResponse("Session not found", 404);
 	}
+	const hasProjectAttachmentStorage =
+		body.saveAttachmentsToProject === true &&
+		Boolean(body.projectId?.trim() || loaded.settings.projectId?.trim());
 	try {
 		validateChatAttachments(
 			body.attachments,
 			resolvePersonaForHttpTurn(body, loaded.settings),
+			{
+				allowUnsupportedModel: hasProjectAttachmentStorage,
+				allowAnyMediaType: hasProjectAttachmentStorage,
+			},
 		);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
@@ -299,6 +306,7 @@ export async function handleSessionTurn(
 					modules: body.modules,
 					dryRun: body.dryRun,
 					projectId: body.projectId,
+					saveAttachmentsToProject: hasProjectAttachmentStorage,
 					steering: body.steering,
 					clientTurnId: body.clientTurnId,
 					personaNameForFallback: persona.name,

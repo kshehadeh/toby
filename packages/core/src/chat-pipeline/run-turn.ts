@@ -12,6 +12,7 @@ import { log, logWithSession } from "../logging/chat-log";
 import { createMemoryTools } from "../memory/tools";
 import { injectCurrentDateTimeIntoFirstSystemMessage } from "../prepare-messages";
 import type { Project } from "../projects/index";
+import type { ValidatedChatAttachment } from "./attachments";
 import type { ChatEvent, ChatEventSink } from "./chat-events";
 import { loadIntegrationToolBundle } from "./tool-bundle-cache";
 
@@ -93,6 +94,9 @@ const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"memorySearch",
 	"memoryPropose",
 	"memorySave",
+	"saveProjectAttachment",
+	"renameProjectFile",
+	"deleteProjectFile",
 ]);
 
 export { ALWAYS_INCLUDED_TOOLS };
@@ -119,6 +123,8 @@ type ChatTurnOptions = {
 	 * When undefined (pretreatment skipped), all tools pass through.
 	 */
 	readonly relevantTools?: readonly string[];
+	/** Validated files attached to the current turn, available to project-only tools. */
+	readonly attachments?: readonly ValidatedChatAttachment[];
 	/**
 	 * Tool catalog from the prep phase of the same turn. Reuses integration tool
 	 * definitions so `createChatTools` is not invoked again for the model call.
@@ -218,6 +224,7 @@ function mergeAuxiliaryChatTools(
 		readonly emit?: ChatEventSink;
 		readonly nextSeq?: () => number;
 		readonly sessionId?: string;
+		readonly attachments?: readonly ValidatedChatAttachment[];
 	},
 ): {
 	readonly mergedTools: Record<string, Tool>;
@@ -237,6 +244,7 @@ function mergeAuxiliaryChatTools(
 		emit: options.emit,
 		nextSeq: options.nextSeq,
 		sessionId: options.sessionId,
+		attachments: options.attachments,
 	});
 	Object.assign(mergedTools, globalTools);
 	for (const toolName of Object.keys(globalTools)) {
@@ -407,6 +415,7 @@ export async function runSharedChatTurn(
 				emit,
 				nextSeq: subAgentNextSeq,
 				sessionId: options.sessionId,
+				attachments: options.attachments,
 			},
 		);
 		mergedTools = auxiliary.mergedTools;
@@ -433,6 +442,7 @@ export async function runSharedChatTurn(
 			emit,
 			nextSeq: subAgentNextSeq,
 			sessionId: options.sessionId,
+			attachments: options.attachments,
 		});
 		mergedTools = auxiliary.mergedTools;
 		toolIntegrationLabels = auxiliary.toolIntegrationLabels;

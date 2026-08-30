@@ -23,6 +23,7 @@ protocol ChatClientable {
 		sessionId: String,
 		text: String,
 		attachments: [ChatAttachmentDraft],
+		saveAttachmentsToProject: Bool,
 		clientTurnId: String?,
 		onEvent: @escaping (ChatEventPayload) -> Void,
 		onAskUser: ((AskUserPromptPayload) async -> (
