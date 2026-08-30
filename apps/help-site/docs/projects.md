@@ -92,14 +92,16 @@ Toby stores the original file in the project's `attachments` folder. This also
 works for files your selected AI model cannot read. Toby will not replace a file
 with the same name unless you explicitly ask it to overwrite the existing file.
 
-### Rename or delete project files
+### Organize, move, rename, or delete project files
 
-In a project chat, ask Toby to rename or delete a file already in the project,
-for example: “Rename `attachments/brief.pdf` to `attachments/final-brief.pdf`”
-or “Delete `outputs/old-report.md`.” Toby only acts on your explicit request,
-uses paths inside the project folder, and will not replace an existing file
-during a rename unless you ask it to overwrite that file. Deletions permanently
-remove the requested file.
+In a project chat, Toby can inspect the project files before organizing them.
+Ask Toby to create folders, move or rename a file, or delete a file already in
+the project. For example: “Create a `references/designs` folder,” “Move
+`attachments/brief.pdf` to
+`references/designs/final-brief.pdf`,” or “Delete `outputs/old-report.md`.”
+Toby only acts on your explicit request, uses paths inside the project folder,
+and will not replace an existing destination file unless you ask it to
+overwrite that file. Deletions permanently remove the requested file.
 
 When Toby writes a file in chat, the reply includes a download chip. **Download**
 saves a copy to your Downloads folder and reveals it in Finder; **Open** opens

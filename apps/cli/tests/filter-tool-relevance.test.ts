@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { filterToolNamesByRelevance } from "@toby/core/chat-pipeline/run-turn";
+import {
+	ALWAYS_INCLUDED_TOOLS,
+	filterToolNamesByRelevance,
+} from "@toby/core/chat-pipeline/run-turn";
 
 describe("filterToolNamesByRelevance", () => {
 	const all = [
@@ -48,5 +51,13 @@ describe("filterToolNamesByRelevance", () => {
 		expect(
 			filterToolNamesByRelevance(all, ["fetchOpenTasks", "memorySearch"]),
 		).toEqual(["askUser", "fetchOpenTasks", "memorySearch"]);
+	});
+
+	it("always includes project folder creation", () => {
+		expect(ALWAYS_INCLUDED_TOOLS.has("createProjectFolder")).toBe(true);
+	});
+
+	it("always includes project file listing", () => {
+		expect(ALWAYS_INCLUDED_TOOLS.has("listProjectFiles")).toBe(true);
 	});
 });

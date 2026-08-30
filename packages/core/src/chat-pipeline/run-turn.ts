@@ -95,6 +95,8 @@ const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"memoryPropose",
 	"memorySave",
 	"saveProjectAttachment",
+	"listProjectFiles",
+	"createProjectFolder",
 	"renameProjectFile",
 	"deleteProjectFile",
 ]);

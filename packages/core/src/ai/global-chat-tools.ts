@@ -20,8 +20,11 @@ import {
 	getSkillsDir,
 } from "../config/index";
 import { log } from "../logging/chat-log";
-import type { Project } from "../projects/index";
-import { loadProjectSkills } from "../projects/index";
+import {
+	type Project,
+	listProjectTree,
+	loadProjectSkills,
+} from "../projects/index";
 import { humanToCronAsync } from "../schedules/cron-parser";
 import { createSchedule } from "../schedules/store";
 import {
@@ -204,6 +207,38 @@ function hasSafeProjectParentDirectory(
 }
 
 /**
+ * Confirm that a directory can be created inside the project without following
+ * a symbolic link through any existing parent segment.
+ */
+function canCreateSafeProjectDirectory(
+	project: Project,
+	targetDirectory: string,
+): boolean {
+	let current = project.folderPath;
+	try {
+		const root = fs.lstatSync(current);
+		if (!root.isDirectory() || root.isSymbolicLink()) return false;
+	} catch {
+		return false;
+	}
+
+	const relativePath = path.relative(project.folderPath, targetDirectory);
+	if (!relativePath) return true;
+	for (const segment of relativePath.split(path.sep)) {
+		current = path.join(current, segment);
+		try {
+			const stat = fs.lstatSync(current);
+			if (!stat.isDirectory() || stat.isSymbolicLink()) return false;
+		} catch (error) {
+			return (
+				error instanceof Error && "code" in error && error.code === "ENOENT"
+			);
+		}
+	}
+	return true;
+}
+
+/**
  * Resolve and validate the absolute target path for `writeTextFile`. Rejects
  * absolute inputs, parent-directory traversal, and paths that escape the base
  * directory (active project context/root, or the generated-files fallback).
@@ -356,7 +391,9 @@ Global Toby tools (always available in addition to integration tools):
 ${
 	project
 		? `- **saveProjectAttachment**: Save an original file attached to this turn into this project's \`attachments/\` folder. Only call when the user explicitly asks to save an attached file to the project. Required: \`filename\` (the exact attached filename). Optional: \`overwrite\` (default false).
-- **renameProjectFile**: Rename a file already in this project. Only call when the user explicitly asks to rename it. Required: \`sourcePath\` and \`destinationPath\`, both relative to the project folder. Optional: \`overwrite\` (default false).
+- **listProjectFiles**: List the current project file tree, including each item's project-relative path. Use this to identify existing files before organizing, moving, or deleting them.
+- **createProjectFolder**: Create a folder inside this project. Only call when the user explicitly asks to create a folder. Required: \`path\`, relative to the project folder.
+- **renameProjectFile**: Move or rename a file already in this project. Only call when the user explicitly asks to move or rename it. Required: \`sourcePath\` and \`destinationPath\`, both relative to the project folder. Optional: \`overwrite\` (default false).
 - **deleteProjectFile**: Permanently delete a file already in this project. Only call when the user explicitly asks to delete it. Required: \`path\`, relative to the project folder.
 
 Project attachment rules:
@@ -365,7 +402,9 @@ Project attachment rules:
 - Never overwrite an existing attachment unless the user explicitly asks to replace it, then pass \`overwrite=true\`.
 
 Project file-management rules:
-- Rename and delete apply only to existing regular files. Never rename or delete folders or symbolic links.
+- Before organizing, moving, renaming, or deleting files whose paths are not already known, call \`listProjectFiles\` to inspect the project tree.
+- To move a file to another folder, call \`renameProjectFile\` with its new project-relative path. Create a missing destination folder first with \`createProjectFolder\`.
+- Create, move, rename, and delete paths must be inside the project. Never create through, rename, or delete folders or symbolic links.
 - Never overwrite a destination file unless the user explicitly asks to replace it, then pass \`overwrite=true\`.
 `
 		: ""
@@ -788,9 +827,97 @@ export function createGlobalChatTools(
 						});
 					},
 				}),
+				listProjectFiles: tool({
+					description:
+						"List the current project file tree, including each file and folder's project-relative path. Use this to identify existing files before organizing, moving, or deleting them.",
+					inputSchema: z.object({}),
+					execute: async () => ({
+						ok: true as const,
+						projectPath: project.folderPath,
+						tree: listProjectTree(project),
+					}),
+				}),
+				createProjectFolder: tool({
+					description:
+						"Create a folder inside the active project. Only call when the user explicitly asks to create a folder.",
+					inputSchema: z.object({
+						path: z
+							.string()
+							.min(1)
+							.describe(
+								"Folder path relative to the project folder, e.g. 'references/designs'",
+							),
+					}),
+					execute: async ({ path: inputPath }) => {
+						const target = resolveProjectFileTarget({
+							inputPath,
+							project,
+						});
+						if (!target.ok || !target.absPath) {
+							return { ok: false as const, error: target.error };
+						}
+						if (!canCreateSafeProjectDirectory(project, target.absPath)) {
+							return {
+								ok: false as const,
+								error:
+									"Folder must be inside a safe project directory, not a symbolic link.",
+							};
+						}
+
+						let alreadyExists = false;
+						try {
+							const stat = fs.lstatSync(target.absPath);
+							alreadyExists = true;
+							if (!stat.isDirectory() || stat.isSymbolicLink()) {
+								return {
+									ok: false as const,
+									error:
+										"A non-directory or symbolic link already exists at that path.",
+								};
+							}
+						} catch {
+							// A new directory is safe after the parent check above.
+						}
+
+						const message = alreadyExists
+							? `Folder already exists: ${inputPath}`
+							: `Created folder ${inputPath}`;
+						if (ctx.dryRun) {
+							ctx.appliedActions.push(
+								`[dry-run] Would ${message.toLowerCase()}`,
+							);
+							return {
+								ok: true as const,
+								dryRun: true,
+								path: target.absPath,
+								created: !alreadyExists,
+								message: `[dry-run] Would ${message.toLowerCase()}`,
+							};
+						}
+						try {
+							fs.mkdirSync(target.absPath, { recursive: true });
+						} catch (error) {
+							return {
+								ok: false as const,
+								error:
+									error instanceof Error
+										? error.message
+										: "Failed to create the project folder.",
+							};
+						}
+						ctx.appliedActions.push(message);
+						return {
+							ok: true as const,
+							dryRun: false,
+							path: target.absPath,
+							created: !alreadyExists,
+							message,
+						};
+					},
+				}),
 				renameProjectFile: tool({
 					description:
-						"Rename a file already in the active project. Only call when the user explicitly asks to rename it.",
+						"Move or rename a file already in the active project. Only call when the user explicitly asks to move or rename it.",
 					inputSchema: z.object({
 						sourcePath: z
 							.string()

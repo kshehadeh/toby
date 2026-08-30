@@ -83,7 +83,7 @@ describe("chat attachment model capabilities", () => {
 		).not.toThrow();
 	});
 
-	it("strips file bytes from persisted message history", async () => {
+	it("strips file bytes without duplicating a model-visible attachment summary", async () => {
 		const result = await persistTurnNode.run(
 			{
 				rawUserText: "summarize",
@@ -101,7 +101,10 @@ describe("chat attachment model capabilities", () => {
 					{
 						role: "user",
 						content: [
-							{ type: "text", text: "summarize" },
+							{
+								type: "text",
+								text: "summarize\n\nAttachments: notes.txt (text/plain, 5 bytes)",
+							},
 							{
 								type: "file",
 								filename: "notes.txt",
@@ -172,15 +175,21 @@ describe("chat attachment message assembly", () => {
 		expect(result.messages.at(-1)).toEqual({ role: "user", content: "hello" });
 	});
 
-	it("adds AI SDK file parts to attached turns", async () => {
+	it("exposes filenames in text alongside AI SDK image file parts", async () => {
 		const result = await assembleMessagesNode.run(
 			{
 				rawUserText: "summarize",
 				effectiveText: "summarize",
 				attachments: [
 					{
-						filename: "notes.txt",
-						mediaType: "text/plain",
+						filename: "reference-image.png",
+						mediaType: "image/png",
+						dataBase64: "aGVsbG8=",
+						byteSize: 5,
+					},
+					{
+						filename: "wireframe.jpg",
+						mediaType: "image/jpeg",
 						dataBase64: "aGVsbG8=",
 						byteSize: 5,
 					},
@@ -208,11 +217,20 @@ describe("chat attachment message assembly", () => {
 		expect(result.messages.at(-1)).toEqual({
 			role: "user",
 			content: [
-				{ type: "text", text: "summarize" },
+				{
+					type: "text",
+					text: "summarize\n\nAttachments: reference-image.png (image/png, 5 bytes), wireframe.jpg (image/jpeg, 5 bytes)",
+				},
 				{
 					type: "file",
-					filename: "notes.txt",
-					mediaType: "text/plain",
+					filename: "reference-image.png",
+					mediaType: "image/png",
+					data: "aGVsbG8=",
+				},
+				{
+					type: "file",
+					filename: "wireframe.jpg",
+					mediaType: "image/jpeg",
 					data: "aGVsbG8=",
 				},
 			],

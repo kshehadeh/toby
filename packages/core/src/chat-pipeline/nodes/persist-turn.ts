@@ -57,7 +57,11 @@ function stripCurrentTurnAttachments(input: RanTurn) {
 			.trim();
 		return {
 			role: "user" as const,
-			content: text ? `${text}\n\n${summary}` : summary,
+			content: text.endsWith(summary)
+				? text
+				: text
+					? `${text}\n\n${summary}`
+					: summary,
 		};
 	});
 	return [...messages, ...input.responseMessages];

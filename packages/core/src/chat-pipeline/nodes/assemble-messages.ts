@@ -86,11 +86,12 @@ export const assembleMessagesNode: PipelineNode<ExpandedTurn, AssembledTurn> = {
 					),
 				)
 			: [];
+		// File-part metadata is not exposed consistently by model providers. Include
+		// an exact filename list in text so project attachment tools can be called
+		// even when a model can inspect the file content but not its filename.
 		const messageText =
-			modelAttachments.length === (input.attachments?.length ?? 0)
-				? input.effectiveText
-				: input.effectiveText +
-					formatAttachmentTranscriptSummary(input.attachments);
+			input.effectiveText +
+			formatAttachmentTranscriptSummary(input.attachments);
 
 		if (input.isFirstTurn) {
 			if (ctx.onStatusLine) {

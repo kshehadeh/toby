@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import {
 	createGlobalChatTools,
+	globalChatToolsPromptSection,
 	resolveProjectFileTarget,
 	sanitizeSkillFolderSegment,
 } from "@toby/core/ai/global-chat-tools";
@@ -77,7 +78,7 @@ describe("saveProjectAttachment", () => {
 });
 
 describe("project file management", () => {
-	it("renames and deletes existing project files", async () => {
+	it("creates folders, moves files, and deletes existing project files", async () => {
 		const folderPath = fs.mkdtempSync(
 			path.join(os.tmpdir(), "toby-project-files-"),
 		);
@@ -93,6 +94,15 @@ describe("project file management", () => {
 			appliedActions: [],
 			project,
 		});
+		const listFiles = tools.listProjectFiles?.execute as
+			| (() => Promise<{
+					ok: boolean;
+					tree?: readonly { relativePath: string }[];
+			  }>)
+			| undefined;
+		const createFolder = tools.createProjectFolder?.execute as
+			| ((input: { path: string }) => Promise<{ ok: boolean }>)
+			| undefined;
 		const rename = tools.renameProjectFile?.execute as
 			| ((input: {
 					sourcePath: string;
@@ -105,21 +115,43 @@ describe("project file management", () => {
 			| undefined;
 
 		try {
+			expect((await listFiles?.())?.tree).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({ relativePath: "draft.txt" }),
+				]),
+			);
+			expect((await createFolder?.({ path: "references/designs" }))?.ok).toBe(
+				true,
+			);
+			expect(
+				fs
+					.statSync(path.join(folderPath, "references", "designs"))
+					.isDirectory(),
+			).toBe(true);
 			expect(
 				(
 					await rename?.({
 						sourcePath: "draft.txt",
-						destinationPath: "final.txt",
+						destinationPath: "references/designs/final.txt",
 					})
 				)?.ok,
 			).toBe(true);
 			expect(fs.existsSync(path.join(folderPath, "draft.txt"))).toBe(false);
-			expect(fs.readFileSync(path.join(folderPath, "final.txt"), "utf8")).toBe(
-				"draft",
-			);
+			expect(
+				fs.readFileSync(
+					path.join(folderPath, "references", "designs", "final.txt"),
+					"utf8",
+				),
+			).toBe("draft");
 
-			expect((await remove?.({ path: "final.txt" }))?.ok).toBe(true);
-			expect(fs.existsSync(path.join(folderPath, "final.txt"))).toBe(false);
+			expect(
+				(await remove?.({ path: "references/designs/final.txt" }))?.ok,
+			).toBe(true);
+			expect(
+				fs.existsSync(
+					path.join(folderPath, "references", "designs", "final.txt"),
+				),
+			).toBe(false);
 		} finally {
 			fs.rmSync(folderPath, { recursive: true, force: true });
 		}
@@ -133,5 +165,22 @@ describe("project file management", () => {
 		expect(
 			resolveProjectFileTarget({ inputPath: "/tmp/outside.txt", project }).ok,
 		).toBe(false);
+	});
+
+	it("explains how to create folders and move files in project chats", () => {
+		const project = {
+			id: "project-1",
+			name: "Test Project",
+			folderPath: "/tmp/project",
+		} as Project;
+		const prompt = globalChatToolsPromptSection(project, persona);
+		expect(prompt).toContain("**listProjectFiles**");
+		expect(prompt).toContain(
+			"call `listProjectFiles` to inspect the project tree",
+		);
+		expect(prompt).toContain("**createProjectFolder**");
+		expect(prompt).toContain(
+			"To move a file to another folder, call `renameProjectFile`",
+		);
 	});
 });

@@ -115,10 +115,14 @@ explicitly asks to overwrite them.
 
 ## Managing project files from chat
 
-Project chats also expose `renameProjectFile` and `deleteProjectFile` for
-existing files. Both tools require a user’s explicit request and accept only
-relative paths inside the project folder. They reject folders, symbolic links,
-and any path that escapes the project. Renames never replace a destination file
+Project chats expose `listProjectFiles`, `createProjectFolder`,
+`renameProjectFile`, and `deleteProjectFile`. Toby uses `listProjectFiles` to
+inspect the project tree and identify exact paths before organizing files. To
+move an existing file, `renameProjectFile` receives its new project-relative
+destination path; create a missing destination folder with
+`createProjectFolder` first. These tools require a user’s explicit request and
+accept only relative paths inside the project folder. They reject symbolic links
+and any path that escapes the project. Moves never replace a destination file
 unless the user explicitly requests an overwrite; deletes permanently remove
 the requested file.
 
