@@ -27,6 +27,9 @@ function runPlugin(
 		env: {
 			...process.env,
 			...(options.home ? { HOME: options.home } : {}),
+			...(options.home && options.env?.TOBY_DIR === undefined
+				? { TOBY_DIR: path.join(options.home, ".toby") }
+				: {}),
 			...(options.env ?? {}),
 		},
 		encoding: "utf8",

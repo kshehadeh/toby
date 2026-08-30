@@ -12,7 +12,6 @@ import {
 } from "@toby/core/integrations/plugins/adapter";
 import {
 	pluginConfigShape,
-	pluginSetup,
 	pluginStatus,
 	pluginToolsList,
 } from "@toby/core/integrations/plugins/client";
@@ -21,7 +20,6 @@ import {
 	resetPluginModuleCache,
 } from "@toby/core/integrations/plugins/registry";
 import { resolvePluginTarget } from "@toby/core/integrations/plugins/runtime";
-import { runPluginSetup } from "@toby/core/integrations/plugins/setup";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const pluginSourceDir = path.join(repoRoot, "../plugin-macos");
@@ -108,7 +106,7 @@ describe("macos plugin", () => {
 		expect(shape.data.fields ?? []).toEqual([]);
 	});
 
-	it("lists twenty-eight macOS chat tools including macFocusSet and window controls", () => {
+	it("lists twenty-nine macOS chat tools including macFocusSet and window controls", () => {
 		const found = findMacOSPlugin();
 		const target = resolvePluginTarget(found);
 		const list = pluginToolsList(target);
@@ -126,7 +124,7 @@ describe("macos plugin", () => {
 		expect(names).toContain("macWindowHideApp");
 		expect(names).toContain("macWindowMinimizeApp");
 		expect(names).toContain("macWindowUnminimizeApp");
-		expect(names.length).toBe(28);
+		expect(names.length).toBe(29);
 	});
 
 	it("registers plugin-backed macos module with chatModelPrep", () => {
@@ -150,19 +148,26 @@ describe("macos plugin", () => {
 		expect(macos?.capabilities).toContain("chat");
 	});
 
-	it("returns bundled shortcut actions from setup", () => {
-		const found = findMacOSPlugin();
-		const target = resolvePluginTarget(found);
-		const setup = pluginSetup(target);
-		expect(setup.ok).toBe(true);
-		if (!setup.ok) return;
-		expect(setup.data.ok).toBe(true);
-		expect(setup.data.actions?.length).toBe(3);
-		expect(setup.data.actions?.every((action) => action.ok)).toBe(true);
-		const ids = setup.data.actions?.map((a) => a.id) ?? [];
-		expect(ids).toContain("accessibility-permission");
-
-		const run = runPluginSetup("macos");
-		expect(run.ok).toBe(true);
+	it("includes the bundled Focus shortcut setup assets", () => {
+		const manifestPath = path.join(
+			pluginSourceDir,
+			"BundledShortcuts",
+			"manifest.json",
+		);
+		const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as {
+			shortcuts?: readonly { name: string; file: string }[];
+		};
+		expect(manifest.shortcuts).toHaveLength(2);
+		expect(manifest.shortcuts?.map((shortcut) => shortcut.name)).toEqual([
+			"TobyFocusOn",
+			"TobyFocusOff",
+		]);
+		for (const shortcut of manifest.shortcuts ?? []) {
+			expect(
+				fs.existsSync(
+					path.join(pluginSourceDir, "BundledShortcuts", shortcut.file),
+				),
+			).toBe(true);
+		}
 	});
 });

@@ -295,6 +295,7 @@ describe("web API routes", () => {
 	let previousTobyDir: string | undefined;
 
 	beforeEach(() => {
+		closeChatDbForTests();
 		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-web-api-"));
 		previousTobyDir = process.env.TOBY_DIR;
 		process.env.TOBY_DIR = path.join(tempDir, "toby-home");
@@ -311,6 +312,7 @@ describe("web API routes", () => {
 	});
 
 	afterEach(() => {
+		closeChatDbForTests();
 		if (previousTobyDir === undefined) {
 			Reflect.deleteProperty(process.env, "TOBY_DIR");
 		} else {
