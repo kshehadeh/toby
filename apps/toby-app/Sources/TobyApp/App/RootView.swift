@@ -575,6 +575,10 @@ struct RootView: View {
                             },
                             onReturnToProject: {
                                 projectsStore.showProjectHome()
+                            },
+                            isFilesSidebarPresented: projectsStore.isFilesSidebarPresented,
+                            onToggleFilesSidebar: {
+                                projectsStore.isFilesSidebarPresented.toggle()
                             }
                         )
                     }

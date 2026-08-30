@@ -698,10 +698,12 @@ struct ProjectTreeResponse: Decodable {
 	let tree: [ProjectTreeEntry]
 }
 
-struct ProjectTreeEntry: Decodable, Identifiable, Equatable {
+struct ProjectTreeEntry: Decodable, Identifiable, Equatable, Sendable {
 	let name: String
 	let relativePath: String
 	let kind: String
+	let modifiedAtMs: Double?
+	let size: Int?
 	let children: [ProjectTreeEntry]?
 
 	var id: String { relativePath.isEmpty ? name : relativePath }

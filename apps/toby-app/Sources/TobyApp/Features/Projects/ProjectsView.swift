@@ -7,7 +7,7 @@ struct ProjectsView: View {
 	var body: some View {
 		Group {
 			if projectsStore.isShowingChat, projectsStore.selectedProject != nil {
-				ChatWorkspaceView(store: chatStore)
+				projectChat
 			} else {
 				projectsWorkspace
 			}
@@ -40,6 +40,18 @@ struct ProjectsView: View {
 		} message: { pending in
 			Text("Are you sure you want to delete \"\(pending.name)\"? This cannot be undone.")
 		}
+	}
+
+	private var projectChat: some View {
+		ChatWorkspaceView(store: chatStore)
+			.inspector(isPresented: $projectsStore.isFilesSidebarPresented) {
+				ProjectFilesSidebarView(store: projectsStore)
+					.inspectorColumnWidth(
+						min: ProjectFilesInspectorLayout.minWidth,
+						ideal: ProjectFilesInspectorLayout.idealWidth,
+						max: ProjectFilesInspectorLayout.maxWidth
+					)
+			}
 	}
 
 	@ViewBuilder

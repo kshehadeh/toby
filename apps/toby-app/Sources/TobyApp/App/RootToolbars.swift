@@ -256,6 +256,8 @@ enum RootToolbars {
 		onNewChat: @escaping () -> Void = {},
 		onDelete: @escaping () -> Void = {},
 		onReturnToProject: @escaping () -> Void = {},
+		isFilesSidebarPresented: Bool = false,
+		onToggleFilesSidebar: @escaping () -> Void = {},
 	) -> some ToolbarContent {
 		common(model)
 		ToolbarItem(placement: .principal) {
@@ -293,6 +295,16 @@ enum RootToolbars {
 			}
 		}
 		ToolbarItem(placement: .confirmationAction) {
+			if projectToolbarMode(hasSelection: hasSelection, isShowingChat: isShowingChat) == .projectChat {
+				Button(action: onToggleFilesSidebar) {
+					Image(systemName: "sidebar.trailing")
+				}
+				.help(projectFilesHelp(isPresented: isFilesSidebarPresented))
+				.accessibilityLabel(projectFilesHelp(isPresented: isFilesSidebarPresented))
+				.accessibilityIdentifier("project-files-toggle")
+			}
+		}
+		ToolbarItem(placement: .confirmationAction) {
 			if projectToolbarMode(hasSelection: hasSelection, isShowingChat: isShowingChat) == .project {
 				Button(role: .destructive, action: onDelete) {
 					Image(systemName: "trash")
@@ -303,6 +315,10 @@ enum RootToolbars {
 				.accessibilityLabel("Delete Project")
 			}
 		}
+	}
+
+	static func projectFilesHelp(isPresented: Bool) -> String {
+		isPresented ? "Hide Files" : "Show Files"
 	}
 
 	@ToolbarContentBuilder

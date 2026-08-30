@@ -19,6 +19,9 @@ final class ProjectsStore {
 	/// When true, the project route shows the selected project's chat workspace
 	/// instead of the project details page.
 	var isShowingChat = false
+	/// The project-chat Files inspector. Each project chat starts with it open.
+	var isFilesSidebarPresented = false
+	var treeChanges: [ProjectTreeChange] = []
 
 	struct PendingDelete {
 		let projectId: String
@@ -32,7 +35,11 @@ final class ProjectsStore {
 	@ObservationIgnored
 	nonisolated(unsafe)
 	private var folderWatchTask: Task<Void, Never>?
+	@ObservationIgnored
+	nonisolated(unsafe)
+	private var clearTreeChangesTask: Task<Void, Never>?
 	private var selectedProjectDetailId: String?
+	private var treeProjectId: String?
 	private let autosaveDelay: Duration = .milliseconds(500)
 
 	var selectedProjectName: String {
@@ -59,6 +66,7 @@ final class ProjectsStore {
 	deinit {
 		autosaveTask?.cancel()
 		folderWatchTask?.cancel()
+		clearTreeChangesTask?.cancel()
 	}
 
 	/// Clears projects state after a Toby home directory switch.
@@ -67,6 +75,8 @@ final class ProjectsStore {
 		autosaveTask = nil
 		folderWatchTask?.cancel()
 		folderWatchTask = nil
+		clearTreeChangesTask?.cancel()
+		clearTreeChangesTask = nil
 		projects = []
 		selectedProjectId = nil
 		selectedProject = nil
@@ -81,6 +91,9 @@ final class ProjectsStore {
 		pendingDelete = nil
 		selectedProjectDetailId = nil
 		isShowingChat = false
+		isFilesSidebarPresented = false
+		treeChanges = []
+		treeProjectId = nil
 	}
 
 	func load() async {
@@ -161,6 +174,13 @@ final class ProjectsStore {
 	/// Leaves a project chat and shows the selected project's details page.
 	func showProjectHome() {
 		isShowingChat = false
+		isFilesSidebarPresented = false
+	}
+
+	/// Enters a project chat with its live Files inspector visible.
+	func showProjectChat() {
+		isShowingChat = true
+		isFilesSidebarPresented = true
 	}
 
 	func selectHome(flush: Bool = true) async {
@@ -169,11 +189,16 @@ final class ProjectsStore {
 		}
 		folderWatchTask?.cancel()
 		folderWatchTask = nil
+		clearTreeChangesTask?.cancel()
+		clearTreeChangesTask = nil
 		selectedProjectId = nil
 		selectedProject = nil
 		selectedProjectDetailId = nil
 		isShowingChat = false
+		isFilesSidebarPresented = false
 		tree = []
+		treeChanges = []
+		treeProjectId = nil
 	}
 
 	func selectProject(id: String) async {
@@ -181,6 +206,7 @@ final class ProjectsStore {
 		let alreadyLoaded = selectedProjectId == id && selectedProjectDetailId == id
 		selectedProjectId = id
 		isShowingChat = false
+		isFilesSidebarPresented = false
 		if alreadyLoaded {
 			return
 		}
@@ -194,6 +220,8 @@ final class ProjectsStore {
 			selectedProjectDetailId = id
 			projectSessions[id] = detail.sessions ?? []
 			tree = try await client.fetchProjectTree(id: id)
+			treeProjectId = id
+			treeChanges = []
 			startFolderWatch(projectId: id)
 		} catch {
 			errorMessage = error.localizedDescription
@@ -213,7 +241,7 @@ final class ProjectsStore {
 		do {
 			let created = try await client.createProjectSession(projectId: selectedProjectId)
 			await reloadProjectSessions(projectId: selectedProjectId)
-			isShowingChat = true
+			showProjectChat()
 			await chatStore.selectSession(id: created.id)
 		} catch {
 			errorMessage = error.localizedDescription
@@ -221,14 +249,15 @@ final class ProjectsStore {
 	}
 
 	func selectChat(id: String, chatStore: ChatStore) async {
-		isShowingChat = true
+		showProjectChat()
 		await chatStore.selectSession(id: id)
 	}
 
 	func refreshTree() async {
 		guard let selectedProjectId else { return }
 		do {
-			tree = try await client.fetchProjectTree(id: selectedProjectId)
+			let nextTree = try await client.fetchProjectTree(id: selectedProjectId)
+			applyTree(nextTree, projectId: selectedProjectId)
 		} catch {
 			errorMessage = error.localizedDescription
 		}
@@ -359,14 +388,19 @@ final class ProjectsStore {
 		if let selectedProjectId, projects.contains(where: { $0.id == selectedProjectId }) {
 			if selectedProjectDetailId != selectedProjectId {
 				tree = []
+				treeProjectId = nil
+				treeChanges = []
 			}
 			selectedProject = projects.first { $0.id == selectedProjectId }
 		} else {
 			selectedProjectId = nil
 			selectedProject = nil
 			tree = []
+			treeProjectId = nil
+			treeChanges = []
 			selectedProjectDetailId = nil
 			isShowingChat = false
+			isFilesSidebarPresented = false
 		}
 		hasLoadedOnce = true
 		lastLoadedAt = Date()
@@ -400,11 +434,38 @@ final class ProjectsStore {
 		guard selectedProjectId == projectId else { return }
 		do {
 			let nextTree = try await client.fetchProjectTree(id: projectId)
-			if nextTree != tree {
-				tree = nextTree
-			}
+			applyTree(nextTree, projectId: projectId)
 		} catch {
 			// Folder polling should not replace the user's visible error state.
 		}
+	}
+
+	private func applyTree(_ nextTree: [ProjectTreeEntry], projectId: String) {
+		guard treeProjectId == projectId else {
+			tree = nextTree
+			treeProjectId = projectId
+			treeChanges = []
+			return
+		}
+		guard nextTree != tree else { return }
+		let changes = projectTreeChanges(from: tree, to: nextTree)
+		tree = nextTree
+		guard !changes.isEmpty else { return }
+		treeChanges = changes
+		scheduleTreeChangeClear()
+	}
+
+	private func scheduleTreeChangeClear() {
+		clearTreeChangesTask?.cancel()
+		clearTreeChangesTask = Task { [weak self] in
+			try? await Task.sleep(for: .seconds(6))
+			guard !Task.isCancelled else { return }
+			self?.clearTreeChanges()
+		}
+	}
+
+	private func clearTreeChanges() {
+		treeChanges = []
+		clearTreeChangesTask = nil
 	}
 }

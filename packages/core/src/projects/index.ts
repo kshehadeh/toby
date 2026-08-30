@@ -50,6 +50,10 @@ export interface ProjectTreeEntry {
 	readonly name: string;
 	readonly relativePath: string;
 	readonly kind: "file" | "directory";
+	/** Used by the native file browser to identify live file updates. */
+	readonly modifiedAtMs?: number;
+	/** File size, omitted for directories and entries that cannot be stat'ed. */
+	readonly size?: number;
 	readonly children?: readonly ProjectTreeEntry[];
 }
 
@@ -466,6 +470,7 @@ export function listProjectTree(project: Project): ProjectTreeEntry[] {
 					.relative(project.folderPath, full)
 					.split(path.sep)
 					.join("/");
+				const stat = safeStat(full);
 				count += 1;
 				if (ent.isDirectory()) {
 					return [
@@ -473,15 +478,32 @@ export function listProjectTree(project: Project): ProjectTreeEntry[] {
 							name: ent.name,
 							relativePath,
 							kind: "directory",
+							modifiedAtMs: stat?.mtimeMs,
 							children: walk(full, depth + 1),
 						},
 					];
 				}
 				if (!ent.isFile()) return [];
-				return [{ name: ent.name, relativePath, kind: "file" }];
+				return [
+					{
+						name: ent.name,
+						relativePath,
+						kind: "file",
+						modifiedAtMs: stat?.mtimeMs,
+						size: stat?.size,
+					},
+				];
 			});
 	}
 	return walk(project.folderPath, 0);
+}
+
+function safeStat(filePath: string): fs.Stats | undefined {
+	try {
+		return fs.statSync(filePath);
+	} catch {
+		return undefined;
+	}
 }
 
 export const PROJECT_CONTEXT_APPENDIX_START =

@@ -50,7 +50,10 @@ nothing is selected; **New Chat** and **Delete** on a project page. Clicking
 **Projects** shows all projects as cards, or an empty state if none exist.
 Project chats are not listed in the sidebar; while a project chat is open, the
 toolbar shows a folder icon and a control to return to the project page, and the
-project stays highlighted in the sidebar.
+project stays highlighted in the sidebar. Project chats also open a trailing
+**Files** inspector by default. Its toolbar button hides or shows the inspector;
+the tree refreshes while the chat runs and briefly labels added, updated, and
+deleted entries.
 
 ### Editable metadata
 

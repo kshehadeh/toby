@@ -14,6 +14,7 @@ import {
 	deleteProject,
 	formatProjectContextForPrompt,
 	generateProjectNameFromPrompt,
+	listProjectTree,
 	listProjects,
 	loadProjectContextDocuments,
 	resolveActiveProject,
@@ -199,6 +200,24 @@ describe("project context documents", () => {
 		const project = createProject({ name: "BinSkip" });
 		fs.unlinkSync(path.join(project.folderPath, "AGENTS.md"));
 		expect(loadProjectContextDocuments(project)).toEqual([]);
+	});
+});
+
+describe("project file tree", () => {
+	it("includes modification metadata for visible entries", () => {
+		const project = createProject({ name: "Tree metadata" });
+		const outputPath = path.join(project.folderPath, "output.txt");
+		fs.writeFileSync(outputPath, "Hello");
+
+		const output = listProjectTree(project).find(
+			(entry) => entry.relativePath === "output.txt",
+		);
+		expect(output).toMatchObject({
+			name: "output.txt",
+			kind: "file",
+			size: 5,
+		});
+		expect(output?.modifiedAtMs).toEqual(expect.any(Number));
 	});
 });
 

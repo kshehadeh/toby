@@ -296,6 +296,73 @@ struct ProjectsViewTests {
 		}
 	}
 
+	@Test("project file changes distinguish additions, updates, and deletions")
+	func projectFileChanges() {
+		let previous = [
+			treeEntry(name: "Changed.txt", path: "Changed.txt", modifiedAtMs: 1, size: 2),
+			treeEntry(name: "Removed.txt", path: "Removed.txt", modifiedAtMs: 1, size: 1),
+		]
+		let next = [
+			treeEntry(name: "Added.txt", path: "Added.txt", modifiedAtMs: 1, size: 1),
+			treeEntry(name: "Changed.txt", path: "Changed.txt", modifiedAtMs: 2, size: 3),
+		]
+
+		#expect(projectTreeChanges(from: previous, to: next) == [
+			ProjectTreeChange(
+				entry: treeEntry(name: "Added.txt", path: "Added.txt", modifiedAtMs: 1, size: 1),
+				kind: .added
+			),
+			ProjectTreeChange(
+				entry: treeEntry(name: "Changed.txt", path: "Changed.txt", modifiedAtMs: 2, size: 3),
+				kind: .updated
+			),
+			ProjectTreeChange(
+				entry: treeEntry(name: "Removed.txt", path: "Removed.txt", modifiedAtMs: 1, size: 1),
+				kind: .deleted
+			),
+		])
+	}
+
+	@Test("files sidebar shows changed entries and deleted items")
+	func filesSidebarShowsChanges() throws {
+		let store = ProjectsStore()
+		store.selectedProject = sampleProject()
+		store.tree = [
+			treeEntry(name: "Added.txt", path: "Added.txt", modifiedAtMs: 1, size: 1),
+		]
+		store.treeChanges = [
+			ProjectTreeChange(entry: store.tree[0], kind: .added),
+			ProjectTreeChange(
+				entry: treeEntry(name: "Removed.txt", path: "Removed.txt", modifiedAtMs: 1, size: 1),
+				kind: .deleted
+			),
+		]
+
+		let view = ProjectFilesSidebarView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "project-files-sidebar")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Added")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Recently deleted")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Removed.txt")
+		}
+	}
+
+	@Test("project chats start with the Files sidebar open and reset it on return")
+	func projectChatFilesSidebarVisibility() {
+		let store = ProjectsStore()
+		store.showProjectChat()
+		#expect(store.isShowingChat)
+		#expect(store.isFilesSidebarPresented)
+		store.showProjectHome()
+		#expect(store.isFilesSidebarPresented == false)
+	}
+
 	private func sampleProject(
 		id: String = "proj-1",
 		name: String = "Demo",
@@ -322,6 +389,24 @@ struct ProjectsViewTests {
 			name: name,
 			createdAt: "2026-01-01T00:00:00Z",
 			updatedAt: "2026-01-01T00:00:00Z"
+		)
+	}
+
+	private func treeEntry(
+		name: String,
+		path: String,
+		modifiedAtMs: Double,
+		size: Int,
+		kind: String = "file",
+		children: [ProjectTreeEntry]? = nil
+	) -> ProjectTreeEntry {
+		ProjectTreeEntry(
+			name: name,
+			relativePath: path,
+			kind: kind,
+			modifiedAtMs: modifiedAtMs,
+			size: size,
+			children: children
 		)
 	}
 }
