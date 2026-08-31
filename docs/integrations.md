@@ -127,6 +127,8 @@ permission when needed.
 - **Configure API** — credential fields from `getCredentialDescriptors` across
   `getIntegrationModules()`; save via `mergeCredentialsPatch`; consumed by
   Toby.app.
+  - Toby.app presents available integrations as an overview of cards, with
+    individual setup and credential details loaded when one is selected.
   - When `authMethods` are set, configure shows an auth-method selector.
     Credential fields carry `showForAuthMethods` / `showForInbound` metadata;
     Toby.app filters the visible set live as the auth method (or inbound

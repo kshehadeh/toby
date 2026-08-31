@@ -9,10 +9,12 @@ struct IntegrationsView: View {
 		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.load()
-			if let first = store.integrationSections.first,
-				store.selectedNavKey == nil || !store.integrationSections.contains(where: { ($0.navKey ?? $0.key) == store.selectedNavKey })
+			if let selectedNavKey = store.selectedNavKey,
+				!store.integrationSections.contains(where: {
+					($0.navKey ?? $0.key) == selectedNavKey
+				})
 			{
-				store.selectedNavKey = first.navKey ?? first.key
+				store.selectIntegrationHome()
 			}
 		}
 		.onDisappear {
@@ -45,5 +47,9 @@ extension ConfigureStore {
 			return []
 		}
 		return (integrations.children ?? []).filter { $0.kind == .section }
+	}
+
+	func selectIntegrationHome() {
+		selectedNavKey = nil
 	}
 }

@@ -83,8 +83,8 @@ AI summary of a transcribed recording, and start a chat about any recording.
 
 ### Integrations
 
-The Integrations window shows all available integrations and their connection
-status. Click an integration to view setup instructions or manage its
+The Integrations window opens with cards for every available integration. Click
+a card or sidebar row to view connection status, setup instructions, and
 configuration.
 
 ![Toby.app Integrations window](/img/toby-app-integrations.png)

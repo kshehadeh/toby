@@ -107,6 +107,43 @@ struct IntegrationsViewTests {
 		#expect(throws: Never.self) { try view.inspect().find(IntegrationsDetailView.self) }
 	}
 
+	@Test("unselected integrations show cards")
+	func unselectedIntegrationsShowCards() throws {
+		let store = ConfigureStore()
+		store.tree = makeTree()
+		let view = IntegrationsDetailView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "integrations-home-view")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "integration-card-gmail")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Todoist")
+		}
+	}
+
+	@Test("integrations sidebar offers the all-integrations view")
+	func integrationsSidebarOffersHomeView() throws {
+		let store = ConfigureStore()
+		store.tree = makeTree()
+		let view = IntegrationsSidebarView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "integrations-home-button")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Integrations")
+		}
+	}
+
+	@Test("select integration home clears the selected section")
+	func selectIntegrationHomeClearsSelection() {
+		let store = ConfigureStore()
+		store.selectedNavKey = "gmail"
+		store.selectIntegrationHome()
+		#expect(store.selectedNavKey == nil)
+	}
+
 	@Test("integration sidebar row renders image icon URL")
 	func integrationSidebarRowRendersImageIconUrl() throws {
 		let section = SettingsItem(
