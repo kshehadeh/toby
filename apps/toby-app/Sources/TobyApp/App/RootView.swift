@@ -753,6 +753,13 @@ struct RootView: View {
     }
 
     private func startNewChat() {
+        if shouldCreateProjectChat(
+            currentRoute: history.current,
+            selectedProjectId: projectsStore.selectedProjectId,
+        ) {
+            Task { await projectsStore.createChat(chatStore: store) }
+            return
+        }
         startNewChat(persona: nil)
     }
 
@@ -1093,4 +1100,11 @@ struct RootView: View {
     private func applyDebugUpdateOverride() {}
 #endif
 
+}
+
+func shouldCreateProjectChat(
+    currentRoute: DetailRoute,
+    selectedProjectId: String?
+) -> Bool {
+    currentRoute == .projects && selectedProjectId != nil
 }

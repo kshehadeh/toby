@@ -47,7 +47,7 @@ Custom personas keep whatever instructions the user stored.
 
 The chat toolbar **+** control is a split button:
 
-- Click **+** (or File → New Chat / ⌘N) to start a draft that follows the configured default.
+- Click **+** (or File → New Chat / ⌘N outside Projects) to start a draft that follows the configured default. When a project is selected, ⌘N starts a new project chat instead.
 - Open the menu for **Chat with Default Persona** plus **Chat with \<name\>** for each `listPersonas()` option (built-ins first, then custom).
 
 A named pick is sent as `persona` on `POST /api/sessions` when the first turn creates the session. That becomes `session.settings.persona` (a named override). **Chat with Default Persona** omits `persona` so later default changes still apply.

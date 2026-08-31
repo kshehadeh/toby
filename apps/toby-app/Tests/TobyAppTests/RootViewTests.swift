@@ -34,4 +34,11 @@ struct RootViewTests {
 		}
 	}
 
+	@Test("new chat targets the selected project only from the Projects route")
+	func newChatTargetsSelectedProject() {
+		#expect(shouldCreateProjectChat(currentRoute: .projects, selectedProjectId: "proj-1"))
+		#expect(!shouldCreateProjectChat(currentRoute: .projects, selectedProjectId: nil))
+		#expect(!shouldCreateProjectChat(currentRoute: .chat, selectedProjectId: "proj-1"))
+	}
+
 }

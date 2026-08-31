@@ -69,7 +69,7 @@ Most users start with `add` so integration-specific tool guidance stays intact.
 
 | Method | How |
 | ------ | --- |
-| Default | Set default in Settings; **Chat with Default Persona**, **+**, and ⌘N use it |
+| Default | Set default in Settings; **Chat with Default Persona**, **+**, and ⌘N outside Projects use it. With a project selected, ⌘N starts a new project chat. |
 | New chat | Open the **+** menu in the chat toolbar and choose **Chat with Default Persona** or **Chat with** a named persona |
 | Change default | Use the persona picker in the sidebar footer |
 | Project default | Optional persona on a [project](./projects) applies to new project chats |

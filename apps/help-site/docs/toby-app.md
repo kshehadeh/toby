@@ -24,7 +24,7 @@ For endpoint-level documentation, see [Local APIs](./api/overview): the daemon [
 
 | Menu item | What it does |
 | --------- | ------------ |
-| **New Chat** | Starts a fresh chat session (⌘N) |
+| **New Chat** | Starts a fresh chat session (⌘N), or a new project chat when a project is selected |
 | **New Schedule** | Opens Schedules and creates a new schedule |
 | **New Project** | Opens Projects and creates a new project |
 | **New Memory** | Opens Memories and starts the new-memory editor |

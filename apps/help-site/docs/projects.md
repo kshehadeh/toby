@@ -42,7 +42,7 @@ The Projects area has a sidebar list and a main page:
 
 | Area | What it does |
 | ---- | ------------ |
-| Project sidebar | Lists each project by name, with chat count and persona underneath. Select a project to open it. Right-click a project to choose from its ten most recently updated chats and open one directly. Click **Projects** to return to the all-projects view. |
+| Project sidebar | Lists each project by name, with chat count and persona underneath. Select a project to open it. Right-click a project to choose from its ten most recently updated chats and open one directly. Press ⌘N while a project is selected to start a new project chat. Click **Projects** to return to the all-projects view. |
 | All projects | Shown when nothing is selected. Projects appear as cards, or an empty state with **Create Project** if you have none yet. The toolbar **+** creates a new project. |
 | Project page | The selected project's details: a prominent **New Chat** button, the last five chats, name, summary, persona, folder path, and file tree. The toolbar switches to **New Chat** and **Delete**. |
 | Project chat | Opens in the main area when you start or resume a project chat. A Files sidebar opens on the right and refreshes as the chat creates, updates, or deletes files. Changed files are briefly labeled, including recently deleted files. Use the toolbar Files button to hide or show it. The toolbar also shows a folder icon and a **Back to Project** button; the project stays highlighted in the sidebar. Select the project or use that button to return to its details. |
