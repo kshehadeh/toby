@@ -204,8 +204,8 @@ final class SchedulesStore {
 			projectOptions = try await projects
 			flowOptions = (try? await client.listFlows()) ?? []
 			apply(response: response, resetDraft: true)
-			if selectedScheduleId == nil || !schedules.contains(where: { $0.id == selectedScheduleId }) {
-				selectedScheduleId = schedules.first?.id
+			if let selectedScheduleId, !schedules.contains(where: { $0.id == selectedScheduleId }) {
+				self.selectedScheduleId = nil
 			}
 			hasLoadedOnce = true
 			lastLoadedAt = Date()
@@ -232,6 +232,11 @@ final class SchedulesStore {
 	func selectSchedule(id: String) async {
 		await flushPendingSave()
 		selectedScheduleId = id
+	}
+
+	func selectHome() {
+		selectedScheduleId = nil
+		closeRunDetail()
 	}
 
 	func createSchedule() async {
@@ -264,7 +269,7 @@ final class SchedulesStore {
 			let response = try await client.fetchConfigureTree()
 			apply(response: response, resetDraft: true)
 			if selectedScheduleId == id {
-				selectedScheduleId = schedules.first?.id
+				selectedScheduleId = nil
 			}
 		} catch {
 			errorMessage = error.localizedDescription

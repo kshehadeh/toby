@@ -7,23 +7,32 @@ struct SchedulesSidebarView: View {
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
 			Button {
-				Task { await store.createSchedule() }
+				store.selectHome()
 			} label: {
-				HStack(spacing: 6) {
-					Image(systemName: "plus")
-					Text("Add Schedule")
-						.font(.caption)
+				HStack(spacing: 8) {
+					Image(systemName: "square.grid.2x2")
+						.font(.system(size: 12, weight: .semibold))
+						.foregroundStyle(store.selectedScheduleId == nil ? AppTheme.accent : AppTheme.tertiaryText)
+						.frame(width: 16)
+					Text("Schedules")
+						.font(.caption.weight(.medium))
+						.foregroundStyle(store.selectedScheduleId == nil ? AppTheme.primaryText : AppTheme.secondaryText)
+					Spacer(minLength: 0)
 				}
-				.foregroundStyle(AppTheme.secondaryText)
-				.frame(maxWidth: .infinity, alignment: .leading)
 				.padding(.horizontal, 10)
 				.padding(.vertical, 8)
 				.contentShape(Rectangle())
+				.background(
+					RoundedRectangle(cornerRadius: 8)
+						.fill(store.selectedScheduleId == nil ? Color.white.opacity(0.10) : Color.clear)
+				)
 			}
 			.buttonStyle(.plain)
-			.disabled(store.isLoading || store.isSaving)
-			.accessibilityIdentifier("create-schedule-button")
+			.accessibilityIdentifier("schedules-home-button")
+			.accessibilityAddTraits(store.selectedScheduleId == nil ? [.isSelected] : [])
+			.padding(.horizontal, 10)
 			.padding(.top, 10)
+
 			ScrollView {
 				VStack(alignment: .leading, spacing: 2) {
 					if store.isLoading && store.schedules.isEmpty {
@@ -59,6 +68,28 @@ struct SchedulesSidebarView: View {
 				.padding(10)
 			}
 			.background(AppTheme.sidebarBackground)
+
+			HStack {
+				Button {
+					Task { await store.createSchedule() }
+				} label: {
+					Label("New Schedule", systemImage: "plus")
+						.font(.caption.weight(.medium))
+				}
+				.buttonStyle(.plain)
+				.foregroundStyle(AppTheme.accent)
+				.disabled(store.isLoading || store.isSaving)
+				.accessibilityIdentifier("create-schedule-button")
+				Spacer()
+			}
+			.padding(.horizontal, 14)
+			.padding(.vertical, 8)
+			.background(AppTheme.sidebarBackground)
+			.overlay(alignment: .top) {
+				Rectangle()
+					.fill(AppTheme.separator)
+					.frame(height: 1)
+			}
 
 			if !store.isLoading || !store.schedules.isEmpty {
 				HStack(spacing: 4) {

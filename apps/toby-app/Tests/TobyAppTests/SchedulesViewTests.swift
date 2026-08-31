@@ -27,6 +27,75 @@ struct SchedulesViewTests {
 		}
 	}
 
+	@Test("unselected schedules show cards")
+	func unselectedSchedulesShowCards() throws {
+		let store = SchedulesStore()
+		store.schedules = [
+			ScheduleViewModel(
+				id: "daily-review",
+				name: "Daily Review",
+				prompt: "Review my tasks",
+				personaName: "Toby",
+				cronExpression: "0 9 * * *",
+				cronHumanReadable: "At 09:00 AM",
+				nextRunAt: nil,
+				enabled: true,
+				lastRunAt: nil,
+				recentRuns: []
+			),
+			ScheduleViewModel(
+				id: "weekly-brief",
+				name: "Weekly Brief",
+				prompt: "Summarize my week",
+				personaName: "Toby",
+				cronExpression: "0 9 * * 1",
+				cronHumanReadable: "At 09:00 AM on Monday",
+				nextRunAt: nil,
+				enabled: false,
+				lastRunAt: nil,
+				recentRuns: []
+			),
+		]
+		let view = SchedulesDetailView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "schedules-home-view")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "schedule-card-daily-review")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Weekly Brief")
+		}
+	}
+
+	@Test("schedules sidebar offers the all-schedules view")
+	func schedulesSidebarOffersHomeView() throws {
+		let store = SchedulesStore()
+		let view = SchedulesSidebarView(store: store, onDelete: { _ in })
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "schedules-home-button")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Schedules")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "New Schedule")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(text: "Add Schedule")
+		}
+	}
+
+	@Test("select home clears the selected schedule")
+	func selectHomeClearsSelection() {
+		let store = SchedulesStore()
+		store.selectedScheduleId = "daily-review"
+		store.selectedRunId = "run-1"
+		store.selectHome()
+		#expect(store.selectedScheduleId == nil)
+		#expect(store.selectedRunId == nil)
+	}
+
 	@Test("schedule detail shows prompt editor and sidebar fields")
 	func scheduleDetailShowsPromptAndSidebar() throws {
 		let store = SchedulesStore()
