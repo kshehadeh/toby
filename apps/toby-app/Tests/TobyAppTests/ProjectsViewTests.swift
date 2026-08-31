@@ -118,8 +118,7 @@ struct ProjectsViewTests {
 		]
 		let view = ProjectsIndexView(
 			store: store,
-			onSelect: { _ in },
-			onCreate: {}
+			onSelect: { _ in }
 		)
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "projects-home-view")
@@ -135,6 +134,9 @@ struct ProjectsViewTests {
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "0 chats · Default")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "projects-index-create-button")
 		}
 	}
 

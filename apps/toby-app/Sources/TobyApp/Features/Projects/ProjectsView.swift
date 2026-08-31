@@ -94,9 +94,6 @@ struct ProjectsView: View {
 				onSelect: { id in
 					Task { await projectsStore.selectProject(id: id) }
 				},
-				onCreate: {
-					Task { await projectsStore.createProject() }
-				},
 			)
 		}
 	}

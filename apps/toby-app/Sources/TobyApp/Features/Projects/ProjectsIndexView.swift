@@ -3,7 +3,6 @@ import SwiftUI
 struct ProjectsIndexView: View {
 	@Bindable var store: ProjectsStore
 	let onSelect: (String) -> Void
-	let onCreate: () -> Void
 
 	private let columns = [
 		GridItem(.adaptive(minimum: 240, maximum: 360), spacing: 16),
@@ -37,25 +36,14 @@ struct ProjectsIndexView: View {
 	}
 
 	private var header: some View {
-		HStack(alignment: .top) {
-			VStack(alignment: .leading, spacing: 6) {
-				Text("Projects")
-					.font(.system(size: 24, weight: .semibold))
-					.foregroundStyle(SettingsDesign.rowTitle)
-				Text("Workspaces with their own chats, instructions, skills, and generated files. Select a project to open it.")
-					.font(.body)
-					.foregroundStyle(SettingsDesign.rowDescription)
-					.fixedSize(horizontal: false, vertical: true)
-			}
-			Spacer(minLength: 16)
-			Button {
-				onCreate()
-			} label: {
-				Label("New Project", systemImage: "plus")
-			}
-			.buttonStyle(.borderedProminent)
-			.disabled(store.isSaving)
-			.accessibilityIdentifier("projects-index-create-button")
+		VStack(alignment: .leading, spacing: 6) {
+			Text("Projects")
+				.font(.system(size: 24, weight: .semibold))
+				.foregroundStyle(SettingsDesign.rowTitle)
+			Text("Workspaces with their own chats, instructions, skills, and generated files. Select a project to open it.")
+				.font(.body)
+				.foregroundStyle(SettingsDesign.rowDescription)
+				.fixedSize(horizontal: false, vertical: true)
 		}
 	}
 }
