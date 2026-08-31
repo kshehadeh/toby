@@ -28,6 +28,24 @@ struct ChatWorkspaceViewTests {
         }
     }
 
+    @Test("project chat shows the project-specific new-chat title and avatar")
+    func projectChatShowsProjectWelcome() throws {
+        let store = ChatStore()
+        store.draftPersonaName = "Mailman"
+        store.sessionPersonaImageUrl = "/api/personas/image/mailman.png"
+        let view = ChatWorkspaceView(store: store, projectName: "Northstar")
+
+        #expect(throws: Never.self) {
+            try view.inspect().find(text: "New Northstar Chat")
+        }
+        #expect(throws: Never.self) {
+            try view.inspect().find(ProjectChatWelcomeAvatar.self)
+        }
+        #expect(throws: (any Error).self) {
+            try view.inspect().find(text: "What should Mailman take care of?")
+        }
+    }
+
     @Test("empty state shows the connected persona image")
     func emptyStateShowsPersonaImage() throws {
         let store = ChatStore()

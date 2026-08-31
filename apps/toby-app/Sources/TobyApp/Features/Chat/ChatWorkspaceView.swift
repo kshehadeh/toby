@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ChatWorkspaceView: View {
     @Bindable var store: ChatStore
+    var projectName: String?
     var allowsProjectFileAttachments = false
     @FocusState private var isPromptFocused: Bool
 
@@ -11,6 +12,7 @@ struct ChatWorkspaceView: View {
                 EmptyChatWorkspace(
                     store: store,
                     promptFocus: $isPromptFocused,
+                    projectName: projectName,
                     allowsProjectFileAttachments: allowsProjectFileAttachments
                 )
             } else {

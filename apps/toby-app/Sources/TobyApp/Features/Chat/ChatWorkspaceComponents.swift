@@ -35,22 +35,36 @@ struct SessionTitleBadge: View {
 struct EmptyChatWorkspace: View {
     @Bindable var store: ChatStore
     let promptFocus: FocusState<Bool>.Binding
+    var projectName: String?
     var allowsProjectFileAttachments = false
 
     private var greetingName: String {
         store.draftPersonaName ?? store.status?.persona ?? "Toby"
     }
 
+    private var headline: String {
+        if let projectName {
+            return "New \(projectName) Chat"
+        }
+        return "What should \(greetingName) take care of?"
+    }
+
     var body: some View {
         VStack(spacing: 18) {
             Spacer()
             VStack(spacing: 14) {
-                if let personaImageUrl = store.resolvedPersonaImageUrl {
+                if let projectName, let personaImageUrl = store.resolvedPersonaImageUrl {
+                    ProjectChatWelcomeAvatar(
+                        projectName: projectName,
+                        personaName: greetingName,
+                        personaImageUrl: personaImageUrl,
+                    )
+                } else if let personaImageUrl = store.resolvedPersonaImageUrl {
                     PersonaImageView(url: personaImageUrl, size: 96)
                         .accessibilityLabel("\(greetingName) persona")
                 }
                 VStack(spacing: 8) {
-                    Text("What should \(greetingName) take care of?")
+                    Text(headline)
                         .font(.title2.weight(.semibold))
                         .foregroundStyle(AppTheme.primaryText)
                     Text("Use your connected apps, schedules, memory, and Mac controls from one place.")
@@ -94,6 +108,35 @@ struct EmptyChatWorkspace: View {
                 saveAttachmentsToProject: allowsProjectFileAttachments
             )
         }
+    }
+}
+
+struct ProjectChatWelcomeAvatar: View {
+    let projectName: String
+    let personaName: String
+    let personaImageUrl: URL
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 20, style: .continuous)
+            .fill(AppTheme.accent.opacity(0.16))
+            .frame(width: 96, height: 96)
+            .overlay {
+                Image(systemName: "folder.fill")
+                    .font(.system(size: 44, weight: .semibold))
+                    .foregroundStyle(AppTheme.accent)
+                    .accessibilityHidden(true)
+            }
+            .overlay(alignment: .bottomTrailing) {
+                PersonaImageView(url: personaImageUrl, size: 36)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .stroke(AppTheme.contentBackground, lineWidth: 3)
+                    }
+                    .offset(x: 6, y: 6)
+            }
+            .frame(width: 108, height: 108)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(projectName) project chat with \(personaName)")
     }
 }
 
