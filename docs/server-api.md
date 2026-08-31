@@ -918,8 +918,9 @@ type ModulesResponse = {
 Returns local skills.
 
 Toby.app uses this list during shared post-bootstrap preload for dashboard
-counts, the Skills sidebar, and command-palette search. Individual skill bodies
-are fetched separately when a skill is selected.
+counts, the Skills sidebar and card overview, and command-palette search.
+Individual skill bodies are fetched separately when a skill is selected; the
+overview toolbar creates new skills through the configure action endpoint.
 
 ```ts
 type SkillsResponse = {
@@ -1142,6 +1143,7 @@ Supported actions:
 | `delete-persona` | `personaName` | `{ "ok": true }` |
 | `set-default-persona` | `personaName` | `{ "ok": true }` |
 | `clear-default-persona` | none | `{ "ok": true }` |
+| `create-skill` | none | `{ "ok": true, "dirName": string }` |
 | `update-skill-field` | `dirName`, `field`, `value` | `{ "ok": true }` |
 | `delete-skill` | `dirName` | `{ "ok": true }` |
 | `create-schedule` | none | `{ "ok": true, "scheduleId": string }` |

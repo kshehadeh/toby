@@ -215,6 +215,11 @@ final class SkillsStore {
 		await loadDetail(id: id)
 	}
 
+	func selectHome() {
+		selectedSkillId = nil
+		selectedSkill = nil
+	}
+
 	func createSkill() async {
 		await flushPendingSave()
 		isSaving = true
@@ -247,12 +252,8 @@ final class SkillsStore {
 			)
 			skills = try await client.listSkills()
 			if selectedSkillId == id {
-				selectedSkillId = skills.first?.id
-				if let selectedSkillId {
-					await loadDetail(id: selectedSkillId)
-				} else {
-					selectedSkill = nil
-				}
+				selectedSkillId = nil
+				selectedSkill = nil
 			}
 		} catch {
 			errorMessage = error.localizedDescription
@@ -313,8 +314,9 @@ final class SkillsStore {
 
 	private func loadListData() async throws {
 		skills = try await client.listSkills()
-		if selectedSkillId == nil || !skills.contains(where: { $0.id == selectedSkillId }) {
-			selectedSkillId = skills.first?.id
+		if let selectedSkillId, !skills.contains(where: { $0.id == selectedSkillId }) {
+			self.selectedSkillId = nil
+			selectedSkill = nil
 		}
 		hasLoadedOnce = true
 		lastLoadedAt = Date()

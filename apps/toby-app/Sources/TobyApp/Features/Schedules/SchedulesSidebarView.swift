@@ -69,28 +69,6 @@ struct SchedulesSidebarView: View {
 			}
 			.background(AppTheme.sidebarBackground)
 
-			HStack {
-				Button {
-					Task { await store.createSchedule() }
-				} label: {
-					Label("New Schedule", systemImage: "plus")
-						.font(.caption.weight(.medium))
-				}
-				.buttonStyle(.plain)
-				.foregroundStyle(AppTheme.accent)
-				.disabled(store.isLoading || store.isSaving)
-				.accessibilityIdentifier("create-schedule-button")
-				Spacer()
-			}
-			.padding(.horizontal, 14)
-			.padding(.vertical, 8)
-			.background(AppTheme.sidebarBackground)
-			.overlay(alignment: .top) {
-				Rectangle()
-					.fill(AppTheme.separator)
-					.frame(height: 1)
-			}
-
 			if !store.isLoading || !store.schedules.isEmpty {
 				HStack(spacing: 4) {
 					Text("\(store.totalCount) schedule\(store.totalCount == 1 ? "" : "s")")

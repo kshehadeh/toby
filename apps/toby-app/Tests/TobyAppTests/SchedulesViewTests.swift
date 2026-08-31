@@ -78,8 +78,11 @@ struct SchedulesViewTests {
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Schedules")
 		}
-		#expect(throws: Never.self) {
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(text: "New Schedule")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "create-schedule-button")
 		}
 		#expect(throws: (any Error).self) {
 			try view.inspect().find(text: "Add Schedule")

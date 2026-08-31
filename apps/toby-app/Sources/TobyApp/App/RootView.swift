@@ -594,8 +594,12 @@ struct RootView: View {
                         RootToolbars.schedules(
                             common: commonToolbarModel,
                             hasSelection: schedulesStore.selectedSchedule != nil,
+                            isSaving: schedulesStore.isSaving,
                             isRunning: schedulesStore.runningScheduleId != nil,
                             isDeleting: schedulesStore.deletingScheduleId != nil,
+                            onNew: {
+                                Task { await schedulesStore.createSchedule() }
+                            },
                             onRun: {
                                 guard let id = schedulesStore.selectedSchedule?.id else { return }
                                 Task { await schedulesStore.runSchedule(id: id) }
@@ -633,6 +637,9 @@ struct RootView: View {
                             common: commonToolbarModel,
                             hasSelection: skillsStore.selectedSkill != nil,
                             isSaving: skillsStore.isSaving,
+                            onNew: {
+                                Task { await skillsStore.createSkill() }
+                            },
                             onDelete: {
                                 guard let skill = skillsStore.selectedSkill else { return }
                                 skillsStore.pendingDelete = SkillsStore.PendingDelete(

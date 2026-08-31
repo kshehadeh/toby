@@ -35,9 +35,9 @@ Open **Toby.app** and click **Schedules** in the sidebar.
 
 The Schedules view opens with an overview of your schedules as cards. Select a
 card or a schedule in the sidebar to edit it. Use **New Schedule** in the
-sidebar to create one. You can also delete schedules, enable or disable them,
-choose a **prompt** or a **flow**, use **Run now** for a test, and view past
-runs.
+toolbar while viewing the overview to create one. You can also delete
+schedules, enable or disable them, choose a **prompt** or a **flow**, use
+**Run now** for a test, and view past runs.
 
 ### From chat
 

@@ -43,6 +43,73 @@ struct SkillsViewTests {
 		}
 	}
 
+	@Test("unselected skills show cards")
+	func unselectedSkillsShowCards() throws {
+		let store = SkillsStore()
+		store.skills = [
+			SkillListItem(
+				dirName: "research",
+				name: "Research",
+				description: "Research assistant",
+				summary: "Gather and synthesize information."
+			),
+			SkillListItem(
+				dirName: "planner",
+				name: "Planner",
+				description: "Planning helper",
+				enabled: false
+			),
+		]
+		let view = SkillsDetailView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "skills-home-view")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "skill-card-research")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Planner")
+		}
+	}
+
+	@Test("skills sidebar offers the all-skills view")
+	func skillsSidebarOffersHomeView() throws {
+		let store = SkillsStore()
+		let view = SkillsSidebarView(store: store, onDelete: { _ in })
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "skills-home-button")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Skills")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(text: "New Skill")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "create-skill-button")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(text: "Add Skill")
+		}
+	}
+
+	@Test("select home clears the selected skill")
+	func selectHomeClearsSelection() {
+		let store = SkillsStore()
+		store.selectedSkillId = "research"
+		store.selectedSkill = SkillDetail(
+			dirName: "research",
+			name: "Research",
+			description: "Research assistant",
+			bodyMarkdown: "# Research",
+			tools: nil,
+			integrations: nil
+		)
+		store.selectHome()
+		#expect(store.selectedSkillId == nil)
+		#expect(store.selectedSkill == nil)
+	}
+
 	@Test("skill detail shows selected skill name and description")
 	func skillDetailShowsSelectedSkill() throws {
 		let store = SkillsStore()

@@ -325,15 +325,25 @@ enum RootToolbars {
 	static func schedules(
 		common model: RootCommonToolbarModel,
 		hasSelection: Bool,
+		isSaving: Bool,
 		isRunning: Bool,
 		isDeleting: Bool,
+		onNew: @escaping () -> Void,
 		onRun: @escaping () -> Void,
 		onDelete: @escaping () -> Void,
 	) -> some ToolbarContent {
 		common(model)
 		ToolbarItem(placement: .principal) { Spacer() }
 		ToolbarItem(placement: .confirmationAction) {
-			if hasSelection {
+			if !hasSelection {
+				Button(action: onNew) {
+					Image(systemName: "plus")
+				}
+				.help("New Schedule")
+				.disabled(isSaving)
+				.accessibilityIdentifier("toolbar-new-schedule-button")
+				.accessibilityLabel("New Schedule")
+			} else {
 				Button(action: onRun) {
 					Image(systemName: "play.fill")
 				}
@@ -382,12 +392,21 @@ enum RootToolbars {
 		common model: RootCommonToolbarModel,
 		hasSelection: Bool,
 		isSaving: Bool,
+		onNew: @escaping () -> Void,
 		onDelete: @escaping () -> Void,
 	) -> some ToolbarContent {
 		common(model)
 		ToolbarItem(placement: .principal) { Spacer() }
 		ToolbarItem(placement: .confirmationAction) {
-			if hasSelection {
+			if !hasSelection {
+				Button(action: onNew) {
+					Image(systemName: "plus")
+				}
+				.help("New Skill")
+				.disabled(isSaving)
+				.accessibilityIdentifier("toolbar-new-skill-button")
+				.accessibilityLabel("New Skill")
+			} else {
 				Button(role: .destructive, action: onDelete) {
 					Image(systemName: "trash")
 				}

@@ -104,8 +104,10 @@ icon marks the chat and a toolbar button returns you to the project page.
 
 ### Skills
 
-The Skills window lists your installed skills with descriptions. You can add
-new skills, delete existing ones, and run a skill directly from the toolbar.
+The Skills window opens with every installed skill as a card. Select a card or
+sidebar row to view and edit it, and use **New Skill** in the toolbar while
+viewing the overview to create one. You can also delete skills and run a skill
+directly from the toolbar.
 
 ![Toby.app Skills window](/img/toby-app-skills.png)
 

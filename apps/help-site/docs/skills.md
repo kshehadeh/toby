@@ -46,7 +46,11 @@ You do not pick skills manually each message—Toby chooses from names in the ca
 
 ### Manage in the app
 
-Open **Toby.app** and click **Skills** in the sidebar. The Skills window lists installed skills with descriptions. You can add new skills, delete existing ones, and run a skill directly from the toolbar.
+Open **Toby.app** and click **Skills** in the sidebar. The Skills view opens with
+an overview of your skills as cards. Select a card or a skill in the sidebar to
+view and edit it. Use **New Skill** in the toolbar while viewing the overview
+to create one. You can also delete existing skills and run a skill directly
+from the toolbar.
 
 ![Toby.app Skills window](/img/toby-app-skills.png)
 

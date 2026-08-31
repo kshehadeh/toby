@@ -88,7 +88,8 @@ Schedule execution is logged under category `scheduler` in the unified log (`sou
 
 User-facing setup: [help-site schedules doc](../apps/help-site/docs/schedules.md).
 In Toby.app, the Schedules sidebar entry opens an all-schedules card overview;
-select a card or sidebar row to edit that schedule.
+select a card or sidebar row to edit that schedule, or use the overview toolbar
+to create a schedule.
 
 ## Chat inbound
 
