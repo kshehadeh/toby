@@ -255,6 +255,19 @@ struct ProjectsViewTests {
 		#expect(store.recentSessions(limit: 2).map(\.id) == ["s1", "s2"])
 	}
 
+	@Test("sidebar recent chats returns the ten most recent chats for its project")
+	func sidebarRecentChatsLimit() {
+		let store = ProjectsStore()
+		store.projectSessions = [
+			"proj-1": (1...12).map { sampleSession(id: "s\($0)", name: "S\($0)") },
+		]
+
+		#expect(
+			store.recentSessions(for: "proj-1", limit: 10).map(\.id)
+				== (1...10).map { "s\($0)" }
+		)
+	}
+
 	@Test("selectHome clears the selected project")
 	func selectHomeClearsSelection() async {
 		let store = ProjectsStore()

@@ -5,6 +5,7 @@ struct ProjectsSidebarView: View {
 	let onCreate: () -> Void
 	let onSelect: (String) -> Void
 	let onSelectHome: () -> Void
+	var onSelectChat: (ProjectSummary, String) -> Void = { _, _ in }
 	var onDelete: ((ProjectSummary) -> Void)? = nil
 
 	private var isHomeSelected: Bool { store.selectedProjectId == nil }
@@ -61,7 +62,23 @@ struct ProjectsSidebarView: View {
 							}
 							.buttonStyle(.plain)
 							.contextMenu {
+								let recentChats = store.recentSessions(for: project.id, limit: 10)
+								Section("Recent Chats") {
+									if recentChats.isEmpty {
+										Button("No chats yet") {}
+											.disabled(true)
+									} else {
+										ForEach(recentChats) { session in
+											Button {
+												onSelectChat(project, session.id)
+											} label: {
+												Label(session.name, systemImage: "bubble.left")
+											}
+										}
+									}
+								}
 								if let onDelete {
+									Divider()
 									Button("Delete Project", systemImage: "trash", role: .destructive) {
 										onDelete(project)
 									}

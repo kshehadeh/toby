@@ -441,6 +441,12 @@ struct RootView: View {
                             onSelectHome: {
                                 Task { await projectsStore.selectHome() }
                             },
+                            onSelectChat: { project, sessionId in
+                                Task {
+                                    await projectsStore.selectProject(id: project.id)
+                                    await projectsStore.selectChat(id: sessionId, chatStore: store)
+                                }
+                            },
                             onDelete: { project in
                                 projectsStore.pendingDelete = ProjectsStore.PendingDelete(
                                     projectId: project.id,

@@ -45,7 +45,8 @@ management lives in Toby.app. The Home sidebar lists the five most recently
 updated projects; selecting one opens that project’s details page. The Projects
 sidebar lists each project (name, chat count, persona). Selecting a project
 opens a details page in the main pane (new chat, recent chats, metadata, file
-tree). The main-window toolbar is context-sensitive: **+** (new project) when
+tree). Right-click a project to open any of its ten most recently updated chats
+directly. The main-window toolbar is context-sensitive: **+** (new project) when
 nothing is selected; **New Chat** and **Delete** on a project page. Clicking
 **Projects** shows all projects as cards, or an empty state if none exist.
 Project chats are not listed in the sidebar; while a project chat is open, the

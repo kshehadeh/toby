@@ -52,7 +52,12 @@ final class ProjectsStore {
 	}
 
 	func recentSessions(limit: Int = 5) -> [SessionSummary] {
-		Array(selectedProjectSessions.prefix(limit))
+		guard let selectedProjectId else { return [] }
+		return recentSessions(for: selectedProjectId, limit: limit)
+	}
+
+	func recentSessions(for projectId: String, limit: Int) -> [SessionSummary] {
+		Array(sessions(for: projectId).prefix(limit))
 	}
 
 	func metaLine(for project: ProjectSummary) -> String {
