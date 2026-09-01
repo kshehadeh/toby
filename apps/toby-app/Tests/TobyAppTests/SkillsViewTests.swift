@@ -93,6 +93,38 @@ struct SkillsViewTests {
 		}
 	}
 
+	@Test("skills sidebar marks home as selected when no skill is selected")
+	func skillsSidebarMarksHomeSelected() throws {
+		let store = SkillsStore()
+		store.skills = [
+			SkillListItem(dirName: "research", name: "Research", description: "Research assistant"),
+		]
+		let view = SkillsSidebarView(store: store, onDelete: { _ in })
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "skills-home-button")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "skill-sidebar-row-research")
+		}
+	}
+
+	@Test("skills sidebar highlights the selected skill")
+	func skillsSidebarHighlightsSelectedSkill() throws {
+		let store = SkillsStore()
+		let skill = SkillListItem(dirName: "research", name: "Research", description: "Research assistant")
+		store.skills = [skill]
+		store.selectedSkillId = skill.id
+		let view = SkillsSidebarView(store: store, onDelete: { _ in })
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "skill-sidebar-row-\(skill.id)")
+		}
+		#expect(throws: Never.self) {
+			try SkillSidebarRow(skill: skill, isSelected: true)
+				.inspect()
+				.find(viewWithAccessibilityIdentifier: "skill-sidebar-row-\(skill.id)")
+		}
+	}
+
 	@Test("select home clears the selected skill")
 	func selectHomeClearsSelection() {
 		let store = SkillsStore()

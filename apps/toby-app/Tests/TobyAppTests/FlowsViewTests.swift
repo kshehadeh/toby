@@ -107,6 +107,36 @@ struct FlowsViewTests {
 		}
 	}
 
+	@Test("flows sidebar marks all-flows as selected on home")
+	func flowsSidebarMarksHomeSelected() throws {
+		let store = FlowsStore()
+		store.flows = [sampleFlow()]
+		let view = FlowsSidebarView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "flows-home-button")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-sidebar-row-dashboard.email.summary")
+		}
+	}
+
+	@Test("flows sidebar highlights the selected flow")
+	func flowsSidebarHighlightsSelectedFlow() throws {
+		let store = FlowsStore()
+		let flow = sampleFlow()
+		store.flows = [flow]
+		store.selectedFlowId = flow.id
+		let view = FlowsSidebarView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-sidebar-row-\(flow.id)")
+		}
+		#expect(throws: Never.self) {
+			try FlowSidebarRow(flow: flow, isSelected: true)
+				.inspect()
+				.find(viewWithAccessibilityIdentifier: "flow-sidebar-row-\(flow.id)")
+		}
+	}
+
 	@Test("selected flow shows detail content")
 	func selectedFlowShowsDetailContent() throws {
 		let store = FlowsStore()

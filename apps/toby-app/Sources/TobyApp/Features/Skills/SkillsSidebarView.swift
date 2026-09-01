@@ -24,7 +24,7 @@ struct SkillsSidebarView: View {
 				.contentShape(Rectangle())
 				.background(
 					RoundedRectangle(cornerRadius: 8)
-						.fill(store.selectedSkillId == nil ? Color.white.opacity(0.10) : Color.clear)
+						.fill(store.selectedSkillId == nil ? AppTheme.selection : Color.clear)
 				)
 			}
 			.buttonStyle(.plain)

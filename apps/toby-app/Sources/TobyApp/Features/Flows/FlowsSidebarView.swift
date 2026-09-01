@@ -23,11 +23,12 @@ struct FlowsSidebarView: View {
 				.contentShape(Rectangle())
 				.background(
 					RoundedRectangle(cornerRadius: 8)
-						.fill(store.selectedFlowId == nil ? Color.white.opacity(0.10) : Color.clear)
+						.fill(store.selectedFlowId == nil ? AppTheme.selection : Color.clear)
 				)
 			}
 			.buttonStyle(.plain)
 			.accessibilityIdentifier("flows-home-button")
+			.accessibilityAddTraits(store.selectedFlowId == nil ? [.isSelected] : [])
 			.padding(.horizontal, 10)
 			.padding(.top, 10)
 
@@ -129,7 +130,7 @@ struct FlowSidebarRow: View {
 		HStack(spacing: 12) {
 			Image(systemName: flow.systemImage)
 				.font(.system(size: 14, weight: .semibold))
-				.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.tertiaryText)
+				.foregroundStyle(isSelected ? AppTheme.accent : AppTheme.tertiaryText)
 				.frame(width: 20, height: 20)
 			VStack(alignment: .leading, spacing: 2) {
 				HStack(spacing: 6) {
@@ -161,7 +162,18 @@ struct FlowSidebarRow: View {
 		.contentShape(Rectangle())
 		.background(
 			RoundedRectangle(cornerRadius: 8)
-				.fill(isSelected ? Color.white.opacity(0.10) : Color.clear)
+				.fill(isSelected ? AppTheme.selection : Color.clear)
 		)
+		.accessibilityElement(children: .combine)
+		.accessibilityLabel(accessibilityLabel)
+		.accessibilityAddTraits(isSelected ? [.isSelected] : [])
+		.accessibilityIdentifier("flow-sidebar-row-\(flow.id)")
+	}
+
+	private var accessibilityLabel: String {
+		if flow.builtin {
+			return "\(flow.displayName), built-in, \(flow.subtitle)"
+		}
+		return "\(flow.displayName), \(flow.subtitle)"
 	}
 }

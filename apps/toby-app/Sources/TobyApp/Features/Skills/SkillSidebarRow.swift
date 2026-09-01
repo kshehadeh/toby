@@ -26,8 +26,19 @@ struct SkillSidebarRow: View {
 		.contentShape(Rectangle())
 		.background(
 			RoundedRectangle(cornerRadius: 8)
-				.fill(isSelected ? Color.white.opacity(0.10) : Color.clear)
+				.fill(isSelected ? AppTheme.selection : Color.clear)
 		)
+		.accessibilityElement(children: .combine)
+		.accessibilityLabel(accessibilityLabel)
+		.accessibilityAddTraits(isSelected ? [.isSelected] : [])
+		.accessibilityIdentifier("skill-sidebar-row-\(skill.id)")
+	}
+
+	private var accessibilityLabel: String {
+		if let description = skill.description, !description.isEmpty {
+			return "\(skill.name), \(description)"
+		}
+		return skill.name
 	}
 }
 
