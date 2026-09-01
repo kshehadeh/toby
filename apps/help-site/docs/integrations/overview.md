@@ -157,7 +157,8 @@ email summarize unread messages from this week
 
 These are **not** installable integrations. No integration picker is required:
 
-- **`fetchWebContent`** — Always available. Fetches a URL and extracts the main readable article content (strips ads, navigation, footers).
+- **`fetchWebContent`** — Always available. Fetches a URL and extracts the main readable article content (strips ads, navigation, footers). PDF URLs are extracted as text.
+- **`readPdf`** — Always available. Extracts searchable text from a PDF you attach, a PDF already in a project, or a PDF URL. Does not read scanned image-only PDFs.
 - **`webSearch`** — Available when [Web Search](../configuration/web-search) is enabled and a Vercel AI Gateway API key is configured.
 - **`getWeather`** — Available when [Weather](../configuration/weather) is enabled (Open-Meteo; optional paid API key).
 

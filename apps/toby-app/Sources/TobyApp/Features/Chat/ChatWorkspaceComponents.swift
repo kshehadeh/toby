@@ -81,6 +81,7 @@ struct EmptyChatWorkspace: View {
                 contextWindowUnavailable: store.contextWindowUnavailable,
                 attachments: store.pendingAttachments,
                 canAttachFiles: store.canAttachFiles || allowsProjectFileAttachments,
+                pdfOnlyAttachments: !allowsProjectFileAttachments && store.pdfOnlyAttachments,
                 attachmentDisabledReason: allowsProjectFileAttachments
                     ? "Add files to save to this project"
                     : store.attachmentUnavailableReason,
@@ -167,6 +168,7 @@ struct ActiveChatWorkspace: View {
                     contextWindowUnavailable: store.contextWindowUnavailable,
                     attachments: store.pendingAttachments,
                     canAttachFiles: store.canAttachFiles || allowsProjectFileAttachments,
+                    pdfOnlyAttachments: !allowsProjectFileAttachments && store.pdfOnlyAttachments,
                     attachmentDisabledReason: allowsProjectFileAttachments
                         ? "Add files to save to this project"
                         : store.attachmentUnavailableReason,

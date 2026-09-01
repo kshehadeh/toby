@@ -45,6 +45,7 @@ const READ_ONLY_CHAT_TOOLS = new Set<string>([
 	"loadLocalSkillInstructions",
 	"listListenRecordings",
 	"readTranscript",
+	"readPdf",
 ]);
 
 function stableSerialize(value: unknown): string {

@@ -108,12 +108,26 @@ final class ChatStore {
 		status?.attachmentCapability
 	}
 
+	var canAttachNativeFiles: Bool {
+		attachmentCapability?.supported == true
+	}
+
 	var canAttachFiles: Bool {
-		attachmentCapability?.supported == true && !isLoading
+		status != nil && !isLoading
+	}
+
+	var pdfOnlyAttachments: Bool {
+		!canAttachNativeFiles
 	}
 
 	var attachmentUnavailableReason: String {
-		attachmentCapability?.reason ?? "The selected model does not support file attachments."
+		if status == nil {
+			return "Chat is not connected yet."
+		}
+		if pdfOnlyAttachments {
+			return "This model cannot inspect files. You can still attach a PDF for Toby to read as text."
+		}
+		return attachmentCapability?.reason ?? "The selected model does not support file attachments."
 	}
 
 	var hasCleanCurrentSession: Bool {
@@ -873,6 +887,7 @@ final class ChatStore {
 				? ""
 				: attachmentUnavailableReason,
 			allowAnyMediaType: allowProjectFileAttachments,
+			pdfOnly: !allowProjectFileAttachments && pdfOnlyAttachments,
 		)
 		pendingAttachments = outcome.pendingAttachments
 		for toast in outcome.toasts {

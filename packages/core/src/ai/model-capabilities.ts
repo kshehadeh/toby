@@ -110,3 +110,14 @@ export function resolveChatAttachmentCapability(
 export function isAcceptedChatAttachmentMediaType(mediaType: string): boolean {
 	return ACCEPTED_MEDIA_TYPE_SET.has(mediaType.trim().toLowerCase());
 }
+
+/** Types Toby can extract into chat context without native FilePart support. */
+export const CHAT_EXTRACTABLE_ATTACHMENT_MEDIA_TYPES = [
+	"application/pdf",
+] as const;
+
+export function isExtractableChatAttachmentMediaType(
+	mediaType: string,
+): boolean {
+	return mediaType.trim().toLowerCase() === "application/pdf";
+}

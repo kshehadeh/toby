@@ -54,6 +54,26 @@ const TOOL_KEY_EXTRACTORS: ReadonlyMap<
 		},
 	],
 	[
+		"readPdf",
+		(args) => {
+			const filename = firstString(args, ["filename"]);
+			const filePath = firstString(args, ["path"]);
+			const url = firstString(args, ["url"]);
+			const start = firstString(args, ["startPage"]) ?? "";
+			const end = firstString(args, ["endPage"]) ?? "";
+			if (filename) {
+				return joinKey("readPdf", ["attachment", filename, start, end]);
+			}
+			if (filePath) {
+				return joinKey("readPdf", ["project", filePath, start, end]);
+			}
+			if (url) {
+				return joinKey("readPdf", ["url", normalizeUrl(url), start, end]);
+			}
+			return null;
+		},
+	],
+	[
 		"getEmailBody",
 		(args) => {
 			const uid = firstString(args, ["uid", "messageUid", "messageId"]);

@@ -201,6 +201,12 @@ struct ToolDisplayLabelsTests {
 		#expect(ToolDisplayLabels.iconForTool("fetchWebContent") == "globe")
 	}
 
+	@Test("returns doc.richtext for readPdf")
+	func readPdfIcon() {
+		#expect(ToolDisplayLabels.iconForTool("readPdf") == "doc.richtext")
+		#expect(ToolDisplayLabels.displayLabel("readPdf") == "Read PDF")
+	}
+
 	@Test("returns cloud.sun for weather")
 	func getWeatherIcon() {
 		#expect(ToolDisplayLabels.iconForTool("getWeather") == "cloud.sun")

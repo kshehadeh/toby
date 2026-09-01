@@ -150,7 +150,7 @@ By default, Toby uses **embedding-based routing** ([`packages/core/src/routing/`
 [`run-turn.ts`](../packages/core/src/chat-pipeline/run-turn.ts): `askUser`,
 `getCurrentDateTime`, `loadLocalSkillInstructions`, `writeTextFile`,
 `tobyListIntegrations`, `tobyListTools`, `tobyListSkills`, `delegateToSubAgent`,
-and core memory tools) are **not** part of the top-K count. Conditional globals
+core memory tools, and `readPdf`) are **not** part of the top-K count. Conditional globals
 such as `webSearch` (when enabled) are also protected from relevance filtering
 when present. So “top 8” means eight *additional* integration tools, not eight
 tools total.
@@ -224,12 +224,13 @@ tools can you use right now?”, and “What skills are installed?”
 
 Two global tools extend Toby's ability to access the web:
 
-- **`fetchWebContent`** — Fetches a URL and extracts its main readable content using `@mozilla/readability`. Strips ads, navigation, footers, and other boilerplate. Returns article title, text content, excerpt, and metadata. No credentials needed. Implemented in [`packages/core/src/ai/web-fetch-tool.ts`](../packages/core/src/ai/web-fetch-tool.ts).
+- **`fetchWebContent`** — Fetches a URL and extracts its main readable content using `@mozilla/readability`. Strips ads, navigation, footers, and other boilerplate. Returns article title, text content, excerpt, and metadata. PDF URLs are extracted via `readPdf`’s helper. No credentials needed. Implemented in [`packages/core/src/ai/web-fetch-tool.ts`](../packages/core/src/ai/web-fetch-tool.ts).
+- **`readPdf`** — Extracts searchable text from a PDF into the current turn (attachment filename, project-relative path, or `http`/`https` URL). Always registered and always-included. Does not OCR scanned image PDFs. See [`pdf-read.md`](pdf-read.md) and [`packages/core/src/ai/pdf-read-tool.ts`](../packages/core/src/ai/pdf-read-tool.ts).
 - **`webSearch`** — Searches the web via Perplexity through the Vercel AI Gateway. A client-side function tool whose `execute` makes a separate `generateText` call to the gateway with `openai/gpt-4.1-mini` + `gateway.tools.perplexitySearch()`. Returns titles, URLs, snippets, and optional dates. Available as a **conditional global tool** when web search is enabled in Settings and a Vercel AI Gateway API key is present (works with any persona AI provider). When available, it is protected from pretreatment filtering. See [`web-search.md`](web-search.md) and [`packages/core/src/ai/web-search-global-tools.ts`](../packages/core/src/ai/web-search-global-tools.ts).
 - **`getWeather`** — Structured weather forecast for a place name or lat/lon and optional date via Open-Meteo (place names geocoded with Nominatim). Available as a **conditional global tool** when weather is enabled in Settings. No API key required for free tier. See [`weather.md`](weather.md) and [`packages/core/src/ai/weather/weather-global-tools.ts`](../packages/core/src/ai/weather/weather-global-tools.ts).
 - **`getMyLocation`** — Current user location from macOS Location Services via Toby.app (lat/lon + optional reverse-geocoded place). Always registered; prompts for Location permission when needed. See [`location.md`](location.md) and [`packages/core/src/ai/location-global-tools.ts`](../packages/core/src/ai/location-global-tools.ts).
 
-The combined system prompt includes routing rules: use `webSearch` when the user asks about current events or research, use `fetchWebContent` when the user shares a URL or asks to read a specific page, use `getWeather` (when enabled) for weather/forecast questions instead of web search, use `getMyLocation` for “where am I” / “near me”, and search memory (not GPS) for “where do I live” / saved home address.
+The combined system prompt includes routing rules: use `webSearch` when the user asks about current events or research, use `fetchWebContent` when the user shares an HTML URL or asks to read a specific page, use `readPdf` for PDF attachments, project PDFs, and PDF URLs, use `getWeather` (when enabled) for weather/forecast questions instead of web search, use `getMyLocation` for “where am I” / “near me”, and search memory (not GPS) for “where do I live” / saved home address.
 
 ## Turn execution (tools + streaming)
 

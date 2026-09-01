@@ -23,6 +23,7 @@ enum ChatAttachmentDrafting {
 		canAttach: Bool,
 		unavailableReason: String,
 		allowAnyMediaType: Bool = false,
+		pdfOnly: Bool = false,
 	) -> AddOutcome {
 		guard canAttach else {
 			return AddOutcome(
@@ -62,7 +63,17 @@ enum ChatAttachmentDrafting {
 					)
 					continue
 				}
+				if pdfOnly, attachment.mediaType != "application/pdf" {
+					toasts.append(
+						ToastMessage(
+							title: "Attachment error",
+							message: "This model can only read PDFs as text. Attach a PDF, or switch to a model that supports files.",
+						),
+					)
+					continue
+				}
 				if !allowAnyMediaType,
+					!pdfOnly,
 					let accepted = capability?.acceptedMediaTypes,
 					!accepted.isEmpty,
 					!accepted.contains(attachment.mediaType)

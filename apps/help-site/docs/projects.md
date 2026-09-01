@@ -99,6 +99,8 @@ Ask Toby to create folders, move or rename a file, or delete a file already in
 the project. For example: “Create a `references/designs` folder,” “Move
 `attachments/brief.pdf` to
 `references/designs/final-brief.pdf`,” or “Delete `outputs/old-report.md`.”
+Ask Toby to read a project PDF (for example “Summarize `attachments/brief.pdf`”)
+and it extracts the text into the chat.
 Toby only acts on your explicit request, uses paths inside the project folder,
 and will not replace an existing destination file unless you ask it to
 overwrite that file. Deletions permanently remove the requested file.

@@ -16,6 +16,7 @@ Human- and flow-oriented docs for this repository.
 | [apple-contacts.md](apple-contacts.md) | macOS Apple Contacts plugin. |
 | [apple-reminders.md](apple-reminders.md) | macOS Apple Reminders plugin. |
 | [web-search.md](web-search.md) | Web Search via AI Gateway Perplexity: global `webSearch` tool. |
+| [pdf-read.md](pdf-read.md) | Global `readPdf` tool: extract PDF text into chat context. |
 | [weather.md](weather.md) | Weather via Open-Meteo: global `getWeather` tool + Nominatim geocoding. |
 | [location.md](location.md) | Current location via Toby.app: global `getMyLocation` tool + CoreLocation. |
 | [macos-integration.md](macos-integration.md) | `toby-plugin-macos`: Wi‑Fi, Bluetooth, battery, audio, display, clipboard, shortcuts. |

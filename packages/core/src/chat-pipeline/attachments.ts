@@ -4,6 +4,7 @@ import {
 	CHAT_ATTACHMENT_MAX_FILES,
 	CHAT_ATTACHMENT_MAX_TOTAL_BYTES,
 	isAcceptedChatAttachmentMediaType,
+	isExtractableChatAttachmentMediaType,
 	resolveChatAttachmentCapability,
 } from "../ai/model-capabilities";
 import type { Persona } from "../config/index";
@@ -48,7 +49,17 @@ export function validateChatAttachments(
 	}
 
 	const capability = resolveChatAttachmentCapability(persona);
-	if (!capability.supported && !options.allowUnsupportedModel) {
+	const extractableOnly =
+		!capability.supported &&
+		!options.allowUnsupportedModel &&
+		attachments.every((attachment) =>
+			isExtractableChatAttachmentMediaType(attachment.mediaType ?? ""),
+		);
+	if (
+		!capability.supported &&
+		!options.allowUnsupportedModel &&
+		!extractableOnly
+	) {
 		throw new Error(
 			capability.reason ?? "The selected model does not support attachments.",
 		);

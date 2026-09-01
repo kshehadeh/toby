@@ -42,6 +42,7 @@ import {
 } from "./listen-chat-tools";
 import { createLocationGlobalTools } from "./location-global-tools";
 import { createModelForAuxiliary } from "./model-factory";
+import { createPdfReadTools } from "./pdf-read-tool";
 import { createReflectTools, reflectToolsPromptSection } from "./reflect-tools";
 import { createSubAgentTool, subAgentPromptSection } from "./sub-agent-tool";
 import {
@@ -359,9 +360,11 @@ export function globalChatToolsPromptSection(
 		? `
 Web search and fetch rules:
 - When the user asks to search, find, look up, or research something on the web, use **webSearch** first, then optionally **fetchWebContent** on the most relevant result URLs.
-- When the user shares a URL or asks to read a specific page, use **fetchWebContent** directly.
+- When the user shares a URL or asks to read a specific page, use **fetchWebContent** directly (HTML) or **readPdf** if it is a PDF.
 - Never claim knowledge about current events, recent news, or time-sensitive facts without using **webSearch** first.`
-		: "";
+		: `
+Web fetch rules:
+- When the user shares a URL or asks to read a specific page, use **fetchWebContent** for HTML pages and **readPdf** for PDFs.`;
 	const weatherRules = hasWeather
 		? `
 Weather rules:
@@ -386,7 +389,8 @@ Global Toby tools (always available in addition to integration tools):
 - **memoryExplain**: Show why a memory exists (source and audit trail).
 - **memoryRetrieveForTask**: Retrieve memories relevant to the current task.
 - **getCurrentDateTime**: Return the current local/UTC date-time and timezone.
-- **fetchWebContent**: Fetch a web page and extract its main readable content (strips ads, navigation, footers). Returns article title, text content, excerpt, and metadata. Use to read blog posts, articles, documentation, or any page with substantive text.${searchToolLine}${weatherToolLine}${locationToolLine}
+- **fetchWebContent**: Fetch a web page and extract its main readable content (strips ads, navigation, footers). Returns article title, text content, excerpt, and metadata. Use to read blog posts, articles, documentation, or any page with substantive text. If the URL is a PDF, use **readPdf** instead (fetchWebContent will extract PDF text if called on a PDF URL).
+- **readPdf**: Extract searchable text from a PDF into this turn. Sources (exactly one): \`filename\` (current-turn PDF attachment), \`path\` (project-relative PDF when a project is active), or \`url\` (http/https). Optional \`startPage\` / \`endPage\` (1-indexed). If the user attached exactly one PDF, call **readPdf** with no arguments. Use when the user attaches a PDF, asks to read or summarize a PDF, or points at a .pdf in the project or on the web. Does not OCR scanned image PDFs. Native file parts may still be present for multimodal models; still call **readPdf** when you need the text layer.${searchToolLine}${weatherToolLine}${locationToolLine}
 - **createSchedule**: Create a recurring scheduled chat run. Required: \`intention\` (what the schedule does), \`targetOutput\` (\`slack\` | \`project\` | \`none\`). Optional: \`frequency\` (natural language like "every weekday at 9am" or a cron expression) and \`projectId\`. If the user has not specified a frequency, **omit it** — the tool will return a signal; then call **askUser** to ask the user how often it should run and retry. The schedule runs headlessly via the daemon using the default persona.
 ${
 	project
@@ -400,6 +404,9 @@ Project attachment rules:
 - This tool is available only in project chats and only for files attached to the current user message.
 - Preserve the original file bytes. Do not use \`writeTextFile\` to recreate an attachment.
 - Never overwrite an existing attachment unless the user explicitly asks to replace it, then pass \`overwrite=true\`.
+
+Project PDF rules:
+- To read a PDF already in the project, call \`listProjectFiles\` if needed, then **readPdf** with the project-relative \`path\` (for example \`attachments/brief.pdf\`).
 
 Project file-management rules:
 - Before organizing, moving, renaming, or deleting files whose paths are not already known, call \`listProjectFiles\` to inspect the project tree.
@@ -1113,6 +1120,10 @@ export function createGlobalChatTools(
 		...projectAttachmentTools,
 		...createListenChatTools(),
 		...createWebFetchTools(),
+		...createPdfReadTools({
+			attachments: ctx.attachments,
+			project,
+		}),
 		...createWebSearchGlobalTools({
 			persona: ctx.persona,
 			dryRun: ctx.dryRun,

@@ -9,6 +9,7 @@ struct InputDock: View {
 	let contextWindowUnavailable: Bool
 	let attachments: [ChatAttachmentDraft]
 	let canAttachFiles: Bool
+	let pdfOnlyAttachments: Bool
 	let attachmentDisabledReason: String
 	let onAttachFiles: ([URL]) -> Void
 	let onRemoveAttachment: (UUID) -> Void
@@ -24,6 +25,7 @@ struct InputDock: View {
 		contextWindowUnavailable: Bool,
 		attachments: [ChatAttachmentDraft] = [],
 		canAttachFiles: Bool = false,
+		pdfOnlyAttachments: Bool = false,
 		attachmentDisabledReason: String = "The selected model does not support file attachments.",
 		onAttachFiles: @escaping ([URL]) -> Void = { _ in },
 		onRemoveAttachment: @escaping (UUID) -> Void = { _ in },
@@ -37,6 +39,7 @@ struct InputDock: View {
 		self.contextWindowUnavailable = contextWindowUnavailable
 		self.attachments = attachments
 		self.canAttachFiles = canAttachFiles
+		self.pdfOnlyAttachments = pdfOnlyAttachments
 		self.attachmentDisabledReason = attachmentDisabledReason
 		self.onAttachFiles = onAttachFiles
 		self.onRemoveAttachment = onRemoveAttachment
@@ -82,7 +85,7 @@ struct InputDock: View {
 					isFileImporterPresented = true
 				} label: {
 					Image(systemName: "plus")
-						.accessibilityLabel("Add files")
+						.accessibilityLabel(pdfOnlyAttachments ? "Add a PDF" : "Add files")
 						.frame(width: 26, height: 26)
 						.background(
 							Circle()
@@ -92,7 +95,7 @@ struct InputDock: View {
 				}
 				.buttonStyle(.plain)
 				.disabled(!canUseAttachmentButton)
-				.help(canUseAttachmentButton ? "Add files" : attachmentDisabledReason)
+				.help(canUseAttachmentButton ? attachHelpText : attachmentDisabledReason)
 				.accessibilityIdentifier("chat-attach-button")
 				if let pct = contextFillPercentage {
 					ContextFillGauge(percentage: pct)
@@ -153,7 +156,7 @@ struct InputDock: View {
 		.shadow(color: .black.opacity(0.16), radius: 20, y: 12)
 		.fileImporter(
 			isPresented: $isFileImporterPresented,
-			allowedContentTypes: [.item],
+			allowedContentTypes: pdfOnlyAttachments ? [.pdf] : [.item],
 			allowsMultipleSelection: true
 		) { result in
 			switch result {
@@ -171,6 +174,10 @@ struct InputDock: View {
 
 	private var canUseAttachmentButton: Bool {
 		!isLoading && canAttachFiles
+	}
+
+	private var attachHelpText: String {
+		pdfOnlyAttachments ? "Add a PDF for Toby to read" : "Add files"
 	}
 }
 

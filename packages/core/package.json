@@ -24,6 +24,7 @@
 		"commander": "^12.1.0",
 		"croner": "^10.0.1",
 		"linkedom": "^0.18.12",
+		"unpdf": "^1.8.1",
 		"zod": "3"
 	},
 	"devDependencies": {

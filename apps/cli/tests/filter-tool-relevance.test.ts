@@ -60,4 +60,8 @@ describe("filterToolNamesByRelevance", () => {
 	it("always includes project file listing", () => {
 		expect(ALWAYS_INCLUDED_TOOLS.has("listProjectFiles")).toBe(true);
 	});
+
+	it("always includes readPdf", () => {
+		expect(ALWAYS_INCLUDED_TOOLS.has("readPdf")).toBe(true);
+	});
 });

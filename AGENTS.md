@@ -37,6 +37,7 @@ Use this file as the **entry point** for orientation. Detailed design lives unde
 | [`docs/apple-contacts.md`](docs/apple-contacts.md) | Apple Contacts plugin. |
 | [`docs/apple-reminders.md`](docs/apple-reminders.md) | Apple Reminders plugin. |
 | [`docs/web-search.md`](docs/web-search.md) | Global `webSearch` via AI Gateway Perplexity. |
+| [`docs/pdf-read.md`](docs/pdf-read.md) | Global `readPdf` tool: extract PDF text into chat context. |
 | [`docs/weather.md`](docs/weather.md) | Global `getWeather` via Open-Meteo + Nominatim. |
 | [`docs/location.md`](docs/location.md) | Global `getMyLocation` via Toby.app CoreLocation. |
 | [`docs/listen.md`](docs/listen.md) | Recording / transcription lifecycle. |

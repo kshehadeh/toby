@@ -2,6 +2,13 @@ import { Readability } from "@mozilla/readability";
 import { type Tool, tool } from "ai";
 import { parseHTML } from "linkedom";
 import { z } from "zod";
+import {
+	PDF_MAX_URL_BYTES,
+	extractPdfText,
+	isPdfContentType,
+	isPdfMagic,
+	urlLooksLikePdf,
+} from "./pdf-read-tool";
 
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_CONTENT_LENGTH = 2 * 1024 * 1024;
@@ -42,6 +49,39 @@ async function fetchAndExtract(url: string): Promise<WebFetchResult> {
 		}
 
 		const contentType = response.headers.get("content-type") ?? "";
+		const treatAsPdf = isPdfContentType(contentType) || urlLooksLikePdf(url);
+		if (treatAsPdf) {
+			const buffer = await response.arrayBuffer();
+			if (buffer.byteLength > PDF_MAX_URL_BYTES) {
+				return {
+					ok: false,
+					url,
+					error: `PDF too large (${Math.round(buffer.byteLength / 1024)}KB)`,
+				};
+			}
+			const bytes = new Uint8Array(buffer);
+			if (!isPdfMagic(bytes) && !isPdfContentType(contentType)) {
+				return {
+					ok: false,
+					url,
+					error: `Unsupported content type: ${contentType || "(missing)"}`,
+				};
+			}
+			const extracted = await extractPdfText({
+				bytes,
+				maxBytes: PDF_MAX_URL_BYTES,
+			});
+			if (!extracted.ok) {
+				return { ok: false, url, error: extracted.error };
+			}
+			return {
+				ok: true,
+				url,
+				title: extracted.title,
+				textContent: extracted.text,
+			};
+		}
+
 		if (!contentType.includes("html") && !contentType.includes("xml")) {
 			return {
 				ok: false,
@@ -70,7 +110,7 @@ async function fetchAndExtract(url: string): Promise<WebFetchResult> {
 				ok: false,
 				url,
 				error:
-					"Could not extract readable content. The page may be primarily non-text (e.g. a video, PDF, or interactive app).",
+					"Could not extract readable content. The page may be primarily non-text (e.g. a video or interactive app). For PDFs, use readPdf.",
 			};
 		}
 

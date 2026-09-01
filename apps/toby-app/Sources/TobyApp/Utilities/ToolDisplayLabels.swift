@@ -14,6 +14,7 @@ enum ToolDisplayLabels {
 		"readTranscript": "Read listen transcript",
 		"getMyLocation": "Get my location",
 		"getWeather": "Get weather",
+		"readPdf": "Read PDF",
 	]
 
 	static func displayLabel(_ toolName: String) -> String {
@@ -276,6 +277,7 @@ enum ToolDisplayLabels {
 		"askUser": "questionmark.bubble",
 		"webSearch": "magnifyingglass",
 		"fetchWebContent": "globe",
+		"readPdf": "doc.richtext",
 		"getWeather": "cloud.sun",
 		"getMyLocation": "location",
 		"getCurrentDateTime": "clock",

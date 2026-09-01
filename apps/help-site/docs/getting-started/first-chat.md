@@ -25,6 +25,8 @@ When a reply includes a markdown image (`![name](https://…)`), such as a produ
 
 When you ask Toby to write or generate a file, the reply includes a download chip. **Download** saves a copy to your Downloads folder; **Open** opens the file with its default app.
 
+You can attach a PDF (or paste a PDF URL) and ask Toby to read or summarize it. This works even when the selected model cannot inspect files: Toby extracts the document’s text into the chat. Scanned image-only PDFs are not supported.
+
 Toby can also answer questions about its own setup. Try prompts like "Which integrations are connected?", "What tools can you use?", "How do I set up Jira?", or "What skills are installed?"
 
 ## Switch personas

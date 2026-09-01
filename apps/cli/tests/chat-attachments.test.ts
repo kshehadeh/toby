@@ -83,6 +83,40 @@ describe("chat attachment model capabilities", () => {
 		).not.toThrow();
 	});
 
+	it("allows PDF attachments on models that cannot inspect files", () => {
+		expect(() =>
+			validateChatAttachments(
+				[
+					{
+						filename: "brief.pdf",
+						mediaType: "application/pdf",
+						dataBase64: "aGVsbG8=",
+						byteSize: 5,
+					},
+				],
+				persona("ollama", "llama3.2"),
+			),
+		).not.toThrow();
+	});
+
+	it("still rejects images on models that cannot inspect files", () => {
+		expect(() =>
+			validateChatAttachments(
+				[
+					{
+						filename: "photo.png",
+						mediaType: "image/png",
+						dataBase64: "aGVsbG8=",
+						byteSize: 5,
+					},
+				],
+				persona("ollama", "llama3.2"),
+			),
+		).toThrow(
+			/disabled by default|not configured as supporting file attachments/,
+		);
+	});
+
 	it("strips file bytes without duplicating a model-visible attachment summary", async () => {
 		const result = await persistTurnNode.run(
 			{

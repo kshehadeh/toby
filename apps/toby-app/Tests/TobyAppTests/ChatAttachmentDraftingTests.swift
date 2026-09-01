@@ -65,6 +65,26 @@ struct ChatAttachmentDraftingTests {
 		])
 	}
 
+	@Test("pdfOnly rejects non-PDF files")
+	func pdfOnlyRejectsNonPdf() throws {
+		let url = FileManager.default.temporaryDirectory
+			.appendingPathComponent("chat-pdf-only-\(UUID().uuidString).txt")
+		try "notes".write(to: url, atomically: true, encoding: .utf8)
+		defer { try? FileManager.default.removeItem(at: url) }
+
+		let outcome = ChatAttachmentDrafting.adding(
+			urls: [url],
+			to: [],
+			capability: capability(supported: false, acceptedMediaTypes: ["application/pdf"]),
+			canAttach: true,
+			unavailableReason: "",
+			pdfOnly: true,
+		)
+		#expect(outcome.pendingAttachments.isEmpty)
+		#expect(outcome.toasts.count == 1)
+		#expect(outcome.toasts[0].message.contains("only read PDFs"))
+	}
+
 	@Test("adding a project attachment allows files outside model limits")
 	func addingProjectAttachmentAllowsAnyMediaType() throws {
 		let url = FileManager.default.temporaryDirectory

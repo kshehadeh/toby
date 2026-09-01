@@ -39,6 +39,7 @@ describe("tool-result-cache", () => {
 
 	it("marks only read-only tools as cacheable", () => {
 		expect(isReadOnlyChatTool("listLabels")).toBe(true);
+		expect(isReadOnlyChatTool("readPdf")).toBe(true);
 		expect(isReadOnlyChatTool("listProjectNames")).toBe(true);
 		expect(isReadOnlyChatTool("getProjectNameById")).toBe(true);
 		expect(isReadOnlyChatTool("completeTask")).toBe(false);

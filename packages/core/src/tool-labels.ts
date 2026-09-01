@@ -8,6 +8,7 @@ const CORE_TOOL_LABELS: Record<string, string> = {
 	createLocalSkill: "Create local Toby skill",
 	getWeather: "Get weather",
 	getMyLocation: "Get my location",
+	readPdf: "Read PDF",
 	memorySearch: "Search memory",
 	memoryPropose: "Propose memory",
 	memorySave: "Save memory",

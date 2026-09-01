@@ -182,5 +182,7 @@ describe("project file management", () => {
 		expect(prompt).toContain(
 			"To move a file to another folder, call `renameProjectFile`",
 		);
+		expect(prompt).toContain("**readPdf**");
+		expect(prompt).toContain("then **readPdf** with the project-relative");
 	});
 });

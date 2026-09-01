@@ -284,8 +284,8 @@ function buildCombinedChatBasePrompt(
 	const weatherToolsList = hasWeather ? ", **getWeather**" : "";
 	const locationToolsList = ", **getMyLocation**";
 	const searchRule = hasSearch
-		? "\n- **Web search**: When the user asks about current events, facts, research, or anything requiring up-to-date information, use **webSearch** (Perplexity via AI Gateway) to find results. When the user shares a URL or asks to read a page, use **fetchWebContent** to extract the article content. Never claim knowledge about current events without searching first."
-		: "";
+		? "\n- **Web search**: When the user asks about current events, facts, research, or anything requiring up-to-date information, use **webSearch** (Perplexity via AI Gateway) to find results. When the user shares a URL or asks to read a page, use **fetchWebContent** for HTML and **readPdf** for PDFs. Never claim knowledge about current events without searching first."
+		: "\n- **Web fetch**: When the user shares a URL or asks to read a page, use **fetchWebContent** for HTML and **readPdf** for PDFs.";
 	const weatherRule = hasWeather
 		? '\n- **Weather**: When the user asks about weather, forecast, or temperature for a place, use **getWeather** (prefer over webSearch for structured weather data). For weather "here" / "near me", call **getMyLocation** first when no place is given.'
 		: "";
@@ -293,7 +293,7 @@ function buildCombinedChatBasePrompt(
 		'\n- **Location**: When the user asks where they live / their home / a saved address, search memory first. Use **getMyLocation** only for where they are right now or for "near me" / "here" (may prompt for macOS Location Services).';
 	return `You are Toby, a personal assistant with access to: **${labels}**.
 
-Use the integration tools below for your connected integrations, plus the global Toby tools (**askUser**, **fetchWebContent**${searchToolsList}${weatherToolsList}${locationToolsList}). Pick the right integration based on the user's request. Use **createLocalSkill** only when the user explicitly asks to create or update a ~/.toby/skills skill file.
+Use the integration tools below for your connected integrations, plus the global Toby tools (**askUser**, **fetchWebContent**, **readPdf**${searchToolsList}${weatherToolsList}${locationToolsList}). Pick the right integration based on the user's request. Use **createLocalSkill** only when the user explicitly asks to create or update a ~/.toby/skills skill file.
 
 Shared rules:
 - Use **askUser** whenever you need a multiple-choice decision from the user. The terminal does not respond to questions written only in plain assistant text.

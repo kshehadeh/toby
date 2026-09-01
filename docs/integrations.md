@@ -109,7 +109,13 @@ are geocoded (Nominatim by default).
 
 **`fetchWebContent`** ([`packages/core/src/ai/web-fetch-tool.ts`](../packages/core/src/ai/web-fetch-tool.ts))
 fetches a URL and extracts readable content via `@mozilla/readability` +
-`linkedom`. No credentials required.
+`linkedom`. PDF URLs are extracted with the same helper as `readPdf`. No
+credentials required.
+
+**`readPdf`** ([`pdf-read.md`](pdf-read.md)) extracts searchable text from a
+PDF (current-turn attachment, project-relative path, or `http`/`https` URL)
+and returns it as the tool result. Always registered. No credentials
+required. Scanned image PDFs are not OCR’d.
 
 **Location** ([`location.md`](location.md)) reads the user’s current position
 from macOS Location Services through Toby.app. The `getMyLocation` tool is a

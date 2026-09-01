@@ -261,6 +261,21 @@ describe("resultKey", () => {
 		).toBe("fetchWebContent:https://example.com/path");
 	});
 
+	it("keys readPdf by source kind, value, and page range", () => {
+		expect(resultKey("readPdf", { filename: "brief.pdf", startPage: 2 })).toBe(
+			"readPdf:attachment:brief.pdf:2:",
+		);
+		expect(resultKey("readPdf", { path: "attachments/brief.pdf" })).toBe(
+			"readPdf:project:attachments/brief.pdf::",
+		);
+		expect(
+			resultKey("readPdf", {
+				url: "https://Example.COM/doc.pdf#p=1",
+				endPage: 4,
+			}),
+		).toBe("readPdf:url:https://example.com/doc.pdf::4");
+	});
+
 	it("keys email body by mailbox + uid", () => {
 		expect(resultKey("getEmailBody", { uid: 42, mailbox: "INBOX" })).toBe(
 			"getEmailBody:INBOX:42",

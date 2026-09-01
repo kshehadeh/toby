@@ -118,6 +118,10 @@ explicitly asks to overwrite them.
 
 ## Managing project files from chat
 
+To read a PDF already in the project (including
+`<projectFolder>/attachments/`), Toby uses **`readPdf`** with the
+project-relative path. See [`pdf-read.md`](pdf-read.md).
+
 Project chats expose `listProjectFiles`, `createProjectFolder`,
 `renameProjectFile`, and `deleteProjectFile`. Toby uses `listProjectFiles` to
 inspect the project tree and identify exact paths before organizing files. To
