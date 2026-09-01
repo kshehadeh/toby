@@ -14,6 +14,7 @@ struct CommandPaletteViewTests {
         onSelectSession: @escaping (String) -> Void = { _ in },
         onNewChat: @escaping () -> Void = {},
         onOpenSettings: @escaping () -> Void = {},
+        onOpenMemories: @escaping () -> Void = {},
         onNavigateToRoute: @escaping (DetailRoute) -> Void = { _ in },
         onOpenIntegration: @escaping (String) -> Void = { _ in },
         onOpenSchedule: @escaping (String) -> Void = { _ in },
@@ -30,6 +31,7 @@ struct CommandPaletteViewTests {
             onSelectSession: onSelectSession,
             onNewChat: onNewChat,
             onOpenSettings: onOpenSettings,
+            onOpenMemories: onOpenMemories,
             onNavigateToRoute: onNavigateToRoute,
             onOpenIntegration: onOpenIntegration,
             onOpenSchedule: onOpenSchedule,
@@ -101,6 +103,7 @@ struct CommandPaletteViewTests {
         let titles = buttons.compactMap { try? $0.find(ViewType.Text.self).string() }
         #expect(titles.contains("New chat"))
         #expect(titles.contains("Open settings"))
+        #expect(titles.contains("Open Memories"))
         #expect(titles.contains("Restart server"))
         #expect(titles.contains("Session One"))
         #expect(titles.contains("Gmail"))
@@ -175,6 +178,8 @@ struct CommandPaletteViewTests {
         let results = view.results(for: "")
         let action = results.first { $0.id == "action-new-chat" }
         #expect(action?.kind == .action)
+        let memories = results.first { $0.id == "action-memories" }
+        #expect(memories?.kind == .action)
         let restart = results.first { $0.id == "action-restart-server" }
         #expect(restart?.kind == .action)
         let session = results.first { $0.id == "session-s1" }
@@ -332,5 +337,20 @@ struct CommandPaletteViewTests {
         try restartButton!.tap()
         #expect(didRestart)
         #expect(didDismiss)
+    }
+
+    @Test("selecting open memories action calls callback")
+    func selectOpenMemoriesCallback() throws {
+        var didOpen = false
+        var didDismiss = false
+        let view = makeView(
+            onOpenMemories: { didOpen = true },
+            onDismiss: { didDismiss = true }
+        )
+        let result = try #require(view.results(for: "memories").first { $0.id == "action-memories" })
+        view.activate(result)
+        #expect(didOpen)
+        #expect(didDismiss)
+        #expect(result.kind == .action)
     }
 }

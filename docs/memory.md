@@ -121,11 +121,11 @@ Memory is exposed as tools to the AI harness:
 
 ## Native app UI refresh
 
-Toby.app’s `MemoriesStore` keeps the Memories view in sync with writes that happen outside the view (chat tools, schedules, etc.):
+Toby.app’s `MemoriesStore` keeps the Memories window in sync with writes that happen outside the view (chat tools, schedules, etc.):
 
-1. **Reload on appear** — opening Memories always re-fetches the list (not a one-shot cache).
+1. **Reload on appear** — opening the Memories window always re-fetches the list (not a one-shot cache).
 2. **Chat invalidation** — successful `memoryPropose` / `memorySave` / `memoryForget` tool completions post `Notification.Name.memoriesDidChange` (`toby.memoriesDidChange`). The store marks itself dirty and, if the Memories UI is open (polling active), runs a quiet refresh.
-3. **Polling** — while Memories is visible, the store quietly re-fetches about every 5 seconds.
+3. **Polling** — while the Memories window is visible, the store quietly re-fetches about every 5 seconds.
 4. **Manual refresh** — toolbar refresh button forces a full reload with loading indicators.
 
 ## File layout

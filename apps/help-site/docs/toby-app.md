@@ -42,7 +42,8 @@ settings across Macs without copying a file, use **Settings → Sync**
 | Menu item | What it does |
 | --------- | ------------ |
 | **Show Command View** | Opens the command palette to jump to sessions, routes, and actions (⌘K) |
-| Route items (Home, Chat, …) | Switch the main window to that surface (⌘1–⌘9) |
+| Route items (Home, Chat, …) | Switch the main window to that surface (⌘1–⌘5, ⌘7–⌘9) |
+| **Memories** | Opens the Memories window to browse, add, edit, or delete memories (⌘6) |
 
 When your search does not match an existing action or item, you can type a
 natural-language prompt such as “summarize my day” and choose the suggested
@@ -52,7 +53,7 @@ two words or sentence punctuation.
 
 ## Surfaces
 
-Toby.app's primary windows are accessible from the sidebar.
+Toby.app's primary workspaces are accessible from the sidebar. Memories opens as a separate window from the View menu, command palette, or Home recent-memories list.
 
 ### Home
 
@@ -114,8 +115,10 @@ directly from the toolbar.
 ### Memories
 
 The Memories window lists the durable facts Toby keeps about you, such as
-preferences, projects, and relationships. Search, add, edit, or delete memories,
-and inspect their type, sensitivity, visibility, and last-updated timestamp.
+preferences, projects, and relationships. Open it from **View → Memories** (⌘6)
+or the command palette. Search, add, edit, or delete memories, and inspect their
+type, sensitivity, visibility, and last-updated timestamp. It is not a sidebar
+workspace in the main window.
 
 ![Toby.app Memories window](/img/toby-app-memories.png)
 

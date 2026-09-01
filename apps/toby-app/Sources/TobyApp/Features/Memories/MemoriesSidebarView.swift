@@ -81,6 +81,7 @@ struct MemoriesSidebarView: View {
 			}
 			.background(AppTheme.sidebarBackground)
 		}
+		.background(AppTheme.sidebarBackground)
 	}
 }
 

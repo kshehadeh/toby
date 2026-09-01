@@ -32,9 +32,9 @@ You can also ask directly:
 
 ### Browse and edit in the app
 
-Open **Toby.app** and click **Memories** in the sidebar. Search, add, edit, or delete memories, and inspect their type, sensitivity, visibility, and last-updated timestamp.
+Open **Toby.app** and choose **View → Memories** (⌘6), or search for **Open Memories** in the command palette (⌘K). Search, add, edit, or delete memories, and inspect their type, sensitivity, visibility, and last-updated timestamp.
 
-The list refreshes when you open Memories, when chat creates or updates a memory, and on a short poll while the view is open. Use the **refresh** control in the toolbar if you want an immediate reload.
+The list refreshes when you open the Memories window, when chat creates or updates a memory, and on a short poll while the window is open. Use the **refresh** control in the toolbar if you want an immediate reload. Home also lists recent memories; click one to open it in the Memories window.
 
 ![Toby.app Memories window](/img/toby-app-memories.png)
 

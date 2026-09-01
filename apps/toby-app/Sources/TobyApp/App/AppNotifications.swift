@@ -20,6 +20,7 @@ extension Notification.Name {
 	static let menuBarToggleRecording = Notification.Name("menuBarToggleRecording")
 	static let navigateToRoute = Notification.Name("navigateToRoute")
 	static let openSettingsWindow = Notification.Name("openSettingsWindow")
+	static let openMemoriesWindow = Notification.Name("openMemoriesWindow")
 	static let openScheduleFromNotification = Notification.Name("openScheduleFromNotification")
 	static let backupConfig = Notification.Name("backupConfig")
 	static let restoreConfig = Notification.Name("restoreConfig")

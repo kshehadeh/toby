@@ -205,7 +205,18 @@ final class MenuBarController: NSObject {
 	}
 
 	private func memoriesItem() -> NSMenuItem {
-		viewMenuItem(title: DetailRoute.memories.menuTitle, route: .memories, keyEquivalent: "6")
+		let item = NSMenuItem(
+			title: "Memories",
+			action: #selector(openMemoriesWindow),
+			keyEquivalent: "6"
+		)
+		item.target = self
+		item.keyEquivalentModifierMask = .command
+		item.image = NSImage(
+			systemSymbolName: "brain.head.profile",
+			accessibilityDescription: nil
+		)
+		return item
 	}
 
 	private func settingsItem() -> NSMenuItem {
@@ -282,6 +293,14 @@ final class MenuBarController: NSObject {
 			openWindow("settings")
 		} else {
 			NotificationCenter.default.post(name: .openSettingsWindow, object: nil)
+		}
+	}
+
+	@objc private func openMemoriesWindow() {
+		if let openWindow = OpenWindowBridge.shared.openWindow {
+			openWindow("memories")
+		} else {
+			NotificationCenter.default.post(name: .openMemoriesWindow, object: nil)
 		}
 	}
 

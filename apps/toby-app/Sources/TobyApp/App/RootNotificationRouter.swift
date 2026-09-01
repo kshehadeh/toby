@@ -28,6 +28,7 @@ struct RootNotificationRouter: ViewModifier {
 	var onShowChatSession: (String) -> Void
 	var onNavigateToRoute: (DetailRoute) -> Void
 	var onOpenSettings: (String?) -> Void
+	var onOpenMemoriesWindow: () -> Void
 	/// Mirrors recording capture state to the menu bar / dock indicator.
 	var isRecordingActive: Bool
 	var recordingChromeState: RecordingChromeState = .idle
@@ -138,6 +139,9 @@ struct RootNotificationRouter: ViewModifier {
 					(notification.object as? String)
 					?? (notification.userInfo?["navKey"] as? String)
 				onOpenSettings(navKey)
+			}
+			.onReceive(NotificationCenter.default.publisher(for: .openMemoriesWindow)) { _ in
+				onOpenMemoriesWindow()
 			}
 	}
 

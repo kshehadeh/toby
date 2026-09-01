@@ -9,7 +9,6 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 	case flows
 	case recordings
 	case skills
-	case memories
 
 	var id: String { rawValue }
 
@@ -21,7 +20,6 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 		case .integrations: return "Integrations"
 		case .projects: return "Projects"
 		case .skills: return "Skills"
-		case .memories: return "Memories"
 		case .schedules: return "Schedules"
 		case .flows: return "Flows"
 		case .recordings: return "Recordings"
@@ -36,7 +34,6 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 		case .integrations: return "square.grid.2x2"
 		case .projects: return "folder"
 		case .skills: return "wand.and.stars"
-		case .memories: return "brain.head.profile"
 		case .schedules: return "clock"
 		case .flows: return "arrow.triangle.branch"
 		case .recordings: return "waveform"

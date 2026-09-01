@@ -204,6 +204,7 @@ struct MemoriesViewTests {
 	@Test("memories notification name is defined")
 	func memoriesNotificationNameIsDefined() {
 		#expect(Notification.Name.memoriesDidChange.rawValue == "toby.memoriesDidChange")
+		#expect(Notification.Name.openMemoriesWindow.rawValue == "openMemoriesWindow")
 	}
 
 	@Test("memory item decodes from JSON")
@@ -244,15 +245,44 @@ struct MemoriesViewTests {
 }
 
 @MainActor
-@Suite("MemoriesNavigation")
-struct MemoriesNavigationTests {
-	@Test("detail route includes memories case")
-	func detailRouteIncludesMemories() {
-		#expect(DetailRoute.allCases.contains(.memories))
+@Suite("MemoriesWindowView")
+struct MemoriesWindowViewTests {
+	@Test("window view renders sidebar and refresh control")
+	func windowViewRendersSidebarAndRefresh() throws {
+		let store = MemoriesStore()
+		store.memories = [
+			MemoryItem(
+				id: "m1",
+				userId: "u",
+				type: "fact",
+				subject: nil,
+				value: "Likes dark mode",
+				confidence: 1,
+				sensitivity: "normal",
+				visibility: "usable_by_ai",
+				sourceIds: nil,
+				createdAt: "2026-01-01T00:00:00Z",
+				updatedAt: "2026-01-01T00:00:00Z",
+				expiresAt: nil
+			),
+		]
+		let view = MemoriesWindowView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(ViewType.NavigationSplitView.self)
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Likes dark mode")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "refresh-memories-button")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "create-memory-button")
+		}
 	}
 
-	@Test("memories route raw value is 'memories'")
-	func memoriesRouteRawValue() {
-		#expect(DetailRoute.memories.rawValue == "memories")
+	@Test("detail route no longer includes memories")
+	func detailRouteOmitsMemories() {
+		#expect(!DetailRoute.allCases.contains(where: { $0.rawValue == "memories" }))
 	}
 }

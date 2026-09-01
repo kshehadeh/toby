@@ -34,6 +34,10 @@ struct MenuBarControllerTests {
 			let image = try #require(item.image, "Missing icon for \(title)")
 			#expect(image.isTemplate == true, "Icon for \(title) should be template")
 		}
+		let memoriesItem = try #require(menu.items.first { $0.title == "Memories" })
+		#expect(memoriesItem.image != nil)
+		#expect(memoriesItem.image?.isTemplate == true)
+		#expect(memoriesItem.keyEquivalent == "6")
 	}
 
 	@Test("view menu items are in sidebar order")

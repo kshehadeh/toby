@@ -182,6 +182,14 @@ struct AppSidebarTests {
         #expect(settingsButton == nil)
     }
 
+    @Test("sidebar does not include memories tile")
+    func sidebarDoesNotIncludeMemoriesTile() throws {
+        let sidebar = makeSidebarWithRoute(currentRoute: .chat) { _ in }
+        let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
+        let memoriesButton = buttons.first { (try? $0.accessibilityLabel().string()) == "Memories" }
+        #expect(memoriesButton == nil)
+    }
+
     @Test("settings toolbar button opens settings")
     func settingsToolbarButtonOpensSettings() throws {
         var didOpen = false

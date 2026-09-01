@@ -24,10 +24,10 @@ Toby’s preferences live in **Toby.app → Settings**. This section documents *
 | **Transcription** | Provider, key, and summary persona for Listen / recordings | [Transcription](./transcription) |
 | **Schedules** | Recurring prompts | [Schedules](../schedules) |
 | **Skills** | Skill list and bodies | [Skills](../skills) |
-| **Memories** | Durable memory browser | [Memories](../memories) |
 
-Projects and recordings are managed outside Settings (sidebar **Projects** and
-**Recordings** windows). See [Projects](../projects) and [Listen mode](../listen).
+Projects, recordings, and memories are managed outside Settings (sidebar **Projects**
+and **Recordings** workspaces, plus the **Memories** window from **View → Memories**).
+See [Projects](../projects), [Listen mode](../listen), and [Memories](../memories).
 
 ## Open Settings
 

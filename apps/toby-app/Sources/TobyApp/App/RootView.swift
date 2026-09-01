@@ -105,6 +105,7 @@ struct RootView: View {
             },
             onNavigateToRoute: navigateToRoute,
             onOpenSettings: { openSettings(navKey: $0) },
+            onOpenMemoriesWindow: { openWindow(id: "memories") },
             isRecordingActive: store.isRecordingActive,
             recordingChromeState: store.recordingChromeState,
             recordingProcessingStage: store.recordingProcessing?.stage,
@@ -475,8 +476,6 @@ struct RootView: View {
                                 dirName: item.dirName, name: item.name
                             )
                         })
-                    case .memories:
-                        MemoriesSidebarView(store: memoriesStore)
                     case .flows:
                         FlowsSidebarView(store: flowsStore)
                     }
@@ -649,16 +648,6 @@ struct RootView: View {
                             }
                         )
                     }
-            case .memories:
-                MemoriesView(store: memoriesStore)
-                    .toolbar {
-                        RootToolbars.memories(
-                            common: commonToolbarModel,
-                            isListLoading: memoriesStore.isListLoading,
-                            isSaving: memoriesStore.isSaving,
-                            onRefresh: { Task { await memoriesStore.load() } }
-                        )
-                    }
             case .flows:
                 FlowsView(store: flowsStore)
                     .toolbar {
@@ -729,6 +718,9 @@ struct RootView: View {
                     bringMainWindowToFront()
                     openSettings()
                 },
+                onOpenMemories: {
+                    openWindow(id: "memories")
+                },
                 onNavigateToRoute: { route in
                     bringMainWindowToFront()
                     navigateToRoute(route)
@@ -788,9 +780,8 @@ struct RootView: View {
     }
 
     private func startNewMemory() {
-        bringMainWindowToFront()
-        navigateToRoute(.memories)
         memoriesStore.startCreate()
+        openWindow(id: "memories")
     }
 
     private func summarizeUnreadEmailInChat() {
@@ -945,7 +936,7 @@ struct RootView: View {
 
     private func openMemory(id: String) {
         Task { await memoriesStore.selectMemory(id: id) }
-        navigateToRoute(.memories)
+        openWindow(id: "memories")
     }
 
     private func handleToastAction(_ action: AppToastAction) {

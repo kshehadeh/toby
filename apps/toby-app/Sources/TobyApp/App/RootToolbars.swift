@@ -418,26 +418,6 @@ enum RootToolbars {
 	}
 
 	@ToolbarContentBuilder
-	static func memories(
-		common model: RootCommonToolbarModel,
-		isListLoading: Bool,
-		isSaving: Bool,
-		onRefresh: @escaping () -> Void,
-	) -> some ToolbarContent {
-		common(model)
-		ToolbarItem(placement: .principal) { Spacer() }
-		ToolbarItem(placement: .confirmationAction) {
-			Button(action: onRefresh) {
-				Image(systemName: "arrow.clockwise")
-			}
-			.help("Refresh memories")
-			.disabled(isListLoading || isSaving)
-			.accessibilityIdentifier("refresh-memories-button")
-			.accessibilityLabel("Refresh memories")
-		}
-	}
-
-	@ToolbarContentBuilder
 	static func flows(
 		common model: RootCommonToolbarModel,
 		isListLoading: Bool,

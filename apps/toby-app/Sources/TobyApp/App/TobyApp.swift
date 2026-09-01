@@ -156,6 +156,17 @@ struct TobyApp: App {
 		.defaultSize(width: 750, height: 535)
 		.commandsRemoved()
 
+		Window("Memories", id: "memories") {
+			MemoriesWindowView(store: memoriesStore)
+				.tobyAppearance(appearancePreferences)
+				.onDisappear {
+					NotificationCenter.default.post(name: .secondaryWindowClosed, object: nil)
+				}
+		}
+		.windowStyle(.automatic)
+		.defaultSize(width: 980, height: 680)
+		.commandsRemoved()
+
 		.commands {
 			CommandGroup(replacing: .newItem) {
 				Button("New Chat") {
@@ -223,6 +234,8 @@ struct TobyApp: App {
 					}
 					.keyboardShortcut(viewShortcut(for: route))
 				}
+
+				OpenMemoriesMenuItem()
 			}
 
 			CommandGroup(replacing: .help) {
@@ -248,8 +261,9 @@ struct TobyApp: App {
 		}
 	}
 
-	/// Returns a keyboard shortcut for each view route (Cmd+1 through Cmd+9).
-	/// Settings uses Cmd+, from the app settings command group.
+	/// Returns a keyboard shortcut for each main-window view route.
+	/// Memories uses Cmd+6 from `OpenMemoriesMenuItem`. Settings uses Cmd+,
+	/// from the app settings command group.
 	private func viewShortcut(for route: DetailRoute) -> KeyboardShortcut? {
 		switch route {
 		case .dashboard: return KeyboardShortcut("1", modifiers: .command)
@@ -257,7 +271,6 @@ struct TobyApp: App {
 		case .integrations: return KeyboardShortcut("3", modifiers: .command)
 		case .projects: return KeyboardShortcut("4", modifiers: .command)
 		case .skills: return KeyboardShortcut("5", modifiers: .command)
-		case .memories: return KeyboardShortcut("6", modifiers: .command)
 		case .schedules: return KeyboardShortcut("7", modifiers: .command)
 		case .flows: return KeyboardShortcut("8", modifiers: .command)
 		case .recordings: return KeyboardShortcut("9", modifiers: .command)
@@ -320,5 +333,18 @@ struct OpenSettingsMenuItem: View {
 			openWindow(id: "settings")
 		}
 		.keyboardShortcut(",", modifiers: .command)
+	}
+}
+
+struct OpenMemoriesMenuItem: View {
+	@Environment(\.openWindow) private var openWindow
+
+	var body: some View {
+		Button {
+			openWindow(id: "memories")
+		} label: {
+			Label("Memories", systemImage: "brain.head.profile")
+		}
+		.keyboardShortcut("6", modifiers: .command)
 	}
 }

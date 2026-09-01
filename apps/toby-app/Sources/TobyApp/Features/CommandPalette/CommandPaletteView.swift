@@ -8,6 +8,7 @@ struct CommandPaletteView: View {
 	let onSelectSession: (String) -> Void
 	let onNewChat: () -> Void
 	let onOpenSettings: () -> Void
+	let onOpenMemories: () -> Void
 	let onNavigateToRoute: (DetailRoute) -> Void
 	let onOpenIntegration: (String) -> Void
 	let onOpenSchedule: (String) -> Void
@@ -126,13 +127,15 @@ struct CommandPaletteView: View {
 			))
 		}
 
-		if trimmed.isEmpty || "memories".localizedCaseInsensitiveContains(trimmed) {
+		if trimmed.isEmpty || "memories".localizedCaseInsensitiveContains(trimmed)
+			|| "memory".localizedCaseInsensitiveContains(trimmed)
+		{
 			items.append(CommandPaletteResult(
 				id: "action-memories",
 				title: "Open Memories",
 				subtitle: "Browse and manage memories",
 				systemImage: "brain.head.profile",
-				kind: .route(.memories),
+				kind: .action,
 			))
 		}
 
@@ -362,6 +365,9 @@ struct CommandPaletteView: View {
 		case .action where result.id == "action-settings":
 			onDismiss()
 			onOpenSettings()
+		case .action where result.id == "action-memories":
+			onDismiss()
+			onOpenMemories()
 		case .action where result.id == "action-restart-server":
 			onDismiss()
 			onRestartServer()
