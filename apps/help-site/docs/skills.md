@@ -85,9 +85,13 @@ A [project](./projects) can include skills under its own folder:
 ~/.toby/projects/<project-id>/.agent/skills/<skill-name>/SKILL.md
 ```
 
-Those skills load automatically when the project is active. Prefer project-local
+Those skills are available when the project is active. Prefer project-local
 skills for procedures that should not apply globally. Global skills under
 `~/.toby/skills/` still work for every session.
+
+New projects include a **project-organization** skill that records how that
+project's folder is laid out. Toby attaches it on every project chat and updates
+it as the layout evolves, so organization stays consistent from chat to chat.
 
 ## Related
 

@@ -8,6 +8,7 @@ import {
 	injectSkillBodiesIntoFirstSystemMessage,
 	prepareChatSessionMessages,
 } from "../../prepare-messages";
+import { unionProjectOrganizationSkill } from "../../projects/index";
 import {
 	chatAttachmentsToFileParts,
 	formatAttachmentTranscriptSummary,
@@ -131,10 +132,13 @@ export const assembleMessagesNode: PipelineNode<ExpandedTurn, AssembledTurn> = {
 			});
 		}
 
-		// Only attach skills that pretreatment/routing selected.
-		// Project skills are included in the routing catalog (turn-init) and
-		// are selected the same way as global skills — no auto-attach.
-		const attachedSkills = input.spec?.relevantSkills ?? [];
+		// Only attach skills that pretreatment/routing selected, except the
+		// project-organization skill which is always attached when present so
+		// folder layout persists across chats.
+		const attachedSkills = unionProjectOrganizationSkill(
+			input.spec?.relevantSkills ?? [],
+			input.localSkills,
+		);
 
 		if (attachedSkills.length > 0 && ctx.onStatusLine) {
 			await ctx.onStatusLine(

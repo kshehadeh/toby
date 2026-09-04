@@ -8,6 +8,7 @@ import {
 	setActiveProjectSlug,
 } from "@toby/core/config/index";
 import {
+	PROJECT_ORGANIZATION_SKILL_NAME,
 	type Project,
 	clearActiveProjectSlug as clearProjectActive,
 	createProject,
@@ -17,9 +18,11 @@ import {
 	listProjectTree,
 	listProjects,
 	loadProjectContextDocuments,
+	loadProjectSkills,
 	resolveActiveProject,
 	resolveProject,
 	slugifyProjectName,
+	unionProjectOrganizationSkill,
 	updateProjectMetadata,
 } from "@toby/core/projects/index";
 import { closeChatDbForTests } from "@toby/core/session-store";
@@ -89,6 +92,47 @@ describe("project CRUD", () => {
 		expect(fs.existsSync(path.join(project.dir, ".agent", "skills"))).toBe(
 			true,
 		);
+		const agents = fs.readFileSync(
+			path.join(project.dir, "AGENTS.md"),
+			"utf-8",
+		);
+		expect(agents).toContain("You are working in this project folder");
+		expect(agents).toContain("project-organization");
+		const orgSkill = path.join(
+			project.dir,
+			".agent",
+			"skills",
+			PROJECT_ORGANIZATION_SKILL_NAME,
+			"SKILL.md",
+		);
+		expect(fs.existsSync(orgSkill)).toBe(true);
+		const orgBody = fs.readFileSync(orgSkill, "utf-8");
+		expect(orgBody).toContain("name: project-organization");
+		expect(orgBody).toContain("Folder map");
+		const loaded = loadProjectSkills(project);
+		expect(loaded.some((s) => s.name === PROJECT_ORGANIZATION_SKILL_NAME)).toBe(
+			true,
+		);
+	});
+
+	it("does not overwrite an existing AGENTS.md or organization skill", () => {
+		const project = createProject({ name: "Keep Guidance" });
+		const agentsPath = path.join(project.dir, "AGENTS.md");
+		const skillPath = path.join(
+			project.dir,
+			".agent",
+			"skills",
+			PROJECT_ORGANIZATION_SKILL_NAME,
+			"SKILL.md",
+		);
+		fs.writeFileSync(agentsPath, "Custom guidance.\n");
+		fs.writeFileSync(
+			skillPath,
+			"---\nname: project-organization\ndescription: custom\n---\n\nKeep me.\n",
+		);
+		updateProjectMetadata(project.id, { folderPath: project.folderPath });
+		expect(fs.readFileSync(agentsPath, "utf-8")).toBe("Custom guidance.\n");
+		expect(fs.readFileSync(skillPath, "utf-8")).toContain("Keep me.");
 	});
 
 	it("creates a project with given name", () => {
@@ -229,6 +273,17 @@ describe("formatProjectContextForPrompt", () => {
 		);
 	});
 
+	it("includes workspace rules independent of AGENTS.md", () => {
+		const project = createProject({ name: "Workspace" });
+		const result = formatProjectContextForPrompt(project, []);
+		expect(result).toContain(`Project folder: \`${project.folderPath}\``);
+		expect(result).toContain("You are working inside this project folder");
+		expect(result).toContain("searchProjectFiles");
+		expect(result).toContain("project-organization");
+		expect(result).toContain("Prefer project files over general knowledge");
+		expect(result).toContain("Never delete or overwrite without an explicit");
+	});
+
 	it("formats docs with headers", () => {
 		const project = createProject({ name: "FmtDocs" });
 		const docs = [
@@ -239,5 +294,43 @@ describe("formatProjectContextForPrompt", () => {
 		expect(result).toContain("Active project: **FmtDocs**");
 		expect(result).toContain("### intro.md");
 		expect(result).toContain("### notes.txt");
+	});
+});
+
+describe("unionProjectOrganizationSkill", () => {
+	it("appends project-organization when the skill exists and was not selected", () => {
+		expect(
+			unionProjectOrganizationSkill(
+				["other-skill"],
+				[
+					{
+						dirName: "project-organization",
+						name: "project-organization",
+						description: "layout",
+						bodyMarkdown: "map",
+					},
+				],
+			),
+		).toEqual(["other-skill", "project-organization"]);
+	});
+
+	it("does not duplicate when already selected", () => {
+		expect(
+			unionProjectOrganizationSkill(
+				["project-organization"],
+				[
+					{
+						dirName: "project-organization",
+						name: "project-organization",
+						description: "layout",
+						bodyMarkdown: "map",
+					},
+				],
+			),
+		).toEqual(["project-organization"]);
+	});
+
+	it("leaves the list unchanged when the skill is missing", () => {
+		expect(unionProjectOrganizationSkill(["other"], [])).toEqual(["other"]);
 	});
 });

@@ -74,6 +74,8 @@ export {
 	listProjectOutputFiles,
 	formatProjectContextForPrompt,
 	PROJECT_CONTEXT_APPENDIX_START,
+	PROJECT_ORGANIZATION_SKILL_NAME,
+	unionProjectOrganizationSkill,
 	slugifyProjectName,
 	generateProjectNameFromPrompt,
 } from "./projects/index";

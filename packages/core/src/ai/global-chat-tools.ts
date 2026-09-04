@@ -239,6 +239,252 @@ function canCreateSafeProjectDirectory(
 	return true;
 }
 
+const BINARY_FILE_EXTENSIONS: ReadonlySet<string> = new Set([
+	".png",
+	".jpg",
+	".jpeg",
+	".gif",
+	".webp",
+	".ico",
+	".bmp",
+	".pdf",
+	".zip",
+	".gz",
+	".tar",
+	".bz2",
+	".7z",
+	".mp3",
+	".mp4",
+	".mov",
+	".wav",
+	".woff",
+	".woff2",
+	".ttf",
+	".eot",
+	".dylib",
+	".so",
+	".exe",
+	".bin",
+]);
+
+const MAX_SEARCH_MATCHES = 50;
+const MAX_SEARCH_FILE_BYTES = 256 * 1024;
+const MAX_SEARCH_FILES = 200;
+const MAX_READ_FILE_BYTES = 96 * 1024;
+const MAX_SEARCH_LINE_CHARS = 400;
+
+function isProbablyBinaryBuffer(buf: Buffer): boolean {
+	const sample = buf.subarray(0, Math.min(buf.length, 8192));
+	return sample.includes(0);
+}
+
+function collectProjectFilesForSearch(
+	project: Project,
+	pathPrefix?: string,
+): string[] {
+	const files: string[] = [];
+	const prefix = pathPrefix?.trim()
+		? pathPrefix
+				.trim()
+				.replace(/\\/g, "/")
+				.replace(/^\/+|\/+$/g, "")
+		: "";
+
+	function walk(dir: string, depth: number): void {
+		if (depth > 8 || files.length >= MAX_SEARCH_FILES) return;
+		let entries: fs.Dirent[];
+		try {
+			entries = fs.readdirSync(dir, { withFileTypes: true });
+		} catch {
+			return;
+		}
+		for (const ent of entries) {
+			if (files.length >= MAX_SEARCH_FILES) return;
+			if (ent.name.startsWith(".") && ent.name !== ".agent") continue;
+			if (ent.isSymbolicLink()) continue;
+			const full = path.join(dir, ent.name);
+			if (ent.isDirectory()) {
+				walk(full, depth + 1);
+				continue;
+			}
+			if (!ent.isFile()) continue;
+			const relativePath = path
+				.relative(project.folderPath, full)
+				.split(path.sep)
+				.join("/");
+			if (
+				prefix &&
+				relativePath !== prefix &&
+				!relativePath.startsWith(`${prefix}/`)
+			) {
+				continue;
+			}
+			files.push(relativePath);
+		}
+	}
+
+	walk(project.folderPath, 0);
+	return files;
+}
+
+export type ProjectFileSearchMatch = {
+	readonly path: string;
+	readonly line: number;
+	readonly text: string;
+};
+
+export function searchProjectFileContents(params: {
+	readonly project: Project;
+	readonly query: string;
+	readonly isRegex?: boolean;
+	readonly pathPrefix?: string;
+}):
+	| {
+			readonly ok: true;
+			readonly matches: readonly ProjectFileSearchMatch[];
+			readonly truncated: boolean;
+			readonly filesScanned: number;
+	  }
+	| { readonly ok: false; readonly error: string } {
+	const query = params.query.trim();
+	if (!query) {
+		return { ok: false, error: "query must not be empty." };
+	}
+
+	let matcher: (line: string) => boolean;
+	if (params.isRegex) {
+		try {
+			const re = new RegExp(query, "i");
+			matcher = (line) => re.test(line);
+		} catch {
+			return { ok: false, error: "Invalid regular expression." };
+		}
+	} else {
+		const needle = query.toLowerCase();
+		matcher = (line) => line.toLowerCase().includes(needle);
+	}
+
+	const matches: ProjectFileSearchMatch[] = [];
+	let truncated = false;
+	const files = collectProjectFilesForSearch(params.project, params.pathPrefix);
+	let filesScanned = 0;
+
+	for (const relativePath of files) {
+		if (matches.length >= MAX_SEARCH_MATCHES) {
+			truncated = true;
+			break;
+		}
+		const ext = path.extname(relativePath).toLowerCase();
+		if (BINARY_FILE_EXTENSIONS.has(ext)) continue;
+		const absPath = path.join(params.project.folderPath, relativePath);
+		let stat: fs.Stats;
+		try {
+			stat = fs.lstatSync(absPath);
+		} catch {
+			continue;
+		}
+		if (!stat.isFile() || stat.isSymbolicLink()) continue;
+		if (stat.size > MAX_SEARCH_FILE_BYTES) continue;
+		let buf: Buffer;
+		try {
+			buf = fs.readFileSync(absPath);
+		} catch {
+			continue;
+		}
+		if (isProbablyBinaryBuffer(buf)) continue;
+		filesScanned += 1;
+		const content = buf.toString("utf8");
+		const lines = content.split(/\r?\n/);
+		for (let i = 0; i < lines.length; i += 1) {
+			if (matches.length >= MAX_SEARCH_MATCHES) {
+				truncated = true;
+				break;
+			}
+			const line = lines[i] ?? "";
+			if (!matcher(line)) continue;
+			matches.push({
+				path: relativePath,
+				line: i + 1,
+				text:
+					line.length > MAX_SEARCH_LINE_CHARS
+						? `${line.slice(0, MAX_SEARCH_LINE_CHARS)}…`
+						: line,
+			});
+		}
+	}
+
+	return { ok: true, matches, truncated, filesScanned };
+}
+
+export function readProjectTextFile(params: {
+	readonly project: Project;
+	readonly inputPath: string;
+}):
+	| {
+			readonly ok: true;
+			readonly path: string;
+			readonly content: string;
+			readonly truncated: boolean;
+	  }
+	| { readonly ok: false; readonly error: string } {
+	const target = resolveProjectFileTarget({
+		inputPath: params.inputPath,
+		project: params.project,
+	});
+	if (!target.ok || !target.absPath) {
+		return { ok: false, error: target.error ?? "Invalid path." };
+	}
+	if (!hasSafeProjectParentDirectory(params.project, target.absPath)) {
+		return { ok: false, error: "File is outside a safe project directory." };
+	}
+	const ext = path.extname(target.absPath).toLowerCase();
+	if (!WRITE_TEXT_FILE_EXTENSIONS.has(ext)) {
+		return {
+			ok: false,
+			error: `Unsupported file type "${ext || "(none)"}". Allowed: ${[...WRITE_TEXT_FILE_EXTENSIONS].join(", ")}. Use readPdf for PDFs.`,
+		};
+	}
+	let stat: fs.Stats;
+	try {
+		stat = fs.lstatSync(target.absPath);
+	} catch {
+		return { ok: false, error: "File does not exist." };
+	}
+	if (!stat.isFile() || stat.isSymbolicLink()) {
+		return {
+			ok: false,
+			error: "Path must be a regular file, not a folder or symbolic link.",
+		};
+	}
+	let buf: Buffer;
+	try {
+		buf = fs.readFileSync(target.absPath);
+	} catch (error) {
+		return {
+			ok: false,
+			error:
+				error instanceof Error ? error.message : "Failed to read the file.",
+		};
+	}
+	if (isProbablyBinaryBuffer(buf)) {
+		return {
+			ok: false,
+			error: "File appears to be binary and cannot be read as text.",
+		};
+	}
+	const truncated = buf.length > MAX_READ_FILE_BYTES;
+	const slice = truncated ? buf.subarray(0, MAX_READ_FILE_BYTES) : buf;
+	return {
+		ok: true,
+		path: path
+			.relative(params.project.folderPath, target.absPath)
+			.split(path.sep)
+			.join("/"),
+		content: slice.toString("utf8"),
+		truncated,
+	};
+}
+
 /**
  * Resolve and validate the absolute target path for `writeTextFile`. Rejects
  * absolute inputs, parent-directory traversal, and paths that escape the base
@@ -395,10 +641,18 @@ Global Toby tools (always available in addition to integration tools):
 ${
 	project
 		? `- **saveProjectAttachment**: Save an original file attached to this turn into this project's \`attachments/\` folder. Only call when the user explicitly asks to save an attached file to the project. Required: \`filename\` (the exact attached filename). Optional: \`overwrite\` (default false).
-- **listProjectFiles**: List the current project file tree, including each item's project-relative path. Use this to identify existing files before organizing, moving, or deleting them.
-- **createProjectFolder**: Create a folder inside this project. Only call when the user explicitly asks to create a folder. Required: \`path\`, relative to the project folder.
-- **renameProjectFile**: Move or rename a file already in this project. Only call when the user explicitly asks to move or rename it. Required: \`sourcePath\` and \`destinationPath\`, both relative to the project folder. Optional: \`overwrite\` (default false).
+- **listProjectFiles**: List the current project file tree, including each item's project-relative path. Use this to identify existing files before organizing, moving, searching, or deleting them.
+- **searchProjectFiles**: Search file contents inside this project (substring or regex). Use this before answering questions about the project's work so you can ground the reply in existing files. Optional: \`pathPrefix\` to scope the search, \`isRegex\` for a JavaScript regular expression.
+- **readProjectFile**: Read a UTF-8 text file already in this project by project-relative path. Use after listing or searching to load the file into this turn. For PDFs, use **readPdf** instead.
+- **createProjectFolder**: Create a folder inside this project. Call this to establish or extend the project layout (including without an explicit "create a folder" request) and when the user asks to create a folder. Required: \`path\`, relative to the project folder.
+- **renameProjectFile**: Move or rename a file already in this project. Call this to place files into the project layout and when the user asks to move or rename. Required: \`sourcePath\` and \`destinationPath\`, both relative to the project folder. Optional: \`overwrite\` (default false).
 - **deleteProjectFile**: Permanently delete a file already in this project. Only call when the user explicitly asks to delete it. Required: \`path\`, relative to the project folder.
+
+Project workspace rules:
+- This chat is working in the project folder. Prefer project files over general knowledge, web search, memory, or integrations unless the user is clearly asking about something outside the project.
+- When the user asks a question, call \`listProjectFiles\` and/or \`searchProjectFiles\`, then \`readProjectFile\` or **readPdf** on relevant hits, before formulating an answer. Cite project-relative paths.
+- Keep the folder organized using the project-local \`project-organization\` skill. If that skill is missing, create it with **createLocalSkill** (\`preferredFolderName=project-organization\`). Update it when the layout changes (\`updateExisting=true\`). Do not create other skills unless the user asked.
+- Infer a layout from the project summary, or invent a small one if none is given. Create folders and move misplaced files into it. Do not reshuffle a layout that already matches the skill.
 
 Project attachment rules:
 - This tool is available only in project chats and only for files attached to the current user message.
@@ -409,10 +663,11 @@ Project PDF rules:
 - To read a PDF already in the project, call \`listProjectFiles\` if needed, then **readPdf** with the project-relative \`path\` (for example \`attachments/brief.pdf\`).
 
 Project file-management rules:
-- Before organizing, moving, renaming, or deleting files whose paths are not already known, call \`listProjectFiles\` to inspect the project tree.
+- Before organizing, moving, renaming, searching, or deleting files whose paths are not already known, call \`listProjectFiles\` to inspect the project tree.
 - To move a file to another folder, call \`renameProjectFile\` with its new project-relative path. Create a missing destination folder first with \`createProjectFolder\`.
 - Create, move, rename, and delete paths must be inside the project. Never create through, rename, or delete folders or symbolic links.
 - Never overwrite a destination file unless the user explicitly asks to replace it, then pass \`overwrite=true\`.
+- Never delete a file unless the user explicitly asks to delete it.
 `
 		: ""
 }${searchRules}${weatherRules}${locationRules}
@@ -433,8 +688,8 @@ Local skill routing:
 - If relevant, call **loadLocalSkillInstructions** with exact skill names before finalizing the answer.
 - Only load skills that are clearly applicable; do not load unrelated skills "just in case".
 
-Create or update a skill (explicit request only):
-- **createLocalSkill** is available only when the user explicitly asks to create, draft, or update a Toby skill (or when pretreatment selected it for that request). Do not use it to capture general conversation, memories, or one-off instructions.
+Create or update a skill (explicit request only${project ? ", except project-organization" : ""}):
+- **createLocalSkill** is available only when the user explicitly asks to create, draft, or update a Toby skill (or when pretreatment selected it for that request)${project ? ", **except** to create or update this project's `project-organization` skill" : ""}. Do not use it to capture general conversation, memories, or one-off instructions.
 - It saves to the shared skills folder at \`~/.toby/skills/<folder>/SKILL.md\`.
 - When a project is active, it saves to \`<project>/.agent/skills/<folder>/SKILL.md\`.
 - When the request is to author a skill, **always prefer createLocalSkill over writeTextFile** — do not hand-write a SKILL.md with writeTextFile.
@@ -443,7 +698,7 @@ Create or update a skill (explicit request only):
 Write a text file (explicit request only):
 - **writeTextFile** is available only when the user explicitly asks to write, generate, or save a file (Markdown or any text format). Do not use it for general notes or memories.
 - Do not use writeTextFile to author Toby skills (SKILL.md). Use **createLocalSkill** instead.
-- When a project is active, writes go to the project's **outputs** folder by default (for generated artifacts). Use \`location='context'\` only when the user wants to place a reference file in the project folder. When no project is active, writes go to \`~/.toby/generated-files\`.
+- When a project is active, writes go to the project's **outputs** folder by default (for generated artifacts). Use \`location='context'\` to place a file elsewhere in the project folder according to the \`project-organization\` skill (notes, drafts, references). When no project is active, writes go to \`~/.toby/generated-files\`.
 - Required: \`path\` (relative) and \`content\`. Optional: \`location\` (\`outputs\` | \`context\`), \`overwrite\` (default false).
 - After a successful write, include the returned \`markdown\` download link in your reply **exactly as returned** so the user can save or open the file. Do not invent a different URL or omit the link.
 
@@ -836,7 +1091,7 @@ export function createGlobalChatTools(
 				}),
 				listProjectFiles: tool({
 					description:
-						"List the current project file tree, including each file and folder's project-relative path. Use this to identify existing files before organizing, moving, or deleting them.",
+						"List the current project file tree, including each file and folder's project-relative path. Use this to identify existing files before organizing, moving, searching, or deleting them, and before answering questions about the project's work.",
 					inputSchema: z.object({}),
 					execute: async () => ({
 						ok: true as const,
@@ -844,9 +1099,54 @@ export function createGlobalChatTools(
 						tree: listProjectTree(project),
 					}),
 				}),
+				searchProjectFiles: tool({
+					description:
+						"Search file contents inside the active project. Use this before answering questions about the project's work so replies are grounded in existing files. Skip binaries. Returns matching lines with project-relative paths.",
+					inputSchema: z.object({
+						query: z
+							.string()
+							.min(1)
+							.describe(
+								"Substring to find, or a regular expression when isRegex=true",
+							),
+						isRegex: z
+							.boolean()
+							.optional()
+							.describe(
+								"Treat query as a JavaScript regular expression (default false)",
+							),
+						pathPrefix: z
+							.string()
+							.optional()
+							.describe(
+								"Optional project-relative folder or file prefix to limit the search, e.g. 'research'",
+							),
+					}),
+					execute: async ({ query, isRegex, pathPrefix }) =>
+						searchProjectFileContents({
+							project,
+							query,
+							isRegex,
+							pathPrefix,
+						}),
+				}),
+				readProjectFile: tool({
+					description:
+						"Read a UTF-8 text file already in the active project. Use after listing or searching to load the file into this turn. For PDFs, use readPdf instead.",
+					inputSchema: z.object({
+						path: z
+							.string()
+							.min(1)
+							.describe(
+								"Path relative to the project folder, e.g. 'research/notes.md'",
+							),
+					}),
+					execute: async ({ path: inputPath }) =>
+						readProjectTextFile({ project, inputPath }),
+				}),
 				createProjectFolder: tool({
 					description:
-						"Create a folder inside the active project. Only call when the user explicitly asks to create a folder.",
+						"Create a folder inside the active project. Use this to establish or extend the project layout, and when the user asks to create a folder.",
 					inputSchema: z.object({
 						path: z
 							.string()
@@ -924,7 +1224,7 @@ export function createGlobalChatTools(
 				}),
 				renameProjectFile: tool({
 					description:
-						"Move or rename a file already in the active project. Only call when the user explicitly asks to move or rename it.",
+						"Move or rename a file already in the active project. Use this to place files into the project layout, and when the user asks to move or rename it.",
 					inputSchema: z.object({
 						sourcePath: z
 							.string()
@@ -1423,8 +1723,9 @@ export function createGlobalChatTools(
 			},
 		}),
 		createLocalSkill: tool({
-			description:
-				"Create or update a Toby skill: drafts a SKILL.md (frontmatter + body) from a description and saves it under ~/.toby/skills/<folder>/SKILL.md. When a project is active, saves to the project's .agent/skills/ directory instead so the skill is automatically included in that project's sessions. Only call when the user explicitly asks to create, draft, or update a local skill — not for general notes, memories, or workflow capture unless they asked for a skill file. Use updateExisting=true to revise an existing skill in place.",
+			description: project
+				? "Create or update a Toby skill under this project's .agent/skills/ directory. Use this to create or update the project-organization skill whenever the folder layout is established or changes (preferredFolderName=project-organization, updateExisting=true when revising). For any other skill, only call when the user explicitly asks to create, draft, or update a local skill. Use updateExisting=true to revise an existing skill in place."
+				: "Create or update a Toby skill: drafts a SKILL.md (frontmatter + body) from a description and saves it under ~/.toby/skills/<folder>/SKILL.md. Only call when the user explicitly asks to create, draft, or update a local skill — not for general notes, memories, or workflow capture unless they asked for a skill file. Use updateExisting=true to revise an existing skill in place.",
 			inputSchema: z.object({
 				description: z
 					.string()

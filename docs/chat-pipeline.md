@@ -150,10 +150,14 @@ By default, Toby uses **embedding-based routing** ([`packages/core/src/routing/`
 [`run-turn.ts`](../packages/core/src/chat-pipeline/run-turn.ts): `askUser`,
 `getCurrentDateTime`, `loadLocalSkillInstructions`, `writeTextFile`,
 `tobyListIntegrations`, `tobyListTools`, `tobyListSkills`, `delegateToSubAgent`,
-core memory tools, and `readPdf`) are **not** part of the top-K count. Conditional globals
-such as `webSearch` (when enabled) are also protected from relevance filtering
-when present. So “top 8” means eight *additional* integration tools, not eight
-tools total.
+core memory tools, `readPdf`, and project file tools `listProjectFiles`,
+`searchProjectFiles`, `readProjectFile`, `createProjectFolder`,
+`renameProjectFile`, `deleteProjectFile`, `saveProjectAttachment`) are **not**
+part of the top-K count. Project chats also always include `createLocalSkill` so
+the `project-organization` skill can be maintained. Conditional globals such as
+`webSearch` (when enabled) are also protected from relevance filtering when
+present. So “top 8” means eight *additional* integration tools, not eight tools
+total.
 
 | Variable | Purpose |
 | -------- | ------- |
@@ -200,10 +204,13 @@ For each turn:
 
 - The **user** message includes a short “Selected skills” summary (names + descriptions) only when pretreatment selected them.
 - The **system** message gains an appendix with the full markdown body of each selected skill (replacing any prior appendix from an earlier turn) only when pretreatment selected them.
+- **Exception:** when a project is active and `.agent/skills/project-organization/SKILL.md` exists, that skill is **always attached** so folder layout persists across chats. See [`projects.md`](projects.md).
 
 If pretreatment is skipped (`shouldPretreat` false) or disabled (`TOBY_DISABLE_PRETREATMENT=1`), skill routing can still happen via `loadLocalSkillInstructions`.
 
-To author a new skill from chat, ask explicitly (for example “create a skill for …”). The global tool **`createLocalSkill`** (see [`packages/core/src/ai/global-chat-tools.ts`](../packages/core/src/ai/global-chat-tools.ts)) is **not** in the always-included tool set: pretreatment must select it, matching Cursor’s `disable-model-invocation` pattern for skills that should not auto-apply.
+To author a new skill from chat, ask explicitly (for example “create a skill for …”). The global tool **`createLocalSkill`** (see [`packages/core/src/ai/global-chat-tools.ts`](../packages/core/src/ai/global-chat-tools.ts)) is **not** in the always-included tool set for ordinary chats: pretreatment must select it, matching Cursor’s `disable-model-invocation` pattern for skills that should not auto-apply. **Project chats** always include `createLocalSkill` so Toby can create or update the project-local `project-organization` skill; other skills still require an explicit user request.
+
+Project chats also always include `searchProjectFiles` and `readProjectFile` so answers can be grounded in project files before web search or general knowledge.
 
 ## Toby self-reflection tools
 

@@ -63,7 +63,56 @@ const OUTPUTS_DIRNAME = "outputs";
 const AGENT_DIRNAME = ".agent";
 const SKILLS_DIRNAME = "skills";
 const AGENTS_FILENAME = "AGENTS.md";
+/** Project-local skill that stores this project's folder layout across chats. */
+export const PROJECT_ORGANIZATION_SKILL_NAME = "project-organization";
 const MAX_GUIDANCE_FILE_BYTES = 96 * 1024;
+
+const DEFAULT_AGENTS_MD = `# Project Instructions
+
+You are working in this project folder. Keep files organized according to the
+project-organization skill (create or update it as the layout evolves).
+
+When answering questions, search and read files in this folder first and prefer
+that content over general knowledge.
+
+Add any additional guidance for this project below.
+`;
+
+const PROJECT_ORGANIZATION_SKILL_MARKDOWN = `---
+name: project-organization
+description: How this project's folder is laid out. Apply on every project chat to keep files organized and to find existing work before answering.
+tools: listProjectFiles, searchProjectFiles, readProjectFile, createProjectFolder, renameProjectFile, createLocalSkill
+---
+
+# Project organization
+
+This skill is the source of truth for this project's folder layout. Follow it on every chat in this project.
+
+## How to maintain this skill
+
+1. Call \`listProjectFiles\` to inspect the current tree.
+2. Infer a layout from the project summary. If the summary is empty, use a small generic layout.
+3. Create missing folders with \`createProjectFolder\`. Move misplaced files with \`renameProjectFile\`.
+4. Document the actual folder map under **Folder map** below. Update this skill (\`createLocalSkill\` with \`preferredFolderName=project-organization\` and \`updateExisting=true\`) whenever the map changes.
+5. Never delete or overwrite files unless the user explicitly asks.
+
+## Default folders
+
+- \`attachments/\` — original files the user asked to save into the project
+- \`outputs/\` — finished generated artifacts
+- \`.agent/skills/\` — project-local skills (including this one)
+- \`AGENTS.md\` — durable project instructions (do not move)
+
+Add more folders when the work needs them (for example \`research/\`, \`drafts/\`, \`references/\`).
+
+## Folder map
+
+(Fill this in as the project takes shape.)
+
+## Ground answers in project files
+
+Before answering questions about this project's work, search and read files in the project folder (\`searchProjectFiles\`, \`readProjectFile\`, \`readPdf\`). Prefer that content over general knowledge, web search, or integrations unless the user is clearly asking about something outside the project.
+`;
 const MAX_TREE_DEPTH = 8;
 const MAX_TREE_ENTRIES = 500;
 
@@ -198,9 +247,18 @@ function ensureProjectFolders(folderPath: string): void {
 	fs.mkdirSync(canonicalSkillsDir(folderPath), { recursive: true });
 	const agentsPath = path.join(folderPath, AGENTS_FILENAME);
 	if (!fs.existsSync(agentsPath)) {
+		fs.writeFileSync(agentsPath, DEFAULT_AGENTS_MD, "utf-8");
+	}
+	const organizationSkillDir = path.join(
+		canonicalSkillsDir(folderPath),
+		PROJECT_ORGANIZATION_SKILL_NAME,
+	);
+	const organizationSkillPath = path.join(organizationSkillDir, "SKILL.md");
+	if (!fs.existsSync(organizationSkillPath)) {
+		fs.mkdirSync(organizationSkillDir, { recursive: true });
 		fs.writeFileSync(
-			agentsPath,
-			"# Project Instructions\n\nAdd guidance for Toby project chats here.\n",
+			organizationSkillPath,
+			PROJECT_ORGANIZATION_SKILL_MARKDOWN,
 			"utf-8",
 		);
 	}
@@ -371,6 +429,31 @@ export function deleteProject(idOrSlug: string): void {
 	}
 }
 
+/**
+ * Ensure `project-organization` is in the attached skill list when that
+ * project-local skill exists. Other project skills still require pretreatment
+ * or on-demand loading.
+ */
+export function unionProjectOrganizationSkill(
+	selectedSkillNames: readonly string[],
+	allSkills: readonly LocalSkill[],
+): string[] {
+	const hasOrg = allSkills.some(
+		(skill) =>
+			skill.name.trim().toLowerCase() === PROJECT_ORGANIZATION_SKILL_NAME,
+	);
+	if (!hasOrg) {
+		return [...selectedSkillNames];
+	}
+	const already = selectedSkillNames.some(
+		(name) => name.trim().toLowerCase() === PROJECT_ORGANIZATION_SKILL_NAME,
+	);
+	if (already) {
+		return [...selectedSkillNames];
+	}
+	return [...selectedSkillNames, PROJECT_ORGANIZATION_SKILL_NAME];
+}
+
 export function loadProjectSkills(project: Project): LocalSkill[] {
 	const canonical = loadLocalSkills(project.skillsDir);
 	const legacy =
@@ -517,7 +600,12 @@ export function formatProjectContextForPrompt(
 		`Active project: **${project.name}**.`,
 		`Project folder: \`${project.folderPath}\`.`,
 		project.summary.trim() ? `Project summary: ${project.summary.trim()}` : "",
-		"Generated artifacts should be written to the project's outputs folder using `writeTextFile`.",
+		"You are working inside this project folder. Do not write files outside it.",
+		"Prefer project files over general knowledge. Before answering a question about this project's work, call `listProjectFiles` and/or `searchProjectFiles`, then `readProjectFile` or `readPdf` on the relevant hits. Cite project-relative paths. Only then use integrations, web search, or general knowledge — and skip those when the project already answers the question.",
+		"Maintain a logical folder layout from the project summary. If the summary is empty, invent a small layout that fits the work (keep `attachments/` and `outputs/`; add folders such as `research/`, `drafts/`, or `references/` when useful).",
+		"Persist that layout in the project-local skill `project-organization`. Create it if missing; update it when the layout changes. Do not create other skills unless the user asked.",
+		"Place new generated artifacts according to that skill (`writeTextFile` location='outputs' for finished artifacts; location='context' for notes and reference files in the project folder).",
+		"Organize opportunistically: inspect the tree when writing files or when the root is messy. Create folders and move files into the layout. Do not reshuffle a layout that already matches the skill. Never delete or overwrite without an explicit user request.",
 	]
 		.filter(Boolean)
 		.join("\n");

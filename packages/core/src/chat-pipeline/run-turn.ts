@@ -96,6 +96,8 @@ const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"memorySave",
 	"saveProjectAttachment",
 	"listProjectFiles",
+	"searchProjectFiles",
+	"readProjectFile",
 	"createProjectFolder",
 	"renameProjectFile",
 	"deleteProjectFile",
@@ -324,28 +326,51 @@ export async function buildToolsCatalogForPretreatment(
  * When pretreatment ran with an empty tool list, only always-included tools remain
  * (plus any explicit-request-only tools are still excluded).
  */
+export type ToolRelevanceOptions = {
+	/** When true, `createLocalSkill` is always available so project-organization can be maintained. */
+	readonly projectActive?: boolean;
+};
+
+function alwaysIncludedToolsForTurn(
+	options?: ToolRelevanceOptions,
+): ReadonlySet<string> {
+	if (!options?.projectActive) {
+		return ALWAYS_INCLUDED_TOOLS;
+	}
+	return new Set([...ALWAYS_INCLUDED_TOOLS, "createLocalSkill"]);
+}
+
+function explicitRequestOnlyToolsForTurn(
+	options?: ToolRelevanceOptions,
+): ReadonlySet<string> {
+	if (!options?.projectActive) {
+		return EXPLICIT_REQUEST_ONLY_TOOLS;
+	}
+	return new Set();
+}
+
 export function filterToolNamesByRelevance(
 	allToolNames: readonly string[],
 	relevantTools: readonly string[] | undefined,
+	options?: ToolRelevanceOptions,
 ): string[] {
+	const explicitOnly = explicitRequestOnlyToolsForTurn(options);
+	const alwaysIncluded = alwaysIncludedToolsForTurn(options);
 	if (relevantTools === undefined) {
 		return [...allToolNames];
 	}
 	if (relevantTools.length === 0) {
-		return allToolNames.filter(
-			(name) => !EXPLICIT_REQUEST_ONLY_TOOLS.has(name),
-		);
+		return allToolNames.filter((name) => !explicitOnly.has(name));
 	}
 	const relevantLower = new Set(
 		relevantTools.map((n) => n.trim().toLowerCase()),
 	);
 	return allToolNames.filter((name) => {
-		if (EXPLICIT_REQUEST_ONLY_TOOLS.has(name)) {
+		if (explicitOnly.has(name)) {
 			return relevantLower.has(name.trim().toLowerCase());
 		}
 		return (
-			ALWAYS_INCLUDED_TOOLS.has(name) ||
-			relevantLower.has(name.trim().toLowerCase())
+			alwaysIncluded.has(name) || relevantLower.has(name.trim().toLowerCase())
 		);
 	});
 }
@@ -353,12 +378,13 @@ export function filterToolNamesByRelevance(
 function filterToolsByRelevance(
 	tools: Record<string, Tool>,
 	relevantTools: readonly string[] | undefined,
+	options?: ToolRelevanceOptions,
 ): Record<string, Tool> {
 	if (relevantTools === undefined) {
 		return tools;
 	}
 	const allowed = new Set(
-		filterToolNamesByRelevance(Object.keys(tools), relevantTools),
+		filterToolNamesByRelevance(Object.keys(tools), relevantTools, options),
 	);
 	const filtered: Record<string, Tool> = {};
 	for (const [name, tool] of Object.entries(tools)) {
@@ -458,6 +484,7 @@ export async function runSharedChatTurn(
 	const filteredMergedTools = filterToolsByRelevance(
 		mergedTools,
 		options.relevantTools,
+		{ projectActive: Boolean(options.project) },
 	);
 
 	const tools = withAskUserTool(filteredMergedTools, options.askUser);

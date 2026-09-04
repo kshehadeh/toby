@@ -16,16 +16,17 @@ A project is a record in Toby's local session database backed by a folder under 
 ```text
 ~/.toby/projects/<project-id>/
   AGENTS.md          # project instructions read by project chats
-  .agent/skills/     # project-local skills
+  .agent/skills/     # project-local skills (includes project-organization)
   outputs/           # generated artifacts
 ```
 
 When you work inside a project, Toby uses the project metadata and folder contents to keep the chat grounded:
 
-1. **Project guidance** — `AGENTS.md` is included as project-specific instruction.
-2. **Project-local skills** — every `SKILL.md` under `.agent/skills/` is loaded automatically for that project.
+1. **Project guidance** — `AGENTS.md` is included as project-specific instruction, along with workspace rules that apply no matter which persona is active: work in this folder, keep it organized, and look in the project first.
+2. **Project-local skills** — every `SKILL.md` under `.agent/skills/` is available for that project. New projects include a **project-organization** skill that records the folder layout so later chats follow it.
 3. **Output scoping** — generated files land in the project's `outputs/` folder by default.
 4. **Project chat grouping** — project chats belong to the project. Open the project page to start a new chat or continue a recent one.
+5. **Content-first answers** — when you ask a question, Toby searches and reads files in the project folder before relying on general knowledge or the web.
 
 This makes projects ideal for recurring workflows like weekly overviews, monthly reports, or any task where you want the AI to produce consistent output informed by the same reference material each time.
 
@@ -57,7 +58,7 @@ Every project starts with an `AGENTS.md` file:
 ~/.toby/projects/<project-id>/AGENTS.md
 ```
 
-Use this file for durable guidance that should apply to all project chats: goals, conventions, customer context, output formats, or source-of-truth links.
+Use this file for durable guidance that should apply to all project chats: goals, conventions, customer context, output formats, or source-of-truth links. New projects start with a short reminder that Toby should work in this folder, keep it organized, and search project files first.
 
 ## Add project-local skills
 
@@ -65,10 +66,13 @@ Skills placed in the project's `.agent/skills/` directory are loaded automatical
 
 ```text
 ~/.toby/projects/<project-id>/.agent/skills/
+  project-organization/SKILL.md
   weekly-update-format/SKILL.md
 ```
 
 Ask Toby to create a skill while working in a project, or add a `SKILL.md` manually. Project-local skills are best for instructions that should not apply globally.
+
+New projects also get a **project-organization** skill. Toby keeps that skill up to date as it creates folders and files, so the next chat in the same project uses the same layout.
 
 Global skills under `~/.toby/skills/` still work normally. Use project-local skills when the behavior belongs only to one project.
 
@@ -94,16 +98,23 @@ with the same name unless you explicitly ask it to overwrite the existing file.
 
 ### Organize, move, rename, or delete project files
 
-In a project chat, Toby can inspect the project files before organizing them.
-Ask Toby to create folders, move or rename a file, or delete a file already in
-the project. For example: “Create a `references/designs` folder,” “Move
-`attachments/brief.pdf` to
+In a project chat, Toby works in the project folder. It inspects the tree,
+searches file contents when you ask questions, and tries to keep the folder
+organized from the project description (or a sensible default if you have not
+written one). That layout is saved in the project's **project-organization**
+skill so the next chat continues the same way.
+
+You can still ask Toby to create folders, move or rename a file, or delete a
+file already in the project. For example: “Create a `references/designs`
+folder,” “Move `attachments/brief.pdf` to
 `references/designs/final-brief.pdf`,” or “Delete `outputs/old-report.md`.”
-Ask Toby to read a project PDF (for example “Summarize `attachments/brief.pdf`”)
-and it extracts the text into the chat.
-Toby only acts on your explicit request, uses paths inside the project folder,
-and will not replace an existing destination file unless you ask it to
-overwrite that file. Deletions permanently remove the requested file.
+Ask Toby to read a project file or PDF (for example “Summarize
+`attachments/brief.pdf`” or “What did we decide in `research/notes.md`?”) and
+it searches and reads the project first.
+
+Toby uses paths inside the project folder and will not replace an existing
+destination file unless you ask it to overwrite that file. Deletions still
+require an explicit request and permanently remove the requested file.
 
 When Toby writes a file in chat, the reply includes a download chip. **Download**
 saves a copy to your Downloads folder and reveals it in Finder; **Open** opens

@@ -61,7 +61,33 @@ describe("filterToolNamesByRelevance", () => {
 		expect(ALWAYS_INCLUDED_TOOLS.has("listProjectFiles")).toBe(true);
 	});
 
+	it("always includes project file search and read", () => {
+		expect(ALWAYS_INCLUDED_TOOLS.has("searchProjectFiles")).toBe(true);
+		expect(ALWAYS_INCLUDED_TOOLS.has("readProjectFile")).toBe(true);
+	});
+
 	it("always includes readPdf", () => {
 		expect(ALWAYS_INCLUDED_TOOLS.has("readPdf")).toBe(true);
+	});
+
+	it("keeps createLocalSkill explicit-only when no project is active", () => {
+		expect(
+			filterToolNamesByRelevance(all, ["fetchOpenTasks"], {
+				projectActive: false,
+			}),
+		).toEqual(["askUser", "fetchOpenTasks", "memorySearch"]);
+	});
+
+	it("includes createLocalSkill in project chats even when pretreatment did not select it", () => {
+		expect(
+			filterToolNamesByRelevance(all, ["fetchOpenTasks"], {
+				projectActive: true,
+			}),
+		).toEqual([
+			"askUser",
+			"createLocalSkill",
+			"fetchOpenTasks",
+			"memorySearch",
+		]);
 	});
 });

@@ -21,9 +21,14 @@ import { resolvePersona } from "../personas/index";
 import {
 	injectMemoriesIntoFirstSystemMessage,
 	injectProjectContextIntoFirstSystemMessage,
+	injectSkillBodiesIntoFirstSystemMessage,
 	prepareChatSessionMessages,
 } from "../prepare-messages";
-import { resolveProject } from "../projects/index";
+import {
+	loadProjectSkills,
+	resolveProject,
+	unionProjectOrganizationSkill,
+} from "../projects/index";
 import {
 	completeScheduleRun,
 	createScheduleRun,
@@ -171,6 +176,12 @@ export async function executeScheduleRun(
 		);
 		if (project) {
 			messages = injectProjectContextIntoFirstSystemMessage(messages, project);
+			const projectSkills = loadProjectSkills(project);
+			messages = injectSkillBodiesIntoFirstSystemMessage(
+				messages,
+				unionProjectOrganizationSkill([], projectSkills),
+				projectSkills,
+			);
 		}
 		messages = injectMemoriesIntoFirstSystemMessage(messages);
 

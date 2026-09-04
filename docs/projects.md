@@ -16,11 +16,17 @@ A **project** is:
 When a project is **active** (or attached to a chat session), each turn:
 
 1. **Guidance injection** — the project’s `AGENTS.md` (if present and ≤ 96 KB)
-   is loaded into the system prompt as project guidance.
+   is loaded into the system prompt as project guidance, plus persona-independent
+   workspace rules (work in the project folder, search project files first,
+   keep the folder organized).
 2. **Skill loading** — skills under the project’s `.agent/skills/` (and legacy
-   `skills/`) are available like local skills for that session.
+   `skills/`) are available like local skills for that session. The
+   **`project-organization`** skill is **auto-attached** when present so the
+   folder layout persists across chats; other project skills still require
+   pretreatment or `loadLocalSkillInstructions`.
 3. **Output scoping** — `writeTextFile` defaults to the project’s `outputs/`
-   directory (instead of `~/.toby/generated-files`).
+   directory (instead of `~/.toby/generated-files`). Place notes and reference
+   files with `location='context'` according to the organization skill.
 
 Implementation: [`packages/core/src/projects/index.ts`](../packages/core/src/projects/index.ts).
 
@@ -73,11 +79,16 @@ behavior in the native UI before removing files you care about).
 
 ## Project guidance (`AGENTS.md`)
 
-On create, Toby ensures an `AGENTS.md` at the project folder root (default
-placeholder instructions). Edit this file to steer every project chat turn.
+On create, Toby ensures an `AGENTS.md` at the project folder root. The default
+file tells Toby to work in this folder, keep it organized, and search project
+files first. Edit this file to add project-specific tone, sections, and
+constraints. Existing `AGENTS.md` files are never overwritten.
 
-Only **`AGENTS.md`** is auto-injected today. Other files in the folder are not
-scanned into the system prompt (see legacy note below).
+**`AGENTS.md` is auto-injected**, and the project context appendix always
+includes workspace rules (folder path, search-first, organization skill)
+regardless of persona. Other files in the folder are **not** scanned into the
+system prompt (see legacy note below). Use `searchProjectFiles` /
+`readProjectFile` to pull them in on demand.
 
 ## Project-local skills
 
@@ -92,7 +103,10 @@ are loaded when the project is active (`loadProjectSkills`). A legacy path
 
 When a project is active, **`createLocalSkill`** can write under the project
 skills directory so the skill is scoped to that project. Global skills remain
-under `~/.toby/skills/`.
+under `~/.toby/skills/`. New projects seed a **`project-organization`** skill
+at `.agent/skills/project-organization/SKILL.md`. Project chats may create or
+update that skill without an explicit “create a skill” request so the folder
+map stays current; other skills still require an explicit user request.
 
 ## Writing files within a project
 
@@ -122,16 +136,27 @@ To read a PDF already in the project (including
 `<projectFolder>/attachments/`), Toby uses **`readPdf`** with the
 project-relative path. See [`pdf-read.md`](pdf-read.md).
 
-Project chats expose `listProjectFiles`, `createProjectFolder`,
-`renameProjectFile`, and `deleteProjectFile`. Toby uses `listProjectFiles` to
-inspect the project tree and identify exact paths before organizing files. To
-move an existing file, `renameProjectFile` receives its new project-relative
-destination path; create a missing destination folder with
-`createProjectFolder` first. These tools require a user’s explicit request and
-accept only relative paths inside the project folder. They reject symbolic links
-and any path that escapes the project. Moves never replace a destination file
-unless the user explicitly requests an overwrite; deletes permanently remove
-the requested file.
+Project chats expose `listProjectFiles`, `searchProjectFiles`,
+`readProjectFile`, `createProjectFolder`, `renameProjectFile`, and
+`deleteProjectFile`.
+
+Toby **lists and searches project files first** when answering questions about
+the project's work, then reads matching text files with `readProjectFile` (or
+`readPdf` for PDFs). Replies should cite project-relative paths and prefer that
+content over general knowledge, web search, or integrations.
+
+Toby also **organizes the folder**: it infers a layout from the project summary
+(or invents a small one), creates folders, and moves misplaced files. The
+layout is stored in the `project-organization` skill so later chats follow it.
+Deletes and overwrites still require an explicit user request.
+
+`listProjectFiles` identifies exact paths before organizing, moving, searching,
+or deleting. To move an existing file, `renameProjectFile` receives its new
+project-relative destination path; create a missing destination folder with
+`createProjectFolder` first. Paths must be relative, inside the project folder.
+Tools reject symbolic links and any path that escapes the project. Moves never
+replace a destination file unless the user explicitly requests an overwrite;
+deletes permanently remove the requested file.
 
 Paths must be relative, within the base directory, and use an allowed text
 extension (`.md`, `.txt`, `.json`, …). See
@@ -146,7 +171,8 @@ extension (`.md`, `.txt`, `.json`, …). See
   outputs/                        # generated artifacts from writeTextFile
   .agent/
     skills/
-      weekly-format/SKILL.md      # project-local skills
+      project-organization/SKILL.md  # seeded folder-layout skill (auto-attached)
+      weekly-format/SKILL.md         # other project-local skills
   # Legacy (still recognized where noted):
   # project.json                  # old metadata; migrated into SQLite
   # context/                      # old “inject everything” docs dir (not auto-loaded)
@@ -178,9 +204,10 @@ Older projects used:
 
 | Concern | Location |
 | ------- | -------- |
-| Model + CRUD + `AGENTS.md` load | [`packages/core/src/projects/index.ts`](../packages/core/src/projects/index.ts) |
+| Model + CRUD + `AGENTS.md` load + organization skill seed | [`packages/core/src/projects/index.ts`](../packages/core/src/projects/index.ts) |
 | Active slug in config | [`packages/core/src/config/index.ts`](../packages/core/src/config/index.ts) |
-| Prompt injection | [`packages/core/src/prepare-messages.ts`](../packages/core/src/prepare-messages.ts) |
+| Prompt injection + auto-attach `project-organization` | [`packages/core/src/prepare-messages.ts`](../packages/core/src/prepare-messages.ts), [`assemble-messages.ts`](../packages/core/src/chat-pipeline/nodes/assemble-messages.ts) |
+| Search / read / organize tools | [`packages/core/src/ai/global-chat-tools.ts`](../packages/core/src/ai/global-chat-tools.ts) |
 | HTTP API | [`packages/core/src/web/handlers/projects.ts`](../packages/core/src/web/handlers/projects.ts) |
 | Configure tree fields | [`packages/core/src/configure/tree.ts`](../packages/core/src/configure/tree.ts) |
 | Native UI | Toby.app Projects features / stores |

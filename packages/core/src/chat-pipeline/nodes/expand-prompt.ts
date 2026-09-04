@@ -58,6 +58,7 @@ export const expandPromptNode: PipelineNode<InitedTurn, ExpandedTurn> = {
 				toolIntegrationLabels: input.toolCatalog.toolIntegrationLabels,
 				relevantTools: wrapResult.spec.relevantTools,
 				pretreatmentRan: true,
+				projectActive: Boolean(ctx.project),
 			});
 			for (const notice of notices) {
 				if (notice.kind !== "notice") {

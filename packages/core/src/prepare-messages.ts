@@ -293,7 +293,7 @@ function buildCombinedChatBasePrompt(
 		'\n- **Location**: When the user asks where they live / their home / a saved address, search memory first. Use **getMyLocation** only for where they are right now or for "near me" / "here" (may prompt for macOS Location Services).';
 	return `You are Toby, a personal assistant with access to: **${labels}**.
 
-Use the integration tools below for your connected integrations, plus the global Toby tools (**askUser**, **fetchWebContent**, **readPdf**${searchToolsList}${weatherToolsList}${locationToolsList}). Pick the right integration based on the user's request. Use **createLocalSkill** only when the user explicitly asks to create or update a ~/.toby/skills skill file.
+Use the integration tools below for your connected integrations, plus the global Toby tools (**askUser**, **fetchWebContent**, **readPdf**${searchToolsList}${weatherToolsList}${locationToolsList}). Pick the right integration based on the user's request. Use **createLocalSkill** only when the user explicitly asks to create or update a skill file${project ? ", except to create or update this project's project-organization skill" : ""}.
 
 Shared rules:
 - Use **askUser** whenever you need a multiple-choice decision from the user. The terminal does not respond to questions written only in plain assistant text.

@@ -5,8 +5,10 @@ import path from "node:path";
 import {
 	createGlobalChatTools,
 	globalChatToolsPromptSection,
+	readProjectTextFile,
 	resolveProjectFileTarget,
 	sanitizeSkillFolderSegment,
+	searchProjectFileContents,
 } from "@toby/core/ai/global-chat-tools";
 import type { Persona } from "@toby/core/config/index";
 import type { Project } from "@toby/core/projects/index";
@@ -184,5 +186,74 @@ describe("project file management", () => {
 		);
 		expect(prompt).toContain("**readPdf**");
 		expect(prompt).toContain("then **readPdf** with the project-relative");
+		expect(prompt).toContain("**searchProjectFiles**");
+		expect(prompt).toContain("**readProjectFile**");
+		expect(prompt).toContain("Prefer project files over general knowledge");
+		expect(prompt).toContain("project-organization");
+		expect(prompt).not.toContain(
+			"Only call when the user explicitly asks to create a folder",
+		);
+	});
+
+	it("searches and reads project text files", () => {
+		const folderPath = fs.mkdtempSync(
+			path.join(os.tmpdir(), "toby-project-search-"),
+		);
+		const project = {
+			id: "project-1",
+			name: "Test Project",
+			folderPath,
+		} as Project;
+		fs.mkdirSync(path.join(folderPath, "research"));
+		fs.writeFileSync(
+			path.join(folderPath, "research", "notes.md"),
+			"# Notes\nFind the widget launch date here.\n",
+		);
+		fs.writeFileSync(path.join(folderPath, "binary.bin"), "\u0000\u0001");
+		try {
+			const search = searchProjectFileContents({
+				project,
+				query: "widget launch",
+			});
+			expect(search.ok).toBe(true);
+			if (search.ok) {
+				expect(search.matches).toEqual([
+					expect.objectContaining({
+						path: "research/notes.md",
+						line: 2,
+						text: "Find the widget launch date here.",
+					}),
+				]);
+			}
+			const scoped = searchProjectFileContents({
+				project,
+				query: "widget",
+				pathPrefix: "outputs",
+			});
+			expect(scoped.ok).toBe(true);
+			if (scoped.ok) {
+				expect(scoped.matches).toEqual([]);
+			}
+			const read = readProjectTextFile({
+				project,
+				inputPath: "research/notes.md",
+			});
+			expect(read).toMatchObject({
+				ok: true,
+				path: "research/notes.md",
+				truncated: false,
+			});
+			if (read.ok) {
+				expect(read.content).toContain("widget launch");
+			}
+			expect(
+				readProjectTextFile({ project, inputPath: "../outside.md" }).ok,
+			).toBe(false);
+			expect(readProjectTextFile({ project, inputPath: "binary.bin" }).ok).toBe(
+				false,
+			);
+		} finally {
+			fs.rmSync(folderPath, { recursive: true, force: true });
+		}
 	});
 });

@@ -6,6 +6,7 @@ import {
 	injectSkillBodiesIntoFirstSystemMessage,
 	stripSkillInstructionsAppendix,
 } from "@toby/core/prepare-messages";
+import { unionProjectOrganizationSkill } from "@toby/core/projects/index";
 
 describe("injectSkillBodiesIntoFirstSystemMessage", () => {
 	it("appends skill bodies to the first system message", () => {
@@ -87,6 +88,31 @@ describe("injectSkillBodiesIntoFirstSystemMessage", () => {
 		const out = injectSkillBodiesIntoFirstSystemMessage(messages, [], []);
 		expect(out[0]?.content).toBe("Base.");
 		expect((out[0]?.content as string).includes("old body")).toBe(false);
+	});
+
+	it("auto-attaches project-organization even when pretreatment selected none", () => {
+		const messages: CoreMessage[] = [
+			{ role: "system", content: "Base system." },
+			{ role: "user", content: "What is in this project?" },
+		];
+		const skills = [
+			{
+				dirName: "project-organization",
+				name: "project-organization",
+				description: "layout",
+				bodyMarkdown: "Put research in research/.",
+			},
+		];
+		const attached = unionProjectOrganizationSkill([], skills);
+		const out = injectSkillBodiesIntoFirstSystemMessage(
+			messages,
+			attached,
+			skills,
+		);
+		const c = out[0]?.content as string;
+		expect(attached).toEqual(["project-organization"]);
+		expect(c).toContain("### Skill: project-organization");
+		expect(c).toContain("Put research in research/.");
 	});
 });
 

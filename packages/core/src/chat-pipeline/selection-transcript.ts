@@ -15,6 +15,7 @@ export function buildSelectionTranscriptEntries(params: {
 	readonly toolIntegrationLabels: Readonly<Record<string, string>>;
 	readonly relevantTools: readonly string[] | undefined;
 	readonly pretreatmentRan: boolean;
+	readonly projectActive?: boolean;
 }): TranscriptEntry[] {
 	const entries: TranscriptEntry[] = [];
 	if (!params.pretreatmentRan) {
@@ -29,6 +30,7 @@ export function buildSelectionTranscriptEntries(params: {
 	const activeNames = filterToolNamesByRelevance(
 		params.allToolNames,
 		params.relevantTools,
+		{ projectActive: params.projectActive },
 	);
 	if (activeNames.length === 0) {
 		return entries;
