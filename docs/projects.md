@@ -56,7 +56,8 @@ directly. File → **New Chat** (⌘N) starts a new chat in the selected project
 The main-window toolbar is context-sensitive: **+** (new project) when
 nothing is selected; **New Chat** and **Delete** on a project page. Clicking
 **Projects** shows all projects as cards, or an empty state if none exist.
-Project chats are not listed in the sidebar; while a project chat is open, the
+Project chats are not listed in the Chats sidebar and never appear in the main
+Chats view — open them from the project. While a project chat is open, the
 toolbar shows a folder icon and a control to return to the project page, and the
 project stays highlighted in the sidebar. Project chats also open a trailing
 **Files** inspector by default. Its toolbar button hides or shows the inspector;

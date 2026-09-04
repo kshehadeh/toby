@@ -98,8 +98,10 @@ summary or persona, reveal the project folder, and inspect the generated file
 tree. The toolbar shows **+** (new project) when nothing is selected, and
 **New Chat** plus **Delete** on a project page. Click **Projects** in the
 sidebar to see every project as cards. Home also lists the five most recently
-updated projects in its left sidebar. While a project chat is open, a folder
-icon marks the chat and a toolbar button returns you to the project page.
+updated projects in its left sidebar. Project chats stay in Projects: they
+never appear in the Chats sidebar or the main Chats view. While a project chat
+is open, a folder icon marks the chat and a toolbar button returns you to the
+project page.
 
 ![Toby.app Projects window](/img/toby-app-projects.png)
 

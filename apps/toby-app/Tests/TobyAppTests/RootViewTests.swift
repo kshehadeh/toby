@@ -41,4 +41,43 @@ struct RootViewTests {
 		#expect(!shouldCreateProjectChat(currentRoute: .chat, selectedProjectId: "proj-1"))
 	}
 
+	@Test("main chat leaves a project session once it is idle")
+	func mainChatLeavesIdleProjectSession() {
+		#expect(
+			shouldLeaveProjectSessionForMainChat(
+				currentRoute: .chat,
+				sessionProjectId: "proj-1",
+				isLoading: false,
+			)
+		)
+		#expect(
+			!shouldLeaveProjectSessionForMainChat(
+				currentRoute: .chat,
+				sessionProjectId: "proj-1",
+				isLoading: true,
+			)
+		)
+		#expect(
+			!shouldLeaveProjectSessionForMainChat(
+				currentRoute: .projects,
+				sessionProjectId: "proj-1",
+				isLoading: false,
+			)
+		)
+		#expect(
+			!shouldLeaveProjectSessionForMainChat(
+				currentRoute: .chat,
+				sessionProjectId: nil,
+				isLoading: false,
+			)
+		)
+		#expect(
+			!shouldLeaveProjectSessionForMainChat(
+				currentRoute: .chat,
+				sessionProjectId: "  ",
+				isLoading: false,
+			)
+		)
+	}
+
 }

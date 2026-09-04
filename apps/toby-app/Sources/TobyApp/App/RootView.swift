@@ -45,6 +45,15 @@ struct RootView: View {
     var body: some View {
         contentWithBackup
             .modifier(rootNotificationRouter)
+            .onChange(of: history.current) { _, _ in
+                leaveProjectSessionIfMainChatVisible()
+            }
+            .onChange(of: store.isLoading) { _, _ in
+                leaveProjectSessionIfMainChatVisible()
+            }
+            .onChange(of: store.sessionProjectId) { _, _ in
+                leaveProjectSessionIfMainChatVisible()
+            }
     }
 
     private var rootNotificationRouter: RootNotificationRouter {
@@ -821,6 +830,16 @@ struct RootView: View {
 
     private func navigateToRoute(_ route: DetailRoute) {
         history.navigate(to: route)
+        leaveProjectSessionIfMainChatVisible()
+    }
+
+    private func leaveProjectSessionIfMainChatVisible() {
+        guard shouldLeaveProjectSessionForMainChat(
+            currentRoute: history.current,
+            sessionProjectId: store.sessionProjectId,
+            isLoading: store.isLoading,
+        ) else { return }
+        store.leaveProjectSessionIfNeeded()
     }
 
     private func openDashboardFlow(_ flowId: String) {
@@ -1105,4 +1124,14 @@ func shouldCreateProjectChat(
     selectedProjectId: String?
 ) -> Bool {
     currentRoute == .projects && selectedProjectId != nil
+}
+
+func shouldLeaveProjectSessionForMainChat(
+    currentRoute: DetailRoute,
+    sessionProjectId: String?,
+    isLoading: Bool
+) -> Bool {
+    guard currentRoute == .chat, !isLoading else { return false }
+    let projectId = sessionProjectId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    return !projectId.isEmpty
 }

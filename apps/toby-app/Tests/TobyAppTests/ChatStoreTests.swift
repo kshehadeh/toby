@@ -42,6 +42,7 @@ struct ChatStoreTests {
         await store.startNewSession()
         #expect(store.sessionId == nil)
         #expect(store.sessionName == "New chat")
+        #expect(store.sessionProjectId == nil)
         #expect(store.transcript.isEmpty)
         #expect(store.draftPersonaName == nil)
         #expect(store.promptFocusRequestId != originalId)
@@ -215,6 +216,90 @@ struct ChatStoreTests {
         await store.selectSession(id: "sess")
         #expect(store.draftPersonaName == nil)
         #expect(store.sessionId == "sess")
+        #expect(store.sessionProjectId == nil)
+    }
+
+    @Test("selectSession records the project id for project chats")
+    func selectSessionRecordsProjectId() async {
+        let client = MockChatClient()
+        client.sessionDetails["proj-chat"] = SessionDetail(
+            id: "proj-chat",
+            name: "Project chat",
+            transcript: [.user(text: "notes")],
+            messageCount: 1,
+            settings: SessionSettings(
+                persona: nil,
+                modules: nil,
+                dryRun: nil,
+                debug: nil,
+                projectId: "proj-1",
+            ),
+            contextWindow: nil,
+            personaImageUrl: nil,
+            activePlan: nil,
+            integration: nil,
+            integrationIconUrl: nil,
+            externalKey: nil,
+        )
+        let store = ChatStore(client: client)
+        await store.selectSession(id: "proj-chat")
+        #expect(store.sessionId == "proj-chat")
+        #expect(store.sessionProjectId == "proj-1")
+        #expect(store.transcript == [.user(text: "notes")])
+    }
+
+    @Test("leaveProjectSessionIfNeeded resets a project chat to a new draft")
+    func leaveProjectSessionResetsProjectChat() {
+        let store = ChatStore()
+        store.sessionId = "proj-chat"
+        store.sessionName = "Project chat"
+        store.sessionProjectId = "proj-1"
+        store.transcript = [.user(text: "notes")]
+        store.promptText = "follow up"
+        store.draftPersonaName = "Mailman"
+
+        let originalId = store.promptFocusRequestId
+        store.leaveProjectSessionIfNeeded()
+
+        #expect(store.sessionId == nil)
+        #expect(store.sessionName == "New chat")
+        #expect(store.sessionProjectId == nil)
+        #expect(store.transcript.isEmpty)
+        #expect(store.promptText.isEmpty)
+        #expect(store.draftPersonaName == nil)
+        #expect(store.promptFocusRequestId != originalId)
+    }
+
+    @Test("leaveProjectSessionIfNeeded keeps a regular chat")
+    func leaveProjectSessionKeepsRegularChat() {
+        let store = ChatStore()
+        store.sessionId = "sess"
+        store.sessionName = "Regular"
+        store.sessionProjectId = nil
+        store.transcript = [.user(text: "hi")]
+        store.promptText = "draft"
+
+        store.leaveProjectSessionIfNeeded()
+
+        #expect(store.sessionId == "sess")
+        #expect(store.sessionName == "Regular")
+        #expect(store.transcript == [.user(text: "hi")])
+        #expect(store.promptText == "draft")
+    }
+
+    @Test("leaveProjectSessionIfNeeded does not interrupt an active turn")
+    func leaveProjectSessionGuardsActiveTurn() {
+        let store = ChatStore()
+        store.isLoading = true
+        store.sessionId = "proj-chat"
+        store.sessionProjectId = "proj-1"
+        store.transcript = [.user(text: "notes")]
+
+        store.leaveProjectSessionIfNeeded()
+
+        #expect(store.sessionId == "proj-chat")
+        #expect(store.sessionProjectId == "proj-1")
+        #expect(store.transcript == [.user(text: "notes")])
     }
 
     @Test("startNewChat with prompt does not interrupt an active turn")

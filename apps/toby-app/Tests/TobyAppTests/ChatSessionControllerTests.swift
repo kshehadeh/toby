@@ -12,6 +12,7 @@ struct ChatSessionControllerTests {
 		ChatSessionIdentityState(
 			sessionId: sessionId,
 			sessionName: sessionName,
+			sessionProjectId: "proj-1",
 			transcript: transcript,
 			integration: "slack",
 			integrationIconUrl: "/icons/slack.png",
@@ -99,6 +100,7 @@ struct ChatSessionControllerTests {
 
 		#expect(state.sessionId == "s2")
 		#expect(state.sessionName == "New session")
+		#expect(state.sessionProjectId == nil)
 		#expect(state.transcript == [.user(text: "there")])
 		#expect(state.integration == nil)
 		#expect(state.externalKey == nil)
@@ -117,6 +119,7 @@ struct ChatSessionControllerTests {
 
 		#expect(state.sessionId == nil)
 		#expect(state.sessionName == "New chat")
+		#expect(state.sessionProjectId == nil)
 		#expect(state.transcript.isEmpty)
 		#expect(state.integration == nil)
 		#expect(state.integrationIconUrl == nil)
@@ -156,5 +159,59 @@ struct ChatSessionControllerTests {
 		#expect(state.externalKey == "ext-1")
 		#expect(state.promptText == "draft")
 		#expect(state.turnWorkDurations[0] == 1.5)
+	}
+
+	@Test("applyLoadedSession records the project id for project chats")
+	func applyLoadedSessionRecordsProjectId() {
+		var state = makeState()
+		let detail = SessionDetail(
+			id: "proj-chat",
+			name: "Project chat",
+			transcript: [.user(text: "notes")],
+			messageCount: 1,
+			settings: SessionSettings(
+				persona: nil,
+				modules: nil,
+				dryRun: nil,
+				debug: nil,
+				projectId: "proj-1",
+			),
+			contextWindow: nil,
+			personaImageUrl: nil,
+			activePlan: nil,
+			integration: nil,
+			integrationIconUrl: nil,
+			externalKey: nil,
+		)
+		ChatSessionController.applyLoadedSession(detail, into: &state)
+		#expect(state.sessionId == "proj-chat")
+		#expect(state.sessionProjectId == "proj-1")
+	}
+
+	@Test("projectId ignores blank project settings")
+	func projectIdIgnoresBlankSettings() {
+		let detail = makeDetail()
+		#expect(ChatSessionController.projectId(from: detail) == nil)
+
+		let blank = SessionDetail(
+			id: "s2",
+			name: "New session",
+			transcript: [],
+			messageCount: 0,
+			settings: SessionSettings(
+				persona: nil,
+				modules: nil,
+				dryRun: nil,
+				debug: nil,
+				projectId: "  ",
+			),
+			contextWindow: nil,
+			personaImageUrl: nil,
+			activePlan: nil,
+			integration: nil,
+			integrationIconUrl: nil,
+			externalKey: nil,
+		)
+		#expect(ChatSessionController.projectId(from: blank) == nil)
 	}
 }

@@ -4,6 +4,7 @@ import Foundation
 struct ChatSessionIdentityState: Equatable {
 	var sessionId: String?
 	var sessionName: String
+	var sessionProjectId: String?
 	var transcript: [TranscriptEntry]
 	var integration: String?
 	var integrationIconUrl: String?
@@ -33,6 +34,7 @@ enum ChatSessionController {
 	static func applyLoadedSession(_ detail: SessionDetail, into state: inout ChatSessionIdentityState) {
 		state.sessionId = detail.id
 		state.sessionName = detail.name
+		state.sessionProjectId = projectId(from: detail)
 		state.transcript = detail.transcript
 		state.integration = detail.integration
 		state.integrationIconUrl = detail.integrationIconUrl
@@ -52,6 +54,7 @@ enum ChatSessionController {
 	) {
 		state.sessionId = nil
 		state.sessionName = "New chat"
+		state.sessionProjectId = nil
 		state.transcript = []
 		state.integration = nil
 		state.integrationIconUrl = nil
@@ -61,6 +64,13 @@ enum ChatSessionController {
 		state.turnWorkDurations = [:]
 		state.contextWindow = nil
 		state.activityLine = "Ready"
+	}
+
+	/// Project id on a loaded session, if this is a project chat.
+	static func projectId(from detail: SessionDetail) -> String? {
+		let raw = detail.settings?.projectId?.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard let raw, !raw.isEmpty else { return nil }
+		return raw
 	}
 
 	/// Lightweight poll update for external (e.g. Slack) sessions.

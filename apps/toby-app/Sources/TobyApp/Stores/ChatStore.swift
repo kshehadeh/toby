@@ -9,6 +9,8 @@ final class ChatStore {
 	var daemonStatus: DaemonStatus?
 	var sessionId: String?
 	var sessionName: String = "New chat"
+	/// Set when the loaded session belongs to a project. Main Chats never shows these.
+	var sessionProjectId: String?
 	var sessions: [SessionSummary] = []
 	var isSessionsLoading = false
 	var transcript: [TranscriptEntry] = []
@@ -429,6 +431,7 @@ final class ChatStore {
 		stopExternalSessionRefreshLoop()
 		sessionId = nil
 		sessionName = "New chat"
+		sessionProjectId = nil
 		sessions = []
 		transcript = []
 		streamingAssistant = nil
@@ -630,13 +633,29 @@ final class ChatStore {
 
 	func startNewSession(persona: PersonaOption? = nil) async {
 		guard !isLoading else { return }
+		resetToNewDraft(persona: persona, clearComposer: false)
+	}
+
+	/// Drop a project chat before the main Chats view becomes visible.
+	func leaveProjectSessionIfNeeded() {
+		guard sessionProjectId != nil, !isLoading else { return }
+		resetToNewDraft(persona: nil, clearComposer: true)
+	}
+
+	private func resetToNewDraft(persona: PersonaOption?, clearComposer: Bool) {
 		var identity = sessionIdentityState()
 		ChatSessionController.applyNewDraft(
 			into: &identity,
 			personaImageUrl: persona?.imageUrl,
 		)
+		if clearComposer {
+			identity.promptText = ""
+		}
 		applySessionIdentityState(identity)
 		draftPersonaName = persona?.name
+		if clearComposer {
+			pendingAttachments = []
+		}
 		stopExternalSessionRefreshLoop()
 		focusPrompt()
 	}
@@ -996,6 +1015,7 @@ final class ChatStore {
 		ChatSessionIdentityState(
 			sessionId: sessionId,
 			sessionName: sessionName,
+			sessionProjectId: sessionProjectId,
 			transcript: transcript,
 			integration: integration,
 			integrationIconUrl: integrationIconUrl,
@@ -1012,6 +1032,7 @@ final class ChatStore {
 	private func applySessionIdentityState(_ state: ChatSessionIdentityState) {
 		sessionId = state.sessionId
 		sessionName = state.sessionName
+		sessionProjectId = state.sessionProjectId
 		transcript = state.transcript
 		integration = state.integration
 		integrationIconUrl = state.integrationIconUrl
