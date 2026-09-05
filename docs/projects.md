@@ -62,7 +62,9 @@ toolbar shows a folder icon and a control to return to the project page, and the
 project stays highlighted in the sidebar. Project chats also open a trailing
 **Files** inspector by default. Its toolbar button hides or shows the inspector;
 the tree refreshes while the chat runs and briefly labels added, updated, and
-deleted entries. A new project chat identifies its project with a **New
+deleted entries. Clicking a file opens a Quick Look preview (falling back to the
+default app when Quick Look cannot show it); the context menu can open the file
+or reveal it in Finder. A new project chat identifies its project with a **New
 “Project Name” Chat** title and a folder icon overlaid with the active persona.
 
 ### Editable metadata

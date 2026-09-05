@@ -364,6 +364,35 @@ struct ProjectsViewTests {
 		}
 	}
 
+	@Test("file rows advertise Quick Look")
+	func fileRowsAdvertiseQuickLook() throws {
+		let view = ProjectTreeRow(
+			entry: treeEntry(name: "Notes.md", path: "Notes.md", modifiedAtMs: 1, size: 1),
+			projectFolderPath: "/tmp/proj-1",
+			depth: 0
+		)
+		let button = try view.inspect().find(viewWithAccessibilityIdentifier: "project-tree-file")
+		#expect(try button.accessibilityLabel().string() == "Quick Look Notes.md")
+	}
+
+	@Test("folder rows keep expand collapse accessibility")
+	func folderRowsKeepNameAccessibility() throws {
+		let view = ProjectTreeRow(
+			entry: treeEntry(
+				name: "outputs",
+				path: "outputs",
+				modifiedAtMs: 1,
+				size: 0,
+				kind: "directory",
+				children: []
+			),
+			projectFolderPath: "/tmp/proj-1",
+			depth: 0
+		)
+		let button = try view.inspect().find(viewWithAccessibilityIdentifier: "project-tree-folder")
+		#expect(try button.accessibilityLabel().string() == "outputs")
+	}
+
 	@Test("project chats start with the Files sidebar open and reset it on return")
 	func projectChatFilesSidebarVisibility() {
 		let store = ProjectsStore()

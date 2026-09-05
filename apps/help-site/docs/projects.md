@@ -78,7 +78,7 @@ Global skills under `~/.toby/skills/` still work normally. Use project-local ski
 
 ## Browse project files
 
-The project page shows the project file tree. Use it to confirm that generated outputs and skills landed in the right place. The folder row reveals the project folder in Finder, and files in the tree can be opened with their default app.
+The project page shows the project file tree. Use it to confirm that generated outputs and skills landed in the right place. The **Folder** field on the project page reveals the project folder in Finder. Click a file in the tree to preview it with Quick Look; if Quick Look cannot show the file, Toby opens it with the default app. Right-click a file to Quick Look, open it, or reveal it in Finder.
 
 Generated files are written to:
 

@@ -1,3 +1,4 @@
+import QuickLook
 import SwiftUI
 
 struct ProjectFileTreeSection: View {
@@ -45,6 +46,7 @@ struct ProjectTreeRow: View {
 	let depth: Int
 	var changeKinds: [String: ProjectTreeChangeKind] = [:]
 	@State private var isExpanded = true
+	@State private var quickLookURL: URL?
 	@Environment(\.accessibilityReduceMotion) private var reduceMotion
 
 	private var expandAnimation: Animation? {
@@ -63,7 +65,7 @@ struct ProjectTreeRow: View {
 						isExpanded.toggle()
 					}
 				} else {
-					RevealInFinder.openWithDefaultApp(path: absolutePath)
+					previewFile()
 				}
 			} label: {
 				HStack(spacing: 6) {
@@ -96,9 +98,28 @@ struct ProjectTreeRow: View {
 			.buttonStyle(.plain)
 			.background(changeBackground)
 			.clipShape(.rect(cornerRadius: 4))
-			.help(entry.isDirectory ? (isExpanded ? "Collapse folder" : "Expand folder") : "Open with default app")
-			.accessibilityLabel(entry.isDirectory ? entry.name : "Open \(entry.name)")
+			.help(entry.isDirectory ? (isExpanded ? "Collapse folder" : "Expand folder") : "Quick Look")
+			.accessibilityLabel(entry.isDirectory ? entry.name : "Quick Look \(entry.name)")
+			.accessibilityIdentifier(entry.isDirectory ? "project-tree-folder" : "project-tree-file")
 			.accessibilityValue(accessibilityValue)
+			.quickLookPreview($quickLookURL)
+			.contextMenu {
+				if entry.isDirectory {
+					Button("Reveal in Finder", systemImage: "folder") {
+						RevealInFinder.reveal(path: absolutePath)
+					}
+				} else {
+					Button("Quick Look", systemImage: "eye") {
+						previewFile()
+					}
+					Button("Open", systemImage: "arrow.up.forward.app") {
+						RevealInFinder.openWithDefaultApp(path: absolutePath)
+					}
+					Button("Reveal in Finder", systemImage: "folder") {
+						RevealInFinder.reveal(path: absolutePath)
+					}
+				}
+			}
 			if entry.isDirectory, isExpanded {
 				VStack(alignment: .leading, spacing: 2) {
 					ForEach(entry.children ?? []) { child in
@@ -125,6 +146,15 @@ struct ProjectTreeRow: View {
 		URL(fileURLWithPath: entry.relativePath, relativeTo: URL(fileURLWithPath: projectFolderPath, isDirectory: true))
 			.standardizedFileURL
 			.path
+	}
+
+	private func previewFile() {
+		FileQuickLook.previewOrOpen(path: absolutePath) { url in
+			quickLookURL = nil
+			DispatchQueue.main.async {
+				quickLookURL = url
+			}
+		}
 	}
 
 	private var accessibilityValue: String {
