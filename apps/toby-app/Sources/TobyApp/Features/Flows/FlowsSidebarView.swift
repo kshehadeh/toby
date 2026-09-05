@@ -5,21 +5,6 @@ struct FlowsSidebarView: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			Button {
-				store.selectHome()
-			} label: {
-				SidebarListHeader(
-					title: "All Flows",
-					systemImage: "arrow.triangle.branch",
-					isSelected: store.selectedFlowId == nil,
-				)
-			}
-			.buttonStyle(.plain)
-			.accessibilityIdentifier("flows-home-button")
-			.accessibilityAddTraits(store.selectedFlowId == nil ? [.isSelected] : [])
-			.padding(.horizontal, 10)
-			.padding(.top, 10)
-
 			ScrollView {
 				VStack(alignment: .leading, spacing: 2) {
 					if store.isListLoading && store.flows.isEmpty {

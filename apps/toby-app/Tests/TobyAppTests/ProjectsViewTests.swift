@@ -160,8 +160,7 @@ struct ProjectsViewTests {
 		store.projects[0] = sampleProject(name: "Demo", personaName: "toby")
 		let view = ProjectsSidebarView(
 			store: store,
-			onSelect: { _ in },
-			onSelectHome: {}
+			onSelect: { _ in }
 		)
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Demo")
@@ -169,7 +168,7 @@ struct ProjectsViewTests {
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "1 chat · Toby")
 		}
-		#expect(throws: Never.self) {
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "projects-home-button")
 		}
 		#expect(throws: (any Error).self) {
@@ -301,8 +300,7 @@ struct ProjectsViewTests {
 		store.isShowingChat = true
 		let view = ProjectsSidebarView(
 			store: store,
-			onSelect: { _ in },
-			onSelectHome: {}
+			onSelect: { _ in }
 		)
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "project-sidebar-active-chat")

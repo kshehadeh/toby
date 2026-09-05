@@ -3,28 +3,11 @@ import SwiftUI
 struct ProjectsSidebarView: View {
 	@Bindable var store: ProjectsStore
 	let onSelect: (String) -> Void
-	let onSelectHome: () -> Void
 	var onSelectChat: (ProjectSummary, String) -> Void = { _, _ in }
 	var onDelete: ((ProjectSummary) -> Void)? = nil
 
-	private var isHomeSelected: Bool { store.selectedProjectId == nil }
-
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			Button(action: onSelectHome) {
-				SidebarListHeader(
-					title: "Projects",
-					systemImage: "folder",
-					isSelected: isHomeSelected,
-				)
-			}
-			.buttonStyle(.plain)
-			.accessibilityIdentifier("projects-home-button")
-			.accessibilityAddTraits(isHomeSelected ? [.isSelected] : [])
-			.frame(maxWidth: .infinity, alignment: .leading)
-			.padding(.horizontal, 10)
-			.padding(.top, 10)
-
 			ScrollView {
 				LazyVStack(alignment: .leading, spacing: 2) {
 					if store.isLoading && store.projects.isEmpty {
@@ -79,6 +62,7 @@ struct ProjectsSidebarView: View {
 				}
 				.frame(maxWidth: .infinity, alignment: .leading)
 				.padding(.horizontal, 8)
+				.padding(.top, 8)
 			}
 		}
 	}

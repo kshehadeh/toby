@@ -4,8 +4,6 @@ struct SidebarActionItem: Identifiable, Equatable {
 	let route: DetailRoute
 	let title: String
 	let systemImage: String
-	let hoveredSystemImage: String
-	let accentColor: Color
 	let detail: String
 
 	var id: DetailRoute { route }
@@ -38,64 +36,48 @@ struct AppSidebar<Content: View>: View {
 				route: .dashboard,
 				title: "Home",
 				systemImage: "house",
-				hoveredSystemImage: "house.fill",
-				accentColor: AppTheme.accent,
 				detail: "See what needs your attention: unread mail, open tasks, and setup steps at a glance."
 			),
 			SidebarActionItem(
 				route: .chat,
 				title: "Chats",
 				systemImage: "message",
-				hoveredSystemImage: "message.fill",
-				accentColor: Color(red: 0.35, green: 0.68, blue: 1),
 				detail: "Open your chat workspace, continue existing conversations, or start a new session with Toby."
 			),
 			SidebarActionItem(
 				route: .integrations,
 				title: "Integrations",
 				systemImage: "square.grid.2x2",
-				hoveredSystemImage: "square.grid.2x2.fill",
-				accentColor: Color(red: 0.32, green: 0.82, blue: 0.48),
 				detail: "Manage connected services, credentials, setup guides, and integration-specific capabilities."
 			),
 			SidebarActionItem(
 				route: .projects,
 				title: "Projects",
 				systemImage: "folder",
-				hoveredSystemImage: "folder.fill",
-				accentColor: Color(red: 0.95, green: 0.7, blue: 0.28),
 				detail: "Work inside project folders with scoped chats, local guidance, skills, and generated outputs."
 			),
 			SidebarActionItem(
 				route: .skills,
 				title: "Skills",
 				systemImage: "wand.and.stars",
-				hoveredSystemImage: "wand.and.stars",
-				accentColor: Color(red: 0.72, green: 0.52, blue: 1),
 				detail: "Browse installed skills, inspect their instructions, edit them, or add new reusable workflows."
 			),
 			SidebarActionItem(
 				route: .schedules,
 				title: "Schedules",
 				systemImage: "clock",
-				hoveredSystemImage: "clock.fill",
-				accentColor: AppTheme.accent,
 				detail: "Create and monitor recurring prompts that run on a schedule through Toby's background daemon."
 			),
 			SidebarActionItem(
 				route: .flows,
 				title: "Flows",
 				systemImage: "arrow.triangle.branch",
-				hoveredSystemImage: "arrow.triangle.branch",
-				accentColor: Color(red: 0.38, green: 0.72, blue: 0.86),
 				detail: "Browse named flow pipelines, inspect their nodes, and review recent execution history."
 			),
 			SidebarActionItem(
 				route: .recordings,
 				title: "Recordings",
 				systemImage: "waveform",
-				hoveredSystemImage: "waveform",
-				accentColor: Color(red: 1, green: 0.36, blue: 0.42),
 				detail: "Review audio recordings, transcripts, and chats created from recorded context."
 			),
 		]
@@ -115,32 +97,15 @@ struct AppSidebar<Content: View>: View {
 				onCheckForUpdates: onCheckForUpdates,
 				onRestartServer: onRestartServer
 			)
+			SidebarWorkspaceMenu(
+				currentRoute: currentRoute,
+				items: actionItems,
+				onSelectRoute: onSelectRoute
+			)
+			.padding(.bottom, 10)
 			sidebarContent()
 				.frame(maxHeight: .infinity, alignment: .topLeading)
 				.padding(.bottom, 16)
-			Divider()
-				.background(AppTheme.separator)
-				.opacity(0.5)
-				.padding(.vertical, 2)
-			LazyVGrid(
-				columns: [
-					GridItem(.flexible(), spacing: 6),
-					GridItem(.flexible(), spacing: 6),
-					GridItem(.flexible(), spacing: 6),
-				],
-				spacing: 6
-			) {
-				ForEach(actionItems) { item in
-					SidebarActionGridButton(
-						item: item,
-						isSelected: currentRoute == item.route
-					) {
-						onSelectRoute(item.route)
-					}
-				}
-			}
-			.padding(.top, 6)
-			.padding(.bottom, 8)
 			Divider()
 				.background(AppTheme.separator)
 				.opacity(0.5)
@@ -167,70 +132,31 @@ struct AppSidebar<Content: View>: View {
 	}
 }
 
-private struct SidebarActionGridButton: View {
-	let item: SidebarActionItem
-	let isSelected: Bool
-	let action: () -> Void
-
-	@State private var isHovered = false
-	@State private var isHelpVisible = false
-	@State private var hoverWorkItem: DispatchWorkItem?
+struct SidebarWorkspaceMenu: View {
+	let currentRoute: DetailRoute
+	let items: [SidebarActionItem]
+	let onSelectRoute: (DetailRoute) -> Void
 
 	var body: some View {
-		Button(action: action) {
-			Image(systemName: isHovered ? item.hoveredSystemImage : item.systemImage)
-				.font(.system(size: 18, weight: .medium))
-				.symbolRenderingMode(isHovered ? .palette : .monochrome)
-				.foregroundStyle(iconPrimaryStyle, iconSecondaryStyle)
-				.frame(maxWidth: .infinity, minHeight: 34)
-				.contentShape(RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius))
-				.background(
-					RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
-						.fill(backgroundFill)
-				)
-		}
-		.buttonStyle(.plain)
-		.onHover(perform: handleHover)
-		.popover(isPresented: $isHelpVisible, arrowEdge: .leading) {
-			SidebarActionHelpPopover(title: item.title, detail: item.detail)
-				.environment(AppearancePreferences.shared)
-		}
-		.accessibilityLabel(item.title)
-		.accessibilityHint(item.detail)
-		.frame(maxWidth: .infinity, minHeight: 34)
-	}
-
-	private var backgroundFill: Color {
-		if isSelected { return item.accentColor.opacity(0.22) }
-		return item.accentColor.opacity(isHovered ? 0.18 : 0)
-	}
-
-	private var iconPrimaryStyle: Color {
-		if isHovered { return item.accentColor }
-		if isSelected { return item.accentColor }
-		return AppTheme.secondaryText
-	}
-
-	private var iconSecondaryStyle: Color {
-		if isHovered { return AppTheme.primaryText }
-		if isSelected { return item.accentColor }
-		return AppTheme.secondaryText
-	}
-
-	private func handleHover(_ hovering: Bool) {
-		isHovered = hovering
-		hoverWorkItem?.cancel()
-
-		if hovering {
-			let workItem = DispatchWorkItem {
-				isHelpVisible = true
+		Menu {
+			ForEach(items) { item in
+				Button {
+					onSelectRoute(item.route)
+				} label: {
+					Label(item.title, systemImage: item.systemImage)
+				}
+				.accessibilityLabel(item.title)
+				.accessibilityHint(item.detail)
 			}
-			hoverWorkItem = workItem
-			DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: workItem)
-		} else {
-			isHelpVisible = false
-			hoverWorkItem = nil
+		} label: {
+			Label(currentRoute.menuTitle, systemImage: currentRoute.systemImage)
+				.frame(maxWidth: .infinity, alignment: .leading)
 		}
+		.menuStyle(.borderlessButton)
+		.accessibilityLabel("Workspace")
+		.accessibilityValue(currentRoute.menuTitle)
+		.accessibilityHint("Choose a Toby workspace")
+		.accessibilityIdentifier("sidebar-workspace-menu")
 	}
 }
 

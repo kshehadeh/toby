@@ -53,7 +53,9 @@ two words or sentence punctuation.
 
 ## Surfaces
 
-Toby.app's primary workspaces are accessible from the sidebar. Memories opens as a separate window from the View menu, command palette, or Home recent-memories list.
+Use the workspace dropdown beneath the sidebar header to switch between Toby.app's primary workspaces. Memories opens as a separate window from the View menu, command palette, or Home recent-memories list.
+
+![Toby.app workspace dropdown](/img/toby-app-workspace-menu.png)
 
 ### Home
 
@@ -77,8 +79,8 @@ folder) and **Open**.
 ### Recordings
 
 The Recordings window lists your past recordings with metadata such as start
-time, duration, and transcription status. Click the **Recordings** header above
-the sidebar list to return to its card overview, then select a recording to view
+time, duration, and transcription status. Choose **Recordings** from the
+workspace dropdown to return to its card overview, then select a recording to view
 its transcript, generate an AI summary, or start a chat about it.
 
 ![Toby.app Recordings window](/img/toby-app-recordings.png)
@@ -97,8 +99,8 @@ The Projects area lists each project in the sidebar. Select one to open its
 page in the main window: start a new chat, resume a recent chat, edit the
 summary or persona, reveal the project folder, and inspect the generated file
 tree. The toolbar shows **+** (new project) when nothing is selected, and
-**New Chat** plus **Delete** on a project page. Click **Projects** in the
-sidebar to see every project as cards. Home also lists the five most recently
+**New Chat** plus **Delete** on a project page. Choose **Projects** from the
+workspace dropdown to see every project as cards. Home also lists the five most recently
 updated projects in its left sidebar. Project chats stay in Projects: they
 never appear in the Chats sidebar or the main Chats view. While a project chat
 is open, a folder icon marks the chat and a toolbar button returns you to the

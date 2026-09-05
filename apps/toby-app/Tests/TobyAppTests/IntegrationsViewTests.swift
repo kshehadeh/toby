@@ -123,16 +123,13 @@ struct IntegrationsViewTests {
 		}
 	}
 
-	@Test("integrations sidebar offers the all-integrations view")
-	func integrationsSidebarOffersHomeView() throws {
+	@Test("integrations sidebar omits the redundant overview button")
+	func integrationsSidebarOmitsOverviewButton() throws {
 		let store = ConfigureStore()
 		store.tree = makeTree()
 		let view = IntegrationsSidebarView(store: store)
-		#expect(throws: Never.self) {
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "integrations-home-button")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Integrations")
 		}
 	}
 

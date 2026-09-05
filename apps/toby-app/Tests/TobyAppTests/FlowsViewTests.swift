@@ -93,9 +93,6 @@ struct FlowsViewTests {
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Calendar Summary")
 		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "All Flows")
-		}
 	}
 
 	@Test("flows sidebar shows empty state when no flows")
@@ -107,14 +104,11 @@ struct FlowsViewTests {
 		}
 	}
 
-	@Test("flows sidebar marks all-flows as selected on home")
-	func flowsSidebarMarksHomeSelected() throws {
+	@Test("flows sidebar renders rows when no flow is selected")
+	func flowsSidebarRendersRowsWhenNoFlowIsSelected() throws {
 		let store = FlowsStore()
 		store.flows = [sampleFlow()]
 		let view = FlowsSidebarView(store: store)
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "flows-home-button")
-		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-sidebar-row-dashboard.email.summary")
 		}

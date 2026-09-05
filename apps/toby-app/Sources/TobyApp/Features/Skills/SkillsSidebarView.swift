@@ -6,21 +6,6 @@ struct SkillsSidebarView: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			Button {
-				store.selectHome()
-			} label: {
-				SidebarListHeader(
-					title: "Skills",
-					systemImage: "wand.and.stars",
-					isSelected: store.selectedSkillId == nil,
-				)
-			}
-			.buttonStyle(.plain)
-			.accessibilityIdentifier("skills-home-button")
-			.accessibilityAddTraits(store.selectedSkillId == nil ? [.isSelected] : [])
-			.padding(.horizontal, 10)
-			.padding(.top, 10)
-
 			ScrollView {
 				VStack(alignment: .leading, spacing: 2) {
 					if store.isListLoading && store.skills.isEmpty {

@@ -10,14 +10,6 @@ struct ChatSessionsSidebar: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			SidebarListHeader(
-				title: "Chats",
-				systemImage: "message",
-				isSelected: selectedSessionId == nil,
-			)
-			.padding(.horizontal, 10)
-			.padding(.top, 10)
-
 			if isSessionsLoading && sessions.isEmpty {
 				Text("Loading sessions…")
 					.font(.caption)
@@ -60,6 +52,7 @@ struct ChatSessionsSidebar: View {
 							}
 						}
 					}
+					.padding(.top, 8)
 				}
 				.automaticScrollIndicators(axes: .vertical)
 				.frame(maxHeight: .infinity)

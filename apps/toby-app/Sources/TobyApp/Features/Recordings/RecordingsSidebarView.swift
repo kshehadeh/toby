@@ -9,24 +9,6 @@ struct RecordingsSidebarView: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			Button {
-				store.showRecordingsOverview()
-			} label: {
-				SidebarListHeader(
-					title: "Recordings",
-					systemImage: "waveform",
-					isSelected: store.selectedRecordingIds.isEmpty && store.selectedActiveRecordingId == nil,
-				)
-			}
-			.buttonStyle(.plain)
-			.accessibilityAddTraits(
-				store.selectedRecordingIds.isEmpty && store.selectedActiveRecordingId == nil
-					? [.isSelected] : []
-			)
-			.padding(.horizontal, 10)
-			.padding(.top, 10)
-			.accessibilityIdentifier("recordings-sidebar-header")
-			.accessibilityLabel("Show recordings overview")
 			ScrollView {
 				VStack(alignment: .leading, spacing: 2) {
 					if let active = activeRecording {

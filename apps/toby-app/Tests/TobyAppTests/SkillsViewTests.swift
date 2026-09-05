@@ -72,15 +72,12 @@ struct SkillsViewTests {
 		}
 	}
 
-	@Test("skills sidebar offers the all-skills view")
-	func skillsSidebarOffersHomeView() throws {
+	@Test("skills sidebar omits the redundant overview button")
+	func skillsSidebarOmitsOverviewButton() throws {
 		let store = SkillsStore()
 		let view = SkillsSidebarView(store: store, onDelete: { _ in })
-		#expect(throws: Never.self) {
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "skills-home-button")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Skills")
 		}
 		#expect(throws: (any Error).self) {
 			try view.inspect().find(text: "New Skill")
@@ -93,16 +90,13 @@ struct SkillsViewTests {
 		}
 	}
 
-	@Test("skills sidebar marks home as selected when no skill is selected")
-	func skillsSidebarMarksHomeSelected() throws {
+	@Test("skills sidebar renders rows when no skill is selected")
+	func skillsSidebarRendersRowsWhenNoSkillIsSelected() throws {
 		let store = SkillsStore()
 		store.skills = [
 			SkillListItem(dirName: "research", name: "Research", description: "Research assistant"),
 		]
 		let view = SkillsSidebarView(store: store, onDelete: { _ in })
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "skills-home-button")
-		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "skill-sidebar-row-research")
 		}

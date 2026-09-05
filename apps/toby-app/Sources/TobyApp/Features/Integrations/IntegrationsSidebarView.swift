@@ -5,21 +5,6 @@ struct IntegrationsSidebarView: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			Button {
-				store.selectIntegrationHome()
-			} label: {
-				SidebarListHeader(
-					title: "Integrations",
-					systemImage: "square.grid.2x2",
-					isSelected: store.selectedNavKey == nil,
-				)
-			}
-			.buttonStyle(.plain)
-			.accessibilityIdentifier("integrations-home-button")
-			.accessibilityAddTraits(store.selectedNavKey == nil ? [.isSelected] : [])
-			.padding(.horizontal, 10)
-			.padding(.top, 10)
-
 			ScrollView {
 				VStack(alignment: .leading, spacing: 2) {
 					if store.isLoading && store.integrationSections.isEmpty {

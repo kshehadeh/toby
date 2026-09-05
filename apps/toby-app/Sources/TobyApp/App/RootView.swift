@@ -382,9 +382,7 @@ struct RootView: View {
                 isRecordingProcessing: store.isRecordingProcessing,
                 updateStore: updateStore,
                 onSelectRoute: { route in
-                    if route == .projects, history.current == .projects {
-                        Task { await projectsStore.selectHome() }
-                    }
+                    showRouteOverviewIfNeeded(route)
                     navigateToRoute(route)
                 },
                 isPersonaPickerPresented: $isPersonaPickerPresented,
@@ -446,9 +444,6 @@ struct RootView: View {
                             store: projectsStore,
                             onSelect: { id in
                                 Task { await projectsStore.selectProject(id: id) }
-                            },
-                            onSelectHome: {
-                                Task { await projectsStore.selectHome() }
                             },
                             onSelectChat: { project, sessionId in
                                 Task {
@@ -830,6 +825,27 @@ struct RootView: View {
     private func navigateToRoute(_ route: DetailRoute) {
         history.navigate(to: route)
         leaveProjectSessionIfMainChatVisible()
+    }
+
+    private func showRouteOverviewIfNeeded(_ route: DetailRoute) {
+        guard route == history.current else { return }
+
+        switch route {
+        case .integrations:
+            integrationsStore.selectIntegrationHome()
+        case .projects:
+            Task { await projectsStore.selectHome() }
+        case .schedules:
+            schedulesStore.selectHome()
+        case .flows:
+            flowsStore.selectHome()
+        case .recordings:
+            recordingsStore.showRecordingsOverview()
+        case .skills:
+            skillsStore.selectHome()
+        case .dashboard, .chat:
+            break
+        }
     }
 
     private func leaveProjectSessionIfMainChatVisible() {

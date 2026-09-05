@@ -606,20 +606,14 @@ struct RecordingsViewTests {
 		#expect(!store.isDetailLoading)
 	}
 
-	@Test("recordings sidebar header opens the overview")
-	func recordingsSidebarHeaderOpensOverview() throws {
+	@Test("recordings sidebar omits the redundant overview button")
+	func recordingsSidebarOmitsOverviewButton() throws {
 		let store = RecordingsStore()
-		store.selectedRecordingIds = ["r1"]
-		store.selectedActiveRecordingId = "active-1"
 		let view = RecordingsSidebarView(store: store, onDeleteRecording: { _ in })
 
-		try view.inspect()
-			.find(viewWithAccessibilityIdentifier: "recordings-sidebar-header")
-			.button()
-			.tap()
-
-		#expect(store.selectedRecordingIds.isEmpty)
-		#expect(store.selectedActiveRecordingId == nil)
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "recordings-sidebar-header")
+		}
 	}
 
 	// MARK: - Active recording

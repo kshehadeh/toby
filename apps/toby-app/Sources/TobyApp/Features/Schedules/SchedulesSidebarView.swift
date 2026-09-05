@@ -6,21 +6,6 @@ struct SchedulesSidebarView: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			Button {
-				store.selectHome()
-			} label: {
-				SidebarListHeader(
-					title: "Schedules",
-					systemImage: "clock",
-					isSelected: store.selectedScheduleId == nil,
-				)
-			}
-			.buttonStyle(.plain)
-			.accessibilityIdentifier("schedules-home-button")
-			.accessibilityAddTraits(store.selectedScheduleId == nil ? [.isSelected] : [])
-			.padding(.horizontal, 10)
-			.padding(.top, 10)
-
 			ScrollView {
 				VStack(alignment: .leading, spacing: 2) {
 					if store.isLoading && store.schedules.isEmpty {

@@ -68,15 +68,12 @@ struct SchedulesViewTests {
 		}
 	}
 
-	@Test("schedules sidebar offers the all-schedules view")
-	func schedulesSidebarOffersHomeView() throws {
+	@Test("schedules sidebar omits the redundant overview button")
+	func schedulesSidebarOmitsOverviewButton() throws {
 		let store = SchedulesStore()
 		let view = SchedulesSidebarView(store: store, onDelete: { _ in })
-		#expect(throws: Never.self) {
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "schedules-home-button")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Schedules")
 		}
 		#expect(throws: (any Error).self) {
 			try view.inspect().find(text: "New Schedule")

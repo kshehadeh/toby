@@ -51,12 +51,6 @@ struct AppSidebarTests {
         )
     }
 
-    @Test("renders Chats section header")
-    func rendersChatsHeader() throws {
-        let view = makeSidebar(sessions: [])
-        #expect(throws: Never.self) { try view.inspect().find(text: "Chats") }
-    }
-
     @Test("empty sessions shows placeholder text")
     func emptySessionsShowsPlaceholder() throws {
         let view = makeSidebar(sessions: [])
@@ -101,7 +95,7 @@ struct AppSidebarTests {
         let view = makeSidebar(sessions: sessions)
         // Sessions are rendered inside a ScrollView > VStack > ForEach
         let buttons = try view.inspect().findAll(ViewType.Button.self)
-        // Buttons: app header + session×2 + chats + integrations + skills + schedules + recordings + settings + persona
+        // Buttons: app header + session×2 + menu destinations + persona.
         let sessionButtons = buttons.filter { btn in
             guard let label = try? btn.labelView().find(ViewType.Text.self),
                   let text = try? label.string() else { return false }
@@ -148,36 +142,49 @@ struct AppSidebarTests {
         #expect(selectedId == "abc")
     }
 
-    @Test("Toby section buttons emit correct routes")
-    func tobySectionButtonsEmitRoutes() throws {
+    @Test("workspace menu lists all destinations and emits their routes")
+    func workspaceMenuListsDestinationsAndEmitsRoutes() throws {
         var selectedRoutes: [DetailRoute] = []
         let sidebar = makeSidebarWithRoute(currentRoute: .chat) { selectedRoutes.append($0) }
-        let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
-        // The lower sidebar route buttons are icon-only and expose labels for accessibility.
-        let integrationsButton = buttons.first { (try? $0.accessibilityLabel().string()) == "Integrations" }
-        try #require(integrationsButton != nil, "Integrations button not found")
-        try integrationsButton!.tap()
-        let schedulesButton = buttons.first { (try? $0.accessibilityLabel().string()) == "Schedules" }
-        try #require(schedulesButton != nil, "Schedules button not found")
-        try schedulesButton!.tap()
-        #expect(selectedRoutes == [.integrations, .schedules])
+        let menu = try sidebar.inspect().find(ViewType.Menu.self)
+        let buttons = try menu.findAll(ViewType.Button.self)
+
+        #expect(buttons.count == DetailRoute.allCases.count)
+        for route in DetailRoute.allCases {
+            let button = buttons.first { (try? $0.accessibilityLabel().string()) == route.menuTitle }
+            try #require(button != nil, "\(route.menuTitle) menu item not found")
+            try button!.tap()
+        }
+
+        #expect(selectedRoutes == DetailRoute.allCases)
     }
 
-    @Test("Chats button emits chat route")
-    func chatsButtonEmitsChatRoute() throws {
-        var selectedRoute: DetailRoute?
-        let sidebar = makeSidebarWithRoute(currentRoute: .integrations) { selectedRoute = $0 }
-        let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
-        let chatsButton = buttons.first { (try? $0.accessibilityLabel().string()) == "Chats" }
-        try #require(chatsButton != nil, "Chats button not found")
-        try chatsButton!.tap()
-        #expect(selectedRoute == .chat)
+    @Test("workspace menu emits a reselected Projects route")
+    func workspaceMenuEmitsReselectedProjectsRoute() throws {
+        var selectedRoutes: [DetailRoute] = []
+        let sidebar = makeSidebarWithRoute(currentRoute: .projects) { selectedRoutes.append($0) }
+        let menu = try sidebar.inspect().find(ViewType.Menu.self)
+        let projectsButton = try menu.findAll(ViewType.Button.self).first {
+            (try? $0.accessibilityLabel().string()) == "Projects"
+        }
+        try #require(projectsButton != nil, "Projects menu item not found")
+        try projectsButton!.tap()
+        #expect(selectedRoutes == [.projects])
+    }
+
+    @Test("workspace menu identifies the current destination")
+    func workspaceMenuIdentifiesCurrentDestination() throws {
+        let sidebar = makeSidebarWithRoute(currentRoute: .integrations) { _ in }
+        let menu = try sidebar.inspect().find(ViewType.Menu.self)
+        #expect(try menu.accessibilityLabel().string() == "Workspace")
+        #expect(try menu.accessibilityValue().string() == "Integrations")
     }
 
     @Test("sidebar does not include settings gear")
     func sidebarDoesNotIncludeSettingsGear() throws {
         let sidebar = makeSidebarWithRoute(currentRoute: .chat) { _ in }
-        let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
+        let menu = try sidebar.inspect().find(ViewType.Menu.self)
+        let buttons = try menu.findAll(ViewType.Button.self)
         let settingsButton = buttons.first { (try? $0.accessibilityLabel().string()) == "Settings" }
         #expect(settingsButton == nil)
     }
@@ -185,7 +192,8 @@ struct AppSidebarTests {
     @Test("sidebar does not include memories tile")
     func sidebarDoesNotIncludeMemoriesTile() throws {
         let sidebar = makeSidebarWithRoute(currentRoute: .chat) { _ in }
-        let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
+        let menu = try sidebar.inspect().find(ViewType.Menu.self)
+        let buttons = try menu.findAll(ViewType.Button.self)
         let memoriesButton = buttons.first { (try? $0.accessibilityLabel().string()) == "Memories" }
         #expect(memoriesButton == nil)
     }
