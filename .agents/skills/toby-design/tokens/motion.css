@@ -1,4 +1,5 @@
-/* Short, linear-feeling ease-outs. No bounce, no spring, no scale on press. */
+/* Short, linear-feeling ease-outs. Springs and scale are reserved for the
+   source-backed toast, dashboard, and attention-state exceptions. */
 :root{
   --ease-out:cubic-bezier(0,0,.58,1); /* @kind other */
   --ease-in-out:cubic-bezier(.42,0,.58,1); /* @kind other */

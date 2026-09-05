@@ -1,6 +1,12 @@
 # Toby Design System
 
 Toby is an AI-assisted **native macOS app and CLI for personal productivity**.
+> **For agents building native UI:** start with the repository's
+> [`DESIGN.md`](../../../DESIGN.md), then follow this skill's
+> [`SKILL.md`](SKILL.md). This bundle is a detailed visual reference; current
+> SwiftUI source remains authoritative when it differs from a Figma or React
+> specimen.
+
 It connects Email, Todoist, Slack, Jira, Notion, Apple Calendar / Reminders /
 Contacts, web search and local macOS controls, so you can search, summarize,
 organize and act on work from chat. Around chat it adds personas, skills,
@@ -30,8 +36,9 @@ Nothing here was designed from scratch; every value was read out of the source.
   and `apps/help-site/src/css/custom.css` (web brand).
 - **Attached codebase:** the same repo mounted locally as `toby/`.
 - **Docs read for tone:** `docs/*.md`, `apps/help-site/docs/**`, root `README.md`.
-- No Figma file, slide deck, or written brand guide was provided. Voice and
-  visual rules below were inferred from code and product copy.
+- The current **Toby Design System** Figma file is a catalog and visual
+  reference. Its native component/page mapping and limitations are documented
+  in `references/figma-map.md`; source remains authoritative.
 
 There is **no vector logo** in the sources — the mark ships only as raster PNG
 (`assets/logo/`), a line-drawn portrait of a bespectacled man in a suit. Where a
@@ -128,11 +135,11 @@ use ultra-thin material; the help-site navbar blurs at ≥997px. Everything else
 is opaque. Transparency *as alpha on text and separators* is, by contrast,
 the foundation of the whole palette.
 
-**Motion.** Short ease-outs, no bounce, no spring: 80ms popover dismiss, 120ms
-hover tints, 200ms disclosure, 250ms dashboard reflow. Two repeating
-animations exist — an 850ms attention pulse (opacity + a 1.03 scale) on the
-persona footer, and an 800ms skeleton pulse. A refresh glyph spins one turn per
-800ms *only while refreshing*. Everything respects Reduce Motion.
+**Motion.** Default motion is short and quiet: 80ms popover dismiss, 120ms
+hover tints, and 200ms disclosure. Damped springs are reserved for meaningful
+toast and dashboard section transitions. State-signaling attention animation
+may use a 1.03 persona scale, recording pulse, or symbol effect. A refresh
+glyph spins only while refreshing. Everything new must respect Reduce Motion.
 
 **Hover and press.** Hover = a neutral 6–8% wash, or an 18% wash of the item's
 own hue, plus a promotion of text from muted → primary; sidebar destination
@@ -190,6 +197,7 @@ backgrounds, circular-masked. No photography, no grain, no duotone.
 | `assets/` | `logo/`, `personas/`, `icons/integrations/`, `icons/ai/`, `illustrations/`. |
 | `github.md` | Source repo association + screen map for upstream sync. |
 | `SKILL.md` | Agent-skill wrapper for use outside this project. |
+| `references/` | Source-backed component recipes, screen patterns, SwiftUI workflow, and Figma map. |
 
 ### Components
 
@@ -213,11 +221,18 @@ no Tooltip, no Dialog, because the app builds those from stock SwiftUI.
 **Intentional additions:** none. Two renames for clarity: `Toggle` ←
 `SettingsToggle`, `TextField` ← `SettingsInlineField`.
 
-### Known gaps
+This visual catalog contains **26 named component families**. Their production
+source mapping and behavioral contracts are in
+[`references/component-recipes.md`](references/component-recipes.md).
+
+### Reference limits
 
 - No font binaries: SF Pro / SF Pro Rounded / New York resolve natively on
   macOS and fall back to `system-ui` / Georgia elsewhere. Inter is loaded from
   Google Fonts, exactly as the help site does.
 - SF Symbols → Lucide substitution (see Iconography).
-- Not recreated: command palette, logs viewer, skills/memories/recordings
-  detail panes, markdown editor, permissions screen.
+- The UI kit and Figma layout references intentionally simplify dynamic
+  behavior. They do not define source-of-truth state, scrolling, focus,
+  accessibility, AppKit window behavior, or async ownership.
+- The Figma file's variables, components, and current limits are mapped in
+  [`references/figma-map.md`](references/figma-map.md).

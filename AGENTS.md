@@ -176,6 +176,13 @@ See [`docs/architecture.md`](docs/architecture.md), [`docs/security.md`](docs/se
   [Swift review skills](#swift-review-skills) below). Do not re-discover app
   architecture on every review — load
   [`.agents/context/swift-project-assessment.yaml`](.agents/context/swift-project-assessment.yaml).
+- **Native UI work:** before changing anything visible in `apps/toby-app`, read
+  [`DESIGN.md`](DESIGN.md) and invoke [`toby-design`](.agents/skills/toby-design/).
+  Reuse `AppTheme`, `SettingsDesign`, existing primitives, and native macOS
+  controls before creating local styling or a new abstraction. Treat current
+  SwiftUI source as authoritative over Figma/reference specimens. For windows,
+  title-bar chrome, sidebars, Settings, or modal windows, also invoke
+  [`toby-native-window`](.agents/skills/toby-native-window/).
 - **Dev loops:** `bun run dev` / `bun run app` build and open the native app (`scripts/build-app.sh` → `dist/Toby (Dev).app`); `bun run dev:turbo` watches the CLI via Turbo; daemon dev helpers are `bun run start:server`/`stop:server`/`restart:server` (`TOBY_PLUGINS_DIR=$PWD/dist`). Do not expect an Ink chat TUI — interactive UI is Toby.app only.
 - **Gotchas:** Never hardcode `~/.toby` paths; never read `credentials.json` without `readCredentials`; never add `BUILTIN_MODULES` entries for new integrations; never `npm install`; never create `apps/toby-app` code that imports `@toby/core`.
 
@@ -188,7 +195,7 @@ See [`docs/architecture.md`](docs/architecture.md), [`docs/security.md`](docs/se
 | [`bun-test-runner`](.agents/skills/bun-test-runner/) | Writing TS tests (`bun:test`, `describe`/`it`/`expect`/`mock`, `skipIf`) |
 | [`atomic-conventional-commit`](.agents/skills/atomic-conventional-commit/) | Commits (`feat`/`fix`/`docs`/`refactor`/`test`/`chore`, atomic per feature/bug) |
 | [`release-toby`](.agents/skills/release-toby/) | Releases (`release-it`, archives, DMG, installer, self-upgrade) |
-| [`toby-design`](.agents/skills/toby-design/) | Branded UI/assets, prototypes, mocks |
+| [`toby-design`](.agents/skills/toby-design/) | Required for native UI work: source-backed design contract, component/state recipes, Figma map, prototypes, mocks |
 | [`toby-screenshot-docs`](.agents/skills/toby-screenshot-docs/) | Native UI screenshots for help-site (`apps/help-site/static/img/`) |
 | `resolve-github-issue` | End-to-end GitHub issue resolution (`gh`, plan in spec mode) |
 | Swift pipeline (below) | SwiftUI/macOS reviews |

@@ -2,7 +2,7 @@ repo: kshehadeh/toby
 branch: main
 path: (whole repo; design system built primarily from apps/toby-app and apps/help-site)
 
-## Last sync
+## Last visual-reference sync
 
 date: 2026-08-24T00:00:00Z
 
@@ -10,8 +10,14 @@ date: 2026-08-24T00:00:00Z
 
 - Extracted the app's color, type, spacing, radius, elevation and motion tokens into `tokens/*.css`.
 - Copied the Toby mark, persona portraits, integration and AI-provider icons into `assets/`.
-- Authored 24 React components mirroring the app's SwiftUI primitives.
+- Authored 26 React component families mirroring the app's SwiftUI primitives.
 - Built two UI kits: the macOS app shell and the Docusaurus help site.
+
+### Authority
+
+This is a visual-reference sync record, not a source of truth. For native
+implementation, use the current SwiftUI source first, then root `DESIGN.md`.
+Figma mappings and known fidelity limits are in `references/figma-map.md`.
 
 ## Screen map
 
