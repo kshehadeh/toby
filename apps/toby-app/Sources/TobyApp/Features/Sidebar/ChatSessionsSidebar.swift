@@ -9,7 +9,15 @@ struct ChatSessionsSidebar: View {
 	let onDeleteSession: (SessionSummary) -> Void
 
 	var body: some View {
-		SidebarSection(title: "Chats") {
+		VStack(alignment: .leading, spacing: 0) {
+			SidebarListHeader(
+				title: "Chats",
+				systemImage: "message",
+				isSelected: selectedSessionId == nil,
+			)
+			.padding(.horizontal, 10)
+			.padding(.top, 10)
+
 			if isSessionsLoading && sessions.isEmpty {
 				Text("Loading sessions…")
 					.font(.caption)
@@ -57,6 +65,7 @@ struct ChatSessionsSidebar: View {
 				.frame(maxHeight: .infinity)
 			}
 		}
+		.background(AppTheme.sidebarBackground)
 	}
 }
 

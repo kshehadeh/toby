@@ -573,8 +573,8 @@ struct RecordingsViewTests {
 		}
 	}
 
-	@Test("detail view does not show empty state when recordings exist but none are selected")
-	func detailViewDoesNotShowEmptyStateWhenRecordingsExist() throws {
+	@Test("recordings overview shows cards when recordings exist but none are selected")
+	func recordingsOverviewShowsCardsWhenRecordingsExist() throws {
 		let store = RecordingsStore()
 		store.recordings = [makeRecording(id: "r1", name: "One")]
 		store.selectedRecordingIds = []
@@ -582,6 +582,44 @@ struct RecordingsViewTests {
 		#expect(throws: Error.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "empty-start-recording-button")
 		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "recordings-home-view")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "recording-card-r1")
+		}
+	}
+
+	@Test("recordings overview clears saved and active selections")
+	func recordingsOverviewClearsSelections() {
+		let store = RecordingsStore()
+		store.selectedRecordingIds = ["r1"]
+		store.selectedActiveRecordingId = "active-1"
+		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello")
+		store.isDetailLoading = true
+
+		store.showRecordingsOverview()
+
+		#expect(store.selectedRecordingIds.isEmpty)
+		#expect(store.selectedActiveRecordingId == nil)
+		#expect(store.detail == nil)
+		#expect(!store.isDetailLoading)
+	}
+
+	@Test("recordings sidebar header opens the overview")
+	func recordingsSidebarHeaderOpensOverview() throws {
+		let store = RecordingsStore()
+		store.selectedRecordingIds = ["r1"]
+		store.selectedActiveRecordingId = "active-1"
+		let view = RecordingsSidebarView(store: store, onDeleteRecording: { _ in })
+
+		try view.inspect()
+			.find(viewWithAccessibilityIdentifier: "recordings-sidebar-header")
+			.button()
+			.tap()
+
+		#expect(store.selectedRecordingIds.isEmpty)
+		#expect(store.selectedActiveRecordingId == nil)
 	}
 
 	// MARK: - Active recording

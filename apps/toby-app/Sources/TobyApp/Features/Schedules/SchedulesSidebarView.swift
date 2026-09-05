@@ -9,22 +9,10 @@ struct SchedulesSidebarView: View {
 			Button {
 				store.selectHome()
 			} label: {
-				HStack(spacing: 8) {
-					Image(systemName: "square.grid.2x2")
-						.font(.system(size: 12, weight: .semibold))
-						.foregroundStyle(store.selectedScheduleId == nil ? AppTheme.accent : AppTheme.tertiaryText)
-						.frame(width: 16)
-					Text("Schedules")
-						.font(.caption.weight(.medium))
-						.foregroundStyle(store.selectedScheduleId == nil ? AppTheme.primaryText : AppTheme.secondaryText)
-					Spacer(minLength: 0)
-				}
-				.padding(.horizontal, 10)
-				.padding(.vertical, 8)
-				.contentShape(Rectangle())
-				.background(
-					RoundedRectangle(cornerRadius: 8)
-						.fill(store.selectedScheduleId == nil ? Color.white.opacity(0.10) : Color.clear)
+				SidebarListHeader(
+					title: "Schedules",
+					systemImage: "clock",
+					isSelected: store.selectedScheduleId == nil,
 				)
 			}
 			.buttonStyle(.plain)

@@ -8,22 +8,10 @@ struct FlowsSidebarView: View {
 			Button {
 				store.selectHome()
 			} label: {
-				HStack(spacing: 8) {
-					Image(systemName: "square.grid.2x2")
-						.font(.system(size: 12, weight: .semibold))
-						.foregroundStyle(store.selectedFlowId == nil ? AppTheme.accent : AppTheme.tertiaryText)
-						.frame(width: 16)
-					Text("All Flows")
-						.font(.caption.weight(.medium))
-						.foregroundStyle(store.selectedFlowId == nil ? AppTheme.primaryText : AppTheme.secondaryText)
-					Spacer(minLength: 0)
-				}
-				.padding(.horizontal, 10)
-				.padding(.vertical, 8)
-				.contentShape(Rectangle())
-				.background(
-					RoundedRectangle(cornerRadius: 8)
-						.fill(store.selectedFlowId == nil ? AppTheme.selection : Color.clear)
+				SidebarListHeader(
+					title: "All Flows",
+					systemImage: "arrow.triangle.branch",
+					isSelected: store.selectedFlowId == nil,
 				)
 			}
 			.buttonStyle(.plain)

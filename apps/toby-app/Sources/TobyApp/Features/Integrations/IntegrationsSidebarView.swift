@@ -8,22 +8,10 @@ struct IntegrationsSidebarView: View {
 			Button {
 				store.selectIntegrationHome()
 			} label: {
-				HStack(spacing: 8) {
-					Image(systemName: "square.grid.2x2")
-						.font(.system(size: 12, weight: .semibold))
-						.foregroundStyle(store.selectedNavKey == nil ? AppTheme.accent : AppTheme.tertiaryText)
-						.frame(width: 16)
-					Text("Integrations")
-						.font(.caption.weight(.medium))
-						.foregroundStyle(store.selectedNavKey == nil ? AppTheme.primaryText : AppTheme.secondaryText)
-					Spacer(minLength: 0)
-				}
-				.padding(.horizontal, 10)
-				.padding(.vertical, 8)
-				.contentShape(Rectangle())
-				.background(
-					RoundedRectangle(cornerRadius: 8)
-						.fill(store.selectedNavKey == nil ? Color.white.opacity(0.10) : Color.clear)
+				SidebarListHeader(
+					title: "Integrations",
+					systemImage: "square.grid.2x2",
+					isSelected: store.selectedNavKey == nil,
 				)
 			}
 			.buttonStyle(.plain)

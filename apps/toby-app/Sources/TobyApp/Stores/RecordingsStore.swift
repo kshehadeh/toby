@@ -148,6 +148,17 @@ final class RecordingsStore {
 		detail = nil
 	}
 
+	/// Clears the current selection so the recordings overview can be shown.
+	/// Invalidating the detail token prevents an in-flight detail request from
+	/// restoring stale content after the overview is opened.
+	func showRecordingsOverview() {
+		detailLoadToken = UUID()
+		selectedActiveRecordingId = nil
+		selectedRecordingIds = []
+		detail = nil
+		isDetailLoading = false
+	}
+
 	/// Show header / inspector from the list row immediately, before the heavy
 	/// detail payload (transcript, summary, audio paths) arrives.
 	func applyDetailShellIfNeeded() {

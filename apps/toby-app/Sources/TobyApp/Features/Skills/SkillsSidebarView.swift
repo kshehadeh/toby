@@ -9,22 +9,10 @@ struct SkillsSidebarView: View {
 			Button {
 				store.selectHome()
 			} label: {
-				HStack(spacing: 8) {
-					Image(systemName: "square.grid.2x2")
-						.font(.system(size: 12, weight: .semibold))
-						.foregroundStyle(store.selectedSkillId == nil ? AppTheme.accent : AppTheme.tertiaryText)
-						.frame(width: 16)
-					Text("Skills")
-						.font(.caption.weight(.medium))
-						.foregroundStyle(store.selectedSkillId == nil ? AppTheme.primaryText : AppTheme.secondaryText)
-					Spacer(minLength: 0)
-				}
-				.padding(.horizontal, 10)
-				.padding(.vertical, 8)
-				.contentShape(Rectangle())
-				.background(
-					RoundedRectangle(cornerRadius: 8)
-						.fill(store.selectedSkillId == nil ? AppTheme.selection : Color.clear)
+				SidebarListHeader(
+					title: "Skills",
+					systemImage: "wand.and.stars",
+					isSelected: store.selectedSkillId == nil,
 				)
 			}
 			.buttonStyle(.plain)

@@ -444,7 +444,6 @@ struct RootView: View {
                     case .projects:
                         ProjectsSidebarView(
                             store: projectsStore,
-                            onCreate: { Task { await projectsStore.createProject() } },
                             onSelect: { id in
                                 Task { await projectsStore.selectProject(id: id) }
                             },

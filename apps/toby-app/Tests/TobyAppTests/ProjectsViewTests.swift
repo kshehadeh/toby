@@ -160,7 +160,6 @@ struct ProjectsViewTests {
 		store.projects[0] = sampleProject(name: "Demo", personaName: "toby")
 		let view = ProjectsSidebarView(
 			store: store,
-			onCreate: {},
 			onSelect: { _ in },
 			onSelectHome: {}
 		)
@@ -302,7 +301,6 @@ struct ProjectsViewTests {
 		store.isShowingChat = true
 		let view = ProjectsSidebarView(
 			store: store,
-			onCreate: {},
 			onSelect: { _ in },
 			onSelectHome: {}
 		)

@@ -70,7 +70,9 @@ Stopping performs these steps:
 5. Toby.app shows a success/error toast and the result becomes available in
    the **Recordings** window.
 
-The Recordings window fetches list and detail data from the daemon. While a
+The Recordings window fetches list and detail data from the daemon. Clicking the
+**Recordings** header above its sidebar list clears the current selection and
+shows a card overview of saved recordings. While a
 recording is in progress, the detail pane shows live capture metadata and a
 **Stop Recording** control that uses the same stop path as the toolbar and
 menu bar. After stop, while combine / transcription is still running, the

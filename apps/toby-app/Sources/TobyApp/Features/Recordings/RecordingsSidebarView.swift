@@ -9,11 +9,24 @@ struct RecordingsSidebarView: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			Text("Recordings")
-				.font(.caption)
-				.foregroundStyle(AppTheme.tertiaryText)
-				.padding(.horizontal, 8)
-				.padding(.top, 10)
+			Button {
+				store.showRecordingsOverview()
+			} label: {
+				SidebarListHeader(
+					title: "Recordings",
+					systemImage: "waveform",
+					isSelected: store.selectedRecordingIds.isEmpty && store.selectedActiveRecordingId == nil,
+				)
+			}
+			.buttonStyle(.plain)
+			.accessibilityAddTraits(
+				store.selectedRecordingIds.isEmpty && store.selectedActiveRecordingId == nil
+					? [.isSelected] : []
+			)
+			.padding(.horizontal, 10)
+			.padding(.top, 10)
+			.accessibilityIdentifier("recordings-sidebar-header")
+			.accessibilityLabel("Show recordings overview")
 			ScrollView {
 				VStack(alignment: .leading, spacing: 2) {
 					if let active = activeRecording {
@@ -31,32 +44,33 @@ struct RecordingsSidebarView: View {
 						}
 					}
 					if store.isLoading && store.recordings.isEmpty && activeRecording == nil {
-					Text("Loading recordings...")
-						.font(.caption)
-						.foregroundStyle(AppTheme.tertiaryText)
-						.padding(10)
-				} else if store.recordings.isEmpty && activeRecording == nil {
-					Text("No recordings")
-						.font(.caption)
-						.foregroundStyle(AppTheme.tertiaryText)
-						.padding(10)
-				} else {
-					ForEach(store.recordings) { recording in
-						Button {
-							let holdingCommand = NSApp.currentEvent?.modifierFlags.contains(.command) ?? false
-							Task { await store.selectRecording(id: recording.id, holdingCommand: holdingCommand) }
-						} label: {
-							RecordingSidebarRow(
-								recording: recording,
-								isSelected: store.selectedRecordingIds.contains(recording.id),
-								isProcessing: processingState?.recordingId == recording.id && processingState?.isActive == true,
-								processingStage: processingState?.recordingId == recording.id ? processingState?.stage : nil,
-							)
-						}
-						.buttonStyle(.plain)
-						.contextMenu {
-							Button("Delete Recording", systemImage: "trash", role: .destructive) {
-								onDeleteRecording(recording)
+						Text("Loading recordings...")
+							.font(.caption)
+							.foregroundStyle(AppTheme.tertiaryText)
+							.padding(10)
+					} else if store.recordings.isEmpty && activeRecording == nil {
+						Text("No recordings")
+							.font(.caption)
+							.foregroundStyle(AppTheme.tertiaryText)
+							.padding(10)
+					} else {
+						ForEach(store.recordings) { recording in
+							Button {
+								let holdingCommand = NSApp.currentEvent?.modifierFlags.contains(.command) ?? false
+								Task { await store.selectRecording(id: recording.id, holdingCommand: holdingCommand) }
+							} label: {
+								RecordingSidebarRow(
+									recording: recording,
+									isSelected: store.selectedRecordingIds.contains(recording.id),
+									isProcessing: processingState?.recordingId == recording.id && processingState?.isActive == true,
+									processingStage: processingState?.recordingId == recording.id ? processingState?.stage : nil,
+								)
+							}
+							.buttonStyle(.plain)
+							.contextMenu {
+								Button("Delete Recording", systemImage: "trash", role: .destructive) {
+									onDeleteRecording(recording)
+								}
 							}
 						}
 					}
@@ -67,7 +81,6 @@ struct RecordingsSidebarView: View {
 		}
 		.background(AppTheme.sidebarBackground)
 	}
-}
 }
 
 private struct ActiveRecordingSidebarRow: View {

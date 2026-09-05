@@ -77,8 +77,9 @@ folder) and **Open**.
 ### Recordings
 
 The Recordings window lists your past recordings with metadata such as start
-time, duration, and transcription status. You can view transcripts, generate an
-AI summary of a transcribed recording, and start a chat about any recording.
+time, duration, and transcription status. Click the **Recordings** header above
+the sidebar list to return to its card overview, then select a recording to view
+its transcript, generate an AI summary, or start a chat about it.
 
 ![Toby.app Recordings window](/img/toby-app-recordings.png)
 

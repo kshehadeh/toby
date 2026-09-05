@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ProjectsSidebarView: View {
 	@Bindable var store: ProjectsStore
-	let onCreate: () -> Void
 	let onSelect: (String) -> Void
 	let onSelectHome: () -> Void
 	var onSelectChat: (ProjectSummary, String) -> Void = { _, _ in }
@@ -12,28 +11,19 @@ struct ProjectsSidebarView: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			HStack(spacing: 8) {
-				Button(action: onSelectHome) {
-					Text("Projects")
-						.font(.system(size: 12, weight: .semibold))
-						.foregroundStyle(isHomeSelected ? AppTheme.primaryText : AppTheme.secondaryText)
-						.frame(maxWidth: .infinity, alignment: .leading)
-						.contentShape(Rectangle())
-				}
-				.buttonStyle(.plain)
-				.accessibilityIdentifier("projects-home-button")
-				.accessibilityAddTraits(isHomeSelected ? [.isSelected] : [])
-
-				Button(action: onCreate) {
-					Image(systemName: "plus")
-				}
-				.buttonStyle(.plain)
-				.help("New Project")
-				.accessibilityLabel("New Project")
-				.disabled(store.isSaving)
+			Button(action: onSelectHome) {
+				SidebarListHeader(
+					title: "Projects",
+					systemImage: "folder",
+					isSelected: isHomeSelected,
+				)
 			}
-			.padding(.horizontal, 12)
-			.padding(.vertical, 8)
+			.buttonStyle(.plain)
+			.accessibilityIdentifier("projects-home-button")
+			.accessibilityAddTraits(isHomeSelected ? [.isSelected] : [])
+			.frame(maxWidth: .infinity, alignment: .leading)
+			.padding(.horizontal, 10)
+			.padding(.top, 10)
 
 			ScrollView {
 				LazyVStack(alignment: .leading, spacing: 2) {
