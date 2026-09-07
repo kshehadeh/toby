@@ -1,0 +1,7 @@
+# Run package.json scripts with Bun's built-in shell instead of spawning
+# /bin/bash. macOS posix_spawn() of /bin/bash fails with EBADF inside some
+# embedded PTY terminals (e.g. the Factory app terminal) when a script chains
+# commands with `&&` (oven-sh/bun#21447). Bun's shell interprets `&&` directly
+# and avoids that spawn path.
+[run]
+shell = "bun"
