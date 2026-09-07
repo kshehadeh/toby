@@ -251,15 +251,125 @@ describe("createPdfReadTools", () => {
 		expect(result?.text).toContain("Hello Toby");
 	});
 
-	it("rejects missing or mixed sources", async () => {
-		const tools = createPdfReadTools();
+	it("rejects missing or unresolved mixed sources", async () => {
+		const fetchImpl = mock(
+			async () => new Response("not found", { status: 404 }),
+		) as unknown as typeof fetch;
+		const tools = createPdfReadTools({ fetchImpl });
 		const execute = tools.readPdf?.execute as ReadPdfExecute | undefined;
 		expect((await execute?.({}))?.ok).toBe(false);
 		expect((await execute?.({}))?.error).toContain("No PDF source");
-		expect(
-			(await execute?.({ filename: "a.pdf", url: "https://example.com/a.pdf" }))
-				?.ok,
-		).toBe(false);
+		const mixed = await execute?.({
+			filename: "a.pdf",
+			url: "https://example.com/a.pdf",
+		});
+		expect(mixed?.ok).toBe(false);
+	});
+
+	it("resolves a real project path when unused fields carry placeholders", async () => {
+		const folderPath = fs.mkdtempSync(path.join(os.tmpdir(), "toby-pdf-"));
+		const project = {
+			id: "project-1",
+			name: "Test Project",
+			folderPath,
+		} as Project;
+		const bytes = makeTextPdf(["Project PDF"]);
+		fs.mkdirSync(path.join(folderPath, "attachments"));
+		fs.writeFileSync(path.join(folderPath, "attachments", "brief.pdf"), bytes);
+		const tools = createPdfReadTools({ project });
+		const execute = tools.readPdf?.execute as ReadPdfExecute | undefined;
+		try {
+			const result = await execute?.({
+				filename: "-",
+				path: "attachments/brief.pdf",
+				url: "-",
+				startPage: 1,
+				endPage: 50,
+			});
+			expect(result?.ok).toBe(true);
+			expect(result?.source).toEqual({
+				kind: "project",
+				value: "attachments/brief.pdf",
+			});
+			expect(result?.text).toContain("Project PDF");
+		} finally {
+			fs.rmSync(folderPath, { recursive: true, force: true });
+		}
+	});
+
+	it("resolves a matching attachment when path and url are placeholders", async () => {
+		const folderPath = fs.mkdtempSync(path.join(os.tmpdir(), "toby-pdf-"));
+		const project = {
+			id: "project-1",
+			name: "Test Project",
+			folderPath,
+		} as Project;
+		const bytes = makeTextPdf(["Attached PDF"]);
+		const tools = createPdfReadTools({
+			project,
+			attachments: [toAttachment("brief.pdf", bytes)],
+		});
+		const execute = tools.readPdf?.execute as ReadPdfExecute | undefined;
+		try {
+			const result = await execute?.({
+				filename: "brief.pdf",
+				path: "-",
+				url: "x",
+			});
+			expect(result?.ok).toBe(true);
+			expect(result?.source).toEqual({
+				kind: "attachment",
+				value: "brief.pdf",
+			});
+			expect(result?.text).toContain("Attached PDF");
+		} finally {
+			fs.rmSync(folderPath, { recursive: true, force: true });
+		}
+	});
+
+	it("falls back to a URL when filename and path do not resolve", async () => {
+		const bytes = makeTextPdf(["From the web"]);
+		const fetchImpl = mock(async () => {
+			return new Response(bytes, {
+				status: 200,
+				headers: { "content-type": "application/pdf" },
+			});
+		}) as unknown as typeof fetch;
+		const tools = createPdfReadTools({ fetchImpl });
+		const execute = tools.readPdf?.execute as ReadPdfExecute | undefined;
+		const result = await execute?.({
+			filename: "a.pdf",
+			path: "missing.pdf",
+			url: "https://example.com/a.pdf",
+		});
+		expect(result?.ok).toBe(true);
+		expect(result?.source).toEqual({
+			kind: "url",
+			value: "https://example.com/a.pdf",
+		});
+		expect(result?.text).toContain("From the web");
+	});
+
+	it("errors with guidance when multiple provided sources all fail to resolve", async () => {
+		const folderPath = fs.mkdtempSync(path.join(os.tmpdir(), "toby-pdf-"));
+		const project = {
+			id: "project-1",
+			name: "Test Project",
+			folderPath,
+		} as Project;
+		const tools = createPdfReadTools({ project });
+		const execute = tools.readPdf?.execute as ReadPdfExecute | undefined;
+		try {
+			const result = await execute?.({
+				filename: "x",
+				path: "missing.pdf",
+				url: "ftp://example.com/a.pdf",
+			});
+			expect(result?.ok).toBe(false);
+			expect(result?.error).toContain("omit the other fields entirely");
+		} finally {
+			fs.rmSync(folderPath, { recursive: true, force: true });
+		}
 	});
 
 	it("asks for a filename when multiple PDFs are attached", async () => {

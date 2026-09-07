@@ -12,7 +12,11 @@ the persona cannot inspect files).
 
 `readPdf` is a **client-side function tool**. When the model calls it:
 
-1. Resolve exactly one source (`filename`, `path`, or `url`).
+1. Resolve one source (`filename`, `path`, or `url`). If several are provided,
+   use the first that actually resolves: project `path`, then attachment
+   `filename`, then `url` (some providers fill optional parameters with
+   placeholder values like `-` instead of omitting them). If none resolve,
+   return an error telling the model to provide exactly one and omit the rest.
 2. Load bytes (current-turn attachment, project file, or HTTP(S) download).
 3. Verify the `%PDF` magic header and extract text with **unpdf** (PDF.js).
 4. Return page-marked text, optional title, page count, the page range that
@@ -25,7 +29,7 @@ Scanned / image-only PDFs have no text layer. The tool returns an error;
 
 | Tool | Purpose |
 | ---- | ------- |
-| `readPdf` | Extract PDF text into the turn. Inputs: exactly one of `filename` (current-turn attachment), `path` (project-relative, project chats only), `url` (`http`/`https`). Optional `startPage` / `endPage` (1-indexed, inclusive). If the user attached exactly one PDF, `filename` may be omitted. |
+| `readPdf` | Extract PDF text into the turn. Inputs: one of `filename` (current-turn attachment), `path` (project-relative, project chats only), `url` (`http`/`https`). When several are provided, the first that resolves wins (`path` → `filename` → `url`). Optional `startPage` / `endPage` (1-indexed, inclusive). If the user attached exactly one PDF, `filename` may be omitted. |
 
 `readPdf` is **always registered** and is in the always-included tool set
 (small schema; “summarize this” with an attached PDF should not depend on

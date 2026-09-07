@@ -368,17 +368,56 @@ function currentTurnPdfAttachments(
 	);
 }
 
-type ResolvedPdfSource =
+type PdfSourceSelection =
 	| { readonly kind: "attachment"; readonly value: string }
 	| { readonly kind: "project"; readonly value: string }
-	| { readonly kind: "url"; readonly value: string }
-	| { readonly error: string };
+	| { readonly kind: "url"; readonly value: string };
+
+type ResolvedPdfSource = PdfSourceSelection | { readonly error: string };
+
+function attachmentPdfCandidateExists(
+	attachments: readonly ValidatedChatAttachment[] | undefined,
+	filename: string,
+): boolean {
+	return (
+		attachments?.some(
+			(attachment) =>
+				attachment.filename === filename &&
+				attachment.mediaType === "application/pdf",
+		) ?? false
+	);
+}
+
+function projectPdfCandidateExists(
+	project: Project | null | undefined,
+	inputPath: string,
+): boolean {
+	if (!project) return false;
+	const target = resolveProjectPdfPath(project, inputPath);
+	if (!target.ok) return false;
+	try {
+		const stat = fs.lstatSync(target.absPath);
+		return stat.isFile() && !stat.isSymbolicLink();
+	} catch {
+		return false;
+	}
+}
+
+function httpUrlCandidateExists(url: string): boolean {
+	try {
+		const parsed = new URL(url.trim());
+		return parsed.protocol === "http:" || parsed.protocol === "https:";
+	} catch {
+		return false;
+	}
+}
 
 function resolveReadPdfSource(params: {
 	readonly filename?: string;
 	readonly path?: string;
 	readonly url?: string;
 	readonly attachments?: readonly ValidatedChatAttachment[];
+	readonly project?: Project | null;
 }): ResolvedPdfSource {
 	const filename = nonempty(params.filename);
 	const filePath = nonempty(params.path);
@@ -389,8 +428,33 @@ function resolveReadPdfSource(params: {
 		url ? "url" : null,
 	].filter(Boolean);
 	if (provided.length > 1) {
+		// Some providers fill every optional parameter with placeholder values
+		// (e.g. "-") instead of omitting unused fields. Rather than rejecting the
+		// call, use the first provided source that actually resolves: project
+		// path, then attachment filename, then http(s) URL.
+		const candidates: PdfSourceSelection[] = [];
+		if (filePath) candidates.push({ kind: "project", value: filePath });
+		if (filename) candidates.push({ kind: "attachment", value: filename });
+		if (url) candidates.push({ kind: "url", value: url });
+		for (const candidate of candidates) {
+			if (
+				candidate.kind === "project" &&
+				projectPdfCandidateExists(params.project, candidate.value)
+			) {
+				return candidate;
+			}
+			if (
+				candidate.kind === "attachment" &&
+				attachmentPdfCandidateExists(params.attachments, candidate.value)
+			) {
+				return candidate;
+			}
+			if (candidate.kind === "url" && httpUrlCandidateExists(candidate.value)) {
+				return candidate;
+			}
+		}
 		return {
-			error: "Provide only one of filename, path, or url.",
+			error: `None of the provided sources (${provided.join(", ")}) resolved to an available PDF. Provide exactly one of filename, path, or url and omit the other fields entirely — do not pass placeholder values such as "-". filename must match a current-turn PDF attachment, path must be an existing project-relative PDF (project chats only), and url must be http(s).`,
 		};
 	}
 	if (filename) return { kind: "attachment", value: filename };
@@ -419,7 +483,7 @@ export function createPdfReadTools(
 	const fetchImpl = ctx.fetchImpl ?? fetch;
 	const readPdf = tool({
 		description:
-			"Extract searchable text from a PDF and return it in the current context. Use when the user attaches a PDF, asks to read or summarize a PDF, points at a .pdf file in the active project, or shares a PDF URL. If exactly one PDF is attached to this turn, you may call this with no filename. Prefer this over fetchWebContent for PDFs. Native file attachments may still be present for multimodal models; still call this when you need the text layer. Does not OCR scanned image PDFs.",
+			"Extract searchable text from a PDF and return it in the current context. Use when the user attaches a PDF, asks to read or summarize a PDF, points at a .pdf file in the active project, or shares a PDF URL. If exactly one PDF is attached to this turn, you may call this with no filename. Prefer this over fetchWebContent for PDFs. Native file attachments may still be present for multimodal models; still call this when you need the text layer. Omit parameters you do not use entirely — never fill them with placeholder values such as '-'. Does not OCR scanned image PDFs.",
 		inputSchema: readPdfInputSchema,
 		execute: async ({
 			filename,
@@ -433,6 +497,7 @@ export function createPdfReadTools(
 				path: inputPath,
 				url,
 				attachments: ctx.attachments,
+				project: ctx.project,
 			});
 			if ("error" in source) {
 				return { ok: false, error: source.error };
