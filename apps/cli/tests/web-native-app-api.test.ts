@@ -337,9 +337,57 @@ describe("native app API fresh state", () => {
 			);
 			expect(res.status).toBe(200);
 			const body = (await res.json()) as {
-				skills: Array<{ name: string; description: string }>;
+				skills: Array<{ name: string; summary: string; description: string }>;
 			};
 			expect(body.skills).toEqual([]);
+		});
+	});
+
+	it("GET /api/skills exposes one effective summary with a description alias", async () => {
+		await withTempTobyDir(async () => {
+			const skillDir = path.join(
+				process.env.TOBY_DIR ?? "",
+				"skills",
+				"research",
+			);
+			fs.mkdirSync(skillDir, { recursive: true });
+			fs.writeFileSync(
+				path.join(skillDir, "SKILL.md"),
+				`---
+name: research
+description: Stored description.
+summary: Legacy summary.
+---
+
+# Instructions
+`,
+				"utf-8",
+			);
+
+			const listRes = await handleWebRequest(
+				new Request("http://127.0.0.1/api/skills"),
+				null,
+			);
+			const listBody = (await listRes.json()) as {
+				skills: Array<{ summary: string; description: string }>;
+			};
+			expect(listBody.skills[0]?.summary).toBe("Legacy summary.");
+			expect(listBody.skills[0]?.description).toBe("Legacy summary.");
+
+			const detailRes = await handleWebRequest(
+				new Request("http://127.0.0.1/api/skills/research"),
+				null,
+			);
+			const detailBody = (await detailRes.json()) as {
+				skill: {
+					summary: string;
+					description: string;
+					bodyMarkdown: string;
+				};
+			};
+			expect(detailBody.skill.summary).toBe("Legacy summary.");
+			expect(detailBody.skill.description).toBe("Legacy summary.");
+			expect(detailBody.skill.bodyMarkdown).toContain("# Instructions");
 		});
 	});
 

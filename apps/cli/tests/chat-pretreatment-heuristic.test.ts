@@ -346,7 +346,7 @@ describe("wrapUserPromptWithPretreatment", () => {
 					{
 						dirName: "check-unread-emails-summarize",
 						name: "check-unread-emails-summarize",
-						description:
+						summary:
 							"Fetch unread messages from the user's Gmail and return a compact summary.",
 						bodyMarkdown: "",
 					},

@@ -121,7 +121,12 @@ export async function handleChatStatusDetail(): Promise<Response> {
 		connectedIntegrations: modules.map((m) => m.displayName),
 		personaCount: listPersonas().length,
 		skillCount: skills.length,
-		skills: skills.map((s) => ({ name: s.name, description: s.description })),
+		skills: skills.map((s) => ({
+			name: s.name,
+			summary: s.summary,
+			// Compatibility alias for older app clients.
+			description: s.summary,
+		})),
 		transcription: (() => {
 			const status = getTranscriptionSetupStatus();
 			return {

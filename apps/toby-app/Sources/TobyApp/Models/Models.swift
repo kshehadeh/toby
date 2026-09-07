@@ -259,8 +259,21 @@ struct TranscriptionStatus: Decodable, Equatable {
 
 struct SkillSummary: Decodable, Identifiable {
 	let name: String
-	let description: String?
+	let summary: String
 	var id: String { name }
+
+	private enum CodingKeys: String, CodingKey {
+		case name, summary, description
+	}
+
+	init(from decoder: Decoder) throws {
+		let container = try decoder.container(keyedBy: CodingKeys.self)
+		name = try container.decode(String.self, forKey: .name)
+		summary = try container.decodePreferredString(
+			forKey: .summary,
+			fallingBackTo: .description
+		)
+	}
 }
 
 struct DaemonProcessInfo: Decodable {

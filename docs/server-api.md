@@ -1150,7 +1150,10 @@ Supported actions:
 | `update-schedule-field` | `scheduleId`, `field`, `value` | `{ "ok": true }` |
 | `delete-schedule` | `scheduleId` | `{ "ok": true }` |
 
-`update-skill-field.field` must be one of `name` or `description`.
+`update-skill-field.field` must be one of `name`, `summary`, `description`, or
+`enabled`. `summary` and the compatibility alias `description` update the same
+required skill summary. The value is stored in the SKILL.md frontmatter
+`description` key.
 
 `update-schedule-field.field` must be one of:
 

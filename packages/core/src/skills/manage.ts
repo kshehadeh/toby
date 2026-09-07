@@ -35,7 +35,7 @@ export function createSkill(skillsRoot?: string): { dirName: string } {
 	fs.mkdirSync(skillDir, { recursive: true });
 	const skillPath = path.join(skillDir, "SKILL.md");
 	const content =
-		"---\nname: New Skill\ndescription: Describe what this skill does.\n---\n\n";
+		"---\nname: New Skill\ndescription: Describe what this skill does and when Toby should use it.\n---\n\n";
 	fs.writeFileSync(skillPath, content, "utf-8");
 
 	return { dirName };
@@ -90,12 +90,10 @@ export function updateSkillFrontmatter(
 	if (updates.name !== undefined) {
 		frontmatter.name = updates.name.trim();
 	}
-	if (updates.description !== undefined) {
-		frontmatter.description = updates.description.trim();
-	}
-	if (updates.summary !== undefined) {
-		const value = updates.summary.trim();
-		frontmatter.summary = value ? value : undefined;
+	const summaryUpdate = updates.summary ?? updates.description;
+	if (summaryUpdate !== undefined) {
+		frontmatter.description = summaryUpdate.trim();
+		frontmatter.summary = undefined;
 	}
 	if (updates.enabled !== undefined) {
 		frontmatter.enabled = updates.enabled ? "true" : "false";
@@ -108,8 +106,10 @@ export function updateSkillFrontmatter(
 	if (!frontmatter.name) {
 		throw new Error("Skill name cannot be empty.");
 	}
-	if (!frontmatter.description) {
-		throw new Error("Skill description cannot be empty.");
+	const effectiveSummary =
+		frontmatter.summary?.trim() || frontmatter.description?.trim();
+	if (!effectiveSummary) {
+		throw new Error("Skill summary cannot be empty.");
 	}
 
 	const lines: string[] = [];

@@ -257,8 +257,9 @@ export function handleSkillsList(): Response {
 		skills: skills.map((s) => ({
 			dirName: s.dirName,
 			name: s.name,
-			description: s.description,
-			summary: s.summary ?? "",
+			// `description` remains as a compatibility alias for older clients.
+			description: s.summary,
+			summary: s.summary,
 			enabled: s.enabled ?? true,
 			iconUrl: skillIconUrl(s.dirName),
 			createdAt: s.createdAt,
@@ -303,8 +304,9 @@ export function handleSkillDetail(dirName: string): Response {
 		skill: {
 			dirName: skill.dirName,
 			name: skill.name,
-			description: skill.description,
-			summary: skill.summary ?? "",
+			// `description` remains as a compatibility alias for older clients.
+			description: skill.summary,
+			summary: skill.summary,
 			enabled: skill.enabled ?? true,
 			iconUrl: skillIconUrl(skill.dirName),
 			createdAt: skill.createdAt,

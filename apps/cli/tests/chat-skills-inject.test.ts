@@ -18,7 +18,7 @@ describe("injectSkillBodiesIntoFirstSystemMessage", () => {
 			{
 				dirName: "s1",
 				name: "skill-one",
-				description: "d",
+				summary: "d",
 				bodyMarkdown: "### Do\n\nStep **one**.",
 			},
 		];
@@ -49,7 +49,7 @@ describe("injectSkillBodiesIntoFirstSystemMessage", () => {
 			{
 				dirName: "n",
 				name: "new-skill",
-				description: "d",
+				summary: "d",
 				bodyMarkdown: "new body",
 			},
 		];
@@ -99,7 +99,7 @@ describe("injectSkillBodiesIntoFirstSystemMessage", () => {
 			{
 				dirName: "project-organization",
 				name: "project-organization",
-				description: "layout",
+				summary: "layout",
 				bodyMarkdown: "Put research in research/.",
 			},
 		];

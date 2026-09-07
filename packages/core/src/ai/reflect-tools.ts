@@ -231,7 +231,7 @@ export function createReflectTools(
 
 		tobyListSkills: tool({
 			description:
-				"List installed local skills from ~/.toby/skills/ with name, description, and folder. Also explains how to create or update skills. Use this when the user asks about available skills or how to manage local skills.",
+				"List installed local skills from ~/.toby/skills/ with name, summary, and folder. Also explains how to create or update skills. Use this when the user asks about available skills or how to manage local skills.",
 			inputSchema: z.object({}),
 			execute: async () => {
 				if (ctx.dryRun) {
@@ -244,7 +244,9 @@ export function createReflectTools(
 				return {
 					skills: skills.map((s) => ({
 						name: s.name,
-						description: s.description,
+						summary: s.summary,
+						// Compatibility alias for existing tool consumers.
+						description: s.summary,
 						folder: s.dirName,
 					})),
 					createSkillHint:
@@ -371,7 +373,7 @@ Toby self-reflection tools (always available):
 - **tobyGetIntegrationSetup**: Get detailed setup info for a specific integration — credential fields, auth methods, health probe, and setup hints. Takes \`integration\` (name string).
 - **tobyListDefaults**: Show the default provider for every provider category (email, calendar, tasks, contacts, chat, documents, work tracker) and which integrations are eligible.
 - **tobyListTools**: List all currently available chat tools across integrations, grouped by integration, plus global tools.
-- **tobyListSkills**: List installed local skills from ~/.toby/skills/ with descriptions, and explain how to create or update skills.
+- **tobyListSkills**: List installed local skills from ~/.toby/skills/ with summaries, and explain how to create or update skills.
 - **tobyInstanceInfo**: Get information about the running Toby instance — hostname, PID, active AI model, active persona, version, OS/platform, compiled-vs-script mode, uptime, and working directory.
 
 When to use:

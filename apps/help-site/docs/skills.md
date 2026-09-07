@@ -15,10 +15,13 @@ A skill lives at:
 ~/.toby/skills/<folder-name>/SKILL.md
 ```
 
-The file has:
+In Toby.app, each skill has:
 
-1. **Frontmatter** — at minimum `name` and `description` (used to decide when the skill applies)
-2. **Body** — markdown with steps, rules, or domain knowledge
+1. **Summary** — a short explanation of what the skill does and when Toby should use it
+2. **Instructions** — markdown with steps, rules, or domain knowledge
+
+For compatibility with the standard skill file format, Toby stores the summary
+in the frontmatter `description` key. You do not need a separate `summary` key.
 
 Example:
 
@@ -40,7 +43,7 @@ description: Steps to triage email into project labels and archive noise.
 
 On each chat turn, Toby’s pretreatment step may select **relevant** skills from your catalog based on your message. Selected skill bodies are injected into the system prompt for that turn.
 
-You do not pick skills manually each message—Toby chooses from names in the catalog. Use a clear `description` so the right skill is selected.
+You do not pick skills manually each message—Toby chooses from names and summaries in the catalog. Write a clear summary so the right skill is selected.
 
 ## Add and manage skills
 
@@ -63,7 +66,7 @@ In chat, ask Toby to create a skill. For example: “Create a skill that documen
 You can also add a skill manually:
 
 1. Create a folder under `~/.toby/skills/<folder-name>/`.
-2. Add a `SKILL.md` file with frontmatter (`name`, `description`) and the skill body.
+2. Add a `SKILL.md` file with frontmatter (`name`, plus the skill summary in `description`) and the instructional body.
 3. Open the **Skills** window in Toby.app to confirm it appears in the list.
 
 ## Skills vs personas

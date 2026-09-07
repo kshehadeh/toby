@@ -18,15 +18,9 @@ struct SkillInspectorSidebar: View {
 						text: binding(for: .name),
 					)
 					SkillSidebarField(
-						title: "Description",
-						placeholder: "Short description",
-						axis: .vertical,
-						text: binding(for: .description),
-					)
-					SkillSidebarField(
 						title: "Summary",
-						hint: "Optional",
-						placeholder: "Shown in the skill picker",
+						hint: "Used to display and choose this skill",
+						placeholder: "What this skill does and when to use it",
 						axis: .vertical,
 						text: binding(for: .summary),
 					)

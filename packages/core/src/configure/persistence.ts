@@ -161,7 +161,8 @@ export function seedConfigureValues(): Record<string, string> {
 	}
 	for (const skill of loadLocalSkills()) {
 		values[`skills.${skill.dirName}.name`] = skill.name;
-		values[`skills.${skill.dirName}.description`] = skill.description;
+		// Keep the established configure key as a storage compatibility alias.
+		values[`skills.${skill.dirName}.description`] = skill.summary;
 	}
 	seedScheduleValues(values);
 	for (const cat of ALL_PROVIDER_CATEGORIES) {

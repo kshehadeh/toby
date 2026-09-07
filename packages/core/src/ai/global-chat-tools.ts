@@ -66,7 +66,7 @@ const skillDraftSchema = z.object({
 	skillMarkdown: z
 		.string()
 		.describe(
-			"Complete SKILL.md file: YAML frontmatter (name, description) between --- fences, then markdown body",
+			"Complete SKILL.md file: YAML frontmatter (name and summary stored as description) between --- fences, then markdown instructions",
 		),
 });
 
@@ -78,8 +78,9 @@ skillMarkdown requirements:
 - Must begin with YAML frontmatter delimited by lines containing only ---.
 - Frontmatter keys must include:
   - name: short identifier (prefer lowercase kebab-case matching the folder name)
-  - description: when this skill should apply (one or two sentences; used for automatic routing)
-- After the closing ---, write the instructional markdown body (headings, lists, steps as appropriate).
+  - description: a concise summary of what the skill does and when it should apply (one or two sentences; used for display and automatic routing)
+- Do not add a separate summary frontmatter key.
+- After the closing ---, write the instructions as markdown (headings, lists, steps as appropriate).
 - Do not wrap the file in markdown code fences.
 - Do not invent user-specific secrets or unrelated filesystem paths.
 
@@ -89,7 +90,7 @@ const UPDATE_APPENDIX = `
 When updating an existing skill:
 - Keep the same skill intent unless the user explicitly asks to repurpose it.
 - Preserve useful existing instructions, refining them instead of replacing everything by default.
-- Keep frontmatter valid with non-empty name and description.`;
+- Keep frontmatter valid with a non-empty name and summary in the description key.`;
 
 type GlobalChatToolsContext = {
 	readonly dryRun: boolean;
@@ -702,7 +703,7 @@ Write a text file (explicit request only):
 - Required: \`path\` (relative) and \`content\`. Optional: \`location\` (\`outputs\` | \`context\`), \`overwrite\` (default false).
 - After a successful write, include the returned \`markdown\` download link in your reply **exactly as returned** so the user can save or open the file. Do not invent a different URL or omit the link.
 
-Available local skills (name + description):
+Available local skills (name + summary):
 ${skillsCatalog}
 
 ${listenChatToolsPromptSection()}
@@ -1678,7 +1679,7 @@ export function createGlobalChatTools(
 		}),
 		loadLocalSkillInstructions: tool({
 			description:
-				"Load full local SKILL.md instruction bodies by exact skill name. Use this after reviewing available skill descriptions in the prompt when a skill appears relevant to the user's request.",
+				"Load full local SKILL.md instruction bodies by exact skill name. Use this after reviewing available skill summaries in the prompt when a skill appears relevant to the user's request.",
 			inputSchema: z.object({
 				names: z
 					.array(z.string().min(1))
@@ -1715,7 +1716,9 @@ export function createGlobalChatTools(
 					ok: true as const,
 					loaded: resolved.map((s) => ({
 						name: s.name,
-						description: s.description,
+						summary: s.summary,
+						// Compatibility alias for existing tool consumers.
+						description: s.summary,
 						bodyMarkdown: s.bodyMarkdown,
 					})),
 					missingNames: missing,

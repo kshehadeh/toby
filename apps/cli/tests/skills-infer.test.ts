@@ -4,7 +4,7 @@ import { inferRelevantSkillsFromUserPrompt } from "@toby/core/skills/index";
 const gmailSkill = {
 	dirName: "check-unread-emails-summarize",
 	name: "check-unread-emails-summarize",
-	description:
+	summary:
 		"Fetch unread messages from the user's Gmail and return a compact summary.",
 	bodyMarkdown: "",
 };
@@ -30,13 +30,13 @@ describe("inferRelevantSkillsFromUserPrompt", () => {
 		const a = {
 			dirName: "a",
 			name: "foo-only-skill",
-			description: "Does foo things.",
+			summary: "Does foo things.",
 			bodyMarkdown: "",
 		};
 		const b = {
 			dirName: "b",
 			name: "bar-only-skill",
-			description: "Does bar things.",
+			summary: "Does bar things.",
 			bodyMarkdown: "",
 		};
 		const picked = inferRelevantSkillsFromUserPrompt(
@@ -46,11 +46,11 @@ describe("inferRelevantSkillsFromUserPrompt", () => {
 		expect(picked).toEqual([]);
 	});
 
-	it("matches using description tokens", () => {
+	it("matches using summary tokens", () => {
 		const skill = {
 			dirName: "calendar",
 			name: "calendar-skill",
-			description: "Schedule and book meetings.",
+			summary: "Schedule and book meetings.",
 			bodyMarkdown: "",
 		};
 		const picked = inferRelevantSkillsFromUserPrompt(

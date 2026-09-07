@@ -21,7 +21,7 @@ describe("updateSkillFrontmatter", () => {
 		tmp = undefined;
 	});
 
-	it("updates editable fields, preserves other frontmatter, and keeps body content", () => {
+	it("writes an edited summary to description and removes the legacy summary key", () => {
 		tmp = fs.mkdtempSync(path.join(os.tmpdir(), "toby-skill-manage-"));
 		const skillDir = path.join(tmp, "demo-skill");
 		fs.mkdirSync(skillDir, { recursive: true });
@@ -45,17 +45,64 @@ Keep this body.
 			"demo-skill",
 			{
 				name: "renamed-skill",
-				description: "Updated description.",
+				summary: "Updated summary.",
 			},
 			tmp,
 		);
 
 		const next = fs.readFileSync(skillPath, "utf-8");
 		expect(next).toContain("name: renamed-skill");
-		expect(next).toContain("description: Updated description.");
-		expect(next).toContain("summary: Old summary.");
+		expect(next).toContain("description: Updated summary.");
+		expect(next).not.toContain("summary:");
 		expect(next).toContain("## Body");
 		expect(next).toContain("Keep this body.");
+	});
+
+	it("preserves legacy summary metadata during unrelated edits", () => {
+		tmp = fs.mkdtempSync(path.join(os.tmpdir(), "toby-skill-manage-"));
+		const skillDir = path.join(tmp, "demo-skill");
+		fs.mkdirSync(skillDir, { recursive: true });
+		const skillPath = path.join(skillDir, "SKILL.md");
+		fs.writeFileSync(
+			skillPath,
+			`---
+name: demo-skill
+description: Initial description.
+summary: Legacy summary.
+---
+
+Body.
+`,
+			"utf-8",
+		);
+
+		updateSkillFrontmatter("demo-skill", { enabled: false }, tmp);
+
+		const next = fs.readFileSync(skillPath, "utf-8");
+		expect(next).toContain("description: Initial description.");
+		expect(next).toContain("summary: Legacy summary.");
+		expect(next).toContain("enabled: false");
+	});
+
+	it("rejects an empty summary", () => {
+		tmp = fs.mkdtempSync(path.join(os.tmpdir(), "toby-skill-manage-"));
+		const skillDir = path.join(tmp, "demo-skill");
+		fs.mkdirSync(skillDir, { recursive: true });
+		fs.writeFileSync(
+			path.join(skillDir, "SKILL.md"),
+			`---
+name: demo-skill
+description: Initial description.
+---
+
+Body.
+`,
+			"utf-8",
+		);
+
+		expect(() =>
+			updateSkillFrontmatter("demo-skill", { summary: "  " }, tmp),
+		).toThrow("Skill summary cannot be empty.");
 	});
 });
 
@@ -79,7 +126,9 @@ describe("createSkill", () => {
 			"utf-8",
 		);
 		expect(content).toContain("name: New Skill");
-		expect(content).toContain("description: Describe what this skill does.");
+		expect(content).toContain(
+			"description: Describe what this skill does and when Toby should use it.",
+		);
 	});
 
 	it("picks a unique folder name when new-skill already exists", () => {
@@ -128,7 +177,7 @@ Old body.
 	});
 });
 
-describe("updateSkillFrontmatter summary and enabled", () => {
+describe("updateSkillFrontmatter metadata", () => {
 	let tmp: string | undefined;
 
 	afterEach(() => {
@@ -138,7 +187,7 @@ describe("updateSkillFrontmatter summary and enabled", () => {
 		tmp = undefined;
 	});
 
-	it("writes summary and enabled frontmatter and keeps the body", () => {
+	it("writes the summary through description and keeps the body", () => {
 		tmp = fs.mkdtempSync(path.join(os.tmpdir(), "toby-skill-meta-"));
 		const skillDir = path.join(tmp, "demo-skill");
 		fs.mkdirSync(skillDir, { recursive: true });
@@ -162,7 +211,8 @@ description: Initial description.
 		);
 
 		const next = fs.readFileSync(skillPath, "utf-8");
-		expect(next).toContain("summary: Shown in the picker.");
+		expect(next).toContain("description: Shown in the picker.");
+		expect(next).not.toContain("summary:");
 		expect(next).toContain("enabled: false");
 		expect(next).toContain("## Body");
 	});

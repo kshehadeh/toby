@@ -31,8 +31,8 @@ struct SkillsViewTests {
 	func skillsSidebarShowsSkillNames() throws {
 		let store = SkillsStore()
 		store.skills = [
-			SkillListItem(dirName: "skill-1", name: "Research", description: "Research assistant"),
-			SkillListItem(dirName: "skill-2", name: "Planner", description: "Planning helper"),
+			SkillListItem(dirName: "skill-1", name: "Research", summary: "Research assistant"),
+			SkillListItem(dirName: "skill-2", name: "Planner", summary: "Planning helper"),
 		]
 		let view = SkillsSidebarView(store: store, onDelete: { _ in })
 		#expect(throws: Never.self) {
@@ -50,13 +50,12 @@ struct SkillsViewTests {
 			SkillListItem(
 				dirName: "research",
 				name: "Research",
-				description: "Research assistant",
 				summary: "Gather and synthesize information."
 			),
 			SkillListItem(
 				dirName: "planner",
 				name: "Planner",
-				description: "Planning helper",
+				summary: "Planning helper",
 				enabled: false
 			),
 		]
@@ -94,7 +93,7 @@ struct SkillsViewTests {
 	func skillsSidebarRendersRowsWhenNoSkillIsSelected() throws {
 		let store = SkillsStore()
 		store.skills = [
-			SkillListItem(dirName: "research", name: "Research", description: "Research assistant"),
+			SkillListItem(dirName: "research", name: "Research", summary: "Research assistant"),
 		]
 		let view = SkillsSidebarView(store: store, onDelete: { _ in })
 		#expect(throws: Never.self) {
@@ -105,7 +104,7 @@ struct SkillsViewTests {
 	@Test("skills sidebar highlights the selected skill")
 	func skillsSidebarHighlightsSelectedSkill() throws {
 		let store = SkillsStore()
-		let skill = SkillListItem(dirName: "research", name: "Research", description: "Research assistant")
+		let skill = SkillListItem(dirName: "research", name: "Research", summary: "Research assistant")
 		store.skills = [skill]
 		store.selectedSkillId = skill.id
 		let view = SkillsSidebarView(store: store, onDelete: { _ in })
@@ -126,7 +125,7 @@ struct SkillsViewTests {
 		store.selectedSkill = SkillDetail(
 			dirName: "research",
 			name: "Research",
-			description: "Research assistant",
+			summary: "Research assistant",
 			bodyMarkdown: "# Research",
 			tools: nil,
 			integrations: nil
@@ -136,15 +135,15 @@ struct SkillsViewTests {
 		#expect(store.selectedSkill == nil)
 	}
 
-	@Test("skill detail shows selected skill name and description")
+	@Test("skill detail shows selected skill name and summary")
 	func skillDetailShowsSelectedSkill() throws {
 		let store = SkillsStore()
-		store.skills = [SkillListItem(dirName: "skill-1", name: "Research", description: "Research assistant")]
+		store.skills = [SkillListItem(dirName: "skill-1", name: "Research", summary: "Research assistant")]
 		store.selectedSkillId = "skill-1"
 		store.selectedSkill = SkillDetail(
 			dirName: "skill-1",
 			name: "Research",
-			description: "Research assistant",
+			summary: "Research assistant",
 			bodyMarkdown: "# Research\n\nUse this skill for deep research.",
 			tools: nil,
 			integrations: nil
@@ -157,6 +156,9 @@ struct SkillsViewTests {
 			try view.inspect().find(text: "Research assistant")
 		}
 		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Summary")
+		}
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(text: "Description")
 		}
 	}
@@ -167,7 +169,7 @@ struct SkillsViewTests {
 		store.selectedSkill = SkillDetail(
 			dirName: "skill-1",
 			name: "Research",
-			description: "Research assistant",
+			summary: "Research assistant",
 			bodyMarkdown: "# Research",
 			tools: nil,
 			integrations: nil
@@ -196,7 +198,7 @@ struct SkillsViewTests {
 		store.selectedSkill = SkillDetail(
 			dirName: "skill-1",
 			name: "Research",
-			description: "Research assistant",
+			summary: "Research assistant",
 			bodyMarkdown: "# Research",
 			tools: nil,
 			integrations: nil
@@ -204,7 +206,10 @@ struct SkillsViewTests {
 		let view = SkillsView(store: store)
 		#expect(throws: Never.self) { try view.inspect().find(text: "Instructions") }
 		#expect(throws: Never.self) { try view.inspect().find(text: "Summary") }
-		#expect(throws: Never.self) { try view.inspect().find(text: "Optional") }
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Used to display and choose this skill")
+		}
+		#expect(throws: (any Error).self) { try view.inspect().find(text: "Optional") }
 	}
 
 	@Test("skill detail shows enabled status pill")
@@ -213,7 +218,7 @@ func skillDetailShowsEnabledStatus() throws {
 		store.selectedSkill = SkillDetail(
 			dirName: "skill-1",
 			name: "Research",
-			description: "Research assistant",
+			summary: "Research assistant",
 			bodyMarkdown: "# Research",
 			tools: nil,
 			integrations: nil
@@ -228,7 +233,6 @@ func skillDetailShowsEnabledStatus() throws {
 		store.selectedSkill = SkillDetail(
 			dirName: "skill-1",
 			name: "Research",
-			description: "Research assistant",
 			summary: "Deep research helper",
 			enabled: false,
 			bodyMarkdown: "# Research",
@@ -252,14 +256,30 @@ func skillDetailShowsEnabledStatus() throws {
 		store.selectedSkill = SkillDetail(
 			dirName: "skill-1",
 			name: "Research",
-			description: "Research assistant",
+			summary: "Research assistant",
 			bodyMarkdown: "# Research",
 			tools: nil,
 			integrations: nil
 		)
 		#expect(store.value(for: "skill-1.name") == "Research")
-		#expect(store.value(for: "skill-1.description") == "Research assistant")
+		#expect(store.value(for: "skill-1.summary") == "Research assistant")
 		#expect(store.value(for: "skill-1.body") == "# Research")
+	}
+
+	@Test("skill models decode description as a compatibility summary")
+	func skillModelsDecodeLegacyDescription() throws {
+		let json = Data(
+			"""
+			{
+			  "dirName": "research",
+			  "name": "Research",
+			  "description": "Research assistant",
+			  "bodyMarkdown": "# Research"
+			}
+			""".utf8
+		)
+		let skill = try JSONDecoder().decode(SkillDetail.self, from: json)
+		#expect(skill.summary == "Research assistant")
 	}
 
 	@Test("mutating skill tools set covers write paths")

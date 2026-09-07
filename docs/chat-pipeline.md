@@ -112,7 +112,7 @@ Key files:
 - `packages/core/src/chat-pipeline/headless-session.ts`: daemon/inbound turn entry; builds `TurnContext` and runs the full pipeline.
 - `packages/core/src/chat-pipeline/chat-events.ts`: shared UI-agnostic chat pipeline event types.
 - `packages/core/src/ai/pretreatment.ts`: optional fast pretreatment (`generateText` + structured output) before the main turn; see **Pretreatment** below.
-- `packages/core/src/skills/index.ts`: loads optional local skills from `~/.toby/skills/<name>/SKILL.md` (frontmatter `name` + `description`) for pretreatment selection and injection; see **Local skills** below.
+- `packages/core/src/skills/index.ts`: loads optional local skills from `~/.toby/skills/<name>/SKILL.md` (frontmatter `name` + summary stored in `description`) for pretreatment selection and injection; see **Local skills** below.
 - `packages/core/src/prepare-messages.ts`: initial message construction for a session.
 - `packages/core/src/chat-pipeline/run-turn.ts`: shared integration turn runner (`runIntegrationChatTurn`, `runSharedChatTurn`).
 - `packages/core/src/ai/chat.ts`: shared wrapper around AI SDK `streamText` / `generateText`, tool cache injection, lifecycle hooks, and abort signal propagation.
@@ -142,7 +142,7 @@ Before the main model turn, **ExpandPromptNode** runs **prompt preparation** tha
 
 By default, Toby uses **embedding-based routing** ([`packages/core/src/routing/`](../packages/core/src/routing/)) instead of an auxiliary LLM on the hot path:
 
-1. **Turn-init** builds the tool catalog and **warms** a static index: tool/skill descriptions are embedded once per catalog signature and stored in SQLite (`routing_embeddings` in [`session-store.ts`](../packages/core/src/session-store.ts)).
+1. **Turn-init** builds the tool catalog and **warms** a static index: tool descriptions and skill summaries are embedded once per catalog signature and stored in SQLite (`routing_embeddings` in [`session-store.ts`](../packages/core/src/session-store.ts)).
 2. **Expand-prompt** embeds the user message, runs cosine search, and selects up to **`TOBY_ROUTING_TOP_K`** integration-specific tools (default **8**) plus up to **2** skills above **`TOBY_ROUTING_MIN_SCORE`** (default **0.2** for tools; **`TOBY_ROUTING_SKILL_MIN_SCORE`** default **0.35** for skills — skills require a stronger match to avoid false-positive activation).
 3. **Finalize** still applies the token-overlap skill heuristic and unions tools declared in selected skill frontmatter.
 
@@ -185,7 +185,21 @@ When semantic routing is disabled, **ExpandPromptNode** uses a **small structure
 
 ## Local skills (optional)
 
-Markdown skills in `~/.toby/skills/<skill-folder>/SKILL.md` use YAML frontmatter with at least `name` and `description`. Optional frontmatter fields:
+Markdown skills in `~/.toby/skills/<skill-folder>/SKILL.md` have two content
+parts:
+
+- **Summary** — a concise explanation of what the skill does and when it should
+  apply. The standard file format stores this under the required frontmatter
+  `description` key.
+- **Instructions** — the Markdown body injected when the skill runs.
+
+Toby still reads older files with a separate `summary` key. When both
+`summary` and `description` exist, the legacy `summary` value wins. Editing the
+Summary field in Toby.app writes the effective value to `description` and
+removes the redundant `summary` key. Other metadata edits do not rewrite those
+fields.
+
+Optional frontmatter fields:
 
 - `tools` — explicit tool names the skill needs (comma-separated or YAML-ish `- item` bullets).
 - `integrations` — integration display labels (e.g. `Gmail`, `Todoist`); every tool belonging to a listed integration is included.
@@ -195,14 +209,14 @@ When pretreatment selects a skill, the tools declared by `tools` and `integratio
 There are now two ways skills get into model context:
 
 1. **On-demand tool loading (default path)**:
-   - The global prompt includes a compact local skills catalog (`name: description`).
+   - The global prompt includes a compact local skills catalog (`name: summary`).
    - The model can call global tool `loadLocalSkillInstructions` with exact names to fetch full `SKILL.md` bodies mid-turn without user intervention.
 2. **Pretreatment-selected skills (optional preflight path)**:
    - When pretreatment runs, it may set `relevantSkills` from that catalog.
 
 For each turn:
 
-- The **user** message includes a short “Selected skills” summary (names + descriptions) only when pretreatment selected them.
+- The **user** message includes a short “Selected skills” summary (names + skill summaries) only when pretreatment selected them.
 - The **system** message gains an appendix with the full markdown body of each selected skill (replacing any prior appendix from an earlier turn) only when pretreatment selected them.
 - **Exception:** when a project is active and `.agent/skills/project-organization/SKILL.md` exists, that skill is **always attached** so folder layout persists across chats. See [`projects.md`](projects.md).
 

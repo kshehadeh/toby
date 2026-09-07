@@ -306,7 +306,7 @@ describe("unionProjectOrganizationSkill", () => {
 					{
 						dirName: "project-organization",
 						name: "project-organization",
-						description: "layout",
+						summary: "layout",
 						bodyMarkdown: "map",
 					},
 				],
@@ -322,7 +322,7 @@ describe("unionProjectOrganizationSkill", () => {
 					{
 						dirName: "project-organization",
 						name: "project-organization",
-						description: "layout",
+						summary: "layout",
 						bodyMarkdown: "map",
 					},
 				],

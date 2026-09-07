@@ -12,8 +12,8 @@ struct SkillSidebarRow: View {
 					.font(.callout.weight(.medium))
 					.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.secondaryText)
 					.lineLimit(1)
-				if let description = skill.description, !description.isEmpty {
-					Text(description)
+				if !skill.summary.isEmpty {
+					Text(skill.summary)
 						.font(.caption)
 						.foregroundStyle(AppTheme.tertiaryText)
 						.lineLimit(1)
@@ -35,8 +35,8 @@ struct SkillSidebarRow: View {
 	}
 
 	private var accessibilityLabel: String {
-		if let description = skill.description, !description.isEmpty {
-			return "\(skill.name), \(description)"
+		if !skill.summary.isEmpty {
+			return "\(skill.name), \(skill.summary)"
 		}
 		return skill.name
 	}

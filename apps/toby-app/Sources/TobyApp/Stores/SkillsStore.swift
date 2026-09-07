@@ -4,7 +4,6 @@ import Observation
 struct SkillListItem: Decodable, Identifiable {
 	let dirName: String
 	let name: String
-	let description: String?
 	var summary: String = ""
 	var enabled: Bool = true
 	var iconUrl: String? = nil
@@ -23,8 +22,10 @@ extension SkillListItem {
 		let c = try decoder.container(keyedBy: CodingKeys.self)
 		dirName = try c.decode(String.self, forKey: .dirName)
 		name = try c.decode(String.self, forKey: .name)
-		description = try c.decodeIfPresent(String.self, forKey: .description)
-		summary = try c.decodeIfPresent(String.self, forKey: .summary) ?? ""
+		summary = try c.decodePreferredString(
+			forKey: .summary,
+			fallingBackTo: .description
+		)
 		enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
 		iconUrl = try c.decodeIfPresent(String.self, forKey: .iconUrl)
 		createdAt = try c.decodeIfPresent(String.self, forKey: .createdAt)
@@ -35,7 +36,6 @@ extension SkillListItem {
 struct SkillDetail: Decodable, Identifiable {
 	let dirName: String
 	let name: String
-	let description: String
 	var summary: String = ""
 	var enabled: Bool = true
 	var iconUrl: String? = nil
@@ -58,8 +58,10 @@ extension SkillDetail {
 		let c = try decoder.container(keyedBy: CodingKeys.self)
 		dirName = try c.decode(String.self, forKey: .dirName)
 		name = try c.decode(String.self, forKey: .name)
-		description = try c.decode(String.self, forKey: .description)
-		summary = try c.decodeIfPresent(String.self, forKey: .summary) ?? ""
+		summary = try c.decodePreferredString(
+			forKey: .summary,
+			fallingBackTo: .description
+		)
 		enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
 		iconUrl = try c.decodeIfPresent(String.self, forKey: .iconUrl)
 		createdAt = try c.decodeIfPresent(String.self, forKey: .createdAt)
@@ -72,7 +74,6 @@ extension SkillDetail {
 
 enum SkillField: String {
 	case name = "name"
-	case description = "description"
 	case summary = "summary"
 	case enabled = "enabled"
 	case body = "body"
@@ -270,7 +271,6 @@ final class SkillsStore {
 		let field = String(parts[1])
 		switch SkillField(rawValue: field) {
 		case .name: return skill.name
-		case .description: return skill.description
 		case .summary: return skill.summary
 		case .enabled: return skill.enabled ? "true" : "false"
 		case .body: return skill.bodyMarkdown
@@ -344,7 +344,6 @@ final class SkillsStore {
 		let field = String(parts[1])
 		switch SkillField(rawValue: field) {
 		case .name: return target.name
-		case .description: return target.description
 		case .summary: return target.summary
 		case .enabled: return target.enabled ? "true" : "false"
 		case .body: return target.bodyMarkdown
@@ -417,7 +416,7 @@ final class SkillsStore {
 					)
 					if field == SkillField.name.rawValue
 						|| field == SkillField.enabled.rawValue
-						|| field == SkillField.description.rawValue
+						|| field == SkillField.summary.rawValue
 					{
 						listChanged = true
 					}

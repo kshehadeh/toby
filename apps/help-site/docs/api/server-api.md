@@ -699,15 +699,20 @@ type ModulesResponse = {
 ```ts
 type SkillsResponse = {
   skills: readonly {
+    dirName: string;
     name: string;
+    summary: string;
+    /** Compatibility alias of summary. */
     description: string;
+    enabled: boolean;
   }[];
 };
 ```
 
 ### `GET /api/skills/:name` / `GET /api/skills/:name/icon`
 
-Skill body and optional icon asset.
+Skill detail includes `summary` and its compatibility alias `description`, plus
+the instructional `bodyMarkdown` and optional icon asset.
 
 ### `GET /api/plugins` / `GET /api/plugins/:name/icon`
 
@@ -912,7 +917,9 @@ Body: `Record<string, string>`.
 | `update-schedule-field` | `scheduleId`, `field`, `value` | `{ "ok": true }` |
 | `delete-schedule` | `scheduleId` | `{ "ok": true }` |
 
-- `update-skill-field.field`: `name` or `description`
+- `update-skill-field.field`: `name`, `summary`, `description`, or `enabled`.
+  `summary` and the compatibility alias `description` update the same required
+  summary stored in SKILL.md frontmatter as `description`.
 - `update-schedule-field.field`: `enabled` (`"Yes"` / `"true"`), `name`, `prompt`, `persona`, `cron`
 
 ## Schedules

@@ -81,14 +81,11 @@ struct SkillsHomeView: View {
 struct SkillCard: View {
 	let skill: SkillListItem
 
-	private var description: String {
+	private var summary: String {
 		if !skill.summary.isEmpty {
 			return skill.summary
 		}
-		if let description = skill.description, !description.isEmpty {
-			return description
-		}
-		return "No description yet"
+		return "No summary yet"
 	}
 
 	var body: some View {
@@ -108,9 +105,9 @@ struct SkillCard: View {
 				Spacer(minLength: 0)
 			}
 
-			Text(description)
+			Text(summary)
 				.font(.system(size: 12))
-				.foregroundStyle(description == "No description yet" ? AppTheme.tertiaryText : SettingsDesign.rowDescription)
+				.foregroundStyle(summary == "No summary yet" ? AppTheme.tertiaryText : SettingsDesign.rowDescription)
 				.lineLimit(3)
 				.multilineTextAlignment(.leading)
 				.frame(maxWidth: .infinity, alignment: .leading)

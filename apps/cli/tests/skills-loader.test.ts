@@ -35,7 +35,7 @@ Body here.
 });
 
 describe("parseSkillFileContent", () => {
-	it("returns null when name or description missing", () => {
+	it("returns null when name or summary is missing", () => {
 		expect(
 			parseSkillFileContent(
 				"x",
@@ -47,7 +47,7 @@ name: only-name
 		).toBeNull();
 	});
 
-	it("parses summary frontmatter", () => {
+	it("prefers legacy summary frontmatter when both fields exist", () => {
 		const raw = `---
 name: demo-skill
 description: One line description.
@@ -63,7 +63,7 @@ Body here.
 		expect(skill?.summary).toBe("Concise summary of key instructions.");
 	});
 
-	it("defaults enabled to true and summary to empty when absent", () => {
+	it("uses description frontmatter as the canonical summary", () => {
 		const raw = `---
 name: demo-skill
 description: One line description.
@@ -73,7 +73,19 @@ Body.
 `;
 		const skill = parseSkillFileContent("demo-skill", raw);
 		expect(skill?.enabled).toBe(true);
-		expect(skill?.summary).toBe("");
+		expect(skill?.summary).toBe("One line description.");
+	});
+
+	it("accepts a legacy summary when description is absent", () => {
+		const raw = `---
+name: demo-skill
+summary: Legacy summary.
+---
+
+Body.
+`;
+		const skill = parseSkillFileContent("demo-skill", raw);
+		expect(skill?.summary).toBe("Legacy summary.");
 	});
 
 	it("parses enabled false frontmatter", () => {
@@ -138,7 +150,7 @@ describe("collectToolsForSelectedSkills", () => {
 		{
 			dirName: "organize",
 			name: "organize-email",
-			description: "Organize the inbox.",
+			summary: "Organize the inbox.",
 			bodyMarkdown: "",
 			tools: ["searchEmails", "listLabels", "notARealTool"],
 			integrations: ["Todoist"],
@@ -146,7 +158,7 @@ describe("collectToolsForSelectedSkills", () => {
 		{
 			dirName: "other",
 			name: "other-skill",
-			description: "Unrelated.",
+			summary: "Unrelated.",
 			bodyMarkdown: "",
 			tools: ["macWifiStatus"],
 			integrations: [],
@@ -238,11 +250,11 @@ Run tests.
 });
 
 describe("computeSkillCatalogSignature", () => {
-	it("changes when skill descriptions change", () => {
+	it("changes when skill summaries change", () => {
 		const a = [
 			{
 				name: "x",
-				description: "one",
+				summary: "one",
 				bodyMarkdown: "",
 				dirName: "x",
 			},
@@ -250,7 +262,7 @@ describe("computeSkillCatalogSignature", () => {
 		const b = [
 			{
 				name: "x",
-				description: "two",
+				summary: "two",
 				bodyMarkdown: "",
 				dirName: "x",
 			},
@@ -264,7 +276,7 @@ describe("computeSkillCatalogSignature", () => {
 		const a = [
 			{
 				name: "x",
-				description: "same",
+				summary: "same",
 				bodyMarkdown: "",
 				dirName: "x",
 			},
@@ -272,7 +284,7 @@ describe("computeSkillCatalogSignature", () => {
 		const b = [
 			{
 				name: "y",
-				description: "same",
+				summary: "same",
 				bodyMarkdown: "",
 				dirName: "x",
 			},
@@ -289,13 +301,13 @@ describe("resolveSkillsByNames", () => {
 			{
 				dirName: "a",
 				name: "Alpha",
-				description: "d",
+				summary: "d",
 				bodyMarkdown: "ba",
 			},
 			{
 				dirName: "b",
 				name: "Beta",
-				description: "d2",
+				summary: "d2",
 				bodyMarkdown: "bb",
 			},
 		];
@@ -305,12 +317,12 @@ describe("resolveSkillsByNames", () => {
 });
 
 describe("formatSkillsCatalogForPrompt", () => {
-	it("formats names and descriptions", () => {
+	it("formats names and summaries", () => {
 		const skills = [
 			{
 				dirName: "a",
 				name: "my-skill",
-				description: "Does things.",
+				summary: "Does things.",
 				bodyMarkdown: "",
 			},
 		];

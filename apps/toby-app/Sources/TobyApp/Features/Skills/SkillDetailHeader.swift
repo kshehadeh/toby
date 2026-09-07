@@ -12,8 +12,8 @@ struct SkillDetailHeader: View {
 					.font(.system(size: 20, weight: .semibold))
 					.foregroundStyle(AppTheme.primaryText)
 					.lineLimit(1)
-				if !skill.description.isEmpty {
-					Text(skill.description)
+				if !skill.summary.isEmpty {
+					Text(skill.summary)
 						.font(.subheadline)
 						.foregroundStyle(AppTheme.secondaryText)
 						.lineLimit(2)

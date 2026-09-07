@@ -375,10 +375,10 @@ function bulletList(title: string, items: readonly string[]): string {
 	return `- ${title}:\n${items.map((x) => `  - ${x}`).join("\n")}`;
 }
 
-function skillDescriptionLookup(
+function skillSummaryLookup(
 	skills: readonly LocalSkill[],
 ): Map<string, string> {
-	return new Map(skills.map((s) => [s.name.toLowerCase(), s.description]));
+	return new Map(skills.map((s) => [s.name.toLowerCase(), s.summary]));
 }
 
 function sanitizeRelevantSkills(
@@ -606,7 +606,7 @@ export function formatUserMessageWithPretreatment(
 		return v;
 	}
 	const lookup = skillsCatalog?.length
-		? skillDescriptionLookup(skillsCatalog)
+		? skillSummaryLookup(skillsCatalog)
 		: null;
 	const skillLines =
 		spec.relevantSkills.length === 0

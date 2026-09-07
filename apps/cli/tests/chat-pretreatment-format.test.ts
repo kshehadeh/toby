@@ -67,7 +67,7 @@ describe("formatUserMessageWithPretreatment", () => {
 		expect(out).toContain("- Selected tools: (none)");
 	});
 
-	it("includes selected skills with descriptions when catalog is provided", () => {
+	it("includes selected skills with summaries when catalog is provided", () => {
 		const spec = minimalSpec({
 			relevantSkills: ["my-skill"],
 		});
@@ -75,7 +75,7 @@ describe("formatUserMessageWithPretreatment", () => {
 			{
 				dirName: "my-skill",
 				name: "my-skill",
-				description: "When testing.",
+				summary: "When testing.",
 				bodyMarkdown: "# Body",
 			},
 		]);

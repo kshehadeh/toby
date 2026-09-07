@@ -6,9 +6,12 @@ import { getSkillsDir } from "../config/index";
 export interface LocalSkill {
 	readonly dirName: string;
 	readonly name: string;
-	readonly description: string;
-	/** Optional short line shown in the skill picker (frontmatter `summary`). */
-	readonly summary?: string;
+	/**
+	 * Short explanation of what the skill does and when it should apply.
+	 * Stored in frontmatter `description`; legacy `summary` takes precedence
+	 * when both keys are present.
+	 */
+	readonly summary: string;
 	/** Whether the skill is active. Missing frontmatter defaults to `true`. */
 	readonly enabled?: boolean;
 	/** Icon filename stored inside the skill directory (frontmatter `icon`). */
@@ -125,11 +128,12 @@ export function parseSkillFileContent(
 		return null;
 	}
 	const name = parsed.frontmatter.name?.trim();
-	const description = parsed.frontmatter.description?.trim();
-	if (!name || !description) {
+	const legacySummary = parsed.frontmatter.summary?.trim();
+	const storedDescription = parsed.frontmatter.description?.trim();
+	const summary = legacySummary || storedDescription;
+	if (!name || !summary) {
 		return null;
 	}
-	const summary = parsed.frontmatter.summary?.trim() ?? "";
 	const enabledRaw = parsed.frontmatter.enabled?.trim().toLowerCase();
 	const enabled =
 		enabledRaw === undefined
@@ -139,7 +143,6 @@ export function parseSkillFileContent(
 	return {
 		dirName,
 		name,
-		description,
 		summary,
 		enabled,
 		iconPath,
@@ -199,22 +202,20 @@ export function loadLocalSkills(skillsRoot?: string): LocalSkill[] {
 	return skills;
 }
 
-/** Compact catalog for the pretreatment model (name + description). */
+/** Compact catalog for the pretreatment model (name + summary). */
 export function formatSkillsCatalogForPrompt(
 	skills: readonly LocalSkill[],
 ): string {
 	if (skills.length === 0) {
 		return "(none)";
 	}
-	return skills
-		.map((s) => `- ${s.name}: ${normalizeWs(s.description)}`)
-		.join("\n");
+	return skills.map((s) => `- ${s.name}: ${normalizeWs(s.summary)}`).join("\n");
 }
 
 function stableCatalogPayload(skills: readonly LocalSkill[]): string {
 	const rows = skills.map((s) => ({
 		name: s.name,
-		description: normalizeWs(s.description),
+		summary: normalizeWs(s.summary),
 	}));
 	return JSON.stringify(rows);
 }
@@ -493,7 +494,7 @@ function tokenizeForSkillMatch(text: string): Set<string> {
 }
 
 function skillMatchTokenSet(skill: LocalSkill): Set<string> {
-	const out = tokenizeForSkillMatch(skill.description);
+	const out = tokenizeForSkillMatch(skill.summary);
 	for (const part of skill.name.toLowerCase().split("-")) {
 		if (part.length >= 3 && !SKILL_MATCH_STOPWORDS.has(part)) {
 			out.add(part);
@@ -517,7 +518,7 @@ function overlapCount(a: Set<string>, b: Set<string>): number {
 
 /**
  * When preflight does not return skills (or returns no spec), pick likely skills by
- * token overlap between the user message and each skill's name + description.
+ * token overlap between the user message and each skill's name + summary.
  * Conservative: at least two overlapping tokens, or a single-token match only when unambiguous.
  */
 export function inferRelevantSkillsFromUserPrompt(
