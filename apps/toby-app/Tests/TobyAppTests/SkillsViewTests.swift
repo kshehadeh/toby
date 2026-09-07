@@ -207,8 +207,8 @@ struct SkillsViewTests {
 		#expect(throws: Never.self) { try view.inspect().find(text: "Optional") }
 	}
 
-	@Test("skill detail shows enabled status pill and delete button")
-	func skillDetailShowsEnabledAndDelete() throws {
+	@Test("skill detail shows enabled status pill")
+func skillDetailShowsEnabledStatus() throws {
 		let store = SkillsStore()
 		store.selectedSkill = SkillDetail(
 			dirName: "skill-1",
@@ -220,7 +220,6 @@ struct SkillsViewTests {
 		)
 		let view = SkillsView(store: store)
 		#expect(throws: Never.self) { try view.inspect().find(text: "Enabled") }
-		#expect(throws: Never.self) { try view.inspect().find(text: "Delete Skill…") }
 	}
 
 	@Test("store exposes summary and enabled field values")

@@ -38,22 +38,6 @@ struct SkillInspectorSidebar: View {
 			}
 
 			Divider().overlay(SettingsDesign.cardBorder)
-
-			Button(role: .destructive) {
-				store.pendingDelete = SkillsStore.PendingDelete(
-					dirName: skill.dirName,
-					name: skill.name,
-				)
-			} label: {
-				Label("Delete Skill…", systemImage: "trash")
-					.frame(maxWidth: .infinity)
-			}
-			.buttonStyle(.bordered)
-			.controlSize(.regular)
-			.tint(.red)
-			.disabled(store.isSaving)
-			.padding(18)
-			.accessibilityIdentifier("sidebar-delete-skill-button")
 		}
 		.frame(width: 280)
 		.background(AppTheme.sidebarBackground)
