@@ -94,20 +94,27 @@ The app menus use the **same** `.tbybak` format as these CLI commands.
 
 | Included | Not included |
 | -------- | ------------ |
-| Settings in `config.json` (personas, connection flags, defaults, …) | Audio recordings and transcripts |
-| Secrets in credentials (AI keys, **Email, Notion, Slack, and other plugin credentials**, transcription keys) | Installed plugin packages and local plugin data |
-| Chat database (chats, projects, schedules, flows, and run history) | Skills and persona image files |
-| Memories database | App appearance and other Mac-only preferences |
+| Settings in `config.json` (personas, connection flags, defaults, …) | Installed plugin packages and local plugin data |
+| Secrets in credentials (AI keys, **Email, Notion, Slack, and other plugin credentials**, transcription keys) | Skills and persona image files |
+| Chat database (chats, projects, schedules, flows, and run history) | App appearance and other Mac-only preferences |
+| Memories database | Symbolic links inside project folders |
+| Project folders, including projects stored outside Toby's data folder | |
+| Recordings — audio, transcripts, and summaries | |
 
-The archive is encrypted with **your backup password** (separate from the
+Backups can be large because they include audio. The archive is encrypted with
+**your backup password** (separate from the
 Keychain). Anyone with the file **and** that password can restore your
 secrets — choose a strong password and store the file carefully.
 
 ### Restore notes
 
-- Restore **replaces** current settings, credentials, chat data, and memories.
+- Restore **replaces** current settings, credentials, chat data, memories,
+  project files, and recordings on this Mac.
+- Projects are restored inside Toby's data folder. A project that used a custom
+  folder keeps a copy of its files there; the original folder is left untouched.
 - After restore, Toby re-encrypts credentials for **this** Mac’s Keychain.
-- Toby restarts its daemon before applying database data.
+- Toby restarts its daemon before applying database, project, and recording
+  data. You cannot restore while a recording is in progress.
 - Prefer restore over manually copying `credentials.json`.
 
 ## Tips

@@ -1,9 +1,20 @@
+import fs from "node:fs";
+import {
+	BackupArchiveReader,
+	BackupArchiveWriter,
+	isBackupArchiveFile,
+} from "./backup-archive";
 import {
 	type EncryptedBackupFile,
 	decryptBackupPayload,
 	encryptBackupPayload,
 	isEncryptedBackupFile,
 } from "./backup-crypto";
+import {
+	type StageArchiveRestoreResult,
+	stageArchiveRestore,
+} from "./backup-file-restore";
+import { appendFileSectionsToArchive } from "./backup-files";
 import {
 	type DatabaseBackupBundle,
 	createDatabaseBackupBundle,
@@ -37,10 +48,26 @@ export function buildBackupFileName(date = new Date()): string {
 	return `toby-config-backup-${timestamp}.tbybak`;
 }
 
-/** Build and encrypt a password-protected config + credentials backup. */
-export async function createEncryptedConfigBackup(
+export interface CreateConfigBackupResult {
+	/** Path of the written archive. */
+	readonly filePath: string;
+	readonly suggestedFileName: string;
+	/** Human-readable notes for files excluded from the backup. */
+	readonly skipped: readonly string[];
+}
+
+/**
+ * Create a complete password-protected backup archive at `outputPath`.
+ *
+ * Sections: settings + credentials (meta), chat/memory databases, project
+ * folder files, recording files, and the file manifest. Databases are
+ * snapshotted transactionally; file sections stream from disk so large
+ * recording libraries do not need to fit in memory.
+ */
+export async function createConfigBackupArchive(
 	password: string,
-): Promise<{ backup: EncryptedBackupFile; suggestedFileName: string }> {
+	outputPath: string,
+): Promise<CreateConfigBackupResult> {
 	const trimmed = password.trim();
 	if (!trimmed) {
 		throw new Error("Backup password cannot be empty.");
@@ -48,15 +75,95 @@ export async function createEncryptedConfigBackup(
 	// Use raw config.json so plugin connection state, listen, and any extra
 	// keys survive backup/restore. Credentials go through readCredentials so
 	// on-disk encryption (Keychain-wrapped) is decrypted first.
-	const payload: ConfigBackupPayload = {
-		version: 2,
+	const meta = {
+		version: 3,
 		createdAt: new Date().toISOString(),
 		config: readConfigRaw(),
 		credentials: readCredentials(),
-		databases: createDatabaseBackupBundle(),
 	};
-	const backup = await encryptBackupPayload(JSON.stringify(payload), trimmed);
-	return { backup, suggestedFileName: buildBackupFileName() };
+	const writer = new BackupArchiveWriter(outputPath, trimmed);
+	await writer.writeSection("meta", Buffer.from(JSON.stringify(meta), "utf8"));
+	await writer.writeSection(
+		"databases",
+		Buffer.from(JSON.stringify(createDatabaseBackupBundle()), "utf8"),
+	);
+	const manifest = await appendFileSectionsToArchive(writer);
+	await writer.writeSection(
+		"files-manifest",
+		Buffer.from(JSON.stringify(manifest), "utf8"),
+	);
+	await writer.finish();
+	return {
+		filePath: outputPath,
+		suggestedFileName: buildBackupFileName(),
+		skipped: manifest.skipped,
+	};
+}
+
+export type RestoreConfigBackupFileResult = StageArchiveRestoreResult;
+
+/**
+ * Restore from a backup file (v3 archive, or a legacy JSON v1/v2 payload).
+ * Archives are staged and applied at the next daemon startup; legacy JSON
+ * backups write settings immediately and stage only their databases.
+ */
+export async function restoreConfigBackupFile(
+	filePath: string,
+	password?: string,
+): Promise<RestoreConfigBackupFileResult> {
+	if (isBackupArchiveFile(filePath)) {
+		const pwd = password?.trim() ?? "";
+		if (!pwd) {
+			throw new Error("This backup is encrypted. Enter the backup password.");
+		}
+		const reader = new BackupArchiveReader(filePath, pwd);
+		try {
+			const metaRaw = await reader.readSection("meta");
+			const meta: unknown = JSON.parse(metaRaw.toString("utf8"));
+			if (!isArchiveMeta(meta)) {
+				throw new Error("Not a valid Toby config backup.");
+			}
+			return await stageArchiveRestore(reader, {
+				requireDatabases: true,
+				applySettings: {
+					config: meta.config,
+					credentials: meta.credentials,
+				},
+			});
+		} finally {
+			reader.close();
+		}
+	}
+
+	// Legacy JSON envelope / plaintext payload.
+	const raw = await fs.promises.readFile(filePath, "utf-8");
+	const parsed: unknown = JSON.parse(raw);
+	const restored = await restoreConfigBackup(parsed, password);
+	return {
+		databasesStaged: restored.databases !== undefined,
+		projectsStaged: false,
+		recordingsStaged: false,
+	};
+}
+
+interface ArchiveMeta {
+	readonly version: 3;
+	readonly createdAt: string;
+	readonly config: Record<string, unknown>;
+	readonly credentials: CredentialsFile | Record<string, unknown>;
+}
+
+function isArchiveMeta(value: unknown): value is ArchiveMeta {
+	if (typeof value !== "object" || value === null) return false;
+	const record = value as Record<string, unknown>;
+	return (
+		record.version === 3 &&
+		typeof record.createdAt === "string" &&
+		typeof record.config === "object" &&
+		record.config !== null &&
+		typeof record.credentials === "object" &&
+		record.credentials !== null
+	);
 }
 
 /**
@@ -131,3 +238,4 @@ export {
 	isEncryptedBackupFile,
 	type EncryptedBackupFile,
 } from "./backup-crypto";
+export { isBackupArchiveFile } from "./backup-archive";

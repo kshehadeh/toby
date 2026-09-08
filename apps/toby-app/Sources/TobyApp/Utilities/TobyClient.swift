@@ -1071,49 +1071,37 @@ struct TobyClient {
 		try validate(response: response, data: data)
 	}
 
-	/// Create a password-encrypted config + credentials backup (JSON envelope).
+	/// Create a password-encrypted complete backup (binary archive stream).
 	func createConfigBackup(password: String) async throws -> ConfigBackupCreateResponse {
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/backup"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.timeoutInterval = 600
 		request.httpBody = try JSONSerialization.data(withJSONObject: ["password": password])
 		let (data, response) = try await URLSession.shared.data(for: request)
 		try validate(response: response, data: data)
 
-		guard
-			let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-			let backup = json["backup"],
-			let suggestedFileName = json["suggestedFileName"] as? String
-		else {
+		let http = response as? HTTPURLResponse
+		let suggestedFileName =
+			http?.value(forHTTPHeaderField: "X-Toby-Backup-Filename") ?? ""
+		guard !suggestedFileName.isEmpty, !data.isEmpty else {
 			throw TobyClientError.invalidResponse
 		}
-		let backupData = try JSONSerialization.data(
-			withJSONObject: backup,
-			options: [.prettyPrinted, .sortedKeys],
-		)
 		return ConfigBackupCreateResponse(
-			backupData: backupData,
+			backupData: data,
 			suggestedFileName: suggestedFileName,
 		)
 	}
 
-	/// Restore config + credentials from a backup envelope (encrypted or legacy).
-	func restoreConfigBackup(backupJSON: Data, password: String?, confirm: Bool = true) async throws {
+	/// Restore Toby data from a backup file (v3 archive or legacy JSON envelope).
+	func restoreConfigBackup(backupData: Data, password: String?, confirm: Bool = true) async throws {
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/restore"))
 		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-		guard let backupObject = try JSONSerialization.jsonObject(with: backupJSON) as? [String: Any] else {
-			throw TobyClientError.serverError("Backup file is not valid JSON.")
-		}
-		var body: [String: Any] = [
-			"backup": backupObject,
-			"confirm": confirm,
-		]
-		if let password, !password.isEmpty {
-			body["password"] = password
-		}
-		request.httpBody = try JSONSerialization.data(withJSONObject: body)
+		request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
+		request.timeoutInterval = 600
+		request.setValue(password ?? "", forHTTPHeaderField: "X-Backup-Password")
+		request.setValue(confirm ? "true" : "false", forHTTPHeaderField: "X-Backup-Confirm")
+		request.httpBody = backupData
 		let (data, response) = try await URLSession.shared.data(for: request)
 		try validate(response: response, data: data)
 	}

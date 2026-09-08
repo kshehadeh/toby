@@ -157,7 +157,7 @@ struct RootView: View {
                         store.toast = AppToastState(
                             style: .success,
                             title: "Toby data restored",
-                            message: "Settings, credentials, chats, and memories were restored from the backup."
+                            message: "Settings, credentials, chats, memories, project files, and recordings were restored from the backup."
                         )
                         Task {
                             await store.refreshStatus()

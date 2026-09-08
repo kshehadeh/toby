@@ -19,6 +19,20 @@ struct ConfigBackupViewsTests {
 		_ = try view.inspect().find(button: "Cancel")
 	}
 
+	@Test("backup sheet copy covers project files and recordings")
+	func backupSheetCopyMentionsFileScopes() throws {
+		let view = ConfigBackupSheet(
+			onDismiss: {},
+			onSuccess: { _ in },
+			onError: { _ in }
+		)
+		let copy = try view.inspect().findAll(ViewType.Text.self)
+			.compactMap { try? $0.string() }
+			.joined(separator: " ")
+		#expect(copy.contains("project files"))
+		#expect(copy.contains("recordings"))
+	}
+
 	@Test("restore sheet shows destructive restore action")
 	func restoreSheetStructure() throws {
 		let url = URL(fileURLWithPath: "/tmp/example.tbybak")
@@ -32,5 +46,21 @@ struct ConfigBackupViewsTests {
 		#expect(try title.string() == "Restore Toby Data")
 		_ = try view.inspect().find(button: "Restore")
 		_ = try view.inspect().find(button: "Cancel")
+	}
+
+	@Test("restore sheet copy covers project files and recordings")
+	func restoreSheetCopyMentionsFileScopes() throws {
+		let url = URL(fileURLWithPath: "/tmp/example.tbybak")
+		let view = ConfigRestoreSheet(
+			backupURL: url,
+			onDismiss: {},
+			onSuccess: {},
+			onError: { _ in }
+		)
+		let copy = try view.inspect().findAll(ViewType.Text.self)
+			.compactMap { try? $0.string() }
+			.joined(separator: " ")
+		#expect(copy.contains("project files"))
+		#expect(copy.contains("recordings"))
 	}
 }

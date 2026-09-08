@@ -1,14 +1,16 @@
 import { readFileSync } from "node:fs";
-import { mkdir, stat, writeFile } from "node:fs/promises";
+import { stat } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import readline from "node:readline/promises";
 import {
 	buildBackupFileName,
-	createEncryptedConfigBackup,
+	createConfigBackupArchive,
+	isBackupArchiveFile,
 	isEncryptedBackupFile,
 	parseRestorePayload,
 	restoreConfigBackup,
+	restoreConfigBackupFile,
 } from "@toby/core/config/backup";
 import { getConfigPath, getCredentialsPath } from "@toby/core/config/index";
 import {
@@ -50,7 +52,9 @@ export function registerConfigCommand(program: Command): void {
 
 	config
 		.command("backup")
-		.description("Back up settings, credentials, chats, and memories to a file")
+		.description(
+			"Back up settings, credentials, chats, memories, project files, and recordings to a file",
+		)
 		.option(
 			"-o, --output <path>",
 			"Backup destination file or directory (defaults to current directory)",
@@ -68,7 +72,7 @@ export function registerConfigCommand(program: Command): void {
 	config
 		.command("restore")
 		.description(
-			"Restore settings, credentials, chats, and memories from a backup",
+			"Restore settings, credentials, chats, memories, project files, and recordings from a backup",
 		)
 		.argument("<sourceFile>", "Path to a backup file created by config backup")
 		.option(
@@ -104,7 +108,9 @@ export function registerConfigCommand(program: Command): void {
 
 	const databaseBackups = sync
 		.command("backup-data")
-		.description("Manage daily encrypted chat and memory database backups");
+		.description(
+			"Manage daily encrypted backups of chats, memories, project files, and recordings",
+		);
 
 	databaseBackups
 		.command("enable")
@@ -161,10 +167,15 @@ export function registerConfigCommand(program: Command): void {
 
 	databaseBackups
 		.command("restore")
-		.description("Restore chat and memory databases from a backup")
+		.description(
+			"Restore chats, memories, project files, and recordings from a backup",
+		)
 		.argument("<deviceId>", "Source device id")
 		.argument("<filename>", "Filename from backup-data list")
-		.option("-y, --yes", "Confirm replacing both local databases")
+		.option(
+			"-y, --yes",
+			"Confirm replacing local database, project, and recording data",
+		)
 		.action(
 			async (
 				deviceId: string,
@@ -174,7 +185,7 @@ export function registerConfigCommand(program: Command): void {
 				try {
 					if (!options.yes) {
 						const confirmed = await confirmYes(
-							"Replace chats, schedules, flows, projects, and memories from this snapshot? [y/N] ",
+							"Replace chats, schedules, flows, projects, project files, memories, and recordings from this snapshot? [y/N] ",
 						);
 						if (!confirmed) return;
 					}
@@ -182,7 +193,7 @@ export function registerConfigCommand(program: Command): void {
 					await restartDaemonIfRunning();
 					console.log(
 						chalk.green(
-							"Database restore staged. It will apply when the daemon starts.",
+							"Restore staged. It will apply when the daemon starts.",
 						),
 					);
 				} catch (error) {
@@ -338,11 +349,14 @@ export function registerConfigCommand(program: Command): void {
 async function backupConfig(outputPath?: string): Promise<void> {
 	const backupPath = await resolveBackupPath(outputPath);
 	const password = await promptForBackupPassword();
-	const { backup } = await createEncryptedConfigBackup(password);
-
-	await mkdir(path.dirname(backupPath), { recursive: true });
-	await writeFile(backupPath, JSON.stringify(backup, null, 2), "utf-8");
+	const { skipped } = await createConfigBackupArchive(password, backupPath);
 	console.log(chalk.green(`Backup saved to ${backupPath}`));
+	if (skipped.length > 0) {
+		console.log(chalk.yellow(`${skipped.length} item(s) were skipped:`));
+		for (const note of skipped) {
+			console.log(chalk.dim(`  - ${note}`));
+		}
+	}
 }
 
 async function restoreConfig(
@@ -350,6 +364,10 @@ async function restoreConfig(
 	skipConfirmation: boolean,
 ): Promise<void> {
 	const sourcePath = path.resolve(sourceFile);
+	if (isBackupArchiveFile(sourcePath)) {
+		await restoreArchiveBackup(sourcePath, skipConfirmation);
+		return;
+	}
 	const rawBackup = readFileSync(sourcePath, "utf-8");
 	const parsedJson = safeParseJson(rawBackup, sourcePath);
 
@@ -380,6 +398,49 @@ async function restoreConfig(
 		await restartDaemonIfRunning();
 	}
 	console.log(chalk.green(`Toby data restored from ${sourcePath}`));
+}
+
+async function restoreArchiveBackup(
+	sourcePath: string,
+	skipConfirmation: boolean,
+): Promise<void> {
+	const password = await promptForRestorePassword();
+	if (!skipConfirmation) {
+		const confirmed = await confirmTobyDataReplace();
+		if (!confirmed) {
+			console.log(chalk.yellow("Restore cancelled."));
+			return;
+		}
+	}
+	const staged = await restoreConfigBackupFile(sourcePath, password);
+	if (
+		staged.databasesStaged ||
+		staged.projectsStaged ||
+		staged.recordingsStaged
+	) {
+		console.log(
+			chalk.yellow(
+				"Restore staged. Toby restarts its daemon to apply database, project, and recording data.",
+			),
+		);
+		await restartDaemonIfRunning();
+	}
+	console.log(chalk.green(`Toby data restored from ${sourcePath}`));
+}
+
+async function confirmTobyDataReplace(): Promise<boolean> {
+	const rl = readline.createInterface({
+		input: process.stdin,
+		output: process.stdout,
+	});
+	try {
+		const answer = await rl.question(
+			"Replace settings, credentials, chats, memories, project files, and recordings on this Mac? [y/N] ",
+		);
+		return answer.trim().toLowerCase() === "y";
+	} finally {
+		rl.close();
+	}
 }
 
 function safeParseJson(raw: string, sourcePath: string): unknown {

@@ -26,7 +26,7 @@ struct ConfigBackupSheet: View {
 				.foregroundStyle(AppTheme.primaryText)
 
 			Text(
-				"Creates a password-protected backup of your settings, credentials, chats, schedules, flows, projects, and memories. Choose a password you will remember — it is required to restore."
+				"Creates a password-protected backup of your settings, credentials, chats, schedules, flows, memories, project files, and recordings — including audio and transcripts. Backups can be large. Choose a password you will remember — it is required to restore."
 			)
 			.font(.subheadline)
 			.foregroundStyle(AppTheme.secondaryText)
@@ -147,7 +147,7 @@ struct ConfigRestoreSheet: View {
 				.foregroundStyle(AppTheme.primaryText)
 
 			Text(
-				"Restoring replaces your settings, credentials, chats, schedules, flows, projects, and memories. Toby restarts to apply database data. This cannot be undone without another backup."
+				"Restoring replaces your settings, credentials, chats, schedules, flows, memories, project files, and recordings on this Mac. Project folders are restored inside Toby's data folder. Toby restarts to apply the changes. This cannot be undone without another backup."
 			)
 			.font(.subheadline)
 			.foregroundStyle(AppTheme.secondaryText)
@@ -205,10 +205,19 @@ struct ConfigRestoreSheet: View {
 	}
 
 	private func detectIfPasswordRequired() {
-		guard
-			let data = try? Data(contentsOf: backupURL),
-			let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-		else {
+		guard let data = try? Data(contentsOf: backupURL) else {
+			needsPassword = true
+			return
+		}
+		if
+			let prefix = String(data: data.prefix(16), encoding: .utf8),
+			prefix.hasPrefix("TOBYBACKUP\t")
+		{
+			// v3 archives are always password-encrypted.
+			needsPassword = true
+			return
+		}
+		guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
 			needsPassword = true
 			return
 		}
@@ -233,7 +242,7 @@ struct ConfigRestoreSheet: View {
 			let data = try Data(contentsOf: backupURL)
 			let client = TobyClient()
 			try await client.restoreConfigBackup(
-				backupJSON: data,
+				backupData: data,
 				password: needsPassword ? password : nil,
 				confirm: true
 			)

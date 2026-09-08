@@ -1,6 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
-import { decryptBackupPayload, encryptBackupPayload } from "./backup-crypto";
+import {
+	BackupArchiveReader,
+	BackupArchiveWriter,
+	readBackupArchiveHeader,
+} from "./backup-archive";
+import {
+	decryptBackupPayload,
+	type encryptBackupPayload,
+} from "./backup-crypto";
+import { stageArchiveRestore } from "./backup-file-restore";
+import { appendFileSectionsToArchive } from "./backup-files";
 import {
 	createDatabaseBackupBundle,
 	isDatabaseBackupBundle,
@@ -62,17 +72,7 @@ function isBackupFile(value: unknown): value is DatabaseSyncBackupFile {
 }
 
 function fileName(createdAt = new Date().toISOString()): string {
-	return `${createdAt.replace(/[:.]/g, "-")}.json`;
-}
-
-function atomicWrite(filePath: string, value: unknown): void {
-	fs.mkdirSync(path.dirname(filePath), { recursive: true, mode: 0o700 });
-	const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
-	fs.writeFileSync(tmp, JSON.stringify(value), {
-		encoding: "utf8",
-		mode: 0o600,
-	});
-	fs.renameSync(tmp, filePath);
+	return `${createdAt.replace(/[:.]/g, "-")}.tbybak`;
 }
 
 /** Create a complete encrypted snapshot in the selected sync transport. */
@@ -85,22 +85,32 @@ export async function createDatabaseSyncBackup(): Promise<DatabaseSyncBackupInfo
 	if (!password) throw new Error("Sync password is missing from Keychain.");
 
 	const createdAt = new Date().toISOString();
-	const bundle = createDatabaseBackupBundle();
-	const encrypted = await encryptBackupPayload(
-		JSON.stringify({ version: 1, databases: bundle }),
-		password,
-	);
-	const envelope: DatabaseSyncBackupFile = {
-		version: 1,
-		format: FORMAT,
-		deviceId: state.deviceId,
-		deviceName: getDeviceName(),
-		createdAt,
-		encryption: encrypted.encryption,
-		ciphertext: encrypted.ciphertext,
-	};
 	const filename = fileName(createdAt);
-	atomicWrite(path.join(deviceDir(state.deviceId), filename), envelope);
+	const finalPath = path.join(deviceDir(state.deviceId), filename);
+	const tmpPath = `${finalPath}.${process.pid}.tmp`;
+	// Streamed archive: databases plus project folder files and recordings.
+	const writer = new BackupArchiveWriter(tmpPath, password);
+	try {
+		await writer.writeSection(
+			"databases",
+			Buffer.from(JSON.stringify(createDatabaseBackupBundle()), "utf8"),
+		);
+		const manifest = await appendFileSectionsToArchive(writer);
+		await writer.writeSection(
+			"files-manifest",
+			Buffer.from(JSON.stringify(manifest), "utf8"),
+		);
+		await writer.finish({
+			deviceId: state.deviceId,
+			deviceName: getDeviceName(),
+			kind: "database",
+			createdAt,
+		});
+	} catch (error) {
+		fs.rmSync(tmpPath, { force: true });
+		throw error;
+	}
+	fs.renameSync(tmpPath, finalPath);
 	pruneDeviceBackups(state.deviceId);
 	writeSyncState({
 		...state,
@@ -110,7 +120,7 @@ export async function createDatabaseSyncBackup(): Promise<DatabaseSyncBackupInfo
 	return {
 		filename,
 		deviceId: state.deviceId,
-		deviceName: envelope.deviceName,
+		deviceName: getDeviceName(),
 		createdAt,
 	};
 }
@@ -162,22 +172,41 @@ export async function listDatabaseSyncBackups(): Promise<
 		const dir = path.join(base, deviceId);
 		if (!fs.statSync(dir).isDirectory()) continue;
 		for (const filename of fs.readdirSync(dir)) {
-			if (
-				path.extname(filename) !== ".json" ||
-				filename !== path.basename(filename)
-			)
-				continue;
-			const parsed = readBackupFile(path.join(dir, filename));
-			if (!parsed) continue;
-			results.push({
-				filename,
-				deviceId: parsed.deviceId,
-				deviceName: parsed.deviceName,
-				createdAt: parsed.createdAt,
-			});
+			if (filename !== path.basename(filename)) continue;
+			const filePath = path.join(dir, filename);
+			if (filename.endsWith(".tbybak")) {
+				const info = readArchiveBackupInfo(filePath, deviceId);
+				if (!info) continue;
+				results.push({ filename, ...info });
+			} else if (filename.endsWith(".json")) {
+				const parsed = readBackupFile(filePath);
+				if (!parsed) continue;
+				results.push({
+					filename,
+					deviceId: parsed.deviceId,
+					deviceName: parsed.deviceName,
+					createdAt: parsed.createdAt,
+				});
+			}
 		}
 	}
 	return results.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+function readArchiveBackupInfo(
+	filePath: string,
+	deviceId: string,
+): Omit<DatabaseSyncBackupInfo, "filename"> | null {
+	try {
+		const header = readBackupArchiveHeader(filePath);
+		return {
+			deviceId: header.info?.deviceId ?? deviceId,
+			deviceName: header.info?.deviceName ?? "Unknown Mac",
+			createdAt: header.info?.createdAt ?? header.createdAt,
+		};
+	} catch {
+		return null;
+	}
 }
 
 /** Validate a selected encrypted snapshot and stage it for next daemon startup. */
@@ -193,9 +222,22 @@ export async function restoreDatabaseSyncBackup(options: {
 	}
 	const password = getSyncPassphrase();
 	if (!password) throw new Error("Sync password is missing from Keychain.");
-	const envelope = readBackupFile(
-		path.join(deviceDir(options.deviceId), options.filename),
-	);
+	const filePath = path.join(deviceDir(options.deviceId), options.filename);
+
+	if (filePath.endsWith(".tbybak")) {
+		const reader = new BackupArchiveReader(filePath, password);
+		try {
+			// Stages databases, project files, and recordings for the next
+			// daemon startup. Settings are not touched by database backups.
+			await stageArchiveRestore(reader, { requireDatabases: true });
+		} finally {
+			reader.close();
+		}
+		return;
+	}
+
+	// Legacy JSON snapshots (databases only).
+	const envelope = readBackupFile(filePath);
 	if (!envelope)
 		throw new Error("Database backup was not found or is invalid.");
 	const plaintext = await decryptBackupPayload(
@@ -237,7 +279,7 @@ function pruneDeviceBackups(id: string): void {
 	const dir = deviceDir(id);
 	const files = fs
 		.readdirSync(dir)
-		.filter((name) => name.endsWith(".json"))
+		.filter((name) => name.endsWith(".json") || name.endsWith(".tbybak"))
 		.sort()
 		.reverse();
 	for (const extra of files.slice(SNAPSHOT_LIMIT)) {

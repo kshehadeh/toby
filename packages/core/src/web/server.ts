@@ -31,6 +31,9 @@ export function startWebServer(options: WebServerOptions): Promise<void> {
 				hostname: "127.0.0.1",
 				port,
 				idleTimeout: 255,
+				// Backup archives can carry full recording libraries; the server
+				// is localhost-only, so accept large restore uploads.
+				maxRequestBodySize: 32 * 1024 * 1024 * 1024,
 				async fetch(req: Request) {
 					try {
 						return await handleWebRequest(req);

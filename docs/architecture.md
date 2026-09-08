@@ -155,7 +155,7 @@ the detail surface that needs them.
 1. **`apps/cli/src/cli.ts`** constructs the Commander program, registers built-in maintenance commands, then calls `registerCommands` on each loaded `IntegrationModule` (if present). Bare `toby` (no subcommand) opens the native Toby app.
 2. **Connect / disconnect / status** use [`getIntegration`](../packages/core/src/integrations/index.ts) or [`getIntegrations`](../packages/core/src/integrations/index.ts) from core (discovered plugins).
 3. **Chat and configuration** are interactive native-app workflows backed by core web/API handlers (daemon HTTP API).
-4. **`config backup` / `config restore`** use shared helpers in `@toby/core` (`config/backup.ts`). The CLI and the daemon HTTP API (`POST /api/config/backup`, `POST /api/config/restore`) share the same implementation; Toby.app File → Backup / Restore drives the API with native save/open panels.
+4. **`config backup` / `config restore`** use shared helpers in `@toby/core` (`config/backup.ts`). Backups are streamed AES-256-GCM `.tbybak` archives covering settings, credentials, databases, project files, and recordings. The CLI and the daemon HTTP API (`POST /api/config/backup`, `POST /api/config/restore`) share the same implementation; Toby.app File → Backup / Restore drives the API with native save/open panels.
 5. **`config sync`** uploads encrypted settings snapshots to iCloud Drive or a user-picked folder (`config/sync*.ts`). The daemon loop pushes after local writes and pulls on an interval; Toby.app Settings → Sync and `/api/native/icloud/*` handle coordinated iCloud I/O. See [icloud-sync.md](icloud-sync.md).
 6. **Daemon** (`toby daemon start`) runs schedules, inbound chat, settings sync, and the localhost API that Toby.app consumes.
 

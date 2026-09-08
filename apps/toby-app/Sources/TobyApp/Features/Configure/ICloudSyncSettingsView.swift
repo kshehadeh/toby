@@ -137,7 +137,7 @@ struct ICloudSyncSettingsView: View {
 				}
 			}
 		} message: {
-			Text("This replaces chats, projects, schedules, flows, run history, and memories on this Mac. Toby will restart.")
+			Text("This replaces chats, projects, project files, schedules, flows, run history, memories, and recordings on this Mac. Project folders are restored inside Toby's data folder. Toby will restart.")
 		}
 	}
 
@@ -331,7 +331,7 @@ struct ICloudSyncSettingsView: View {
 		SettingsCard {
 			VStack(alignment: .leading, spacing: 12) {
 				SettingsSectionHeader(title: "Database backups")
-				Text("Back up chats, projects, schedules, flows, run history, and memories daily. Backups are encrypted, retained for 10 days per Mac, and never merge or sync automatically.")
+				Text("Back up chats, projects, project files, schedules, flows, run history, memories, and recordings — including audio and transcripts — daily. Backups are encrypted, retained for 10 days per Mac, and never merge or sync automatically. Backups can be large.")
 					.font(.subheadline)
 					.foregroundStyle(AppTheme.secondaryText)
 					.fixedSize(horizontal: false, vertical: true)

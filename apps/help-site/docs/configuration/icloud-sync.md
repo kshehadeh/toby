@@ -78,13 +78,16 @@ again with the other transport.
 Chats, projects, schedules, flows, run history, and memories are not
 continuously synchronized because two Macs changing them at once could lose
 data. Instead, turn on **Database backups** in **Settings → Sync** to save an
-encrypted snapshot of this Mac once a day. Toby keeps the latest 10 snapshots
-per Mac in the same iCloud Drive or selected folder.
+encrypted snapshot of this Mac once a day. Snapshots also include project
+files and recordings — audio, transcripts, and summaries — so they can be
+large. Toby keeps the latest 10 snapshots per Mac in the same iCloud Drive or
+selected folder.
 
 Use **Back Up Now** to create one immediately. To restore, select a snapshot
-and choose **Restore**. This replaces all local chat and memory data on this
-Mac and restarts Toby; it does not merge databases or restore them
-automatically.
+and choose **Restore**. This replaces all local chat and memory data, project
+files, and recordings on this Mac and restarts Toby; it does not merge data or
+restore it automatically. Projects are restored inside Toby's data folder;
+original custom project folders are left untouched.
 
 ## If two Macs change settings at once
 

@@ -122,8 +122,8 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `POST` | `/api/memories` | Create a manual memory. |
 | `GET` | `/api/memories/:id` | Fetch one memory item. |
 | `GET` | `/api/memories/:id/explain` | Fetch source/audit explanation for one memory. |
-| `POST` | `/api/config/backup` | Create a password-encrypted complete backup. |
-| `POST` | `/api/config/restore` | Restore settings, credentials, and databases from a backup payload. |
+| `POST` | `/api/config/backup` | Create a password-encrypted complete backup (binary archive response). |
+| `POST` | `/api/config/restore` | Restore settings, credentials, databases, project files, and recordings from a backup (JSON legacy body or binary archive upload). |
 | `GET` | `/api/config/sync` | Settings sync status (`backend`, `folderPath`, `storeAvailable`, iCloud flags). |
 | `POST` | `/api/config/sync/enable` | Enable sync (`password`, optional `mode`: `create` / `join` / `replace`, optional `backend`: `icloud` / `folder`, `folderPath` when folder). |
 | `POST` | `/api/config/sync/disable` | Disable sync (`deleteCloud?: boolean` deletes this store’s vault folder). |
@@ -1006,7 +1006,7 @@ Errors:
 
 Design overview: [security.md](security.md). Shared helpers live in
 [`packages/core/src/config/backup.ts`](../packages/core/src/config/backup.ts).
-Toby.app **File → Backup Toby Data… / Restore Toby Data…** and `toby config backup` / `restore` use the same format (password-encrypted AES-256-GCM `.tbybak`).
+Toby.app **File → Backup Toby Data… / Restore Toby Data…** and `toby config backup` / `restore` use the same format: password-encrypted AES-256-GCM `.tbybak` archives containing settings, credentials, databases, project files, and recordings.
 
 ### `POST /api/config/backup`
 
@@ -1016,23 +1016,28 @@ Body:
 { password: string }
 ```
 
-Response:
+Response: the encrypted archive as a binary stream
+(`Content-Type: application/octet-stream`) with
+`X-Toby-Backup-Filename: toby-config-backup-<timestamp>.tbybak` and
+`X-Toby-Backup-Skipped: <count>` headers. Streams from disk so large recording
+libraries do not pass through memory.
 
-```ts
-{
-  backup: EncryptedBackupFile; // version 2 envelope
-  suggestedFileName: string;   // e.g. toby-config-backup-<timestamp>.tbybak
-}
-```
-
-Reads live `config.json` and decrypted credentials, then encrypts with the given password.
-Errors: `400` if password is empty or encryption fails.
+Reads live `config.json`, decrypted credentials, SQLite snapshots, project
+folders, and saved recordings, then encrypts with the given password.
+Errors: `400` if password is empty or backup creation fails.
 
 ### `POST /api/config/restore`
 
-Body:
+Accepts either format:
 
 ```ts
+// New: raw archive upload
+// Content-Type: application/octet-stream
+// X-Backup-Password: <password>   (required)
+// X-Backup-Confirm: true          (required)
+// Body: the .tbybak archive bytes
+
+// Legacy: JSON body
 {
   backup: EncryptedBackupFile | ConfigBackupPayload;
   password?: string; // required when backup is encrypted
@@ -1040,8 +1045,24 @@ Body:
 }
 ```
 
-Writes `config.json` and `credentials.json` (re-encrypting credentials at rest on macOS), then invalidates configure caches.
-Errors: `400` if `confirm` is not true, password is wrong, or the payload is invalid.
+Archives are validated (GCM auth, file checksums, SQLite `quick_check`) and
+staged in full before anything is written. Writes `config.json` and
+`credentials.json` (re-encrypting credentials at rest on macOS), stages
+databases, project files, and recordings for the next daemon start, then
+invalidates configure caches. Response:
+
+```ts
+{
+  ok: true;
+  databasesStaged: boolean;
+  projectsStaged: boolean;
+  recordingsStaged: boolean;
+  restarting: boolean; // true when the serving daemon schedules its restart
+}
+```
+
+Errors: `400` if `confirm` is not true, password is wrong, or the payload is
+invalid; `409` if a recording is in progress.
 
 ## Config settings sync
 

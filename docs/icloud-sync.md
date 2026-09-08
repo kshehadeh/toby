@@ -144,14 +144,19 @@ Mac. Instead, opt in under **Settings → Sync → Database backups** to write o
 encrypted snapshot per day, retaining the latest 10 per Mac:
 
 ```
-<sync vault>/database-backups/<device-id>/<utc>.json
+<sync vault>/database-backups/<device-id>/<utc>.tbybak
 ```
 
-Snapshots contain `chat.sqlite` (chats, projects, schedules, flows, run
-history) and `memory.sqlite`. They use the same sync password and transport
-but a distinct `toby.database.backup.encrypted` envelope. They are never
-pulled or applied automatically; restore is an explicit whole-database
-replacement followed by a daemon restart. CLI:
+Snapshots are streamed file-backed archives (same format as `.tbybak` config
+backups, minus settings/credentials) containing `chat.sqlite` (chats,
+projects, schedules, flows, run history), `memory.sqlite`, complete project
+folders, and saved recordings (audio, transcripts, summaries). They use the
+same sync password and transport. Snapshots can be large because they include
+audio. Legacy `.json` snapshots from older versions remain listed and
+restorable. They are never pulled or applied automatically; restore is an
+explicit replacement followed by a daemon restart. Projects are restored into
+`~/.toby/projects/<id>` with their database paths rewritten; original custom
+folders are untouched. CLI:
 `toby config sync backup-data enable|disable|now|list|restore`.
 
 ## Tests

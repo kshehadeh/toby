@@ -23,20 +23,25 @@ terminal configuration UI.
 
 ### `toby config backup [destination]`
 
-Create an encrypted backup of settings, credentials, and local databases.
+Create an encrypted backup of settings, credentials, local databases, project
+files, and recordings.
 
 Design, Keychain interaction, and threat model: [security.md](security.md).
 
 - Same format as **Toby.app → File → Backup Toby Data…** (daemon `POST /api/config/backup`).
-- Includes full `config.json`, the full decrypted credentials bag,
-  `chat.sqlite` (chats/projects/schedules/flows), and `memory.sqlite`.
-  (`integrations.<plugin>` fields, AI/transcription keys).
-- Encrypts the backup payload with a **password** (AES-256-GCM + scrypt).
+- Includes full `config.json`, the full decrypted credentials bag
+  (`integrations.<plugin>` fields, AI/transcription keys), `chat.sqlite`
+  (chats/projects/schedules/flows), `memory.sqlite`, complete project folders
+  (including projects stored outside Toby's data folder), and saved recordings
+  (audio, transcripts, summaries).
+- Encrypts the archive with a **password** (AES-256-GCM + scrypt), streaming
+  file sections so large recording libraries do not need to fit in memory.
 - Prompts for a password and confirmation.
 - If `destination` is omitted, the backup is written in the current directory.
 - If `destination` is an existing directory, Toby creates a timestamped backup
   filename inside that directory.
-- Prints the final backup path after writing.
+- Prints the final backup path after writing, plus any skipped items
+  (symbolic links, unreadable files).
 
 Examples:
 
@@ -46,14 +51,20 @@ Examples:
 
 ### `toby config restore <sourceFile>`
 
-Restore settings, credentials, chats, schedules, flows, projects, and memories
-from a backup file.
+Restore settings, credentials, chats, schedules, flows, projects, memories,
+project files, and recordings from a backup file.
 
 - Same format as **Toby.app → File → Restore Toby Data…** (daemon `POST /api/config/restore`).
 - For encrypted backups, prompts for the backup password.
 - If existing config files are detected, asks for confirmation before replacing.
 - Use `--yes` to skip replace confirmation.
-- Supports legacy unencrypted backup payloads for backward compatibility.
+- Stages and validates the full archive before touching live data; the daemon
+  restarts to apply databases, project files, and recordings. Projects are
+  restored into `~/.toby/projects/<id>` with their paths rewritten; original
+  custom project folders are left untouched.
+- Supports legacy v2 encrypted envelopes and v1 unencrypted payloads for
+  backward compatibility. Legacy restores never clear existing project files
+  or recordings.
 
 Examples:
 
@@ -75,11 +86,11 @@ Encrypted snapshots of the same payload as backup, through **iCloud Drive** or a
 | `toby config sync pull --yes` | Apply the remote snapshot (`--yes` skips confirm) |
 | `toby config sync history` | List previous snapshots |
 | `toby config sync restore-history <filename> --yes` | Apply a history file and push it as current |
-| `toby config sync backup-data enable` | Opt in to daily encrypted database backups and create one now |
-| `toby config sync backup-data disable` | Stop daily database backups; existing snapshots remain |
-| `toby config sync backup-data now` | Create a database snapshot now |
-| `toby config sync backup-data list` | List database snapshots from all Macs |
-| `toby config sync backup-data restore <deviceId> <filename> --yes` | Replace both local databases from a selected snapshot |
+| `toby config sync backup-data enable` | Opt in to daily encrypted backups (databases, project files, recordings) and create one now |
+| `toby config sync backup-data disable` | Stop daily backups; existing snapshots remain |
+| `toby config sync backup-data now` | Create a backup snapshot now |
+| `toby config sync backup-data list` | List backup snapshots from all Macs |
+| `toby config sync backup-data restore <deviceId> <filename> --yes` | Replace local databases, project files, and recordings from a selected snapshot |
 
 Enable prompts for a password (and confirmation). Join decrypts the existing
 vault with that password; create is refused if a vault already exists. Without

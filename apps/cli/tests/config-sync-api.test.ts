@@ -2,9 +2,12 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { applyPendingDatabaseRestore } from "@toby/core/config/database-backup";
+import { restoreDatabaseSyncBackup } from "@toby/core/config/database-sync-backups";
 import {
 	clearCredentialsCache,
 	clearMemoryCredentialsKeyStore,
+	getProjectsDir,
 	readConfig,
 	readCredentials,
 	resetCredentialsKeyStoreCache,
@@ -16,7 +19,9 @@ import {
 	resetSyncPassphraseStore,
 	setSyncBlobStoreForTests,
 } from "@toby/core/config/sync";
+import { resolveListenRecordingsDir } from "@toby/core/listen/recordings";
 import { closeMemoryDb } from "@toby/core/memory/memory-store";
+import { createProject, listProjects } from "@toby/core/projects";
 import { closeChatDb } from "@toby/core/session-store";
 import { handleWebRequest } from "@toby/core/web/routes";
 
@@ -207,10 +212,25 @@ describe("POST /api/config/sync", () => {
 		});
 	});
 
-	it("opts into daily database backups and lists the initial snapshot", async () => {
+	it("opts into daily database backups and restores project files and recordings", async () => {
 		await withTempDirs(async () => {
 			writeConfig({ integrations: {}, personas: [] });
 			writeCredentials({});
+			// Seed a managed project and a recording so the snapshot has files.
+			const project = createProject({ name: "Synced Project" });
+			const outputPath = path.join(project.folderPath, "outputs", "result.txt");
+			fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+			fs.writeFileSync(outputPath, "synced project output", "utf-8");
+			const recordingDir = path.join(
+				resolveListenRecordingsDir(),
+				"sync-rec-1",
+			);
+			fs.mkdirSync(recordingDir, { recursive: true });
+			fs.writeFileSync(
+				path.join(recordingDir, "combined.m4a"),
+				Buffer.from([9, 8, 7, 6, 5]),
+			);
+
 			await handleWebRequest(
 				new Request("http://127.0.0.1/api/config/sync/enable", {
 					method: "POST",
@@ -243,10 +263,48 @@ describe("POST /api/config/sync", () => {
 			);
 			expect(list.status).toBe(200);
 			const body = (await list.json()) as {
-				backups: Array<{ deviceId: string }>;
+				backups: Array<{
+					deviceId: string;
+					filename: string;
+					deviceName: string;
+				}>;
 			};
 			expect(body.backups).toHaveLength(1);
 			expect(body.backups[0]?.deviceId.length).toBeGreaterThan(0);
+			expect(body.backups[0]?.filename).toMatch(/\.tbybak$/);
+			expect(body.backups[0]?.deviceName.length).toBeGreaterThan(0);
+
+			// Wipe project files and recordings, then restore the snapshot.
+			closeChatDb();
+			fs.rmSync(getProjectsDir(), { recursive: true, force: true });
+			fs.rmSync(resolveListenRecordingsDir(), { recursive: true, force: true });
+
+			const snapshot = body.backups[0];
+			if (!snapshot) throw new Error("database backup was not listed");
+			await restoreDatabaseSyncBackup({
+				deviceId: snapshot.deviceId,
+				filename: snapshot.filename,
+			});
+			expect(applyPendingDatabaseRestore()).toBe(true);
+
+			const projects = listProjects();
+			expect(projects).toHaveLength(1);
+			const restoredProject = projects[0];
+			if (!restoredProject) throw new Error("project was not restored");
+			expect(restoredProject.folderPath.startsWith(getProjectsDir())).toBe(
+				true,
+			);
+			expect(
+				fs.readFileSync(
+					path.join(restoredProject.folderPath, "outputs", "result.txt"),
+					"utf-8",
+				),
+			).toBe("synced project output");
+			expect(
+				fs.readFileSync(
+					path.join(resolveListenRecordingsDir(), "sync-rec-1", "combined.m4a"),
+				),
+			).toEqual(Buffer.from([9, 8, 7, 6, 5]));
 		});
 	});
 

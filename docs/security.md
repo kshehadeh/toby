@@ -150,27 +150,50 @@ from a Mac that still has local secrets, or restore a `.tbybak`.
 
 ## Backup and restore
 
-Password-protected archives (`.tbybak`) export settings, credentials, and
-safe SQLite snapshots so a machine move does not depend on Keychain.
+Password-protected archives (`.tbybak`) export settings, credentials,
+safe SQLite snapshots, project folders, and saved recordings so a machine move
+does not depend on Keychain — and does not lose project work or audio.
 
 ### What is included
 
 | Included | Not included (today) |
 | -------- | -------------------- |
-| Full `config.json` object (`readConfigRaw`) | Recordings and audio/transcript artifacts |
-| Full decrypted `CredentialsFile` (all `integrations.*`, AI, transcription) | Installed plugin packages under `plugins/` |
-| `chat.sqlite` (chat sessions, projects, schedules, flows, run history) | Plugin local data under `plugins-data/` |
-| `memory.sqlite` (memories, sources, proposals, audit data) | Skills directory bodies and persona image files |
+| Full `config.json` object (`readConfigRaw`) | Installed plugin packages under `plugins/` |
+| Full decrypted `CredentialsFile` (all `integrations.*`, AI, transcription) | Plugin local data under `plugins-data/` |
+| `chat.sqlite` (chat sessions, projects, schedules, flows, run history) | Skills directory bodies and persona image files |
+| `memory.sqlite` (memories, sources, proposals, audit data) | App appearance and other Mac-only preferences |
+| Complete project folders (attachments, outputs, `AGENTS.md`, project-local skills), including projects whose folder lives elsewhere | Symbolic links and unreadable files (recorded as skipped in the manifest and reported by the CLI) |
+| Saved recordings under `listen/recordings/` (audio, transcripts, summaries, metadata) | Unfinished in-progress recordings (`listen/recordings/.tmp/`) |
+
+Backups can be large because they include audio. Backup creation and restore
+both stream file sections so recording libraries do not need to fit in memory.
 
 ### Crypto
 
-- Outer backup file: AES-256-GCM + **scrypt** password KDF  
-  (`format: "toby.config.backup.encrypted"`, version 2).  
-  Code: [`backup-crypto.ts`](../packages/core/src/config/backup-crypto.ts),
-  orchestration [`backup.ts`](../packages/core/src/config/backup.ts).
-- Inner payload (version 2):
+New backups are **v3 file-backed archives**:
+
+- Container prefix `TOBYBACKUP\t1\t<offset>` followed by AES-256-GCM encrypted
+  sections and a plaintext JSON header at the tail (section offsets, IVs, auth
+  tags, scrypt params). Sections: `meta` (version 3 settings + credentials),
+  `databases` (v1 gzip-base64 chat/memory bundle), `projects-files`,
+  `recordings-files`, and `files-manifest` (relative paths, sizes, SHA-256,
+  modes).
+- Password KDF is scrypt; each section is independently GCM-authenticated.
+- Code: [`backup-archive.ts`](../packages/core/src/config/backup-archive.ts)
+  (container), [`backup-files.ts`](../packages/core/src/config/backup-files.ts)
+  (capture), [`backup-file-restore.ts`](../packages/core/src/config/backup-file-restore.ts)
+  (validation + staging),
+  [`backup.ts`](../packages/core/src/config/backup.ts) (orchestration).
+
+Legacy backups remain restorable:
+
+- v2 JSON envelope (`format: "toby.config.backup.encrypted"`, AES-256-GCM +
+  scrypt via [`backup-crypto.ts`](../packages/core/src/config/backup-crypto.ts))
+  with the payload below.
+- v1 legacy **unencrypted** payload JSON.
 
 ```ts
+// Legacy v2 JSON payload (still accepted on restore)
 {
   version: 2,
   createdAt: string, // ISO
@@ -184,15 +207,13 @@ safe SQLite snapshots so a machine move does not depend on Keychain.
 }
 ```
 
-Legacy **unencrypted** payload JSON is still accepted on restore.
-
 ### Surfaces
 
 | Surface | Entry |
 | ------- | ----- |
 | Toby.app | **File → Backup Toby Data…** / **Restore Toby Data…** |
 | CLI | `toby config backup` / `toby config restore` |
-| Daemon API | `POST /api/config/backup`, `POST /api/config/restore` (see [server-api.md](server-api.md)) |
+| Daemon API | `POST /api/config/backup` (binary archive response), `POST /api/config/restore` (JSON legacy body or binary archive upload; see [server-api.md](server-api.md)) |
 
 App and CLI use the **same** core helpers and file format. The app never
 reimplements Keychain decrypt; it asks the daemon, which calls
@@ -200,15 +221,24 @@ reimplements Keychain decrypt; it asks the daemon, which calls
 
 ### Restore behavior
 
-1. Parse file; if encrypted, require password.
+1. Detect the format: v3 archive vs legacy JSON; both require the backup
+   password (v1 unencrypted excepted).
 2. Require explicit confirmation (`confirm: true` on API; prompt on CLI unless
-   `--yes`).
-3. `writeConfigRaw` + `writeCredentials` (credentials re-encrypted at rest on
-   macOS with **this machine’s** Keychain DEK).
-4. For complete v2 backups, validate and stage both SQLite databases, then
-   restart the daemon so they replace local databases before either is opened.
-   Legacy v1 settings-only backups remain supported.
-4. Invalidate configure / model-list caches on the API path.
+   `--yes`). A restore is rejected while a recording is in progress.
+3. v3 archives are fully validated **before any live data changes**: GCM
+   authentication, per-file SHA-256, and SQLite `quick_check` all run while
+   staging into a private `.pending-restore-*` directory.
+4. Only after clean staging: `writeConfigRaw` + `writeCredentials` (credentials
+   re-encrypted at rest on macOS with **this machine’s** Keychain DEK), then
+   the pending manifest is written as the commit point and the daemon restarts.
+5. Daemon startup applies the staged restore with rollback: chat/memory
+   databases plus the `projects/` and `listen/recordings/` trees are replaced
+   from staging; on any failure the pre-restore copies are put back. Project
+   rows are repointed to `~/.toby/projects/<id>` so restored projects work on
+   any Mac; original custom folders are never overwritten.
+6. Legacy JSON restores write settings immediately and stage only their
+   databases; they never clear existing project files or recordings.
+7. Invalidate configure / model-list caches on the API path.
 
 ### Operational guidance
 
