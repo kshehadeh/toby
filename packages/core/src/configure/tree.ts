@@ -537,6 +537,19 @@ export function buildSettingsTree(
 				description:
 					"Capture other apps (meetings, browser, music). With the mic on, combined audio is dual-mono stereo (mic left, system right)—not a summed mix.",
 			},
+			{
+				label: "Delete audio after transcription",
+				kind: "select" as const,
+				key: "listen.deleteAudioAfterTranscription",
+				options: ["true", "false"],
+				selectChoices: [
+					{ value: "true", label: "On" },
+					{ value: "false", label: "Off" },
+				],
+				currentValue: values["listen.deleteAudioAfterTranscription"] ?? "true",
+				description:
+					"When on, Toby deletes a recording's audio files once transcription succeeds. The transcript, summary, and metadata are kept.",
+			},
 		],
 	};
 

@@ -85,6 +85,7 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `GET` | `/api/listen/recordings` | List saved recording summaries. |
 | `GET` | `/api/listen/recordings/:id` | Fetch recording metadata, audio path, transcript, and summary. |
 | `DELETE` | `/api/listen/recordings/:id` | Delete a saved recording and its artifacts. |
+| `DELETE` | `/api/listen/recordings/:id/audio` | Delete a recording's audio files; keep the transcript, summary, and metadata. |
 | `POST` | `/api/listen/recordings/:id/transcribe` | Transcribe or retranscribe a saved recording. |
 | `POST` | `/api/listen/recordings/:id/summarize` | Summarize or re-summarize a transcribed recording. |
 | `GET` | `/api/sessions` | List chat sessions. |
@@ -384,6 +385,19 @@ Errors:
 - `404` when the recording does not exist.
 - `500` when removal fails.
 
+### `DELETE /api/listen/recordings/:id/audio`
+
+Deletes the recording's audio files (`combined.m4a`, `mic.wav`, `system.wav`)
+while keeping the recording entry, transcript, summary, and metadata. Clears the
+audio file entries from `metadata.json` and records `audioDeletedAt`. Returns
+the refreshed recording detail (the same shape as
+`GET /api/listen/recordings/:id`). Safe when no audio files exist.
+
+Errors:
+
+- `404` when the recording does not exist.
+- `500` when deletion fails.
+
 ### `POST /api/listen/recordings/:id/transcribe`
 
 Invokes the configured transcription plugin against the resolved audio file,
@@ -410,6 +424,12 @@ Errors:
 Re-transcribe clears any previously stored AI summary for the recording and
 clears prior `metadata.errors` so a successful retry does not leave a stale
 failure message in the Recordings inspector.
+
+When Settings → Transcription → **Delete audio after transcription** is on (the
+default), a successful transcription also deletes the recording's audio files
+(the same behavior as `DELETE /api/listen/recordings/:id/audio`); the
+transcript, summary, and metadata are kept. Audio is kept when transcription
+fails or the setting is off.
 
 ### `POST /api/listen/recordings/:id/summarize`
 

@@ -5,9 +5,11 @@ import path from "node:path";
 import { createListenChatTools } from "@toby/core/ai/listen-chat-tools";
 import {
 	clearListenSummary,
+	deleteListenRecordingAudio,
 	deleteListenRecordingById,
 	findListenRecordingById,
 	listListenRecordings,
+	listenAudioAutoDeleteEnabled,
 	readListenSummary,
 	readListenTranscript,
 	recordingHasAudio,
@@ -203,6 +205,88 @@ describe("listen recordings core", () => {
 		expect(deleteListenRecordingById("delete-me", dir)).toBe(true);
 		expect(fs.existsSync(outputDir)).toBe(false);
 		expect(deleteListenRecordingById("delete-me", dir)).toBe(false);
+	});
+
+	it("deletes audio files while keeping transcript and metadata", () => {
+		const dir = tempDir();
+		const outputDir = saveRecording({
+			dir,
+			id: "purge-audio",
+			startedAt: "2026-05-21T12:00:00Z",
+			transcriptText: "Transcript body.",
+			combined: true,
+		});
+		fs.writeFileSync(path.join(outputDir, "mic.wav"), "mic");
+		fs.writeFileSync(path.join(outputDir, "system.wav"), "system");
+		const recording = findListenRecordingById("purge-audio", dir);
+		expect(recording).not.toBeNull();
+		if (!recording) return;
+		expect(recordingHasAudio(recording)).toBe(true);
+
+		const updated = deleteListenRecordingAudio(recording);
+
+		expect(fs.existsSync(path.join(outputDir, "combined.m4a"))).toBe(false);
+		expect(fs.existsSync(path.join(outputDir, "mic.wav"))).toBe(false);
+		expect(fs.existsSync(path.join(outputDir, "system.wav"))).toBe(false);
+		expect(fs.existsSync(path.join(outputDir, "transcript.txt"))).toBe(true);
+		expect(updated.metadata.files.combined).toBeUndefined();
+		expect(updated.metadata.files.mic).toBeUndefined();
+		expect(updated.metadata.files.system).toBeUndefined();
+		expect(updated.metadata.files.transcript).toBe("transcript.txt");
+		expect(updated.metadata.audioDeletedAt).toBeDefined();
+		expect(recordingHasAudio(updated)).toBe(false);
+		expect(recordingHasTranscript(updated)).toBe(true);
+	});
+
+	it("deleteListenRecordingAudio is safe when no audio files exist", () => {
+		const dir = tempDir();
+		const outputDir = saveRecording({
+			dir,
+			id: "no-audio",
+			startedAt: "2026-05-21T12:00:00Z",
+			transcriptText: "Only text.",
+		});
+		const recording = findListenRecordingById("no-audio", dir);
+		expect(recording).not.toBeNull();
+		if (!recording) return;
+
+		const updated = deleteListenRecordingAudio(recording);
+
+		expect(fs.existsSync(outputDir)).toBe(true);
+		expect(updated.metadata.audioDeletedAt).toBeDefined();
+		expect(recordingHasTranscript(updated)).toBe(true);
+	});
+
+	it("listenAudioAutoDeleteEnabled defaults to on and respects config", () => {
+		const dir = tempDir();
+		const previous = process.env.TOBY_DIR;
+		const tobyHome = path.join(dir, "toby-home");
+		fs.mkdirSync(tobyHome, { recursive: true });
+		process.env.TOBY_DIR = tobyHome;
+		try {
+			// No config.json yet: default on.
+			expect(listenAudioAutoDeleteEnabled()).toBe(true);
+			fs.writeFileSync(
+				path.join(tobyHome, "config.json"),
+				JSON.stringify({
+					listen: { deleteAudioAfterTranscription: false },
+				}),
+			);
+			expect(listenAudioAutoDeleteEnabled()).toBe(false);
+			fs.writeFileSync(
+				path.join(tobyHome, "config.json"),
+				JSON.stringify({
+					listen: { deleteAudioAfterTranscription: true },
+				}),
+			);
+			expect(listenAudioAutoDeleteEnabled()).toBe(true);
+		} finally {
+			if (previous === undefined) {
+				Reflect.deleteProperty(process.env, "TOBY_DIR");
+			} else {
+				process.env.TOBY_DIR = previous;
+			}
+		}
 	});
 
 	it("writes, reads, and clears AI summaries", () => {

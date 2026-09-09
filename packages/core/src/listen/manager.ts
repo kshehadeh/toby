@@ -1,9 +1,15 @@
+import path from "node:path";
 import {
 	type AudioCaptureHandle,
 	type AudioHelperEvent,
 	startMacOSAudioCapture,
 } from "./macos/audio-capture";
-import { readListenTranscript } from "./recordings";
+import {
+	deleteListenRecordingAudio,
+	findListenRecordingById,
+	listenAudioAutoDeleteEnabled,
+	readListenTranscript,
+} from "./recordings";
 import {
 	buildListenMetadata,
 	discardListenSession,
@@ -227,6 +233,18 @@ export class ListenManager {
 							errors: this.errors,
 						}),
 					);
+				}
+			}
+
+			// Transcription succeeded, so the transcript (and any later summary)
+			// no longer needs the source audio. Off by config only.
+			if (transcript && listenAudioAutoDeleteEnabled()) {
+				const saved = findListenRecordingById(
+					session.id,
+					path.dirname(outputDir),
+				);
+				if (saved) {
+					deleteListenRecordingAudio(saved);
 				}
 			}
 

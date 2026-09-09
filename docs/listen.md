@@ -21,6 +21,14 @@ Toby.app provides native recording controls and the Recordings window.
   Whisper-class models), `transcript.json` stores start time and duration per
   segment; the Recordings window shows those timestamps and Copy uses the timed
   text. Plain `transcript.txt` remains a single concatenated string.
+- **Delete audio after transcription** (Settings → Transcription, default **on**):
+  once a transcription succeeds, the recording's audio files
+  (`combined.m4a`, `mic.wav`, `system.wav`) are deleted. The recording entry,
+  transcript, summary, and metadata are kept (`metadata.audioDeletedAt` records
+  the deletion). Audio is kept when transcription fails or the setting is off,
+  so a failed take can be retried. Audio can also be deleted manually from the
+  Recordings inspector (`DELETE /api/listen/recordings/:id/audio`); after that,
+  re-transcription is no longer possible because the source audio is gone.
 - Optionally generate `summary.md` via the configured summary persona after
   transcription (on demand from the Recordings window).
 - Write `metadata.json` next to each recording (includes optional `combine`
@@ -66,7 +74,9 @@ Stopping performs these steps:
 4. The daemon invokes the configured transcription plugin and updates
    `metadata.json` with transcript paths, or appends the failure to
    `metadata.errors`. A later successful re-transcribe clears those errors
-   (and any prior AI summary).
+   (and any prior AI summary). On success, when **Delete audio after
+   transcription** is on (default), the daemon deletes the recording's audio
+   files and records `metadata.audioDeletedAt`.
 5. Toby.app shows a success/error toast and the result becomes available in
    the **Recordings** window.
 
@@ -78,8 +88,9 @@ recording is in progress, the detail pane shows live capture metadata and a
 menu bar. After stop, while combine / transcription is still running, the
 window shows a processing card instead of the live “Recording in progress”
 pane. After processing, the window supports audio playback, transcript viewing,
-AI summarization, metadata editing, and confirmed deletion. Selecting a saved
-recording paints the header and inspector immediately from the list row;
+AI summarization, metadata editing, confirmed audio deletion (the recording,
+transcript, and summary are kept), and confirmed recording deletion. Selecting a
+saved recording paints the header and inspector immediately from the list row;
 transcript, summary, and the audio player show skeletons until the detail
 payload is decoded (off the main actor) so a long recording does not freeze
 the UI. Deletion is sent to `DELETE /api/listen/recordings/:id`; the SwiftUI
@@ -149,9 +160,12 @@ happen inside Toby.app's `NativeAudioHandler`.
 | ----------- | ------- | ------- |
 | `listen.recordMic` | `true` | Capture the default microphone (**input** — your voice) |
 | `listen.recordSystem` | `true` | Capture system/app audio via ScreenCaptureKit (**output** — what you hear) |
+| `listen.deleteAudioAfterTranscription` | `true` | Delete the recording's audio files once a transcription succeeds; the transcript, summary, and metadata are kept |
 
-Turn either off under **Settings → Transcription** if you only need one source.
-At least one source must remain on.
+Turn either capture source off under **Settings → Transcription** if you only
+need one source. At least one source must remain on. **Delete audio after
+transcription** (also under Settings → Transcription) can be turned off to keep
+audio files after transcription.
 
 These are not “two mics.” Combined is meant to keep **input and output**
 together for transcription/archival. When both are present:

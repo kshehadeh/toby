@@ -31,6 +31,12 @@ export interface ListenRecordingMetadata {
 	readonly durationMs?: number;
 	readonly sources: ListenSourceSelection;
 	readonly files: ListenRecordingFiles;
+	/**
+	 * When the recording's audio files were deleted (transcript, summary, and
+	 * metadata remain). Set by auto-delete after transcription or the
+	 * delete-audio endpoint.
+	 */
+	readonly audioDeletedAt?: string;
 	readonly platform: NodeJS.Platform;
 	readonly osVersion?: string;
 	readonly helper?: {

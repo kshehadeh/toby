@@ -187,5 +187,110 @@ describe("ListenManager", () => {
 
 		expect(stopped.transcriptionError).toBe("transcription unavailable");
 		expect(metadata.errors).toContain("transcription unavailable");
+		// Audio is kept when transcription fails so it can be retried later.
+		expect(
+			fs.existsSync(path.join(stopped.outputDir ?? "", "combined.m4a")),
+		).toBe(true);
+	});
+
+	it("deletes audio after successful transcription by default", async () => {
+		await withTempTobyDir(async () => {
+			const recordingsDir = path.join(
+				process.env.TOBY_DIR ?? "",
+				"listen",
+				"recordings",
+			);
+			const manager = new ListenManager({
+				startCapture: ({ session, onEvent }) => {
+					fs.writeFileSync(path.join(session.tempDir, "combined.m4a"), "audio");
+					onEvent?.({
+						type: "ready",
+						files: { combined: path.join(session.tempDir, "combined.m4a") },
+					});
+					return {
+						helperPath: "/tmp/fake-helper",
+						child: fakeChild(),
+						stop: mock(async () => {}),
+						dispose: mock(),
+					};
+				},
+				transcribe: mock(async ({ outDir }) => {
+					const transcript = path.join(outDir, "transcript.txt");
+					fs.writeFileSync(transcript, "hello from recording\n");
+					return { transcript };
+				}),
+			});
+			manager.start({ recordingsDir });
+
+			const stopped = await manager.stop();
+
+			expect(stopped.transcript).toBe("hello from recording");
+			expect(
+				fs.existsSync(path.join(stopped.outputDir ?? "", "combined.m4a")),
+			).toBe(false);
+			expect(
+				fs.existsSync(path.join(stopped.outputDir ?? "", "transcript.txt")),
+			).toBe(true);
+			const metadata = JSON.parse(
+				fs.readFileSync(
+					path.join(stopped.outputDir ?? "", "metadata.json"),
+					"utf8",
+				),
+			) as {
+				files: { combined?: string; transcript?: string };
+				audioDeletedAt?: string;
+			};
+			expect(metadata.files.combined).toBeUndefined();
+			expect(metadata.files.transcript).toBeDefined();
+			expect(metadata.audioDeletedAt).toBeDefined();
+		});
+	});
+
+	it("keeps audio after transcription when deleteAudioAfterTranscription is off", async () => {
+		await withTempTobyDir(async () => {
+			const tobyDir = process.env.TOBY_DIR ?? "";
+			fs.writeFileSync(
+				path.join(tobyDir, "config.json"),
+				JSON.stringify({
+					listen: { deleteAudioAfterTranscription: false },
+				}),
+			);
+			const recordingsDir = path.join(tobyDir, "listen", "recordings");
+			const manager = new ListenManager({
+				startCapture: ({ session, onEvent }) => {
+					fs.writeFileSync(path.join(session.tempDir, "combined.m4a"), "audio");
+					onEvent?.({
+						type: "ready",
+						files: { combined: path.join(session.tempDir, "combined.m4a") },
+					});
+					return {
+						helperPath: "/tmp/fake-helper",
+						child: fakeChild(),
+						stop: mock(async () => {}),
+						dispose: mock(),
+					};
+				},
+				transcribe: mock(async ({ outDir }) => {
+					const transcript = path.join(outDir, "transcript.txt");
+					fs.writeFileSync(transcript, "hello from recording\n");
+					return { transcript };
+				}),
+			});
+			manager.start({ recordingsDir });
+
+			const stopped = await manager.stop();
+
+			expect(stopped.transcript).toBe("hello from recording");
+			expect(
+				fs.existsSync(path.join(stopped.outputDir ?? "", "combined.m4a")),
+			).toBe(true);
+			const metadata = JSON.parse(
+				fs.readFileSync(
+					path.join(stopped.outputDir ?? "", "metadata.json"),
+					"utf8",
+				),
+			) as { audioDeletedAt?: string };
+			expect(metadata.audioDeletedAt).toBeUndefined();
+		});
 	});
 });

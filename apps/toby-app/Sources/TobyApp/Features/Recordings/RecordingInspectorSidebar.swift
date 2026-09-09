@@ -34,6 +34,10 @@ struct RecordingInspectorSidebar: View {
 		store.summarizingRecordingId == detail.id
 	}
 
+	private var isDeletingAudio: Bool {
+		store.deletingAudioRecordingId == detail.id
+	}
+
 	/// Returns the associated chat session ID if it exists in the current
 	/// sessions list, otherwise nil (meaning "Start Chat" should be shown).
 	private var existingChatSessionId: String? {
@@ -121,6 +125,23 @@ struct RecordingInspectorSidebar: View {
 		}
 		.frame(width: 280)
 		.background(AppTheme.sidebarBackground)
+		.alert(
+			"Delete Audio?",
+			isPresented: Binding(
+				get: { store.pendingDeleteAudioRecordingId == detail.id },
+				set: { if !$0 { store.pendingDeleteAudioRecordingId = nil } }
+			)
+		) {
+			Button("Cancel", role: .cancel) {
+				store.pendingDeleteAudioRecordingId = nil
+			}
+			Button("Delete Audio", role: .destructive) {
+				store.pendingDeleteAudioRecordingId = nil
+				Task { await store.deleteRecordingAudio(id: detail.id) }
+			}
+		} message: {
+			Text("The audio files are deleted. The transcript, summary, and recording entry are kept. This cannot be undone.")
+		}
 	}
 
 	@ViewBuilder
@@ -191,9 +212,27 @@ struct RecordingInspectorSidebar: View {
 			} else if detail.hasAudio, !detail.playableAudioSources.isEmpty {
 				RecordingAudioPlayerView(detail: detail)
 			} else {
-				Text("No audio file available")
-					.font(.system(size: 11))
-					.foregroundStyle(SettingsDesign.rowDescription)
+				Text(
+					detail.metadata.audioDeletedAt == nil
+						? "No audio file available"
+						: "Audio deleted; the transcript is kept."
+				)
+				.font(.system(size: 11))
+				.foregroundStyle(SettingsDesign.rowDescription)
+			}
+
+			if detail.hasAudio {
+				Button {
+					store.pendingDeleteAudioRecordingId = detail.id
+				} label: {
+					Label("Delete Audio", systemImage: "trash")
+						.frame(maxWidth: .infinity)
+				}
+				.buttonStyle(.bordered)
+				.controlSize(.small)
+				.tint(.red)
+				.disabled(isDeletingAudio)
+				.accessibilityIdentifier("sidebar-delete-audio-button")
 			}
 		}
 	}

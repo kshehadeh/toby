@@ -73,6 +73,7 @@ import {
 } from "./handlers/integrations";
 import { handleCreateIssue } from "./handlers/issues";
 import {
+	handleListenRecordingAudioDelete,
 	handleListenRecordingDelete,
 	handleListenRecordingDetail,
 	handleListenRecordingPatch,
@@ -283,6 +284,13 @@ export async function handleWebRequest(
 		if (listenRecordingSummarizeMatch && req.method === "POST") {
 			return handleListenRecordingSummarize(
 				decodeURIComponent(listenRecordingSummarizeMatch[1]),
+			);
+		}
+		const listenRecordingAudioMatch =
+			/^\/api\/listen\/recordings\/([^/]+)\/audio$/.exec(pathname);
+		if (listenRecordingAudioMatch && req.method === "DELETE") {
+			return handleListenRecordingAudioDelete(
+				decodeURIComponent(listenRecordingAudioMatch[1]),
 			);
 		}
 		if (pathname === "/api/daemon/status" && req.method === "GET") {

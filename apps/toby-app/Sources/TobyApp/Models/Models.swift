@@ -893,6 +893,8 @@ struct ListenRecordingMetadata: Decodable, Sendable {
 	let errors: [String]?
 	let chatSessionId: String?
 	let summary: ListenRecordingSummaryMeta?
+	/// When the recording's audio files were deleted (transcript and summary remain).
+	let audioDeletedAt: String?
 }
 
 struct ListenRecordingDetail: Decodable, Sendable {
@@ -984,6 +986,7 @@ struct ListenRecordingDetail: Decodable, Sendable {
 				errors: nil,
 				chatSessionId: nil,
 				summary: nil,
+				audioDeletedAt: nil,
 			),
 			hasAudio: summary.hasAudio,
 			audioPath: nil,

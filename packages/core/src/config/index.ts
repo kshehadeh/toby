@@ -234,6 +234,11 @@ export interface ListenConfig {
 	 */
 	readonly recordMic?: boolean;
 	readonly recordSystem?: boolean;
+	/**
+	 * Delete a recording's audio files after a successful transcription.
+	 * Defaults to true; the transcript, summary, and metadata are kept.
+	 */
+	readonly deleteAudioAfterTranscription?: boolean;
 }
 
 export interface TobyConfig {

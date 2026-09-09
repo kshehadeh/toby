@@ -7,6 +7,10 @@ final class RecordingsStore {
 	var recordings: [ListenRecordingSummary] = []
 	var selectedRecordingIds: Set<String> = []
 	var pendingDeleteRecordingIds: Set<String> = []
+	/// Recording whose audio deletion is awaiting confirmation in the inspector.
+	var pendingDeleteAudioRecordingId: String?
+	/// Recording id whose audio is currently being deleted.
+	var deletingAudioRecordingId: String?
 	var detail: ListenRecordingDetail?
 	var isLoading = false
 	var isDetailLoading = false
@@ -58,6 +62,8 @@ final class RecordingsStore {
 		selectedActiveRecordingId = nil
 		transcriptionProcessing = nil
 		summarizingRecordingId = nil
+		pendingDeleteAudioRecordingId = nil
+		deletingAudioRecordingId = nil
 	}
 
 	func load() async {
@@ -238,7 +244,8 @@ final class RecordingsStore {
 					sources: currentDetail.metadata.sources,
 					errors: currentDetail.metadata.errors,
 					chatSessionId: currentDetail.metadata.chatSessionId,
-					summary: currentDetail.metadata.summary
+					summary: currentDetail.metadata.summary,
+					audioDeletedAt: currentDetail.metadata.audioDeletedAt
 				),
 				hasAudio: currentDetail.hasAudio,
 				audioPath: currentDetail.audioPath,
@@ -292,6 +299,31 @@ final class RecordingsStore {
 			recordings = try await client.listRecordings()
 			selectedRecordingIds = Set(recordings.prefix(1).map(\.id))
 			await loadDetailIfNeeded()
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	/// Delete a recording's audio files while keeping the recording entry,
+	/// transcript, and summary.
+	func deleteRecordingAudio(id: String) async {
+		guard deletingAudioRecordingId == nil else { return }
+		deletingAudioRecordingId = id
+		errorMessage = nil
+		defer {
+			if deletingAudioRecordingId == id {
+				deletingAudioRecordingId = nil
+			}
+		}
+		do {
+			let updated = try await client.deleteRecordingAudio(id: id)
+			if selectedRecordingIds.contains(id) {
+				detail = updated
+			}
+			// Refresh list so hasAudio badges stay in sync.
+			if let list = try? await client.listRecordings() {
+				recordings = list
+			}
 		} catch {
 			errorMessage = error.localizedDescription
 		}

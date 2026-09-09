@@ -94,6 +94,7 @@ Transcript entries and chat stream events are structured JSON objects emitted du
 | `GET` | `/api/listen/recordings/:id` | Recording detail + transcript + summary |
 | `PATCH` | `/api/listen/recordings/:id` | Update name, description, or linked chat |
 | `DELETE` | `/api/listen/recordings/:id` | Delete a recording |
+| `DELETE` | `/api/listen/recordings/:id/audio` | Delete a recording's audio files (keeps transcript + summary) |
 | `POST` | `/api/listen/recordings/:id/transcribe` | Transcribe or retranscribe |
 | `POST` | `/api/listen/recordings/:id/summarize` | Summarize or re-summarize a transcript |
 | `GET` | `/api/sessions` | List chat sessions |
@@ -370,6 +371,15 @@ At least one of `name`, `description`, or `chatSessionId` is required. Returns t
 ```
 
 - `404` / `500` on failure
+
+### `DELETE /api/listen/recordings/:id/audio`
+
+Deletes the recording's audio files (`combined.m4a`, `mic.wav`, `system.wav`)
+while keeping the recording entry, transcript, summary, and metadata. Records
+`audioDeletedAt` in metadata and returns the refreshed recording detail.
+
+- `404` not found
+- `500` on failure
 
 ### `POST /api/listen/recordings/:id/transcribe`
 

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { resolveTobyDir } from "../config/index";
+import { readConfig, resolveTobyDir } from "../config/index";
 import type { TranscriptPayload } from "./transcript-types";
 import type {
 	ListenRecordingMetadata,
@@ -92,6 +92,58 @@ export function deleteListenRecordingById(
 	if (!recording) return false;
 	fs.rmSync(recording.dir, { recursive: true });
 	return true;
+}
+
+/**
+ * Whether a recording's audio files should be deleted after a successful
+ * transcription. Defaults to on; `config.listen.deleteAudioAfterTranscription`
+ * set to `false` turns it off.
+ */
+export function listenAudioAutoDeleteEnabled(): boolean {
+	return readConfig().listen?.deleteAudioAfterTranscription !== false;
+}
+
+/**
+ * Delete a recording's audio files (`combined.m4a`, `mic.wav`, `system.wav`)
+ * while keeping the transcript, summary, and metadata. Clears the audio file
+ * entries and records `audioDeletedAt` in metadata. Safe when no audio files
+ * exist.
+ */
+export function deleteListenRecordingAudio(
+	recording: ListenRecordingSummary,
+): ListenRecordingSummary {
+	for (const audioPath of [
+		resolveListenRecordingCombinedPath(recording),
+		resolveListenRecordingMicPath(recording),
+		resolveListenRecordingSystemPath(recording),
+	]) {
+		if (!audioPath) continue;
+		try {
+			fs.unlinkSync(audioPath);
+		} catch {
+			// ignore missing file
+		}
+	}
+	const {
+		mic: _mic,
+		system: _system,
+		combined: _combined,
+		...restFiles
+	} = recording.metadata.files;
+	const nextMetadata: ListenRecordingMetadata = {
+		...recording.metadata,
+		files: restFiles,
+		audioDeletedAt: new Date().toISOString(),
+	};
+	fs.writeFileSync(
+		metadataPath(recording.dir),
+		`${JSON.stringify(nextMetadata, null, 2)}\n`,
+	);
+	return {
+		id: recording.id,
+		dir: recording.dir,
+		metadata: nextMetadata,
+	};
 }
 
 function resolveFilePath(

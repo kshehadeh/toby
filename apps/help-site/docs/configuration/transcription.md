@@ -19,10 +19,18 @@ Open **Toby.app → Settings → Transcription**.
 | **Persona for recording summaries** | Persona used when you summarize a recording transcript (falls back to the default persona) |
 | **Record microphone** | Capture the mic during **Record Audio** (default on) |
 | **Record system audio** | Capture other apps during **Record Audio** (default on) |
+| **Delete audio after transcription** | Delete a recording's audio files once transcription succeeds (default on); the transcript, summary, and recording entry are kept |
 
 At least one of microphone or system audio must stay on. When both are recorded,
 `combined.m4a` is dual-mono stereo (mic left, system right) rather than a summed
 mix—so headphone bleed does not turn into an echo. See [Listen mode](../listen).
+
+**Delete audio after transcription** frees disk space by removing
+`combined.m4a` and the source WAVs after a successful transcription. Audio is
+kept when transcription fails, so you can retry. Once the audio is deleted, the
+recording cannot be re-transcribed; you can also delete a recording's audio
+manually from the Recordings inspector. Turn this setting off to keep audio
+files alongside transcripts.
 
 ### OpenAI
 

@@ -898,6 +898,49 @@ struct RecordingsViewTests {
 		#expect(active?.sources.system == true)
 		#expect(active?.outputDir == "/tmp/listen/tmp/sess-1")
 	}
+
+	// MARK: - Audio deletion
+
+	@Test("detail view shows Delete Audio button when audio exists")
+	func detailViewShowsDeleteAudioButtonWhenAudioExists() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One", hasAudio: true)]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: nil, hasAudio: true)
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-delete-audio-button")
+		}
+	}
+
+	@Test("detail view hides Delete Audio button when no audio exists")
+	func detailViewHidesDeleteAudioButtonWhenNoAudio() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One", hasAudio: false)]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello", hasAudio: false)
+		let view = RecordingsView(store: store)
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-delete-audio-button")
+		}
+	}
+
+	@Test("audio section notes deleted audio and keeps the transcript message")
+	func audioSectionNotesDeletedAudio() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One", hasAudio: false)]
+		store.selectedRecordingIds = ["r1"]
+		store.detail = makeRecordingDetail(
+			id: "r1",
+			transcript: "Hello",
+			hasAudio: false,
+			audioDeletedAt: "2026-09-09T12:00:00Z"
+		)
+		let view = RecordingsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Audio deleted; the transcript is kept.")
+		}
+	}
 }
 
 private func makeRecording(
@@ -939,7 +982,8 @@ private func makeRecordingDetail(
 	hasAudio: Bool = false,
 	chatSessionId: String? = nil,
 	summary: String? = nil,
-	segments: [ListenTranscriptSegment]? = nil
+	segments: [ListenTranscriptSegment]? = nil,
+	audioDeletedAt: String? = nil
 ) -> ListenRecordingDetail {
 	ListenRecordingDetail(
 		id: id,
@@ -957,7 +1001,8 @@ private func makeRecordingDetail(
 			chatSessionId: chatSessionId,
 			summary: summary != nil
 				? ListenRecordingSummaryMeta(createdAt: "2026-06-22T10:05:00Z", personaName: "Toby")
-				: nil
+				: nil,
+			audioDeletedAt: audioDeletedAt
 		),
 		hasAudio: hasAudio,
 		audioPath: hasAudio ? "/tmp/\(id)/combined.m4a" : nil,

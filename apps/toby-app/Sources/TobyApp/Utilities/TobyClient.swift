@@ -358,6 +358,15 @@ struct TobyClient {
 		try validate(response: response, data: data)
 	}
 
+	/// Delete a recording's audio files (keeps the transcript, summary, and metadata).
+	func deleteRecordingAudio(id: String) async throws -> ListenRecordingDetail {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)/audio"))
+		request.httpMethod = "DELETE"
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try await Self.decodeRecordingDetail(data)
+	}
+
 	func parseCronExpression(input: String) async throws -> String {
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/schedules/parse-cron"))
 		request.httpMethod = "POST"

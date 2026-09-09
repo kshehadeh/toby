@@ -2,9 +2,11 @@ import fs from "node:fs";
 import { listenManager } from "../../listen/manager";
 import {
 	clearListenSummary,
+	deleteListenRecordingAudio,
 	deleteListenRecordingById,
 	findListenRecordingById,
 	listListenRecordings,
+	listenAudioAutoDeleteEnabled,
 	metadataPath,
 	readListenSummary,
 	readListenTranscript,
@@ -174,6 +176,27 @@ export function handleListenRecordingDelete(recordingId: string): Response {
 			return errorResponse("Recording not found", 404);
 		}
 		return jsonResponse({ ok: true });
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return errorResponse(message, 500);
+	}
+}
+
+/**
+ * Delete a recording's audio files while keeping the recording entry,
+ * transcript, summary, and metadata.
+ */
+export function handleListenRecordingAudioDelete(
+	recordingId: string,
+): Response {
+	try {
+		const recording = findListenRecordingById(recordingId);
+		if (!recording) {
+			return errorResponse("Recording not found", 404);
+		}
+		return jsonResponse(
+			recordingDetailPayload(deleteListenRecordingAudio(recording)),
+		);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		return errorResponse(message, 500);
@@ -361,10 +384,16 @@ function finalizeTranscription(
 		metadataPath(cleared.dir),
 		`${JSON.stringify(nextMetadata, null, 2)}\n`,
 	);
-	return recordingDetailPayload({
+	const updated = {
 		...cleared,
 		metadata: nextMetadata,
-	});
+	};
+	// Audio auto-delete after a successful transcription is on by default; the
+	// transcript, summary, and metadata stay behind.
+	const final = listenAudioAutoDeleteEnabled()
+		? deleteListenRecordingAudio(updated)
+		: updated;
+	return recordingDetailPayload(final);
 }
 
 function writeRecordingError(

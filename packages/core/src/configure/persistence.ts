@@ -204,6 +204,8 @@ export function seedConfigureValues(): Record<string, string> {
 		config.listen?.recordMic === false ? "false" : "true";
 	values["listen.recordSystem"] =
 		config.listen?.recordSystem === false ? "false" : "true";
+	values["listen.deleteAudioAfterTranscription"] =
+		config.listen?.deleteAudioAfterTranscription === false ? "false" : "true";
 
 	for (const mod of getIntegrationModules()) {
 		if (!mod.chatInbound) continue;
@@ -360,12 +362,18 @@ export function rebuildListenConfig(
 		recordSystem = true;
 	}
 	const nonDefaultSources = !recordMic || !recordSystem;
-	if (!summaryPersona && !nonDefaultSources) {
+	// Audio auto-delete defaults to on; only persist the flag when turned off.
+	const deleteAudioAfterTranscription =
+		values["listen.deleteAudioAfterTranscription"] !== "false";
+	if (!summaryPersona && !nonDefaultSources && deleteAudioAfterTranscription) {
 		return undefined;
 	}
 	return {
 		...(summaryPersona ? { summaryPersona } : {}),
 		...(nonDefaultSources ? { recordMic, recordSystem } : {}),
+		...(deleteAudioAfterTranscription
+			? {}
+			: { deleteAudioAfterTranscription: false }),
 	};
 }
 
