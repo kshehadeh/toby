@@ -1286,7 +1286,7 @@ struct ConfigSyncStatus: Decodable, Equatable {
 }
 
 struct DatabaseSyncBackup: Decodable, Equatable, Identifiable {
-	var id: String { "\\(deviceId)/\\(filename)" }
+	var id: String { "\(deviceId)/\(filename)" }
 	let filename: String
 	let deviceId: String
 	let deviceName: String

@@ -8,6 +8,7 @@ struct ICloudSyncSettingsView: View {
 	/// When set, skip network fetches (previews and ViewInspector tests).
 	var previewStatus: ConfigSyncStatus? = nil
 	var previewHistory: [ConfigSyncHistoryItem] = []
+	var previewDatabaseBackups: [DatabaseSyncBackup] = []
 
 	@State private var status: ConfigSyncStatus?
 	@State private var history: [ConfigSyncHistoryItem] = []
@@ -26,13 +27,16 @@ struct ICloudSyncSettingsView: View {
 	init(
 		client: TobyClient = TobyClient(),
 		previewStatus: ConfigSyncStatus? = nil,
-		previewHistory: [ConfigSyncHistoryItem] = []
+		previewHistory: [ConfigSyncHistoryItem] = [],
+		previewDatabaseBackups: [DatabaseSyncBackup] = []
 	) {
 		self.client = client
 		self.previewStatus = previewStatus
 		self.previewHistory = previewHistory
+		self.previewDatabaseBackups = previewDatabaseBackups
 		_status = State(initialValue: previewStatus)
 		_history = State(initialValue: previewHistory)
+		_databaseBackups = State(initialValue: previewDatabaseBackups)
 		_selectedBackend = State(initialValue: Self.initialBackend(previewStatus))
 		_folderPath = State(initialValue: previewStatus?.folderPath ?? "")
 		_didSeedTransport = State(initialValue: previewStatus != nil)
@@ -147,6 +151,10 @@ struct ICloudSyncSettingsView: View {
 
 	private var resolvedHistory: [ConfigSyncHistoryItem] {
 		previewStatus == nil ? history : previewHistory
+	}
+
+	private var resolvedDatabaseBackups: [DatabaseSyncBackup] {
+		previewStatus == nil ? databaseBackups : previewDatabaseBackups
 	}
 
 	private var usingFolder: Bool {
@@ -355,7 +363,7 @@ struct ICloudSyncSettingsView: View {
 								.foregroundStyle(AppTheme.secondaryText)
 						}
 					}
-					ForEach(databaseBackups) { backup in
+					ForEach(resolvedDatabaseBackups) { backup in
 						HStack {
 							Text("\(backup.deviceName) · \(backup.createdAt)")
 								.font(.caption)
@@ -364,6 +372,7 @@ struct ICloudSyncSettingsView: View {
 							Button("Restore") { pendingDatabaseRestore = backup }
 								.disabled(isWorking)
 						}
+						.accessibilityIdentifier("database-backup-\(backup.filename)")
 					}
 				}
 				if let error = resolvedStatus?.lastDatabaseBackupError, !error.isEmpty {

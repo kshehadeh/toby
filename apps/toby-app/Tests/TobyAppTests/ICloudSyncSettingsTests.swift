@@ -156,6 +156,69 @@ struct ICloudSyncSettingsTests {
 		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-disable")
 		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "database-backups-enabled")
 	}
+
+	@Test("database backup identities include device and filename")
+	func databaseBackupIdentitiesAreUnique() {
+		let first = DatabaseSyncBackup(
+			filename: "2026-09-09T09-22-56-736Z.tbybak",
+			deviceId: "dev-1",
+			deviceName: "UA1GHWQ32M2NF",
+			createdAt: "2026-09-09T09:22:56.736Z"
+		)
+		let second = DatabaseSyncBackup(
+			filename: "2026-09-08T10-30-17-678Z.tbybak",
+			deviceId: "dev-1",
+			deviceName: "UA1GHWQ32M2NF",
+			createdAt: "2026-09-08T10:30:17.678Z"
+		)
+		#expect(first.id == "dev-1/2026-09-09T09-22-56-736Z.tbybak")
+		#expect(second.id == "dev-1/2026-09-08T10-30-17-678Z.tbybak")
+		#expect(first.id != second.id)
+	}
+
+	@Test("database backup list renders each snapshot instead of repeating one")
+	func databaseBackupListShowsDistinctSnapshots() throws {
+		let status = ConfigSyncStatus(
+			enabled: true,
+			iCloudAvailable: true,
+			deviceId: "dev-1",
+			deviceName: "UA1GHWQ32M2NF",
+			vaultPath: "/tmp/toby-sync",
+			lastPushAt: nil,
+			lastPullAt: nil,
+			lastError: nil,
+			lastWriterDeviceName: nil,
+			lastWriterDeviceId: nil,
+			lastAckedLamport: 1,
+			lastAckedContentHash: "abc",
+			dirty: false,
+			hasRemote: true,
+			remote: nil,
+			databaseBackupsEnabled: true
+		)
+		let backups = [
+			DatabaseSyncBackup(
+				filename: "2026-09-09T09-22-56-736Z.tbybak",
+				deviceId: "dev-1",
+				deviceName: "UA1GHWQ32M2NF",
+				createdAt: "2026-09-09T09:22:56.736Z"
+			),
+			DatabaseSyncBackup(
+				filename: "2026-09-08T10-30-17-678Z.tbybak",
+				deviceId: "dev-1",
+				deviceName: "UA1GHWQ32M2NF",
+				createdAt: "2026-09-08T10:30:17.678Z"
+			),
+		]
+		let view = ICloudSyncSettingsView(
+			previewStatus: status,
+			previewDatabaseBackups: backups
+		)
+		_ = try view.inspect().find(text: "UA1GHWQ32M2NF · 2026-09-09T09:22:56.736Z")
+		_ = try view.inspect().find(text: "UA1GHWQ32M2NF · 2026-09-08T10:30:17.678Z")
+		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "database-backup-2026-09-09T09-22-56-736Z.tbybak")
+		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "database-backup-2026-09-08T10-30-17-678Z.tbybak")
+	}
 }
 
 @MainActor
