@@ -73,13 +73,17 @@ struct ProjectsView: View {
 			ProjectDetailContent(
 				store: projectsStore,
 				project: project,
-				onCreateChat: {
-					Task { await projectsStore.createChat(chatStore: chatStore) }
-				},
-				onSelectChat: { id in
-					Task { await projectsStore.selectChat(id: id, chatStore: chatStore) }
-				},
 			)
+			.inspector(isPresented: $projectsStore.isChatsSidebarPresented) {
+				ProjectChatsSidebarView(store: projectsStore) { id in
+					Task { await projectsStore.selectChat(id: id, chatStore: chatStore) }
+				}
+				.inspectorColumnWidth(
+					min: ProjectChatsInspectorLayout.minWidth,
+					ideal: ProjectChatsInspectorLayout.idealWidth,
+					max: ProjectChatsInspectorLayout.maxWidth
+				)
+			}
 			.id(project.id)
 		} else if projectsStore.projects.isEmpty {
 			ProjectsEmptyStateView(

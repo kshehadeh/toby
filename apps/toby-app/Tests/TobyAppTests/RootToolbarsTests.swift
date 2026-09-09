@@ -61,6 +61,12 @@ struct RootToolbarsTests {
 		#expect(RootToolbars.projectFilesHelp(isPresented: true) == "Hide Files")
 		#expect(RootToolbars.projectFilesHelp(isPresented: false) == "Show Files")
 	}
+
+	@Test("project Chats toolbar help swaps with inspector visibility")
+	func projectChatsToolbarHelp() {
+		#expect(RootToolbars.projectChatsHelp(isPresented: true) == "Hide Chats")
+		#expect(RootToolbars.projectChatsHelp(isPresented: false) == "Show Chats")
+	}
 }
 
 @MainActor

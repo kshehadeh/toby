@@ -96,10 +96,12 @@ configuration.
 ### Projects
 
 The Projects area lists each project in the sidebar. Select one to open its
-page in the main window: start a new chat, resume a recent chat, edit the
-summary or persona, reveal the project folder, and inspect the generated file
-tree. The toolbar shows **+** (new project) when nothing is selected, and
-**New Chat** plus **Delete** on a project page. Choose **Projects** from the
+page in the main window: edit the summary or persona, reveal the project
+folder, and inspect the generated file tree. A **Chats** sidebar on the right
+lists the project's chats — click one to resume it, or use **+ Chat** in the
+toolbar to start a new one (the toolbar also hides or shows that sidebar).
+The toolbar shows **+** (new project) when nothing is selected, and **+ Chat**
+plus **Delete** on a project page. Choose **Projects** from the
 workspace dropdown to see every project as cards. Home also lists the five most recently
 updated projects in its left sidebar. Project chats stay in Projects: they
 never appear in the Chats sidebar or the main Chats view. While a project chat

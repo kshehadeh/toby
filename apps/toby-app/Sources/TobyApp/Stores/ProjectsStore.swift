@@ -21,6 +21,9 @@ final class ProjectsStore {
 	var isShowingChat = false
 	/// The project-chat Files inspector. Each project chat starts with it open.
 	var isFilesSidebarPresented = false
+	/// The project-details Chats inspector. Each project page starts with it
+	/// open; the toolbar toggle hides or shows it.
+	var isChatsSidebarPresented = false
 	var treeChanges: [ProjectTreeChange] = []
 
 	struct PendingDelete {
@@ -49,11 +52,6 @@ final class ProjectsStore {
 	var selectedProjectSessions: [SessionSummary] {
 		guard let selectedProjectId else { return [] }
 		return projectSessions[selectedProjectId] ?? []
-	}
-
-	func recentSessions(limit: Int = 5) -> [SessionSummary] {
-		guard let selectedProjectId else { return [] }
-		return recentSessions(for: selectedProjectId, limit: limit)
 	}
 
 	func recentSessions(for projectId: String, limit: Int) -> [SessionSummary] {
@@ -97,6 +95,7 @@ final class ProjectsStore {
 		selectedProjectDetailId = nil
 		isShowingChat = false
 		isFilesSidebarPresented = false
+		isChatsSidebarPresented = false
 		treeChanges = []
 		treeProjectId = nil
 	}
@@ -176,10 +175,12 @@ final class ProjectsStore {
 		}
 	}
 
-	/// Leaves a project chat and shows the selected project's details page.
+	/// Leaves a project chat and shows the selected project's details page
+	/// with its Chats inspector visible.
 	func showProjectHome() {
 		isShowingChat = false
 		isFilesSidebarPresented = false
+		isChatsSidebarPresented = true
 	}
 
 	/// Enters a project chat with its live Files inspector visible.
@@ -201,6 +202,7 @@ final class ProjectsStore {
 		selectedProjectDetailId = nil
 		isShowingChat = false
 		isFilesSidebarPresented = false
+		isChatsSidebarPresented = false
 		tree = []
 		treeChanges = []
 		treeProjectId = nil
@@ -212,6 +214,7 @@ final class ProjectsStore {
 		selectedProjectId = id
 		isShowingChat = false
 		isFilesSidebarPresented = false
+		isChatsSidebarPresented = true
 		if alreadyLoaded {
 			return
 		}
@@ -406,6 +409,7 @@ final class ProjectsStore {
 			selectedProjectDetailId = nil
 			isShowingChat = false
 			isFilesSidebarPresented = false
+			isChatsSidebarPresented = false
 		}
 		hasLoadedOnce = true
 		lastLoadedAt = Date()

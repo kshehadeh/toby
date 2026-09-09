@@ -50,11 +50,13 @@ There is **no** terminal `/project` or `/config` slash-command UI; interactive
 management lives in Toby.app. The Home sidebar lists the five most recently
 updated projects; selecting one opens that project’s details page. The Projects
 sidebar lists each project (name, chat count, persona). Selecting a project
-opens a details page in the main pane (new chat, recent chats, metadata, file
-tree). Right-click a project to open any of its ten most recently updated chats
-directly. File → **New Chat** (⌘N) starts a new chat in the selected project.
-The main-window toolbar is context-sensitive: **+** (new project) when
-nothing is selected; **New Chat** and **Delete** on a project page. Clicking
+opens a details page in the main pane (metadata, file tree, and a trailing
+Chats sidebar listing every project chat). Right-click a project to open any of
+its ten most recently updated chats directly. File → **New Chat** (⌘N) starts a
+new chat in the selected project. The main-window toolbar is context-sensitive:
+**+** (new project) when nothing is selected; **+ Chat** and **Delete** on a
+project page, plus a trailing-sidebar toggle for the project's Chats inspector.
+Clicking
 **Projects** shows all projects as cards, or an empty state if none exist.
 Project chats are not listed in the Chats sidebar and never appear in the main
 Chats view — open them from the project. While a project chat is open, the

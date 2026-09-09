@@ -3,22 +3,13 @@ import SwiftUI
 struct ProjectDetailContent: View {
 	@Bindable var store: ProjectsStore
 	let project: ProjectSummary
-	let onCreateChat: () -> Void
-	let onSelectChat: (String) -> Void
 
 	@State private var isSummaryEditorPresented = false
-	@State private var showingAllChats = false
-
-	private var visibleSessions: [SessionSummary] {
-		showingAllChats ? store.selectedProjectSessions : store.recentSessions()
-	}
 
 	var body: some View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 24) {
 				header
-				newChatButton
-				recentChatsSection
 				ViewThatFits(in: .horizontal) {
 					HStack(alignment: .top, spacing: 20) {
 						aboutCard.frame(minWidth: 280)
@@ -75,85 +66,6 @@ struct ProjectDetailContent: View {
 			}
 
 			Spacer(minLength: 0)
-		}
-	}
-
-	private var newChatButton: some View {
-		Button(action: onCreateChat) {
-			Label("New Chat", systemImage: "plus.bubble")
-				.font(.system(size: 15, weight: .semibold))
-				.frame(maxWidth: .infinity)
-				.padding(.vertical, 6)
-		}
-		.buttonStyle(.borderedProminent)
-		.controlSize(.large)
-		.disabled(store.isSaving)
-		.accessibilityIdentifier("project-new-chat-button")
-	}
-
-	private var recentChatsSection: some View {
-		VStack(alignment: .leading, spacing: 10) {
-			Text("Recent chats")
-				.font(.system(size: 13, weight: .semibold))
-				.foregroundStyle(SettingsDesign.rowTitle)
-
-			if store.selectedProjectSessions.isEmpty {
-				Text("No chats yet. Start one to keep this project's work together.")
-					.font(.system(size: 13))
-					.foregroundStyle(AppTheme.tertiaryText)
-					.padding(.vertical, 8)
-			} else {
-				SettingsCard {
-					ForEach(Array(visibleSessions.enumerated()), id: \.element.id) { index, session in
-						Button {
-							onSelectChat(session.id)
-						} label: {
-							HStack(spacing: 10) {
-								Image(systemName: "bubble.left")
-									.foregroundStyle(AppTheme.secondaryText)
-									.frame(width: 16)
-								VStack(alignment: .leading, spacing: 1) {
-									Text(session.name)
-										.font(.system(size: 13, weight: .medium))
-										.foregroundStyle(SettingsDesign.rowTitle)
-										.lineLimit(1)
-									if let date = sidebarSessionDate(session) {
-										Text(date)
-											.font(.caption)
-											.foregroundStyle(AppTheme.tertiaryText)
-									}
-								}
-								Spacer(minLength: 0)
-								Image(systemName: "chevron.right")
-									.font(.system(size: 11, weight: .semibold))
-									.foregroundStyle(AppTheme.tertiaryText)
-							}
-							.padding(.horizontal, 12)
-							.padding(.vertical, 10)
-							.contentShape(Rectangle())
-						}
-						.buttonStyle(.plain)
-						.accessibilityIdentifier("project-recent-chat-\(session.id)")
-
-						if index < visibleSessions.count - 1 {
-							Rectangle()
-								.fill(SettingsDesign.cardBorder)
-								.frame(height: 1)
-								.padding(.leading, 38)
-						}
-					}
-				}
-
-				if !showingAllChats, store.selectedProjectSessions.count > 5 {
-					Button("Show all \(store.selectedProjectSessions.count) chats") {
-						showingAllChats = true
-					}
-					.buttonStyle(.plain)
-					.font(.caption.weight(.medium))
-					.foregroundStyle(AppTheme.accent)
-					.accessibilityIdentifier("project-show-all-chats-button")
-				}
-			}
 		}
 	}
 

@@ -176,8 +176,8 @@ struct ProjectsViewTests {
 		}
 	}
 
-	@Test("project details show summary preview, new chat, and last five chats")
-	func detailsShowSummaryAndRecentChats() throws {
+	@Test("project details show the summary preview without an inline new chat button")
+	func detailsShowSummaryPreview() throws {
 		let store = ProjectsStore()
 		let project = sampleProject(
 			summary: "First paragraph for the preview.\n\nRest of the long summary."
@@ -203,26 +203,65 @@ struct ProjectsViewTests {
 		#expect(throws: (any Error).self) {
 			try view.inspect().find(text: "Rest of the long summary.")
 		}
-		#expect(throws: Never.self) {
+		// New chat lives in the toolbar, and chats live in the trailing
+		// inspector, which ViewInspector cannot traverse.
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "project-new-chat-button")
 		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Chat 1")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Chat 5")
-		}
 		#expect(throws: (any Error).self) {
-			try view.inspect().find(text: "Chat 6")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "project-show-all-chats-button")
+			try view.inspect().find(text: "Recent chats")
 		}
 		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "project-delete-button")
 		}
 		#expect(throws: (any Error).self) {
 			try view.inspect().find(button: "Delete…")
+		}
+	}
+
+	@Test("chats sidebar lists every project chat without a cap")
+	func chatsSidebarListsAllChats() throws {
+		let store = ProjectsStore()
+		store.selectedProjectId = "proj-1"
+		store.selectedProject = sampleProject()
+		store.projectSessions = [
+			"proj-1": (1...7).map { sampleSession(id: "chat-\($0)", name: "Chat \($0)") },
+		]
+
+		let view = ProjectChatsSidebarView(store: store, onSelectChat: { _ in })
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "project-chats-sidebar")
+		}
+		for index in 1...7 {
+			#expect(throws: Never.self) {
+				try view.inspect().find(text: "Chat \(index)")
+			}
+			#expect(throws: Never.self) {
+				try view.inspect().find(
+					viewWithAccessibilityIdentifier: "project-chats-sidebar-row-chat-\(index)"
+				)
+			}
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(text: "Show all")
+		}
+	}
+
+	@Test("chats sidebar empty state names the next action")
+	func chatsSidebarEmptyState() throws {
+		let store = ProjectsStore()
+		store.selectedProjectId = "proj-1"
+		store.selectedProject = sampleProject()
+
+		let view = ProjectChatsSidebarView(store: store, onSelectChat: { _ in })
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "project-chats-sidebar-empty")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "No chats yet. Use + Chat in the toolbar to start one.")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(text: "Chat 1")
 		}
 	}
 
@@ -273,17 +312,6 @@ struct ProjectsViewTests {
 		#expect(acceptedProjectName(draft: "  Demo  ", current: "Demo") == nil)
 		#expect(acceptedProjectName(draft: "   ", current: "Demo") == nil)
 		#expect(acceptedProjectName(draft: "", current: "Demo") == nil)
-	}
-
-	@Test("recentSessions returns at most five chats")
-	func recentSessionsLimit() {
-		let store = ProjectsStore()
-		store.selectedProjectId = "proj-1"
-		store.projectSessions = [
-			"proj-1": (1...8).map { sampleSession(id: "s\($0)", name: "S\($0)") },
-		]
-		#expect(store.recentSessions().map(\.id) == ["s1", "s2", "s3", "s4", "s5"])
-		#expect(store.recentSessions(limit: 2).map(\.id) == ["s1", "s2"])
 	}
 
 	@Test("sidebar recent chats returns the ten most recent chats for its project")
@@ -432,6 +460,24 @@ struct ProjectsViewTests {
 		#expect(store.isFilesSidebarPresented)
 		store.showProjectHome()
 		#expect(store.isFilesSidebarPresented == false)
+	}
+
+	@Test("project pages present the Chats sidebar and leaving the project resets it")
+	func projectChatsSidebarVisibility() async {
+		let store = ProjectsStore()
+		store.selectedProjectId = "proj-1"
+		store.selectedProject = sampleProject()
+		store.isChatsSidebarPresented = false
+
+		// Returning from a chat re-presents the project page's Chats sidebar.
+		store.showProjectChat()
+		store.showProjectHome()
+		#expect(store.isShowingChat == false)
+		#expect(store.isChatsSidebarPresented)
+
+		await store.selectHome(flush: false)
+		#expect(store.selectedProjectId == nil)
+		#expect(store.isChatsSidebarPresented == false)
 	}
 
 	private func sampleProject(
