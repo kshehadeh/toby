@@ -4,6 +4,7 @@ import {
 	resolveNativePort,
 } from "../native-app/client";
 import {
+	SYNC_VAULT_FILENAME,
 	type SyncBlobStore,
 	type SyncHistoryItem,
 	createFilesystemSyncBlobStore,
@@ -34,12 +35,12 @@ class NativeAwareSyncBlobStore implements SyncBlobStore {
 		if (await nativeAlive()) {
 			await nativeAppRequest("icloud/ensure", {
 				method: "POST",
-				body: { filename: "vault.json" },
+				body: { filename: SYNC_VAULT_FILENAME },
 				launch: false,
 			});
 			const res = await nativeAppRequest("icloud/read", {
 				method: "POST",
-				body: { filename: "vault.json" },
+				body: { filename: SYNC_VAULT_FILENAME },
 				launch: false,
 			});
 			if (res.ok) {

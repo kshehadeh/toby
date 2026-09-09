@@ -3,7 +3,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { applyPendingDatabaseRestore } from "@toby/core/config/database-backup";
-import { restoreDatabaseSyncBackup } from "@toby/core/config/database-sync-backups";
+import {
+	DATABASE_SYNC_BACKUP_LIMIT,
+	listDatabaseSyncBackups,
+	restoreDatabaseSyncBackup,
+} from "@toby/core/config/database-sync-backups";
 import {
 	clearCredentialsCache,
 	clearMemoryCredentialsKeyStore,
@@ -241,14 +245,11 @@ describe("POST /api/config/sync", () => {
 			);
 
 			const enable = await handleWebRequest(
-				new Request(
-					"http://127.0.0.1/api/config/sync/database-backups/enable",
-					{
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({ enabled: true }),
-					},
-				),
+				new Request("http://127.0.0.1/api/config/sync/data-backups/enable", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ enabled: true }),
+				}),
 				null,
 			);
 			expect(enable.status).toBe(200);
@@ -258,7 +259,7 @@ describe("POST /api/config/sync", () => {
 			expect(enabled.status.databaseBackupsEnabled).toBe(true);
 
 			const list = await handleWebRequest(
-				new Request("http://127.0.0.1/api/config/sync/database-backups"),
+				new Request("http://127.0.0.1/api/config/sync/data-backups"),
 				null,
 			);
 			expect(list.status).toBe(200);
@@ -267,12 +268,18 @@ describe("POST /api/config/sync", () => {
 					deviceId: string;
 					filename: string;
 					deviceName: string;
+					path: string;
+					includesProjects: boolean;
+					includesRecordings: boolean;
 				}>;
 			};
 			expect(body.backups).toHaveLength(1);
 			expect(body.backups[0]?.deviceId.length).toBeGreaterThan(0);
 			expect(body.backups[0]?.filename).toMatch(/\.tbybak$/);
 			expect(body.backups[0]?.deviceName.length).toBeGreaterThan(0);
+			expect(body.backups[0]?.path).toContain("data-backups");
+			expect(body.backups[0]?.includesProjects).toBe(true);
+			expect(body.backups[0]?.includesRecordings).toBe(true);
 
 			// Wipe project files and recordings, then restore the snapshot.
 			closeChatDb();
@@ -305,6 +312,59 @@ describe("POST /api/config/sync", () => {
 					path.join(resolveListenRecordingsDir(), "sync-rec-1", "combined.m4a"),
 				),
 			).toEqual(Buffer.from([9, 8, 7, 6, 5]));
+		});
+	});
+
+	it("keeps only the latest three data backups per Mac", async () => {
+		await withTempDirs(async () => {
+			writeConfig({ integrations: {}, personas: [] });
+			writeCredentials({});
+			await handleWebRequest(
+				new Request("http://127.0.0.1/api/config/sync/enable", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ password: "vault", mode: "create" }),
+				}),
+				null,
+			);
+			const statusRes = await handleWebRequest(
+				new Request("http://127.0.0.1/api/config/sync"),
+				null,
+			);
+			const status = (await statusRes.json()) as { deviceId: string };
+			const dir = path.join(
+				process.env.TOBY_SYNC_DIR as string,
+				"data-backups",
+				status.deviceId,
+			);
+			fs.mkdirSync(dir, { recursive: true });
+			for (let day = 1; day <= 5; day++) {
+				const createdAt = `2026-09-0${day}T12:00:00.000Z`;
+				const filename = `${createdAt.replace(/[:.]/g, "-")}.json`;
+				fs.writeFileSync(
+					path.join(dir, filename),
+					JSON.stringify({
+						version: 1,
+						format: "toby.database.backup.encrypted",
+						deviceId: status.deviceId,
+						deviceName: "Test Mac",
+						createdAt,
+						encryption: { cipher: "aes-256-gcm" },
+						ciphertext: "x",
+					}),
+				);
+			}
+			const listed = await listDatabaseSyncBackups();
+			expect(listed).toHaveLength(DATABASE_SYNC_BACKUP_LIMIT);
+			expect(listed.map((backup) => backup.createdAt)).toEqual([
+				"2026-09-05T12:00:00.000Z",
+				"2026-09-04T12:00:00.000Z",
+				"2026-09-03T12:00:00.000Z",
+			]);
+			expect(fs.readdirSync(dir)).toHaveLength(DATABASE_SYNC_BACKUP_LIMIT);
+			expect(listed[0]?.path).toContain(dir);
+			expect(listed[0]?.includesProjects).toBe(false);
+			expect(listed[0]?.includesRecordings).toBe(false);
 		});
 	});
 

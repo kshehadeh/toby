@@ -31,7 +31,7 @@ Drive is off, blocked, or you prefer another service.
 2. Open **Toby.app → Settings → Sync**.
 3. Leave **iCloud Drive** selected, enter a sync password twice, and choose
    **Enable sync**.
-4. Toby writes an encrypted vault to **iCloud Drive → Toby → config-sync**.
+4. Toby writes an encrypted copy to **iCloud Drive → Toby → sync**.
 
 Choose a password you will remember. It is required on every Mac that joins, and
 Toby cannot recover it from the vault.
@@ -48,7 +48,7 @@ share, Syncthing, and so on).
 4. On the other Mac, pick the matching folder (the path can differ), enter the
    **same** password, and **Join vault**.
 
-Toby writes `Toby/config-sync/vault.json` inside the folder you picked, not at
+Toby writes `Toby/sync/settings.json` inside the folder you picked, not at
 the root of Dropbox or Drive. If the folder is unmounted later, sync stays on
 and retries; it does not delete your local settings.
 
@@ -64,35 +64,42 @@ CLI equivalent: `toby config sync enable --dir /path/to/folder`.
 ## After it is enabled
 
 Toby uploads a new snapshot a few seconds after you change settings, and pulls
-updates when the app/daemon is running. Last write wins. Previous snapshots are
-kept in History (last 10) so you can restore a bad overwrite.
+updates when the app/daemon is running. Last write wins. Previous settings
+copies are kept in **History** on the **Settings** pane (last 3) so you
+can restore a bad overwrite.
 
-Use **Sync now** / **Pull now** on the Sync settings tab if you do not want to
-wait. CLI equivalents: `toby config sync push` and `toby config sync pull --yes`.
+That pane is the live settings vault only — not chats, projects, or recordings.
+Use **Sync Settings Now** to send this Mac’s settings immediately. Restore a
+previous copy from History if you need to roll settings back. CLI equivalent
+for an immediate upload: `toby config sync push`.
 
 To change between iCloud Drive and a folder, disable sync on this Mac and enable
 again with the other transport.
 
-## Database backups
+## Data Backups
 
-Chats, projects, schedules, flows, run history, and memories are not
-continuously synchronized because two Macs changing them at once could lose
-data. Instead, turn on **Database backups** in **Settings → Sync** to save an
-encrypted snapshot of this Mac once a day. Snapshots also include project
-files and recordings — audio, transcripts, and summaries — so they can be
-large. Toby keeps the latest 10 snapshots per Mac in the same iCloud Drive or
-selected folder.
+Chats, projects, schedules, flows, run history, memories, project files, and
+recordings are not continuously synchronized because two Macs changing them at
+once could lose data. Instead, open **Settings → Sync → Data**
+to save an encrypted snapshot of this Mac once a day. Settings sync must
+be on first. Enable or disable daily backups the same way as settings sync. Each snapshot includes
+chats, memories, project files, and recordings — audio, transcripts, and
+summaries — so they can be large. Toby keeps the latest **3** snapshots per
+Mac in the same iCloud Drive or selected folder and deletes older ones.
 
-Use **Back Up Now** to create one immediately. To restore, select a snapshot
-and choose **Restore**. This replaces all local chat and memory data, project
-files, and recordings on this Mac and restarts Toby; it does not merge data or
-restore it automatically. Projects are restored inside Toby's data folder;
-original custom project folders are left untouched.
+Use **Back Up Now** at the bottom of the pane to create one immediately.
+History lists the latest copies. Dates are shown in your local format. Click a
+snapshot to show it in Finder. To restore, choose **Restore**.
+This replaces all local chat and memory data, project files, and recordings on
+this Mac and restarts Toby; it does not merge data or restore it automatically.
+Projects are restored inside Toby's data folder; original custom project
+folders are left untouched.
 
 ## If two Macs change settings at once
 
 The later snapshot replaces the earlier one. Restore an older snapshot from
-**History** if you lost a change. Field-by-field merge is not supported yet.
+**History** on the Settings pane if you lost a change. Field-by-field
+merge is not supported yet.
 
 ## Inbound Slack
 

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { resolveTobyDir } from "./index";
 
-export const FOLDER_SYNC_RELATIVE = path.join("Toby", "config-sync");
+export const FOLDER_SYNC_RELATIVE = path.join("Toby", "sync");
 
 export type SyncBackend = "icloud" | "folder";
 

@@ -114,12 +114,14 @@ export function registerConfigCommand(program: Command): void {
 
 	databaseBackups
 		.command("enable")
-		.description("Enable daily database backups and create one now")
+		.description(
+			"Enable daily backups of chats, project files, and recordings, and create one now",
+		)
 		.action(async () => {
 			try {
 				setDatabaseBackupsEnabled(true);
 				const backup = await createDatabaseSyncBackup();
-				console.log(chalk.green(`Database backup saved: ${backup.filename}`));
+				console.log(chalk.green(`Data backup saved: ${backup.filename}`));
 			} catch (error) {
 				failCli(error);
 			}
@@ -127,11 +129,11 @@ export function registerConfigCommand(program: Command): void {
 
 	databaseBackups
 		.command("disable")
-		.description("Stop automatic database backups (existing backups remain)")
+		.description("Stop automatic data backups (existing backups remain)")
 		.action(() => {
 			try {
 				setDatabaseBackupsEnabled(false);
-				console.log(chalk.green("Automatic database backups disabled."));
+				console.log(chalk.green("Automatic data backups disabled."));
 			} catch (error) {
 				failCli(error);
 			}
@@ -139,11 +141,11 @@ export function registerConfigCommand(program: Command): void {
 
 	databaseBackups
 		.command("now")
-		.description("Create an encrypted database backup now")
+		.description("Create an encrypted data backup now")
 		.action(async () => {
 			try {
 				const backup = await createDatabaseSyncBackup();
-				console.log(chalk.green(`Database backup saved: ${backup.filename}`));
+				console.log(chalk.green(`Data backup saved: ${backup.filename}`));
 			} catch (error) {
 				failCli(error);
 			}
@@ -151,13 +153,13 @@ export function registerConfigCommand(program: Command): void {
 
 	databaseBackups
 		.command("list")
-		.description("List database backups from all Macs")
+		.description("List data backups from all Macs")
 		.action(async () => {
 			try {
 				const backups = await listDatabaseSyncBackups();
 				for (const backup of backups) {
 					console.log(
-						`${backup.deviceId}  ${backup.deviceName}  ${backup.createdAt}  ${backup.filename}`,
+						`${backup.deviceName}  ${formatTimestamp(backup.createdAt)}  ${backup.filename}  ${backup.path}`,
 					);
 				}
 			} catch (error) {
@@ -302,7 +304,7 @@ export function registerConfigCommand(program: Command): void {
 				}
 				for (const item of history) {
 					console.log(
-						`${item.filename}  lamport=${item.clock.lamport}  ${item.clock.deviceName}  ${item.createdAt}`,
+						`${item.filename}  lamport=${item.clock.lamport}  ${item.clock.deviceName}  ${formatTimestamp(item.createdAt)}`,
 					);
 				}
 			} catch (error) {
@@ -441,6 +443,12 @@ async function confirmTobyDataReplace(): Promise<boolean> {
 	} finally {
 		rl.close();
 	}
+}
+
+function formatTimestamp(iso: string): string {
+	const parsed = Date.parse(iso);
+	if (Number.isNaN(parsed)) return iso;
+	return new Date(parsed).toLocaleString();
 }
 
 function safeParseJson(raw: string, sourcePath: string): unknown {

@@ -4,17 +4,20 @@ import path from "node:path";
 import { type SyncClock, compareSyncClock } from "./sync-clock";
 import { type EncryptedSyncFile, isEncryptedSyncFile } from "./sync-crypto";
 
-export const SYNC_HISTORY_LIMIT = 10;
-export const SYNC_VAULT_FILENAME = "vault.json";
+export const SYNC_HISTORY_LIMIT = 3;
+export const SYNC_VAULT_FILENAME = "settings.json";
+export const SYNC_SETTINGS_HISTORY_DIR = "settings-history";
+export const SYNC_DATA_BACKUPS_DIR = "data-backups";
 
 export const ICLOUD_DRIVE_RELATIVE =
-	"Library/Mobile Documents/com~apple~CloudDocs/Toby/config-sync";
+	"Library/Mobile Documents/com~apple~CloudDocs/Toby/sync";
 
 export interface SyncHistoryItem {
 	filename: string;
 	createdAt: string;
 	clock: SyncClock;
 	contentHash: string;
+	path: string;
 }
 
 export interface SyncBlobStore {
@@ -48,7 +51,74 @@ export function isICloudDriveFolderAvailable(): boolean {
 export function createFilesystemSyncBlobStore(
 	rootDir = resolveSyncVaultDir(),
 ): SyncBlobStore {
-	return new FilesystemSyncBlobStore(rootDir);
+	return new FilesystemSyncBlobStore(migrateLegacySyncLayout(rootDir));
+}
+
+const LEGACY_VAULT_DIR = "config-sync";
+const LEGACY_VAULT_FILENAME = "vault.json";
+const LEGACY_HISTORY_DIR = "history";
+const LEGACY_DATA_BACKUPS_DIR = "database-backups";
+
+/**
+ * Rename the previous on-disk layout in place:
+ * `Toby/config-sync/vault.json|history|database-backups`
+ * → `Toby/sync/settings.json|settings-history|data-backups`.
+ */
+export function migrateLegacySyncLayout(rootDir: string): string {
+	const resolved = path.resolve(rootDir);
+	const parent = path.dirname(resolved);
+	const dest =
+		path.basename(resolved) === LEGACY_VAULT_DIR
+			? path.join(parent, "sync")
+			: resolved;
+	const legacySibling = path.join(parent, LEGACY_VAULT_DIR);
+
+	let dir = dest;
+	if (
+		path.basename(dest) === "sync" &&
+		!fs.existsSync(dest) &&
+		fs.existsSync(legacySibling)
+	) {
+		fs.renameSync(legacySibling, dest);
+		dir = dest;
+	} else if (
+		path.basename(resolved) === LEGACY_VAULT_DIR &&
+		fs.existsSync(resolved)
+	) {
+		if (!fs.existsSync(dest)) {
+			fs.renameSync(resolved, dest);
+		}
+		dir = fs.existsSync(dest) ? dest : resolved;
+	}
+
+	migrateLegacySyncContents(dir);
+	return dir;
+}
+
+function migrateLegacySyncContents(dir: string): void {
+	if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
+		return;
+	}
+	renameEntry(dir, LEGACY_VAULT_FILENAME, SYNC_VAULT_FILENAME);
+	renameEntry(dir, LEGACY_HISTORY_DIR, SYNC_SETTINGS_HISTORY_DIR);
+	renameEntry(dir, LEGACY_DATA_BACKUPS_DIR, SYNC_DATA_BACKUPS_DIR);
+	for (const name of fs.readdirSync(dir)) {
+		if (
+			name.startsWith("vault") &&
+			name.endsWith(".json") &&
+			name !== LEGACY_VAULT_FILENAME
+		) {
+			renameEntry(dir, name, name.replace(/^vault/, "settings"));
+		}
+	}
+}
+
+function renameEntry(dir: string, fromName: string, toName: string): void {
+	if (fromName === toName) return;
+	const from = path.join(dir, fromName);
+	const to = path.join(dir, toName);
+	if (!fs.existsSync(from) || fs.existsSync(to)) return;
+	fs.renameSync(from, to);
 }
 
 class FilesystemSyncBlobStore implements SyncBlobStore {
@@ -59,7 +129,7 @@ class FilesystemSyncBlobStore implements SyncBlobStore {
 	}
 
 	private historyDir(): string {
-		return path.join(this.rootDir, "history");
+		return path.join(this.rootDir, SYNC_SETTINGS_HISTORY_DIR);
 	}
 
 	async readCurrent(): Promise<EncryptedSyncFile | null> {
@@ -92,6 +162,7 @@ class FilesystemSyncBlobStore implements SyncBlobStore {
 	}
 
 	async listHistory(): Promise<SyncHistoryItem[]> {
+		this.pruneHistory();
 		const dir = this.historyDir();
 		if (!fs.existsSync(dir)) {
 			return [];
@@ -110,6 +181,7 @@ class FilesystemSyncBlobStore implements SyncBlobStore {
 				createdAt: parsed.createdAt,
 				clock: parsed.clock,
 				contentHash: parsed.contentHash,
+				path: path.join(dir, name),
 			});
 		}
 		items.sort((a, b) => compareSyncClock(b.clock, a.clock));
@@ -137,11 +209,11 @@ class FilesystemSyncBlobStore implements SyncBlobStore {
 		const names = fs.readdirSync(this.rootDir);
 		const matches: string[] = [];
 		for (const name of names) {
-			if (name === "history" || !name.endsWith(".json")) {
+			if (name === SYNC_SETTINGS_HISTORY_DIR || !name.endsWith(".json")) {
 				continue;
 			}
-			// Current vault plus iCloud conflict copies ("vault 2.json").
-			if (name === SYNC_VAULT_FILENAME || name.startsWith("vault")) {
+			// Current settings file plus iCloud conflict copies ("settings 2.json").
+			if (name === SYNC_VAULT_FILENAME || name.startsWith("settings")) {
 				matches.push(path.join(this.rootDir, name));
 			}
 		}

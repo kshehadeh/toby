@@ -132,11 +132,11 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `POST` | `/api/config/sync/pull` | Apply the remote snapshot (`confirm: true`). |
 | `GET` | `/api/config/sync/history` | List previous snapshots (metadata only). |
 | `POST` | `/api/config/sync/restore-history` | Restore a history file (`filename`, `confirm: true`). |
-| `GET` | `/api/config/sync/database-backups` | List encrypted per-device database snapshots. |
-| `POST` | `/api/config/sync/database-backups/enable` | Opt in and create an initial database snapshot. |
-| `POST` | `/api/config/sync/database-backups/disable` | Stop automatic database snapshots. |
-| `POST` | `/api/config/sync/database-backups/create` | Create a database snapshot now. |
-| `POST` | `/api/config/sync/database-backups/restore` | Stage a confirmed database restore and restart the daemon. |
+| `GET` | `/api/config/sync/data-backups` | List encrypted per-device data snapshots (chats, project files, recordings). Prunes to the latest 3 per Mac. Each item includes `path`, `includesProjects`, and `includesRecordings`. |
+| `POST` | `/api/config/sync/data-backups/enable` | Opt in and create an initial data snapshot. |
+| `POST` | `/api/config/sync/data-backups/disable` | Stop automatic data snapshots. |
+| `POST` | `/api/config/sync/data-backups/create` | Create a data snapshot now. |
+| `POST` | `/api/config/sync/data-backups/restore` | Stage a confirmed data restore (databases, project files, recordings) and restart the daemon. |
 | `GET` | `/api/configure/tree` | Fetch configure UI schema and current values. |
 | `GET` | `/api/configure/sections` | Lightweight section structure for the native settings sidebar. |
 | `GET` | `/api/configure/sections/:sectionKey` | Full detail (fields + values) for one settings section. |

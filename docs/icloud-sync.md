@@ -61,12 +61,13 @@ time. Switching in v1 is **disable, then enable** on the other transport.
 
 ### iCloud Drive (default)
 
-Finder: iCloud Drive → Toby → config-sync:
+Finder: iCloud Drive → Toby → sync:
 
 ```
-~/Library/Mobile Documents/com~apple~CloudDocs/Toby/config-sync/
-  vault.json
-  history/<utc>-l<lamport>.json   # last 10 previous vaults
+~/Library/Mobile Documents/com~apple~CloudDocs/Toby/sync/
+  settings.json
+  settings-history/<utc>-l<lamport>.json   # last 3 previous settings copies
+  data-backups/<device-id>/<utc>.tbybak    # chats, projects, recordings
 ```
 
 The daemon prefers native coordinated I/O when Toby.app is already running
@@ -76,12 +77,13 @@ CloudDocs path directly.
 ### Folder
 
 The user picks a directory they already sync to other Macs. Toby writes a
-nested vault (never `vault.json` at the root of Dropbox/Google Drive):
+nested vault (never `settings.json` at the root of Dropbox/Google Drive):
 
 ```
-<picked>/Toby/config-sync/
-  vault.json
-  history/<utc>-l<lamport>.json
+<picked>/Toby/sync/
+  settings.json
+  settings-history/<utc>-l<lamport>.json
+  data-backups/<device-id>/<utc>.tbybak
 ```
 
 Each Mac stores its own absolute `folderPath` in `sync-state.json` (paths can
@@ -128,7 +130,7 @@ when Drive is unavailable is refused; choose a folder instead.
 
 | Surface | Entry |
 | ------- | ----- |
-| Toby.app | Settings → **Sync** |
+| Toby.app | Settings → **Sync** (page title **Sync and Backup**; **Settings** and **Data** panes) |
 | CLI | `toby config sync …` (see [commands.md](commands.md)) |
 | Daemon API | `/api/config/sync*` (see [server-api.md](server-api.md)) |
 | Native API | `/api/native/icloud/*` coordinated I/O for the iCloud backend (see [native-helpers.md](native-helpers.md)) |
@@ -136,15 +138,16 @@ when Drive is unavailable is refused; choose a folder instead.
 `POST /api/config/sync/enable` accepts optional `backend` (`icloud` \| `folder`)
 and `folderPath` (required for folder). CLI: `toby config sync enable --dir <path>`.
 
-## Database backups
+## Data Backups
 
 Database data is deliberately **not** added to the settings vault: a
 last-write-wins live sync could discard newer chats or memories from another
-Mac. Instead, opt in under **Settings → Sync → Database backups** to write one
-encrypted snapshot per day, retaining the latest 10 per Mac:
+Mac. Instead, opt in under **Settings → Sync → Data backups** to write one
+encrypted snapshot per day, retaining the **latest 3 per Mac** and deleting
+older snapshots automatically:
 
 ```
-<sync vault>/database-backups/<device-id>/<utc>.tbybak
+<sync vault>/data-backups/<device-id>/<utc>.tbybak
 ```
 
 Snapshots are streamed file-backed archives (same format as `.tbybak` config
@@ -153,10 +156,16 @@ projects, schedules, flows, run history), `memory.sqlite`, complete project
 folders, and saved recordings (audio, transcripts, summaries). They use the
 same sync password and transport. Snapshots can be large because they include
 audio. Legacy `.json` snapshots from older versions remain listed and
-restorable. They are never pulled or applied automatically; restore is an
-explicit replacement followed by a daemon restart. Projects are restored into
-`~/.toby/projects/<id>` with their database paths rewritten; original custom
-folders are untouched. CLI:
+restorable (databases only). They are never pulled or applied automatically;
+restore is an explicit replacement followed by a daemon restart. Projects are
+restored into `~/.toby/projects/<id>` with their database paths rewritten;
+original custom folders are untouched. Settings → **Sync** opens **Sync and
+Backup**, split into **Settings** (live settings vault, **Sync Settings Now**,
+History of previous settings copies) and **Data** (enable/disable daily
+snapshots, History of chats, project files, and recordings, **Back Up Now**).
+Each History row uses a local date and time; click a row to reveal the file in
+Finder. Status on each pane lists location; folder paths open in Finder.
+Restore from History replaces the matching data. CLI:
 `toby config sync backup-data enable|disable|now|list|restore`.
 
 ## Tests

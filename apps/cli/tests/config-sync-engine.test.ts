@@ -13,12 +13,16 @@ import {
 } from "@toby/core/config/index";
 import {
 	FOLDER_SYNC_RELATIVE,
+	SYNC_DATA_BACKUPS_DIR,
 	SYNC_HISTORY_LIMIT,
+	SYNC_SETTINGS_HISTORY_DIR,
+	SYNC_VAULT_FILENAME,
 	createFilesystemSyncBlobStore,
 	disableSync,
 	enableSync,
 	getSyncStatus,
 	isSyncDirty,
+	migrateLegacySyncLayout,
 	pullSnapshot,
 	pushSnapshot,
 	readSyncState,
@@ -238,7 +242,7 @@ describe("config sync engine", () => {
 		});
 	});
 
-	it("keeps at most 10 history snapshots", async () => {
+	it("keeps at most 3 history snapshots", async () => {
 		await withTempDirs(async () => {
 			writeConfig({ integrations: {}, personas: [], defaultPersona: "v0" });
 			writeCredentials({});
@@ -331,6 +335,37 @@ describe("config sync engine", () => {
 		});
 	});
 
+	it("renames legacy config-sync layout to settings and data-backups", () => {
+		const parent = fs.mkdtempSync(path.join(os.tmpdir(), "toby-sync-legacy-"));
+		const legacy = path.join(parent, "Toby", "config-sync");
+		fs.mkdirSync(path.join(legacy, "history"), { recursive: true });
+		fs.mkdirSync(path.join(legacy, "database-backups", "dev-1"), {
+			recursive: true,
+		});
+		fs.writeFileSync(path.join(legacy, "vault.json"), "{}");
+		fs.writeFileSync(path.join(legacy, "history", "old.json"), "{}");
+		fs.writeFileSync(
+			path.join(legacy, "database-backups", "dev-1", "snap.tbybak"),
+			"x",
+		);
+		try {
+			const next = migrateLegacySyncLayout(path.join(parent, "Toby", "sync"));
+			expect(next).toBe(path.join(parent, "Toby", "sync"));
+			expect(fs.existsSync(legacy)).toBe(false);
+			expect(fs.existsSync(path.join(next, SYNC_VAULT_FILENAME))).toBe(true);
+			expect(
+				fs.existsSync(path.join(next, SYNC_SETTINGS_HISTORY_DIR, "old.json")),
+			).toBe(true);
+			expect(
+				fs.existsSync(
+					path.join(next, SYNC_DATA_BACKUPS_DIR, "dev-1", "snap.tbybak"),
+				),
+			).toBe(true);
+		} finally {
+			fs.rmSync(parent, { recursive: true, force: true });
+		}
+	});
+
 	it("folder backend create and join share a user-picked directory", async () => {
 		await withFolderSyncHome(async ({ picked }) => {
 			writeConfig({
@@ -352,7 +387,7 @@ describe("config sync engine", () => {
 			expect(status.storeAvailable).toBe(true);
 			const vaultFile = path.join(
 				resolveFolderSyncVaultDir(picked),
-				"vault.json",
+				"settings.json",
 			);
 			expect(fs.existsSync(vaultFile)).toBe(true);
 			expect(status.vaultPath.endsWith(FOLDER_SYNC_RELATIVE)).toBe(true);
@@ -415,7 +450,7 @@ describe("config sync engine", () => {
 				expect(status.folderPath).toBe(path.resolve(next));
 				expect(
 					fs.existsSync(
-						path.join(resolveFolderSyncVaultDir(next), "vault.json"),
+						path.join(resolveFolderSyncVaultDir(next), "settings.json"),
 					),
 				).toBe(true);
 				expect(readConfig().defaultPersona).toBe("First");

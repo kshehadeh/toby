@@ -3,12 +3,13 @@ import Foundation
 /// Coordinated I/O for the iCloud Drive vault folder.
 ///
 /// Crypto stays in the daemon. This handler only reads/writes JSON envelopes
-/// under iCloud Drive → Toby → config-sync, including conflict copies and
+/// under iCloud Drive → Toby → sync, including conflict copies and
 /// dataless placeholder downloads.
 @MainActor
 enum NativeICloudHandler {
-	static let historyLimit = 10
-	static let vaultFileName = "vault.json"
+	static let historyLimit = 3
+	static let vaultFileName = "settings.json"
+	static let settingsHistoryDir = "settings-history"
 
 	/// Tests inject a directory so CI never touches the real iCloud Drive.
 	static var rootOverride: URL?
@@ -20,9 +21,41 @@ enum NativeICloudHandler {
 
 	static func resolveRoot() -> URL {
 		if let rootOverride {
-			return rootOverride
+			return migrateLegacyLayout(at: rootOverride)
 		}
-		return resolveCloudDocsDirectory().appendingPathComponent("Toby/config-sync")
+		return migrateLegacyLayout(
+			at: resolveCloudDocsDirectory().appendingPathComponent("Toby/sync")
+		)
+	}
+
+	/// Rename `Toby/config-sync` plus vault.json/history/database-backups in place.
+	static func migrateLegacyLayout(at root: URL) -> URL {
+		let fm = FileManager.default
+		var dir = root
+		let parent = root.deletingLastPathComponent()
+		let legacy = parent.appendingPathComponent("config-sync")
+		let dest = parent.appendingPathComponent("sync")
+		if root.lastPathComponent == "sync" || root.lastPathComponent == "config-sync" {
+			if !fm.fileExists(atPath: dest.path), fm.fileExists(atPath: legacy.path) {
+				try? fm.moveItem(at: legacy, to: dest)
+			}
+			if fm.fileExists(atPath: dest.path) {
+				dir = dest
+			}
+		}
+		renameIfNeeded(in: dir, from: "vault.json", to: vaultFileName)
+		renameIfNeeded(in: dir, from: "history", to: settingsHistoryDir)
+		renameIfNeeded(in: dir, from: "database-backups", to: "data-backups")
+		return dir
+	}
+
+	private static func renameIfNeeded(in dir: URL, from: String, to: String) {
+		guard from != to else { return }
+		let fm = FileManager.default
+		let source = dir.appendingPathComponent(from)
+		let dest = dir.appendingPathComponent(to)
+		guard fm.fileExists(atPath: source.path), !fm.fileExists(atPath: dest.path) else { return }
+		try? fm.moveItem(at: source, to: dest)
 	}
 
 	static func status() -> Data {
@@ -77,7 +110,7 @@ enum NativeICloudHandler {
 		}
 		do {
 			let root = resolveRoot()
-			let historyDir = root.appendingPathComponent("history")
+			let historyDir = root.appendingPathComponent(Self.settingsHistoryDir)
 			try FileManager.default.createDirectory(at: historyDir, withIntermediateDirectories: true)
 			let vaultURL = root.appendingPathComponent(Self.vaultFileName)
 			if FileManager.default.fileExists(atPath: vaultURL.path) {
@@ -97,7 +130,7 @@ enum NativeICloudHandler {
 
 	static func history() -> Data {
 		do {
-			let dir = resolveRoot().appendingPathComponent("history")
+			let dir = resolveRoot().appendingPathComponent(Self.settingsHistoryDir)
 			guard FileManager.default.fileExists(atPath: dir.path) else {
 				return json(["ok": true, "data": ["history": []]])
 			}
@@ -126,7 +159,7 @@ enum NativeICloudHandler {
 
 	static func resolvedFileURL(filename: String) throws -> URL {
 		let safe = (filename as NSString).lastPathComponent
-		guard safe == filename || filename.hasPrefix("history/") else {
+		guard safe == filename || filename.hasPrefix("\(Self.settingsHistoryDir)/") else {
 			throw NSError(
 				domain: "toby.icloud",
 				code: 1,
@@ -134,17 +167,17 @@ enum NativeICloudHandler {
 			)
 		}
 		let root = resolveRoot()
-		if filename.hasPrefix("history/") {
+		if filename.hasPrefix("\(Self.settingsHistoryDir)/") {
 			return root.appendingPathComponent(filename)
 		}
-		if safe != Self.vaultFileName, safe.hasPrefix("vault") {
-			// iCloud conflict copies live beside the current vault.
+		if safe != Self.vaultFileName, safe.hasPrefix("settings") {
+			// iCloud conflict copies live beside the current settings file.
 			return root.appendingPathComponent(safe)
 		}
 		if safe == Self.vaultFileName {
 			return root.appendingPathComponent(Self.vaultFileName)
 		}
-		return root.appendingPathComponent("history").appendingPathComponent(safe)
+		return root.appendingPathComponent(Self.settingsHistoryDir).appendingPathComponent(safe)
 	}
 
 	// MARK: - Coordination

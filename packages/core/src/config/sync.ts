@@ -49,8 +49,11 @@ export {
 } from "./sync-keychain";
 export {
 	ICLOUD_DRIVE_RELATIVE,
+	SYNC_DATA_BACKUPS_DIR,
 	SYNC_HISTORY_LIMIT,
+	SYNC_SETTINGS_HISTORY_DIR,
 	SYNC_VAULT_FILENAME,
+	migrateLegacySyncLayout,
 	createFilesystemSyncBlobStore,
 	isICloudDriveFolderAvailable,
 	resolveSyncVaultDir,
@@ -77,6 +80,7 @@ export {
 } from "./sync-engine";
 export { runConfigSyncLoop } from "./sync-loop";
 export {
+	DATABASE_SYNC_BACKUP_LIMIT,
 	createDatabaseSyncBackup,
 	listDatabaseSyncBackups,
 	restoreDatabaseSyncBackup,

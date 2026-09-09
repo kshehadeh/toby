@@ -16,12 +16,13 @@ import {
 	isDatabaseBackupBundle,
 	stageDatabaseRestore,
 } from "./database-backup";
+import { SYNC_DATA_BACKUPS_DIR } from "./sync-blob-store";
 import { getDeviceName, getSyncBlobStore } from "./sync-engine";
 import { getSyncPassphrase } from "./sync-keychain";
 import { readSyncState, writeSyncState } from "./sync-state";
 
-const SNAPSHOT_DIR = "database-backups";
-const SNAPSHOT_LIMIT = 10;
+/** Latest complete snapshots kept per Mac (chats, project files, recordings). */
+export const DATABASE_SYNC_BACKUP_LIMIT = 3;
 const SNAPSHOT_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const FORMAT = "toby.database.backup.encrypted";
 
@@ -30,6 +31,9 @@ export interface DatabaseSyncBackupInfo {
 	readonly deviceId: string;
 	readonly deviceName: string;
 	readonly createdAt: string;
+	readonly path: string;
+	readonly includesProjects: boolean;
+	readonly includesRecordings: boolean;
 }
 
 interface DatabaseSyncBackupFile {
@@ -49,7 +53,7 @@ function rootDir(): string {
 }
 
 function deviceDir(deviceId: string): string {
-	return path.join(rootDir(), SNAPSHOT_DIR, deviceId);
+	return path.join(rootDir(), SYNC_DATA_BACKUPS_DIR, deviceId);
 }
 
 function isSafeComponent(value: string): boolean {
@@ -79,7 +83,7 @@ function fileName(createdAt = new Date().toISOString()): string {
 export async function createDatabaseSyncBackup(): Promise<DatabaseSyncBackupInfo> {
 	const state = readSyncState();
 	if (!state.enabled || !state.databaseBackupsEnabled) {
-		throw new Error("Database backups are not enabled.");
+		throw new Error("Data backups are not enabled.");
 	}
 	const password = getSyncPassphrase();
 	if (!password) throw new Error("Sync password is missing from Keychain.");
@@ -122,13 +126,16 @@ export async function createDatabaseSyncBackup(): Promise<DatabaseSyncBackupInfo
 		deviceId: state.deviceId,
 		deviceName: getDeviceName(),
 		createdAt,
+		path: finalPath,
+		includesProjects: true,
+		includesRecordings: true,
 	};
 }
 
 export function setDatabaseBackupsEnabled(enabled: boolean): void {
 	const state = readSyncState();
 	if (enabled && !state.enabled) {
-		throw new Error("Enable settings sync before enabling database backups.");
+		throw new Error("Enable settings sync before enabling data backups.");
 	}
 	writeSyncState({
 		...state,
@@ -164,49 +171,65 @@ export async function runDatabaseBackupTick(): Promise<boolean> {
 export async function listDatabaseSyncBackups(): Promise<
 	DatabaseSyncBackupInfo[]
 > {
-	const base = path.join(rootDir(), SNAPSHOT_DIR);
-	if (!fs.existsSync(base)) return [];
+	pruneAllDeviceBackups();
 	const results: DatabaseSyncBackupInfo[] = [];
+	const base = path.join(rootDir(), SYNC_DATA_BACKUPS_DIR);
+	if (!fs.existsSync(base)) return [];
 	for (const deviceId of fs.readdirSync(base)) {
 		if (!isSafeComponent(deviceId)) continue;
-		const dir = path.join(base, deviceId);
-		if (!fs.statSync(dir).isDirectory()) continue;
-		for (const filename of fs.readdirSync(dir)) {
-			if (filename !== path.basename(filename)) continue;
-			const filePath = path.join(dir, filename);
-			if (filename.endsWith(".tbybak")) {
-				const info = readArchiveBackupInfo(filePath, deviceId);
-				if (!info) continue;
-				results.push({ filename, ...info });
-			} else if (filename.endsWith(".json")) {
-				const parsed = readBackupFile(filePath);
-				if (!parsed) continue;
-				results.push({
-					filename,
-					deviceId: parsed.deviceId,
-					deviceName: parsed.deviceName,
-					createdAt: parsed.createdAt,
-				});
-			}
-		}
+		results.push(...collectDeviceBackups(deviceId));
 	}
 	return results.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-function readArchiveBackupInfo(
+function collectDeviceBackups(deviceId: string): DatabaseSyncBackupInfo[] {
+	const dir = deviceDir(deviceId);
+	if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return [];
+	const results: DatabaseSyncBackupInfo[] = [];
+	for (const filename of fs.readdirSync(dir)) {
+		if (filename !== path.basename(filename)) continue;
+		const filePath = path.join(dir, filename);
+		const info = readBackupInfo(filePath, deviceId, filename);
+		if (info) results.push(info);
+	}
+	return results;
+}
+
+function readBackupInfo(
 	filePath: string,
 	deviceId: string,
-): Omit<DatabaseSyncBackupInfo, "filename"> | null {
-	try {
-		const header = readBackupArchiveHeader(filePath);
-		return {
-			deviceId: header.info?.deviceId ?? deviceId,
-			deviceName: header.info?.deviceName ?? "Unknown Mac",
-			createdAt: header.info?.createdAt ?? header.createdAt,
-		};
-	} catch {
-		return null;
+	filename: string,
+): DatabaseSyncBackupInfo | null {
+	if (filename.endsWith(".tbybak")) {
+		try {
+			const header = readBackupArchiveHeader(filePath);
+			return {
+				filename,
+				deviceId: header.info?.deviceId ?? deviceId,
+				deviceName: header.info?.deviceName ?? "Unknown Mac",
+				createdAt: header.info?.createdAt ?? header.createdAt,
+				path: filePath,
+				includesProjects: header.sections["projects-files"] !== undefined,
+				includesRecordings: header.sections["recordings-files"] !== undefined,
+			};
+		} catch {
+			return null;
+		}
 	}
+	if (filename.endsWith(".json")) {
+		const parsed = readBackupFile(filePath);
+		if (!parsed) return null;
+		return {
+			filename,
+			deviceId: parsed.deviceId,
+			deviceName: parsed.deviceName,
+			createdAt: parsed.createdAt,
+			path: filePath,
+			includesProjects: false,
+			includesRecordings: false,
+		};
+	}
+	return null;
 }
 
 /** Validate a selected encrypted snapshot and stage it for next daemon startup. */
@@ -275,14 +298,35 @@ function readBackupFile(filePath: string): DatabaseSyncBackupFile | null {
 	}
 }
 
+function pruneAllDeviceBackups(): void {
+	const base = path.join(rootDir(), SYNC_DATA_BACKUPS_DIR);
+	if (!fs.existsSync(base)) return;
+	for (const deviceId of fs.readdirSync(base)) {
+		if (!isSafeComponent(deviceId)) continue;
+		pruneDeviceBackups(deviceId);
+	}
+}
+
 function pruneDeviceBackups(id: string): void {
 	const dir = deviceDir(id);
-	const files = fs
-		.readdirSync(dir)
-		.filter((name) => name.endsWith(".json") || name.endsWith(".tbybak"))
-		.sort()
-		.reverse();
-	for (const extra of files.slice(SNAPSHOT_LIMIT)) {
-		fs.unlinkSync(path.join(dir, extra));
+	if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return;
+	const ranked: { path: string; createdAt: string }[] = [];
+	for (const filename of fs.readdirSync(dir)) {
+		if (filename !== path.basename(filename)) continue;
+		if (!filename.endsWith(".json") && !filename.endsWith(".tbybak")) continue;
+		const filePath = path.join(dir, filename);
+		const info = readBackupInfo(filePath, id, filename);
+		ranked.push({
+			path: filePath,
+			createdAt: info?.createdAt ?? filename,
+		});
+	}
+	ranked.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+	for (const extra of ranked.slice(DATABASE_SYNC_BACKUP_LIMIT)) {
+		try {
+			fs.unlinkSync(extra.path);
+		} catch {
+			// Best-effort prune (iCloud placeholders, already-deleted files).
+		}
 	}
 }

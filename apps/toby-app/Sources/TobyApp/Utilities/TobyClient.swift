@@ -1190,7 +1190,7 @@ struct TobyClient {
 	func setDatabaseBackupsEnabled(_ enabled: Bool) async throws -> ConfigSyncStatus {
 		let action = enabled ? "enable" : "disable"
 		var request = URLRequest(
-			url: baseURL.appendingPathComponent("api/config/sync/database-backups/\(action)")
+			url: baseURL.appendingPathComponent("api/config/sync/data-backups/\(action)")
 		)
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1205,7 +1205,7 @@ struct TobyClient {
 
 	func createDatabaseBackupNow() async throws {
 		var request = URLRequest(
-			url: baseURL.appendingPathComponent("api/config/sync/database-backups/create")
+			url: baseURL.appendingPathComponent("api/config/sync/data-backups/create")
 		)
 		request.httpMethod = "POST"
 		let (data, response) = try await URLSession.shared.data(for: request)
@@ -1213,7 +1213,7 @@ struct TobyClient {
 	}
 
 	func listDatabaseBackups() async throws -> [DatabaseSyncBackup] {
-		let url = baseURL.appendingPathComponent("api/config/sync/database-backups")
+		let url = baseURL.appendingPathComponent("api/config/sync/data-backups")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
 		struct Response: Decodable { let backups: [DatabaseSyncBackup] }
@@ -1222,7 +1222,7 @@ struct TobyClient {
 
 	func restoreDatabaseBackup(deviceId: String, filename: String) async throws {
 		var request = URLRequest(
-			url: baseURL.appendingPathComponent("api/config/sync/database-backups/restore")
+			url: baseURL.appendingPathComponent("api/config/sync/data-backups/restore")
 		)
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1291,6 +1291,9 @@ struct DatabaseSyncBackup: Decodable, Equatable, Identifiable {
 	let deviceId: String
 	let deviceName: String
 	let createdAt: String
+	var path: String? = nil
+	var includesProjects: Bool? = nil
+	var includesRecordings: Bool? = nil
 }
 
 struct ConfigSyncHistoryItem: Decodable, Equatable, Identifiable {
@@ -1299,4 +1302,5 @@ struct ConfigSyncHistoryItem: Decodable, Equatable, Identifiable {
 	let createdAt: String
 	let contentHash: String
 	let clock: ConfigSyncClock
+	var path: String? = nil
 }

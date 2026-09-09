@@ -524,32 +524,29 @@ export async function handleWebRequest(
 		) {
 			return handleConfigSyncRestoreHistory(req);
 		}
-		if (
-			pathname === "/api/config/sync/database-backups" &&
-			req.method === "GET"
-		) {
+		if (pathname === "/api/config/sync/data-backups" && req.method === "GET") {
 			return handleDatabaseBackupsList();
 		}
 		if (
-			pathname === "/api/config/sync/database-backups/enable" &&
+			pathname === "/api/config/sync/data-backups/enable" &&
 			req.method === "POST"
 		) {
 			return handleDatabaseBackupsEnable(req);
 		}
 		if (
-			pathname === "/api/config/sync/database-backups/disable" &&
+			pathname === "/api/config/sync/data-backups/disable" &&
 			req.method === "POST"
 		) {
 			return handleDatabaseBackupsDisable();
 		}
 		if (
-			pathname === "/api/config/sync/database-backups/create" &&
+			pathname === "/api/config/sync/data-backups/create" &&
 			req.method === "POST"
 		) {
 			return handleDatabaseBackupsCreate();
 		}
 		if (
-			pathname === "/api/config/sync/database-backups/restore" &&
+			pathname === "/api/config/sync/data-backups/restore" &&
 			req.method === "POST"
 		) {
 			return handleDatabaseBackupsRestore(req);

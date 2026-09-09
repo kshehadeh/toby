@@ -86,10 +86,10 @@ Encrypted snapshots of the same payload as backup, through **iCloud Drive** or a
 | `toby config sync pull --yes` | Apply the remote snapshot (`--yes` skips confirm) |
 | `toby config sync history` | List previous snapshots |
 | `toby config sync restore-history <filename> --yes` | Apply a history file and push it as current |
-| `toby config sync backup-data enable` | Opt in to daily encrypted backups (databases, project files, recordings) and create one now |
+| `toby config sync backup-data enable` | Opt in to daily encrypted backups (chats, project files, recordings) and create one now |
 | `toby config sync backup-data disable` | Stop daily backups; existing snapshots remain |
 | `toby config sync backup-data now` | Create a backup snapshot now |
-| `toby config sync backup-data list` | List backup snapshots from all Macs |
+| `toby config sync backup-data list` | List backup snapshots from all Macs (latest 3 per Mac; older files are removed) |
 | `toby config sync backup-data restore <deviceId> <filename> --yes` | Replace local databases, project files, and recordings from a selected snapshot |
 
 Enable prompts for a password (and confirmation). Join decrypts the existing
