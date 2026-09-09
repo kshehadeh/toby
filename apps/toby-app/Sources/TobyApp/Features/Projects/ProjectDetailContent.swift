@@ -63,10 +63,12 @@ struct ProjectDetailContent: View {
 				}
 
 			VStack(alignment: .leading, spacing: 4) {
-				Text(store.selectedProject?.name ?? project.name)
-					.font(.system(size: 22, weight: .semibold))
-					.foregroundStyle(SettingsDesign.rowTitle)
-					.lineLimit(1)
+				ProjectTitleField(
+					name: Binding(
+						get: { store.selectedProject?.name ?? project.name },
+						set: { store.updateName($0) }
+					)
+				)
 				Text(store.metaLine(for: store.selectedProject ?? project))
 					.font(.subheadline)
 					.foregroundStyle(AppTheme.secondaryText)
@@ -161,14 +163,6 @@ struct ProjectDetailContent: View {
 				.font(.system(size: 13, weight: .semibold))
 				.foregroundStyle(SettingsDesign.rowTitle)
 
-			SkillSidebarField(
-				title: "Name",
-				placeholder: "Project name",
-				text: Binding(
-					get: { store.selectedProject?.name ?? project.name },
-					set: { store.updateName($0) }
-				)
-			)
 			personaField
 			summaryField
 			pathSection

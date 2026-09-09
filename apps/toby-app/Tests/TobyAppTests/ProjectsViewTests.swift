@@ -244,6 +244,37 @@ struct ProjectsViewTests {
 		}
 	}
 
+	@Test("project details title field edits the project name inline")
+	func titleFieldEditsProjectName() throws {
+		let store = ProjectsStore()
+		let project = sampleProject(name: "Demo")
+		store.hasLoadedOnce = true
+		store.projects = [project]
+		store.selectedProjectId = project.id
+		store.selectedProject = project
+
+		let view = ProjectsView(projectsStore: store, chatStore: ChatStore())
+
+		// The header title is the name field, and the About card no longer
+		// carries a separate Name row.
+		let field = try view.inspect()
+			.find(viewWithAccessibilityIdentifier: "project-title-field")
+			.textField()
+		#expect(try field.input() == "Demo")
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(text: "Name")
+		}
+	}
+
+	@Test("title edits accept a trimmed, non-empty name different from the current one")
+	func acceptedProjectNameRules() {
+		#expect(acceptedProjectName(draft: "  Renamed  ", current: "Demo") == "Renamed")
+		#expect(acceptedProjectName(draft: "Demo", current: "Demo") == nil)
+		#expect(acceptedProjectName(draft: "  Demo  ", current: "Demo") == nil)
+		#expect(acceptedProjectName(draft: "   ", current: "Demo") == nil)
+		#expect(acceptedProjectName(draft: "", current: "Demo") == nil)
+	}
+
 	@Test("recentSessions returns at most five chats")
 	func recentSessionsLimit() {
 		let store = ProjectsStore()
