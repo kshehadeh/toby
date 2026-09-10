@@ -80,7 +80,7 @@ describe("saveProjectAttachment", () => {
 });
 
 describe("project file management", () => {
-	it("creates folders, moves files, and deletes existing project files", async () => {
+	it("creates folders, moves files, and deletes project files and folders", async () => {
 		const folderPath = fs.mkdtempSync(
 			path.join(os.tmpdir(), "toby-project-files-"),
 		);
@@ -114,6 +114,9 @@ describe("project file management", () => {
 			| undefined;
 		const remove = tools.deleteProjectFile?.execute as
 			| ((input: { path: string }) => Promise<{ ok: boolean }>)
+			| undefined;
+		const removeFolder = tools.deleteProjectFolder?.execute as
+			| ((input: { path: string }) => Promise<{ ok: boolean; error?: string }>)
 			| undefined;
 
 		try {
@@ -154,6 +157,17 @@ describe("project file management", () => {
 					path.join(folderPath, "references", "designs", "final.txt"),
 				),
 			).toBe(false);
+
+			fs.writeFileSync(
+				path.join(folderPath, "references", "designs", "nested.txt"),
+				"nested",
+			);
+			expect((await removeFolder?.({ path: "references" }))?.ok).toBe(true);
+			expect(fs.existsSync(path.join(folderPath, "references"))).toBe(false);
+			expect((await removeFolder?.({ path: "." }))?.error).toBe(
+				"The project root folder cannot be deleted.",
+			);
+			expect(fs.existsSync(folderPath)).toBe(true);
 		} finally {
 			fs.rmSync(folderPath, { recursive: true, force: true });
 		}
@@ -169,6 +183,42 @@ describe("project file management", () => {
 		).toBe(false);
 	});
 
+	it("dry-runs folder deletion and rejects symbolic links", async () => {
+		const folderPath = fs.mkdtempSync(
+			path.join(os.tmpdir(), "toby-project-folder-delete-"),
+		);
+		const project = {
+			id: "project-1",
+			name: "Test Project",
+			folderPath,
+		} as Project;
+		const targetFolder = path.join(folderPath, "archive");
+		fs.mkdirSync(targetFolder);
+		fs.writeFileSync(path.join(targetFolder, "old.txt"), "old");
+		fs.symlinkSync(targetFolder, path.join(folderPath, "archive-link"));
+		const appliedActions: string[] = [];
+		const tools = createGlobalChatTools({
+			dryRun: true,
+			persona,
+			appliedActions,
+			project,
+		});
+		const removeFolder = tools.deleteProjectFolder?.execute as
+			| ((input: { path: string }) => Promise<{ ok: boolean; error?: string }>)
+			| undefined;
+
+		try {
+			expect((await removeFolder?.({ path: "archive" }))?.ok).toBe(true);
+			expect(fs.existsSync(targetFolder)).toBe(true);
+			expect(appliedActions).toEqual(["[dry-run] Would delete folder archive"]);
+			expect((await removeFolder?.({ path: "archive-link" }))?.error).toBe(
+				"Only real folders can be deleted, not files or symbolic links.",
+			);
+		} finally {
+			fs.rmSync(folderPath, { recursive: true, force: true });
+		}
+	});
+
 	it("explains how to create folders and move files in project chats", () => {
 		const project = {
 			id: "project-1",
@@ -181,6 +231,7 @@ describe("project file management", () => {
 			"call `listProjectFiles` to inspect the project tree",
 		);
 		expect(prompt).toContain("**createProjectFolder**");
+		expect(prompt).toContain("**deleteProjectFolder**");
 		expect(prompt).toContain(
 			"To move a file to another folder, call `renameProjectFile`",
 		);

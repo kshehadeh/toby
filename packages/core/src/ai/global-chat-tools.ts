@@ -648,6 +648,7 @@ ${
 - **createProjectFolder**: Create a folder inside this project. Call this to establish or extend the project layout (including without an explicit "create a folder" request) and when the user asks to create a folder. Required: \`path\`, relative to the project folder.
 - **renameProjectFile**: Move or rename a file already in this project. Call this to place files into the project layout and when the user asks to move or rename. Required: \`sourcePath\` and \`destinationPath\`, both relative to the project folder. Optional: \`overwrite\` (default false).
 - **deleteProjectFile**: Permanently delete a file already in this project. Only call when the user explicitly asks to delete it. Required: \`path\`, relative to the project folder.
+- **deleteProjectFolder**: Permanently delete a folder and all of its contents from this project. Only call when the user explicitly asks to delete the folder. Required: \`path\`, relative to the project folder. The project root cannot be deleted.
 
 Project workspace rules:
 - This chat is working in the project folder. Prefer project files over general knowledge, web search, memory, or integrations unless the user is clearly asking about something outside the project.
@@ -666,9 +667,9 @@ Project PDF rules:
 Project file-management rules:
 - Before organizing, moving, renaming, searching, or deleting files whose paths are not already known, call \`listProjectFiles\` to inspect the project tree.
 - To move a file to another folder, call \`renameProjectFile\` with its new project-relative path. Create a missing destination folder first with \`createProjectFolder\`.
-- Create, move, rename, and delete paths must be inside the project. Never create through, rename, or delete folders or symbolic links.
+- Create, move, rename, and delete paths must be inside the project. Never create through or rename folders or symbolic links, and never delete symbolic links.
 - Never overwrite a destination file unless the user explicitly asks to replace it, then pass \`overwrite=true\`.
-- Never delete a file unless the user explicitly asks to delete it.
+- Never delete a file or folder unless the user explicitly asks to delete it. Deleting a folder also permanently deletes everything inside it.
 `
 		: ""
 }${searchRules}${weatherRules}${locationRules}
@@ -1403,6 +1404,83 @@ export function createGlobalChatTools(
 									error instanceof Error
 										? error.message
 										: "Failed to delete the project file.",
+							};
+						}
+						ctx.appliedActions.push(message);
+						return {
+							ok: true as const,
+							dryRun: false,
+							path: target.absPath,
+							message,
+						};
+					},
+				}),
+				deleteProjectFolder: tool({
+					description:
+						"Permanently delete a folder and all of its contents from the active project. Only call when the user explicitly asks to delete the folder. The project root cannot be deleted.",
+					inputSchema: z.object({
+						path: z
+							.string()
+							.min(1)
+							.describe(
+								"Path of the folder to delete, relative to the project folder",
+							),
+					}),
+					execute: async ({ path: inputPath }) => {
+						const target = resolveProjectFileTarget({
+							inputPath,
+							project,
+						});
+						if (!target.ok || !target.absPath) {
+							return { ok: false as const, error: target.error };
+						}
+						if (target.absPath === path.resolve(project.folderPath)) {
+							return {
+								ok: false as const,
+								error: "The project root folder cannot be deleted.",
+							};
+						}
+						if (!hasSafeProjectParentDirectory(project, target.absPath)) {
+							return {
+								ok: false as const,
+								error: "Folder is outside a safe project directory.",
+							};
+						}
+						let stat: fs.Stats;
+						try {
+							stat = fs.lstatSync(target.absPath);
+						} catch {
+							return { ok: false as const, error: "Folder does not exist." };
+						}
+						if (!stat.isDirectory() || stat.isSymbolicLink()) {
+							return {
+								ok: false as const,
+								error:
+									"Only real folders can be deleted, not files or symbolic links.",
+							};
+						}
+
+						const message = `Deleted folder ${inputPath}`;
+						if (ctx.dryRun) {
+							ctx.appliedActions.push(
+								`[dry-run] Would delete folder ${inputPath}`,
+							);
+							return {
+								ok: true as const,
+								dryRun: true,
+								path: target.absPath,
+								message: `[dry-run] Would delete folder ${inputPath}`,
+							};
+						}
+						try {
+							fs.rmSync(target.absPath, { recursive: true });
+						} catch (error) {
+							return {
+								ok: false as const,
+								error:
+									error instanceof Error
+										? error.message
+										: "Failed to delete the project folder.",
 							};
 						}
 						ctx.appliedActions.push(message);

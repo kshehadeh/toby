@@ -101,6 +101,7 @@ const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"createProjectFolder",
 	"renameProjectFile",
 	"deleteProjectFile",
+	"deleteProjectFolder",
 	"readPdf",
 ]);
 

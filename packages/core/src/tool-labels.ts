@@ -15,6 +15,7 @@ const CORE_TOOL_LABELS: Record<string, string> = {
 	createProjectFolder: "Create project folder",
 	renameProjectFile: "Move project file",
 	deleteProjectFile: "Delete project file",
+	deleteProjectFolder: "Delete project folder",
 	saveProjectAttachment: "Save project attachment",
 	memorySearch: "Search memory",
 	memoryPropose: "Propose memory",

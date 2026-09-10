@@ -55,6 +55,7 @@ describe("filterToolNamesByRelevance", () => {
 
 	it("always includes project folder creation", () => {
 		expect(ALWAYS_INCLUDED_TOOLS.has("createProjectFolder")).toBe(true);
+		expect(ALWAYS_INCLUDED_TOOLS.has("deleteProjectFolder")).toBe(true);
 	});
 
 	it("always includes project file listing", () => {

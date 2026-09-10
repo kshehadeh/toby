@@ -142,8 +142,8 @@ To read a PDF already in the project (including
 project-relative path. See [`pdf-read.md`](pdf-read.md).
 
 Project chats expose `listProjectFiles`, `searchProjectFiles`,
-`readProjectFile`, `createProjectFolder`, `renameProjectFile`, and
-`deleteProjectFile`.
+`readProjectFile`, `createProjectFolder`, `renameProjectFile`,
+`deleteProjectFile`, and `deleteProjectFolder`.
 
 Toby **lists and searches project files first** when answering questions about
 the project's work, then reads matching text files with `readProjectFile` (or
@@ -161,7 +161,9 @@ project-relative destination path; create a missing destination folder with
 `createProjectFolder` first. Paths must be relative, inside the project folder.
 Tools reject symbolic links and any path that escapes the project. Moves never
 replace a destination file unless the user explicitly requests an overwrite;
-deletes permanently remove the requested file.
+file deletions permanently remove the requested file. Folder deletions
+permanently remove the folder and everything inside it, cannot target the
+project root, and require an explicit user request.
 
 Paths must be relative, within the base directory, and use an allowed text
 extension (`.md`, `.txt`, `.json`, …). See

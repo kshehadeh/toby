@@ -152,7 +152,8 @@ By default, Toby uses **embedding-based routing** ([`packages/core/src/routing/`
 `tobyListIntegrations`, `tobyListTools`, `tobyListSkills`, `delegateToSubAgent`,
 core memory tools, `readPdf`, and project file tools `listProjectFiles`,
 `searchProjectFiles`, `readProjectFile`, `createProjectFolder`,
-`renameProjectFile`, `deleteProjectFile`, `saveProjectAttachment`) are **not**
+`renameProjectFile`, `deleteProjectFile`, `deleteProjectFolder`,
+`saveProjectAttachment`) are **not**
 part of the top-K count. Project chats also always include `createLocalSkill` so
 the `project-organization` skill can be maintained. Conditional globals such as
 `webSearch` (when enabled) are also protected from relevance filtering when

@@ -104,17 +104,19 @@ organized from the project description (or a sensible default if you have not
 written one). That layout is saved in the project's **project-organization**
 skill so the next chat continues the same way.
 
-You can still ask Toby to create folders, move or rename a file, or delete a
-file already in the project. For example: “Create a `references/designs`
+You can still ask Toby to create or delete folders, move or rename a file, or
+delete a file already in the project. For example: “Create a `references/designs`
 folder,” “Move `attachments/brief.pdf` to
-`references/designs/final-brief.pdf`,” or “Delete `outputs/old-report.md`.”
+`references/designs/final-brief.pdf`,” “Delete `outputs/old-report.md`,” or
+“Delete the `archive` folder.”
 Ask Toby to read a project file or PDF (for example “Summarize
 `attachments/brief.pdf`” or “What did we decide in `research/notes.md`?”) and
 it searches and reads the project first.
 
 Toby uses paths inside the project folder and will not replace an existing
 destination file unless you ask it to overwrite that file. Deletions still
-require an explicit request and permanently remove the requested file.
+require an explicit request. Deleting a folder permanently removes everything
+inside it, and Toby will not delete the project root.
 
 When Toby writes a file in chat, the reply includes a download chip. **Download**
 saves a copy to your Downloads folder and reveals it in Finder; **Open** opens
