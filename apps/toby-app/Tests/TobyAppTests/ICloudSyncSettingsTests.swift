@@ -48,6 +48,8 @@ struct ICloudSyncSettingsTests {
 		let view = ICloudSyncSettingsView(previewStatus: status)
 		let title = try view.inspect().find(text: "Sync and Backup")
 		#expect(try title.string() == "Sync and Backup")
+		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-destination")
+		_ = try view.inspect().find(text: "Sync destination")
 		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-enable")
 		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-backend")
 		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-choose-folder")
@@ -152,14 +154,21 @@ struct ICloudSyncSettingsTests {
 		)
 		let view = ICloudSyncSettingsView(previewStatus: status)
 		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-pane")
-		_ = try view.inspect().find(text: "Settings")
-		_ = try view.inspect().find(text: "Data")
+		_ = try view.inspect().find(text: "Settings backups")
+		_ = try view.inspect().find(text: "Data backups")
 		_ = try view.inspect().find(text: "Sync and Backup")
+		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-destination")
+		_ = try view.inspect().find(text: "Sync destination")
+		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-configure-destination")
+		_ = try view.inspect().find(text: "Settings and data backups use this encrypted folder.")
+		_ = try view.inspect().find(text: "/tmp/toby-sync")
+		#expect(throws: (any Error).self) {
+			_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-backend")
+		}
 		_ = try view.inspect().find(text: "Status")
-		_ = try view.inspect().find(text: "History")
-		_ = try view.inspect().find(text: "Previous copies of settings and credentials. Toby keeps the latest 3. Restore does not change chats, projects, or recordings.")
-		_ = try view.inspect().find(text: "Sync Settings Now")
-		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-push")
+		#expect(throws: (any Error).self) {
+			_ = try view.inspect().find(text: "History")
+		}
 		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-disable")
 		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-status")
 		#expect(throws: (any Error).self) {
@@ -198,8 +207,43 @@ struct ICloudSyncSettingsTests {
 		)
 		_ = try view.inspect().find(text: "Last uploaded")
 		_ = try view.inspect().find(text: "Last writer")
-		_ = try view.inspect().find(text: "Location")
+		_ = try view.inspect().find(text: "This Mac")
+		#expect(throws: (any Error).self) {
+			_ = try view.inspect().find(text: "Location")
+		}
 		_ = try view.inspect().find(text: "/tmp/toby-sync")
+	}
+
+	@Test("configure allows destination editing while enabled")
+	func configureRevealsDestinationDetails() throws {
+		let status = ConfigSyncStatus(
+			enabled: true,
+			iCloudAvailable: true,
+			deviceId: "test-device",
+			deviceName: "Test Mac",
+			vaultPath: "/tmp/toby-sync",
+			lastPushAt: "2026-08-21T00:00:00.000Z",
+			lastPullAt: nil,
+			lastError: nil,
+			lastWriterDeviceName: "Test Mac",
+			lastWriterDeviceId: "test-device",
+			lastAckedLamport: 1,
+			lastAckedContentHash: "abc",
+			dirty: false,
+			hasRemote: true,
+			remote: nil
+		)
+		let view = ICloudSyncSettingsView(
+			previewStatus: status,
+			previewDestinationExpanded: true
+		)
+		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-configure-destination")
+		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-backend")
+		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-password")
+		_ = try view.inspect().find(text: "Save destination")
+		let save = try view.inspect().find(button: "Save destination")
+		#expect(try save.isDisabled())
+
 	}
 
 	@Test("database backup identities include device and filename")
@@ -334,9 +378,64 @@ struct ICloudSyncSettingsTests {
 		_ = try view.inspect().find(text: "Daily backups")
 		_ = try view.inspect().find(text: "On")
 		_ = try view.inspect().find(text: "Last backup")
-		_ = try view.inspect().find(text: "Folder")
-		_ = try view.inspect().find(text: "/tmp/toby-sync/data-backups/dev-1")
+		#expect(throws: (any Error).self) {
+			_ = try view.inspect().find(text: "/tmp/toby-sync/data-backups/dev-1")
+		}
 		_ = try view.inspect().find(text: "1 of 3")
+	}
+
+	@Test("backup panes keep destination setup separate")
+	func bothPanesShowSharedFolder() throws {
+		let status = ConfigSyncStatus(
+			enabled: true,
+			iCloudAvailable: true,
+			backend: "folder",
+			folderPath: "/tmp/dropbox",
+			storeAvailable: true,
+			deviceId: "dev-1",
+			deviceName: "UA1GHWQ32M2NF",
+			vaultPath: "/tmp/dropbox/Toby/sync",
+			lastPushAt: nil,
+			lastPullAt: nil,
+			lastError: nil,
+			lastWriterDeviceName: nil,
+			lastWriterDeviceId: nil,
+			lastAckedLamport: 1,
+			lastAckedContentHash: "abc",
+			dirty: false,
+			hasRemote: true,
+			remote: nil,
+			databaseBackupsEnabled: true
+		)
+		let backups = [
+			DatabaseSyncBackup(
+				filename: "2026-09-09T09-22-56-736Z.tbybak",
+				deviceId: "dev-1",
+				deviceName: "UA1GHWQ32M2NF",
+				createdAt: "2026-09-09T09:22:56.736Z",
+				path: "/tmp/dropbox/Toby/sync/data-backups/dev-1/2026-09-09T09-22-56-736Z.tbybak",
+				includesProjects: true,
+				includesRecordings: true
+			),
+		]
+		let settingsView = ICloudSyncSettingsView(
+			previewStatus: status,
+			previewSelectedPane: .settings
+		)
+		let dataView = ICloudSyncSettingsView(
+			previewStatus: status,
+			previewDatabaseBackups: backups,
+			previewSelectedPane: .dataBackups
+		)
+		for view in [settingsView, dataView] {
+			#expect(throws: (any Error).self) {
+				_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-destination")
+			}
+			#expect(throws: (any Error).self) {
+				_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-disable")
+			}
+			_ = try view.inspect().find(text: "History")
+		}
 	}
 
 	@Test("sync timestamps format as local date and time")
@@ -374,7 +473,8 @@ struct ICloudSyncSettingsTests {
 		]
 		let view = ICloudSyncSettingsView(
 			previewStatus: status,
-			previewHistory: history
+			previewHistory: history,
+			previewSelectedPane: .settings
 		)
 		_ = try view.inspect().find(text: "History")
 		_ = try view.inspect().find(text: "Settings and credentials")
@@ -417,7 +517,7 @@ struct ICloudSyncSettingsTests {
 			previewSelectedPane: .dataBackups
 		)
 		_ = try view.inspect().find(
-			text: "Data backups use the same encrypted folder as settings sync. Enable settings sync first."
+			text: "Set up sync to choose the encrypted destination used by settings and data backups."
 		)
 		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-data-requires-configuration")
 		#expect(throws: (any Error).self) {

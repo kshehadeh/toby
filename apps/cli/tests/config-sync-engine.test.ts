@@ -20,6 +20,7 @@ import {
 	createFilesystemSyncBlobStore,
 	disableSync,
 	enableSync,
+	getSyncPassphrase,
 	getSyncStatus,
 	isSyncDirty,
 	migrateLegacySyncLayout,
@@ -33,6 +34,7 @@ import {
 	runSyncTick,
 	setSyncBlobStoreForTests,
 	shouldPushNow,
+	writeSyncState,
 } from "@toby/core/config/sync";
 
 function withTempDirs(run: () => Promise<void>): Promise<void> {
@@ -93,6 +95,57 @@ describe("config sync engine", () => {
 		clearMemoryCredentialsKeyStore();
 		resetCredentialsKeyStoreCache();
 		setSyncBlobStoreForTests(null);
+	});
+
+	it("changes destination while enabled and preserves the old vault", async () => {
+		await withTempDirs(async () => {
+			const first = createFilesystemSyncBlobStore(
+				String(process.env.TOBY_SYNC_DIR),
+			);
+			const second = createFilesystemSyncBlobStore(
+				path.join(String(process.env.TOBY_SYNC_DIR), "second"),
+			);
+			await enableSync({ password: "original", store: first });
+			writeSyncState({
+				...readSyncState(),
+				databaseBackupsEnabled: true,
+				lastDatabaseBackupAt: "2026-09-09T00:00:00.000Z",
+			});
+			await enableSync({ password: "new-password", store: second });
+			expect(readSyncState().databaseBackupsEnabled).toBe(true);
+			expect(readSyncState().lastDatabaseBackupAt).toBeUndefined();
+			expect(readSyncState().enabled).toBe(true);
+			expect(readSyncState().vaultPath).toBe(second.rootDir);
+			expect(await first.readCurrent()).not.toBeNull();
+			expect(await second.readCurrent()).not.toBeNull();
+		});
+	});
+
+	it("keeps the active destination and password after read or write failure", async () => {
+		await withTempDirs(async () => {
+			const first = createFilesystemSyncBlobStore(
+				String(process.env.TOBY_SYNC_DIR),
+			);
+			await enableSync({ password: "original", store: first });
+			const prior = readSyncState();
+			const second = createFilesystemSyncBlobStore(
+				path.join(String(process.env.TOBY_SYNC_DIR), "second"),
+			);
+			for (const operation of ["readCurrent", "writeCurrent"] as const) {
+				const failing = Object.create(second) as typeof second;
+				failing[operation] = async () => {
+					throw new Error("Unavailable");
+				};
+				await expect(
+					enableSync({ password: "new-password", store: failing }),
+				).rejects.toThrow("Unavailable");
+				expect(readSyncState()).toEqual(prior);
+				expect(getSyncPassphrase()).toBe("original");
+			}
+			await expect(
+				pushSnapshot({ store: first, force: true }),
+			).resolves.toMatchObject({ pushed: true });
+		});
 	});
 
 	it("create enable pushes local settings and join applies them on a second home", async () => {

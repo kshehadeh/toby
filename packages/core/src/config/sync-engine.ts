@@ -102,14 +102,13 @@ export interface PullResult {
 
 let injectedStore: SyncBlobStore | null = null;
 
-export function getSyncBlobStore(): SyncBlobStore {
+export function getSyncBlobStore(state = readSyncState()): SyncBlobStore {
 	if (injectedStore) {
 		return injectedStore;
 	}
 	if (process.env.TOBY_SYNC_DIR?.trim()) {
 		return createFilesystemSyncBlobStore(resolveSyncVaultDir());
 	}
-	const state = readSyncState();
 	if (resolveSyncBackend(state.backend) === "folder") {
 		const picked = state.folderPath?.trim();
 		if (!picked) {
@@ -206,14 +205,8 @@ export async function enableSync(options: {
 		await assertICloudAvailable(options.store);
 	}
 
-	writeSyncState({
-		...prior,
-		backend,
-		folderPath,
-		lastError: null,
-	});
-
-	const store = options.store ?? getSyncBlobStore();
+	const store =
+		options.store ?? getSyncBlobStore({ ...prior, backend, folderPath });
 	const remote = await store.readCurrent();
 	let mode = options.mode;
 	if (!mode) {
@@ -245,6 +238,7 @@ export async function enableSync(options: {
 		}
 	}
 
+	const priorPassword = getSyncPassphrase();
 	setSyncPassphrase(password);
 	writeSyncState({
 		...readSyncState(),
@@ -252,6 +246,9 @@ export async function enableSync(options: {
 		backend,
 		folderPath,
 		vaultPath: store.rootDir,
+		...(prior.vaultPath !== store.rootDir
+			? { lastDatabaseBackupAt: undefined, lastDatabaseBackupError: null }
+			: {}),
 		lastError: null,
 	});
 
@@ -262,8 +259,9 @@ export async function enableSync(options: {
 			await pushSnapshot({ store, force: true });
 		}
 	} catch (error) {
-		deleteSyncPassphrase();
-		writeSyncState({ ...prior, enabled: false });
+		if (priorPassword) setSyncPassphrase(priorPassword);
+		else deleteSyncPassphrase();
+		writeSyncState(prior);
 		throw error;
 	}
 

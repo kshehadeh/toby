@@ -130,7 +130,7 @@ when Drive is unavailable is refused; choose a folder instead.
 
 | Surface | Entry |
 | ------- | ----- |
-| Toby.app | Settings → **Sync** (page title **Sync and Backup**; **Settings** and **Data** panes) |
+| Toby.app | Settings → **Sync** (page title **Sync and Backup**; **Sync setup**, **Settings backups**, and **Data backups** sections) |
 | CLI | `toby config sync …` (see [commands.md](commands.md)) |
 | Daemon API | `/api/config/sync*` (see [server-api.md](server-api.md)) |
 | Native API | `/api/native/icloud/*` coordinated I/O for the iCloud backend (see [native-helpers.md](native-helpers.md)) |
@@ -160,11 +160,21 @@ restorable (databases only). They are never pulled or applied automatically;
 restore is an explicit replacement followed by a daemon restart. Projects are
 restored into `~/.toby/projects/<id>` with their database paths rewritten;
 original custom folders are untouched. Settings → **Sync** opens **Sync and
-Backup**, split into **Settings** (live settings vault, **Sync Settings Now**,
-History of previous settings copies) and **Data** (enable/disable daily
-snapshots, History of chats, project files, and recordings, **Back Up Now**).
+Backup** with three sections: **Sync setup** owns the shared destination,
+password, overall enable/disable action, and sync status; **Settings backups**
+owns settings history and **Back up settings now**; **Data backups** owns daily
+backup enable/disable, history, status, and **Back Up Now**.
+
+**Change…** in Sync setup opens an editable iCloud/folder destination form while
+sync remains enabled. **Save destination** asks for confirmation before joining
+an existing destination (replacing local settings) or creating one. It uses the
+existing enable endpoint with automatic create/join selection. Destination
+reads and password validation happen before changing persisted transport;
+failed apply/upload restores the prior sync state and password. Existing backups
+remain at the old location; other Macs must be pointed at the new location
+separately. Cancel resets the draft destination and clears password fields.
 Each History row uses a local date and time; click a row to reveal the file in
-Finder. Status on each pane lists location; folder paths open in Finder.
+Finder.
 Restore from History replaces the matching data. CLI:
 `toby config sync backup-data enable|disable|now|list|restore`.
 

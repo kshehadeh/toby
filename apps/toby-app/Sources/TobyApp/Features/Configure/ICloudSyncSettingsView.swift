@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 enum SyncSettingsPane: String, CaseIterable, Identifiable {
+	case setup
 	case settings
 	case dataBackups
 
@@ -9,8 +10,9 @@ enum SyncSettingsPane: String, CaseIterable, Identifiable {
 
 	var title: String {
 		switch self {
-		case .settings: return "Settings"
-		case .dataBackups: return "Data"
+		case .setup: return "Sync setup"
+		case .settings: return "Settings backups"
+		case .dataBackups: return "Data backups"
 		}
 	}
 }
@@ -23,12 +25,14 @@ struct ICloudSyncSettingsView: View {
 	var previewStatus: ConfigSyncStatus? = nil
 	var previewHistory: [ConfigSyncHistoryItem] = []
 	var previewDatabaseBackups: [DatabaseSyncBackup] = []
-	var previewSelectedPane: SyncSettingsPane = .settings
+	var previewSelectedPane: SyncSettingsPane = .setup
 	var previewStatusExpanded: Bool = false
+	var previewDestinationExpanded: Bool = false
 
 	@State private var selectedPane: SyncSettingsPane
 	@State private var statusExpanded: Bool
 	@State private var dataStatusExpanded: Bool
+	@State private var destinationExpanded: Bool
 	@State private var status: ConfigSyncStatus?
 	@State private var history: [ConfigSyncHistoryItem] = []
 	@State private var password = ""
@@ -38,6 +42,7 @@ struct ICloudSyncSettingsView: View {
 	@State private var didSeedTransport = false
 	@State private var isWorking = false
 	@State private var localError: String?
+	@State private var pendingDestinationChange = false
 	@State private var pendingDisable = false
 	@State private var pendingDisableDataBackups = false
 	@State private var pendingRestore: ConfigSyncHistoryItem?
@@ -49,8 +54,9 @@ struct ICloudSyncSettingsView: View {
 		previewStatus: ConfigSyncStatus? = nil,
 		previewHistory: [ConfigSyncHistoryItem] = [],
 		previewDatabaseBackups: [DatabaseSyncBackup] = [],
-		previewSelectedPane: SyncSettingsPane = .settings,
-		previewStatusExpanded: Bool = false
+		previewSelectedPane: SyncSettingsPane = .setup,
+		previewStatusExpanded: Bool = false,
+		previewDestinationExpanded: Bool = false
 	) {
 		self.client = client
 		self.previewStatus = previewStatus
@@ -58,9 +64,11 @@ struct ICloudSyncSettingsView: View {
 		self.previewDatabaseBackups = previewDatabaseBackups
 		self.previewSelectedPane = previewSelectedPane
 		self.previewStatusExpanded = previewStatusExpanded
+		self.previewDestinationExpanded = previewDestinationExpanded
 		_selectedPane = State(initialValue: previewSelectedPane)
 		_statusExpanded = State(initialValue: previewStatusExpanded)
 		_dataStatusExpanded = State(initialValue: previewStatusExpanded)
+		_destinationExpanded = State(initialValue: previewDestinationExpanded)
 		_status = State(initialValue: previewStatus)
 		_history = State(initialValue: previewHistory)
 		_databaseBackups = State(initialValue: previewDatabaseBackups)
@@ -72,17 +80,17 @@ struct ICloudSyncSettingsView: View {
 	var body: some View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 28) {
-				VStack(alignment: .leading, spacing: 6) {
-					Text("Sync and Backup")
-						.font(.title2.weight(.semibold))
-						.foregroundStyle(AppTheme.primaryText)
-					Text(paneIntro)
-						.font(.subheadline)
-						.foregroundStyle(AppTheme.secondaryText)
-						.fixedSize(horizontal: false, vertical: true)
-				}
+				Text("Sync and Backup")
+					.font(.title2.weight(.semibold))
+					.foregroundStyle(AppTheme.primaryText)
+
 
 				panePicker
+
+				Text(paneIntro)
+					.font(.subheadline)
+					.foregroundStyle(AppTheme.secondaryText)
+					.fixedSize(horizontal: false, vertical: true)
 
 				if let message = statusBanner {
 					InlineStatusMessage(
@@ -92,11 +100,21 @@ struct ICloudSyncSettingsView: View {
 					)
 				}
 
-				switch selectedPane {
-				case .settings:
-					settingsPane
-				case .dataBackups:
-					dataPane
+				if resolvedStatus == nil {
+					if localError == nil {
+						ProgressView("Loading sync settings…")
+					} else {
+						Button("Retry") { Task { await refresh() } }
+					}
+				} else {
+					switch selectedPane {
+					case .setup:
+						setupPane
+					case .settings:
+						settingsPane
+					case .dataBackups:
+						dataPane
+					}
 				}
 			}
 			.padding(24)
@@ -109,13 +127,19 @@ struct ICloudSyncSettingsView: View {
 				await refresh()
 			}
 		}
-		.alert("Disable settings sync?", isPresented: $pendingDisable) {
+		.alert("Change sync destination?", isPresented: $pendingDestinationChange) {
+			Button("Cancel", role: .cancel) {}
+			Button("Change destination") { Task { await enable() } }
+		} message: {
+			Text("If the destination has existing settings, they will replace settings and credentials on this Mac. Otherwise Toby uploads this Mac’s settings. Previous backups stay in the old destination; new backups use the new one. Other Macs must be configured separately.")
+		}
+		.alert("Disable sync?", isPresented: $pendingDisable) {
 			Button("Cancel", role: .cancel) { pendingDisable = false }
 			Button("Disable", role: .destructive) {
 				Task { await disable() }
 			}
 		} message: {
-			Text("This Mac will stop uploading and downloading settings. The vault is left in place unless you delete it from the command line.")
+			Text("This Mac will stop syncing settings and creating automatic data backups. Existing settings and backups remain in the destination.")
 		}
 		.alert(
 			"Stop automatic data backups?",
@@ -190,8 +214,10 @@ struct ICloudSyncSettingsView: View {
 
 	private var paneIntro: String {
 		switch selectedPane {
+		case .setup:
+			return "Choose one destination and password for settings sync and data backups. Manage saved copies separately in Settings backups and Data backups."
 		case .settings:
-			return "Share settings and credentials across your Macs through iCloud Drive or a folder you already replicate (Dropbox, Google Drive, NAS). The copy is encrypted with a password you choose."
+			return "Settings and credentials sync automatically when they change. Use saved copies to recover an earlier version without changing your chats, projects, or recordings."
 		case .dataBackups:
 			return "Save encrypted snapshots of chats, projects, and recordings — including audio and transcripts. These do not sync automatically. Toby keeps the latest 3 per Mac."
 		}
@@ -208,41 +234,179 @@ struct ICloudSyncSettingsView: View {
 		.accessibilityIdentifier("icloud-sync-pane")
 	}
 
-	private var settingsPane: some View {
+	private var destinationCard: some View {
+		SettingsCard {
+			SettingsRow(
+				title: "Sync destination",
+				description: destinationDescription,
+				showsDivider: true
+			) {
+				if resolvedStatus?.enabled == true {
+					Button(destinationExpanded ? "Cancel" : "Change…") {
+						selectedBackend = resolvedStatus?.resolvedBackend ?? "icloud"
+						folderPath = resolvedStatus?.folderPath ?? ""
+						password = ""
+						confirmPassword = ""
+						destinationExpanded.toggle()
+					}
+					.disabled(isWorking)
+					.help(
+						destinationExpanded
+							? "Discard destination changes."
+							: "Change the sync type or folder without disabling sync."
+					)
+					.accessibilityIdentifier("icloud-sync-configure-destination")
+				} else {
+					EmptyView()
+				}
+			}
+
+			VStack(alignment: .leading, spacing: 12) {
+				if resolvedStatus?.enabled == true {
+					destinationSummary
+					if destinationExpanded {
+						destinationEditor
+					}
+				} else {
+					destinationForm
+				}
+			}
+			.padding(14)
+		}
+		.accessibilityIdentifier("icloud-sync-destination")
+	}
+
+	private var destinationDescription: String {
+		if resolvedStatus?.enabled == true {
+			return "Settings and data backups use this encrypted folder."
+		}
+		if usingFolder {
+			return "Choose a private folder you already sync to your other Macs. Toby writes an encrypted copy under Toby/sync inside it."
+		}
+		if resolvedStatus?.iCloudAvailable == false {
+			return "Sign in to iCloud and turn on iCloud Drive in System Settings, or choose a folder instead."
+		}
+		return "Settings and data backups use this encrypted folder."
+	}
+
+	@ViewBuilder
+	private var destinationSummary: some View {
+		if let path = destinationDisplayPath {
+			clickablePath(path, identifier: "icloud-sync-folder-path")
+				.frame(maxWidth: .infinity, alignment: .leading)
+		} else if usingFolder {
+			Text("No folder selected")
+				.font(.caption)
+				.foregroundStyle(AppTheme.secondaryText)
+				.frame(maxWidth: .infinity, alignment: .leading)
+				.accessibilityIdentifier("icloud-sync-folder-path")
+		} else {
+			Text("iCloud Drive")
+				.font(.subheadline)
+				.foregroundStyle(AppTheme.primaryText)
+				.frame(maxWidth: .infinity, alignment: .leading)
+				.accessibilityIdentifier("icloud-sync-folder-path")
+		}
+	}
+
+	private var destinationDisplayPath: String? {
+		if resolvedStatus?.resolvedBackend == "folder" {
+			let path = (resolvedStatus?.folderPath ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+			return path.isEmpty ? nil : path
+		}
+		let vault = resolvedStatus?.vaultPath.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+		return vault.isEmpty ? nil : vault
+	}
+
+	private var destinationEditor: some View {
+		VStack(alignment: .leading, spacing: 12) {
+			destinationForm
+			Text("Enter the destination’s password, or choose a password for a new destination. Existing settings there will be downloaded. Previous backups stay in their original location.")
+				.font(.caption)
+				.foregroundStyle(AppTheme.secondaryText)
+				.fixedSize(horizontal: false, vertical: true)
+			enableForm
+		}
+	}
+
+	@ViewBuilder
+	private var destinationForm: some View {
+		Picker("Sync type", selection: $selectedBackend) {
+			Text("iCloud Drive").tag("icloud")
+			Text("Folder").tag("folder")
+		}
+		.pickerStyle(.segmented)
+		.disabled(isWorking)
+		.accessibilityIdentifier("icloud-sync-backend")
+
+		if usingFolder {
+			HStack(alignment: .center, spacing: 8) {
+				if folderPath.isEmpty {
+					Text("No folder selected")
+						.font(.caption)
+						.foregroundStyle(AppTheme.secondaryText)
+						.frame(maxWidth: .infinity, alignment: .leading)
+						.accessibilityIdentifier("icloud-sync-folder-path")
+				} else {
+					clickablePath(folderPath, identifier: "icloud-sync-folder-path")
+						.frame(maxWidth: .infinity, alignment: .leading)
+				}
+				Button("Choose…") { presentFolderChooser() }
+					.disabled(isWorking)
+					.accessibilityIdentifier("icloud-sync-choose-folder")
+			}
+		}
+	}
+
+	private var setupPane: some View {
 		VStack(alignment: .leading, spacing: 28) {
+			destinationCard
 			SettingsCard {
 				SettingsRow(
-					title: "Sync settings across Macs",
+					title: resolvedStatus?.enabled == true ? "Sync enabled" : "Enable sync",
 					description: transportDescription,
-					showsDivider: !(resolvedStatus?.enabled ?? false)
+					showsDivider: resolvedStatus?.enabled != true
 				) {
 					if resolvedStatus?.enabled == true {
-						Button("Disable") { pendingDisable = true }
+						Button("Disable…") { pendingDisable = true }
 							.disabled(isWorking)
 							.accessibilityIdentifier("icloud-sync-disable")
-					} else {
-						EmptyView()
 					}
 				}
-
-				if resolvedStatus?.enabled != true {
-					enableForm
-				}
+				if resolvedStatus?.enabled != true { enableForm }
 			}
+			if resolvedStatus?.enabled == true { statusCard }
+			inboundNote
+		}
+	}
 
-			if resolvedStatus?.enabled == true {
-				statusCard
+	@ViewBuilder
+	private var settingsPane: some View {
+		if resolvedStatus?.enabled == true {
+			VStack(alignment: .leading, spacing: 28) {
 				settingsHistoryCard
 				paneAction(
-					title: "Sync Settings Now",
-					help: "Send this Mac’s settings and credentials to iCloud Drive or your chosen folder.",
+					title: "Back up settings now",
+					help: "Upload this Mac’s settings and credentials to the sync destination.",
 					identifier: "icloud-sync-push"
-				) {
-					Task { await push() }
-				}
+				) { Task { await push() } }
 			}
+		} else {
+			setupRequired
+		}
+	}
 
-			inboundNote
+	private var setupRequired: some View {
+		SettingsCard {
+			VStack(alignment: .leading, spacing: 12) {
+				Text("Set up sync to choose the encrypted destination used by settings and data backups.")
+					.font(.subheadline)
+					.foregroundStyle(AppTheme.secondaryText)
+					.fixedSize(horizontal: false, vertical: true)
+				Button("Set up sync") { selectedPane = .setup }
+					.accessibilityIdentifier("icloud-sync-data-requires-configuration")
+			}
+			.padding(14)
 		}
 	}
 
@@ -283,20 +447,7 @@ struct ICloudSyncSettingsView: View {
 				}
 			}
 		} else {
-			SettingsCard {
-				VStack(alignment: .leading, spacing: 12) {
-					Text("Data backups use the same encrypted folder as settings sync. Enable settings sync first.")
-						.font(.subheadline)
-						.foregroundStyle(AppTheme.secondaryText)
-						.fixedSize(horizontal: false, vertical: true)
-					Button("Set up settings sync") {
-						selectedPane = .settings
-					}
-					.accessibilityIdentifier("icloud-sync-data-requires-configuration")
-				}
-				.padding(14)
-				.frame(maxWidth: .infinity, alignment: .leading)
-			}
+			setupRequired
 		}
 	}
 
@@ -328,15 +479,9 @@ struct ICloudSyncSettingsView: View {
 	private var transportDescription: String {
 		if resolvedStatus?.enabled == true {
 			if resolvedStatus?.resolvedBackend == "folder" {
-				return "This Mac uploads an encrypted snapshot after settings change and pulls updates from the chosen folder."
+				return "This Mac uploads an encrypted snapshot after settings change and pulls updates from the shared folder."
 			}
 			return "This Mac uploads an encrypted snapshot after settings change and pulls updates automatically."
-		}
-		if usingFolder {
-			return "Choose a private folder you already sync to your other Macs. Toby writes an encrypted copy under Toby/sync inside it."
-		}
-		if resolvedStatus?.iCloudAvailable == false {
-			return "Sign in to iCloud and turn on iCloud Drive in System Settings, or choose a folder instead."
 		}
 		if joiningExistingVault {
 			return "An existing vault was found. Enter the password from your other Mac to join."
@@ -357,32 +502,6 @@ struct ICloudSyncSettingsView: View {
 	@ViewBuilder
 	private var enableForm: some View {
 		VStack(alignment: .leading, spacing: 12) {
-			Picker("Transport", selection: $selectedBackend) {
-				Text("iCloud Drive").tag("icloud")
-				Text("Folder").tag("folder")
-			}
-			.pickerStyle(.segmented)
-			.disabled(isWorking)
-			.accessibilityIdentifier("icloud-sync-backend")
-
-			if usingFolder {
-				HStack(alignment: .center, spacing: 8) {
-					if folderPath.isEmpty {
-						Text("No folder selected")
-							.font(.caption)
-							.foregroundStyle(AppTheme.secondaryText)
-							.frame(maxWidth: .infinity, alignment: .leading)
-							.accessibilityIdentifier("icloud-sync-folder-path")
-					} else {
-						clickablePath(folderPath, identifier: "icloud-sync-folder-path")
-							.frame(maxWidth: .infinity, alignment: .leading)
-					}
-					Button("Choose…") { presentFolderChooser() }
-						.disabled(isWorking)
-						.accessibilityIdentifier("icloud-sync-choose-folder")
-				}
-			}
-
 			SecureField("Sync password", text: $password)
 				.textFieldStyle(.roundedBorder)
 				.disabled(isWorking)
@@ -392,9 +511,14 @@ struct ICloudSyncSettingsView: View {
 				.disabled(isWorking)
 				.accessibilityIdentifier("icloud-sync-password-confirm")
 			HStack {
+				if isWorking { ProgressView().controlSize(.small) }
 				Spacer()
 				Button(enableButtonTitle) {
-					Task { await enable() }
+					if resolvedStatus?.enabled == true {
+						pendingDestinationChange = true
+					} else {
+						Task { await enable() }
+					}
 				}
 				.disabled(!canEnable)
 				.accessibilityIdentifier("icloud-sync-enable")
@@ -404,7 +528,7 @@ struct ICloudSyncSettingsView: View {
 	}
 
 	private var enableButtonTitle: String {
-		joiningExistingVault ? "Join vault" : "Enable sync"
+		resolvedStatus?.enabled == true ? "Save destination" : (joiningExistingVault ? "Join vault" : "Enable sync")
 	}
 
 	/// `hasRemote` is for the store currently in sync-state, not a newly picked folder.
@@ -424,8 +548,14 @@ struct ICloudSyncSettingsView: View {
 		return URL(fileURLWithPath: trimmed).standardizedFileURL.path
 	}
 
+	private var destinationChanged: Bool {
+		selectedBackend != resolvedStatus?.resolvedBackend
+			|| (usingFolder && standardizedPath(folderPath) != standardizedPath(resolvedStatus?.folderPath ?? ""))
+	}
+
 	private var canEnable: Bool {
-		guard !isWorking else { return false }
+		guard !isWorking, resolvedStatus != nil else { return false }
+		if resolvedStatus?.enabled == true && !destinationChanged { return false }
 		let trimmed = password.trimmingCharacters(in: .whitespacesAndNewlines)
 		guard !trimmed.isEmpty, trimmed == confirmPassword else { return false }
 		if usingFolder {
@@ -437,16 +567,6 @@ struct ICloudSyncSettingsView: View {
 	private var statusCard: some View {
 		collapsibleStatus(isExpanded: $statusExpanded, identifier: "icloud-sync-status") {
 			if let status = resolvedStatus {
-				statusLine(
-					"Transport",
-					status.resolvedBackend == "folder" ? "Folder" : "iCloud Drive"
-				)
-				if let folder = status.folderPath, !folder.isEmpty {
-					statusPathLine("Folder", folder)
-				}
-				if !status.vaultPath.isEmpty {
-					statusPathLine("Location", status.vaultPath)
-				}
 				statusLine("This Mac", status.deviceName)
 				if let writer = status.lastWriterDeviceName {
 					statusLine("Last writer", writer)
@@ -464,13 +584,6 @@ struct ICloudSyncSettingsView: View {
 	private var dataStatusCard: some View {
 		collapsibleStatus(isExpanded: $dataStatusExpanded, identifier: "data-backups-status") {
 			if let status = resolvedStatus {
-				statusLine(
-					"Transport",
-					status.resolvedBackend == "folder" ? "Folder" : "iCloud Drive"
-				)
-				if let folder = dataBackupFolderPath {
-					statusPathLine("Folder", folder)
-				}
 				statusLine("This Mac", status.deviceName)
 				statusLine(
 					"Daily backups",
@@ -482,15 +595,6 @@ struct ICloudSyncSettingsView: View {
 				statusLine("Snapshots", "\(displayedDatabaseBackups.count) of \(Self.backupListLimit)")
 			}
 		}
-	}
-
-	private var dataBackupFolderPath: String? {
-		if let filePath = displayedDatabaseBackups.first?.path, !filePath.isEmpty {
-			return URL(fileURLWithPath: filePath).deletingLastPathComponent().path
-		}
-		let vault = resolvedStatus?.vaultPath ?? ""
-		guard !vault.isEmpty else { return nil }
-		return (vault as NSString).appendingPathComponent("data-backups")
 	}
 
 	private func collapsibleStatus<Content: View>(
@@ -726,13 +830,15 @@ struct ICloudSyncSettingsView: View {
 			let path = folderPath.trimmingCharacters(in: .whitespacesAndNewlines)
 			status = try await client.enableConfigSync(
 				password: trimmed,
-				mode: usingFolder ? nil : (joiningExistingVault ? "join" : "create"),
+				mode: nil,
 				backend: selectedBackend,
 				folderPath: usingFolder ? path : nil
 			)
 			password = ""
 			confirmPassword = ""
+			destinationExpanded = false
 			await loadHistory()
+			await loadDatabaseBackups()
 		} catch {
 			localError = error.localizedDescription
 		}
@@ -745,6 +851,7 @@ struct ICloudSyncSettingsView: View {
 		do {
 			status = try await client.disableConfigSync()
 			history = []
+			destinationExpanded = false
 		} catch {
 			localError = error.localizedDescription
 		}
@@ -834,7 +941,7 @@ struct ICloudSyncSettingsView: View {
 				folderPath = path
 			}
 			didSeedTransport = true
-		} else if next.enabled {
+		} else if next.enabled && !destinationExpanded {
 			selectedBackend = next.resolvedBackend
 			if let path = next.folderPath, !path.isEmpty {
 				folderPath = path
@@ -859,8 +966,8 @@ struct ICloudSyncSettingsView: View {
 	}
 
 	private static func initialBackend(_ status: ConfigSyncStatus?) -> String {
-		if let backend = status?.backend, backend == "folder" {
-			return "folder"
+		if let backend = status?.backend {
+			return backend
 		}
 		if status?.iCloudAvailable == false {
 			return "folder"

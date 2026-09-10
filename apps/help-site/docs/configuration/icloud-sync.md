@@ -28,7 +28,8 @@ Drive is off, blocked, or you prefer another service.
 ## Set up with iCloud Drive
 
 1. Sign in to iCloud and turn on **iCloud Drive** in System Settings.
-2. Open **Toby.app → Settings → Sync**.
+2. Open **Toby.app → Settings → Sync**. In **Sync setup**, the **Sync destination** is
+   used by both settings sync and data backups.
 3. Leave **iCloud Drive** selected, enter a sync password twice, and choose
    **Enable sync**.
 4. Toby writes an encrypted copy to **iCloud Drive → Toby → sync**.
@@ -42,8 +43,8 @@ Use a folder that already appears on each Mac (Dropbox, Google Drive, a NAS
 share, Syncthing, and so on).
 
 1. Open **Settings → Sync**.
-2. Choose **Folder**, then **Choose…** and pick a **private** folder you
-   already sync.
+2. In **Sync setup → Sync destination**, choose **Folder**, then **Choose…** and pick a
+   **private** folder you already sync.
 3. Enter the same kind of sync password and choose **Enable sync**.
 4. On the other Mac, pick the matching folder (the path can differ), enter the
    **same** password, and **Join vault**.
@@ -65,27 +66,43 @@ CLI equivalent: `toby config sync enable --dir /path/to/folder`.
 
 Toby uploads a new snapshot a few seconds after you change settings, and pulls
 updates when the app/daemon is running. Last write wins. Previous settings
-copies are kept in **History** on the **Settings** pane (last 3) so you
+copies are kept in **History** on the **Settings backups** pane (last 3) so you
 can restore a bad overwrite.
 
 That pane is the live settings vault only — not chats, projects, or recordings.
-Use **Sync Settings Now** to send this Mac’s settings immediately. Restore a
+Use **Back up settings now** to send this Mac’s settings immediately. Restore a
 previous copy from History if you need to roll settings back. CLI equivalent
 for an immediate upload: `toby config sync push`.
 
-To change between iCloud Drive and a folder, disable sync on this Mac and enable
-again with the other transport.
+## Change the sync destination
+
+1. Open **Settings → Sync → Sync setup**.
+2. Choose **Change…** beside **Sync destination**.
+3. Select **iCloud Drive** or **Folder**. For a folder, use **Choose…**.
+4. Enter and confirm the destination’s password (choose one for a new destination).
+5. Choose **Save destination**, then confirm the change.
+
+Sync stays enabled. If the destination already contains settings, Toby downloads
+those settings and credentials to this Mac; otherwise it uploads this Mac’s
+settings. A failed connection keeps the previous destination configured.
+**Cancel** discards your edits.
+
+Previous backups stay in the old destination. New settings copies and data
+backups use the new destination and password. Configure other Macs separately
+to use the same location. To restore a backup from the old location, switch back
+to it using its password.
 
 ## Data Backups
 
 Chats, projects, schedules, flows, run history, memories, project files, and
 recordings are not continuously synchronized because two Macs changing them at
-once could lose data. Instead, open **Settings → Sync → Data**
+once could lose data. Instead, open **Settings → Sync → Data backups**
 to save an encrypted snapshot of this Mac once a day. Settings sync must
-be on first. Enable or disable daily backups the same way as settings sync. Each snapshot includes
+be on first. Enable or disable daily backups here without changing the sync destination. Disabling overall sync in Sync setup also pauses automatic data backups. Each snapshot includes
 chats, memories, project files, and recordings — audio, transcripts, and
 summaries — so they can be large. Toby keeps the latest **3** snapshots per
-Mac in the same iCloud Drive or selected folder and deletes older ones.
+Mac in the **Sync destination** in Sync setup (the same iCloud
+Drive or selected folder as settings sync) and deletes older ones.
 
 Use **Back Up Now** at the bottom of the pane to create one immediately.
 History lists the latest copies. Dates are shown in your local format. Click a
@@ -98,7 +115,7 @@ folders are left untouched.
 ## If two Macs change settings at once
 
 The later snapshot replaces the earlier one. Restore an older snapshot from
-**History** on the Settings pane if you lost a change. Field-by-field
+**History** on the Settings backups pane if you lost a change. Field-by-field
 merge is not supported yet.
 
 ## Inbound Slack
