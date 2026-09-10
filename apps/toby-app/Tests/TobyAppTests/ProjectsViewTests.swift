@@ -423,6 +423,34 @@ struct ProjectsViewTests {
 		}
 	}
 
+	@Test("files sidebar keeps a tappable refresh button in the header")
+	func filesSidebarShowsRefreshButton() throws {
+		let store = ProjectsStore()
+		store.selectedProject = sampleProject()
+		let view = ProjectFilesSidebarView(store: store)
+		let button = try view.inspect().find(
+			viewWithAccessibilityIdentifier: "project-files-refresh-button"
+		)
+		#expect(try button.accessibilityLabel().string() == "Refresh files")
+		#expect(throws: Never.self) {
+			try button.button()
+		}
+	}
+
+	@Test("files card header keeps a tappable refresh button")
+	func filesCardShowsRefreshButton() throws {
+		let store = ProjectsStore()
+		store.selectedProject = sampleProject()
+		let view = ProjectFileTreeSection(store: store)
+		let button = try view.inspect().find(
+			viewWithAccessibilityIdentifier: "project-files-refresh-button"
+		)
+		#expect(try button.accessibilityLabel().string() == "Refresh files")
+		#expect(throws: Never.self) {
+			try button.button()
+		}
+	}
+
 	@Test("file rows advertise Quick Look")
 	func fileRowsAdvertiseQuickLook() throws {
 		let view = ProjectTreeRow(

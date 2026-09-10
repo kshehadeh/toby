@@ -1,24 +1,40 @@
 import QuickLook
 import SwiftUI
 
+struct ProjectFileTreeHeader: View {
+	@Bindable var store: ProjectsStore
+
+	var body: some View {
+		HStack(alignment: .center, spacing: 8) {
+			Text("Files")
+				.font(.system(size: 12, weight: .semibold))
+				.foregroundStyle(SettingsDesign.rowTitle)
+				.lineLimit(1)
+				.frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+			Button("Refresh files", systemImage: "arrow.clockwise") {
+				Task { await store.refreshTree() }
+			}
+			.labelStyle(.iconOnly)
+			.buttonStyle(.bordered)
+			.controlSize(.small)
+			.help("Refresh files")
+			.accessibilityLabel("Refresh files")
+			.accessibilityIdentifier("project-files-refresh-button")
+			.fixedSize()
+		}
+		.frame(maxWidth: .infinity)
+	}
+}
+
 struct ProjectFileTreeSection: View {
 	@Bindable var store: ProjectsStore
 	var changeKinds: [String: ProjectTreeChangeKind] = [:]
+	var showsHeader = true
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 8) {
-			HStack {
-				Text("Files")
-					.font(.system(size: 12, weight: .semibold))
-					.foregroundStyle(SettingsDesign.rowTitle)
-				Spacer()
-				Button {
-					Task { await store.refreshTree() }
-				} label: {
-					Image(systemName: "arrow.clockwise")
-				}
-				.buttonStyle(.plain)
-				.help("Refresh files")
+			if showsHeader {
+				ProjectFileTreeHeader(store: store)
 			}
 			if store.tree.isEmpty {
 				Text("No files")
@@ -37,6 +53,7 @@ struct ProjectFileTreeSection: View {
 				}
 			}
 		}
+		.frame(maxWidth: .infinity, alignment: .leading)
 	}
 }
 
@@ -216,17 +233,24 @@ struct ProjectFilesSidebarView: View {
 	}
 
 	var body: some View {
-		ScrollView {
-			VStack(alignment: .leading, spacing: 16) {
-				ProjectFileTreeSection(store: store, changeKinds: changeKinds)
-				if !deletedChanges.isEmpty {
-					recentlyDeleted
+		VStack(alignment: .leading, spacing: 8) {
+			ProjectFileTreeHeader(store: store)
+				.padding(.horizontal, 16)
+				.padding(.top, 16)
+			ScrollView {
+				VStack(alignment: .leading, spacing: 16) {
+					ProjectFileTreeSection(store: store, changeKinds: changeKinds, showsHeader: false)
+					if !deletedChanges.isEmpty {
+						recentlyDeleted
+					}
 				}
+				.padding(.horizontal, 16)
+				.padding(.bottom, 16)
+				.frame(maxWidth: .infinity, alignment: .topLeading)
 			}
-			.padding(16)
-			.frame(maxWidth: .infinity, alignment: .topLeading)
+			.automaticScrollIndicators(axes: .vertical)
 		}
-		.automaticScrollIndicators(axes: .vertical)
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 		.background(AppTheme.contentBackground)
 		.accessibilityIdentifier("project-files-sidebar")
 	}
