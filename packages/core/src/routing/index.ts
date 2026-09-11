@@ -70,6 +70,7 @@ function routingExcludedToolNames(): ReadonlySet<string> {
 		"askUser",
 		"getCurrentDateTime",
 		"loadLocalSkillInstructions",
+		"enableTools",
 		"tobyListIntegrations",
 		"tobyListTools",
 		"tobyListSkills",

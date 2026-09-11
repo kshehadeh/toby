@@ -146,19 +146,22 @@ By default, Toby uses **embedding-based routing** ([`packages/core/src/routing/`
 2. **Expand-prompt** embeds the user message, runs cosine search, and selects up to **`TOBY_ROUTING_TOP_K`** integration-specific tools (default **8**) plus up to **2** skills above **`TOBY_ROUTING_MIN_SCORE`** (default **0.2** for tools; **`TOBY_ROUTING_SKILL_MIN_SCORE`** default **0.35** for skills — skills require a stronger match to avoid false-positive activation).
 3. **Finalize** still applies the token-overlap skill heuristic and unions tools declared in selected skill frontmatter.
 
-**Always-included tools** (base set in `ALWAYS_INCLUDED_TOOLS` in
-[`run-turn.ts`](../packages/core/src/chat-pipeline/run-turn.ts): `askUser`,
-`getCurrentDateTime`, `loadLocalSkillInstructions`, `writeTextFile`,
+**Always-included tools** are a small discovery core in `ALWAYS_INCLUDED_TOOLS`
+([`run-turn.ts`](../packages/core/src/chat-pipeline/run-turn.ts)): `askUser`,
+`getCurrentDateTime`, `loadLocalSkillInstructions`, `enableTools`,
 `tobyListIntegrations`, `tobyListTools`, `tobyListSkills`, `delegateToSubAgent`,
-core memory tools, `readPdf`, and project file tools `listProjectFiles`,
-`searchProjectFiles`, `readProjectFile`, `createProjectFolder`,
-`renameProjectFile`, `deleteProjectFile`, `deleteProjectFolder`,
-`saveProjectAttachment`) are **not**
-part of the top-K count. Project chats also always include `createLocalSkill` so
-the `project-organization` skill can be maintained. Conditional globals such as
-`webSearch` (when enabled) are also protected from relevance filtering when
-present. So “top 8” means eight *additional* integration tools, not eight tools
-total.
+and `memorySearch`. They are **not** part of the top-K count. Project chats also
+always include `createLocalSkill`, `listProjectFiles`, `searchProjectFiles`, and
+`readProjectFile` so project-organization and file grounding do not depend on
+routing. Write tools (`writeTextFile`, memory writes, project mutations),
+`readPdf`, `webSearch`, `getWeather`, and integration tools must be routed,
+accumulated from a prior turn, enabled mid-turn, or (for `readPdf`) forced when
+a PDF is attached.
+
+Empty routing is **fail-closed**: only the discovery core is active, not the
+full catalog. The model can call `tobyListTools` then `enableTools` to add
+named tools on the next step of the same turn. So “top 8” means eight
+*additional* routed tools, not eight tools total.
 
 | Variable | Purpose |
 | -------- | ------- |
@@ -178,10 +181,10 @@ When semantic routing is disabled, **ExpandPromptNode** uses a **small structure
 ### Shared behavior
 
 - **When**: on **every** non-empty prompt unless `TOBY_DISABLE_PRETREATMENT=1`. [`shouldPretreat`](../packages/core/src/ai/pretreatment.ts) gates this.
-- **Follow-up optimization**: trivial messages (`ok`, `yes`, `continue`, …) reuse the prior spec without re-embedding. Non-trivial follow-ups re-run semantic routing (legacy mode may use delta LLM instead).
+- **Follow-up optimization**: trivial messages (`ok`, `yes`, `continue`, …) reuse the prior spec without re-embedding. Non-trivial follow-ups re-run semantic routing (legacy mode may use delta LLM instead) and **union** newly routed tools with the session’s prior tool set (grow-only). Tools the model added via `enableTools` are persisted on the spec for the next turn.
 - **Debug**: `TOBY_DEBUG_PREP=1` adjusts the **prompt preparation** transcript box detail when a spec was attached.
-- **Caching**: SQLite **pretreatment cache** (`chat_pretreatment_cache`) stores successful routing results keyed by normalized user text, integration labels, catalog digests, routing mode, and embed/routing parameters — so identical prompts skip re-embedding.
-- **Tool filtering**: Selected tools narrow the main turn via [`filterToolsByRelevance`](../packages/core/src/chat-pipeline/run-turn.ts).
+- **Caching**: SQLite **pretreatment cache** (`chat_pretreatment_cache`) stores successful routing results keyed by normalized user text, integration labels, catalog digests, routing mode, and embed/routing parameters — so identical prompts skip re-embedding. Session accumulation is applied **after** a cache hit so one session’s extra tools do not leak into another.
+- **Tool filtering**: [`filterToolNamesByRelevance`](../packages/core/src/chat-pipeline/run-turn.ts) computes the **initial** `activeTools` allowlist. The full catalog is still passed into `streamText` / `generateText` so [`prepareStep`](../packages/core/src/ai/chat.ts) can expand `activeTools` when `enableTools` is called. Empty `relevantTools` is fail-closed (core only).
 - **Session naming**: First-turn session titles use a short heuristic from the user message (semantic mode) or LLM output (legacy mode).
 
 ## Local skills (optional)
@@ -225,14 +228,15 @@ If pretreatment is skipped (`shouldPretreat` false) or disabled (`TOBY_DISABLE_P
 
 To author a new skill from chat, ask explicitly (for example “create a skill for …”). The global tool **`createLocalSkill`** (see [`packages/core/src/ai/global-chat-tools.ts`](../packages/core/src/ai/global-chat-tools.ts)) is **not** in the always-included tool set for ordinary chats: pretreatment must select it, matching Cursor’s `disable-model-invocation` pattern for skills that should not auto-apply. **Project chats** always include `createLocalSkill` so Toby can create or update the project-local `project-organization` skill; other skills still require an explicit user request.
 
-Project chats also always include `searchProjectFiles` and `readProjectFile` so answers can be grounded in project files before web search or general knowledge.
+Project chats also always include `listProjectFiles`, `searchProjectFiles`, and `readProjectFile` so answers can be grounded in project files before web search or general knowledge.
 
 ## Toby self-reflection tools
 
 Global reflection tools let the assistant answer questions about Toby itself without guessing from stale prompt text. The always-included subset includes:
 
 - `tobyListIntegrations` — list available integrations, connection state, categories, capabilities, and resources.
-- `tobyListTools` — list tools available in the current chat scope.
+- `tobyListTools` — list the full tool catalog (not only the current set); use before `enableTools` or `delegateToSubAgent`.
+- `enableTools` — add named catalog tools to this conversation on the next step.
 - `tobyListSkills` — list installed local skills.
 
 Additional reflect helpers (when exposed by the global tool set) may cover setup
@@ -247,8 +251,8 @@ tools can you use right now?”, and “What skills are installed?”
 Two global tools extend Toby's ability to access the web:
 
 - **`fetchWebContent`** — Fetches a URL and extracts its main readable content using `@mozilla/readability`. Strips ads, navigation, footers, and other boilerplate. Returns article title, text content, excerpt, and metadata. PDF URLs are extracted via `readPdf`’s helper. No credentials needed. Implemented in [`packages/core/src/ai/web-fetch-tool.ts`](../packages/core/src/ai/web-fetch-tool.ts).
-- **`readPdf`** — Extracts searchable text from a PDF into the current turn (attachment filename, project-relative path, or `http`/`https` URL). Always registered and always-included. Does not OCR scanned image PDFs. See [`pdf-read.md`](pdf-read.md) and [`packages/core/src/ai/pdf-read-tool.ts`](../packages/core/src/ai/pdf-read-tool.ts).
-- **`webSearch`** — Searches the web via Perplexity through the Vercel AI Gateway. A client-side function tool whose `execute` makes a separate `generateText` call to the gateway with `openai/gpt-4.1-mini` + `gateway.tools.perplexitySearch()`. Returns titles, URLs, snippets, and optional dates. Available as a **conditional global tool** when web search is enabled in Settings and a Vercel AI Gateway API key is present (works with any persona AI provider). When available, it is protected from pretreatment filtering. See [`web-search.md`](web-search.md) and [`packages/core/src/ai/web-search-global-tools.ts`](../packages/core/src/ai/web-search-global-tools.ts).
+- **`readPdf`** — Extracts searchable text from a PDF into the current turn (attachment filename, project-relative path, or `http`/`https` URL). Always registered; included when routed, enabled, or a PDF is attached to the turn. Does not OCR scanned image PDFs. See [`pdf-read.md`](pdf-read.md) and [`packages/core/src/ai/pdf-read-tool.ts`](../packages/core/src/ai/pdf-read-tool.ts).
+- **`webSearch`** — Searches the web via Perplexity through the Vercel AI Gateway. A client-side function tool whose `execute` makes a separate `generateText` call to the gateway with `openai/gpt-4.1-mini` + `gateway.tools.perplexitySearch()`. Returns titles, URLs, snippets, and optional dates. Available as a **conditional global tool** when web search is enabled in Settings and a Vercel AI Gateway API key is present (works with any persona AI provider). Not always-included; pretreatment, session accumulation, or `enableTools` must select it. See [`web-search.md`](web-search.md) and [`packages/core/src/ai/web-search-global-tools.ts`](../packages/core/src/ai/web-search-global-tools.ts).
 - **`getWeather`** — Structured weather forecast for a place name or lat/lon and optional date via Open-Meteo (place names geocoded with Nominatim). Available as a **conditional global tool** when weather is enabled in Settings. No API key required for free tier. See [`weather.md`](weather.md) and [`packages/core/src/ai/weather/weather-global-tools.ts`](../packages/core/src/ai/weather/weather-global-tools.ts).
 - **`getMyLocation`** — Current user location from macOS Location Services via Toby.app (lat/lon + optional reverse-geocoded place). Always registered; prompts for Location permission when needed. See [`location.md`](location.md) and [`packages/core/src/ai/location-global-tools.ts`](../packages/core/src/ai/location-global-tools.ts).
 

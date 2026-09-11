@@ -43,5 +43,7 @@ describe("buildToolsCatalogForPretreatment label attribution", () => {
 		// Other global tools remain attributed to Toby.
 		expect(catalog.toolIntegrationLabels.getCurrentDateTime).toBe("Toby");
 		expect(catalog.toolIntegrationLabels.askUser).toBe("Toby");
+		expect(catalog.toolIntegrationLabels.enableTools).toBe("Toby");
+		expect(catalog.allToolNames).toContain("enableTools");
 	});
 });

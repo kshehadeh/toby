@@ -30,7 +30,9 @@ No separate API key is needed — web search reuses the existing Vercel AI Gatew
 
 `webSearch` is a **conditional global tool**: when enabled (and a Vercel AI Gateway API key is present), it is available in every chat session regardless of the persona's AI provider. Global wiring lives in [`packages/core/src/ai/web-search-global-tools.ts`](../packages/core/src/ai/web-search-global-tools.ts).
 
-Combine with the always-available **`fetchWebContent`** tool to read full articles from result URLs.
+Combine with **`fetchWebContent`** to read full articles from result URLs.
+Neither tool is always-included; pretreatment, session accumulation, or
+`enableTools` must select them.
 
 ## Architecture
 

@@ -235,6 +235,7 @@ describe("wrapUserPromptWithPretreatment semantic mode", () => {
 
 		expect(generateTextMock).not.toHaveBeenCalled();
 		expect(r.spec?.relevantTools).toContain("gmailSearch");
+		expect(r.spec?.relevantTools).toContain("todoistListTasks");
 	});
 
 	it("falls back to heuristic session name when the LLM call fails", async () => {

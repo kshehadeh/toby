@@ -189,7 +189,7 @@ export function createReflectTools(
 
 		tobyListTools: tool({
 			description:
-				"List all chat tools currently available across connected integrations (grouped by integration) plus global tools. Use this when the user asks what tools Toby has or what actions are available.",
+				"List the full chat tool catalog across connected integrations (grouped by integration) plus global tools — not only tools in the current set. Use this when the user asks what tools Toby has, or before enableTools / delegateToSubAgent when you need a tool you do not currently have.",
 			inputSchema: z.object({}),
 			execute: async () => {
 				if (ctx.dryRun) {
@@ -225,7 +225,11 @@ export function createReflectTools(
 				const globalTools = {
 					tools: createGlobalToolsPreview(),
 				};
-				return { byIntegration, globalTools };
+				return {
+					byIntegration,
+					globalTools,
+					hint: "This is the full catalog. Call enableTools with exact names to use them in this conversation, or delegateToSubAgent for a one-shot task.",
+				};
 			},
 		}),
 
@@ -347,9 +351,14 @@ function createGlobalToolsPreview(): { name: string; description: string }[] {
 				"List default providers for each category and eligible integrations.",
 		},
 		{
+			name: "enableTools",
+			description:
+				"Add named tools from the full catalog to the current conversation.",
+		},
+		{
 			name: "tobyListTools",
 			description:
-				"List all chat tools available across integrations, grouped by integration.",
+				"List the full chat tool catalog across integrations, grouped by integration.",
 		},
 		{
 			name: "tobyListSkills",
@@ -368,19 +377,19 @@ function createGlobalToolsPreview(): { name: string; description: string }[] {
 /** Explains reflect tools for integration system prompts. */
 export function reflectToolsPromptSection(): string {
 	return `
-Toby self-reflection tools (always available):
-- **tobyListIntegrations**: List all registered integrations with live connection status, provider categories, and auth methods.
-- **tobyGetIntegrationSetup**: Get detailed setup info for a specific integration — credential fields, auth methods, health probe, and setup hints. Takes \`integration\` (name string).
-- **tobyListDefaults**: Show the default provider for every provider category (email, calendar, tasks, contacts, chat, documents, work tracker) and which integrations are eligible.
-- **tobyListTools**: List all currently available chat tools across integrations, grouped by integration, plus global tools.
-- **tobyListSkills**: List installed local skills from ~/.toby/skills/ with summaries, and explain how to create or update skills.
-- **tobyInstanceInfo**: Get information about the running Toby instance — hostname, PID, active AI model, active persona, version, OS/platform, compiled-vs-script mode, uptime, and working directory.
+Toby self-reflection tools:
+- **tobyListIntegrations**: List all registered integrations with live connection status, provider categories, and auth methods. Always in the current tool set.
+- **tobyGetIntegrationSetup**: Get detailed setup info for a specific integration — credential fields, auth methods, health probe, and setup hints. Takes \`integration\` (name string). Enable if missing.
+- **tobyListDefaults**: Show the default provider for every provider category (email, calendar, tasks, contacts, chat, documents, work tracker) and which integrations are eligible. Enable if missing.
+- **tobyListTools**: List the full chat tool catalog across integrations, grouped by integration, plus global tools. Always in the current tool set.
+- **tobyListSkills**: List installed local skills from ~/.toby/skills/ with summaries, and explain how to create or update skills. Always in the current tool set.
+- **tobyInstanceInfo**: Get information about the running Toby instance — hostname, PID, active AI model, active persona, version, OS/platform, compiled-vs-script mode, uptime, and working directory. Enable if missing.
 
 When to use:
 - Use **tobyListIntegrations** when the user asks what integrations exist or which are connected.
 - Use **tobyGetIntegrationSetup** when the user asks how to set up, connect, or configure a specific integration.
 - Use **tobyListDefaults** when the user asks about default integrations per category.
-- Use **tobyListTools** when the user asks what actions or capabilities are available.
+- Use **tobyListTools** when the user asks what actions or capabilities are available, or when you need a tool that is not in the current set.
 - Use **tobyListSkills** when the user asks about installed skills or how to create/update a skill.
 - Use **tobyInstanceInfo** when the user asks what machine Toby is running on, its PID, which model or persona is active, or other runtime details.
 `;

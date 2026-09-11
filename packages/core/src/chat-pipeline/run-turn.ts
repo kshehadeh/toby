@@ -4,6 +4,11 @@ import { withAskUserTool } from "../ai/ask-user-tool";
 import { applyChatMessageCaching, applyChatPromptCaching } from "../ai/caching";
 import type { ChatWithToolsOptions, CoreMessage } from "../ai/chat";
 import { chatWithTools, createModelForPersona } from "../ai/chat";
+import {
+	ENABLE_TOOLS_TOOL_NAME,
+	createEnableToolsTool,
+	unionToolNames,
+} from "../ai/enable-tools-tool";
 import { createGlobalChatTools } from "../ai/global-chat-tools";
 import type { Persona } from "../config/index";
 import { getIntegrationModule } from "../integrations/index";
@@ -77,35 +82,29 @@ function computePromptSizeMetrics(messages: readonly CoreMessage[]) {
 }
 
 /**
- * Tools that are always included regardless of pretreatment tool selection.
- * Only truly essential tools for the chat flow itself are here; memory, web,
- * listen, and reflection tools are routed by pretreatment/semantic routing
- * to reduce tool-schema bloat and improve first-token latency.
+ * Discovery core always present after pretreatment. Everything else is routed,
+ * accumulated across turns, or added mid-turn via enableTools.
  */
 const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"askUser",
 	"getCurrentDateTime",
 	"loadLocalSkillInstructions",
-	"writeTextFile",
+	ENABLE_TOOLS_TOOL_NAME,
 	"tobyListIntegrations",
 	"tobyListTools",
 	"tobyListSkills",
 	"delegateToSubAgent",
 	"memorySearch",
-	"memoryPropose",
-	"memorySave",
-	"saveProjectAttachment",
+]);
+
+/** Project chats also keep these so folder grounding does not depend on routing. */
+const PROJECT_GROUNDED_TOOLS: readonly string[] = [
 	"listProjectFiles",
 	"searchProjectFiles",
 	"readProjectFile",
-	"createProjectFolder",
-	"renameProjectFile",
-	"deleteProjectFile",
-	"deleteProjectFolder",
-	"readPdf",
-]);
+];
 
-export { ALWAYS_INCLUDED_TOOLS };
+export { ALWAYS_INCLUDED_TOOLS, PROJECT_GROUNDED_TOOLS };
 
 /**
  * Tools omitted from the default set unless pretreatment (or the user) explicitly
@@ -124,9 +123,10 @@ type ChatTurnOptions = {
 	readonly chatWithToolsOptions?: ChatWithToolsOptions;
 	/**
 	 * Tool names selected by pretreatment as relevant for this turn.
-	 * When defined, only these tools (plus ALWAYS_INCLUDED_TOOLS) are exposed,
-	 * except EXPLICIT_REQUEST_ONLY_TOOLS which require an explicit selection.
-	 * When undefined (pretreatment skipped), all tools pass through.
+	 * When defined, these plus ALWAYS_INCLUDED_TOOLS are the initial `activeTools`
+	 * (fail-closed if the list is empty). The full catalog is still passed to
+	 * the model loop so enableTools can expand the set mid-turn.
+	 * When undefined (pretreatment skipped), all tools are active.
 	 */
 	readonly relevantTools?: readonly string[];
 	/** Validated files attached to the current turn, available to project-only tools. */
@@ -155,6 +155,8 @@ type ChatTurnResult = {
 	readonly responseMessages: CoreMessage[];
 	readonly usage?: LanguageModelUsage;
 	readonly providerMetadata?: ProviderMetadata;
+	/** Tools the model added mid-turn via enableTools. */
+	readonly enabledTools: readonly string[];
 };
 
 /**
@@ -270,6 +272,15 @@ function mergeAuxiliaryChatTools(
 		toolIntegrationLabels[toolName] ??= "Toby";
 	}
 
+	const blockedToolNames = options.project
+		? []
+		: [...explicitRequestOnlyToolsForTurn({ projectActive: false })];
+	mergedTools[ENABLE_TOOLS_TOOL_NAME] = createEnableToolsTool({
+		allowedToolNames: Object.keys(mergedTools),
+		blockedToolNames,
+	});
+	toolIntegrationLabels[ENABLE_TOOLS_TOOL_NAME] ??= "Toby";
+
 	return { mergedTools, toolIntegrationLabels };
 }
 
@@ -324,8 +335,8 @@ export async function buildToolsCatalogForPretreatment(
 /**
  * Filter merged tools to only include relevant + always-included tools.
  * When pretreatment did not run (`relevantTools` undefined), all tools pass through.
- * When pretreatment ran with an empty tool list, only always-included tools remain
- * (plus any explicit-request-only tools are still excluded).
+ * When pretreatment ran with an empty tool list, only the discovery core remains
+ * (fail-closed). Explicit-request-only tools stay excluded unless selected.
  */
 export type ToolRelevanceOptions = {
 	/** When true, `createLocalSkill` is always available so project-organization can be maintained. */
@@ -338,7 +349,11 @@ function alwaysIncludedToolsForTurn(
 	if (!options?.projectActive) {
 		return ALWAYS_INCLUDED_TOOLS;
 	}
-	return new Set([...ALWAYS_INCLUDED_TOOLS, "createLocalSkill"]);
+	return new Set([
+		...ALWAYS_INCLUDED_TOOLS,
+		"createLocalSkill",
+		...PROJECT_GROUNDED_TOOLS,
+	]);
 }
 
 function explicitRequestOnlyToolsForTurn(
@@ -361,7 +376,7 @@ export function filterToolNamesByRelevance(
 		return [...allToolNames];
 	}
 	if (relevantTools.length === 0) {
-		return allToolNames.filter((name) => !explicitOnly.has(name));
+		return allToolNames.filter((name) => alwaysIncluded.has(name));
 	}
 	const relevantLower = new Set(
 		relevantTools.map((n) => n.trim().toLowerCase()),
@@ -376,24 +391,27 @@ export function filterToolNamesByRelevance(
 	});
 }
 
-function filterToolsByRelevance(
-	tools: Record<string, Tool>,
+function isPdfAttachment(attachment: {
+	readonly filename: string;
+	readonly mediaType: string;
+}): boolean {
+	if (attachment.mediaType.toLowerCase().includes("pdf")) {
+		return true;
+	}
+	return attachment.filename.toLowerCase().endsWith(".pdf");
+}
+
+function withAttachmentForcedTools(
 	relevantTools: readonly string[] | undefined,
-	options?: ToolRelevanceOptions,
-): Record<string, Tool> {
+	attachments: readonly ValidatedChatAttachment[] | undefined,
+): readonly string[] | undefined {
 	if (relevantTools === undefined) {
-		return tools;
+		return relevantTools;
 	}
-	const allowed = new Set(
-		filterToolNamesByRelevance(Object.keys(tools), relevantTools, options),
-	);
-	const filtered: Record<string, Tool> = {};
-	for (const [name, tool] of Object.entries(tools)) {
-		if (allowed.has(name)) {
-			filtered[name] = tool;
-		}
+	if (!attachments?.some(isPdfAttachment)) {
+		return relevantTools;
 	}
-	return filtered;
+	return unionToolNames(relevantTools, ["readPdf"]);
 }
 
 /**
@@ -481,14 +499,25 @@ export async function runSharedChatTurn(
 	appliedActions.push(...globalAppliedSink, ...memoryAppliedSink);
 	const moduleNames = modules.map((m) => m.name);
 
-	// Filter tools based on pretreatment selection (no-op when relevantTools is empty)
-	const filteredMergedTools = filterToolsByRelevance(
-		mergedTools,
+	const relevanceOptions: ToolRelevanceOptions = {
+		projectActive: Boolean(options.project),
+	};
+	const relevantForTurn = withAttachmentForcedTools(
 		options.relevantTools,
-		{ projectActive: Boolean(options.project) },
+		options.attachments,
 	);
-
-	const tools = withAskUserTool(filteredMergedTools, options.askUser);
+	const tools = withAskUserTool(mergedTools, options.askUser);
+	const activeTools =
+		relevantForTurn === undefined
+			? undefined
+			: filterToolNamesByRelevance(
+					Object.keys(tools),
+					relevantForTurn,
+					relevanceOptions,
+				);
+	const blockedActiveTools = [
+		...explicitRequestOnlyToolsForTurn(relevanceOptions),
+	];
 	const model = createModelForPersona(options.persona);
 	const turnStartMs = Date.now();
 	const sid = options.sessionId ?? null;
@@ -506,10 +535,10 @@ export async function runSharedChatTurn(
 	logWithSession(sid, undefined, "info", "turn", "turn_start", {
 		modules: moduleNames,
 		messageCount: promptMetrics.messageCount,
-		toolCount: Object.keys(tools).length,
-		totalToolsAvailable: Object.keys(mergedTools).length,
+		toolCount: activeTools?.length ?? Object.keys(tools).length,
+		totalToolsAvailable: Object.keys(tools).length,
 		relevantTools: options.relevantTools ?? [],
-		selectedToolNames: Object.keys(tools),
+		selectedToolNames: activeTools ?? Object.keys(tools),
 		model: options.persona.ai.model,
 		systemChars: promptMetrics.systemChars,
 		userChars: promptMetrics.userChars,
@@ -549,17 +578,17 @@ export async function runSharedChatTurn(
 					},
 				};
 
-	const result = await chatWithTools(
-		model,
-		messagesForModel,
-		tools,
-		enrichedChatWithToolsOptions,
-	);
+	const result = await chatWithTools(model, messagesForModel, tools, {
+		...enrichedChatWithToolsOptions,
+		...(activeTools === undefined ? {} : { activeTools }),
+		blockedActiveTools,
+	});
 
 	logWithSession(sid, undefined, "info", "turn", "turn_end", {
 		durationMs: Date.now() - turnStartMs,
 		toolCallCount: result.toolCalls.length,
 		toolsUsed: result.toolCalls.map((tc) => tc.name),
+		enabledTools: result.enabledTools ?? [],
 		inputTokens: result.usage?.inputTokens,
 		outputTokens: result.usage?.outputTokens,
 	});
@@ -571,5 +600,6 @@ export async function runSharedChatTurn(
 		responseMessages: result.responseMessages,
 		usage: result.usage,
 		providerMetadata: result.providerMetadata,
+		enabledTools: result.enabledTools ?? [],
 	};
 }

@@ -39,7 +39,12 @@ describe("selection transcript", () => {
 	it("includes names when the selected set contains only core tools", () => {
 		const entries = buildSelectionTranscriptEntries({
 			relevantSkills: [],
-			allToolNames: ["askUser", "getCurrentDateTime", "writeTextFile"],
+			allToolNames: [
+				"askUser",
+				"getCurrentDateTime",
+				"enableTools",
+				"writeTextFile",
+			],
 			toolIntegrationLabels: {},
 			relevantTools: [],
 			pretreatmentRan: true,
@@ -48,7 +53,7 @@ describe("selection transcript", () => {
 		expect(entries).toEqual([
 			{
 				kind: "notice",
-				text: "3 core tools: askUser, getCurrentDateTime, writeTextFile",
+				text: "3 core tools: askUser, getCurrentDateTime, enableTools",
 				tone: "info",
 			},
 		]);

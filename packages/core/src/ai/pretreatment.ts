@@ -30,6 +30,7 @@ import {
 	userRequestsSkillAuthoring,
 } from "../skills/index";
 import type { CoreMessage } from "./chat";
+import { unionToolNames } from "./enable-tools-tool";
 import {
 	createModelForAuxiliary,
 	resolveAuxiliaryModelId,
@@ -531,6 +532,30 @@ function mergeDeltaIntoPriorSpec(
 }
 
 /**
+ * Keep previously selected tools on follow-up turns (grow-only session set).
+ * Cache stores the routing result for this prompt alone; accumulation is applied after.
+ */
+function accumulatePriorRelevantTools(
+	spec: UserIntentSpec | null,
+	prior: UserIntentSpec,
+	allowedToolNamesLower: ReadonlySet<string>,
+): UserIntentSpec | null {
+	const extra = prior.relevantTools.filter((name) =>
+		allowedToolNamesLower.has(name.trim().toLowerCase()),
+	);
+	if (extra.length === 0) {
+		return spec;
+	}
+	if (!spec) {
+		return { ...prior, relevantTools: extra, sessionName: "" };
+	}
+	return {
+		...spec,
+		relevantTools: unionToolNames(spec.relevantTools, extra),
+	};
+}
+
+/**
  * When the user expresses intent to author a local skill, deterministically
  * ensure `createLocalSkill` is selected so it is available (and preferred over
  * writeTextFile) regardless of the auxiliary routing model or routing mode.
@@ -936,6 +961,14 @@ export async function wrapUserPromptWithPretreatment(
 			if (!params.isFirstTurn) {
 				fromCache = { ...fromCache, sessionName: "" };
 			}
+			if (prior && !params.isFirstTurn) {
+				fromCache =
+					accumulatePriorRelevantTools(
+						fromCache,
+						prior.spec,
+						allowedToolNamesLower,
+					) ?? fromCache;
+			}
 			return finalize(fromCache);
 		}
 	}
@@ -967,6 +1000,13 @@ export async function wrapUserPromptWithPretreatment(
 	}
 	if (modelSpec && canUsePretreatmentCache()) {
 		setPretreatmentCache(promptKey, modelSpec);
+	}
+	if (prior && !params.isFirstTurn) {
+		modelSpec = accumulatePriorRelevantTools(
+			modelSpec,
+			prior.spec,
+			allowedToolNamesLower,
+		);
 	}
 	return finalize(modelSpec);
 }

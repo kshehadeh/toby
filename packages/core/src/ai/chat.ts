@@ -18,6 +18,12 @@ import {
 } from "../chat-pipeline/tool-result-cache";
 import { formatChattingWithPersona } from "../pipeline-footer";
 import { enrichChatModelError } from "./chat-errors";
+import {
+	collectEnabledToolNamesFromCalls,
+	collectEnabledToolNamesFromSteps,
+	lookupFromToolNames,
+	unionToolNames,
+} from "./enable-tools-tool";
 export { formatChatModelError } from "./chat-errors";
 export { createModelForPersona } from "./model-factory";
 
@@ -115,6 +121,17 @@ export type ChatWithToolsOptions = {
 	 * tool execution to abort long-running tools.
 	 */
 	readonly abortSignal?: AbortSignal;
+	/**
+	 * When set, only these tools are sent to the model on the first step.
+	 * `enableTools` can expand the set on later steps via `prepareStep`.
+	 * Omit to expose every tool in the `tools` map.
+	 */
+	readonly activeTools?: readonly string[];
+	/**
+	 * Tool names `enableTools` may not add (explicit-request-only), unless they
+	 * are already in `activeTools`.
+	 */
+	readonly blockedActiveTools?: readonly string[];
 };
 
 type StreamToolContext = {
@@ -318,6 +335,8 @@ export async function chatWithTools(
 	responseMessages: CoreMessage[];
 	usage?: LanguageModelUsage;
 	providerMetadata?: ProviderMetadata;
+	/** Tools added mid-turn via enableTools. */
+	enabledTools: string[];
 }> {
 	const onAssistantTextDelta = options?.onAssistantTextDelta;
 	const onChatEvent = options?.onChatEvent;
@@ -362,6 +381,50 @@ export async function chatWithTools(
 		streamCtx,
 	);
 
+	const { allowedLower, canonicalByLower } = lookupFromToolNames(
+		Object.keys(toolsForModel),
+	);
+	const initialActive = options?.activeTools;
+	const initialActiveLower = new Set(
+		(initialActive ?? []).map((name) => name.trim().toLowerCase()),
+	);
+	const blockedLower = new Set(
+		(options?.blockedActiveTools ?? [])
+			.map((name) => name.trim().toLowerCase())
+			.filter((name) => name.length > 0 && !initialActiveLower.has(name)),
+	);
+	const prepareStep =
+		initialActive === undefined
+			? undefined
+			: ({
+					steps,
+				}: {
+					steps: ReadonlyArray<{
+						toolCalls?: ReadonlyArray<{ toolName: string; input?: unknown }>;
+					}>;
+				}) => {
+					const extra = collectEnabledToolNamesFromSteps(
+						steps,
+						allowedLower,
+						blockedLower,
+						canonicalByLower,
+					);
+					if (extra.length === 0) {
+						return {};
+					}
+					return { activeTools: unionToolNames(initialActive, extra) };
+				};
+
+	const enabledFromCalls = (
+		calls: ReadonlyArray<{ name: string; args: Record<string, unknown> }>,
+	) =>
+		collectEnabledToolNamesFromCalls(
+			calls,
+			allowedLower,
+			blockedLower,
+			canonicalByLower,
+		);
+
 	/** Need streamText when either the legacy delta callback or chat pipeline events are used. */
 	if (onAssistantTextDelta || onChatEvent) {
 		let capturedStreamError: unknown;
@@ -370,6 +433,10 @@ export async function chatWithTools(
 			messages,
 			tools: toolsForModel,
 			stopWhen: isStepCount(12),
+			...(initialActive === undefined
+				? {}
+				: { activeTools: [...initialActive] }),
+			...(prepareStep === undefined ? {} : { prepareStep }),
 			providerOptions: providerOptions as never,
 			abortSignal,
 			allowSystemInMessages: true,
@@ -620,6 +687,7 @@ export async function chatWithTools(
 				responseMessages: response.messages as CoreMessage[],
 				usage,
 				providerMetadata,
+				enabledTools: enabledFromCalls(toolCalls),
 			};
 		} catch (error) {
 			throw enrichChatModelError(error, capturedStreamError);
@@ -632,6 +700,10 @@ export async function chatWithTools(
 			messages,
 			tools: toolsForModel,
 			stopWhen: isStepCount(12),
+			...(initialActive === undefined
+				? {}
+				: { activeTools: [...initialActive] }),
+			...(prepareStep === undefined ? {} : { prepareStep }),
 			providerOptions: providerOptions as never,
 			abortSignal,
 			allowSystemInMessages: true,
@@ -639,18 +711,21 @@ export async function chatWithTools(
 		abortSignal,
 	);
 
+	const toolCalls = result.toolCalls.map((tc) => ({
+		name: tc.toolName,
+		args:
+			tc.input && typeof tc.input === "object" && !Array.isArray(tc.input)
+				? (tc.input as Record<string, unknown>)
+				: {},
+	}));
+
 	return {
 		text: result.text,
 		toolResults: result.toolResults,
-		toolCalls: result.toolCalls.map((tc) => ({
-			name: tc.toolName,
-			args:
-				tc.input && typeof tc.input === "object" && !Array.isArray(tc.input)
-					? (tc.input as Record<string, unknown>)
-					: {},
-		})),
+		toolCalls,
 		responseMessages: result.response.messages as CoreMessage[],
 		usage: result.usage,
 		providerMetadata: result.providerMetadata,
+		enabledTools: enabledFromCalls(toolCalls),
 	};
 }

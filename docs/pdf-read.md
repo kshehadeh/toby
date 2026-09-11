@@ -31,8 +31,9 @@ Scanned / image-only PDFs have no text layer. The tool returns an error;
 | ---- | ------- |
 | `readPdf` | Extract PDF text into the turn. Inputs: one of `filename` (current-turn attachment), `path` (project-relative, project chats only), `url` (`http`/`https`). When several are provided, the first that resolves wins (`path` → `filename` → `url`). Optional `startPage` / `endPage` (1-indexed, inclusive). If the user attached exactly one PDF, `filename` may be omitted. |
 
-`readPdf` is **always registered** and is in the always-included tool set
-(small schema; “summarize this” with an attached PDF should not depend on
+`readPdf` is **always registered**. It is not in the always-included tool set;
+pretreatment, `enableTools`, or a PDF attachment on the current turn puts it
+in the active set (“summarize this” with an attached PDF does not depend on
 semantic routing).
 
 `fetchWebContent` also extracts PDF URLs (content-type `application/pdf`, or a

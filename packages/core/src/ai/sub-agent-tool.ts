@@ -21,7 +21,7 @@ export function createSubAgentTool(
 	return {
 		delegateToSubAgent: tool({
 			description:
-				"Delegate a focused sub-task to a sub-agent that has access to tools not available in your current tool set. Use this when you determine you need a tool you don't have. First call tobyListTools to discover available tool names, then call this with the specific tools the sub-agent needs. The sub-agent will complete the task and return results to you. Do NOT use this for tools you already have — call them directly. Do NOT use this for tasks requiring user interaction — use askUser instead.",
+				"Delegate a focused one-shot sub-task to a sub-agent that has access to tools not available in your current tool set. Prefer enableTools when you will keep using those tools in this conversation. First call tobyListTools to discover available tool names, then call this with the specific tools the sub-agent needs. The sub-agent will complete the task and return results to you. Do NOT use this for tools you already have — call them directly. Do NOT use this for tasks requiring user interaction — use askUser instead.",
 			inputSchema: z.object({
 				task: z
 					.string()
@@ -89,16 +89,16 @@ export function subAgentPromptSection(): string {
 	return `
 ## Sub-agent delegation
 
-You have a **delegateToSubAgent** tool for when you need tools outside your current tool set.
+You have a **delegateToSubAgent** tool for a one-shot task that needs tools outside your current set.
 
 When to delegate:
-- You need a tool that was not included in your current tool set (e.g. filtered out or from another integration).
-- A focused sub-task requires specific tools you don't have direct access to.
+- A focused sub-task needs tools you will not keep using in this conversation.
+- You need tools from another integration for a bounded lookup, and do not want them on the parent.
 
 When NOT to delegate:
-- You already have the tool you need — call it directly.
+- You already have the tool — call it directly.
+- You will keep using the tools — call **tobyListTools** then **enableTools** instead.
 - The task requires user interaction — use **askUser** instead.
-- The task is simple and can be done with your existing tools.
 
 How to delegate:
 1. Call **tobyListTools** to discover all available tools across connected integrations.

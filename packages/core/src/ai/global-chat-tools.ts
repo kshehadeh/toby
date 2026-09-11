@@ -36,6 +36,7 @@ import {
 } from "../skills/index";
 import { formatChatModelError } from "./chat";
 import { getCurrentDateTimeInfo } from "./current-datetime";
+import { enableToolsPromptSection } from "./enable-tools-tool";
 import {
 	createListenChatTools,
 	listenChatToolsPromptSection,
@@ -627,7 +628,7 @@ Location rules:
 - If both home and current location might matter, search memory for the saved home and only use **getMyLocation** for the device's current position.
 - **getMyLocation** may prompt for macOS Location Services permission the first time; if access is denied, explain that the user can allow Location for Toby in System Settings or the Permissions window.`;
 	return `
-Global Toby tools (always available in addition to integration tools):
+Global Toby tools (catalog — only tools in the current set can be called; see enableTools):
 - **loadLocalSkillInstructions**: Load full SKILL.md instruction bodies for one or more local skills by exact name.
 - **memorySearch**: Search the user's stored personal memories (preferences, relationships, projects, facts, etc.).
 - **memoryPropose**: Propose saving a new memory. High-confidence normal preferences are auto-saved; sensitive or low-confidence items stay pending until confirmed with **memorySave**.
@@ -709,6 +710,7 @@ ${skillsCatalog}
 
 ${listenChatToolsPromptSection()}
 ${reflectToolsPromptSection()}
+${enableToolsPromptSection()}
 ${subAgentPromptSection()}
 `;
 }

@@ -48,7 +48,7 @@ For structured forecasts, enable [Weather](./weather) and ask about the weather 
 
 ### Combined with web fetch
 
-`fetchWebContent` is always available and does not require Web Search settings. You can combine both:
+`fetchWebContent` does not require Web Search settings. It is selected when the request involves reading a URL (or via `enableTools`). You can combine both:
 
 1. Search: *“Search for recent articles about TypeScript 5.5”*
 2. Read: *“Read the content from the first result”*

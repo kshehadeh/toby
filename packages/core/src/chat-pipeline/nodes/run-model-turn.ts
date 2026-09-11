@@ -1,3 +1,4 @@
+import { unionToolNames } from "../../ai/enable-tools-tool";
 import type { AssembledTurn, PipelineNode, RanTurn } from "../pipeline";
 import { runIntegrationChatTurn } from "../run-turn";
 
@@ -18,8 +19,20 @@ export const runModelTurnNode: PipelineNode<AssembledTurn, RanTurn> = {
 			attachments: input.attachments,
 		});
 
+		const spec =
+			input.spec && result.enabledTools.length > 0
+				? {
+						...input.spec,
+						relevantTools: unionToolNames(
+							input.spec.relevantTools,
+							result.enabledTools,
+						),
+					}
+				: input.spec;
+
 		return {
 			...input,
+			spec,
 			text: result.text,
 			toolCalls: result.toolCalls,
 			appliedActions: result.appliedActions,

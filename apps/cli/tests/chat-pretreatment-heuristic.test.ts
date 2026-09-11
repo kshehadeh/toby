@@ -222,12 +222,13 @@ describe("wrapUserPromptWithPretreatment", () => {
 			integrationLabels: "Gmail + Todoist",
 			isFirstTurn: false,
 			priorPretreatment: prior,
-			toolsCatalogText: "- gmailSearch: Search mail",
-			allowedToolNamesLower: new Set(["gmailsearch"]),
+			toolsCatalogText:
+				"- gmailSearch: Search mail\n- todoistListTasks: List tasks",
+			allowedToolNamesLower: new Set(["gmailsearch", "todoistlisttasks"]),
 		});
 		expect(generateTextMock).toHaveBeenCalledTimes(2);
 		expect(r.spec?.goal).toBe("Search Gmail");
-		expect(r.spec?.relevantTools).toEqual(["gmailSearch"]);
+		expect(r.spec?.relevantTools).toEqual(["gmailSearch", "todoistListTasks"]);
 	});
 
 	it("skips the model call when pretreatment is disabled", async () => {

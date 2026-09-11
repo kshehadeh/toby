@@ -386,14 +386,14 @@ describe("createPdfReadTools", () => {
 		expect(result?.error).toContain("a.pdf");
 	});
 
-	it("is registered on global chat tools and always included", () => {
+	it("is registered on global chat tools and not always included", () => {
 		const tools = createGlobalChatTools({
 			dryRun: false,
 			persona,
 			appliedActions: [],
 		});
 		expect(tools.readPdf).toBeDefined();
-		expect(ALWAYS_INCLUDED_TOOLS.has("readPdf")).toBe(true);
+		expect(ALWAYS_INCLUDED_TOOLS.has("readPdf")).toBe(false);
 		expect(globalChatToolsPromptSection(null, persona)).toContain(
 			"**readPdf**",
 		);
