@@ -9,7 +9,6 @@ struct RecordingDetailContent: View {
 	/// nils out detail.
 	let detail: ListenRecordingDetail
 	var processingState: RecordingProcessingState? = nil
-	var validSessionIds: Set<String> = []
 	/// True while transcript / summary / audio paths are still being fetched.
 	var isLoadingHeavyContent: Bool = false
 
@@ -28,7 +27,6 @@ struct RecordingDetailContent: View {
 					store: store,
 					detail: detail,
 					processingState: processingState,
-					validSessionIds: validSessionIds,
 					isLoadingHeavyContent: isLoadingHeavyContent,
 				)
 			}

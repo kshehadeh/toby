@@ -177,8 +177,8 @@ struct SchedulesViewTests {
 		}
 	}
 
-	@Test("schedule detail shows run now and delete buttons in sidebar")
-	func scheduleDetailShowsDeleteButton() throws {
+	@Test("schedule detail omits run now and delete buttons in sidebar")
+	func scheduleDetailOmitsSidebarActions() throws {
 		let store = SchedulesStore()
 		let schedule = ScheduleViewModel(
 			id: "schedule-1",
@@ -195,10 +195,10 @@ struct SchedulesViewTests {
 		store.schedules = [schedule]
 		store.selectedScheduleId = schedule.id
 		let view = SchedulesView(store: store)
-		#expect(throws: Never.self) {
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-run-now-button")
 		}
-		#expect(throws: Never.self) {
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-delete-schedule-button")
 		}
 	}

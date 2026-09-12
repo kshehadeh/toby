@@ -45,7 +45,7 @@ Return to the Integrations window to see connection status at a glance. Each int
 
 ## Disconnect
 
-Open the integration detail page and click **Disconnect**. This clears Toby's connection flag — it does not delete your mail, tasks, or calendar data at the provider.
+Select the integration in the Integrations window and click **Disconnect** in the toolbar. This clears Toby's connection flag — it does not delete your mail, tasks, or calendar data at the provider.
 
 ## Integration guides
 

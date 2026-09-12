@@ -42,7 +42,7 @@ If permission was denied, enable it in **System Settings → Privacy & Security 
 
 ## Disconnect
 
-Open the Apple Contacts detail page and click **Disconnect**. This clears Toby's connection flag; it does not modify your address book.
+Select Apple Contacts in the Integrations window and click **Disconnect** in the toolbar. This clears Toby's connection flag; it does not modify your address book.
 
 ## What you can do in chat
 

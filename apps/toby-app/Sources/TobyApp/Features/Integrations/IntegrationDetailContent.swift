@@ -14,10 +14,6 @@ struct IntegrationDetailContent: View {
         store.integrationStatusLoading == section.key
     }
 
-    private var isActionLoading: Bool {
-        store.integrationActionLoading != nil
-    }
-
     private var guide: IntegrationSetupGuide? {
         store.setupGuide
     }
@@ -77,17 +73,7 @@ struct IntegrationDetailContent: View {
             HStack(spacing: 0) {
                 mainColumn
                 Divider().overlay(SettingsDesign.cardBorder)
-                IntegrationInspectorSidebar(
-                    store: store,
-                    section: section,
-                    status: status,
-                    isActionLoading: isActionLoading,
-                    onAction: { action in
-                        Task {
-                            await store.runIntegrationAction(name: section.key, action: action)
-                        }
-                    },
-                )
+                IntegrationInspectorSidebar(status: status)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

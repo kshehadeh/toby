@@ -61,7 +61,7 @@ Return to **Integrations** in the sidebar. Email should show as connected and he
 
 ## Disconnect
 
-Open the Email detail page and click **Disconnect**. This clears Toby's connection flag — it does not delete your mail at the provider.
+Select Email in the Integrations window and click **Disconnect** in the toolbar. This clears Toby's connection flag — it does not delete your mail at the provider.
 
 ## Example chat prompts
 

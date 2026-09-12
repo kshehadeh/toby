@@ -79,7 +79,7 @@ base.
 
 ## Disconnect
 
-Open the Notion detail page and click **Disconnect**.
+Select Notion in the Integrations window and click **Disconnect** in the toolbar.
 
 ## Related
 

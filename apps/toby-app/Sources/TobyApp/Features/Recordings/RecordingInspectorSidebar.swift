@@ -4,7 +4,6 @@ struct RecordingInspectorSidebar: View {
 	@Bindable var store: RecordingsStore
 	let detail: ListenRecordingDetail
 	var processingState: RecordingProcessingState? = nil
-	var validSessionIds: Set<String> = []
 	var isLoadingHeavyContent: Bool = false
 
 	@State private var nameText = ""
@@ -38,90 +37,23 @@ struct RecordingInspectorSidebar: View {
 		store.deletingAudioRecordingId == detail.id
 	}
 
-	/// Returns the associated chat session ID if it exists in the current
-	/// sessions list, otherwise nil (meaning "Start Chat" should be shown).
-	private var existingChatSessionId: String? {
-		guard let sessionId = detail.metadata.chatSessionId,
-			validSessionIds.contains(sessionId) else { return nil }
-		return sessionId
-	}
-
-	private func startChatAboutRecording() {
-		let (dateText, hourText) = recordingChatDateAndHour(detail)
-		NotificationCenter.default.post(
-			name: .startChatAboutRecording,
-			object: StartChatAboutRecordingRequest(
-				recordingId: detail.id,
-				name: detail.metadata.name ?? "Recording",
-				dateText: dateText,
-				hourText: hourText,
-			),
-		)
-	}
-
-	private func showChatSession() {
-		if let sessionId = existingChatSessionId {
-			NotificationCenter.default.post(name: .showChatSession, object: sessionId)
-		}
-	}
-
 	var body: some View {
-		VStack(spacing: 0) {
-			ScrollView {
-				VStack(alignment: .leading, spacing: 18) {
-					nameSection
+		ScrollView {
+			VStack(alignment: .leading, spacing: 18) {
+				nameSection
+				Divider().overlay(SettingsDesign.cardBorder)
+				metadataSection
+				Divider().overlay(SettingsDesign.cardBorder)
+				audioSection
+				Divider().overlay(SettingsDesign.cardBorder)
+				transcriptionSection
+				if !visibleErrors.isEmpty {
 					Divider().overlay(SettingsDesign.cardBorder)
-					metadataSection
-					Divider().overlay(SettingsDesign.cardBorder)
-					audioSection
-					Divider().overlay(SettingsDesign.cardBorder)
-					transcriptionSection
-					if !visibleErrors.isEmpty {
-						Divider().overlay(SettingsDesign.cardBorder)
-						errorsSection
-					}
+					errorsSection
 				}
-				.padding(18)
-				.frame(maxWidth: .infinity, alignment: .leading)
-			}
-
-			Divider().overlay(SettingsDesign.cardBorder)
-
-			HStack(spacing: 10) {
-				if existingChatSessionId != nil {
-					Button {
-						showChatSession()
-					} label: {
-						Label("Show Chat", systemImage: "bubble.left.and.bubble.right")
-							.frame(maxWidth: .infinity)
-					}
-					.buttonStyle(.borderedProminent)
-					.controlSize(.regular)
-					.accessibilityIdentifier("sidebar-show-chat-button")
-				} else {
-					Button {
-						startChatAboutRecording()
-					} label: {
-						Label("Start Chat", systemImage: "bubble.left.and.bubble.right")
-							.frame(maxWidth: .infinity)
-					}
-					.buttonStyle(.borderedProminent)
-					.controlSize(.regular)
-					.accessibilityIdentifier("sidebar-start-chat-button")
-				}
-
-				Button(role: .destructive) {
-					store.pendingDeleteRecordingIds = [detail.id]
-				} label: {
-					Label("Delete…", systemImage: "trash")
-						.frame(maxWidth: .infinity)
-				}
-				.buttonStyle(.bordered)
-				.controlSize(.regular)
-				.tint(.red)
-				.accessibilityIdentifier("sidebar-delete-recording-button")
 			}
 			.padding(18)
+			.frame(maxWidth: .infinity, alignment: .leading)
 		}
 		.frame(width: 280)
 		.background(AppTheme.sidebarBackground)

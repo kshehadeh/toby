@@ -236,8 +236,8 @@ when you use Integrations, Connect, or chat tools.
 | argv | stdin | stdout | When Toby runs it |
 | ---- | ----- | ------ | ----------------- |
 | `status` | Optional [config envelope](#config-envelope-stdin) | [Status response](#status) | Integrations list/detail, health checks |
-| `connect` | Config envelope | `{ ok, reason?, config? }` | **Connect** button in Integrations |
-| `disconnect` | Optional config envelope | `{ ok, reason?, config? }` | **Disconnect** button in Integrations |
+| `connect` | Config envelope | `{ ok, reason?, config? }` | **Connect** in the Integrations toolbar |
+| `disconnect` | Optional config envelope | `{ ok, reason?, config? }` | **Disconnect** in the Integrations toolbar |
 | `config shape` | *(none)* | `{ ok, fields? }` | Integrations field definitions |
 | `config get` | Config envelope | `{ ok, config? }` | Normalized credential readback |
 | `config set` | Config envelope | `{ ok }` | Optional hook after Toby saves credentials |
@@ -703,7 +703,7 @@ plugin in the Toby repository for a reference implementation.
 | ---- | ----- |
 | Confirm discovery | **Integrations** sidebar — your display name appears |
 | Enter credentials | Integration detail page (fields from `config shape`) |
-| Connect | **Connect** button (runs `connect`) |
+| Connect | **Connect** in the Integrations toolbar (runs `connect`) |
 | Check health | Status on the detail page and Integrations list (runs `status`) |
 | Optional setup | Setup action if `setupAvailable` is true |
 | Onboarding wizard | **Setup Guide** if you implement `setup guide` |

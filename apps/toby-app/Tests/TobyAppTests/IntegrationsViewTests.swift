@@ -246,68 +246,41 @@ struct IntegrationsViewTests {
 		#expect(throws: Never.self) { try view.inspect().find(text: "Not connected") }
 	}
 
-	@Test("integration sidebar shows connect button when not connected")
-	func integrationSidebarShowsConnectButton() throws {
-		let store = ConfigureStore()
-		store.tree = makeTree()
-		let section = SettingsItem(
-			label: "Gmail", kind: .section, key: "gmail", navKey: "gmail", children: [],
-			masked: nil, multiline: nil, options: nil, selectChoices: nil,
-			currentValue: nil, selectedValues: nil, readOnly: nil
-		)
+	@Test("integration sidebar omits connect action when not connected")
+	func integrationSidebarOmitsConnectButton() throws {
 		let status = IntegrationStatus(
 			name: "gmail", displayName: "Gmail", description: nil,
 			connected: false, pluginPath: "/path/to/plugin", supportsSetup: false,
 			setupDescription: nil, health: nil, authMethods: nil
 		)
-		let view = IntegrationInspectorSidebar(
-			store: store, section: section, status: status,
-			isActionLoading: false, onAction: { _ in }
-		)
-		#expect(throws: Never.self) { try view.inspect().find(button: "Connect") }
+		let view = IntegrationInspectorSidebar(status: status)
+		#expect(throws: Never.self) { try view.inspect().find(text: "Not connected") }
+		#expect(throws: (any Error).self) { try view.inspect().find(button: "Connect") }
 	}
 
-	@Test("integration sidebar shows disconnect and reconnect when connected")
-	func integrationSidebarShowsDisconnectAndReconnect() throws {
-		let store = ConfigureStore()
-		store.tree = makeTree()
-		let section = SettingsItem(
-			label: "Gmail", kind: .section, key: "gmail", navKey: "gmail", children: [],
-			masked: nil, multiline: nil, options: nil, selectChoices: nil,
-			currentValue: nil, selectedValues: nil, readOnly: nil
-		)
+	@Test("integration sidebar omits disconnect and reconnect when connected")
+	func integrationSidebarOmitsDisconnectAndReconnect() throws {
 		let status = IntegrationStatus(
 			name: "gmail", displayName: "Gmail", description: "Gmail integration",
 			connected: true, pluginPath: "/path/to/plugin", supportsSetup: true,
 			setupDescription: nil, health: IntegrationHealth(ok: true, details: nil, tools: nil),
 			authMethods: [IntegrationAuthMethod(id: "oauth", label: "OAuth", isDefault: true)]
 		)
-		let view = IntegrationInspectorSidebar(
-			store: store, section: section, status: status,
-			isActionLoading: false, onAction: { _ in }
-		)
-		#expect(throws: Never.self) { try view.inspect().find(button: "Disconnect") }
-		#expect(throws: Never.self) { try view.inspect().find(button: "Re-authorize") }
+		let view = IntegrationInspectorSidebar(status: status)
+		#expect(throws: Never.self) { try view.inspect().find(text: "Connected") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "OAuth") }
+		#expect(throws: (any Error).self) { try view.inspect().find(button: "Disconnect") }
+		#expect(throws: (any Error).self) { try view.inspect().find(button: "Re-authorize") }
 	}
 
 	@Test("integration sidebar shows plugin path reveal button in location section")
 	func integrationSidebarShowsPluginPath() throws {
-		let store = ConfigureStore()
-		store.tree = makeTree()
-		let section = SettingsItem(
-			label: "Gmail", kind: .section, key: "gmail", navKey: "gmail", children: [],
-			masked: nil, multiline: nil, options: nil, selectChoices: nil,
-			currentValue: nil, selectedValues: nil, readOnly: nil
-		)
 		let status = IntegrationStatus(
 			name: "gmail", displayName: "Gmail", description: nil,
 			connected: true, pluginPath: "/Users/toby/plugins/gmail", supportsSetup: false,
 			setupDescription: nil, health: nil, authMethods: nil
 		)
-		let view = IntegrationInspectorSidebar(
-			store: store, section: section, status: status,
-			isActionLoading: false, onAction: { _ in }
-		)
+		let view = IntegrationInspectorSidebar(status: status)
 		#expect(throws: Never.self) { try view.inspect().find(RevealPathButton.self) }
 	}
 }

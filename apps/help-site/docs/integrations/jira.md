@@ -84,7 +84,7 @@ Search and comment results are paginated; Toby requests up to 100 items at a tim
 
 ## Disconnect
 
-Open the Jira detail page and click **Disconnect**.
+Select Jira in the Integrations window and click **Disconnect** in the toolbar.
 
 ## Related
 

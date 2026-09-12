@@ -66,23 +66,6 @@ struct FlowDetailContent: View {
 					.foregroundStyle(AppTheme.tertiaryText)
 					.multilineTextAlignment(.trailing)
 					.frame(maxWidth: 180)
-			} else {
-				HStack(spacing: 8) {
-					Button {
-						Task { await store.startEdit(id: flow.id) }
-					} label: {
-						Text("Edit")
-					}
-					.accessibilityIdentifier("flow-edit-button")
-					Button {
-						Task { await store.runSelected() }
-					} label: {
-						Text(store.isRunning ? "Running…" : "Run now")
-					}
-					.disabled(store.isRunning)
-					.keyboardShortcut("r", modifiers: [.command])
-					.accessibilityIdentifier("flow-run-button")
-				}
 			}
 		}
 	}
@@ -196,11 +179,6 @@ struct FlowDetailContent: View {
 						.font(.system(size: 11))
 						.foregroundStyle(SettingsDesign.rowDescription)
 						.fixedSize(horizontal: false, vertical: true)
-				} else {
-					Button("Delete flow", role: .destructive) {
-						store.confirmDelete(id: flow.id)
-					}
-					.accessibilityIdentifier("flow-delete-button")
 				}
 
 				if let destinations = flow.destinations, !destinations.isEmpty {

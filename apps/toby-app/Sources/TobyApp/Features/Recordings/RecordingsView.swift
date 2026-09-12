@@ -3,7 +3,6 @@ import SwiftUI
 struct RecordingsView: View {
 	@Bindable var store: RecordingsStore
 	var processingState: RecordingProcessingState? = nil
-	var validSessionIds: Set<String> = []
 	var onStartRecording: (() -> Void)? = nil
 	var onStopRecording: (() -> Void)? = nil
 	var activeRecording: ActiveRecordingInfo? = nil
@@ -18,7 +17,7 @@ struct RecordingsView: View {
 	}
 
 	var body: some View {
-		RecordingsDetailView(store: store, processingState: effectiveProcessingState, validSessionIds: validSessionIds, onStartRecording: onStartRecording, onStopRecording: onStopRecording, activeRecording: activeRecording)
+		RecordingsDetailView(store: store, processingState: effectiveProcessingState, onStartRecording: onStartRecording, onStopRecording: onStopRecording, activeRecording: activeRecording)
 		.toolbarBackground(.visible)
 		.background(SettingsDesign.canvasBackground)
 		.task {

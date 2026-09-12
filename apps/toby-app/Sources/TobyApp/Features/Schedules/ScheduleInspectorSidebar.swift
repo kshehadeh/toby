@@ -6,58 +6,24 @@ struct ScheduleInspectorSidebar: View {
     @FocusState private var isCronFieldFocused: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    nameField
-                    actionField
-                    if isFlowAction {
-                        flowField
-                    } else {
-                        personaField
-                        projectField
-                    }
-                    cronField
-                    enableRow
-                    Divider().overlay(SettingsDesign.cardBorder)
-                    runInfoSection
-                    recentRunsSection
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                nameField
+                actionField
+                if isFlowAction {
+                    flowField
+                } else {
+                    personaField
+                    projectField
                 }
-                .padding(18)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            Divider().overlay(SettingsDesign.cardBorder)
-
-            HStack(spacing: 10) {
-                Button {
-                    Task { await store.runSchedule(id: schedule.id) }
-                } label: {
-                    Label("Run Now", systemImage: "play.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-                // Do not gate on isSaving — autosave must not flicker these controls.
-                .disabled(store.runningScheduleId != nil)
-                .accessibilityIdentifier("sidebar-run-now-button")
-
-                Button(role: .destructive) {
-                    store.pendingDelete = SchedulesStore.PendingDelete(
-                        scheduleId: schedule.id,
-                        title: schedule.displayName
-                    )
-                } label: {
-                    Label("Delete…", systemImage: "trash")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-                .tint(.red)
-                .disabled(store.deletingScheduleId != nil)
-                .accessibilityIdentifier("sidebar-delete-schedule-button")
+                cronField
+                enableRow
+                Divider().overlay(SettingsDesign.cardBorder)
+                runInfoSection
+                recentRunsSection
             }
             .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(width: 280)
         .background(AppTheme.sidebarBackground)

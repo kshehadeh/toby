@@ -95,23 +95,8 @@ struct RootView: View {
             },
             onToggleRecording: toggleRecording,
             onSecondaryWindowClosed: bringMainWindowToFront,
-            onStartChatAboutRecording: { request in
-                bringMainWindowToFront()
-                navigateToRoute(.chat)
-                Task {
-                    await store.startChatAboutRecording(
-                        recordingId: request.recordingId,
-                        name: request.name,
-                        dateText: request.dateText,
-                        hourText: request.hourText
-                    )
-                }
-            },
-            onShowChatSession: { sessionId in
-                bringMainWindowToFront()
-                navigateToRoute(.chat)
-                Task { await store.selectSession(id: sessionId) }
-            },
+            onStartChatAboutRecording: startChatAboutRecording,
+            onShowChatSession: showChatSession,
             onNavigateToRoute: navigateToRoute,
             onOpenSettings: { openSettings(navKey: $0) },
             onOpenMemoriesWindow: { openWindow(id: "memories") },
@@ -554,7 +539,23 @@ struct RootView: View {
             case .integrations:
                 IntegrationsView(store: integrationsStore)
                     .toolbar {
-                        RootToolbars.integrations(common: commonToolbarModel)
+                        RootToolbars.integrations(
+                            common: commonToolbarModel,
+                            hasSelection: integrationsStore.selectedSection != nil,
+                            isConnected: selectedIntegrationStatus?.connected ?? false,
+                            isActionLoading: integrationsStore.integrationActionLoading != nil,
+                            reconnectionLabel: selectedIntegrationStatus?.reconnectionLabel
+                                ?? "Re-connect",
+                            onConnect: {
+                                runSelectedIntegrationAction(.connect)
+                            },
+                            onDisconnect: {
+                                runSelectedIntegrationAction(.disconnect)
+                            },
+                            onReauthorize: {
+                                runSelectedIntegrationAction(.reauthorize)
+                            }
+                        )
                     }
             case .projects:
                 ProjectsView(projectsStore: projectsStore, chatStore: store)
@@ -620,11 +621,16 @@ struct RootView: View {
                         )
                     }
             case .recordings:
-                RecordingsView(store: recordingsStore, processingState: store.recordingProcessing, validSessionIds: Set(store.sessions.map(\.id)), onStartRecording: toggleRecording, onStopRecording: toggleRecording, activeRecording: store.listenStatus.flatMap { ActiveRecordingInfo($0) })
+                RecordingsView(store: recordingsStore, processingState: store.recordingProcessing, onStartRecording: toggleRecording, onStopRecording: toggleRecording, activeRecording: store.listenStatus.flatMap { ActiveRecordingInfo($0) })
                     .toolbar {
                         RootToolbars.recordings(
                             common: commonToolbarModel,
                             hasSelection: !recordingsStore.selectedRecordings.isEmpty,
+                            hasSingleSelection: recordingsStore.selectedRecording != nil,
+                            existingChatSessionId: existingRecordingChatSessionId(
+                                chatSessionId: recordingsStore.detail?.metadata.chatSessionId,
+                                validSessionIds: Set(store.sessions.map(\.id))
+                            ),
                             deleteHelp: RootToolbars.recordingsDeleteHelp(
                                 selectedCount: recordingsStore.selectedRecordings.count
                             ),
@@ -633,7 +639,9 @@ struct RootView: View {
                                 recordingsStore.pendingDeleteRecordingIds = Set(
                                     recordingsStore.selectedRecordings.map(\.id)
                                 )
-                            }
+                            },
+                            onStartChat: startChatAboutSelectedRecording,
+                            onShowChat: showChatForSelectedRecording
                         )
                     }
             case .skills:
@@ -662,16 +670,30 @@ struct RootView: View {
                             common: commonToolbarModel,
                             isListLoading: flowsStore.isListLoading,
                             isRunsLoading: flowsStore.isRunsLoading,
+                            hasSelection: flowsStore.selectedFlow != nil,
+                            isEditing: flowsStore.editor != nil,
+                            canEdit: flowsStore.selectedFlow?.builtin == false,
+                            canRun: flowsStore.selectedFlow?.builtin == false,
+                            canDelete: flowsStore.selectedFlow?.builtin == false,
+                            isRunning: flowsStore.isRunning,
                             onNewFlow: {
                                 Task { await flowsStore.startCreate() }
                             },
                             onRefresh: {
                                 Task {
                                     await flowsStore.load()
-                                    if flowsStore.selectedFlowId != nil {
-                                        await flowsStore.refreshSelectedRuns()
-                                    }
                                 }
+                            },
+                            onEdit: {
+                                guard let flow = flowsStore.selectedFlow, !flow.builtin else { return }
+                                Task { await flowsStore.startEdit(id: flow.id) }
+                            },
+                            onRun: {
+                                Task { await flowsStore.runSelected() }
+                            },
+                            onDelete: {
+                                guard let flow = flowsStore.selectedFlow, !flow.builtin else { return }
+                                flowsStore.confirmDelete(id: flow.id)
                             }
                         )
                     }
@@ -756,6 +778,49 @@ struct RootView: View {
             )
             .tobyAppearance(appearancePreferences)
         }
+    }
+
+    private var selectedIntegrationStatus: IntegrationStatus? {
+        guard let key = integrationsStore.selectedSection?.key else { return nil }
+        return integrationsStore.integrationStatus[key]
+    }
+
+    private func runSelectedIntegrationAction(_ action: IntegrationAction) {
+        guard let key = integrationsStore.selectedSection?.key else { return }
+        Task { await integrationsStore.runIntegrationAction(name: key, action: action) }
+    }
+
+    private func startChatAboutRecording(_ request: StartChatAboutRecordingRequest) {
+        bringMainWindowToFront()
+        navigateToRoute(.chat)
+        Task {
+            await store.startChatAboutRecording(
+                recordingId: request.recordingId,
+                name: request.name,
+                dateText: request.dateText,
+                hourText: request.hourText
+            )
+        }
+    }
+
+    private func showChatSession(_ sessionId: String) {
+        bringMainWindowToFront()
+        navigateToRoute(.chat)
+        Task { await store.selectSession(id: sessionId) }
+    }
+
+    private func startChatAboutSelectedRecording() {
+        guard let recording = recordingsStore.selectedRecording else { return }
+        let detail = recordingsStore.detail ?? .placeholder(from: recording)
+        startChatAboutRecording(startChatAboutRecordingRequest(from: detail))
+    }
+
+    private func showChatForSelectedRecording() {
+        guard let sessionId = existingRecordingChatSessionId(
+            chatSessionId: recordingsStore.detail?.metadata.chatSessionId,
+            validSessionIds: Set(store.sessions.map(\.id))
+        ) else { return }
+        showChatSession(sessionId)
     }
 
     private func startNewChat() {

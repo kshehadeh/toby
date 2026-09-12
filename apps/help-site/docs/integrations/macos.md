@@ -107,7 +107,7 @@ Toby never escalates privileges for you without an explicit system prompt.
 
 ## Disconnect
 
-Open the macOS detail page and click **Disconnect**. This clears Toby's connection flag; it does not modify system settings.
+Select macOS in the Integrations window and click **Disconnect** in the toolbar. This clears Toby's connection flag; it does not modify system settings.
 
 ## Related
 

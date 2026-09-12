@@ -44,7 +44,7 @@ If permission was denied, enable it in **System Settings → Privacy & Security 
 
 ## Disconnect
 
-Open the Apple Reminders detail page and click **Disconnect**. This clears Toby's connection flag; it does not remove reminder data from Reminders.app.
+Select Apple Reminders in the Integrations window and click **Disconnect** in the toolbar. This clears Toby's connection flag; it does not remove reminder data from Reminders.app.
 
 ## What you can do in chat
 

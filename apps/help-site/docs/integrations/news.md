@@ -38,7 +38,7 @@ Return to **Integrations** in the sidebar. News should show as connected and hea
 
 ## Disconnect
 
-Open the News detail page and click **Disconnect**. This clears Toby's connection flag. Remove the API key in configure if you want it gone from stored credentials.
+Select News in the Integrations window and click **Disconnect** in the toolbar. This clears Toby's connection flag. Remove the API key in configure if you want it gone from stored credentials.
 
 ## What you can do in chat
 

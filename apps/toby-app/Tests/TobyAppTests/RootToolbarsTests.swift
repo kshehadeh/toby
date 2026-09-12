@@ -67,6 +67,75 @@ struct RootToolbarsTests {
 		#expect(RootToolbars.projectChatsHelp(isPresented: true) == "Hide Chats")
 		#expect(RootToolbars.projectChatsHelp(isPresented: false) == "Show Chats")
 	}
+
+	@Test("integrations toolbar is none, connect, or connected")
+	func integrationsToolbarMode() {
+		#expect(
+			RootToolbars.integrationsToolbarMode(hasSelection: false, isConnected: false) == .none
+		)
+		#expect(
+			RootToolbars.integrationsToolbarMode(hasSelection: false, isConnected: true) == .none
+		)
+		#expect(
+			RootToolbars.integrationsToolbarMode(hasSelection: true, isConnected: false) == .connect
+		)
+		#expect(
+			RootToolbars.integrationsToolbarMode(hasSelection: true, isConnected: true) == .connected
+		)
+	}
+
+	@Test("recordings chat toolbar is hidden, start, or show")
+	func recordingsChatToolbarMode() {
+		#expect(
+			RootToolbars.recordingsChatToolbarMode(
+				hasSingleSelection: false,
+				existingChatSessionId: nil
+			) == .hidden
+		)
+		#expect(
+			RootToolbars.recordingsChatToolbarMode(
+				hasSingleSelection: false,
+				existingChatSessionId: "sess-1"
+			) == .hidden
+		)
+		#expect(
+			RootToolbars.recordingsChatToolbarMode(
+				hasSingleSelection: true,
+				existingChatSessionId: nil
+			) == .startChat
+		)
+		#expect(
+			RootToolbars.recordingsChatToolbarMode(
+				hasSingleSelection: true,
+				existingChatSessionId: "sess-1"
+			) == .showChat
+		)
+	}
+
+	@Test("recordings chat toolbar labels and identifiers")
+	func recordingsChatToolbarLabels() {
+		#expect(RootToolbars.recordingsChatHelp(mode: .hidden).isEmpty)
+		#expect(RootToolbars.recordingsChatHelp(mode: .startChat) == "Start Chat")
+		#expect(RootToolbars.recordingsChatHelp(mode: .showChat) == "Show Chat")
+		#expect(RootToolbars.recordingsChatIdentifier(mode: .startChat) == "start-recording-chat-button")
+		#expect(RootToolbars.recordingsChatIdentifier(mode: .showChat) == "show-recording-chat-button")
+	}
+
+	@Test("flows toolbar is home, detail, or editor")
+	func flowsToolbarMode() {
+		#expect(
+			RootToolbars.flowsToolbarMode(hasSelection: false, isEditing: false) == .home
+		)
+		#expect(
+			RootToolbars.flowsToolbarMode(hasSelection: true, isEditing: false) == .detail
+		)
+		#expect(
+			RootToolbars.flowsToolbarMode(hasSelection: false, isEditing: true) == .editor
+		)
+		#expect(
+			RootToolbars.flowsToolbarMode(hasSelection: true, isEditing: true) == .editor
+		)
+	}
 }
 
 @MainActor

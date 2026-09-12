@@ -269,7 +269,7 @@ Return to **Integrations** in the sidebar. Slack should show as connected and he
 
 ## Disconnect
 
-Open the Slack detail page and click **Disconnect**.
+Select Slack in the Integrations window and click **Disconnect** in the toolbar.
 
 ## Example chat prompts
 

@@ -23,3 +23,22 @@ func recordingChatDateAndHour(_ detail: ListenRecordingDetail) -> (date: String,
 	}
 	return (RecordingChatFormatters.date.string(from: date), RecordingChatFormatters.hour.string(from: date))
 }
+
+/// Returns the recording's linked chat session when it still exists in the session list.
+func existingRecordingChatSessionId(
+	chatSessionId: String?,
+	validSessionIds: Set<String>,
+) -> String? {
+	guard let sessionId = chatSessionId, validSessionIds.contains(sessionId) else { return nil }
+	return sessionId
+}
+
+func startChatAboutRecordingRequest(from detail: ListenRecordingDetail) -> StartChatAboutRecordingRequest {
+	let (dateText, hourText) = recordingChatDateAndHour(detail)
+	return StartChatAboutRecordingRequest(
+		recordingId: detail.id,
+		name: detail.metadata.name ?? "Recording",
+		dateText: dateText,
+		hourText: hourText,
+	)
+}

@@ -47,7 +47,7 @@ hide or show that card under **Settings → Home**.
 
 ## Disconnect
 
-Open the Apple Calendar detail page and click **Disconnect**.
+Select Apple Calendar in the Integrations window and click **Disconnect** in the toolbar.
 
 ## Example chat prompts
 

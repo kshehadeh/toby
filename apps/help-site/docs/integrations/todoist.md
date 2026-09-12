@@ -69,7 +69,7 @@ Return to **Integrations** in the sidebar. Todoist should show as connected and 
 
 ## Disconnect
 
-Open the Todoist detail page and click **Disconnect**.
+Select Todoist in the Integrations window and click **Disconnect** in the toolbar.
 
 ## Example chat prompts
 

@@ -231,18 +231,39 @@ struct FlowsViewTests {
 		#expect(item.displayName == "Email Summary")
 	}
 
-	@Test("custom flow detail shows edit and run")
-	func customFlowDetailShowsEditAndRun() throws {
+	@Test("custom flow detail omits edit and run in the header")
+	func customFlowDetailOmitsHeaderEditAndRun() throws {
 		let store = FlowsStore()
 		let flow = sampleFlow(id: "flow.custom", name: "Focus mode", builtin: false)
 		store.flows = [flow]
 		store.selectedFlowId = flow.id
 		let view = FlowDetailContent(store: store, flow: flow)
-		#expect(throws: Never.self) {
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-edit-button")
 		}
-		#expect(throws: Never.self) {
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-run-button")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(button: "Edit")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(button: "Run now")
+		}
+	}
+
+	@Test("custom flow detail omits delete in the inspector")
+	func customFlowDetailOmitsInspectorDelete() throws {
+		let store = FlowsStore()
+		let flow = sampleFlow(id: "flow.custom", name: "Focus mode", builtin: false)
+		store.flows = [flow]
+		store.selectedFlowId = flow.id
+		let view = FlowDetailContent(store: store, flow: flow)
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-delete-button")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(button: "Delete flow")
 		}
 	}
 

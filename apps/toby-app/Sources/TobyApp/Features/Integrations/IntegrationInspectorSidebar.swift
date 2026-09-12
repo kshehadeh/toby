@@ -1,70 +1,23 @@
 import SwiftUI
 
 struct IntegrationInspectorSidebar: View {
-	@Bindable var store: ConfigureStore
-	let section: SettingsItem
 	let status: IntegrationStatus?
-	let isActionLoading: Bool
-	let onAction: (IntegrationAction) -> Void
 
 	var body: some View {
-		VStack(spacing: 0) {
-			ScrollView {
-				VStack(alignment: .leading, spacing: 18) {
-					statusSection
-					if status?.pluginPath != nil {
-						Divider().overlay(SettingsDesign.cardBorder)
-						locationSection
-					}
-					if let authMethods = status?.authMethods, !authMethods.isEmpty {
-						Divider().overlay(SettingsDesign.cardBorder)
-						authMethodsSection(methods: authMethods)
-					}
+		ScrollView {
+			VStack(alignment: .leading, spacing: 18) {
+				statusSection
+				if status?.pluginPath != nil {
+					Divider().overlay(SettingsDesign.cardBorder)
+					locationSection
 				}
-				.padding(18)
-				.frame(maxWidth: .infinity, alignment: .leading)
-			}
-
-			Divider().overlay(SettingsDesign.cardBorder)
-
-			HStack(spacing: 10) {
-				if let status, status.connected {
-					Button {
-						onAction(.disconnect)
-					} label: {
-						Label("Disconnect", systemImage: "xmark")
-							.frame(maxWidth: .infinity)
-					}
-					.buttonStyle(.bordered)
-					.controlSize(.regular)
-					.tint(.red)
-					.disabled(isActionLoading)
-					.accessibilityIdentifier("sidebar-disconnect-button")
-
-					Button {
-						onAction(.reauthorize)
-					} label: {
-						Label(status.reconnectionLabel, systemImage: "arrow.triangle.2.circlepath")
-							.frame(maxWidth: .infinity)
-					}
-					.buttonStyle(.borderedProminent)
-					.controlSize(.regular)
-					.disabled(isActionLoading)
-					.accessibilityIdentifier("sidebar-reconnect-button")
-				} else {
-					Button {
-						onAction(.connect)
-					} label: {
-						Label("Connect", systemImage: "link")
-							.frame(maxWidth: .infinity)
-					}
-					.buttonStyle(.borderedProminent)
-					.controlSize(.regular)
-					.disabled(isActionLoading)
-					.accessibilityIdentifier("sidebar-connect-button")
+				if let authMethods = status?.authMethods, !authMethods.isEmpty {
+					Divider().overlay(SettingsDesign.cardBorder)
+					authMethodsSection(methods: authMethods)
 				}
 			}
 			.padding(18)
+			.frame(maxWidth: .infinity, alignment: .leading)
 		}
 		.frame(width: 280)
 		.background(AppTheme.sidebarBackground)

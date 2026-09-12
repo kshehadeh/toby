@@ -221,10 +221,66 @@ enum RootToolbars {
 		}
 	}
 
+	enum IntegrationsToolbarMode: Equatable {
+		/// Integrations home: no selected integration.
+		case none
+		/// Selected and not connected (or status unknown).
+		case connect
+		/// Selected and connected: Disconnect + Re-connect / Re-authorize.
+		case connected
+	}
+
+	static func integrationsToolbarMode(hasSelection: Bool, isConnected: Bool) -> IntegrationsToolbarMode {
+		if !hasSelection { return .none }
+		return isConnected ? .connected : .connect
+	}
+
 	@ToolbarContentBuilder
-	static func integrations(common model: RootCommonToolbarModel) -> some ToolbarContent {
+	static func integrations(
+		common model: RootCommonToolbarModel,
+		hasSelection: Bool,
+		isConnected: Bool,
+		isActionLoading: Bool,
+		reconnectionLabel: String,
+		onConnect: @escaping () -> Void,
+		onDisconnect: @escaping () -> Void,
+		onReauthorize: @escaping () -> Void,
+	) -> some ToolbarContent {
 		common(model)
 		ToolbarItem(placement: .principal) { Spacer() }
+		ToolbarItem(placement: .confirmationAction) {
+			switch integrationsToolbarMode(hasSelection: hasSelection, isConnected: isConnected) {
+			case .none:
+				EmptyView()
+			case .connect:
+				Button(action: onConnect) {
+					Image(systemName: "link")
+				}
+				.help("Connect")
+				.disabled(isActionLoading)
+				.accessibilityIdentifier("connect-integration-button")
+				.accessibilityLabel("Connect")
+			case .connected:
+				Button(role: .destructive, action: onDisconnect) {
+					Image(systemName: "xmark")
+				}
+				.help("Disconnect")
+				.disabled(isActionLoading)
+				.accessibilityIdentifier("disconnect-integration-button")
+				.accessibilityLabel("Disconnect")
+			}
+		}
+		ToolbarItem(placement: .confirmationAction) {
+			if integrationsToolbarMode(hasSelection: hasSelection, isConnected: isConnected) == .connected {
+				Button(action: onReauthorize) {
+					Image(systemName: "arrow.triangle.2.circlepath")
+				}
+				.help(reconnectionLabel)
+				.disabled(isActionLoading)
+				.accessibilityIdentifier("reconnect-integration-button")
+				.accessibilityLabel(reconnectionLabel)
+			}
+		}
 	}
 
 	enum ProjectToolbarMode: Equatable {
@@ -381,16 +437,70 @@ enum RootToolbars {
 		}
 	}
 
+	enum RecordingsChatToolbarMode: Equatable {
+		case hidden
+		case startChat
+		case showChat
+	}
+
+	static func recordingsChatToolbarMode(
+		hasSingleSelection: Bool,
+		existingChatSessionId: String?,
+	) -> RecordingsChatToolbarMode {
+		guard hasSingleSelection else { return .hidden }
+		return existingChatSessionId != nil ? .showChat : .startChat
+	}
+
+	static func recordingsChatHelp(mode: RecordingsChatToolbarMode) -> String {
+		switch mode {
+		case .hidden: return ""
+		case .startChat: return "Start Chat"
+		case .showChat: return "Show Chat"
+		}
+	}
+
+	static func recordingsChatIdentifier(mode: RecordingsChatToolbarMode) -> String {
+		switch mode {
+		case .hidden: return ""
+		case .startChat: return "start-recording-chat-button"
+		case .showChat: return "show-recording-chat-button"
+		}
+	}
+
 	@ToolbarContentBuilder
 	static func recordings(
 		common model: RootCommonToolbarModel,
 		hasSelection: Bool,
+		hasSingleSelection: Bool = false,
+		existingChatSessionId: String? = nil,
 		deleteHelp: String,
 		isDeleting: Bool,
 		onDelete: @escaping () -> Void,
+		onStartChat: @escaping () -> Void = {},
+		onShowChat: @escaping () -> Void = {},
 	) -> some ToolbarContent {
 		common(model)
 		ToolbarItem(placement: .principal) { Spacer() }
+		ToolbarItem(placement: .confirmationAction) {
+			let mode = recordingsChatToolbarMode(
+				hasSingleSelection: hasSingleSelection,
+				existingChatSessionId: existingChatSessionId,
+			)
+			if mode != .hidden {
+				Button {
+					if mode == .showChat {
+						onShowChat()
+					} else {
+						onStartChat()
+					}
+				} label: {
+					Image(systemName: "bubble.left.and.bubble.right")
+				}
+				.help(recordingsChatHelp(mode: mode))
+				.accessibilityLabel(recordingsChatHelp(mode: mode))
+				.accessibilityIdentifier(recordingsChatIdentifier(mode: mode))
+			}
+		}
 		ToolbarItem(placement: .confirmationAction) {
 			if hasSelection {
 				Button(role: .destructive, action: onDelete) {
@@ -433,32 +543,97 @@ enum RootToolbars {
 		}
 	}
 
+	enum FlowsToolbarMode: Equatable {
+		/// Card / home list: New + Refresh.
+		case home
+		/// Selected flow detail: Edit / Run / Delete for custom flows.
+		case detail
+		/// Create / edit sheet content: no list or detail actions.
+		case editor
+	}
+
+	static func flowsToolbarMode(hasSelection: Bool, isEditing: Bool) -> FlowsToolbarMode {
+		if isEditing { return .editor }
+		if hasSelection { return .detail }
+		return .home
+	}
+
 	@ToolbarContentBuilder
 	static func flows(
 		common model: RootCommonToolbarModel,
 		isListLoading: Bool,
 		isRunsLoading: Bool,
+		hasSelection: Bool,
+		isEditing: Bool,
+		canEdit: Bool,
+		canRun: Bool,
+		canDelete: Bool,
+		isRunning: Bool,
 		onNewFlow: @escaping () -> Void,
 		onRefresh: @escaping () -> Void,
+		onEdit: @escaping () -> Void,
+		onRun: @escaping () -> Void,
+		onDelete: @escaping () -> Void,
 	) -> some ToolbarContent {
+		let mode = flowsToolbarMode(hasSelection: hasSelection, isEditing: isEditing)
 		common(model)
 		ToolbarItem(placement: .principal) { Spacer() }
 		ToolbarItem(placement: .confirmationAction) {
-			Button(action: onNewFlow) {
-				Image(systemName: "plus")
+			switch mode {
+			case .home:
+				Button(action: onNewFlow) {
+					Image(systemName: "plus")
+				}
+				.help("New flow")
+				.accessibilityIdentifier("toolbar-new-flow-button")
+				.accessibilityLabel("New flow")
+			case .detail:
+				if canEdit {
+					Button(action: onEdit) {
+						Image(systemName: "pencil")
+					}
+					.help("Edit Flow")
+					.accessibilityIdentifier("edit-flow-button")
+					.accessibilityLabel("Edit Flow")
+				}
+			case .editor:
+				EmptyView()
 			}
-			.help("New flow")
-			.accessibilityIdentifier("toolbar-new-flow-button")
-			.accessibilityLabel("New flow")
 		}
 		ToolbarItem(placement: .confirmationAction) {
-			Button(action: onRefresh) {
-				Image(systemName: "arrow.clockwise")
+			switch mode {
+			case .home:
+				Button(action: onRefresh) {
+					Image(systemName: "arrow.clockwise")
+				}
+				.help("Refresh flows")
+				.disabled(isListLoading || isRunsLoading)
+				.accessibilityIdentifier("refresh-flows-button")
+				.accessibilityLabel("Refresh flows")
+			case .detail:
+				if canRun {
+					Button(action: onRun) {
+						Image(systemName: "play.fill")
+					}
+					.help("Run Now")
+					.disabled(isRunning)
+					.keyboardShortcut("r", modifiers: [.command])
+					.accessibilityIdentifier("run-flow-button")
+					.accessibilityLabel("Run Now")
+				}
+			case .editor:
+				EmptyView()
 			}
-			.help("Refresh flows")
-			.disabled(isListLoading || isRunsLoading)
-			.accessibilityIdentifier("refresh-flows-button")
-			.accessibilityLabel("Refresh flows")
+		}
+		ToolbarItem(placement: .confirmationAction) {
+			if mode == .detail, canDelete {
+				Button(role: .destructive, action: onDelete) {
+					Image(systemName: "trash")
+				}
+				.help("Delete Flow")
+				.accessibilityIdentifier("delete-flow-button")
+				.accessibilityLabel("Delete Flow")
+			}
 		}
 	}
 

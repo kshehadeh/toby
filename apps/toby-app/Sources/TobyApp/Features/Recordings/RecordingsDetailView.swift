@@ -3,7 +3,6 @@ import SwiftUI
 struct RecordingsDetailView: View {
 	@Bindable var store: RecordingsStore
 	var processingState: RecordingProcessingState? = nil
-	var validSessionIds: Set<String> = []
 	var onStartRecording: (() -> Void)? = nil
 	var onStopRecording: (() -> Void)? = nil
 	var activeRecording: ActiveRecordingInfo? = nil
@@ -31,7 +30,6 @@ struct RecordingsDetailView: View {
 						store: store,
 						detail: displayedDetail,
 						processingState: processingState,
-						validSessionIds: validSessionIds,
 						isLoadingHeavyContent: isLoadingHeavyContent(displayedDetail),
 					)
 				} else {

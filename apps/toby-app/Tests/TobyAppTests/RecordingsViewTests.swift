@@ -284,26 +284,26 @@ struct RecordingsViewTests {
 		}
 	}
 
-	@Test("detail view shows start chat button in sidebar when a single recording is selected")
-	func detailViewShowsStartChatButton() throws {
+	@Test("detail view omits start chat button in sidebar when a single recording is selected")
+	func detailViewOmitsStartChatButton() throws {
 		let store = RecordingsStore()
 		store.recordings = [makeRecording(id: "r1", name: "One")]
 		store.selectedRecordingIds = ["r1"]
 		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello world transcript")
 		let view = RecordingsView(store: store)
-		#expect(throws: Never.self) {
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-start-chat-button")
 		}
 	}
 
-	@Test("detail view shows delete button in sidebar when a single recording is selected")
-	func detailViewShowsDeleteButton() throws {
+	@Test("detail view omits delete button in sidebar when a single recording is selected")
+	func detailViewOmitsDeleteButton() throws {
 		let store = RecordingsStore()
 		store.recordings = [makeRecording(id: "r1", name: "One")]
 		store.selectedRecordingIds = ["r1"]
 		store.detail = makeRecordingDetail(id: "r1", transcript: nil)
 		let view = RecordingsView(store: store)
-		#expect(throws: Never.self) {
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-delete-recording-button")
 		}
 	}
@@ -326,6 +326,32 @@ struct RecordingsViewTests {
 		let (date, hour) = recordingChatDateAndHour(detail)
 		#expect(!date.isEmpty)
 		#expect(!hour.isEmpty)
+	}
+
+	@Test("existing recording chat session is returned only when it is still valid")
+	func existingRecordingChatSessionIdFiltersStaleIds() {
+		#expect(
+			existingRecordingChatSessionId(chatSessionId: "sess-1", validSessionIds: ["sess-1"])
+				== "sess-1"
+		)
+		#expect(
+			existingRecordingChatSessionId(chatSessionId: nil, validSessionIds: ["sess-1"]) == nil
+		)
+		#expect(
+			existingRecordingChatSessionId(
+				chatSessionId: "deleted-session",
+				validSessionIds: ["sess-1", "sess-2"]
+			) == nil
+		)
+	}
+
+	@Test("start chat about recording request uses recording name and timestamps")
+	func startChatAboutRecordingRequestUsesMetadata() {
+		let detail = makeRecordingDetail(id: "r1", transcript: nil, name: "One")
+		let request = startChatAboutRecordingRequest(from: detail)
+		#expect(request.recordingId == "r1")
+		#expect(request.name == "One")
+		#expect(!request.dateText.isEmpty)
 	}
 
 	@Test("detail view shows recording name in header")
@@ -503,47 +529,47 @@ struct RecordingsViewTests {
 		}
 	}
 
-	@Test("detail view shows Show Chat button when chat session exists")
-	func detailViewShowsShowChatButtonWhenChatSessionExists() throws {
+	@Test("detail view omits Show Chat button when chat session exists")
+	func detailViewOmitsShowChatButtonWhenChatSessionExists() throws {
 		let store = RecordingsStore()
 		store.recordings = [makeRecording(id: "r1", name: "One")]
 		store.selectedRecordingIds = ["r1"]
 		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello", hasAudio: true, chatSessionId: "sess-1")
-		let view = RecordingsView(store: store, validSessionIds: ["sess-1"])
-		#expect(throws: Never.self) {
+		let view = RecordingsView(store: store)
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(text: "Show Chat")
 		}
-		#expect(throws: Never.self) {
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-show-chat-button")
 		}
 	}
 
-	@Test("detail view shows Start Chat button when chat session ID is nil")
-	func detailViewShowsStartChatWhenNoChatSession() throws {
+	@Test("detail view omits Start Chat button when chat session ID is nil")
+	func detailViewOmitsStartChatWhenNoChatSession() throws {
 		let store = RecordingsStore()
 		store.recordings = [makeRecording(id: "r1", name: "One")]
 		store.selectedRecordingIds = ["r1"]
 		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello", hasAudio: true, chatSessionId: nil)
-		let view = RecordingsView(store: store, validSessionIds: ["sess-1"])
-		#expect(throws: Never.self) {
+		let view = RecordingsView(store: store)
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(text: "Start Chat")
 		}
-		#expect(throws: Never.self) {
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-start-chat-button")
 		}
 	}
 
-	@Test("detail view shows Start Chat button when chat session ID is not in valid sessions")
-	func detailViewShowsStartChatWhenChatSessionNotFound() throws {
+	@Test("detail view omits chat buttons when chat session ID is not in valid sessions")
+	func detailViewOmitsChatButtonsWhenChatSessionNotFound() throws {
 		let store = RecordingsStore()
 		store.recordings = [makeRecording(id: "r1", name: "One")]
 		store.selectedRecordingIds = ["r1"]
 		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello", hasAudio: true, chatSessionId: "deleted-session")
-		let view = RecordingsView(store: store, validSessionIds: ["sess-1", "sess-2"])
-		#expect(throws: Never.self) {
+		let view = RecordingsView(store: store)
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(text: "Start Chat")
 		}
-		#expect(throws: Error.self) {
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-show-chat-button")
 		}
 	}
