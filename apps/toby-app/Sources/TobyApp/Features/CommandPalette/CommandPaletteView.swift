@@ -312,7 +312,11 @@ struct CommandPaletteView: View {
 		}
 		// Fixed panel size; always top-align so short/empty result lists do not
 		// vertically center the drag handle + search field in the card.
-		.frame(width: 560, height: 420, alignment: .top)
+		.frame(
+			width: CommandPalettePanelPlacement.size.width,
+			height: CommandPalettePanelPlacement.size.height,
+			alignment: .top
+		)
 		.background(AppTheme.contentBackground)
 		.clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadius, style: .continuous))
 		.overlay {

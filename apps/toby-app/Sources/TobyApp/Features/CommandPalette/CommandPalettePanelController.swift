@@ -26,12 +26,7 @@ final class CommandPalettePanelController {
 	/// responsible for surfacing the main window when needed.
 	func show<Content: View>(@ViewBuilder content: () -> Content) {
 		let view = content()
-		let hosting = NSHostingController(rootView: view)
-		// Keep the hosting backing transparent so the rounded card is the only
-		// opaque content; the window server derives the (rounded) drop shadow
-		// from that alpha.
-		hosting.view.wantsLayer = true
-		hosting.view.layer?.backgroundColor = NSColor.clear.cgColor
+		let hosting = makeHostingController(view)
 
 		if panel == nil {
 			let created = CommandPalettePanel(contentViewController: hosting)
@@ -40,17 +35,24 @@ final class CommandPalettePanelController {
 			}
 			panel = created
 		} else {
-			panel?.contentViewController = hosting
+			panel?.applyContentViewController(hosting)
 		}
 
 		guard let panel else { return }
-		positionPanel(panel)
+		// Position before and after `orderFront`. A frame set on an unrealized
+		// window can be discarded on first display, which would leave the
+		// panel at the content-rect origin (lower-left of the primary screen).
+		applyPosition(panel)
 		panel.makeKeyAndOrderFront(nil)
 		panel.orderFrontRegardless()
+		applyPosition(panel)
 		// Ensure the hosted SwiftUI content receives keyboard focus after the
 		// panel becomes key. This complements the view's deferred @FocusState.
-		DispatchQueue.main.async {
-			guard panel.isVisible else { return }
+		// Re-apply position once layout has run — `NSHostingController` can
+		// resize the window on first materialization.
+		DispatchQueue.main.async { [weak panel] in
+			guard let panel, panel.isVisible else { return }
+			self.applyPosition(panel)
 			panel.makeKey()
 			if let contentView = panel.contentView {
 				panel.makeFirstResponder(contentView)
@@ -63,48 +65,53 @@ final class CommandPalettePanelController {
 		panel?.orderOut(nil)
 	}
 
-	/// Restores the last saved origin if it lands on a currently visible
-	/// screen; otherwise centers on the active screen. Enforces the fixed panel
-	/// size in case reusing the content view controller resized the window.
-	private func positionPanel(_ panel: CommandPalettePanel) {
-		let size = CommandPalettePanel.panelSize
-		if let origin = savedOrigin(),
-			isFrameVisible(NSRect(origin: origin, size: size))
-		{
-			panel.setFrame(NSRect(origin: origin, size: size), display: false)
-		} else {
-			panel.setContentSize(size)
-			panel.centerOnActiveScreen()
-		}
+	private func makeHostingController<Content: View>(_ view: Content) -> NSHostingController<Content> {
+		let hosting = NSHostingController(rootView: view)
+		// Keep the hosting backing transparent so the rounded card is the only
+		// opaque content; the window server derives the (rounded) drop shadow
+		// from that alpha.
+		hosting.view.wantsLayer = true
+		hosting.view.layer?.backgroundColor = NSColor.clear.cgColor
+		hosting.view.frame = NSRect(origin: .zero, size: CommandPalettePanelPlacement.size)
+		// A fixed-size panel: do not let SwiftUI's first layout pass drive the
+		// window frame (that pass is what pinned first-launch to (0, 0)).
+		hosting.sizingOptions = []
+		return hosting
+	}
+
+	/// Restores the last saved origin if it is a real on-screen placement;
+	/// otherwise centers on the active screen. Always enforces the fixed panel
+	/// size so a reused hosting controller cannot resize the window.
+	private func applyPosition(_ panel: CommandPalettePanel) {
+		let size = CommandPalettePanelPlacement.size
+		let screens = NSScreen.screens.map { (frame: $0.frame, visible: $0.visibleFrame) }
+		let preferred = CommandPalettePanelPlacement.preferredVisibleFrame(
+			keyWindowVisibleFrame: NSApp.keyWindow?.screen?.visibleFrame,
+			mouseLocation: NSEvent.mouseLocation,
+			screens: screens,
+			mainVisibleFrame: NSScreen.main?.visibleFrame
+		) ?? screens.first?.visible ?? NSRect(origin: .zero, size: size)
+		let frame = CommandPalettePanelPlacement.targetFrame(
+			savedOrigin: savedOrigin(),
+			size: size,
+			visibleFrames: screens.map(\.visible),
+			preferredVisibleFrame: preferred
+		)
+		panel.applyFrame(frame)
 	}
 
 	private func savedOrigin() -> NSPoint? {
-		guard let raw = UserDefaults.standard.string(forKey: Self.frameOriginKey) else {
-			return nil
-		}
-		let parts = raw.split(separator: ",")
-		guard parts.count == 2, let x = Double(parts[0]), let y = Double(parts[1]) else {
-			return nil
-		}
-		return NSPoint(x: x, y: y)
+		CommandPalettePanelPlacement.parseOrigin(
+			UserDefaults.standard.string(forKey: Self.frameOriginKey)
+		)
 	}
 
 	private func saveOrigin(_ origin: NSPoint) {
-		UserDefaults.standard.set("\(origin.x),\(origin.y)", forKey: Self.frameOriginKey)
-	}
-
-	/// True when a meaningful portion of `frame` overlaps a visible screen, so
-	/// a restored position never lands the palette off-screen (e.g. after a
-	/// display is disconnected).
-	private func isFrameVisible(_ frame: NSRect) -> Bool {
-		let frameArea = frame.width * frame.height
-		guard frameArea > 0 else { return false }
-		for screen in NSScreen.screens {
-			let intersection = screen.visibleFrame.intersection(frame)
-			let area = intersection.width * intersection.height
-			if area >= frameArea * 0.5 { return true }
-		}
-		return false
+		guard !CommandPalettePanelPlacement.isDefaultOrigin(origin) else { return }
+		UserDefaults.standard.set(
+			CommandPalettePanelPlacement.encodeOrigin(origin),
+			forKey: Self.frameOriginKey
+		)
 	}
 }
 
@@ -121,20 +128,39 @@ final class CommandPalettePanel: NSPanel {
 	/// sized exactly to the card so the only opaque content is the rounded card
 	/// itself — no oversized transparent margin whose clipped shadow would show
 	/// as squared edges over bright backdrops.
-	static let panelSize = NSSize(width: 560, height: 420)
+	static let panelSize = CommandPalettePanelPlacement.size
 
-	/// Invoked whenever the window frame changes (e.g. the user drags it), so
-	/// the controller can persist the position.
+	/// Invoked whenever the user moves the window (e.g. drags the handle), so
+	/// the controller can persist the position. Programmatic `applyFrame`
+	/// updates do not fire this.
 	var onFrameMoved: (@MainActor (NSPoint) -> Void)?
 
+	/// Suppresses origin persistence while we set the frame or swap the hosting
+	/// controller. `setFrame` is also used by AppKit layout, which would
+	/// otherwise write the default `(0, 0)` origin to UserDefaults.
+	private var isApplyingProgrammaticFrame = false
+
 	init(contentViewController: NSViewController) {
+		let size = Self.panelSize
+		// Never start at AppKit's default origin (lower-left). Center on the
+		// main screen so first `orderFront` cannot flash or stick at (0, 0).
+		let visible = NSScreen.main?.visibleFrame
+			?? NSScreen.screens.first?.visibleFrame
+			?? NSRect(origin: .zero, size: size)
+		let origin = CommandPalettePanelPlacement.centeredOrigin(size: size, in: visible)
 		super.init(
-			contentRect: NSRect(origin: .zero, size: Self.panelSize),
+			contentRect: NSRect(origin: origin, size: size),
 			styleMask: [.borderless, .nonactivatingPanel],
 			backing: .buffered,
 			defer: false
 		)
+		isApplyingProgrammaticFrame = true
 		self.contentViewController = contentViewController
+		// `NSHostingController` layout can collapse a newly created window to
+		// size `(0, 0)` at the default origin. Re-apply the centered frame so
+		// first `orderFront` cannot stick in the lower-left.
+		setFrame(NSRect(origin: origin, size: size), display: false)
+		isApplyingProgrammaticFrame = false
 		self.isFloatingPanel = true
 		self.becomesKeyOnlyIfNeeded = false
 		self.level = .floating
@@ -164,34 +190,34 @@ final class CommandPalettePanel: NSPanel {
 		orderOut(nil)
 	}
 
+	func applyFrame(_ frame: NSRect) {
+		isApplyingProgrammaticFrame = true
+		defer { isApplyingProgrammaticFrame = false }
+		setFrame(frame, display: true)
+	}
+
+	func applyContentViewController(_ controller: NSViewController) {
+		let origin = frame.origin
+		isApplyingProgrammaticFrame = true
+		defer { isApplyingProgrammaticFrame = false }
+		contentViewController = controller
+		setFrame(NSRect(origin: origin, size: Self.panelSize), display: true)
+	}
+
 	/// `performDrag(with:)` moves the window through `setFrame`, so this is the
 	/// reliable hook for persisting the position as the user drags.
 	override func setFrame(_ frameRect: NSRect, display flag: Bool) {
 		super.setFrame(frameRect, display: flag)
-		onFrameMoved?(frameRect.origin)
+		persistOriginIfNeeded(frameRect.origin)
+	}
+
+	private func persistOriginIfNeeded(_ origin: NSPoint) {
+		guard !isApplyingProgrammaticFrame else { return }
+		guard !CommandPalettePanelPlacement.isDefaultOrigin(origin) else { return }
+		onFrameMoved?(origin)
 	}
 
 	deinit {
 		NotificationCenter.default.removeObserver(self)
-	}
-}
-
-extension CommandPalettePanel {
-	/// Centers the panel on the screen that currently contains the key window,
-	/// falling back to the screen under the mouse cursor (important when invoked
-	/// via a global hotkey while another app is frontmost), then the main screen.
-	func centerOnActiveScreen() {
-		let mouseLocation = NSEvent.mouseLocation
-		let screen = NSApp.keyWindow?.screen
-			?? NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) })
-			?? NSScreen.main
-			?? NSScreen.screens.first
-		guard let screen else { return }
-		let visible = screen.visibleFrame
-		let origin = NSPoint(
-			x: visible.midX - frame.width / 2,
-			y: visible.midY - frame.height / 2
-		)
-		setFrameOrigin(origin)
 	}
 }
