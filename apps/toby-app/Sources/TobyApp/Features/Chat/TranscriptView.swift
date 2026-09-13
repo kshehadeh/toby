@@ -32,9 +32,9 @@ struct TranscriptView: View {
 	@State private var lastPinnedIdentity: TranscriptPinIdentity?
 	/// How many older items above the default window are revealed.
 	@State private var revealedOlderCount = 0
-	/// User is near the bottom — only then auto-scroll on stream / new turns.
-	/// Scrolling *up* clears this so layout/stream updates do not fight the user.
-	@State private var isNearBottom = true
+	/// Pin to the latest content until the user actively scrolls up.
+	/// Content growth (new turns, streaming) must not clear this.
+	@State private var isFollowingBottom = true
 
 	private var transcriptMode: ChatTranscriptMode {
 		transcriptModeOverride ?? appearancePreferences.chatTranscriptMode
@@ -115,7 +115,7 @@ struct TranscriptView: View {
 			// bottom anchor fights scroll offset and freezes the main thread.
 			.automaticScrollIndicators(axes: .vertical)
 			.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-			.modifier(TranscriptNearBottomTracker(isNearBottom: $isNearBottom))
+			.modifier(TranscriptBottomFollowTracker(isFollowingBottom: $isFollowingBottom))
 			.onAppear {
 				refreshDisplayItemsCache()
 			}
@@ -129,12 +129,12 @@ struct TranscriptView: View {
 						|| lastPinnedIdentity == nil
 					if isNewSession {
 						revealedOlderCount = 0
-						isNearBottom = true
+						isFollowingBottom = true
 					}
 					lastPinnedIdentity = identity
 					// Only pin when the user is following the bottom (or new session).
-					if isNearBottom || isNewSession {
-						isNearBottom = true
+					if isFollowingBottom || isNewSession {
+						isFollowingBottom = true
 						DispatchQueue.main.async {
 							scrollToBottom(proxy: proxy, policy: .immediate)
 						}
@@ -154,11 +154,11 @@ struct TranscriptView: View {
 				}
 			}
 			.onChange(of: streamingAssistant?.text) { _, _ in
-				guard isNearBottom else { return }
+				guard isFollowingBottom else { return }
 				scrollToBottom(proxy: proxy, policy: .throttled)
 			}
 			.onChange(of: hasActiveAskUser) { _, isActive in
-				if isActive, isNearBottom {
+				if isActive, isFollowingBottom {
 					scrollToBottom(proxy: proxy, policy: .immediate)
 				}
 			}
@@ -400,21 +400,3 @@ struct TranscriptPinIdentity: Equatable {
 	}
 }
 
-/// Tracks whether the transcript is scrolled near the bottom.
-private struct TranscriptNearBottomTracker: ViewModifier {
-	@Binding var isNearBottom: Bool
-
-	func body(content: Content) -> some View {
-		content.onScrollGeometryChange(for: Bool.self) { geometry in
-			let viewHeight = geometry.containerSize.height
-			let maxY = geometry.contentOffset.y + viewHeight
-			let contentHeight = geometry.contentSize.height
-			return contentHeight <= viewHeight + 1
-				|| maxY >= contentHeight - 120
-		} action: { _, nearBottom in
-			if nearBottom != isNearBottom {
-				isNearBottom = nearBottom
-			}
-		}
-	}
-}
