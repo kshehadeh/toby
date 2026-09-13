@@ -15,7 +15,7 @@ Schedule definitions are stored in `~/.toby/chat.sqlite` alongside chat sessions
 
 | Field | Description |
 | ----- | ----------- |
-| Name | Label you recognize in the list |
+| Name | Label you recognize in the list, edited as the page title (Return accepts, Escape reverts) |
 | When it runs | **Prompt** (chat) or **Flow** (named pipeline) |
 | Prompt | What Toby should do when the schedule fires (prompt mode) |
 | Flow | Which saved flow to run (flow mode) |
@@ -34,10 +34,10 @@ Open **Toby.app** and click **Schedules** in the sidebar.
 ![Toby.app Schedules window](/img/toby-app-schedules.png)
 
 The Schedules view opens with an overview of your schedules as cards. Select a
-card or a schedule in the sidebar to edit it. Use **New Schedule** in the
-toolbar while viewing the overview to create one. You can also delete
-schedules, enable or disable them, choose a **prompt** or a **flow**, use
-**Run now** for a test, and view past runs.
+card or a schedule in the sidebar to open its page. Click the title to rename
+it; prompt or flow, timetable, and enabled state are edited on that page. Use
+**New Schedule** in the toolbar while viewing the overview to create one. You
+can also delete schedules, use **Run now** for a test, and view past runs.
 
 ### From chat
 

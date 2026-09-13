@@ -112,10 +112,11 @@ project page.
 
 ### Skills
 
-The Skills window opens with every installed skill as a card. Select a card or
-sidebar row to view and edit it, and use **New Skill** in the toolbar while
-viewing the overview to create one. You can also delete skills and run a skill
-directly from the toolbar.
+The Skills area lists each skill in the sidebar. Select one to open its page:
+rename it from the title, click the icon to change it, and edit the summary,
+enabled state, and instructions in the main pane. Use **New Skill** in the
+toolbar while viewing the overview to create one. You can also delete skills
+and run a skill directly from the toolbar.
 
 ![Toby.app Skills window](/img/toby-app-skills.png)
 
@@ -131,8 +132,10 @@ workspace in the main window.
 
 ### Schedules
 
-The Schedules window shows your configured scheduled tasks with their cron
-expressions. You can add new schedules, run them on demand, or delete them.
+The Schedules area lists each schedule in the sidebar. Select one to open its
+page: rename it from the title, and edit whether it runs a prompt or a flow,
+the timetable, and enabled state in the main pane. You can add new schedules,
+run them on demand, or delete them.
 
 ![Toby.app Schedules window](/img/toby-app-schedules.png)
 

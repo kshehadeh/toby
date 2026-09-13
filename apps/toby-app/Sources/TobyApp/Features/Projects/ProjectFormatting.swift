@@ -31,10 +31,3 @@ func projectSummaryFirstParagraph(_ text: String) -> String {
 		.trimmingCharacters(in: .whitespacesAndNewlines)
 }
 
-/// The name to accept from an in-progress title edit: trimmed, non-empty, and
-/// different from the current name — otherwise nil, meaning the draft reverts.
-func acceptedProjectName(draft: String, current: String) -> String? {
-	let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-	guard !trimmed.isEmpty, trimmed != current else { return nil }
-	return trimmed
-}

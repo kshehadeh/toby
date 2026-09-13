@@ -11,6 +11,7 @@ struct SkillsDetailView: View {
 			} else if let skill = store.selectedSkill {
 				VStack(spacing: 0) {
 					SkillDetailContent(store: store, skill: skill)
+						.id(skill.dirName)
 					if let errorMessage = store.errorMessage, !store.skills.isEmpty {
 						InlineStatusMessage(message: errorMessage, tone: .error, font: .caption)
 							.padding(.horizontal, 24)

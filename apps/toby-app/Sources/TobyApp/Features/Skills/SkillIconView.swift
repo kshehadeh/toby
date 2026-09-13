@@ -40,6 +40,7 @@ struct SkillIconView: View {
 				Image(systemName: "wand.and.stars")
 					.font(.system(size: size * 0.4, weight: .medium))
 					.foregroundStyle(AppTheme.accent)
+					.accessibilityHidden(true)
 			}
 	}
 

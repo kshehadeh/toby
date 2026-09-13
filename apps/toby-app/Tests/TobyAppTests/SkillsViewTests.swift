@@ -148,18 +148,27 @@ struct SkillsViewTests {
 			tools: nil,
 			integrations: nil
 		)
+		let content = SkillDetailContent(store: store, skill: store.selectedSkill!)
+		let field = try content.inspect()
+			.scrollView()
+			.vStack()
+			.hStack(0)
+			.vStack(1)
+			.view(InlineTitleField.self, 0)
+			.textField()
+		#expect(try field.input() == "Research")
 		let view = SkillsView(store: store)
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Research")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Research assistant")
-		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Summary")
 		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "About")
+		}
 		#expect(throws: (any Error).self) {
 			try view.inspect().find(text: "Description")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(text: "Name")
 		}
 	}
 
@@ -192,7 +201,7 @@ struct SkillsViewTests {
 		#expect(SkillMarkdownNSTextView.format(forCommandKey: "u") == nil)
 	}
 
-	@Test("skill detail shows instructions and summary sidebar fields")
+	@Test("skill detail shows instructions and summary in the main canvas")
 	func skillDetailShowsInstructionsAndSummary() throws {
 		let store = SkillsStore()
 		store.selectedSkill = SkillDetail(
@@ -212,8 +221,31 @@ struct SkillsViewTests {
 		#expect(throws: (any Error).self) { try view.inspect().find(text: "Optional") }
 	}
 
-	@Test("skill detail shows enabled status pill")
-func skillDetailShowsEnabledStatus() throws {
+	@Test("skill detail edits the icon from the header, not a form row")
+	func skillDetailEditsIconFromHeader() throws {
+		let store = SkillsStore()
+		store.selectedSkill = SkillDetail(
+			dirName: "skill-1",
+			name: "Research",
+			summary: "Research assistant",
+			bodyMarkdown: "# Research",
+			tools: nil,
+			integrations: nil
+		)
+		let view = SkillsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "skill-icon-edit-button")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(text: "Change…")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(button: "Reset")
+		}
+	}
+
+	@Test("skill detail shows enabled toggle in the about card")
+	func skillDetailShowsEnabledStatus() throws {
 		let store = SkillsStore()
 		store.selectedSkill = SkillDetail(
 			dirName: "skill-1",
@@ -225,6 +257,7 @@ func skillDetailShowsEnabledStatus() throws {
 		)
 		let view = SkillsView(store: store)
 		#expect(throws: Never.self) { try view.inspect().find(text: "Enabled") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "Offered to the model") }
 	}
 
 	@Test("store exposes summary and enabled field values")

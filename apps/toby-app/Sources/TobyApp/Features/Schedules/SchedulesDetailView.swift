@@ -11,6 +11,7 @@ struct SchedulesDetailView: View {
 					.frame(maxWidth: .infinity, maxHeight: .infinity)
 			} else if let schedule = store.selectedSchedule {
 				ScheduleDetailContent(store: store, schedule: schedule, onOpenFlow: onOpenFlow)
+					.id(schedule.id)
 			} else if let errorMessage = store.errorMessage, store.schedules.isEmpty {
 				ContentUnavailableView {
 					Label("Schedules unavailable", systemImage: "exclamationmark.triangle")

@@ -96,8 +96,8 @@ struct SchedulesViewTests {
 		#expect(store.selectedRunId == nil)
 	}
 
-	@Test("schedule detail shows prompt editor and sidebar fields")
-	func scheduleDetailShowsPromptAndSidebar() throws {
+	@Test("schedule detail shows prompt editor and fields in the main canvas")
+	func scheduleDetailShowsPromptAndFields() throws {
 		let store = SchedulesStore()
 		let schedule = ScheduleViewModel(
 			id: "schedule-1",
@@ -114,6 +114,10 @@ struct SchedulesViewTests {
 		store.schedules = [schedule]
 		store.selectedScheduleId = schedule.id
 		let view = SchedulesView(store: store)
+		let field = try view.inspect()
+			.find(viewWithAccessibilityIdentifier: "schedule-title-field")
+			.textField()
+		#expect(try field.input() == "Daily Standup")
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Prompt")
 		}
@@ -125,6 +129,12 @@ struct SchedulesViewTests {
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "schedule-action-picker")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(text: "Name")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "skill-icon-edit-button")
 		}
 	}
 

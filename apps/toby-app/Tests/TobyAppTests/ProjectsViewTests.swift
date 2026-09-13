@@ -306,12 +306,12 @@ struct ProjectsViewTests {
 	}
 
 	@Test("title edits accept a trimmed, non-empty name different from the current one")
-	func acceptedProjectNameRules() {
-		#expect(acceptedProjectName(draft: "  Renamed  ", current: "Demo") == "Renamed")
-		#expect(acceptedProjectName(draft: "Demo", current: "Demo") == nil)
-		#expect(acceptedProjectName(draft: "  Demo  ", current: "Demo") == nil)
-		#expect(acceptedProjectName(draft: "   ", current: "Demo") == nil)
-		#expect(acceptedProjectName(draft: "", current: "Demo") == nil)
+	func acceptedInlineTitleRules() {
+		#expect(acceptedInlineTitle(draft: "  Renamed  ", current: "Demo") == "Renamed")
+		#expect(acceptedInlineTitle(draft: "Demo", current: "Demo") == nil)
+		#expect(acceptedInlineTitle(draft: "  Demo  ", current: "Demo") == nil)
+		#expect(acceptedInlineTitle(draft: "   ", current: "Demo") == nil)
+		#expect(acceptedInlineTitle(draft: "", current: "Demo") == nil)
 	}
 
 	@Test("sidebar recent chats returns the ten most recent chats for its project")

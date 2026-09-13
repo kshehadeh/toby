@@ -51,14 +51,17 @@ struct ProjectDetailContent: View {
 					Image(systemName: "folder.fill")
 						.font(.system(size: 20, weight: .semibold))
 						.foregroundStyle(AppTheme.accent)
+						.accessibilityHidden(true)
 				}
 
 			VStack(alignment: .leading, spacing: 4) {
-				ProjectTitleField(
+				InlineTitleField(
 					name: Binding(
 						get: { store.selectedProject?.name ?? project.name },
 						set: { store.updateName($0) }
-					)
+					),
+					placeholder: "Project name",
+					accessibilityIdentifier: "project-title-field",
 				)
 				Text(store.metaLine(for: store.selectedProject ?? project))
 					.font(.subheadline)
