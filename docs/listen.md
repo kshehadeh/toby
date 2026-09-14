@@ -50,7 +50,7 @@ points to an existing file, otherwise it falls back to
 
 ## Toby.app Flow
 
-Toby.app exposes **Record Audio** in the chat sidebar. Starting it calls the
+Toby.app exposes **Record Audio** in the main-window toolbar. Starting it calls the
 app's own native localhost API and captures the sources selected in config
 (`listen.recordMic` / `listen.recordSystem`, both default **on**) in the
 Toby.app process. This keeps Microphone and Screen/System Audio permission tied
@@ -62,7 +62,7 @@ In the **Recordings** inspector, playback can switch between **System**,
 Stopping performs these steps:
 
 1. Toby.app immediately leaves live-capture chrome (red pulse / Stop control)
-   and shows a **processing** state (toast, toolbar, sidebar, menu bar, Dock).
+   and shows a **processing** state (toast, toolbar, menu bar, Dock).
    Extra Stop / Record clicks are ignored until processing finishes so they
    cannot start a second take.
 2. `NativeAudioHandler` stops capture, then validates source files and exports
@@ -81,8 +81,7 @@ Stopping performs these steps:
    the **Recordings** window.
 
 The Recordings window fetches list and detail data from the daemon. Reselecting
-**Recordings** in the workspace dropdown clears the current selection and shows
-a card overview of saved recordings. While a
+**Recordings** in the destination list clears the current selection. While a
 recording is in progress, the detail pane shows live capture metadata and a
 **Stop Recording** control that uses the same stop path as the toolbar and
 menu bar. After stop, while combine / transcription is still running, the

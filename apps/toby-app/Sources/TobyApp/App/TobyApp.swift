@@ -236,6 +236,12 @@ struct TobyApp: App {
 				}
 
 				OpenMemoriesMenuItem()
+
+				Divider()
+
+				Button("Connection Status…") {
+					NotificationCenter.default.post(name: .openConnectionStatus, object: nil)
+				}
 			}
 
 			CommandGroup(replacing: .help) {

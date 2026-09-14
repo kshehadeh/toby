@@ -180,8 +180,7 @@ four-point grid.
 | Tile | concentric, minimum 12; 14 inset |
 | Row/button | 8–9 radius |
 | Standard control | 6 radius, 24 height |
-| Sidebar workspace menu | 19pt bold current-route title, chevron, system menu |
-| Main sidebar | 250 minimum; implementation decides its resizable maximum |
+| Main sidebar | Native `List(selection:)` with `.sidebar` style; 250pt minimum. Destinations only — not a recents feed. Compact persona footer. |
 
 Flat content cards have no shadow. The Input Dock, toast, and command palette
 are floating functional chrome: use `.glassEffect` (regular, interactive where
@@ -229,7 +228,7 @@ source path and behavior, not the Figma geometry, define their contract.
 | Core | **Button**: bordered/default, prominent single primary action, plain accent text, destructive. **Icon button**: 26pt target where used, labelled. **Badge/Chip**: quiet compact metadata; chip can remove an attachment. **Progress**: communicate bounded work only. |
 | Settings forms | **SettingsCard** owns card fill/border. **SettingsRow** owns 42pt minimum height and optional final-divider omission. **SectionHeader**, select, inline field, toggle, action/destructive buttons use the existing controls. |
 | Feedback | **InlineStatusMessage** is persistent local success/error feedback. **Toast** is global, transient feedback; it pauses its 4s timer on hover and may offer one action. **Skeleton** preserves the eventual layout while loading. |
-| Navigation | **SidebarSection/row** retains selection and muted-to-primary hover hierarchy. Sidebar columns use system glass, not `AppTheme.sidebarBackground`. **PersonaFooter** owns persona attention behavior. |
+| Navigation | **Destination list** (`List(selection:)` + `.sidebar`) is the global sidebar: Home, Chats, Projects, Recordings, then Automation (Schedules, Flows) and Tools (Skills, Integrations). System selection, semantic secondary icon tint, no per-category colors or timestamps. **PersonaFooter** is a single-line persona control; model name lives in the picker popover. Connection recovery is labelled and hidden when healthy. |
 | Chat | **InputDock** owns send/cancel, attachments, context gauge, keyboard return handling, focus, and floating Liquid Glass geometry. **UserMessage**, **AssistantMessage**, and **WorkStepRow** keep transcript roles visually distinct. |
 | Dashboard | **DashboardCard** is flat with a 2pt accent cap and ghost glyph. **CardSection** holds uppercase metadata plus answer-like prose. **Flow runner** presents actions. **OnboardingTile** makes an explicit setup action available. |
 
@@ -264,7 +263,7 @@ Every feature must deliberately model these applicable states:
 | Refreshing | Keep existing content visible; scope the progress indicator to the control/card doing work. |
 | Unavailable | Use `ContentUnavailableView` for a whole surface; include a readable cause and recovery action where one exists. |
 | Empty | Explain the next action, not merely that a list has zero rows. |
-| Selected | Hold the neutral or destination-color selection wash. Do not rely on hover to communicate current selection. |
+| Selected | Global sidebar rows use the system selected-row treatment (including inactive-window). Do not paint `AppTheme.selection` or accent washes on destination rows. Feature lists in content may keep their existing selection recipe. Do not rely on hover to communicate current selection. |
 | Hover | Use the existing neutral or own-hue wash and text promotion. Do not change layout or add a press-scale. |
 | Disabled | Keep the control visible but use the component’s muted treatment and supply a useful help/accessibility explanation when the reason is non-obvious. |
 | Streaming / in progress | Keep the current response/work step visible, expose Cancel when cancellation is meaningful, and avoid resetting scroll or focus. |
@@ -322,11 +321,11 @@ Choose an existing archetype instead of inventing a one-off shell.
 
 | Archetype | Contract |
 | --- | --- |
-| Main app shell | `NavigationSplitView` in a standard titled window: sidebar owns status, route-local content, workspace menu, persona footer on system glass (no custom fill); detail owns its scrolling/content background. Toolbar items group on glass; do not paint a principal-title capsule. |
-| Dashboard | 24pt content inset, greeting, optional onboarding, adaptive cards (280pt minimum item width/20pt gap), optional resizable actions inspector. Cards remain aligned at 340pt collapsed height. |
-| Chat workspace | Empty workspace centers persona/greeting/dock/suggestions. Active workspace stacks a virtualized transcript behind a bottom-pinned dock, with 18pt bottom gutter and measured transcript reservation. User content maxes at 520pt, assistant/work content at 640pt. |
+| Main app shell | `NavigationSplitView` in a standard titled window: sidebar is a stable destination list plus compact persona footer on system glass (no custom fill); detail owns the selected workspace. Back/Forward sit with the sidebar toggle. Record, Search, Settings, and route actions sit in the trailing toolbar. Do not paint a principal-title capsule. |
+| Dashboard | 24pt content inset, greeting, optional onboarding, adaptive cards (280pt minimum item width/20pt gap), optional resizable actions inspector. Cards remain aligned at 340pt collapsed height. Home has no recent-item list in the global sidebar. |
+| Chat workspace | Shared `FeatureWorkspaceSplit`: conversation list beside the transcript when the detail column is wide; list **or** transcript at narrow widths, with an explicit return-to-chats control. Empty workspace centers persona/greeting/dock/suggestions. Active workspace stacks a virtualized transcript behind a bottom-pinned dock, with 18pt bottom gutter and measured transcript reservation. User content maxes at 520pt, assistant/work content at 640pt. |
 | Settings-style detail | Settings canvas with left-aligned form content normally capped at 640pt. Settings cards use standard rows and hairlines. |
-| Browse and inspect | Use the relevant feature’s split view/inspector. Preserve selection while async data reloads. Integrations home uses adaptive 240–360pt cards inside a 980pt cap. |
+| Browse and inspect | Same `FeatureWorkspaceSplit` as Chats: a second list column (`FeatureBrowserList`, 10pt horizontal inset) plus selected detail. Unselected detail is `FeatureBrowserPlaceholder` (type icon + select/create copy). Do not use card-grid overviews. Preserve trailing inspectors (project files/chats). |
 | Preferences window | Separate Settings window: `NavigationSplitView` sidebar + grouped `Form` detail. Hierarchical sections (e.g. AI providers) are sidebar children. Do not add a custom icon-over-label tab strip. |
 | Command palette | Spotlight-like 560 × 420 floating `NSPanel`; keyboard-first, transparent surround, rounded card, dismissal on Escape, click-away, and deactivation. |
 | Modal/sheet | Native sheet/alert unless an existing dedicated window pattern applies. Destructive work states the consequence and offers Cancel plus destructive action. |

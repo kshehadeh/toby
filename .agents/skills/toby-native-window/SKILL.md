@@ -12,7 +12,7 @@ Add or modify native macOS windows in the Toby app (`apps/toby-app/`). The app u
 
 | Pattern | Examples | Key traits |
 | --- | --- | --- |
-| **Sidebar window** | Logs (secondary); Integrations / Schedules / Recordings in the main window | `NavigationSplitView` with a sidebar + detail pane. The sidebar toolbar must extend into the title bar so the stoplight appears as part of the sidebar. |
+| **Sidebar window** | Logs (secondary) | `NavigationSplitView` with a sidebar + detail pane. The sidebar toolbar must extend into the title bar so the stoplight appears as part of the sidebar. The main window uses a destination-list sidebar (`AppSidebar`); Integrations / Schedules / Recordings are detail workspaces. |
 | **Preferences window** | Settings | Separate window with a Liquid Glass sidebar + grouped `Form` detail. See `macos-settings-ui`. Do not add a custom icon-over-label tab strip. |
 | **Modal / sheet-like window** | Changelog, Issue Report | Fixed-size, non-resizable, only the red close button, traditional macOS title bar. |
 
@@ -42,7 +42,7 @@ Add or modify native macOS windows in the Toby app (`apps/toby-app/`). The app u
 - `apps/toby-app/Sources/TobyApp/UI/Platform/WindowAccessor.swift` — helper to access the underlying `NSWindow` for style changes.
 - `apps/toby-app/Sources/TobyApp/UI/Theme/AppTheme.swift` — sidebar/content colors and sizing constants.
 - `apps/toby-app/Sources/TobyApp/UI/Theme/SettingsDesign.swift` — canvas/card colors used by settings-style views.
-- `apps/toby-app/Sources/TobyApp/Features/Sidebar/AppSidebar.swift` — main chat sidebar (different from settings sidebars).
+- `apps/toby-app/Sources/TobyApp/Features/Sidebar/AppSidebar.swift` — main destination list + compact persona footer (different from settings sidebars).
 - `apps/toby-app/Sources/TobyApp/Features/Configure/SettingsWindowView.swift` — Settings preferences window.
 - `apps/toby-app/Sources/TobyApp/Features/Configure/SettingsHierarchySidebarView.swift` — nested section list (e.g. AI providers).
 

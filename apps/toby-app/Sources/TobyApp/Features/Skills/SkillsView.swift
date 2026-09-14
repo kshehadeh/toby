@@ -2,9 +2,25 @@ import SwiftUI
 
 struct SkillsView: View {
 	@Bindable var store: SkillsStore
+	@State private var preferList = false
 
 	var body: some View {
-		SkillsDetailView(store: store)
+		FeatureWorkspaceSplit(
+			listTitle: "Skills",
+			isShowingList: preferList || store.selectedSkill == nil,
+			onShowList: { preferList = true }
+		) {
+			SkillsSidebarView(store: store, onDelete: { item in
+				store.pendingDelete = SkillsStore.PendingDelete(
+					dirName: item.dirName, name: item.name
+				)
+			})
+		} detail: {
+			SkillsDetailView(store: store)
+		}
+		.onChange(of: store.selectedSkillId) { _, id in
+			if id != nil { preferList = false }
+		}
 		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.ensureLoaded()

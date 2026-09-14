@@ -3,7 +3,7 @@ import SwiftUI
 struct SidebarFooter: View {
 	let status: AppStatus?
 	@Binding var isPersonaPickerPresented: Bool
-	/// Soft accent pulse around the persona control (e.g. onboarding CTA).
+	/// Quiet accent emphasis around the persona control (e.g. onboarding CTA).
 	var isAttentionHighlighted: Bool = false
 	/// When true, the open popover emphasizes “Add New Persona…”.
 	var emphasizeCreatePersona: Bool = false
@@ -11,7 +11,7 @@ struct SidebarFooter: View {
 	let onEditPersona: (String) -> Void
 	let onPersonaSelected: () -> Void
 
-	@State private var attentionPulse = false
+	@Environment(\.accessibilityReduceMotion) private var reduceMotion
 
 	var body: some View {
 		Button {
@@ -21,19 +21,14 @@ struct SidebarFooter: View {
 				if let imageUrlString = status?.personaImageUrl,
 					let imageUrl = URL(string: ConfigReader.baseURL().absoluteString + imageUrlString)
 				{
-					PersonaImageView(url: imageUrl, size: 32)
+					PersonaImageView(url: imageUrl, size: 24)
 				} else {
-					PersonaImageView(url: ConfigReader.baseURL().appendingPathComponent("api/personas/image/default.png"), size: 32)
+					PersonaImageView(url: ConfigReader.baseURL().appendingPathComponent("api/personas/image/default.png"), size: 24)
 				}
-				VStack(alignment: .leading, spacing: 4) {
-					Text(status?.persona ?? "Connecting")
-						.font(.callout)
-						.foregroundStyle(AppTheme.primaryText)
-					Text(status?.model ?? "Waiting for daemon")
-						.font(.caption)
-						.foregroundStyle(AppTheme.tertiaryText)
-						.lineLimit(1)
-				}
+				Text(status?.persona ?? "Connecting")
+					.font(.body)
+					.foregroundStyle(AppTheme.primaryText)
+					.lineLimit(1)
 				Spacer(minLength: 0)
 				Image(systemName: "chevron.up.chevron.down")
 					.accessibilityLabel("Switch persona")
@@ -44,38 +39,20 @@ struct SidebarFooter: View {
 			.contentShape(Rectangle())
 		}
 		.buttonStyle(.plain)
-		.padding(8)
+		.padding(.horizontal, 8)
+		.padding(.vertical, 6)
 		.background(
 			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
 				.fill(footerFill)
 		)
 		.overlay {
 			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
-				.stroke(attentionStrokeColor, lineWidth: isAttentionHighlighted ? 2 : 0)
-				.shadow(color: attentionGlowColor, radius: attentionPulse ? 14 : 8)
-		}
-		.scaleEffect(isAttentionHighlighted && attentionPulse ? 1.03 : 1.0)
-		.animation(
-			isAttentionHighlighted
-				? .easeInOut(duration: 0.85).repeatForever(autoreverses: true)
-				: .easeOut(duration: 0.25),
-			value: attentionPulse
-		)
-		.animation(.easeOut(duration: 0.2), value: isAttentionHighlighted)
-		.onChange(of: isAttentionHighlighted) { _, highlighted in
-			if highlighted {
-				attentionPulse = false
-				// Kick the repeating pulse on the next runloop so animation attaches.
-				DispatchQueue.main.async {
-					attentionPulse = true
-				}
-			} else {
-				attentionPulse = false
-			}
+				.stroke(attentionStrokeColor, lineWidth: isAttentionHighlighted ? 1.5 : 0)
 		}
 		.popover(isPresented: $isPersonaPickerPresented, arrowEdge: .bottom) {
 			PersonaPickerPopover(
 				currentPersona: status?.persona,
+				model: status?.model,
 				emphasizeCreate: emphasizeCreatePersona,
 				onCreatePersona: {
 					isPersonaPickerPresented = false
@@ -95,25 +72,21 @@ struct SidebarFooter: View {
 		.accessibilityValue(status?.persona ?? "Connecting")
 		.accessibilityIdentifier("sidebar-persona-footer")
 		.accessibilityAddTraits(isAttentionHighlighted ? .isSelected : [])
+		.accessibilityHint(isAttentionHighlighted ? "Set up a persona to finish onboarding" : "Switch persona")
 	}
 
 	private var footerFill: Color {
 		if isPersonaPickerPresented {
-			return AppTheme.selection
+			return Color.accentColor.opacity(0.14)
 		}
 		if isAttentionHighlighted {
-			return AppTheme.accent.opacity(attentionPulse ? 0.18 : 0.10)
+			return AppTheme.accent.opacity(reduceMotion ? 0.12 : 0.16)
 		}
 		return Color.clear
 	}
 
 	private var attentionStrokeColor: Color {
 		guard isAttentionHighlighted else { return .clear }
-		return AppTheme.accent.opacity(attentionPulse ? 0.95 : 0.45)
-	}
-
-	private var attentionGlowColor: Color {
-		guard isAttentionHighlighted else { return .clear }
-		return AppTheme.accent.opacity(attentionPulse ? 0.70 : 0.30)
+		return AppTheme.accent.opacity(reduceMotion ? 0.55 : 0.75)
 	}
 }

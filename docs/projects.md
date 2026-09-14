@@ -47,21 +47,19 @@ Active project slug is stored in config via `getActiveProjectSlug` /
 Chat sessions and schedules can also reference a `project_id`.
 
 There is **no** terminal `/project` or `/config` slash-command UI; interactive
-management lives in Toby.app. The Home sidebar lists the five most recently
-updated projects; selecting one opens that project’s details page. The Projects
-sidebar lists each project (name, chat count, persona). Selecting a project
+management lives in Toby.app. The global sidebar is a destination list; **Projects**
+opens a list of every project beside the project page. Selecting a project
 opens a details page in the main pane (metadata, file tree, and a trailing
-Chats sidebar listing every project chat). Right-click a project to open any of
+Chats inspector listing every project chat). Right-click a project in the list to open any of
 its ten most recently updated chats directly. File → **New Chat** (⌘N) starts a
 new chat in the selected project. The main-window toolbar is context-sensitive:
 **+** (new project) when nothing is selected; **+ Chat** and **Delete** on a
 project page, plus a trailing-sidebar toggle for the project's Chats inspector.
 Clicking
-**Projects** shows all projects as cards, or an empty state if none exist.
-Project chats are not listed in the Chats sidebar and never appear in the main
-Chats view — open them from the project. While a project chat is open, the
-toolbar shows a folder icon and a control to return to the project page, and the
-project stays highlighted in the sidebar. Project chats also open a trailing
+**Projects** again in the destination list clears the selection.
+Project chats are not listed in the main Chats workspace — open them from the project. While a project chat is open, the
+toolbar shows a folder icon and a control to return to the project page.
+Project chats also open a trailing
 **Files** inspector by default. Its toolbar button hides or shows the inspector;
 the tree refreshes while the chat runs and briefly labels added, updated, and
 deleted entries. Clicking a file opens a Quick Look preview (falling back to the

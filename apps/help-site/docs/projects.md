@@ -36,15 +36,15 @@ In Toby.app, open **Projects** from the sidebar and click **+** in the toolbar (
 
 ## Project workspace
 
-On **Home**, the left sidebar lists the five most recently updated projects.
+Open **Projects** in the sidebar to see every project in a list.
 Click one to open its project page.
 
 The Projects area has a sidebar list and a main page:
 
 | Area | What it does |
 | ---- | ------------ |
-| Project sidebar | Lists each project by name, with chat count and persona underneath. Select a project to open it. Right-click a project to choose from its ten most recently updated chats and open one directly. Press ⌘N while a project is selected to start a new project chat. Click **Projects** to return to the all-projects view. |
-| All projects | Shown when nothing is selected. Projects appear as cards, or an empty state with **Create Project** if you have none yet. The toolbar **+** creates a new project. |
+| Project sidebar | Lists each project by name, with chat count and persona underneath. Select a project to open it. Right-click a project to choose from its ten most recently updated chats and open one directly. Press ⌘N while a project is selected to start a new project chat. Click **Projects** again to clear the selection. |
+| No selection | Shown when nothing is selected. The detail pane asks you to select a project or create a new one. The toolbar **+** also creates a new project. |
 | Project page | The selected project's details: name, summary, persona, folder path, and file tree. A **Chats** sidebar on the right lists every project chat — click one to resume it, or use **+ Chat** in the toolbar to start a new one. The toolbar also shows **Delete** and a button to hide or show the Chats sidebar. |
 | Project chat | Opens in the main area when you start or resume a project chat. Project chats never appear in the Chats sidebar or the main Chats view — open them from the project. New chats show **New “Project Name” Chat** with a project folder and the active persona. A Files sidebar opens on the right and refreshes as the chat creates, updates, or deletes files. Changed files are briefly labeled, including recently deleted files. Use the toolbar Files button to hide or show it. The toolbar also shows a folder icon and a **Back to Project** button; the project stays highlighted in the sidebar. Select the project or use that button to return to its details. |
 

@@ -95,17 +95,14 @@ struct ProjectsViewTests {
 		store.hasLoadedOnce = true
 		let view = ProjectsView(projectsStore: store, chatStore: ChatStore())
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "projects-empty-state")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-placeholder")
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "empty-create-project-button")
 		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Create Project")
-		}
 	}
 
-	@Test("projects index shows cards when none is selected")
+	@Test("projects list shows names when none is selected")
 	func indexShowsProjectCards() throws {
 		let store = ProjectsStore()
 		store.projects = [
@@ -116,12 +113,12 @@ struct ProjectsViewTests {
 			"proj-1": [sampleSession(id: "s1", name: "Monday recap")],
 			"proj-2": [],
 		]
-		let view = ProjectsIndexView(
+		let view = ProjectsSidebarView(
 			store: store,
 			onSelect: { _ in }
 		)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "projects-home-view")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-list")
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Weekly Overview")

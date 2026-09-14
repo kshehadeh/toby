@@ -11,6 +11,27 @@ struct RootToolbarsTests {
 		#expect(RootToolbars.recordingsDeleteHelp(selectedCount: 3) == "Delete 3 Recordings")
 	}
 
+	@Test("updateHelp names the available version")
+	func updateHelpNamesVersion() {
+		let model = RootCommonToolbarModel(
+			isRecordingActive: false,
+			isRecordButtonDisabled: false,
+			canGoBack: false,
+			canGoForward: false,
+			isUpdateAvailable: true,
+			latestVersion: "1.2.4",
+			onToggleRecording: {},
+			onSearch: {},
+			onOpenSettings: {},
+			onBack: {},
+			onForward: {}
+		)
+		#expect(RootToolbars.updateHelp(model: model) == "Update to v1.2.4 is available")
+		var upgrading = model
+		upgrading.isUpgrading = true
+		#expect(RootToolbars.updateHelp(model: upgrading) == "Updating Toby")
+	}
+
 	@Test("dashboardUpdatedText empty when never loaded")
 	func dashboardUpdatedTextEmpty() {
 		#expect(RootToolbars.dashboardUpdatedText(lastLoadedAt: nil).isEmpty)

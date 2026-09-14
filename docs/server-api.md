@@ -288,7 +288,7 @@ belong to the app bundle, then returns to this daemon API for transcription and
 browsing.
 
 The native app also uses the recordings list endpoint during its shared
-post-bootstrap preload so dashboard counts, global sidebars, and the command
+post-bootstrap preload so dashboard counts, feature workspaces, and the command
 palette have recording summaries before the Recordings view is opened.
 
 ### `GET /api/listen/status`
@@ -938,7 +938,7 @@ type ModulesResponse = {
 Returns local skills.
 
 Toby.app uses this list during shared post-bootstrap preload for dashboard
-counts, the Skills sidebar and card overview, and command-palette search.
+counts, the Skills workspace list, and command-palette search.
 Individual skill bodies are fetched separately when a skill is selected; the
 overview toolbar creates new skills through the configure action endpoint.
 
@@ -954,7 +954,7 @@ type SkillsResponse = {
 ## Memories
 
 The native app uses the memories list endpoint during shared post-bootstrap
-preload for dashboard counts, global sidebars, and command-palette search.
+preload for dashboard counts, the Memories window, and command-palette search.
 Memory detail and explanation endpoints remain lazy and are fetched when a
 specific memory is selected.
 

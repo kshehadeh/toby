@@ -53,23 +53,23 @@ struct FlowsViewTests {
 		let store = FlowsStore()
 		let view = FlowsDetailView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Flows")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-placeholder")
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "flows-empty-state")
 		}
 	}
 
-	@Test("flows home shows cards for listed flows")
+	@Test("flows list shows names for listed flows")
 	func flowsHomeShowsCards() throws {
 		let store = FlowsStore()
 		store.flows = [
 			sampleFlow(id: "dashboard.email.summary"),
 			sampleFlow(id: "dashboard.tasks.summary", description: "Fetch open tasks and summarize them."),
 		]
-		let view = FlowsHomeView(store: store)
+		let view = FlowsSidebarView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "flows-home-view")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-list")
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Email Summary")

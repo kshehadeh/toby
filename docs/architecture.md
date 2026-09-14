@@ -128,8 +128,8 @@ Toby.app owns long-lived SwiftUI stores at the root scene level and preloads
 shared list/index data only after daemon bootstrap succeeds. Home **dashboard
 cards** (email / tasks / calendar) load via `DashboardStore` once the daemon is
 ready (soft load) or on toolbar/card refresh (force); see
-[`dashboard.md`](dashboard.md). Other dashboard metrics, the dashboard sidebar,
-top-level sidebars, and the command palette read from shared list stores instead
+[`dashboard.md`](dashboard.md). Other dashboard metrics, feature workspaces,
+and the command palette read from shared list stores instead
 of relying on each feature view to hit the daemon
 first.
 

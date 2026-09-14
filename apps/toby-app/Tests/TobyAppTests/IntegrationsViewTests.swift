@@ -107,19 +107,17 @@ struct IntegrationsViewTests {
 		#expect(throws: Never.self) { try view.inspect().find(IntegrationsDetailView.self) }
 	}
 
-	@Test("unselected integrations show cards")
+	@Test("unselected integrations show a placeholder")
 	func unselectedIntegrationsShowCards() throws {
 		let store = ConfigureStore()
 		store.tree = makeTree()
 		let view = IntegrationsDetailView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "integrations-home-view")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-placeholder")
 		}
+		let list = IntegrationsSidebarView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "integration-card-gmail")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Todoist")
+			try list.inspect().find(text: "Todoist")
 		}
 	}
 

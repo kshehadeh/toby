@@ -28,6 +28,23 @@ enum ServerHealth: String {
 		}
 		return label
 	}
+
+	static func resolve(
+		status: AppStatus?,
+		daemonStatus: DaemonStatus?,
+		isRestarting: Bool,
+		isConnecting: Bool
+	) -> ServerHealth {
+		if isRestarting || isConnecting { return .starting }
+		if status != nil { return .connected }
+		if daemonStatus?.process != nil { return .starting }
+		return .offline
+	}
+}
+
+enum ServerStatusButtonStyle {
+	case dot
+	case labeled
 }
 
 struct ServerStatusButton: View {
@@ -36,6 +53,7 @@ struct ServerStatusButton: View {
 	let isRestarting: Bool
 	var isConnecting: Bool = false
 	var lifecycleMessage: String? = nil
+	var style: ServerStatusButtonStyle = .dot
 	let onRestart: () -> Void
 	@State private var isPresented = false
 	@State private var isServerInfoPresented = false
@@ -43,31 +61,54 @@ struct ServerStatusButton: View {
 	@State private var isHovered = false
 
 	private var health: ServerHealth {
-		if isRestarting || isConnecting { return .starting }
-		if status != nil { return .connected }
-		if daemonStatus?.process != nil { return .starting }
-		return .offline
+		ServerHealth.resolve(
+			status: status,
+			daemonStatus: daemonStatus,
+			isRestarting: isRestarting,
+			isConnecting: isConnecting
+		)
 	}
 
 	var body: some View {
 		Button {
 			isPresented.toggle()
 		} label: {
-			Circle()
-				.fill(health.color)
-				.frame(width: 10, height: 10)
-				.overlay(
+			switch style {
+			case .dot:
+				Circle()
+					.fill(health.color)
+					.frame(width: 10, height: 10)
+					.overlay(
+						Circle()
+							.stroke(health.color.opacity(isHovered ? 0.35 : 0), lineWidth: 4)
+							.scaleEffect(isHovered ? 1.8 : 1)
+					)
+					.padding(8)
+					.background(
+						Circle()
+							.fill(AppTheme.primaryText.opacity(isHovered ? 0.1 : 0))
+					)
+					.contentShape(Circle())
+					.animation(.easeInOut(duration: 0.15), value: isHovered)
+			case .labeled:
+				HStack(spacing: 8) {
 					Circle()
-						.stroke(health.color.opacity(isHovered ? 0.35 : 0), lineWidth: 4)
-						.scaleEffect(isHovered ? 1.8 : 1)
-				)
-				.padding(8)
+						.fill(health.color)
+						.frame(width: 8, height: 8)
+					Text(health.displayLabel(lifecycleMessage: lifecycleMessage))
+						.font(.caption)
+						.foregroundStyle(AppTheme.secondaryText)
+						.lineLimit(1)
+					Spacer(minLength: 0)
+				}
+				.padding(.horizontal, 8)
+				.padding(.vertical, 6)
 				.background(
-					Circle()
-						.fill(AppTheme.primaryText.opacity(isHovered ? 0.1 : 0))
+					RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
+						.fill(AppTheme.primaryText.opacity(isHovered ? 0.08 : 0.04))
 				)
-				.contentShape(Circle())
-				.animation(.easeInOut(duration: 0.15), value: isHovered)
+				.contentShape(Rectangle())
+			}
 		}
 		.buttonStyle(.plain)
 		.onHover { isHovered = $0 }

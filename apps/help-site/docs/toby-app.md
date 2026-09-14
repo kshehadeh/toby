@@ -53,23 +53,27 @@ two words or sentence punctuation.
 
 ## Surfaces
 
-Use the workspace dropdown beneath the sidebar header to switch between Toby.app's primary workspaces. Memories opens as a separate window from the View menu, command palette, or Home recent-memories list.
-
-![Toby.app workspace dropdown](/img/toby-app-workspace-menu.png)
+Use the sidebar destination list to switch between Toby.app's primary workspaces:
+Home, Chats, Projects, and Recordings, then **Automation** (Schedules, Flows) and
+**Tools** (Skills, Integrations). Memories opens as a separate window from the
+View menu, command palette, or menu bar — not as a main-window route.
 
 ### Home
 
 **Home** is the landing surface. It shows unread mail, open tasks, and upcoming
 events when the matching integrations are connected, plus any custom flows you
-pin to the dashboard. The left sidebar lists recent chats, projects, recordings,
-and memories.
+pin to the dashboard. Browse chats, projects, recordings, and memories from
+those workspaces (or the Memories window), not from a recents feed in the
+sidebar.
 
 ![Toby.app Home](/img/toby-app-home.png)
 
 ### Chat
 
-The main window is where you interact with Toby. It shows your conversation
-history, streaming responses, and a prompt input at the bottom. Markdown
+The **Chats** workspace is where you interact with Toby. A conversation list sits
+beside the transcript when the window is wide; at narrower widths, use **Chats**
+to return to the list. The transcript shows streaming responses and a prompt
+input at the bottom. Markdown
 images in replies render as photos you can click to open in the browser.
 Generated files appear as a chip with **Download** (copy to your Downloads
 folder) and **Open**.
@@ -78,33 +82,32 @@ folder) and **Open**.
 
 ### Recordings
 
-The Recordings window lists your past recordings with metadata such as start
-time, duration, and transcription status. Choose **Recordings** from the
-workspace dropdown to return to its card overview, then select a recording to view
-its transcript, generate an AI summary, or start a chat about it.
+The Recordings workspace lists your past recordings in a second column. Select a
+recording to view its transcript, generate an AI summary, or start a chat about it.
+Choose **Recordings** in the sidebar again to clear the selection.
 
 ![Toby.app Recordings window](/img/toby-app-recordings.png)
 
 ### Integrations
 
-The Integrations window opens with cards for every available integration. Click
-a card or sidebar row to view connection status, setup instructions, and
-configuration.
+The Integrations workspace lists every available integration in a second column. Click
+one to view connection status, setup instructions, and
+configuration. Click **Integrations** in the sidebar again to clear the selection.
 
 ![Toby.app Integrations window](/img/toby-app-integrations.png)
 
 ### Projects
 
-The Projects area lists each project in the sidebar. Select one to open its
-page in the main window: edit the summary or persona, reveal the project
-folder, and inspect the generated file tree. A **Chats** sidebar on the right
+The Projects workspace lists each project in a second column. Select one to open its
+page: edit the summary or persona, reveal the project
+folder, and inspect the generated file tree. A **Chats** inspector on the right
 lists the project's chats — click one to resume it, or use **+ Chat** in the
-toolbar to start a new one (the toolbar also hides or shows that sidebar).
+toolbar to start a new one (the toolbar also hides or shows that inspector).
 The toolbar shows **+** (new project) when nothing is selected, and **+ Chat**
-plus **Delete** on a project page. Choose **Projects** from the
-workspace dropdown to see every project as cards. Home also lists the five most recently
-updated projects in its left sidebar. Project chats stay in Projects: they
-never appear in the Chats sidebar or the main Chats view. While a project chat
+plus **Delete** on a project page. Choose **Projects** in the sidebar
+again to clear the selection. Right-click a project in the list for recent chats or
+delete. Project chats stay in Projects: they
+never appear in the main Chats list. While a project chat
 is open, a folder icon marks the chat and a toolbar button returns you to the
 project page.
 
@@ -112,7 +115,7 @@ project page.
 
 ### Skills
 
-The Skills area lists each skill in the sidebar. Select one to open its page:
+The Skills workspace lists each skill in a second column. Select one to open its page:
 rename it from the title, click the icon to change it, and edit the summary,
 enabled state, and instructions in the main pane. Use **New Skill** in the
 toolbar while viewing the overview to create one. You can also delete skills
@@ -215,9 +218,7 @@ status cues) across Toby.app windows. Same preset in light and dark.
 
 The **Home** surface shows unread mail, open tasks, and upcoming
 events (when the matching integrations are connected), plus any **custom
-flows** you associated with a Dashboard destination. The left sidebar lists
-recent chats, the five most recently updated projects, recent recordings, and
-recent memories; click a project to open it. Built-in cards have a
+flows** you associated with a Dashboard destination. Built-in cards have a
 fixed title and actions, plus a short summary body generated from your
 connected integrations. **Informational** flow cards work the same way and
 show the last run’s output. **Runner only** flows appear in an **Actions**

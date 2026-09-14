@@ -87,9 +87,9 @@ When the daemon is running, every poll interval it:
 Schedule execution is logged under category `scheduler` in the unified log (`source: "daemon"`, `schedule_run_start`, `schedule_run_complete`, `schedules_fired`, etc.).
 
 User-facing setup: [help-site schedules doc](../apps/help-site/docs/schedules.md).
-In Toby.app, the Schedules sidebar entry opens an all-schedules card overview;
-select a card or sidebar row to edit that schedule, or use the overview toolbar
-to create a schedule.
+In Toby.app, **Schedules** in the destination list opens a schedule list beside
+the editor; select a row to edit that schedule, or use the toolbar
+to create a schedule. Click **Schedules** again to clear the selection.
 
 ## Chat inbound
 

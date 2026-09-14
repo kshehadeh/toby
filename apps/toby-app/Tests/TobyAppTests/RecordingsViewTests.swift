@@ -581,7 +581,7 @@ struct RecordingsViewTests {
 		store.selectedRecordingIds = []
 		let view = RecordingsView(store: store, onStartRecording: {})
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Recordings")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-placeholder")
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "empty-start-recording-button")
@@ -605,14 +605,15 @@ struct RecordingsViewTests {
 		store.recordings = [makeRecording(id: "r1", name: "One")]
 		store.selectedRecordingIds = []
 		let view = RecordingsView(store: store, onStartRecording: {})
-		#expect(throws: Error.self) {
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-placeholder")
+		}
+		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "empty-start-recording-button")
 		}
+		let list = RecordingsSidebarView(store: store, onDeleteRecording: { _ in })
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "recordings-home-view")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "recording-card-r1")
+			try list.inspect().find(text: "One")
 		}
 	}
 

@@ -7,62 +7,48 @@ struct ProjectsSidebarView: View {
 	var onDelete: ((ProjectSummary) -> Void)? = nil
 
 	var body: some View {
-		VStack(alignment: .leading, spacing: 0) {
-			ScrollView {
-				LazyVStack(alignment: .leading, spacing: 2) {
-					if store.isLoading && store.projects.isEmpty {
-						Text("Loading projects…")
-							.font(.caption)
-							.foregroundStyle(AppTheme.tertiaryText)
-							.padding(10)
-					} else if store.projects.isEmpty {
-						Text("No projects")
-							.font(.caption)
-							.foregroundStyle(AppTheme.tertiaryText)
-							.padding(10)
-					} else {
-						ForEach(store.projects) { project in
-							Button {
-								onSelect(project.id)
-							} label: {
-								ProjectSidebarRow(
-									project: project,
-									metaLine: store.metaLine(for: project),
-									isSelected: store.selectedProjectId == project.id,
-									isActiveChat: store.isShowingChat
-										&& store.selectedProjectId == project.id,
-								)
-							}
-							.buttonStyle(.plain)
-							.contextMenu {
-								let recentChats = store.recentSessions(for: project.id, limit: 10)
-								Section("Recent Chats") {
-									if recentChats.isEmpty {
-										Button("No chats yet") {}
-											.disabled(true)
-									} else {
-										ForEach(recentChats) { session in
-											Button {
-												onSelectChat(project, session.id)
-											} label: {
-												Label(session.name, systemImage: "bubble.left")
-											}
-										}
-									}
-								}
-								if let onDelete {
-									Divider()
-									Button("Delete Project", systemImage: "trash", role: .destructive) {
-										onDelete(project)
-									}
+		FeatureBrowserList(
+			isLoading: store.isLoading,
+			isEmpty: store.projects.isEmpty,
+			loadingText: "Loading projects…",
+			emptyText: "No projects"
+		) {
+			ForEach(store.projects) { project in
+				Button {
+					onSelect(project.id)
+				} label: {
+					ProjectSidebarRow(
+						project: project,
+						metaLine: store.metaLine(for: project),
+						isSelected: store.selectedProjectId == project.id,
+						isActiveChat: store.isShowingChat
+							&& store.selectedProjectId == project.id,
+					)
+				}
+				.buttonStyle(.plain)
+				.contextMenu {
+					let recentChats = store.recentSessions(for: project.id, limit: 10)
+					Section("Recent Chats") {
+						if recentChats.isEmpty {
+							Button("No chats yet") {}
+								.disabled(true)
+						} else {
+							ForEach(recentChats) { session in
+								Button {
+									onSelectChat(project, session.id)
+								} label: {
+									Label(session.name, systemImage: "bubble.left")
 								}
 							}
 						}
 					}
+					if let onDelete {
+						Divider()
+						Button("Delete Project", systemImage: "trash", role: .destructive) {
+							onDelete(project)
+						}
+					}
 				}
-				.frame(maxWidth: .infinity, alignment: .leading)
-				.padding(.horizontal, 8)
-				.padding(.top, 8)
 			}
 		}
 	}

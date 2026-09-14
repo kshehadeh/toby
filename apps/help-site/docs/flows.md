@@ -39,7 +39,7 @@ Open **Toby.app** and choose **Flows** from the sidebar (or the View menu / menu
 
 From there you can:
 
-- See **all flows** as cards on the home screen
+- See **all flows** in the workspace list
 - Select a flow to inspect its **steps** (tool + model nodes)
 - Review **recent runs** and open a run for status, timing, and per-step detail
 
@@ -47,7 +47,7 @@ Built-in flows are labeled and are **read-only** in the UI.
 
 ## Create your own flow
 
-Choose **New flow** from the Flows sidebar or the toolbar.
+Choose **New flow** from the toolbar.
 
 1. Give the flow a name and choose an icon from Toby's SF Symbol picker. The
    icon identifies the flow throughout Flows, schedules, and Home dashboard

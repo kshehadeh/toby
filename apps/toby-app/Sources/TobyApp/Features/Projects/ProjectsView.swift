@@ -3,14 +3,41 @@ import SwiftUI
 struct ProjectsView: View {
 	@Bindable var projectsStore: ProjectsStore
 	@Bindable var chatStore: ChatStore
+	@State private var preferList = false
 
 	var body: some View {
-		Group {
+		FeatureWorkspaceSplit(
+			listTitle: "Projects",
+			isShowingList: preferList || projectsStore.selectedProject == nil,
+			onShowList: { preferList = true }
+		) {
+			ProjectsSidebarView(
+				store: projectsStore,
+				onSelect: { id in
+					Task { await projectsStore.selectProject(id: id) }
+				},
+				onSelectChat: { project, sessionId in
+					Task {
+						await projectsStore.selectProject(id: project.id)
+						await projectsStore.selectChat(id: sessionId, chatStore: chatStore)
+					}
+				},
+				onDelete: { project in
+					projectsStore.pendingDelete = ProjectsStore.PendingDelete(
+						projectId: project.id,
+						name: project.name,
+					)
+				}
+			)
+		} detail: {
 			if projectsStore.isShowingChat, projectsStore.selectedProject != nil {
 				projectChat
 			} else {
 				projectsWorkspace
 			}
+		}
+		.onChange(of: projectsStore.selectedProjectId) { _, id in
+			if id != nil { preferList = false }
 		}
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
 		.task {
@@ -86,22 +113,13 @@ struct ProjectsView: View {
 				)
 			}
 			.id(project.id)
-		} else if projectsStore.projects.isEmpty {
-			ProjectsEmptyStateView(
-				isBusy: projectsStore.isLoading || projectsStore.isSaving,
-				onCreate: {
-					Task { await projectsStore.createProject() }
-				},
-			)
-			.background(SettingsDesign.canvasBackground)
 		} else {
-			ProjectsIndexView(
-				store: projectsStore,
-				onSelect: { id in
-					Task { await projectsStore.selectProject(id: id) }
-				},
+			FeatureBrowserPlaceholder(
+				systemImage: DetailRoute.projects.systemImage,
+				prompt: "Select a project",
+				onCreate: { Task { await projectsStore.createProject() } },
+				createAccessibilityIdentifier: "empty-create-project-button"
 			)
-			.background(SettingsDesign.canvasBackground)
 		}
 	}
 }

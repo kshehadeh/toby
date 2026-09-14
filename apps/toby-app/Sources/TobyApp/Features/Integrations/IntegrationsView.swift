@@ -2,9 +2,21 @@ import SwiftUI
 
 struct IntegrationsView: View {
 	@Bindable var store: ConfigureStore
+	@State private var preferList = false
 
 	var body: some View {
-		IntegrationsDetailView(store: store)
+		FeatureWorkspaceSplit(
+			listTitle: "Integrations",
+			isShowingList: preferList || store.selectedSection == nil,
+			onShowList: { preferList = true }
+		) {
+			IntegrationsSidebarView(store: store)
+		} detail: {
+			IntegrationsDetailView(store: store)
+		}
+		.onChange(of: store.selectedNavKey) { _, key in
+			if key != nil { preferList = false }
+		}
 		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.load()

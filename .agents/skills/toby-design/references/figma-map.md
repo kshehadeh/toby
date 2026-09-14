@@ -24,9 +24,10 @@ system.
 
 Figma represents 26 named families: Core (Button, Icon button, Badge, Chip,
 Progress); Settings forms (card, row, section header, field, select, toggle);
-Feedback (status, toast, skeleton); Navigation (section, row, action grid,
-persona footer); Chat (dock, user/assistant message, work step); Dashboard
-(card, card section, flow runner, onboarding tile).
+Feedback (status, toast, skeleton); Navigation (destination list, compact
+persona footer — the former action grid / workspace menu is retired); Chat
+(dock, user/assistant message, work step); Dashboard (card, card section,
+flow runner, onboarding tile).
 
 Button and Badge have native Figma variant sets. Other catalog items are
 Auto Layout components where useful. Their constraints, source code, and states

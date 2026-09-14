@@ -17,10 +17,7 @@ struct SkillsViewTests {
 		let store = SkillsStore()
 		let view = SkillsDetailView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Skills")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Skills are reusable instructions that teach Toby how to handle specialized work consistently across chats and automations.")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-placeholder")
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "empty-create-skill-button")
@@ -43,7 +40,7 @@ struct SkillsViewTests {
 		}
 	}
 
-	@Test("unselected skills show cards")
+	@Test("unselected skills show a placeholder")
 	func unselectedSkillsShowCards() throws {
 		let store = SkillsStore()
 		store.skills = [
@@ -61,13 +58,14 @@ struct SkillsViewTests {
 		]
 		let view = SkillsDetailView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "skills-home-view")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-placeholder")
+		}
+		let list = SkillsSidebarView(store: store, onDelete: { _ in })
+		#expect(throws: Never.self) {
+			try list.inspect().find(text: "Research")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "skill-card-research")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Planner")
+			try list.inspect().find(text: "Planner")
 		}
 	}
 

@@ -33,11 +33,12 @@ Open **Toby.app** and click **Schedules** in the sidebar.
 
 ![Toby.app Schedules window](/img/toby-app-schedules.png)
 
-The Schedules view opens with an overview of your schedules as cards. Select a
-card or a schedule in the sidebar to open its page. Click the title to rename
+The Schedules view lists your schedules in a second column. Select one
+to open its page, or click **Schedules** in the sidebar again to clear the
+selection. Click the title to rename
 it; prompt or flow, timetable, and enabled state are edited on that page. Use
-**New Schedule** in the toolbar while viewing the overview to create one. You
-can also delete schedules, use **Run now** for a test, and view past runs.
+**New Schedule** in the toolbar, or the create link when nothing is selected.
+You can also delete schedules from a row’s context menu or the toolbar, use **Run now** for a test, and view past runs.
 
 ### From chat
 

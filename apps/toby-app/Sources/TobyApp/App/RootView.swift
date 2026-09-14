@@ -41,6 +41,9 @@ struct RootView: View {
     @State private var aiProviderSetupProviderId: String?
     /// Session-only dashboard layout editor. Exits when leaving the home route.
     @State private var isEditingDashboard = false
+    /// When true on a narrow Chats workspace, show the session list instead of the transcript.
+    @State private var preferChatSessionList = false
+    @State private var isConnectionStatusPresented = false
 
     var body: some View {
         contentWithBackup
@@ -100,6 +103,10 @@ struct RootView: View {
             onNavigateToRoute: navigateToRoute,
             onOpenSettings: { openSettings(navKey: $0) },
             onOpenMemoriesWindow: { openWindow(id: "memories") },
+            onOpenConnectionStatus: {
+                bringMainWindowToFront()
+                isConnectionStatusPresented = true
+            },
             isRecordingActive: store.isRecordingActive,
             recordingChromeState: store.recordingChromeState,
             recordingProcessingStage: store.recordingProcessing?.stage,
@@ -212,6 +219,22 @@ struct RootView: View {
                 ) {
                     isAboutPresented = false
                 }
+            }
+            .sheet(isPresented: $isConnectionStatusPresented) {
+                ServerInfoView(
+                    status: store.status,
+                    daemonStatus: store.daemonStatus,
+                    health: ServerHealth.resolve(
+                        status: store.status,
+                        daemonStatus: store.daemonStatus,
+                        isRestarting: store.isServerRestarting,
+                        isConnecting: store.isServerConnecting
+                    ),
+                    isRestarting: store.isServerRestarting || store.isServerConnecting,
+                    lifecycleMessage: store.serverLifecycleMessage,
+                    onRestart: { Task { await store.restartServer() } },
+                    onDismiss: { isConnectionStatusPresented = false }
+                )
             }
             .sheet(
                 isPresented: Binding(
@@ -363,12 +386,12 @@ struct RootView: View {
                 isServerRestarting: store.isServerRestarting,
                 isServerConnecting: store.isServerConnecting,
                 serverLifecycleMessage: store.serverLifecycleMessage,
-                isRecordingActive: store.isRecordingActive,
-                isRecordingProcessing: store.isRecordingProcessing,
-                updateStore: updateStore,
                 onSelectRoute: { route in
-                    showRouteOverviewIfNeeded(route)
-                    navigateToRoute(route)
+                    if route == history.current {
+                        showRouteOverviewIfNeeded(route)
+                    } else {
+                        navigateToRoute(route)
+                    }
                 },
                 isPersonaPickerPresented: $isPersonaPickerPresented,
                 isPersonaAttentionHighlighted: isPersonaAttentionHighlighted,
@@ -385,88 +408,8 @@ struct RootView: View {
                     clearPersonaAttention()
                     refreshStatus()
                 },
-                onCheckForUpdates: {
-                    Task { await updateStore.checkNativeAppForUpdates() }
-                },
                 onRestartServer: {
                     Task { await store.restartServer() }
-                },
-                sidebarContent: {
-                    switch history.current {
-                    case .dashboard:
-                        DashboardSidebarView(
-                            sessions: store.sessions,
-                            projects: projectsStore.projects,
-                            recordings: recordingsStore.recordings,
-                            memories: memoriesStore.memories,
-                            isSessionsLoading: store.isSessionsLoading,
-                            onOpenSession: { id in
-                                navigateToRoute(.chat)
-                                selectSession(id)
-                            },
-                            onOpenProject: { id in
-                                Task { await projectsStore.selectProject(id: id) }
-                                navigateToRoute(.projects)
-                            },
-                            onOpenRecording: openRecording,
-                            onOpenMemory: openMemory
-                        )
-                    case .chat:
-                        ChatSessionsSidebar(
-                            sessions: store.sessions,
-                            selectedSessionId: store.sessionId,
-                            isLoading: store.isLoading,
-                            isSessionsLoading: store.isSessionsLoading,
-                            onSelectSession: { id in
-                                selectSession(id)
-                            },
-                            onDeleteSession: { pendingDeleteSession = $0 },
-                        )
-                    case .integrations:
-                        IntegrationsSidebarView(store: integrationsStore)
-                    case .projects:
-                        ProjectsSidebarView(
-                            store: projectsStore,
-                            onSelect: { id in
-                                Task { await projectsStore.selectProject(id: id) }
-                            },
-                            onSelectChat: { project, sessionId in
-                                Task {
-                                    await projectsStore.selectProject(id: project.id)
-                                    await projectsStore.selectChat(id: sessionId, chatStore: store)
-                                }
-                            },
-                            onDelete: { project in
-                                projectsStore.pendingDelete = ProjectsStore.PendingDelete(
-                                    projectId: project.id,
-                                    name: project.name,
-                                )
-                            }
-                        )
-                    case .schedules:
-                        SchedulesSidebarView(store: schedulesStore, onDelete: { schedule in
-                            schedulesStore.pendingDelete = SchedulesStore.PendingDelete(
-                                scheduleId: schedule.id, title: schedule.displayName
-                            )
-                        })
-                    case .recordings:
-                        RecordingsSidebarView(
-                            store: recordingsStore,
-                            processingState: store.recordingProcessing,
-                            activeRecording: store.listenStatus.flatMap { ActiveRecordingInfo($0) },
-                            onDeleteRecording: { recording in
-                                recordingsStore.pendingDeleteRecordingIds = [recording.id]
-                            }
-                        )
-                    case .skills:
-                        SkillsSidebarView(store: skillsStore, onDelete: { item in
-                            skillsStore.pendingDelete = SkillsStore.PendingDelete(
-                                dirName: item.dirName, name: item.name
-                            )
-                        })
-                    case .flows:
-                        FlowsSidebarView(store: flowsStore)
-                    }
                 }
             )
             .navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
@@ -524,7 +467,14 @@ struct RootView: View {
                     }
                 }
             case .chat:
-                ChatWorkspaceView(store: store)
+                ChatWorkspaceSplit(
+                    store: store,
+                    preferSessionList: $preferChatSessionList,
+                    onSelectSession: { id in
+                        selectSession(id)
+                    },
+                    onDeleteSession: { pendingDeleteSession = $0 }
+                )
                     .toolbar {
                         RootToolbars.chat(
                             common: commonToolbarModel,
@@ -704,6 +654,9 @@ struct RootView: View {
             if route != .dashboard {
                 isEditingDashboard = false
             }
+            if route != .chat {
+                preferChatSessionList = false
+            }
         }
     }
 
@@ -714,11 +667,17 @@ struct RootView: View {
             isRecordButtonDisabled: store.isRecordButtonDisabled,
             canGoBack: history.canGoBack,
             canGoForward: history.canGoForward,
+            isUpdateAvailable: updateStore.isUpdateAvailable,
+            isUpgrading: updateStore.isUpgrading,
+            latestVersion: updateStore.latestVersion,
             onToggleRecording: toggleRecording,
             onSearch: { presentCommandPalette() },
             onOpenSettings: { openSettings() },
             onBack: { _ = history.goBack() },
-            onForward: { _ = history.goForward() }
+            onForward: { _ = history.goForward() },
+            onCheckForUpdates: {
+                Task { await updateStore.checkNativeAppForUpdates() }
+            }
         )
     }
 
@@ -913,7 +872,9 @@ struct RootView: View {
             recordingsStore.showRecordingsOverview()
         case .skills:
             skillsStore.selectHome()
-        case .dashboard, .chat:
+        case .chat:
+            preferChatSessionList = true
+        case .dashboard:
             break
         }
     }
@@ -1036,11 +997,6 @@ struct RootView: View {
             await recordingsStore.refreshAfterRecordingProcessing(recordingId: id)
         }
         navigateToRoute(.recordings)
-    }
-
-    private func openMemory(id: String) {
-        Task { await memoriesStore.selectMemory(id: id) }
-        openWindow(id: "memories")
     }
 
     private func handleToastAction(_ action: AppToastAction) {

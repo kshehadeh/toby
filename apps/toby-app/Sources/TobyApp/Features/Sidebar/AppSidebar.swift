@@ -1,24 +1,12 @@
 import SwiftUI
 
-struct SidebarActionItem: Identifiable, Equatable {
-	let route: DetailRoute
-	let title: String
-	let systemImage: String
-	let detail: String
-
-	var id: DetailRoute { route }
-}
-
-struct AppSidebar<Content: View>: View {
+struct AppSidebar: View {
 	let currentRoute: DetailRoute
 	let status: AppStatus?
 	let daemonStatus: DaemonStatus?
 	let isServerRestarting: Bool
 	var isServerConnecting: Bool = false
 	var serverLifecycleMessage: String? = nil
-	var isRecordingActive: Bool = false
-	var isRecordingProcessing: Bool = false
-	let updateStore: UpdateStore?
 	let onSelectRoute: (DetailRoute) -> Void
 	@Binding var isPersonaPickerPresented: Bool
 	var isPersonaAttentionHighlighted: Bool = false
@@ -26,89 +14,43 @@ struct AppSidebar<Content: View>: View {
 	let onCreatePersona: () -> Void
 	let onEditPersona: (String) -> Void
 	let onPersonaSelected: () -> Void
-	let onCheckForUpdates: () -> Void
 	let onRestartServer: () -> Void
-	@ViewBuilder let sidebarContent: () -> Content
 
-	private var actionItems: [SidebarActionItem] {
-		[
-			SidebarActionItem(
-				route: .dashboard,
-				title: "Home",
-				systemImage: "house",
-				detail: "See what needs your attention: unread mail, open tasks, and setup steps at a glance."
-			),
-			SidebarActionItem(
-				route: .chat,
-				title: "Chats",
-				systemImage: "message",
-				detail: "Open your chat workspace, continue existing conversations, or start a new session with Toby."
-			),
-			SidebarActionItem(
-				route: .integrations,
-				title: "Integrations",
-				systemImage: "square.grid.2x2",
-				detail: "Manage connected services, credentials, setup guides, and integration-specific capabilities."
-			),
-			SidebarActionItem(
-				route: .projects,
-				title: "Projects",
-				systemImage: "folder",
-				detail: "Work inside project folders with scoped chats, local guidance, skills, and generated outputs."
-			),
-			SidebarActionItem(
-				route: .skills,
-				title: "Skills",
-				systemImage: "wand.and.stars",
-				detail: "Browse installed skills, inspect their instructions, edit them, or add new reusable workflows."
-			),
-			SidebarActionItem(
-				route: .schedules,
-				title: "Schedules",
-				systemImage: "clock",
-				detail: "Create and monitor recurring prompts that run on a schedule through Toby's background daemon."
-			),
-			SidebarActionItem(
-				route: .flows,
-				title: "Flows",
-				systemImage: "arrow.triangle.branch",
-				detail: "Browse named flow pipelines, inspect their nodes, and review recent execution history."
-			),
-			SidebarActionItem(
-				route: .recordings,
-				title: "Recordings",
-				systemImage: "waveform",
-				detail: "Review audio recordings, transcripts, and chats created from recorded context."
-			),
-		]
-	}
+	@SceneStorage("sidebar.automationExpanded") private var automationExpanded = true
+	@SceneStorage("sidebar.toolsExpanded") private var toolsExpanded = true
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			SidebarHeader(
+			List(selection: selectionBinding) {
+				ForEach(DetailRoute.sidebarPrimary) { route in
+					destinationRow(route)
+				}
+
+				Section("Automation", isExpanded: $automationExpanded) {
+					ForEach(DetailRoute.sidebarAutomation) { route in
+						destinationRow(route)
+					}
+				}
+
+				Section("Tools", isExpanded: $toolsExpanded) {
+					ForEach(DetailRoute.sidebarTools) { route in
+						destinationRow(route)
+					}
+				}
+			}
+			.listStyle(.sidebar)
+			.scrollContentBackground(.hidden)
+			.accessibilityIdentifier("sidebar-destination-list")
+
+			SidebarConnectionStatus(
 				status: status,
 				daemonStatus: daemonStatus,
-				isServerRestarting: isServerRestarting,
-				isServerConnecting: isServerConnecting,
-				serverLifecycleMessage: serverLifecycleMessage,
-				isRecordingActive: isRecordingActive,
-				isRecordingProcessing: isRecordingProcessing,
-				updateStore: updateStore,
-				onCheckForUpdates: onCheckForUpdates,
-				onRestartServer: onRestartServer
+				isRestarting: isServerRestarting,
+				isConnecting: isServerConnecting,
+				lifecycleMessage: serverLifecycleMessage,
+				onRestart: onRestartServer
 			)
-			SidebarWorkspaceMenu(
-				currentRoute: currentRoute,
-				items: actionItems,
-				onSelectRoute: onSelectRoute
-			)
-			sidebarContent()
-				.frame(maxHeight: .infinity, alignment: .topLeading)
-				.padding(.bottom, 16)
-			Divider()
-				.background(AppTheme.separator)
-				.opacity(0.5)
-				.padding(.vertical, 2)
+
 			SidebarFooter(
 				status: status,
 				isPersonaPickerPresented: $isPersonaPickerPresented,
@@ -118,68 +60,45 @@ struct AppSidebar<Content: View>: View {
 				onEditPersona: onEditPersona,
 				onPersonaSelected: onPersonaSelected,
 			)
+			.padding(.horizontal, 8)
+			.padding(.vertical, 8)
 		}
-		.padding(.horizontal, 10)
-		.padding(.vertical, 12)
 		.frame(minWidth: AppTheme.minSidebarWidth, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-		// Session rows / grid actions live in lazy stacks and need a theme epoch
-		// nudge to re-tint without resetting Settings tab or navigation state.
 		.tobyThemeRefreshable()
 		.environment(AppearancePreferences.shared)
 		.accessibilityIdentifier("app-sidebar")
 	}
-}
 
-struct SidebarWorkspaceMenu: View {
-	let currentRoute: DetailRoute
-	let items: [SidebarActionItem]
-	let onSelectRoute: (DetailRoute) -> Void
-
-	var body: some View {
-		HStack {
-			Spacer(minLength: 0)
-			Menu {
-				ForEach(items) { item in
-					Button {
-						onSelectRoute(item.route)
-					} label: {
-						Label(item.title, systemImage: item.systemImage)
-					}
-					.accessibilityLabel(item.title)
-					.accessibilityHint(item.detail)
-				}
-			} label: {
-				HStack(spacing: 7) {
-					Image(systemName: currentRoute.systemImage)
-						.font(.system(size: 16, weight: .semibold))
-						.symbolRenderingMode(.hierarchical)
-						.foregroundStyle(AppTheme.accent)
-						.accessibilityHidden(true)
-					Text(currentRoute.menuTitle)
-						.font(.system(size: 19, weight: .bold))
-						.lineLimit(1)
-					Image(systemName: "chevron.down")
-						.font(.system(size: 11, weight: .bold))
-						.foregroundStyle(AppTheme.secondaryText)
-						.accessibilityHidden(true)
-				}
-				.foregroundStyle(AppTheme.primaryText)
-				.contentShape(Rectangle())
+	private var selectionBinding: Binding<DetailRoute?> {
+		Binding(
+			get: { currentRoute },
+			set: { newValue in
+				guard let newValue else { return }
+				onSelectRoute(newValue)
 			}
-			.buttonStyle(.plain)
-			.menuIndicator(.hidden)
-			.accessibilityLabel("Workspace")
-			.accessibilityValue(currentRoute.menuTitle)
-			.accessibilityHint("Choose a Toby workspace")
-			.accessibilityIdentifier("sidebar-workspace-menu")
-			Spacer(minLength: 0)
-		}
-		.padding(.top, 10)
-		.padding(.bottom, 20)
+		)
+	}
+
+	private func destinationRow(_ route: DetailRoute) -> some View {
+		Label(route.menuTitle, systemImage: route.systemImage)
+			.tag(route)
+			.tint(AppTheme.secondaryText)
+			.accessibilityHint(route.sidebarHint)
+			.accessibilityIdentifier("sidebar-destination-\(route.rawValue)")
+			.overlay {
+				if route == currentRoute {
+					Color.clear
+						.contentShape(Rectangle())
+						.onTapGesture {
+							onSelectRoute(route)
+						}
+						.accessibilityHidden(true)
+				}
+			}
 	}
 }
 
-/// Inner content for a system `.popover` (same chrome as the server-status button).
+/// Inner content for a system `.popover` (dashboard action help, server-status chrome).
 struct SidebarActionHelpPopover: View {
 	let title: String
 	let detail: String

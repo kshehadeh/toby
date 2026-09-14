@@ -3,9 +3,25 @@ import SwiftUI
 struct SchedulesView: View {
 	@Bindable var store: SchedulesStore
 	var onOpenFlow: ((String) -> Void)?
+	@State private var preferList = false
 
 	var body: some View {
-		SchedulesDetailView(store: store, onOpenFlow: onOpenFlow)
+		FeatureWorkspaceSplit(
+			listTitle: "Schedules",
+			isShowingList: preferList || store.selectedSchedule == nil,
+			onShowList: { preferList = true }
+		) {
+			SchedulesSidebarView(store: store, onDelete: { schedule in
+				store.pendingDelete = SchedulesStore.PendingDelete(
+					scheduleId: schedule.id, title: schedule.displayName
+				)
+			})
+		} detail: {
+			SchedulesDetailView(store: store, onOpenFlow: onOpenFlow)
+		}
+		.onChange(of: store.selectedScheduleId) { _, id in
+			if id != nil { preferList = false }
+		}
 		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.ensureLoaded()

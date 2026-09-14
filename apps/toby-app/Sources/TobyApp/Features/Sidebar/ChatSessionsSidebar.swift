@@ -9,53 +9,37 @@ struct ChatSessionsSidebar: View {
 	let onDeleteSession: (SessionSummary) -> Void
 
 	var body: some View {
-		VStack(alignment: .leading, spacing: 0) {
-			if isSessionsLoading && sessions.isEmpty {
-				Text("Loading sessions…")
-					.font(.caption)
-					.foregroundStyle(AppTheme.tertiaryText)
-					.padding(.horizontal, 8)
-					.padding(.vertical, 7)
-			} else if sessions.isEmpty {
-				Text("No past sessions")
-					.font(.caption)
-					.foregroundStyle(AppTheme.tertiaryText)
-					.padding(.horizontal, 8)
-					.padding(.vertical, 7)
-			} else {
-				ScrollView {
-					VStack(alignment: .leading, spacing: 2) {
-						ForEach(sessions) { session in
-							Button {
-								onSelectSession(session.id)
-							} label: {
-								SidebarSessionRow(
-									title: session.name,
-									subtitle: sidebarSessionDate(session),
-									isSelected: session.id == selectedSessionId,
-									isExternal: session.isExternal,
-									isAwaitingUser: session.isAwaitingUser,
-									integrationIconUrl: session.integrationIconUrl,
-								)
-							}
-							.buttonStyle(.plain)
-							.frame(maxWidth: .infinity, alignment: .leading)
-							.disabled(isLoading)
-							.accessibilityIdentifier("session-\(session.id)")
-							.contextMenu {
-								Button(role: .destructive) {
-									onDeleteSession(session)
-								} label: {
-									Label("Delete Session", systemImage: "trash")
-								}
-								.disabled(isLoading)
-							}
-						}
-					}
-					.padding(.top, 8)
+		FeatureBrowserList(
+			isLoading: isSessionsLoading,
+			isEmpty: sessions.isEmpty,
+			loadingText: "Loading sessions…",
+			emptyText: "No past sessions"
+		) {
+			ForEach(sessions) { session in
+				Button {
+					onSelectSession(session.id)
+				} label: {
+					SidebarSessionRow(
+						title: session.name,
+						subtitle: sidebarSessionDate(session),
+						isSelected: session.id == selectedSessionId,
+						isExternal: session.isExternal,
+						isAwaitingUser: session.isAwaitingUser,
+						integrationIconUrl: session.integrationIconUrl,
+					)
 				}
-				.automaticScrollIndicators(axes: .vertical)
-				.frame(maxHeight: .infinity)
+				.buttonStyle(.plain)
+				.frame(maxWidth: .infinity, alignment: .leading)
+				.disabled(isLoading)
+				.accessibilityIdentifier("session-\(session.id)")
+				.contextMenu {
+					Button(role: .destructive) {
+						onDeleteSession(session)
+					} label: {
+						Label("Delete Session", systemImage: "trash")
+					}
+					.disabled(isLoading)
+				}
 			}
 		}
 	}

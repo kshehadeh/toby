@@ -2,6 +2,8 @@ import SwiftUI
 
 struct PersonaPickerPopover: View {
 	let currentPersona: String?
+	/// Current model name, shown as quiet context under the title.
+	var model: String? = nil
 	/// When true (e.g. onboarding), pulse-highlight the create action.
 	var emphasizeCreate: Bool = false
 	let onCreatePersona: () -> Void
@@ -22,6 +24,13 @@ struct PersonaPickerPopover: View {
 			Text("Select Persona")
 				.font(.headline)
 				.foregroundStyle(AppTheme.primaryText)
+			if let model, !model.isEmpty {
+				Text(model)
+					.font(.caption)
+					.foregroundStyle(AppTheme.tertiaryText)
+					.lineLimit(1)
+					.accessibilityLabel("Model \(model)")
+			}
 
 			if isLoading && personas.isEmpty {
 				ProgressView("Loading personas...")

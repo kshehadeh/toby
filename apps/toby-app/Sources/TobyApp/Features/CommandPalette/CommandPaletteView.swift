@@ -72,7 +72,7 @@ struct CommandPaletteView: View {
 				id: "action-integrations",
 				title: "Open Integrations",
 				subtitle: "Manage connected apps",
-				systemImage: "square.grid.2x2",
+				systemImage: DetailRoute.integrations.systemImage,
 				kind: .route(.integrations),
 			))
 		}
@@ -92,7 +92,7 @@ struct CommandPaletteView: View {
 				id: "action-skills",
 				title: "Open Skills",
 				subtitle: "Manage installed skills",
-				systemImage: "wand.and.stars",
+				systemImage: DetailRoute.skills.systemImage,
 				kind: .route(.skills),
 			))
 		}
@@ -102,7 +102,7 @@ struct CommandPaletteView: View {
 				id: "action-schedules",
 				title: "Open Schedules",
 				subtitle: "Manage scheduled tasks",
-				systemImage: "clock",
+				systemImage: DetailRoute.schedules.systemImage,
 				kind: .route(.schedules),
 			))
 		}
@@ -192,7 +192,7 @@ struct CommandPaletteView: View {
 					id: "schedule-\(schedule.id)",
 					title: schedule.displayName,
 					subtitle: schedule.subtitle,
-					systemImage: "clock",
+					systemImage: DetailRoute.schedules.systemImage,
 					kind: .schedule(schedule.id),
 				),
 			)

@@ -6,6 +6,7 @@ struct RecordingsView: View {
 	var onStartRecording: (() -> Void)? = nil
 	var onStopRecording: (() -> Void)? = nil
 	var activeRecording: ActiveRecordingInfo? = nil
+	@State private var preferList = false
 
 	/// Effective processing state: prefer the store's manual transcription
 	/// state when active, otherwise fall back to the post-recording state.
@@ -16,8 +17,41 @@ struct RecordingsView: View {
 		return processingState
 	}
 
+	private var hasDetail: Bool {
+		!store.selectedRecordings.isEmpty
+			|| store.selectedActiveRecordingId != nil
+			|| (effectiveProcessingState?.isActive == true)
+	}
+
 	var body: some View {
-		RecordingsDetailView(store: store, processingState: effectiveProcessingState, onStartRecording: onStartRecording, onStopRecording: onStopRecording, activeRecording: activeRecording)
+		FeatureWorkspaceSplit(
+			listTitle: "Recordings",
+			isShowingList: preferList || !hasDetail,
+			onShowList: { preferList = true }
+		) {
+			RecordingsSidebarView(
+				store: store,
+				processingState: effectiveProcessingState,
+				activeRecording: activeRecording,
+				onDeleteRecording: { recording in
+					store.pendingDeleteRecordingIds = [recording.id]
+				}
+			)
+		} detail: {
+			RecordingsDetailView(
+				store: store,
+				processingState: effectiveProcessingState,
+				onStartRecording: onStartRecording,
+				onStopRecording: onStopRecording,
+				activeRecording: activeRecording
+			)
+		}
+		.onChange(of: store.selectedRecordingIds) { _, ids in
+			if !ids.isEmpty { preferList = false }
+		}
+		.onChange(of: store.selectedActiveRecordingId) { _, id in
+			if id != nil { preferList = false }
+		}
 		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.ensureLoaded()

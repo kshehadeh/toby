@@ -8,11 +8,15 @@ struct RootCommonToolbarModel {
 	var isRecordButtonDisabled: Bool
 	var canGoBack: Bool
 	var canGoForward: Bool
+	var isUpdateAvailable: Bool = false
+	var isUpgrading: Bool = false
+	var latestVersion: String? = nil
 	var onToggleRecording: () -> Void
 	var onSearch: () -> Void
 	var onOpenSettings: () -> Void
 	var onBack: () -> Void
 	var onForward: () -> Void
+	var onCheckForUpdates: () -> Void = {}
 }
 
 /// Principal session / route title for the main window toolbar. Sits on system
@@ -98,6 +102,22 @@ enum RootToolbars {
 	@ToolbarContentBuilder
 	static func common(_ model: RootCommonToolbarModel) -> some ToolbarContent {
 		ToolbarItemGroup(placement: .navigation) {
+			Button(action: model.onBack) {
+				Image(systemName: "chevron.backward")
+			}
+			.disabled(!model.canGoBack)
+			.help("Back")
+			.accessibilityLabel("Back")
+			.accessibilityIdentifier("nav-back-button")
+			Button(action: model.onForward) {
+				Image(systemName: "chevron.forward")
+			}
+			.disabled(!model.canGoForward)
+			.help("Forward")
+			.accessibilityLabel("Forward")
+			.accessibilityIdentifier("nav-forward-button")
+		}
+		ToolbarItemGroup(placement: .primaryAction) {
 			RecordingToolbarButton(
 				isRecordingActive: model.isRecordingActive,
 				isRecordingProcessing: model.isRecordingProcessing,
@@ -106,22 +126,24 @@ enum RootToolbars {
 			)
 			SearchToolbarButton(onSearch: model.onSearch)
 			SettingsToolbarButton(onOpenSettings: model.onOpenSettings)
-		}
-		ToolbarSpacer(.fixed, placement: .navigation)
-		ToolbarItemGroup(placement: .navigation) {
-			Button(action: model.onBack) {
-				Image(systemName: "chevron.backward")
+			if model.isUpdateAvailable || model.isUpgrading {
+				Button(action: model.onCheckForUpdates) {
+					Image(systemName: model.isUpgrading ? "arrow.down.circle" : "arrow.down.circle.badge.clock")
+				}
+				.disabled(model.isUpgrading)
+				.help(updateHelp(model: model))
+				.accessibilityLabel(updateHelp(model: model))
+				.accessibilityIdentifier("toolbar-update-button")
 			}
-			.disabled(!model.canGoBack)
-			.help("Back")
-			.accessibilityIdentifier("nav-back-button")
-			Button(action: model.onForward) {
-				Image(systemName: "chevron.forward")
-			}
-			.disabled(!model.canGoForward)
-			.help("Forward")
-			.accessibilityIdentifier("nav-forward-button")
 		}
+	}
+
+	static func updateHelp(model: RootCommonToolbarModel) -> String {
+		if model.isUpgrading { return "Updating Toby" }
+		if let latest = model.latestVersion {
+			return "Update to v\(latest) is available"
+		}
+		return "Update available"
 	}
 
 	@ToolbarContentBuilder

@@ -17,10 +17,7 @@ struct SchedulesViewTests {
 		let store = SchedulesStore()
 		let view = SchedulesDetailView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Schedules")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Schedules run a prompt or a flow through Toby's background daemon so routine work can happen automatically.")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-placeholder")
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "empty-create-schedule-button")
@@ -56,15 +53,16 @@ struct SchedulesViewTests {
 				recentRuns: []
 			),
 		]
-		let view = SchedulesDetailView(store: store)
+		let detail = SchedulesDetailView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "schedules-home-view")
+			try detail.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-placeholder")
+		}
+		let list = SchedulesSidebarView(store: store, onDelete: { _ in })
+		#expect(throws: Never.self) {
+			try list.inspect().find(text: "Daily Review")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "schedule-card-daily-review")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Weekly Brief")
+			try list.inspect().find(text: "Weekly Brief")
 		}
 	}
 

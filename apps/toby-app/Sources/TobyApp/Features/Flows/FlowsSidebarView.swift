@@ -4,87 +4,33 @@ struct FlowsSidebarView: View {
 	@Bindable var store: FlowsStore
 
 	var body: some View {
-		VStack(alignment: .leading, spacing: 0) {
-			ScrollView {
-				VStack(alignment: .leading, spacing: 2) {
-					if store.isListLoading && store.flows.isEmpty {
-						Text("Loading flows…")
-							.font(.caption)
-							.foregroundStyle(AppTheme.tertiaryText)
-							.padding(10)
-					} else if store.flows.isEmpty {
-						Text("No flows")
-							.font(.caption)
-							.foregroundStyle(AppTheme.tertiaryText)
-							.padding(10)
-					} else {
-						ForEach(store.flows) { flow in
-							Button {
-								Task { await store.selectFlow(id: flow.id) }
-							} label: {
-								FlowSidebarRow(
-									flow: flow,
-									isSelected: store.selectedFlowId == flow.id
-								)
-							}
-							.buttonStyle(.plain)
-							.contextMenu {
-								if flow.builtin {
-									Text("Built-in flows can’t be deleted")
-								} else {
-									Button("Edit") {
-										Task { await store.startEdit(id: flow.id) }
-									}
-									Button("Delete", role: .destructive) {
-										store.confirmDelete(id: flow.id)
-									}
-								}
-							}
-						}
-					}
-				}
-				.frame(maxWidth: .infinity, alignment: .leading)
-				.padding(10)
-			}
-			HStack {
+		FeatureBrowserList(
+			isLoading: store.isListLoading,
+			isEmpty: store.flows.isEmpty,
+			loadingText: "Loading flows…",
+			emptyText: "No flows"
+		) {
+			ForEach(store.flows) { flow in
 				Button {
-					Task { await store.startCreate() }
+					Task { await store.selectFlow(id: flow.id) }
 				} label: {
-					Label("New flow", systemImage: "plus")
-						.font(.caption.weight(.medium))
+					FlowSidebarRow(
+						flow: flow,
+						isSelected: store.selectedFlowId == flow.id
+					)
 				}
 				.buttonStyle(.plain)
-				.foregroundStyle(AppTheme.accent)
-				.padding(.horizontal, 14)
-				.padding(.vertical, 8)
-				.accessibilityIdentifier("flows-new-button")
-				Spacer()
-			}
-			.overlay(alignment: .top) {
-				Rectangle()
-					.fill(AppTheme.separator)
-					.frame(height: 1)
-			}
-
-			if !store.isListLoading || !store.flows.isEmpty {
-				HStack(spacing: 4) {
-					Text("\(store.flows.count) flow\(store.flows.count == 1 ? "" : "s")")
-						.foregroundStyle(AppTheme.tertiaryText)
-					if store.builtinCount > 0 {
-						Text("·")
-							.foregroundStyle(AppTheme.tertiaryText)
-						Text("\(store.builtinCount) built-in")
-							.foregroundStyle(AppTheme.secondaryText)
+				.contextMenu {
+					if flow.builtin {
+						Text("Built-in flows can’t be deleted")
+					} else {
+						Button("Edit") {
+							Task { await store.startEdit(id: flow.id) }
+						}
+						Button("Delete", role: .destructive) {
+							store.confirmDelete(id: flow.id)
+						}
 					}
-				}
-				.font(.caption)
-				.padding(.horizontal, 14)
-				.padding(.vertical, 10)
-				.frame(maxWidth: .infinity, alignment: .leading)
-				.overlay(alignment: .top) {
-					Rectangle()
-						.fill(AppTheme.separator)
-						.frame(height: 1)
 				}
 			}
 		}

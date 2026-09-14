@@ -31,12 +31,41 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 		switch self {
 		case .dashboard: return "house"
 		case .chat: return "message"
-		case .integrations: return "square.grid.2x2"
+		case .integrations: return "puzzlepiece.extension"
 		case .projects: return "folder"
-		case .skills: return "wand.and.stars"
-		case .schedules: return "clock"
+		case .skills: return "graduationcap"
+		case .schedules: return "calendar"
 		case .flows: return "arrow.triangle.branch"
 		case .recordings: return "waveform"
+		}
+	}
+
+	/// Primary destinations, in sidebar order.
+	static let sidebarPrimary: [DetailRoute] = [.dashboard, .chat, .projects, .recordings]
+	/// Automation section, in sidebar order.
+	static let sidebarAutomation: [DetailRoute] = [.schedules, .flows]
+	/// Tools section, in sidebar order.
+	static let sidebarTools: [DetailRoute] = [.skills, .integrations]
+
+	/// Spoken hint for the destination row.
+	var sidebarHint: String {
+		switch self {
+		case .dashboard:
+			return "See what needs your attention: unread mail, open tasks, and setup steps at a glance."
+		case .chat:
+			return "Open your chat workspace, continue existing conversations, or start a new session with Toby."
+		case .integrations:
+			return "Manage connected services, credentials, setup guides, and integration-specific capabilities."
+		case .projects:
+			return "Work inside project folders with scoped chats, local guidance, skills, and generated outputs."
+		case .skills:
+			return "Browse installed skills, inspect their instructions, edit them, or add new reusable workflows."
+		case .schedules:
+			return "Create and monitor recurring prompts that run on a schedule through Toby's background daemon."
+		case .flows:
+			return "Browse named flow pipelines, inspect their nodes, and review recent execution history."
+		case .recordings:
+			return "Review audio recordings, transcripts, and chats created from recorded context."
 		}
 	}
 }

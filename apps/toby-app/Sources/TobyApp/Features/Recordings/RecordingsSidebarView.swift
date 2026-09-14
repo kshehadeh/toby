@@ -7,59 +7,50 @@ struct RecordingsSidebarView: View {
 	var activeRecording: ActiveRecordingInfo? = nil
 	let onDeleteRecording: (ListenRecordingSummary) -> Void
 
+	private var isListEmpty: Bool {
+		store.recordings.isEmpty && activeRecording == nil
+	}
+
 	var body: some View {
-		VStack(alignment: .leading, spacing: 0) {
-			ScrollView {
-				VStack(alignment: .leading, spacing: 2) {
-					if let active = activeRecording {
-						ActiveRecordingSidebarRow(
-							active: active,
-							isSelected: store.selectedActiveRecordingId == active.id
-						)
-						.onTapGesture {
-							store.selectActiveRecording(id: active.id)
-						}
-						if !store.recordings.isEmpty {
-							Divider()
-								.overlay(SettingsDesign.cardBorder)
-								.padding(.vertical, 4)
-						}
-					}
-					if store.isLoading && store.recordings.isEmpty && activeRecording == nil {
-						Text("Loading recordings...")
-							.font(.caption)
-							.foregroundStyle(AppTheme.tertiaryText)
-							.padding(10)
-					} else if store.recordings.isEmpty && activeRecording == nil {
-						Text("No recordings")
-							.font(.caption)
-							.foregroundStyle(AppTheme.tertiaryText)
-							.padding(10)
-					} else {
-						ForEach(store.recordings) { recording in
-							Button {
-								let holdingCommand = NSApp.currentEvent?.modifierFlags.contains(.command) ?? false
-								Task { await store.selectRecording(id: recording.id, holdingCommand: holdingCommand) }
-							} label: {
-								RecordingSidebarRow(
-									recording: recording,
-									isSelected: store.selectedRecordingIds.contains(recording.id),
-									isProcessing: processingState?.recordingId == recording.id && processingState?.isActive == true,
-									processingStage: processingState?.recordingId == recording.id ? processingState?.stage : nil,
-								)
-							}
-							.buttonStyle(.plain)
-							.contextMenu {
-								Button("Delete Recording", systemImage: "trash", role: .destructive) {
-									onDeleteRecording(recording)
-								}
-							}
-						}
+		FeatureBrowserList(
+			isLoading: store.isLoading,
+			isEmpty: isListEmpty,
+			loadingText: "Loading recordings...",
+			emptyText: "No recordings"
+		) {
+			if let active = activeRecording {
+				ActiveRecordingSidebarRow(
+					active: active,
+					isSelected: store.selectedActiveRecordingId == active.id
+				)
+				.onTapGesture {
+					store.selectActiveRecording(id: active.id)
+				}
+				if !store.recordings.isEmpty {
+					Divider()
+						.overlay(SettingsDesign.cardBorder)
+						.padding(.vertical, 4)
+				}
+			}
+			ForEach(store.recordings) { recording in
+				Button {
+					let holdingCommand = NSApp.currentEvent?.modifierFlags.contains(.command) ?? false
+					Task { await store.selectRecording(id: recording.id, holdingCommand: holdingCommand) }
+				} label: {
+					RecordingSidebarRow(
+						recording: recording,
+						isSelected: store.selectedRecordingIds.contains(recording.id),
+						isProcessing: processingState?.recordingId == recording.id && processingState?.isActive == true,
+						processingStage: processingState?.recordingId == recording.id ? processingState?.stage : nil,
+					)
+				}
+				.buttonStyle(.plain)
+				.contextMenu {
+					Button("Delete Recording", systemImage: "trash", role: .destructive) {
+						onDeleteRecording(recording)
 					}
 				}
 			}
-			.frame(maxWidth: .infinity, alignment: .leading)
-			.padding(10)
 		}
 	}
 }
