@@ -197,37 +197,64 @@ struct ProjectsViewTests {
 			project.id: (1...6).map { sampleSession(id: "chat-\($0)", name: "Chat \($0)") },
 		]
 
-		let view = ProjectsView(projectsStore: store, chatStore: ChatStore())
+		let pane = detailsPane(store: store, project: project)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "project-summary-edit-button")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "project-summary-preview")
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "project-summary-edit-button")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "First paragraph for the preview.")
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "project-summary-preview")
+		}
+		#expect(throws: Never.self) {
+			try pane.inspect().find(text: "First paragraph for the preview.")
 		}
 		#expect(throws: (any Error).self) {
-			try view.inspect().find(text: "Rest of the long summary.")
-		}
-		// New chat lives in the toolbar, and chats live in the trailing
-		// inspector, which ViewInspector cannot traverse.
-		#expect(throws: (any Error).self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "project-new-chat-button")
+			try pane.inspect().find(text: "Rest of the long summary.")
 		}
 		#expect(throws: (any Error).self) {
-			try view.inspect().find(text: "Recent chats")
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "project-new-chat-button")
 		}
 		#expect(throws: (any Error).self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "project-delete-button")
+			try pane.inspect().find(text: "Recent chats")
 		}
 		#expect(throws: (any Error).self) {
-			try view.inspect().find(button: "Delete…")
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "project-delete-button")
+		}
+		#expect(throws: (any Error).self) {
+			try pane.inspect().find(button: "Delete…")
 		}
 	}
 
-	@Test("chats sidebar lists every project chat without a cap")
-	func chatsSidebarListsAllChats() throws {
+	@Test("project detail shows details and chats tabs")
+	func projectDetailShowsDetailsAndChatsTabs() throws {
+		let store = ProjectsStore()
+		let project = sampleProject()
+		store.hasLoadedOnce = true
+		store.projects = [project]
+		store.selectedProjectId = project.id
+		store.selectedProject = project
+		#expect(store.selectedDetailTab == .details)
+		let view = ProjectDetailContent(store: store, project: project)
+		#expect(throws: Never.self) {
+			try view.inspect().tabView()
+		}
+		#expect(throws: Never.self) {
+			try detailsPane(store: store, project: project).inspect().find(
+				viewWithAccessibilityIdentifier: "project-title-field"
+			)
+		}
+		#expect(throws: Never.self) {
+			try detailsPane(store: store, project: project).inspect().find(text: "Files")
+		}
+
+		store.selectedDetailTab = .chats
+		#expect(store.selectedDetailTab == .chats)
+		#expect(throws: Never.self) {
+			try chatsPane(store: store).inspect().find(text: "No chats yet")
+		}
+	}
+
+	@Test("chats tab lists every project chat without a cap")
+	func chatsTabListsAllChats() throws {
 		let store = ProjectsStore()
 		store.selectedProjectId = "proj-1"
 		store.selectedProject = sampleProject()
@@ -235,9 +262,9 @@ struct ProjectsViewTests {
 			"proj-1": (1...7).map { sampleSession(id: "chat-\($0)", name: "Chat \($0)") },
 		]
 
-		let view = ProjectChatsSidebarView(store: store, onSelectChat: { _ in })
+		let view = ProjectChatsPane(store: store, onSelectChat: { _ in })
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "project-chats-sidebar")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "project-chats-tab")
 		}
 		for index in 1...7 {
 			#expect(throws: Never.self) {
@@ -245,7 +272,7 @@ struct ProjectsViewTests {
 			}
 			#expect(throws: Never.self) {
 				try view.inspect().find(
-					viewWithAccessibilityIdentifier: "project-chats-sidebar-row-chat-\(index)"
+					viewWithAccessibilityIdentifier: "project-chats-tab-row-chat-\(index)"
 				)
 			}
 		}
@@ -254,18 +281,21 @@ struct ProjectsViewTests {
 		}
 	}
 
-	@Test("chats sidebar empty state names the next action")
-	func chatsSidebarEmptyState() throws {
+	@Test("chats tab empty state names the next action")
+	func chatsTabEmptyState() throws {
 		let store = ProjectsStore()
 		store.selectedProjectId = "proj-1"
 		store.selectedProject = sampleProject()
 
-		let view = ProjectChatsSidebarView(store: store, onSelectChat: { _ in })
+		let view = ProjectChatsPane(store: store, onSelectChat: { _ in })
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "project-chats-sidebar-empty")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "project-chats-tab-empty")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "No chats yet. Use + Chat in the toolbar to start one.")
+			try view.inspect().find(text: "No chats yet")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Use + Chat in the toolbar to start one.")
 		}
 		#expect(throws: (any Error).self) {
 			try view.inspect().find(text: "Chat 1")
@@ -274,23 +304,23 @@ struct ProjectsViewTests {
 
 	@Test("projects inspector shows empty summary placeholder")
 	func inspectorShowsEmptySummaryPlaceholder() throws {
-		let projectsStore = ProjectsStore()
+		let store = ProjectsStore()
 		let project = sampleProject(summary: "")
-		projectsStore.hasLoadedOnce = true
-		projectsStore.projects = [project]
-		projectsStore.selectedProjectId = project.id
-		projectsStore.selectedProject = project
+		store.hasLoadedOnce = true
+		store.projects = [project]
+		store.selectedProjectId = project.id
+		store.selectedProject = project
 
-		let view = ProjectsView(projectsStore: projectsStore, chatStore: ChatStore())
+		let pane = detailsPane(store: store, project: project)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "project-summary-empty-placeholder")
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "project-summary-empty-placeholder")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "No summary yet")
+			try pane.inspect().find(text: "No summary yet")
 		}
 	}
 
-	@Test("project details edit the name in the About card")
+	@Test("project details edit the name on the Details tab")
 	func detailEditsNameInAboutCard() throws {
 		let store = ProjectsStore()
 		let project = sampleProject(name: "Demo")
@@ -299,13 +329,16 @@ struct ProjectsViewTests {
 		store.selectedProjectId = project.id
 		store.selectedProject = project
 
-		let view = ProjectsView(projectsStore: store, chatStore: ChatStore())
-		let field = try view.inspect()
+		let pane = detailsPane(store: store, project: project)
+		let field = try pane.inspect()
 			.find(viewWithAccessibilityIdentifier: "project-title-field")
 			.textField()
 		#expect(try field.input() == "Demo")
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "About")
+			try pane.inspect().find(text: "Name")
+		}
+		#expect(throws: (any Error).self) {
+			try pane.inspect().find(text: "About")
 		}
 	}
 
@@ -492,24 +525,36 @@ struct ProjectsViewTests {
 		#expect(store.isFilesSidebarPresented)
 		store.showProjectHome()
 		#expect(store.isFilesSidebarPresented == false)
+		#expect(store.selectedDetailTab == .chats)
 	}
 
-	@Test("project pages present the Chats sidebar and leaving the project resets it")
-	func projectChatsSidebarVisibility() async {
+	@Test("returning from a project chat opens the Chats tab; leaving the project resets it")
+	func projectChatsTabVisibility() async {
 		let store = ProjectsStore()
 		store.selectedProjectId = "proj-1"
 		store.selectedProject = sampleProject()
-		store.isChatsSidebarPresented = false
+		store.selectedDetailTab = .details
 
-		// Returning from a chat re-presents the project page's Chats sidebar.
 		store.showProjectChat()
 		store.showProjectHome()
 		#expect(store.isShowingChat == false)
-		#expect(store.isChatsSidebarPresented)
+		#expect(store.selectedDetailTab == .chats)
 
 		await store.selectHome(flush: false)
 		#expect(store.selectedProjectId == nil)
-		#expect(store.isChatsSidebarPresented == false)
+		#expect(store.selectedDetailTab == .details)
+	}
+
+	@Test("selecting a project resets the detail tab to details")
+	func selectingProjectResetsDetailTab() async {
+		let store = ProjectsStore()
+		let project = sampleProject()
+		store.projects = [project]
+		store.selectedProjectId = project.id
+		store.selectedProject = project
+		store.selectedDetailTab = .chats
+		await store.selectProject(id: project.id)
+		#expect(store.selectedDetailTab == .details)
 	}
 
 	private func sampleProject(
@@ -558,4 +603,18 @@ struct ProjectsViewTests {
 			children: children
 		)
 	}
+}
+
+@MainActor
+private func detailsPane(store: ProjectsStore, project: ProjectSummary) -> ProjectDetailsPane {
+	ProjectDetailsPane(
+		store: store,
+		project: project,
+		isSummaryEditorPresented: .constant(false)
+	)
+}
+
+@MainActor
+private func chatsPane(store: ProjectsStore) -> ProjectChatsPane {
+	ProjectChatsPane(store: store, onSelectChat: { _ in })
 }

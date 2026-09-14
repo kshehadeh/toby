@@ -336,18 +336,16 @@ struct SkillsViewTests {
 			tools: nil,
 			integrations: nil
 		)
-		let view = SkillsView(store: store)
+		store.selectedDetailTab = .about
+		let pane = aboutPane(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "skill-title-field")
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "skill-title-field")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Summary")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "About")
+			try pane.inspect().find(text: "Summary")
 		}
 		#expect(throws: (any Error).self) {
-			try view.inspect().find(text: "Description")
+			try pane.inspect().find(text: "Description")
 		}
 	}
 
@@ -362,12 +360,12 @@ struct SkillsViewTests {
 			tools: nil,
 			integrations: nil
 		)
-		let view = SkillsView(store: store)
+		let pane = instructionsPane(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Write")
+			try pane.inspect().find(text: "Write")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Preview")
+			try pane.inspect().find(text: "Preview")
 		}
 	}
 
@@ -380,8 +378,8 @@ struct SkillsViewTests {
 		#expect(SkillMarkdownNSTextView.format(forCommandKey: "u") == nil)
 	}
 
-	@Test("skill detail shows instructions and summary in the main canvas")
-	func skillDetailShowsInstructionsAndSummary() throws {
+	@Test("skill detail shows about and instructions tabs")
+	func skillDetailShowsAboutAndInstructionsTabs() throws {
 		let store = SkillsStore()
 		store.selectedSkill = SkillDetail(
 			dirName: "skill-1",
@@ -391,16 +389,48 @@ struct SkillsViewTests {
 			tools: nil,
 			integrations: nil
 		)
-		let view = SkillsView(store: store)
-		#expect(throws: Never.self) { try view.inspect().find(text: "Instructions") }
-		#expect(throws: Never.self) { try view.inspect().find(text: "Summary") }
+		#expect(store.selectedDetailTab == .instructions)
+		let view = SkillDetailContent(store: store, skill: store.selectedSkill!)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Used to display and choose this skill")
+			try view.inspect().tabView()
 		}
-		#expect(throws: (any Error).self) { try view.inspect().find(text: "Optional") }
+		#expect(throws: Never.self) {
+			try instructionsPane(store: store).inspect().find(
+				text: "Sent to the model when this skill runs"
+			)
+		}
+
+		store.selectedDetailTab = .about
+		#expect(store.selectedDetailTab == .about)
+		#expect(throws: Never.self) {
+			try aboutPane(store: store).inspect().find(text: "Used to display and choose this skill")
+		}
+		#expect(throws: Never.self) {
+			try aboutPane(store: store).inspect().find(text: "Summary")
+		}
+		#expect(throws: (any Error).self) {
+			try aboutPane(store: store).inspect().find(text: "Optional")
+		}
 	}
 
-	@Test("skill detail edits the icon from the about card, not a form row")
+	@Test("selecting a skill resets the detail tab to instructions")
+	func selectingSkillResetsDetailTab() {
+		let store = SkillsStore()
+		store.selectedSkillId = "research"
+		store.selectedSkill = SkillDetail(
+			dirName: "research",
+			name: "Research",
+			summary: "Research assistant",
+			bodyMarkdown: "# Research",
+			tools: nil,
+			integrations: nil
+		)
+		store.selectedDetailTab = .about
+		store.selectSkill(id: "other")
+		#expect(store.selectedDetailTab == .instructions)
+	}
+
+	@Test("skill detail edits the icon from the about tab, not a form row")
 	func skillDetailEditsIconFromAboutCard() throws {
 		let store = SkillsStore()
 		store.selectedSkill = SkillDetail(
@@ -411,19 +441,20 @@ struct SkillsViewTests {
 			tools: nil,
 			integrations: nil
 		)
-		let view = SkillsView(store: store)
+		store.selectedDetailTab = .about
+		let pane = aboutPane(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "skill-icon-edit-button")
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "skill-icon-edit-button")
 		}
 		#expect(throws: (any Error).self) {
-			try view.inspect().find(text: "Change…")
+			try pane.inspect().find(text: "Change…")
 		}
 		#expect(throws: (any Error).self) {
-			try view.inspect().find(button: "Reset")
+			try pane.inspect().find(button: "Reset")
 		}
 	}
 
-	@Test("skill detail shows enabled toggle in the about card")
+	@Test("skill detail shows enabled toggle in the about tab")
 	func skillDetailShowsEnabledStatus() throws {
 		let store = SkillsStore()
 		store.selectedSkill = SkillDetail(
@@ -434,9 +465,10 @@ struct SkillsViewTests {
 			tools: nil,
 			integrations: nil
 		)
-		let view = SkillsView(store: store)
-		#expect(throws: Never.self) { try view.inspect().find(text: "Enabled") }
-		#expect(throws: Never.self) { try view.inspect().find(text: "Offered to the model") }
+		store.selectedDetailTab = .about
+		let pane = aboutPane(store: store)
+		#expect(throws: Never.self) { try pane.inspect().find(text: "Enabled") }
+		#expect(throws: Never.self) { try pane.inspect().find(text: "Offered to the model") }
 	}
 
 	@Test("store exposes summary and enabled field values")
@@ -523,4 +555,18 @@ struct SkillsViewTests {
 		store.markDirty()
 		#expect(store.isDirty == true)
 	}
+}
+
+@MainActor
+private func aboutPane(store: SkillsStore) -> SkillAboutPane {
+	SkillAboutPane(
+		store: store,
+		skill: store.selectedSkill!,
+		isIconPickerPresented: .constant(false)
+	)
+}
+
+@MainActor
+private func instructionsPane(store: SkillsStore) -> SkillInstructionsPane {
+	SkillInstructionsPane(store: store, skill: store.selectedSkill!)
 }

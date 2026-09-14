@@ -25,6 +25,8 @@ final class FlowsStore {
 	var showResultSheet = false
 	var pendingDeleteId: String?
 	var personaOptions: [PersonaOption] = []
+	/// Details / Recent runs tab in the flow detail.
+	var selectedDetailTab: FlowDetailTab = .details
 
 	private let client = TobyClient()
 
@@ -59,6 +61,7 @@ final class FlowsStore {
 		showResultSheet = false
 		pendingDeleteId = nil
 		personaOptions = []
+		selectedDetailTab = .details
 	}
 
 	func ensureLoaded() async {
@@ -88,12 +91,14 @@ final class FlowsStore {
 	func selectHome() {
 		selectedFlowId = nil
 		runs = []
+		selectedDetailTab = .details
 		closeRunDetail()
 	}
 
 	func selectFlow(id: String) async {
 		guard selectedFlowId != id else { return }
 		selectedFlowId = id
+		selectedDetailTab = .details
 		closeRunDetail()
 		await loadRuns(for: id)
 	}

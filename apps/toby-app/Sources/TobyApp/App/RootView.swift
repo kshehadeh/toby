@@ -583,10 +583,6 @@ struct RootView: View {
                                             isFilesSidebarPresented: projectsStore.isFilesSidebarPresented,
                                             onToggleFilesSidebar: {
                                                 projectsStore.isFilesSidebarPresented.toggle()
-                                            },
-                                            isChatsSidebarPresented: projectsStore.isChatsSidebarPresented,
-                                            onToggleChatsSidebar: {
-                                                projectsStore.isChatsSidebarPresented.toggle()
                                             }
                                         )
 

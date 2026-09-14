@@ -461,8 +461,6 @@ enum RootToolbars {
 		onReturnToProject: @escaping () -> Void = {},
 		isFilesSidebarPresented: Bool = false,
 		onToggleFilesSidebar: @escaping () -> Void = {},
-		isChatsSidebarPresented: Bool = false,
-		onToggleChatsSidebar: @escaping () -> Void = {},
 	) -> some ToolbarContent {
 		common(
 			model,
@@ -498,23 +496,13 @@ enum RootToolbars {
 				.accessibilityIdentifier("toolbar-new-project-button")
 				.accessibilityLabel("New Project")
 			}
-			switch projectToolbarMode(hasSelection: hasSelection, isShowingChat: isShowingChat) {
-			case .projectChat:
+			if projectToolbarMode(hasSelection: hasSelection, isShowingChat: isShowingChat) == .projectChat {
 				Button(action: onToggleFilesSidebar) {
 					Image(systemName: "sidebar.trailing")
 				}
 				.help(projectFilesHelp(isPresented: isFilesSidebarPresented))
 				.accessibilityLabel(projectFilesHelp(isPresented: isFilesSidebarPresented))
 				.accessibilityIdentifier("project-files-toggle")
-			case .project:
-				Button(action: onToggleChatsSidebar) {
-					Image(systemName: "sidebar.trailing")
-				}
-				.help(projectChatsHelp(isPresented: isChatsSidebarPresented))
-				.accessibilityLabel(projectChatsHelp(isPresented: isChatsSidebarPresented))
-				.accessibilityIdentifier("project-chats-toggle")
-			case .home:
-				EmptyView()
 			}
 			if projectToolbarMode(hasSelection: hasSelection, isShowingChat: isShowingChat) == .project {
 				Button(role: .destructive, action: onDelete) {
@@ -530,10 +518,6 @@ enum RootToolbars {
 
 	static func projectFilesHelp(isPresented: Bool) -> String {
 		isPresented ? "Hide Files" : "Show Files"
-	}
-
-	static func projectChatsHelp(isPresented: Bool) -> String {
-		isPresented ? "Hide Chats" : "Show Chats"
 	}
 
 	@ToolbarContentBuilder

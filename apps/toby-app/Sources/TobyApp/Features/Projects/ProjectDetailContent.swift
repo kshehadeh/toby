@@ -1,30 +1,38 @@
 import SwiftUI
 
+enum ProjectDetailTab: String, Hashable, CaseIterable {
+	case details
+	case chats
+}
+
 struct ProjectDetailContent: View {
 	@Bindable var store: ProjectsStore
 	let project: ProjectSummary
+	var onSelectChat: ((String) -> Void)?
 
 	@State private var isSummaryEditorPresented = false
 
 	var body: some View {
-		ScrollView {
-			VStack(alignment: .leading, spacing: 24) {
-				ViewThatFits(in: .horizontal) {
-					HStack(alignment: .top, spacing: 20) {
-						aboutCard.frame(minWidth: 280)
-						filesCard.frame(minWidth: 280)
-					}
-					VStack(alignment: .leading, spacing: 20) {
-						aboutCard
-						filesCard
-					}
-				}
+		TabView(selection: $store.selectedDetailTab) {
+			Tab(value: ProjectDetailTab.details) {
+				ProjectDetailsPane(
+					store: store,
+					project: project,
+					isSummaryEditorPresented: $isSummaryEditorPresented
+				)
+			} label: {
+				Text("Details")
 			}
-			.padding(28)
-			.frame(maxWidth: 980)
-			.frame(maxWidth: .infinity)
+			Tab(value: ProjectDetailTab.chats) {
+				ProjectChatsPane(store: store, onSelectChat: onSelectChat ?? { _ in })
+			} label: {
+				Text("Chats")
+			}
 		}
+		.padding(AppTheme.contentPadding)
+		.frame(maxWidth: .infinity, maxHeight: .infinity)
 		.background(SettingsDesign.canvasBackground)
+		.accessibilityIdentifier("project-detail-tabs")
 		.sheet(isPresented: $isSummaryEditorPresented) {
 			ProjectSummaryEditorSheet(
 				initialSummary: store.selectedProject?.summary ?? "",
@@ -40,44 +48,27 @@ struct ProjectDetailContent: View {
 			)
 		}
 	}
+}
 
-	private var aboutCard: some View {
-		VStack(alignment: .leading, spacing: 16) {
-			Text("About")
-				.font(.system(size: 13, weight: .semibold))
-				.foregroundStyle(SettingsDesign.rowTitle)
+struct ProjectDetailsPane: View {
+	@Bindable var store: ProjectsStore
+	let project: ProjectSummary
+	@Binding var isSummaryEditorPresented: Bool
 
-			nameField
-			personaField
-			summaryField
-			pathSection
+	var body: some View {
+		ScrollView {
+			VStack(alignment: .leading, spacing: 22) {
+				nameField
+				personaField
+				summaryField
+				pathSection
+				ProjectFileTreeSection(store: store)
+			}
+			.frame(maxWidth: .infinity, alignment: .leading)
 		}
-		.padding(18)
-		.frame(maxWidth: .infinity, alignment: .leading)
-		.background(
-			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-				.fill(SettingsDesign.cardBackground)
-		)
-		.overlay(
-			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-				.stroke(SettingsDesign.cardBorder, lineWidth: 1)
-		)
-	}
-
-	private var filesCard: some View {
-		VStack(alignment: .leading, spacing: 16) {
-			ProjectFileTreeSection(store: store)
-		}
-		.padding(18)
-		.frame(maxWidth: .infinity, alignment: .leading)
-		.background(
-			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-				.fill(SettingsDesign.cardBackground)
-		)
-		.overlay(
-			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-				.stroke(SettingsDesign.cardBorder, lineWidth: 1)
-		)
+		.padding(20)
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+		.accessibilityIdentifier("project-details-tab")
 	}
 
 	private var summaryField: some View {
@@ -168,6 +159,83 @@ struct ProjectDetailContent: View {
 				.foregroundStyle(SettingsDesign.rowTitle)
 			RevealPathButton(path: store.selectedProject?.folderPath ?? project.folderPath)
 		}
+	}
+}
+
+struct ProjectChatsPane: View {
+	@Bindable var store: ProjectsStore
+	let onSelectChat: (String) -> Void
+
+	var body: some View {
+		Group {
+			if store.selectedProjectSessions.isEmpty {
+				ContentUnavailableView {
+					Label {
+						Text("No chats yet")
+					} icon: {
+						Image(systemName: "bubble.left")
+							.accessibilityHidden(true)
+					}
+				} description: {
+					Text("Use + Chat in the toolbar to start one.")
+				}
+				.frame(maxWidth: .infinity, maxHeight: .infinity)
+				.accessibilityIdentifier("project-chats-tab-empty")
+			} else {
+				ScrollView {
+					VStack(alignment: .leading, spacing: 2) {
+						ForEach(store.selectedProjectSessions) { session in
+							Button {
+								onSelectChat(session.id)
+							} label: {
+								ProjectChatsRow(session: session)
+							}
+							.buttonStyle(.plain)
+							.accessibilityIdentifier("project-chats-tab-row-\(session.id)")
+						}
+					}
+					.frame(maxWidth: .infinity, alignment: .topLeading)
+				}
+				.automaticScrollIndicators(axes: .vertical)
+			}
+		}
+		.padding(20)
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+		.accessibilityIdentifier("project-chats-tab")
+	}
+}
+
+private struct ProjectChatsRow: View {
+	let session: SessionSummary
+
+	var body: some View {
+		HStack(alignment: .top, spacing: 8) {
+			Image(systemName: session.isExternal ? "bubble.left.and.bubble.right" : "bubble.left")
+				.font(.system(size: 12, weight: .semibold))
+				.foregroundStyle(AppTheme.secondaryText)
+				.frame(width: 16, height: 16)
+				.padding(.top, 2)
+			VStack(alignment: .leading, spacing: 2) {
+				Text(session.name)
+					.font(.system(size: 12, weight: .medium))
+					.foregroundStyle(AppTheme.secondaryText)
+					.lineLimit(1)
+				if let date = sidebarSessionDate(session) {
+					Text(date)
+						.font(.system(size: 10))
+						.foregroundStyle(AppTheme.tertiaryText)
+						.lineLimit(1)
+				}
+			}
+			Spacer(minLength: 0)
+			Image(systemName: "chevron.right")
+				.font(.system(size: 10, weight: .semibold))
+				.foregroundStyle(AppTheme.tertiaryText)
+				.padding(.top, 2)
+		}
+		.padding(.vertical, 8)
+		.padding(.horizontal, 4)
+		.contentShape(Rectangle())
 	}
 }
 

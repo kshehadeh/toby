@@ -1,154 +1,66 @@
 import SwiftUI
 
+enum ScheduleDetailTab: String, Hashable, CaseIterable {
+	case details
+	case prompt
+}
+
 struct ScheduleDetailContent: View {
 	@Bindable var store: SchedulesStore
 	let schedule: ScheduleViewModel
 	var onOpenFlow: ((String) -> Void)?
 
+	var body: some View {
+		TabView(selection: $store.selectedDetailTab) {
+			Tab(value: ScheduleDetailTab.details) {
+				ScheduleDetailsPane(store: store, schedule: schedule)
+			} label: {
+				Text("Details")
+			}
+			Tab(value: ScheduleDetailTab.prompt) {
+				SchedulePromptPane(
+					store: store,
+					schedule: schedule,
+					onOpenFlow: onOpenFlow
+				)
+			} label: {
+				Text("Prompt")
+			}
+		}
+		.padding(AppTheme.contentPadding)
+		.frame(maxWidth: .infinity, maxHeight: .infinity)
+		.background(SettingsDesign.canvasBackground)
+		.accessibilityIdentifier("schedule-detail-tabs")
+	}
+}
+
+struct ScheduleDetailsPane: View {
+	@Bindable var store: SchedulesStore
+	let schedule: ScheduleViewModel
+
 	@FocusState private var isCronFieldFocused: Bool
 
 	var body: some View {
 		ScrollView {
-			VStack(alignment: .leading, spacing: 24) {
-				ViewThatFits(in: .horizontal) {
-					HStack(alignment: .top, spacing: 20) {
-						aboutCard.frame(minWidth: 280)
-						contentCard.frame(minWidth: 280)
-					}
-					VStack(alignment: .leading, spacing: 20) {
-						aboutCard
-						contentCard
-					}
+			VStack(alignment: .leading, spacing: 16) {
+				nameField
+				actionField
+				if isFlowAction {
+					flowField
+				} else {
+					personaField
+					projectField
 				}
-				recentRunsCard
+				cronField
+				enableRow
+				runInfoSection
+				recentRunsSection
 			}
-			.padding(28)
-			.frame(maxWidth: 980)
-			.frame(maxWidth: .infinity)
+			.frame(maxWidth: .infinity, alignment: .leading)
 		}
-		.background(SettingsDesign.canvasBackground)
-	}
-
-	private var aboutCard: some View {
-		VStack(alignment: .leading, spacing: 16) {
-			Text("About")
-				.font(.system(size: 13, weight: .semibold))
-				.foregroundStyle(SettingsDesign.rowTitle)
-
-			nameField
-			actionField
-			if isFlowAction {
-				flowField
-			} else {
-				personaField
-				projectField
-			}
-			cronField
-			enableRow
-			runInfoSection
-		}
-		.padding(18)
-		.frame(maxWidth: .infinity, alignment: .leading)
-		.background(
-			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-				.fill(SettingsDesign.cardBackground)
-		)
-		.overlay(
-			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-				.stroke(SettingsDesign.cardBorder, lineWidth: 1)
-		)
-	}
-
-	@ViewBuilder
-	private var contentCard: some View {
-		if isFlowAction {
-			flowColumn
-		} else {
-			promptColumn
-		}
-	}
-
-	private var promptColumn: some View {
-		VStack(alignment: .leading, spacing: 8) {
-			VStack(alignment: .leading, spacing: 4) {
-				Text("Prompt")
-					.font(.system(size: 13, weight: .semibold))
-					.foregroundStyle(SettingsDesign.rowTitle)
-				Text("Sent to Toby when this schedule runs")
-					.font(.caption)
-					.foregroundStyle(SettingsDesign.rowDescription)
-			}
-			SkillMarkdownEditor(text: binding(for: .prompt))
-				.frame(maxWidth: .infinity)
-				.frame(height: SkillMarkdownTextView.fallbackHeight)
-		}
-		.frame(maxWidth: .infinity, alignment: .topLeading)
-	}
-
-	private var flowColumn: some View {
-		VStack(alignment: .leading, spacing: 12) {
-			Text("Flow")
-				.font(.system(size: 13, weight: .semibold))
-				.foregroundStyle(SettingsDesign.rowTitle)
-			Text("This schedule runs the selected flow instead of a chat prompt.")
-				.font(.caption)
-				.foregroundStyle(SettingsDesign.rowDescription)
-
-			if let flowId = selectedFlowId, let flow = store.flow(for: flowId) {
-				VStack(alignment: .leading, spacing: 8) {
-					HStack(spacing: 8) {
-						Image(systemName: flow.systemImage)
-							.foregroundStyle(AppTheme.accent)
-						Text(flow.displayName)
-							.font(.system(size: 16, weight: .semibold))
-							.foregroundStyle(SettingsDesign.rowTitle)
-						if flow.builtin {
-							Text("Built-in")
-								.font(.system(size: 10, weight: .semibold))
-								.foregroundStyle(SettingsDesign.rowDescription)
-						}
-					}
-					Text(flow.subtitle)
-						.font(.system(size: 12))
-						.foregroundStyle(SettingsDesign.rowDescription)
-					if let destinations = flow.destinations, !destinations.isEmpty {
-						Text(destinations.map(\.summary).joined(separator: " · "))
-							.font(.system(size: 11))
-							.foregroundStyle(SettingsDesign.rowDescription)
-					}
-					if let onOpenFlow {
-						Button("Open in Flows") {
-							onOpenFlow(flow.id)
-						}
-						.buttonStyle(.bordered)
-						.controlSize(.regular)
-						.accessibilityIdentifier("schedule-open-flow-button")
-					}
-				}
-				.padding(14)
-				.frame(maxWidth: .infinity, alignment: .leading)
-				.background(SettingsDesign.cardBackground)
-				.clipShape(RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius))
-				.overlay(
-					RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-						.stroke(SettingsDesign.cardBorder, lineWidth: 1)
-				)
-			} else {
-				Text("Select a flow above.")
-					.font(.system(size: 12))
-					.foregroundStyle(SettingsDesign.rowDescription)
-			}
-		}
-		.padding(18)
-		.frame(maxWidth: .infinity, alignment: .topLeading)
-		.background(
-			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-				.fill(SettingsDesign.cardBackground)
-		)
-		.overlay(
-			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-				.stroke(SettingsDesign.cardBorder, lineWidth: 1)
-		)
+		.padding(20)
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+		.accessibilityIdentifier("schedule-details-tab")
 	}
 
 	private var nameField: some View {
@@ -353,7 +265,7 @@ struct ScheduleDetailContent: View {
 		}
 	}
 
-	private var recentRunsCard: some View {
+	private var recentRunsSection: some View {
 		VStack(alignment: .leading, spacing: 12) {
 			Text("Recent runs")
 				.font(.system(size: 13, weight: .semibold))
@@ -396,16 +308,7 @@ struct ScheduleDetailContent: View {
 				}
 			}
 		}
-		.padding(18)
 		.frame(maxWidth: .infinity, alignment: .leading)
-		.background(
-			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-				.fill(SettingsDesign.cardBackground)
-		)
-		.overlay(
-			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-				.stroke(SettingsDesign.cardBorder, lineWidth: 1)
-		)
 	}
 
 	private func metadataRow(label: String, value: String) -> some View {
@@ -429,12 +332,6 @@ struct ScheduleDetailContent: View {
 
 	private var isFlowAction: Bool {
 		store.value(for: store.key(for: schedule.id, field: .action)) == "flow"
-	}
-
-	private var selectedFlowId: String? {
-		let value = store.value(for: store.key(for: schedule.id, field: .flow))
-		if value.isEmpty || value == "(none)" { return nil }
-		return value
 	}
 
 	private var nameBinding: Binding<String> {
@@ -522,5 +419,99 @@ struct ScheduleDetailContent: View {
 		default:
 			return AppTheme.tertiaryText
 		}
+	}
+}
+
+struct SchedulePromptPane: View {
+	@Bindable var store: SchedulesStore
+	let schedule: ScheduleViewModel
+	var onOpenFlow: ((String) -> Void)?
+
+	var body: some View {
+		Group {
+			if isFlowAction {
+				flowContent
+			} else {
+				promptEditor
+			}
+		}
+		.padding(20)
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+		.accessibilityIdentifier("schedule-prompt-tab")
+	}
+
+	private var promptEditor: some View {
+		VStack(alignment: .leading, spacing: 8) {
+			Text("Sent to Toby when this schedule runs")
+				.font(.caption)
+				.foregroundStyle(SettingsDesign.rowDescription)
+			SkillMarkdownEditor(text: binding(for: .prompt))
+				.frame(maxWidth: .infinity, maxHeight: .infinity)
+		}
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+	}
+
+	private var flowContent: some View {
+		VStack(alignment: .leading, spacing: 12) {
+			Text("This schedule runs the selected flow instead of a chat prompt.")
+				.font(.caption)
+				.foregroundStyle(SettingsDesign.rowDescription)
+
+			if let flowId = selectedFlowId, let flow = store.flow(for: flowId) {
+				VStack(alignment: .leading, spacing: 8) {
+					HStack(spacing: 8) {
+						Image(systemName: flow.systemImage)
+							.foregroundStyle(AppTheme.accent)
+						Text(flow.displayName)
+							.font(.system(size: 16, weight: .semibold))
+							.foregroundStyle(SettingsDesign.rowTitle)
+						if flow.builtin {
+							Text("Built-in")
+								.font(.system(size: 10, weight: .semibold))
+								.foregroundStyle(SettingsDesign.rowDescription)
+						}
+					}
+					Text(flow.subtitle)
+						.font(.system(size: 12))
+						.foregroundStyle(SettingsDesign.rowDescription)
+					if let destinations = flow.destinations, !destinations.isEmpty {
+						Text(destinations.map(\.summary).joined(separator: " · "))
+							.font(.system(size: 11))
+							.foregroundStyle(SettingsDesign.rowDescription)
+					}
+					if let onOpenFlow {
+						Button("Open in Flows") {
+							onOpenFlow(flow.id)
+						}
+						.buttonStyle(.bordered)
+						.controlSize(.regular)
+						.accessibilityIdentifier("schedule-open-flow-button")
+					}
+				}
+				.frame(maxWidth: .infinity, alignment: .leading)
+			} else {
+				Text("Select a flow on the Details tab.")
+					.font(.system(size: 12))
+					.foregroundStyle(SettingsDesign.rowDescription)
+			}
+		}
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+	}
+
+	private func binding(for field: ScheduleField) -> Binding<String> {
+		Binding(
+			get: { store.value(for: store.key(for: schedule.id, field: field)) },
+			set: { store.setDraftValue(store.key(for: schedule.id, field: field), $0) },
+		)
+	}
+
+	private var isFlowAction: Bool {
+		store.value(for: store.key(for: schedule.id, field: .action)) == "flow"
+	}
+
+	private var selectedFlowId: String? {
+		let value = store.value(for: store.key(for: schedule.id, field: .flow))
+		if value.isEmpty || value == "(none)" { return nil }
+		return value
 	}
 }

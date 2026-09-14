@@ -126,17 +126,16 @@ again, to clear the selection.
 ### Projects
 
 The Projects workspace lists each project in a second column. Select one to open its
-page: rename it in **About**, edit the summary or persona, reveal the project
-folder, and inspect the generated file tree. A **Chats** inspector on the right
-lists the project's chats — click one to resume it, or use **+ Chat** in the
-toolbar to start a new one (the toolbar also hides or shows that inspector).
-The toolbar shows **+** (new project) when nothing is selected, and **+ Chat**
-plus **Delete** on a project page. Click empty space in the list, or
-**Projects** in the sidebar again, to clear the selection. Right-click a project in the list for recent chats or
-delete. Project chats stay in Projects: they
-never appear in the main Chats list. While a project chat
-is open, a folder icon marks the chat and a toolbar button returns you to the
-project page.
+page: **Details** and **Chats** are separate tabs. On **Details**, rename the
+project, edit the summary or persona, reveal the project folder, and inspect the
+file tree. On **Chats**, click a chat to resume it, or use **+ Chat** in the
+toolbar to start a new one. The toolbar shows **+** (new project) when nothing
+is selected, and **+ Chat** plus **Delete** on a project page. Click empty space
+in the list, or **Projects** in the sidebar again, to clear the selection.
+Right-click a project in the list for recent chats or delete. Project chats stay
+in Projects: they never appear in the main Chats list. While a project chat is
+open, a folder icon marks the chat and a toolbar button returns you to the
+project page (on the Chats tab).
 
 ![Toby.app Projects window](/img/toby-app-projects.png)
 
@@ -144,11 +143,12 @@ project page.
 
 The Skills workspace lists each skill in a second column. Nothing is selected
 until you choose a skill. The overview asks you to pick one or create a new
-skill. Select a skill to open its page: rename it in **About**, click the icon
-to change it, and edit the summary, enabled state, and instructions in the main
-pane. Use **New Skill** in the toolbar while viewing the overview to create
-one. Click empty space in the list to clear the selection. You can also delete
-skills and run a skill directly from the toolbar.
+skill. Select a skill to open its page: **About** and **Instructions** are
+separate tabs. Rename it or change the icon on **About**, and edit the summary
+and enabled state there. Edit the skill body on **Instructions**. Use **New
+Skill** in the toolbar while viewing the overview to create one. Click empty
+space in the list to clear the selection. You can also delete skills and run a
+skill directly from the toolbar.
 
 ![Toby.app Skills window](/img/toby-app-skills.png)
 
@@ -167,10 +167,10 @@ sidebar workspace in the main window.
 ### Schedules
 
 The Schedules area lists each schedule in a second column. Select one to open
-its page: rename it in **About**, and edit whether it runs a prompt or a flow,
-the timetable, and enabled state in the main pane. Click empty space in the
-list to clear the selection. You can add new schedules, run them on demand, or
-delete them.
+its page: **Details** and **Prompt** are separate tabs. Rename it, choose
+prompt vs flow, set the timetable, and toggle enabled on **Details**. Edit the
+prompt body on **Prompt**. Click empty space in the list to clear the
+selection. You can add new schedules, run them on demand, or delete them.
 
 ![Toby.app Schedules window](/img/toby-app-schedules.png)
 
@@ -178,12 +178,14 @@ delete them.
 
 The **Flows** window shows automated pipelines that combine local tools with an
 optional persona and LLM step. Built-in jobs still fill the home dashboard
-blocks (email, tasks, calendar). You can also **create your own** flows: pick
-tools, fill in their arguments, optionally add a last LLM step, choose whether
-the result opens in a window / is emailed / is posted to Slack / appears as a
-home-dashboard card, and **Run now**. Rename a custom flow in **Details** while
-editing; Cancel and Save are in the toolbar. Built-in flows stay read-only. Running a
-custom flow from a [schedule](./schedules) is still later.
+blocks (email, tasks, calendar). Select a flow to open **Details** (description,
+nodes, metadata) and **Recent runs** tabs. You can also **create your own**
+flows: pick tools, fill in their arguments, optionally add a last LLM step,
+choose whether the result opens in a window / is emailed / is posted to Slack /
+appears as a home-dashboard card, and **Run now**. Rename a custom flow in
+**Details** while editing; Cancel and Save are in the toolbar. Built-in flows
+stay read-only. Running a custom flow from a [schedule](./schedules) is still
+later.
 
 ![Toby.app Flows](/img/toby-app-flows.png)
 

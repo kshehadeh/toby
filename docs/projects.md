@@ -49,16 +49,15 @@ Chat sessions and schedules can also reference a `project_id`.
 There is **no** terminal `/project` or `/config` slash-command UI; interactive
 management lives in Toby.app. The global sidebar is a destination list; **Projects**
 opens a list of every project beside the project page. Selecting a project
-opens a details page in the main pane (metadata, file tree, and a trailing
-Chats inspector listing every project chat). Right-click a project in the list to open any of
+opens a details page in the main pane with **Details** and **Chats** tabs
+(metadata and file tree on Details; every project chat on Chats). Right-click a project in the list to open any of
 its ten most recently updated chats directly. File → **New Chat** (⌘N) starts a
 new chat in the selected project. The main-window toolbar is context-sensitive:
 **+** (new project) when nothing is selected; **+ Chat** and **Delete** on a
-project page, plus a trailing-sidebar toggle for the project's Chats inspector.
-Clicking
+project page. Clicking
 **Projects** again in the destination list clears the selection.
 Project chats are not listed in the main Chats workspace — open them from the project. While a project chat is open, the
-toolbar shows a folder icon and a control to return to the project page.
+toolbar shows a folder icon and a control to return to the project page (Chats tab).
 Project chats also open a trailing
 **Files** inspector by default. Its toolbar button hides or shows the inspector;
 the tree refreshes while the chat runs and briefly labels added, updated, and
@@ -71,7 +70,7 @@ or reveal it in Finder. A new project chat identifies its project with a **New
 
 | Field | Description |
 | ----- | ----------- |
-| **Name** | Display name, edited in the project page About card |
+| **Name** | Display name, edited on the project page Details tab |
 | **Summary** | Short description included in project prompt context |
 | **Persona** | Optional project-default persona |
 | **Folder path** | Absolute path to the project canvas directory |

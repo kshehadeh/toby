@@ -137,19 +137,57 @@ struct FlowsViewTests {
 		let flow = sampleFlow()
 		store.flows = [flow]
 		store.selectedFlowId = flow.id
-		let view = FlowsDetailView(store: store)
+		let pane = detailsPane(store: store, flow: flow)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Fetch unread inbox items and summarize them.")
+			try pane.inspect().find(text: "Fetch unread inbox items and summarize them.")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Built-in flows remain read-only. Duplicate their idea as a new custom flow if you want to change the steps.")
+			try pane.inspect().find(text: "Built-in flows remain read-only. Duplicate their idea as a new custom flow if you want to change the steps.")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "fetch-unread")
+			try pane.inspect().find(text: "fetch-unread")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "summarize")
+			try pane.inspect().find(text: "summarize")
 		}
+	}
+
+	@Test("flow detail shows details and recent runs tabs")
+	func flowDetailShowsDetailsAndRecentRunsTabs() throws {
+		let store = FlowsStore()
+		let flow = sampleFlow()
+		store.flows = [flow]
+		store.selectedFlowId = flow.id
+		#expect(store.selectedDetailTab == .details)
+		let view = FlowDetailContent(store: store, flow: flow)
+		#expect(throws: Never.self) {
+			try view.inspect().tabView()
+		}
+		#expect(throws: Never.self) {
+			try detailsPane(store: store, flow: flow).inspect().find(text: "Nodes")
+		}
+		#expect(throws: Never.self) {
+			try detailsPane(store: store, flow: flow).inspect().find(text: "About flows")
+		}
+
+		store.selectedDetailTab = .recentRuns
+		#expect(store.selectedDetailTab == .recentRuns)
+		#expect(throws: Never.self) {
+			try recentRunsPane(store: store).inspect().find(text: "No runs yet")
+		}
+	}
+
+	@Test("selecting a flow resets the detail tab to details")
+	func selectingFlowResetsDetailTab() async {
+		let store = FlowsStore()
+		store.flows = [
+			sampleFlow(id: "dashboard.email.summary"),
+			sampleFlow(id: "dashboard.tasks.summary"),
+		]
+		store.selectedFlowId = "dashboard.email.summary"
+		store.selectedDetailTab = .recentRuns
+		await store.selectFlow(id: "dashboard.tasks.summary")
+		#expect(store.selectedDetailTab == .details)
 	}
 
 	@Test("flows store initializes empty on home")
@@ -250,33 +288,33 @@ struct FlowsViewTests {
 		let flow = sampleFlow(id: "flow.custom", name: "Focus mode", builtin: false)
 		store.flows = [flow]
 		store.selectedFlowId = flow.id
-		let view = FlowDetailContent(store: store, flow: flow)
+		let pane = detailsPane(store: store, flow: flow)
 		#expect(throws: (any Error).self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-edit-button")
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "flow-edit-button")
 		}
 		#expect(throws: (any Error).self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-run-button")
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "flow-run-button")
 		}
 		#expect(throws: (any Error).self) {
-			try view.inspect().find(button: "Edit")
+			try pane.inspect().find(button: "Edit")
 		}
 		#expect(throws: (any Error).self) {
-			try view.inspect().find(button: "Run now")
+			try pane.inspect().find(button: "Run now")
 		}
 	}
 
-	@Test("custom flow detail omits delete in the inspector")
+	@Test("custom flow detail omits delete in the details pane")
 	func customFlowDetailOmitsInspectorDelete() throws {
 		let store = FlowsStore()
 		let flow = sampleFlow(id: "flow.custom", name: "Focus mode", builtin: false)
 		store.flows = [flow]
 		store.selectedFlowId = flow.id
-		let view = FlowDetailContent(store: store, flow: flow)
+		let pane = detailsPane(store: store, flow: flow)
 		#expect(throws: (any Error).self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-delete-button")
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "flow-delete-button")
 		}
 		#expect(throws: (any Error).self) {
-			try view.inspect().find(button: "Delete flow")
+			try pane.inspect().find(button: "Delete flow")
 		}
 	}
 
@@ -517,6 +555,16 @@ struct FlowsViewTests {
 		#expect(run.durationMs == 2000)
 		#expect(run.displayStatus == "Success")
 	}
+}
+
+@MainActor
+private func detailsPane(store: FlowsStore, flow: FlowListItem) -> FlowDetailsPane {
+	FlowDetailsPane(store: store, flow: flow)
+}
+
+@MainActor
+private func recentRunsPane(store: FlowsStore) -> FlowRecentRunsPane {
+	FlowRecentRunsPane(store: store)
 }
 
 @MainActor

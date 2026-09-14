@@ -35,8 +35,10 @@ Open **Toby.app** and click **Schedules** in the sidebar.
 
 The Schedules view lists your schedules in a second column. Select one
 to open its page, or click empty space in the list (or **Schedules** in the
-sidebar again) to clear the selection. Rename it in **About**;
-prompt or flow, timetable, and enabled state are edited on that page. Use
+sidebar again) to clear the selection. The schedule page has **Details** and
+**Prompt** tabs. Rename it, choose prompt vs flow, set the timetable, and
+toggle enabled on **Details** (recent runs are there too). Edit the prompt body
+on **Prompt** (or review the selected flow when the schedule runs a flow). Use
 **New Schedule** in the toolbar, or the create link when nothing is selected.
 You can also delete schedules from a row’s context menu or the toolbar, use **Run now** for a test, and view past runs.
 

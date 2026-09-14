@@ -104,6 +104,8 @@ final class SkillsStore {
 	var lastLoadedAt: Date?
 	var errorMessage: String?
 	var pendingDelete: PendingDelete?
+	/// About / Instructions tab in the skill detail.
+	var selectedDetailTab: SkillDetailTab = .instructions
 
 	struct PendingDelete {
 		let dirName: String
@@ -148,6 +150,7 @@ final class SkillsStore {
 		lastLoadedAt = nil
 		errorMessage = nil
 		pendingDelete = nil
+		selectedDetailTab = .instructions
 		isDirty = false
 		draft = [:]
 		isQuietRefreshing = false
@@ -247,6 +250,7 @@ final class SkillsStore {
 		let epoch = detailEpoch
 		selectedSkillId = id
 		selectedSkill = nil
+		selectedDetailTab = .instructions
 		isDetailLoading = true
 
 		// Record selection intent before the first suspension. A later selection
@@ -281,6 +285,7 @@ final class SkillsStore {
 		detailEpoch += 1
 		selectedSkillId = nil
 		selectedSkill = nil
+		selectedDetailTab = .instructions
 		isDetailLoading = false
 
 		// Deselecting keeps the feature mounted, so flush now rather than waiting
@@ -305,11 +310,13 @@ final class SkillsStore {
 				detailEpoch += 1
 				let epoch = detailEpoch
 				selectedSkillId = newId
+				selectedDetailTab = .instructions
 				await loadDetail(id: newId, epoch: epoch)
 			} else if let first = skills.first {
 				detailEpoch += 1
 				let epoch = detailEpoch
 				selectedSkillId = first.id
+				selectedDetailTab = .instructions
 				await loadDetail(id: first.id, epoch: epoch)
 			}
 		} catch {

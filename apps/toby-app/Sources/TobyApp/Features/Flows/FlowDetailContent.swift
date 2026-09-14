@@ -1,20 +1,39 @@
 import SwiftUI
 
+enum FlowDetailTab: String, Hashable, CaseIterable {
+	case details
+	case recentRuns
+}
+
 struct FlowDetailContent: View {
 	@Bindable var store: FlowsStore
 	let flow: FlowListItem
 
 	var body: some View {
-		HStack(spacing: 0) {
-			mainColumn
-			Divider().overlay(SettingsDesign.cardBorder)
-			inspectorColumn
+		TabView(selection: $store.selectedDetailTab) {
+			Tab(value: FlowDetailTab.details) {
+				FlowDetailsPane(store: store, flow: flow)
+			} label: {
+				Text("Details")
+			}
+			Tab(value: FlowDetailTab.recentRuns) {
+				FlowRecentRunsPane(store: store)
+			} label: {
+				Text("Recent runs")
+			}
 		}
+		.padding(AppTheme.contentPadding)
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
 		.background(SettingsDesign.canvasBackground)
+		.accessibilityIdentifier("flow-detail-tabs")
 	}
+}
 
-	private var mainColumn: some View {
+struct FlowDetailsPane: View {
+	@Bindable var store: FlowsStore
+	let flow: FlowListItem
+
+	var body: some View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 22) {
 				if let description = flow.description, !description.isEmpty {
@@ -32,7 +51,6 @@ struct FlowDetailContent: View {
 						ForEach(Array(flow.nodes.enumerated()), id: \.element.id) { index, node in
 							FlowNodeRow(index: index + 1, node: node)
 							if index < flow.nodes.count - 1 {
-								// Connector between steps
 								HStack(spacing: 0) {
 									Rectangle()
 										.fill(SettingsDesign.cardBorder)
@@ -45,35 +63,46 @@ struct FlowDetailContent: View {
 					}
 				}
 
-				section(title: "Recent runs") {
-					if store.isRunsLoading && store.runs.isEmpty {
-						HStack {
-							ProgressView()
-								.controlSize(.small)
-							Text("Loading runs…")
-								.font(.caption)
-								.foregroundStyle(SettingsDesign.rowDescription)
-						}
-						.padding(.vertical, 8)
-					} else if store.runs.isEmpty {
-						Text("No runs yet. Dashboard cards and other callers will show history here after they execute this flow.")
+				VStack(alignment: .leading, spacing: 12) {
+					metadataRow(label: "ID", value: flow.id, monospaced: true)
+					metadataRow(label: "Persona", value: flow.personaLabel)
+					metadataRow(label: "Nodes", value: "\(flow.nodes.count)")
+					metadataRow(label: "Type", value: flow.builtin ? "Built-in" : "Custom")
+					if let updatedAt = flow.updatedAt, let date = FlowISO8601.date(from: updatedAt) {
+						metadataRow(
+							label: "Updated",
+							value: DateFormatter.localizedString(
+								from: date,
+								dateStyle: .medium,
+								timeStyle: .short
+							)
+						)
+					}
+				}
+
+				section(title: "About flows") {
+					VStack(alignment: .leading, spacing: 8) {
+						Text("Flows run a fixed sequence of Tool Executor and LLM Prompter nodes. They power dashboard AI blurbs and other non-chat workflows.")
 							.font(.system(size: 13))
 							.foregroundStyle(SettingsDesign.rowDescription)
 							.fixedSize(horizontal: false, vertical: true)
-					} else {
-						VStack(alignment: .leading, spacing: 0) {
-							ForEach(Array(store.runs.enumerated()), id: \.element.id) { index, run in
-								Button {
-									Task { await store.selectRun(id: run.id) }
-								} label: {
-									FlowRunRow(run: run)
-								}
-								.buttonStyle(.plain)
-								if index < store.runs.count - 1 {
-									Rectangle()
-										.fill(SettingsDesign.cardBorder)
-										.frame(height: 1)
-								}
+
+						if flow.builtin {
+							Text("Built-in flows remain read-only. Duplicate their idea as a new custom flow if you want to change the steps.")
+								.font(.system(size: 13))
+								.foregroundStyle(SettingsDesign.rowDescription)
+								.fixedSize(horizontal: false, vertical: true)
+						}
+					}
+				}
+
+				if let destinations = flow.destinations, !destinations.isEmpty {
+					section(title: "When it finishes") {
+						VStack(alignment: .leading, spacing: 6) {
+							ForEach(Array(destinations.enumerated()), id: \.offset) { _, dest in
+								Text(dest.summary)
+									.font(.system(size: 13))
+									.foregroundStyle(SettingsDesign.rowDescription)
 							}
 						}
 					}
@@ -83,64 +112,12 @@ struct FlowDetailContent: View {
 					InlineStatusMessage(message: errorMessage, tone: .error, font: .caption)
 				}
 			}
-			.padding(24)
 			.frame(maxWidth: SettingsDesign.contentMaxWidth + 80)
 			.frame(maxWidth: .infinity, alignment: .leading)
 		}
-		.frame(maxWidth: .infinity, maxHeight: .infinity)
-	}
-
-	private var inspectorColumn: some View {
-		ScrollView {
-			VStack(alignment: .leading, spacing: 18) {
-				Text("Details")
-					.font(.system(size: 13, weight: .semibold))
-					.foregroundStyle(SettingsDesign.rowTitle)
-
-				metadataRow(label: "ID", value: flow.id, monospaced: true)
-				metadataRow(label: "Persona", value: flow.personaLabel)
-				metadataRow(label: "Nodes", value: "\(flow.nodes.count)")
-				metadataRow(label: "Type", value: flow.builtin ? "Built-in" : "Custom")
-				if let updatedAt = flow.updatedAt, let date = FlowISO8601.date(from: updatedAt) {
-					metadataRow(
-						label: "Updated",
-						value: DateFormatter.localizedString(from: date, dateStyle: .medium, timeStyle: .short)
-					)
-				}
-
-				Divider().overlay(SettingsDesign.cardBorder)
-
-				Text("About flows")
-					.font(.system(size: 12, weight: .semibold))
-					.foregroundStyle(SettingsDesign.rowTitle)
-				Text("Flows run a fixed sequence of Tool Executor and LLM Prompter nodes. They power dashboard AI blurbs and other non-chat workflows.")
-					.font(.system(size: 11))
-					.foregroundStyle(SettingsDesign.rowDescription)
-					.fixedSize(horizontal: false, vertical: true)
-
-				if flow.builtin {
-					Text("Built-in flows remain read-only. Duplicate their idea as a new custom flow if you want to change the steps.")
-						.font(.system(size: 11))
-						.foregroundStyle(SettingsDesign.rowDescription)
-						.fixedSize(horizontal: false, vertical: true)
-				}
-
-				if let destinations = flow.destinations, !destinations.isEmpty {
-					Divider().overlay(SettingsDesign.cardBorder)
-					Text("When it finishes")
-						.font(.system(size: 12, weight: .semibold))
-						.foregroundStyle(SettingsDesign.rowTitle)
-					ForEach(Array(destinations.enumerated()), id: \.offset) { _, dest in
-						Text(dest.summary)
-							.font(.system(size: 11))
-							.foregroundStyle(SettingsDesign.rowDescription)
-					}
-				}
-			}
-			.padding(18)
-			.frame(maxWidth: .infinity, alignment: .leading)
-		}
-		.frame(width: 260)
+		.padding(20)
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+		.accessibilityIdentifier("flow-details-tab")
 	}
 
 	private func section<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -149,32 +126,77 @@ struct FlowDetailContent: View {
 				.font(.system(size: 13, weight: .semibold))
 				.foregroundStyle(SettingsDesign.rowTitle)
 			content()
-				.padding(SettingsDesign.rowHorizontalPadding)
-				.padding(.vertical, SettingsDesign.rowVerticalPadding)
 				.frame(maxWidth: .infinity, alignment: .leading)
-				.background(
-					RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-						.fill(SettingsDesign.cardBackground)
-				)
-				.overlay(
-					RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-						.stroke(SettingsDesign.cardBorder, lineWidth: 1)
-				)
 		}
 	}
 
 	private func metadataRow(label: String, value: String, monospaced: Bool = false) -> some View {
-		VStack(alignment: .leading, spacing: 3) {
+		HStack(alignment: .firstTextBaseline) {
 			Text(label)
-				.font(.system(size: 11))
+				.font(.system(size: 12))
 				.foregroundStyle(SettingsDesign.rowDescription)
+			Spacer(minLength: 12)
 			Text(value)
 				.font(monospaced ? .system(size: 12, design: .monospaced) : .system(size: 12))
 				.foregroundStyle(SettingsDesign.rowTitle)
+				.multilineTextAlignment(.trailing)
 				.lineLimit(3)
 				.textSelection(.enabled)
 		}
 		.frame(maxWidth: .infinity, alignment: .leading)
+	}
+}
+
+struct FlowRecentRunsPane: View {
+	@Bindable var store: FlowsStore
+
+	var body: some View {
+		Group {
+			if store.isRunsLoading && store.runs.isEmpty {
+				VStack(spacing: 12) {
+					ProgressView()
+						.controlSize(.small)
+					Text("Loading runs…")
+						.font(.system(size: 13))
+						.foregroundStyle(SettingsDesign.rowDescription)
+				}
+				.frame(maxWidth: .infinity, maxHeight: .infinity)
+			} else if store.runs.isEmpty {
+				ContentUnavailableView {
+					Label {
+						Text("No runs yet")
+					} icon: {
+						Image(systemName: "clock.arrow.circlepath")
+							.accessibilityHidden(true)
+					}
+				} description: {
+					Text("Dashboard cards and other callers will show history here after they execute this flow.")
+				}
+				.frame(maxWidth: .infinity, maxHeight: .infinity)
+			} else {
+				ScrollView {
+					VStack(alignment: .leading, spacing: 0) {
+						ForEach(Array(store.runs.enumerated()), id: \.element.id) { index, run in
+							Button {
+								Task { await store.selectRun(id: run.id) }
+							} label: {
+								FlowRunRow(run: run)
+							}
+							.buttonStyle(.plain)
+							if index < store.runs.count - 1 {
+								Rectangle()
+									.fill(SettingsDesign.cardBorder)
+									.frame(height: 1)
+							}
+						}
+					}
+					.frame(maxWidth: .infinity, alignment: .leading)
+				}
+			}
+		}
+		.padding(20)
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+		.accessibilityIdentifier("flow-recent-runs-tab")
 	}
 }
 

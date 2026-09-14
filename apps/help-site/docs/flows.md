@@ -40,8 +40,9 @@ Open **Toby.app** and choose **Flows** from the sidebar (or the View menu / menu
 From there you can:
 
 - See **all flows** in the workspace list (nothing is selected until you choose one)
-- Select a flow to inspect its **steps** (tool + model nodes), or click empty space in the list to clear the selection
-- Review **recent runs** and open a run for status, timing, and per-step detail
+- Select a flow to open its page, or click empty space in the list to clear the selection
+- On **Details**, inspect description, steps (tool + model nodes), metadata, and finish destinations
+- Switch to **Recent runs** for history, and open a run for status, timing, and per-step detail
 
 Built-in flows are labeled and are **read-only** in the UI.
 

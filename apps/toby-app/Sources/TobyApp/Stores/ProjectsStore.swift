@@ -21,9 +21,8 @@ final class ProjectsStore {
 	var isShowingChat = false
 	/// The project-chat Files inspector. Each project chat starts with it open.
 	var isFilesSidebarPresented = false
-	/// The project-details Chats inspector. Each project page starts with it
-	/// open; the toolbar toggle hides or shows it.
-	var isChatsSidebarPresented = false
+	/// Details / Chats tab on the project page.
+	var selectedDetailTab: ProjectDetailTab = .details
 	var treeChanges: [ProjectTreeChange] = []
 
 	struct PendingDelete {
@@ -95,7 +94,7 @@ final class ProjectsStore {
 		selectedProjectDetailId = nil
 		isShowingChat = false
 		isFilesSidebarPresented = false
-		isChatsSidebarPresented = false
+		selectedDetailTab = .details
 		treeChanges = []
 		treeProjectId = nil
 	}
@@ -176,11 +175,11 @@ final class ProjectsStore {
 	}
 
 	/// Leaves a project chat and shows the selected project's details page
-	/// with its Chats inspector visible.
+	/// on the Chats tab.
 	func showProjectHome() {
 		isShowingChat = false
 		isFilesSidebarPresented = false
-		isChatsSidebarPresented = true
+		selectedDetailTab = .chats
 	}
 
 	/// Enters a project chat with its live Files inspector visible.
@@ -202,7 +201,7 @@ final class ProjectsStore {
 		selectedProjectDetailId = nil
 		isShowingChat = false
 		isFilesSidebarPresented = false
-		isChatsSidebarPresented = false
+		selectedDetailTab = .details
 		tree = []
 		treeChanges = []
 		treeProjectId = nil
@@ -214,7 +213,7 @@ final class ProjectsStore {
 		selectedProjectId = id
 		isShowingChat = false
 		isFilesSidebarPresented = false
-		isChatsSidebarPresented = true
+		selectedDetailTab = .details
 		if alreadyLoaded {
 			return
 		}
@@ -409,7 +408,7 @@ final class ProjectsStore {
 			selectedProjectDetailId = nil
 			isShowingChat = false
 			isFilesSidebarPresented = false
-			isChatsSidebarPresented = false
+			selectedDetailTab = .details
 		}
 		hasLoadedOnce = true
 		lastLoadedAt = Date()

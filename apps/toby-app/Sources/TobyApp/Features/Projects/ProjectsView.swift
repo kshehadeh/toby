@@ -101,17 +101,10 @@ struct ProjectsView: View {
 			ProjectDetailContent(
 				store: projectsStore,
 				project: project,
-			)
-			.inspector(isPresented: $projectsStore.isChatsSidebarPresented) {
-				ProjectChatsSidebarView(store: projectsStore) { id in
+				onSelectChat: { id in
 					Task { await projectsStore.selectChat(id: id, chatStore: chatStore) }
 				}
-				.inspectorColumnWidth(
-					min: ProjectChatsInspectorLayout.minWidth,
-					ideal: ProjectChatsInspectorLayout.idealWidth,
-					max: ProjectChatsInspectorLayout.maxWidth
-				)
-			}
+			)
 			.id(project.id)
 		} else {
 			FeatureBrowserPlaceholder(

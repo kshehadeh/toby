@@ -120,6 +120,89 @@ struct SchedulesViewTests {
 		#expect(store.selectedScheduleId == nil)
 	}
 
+	@Test("schedule detail shows details and prompt tabs")
+	func scheduleDetailShowsDetailsAndPromptTabs() throws {
+		let store = SchedulesStore()
+		let schedule = ScheduleViewModel(
+			id: "schedule-1",
+			name: "Daily Standup",
+			prompt: "Summarize",
+			personaName: "default",
+			cronExpression: "0 9 * * *",
+			cronHumanReadable: "At 09:00 AM",
+			nextRunAt: nil,
+			enabled: true,
+			lastRunAt: nil,
+			recentRuns: []
+		)
+		store.schedules = [schedule]
+		store.selectedScheduleId = schedule.id
+		#expect(store.selectedDetailTab == .prompt)
+		let view = ScheduleDetailContent(store: store, schedule: schedule)
+		#expect(throws: Never.self) {
+			try view.inspect().tabView()
+		}
+		#expect(throws: Never.self) {
+			try promptPane(store: store, schedule: schedule).inspect().find(
+				text: "Sent to Toby when this schedule runs"
+			)
+		}
+
+		store.selectedDetailTab = .details
+		#expect(store.selectedDetailTab == .details)
+		let details = detailsPane(store: store, schedule: schedule)
+		#expect(throws: Never.self) {
+			try details.inspect().find(viewWithAccessibilityIdentifier: "schedule-title-field")
+		}
+		#expect(throws: Never.self) {
+			try details.inspect().find(text: "Enabled")
+		}
+		#expect(throws: Never.self) {
+			try details.inspect().find(viewWithAccessibilityIdentifier: "schedule-action-picker")
+		}
+		#expect(throws: Never.self) {
+			try details.inspect().find(text: "Name")
+		}
+		#expect(throws: Never.self) {
+			try details.inspect().find(text: "Recent runs")
+		}
+	}
+
+	@Test("selecting a schedule resets the detail tab to prompt")
+	func selectingScheduleResetsDetailTab() async {
+		let store = SchedulesStore()
+		store.schedules = [
+			ScheduleViewModel(
+				id: "a",
+				name: "A",
+				prompt: "A",
+				personaName: "Toby",
+				cronExpression: "0 9 * * *",
+				cronHumanReadable: "At 09:00 AM",
+				nextRunAt: nil,
+				enabled: true,
+				lastRunAt: nil,
+				recentRuns: []
+			),
+			ScheduleViewModel(
+				id: "b",
+				name: "B",
+				prompt: "B",
+				personaName: "Toby",
+				cronExpression: "0 10 * * *",
+				cronHumanReadable: "At 10:00 AM",
+				nextRunAt: nil,
+				enabled: true,
+				lastRunAt: nil,
+				recentRuns: []
+			),
+		]
+		store.selectedScheduleId = "a"
+		store.selectedDetailTab = .details
+		await store.selectSchedule(id: "b")
+		#expect(store.selectedDetailTab == .prompt)
+	}
+
 	@Test("schedule detail shows prompt editor and fields in the main canvas")
 	func scheduleDetailShowsPromptAndFields() throws {
 		let store = SchedulesStore()
@@ -137,27 +220,26 @@ struct SchedulesViewTests {
 		)
 		store.schedules = [schedule]
 		store.selectedScheduleId = schedule.id
-		let view = SchedulesView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "schedule-title-field")
+			try promptPane(store: store, schedule: schedule).inspect().find(
+				text: "Sent to Toby when this schedule runs"
+			)
+		}
+		let details = detailsPane(store: store, schedule: schedule)
+		#expect(throws: Never.self) {
+			try details.inspect().find(viewWithAccessibilityIdentifier: "schedule-title-field")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Prompt")
+			try details.inspect().find(text: "Enabled")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Sent to Toby when this schedule runs")
+			try details.inspect().find(viewWithAccessibilityIdentifier: "schedule-action-picker")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Enabled")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "schedule-action-picker")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Name")
+			try details.inspect().find(text: "Name")
 		}
 		#expect(throws: (any Error).self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "skill-icon-edit-button")
+			try details.inspect().find(viewWithAccessibilityIdentifier: "skill-icon-edit-button")
 		}
 	}
 
@@ -198,15 +280,20 @@ struct SchedulesViewTests {
 				updatedAt: nil
 			),
 		]
-		let view = SchedulesView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "schedule-flow-picker")
+			try detailsPane(store: store, schedule: schedule).inspect().find(
+				viewWithAccessibilityIdentifier: "schedule-flow-picker"
+			)
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "This schedule runs the selected flow instead of a chat prompt.")
+			try promptPane(store: store, schedule: schedule).inspect().find(
+				text: "This schedule runs the selected flow instead of a chat prompt."
+			)
 		}
 		#expect(throws: (any Error).self) {
-			try view.inspect().find(text: "Sent to Toby when this schedule runs")
+			try promptPane(store: store, schedule: schedule).inspect().find(
+				text: "Sent to Toby when this schedule runs"
+			)
 		}
 	}
 
@@ -254,9 +341,10 @@ struct SchedulesViewTests {
 		store.schedules = [schedule]
 		store.selectedScheduleId = schedule.id
 		store.values[store.key(for: schedule.id, field: .cron)] = schedule.cronExpression
-		let view = SchedulesView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "validate-schedule-button")
+			try detailsPane(store: store, schedule: schedule).inspect().find(
+				viewWithAccessibilityIdentifier: "validate-schedule-button"
+			)
 		}
 	}
 
@@ -363,12 +451,12 @@ struct SchedulesViewTests {
 		store.selectedScheduleId = schedule.id
 		store.values[store.key(for: schedule.id, field: .cron)] = "every weekday at 9am"
 		store.parsingCronScheduleId = schedule.id
-		let view = SchedulesView(store: store)
+		let pane = detailsPane(store: store, schedule: schedule)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "cron-converting-status")
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "cron-converting-status")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Converting natural language to cron…")
+			try pane.inspect().find(text: "Converting natural language to cron…")
 		}
 	}
 
@@ -390,9 +478,9 @@ struct SchedulesViewTests {
 		store.schedules = [schedule]
 		store.selectedScheduleId = schedule.id
 		store.values[store.key(for: schedule.id, field: .cron)] = "every weekday at 9am"
-		let view = SchedulesView(store: store)
+		let pane = detailsPane(store: store, schedule: schedule)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "cron-needs-convert-hint")
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "cron-needs-convert-hint")
 		}
 	}
 
@@ -451,4 +539,14 @@ struct SchedulesViewTests {
 		#expect(store.schedules.first?.recentRuns.first?.status == "success")
 		#expect(store.schedules.first?.recentRuns.first?.label == "7/15/2026, 3:01:11 PM · SUCCESS")
 	}
+}
+
+@MainActor
+private func detailsPane(store: SchedulesStore, schedule: ScheduleViewModel) -> ScheduleDetailsPane {
+	ScheduleDetailsPane(store: store, schedule: schedule)
+}
+
+@MainActor
+private func promptPane(store: SchedulesStore, schedule: ScheduleViewModel) -> SchedulePromptPane {
+	SchedulePromptPane(store: store, schedule: schedule)
 }
