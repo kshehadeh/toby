@@ -12,6 +12,10 @@ enum FeatureBrowserMetrics {
 }
 
 /// Shared list/detail split used by Chats and every other workspace browser.
+///
+/// Implemented as a SwiftUI `HStack` (not `HSplitView` / nested
+/// `NavigationSplitView`) so the record list stays under the window toolbar
+/// separator instead of flattening into a full-height title-bar column.
 struct FeatureWorkspaceSplit<Browser: View, Detail: View>: View {
 	let listTitle: String
 	let isShowingList: Bool
@@ -20,6 +24,7 @@ struct FeatureWorkspaceSplit<Browser: View, Detail: View>: View {
 	@ViewBuilder var detail: () -> Detail
 
 	@State private var isNarrow = false
+	@State private var listWidth = FeatureBrowserMetrics.columnIdealWidth
 
 	var body: some View {
 		Group {
@@ -30,13 +35,11 @@ struct FeatureWorkspaceSplit<Browser: View, Detail: View>: View {
 					detail()
 				}
 			} else {
-				HSplitView {
+				HStack(spacing: 0) {
 					browser()
-						.frame(
-							minWidth: FeatureBrowserMetrics.columnMinWidth,
-							idealWidth: FeatureBrowserMetrics.columnIdealWidth,
-							maxWidth: FeatureBrowserMetrics.columnMaxWidth
-						)
+						.frame(width: listWidth)
+						.frame(maxHeight: .infinity)
+					FeatureWorkspaceResizeHandle(listWidth: $listWidth)
 					detail()
 						.frame(
 							minWidth: FeatureBrowserMetrics.detailMinWidth,
@@ -68,6 +71,44 @@ struct FeatureWorkspaceSplit<Browser: View, Detail: View>: View {
 			}
 		}
 		.accessibilityIdentifier("feature-workspace-split")
+	}
+}
+
+/// Hairline grabber between the workspace list and detail.
+private struct FeatureWorkspaceResizeHandle: View {
+	@Binding var listWidth: CGFloat
+	@State private var isDragging = false
+	@State private var widthAtDragStart = FeatureBrowserMetrics.columnIdealWidth
+
+	var body: some View {
+		Rectangle()
+			.fill(AppTheme.separator)
+			.frame(width: 1)
+			.frame(maxHeight: .infinity)
+			.padding(.horizontal, 4)
+			.contentShape(Rectangle())
+			.padding(.horizontal, -4)
+			.pointerStyle(.columnResize)
+			.gesture(
+				DragGesture(minimumDistance: 1)
+					.onChanged { value in
+						if !isDragging {
+							isDragging = true
+							widthAtDragStart = listWidth
+						}
+						listWidth = min(
+							max(
+								widthAtDragStart + value.translation.width,
+								FeatureBrowserMetrics.columnMinWidth
+							),
+							FeatureBrowserMetrics.columnMaxWidth
+						)
+					}
+					.onEnded { _ in
+						isDragging = false
+					}
+			)
+			.accessibilityHidden(true)
 	}
 }
 
@@ -106,7 +147,7 @@ struct FeatureBrowserList<Content: View>: View {
 			}
 		}
 		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-		.background(SettingsDesign.canvasBackground)
+		.background(SettingsDesign.canvasBackground, ignoresSafeAreaEdges: [])
 		.accessibilityIdentifier("feature-browser-list")
 	}
 }
@@ -134,7 +175,7 @@ struct FeatureBrowserPlaceholder: View {
 		}
 		.padding(32)
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
-		.background(SettingsDesign.canvasBackground)
+		.background(SettingsDesign.canvasBackground, ignoresSafeAreaEdges: [])
 		.accessibilityIdentifier("feature-browser-placeholder")
 		.accessibilityLabel(accessibilityLabel)
 	}

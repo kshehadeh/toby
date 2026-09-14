@@ -25,6 +25,6 @@ struct IntegrationsDetailView: View {
 			}
 		}
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
-		.background(SettingsDesign.canvasBackground)
+		.background(SettingsDesign.canvasBackground, ignoresSafeAreaEdges: [])
 	}
 }

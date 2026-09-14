@@ -24,7 +24,6 @@ struct FlowsView: View {
 		.onChange(of: store.editor != nil) { _, editing in
 			if editing { preferList = false }
 		}
-		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.ensureLoaded()
 		}

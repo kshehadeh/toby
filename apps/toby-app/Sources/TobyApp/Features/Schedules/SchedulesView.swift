@@ -22,7 +22,6 @@ struct SchedulesView: View {
 		.onChange(of: store.selectedScheduleId) { _, id in
 			if id != nil { preferList = false }
 		}
-		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.ensureLoaded()
 		}

@@ -21,7 +21,6 @@ struct SkillsView: View {
 		.onChange(of: store.selectedSkillId) { _, id in
 			if id != nil { preferList = false }
 		}
-		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.ensureLoaded()
 		}

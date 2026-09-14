@@ -89,14 +89,14 @@ struct ProjectsView: View {
 		if projectsStore.isLoading && projectsStore.projects.isEmpty {
 			ProgressView("Loading projects…")
 				.frame(maxWidth: .infinity, maxHeight: .infinity)
-				.background(SettingsDesign.canvasBackground)
+				.background(SettingsDesign.canvasBackground, ignoresSafeAreaEdges: [])
 		} else if let errorMessage = projectsStore.errorMessage, projectsStore.projects.isEmpty {
 			ContentUnavailableView {
 				Label("Projects unavailable", systemImage: "exclamationmark.triangle")
 			} description: {
 				Text(errorMessage)
 			}
-			.background(SettingsDesign.canvasBackground)
+			.background(SettingsDesign.canvasBackground, ignoresSafeAreaEdges: [])
 		} else if let project = projectsStore.selectedProject {
 			ProjectDetailContent(
 				store: projectsStore,

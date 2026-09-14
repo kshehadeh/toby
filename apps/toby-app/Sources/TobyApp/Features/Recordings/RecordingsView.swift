@@ -52,7 +52,6 @@ struct RecordingsView: View {
 		.onChange(of: store.selectedActiveRecordingId) { _, id in
 			if id != nil { preferList = false }
 		}
-		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.ensureLoaded()
 			// If a recording is already in progress when the view appears,

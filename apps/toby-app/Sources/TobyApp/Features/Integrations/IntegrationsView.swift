@@ -17,7 +17,6 @@ struct IntegrationsView: View {
 		.onChange(of: store.selectedNavKey) { _, key in
 			if key != nil { preferList = false }
 		}
-		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.load()
 			if let selectedNavKey = store.selectedNavKey,

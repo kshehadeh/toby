@@ -58,7 +58,7 @@ struct RecordingsDetailView: View {
 			}
 		}
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
-		.background(SettingsDesign.canvasBackground)
+		.background(SettingsDesign.canvasBackground, ignoresSafeAreaEdges: [])
 	}
 
 	private var isProcessingSelected: Bool {

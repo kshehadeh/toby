@@ -71,4 +71,26 @@ struct FeatureBrowserTests {
 		}
 		#expect(throws: Never.self) { try view.inspect().find(text: "No skills") }
 	}
+
+	@Test("wide split is a peer HStack under the window toolbar, not a nested split view")
+	func wideSplitUsesHStackNotNavigationSplitView() throws {
+		let view = FeatureWorkspaceSplit(
+			listTitle: "Skills",
+			isShowingList: false,
+			onShowList: {}
+		) {
+			Text("List")
+		} detail: {
+			Text("Detail")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(ViewType.HStack.self)
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(ViewType.NavigationSplitView.self)
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-workspace-split")
+		}
+	}
 }
