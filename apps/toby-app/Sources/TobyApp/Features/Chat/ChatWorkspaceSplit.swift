@@ -34,7 +34,10 @@ struct ChatWorkspaceSplit: View {
 				preferSessionList = false
 				onSelectSession(id)
 			},
-			onDeleteSession: onDeleteSession
+			onDeleteSession: onDeleteSession,
+			onClearSelection: {
+				Task { await store.startNewSession() }
+			}
 		)
 		.accessibilityIdentifier("chat-session-browser")
 	}

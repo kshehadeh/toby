@@ -87,11 +87,27 @@ struct LogsViewTests {
 		#expect(throws: Never.self) { try view.inspect().find(text: "Daemon") }
 	}
 
+	@Test("logs sidebar empty-area tap clears selection")
+	func logsSidebarEmptyAreaTapClearsSelection() throws {
+		let store = seededStore()
+		let view = LogsSidebarView(store: store)
+		let target = try view.inspect().find(
+			viewWithAccessibilityIdentifier: "feature-browser-list-deselect"
+		)
+		try target.button().tap()
+		#expect(store.selectedSource == nil)
+	}
+
 	@Test("logs detail shows empty state when no source selected")
 	func logsDetailShowsEmptyState() throws {
 		let store = LogsStore()
 		let view = LogsDetailView(store: store)
-		#expect(throws: Never.self) { try view.inspect().find(text: "No source selected") }
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-placeholder")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Select a log source from the list.")
+		}
 	}
 
 	@Test("logs detail shows selected source structured view")

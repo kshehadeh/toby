@@ -120,7 +120,7 @@ final class MemoriesStore {
 		isQuietRefreshing = true
 		defer { isQuietRefreshing = false }
 		do {
-			try await loadListData(autoSelectIfNeeded: !isCreatingNew)
+			try await loadListData()
 			// Only refresh the open detail when it is still selected and not in create mode.
 			// Avoid clobbering an in-progress editor draft unless the item vanished.
 			if !isCreatingNew, let id = selectedMemoryId {
@@ -187,6 +187,12 @@ final class MemoriesStore {
 
 	func startCreate() {
 		isCreatingNew = true
+		selectedMemoryIds = []
+		selectedMemory = nil
+	}
+
+	func clearSelection() {
+		isCreatingNew = false
 		selectedMemoryIds = []
 		selectedMemory = nil
 	}
@@ -360,25 +366,15 @@ final class MemoriesStore {
 		}
 	}
 
-	private func loadListData(autoSelectIfNeeded: Bool = true) async throws {
+	private func loadListData() async throws {
 		let response = try await client.listMemories(limit: pageSize, offset: 0, query: trimmedQuery)
 		memories = response.memories
 		total = response.total ?? memories.count
 		hasMore = response.hasMore ?? false
-		if autoSelectIfNeeded {
-			if isCreatingNew {
-				// Leave selection cleared for the create editor.
-			} else {
-				selectedMemoryIds.formIntersection(memories.map(\.id))
-				if selectedMemoryIds.isEmpty, let firstId = memories.first?.id {
-					selectedMemoryIds = [firstId]
-				}
-			}
-		} else if !selectedMemoryIds.isSubset(of: Set(memories.map(\.id))) {
-			// Item deleted elsewhere while we intentionally kept create/selection rules soft.
+		if !isCreatingNew {
 			selectedMemoryIds.formIntersection(memories.map(\.id))
-			if selectedMemoryIds.isEmpty, let firstId = memories.first?.id {
-				selectedMemoryIds = [firstId]
+			if selectedMemoryIds.isEmpty {
+				selectedMemory = nil
 			}
 		}
 		hasLoadedOnce = true

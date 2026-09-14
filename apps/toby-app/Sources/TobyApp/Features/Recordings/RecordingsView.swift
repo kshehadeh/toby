@@ -20,7 +20,6 @@ struct RecordingsView: View {
 	private var hasDetail: Bool {
 		!store.selectedRecordings.isEmpty
 			|| store.selectedActiveRecordingId != nil
-			|| (effectiveProcessingState?.isActive == true)
 	}
 
 	var body: some View {
@@ -57,11 +56,6 @@ struct RecordingsView: View {
 		}
 		.task {
 			await store.ensureLoaded()
-			// If a recording is already in progress when the view appears,
-			// auto-select it so the detail is visible immediately.
-			if let active = activeRecording, store.selectedActiveRecordingId == nil {
-				store.selectActiveRecording(id: active.id)
-			}
 		}
 		// Post-recording list refresh is owned by RootView so it also runs when
 		// this route is not mounted. Manual re-transcribe still reloads detail

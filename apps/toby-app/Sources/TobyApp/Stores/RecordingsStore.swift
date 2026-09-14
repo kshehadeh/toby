@@ -228,9 +228,6 @@ final class RecordingsStore {
 	private func loadListData() async throws {
 		recordings = try await client.listRecordings()
 		selectedRecordingIds = selectedRecordingIds.intersection(Set(recordings.map(\.id)))
-		if selectedRecordingIds.isEmpty {
-			selectedRecordingIds = Set(recordings.prefix(1).map(\.id))
-		}
 		hasLoadedOnce = true
 		listNeedsRefresh = false
 		lastLoadedAt = Date()
@@ -316,7 +313,9 @@ final class RecordingsStore {
 				try await client.deleteRecording(id: id)
 			}
 			recordings = try await client.listRecordings()
-			selectedRecordingIds = Set(recordings.prefix(1).map(\.id))
+			selectedRecordingIds = selectedRecordingIds
+				.subtracting(ids)
+				.intersection(Set(recordings.map(\.id)))
 			await loadDetailIfNeeded()
 		} catch {
 			errorMessage = error.localizedDescription

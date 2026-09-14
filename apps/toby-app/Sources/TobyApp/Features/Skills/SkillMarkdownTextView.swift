@@ -26,8 +26,40 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 	@Binding var text: String
 	let model: SkillMarkdownEditorModel
 
+	/// Stable height when SwiftUI offers an unbounded proposal (e.g. nested in a
+	/// `ScrollView`). Without this, the document view’s content height feeds back
+	/// into layout and freezes the app on repeated select/deselect.
+	static let fallbackHeight: CGFloat = 480
+
+	func sizeThatFits(
+		_ proposal: ProposedViewSize,
+		nsView: NSScrollView,
+		context: Context,
+	) -> CGSize? {
+		let width = Self.resolvedDimension(proposal.width, fallback: 400)
+		let height = Self.resolvedDimension(proposal.height, fallback: Self.fallbackHeight)
+		return CGSize(width: width, height: height)
+	}
+
+	private static func resolvedDimension(_ proposed: CGFloat?, fallback: CGFloat) -> CGFloat {
+		guard let proposed, proposed.isFinite, proposed > 0 else { return fallback }
+		return proposed
+	}
+
 	func makeNSView(context: Context) -> NSScrollView {
-		let textView = SkillMarkdownNSTextView()
+		// Give AppKit a finite viewport before assigning or highlighting text.
+		// A zero-width text container can explode glyph layout for long skills.
+		let scrollView = NSScrollView(
+			frame: NSRect(x: 0, y: 0, width: 400, height: Self.fallbackHeight)
+		)
+		scrollView.hasVerticalScroller = true
+		scrollView.autohidesScrollers = true
+		scrollView.drawsBackground = false
+
+		let viewport = scrollView.contentSize
+		let textView = SkillMarkdownNSTextView(
+			frame: NSRect(origin: .zero, size: viewport)
+		)
 		textView.delegate = context.coordinator
 		textView.backgroundColor = .clear
 		textView.drawsBackground = false
@@ -47,15 +79,19 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 		textView.defaultParagraphStyle = SkillMarkdownSyntax.paragraphStyle
 		textView.isVerticallyResizable = true
 		textView.isHorizontallyResizable = false
-		textView.textContainer?.widthTracksTextView = true
-		textView.textContainer?.containerSize = NSSize(
-			width: 0,
-			height: CGFloat.greatestFiniteMagnitude,
-		)
+		textView.autoresizingMask = [.width]
+		textView.minSize = NSSize(width: 0, height: viewport.height)
 		textView.maxSize = NSSize(
 			width: CGFloat.greatestFiniteMagnitude,
 			height: CGFloat.greatestFiniteMagnitude,
 		)
+		textView.textContainer?.widthTracksTextView = true
+		textView.textContainer?.containerSize = NSSize(
+			width: viewport.width,
+			height: CGFloat.greatestFiniteMagnitude,
+		)
+		scrollView.documentView = textView
+
 		textView.string = text
 		context.coordinator.textView = textView
 		context.coordinator.highlight()
@@ -66,18 +102,12 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 		}
 		model.applyFormat = applyFormat
 		textView.onFormat = applyFormat
-
-		let scrollView = SkillMarkdownScrollView()
-		scrollView.documentView = textView
-		scrollView.hasVerticalScroller = true
-		scrollView.autohidesScrollers = true
-		scrollView.drawsBackground = false
-		scrollView.resizeDocumentViewToFillContent()
 		return scrollView
 	}
 
 	func updateNSView(_ nsView: NSScrollView, context: Context) {
 		guard let textView = nsView.documentView as? SkillMarkdownNSTextView else { return }
+		guard !context.coordinator.isDismantled else { return }
 		context.coordinator.parent = self
 		let applyFormat: (SkillMarkdownFormat) -> Void = { [weak coordinator = context.coordinator] format in
 			coordinator?.applyFormat(format)
@@ -100,11 +130,22 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 		textView.isEditable = true
 		textView.isSelectable = true
 		textView.typingAttributes = SkillMarkdownSyntax.baseTypingAttributes
-		(nsView as? SkillMarkdownScrollView)?.resizeDocumentViewToFillContent()
 	}
 
 	func makeCoordinator() -> Coordinator {
 		Coordinator(self)
+	}
+
+	static func dismantleNSView(_ nsView: NSScrollView, coordinator: Coordinator) {
+		coordinator.prepareForDismantle()
+		if let textView = nsView.documentView as? SkillMarkdownNSTextView {
+			if textView.window?.firstResponder === textView {
+				textView.window?.makeFirstResponder(nil)
+			}
+			textView.delegate = nil
+			textView.onFormat = nil
+		}
+		nsView.documentView = nil
 	}
 
 	@MainActor
@@ -112,13 +153,22 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 		var parent: SkillMarkdownTextView
 		weak var textView: NSTextView?
 		var isUpdating = false
+		var isDismantled = false
 
 		init(_ parent: SkillMarkdownTextView) {
 			self.parent = parent
 		}
 
+		func prepareForDismantle() {
+			isDismantled = true
+			isUpdating = true
+			textView?.delegate = nil
+			textView = nil
+			parent.model.applyFormat = nil
+		}
+
 		func textDidChange(_ notification: Notification) {
-			guard !isUpdating, let textView = notification.object as? NSTextView else {
+			guard !isDismantled, !isUpdating, let textView = notification.object as? NSTextView else {
 				return
 			}
 			parent.text = textView.string
@@ -127,11 +177,12 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 		}
 
 		func textViewDidChangeSelection(_ notification: Notification) {
+			guard !isDismantled else { return }
 			updateCursor()
 		}
 
 		func updateCursor() {
-			guard let textView else { return }
+			guard !isDismantled, let textView else { return }
 			let ns = textView.string as NSString
 			let location = min(textView.selectedRange().location, ns.length)
 			var line = 1
@@ -248,36 +299,6 @@ final class SkillMarkdownNSTextView: NSTextView {
 			window?.selectPreviousKeyView(nil)
 		default:
 			super.doCommand(by: selector)
-		}
-	}
-}
-
-final class SkillMarkdownScrollView: NSScrollView {
-	override func layout() {
-		super.layout()
-		resizeDocumentViewToFillContent()
-	}
-
-	func resizeDocumentViewToFillContent() {
-		guard let textView = documentView as? NSTextView else { return }
-		let visibleSize = contentSize
-		textView.minSize = NSSize(width: 0, height: visibleSize.height)
-		textView.maxSize = NSSize(
-			width: CGFloat.greatestFiniteMagnitude,
-			height: CGFloat.greatestFiniteMagnitude,
-		)
-		textView.textContainer?.containerSize = NSSize(
-			width: visibleSize.width,
-			height: CGFloat.greatestFiniteMagnitude,
-		)
-		textView.textContainer?.widthTracksTextView = true
-
-		var frame = textView.frame
-		let targetWidth = max(frame.width, visibleSize.width)
-		let targetHeight = max(frame.height, visibleSize.height)
-		if frame.width != targetWidth || frame.height != targetHeight {
-			frame.size = NSSize(width: targetWidth, height: targetHeight)
-			textView.frame = frame
 		}
 	}
 }

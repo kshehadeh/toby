@@ -83,6 +83,19 @@ final class LogsStore {
 		Task { await refresh() }
 	}
 
+	func clearSelection() {
+		guard selectedSource != nil else { return }
+		selectedSource = nil
+		filterLevel = nil
+		filterCategory = nil
+		filterType = nil
+		searchQuery = ""
+		loadedLimit = Self.pageSize
+		entries = []
+		matched = 0
+		hasMore = false
+	}
+
 	func setSearchQuery(_ query: String) {
 		let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
 		guard searchQuery != trimmed else { return }
@@ -197,14 +210,10 @@ final class LogsStore {
 		}
 	}
 
-	/// Initial load + auto-select first source if needed.
+	/// Initial load. Does not auto-select a source.
 	func ensureLoaded() async {
 		startPolling()
 		await refresh()
-		if selectedSource == nil, let first = discoveredSources.first {
-			selectedSource = first
-			await refresh()
-		}
 	}
 
 	// MARK: - Private

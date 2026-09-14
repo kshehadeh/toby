@@ -94,6 +94,32 @@ struct SchedulesViewTests {
 		#expect(store.selectedRunId == nil)
 	}
 
+	@Test("schedules sidebar empty-area tap clears selection")
+	func schedulesSidebarEmptyAreaTapClearsSelection() throws {
+		let store = SchedulesStore()
+		store.schedules = [
+			ScheduleViewModel(
+				id: "daily-review",
+				name: "Daily Review",
+				prompt: "Review my tasks",
+				personaName: "Toby",
+				cronExpression: "0 9 * * *",
+				cronHumanReadable: "At 09:00 AM",
+				nextRunAt: nil,
+				enabled: true,
+				lastRunAt: nil,
+				recentRuns: []
+			),
+		]
+		store.selectedScheduleId = "daily-review"
+		let view = SchedulesSidebarView(store: store, onDelete: { _ in })
+		let target = try view.inspect().find(
+			viewWithAccessibilityIdentifier: "feature-browser-list-deselect"
+		)
+		try target.button().tap()
+		#expect(store.selectedScheduleId == nil)
+	}
+
 	@Test("schedule detail shows prompt editor and fields in the main canvas")
 	func scheduleDetailShowsPromptAndFields() throws {
 		let store = SchedulesStore()

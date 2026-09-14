@@ -190,6 +190,19 @@ struct FlowsViewTests {
 		#expect(store.selectedRunId == nil)
 	}
 
+	@Test("flows sidebar empty-area tap clears selection")
+	func flowsSidebarEmptyAreaTapClearsSelection() throws {
+		let store = FlowsStore()
+		store.flows = [sampleFlow()]
+		store.selectedFlowId = "dashboard.email.summary"
+		let view = FlowsSidebarView(store: store)
+		let target = try view.inspect().find(
+			viewWithAccessibilityIdentifier: "feature-browser-list-deselect"
+		)
+		try target.button().tap()
+		#expect(store.selectedFlowId == nil)
+	}
+
 	@Test("flow list item humanizes dotted ids")
 	func flowListItemHumanizesIds() {
 		let flow = sampleFlow(id: "dashboard.email.summary")

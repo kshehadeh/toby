@@ -8,7 +8,8 @@ struct FlowsSidebarView: View {
 			isLoading: store.isListLoading,
 			isEmpty: store.flows.isEmpty,
 			loadingText: "Loading flows…",
-			emptyText: "No flows"
+			emptyText: "No flows",
+			onClearSelection: { store.selectHome() }
 		) {
 			ForEach(store.flows) { flow in
 				Button {

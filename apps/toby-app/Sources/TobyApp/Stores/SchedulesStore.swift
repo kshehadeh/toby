@@ -230,11 +230,15 @@ final class SchedulesStore {
 	}
 
 	func selectSchedule(id: String) async {
+		if selectedScheduleId == id { return }
 		await flushPendingSave()
+		if selectedScheduleId == id { return }
+		AppKitFocus.resignTextViewIfNeeded()
 		selectedScheduleId = id
 	}
 
 	func selectHome() {
+		AppKitFocus.resignTextViewIfNeeded()
 		selectedScheduleId = nil
 		closeRunDetail()
 	}

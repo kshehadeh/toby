@@ -7,13 +7,15 @@ struct ChatSessionsSidebar: View {
 	let isSessionsLoading: Bool
 	let onSelectSession: (String) -> Void
 	let onDeleteSession: (SessionSummary) -> Void
+	var onClearSelection: (() -> Void)? = nil
 
 	var body: some View {
 		FeatureBrowserList(
 			isLoading: isSessionsLoading,
 			isEmpty: sessions.isEmpty,
 			loadingText: "Loading sessions…",
-			emptyText: "No past sessions"
+			emptyText: "No past sessions",
+			onClearSelection: onClearSelection
 		) {
 			ForEach(sessions) { session in
 				Button {

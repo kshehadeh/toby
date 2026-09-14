@@ -79,8 +79,8 @@ struct ScheduleDetailContent: View {
 					.foregroundStyle(SettingsDesign.rowDescription)
 			}
 			SkillMarkdownEditor(text: binding(for: .prompt))
-				.frame(minHeight: 420)
 				.frame(maxWidth: .infinity)
+				.frame(height: SkillMarkdownTextView.fallbackHeight)
 		}
 		.frame(maxWidth: .infinity, alignment: .topLeading)
 	}

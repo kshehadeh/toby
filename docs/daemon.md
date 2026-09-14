@@ -89,7 +89,8 @@ Schedule execution is logged under category `scheduler` in the unified log (`sou
 User-facing setup: [help-site schedules doc](../apps/help-site/docs/schedules.md).
 In Toby.app, **Schedules** in the destination list opens a schedule list beside
 the editor; select a row to edit that schedule, or use the toolbar
-to create a schedule. Click **Schedules** again to clear the selection.
+to create a schedule. Click empty space in the list, or **Schedules** again, to
+clear the selection.
 
 ## Chat inbound
 

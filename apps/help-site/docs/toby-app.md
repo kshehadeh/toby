@@ -58,6 +58,14 @@ Home, Chats, Projects, and Recordings, then **Automation** (Schedules, Flows) an
 **Tools** (Skills, Integrations). Memories opens as a separate window from the
 View menu, command palette, or menu bar — not as a main-window route.
 
+Workspaces that list items (Chats, Projects, Recordings, Skills, Schedules,
+Flows, Integrations, plus the Memories and Logs windows) share the same
+second-column behavior: nothing is selected until you choose a row, the main
+page asks you to pick one (and offers a create link when that type can be
+created), clicking empty space in the list clears the selection, and Toby
+remembers the last selected item when you leave and come back. Clicking the
+same destination in the left sidebar also clears the selection.
+
 The window header spans the workspace list and detail, with the record list
 sitting under the header line — the same chrome as Chats. The title shows the
 selected item's name, or the section name when nothing is selected. A selected recording uses that recording's title, with
@@ -99,8 +107,10 @@ folder) and **Open**.
 
 The Recordings workspace lists your past recordings in a second column. Select a
 recording to view its transcript or summary, generate an AI summary, or start a
-chat about it. Rename it and inspect details from **Edit Recording**. Choose
-**Recordings** in the sidebar again to clear the selection.
+chat about it. An in-progress recording appears in the list too — select it to
+see live capture details. Rename a saved take and inspect details from **Edit
+Recording**. Click empty space in the list, or **Recordings** in the sidebar
+again, to clear the selection.
 
 ![Toby.app Recordings window](/img/toby-app-recordings.png)
 
@@ -108,7 +118,8 @@ chat about it. Rename it and inspect details from **Edit Recording**. Choose
 
 The Integrations workspace lists every available integration in a second column. Click
 one to view connection status, setup instructions, and
-configuration. Click **Integrations** in the sidebar again to clear the selection.
+configuration. Click empty space in the list, or **Integrations** in the sidebar
+again, to clear the selection.
 
 ![Toby.app Integrations window](/img/toby-app-integrations.png)
 
@@ -120,8 +131,8 @@ folder, and inspect the generated file tree. A **Chats** inspector on the right
 lists the project's chats — click one to resume it, or use **+ Chat** in the
 toolbar to start a new one (the toolbar also hides or shows that inspector).
 The toolbar shows **+** (new project) when nothing is selected, and **+ Chat**
-plus **Delete** on a project page. Choose **Projects** in the sidebar
-again to clear the selection. Right-click a project in the list for recent chats or
+plus **Delete** on a project page. Click empty space in the list, or
+**Projects** in the sidebar again, to clear the selection. Right-click a project in the list for recent chats or
 delete. Project chats stay in Projects: they
 never appear in the main Chats list. While a project chat
 is open, a folder icon marks the chat and a toolbar button returns you to the
@@ -131,11 +142,13 @@ project page.
 
 ### Skills
 
-The Skills workspace lists each skill in a second column. Select one to open its page:
-rename it in **About**, click the icon to change it, and
-edit the summary, enabled state, and instructions in the main pane. Use **New Skill** in the
-toolbar while viewing the overview to create one. You can also delete skills
-and run a skill directly from the toolbar.
+The Skills workspace lists each skill in a second column. Nothing is selected
+until you choose a skill. The overview asks you to pick one or create a new
+skill. Select a skill to open its page: rename it in **About**, click the icon
+to change it, and edit the summary, enabled state, and instructions in the main
+pane. Use **New Skill** in the toolbar while viewing the overview to create
+one. Click empty space in the list to clear the selection. You can also delete
+skills and run a skill directly from the toolbar.
 
 ![Toby.app Skills window](/img/toby-app-skills.png)
 
@@ -143,18 +156,21 @@ and run a skill directly from the toolbar.
 
 The Memories window lists the durable facts Toby keeps about you, such as
 preferences, projects, and relationships. Open it from **View → Memories** (⌘6)
-or the command palette. Search, add, edit, or delete memories, and inspect their
-type, sensitivity, visibility, and last-updated timestamp. It is not a sidebar
-workspace in the main window.
+or the command palette. Nothing is selected until you choose a memory; the main
+page asks you to pick one or create a new memory. Search, add, edit, or delete
+memories, and inspect their type, sensitivity, visibility, and last-updated
+timestamp. Click empty space in the list to clear the selection. It is not a
+sidebar workspace in the main window.
 
 ![Toby.app Memories window](/img/toby-app-memories.png)
 
 ### Schedules
 
-The Schedules area lists each schedule in the sidebar. Select one to open its
-page: rename it in **About**, and edit whether it runs a prompt or a flow,
-the timetable, and enabled state in the main pane. You can add new schedules,
-run them on demand, or delete them.
+The Schedules area lists each schedule in a second column. Select one to open
+its page: rename it in **About**, and edit whether it runs a prompt or a flow,
+the timetable, and enabled state in the main pane. Click empty space in the
+list to clear the selection. You can add new schedules, run them on demand, or
+delete them.
 
 ![Toby.app Schedules window](/img/toby-app-schedules.png)
 

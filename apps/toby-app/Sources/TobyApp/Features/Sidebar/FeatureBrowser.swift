@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 enum FeatureBrowserMetrics {
@@ -9,6 +10,9 @@ enum FeatureBrowserMetrics {
 	static let horizontalInset: CGFloat = 10
 	static let verticalInset: CGFloat = 8
 	static let rowSpacing: CGFloat = 2
+	/// Bounded empty-area hit target after the last row. Must stay finite —
+	/// `maxHeight: .infinity` inside a `ScrollView` hangs layout on macOS.
+	static let deselectFillHeight: CGFloat = 220
 }
 
 /// Shared list/detail split used by Chats and every other workspace browser.
@@ -118,37 +122,81 @@ struct FeatureBrowserList<Content: View>: View {
 	let isEmpty: Bool
 	let loadingText: String
 	let emptyText: String
+	var onClearSelection: (() -> Void)? = nil
 	@ViewBuilder var content: () -> Content
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
 			if isLoading && isEmpty {
-				Text(loadingText)
-					.font(.caption)
-					.foregroundStyle(AppTheme.tertiaryText)
-					.padding(.horizontal, FeatureBrowserMetrics.horizontalInset)
-					.padding(.vertical, 7)
+				caption(loadingText)
 			} else if isEmpty {
-				Text(emptyText)
-					.font(.caption)
-					.foregroundStyle(AppTheme.tertiaryText)
-					.padding(.horizontal, FeatureBrowserMetrics.horizontalInset)
-					.padding(.vertical, 7)
+				caption(emptyText)
 			} else {
-				ScrollView {
+				FeatureBrowserDeselectingScroll(onClearSelection: onClearSelection) {
 					LazyVStack(alignment: .leading, spacing: FeatureBrowserMetrics.rowSpacing) {
 						content()
 					}
 					.padding(.horizontal, FeatureBrowserMetrics.horizontalInset)
 					.padding(.vertical, FeatureBrowserMetrics.verticalInset)
-					.frame(maxWidth: .infinity, alignment: .leading)
 				}
-				.automaticScrollIndicators(axes: .vertical)
 			}
 		}
 		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 		.background(SettingsDesign.canvasBackground, ignoresSafeAreaEdges: [])
 		.accessibilityIdentifier("feature-browser-list")
+	}
+
+	private func caption(_ text: String) -> some View {
+		Text(text)
+			.font(.caption)
+			.foregroundStyle(AppTheme.tertiaryText)
+			.padding(.horizontal, FeatureBrowserMetrics.horizontalInset)
+			.padding(.vertical, 7)
+	}
+}
+
+/// Scrolls a list and appends a *bounded* empty-area clear-selection control
+/// below the rows. Do not put `GeometryReader` or `maxHeight: .infinity` in
+/// this scroll content — both hang SwiftUI layout on macOS when a row click
+/// relayouts the split. The fill is a sibling `Button` so it is not a parent
+/// `onTapGesture` of the row buttons (that deadlocks AppKit click delivery).
+struct FeatureBrowserDeselectingScroll<Content: View>: View {
+	var onClearSelection: (() -> Void)? = nil
+	@ViewBuilder var content: () -> Content
+
+	var body: some View {
+		ScrollView {
+			VStack(alignment: .leading, spacing: 0) {
+				content()
+				if let onClearSelection {
+					FeatureBrowserDeselectArea(action: onClearSelection)
+				}
+			}
+			.frame(maxWidth: .infinity, alignment: .topLeading)
+		}
+		.automaticScrollIndicators(axes: .vertical)
+	}
+}
+
+/// Hit target for “click empty list space to deselect”.
+struct FeatureBrowserDeselectArea: View {
+	let action: () -> Void
+
+	var body: some View {
+		Button(action: {
+			// Tear down any AppKit first responder (skill/schedule markdown
+			// editor) before the click that dismissed it also removes the view.
+			AppKitFocus.resignTextViewIfNeeded()
+			action()
+		}) {
+			Color.clear
+				.frame(maxWidth: .infinity)
+				.frame(height: FeatureBrowserMetrics.deselectFillHeight)
+				.contentShape(Rectangle())
+		}
+		.buttonStyle(.plain)
+		.accessibilityLabel("Clear selection")
+		.accessibilityIdentifier("feature-browser-list-deselect")
 	}
 }
 

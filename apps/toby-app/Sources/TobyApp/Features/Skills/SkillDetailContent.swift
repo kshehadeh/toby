@@ -8,23 +8,39 @@ struct SkillDetailContent: View {
 	@State private var isIconPickerPresented = false
 
 	var body: some View {
-		ScrollView {
-			VStack(alignment: .leading, spacing: 24) {
-				ViewThatFits(in: .horizontal) {
-					HStack(alignment: .top, spacing: 20) {
-						aboutCard.frame(minWidth: 280)
-						instructionsColumn.frame(minWidth: 280)
-					}
-					VStack(alignment: .leading, spacing: 20) {
-						aboutCard
-						instructionsColumn
-					}
+		// `AnyLayout` keeps one markdown-editor subtree alive while adapting.
+		// `ViewThatFits` would measure two separate AppKit editor instances.
+		GeometryReader { proxy in
+			let isCompact = proxy.size.width < FeatureBrowserMetrics.narrowThreshold
+			let layout = isCompact
+				? AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
+				: AnyLayout(HStackLayout(alignment: .top, spacing: 20))
+
+			layout {
+				ScrollView {
+					aboutCard
 				}
+				.frame(
+					minWidth: isCompact ? nil : 280,
+					idealWidth: isCompact ? nil : 320,
+					maxWidth: isCompact ? .infinity : 380,
+					maxHeight: isCompact ? 260 : .infinity,
+					alignment: .top
+				)
+
+				instructionsColumn
+					.frame(
+						minWidth: isCompact ? nil : 320,
+						maxWidth: .infinity,
+						maxHeight: .infinity,
+						alignment: .top
+					)
 			}
 			.padding(28)
-			.frame(maxWidth: 980)
-			.frame(maxWidth: .infinity)
+			.frame(maxWidth: 1100, maxHeight: .infinity, alignment: .top)
+			.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 		}
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 		.background(SettingsDesign.canvasBackground)
 		.fileImporter(
 			isPresented: $isIconPickerPresented,
@@ -99,10 +115,9 @@ struct SkillDetailContent: View {
 					.foregroundStyle(SettingsDesign.rowDescription)
 			}
 			SkillMarkdownEditor(text: binding(for: .body))
-				.frame(minHeight: 420)
-				.frame(maxWidth: .infinity)
+				.frame(maxWidth: .infinity, maxHeight: .infinity)
 		}
-		.frame(maxWidth: .infinity, alignment: .topLeading)
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 	}
 
 	private var enableRow: some View {

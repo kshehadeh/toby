@@ -11,14 +11,78 @@ struct MemoriesViewTests {
 		let store = MemoriesStore()
 		let view = MemoriesDetailView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Memories")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Memories are durable facts Toby remembers across chats. Create one manually, or let Toby propose memories during conversations.")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-placeholder")
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "empty-create-memory-button")
 		}
+	}
+
+	@Test("unselected memories show a placeholder")
+	func unselectedMemoriesShowPlaceholder() throws {
+		let store = MemoriesStore()
+		store.memories = [
+			MemoryItem(
+				id: "m1",
+				userId: "u",
+				type: "fact",
+				subject: nil,
+				value: "Likes dark mode",
+				confidence: 1,
+				sensitivity: "normal",
+				visibility: "usable_by_ai",
+				sourceIds: nil,
+				createdAt: "2026-01-01T00:00:00Z",
+				updatedAt: "2026-01-01T00:00:00Z",
+				expiresAt: nil
+			),
+		]
+		let view = MemoriesDetailView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-placeholder")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "empty-create-memory-button")
+		}
+	}
+
+	@Test("clearSelection drops the current memory")
+	func clearSelectionDropsCurrentMemory() {
+		let store = MemoriesStore()
+		store.selectedMemoryIds = ["m1"]
+		store.isCreatingNew = true
+		store.clearSelection()
+		#expect(store.selectedMemoryIds.isEmpty)
+		#expect(store.selectedMemory == nil)
+		#expect(store.isCreatingNew == false)
+	}
+
+	@Test("memories sidebar empty-area tap clears selection")
+	func memoriesSidebarEmptyAreaTapClearsSelection() throws {
+		let store = MemoriesStore()
+		store.memories = [
+			MemoryItem(
+				id: "m1",
+				userId: "u",
+				type: "fact",
+				subject: nil,
+				value: "Likes dark mode",
+				confidence: 1,
+				sensitivity: "normal",
+				visibility: "usable_by_ai",
+				sourceIds: nil,
+				createdAt: "2026-01-01T00:00:00Z",
+				updatedAt: "2026-01-01T00:00:00Z",
+				expiresAt: nil
+			),
+		]
+		store.selectedMemoryId = "m1"
+		let view = MemoriesSidebarView(store: store)
+		let target = try view.inspect().find(
+			viewWithAccessibilityIdentifier: "feature-browser-list-deselect"
+		)
+		try target.button().tap()
+		#expect(store.selectedMemoryIds.isEmpty)
 	}
 
 	@Test("memories sidebar shows memory values")

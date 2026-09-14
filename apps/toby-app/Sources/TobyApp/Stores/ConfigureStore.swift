@@ -155,8 +155,10 @@ final class ConfigureStore {
 		do {
 			let response = try await client.fetchConfigureTree()
 			apply(response: response, resetDraft: true)
-			if selectedNavKey == nil {
-				selectedNavKey = sidebarTree.first?.navKey
+			if let selectedNavKey,
+				ConfigureTreeHelpers.findSectionByNavKey(response.tree, navKey: selectedNavKey) == nil
+			{
+				self.selectedNavKey = nil
 			}
 		} catch {
 			errorMessage = error.localizedDescription

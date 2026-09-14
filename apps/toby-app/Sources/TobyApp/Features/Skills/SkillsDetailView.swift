@@ -18,9 +18,12 @@ struct SkillsDetailView: View {
 							.padding(.bottom, 12)
 					}
 				}
-			} else if let errorMessage = store.errorMessage, store.skills.isEmpty {
+			} else if store.isDetailLoading {
+				ProgressView("Loading skill…")
+					.frame(maxWidth: .infinity, maxHeight: .infinity)
+			} else if let errorMessage = store.errorMessage {
 				ContentUnavailableView {
-					Label("Skills unavailable", systemImage: "exclamationmark.triangle")
+					Label("Skill unavailable", systemImage: "exclamationmark.triangle")
 				} description: {
 					Text(errorMessage)
 				}

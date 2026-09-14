@@ -55,6 +55,26 @@ struct ChatSessionsSidebarTests {
 		#expect(sessionButtons.count == 2)
 	}
 
+	@Test("empty-area tap calls onClearSelection")
+	func emptyAreaTapClearsSelection() throws {
+		var cleared = false
+		let session = SessionSummary(id: "abc", name: "My Session", createdAt: nil, updatedAt: nil)
+		let view = ChatSessionsSidebar(
+			sessions: [session],
+			selectedSessionId: "abc",
+			isLoading: false,
+			isSessionsLoading: false,
+			onSelectSession: { _ in },
+			onDeleteSession: { _ in },
+			onClearSelection: { cleared = true }
+		)
+		let target = try view.inspect().find(
+			viewWithAccessibilityIdentifier: "feature-browser-list-deselect"
+		)
+		try target.button().tap()
+		#expect(cleared)
+	}
+
 	@Test("tapping session button calls onSelectSession")
 	func selectSessionCallback() throws {
 		var selectedId: String?

@@ -46,6 +46,8 @@ struct FeatureBrowserTests {
 	func listInsetsContent() throws {
 		#expect(FeatureBrowserMetrics.horizontalInset == 10)
 		#expect(FeatureBrowserMetrics.verticalInset == 8)
+		#expect(FeatureBrowserMetrics.deselectFillHeight > 0)
+		#expect(FeatureBrowserMetrics.deselectFillHeight.isFinite)
 		let view = FeatureBrowserList(
 			isLoading: false,
 			isEmpty: false,
@@ -70,6 +72,43 @@ struct FeatureBrowserTests {
 			EmptyView()
 		}
 		#expect(throws: Never.self) { try view.inspect().find(text: "No skills") }
+	}
+
+	@Test("row tap does not clear selection")
+	func rowTapDoesNotClearSelection() throws {
+		var cleared = false
+		var selected = false
+		let view = FeatureBrowserList(
+			isLoading: false,
+			isEmpty: false,
+			loadingText: "Loading",
+			emptyText: "None",
+			onClearSelection: { cleared = true }
+		) {
+			Button("Row") { selected = true }
+		}
+		try view.inspect().find(button: "Row").tap()
+		#expect(selected)
+		#expect(!cleared)
+	}
+
+	@Test("empty-area tap clears selection")
+	func emptyAreaTapClearsSelection() throws {
+		var cleared = false
+		let view = FeatureBrowserList(
+			isLoading: false,
+			isEmpty: false,
+			loadingText: "Loading",
+			emptyText: "None",
+			onClearSelection: { cleared = true }
+		) {
+			Text("Row")
+		}
+		let target = try view.inspect().find(
+			viewWithAccessibilityIdentifier: "feature-browser-list-deselect"
+		)
+		try target.button().tap()
+		#expect(cleared)
 	}
 
 	@Test("wide split is a peer HStack under the window toolbar, not a nested split view")

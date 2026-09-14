@@ -18,13 +18,10 @@ struct LogsDetailView: View {
 				.frame(maxWidth: .infinity, maxHeight: .infinity)
 				.background(SettingsDesign.canvasBackground)
 			} else {
-				ContentUnavailableView {
-					Label("No source selected", systemImage: "tray.full")
-				} description: {
-					Text("Select a log source from the sidebar.")
-				}
-				.frame(maxWidth: .infinity, maxHeight: .infinity)
-				.background(SettingsDesign.canvasBackground)
+				FeatureBrowserPlaceholder(
+					systemImage: "tray.full",
+					prompt: "Select a log source"
+				)
 			}
 		}
 	}

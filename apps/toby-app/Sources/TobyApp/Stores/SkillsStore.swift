@@ -79,6 +79,18 @@ enum SkillField: String {
 	case body = "body"
 }
 
+@MainActor
+protocol SkillsClient {
+	func listSkills() async throws -> [SkillListItem]
+	func fetchSkill(dirName: String) async throws -> SkillDetail
+	func runConfigureAction(
+		_ action: String,
+		body: [String: String]
+	) async throws -> ConfigureActionResponse
+}
+
+extension TobyClient: SkillsClient {}
+
 @Observable
 @MainActor
 final class SkillsStore {
@@ -106,16 +118,26 @@ final class SkillsStore {
 	/// When true, the next `ensureLoaded` / appear path should re-fetch.
 	private(set) var isDirty = false
 
-	private let client = TobyClient()
+	private let client: any SkillsClient
 	private var autosaveTask: Task<Void, Never>?
+	private var detailLoadTask: Task<Void, Never>?
 	private let autosaveDelay: Duration = .milliseconds(450)
 	private var draft: [String: String] = [:]
 	private var isQuietRefreshing = false
+	/// Bumped on select/deselect so in-flight detail fetches cannot land on a
+	/// stale selection.
+	private(set) var detailEpoch = 0
+
+	init(client: any SkillsClient = TobyClient()) {
+		self.client = client
+	}
 
 	/// Clears skills state after a Toby home directory switch.
 	func resetForHomeSwitch() {
 		autosaveTask?.cancel()
 		autosaveTask = nil
+		detailLoadTask?.cancel()
+		detailLoadTask = nil
 		skills = []
 		selectedSkillId = nil
 		selectedSkill = nil
@@ -129,6 +151,7 @@ final class SkillsStore {
 		isDirty = false
 		draft = [:]
 		isQuietRefreshing = false
+		detailEpoch += 1
 	}
 
 	func load() async {
@@ -191,17 +214,19 @@ final class SkillsStore {
 	/// Soft re-fetch without loading spinners (external invalidation while skills UI is open).
 	func refreshQuietly() async {
 		guard !isListLoading, !isQuietRefreshing, !isSaving else { return }
+		let requestedId = selectedSkillId
+		let epoch = detailEpoch
 		isQuietRefreshing = true
 		defer { isQuietRefreshing = false }
 		do {
 			try await loadListData()
-			if let selectedSkillId, skills.contains(where: { $0.id == selectedSkillId }) {
-				if let detail = try? await client.fetchSkill(dirName: selectedSkillId) {
+			guard epoch == detailEpoch, requestedId == selectedSkillId else { return }
+			if let requestedId, skills.contains(where: { $0.id == requestedId }) {
+				if let detail = try? await client.fetchSkill(dirName: requestedId) {
+					guard epoch == detailEpoch, selectedSkillId == requestedId else { return }
 					selectedSkill = detail
 					pruneDraft()
 				}
-			} else if let selectedSkillId {
-				await loadDetail(id: selectedSkillId)
 			} else {
 				selectedSkill = nil
 			}
@@ -210,15 +235,62 @@ final class SkillsStore {
 		}
 	}
 
-	func selectSkill(id: String) async {
-		await flushPendingSave()
+	func selectSkill(id: String) {
+		// Re-tapping the selected row should not remount the AppKit markdown editor.
+		if selectedSkillId == id, selectedSkill != nil { return }
+		detailLoadTask?.cancel()
+		AppKitFocus.resignTextViewIfNeeded()
+		let pendingChanges = allPendingChanges
+		autosaveTask?.cancel()
+		autosaveTask = nil
+		detailEpoch += 1
+		let epoch = detailEpoch
 		selectedSkillId = id
-		await loadDetail(id: id)
+		selectedSkill = nil
+		isDetailLoading = true
+
+		// Record selection intent before the first suspension. A later selection
+		// or deselection cancels this entire save/fetch sequence.
+		detailLoadTask = Task { [weak self] in
+			guard let self else { return }
+			defer {
+				if epoch == self.detailEpoch {
+					self.isDetailLoading = false
+					self.detailLoadTask = nil
+				}
+			}
+			await self.persistPendingChanges(
+				changes: pendingChanges,
+				reloadDetail: false
+			)
+			guard !Task.isCancelled,
+				epoch == self.detailEpoch,
+				self.selectedSkillId == id
+			else { return }
+			await self.loadDetail(id: id, epoch: epoch)
+		}
 	}
 
 	func selectHome() {
+		detailLoadTask?.cancel()
+		detailLoadTask = nil
+		AppKitFocus.resignTextViewIfNeeded()
+		let pendingChanges = allPendingChanges
+		autosaveTask?.cancel()
+		autosaveTask = nil
+		detailEpoch += 1
 		selectedSkillId = nil
 		selectedSkill = nil
+		isDetailLoading = false
+
+		// Deselecting keeps the feature mounted, so flush now rather than waiting
+		// for `SkillsView.onDisappear`.
+		Task { [weak self] in
+			await self?.persistPendingChanges(
+				changes: pendingChanges,
+				reloadDetail: false
+			)
+		}
 	}
 
 	func createSkill() async {
@@ -230,11 +302,15 @@ final class SkillsStore {
 			let result = try await client.runConfigureAction("create-skill", body: [:])
 			skills = try await client.listSkills()
 			if let newId = result.dirName {
+				detailEpoch += 1
+				let epoch = detailEpoch
 				selectedSkillId = newId
-				await loadDetail(id: newId)
+				await loadDetail(id: newId, epoch: epoch)
 			} else if let first = skills.first {
+				detailEpoch += 1
+				let epoch = detailEpoch
 				selectedSkillId = first.id
-				await loadDetail(id: first.id)
+				await loadDetail(id: first.id, epoch: epoch)
 			}
 		} catch {
 			errorMessage = error.localizedDescription
@@ -243,6 +319,8 @@ final class SkillsStore {
 
 	func deleteSkill(id: String) async {
 		await flushPendingSave()
+		detailLoadTask?.cancel()
+		detailLoadTask = nil
 		isSaving = true
 		errorMessage = nil
 		defer { isSaving = false }
@@ -253,8 +331,11 @@ final class SkillsStore {
 			)
 			skills = try await client.listSkills()
 			if selectedSkillId == id {
+				AppKitFocus.resignTextViewIfNeeded()
+				detailEpoch += 1
 				selectedSkillId = nil
 				selectedSkill = nil
+				isDetailLoading = false
 			}
 		} catch {
 			errorMessage = error.localizedDescription
@@ -294,21 +375,50 @@ final class SkillsStore {
 		}
 	}
 
-	func flushPendingSave() async {
+	func flushPendingSave(reloadDetail: Bool = true) async {
 		autosaveTask?.cancel()
 		autosaveTask = nil
-		await savePendingChanges()
+		await persistPendingChanges(changes: nil, reloadDetail: reloadDetail)
 	}
 
-	private func loadDetail(id: String) async {
+	private func persistPendingChanges(
+		changes: [String: String]?,
+		reloadDetail: Bool
+	) async {
+		while isSaving {
+			guard !Task.isCancelled else { return }
+			do {
+				try await Task.sleep(for: .milliseconds(20))
+			} catch {
+				return
+			}
+		}
+		guard !Task.isCancelled else { return }
+		await savePendingChanges(changes: changes, reloadDetail: reloadDetail)
+	}
+
+	private func loadDetail(id: String, epoch: Int? = nil) async {
+		let epoch = epoch ?? detailEpoch
 		isDetailLoading = true
 		errorMessage = nil
-		defer { isDetailLoading = false }
+		defer {
+			if epoch == detailEpoch {
+				isDetailLoading = false
+			}
+		}
 		do {
-			selectedSkill = try await client.fetchSkill(dirName: id)
+			let loaded = try await client.fetchSkill(dirName: id)
+			guard epoch == detailEpoch, selectedSkillId == id else { return }
+			selectedSkill = loaded
 			pruneDraft()
 		} catch {
+			guard epoch == detailEpoch else { return }
 			errorMessage = error.localizedDescription
+			// If we have nothing to show, drop the dangling selection so the
+			// detail pane cannot stick on a spinner after a failed fetch.
+			if selectedSkill?.id != id {
+				selectedSkill = nil
+			}
 		}
 	}
 
@@ -387,12 +497,15 @@ final class SkillsStore {
 		return changes
 	}
 
-	private func savePendingChanges() async {
+	private func savePendingChanges(
+		changes suppliedChanges: [String: String]? = nil,
+		reloadDetail: Bool = true
+	) async {
 		if isSaving {
 			scheduleAutosave()
 			return
 		}
-		let changes = allPendingChanges
+		let changes = suppliedChanges ?? allPendingChanges
 		guard !changes.isEmpty else { return }
 		isSaving = true
 		errorMessage = nil
@@ -422,10 +535,13 @@ final class SkillsStore {
 					}
 				}
 			}
+			for (key, savedValue) in changes where draft[key] == savedValue {
+				draft.removeValue(forKey: key)
+			}
 			if listChanged {
 				skills = try await client.listSkills()
 			}
-			if let selectedSkillId {
+			if reloadDetail, let selectedSkillId {
 				await loadDetail(id: selectedSkillId)
 			}
 		} catch {
@@ -446,7 +562,7 @@ final class SkillsStore {
 				body: ["dirName": dirName, "imageBase64": base64, "filename": filename],
 			)
 			skills = try await client.listSkills()
-			await loadDetail(id: dirName)
+			await loadDetail(id: dirName, epoch: detailEpoch)
 		} catch {
 			errorMessage = error.localizedDescription
 		}
@@ -464,7 +580,7 @@ final class SkillsStore {
 				body: ["dirName": dirName],
 			)
 			skills = try await client.listSkills()
-			await loadDetail(id: dirName)
+			await loadDetail(id: dirName, epoch: detailEpoch)
 		} catch {
 			errorMessage = error.localizedDescription
 		}

@@ -102,6 +102,16 @@ struct ProjectsViewTests {
 		}
 	}
 
+	@Test("projects sidebar exposes empty-area deselect")
+	func projectsSidebarExposesEmptyAreaDeselect() throws {
+		let store = ProjectsStore()
+		store.projects = [sampleProject(id: "proj-1", name: "Weekly Overview")]
+		let view = ProjectsSidebarView(store: store, onSelect: { _ in })
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-list-deselect")
+		}
+	}
+
 	@Test("projects list shows names when none is selected")
 	func indexShowsProjectCards() throws {
 		let store = ProjectsStore()

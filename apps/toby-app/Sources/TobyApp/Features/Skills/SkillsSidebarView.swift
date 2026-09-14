@@ -9,11 +9,12 @@ struct SkillsSidebarView: View {
 			isLoading: store.isListLoading,
 			isEmpty: store.skills.isEmpty,
 			loadingText: "Loading skills…",
-			emptyText: "No skills"
+			emptyText: "No skills",
+			onClearSelection: { store.selectHome() }
 		) {
 			ForEach(store.skills) { skill in
 				Button {
-					Task { await store.selectSkill(id: skill.id) }
+					store.selectSkill(id: skill.id)
 				} label: {
 					SkillSidebarRow(
 						skill: skill,

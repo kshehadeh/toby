@@ -139,6 +139,19 @@ struct IntegrationsViewTests {
 		#expect(store.selectedNavKey == nil)
 	}
 
+	@Test("integrations sidebar empty-area tap clears selection")
+	func integrationsSidebarEmptyAreaTapClearsSelection() throws {
+		let store = ConfigureStore()
+		store.tree = makeTree()
+		store.selectedNavKey = "gmail"
+		let view = IntegrationsSidebarView(store: store)
+		let target = try view.inspect().find(
+			viewWithAccessibilityIdentifier: "feature-browser-list-deselect"
+		)
+		try target.button().tap()
+		#expect(store.selectedNavKey == nil)
+	}
+
 	@Test("integration sidebar row renders image icon URL")
 	func integrationSidebarRowRendersImageIconUrl() throws {
 		let section = SettingsItem(

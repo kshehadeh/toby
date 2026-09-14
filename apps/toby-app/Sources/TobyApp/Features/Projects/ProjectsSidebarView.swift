@@ -11,7 +11,10 @@ struct ProjectsSidebarView: View {
 			isLoading: store.isLoading,
 			isEmpty: store.projects.isEmpty,
 			loadingText: "Loading projects…",
-			emptyText: "No projects"
+			emptyText: "No projects",
+			onClearSelection: {
+				Task { await store.selectHome() }
+			}
 		) {
 			ForEach(store.projects) { project in
 				Button {

@@ -85,9 +85,11 @@ struct SkillMarkdownEditor: View {
 				.frame(maxWidth: .infinity, alignment: .leading)
 			}
 			.frame(maxWidth: .infinity, maxHeight: .infinity)
+			.frame(minHeight: SkillMarkdownTextView.fallbackHeight)
 		} else {
 			SkillMarkdownTextView(text: $text, model: model)
 				.frame(maxWidth: .infinity, maxHeight: .infinity)
+				.frame(minHeight: SkillMarkdownTextView.fallbackHeight)
 		}
 	}
 

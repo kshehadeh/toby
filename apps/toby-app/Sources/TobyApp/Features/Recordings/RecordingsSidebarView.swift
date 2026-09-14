@@ -16,7 +16,8 @@ struct RecordingsSidebarView: View {
 			isLoading: store.isLoading,
 			isEmpty: isListEmpty,
 			loadingText: "Loading recordings...",
-			emptyText: "No recordings"
+			emptyText: "No recordings",
+			onClearSelection: { store.showRecordingsOverview() }
 		) {
 			if let active = activeRecording {
 				ActiveRecordingSidebarRow(

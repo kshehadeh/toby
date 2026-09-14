@@ -237,23 +237,20 @@ struct RecordingsViewTests {
 		}
 	}
 
-	@Test("detail view shows processing card when finalize has no saved recording yet")
-	func detailViewShowsProcessingCardWithoutSavedRecording() throws {
+	@Test("processing without a selection shows the placeholder")
+	func processingWithoutSelectionShowsPlaceholder() throws {
 		let store = RecordingsStore()
 		let processing = RecordingProcessingState(
 			recordingId: "live-1",
 			stage: .generatingAudio,
 			message: "Generating final audio…"
 		)
-		let view = RecordingsView(store: store, processingState: processing)
-		#expect(throws: Never.self) {
+		let view = RecordingsView(store: store, processingState: processing, onStartRecording: {})
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "recording-processing-card")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Generating final audio…")
-		}
-		#expect(throws: Error.self) {
-			try view.inspect().find(text: "Recording in progress")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-placeholder")
 		}
 	}
 
@@ -656,6 +653,19 @@ struct RecordingsViewTests {
 		}
 	}
 
+	@Test("recordings sidebar empty-area tap clears selection")
+	func recordingsSidebarEmptyAreaTapClearsSelection() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		let view = RecordingsSidebarView(store: store, onDeleteRecording: { _ in })
+		let target = try view.inspect().find(
+			viewWithAccessibilityIdentifier: "feature-browser-list-deselect"
+		)
+		try target.button().tap()
+		#expect(store.selectedRecordingIds.isEmpty)
+	}
+
 	// MARK: - Active recording
 
 	@Test("active recording detail appears when no saved recordings exist")
@@ -670,15 +680,18 @@ struct RecordingsViewTests {
 		}
 	}
 
-	@Test("active recording detail appears without explicit selection when no saved recordings")
-	func activeRecordingDetailAppearsWithoutSelection() throws {
+	@Test("active recording without selection shows the placeholder")
+	func activeRecordingWithoutSelectionShowsPlaceholder() throws {
 		let store = RecordingsStore()
 		store.recordings = []
 		store.selectedActiveRecordingId = nil
 		let active = makeActiveRecording(id: "active-1")
-		let view = RecordingsView(store: store, activeRecording: active)
-		#expect(throws: Never.self) {
+		let view = RecordingsView(store: store, onStartRecording: {}, activeRecording: active)
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "active-recording-detail")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-placeholder")
 		}
 	}
 

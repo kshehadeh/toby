@@ -50,11 +50,12 @@ You do not pick skills manually each message—Toby chooses from names and summa
 ### Manage in the app
 
 Open **Toby.app** and click **Skills** in the sidebar. The Skills workspace lists
-each skill in a second column. Select one to open its page. Rename it in
-**About**, or click the icon to change it. Summary, enabled state, and
-instructions are edited on that page. Use **New Skill** in the toolbar, or the
-create link when nothing is selected. You can also delete existing skills and
-run a skill directly from the toolbar.
+each skill in a second column. Nothing is selected until you choose a skill.
+Select one to open its page, or click empty space in the list to clear the
+selection. Rename it in **About**, or click the icon to change it. Summary,
+enabled state, and instructions are edited on that page. Use **New Skill** in
+the toolbar, or the create link when nothing is selected. You can also delete
+existing skills and run a skill directly from the toolbar.
 
 ![Toby.app Skills window](/img/toby-app-skills.png)
 

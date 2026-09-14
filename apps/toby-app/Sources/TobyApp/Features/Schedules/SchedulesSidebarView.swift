@@ -9,7 +9,8 @@ struct SchedulesSidebarView: View {
 			isLoading: store.isLoading,
 			isEmpty: store.schedules.isEmpty,
 			loadingText: "Loading schedules…",
-			emptyText: "No schedules"
+			emptyText: "No schedules",
+			onClearSelection: { store.selectHome() }
 		) {
 			ForEach(store.schedules) { schedule in
 				Button {

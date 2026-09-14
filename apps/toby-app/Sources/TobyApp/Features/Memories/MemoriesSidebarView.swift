@@ -44,7 +44,7 @@ struct MemoriesSidebarView: View {
 
 			Divider().overlay(AppTheme.separator).opacity(0.5)
 
-			ScrollView {
+			FeatureBrowserDeselectingScroll(onClearSelection: { store.clearSelection() }) {
 				VStack(alignment: .leading, spacing: 2) {
 					if store.isListLoading && store.memories.isEmpty {
 						Text("Loading memories…")

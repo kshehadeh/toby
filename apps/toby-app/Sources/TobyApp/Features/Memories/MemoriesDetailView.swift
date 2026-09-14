@@ -20,12 +20,15 @@ struct MemoriesDetailView: View {
 				} description: {
 					Text(errorMessage)
 				}
-			} else if store.memories.isEmpty && !store.isCreatingNew {
-				MemoriesEmptyStateView(store: store) {
-					store.startCreate()
-				}
-			} else {
+			} else if store.isCreatingNew || !store.selectedMemoryIds.isEmpty {
 				contentSplit
+			} else {
+				FeatureBrowserPlaceholder(
+					systemImage: "brain.head.profile",
+					prompt: "Select a memory",
+					onCreate: { store.startCreate() },
+					createAccessibilityIdentifier: "empty-create-memory-button"
+				)
 			}
 		}
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -252,45 +255,6 @@ struct MemoriesDetailView: View {
 		display.dateStyle = .short
 		display.timeStyle = .short
 		return display.string(from: date)
-	}
-}
-
-private struct MemoriesEmptyStateView: View {
-	@Bindable var store: MemoriesStore
-	let onCreate: () -> Void
-
-	var body: some View {
-		VStack(spacing: 18) {
-			Image(systemName: "brain.head.profile")
-				.font(.system(size: 72, weight: .regular))
-				.foregroundStyle(SettingsDesign.rowDescription)
-				.accessibilityHidden(true)
-
-			VStack(spacing: 8) {
-				Text("Memories")
-					.font(.system(size: 28, weight: .semibold))
-					.foregroundStyle(SettingsDesign.rowTitle)
-
-				Text("Memories are durable facts Toby remembers across chats. Create one manually, or let Toby propose memories during conversations.")
-					.font(.body)
-					.foregroundStyle(SettingsDesign.rowDescription)
-					.multilineTextAlignment(.center)
-					.lineLimit(4)
-					.frame(maxWidth: 480)
-			}
-
-			Button {
-				onCreate()
-			} label: {
-				Label("Create Memory", systemImage: "plus")
-			}
-			.buttonStyle(.borderedProminent)
-			.disabled(store.isListLoading || store.isSaving)
-			.accessibilityIdentifier("empty-create-memory-button")
-		}
-		.padding(32)
-		.frame(maxWidth: .infinity, maxHeight: .infinity)
-		.accessibilityElement(children: .contain)
 	}
 }
 

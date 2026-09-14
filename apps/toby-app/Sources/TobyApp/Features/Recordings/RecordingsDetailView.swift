@@ -12,12 +12,8 @@ struct RecordingsDetailView: View {
 			if store.isLoading && store.recordings.isEmpty && activeRecording == nil {
 				ProgressView("Loading recordings…")
 					.frame(maxWidth: .infinity, maxHeight: .infinity)
-			} else if let active = activeRecording, store.selectedActiveRecordingId == active.id || store.selectedRecordings.isEmpty {
+			} else if let active = activeRecording, store.selectedActiveRecordingId == active.id {
 				ActiveRecordingDetailView(active: active, onStopRecording: onStopRecording)
-			} else if processingState?.isActive == true, store.selectedRecordings.isEmpty {
-				RecordingProcessingCard(processingState: processingState)
-					.padding(32)
-					.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 			} else if !store.selectedRecordings.isEmpty {
 				if store.selectedRecordings.count == 1, let recording = store.selectedRecording {
 					if isProcessingSelected {

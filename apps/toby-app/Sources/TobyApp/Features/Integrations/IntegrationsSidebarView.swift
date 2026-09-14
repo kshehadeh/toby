@@ -8,7 +8,8 @@ struct IntegrationsSidebarView: View {
 			isLoading: store.isLoading,
 			isEmpty: store.integrationSections.isEmpty,
 			loadingText: "Loading integrations…",
-			emptyText: "No integrations"
+			emptyText: "No integrations",
+			onClearSelection: { store.selectIntegrationHome() }
 		) {
 			ForEach(store.integrationSections) { section in
 				Button {

@@ -167,14 +167,36 @@ struct LogsStoreTests {
 		store.stopPolling()
 	}
 
-	@Test("ensureLoaded auto-selects first source")
-	func ensureLoadedSelectsFirstSource() async throws {
+	@Test("ensureLoaded does not auto-select a source")
+	func ensureLoadedDoesNotSelectFirstSource() async throws {
 		let client = FakeLogsClient(response: sampleResponse())
 		let store = LogsStore(client: client)
 		await store.ensureLoaded()
-		#expect(store.selectedSource == "daemon")
-		#expect(client.lastSource == "daemon")
+		#expect(store.selectedSource == nil)
+		#expect(client.lastSource == nil)
+		#expect(store.discoveredSources.contains("daemon"))
 		store.stopPolling()
+	}
+
+	@Test("ensureLoaded restores a previously selected source")
+	func ensureLoadedRestoresPreviousSource() async throws {
+		let client = FakeLogsClient(response: sampleResponse())
+		let store = LogsStore(client: client)
+		store.selectedSource = "chat"
+		await store.ensureLoaded()
+		#expect(store.selectedSource == "chat")
+		#expect(client.lastSource == "chat")
+		store.stopPolling()
+	}
+
+	@Test("clearSelection drops the current source")
+	func clearSelectionDropsCurrentSource() {
+		let store = LogsStore()
+		store.selectedSource = "daemon"
+		store.entries = [sampleEntry()]
+		store.clearSelection()
+		#expect(store.selectedSource == nil)
+		#expect(store.entries.isEmpty)
 	}
 
 	@Test("UnifiedLogEntry display names")

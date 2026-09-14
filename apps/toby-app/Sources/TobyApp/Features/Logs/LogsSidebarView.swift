@@ -5,7 +5,7 @@ struct LogsSidebarView: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			ScrollView {
+			FeatureBrowserDeselectingScroll(onClearSelection: { store.clearSelection() }) {
 				VStack(alignment: .leading, spacing: 6) {
 					SidebarSection(title: "Sources") {
 						VStack(alignment: .leading, spacing: 2) {

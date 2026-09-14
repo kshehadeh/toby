@@ -15,9 +15,10 @@ Use **Record Audio** (or equivalent recording controls) in Toby.app. Capture run
 inside the app so Microphone and Screen/System Audio permissions stay tied to
 Toby.app’s bundle identity.
 
-While a recording is in progress, open **Recordings** in the sidebar to see
-live capture details and use **Stop Recording** there—the same stop action as
-the toolbar button and menu bar.
+While a recording is in progress, open **Recordings** in the sidebar and select
+the in-progress row to see live capture details and use **Stop Recording**
+there—the same stop action as the toolbar button and menu bar. Starting a
+recording while you are already in Recordings selects that take.
 
 By default Toby records **both** your microphone and system audio (other apps
 such as meetings). You can turn either source off under
