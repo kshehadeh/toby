@@ -280,8 +280,8 @@ struct ProjectsViewTests {
 		}
 	}
 
-	@Test("project details title field edits the project name inline")
-	func titleFieldEditsProjectName() throws {
+	@Test("project details edit the name in the About card")
+	func detailEditsNameInAboutCard() throws {
 		let store = ProjectsStore()
 		let project = sampleProject(name: "Demo")
 		store.hasLoadedOnce = true
@@ -290,15 +290,12 @@ struct ProjectsViewTests {
 		store.selectedProject = project
 
 		let view = ProjectsView(projectsStore: store, chatStore: ChatStore())
-
-		// The header title is the name field, and the About card no longer
-		// carries a separate Name row.
 		let field = try view.inspect()
 			.find(viewWithAccessibilityIdentifier: "project-title-field")
 			.textField()
 		#expect(try field.input() == "Demo")
-		#expect(throws: (any Error).self) {
-			try view.inspect().find(text: "Name")
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "About")
 		}
 	}
 

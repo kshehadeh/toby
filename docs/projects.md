@@ -71,7 +71,7 @@ or reveal it in Finder. A new project chat identifies its project with a **New
 
 | Field | Description |
 | ----- | ----------- |
-| **Name** | Display name, edited inline in the details page title (Return accepts, Escape reverts) |
+| **Name** | Display name, edited in the project page About card |
 | **Summary** | Short description included in project prompt context |
 | **Persona** | Optional project-default persona |
 | **Folder path** | Absolute path to the project canvas directory |

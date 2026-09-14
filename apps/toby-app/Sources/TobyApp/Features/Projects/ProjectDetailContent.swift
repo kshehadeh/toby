@@ -9,7 +9,6 @@ struct ProjectDetailContent: View {
 	var body: some View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 24) {
-				header
 				ViewThatFits(in: .horizontal) {
 					HStack(alignment: .top, spacing: 20) {
 						aboutCard.frame(minWidth: 280)
@@ -42,42 +41,13 @@ struct ProjectDetailContent: View {
 		}
 	}
 
-	private var header: some View {
-		HStack(alignment: .center, spacing: 14) {
-			RoundedRectangle(cornerRadius: 12)
-				.fill(AppTheme.accent.opacity(0.16))
-				.frame(width: 48, height: 48)
-				.overlay {
-					Image(systemName: "folder.fill")
-						.font(.system(size: 20, weight: .semibold))
-						.foregroundStyle(AppTheme.accent)
-						.accessibilityHidden(true)
-				}
-
-			VStack(alignment: .leading, spacing: 4) {
-				InlineTitleField(
-					name: Binding(
-						get: { store.selectedProject?.name ?? project.name },
-						set: { store.updateName($0) }
-					),
-					placeholder: "Project name",
-					accessibilityIdentifier: "project-title-field",
-				)
-				Text(store.metaLine(for: store.selectedProject ?? project))
-					.font(.subheadline)
-					.foregroundStyle(AppTheme.secondaryText)
-			}
-
-			Spacer(minLength: 0)
-		}
-	}
-
 	private var aboutCard: some View {
 		VStack(alignment: .leading, spacing: 16) {
 			Text("About")
 				.font(.system(size: 13, weight: .semibold))
 				.foregroundStyle(SettingsDesign.rowTitle)
 
+			nameField
 			personaField
 			summaryField
 			pathSection
@@ -150,6 +120,25 @@ struct ProjectDetailContent: View {
 			.disabled(store.isSaving)
 			.accessibilityIdentifier("project-summary-edit-button")
 		}
+	}
+
+	private var nameField: some View {
+		VStack(alignment: .leading, spacing: 6) {
+			Text("Name")
+				.font(.system(size: 12, weight: .semibold))
+				.foregroundStyle(SettingsDesign.rowTitle)
+			TextField("Project name", text: nameBinding)
+				.textFieldStyle(.roundedBorder)
+				.controlSize(.regular)
+				.accessibilityIdentifier("project-title-field")
+		}
+	}
+
+	private var nameBinding: Binding<String> {
+		Binding(
+			get: { store.selectedProject?.name ?? project.name },
+			set: { store.updateName($0) }
+		)
 	}
 
 	private var personaField: some View {

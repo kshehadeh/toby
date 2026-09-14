@@ -139,10 +139,10 @@ struct FlowsViewTests {
 		store.selectedFlowId = flow.id
 		let view = FlowsDetailView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Email Summary")
+			try view.inspect().find(text: "Fetch unread inbox items and summarize them.")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Built-in flows can’t be edited or deleted")
+			try view.inspect().find(text: "Built-in flows remain read-only. Duplicate their idea as a new custom flow if you want to change the steps.")
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "fetch-unread")
@@ -292,6 +292,33 @@ struct FlowsViewTests {
 		)
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-persona")
+		}
+	}
+
+	@Test("editor omits in-content header chrome")
+	func editorOmitsInContentHeader() throws {
+		let store = FlowsStore()
+		var draft = FlowEditorDraft.blank()
+		draft.nodes = [FlowEditorNode.llm()]
+		store.editor = draft
+		let view = FlowEditorView(
+			store: store,
+			draft: Binding(
+				get: { store.editor ?? draft },
+				set: { store.editor = $0 }
+			)
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-name")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(button: "Cancel")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(button: "Save")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-save")
 		}
 	}
 

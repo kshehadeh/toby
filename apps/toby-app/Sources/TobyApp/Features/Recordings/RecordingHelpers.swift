@@ -20,7 +20,11 @@ func recordingSidebarTitle(_ recording: ListenRecordingSummary) -> String {
 	if let name = normalizedRecordingName(recording) {
 		return name
 	}
-	return friendlyRecordingDate(recording.startedAt, fallback: recording.createdAt)
+	return recordingStartedDateText(recording)
+}
+
+func recordingStartedDateText(_ recording: ListenRecordingSummary) -> String {
+	friendlyRecordingDate(recording.startedAt, fallback: recording.createdAt)
 }
 
 func hasRecordingName(_ recording: ListenRecordingSummary) -> Bool {

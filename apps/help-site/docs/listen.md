@@ -44,7 +44,7 @@ When you stop and save:
    can also delete just the audio at any time with **Delete Audio** in the
    Recordings inspector. A recording without audio cannot be re-transcribed.
 5. The result appears in the **Recordings** window (playback, transcript, delete).
-   Opening a long recording shows the title and sidebar immediately; the
+   Opening a long recording shows the window title, date subtitle, and inspector immediately; the
    transcript, summary, and player fill in after a short skeleton so the window
    stays responsive. The player defaults to **System** (clean meeting audio) and
    can switch to **Mic** or **Both (L/R)** when available. When the transcription

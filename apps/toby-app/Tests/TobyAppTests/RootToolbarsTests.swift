@@ -24,6 +24,250 @@ struct RootToolbarsTests {
 		#expect(RootToolbars.routeTitle(.recordings, selectedItemName: "Meeting", selectedCount: 3) == "3 recordings")
 	}
 
+	@Test("Recording window title matches the list title")
+	func recordingWindowTitleMatchesListTitle() {
+		let named = ListenRecordingSummary(
+			id: "r1",
+			dir: "/tmp/r1",
+			name: "Weekly standup",
+			description: nil,
+			createdAt: "2026-06-22T10:00:00Z",
+			startedAt: "2026-06-22T10:00:00Z",
+			stoppedAt: nil,
+			durationMs: 60000,
+			sources: ListenSourceSelection(mic: true, system: false),
+			hasAudio: true,
+			hasTranscript: true,
+			hasSummary: false
+		)
+		#expect(
+			RootToolbars.recordingsNavigationTitle(recording: named, selectedCount: 1)
+				== "Weekly standup"
+		)
+		#expect(named.displayName == "Weekly standup")
+		#expect(recordingSidebarTitle(named) == "Weekly standup")
+
+		let unnamed = ListenRecordingSummary(
+			id: "r2",
+			dir: "/tmp/r2",
+			name: nil,
+			description: nil,
+			createdAt: "2026-06-22T10:00:00Z",
+			startedAt: "2026-06-22T10:00:00Z",
+			stoppedAt: nil,
+			durationMs: 60000,
+			sources: ListenSourceSelection(mic: true, system: false),
+			hasAudio: true,
+			hasTranscript: false,
+			hasSummary: false
+		)
+		let expectedDate = friendlyRecordingDate("2026-06-22T10:00:00Z", fallback: "2026-06-22T10:00:00Z")
+		#expect(
+			RootToolbars.recordingsNavigationTitle(recording: unnamed, selectedCount: 1)
+				== expectedDate
+		)
+		#expect(unnamed.displayName == expectedDate)
+		#expect(recordingSidebarTitle(unnamed) == expectedDate)
+		#expect(
+			RootToolbars.recordingsNavigationTitle(recording: named, selectedCount: 0)
+				== "Recordings"
+		)
+	}
+
+	@Test("Schedule subtitle reflects enabled state and next run")
+	func scheduleWindowSubtitle() {
+		#expect(
+			RootToolbars.schedulesNavigationSubtitle(isEnabled: true, nextRunText: "in 5 minutes")
+				== "Next run in 5 minutes"
+		)
+		#expect(
+			RootToolbars.schedulesNavigationSubtitle(isEnabled: true, nextRunText: nil)
+				== "No upcoming run"
+		)
+		#expect(
+			RootToolbars.schedulesNavigationSubtitle(isEnabled: false, nextRunText: "in 5 minutes")
+				== "Paused"
+		)
+	}
+
+	@Test("Skill subtitle uses enabled state and edit date")
+	func skillWindowSubtitle() {
+		#expect(
+			RootToolbars.skillsNavigationSubtitle(
+				isEnabled: true,
+				updatedAt: nil,
+				createdAt: nil
+			) == "Enabled"
+		)
+		#expect(
+			RootToolbars.skillsNavigationSubtitle(
+				isEnabled: false,
+				updatedAt: nil,
+				createdAt: nil
+			) == "Disabled"
+		)
+		let edited = RootToolbars.skillsNavigationSubtitle(
+			isEnabled: true,
+			updatedAt: "2026-06-22T10:00:00Z",
+			createdAt: "2026-06-01T10:00:00Z"
+		)
+		#expect(edited.hasPrefix("Enabled · Edited "))
+	}
+
+	@Test("Project subtitle is the meta line unless a project chat is open")
+	func projectWindowSubtitle() {
+		let project = ProjectSummary(
+			id: "proj-1",
+			slug: "proj-1",
+			name: "Demo",
+			summary: "",
+			folderPath: "/tmp/proj-1",
+			personaName: "toby",
+			outputsDir: nil,
+			skillsDir: nil,
+			createdAt: nil,
+			updatedAt: nil
+		)
+		let options = [
+			PersonaOption(
+				name: "toby",
+				label: "Toby",
+				imagePath: nil,
+				imageUrl: nil,
+				isDefault: true,
+				isBuiltIn: true
+			),
+		]
+		#expect(
+			RootToolbars.projectsNavigationSubtitle(
+				project: project,
+				isShowingChat: false,
+				chatActivityLine: "Thinking…",
+				chatCount: 3,
+				personaOptions: options
+			) == "3 chats · Toby"
+		)
+		#expect(
+			RootToolbars.projectsNavigationSubtitle(
+				project: project,
+				isShowingChat: true,
+				chatActivityLine: "Thinking…",
+				chatCount: 3,
+				personaOptions: options
+			) == "Thinking…"
+		)
+		#expect(
+			RootToolbars.projectsNavigationSubtitle(
+				project: nil,
+				isShowingChat: false,
+				chatActivityLine: "",
+				chatCount: 0,
+				personaOptions: options
+			).isEmpty
+		)
+	}
+
+	@Test("Flow editor title uses the draft name and New/Edit subtitle")
+	func flowEditorWindowTitleAndSubtitle() {
+		var draft = FlowEditorDraft.blank()
+		#expect(
+			RootToolbars.flowsNavigationTitle(selectedName: nil, editor: draft)
+				== "Untitled flow"
+		)
+		#expect(
+			RootToolbars.flowsNavigationSubtitle(nil, editor: draft)
+				== "New flow"
+		)
+		draft.existingId = "flow.custom"
+		draft.name = "Focus mode"
+		#expect(
+			RootToolbars.flowsNavigationTitle(selectedName: "Old name", editor: draft)
+				== "Focus mode"
+		)
+		#expect(
+			RootToolbars.flowsNavigationSubtitle(nil, editor: draft)
+				== "Edit flow"
+		)
+	}
+
+	@Test("Flow subtitle is the flow id")
+	func flowWindowSubtitle() {
+		let flow = FlowListItem(
+			id: "dashboard.email.summary",
+			name: "dashboard.email.summary",
+			description: "Fetch unread",
+			icon: nil,
+			builtin: true,
+			persona: nil,
+			nodes: [],
+			result: nil,
+			destinations: nil,
+			createdAt: nil,
+			updatedAt: nil
+		)
+		#expect(RootToolbars.flowsNavigationSubtitle(flow) == "dashboard.email.summary")
+		#expect(RootToolbars.flowsNavigationSubtitle(nil).isEmpty)
+	}
+
+	@Test("Untitled recording keeps the date as subtitle and an empty editable name")
+	func untitledRecordingEditableNameIsEmpty() {
+		let unnamed = ListenRecordingSummary(
+			id: "r2",
+			dir: "/tmp/r2",
+			name: nil,
+			description: nil,
+			createdAt: "2026-09-04T12:00:00Z",
+			startedAt: "2026-09-04T12:00:00Z",
+			stoppedAt: nil,
+			durationMs: 60000,
+			sources: ListenSourceSelection(mic: true, system: false),
+			hasAudio: true,
+			hasTranscript: false,
+			hasSummary: false
+		)
+		#expect(normalizedRecordingName(unnamed) == nil)
+		let expectedDate = friendlyRecordingDate("2026-09-04T12:00:00Z", fallback: "2026-09-04T12:00:00Z")
+		#expect(
+			RootToolbars.recordingsNavigationSubtitle(recording: unnamed, selectedCount: 1)
+				== expectedDate
+		)
+	}
+
+	@Test("Recording window subtitle is the formatted start date")
+	func recordingWindowSubtitleIsFormattedDate() {
+		let recording = ListenRecordingSummary(
+			id: "r1",
+			dir: "/tmp/r1",
+			name: "Weekly standup",
+			description: nil,
+			createdAt: "2026-06-22T10:00:00Z",
+			startedAt: "2026-06-22T10:00:00Z",
+			stoppedAt: nil,
+			durationMs: 60000,
+			sources: ListenSourceSelection(mic: true, system: false),
+			hasAudio: true,
+			hasTranscript: true,
+			hasSummary: false
+		)
+		let expectedDate = friendlyRecordingDate("2026-06-22T10:00:00Z", fallback: "2026-06-22T10:00:00Z")
+		#expect(
+			RootToolbars.recordingsNavigationSubtitle(recording: recording, selectedCount: 1)
+				== expectedDate
+		)
+		#expect(
+			RootToolbars.recordingsNavigationSubtitle(recording: recording, selectedCount: 0)
+				.isEmpty
+		)
+		#expect(
+			RootToolbars.recordingsNavigationSubtitle(recording: recording, selectedCount: 3)
+				.isEmpty
+		)
+		#expect(
+			RootToolbars.recordingsNavigationSubtitle(recording: nil, selectedCount: 1)
+				.isEmpty
+		)
+	}
+
 	@Test("Header exposes its title and optional activity as text")
 	func headerText() throws {
 		let header = RootHeaderTitle(title: "Home", activityLine: "Updated 1 min ago")

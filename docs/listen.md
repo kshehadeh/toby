@@ -89,7 +89,7 @@ window shows a processing card instead of the live “Recording in progress”
 pane. After processing, the window supports audio playback, transcript viewing,
 AI summarization, metadata editing, confirmed audio deletion (the recording,
 transcript, and summary are kept), and confirmed recording deletion. Selecting a
-saved recording paints the header and inspector immediately from the list row;
+saved recording paints the window title, date subtitle, and inspector immediately from the list row;
 transcript, summary, and the audio player show skeletons until the detail
 payload is decoded (off the main actor) so a long recording does not freeze
 the UI. Deletion is sent to `DELETE /api/listen/recordings/:id`; the SwiftUI

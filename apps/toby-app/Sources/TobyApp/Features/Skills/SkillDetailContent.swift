@@ -10,7 +10,6 @@ struct SkillDetailContent: View {
 	var body: some View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 24) {
-				header
 				ViewThatFits(in: .horizontal) {
 					HStack(alignment: .top, spacing: 20) {
 						aboutCard.frame(minWidth: 280)
@@ -36,45 +35,36 @@ struct SkillDetailContent: View {
 		}
 	}
 
-	private var header: some View {
-		HStack(alignment: .center, spacing: 14) {
-			EditableSkillIcon(
-				iconURL: skill.resolvedIconURL,
-				hasCustomIcon: skill.iconUrl != nil,
-				isDisabled: store.isSaving,
-				onChoose: { isIconPickerPresented = true },
-				onReset: { Task { await store.resetIcon() } },
-			)
-
-			VStack(alignment: .leading, spacing: 4) {
-				InlineTitleField(
-					name: Binding(
-						get: { store.value(for: store.key(for: skill.dirName, field: .name)) },
-						set: {
-							store.setDraftValue(
-								store.key(for: skill.dirName, field: .name),
-								$0,
-								autosaveImmediately: true,
-							)
-						},
-					),
-					placeholder: "Skill name",
-					accessibilityIdentifier: "skill-title-field",
-				)
-				Text(metaLine)
-					.font(.subheadline)
-					.foregroundStyle(AppTheme.secondaryText)
-			}
-
-			Spacer(minLength: 0)
-		}
-	}
-
 	private var aboutCard: some View {
 		VStack(alignment: .leading, spacing: 16) {
 			Text("About")
 				.font(.system(size: 13, weight: .semibold))
 				.foregroundStyle(SettingsDesign.rowTitle)
+
+			HStack(alignment: .center, spacing: 12) {
+				EditableSkillIcon(
+					iconURL: skill.resolvedIconURL,
+					hasCustomIcon: skill.iconUrl != nil,
+					isDisabled: store.isSaving,
+					onChoose: { isIconPickerPresented = true },
+					onReset: { Task { await store.resetIcon() } },
+				)
+				VStack(alignment: .leading, spacing: 2) {
+					Text("Icon")
+						.font(.system(size: 12, weight: .semibold))
+						.foregroundStyle(SettingsDesign.rowTitle)
+					Text("Click to change. Reset a custom icon from the context menu.")
+						.font(.system(size: 11))
+						.foregroundStyle(SettingsDesign.rowDescription)
+				}
+			}
+
+			SkillSidebarField(
+				title: "Name",
+				placeholder: "Skill name",
+				accessibilityIdentifier: "skill-title-field",
+				text: nameBinding,
+			)
 
 			SkillSidebarField(
 				title: "Summary",
@@ -157,14 +147,17 @@ struct SkillDetailContent: View {
 		}
 	}
 
-	private var metaLine: String {
-		var parts: [String] = [enabledBinding.wrappedValue ? "Enabled" : "Disabled"]
-		if let edited = formattedDate(skill.updatedAt) {
-			parts.append("Edited \(edited)")
-		} else if let created = formattedDate(skill.createdAt) {
-			parts.append("Created \(created)")
-		}
-		return parts.joined(separator: " · ")
+	private var nameBinding: Binding<String> {
+		Binding(
+			get: { store.value(for: store.key(for: skill.dirName, field: .name)) },
+			set: {
+				store.setDraftValue(
+					store.key(for: skill.dirName, field: .name),
+					$0,
+					autosaveImmediately: true,
+				)
+			},
+		)
 	}
 
 	private func binding(for field: SkillField) -> Binding<String> {

@@ -115,7 +115,7 @@ struct RootHeaderTitle: View {
 enum RootToolbars {
 	/// Back/Forward sit with the sidebar toggle. The route title is the system
 	/// `navigationTitle` (not a toolbar item) so `.primaryAction` can stay
-	/// trailing — same pattern as Blather's main window.
+	/// trailing.
 	@ToolbarContentBuilder
 	static func common(_ model: RootCommonToolbarModel, header title: RootHeaderTitle) -> some ToolbarContent {
 		ToolbarItemGroup(placement: .navigation) {
@@ -192,6 +192,94 @@ enum RootToolbars {
 			!name.isEmpty
 		else { return route.menuTitle }
 		return name
+	}
+
+	static func recordingsNavigationTitle(
+		recording: ListenRecordingSummary?,
+		selectedCount: Int
+	) -> String {
+		let name = selectedCount == 1 ? recording.map(recordingSidebarTitle) : nil
+		return routeTitle(
+			.recordings,
+			selectedItemName: name,
+			selectedCount: selectedCount
+		)
+	}
+
+	static func recordingsNavigationSubtitle(
+		recording: ListenRecordingSummary?,
+		selectedCount: Int
+	) -> String {
+		guard selectedCount == 1, let recording else { return "" }
+		return recordingStartedDateText(recording)
+	}
+
+	static func schedulesNavigationSubtitle(isEnabled: Bool, nextRunText: String?) -> String {
+		if isEnabled, let nextRunText {
+			return "Next run \(nextRunText)"
+		}
+		if isEnabled {
+			return "No upcoming run"
+		}
+		return "Paused"
+	}
+
+	static func skillsNavigationSubtitle(
+		isEnabled: Bool,
+		updatedAt: String?,
+		createdAt: String?
+	) -> String {
+		var parts: [String] = [isEnabled ? "Enabled" : "Disabled"]
+		if let edited = friendlyISODate(updatedAt) {
+			parts.append("Edited \(edited)")
+		} else if let created = friendlyISODate(createdAt) {
+			parts.append("Created \(created)")
+		}
+		return parts.joined(separator: " · ")
+	}
+
+	static func flowsNavigationTitle(
+		selectedName: String?,
+		editor: FlowEditorDraft? = nil
+	) -> String {
+		if let editor {
+			let name = editor.name.trimmingCharacters(in: .whitespacesAndNewlines)
+			if !name.isEmpty { return name }
+			return editor.isNew ? "New flow" : "Edit flow"
+		}
+		return routeTitle(.flows, selectedItemName: selectedName)
+	}
+
+	static func flowsNavigationSubtitle(
+		_ flow: FlowListItem?,
+		editor: FlowEditorDraft? = nil
+	) -> String {
+		if let editor {
+			return editor.isNew ? "New flow" : "Edit flow"
+		}
+		guard let flow else { return "" }
+		return flow.id
+	}
+
+	static func projectsNavigationSubtitle(
+		project: ProjectSummary?,
+		isShowingChat: Bool,
+		chatActivityLine: String,
+		chatCount: Int,
+		personaOptions: [PersonaOption]
+	) -> String {
+		if isShowingChat { return chatActivityLine }
+		guard let project else { return "" }
+		return projectMetaLine(
+			chatCount: chatCount,
+			personaName: project.personaName,
+			options: personaOptions
+		)
+	}
+
+	private static func friendlyISODate(_ value: String?) -> String? {
+		guard let value, let date = isoRecordingDate(value) else { return nil }
+		return RecordingDateFormatters.friendly.string(from: date)
 	}
 
 	static func updateHelp(model: RootCommonToolbarModel) -> String {
@@ -630,10 +718,18 @@ enum RootToolbars {
 		onEdit: @escaping () -> Void,
 		onRun: @escaping () -> Void,
 		onDelete: @escaping () -> Void,
+		isSaving: Bool = false,
+		canSave: Bool = false,
+		onCancel: @escaping () -> Void = {},
+		onSave: @escaping () -> Void = {},
 	) -> some ToolbarContent {
 		let mode = flowsToolbarMode(hasSelection: hasSelection, isEditing: isEditing)
 		common(model, header: RootHeaderTitle(title: title))
-		contextualActions(isVisible: mode == .home || (mode == .detail && (canEdit || canRun || canDelete))) {
+		contextualActions(
+			isVisible: mode == .home
+				|| mode == .editor
+				|| (mode == .detail && (canEdit || canRun || canDelete))
+		) {
 			switch mode {
 			case .home:
 				Button(action: onNewFlow) {
@@ -652,7 +748,14 @@ enum RootToolbars {
 					.accessibilityLabel("Edit Flow")
 				}
 			case .editor:
-				EmptyView()
+				Button(action: onCancel) {
+					Image(systemName: "xmark")
+				}
+				.help("Cancel")
+				.disabled(isSaving)
+				.keyboardShortcut(.cancelAction)
+				.accessibilityIdentifier("flow-editor-cancel")
+				.accessibilityLabel("Cancel")
 			}
 			switch mode {
 			case .home:
@@ -675,7 +778,14 @@ enum RootToolbars {
 					.accessibilityLabel("Run Now")
 				}
 			case .editor:
-				EmptyView()
+				Button(action: onSave) {
+					Image(systemName: "checkmark")
+				}
+				.help("Save")
+				.disabled(isSaving || !canSave)
+				.keyboardShortcut(.defaultAction)
+				.accessibilityIdentifier("flow-editor-save")
+				.accessibilityLabel(isSaving ? "Saving" : "Save")
 			}
 			if mode == .detail, canDelete {
 				Button(role: .destructive, action: onDelete) {

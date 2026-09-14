@@ -58,8 +58,14 @@ Home, Chats, Projects, and Recordings, then **Automation** (Schedules, Flows) an
 **Tools** (Skills, Integrations). Memories opens as a separate window from the
 View menu, command palette, or menu bar — not as a main-window route.
 
-The window header shows the selected item's name, or the section name when
-nothing is selected. Selecting multiple recordings shows their count.
+The window header spans the workspace list and detail, with the record list
+sitting under the header line — the same chrome as Chats. The title shows the
+selected item's name, or the section name when nothing is selected. A selected recording uses that recording's title, with
+the formatted date and time as the subtitle. A selected schedule, skill, or
+project shows status as the subtitle (next run, last edit, or chat count and
+persona). Rename those from the detail page. A selected flow uses its name, with
+the flow id as the subtitle. Selecting multiple recordings
+shows their count.
 On the right, **Record**, **Settings**, and **Search** stay together across
 workspaces; an update button also appears when an update is available.
 **Search** opens the command palette, also available with ⌘K.
@@ -93,7 +99,8 @@ folder) and **Open**.
 
 The Recordings workspace lists your past recordings in a second column. Select a
 recording to view its transcript, generate an AI summary, or start a chat about it.
-Choose **Recordings** in the sidebar again to clear the selection.
+Rename it from the inspector. Choose **Recordings** in the sidebar again to clear
+the selection.
 
 ![Toby.app Recordings window](/img/toby-app-recordings.png)
 
@@ -108,7 +115,7 @@ configuration. Click **Integrations** in the sidebar again to clear the selectio
 ### Projects
 
 The Projects workspace lists each project in a second column. Select one to open its
-page: edit the summary or persona, reveal the project
+page: rename it in **About**, edit the summary or persona, reveal the project
 folder, and inspect the generated file tree. A **Chats** inspector on the right
 lists the project's chats — click one to resume it, or use **+ Chat** in the
 toolbar to start a new one (the toolbar also hides or shows that inspector).
@@ -125,8 +132,8 @@ project page.
 ### Skills
 
 The Skills workspace lists each skill in a second column. Select one to open its page:
-rename it from the title, click the icon to change it, and edit the summary,
-enabled state, and instructions in the main pane. Use **New Skill** in the
+rename it in **About**, click the icon to change it, and
+edit the summary, enabled state, and instructions in the main pane. Use **New Skill** in the
 toolbar while viewing the overview to create one. You can also delete skills
 and run a skill directly from the toolbar.
 
@@ -145,7 +152,7 @@ workspace in the main window.
 ### Schedules
 
 The Schedules area lists each schedule in the sidebar. Select one to open its
-page: rename it from the title, and edit whether it runs a prompt or a flow,
+page: rename it in **About**, and edit whether it runs a prompt or a flow,
 the timetable, and enabled state in the main pane. You can add new schedules,
 run them on demand, or delete them.
 
@@ -158,7 +165,8 @@ optional persona and LLM step. Built-in jobs still fill the home dashboard
 blocks (email, tasks, calendar). You can also **create your own** flows: pick
 tools, fill in their arguments, optionally add a last LLM step, choose whether
 the result opens in a window / is emailed / is posted to Slack / appears as a
-home-dashboard card, and **Run now**. Built-in flows stay read-only. Running a
+home-dashboard card, and **Run now**. Rename a custom flow in **Details** while
+editing; Cancel and Save are in the toolbar. Built-in flows stay read-only. Running a
 custom flow from a [schedule](./schedules) is still later.
 
 ![Toby.app Flows](/img/toby-app-flows.png)

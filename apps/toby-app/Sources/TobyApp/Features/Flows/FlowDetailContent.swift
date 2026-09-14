@@ -5,69 +5,13 @@ struct FlowDetailContent: View {
 	let flow: FlowListItem
 
 	var body: some View {
-		VStack(spacing: 0) {
-			header
-				.padding(.horizontal, 24)
-				.padding(.vertical, 18)
-
+		HStack(spacing: 0) {
+			mainColumn
 			Divider().overlay(SettingsDesign.cardBorder)
-
-			HStack(spacing: 0) {
-				mainColumn
-				Divider().overlay(SettingsDesign.cardBorder)
-				inspectorColumn
-			}
-			.frame(maxWidth: .infinity, maxHeight: .infinity)
+			inspectorColumn
 		}
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
 		.background(SettingsDesign.canvasBackground)
-	}
-
-	private var header: some View {
-		HStack(alignment: .center, spacing: 14) {
-			RoundedRectangle(cornerRadius: 12)
-				.fill(AppTheme.accent.opacity(0.16))
-				.frame(width: 48, height: 48)
-				.overlay {
-					Image(systemName: flow.systemImage)
-						.font(.system(size: 20, weight: .semibold))
-						.foregroundStyle(AppTheme.accent)
-				}
-
-			VStack(alignment: .leading, spacing: 4) {
-				HStack(spacing: 8) {
-					Text(flow.displayName)
-						.font(.system(size: 20, weight: .semibold))
-						.foregroundStyle(SettingsDesign.rowTitle)
-					if flow.builtin {
-						Text("Built-in")
-							.font(.system(size: 11, weight: .semibold))
-							.foregroundStyle(AppTheme.secondaryText)
-							.padding(.horizontal, 8)
-							.padding(.vertical, 3)
-							.background(
-								Capsule()
-									.fill(Color.white.opacity(0.08))
-							)
-					}
-				}
-				Text(flow.id)
-					.font(.system(size: 12, design: .monospaced))
-					.foregroundStyle(AppTheme.tertiaryText)
-					.lineLimit(1)
-					.textSelection(.enabled)
-			}
-
-			Spacer(minLength: 0)
-
-			if flow.builtin {
-				Text("Built-in flows can’t be edited or deleted")
-					.font(.caption)
-					.foregroundStyle(AppTheme.tertiaryText)
-					.multilineTextAlignment(.trailing)
-					.frame(maxWidth: 180)
-			}
-		}
 	}
 
 	private var mainColumn: some View {

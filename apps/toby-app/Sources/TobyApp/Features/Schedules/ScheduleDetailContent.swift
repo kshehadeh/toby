@@ -10,7 +10,6 @@ struct ScheduleDetailContent: View {
 	var body: some View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 24) {
-				header
 				ViewThatFits(in: .horizontal) {
 					HStack(alignment: .top, spacing: 20) {
 						aboutCard.frame(minWidth: 280)
@@ -30,61 +29,13 @@ struct ScheduleDetailContent: View {
 		.background(SettingsDesign.canvasBackground)
 	}
 
-	private var header: some View {
-		HStack(alignment: .center, spacing: 14) {
-			RoundedRectangle(cornerRadius: 12)
-				.fill(AppTheme.accent.opacity(0.16))
-				.frame(width: 48, height: 48)
-				.overlay {
-					Image(systemName: "clock")
-						.font(.system(size: 20, weight: .semibold))
-						.foregroundStyle(AppTheme.accent)
-						.accessibilityHidden(true)
-				}
-
-			VStack(alignment: .leading, spacing: 4) {
-				InlineTitleField(
-					name: Binding(
-						get: {
-							let value = store.value(for: store.key(for: schedule.id, field: .name))
-							return value.isEmpty ? schedule.name : value
-						},
-						set: {
-							store.setDraftValue(
-								store.key(for: schedule.id, field: .name),
-								$0,
-								autosaveImmediately: true,
-							)
-						},
-					),
-					placeholder: "Schedule name",
-					accessibilityIdentifier: "schedule-title-field",
-				)
-				Text(metaLine)
-					.font(.subheadline)
-					.foregroundStyle(AppTheme.secondaryText)
-			}
-
-			Spacer(minLength: 0)
-		}
-	}
-
-	private var metaLine: String {
-		if enabledBinding.wrappedValue, let nextRunText = schedule.nextRunText {
-			return "Next run \(nextRunText)"
-		}
-		if enabledBinding.wrappedValue {
-			return "No upcoming run"
-		}
-		return "Paused"
-	}
-
 	private var aboutCard: some View {
 		VStack(alignment: .leading, spacing: 16) {
 			Text("About")
 				.font(.system(size: 13, weight: .semibold))
 				.foregroundStyle(SettingsDesign.rowTitle)
 
+			nameField
 			actionField
 			if isFlowAction {
 				flowField
@@ -198,6 +149,19 @@ struct ScheduleDetailContent: View {
 			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
 				.stroke(SettingsDesign.cardBorder, lineWidth: 1)
 		)
+	}
+
+	private var nameField: some View {
+		VStack(alignment: .leading, spacing: 6) {
+			Text("Name")
+				.font(.system(size: 12, weight: .semibold))
+				.foregroundStyle(SettingsDesign.rowTitle)
+			TextField("Schedule name", text: nameBinding)
+				.textFieldStyle(.roundedBorder)
+				.controlSize(.regular)
+				.accessibilityIdentifier("schedule-title-field")
+		}
+		.frame(maxWidth: .infinity, alignment: .leading)
 	}
 
 	private var actionField: some View {
@@ -471,6 +435,22 @@ struct ScheduleDetailContent: View {
 		let value = store.value(for: store.key(for: schedule.id, field: .flow))
 		if value.isEmpty || value == "(none)" { return nil }
 		return value
+	}
+
+	private var nameBinding: Binding<String> {
+		Binding(
+			get: {
+				let value = store.value(for: store.key(for: schedule.id, field: .name))
+				return value.isEmpty ? schedule.name : value
+			},
+			set: {
+				store.setDraftValue(
+					store.key(for: schedule.id, field: .name),
+					$0,
+					autosaveImmediately: true,
+				)
+			},
+		)
 	}
 
 	private var actionBinding: Binding<String> {

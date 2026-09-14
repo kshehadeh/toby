@@ -125,10 +125,23 @@ template mode turns opaque regions into solid color boxes.
 ### Native app shared data
 
 The main window uses shared `RootToolbars` builders for its native header.
-`RootView` supplies selected item names from the existing feature stores; empty
+Feature record lists (chats, recordings, schedules, skills, flows, integrations,
+projects) live in `FeatureWorkspaceSplit` under that header — the toolbar
+separator spans the list and detail, matching Chats, instead of promoting the
+list into a full-height title-bar column. `RootView` supplies selected item names from the existing feature stores; empty
 selections use the section title and recording multiselection uses a count.
+A selected recording uses the same title as the list row (its name, or the
+formatted start date when unnamed) and the formatted date/time as
+`navigationSubtitle`. A selected schedule, skill, or project uses that item’s
+name with status as the subtitle (project chats keep the session name and
+activity line). Names are edited in the detail inspector or About card, not as
+a toolbar item — putting the title in the toolbar packs trailing actions off
+the window edge. A selected flow uses its display name and id; the flow editor
+uses the draft name as the window title, **New flow** / **Edit flow** as the
+subtitle, and Cancel/Save in the trailing toolbar. Detail panes do not
+repeat a large header.
 The route title is the system `navigationTitle` (plus `navigationSubtitle` for
-activity), not a toolbar item. Back/Forward use `.navigation`; Record, Settings,
+activity, recording date, or the selected item’s status), not a toolbar item. Back/Forward use `.navigation`; Record, Settings,
 Search, and conditional Update share a `.primaryAction` group. Contextual
 actions are one `ControlGroup` `ToolbarItem` in `.confirmationAction` so they
 cannot merge with those buttons (a `Menu` in `.automatic` stays separate; icon

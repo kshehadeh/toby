@@ -6,6 +6,7 @@ struct SkillSidebarField: View {
 	var hint: String?
 	var placeholder: String = ""
 	var axis: Axis = .horizontal
+	var accessibilityIdentifier: String? = nil
 	@Binding var text: String
 
 	var body: some View {
@@ -21,12 +22,22 @@ struct SkillSidebarField: View {
 				}
 			}
 
-			TextField(placeholder, text: $text, axis: axis)
-				.textFieldStyle(.roundedBorder)
-				.controlSize(.regular)
-				.multilineTextAlignment(.leading)
-				.frame(maxWidth: .infinity, alignment: .leading)
-				.lineLimit(axis == .vertical ? 4 : 1)
+			field
+		}
+	}
+
+	@ViewBuilder
+	private var field: some View {
+		let textField = TextField(placeholder, text: $text, axis: axis)
+			.textFieldStyle(.roundedBorder)
+			.controlSize(.regular)
+			.multilineTextAlignment(.leading)
+			.frame(maxWidth: .infinity, alignment: .leading)
+			.lineLimit(axis == .vertical ? 4 : 1)
+		if let accessibilityIdentifier {
+			textField.accessibilityIdentifier(accessibilityIdentifier)
+		} else {
+			textField
 		}
 	}
 }

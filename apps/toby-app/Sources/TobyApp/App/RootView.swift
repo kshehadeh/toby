@@ -596,7 +596,7 @@ struct RootView: View {
                                             common: commonToolbarModel,
                                             title: RootToolbars.routeTitle(
                                                 .schedules,
-                                                selectedItemName: schedulesStore.selectedSchedule?.displayName
+                                                selectedItemName: scheduleNavigationName
                                             ),
                                             hasSelection: schedulesStore.selectedSchedule != nil,
                                             isSaving: schedulesStore.isSaving,
@@ -622,9 +622,8 @@ struct RootView: View {
 
                                         RootToolbars.recordings(
                                             common: commonToolbarModel,
-                                            title: RootToolbars.routeTitle(
-                                                .recordings,
-                                                selectedItemName: recordingsStore.selectedRecording?.displayName,
+                                            title: RootToolbars.recordingsNavigationTitle(
+                                                recording: recordingsStore.selectedRecording,
                                                 selectedCount: recordingsStore.selectedRecordings.count
                                             ),
                                             hasSelection: !recordingsStore.selectedRecordings.isEmpty,
@@ -652,7 +651,7 @@ struct RootView: View {
                                             common: commonToolbarModel,
                                             title: RootToolbars.routeTitle(
                                                 .skills,
-                                                selectedItemName: skillsStore.selectedSkill?.name
+                                                selectedItemName: skillNavigationName
                                             ),
                                             hasSelection: skillsStore.selectedSkill != nil,
                                             isSaving: skillsStore.isSaving,
@@ -672,9 +671,9 @@ struct RootView: View {
 
                                         RootToolbars.flows(
                                             common: commonToolbarModel,
-                                            title: RootToolbars.routeTitle(
-                                                .flows,
-                                                selectedItemName: flowsStore.selectedFlow?.displayName
+                                            title: RootToolbars.flowsNavigationTitle(
+                                                selectedName: flowsStore.selectedFlow?.displayName,
+                                                editor: flowsStore.editor
                                             ),
                                             isListLoading: flowsStore.isListLoading,
                                             isRunsLoading: flowsStore.isRunsLoading,
@@ -702,7 +701,11 @@ struct RootView: View {
                                             onDelete: {
                                                 guard let flow = flowsStore.selectedFlow, !flow.builtin else { return }
                                                 flowsStore.confirmDelete(id: flow.id)
-                                            }
+                                            },
+                                            isSaving: flowsStore.isSaving,
+                                            canSave: flowEditorCanSave,
+                                            onCancel: { flowsStore.cancelEditor() },
+                                            onSave: { Task { await flowsStore.saveEditor() } }
                                         )
 
         }
@@ -727,18 +730,20 @@ struct RootView: View {
         case .schedules:
             RootToolbars.routeTitle(
                 .schedules,
-                selectedItemName: schedulesStore.selectedSchedule?.displayName
+                selectedItemName: scheduleNavigationName
             )
         case .recordings:
-            RootToolbars.routeTitle(
-                .recordings,
-                selectedItemName: recordingsStore.selectedRecording?.displayName,
+            RootToolbars.recordingsNavigationTitle(
+                recording: recordingsStore.selectedRecording,
                 selectedCount: recordingsStore.selectedRecordings.count
             )
         case .skills:
-            RootToolbars.routeTitle(.skills, selectedItemName: skillsStore.selectedSkill?.name)
+            RootToolbars.routeTitle(.skills, selectedItemName: skillNavigationName)
         case .flows:
-            RootToolbars.routeTitle(.flows, selectedItemName: flowsStore.selectedFlow?.displayName)
+            RootToolbars.flowsNavigationTitle(
+                selectedName: flowsStore.selectedFlow?.displayName,
+                editor: flowsStore.editor
+            )
         }
     }
 
@@ -749,10 +754,69 @@ struct RootView: View {
         case .chat:
             store.activityLine
         case .projects:
-            projectsStore.isShowingChat ? store.activityLine : ""
-        case .integrations, .schedules, .recordings, .skills, .flows:
+            RootToolbars.projectsNavigationSubtitle(
+                project: projectsStore.selectedProject,
+                isShowingChat: projectsStore.isShowingChat,
+                chatActivityLine: store.activityLine,
+                chatCount: projectsStore.selectedProjectSessions.count,
+                personaOptions: projectsStore.personaOptions
+            )
+        case .recordings:
+            RootToolbars.recordingsNavigationSubtitle(
+                recording: recordingsStore.selectedRecording,
+                selectedCount: recordingsStore.selectedRecordings.count
+            )
+        case .schedules:
+            scheduleNavigationSubtitle
+        case .skills:
+            skillNavigationSubtitle
+        case .flows:
+            RootToolbars.flowsNavigationSubtitle(
+                flowsStore.selectedFlow,
+                editor: flowsStore.editor
+            )
+        case .integrations:
             ""
         }
+    }
+
+    private var scheduleNavigationName: String? {
+        guard let schedule = schedulesStore.selectedSchedule else { return nil }
+        let value = schedulesStore.value(for: schedulesStore.key(for: schedule.id, field: .name))
+        return value.isEmpty ? schedule.displayName : value
+    }
+
+    private var skillNavigationName: String? {
+        guard let skill = skillsStore.selectedSkill else { return nil }
+        let value = skillsStore.value(for: skillsStore.key(for: skill.dirName, field: .name))
+        return value.isEmpty ? skill.name : value
+    }
+
+    private var scheduleNavigationSubtitle: String {
+        guard let schedule = schedulesStore.selectedSchedule else { return "" }
+        let value = schedulesStore.value(for: schedulesStore.key(for: schedule.id, field: .enabled))
+        let isEnabled = value.isEmpty ? schedule.enabled : value.lowercased() == "yes"
+        return RootToolbars.schedulesNavigationSubtitle(
+            isEnabled: isEnabled,
+            nextRunText: schedule.nextRunText
+        )
+    }
+
+    private var skillNavigationSubtitle: String {
+        guard let skill = skillsStore.selectedSkill else { return "" }
+        let value = skillsStore.value(for: skillsStore.key(for: skill.dirName, field: .enabled))
+        let isEnabled = value.isEmpty ? skill.enabled : value == "true"
+        return RootToolbars.skillsNavigationSubtitle(
+            isEnabled: isEnabled,
+            updatedAt: skill.updatedAt,
+            createdAt: skill.createdAt
+        )
+    }
+
+    private var flowEditorCanSave: Bool {
+        guard let editor = flowsStore.editor else { return false }
+        return !editor.nodes.isEmpty
+            && !editor.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var commonToolbarModel: RootCommonToolbarModel {

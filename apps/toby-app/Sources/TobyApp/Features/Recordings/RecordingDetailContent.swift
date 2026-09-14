@@ -13,24 +13,15 @@ struct RecordingDetailContent: View {
 	var isLoadingHeavyContent: Bool = false
 
 	var body: some View {
-		VStack(spacing: 0) {
-			RecordingHeader(detail: detail)
-				.padding(.horizontal, 24)
-				.padding(.vertical, 18)
-
+		HStack(spacing: 0) {
+			mainColumn
 			Divider().overlay(SettingsDesign.cardBorder)
-
-			HStack(spacing: 0) {
-				mainColumn
-				Divider().overlay(SettingsDesign.cardBorder)
-				RecordingInspectorSidebar(
-					store: store,
-					detail: detail,
-					processingState: processingState,
-					isLoadingHeavyContent: isLoadingHeavyContent,
-				)
-			}
-			.frame(maxWidth: .infinity, maxHeight: .infinity)
+			RecordingInspectorSidebar(
+				store: store,
+				detail: detail,
+				processingState: processingState,
+				isLoadingHeavyContent: isLoadingHeavyContent,
+			)
 		}
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
 	}

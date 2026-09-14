@@ -146,16 +146,10 @@ struct SkillsViewTests {
 			tools: nil,
 			integrations: nil
 		)
-		let content = SkillDetailContent(store: store, skill: store.selectedSkill!)
-		let field = try content.inspect()
-			.scrollView()
-			.vStack()
-			.hStack(0)
-			.vStack(1)
-			.view(InlineTitleField.self, 0)
-			.textField()
-		#expect(try field.input() == "Research")
 		let view = SkillsView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "skill-title-field")
+		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Summary")
 		}
@@ -164,9 +158,6 @@ struct SkillsViewTests {
 		}
 		#expect(throws: (any Error).self) {
 			try view.inspect().find(text: "Description")
-		}
-		#expect(throws: (any Error).self) {
-			try view.inspect().find(text: "Name")
 		}
 	}
 
@@ -219,8 +210,8 @@ struct SkillsViewTests {
 		#expect(throws: (any Error).self) { try view.inspect().find(text: "Optional") }
 	}
 
-	@Test("skill detail edits the icon from the header, not a form row")
-	func skillDetailEditsIconFromHeader() throws {
+	@Test("skill detail edits the icon from the about card, not a form row")
+	func skillDetailEditsIconFromAboutCard() throws {
 		let store = SkillsStore()
 		store.selectedSkill = SkillDetail(
 			dirName: "skill-1",

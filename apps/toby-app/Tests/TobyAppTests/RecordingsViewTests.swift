@@ -354,52 +354,58 @@ struct RecordingsViewTests {
 		#expect(!request.dateText.isEmpty)
 	}
 
-	@Test("detail view shows recording name in header")
-	func detailViewShowsRecordingName() throws {
+	@Test("detail view omits in-content header chrome")
+	func detailViewOmitsInContentHeader() throws {
 		let store = RecordingsStore()
 		store.recordings = [makeRecording(id: "r1", name: "My Standup")]
 		store.selectedRecordingIds = ["r1"]
-		store.detail = makeRecordingDetail(id: "r1", transcript: nil, name: "My Standup")
+		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello world transcript", name: "My Standup")
 		let view = RecordingsView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "My Standup")
+			try view.inspect().find(text: "Transcript")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "recording-name-field")
 		}
 	}
 
-	@Test("detail view shows fallback title when recording has no name")
-	func detailViewShowsFallbackTitle() throws {
-		let store = RecordingsStore()
-		store.recordings = [makeRecording(id: "r1", name: nil)]
-		store.selectedRecordingIds = ["r1"]
-		store.detail = makeRecordingDetail(id: "r1", transcript: nil)
-		let view = RecordingsView(store: store)
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Recording")
-		}
+	@Test("unnamed recording uses formatted date as its title")
+	func unnamedRecordingUsesFormattedDateAsTitle() {
+		let recording = makeRecording(id: "r1", name: nil)
+		let expectedDate = friendlyRecordingDate(recording.startedAt, fallback: recording.createdAt)
+		#expect(recordingSidebarTitle(recording) == expectedDate)
+		#expect(recording.displayName == expectedDate)
+		#expect(
+			RootToolbars.recordingsNavigationTitle(recording: recording, selectedCount: 1)
+				== expectedDate
+		)
+		#expect(
+			RootToolbars.recordingsNavigationSubtitle(recording: recording, selectedCount: 1)
+				== expectedDate
+		)
 	}
 
-	@Test("detail view updates title after rename")
-	func detailViewUpdatesTitleAfterRename() throws {
+	@Test("window title updates after rename")
+	func windowTitleUpdatesAfterRename() {
 		let store = RecordingsStore()
 		store.recordings = [makeRecording(id: "r1", name: nil)]
 		store.selectedRecordingIds = ["r1"]
 		store.detail = makeRecordingDetail(id: "r1", transcript: nil, name: nil)
-		let view = RecordingsView(store: store)
+		#expect(
+			RootToolbars.recordingsNavigationTitle(
+				recording: store.selectedRecording,
+				selectedCount: 1
+			) == recordingSidebarTitle(store.recordings[0])
+		)
 
-		// Before rename, the detail header shows the fallback "Recording"
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Recording")
-		}
-
-		// Simulate what renameRecording does after a successful server call:
-		// update both detail and recordings with the new name
 		store.detail = makeRecordingDetail(id: "r1", transcript: nil, name: "Team Sync")
 		store.recordings = [makeRecording(id: "r1", name: "Team Sync")]
-
-		// After rename, the detail header should show "Team Sync"
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Team Sync")
-		}
+		#expect(
+			RootToolbars.recordingsNavigationTitle(
+				recording: store.selectedRecording,
+				selectedCount: 1
+			) == "Team Sync"
+		)
 	}
 
 	@Test("detail view shows transcription section header in sidebar")

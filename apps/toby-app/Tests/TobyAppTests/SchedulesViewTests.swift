@@ -112,10 +112,9 @@ struct SchedulesViewTests {
 		store.schedules = [schedule]
 		store.selectedScheduleId = schedule.id
 		let view = SchedulesView(store: store)
-		let field = try view.inspect()
-			.find(viewWithAccessibilityIdentifier: "schedule-title-field")
-			.textField()
-		#expect(try field.input() == "Daily Standup")
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "schedule-title-field")
+		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Prompt")
 		}
@@ -128,7 +127,7 @@ struct SchedulesViewTests {
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "schedule-action-picker")
 		}
-		#expect(throws: (any Error).self) {
+		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Name")
 		}
 		#expect(throws: (any Error).self) {

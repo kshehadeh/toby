@@ -855,10 +855,7 @@ struct ListenRecordingSummary: Decodable, Identifiable, Sendable {
 	let hasSummary: Bool?
 
 	var displayName: String {
-		if let name, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-			return name
-		}
-		return startedAt
+		recordingSidebarTitle(self)
 	}
 }
 

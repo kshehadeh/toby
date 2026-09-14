@@ -6,24 +6,18 @@ struct FlowEditorView: View {
 	@State private var pickingToolForIndex: Int?
 
 	var body: some View {
-		VStack(spacing: 0) {
-			header
-				.padding(.horizontal, 24)
-				.padding(.vertical, 16)
-			Divider().overlay(SettingsDesign.cardBorder)
-			ScrollView {
-				VStack(alignment: .leading, spacing: 22) {
-					metaFields
-					nodesSection
-					destinationsSection
-					if let editorError = store.editorError, !editorError.isEmpty {
-						InlineStatusMessage(message: editorError, tone: .error, font: .caption)
-					}
+		ScrollView {
+			VStack(alignment: .leading, spacing: 22) {
+				metaFields
+				nodesSection
+				destinationsSection
+				if let editorError = store.editorError, !editorError.isEmpty {
+					InlineStatusMessage(message: editorError, tone: .error, font: .caption)
 				}
-				.padding(24)
-				.frame(maxWidth: SettingsDesign.contentMaxWidth + 80, alignment: .leading)
-				.frame(maxWidth: .infinity, alignment: .leading)
 			}
+			.padding(24)
+			.frame(maxWidth: SettingsDesign.contentMaxWidth + 80, alignment: .leading)
+			.frame(maxWidth: .infinity, alignment: .leading)
 		}
 		.background(SettingsDesign.canvasBackground)
 		.accessibilityIdentifier("flow-editor")
@@ -38,37 +32,33 @@ struct FlowEditorView: View {
 		}
 	}
 
-	private var header: some View {
-		HStack(spacing: 12) {
+	private var metaFields: some View {
+		VStack(alignment: .leading, spacing: 12) {
 			VStack(alignment: .leading, spacing: 4) {
-				Text(draft.isNew ? "New flow" : "Edit flow")
-					.font(.system(size: 20, weight: .semibold))
+				Text("Details")
+					.font(.system(size: 13, weight: .semibold))
 					.foregroundStyle(SettingsDesign.rowTitle)
 				Text("Steps run in order. Tool inputs are values you set now — they are not filled from earlier steps.")
 					.font(.caption)
 					.foregroundStyle(SettingsDesign.rowDescription)
 			}
-			Spacer()
-			Button("Cancel") { store.cancelEditor() }
-				.disabled(store.isSaving)
-			Button(store.isSaving ? "Saving…" : "Save") {
-				Task { await store.saveEditor() }
+			VStack(alignment: .leading, spacing: 6) {
+				Text("Name")
+					.font(.system(size: 12, weight: .semibold))
+					.foregroundStyle(SettingsDesign.rowTitle)
+				TextField("Flow name", text: $draft.name)
+					.textFieldStyle(.roundedBorder)
+					.controlSize(.regular)
+					.accessibilityIdentifier("flow-editor-name")
 			}
-			.keyboardShortcut(.defaultAction)
-			.disabled(store.isSaving || draft.nodes.isEmpty || draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-			.accessibilityIdentifier("flow-editor-save")
-		}
-	}
-
-	private var metaFields: some View {
-		VStack(alignment: .leading, spacing: 12) {
-			Text("Details")
-				.font(.system(size: 13, weight: .semibold))
-				.foregroundStyle(SettingsDesign.rowTitle)
-			TextField("Name", text: $draft.name)
-				.textFieldStyle(.roundedBorder)
-			TextField("Description (optional)", text: $draft.description)
-				.textFieldStyle(.roundedBorder)
+			VStack(alignment: .leading, spacing: 6) {
+				Text("Description")
+					.font(.system(size: 12, weight: .semibold))
+					.foregroundStyle(SettingsDesign.rowTitle)
+				TextField("Optional", text: $draft.description)
+					.textFieldStyle(.roundedBorder)
+					.controlSize(.regular)
+			}
 			iconPicker
 			if draft.nodes.contains(where: \.isLLM) {
 				personaPicker

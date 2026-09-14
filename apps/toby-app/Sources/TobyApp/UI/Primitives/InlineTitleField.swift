@@ -7,6 +7,8 @@ struct InlineTitleField: View {
 	@Binding var name: String
 	var placeholder: String
 	var accessibilityIdentifier: String
+	var font: Font = .system(size: 22, weight: .semibold)
+	var foregroundStyle: Color = SettingsDesign.rowTitle
 
 	@State private var draft: String
 	@FocusState private var isFocused: Bool
@@ -15,18 +17,22 @@ struct InlineTitleField: View {
 		name: Binding<String>,
 		placeholder: String,
 		accessibilityIdentifier: String,
+		font: Font = .system(size: 22, weight: .semibold),
+		foregroundStyle: Color = SettingsDesign.rowTitle,
 	) {
 		_name = name
 		self.placeholder = placeholder
 		self.accessibilityIdentifier = accessibilityIdentifier
+		self.font = font
+		self.foregroundStyle = foregroundStyle
 		_draft = State(initialValue: name.wrappedValue)
 	}
 
 	var body: some View {
 		TextField(placeholder, text: $draft)
 			.textFieldStyle(.plain)
-			.font(.system(size: 22, weight: .semibold))
-			.foregroundStyle(SettingsDesign.rowTitle)
+			.font(font)
+			.foregroundStyle(foregroundStyle)
 			.lineLimit(1)
 			.focused($isFocused)
 			.onSubmit(commit)
