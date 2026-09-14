@@ -19,9 +19,9 @@ struct RootCommonToolbarModel {
 	var onCheckForUpdates: () -> Void = {}
 }
 
-/// Principal session / route title for the main window toolbar. Sits on system
-/// toolbar glass — do not paint a capsule behind it.
-struct RootPrincipalTitle: View {
+/// Route title used for `navigationTitle` / tests. Optional `leading` is the only
+/// part that still becomes a toolbar item (integration / project-chat icons).
+struct RootHeaderTitle: View {
 	let title: String
 	var activityLine: String = ""
 	var leading: AnyView? = nil
@@ -49,7 +49,7 @@ struct RootPrincipalTitle: View {
 		}
 	}
 
-	/// Integration / external-session icon leading the chat principal title.
+	/// Integration / external-session icon leading the chat header.
 	init(title: String, activityLine: String, integrationIconUrl: URL?) {
 		self.title = title
 		self.activityLine = activityLine
@@ -86,21 +86,38 @@ struct RootPrincipalTitle: View {
 		HStack(spacing: 8) {
 			if let leading {
 				leading
+					.accessibilityHidden(true)
 			}
-			SessionTitleBadge(
-				title: title,
-				activityLine: activityLine,
-			)
+			Text(title)
+				.font(.system(size: 17, weight: .semibold))
+				.foregroundStyle(AppTheme.primaryText)
+				.lineLimit(1)
+				.truncationMode(.tail)
+				.layoutPriority(1)
+				.frame(maxWidth: 360, alignment: .leading)
+				.accessibilityIdentifier("main-header-title")
+			if !activityLine.isEmpty {
+				Text(activityLine)
+					.font(.caption)
+					.foregroundStyle(AppTheme.tertiaryText)
+					.lineLimit(1)
+					.layoutPriority(-1)
+			}
 		}
 		.fixedSize(horizontal: true, vertical: false)
+		.help(title)
+		.accessibilityElement(children: .combine)
 	}
 }
 
 /// Main-window toolbar builders for the shell `NavigationSplitView` detail column.
 @MainActor
 enum RootToolbars {
+	/// Back/Forward sit with the sidebar toggle. The route title is the system
+	/// `navigationTitle` (not a toolbar item) so `.primaryAction` can stay
+	/// trailing — same pattern as Blather's main window.
 	@ToolbarContentBuilder
-	static func common(_ model: RootCommonToolbarModel) -> some ToolbarContent {
+	static func common(_ model: RootCommonToolbarModel, header title: RootHeaderTitle) -> some ToolbarContent {
 		ToolbarItemGroup(placement: .navigation) {
 			Button(action: model.onBack) {
 				Image(systemName: "chevron.backward")
@@ -117,6 +134,12 @@ enum RootToolbars {
 			.accessibilityLabel("Forward")
 			.accessibilityIdentifier("nav-forward-button")
 		}
+		if let leading = title.leading {
+			ToolbarItem(placement: .navigation) {
+				leading
+			}
+			.sharedBackgroundVisibility(.hidden)
+		}
 		ToolbarItemGroup(placement: .primaryAction) {
 			RecordingToolbarButton(
 				isRecordingActive: model.isRecordingActive,
@@ -124,8 +147,8 @@ enum RootToolbars {
 				isRecordButtonDisabled: model.isRecordButtonDisabled,
 				onToggleRecording: model.onToggleRecording,
 			)
-			SearchToolbarButton(onSearch: model.onSearch)
 			SettingsToolbarButton(onOpenSettings: model.onOpenSettings)
+			SearchToolbarButton(onSearch: model.onSearch)
 			if model.isUpdateAvailable || model.isUpgrading {
 				Button(action: model.onCheckForUpdates) {
 					Image(systemName: model.isUpgrading ? "arrow.down.circle" : "arrow.down.circle.badge.clock")
@@ -136,6 +159,39 @@ enum RootToolbars {
 				.accessibilityIdentifier("toolbar-update-button")
 			}
 		}
+	}
+
+	/// Contextual actions must not be sibling `Button`s in `.primaryAction` or
+	/// `.automatic` — those placements coalesce with Record/Settings/Search into
+	/// one bezel. A `Menu` (Chats) stays separate; icon buttons (Home, etc.) do
+	/// not. One `ControlGroup` item in `.confirmationAction` is its own cluster.
+	@ToolbarContentBuilder
+	static func contextualActions<Content: View>(
+		isVisible: Bool = true,
+		@ViewBuilder content: () -> Content
+	) -> some ToolbarContent {
+		if isVisible {
+			ToolbarSpacer(.fixed, placement: .confirmationAction)
+			ToolbarItem(placement: .confirmationAction) {
+				ControlGroup {
+					content()
+				}
+			}
+		}
+	}
+
+	static func routeTitle(
+		_ route: DetailRoute,
+		selectedItemName: String? = nil,
+		selectedCount: Int = 0
+	) -> String {
+		if route == .recordings, selectedCount > 1 {
+			return "\(selectedCount) recordings"
+		}
+		guard let name = selectedItemName?.trimmingCharacters(in: .whitespacesAndNewlines),
+			!name.isEmpty
+		else { return route.menuTitle }
+		return name
 	}
 
 	static func updateHelp(model: RootCommonToolbarModel) -> String {
@@ -158,20 +214,18 @@ enum RootToolbars {
 		onToggleActions: @escaping () -> Void = {},
 		onRefresh: @escaping () -> Void,
 	) -> some ToolbarContent {
-		common(model)
-		ToolbarItem(placement: .principal) {
-			RootPrincipalTitle(title: "Home", activityLine: updatedText)
-		}
-		ToolbarItem(placement: .confirmationAction) {
+		common(
+			model,
+			header: RootHeaderTitle(title: "Home", activityLine: updatedText)
+		)
+		contextualActions {
 			Button(action: onToggleEdit) {
 				Image(systemName: isEditing ? "checkmark" : "square.and.pencil")
 			}
 			.help(dashboardEditHelp(isEditing: isEditing))
 			.accessibilityLabel(dashboardEditHelp(isEditing: isEditing))
 			.accessibilityIdentifier(dashboardEditIdentifier(isEditing: isEditing))
-		}
-		if showActionsToggle {
-			ToolbarItem(placement: .confirmationAction) {
+			if showActionsToggle {
 				Button(action: onToggleActions) {
 					Image(systemName: "sidebar.trailing")
 				}
@@ -179,12 +233,11 @@ enum RootToolbars {
 				.accessibilityLabel(dashboardActionsHelp(actionsVisible: actionsVisible))
 				.accessibilityIdentifier("dashboard-actions-toggle")
 			}
-		}
-		ToolbarItem(placement: .confirmationAction) {
 			Button(action: onRefresh) {
 				Image(systemName: "arrow.clockwise")
 			}
 			.help("Refresh")
+			.accessibilityLabel("Refresh")
 			.disabled(isRefreshing)
 			.accessibilityIdentifier("dashboard-refresh-button")
 		}
@@ -212,15 +265,15 @@ enum RootToolbars {
 		personas: [PersonaOption],
 		onNewChat: @escaping (PersonaOption?) -> Void,
 	) -> some ToolbarContent {
-		common(model)
-		ToolbarItem(placement: .principal) {
-			RootPrincipalTitle(
-				title: sessionName,
+		common(
+			model,
+			header: RootHeaderTitle(
+				title: routeTitle(.chat, selectedItemName: sessionName),
 				activityLine: activityLine,
 				integrationIconUrl: integrationIconUrl,
 			)
-		}
-		ToolbarItem(placement: .confirmationAction) {
+		)
+		contextualActions {
 			NewChatPersonaMenu(
 				personas: personas,
 				isDisabled: isLoading,
@@ -246,6 +299,7 @@ enum RootToolbars {
 	@ToolbarContentBuilder
 	static func integrations(
 		common model: RootCommonToolbarModel,
+		title: String = "Integrations",
 		hasSelection: Bool,
 		isConnected: Bool,
 		isActionLoading: Bool,
@@ -254,9 +308,8 @@ enum RootToolbars {
 		onDisconnect: @escaping () -> Void,
 		onReauthorize: @escaping () -> Void,
 	) -> some ToolbarContent {
-		common(model)
-		ToolbarItem(placement: .principal) { Spacer() }
-		ToolbarItem(placement: .confirmationAction) {
+		common(model, header: RootHeaderTitle(title: title))
+		contextualActions(isVisible: hasSelection) {
 			switch integrationsToolbarMode(hasSelection: hasSelection, isConnected: isConnected) {
 			case .none:
 				EmptyView()
@@ -277,8 +330,6 @@ enum RootToolbars {
 				.accessibilityIdentifier("disconnect-integration-button")
 				.accessibilityLabel("Disconnect")
 			}
-		}
-		ToolbarItem(placement: .confirmationAction) {
 			if integrationsToolbarMode(hasSelection: hasSelection, isConnected: isConnected) == .connected {
 				Button(action: onReauthorize) {
 					Image(systemName: "arrow.triangle.2.circlepath")
@@ -325,15 +376,15 @@ enum RootToolbars {
 		isChatsSidebarPresented: Bool = false,
 		onToggleChatsSidebar: @escaping () -> Void = {},
 	) -> some ToolbarContent {
-		common(model)
-		ToolbarItem(placement: .principal) {
-			RootPrincipalTitle(
-				title: isShowingChat ? sessionName : selectedProjectName,
+		common(
+			model,
+			header: RootHeaderTitle(
+				title: routeTitle(.projects, selectedItemName: isShowingChat ? sessionName : selectedProjectName),
 				activityLine: activityLine,
 				systemImage: isShowingChat ? "folder.fill" : nil,
 			)
-		}
-		ToolbarItem(placement: .confirmationAction) {
+		)
+		contextualActions {
 			switch projectToolbarMode(hasSelection: hasSelection, isShowingChat: isShowingChat) {
 			case .projectChat:
 				Button(action: onReturnToProject) {
@@ -359,8 +410,6 @@ enum RootToolbars {
 				.accessibilityIdentifier("toolbar-new-project-button")
 				.accessibilityLabel("New Project")
 			}
-		}
-		ToolbarItem(placement: .confirmationAction) {
 			switch projectToolbarMode(hasSelection: hasSelection, isShowingChat: isShowingChat) {
 			case .projectChat:
 				Button(action: onToggleFilesSidebar) {
@@ -379,8 +428,6 @@ enum RootToolbars {
 			case .home:
 				EmptyView()
 			}
-		}
-		ToolbarItem(placement: .confirmationAction) {
 			if projectToolbarMode(hasSelection: hasSelection, isShowingChat: isShowingChat) == .project {
 				Button(role: .destructive, action: onDelete) {
 					Image(systemName: "trash")
@@ -404,6 +451,7 @@ enum RootToolbars {
 	@ToolbarContentBuilder
 	static func schedules(
 		common model: RootCommonToolbarModel,
+		title: String = "Schedules",
 		hasSelection: Bool,
 		isSaving: Bool,
 		isRunning: Bool,
@@ -412,9 +460,8 @@ enum RootToolbars {
 		onRun: @escaping () -> Void,
 		onDelete: @escaping () -> Void,
 	) -> some ToolbarContent {
-		common(model)
-		ToolbarItem(placement: .principal) { Spacer() }
-		ToolbarItem(placement: .confirmationAction) {
+		common(model, header: RootHeaderTitle(title: title))
+		contextualActions {
 			if !hasSelection {
 				Button(action: onNew) {
 					Image(systemName: "plus")
@@ -428,17 +475,17 @@ enum RootToolbars {
 					Image(systemName: "play.fill")
 				}
 				.help("Run Now")
+				.accessibilityLabel("Run Now")
 				// Autosave must not disable Run; only block while a run is in flight.
 				.disabled(isRunning)
 				.accessibilityIdentifier("run-schedule-button")
 			}
-		}
-		ToolbarItem(placement: .confirmationAction) {
 			if hasSelection {
 				Button(role: .destructive, action: onDelete) {
 					Image(systemName: "trash")
 				}
 				.help("Delete Schedule")
+				.accessibilityLabel("Delete Schedule")
 				.disabled(isDeleting)
 				.accessibilityIdentifier("delete-schedule-button")
 			}
@@ -478,6 +525,7 @@ enum RootToolbars {
 	@ToolbarContentBuilder
 	static func recordings(
 		common model: RootCommonToolbarModel,
+		title: String = "Recordings",
 		hasSelection: Bool,
 		hasSingleSelection: Bool = false,
 		existingChatSessionId: String? = nil,
@@ -487,9 +535,8 @@ enum RootToolbars {
 		onStartChat: @escaping () -> Void = {},
 		onShowChat: @escaping () -> Void = {},
 	) -> some ToolbarContent {
-		common(model)
-		ToolbarItem(placement: .principal) { Spacer() }
-		ToolbarItem(placement: .confirmationAction) {
+		common(model, header: RootHeaderTitle(title: title))
+		contextualActions(isVisible: hasSelection) {
 			let mode = recordingsChatToolbarMode(
 				hasSingleSelection: hasSingleSelection,
 				existingChatSessionId: existingChatSessionId,
@@ -508,13 +555,12 @@ enum RootToolbars {
 				.accessibilityLabel(recordingsChatHelp(mode: mode))
 				.accessibilityIdentifier(recordingsChatIdentifier(mode: mode))
 			}
-		}
-		ToolbarItem(placement: .confirmationAction) {
 			if hasSelection {
 				Button(role: .destructive, action: onDelete) {
 					Image(systemName: "trash")
 				}
 				.help(deleteHelp)
+				.accessibilityLabel(deleteHelp)
 				.disabled(isDeleting)
 				.accessibilityIdentifier("delete-recordings-button")
 			}
@@ -524,14 +570,14 @@ enum RootToolbars {
 	@ToolbarContentBuilder
 	static func skills(
 		common model: RootCommonToolbarModel,
+		title: String = "Skills",
 		hasSelection: Bool,
 		isSaving: Bool,
 		onNew: @escaping () -> Void,
 		onDelete: @escaping () -> Void,
 	) -> some ToolbarContent {
-		common(model)
-		ToolbarItem(placement: .principal) { Spacer() }
-		ToolbarItem(placement: .confirmationAction) {
+		common(model, header: RootHeaderTitle(title: title))
+		contextualActions {
 			if !hasSelection {
 				Button(action: onNew) {
 					Image(systemName: "plus")
@@ -545,6 +591,7 @@ enum RootToolbars {
 					Image(systemName: "trash")
 				}
 				.help("Delete Skill")
+				.accessibilityLabel("Delete Skill")
 				.disabled(isSaving)
 				.accessibilityIdentifier("delete-skill-button")
 			}
@@ -569,6 +616,7 @@ enum RootToolbars {
 	@ToolbarContentBuilder
 	static func flows(
 		common model: RootCommonToolbarModel,
+		title: String = "Flows",
 		isListLoading: Bool,
 		isRunsLoading: Bool,
 		hasSelection: Bool,
@@ -584,9 +632,8 @@ enum RootToolbars {
 		onDelete: @escaping () -> Void,
 	) -> some ToolbarContent {
 		let mode = flowsToolbarMode(hasSelection: hasSelection, isEditing: isEditing)
-		common(model)
-		ToolbarItem(placement: .principal) { Spacer() }
-		ToolbarItem(placement: .confirmationAction) {
+		common(model, header: RootHeaderTitle(title: title))
+		contextualActions(isVisible: mode == .home || (mode == .detail && (canEdit || canRun || canDelete))) {
 			switch mode {
 			case .home:
 				Button(action: onNewFlow) {
@@ -607,8 +654,6 @@ enum RootToolbars {
 			case .editor:
 				EmptyView()
 			}
-		}
-		ToolbarItem(placement: .confirmationAction) {
 			switch mode {
 			case .home:
 				Button(action: onRefresh) {
@@ -632,8 +677,6 @@ enum RootToolbars {
 			case .editor:
 				EmptyView()
 			}
-		}
-		ToolbarItem(placement: .confirmationAction) {
 			if mode == .detail, canDelete {
 				Button(role: .destructive, action: onDelete) {
 					Image(systemName: "trash")

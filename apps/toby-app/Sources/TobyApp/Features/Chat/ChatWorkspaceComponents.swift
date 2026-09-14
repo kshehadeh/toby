@@ -8,30 +8,6 @@ struct OverlayHeightPreferenceKey: PreferenceKey {
     }
 }
 
-struct SessionTitleBadge: View {
-    let title: String
-    let activityLine: String
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Text(title)
-                .font(.headline.weight(.semibold))
-                .foregroundStyle(AppTheme.primaryText)
-                .lineLimit(1)
-                .layoutPriority(1)
-            if !activityLine.isEmpty {
-                Text(activityLine)
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.tertiaryText)
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
-            }
-        }
-        .padding(.horizontal, 2)
-        .fixedSize(horizontal: false, vertical: true)
-    }
-}
-
 struct EmptyChatWorkspace: View {
     @Bindable var store: ChatStore
     let promptFocus: FocusState<Bool>.Binding

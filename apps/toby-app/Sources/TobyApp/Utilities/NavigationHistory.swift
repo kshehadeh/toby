@@ -112,7 +112,8 @@ struct SearchToolbarButton: View {
 
 	var body: some View {
 		Button(action: onSearch) {
-			Image(systemName: "magnifyingglass")
+			Label("Search", systemImage: "magnifyingglass")
+				.labelStyle(.titleAndIcon)
 		}
 		.help("Search")
 		.accessibilityLabel("Search")

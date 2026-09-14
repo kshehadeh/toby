@@ -176,6 +176,8 @@ struct NavigationHistoryTests {
 		}
 		let inspected = try button.inspect().button()
 		#expect(try inspected.accessibilityLabel().string() == "Search")
+		#expect(try inspected.labelView().find(text: "Search").string() == "Search")
+		#expect(try inspected.accessibilityIdentifier() == "toolbar-search-button")
 		try inspected.tap()
 		#expect(searchCount == 1)
 	}

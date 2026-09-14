@@ -414,242 +414,11 @@ struct RootView: View {
             )
             .navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
         } detail: {
-            switch history.current {
-            case .dashboard:
-                DashboardView(
-                    store: dashboardStore,
-                    userName: DashboardView.defaultUserName(),
-                    onboarding: onboardingChecklist,
-                    isOnboardingReady: isOnboardingReady,
-                    isServerReady: store.isServerReady,
-                    onRefresh: { Task { await refreshDashboardData() } },
-                    onSelectRoute: navigateToRoute,
-                    onOpenSettings: { openSettings(navKey: $0) },
-                    onOpenAIProviderSetup: { isAIProviderChooserPresented = true },
-                    onOpenPersonaPicker: focusPersonaPickerFromOnboarding,
-                    onOpenPermissions: { openWindow(id: "permissions") },
-                    actionContext: DashboardBlockActionContext(
-                        startChat: startNewChat,
-                        summarizeEmail: summarizeUnreadEmailInChat,
-                        planInChat: planCalendarInChat,
-                        openFlow: openDashboardFlow,
-                        runFlow: runDashboardFlow
-                    ),
-                    isEditing: isEditingDashboard
-                )
-                .toolbar {
-                    RootToolbars.dashboard(
-                        common: commonToolbarModel,
-                        updatedText: RootToolbars.dashboardUpdatedText(
-                            lastLoadedAt: dashboardStore.lastLoadedAt
-                        ),
-                        isRefreshing: dashboardStore.isRefreshing,
-                        isEditing: isEditingDashboard,
-                        onToggleEdit: { isEditingDashboard.toggle() },
-                        showActionsToggle: dashboardStore.blocks.contains {
-                            $0.descriptor.isFlowRunner
-                        },
-                        actionsVisible: appearancePreferences.dashboardLayout.actionsVisible,
-                        onToggleActions: {
-                            withAnimation(DashboardSectionMotion.animation) {
-                                appearancePreferences.toggleDashboardActionsVisible()
-                            }
-                        },
-                        onRefresh: { Task { await refreshDashboardData() } }
-                    )
-                }
-                .sheet(isPresented: Binding(
-                    get: { flowsStore.showResultSheet },
-                    set: { if !$0 { flowsStore.closeResultSheet() } }
-                )) {
-                    FlowResultSheet(result: flowsStore.lastRunResult) {
-                        flowsStore.closeResultSheet()
-                    }
-                }
-            case .chat:
-                ChatWorkspaceSplit(
-                    store: store,
-                    preferSessionList: $preferChatSessionList,
-                    onSelectSession: { id in
-                        selectSession(id)
-                    },
-                    onDeleteSession: { pendingDeleteSession = $0 }
-                )
-                    .toolbar {
-                        RootToolbars.chat(
-                            common: commonToolbarModel,
-                            sessionName: store.sessionName,
-                            activityLine: store.activityLine,
-                            integrationIconUrl: store.resolvedIntegrationIconUrl,
-                            isLoading: store.isLoading,
-                            personas: store.personaOptions,
-                            onNewChat: { startNewChat(persona: $0) }
-                        )
-                    }
-            case .integrations:
-                IntegrationsView(store: integrationsStore)
-                    .toolbar {
-                        RootToolbars.integrations(
-                            common: commonToolbarModel,
-                            hasSelection: integrationsStore.selectedSection != nil,
-                            isConnected: selectedIntegrationStatus?.connected ?? false,
-                            isActionLoading: integrationsStore.integrationActionLoading != nil,
-                            reconnectionLabel: selectedIntegrationStatus?.reconnectionLabel
-                                ?? "Re-connect",
-                            onConnect: {
-                                runSelectedIntegrationAction(.connect)
-                            },
-                            onDisconnect: {
-                                runSelectedIntegrationAction(.disconnect)
-                            },
-                            onReauthorize: {
-                                runSelectedIntegrationAction(.reauthorize)
-                            }
-                        )
-                    }
-            case .projects:
-                ProjectsView(projectsStore: projectsStore, chatStore: store)
-                    .toolbar {
-                        RootToolbars.projects(
-                            common: commonToolbarModel,
-                            selectedProjectName: projectsStore.selectedProjectName,
-                            sessionName: store.sessionName,
-                            activityLine: projectsStore.isShowingChat ? store.activityLine : "",
-                            isSaving: projectsStore.isSaving,
-                            isChatLoading: store.isLoading,
-                            isShowingChat: projectsStore.isShowingChat,
-                            hasSelection: projectsStore.selectedProjectId != nil,
-                            onNewProject: {
-                                Task { await projectsStore.createProject() }
-                            },
-                            onNewChat: {
-                                Task { await projectsStore.createChat(chatStore: store) }
-                            },
-                            onDelete: {
-                                guard let project = projectsStore.selectedProject else { return }
-                                projectsStore.pendingDelete = ProjectsStore.PendingDelete(
-                                    projectId: project.id,
-                                    name: project.name
-                                )
-                            },
-                            onReturnToProject: {
-                                projectsStore.showProjectHome()
-                            },
-                            isFilesSidebarPresented: projectsStore.isFilesSidebarPresented,
-                            onToggleFilesSidebar: {
-                                projectsStore.isFilesSidebarPresented.toggle()
-                            },
-                            isChatsSidebarPresented: projectsStore.isChatsSidebarPresented,
-                            onToggleChatsSidebar: {
-                                projectsStore.isChatsSidebarPresented.toggle()
-                            }
-                        )
-                    }
-            case .schedules:
-                SchedulesView(store: schedulesStore, onOpenFlow: openDashboardFlow)
-                    .toolbar {
-                        RootToolbars.schedules(
-                            common: commonToolbarModel,
-                            hasSelection: schedulesStore.selectedSchedule != nil,
-                            isSaving: schedulesStore.isSaving,
-                            isRunning: schedulesStore.runningScheduleId != nil,
-                            isDeleting: schedulesStore.deletingScheduleId != nil,
-                            onNew: {
-                                Task { await schedulesStore.createSchedule() }
-                            },
-                            onRun: {
-                                guard let id = schedulesStore.selectedSchedule?.id else { return }
-                                Task { await schedulesStore.runSchedule(id: id) }
-                            },
-                            onDelete: {
-                                guard let schedule = schedulesStore.selectedSchedule else { return }
-                                schedulesStore.pendingDelete = SchedulesStore.PendingDelete(
-                                    scheduleId: schedule.id,
-                                    title: schedule.displayName
-                                )
-                            }
-                        )
-                    }
-            case .recordings:
-                RecordingsView(store: recordingsStore, processingState: store.recordingProcessing, onStartRecording: toggleRecording, onStopRecording: toggleRecording, activeRecording: store.listenStatus.flatMap { ActiveRecordingInfo($0) })
-                    .toolbar {
-                        RootToolbars.recordings(
-                            common: commonToolbarModel,
-                            hasSelection: !recordingsStore.selectedRecordings.isEmpty,
-                            hasSingleSelection: recordingsStore.selectedRecording != nil,
-                            existingChatSessionId: existingRecordingChatSessionId(
-                                chatSessionId: recordingsStore.detail?.metadata.chatSessionId,
-                                validSessionIds: Set(store.sessions.map(\.id))
-                            ),
-                            deleteHelp: RootToolbars.recordingsDeleteHelp(
-                                selectedCount: recordingsStore.selectedRecordings.count
-                            ),
-                            isDeleting: recordingsStore.isDeletingSelection,
-                            onDelete: {
-                                recordingsStore.pendingDeleteRecordingIds = Set(
-                                    recordingsStore.selectedRecordings.map(\.id)
-                                )
-                            },
-                            onStartChat: startChatAboutSelectedRecording,
-                            onShowChat: showChatForSelectedRecording
-                        )
-                    }
-            case .skills:
-                SkillsView(store: skillsStore)
-                    .toolbar {
-                        RootToolbars.skills(
-                            common: commonToolbarModel,
-                            hasSelection: skillsStore.selectedSkill != nil,
-                            isSaving: skillsStore.isSaving,
-                            onNew: {
-                                Task { await skillsStore.createSkill() }
-                            },
-                            onDelete: {
-                                guard let skill = skillsStore.selectedSkill else { return }
-                                skillsStore.pendingDelete = SkillsStore.PendingDelete(
-                                    dirName: skill.dirName,
-                                    name: skill.name
-                                )
-                            }
-                        )
-                    }
-            case .flows:
-                FlowsView(store: flowsStore)
-                    .toolbar {
-                        RootToolbars.flows(
-                            common: commonToolbarModel,
-                            isListLoading: flowsStore.isListLoading,
-                            isRunsLoading: flowsStore.isRunsLoading,
-                            hasSelection: flowsStore.selectedFlow != nil,
-                            isEditing: flowsStore.editor != nil,
-                            canEdit: flowsStore.selectedFlow?.builtin == false,
-                            canRun: flowsStore.selectedFlow?.builtin == false,
-                            canDelete: flowsStore.selectedFlow?.builtin == false,
-                            isRunning: flowsStore.isRunning,
-                            onNewFlow: {
-                                Task { await flowsStore.startCreate() }
-                            },
-                            onRefresh: {
-                                Task {
-                                    await flowsStore.load()
-                                }
-                            },
-                            onEdit: {
-                                guard let flow = flowsStore.selectedFlow, !flow.builtin else { return }
-                                Task { await flowsStore.startEdit(id: flow.id) }
-                            },
-                            onRun: {
-                                Task { await flowsStore.runSelected() }
-                            },
-                            onDelete: {
-                                guard let flow = flowsStore.selectedFlow, !flow.builtin else { return }
-                                flowsStore.confirmDelete(id: flow.id)
-                            }
-                        )
-                    }
-            }
+            detailWorkspace
         }
-        .toolbar(removing: .title)
+        .navigationTitle(rootNavigationTitle)
+        .navigationSubtitle(rootNavigationSubtitle)
+        .toolbar { rootToolbar }
         .onChange(of: history.current) { _, route in
             if route != .dashboard {
                 isEditingDashboard = false
@@ -657,6 +426,332 @@ struct RootView: View {
             if route != .chat {
                 preferChatSessionList = false
             }
+        }
+    }
+
+    @ViewBuilder
+    private var detailWorkspace: some View {
+        switch history.current {
+        case .dashboard:
+            DashboardView(
+                store: dashboardStore,
+                userName: DashboardView.defaultUserName(),
+                onboarding: onboardingChecklist,
+                isOnboardingReady: isOnboardingReady,
+                isServerReady: store.isServerReady,
+                onRefresh: { Task { await refreshDashboardData() } },
+                onSelectRoute: navigateToRoute,
+                onOpenSettings: { openSettings(navKey: $0) },
+                onOpenAIProviderSetup: { isAIProviderChooserPresented = true },
+                onOpenPersonaPicker: focusPersonaPickerFromOnboarding,
+                onOpenPermissions: { openWindow(id: "permissions") },
+                actionContext: DashboardBlockActionContext(
+                    startChat: startNewChat,
+                    summarizeEmail: summarizeUnreadEmailInChat,
+                    planInChat: planCalendarInChat,
+                    openFlow: openDashboardFlow,
+                    runFlow: runDashboardFlow
+                ),
+                isEditing: isEditingDashboard
+            )
+            .sheet(isPresented: Binding(
+                get: { flowsStore.showResultSheet },
+                set: { if !$0 { flowsStore.closeResultSheet() } }
+            )) {
+                FlowResultSheet(result: flowsStore.lastRunResult) {
+                    flowsStore.closeResultSheet()
+                }
+            }
+        case .chat:
+            ChatWorkspaceSplit(
+                store: store,
+                preferSessionList: $preferChatSessionList,
+                onSelectSession: { id in
+                    selectSession(id)
+                },
+                onDeleteSession: { pendingDeleteSession = $0 }
+            )
+        case .integrations:
+            IntegrationsView(store: integrationsStore)
+        case .projects:
+            ProjectsView(projectsStore: projectsStore, chatStore: store)
+        case .schedules:
+            SchedulesView(store: schedulesStore, onOpenFlow: openDashboardFlow)
+        case .recordings:
+            RecordingsView(
+                store: recordingsStore,
+                processingState: store.recordingProcessing,
+                onStartRecording: toggleRecording,
+                onStopRecording: toggleRecording,
+                activeRecording: store.listenStatus.flatMap { ActiveRecordingInfo($0) }
+            )
+        case .skills:
+            SkillsView(store: skillsStore)
+        case .flows:
+            FlowsView(store: flowsStore)
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var rootToolbar: some ToolbarContent {
+        switch history.current {
+            case .dashboard:
+
+                                    RootToolbars.dashboard(
+                                        common: commonToolbarModel,
+                                        updatedText: RootToolbars.dashboardUpdatedText(
+                                            lastLoadedAt: dashboardStore.lastLoadedAt
+                                        ),
+                                        isRefreshing: dashboardStore.isRefreshing,
+                                        isEditing: isEditingDashboard,
+                                        onToggleEdit: { isEditingDashboard.toggle() },
+                                        showActionsToggle: dashboardStore.blocks.contains {
+                                            $0.descriptor.isFlowRunner
+                                        },
+                                        actionsVisible: appearancePreferences.dashboardLayout.actionsVisible,
+                                        onToggleActions: {
+                                            withAnimation(DashboardSectionMotion.animation) {
+                                                appearancePreferences.toggleDashboardActionsVisible()
+                                            }
+                                        },
+                                        onRefresh: { Task { await refreshDashboardData() } }
+                                    )
+
+            case .chat:
+
+                                        RootToolbars.chat(
+                                            common: commonToolbarModel,
+                                            sessionName: store.sessionId == nil ? "" : store.sessionName,
+                                            activityLine: store.activityLine,
+                                            integrationIconUrl: store.resolvedIntegrationIconUrl,
+                                            isLoading: store.isLoading,
+                                            personas: store.personaOptions,
+                                            onNewChat: { startNewChat(persona: $0) }
+                                        )
+
+            case .integrations:
+
+                                        RootToolbars.integrations(
+                                            common: commonToolbarModel,
+                                            title: RootToolbars.routeTitle(
+                                                .integrations,
+                                                selectedItemName: integrationsStore.selectedSection?.displayLabel
+                                            ),
+                                            hasSelection: integrationsStore.selectedSection != nil,
+                                            isConnected: selectedIntegrationStatus?.connected ?? false,
+                                            isActionLoading: integrationsStore.integrationActionLoading != nil,
+                                            reconnectionLabel: selectedIntegrationStatus?.reconnectionLabel
+                                                ?? "Re-connect",
+                                            onConnect: {
+                                                runSelectedIntegrationAction(.connect)
+                                            },
+                                            onDisconnect: {
+                                                runSelectedIntegrationAction(.disconnect)
+                                            },
+                                            onReauthorize: {
+                                                runSelectedIntegrationAction(.reauthorize)
+                                            }
+                                        )
+
+            case .projects:
+
+                                        RootToolbars.projects(
+                                            common: commonToolbarModel,
+                                            selectedProjectName: projectsStore.selectedProjectName,
+                                            sessionName: store.sessionName,
+                                            activityLine: projectsStore.isShowingChat ? store.activityLine : "",
+                                            isSaving: projectsStore.isSaving,
+                                            isChatLoading: store.isLoading,
+                                            isShowingChat: projectsStore.isShowingChat,
+                                            hasSelection: projectsStore.selectedProjectId != nil,
+                                            onNewProject: {
+                                                Task { await projectsStore.createProject() }
+                                            },
+                                            onNewChat: {
+                                                Task { await projectsStore.createChat(chatStore: store) }
+                                            },
+                                            onDelete: {
+                                                guard let project = projectsStore.selectedProject else { return }
+                                                projectsStore.pendingDelete = ProjectsStore.PendingDelete(
+                                                    projectId: project.id,
+                                                    name: project.name
+                                                )
+                                            },
+                                            onReturnToProject: {
+                                                projectsStore.showProjectHome()
+                                            },
+                                            isFilesSidebarPresented: projectsStore.isFilesSidebarPresented,
+                                            onToggleFilesSidebar: {
+                                                projectsStore.isFilesSidebarPresented.toggle()
+                                            },
+                                            isChatsSidebarPresented: projectsStore.isChatsSidebarPresented,
+                                            onToggleChatsSidebar: {
+                                                projectsStore.isChatsSidebarPresented.toggle()
+                                            }
+                                        )
+
+            case .schedules:
+
+                                        RootToolbars.schedules(
+                                            common: commonToolbarModel,
+                                            title: RootToolbars.routeTitle(
+                                                .schedules,
+                                                selectedItemName: schedulesStore.selectedSchedule?.displayName
+                                            ),
+                                            hasSelection: schedulesStore.selectedSchedule != nil,
+                                            isSaving: schedulesStore.isSaving,
+                                            isRunning: schedulesStore.runningScheduleId != nil,
+                                            isDeleting: schedulesStore.deletingScheduleId != nil,
+                                            onNew: {
+                                                Task { await schedulesStore.createSchedule() }
+                                            },
+                                            onRun: {
+                                                guard let id = schedulesStore.selectedSchedule?.id else { return }
+                                                Task { await schedulesStore.runSchedule(id: id) }
+                                            },
+                                            onDelete: {
+                                                guard let schedule = schedulesStore.selectedSchedule else { return }
+                                                schedulesStore.pendingDelete = SchedulesStore.PendingDelete(
+                                                    scheduleId: schedule.id,
+                                                    title: schedule.displayName
+                                                )
+                                            }
+                                        )
+
+            case .recordings:
+
+                                        RootToolbars.recordings(
+                                            common: commonToolbarModel,
+                                            title: RootToolbars.routeTitle(
+                                                .recordings,
+                                                selectedItemName: recordingsStore.selectedRecording?.displayName,
+                                                selectedCount: recordingsStore.selectedRecordings.count
+                                            ),
+                                            hasSelection: !recordingsStore.selectedRecordings.isEmpty,
+                                            hasSingleSelection: recordingsStore.selectedRecording != nil,
+                                            existingChatSessionId: existingRecordingChatSessionId(
+                                                chatSessionId: recordingsStore.detail?.metadata.chatSessionId,
+                                                validSessionIds: Set(store.sessions.map(\.id))
+                                            ),
+                                            deleteHelp: RootToolbars.recordingsDeleteHelp(
+                                                selectedCount: recordingsStore.selectedRecordings.count
+                                            ),
+                                            isDeleting: recordingsStore.isDeletingSelection,
+                                            onDelete: {
+                                                recordingsStore.pendingDeleteRecordingIds = Set(
+                                                    recordingsStore.selectedRecordings.map(\.id)
+                                                )
+                                            },
+                                            onStartChat: startChatAboutSelectedRecording,
+                                            onShowChat: showChatForSelectedRecording
+                                        )
+
+            case .skills:
+
+                                        RootToolbars.skills(
+                                            common: commonToolbarModel,
+                                            title: RootToolbars.routeTitle(
+                                                .skills,
+                                                selectedItemName: skillsStore.selectedSkill?.name
+                                            ),
+                                            hasSelection: skillsStore.selectedSkill != nil,
+                                            isSaving: skillsStore.isSaving,
+                                            onNew: {
+                                                Task { await skillsStore.createSkill() }
+                                            },
+                                            onDelete: {
+                                                guard let skill = skillsStore.selectedSkill else { return }
+                                                skillsStore.pendingDelete = SkillsStore.PendingDelete(
+                                                    dirName: skill.dirName,
+                                                    name: skill.name
+                                                )
+                                            }
+                                        )
+
+            case .flows:
+
+                                        RootToolbars.flows(
+                                            common: commonToolbarModel,
+                                            title: RootToolbars.routeTitle(
+                                                .flows,
+                                                selectedItemName: flowsStore.selectedFlow?.displayName
+                                            ),
+                                            isListLoading: flowsStore.isListLoading,
+                                            isRunsLoading: flowsStore.isRunsLoading,
+                                            hasSelection: flowsStore.selectedFlow != nil,
+                                            isEditing: flowsStore.editor != nil,
+                                            canEdit: flowsStore.selectedFlow?.builtin == false,
+                                            canRun: flowsStore.selectedFlow?.builtin == false,
+                                            canDelete: flowsStore.selectedFlow?.builtin == false,
+                                            isRunning: flowsStore.isRunning,
+                                            onNewFlow: {
+                                                Task { await flowsStore.startCreate() }
+                                            },
+                                            onRefresh: {
+                                                Task {
+                                                    await flowsStore.load()
+                                                }
+                                            },
+                                            onEdit: {
+                                                guard let flow = flowsStore.selectedFlow, !flow.builtin else { return }
+                                                Task { await flowsStore.startEdit(id: flow.id) }
+                                            },
+                                            onRun: {
+                                                Task { await flowsStore.runSelected() }
+                                            },
+                                            onDelete: {
+                                                guard let flow = flowsStore.selectedFlow, !flow.builtin else { return }
+                                                flowsStore.confirmDelete(id: flow.id)
+                                            }
+                                        )
+
+        }
+    }
+
+    private var rootNavigationTitle: String {
+        switch history.current {
+        case .dashboard:
+            "Home"
+        case .chat:
+            RootToolbars.routeTitle(.chat, selectedItemName: store.sessionId == nil ? "" : store.sessionName)
+        case .integrations:
+            RootToolbars.routeTitle(
+                .integrations,
+                selectedItemName: integrationsStore.selectedSection?.displayLabel
+            )
+        case .projects:
+            RootToolbars.routeTitle(
+                .projects,
+                selectedItemName: projectsStore.isShowingChat ? store.sessionName : projectsStore.selectedProjectName
+            )
+        case .schedules:
+            RootToolbars.routeTitle(
+                .schedules,
+                selectedItemName: schedulesStore.selectedSchedule?.displayName
+            )
+        case .recordings:
+            RootToolbars.routeTitle(
+                .recordings,
+                selectedItemName: recordingsStore.selectedRecording?.displayName,
+                selectedCount: recordingsStore.selectedRecordings.count
+            )
+        case .skills:
+            RootToolbars.routeTitle(.skills, selectedItemName: skillsStore.selectedSkill?.name)
+        case .flows:
+            RootToolbars.routeTitle(.flows, selectedItemName: flowsStore.selectedFlow?.displayName)
+        }
+    }
+
+    private var rootNavigationSubtitle: String {
+        switch history.current {
+        case .dashboard:
+            RootToolbars.dashboardUpdatedText(lastLoadedAt: dashboardStore.lastLoadedAt)
+        case .chat:
+            store.activityLine
+        case .projects:
+            projectsStore.isShowingChat ? store.activityLine : ""
+        case .integrations, .schedules, .recordings, .skills, .flows:
+            ""
         }
     }
 

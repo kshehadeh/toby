@@ -124,6 +124,19 @@ template mode turns opaque regions into solid color boxes.
 
 ### Native app shared data
 
+The main window uses shared `RootToolbars` builders for its native header.
+`RootView` supplies selected item names from the existing feature stores; empty
+selections use the section title and recording multiselection uses a count.
+The route title is the system `navigationTitle` (plus `navigationSubtitle` for
+activity), not a toolbar item. Back/Forward use `.navigation`; Record, Settings,
+Search, and conditional Update share a `.primaryAction` group. Contextual
+actions are one `ControlGroup` `ToolbarItem` in `.confirmationAction` so they
+cannot merge with those buttons (a `Menu` in `.automatic` stays separate; icon
+`Button`s do not). Empty contextual actions omit that item. Putting the title
+in the toolbar item list packs trailing actions against it. Search opens
+the existing command palette. These are app-local presentation changes, with
+no additional daemon state or API.
+
 Toby.app owns long-lived SwiftUI stores at the root scene level and preloads
 shared list/index data only after daemon bootstrap succeeds. Home **dashboard
 cards** (email / tasks / calendar) load via `DashboardStore` once the daemon is

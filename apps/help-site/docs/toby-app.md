@@ -58,6 +58,15 @@ Home, Chats, Projects, and Recordings, then **Automation** (Schedules, Flows) an
 **Tools** (Skills, Integrations). Memories opens as a separate window from the
 View menu, command palette, or menu bar — not as a main-window route.
 
+The window header shows the selected item's name, or the section name when
+nothing is selected. Selecting multiple recordings shows their count.
+On the right, **Record**, **Settings**, and **Search** stay together across
+workspaces; an update button also appears when an update is available.
+**Search** opens the command palette, also available with ⌘K.
+A separate group at the far right contains actions for the current view,
+such as **Refresh** on Home or **Delete** for a selected skill. This group
+disappears when the current view has no actions.
+
 ### Home
 
 **Home** is the landing surface. It shows unread mail, open tasks, and upcoming

@@ -89,6 +89,7 @@ struct TobyApp: App {
 				}
 		}
 		.windowStyle(.automatic)
+		.windowToolbarStyle(.unified)
 		.defaultSize(width: 1024, height: 720)
 
 		// Secondary windows: .commandsRemoved() keeps them out of the Window menu

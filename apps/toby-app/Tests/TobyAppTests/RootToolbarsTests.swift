@@ -1,10 +1,41 @@
 import Foundation
+import SwiftUI
 import Testing
+import ViewInspector
 @testable import TobyApp
 
 @MainActor
 @Suite("RootToolbars")
 struct RootToolbarsTests {
+	@Test("Unselected routes have a header", arguments: DetailRoute.allCases)
+	func sectionHeader(route: DetailRoute) {
+		#expect(RootToolbars.routeTitle(route) == route.menuTitle)
+		#expect(RootToolbars.routeTitle(route, selectedItemName: " \n ") == route.menuTitle)
+	}
+
+	@Test("Selected item names replace section headers", arguments: DetailRoute.allCases.filter { $0 != .dashboard })
+	func selectedItemHeader(route: DetailRoute) {
+		#expect(RootToolbars.routeTitle(route, selectedItemName: " Weekly briefing ") == "Weekly briefing")
+	}
+
+	@Test("Recording multiselection uses a count instead of an individual title")
+	func recordingSelectionHeader() {
+		#expect(RootToolbars.routeTitle(.recordings, selectedItemName: "Meeting", selectedCount: 1) == "Meeting")
+		#expect(RootToolbars.routeTitle(.recordings, selectedItemName: "Meeting", selectedCount: 3) == "3 recordings")
+	}
+
+	@Test("Header exposes its title and optional activity as text")
+	func headerText() throws {
+		let header = RootHeaderTitle(title: "Home", activityLine: "Updated 1 min ago")
+		let inspected = try header.inspect().hStack()
+		#expect(try inspected.find(text: "Home").accessibilityIdentifier() == "main-header-title")
+		#expect(try inspected.find(text: "Updated 1 min ago").string() == "Updated 1 min ago")
+		#expect(try inspected.help().string() == "Home")
+		let plain = try RootHeaderTitle(title: "Skills").inspect().hStack()
+		#expect(try plain.text(1).string() == "Skills")
+		#expect(throws: (any Error).self) { try plain.find(text: "") }
+	}
+
 	@Test("recordingsDeleteHelp singular and plural")
 	func recordingsDeleteHelp() {
 		#expect(RootToolbars.recordingsDeleteHelp(selectedCount: 1) == "Delete Recording")
