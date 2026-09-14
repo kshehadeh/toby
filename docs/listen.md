@@ -26,9 +26,10 @@ Toby.app provides native recording controls and the Recordings window.
   (`combined.m4a`, `mic.wav`, `system.wav`) are deleted. The recording entry,
   transcript, summary, and metadata are kept (`metadata.audioDeletedAt` records
   the deletion). Audio is kept when transcription fails or the setting is off,
-  so a failed take can be retried. Audio can also be deleted manually from the
-  Recordings inspector (`DELETE /api/listen/recordings/:id/audio`); after that,
-  re-transcription is no longer possible because the source audio is gone.
+  so a failed take can be retried. Audio can also be deleted manually with
+  **Delete Audio** in the Recordings toolbar
+  (`DELETE /api/listen/recordings/:id/audio`); after that, re-transcription is
+  no longer possible because the source audio is gone.
 - Optionally generate `summary.md` via the configured summary persona after
   transcription (on demand from the Recordings window).
 - Write `metadata.json` next to each recording (includes optional `combine`
@@ -56,7 +57,7 @@ app's own native localhost API and captures the sources selected in config
 Toby.app process. This keeps Microphone and Screen/System Audio permission tied
 to the app's stable bundle identity.
 
-In the **Recordings** inspector, playback can switch between **System**,
+In **Edit Recording**, playback can switch between **System**,
 **Mic**, and **Both (L/R)** (dual-mono combined) when those files exist.
 
 Stopping performs these steps:
@@ -86,20 +87,23 @@ recording is in progress, the detail pane shows live capture metadata and a
 **Stop Recording** control that uses the same stop path as the toolbar and
 menu bar. After stop, while combine / transcription is still running, the
 window shows a processing card instead of the live “Recording in progress”
-pane. After processing, the window supports audio playback, transcript viewing,
-AI summarization, metadata editing, confirmed audio deletion (the recording,
-transcript, and summary are kept), and confirmed recording deletion. Selecting a
-saved recording paints the window title, date subtitle, and inspector immediately from the list row;
-transcript, summary, and the audio player show skeletons until the detail
-payload is decoded (off the main actor) so a long recording does not freeze
-the UI. Deletion is sent to `DELETE /api/listen/recordings/:id`; the SwiftUI
-app does not remove recording directories directly.
+pane. After processing, the window supports transcript and summary tabs, audio
+playback and metadata in **Edit Recording**, AI summarization, confirmed audio
+deletion (the recording, transcript, and summary are kept), and confirmed
+recording deletion. Selecting a saved recording paints the window title and
+date subtitle immediately from the list row; transcript, summary, and the
+audio player show skeletons until the detail payload is decoded (off the main
+actor) so a long recording does not freeze the UI. Deletion is sent to
+`DELETE /api/listen/recordings/:id`; the SwiftUI app does not remove recording
+directories directly.
 
 ### Recording summaries
 
-When a recording has a non-empty transcript, the inspector shows a
+When a recording has a non-empty transcript, the Recordings toolbar shows a
 **Summarize** button (or **Re-Summarize** when a summary already exists). The
-app calls `POST /api/listen/recordings/:id/summarize`. The daemon:
+Summary tab shows the markdown when present, or an empty state with a
+**Summarize** link. The app calls `POST /api/listen/recordings/:id/summarize`.
+The daemon:
 
 1. Reads `transcript.txt` for the recording.
 2. Resolves the persona from `config.listen.summaryPersona` (Settings →

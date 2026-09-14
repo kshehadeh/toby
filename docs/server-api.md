@@ -423,7 +423,7 @@ Errors:
 
 Re-transcribe clears any previously stored AI summary for the recording and
 clears prior `metadata.errors` so a successful retry does not leave a stale
-failure message in the Recordings inspector.
+failure message on the recording.
 
 When Settings → Transcription → **Delete audio after transcription** is on (the
 default), a successful transcription also deletes the recording's audio files
@@ -441,7 +441,7 @@ refreshed recording detail (including `hasSummary`, `summary`, and
 
 Calling the endpoint again replaces the existing summary. A successful
 summarize also clears prior `metadata.errors` (for example a failed earlier
-attempt) so the Recordings inspector matches the outcome.
+attempt) so the recording detail matches the outcome.
 
 Errors:
 

@@ -98,9 +98,9 @@ folder) and **Open**.
 ### Recordings
 
 The Recordings workspace lists your past recordings in a second column. Select a
-recording to view its transcript, generate an AI summary, or start a chat about it.
-Rename it from the inspector. Choose **Recordings** in the sidebar again to clear
-the selection.
+recording to view its transcript or summary, generate an AI summary, or start a
+chat about it. Rename it and inspect details from **Edit Recording**. Choose
+**Recordings** in the sidebar again to clear the selection.
 
 ![Toby.app Recordings window](/img/toby-app-recordings.png)
 

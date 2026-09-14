@@ -46,16 +46,27 @@ struct RecordingsViewTests {
 			try view.inspect().find(text: "Long meeting")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "recording-transcript-skeleton")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "recording-summary-skeleton")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "recording-audio-skeleton")
+			try transcriptPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "recording-transcript-skeleton"
+			)
 		}
 		#expect(throws: Error.self) {
 			try view.inspect().find(text: "Loading recording...")
+		}
+
+		#expect(throws: Never.self) {
+			try summaryPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "recording-summary-skeleton"
+			)
+		}
+
+		let sheet = RecordingEditSheet(
+			store: store,
+			detail: .placeholder(from: recording),
+			isLoadingHeavyContent: true
+		)
+		#expect(throws: Never.self) {
+			try sheet.inspect().find(viewWithAccessibilityIdentifier: "recording-audio-skeleton")
 		}
 	}
 
@@ -113,9 +124,10 @@ struct RecordingsViewTests {
 		store.recordings = [makeRecording(id: "r1", name: "One")]
 		store.selectedRecordingIds = ["r1"]
 		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello world transcript")
-		let view = RecordingsView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "copy-transcript-button")
+			try transcriptPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "copy-transcript-button"
+			)
 		}
 	}
 
@@ -137,12 +149,13 @@ struct RecordingsViewTests {
 				),
 			]
 		)
-		let view = RecordingsView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "timed-transcript-section")
+			try transcriptPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "timed-transcript-section"
+			)
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Timed transcript with segment start times")
+			try transcriptPane(store: store).inspect().find(text: "Timed transcript with segment start times")
 		}
 		#expect(store.detail?.copyableTranscript == "[0:12] Hello world")
 	}
@@ -157,12 +170,13 @@ struct RecordingsViewTests {
 			transcript: "Hello world transcript",
 			segments: []
 		)
-		let view = RecordingsView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "plain-transcript-section")
+			try transcriptPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "plain-transcript-section"
+			)
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Read-only transcript of the recording")
+			try transcriptPane(store: store).inspect().find(text: "Read-only transcript of the recording")
 		}
 		#expect(store.detail?.copyableTranscript == "Hello world transcript")
 	}
@@ -272,15 +286,19 @@ struct RecordingsViewTests {
 		}
 	}
 
-	@Test("detail view shows editable name field in sidebar when a single recording is selected")
-	func detailViewShowsEditableNameField() throws {
+	@Test("detail view hides name field until the edit sheet is shown")
+	func detailViewHidesNameFieldUntilEditSheet() throws {
 		let store = RecordingsStore()
 		store.recordings = [makeRecording(id: "r1", name: "One")]
 		store.selectedRecordingIds = ["r1"]
 		store.detail = makeRecordingDetail(id: "r1", transcript: nil)
 		let view = RecordingsView(store: store)
-		#expect(throws: Never.self) {
+		#expect(throws: Error.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "recording-name-field")
+		}
+		let sheet = RecordingEditSheet(store: store, detail: store.detail!)
+		#expect(throws: Never.self) {
+			try sheet.inspect().find(viewWithAccessibilityIdentifier: "recording-name-field")
 		}
 	}
 
@@ -314,9 +332,8 @@ struct RecordingsViewTests {
 		store.recordings = [makeRecording(id: "r1", name: "One")]
 		store.selectedRecordingIds = ["r1"]
 		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello world transcript")
-		let view = RecordingsView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Transcript")
+			try transcriptPane(store: store).inspect().find(text: "Read-only transcript of the recording")
 		}
 	}
 
@@ -362,9 +379,9 @@ struct RecordingsViewTests {
 		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello world transcript", name: "My Standup")
 		let view = RecordingsView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Transcript")
+			try transcriptPane(store: store).inspect().find(text: "Read-only transcript of the recording")
 		}
-		#expect(throws: Never.self) {
+		#expect(throws: Error.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "recording-name-field")
 		}
 	}
@@ -408,113 +425,103 @@ struct RecordingsViewTests {
 		)
 	}
 
-	@Test("detail view shows transcription section header in sidebar")
-	func detailViewShowsTranscriptionSectionHeader() throws {
+	@Test("detail view shows summary and transcript tabs")
+	func detailViewShowsSummaryAndTranscriptTabs() throws {
 		let store = RecordingsStore()
 		store.recordings = [makeRecording(id: "r1", name: "One")]
 		store.selectedRecordingIds = ["r1"]
 		store.detail = makeRecordingDetail(id: "r1", transcript: nil, hasAudio: true)
-		let view = RecordingsView(store: store)
+		let view = RecordingDetailContent(store: store, detail: store.detail!)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Transcription")
+			try view.inspect().tabView()
 		}
+		#expect(store.selectedDetailTab == .transcript)
+		store.selectedDetailTab = .summary
+		#expect(store.selectedDetailTab == .summary)
 	}
 
-	@Test("detail view shows Transcribe button when no transcript")
-	func detailViewShowsTranscribeButtonWhenNoTranscript() throws {
+	@Test("detail view does not keep transcribe or summarize actions in the pane")
+	func detailViewOmitsTranscribeAndSummarizeButtons() throws {
 		let store = RecordingsStore()
 		store.recordings = [makeRecording(id: "r1", name: "One")]
 		store.selectedRecordingIds = ["r1"]
-		store.detail = makeRecordingDetail(id: "r1", transcript: nil, hasAudio: true)
+		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello world", hasAudio: true)
 		let view = RecordingsView(store: store)
-		#expect(throws: Never.self) {
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-transcribe-button")
 		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Transcribe")
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "transcribe-recording-button")
 		}
-	}
-
-	@Test("detail view shows Re-Transcribe button when transcript exists")
-	func detailViewShowsReTranscribeButtonWhenTranscriptExists() throws {
-		let store = RecordingsStore()
-		store.recordings = [makeRecording(id: "r1", name: "One")]
-		store.selectedRecordingIds = ["r1"]
-		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello world", hasAudio: true)
-		let view = RecordingsView(store: store)
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Re-Transcribe")
-		}
-	}
-
-	@Test("detail view shows Summarize button when transcript exists and no summary")
-	func detailViewShowsSummarizeButtonWhenTranscriptExists() throws {
-		let store = RecordingsStore()
-		store.recordings = [makeRecording(id: "r1", name: "One")]
-		store.selectedRecordingIds = ["r1"]
-		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello world", hasAudio: true)
-		let view = RecordingsView(store: store)
-		#expect(throws: Never.self) {
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-summarize-button")
 		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Summarize")
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "summarize-recording-button")
 		}
 	}
 
-	@Test("detail view shows Re-Summarize button when summary exists")
-	func detailViewShowsReSummarizeButtonWhenSummaryExists() throws {
+	@Test("summary tab shows the summary when one exists")
+	func summaryTabShowsSummaryWhenPresent() throws {
 		let store = RecordingsStore()
 		store.recordings = [makeRecording(id: "r1", name: "One")]
 		store.selectedRecordingIds = ["r1"]
+		store.selectedDetailTab = .summary
 		store.detail = makeRecordingDetail(
 			id: "r1",
 			transcript: "Hello world",
 			hasAudio: true,
 			summary: "A brief summary of the recording."
 		)
-		let view = RecordingsView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Re-Summarize")
+			try summaryPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "recording-summary-section"
+			)
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "recording-summary-section")
+			try summaryPane(store: store).inspect().find(text: "A brief summary of the recording.")
 		}
 	}
 
-	@Test("detail view hides Summarize button when transcript is absent")
-	func detailViewHidesSummarizeButtonWhenNoTranscript() throws {
+	@Test("summary tab shows empty state and summarize link when summary is absent")
+	func summaryTabShowsEmptyStateWhenNoSummary() throws {
 		let store = RecordingsStore()
 		store.recordings = [makeRecording(id: "r1", name: "One")]
 		store.selectedRecordingIds = ["r1"]
-		store.detail = makeRecordingDetail(id: "r1", transcript: nil, hasAudio: true)
-		let view = RecordingsView(store: store)
-		#expect(throws: (any Error).self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-summarize-button")
-		}
-	}
-
-	@Test("detail view shows transcript available status when transcript exists")
-	func detailViewShowsTranscriptAvailableStatus() throws {
-		let store = RecordingsStore()
-		store.recordings = [makeRecording(id: "r1", name: "One")]
-		store.selectedRecordingIds = ["r1"]
+		store.selectedDetailTab = .summary
 		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello world", hasAudio: true)
-		let view = RecordingsView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Transcript available")
+			try summaryPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "recording-summary-empty"
+			)
+		}
+		#expect(throws: Never.self) {
+			try summaryPane(store: store).inspect().find(text: "There is no summary for this recording yet.")
+		}
+		#expect(throws: Never.self) {
+			try summaryPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "empty-summary-summarize-link"
+			)
 		}
 	}
 
-	@Test("detail view shows no transcript yet status when transcript is absent")
-	func detailViewShowsNoTranscriptYetStatus() throws {
+	@Test("edit sheet shows transcribed status when transcript exists")
+	func editSheetShowsTranscribedStatus() throws {
 		let store = RecordingsStore()
-		store.recordings = [makeRecording(id: "r1", name: "One")]
-		store.selectedRecordingIds = ["r1"]
-		store.detail = makeRecordingDetail(id: "r1", transcript: nil, hasAudio: true)
-		let view = RecordingsView(store: store)
+		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello world", hasAudio: true)
+		let sheet = RecordingEditSheet(store: store, detail: store.detail!)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "No transcript yet")
+			try sheet.inspect().find(text: "Transcribed")
+		}
+	}
+
+	@Test("edit sheet shows recorded status when transcript is absent")
+	func editSheetShowsRecordedStatusWhenNoTranscript() throws {
+		let store = RecordingsStore()
+		store.detail = makeRecordingDetail(id: "r1", transcript: nil, hasAudio: true)
+		let sheet = RecordingEditSheet(store: store, detail: store.detail!)
+		#expect(throws: Never.self) {
+			try sheet.inspect().find(text: "Recorded")
 		}
 	}
 
@@ -688,7 +695,7 @@ struct RecordingsViewTests {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "active-recording-detail")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Hello")
+			try transcriptPane(store: store).inspect().find(text: "Hello")
 		}
 	}
 
@@ -789,6 +796,9 @@ struct RecordingsViewTests {
 		#expect(throws: Error.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-transcribe-button")
 		}
+		#expect(throws: Error.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "transcribe-recording-button")
+		}
 	}
 
 	@Test("active recording detail does not expose chat buttons")
@@ -855,7 +865,7 @@ struct RecordingsViewTests {
 		let store = RecordingsStore()
 		store.detail = nil
 		let detail = makeRecordingDetail(id: "r1", transcript: "Standalone transcript")
-		let view = RecordingDetailContent(store: store, detail: detail)
+		let view = RecordingTranscriptPane(detail: detail)
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Standalone transcript")
 		}
@@ -934,46 +944,73 @@ struct RecordingsViewTests {
 
 	// MARK: - Audio deletion
 
-	@Test("detail view shows Delete Audio button when audio exists")
-	func detailViewShowsDeleteAudioButtonWhenAudioExists() throws {
+	@Test("detail pane does not include a Delete Audio button")
+	func detailPaneOmitsDeleteAudioButton() throws {
 		let store = RecordingsStore()
 		store.recordings = [makeRecording(id: "r1", name: "One", hasAudio: true)]
 		store.selectedRecordingIds = ["r1"]
 		store.detail = makeRecordingDetail(id: "r1", transcript: nil, hasAudio: true)
 		let view = RecordingsView(store: store)
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-delete-audio-button")
-		}
-	}
-
-	@Test("detail view hides Delete Audio button when no audio exists")
-	func detailViewHidesDeleteAudioButtonWhenNoAudio() throws {
-		let store = RecordingsStore()
-		store.recordings = [makeRecording(id: "r1", name: "One", hasAudio: false)]
-		store.selectedRecordingIds = ["r1"]
-		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello", hasAudio: false)
-		let view = RecordingsView(store: store)
 		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "sidebar-delete-audio-button")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "delete-audio-button")
+		}
+		let sheet = RecordingEditSheet(store: store, detail: store.detail!)
+		#expect(throws: (any Error).self) {
+			try sheet.inspect().find(viewWithAccessibilityIdentifier: "sidebar-delete-audio-button")
+		}
+		#expect(throws: (any Error).self) {
+			try sheet.inspect().find(viewWithAccessibilityIdentifier: "delete-audio-button")
 		}
 	}
 
 	@Test("audio section notes deleted audio and keeps the transcript message")
 	func audioSectionNotesDeletedAudio() throws {
 		let store = RecordingsStore()
-		store.recordings = [makeRecording(id: "r1", name: "One", hasAudio: false)]
-		store.selectedRecordingIds = ["r1"]
-		store.detail = makeRecordingDetail(
+		let detail = makeRecordingDetail(
 			id: "r1",
 			transcript: "Hello",
 			hasAudio: false,
 			audioDeletedAt: "2026-09-09T12:00:00Z"
 		)
-		let view = RecordingsView(store: store)
+		let sheet = RecordingEditSheet(store: store, detail: detail)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Audio deleted; the transcript is kept.")
+			try sheet.inspect().find(text: "Audio deleted; the transcript is kept.")
 		}
 	}
+
+	@Test("selecting a different recording resets the detail tab")
+	func selectingDifferentRecordingResetsDetailTab() async {
+		let store = RecordingsStore()
+		store.recordings = [
+			makeRecording(id: "r1", name: "One"),
+			makeRecording(id: "r2", name: "Two"),
+		]
+		store.selectedRecordingIds = ["r1"]
+		store.selectedDetailTab = .summary
+		await store.selectRecording(id: "r2")
+		#expect(store.selectedDetailTab == .transcript)
+		#expect(store.isEditSheetPresented == false)
+	}
+}
+
+@MainActor
+private func summaryPane(store: RecordingsStore) -> RecordingSummaryPane {
+	RecordingSummaryPane(
+		store: store,
+		detail: store.detail!,
+		isLoadingHeavyContent: store.isDetailLoading && (store.detail?.isShell ?? false)
+	)
+}
+
+@MainActor
+private func transcriptPane(store: RecordingsStore) -> RecordingTranscriptPane {
+	RecordingTranscriptPane(
+		detail: store.detail!,
+		isLoadingHeavyContent: store.isDetailLoading && (store.detail?.isShell ?? false)
+	)
 }
 
 private func makeRecording(

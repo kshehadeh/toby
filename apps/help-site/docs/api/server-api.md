@@ -385,7 +385,7 @@ while keeping the recording entry, transcript, summary, and metadata. Records
 
 Runs transcription against the recording’s audio and updates artifacts.
 A successful run clears any prior AI summary and prior `metadata.errors` so a
-retry after a failure does not leave a stale error in the Recordings inspector.
+retry after a failure does not leave a stale error on the recording.
 
 Optional body:
 

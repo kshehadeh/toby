@@ -7,8 +7,12 @@ final class RecordingsStore {
 	var recordings: [ListenRecordingSummary] = []
 	var selectedRecordingIds: Set<String> = []
 	var pendingDeleteRecordingIds: Set<String> = []
-	/// Recording whose audio deletion is awaiting confirmation in the inspector.
+	/// Recording whose audio deletion is awaiting confirmation.
 	var pendingDeleteAudioRecordingId: String?
+	/// Presents the Edit Recording sheet for the current single selection.
+	var isEditSheetPresented = false
+	/// Summary / transcript tab in the recording detail.
+	var selectedDetailTab: RecordingDetailTab = .transcript
 	/// Recording id whose audio is currently being deleted.
 	var deletingAudioRecordingId: String?
 	var detail: ListenRecordingDetail?
@@ -27,8 +31,8 @@ final class RecordingsStore {
 	var selectedActiveRecordingId: String?
 
 	/// Manual transcription processing state (from the Transcribe / Re-Transcribe
-	/// button in the recording detail sidebar). Distinct from the post-recording
-	/// processing state owned by `ChatStore`.
+	/// toolbar button). Distinct from the post-recording processing state owned
+	/// by `ChatStore`.
 	var transcriptionProcessing: RecordingProcessingState?
 
 	/// Recording id currently being summarized (Summarize / Re-Summarize button).
@@ -64,6 +68,8 @@ final class RecordingsStore {
 		summarizingRecordingId = nil
 		pendingDeleteAudioRecordingId = nil
 		deletingAudioRecordingId = nil
+		isEditSheetPresented = false
+		selectedDetailTab = .transcript
 	}
 
 	func load() async {
@@ -128,6 +134,7 @@ final class RecordingsStore {
 
 	func selectRecording(id: String, holdingCommand: Bool = false) async {
 		selectedActiveRecordingId = nil
+		let previousSingleId = selectedRecordingIds.count == 1 ? selectedRecordingIds.first : nil
 		if holdingCommand {
 			if selectedRecordingIds.contains(id) {
 				selectedRecordingIds.remove(id)
@@ -136,6 +143,14 @@ final class RecordingsStore {
 			}
 		} else {
 			selectedRecordingIds = [id]
+		}
+		let newSingleId = selectedRecordingIds.count == 1 ? selectedRecordingIds.first : nil
+		if newSingleId != previousSingleId {
+			isEditSheetPresented = false
+			selectedDetailTab = .transcript
+		}
+		if selectedRecordingIds.count != 1 {
+			isEditSheetPresented = false
 		}
 		applyDetailShellIfNeeded()
 		await loadDetailIfNeeded()
@@ -152,6 +167,8 @@ final class RecordingsStore {
 		selectedActiveRecordingId = id
 		selectedRecordingIds = []
 		detail = nil
+		isEditSheetPresented = false
+		selectedDetailTab = .transcript
 	}
 
 	/// Clears the current selection so the recordings overview can be shown.
@@ -163,10 +180,12 @@ final class RecordingsStore {
 		selectedRecordingIds = []
 		detail = nil
 		isDetailLoading = false
+		isEditSheetPresented = false
+		selectedDetailTab = .transcript
 	}
 
-	/// Show header / inspector from the list row immediately, before the heavy
-	/// detail payload (transcript, summary, audio paths) arrives.
+	/// Show header / detail chrome from the list row immediately, before the
+	/// heavy payload (transcript, summary, audio paths) arrives.
 	func applyDetailShellIfNeeded() {
 		guard selectedRecordingIds.count == 1, let recording = selectedRecording else {
 			if selectedRecordingIds.count != 1 {

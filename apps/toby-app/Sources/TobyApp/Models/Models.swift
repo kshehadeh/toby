@@ -938,7 +938,7 @@ struct ListenRecordingDetail: Decodable, Sendable {
 		return trimmed.isEmpty ? nil : trimmed
 	}
 
-	/// Distinct playable source tracks for the inspector player.
+	/// Distinct playable source tracks for the recording audio player.
 	/// Prefer single tracks first so default playback is not a summed dual mix.
 	/// Dual-mono combined (L=mic, R=system) is labeled "Both (L/R)".
 	var playableAudioSources: [(id: String, label: String, path: String)] {

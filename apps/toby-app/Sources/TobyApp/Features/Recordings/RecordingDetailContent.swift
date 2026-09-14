@@ -1,5 +1,10 @@
 import SwiftUI
 
+enum RecordingDetailTab: String, Hashable, CaseIterable {
+	case summary
+	case transcript
+}
+
 struct RecordingDetailContent: View {
 	@Bindable var store: RecordingsStore
 	/// Snapshot of the recording detail to display. Passed as a value (not read
@@ -13,39 +18,70 @@ struct RecordingDetailContent: View {
 	var isLoadingHeavyContent: Bool = false
 
 	var body: some View {
-		HStack(spacing: 0) {
-			mainColumn
-			Divider().overlay(SettingsDesign.cardBorder)
-			RecordingInspectorSidebar(
-				store: store,
-				detail: detail,
-				processingState: processingState,
-				isLoadingHeavyContent: isLoadingHeavyContent,
-			)
+		TabView(selection: $store.selectedDetailTab) {
+			Tab(value: RecordingDetailTab.summary) {
+				RecordingSummaryPane(
+					store: store,
+					detail: detail,
+					processingState: processingState,
+					isLoadingHeavyContent: isLoadingHeavyContent
+				)
+			} label: {
+				Text("Summary")
+			}
+			Tab(value: RecordingDetailTab.transcript) {
+				RecordingTranscriptPane(
+					detail: detail,
+					isLoadingHeavyContent: isLoadingHeavyContent
+				)
+			} label: {
+				Text("Transcript")
+			}
 		}
+		.padding(AppTheme.contentPadding)
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
+		.accessibilityIdentifier("recording-detail-tabs")
+	}
+}
+
+struct RecordingSummaryPane: View {
+	@Bindable var store: RecordingsStore
+	let detail: ListenRecordingDetail
+	var processingState: RecordingProcessingState? = nil
+	var isLoadingHeavyContent: Bool = false
+
+	private var isTranscribing: Bool {
+		guard let state = processingState,
+			state.recordingId == detail.id,
+			state.isActive else { return false }
+		return true
 	}
 
-	private var mainColumn: some View {
-		VStack(alignment: .leading, spacing: 16) {
-			if isLoadingHeavyContent && detail.showsSummary && !detail.hasLoadedSummaryBody {
+	private var isSummarizing: Bool {
+		store.summarizingRecordingId == detail.id
+	}
+
+	var body: some View {
+		Group {
+			if isSummarizing {
+				summarizingPlaceholder
+			} else if isLoadingHeavyContent && detail.showsSummary && !detail.hasLoadedSummaryBody {
 				summarySkeleton
 			} else if detail.showsSummary, let summary = detail.summary,
 				!summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 			{
 				summarySection(text: summary)
+			} else {
+				emptySummary
 			}
-			transcriptSection
 		}
 		.padding(20)
 		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+		.accessibilityIdentifier("recording-summary-tab")
 	}
 
 	private func summarySection(text: String) -> some View {
 		VStack(alignment: .leading, spacing: 4) {
-			Text("Summary")
-				.font(.system(size: 13, weight: .semibold))
-				.foregroundStyle(SettingsDesign.rowTitle)
 			Text("AI-generated summary of the transcript")
 				.font(.caption)
 				.foregroundStyle(SettingsDesign.rowDescription)
@@ -61,7 +97,7 @@ struct RecordingDetailContent: View {
 				.padding(12)
 			}
 			.automaticScrollIndicators(axes: .vertical)
-			.frame(maxHeight: 220)
+			.frame(maxWidth: .infinity, maxHeight: .infinity)
 			.background(SettingsDesign.cardBackground)
 			.clipShape(RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius))
 			.overlay {
@@ -74,16 +110,69 @@ struct RecordingDetailContent: View {
 					.padding(.top, 6)
 					.padding(.trailing, 8)
 			}
-			.padding(.top, 8)
+			.padding(.top, 4)
 			.accessibilityIdentifier("recording-summary-section")
 		}
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 	}
 
-	private var transcriptSection: some View {
+	private var emptySummary: some View {
+		ContentUnavailableView {
+			Label {
+				Text("No summary")
+			} icon: {
+				Image(systemName: "text.badge.star")
+					.accessibilityHidden(true)
+			}
+		} description: {
+			Text("There is no summary for this recording yet.")
+		} actions: {
+			Button("Summarize") {
+				store.selectedDetailTab = .summary
+				Task { await store.summarizeRecording(id: detail.id) }
+			}
+			.buttonStyle(.link)
+			.disabled(!detail.hasTranscript || isSummarizing || isTranscribing)
+			.help(
+				detail.hasTranscript
+					? "Summarize this recording"
+					: "Transcribe this recording first"
+			)
+			.accessibilityIdentifier("empty-summary-summarize-link")
+		}
+		.frame(maxWidth: .infinity, maxHeight: .infinity)
+		.accessibilityIdentifier("recording-summary-empty")
+	}
+
+	private var summarizingPlaceholder: some View {
+		VStack(spacing: 12) {
+			ProgressView()
+				.controlSize(.small)
+			Text("Summarizing…")
+				.font(.system(size: 13))
+				.foregroundStyle(SettingsDesign.rowDescription)
+		}
+		.frame(maxWidth: .infinity, maxHeight: .infinity)
+		.accessibilityIdentifier("recording-summary-summarizing")
+	}
+
+	private var summarySkeleton: some View {
 		VStack(alignment: .leading, spacing: 4) {
-			Text("Transcript")
-				.font(.system(size: 13, weight: .semibold))
-				.foregroundStyle(SettingsDesign.rowTitle)
+			Text("AI-generated summary of the transcript")
+				.font(.caption)
+				.foregroundStyle(SettingsDesign.rowDescription)
+			RecordingBlockSkeleton(lineCount: 5, accessibilityIdentifier: "recording-summary-skeleton")
+				.padding(.top, 4)
+		}
+	}
+}
+
+struct RecordingTranscriptPane: View {
+	let detail: ListenRecordingDetail
+	var isLoadingHeavyContent: Bool = false
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 4) {
 			Text(transcriptCaption)
 				.font(.caption)
 				.foregroundStyle(SettingsDesign.rowDescription)
@@ -108,12 +197,14 @@ struct RecordingDetailContent: View {
 						.padding(.trailing, 8)
 				}
 			}
-			.padding(.top, 8)
+			.padding(.top, 4)
 			.accessibilityIdentifier(
 				detail.hasTimedSegments ? "timed-transcript-section" : "plain-transcript-section"
 			)
 		}
+		.padding(20)
 		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+		.accessibilityIdentifier("recording-transcript-tab")
 	}
 
 	private var transcriptCaption: String {
@@ -125,19 +216,6 @@ struct RecordingDetailContent: View {
 
 	private var isLoadingTranscript: Bool {
 		isLoadingHeavyContent && detail.hasTranscript && !detail.hasLoadedTranscriptBody
-	}
-
-	private var summarySkeleton: some View {
-		VStack(alignment: .leading, spacing: 4) {
-			Text("Summary")
-				.font(.system(size: 13, weight: .semibold))
-				.foregroundStyle(SettingsDesign.rowTitle)
-			Text("AI-generated summary of the transcript")
-				.font(.caption)
-				.foregroundStyle(SettingsDesign.rowDescription)
-			RecordingBlockSkeleton(lineCount: 5, accessibilityIdentifier: "recording-summary-skeleton")
-				.padding(.top, 8)
-		}
 	}
 
 	@ViewBuilder

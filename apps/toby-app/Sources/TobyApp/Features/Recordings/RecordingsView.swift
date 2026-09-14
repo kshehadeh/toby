@@ -48,6 +48,9 @@ struct RecordingsView: View {
 		}
 		.onChange(of: store.selectedRecordingIds) { _, ids in
 			if !ids.isEmpty { preferList = false }
+			if ids.count != 1 {
+				store.isEditSheetPresented = false
+			}
 		}
 		.onChange(of: store.selectedActiveRecordingId) { _, id in
 			if id != nil { preferList = false }
@@ -84,6 +87,41 @@ struct RecordingsView: View {
 				// Clear stale active selection when recording stops.
 				store.selectedActiveRecordingId = nil
 			}
+		}
+		.sheet(
+			isPresented: Binding(
+				get: { store.isEditSheetPresented && store.selectedRecording != nil },
+				set: { store.isEditSheetPresented = $0 }
+			)
+		) {
+			if let recording = store.selectedRecording {
+				let detail = store.detail?.id == recording.id
+					? (store.detail ?? .placeholder(from: recording))
+					: .placeholder(from: recording)
+				RecordingEditSheet(
+					store: store,
+					detail: detail,
+					isLoadingHeavyContent: store.isDetailLoading && detail.isShell
+				)
+			}
+		}
+		.alert(
+			"Delete Audio?",
+			isPresented: Binding(
+				get: { store.pendingDeleteAudioRecordingId != nil },
+				set: { if !$0 { store.pendingDeleteAudioRecordingId = nil } }
+			)
+		) {
+			Button("Cancel", role: .cancel) {
+				store.pendingDeleteAudioRecordingId = nil
+			}
+			Button("Delete Audio", role: .destructive) {
+				guard let id = store.pendingDeleteAudioRecordingId else { return }
+				store.pendingDeleteAudioRecordingId = nil
+				Task { await store.deleteRecordingAudio(id: id) }
+			}
+		} message: {
+			Text("The audio files are deleted. The transcript, summary, and recording entry are kept. This cannot be undone.")
 		}
 		.alert(
 			"Delete \(store.pendingDeleteRecordingIds.count == 1 ? "Recording" : "Recordings")?",

@@ -29,7 +29,7 @@ mix—so headphone bleed does not turn into an echo. See [Listen mode](../listen
 `combined.m4a` and the source WAVs after a successful transcription. Audio is
 kept when transcription fails, so you can retry. Once the audio is deleted, the
 recording cannot be re-transcribed; you can also delete a recording's audio
-manually from the Recordings inspector. Turn this setting off to keep audio
+manually with **Delete Audio** in the Recordings toolbar. Turn this setting off to keep audio
 files alongside transcripts.
 
 ### OpenAI
@@ -81,7 +81,7 @@ Capture itself uses Toby.app’s [Native API](../api/native-api) (microphone / s
 ## Recording summaries
 
 Once a recording has a transcript, **Summarize** / **Re-Summarize** in the
-Recordings inspector generates an AI summary using the persona selected here.
+Recordings toolbar generates an AI summary using the persona selected here.
 See [Listen mode](../listen).
 
 ## If transcription fails

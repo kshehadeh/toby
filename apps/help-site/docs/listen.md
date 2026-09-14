@@ -42,22 +42,26 @@ When you stop and save:
    Transcription**). The recording entry, transcript, and any summary are kept;
    audio is kept instead when transcription fails or the setting is off. You
    can also delete just the audio at any time with **Delete Audio** in the
-   Recordings inspector. A recording without audio cannot be re-transcribed.
-5. The result appears in the **Recordings** window (playback, transcript, delete).
-   Opening a long recording shows the window title, date subtitle, and inspector immediately; the
-   transcript, summary, and player fill in after a short skeleton so the window
-   stays responsive. The player defaults to **System** (clean meeting audio) and
-   can switch to **Mic** or **Both (L/R)** when available. When the transcription
-   model returns timed segments, the transcript view shows **start timestamps** on
-   each line (for example `[0:12] …`); **Copy transcript** includes those times.
+   Recordings toolbar (disabled when the recording has no audio). A recording
+   without audio cannot be re-transcribed.
+5. The result appears in the **Recordings** window (transcript, summary, delete).
+   Opening a long recording shows the window title and date subtitle immediately;
+   the transcript, summary, and player fill in after a short skeleton so the window
+   stays responsive. Use **Edit Recording** to rename the take, inspect metadata,
+   and play audio. The player defaults to **System** (clean meeting audio) and
+   can switch to **Mic** or **Both (L/R)** when available. Summary and transcript
+   are separate tabs. When the transcription model returns timed segments, the
+   transcript tab shows **start timestamps** on each line (for example `[0:12] …`);
+   **Copy transcript** includes those times.
 
 ## Summarize a recording
 
 After a recording is transcribed, open it in **Recordings** and use **Summarize**
-(or **Re-Summarize** if a summary already exists). Toby generates a concise
-markdown summary with the persona you choose under **Settings → Transcription →
-Persona for recording summaries** (or your default persona). The summary appears
-above the transcript and is stored with the recording.
+(or **Re-Summarize** if a summary already exists) in the toolbar, or the
+**Summarize** link on the Summary tab when no summary exists yet. Toby generates
+a concise markdown summary with the persona you choose under **Settings →
+Transcription → Persona for recording summaries** (or your default persona). The
+summary is stored with the recording and shown on the Summary tab.
 
 You can still start a chat about a recording for deeper Q&A.
 
@@ -67,7 +71,7 @@ If a recording failed to transcribe or you changed your transcription settings:
 
 1. Open **Recordings** in the sidebar.
 2. Select the recording.
-3. Use the transcription / retry control in the recording detail (or ask in chat to re-transcribe that recording).
+3. Use **Transcribe** / **Re-Transcribe** in the Recordings toolbar (or ask in chat to re-transcribe that recording).
 
 Re-transcribing clears any existing summary so it cannot outlive a new transcript.
 Run **Summarize** again after re-transcription if you still want a summary.

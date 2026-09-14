@@ -610,6 +610,14 @@ enum RootToolbars {
 		}
 	}
 
+	static func recordingsTranscribeHelp(hasTranscript: Bool) -> String {
+		hasTranscript ? "Re-Transcribe" : "Transcribe"
+	}
+
+	static func recordingsSummarizeHelp(hasSummary: Bool) -> String {
+		hasSummary ? "Re-Summarize" : "Summarize"
+	}
+
 	@ToolbarContentBuilder
 	static func recordings(
 		common model: RootCommonToolbarModel,
@@ -617,14 +625,53 @@ enum RootToolbars {
 		hasSelection: Bool,
 		hasSingleSelection: Bool = false,
 		existingChatSessionId: String? = nil,
+		hasAudio: Bool = false,
+		hasTranscript: Bool = false,
+		hasSummary: Bool = false,
+		isTranscribing: Bool = false,
+		isSummarizing: Bool = false,
+		isDeletingAudio: Bool = false,
 		deleteHelp: String,
 		isDeleting: Bool,
 		onDelete: @escaping () -> Void,
 		onStartChat: @escaping () -> Void = {},
 		onShowChat: @escaping () -> Void = {},
+		onEdit: @escaping () -> Void = {},
+		onTranscribe: @escaping () -> Void = {},
+		onSummarize: @escaping () -> Void = {},
+		onDeleteAudio: @escaping () -> Void = {},
 	) -> some ToolbarContent {
 		common(model, header: RootHeaderTitle(title: title))
 		contextualActions(isVisible: hasSelection) {
+			if hasSingleSelection {
+				Button(action: onEdit) {
+					Image(systemName: "square.and.pencil")
+				}
+				.help("Edit Recording")
+				.accessibilityLabel("Edit Recording")
+				.accessibilityIdentifier("edit-recording-button")
+				Button(action: onTranscribe) {
+					Image(systemName: "waveform.badge.magnifyingglass")
+				}
+				.help(recordingsTranscribeHelp(hasTranscript: hasTranscript))
+				.accessibilityLabel(recordingsTranscribeHelp(hasTranscript: hasTranscript))
+				.disabled(isTranscribing || isSummarizing || !hasAudio)
+				.accessibilityIdentifier("transcribe-recording-button")
+				Button(action: onSummarize) {
+					Image(systemName: "text.badge.star")
+				}
+				.help(recordingsSummarizeHelp(hasSummary: hasSummary))
+				.accessibilityLabel(recordingsSummarizeHelp(hasSummary: hasSummary))
+				.disabled(isTranscribing || isSummarizing || !hasTranscript)
+				.accessibilityIdentifier("summarize-recording-button")
+				Button(role: .destructive, action: onDeleteAudio) {
+					Image(systemName: "speaker.slash")
+				}
+				.help("Delete Audio")
+				.accessibilityLabel("Delete Audio")
+				.disabled(isDeletingAudio || !hasAudio)
+				.accessibilityIdentifier("delete-audio-button")
+			}
 			let mode = recordingsChatToolbarMode(
 				hasSingleSelection: hasSingleSelection,
 				existingChatSessionId: existingChatSessionId,

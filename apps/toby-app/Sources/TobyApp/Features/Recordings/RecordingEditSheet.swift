@@ -1,10 +1,10 @@
 import SwiftUI
 
-struct RecordingInspectorSidebar: View {
+struct RecordingEditSheet: View {
 	@Bindable var store: RecordingsStore
 	let detail: ListenRecordingDetail
-	var processingState: RecordingProcessingState? = nil
 	var isLoadingHeavyContent: Bool = false
+	@Environment(\.dismiss) private var dismiss
 
 	@State private var nameText = ""
 	@State private var saveTask: Task<Void, Never>?
@@ -20,59 +20,39 @@ struct RecordingInspectorSidebar: View {
 		return "Saved"
 	}
 
-	/// True when the selected recording is actively being transcribed (either
-	/// via the manual Transcribe/Re-Transcribe button or the post-recording flow).
-	private var isTranscribing: Bool {
-		guard let state = processingState,
-			state.recordingId == detail.id,
-			state.isActive else { return false }
-		return true
-	}
-
-	private var isSummarizing: Bool {
-		store.summarizingRecordingId == detail.id
-	}
-
-	private var isDeletingAudio: Bool {
-		store.deletingAudioRecordingId == detail.id
-	}
-
 	var body: some View {
-		ScrollView {
-			VStack(alignment: .leading, spacing: 18) {
-				nameSection
-				Divider().overlay(SettingsDesign.cardBorder)
-				metadataSection
-				Divider().overlay(SettingsDesign.cardBorder)
-				audioSection
-				Divider().overlay(SettingsDesign.cardBorder)
-				transcriptionSection
-				if !visibleErrors.isEmpty {
+		NavigationStack {
+			ScrollView {
+				VStack(alignment: .leading, spacing: 18) {
+					nameSection
 					Divider().overlay(SettingsDesign.cardBorder)
-					errorsSection
+					metadataSection
+					Divider().overlay(SettingsDesign.cardBorder)
+					audioSection
+					if !visibleErrors.isEmpty {
+						Divider().overlay(SettingsDesign.cardBorder)
+						errorsSection
+					}
+				}
+				.padding(20)
+				.frame(maxWidth: .infinity, alignment: .leading)
+			}
+			.background(SettingsDesign.canvasBackground)
+			.navigationTitle("Edit Recording")
+			.toolbar {
+				ToolbarItem(placement: .confirmationAction) {
+					Button("Done") {
+						saveNow()
+						dismiss()
+					}
+					.keyboardShortcut(.defaultAction)
+					.accessibilityIdentifier("recording-edit-done-button")
 				}
 			}
-			.padding(18)
-			.frame(maxWidth: .infinity, alignment: .leading)
 		}
-		.frame(width: 280)
-		.alert(
-			"Delete Audio?",
-			isPresented: Binding(
-				get: { store.pendingDeleteAudioRecordingId == detail.id },
-				set: { if !$0 { store.pendingDeleteAudioRecordingId = nil } }
-			)
-		) {
-			Button("Cancel", role: .cancel) {
-				store.pendingDeleteAudioRecordingId = nil
-			}
-			Button("Delete Audio", role: .destructive) {
-				store.pendingDeleteAudioRecordingId = nil
-				Task { await store.deleteRecordingAudio(id: detail.id) }
-			}
-		} message: {
-			Text("The audio files are deleted. The transcript, summary, and recording entry are kept. This cannot be undone.")
-		}
+		.frame(minWidth: 420, idealWidth: 460, minHeight: 480, idealHeight: 560)
+		.accessibilityIdentifier("recording-edit-sheet")
+		.onDisappear { saveNow() }
 	}
 
 	@ViewBuilder
@@ -150,91 +130,6 @@ struct RecordingInspectorSidebar: View {
 				)
 				.font(.system(size: 11))
 				.foregroundStyle(SettingsDesign.rowDescription)
-			}
-
-			if detail.hasAudio {
-				Button {
-					store.pendingDeleteAudioRecordingId = detail.id
-				} label: {
-					Label("Delete Audio", systemImage: "trash")
-						.frame(maxWidth: .infinity)
-				}
-				.buttonStyle(.bordered)
-				.controlSize(.small)
-				.tint(.red)
-				.disabled(isDeletingAudio)
-				.accessibilityIdentifier("sidebar-delete-audio-button")
-			}
-		}
-	}
-
-	@ViewBuilder
-	private var transcriptionSection: some View {
-		VStack(alignment: .leading, spacing: 10) {
-			Text("Transcription")
-				.font(.system(size: 12, weight: .semibold))
-				.foregroundStyle(SettingsDesign.rowTitle)
-
-			if isTranscribing {
-				HStack(spacing: 8) {
-					ProgressView()
-						.scaleEffect(0.7)
-					Text(processingState?.message ?? "Transcribing…")
-						.font(.system(size: 11))
-						.foregroundStyle(SettingsDesign.rowDescription)
-				}
-			} else if detail.hasTranscript {
-				Text("Transcript available")
-					.font(.system(size: 11))
-					.foregroundStyle(SettingsDesign.rowDescription)
-			} else {
-				Text("No transcript yet")
-					.font(.system(size: 11))
-					.foregroundStyle(SettingsDesign.rowDescription)
-			}
-
-			Button {
-				Task { await store.transcribeRecording(id: detail.id) }
-			} label: {
-				Label(
-					detail.hasTranscript ? "Re-Transcribe" : "Transcribe",
-					systemImage: "waveform.badge.magnifyingglass"
-				)
-				.frame(maxWidth: .infinity)
-			}
-			.buttonStyle(.bordered)
-			.controlSize(.small)
-			.disabled(isTranscribing || isSummarizing || !detail.hasAudio)
-			.accessibilityIdentifier("sidebar-transcribe-button")
-
-			if detail.hasTranscript {
-				if isSummarizing {
-					HStack(spacing: 8) {
-						ProgressView()
-							.scaleEffect(0.7)
-						Text("Summarizing…")
-							.font(.system(size: 11))
-							.foregroundStyle(SettingsDesign.rowDescription)
-					}
-				} else if detail.showsSummary {
-					Text("Summary available")
-						.font(.system(size: 11))
-						.foregroundStyle(SettingsDesign.rowDescription)
-				}
-
-				Button {
-					Task { await store.summarizeRecording(id: detail.id) }
-				} label: {
-					Label(
-						detail.showsSummary ? "Re-Summarize" : "Summarize",
-						systemImage: "text.badge.star"
-					)
-					.frame(maxWidth: .infinity)
-				}
-				.buttonStyle(.bordered)
-				.controlSize(.small)
-				.disabled(isTranscribing || isSummarizing)
-				.accessibilityIdentifier("sidebar-summarize-button")
 			}
 		}
 	}

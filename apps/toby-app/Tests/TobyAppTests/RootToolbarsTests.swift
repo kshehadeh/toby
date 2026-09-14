@@ -417,6 +417,14 @@ struct RootToolbarsTests {
 		#expect(RootToolbars.recordingsChatIdentifier(mode: .showChat) == "show-recording-chat-button")
 	}
 
+	@Test("recordings transcribe and summarize toolbar labels are context aware")
+	func recordingsTranscribeAndSummarizeLabels() {
+		#expect(RootToolbars.recordingsTranscribeHelp(hasTranscript: false) == "Transcribe")
+		#expect(RootToolbars.recordingsTranscribeHelp(hasTranscript: true) == "Re-Transcribe")
+		#expect(RootToolbars.recordingsSummarizeHelp(hasSummary: false) == "Summarize")
+		#expect(RootToolbars.recordingsSummarizeHelp(hasSummary: true) == "Re-Summarize")
+	}
+
 	@Test("flows toolbar is home, detail, or editor")
 	func flowsToolbarMode() {
 		#expect(

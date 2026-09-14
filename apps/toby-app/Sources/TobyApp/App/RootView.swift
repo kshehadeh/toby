@@ -632,6 +632,12 @@ struct RootView: View {
                                                 chatSessionId: recordingsStore.detail?.metadata.chatSessionId,
                                                 validSessionIds: Set(store.sessions.map(\.id))
                                             ),
+                                            hasAudio: selectedRecordingHasAudio,
+                                            hasTranscript: selectedRecordingHasTranscript,
+                                            hasSummary: selectedRecordingHasSummary,
+                                            isTranscribing: isSelectedRecordingTranscribing,
+                                            isSummarizing: recordingsStore.summarizingRecordingId != nil,
+                                            isDeletingAudio: recordingsStore.deletingAudioRecordingId != nil,
                                             deleteHelp: RootToolbars.recordingsDeleteHelp(
                                                 selectedCount: recordingsStore.selectedRecordings.count
                                             ),
@@ -642,7 +648,14 @@ struct RootView: View {
                                                 )
                                             },
                                             onStartChat: startChatAboutSelectedRecording,
-                                            onShowChat: showChatForSelectedRecording
+                                            onShowChat: showChatForSelectedRecording,
+                                            onEdit: { recordingsStore.isEditSheetPresented = true },
+                                            onTranscribe: transcribeSelectedRecording,
+                                            onSummarize: summarizeSelectedRecording,
+                                            onDeleteAudio: {
+                                                recordingsStore.pendingDeleteAudioRecordingId =
+                                                    recordingsStore.selectedRecording?.id
+                                            }
                                         )
 
             case .skills:
@@ -928,10 +941,44 @@ struct RootView: View {
         Task { await store.selectSession(id: sessionId) }
     }
 
+    private var selectedRecordingHasAudio: Bool {
+        recordingsStore.detail?.hasAudio ?? recordingsStore.selectedRecording?.hasAudio ?? false
+    }
+
+    private var selectedRecordingHasTranscript: Bool {
+        recordingsStore.detail?.hasTranscript ?? recordingsStore.selectedRecording?.hasTranscript ?? false
+    }
+
+    private var selectedRecordingHasSummary: Bool {
+        recordingsStore.detail?.showsSummary ?? recordingsStore.selectedRecording?.hasSummary ?? false
+    }
+
+    private var isSelectedRecordingTranscribing: Bool {
+        guard let id = recordingsStore.selectedRecording?.id else { return false }
+        if let state = recordingsStore.transcriptionProcessing, state.recordingId == id, state.isActive {
+            return true
+        }
+        if let state = store.recordingProcessing, state.recordingId == id, state.isActive {
+            return true
+        }
+        return false
+    }
+
     private func startChatAboutSelectedRecording() {
         guard let recording = recordingsStore.selectedRecording else { return }
         let detail = recordingsStore.detail ?? .placeholder(from: recording)
         startChatAboutRecording(startChatAboutRecordingRequest(from: detail))
+    }
+
+    private func transcribeSelectedRecording() {
+        guard let id = recordingsStore.selectedRecording?.id else { return }
+        Task { await recordingsStore.transcribeRecording(id: id) }
+    }
+
+    private func summarizeSelectedRecording() {
+        guard let id = recordingsStore.selectedRecording?.id else { return }
+        recordingsStore.selectedDetailTab = .summary
+        Task { await recordingsStore.summarizeRecording(id: id) }
     }
 
     private func showChatForSelectedRecording() {

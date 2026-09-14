@@ -134,8 +134,8 @@ A selected recording uses the same title as the list row (its name, or the
 formatted start date when unnamed) and the formatted date/time as
 `navigationSubtitle`. A selected schedule, skill, or project uses that item’s
 name with status as the subtitle (project chats keep the session name and
-activity line). Names are edited in the detail inspector or About card, not as
-a toolbar item — putting the title in the toolbar packs trailing actions off
+activity line). Names are edited in the Edit Recording sheet or About card, not as
+an inline toolbar title — putting the title in the toolbar packs trailing actions off
 the window edge. A selected flow uses its display name and id; the flow editor
 uses the draft name as the window title, **New flow** / **Edit flow** as the
 subtitle, and Cancel/Save in the trailing toolbar. Detail panes do not
