@@ -194,9 +194,12 @@ decorative symbols `accessibilityHidden(true)`. Use shipped image assets rather
 than redrawing integration/provider/persona marks.
 
 The Dock icon is the Icon Composer document `apps/toby-app/AppIcon.icon`
-(layered Liquid Glass: orange fill, cream glass bubble, navy portrait; dark and
-tinted specializations). `toby-128.png` is the in-app header mark. `toby-menubar.png`
-is a template speech-bubble glyph for the status item (`isTemplate = true`).
+(layered Liquid Glass: orange fill, cream glass bubble, navy portrait). The
+bubble is inset in the plate so the container stays visible; dark keeps a cream
+bubble on a dark plate, and tinted/clear use a light bubble with dark lines so
+the mark does not wash out. `toby-128.png` is the in-app header mark.
+`toby-menubar.png` is a template speech-bubble glyph for the status item
+(`isTemplate = true`).
 
 ---
 
